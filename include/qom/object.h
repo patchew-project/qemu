@@ -1179,6 +1179,11 @@ Object *object_dynamic_cast(Object *obj, const char *typename);
 
 /**
  * object_dynamic_cast_assert:
+ * @obj: The object to cast.
+ * @typename: The @typename to cast to.
+ * @file: Source code file where function was called
+ * @line: Source code line where function was called
+ * @func: Name of function where this function was called
  *
  * See object_dynamic_cast() for a description of the parameters of this
  * function.  The only difference in behavior is that this function asserts
@@ -1255,6 +1260,9 @@ type_init(do_qemu_init_ ## type_array)
  * object_class_dynamic_cast_assert:
  * @klass: The #ObjectClass to attempt to cast.
  * @typename: The QOM typename of the class to cast to.
+ * @file: Source code file where function was called
+ * @line: Source code line where function was called
+ * @func: Name of function where this function was called
  *
  * See object_class_dynamic_cast() for a description of the parameters
  * of this function.  The only difference in behavior is that this function
@@ -1406,6 +1414,23 @@ ObjectProperty *object_property_try_add(Object *obj, const char *name,
  * object_property_add:
  * Same as object_property_try_add() with @errp hardcoded to
  * &error_abort.
+ *
+ * @obj: the object to add a property to
+ * @name: the name of the property.  This can contain any character except for
+ *  a forward slash.  In general, you should use hyphens '-' instead of
+ *  underscores '_' when naming properties.
+ * @type: the type name of the property.  This namespace is pretty loosely
+ *   defined.  Sub namespaces are constructed by using a prefix and then
+ *   to angle brackets.  For instance, the type 'virtio-net-pci' in the
+ *   'link' namespace would be 'link<virtio-net-pci>'.
+ * @get: The getter to be called to read a property.  If this is NULL, then
+ *   the property cannot be read.
+ * @set: the setter to be called to write a property.  If this is NULL,
+ *   then the property cannot be written.
+ * @release: called when the property is removed from the object.  This is
+ *   meant to allow a property to free its opaque upon object
+ *   destruction.  This may be NULL.
+ * @opaque: an opaque pointer to pass to the callbacks for the property
  */
 ObjectProperty *object_property_add(Object *obj, const char *name,
                                     const char *type,
@@ -1479,6 +1504,7 @@ typedef struct ObjectPropertyIterator {
 
 /**
  * object_property_iter_init:
+ * @iter: the iterator instance
  * @obj: the object
  *
  * Initializes an iterator for traversing all properties
@@ -1507,6 +1533,7 @@ void object_property_iter_init(ObjectPropertyIterator *iter,
 
 /**
  * object_class_property_iter_init:
+ * @iter: the iterator instance
  * @klass: the class
  *
  * Initializes an iterator for traversing all properties
@@ -1554,6 +1581,7 @@ bool object_property_get(Object *obj, const char *name, Visitor *v,
 
 /**
  * object_property_set_str:
+ * @obj: the object
  * @name: the name of the property
  * @value: the value to be written to the property
  * @errp: returns an error if this function fails
@@ -1580,6 +1608,7 @@ char *object_property_get_str(Object *obj, const char *name,
 
 /**
  * object_property_set_link:
+ * @obj: the object
  * @name: the name of the property
  * @value: the value to be written to the property
  * @errp: returns an error if this function fails
@@ -1610,6 +1639,7 @@ Object *object_property_get_link(Object *obj, const char *name,
 
 /**
  * object_property_set_bool:
+ * @obj: the object
  * @name: the name of the property
  * @value: the value to be written to the property
  * @errp: returns an error if this function fails
@@ -1635,6 +1665,7 @@ bool object_property_get_bool(Object *obj, const char *name,
 
 /**
  * object_property_set_int:
+ * @obj: the object
  * @name: the name of the property
  * @value: the value to be written to the property
  * @errp: returns an error if this function fails
@@ -1660,6 +1691,7 @@ int64_t object_property_get_int(Object *obj, const char *name,
 
 /**
  * object_property_set_uint:
+ * @obj: the object
  * @name: the name of the property
  * @value: the value to be written to the property
  * @errp: returns an error if this function fails
@@ -1783,6 +1815,7 @@ Object *object_get_internal_root(void);
 
 /**
  * object_get_canonical_path_component:
+ * @obj: the object
  *
  * Returns: The final component in the object's canonical path.  The canonical
  * path is the path within the composition tree starting from the root.
@@ -1792,6 +1825,7 @@ const char *object_get_canonical_path_component(const Object *obj);
 
 /**
  * object_get_canonical_path:
+ * @obj: the object
  *
  * Returns: The canonical path for a object, newly allocated.  This is
  * the path within the composition tree starting from the root.  Use
@@ -1881,6 +1915,10 @@ ObjectProperty *object_property_try_add_child(Object *obj, const char *name,
 
 /**
  * object_property_add_child:
+ * @obj: the object to add a property to
+ * @name: the name of the property
+ * @child: the child object
+ *
  * Same as object_property_try_add_child() with @errp hardcoded to
  * &error_abort
  */
@@ -1898,13 +1936,17 @@ typedef enum {
 
 /**
  * object_property_allow_set_link:
+ * @obj: the object to add a property to
+ * @name: the name of the property
+ * @child: the child object
+ * @errp: pointer to error object
  *
  * The default implementation of the object_property_add_link() check()
  * callback function.  It allows the link property to be set and never returns
  * an error.
  */
-void object_property_allow_set_link(const Object *, const char *,
-                                    Object *, Error **);
+void object_property_allow_set_link(const Object *obj, const char *name,
+                                    Object *child, Error **errp);
 
 /**
  * object_property_add_link:
@@ -1998,6 +2040,7 @@ ObjectProperty *object_class_property_add_bool(ObjectClass *klass,
  * @obj: the object to add a property to
  * @name: the name of the property
  * @typename: the name of the enum data type
+ * @lookup: enum value namelookup table
  * @get: the getter or %NULL if the property is write-only.
  * @set: the setter or %NULL if the property is read-only
  *
