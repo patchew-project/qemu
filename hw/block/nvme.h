@@ -203,5 +203,7 @@ static inline NvmeCtrl *nvme_ctrl(NvmeRequest *req)
 }
 
 int nvme_register_namespace(NvmeCtrl *n, NvmeNamespace *ns, Error **errp);
+void nvme_zone_changed(NvmeCtrl *n, NvmeNamespace *ns, NvmeZone *zone,
+                       NvmeRequest *req);
 
 #endif /* HW_NVME_H */

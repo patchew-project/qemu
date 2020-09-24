@@ -41,6 +41,15 @@ nvme-ns Options
      will release active resources when needed by transitioning zones to the
      Full state.
 
+  `zns.{rrld,frld}`; Specifies the Reset and Finish Recommended Limit Delays,
+     that is, the number of seconds until the controller sets the Reset and
+     Finish Zone Recommended attributes on finished and opened zones
+     respectively.
+
+  `zns.{rrl,frl}`; Specifies the Reset and Finish Recommended Limits, that is,
+     the number of seconds until the controller clears the Reset and Finish
+     Zone Recommended attributes on finished and opened zones respectively.
+
 
 Reference Specifications
 ------------------------

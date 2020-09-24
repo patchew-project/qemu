@@ -1200,8 +1200,8 @@ static inline void nvme_zone_reset_wp(NvmeZone *zone)
     zone->wp_staging = nvme_zslba(zone);
 }
 
-static void nvme_zone_changed(NvmeCtrl *n, NvmeNamespace *ns, NvmeZone *zone,
-                              NvmeRequest *req)
+void nvme_zone_changed(NvmeCtrl *n, NvmeNamespace *ns, NvmeZone *zone,
+                       NvmeRequest *req)
 {
     uint16_t num_ids = le16_to_cpu(ns->zns.changed_list.num_ids);
 
@@ -1244,6 +1244,7 @@ static void nvme_zone_active_excursion(NvmeCtrl *n, NvmeNamespace *ns,
 
     nvme_zrm_transition(n, ns, zone, NVME_ZS_ZSF, req);
     NVME_ZA_SET(zone->zd->za, NVME_ZA_ZFC);
+    NVME_ZA_CLEAR(zone->zd->za, NVME_ZA_FZR);
 
     nvme_zone_changed(n, ns, zone, req);
 }
@@ -1340,6 +1341,16 @@ out:
     return NVME_SUCCESS;
 }
 
+static void nvme_zone_activate(NvmeNamespace *ns, NvmeZone *zone)
+{
+    zone->stats.timestamp = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+
+    if (ns->params.zns.frld && !timer_pending(ns->zns.timer)) {
+        int64_t next_timer = zone->stats.timestamp + ns->zns.frld_ns;
+        timer_mod(ns->zns.timer, next_timer);
+    }
+}
+
 static uint16_t nvme_zrm_transition(NvmeCtrl *n, NvmeNamespace *ns,
                                     NvmeZone *zone, NvmeZoneState to,
                                     NvmeRequest *req)
@@ -1373,6 +1384,8 @@ static uint16_t nvme_zrm_transition(NvmeCtrl *n, NvmeNamespace *ns,
             ns->zns.resources.active--;
             QTAILQ_INSERT_TAIL(&ns->zns.resources.lru_active, zone, lru_entry);
 
+            nvme_zone_activate(ns, zone);
+
             break;
 
         case NVME_ZS_ZSIO:
@@ -1395,6 +1408,7 @@ static uint16_t nvme_zrm_transition(NvmeCtrl *n, NvmeNamespace *ns,
             ns->zns.resources.open--;
             QTAILQ_INSERT_TAIL(&ns->zns.resources.lru_open, zone, lru_entry);
 
+            nvme_zone_activate(ns, zone);
             break;
 
         default:
@@ -1521,6 +1535,43 @@ static uint16_t nvme_zrm_transition(NvmeCtrl *n, NvmeNamespace *ns,
     }
 
     nvme_zs_set(zone, to);
+
+    if (ns->params.zns.rrld) {
+        switch (to) {
+        case NVME_ZS_ZSRO:
+            /* clock is already ticking if the zone was already full */
+            if (from == NVME_ZS_ZSF) {
+                break;
+            }
+
+            /* fallthrough */
+
+        case NVME_ZS_ZSF:
+            QTAILQ_INSERT_TAIL(&ns->zns.lru_finished, zone, lru_entry);
+
+            zone->stats.timestamp = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+
+            if (!timer_pending(ns->zns.timer)) {
+                int64_t next_timer = zone->stats.timestamp + ns->zns.rrld_ns;
+                timer_mod(ns->zns.timer, next_timer);
+            }
+
+            break;
+
+        case NVME_ZS_ZSE:
+        case NVME_ZS_ZSO:
+            if (from == NVME_ZS_ZSF) {
+                QTAILQ_REMOVE(&ns->zns.lru_finished, zone, lru_entry);
+                zone->stats.timestamp = 0;
+            }
+
+            break;
+
+        default:
+            break;
+        }
+    }
+
     return NVME_SUCCESS;
 }
 
@@ -1727,6 +1778,7 @@ static uint16_t nvme_zone_mgmt_send_finish(NvmeCtrl *n, NvmeRequest *req,
         return status;
     }
 
+    NVME_ZA_CLEAR(zone->zd->za, NVME_ZA_FZR);
     if (nvme_zns_commit_zone(ns, zone) < 0) {
         return NVME_INTERNAL_DEV_ERROR;
     }

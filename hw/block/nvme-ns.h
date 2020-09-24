@@ -31,6 +31,10 @@ typedef struct NvmeNamespaceParams {
         uint32_t mar;
         uint32_t mor;
         uint16_t zoc;
+        uint32_t rrl;
+        uint32_t frl;
+        uint32_t rrld;
+        uint32_t frld;
     } zns;
 } NvmeNamespaceParams;
 
@@ -40,8 +44,14 @@ typedef struct NvmeZone {
 
     uint64_t wp_staging;
 
+    struct {
+        int64_t timestamp;
+    } stats;
+
     QTAILQ_ENTRY(NvmeZone) lru_entry;
 } NvmeZone;
+
+typedef QTAILQ_HEAD(, NvmeZone) NvmeZoneList;
 
 typedef struct NvmeNamespace {
     DeviceState  parent_obj;
@@ -81,11 +91,15 @@ typedef struct NvmeNamespace {
             uint32_t open;
             uint32_t active;
 
-            QTAILQ_HEAD(, NvmeZone) lru_open;
-            QTAILQ_HEAD(, NvmeZone) lru_active;
+            NvmeZoneList lru_open;
+            NvmeZoneList lru_active;
         } resources;
 
         NvmeChangedZoneList changed_list;
+
+        NvmeZoneList lru_finished;
+        QEMUTimer *timer;
+        int64_t rrl_ns, rrld_ns, frl_ns, frld_ns;
     } zns;
 } NvmeNamespace;
 

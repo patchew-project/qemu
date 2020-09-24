@@ -894,6 +894,8 @@ typedef struct QEMU_PACKED NvmeChangedZoneList {
 } NvmeChangedZoneList;
 
 #define NVME_ZA_ZFC  (1 << 0)
+#define NVME_ZA_FZR  (1 << 1)
+#define NVME_ZA_RZR  (1 << 2)
 #define NVME_ZA_ZDEV (1 << 7)
 
 #define NVME_ZA_SET(za, attrs)   ((za) |= (attrs))
