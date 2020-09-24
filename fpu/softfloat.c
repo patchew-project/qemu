@@ -929,45 +929,6 @@ static FloatParts pick_nan(FloatParts a, FloatParts b, float_status *s)
     return a;
 }
 
-static FloatParts pick_nan_muladd(FloatParts a, FloatParts b, FloatParts c,
-                                  bool inf_zero, float_status *s)
-{
-    int which;
-
-    if (is_snan(a.cls) || is_snan(b.cls) || is_snan(c.cls)) {
-        s->float_exception_flags |= float_flag_invalid;
-    }
-
-    which = pickNaNMulAdd(a.cls, b.cls, c.cls, inf_zero, s);
-
-    if (s->default_nan_mode) {
-        /* Note that this check is after pickNaNMulAdd so that function
-         * has an opportunity to set the Invalid flag.
-         */
-        which = 3;
-    }
-
-    switch (which) {
-    case 0:
-        break;
-    case 1:
-        a = b;
-        break;
-    case 2:
-        a = c;
-        break;
-    case 3:
-        return parts_default_nan(s);
-    default:
-        g_assert_not_reached();
-    }
-
-    if (is_snan(a.cls)) {
-        return parts_silence_nan(a, s);
-    }
-    return a;
-}
-
 /*
  * Returns the result of adding or subtracting the values of the
  * floating-point values `a' and `b'. The operation is performed
@@ -1366,7 +1327,41 @@ static FloatParts muladd_floats(FloatParts a, FloatParts b, FloatParts c,
      * off to the target-specific pick-a-NaN routine.
      */
     if (unlikely(abc_mask & float_cmask_anynan)) {
-        return pick_nan_muladd(a, b, c, inf_zero, s);
+        int which;
+
+        if (unlikely(abc_mask & float_cmask_snan)) {
+            float_raise(float_flag_invalid, s);
+        }
+
+        which = pickNaNMulAdd(a.cls, b.cls, c.cls, inf_zero, s);
+
+        if (s->default_nan_mode) {
+            /*
+             * Note that this check is after pickNaNMulAdd so that function
+             * has an opportunity to set the Invalid flag for inf_zero.
+             */
+            which = 3;
+        }
+
+        switch (which) {
+        case 0:
+            break;
+        case 1:
+            a = b;
+            break;
+        case 2:
+            a = c;
+            break;
+        case 3:
+            return parts_default_nan(s);
+        default:
+            g_assert_not_reached();
+        }
+
+        if (is_snan(a.cls)) {
+            return parts_silence_nan(a, s);
+        }
+        return a;
     }
 
     if (unlikely(inf_zero)) {
