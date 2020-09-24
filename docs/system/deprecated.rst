@@ -104,17 +104,6 @@ error in the future.
 The ``-realtime mlock=on|off`` argument has been replaced by the
 ``-overcommit mem-lock=on|off`` argument.
 
-``-mem-path`` fallback to RAM (since 4.1)
-'''''''''''''''''''''''''''''''''''''''''
-
-Currently if guest RAM allocation from file pointed by ``mem-path``
-fails, QEMU falls back to allocating from RAM, which might result
-in unpredictable behavior since the backing file specified by the user
-is ignored. In the future, users will be responsible for making sure
-the backing storage specified with ``-mem-path`` can actually provide
-the guest RAM configured with ``-m`` and QEMU will fail to start up if
-RAM allocation is unsuccessful.
-
 RISC-V ``-bios`` (since 5.1)
 ''''''''''''''''''''''''''''
 
@@ -646,6 +635,16 @@ to achieve the same fake NUMA effect or a properly configured
 New machine versions (since 5.1) will not accept the option but it will still
 work with old machine types. User can check the QAPI schema to see if the legacy
 option is supported by looking at MachineInfo::numa-mem-supported property.
+
+``-mem-path`` fallback to RAM (removed in 5.0)
+''''''''''''''''''''''''''''''''''''''''''''''
+
+If guest RAM allocation from file pointed by ``mem-path`` failed,
+QEMU was falling back to allocating from RAM, which might have resulted
+in unpredictable behavior since the backing file specified by the user
+as ignored. Currently, users are responsible for making sure the backing storage
+specified with ``-mem-path`` can actually provide the guest RAM configured with
+``-m`` and QEMU fails to start up if RAM allocation is unsuccessful.
 
 Block devices
 -------------
