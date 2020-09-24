@@ -126,6 +126,9 @@ static void nvme_ns_init_zoned(NvmeNamespace *ns)
         ns->params.zns.mar + 1 : ns->zns.num_zones;
     ns->zns.resources.open = ns->params.zns.mor != 0xffffffff ?
         ns->params.zns.mor + 1 : ns->zns.num_zones;
+
+    QTAILQ_INIT(&ns->zns.resources.lru_open);
+    QTAILQ_INIT(&ns->zns.resources.lru_active);
 }
 
 static void nvme_ns_init(NvmeNamespace *ns)
@@ -259,6 +262,8 @@ static int nvme_ns_setup_blk_pstate(NvmeNamespace *ns, Error **errp)
 
                     if (ns->zns.resources.active) {
                         ns->zns.resources.active--;
+                        QTAILQ_INSERT_TAIL(&ns->zns.resources.lru_active, zone,
+                                           lru_entry);
                         continue;
                     }
 
