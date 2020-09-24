@@ -31,7 +31,20 @@ typedef struct NvmeNamespace {
     int64_t      size;
     NvmeIdNs     id_ns;
 
+    struct {
+        BlockBackend *blk;
+
+        struct {
+            unsigned long *map;
+            int64_t       offset;
+        } utilization;
+    } pstate;
+
     NvmeNamespaceParams params;
+
+    struct {
+        uint32_t err_rec;
+    } features;
 } NvmeNamespace;
 
 static inline uint32_t nvme_nsid(NvmeNamespace *ns)

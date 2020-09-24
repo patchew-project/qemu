@@ -25,8 +25,35 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-core.h"
 
+#include "trace.h"
+
 #include "nvme.h"
 #include "nvme-ns.h"
+
+static int nvme_blk_truncate(BlockBackend *blk, size_t len, Error **errp)
+{
+    int ret;
+    uint64_t perm, shared_perm;
+
+    blk_get_perm(blk, &perm, &shared_perm);
+
+    ret = blk_set_perm(blk, perm | BLK_PERM_RESIZE, shared_perm, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = blk_truncate(blk, len, false, PREALLOC_MODE_OFF, 0, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = blk_set_perm(blk, perm, shared_perm, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return 0;
+}
 
 static void nvme_ns_init(NvmeNamespace *ns)
 {
@@ -43,6 +70,67 @@ static void nvme_ns_init(NvmeNamespace *ns)
     /* no thin provisioning */
     id_ns->ncap = id_ns->nsze;
     id_ns->nuse = id_ns->ncap;
+}
+
+static int nvme_ns_setup_blk_pstate(NvmeNamespace *ns, Error **errp)
+{
+    BlockBackend *blk = ns->pstate.blk;
+    uint64_t perm, shared_perm;
+    ssize_t len;
+    size_t pstate_len;
+    int ret;
+
+    perm = BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE;
+    shared_perm = BLK_PERM_ALL;
+
+    ret = blk_set_perm(blk, perm, shared_perm, errp);
+    if (ret) {
+        return ret;
+    }
+
+    pstate_len = ROUND_UP(DIV_ROUND_UP(nvme_ns_nlbas(ns), 8),
+                          BDRV_SECTOR_SIZE);
+
+    len = blk_getlength(blk);
+    if (len < 0) {
+        error_setg_errno(errp, -len, "could not determine pstate size");
+        return len;
+    }
+
+    unsigned long *map = bitmap_new(nvme_ns_nlbas(ns));
+    ns->pstate.utilization.offset = 0;
+
+    if (!len) {
+        ret = nvme_blk_truncate(blk, pstate_len, errp);
+        if (ret < 0) {
+            return ret;
+        }
+
+        ns->pstate.utilization.map = map;
+    } else {
+        if (len != pstate_len) {
+            error_setg(errp, "pstate size mismatch "
+                "(expected %zd bytes; was %zu bytes)",
+                pstate_len, len);
+            return -1;
+        }
+
+        ret = blk_pread(blk, 0, map, pstate_len);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "could not read pstate");
+            return ret;
+        }
+#ifdef HOST_WORDS_BIGENDIAN
+        ns->pstate.utilization.map = bitmap_new(nvme_ns_nlbas(ns));
+        bitmap_from_le(ns->pstate.utilization.map, map, nvme_ns_nlbas(ns));
+#else
+        ns->pstate.utilization.map = map;
+#endif
+
+        return 0;
+    }
+
+    return 0;
 }
 
 static int nvme_ns_init_blk(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
@@ -96,6 +184,19 @@ int nvme_ns_setup(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
     }
 
     nvme_ns_init(ns);
+
+    if (ns->pstate.blk) {
+        if (nvme_ns_setup_blk_pstate(ns, errp)) {
+            return -1;
+        }
+
+        /*
+         * With a pstate file in place we can enable the Deallocated or
+         * Unwritten Logical Block Error feature.
+         */
+        ns->id_ns.nsfeat |= 0x4;
+    }
+
     if (nvme_register_namespace(n, ns, errp)) {
         return -1;
     }
@@ -106,11 +207,19 @@ int nvme_ns_setup(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
 void nvme_ns_drain(NvmeNamespace *ns)
 {
     blk_drain(ns->blkconf.blk);
+
+    if (ns->pstate.blk) {
+        blk_drain(ns->pstate.blk);
+    }
 }
 
 void nvme_ns_flush(NvmeNamespace *ns)
 {
     blk_flush(ns->blkconf.blk);
+
+    if (ns->pstate.blk) {
+        blk_flush(ns->pstate.blk);
+    }
 }
 
 static void nvme_ns_realize(DeviceState *dev, Error **errp)
@@ -131,6 +240,7 @@ static Property nvme_ns_props[] = {
     DEFINE_BLOCK_PROPERTIES(NvmeNamespace, blkconf),
     DEFINE_PROP_UINT32("nsid", NvmeNamespace, params.nsid, 0),
     DEFINE_PROP_UINT8("lbads", NvmeNamespace, params.lbads, BDRV_SECTOR_BITS),
+    DEFINE_PROP_DRIVE("pstate", NvmeNamespace, pstate.blk),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -12,6 +12,13 @@ nvme-ns Options
      namespace. It is specified in terms of a power of two. Only values between
      9 and 12 (both inclusive) are supported.
 
+  `pstate`; This parameter specifies another blockdev to be used for storing
+     persistent state such as logical block allocation tracking. Adding this
+     parameter enables various optional features of the device.
+
+       -drive id=pstate,file=pstate.img,format=raw
+       -device nvme-ns,pstate=pstate,...
+
 
 Reference Specifications
 ------------------------
