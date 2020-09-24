@@ -1,7 +1,16 @@
 NVM Express Controller
 ======================
 
-The nvme device (-device nvme) emulates an NVM Express Controller.
+The nvme device (-device nvme) emulates an NVM Express Controller. It is used
+together with nvme-ns devices (-device nvme-ns) which emulates an NVM Express
+Namespace.
+
+nvme-ns Options
+---------------
+
+  `lbads`; The "LBA Data Size (LBADS)" indicates the LBA data size used by the
+     namespace. It is specified in terms of a power of two. Only values between
+     9 and 12 (both inclusive) are supported.
 
 
 Reference Specifications
