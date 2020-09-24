@@ -37,6 +37,7 @@
 #include "sysemu/reset.h"
 #include "trace.h"
 #include "qapi/error.h"
+#include "qemu/units.h"
 
 VFIOGroupList vfio_group_list =
     QLIST_HEAD_INITIALIZER(vfio_group_list);
@@ -498,6 +499,143 @@ out:
     rcu_read_unlock();
 }
 
+static int vfio_sparse_ram_notify(SparseRAMNotifier *n, const MemoryRegion *mr,
+                                  uint64_t mr_offset, uint64_t size,
+                                  bool map)
+{
+    VFIOSparseRAM *sram = container_of(n, VFIOSparseRAM, notifier);
+    const hwaddr mr_start = MAX(mr_offset, sram->offset_within_region);
+    const hwaddr mr_end = MIN(mr_offset + size,
+                              sram->offset_within_region + sram->size);
+    const hwaddr iova_start = mr_start + sram->offset_within_address_space;
+    const hwaddr iova_end = mr_end + sram->offset_within_address_space;
+    hwaddr mr_cur, iova_cur, mr_next;
+    void *vaddr;
+    int ret, ret2;
+
+    g_assert(mr == sram->mr);
+
+    /* We get notified about everything, ignore range we don't care about. */
+    if (mr_start >= mr_end) {
+        return 0;
+    }
+
+    /* Unmap everything with a single call. */
+    if (!map) {
+        ret = vfio_dma_unmap(sram->container, iova_start,
+                             iova_end - iova_start);
+        if (ret) {
+            error_report("%s: vfio_dma_unmap() failed: %s", __func__,
+                         strerror(-ret));
+        }
+        return 0;
+    }
+
+    /* TODO: fail early if we would exceed a specified number of mappings. */
+
+    /* Map in (aligned within MR) granularity, so we can unmap later. */
+    for (mr_cur = mr_start; mr_cur < mr_end; mr_cur = mr_next) {
+        iova_cur = mr_cur + sram->offset_within_address_space;
+        mr_next = QEMU_ALIGN_UP(mr_cur + 1, sram->granularity);
+        mr_next = MIN(mr_next, mr_end);
+
+        vaddr = memory_region_get_ram_ptr(sram->mr) + mr_cur;
+        ret = vfio_dma_map(sram->container, iova_cur, mr_next - mr_cur,
+                           vaddr, mr->readonly);
+        if (ret) {
+            /* Rollback in case of error. */
+            if (mr_cur != mr_start) {
+                ret2 = vfio_dma_unmap(sram->container, iova_start,
+                                      iova_end - iova_start);
+                if (ret2) {
+                    error_report("%s: vfio_dma_unmap() failed: %s", __func__,
+                                  strerror(-ret));
+                }
+            }
+            return ret;
+        }
+    }
+    return 0;
+}
+
+static int vfio_sparse_ram_notify_map(SparseRAMNotifier *n,
+                                      const MemoryRegion *mr,
+                                      uint64_t mr_offset, uint64_t size)
+{
+    return vfio_sparse_ram_notify(n, mr, mr_offset, size, true);
+}
+
+static void vfio_sparse_ram_notify_unmap(SparseRAMNotifier *n,
+                                         const MemoryRegion *mr,
+                                         uint64_t mr_offset, uint64_t size)
+{
+    vfio_sparse_ram_notify(n, mr, mr_offset, size, false);
+}
+
+static void vfio_register_sparse_ram(VFIOContainer *container,
+                                     MemoryRegionSection *section)
+{
+    VFIOSparseRAM *sram;
+    int ret;
+
+    sram = g_new0(VFIOSparseRAM, 1);
+    sram->container = container;
+    sram->mr = section->mr;
+    sram->offset_within_region = section->offset_within_region;
+    sram->offset_within_address_space = section->offset_within_address_space;
+    sram->size = int128_get64(section->size);
+    sram->granularity = memory_region_sparse_ram_get_granularity(section->mr);
+
+    /*
+     * TODO: We usually want a bigger granularity (for a lot of addded memory,
+     * as we need quite a lot of mappings) - however, this has to be configured
+     * by the user.
+     */
+    g_assert(sram->granularity >= 1 * MiB &&
+             is_power_of_2(sram->granularity));
+
+    /* Register the notifier */
+    sparse_ram_notifier_init(&sram->notifier, vfio_sparse_ram_notify_map,
+                             vfio_sparse_ram_notify_unmap);
+    memory_region_register_sparse_ram_notifier(section->mr, &sram->notifier);
+    QLIST_INSERT_HEAD(&container->sram_list, sram, next);
+    /*
+     * Replay mapped blocks - if anything goes wrong (only when hotplugging
+     * vfio devices), report the error for now.
+     *
+     * TODO: Can we catch this earlier?
+     */
+    ret = memory_region_sparse_ram_replay_mapped(section->mr, &sram->notifier);
+    if (ret) {
+        error_report("%s: failed to replay mappings: %s", __func__,
+                     strerror(-ret));
+    }
+}
+
+static void vfio_unregister_sparse_ram(VFIOContainer *container,
+                                       MemoryRegionSection *section)
+{
+    VFIOSparseRAM *sram = NULL;
+
+    QLIST_FOREACH(sram, &container->sram_list, next) {
+        if (sram->mr == section->mr &&
+            sram->offset_within_region == section->offset_within_region &&
+            sram->offset_within_address_space ==
+            section->offset_within_address_space) {
+            break;
+        }
+    }
+
+    if (!sram) {
+        hw_error("vfio: Trying to unregister non-existant sparse RAM");
+    }
+
+    memory_region_unregister_sparse_ram_notifier(section->mr, &sram->notifier);
+    QLIST_REMOVE(sram, next);
+    g_free(sram);
+    /* The caller is expected to vfio_dma_unmap(). */
+}
+
 static void vfio_listener_region_add(MemoryListener *listener,
                                      MemoryRegionSection *section)
 {
@@ -650,6 +788,15 @@ static void vfio_listener_region_add(MemoryListener *listener,
 
     /* Here we assume that memory_region_is_ram(section->mr)==true */
 
+    /*
+     * For sparse RAM, we only want to register the actually mapped
+     * pieces - and update the mapping whenever we're notified about changes.
+     */
+    if (memory_region_is_sparse_ram(section->mr)) {
+        vfio_register_sparse_ram(container, section);
+        return;
+    }
+
     vaddr = memory_region_get_ram_ptr(section->mr) +
             section->offset_within_region +
             (iova - section->offset_within_address_space);
@@ -786,6 +933,13 @@ static void vfio_listener_region_del(MemoryListener *listener,
 
         pgmask = (1ULL << ctz64(hostwin->iova_pgsizes)) - 1;
         try_unmap = !((iova & pgmask) || (int128_get64(llsize) & pgmask));
+    } else if (memory_region_is_sparse_ram(section->mr)) {
+        vfio_unregister_sparse_ram(container, section);
+        /*
+         * We rely on a single vfio_dma_unmap() call below to clean the whole
+         * region.
+         */
+        try_unmap = true;
     }
 
     if (try_unmap) {
@@ -1275,6 +1429,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     container->error = NULL;
     QLIST_INIT(&container->giommu_list);
     QLIST_INIT(&container->hostwin_list);
+    QLIST_INIT(&container->sram_list);
 
     ret = vfio_init_container(container, group->fd, errp);
     if (ret) {

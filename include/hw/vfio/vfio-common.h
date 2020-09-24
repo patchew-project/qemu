@@ -77,6 +77,7 @@ typedef struct VFIOContainer {
     QLIST_HEAD(, VFIOGuestIOMMU) giommu_list;
     QLIST_HEAD(, VFIOHostDMAWindow) hostwin_list;
     QLIST_HEAD(, VFIOGroup) group_list;
+    QLIST_HEAD(, VFIOSparseRAM) sram_list;
     QLIST_ENTRY(VFIOContainer) next;
 } VFIOContainer;
 
@@ -87,6 +88,17 @@ typedef struct VFIOGuestIOMMU {
     IOMMUNotifier n;
     QLIST_ENTRY(VFIOGuestIOMMU) giommu_next;
 } VFIOGuestIOMMU;
+
+typedef struct VFIOSparseRAM {
+    VFIOContainer *container;
+    MemoryRegion *mr;
+    hwaddr offset_within_region;
+    hwaddr offset_within_address_space;
+    hwaddr size;
+    uint64_t granularity;
+    SparseRAMNotifier notifier;
+    QLIST_ENTRY(VFIOSparseRAM) next;
+} VFIOSparseRAM;
 
 typedef struct VFIOHostDMAWindow {
     hwaddr min_iova;
