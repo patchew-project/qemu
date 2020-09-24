@@ -81,6 +81,7 @@
 #define NVME_TEMPERATURE_WARNING 0x157
 #define NVME_TEMPERATURE_CRITICAL 0x175
 #define NVME_NUM_FW_SLOTS 1
+#define NVME_MAX_ADM_IO_CMDS 0xFF
 
 #define NVME_GUEST_ERR(trace, fmt, ...) \
     do { \
@@ -110,6 +111,46 @@ static const uint32_t nvme_feature_cap[NVME_FID_MAX] = {
     [NVME_NUMBER_OF_QUEUES]         = NVME_FEAT_CAP_CHANGE,
     [NVME_ASYNCHRONOUS_EVENT_CONF]  = NVME_FEAT_CAP_CHANGE,
     [NVME_TIMESTAMP]                = NVME_FEAT_CAP_CHANGE,
+};
+
+#define NVME_EFFECTS_ADMIN_INITIALIZER                 \
+    [NVME_ADM_CMD_DELETE_SQ]    = NVME_EFFECTS_CSUPP,  \
+    [NVME_ADM_CMD_CREATE_SQ]    = NVME_EFFECTS_CSUPP,  \
+    [NVME_ADM_CMD_GET_LOG_PAGE] = NVME_EFFECTS_CSUPP,  \
+    [NVME_ADM_CMD_DELETE_CQ]    = NVME_EFFECTS_CSUPP,  \
+    [NVME_ADM_CMD_CREATE_CQ]    = NVME_EFFECTS_CSUPP,  \
+    [NVME_ADM_CMD_IDENTIFY]     = NVME_EFFECTS_CSUPP,  \
+    [NVME_ADM_CMD_ABORT]        = NVME_EFFECTS_CSUPP,  \
+    [NVME_ADM_CMD_SET_FEATURES] = NVME_EFFECTS_CSUPP | \
+                                  NVME_EFFECTS_CCC |   \
+                                  NVME_EFFECTS_NIC |   \
+                                  NVME_EFFECTS_NCC,    \
+    [NVME_ADM_CMD_GET_FEATURES] = NVME_EFFECTS_CSUPP,  \
+    [NVME_ADM_CMD_ASYNC_EV_REQ] = NVME_EFFECTS_CSUPP
+
+#define NVME_EFFECTS_NVM_INITIALIZER                   \
+    [NVME_CMD_FLUSH]            = NVME_EFFECTS_CSUPP | \
+                                  NVME_EFFECTS_LBCC,   \
+    [NVME_CMD_WRITE]            = NVME_EFFECTS_CSUPP | \
+                                  NVME_EFFECTS_LBCC,   \
+    [NVME_CMD_READ]             = NVME_EFFECTS_CSUPP,  \
+    [NVME_CMD_WRITE_ZEROES]     = NVME_EFFECTS_CSUPP | \
+                                  NVME_EFFECTS_LBCC
+
+static const NvmeEffectsLog nvme_effects_admin_only = {
+    .acs = {
+        NVME_EFFECTS_ADMIN_INITIALIZER,
+    },
+};
+
+static const NvmeEffectsLog nvme_effects = {
+    .acs = {
+        NVME_EFFECTS_ADMIN_INITIALIZER,
+    },
+
+    .iocs = {
+        NVME_EFFECTS_NVM_INITIALIZER,
+    },
 };
 
 static void nvme_process_sq(void *opaque);
@@ -1365,6 +1406,36 @@ static uint16_t nvme_error_info(NvmeCtrl *n, uint8_t rae, uint32_t buf_len,
                     DMA_DIRECTION_FROM_DEVICE, req);
 }
 
+static uint16_t nvme_effects_log(NvmeCtrl *n, uint32_t buf_len, uint64_t off,
+                                 NvmeRequest *req)
+{
+    const NvmeEffectsLog *effects;
+
+    uint32_t trans_len;
+
+    if (off > sizeof(NvmeEffectsLog)) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    switch (NVME_CC_CSS(n->bar.cc)) {
+    case NVME_CC_CSS_ADMIN_ONLY:
+        effects = &nvme_effects_admin_only;
+        break;
+
+    case NVME_CC_CSS_NVM:
+        effects = &nvme_effects;
+        break;
+
+    default:
+        return NVME_INTERNAL_DEV_ERROR | NVME_DNR;
+    }
+
+    trans_len = MIN(sizeof(NvmeEffectsLog) - off, buf_len);
+
+    return nvme_dma(n, (uint8_t *)effects + off, trans_len,
+                    DMA_DIRECTION_FROM_DEVICE, req);
+}
+
 static uint16_t nvme_get_log(NvmeCtrl *n, NvmeRequest *req)
 {
     NvmeCmd *cmd = &req->cmd;
@@ -1408,6 +1479,8 @@ static uint16_t nvme_get_log(NvmeCtrl *n, NvmeRequest *req)
         return nvme_smart_info(n, rae, len, off, req);
     case NVME_LOG_FW_SLOT_INFO:
         return nvme_fw_log_info(n, len, off, req);
+    case NVME_LOG_EFFECTS:
+        return nvme_effects_log(n, len, off, req);
     default:
         trace_pci_nvme_err_invalid_log_page(nvme_cid(req), lid);
         return NVME_INVALID_FIELD | NVME_DNR;
@@ -2841,7 +2914,7 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
     id->acl = 3;
     id->aerl = n->params.aerl;
     id->frmw = (NVME_NUM_FW_SLOTS << 1) | NVME_FRMW_SLOT1_RO;
-    id->lpa = NVME_LPA_EXTENDED;
+    id->lpa = NVME_LPA_EFFECTS_LOG | NVME_LPA_EXTENDED;
 
     /* recommended default value (~70 C) */
     id->wctemp = cpu_to_le16(NVME_TEMPERATURE_WARNING);
