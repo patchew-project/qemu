@@ -38,15 +38,19 @@
 
 static gchar *socket_path;
 static char *flash_path;
+static char *key_path;
 static gint socket_fd = -1;
 static gboolean print_cap;
 static gboolean verbose;
 static gboolean debug;
+static gboolean key_set;
 
 static GOptionEntry options[] =
 {
     { "socket-path", 0, 0, G_OPTION_ARG_FILENAME, &socket_path, "Location of vhost-user Unix domain socket, incompatible with --fd", "PATH" },
     { "flash-path", 0, 0, G_OPTION_ARG_FILENAME, &flash_path, "Location of raw flash image file", "PATH" },
+    { "key-path", 0, 0, G_OPTION_ARG_FILENAME, &key_path, "Location of persistent keyfile", "KEY"},
+    { "key-set", 0, 0, G_OPTION_ARG_NONE, &key_set, "Is the key already programmed", NULL},
     { "fd", 0, 0, G_OPTION_ARG_INT, &socket_fd, "Specify the file-descriptor of the backend, incompatible with --socket-path", "FD" },
     { "print-capabilities", 0, 0, G_OPTION_ARG_NONE, &print_cap, "Output to stdout the backend capabilities in JSON format and exit", NULL},
     { "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose, "Be more verbose in output", NULL},
@@ -296,7 +300,17 @@ static void vrpmb_handle_program_key(VuDev *dev, struct virtio_rpmb_frame *frame
     } else {
         r->key = g_memdup(&frame->key_mac[0], RPMB_KEY_MAC_SIZE);
         r->last_result = VIRTIO_RPMB_RES_OK;
+        if (key_path) {
+            GError *err = NULL;
+            if (!g_file_set_contents(key_path, (char *) r->key,
+                                     RPMB_KEY_MAC_SIZE, &err)) {
+                g_warning("%s: unable to persist key data to %s: %s",
+                          __func__, key_path, err->message);
+                g_error_free(err);
+            }
+        }
     }
+
 
     g_info("%s: req_resp = %x, result = %x", __func__,
            r->last_reqresp, r->last_result);
@@ -709,6 +723,25 @@ static bool vrpmb_load_flash_image(VuRpmb *r, char *img_path)
     return true;
 }
 
+static void vrpmb_set_key(VuRpmb *r, char *key_path)
+{
+    GError *err = NULL;
+    gsize length;
+
+    if (!g_file_get_contents(key_path, (char **) &r->key, &length, &err)) {
+        g_print("Unable to read %s: %s", key_path, err->message);
+        exit(1);
+    }
+    if (length < RPMB_KEY_MAC_SIZE) {
+        g_print("key file to small %ld < %d", length, RPMB_KEY_MAC_SIZE);
+        exit(1);
+    } else if (length > RPMB_KEY_MAC_SIZE) {
+        /* being too big isn't fatal, we just ignore the excess */
+        g_warning("%ld bytes of %s ignore (file too big)",
+                  length - RPMB_KEY_MAC_SIZE, key_path);
+    }
+}
+
 static void vrpmb_destroy(VuRpmb *r)
 {
     vug_deinit(&r->dev);
@@ -758,6 +791,10 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     } else {
         vrpmb_load_flash_image(&rpmb, flash_path);
+    }
+
+    if (key_path && key_set) {
+        vrpmb_set_key(&rpmb, key_path);
     }
 
     if (!socket_path && socket_fd < 0) {
