@@ -62,6 +62,7 @@ enum {
 #define KiB     (1UL << 10)
 #define MAX_RPMB_SIZE (KiB * 128 * 256)
 #define RPMB_KEY_MAC_SIZE 32
+#define RPMB_BLOCK_SIZE 256
 
 /* RPMB Request Types */
 #define VIRTIO_RPMB_REQ_PROGRAM_KEY        0x0001
@@ -100,7 +101,7 @@ struct virtio_rpmb_config {
 struct virtio_rpmb_frame {
     uint8_t stuff[196];
     uint8_t key_mac[RPMB_KEY_MAC_SIZE];
-    uint8_t data[256];
+    uint8_t data[RPMB_BLOCK_SIZE];
     uint8_t nonce[16];
     /* remaining fields are big-endian */
     uint32_t write_counter;
@@ -124,6 +125,7 @@ typedef struct VuRpmb {
     uint8_t  last_nonce[16];
     uint16_t last_result;
     uint16_t last_reqresp;
+    uint16_t last_address;
     uint32_t write_count;
 } VuRpmb;
 
@@ -239,15 +241,28 @@ vrpmb_set_config(VuDev *dev, const uint8_t *data,
  * which itself uses a 3 clause BSD chunk of code.
  */
 
+static const int rpmb_frame_dlen = (sizeof(struct virtio_rpmb_frame) -
+                                    offsetof(struct virtio_rpmb_frame, data));
+
 static void vrpmb_update_mac_in_frame(VuRpmb *r, struct virtio_rpmb_frame *frm)
 {
     hmac_sha256_ctx ctx;
-    static const int dlen = (sizeof(struct virtio_rpmb_frame) -
-                             offsetof(struct virtio_rpmb_frame, data));
 
     hmac_sha256_init(&ctx, r->key, RPMB_KEY_MAC_SIZE);
-    hmac_sha256_update(&ctx, frm->data, dlen);
+    hmac_sha256_update(&ctx, frm->data, rpmb_frame_dlen);
     hmac_sha256_final(&ctx, &frm->key_mac[0], 32);
+}
+
+static bool vrpmb_verify_mac_in_frame(VuRpmb *r, struct virtio_rpmb_frame *frm)
+{
+    hmac_sha256_ctx ctx;
+    uint8_t calculated_mac[RPMB_KEY_MAC_SIZE];
+
+    hmac_sha256_init(&ctx, r->key, RPMB_KEY_MAC_SIZE);
+    hmac_sha256_update(&ctx, frm->data, rpmb_frame_dlen);
+    hmac_sha256_final(&ctx, calculated_mac, RPMB_KEY_MAC_SIZE);
+
+    return memcmp(calculated_mac, frm->key_mac, RPMB_KEY_MAC_SIZE) == 0;
 }
 
 /*
@@ -325,6 +340,82 @@ vrpmb_handle_get_write_counter(VuDev *dev, struct virtio_rpmb_frame *frame)
 }
 
 /*
+ * vrpmb_handle_write:
+ *
+ * We will report the success/fail on receipt of
+ * VIRTIO_RPMB_REQ_RESULT_READ. Returns the number of extra frames
+ * processed in the request.
+ */
+static int vrpmb_handle_write(VuDev *dev, struct virtio_rpmb_frame *frame)
+{
+    VuRpmb *r = container_of(dev, VuRpmb, dev.parent);
+    int extra_frames = 0;
+    uint16_t block_count = be16toh(frame->block_count);
+    uint32_t write_counter = be32toh(frame->write_counter);
+    size_t offset;
+
+    r->last_reqresp = VIRTIO_RPMB_RESP_DATA_WRITE;
+    r->last_address = be16toh(frame->address);
+    offset =  r->last_address * RPMB_BLOCK_SIZE;
+
+    /*
+     * Run the checks from:
+     * 5.12.6.1.3 Device Requirements: Device Operation: Data Write
+     */
+    if (!r->key) {
+        g_warning("no key programmed");
+        r->last_result = VIRTIO_RPMB_RES_NO_AUTH_KEY;
+    } else if (block_count == 0 ||
+               block_count > r->virtio_config.max_wr_cnt) {
+        r->last_result = VIRTIO_RPMB_RES_GENERAL_FAILURE;
+    } else if (false /* what does an expired write counter mean? */) {
+        r->last_result = VIRTIO_RPMB_RES_WRITE_COUNTER_EXPIRED;
+    } else if (offset > (r->virtio_config.capacity * (128 * KiB))) {
+        r->last_result = VIRTIO_RPMB_RES_ADDR_FAILURE;
+    } else if (!vrpmb_verify_mac_in_frame(r, frame)) {
+        r->last_result = VIRTIO_RPMB_RES_AUTH_FAILURE;
+    } else if (write_counter != r->write_count) {
+        r->last_result = VIRTIO_RPMB_RES_COUNT_FAILURE;
+    } else {
+        int i;
+        /* At this point we have a valid authenticated write request
+         * so the counter can incremented and we can attempt to
+         * update the backing device.
+         */
+        r->write_count++;
+        for (i = 0; i < block_count; i++) {
+            void *blk = r->flash_map + offset;
+            g_debug("%s: writing block %d", __func__, i);
+            if (mprotect(blk, RPMB_BLOCK_SIZE, PROT_WRITE) != 0) {
+                r->last_result =  VIRTIO_RPMB_RES_WRITE_FAILURE;
+                break;
+            }
+            memcpy(blk, frame[i].data, RPMB_BLOCK_SIZE);
+            if (msync(blk, RPMB_BLOCK_SIZE, MS_SYNC) != 0) {
+                g_warning("%s: failed to sync update", __func__);
+                r->last_result = VIRTIO_RPMB_RES_WRITE_FAILURE;
+                break;
+            }
+            if (mprotect(blk, RPMB_BLOCK_SIZE, PROT_READ) != 0) {
+                g_warning("%s: failed to re-apply read protection", __func__);
+                r->last_result = VIRTIO_RPMB_RES_GENERAL_FAILURE;
+                break;
+            }
+            offset += RPMB_BLOCK_SIZE;
+        }
+        r->last_result = VIRTIO_RPMB_RES_OK;
+        extra_frames = i - 1;
+    }
+
+    g_info("%s: %s (%x, %d extra frames processed), write_count=%d", __func__,
+           r->last_result == VIRTIO_RPMB_RES_OK ? "successful":"failed",
+           r->last_result, extra_frames, r->write_count);
+
+    return extra_frames;
+}
+
+
+/*
  * Return the result of the last message. This is only valid if the
  * previous message was VIRTIO_RPMB_REQ_PROGRAM_KEY or
  * VIRTIO_RPMB_REQ_DATA_WRITE.
@@ -339,10 +430,14 @@ static struct virtio_rpmb_frame * vrpmb_handle_result_read(VuDev *dev)
     g_info("%s: for request:%x result:%x", __func__,
            r->last_reqresp, r->last_result);
 
-    if (r->last_reqresp == VIRTIO_RPMB_RESP_PROGRAM_KEY ||
-        r->last_reqresp == VIRTIO_RPMB_REQ_DATA_WRITE) {
+    if (r->last_reqresp == VIRTIO_RPMB_RESP_PROGRAM_KEY) {
         resp->result = htobe16(r->last_result);
         resp->req_resp = htobe16(r->last_reqresp);
+    } else if (r->last_reqresp == VIRTIO_RPMB_RESP_DATA_WRITE) {
+        resp->result = htobe16(r->last_result);
+        resp->req_resp = htobe16(r->last_reqresp);
+        resp->write_counter = htobe32(r->write_count);
+        resp->address = htobe16(r->last_address);
     } else {
         resp->result = htobe16(VIRTIO_RPMB_RES_GENERAL_FAILURE);
     }
@@ -444,6 +539,10 @@ vrpmb_handle_ctrl(VuDev *dev, int qidx)
                     g_warning("%s: already sent a response in this set of frames",
                               __func__);
                 }
+                break;
+            case VIRTIO_RPMB_REQ_DATA_WRITE:
+                /* we can have multiple blocks handled */
+                n += vrpmb_handle_write(dev, f);
                 break;
             default:
                 g_debug("un-handled request: %x", f->req_resp);
