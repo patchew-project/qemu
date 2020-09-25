@@ -414,6 +414,55 @@ static int vrpmb_handle_write(VuDev *dev, struct virtio_rpmb_frame *frame)
     return extra_frames;
 }
 
+/*
+ * vrpmb_handle_read:
+ *
+ * Unlike the write operation we return a frame with the result of the
+ * read here. While the config specifies a maximum read count the spec
+ * is limited to a single read at a time.
+ */
+static struct virtio_rpmb_frame *
+vrpmb_handle_read(VuDev *dev, struct virtio_rpmb_frame *frame)
+{
+    VuRpmb *r = container_of(dev, VuRpmb, dev.parent);
+    size_t offset = be16toh(frame->address) * RPMB_BLOCK_SIZE;
+    uint16_t block_count = be16toh(frame->block_count);
+    struct virtio_rpmb_frame *resp = g_new0(struct virtio_rpmb_frame, 1);
+
+    resp->req_resp = htobe16(VIRTIO_RPMB_RESP_DATA_READ);
+    resp->address = frame->address;
+    resp->block_count = htobe16(1);
+
+    /*
+     * Run the checks from:
+     * 5.12.6.1.4 Device Requirements: Device Operation: Data Read
+     */
+    if (!r->key) {
+        g_warning("no key programmed");
+        resp->result = htobe16(VIRTIO_RPMB_RES_NO_AUTH_KEY);
+    } else if (block_count != 1) {
+        /*
+         * Despite the config the spec only allows for reading one
+         * block at a time: "If block count has not been set to 1 then
+         * VIRTIO_RPMB_RES_GENERAL_FAILURE SHOULD be responded as
+         * result."
+         */
+        resp->result = htobe16(VIRTIO_RPMB_RES_GENERAL_FAILURE);
+    } else if (offset > (r->virtio_config.capacity * (128 * KiB))) {
+        resp->result = htobe16(VIRTIO_RPMB_RES_ADDR_FAILURE);
+    } else {
+        void *blk = r->flash_map + offset;
+        g_debug("%s: reading block from %p (%zu)", __func__, blk, offset);
+        memcpy(resp->data, blk, RPMB_BLOCK_SIZE);
+        resp->result = htobe16(VIRTIO_RPMB_RES_OK);
+    }
+
+    /* Final housekeeping, copy nonce and calculate MAC */
+    memcpy(&resp->nonce, &frame->nonce, sizeof(frame->nonce));
+    vrpmb_update_mac_in_frame(r, resp);
+
+    return resp;
+}
 
 /*
  * Return the result of the last message. This is only valid if the
@@ -543,6 +592,9 @@ vrpmb_handle_ctrl(VuDev *dev, int qidx)
             case VIRTIO_RPMB_REQ_DATA_WRITE:
                 /* we can have multiple blocks handled */
                 n += vrpmb_handle_write(dev, f);
+                break;
+            case VIRTIO_RPMB_REQ_DATA_READ:
+                resp = vrpmb_handle_read(dev, f);
                 break;
             default:
                 g_debug("un-handled request: %x", f->req_resp);
