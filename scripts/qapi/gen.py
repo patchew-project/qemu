@@ -154,9 +154,11 @@ class QAPIGenH(QAPIGenC):
 
 @contextmanager
 def ifcontext(ifcond, *args):
-    """A 'with' statement context manager to wrap with start_if()/end_if()
+    """
+    A 'with' statement context manager to wrap with start_if()/end_if()
 
-    *args: any number of QAPIGenCCode
+    :param ifcond: List of conditionals
+    :param args: any number of QAPIGenCCode
 
     Example::
 

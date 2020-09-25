@@ -366,10 +366,11 @@ class QAPIDoc:
 
         The way that the line is dealt with depends on which part of
         the documentation we're parsing right now:
-        * The body section: ._append_line is ._append_body_line
-        * An argument section: ._append_line is ._append_args_line
-        * A features section: ._append_line is ._append_features_line
-        * An additional section: ._append_line is ._append_various_line
+
+         * The body section: ._append_line is ._append_body_line
+         * An argument section: ._append_line is ._append_args_line
+         * A features section: ._append_line is ._append_features_line
+         * An additional section: ._append_line is ._append_various_line
         """
         line = line[1:]
         if not line:

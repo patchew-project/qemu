@@ -65,11 +65,11 @@ def texi_format(doc):
     Format documentation
 
     Lines starting with:
-    - |: generates an @example
-    - =: generates @section
-    - ==: generates @subsection
-    - 1. or 1): generates an @enumerate @item
-    - */-: generates an @itemize list
+    - ``|:`` generates an @example
+    - ``=:`` generates @section
+    - ``==:`` generates @subsection
+    - ``1.`` or ``1):`` generates an @enumerate @item
+    - ``*/-:`` generates an @itemize list
     """
     ret = ''
     doc = subst_braces(doc)
