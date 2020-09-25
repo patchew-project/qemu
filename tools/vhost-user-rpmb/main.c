@@ -13,9 +13,15 @@
 #include <gio/gio.h>
 #include <gio/gunixsocketaddress.h>
 #include <glib-unix.h>
+#include <glib/gstdio.h>
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
 #include "contrib/libvhost-user/libvhost-user-glib.h"
 #include "contrib/libvhost-user/libvhost-user.h"
@@ -27,6 +33,7 @@
 #endif
 
 static gchar *socket_path;
+static char *flash_path;
 static gint socket_fd = -1;
 static gboolean print_cap;
 static gboolean verbose;
@@ -35,6 +42,7 @@ static gboolean debug;
 static GOptionEntry options[] =
 {
     { "socket-path", 0, 0, G_OPTION_ARG_FILENAME, &socket_path, "Location of vhost-user Unix domain socket, incompatible with --fd", "PATH" },
+    { "flash-path", 0, 0, G_OPTION_ARG_FILENAME, &flash_path, "Location of raw flash image file", "PATH" },
     { "fd", 0, 0, G_OPTION_ARG_INT, &socket_fd, "Specify the file-descriptor of the backend, incompatible with --socket-path", "FD" },
     { "print-capabilities", 0, 0, G_OPTION_ARG_NONE, &print_cap, "Output to stdout the backend capabilities in JSON format and exit", NULL},
     { "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose, "Be more verbose in output", NULL},
@@ -47,6 +55,8 @@ enum {
 };
 
 /* These structures are defined in the specification */
+#define KiB     (1UL << 10)
+#define MAX_RPMB_SIZE (KiB * 128 * 256)
 
 struct virtio_rpmb_config {
     uint8_t capacity;
@@ -75,6 +85,8 @@ typedef struct VuRpmb {
     VugDev dev;
     struct virtio_rpmb_config virtio_config;
     GMainLoop *loop;
+    int flash_fd;
+    void *flash_map;
 } VuRpmb;
 
 struct virtio_rpmb_ctrl_command {
@@ -116,6 +128,8 @@ vrpmb_get_config(VuDev *dev, uint8_t *config, uint32_t len)
     VuRpmb *r = container_of(dev, VuRpmb, dev.parent);
     g_return_val_if_fail(len <= sizeof(struct virtio_rpmb_config), -1);
     memcpy(config, &r->virtio_config, len);
+
+    g_info("%s: done", __func__);
     return 0;
 }
 
@@ -192,6 +206,41 @@ static const VuDevIface vuiface = {
     .set_config = vrpmb_set_config,
 };
 
+static bool vrpmb_load_flash_image(VuRpmb *r, char *img_path)
+{
+    GStatBuf statbuf;
+    size_t map_size;
+
+    if (g_stat(img_path, &statbuf) < 0) {
+        g_error("couldn't stat %s", img_path);
+        return false;
+    }
+
+    r->flash_fd = g_open(img_path, O_RDWR, 0);
+    if (r->flash_fd < 0) {
+        g_error("couldn't open %s (%s)", img_path, strerror(errno));
+        return false;
+    }
+
+    if (statbuf.st_size > MAX_RPMB_SIZE) {
+        g_warning("%s larger than maximum size supported", img_path);
+        map_size = MAX_RPMB_SIZE;
+    } else {
+        map_size = statbuf.st_size;
+    }
+    r->virtio_config.capacity = map_size / (128 *KiB);
+    r->virtio_config.max_wr_cnt = 1;
+    r->virtio_config.max_rd_cnt = 1;
+
+    r->flash_map = mmap(NULL, map_size, PROT_READ, MAP_SHARED, r->flash_fd, 0);
+    if (r->flash_map == MAP_FAILED) {
+        g_error("failed to mmap file");
+        return false;
+    }
+
+    return true;
+}
+
 static void vrpmb_destroy(VuRpmb *r)
 {
     vug_deinit(&r->dev);
@@ -216,7 +265,7 @@ static gboolean hangup(gpointer user_data)
     return true;
 }
 
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
     GError *error = NULL;
     GOptionContext *context;
@@ -234,6 +283,13 @@ int main (int argc, char *argv[])
     if (print_cap) {
         print_capabilities();
         exit(0);
+    }
+
+    if (!flash_path || !g_file_test(flash_path, G_FILE_TEST_EXISTS)) {
+        g_printerr("Please specify a valid --flash-path for the flash image\n");
+        exit(EXIT_FAILURE);
+    } else {
+        vrpmb_load_flash_image(&rpmb, flash_path);
     }
 
     if (!socket_path && socket_fd < 0) {
