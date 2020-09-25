@@ -8,26 +8,26 @@ import re
 from qapi.gen import QAPIGenDoc, QAPISchemaVisitor
 
 
-MSG_FMT = """
+_MSG = '''
 @deftypefn {type} {{}} {name}
 
 {body}{members}{features}{sections}
 @end deftypefn
 
-""".format
+'''
 
-TYPE_FMT = """
+_TYPE = '''
 @deftp {{{type}}} {name}
 
 {body}{members}{features}{sections}
 @end deftp
 
-""".format
+'''
 
-EXAMPLE_FMT = """@example
+_EXAMPLE = '''@example
 {code}
 @end example
-""".format
+'''
 
 
 def subst_strong(doc):
@@ -57,7 +57,7 @@ def texi_example(doc):
     # function to subst_special() or subs_texi_special().  If we do that, we
     # need to delay it until after subst_vars() in texi_format().
     doc = subst_braces(doc).strip('\n')
-    return EXAMPLE_FMT(code=doc)
+    return _EXAMPLE.format(code=doc)
 
 
 def texi_format(doc):
@@ -90,7 +90,7 @@ def texi_format(doc):
         # Make sure to update section "Documentation markup" in
         # docs/devel/qapi-code-gen.txt when fixing this.
         if line.startswith('| '):
-            line = EXAMPLE_FMT(code=line[2:])
+            line = _EXAMPLE.format(code=line[2:])
         elif line.startswith('= '):
             line = '@section ' + line[2:]
         elif line.startswith('== '):
@@ -217,21 +217,21 @@ def texi_sections(doc, ifcond):
 
 
 def texi_type(typ, doc, ifcond, members):
-    return TYPE_FMT(type=typ,
-                    name=doc.symbol,
-                    body=texi_body(doc),
-                    members=members,
-                    features=texi_features(doc),
-                    sections=texi_sections(doc, ifcond))
+    return _TYPE.format(type=typ,
+                        name=doc.symbol,
+                        body=texi_body(doc),
+                        members=members,
+                        features=texi_features(doc),
+                        sections=texi_sections(doc, ifcond))
 
 
 def texi_msg(typ, doc, ifcond, members):
-    return MSG_FMT(type=typ,
-                   name=doc.symbol,
-                   body=texi_body(doc),
-                   members=members,
-                   features=texi_features(doc),
-                   sections=texi_sections(doc, ifcond))
+    return _MSG.format(type=typ,
+                       name=doc.symbol,
+                       body=texi_body(doc),
+                       members=members,
+                       features=texi_features(doc),
+                       sections=texi_sections(doc, ifcond))
 
 
 class QAPISchemaGenDocVisitor(QAPISchemaVisitor):
