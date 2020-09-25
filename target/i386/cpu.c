@@ -4098,8 +4098,14 @@ static X86CPUDefinition builtin_x86_defs[] = {
     },
 };
 
-/* KVM-specific features that are automatically added/removed
+/*
+ * KVM-specific features that are automatically added/removed
  * from all CPU models when KVM is enabled.
+ *
+ * NOTE: features can be enabled by default only if they were
+ *       already available in the oldest kernel version supported
+ *       by the KVM accelerator (see "OS requirements" section at
+ *       docs/system/target-i386.rst)
  */
 static PropValue kvm_default_props[] = {
     { "kvmclock", "on" },
