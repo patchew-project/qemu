@@ -1,5 +1,6 @@
 executable('vhost-user-rpmb', files(
-  'main.c'),
+  'main.c',
+  'hmac_sha256.c'),
   dependencies: [qemuutil, glib, gio],
   link_with: [libvhost_user],
   install: true,
