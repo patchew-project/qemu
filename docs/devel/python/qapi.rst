@@ -19,6 +19,7 @@ Submodules
    qapi.expr
    qapi.gen
    qapi.introspect
+   qapi.main
    qapi.parser
    qapi.schema
    qapi.source
