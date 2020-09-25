@@ -39,6 +39,7 @@
 static gchar *socket_path;
 static char *flash_path;
 static char *key_path;
+static gint initial_counter;
 static gint socket_fd = -1;
 static gboolean print_cap;
 static gboolean verbose;
@@ -49,6 +50,7 @@ static GOptionEntry options[] =
 {
     { "socket-path", 0, 0, G_OPTION_ARG_FILENAME, &socket_path, "Location of vhost-user Unix domain socket, incompatible with --fd", "PATH" },
     { "flash-path", 0, 0, G_OPTION_ARG_FILENAME, &flash_path, "Location of raw flash image file", "PATH" },
+    { "initial-counter", 0, 0, G_OPTION_ARG_INT, &initial_counter, "Set initial value of write counter", NULL},
     { "key-path", 0, 0, G_OPTION_ARG_FILENAME, &key_path, "Location of persistent keyfile", "KEY"},
     { "key-set", 0, 0, G_OPTION_ARG_NONE, &key_set, "Is the key already programmed", NULL},
     { "fd", 0, 0, G_OPTION_ARG_INT, &socket_fd, "Specify the file-descriptor of the backend, incompatible with --socket-path", "FD" },
@@ -795,6 +797,10 @@ int main(int argc, char *argv[])
 
     if (key_path && key_set) {
         vrpmb_set_key(&rpmb, key_path);
+    }
+
+    if (initial_counter) {
+        rpmb.write_count = initial_counter;
     }
 
     if (!socket_path && socket_fd < 0) {
