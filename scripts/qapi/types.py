@@ -23,7 +23,6 @@ from .common import (
 from .gen import QAPISchemaModularCVisitor, ifcontext
 from .schema import QAPISchemaEnumMember, QAPISchemaObjectType
 
-
 # variants must be emitted before their container; track what has already
 # been output
 objects_seen = set()

@@ -20,7 +20,6 @@ from .schema import QAPISchema
 from .types import gen_types
 from .visit import gen_visit
 
-
 DEFAULT_OUTPUT_DIR = ''
 DEFAULT_PREFIX = ''
 
