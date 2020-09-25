@@ -121,8 +121,10 @@ typedef struct VuRpmb {
     int flash_fd;
     void *flash_map;
     uint8_t *key;
+    uint8_t  last_nonce[16];
     uint16_t last_result;
     uint16_t last_reqresp;
+    uint32_t write_count;
 } VuRpmb;
 
 /* refer to util/iov.c */
@@ -287,6 +289,42 @@ static void vrpmb_handle_program_key(VuDev *dev, struct virtio_rpmb_frame *frame
 }
 
 /*
+ * vrpmb_handle_get_write_counter:
+ *
+ * We respond straight away with re-using the frame as sent.
+ */
+static struct virtio_rpmb_frame *
+vrpmb_handle_get_write_counter(VuDev *dev, struct virtio_rpmb_frame *frame)
+{
+    VuRpmb *r = container_of(dev, VuRpmb, dev.parent);
+    struct virtio_rpmb_frame *resp = g_new0(struct virtio_rpmb_frame, 1);
+
+    /*
+     * Run the checks from:
+     * 5.12.6.1.2 Device Requirements: Device Operation: Get Write Counter
+     */
+
+    resp->req_resp = htobe16(VIRTIO_RPMB_RESP_GET_COUNTER);
+    if (!r->key) {
+        g_debug("no key programmed");
+        resp->result = htobe16(VIRTIO_RPMB_RES_NO_AUTH_KEY);
+        return resp;
+    } else if (be16toh(frame->block_count) > 1) { /* allow 0 (NONCONF) */
+        g_debug("invalid block count (%d)", be16toh(frame->block_count));
+        resp->result = htobe16(VIRTIO_RPMB_RES_GENERAL_FAILURE);
+    } else {
+        resp->write_counter = htobe32(r->write_count);
+    }
+    /* copy nonce */
+    memcpy(&resp->nonce, &frame->nonce, sizeof(frame->nonce));
+
+    /* calculate MAC */
+    vrpmb_update_mac_in_frame(r, resp);
+
+    return resp;
+}
+
+/*
  * Return the result of the last message. This is only valid if the
  * previous message was VIRTIO_RPMB_REQ_PROGRAM_KEY or
  * VIRTIO_RPMB_REQ_DATA_WRITE.
@@ -297,6 +335,9 @@ static struct virtio_rpmb_frame * vrpmb_handle_result_read(VuDev *dev)
 {
     VuRpmb *r = container_of(dev, VuRpmb, dev.parent);
     struct virtio_rpmb_frame *resp = g_new0(struct virtio_rpmb_frame, 1);
+
+    g_info("%s: for request:%x result:%x", __func__,
+           r->last_reqresp, r->last_result);
 
     if (r->last_reqresp == VIRTIO_RPMB_RESP_PROGRAM_KEY ||
         r->last_reqresp == VIRTIO_RPMB_REQ_DATA_WRITE) {
@@ -392,6 +433,9 @@ vrpmb_handle_ctrl(VuDev *dev, int qidx)
             switch (req_resp) {
             case VIRTIO_RPMB_REQ_PROGRAM_KEY:
                 vrpmb_handle_program_key(dev, f);
+                break;
+            case VIRTIO_RPMB_REQ_GET_WRITE_COUNTER:
+                resp = vrpmb_handle_get_write_counter(dev, f);
                 break;
             case VIRTIO_RPMB_REQ_RESULT_READ:
                 if (!responded) {
