@@ -31,6 +31,31 @@ typedef enum CprmanPLL {
     CPRMAN_NUM_PLL
 } CprmanPLL;
 
+typedef enum CprmanPLLChannel {
+    CPRMAN_PLLA_CHANNEL_DSI0 = 0,
+    CPRMAN_PLLA_CHANNEL_CORE,
+    CPRMAN_PLLA_CHANNEL_PER,
+    CPRMAN_PLLA_CHANNEL_CCP2,
+
+    CPRMAN_PLLC_CHANNEL_CORE2,
+    CPRMAN_PLLC_CHANNEL_CORE1,
+    CPRMAN_PLLC_CHANNEL_PER,
+    CPRMAN_PLLC_CHANNEL_CORE0,
+
+    CPRMAN_PLLD_CHANNEL_DSI0,
+    CPRMAN_PLLD_CHANNEL_CORE,
+    CPRMAN_PLLD_CHANNEL_PER,
+    CPRMAN_PLLD_CHANNEL_DSI1,
+
+    CPRMAN_PLLH_CHANNEL_AUX,
+    CPRMAN_PLLH_CHANNEL_RCAL,
+    CPRMAN_PLLH_CHANNEL_PIX,
+
+    CPRMAN_PLLB_CHANNEL_ARM,
+
+    CPRMAN_NUM_PLL_CHANNEL,
+} CprmanPLLChannel;
+
 typedef struct CprmanPLLState {
     /*< private >*/
     DeviceState parent_obj;
@@ -48,6 +73,24 @@ typedef struct CprmanPLLState {
     Clock *out;
 } CprmanPLLState;
 
+typedef struct CprmanPLLChannelState {
+    /*< private >*/
+    DeviceState parent_obj;
+
+    /*< public >*/
+    CprmanPLLChannel id;
+    CprmanPLL parent;
+
+    uint32_t *reg_cm;
+    uint32_t hold_mask;
+    uint32_t load_mask;
+    uint32_t *reg_a2w_ctrl;
+    int fixed_divider;
+
+    Clock *pll_in;
+    Clock *out;
+} CprmanPLLChannelState;
+
 struct BCM2835CprmanState {
     /*< private >*/
     SysBusDevice parent_obj;
@@ -56,6 +99,7 @@ struct BCM2835CprmanState {
     MemoryRegion iomem;
 
     CprmanPLLState plls[CPRMAN_NUM_PLL];
+    CprmanPLLChannelState channels[CPRMAN_NUM_PLL_CHANNEL];
 
     uint32_t regs[CPRMAN_NUM_REGS];
     uint32_t xosc_freq;
