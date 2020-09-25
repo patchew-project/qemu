@@ -32,10 +32,13 @@ if build_docs
 
   sphinxdocs = []
   sphinxmans = []
+  conf_py_files = [files('conf.py')]
+
   foreach manual : manuals
     private_dir = meson.current_build_dir() / (manual + '.p')
     output_dir = meson.current_build_dir() / manual
     input_dir = meson.current_source_dir() / manual
+    conf_py_files += files(manual / 'conf.py')
 
     this_manual = custom_target(manual + ' manual',
                 build_by_default: build_docs,
@@ -70,4 +73,14 @@ if build_docs
   endforeach
   alias_target('sphinxdocs', sphinxdocs)
   alias_target('man', sphinxmans)
+
+  sphinxinfo = custom_target(
+    'QEMU info manual generated source',
+    output: ['QEMU.texi', 'sphinxinfo.stamp'],
+    input: conf_py_files,
+    depfile: 'sphinxinfo.d',
+    command: [SPHINX_ARGS, '-Ddepfile=@DEPFILE@', '-Ddepfile_stamp=@OUTPUT1@',
+             '-b', 'texinfo',
+             meson.current_source_dir(), meson.current_build_dir()])
+  alias_target('sphinxinfo', sphinxinfo)
 endif

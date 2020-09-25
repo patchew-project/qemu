@@ -1218,6 +1218,7 @@ if build_docs
                                               'qemu_confdir': config_host['qemu_confdir']})
 
   texi = {
+    'QEMU': sphinxinfo,
     'qemu-qmp-ref': ['docs/interop/qemu-qmp-ref.texi', qapi_doc_texi, version_texi],
   }
   if 'CONFIG_GUEST_AGENT' in config_host
@@ -1241,7 +1242,8 @@ if build_docs
                       input: input,
                       output: output,
                       install: true,
-                      install_dir: qemu_docdir / 'interop',
+                      install_dir: ext == 'info' ? get_option('infodir') \
+                                                 : qemu_docdir / 'interop',
                       command: cmd + args)
       endforeach
       alias_target(ext, t)

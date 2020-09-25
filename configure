@@ -1069,6 +1069,8 @@ for opt do
     static="yes"
     QEMU_PKG_CONFIG_FLAGS="--static $QEMU_PKG_CONFIG_FLAGS"
   ;;
+  --infodir=*) infodir="$optarg"
+  ;;
   --mandir=*) mandir="$optarg"
   ;;
   --bindir=*) bindir="$optarg"
@@ -1786,6 +1788,7 @@ Advanced options (experts only):
   --smbd=SMBD              use specified smbd [$smbd]
   --with-git=GIT           use specified git [$git]
   --static                 enable static build [$static]
+  --infodir=PATH           install info manual in PATH
   --mandir=PATH            install man pages in PATH
   --datadir=PATH           install firmware in PATH/$qemu_suffix
   --docdir=PATH            install documentation in PATH/$qemu_suffix
