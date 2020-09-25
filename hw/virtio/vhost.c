@@ -106,6 +106,20 @@ static void vhost_dev_sync_region(struct vhost_dev *dev,
     }
 }
 
+static int vhost_dev_has_iommu(struct vhost_dev *dev)
+{
+    VirtIODevice *vdev = dev->vdev;
+
+    /*
+     * For vhost, VIRTIO_F_IOMMU_PLATFORM means the backend support
+     * incremental memory mapping API via IOTLB API. For platform that
+     * does not have IOMMU, there's no need to enable this feature
+     * which may cause unnecessary IOTLB miss/update trnasactions.
+     */
+    return vdev->dma_as != &address_space_memory &&
+           virtio_host_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM);
+}
+
 static int vhost_sync_dirty_bitmap(struct vhost_dev *dev,
                                    MemoryRegionSection *section,
                                    hwaddr first,
@@ -130,6 +144,11 @@ static int vhost_sync_dirty_bitmap(struct vhost_dev *dev,
                               range_get_last(reg->guest_phys_addr,
                                              reg->memory_size));
     }
+
+    if (vhost_dev_has_iommu(dev)) {
+        return 0;
+    }
+
     for (i = 0; i < dev->nvqs; ++i) {
         struct vhost_virtqueue *vq = dev->vqs + i;
 
@@ -172,6 +191,11 @@ static uint64_t vhost_get_log_size(struct vhost_dev *dev)
                                        reg->memory_size);
         log_size = MAX(log_size, last / VHOST_LOG_CHUNK + 1);
     }
+
+    if (vhost_dev_has_iommu(dev)) {
+        return log_size;
+    }
+
     for (i = 0; i < dev->nvqs; ++i) {
         struct vhost_virtqueue *vq = dev->vqs + i;
 
@@ -285,20 +309,6 @@ static inline void vhost_dev_log_resize(struct vhost_dev *dev, uint64_t size)
     vhost_log_put(dev, true);
     dev->log = log;
     dev->log_size = size;
-}
-
-static int vhost_dev_has_iommu(struct vhost_dev *dev)
-{
-    VirtIODevice *vdev = dev->vdev;
-
-    /*
-     * For vhost, VIRTIO_F_IOMMU_PLATFORM means the backend support
-     * incremental memory mapping API via IOTLB API. For platform that
-     * does not have IOMMU, there's no need to enable this feature
-     * which may cause unnecessary IOTLB miss/update trnasactions.
-     */
-    return vdev->dma_as != &address_space_memory &&
-           virtio_host_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM);
 }
 
 static void *vhost_memory_map(struct vhost_dev *dev, hwaddr addr,
