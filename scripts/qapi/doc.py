@@ -5,7 +5,7 @@
 """This script produces the documentation of a qapi schema in texinfo format"""
 
 import re
-from qapi.gen import QAPIGenDoc, QAPISchemaVisitor
+from .gen import QAPIGenDoc, QAPISchemaVisitor
 
 
 _MSG = '''
