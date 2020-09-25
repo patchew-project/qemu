@@ -26,11 +26,11 @@
 
 #define QEMU_VFIO_DEBUG 0
 
+/*
+ * Min/Max IOVA addresses, only used if VFIO does not report
+ * the usable IOVA ranges
+ */
 #define QEMU_VFIO_IOVA_MIN 0x10000ULL
-/* XXX: Once VFIO exposes the iova bit width in the IOMMU capability interface,
- * we can use a runtime limit; alternatively it's also possible to do platform
- * specific detection by reading sysfs entries. Until then, 39 is a safe bet.
- **/
 #define QEMU_VFIO_IOVA_MAX (1ULL << 39)
 
 typedef struct {
@@ -56,6 +56,8 @@ struct QEMUVFIOState {
     struct vfio_region_info config_region_info, bar_region_info[6];
     struct IOVARange *usable_iova_ranges;
     uint8_t nb_iova_ranges;
+    uint64_t max_iova;
+    uint64_t min_iova;
 
     /* These fields are protected by @lock */
     /* VFIO's IO virtual address space is managed by splitting into a few
@@ -63,7 +65,7 @@ struct QEMUVFIOState {
      *
      * ---------------       <= 0
      * |xxxxxxxxxxxxx|
-     * |-------------|       <= QEMU_VFIO_IOVA_MIN
+     * |-------------|       <= min_iova
      * |             |
      * |    Fixed    |
      * |             |
@@ -75,20 +77,20 @@ struct QEMUVFIOState {
      * |             |
      * |    Temp     |
      * |             |
-     * |-------------|       <= QEMU_VFIO_IOVA_MAX
+     * |-------------|       <= max_iova
      * |xxxxxxxxxxxxx|
      * |xxxxxxxxxxxxx|
      * ---------------
      *
-     * - Addresses lower than QEMU_VFIO_IOVA_MIN are reserved as invalid;
+     * - Addresses lower than min_iova are reserved as invalid;
      *
      * - Fixed mappings of HVAs are assigned "low" IOVAs in the range of
-     *   [QEMU_VFIO_IOVA_MIN, low_water_mark).  Once allocated they will not be
+     *   [min_iova, low_water_mark).  Once allocated they will not be
      *   reclaimed - low_water_mark never shrinks;
      *
      * - IOVAs in range [low_water_mark, high_water_mark) are free;
      *
-     * - IOVAs in range [high_water_mark, QEMU_VFIO_IOVA_MAX) are volatile
+     * - IOVAs in range [high_water_mark, max_iova) are volatile
      *   mappings. At each qemu_vfio_dma_reset_temporary() call, the whole area
      *   is recycled. The caller should make sure I/O's depending on these
      *   mappings are completed before calling.
@@ -271,6 +273,8 @@ static void collect_usable_iova_ranges(QEMUVFIOState *s, void *first_cap)
         s->usable_iova_ranges[i].start = cap_iova_range->iova_ranges[i].start;
         s->usable_iova_ranges[i].end = cap_iova_range->iova_ranges[i].end;
     }
+    s->min_iova = s->usable_iova_ranges[0].start;
+    s->max_iova = s->usable_iova_ranges[i - 1].end + 1;
 }
 
 static int qemu_vfio_init_pci(QEMUVFIOState *s, const char *device,
@@ -362,12 +366,14 @@ static int qemu_vfio_init_pci(QEMUVFIOState *s, const char *device,
 
     /*
      * if the kernel does not report usable IOVA regions, choose
-     * the legacy [QEMU_VFIO_IOVA_MIN, QEMU_VFIO_IOVA_MAX -1] region
+     * the legacy [QEMU_VFIO_IOVA_MIN, QEMU_VFIO_IOVA_MAX - 1] region
      */
     s->nb_iova_ranges = 1;
     s->usable_iova_ranges = g_new0(struct IOVARange, 1);
     s->usable_iova_ranges[0].start = QEMU_VFIO_IOVA_MIN;
     s->usable_iova_ranges[0].end = QEMU_VFIO_IOVA_MAX - 1;
+    s->min_iova = QEMU_VFIO_IOVA_MIN;
+    s->max_iova = QEMU_VFIO_IOVA_MAX;
 
     if (iommu_info->argsz > iommu_info_size) {
         void *first_cap;
@@ -484,8 +490,8 @@ static void qemu_vfio_open_common(QEMUVFIOState *s)
     s->ram_notifier.ram_block_added = qemu_vfio_ram_block_added;
     s->ram_notifier.ram_block_removed = qemu_vfio_ram_block_removed;
     ram_block_notifier_add(&s->ram_notifier);
-    s->low_water_mark = QEMU_VFIO_IOVA_MIN;
-    s->high_water_mark = QEMU_VFIO_IOVA_MAX;
+    s->low_water_mark = s->min_iova;
+    s->high_water_mark = s->max_iova;
     qemu_ram_foreach_block(qemu_vfio_init_ramblock, s);
 }
 
@@ -734,7 +740,7 @@ int qemu_vfio_dma_reset_temporary(QEMUVFIOState *s)
         .argsz = sizeof(unmap),
         .flags = 0,
         .iova = s->high_water_mark,
-        .size = QEMU_VFIO_IOVA_MAX - s->high_water_mark,
+        .size = s->max_iova - s->high_water_mark,
     };
     trace_qemu_vfio_dma_reset_temporary(s);
     QEMU_LOCK_GUARD(&s->lock);
@@ -742,7 +748,7 @@ int qemu_vfio_dma_reset_temporary(QEMUVFIOState *s)
         error_report("VFIO_UNMAP_DMA failed: %s", strerror(errno));
         return -errno;
     }
-    s->high_water_mark = QEMU_VFIO_IOVA_MAX;
+    s->high_water_mark = s->max_iova;
     return 0;
 }
 
