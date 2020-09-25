@@ -12,6 +12,7 @@
 #include <glib.h>
 #include <gio/gio.h>
 #include <gio/gunixsocketaddress.h>
+#include <glib-unix.h>
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
@@ -73,6 +74,7 @@ struct virtio_rpmb_frame {
 typedef struct VuRpmb {
     VugDev dev;
     struct virtio_rpmb_config virtio_config;
+    GMainLoop *loop;
 } VuRpmb;
 
 struct virtio_rpmb_ctrl_command {
@@ -158,10 +160,22 @@ vrpmb_queue_set_started(VuDev *dev, int qidx, bool started)
     }
 }
 
-static int
-vrpmb_process_msg(VuDev *dev, VhostUserMsg *msg, int *do_reply)
+/*
+ * vrpmb_process_msg: process messages of vhost-user interface
+ *
+ * Any that are not handled here are processed by the libvhost library
+ * itself.
+ */
+static int vrpmb_process_msg(VuDev *dev, VhostUserMsg *msg, int *do_reply)
 {
+    VuRpmb *r = container_of(dev, VuRpmb, dev.parent);
+
+    g_info("%s: msg %d", __func__, msg->request);
+
     switch (msg->request) {
+    case VHOST_USER_NONE:
+        g_main_loop_quit(r->loop);
+        return 1;
     default:
         return 0;
     }
@@ -181,6 +195,9 @@ static const VuDevIface vuiface = {
 static void vrpmb_destroy(VuRpmb *r)
 {
     vug_deinit(&r->dev);
+    if (socket_path) {
+        unlink(socket_path);
+    }
 }
 
 /* Print vhost-user.json backend program capabilities */
@@ -191,11 +208,18 @@ static void print_capabilities(void)
     printf("}\n");
 }
 
+static gboolean hangup(gpointer user_data)
+{
+    GMainLoop *loop = (GMainLoop *) user_data;
+    g_info("%s: caught hangup/quit signal, quitting main loop", __func__);
+    g_main_loop_quit(loop);
+    return true;
+}
+
 int main (int argc, char *argv[])
 {
     GError *error = NULL;
     GOptionContext *context;
-    g_autoptr(GMainLoop) loop = NULL;
     g_autoptr(GSocket) socket = NULL;
     VuRpmb rpmb = {  };
 
@@ -262,15 +286,28 @@ int main (int argc, char *argv[])
         }
     }
 
+    /*
+     * Create the main loop first so all the various sources can be
+     * added. As well as catching signals we need to ensure vug_init
+     * can add it's GSource watches.
+     */
+
+    rpmb.loop = g_main_loop_new(NULL, FALSE);
+    /* catch exit signals */
+    g_unix_signal_add(SIGHUP, hangup, rpmb.loop);
+    g_unix_signal_add(SIGINT, hangup, rpmb.loop);
+
     if (!vug_init(&rpmb.dev, VHOST_USER_RPMB_MAX_QUEUES, g_socket_get_fd(socket),
                   vrpmb_panic, &vuiface)) {
         g_printerr("Failed to initialize libvhost-user-glib.\n");
         exit(EXIT_FAILURE);
     }
 
-    loop = g_main_loop_new(NULL, FALSE);
-    g_main_loop_run(loop);
-    g_main_loop_unref(loop);
 
+    g_message("entering main loop, awaiting messages");
+    g_main_loop_run(rpmb.loop);
+    g_message("finished main loop, cleaning up");
+
+    g_main_loop_unref(rpmb.loop);
     vrpmb_destroy(&rpmb);
 }
