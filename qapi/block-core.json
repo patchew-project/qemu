@@ -5261,11 +5261,15 @@
 #          NBD client can use NBD_OPT_SET_META_CONTEXT with
 #          "qemu:dirty-bitmap:NAME" to inspect the bitmap. (since 4.0)
 #
+# @alloc: Also export the allocation map for @device, so the NBD client
+#         can use NBD_OPT_SET_META_CONTEXT with "qemu:allocation-depth"
+#         to inspect allocation details. (since 5.2)
+#
 # Since: 5.0
 ##
 { 'struct': 'BlockExportNbd',
   'data': {'device': 'str', '*name': 'str', '*description': 'str',
-           '*writable': 'bool', '*bitmap': 'str' } }
+           '*writable': 'bool', '*bitmap': 'str', '*alloc': 'bool' } }
 
 ##
 # @nbd-server-add:

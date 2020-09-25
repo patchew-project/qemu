@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2016-2019 Red Hat, Inc.
+ *  Copyright (C) 2016-2020 Red Hat, Inc.
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device
@@ -256,6 +256,12 @@ enum {
 
 /* Extent flags for qemu:dirty-bitmap in NBD_REPLY_TYPE_BLOCK_STATUS */
 #define NBD_STATE_DIRTY (1 << 0)
+
+/* Extent flags for qemu:allocation-depth in NBD_REPLY_TYPE_BLOCK_STATUS */
+#define NBD_STATE_DEPTH_UNALLOC (0 << 0)
+#define NBD_STATE_DEPTH_LOCAL   (1 << 0)
+#define NBD_STATE_DEPTH_BACKING (2 << 0)
+#define NBD_STATE_DEPTH_MASK    (0x3)
 
 static inline bool nbd_reply_type_is_error(int type)
 {

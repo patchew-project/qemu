@@ -17,9 +17,9 @@ namespace "qemu".
 
 == "qemu" namespace ==
 
-The "qemu" namespace currently contains only one type of context,
-related to exposing the contents of a dirty bitmap alongside the
-associated disk contents.  That context has the following form:
+The "qemu" namespace currently contains two types of context.  The
+first is related to exposing the contents of a dirty bitmap alongside
+the associated disk contents.  That context has the following form:
 
     qemu:dirty-bitmap:<dirty-bitmap-export-name>
 
@@ -28,8 +28,21 @@ in reply for NBD_CMD_BLOCK_STATUS:
 
     bit 0: NBD_STATE_DIRTY, means that the extent is "dirty"
 
+The second is related to exposing the source of various extents within
+the image, with a single context named:
+
+    qemu:allocation-depth
+
+In the allocation depth context, bits 0 and 1 form a tri-state value:
+
+    bits 0-1 clear: NBD_STATE_DEPTH_UNALLOC, means the extent is unallocated
+    bit 0 set: NBD_STATE_DEPTH_LOCAL, the extent is allocated in this image
+    bit 1 set: NBD_STATE_DEPTH_BACKING, the extent is inherited from a
+               backing layer
+
 For NBD_OPT_LIST_META_CONTEXT the following queries are supported
-in addition to "qemu:dirty-bitmap:<dirty-bitmap-export-name>":
+in addition to the specific "qemu:allocation-depth" and
+"qemu:dirty-bitmap:<dirty-bitmap-export-name>":
 
 * "qemu:" - returns list of all available metadata contexts in the
             namespace.
@@ -55,3 +68,4 @@ the operation of that feature.
 NBD_CMD_BLOCK_STATUS for "qemu:dirty-bitmap:", NBD_CMD_CACHE
 * 4.2: NBD_FLAG_CAN_MULTI_CONN for shareable read-only exports,
 NBD_CMD_FLAG_FAST_ZERO
+* 5.2: NBD_CMD_BLOCK_STATUS for "qemu:allocation-depth"
