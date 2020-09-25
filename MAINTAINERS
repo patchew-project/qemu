@@ -1873,6 +1873,11 @@ F: hw/virtio/virtio-mem-pci.h
 F: hw/virtio/virtio-mem-pci.c
 F: include/hw/virtio/virtio-mem.h
 
+virtio-rpmb
+M: Alex Bennée <alex.bennee@linaro.org>
+S: Supported
+F: tools/vhost-user-rpmb/*
+
 nvme
 M: Keith Busch <kbusch@kernel.org>
 M: Klaus Jensen <its@irrelevant.dk>

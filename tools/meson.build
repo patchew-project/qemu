@@ -8,3 +8,11 @@ have_virtiofsd = (have_system and
 if have_virtiofsd
   subdir('virtiofsd')
 endif
+
+have_virtiorpmb = (have_system and
+    have_tools and
+    'CONFIG_LINUX' in config_host)
+
+if have_virtiorpmb
+  subdir('vhost-user-rpmb')
+endif
