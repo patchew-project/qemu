@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2016-2018 Red Hat, Inc.
+ *  Copyright (C) 2016-2020 Red Hat, Inc.
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device Server Side
@@ -792,135 +792,64 @@ static int nbd_negotiate_send_meta_context(NBDClient *client,
     return qio_channel_writev_all(client->ioc, iov, 2, errp) < 0 ? -EIO : 0;
 }
 
-/* Read strlen(@pattern) bytes, and set @match to true if they match @pattern.
- * @match is never set to false.
- *
- * Return -errno on I/O error, 0 if option was completely handled by
- * sending a reply about inconsistent lengths, or 1 on success.
- *
- * Note: return code = 1 doesn't mean that we've read exactly @pattern.
- * It only means that there are no errors.
- */
-static int nbd_meta_pattern(NBDClient *client, const char *pattern, bool *match,
-                            Error **errp)
-{
-    int ret;
-    char *query;
-    size_t len = strlen(pattern);
-
-    assert(len);
-
-    query = g_malloc(len);
-    ret = nbd_opt_read(client, query, len, errp);
-    if (ret <= 0) {
-        g_free(query);
-        return ret;
-    }
-
-    if (strncmp(query, pattern, len) == 0) {
-        trace_nbd_negotiate_meta_query_parse(pattern);
-        *match = true;
-    } else {
-        trace_nbd_negotiate_meta_query_skip("pattern not matched");
-    }
-    g_free(query);
-
-    return 1;
-}
 
 /*
- * Read @len bytes, and set @match to true if they match @pattern, or if @len
- * is 0 and the client is performing _LIST_. @match is never set to false.
- *
- * Return -errno on I/O error, 0 if option was completely handled by
- * sending a reply about inconsistent lengths, or 1 on success.
- *
- * Note: return code = 1 doesn't mean that we've read exactly @pattern.
- * It only means that there are no errors.
+ * Check @ns with @len bytes, and set @match to true if it matches @pattern,
+ * or if @len is 0 and the client is performing _LIST_. @match is never set
+ * to false.
  */
-static int nbd_meta_empty_or_pattern(NBDClient *client, const char *pattern,
-                                     uint32_t len, bool *match, Error **errp)
+static void nbd_meta_empty_or_pattern(NBDClient *client, const char *pattern,
+                                      const char *ns, uint32_t len,
+                                      bool *match, Error **errp)
 {
     if (len == 0) {
         if (client->opt == NBD_OPT_LIST_META_CONTEXT) {
             *match = true;
         }
         trace_nbd_negotiate_meta_query_parse("empty");
-        return 1;
+    } else if (strcmp(pattern, ns) == 0) {
+        trace_nbd_negotiate_meta_query_parse(pattern);
+        *match = true;
+    } else {
+        trace_nbd_negotiate_meta_query_skip("pattern not matched");
     }
-
-    if (len != strlen(pattern)) {
-        trace_nbd_negotiate_meta_query_skip("different lengths");
-        return nbd_opt_skip(client, len, errp);
-    }
-
-    return nbd_meta_pattern(client, pattern, match, errp);
 }
 
 /* nbd_meta_base_query
  *
  * Handle queries to 'base' namespace. For now, only the base:allocation
- * context is available.  'len' is the amount of text remaining to be read from
- * the current name, after the 'base:' portion has been stripped.
- *
- * Return -errno on I/O error, 0 if option was completely handled by
- * sending a reply about inconsistent lengths, or 1 on success.
+ * context is available.  @len is the length of @ns, including the 'base:'
+ * prefix.
  */
-static int nbd_meta_base_query(NBDClient *client, NBDExportMetaContexts *meta,
-                               uint32_t len, Error **errp)
+static void nbd_meta_base_query(NBDClient *client, NBDExportMetaContexts *meta,
+                                const char *ns, uint32_t len, Error **errp)
 {
-    return nbd_meta_empty_or_pattern(client, "allocation", len,
-                                     &meta->base_allocation, errp);
+    nbd_meta_empty_or_pattern(client, "allocation", ns + 5, len - 5,
+                              &meta->base_allocation, errp);
 }
 
 /* nbd_meta_bitmap_query
  *
  * Handle query to 'qemu:' namespace.
- * @len is the amount of text remaining to be read from the current name, after
- * the 'qemu:' portion has been stripped.
- *
- * Return -errno on I/O error, 0 if option was completely handled by
- * sending a reply about inconsistent lengths, or 1 on success. */
-static int nbd_meta_qemu_query(NBDClient *client, NBDExportMetaContexts *meta,
-                               uint32_t len, Error **errp)
+ * @len is the length of @ns, including the `qemu:' prefix.
+ */
+static void nbd_meta_qemu_query(NBDClient *client, NBDExportMetaContexts *meta,
+                                const char *ns, uint32_t len, Error **errp)
 {
-    bool dirty_bitmap = false;
-    size_t dirty_bitmap_len = strlen("dirty-bitmap:");
-    int ret;
-
     if (!meta->exp->export_bitmap) {
         trace_nbd_negotiate_meta_query_skip("no dirty-bitmap exported");
-        return nbd_opt_skip(client, len, errp);
-    }
-
-    if (len == 0) {
+    } else if (len == 0) {
         if (client->opt == NBD_OPT_LIST_META_CONTEXT) {
             meta->bitmap = true;
         }
         trace_nbd_negotiate_meta_query_parse("empty");
-        return 1;
-    }
-
-    if (len < dirty_bitmap_len) {
+    } else if (!g_str_has_prefix(ns + 5, "dirty-bitmap:")) {
         trace_nbd_negotiate_meta_query_skip("not dirty-bitmap:");
-        return nbd_opt_skip(client, len, errp);
+    } else {
+        trace_nbd_negotiate_meta_query_parse("dirty-bitmap:");
+        nbd_meta_empty_or_pattern(client, meta->exp->export_bitmap_context,
+                                  ns, len, &meta->bitmap, errp);
     }
-
-    len -= dirty_bitmap_len;
-    ret = nbd_meta_pattern(client, "dirty-bitmap:", &dirty_bitmap, errp);
-    if (ret <= 0) {
-        return ret;
-    }
-    if (!dirty_bitmap) {
-        trace_nbd_negotiate_meta_query_skip("not dirty-bitmap:");
-        return nbd_opt_skip(client, len, errp);
-    }
-
-    trace_nbd_negotiate_meta_query_parse("dirty-bitmap:");
-
-    return nbd_meta_empty_or_pattern(
-            client, meta->exp->export_bitmap_context +
-            strlen("qemu:dirty_bitmap:"), len, &meta->bitmap, errp);
 }
 
 /* nbd_negotiate_meta_query
@@ -930,22 +859,13 @@ static int nbd_meta_qemu_query(NBDClient *client, NBDExportMetaContexts *meta,
  *
  * The only supported namespaces are 'base' and 'qemu'.
  *
- * The function aims not wasting time and memory to read long unknown namespace
- * names.
- *
  * Return -errno on I/O error, 0 if option was completely handled by
  * sending a reply about inconsistent lengths, or 1 on success. */
 static int nbd_negotiate_meta_query(NBDClient *client,
                                     NBDExportMetaContexts *meta, Error **errp)
 {
-    /*
-     * Both 'qemu' and 'base' namespaces have length = 5 including a
-     * colon. If another length namespace is later introduced, this
-     * should certainly be refactored.
-     */
     int ret;
-    size_t ns_len = 5;
-    char ns[5];
+    g_autofree char *ns = NULL;
     uint32_t len;
 
     ret = nbd_opt_read(client, &len, sizeof(len), errp);
@@ -958,27 +878,29 @@ static int nbd_negotiate_meta_query(NBDClient *client,
         trace_nbd_negotiate_meta_query_skip("length too long");
         return nbd_opt_skip(client, len, errp);
     }
-    if (len < ns_len) {
-        trace_nbd_negotiate_meta_query_skip("length too short");
-        return nbd_opt_skip(client, len, errp);
-    }
 
-    len -= ns_len;
-    ret = nbd_opt_read(client, ns, ns_len, errp);
+    ns = g_malloc(len + 1);
+    ret = nbd_opt_read(client, ns, len, errp);
     if (ret <= 0) {
         return ret;
     }
-
-    if (!strncmp(ns, "base:", ns_len)) {
-        trace_nbd_negotiate_meta_query_parse("base:");
-        return nbd_meta_base_query(client, meta, len, errp);
-    } else if (!strncmp(ns, "qemu:", ns_len)) {
-        trace_nbd_negotiate_meta_query_parse("qemu:");
-        return nbd_meta_qemu_query(client, meta, len, errp);
+    ns[len] = '\0';
+    if (strlen(ns) != len) {
+        return nbd_opt_invalid(client, errp,
+                               "Embedded NUL in query for option %s",
+                               nbd_opt_lookup(client->opt));
     }
 
-    trace_nbd_negotiate_meta_query_skip("unknown namespace");
-    return nbd_opt_skip(client, len, errp);
+    if (g_str_has_prefix(ns, "base:")) {
+        trace_nbd_negotiate_meta_query_parse("base:");
+        nbd_meta_base_query(client, meta, ns, len, errp);
+    } else if (g_str_has_prefix(ns, "qemu:")) {
+        trace_nbd_negotiate_meta_query_parse("qemu:");
+        nbd_meta_qemu_query(client, meta, ns, len, errp);
+    } else {
+        trace_nbd_negotiate_meta_query_skip("unknown namespace");
+    }
+    return 1;
 }
 
 /* nbd_negotiate_meta_queries
