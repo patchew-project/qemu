@@ -259,10 +259,8 @@ build-deprecated:
   <<: *native_build_job_definition
   variables:
     IMAGE: debian-all-test-cross
-    CONFIGURE_ARGS: --disable-docs --disable-tools
+    CONFIGURE_ARGS: --disable-docs --disable-tools --include-deprecated-targets
     MAKE_CHECK_ARGS: check-tcg
-    TARGETS: ppc64abi32-linux-user tilegx-linux-user lm32-softmmu
-      unicore32-softmmu
   allow_failure: true
 
 build-oss-fuzz:

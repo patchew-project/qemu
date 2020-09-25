@@ -1040,14 +1040,25 @@ for opt do
   ;;
   --cpu=*)
   ;;
-  --target-list=*) target_list="$optarg"
+  --target-list=*)
                    if test "$target_list_exclude"; then
                        error_exit "Can't mix --target-list with --target-list-exclude"
+                   elif test "$target_list"; then
+                       target_list="$target_list,$optarg"
+                   else
+                       target_list="$optarg"
                    fi
   ;;
   --target-list-exclude=*) target_list_exclude="$optarg"
                    if test "$target_list"; then
                        error_exit "Can't mix --target-list-exclude with --target-list"
+                   fi
+  ;;
+  --include-deprecated-targets)
+                   if test "$target_list"; then
+                       target_list="$deprecated_targets_list,$target_list"
+                   else
+                       target_list="$deprecated_targets_list"
                    fi
   ;;
   --enable-trace-backends=*) trace_backends="$optarg"
@@ -1764,6 +1775,10 @@ Standard options:
 $(echo Available targets: $default_target_list | \
   fold -s -w 53 | sed -e 's/^/                           /')
   --target-list-exclude=LIST exclude a set of targets from the default target-list
+  --include-deprecated-targets add currently deprecated targets to the list
+$(echo Deprecated targets: $deprecated_targets_list | \
+  fold -s -w 53 | sed -e 's/^/                           /')
+
 
 Advanced options (experts only):
   --cross-prefix=PREFIX    use PREFIX for compile tools [$cross_prefix]
