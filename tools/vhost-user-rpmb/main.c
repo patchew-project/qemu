@@ -7,6 +7,7 @@
  */
 
 #include <glib.h>
+#include <stdio.h>
 
 static gchar *socket_path;
 static gint socket_fd;
@@ -19,6 +20,14 @@ static GOptionEntry options[] =
     { "print-capabilities", 0, 0, G_OPTION_ARG_NONE, &print_cap, "Output to stdout the backend capabilities in JSON format and exit", NULL},
     { NULL }
 };
+
+/* Print vhost-user.json backend program capabilities */
+static void print_capabilities(void)
+{
+    printf("{\n");
+    printf("  \"type\": \"block\"\n");
+    printf("}\n");
+}
 
 int main (int argc, char *argv[])
 {
@@ -33,5 +42,9 @@ int main (int argc, char *argv[])
         exit (1);
     }
 
+    if (print_cap) {
+        print_capabilities();
+        exit(0);
+    }
 
 }
