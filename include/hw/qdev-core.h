@@ -163,6 +163,9 @@ struct NamedClockList {
 /**
  * DeviceState:
  * @realized: Indicates whether the device has been fully constructed.
+ *            When accessed without the iothread mutex, consider using
+ *            qatomic_load_acquire() before accessing any other field in
+ *            the device.
  * @reset: ResettableState for the device; handled by Resettable interface.
  *
  * This structure should not be accessed directly.  We declare it here
