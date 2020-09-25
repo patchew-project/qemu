@@ -6,6 +6,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
+#define G_LOG_DOMAIN "vhost-user-rpmb"
+#define G_LOG_USE_STRUCTURED 1
+
 #include <glib.h>
 #include <gio/gio.h>
 #include <gio/gunixsocketaddress.h>
@@ -25,12 +28,16 @@
 static gchar *socket_path;
 static gint socket_fd = -1;
 static gboolean print_cap;
+static gboolean verbose;
+static gboolean debug;
 
 static GOptionEntry options[] =
 {
     { "socket-path", 0, 0, G_OPTION_ARG_FILENAME, &socket_path, "Location of vhost-user Unix domain socket, incompatible with --fd", "PATH" },
     { "fd", 0, 0, G_OPTION_ARG_INT, &socket_fd, "Specify the file-descriptor of the backend, incompatible with --socket-path", "FD" },
     { "print-capabilities", 0, 0, G_OPTION_ARG_NONE, &print_cap, "Output to stdout the backend capabilities in JSON format and exit", NULL},
+    { "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose, "Be more verbose in output", NULL},
+    { "debug", 0, 0, G_OPTION_ARG_NONE, &debug, "Include debug output", NULL},
     { NULL }
 };
 
@@ -84,6 +91,7 @@ static void vrpmb_panic(VuDev *dev, const char *msg)
 
 static uint64_t vrpmb_get_features(VuDev *dev)
 {
+    g_info("%s: replying", __func__);
     return 0;
 }
 
@@ -207,6 +215,17 @@ int main (int argc, char *argv[])
     if (!socket_path && socket_fd < 0) {
         g_printerr("Please specify either --fd or --socket-path\n");
         exit(EXIT_FAILURE);
+    }
+
+    if (verbose || debug) {
+        g_log_set_handler(NULL, G_LOG_LEVEL_MASK, g_log_default_handler, NULL);
+        if (debug) {
+            g_setenv("G_MESSAGES_DEBUG", "all", true);
+        }
+    } else {
+        g_log_set_handler(NULL,
+                          G_LOG_LEVEL_WARNING | G_LOG_LEVEL_CRITICAL | G_LOG_LEVEL_ERROR,
+                          g_log_default_handler, NULL);
     }
 
     /*
