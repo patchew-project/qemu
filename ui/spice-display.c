@@ -679,7 +679,16 @@ static int interface_client_monitors_config(QXLInstance *sin,
         info.width  = mc->monitors[head].width;
         info.height = mc->monitors[head].height;
     }
+#if SPICE_SERVER_VERSION >= 0x000e04 /* release 0.14.4 */
+    if (mc->flags & VD_AGENT_CONFIG_MONITORS_FLAG_PHYSICAL_SIZE) {
+        VDAgentMonitorMM *mm = (void *)&mc->monitors[mc->num_of_monitors];
 
+        if (mc->num_of_monitors > head) {
+            info.width_mm = mm[head].width;
+            info.height_mm = mm[head].height;
+        }
+    }
+#endif
     trace_qemu_spice_ui_info(ssd->qxl.id, info.width, info.height);
     dpy_set_ui_info(ssd->dcl.con, &info);
     return 1;
