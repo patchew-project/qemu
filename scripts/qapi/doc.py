@@ -6,7 +6,8 @@
 
 import re
 
-from .gen import QAPIGenDoc, QAPISchemaVisitor
+from .gen import QAPIGenDoc
+from .schema import QAPISchemaVisitor
 
 _MSG = '''
 @deftypefn {type} {{}} {name}
