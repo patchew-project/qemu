@@ -203,7 +203,8 @@ void qmp_nbd_server_add(BlockExportNbd *arg, Error **errp)
         arg->writable = false;
     }
 
-    exp = nbd_export_new(bs, 0, len, arg->name, arg->description, arg->bitmap,
+    exp = nbd_export_new(bs, 0, len, arg->name, arg->description,
+                         arg->alloc, arg->bitmap,
                          !arg->writable, !arg->writable,
                          NULL, false, on_eject_blk, errp);
     if (!exp) {

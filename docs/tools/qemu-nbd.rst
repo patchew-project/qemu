@@ -72,6 +72,12 @@ driver options if ``--image-opts`` is specified.
 
   Export the disk as read-only.
 
+.. option:: -A, --allocation-depth
+
+  Expose allocation depth information via the
+  ``qemu:allocation-depth`` context accessible through
+  NBD_OPT_SET_META_CONTEXT.
+
 .. option:: -B, --bitmap=NAME
 
   If *filename* has a qcow2 persistent bitmap *NAME*, expose
