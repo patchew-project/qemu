@@ -15,3 +15,4 @@ Contents:
    qemu-trace-stap
    virtfs-proxy-helper
    virtiofsd
+   vhost-user-rpmb
