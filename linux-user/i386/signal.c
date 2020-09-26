@@ -215,7 +215,7 @@ static void setup_sigcontext(struct target_sigcontext *sc,
     __put_user(env->regs[R_EDX], &sc->edx);
     __put_user(env->regs[R_ECX], &sc->ecx);
     __put_user(env->regs[R_EAX], &sc->eax);
-    __put_user(cs->exception_index, &sc->trapno);
+    __put_user(cs->trapnr, &sc->trapno);
     __put_user(env->error_code, &sc->err);
     __put_user(env->eip, &sc->eip);
     __put_user(env->segs[R_CS].selector, (unsigned int *)&sc->cs);
@@ -251,7 +251,7 @@ static void setup_sigcontext(struct target_sigcontext *sc,
     __put_user(env->regs[14], &sc->r14);
     __put_user(env->regs[15], &sc->r15);
 
-    __put_user(cs->exception_index, &sc->trapno);
+    __put_user(cs->trapnr, &sc->trapno);
     __put_user(env->error_code, &sc->err);
     __put_user(env->eip, &sc->rip);
 

@@ -198,17 +198,16 @@ static void emulate_vsyscall(CPUX86State *env)
 void cpu_loop(CPUX86State *env)
 {
     CPUState *cs = env_cpu(env);
-    int trapnr;
     abi_ulong pc;
     abi_ulong ret;
 
     for(;;) {
         cpu_exec_start(cs);
-        trapnr = cpu_exec(cs);
+        cs->trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
         process_queued_cpu_work(cs);
 
-        switch(trapnr) {
+        switch (cs->trapnr) {
         case 0x80:
             /* linux syscall from int $0x80 */
             ret = do_syscall(env,
@@ -273,7 +272,7 @@ void cpu_loop(CPUX86State *env)
         case EXCP00_DIVZ:
 #ifndef TARGET_X86_64
             if (env->eflags & VM_MASK) {
-                handle_vm86_trap(env, trapnr);
+                handle_vm86_trap(env, cs->trapnr);
                 break;
             }
 #endif
@@ -283,11 +282,11 @@ void cpu_loop(CPUX86State *env)
         case EXCP03_INT3:
 #ifndef TARGET_X86_64
             if (env->eflags & VM_MASK) {
-                handle_vm86_trap(env, trapnr);
+                handle_vm86_trap(env, cs->trapnr);
                 break;
             }
 #endif
-            if (trapnr == EXCP01_DB) {
+            if (cs->trapnr == EXCP01_DB) {
                 gen_signal(env, TARGET_SIGTRAP, TARGET_TRAP_BRKPT, env->eip);
             } else {
                 gen_signal(env, TARGET_SIGTRAP, TARGET_SI_KERNEL, 0);
@@ -297,7 +296,7 @@ void cpu_loop(CPUX86State *env)
         case EXCP05_BOUND:
 #ifndef TARGET_X86_64
             if (env->eflags & VM_MASK) {
-                handle_vm86_trap(env, trapnr);
+                handle_vm86_trap(env, cs->trapnr);
                 break;
             }
 #endif
@@ -318,7 +317,7 @@ void cpu_loop(CPUX86State *env)
         default:
             pc = env->segs[R_CS].base + env->eip;
             EXCP_DUMP(env, "qemu: 0x%08lx: unhandled CPU exception 0x%x - aborting\n",
-                      (long)pc, trapnr);
+                      (long)pc, cs->trapnr);
             abort();
         }
         process_pending_signals(env);
