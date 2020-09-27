@@ -500,6 +500,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     BlockdevDetectZeroesOptions detect_zeroes =
         BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF;
     const char *throttling_group = NULL;
+    int64_t iohang_timeout = 0;
 
     /* Check common options by copying from bs_opts to opts, all other options
      * stay in bs_opts for processing by bdrv_open(). */
@@ -621,6 +622,12 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         bs = blk_bs(blk);
 
         bs->detect_zeroes = detect_zeroes;
+
+        /* init timeout value for I/O Hang */
+        iohang_timeout = qemu_opt_get_number(opts, "iohang-timeout", 0);
+        if (iohang_timeout > 0) {
+            blk_iohang_init(blk, iohang_timeout);
+        }
 
         block_acct_setup(blk_get_stats(blk), account_invalid, account_failed);
 
@@ -3786,6 +3793,10 @@ QemuOptsList qemu_common_drive_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "whether to account for failed I/O operations "
                     "in the statistics",
+        },{
+            .name = "iohang-timeout",
+            .type = QEMU_OPT_NUMBER,
+            .help = "timeout value for I/O Hang",
         },
         { /* end of list */ }
     },
