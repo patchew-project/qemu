@@ -27,7 +27,7 @@ typedef struct QVirtio9P QVirtio9P;
 typedef struct QVirtio9PPCI QVirtio9PPCI;
 typedef struct QVirtio9PDevice QVirtio9PDevice;
 
-#define MOUNT_TAG "qtest"
+#define MOUNT_TAG_SYNTH "qtest-synth"
 
 struct QVirtio9P {
     QVirtioDevice *vdev;

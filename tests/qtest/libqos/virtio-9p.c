@@ -148,8 +148,8 @@ static void *virtio_9p_pci_create(void *pci_bus, QGuestAllocator *t_alloc,
 
 static void virtio_9p_register_nodes(void)
 {
-    const char *str_simple = "fsdev=fsdev0,mount_tag=" MOUNT_TAG;
-    const char *str_addr = "fsdev=fsdev0,addr=04.0,mount_tag=" MOUNT_TAG;
+    const char *str_simple = "fsdev=fsdev0,mount_tag=" MOUNT_TAG_SYNTH;
+    const char *str_addr = "fsdev=fsdev0,addr=04.0,mount_tag=" MOUNT_TAG_SYNTH;
 
     QPCIAddress addr = {
         .devfn = QPCI_DEVFN(4, 0),

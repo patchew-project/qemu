@@ -26,13 +26,13 @@ static void pci_config(void *obj, void *data, QGuestAllocator *t_alloc)
     char *tag;
     int i;
 
-    g_assert_cmpint(tag_len, ==, strlen(MOUNT_TAG));
+    g_assert_cmpint(tag_len, ==, strlen(MOUNT_TAG_SYNTH));
 
     tag = g_malloc(tag_len);
     for (i = 0; i < tag_len; i++) {
         tag[i] = qvirtio_config_readb(v9p->vdev, i + 2);
     }
-    g_assert_cmpmem(tag, tag_len, MOUNT_TAG, tag_len);
+    g_assert_cmpmem(tag, tag_len, MOUNT_TAG_SYNTH, tag_len);
     g_free(tag);
 }
 
