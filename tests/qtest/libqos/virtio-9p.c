@@ -24,6 +24,61 @@
 #include "qgraph.h"
 
 static QGuestAllocator *alloc;
+static char *local_test_path;
+
+/* Concatenates the passed 2 pathes. Returned result must be freed. */
+static char *concat_path(const char* a, const char* b)
+{
+    const int len = strlen(a) + strlen("/") + strlen(b);
+    char *path = g_malloc0(len + 1);
+    snprintf(path, len + 1, "%s/%s", a, b);
+    g_assert(strlen(path) == len);
+    return path;
+}
+
+/*
+ * Lazy sprintf() implementation which auto allocates buffer. Returned result
+ * must be freed.
+ */
+static char *strpr(const char* format, ...)
+{
+    va_list argp;
+
+    va_start(argp, format);
+    const int sz = vsnprintf(NULL, 0, format, argp) + 1;
+    va_end(argp);
+
+    g_assert(sz > 0);
+    char *s = g_malloc0(sz);
+
+    va_start(argp, format);
+    const int len = vsnprintf(s, sz, format, argp);
+    va_end(argp);
+
+    g_assert(len + 1 == sz);
+    return s;
+}
+
+static void init_local_test_path(void)
+{
+    char *pwd = get_current_dir_name();
+    local_test_path = concat_path(pwd, "qtest-9p-local");
+    free(pwd);
+}
+
+/* Creates the directory for the 9pfs 'local' filesystem driver to access. */
+static void create_local_test_dir(void)
+{
+    struct stat st;
+
+    g_assert(local_test_path != NULL);
+    mkdir(local_test_path, 0777);
+
+    /* ensure test directory exists now ... */
+    g_assert(stat(local_test_path, &st) == 0);
+    /* ... and is actually a directory */
+    g_assert((st.st_mode & S_IFMT) == S_IFDIR);
+}
 
 static void virtio_9p_cleanup(QVirtio9P *interface)
 {
@@ -62,10 +117,14 @@ static void virtio_9p_device_start_hw(QOSGraphObject *obj)
 static void *virtio_9p_get_driver(QVirtio9P *v_9p,
                                          const char *interface)
 {
-    if (!g_strcmp0(interface, "virtio-9p-synth")) {
+    if (!g_strcmp0(interface, "virtio-9p-synth") ||
+        !g_strcmp0(interface, "virtio-9p-local"))
+    {
         return v_9p;
     }
-    if (!g_strcmp0(interface, "virtio-synth")) {
+    if (!g_strcmp0(interface, "virtio-synth") ||
+        !g_strcmp0(interface, "virtio-local"))
+    {
         return v_9p->vdev;
     }
 
@@ -148,6 +207,12 @@ static void *virtio_9p_pci_create(void *pci_bus, QGuestAllocator *t_alloc,
 
 static void virtio_9p_register_nodes(void)
 {
+    /* make sure test dir for the 'local' tests exists and is clean */
+    init_local_test_path();
+    create_local_test_dir();
+
+    /* 9pfs device using the 'synth' fs driver */
+
     const char *str_simple = "fsdev=fsdev0,mount_tag=" MOUNT_TAG_SYNTH;
     const char *str_addr = "fsdev=fsdev0,addr=04.0,mount_tag=" MOUNT_TAG_SYNTH;
 
@@ -176,6 +241,38 @@ static void virtio_9p_register_nodes(void)
     qos_node_produces("virtio-9p-pci-synth", "pci-device");
     qos_node_produces("virtio-9p-pci-synth", "virtio-synth");
     qos_node_produces("virtio-9p-pci-synth", "virtio-9p-synth");
+
+
+    /* 9pfs device using the 'local' fs driver */
+
+    const char *local_str_simple = "fsdev=fsdev1,mount_tag=" MOUNT_TAG_LOCAL;
+    const char *local_str_addr = "fsdev=fsdev1,addr=04.1,mount_tag="
+                                 MOUNT_TAG_LOCAL;
+
+    addr.devfn = QPCI_DEVFN(4, 1),
+
+    opts.before_cmd_line = strpr(
+        "-fsdev local,id=fsdev1,path='%s',security_model=mapped-xattr",
+        local_test_path
+    );
+
+    /* virtio-9p-device-local */
+    opts.extra_device_opts = local_str_simple,
+    qos_node_create_driver_named("virtio-9p-device-local", "virtio-9p-device",
+                                 virtio_9p_device_create);
+    qos_node_consumes("virtio-9p-device-local", "virtio-bus", &opts);
+    qos_node_produces("virtio-9p-device-local", "virtio-local");
+    qos_node_produces("virtio-9p-device-local", "virtio-9p-local");
+
+    /* virtio-9p-pci-local */
+    opts.extra_device_opts = local_str_addr;
+    add_qpci_address(&opts, &addr);
+    qos_node_create_driver_named("virtio-9p-pci-local", "virtio-9p-pci",
+                                 virtio_9p_pci_create);
+    qos_node_consumes("virtio-9p-pci-local", "pci-bus", &opts);
+    qos_node_produces("virtio-9p-pci-local", "pci-device");
+    qos_node_produces("virtio-9p-pci-local", "virtio-local");
+    qos_node_produces("virtio-9p-pci-local", "virtio-9p-local");
 }
 
 libqos_init(virtio_9p_register_nodes);

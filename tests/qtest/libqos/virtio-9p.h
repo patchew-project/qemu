@@ -28,6 +28,7 @@ typedef struct QVirtio9PPCI QVirtio9PPCI;
 typedef struct QVirtio9PDevice QVirtio9PDevice;
 
 #define MOUNT_TAG_SYNTH "qtest-synth"
+#define MOUNT_TAG_LOCAL "qtest-local"
 
 struct QVirtio9P {
     QVirtioDevice *vdev;
