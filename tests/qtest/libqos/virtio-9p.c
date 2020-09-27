@@ -62,10 +62,10 @@ static void virtio_9p_device_start_hw(QOSGraphObject *obj)
 static void *virtio_9p_get_driver(QVirtio9P *v_9p,
                                          const char *interface)
 {
-    if (!g_strcmp0(interface, "virtio-9p")) {
+    if (!g_strcmp0(interface, "virtio-9p-synth")) {
         return v_9p;
     }
-    if (!g_strcmp0(interface, "virtio")) {
+    if (!g_strcmp0(interface, "virtio-synth")) {
         return v_9p->vdev;
     }
 
@@ -159,22 +159,23 @@ static void virtio_9p_register_nodes(void)
         .before_cmd_line = "-fsdev synth,id=fsdev0",
     };
 
-    /* virtio-9p-device */
+    /* virtio-9p-device-synth */
     opts.extra_device_opts = str_simple,
-    qos_node_create_driver("virtio-9p-device", virtio_9p_device_create);
-    qos_node_consumes("virtio-9p-device", "virtio-bus", &opts);
-    qos_node_produces("virtio-9p-device", "virtio");
-    qos_node_produces("virtio-9p-device", "virtio-9p");
+    qos_node_create_driver_named("virtio-9p-device-synth", "virtio-9p-device",
+                                 virtio_9p_device_create);
+    qos_node_consumes("virtio-9p-device-synth", "virtio-bus", &opts);
+    qos_node_produces("virtio-9p-device-synth", "virtio-synth");
+    qos_node_produces("virtio-9p-device-synth", "virtio-9p-synth");
 
-    /* virtio-9p-pci */
+    /* virtio-9p-pci-synth */
     opts.extra_device_opts = str_addr;
     add_qpci_address(&opts, &addr);
-    qos_node_create_driver("virtio-9p-pci", virtio_9p_pci_create);
-    qos_node_consumes("virtio-9p-pci", "pci-bus", &opts);
-    qos_node_produces("virtio-9p-pci", "pci-device");
-    qos_node_produces("virtio-9p-pci", "virtio");
-    qos_node_produces("virtio-9p-pci", "virtio-9p");
-
+    qos_node_create_driver_named("virtio-9p-pci-synth", "virtio-9p-pci",
+                                 virtio_9p_pci_create);
+    qos_node_consumes("virtio-9p-pci-synth", "pci-bus", &opts);
+    qos_node_produces("virtio-9p-pci-synth", "pci-device");
+    qos_node_produces("virtio-9p-pci-synth", "virtio-synth");
+    qos_node_produces("virtio-9p-pci-synth", "virtio-9p-synth");
 }
 
 libqos_init(virtio_9p_register_nodes);

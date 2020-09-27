@@ -897,27 +897,27 @@ static void fs_readdir_split_512(void *obj, void *data,
 
 static void register_virtio_9p_test(void)
 {
-    qos_add_test("config", "virtio-9p", pci_config, NULL);
-    qos_add_test("fs/version/basic", "virtio-9p", fs_version, NULL);
-    qos_add_test("fs/attach/basic", "virtio-9p", fs_attach, NULL);
-    qos_add_test("fs/walk/basic", "virtio-9p", fs_walk, NULL);
-    qos_add_test("fs/walk/no_slash", "virtio-9p", fs_walk_no_slash,
+    /* selects the 9pfs 'synth' filesystem driver for the respective test */
+    const char *synth_driver = "virtio-9p-synth";
+
+    qos_add_test("config", synth_driver, pci_config, NULL);
+    qos_add_test("fs/version/basic", synth_driver, fs_version, NULL);
+    qos_add_test("fs/attach/basic", synth_driver, fs_attach, NULL);
+    qos_add_test("fs/walk/basic", synth_driver, fs_walk, NULL);
+    qos_add_test("fs/walk/no_slash", synth_driver, fs_walk_no_slash, NULL);
+    qos_add_test("fs/walk/dotdot_from_root", synth_driver, fs_walk_dotdot,
                  NULL);
-    qos_add_test("fs/walk/dotdot_from_root", "virtio-9p",
-                 fs_walk_dotdot, NULL);
-    qos_add_test("fs/lopen/basic", "virtio-9p", fs_lopen, NULL);
-    qos_add_test("fs/write/basic", "virtio-9p", fs_write, NULL);
-    qos_add_test("fs/flush/success", "virtio-9p", fs_flush_success,
+    qos_add_test("fs/lopen/basic", synth_driver, fs_lopen, NULL);
+    qos_add_test("fs/write/basic", synth_driver, fs_write, NULL);
+    qos_add_test("fs/flush/success", synth_driver, fs_flush_success, NULL);
+    qos_add_test("fs/flush/ignored", synth_driver, fs_flush_ignored, NULL);
+    qos_add_test("fs/readdir/basic", synth_driver, fs_readdir, NULL);
+    qos_add_test("fs/readdir/split_512", synth_driver, fs_readdir_split_512,
                  NULL);
-    qos_add_test("fs/flush/ignored", "virtio-9p", fs_flush_ignored,
+    qos_add_test("fs/readdir/split_256", synth_driver, fs_readdir_split_256,
                  NULL);
-    qos_add_test("fs/readdir/basic", "virtio-9p", fs_readdir, NULL);
-    qos_add_test("fs/readdir/split_512", "virtio-9p",
-                 fs_readdir_split_512, NULL);
-    qos_add_test("fs/readdir/split_256", "virtio-9p",
-                 fs_readdir_split_256, NULL);
-    qos_add_test("fs/readdir/split_128", "virtio-9p",
-                 fs_readdir_split_128, NULL);
+    qos_add_test("fs/readdir/split_128", synth_driver, fs_readdir_split_128,
+                 NULL);
 }
 
 libqos_init(register_virtio_9p_test);
