@@ -2541,6 +2541,7 @@ static bool blk_iohang_handle(BlockBackend *blk, int new_status)
             /* Case when I/O Hang is recovered */
             blk->is_iohang_timeout = false;
             blk->iohang_time = 0;
+            qapi_event_send_block_io_hang(false);
         }
         break;
     case BLOCK_IO_HANG_STATUS_HANG:
@@ -2548,12 +2549,14 @@ static bool blk_iohang_handle(BlockBackend *blk, int new_status)
             /* Case when I/O hang is first triggered */
             blk->iohang_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME) / 1000;
             need_rehandle = true;
+            qapi_event_send_block_io_hang(true);
         } else {
             if (!blk->is_iohang_timeout) {
                 now = qemu_clock_get_ms(QEMU_CLOCK_REALTIME) / 1000;
                 if (now >= (blk->iohang_time + blk->iohang_timeout)) {
                     /* Case when I/O hang is timeout */
                     blk->is_iohang_timeout = true;
+                    qapi_event_send_block_io_hang_timeout(true);
                 } else {
                     /* Case when I/O hang is continued */
                     need_rehandle = true;

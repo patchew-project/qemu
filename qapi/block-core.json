@@ -5535,3 +5535,29 @@
 { 'command': 'blockdev-snapshot-delete-internal-sync',
   'data': { 'device': 'str', '*id': 'str', '*name': 'str'},
   'returns': 'SnapshotInfo' }
+
+##
+# @BLOCK_IO_HANG:
+#
+# Emitted when device I/O hang trigger event begin or end
+#
+# @set: true if I/O hang begin; false if I/O hang end.
+#
+# Since: 5.2
+#
+##
+{ 'event': 'BLOCK_IO_HANG',
+  'data': { 'set': 'bool' }}
+
+##
+# @BLOCK_IO_HANG_TIMEOUT:
+#
+# Emitted when device I/O hang timeout event set or clear
+#
+# @set: true if set; false if clear.
+#
+# Since: 5.2
+#
+##
+{ 'event': 'BLOCK_IO_HANG_TIMEOUT',
+  'data': { 'set': 'bool' }}
