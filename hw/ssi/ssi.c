@@ -17,6 +17,7 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
+#include "monitor/monitor.h"
 #include "qom/object.h"
 
 struct SSIBus {
@@ -26,10 +27,31 @@ struct SSIBus {
 #define TYPE_SSI_BUS "SSI"
 OBJECT_DECLARE_SIMPLE_TYPE(SSIBus, SSI_BUS)
 
+static void ssi_print_dev(Monitor *mon, DeviceState *dev, int indent)
+{
+    static const char *const polarity_s[] = {
+        [SSI_CS_NONE] = "unknown",
+        [SSI_CS_LOW]  = "low",
+        [SSI_CS_HIGH] = "high"
+    };
+    SSISlaveClass *ssc = SSI_SLAVE_GET_CLASS(dev);
+
+    monitor_printf(mon, "%*schip select polarity: %s\n",
+                   indent, "", polarity_s[ssc->cs_polarity]);
+}
+
+static void ssi_bus_class_init(ObjectClass *klass, void *data)
+{
+    BusClass *k = BUS_CLASS(klass);
+
+    k->print_dev = ssi_print_dev;
+}
+
 static const TypeInfo ssi_bus_info = {
     .name = TYPE_SSI_BUS,
     .parent = TYPE_BUS,
     .instance_size = sizeof(SSIBus),
+    .class_init = ssi_bus_class_init,
 };
 
 static void ssi_cs_default(void *opaque, int n, int level)
