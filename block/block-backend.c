@@ -35,6 +35,18 @@
 
 static AioContext *blk_aiocb_get_aio_context(BlockAIOCB *acb);
 
+/* block backend rehandle timer interval 5s */
+#define BLOCK_BACKEND_REHANDLE_TIMER_INTERVAL   5000
+
+typedef struct BlockBackendRehandleInfo {
+    bool enable;
+    QEMUTimer *ts;
+    unsigned timer_interval_ms;
+
+    unsigned int in_flight;
+    QTAILQ_HEAD(, BlkAioEmAIOCB) re_aios;
+} BlockBackendRehandleInfo;
+
 typedef struct BlockBackendAioNotifier {
     void (*attached_aio_context)(AioContext *new_context, void *opaque);
     void (*detach_aio_context)(void *opaque);
@@ -95,6 +107,8 @@ struct BlockBackend {
      * Accessed with atomic ops.
      */
     unsigned int in_flight;
+
+    BlockBackendRehandleInfo reinfo;
 };
 
 typedef struct BlockBackendAIOCB {
@@ -350,6 +364,7 @@ BlockBackend *blk_new(AioContext *ctx, uint64_t perm, uint64_t shared_perm)
     qemu_co_queue_init(&blk->queued_requests);
     notifier_list_init(&blk->remove_bs_notifiers);
     notifier_list_init(&blk->insert_bs_notifiers);
+
     QLIST_INIT(&blk->aio_notifiers);
 
     QTAILQ_INSERT_TAIL(&block_backends, blk, link);
@@ -1392,6 +1407,10 @@ typedef struct BlkAioEmAIOCB {
     BlkRwCo rwco;
     int bytes;
     bool has_returned;
+
+    /* for rehandle */
+    CoroutineEntry *co_entry;
+    QTAILQ_ENTRY(BlkAioEmAIOCB) list;
 } BlkAioEmAIOCB;
 
 static AioContext *blk_aio_em_aiocb_get_aio_context(BlockAIOCB *acb_)
