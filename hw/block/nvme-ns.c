@@ -47,6 +47,8 @@ static void nvme_ns_init(NvmeNamespace *ns)
 
 static int nvme_ns_init_blk(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
 {
+    int lba_index;
+
     if (!blkconf_blocksizes(&ns->blkconf, errp)) {
         return -1;
     }
@@ -66,6 +68,9 @@ static int nvme_ns_init_blk(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
     if (blk_enable_write_cache(ns->blkconf.blk)) {
         n->features.vwc = 0x1;
     }
+
+    lba_index = NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas);
+    ns->id_ns.lbaf[lba_index].ds = 31 - clz32(n->conf.logical_block_size);
 
     return 0;
 }
