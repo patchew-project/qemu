@@ -33,14 +33,14 @@ static void nvme_ns_init(NvmeNamespace *ns)
     NvmeIdNs *id_ns = &ns->id_ns;
 
     if (blk_get_flags(ns->blkconf.blk) & BDRV_O_UNMAP) {
-        ns->id_ns.dlfeat = 0x9;
+        ns->id_ns.dlfeat = 0x8;
     }
 
     id_ns->lbaf[0].ds = BDRV_SECTOR_BITS;
 
     id_ns->nsze = cpu_to_le64(nvme_ns_nlbas(ns));
 
-    ns->params.csi = NVME_CSI_NVM;
+    ns->csi = NVME_CSI_NVM;
     qemu_uuid_generate(&ns->params.uuid); /* TODO make UUIDs persistent */
 
     /* no thin provisioning */
@@ -73,7 +73,162 @@ static int nvme_ns_init_blk(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
     }
 
     lba_index = NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas);
-    ns->id_ns.lbaf[lba_index].ds = 31 - clz32(n->conf.logical_block_size);
+    ns->id_ns.lbaf[lba_index].ds = 31 - clz32(ns->blkconf.logical_block_size);
+
+    return 0;
+}
+
+/*
+ * Add a zone to the tail of a zone list.
+ */
+void nvme_add_zone_tail(NvmeNamespace *ns, NvmeZoneList *zl, NvmeZone *zone)
+{
+    uint32_t idx = (uint32_t)(zone - ns->zone_array);
+
+    assert(nvme_zone_not_in_list(zone));
+
+    if (!zl->size) {
+        zl->head = zl->tail = idx;
+        zone->next = zone->prev = NVME_ZONE_LIST_NIL;
+    } else {
+        ns->zone_array[zl->tail].next = idx;
+        zone->prev = zl->tail;
+        zone->next = NVME_ZONE_LIST_NIL;
+        zl->tail = idx;
+    }
+    zl->size++;
+}
+
+/*
+ * Remove a zone from a zone list. The zone must be linked in the list.
+ */
+void nvme_remove_zone(NvmeNamespace *ns, NvmeZoneList *zl, NvmeZone *zone)
+{
+    uint32_t idx = (uint32_t)(zone - ns->zone_array);
+
+    assert(!nvme_zone_not_in_list(zone));
+
+    --zl->size;
+    if (zl->size == 0) {
+        zl->head = NVME_ZONE_LIST_NIL;
+        zl->tail = NVME_ZONE_LIST_NIL;
+    } else if (idx == zl->head) {
+        zl->head = zone->next;
+        ns->zone_array[zl->head].prev = NVME_ZONE_LIST_NIL;
+    } else if (idx == zl->tail) {
+        zl->tail = zone->prev;
+        ns->zone_array[zl->tail].next = NVME_ZONE_LIST_NIL;
+    } else {
+        ns->zone_array[zone->next].prev = zone->prev;
+        ns->zone_array[zone->prev].next = zone->next;
+    }
+
+    zone->prev = zone->next = 0;
+}
+
+static int nvme_calc_zone_geometry(NvmeNamespace *ns, Error **errp)
+{
+    uint64_t zone_size, zone_cap;
+    uint32_t nz, lbasz = ns->blkconf.logical_block_size;
+
+    if (ns->params.zone_size_mb) {
+        zone_size = ns->params.zone_size_mb;
+    } else {
+        zone_size = NVME_DEFAULT_ZONE_SIZE;
+    }
+    if (ns->params.zone_capacity_mb) {
+        zone_cap = ns->params.zone_capacity_mb;
+    } else {
+        zone_cap = zone_size;
+    }
+    ns->zone_size = zone_size * MiB / lbasz;
+    ns->zone_capacity = zone_cap * MiB / lbasz;
+    if (ns->zone_capacity > ns->zone_size) {
+        error_setg(errp, "zone capacity exceeds zone size");
+        return -1;
+    }
+
+    nz = DIV_ROUND_UP(ns->size / lbasz, ns->zone_size);
+    ns->num_zones = nz;
+    ns->zone_array_size = sizeof(NvmeZone) * nz;
+    ns->zone_size_log2 = 0;
+    if (is_power_of_2(ns->zone_size)) {
+        ns->zone_size_log2 = 63 - clz64(ns->zone_size);
+    }
+
+    return 0;
+}
+
+static void nvme_init_zone_meta(NvmeNamespace *ns)
+{
+    uint64_t start = 0, zone_size = ns->zone_size;
+    uint64_t capacity = ns->num_zones * zone_size;
+    NvmeZone *zone;
+    int i;
+
+    ns->zone_array = g_malloc0(ns->zone_array_size);
+    ns->exp_open_zones = g_malloc0(sizeof(NvmeZoneList));
+    ns->imp_open_zones = g_malloc0(sizeof(NvmeZoneList));
+    ns->closed_zones = g_malloc0(sizeof(NvmeZoneList));
+    ns->full_zones = g_malloc0(sizeof(NvmeZoneList));
+
+    nvme_init_zone_list(ns->exp_open_zones);
+    nvme_init_zone_list(ns->imp_open_zones);
+    nvme_init_zone_list(ns->closed_zones);
+    nvme_init_zone_list(ns->full_zones);
+
+    zone = ns->zone_array;
+    for (i = 0; i < ns->num_zones; i++, zone++) {
+        if (start + zone_size > capacity) {
+            zone_size = capacity - start;
+        }
+        zone->d.zt = NVME_ZONE_TYPE_SEQ_WRITE;
+        nvme_set_zone_state(zone, NVME_ZONE_STATE_EMPTY);
+        zone->d.za = 0;
+        zone->d.zcap = ns->zone_capacity;
+        zone->d.zslba = start;
+        zone->d.wp = start;
+        zone->w_ptr = start;
+        zone->prev = 0;
+        zone->next = 0;
+        start += zone_size;
+    }
+}
+
+static int nvme_zoned_init_ns(NvmeCtrl *n, NvmeNamespace *ns, int lba_index,
+                              Error **errp)
+{
+    NvmeIdNsZoned *id_ns_z;
+
+    if (n->params.fill_pattern == 0) {
+        ns->id_ns.dlfeat |= 0x01;
+    } else if (n->params.fill_pattern == 0xff) {
+        ns->id_ns.dlfeat |= 0x02;
+    }
+
+    if (nvme_calc_zone_geometry(ns, errp) != 0) {
+        return -1;
+    }
+
+    nvme_init_zone_meta(ns);
+
+    id_ns_z = g_malloc0(sizeof(NvmeIdNsZoned));
+
+    /* MAR/MOR are zeroes-based, 0xffffffff means no limit */
+    id_ns_z->mar = 0xffffffff;
+    id_ns_z->mor = 0xffffffff;
+    id_ns_z->zoc = 0;
+    id_ns_z->ozcs = ns->params.cross_zone_read ? 0x01 : 0x00;
+
+    id_ns_z->lbafe[lba_index].zsze = cpu_to_le64(ns->zone_size);
+    id_ns_z->lbafe[lba_index].zdes = 0; /* FIXME make helper */
+
+    ns->csi = NVME_CSI_ZONED;
+    ns->id_ns.ncap = cpu_to_le64(ns->zone_capacity * ns->num_zones);
+    ns->id_ns.nuse = ns->id_ns.ncap;
+    ns->id_ns.nsze = ns->id_ns.ncap;
+
+    ns->id_ns_zoned = id_ns_z;
 
     return 0;
 }
@@ -103,6 +258,12 @@ int nvme_ns_setup(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
         return -1;
     }
 
+    if (ns->params.zoned) {
+        if (nvme_zoned_init_ns(n, ns, 0, errp) != 0) {
+            return -1;
+        }
+    }
+
     return 0;
 }
 
@@ -114,6 +275,16 @@ void nvme_ns_drain(NvmeNamespace *ns)
 void nvme_ns_flush(NvmeNamespace *ns)
 {
     blk_flush(ns->blkconf.blk);
+}
+
+void nvme_ns_cleanup(NvmeNamespace *ns)
+{
+    g_free(ns->id_ns_zoned);
+    g_free(ns->zone_array);
+    g_free(ns->exp_open_zones);
+    g_free(ns->imp_open_zones);
+    g_free(ns->closed_zones);
+    g_free(ns->full_zones);
 }
 
 static void nvme_ns_realize(DeviceState *dev, Error **errp)
@@ -133,6 +304,14 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
 static Property nvme_ns_props[] = {
     DEFINE_BLOCK_PROPERTIES(NvmeNamespace, blkconf),
     DEFINE_PROP_UINT32("nsid", NvmeNamespace, params.nsid, 0),
+
+    DEFINE_PROP_BOOL("zoned", NvmeNamespace, params.zoned, false),
+    DEFINE_PROP_UINT64("zone_size", NvmeNamespace, params.zone_size_mb,
+                       NVME_DEFAULT_ZONE_SIZE),
+    DEFINE_PROP_UINT64("zone_capacity", NvmeNamespace,
+                       params.zone_capacity_mb, 0),
+    DEFINE_PROP_BOOL("cross_zone_read", NvmeNamespace,
+                      params.cross_zone_read, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

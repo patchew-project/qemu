@@ -38,7 +38,6 @@ typedef struct NvmeZoneList {
 
 typedef struct NvmeNamespaceParams {
     uint32_t nsid;
-    uint8_t  csi;
     bool     attached;
     QemuUUID uuid;
 
@@ -52,6 +51,7 @@ typedef struct NvmeNamespace {
     DeviceState  parent_obj;
     BlockConf    blkconf;
     int32_t      bootindex;
+    uint8_t      csi;
     int64_t      size;
     NvmeIdNs     id_ns;
 
@@ -107,6 +107,7 @@ typedef struct NvmeCtrl NvmeCtrl;
 int nvme_ns_setup(NvmeCtrl *n, NvmeNamespace *ns, Error **errp);
 void nvme_ns_drain(NvmeNamespace *ns);
 void nvme_ns_flush(NvmeNamespace *ns);
+void nvme_ns_cleanup(NvmeNamespace *ns);
 
 static inline uint8_t nvme_get_zone_state(NvmeZone *zone)
 {
@@ -187,5 +188,8 @@ static inline NvmeZone *nvme_next_zone_in_list(NvmeNamespace *ns, NvmeZone *z,
     }
     return &ns->zone_array[z->next];
 }
+
+void nvme_add_zone_tail(NvmeNamespace *ns, NvmeZoneList *zl, NvmeZone *zone);
+void nvme_remove_zone(NvmeNamespace *ns, NvmeZoneList *zl, NvmeZone *zone);
 
 #endif /* NVME_NS_H */
