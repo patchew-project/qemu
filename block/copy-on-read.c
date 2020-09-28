@@ -24,19 +24,23 @@
 #include "block/block_int.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qdict.h"
 #include "block/copy-on-read.h"
 
 
 typedef struct BDRVStateCOR {
     bool active;
+    BlockDriverState *base_bs;
 } BDRVStateCOR;
 
 
 static int cor_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
+    BlockDriverState *base_bs = NULL;
     BDRVStateCOR *state = bs->opaque;
+    const char *base_node = qdict_get_try_str(options, "base");
 
     bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
                                BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
@@ -52,7 +56,16 @@ static int cor_open(BlockDriverState *bs, QDict *options, int flags,
         ((BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP | BDRV_REQ_NO_FALLBACK) &
             bs->file->bs->supported_zero_flags);
 
+    if (base_node) {
+        qdict_del(options, "base");
+        base_bs = bdrv_lookup_bs(NULL, base_node, errp);
+        if (!base_bs) {
+            error_setg(errp, QERR_BASE_NOT_FOUND, base_node);
+            return -EINVAL;
+        }
+    }
     state->active = true;
+    state->base_bs = base_bs;
 
     /*
      * We don't need to call bdrv_child_refresh_perms() now as the permissions
