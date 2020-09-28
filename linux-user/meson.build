@@ -22,6 +22,7 @@ syscall_nr_generators = {}
 
 subdir('alpha')
 subdir('arm')
+subdir('hexagon')
 subdir('hppa')
 subdir('i386')
 subdir('m68k')

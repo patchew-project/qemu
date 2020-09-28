@@ -53,7 +53,7 @@ read_includes()
 
 filter_defines()
 {
-    grep -e "#define __NR_" -e "#define __NR3264"
+    grep -e "#define __NR_" -e "#define __NR3264" | grep -v __NR_syscalls
 }
 
 rename_defines()
@@ -99,4 +99,5 @@ generate_syscall_nr openrisc 32 "$output/linux-user/openrisc/syscall_nr.h"
 
 generate_syscall_nr riscv 32 "$output/linux-user/riscv/syscall32_nr.h"
 generate_syscall_nr riscv 64 "$output/linux-user/riscv/syscall64_nr.h"
+generate_syscall_nr hexagon 32 "$output/linux-user/hexagon/syscall_nr.h"
 rm -fr "$TMP"
