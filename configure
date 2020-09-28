@@ -4886,18 +4886,6 @@ if test "$docs" != "no" ; then
   fi
 fi
 
-# Search for bswap32 function
-bswap_h=no
-cat > $TMPC << EOF
-#include <sys/endian.h>
-#include <sys/types.h>
-#include <machine/bswap.h>
-int main(void) { return bswap32(0); }
-EOF
-if compile_prog "" "" ; then
-  bswap_h=yes
-fi
-
 ##########################################
 # Do we have libiscsi >= 1.9.0
 if test "$libiscsi" != "no" ; then
@@ -6778,9 +6766,6 @@ if test "$strchrnul" = "yes" ; then
 fi
 if test "$st_atim" = "yes" ; then
   echo "HAVE_STRUCT_STAT_ST_ATIM=y" >> $config_host_mak
-fi
-if test "$bswap_h" = "yes" ; then
-  echo "CONFIG_MACHINE_BSWAP_H=y" >> $config_host_mak
 fi
 if test "$curl" = "yes" ; then
   echo "CONFIG_CURL=y" >> $config_host_mak

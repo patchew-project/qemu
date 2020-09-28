@@ -3,17 +3,12 @@
 
 #include "fpu/softfloat-types.h"
 
-#ifdef CONFIG_MACHINE_BSWAP_H
-# include <sys/endian.h>
-# include <machine/bswap.h>
-#else
 #undef  bswap16
 #define bswap16(_x) __builtin_bswap16(_x)
 #undef  bswap32
 #define bswap32(_x) __builtin_bswap32(_x)
 #undef  bswap64
 #define bswap64(_x) __builtin_bswap64(_x)
-#endif /* ! CONFIG_MACHINE_BSWAP_H */
 
 static inline void bswap16s(uint16_t *s)
 {
