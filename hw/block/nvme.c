@@ -165,6 +165,8 @@ static void nvme_assign_zone_state(NvmeNamespace *ns, NvmeZone *zone,
     default:
         zone->d.za = 0;
     }
+
+    nvme_sync_zone_file(ns, zone, sizeof(NvmeZone));
 }
 
 /*

@@ -36,6 +36,27 @@ typedef struct NvmeZoneList {
     uint8_t         rsvd12[4];
 } NvmeZoneList;
 
+#define NVME_ZONE_META_MAGIC 0x3aebaa70
+#define NVME_ZONE_META_VER  1
+
+typedef struct NvmeZoneMeta {
+    uint32_t        magic;
+    uint32_t        version;
+    uint64_t        zone_size;
+    uint64_t        zone_capacity;
+    uint32_t        nr_offline_zones;
+    uint32_t        nr_rdonly_zones;
+    uint32_t        lba_size;
+    uint32_t        rsvd40;
+    NvmeZoneList    exp_open_zones;
+    NvmeZoneList    imp_open_zones;
+    NvmeZoneList    closed_zones;
+    NvmeZoneList    full_zones;
+    uint8_t         zd_extension_size;
+    uint8_t         dirty;
+    uint8_t         rsvd594[3990];
+} NvmeZoneMeta;
+
 typedef struct NvmeNamespaceParams {
     uint32_t nsid;
     bool     attached;
@@ -50,6 +71,7 @@ typedef struct NvmeNamespaceParams {
     uint32_t zd_extension_size;
     uint32_t nr_offline_zones;
     uint32_t nr_rdonly_zones;
+    char     *zone_file;
 } NvmeNamespaceParams;
 
 typedef struct NvmeNamespace {
@@ -62,6 +84,7 @@ typedef struct NvmeNamespace {
 
     NvmeIdNsZoned   *id_ns_zoned;
     NvmeZone        *zone_array;
+    NvmeZoneMeta    *zone_meta;
     NvmeZoneList    *exp_open_zones;
     NvmeZoneList    *imp_open_zones;
     NvmeZoneList    *closed_zones;
@@ -74,6 +97,8 @@ typedef struct NvmeNamespace {
     uint8_t         *zd_extensions;
     int32_t         nr_open_zones;
     int32_t         nr_active_zones;
+    MemoryRegion    *zone_mr;
+    size_t          meta_size;
 
     NvmeNamespaceParams params;
 } NvmeNamespace;
@@ -108,6 +133,13 @@ static inline uint64_t nvme_ns_nlbas(NvmeNamespace *ns)
 static inline size_t nvme_l2b(NvmeNamespace *ns, uint64_t lba)
 {
     return lba << nvme_ns_lbads(ns);
+}
+
+static inline void nvme_set_zone_meta_dirty(NvmeNamespace *ns)
+{
+    if (ns->params.zone_file) {
+        ns->zone_meta->dirty = true;
+    }
 }
 
 typedef struct NvmeCtrl NvmeCtrl;
@@ -243,5 +275,6 @@ static inline void nvme_aor_dec_active(NvmeNamespace *ns)
 void nvme_add_zone_tail(NvmeNamespace *ns, NvmeZoneList *zl, NvmeZone *zone);
 void nvme_remove_zone(NvmeNamespace *ns, NvmeZoneList *zl, NvmeZone *zone);
 NvmeZone *nvme_remove_zone_head(NvmeNamespace *ns, NvmeZoneList *zl);
+void nvme_sync_zone_file(NvmeNamespace *ns, NvmeZone *zone, int len);
 
 #endif /* NVME_NS_H */

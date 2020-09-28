@@ -20,12 +20,15 @@
 #include "hw/pci/pci.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/block-backend.h"
+#include "sysemu/hostmem.h"
+#include "qom/object_interfaces.h"
 #include "qapi/error.h"
 #include "crypto/random.h"
 
 #include "hw/qdev-properties.h"
 #include "hw/qdev-core.h"
 
+#include "trace.h"
 #include "nvme.h"
 #include "nvme-ns.h"
 
@@ -98,6 +101,7 @@ void nvme_add_zone_tail(NvmeNamespace *ns, NvmeZoneList *zl, NvmeZone *zone)
         zl->tail = idx;
     }
     zl->size++;
+    nvme_set_zone_meta_dirty(ns);
 }
 
 /*
@@ -113,12 +117,15 @@ void nvme_remove_zone(NvmeNamespace *ns, NvmeZoneList *zl, NvmeZone *zone)
     if (zl->size == 0) {
         zl->head = NVME_ZONE_LIST_NIL;
         zl->tail = NVME_ZONE_LIST_NIL;
+        nvme_set_zone_meta_dirty(ns);
     } else if (idx == zl->head) {
         zl->head = zone->next;
         ns->zone_array[zl->head].prev = NVME_ZONE_LIST_NIL;
+        nvme_set_zone_meta_dirty(ns);
     } else if (idx == zl->tail) {
         zl->tail = zone->prev;
         ns->zone_array[zl->tail].next = NVME_ZONE_LIST_NIL;
+        nvme_set_zone_meta_dirty(ns);
     } else {
         ns->zone_array[zone->next].prev = zone->prev;
         ns->zone_array[zone->prev].next = zone->next;
@@ -144,6 +151,7 @@ NvmeZone *nvme_remove_zone_head(NvmeNamespace *ns, NvmeZoneList *zl)
             ns->zone_array[zl->head].prev = NVME_ZONE_LIST_NIL;
         }
         zone->prev = zone->next = 0;
+        nvme_set_zone_meta_dirty(ns);
     }
 
     return zone;
@@ -219,11 +227,119 @@ static int nvme_calc_zone_geometry(NvmeNamespace *ns, Error **errp)
         }
     }
 
+    ns->meta_size = sizeof(NvmeZoneMeta) + ns->zone_array_size +
+                          nz * ns->params.zd_extension_size;
+    ns->meta_size = ROUND_UP(ns->meta_size, qemu_real_host_page_size);
+
+    return 0;
+}
+
+static int nvme_validate_zone_file(NvmeNamespace *ns, uint64_t capacity)
+{
+    NvmeZoneMeta *meta = ns->zone_meta;
+    NvmeZone *zone = ns->zone_array;
+    uint64_t start = 0, zone_size = ns->zone_size;
+    int i, n_imp_open = 0, n_exp_open = 0, n_closed = 0, n_full = 0;
+
+    if (meta->magic != NVME_ZONE_META_MAGIC) {
+        return 1;
+    }
+    if (meta->version != NVME_ZONE_META_VER) {
+        return 2;
+    }
+    if (meta->zone_size != zone_size) {
+        return 3;
+    }
+    if (meta->zone_capacity != ns->zone_capacity) {
+        return 4;
+    }
+    if (meta->nr_offline_zones != ns->params.nr_offline_zones) {
+        return 5;
+    }
+    if (meta->nr_rdonly_zones != ns->params.nr_rdonly_zones) {
+        return 6;
+    }
+    if (meta->lba_size != ns->blkconf.logical_block_size) {
+        return 7;
+    }
+    if (meta->zd_extension_size != ns->params.zd_extension_size) {
+        return 8;
+    }
+
+    for (i = 0; i < ns->num_zones; i++, zone++) {
+        if (start + zone_size > capacity) {
+            zone_size = capacity - start;
+        }
+        if (zone->d.zt != NVME_ZONE_TYPE_SEQ_WRITE) {
+            return 9;
+        }
+        if (zone->d.zcap != ns->zone_capacity) {
+            return 10;
+        }
+        if (zone->d.zslba != start) {
+            return 11;
+        }
+        switch (nvme_get_zone_state(zone)) {
+        case NVME_ZONE_STATE_EMPTY:
+        case NVME_ZONE_STATE_OFFLINE:
+        case NVME_ZONE_STATE_READ_ONLY:
+            if (zone->d.wp != start) {
+                return 12;
+            }
+            break;
+        case NVME_ZONE_STATE_IMPLICITLY_OPEN:
+            if (zone->d.wp < start ||
+                zone->d.wp >= zone->d.zslba + zone->d.zcap) {
+                return 13;
+            }
+            n_imp_open++;
+            break;
+        case NVME_ZONE_STATE_EXPLICITLY_OPEN:
+            if (zone->d.wp < start ||
+                zone->d.wp >= zone->d.zslba + zone->d.zcap) {
+                return 13;
+            }
+            n_exp_open++;
+            break;
+        case NVME_ZONE_STATE_CLOSED:
+            if (zone->d.wp < start ||
+                zone->d.wp >= zone->d.zslba + zone->d.zcap) {
+                return 13;
+            }
+            n_closed++;
+            break;
+        case NVME_ZONE_STATE_FULL:
+            if (zone->d.wp != zone->d.zslba + zone->d.zcap) {
+                return 14;
+            }
+            n_full++;
+            break;
+        default:
+            return 15;
+        }
+
+        start += zone_size;
+    }
+
+    if (n_exp_open != nvme_zone_list_size(ns->exp_open_zones)) {
+        return 16;
+    }
+    if (n_imp_open != nvme_zone_list_size(ns->imp_open_zones)) {
+        return 17;
+    }
+    if (n_closed != nvme_zone_list_size(ns->closed_zones)) {
+        return 18;
+    }
+    if (n_full != nvme_zone_list_size(ns->full_zones)) {
+        return 19;
+    }
+
     return 0;
 }
 
 static void nvme_init_zone_meta(NvmeNamespace *ns)
 {
+    NvmeZoneMeta *meta = ns->zone_meta;
     uint64_t start = 0, zone_size = ns->zone_size;
     uint64_t capacity = ns->num_zones * zone_size;
     NvmeZone *zone;
@@ -231,14 +347,26 @@ static void nvme_init_zone_meta(NvmeNamespace *ns)
     int i;
     uint16_t zs;
 
-    ns->zone_array = g_malloc0(ns->zone_array_size);
-    ns->exp_open_zones = g_malloc0(sizeof(NvmeZoneList));
-    ns->imp_open_zones = g_malloc0(sizeof(NvmeZoneList));
-    ns->closed_zones = g_malloc0(sizeof(NvmeZoneList));
-    ns->full_zones = g_malloc0(sizeof(NvmeZoneList));
-    if (ns->params.zd_extension_size) {
-        ns->zd_extensions = g_malloc0(ns->params.zd_extension_size *
-                                      ns->num_zones);
+    if (ns->params.zone_file) {
+        meta->magic = NVME_ZONE_META_MAGIC;
+        meta->version = NVME_ZONE_META_VER;
+        meta->zone_size = zone_size;
+        meta->zone_capacity = ns->zone_capacity;
+        meta->lba_size = ns->blkconf.logical_block_size;
+        meta->nr_offline_zones = ns->params.nr_offline_zones;
+        meta->nr_rdonly_zones = ns->params.nr_rdonly_zones;
+        meta->zd_extension_size = ns->params.zd_extension_size;
+    } else {
+        assert(!ns->zone_meta);
+        ns->zone_array = g_malloc0(ns->zone_array_size);
+        ns->exp_open_zones = g_malloc0(sizeof(NvmeZoneList));
+        ns->imp_open_zones = g_malloc0(sizeof(NvmeZoneList));
+        ns->closed_zones = g_malloc0(sizeof(NvmeZoneList));
+        ns->full_zones = g_malloc0(sizeof(NvmeZoneList));
+        if (ns->params.zd_extension_size) {
+            ns->zd_extensions = g_malloc0(ns->params.zd_extension_size *
+                                          ns->num_zones);
+        }
     }
 
     nvme_init_zone_list(ns->exp_open_zones);
@@ -293,12 +421,180 @@ static void nvme_init_zone_meta(NvmeNamespace *ns)
             i--;
         }
     }
+
+    if (ns->params.zone_file) {
+        nvme_set_zone_meta_dirty(ns);
+    }
+}
+
+static int nvme_open_zone_file(NvmeNamespace *ns, bool *init_meta,
+                               Error **errp)
+{
+    Object *file_be;
+    HostMemoryBackend *fb;
+    struct stat statbuf;
+    int ret;
+
+    ret = stat(ns->params.zone_file, &statbuf);
+    if (ret && errno == ENOENT) {
+        *init_meta = true;
+    } else if (!S_ISREG(statbuf.st_mode)) {
+        error_setg(errp, "\"%s\" is not a regular file",
+                   ns->params.zone_file);
+        return -1;
+    }
+
+    file_be = object_new(TYPE_MEMORY_BACKEND_FILE);
+    object_property_set_str(file_be, "mem-path", ns->params.zone_file,
+                            &error_abort);
+    object_property_set_int(file_be, "size", ns->meta_size, &error_abort);
+    object_property_set_bool(file_be, "share", true, &error_abort);
+    object_property_set_bool(file_be, "discard-data", false, &error_abort);
+    if (!user_creatable_complete(USER_CREATABLE(file_be), errp)) {
+        object_unref(file_be);
+        return -1;
+    }
+    object_property_add_child(OBJECT(ns), "_fb", file_be);
+    object_unref(file_be);
+
+    fb = MEMORY_BACKEND(file_be);
+    ns->zone_mr = host_memory_backend_get_memory(fb);
+
+    return 0;
+}
+
+static int nvme_map_zone_file(NvmeNamespace *ns, bool *init_meta)
+{
+    ns->zone_meta = (void *)memory_region_get_ram_ptr(ns->zone_mr);
+    ns->zone_array = (NvmeZone *)(ns->zone_meta + 1);
+    ns->exp_open_zones = &ns->zone_meta->exp_open_zones;
+    ns->imp_open_zones = &ns->zone_meta->imp_open_zones;
+    ns->closed_zones = &ns->zone_meta->closed_zones;
+    ns->full_zones = &ns->zone_meta->full_zones;
+
+    if (ns->params.zd_extension_size) {
+        ns->zd_extensions = (uint8_t *)(ns->zone_meta + 1);
+        ns->zd_extensions += ns->zone_array_size;
+    }
+
+    return 0;
+}
+
+void nvme_sync_zone_file(NvmeNamespace *ns, NvmeZone *zone, int len)
+{
+    uintptr_t z = (uintptr_t)zone, off = z - (uintptr_t)ns->zone_meta;
+
+    if (ns->zone_meta) {
+        memory_region_msync(ns->zone_mr, off, len);
+
+        if (ns->zone_meta->dirty) {
+            ns->zone_meta->dirty = false;
+            memory_region_msync(ns->zone_mr, 0, sizeof(NvmeZoneMeta));
+        }
+    }
+}
+
+/*
+ * Close or finish all the zones that might be still open after power-down.
+ */
+static void nvme_prepare_zones(NvmeNamespace *ns)
+{
+    NvmeZone *zone;
+    uint32_t set_state;
+    int i;
+
+    assert(!ns->nr_active_zones);
+    assert(!ns->nr_open_zones);
+
+    zone = ns->zone_array;
+    for (i = 0; i < ns->num_zones; i++, zone++) {
+        switch (nvme_get_zone_state(zone)) {
+        case NVME_ZONE_STATE_IMPLICITLY_OPEN:
+            nvme_remove_zone(ns, ns->imp_open_zones, zone);
+            break;
+        case NVME_ZONE_STATE_EXPLICITLY_OPEN:
+            nvme_remove_zone(ns, ns->exp_open_zones, zone);
+            break;
+        case NVME_ZONE_STATE_CLOSED:
+            nvme_aor_inc_active(ns);
+            /* fall through */
+        default:
+            continue;
+        }
+
+        if (zone->d.za & NVME_ZA_ZD_EXT_VALID) {
+            set_state = NVME_ZONE_STATE_CLOSED;
+        } else if (zone->d.wp == zone->d.zslba) {
+            set_state = NVME_ZONE_STATE_EMPTY;
+        } else if (ns->params.max_active_zones == 0 ||
+                   ns->nr_active_zones < ns->params.max_active_zones) {
+            set_state = NVME_ZONE_STATE_CLOSED;
+        } else {
+            set_state = NVME_ZONE_STATE_FULL;
+        }
+
+        switch (set_state) {
+        case NVME_ZONE_STATE_CLOSED:
+            trace_pci_nvme_power_on_close(nvme_get_zone_state(zone),
+                                          zone->d.zslba);
+            nvme_aor_inc_active(ns);
+            nvme_add_zone_tail(ns, ns->closed_zones, zone);
+            break;
+        case NVME_ZONE_STATE_EMPTY:
+            trace_pci_nvme_power_on_reset(nvme_get_zone_state(zone),
+                                          zone->d.zslba);
+            break;
+        case NVME_ZONE_STATE_FULL:
+            trace_pci_nvme_power_on_full(nvme_get_zone_state(zone),
+                                         zone->d.zslba);
+            zone->d.wp = nvme_zone_wr_boundary(zone);
+        }
+
+        zone->w_ptr = zone->d.wp;
+        nvme_set_zone_state(zone, set_state);
+    }
+}
+
+static int nvme_load_zone_meta(NvmeNamespace *ns, bool *init_meta)
+{
+    uint64_t capacity = ns->num_zones * ns->zone_size;
+    int ret = 0;
+
+    if (ns->params.zone_file) {
+        ret = nvme_map_zone_file(ns, init_meta);
+        trace_pci_nvme_mapped_zone_file(ns->params.zone_file, ret);
+        if (ret < 0) {
+            return ret;
+        }
+
+        if (!*init_meta) {
+            ret = nvme_validate_zone_file(ns, capacity);
+            if (ret) {
+                trace_pci_nvme_err_zone_file_invalid(ret);
+                *init_meta = true;
+            }
+        }
+    } else {
+        *init_meta = true;
+    }
+
+    if (*init_meta) {
+        nvme_init_zone_meta(ns);
+        trace_pci_nvme_initialized_zone_file(ns->params.zone_file);
+    } else {
+        nvme_prepare_zones(ns);
+    }
+    nvme_sync_zone_file(ns, ns->zone_array, ns->zone_array_size);
+
+    return 0;
 }
 
 static int nvme_zoned_init_ns(NvmeCtrl *n, NvmeNamespace *ns, int lba_index,
                               Error **errp)
 {
     NvmeIdNsZoned *id_ns_z;
+    int ret;
+    bool init_meta = false;
 
     if (n->params.fill_pattern == 0) {
         ns->id_ns.dlfeat |= 0x01;
@@ -310,7 +606,17 @@ static int nvme_zoned_init_ns(NvmeCtrl *n, NvmeNamespace *ns, int lba_index,
         return -1;
     }
 
-    nvme_init_zone_meta(ns);
+    if (ns->params.zone_file) {
+        if (nvme_open_zone_file(ns, &init_meta, errp) != 0) {
+            return -1;
+        }
+    }
+
+    ret = nvme_load_zone_meta(ns, &init_meta);
+    if (ret) {
+        error_setg(errp, "could not load/init zone metadata, err=%d", ret);
+        return -1;
+    }
 
     id_ns_z = g_malloc0(sizeof(NvmeIdNsZoned));
 
@@ -376,17 +682,21 @@ void nvme_ns_drain(NvmeNamespace *ns)
 void nvme_ns_flush(NvmeNamespace *ns)
 {
     blk_flush(ns->blkconf.blk);
+
+    nvme_sync_zone_file(ns, ns->zone_array, ns->zone_array_size);
 }
 
 void nvme_ns_cleanup(NvmeNamespace *ns)
 {
+    if (!ns->params.zone_file)  {
+        g_free(ns->zone_array);
+        g_free(ns->exp_open_zones);
+        g_free(ns->imp_open_zones);
+        g_free(ns->closed_zones);
+        g_free(ns->full_zones);
+        g_free(ns->zd_extensions);
+    }
     g_free(ns->id_ns_zoned);
-    g_free(ns->zone_array);
-    g_free(ns->exp_open_zones);
-    g_free(ns->imp_open_zones);
-    g_free(ns->closed_zones);
-    g_free(ns->full_zones);
-    g_free(ns->zd_extensions);
 }
 
 static void nvme_ns_realize(DeviceState *dev, Error **errp)
@@ -422,6 +732,7 @@ static Property nvme_ns_props[] = {
                        params.nr_offline_zones, 0),
     DEFINE_PROP_UINT32("rdonly_zones", NvmeNamespace,
                        params.nr_rdonly_zones, 0),
+    DEFINE_PROP_STRING("zone_file", NvmeNamespace, params.zone_file),
     DEFINE_PROP_END_OF_LIST(),
 };
 
