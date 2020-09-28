@@ -26,6 +26,7 @@
 #include "qemu/module.h"
 #include "sysemu/kvm.h"
 #include "exec/exec-all.h"
+#include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"
 
 static void mips_cpu_set_pc(CPUState *cs, vaddr value)
@@ -134,6 +135,22 @@ static void mips_cpu_disas_set_info(CPUState *s, disassemble_info *info)
     }
 }
 
+static void mips_cp0_period_set(MIPSCPU *cpu)
+{
+    CPUMIPSState *env = &cpu->env;
+
+    /* Recompute CP0's period on clock change */
+    env->cp0_count_ns = cpu->cp0_count_rate * clock_get_ns(CPU(cpu)->clock);
+}
+
+static void mips_cpu_clk_update(CPUState *cs)
+{
+    MIPSCPU *cpu = MIPS_CPU(cs);
+
+    /* Recompute CP0's period on clock change */
+    mips_cp0_period_set(cpu);
+}
+
 static void mips_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -148,6 +165,7 @@ static void mips_cpu_realizefn(DeviceState *dev, Error **errp)
          */
         clock_set_hz(cs->clock, 200000000);
     }
+    mips_cpu_clk_update(cs);
 
     cpu_exec_realizefn(cs, &local_err);
     if (local_err != NULL) {
@@ -190,6 +208,7 @@ static ObjectClass *mips_cpu_class_by_name(const char *cpu_model)
 }
 
 static Property mips_cpu_properties[] = {
+    DEFINE_PROP_UINT32("CP0_Count-rate", MIPSCPU, cp0_count_rate, 2),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -224,6 +243,7 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
     cc->tcg_initialize = mips_tcg_init;
     cc->tlb_fill = mips_cpu_tlb_fill;
 #endif
+    cc->clock_update = mips_cpu_clk_update;
 
     cc->gdb_num_core_regs = 73;
     cc->gdb_stop_before_watchpoint = true;
