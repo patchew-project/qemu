@@ -90,6 +90,7 @@ struct vhost_dev {
     QLIST_HEAD(, vhost_iommu) iommu_list;
     IOMMUNotifier n;
     const VhostDevConfigOps *config_ops;
+    unsigned int used_memslots;
 };
 
 struct vhost_net {
