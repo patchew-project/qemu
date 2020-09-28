@@ -8,8 +8,6 @@
 # include <machine/bswap.h>
 #elif defined(__FreeBSD__)
 # include <sys/endian.h>
-#elif defined(__HAIKU__)
-# include <endian.h>
 #else
 #undef  bswap16
 #define bswap16(_x) __builtin_bswap16(_x)
