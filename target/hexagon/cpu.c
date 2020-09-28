@@ -280,6 +280,8 @@ static void hexagon_cpu_class_init(ObjectClass *c, void *data)
     cc->dump_state = hexagon_dump_state;
     cc->set_pc = hexagon_cpu_set_pc;
     cc->synchronize_from_tb = hexagon_cpu_synchronize_from_tb;
+    cc->gdb_read_register = hexagon_gdb_read_register;
+    cc->gdb_write_register = hexagon_gdb_write_register;
     cc->gdb_num_core_regs = TOTAL_PER_THREAD_REGS;
     cc->gdb_stop_before_watchpoint = true;
     cc->disas_set_info = hexagon_cpu_disas_set_info;
