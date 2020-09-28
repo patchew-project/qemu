@@ -37,6 +37,7 @@
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
 #include "qemu/error-report.h"
+#include "hw/qdev-clock.h"
 
 #define MAX_IDE_BUS 2
 
@@ -184,6 +185,7 @@ void mips_r4k_init(MachineState *machine)
     int bios_size;
     MIPSCPU *cpu;
     CPUMIPSState *env;
+    Clock *cpuclk;
     ResetData *reset_info;
     int i;
     qemu_irq *i8259;
@@ -193,7 +195,11 @@ void mips_r4k_init(MachineState *machine)
     int be;
 
     /* init CPUs */
-    cpu = MIPS_CPU(cpu_create(machine->cpu_type));
+    cpu = MIPS_CPU(object_new(machine->cpu_type));
+    cpuclk = qdev_init_clock_out(DEVICE(cpu), "cpuclk");
+    clock_set_hz(cpuclk, 200000000); /* 200 MHz */
+    qdev_connect_clock_in(DEVICE(cpu), "clk", cpuclk);
+    qdev_realize(DEVICE(cpu), NULL, &error_abort);
     env = &cpu->env;
 
     reset_info = g_malloc0(sizeof(ResetData));
