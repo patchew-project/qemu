@@ -31,6 +31,7 @@
 #include "qemu/thread.h"
 #include "qemu/plugin.h"
 #include "qom/object.h"
+#include "hw/clock.h"
 
 typedef int (*WriteCoreDumpFunction)(const void *buf, size_t size,
                                      void *opaque);
@@ -155,6 +156,7 @@ struct TranslationBlock;
  * @disas_set_info: Setup architecture specific components of disassembly info
  * @adjust_watchpoint_address: Perform a target-specific adjustment to an
  * address before attempting to match it against watchpoints.
+ * @clock_update: Callback for input clock changes
  *
  * Represents a CPU family or model.
  */
@@ -176,6 +178,7 @@ struct CPUClass {
                                   unsigned size, MMUAccessType access_type,
                                   int mmu_idx, MemTxAttrs attrs,
                                   MemTxResult response, uintptr_t retaddr);
+    void (*clock_update)(CPUState *cpu);
     bool (*virtio_is_big_endian)(CPUState *cpu);
     int (*memory_rw_debug)(CPUState *cpu, vaddr addr,
                            uint8_t *buf, int len, bool is_write);
@@ -316,6 +319,7 @@ struct qemu_work_item;
  *   QOM parent.
  * @nr_cores: Number of cores within this CPU package.
  * @nr_threads: Number of threads within this CPU.
+ * @clock: this CPU source clock (an output clock of another device)
  * @running: #true if CPU is currently running (lockless).
  * @has_waiter: #true if a CPU is currently waiting for the cpu_exec_end;
  * valid under cpu_list_lock.
@@ -400,6 +404,7 @@ struct CPUState {
     int num_ases;
     AddressSpace *as;
     MemoryRegion *memory;
+    Clock *clock;
 
     void *env_ptr; /* CPUArchState */
     IcountDecr *icount_decr_ptr;

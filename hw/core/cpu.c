@@ -30,6 +30,7 @@
 #include "qemu/qemu-print.h"
 #include "sysemu/tcg.h"
 #include "hw/boards.h"
+#include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"
 #include "trace/trace-root.h"
 #include "qemu/plugin.h"
@@ -247,6 +248,16 @@ void cpu_reset(CPUState *cpu)
     trace_guest_cpu_reset(cpu);
 }
 
+static void cpu_clk_update(void *opaque)
+{
+    CPUState *cpu = opaque;
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    if (cc->clock_update) {
+        cc->clock_update(cpu);
+    }
+}
+
 static void cpu_common_reset(DeviceState *dev)
 {
     CPUState *cpu = CPU(dev);
@@ -367,6 +378,7 @@ static void cpu_common_initfn(Object *obj)
     /* the default value is changed by qemu_init_vcpu() for softmmu */
     cpu->nr_cores = 1;
     cpu->nr_threads = 1;
+    cpu->clock = qdev_init_clock_in(DEVICE(obj), "clk", cpu_clk_update, cpu);
 
     qemu_mutex_init(&cpu->work_mutex);
     QSIMPLEQ_INIT(&cpu->work_list);
