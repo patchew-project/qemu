@@ -25,6 +25,7 @@
 #include "kvm_mips.h"
 #include "qemu/module.h"
 #include "sysemu/kvm.h"
+#include "sysemu/qtest.h"
 #include "exec/exec-all.h"
 #include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"
@@ -159,11 +160,18 @@ static void mips_cpu_realizefn(DeviceState *dev, Error **errp)
     Error *local_err = NULL;
 
     if (!clock_get(cs->clock)) {
+#ifdef CONFIG_USER_ONLY
         /*
          * Initialize the frequency to 200MHz in case
          * the clock remains unconnected.
          */
         clock_set_hz(cs->clock, 200000000);
+#else
+        if (!qtest_enabled()) {
+            error_setg(errp, "CPU clock must be connected to a clock source");
+            return;
+        }
+#endif
     }
     mips_cpu_clk_update(cs);
 
