@@ -1598,7 +1598,7 @@ static uint16_t nvme_identify_ns_descr_list(NvmeCtrl *n, NvmeRequest *req)
      * here.
      */
     ns_descrs->uuid.hdr.nidt = NVME_NIDT_UUID;
-    ns_descrs->uuid.hdr.nidl = NVME_NIDT_UUID_LEN;
+    ns_descrs->uuid.hdr.nidl = NVME_NIDL_UUID;
     stl_be_p(&ns_descrs->uuid.v, nsid);
 
     return nvme_dma(n, list, NVME_IDENTIFY_DATA_SIZE,
