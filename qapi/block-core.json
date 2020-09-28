@@ -2512,21 +2512,6 @@
 # @base-node: the node name of the backing file.
 #             It cannot be set if @base is also set. (Since 2.8)
 #
-# @backing-file: The backing file string to write into the top
-#                image. This filename is not validated.
-#
-#                If a pathname string is such that it cannot be
-#                resolved by QEMU, that means that subsequent QMP or
-#                HMP commands must use node-names for the image in
-#                question, as filename lookup methods will fail.
-#
-#                If not specified, QEMU will automatically determine
-#                the backing file string to use, or error out if there
-#                is no obvious choice.  Care should be taken when
-#                specifying the string, to specify a valid filename or
-#                protocol.
-#                (Since 2.1)
-#
 # @speed: the maximum speed, in bytes per second
 #
 # @on-error: the action to take on an error (default report).
@@ -2566,7 +2551,7 @@
 ##
 { 'command': 'block-stream',
   'data': { '*job-id': 'str', 'device': 'str', '*base': 'str',
-            '*base-node': 'str', '*backing-file': 'str', '*speed': 'int',
+            '*base-node': 'str', '*speed': 'int',
             '*on-error': 'BlockdevOnError',
             '*filter-node-name': 'str',
             '*auto-finalize': 'bool', '*auto-dismiss': 'bool' } }
