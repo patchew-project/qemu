@@ -207,6 +207,10 @@ static void nvme_init_zone_meta(NvmeNamespace *ns)
     ns->imp_open_zones = g_malloc0(sizeof(NvmeZoneList));
     ns->closed_zones = g_malloc0(sizeof(NvmeZoneList));
     ns->full_zones = g_malloc0(sizeof(NvmeZoneList));
+    if (ns->params.zd_extension_size) {
+        ns->zd_extensions = g_malloc0(ns->params.zd_extension_size *
+                                      ns->num_zones);
+    }
 
     nvme_init_zone_list(ns->exp_open_zones);
     nvme_init_zone_list(ns->imp_open_zones);
@@ -257,7 +261,8 @@ static int nvme_zoned_init_ns(NvmeCtrl *n, NvmeNamespace *ns, int lba_index,
     id_ns_z->ozcs = ns->params.cross_zone_read ? 0x01 : 0x00;
 
     id_ns_z->lbafe[lba_index].zsze = cpu_to_le64(ns->zone_size);
-    id_ns_z->lbafe[lba_index].zdes = 0; /* FIXME make helper */
+    id_ns_z->lbafe[lba_index].zdes =
+        ns->params.zd_extension_size >> 6; /* Units of 64B */
 
     ns->csi = NVME_CSI_ZONED;
     ns->id_ns.ncap = cpu_to_le64(ns->zone_capacity * ns->num_zones);
@@ -321,6 +326,7 @@ void nvme_ns_cleanup(NvmeNamespace *ns)
     g_free(ns->imp_open_zones);
     g_free(ns->closed_zones);
     g_free(ns->full_zones);
+    g_free(ns->zd_extensions);
 }
 
 static void nvme_ns_realize(DeviceState *dev, Error **errp)
@@ -350,6 +356,8 @@ static Property nvme_ns_props[] = {
                       params.cross_zone_read, false),
     DEFINE_PROP_UINT32("max_active", NvmeNamespace, params.max_active_zones, 0),
     DEFINE_PROP_UINT32("max_open", NvmeNamespace, params.max_open_zones, 0),
+    DEFINE_PROP_UINT32("zone_descr_ext_size", NvmeNamespace,
+                       params.zd_extension_size, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
