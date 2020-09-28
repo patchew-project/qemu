@@ -123,6 +123,8 @@
 #define AMDVI_CMD_COMPLETE_PPR_REQUEST    0x07
 #define AMDVI_CMD_INVAL_AMDVI_ALL         0x08
 
+#define AMDVI_CMD_INVAL_IOMMU_PAGES_S_BIT (1ULL << 0)
+
 #define AMDVI_DEVTAB_ENTRY_SIZE           32
 
 /* Device table entry bits 0:63 */
@@ -147,6 +149,9 @@
 #define AMDVI_EVENT_PAGE_TAB_HW_ERROR     (0x4U << 12)
 #define AMDVI_EVENT_ILLEGAL_COMMAND_ERROR (0x5U << 12)
 #define AMDVI_EVENT_COMMAND_HW_ERROR      (0x6U << 12)
+
+/* PTE bits */
+#define AMDVI_PTE_PRESENT                 (1ULL << 0)
 
 #define AMDVI_EVENT_LEN                  16
 #define AMDVI_PERM_READ             (1 << 0)
@@ -197,6 +202,11 @@
 #define AMDVI_MAX_VA_ADDR          (48UL << 5)
 #define AMDVI_MAX_PH_ADDR          (40UL << 8)
 #define AMDVI_MAX_GVA_ADDR         (48UL << 15)
+
+#define AMDVI_PGSZ_ENTIRE          (0X0007FFFFFFFFF000ULL)
+
+/* The domain id is 16-bit, so use 32-bit all 1's to represent all domains */
+#define AMDVI_DOMAIN_ALL           (UINT32_MAX)
 
 /* Completion Wait data size */
 #define AMDVI_COMPLETION_DATA_SIZE    8

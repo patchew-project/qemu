@@ -76,6 +76,12 @@ typedef struct AMDVIIOTLBEntry {
     uint64_t page_mask;         /* physical page size  */
 } AMDVIIOTLBEntry;
 
+static bool amdvi_get_dte(AMDVIState *s, int devid, uint64_t *entry);
+static void amdvi_sync_domain(AMDVIState *s, uint32_t domid,
+                              uint64_t addr, uint16_t flags);
+static void amdvi_walk_level(AMDVIAddressSpace *as, uint64_t pte,
+                             uint64_t iova, uint64_t partial);
+
 /* configure MMIO registers at startup/reset */
 static void amdvi_set_quad(AMDVIState *s, hwaddr addr, uint64_t val,
                            uint64_t romask, uint64_t w1cmask)
@@ -443,6 +449,78 @@ static void amdvi_address_space_unmap(AMDVIAddressSpace *as, IOMMUNotifier *n)
     memory_region_notify_one(n, &entry);
 }
 
+/*
+ * Sync the IOVA-to-GPA translation at the time of IOMMU page invalidation.
+ * This function is called when IOMMU commands, AMDVI_CMD_INVAL_AMDVI_PAGES
+ * and AMDVI_CMD_INVAL_AMDVI_ALL, are triggred.
+ *
+ * The range of addr invalidation is determined by addr and flags, using
+ * the following rules:
+ *   - All pages
+ *     In this case, we unmap the whole address space and then re-walk the
+ *     I/O page table to sync the mapping relationship.
+ *   - Single page:
+ *     Re-walk the page based on the specified iova, and only sync the
+ *     newly mapped page.
+ */
+static void amdvi_sync_domain(AMDVIState *s, uint32_t domid,
+                              uint64_t addr, uint16_t flags)
+{
+    AMDVIAddressSpace *as;
+    bool sync_all_domains = false;
+    uint64_t mask, size = 0x1000;
+
+    if (domid == AMDVI_DOMAIN_ALL) {
+        sync_all_domains = true;
+    }
+
+     /* S=1 means the invalidation size is from addr field; otherwise 4KB */
+    if (flags & AMDVI_CMD_INVAL_IOMMU_PAGES_S_BIT) {
+        uint32_t zbit = cto64(addr | 0xFFF) + 1;
+
+        size = 1ULL << zbit;
+
+        if (size < 0x1000) {
+            addr = 0;
+            size = AMDVI_PGSZ_ENTIRE;
+        } else {
+            mask = ~(size - 1);
+            addr &= mask;
+        }
+    }
+
+    QLIST_FOREACH(as, &s->amdvi_as_with_notifiers, next) {
+        uint64_t dte[4];
+        IOMMUNotifier *n;
+
+        if (!amdvi_get_dte(s, as->devfn, dte)) {
+            continue;
+        }
+
+        if (!sync_all_domains && (domid != (dte[1] & 0xFFFULL))) {
+            continue;
+        }
+
+        /*
+         * In case of syncing more than a page, we invalidate the entire
+         * address range and re-walk the whole page table.
+         */
+        if (size == AMDVI_PGSZ_ENTIRE) {
+            IOMMU_NOTIFIER_FOREACH(n, &as->iommu) {
+                amdvi_address_space_unmap(as, n);
+            }
+        } else if (size > 0x1000) {
+            IOMMU_NOTIFIER_FOREACH(n, &as->iommu) {
+                if (n->start <= addr && addr + size < n->end) {
+                    amdvi_address_space_unmap(as, n);
+                }
+            }
+        }
+
+        amdvi_walk_level(as, dte[0], addr, 0);
+    }
+}
+
 static gboolean amdvi_iotlb_remove_by_domid(gpointer key, gpointer value,
                                             gpointer user_data)
 {
@@ -455,6 +533,8 @@ static gboolean amdvi_iotlb_remove_by_domid(gpointer key, gpointer value,
 static void amdvi_inval_pages(AMDVIState *s, uint64_t *cmd)
 {
     uint16_t domid = cpu_to_le16((uint16_t)extract64(cmd[0], 32, 16));
+    uint64_t addr  = cpu_to_le64(extract64(cmd[1], 12, 52)) << 12;
+    uint16_t flags = cpu_to_le16((uint16_t)extract64(cmd[1], 0, 12));
 
     if (extract64(cmd[0], 20, 12) || extract64(cmd[0], 48, 12) ||
         extract64(cmd[1], 3, 9)) {
@@ -465,6 +545,8 @@ static void amdvi_inval_pages(AMDVIState *s, uint64_t *cmd)
     g_hash_table_foreach_remove(s->iotlb, amdvi_iotlb_remove_by_domid,
                                 &domid);
     trace_amdvi_pages_inval(domid);
+
+    amdvi_sync_domain(s, domid, addr, flags);
 }
 
 static void amdvi_prefetch_pages(AMDVIState *s, uint64_t *cmd)
@@ -908,6 +990,101 @@ static inline uint64_t amdvi_get_pte_entry(AMDVIState *s, uint64_t pte_addr,
 
     pte = le64_to_cpu(pte);
     return pte;
+}
+
+static inline uint64_t pte_get_page_size(uint64_t level)
+{
+    return 1UL << ((level * 9) + 3);
+}
+
+static void amdvi_sync_iova(AMDVIAddressSpace *as, uint64_t pte, uint64_t iova)
+{
+    IOMMUTLBEntry entry;
+    uint64_t addr = pte & AMDVI_DEV_PT_ROOT_MASK;
+    uint32_t level = get_pte_translation_mode(pte);
+    uint64_t size = pte_get_page_size(level + 1);
+    uint64_t perm = amdvi_get_perms(pte);
+
+    assert(level == 0 || level == 7);
+
+    entry.target_as = &address_space_memory;
+    entry.iova = iova ;
+    entry.perm = perm;
+    if (level == 0) {
+        entry.addr_mask = size - 1;
+        entry.translated_addr = addr;
+    } else if (level == 7) {
+        entry.addr_mask = (1 << (cto64(addr | 0xFFF) + 1)) - 1;
+        entry.translated_addr = addr & ~entry.addr_mask;
+    }
+
+    memory_region_notify_iommu(&as->iommu, 0, entry);
+}
+
+/*
+ * Walk the I/O page table and notify mapping change. Note that iova
+ * determines if this function's behavior:
+ *   - iova == 0: re-walk the whole page table
+ *   - iova != 0: re-walk the address defined in iova
+ */
+static void amdvi_walk_level(AMDVIAddressSpace *as, uint64_t pte,
+                             uint64_t iova, uint64_t partial)
+{
+    uint64_t index = 0;
+    uint8_t level = get_pte_translation_mode(pte);
+    uint64_t cur_addr = pte & AMDVI_DEV_PT_ROOT_MASK;
+    uint64_t end_addr = cur_addr + 4096;
+    uint64_t new_partial = 0;
+
+    if (!(pte & AMDVI_PTE_PRESENT)) {
+        return;
+    }
+
+    if (level == 7) {
+        amdvi_sync_iova(as, pte, iova);
+        return;
+    }
+
+    /* narrow the scope of table walk if iova != 0 */
+    if (iova) {
+        cur_addr += ((iova >> (3 + 9 * level)) & 0x1FF) << 3;
+        end_addr = cur_addr + 8;
+    }
+
+    while (cur_addr < end_addr) {
+        int cur_addr_inc = 8;
+        int index_inc = 1;
+
+        pte = amdvi_get_pte_entry(as->iommu_state, cur_addr, as->devfn);
+        /* validate the entry */
+        if (!(pte & AMDVI_PTE_PRESENT)) {
+            goto next;
+        }
+
+        if (level > 1) {
+            new_partial = (partial << 9) | index;
+            amdvi_walk_level(as, pte, iova, new_partial);
+        } else {
+            /* found a page, sync the mapping first */
+            if (iova) {
+                amdvi_sync_iova(as, pte, iova);
+            } else {
+                amdvi_sync_iova(as, pte, ((partial << 9) | index) << 12);
+            }
+
+            /* skip following entries when a large page is found */
+            if (get_pte_translation_mode(pte) == 7) {
+                int skipped = 1 << (cto64(pte >> 12) + 1);
+
+                cur_addr_inc = 8 * skipped;
+                index_inc = skipped;
+            }
+        }
+
+next:
+        cur_addr += cur_addr_inc;
+        index += index_inc;
+    }
 }
 
 static void amdvi_page_walk(AMDVIAddressSpace *as, uint64_t *dte,
