@@ -141,6 +141,14 @@ static void mips_cpu_realizefn(DeviceState *dev, Error **errp)
     MIPSCPUClass *mcc = MIPS_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
 
+    if (!clock_get(cs->clock)) {
+        /*
+         * Initialize the frequency to 200MHz in case
+         * the clock remains unconnected.
+         */
+        clock_set_hz(cs->clock, 200000000);
+    }
+
     cpu_exec_realizefn(cs, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
