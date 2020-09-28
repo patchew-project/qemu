@@ -63,6 +63,8 @@ struct AMDVIAddressSpace {
     IOMMUMemoryRegion iommu;    /* Device's address translation region  */
     MemoryRegion iommu_ir;      /* Device's interrupt remapping region  */
     AddressSpace as;            /* device's corresponding address space */
+    IOMMUNotifierFlag notifier_flags; /* notifier flags of address space */
+    QLIST_ENTRY(AMDVIAddressSpace) next; /* notifier linked list */
 };
 
 /* AMDVI cache entry */
@@ -423,6 +425,22 @@ static void amdvi_inval_all(AMDVIState *s, uint64_t *cmd)
 
     amdvi_iotlb_reset(s);
     trace_amdvi_all_inval();
+}
+
+static void amdvi_address_space_unmap(AMDVIAddressSpace *as, IOMMUNotifier *n)
+{
+    IOMMUTLBEntry entry;
+    hwaddr start = n->start;
+    hwaddr end = n->end;
+    hwaddr size = end - start + 1;
+
+    entry.target_as = &address_space_memory;
+    entry.iova = start;
+    entry.translated_addr = 0;
+    entry.perm = IOMMU_NONE;
+    entry.addr_mask = size - 1;
+
+    memory_region_notify_one(n, &entry);
 }
 
 static gboolean amdvi_iotlb_remove_by_domid(gpointer key, gpointer value,
@@ -1473,14 +1491,17 @@ static int amdvi_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu,
                                            Error **errp)
 {
     AMDVIAddressSpace *as = container_of(iommu, AMDVIAddressSpace, iommu);
+    AMDVIState *s = as->iommu_state;
 
-    if (new & IOMMU_NOTIFIER_MAP) {
-        error_setg(errp,
-                   "device %02x.%02x.%x requires iommu notifier which is not "
-                   "currently supported", as->bus_num, PCI_SLOT(as->devfn),
-                   PCI_FUNC(as->devfn));
-        return -EINVAL;
+    /* Update address space notifier flags */
+    as->notifier_flags = new;
+
+    if (old == IOMMU_NOTIFIER_NONE) {
+        QLIST_INSERT_HEAD(&s->amdvi_as_with_notifiers, as, next);
+    } else if (new == IOMMU_NOTIFIER_NONE) {
+        QLIST_REMOVE(as, next);
     }
+
     return 0;
 }
 
@@ -1573,6 +1594,8 @@ static void amdvi_realize(DeviceState *dev, Error **errp)
     /* Pseudo address space under root PCI bus. */
     x86ms->ioapic_as = amdvi_host_dma_iommu(bus, s, AMDVI_IOAPIC_SB_DEVID);
 
+    QLIST_INIT(&s->amdvi_as_with_notifiers);
+
     /* set up MMIO */
     memory_region_init_io(&s->mmio, OBJECT(s), &mmio_mem_ops, s, "amdvi-mmio",
                           AMDVI_MMIO_SIZE);
@@ -1631,12 +1654,22 @@ static const TypeInfo amdviPCI = {
     },
 };
 
+static void amdvi_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
+{
+    AMDVIAddressSpace *as = container_of(iommu_mr, AMDVIAddressSpace, iommu);
+
+    amdvi_address_space_unmap(as, n);
+
+    return;
+}
+
 static void amdvi_iommu_memory_region_class_init(ObjectClass *klass, void *data)
 {
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
 
     imrc->translate = amdvi_translate;
     imrc->notify_flag_changed = amdvi_iommu_notify_flag_changed;
+    imrc->replay = amdvi_iommu_replay;
 }
 
 static const TypeInfo amdvi_iommu_memory_region_info = {
