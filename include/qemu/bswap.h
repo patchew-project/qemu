@@ -6,8 +6,6 @@
 #ifdef CONFIG_MACHINE_BSWAP_H
 # include <sys/endian.h>
 # include <machine/bswap.h>
-#elif defined(__FreeBSD__)
-# include <sys/endian.h>
 #else
 #undef  bswap16
 #define bswap16(_x) __builtin_bswap16(_x)
