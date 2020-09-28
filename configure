@@ -7728,6 +7728,12 @@ case "$target_name" in
     bflt="yes"
     mttcg="yes"
   ;;
+  hexagon)
+    TARGET_BASE_ARCH=hexagon
+    TARGET_ABI_DIR=hexagon
+    mttcg=yes
+    target_compiler=$cross_cc_hexagon
+  ;;
   *)
     error_exit "Unsupported target CPU"
   ;;
