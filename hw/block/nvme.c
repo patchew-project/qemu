@@ -105,6 +105,7 @@ static const bool nvme_feature_support[NVME_FID_MAX] = {
 
 static const uint32_t nvme_feature_cap[NVME_FID_MAX] = {
     [NVME_TEMPERATURE_THRESHOLD]    = NVME_FEAT_CAP_CHANGE,
+    [NVME_ERROR_RECOVERY]           = NVME_FEAT_CAP_CHANGE | NVME_FEAT_CAP_NS,
     [NVME_VOLATILE_WRITE_CACHE]     = NVME_FEAT_CAP_CHANGE,
     [NVME_NUMBER_OF_QUEUES]         = NVME_FEAT_CAP_CHANGE,
     [NVME_ASYNCHRONOUS_EVENT_CONF]  = NVME_FEAT_CAP_CHANGE,
@@ -888,6 +889,78 @@ static inline uint16_t nvme_check_bounds(NvmeCtrl *n, NvmeNamespace *ns,
     return NVME_SUCCESS;
 }
 
+static inline uint16_t nvme_check_dulbe(NvmeNamespace *ns, uint64_t slba,
+                                        uint32_t nlb)
+{
+    uint64_t elba = slba + nlb;
+
+    if (find_next_zero_bit(ns->pstate.utilization.map, elba, slba) < elba) {
+        return NVME_DULB;
+    }
+
+    return NVME_SUCCESS;
+}
+
+static int nvme_allocate(NvmeNamespace *ns, uint64_t slba, uint32_t nlb)
+{
+    int nlongs, idx;
+    int64_t offset;
+    unsigned long *map, *src;
+    int ret;
+
+    if (!(ns->pstate.blk && nvme_check_dulbe(ns, slba, nlb))) {
+        return 0;
+    }
+
+    trace_pci_nvme_allocate(nvme_nsid(ns), slba, nlb);
+
+    bitmap_set(ns->pstate.utilization.map, slba, nlb);
+
+    /*
+     * The bitmap is an array of unsigned longs, so calculate the index given
+     * the size of a long.
+     */
+#if HOST_LONG_BITS == 64
+    idx = slba >> 6;
+#else /* == 32 */
+    idx = slba >> 5;
+#endif
+
+    nlongs = BITS_TO_LONGS(nlb);
+
+    /* Unaligned modification (not staring at a long boundary) may modify the
+     * following long, so account for that.
+     */
+    if (((slba % BITS_PER_LONG) + nlb) > BITS_PER_LONG) {
+        nlongs += 1;
+    }
+
+    offset = ns->pstate.utilization.offset + idx * sizeof(unsigned long);
+    src = ns->pstate.utilization.map;
+
+#ifdef HOST_WORDS_BIGENDIAN
+    map = g_new(nlongs, sizeof(unsigned long));
+    for (int i = idx; i < idx + nlongs; i++) {
+# if HOST_LONG_BITS == 64
+        map[i] = bswap64(src[i]);
+# else
+        map[i] = bswap32(src[i]);
+# endif
+    }
+#else
+    map = src;
+#endif
+
+    ret = blk_pwrite(ns->pstate.blk, offset, &map[idx],
+                     nlongs * sizeof(unsigned long), 0);
+
+#ifdef HOST_WORDS_BIGENDIAN
+    g_free(map);
+#endif
+    return ret;
+}
+
+
 static void nvme_rw_cb(void *opaque, int ret)
 {
     NvmeRequest *req = opaque;
@@ -1006,6 +1079,7 @@ static uint16_t nvme_rwz(NvmeCtrl *n, NvmeRequest *req)
     uint32_t nlb = (uint32_t)le16_to_cpu(rw->nlb) + 1;
     size_t len = nvme_l2b(ns, nlb);
 
+    bool is_write = nvme_req_is_write(req);
     uint16_t status;
 
     trace_pci_nvme_rwz(nvme_cid(req), nvme_io_opc_str(rw->opcode),
@@ -1015,6 +1089,16 @@ static uint16_t nvme_rwz(NvmeCtrl *n, NvmeRequest *req)
     if (status) {
         trace_pci_nvme_err_invalid_lba_range(slba, nlb, ns->id_ns.nsze);
         goto invalid;
+    }
+
+    if (!is_write) {
+        if (NVME_ERR_REC_DULBE(ns->features.err_rec)) {
+            status = nvme_check_dulbe(ns, slba, nlb);
+            if (status) {
+                trace_pci_nvme_err_dulbe(nvme_cid(req), slba, nlb);
+                goto invalid;
+            }
+        }
     }
 
     if (req->cmd.opcode & NVME_CMD_OPCODE_DATA_TRANSFER_MASK) {
@@ -1030,12 +1114,18 @@ static uint16_t nvme_rwz(NvmeCtrl *n, NvmeRequest *req)
         }
     }
 
+    if (is_write) {
+        if (nvme_allocate(ns, slba, nlb) < 0) {
+            status = NVME_INTERNAL_DEV_ERROR;
+            goto invalid;
+        }
+    }
+
     return nvme_do_aio(ns->blkconf.blk, nvme_l2b(ns, slba), len, req);
 
 invalid:
     block_acct_invalid(blk_get_stats(ns->blkconf.blk),
-                       nvme_req_is_write(req) ? BLOCK_ACCT_WRITE :
-                       BLOCK_ACCT_READ);
+                       is_write ? BLOCK_ACCT_WRITE : BLOCK_ACCT_READ);
 
     return status;
 }
@@ -1638,6 +1728,8 @@ static uint16_t nvme_get_feature_timestamp(NvmeCtrl *n, NvmeRequest *req)
 
 static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeRequest *req)
 {
+    NvmeNamespace *ns;
+
     NvmeCmd *cmd = &req->cmd;
     uint32_t dw10 = le32_to_cpu(cmd->cdw10);
     uint32_t dw11 = le32_to_cpu(cmd->cdw11);
@@ -1708,6 +1800,18 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeRequest *req)
         }
 
         return NVME_INVALID_FIELD | NVME_DNR;
+    case NVME_ERROR_RECOVERY:
+        if (!nvme_nsid_valid(n, nsid)) {
+            return NVME_INVALID_NSID | NVME_DNR;
+        }
+
+        ns = nvme_ns(n, nsid);
+        if (unlikely(!ns)) {
+            return NVME_INVALID_FIELD | NVME_DNR;
+        }
+
+        result = ns->features.err_rec;
+        goto out;
     case NVME_VOLATILE_WRITE_CACHE:
         result = n->features.vwc;
         trace_pci_nvme_getfeat_vwcache(result ? "enabled" : "disabled");
@@ -1780,7 +1884,7 @@ static uint16_t nvme_set_feature_timestamp(NvmeCtrl *n, NvmeRequest *req)
 
 static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeRequest *req)
 {
-    NvmeNamespace *ns;
+    NvmeNamespace *ns = NULL;
 
     NvmeCmd *cmd = &req->cmd;
     uint32_t dw10 = le32_to_cpu(cmd->cdw10);
@@ -1847,6 +1951,26 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeRequest *req)
                                NVME_LOG_SMART_INFO);
         }
 
+        break;
+    case NVME_ERROR_RECOVERY:
+        if (nsid == NVME_NSID_BROADCAST) {
+            for (int i = 1; i <= n->num_namespaces; i++) {
+                ns = nvme_ns(n, i);
+
+                if (!ns) {
+                    continue;
+                }
+
+                if (NVME_ID_NS_NSFEAT_DULBE(ns->id_ns.nsfeat)) {
+                    ns->features.err_rec = dw11;
+                }
+            }
+
+            break;
+        }
+
+        assert(ns);
+        ns->features.err_rec = dw11;
         break;
     case NVME_VOLATILE_WRITE_CACHE:
         n->features.vwc = dw11 & 0x1;

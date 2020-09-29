@@ -25,8 +25,35 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-core.h"
 
+#include "trace.h"
+
 #include "nvme.h"
 #include "nvme-ns.h"
+
+static int nvme_blk_truncate(BlockBackend *blk, size_t len, Error **errp)
+{
+    int ret;
+    uint64_t perm, shared_perm;
+
+    blk_get_perm(blk, &perm, &shared_perm);
+
+    ret = blk_set_perm(blk, perm | BLK_PERM_RESIZE, shared_perm, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = blk_truncate(blk, len, false, PREALLOC_MODE_OFF, 0, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = blk_set_perm(blk, perm, shared_perm, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return 0;
+}
 
 static void nvme_ns_init(NvmeNamespace *ns)
 {
@@ -43,6 +70,143 @@ static void nvme_ns_init(NvmeNamespace *ns)
     /* no thin provisioning */
     id_ns->ncap = id_ns->nsze;
     id_ns->nuse = id_ns->ncap;
+}
+
+static int nvme_ns_pstate_init(NvmeNamespace *ns, Error **errp)
+{
+    BlockBackend *blk = ns->pstate.blk;
+    NvmePstateHeader header;
+    uint64_t nlbas = nvme_ns_nlbas(ns);
+    size_t bitmap_len, pstate_len;
+    int ret;
+
+    ret = nvme_blk_truncate(blk, sizeof(NvmePstateHeader), errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    header = (NvmePstateHeader) {
+        .magic   = cpu_to_le32(NVME_PSTATE_MAGIC),
+        .version = cpu_to_le32(NVME_PSTATE_V1),
+        .blk_len = cpu_to_le64(ns->size),
+        .lbads   = ns->params.lbads,
+    };
+
+    ret = blk_pwrite(blk, 0, &header, sizeof(header), 0);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "could not write pstate header");
+        return ret;
+    }
+
+    bitmap_len = DIV_ROUND_UP(nlbas, sizeof(unsigned long));
+    pstate_len = ROUND_UP(sizeof(NvmePstateHeader) + bitmap_len,
+                          BDRV_SECTOR_SIZE);
+
+    ret = nvme_blk_truncate(blk, pstate_len, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ns->pstate.utilization.map = bitmap_new(nlbas);
+
+    return 0;
+}
+
+static int nvme_ns_pstate_load(NvmeNamespace *ns, size_t len, Error **errp)
+{
+    BlockBackend *blk = ns->pstate.blk;
+    NvmePstateHeader header;
+    uint64_t nlbas = nvme_ns_nlbas(ns);
+    size_t bitmap_len, pstate_len;
+    unsigned long *map;
+    int ret;
+
+    ret = blk_pread(blk, 0, &header, sizeof(header));
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "could not read pstate header");
+        return ret;
+    }
+
+    if (le32_to_cpu(header.magic) != NVME_PSTATE_MAGIC) {
+        error_setg(errp, "invalid pstate header");
+        return -1;
+    } else if (le32_to_cpu(header.version) > NVME_PSTATE_V1) {
+        error_setg(errp, "unsupported pstate version");
+        return -1;
+    }
+
+    if (le64_to_cpu(header.blk_len) != ns->size) {
+        error_setg(errp, "invalid drive size");
+        return -1;
+    }
+
+    if (header.lbads != ns->params.lbads) {
+        error_setg(errp, "lbads parameter inconsistent with pstate "
+                   "(pstate %u; parameter %u)",
+                   header.lbads, ns->params.lbads);
+        return -1;
+    }
+
+    bitmap_len = DIV_ROUND_UP(nlbas, sizeof(unsigned long));
+    pstate_len = ROUND_UP(sizeof(NvmePstateHeader) + bitmap_len,
+                          BDRV_SECTOR_SIZE);
+
+    if (len != pstate_len) {
+        error_setg(errp, "pstate size mismatch "
+                   "(expected %zd bytes; was %zu bytes)",
+                   pstate_len, len);
+        return -1;
+    }
+
+    map = bitmap_new(nlbas);
+    ret = blk_pread(blk, ns->pstate.utilization.offset, map, bitmap_len);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret,
+                         "could not read pstate allocation bitmap");
+        g_free(map);
+        return ret;
+    }
+
+#ifdef HOST_WORDS_BIGENDIAN
+    ns->pstate.utilization.map = bitmap_new(nlbas);
+    bitmap_from_le(ns->pstate.utilization.map, map, nlbas);
+    g_free(map);
+#else
+    ns->pstate.utilization.map = map;
+#endif
+
+    return 0;
+
+}
+
+static int nvme_ns_setup_blk_pstate(NvmeNamespace *ns, Error **errp)
+{
+    BlockBackend *blk = ns->pstate.blk;
+    uint64_t perm, shared_perm;
+    ssize_t len;
+    int ret;
+
+    perm = BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE;
+    shared_perm = BLK_PERM_ALL;
+
+    ret = blk_set_perm(blk, perm, shared_perm, errp);
+    if (ret) {
+        return ret;
+    }
+
+    ns->pstate.utilization.offset = sizeof(NvmePstateHeader);
+
+    len = blk_getlength(blk);
+    if (len < 0) {
+        error_setg_errno(errp, -len, "could not determine pstate size");
+        return len;
+    }
+
+    if (!len) {
+        return nvme_ns_pstate_init(ns, errp);
+    }
+
+    return nvme_ns_pstate_load(ns, len, errp);
 }
 
 static int nvme_ns_init_blk(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
@@ -96,6 +260,19 @@ int nvme_ns_setup(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
     }
 
     nvme_ns_init(ns);
+
+    if (ns->pstate.blk) {
+        if (nvme_ns_setup_blk_pstate(ns, errp)) {
+            return -1;
+        }
+
+        /*
+         * With a pstate file in place we can enable the Deallocated or
+         * Unwritten Logical Block Error feature.
+         */
+        ns->id_ns.nsfeat |= 0x4;
+    }
+
     if (nvme_register_namespace(n, ns, errp)) {
         return -1;
     }
@@ -106,11 +283,19 @@ int nvme_ns_setup(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
 void nvme_ns_drain(NvmeNamespace *ns)
 {
     blk_drain(ns->blkconf.blk);
+
+    if (ns->pstate.blk) {
+        blk_drain(ns->pstate.blk);
+    }
 }
 
 void nvme_ns_flush(NvmeNamespace *ns)
 {
     blk_flush(ns->blkconf.blk);
+
+    if (ns->pstate.blk) {
+        blk_flush(ns->pstate.blk);
+    }
 }
 
 static void nvme_ns_realize(DeviceState *dev, Error **errp)
@@ -131,6 +316,7 @@ static Property nvme_ns_props[] = {
     DEFINE_BLOCK_PROPERTIES(NvmeNamespace, blkconf),
     DEFINE_PROP_UINT32("nsid", NvmeNamespace, params.nsid, 0),
     DEFINE_PROP_UINT8("lbads", NvmeNamespace, params.lbads, BDRV_SECTOR_BITS),
+    DEFINE_PROP_DRIVE("pstate", NvmeNamespace, pstate.blk),
     DEFINE_PROP_END_OF_LIST(),
 };
 

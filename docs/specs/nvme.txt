@@ -12,6 +12,25 @@ nvme-ns Options
      namespace. It is specified in terms of a power of two. Only values between
      9 and 12 (both inclusive) are supported.
 
+  `pstate`; This parameter specifies another blockdev to be used for storing
+     persistent state such as logical block allocation tracking. Adding this
+     parameter enables various optional features of the device.
+
+       -drive id=pstate,file=pstate.img,format=raw
+       -device nvme-ns,pstate=pstate,...
+
+     To reset (or initialize) state, the blockdev image should be of zero size:
+
+       qemu-img create -f raw pstate.img 0
+
+     The image will be intialized with a file format header and truncated to
+     the required size.
+
+     If the pstate given is of non-zero size, it will be assumed to contain
+     previous saved state and will be checked for consistency. If any stored
+     values (such as lbads) differs from those specified for the nvme-ns
+     device an error is produced.
+
 
 Reference Specifications
 ------------------------
