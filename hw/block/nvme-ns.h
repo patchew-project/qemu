@@ -37,9 +37,10 @@ typedef struct NvmePstateHeader {
     struct {
         uint64_t zcap;
         uint64_t zsze;
+        uint8_t  zdes;
     } QEMU_PACKED zns;
 
-    uint8_t  rsvd3088[1008];
+    uint8_t  rsvd3089[1007];
 } QEMU_PACKED NvmePstateHeader;
 
 typedef struct NvmeNamespaceParams {
@@ -50,11 +51,13 @@ typedef struct NvmeNamespaceParams {
     struct {
         uint64_t zcap;
         uint64_t zsze;
+        uint8_t  zdes;
     } zns;
 } NvmeNamespaceParams;
 
 typedef struct NvmeZone {
     NvmeZoneDescriptor *zd;
+    uint8_t            *zde;
 
     uint64_t wp_staging;
 } NvmeZone;
@@ -91,6 +94,7 @@ typedef struct NvmeNamespace {
 
         NvmeZone           *zones;
         NvmeZoneDescriptor *zd;
+        uint8_t            *zde;
     } zns;
 } NvmeNamespace;
 
@@ -181,6 +185,11 @@ static inline NvmeZoneState nvme_zs(NvmeZone *zone)
 static inline void nvme_zs_set(NvmeZone *zone, NvmeZoneState zs)
 {
     zone->zd->zs = zs << 4;
+}
+
+static inline size_t nvme_ns_zdes_bytes(NvmeNamespace *ns)
+{
+    return ns->params.zns.zdes << 6;
 }
 
 static inline bool nvme_ns_zone_wp_valid(NvmeZone *zone)

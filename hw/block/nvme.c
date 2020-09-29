@@ -163,6 +163,7 @@ static const NvmeEffectsLog nvme_effects[NVME_IOCS_MAX] = {
 
         .iocs = {
             NVME_EFFECTS_NVM_INITIALIZER,
+            [NVME_CMD_ZONE_MGMT_RECV] = NVME_EFFECTS_CSUPP,
         },
     },
 };
@@ -1218,6 +1219,9 @@ static void nvme_rw_cb(void *opaque, int ret)
                 NVME_ZS_ZSRO : NVME_ZS_ZSO;
 
             nvme_zs_set(zone, zs);
+            if (zs == NVME_ZS_ZSO) {
+                NVME_ZA_CLEAR_ALL(zone->zd->za);
+            }
 
             if (nvme_zns_commit_zone(ns, zone) < 0) {
                 req->status = NVME_INTERNAL_DEV_ERROR;
@@ -1284,6 +1288,135 @@ static uint16_t nvme_do_aio(BlockBackend *blk, int64_t offset, size_t len,
     }
 
     return NVME_NO_COMPLETE;
+}
+
+static uint16_t nvme_zone_mgmt_recv(NvmeCtrl *n, NvmeRequest *req)
+{
+    NvmeZoneManagementRecvCmd *recv;
+    NvmeZoneManagementRecvAction zra;
+    NvmeZoneManagementRecvActionSpecificField zrasp;
+    NvmeNamespace *ns = req->ns;
+    NvmeZone *zone;
+
+    uint8_t *buf, *bufp, zs_list;
+    uint64_t slba;
+    int num_zones = 0, zidx = 0, zidx_begin;
+    uint16_t zes, status;
+    size_t len;
+
+    recv = (NvmeZoneManagementRecvCmd *) &req->cmd;
+
+    zra = recv->zra;
+    zrasp = recv->zrasp;
+    slba = le64_to_cpu(recv->slba);
+    len = (le32_to_cpu(recv->numdw) + 1) << 2;
+
+    if (!nvme_ns_zoned(ns)) {
+        return NVME_INVALID_OPCODE | NVME_DNR;
+    }
+
+    trace_pci_nvme_zone_mgmt_recv(nvme_cid(req), nvme_nsid(ns), slba, len,
+                                  zra, zrasp, recv->zrasf);
+
+    if (!len) {
+        return NVME_SUCCESS;
+    }
+
+    switch (zrasp) {
+    case NVME_CMD_ZONE_MGMT_RECV_LIST_ALL:
+        zs_list = 0;
+        break;
+
+    case NVME_CMD_ZONE_MGMT_RECV_LIST_ZSE:
+        zs_list = NVME_ZS_ZSE;
+        break;
+
+    case NVME_CMD_ZONE_MGMT_RECV_LIST_ZSIO:
+        zs_list = NVME_ZS_ZSIO;
+        break;
+
+    case NVME_CMD_ZONE_MGMT_RECV_LIST_ZSEO:
+        zs_list = NVME_ZS_ZSEO;
+        break;
+
+    case NVME_CMD_ZONE_MGMT_RECV_LIST_ZSC:
+        zs_list = NVME_ZS_ZSC;
+        break;
+
+    case NVME_CMD_ZONE_MGMT_RECV_LIST_ZSF:
+        zs_list = NVME_ZS_ZSF;
+        break;
+
+    case NVME_CMD_ZONE_MGMT_RECV_LIST_ZSRO:
+        zs_list = NVME_ZS_ZSRO;
+        break;
+
+    case NVME_CMD_ZONE_MGMT_RECV_LIST_ZSO:
+        zs_list = NVME_ZS_ZSO;
+        break;
+    default:
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    status = nvme_check_mdts(n, len);
+    if (status) {
+        return status;
+    }
+
+    if (!nvme_ns_get_zone(ns, slba)) {
+        trace_pci_nvme_err_invalid_zone(nvme_cid(req), slba);
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    zidx_begin = zidx = nvme_ns_zone_idx(ns, slba);
+    zes = sizeof(NvmeZoneDescriptor);
+    if (zra == NVME_CMD_ZONE_MGMT_RECV_EXTENDED_REPORT_ZONES) {
+        zes += nvme_ns_zdes_bytes(ns);
+    }
+
+    buf = bufp = g_malloc0(len);
+    bufp += sizeof(NvmeZoneReportHeader);
+
+    while ((bufp + zes) - buf <= len && zidx < ns->zns.num_zones) {
+        zone = &ns->zns.zones[zidx++];
+
+        if (zs_list && zs_list != nvme_zs(zone)) {
+            continue;
+        }
+
+        num_zones++;
+
+        memcpy(bufp, zone->zd, sizeof(NvmeZoneDescriptor));
+
+        if (zra == NVME_CMD_ZONE_MGMT_RECV_EXTENDED_REPORT_ZONES) {
+            memcpy(bufp + sizeof(NvmeZoneDescriptor), zone->zde,
+                   nvme_ns_zdes_bytes(ns));
+        }
+
+        bufp += zes;
+    }
+
+    if (!(recv->zrasf & NVME_CMD_ZONE_MGMT_RECEIVE_PARTIAL)) {
+        if (!zs_list) {
+            num_zones = ns->zns.num_zones - zidx_begin;
+        } else {
+            num_zones = 0;
+            for (int i = zidx_begin; i < ns->zns.num_zones; i++) {
+                zone = &ns->zns.zones[i];
+
+                if (zs_list == nvme_zs(zone)) {
+                    num_zones++;
+                }
+            }
+        }
+    }
+
+    stq_le_p(buf, (uint64_t)num_zones);
+
+    status = nvme_dma(n, buf, len, DMA_DIRECTION_FROM_DEVICE, req);
+    g_free(buf);
+
+    return status;
 }
 
 static uint16_t nvme_flush(NvmeCtrl *n, NvmeRequest *req)
@@ -1425,6 +1558,8 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req)
     case NVME_CMD_WRITE:
     case NVME_CMD_READ:
         return nvme_rwz(n, req);
+    case NVME_CMD_ZONE_MGMT_RECV:
+        return nvme_zone_mgmt_recv(n, req);
     default:
         trace_pci_nvme_err_invalid_opc(req->cmd.opcode);
         return NVME_INVALID_OPCODE | NVME_DNR;

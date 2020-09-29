@@ -481,6 +481,7 @@ enum NvmeIoCommands {
     NVME_CMD_COMPARE            = 0x05,
     NVME_CMD_WRITE_ZEROES       = 0x08,
     NVME_CMD_DSM                = 0x09,
+    NVME_CMD_ZONE_MGMT_RECV     = 0x7a,
 };
 
 typedef struct QEMU_PACKED NvmeDeleteQ {
@@ -592,6 +593,44 @@ enum {
     NVME_RW_PRINFO_PRCHK_APP    = 1 << 11,
     NVME_RW_PRINFO_PRCHK_REF    = 1 << 10,
 };
+
+typedef struct QEMU_PACKED NvmeZoneManagementRecvCmd {
+    uint8_t     opcode;
+    uint8_t     flags;
+    uint16_t    cid;
+    uint32_t    nsid;
+    uint8_t     rsvd8[16];
+    NvmeCmdDptr dptr;
+    uint64_t    slba;
+    uint32_t    numdw;
+    uint8_t     zra;
+    uint8_t     zrasp;
+    uint8_t     zrasf;
+    uint8_t     rsvd55[9];
+} NvmeZoneManagementRecvCmd;
+
+typedef enum NvmeZoneManagementRecvAction {
+    NVME_CMD_ZONE_MGMT_RECV_REPORT_ZONES          = 0x0,
+    NVME_CMD_ZONE_MGMT_RECV_EXTENDED_REPORT_ZONES = 0x1,
+} NvmeZoneManagementRecvAction;
+
+typedef enum NvmeZoneManagementRecvActionSpecificField {
+    NVME_CMD_ZONE_MGMT_RECV_LIST_ALL  = 0x0,
+    NVME_CMD_ZONE_MGMT_RECV_LIST_ZSE  = 0x1,
+    NVME_CMD_ZONE_MGMT_RECV_LIST_ZSIO = 0x2,
+    NVME_CMD_ZONE_MGMT_RECV_LIST_ZSEO = 0x3,
+    NVME_CMD_ZONE_MGMT_RECV_LIST_ZSC  = 0x4,
+    NVME_CMD_ZONE_MGMT_RECV_LIST_ZSF  = 0x5,
+    NVME_CMD_ZONE_MGMT_RECV_LIST_ZSRO = 0x6,
+    NVME_CMD_ZONE_MGMT_RECV_LIST_ZSO  = 0x7,
+} NvmeZoneManagementRecvActionSpecificField;
+
+#define NVME_CMD_ZONE_MGMT_RECEIVE_PARTIAL 0x1
+
+typedef struct QEMU_PACKED NvmeZoneReportHeader {
+    uint64_t num_zones;
+    uint8_t  rsvd[56];
+} NvmeZoneReportHeader;
 
 typedef struct QEMU_PACKED NvmeDsmCmd {
     uint8_t     opcode;
@@ -811,6 +850,12 @@ typedef struct QEMU_PACKED NvmeZoneDescriptor {
     uint64_t wp;
     uint8_t  rsvd32[32];
 } NvmeZoneDescriptor;
+
+#define NVME_ZA_ZDEV (1 << 7)
+
+#define NVME_ZA_SET(za, attrs)   ((za) |= (attrs))
+#define NVME_ZA_CLEAR(za, attrs) ((za) &= ~(attrs))
+#define NVME_ZA_CLEAR_ALL(za)    ((za) = 0x0)
 
 enum NvmeSmartWarn {
     NVME_SMART_SPARE                  = 1 << 0,
@@ -1162,6 +1207,7 @@ static inline void _nvme_check_size(void)
     QEMU_BUILD_BUG_ON(sizeof(NvmeIdentify) != 64);
     QEMU_BUILD_BUG_ON(sizeof(NvmeRwCmd) != 64);
     QEMU_BUILD_BUG_ON(sizeof(NvmeDsmCmd) != 64);
+    QEMU_BUILD_BUG_ON(sizeof(NvmeZoneManagementRecvCmd) != 64);
     QEMU_BUILD_BUG_ON(sizeof(NvmeRangeType) != 64);
     QEMU_BUILD_BUG_ON(sizeof(NvmeErrorLog) != 64);
     QEMU_BUILD_BUG_ON(sizeof(NvmeFwSlotInfoLog) != 512);
