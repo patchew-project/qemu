@@ -529,6 +529,7 @@ kconfig_external_symbols = [
 ]
 ignored = ['TARGET_XML_FILES', 'TARGET_ABI_DIR', 'TARGET_DIRS']
 
+fs = import('fs')
 foreach target : target_dirs
   config_target = keyval.load(meson.current_build_dir() / target / 'config-target.mak')
 
@@ -569,8 +570,13 @@ foreach target : target_dirs
     endforeach
 
     config_devices_mak = target + '-config-devices.mak'
+    target_kconfig = 'target' / config_target['TARGET_BASE_ARCH'] / 'Kconfig'
+    minikconf_input = ['default-configs' / target + '.mak', 'Kconfig']
+    if fs.is_file(target_kconfig)
+      minikconf_input += [target_kconfig]
+    endif
     config_devices_mak = configure_file(
-      input: ['default-configs' / target + '.mak', 'Kconfig'],
+      input: minikconf_input,
       output: config_devices_mak,
       depfile: config_devices_mak + '.d',
       capture: true,
