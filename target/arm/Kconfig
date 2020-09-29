@@ -1,0 +1,4 @@
+# arch-specific rule to select SEMIHOSTING if ARM && TCG
+config ARM_SEMIHOSTING
+    default y if TCG
+    select SEMIHOSTING
