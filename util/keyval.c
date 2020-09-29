@@ -166,7 +166,7 @@ static QObject *keyval_parse_put(QDict *cur,
  * On failure, return NULL.
  */
 static const char *keyval_parse_one(QDict *qdict, const char *params,
-                                    const char *implied_key,
+                                    const char *implied_key, bool *help,
                                     Error **errp)
 {
     const char *key, *key_end, *s, *end;
@@ -179,6 +179,16 @@ static const char *keyval_parse_one(QDict *qdict, const char *params,
 
     key = params;
     len = strcspn(params, "=,");
+
+    if (help && key[len] != '=' && !strncmp(key, "help", len)) {
+        *help = true;
+        s = key + len;
+        if (key[len] != '\0') {
+            s++;
+        }
+        return s;
+    }
+
     if (implied_key && len && key[len] != '=') {
         /* Desugar implied key */
         key = implied_key;
@@ -388,21 +398,33 @@ static QObject *keyval_listify(QDict *cur, GSList *key_of_cur, Error **errp)
 
 /*
  * Parse @params in QEMU's traditional KEY=VALUE,... syntax.
+ *
  * If @implied_key, the first KEY= can be omitted.  @implied_key is
  * implied then, and VALUE can't be empty or contain ',' or '='.
+ *
+ * If @help is given, an option "help" without a value isn't added to
+ * the resulting dictionary, but instead sets @help to true. If no
+ * help option is found, @help is false on return. All other options
+ * are parsed and returned normally so that context specific help can
+ * be printed.
+ *
  * On success, return a dictionary of the parsed keys and values.
  * On failure, store an error through @errp and return NULL.
  */
 QDict *keyval_parse(const char *params, const char *implied_key,
-                    Error **errp)
+                    bool *help, Error **errp)
 {
     QDict *qdict = qdict_new();
     QObject *listified;
     const char *s;
 
+    if (help) {
+        *help = false;
+    }
+
     s = params;
     while (*s) {
-        s = keyval_parse_one(qdict, s, implied_key, errp);
+        s = keyval_parse_one(qdict, s, implied_key, help, errp);
         if (!s) {
             qobject_unref(qdict);
             return NULL;
