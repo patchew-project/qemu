@@ -14,6 +14,10 @@ config ARM_V7R
     bool
     select TCG
 
+config ARM_V7M
+    bool
+    select TCG
+
 config ARM_VIRT
     bool
     imply PCI_DEVICES
