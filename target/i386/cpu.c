@@ -6461,6 +6461,13 @@ static void x86_cpu_filter_features(X86CPU *cpu, bool verbose)
             x86_cpu_get_supported_feature_word(w, false);
         uint64_t requested_features = env->features[w];
         uint64_t unavailable_features = requested_features & ~host_feat;
+        if (w == FEAT_PERF_CAPABILITIES &&
+            (requested_features & PERF_CAP_LBR_FMT)) {
+            if ((host_feat & PERF_CAP_LBR_FMT) !=
+                (requested_features & PERF_CAP_LBR_FMT)) {
+                unavailable_features |= PERF_CAP_LBR_FMT;
+            }
+        }
         mark_unavailable_features(cpu, w, unavailable_features, prefix);
     }
 
@@ -6531,6 +6538,14 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         } else {
             cpu->ucode_rev = 0x100000000ULL;
         }
+    }
+
+    if (cpu->lbr_fmt) {
+        if (!cpu->enable_pmu) {
+            error_setg(errp, "LBR is unsupported since guest PMU is disabled.");
+            return;
+        }
+        env->features[FEAT_PERF_CAPABILITIES] |= cpu->lbr_fmt;
     }
 
     /* mwait extended info: needed for Core compatibility */
@@ -7157,6 +7172,7 @@ static Property x86_cpu_properties[] = {
 #endif
     DEFINE_PROP_INT32("node-id", X86CPU, node_id, CPU_UNSET_NUMA_NODE_ID),
     DEFINE_PROP_BOOL("pmu", X86CPU, enable_pmu, false),
+    DEFINE_PROP_UINT8("lbr-fmt", X86CPU, lbr_fmt, 0),
 
     DEFINE_PROP_UINT32("hv-spinlocks", X86CPU, hyperv_spinlock_attempts,
                        HYPERV_SPINLOCK_NEVER_NOTIFY),
