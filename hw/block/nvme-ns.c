@@ -57,10 +57,15 @@ static int nvme_blk_truncate(BlockBackend *blk, size_t len, Error **errp)
 
 static void nvme_ns_init(NvmeNamespace *ns)
 {
-    NvmeIdNs *id_ns = &ns->id_ns;
+    NvmeIdNsNvm *id_ns;
+
+    ns->id_ns[NVME_IOCS_NVM] = g_new0(NvmeIdNsNvm, 1);
+    id_ns = nvme_ns_id_nvm(ns);
+
+    ns->iocs = ns->params.iocs;
 
     if (blk_get_flags(ns->blkconf.blk) & BDRV_O_UNMAP) {
-        ns->id_ns.dlfeat = 0x9;
+        id_ns->dlfeat = 0x9;
     }
 
     id_ns->lbaf[0].ds = ns->params.lbads;
@@ -90,6 +95,7 @@ static int nvme_ns_pstate_init(NvmeNamespace *ns, Error **errp)
         .version = cpu_to_le32(NVME_PSTATE_V1),
         .blk_len = cpu_to_le64(ns->size),
         .lbads   = ns->params.lbads,
+        .iocs    = ns->params.iocs,
     };
 
     ret = blk_pwrite(blk, 0, &header, sizeof(header), 0);
@@ -144,6 +150,13 @@ static int nvme_ns_pstate_load(NvmeNamespace *ns, size_t len, Error **errp)
         error_setg(errp, "lbads parameter inconsistent with pstate "
                    "(pstate %u; parameter %u)",
                    header.lbads, ns->params.lbads);
+        return -1;
+    }
+
+    if (header.iocs != ns->params.iocs) {
+        error_setg(errp, "iocs parameter inconsistent with pstate "
+                   "(pstate %u; parameter %u)",
+                   header.iocs, ns->params.iocs);
         return -1;
     }
 
@@ -246,6 +259,14 @@ static int nvme_ns_check_constraints(NvmeNamespace *ns, Error **errp)
         return -1;
     }
 
+    switch (ns->params.iocs) {
+    case NVME_IOCS_NVM:
+        break;
+    default:
+        error_setg(errp, "unsupported iocs");
+        return -1;
+    }
+
     return 0;
 }
 
@@ -270,7 +291,8 @@ int nvme_ns_setup(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
          * With a pstate file in place we can enable the Deallocated or
          * Unwritten Logical Block Error feature.
          */
-        ns->id_ns.nsfeat |= 0x4;
+        NvmeIdNsNvm *id_ns = nvme_ns_id_nvm(ns);
+        id_ns->nsfeat |= 0x4;
     }
 
     if (nvme_register_namespace(n, ns, errp)) {
@@ -317,6 +339,7 @@ static Property nvme_ns_props[] = {
     DEFINE_PROP_UINT32("nsid", NvmeNamespace, params.nsid, 0),
     DEFINE_PROP_UINT8("lbads", NvmeNamespace, params.lbads, BDRV_SECTOR_BITS),
     DEFINE_PROP_DRIVE("pstate", NvmeNamespace, pstate.blk),
+    DEFINE_PROP_UINT8("iocs", NvmeNamespace, params.iocs, NVME_IOCS_NVM),
     DEFINE_PROP_END_OF_LIST(),
 };
 

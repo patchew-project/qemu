@@ -29,12 +29,14 @@ typedef struct NvmePstateHeader {
     int64_t  blk_len;
 
     uint8_t  lbads;
+    uint8_t  iocs;
 
-    uint8_t  rsvd17[4079];
+    uint8_t  rsvd18[4078];
 } QEMU_PACKED NvmePstateHeader;
 
 typedef struct NvmeNamespaceParams {
     uint32_t nsid;
+    uint8_t  iocs;
     uint8_t  lbads;
 } NvmeNamespaceParams;
 
@@ -43,7 +45,8 @@ typedef struct NvmeNamespace {
     BlockConf    blkconf;
     int32_t      bootindex;
     int64_t      size;
-    NvmeIdNs     id_ns;
+    uint8_t      iocs;
+    void         *id_ns[NVME_IOCS_MAX];
 
     struct {
         BlockBackend *blk;
@@ -70,9 +73,14 @@ static inline uint32_t nvme_nsid(NvmeNamespace *ns)
     return -1;
 }
 
+static inline NvmeIdNsNvm *nvme_ns_id_nvm(NvmeNamespace *ns)
+{
+    return ns->id_ns[NVME_IOCS_NVM];
+}
+
 static inline NvmeLBAF *nvme_ns_lbaf(NvmeNamespace *ns)
 {
-    NvmeIdNs *id_ns = &ns->id_ns;
+    NvmeIdNsNvm *id_ns = nvme_ns_id_nvm(ns);
     return &id_ns->lbaf[NVME_ID_NS_FLBAS_INDEX(id_ns->flbas)];
 }
 

@@ -12,6 +12,9 @@ nvme-ns Options
      namespace. It is specified in terms of a power of two. Only values between
      9 and 12 (both inclusive) are supported.
 
+  `iocs`; The "I/O Command Set" associated with the namespace. E.g. 0x0 for the
+     NVM Command Set (the default), or 0x2 for the Zoned Namespace Command Set.
+
   `pstate`; This parameter specifies another blockdev to be used for storing
      persistent state such as logical block allocation tracking. Adding this
      parameter enables various optional features of the device.
