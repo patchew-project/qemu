@@ -997,48 +997,19 @@ static uint16_t nvme_flush(NvmeCtrl *n, NvmeRequest *req)
     return nvme_do_aio(ns->blkconf.blk, 0, 0, req);
 }
 
-static uint16_t nvme_write_zeroes(NvmeCtrl *n, NvmeRequest *req)
+static uint16_t nvme_rwz(NvmeCtrl *n, NvmeRequest *req)
 {
     NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
     NvmeNamespace *ns = req->ns;
+
     uint64_t slba = le64_to_cpu(rw->slba);
     uint32_t nlb = (uint32_t)le16_to_cpu(rw->nlb) + 1;
-    uint64_t offset = nvme_l2b(ns, slba);
-    uint32_t count = nvme_l2b(ns, nlb);
+    size_t len = nvme_l2b(ns, nlb);
+
     uint16_t status;
 
-    trace_pci_nvme_write_zeroes(nvme_cid(req), nvme_nsid(ns), slba, nlb);
-
-    status = nvme_check_bounds(n, ns, slba, nlb);
-    if (status) {
-        trace_pci_nvme_err_invalid_lba_range(slba, nlb, ns->id_ns.nsze);
-        return status;
-    }
-
-    return nvme_do_aio(ns->blkconf.blk, offset, count, req);
-}
-
-static uint16_t nvme_rw(NvmeCtrl *n, NvmeRequest *req)
-{
-    NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
-    NvmeNamespace *ns = req->ns;
-    uint32_t nlb = (uint32_t)le16_to_cpu(rw->nlb) + 1;
-    uint64_t slba = le64_to_cpu(rw->slba);
-
-    uint64_t data_size = nvme_l2b(ns, nlb);
-    uint64_t data_offset = nvme_l2b(ns, slba);
-    enum BlockAcctType acct = req->cmd.opcode == NVME_CMD_WRITE ?
-        BLOCK_ACCT_WRITE : BLOCK_ACCT_READ;
-    uint16_t status;
-
-    trace_pci_nvme_rw(nvme_cid(req), nvme_io_opc_str(rw->opcode),
-                      nvme_nsid(ns), nlb, data_size, slba);
-
-    status = nvme_check_mdts(n, data_size);
-    if (status) {
-        trace_pci_nvme_err_mdts(nvme_cid(req), data_size);
-        goto invalid;
-    }
+    trace_pci_nvme_rwz(nvme_cid(req), nvme_io_opc_str(rw->opcode),
+                       nvme_nsid(ns), nlb, len, slba);
 
     status = nvme_check_bounds(n, ns, slba, nlb);
     if (status) {
@@ -1046,15 +1017,26 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeRequest *req)
         goto invalid;
     }
 
-    status = nvme_map_dptr(n, data_size, req);
-    if (status) {
-        goto invalid;
+    if (req->cmd.opcode & NVME_CMD_OPCODE_DATA_TRANSFER_MASK) {
+        status = nvme_check_mdts(n, len);
+        if (status) {
+            trace_pci_nvme_err_mdts(nvme_cid(req), len);
+            goto invalid;
+        }
+
+        status = nvme_map_dptr(n, len, req);
+        if (status) {
+            goto invalid;
+        }
     }
 
-    return nvme_do_aio(ns->blkconf.blk, data_offset, data_size, req);
+    return nvme_do_aio(ns->blkconf.blk, nvme_l2b(ns, slba), len, req);
 
 invalid:
-    block_acct_invalid(blk_get_stats(ns->blkconf.blk), acct);
+    block_acct_invalid(blk_get_stats(ns->blkconf.blk),
+                       nvme_req_is_write(req) ? BLOCK_ACCT_WRITE :
+                       BLOCK_ACCT_READ);
+
     return status;
 }
 
@@ -1082,10 +1064,9 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req)
     case NVME_CMD_FLUSH:
         return nvme_flush(n, req);
     case NVME_CMD_WRITE_ZEROES:
-        return nvme_write_zeroes(n, req);
     case NVME_CMD_WRITE:
     case NVME_CMD_READ:
-        return nvme_rw(n, req);
+        return nvme_rwz(n, req);
     default:
         trace_pci_nvme_err_invalid_opc(req->cmd.opcode);
         return NVME_INVALID_OPCODE | NVME_DNR;
