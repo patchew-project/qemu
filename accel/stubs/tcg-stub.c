@@ -29,3 +29,8 @@ void *probe_access(CPUArchState *env, target_ulong addr, int size,
      /* Handled by hardware accelerator. */
      g_assert_not_reached();
 }
+
+void cpu_loop_exit(CPUState *cpu)
+{
+    g_assert_not_reached();
+}
