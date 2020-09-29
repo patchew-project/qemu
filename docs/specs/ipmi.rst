@@ -91,6 +91,89 @@ further delegated to an external emulator, or a real BMC. The
 ``ipmi-bmc-extern`` device has a required ``chardev`` property which specifies
 the communications channel to the external BMC.
 
+Baseband Management Controller (BMC) emulation
+==============================================
+
+.. note:: This section is just a proposal. QEMU does not yet support BMC-side
+   IPMI emulation.
+
+This section is about emulation of IPMI-related devices in a System-on-Chip
+(SoC) used as a Baseband Management Controller. This is not to be confused with
+emulating the BMC device as seen by the main processor.
+
+SoCs that are designed to be used as a BMC often have dedicated hardware that
+allows them to be connected to one or more of the IPMI System Interfaces. The
+BMC-side hardware interface is not standardized, so each type of SoC may need
+its own device implementation in QEMU, for example:
+
+* ``aspeed-ipmi-ibt`` for emulating the Aspeed iBT peripheral.
+* ``npcm7xx-ipmi-kcs`` for emulating the Nuvoton NPCM7xx Host-to-BMC Keyboard
+  Controller Style (KCS) channels.
+
+.. blockdiag::
+
+    blockdiag bmc_ipmi {
+        orientation = portrait
+        default_group_color = "none";
+        class responder [color = lightblue];
+        class host [color = salmon];
+
+        host [color="aquamarine", label="External Host"]
+
+        group {
+            orientation = portrait
+
+            group {
+                orientation = portrait
+
+                ipmi-responder [class = "responder"]
+                npcm7xx-ipmi-kcs [class = "responder", stacked]
+
+                ipmi-responder <- npcm7xx-ipmi-kcs [hstyle = generalization];
+            }
+
+            group {
+                orientation = portrait
+
+                ipmi-host [class = "host"];
+                ipmi-host-sim [class = "host"];
+                ipmi-host-extern [class = "host"];
+
+                ipmi-host <- ipmi-host-sim [hstyle = generalization];
+                ipmi-host <- ipmi-host-extern [hstyle = generalization];
+            }
+
+            ipmi-responder <-> ipmi-host
+        }
+
+        ipmi-host-extern <-> host [label="chardev"];
+    }
+
+IPMI Responder
+--------------
+
+The software running on the BMC needs to intercept reads and writes to the
+system interface registers on the main processor. This requires special
+hardware that needs to be emulated by QEMU. We'll call these device *IPMI
+responders*.
+
+All *IPMI responder* devices should implement the ``ipmi-responder`` interface
+to allow an IPMI Host implementation to interact with them in a standard way.
+
+IPMI Host
+---------
+
+Mirroring the main processor emulation, the responder devices delegate
+emulation of host behavior to a Host device that is a subclass of
+``ipmi-host``. This type of device is called a Host because that's what it
+looks like to the BMC guest software.
+
+The host behavior may be further delegated to an external emulator (e.g.
+another QEMU VM) through the ``ipmi-host-extern`` host implementation. This
+device has a required ``chardev`` property which specifies the communications
+channel to the external host. The wire format is the same as for
+``ipmi-bmc-extern``.
+
 Wire protocol
 =============
 
