@@ -30,6 +30,26 @@
 #include "nvme.h"
 #include "nvme-ns.h"
 
+const char *nvme_zs_str(NvmeZone *zone)
+{
+    return nvme_zs_to_str(nvme_zs(zone));
+}
+
+const char *nvme_zs_to_str(NvmeZoneState zs)
+{
+    switch (zs) {
+    case NVME_ZS_ZSE:  return "ZSE";
+    case NVME_ZS_ZSIO: return "ZSIO";
+    case NVME_ZS_ZSEO: return "ZSEO";
+    case NVME_ZS_ZSC:  return "ZSC";
+    case NVME_ZS_ZSRO: return "ZSRO";
+    case NVME_ZS_ZSF:  return "ZSF";
+    case NVME_ZS_ZSO:  return "ZSO";
+    }
+
+    return NULL;
+}
+
 static int nvme_blk_truncate(BlockBackend *blk, size_t len, Error **errp)
 {
     int ret;
@@ -55,6 +75,47 @@ static int nvme_blk_truncate(BlockBackend *blk, size_t len, Error **errp)
     return 0;
 }
 
+static void nvme_ns_zns_init_zones(NvmeNamespace *ns)
+{
+    NvmeZone *zone;
+    NvmeZoneDescriptor *zd;
+    uint64_t zslba, zsze = nvme_ns_zsze(ns);
+
+    for (int i = 0; i < ns->zns.num_zones; i++) {
+        zslba = i * zsze;
+
+        zone = &ns->zns.zones[i];
+        zone->zd = &ns->zns.zd[i];
+        zone->wp_staging = zslba;
+
+        zd = zone->zd;
+        zd->zt = NVME_ZT_SEQ;
+        zd->zcap = cpu_to_le64(ns->params.zns.zcap);
+        zd->wp = zd->zslba = cpu_to_le64(zslba);
+
+        nvme_zs_set(zone, NVME_ZS_ZSE);
+    }
+}
+
+static void nvme_ns_init_zoned(NvmeNamespace *ns)
+{
+    NvmeIdNsNvm *id_ns = nvme_ns_id_nvm(ns);
+    NvmeIdNsZns *id_ns_zns = nvme_ns_id_zoned(ns);
+
+    for (int i = 0; i <= id_ns->nlbaf; i++) {
+        id_ns_zns->lbafe[i].zsze = ns->params.zns.zsze ?
+            cpu_to_le64(ns->params.zns.zsze) :
+            cpu_to_le64(pow2ceil(ns->params.zns.zcap));
+    }
+
+    ns->zns.num_zones = nvme_ns_nlbas(ns) / nvme_ns_zsze(ns);
+    ns->zns.zones = g_malloc0_n(ns->zns.num_zones, sizeof(NvmeZone));
+    ns->zns.zd = g_malloc0_n(ns->zns.num_zones, sizeof(NvmeZoneDescriptor));
+
+    id_ns_zns->mar = 0xffffffff;
+    id_ns_zns->mor = 0xffffffff;
+}
+
 static void nvme_ns_init(NvmeNamespace *ns)
 {
     NvmeIdNsNvm *id_ns;
@@ -72,6 +133,11 @@ static void nvme_ns_init(NvmeNamespace *ns)
 
     id_ns->nsze = cpu_to_le64(nvme_ns_nlbas(ns));
 
+    if (nvme_ns_zoned(ns)) {
+        ns->id_ns[NVME_IOCS_ZONED] = g_new0(NvmeIdNsZns, 1);
+        nvme_ns_init_zoned(ns);
+    }
+
     /* no thin provisioning */
     id_ns->ncap = id_ns->nsze;
     id_ns->nuse = id_ns->ncap;
@@ -82,7 +148,7 @@ static int nvme_ns_pstate_init(NvmeNamespace *ns, Error **errp)
     BlockBackend *blk = ns->pstate.blk;
     NvmePstateHeader header;
     uint64_t nlbas = nvme_ns_nlbas(ns);
-    size_t bitmap_len, pstate_len;
+    size_t bitmap_len, pstate_len, zd_len = 0;
     int ret;
 
     ret = nvme_blk_truncate(blk, sizeof(NvmePstateHeader), errp);
@@ -98,6 +164,14 @@ static int nvme_ns_pstate_init(NvmeNamespace *ns, Error **errp)
         .iocs    = ns->params.iocs,
     };
 
+    if (nvme_ns_zoned(ns)) {
+        /* zns specific; offset 0xc00 */
+        header.zns.zcap = cpu_to_le64(ns->params.zns.zcap);
+        header.zns.zsze = ns->params.zns.zsze ?
+            cpu_to_le64(ns->params.zns.zsze) :
+            cpu_to_le64(pow2ceil(ns->params.zns.zcap));
+    }
+
     ret = blk_pwrite(blk, 0, &header, sizeof(header), 0);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "could not write pstate header");
@@ -105,7 +179,10 @@ static int nvme_ns_pstate_init(NvmeNamespace *ns, Error **errp)
     }
 
     bitmap_len = DIV_ROUND_UP(nlbas, sizeof(unsigned long));
-    pstate_len = ROUND_UP(sizeof(NvmePstateHeader) + bitmap_len,
+    if (nvme_ns_zoned(ns)) {
+        zd_len = ns->zns.num_zones * sizeof(NvmeZoneDescriptor);
+    }
+    pstate_len = ROUND_UP(sizeof(NvmePstateHeader) + bitmap_len + zd_len,
                           BDRV_SECTOR_SIZE);
 
     ret = nvme_blk_truncate(blk, pstate_len, errp);
@@ -115,7 +192,50 @@ static int nvme_ns_pstate_init(NvmeNamespace *ns, Error **errp)
 
     ns->pstate.utilization.map = bitmap_new(nlbas);
 
+    if (zd_len) {
+        ns->pstate.zns.offset = ns->pstate.utilization.offset + bitmap_len,
+
+        nvme_ns_zns_init_zones(ns);
+
+        ret = blk_pwrite(blk, ns->pstate.zns.offset, ns->zns.zd, zd_len, 0);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret,
+                             "could not write zone descriptors to pstate");
+            return ret;
+        }
+    }
+
     return 0;
+}
+
+void nvme_ns_zns_init_zone_state(NvmeNamespace *ns)
+{
+    for (int i = 0; i < ns->zns.num_zones; i++) {
+        NvmeZone *zone = &ns->zns.zones[i];
+        zone->zd = &ns->zns.zd[i];
+
+        zone->wp_staging = nvme_wp(zone);
+
+        switch (nvme_zs(zone)) {
+        case NVME_ZS_ZSE:
+        case NVME_ZS_ZSF:
+        case NVME_ZS_ZSRO:
+        case NVME_ZS_ZSO:
+            continue;
+
+        case NVME_ZS_ZSC:
+            if (nvme_wp(zone) == nvme_zslba(zone)) {
+                nvme_zs_set(zone, NVME_ZS_ZSE);
+            }
+
+            continue;
+
+        case NVME_ZS_ZSIO:
+        case NVME_ZS_ZSEO:
+            zone->zd->wp = zone->zd->zslba;
+            nvme_zs_set(zone, NVME_ZS_ZSF);
+        }
+    }
 }
 
 static int nvme_ns_pstate_load(NvmeNamespace *ns, size_t len, Error **errp)
@@ -123,7 +243,7 @@ static int nvme_ns_pstate_load(NvmeNamespace *ns, size_t len, Error **errp)
     BlockBackend *blk = ns->pstate.blk;
     NvmePstateHeader header;
     uint64_t nlbas = nvme_ns_nlbas(ns);
-    size_t bitmap_len, pstate_len;
+    size_t bitmap_len, pstate_len, zd_len = 0;
     unsigned long *map;
     int ret;
 
@@ -160,8 +280,25 @@ static int nvme_ns_pstate_load(NvmeNamespace *ns, size_t len, Error **errp)
         return -1;
     }
 
+    if (header.zns.zcap != ns->params.zns.zcap) {
+        error_setg(errp, "zns.zcap parameter inconsistent with pstate "
+                   "(pstate %"PRIu64"; parameter %"PRIu64")",
+                   header.zns.zcap, ns->params.zns.zcap);
+        return -1;
+    }
+
+    if (ns->params.zns.zsze && header.zns.zsze != ns->params.zns.zsze) {
+        error_setg(errp, "zns.zsze parameter inconsistent with pstate "
+                   "(pstate %"PRIu64"; parameter %"PRIu64")",
+                   header.zns.zsze, ns->params.zns.zsze);
+        return -1;
+    }
+
     bitmap_len = DIV_ROUND_UP(nlbas, sizeof(unsigned long));
-    pstate_len = ROUND_UP(sizeof(NvmePstateHeader) + bitmap_len,
+    if (nvme_ns_zoned(ns)) {
+        zd_len = ns->zns.num_zones * sizeof(NvmeZoneDescriptor);
+    }
+    pstate_len = ROUND_UP(sizeof(NvmePstateHeader) + bitmap_len + zd_len,
                           BDRV_SECTOR_SIZE);
 
     if (len != pstate_len) {
@@ -187,6 +324,27 @@ static int nvme_ns_pstate_load(NvmeNamespace *ns, size_t len, Error **errp)
 #else
     ns->pstate.utilization.map = map;
 #endif
+
+    if (zd_len) {
+        ns->pstate.zns.offset = ns->pstate.utilization.offset + bitmap_len,
+
+        ret = blk_pread(blk, ns->pstate.zns.offset, ns->zns.zd, zd_len);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret,
+                             "could not read zone descriptors from pstate");
+            return ret;
+        }
+
+        nvme_ns_zns_init_zone_state(ns);
+
+        ret = blk_pwrite(blk, ns->pstate.utilization.offset + bitmap_len,
+                         ns->zns.zd, zd_len, 0);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret,
+                             "could not write zone descriptors to pstate");
+            return ret;
+        }
+    }
 
     return 0;
 
@@ -262,6 +420,20 @@ static int nvme_ns_check_constraints(NvmeNamespace *ns, Error **errp)
     switch (ns->params.iocs) {
     case NVME_IOCS_NVM:
         break;
+
+    case NVME_IOCS_ZONED:
+        if (!ns->params.zns.zcap) {
+            error_setg(errp, "zns.zcap must be specified");
+            return -1;
+        }
+
+        if (ns->params.zns.zsze && ns->params.zns.zsze < ns->params.zns.zcap) {
+            error_setg(errp, "zns.zsze cannot be less than zns.zcap");
+            return -1;
+        }
+
+        break;
+
     default:
         error_setg(errp, "unsupported iocs");
         return -1;
@@ -293,6 +465,8 @@ int nvme_ns_setup(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
          */
         NvmeIdNsNvm *id_ns = nvme_ns_id_nvm(ns);
         id_ns->nsfeat |= 0x4;
+    } else if (nvme_ns_zoned(ns)) {
+        nvme_ns_zns_init_zones(ns);
     }
 
     if (nvme_register_namespace(n, ns, errp)) {
@@ -340,6 +514,8 @@ static Property nvme_ns_props[] = {
     DEFINE_PROP_UINT8("lbads", NvmeNamespace, params.lbads, BDRV_SECTOR_BITS),
     DEFINE_PROP_DRIVE("pstate", NvmeNamespace, pstate.blk),
     DEFINE_PROP_UINT8("iocs", NvmeNamespace, params.iocs, NVME_IOCS_NVM),
+    DEFINE_PROP_UINT64("zns.zcap", NvmeNamespace, params.zns.zcap, 0),
+    DEFINE_PROP_UINT64("zns.zsze", NvmeNamespace, params.zns.zsze, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

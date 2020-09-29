@@ -34,6 +34,13 @@ nvme-ns Options
      values (such as lbads) differs from those specified for the nvme-ns
      device an error is produced.
 
+  `zns.zcap`; If `iocs` is 0x2, this specifies the zone capacity. It is
+     specified in units of logical blocks.
+
+  `zns.zsze`; If `iocs` is 0x2, this specifies the zone size. It is specified
+     in units of the logical blocks. If not specified, the value depends on
+     zns.zcap; if the zone capacity is a power of two, the zone size will be
+     set to that, otherwise it will default to the next power of two.
 
 Reference Specifications
 ------------------------
