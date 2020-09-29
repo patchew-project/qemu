@@ -14,11 +14,19 @@ gen = [
 
 arm_ss = ss.source_set()
 arm_ss.add(gen)
+arm_ss.add(zlib)
 arm_ss.add(files(
   'cpu.c',
   'gdbstub.c',
   'helper.c',
   'vfp_helper.c',
+))
+
+arm_ss.add(when: 'CONFIG_KVM', if_true: files('kvm.c', 'kvm64.c'), if_false: files('kvm-stub.c'))
+
+arm_ss.add(when: 'TARGET_AARCH64', if_true: files(
+  'cpu64.c',
+  'gdbstub64.c',
 ))
 
 arm_tcg_ss = ss.source_set()
@@ -35,26 +43,16 @@ arm_tcg_ss.add(files(
   'vec_helper.c',
 ))
 
-arm_tcg_ss.add(when: 'CONFIG_ARM_V7M', if_true: files('m_helper.c'), if_false: files('m_helper-stub.c'))
-
-arm_ss.add(zlib)
-
 arm_ss.add(when: 'CONFIG_TCG', if_false: files('m_helper-stub.c'))
-
-arm_ss.add(when: 'CONFIG_KVM', if_true: files('kvm.c', 'kvm64.c'), if_false: files('kvm-stub.c'))
-
-arm_ss.add(when: 'TARGET_AARCH64', if_true: files(
-  'cpu64.c',
-  'gdbstub64.c',
-))
+arm_tcg_ss.add(when: 'CONFIG_ARM_V7M', if_true: files('m_helper.c'), if_false: files('m_helper-stub.c'))
 
 arm_tcg_ss.add(when: 'TARGET_AARCH64', if_true: files(
   'helper-a64.c',
   'mte_helper.c',
   'pauth_helper.c',
-  'sve_helper.c',
   'translate-a64.c',
   'translate-sve.c',
+  'sve_helper.c',
 ))
 
 arm_ss.add_all(when: 'CONFIG_TCG', if_true: arm_tcg_ss)
