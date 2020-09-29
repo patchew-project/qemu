@@ -36,7 +36,7 @@ static void nvme_ns_init(NvmeNamespace *ns)
         ns->id_ns.dlfeat = 0x9;
     }
 
-    id_ns->lbaf[0].ds = BDRV_SECTOR_BITS;
+    id_ns->lbaf[0].ds = ns->params.lbads;
 
     id_ns->nsze = cpu_to_le64(nvme_ns_nlbas(ns));
 
@@ -74,6 +74,11 @@ static int nvme_ns_check_constraints(NvmeNamespace *ns, Error **errp)
 {
     if (!ns->blkconf.blk) {
         error_setg(errp, "block backend not configured");
+        return -1;
+    }
+
+    if (ns->params.lbads < 9 || ns->params.lbads > 12) {
+        error_setg(errp, "unsupported lbads (supported: 9-12)");
         return -1;
     }
 
@@ -125,6 +130,7 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
 static Property nvme_ns_props[] = {
     DEFINE_BLOCK_PROPERTIES(NvmeNamespace, blkconf),
     DEFINE_PROP_UINT32("nsid", NvmeNamespace, params.nsid, 0),
+    DEFINE_PROP_UINT8("lbads", NvmeNamespace, params.lbads, BDRV_SECTOR_BITS),
     DEFINE_PROP_END_OF_LIST(),
 };
 
