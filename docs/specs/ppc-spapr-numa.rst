@@ -158,8 +158,212 @@ kernel tree). This results in the following distances:
 * resources four NUMA levels apart: 160
 
 
-Consequences for QEMU NUMA tuning
+pseries NUMA mechanics
+======================
+
+Starting in QEMU 5.2, the pseries machine considers user input when setting NUMA
+topology of the guest. The following changes were made:
+
+* ibm,associativity-reference-points was changed to {0x4, 0x3, 0x2, 0x1}, allowing
+  for 4 distinct NUMA distance values based on the NUMA levels
+
+* ibm,max-associativity-domains was changed to support multiple associativity
+  domains in all NUMA levels. This is needed to ensure user flexibility
+
+* ibm,associativity for all resources now varies with user input
+
+These changes are only effective for pseries-5.2 and newer machines that are
+created with more than one NUMA node (disconsidering NUMA nodes created by
+the machine itself, e.g. NVLink 2 GPUs). The now legacy support has been
+around for such a long time, with users seeing NUMA distances 10 and 40
+(and 80 if using NVLink2 GPUs), and there is no need to disrupt the
+existing experience of those guests.
+
+To bring the user experience x86 users have when tuning up NUMA, we had
+to operate under the current pseries Linux kernel logic described in
+`How the pseries Linux guest calculates NUMA distances`_. The result
+is that we needed to translate NUMA distance user input to pseries
+Linux kernel input.
+
+Translating user distance to kernel distance
+--------------------------------------------
+
+User input for NUMA distance can vary from 10 to 254. We need to translate
+that to the values that the Linux kernel operates on (10, 20, 40, 80, 160).
+This is how it is being done:
+
+* user distance 11 to 30 will be interpreted as 20
+* user distance 31 to 60 will be interpreted as 40
+* user distance 61 to 120 will be interpreted as 80
+* user distance 121 and beyond will be interpreted as 160
+* user distance 10 stays 10
+
+The reasoning behind this aproximation is to avoid any round up to the local
+distance (10), keeping it exclusive to the 4th NUMA level (which is still
+exclusive to the node_id). All other ranges were chosen under the developer
+discretion of what would be (somewhat) sensible considering the user input.
+Any other strategy can be used here, but in the end the reality is that we'll
+have to accept that a large array of values will be translated to the same
+NUMA topology in the guest, e.g. this user input:
+
+::
+
+      0   1   2
+  0  10  31 120
+  1  31  10  30
+  2 120  30  10
+
+And this other user input:
+
+::
+
+      0   1   2
+  0  10  60  61
+  1  60  10  11
+  2  61  11  10
+
+Will both be translated to the same values internally:
+
+::
+
+      0   1   2
+  0  10  40  80
+  1  40  10  20
+  2  80  20  10
+
+Users are encouraged to use only the kernel values in the NUMA definition to
+avoid being taken by surprise with that the guest is actually seeing in the
+topology. There are enough potential surprises that are inherent to the
+associativity domain assignment process, discussed below.
+
+
+How associativity domains are assigned
+--------------------------------------
+
+LOPAPR allows more than one associativity array (or 'string') per allocated
+resource. This would be used to represent that the resource has multiple
+connections with the board, and then the operational system, when deciding
+NUMA distancing, should consider the associativity information that provides
+the shortest distance.
+
+The spapr implementation does not support multiple associativity arrays per
+resource, neither does the pseries Linux kernel. We'll have to represent the
+NUMA topology using one associativity per resource, which means that choices
+and compromises are going to be made.
+
+Consider the following NUMA topology entered by user input:
+
+::
+
+      0   1   2   3
+  0  10  40  20  40
+  1  40  10  80  40
+  2  20  80  10  20
+  3  40  40  20  10
+
+Honoring just the relative distances of node 0 to every other node, one possible
+value for all associativity arrays would be:
+
+* node 0: 0 0 0 0
+* node 1: 1 0 1 1
+* node 2: 2 2 0 2
+* node 3: 3 0 3 3
+
+With the reference points {0x4, 0x3, 0x2, 0x1}, for node 0:
+
+* distance from 0 to 1 is 40 (no match at 0x4 and 0x3, will match
+  at 0x2)
+* distance from 0 to 2 is 20 (no match at 0x4, will match at 0x3)
+* distance from 0 to 3 is 40 (no match at 0x4 and 0x3, will match
+  at 0x2)
+
+The distances related to node 0 are accounted for. For node 1, and keeping
+in mind that we don't need to revisit node 0 again, the distance from
+node 1 to 2 is 80, matching at 0x4, and distance from 1 to 3 is 40,
+match in 0x3:
+
+* node 0: 0 0 0 0
+* node 1: 1 0 1 1
+* node 2: 1 2 0 2
+* node 3: 3 0 3 3
+
+In the last step we will analyze just nodes 2 and 3. The desired distance
+between 2 and 3 is 20, i.e. a match in 0x3. Node 2 already has a
+domain assigned in 0x3, 0. We'll preserve it to avoid dissolving the
+association between node 0 and node 2, and use it as a domain for
+0x3 as well:
+
+* node 0: 0 0 0 0
+* node 1: 1 0 1 1
+* node 2: 1 2 0 2
+* node 3: 3 0 0 3
+
+
+The kernel will read these arrays and will calculate the following NUMA topology for
+the guest:
+
+::
+
+      0   1   2   3
+  0  10  40  20  20
+  1  40  10  80  40
+  2  20  80  10  20
+  3  20  40  20  10
+
+Note that this is not what the user wanted - the desired distance between
+0 and 3 is 40, we calculated it as 20. This is what the current logic and
+implementation constraints of the kernel and QEMU will provide inside the
+LOPAPR specification.
+
+
+Users are welcome to use this knowledge and experiment with the input to get
+the NUMA topology they want, or as closer as they want. The important thing
+is to keep expectations up to par with what we are capable of provide at this
+moment: an approximation.
+
+Limitations of the implementation
 ---------------------------------
+
+As mentioned above, the pSeries NUMA distance logic is, in fact, a way to approximate
+user choice. The Linux kernel, and PAPR itself, does not provide QEMU with the ways
+to fully map user input to actual NUMA distance the guest will use. These limitations
+creates two notable limitations in our support:
+
+* Asymmetrical topologies aren't supported. We only support NUMA topologies where
+  the distance from node A to B is always the same as B to A. We do not support
+  any A-B pair where the distance back and forth is asymmetric. For example, the
+  following topology isn't supported and the pSeries guest will not boot with this
+  user input:
+
+::
+
+      0   1
+  0  10  40
+  1  20  10
+
+
+* 'non-transitive' topologies will be poorly translated to the guest. This is the
+  kind of topology where the distance from a node A to B is X, B to C is X, but
+  the distance A to C is not X. E.g.:
+
+::
+
+      0   1   2   3
+  0  10  20  20  40
+  1  20  10  80  40
+  2  20  80  10  20
+  3  40  40  20  10
+
+  In the example above, distance 0 to 2 is 20, 2 to 3 is 20, but 0 to 3 is 40.
+  The kernel will always match with the shortest associativity domain possible,
+  and we're attempting to retain the previous established relations between the
+  nodes. This means that a distance equal to 20 between nodes 0 and 2 and the
+  same distance 20 between nodes 2 and 3 will cause the distance between 0 and 3
+  to also be 20.
+
+
+Legacy (5.1 and older) pseries NUMA mechanics
+=============================================
 
 The way the pseries Linux guest calculates NUMA distances has a direct effect
 on what QEMU users can expect when doing NUMA tuning. As of QEMU 5.1, this is
