@@ -79,16 +79,6 @@ struct JobTxn {
  * job_enter. */
 static QemuMutex job_mutex;
 
-static void job_lock(void)
-{
-    qemu_mutex_lock(&job_mutex);
-}
-
-static void job_unlock(void)
-{
-    qemu_mutex_unlock(&job_mutex);
-}
-
 static void __attribute__((__constructor__)) job_init(void)
 {
     qemu_mutex_init(&job_mutex);
@@ -437,21 +427,19 @@ void job_enter_cond(Job *job, bool(*fn)(Job *job))
         return;
     }
 
-    job_lock();
-    if (job->busy) {
-        job_unlock();
-        return;
-    }
+    WITH_QEMU_LOCK_GUARD(&job_mutex) {
+        if (job->busy) {
+            return;
+        }
 
-    if (fn && !fn(job)) {
-        job_unlock();
-        return;
-    }
+        if (fn && !fn(job)) {
+            return;
+        }
 
-    assert(!job->deferred_to_main_loop);
-    timer_del(&job->sleep_timer);
-    job->busy = true;
-    job_unlock();
+        assert(!job->deferred_to_main_loop);
+        timer_del(&job->sleep_timer);
+        job->busy = true;
+    }
     aio_co_enter(job->aio_context, job->co);
 }
 
@@ -468,13 +456,13 @@ void job_enter(Job *job)
  * called explicitly. */
 static void coroutine_fn job_do_yield(Job *job, uint64_t ns)
 {
-    job_lock();
-    if (ns != -1) {
-        timer_mod(&job->sleep_timer, ns);
+    WITH_QEMU_LOCK_GUARD(&job_mutex) {
+        if (ns != -1) {
+            timer_mod(&job->sleep_timer, ns);
+        }
+        job->busy = false;
+        job_event_idle(job);
     }
-    job->busy = false;
-    job_event_idle(job);
-    job_unlock();
     qemu_coroutine_yield();
 
     /* Set by job_enter_cond() before re-entering the coroutine.  */
