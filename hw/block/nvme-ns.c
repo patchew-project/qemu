@@ -119,8 +119,8 @@ static void nvme_ns_init_zoned(NvmeNamespace *ns)
         ns->zns.zde = g_malloc0_n(ns->zns.num_zones, nvme_ns_zdes_bytes(ns));
     }
 
-    id_ns_zns->mar = 0xffffffff;
-    id_ns_zns->mor = 0xffffffff;
+    id_ns_zns->mar = cpu_to_le32(ns->params.zns.mar);
+    id_ns_zns->mor = cpu_to_le32(ns->params.zns.mor);
 }
 
 static void nvme_ns_init(NvmeNamespace *ns)
@@ -220,6 +220,11 @@ static int nvme_ns_pstate_init(NvmeNamespace *ns, Error **errp)
 
 void nvme_ns_zns_init_zone_state(NvmeNamespace *ns)
 {
+    ns->zns.resources.active = ns->params.zns.mar != 0xffffffff ?
+        ns->params.zns.mar + 1 : ns->zns.num_zones;
+    ns->zns.resources.open = ns->params.zns.mor != 0xffffffff ?
+        ns->params.zns.mor + 1 : ns->zns.num_zones;
+
     for (int i = 0; i < ns->zns.num_zones; i++) {
         NvmeZone *zone = &ns->zns.zones[i];
         zone->zd = &ns->zns.zd[i];
@@ -238,9 +243,15 @@ void nvme_ns_zns_init_zone_state(NvmeNamespace *ns)
             if (nvme_wp(zone) == nvme_zslba(zone) &&
                 !(zone->zd->za & NVME_ZA_ZDEV)) {
                 nvme_zs_set(zone, NVME_ZS_ZSE);
+                continue;
             }
 
-            continue;
+            if (ns->zns.resources.active) {
+                ns->zns.resources.active--;
+                continue;
+            }
+
+            /* fallthrough */
 
         case NVME_ZS_ZSIO:
         case NVME_ZS_ZSEO:
@@ -462,6 +473,12 @@ static int nvme_ns_check_constraints(NvmeNamespace *ns, Error **errp)
             return -1;
         }
 
+        if (ns->params.zns.mor > ns->params.zns.mar) {
+            error_setg(errp, "maximum open resources (zns.mor) must be less "
+                       "than or equal to maximum active resources (zns.mar)");
+            return -1;
+        }
+
         break;
 
     default:
@@ -547,6 +564,8 @@ static Property nvme_ns_props[] = {
     DEFINE_PROP_UINT64("zns.zcap", NvmeNamespace, params.zns.zcap, 0),
     DEFINE_PROP_UINT64("zns.zsze", NvmeNamespace, params.zns.zsze, 0),
     DEFINE_PROP_UINT8("zns.zdes", NvmeNamespace, params.zns.zdes, 0),
+    DEFINE_PROP_UINT32("zns.mar", NvmeNamespace, params.zns.mar, 0xffffffff),
+    DEFINE_PROP_UINT32("zns.mor", NvmeNamespace, params.zns.mor, 0xffffffff),
     DEFINE_PROP_END_OF_LIST(),
 };
 
