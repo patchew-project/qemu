@@ -2402,6 +2402,7 @@ F: qobject/
 F: include/qapi/qmp/
 X: include/qapi/qmp/dispatch.h
 F: scripts/coccinelle/qobject.cocci
+F: scripts/coccinelle/qobject-parent-type.cocci
 F: tests/check-qdict.c
 F: tests/check-qjson.c
 F: tests/check-qlist.c
