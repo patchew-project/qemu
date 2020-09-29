@@ -1388,7 +1388,7 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BdrvChild *child,
             qemu_iovec_init_buf(&local_qiov, bounce_buffer, pnum);
 
             ret = bdrv_driver_preadv(bs, cluster_offset, pnum,
-                                     &local_qiov, 0, 0);
+                                     &local_qiov, 0, flags & BDRV_REQ_PREFETCH);
             if (ret < 0) {
                 goto err;
             }
