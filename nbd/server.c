@@ -27,7 +27,8 @@
 #include "qemu/units.h"
 
 #define NBD_META_ID_BASE_ALLOCATION 0
-#define NBD_META_ID_DIRTY_BITMAP 1
+#define NBD_META_ID_ALLOCATION_DEPTH 1
+#define NBD_META_ID_DIRTY_BITMAP 2
 
 /*
  * NBD_MAX_BLOCK_STATUS_EXTENTS: 1 MiB of extents data. An empirical
@@ -94,6 +95,7 @@ struct NBDExport {
     BlockBackend *eject_notifier_blk;
     Notifier eject_notifier;
 
+    bool alloc_context;
     BdrvDirtyBitmap *export_bitmap;
     char *export_bitmap_context;
 };
@@ -108,6 +110,7 @@ typedef struct NBDExportMetaContexts {
     bool valid; /* means that negotiation of the option finished without
                    errors */
     bool base_allocation; /* export base:allocation context (block status) */
+    bool allocation_depth; /* export qemu:allocation-depth */
     bool bitmap; /* export qemu:dirty-bitmap:<export bitmap name> */
 } NBDExportMetaContexts;
 
@@ -806,7 +809,7 @@ static bool nbd_meta_empty_or_pattern(NBDClient *client, const char *pattern,
 {
     if (!*query) {
         trace_nbd_negotiate_meta_query_parse("empty");
-        return client->opt == NBD_OPT_LIST_META_CONTEXT;
+        return !*pattern || client->opt == NBD_OPT_LIST_META_CONTEXT;
     }
     if (strcmp(query, pattern) == 0) {
         trace_nbd_negotiate_meta_query_parse(pattern);
@@ -864,9 +867,18 @@ static bool nbd_meta_qemu_query(NBDClient *client, NBDExportMetaContexts *meta,
 
     if (!*query) {
         if (client->opt == NBD_OPT_LIST_META_CONTEXT) {
+            meta->allocation_depth = meta->exp->alloc_context;
             meta->bitmap = !!meta->exp->export_bitmap;
         }
         trace_nbd_negotiate_meta_query_parse("empty");
+        return true;
+    }
+
+    if (nbd_strshift(&query, "allocation-depth")) {
+        trace_nbd_negotiate_meta_query_parse("allocation-depth");
+        if (nbd_meta_empty_or_pattern(client, "", query)) {
+            meta->allocation_depth = meta->exp->alloc_context;
+        }
         return true;
     }
 
@@ -984,6 +996,7 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
     if (client->opt == NBD_OPT_LIST_META_CONTEXT && !nb_queries) {
         /* enable all known contexts */
         meta->base_allocation = true;
+        meta->allocation_depth = meta->exp->alloc_context;
         meta->bitmap = !!meta->exp->export_bitmap;
     } else {
         for (i = 0; i < nb_queries; ++i) {
@@ -997,6 +1010,15 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
     if (meta->base_allocation) {
         ret = nbd_negotiate_send_meta_context(client, "base:allocation",
                                               NBD_META_ID_BASE_ALLOCATION,
+                                              errp);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    if (meta->allocation_depth) {
+        ret = nbd_negotiate_send_meta_context(client, "qemu:allocation-depth",
+                                              NBD_META_ID_ALLOCATION_DEPTH,
                                               errp);
         if (ret < 0) {
             return ret;
@@ -1961,6 +1983,40 @@ static int blockstatus_to_extents(BlockDriverState *bs, uint64_t offset,
     return 0;
 }
 
+static int blockalloc_to_extents(BlockDriverState *bs, uint64_t offset,
+                                 uint64_t bytes, NBDExtentArray *ea)
+{
+    while (bytes) {
+        uint32_t flags;
+        int64_t num;
+        int ret = bdrv_is_allocated(bs, offset, bytes, &num);
+
+        if (ret < 0) {
+            return ret;
+        }
+
+        if (ret == 1) {
+            flags = NBD_STATE_DEPTH_LOCAL;
+        } else {
+            ret = bdrv_is_allocated_above(bs, NULL, false, offset, num,
+                                          &num);
+            if (ret < 0) {
+                return ret;
+            }
+            flags = ret ? NBD_STATE_DEPTH_BACKING : NBD_STATE_DEPTH_UNALLOC;
+        }
+
+        if (nbd_extent_array_add(ea, num, flags) < 0) {
+            return 0;
+        }
+
+        offset += num;
+        bytes -= num;
+    }
+
+    return 0;
+}
+
 /*
  * nbd_co_send_extents
  *
@@ -2001,6 +2057,26 @@ static int nbd_co_send_block_status(NBDClient *client, uint64_t handle,
     g_autoptr(NBDExtentArray) ea = nbd_extent_array_new(nb_extents);
 
     ret = blockstatus_to_extents(bs, offset, length, ea);
+    if (ret < 0) {
+        return nbd_co_send_structured_error(
+                client, handle, -ret, "can't get block status", errp);
+    }
+
+    return nbd_co_send_extents(client, handle, ea, last, context_id, errp);
+}
+
+/* Get allocation depth from the exported device and send it to the client */
+static int nbd_co_send_block_alloc(NBDClient *client, uint64_t handle,
+                                   BlockDriverState *bs, uint64_t offset,
+                                   uint32_t length, bool dont_fragment,
+                                   bool last, uint32_t context_id,
+                                   Error **errp)
+{
+    int ret;
+    unsigned int nb_extents = dont_fragment ? 1 : NBD_MAX_BLOCK_STATUS_EXTENTS;
+    g_autoptr(NBDExtentArray) ea = nbd_extent_array_new(nb_extents);
+
+    ret = blockalloc_to_extents(bs, offset, length, ea);
     if (ret < 0) {
         return nbd_co_send_structured_error(
                 client, handle, -ret, "can't get block status", errp);
@@ -2335,18 +2411,35 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
         }
         if (client->export_meta.valid &&
             (client->export_meta.base_allocation ||
+             client->export_meta.allocation_depth ||
              client->export_meta.bitmap))
         {
             bool dont_fragment = request->flags & NBD_CMD_FLAG_REQ_ONE;
+            int contexts_remaining = client->export_meta.base_allocation +
+                client->export_meta.allocation_depth +
+                client->export_meta.bitmap;
 
             if (client->export_meta.base_allocation) {
                 ret = nbd_co_send_block_status(client, request->handle,
                                                blk_bs(exp->common.blk),
                                                request->from,
                                                request->len, dont_fragment,
-                                               !client->export_meta.bitmap,
+                                               !--contexts_remaining,
                                                NBD_META_ID_BASE_ALLOCATION,
                                                errp);
+                if (ret < 0) {
+                    return ret;
+                }
+            }
+
+            if (client->export_meta.allocation_depth) {
+                ret = nbd_co_send_block_alloc(client, request->handle,
+                                              blk_bs(exp->common.blk),
+                                              request->from, request->len,
+                                              dont_fragment,
+                                              !--contexts_remaining,
+                                              NBD_META_ID_ALLOCATION_DEPTH,
+                                              errp);
                 if (ret < 0) {
                     return ret;
                 }
@@ -2356,12 +2449,14 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
                 ret = nbd_co_send_bitmap(client, request->handle,
                                          client->exp->export_bitmap,
                                          request->from, request->len,
-                                         dont_fragment,
-                                         true, NBD_META_ID_DIRTY_BITMAP, errp);
+                                         dont_fragment, !--contexts_remaining,
+                                         NBD_META_ID_DIRTY_BITMAP, errp);
                 if (ret < 0) {
                     return ret;
                 }
             }
+
+            assert(!contexts_remaining);
 
             return 0;
         } else {
