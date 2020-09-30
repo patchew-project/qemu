@@ -789,7 +789,7 @@ static DisasJumpType op_vpk(DisasContext *s, DisasOps *o)
         }
         break;
     case 0x94:
-        /* If sources and destination dont't overlap -> fast path */
+        /* If sources and destination don't overlap -> fast path */
         if (v1 != v2 && v1 != v3) {
             const uint8_t src_es = get_field(s, m4);
             const uint8_t dst_es = src_es - 1;
