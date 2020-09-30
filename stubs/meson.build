@@ -39,7 +39,9 @@ stub_ss.add(files('target-get-monitor-def.c'))
 stub_ss.add(files('target-monitor-defs.c'))
 stub_ss.add(files('tpm.c'))
 stub_ss.add(files('trace-control.c'))
-stub_ss.add(files('uuid.c'))
+if have_block
+  stub_ss.add(files('uuid.c'))
+endif
 stub_ss.add(files('vmgenid.c'))
 stub_ss.add(files('vmstate.c'))
 stub_ss.add(files('vm-stop.c'))
