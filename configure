@@ -7570,6 +7570,9 @@ case "$target_name" in
     mttcg="yes"
     TARGET_SYSTBL_ABI=common
   ;;
+  arc)
+    gdb_xml_files="arc-core-v2.xml arc-aux-minimal.xml arc-aux-other.xml"
+  ;;
   arm|armeb)
     TARGET_ARCH=arm
     TARGET_SYSTBL_ABI=common,oabi
@@ -7852,8 +7855,10 @@ DIRS="$DIRS docs docs/interop fsdev scsi"
 DIRS="$DIRS pc-bios/optionrom pc-bios/s390-ccw"
 DIRS="$DIRS roms/seabios"
 DIRS="$DIRS contrib/plugins/"
+#DIRS="$DIRS tests/tcg/arc"
 LINKS="Makefile"
 LINKS="$LINKS tests/tcg/lm32/Makefile"
+#LINKS="$LINKS tests/tcg/arc/Makefile.target"
 LINKS="$LINKS tests/tcg/Makefile.target"
 LINKS="$LINKS pc-bios/optionrom/Makefile"
 LINKS="$LINKS pc-bios/s390-ccw/Makefile"

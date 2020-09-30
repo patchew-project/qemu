@@ -671,6 +671,8 @@ void disas(FILE *out, void *code, unsigned long size, const char *note)
     print_insn = print_insn_s390;
 #elif defined(__hppa__)
     print_insn = print_insn_hppa;
+#elif defined(__arc__)
+    print_insn = print_insn_arc;
 #endif
 
     if (s.info.cap_arch >= 0 && cap_disas_host(&s.info, code, size, note)) {
