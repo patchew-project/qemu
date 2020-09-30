@@ -475,3 +475,88 @@
            'psw-mask': 'uint64',
            'psw-addr': 'uint64',
            'reason': 'S390CrashReason' } }
+
+##
+# @MEMORY_FAILURE:
+#
+# Emitted when a memory failure occurs on host side.
+#
+# @recipient: recipient is defined as @MemoryFailureRecipient.
+#
+# @action: action that has been taken. action is defined as @MemoryFailureAction.
+#
+# @flags: flags for MemoryFailureAction. action is defined as @MemoryFailureFlags.
+#
+# Since: 5.2
+#
+# Example:
+#
+# <- { "event": "MEMORY_FAILURE",
+#      "data": { "action": "guest-mce" } }
+#
+##
+{ 'event': 'MEMORY_FAILURE',
+  'data': { 'recipient': 'MemoryFailureRecipient',
+            'action': 'MemoryFailureAction',
+            'flags': 'MemoryFailureFlags'} }
+
+##
+# @MemoryFailureRecipient:
+#
+# Hardware memory failure occurs, handled by recipient.
+#
+# @hypervisor: memory failure at QEMU process address space.
+#              (none guest memory, but used by QEMU itself).
+#
+# @guest: memory failure at guest memory,
+#
+# Since: 5.2
+#
+##
+{ 'enum': 'MemoryFailureRecipient',
+  'data': [ 'hypervisor',
+            'guest' ] }
+
+
+##
+# @MemoryFailureAction:
+#
+# Hardware memory failure occurs, action by QEMU.
+#
+# @ignore: action optional memory failure which could be ignored.
+#
+# @inject: memory failure at guest memory, and guest enables MCE handling
+#          mechanism, QEMU injects MCE to guest successfully.
+#
+# @fatal: action required memory failure occurs. If recipient is hypervior, QEMU
+#         hits a fatal error and exits later. And if recipient is guest, QEMU
+#         tries to inject MCE to guest, but guest is not ready to handle MCE
+#         (typical cases: guest has no MCE mechanism, or guest disables MCE,
+#         or during previous MCE still in processing, an AR MCE occurs). QEMU
+#         has to raise a fault and shutdown/reset. Also see detailed info in
+#         QEMU log.
+#
+# Since: 5.2
+#
+##
+{ 'enum': 'MemoryFailureAction',
+  'data': [ 'ignore',
+            'inject',
+            'fatal' ] }
+
+##
+# @MemoryFailureFlags:
+#
+# Structure of flags for each memory failure event.
+#
+# @action-required: describe a MCE event as AR/AO.
+#
+# @recursive: previous MCE in processing in guest, another AO MCE
+#             occurs, set recursive as true.
+#
+# Since: 5.2
+#
+##
+{ 'struct': 'MemoryFailureFlags',
+  'data': { 'action-required': 'bool',
+            'recursive': 'bool'} }
