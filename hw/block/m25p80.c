@@ -820,6 +820,26 @@ static void reset_memory(Flash *s)
     trace_m25p80_reset_done(s);
 }
 
+static uint8_t numonyx_fast_read_num_dummies(Flash *s)
+{
+    uint8_t cycle_count;
+    uint8_t num_dummies;
+    assert(get_man(s) == MAN_NUMONYX);
+
+    cycle_count = extract32(s->volatile_cfg, 4, 4);
+    if (cycle_count == 0x0 || cycle_count == 0x0F) {
+        if (s->cmd_in_progress == QIOR || s->cmd_in_progress == QIOR4) {
+            num_dummies = 10;
+        } else {
+            num_dummies = 8;
+        }
+    } else {
+        num_dummies = cycle_count;
+    }
+
+    return num_dummies;
+}
+
 static void decode_fast_read_cmd(Flash *s)
 {
     s->needed_bytes = get_addr_length(s);
@@ -829,7 +849,7 @@ static void decode_fast_read_cmd(Flash *s)
         s->needed_bytes += 8;
         break;
     case MAN_NUMONYX:
-        s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
+        s->needed_bytes += numonyx_fast_read_num_dummies(s);
         break;
     case MAN_MACRONIX:
         if (extract32(s->volatile_cfg, 6, 2) == 1) {
@@ -868,7 +888,7 @@ static void decode_dio_read_cmd(Flash *s)
                                     );
         break;
     case MAN_NUMONYX:
-        s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
+        s->needed_bytes += numonyx_fast_read_num_dummies(s);
         break;
     case MAN_MACRONIX:
         switch (extract32(s->volatile_cfg, 6, 2)) {
@@ -908,7 +928,7 @@ static void decode_qio_read_cmd(Flash *s)
                                     );
         break;
     case MAN_NUMONYX:
-        s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
+        s->needed_bytes += numonyx_fast_read_num_dummies(s);
         break;
     case MAN_MACRONIX:
         switch (extract32(s->volatile_cfg, 6, 2)) {
