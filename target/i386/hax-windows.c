@@ -174,7 +174,7 @@ int hax_mod_version(struct hax_state *hax, struct hax_module_version *version)
     if (!ret) {
         err = GetLastError();
         if (err == ERROR_INSUFFICIENT_BUFFER || err == ERROR_MORE_DATA) {
-            fprintf(stderr, "hax module verion is too long to hold.\n");
+            fprintf(stderr, "hax module version is too long to hold.\n");
         }
         fprintf(stderr, "Failed to get Hax module version:%lu\n", err);
         return -EFAULT;
