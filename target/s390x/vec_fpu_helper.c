@@ -899,3 +899,303 @@ void HELPER(gvec_vftci##BITS##s)(void *v1, const void *v2, CPUS390XState *env, \
 }
 DEF_GVEC_VFTCI_S(32)
 DEF_GVEC_VFTCI_S(64)
+
+typedef enum S390MinMaxType {
+    s390_minmax_java_math_min,
+    s390_minmax_java_math_max,
+    s390_minmax_c_macro_min,
+    s390_minmax_c_macro_max,
+    s390_minmax_fmin,
+    s390_minmax_fmax,
+    s390_minmax_cpp_alg_min,
+    s390_minmax_cpp_alg_max,
+} S390MinMaxType;
+
+#define S390_MINMAX(BITS, TYPE)                                                \
+static float##BITS TYPE##BITS(float##BITS a, float##BITS b, float_status *s)   \
+{                                                                              \
+    const bool zero_a = float##BITS##_is_infinity(a);                          \
+    const bool zero_b = float##BITS##_is_infinity(b);                          \
+    const bool inf_a = float##BITS##_is_infinity(a);                           \
+    const bool inf_b = float##BITS##_is_infinity(b);                           \
+    const bool nan_a = float##BITS##_is_infinity(a);                           \
+    const bool nan_b = float##BITS##_is_infinity(b);                           \
+    const bool neg_a = float##BITS##_is_neg(a);                                \
+    const bool neg_b = float##BITS##_is_neg(b);                                \
+                                                                               \
+    if (unlikely(nan_a || nan_b)) {                                            \
+        const bool sig_a = float##BITS##_is_signaling_nan(a, s);               \
+        const bool sig_b = float##BITS##_is_signaling_nan(b, s);               \
+                                                                               \
+        if (sig_a || sig_b) {                                                  \
+            s->float_exception_flags |= float_flag_invalid;                    \
+        }                                                                      \
+        switch (TYPE) {                                                        \
+        case s390_minmax_java_math_min:                                        \
+        case s390_minmax_java_math_max:                                        \
+            if (sig_a) {                                                       \
+                return float##BITS##_silence_nan(a, s);                        \
+            } else if (sig_b) {                                                \
+                return float##BITS##_silence_nan(b, s);                        \
+            }                                                                  \
+            /* fall through */                                                 \
+        case s390_minmax_fmin:                                                 \
+        case s390_minmax_fmax:                                                 \
+            return nan_a ? a : b;                                              \
+        case s390_minmax_c_macro_min:                                          \
+        case s390_minmax_c_macro_max:                                          \
+            s->float_exception_flags |= float_flag_invalid;                    \
+            return b;                                                          \
+        case s390_minmax_cpp_alg_min:                                          \
+        case s390_minmax_cpp_alg_max:                                          \
+            s->float_exception_flags |= float_flag_invalid;                    \
+            return a;                                                          \
+        default:                                                               \
+            g_assert_not_reached();                                            \
+        }                                                                      \
+    } else if (unlikely(inf_a && inf_b)) {                                     \
+        switch (TYPE) {                                                        \
+        case s390_minmax_java_math_min:                                        \
+            return neg_a && !neg_b ? a : b;                                    \
+        case s390_minmax_java_math_max:                                        \
+        case s390_minmax_fmax:                                                 \
+        case s390_minmax_cpp_alg_max:                                          \
+            return neg_a && !neg_b ? b : a;                                    \
+        case s390_minmax_c_macro_min:                                          \
+        case s390_minmax_cpp_alg_min:                                          \
+            return neg_b ? b : a;                                              \
+        case s390_minmax_c_macro_max:                                          \
+            return !neg_a && neg_b ? a : b;                                    \
+        case s390_minmax_fmin:                                                 \
+            return !neg_a && neg_b ? b : a;                                    \
+        default:                                                               \
+            g_assert_not_reached();                                            \
+        }                                                                      \
+    } else if (unlikely(zero_a && zero_b)) {                                   \
+        switch (TYPE) {                                                        \
+        case s390_minmax_java_math_min:                                        \
+            return neg_a && !neg_b ? a : b;                                    \
+        case s390_minmax_java_math_max:                                        \
+        case s390_minmax_fmax:                                                 \
+            return neg_a && !neg_b ? b : a;                                    \
+        case s390_minmax_c_macro_min:                                          \
+        case s390_minmax_c_macro_max:                                          \
+            return b;                                                          \
+        case s390_minmax_fmin:                                                 \
+            return !neg_a && neg_b ? b : a;                                    \
+        case s390_minmax_cpp_alg_min:                                          \
+        case s390_minmax_cpp_alg_max:                                          \
+            return a;                                                          \
+        default:                                                               \
+            g_assert_not_reached();                                            \
+        }                                                                      \
+    }                                                                          \
+                                                                               \
+    /* We can process all remaining cases using simple comparison. */          \
+    switch (TYPE) {                                                            \
+    case s390_minmax_java_math_min:                                            \
+    case s390_minmax_c_macro_min:                                              \
+    case s390_minmax_fmin:                                                     \
+    case s390_minmax_cpp_alg_min:                                              \
+        if (float##BITS##_le_quiet(a, b, s)) {                                 \
+            return a;                                                          \
+        }                                                                      \
+        return b;                                                              \
+    case s390_minmax_java_math_max:                                            \
+    case s390_minmax_c_macro_max:                                              \
+    case s390_minmax_fmax:                                                     \
+    case s390_minmax_cpp_alg_max:                                              \
+        if (float##BITS##_le_quiet(a, b, s)) {                                 \
+            return b;                                                          \
+        }                                                                      \
+        return a;                                                              \
+    default:                                                                   \
+        g_assert_not_reached();                                                \
+    }                                                                          \
+}
+
+#define S390_MINMAX_ABS(BITS, TYPE)                                            \
+static float##BITS TYPE##_abs##BITS(float##BITS a, float##BITS b,              \
+                                    float_status *s)                           \
+{                                                                              \
+    return TYPE##BITS(float##BITS##_abs(a), float##BITS##_abs(b), s);          \
+}
+
+S390_MINMAX(32, s390_minmax_java_math_min)
+S390_MINMAX(32, s390_minmax_java_math_max)
+S390_MINMAX(32, s390_minmax_c_macro_min)
+S390_MINMAX(32, s390_minmax_c_macro_max)
+S390_MINMAX(32, s390_minmax_fmin)
+S390_MINMAX(32, s390_minmax_fmax)
+S390_MINMAX(32, s390_minmax_cpp_alg_min)
+S390_MINMAX(32, s390_minmax_cpp_alg_max)
+S390_MINMAX_ABS(32, s390_minmax_java_math_min)
+S390_MINMAX_ABS(32, s390_minmax_java_math_max)
+S390_MINMAX_ABS(32, s390_minmax_c_macro_min)
+S390_MINMAX_ABS(32, s390_minmax_c_macro_max)
+S390_MINMAX_ABS(32, s390_minmax_fmin)
+S390_MINMAX_ABS(32, s390_minmax_fmax)
+S390_MINMAX_ABS(32, s390_minmax_cpp_alg_min)
+S390_MINMAX_ABS(32, s390_minmax_cpp_alg_max)
+
+S390_MINMAX(64, s390_minmax_java_math_min)
+S390_MINMAX(64, s390_minmax_java_math_max)
+S390_MINMAX(64, s390_minmax_c_macro_min)
+S390_MINMAX(64, s390_minmax_c_macro_max)
+S390_MINMAX(64, s390_minmax_fmin)
+S390_MINMAX(64, s390_minmax_fmax)
+S390_MINMAX(64, s390_minmax_cpp_alg_min)
+S390_MINMAX(64, s390_minmax_cpp_alg_max)
+S390_MINMAX_ABS(64, s390_minmax_java_math_min)
+S390_MINMAX_ABS(64, s390_minmax_java_math_max)
+S390_MINMAX_ABS(64, s390_minmax_c_macro_min)
+S390_MINMAX_ABS(64, s390_minmax_c_macro_max)
+S390_MINMAX_ABS(64, s390_minmax_fmin)
+S390_MINMAX_ABS(64, s390_minmax_fmax)
+S390_MINMAX_ABS(64, s390_minmax_cpp_alg_min)
+S390_MINMAX_ABS(64, s390_minmax_cpp_alg_max)
+
+S390_MINMAX(128, s390_minmax_java_math_min)
+S390_MINMAX(128, s390_minmax_java_math_max)
+S390_MINMAX(128, s390_minmax_c_macro_min)
+S390_MINMAX(128, s390_minmax_c_macro_max)
+S390_MINMAX(128, s390_minmax_fmin)
+S390_MINMAX(128, s390_minmax_fmax)
+S390_MINMAX(128, s390_minmax_cpp_alg_min)
+S390_MINMAX(128, s390_minmax_cpp_alg_max)
+S390_MINMAX_ABS(128, s390_minmax_java_math_min)
+S390_MINMAX_ABS(128, s390_minmax_java_math_max)
+S390_MINMAX_ABS(128, s390_minmax_c_macro_min)
+S390_MINMAX_ABS(128, s390_minmax_c_macro_max)
+S390_MINMAX_ABS(128, s390_minmax_fmin)
+S390_MINMAX_ABS(128, s390_minmax_fmax)
+S390_MINMAX_ABS(128, s390_minmax_cpp_alg_min)
+S390_MINMAX_ABS(128, s390_minmax_cpp_alg_max)
+
+static vop32_3_fn const vfmax_fns32[16] = {
+    [0] = float32_maxnum,
+    [1] = s390_minmax_java_math_max32,
+    [2] = s390_minmax_c_macro_max32,
+    [3] = s390_minmax_cpp_alg_max32,
+    [4] = s390_minmax_fmax32,
+    [8] = float32_maxnummag,
+    [9] = s390_minmax_java_math_max_abs32,
+    [10] = s390_minmax_c_macro_max_abs32,
+    [11] = s390_minmax_cpp_alg_max_abs32,
+    [12] = s390_minmax_fmax_abs32,
+};
+
+static vop64_3_fn const vfmax_fns64[16] = {
+    [0] = float64_maxnum,
+    [1] = s390_minmax_java_math_max64,
+    [2] = s390_minmax_c_macro_max64,
+    [3] = s390_minmax_cpp_alg_max64,
+    [4] = s390_minmax_fmax64,
+    [8] = float64_maxnummag,
+    [9] = s390_minmax_java_math_max_abs64,
+    [10] = s390_minmax_c_macro_max_abs64,
+    [11] = s390_minmax_cpp_alg_max_abs64,
+    [12] = s390_minmax_fmax_abs64,
+};
+
+static vop128_3_fn const vfmax_fns128[16] = {
+    [0] = float128_maxnum,
+    [1] = s390_minmax_java_math_max128,
+    [2] = s390_minmax_c_macro_max128,
+    [3] = s390_minmax_cpp_alg_max128,
+    [4] = s390_minmax_fmax128,
+    [8] = float128_maxnummag,
+    [9] = s390_minmax_java_math_max_abs128,
+    [10] = s390_minmax_c_macro_max_abs128,
+    [11] = s390_minmax_cpp_alg_max_abs128,
+    [12] = s390_minmax_fmax_abs128,
+};
+
+#define DEF_GVEC_VFMAX(BITS)                                                   \
+void HELPER(gvec_vfmax##BITS)(void *v1, const void *v2, const void *v3,        \
+                              CPUS390XState *env, uint32_t desc)               \
+{                                                                              \
+    vop##BITS##_3_fn fn = vfmax_fns##BITS[simd_data(desc)];                    \
+                                                                               \
+    g_assert(fn);                                                              \
+    vop##BITS##_3(v1, v2, v3, env, false, fn, GETPC());                        \
+}
+DEF_GVEC_VFMAX(32)
+DEF_GVEC_VFMAX(64)
+DEF_GVEC_VFMAX(128)
+
+#define DEF_GVEC_VFMAX_S(BITS)                                                 \
+void HELPER(gvec_vfmax##BITS##s)(void *v1, const void *v2, const void *v3,     \
+                                 CPUS390XState *env, uint32_t desc)            \
+{                                                                              \
+    vop##BITS##_3_fn fn = vfmax_fns##BITS[simd_data(desc)];                    \
+                                                                               \
+    g_assert(fn);                                                              \
+    vop##BITS##_3(v1, v2, v3, env, true, fn, GETPC());                         \
+}
+DEF_GVEC_VFMAX_S(32)
+DEF_GVEC_VFMAX_S(64)
+
+static vop32_3_fn const vfmin_fns32[16] = {
+    [0] = float32_minnum,
+    [1] = s390_minmax_java_math_min32,
+    [2] = s390_minmax_c_macro_min32,
+    [3] = s390_minmax_cpp_alg_min32,
+    [4] = s390_minmax_fmin32,
+    [8] = float32_minnummag,
+    [9] = s390_minmax_java_math_min_abs32,
+    [10] = s390_minmax_c_macro_min_abs32,
+    [11] = s390_minmax_cpp_alg_min_abs32,
+    [12] = s390_minmax_fmin_abs32,
+};
+
+static vop64_3_fn const vfmin_fns64[16] = {
+    [0] = float64_minnum,
+    [1] = s390_minmax_java_math_min64,
+    [2] = s390_minmax_c_macro_min64,
+    [3] = s390_minmax_cpp_alg_min64,
+    [4] = s390_minmax_fmin64,
+    [8] = float64_minnummag,
+    [9] = s390_minmax_java_math_min_abs64,
+    [10] = s390_minmax_c_macro_min_abs64,
+    [11] = s390_minmax_cpp_alg_min_abs64,
+    [12] = s390_minmax_fmin_abs64,
+};
+
+static vop128_3_fn const vfmin_fns128[16] = {
+    [0] = float128_minnum,
+    [1] = s390_minmax_java_math_min128,
+    [2] = s390_minmax_c_macro_min128,
+    [3] = s390_minmax_cpp_alg_min128,
+    [4] = s390_minmax_fmin128,
+    [8] = float128_minnummag,
+    [9] = s390_minmax_java_math_min_abs128,
+    [10] = s390_minmax_c_macro_min_abs128,
+    [11] = s390_minmax_cpp_alg_min_abs128,
+    [12] = s390_minmax_fmin_abs128,
+};
+
+#define DEF_GVEC_VFMIN(BITS)                                                   \
+void HELPER(gvec_vfmin##BITS)(void *v1, const void *v2, const void *v3,        \
+                              CPUS390XState *env, uint32_t desc)               \
+{                                                                              \
+    vop##BITS##_3_fn fn = vfmin_fns##BITS[simd_data(desc)];                    \
+                                                                               \
+    g_assert(fn);                                                              \
+    vop##BITS##_3(v1, v2, v3, env, false, fn, GETPC());                        \
+}
+DEF_GVEC_VFMIN(32)
+DEF_GVEC_VFMIN(64)
+DEF_GVEC_VFMIN(128)
+
+#define DEF_GVEC_VFMIN_S(BITS)                                                 \
+void HELPER(gvec_vfmin##BITS##s)(void *v1, const void *v2, const void *v3,     \
+                                 CPUS390XState *env, uint32_t desc)            \
+{                                                                              \
+    vop##BITS##_3_fn fn = vfmin_fns##BITS[simd_data(desc)];                    \
+                                                                               \
+    g_assert(fn);                                                              \
+    vop##BITS##_3(v1, v2, v3, env, true, fn, GETPC());                         \
+}
+DEF_GVEC_VFMIN_S(32)
+DEF_GVEC_VFMIN_S(64)
