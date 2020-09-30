@@ -78,6 +78,40 @@ static void handle_ieee_exc(CPUS390XState *env, uint8_t vxc, uint8_t vec_exc,
     }
 }
 
+static float32 s390_vec_read_float32(const S390Vector *v, uint8_t enr)
+{
+    return make_float32(s390_vec_read_element32(v, enr));
+}
+
+static float64 s390_vec_read_float64(const S390Vector *v, uint8_t enr)
+{
+    return make_float64(s390_vec_read_element64(v, enr));
+}
+
+static float128 s390_vec_read_float128(const S390Vector *v, uint8_t enr)
+{
+    g_assert(enr == 0);
+    return make_float128(s390_vec_read_element64(v, 0),
+                         s390_vec_read_element64(v, 1));
+}
+
+static void s390_vec_write_float32(S390Vector *v, uint8_t enr, float32 data)
+{
+    return s390_vec_write_element32(v, enr, data);
+}
+
+static void s390_vec_write_float64(S390Vector *v, uint8_t enr, float64 data)
+{
+    return s390_vec_write_element64(v, enr, data);
+}
+
+static void s390_vec_write_float128(S390Vector *v, uint8_t enr, float128 data)
+{
+    g_assert(enr == 0);
+    s390_vec_write_element64(v, 0, data.high);
+    s390_vec_write_element64(v, 1, data.low);
+}
+
 typedef uint64_t (*vop64_2_fn)(uint64_t a, float_status *s);
 static void vop64_2(S390Vector *v1, const S390Vector *v2, CPUS390XState *env,
                     bool s, bool XxC, uint8_t erm, vop64_2_fn fn,
@@ -102,45 +136,52 @@ static void vop64_2(S390Vector *v1, const S390Vector *v2, CPUS390XState *env,
     *v1 = tmp;
 }
 
-typedef uint64_t (*vop64_3_fn)(uint64_t a, uint64_t b, float_status *s);
-static void vop64_3(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
-                    CPUS390XState *env, bool s, vop64_3_fn fn,
-                    uintptr_t retaddr)
-{
-    uint8_t vxc, vec_exc = 0;
-    S390Vector tmp = {};
-    int i;
-
-    for (i = 0; i < 2; i++) {
-        const uint64_t a = s390_vec_read_element64(v2, i);
-        const uint64_t b = s390_vec_read_element64(v3, i);
-
-        s390_vec_write_element64(&tmp, i, fn(a, b, &env->fpu_status));
-        vxc = check_ieee_exc(env, i, false, &vec_exc);
-        if (s || vxc) {
-            break;
-        }
-    }
-    handle_ieee_exc(env, vxc, vec_exc, retaddr);
-    *v1 = tmp;
+#define DEF_VOP_3(BITS)                                                        \
+typedef float##BITS (*vop##BITS##_3_fn)(float##BITS a, float##BITS b,          \
+                                        float_status *s);                      \
+static void vop##BITS##_3(S390Vector *v1, const S390Vector *v2,                \
+                          const S390Vector *v3, CPUS390XState *env, bool s,    \
+                          vop##BITS##_3_fn fn, uintptr_t retaddr)              \
+{                                                                              \
+    uint8_t vxc, vec_exc = 0;                                                  \
+    S390Vector tmp = {};                                                       \
+    int i;                                                                     \
+                                                                               \
+    for (i = 0; i < (128 / BITS); i++) {                                       \
+        const float##BITS a = s390_vec_read_float##BITS(v2, i);                \
+        const float##BITS b = s390_vec_read_float##BITS(v3, i);                \
+                                                                               \
+        s390_vec_write_float##BITS(&tmp, i, fn(a, b, &env->fpu_status));       \
+        vxc = check_ieee_exc(env, i, false, &vec_exc);                         \
+        if (s || vxc) {                                                        \
+            break;                                                             \
+        }                                                                      \
+    }                                                                          \
+    handle_ieee_exc(env, vxc, vec_exc, retaddr);                               \
+    *v1 = tmp;                                                                 \
 }
+DEF_VOP_3(32)
+DEF_VOP_3(64)
+DEF_VOP_3(128)
 
-static uint64_t vfa64(uint64_t a, uint64_t b, float_status *s)
-{
-    return float64_add(a, b, s);
+#define DEF_GVEC_FVA(BITS)                                                     \
+void HELPER(gvec_vfa##BITS)(void *v1, const void *v2, const void *v3,          \
+                            CPUS390XState *env, uint32_t desc)                 \
+{                                                                              \
+    vop##BITS##_3(v1, v2, v3, env, false, float##BITS##_add, GETPC());         \
 }
+DEF_GVEC_FVA(32)
+DEF_GVEC_FVA(64)
+DEF_GVEC_FVA(128)
 
-void HELPER(gvec_vfa64)(void *v1, const void *v2, const void *v3,
-                        CPUS390XState *env, uint32_t desc)
-{
-    vop64_3(v1, v2, v3, env, false, vfa64, GETPC());
+#define DEF_GVEC_FVA_S(BITS)                                                   \
+void HELPER(gvec_vfa##BITS##s)(void *v1, const void *v2, const void *v3,       \
+                               CPUS390XState *env, uint32_t desc)              \
+{                                                                              \
+    vop##BITS##_3(v1, v2, v3, env, true, float##BITS##_add, GETPC());          \
 }
-
-void HELPER(gvec_vfa64s)(void *v1, const void *v2, const void *v3,
-                         CPUS390XState *env, uint32_t desc)
-{
-    vop64_3(v1, v2, v3, env, true, vfa64, GETPC());
-}
+DEF_GVEC_FVA_S(32)
+DEF_GVEC_FVA_S(64)
 
 static int wfc64(const S390Vector *v1, const S390Vector *v2,
                  CPUS390XState *env, bool signal, uintptr_t retaddr)

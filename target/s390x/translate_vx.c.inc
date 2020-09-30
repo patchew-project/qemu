@@ -2504,16 +2504,27 @@ static DisasJumpType op_vfa(DisasContext *s, DisasOps *o)
     const uint8_t fpf = get_field(s, m4);
     const uint8_t m5 = get_field(s, m5);
     const bool se = extract32(m5, 3, 1);
-    gen_helper_gvec_3_ptr *fn;
-
-    if (fpf != FPF_LONG || extract32(m5, 0, 3)) {
-        gen_program_exception(s, PGM_SPECIFICATION);
-        return DISAS_NORETURN;
-    }
+    gen_helper_gvec_3_ptr *fn = NULL;
 
     switch (s->fields.op2) {
     case 0xe3:
-        fn = se ? gen_helper_gvec_vfa64s : gen_helper_gvec_vfa64;
+        switch (fpf) {
+        case FPF_SHORT:
+            if (s390_has_feat(S390_FEAT_VECTOR_ENH)) {
+                fn = se ? gen_helper_gvec_vfa32s : gen_helper_gvec_vfa32;
+            }
+            break;
+        case FPF_LONG:
+            fn = se ? gen_helper_gvec_vfa64s : gen_helper_gvec_vfa64;
+            break;
+        case FPF_EXT:
+            if (s390_has_feat(S390_FEAT_VECTOR_ENH)) {
+                fn = gen_helper_gvec_vfa128;
+            }
+            break;
+        default:
+            break;
+        }
         break;
     case 0xe5:
         fn = se ? gen_helper_gvec_vfd64s : gen_helper_gvec_vfd64;
@@ -2527,6 +2538,12 @@ static DisasJumpType op_vfa(DisasContext *s, DisasOps *o)
     default:
         g_assert_not_reached();
     }
+
+    if (!fn || extract32(m5, 0, 3)) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
     gen_gvec_3_ptr(get_field(s, v1), get_field(s, v2),
                    get_field(s, v3), cpu_env, 0, fn);
     return DISAS_NEXT;
