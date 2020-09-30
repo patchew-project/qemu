@@ -2565,7 +2565,23 @@ static DisasJumpType op_vfa(DisasContext *s, DisasOps *o)
         }
         break;
     case 0xe2:
-        fn = se ? gen_helper_gvec_vfs64s : gen_helper_gvec_vfs64;
+        switch (fpf) {
+        case FPF_SHORT:
+            if (s390_has_feat(S390_FEAT_VECTOR_ENH)) {
+                fn = se ? gen_helper_gvec_vfs32s : gen_helper_gvec_vfs32;
+            }
+            break;
+        case FPF_LONG:
+            fn = se ? gen_helper_gvec_vfs64s : gen_helper_gvec_vfs64;
+            break;
+        case FPF_EXT:
+            if (s390_has_feat(S390_FEAT_VECTOR_ENH)) {
+                fn = gen_helper_gvec_vfs128;
+            }
+            break;
+        default:
+            break;
+        }
         break;
     default:
         g_assert_not_reached();
