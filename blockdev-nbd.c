@@ -212,6 +212,8 @@ void qmp_nbd_server_add(NbdServerAddOptions *arg, Error **errp)
             .description        = g_strdup(arg->description),
             .has_bitmap         = arg->has_bitmap,
             .bitmap             = g_strdup(arg->bitmap),
+            .has_alloc          = arg->alloc,
+            .alloc              = arg->alloc,
         },
     };
 
