@@ -2847,18 +2847,52 @@ static DisasJumpType op_vfma(DisasContext *s, DisasOps *o)
     const uint8_t m5 = get_field(s, m5);
     const uint8_t fpf = get_field(s, m6);
     const bool se = extract32(m5, 3, 1);
-    gen_helper_gvec_4_ptr *fn;
+    gen_helper_gvec_4_ptr *fn = NULL;
 
-    if (fpf != FPF_LONG || extract32(m5, 0, 3)) {
+    switch (s->fields.op2) {
+    case 0x8f:
+        switch (fpf) {
+        case FPF_SHORT:
+            if (s390_has_feat(S390_FEAT_VECTOR_ENH)) {
+                fn = se ? gen_helper_gvec_vfma32s : gen_helper_gvec_vfma32;
+            }
+            break;
+        case FPF_LONG:
+            fn = se ? gen_helper_gvec_vfma64s : gen_helper_gvec_vfma64;
+            break;
+        default:
+            if (s390_has_feat(S390_FEAT_VECTOR_ENH)) {
+                fn = gen_helper_gvec_vfma128;
+            }
+            break;
+        }
+        break;
+    case 0x8e:
+        switch (fpf) {
+        case FPF_SHORT:
+            if (s390_has_feat(S390_FEAT_VECTOR_ENH)) {
+                fn = se ? gen_helper_gvec_vfms32s : gen_helper_gvec_vfms32;
+            }
+            break;
+        case FPF_LONG:
+            fn = se ? gen_helper_gvec_vfms64s : gen_helper_gvec_vfms64;
+            break;
+        default:
+            if (s390_has_feat(S390_FEAT_VECTOR_ENH)) {
+                fn = gen_helper_gvec_vfms128;
+            }
+            break;
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    if (!fn || extract32(m5, 0, 3)) {
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
 
-    if (s->fields.op2 == 0x8f) {
-        fn = se ? gen_helper_gvec_vfma64s : gen_helper_gvec_vfma64;
-    } else {
-        fn = se ? gen_helper_gvec_vfms64s : gen_helper_gvec_vfms64;
-    }
     gen_gvec_4_ptr(get_field(s, v1), get_field(s, v2),
                    get_field(s, v3), get_field(s, v4), cpu_env,
                    0, fn);

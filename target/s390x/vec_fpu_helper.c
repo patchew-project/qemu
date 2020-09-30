@@ -699,53 +699,75 @@ void HELPER(gvec_vfm##BITS##s)(void *v1, const void *v2, const void *v3,       \
 DEF_GVEC_FVM_S(32)
 DEF_GVEC_FVM_S(64)
 
-static void vfma64(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
-                   const S390Vector *v4, CPUS390XState *env, bool s, int flags,
-                   uintptr_t retaddr)
-{
-    uint8_t vxc, vec_exc = 0;
-    S390Vector tmp = {};
-    int i;
-
-    for (i = 0; i < 2; i++) {
-        const uint64_t a = s390_vec_read_element64(v2, i);
-        const uint64_t b = s390_vec_read_element64(v3, i);
-        const uint64_t c = s390_vec_read_element64(v4, i);
-        uint64_t ret = float64_muladd(a, b, c, flags, &env->fpu_status);
-
-        s390_vec_write_element64(&tmp, i, ret);
-        vxc = check_ieee_exc(env, i, false, &vec_exc);
-        if (s || vxc) {
-            break;
-        }
-    }
-    handle_ieee_exc(env, vxc, vec_exc, retaddr);
-    *v1 = tmp;
+#define DEF_VFMA(BITS)                                                         \
+static void vfma##BITS(S390Vector *v1, const S390Vector *v2,                   \
+                       const S390Vector *v3, const S390Vector *v4,             \
+                       CPUS390XState *env, bool s, int flags,                  \
+                       uintptr_t retaddr)                                      \
+{                                                                              \
+    uint8_t vxc, vec_exc = 0;                                                  \
+    S390Vector tmp = {};                                                       \
+    int i;                                                                     \
+                                                                               \
+    for (i = 0; i < (128 / BITS); i++) {                                       \
+        const float##BITS a = s390_vec_read_float##BITS(v2, i);                \
+        const float##BITS b = s390_vec_read_float##BITS(v3, i);                \
+        const float##BITS c = s390_vec_read_float##BITS(v4, i);                \
+        float##BITS ret = float##BITS##_muladd(a, b, c, flags,                 \
+                                               &env->fpu_status);              \
+                                                                               \
+        s390_vec_write_float##BITS(&tmp, i, ret);                              \
+        vxc = check_ieee_exc(env, i, false, &vec_exc);                         \
+        if (s || vxc) {                                                        \
+            break;                                                             \
+        }                                                                      \
+    }                                                                          \
+    handle_ieee_exc(env, vxc, vec_exc, retaddr);                               \
+    *v1 = tmp;                                                                 \
 }
+DEF_VFMA(32)
+DEF_VFMA(64)
+DEF_VFMA(128)
 
-void HELPER(gvec_vfma64)(void *v1, const void *v2, const void *v3,
-                         const void *v4, CPUS390XState *env, uint32_t desc)
-{
-    vfma64(v1, v2, v3, v4, env, false, 0, GETPC());
+#define DEF_GVEC_VFMA(BITS)                                                    \
+void HELPER(gvec_vfma##BITS)(void *v1, const void *v2, const void *v3,         \
+                             const void *v4, CPUS390XState *env, uint32_t desc)\
+{                                                                              \
+    vfma##BITS(v1, v2, v3, v4, env, false, 0, GETPC());                        \
 }
+DEF_GVEC_VFMA(32)
+DEF_GVEC_VFMA(64)
+DEF_GVEC_VFMA(128)
 
-void HELPER(gvec_vfma64s)(void *v1, const void *v2, const void *v3,
-                         const void *v4, CPUS390XState *env, uint32_t desc)
-{
-    vfma64(v1, v2, v3, v4, env, true, 0, GETPC());
+#define DEF_GVEC_VFMA_S(BITS)                                                  \
+void HELPER(gvec_vfma##BITS##s)(void *v1, const void *v2, const void *v3,      \
+                                const void *v4, CPUS390XState *env,            \
+                                uint32_t desc)                                 \
+{                                                                              \
+    vfma##BITS(v1, v2, v3, v4, env, true, 0, GETPC());                         \
 }
+DEF_GVEC_VFMA_S(32)
+DEF_GVEC_VFMA_S(64)
 
-void HELPER(gvec_vfms64)(void *v1, const void *v2, const void *v3,
-                         const void *v4, CPUS390XState *env, uint32_t desc)
-{
-    vfma64(v1, v2, v3, v4, env, false, float_muladd_negate_c, GETPC());
+#define DEF_GVEC_VFMS(BITS)                                                    \
+void HELPER(gvec_vfms##BITS)(void *v1, const void *v2, const void *v3,         \
+                             const void *v4, CPUS390XState *env, uint32_t desc)\
+{                                                                              \
+    vfma##BITS(v1, v2, v3, v4, env, false, float_muladd_negate_c, GETPC());    \
 }
+DEF_GVEC_VFMS(32)
+DEF_GVEC_VFMS(64)
+DEF_GVEC_VFMS(128)
 
-void HELPER(gvec_vfms64s)(void *v1, const void *v2, const void *v3,
-                         const void *v4, CPUS390XState *env, uint32_t desc)
-{
-    vfma64(v1, v2, v3, v4, env, true, float_muladd_negate_c, GETPC());
+#define DEF_GVEC_VFMS_S(BITS)                                                  \
+void HELPER(gvec_vfms##BITS##s)(void *v1, const void *v2, const void *v3,      \
+                                const void *v4, CPUS390XState *env,            \
+                                uint32_t desc)                                 \
+{                                                                              \
+    vfma##BITS(v1, v2, v3, v4, env, true, float_muladd_negate_c, GETPC());     \
 }
+DEF_GVEC_VFMS_S(32)
+DEF_GVEC_VFMS_S(64)
 
 #define DEF_GVEC_VFSQ(BITS)                                                    \
 void HELPER(gvec_vfsq##BITS)(void *v1, const void *v2, CPUS390XState *env,     \
