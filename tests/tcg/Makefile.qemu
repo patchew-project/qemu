@@ -16,7 +16,7 @@ DOCKER_IMAGE:=
 -include $(BUILD_DIR)/tests/tcg/config-$(TARGET).mak
 
 GUEST_BUILD=
-TCG_MAKE=../Makefile.target
+TCG_MAKE=$(SRC_PATH)/tests/tcg/Makefile.target
 
 # We also need the Docker make rules to depend on
 SKIP_DOCKER_BUILD=1
@@ -24,12 +24,21 @@ include $(SRC_PATH)/tests/docker/Makefile.include
 
 # Support installed Cross Compilers
 
-ifdef CROSS_CC_GUEST
+ifneq ($(CROSS_CC_GUEST),)
 
 .PHONY: cross-build-guest-tests
 cross-build-guest-tests:
+	@echo  $(TARGET)
+	@echo $(SRC_PATH)
+	@echo $(TCG_MAKE)
+	touch /tmp/bla
+	mkdir -p $(BUILD_DIR)/tests/tcg/$(TARGET)
+	cd $(BUILD_DIR)/tests/tcg/$(TARGET)
+	$(MAKE) -f $(TCG_MAKE) TARGET="$(TARGET)" CC="$(CROSS_CC_GUEST)" \
+		SRC_PATH="$(SRC_PATH)" BUILD_STATIC=$(CROSS_CC_GUEST_STATIC) \
+		EXTRA_CFLAGS="$(CROSS_CC_GUEST_CFLAGS) V=1 --trace"
 	$(call quiet-command, \
-	   (mkdir -p tests/tcg/$(TARGET) && cd tests/tcg/$(TARGET) && \
+	   (touch /tmp/bla && mkdir -p $(BUILD_DIR)/tests/tcg/$(TARGET) && cd $(BUILD_DIR)/tests/tcg/$(TARGET) && \
 	    $(MAKE) -f $(TCG_MAKE) TARGET="$(TARGET)" CC="$(CROSS_CC_GUEST)" \
 			SRC_PATH="$(SRC_PATH)" BUILD_STATIC=$(CROSS_CC_GUEST_STATIC) \
 			EXTRA_CFLAGS="$(CROSS_CC_GUEST_CFLAGS)"), \
@@ -79,6 +88,7 @@ run-guest-tests: guest-tests
 
 else
 guest-tests:
+	@echo $(CROSS_CC_GUEST)
 	$(call quiet-command, /bin/true, "BUILD", \
 		"$(TARGET) guest-tests SKIPPED")
 

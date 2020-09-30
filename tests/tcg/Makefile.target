@@ -29,9 +29,8 @@
 # We also expect to be in the tests build dir for the FOO-(linux-user|softmmu).
 #
 
-all:
--include ../../../config-host.mak
--include ../config-$(TARGET).mak
+-include $(SRC_PATH)/tests/tcg/arc-softmmu/../../../config-host.mak
+-include $(SRC_PATH)/tests/tcg/arc-softmmu/../config-$(TARGET).mak
 
 # for including , in command strings
 COMMA := ,
@@ -112,6 +111,7 @@ else
 endif
 
 all: $(TESTS) $(EXTRA_TESTS)
+	@echo $(TESTS)
 
 #
 # Test Runners
@@ -180,5 +180,8 @@ gdb-%: %
 
 .PHONY: run
 run: $(RUN_TESTS)
+
+#test-arc:
+#	$(MAKE) -C arc check
 
 # There is no clean target, the calling make just rm's the tests build dir

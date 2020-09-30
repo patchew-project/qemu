@@ -1,0 +1,101 @@
+# -*- Mode: makefile -*-
+#
+# ARC specific tweaks
+
+ARC_SRC=$(SRC_PATH)/tests/tcg/arc-softmmu
+VPATH+=$(ARC_SRC)
+
+ARC_TESTS = check_add.tst
+ARC_TESTS += check_lp.tst
+ARC_TESTS += check_lp02.tst
+ARC_TESTS += check_lp03.tst
+ARC_TESTS += check_lp04.tst
+ARC_TESTS += check_lp05.tst
+ARC_TESTS += check_lp06.tst
+ARC_TESTS += check_addx.tst
+ARC_TESTS += check_andx.tst
+ARC_TESTS += check_aslx.tst
+ARC_TESTS += check_asrx.tst
+ARC_TESTS += check_orx.tst
+ARC_TESTS += check_rolx.tst
+ARC_TESTS += check_rorx.tst
+ARC_TESTS += check_subx.tst
+ARC_TESTS += check_xorx.tst
+ARC_TESTS += check_beqx.tst
+ARC_TESTS += check_bnex.tst
+ARC_TESTS += check_brhsx.tst
+ARC_TESTS += check_brlox.tst
+ARC_TESTS += check_breqx.tst
+ARC_TESTS += check_brnex.tst
+ARC_TESTS += check_brltx.tst
+ARC_TESTS += check_brgex.tst
+ARC_TESTS += check_ldstx.tst
+ARC_TESTS += check_stld.tst
+ARC_TESTS += check_lsrx.tst
+ARC_TESTS += check_beq.tst
+ARC_TESTS += check_carry.tst
+ARC_TESTS += check_flags.tst
+ARC_TESTS += check_t01.tst
+ARC_TESTS += check_t02.tst
+ARC_TESTS += check_basic1.tst
+ARC_TESTS += check_basic2.tst
+ARC_TESTS += check_norm.tst
+ARC_TESTS += check_excp.tst
+ARC_TESTS += check_excp_1.ctst
+ARC_TESTS += check_mmu.tst
+ARC_TESTS += check_excp_mmu.tst
+ARC_TESTS += check_excp_jumpdl_mmu.tst
+ARC_TESTS += check_timer0.tst
+ARC_TESTS += check_timer0_loop.tst
+ARC_TESTS += check_timer0_loop3.tst
+ARC_TESTS += check_timer0_retrig.tst
+ARC_TESTS += check_timer0_sleep.tst
+ARC_TESTS += check_timerX_freq.tst
+ARC_TESTS += check_swi.tst
+ARC_TESTS += check_swirq.tst
+ARC_TESTS += check_swirq1.tst
+ARC_TESTS += check_swirq3.tst
+ARC_TESTS += check_mpyw.tst
+ARC_TESTS += check_subf.tst
+ARC_TESTS += check_prefetch.tst
+ARC_TESTS += check_mac.tst
+ARC_TESTS += check_ldaw_mmu.tst
+ARC_TESTS += check_manip_4_mmu.tst
+ARC_TESTS += check_manip_5_mmu.tst
+ARC_TESTS += check_manip_10_mmu.tst
+ARC_TESTS += check_manip_mmu.tst
+ARC_TESTS += check_rtie_user.tst
+ARC_TESTS += check_rtc.tst
+ARC_TESTS += check_mpu.tst
+ARC_TESTS += check_big_tb.tst
+ARC_TESTS += check_enter_leave.tst
+ARC_TESTS += check_bta.tst
+ARC_TESTS += check_vadd.tst
+ARC_TESTS += check_vsub.tst
+ARC_TESTS += check_mpyd.tst
+
+TESTS+=$(ARC_TESTS)
+
+%.o: $(ARC_SRC)/%.S
+	echo "Running: $(CC) $(ASFLAGS) -c $< -o $@ -I$(TST_PATH)"; \
+	$(CC) $(ASFLAGS) -c $< -o $@ -I$(TST_PATH)
+
+%_mmu.tst: %_mmu.o ${OBJECTS} $(ARC_SRC)/macros.inc $(ARC_SRC)/mmu.inc
+	echo "Running: $(LD) -T $(TST_PATH)/tarc_mmu.ld ${OBJECTS} $< -o $@"; \
+	$(LD) -T $(TST_PATH)/tarc_mmu.ld ${OBJECTS} $< -o $@
+
+%.tst: %.o ${OBJECTS} $(ARC_SRC)/macros.inc
+	echo "Running: $(LD) -T $(TST_PATH)/tarc.ld ${OBJECTS} $< -o $@"; \
+	$(LD) -T $(TST_PATH)/tarc.ld ${OBJECTS} $< -o $@
+
+%.ctst: $(ARC_SRC)/%.c
+	$(CC) $(CFLAGS) -Wl,-marcv2elfx -L $(ARC_SRC)/ $< -o $@
+
+#test-cmov: EXTRA_CFLAGS=-DTEST_CMOV
+#test-cmov: test-cond.c
+#	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS)
+#
+#run-test-cmov: test-cmov
+#
+## On Alpha Linux only supports 8k pages
+#EXTRA_RUNS+=run-test-mmap-8192
