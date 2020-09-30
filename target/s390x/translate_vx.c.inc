@@ -2646,45 +2646,90 @@ static DisasJumpType op_vfc(DisasContext *s, DisasOps *o)
     const uint8_t m5 = get_field(s, m5);
     const uint8_t m6 = get_field(s, m6);
     const bool se = extract32(m5, 3, 1);
+    const bool sq = extract32(m5, 2, 1);
     const bool cs = extract32(m6, 0, 1);
-    gen_helper_gvec_3_ptr *fn;
+    gen_helper_gvec_3_ptr *fn = NULL;
 
-    if (fpf != FPF_LONG || extract32(m5, 0, 3) || extract32(m6, 1, 3)) {
+    switch (s->fields.op2) {
+    case 0xe8:
+        switch (fpf) {
+        case FPF_SHORT:
+            fn = se ? gen_helper_gvec_vfce32s : gen_helper_gvec_vfce32;
+            if (cs) {
+                fn = se ? gen_helper_gvec_vfce32s_cc :
+                          gen_helper_gvec_vfce32_cc;
+            }
+            break;
+        case FPF_LONG:
+            fn = se ? gen_helper_gvec_vfce64s : gen_helper_gvec_vfce64;
+            if (cs) {
+                fn = se ? gen_helper_gvec_vfce64s_cc :
+                          gen_helper_gvec_vfce64_cc;
+            }
+            break;
+        case FPF_EXT:
+            fn = cs ? gen_helper_gvec_vfce128_cc : gen_helper_gvec_vfce128;
+            break;
+        default:
+            break;
+        }
+        break;
+    case 0xeb:
+        switch (fpf) {
+        case FPF_SHORT:
+            fn = se ? gen_helper_gvec_vfch32s : gen_helper_gvec_vfch32;
+            if (cs) {
+                fn = se ? gen_helper_gvec_vfch32s_cc : gen_helper_gvec_vfch32_cc;
+            }
+            break;
+        case FPF_LONG:
+            fn = se ? gen_helper_gvec_vfch64s : gen_helper_gvec_vfch64;
+            if (cs) {
+                fn = se ? gen_helper_gvec_vfch64s_cc : gen_helper_gvec_vfch64_cc;
+            }
+            break;
+        case FPF_EXT:
+            fn = cs ? gen_helper_gvec_vfch128_cc : gen_helper_gvec_vfch128;
+            break;
+        default:
+            break;
+        }
+        break;
+    case 0xea:
+        switch (fpf) {
+        case FPF_SHORT:
+            fn = se ? gen_helper_gvec_vfche32s : gen_helper_gvec_vfche32;
+            if (cs) {
+                fn = se ? gen_helper_gvec_vfche32s_cc :
+                          gen_helper_gvec_vfche32_cc;
+            }
+            break;
+        case FPF_LONG:
+            fn = se ? gen_helper_gvec_vfche64s : gen_helper_gvec_vfche64;
+            if (cs) {
+                fn = se ? gen_helper_gvec_vfche64s_cc :
+                          gen_helper_gvec_vfche64_cc;
+            }
+            break;
+        case FPF_EXT:
+            fn = cs ? gen_helper_gvec_vfche128_cc : gen_helper_gvec_vfche128;
+            break;
+        default:
+            break;
+        }
+    default:
+        break;
+    }
+
+    if (!fn || extract32(m5, 0, 2) || extract32(m6, 1, 3) ||
+        (!s390_has_feat(S390_FEAT_VECTOR_ENH) && (fpf != FPF_LONG || sq))) {
         gen_program_exception(s, PGM_SPECIFICATION);
         return DISAS_NORETURN;
     }
 
-    if (cs) {
-        switch (s->fields.op2) {
-        case 0xe8:
-            fn = se ? gen_helper_gvec_vfce64s_cc : gen_helper_gvec_vfce64_cc;
-            break;
-        case 0xeb:
-            fn = se ? gen_helper_gvec_vfch64s_cc : gen_helper_gvec_vfch64_cc;
-            break;
-        case 0xea:
-            fn = se ? gen_helper_gvec_vfche64s_cc : gen_helper_gvec_vfche64_cc;
-            break;
-        default:
-            g_assert_not_reached();
-        }
-    } else {
-        switch (s->fields.op2) {
-        case 0xe8:
-            fn = se ? gen_helper_gvec_vfce64s : gen_helper_gvec_vfce64;
-            break;
-        case 0xeb:
-            fn = se ? gen_helper_gvec_vfch64s : gen_helper_gvec_vfch64;
-            break;
-        case 0xea:
-            fn = se ? gen_helper_gvec_vfche64s : gen_helper_gvec_vfche64;
-            break;
-        default:
-            g_assert_not_reached();
-        }
-    }
+    /* Pass the "sq" flag as data. */
     gen_gvec_3_ptr(get_field(s, v1), get_field(s, v2),
-                   get_field(s, v3), cpu_env, 0, fn);
+                   get_field(s, v3), cpu_env, sq, fn);
     if (cs) {
         set_cc_static(s);
     }

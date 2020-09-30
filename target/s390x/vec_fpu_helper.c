@@ -20,6 +20,10 @@
 #include "exec/helper-proto.h"
 #include "fpu/softfloat.h"
 
+const float32 float32_ones = make_float32(-1u);
+const float64 float64_ones = make_float64(-1ull);
+const float128 float128_ones = make_float128(-1ull, -1ull);
+
 #define VIC_INVALID         0x1
 #define VIC_DIVBYZERO       0x2
 #define VIC_OVERFLOW        0x3
@@ -227,109 +231,199 @@ DEF_GVEC_WFK(32)
 DEF_GVEC_WFK(64)
 DEF_GVEC_WFK(128)
 
-typedef bool (*vfc64_fn)(float64 a, float64 b, float_status *status);
-static int vfc64(S390Vector *v1, const S390Vector *v2, const S390Vector *v3,
-                 CPUS390XState *env, bool s, vfc64_fn fn, uintptr_t retaddr)
-{
-    uint8_t vxc, vec_exc = 0;
-    S390Vector tmp = {};
-    int match = 0;
-    int i;
-
-    for (i = 0; i < 2; i++) {
-        const float64 a = s390_vec_read_element64(v2, i);
-        const float64 b = s390_vec_read_element64(v3, i);
-
-        /* swap the order of the parameters, so we can use existing functions */
-        if (fn(b, a, &env->fpu_status)) {
-            match++;
-            s390_vec_write_element64(&tmp, i, -1ull);
-        }
-        vxc = check_ieee_exc(env, i, false, &vec_exc);
-        if (s || vxc) {
-            break;
-        }
-    }
-
-    handle_ieee_exc(env, vxc, vec_exc, retaddr);
-    *v1 = tmp;
-    if (match) {
-        return s || match == 2 ? 0 : 1;
-    }
-    return 3;
+#define DEF_VFC(BITS)                                                          \
+typedef bool (*vfc##BITS##_fn)(float##BITS a, float##BITS b,                   \
+                               float_status *status);                          \
+static int vfc##BITS(S390Vector *v1, const S390Vector *v2,                     \
+                     const S390Vector *v3, CPUS390XState *env, bool s,         \
+                     vfc##BITS##_fn fn, uintptr_t retaddr)                     \
+{                                                                              \
+    uint8_t vxc, vec_exc = 0;                                                  \
+    S390Vector tmp = {};                                                       \
+    int match = 0;                                                             \
+    int i;                                                                     \
+                                                                               \
+    for (i = 0; i < (128 / BITS); i++) {                                       \
+        const float##BITS a = s390_vec_read_float##BITS(v2, i);                \
+        const float##BITS b = s390_vec_read_float##BITS(v3, i);                \
+                                                                               \
+        /* swap the parameters, so we can use existing functions */            \
+        if (fn(b, a, &env->fpu_status)) {                                      \
+            match++;                                                           \
+            s390_vec_write_float##BITS(&tmp, i, float##BITS##_ones);           \
+        }                                                                      \
+        vxc = check_ieee_exc(env, i, false, &vec_exc);                         \
+        if (s || vxc) {                                                        \
+            break;                                                             \
+        }                                                                      \
+    }                                                                          \
+                                                                               \
+    handle_ieee_exc(env, vxc, vec_exc, retaddr);                               \
+    *v1 = tmp;                                                                 \
+    if (match) {                                                               \
+        return s || match == (128 / BITS) ? 0 : 1;                             \
+    }                                                                          \
+    return 3;                                                                  \
 }
+DEF_VFC(32)
+DEF_VFC(64)
+DEF_VFC(128)
 
-void HELPER(gvec_vfce64)(void *v1, const void *v2, const void *v3,
-                         CPUS390XState *env, uint32_t desc)
-{
-    vfc64(v1, v2, v3, env, false, float64_eq_quiet, GETPC());
+#define DEF_GVEC_VFCE(BITS)                                                    \
+void HELPER(gvec_vfce##BITS)(void *v1, const void *v2, const void *v3,         \
+                             CPUS390XState *env, uint32_t desc)                \
+{                                                                              \
+    const bool sq = simd_data(desc);                                           \
+                                                                               \
+    vfc##BITS(v1, v2, v3, env, false,                                          \
+              sq ? float##BITS##_eq : float##BITS##_eq_quiet, GETPC());        \
 }
+DEF_GVEC_VFCE(32)
+DEF_GVEC_VFCE(64)
+DEF_GVEC_VFCE(128)
 
-void HELPER(gvec_vfce64s)(void *v1, const void *v2, const void *v3,
-                          CPUS390XState *env, uint32_t desc)
-{
-    vfc64(v1, v2, v3, env, true, float64_eq_quiet, GETPC());
+#define DEF_GVEC_VFCE_S(BITS)                                                  \
+void HELPER(gvec_vfce##BITS##s)(void *v1, const void *v2, const void *v3,      \
+                                CPUS390XState *env, uint32_t desc)             \
+{                                                                              \
+    const bool sq = simd_data(desc);                                           \
+                                                                               \
+    vfc##BITS(v1, v2, v3, env, true,                                           \
+              sq ? float##BITS##_eq : float##BITS##_eq_quiet, GETPC());        \
 }
+DEF_GVEC_VFCE_S(32)
+DEF_GVEC_VFCE_S(64)
 
-void HELPER(gvec_vfce64_cc)(void *v1, const void *v2, const void *v3,
-                            CPUS390XState *env, uint32_t desc)
-{
-    env->cc_op = vfc64(v1, v2, v3, env, false, float64_eq_quiet, GETPC());
+#define DEF_GVEC_VFCE_CC(BITS)                                                 \
+void HELPER(gvec_vfce##BITS##_cc)(void *v1, const void *v2, const void *v3,    \
+                                  CPUS390XState *env, uint32_t desc)           \
+{                                                                              \
+    const bool sq = simd_data(desc);                                           \
+                                                                               \
+    env->cc_op = vfc##BITS(v1, v2, v3, env, false,                             \
+                           sq ? float##BITS##_eq : float##BITS##_eq_quiet,     \
+                           GETPC());                                           \
 }
+DEF_GVEC_VFCE_CC(32)
+DEF_GVEC_VFCE_CC(64)
+DEF_GVEC_VFCE_CC(128)
 
-void HELPER(gvec_vfce64s_cc)(void *v1, const void *v2, const void *v3,
-                            CPUS390XState *env, uint32_t desc)
-{
-    env->cc_op = vfc64(v1, v2, v3, env, true, float64_eq_quiet, GETPC());
+#define DEF_GVEC_VFCE_S_CC(BITS)                                               \
+void HELPER(gvec_vfce##BITS##s_cc)(void *v1, const void *v2, const void *v3,   \
+                                   CPUS390XState *env, uint32_t desc)          \
+{                                                                              \
+    const bool sq = simd_data(desc);                                           \
+                                                                               \
+    env->cc_op = vfc##BITS(v1, v2, v3, env, true,                              \
+                           sq ? float##BITS##_eq : float##BITS##_eq_quiet,     \
+                           GETPC());                                           \
 }
+DEF_GVEC_VFCE_S_CC(32)
+DEF_GVEC_VFCE_S_CC(64)
 
-void HELPER(gvec_vfch64)(void *v1, const void *v2, const void *v3,
-                         CPUS390XState *env, uint32_t desc)
-{
-    vfc64(v1, v2, v3, env, false, float64_lt_quiet, GETPC());
+#define DEF_GVEC_VFCH(BITS)                                                    \
+void HELPER(gvec_vfch##BITS)(void *v1, const void *v2, const void *v3,         \
+                             CPUS390XState *env, uint32_t desc)                \
+{                                                                              \
+    const bool sq = simd_data(desc);                                           \
+                                                                               \
+    vfc##BITS(v1, v2, v3, env, false,                                          \
+              sq ? float##BITS##_lt : float##BITS##_lt_quiet, GETPC());        \
 }
+DEF_GVEC_VFCH(32)
+DEF_GVEC_VFCH(64)
+DEF_GVEC_VFCH(128)
 
-void HELPER(gvec_vfch64s)(void *v1, const void *v2, const void *v3,
-                          CPUS390XState *env, uint32_t desc)
-{
-    vfc64(v1, v2, v3, env, true, float64_lt_quiet, GETPC());
+#define DEF_GVEC_VFCH_S(BITS)                                                  \
+void HELPER(gvec_vfch##BITS##s)(void *v1, const void *v2, const void *v3,      \
+                                CPUS390XState *env, uint32_t desc)             \
+{                                                                              \
+    const bool sq = simd_data(desc);                                           \
+                                                                               \
+    vfc##BITS(v1, v2, v3, env, true,                                           \
+              sq ? float##BITS##_lt : float##BITS##_lt_quiet, GETPC());        \
 }
+DEF_GVEC_VFCH_S(32)
+DEF_GVEC_VFCH_S(64)
 
-void HELPER(gvec_vfch64_cc)(void *v1, const void *v2, const void *v3,
-                            CPUS390XState *env, uint32_t desc)
-{
-    env->cc_op = vfc64(v1, v2, v3, env, false, float64_lt_quiet, GETPC());
+#define DEF_GVEC_VFCH_CC(BITS)                                                 \
+void HELPER(gvec_vfch##BITS##_cc)(void *v1, const void *v2, const void *v3,    \
+                                  CPUS390XState *env, uint32_t desc)           \
+{                                                                              \
+    const bool sq = simd_data(desc);                                           \
+                                                                               \
+    env->cc_op = vfc##BITS(v1, v2, v3, env, false,                             \
+                           sq ? float##BITS##_lt : float##BITS##_lt_quiet,     \
+                           GETPC());                                           \
 }
+DEF_GVEC_VFCH_CC(32)
+DEF_GVEC_VFCH_CC(64)
+DEF_GVEC_VFCH_CC(128)
 
-void HELPER(gvec_vfch64s_cc)(void *v1, const void *v2, const void *v3,
-                             CPUS390XState *env, uint32_t desc)
-{
-    env->cc_op = vfc64(v1, v2, v3, env, true, float64_lt_quiet, GETPC());
+#define DEF_GVEC_VFCH_S_CC(BITS)                                               \
+void HELPER(gvec_vfch##BITS##s_cc)(void *v1, const void *v2, const void *v3,   \
+                                   CPUS390XState *env, uint32_t desc)          \
+{                                                                              \
+    const bool sq = simd_data(desc);                                           \
+                                                                               \
+    env->cc_op = vfc##BITS(v1, v2, v3, env, true,                              \
+                           sq ? float##BITS##_lt : float##BITS##_lt_quiet,     \
+                           GETPC());                                           \
 }
+DEF_GVEC_VFCH_S_CC(32)
+DEF_GVEC_VFCH_S_CC(64)
 
-void HELPER(gvec_vfche64)(void *v1, const void *v2, const void *v3,
-                          CPUS390XState *env, uint32_t desc)
-{
-    vfc64(v1, v2, v3, env, false, float64_le_quiet, GETPC());
+#define DEF_GVEC_VFCHE(BITS)                                                   \
+void HELPER(gvec_vfche##BITS)(void *v1, const void *v2, const void *v3,        \
+                              CPUS390XState *env, uint32_t desc)               \
+{                                                                              \
+    const bool sq = simd_data(desc);                                           \
+                                                                               \
+    vfc##BITS(v1, v2, v3, env, false,                                          \
+              sq ? float##BITS##_le : float##BITS##_le_quiet, GETPC());        \
 }
+DEF_GVEC_VFCHE(32)
+DEF_GVEC_VFCHE(64)
+DEF_GVEC_VFCHE(128)
 
-void HELPER(gvec_vfche64s)(void *v1, const void *v2, const void *v3,
-                           CPUS390XState *env, uint32_t desc)
-{
-    vfc64(v1, v2, v3, env, true, float64_le_quiet, GETPC());
+#define DEF_GVEC_VFCHE_S(BITS)                                                 \
+void HELPER(gvec_vfche##BITS##s)(void *v1, const void *v2, const void *v3,     \
+                                 CPUS390XState *env, uint32_t desc)            \
+{                                                                              \
+    const bool sq = simd_data(desc);                                           \
+                                                                               \
+    vfc##BITS(v1, v2, v3, env, true,                                           \
+              sq ? float##BITS##_le : float##BITS##_le_quiet, GETPC());        \
 }
+DEF_GVEC_VFCHE_S(32)
+DEF_GVEC_VFCHE_S(64)
 
-void HELPER(gvec_vfche64_cc)(void *v1, const void *v2, const void *v3,
-                             CPUS390XState *env, uint32_t desc)
-{
-    env->cc_op = vfc64(v1, v2, v3, env, false, float64_le_quiet, GETPC());
+#define DEF_GVEC_VFCHE_CC(BITS)                                                \
+void HELPER(gvec_vfche##BITS##_cc)(void *v1, const void *v2, const void *v3,   \
+                                   CPUS390XState *env, uint32_t desc)          \
+{                                                                              \
+    const bool sq = simd_data(desc);                                           \
+                                                                               \
+    env->cc_op = vfc##BITS(v1, v2, v3, env, false,                             \
+                           sq ? float##BITS##_le : float##BITS##_le_quiet,     \
+                           GETPC());                                           \
 }
+DEF_GVEC_VFCHE_CC(32)
+DEF_GVEC_VFCHE_CC(64)
+DEF_GVEC_VFCHE_CC(128)
 
-void HELPER(gvec_vfche64s_cc)(void *v1, const void *v2, const void *v3,
-                              CPUS390XState *env, uint32_t desc)
-{
-    env->cc_op = vfc64(v1, v2, v3, env, true, float64_le_quiet, GETPC());
+#define DEF_GVEC_VFCHE_S_CC(BITS)                                              \
+void HELPER(gvec_vfche##BITS##s_cc)(void *v1, const void *v2, const void *v3,  \
+                                    CPUS390XState *env, uint32_t desc)         \
+{                                                                              \
+    const bool sq = simd_data(desc);                                           \
+                                                                               \
+    env->cc_op = vfc##BITS(v1, v2, v3, env, true,                              \
+                           sq ? float##BITS##_le : float##BITS##_le_quiet,     \
+                           GETPC());                                           \
 }
+DEF_GVEC_VFCHE_S_CC(32)
+DEF_GVEC_VFCHE_S_CC(64)
 
 static uint64_t vcdg64(uint64_t a, float_status *s)
 {
