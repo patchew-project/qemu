@@ -769,6 +769,51 @@ void HELPER(gvec_vfms##BITS##s)(void *v1, const void *v2, const void *v3,      \
 DEF_GVEC_VFMS_S(32)
 DEF_GVEC_VFMS_S(64)
 
+#define DEF_GVEC_VFNMA(BITS)                                                   \
+void HELPER(gvec_vfnma##BITS)(void *v1, const void *v2, const void *v3,        \
+                              const void *v4, CPUS390XState *env,              \
+                              uint32_t desc)                                   \
+{                                                                              \
+    vfma##BITS(v1, v2, v3, v4, env, false, float_muladd_negate_result,         \
+               GETPC());                                                       \
+}
+DEF_GVEC_VFNMA(32)
+DEF_GVEC_VFNMA(64)
+DEF_GVEC_VFNMA(128)
+
+#define DEF_GVEC_VFNMA_S(BITS)                                                 \
+void HELPER(gvec_vfnma##BITS##s)(void *v1, const void *v2, const void *v3,     \
+                                 const void *v4, CPUS390XState *env,           \
+                                 uint32_t desc)                                \
+{                                                                              \
+    vfma##BITS(v1, v2, v3, v4, env, true, float_muladd_negate_result, GETPC());\
+}
+DEF_GVEC_VFNMA_S(32)
+DEF_GVEC_VFNMA_S(64)
+
+#define DEF_GVEC_VFNMS(BITS)                                                   \
+void HELPER(gvec_vfnms##BITS)(void *v1, const void *v2, const void *v3,        \
+                              const void *v4, CPUS390XState *env,              \
+                              uint32_t desc)                                   \
+{                                                                              \
+    vfma##BITS(v1, v2, v3, v4, env, false,                                     \
+               float_muladd_negate_c | float_muladd_negate_result, GETPC());   \
+}
+DEF_GVEC_VFNMS(32)
+DEF_GVEC_VFNMS(64)
+DEF_GVEC_VFNMS(128)
+
+#define DEF_GVEC_VFNMS_S(BITS)                                                 \
+void HELPER(gvec_vfnms##BITS##s)(void *v1, const void *v2, const void *v3,     \
+                                 const void *v4, CPUS390XState *env,           \
+                                 uint32_t desc)                                \
+{                                                                              \
+    vfma##BITS(v1, v2, v3, v4, env, true,                                      \
+               float_muladd_negate_c | float_muladd_negate_result, GETPC());   \
+}
+DEF_GVEC_VFNMS_S(32)
+DEF_GVEC_VFNMS_S(64)
+
 #define DEF_GVEC_VFSQ(BITS)                                                    \
 void HELPER(gvec_vfsq##BITS)(void *v1, const void *v2, CPUS390XState *env,     \
                              uint32_t desc)                                    \

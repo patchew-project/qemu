@@ -2884,6 +2884,32 @@ static DisasJumpType op_vfma(DisasContext *s, DisasOps *o)
             break;
         }
         break;
+    case 0x9f:
+        switch (fpf) {
+        case FPF_SHORT:
+            fn = se ? gen_helper_gvec_vfnma32s : gen_helper_gvec_vfnma32;
+            break;
+        case FPF_LONG:
+            fn = se ? gen_helper_gvec_vfnma64s : gen_helper_gvec_vfnma64;
+            break;
+        default:
+            fn = gen_helper_gvec_vfnma128;
+            break;
+        }
+        break;
+    case 0x9e:
+        switch (fpf) {
+        case FPF_SHORT:
+            fn = se ? gen_helper_gvec_vfnms32s : gen_helper_gvec_vfnms32;
+            break;
+        case FPF_LONG:
+            fn = se ? gen_helper_gvec_vfnms64s : gen_helper_gvec_vfnms64;
+            break;
+        default:
+            fn = gen_helper_gvec_vfnms128;
+            break;
+        }
+        break;
     default:
         g_assert_not_reached();
     }
