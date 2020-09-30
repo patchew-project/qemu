@@ -815,7 +815,8 @@ static bool tsc_is_stable_and_known(CPUX86State *env)
 static struct {
     const char *desc;
     struct {
-        uint32_t fw;
+        uint32_t func;
+        int reg;
         uint32_t bits;
     } flags[2];
     uint64_t dependencies;
@@ -823,25 +824,25 @@ static struct {
     [HYPERV_FEAT_RELAXED] = {
         .desc = "relaxed timing (hv-relaxed)",
         .flags = {
-            {.fw = FEAT_HYPERV_EAX,
+            {.func = HV_CPUID_FEATURES, .reg = R_EAX,
              .bits = HV_HYPERCALL_AVAILABLE},
-            {.fw = FEAT_HV_RECOMM_EAX,
+            {.func = HV_CPUID_ENLIGHTMENT_INFO, .reg = R_EAX,
              .bits = HV_RELAXED_TIMING_RECOMMENDED}
         }
     },
     [HYPERV_FEAT_VAPIC] = {
         .desc = "virtual APIC (hv-vapic)",
         .flags = {
-            {.fw = FEAT_HYPERV_EAX,
+            {.func = HV_CPUID_FEATURES, .reg = R_EAX,
              .bits = HV_HYPERCALL_AVAILABLE | HV_APIC_ACCESS_AVAILABLE},
-            {.fw = FEAT_HV_RECOMM_EAX,
+            {.func = HV_CPUID_ENLIGHTMENT_INFO, .reg = R_EAX,
              .bits = HV_APIC_ACCESS_RECOMMENDED}
         }
     },
     [HYPERV_FEAT_TIME] = {
         .desc = "clocksources (hv-time)",
         .flags = {
-            {.fw = FEAT_HYPERV_EAX,
+            {.func = HV_CPUID_FEATURES, .reg = R_EAX,
              .bits = HV_HYPERCALL_AVAILABLE | HV_TIME_REF_COUNT_AVAILABLE |
              HV_REFERENCE_TSC_AVAILABLE}
         }
@@ -849,42 +850,42 @@ static struct {
     [HYPERV_FEAT_CRASH] = {
         .desc = "crash MSRs (hv-crash)",
         .flags = {
-            {.fw = FEAT_HYPERV_EDX,
+            {.func = HV_CPUID_FEATURES, .reg = R_EDX,
              .bits = HV_GUEST_CRASH_MSR_AVAILABLE}
         }
     },
     [HYPERV_FEAT_RESET] = {
         .desc = "reset MSR (hv-reset)",
         .flags = {
-            {.fw = FEAT_HYPERV_EAX,
+            {.func = HV_CPUID_FEATURES, .reg = R_EAX,
              .bits = HV_RESET_AVAILABLE}
         }
     },
     [HYPERV_FEAT_VPINDEX] = {
         .desc = "VP_INDEX MSR (hv-vpindex)",
         .flags = {
-            {.fw = FEAT_HYPERV_EAX,
+            {.func = HV_CPUID_FEATURES, .reg = R_EAX,
              .bits = HV_VP_INDEX_AVAILABLE}
         }
     },
     [HYPERV_FEAT_RUNTIME] = {
         .desc = "VP_RUNTIME MSR (hv-runtime)",
         .flags = {
-            {.fw = FEAT_HYPERV_EAX,
+            {.func = HV_CPUID_FEATURES, .reg = R_EAX,
              .bits = HV_VP_RUNTIME_AVAILABLE}
         }
     },
     [HYPERV_FEAT_SYNIC] = {
         .desc = "synthetic interrupt controller (hv-synic)",
         .flags = {
-            {.fw = FEAT_HYPERV_EAX,
+            {.func = HV_CPUID_FEATURES, .reg = R_EAX,
              .bits = HV_SYNIC_AVAILABLE}
         }
     },
     [HYPERV_FEAT_STIMER] = {
         .desc = "synthetic timers (hv-stimer)",
         .flags = {
-            {.fw = FEAT_HYPERV_EAX,
+            {.func = HV_CPUID_FEATURES, .reg = R_EAX,
              .bits = HV_SYNTIMERS_AVAILABLE}
         },
         .dependencies = BIT(HYPERV_FEAT_SYNIC) | BIT(HYPERV_FEAT_TIME)
@@ -892,23 +893,23 @@ static struct {
     [HYPERV_FEAT_FREQUENCIES] = {
         .desc = "frequency MSRs (hv-frequencies)",
         .flags = {
-            {.fw = FEAT_HYPERV_EAX,
+            {.func = HV_CPUID_FEATURES, .reg = R_EAX,
              .bits = HV_ACCESS_FREQUENCY_MSRS},
-            {.fw = FEAT_HYPERV_EDX,
+            {.func = HV_CPUID_FEATURES, .reg = R_EDX,
              .bits = HV_FREQUENCY_MSRS_AVAILABLE}
         }
     },
     [HYPERV_FEAT_REENLIGHTENMENT] = {
         .desc = "reenlightenment MSRs (hv-reenlightenment)",
         .flags = {
-            {.fw = FEAT_HYPERV_EAX,
+            {.func = HV_CPUID_FEATURES, .reg = R_EAX,
              .bits = HV_ACCESS_REENLIGHTENMENTS_CONTROL}
         }
     },
     [HYPERV_FEAT_TLBFLUSH] = {
         .desc = "paravirtualized TLB flush (hv-tlbflush)",
         .flags = {
-            {.fw = FEAT_HV_RECOMM_EAX,
+            {.func = HV_CPUID_ENLIGHTMENT_INFO, .reg = R_EAX,
              .bits = HV_REMOTE_TLB_FLUSH_RECOMMENDED |
              HV_EX_PROCESSOR_MASKS_RECOMMENDED}
         },
@@ -917,7 +918,7 @@ static struct {
     [HYPERV_FEAT_EVMCS] = {
         .desc = "enlightened VMCS (hv-evmcs)",
         .flags = {
-            {.fw = FEAT_HV_RECOMM_EAX,
+            {.func = HV_CPUID_ENLIGHTMENT_INFO, .reg = R_EAX,
              .bits = HV_ENLIGHTENED_VMCS_RECOMMENDED}
         },
         .dependencies = BIT(HYPERV_FEAT_VAPIC)
@@ -925,7 +926,7 @@ static struct {
     [HYPERV_FEAT_IPI] = {
         .desc = "paravirtualized IPI (hv-ipi)",
         .flags = {
-            {.fw = FEAT_HV_RECOMM_EAX,
+            {.func = HV_CPUID_ENLIGHTMENT_INFO, .reg = R_EAX,
              .bits = HV_CLUSTER_IPI_RECOMMENDED |
              HV_EX_PROCESSOR_MASKS_RECOMMENDED}
         },
@@ -934,7 +935,7 @@ static struct {
     [HYPERV_FEAT_STIMER_DIRECT] = {
         .desc = "direct mode synthetic timers (hv-stimer-direct)",
         .flags = {
-            {.fw = FEAT_HYPERV_EDX,
+            {.func = HV_CPUID_FEATURES, .reg = R_EDX,
              .bits = HV_STIMER_DIRECT_MODE_AVAILABLE}
         },
         .dependencies = BIT(HYPERV_FEAT_STIMER)
@@ -1108,38 +1109,34 @@ static uint32_t hv_cpuid_get_host(CPUState *cs, uint32_t func, int reg)
     return cpuid_entry_get_reg(entry, reg);
 }
 
-static uint32_t hv_cpuid_get_fw(CPUState *cs, int fw)
+static bool hyperv_feature_supported(CPUState *cs, int feature)
 {
-    uint32_t func;
-    int reg;
+    uint32_t func, bits;
+    int i, reg;
 
-    switch (fw) {
-    case FEAT_HYPERV_EAX:
-        reg = R_EAX;
-        func = HV_CPUID_FEATURES;
-        break;
-    case FEAT_HYPERV_EDX:
-        reg = R_EDX;
-        func = HV_CPUID_FEATURES;
-        break;
-    case FEAT_HV_RECOMM_EAX:
-        reg = R_EAX;
-        func = HV_CPUID_ENLIGHTMENT_INFO;
-        break;
-    default:
-        return 0;
+    for (i = 0; i < ARRAY_SIZE(kvm_hyperv_properties[feature].flags); i++) {
+
+        func = kvm_hyperv_properties[feature].flags[i].func;
+        reg = kvm_hyperv_properties[feature].flags[i].reg;
+        bits = kvm_hyperv_properties[feature].flags[i].bits;
+
+        if (!func) {
+            continue;
+        }
+
+        if ((hv_cpuid_get_host(cs, func, reg) & bits) != bits) {
+            return false;
+        }
     }
 
-    return hv_cpuid_get_host(cs, func, reg);
+    return true;
 }
 
 static int hv_cpuid_check_and_set(CPUState *cs, int feature)
 {
     X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
-    uint32_t r, fw, bits;
     uint64_t deps;
-    int i, dep_feat;
+    int dep_feat;
 
     if (!hyperv_feat_enabled(cpu, feature) && !cpu->hyperv_passthrough) {
         return 0;
@@ -1158,27 +1155,15 @@ static int hv_cpuid_check_and_set(CPUState *cs, int feature)
         deps &= ~(1ull << dep_feat);
     }
 
-    for (i = 0; i < ARRAY_SIZE(kvm_hyperv_properties[feature].flags); i++) {
-        fw = kvm_hyperv_properties[feature].flags[i].fw;
-        bits = kvm_hyperv_properties[feature].flags[i].bits;
-
-        if (!fw) {
-            continue;
+    if (!hyperv_feature_supported(cs, feature)) {
+        if (hyperv_feat_enabled(cpu, feature)) {
+            fprintf(stderr,
+                    "Hyper-V %s is not supported by kernel\n",
+                    kvm_hyperv_properties[feature].desc);
+            return 1;
+        } else {
+            return 0;
         }
-
-        r = hv_cpuid_get_fw(cs, fw);
-        if ((r & bits) != bits) {
-            if (hyperv_feat_enabled(cpu, feature)) {
-                fprintf(stderr,
-                        "Hyper-V %s is not supported by kernel\n",
-                        kvm_hyperv_properties[feature].desc);
-                return 1;
-            } else {
-                return 0;
-            }
-        }
-
-        env->features[fw] |= bits;
     }
 
     if (cpu->hyperv_passthrough) {
@@ -1186,6 +1171,32 @@ static int hv_cpuid_check_and_set(CPUState *cs, int feature)
     }
 
     return 0;
+}
+
+static uint32_t hv_build_cpuid_leaf(CPUState *cs, uint32_t func, int reg)
+{
+    X86CPU *cpu = X86_CPU(cs);
+    uint32_t r = 0;
+    int i, j;
+
+    for (i = 0; i < ARRAY_SIZE(kvm_hyperv_properties); i++) {
+        if (!hyperv_feat_enabled(cpu, i)) {
+            continue;
+        }
+
+        for (j = 0; j < ARRAY_SIZE(kvm_hyperv_properties[i].flags); j++) {
+            if (kvm_hyperv_properties[i].flags[j].func != func) {
+                continue;
+            }
+            if (kvm_hyperv_properties[i].flags[j].reg != reg) {
+                continue;
+            }
+
+            r |= kvm_hyperv_properties[i].flags[j].bits;
+        }
+    }
+
+    return r;
 }
 
 /*
@@ -1197,7 +1208,6 @@ static int hyperv_handle_properties(CPUState *cs,
                                     struct kvm_cpuid_entry2 *cpuid_ent)
 {
     X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
     struct kvm_cpuid_entry2 *c;
     uint32_t cpuid_i = 0;
     int r;
@@ -1219,9 +1229,7 @@ static int hyperv_handle_properties(CPUState *cs,
         }
 
         if (!r) {
-            env->features[FEAT_HV_RECOMM_EAX] |=
-                HV_ENLIGHTENED_VMCS_RECOMMENDED;
-            env->features[FEAT_HV_NESTED_EAX] = evmcs_version;
+            cpu->hyperv_nested[0] = evmcs_version;
         }
     }
 
@@ -1255,13 +1263,6 @@ static int hyperv_handle_properties(CPUState *cs,
         cpu->hyperv_version_id[3] =
             hv_cpuid_get_host(cs, HV_CPUID_VERSION, R_EDX);
 
-        env->features[FEAT_HYPERV_EAX] =
-            hv_cpuid_get_host(cs, HV_CPUID_FEATURES, R_EAX);
-        env->features[FEAT_HYPERV_EBX] =
-            hv_cpuid_get_host(cs, HV_CPUID_FEATURES, R_EBX);
-        env->features[FEAT_HYPERV_EDX] =
-            hv_cpuid_get_host(cs, HV_CPUID_FEATURES, R_EDX);
-
         cpu->hv_max_vps = hv_cpuid_get_host(cs, HV_CPUID_IMPLEMENT_LIMITS,
                                             R_EAX);
         cpu->hyperv_limits[0] =
@@ -1271,21 +1272,8 @@ static int hyperv_handle_properties(CPUState *cs,
         cpu->hyperv_limits[2] =
             hv_cpuid_get_host(cs, HV_CPUID_IMPLEMENT_LIMITS, R_EDX);
 
-        env->features[FEAT_HV_RECOMM_EAX] =
-            hv_cpuid_get_host(cs, HV_CPUID_ENLIGHTMENT_INFO, R_EAX);
         cpu->hyperv_spinlock_attempts =
             hv_cpuid_get_host(cs, HV_CPUID_ENLIGHTMENT_INFO, R_EBX);
-
-        env->features[FEAT_HV_NESTED_EAX] =
-            hv_cpuid_get_host(cs, HV_CPUID_NESTED_FEATURES, R_EAX);
-    }
-
-    if (cpu->hyperv_no_nonarch_cs == ON_OFF_AUTO_ON) {
-        env->features[FEAT_HV_RECOMM_EAX] |= HV_NO_NONARCH_CORESHARING;
-    } else if (cpu->hyperv_no_nonarch_cs == ON_OFF_AUTO_AUTO) {
-        env->features[FEAT_HV_RECOMM_EAX] |=
-            hv_cpuid_get_host(cs, HV_CPUID_ENLIGHTMENT_INFO, R_EAX) &
-            HV_NO_NONARCH_CORESHARING;
     }
 
     /* Features */
@@ -1315,9 +1303,6 @@ static int hyperv_handle_properties(CPUState *cs,
         r |= 1;
     }
 
-    /* Not exposed by KVM but needed to make CPU hotplug in Windows work */
-    env->features[FEAT_HYPERV_EDX] |= HV_CPU_DYNAMIC_PARTITIONING_AVAILABLE;
-
     if (r) {
         return -ENOSYS;
     }
@@ -1346,14 +1331,24 @@ static int hyperv_handle_properties(CPUState *cs,
 
     c = &cpuid_ent[cpuid_i++];
     c->function = HV_CPUID_FEATURES;
-    c->eax = env->features[FEAT_HYPERV_EAX];
-    c->ebx = env->features[FEAT_HYPERV_EBX];
-    c->edx = env->features[FEAT_HYPERV_EDX];
+    c->eax = hv_build_cpuid_leaf(cs, HV_CPUID_FEATURES, R_EAX);
+    c->ebx = hv_build_cpuid_leaf(cs, HV_CPUID_FEATURES, R_EBX);
+    c->edx = hv_build_cpuid_leaf(cs, HV_CPUID_FEATURES, R_EDX);
+
+    /* Not exposed by KVM but needed to make CPU hotplug in Windows work */
+    c->edx |= HV_CPU_DYNAMIC_PARTITIONING_AVAILABLE;
 
     c = &cpuid_ent[cpuid_i++];
     c->function = HV_CPUID_ENLIGHTMENT_INFO;
-    c->eax = env->features[FEAT_HV_RECOMM_EAX];
+    c->eax = hv_build_cpuid_leaf(cs, HV_CPUID_ENLIGHTMENT_INFO, R_EAX);
     c->ebx = cpu->hyperv_spinlock_attempts;
+
+    if (cpu->hyperv_no_nonarch_cs == ON_OFF_AUTO_ON) {
+        c->eax |= HV_NO_NONARCH_CORESHARING;
+    } else if (cpu->hyperv_no_nonarch_cs == ON_OFF_AUTO_AUTO) {
+        c->eax |= hv_cpuid_get_host(cs, HV_CPUID_ENLIGHTMENT_INFO, R_EAX) &
+            HV_NO_NONARCH_CORESHARING;
+    }
 
     c = &cpuid_ent[cpuid_i++];
     c->function = HV_CPUID_IMPLEMENT_LIMITS;
@@ -1374,7 +1369,7 @@ static int hyperv_handle_properties(CPUState *cs,
 
         c = &cpuid_ent[cpuid_i++];
         c->function = HV_CPUID_NESTED_FEATURES;
-        c->eax = env->features[FEAT_HV_NESTED_EAX];
+        c->eax = cpu->hyperv_nested[0];
     }
 
     return cpuid_i;
