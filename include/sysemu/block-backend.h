@@ -268,6 +268,8 @@ const BdrvChild *blk_root(BlockBackend *blk);
 
 int blk_make_empty(BlockBackend *blk, Error **errp);
 
+void blk_rehandle_pause(BlockBackend *blk);
+void blk_rehandle_unpause(BlockBackend *blk);
 void blk_iohang_init(BlockBackend *blk, int64_t iohang_timeout);
 
 #endif
