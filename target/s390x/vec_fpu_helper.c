@@ -658,6 +658,25 @@ void HELPER(gvec_vflr64s)(void *v1, const void *v2, CPUS390XState *env,
     vflr64(v1, v2, env, true, XxC, erm, GETPC());
 }
 
+void HELPER(gvec_vflr128)(void *v1, const void *v2, CPUS390XState *env,
+                          uint32_t desc)
+{
+    const uint8_t erm = extract32(simd_data(desc), 4, 4);
+    const bool XxC = extract32(simd_data(desc), 2, 1);
+    uint8_t vxc, vec_exc = 0;
+    int old_mode;
+    float64 ret;
+
+    old_mode = s390_swap_bfp_rounding_mode(env, erm);
+    ret = float128_to_float64(s390_vec_read_float128(v2, 0), &env->fpu_status);
+    vxc = check_ieee_exc(env, 0, XxC, &vec_exc);
+    s390_restore_bfp_rounding_mode(env, old_mode);
+    handle_ieee_exc(env, vxc, vec_exc, GETPC());
+
+    /* place at even element, odd element is unpredictable */
+    s390_vec_write_float64(v1, 0, ret);
+}
+
 #define DEF_GVEC_FVM(BITS)                                                     \
 void HELPER(gvec_vfm##BITS)(void *v1, const void *v2, const void *v3,          \
                             CPUS390XState *env, uint32_t desc)                 \

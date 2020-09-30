@@ -2785,8 +2785,17 @@ static DisasJumpType op_vcdg(DisasContext *s, DisasOps *o)
         }
         break;
     case 0xc5:
-        if (fpf == FPF_LONG) {
+        switch (fpf) {
+        case FPF_LONG:
             fn = se ? gen_helper_gvec_vflr64s : gen_helper_gvec_vflr64;
+            break;
+        case FPF_EXT:
+            if (s390_has_feat(S390_FEAT_VECTOR_ENH)) {
+                fn = gen_helper_gvec_vflr128;
+            }
+            break;
+        default:
+            break;
         }
         break;
     default:
