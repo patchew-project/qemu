@@ -231,7 +231,7 @@
 #define ASI_INTR_ID		0x63 /* (CMT) Interrupt ID register	*/
 #define ASI_CORE_ID		0x63 /* (CMT) LP ID register		*/
 #define ASI_CESR_ID		0x63 /* (CMT) CESR ID register		*/
-#define ASI_IC_INSTR		0x66 /* Insn cache instrucion ram diag	*/
+#define ASI_IC_INSTR		0x66 /* Insn cache instruction ram diag	*/
 #define ASI_IC_TAG		0x67 /* Insn cache tag/valid ram diag 	*/
 #define ASI_IC_STAG		0x68 /* (III) Insn cache snoop tag ram	*/
 #define ASI_IC_PRE_DECODE	0x6e /* Insn cache pre-decode ram diag	*/

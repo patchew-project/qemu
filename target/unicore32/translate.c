@@ -119,7 +119,7 @@ static void load_reg_var(DisasContext *s, TCGv var, int reg)
 {
     if (reg == 31) {
         uint32_t addr;
-        /* normaly, since we updated PC */
+        /* normally, since we updated PC */
         addr = (long)s->pc;
         tcg_gen_movi_i32(var, addr);
     } else {
