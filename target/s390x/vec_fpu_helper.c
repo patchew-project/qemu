@@ -411,22 +411,24 @@ void HELPER(gvec_vclgd64s)(void *v1, const void *v2, CPUS390XState *env,
     vop64_2(v1, v2, env, true, XxC, erm, vclgd64, GETPC());
 }
 
-static uint64_t vfd64(uint64_t a, uint64_t b, float_status *s)
-{
-    return float64_div(a, b, s);
+#define DEF_GVEC_FVD(BITS)                                                     \
+void HELPER(gvec_vfd##BITS)(void *v1, const void *v2, const void *v3,          \
+                            CPUS390XState *env, uint32_t desc)                 \
+{                                                                              \
+    vop##BITS##_3(v1, v2, v3, env, false, float##BITS##_div, GETPC());         \
 }
+DEF_GVEC_FVD(32)
+DEF_GVEC_FVD(64)
+DEF_GVEC_FVD(128)
 
-void HELPER(gvec_vfd64)(void *v1, const void *v2, const void *v3,
-                        CPUS390XState *env, uint32_t desc)
-{
-    vop64_3(v1, v2, v3, env, false, vfd64, GETPC());
+#define DEF_GVEC_FVD_S(BITS)                                                   \
+void HELPER(gvec_vfd##BITS##s)(void *v1, const void *v2, const void *v3,       \
+                               CPUS390XState *env, uint32_t desc)              \
+{                                                                              \
+    vop##BITS##_3(v1, v2, v3, env, true, float##BITS##_div, GETPC());          \
 }
-
-void HELPER(gvec_vfd64s)(void *v1, const void *v2, const void *v3,
-                         CPUS390XState *env, uint32_t desc)
-{
-    vop64_3(v1, v2, v3, env, true, vfd64, GETPC());
-}
+DEF_GVEC_FVD_S(32)
+DEF_GVEC_FVD_S(64)
 
 static uint64_t vfi64(uint64_t a, float_status *s)
 {
