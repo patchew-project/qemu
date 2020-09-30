@@ -1,0 +1,85 @@
+/*
+ * QEMU ARC operands
+ *
+ * Copyright (c) 2020 Synopsys, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2 or later, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+ARC_FLAG(ALWAYS, "al", 0, 0, 0, 0)
+ARC_FLAG(RA, "ra", 0, 0, 0, 0)
+ARC_FLAG(EQUAL, "eq", 1, 5, 0, 1)
+ARC_FLAG(ZERO, "z", 1, 5, 0, 0)
+ARC_FLAG(NOTEQUAL, "ne", 2, 5, 0, 1)
+ARC_FLAG(NOTZERO, "nz", 2, 5, 0, 0)
+ARC_FLAG(POZITIVE, "p", 3, 5, 0, 1)
+ARC_FLAG(PL, "pl", 3, 5, 0, 0)
+ARC_FLAG(NEGATIVE, "n", 4, 5, 0, 1)
+ARC_FLAG(MINUS, "mi", 4, 5, 0, 0)
+ARC_FLAG(CARRY, "c", 5, 5, 0, 1)
+ARC_FLAG(CARRYSET, "cs", 5, 5, 0, 0)
+ARC_FLAG(LOWER, "lo", 5, 5, 0, 0)
+ARC_FLAG(CARRYCLR, "cc", 6, 5, 0, 0)
+ARC_FLAG(NOTCARRY, "nc", 6, 5, 0, 1)
+ARC_FLAG(HIGHER, "hs", 6, 5, 0, 0)
+ARC_FLAG(OVERFLOWSET, "vs", 7, 5, 0, 0)
+ARC_FLAG(OVERFLOW, "v", 7, 5, 0, 1)
+ARC_FLAG(NOTOVERFLOW, "nv", 8, 5, 0, 1)
+ARC_FLAG(OVERFLOWCLR, "vc", 8, 5, 0, 0)
+ARC_FLAG(GT, "gt", 9, 5, 0, 1)
+ARC_FLAG(GE, "ge", 10, 5, 0, 1)
+ARC_FLAG(LT, "lt", 11, 5, 0, 1)
+ARC_FLAG(LE, "le", 12, 5, 0, 1)
+ARC_FLAG(HI, "hi", 13, 5, 0, 1)
+ARC_FLAG(LS, "ls", 14, 5, 0, 1)
+ARC_FLAG(PNZ, "pnz", 15, 5, 0, 1)
+ARC_FLAG(FLAG, "f", 1, 1, 15, 1)
+ARC_FLAG(FFAKE, "f", 0, 0, 0, 1)
+ARC_FLAG(ND, "nd", 0, 1, 5, 0)
+ARC_FLAG(D, "d", 1, 1, 5, 1)
+ARC_FLAG(DFAKE, "d", 0, 0, 0, 1)
+ARC_FLAG(DNZ_ND, "nd", 0, 1, 16, 0)
+ARC_FLAG(DNZ_D, "d", 1, 1, 16, 1)
+ARC_FLAG(SIZEB1, "b", 1, 2, 1, 1)
+ARC_FLAG(SIZEB7, "b", 1, 2, 7, 1)
+ARC_FLAG(SIZEB17, "b", 1, 2, 17, 1)
+ARC_FLAG(SIZEW1, "w", 2, 2, 1, 0)
+ARC_FLAG(SIZEW7, "w", 2, 2, 7, 0)
+ARC_FLAG(SIZEW17, "w", 2, 2, 17, 0)
+ARC_FLAG(SIGN6, "x", 1, 1, 6, 1)
+ARC_FLAG(SIGN16, "x", 1, 1, 16, 1)
+ARC_FLAG(SIGNX, "x", 0, 0, 0, 1)
+ARC_FLAG(A3, "a", 1, 2, 3, 0)
+ARC_FLAG(A9, "a", 1, 2, 9, 0)
+ARC_FLAG(A22, "a", 1, 2, 22, 0)
+ARC_FLAG(AW3, "aw", 1, 2, 3, 1)
+ARC_FLAG(AW9, "aw", 1, 2, 9, 1)
+ARC_FLAG(AW22, "aw", 1, 2, 22, 1)
+ARC_FLAG(AB3, "ab", 2, 2, 3, 1)
+ARC_FLAG(AB9, "ab", 2, 2, 9, 1)
+ARC_FLAG(AB22, "ab", 2, 2, 22, 1)
+ARC_FLAG(AS3, "as", 3, 2, 3, 1)
+ARC_FLAG(AS9, "as", 3, 2, 9, 1)
+ARC_FLAG(AS22, "as", 3, 2, 22, 1)
+ARC_FLAG(ASFAKE, "as", 3, 0, 0, 1)
+ARC_FLAG(DI5, "di", 1, 1, 5, 1)
+ARC_FLAG(DI11, "di", 1, 1, 11, 1)
+ARC_FLAG(DI14, "di", 1, 1, 14, 1)
+ARC_FLAG(DI15, "di", 1, 1, 15, 1)
+ARC_FLAG(NT, "nt", 0, 1, 3, 1)
+ARC_FLAG(T, "t", 1, 1, 3, 1)
+ARC_FLAG(H1, "h", 2, 2, 1, 1)
+ARC_FLAG(H7, "h", 2, 2, 7, 1)
+ARC_FLAG(H17, "h", 2, 2, 17, 1)
+ARC_FLAG(SIZED, "dd", 3, 0, 0, 0)
+ARC_FLAG(NE, "ne", 0, 0, 0, 1)
