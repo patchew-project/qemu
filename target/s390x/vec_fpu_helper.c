@@ -116,29 +116,33 @@ static void s390_vec_write_float128(S390Vector *v, uint8_t enr, float128 data)
     s390_vec_write_element64(v, 1, data.low);
 }
 
-typedef uint64_t (*vop64_2_fn)(uint64_t a, float_status *s);
-static void vop64_2(S390Vector *v1, const S390Vector *v2, CPUS390XState *env,
-                    bool s, bool XxC, uint8_t erm, vop64_2_fn fn,
-                    uintptr_t retaddr)
-{
-    uint8_t vxc, vec_exc = 0;
-    S390Vector tmp = {};
-    int i, old_mode;
-
-    old_mode = s390_swap_bfp_rounding_mode(env, erm);
-    for (i = 0; i < 2; i++) {
-        const uint64_t a = s390_vec_read_element64(v2, i);
-
-        s390_vec_write_element64(&tmp, i, fn(a, &env->fpu_status));
-        vxc = check_ieee_exc(env, i, XxC, &vec_exc);
-        if (s || vxc) {
-            break;
-        }
-    }
-    s390_restore_bfp_rounding_mode(env, old_mode);
-    handle_ieee_exc(env, vxc, vec_exc, retaddr);
-    *v1 = tmp;
+#define DEF_VOP_2(BITS)                                                        \
+typedef float##BITS (*vop##BITS##_2_fn)(float##BITS a, float_status *s);       \
+static void vop##BITS##_2(S390Vector *v1, const S390Vector *v2,                \
+                          CPUS390XState *env, bool s, bool XxC, uint8_t erm,   \
+                          vop##BITS##_2_fn fn, uintptr_t retaddr)              \
+{                                                                              \
+    uint8_t vxc, vec_exc = 0;                                                  \
+    S390Vector tmp = {};                                                       \
+    int i, old_mode;                                                           \
+                                                                               \
+    old_mode = s390_swap_bfp_rounding_mode(env, erm);                          \
+    for (i = 0; i < (128 / BITS); i++) {                                       \
+        const float##BITS a = s390_vec_read_float##BITS(v2, i);                \
+                                                                               \
+        s390_vec_write_float##BITS(&tmp, i, fn(a, &env->fpu_status));          \
+        vxc = check_ieee_exc(env, i, XxC, &vec_exc);                           \
+        if (s || vxc) {                                                        \
+            break;                                                             \
+        }                                                                      \
+    }                                                                          \
+    s390_restore_bfp_rounding_mode(env, old_mode);                             \
+    handle_ieee_exc(env, vxc, vec_exc, retaddr);                               \
+    *v1 = tmp;                                                                 \
 }
+DEF_VOP_2(32)
+DEF_VOP_2(64)
+DEF_VOP_2(128)
 
 #define DEF_VOP_3(BITS)                                                        \
 typedef float##BITS (*vop##BITS##_3_fn)(float##BITS a, float##BITS b,          \
@@ -536,28 +540,32 @@ void HELPER(gvec_vfd##BITS##s)(void *v1, const void *v2, const void *v3,       \
 DEF_GVEC_FVD_S(32)
 DEF_GVEC_FVD_S(64)
 
-static uint64_t vfi64(uint64_t a, float_status *s)
-{
-    return float64_round_to_int(a, s);
+#define DEF_GVEC_VFI(BITS)                                                     \
+void HELPER(gvec_vfi##BITS)(void *v1, const void *v2, CPUS390XState *env,      \
+                            uint32_t desc)                                     \
+{                                                                              \
+    const uint8_t erm = extract32(simd_data(desc), 4, 4);                      \
+    const bool XxC = extract32(simd_data(desc), 2, 1);                         \
+                                                                               \
+    vop##BITS##_2(v1, v2, env, false, XxC, erm, float##BITS##_round_to_int,    \
+                  GETPC());                                                    \
 }
+DEF_GVEC_VFI(32)
+DEF_GVEC_VFI(64)
+DEF_GVEC_VFI(128)
 
-void HELPER(gvec_vfi64)(void *v1, const void *v2, CPUS390XState *env,
-                        uint32_t desc)
-{
-    const uint8_t erm = extract32(simd_data(desc), 4, 4);
-    const bool XxC = extract32(simd_data(desc), 2, 1);
-
-    vop64_2(v1, v2, env, false, XxC, erm, vfi64, GETPC());
+#define DEF_GVEC_VFI_S(BITS)                                                   \
+void HELPER(gvec_vfi##BITS##s)(void *v1, const void *v2, CPUS390XState *env,   \
+                               uint32_t desc)                                  \
+{                                                                              \
+    const uint8_t erm = extract32(simd_data(desc), 4, 4);                      \
+    const bool XxC = extract32(simd_data(desc), 2, 1);                         \
+                                                                               \
+    vop##BITS##_2(v1, v2, env, true, XxC, erm, float##BITS##_round_to_int,     \
+                  GETPC());                                                    \
 }
-
-void HELPER(gvec_vfi64s)(void *v1, const void *v2, CPUS390XState *env,
-                         uint32_t desc)
-{
-    const uint8_t erm = extract32(simd_data(desc), 4, 4);
-    const bool XxC = extract32(simd_data(desc), 2, 1);
-
-    vop64_2(v1, v2, env, true, XxC, erm, vfi64, GETPC());
-}
+DEF_GVEC_VFI_S(32)
+DEF_GVEC_VFI_S(64)
 
 static void vfll32(S390Vector *v1, const S390Vector *v2, CPUS390XState *env,
                    bool s, uintptr_t retaddr)
