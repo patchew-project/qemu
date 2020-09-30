@@ -53,14 +53,12 @@ AnnotatedNode = Tuple[TreeNode, Extra]
 
 def _make_tree(obj: Union[_DObject, str], ifcond: List[str],
                extra: Optional[Extra] = None
-               ) -> Union[TreeNode, AnnotatedNode]:
+               ) -> AnnotatedNode:
     if extra is None:
         extra = {}
     if ifcond:
         extra['if'] = ifcond
-    if extra:
-        return (obj, extra)
-    return obj
+    return (obj, extra)
 
 
 def _tree_to_qlit(obj: TreeNode,
@@ -128,7 +126,7 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
             ' * QAPI/QMP schema introspection', __doc__)
         self._unmask = unmask
         self._schema: Optional[QAPISchema] = None
-        self._trees: List[TreeNode] = []
+        self._trees: List[AnnotatedNode] = []
         self._used_types: List[QAPISchemaType] = []
         self._name_map: Dict[str, str] = {}
         self._genc.add(mcgen('''
@@ -195,7 +193,8 @@ const QLitObject %(c_name)s = %(c_string)s;
 
     @classmethod
     def _gen_features(cls,
-                      features: List[QAPISchemaFeature]) -> List[TreeNode]:
+                      features: List[QAPISchemaFeature]
+                      ) -> List[AnnotatedNode]:
         return [_make_tree(f.name, f.ifcond) for f in features]
 
     def _gen_tree(self, name: str, mtype: str, obj: _DObject,
@@ -215,7 +214,7 @@ const QLitObject %(c_name)s = %(c_string)s;
         self._trees.append(_make_tree(obj, ifcond, extra))
 
     def _gen_member(self,
-                    member: QAPISchemaObjectTypeMember) -> TreeNode:
+                    member: QAPISchemaObjectTypeMember) -> AnnotatedNode:
         obj: _DObject = {
             'name': member.name,
             'type': self._use_type(member.type)
@@ -231,7 +230,7 @@ const QLitObject %(c_name)s = %(c_string)s;
         return {'tag': tag_name,
                 'variants': [self._gen_variant(v) for v in variants]}
 
-    def _gen_variant(self, variant: QAPISchemaVariant) -> TreeNode:
+    def _gen_variant(self, variant: QAPISchemaVariant) -> AnnotatedNode:
         obj: _DObject = {
             'case': variant.name,
             'type': self._use_type(variant.type)
