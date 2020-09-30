@@ -5,6 +5,7 @@ i386_ss.add(files(
   'helper.c',
   'xsave_helper.c',
 ))
+i386_ss.add(when: 'CONFIG_SOFTMMU', if_false: files('feature-stub.c'))
 i386_ss.add(when: 'CONFIG_TCG', if_true: files(
   'bpt_helper.c',
   'cc_helper.c',
