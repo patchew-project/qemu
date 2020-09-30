@@ -638,7 +638,7 @@ at this point:
         (QEMU) block-job-complete device=job0
 
 In either of the above cases, if you once again run the
-`query-block-jobs` command, there should not be any active block
+``query-block-jobs`` command, there should not be any active block
 operation.
 
 Comparing 'commit' and 'mirror': In both then cases, the overlay images
@@ -777,7 +777,7 @@ the content of image [D].
         }
 
 (6) [On *destination* QEMU] Finally, resume the guest vCPUs by issuing the
-    QMP command `cont`::
+    QMP command ``cont``::
 
         (QEMU) cont
         {
