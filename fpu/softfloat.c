@@ -599,6 +599,8 @@ static inline FloatParts float64_unpack_raw(float64 f)
     return unpack_raw(float64_params, f);
 }
 
+static void float128_unpack(FloatParts128 *p, float128 a, float_status *status);
+
 /* Pack a float from parts, but do not canonicalize.  */
 static inline uint64_t pack_raw(FloatFmt fmt, FloatParts p)
 {
@@ -3161,6 +3163,89 @@ static FloatParts minmax_floats(FloatParts a, FloatParts b, bool ismin,
     }
 }
 
+static float128 float128_minmax(float128 a, float128 b, bool ismin, bool ieee,
+                                bool ismag, float_status *s)
+{
+    FloatParts128 pa, pb;
+    int a_exp, b_exp;
+    bool a_less;
+
+    float128_unpack(&pa, a, s);
+    float128_unpack(&pb, b, s);
+
+    if (unlikely(is_nan(pa.cls) || is_nan(pb.cls))) {
+        /* See comment in minmax_floats() */
+        if (ieee && !is_snan(pa.cls) && !is_snan(pb.cls)) {
+            if (is_nan(pa.cls) && !is_nan(pb.cls)) {
+                return b;
+            } else if (is_nan(pb.cls) && !is_nan(pa.cls)) {
+                return a;
+            }
+        }
+
+        /* Similar logic to pick_nan(), avoiding re-packing. */
+        if (is_snan(pa.cls) || is_snan(pb.cls)) {
+            s->float_exception_flags |= float_flag_invalid;
+        }
+        if (s->default_nan_mode) {
+            return float128_default_nan(s);
+        }
+        if (pickNaN(pa.cls, pb.cls,
+                    pa.frac0 > pb.frac0 ||
+                    (pa.frac0 == pb.frac0 && pa.frac1 > pb.frac1) ||
+                    (pa.frac0 == pb.frac0 && pa.frac1 == pb.frac1 &&
+                     pa.sign < pb.sign), s)) {
+            return is_snan(pb.cls) ? float128_silence_nan(b, s) : b;
+        }
+        return is_snan(pa.cls) ? float128_silence_nan(a, s) : a;
+    }
+
+    switch (pa.cls) {
+    case float_class_normal:
+        a_exp = pa.exp;
+        break;
+    case float_class_inf:
+        a_exp = INT_MAX;
+        break;
+    case float_class_zero:
+        a_exp = INT_MIN;
+        break;
+    default:
+        g_assert_not_reached();
+        break;
+    }
+    switch (pb.cls) {
+    case float_class_normal:
+        b_exp = pb.exp;
+        break;
+    case float_class_inf:
+        b_exp = INT_MAX;
+        break;
+    case float_class_zero:
+        b_exp = INT_MIN;
+        break;
+    default:
+        g_assert_not_reached();
+        break;
+    }
+
+    a_less = a_exp < b_exp;
+    if (a_exp == b_exp) {
+        a_less = pa.frac0 < pb.frac0;
+        if (pa.frac0 == pb.frac0) {
+            a_less = pa.frac1 < pb.frac1;
+        }
+    }
+
+    if (ismag &&
+        (a_exp != b_exp || pa.frac0 != pb.frac0 || pa.frac1 != pb.frac1)) {
+        return a_less ^ ismin ? b : a;
+    } else if (pa.sign == pb.sign) {
+        return pa.sign ^ a_less ^ ismin ? b : a;
+    }
+    return pa.sign ^ ismin ? b : a;
+}
+
 #define MINMAX(sz, name, ismin, isiee, ismag)                           \
 float ## sz float ## sz ## _ ## name(float ## sz a, float ## sz b,      \
                                      float_status *s)                   \
@@ -3194,6 +3279,21 @@ MINMAX(64, maxnum, false, true, false)
 MINMAX(64, maxnummag, false, true, true)
 
 #undef MINMAX
+
+#define F128_MINMAX(name, ismin, isiee, ismag)                          \
+float128 float128_ ## name(float128 a, float128 b, float_status *s)     \
+{                                                                       \
+    return float128_minmax(a, b, ismin, isiee, ismag, s);               \
+}
+
+F128_MINMAX(min, true, false, false)
+F128_MINMAX(minnum, true, true, false)
+F128_MINMAX(minnummag, true, true, true)
+F128_MINMAX(max, false, false, false)
+F128_MINMAX(maxnum, false, true, false)
+F128_MINMAX(maxnummag, false, true, true)
+
+#undef F128_MINMAX
 
 #define BF16_MINMAX(name, ismin, isiee, ismag)                          \
 bfloat16 bfloat16_ ## name(bfloat16 a, bfloat16 b, float_status *s)     \
