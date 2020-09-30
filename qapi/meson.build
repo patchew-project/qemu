@@ -14,38 +14,59 @@ util_ss.add(files(
 ))
 
 qapi_all_modules = [
+  'common',
+  'introspect',
+  'misc',
+]
+
+qapi_system_modules = [
   'acpi',
   'audio',
+  'dump',
+  'machine-target',
+  'machine',
+  'migration',
+  'misc-target',
+  'net',
+  'pci',
+  'qdev',
+  'rdma',
+  'rocker',
+  'tpm',
+  'trace',
+]
+
+# system or tools
+qapi_block_modules = [
   'authz',
   'block-core',
   'block',
   'char',
-  'common',
   'control',
   'crypto',
-  'dump',
   'error',
-  'introspect',
   'job',
-  'machine',
-  'machine-target',
-  'migration',
-  'misc',
-  'misc-target',
-  'net',
   'pragma',
-  'qdev',
-  'pci',
   'qom',
-  'rdma',
-  'rocker',
   'run-state',
   'sockets',
-  'tpm',
-  'trace',
   'transaction',
   'ui',
 ]
+
+if have_system
+  qapi_all_modules += qapi_system_modules
+elif have_user
+  # Temporary kludge because X86CPUFeatureWordInfo is not
+  # restricted to system-mode. This should be removed (along
+  # with target/i386/feature-stub.c) once target/i386/cpu.c
+  # has been cleaned.
+  qapi_all_modules += ['machine-target']
+endif
+
+if have_block
+  qapi_all_modules += qapi_block_modules
+endif
 
 qapi_storage_daemon_modules = [
   'block-core',
