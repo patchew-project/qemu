@@ -867,18 +867,14 @@ static abi_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
         if (sizeof(struct elf_phdr) * interp_elf_ex->e_phnum > TARGET_PAGE_SIZE)
             return ~(abi_ulong)0UL;
 
-        elf_phdata =  (struct elf_phdr *)
-                malloc(sizeof(struct elf_phdr) * interp_elf_ex->e_phnum);
-
-        if (!elf_phdata)
-          return ~((abi_ulong)0UL);
+        elf_phdata = g_new(struct elf_phdr, interp_elf_ex->e_phnum);
 
         /*
          * If the size of this structure has changed, then punt, since
          * we will be doing the wrong thing.
          */
         if (interp_elf_ex->e_phentsize != sizeof(struct elf_phdr)) {
-            free(elf_phdata);
+            g_free(elf_phdata);
             return ~((abi_ulong)0UL);
         }
 
@@ -890,9 +886,8 @@ static abi_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
         }
         if (retval < 0) {
                 perror("load_elf_interp");
+                g_free(elf_phdata);
                 exit(-1);
-                free (elf_phdata);
-                return retval;
         }
 #ifdef BSWAP_NEEDED
         eppnt = elf_phdata;
@@ -940,7 +935,7 @@ static abi_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
             if (error == -1) {
               /* Real error */
               close(interpreter_fd);
-              free(elf_phdata);
+              g_free(elf_phdata);
               return ~((abi_ulong)0UL);
             }
 
@@ -983,7 +978,7 @@ static abi_ulong load_elf_interp(struct elfhdr * interp_elf_ex,
                         PROT_READ|PROT_WRITE|PROT_EXEC,
                         MAP_FIXED|MAP_PRIVATE|MAP_ANON, -1, 0);
         }
-        free(elf_phdata);
+        g_free(elf_phdata);
 
         *interp_load_addr = load_addr;
         return ((abi_ulong) interp_elf_ex->e_entry) + load_addr;
@@ -1064,24 +1059,15 @@ static void load_symbols(struct elfhdr *hdr, int fd)
 
  found:
     /* Now know where the strtab and symtab are.  Snarf them. */
-    s = malloc(sizeof(*s));
-    syms = malloc(symtab.sh_size);
-    if (!syms) {
-        free(s);
-        return;
-    }
-    s->disas_strtab = strings = malloc(strtab.sh_size);
-    if (!s->disas_strtab) {
-        free(s);
-        free(syms);
-        return;
-    }
+    s = g_new(struct syminfo, 1);
+    syms = g_new(symtab.sh_size, 1);
+    s->disas_strtab = strings = g_new(strtab.sh_size, 1);
 
     lseek(fd, symtab.sh_offset, SEEK_SET);
     if (read(fd, syms, symtab.sh_size) != symtab.sh_size) {
-        free(s);
-        free(syms);
-        free(strings);
+        g_free(s);
+        g_free(syms);
+        g_free(strings);
         return;
     }
 
@@ -1113,22 +1099,16 @@ static void load_symbols(struct elfhdr *hdr, int fd)
         that we threw away.  Whether or not this has any effect on the
         memory allocation depends on the malloc implementation and how
         many symbols we managed to discard. */
-    new_syms = realloc(syms, nsyms * sizeof(*syms));
-    if (new_syms == NULL) {
-        free(s);
-        free(syms);
-        free(strings);
-        return;
-    }
+    new_syms = g_realloc(syms, nsyms * sizeof(*syms));
     syms = new_syms;
 
     qsort(syms, nsyms, sizeof(*syms), symcmp);
 
     lseek(fd, strtab.sh_offset, SEEK_SET);
     if (read(fd, strings, strtab.sh_size) != strtab.sh_size) {
-        free(s);
-        free(syms);
-        free(strings);
+        g_free(s);
+        g_free(syms);
+        g_free(strings);
         return;
     }
     s->disas_num_syms = nsyms;
@@ -1190,10 +1170,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     }
 
     /* Now read in all of the header information */
-    elf_phdata = (struct elf_phdr *)malloc(elf_ex.e_phentsize*elf_ex.e_phnum);
-    if (elf_phdata == NULL) {
-        return -ENOMEM;
-    }
+    elf_phdata = g_new(elf_ex.e_phentsize, elf_ex.e_phnum);
 
     retval = lseek(bprm->fd, elf_ex.e_phoff, SEEK_SET);
     if(retval > 0) {
@@ -1203,9 +1180,8 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
 
     if (retval < 0) {
         perror("load_elf_binary");
+        g_free(elf_phdata);
         exit(-1);
-        free (elf_phdata);
-        return -errno;
     }
 
 #ifdef BSWAP_NEEDED
@@ -1231,8 +1207,8 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
         if (elf_ppnt->p_type == PT_INTERP) {
             if ( elf_interpreter != NULL )
             {
-                free (elf_phdata);
-                free(elf_interpreter);
+                g_free(elf_phdata);
+                g_free(elf_interpreter);
                 close(bprm->fd);
                 return -EINVAL;
             }
@@ -1242,13 +1218,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
              * is an a.out format binary
              */
 
-            elf_interpreter = (char *)malloc(elf_ppnt->p_filesz);
-
-            if (elf_interpreter == NULL) {
-                free (elf_phdata);
-                close(bprm->fd);
-                return -ENOMEM;
-            }
+            elf_interpreter = g_new(elf_ppnt->p_filesz, 1);
 
             retval = lseek(bprm->fd, elf_ppnt->p_offset, SEEK_SET);
             if(retval >= 0) {
@@ -1297,11 +1267,10 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
             }
             if (retval < 0) {
                 perror("load_elf_binary3");
-                exit(-1);
-                free (elf_phdata);
-                free(elf_interpreter);
+                g_free(elf_phdata);
+                g_free(elf_interpreter);
                 close(bprm->fd);
-                return retval;
+                exit(-1);
             }
         }
         elf_ppnt++;
@@ -1323,8 +1292,8 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
         }
 
         if (!interpreter_type) {
-            free(elf_interpreter);
-            free(elf_phdata);
+            g_free(elf_interpreter);
+            g_free(elf_phdata);
             close(bprm->fd);
             return -ELIBBAD;
         }
@@ -1346,8 +1315,8 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
             }
         }
         if (!bprm->p) {
-            free(elf_interpreter);
-            free (elf_phdata);
+            g_free(elf_interpreter);
+            g_free(elf_phdata);
             close(bprm->fd);
             return -E2BIG;
         }
@@ -1486,17 +1455,16 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
         reloc_func_desc = interp_load_addr;
 
         close(interpreter_fd);
-        free(elf_interpreter);
+        g_free(elf_interpreter);
 
         if (elf_entry == ~((abi_ulong)0UL)) {
             printf("Unable to load interpreter\n");
-            free(elf_phdata);
+            g_free(elf_phdata);
             exit(-1);
-            return 0;
         }
     }
 
-    free(elf_phdata);
+    g_free(elf_phdata);
 
     if (qemu_log_enabled())
         load_symbols(&elf_ex, bprm->fd);
