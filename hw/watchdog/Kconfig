@@ -17,3 +17,8 @@ config WDT_DIAG288
 
 config WDT_IMX2
     bool
+
+config WDT_SBSA
+   bool
+   default y
+   select PTIMER

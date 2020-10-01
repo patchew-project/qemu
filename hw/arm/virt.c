@@ -77,6 +77,7 @@
 #include "hw/acpi/generic_event_device.h"
 #include "hw/virtio/virtio-iommu.h"
 #include "hw/char/pl011.h"
+#include "hw/watchdog/sbsa-wdt.h"
 #include "qemu/guest-random.h"
 
 #define DEFINE_VIRT_MACHINE_LATEST(major, minor, latest) \
@@ -743,6 +744,31 @@ static void create_gic(VirtMachineState *vms)
     } else if (type == 2) {
         create_v2m(vms);
     }
+}
+
+static void create_sbsa_watchdog(VirtMachineState *vms)
+{
+    char *nodename;
+    const char compat[] = "arm,sbsa-gwdt";
+
+    object_initialize_child(OBJECT(vms), "arm,sbsa-gwdt", &vms->watchdog,
+            TYPE_SBSA_WATCHDOG);
+    sysbus_realize(SYS_BUS_DEVICE(&vms->watchdog), &error_fatal);
+    /* contol */
+    sysbus_mmio_map(SYS_BUS_DEVICE(&vms->watchdog), 0, 0x2a440000UL);
+    /* refresh */
+    sysbus_mmio_map(SYS_BUS_DEVICE(&vms->watchdog), 1, 0x2a450000UL);
+    /* dtb */
+    nodename = g_strdup_printf("/watchdog@%" PRIx64, 0x2a440000UL);
+    qemu_fdt_add_subnode(vms->fdt, nodename);
+
+    qemu_fdt_setprop(vms->fdt, nodename, "compatible",
+                     compat, sizeof(compat));
+    qemu_fdt_setprop_sized_cells(vms->fdt, nodename, "reg",
+                                 2, 0x2a440000UL, 2, 0x1000,
+                                 2, 0x2a450000UL, 2, 0x1000);
+    qemu_fdt_setprop_cell(vms->fdt, nodename, "timeout-sec", 30);
+    g_free(nodename);
 }
 
 static void create_uart(const VirtMachineState *vms, int uart,
@@ -1912,6 +1938,8 @@ static void machvirt_init(MachineState *machine)
     virt_flash_fdt(vms, sysmem, secure_sysmem ?: sysmem);
 
     create_gic(vms);
+
+    create_sbsa_watchdog(vms);
 
     fdt_add_pmu_nodes(vms);
 
