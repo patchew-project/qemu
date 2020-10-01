@@ -4643,16 +4643,6 @@ static void x86_cpu_get_feature_words(Object *obj, Visitor *v,
     visit_type_X86CPUFeatureWordInfoList(v, "feature-words", &list, errp);
 }
 
-/* Convert all '_' in a feature string option name to '-', to make feature
- * name conform to QOM property naming rule, which uses '-' instead of '_'.
- */
-static inline void feat2prop(char *s)
-{
-    while ((s = strchr(s, '_'))) {
-        *s = '-';
-    }
-}
-
 /* Return the feature property name for a feature flag bit */
 static const char *x86_cpu_feature_name(FeatureWord w, int bitnr)
 {
@@ -4675,6 +4665,17 @@ static const char *x86_cpu_feature_name(FeatureWord w, int bitnr)
     name = feature_word_info[w].feat_names[bitnr];
     assert(bitnr < 32 || !(name && feature_word_info[w].type == CPUID_FEATURE_WORD));
     return name;
+}
+
+/*
+ * Convert all '_' in a feature string option name to '-', to make feature
+ * name conform to QOM property naming rule, which uses '-' instead of '_'.
+ */
+static inline void feat2prop(char *s)
+{
+    while ((s = strchr(s, '_'))) {
+        *s = '-';
+    }
 }
 
 /* Compatibily hack to maintain legacy +-feat semantic,
