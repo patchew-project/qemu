@@ -2393,7 +2393,7 @@ static void setup_wait_parent_capabilities(void)
 static void setup_namespaces(struct lo_data *lo, struct fuse_session *se)
 {
     pid_t child;
-    char template[] = "virtiofsd-XXXXXX";
+    char template[] = "/tmp/virtiofsd-XXXXXX";
     char *tmpdir;
 
     /*
