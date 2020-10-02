@@ -195,6 +195,7 @@ static void spike_board_init(MachineState *machine)
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *main_mem = g_new(MemoryRegion, 1);
     MemoryRegion *mask_rom = g_new(MemoryRegion, 1);
+    target_ulong firmware_end_addr, kernel_start_addr;
     uint32_t fdt_load_addr;
     uint64_t kernel_entry;
     char *soc_name;
@@ -261,12 +262,19 @@ static void spike_board_init(MachineState *machine)
     memory_region_add_subregion(system_memory, memmap[SPIKE_MROM].base,
                                 mask_rom);
 
-    riscv_find_and_load_firmware(machine, BIOS_FILENAME,
-                                 memmap[SPIKE_DRAM].base,
-                                 htif_symbol_callback);
+    firmware_end_addr = riscv_find_and_load_firmware(machine, BIOS_FILENAME,
+                                                     memmap[SPIKE_DRAM].base,
+                                                     htif_symbol_callback);
 
     if (machine->kernel_filename) {
+        if (riscv_is_32_bit(machine)) {
+            kernel_start_addr = QEMU_ALIGN_UP(firmware_end_addr, 0x400000);
+        } else {
+            kernel_start_addr = QEMU_ALIGN_UP(firmware_end_addr, 0x200000);
+        }
+
         kernel_entry = riscv_load_kernel(machine->kernel_filename,
+                                         kernel_start_addr,
                                          htif_symbol_callback);
 
         if (machine->initrd_filename) {
