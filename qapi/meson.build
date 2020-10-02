@@ -14,38 +14,59 @@ util_ss.add(files(
 ))
 
 qapi_all_modules = [
+  'common',
+  'introspect',
+  'misc',
+]
+
+qapi_system_modules = [
   'acpi',
   'audio',
+  'dump',
+  'machine-target',
+  'migration',
+  'misc-target',
+  'net',
+  'pci',
+  'rdma',
+  'rocker',
+  'tpm',
+  'trace',
+]
+
+qapi_system_or_user_modules = [
+  'machine', # X86CPUFeatureWordInfo
+  'qdev',
+]
+
+qapi_system_or_tools_modules = [
   'authz',
   'block-core',
   'block',
   'char',
-  'common',
   'control',
   'crypto',
-  'dump',
   'error',
-  'introspect',
   'job',
-  'machine',
-  'machine-target',
-  'migration',
-  'misc',
-  'misc-target',
-  'net',
   'pragma',
-  'qdev',
-  'pci',
   'qom',
-  'rdma',
-  'rocker',
   'run-state',
   'sockets',
-  'tpm',
-  'trace',
   'transaction',
   'ui',
 ]
+
+if have_system
+  qapi_all_modules += qapi_system_modules
+endif
+
+if have_system or have_user
+  qapi_all_modules += qapi_system_or_user_modules
+endif
+
+if have_system or have_tools
+  qapi_all_modules += qapi_system_or_tools_modules
+endif
 
 qapi_storage_daemon_modules = [
   'block-core',
