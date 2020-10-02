@@ -3882,6 +3882,17 @@ SRST
     specified domain id (XEN only).
 ERST
 
+DEF("no-panicstop", 0, QEMU_OPTION_no_panicstop, \
+    "-no-panicstop	do not stop the VM on panic\n", QEMU_ARCH_ALL)
+SRST
+``-no-panicstop``
+    Don't stop the VM when a panic event is received. This allows older guests
+    using a pvpanic device but without support for the PVPANIC_CRASHLOADED
+    event, and Windows guests using the hv-crash enlightenment to continue
+    running and capture a crash dump or reboot without intervention of a
+    management layer.
+ERST
+
 DEF("no-reboot", 0, QEMU_OPTION_no_reboot, \
     "-no-reboot      exit instead of rebooting\n", QEMU_ARCH_ALL)
 SRST

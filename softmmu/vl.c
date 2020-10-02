@@ -147,6 +147,7 @@ int win2k_install_hack = 0;
 int singlestep = 0;
 int no_hpet = 0;
 int fd_bootchk = 1;
+static int no_panicstop;
 static int no_reboot;
 int no_shutdown = 0;
 int graphic_rotate = 0;
@@ -1431,9 +1432,16 @@ void qemu_system_guest_panicked(GuestPanicInformation *info)
     if (current_cpu) {
         current_cpu->crash_occurred = true;
     }
-    qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_PAUSE,
-                                   !!info, info);
-    vm_stop(RUN_STATE_GUEST_PANICKED);
+
+    if (no_panicstop) {
+        qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_RUN,
+                                        !!info, info);
+    } else {
+        qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_PAUSE,
+                                        !!info, info);
+        vm_stop(RUN_STATE_GUEST_PANICKED);
+    }
+
     if (!no_shutdown) {
         qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_POWEROFF,
                                        !!info, info);
@@ -3557,6 +3565,9 @@ void qemu_init(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_no_hpet:
                 no_hpet = 1;
+                break;
+            case QEMU_OPTION_no_panicstop:
+                no_panicstop = 1;
                 break;
             case QEMU_OPTION_no_reboot:
                 no_reboot = 1;
