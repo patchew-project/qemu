@@ -271,7 +271,7 @@ if 'CONFIG_CURL' in config_host
                             link_args: config_host['CURL_LIBS'].split())
 endif
 libudev = not_found
-if targetos == 'linux' and (have_system or have_tools)
+if targetos == 'linux' and (have_system or have_tools) and not enable_static
   libudev = dependency('libudev',
                        required: get_option('mpath').enabled(),
                        static: enable_static)
