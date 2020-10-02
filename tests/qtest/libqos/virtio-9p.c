@@ -24,6 +24,34 @@
 #include "qgraph.h"
 
 static QGuestAllocator *alloc;
+static char *local_test_path;
+
+/* Concatenates the passed 2 pathes. Returned result must be freed. */
+static char *concat_path(const char* a, const char* b)
+{
+    return g_build_filename(a, b, NULL);
+}
+
+static void init_local_test_path(void)
+{
+    char *pwd = get_current_dir_name();
+    local_test_path = concat_path(pwd, "qtest-9p-local");
+    free(pwd);
+}
+
+/* Creates the directory for the 9pfs 'local' filesystem driver to access. */
+static void create_local_test_dir(void)
+{
+    struct stat st;
+
+    g_assert(local_test_path != NULL);
+    mkdir(local_test_path, 0777);
+
+    /* ensure test directory exists now ... */
+    g_assert(stat(local_test_path, &st) == 0);
+    /* ... and is actually a directory */
+    g_assert((st.st_mode & S_IFMT) == S_IFDIR);
+}
 
 static void virtio_9p_cleanup(QVirtio9P *interface)
 {
@@ -146,10 +174,53 @@ static void *virtio_9p_pci_create(void *pci_bus, QGuestAllocator *t_alloc,
     return obj;
 }
 
+void virtio_9p_assign_local_driver(GString *cmd_line, const char *args)
+{
+    GRegex *regex;
+    char *s, *arg_repl;
+
+    g_assert_nonnull(local_test_path);
+
+    /* replace 'synth' driver by 'local' driver */
+    regex = g_regex_new("-fsdev synth,", 0, 0, NULL);
+    s = g_regex_replace_literal(
+        regex, cmd_line->str, -1, 0, "-fsdev local,", 0, NULL
+    );
+    g_string_assign(cmd_line, s);
+    g_free(s);
+    g_regex_unref(regex);
+
+    /* add 'path=...' to '-fsdev ...' group */
+    regex = g_regex_new("(-fsdev \\w+)(\\s*)", 0, 0, NULL);
+    arg_repl = g_strdup_printf("\\1\\2,path='%s'", local_test_path);
+    s = g_regex_replace(
+        regex, cmd_line->str, -1, 0, arg_repl, 0, NULL
+    );
+    g_string_assign(cmd_line, s);
+    g_free(arg_repl);
+    g_free(s);
+    g_regex_unref(regex);
+
+    /* add passed args to '-fsdev ...' group */
+    regex = g_regex_new("(-fsdev \\w+)(\\s*)", 0, 0, NULL);
+    arg_repl = g_strdup_printf("\\1\\2,%s", args);
+    s = g_regex_replace(
+        regex, cmd_line->str, -1, 0, arg_repl, 0, NULL
+    );
+    g_string_assign(cmd_line, s);
+    g_free(arg_repl);
+    g_free(s);
+    g_regex_unref(regex);
+}
+
 static void virtio_9p_register_nodes(void)
 {
     const char *str_simple = "fsdev=fsdev0,mount_tag=" MOUNT_TAG;
     const char *str_addr = "fsdev=fsdev0,addr=04.0,mount_tag=" MOUNT_TAG;
+
+    /* make sure test dir for the 'local' tests exists and is clean */
+    init_local_test_path();
+    create_local_test_dir();
 
     QPCIAddress addr = {
         .devfn = QPCI_DEVFN(4, 0),
