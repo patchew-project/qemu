@@ -56,7 +56,10 @@ if len(args) > 1:
         path, prop = args[0].rsplit('.', 1)
     except:
         usage_error("invalid format for path/property/value")
-    value = args[1]
+    try:
+        value = int(args[1])
+    except ValueError:
+        value = args[1]
 else:
     usage_error("not enough arguments")
 
