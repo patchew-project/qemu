@@ -25,5 +25,7 @@ int load_snapshot(const char *name,
                   const char *vmstate,
                   bool has_devices, strList *devices,
                   Error **errp);
-
+int delete_snapshot(const char *name,
+                    bool has_devices, strList *devices,
+                    Error **errp);
 #endif
