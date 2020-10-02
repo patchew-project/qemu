@@ -805,3 +805,57 @@ void qos_delete_cmd_line(const char *name)
         node->command_line = NULL;
     }
 }
+
+#define RED(txt) (    \
+    "\033[0;91m" txt  \
+    "\033[0m"         \
+)
+
+#define GREEN(txt) (    \
+    "\033[0;92m" txt  \
+    "\033[0m"         \
+)
+
+void qos_dump_graph(void)
+{
+    GList *keys;
+    GList *l;
+    QOSGraphEdgeList *list;
+    QOSGraphEdge *e, *next;
+    QOSGraphNode *dest_node, *node;
+
+    printf("ALL QGRAPH EDGES: {\n");
+    keys = g_hash_table_get_keys(edge_table);
+    for (l = keys; l != NULL; l = l->next) {
+        const gchar *key = l->data;
+        printf("\t src='%s'\n", key);
+        list = get_edgelist(key);
+        QSLIST_FOREACH_SAFE(e, list, edge_list, next) {
+            dest_node = g_hash_table_lookup(node_table, e->dest);
+            printf("\t\t|-> dest='%s' type=%d (node=%p)",
+                   e->dest, e->type, dest_node);
+            if (!dest_node) {
+                printf(RED(" <------- ERROR !"));
+            }
+            printf("\n");
+        }
+    }
+    g_list_free(keys);
+    printf("}\n");
+
+    printf("ALL QGRAPH NODES: {\n");
+    keys = g_hash_table_get_keys(node_table);
+    for (l = keys; l != NULL; l = l->next) {
+        const gchar *key = l->data;
+        node = g_hash_table_lookup(node_table, key);
+        printf("\t name='%s' ", key);
+        if (node->qemu_name) {
+            printf("qemu_name='%s' ", node->qemu_name);
+        }
+        printf("type=%d cmd_line='%s' [%s]\n",
+               node->type, node->command_line,
+               node->available ? GREEN("available") : RED("UNAVAILBLE"));
+    }
+    g_list_free(keys);
+    printf("}\n");
+}
