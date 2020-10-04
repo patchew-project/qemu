@@ -49,6 +49,7 @@ filetype code \.c\+\+$	# C++
 filetype code \.cxx$	# C++
 filetype code \.cc$	# C++
 filetype code \.h$	# C or C++ header
+filetype code \.h.inc$	# C header
 filetype code \.hh$	# C++ header
 filetype code \.hpp$	# C++ header
 filetype code \.hxx$	# C++ header
@@ -97,6 +98,7 @@ filetype devel-doc ^BSD-3-Clause$
 filetype devel-doc ^GPL-2.0$
 filetype devel-doc \.txt$
 filetype devel-doc \.rst$
+filetype devel-doc \.rst\.inc$
 filetype devel-doc \.texi$
 filetype devel-doc \.pod$
 
@@ -108,6 +110,7 @@ filetype build Makefile$
 filetype build Makefile\.*$
 filetype build config$
 filetype build conf$
+filetype build meson.build
 filetype build \.cfg$
 filetype build \.mk$
 filetype build \.mak$
