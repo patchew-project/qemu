@@ -532,6 +532,14 @@ static void cap_storeeoi_apply(SpaprMachineState *spapr, uint8_t val,
         return; /* Disabled by default */
     }
 
+    /* For POWER8 CPUs, setting StoreEOI is useless as XIVE is not used */
+    if (!ppc_type_check_compat(machine->cpu_type, CPU_POWERPC_LOGICAL_3_00, 0,
+                               spapr->max_compat_pvr)) {
+        warn_report("StoreEOI is for the XIVE interrupt mode "
+                    "(POWER9 and above)");
+        return;
+    }
+
     /* Check host support when the KVM device is in use */
     if (kvm_irqchip_in_kernel()) {
         if (!kvm_storeeoi) {
