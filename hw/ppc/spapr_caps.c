@@ -546,6 +546,15 @@ static void cap_storeeoi_apply(SpaprMachineState *spapr, uint8_t val,
             error_setg(errp, "StoreEOI not supported by KVM");
             return;
         }
+
+        /*
+         * load-after-store ordering is not enforced on POWER9 CPUs
+         * and StoreEOI can be racy.
+         */
+        if (!ppc_type_check_compat(machine->cpu_type, CPU_POWERPC_LOGICAL_3_10,
+                                  0, spapr->max_compat_pvr)) {
+            warn_report("StoreEOI on a POWER9 CPU is unsafe on KVM.");
+        }
     }
 }
 
