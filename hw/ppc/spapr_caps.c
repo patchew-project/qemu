@@ -521,6 +521,13 @@ static void cap_fwnmi_apply(SpaprMachineState *spapr, uint8_t val,
     }
 }
 
+SpaprCapPossible cap_storeeoi_possible = {
+    .num = 3,
+    .vals = { "off", "on", "cas" },
+    .help = "off - no StoreEOI, on - StoreEOI, "
+            "cas - negotiated at CAS (POWER10 compat only)",
+};
+
 static void cap_storeeoi_apply(SpaprMachineState *spapr, uint8_t val,
                                Error **errp)
 {
@@ -544,6 +551,11 @@ static void cap_storeeoi_apply(SpaprMachineState *spapr, uint8_t val,
     if (kvm_irqchip_in_kernel()) {
         if (!kvm_storeeoi) {
             error_setg(errp, "StoreEOI not supported by KVM");
+            return;
+        }
+
+        /* CAS will decide to advertise StoreEOI (P10 compat kernels only) */
+        if (val == SPAPR_CAP_CAS) {
             return;
         }
 
@@ -668,11 +680,12 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
     },
     [SPAPR_CAP_STOREEOI] = {
         .name = "storeeoi",
-        .description = "Implements XIVE StoreEOI feature",
+        .description = "Implements XIVE StoreEOI feature (off, on, cas)",
         .index = SPAPR_CAP_STOREEOI,
-        .get = spapr_cap_get_bool,
-        .set = spapr_cap_set_bool,
-        .type = "bool",
+        .get = spapr_cap_get_string,
+        .set = spapr_cap_set_string,
+        .type = "string",
+        .possible = &cap_storeeoi_possible,
         .apply = cap_storeeoi_apply,
     },
 };

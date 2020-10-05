@@ -1802,3 +1802,12 @@ void spapr_xive_hcall_init(SpaprMachineState *spapr)
     spapr_register_hypercall(H_INT_SYNC, h_int_sync);
     spapr_register_hypercall(H_INT_RESET, h_int_reset);
 }
+
+void spapr_xive_enable_store_eoi(SpaprXive *xive, bool enable)
+{
+    if (enable) {
+        xive->source.esb_flags |= XIVE_SRC_STORE_EOI;
+    } else {
+        xive->source.esb_flags &= ~XIVE_SRC_STORE_EOI;
+    }
+}

@@ -1808,6 +1808,13 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
 "Guest requested unavailable interrupt mode (XIVE), try the ic-mode=xive or ic-mode=dual machine property");
             exit(EXIT_FAILURE);
         }
+
+        /* Advertise StoreEOI for a P10 compat guest. */
+        if (spapr_get_cap(spapr, SPAPR_CAP_STOREEOI) == SPAPR_CAP_CAS) {
+            bool enable = ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_3_10, 0,
+                                           cpu->compat_pvr);
+            spapr_xive_enable_store_eoi(spapr->xive, enable);
+        }
     } else {
         if (!spapr->irq->xics) {
             error_report(

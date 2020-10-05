@@ -87,6 +87,7 @@ typedef enum {
 #define SPAPR_CAP_ON                    0x01
 
 /* Custom Caps */
+#define SPAPR_CAP_CAS                   0x02
 
 /* Generic */
 #define SPAPR_CAP_BROKEN                0x00
