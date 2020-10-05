@@ -280,6 +280,7 @@ static void spapr_xive_instance_init(Object *obj)
     SpaprXive *xive = SPAPR_XIVE(obj);
 
     object_initialize_child(obj, "source", &xive->source, TYPE_XIVE_SOURCE);
+    object_property_add_alias(obj, "flags", OBJECT(&xive->source), "flags");
 
     object_initialize_child(obj, "end_source", &xive->end_source,
                             TYPE_XIVE_END_SOURCE);

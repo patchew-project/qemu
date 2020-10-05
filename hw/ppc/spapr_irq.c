@@ -325,8 +325,13 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
 
     if (spapr->irq->xive) {
         uint32_t nr_servers = spapr_max_server_number(spapr);
+        uint64_t flags = 0;
         DeviceState *dev;
         int i;
+
+        if (spapr_get_cap(spapr, SPAPR_CAP_STOREEOI) == SPAPR_CAP_ON) {
+            flags |= XIVE_SRC_STORE_EOI;
+        }
 
         dev = qdev_new(TYPE_SPAPR_XIVE);
         qdev_prop_set_uint32(dev, "nr-irqs", smc->nr_xirqs + SPAPR_XIRQ_BASE);
@@ -337,6 +342,7 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
         qdev_prop_set_uint32(dev, "nr-ends", nr_servers << 3);
         object_property_set_link(OBJECT(dev), "xive-fabric", OBJECT(spapr),
                                  &error_abort);
+        object_property_set_int(OBJECT(dev), "flags", flags, &error_abort);
         sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
         spapr->xive = SPAPR_XIVE(dev);
