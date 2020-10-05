@@ -1010,102 +1010,100 @@ static int dirty_bitmap_load_bits(QEMUFile *f, DBMLoadState *s)
 static int dirty_bitmap_load_header(QEMUFile *f, DBMLoadState *s,
                                     GHashTable *alias_map)
 {
-    GHashTable *bitmap_alias_map = NULL;
-    Error *local_err = NULL;
-    bool nothing;
     s->flags = qemu_get_bitmap_flags(f);
     trace_dirty_bitmap_load_header(s->flags);
 
-    nothing = s->flags == (s->flags & DIRTY_BITMAP_MIG_FLAG_EOS);
-
+    /* Read the whole header early so we can easily cancel in case of errors.  */
     if (s->flags & DIRTY_BITMAP_MIG_FLAG_DEVICE_NAME) {
         if (!qemu_get_counted_string(f, s->node_alias)) {
             error_report("Unable to read node alias string");
             return -EINVAL;
         }
-
-        if (!s->cancelled) {
-            if (alias_map) {
-                const AliasMapInnerNode *amin;
-
-                amin = g_hash_table_lookup(alias_map, s->node_alias);
-                if (!amin) {
-                    error_setg(&local_err, "Error: Unknown node alias '%s'",
-                               s->node_alias);
-                    s->bs = NULL;
-                } else {
-                    bitmap_alias_map = amin->subtree;
-                    s->bs = bdrv_lookup_bs(NULL, amin->string, &local_err);
-                }
-            } else {
-                s->bs = bdrv_lookup_bs(s->node_alias, s->node_alias,
-                                       &local_err);
-            }
-            if (!s->bs) {
-                error_report_err(local_err);
-                cancel_incoming_locked(s);
-            }
-        }
-    } else if (s->bs) {
-        if (alias_map) {
-            const AliasMapInnerNode *amin;
-
-            /* Must be present in the map, or s->bs would not be set */
-            amin = g_hash_table_lookup(alias_map, s->node_alias);
-            assert(amin != NULL);
-
-            bitmap_alias_map = amin->subtree;
-        }
-    } else if (!nothing && !s->cancelled) {
-        error_report("Error: block device name is not set");
-        cancel_incoming_locked(s);
     }
-
-    assert(nothing || s->cancelled || !!alias_map == !!bitmap_alias_map);
-
     if (s->flags & DIRTY_BITMAP_MIG_FLAG_BITMAP_NAME) {
-        const char *bitmap_name;
-
         if (!qemu_get_counted_string(f, s->bitmap_alias)) {
             error_report("Unable to read bitmap alias string");
             return -EINVAL;
         }
-
-        if (!s->cancelled) {
-            if (bitmap_alias_map) {
-                bitmap_name = g_hash_table_lookup(bitmap_alias_map,
-                                                  s->bitmap_alias);
-                if (!bitmap_name) {
-                    error_report("Error: Unknown bitmap alias '%s' on node "
-                                 "'%s' (alias '%s')", s->bitmap_alias,
-                                 s->bs->node_name, s->node_alias);
-                    cancel_incoming_locked(s);
-                }
-            } else {
-                bitmap_name = s->bitmap_alias;
-            }
-        }
-
-        if (!s->cancelled) {
-            g_strlcpy(s->bitmap_name, bitmap_name, sizeof(s->bitmap_name));
-            s->bitmap = bdrv_find_dirty_bitmap(s->bs, s->bitmap_name);
-
-            /*
-             * bitmap may be NULL here, it wouldn't be an error if it is the
-             * first occurrence of the bitmap
-             */
-            if (!s->bitmap && !(s->flags & DIRTY_BITMAP_MIG_FLAG_START)) {
-                error_report("Error: unknown dirty bitmap "
-                             "'%s' for block device '%s'",
-                             s->bitmap_name, s->bs->node_name);
-                cancel_incoming_locked(s);
-            }
-        }
-    } else if (!s->bitmap && !nothing && !s->cancelled) {
-        error_report("Error: block device name is not set");
-        cancel_incoming_locked(s);
     }
 
+    if ((s->flags & ~DIRTY_BITMAP_MIG_FLAG_EOS) == 0 || s->cancelled) {
+        return 0;
+    }
+
+    if (s->flags & DIRTY_BITMAP_MIG_FLAG_DEVICE_NAME) {
+        Error *local_err = NULL;
+        if (alias_map) {
+            const AliasMapInnerNode *amin;
+
+            amin = g_hash_table_lookup(alias_map, s->node_alias);
+            if (!amin) {
+                error_report("Error: Unknown node alias '%s'", s->node_alias);
+                s->bs = NULL;
+                goto cancel;
+            }
+            s->bs = bdrv_lookup_bs(NULL, amin->string, &local_err);
+        } else {
+            s->bs = bdrv_lookup_bs(s->node_alias, s->node_alias, &local_err);
+        }
+        if (!s->bs) {
+            error_report_err(local_err);
+            goto cancel;
+        }
+        s->bitmap_name[0] = 0;
+    }
+    if (!s->bs) {
+        error_report("Error: block device name is not set");
+        goto cancel;
+    }
+
+    if (s->flags & DIRTY_BITMAP_MIG_FLAG_BITMAP_NAME) {
+        const char *bitmap_name;
+
+        if (alias_map) {
+            const AliasMapInnerNode *amin;
+            GHashTable *bitmap_alias_map;
+
+            amin = g_hash_table_lookup(alias_map, s->node_alias);
+            bitmap_alias_map = amin->subtree;
+
+            /* Must be present in the map, or s->bs would not be set */
+            assert(bitmap_alias_map);
+            bitmap_name = g_hash_table_lookup(bitmap_alias_map,
+                                              s->bitmap_alias);
+            if (!bitmap_name) {
+                error_report("Error: Unknown bitmap alias '%s' on node "
+                             "'%s' (alias '%s')", s->bitmap_alias,
+                             s->bs->node_name, s->node_alias);
+                goto cancel;
+            }
+        } else {
+            bitmap_name = s->bitmap_alias;
+        }
+
+        g_strlcpy(s->bitmap_name, bitmap_name, sizeof(s->bitmap_name));
+    }
+
+    if (!s->bitmap_name[0]) {
+        error_report("Error: dirty bitmap name is not set");
+        goto cancel;
+    }
+
+    /*
+     * bitmap may be NULL here, it wouldn't be an error if it is the
+     * first occurrence of the bitmap
+     */
+    s->bitmap = bdrv_find_dirty_bitmap(s->bs, s->bitmap_name);
+    if (!s->bitmap && !(s->flags & DIRTY_BITMAP_MIG_FLAG_START)) {
+        error_report("Error: unknown dirty bitmap "
+                     "'%s' for block device '%s'",
+                     s->bitmap_name, s->bs->node_name);
+        goto cancel;
+    }
+    return 0;
+
+cancel:
+    cancel_incoming_locked(s);
     return 0;
 }
 
