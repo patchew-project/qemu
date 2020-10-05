@@ -51,3 +51,4 @@ config MIPS_CPS
 
 config MIPS_BOSTON
     bool
+    select FDT
