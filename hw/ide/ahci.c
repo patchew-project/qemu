@@ -924,8 +924,7 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist,
     int r = 0;
     uint64_t sum = 0;
     int off_idx = -1;
-    int64_t off_pos = -1;
-    int tbl_entry_size;
+    uint32_t off_pos = 0;
     IDEBus *bus = &ad->port;
     BusState *qbus = BUS(bus);
 
@@ -952,19 +951,18 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist,
     /* Get entries in the PRDT, init a qemu sglist accordingly */
     if (prdtl > 0) {
         AHCI_SG *tbl = (AHCI_SG *)prdt;
-        sum = 0;
         for (i = 0; i < prdtl; i++) {
-            tbl_entry_size = prdt_tbl_entry_size(&tbl[i]);
-            if (offset < (sum + tbl_entry_size)) {
+            uint32_t tbl_entry_size = prdt_tbl_entry_size(&tbl[i]);
+            if (offset - sum < tbl_entry_size) {
                 off_idx = i;
                 off_pos = offset - sum;
                 break;
             }
             sum += tbl_entry_size;
         }
-        if ((off_idx == -1) || (off_pos < 0) || (off_pos > tbl_entry_size)) {
+        if (off_idx == -1) {
             trace_ahci_populate_sglist_bad_offset(ad->hba, ad->port_no,
-                                                  off_idx, off_pos);
+                                                  sum, offset);
             r = -1;
             goto out;
         }
