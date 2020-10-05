@@ -357,6 +357,18 @@ static uint64_t xive_esb_rw(XiveSource *xsrc, int srcno, uint32_t offset,
 
 static uint8_t xive_esb_read(XiveSource *xsrc, int srcno, uint32_t offset)
 {
+    /*
+     * The XIVE_ESB_SET_PQ_10 load operation is used to disable
+     * temporarily an interrupt source. If StoreEOI is active, a
+     * source could be left enabled if the load and store operations
+     * come out of order.
+     *
+     * Enforce the load-after-store ordering always.
+     */
+    if (offset == XIVE_ESB_SET_PQ_10) {
+        offset |= XIVE_ESB_LD_ST_MO;
+    }
+
     return xive_esb_rw(xsrc, srcno, offset, 0, 0) & 0x3;
 }
 
