@@ -142,7 +142,10 @@ endif
 check: check-block
 check-block: $(SRC_PATH)/tests/check-block.sh qemu-img$(EXESUF) \
 		qemu-io$(EXESUF) qemu-nbd$(EXESUF) $(QEMU_IOTESTS_HELPERS-y) \
+		storage-daemon/qemu-storage-daemon \
 		$(patsubst %-softmmu,qemu-system-%,$(filter %-softmmu,$(TARGET_DIRS)))
+	$(call quiet-command, \
+			$(SRC_PATH)/tests/qemu-storage-daemon.sh, "qemu-storage-daemon")
 	@$<
 endif
 
