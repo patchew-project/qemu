@@ -43,7 +43,7 @@ typedef void ClockCallback(void *opaque);
 #define CLOCK_PERIOD_TO_HZ(per) (((per) != 0) ? CLOCK_PERIOD_1SEC / (per) : 0u)
 
 /**
- * Clock:
+ * struct Clock:
  * @parent_obj: parent class
  * @period: unsigned integer representing the period of the clock
  * @canonical_path: clock path string cache (used for trace purpose)
@@ -56,7 +56,7 @@ typedef void ClockCallback(void *opaque);
 
 
 struct Clock {
-    /*< private >*/
+    /* private: */
     Object parent_obj;
 
     /* all fields are private and should not be modified directly */

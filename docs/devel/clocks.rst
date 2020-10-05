@@ -389,3 +389,10 @@ state.
 Care should be taken not to use ``clock_update[_ns|_hz]()`` or
 ``clock_propagate()`` during the whole migration procedure because it
 will trigger side effects to other devices in an unknown state.
+
+
+API Reference
+-------------
+
+.. kernel-doc:: include/hw/clock.h
+.. kernel-doc:: include/hw/qdev-clock.h
