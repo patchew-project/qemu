@@ -107,3 +107,45 @@ windows_msys2_task:
     - C:\tools\msys64\usr\bin\bash.exe -lc "cd build && make -j$NUMBER_OF_PROCESSORS"
   test_script:
     - C:\tools\msys64\usr\bin\bash.exe -lc "cd build && make V=1 check"
+
+netbsd_task:
+  container:
+    image: fedora:32
+    cpu: 8
+    memory: 8Gb
+    kvm: true
+  qemu_vm_cache:
+    folder: $HOME/.cache/qemu-vm
+  install_script:
+    - dnf update -y
+    - dnf install -y git make openssh-clients qemu-img qemu-system-x86 wget
+  script:
+    - if [ -d $HOME/.cache/qemu-vm ]; then ls -lR $HOME/.cache/qemu-vm ; fi
+    - if [ -f $HOME/.cache/qemu-vm/images/netbsd.img ]; then
+        make vm-build-netbsd J=$(getconf _NPROCESSORS_ONLN)
+          EXTRA_CONFIGURE_OPTS="--target-list=aarch64-softmmu,ppc64-softmmu,sparc64-softmmu,sparc-softmmu,x86_64-softmmu,i386-bsd-user,sparc64-bsd-user,sparc-bsd-user,x86_64-bsd-user" ;
+      else
+        make vm-build-netbsd J=$(getconf _NPROCESSORS_ONLN) BUILD_TARGET=help
+          EXTRA_CONFIGURE_OPTS="--disable-system --disable-user" ;
+      fi
+
+openbsd_task:
+  container:
+    image: fedora:32
+    cpu: 8
+    memory: 8Gb
+    kvm: true
+  qemu_vm_cache:
+    folder: $HOME/.cache/qemu-vm
+  install_script:
+    - dnf update -y
+    - dnf install -y git make openssh-clients qemu-img qemu-system-x86 wget
+  script:
+    - if [ -d $HOME/.cache/qemu-vm ]; then ls -lR $HOME/.cache/qemu-vm ; fi
+    - if [ -f $HOME/.cache/qemu-vm/images/openbsd.img ]; then
+        make vm-build-openbsd J=$(getconf _NPROCESSORS_ONLN)
+          EXTRA_CONFIGURE_OPTS="--target-list=i386-softmmu,sparc-softmmu,i386-bsd-user,sparc-bsd-user" ;
+      else
+        make vm-build-openbsd J=$(getconf _NPROCESSORS_ONLN) BUILD_TARGET=help
+          EXTRA_CONFIGURE_OPTS="--disable-system --disable-user" ;
+      fi
