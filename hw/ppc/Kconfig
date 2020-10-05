@@ -10,7 +10,7 @@ config PSERIES
     select XICS_SPAPR
     select XIVE_SPAPR
     select MSI_NONBROKEN
-    select FDT_PPC
+    select FDT
     select CHRP_NVRAM
 
 config SPAPR_RNG
@@ -28,7 +28,7 @@ config POWERNV
     select MC146818RTC
     select XICS
     select XIVE
-    select FDT_PPC
+    select FDT
     select PCI_EXPRESS
     select MSI_NONBROKEN
 
@@ -47,7 +47,7 @@ config PPC440
     select PCI_EXPRESS
     select PPC4XX
     select SERIAL
-    select FDT_PPC
+    select FDT
 
 config PPC4XX
     bool
@@ -66,7 +66,7 @@ config SAM460EX
     select SMBUS_EEPROM
     select USB_EHCI_SYSBUS
     select USB_OHCI
-    select FDT_PPC
+    select FDT
 
 config PREP
     bool
@@ -117,7 +117,7 @@ config E500
     select PPCE500_PCI
     select SERIAL
     select MPC_I2C
-    select FDT_PPC
+    select FDT
 
 config VIRTEX
     bool
@@ -126,7 +126,7 @@ config VIRTEX
     select SERIAL
     select XILINX
     select XILINX_ETHLITE
-    select FDT_PPC
+    select FDT
 
 config XIVE
     bool
@@ -145,7 +145,4 @@ config XIVE_KVM
 
 # Only used by 64-bit targets
 config FW_CFG_PPC
-    bool
-
-config FDT_PPC
     bool
