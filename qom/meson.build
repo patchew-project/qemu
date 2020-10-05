@@ -7,6 +7,11 @@ qom_ss.add(files(
   'qom-qobject.c',
 ))
 
+# interfaces any object might implement
+qom_ss.add(files(
+  'fw_cfg_interface.c',
+))
+
 qmp_ss.add(files('qom-qmp-cmds.c'))
 softmmu_ss.add(files('qom-hmp-cmds.c'))
 
