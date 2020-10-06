@@ -169,9 +169,9 @@ class QEMUMonitorProtocol:
         try:
             self.__json_read()
         except OSError as err:
-            if err.errno == errno.EAGAIN:
-                # No data available
-                pass
+            # EAGAIN: No data available; not critical
+            if err.errno != errno.EAGAIN:
+                raise
         self.__sock.setblocking(True)
 
         # Wait for new events, if needed.
