@@ -41,7 +41,7 @@ SocketAddrT = Union[InternetAddrT, UnixAddrT]
 
 class QMPError(Exception):
     """
-    QMP base exception
+    QMP base exception; all QMP errors derive from this.
     """
 
 
@@ -51,7 +51,13 @@ class QMPConnectError(QMPError):
     """
 
 
-class QMPCapabilitiesError(QMPError):
+class QMPProtocolError(QMPError):
+    """
+    QMP protocol error; unexpected response
+    """
+
+
+class QMPCapabilitiesError(QMPProtocolError):
     """
     QMP negotiate capabilities exception
     """
@@ -63,15 +69,9 @@ class QMPTimeoutError(QMPError):
     """
 
 
-class QMPProtocolError(QMPError):
-    """
-    QMP protocol error; unexpected response
-    """
-
-
 class QMPResponseError(QMPError):
     """
-    Represents erroneous QMP monitor reply
+    Represents in-band QMP replies indicating command failure
     """
     def __init__(self, reply: QMPMessage):
         try:
@@ -125,14 +125,23 @@ class QEMUMonitorProtocol:
         return socket.socket(family, socket.SOCK_STREAM)
 
     def __negotiate_capabilities(self) -> QMPMessage:
+        """
+        @raise QMPConnectError on failure to receive the greeting.
+        @raise QMPCapabilitiesError on malformed greeting, or malformed
+                                    capabilities handshake response.
+        """
         greeting = self.__json_read()
-        if greeting is None or "QMP" not in greeting:
-            raise QMPConnectError
+        if greeting is None:
+            raise QMPConnectError("Did not receive QMP greeting")
+        if 'QMP' not in greeting:
+            msg = f"Did not understand greeting: '{str(greeting)}'"
+            raise QMPCapabilitiesError(msg)
         # Greeting seems ok, negotiate capabilities
         resp = self.cmd('qmp_capabilities')
         if resp and "return" in resp:
             return greeting
-        raise QMPCapabilitiesError
+        msg = "Did not understand capabilities reply"
+        raise QMPCapabilitiesError(f"{msg}: {str(resp)}")
 
     def __json_read(self, only_event: bool = False) -> Optional[QMPMessage]:
         assert self.__sockfile is not None
@@ -158,10 +167,12 @@ class QEMUMonitorProtocol:
         @param wait (bool): block until an event is available.
         @param wait (float): If wait is a float, treat it as a timeout value.
 
+        @raise OSError: For backing socket connection errors
         @raise QMPTimeoutError: If a timeout float is provided and the timeout
                                 period elapses.
         @raise QMPConnectError: If wait is True but no events could be
                                 retrieved or if some other error occurred.
+        @raise QMPProtocolError: If a garbled message is received.
         """
 
         # Check for new events regardless and pull them into the cache:
@@ -187,7 +198,7 @@ class QEMUMonitorProtocol:
                 msg = "Error while reading from socket"
                 raise QMPConnectError(msg) from err
             if ret is None:
-                raise QMPConnectError("Error while reading from socket")
+                raise QMPProtocolError("Unexpected empty message from server")
             self.__sock.settimeout(None)
 
     def __enter__(self) -> 'QEMUMonitorProtocol':
@@ -245,12 +256,13 @@ class QEMUMonitorProtocol:
 
         @param qmp_cmd: QMP command to be sent as a Python dict
         @return QMP response as a Python dict
+        @raise QMPProtocolError on unexpected empty messages.
         """
         self.logger.debug(">>> %s", qmp_cmd)
         self.__sock.sendall(json.dumps(qmp_cmd).encode('utf-8'))
         resp = self.__json_read()
         if resp is None:
-            raise QMPConnectError("Unexpected empty reply from server")
+            raise QMPProtocolError("Unexpected empty reply from server")
         self.logger.debug("<<< %s", resp)
         return resp
 
@@ -274,13 +286,16 @@ class QEMUMonitorProtocol:
     def command(self, cmd: str, **kwds: Any) -> QMPReturnValue:
         """
         Build and send a QMP command to the monitor, report errors if any
+
+        @raise QMPResponseError if the server returns an in-band error reply.
+        @raise QMPProtocolError if the server reply is not understood.
         """
         ret = self.cmd(cmd, kwds)
         if 'error' in ret:
             raise QMPResponseError(ret)
         if 'return' not in ret:
             raise QMPProtocolError(
-                "'return' key not found in QMP response '{}'".format(str(ret))
+                f"'return' key not found in QMP response '{str(ret)}'"
             )
         return cast(QMPReturnValue, ret['return'])
 
