@@ -1323,6 +1323,10 @@ qemu_syms = custom_target('qemu.syms', output: 'qemu.syms',
                              capture: true,
                              command: [undefsym, nm, '@INPUT@'])
 
+########################
+# Library dependencies #
+########################
+
 block_ss = block_ss.apply(config_host, strict: false)
 libblock = static_library('block', block_ss.sources() + genh,
                           dependencies: block_ss.dependencies(),
@@ -1362,6 +1366,10 @@ common_all = static_library('common',
                             sources: common_all.sources() + genh,
                             dependencies: common_all.dependencies(),
                             name_suffix: 'fa')
+
+###########
+# Targets #
+###########
 
 feature_to_c = find_program('scripts/feature_to_c.sh')
 
