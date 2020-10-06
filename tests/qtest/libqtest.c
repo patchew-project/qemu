@@ -324,7 +324,7 @@ QTestState *qtest_init(const char *extra_args)
     QDict *greeting;
 
     /* Read the QMP greeting and then do the handshake */
-    greeting = qtest_qmp_receive_dict(s);
+    greeting = qtest_qmp_receive(s);
     qobject_unref(greeting);
     qobject_unref(qtest_qmp(s, "{ 'execute': 'qmp_capabilities' }"));
 
@@ -700,7 +700,7 @@ QDict *qtest_vqmp_fds(QTestState *s, int *fds, size_t fds_num,
     qtest_qmp_vsend_fds(s, fds, fds_num, fmt, ap);
 
     /* Receive reply */
-    return qtest_qmp_receive_dict(s);
+    return qtest_qmp_receive(s);
 }
 
 QDict *qtest_vqmp(QTestState *s, const char *fmt, va_list ap)
@@ -708,7 +708,7 @@ QDict *qtest_vqmp(QTestState *s, const char *fmt, va_list ap)
     qtest_qmp_vsend(s, fmt, ap);
 
     /* Receive reply */
-    return qtest_qmp_receive_dict(s);
+    return qtest_qmp_receive(s);
 }
 
 QDict *qmp_fd(int fd, const char *fmt, ...)
@@ -850,12 +850,6 @@ char *qtest_vhmp(QTestState *s, const char *fmt, va_list ap)
                      " 'arguments': {'command-line': %s}}",
                      cmd);
     ret = g_strdup(qdict_get_try_str(resp, "return"));
-    while (ret == NULL && qdict_get_try_str(resp, "event")) {
-        /* Ignore asynchronous QMP events */
-        qobject_unref(resp);
-        resp = qtest_qmp_receive_dict(s);
-        ret = g_strdup(qdict_get_try_str(resp, "return"));
-    }
     g_assert(ret);
     qobject_unref(resp);
     g_free(cmd);
@@ -1291,35 +1285,6 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine),
     qobject_unref(response);
 }
 
-QDict *qtest_qmp_receive_success(QTestState *s,
-                                 void (*event_cb)(void *opaque,
-                                                  const char *event,
-                                                  QDict *data),
-                                 void *opaque)
-{
-    QDict *response, *ret, *data;
-    const char *event;
-
-    for (;;) {
-        response = qtest_qmp_receive_dict(s);
-        g_assert(!qdict_haskey(response, "error"));
-        ret = qdict_get_qdict(response, "return");
-        if (ret) {
-            break;
-        }
-        event = qdict_get_str(response, "event");
-        data = qdict_get_qdict(response, "data");
-        if (event_cb) {
-            event_cb(opaque, event, data);
-        }
-        qobject_unref(response);
-    }
-
-    qobject_ref(ret);
-    qobject_unref(response);
-    return ret;
-}
-
 /*
  * Generic hot-plugging test via the device_add QMP commands.
  */
@@ -1355,13 +1320,6 @@ void qtest_qmp_device_add(QTestState *qts, const char *driver, const char *id,
     qobject_unref(args);
 }
 
-static void device_deleted_cb(void *opaque, const char *name, QDict *data)
-{
-    bool *got_event = opaque;
-
-    g_assert_cmpstr(name, ==, "DEVICE_DELETED");
-    *got_event = true;
-}
 
 /*
  * Generic hot-unplugging test via the device_del QMP command.
@@ -1378,24 +1336,17 @@ static void device_deleted_cb(void *opaque, const char *name, QDict *data)
  * and this one:
  *
  * {"return": {}}
- *
- * But the order of arrival may vary - so we've got to detect both.
  */
 void qtest_qmp_device_del(QTestState *qts, const char *id)
 {
-    bool got_event = false;
     QDict *rsp;
 
-    qtest_qmp_send(qts, "{'execute': 'device_del', 'arguments': {'id': %s}}",
-                   id);
-    rsp = qtest_qmp_receive_success(qts, device_deleted_cb, &got_event);
+    rsp = qtest_qmp(qts, "{'execute': 'device_del', 'arguments': {'id': %s}}",
+                    id);
+
+    g_assert(qdict_haskey(rsp, "return"));
     qobject_unref(rsp);
-    if (!got_event) {
-        rsp = qtest_qmp_receive_dict(qts);
-        g_assert_cmpstr(qdict_get_try_str(rsp, "event"),
-                        ==, "DEVICE_DELETED");
-        qobject_unref(rsp);
-    }
+    qtest_qmp_eventwait(qts, "DEVICE_DELETED");
 }
 
 bool qmp_rsp_is_err(QDict *rsp)
