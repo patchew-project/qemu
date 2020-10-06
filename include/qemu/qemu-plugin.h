@@ -424,7 +424,11 @@ typedef int (*qemu_plugin_n_max_vcpus_t)(void);
 typedef void (*qemu_plugin_outs_t)(const char *string);
 
 #if !defined(QEMU_PLUGIN_API_IMPLEMENTATION)
+#if defined(QEMU_PLUGIN_IMPLEMENTATION)
 #define QEMU_PLUGIN_EXTERN
+#else
+#define QEMU_PLUGIN_EXTERN extern
+#endif
 
 QEMU_PLUGIN_EXTERN qemu_plugin_uninstall_t qemu_plugin_uninstall;
 QEMU_PLUGIN_EXTERN qemu_plugin_reset_t qemu_plugin_reset;
@@ -462,6 +466,8 @@ QEMU_PLUGIN_EXTERN qemu_plugin_register_atexit_cb_t qemu_plugin_register_atexit_
 QEMU_PLUGIN_EXTERN qemu_plugin_n_vcpus_t qemu_plugin_n_vcpus;
 QEMU_PLUGIN_EXTERN qemu_plugin_n_max_vcpus_t qemu_plugin_n_max_vcpus;
 QEMU_PLUGIN_EXTERN qemu_plugin_outs_t qemu_plugin_outs;
+
+#if defined(QEMU_PLUGIN_IMPLEMENTATION)
 
 QEMU_PLUGIN_EXPORT int qemu_plugin_initialize(const qemu_info_t *info)
 {
@@ -503,6 +509,8 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_initialize(const qemu_info_t *info)
     qemu_plugin_outs = info->dlsym(info->context, "qemu_plugin_outs");
     return 0;
 }
+
+#endif
 
 #endif /* QEMU_PLUGIN_API_IMPLEMENTATION */
 
