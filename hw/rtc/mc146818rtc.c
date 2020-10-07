@@ -155,9 +155,15 @@ static uint32_t rtc_periodic_clock_ticks(RTCState *s)
 {
     int period_code;
 
+#if 0
+    /*
+     * Real hardware sets the PF bit rergardless if it actually
+     * raises an interrupt.
+     */
     if (!(s->cmos_data[RTC_REG_B] & REG_B_PIE)) {
         return 0;
      }
+#endif
 
     period_code = s->cmos_data[RTC_REG_A] & 0x0f;
 
@@ -944,6 +950,7 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
     }
 
     s->periodic_timer = timer_new_ns(rtc_clock, rtc_periodic_timer, s);
+    periodic_timer_update(s, qemu_clock_get_ns(rtc_clock), 0, true);
     s->update_timer = timer_new_ns(rtc_clock, rtc_update_timer, s);
     check_update_timer(s);
 
