@@ -3137,9 +3137,6 @@ static MigThrError postcopy_pause(MigrationState *s)
     while (true) {
         QEMUFile *file;
 
-        migrate_set_state(&s->state, s->state,
-                          MIGRATION_STATUS_POSTCOPY_PAUSED);
-
         /* Current channel is possibly broken. Release it. */
         assert(s->to_dst_file);
         qemu_mutex_lock(&s->qemu_file_lock);
@@ -3149,6 +3146,9 @@ static MigThrError postcopy_pause(MigrationState *s)
 
         qemu_file_shutdown(file);
         qemu_fclose(file);
+
+        migrate_set_state(&s->state, s->state,
+                          MIGRATION_STATUS_POSTCOPY_PAUSED);
 
         error_report("Detected IO failure for postcopy. "
                      "Migration paused.");
