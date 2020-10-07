@@ -1780,11 +1780,12 @@ void helper_cmp_d_ ## op(CPUMIPSState *env, uint64_t fdt0,     \
 {                                                              \
     int c;                                                     \
     c = cond;                                                  \
-    update_fcr31(env, GETPC());                                \
-    if (c)                                                     \
+    if (c) {                                                   \
         SET_FP_COND(cc, env->active_fpu);                      \
-    else                                                       \
+    } else {                                                   \
         CLEAR_FP_COND(cc, env->active_fpu);                    \
+    }                                                          \
+    update_fcr31(env, GETPC());                                \
 }                                                              \
 void helper_cmpabs_d_ ## op(CPUMIPSState *env, uint64_t fdt0,  \
                             uint64_t fdt1, int cc)             \
@@ -1793,11 +1794,12 @@ void helper_cmpabs_d_ ## op(CPUMIPSState *env, uint64_t fdt0,  \
     fdt0 = float64_abs(fdt0);                                  \
     fdt1 = float64_abs(fdt1);                                  \
     c = cond;                                                  \
-    update_fcr31(env, GETPC());                                \
-    if (c)                                                     \
+    if (c) {                                                   \
         SET_FP_COND(cc, env->active_fpu);                      \
-    else                                                       \
+    } else {                                                   \
         CLEAR_FP_COND(cc, env->active_fpu);                    \
+    }                                                          \
+    update_fcr31(env, GETPC());                                \
 }
 
 /*
@@ -1859,11 +1861,12 @@ void helper_cmp_s_ ## op(CPUMIPSState *env, uint32_t fst0,     \
 {                                                              \
     int c;                                                     \
     c = cond;                                                  \
-    update_fcr31(env, GETPC());                                \
-    if (c)                                                     \
+    if (c) {                                                   \
         SET_FP_COND(cc, env->active_fpu);                      \
-    else                                                       \
+    } else {                                                   \
         CLEAR_FP_COND(cc, env->active_fpu);                    \
+    }                                                          \
+    update_fcr31(env, GETPC());                                \
 }                                                              \
 void helper_cmpabs_s_ ## op(CPUMIPSState *env, uint32_t fst0,  \
                             uint32_t fst1, int cc)             \
@@ -1872,11 +1875,12 @@ void helper_cmpabs_s_ ## op(CPUMIPSState *env, uint32_t fst0,  \
     fst0 = float32_abs(fst0);                                  \
     fst1 = float32_abs(fst1);                                  \
     c = cond;                                                  \
-    update_fcr31(env, GETPC());                                \
-    if (c)                                                     \
+    if (c) {                                                   \
         SET_FP_COND(cc, env->active_fpu);                      \
-    else                                                       \
+    } else {                                                   \
         CLEAR_FP_COND(cc, env->active_fpu);                    \
+    }                                                          \
+    update_fcr31(env, GETPC());                                \
 }
 
 /*
@@ -1944,15 +1948,17 @@ void helper_cmp_ps_ ## op(CPUMIPSState *env, uint64_t fdt0,     \
     fsth1 = fdt1 >> 32;                                         \
     cl = condl;                                                 \
     ch = condh;                                                 \
-    update_fcr31(env, GETPC());                                 \
-    if (cl)                                                     \
+    if (cl) {                                                   \
         SET_FP_COND(cc, env->active_fpu);                       \
-    else                                                        \
+    } else {                                                    \
         CLEAR_FP_COND(cc, env->active_fpu);                     \
-    if (ch)                                                     \
+    }                                                           \
+    if (ch) {                                                   \
         SET_FP_COND(cc + 1, env->active_fpu);                   \
-    else                                                        \
+    } else {                                                    \
         CLEAR_FP_COND(cc + 1, env->active_fpu);                 \
+    }                                                           \
+    update_fcr31(env, GETPC());                                 \
 }                                                               \
 void helper_cmpabs_ps_ ## op(CPUMIPSState *env, uint64_t fdt0,  \
                              uint64_t fdt1, int cc)             \
@@ -1965,15 +1971,17 @@ void helper_cmpabs_ps_ ## op(CPUMIPSState *env, uint64_t fdt0,  \
     fsth1 = float32_abs(fdt1 >> 32);                            \
     cl = condl;                                                 \
     ch = condh;                                                 \
-    update_fcr31(env, GETPC());                                 \
-    if (cl)                                                     \
+    if (cl) {                                                   \
         SET_FP_COND(cc, env->active_fpu);                       \
-    else                                                        \
+    } else {                                                    \
         CLEAR_FP_COND(cc, env->active_fpu);                     \
-    if (ch)                                                     \
+    }                                                           \
+    if (ch) {                                                   \
         SET_FP_COND(cc + 1, env->active_fpu);                   \
-    else                                                        \
+    } else {                                                    \
         CLEAR_FP_COND(cc + 1, env->active_fpu);                 \
+    }                                                           \
+    update_fcr31(env, GETPC());                                 \
 }
 
 /*
@@ -2080,12 +2088,12 @@ uint64_t helper_r6_cmp_d_ ## op(CPUMIPSState *env, uint64_t fdt0,   \
 {                                                                   \
     uint64_t c;                                                     \
     c = cond;                                                       \
-    update_fcr31(env, GETPC());                                     \
     if (c) {                                                        \
         return -1;                                                  \
     } else {                                                        \
         return 0;                                                   \
     }                                                               \
+    update_fcr31(env, GETPC());                                     \
 }
 
 /*
@@ -2175,12 +2183,12 @@ uint32_t helper_r6_cmp_s_ ## op(CPUMIPSState *env, uint32_t fst0,   \
 {                                                                   \
     uint64_t c;                                                     \
     c = cond;                                                       \
-    update_fcr31(env, GETPC());                                     \
     if (c) {                                                        \
         return -1;                                                  \
     } else {                                                        \
         return 0;                                                   \
     }                                                               \
+    update_fcr31(env, GETPC());                                     \
 }
 
 /*
