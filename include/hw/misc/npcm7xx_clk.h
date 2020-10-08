@@ -42,6 +42,15 @@ typedef struct NPCM7xxCLKState {
     int64_t ref_ns;
 } NPCM7xxCLKState;
 
+/**
+ * npcm7xx_clk_perform_watchdog_reset - Perform watchdog reset action generated
+ * by a watchdog event.
+ * @clk: The clock module that connects to the watchdog.
+ * @watchdog_index: The index of the watchdog that triggered the reset action.
+ */
+void npcm7xx_clk_perform_watchdog_reset(NPCM7xxCLKState *clk,
+        int watchdog_index);
+
 #define TYPE_NPCM7XX_CLK "npcm7xx-clk"
 #define NPCM7XX_CLK(obj) OBJECT_CHECK(NPCM7xxCLKState, (obj), TYPE_NPCM7XX_CLK)
 

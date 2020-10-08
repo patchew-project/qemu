@@ -24,6 +24,7 @@
 #include "qemu/timer.h"
 #include "qemu/units.h"
 #include "trace.h"
+#include "sysemu/watchdog.h"
 
 #define PLLCON_LOKI     BIT(31)
 #define PLLCON_LOKS     BIT(30)
@@ -86,6 +87,9 @@ static const uint32_t cold_reset_values[NPCM7XX_CLK_NR_REGS] = {
     [NPCM7XX_CLK_PLLCONG]       = 0x01228606 | PLLCON_LOKI,
     [NPCM7XX_CLK_AHBCKFI]       = 0x000000c8,
 };
+
+/* Register Field Definitions */
+#define NPCM7XX_CLK_WDRCR_CA9C  BIT(0) /* Cortex A9 Cores */
 
 static uint64_t npcm7xx_clk_read(void *opaque, hwaddr offset, unsigned size)
 {
@@ -185,6 +189,22 @@ static void npcm7xx_clk_write(void *opaque, hwaddr offset,
     }
 
     s->regs[reg] = value;
+}
+
+void npcm7xx_clk_perform_watchdog_reset(NPCM7xxCLKState *clk,
+        int watchdog_index)
+{
+    uint32_t rcr;
+
+    g_assert(watchdog_index >= 0 && watchdog_index < 3);
+    rcr = clk->regs[NPCM7XX_CLK_WD0RCR + watchdog_index];
+    if (rcr & NPCM7XX_CLK_WDRCR_CA9C) {
+        watchdog_perform_action();
+    } else {
+        qemu_log_mask(LOG_UNIMP,
+                "%s: only CPU reset is implemented. (requested 0x%" PRIx32")\n",
+                __func__, rcr);
+    }
 }
 
 static const struct MemoryRegionOps npcm7xx_clk_ops = {

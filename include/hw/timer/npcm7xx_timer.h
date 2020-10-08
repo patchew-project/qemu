@@ -29,14 +29,27 @@
  */
 #define NPCM7XX_TIMER_NR_REGS (0x54 / sizeof(uint32_t))
 
+/* The basic watchdog timer period is 2^14 clock cycles. */
+#define NPCM7XX_WATCHDOG_BASETIME_SHIFT 14
+
 typedef struct NPCM7xxTimerCtrlState NPCM7xxTimerCtrlState;
+
+/**
+ * struct NPCM7xxBaseTimer - Basic functionality that both regular timer and
+ * watchdog timer use.
+ * @qtimer: QEMU timer that notifies us on expiration.
+ * @expires_ns: Absolute virtual expiration time.
+ * @remaining_ns: Remaining time until expiration if timer is paused.
+ */
+typedef struct NPCM7xxBaseTimer {
+    QEMUTimer   qtimer;
+    int64_t     expires_ns;
+    int64_t     remaining_ns;
+} NPCM7xxBaseTimer;
 
 /**
  * struct NPCM7xxTimer - Individual timer state.
  * @irq: GIC interrupt line to fire on expiration (if enabled).
- * @qtimer: QEMU timer that notifies us on expiration.
- * @expires_ns: Absolute virtual expiration time.
- * @remaining_ns: Remaining time until expiration if timer is paused.
  * @tcsr: The Timer Control and Status Register.
  * @ticr: The Timer Initial Count Register.
  */
@@ -44,20 +57,34 @@ typedef struct NPCM7xxTimer {
     NPCM7xxTimerCtrlState *ctrl;
 
     qemu_irq    irq;
-    QEMUTimer   qtimer;
-    int64_t     expires_ns;
-    int64_t     remaining_ns;
+    NPCM7xxBaseTimer base_timer;
 
     uint32_t    tcsr;
     uint32_t    ticr;
 } NPCM7xxTimer;
 
 /**
+ * struct NPCM7xxWatchdogTimer - The watchdog timer state.
+ * @irq: GIC interrupt line to fire on expiration (if enabled).
+ * @qtimer: QEMU timer that notifies us on expiration.
+ * @expires_ns: Absolute virtual expiration time.
+ * @remaining_ns: Remaining time until expiration if timer is paused.
+ * @wtcr: The Watchdog Timer Control Register.
+ */
+typedef struct NPCM7xxWatchdogTimer {
+    NPCM7xxTimerCtrlState *ctrl;
+
+    qemu_irq            irq;
+    NPCM7xxBaseTimer base_timer;
+
+    uint32_t            wtcr;
+} NPCM7xxWatchdogTimer;
+
+/**
  * struct NPCM7xxTimerCtrlState - Timer Module device state.
  * @parent: System bus device.
  * @iomem: Memory region through which registers are accessed.
  * @tisr: The Timer Interrupt Status Register.
- * @wtcr: The Watchdog Timer Control Register.
  * @timer: The five individual timers managed by this module.
  */
 struct NPCM7xxTimerCtrlState {
@@ -65,10 +92,12 @@ struct NPCM7xxTimerCtrlState {
 
     MemoryRegion iomem;
 
+    uint8_t     index;
+    NPCM7xxCLKState *clk;
     uint32_t    tisr;
-    uint32_t    wtcr;
 
     NPCM7xxTimer timer[NPCM7XX_TIMERS_PER_CTRL];
+    NPCM7xxWatchdogTimer watchdog_timer;
 };
 
 #define TYPE_NPCM7XX_TIMER "npcm7xx-timer"
