@@ -302,6 +302,7 @@ netmap="no"
 sdl="auto"
 sdl_image="auto"
 virtfs=""
+virtiofsd="auto"
 mpath="auto"
 vnc="enabled"
 sparse="auto"
@@ -1003,6 +1004,10 @@ for opt do
   --disable-virtfs) virtfs="no"
   ;;
   --enable-virtfs) virtfs="yes"
+  ;;
+  --disable-virtiofsd) virtiofsd="disabled"
+  ;;
+  --enable-virtiofsd) virtiofsd="enabled"
   ;;
   --disable-mpath) mpath="disabled"
   ;;
@@ -1761,6 +1766,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   vnc-png         PNG compression for VNC server
   cocoa           Cocoa UI (Mac OS X only)
   virtfs          VirtFS
+  virtiofsd       build virtiofs daemon (virtiofsd)
   mpath           Multipath persistent reservation passthrough
   xen             xen backend driver support
   xen-pci-passthrough    PCI passthrough support for Xen
@@ -7215,7 +7221,7 @@ NINJA=${ninja:-$PWD/ninjatool} $meson setup \
 	-Dxen=$xen -Dxen_pci_passthrough=$xen_pci_passthrough -Dtcg=$tcg \
 	-Dcocoa=$cocoa -Dmpath=$mpath -Dsdl=$sdl -Dsdl_image=$sdl_image \
 	-Dvnc=$vnc -Dvnc_sasl=$vnc_sasl -Dvnc_jpeg=$vnc_jpeg -Dvnc_png=$vnc_png \
-	-Dgettext=$gettext -Dxkbcommon=$xkbcommon -Du2f=$u2f \
+	-Dgettext=$gettext -Dxkbcommon=$xkbcommon -Du2f=$u2f -Dvirtiofsd=$virtiofsd \
 	-Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt \
         $cross_arg \
         "$PWD" "$source_path"
