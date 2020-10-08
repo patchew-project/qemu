@@ -897,6 +897,56 @@ static int virtio_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu_mr,
     return 0;
 }
 
+static int virtio_iommu_set_page_size_mask(IOMMUMemoryRegion *mr,
+                                           uint64_t page_size_mask,
+                                           Error **errp)
+{
+    int new_granule, old_granule;
+    IOMMUDevice *sdev = container_of(mr, IOMMUDevice, iommu_mr);
+    VirtIOIOMMU *s = sdev->viommu;
+
+    if (!page_size_mask) {
+        return -1;
+    }
+
+    new_granule = ctz64(page_size_mask);
+    old_granule = ctz64(s->config.page_size_mask);
+
+    /*
+     * Modifying the page size after machine initialization isn't supported.
+     * Having a different mask is possible but the guest will use sub-optimal
+     * block sizes, so warn about it.
+     */
+    if (qdev_hotplug) {
+        if (new_granule != old_granule) {
+            error_setg(errp,
+                       "virtio-iommu page mask 0x%"PRIx64
+                       " is incompatible with mask 0x%"PRIx64,
+                       s->config.page_size_mask, page_size_mask);
+            return -1;
+        } else if (page_size_mask != s->config.page_size_mask) {
+            warn_report("virtio-iommu page mask 0x%"PRIx64
+                        " does not match 0x%"PRIx64,
+                        s->config.page_size_mask, page_size_mask);
+        }
+        return 0;
+    }
+
+    /*
+     * Disallow shrinking the page size. For example if an endpoint only
+     * supports 64kB pages, we can't globally enable 4kB pages. But that
+     * shouldn't happen, the host is unlikely to setup differing page granules.
+     * The other bits are only hints describing optimal block sizes.
+     */
+    if (new_granule < old_granule) {
+        error_setg(errp, "memory region shrinks the virtio-iommu page granule");
+        return -1;
+    }
+
+    s->config.page_size_mask = page_size_mask;
+    return 0;
+}
+
 static void virtio_iommu_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -1128,6 +1178,7 @@ static void virtio_iommu_memory_region_class_init(ObjectClass *klass,
     imrc->translate = virtio_iommu_translate;
     imrc->replay = virtio_iommu_replay;
     imrc->notify_flag_changed = virtio_iommu_notify_flag_changed;
+    imrc->iommu_set_page_size_mask = virtio_iommu_set_page_size_mask;
 }
 
 static const TypeInfo virtio_iommu_info = {
