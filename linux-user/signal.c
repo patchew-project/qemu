@@ -263,6 +263,10 @@ int on_sig_stack(unsigned long sp)
 {
     TaskState *ts = (TaskState *)thread_cpu->opaque;
 
+    if (ts->sigaltstack_used.ss_flags & TARGET_SS_AUTODISARM) {
+        return 0;
+    }
+
     return (sp - ts->sigaltstack_used.ss_sp
             < ts->sigaltstack_used.ss_size);
 }
@@ -293,8 +297,13 @@ void target_save_altstack(target_stack_t *uss, CPUArchState *env)
     TaskState *ts = (TaskState *)thread_cpu->opaque;
 
     __put_user(ts->sigaltstack_used.ss_sp, &uss->ss_sp);
-    __put_user(sas_ss_flags(get_sp_from_cpustate(env)), &uss->ss_flags);
+    __put_user(ts->sigaltstack_used.ss_flags, &uss->ss_flags);
     __put_user(ts->sigaltstack_used.ss_size, &uss->ss_size);
+    if (ts->sigaltstack_used.ss_flags & TARGET_SS_AUTODISARM) {
+        ts->sigaltstack_used.ss_sp = 0;
+        ts->sigaltstack_used.ss_size = 0;
+        ts->sigaltstack_used.ss_flags = TARGET_SS_DISABLE;
+    }
 }
 
 /* siginfo conversion */
@@ -768,7 +777,7 @@ abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp)
     {
         __put_user(ts->sigaltstack_used.ss_sp, &oss.ss_sp);
         __put_user(ts->sigaltstack_used.ss_size, &oss.ss_size);
-        __put_user(sas_ss_flags(sp), &oss.ss_flags);
+        __put_user(ts->sigaltstack_used.ss_flags, &oss.ss_flags);
     }
 
     if(uss_addr)
@@ -776,6 +785,7 @@ abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp)
         struct target_sigaltstack *uss;
         struct target_sigaltstack ss;
         size_t minstacksize = TARGET_MINSIGSTKSZ;
+        int ss_mode;
 
 #if defined(TARGET_PPC64)
         /* ELF V2 for PPC64 has a 4K minimum stack size for signal handlers */
@@ -799,10 +809,12 @@ abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp)
             goto out;
 
         ret = -TARGET_EINVAL;
-        if (ss.ss_flags != TARGET_SS_DISABLE
-            && ss.ss_flags != TARGET_SS_ONSTACK
-            && ss.ss_flags != 0)
+        ss_mode = ss.ss_flags & ~TARGET_SS_FLAG_BITS;
+        if (ss_mode != TARGET_SS_DISABLE
+            && ss_mode != TARGET_SS_ONSTACK
+            && ss_mode != 0) {
             goto out;
+        }
 
         if (ss.ss_flags == TARGET_SS_DISABLE) {
             ss.ss_size = 0;
@@ -814,6 +826,7 @@ abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp)
             }
         }
 
+        ts->sigaltstack_used.ss_flags = ss.ss_flags;
         ts->sigaltstack_used.ss_sp = ss.ss_sp;
         ts->sigaltstack_used.ss_size = ss.ss_size;
     }
