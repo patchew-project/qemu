@@ -30,6 +30,7 @@
 #include "exec/hwaddr.h"
 #include "kvm_arm.h"
 #include "hw/arm/boot.h"
+#include "hw/arm/fdt.h"
 #include "hw/block/flash.h"
 #include "hw/boards.h"
 #include "hw/ide/internal.h"
@@ -40,6 +41,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/usb.h"
 #include "hw/char/pl011.h"
+#include "hw/watchdog/wdt_sbsa_gwdt.h"
 #include "net/net.h"
 #include "qom/object.h"
 
@@ -64,6 +66,9 @@ enum {
     SBSA_GIC_DIST,
     SBSA_GIC_REDIST,
     SBSA_SECURE_EC,
+    SBSA_GWDT,
+    SBSA_GWDT_REFRESH,
+    SBSA_GWDT_CONTROL,
     SBSA_SMMU,
     SBSA_UART,
     SBSA_RTC,
@@ -104,6 +109,8 @@ static const MemMapEntry sbsa_ref_memmap[] = {
     [SBSA_GIC_DIST] =           { 0x40060000, 0x00010000 },
     [SBSA_GIC_REDIST] =         { 0x40080000, 0x04000000 },
     [SBSA_SECURE_EC] =          { 0x50000000, 0x00001000 },
+    [SBSA_GWDT_REFRESH] =       { 0x50010000, 0x00001000 },
+    [SBSA_GWDT_CONTROL] =       { 0x50011000, 0x00001000 },
     [SBSA_UART] =               { 0x60000000, 0x00001000 },
     [SBSA_RTC] =                { 0x60010000, 0x00001000 },
     [SBSA_GPIO] =               { 0x60020000, 0x00001000 },
@@ -133,12 +140,37 @@ static const int sbsa_ref_irqmap[] = {
     [SBSA_SECURE_UART_MM] = 9,
     [SBSA_AHCI] = 10,
     [SBSA_EHCI] = 11,
+    [SBSA_GWDT] = 12,
 };
 
 static uint64_t sbsa_ref_cpu_mp_affinity(SBSAMachineState *sms, int idx)
 {
     uint8_t clustersz = ARM_DEFAULT_CPUS_PER_CLUSTER;
     return arm_cpu_mp_affinity(idx, clustersz);
+}
+
+static void create_wdt_fdt(SBSAMachineState *sms)
+{
+    char *nodename;
+    const char compat[] = "arm,sbsa-gwdt";
+
+    hwaddr rbase = sbsa_ref_memmap[SBSA_GWDT_REFRESH].base;
+    hwaddr cbase = sbsa_ref_memmap[SBSA_GWDT_CONTROL].base;
+    int irq = sbsa_ref_irqmap[SBSA_GWDT];
+
+    nodename = g_strdup_printf("/watchdog@%" PRIx64, rbase);
+    qemu_fdt_add_subnode(sms->fdt, nodename);
+
+    qemu_fdt_setprop(sms->fdt, nodename, "compatible",
+                             compat, sizeof(compat));
+    qemu_fdt_setprop_sized_cells(sms->fdt, nodename, "reg",
+                                 2, rbase, 2, SBSA_GWDT_RMMIO_SIZE,
+                                 2, cbase, 2, SBSA_GWDT_CMMIO_SIZE);
+    qemu_fdt_setprop_cells(sms->fdt, nodename, "interrupts",
+                                GIC_FDT_IRQ_TYPE_PPI, irq,
+                                GIC_FDT_IRQ_FLAGS_LEVEL_HI);
+    qemu_fdt_setprop_cell(sms->fdt, nodename, "timeout-sec", 30);
+    g_free(nodename);
 }
 
 /*
@@ -219,6 +251,7 @@ static void create_fdt(SBSAMachineState *sms)
 
         g_free(nodename);
     }
+    create_wdt_fdt(sms);
 }
 
 #define SBSA_FLASH_SECTOR_SIZE (256 * KiB)
@@ -445,6 +478,20 @@ static void create_rtc(const SBSAMachineState *sms)
     int irq = sbsa_ref_irqmap[SBSA_RTC];
 
     sysbus_create_simple("pl031", base, qdev_get_gpio_in(sms->gic, irq));
+}
+
+static void create_wdt(const SBSAMachineState *sms)
+{
+    hwaddr rbase = sbsa_ref_memmap[SBSA_GWDT_REFRESH].base;
+    hwaddr cbase = sbsa_ref_memmap[SBSA_GWDT_CONTROL].base;
+    DeviceState *dev = qdev_new(TYPE_WDT_SBSA_GWDT);
+    SysBusDevice *s = SYS_BUS_DEVICE(dev);
+    int irq = sbsa_ref_irqmap[SBSA_GWDT];
+
+    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_mmio_map(s, 0, rbase);
+    sysbus_mmio_map(s, 1, cbase);
+    sysbus_connect_irq(s, 0, qdev_get_gpio_in(sms->gic, irq));
 }
 
 static DeviceState *gpio_key_dev;
@@ -729,6 +776,8 @@ static void sbsa_ref_init(MachineState *machine)
     create_uart(sms, SBSA_SECURE_UART_MM, secure_sysmem, serial_hd(2));
 
     create_rtc(sms);
+
+    create_wdt(sms);
 
     create_gpio(sms);
 
