@@ -8,8 +8,8 @@
  * Author: Peter Xu <peterx@redhat.com>
  */
 
-#include <stdlib.h>
 #include "qemu/osdep.h"
+#include <stdlib.h>
 #include "qemu/bitmap.h"
 
 #define BMAP_SIZE  1024
