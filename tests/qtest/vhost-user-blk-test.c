@@ -674,7 +674,7 @@ static char *start_vhost_user_blk(GString *cmd_line, int vus_instances)
         img_path = drive_create();
         g_string_append_printf(storage_daemon_command,
             "--blockdev driver=file,node-name=disk%d,filename=%s "
-            "--object vhost-user-blk-server,id=disk%d,unix-socket=%s,"
+            "--export type=vhost-user-blk,id=disk%d,addr.type=unix,addr.path=%s,"
             "node-name=disk%i,writable=on ",
             i, img_path, i, sock_path, i);
 
