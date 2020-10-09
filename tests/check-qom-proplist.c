@@ -61,6 +61,7 @@ struct DummyObject {
     bool bv;
     DummyAnimal av;
     char *sv;
+    uint8_t u8v;
 };
 
 struct DummyObjectClass {
@@ -141,6 +142,9 @@ static void dummy_class_init(ObjectClass *cls, void *data)
                                    &dummy_animal_map,
                                    dummy_get_av,
                                    dummy_set_av);
+    object_class_property_add_uint8_ptr(cls, "u8v",
+                                        offsetof(DummyObject, u8v),
+                                        OBJ_PROP_FLAG_READWRITE);
 }
 
 
@@ -385,12 +389,14 @@ static void test_dummy_createlist(void)
                    "bv", "yes",
                    "sv", "Hiss hiss hiss",
                    "av", "platypus",
+                   "u8v", "42",
                    NULL));
 
     g_assert(err == NULL);
     g_assert_cmpstr(dobj->sv, ==, "Hiss hiss hiss");
     g_assert(dobj->bv == true);
     g_assert(dobj->av == DUMMY_PLATYPUS);
+    g_assert_cmpint(dobj->u8v, ==, 42);
 
     g_assert(object_resolve_path_component(parent, "dummy0")
              == OBJECT(dobj));
@@ -531,7 +537,7 @@ static void test_dummy_iterator(void)
 {
     const char *expected[] = {
         "type",                 /* inherited from TYPE_OBJECT */
-        "sv", "av",             /* class properties */
+        "sv", "av", "u8v",      /* class properties */
         "bv"};                  /* instance property */
     Object *parent = object_get_objects_root();
     DummyObject *dobj = DUMMY_OBJECT(
@@ -552,7 +558,7 @@ static void test_dummy_iterator(void)
 
 static void test_dummy_class_iterator(void)
 {
-    const char *expected[] = { "type", "av", "sv" };
+    const char *expected[] = { "type", "av", "sv", "u8v" };
     ObjectPropertyIterator iter;
     ObjectClass *klass = object_class_by_name(TYPE_DUMMY);
 
