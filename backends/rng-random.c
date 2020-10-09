@@ -108,10 +108,6 @@ static void rng_random_init(Object *obj)
 {
     RngRandom *s = RNG_RANDOM(obj);
 
-    object_property_add_str(obj, "filename",
-                            rng_random_get_filename,
-                            rng_random_set_filename);
-
     s->filename = g_strdup("/dev/urandom");
     s->fd = -1;
 }
@@ -131,6 +127,10 @@ static void rng_random_finalize(Object *obj)
 static void rng_random_class_init(ObjectClass *klass, void *data)
 {
     RngBackendClass *rbc = RNG_BACKEND_CLASS(klass);
+
+    object_class_property_add_str(klass, "filename",
+                                  rng_random_get_filename,
+                                  rng_random_set_filename);
 
     rbc->request_entropy = rng_random_request_entropy;
     rbc->opened = rng_random_opened;
