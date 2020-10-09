@@ -572,7 +572,7 @@ int main(int argc, char **argv)
     const char *export_name = NULL; /* defaults to "" later for server mode */
     const char *export_description = NULL;
     bool alloc_depth = false;
-    const char *bitmap = NULL;
+    strList *bitmaps = NULL, *tmp;
     const char *tlscredsid = NULL;
     bool imageOpts = false;
     bool writethrough = true;
@@ -701,7 +701,10 @@ int main(int argc, char **argv)
             alloc_depth = true;
             break;
         case 'B':
-            bitmap = optarg;
+            tmp = g_new(strList, 1);
+            tmp->value = g_strdup(optarg);
+            tmp->next = bitmaps;
+            bitmaps = tmp;
             break;
         case 'k':
             sockpath = optarg;
@@ -798,7 +801,7 @@ int main(int argc, char **argv)
         }
         if (export_name || export_description || dev_offset ||
             device || disconnect || fmt || sn_id_or_name || alloc_depth ||
-            bitmap || seen_aio || seen_discard || seen_cache) {
+            bitmaps || seen_aio || seen_discard || seen_cache) {
             error_report("List mode is incompatible with per-device settings");
             exit(EXIT_FAILURE);
         }
@@ -1082,8 +1085,8 @@ int main(int argc, char **argv)
             .name                 = g_strdup(export_name),
             .has_description      = !!export_description,
             .description          = g_strdup(export_description),
-            .has_bitmap           = !!bitmap,
-            .bitmap               = g_strdup(bitmap),
+            .has_bitmaps          = !!bitmaps,
+            .bitmaps              = bitmaps,
             .has_allocation_depth = alloc_depth,
             .allocation_depth     = alloc_depth,
         },
