@@ -192,6 +192,7 @@ qos_test_ss.add(
 )
 qos_test_ss.add(when: 'CONFIG_VIRTFS', if_true: files('virtio-9p-test.c'))
 qos_test_ss.add(when: 'CONFIG_VHOST_USER', if_true: files('vhost-user-test.c'))
+qos_test_ss.add(when: ['CONFIG_LINUX', 'CONFIG_TOOLS'], if_true: files('vhost-user-blk-test.c'))
 
 extra_qtest_deps = {
   'bios-tables-test': [io],
@@ -240,7 +241,8 @@ foreach dir : target_dirs
   endif
   qtest_env.set('G_TEST_DBUS_DAEMON', meson.source_root() / 'tests/dbus-vmstate-daemon.sh')
   qtest_env.set('QTEST_QEMU_BINARY', './qemu-system-' + target_base)
-  
+  qtest_env.set('QTEST_QEMU_STORAGE_DAEMON_BINARY', './storage-daemon/qemu-storage-daemon')
+
   foreach test : qtests
     # Executables are shared across targets, declare them only the first time we
     # encounter them
