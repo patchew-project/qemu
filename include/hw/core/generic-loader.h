@@ -39,6 +39,10 @@ struct GenericLoaderState {
     bool force_raw;
     bool data_be;
     bool set_pc;
+
+    char **fdt_compat;
+    uint32_t fdt_compat_count;
+    char *fdt_bootargs;
 };
 
 #define TYPE_GENERIC_LOADER "loader"

@@ -40,6 +40,8 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/core/generic-loader.h"
+#include "sysemu/device_tree.h"
+#include "hw/boards.h"
 
 #define CPU_NONE 0xFFFFFFFF
 
@@ -58,6 +60,39 @@ static void generic_loader_reset(void *opaque)
     if (s->data_len) {
         assert(s->data_len < sizeof(s->data));
         dma_memory_write(s->cpu->as, s->addr, &s->data, s->data_len);
+    }
+}
+
+/*
+ * Insert some FDT nodes for the loaded blob.
+ */
+static void loader_insert_fdt(GenericLoaderState *s, int size, Error **errp)
+{
+    MachineState *machine = MACHINE(qdev_get_machine());
+    void *fdt = machine->fdt;
+    g_autofree char *node = g_strdup_printf("/chosen/module@%#08lx", s->addr);
+    uint64_t reg_attr[2] = {cpu_to_be64(s->addr), cpu_to_be64(size)};
+
+    if (!fdt) {
+        error_setg(errp, "Cannot modify FDT fields if the machine has none");
+        return;
+    }
+
+    qemu_fdt_add_subnode(fdt, node);
+    qemu_fdt_setprop(fdt, node, "reg", &reg_attr, sizeof(reg_attr));
+
+    if (s->fdt_compat) {
+        if (qemu_fdt_setprop_string_array
+            (fdt, node, "compatible", s->fdt_compat, s->fdt_compat_count) < 0) {
+            error_setg(errp, "couldn't set %s/compatible", node);
+            return;
+        }
+    }
+
+    if (s->fdt_bootargs) {
+        if (qemu_fdt_setprop_string(fdt, node, "bootargs", s->fdt_bootargs) < 0) {
+            error_setg(errp, "couldn't set %s/bootargs", node);
+        }
     }
 }
 
@@ -171,6 +206,10 @@ static void generic_loader_realize(DeviceState *dev, Error **errp)
     } else {
         s->data = cpu_to_le64(s->data);
     }
+
+    if (s->fdt_compat || s->fdt_bootargs) {
+        loader_insert_fdt(s, size, errp);
+    }
 }
 
 static void generic_loader_unrealize(DeviceState *dev)
@@ -186,6 +225,9 @@ static Property generic_loader_props[] = {
     DEFINE_PROP_UINT32("cpu-num", GenericLoaderState, cpu_num, CPU_NONE),
     DEFINE_PROP_BOOL("force-raw", GenericLoaderState, force_raw, false),
     DEFINE_PROP_STRING("file", GenericLoaderState, file),
+    DEFINE_PROP_ARRAY("fdt-compat", GenericLoaderState, fdt_compat_count,
+                      fdt_compat, qdev_prop_string, char *),
+    DEFINE_PROP_STRING("fdt-bootargs", GenericLoaderState, fdt_bootargs),
     DEFINE_PROP_END_OF_LIST(),
 };
 
