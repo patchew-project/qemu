@@ -293,6 +293,16 @@ bool user_creatable_del(const char *id, Error **errp)
     return true;
 }
 
+static void user_creatable_class_init(ObjectClass *klass, void *data)
+{
+    /*
+     * User-creatable QOM types expose all writable QOM properties
+     * to the external world through `-object` and `object-add`,
+     * so all writable properties must be registered at class level.
+     */
+    object_class_lock_properties(klass);
+}
+
 void user_creatable_cleanup(void)
 {
     object_unparent(object_get_objects_root());
@@ -304,6 +314,7 @@ static void register_types(void)
         .name          = TYPE_USER_CREATABLE,
         .parent        = TYPE_INTERFACE,
         .class_size = sizeof(UserCreatableClass),
+        .class_init    = user_creatable_class_init,
     };
 
     type_register_static(&uc_interface_info);
