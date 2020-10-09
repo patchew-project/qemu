@@ -298,6 +298,19 @@ sev_guest_class_init(ObjectClass *oc, void *data)
                                   sev_guest_set_session_file);
     object_class_property_set_description(oc, "session-file",
             "guest owners session parameters (encoded with base64)");
+
+    object_class_property_add_uint32_ptr(oc, "policy",
+                                         offsetof(SevGuestState, policy),
+                                         OBJ_PROP_FLAG_READWRITE);
+    object_class_property_add_uint32_ptr(oc, "handle",
+                                         offsetof(SevGuestState, handle),
+                                         OBJ_PROP_FLAG_READWRITE);
+    object_class_property_add_uint32_ptr(oc, "cbitpos",
+                                         offsetof(SevGuestState, cbitpos),
+                                         OBJ_PROP_FLAG_READWRITE);
+    object_class_property_add_uint32_ptr(oc, "reduced-phys-bits",
+                                         offsetof(SevGuestState, reduced_phys_bits),
+                                         OBJ_PROP_FLAG_READWRITE);
 }
 
 static void
@@ -307,15 +320,6 @@ sev_guest_instance_init(Object *obj)
 
     sev->sev_device = g_strdup(DEFAULT_SEV_DEVICE);
     sev->policy = DEFAULT_GUEST_POLICY;
-    object_property_add_uint32_ptr(obj, "policy", &sev->policy,
-                                   OBJ_PROP_FLAG_READWRITE);
-    object_property_add_uint32_ptr(obj, "handle", &sev->handle,
-                                   OBJ_PROP_FLAG_READWRITE);
-    object_property_add_uint32_ptr(obj, "cbitpos", &sev->cbitpos,
-                                   OBJ_PROP_FLAG_READWRITE);
-    object_property_add_uint32_ptr(obj, "reduced-phys-bits",
-                                   &sev->reduced_phys_bits,
-                                   OBJ_PROP_FLAG_READWRITE);
 }
 
 /* sev guest info */
