@@ -1597,6 +1597,8 @@ static int nbd_export_create(BlockExport *blk_exp, BlockExportOptions *exp_args,
         assert(strlen(exp->export_bitmap_context) < NBD_MAX_STRING_SIZE);
     }
 
+    exp->alloc_context = arg->alloc;
+
     blk_add_aio_context_notifier(blk, blk_aio_attached, blk_aio_detach, exp);
 
     QTAILQ_INSERT_TAIL(&exports, exp, next);
