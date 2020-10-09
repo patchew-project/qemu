@@ -1375,6 +1375,35 @@ static void colo_compare_class_init(ObjectClass *oc, void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 
+    object_class_property_add_str(oc, "primary_in",
+                                  compare_get_pri_indev, compare_set_pri_indev);
+    object_class_property_add_str(oc, "secondary_in",
+                                  compare_get_sec_indev, compare_set_sec_indev);
+    object_class_property_add_str(oc, "outdev",
+                                  compare_get_outdev, compare_set_outdev);
+    object_class_property_add_link(oc, "iothread", TYPE_IOTHREAD,
+                                  offsetof(CompareState, iothread),
+                                  object_property_allow_set_link,
+                                  OBJ_PROP_LINK_STRONG);
+    /* This parameter just for Xen COLO */
+    object_class_property_add_str(oc, "notify_dev",
+                                  compare_get_notify_dev, compare_set_notify_dev);
+
+    object_class_property_add(oc, "compare_timeout", "uint32",
+                              compare_get_timeout,
+                              compare_set_timeout, NULL, NULL);
+
+    object_class_property_add(oc, "expired_scan_cycle", "uint32",
+                              compare_get_expired_scan_cycle,
+                              compare_set_expired_scan_cycle, NULL, NULL);
+
+    object_class_property_add(oc, "max_queue_size", "uint32",
+                              get_max_queue_size,
+                              set_max_queue_size, NULL, NULL);
+
+    object_class_property_add_bool(oc, "vnet_hdr_support", compare_get_vnet_hdr,
+                                   compare_set_vnet_hdr);
+
     ucc->complete = colo_compare_complete;
 }
 
@@ -1382,35 +1411,7 @@ static void colo_compare_init(Object *obj)
 {
     CompareState *s = COLO_COMPARE(obj);
 
-    object_property_add_str(obj, "primary_in",
-                            compare_get_pri_indev, compare_set_pri_indev);
-    object_property_add_str(obj, "secondary_in",
-                            compare_get_sec_indev, compare_set_sec_indev);
-    object_property_add_str(obj, "outdev",
-                            compare_get_outdev, compare_set_outdev);
-    object_property_add_link(obj, "iothread", TYPE_IOTHREAD,
-                            (Object **)&s->iothread,
-                            object_property_allow_set_link,
-                            OBJ_PROP_LINK_STRONG);
-    /* This parameter just for Xen COLO */
-    object_property_add_str(obj, "notify_dev",
-                            compare_get_notify_dev, compare_set_notify_dev);
-
-    object_property_add(obj, "compare_timeout", "uint32",
-                        compare_get_timeout,
-                        compare_set_timeout, NULL, NULL);
-
-    object_property_add(obj, "expired_scan_cycle", "uint32",
-                        compare_get_expired_scan_cycle,
-                        compare_set_expired_scan_cycle, NULL, NULL);
-
-    object_property_add(obj, "max_queue_size", "uint32",
-                        get_max_queue_size,
-                        set_max_queue_size, NULL, NULL);
-
     s->vnet_hdr = false;
-    object_property_add_bool(obj, "vnet_hdr_support", compare_get_vnet_hdr,
-                             compare_set_vnet_hdr);
 }
 
 static void colo_compare_finalize(Object *obj)
