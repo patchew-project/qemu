@@ -58,6 +58,9 @@ static void static_prop_class_init(ObjectClass *oc, void *data)
 
     dc->realize = NULL;
     device_class_set_props(dc, static_props);
+
+    /* test_proplist_lock() will check if property locking works */
+    object_class_lock_properties(oc);
 }
 
 static const TypeInfo static_prop_type = {
@@ -213,6 +216,69 @@ static const TypeInfo nondevice_type = {
     .parent = TYPE_OBJECT,
 };
 
+static void locked_interface_class_base_init(ObjectClass *klass, void *data)
+{
+    object_class_lock_properties(klass);
+}
+
+#define TYPE_LOCKED_INTERFACE "locked-interface"
+static const TypeInfo locked_interface_type = {
+    .name            = TYPE_LOCKED_INTERFACE,
+    .parent          = TYPE_INTERFACE,
+    .class_base_init = locked_interface_class_base_init,
+};
+
+#define TYPE_LOCKED_BY_INTERFACE "locked-by-interface"
+static const TypeInfo locked_by_interface_type = {
+    .name   = TYPE_LOCKED_BY_INTERFACE,
+    .parent = TYPE_OBJECT,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_LOCKED_INTERFACE },
+        { },
+    },
+};
+
+/* Make sure QOM property locking works as expected */
+static void test_proplist_lock(void)
+{
+    g_autoptr(Object) dynamic_obj = object_new(TYPE_DYNAMIC_PROPS);
+    g_autoptr(Object) static_obj = object_new(TYPE_STATIC_PROPS);
+    g_autoptr(Object) locked = object_new(TYPE_LOCKED_BY_INTERFACE);
+    Error *err = NULL;
+
+    /* read-only property: should always work */
+    object_property_try_add(dynamic_obj, "dynamic-prop-ro", "uint32",
+                            prop1_accessor, NULL,
+                            NULL, NULL, &error_abort);
+    object_property_try_add(static_obj, "dynamic-prop-ro", "uint32",
+                            prop1_accessor, NULL,
+                            NULL, NULL, &error_abort);
+    object_property_try_add(locked, "dynamic-prop-ro", "uint32",
+                            prop1_accessor, NULL,
+                            NULL, NULL, &error_abort);
+
+
+    /* read-write property: */
+
+    /* TYPE_DYNAMIC_PROPS is not locked */
+    object_property_try_add(dynamic_obj, "dynamic-prop-rw", "uint32",
+                            prop1_accessor, prop1_accessor,
+                            NULL, NULL, &error_abort);
+
+    /* TYPE_STATIC_PROPS is locked */
+    object_property_try_add(static_obj, "dynamic-prop-rw", "uint32",
+                            prop1_accessor, prop1_accessor,
+                            NULL, NULL, &err);
+    error_free_or_abort(&err);
+
+    /* TYPE_LOCKED_BY_INTERFACE is locked by interface type */
+    object_property_try_add(locked, "dynamic-prop-rw", "uint32",
+                            prop1_accessor, prop1_accessor,
+                            NULL, NULL, &err);
+    error_free_or_abort(&err);
+}
+
+
 /* Test setting of dynamic properties using global properties */
 static void test_dynamic_globalprop_subprocess(void)
 {
@@ -294,6 +360,10 @@ int main(int argc, char **argv)
     type_register_static(&hotplug_type);
     type_register_static(&nohotplug_type);
     type_register_static(&nondevice_type);
+    type_register_static(&locked_interface_type);
+    type_register_static(&locked_by_interface_type);
+
+    g_test_add_func("/qdev/properties/locking", test_proplist_lock);
 
     g_test_add_func("/qdev/properties/static/default/subprocess",
                     test_static_prop_subprocess);

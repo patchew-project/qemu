@@ -137,6 +137,8 @@ struct ObjectClass
     ObjectUnparent *unparent;
 
     GHashTable *properties;
+    /* instance properties locked.  See object_class_lock_properties() */
+    bool properties_locked;
 };
 
 /**
@@ -1866,6 +1868,21 @@ void object_property_set_description(Object *obj, const char *name,
                                      const char *description);
 void object_class_property_set_description(ObjectClass *klass, const char *name,
                                            const char *description);
+
+/**
+ * object_class_lock_properties:
+ * @oc: the object class to have properties locked
+ *
+ * Prevent all subtypes of @oc from having writeable instance
+ * properties. If @oc is an interface type, this also affects all
+ * classes implementing the interface.
+ *
+ * This can be used by QOM types that have all QOM properties
+ * exposed to the external world (e.g. #TYPE_USER_CREATABLE) to
+ * ensure all user-writable properties are introspectable at the
+ * class level.
+ */
+void object_class_lock_properties(ObjectClass *oc);
 
 /**
  * object_child_foreach:
