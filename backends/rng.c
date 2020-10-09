@@ -106,9 +106,6 @@ static void rng_backend_init(Object *obj)
 
     QSIMPLEQ_INIT(&s->requests);
 
-    object_property_add_bool(obj, "opened",
-                             rng_backend_prop_get_opened,
-                             rng_backend_prop_set_opened);
 }
 
 static void rng_backend_finalize(Object *obj)
@@ -122,6 +119,9 @@ static void rng_backend_class_init(ObjectClass *oc, void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 
+    object_class_property_add_bool(oc, "opened",
+                                   rng_backend_prop_get_opened,
+                                   rng_backend_prop_set_opened);
     ucc->complete = rng_backend_complete;
 }
 
