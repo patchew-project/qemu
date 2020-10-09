@@ -250,18 +250,19 @@ qapi_doc_out = custom_target('QAPI rST doc',
 # using an explicit '\' character in the command arguments to
 # a custom_target(), as Meson will unhelpfully replace it with a '/'
 # (https://github.com/mesonbuild/meson/issues/1564)
+rst_sanitize_cmd = [find_program('../../scripts/rst-sanitize.py'), '@INPUT@']
 qapi_doc_out_nocr = custom_target('QAPI rST doc newline-sanitized',
                                   output: ['doc-good.txt.nocr'],
                                   input: qapi_doc_out[0],
                                   build_by_default: build_docs,
-                                  command: ['perl', '-pe', '$x = chr 13; s/$x$//', '@INPUT@'],
+                                  command: rst_sanitize_cmd,
                                   capture: true)
 
 qapi_doc_ref_nocr = custom_target('QAPI rST doc reference newline-sanitized',
                                   output: ['doc-good.ref.nocr'],
                                   input: files('doc-good.txt'),
                                   build_by_default: build_docs,
-                                  command: ['perl', '-pe', '$x = chr 13; s/$x$//', '@INPUT@'],
+                                  command: rst_sanitize_cmd,
                                   capture: true)
 
 if build_docs
