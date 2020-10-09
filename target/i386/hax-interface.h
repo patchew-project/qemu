@@ -238,7 +238,7 @@ enum exit_status {
     HAX_EXIT_UNKNOWN_VMEXIT,
     /* HALT from guest */
     HAX_EXIT_HLT,
-    /* Reboot request, like because of tripple fault in guest */
+    /* Reboot request, like because of triple fault in guest */
     HAX_EXIT_STATECHANGE,
     /* the vcpu is now only paused when destroy, so simply return to hax */
     HAX_EXIT_PAUSED,
@@ -295,7 +295,7 @@ struct hax_qemu_version {
     uint32_t min_version;
 } __attribute__ ((__packed__));
 
-/* The mac specfic interface to qemu, mostly is ioctl related */
+/* The mac specific interface to qemu, mostly is ioctl related */
 struct hax_tunnel_info {
     uint64_t va;
     uint64_t io_va;
