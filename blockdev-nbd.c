@@ -191,6 +191,20 @@ void qmp_nbd_server_add(NbdServerAddOptions *arg, Error **errp)
     }
 
     /*
+     * New code should use the list 'bitmaps'; but until this code is
+     * gone, we must support the older single 'bitmap'.  Use only one.
+     */
+    if (arg->has_bitmap) {
+        if (arg->has_bitmaps) {
+            error_setg(errp, "Can't mix 'bitmap' and 'bitmaps'");
+            return;
+        }
+        arg->has_bitmaps = true;
+        arg->bitmaps = g_new0(strList, 1);
+        arg->bitmaps->value = g_strdup(arg->bitmap);
+    }
+
+    /*
      * block-export-add would default to the node-name, but we may have to use
      * the device name as a default here for compatibility.
      */
@@ -210,8 +224,8 @@ void qmp_nbd_server_add(NbdServerAddOptions *arg, Error **errp)
             .name               = g_strdup(arg->name),
             .has_description    = arg->has_description,
             .description        = g_strdup(arg->description),
-            .has_bitmap         = arg->has_bitmap,
-            .bitmap             = g_strdup(arg->bitmap),
+            .has_bitmaps        = arg->has_bitmaps,
+            .bitmaps            = g_steal_pointer(&arg->bitmaps),
             .has_alloc          = arg->alloc,
             .alloc              = arg->alloc,
         },
