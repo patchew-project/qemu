@@ -257,6 +257,7 @@ struct MachineState {
 
     /*< public >*/
 
+    void *fdt;
     char *dtb;
     char *dumpdtb;
     int phandle_start;
