@@ -439,11 +439,11 @@ static void piix4_pm_machine_ready(Notifier *n, void *opaque)
 
 static void piix4_pm_add_propeties(PIIX4PMState *s)
 {
-    static const uint8_t acpi_enable_cmd = ACPI_ENABLE;
-    static const uint8_t acpi_disable_cmd = ACPI_DISABLE;
-    static const uint32_t gpe0_blk = GPE_BASE;
-    static const uint32_t gpe0_blk_len = GPE_LEN;
-    static const uint16_t sci_int = 9;
+    static uint8_t acpi_enable_cmd = ACPI_ENABLE;
+    static uint8_t acpi_disable_cmd = ACPI_DISABLE;
+    static uint32_t gpe0_blk = GPE_BASE;
+    static uint32_t gpe0_blk_len = GPE_LEN;
+    static uint16_t sci_int = 9;
 
     object_property_add_uint8_ptr(OBJECT(s), ACPI_PM_PROP_ACPI_ENABLE_CMD,
                                   &acpi_enable_cmd, OBJ_PROP_FLAG_READ);
