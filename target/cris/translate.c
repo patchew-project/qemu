@@ -348,7 +348,7 @@ static void t_gen_cris_mstep(TCGv d, TCGv a, TCGv b, TCGv ccs)
     tcg_temp_free(t);
 }
 
-/* Extended arithmetics on CRIS.  */
+/* Extended arithmetic on CRIS.  */
 static inline void t_gen_add_flag(TCGv d, int flag)
 {
     TCGv c;
@@ -725,7 +725,7 @@ static void cris_alu_op_exec(DisasContext *dc, int op,
     switch (op) {
     case CC_OP_ADD:
         tcg_gen_add_tl(dst, a, b);
-        /* Extended arithmetics.  */
+        /* Extended arithmetic.  */
         t_gen_addx_carry(dc, dst);
         break;
     case CC_OP_ADDC:
@@ -738,7 +738,7 @@ static void cris_alu_op_exec(DisasContext *dc, int op,
         break;
     case CC_OP_SUB:
         tcg_gen_sub_tl(dst, a, b);
-        /* Extended arithmetics.  */
+        /* Extended arithmetic.  */
         t_gen_subx_carry(dc, dst);
         break;
     case CC_OP_MOVE:
@@ -764,7 +764,7 @@ static void cris_alu_op_exec(DisasContext *dc, int op,
         break;
     case CC_OP_NEG:
         tcg_gen_neg_tl(dst, b);
-        /* Extended arithmetics.  */
+        /* Extended arithmetic.  */
         t_gen_subx_carry(dc, dst);
         break;
     case CC_OP_LZ:
@@ -787,7 +787,7 @@ static void cris_alu_op_exec(DisasContext *dc, int op,
         break;
     case CC_OP_CMP:
         tcg_gen_sub_tl(dst, a, b);
-        /* Extended arithmetics.  */
+        /* Extended arithmetic.  */
         t_gen_subx_carry(dc, dst);
         break;
     default:
@@ -3053,12 +3053,12 @@ static unsigned int crisv32_decoder(CPUCRISState *env, DisasContext *dc)
  * On QEMU care needs to be taken when a branch+delayslot sequence is broken
  * and the branch and delayslot don't share pages.
  *
- * The TB contaning the branch insn will set up env->btarget and evaluate 
+ * The TB containing the branch insn will set up env->btarget and evaluate 
  * env->btaken. When the translation loop exits we will note that the branch 
  * sequence is broken and let env->dslot be the size of the branch insn (those
  * vary in length).
  *
- * The TB contaning the delayslot will have the PC of its real insn (i.e no lsb
+ * The TB containing the delayslot will have the PC of its real insn (i.e no lsb
  * set). It will also expect to have env->dslot setup with the size of the 
  * delay slot so that env->pc - env->dslot point to the branch insn. This TB 
  * will execute the dslot and take the branch, either to btarget or just one 
