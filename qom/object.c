@@ -498,6 +498,27 @@ static void object_class_property_init_all(Object *obj)
     }
 }
 
+void object_class_lock_properties(ObjectClass *oc)
+{
+    oc->properties_locked = true;
+}
+
+static bool object_class_properties_locked(ObjectClass *oc)
+{
+    GSList *i = NULL;
+
+    if (oc->properties_locked) {
+        return true;
+    }
+    for (i = oc->interfaces; i; i = i->next) {
+        ObjectClass *ic = i->data;
+        if (ic->properties_locked) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static void object_initialize_with_type(Object *obj, size_t size, TypeImpl *type)
 {
     type_initialize(type);
@@ -1192,7 +1213,14 @@ object_property_try_add(Object *obj, const char *name, const char *type,
                         void *opaque, Error **errp)
 {
     ObjectProperty *prop;
+    ObjectClass *oc = object_get_class(obj);
     size_t name_len = strlen(name);
+
+    if (set && object_class_properties_locked(oc)) {
+        error_setg(errp, "writable instance property not allowed for type %s",
+                   object_class_get_name(oc));
+        return NULL;
+    }
 
     if (name_len >= 3 && !memcmp(name + name_len - 3, "[*]", 4)) {
         int i;
