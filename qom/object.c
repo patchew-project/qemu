@@ -2450,13 +2450,22 @@ static char *object_get_type(Object *obj, Error **errp)
 }
 
 typedef struct {
-    /* Pointer to property value */
-    void *ptr;
+    bool is_offset;
+    union {
+        /* Pointer to property value.  Valid if is_offset=false */
+        void *ptr;
+        /* Offset in Object struct.  Valid if is_offset=true */
+        ptrdiff_t offset;
+    };
 } PointerProperty;
 
 static void *pointer_property_get_ptr(Object *obj, PointerProperty *prop)
 {
-    return prop->ptr;
+    if (prop->is_offset) {
+        return (void *)obj + prop->offset;
+    } else {
+        return prop->ptr;
+    }
 }
 
 static void property_get_uint8_ptr(Object *obj, Visitor *v, const char *name,
@@ -2573,10 +2582,11 @@ object_class_property_add_uint_ptr(ObjectClass *oc, const char *name,
                                    ObjectPropertyAccessor getter,
                                    ObjectPropertyAccessor setter,
                                    ObjectPropertyFlags flags,
-                                   void *ptr)
+                                   ptrdiff_t offset)
 {
     PointerProperty *prop = g_new0(PointerProperty, 1);
-    prop->ptr = ptr;
+    prop->is_offset = true;
+    prop->offset = offset;
     return object_class_property_add(oc, name, type,
                                      (flags & OBJ_PROP_FLAG_READ) ? getter : NULL,
                                      (flags & OBJ_PROP_FLAG_WRITE) ? setter : NULL,
@@ -2597,13 +2607,13 @@ object_property_add_uint8_ptr(Object *obj, const char *name,
 
 ObjectProperty *
 object_class_property_add_uint8_ptr(ObjectClass *klass, const char *name,
-                                    const uint8_t *v,
+                                    ptrdiff_t offset,
                                     ObjectPropertyFlags flags)
 {
     return object_class_property_add_uint_ptr(klass, name, "uint8",
                                               property_get_uint8_ptr,
                                               property_set_uint8_ptr,
-                                              flags, (void *)v);
+                                              flags, offset);
 }
 
 ObjectProperty *
@@ -2620,13 +2630,13 @@ object_property_add_uint16_ptr(Object *obj, const char *name,
 
 ObjectProperty *
 object_class_property_add_uint16_ptr(ObjectClass *klass, const char *name,
-                                     const uint16_t *v,
+                                     ptrdiff_t offset,
                                      ObjectPropertyFlags flags)
 {
     return object_class_property_add_uint_ptr(klass, name, "uint16",
                                               property_get_uint16_ptr,
                                               property_set_uint16_ptr,
-                                              flags, (void *)v);
+                                              flags, offset);
 }
 
 ObjectProperty *
@@ -2643,13 +2653,13 @@ object_property_add_uint32_ptr(Object *obj, const char *name,
 
 ObjectProperty *
 object_class_property_add_uint32_ptr(ObjectClass *klass, const char *name,
-                                     const uint32_t *v,
+                                     ptrdiff_t offset,
                                      ObjectPropertyFlags flags)
 {
     return object_class_property_add_uint_ptr(klass, name, "uint32",
                                               property_get_uint32_ptr,
                                               property_set_uint32_ptr,
-                                              flags, (void *)v);
+                                              flags, offset);
 }
 
 ObjectProperty *
@@ -2666,13 +2676,13 @@ object_property_add_uint64_ptr(Object *obj, const char *name,
 
 ObjectProperty *
 object_class_property_add_uint64_ptr(ObjectClass *klass, const char *name,
-                                     const uint64_t *v,
+                                     ptrdiff_t offset,
                                      ObjectPropertyFlags flags)
 {
     return object_class_property_add_uint_ptr(klass, name, "uint64",
                                               property_get_uint64_ptr,
                                               property_set_uint64_ptr,
-                                              flags, (void *)v);
+                                              flags, offset);
 }
 
 typedef struct {
