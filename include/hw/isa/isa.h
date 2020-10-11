@@ -9,6 +9,7 @@
 #include "qom/object.h"
 
 enum IsaIrqNumber {
+    ISA_IRQ_KBD_DEFAULT =  1,
     ISA_NUM_IRQS        = 16
 };
 
