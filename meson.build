@@ -75,6 +75,7 @@ endif
 
 with_rust = 'CONFIG_WITH_RUST' in config_host
 cargo = find_program('cargo', required: with_rust)
+cargo_wrapper = find_program('scripts/cargo_wrapper.py')
 
 if with_rust
   rs_target_triple = config_host['CONFIG_WITH_RUST_TARGET']
