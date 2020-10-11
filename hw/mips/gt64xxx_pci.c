@@ -1018,7 +1018,7 @@ static void gt64120_pci_set_irq(void *opaque, int irq_num, int level)
     if (pic_irq < 16) {
         /* The pic level is the logical OR of all the PCI irqs mapped to it. */
         pic_level = 0;
-        for (i = 0; i < 4; i++) {
+        for (i = 0; i < PCI_NUM_PINS; i++) {
             if (pic_irq == piix4_dev->config[PIIX_PIRQCA + i]) {
                 pic_level |= pci_irq_levels[i];
             }

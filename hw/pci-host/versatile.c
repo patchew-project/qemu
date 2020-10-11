@@ -75,7 +75,7 @@ enum {
 struct PCIVPBState {
     PCIHostState parent_obj;
 
-    qemu_irq irq[4];
+    qemu_irq irq[PCI_NUM_PINS];
     MemoryRegion controlregs;
     MemoryRegion mem_config;
     MemoryRegion mem_config2;
@@ -412,7 +412,7 @@ static void pci_vpb_realize(DeviceState *dev, Error **errp)
 
     object_initialize(&s->pci_dev, sizeof(s->pci_dev), TYPE_VERSATILE_PCI_HOST);
 
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < PCI_NUM_PINS; i++) {
         sysbus_init_irq(sbd, &s->irq[i]);
     }
 
@@ -422,7 +422,7 @@ static void pci_vpb_realize(DeviceState *dev, Error **errp)
         mapfn = pci_vpb_map_irq;
     }
 
-    pci_bus_irqs(&s->pci_bus, pci_vpb_set_irq, mapfn, s->irq, 4);
+    pci_bus_irqs(&s->pci_bus, pci_vpb_set_irq, mapfn, s->irq, PCI_NUM_PINS);
 
     /* Our memory regions are:
      * 0 : our control registers
