@@ -23,6 +23,8 @@ addons:
   apt:
     packages:
       # Build dependencies
+      - cargo
+      - rustc
       - libaio-dev
       - libattr1-dev
       - libbrlapi-dev
@@ -71,7 +73,7 @@ env:
   global:
     - SRC_DIR=".."
     - BUILD_DIR="build"
-    - BASE_CONFIG="--disable-docs --disable-tools"
+    - BASE_CONFIG="--disable-docs --disable-tools --with-rust"
     - TEST_BUILD_CMD=""
     - TEST_CMD="make check V=1"
     # This is broadly a list of "mainline" softmmu targets which have support across the major distros
@@ -258,6 +260,8 @@ jobs:
             # Extra toolchains
             - gcc-9
             - g++-9
+            - cargo
+            - rustc
             # Build dependencies
             - libaio-dev
             - libattr1-dev
@@ -325,6 +329,8 @@ jobs:
       dist: focal
       addons:
         apt_packages:
+          - cargo
+          - rustc
           - libaio-dev
           - libattr1-dev
           - libbrlapi-dev
@@ -358,6 +364,8 @@ jobs:
       dist: focal
       addons:
         apt_packages:
+          - cargo
+          - rustc
           - libaio-dev
           - libattr1-dev
           - libbrlapi-dev
@@ -390,6 +398,8 @@ jobs:
       dist: bionic
       addons:
         apt_packages:
+          - cargo
+          - rustc
           - libaio-dev
           - libattr1-dev
           - libbrlapi-dev
@@ -432,6 +442,8 @@ jobs:
       dist: bionic
       addons:
         apt_packages:
+          - cargo
+          - rustc
           - libaio-dev
           - libattr1-dev
           - libcap-ng-dev
@@ -461,6 +473,8 @@ jobs:
       dist: bionic
       addons:
         apt_packages:
+          - cargo
+          - rustc
           - libgcrypt20-dev
           - libgnutls28-dev
       env:
@@ -472,6 +486,8 @@ jobs:
       compiler: clang
       addons:
         apt_packages:
+          - cargo
+          - rustc
           - libaio-dev
           - libattr1-dev
           - libbrlapi-dev
