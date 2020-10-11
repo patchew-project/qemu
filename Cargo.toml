@@ -1,2 +1,5 @@
 [workspace]
-members = ["qga"]
+members = [
+  "qga",
+  "rust/common",
+]
