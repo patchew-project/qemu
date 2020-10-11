@@ -736,6 +736,7 @@ fail:
         if ((r_del < 0) && (r_del != -ENOTSUP)) {
             error_report_err(local_delete_err);
         }
+        error_free(local_delete_err);
     }
 
     bdrv_unref(bs);
