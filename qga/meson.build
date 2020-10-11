@@ -47,10 +47,21 @@ qga_ss = qga_ss.apply(config_host, strict: false)
 
 qga_rs = declare_dependency()
 if with_rust
+  qga_qapi_rs_outputs = [
+    'qga-qapi-sys-types.rs',
+  ]
+
+  qapi_gen_rs_files = custom_target('QGA QAPI Rust bindings',
+                                    output: qga_qapi_rs_outputs,
+                                    input: 'qapi-schema.json',
+                                    command: [ qapi_gen, '-r', '-o', 'qga', '-p', 'qga-', '@INPUT0@' ],
+                                    depend_files: qapi_gen_depends)
+
   cargo_qga = custom_target('cargo-qga',
                             build_by_default: true,
                             output: ['libqga.args', 'libqga.a'],
                             build_always_stale: true,
+                            depends: [qapi_gen_rs_files],
                             command: [cargo_wrapper,
                                       'build-lib',
                                       meson.current_build_dir(),
