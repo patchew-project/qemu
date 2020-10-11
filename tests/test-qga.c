@@ -307,6 +307,7 @@ static void test_qga_info(gconstpointer fix)
 
 static void test_qga_get_vcpus(gconstpointer fix)
 {
+#ifdef CONFIG_WITH_RUST
     const TestFixture *fixture = fix;
     QDict *ret;
     QList *list;
@@ -323,6 +324,7 @@ static void test_qga_get_vcpus(gconstpointer fix)
     g_assert(qdict_haskey(qobject_to(QDict, entry->value), "logical-id"));
 
     qobject_unref(ret);
+#endif
 }
 
 static void test_qga_get_fsinfo(gconstpointer fix)

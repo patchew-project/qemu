@@ -577,3 +577,17 @@ GuestFileRead *qmp_guest_file_read(int64_t handle, bool has_count,
 
     return read_data;
 }
+
+#ifndef CONFIG_WITH_RUST
+GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
+{
+    error_setg(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
+int64_t qmp_guest_set_vcpus(GuestLogicalProcessorList *vcpus, Error **errp)
+{
+    error_setg(errp, QERR_UNSUPPORTED);
+    return 0;
+}
+#endif

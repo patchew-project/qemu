@@ -41,3 +41,21 @@ mod hostname;
 extern "C" fn qmp_guest_get_host_name(errp: *mut *mut sys::Error) -> *mut qapi_sys::GuestHostName {
     qmp!(hostname::get(), errp)
 }
+
+mod vcpus;
+
+#[no_mangle]
+extern "C" fn qmp_guest_get_vcpus(
+    errp: *mut *mut sys::Error,
+) -> *mut qapi_sys::GuestLogicalProcessorList {
+    qmp!(vcpus::get(), errp)
+}
+
+#[no_mangle]
+extern "C" fn qmp_guest_set_vcpus(
+    vcpus: *const qapi_sys::GuestLogicalProcessorList,
+    errp: *mut *mut sys::Error,
+) -> libc::c_longlong {
+    let vcpus = unsafe { from_qemu_none(qapi::NewPtr(vcpus)) };
+    qmp!(vcpus::set(vcpus), errp, -1)
+}
