@@ -1886,7 +1886,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
                     Rewrite to take IRQ from TPM device model and
                     fix default IRQ value there to use some unused IRQ
                  */
-                /* aml_append(crs, aml_irq_no_flags(TPM_TIS_IRQ)); */
+                /* aml_append(crs, aml_irq_no_flags(ISA_IRQ_TPM_DEFAULT)); */
                 aml_append(dev, aml_name_decl("_CRS", crs));
 
                 tpm_build_ppi_acpi(tpm, dev);

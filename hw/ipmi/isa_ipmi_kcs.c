@@ -144,7 +144,7 @@ static void *isa_ipmi_kcs_get_backend_data(IPMIInterface *ii)
 
 static Property ipmi_isa_properties[] = {
     DEFINE_PROP_UINT32("ioport", ISAIPMIKCSDevice, kcs.io_base,  0xca2),
-    DEFINE_PROP_INT32("irq",   ISAIPMIKCSDevice, isairq,  5),
+    DEFINE_PROP_INT32("irq", ISAIPMIKCSDevice, isairq, ISA_IRQ_TPM_DEFAULT),
     DEFINE_PROP_END_OF_LIST(),
 };
 
