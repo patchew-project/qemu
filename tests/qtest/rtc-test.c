@@ -278,7 +278,7 @@ static void alarm_time(void)
     /* set DEC mode */
     cmos_write(RTC_REG_B, REG_B_24H | REG_B_DM);
 
-    g_assert(!get_irq(RTC_ISA_IRQ));
+    g_assert(!get_irq(ISA_IRQ_RTC_DEFAULT));
     cmos_read(RTC_REG_C);
 
     now.tm_sec = (now.tm_sec + 2) % 60;
@@ -288,14 +288,14 @@ static void alarm_time(void)
     cmos_write(RTC_REG_B, cmos_read(RTC_REG_B) | REG_B_AIE);
 
     for (i = 0; i < 2 + wiggle; i++) {
-        if (get_irq(RTC_ISA_IRQ)) {
+        if (get_irq(ISA_IRQ_RTC_DEFAULT)) {
             break;
         }
 
         clock_step(1000000000);
     }
 
-    g_assert(get_irq(RTC_ISA_IRQ));
+    g_assert(get_irq(ISA_IRQ_RTC_DEFAULT));
     g_assert((cmos_read(RTC_REG_C) & REG_C_AF) != 0);
     g_assert(cmos_read(RTC_REG_C) == 0);
 }
@@ -645,7 +645,7 @@ static void uip_stuck(void)
 
 static uint64_t wait_periodic_interrupt(uint64_t real_time)
 {
-    while (!get_irq(RTC_ISA_IRQ)) {
+    while (!get_irq(ISA_IRQ_RTC_DEFAULT)) {
         real_time = clock_step_next();
     }
 

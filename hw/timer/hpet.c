@@ -196,7 +196,7 @@ static void update_irq(struct HPETTimer *timer, int set)
          * timer0 be routed to IRQ0 in NON-APIC or IRQ2 in the I/O APIC,
          * timer1 be routed to IRQ8 in NON-APIC or IRQ8 in the I/O APIC.
          */
-        route = (timer->tn == 0) ? 0 : RTC_ISA_IRQ;
+        route = (timer->tn == 0) ? 0 : ISA_IRQ_RTC_DEFAULT;
     } else {
         route = timer_int_route(timer);
     }
@@ -615,11 +615,11 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
             if (activating_bit(old_val, new_val, HPET_CFG_LEGACY)) {
                 qemu_set_irq(s->pit_enabled, 0);
                 qemu_irq_lower(s->irqs[0]);
-                qemu_irq_lower(s->irqs[RTC_ISA_IRQ]);
+                qemu_irq_lower(s->irqs[ISA_IRQ_RTC_DEFAULT]);
             } else if (deactivating_bit(old_val, new_val, HPET_CFG_LEGACY)) {
                 qemu_irq_lower(s->irqs[0]);
                 qemu_set_irq(s->pit_enabled, 1);
-                qemu_set_irq(s->irqs[RTC_ISA_IRQ], s->rtc_irq_level);
+                qemu_set_irq(s->irqs[ISA_IRQ_RTC_DEFAULT], s->rtc_irq_level);
             }
             break;
         case HPET_CFG + 4:
@@ -711,7 +711,7 @@ static void hpet_handle_legacy_irq(void *opaque, int n, int level)
     } else {
         s->rtc_irq_level = level;
         if (!hpet_in_legacy_mode(s)) {
-            qemu_set_irq(s->irqs[RTC_ISA_IRQ], level);
+            qemu_set_irq(s->irqs[ISA_IRQ_RTC_DEFAULT], level);
         }
     }
 }
