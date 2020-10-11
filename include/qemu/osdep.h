@@ -665,16 +665,6 @@ static inline void qemu_reset_optind(void)
 }
 
 /**
- * qemu_get_host_name:
- * @errp: Error object
- *
- * Operating system agnostic way of querying host name.
- *
- * Returns allocated hostname (caller should free), NULL on failure.
- */
-char *qemu_get_host_name(Error **errp);
-
-/**
  * qemu_get_host_physmem:
  *
  * Operating system agnostic way of querying host memory.

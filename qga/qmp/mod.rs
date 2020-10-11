@@ -34,3 +34,10 @@ macro_rules! qmp {
         }
     }};
 }
+
+mod hostname;
+
+#[no_mangle]
+extern "C" fn qmp_guest_get_host_name(errp: *mut *mut sys::Error) -> *mut qapi_sys::GuestHostName {
+    qmp!(hostname::get(), errp)
+}

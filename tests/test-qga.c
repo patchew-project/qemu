@@ -863,6 +863,7 @@ static void test_qga_guest_exec_invalid(gconstpointer fix)
 
 static void test_qga_guest_get_host_name(gconstpointer fix)
 {
+#ifdef CONFIG_WITH_RUST
     const TestFixture *fixture = fix;
     QDict *ret, *val;
 
@@ -874,6 +875,7 @@ static void test_qga_guest_get_host_name(gconstpointer fix)
     g_assert(qdict_haskey(val, "host-name"));
 
     qobject_unref(ret);
+#endif
 }
 
 static void test_qga_guest_get_timezone(gconstpointer fix)

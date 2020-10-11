@@ -512,25 +512,13 @@ int ga_parse_whence(GuestFileWhence *whence, Error **errp)
     return -1;
 }
 
+#ifndef CONFIG_WITH_RUST
 GuestHostName *qmp_guest_get_host_name(Error **errp)
 {
-    GuestHostName *result = NULL;
-    g_autofree char *hostname = qemu_get_host_name(errp);
-
-    /*
-     * We want to avoid using g_get_host_name() because that
-     * caches the result and we wouldn't reflect changes in the
-     * host name.
-     */
-
-    if (!hostname) {
-        hostname = g_strdup("localhost");
-    }
-
-    result = g_new0(GuestHostName, 1);
-    result->host_name = g_steal_pointer(&hostname);
-    return result;
+    error_setg(errp, QERR_UNSUPPORTED);
+    return NULL;
 }
+#endif
 
 GuestTimezone *qmp_guest_get_timezone(Error **errp)
 {
