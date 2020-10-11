@@ -64,3 +64,6 @@
 [submodule "roms/vbootrom"]
 	path = roms/vbootrom
 	url = https://git.qemu.org/git/vbootrom.git
+[submodule "rust/vendored"]
+	path = rust/vendored
+	url = https://github.com/elmarco/qemu-rust-vendored.git

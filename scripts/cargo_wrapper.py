@@ -51,6 +51,7 @@ def build_lib(args: argparse.Namespace) -> None:
         target_dir,
         "--manifest-path",
         manifest_path,
+        "--offline",
     ]
     if args.target_triple:
         cargo_cmd += ["--target", args.target_triple]
