@@ -15,6 +15,7 @@ enum IsaIrqNumber {
     ISA_IRQ_FDC_DEFAULT =  6,
     ISA_IRQ_PAR_DEFAULT =  7,
     ISA_IRQ_RTC_DEFAULT =  8,
+    ISA_IRQ_NET_DEFAULT =  9,
     ISA_NUM_IRQS        = 16
 };
 
