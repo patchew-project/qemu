@@ -73,6 +73,28 @@ if cpu in ['x86', 'x86_64']
   }
 endif
 
+with_rust = 'CONFIG_WITH_RUST' in config_host
+cargo = find_program('cargo', required: with_rust)
+
+if with_rust
+  rs_target_triple = config_host['CONFIG_WITH_RUST_TARGET']
+  if meson.is_cross_build()
+    # more default target mappings may be added over time
+    if rs_target_triple == '' and targetos == 'windows'
+      rs_target_triple = host_machine.cpu() + '-pc-windows-gnu'
+    endif
+    if rs_target_triple == ''
+      error('cross-compiling, but no Rust target-triple defined.')
+    endif
+  endif
+endif
+
+if get_option('optimization') in ['0', '1', 'g']
+  rs_build_type = 'debug'
+else
+  rs_build_type = 'release'
+endif
+
 ##################
 # Compiler flags #
 ##################
@@ -1770,6 +1792,7 @@ endif
 if targetos == 'darwin'
   summary_info += {'Objective-C compiler': meson.get_compiler('objc').cmd_array()[0]}
 endif
+summary_info += {'Rust support':      with_rust}
 summary_info += {'ARFLAGS':           config_host['ARFLAGS']}
 summary_info += {'CFLAGS':            ' '.join(get_option('c_args')
                                                + ['-O' + get_option('optimization')]

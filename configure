@@ -446,6 +446,8 @@ meson=""
 ninja=""
 skip_meson=no
 gettext=""
+with_rust="auto"
+with_rust_target=""
 
 bogus_os="no"
 malloc_trim="auto"
@@ -1519,6 +1521,12 @@ for opt do
   ;;
   --disable-libdaxctl) libdaxctl=no
   ;;
+  --with-rust) with_rust=yes
+  ;;
+  --without-rust) with_rust=no
+  ;;
+  --with-rust-target=*) with_rust_target="$optarg"
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1666,6 +1674,8 @@ Advanced options (experts only):
   --extra-ldflags=LDFLAGS  append extra linker flags LDFLAGS
   --cross-cc-ARCH=CC       use compiler when building ARCH guest test cases
   --cross-cc-flags-ARCH=   use compiler flags when building ARCH guest tests
+  --with-rust              enable Rust compilation
+  --with-rust-target=RTT   use the given Rust target triple
   --make=MAKE              use specified make [$make]
   --python=PYTHON          use specified python [$python]
   --sphinx-build=SPHINX    use specified sphinx-build [$sphinx_build]
@@ -1916,6 +1926,10 @@ if test -z "$ninja"; then
             break
         fi
     done
+fi
+
+if test "$with_rust" = auto && has cargo; then
+    with_rust=yes
 fi
 
 # Check that the C compiler works. Doing this here before testing
@@ -7045,6 +7059,10 @@ fi
 
 if test "$safe_stack" = "yes"; then
   echo "CONFIG_SAFESTACK=y" >> $config_host_mak
+fi
+if test "$with_rust" = "yes" ; then
+  echo "CONFIG_WITH_RUST=y" >> $config_host_mak
+  echo "CONFIG_WITH_RUST_TARGET=$with_rust_target" >> $config_host_mak
 fi
 
 # If we're using a separate build tree, set it up now.
