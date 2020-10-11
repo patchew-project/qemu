@@ -76,6 +76,10 @@ static void grackle_realize(DeviceState *dev, Error **errp)
     GrackleState *s = GRACKLE_PCI_HOST_BRIDGE(dev);
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
 
+    if (!s->pic) {
+        error_setg(errp, TYPE_GRACKLE_PCI_HOST_BRIDGE ": 'pic' link not set");
+        return;
+    }
     phb->bus = pci_register_root_bus(dev, NULL,
                                      pci_grackle_set_irq,
                                      pci_grackle_map_irq,
