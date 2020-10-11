@@ -11,6 +11,8 @@ from qapi.common import *
 from qapi.gen import QAPIGen, QAPISchemaVisitor
 
 
+rs_lists = set()
+
 rs_name_trans = str.maketrans('.-', '__')
 
 # Map @name to a valid Rust identifier.
@@ -42,12 +44,55 @@ def rs_name(name, protect=True):
     return name
 
 
+def rs_type(c_type, ns='qapi::', optional=False):
+    vec = False
+    to_rs = {
+        'char': 'i8',
+        'int8_t': 'i8',
+        'uint8_t': 'u8',
+        'int16_t': 'i16',
+        'uint16_t': 'u16',
+        'int32_t': 'i32',
+        'uint32_t': 'u32',
+        'int64_t': 'i64',
+        'uint64_t': 'u64',
+        'double': 'f64',
+        'bool': 'bool',
+        'str': 'String',
+    }
+    if c_type.startswith('const '):
+        c_type = c_type[6:]
+    if c_type.endswith(pointer_suffix):
+        c_type = c_type.rstrip(pointer_suffix).strip()
+        if c_type.endswith('List'):
+            c_type = c_type[:-4]
+            vec = True
+        else:
+            to_rs = {
+                'char': 'String',
+            }
+
+    if c_type in to_rs:
+        ret = to_rs[c_type]
+    else:
+        ret = ns + c_type
+
+    if vec:
+        ret = 'Vec<%s>' % ret
+    if optional:
+        return 'Option<%s>' % ret
+    else:
+        return ret
+
+
 def rs_ctype_parse(c_type):
     is_pointer = False
     if c_type.endswith(pointer_suffix):
         is_pointer = True
         c_type = c_type.rstrip(pointer_suffix).strip()
     is_list = c_type.endswith('List')
+    if is_list:
+        rs_lists.add(c_type)
     is_const = False
     if c_type.startswith('const '):
         is_const = True
@@ -101,6 +146,39 @@ def to_camel_case(value):
         return 'r#' + value
     else:
         return value
+
+
+def to_qemu_none(c_type, name):
+    (is_pointer, _, is_list, _) = rs_ctype_parse(c_type)
+
+    if is_pointer:
+        if c_type == 'char':
+            return mcgen('''
+    let %(name)s_ = CString::new(%(name)s).unwrap();
+    let %(name)s = %(name)s_.as_ptr();
+''', name=name)
+        elif is_list:
+            return mcgen('''
+    let %(name)s_ = NewPtr(%(name)s).to_qemu_none();
+    let %(name)s = %(name)s_.0.0;
+''', name=name)
+        else:
+            return mcgen('''
+    let %(name)s_ = %(name)s.to_qemu_none();
+    let %(name)s = %(name)s_.0;
+''', name=name)
+    return ''
+
+
+def from_qemu(var_name, c_type, full=False):
+    (is_pointer, _, is_list, _) = rs_ctype_parse(c_type)
+    ptr = '{} as *{} _'.format(var_name, 'mut' if full else 'const')
+    if is_list:
+        ptr = 'NewPtr({})'.format(ptr)
+    if is_pointer:
+        return 'from_qemu_{}({})'.format('full' if full else 'none', ptr)
+    else:
+        return var_name
 
 
 class QAPIGenRs(QAPIGen):
