@@ -8,7 +8,9 @@
 #include "hw/qdev-core.h"
 #include "qom/object.h"
 
-#define ISA_NUM_IRQS 16
+enum IsaIrqNumber {
+    ISA_NUM_IRQS        = 16
+};
 
 #define TYPE_ISA_DEVICE "isa-device"
 OBJECT_DECLARE_TYPE(ISADevice, ISADeviceClass, ISA_DEVICE)
