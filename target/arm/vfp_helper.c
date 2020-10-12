@@ -189,8 +189,10 @@ uint32_t vfp_get_fpscr(CPUARMState *env)
 
 void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
 {
+    ARMCPU *cpu = env_archcpu(env);
+
     /* When ARMv8.2-FP16 is not supported, FZ16 is RES0.  */
-    if (!cpu_isar_feature(any_fp16, env_archcpu(env))) {
+    if (!cpu_isar_feature(any_fp16, cpu)) {
         val &= ~FPCR_FZ16;
     }
 
@@ -198,8 +200,14 @@ void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
         /*
          * M profile FPSCR is RES0 for the QC, STRIDE, FZ16, LEN bits
          * and also for the trapped-exception-handling bits IxE.
+         * From v8.1M with the low-overhead-loop extension bits
+         * [18:16] are used for LTPSIZE and (since we don't implement
+         * MVE) always read as 4 and ignore writes.
          */
         val &= 0xf7c0009f;
+        if (cpu_isar_feature(aa32_lob, cpu)) {
+            val |= 4 << 16;
+        }
     }
 
     vfp_set_fpscr_to_host(env, val);
@@ -212,9 +220,18 @@ void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
      * (which are stored in fp_status), and the other RES0 bits
      * in between, then we clear all of the low 16 bits.
      */
-    env->vfp.xregs[ARM_VFP_FPSCR] = val & 0xf7c80000;
-    env->vfp.vec_len = (val >> 16) & 7;
-    env->vfp.vec_stride = (val >> 20) & 3;
+    if (cpu_isar_feature(aa32_lob, cpu)) {
+        /*
+         * M-profile low-overhead-loop extension: [18:16] are LTPSIZE
+         * and we keep them in vfp.xregs[].
+         */
+        env->vfp.xregs[ARM_VFP_FPSCR] = val & 0xf7cf0000;
+    } else {
+        /* Those bits might be the old-style short vector length/stride */
+        env->vfp.xregs[ARM_VFP_FPSCR] = val & 0xf7c80000;
+        env->vfp.vec_len = (val >> 16) & 7;
+        env->vfp.vec_stride = (val >> 20) & 3;
+    }
 
     /*
      * The bit we set within fpscr_q is arbitrary; the register as a

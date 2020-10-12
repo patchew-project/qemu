@@ -255,6 +255,11 @@ static void arm_cpu_reset(DeviceState *dev)
         uint8_t *rom;
         uint32_t vecbase;
 
+        if (cpu_isar_feature(aa32_lob, cpu)) {
+            /* LTPSIZE is constant 4 if MVE not implemented */
+            env->vfp.xregs[ARM_VFP_FPSCR] |= 4 << 16;
+        }
+
         if (arm_feature(env, ARM_FEATURE_M_SECURITY)) {
             env->v7m.secure = true;
         } else {
