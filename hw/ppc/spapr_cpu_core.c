@@ -227,11 +227,13 @@ static void spapr_cpu_core_unrealize(DeviceState *dev)
     CPUCore *cc = CPU_CORE(dev);
     int i;
 
-    qemu_unregister_reset(spapr_cpu_core_reset_handler, sc);
-
     for (i = 0; i < cc->nr_threads; i++) {
-        spapr_unrealize_vcpu(sc->threads[i], sc);
+        if (sc->threads[i]) {
+            spapr_unrealize_vcpu(sc->threads[i], sc);
+        }
     }
+
+    qemu_unregister_reset(spapr_cpu_core_reset_handler, sc);
 }
 
 static bool spapr_realize_vcpu(PowerPCCPU *cpu, SpaprMachineState *spapr,
@@ -326,18 +328,13 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
         }
     }
 
+    qemu_register_reset(spapr_cpu_core_reset_handler, sc);
+
     for (j = 0; j < cc->nr_threads; j++) {
         if (!spapr_realize_vcpu(sc->threads[j], spapr, sc, errp)) {
-            goto err_unrealize;
+            spapr_cpu_core_unrealize(dev);
+            return;
         }
-    }
-
-    qemu_register_reset(spapr_cpu_core_reset_handler, sc);
-    return;
-
-err_unrealize:
-    while (--j >= 0) {
-        spapr_unrealize_vcpu(sc->threads[j], sc);
     }
 }
 
