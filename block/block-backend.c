@@ -1376,14 +1376,17 @@ BlockAIOCB *blk_abort_aio_request(BlockBackend *blk,
                                   void *opaque, int ret)
 {
     struct BlockBackendAIOCB *acb;
+    AioContext *ctx;
 
     blk_inc_in_flight(blk);
     acb = blk_aio_get(&block_backend_aiocb_info, blk, cb, opaque);
     acb->blk = blk;
     acb->ret = ret;
-
-    replay_bh_schedule_oneshot_event(blk_get_aio_context(blk),
-                                     error_callback_bh, acb);
+    ctx = blk_get_aio_context(blk);
+    if (!replay_bh_schedule_oneshot_event(ctx, error_callback_bh, acb)) {
+        /* regular case without replay */
+        aio_bh_schedule_oneshot(ctx, error_callback_bh, acb);
+    }
     return &acb->common;
 }
 
@@ -1447,8 +1450,12 @@ static BlockAIOCB *blk_aio_prwv(BlockBackend *blk, int64_t offset, int bytes,
 
     acb->has_returned = true;
     if (acb->rwco.ret != NOT_DONE) {
-        replay_bh_schedule_oneshot_event(blk_get_aio_context(blk),
-                                         blk_aio_complete_bh, acb);
+        AioContext *ctx = blk_get_aio_context(blk);
+
+        if (!replay_bh_schedule_oneshot_event(ctx, blk_aio_complete_bh, acb)) {
+            /* regular case without replay */
+            aio_bh_schedule_oneshot(ctx, blk_aio_complete_bh, acb);
+        }
     }
 
     return &acb->common;

@@ -173,14 +173,14 @@ bool replay_events_enabled(void);
 /* Flushes events queue */
 void replay_flush_events(void);
 /*! Adds bottom half event to the queue */
-void replay_bh_schedule_event(QEMUBH *bh);
+bool replay_bh_schedule_event(QEMUBH *bh);
 /* Adds oneshot bottom half event to the queue */
-void replay_bh_schedule_oneshot_event(AioContext *ctx,
+bool replay_bh_schedule_oneshot_event(AioContext *ctx,
     QEMUBHFunc *cb, void *opaque);
 /*! Adds input event to the queue */
-void replay_input_event(QemuConsole *src, InputEvent *evt);
+bool replay_input_event(QemuConsole *src, InputEvent *evt);
 /*! Adds input sync event to the queue */
-void replay_input_sync_event(void);
+bool replay_input_sync_event(void);
 /*! Adds block layer event to the queue */
 void replay_block_event(QEMUBH *bh, uint64_t id);
 /*! Returns ID for the next block event */

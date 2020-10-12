@@ -117,24 +117,36 @@ InputEvent *replay_read_input_event(void)
     return QAPI_CLONE(InputEvent, &evt);
 }
 
-void replay_input_event(QemuConsole *src, InputEvent *evt)
+/*
+ * return true if replay has eaten the event,
+ * false if normal event handling should be done.
+ */
+bool replay_input_event(QemuConsole *src, InputEvent *evt)
 {
     if (replay_mode == REPLAY_MODE_PLAY) {
         /* Nothing */
+        return true;
     } else if (replay_mode == REPLAY_MODE_RECORD) {
         replay_add_input_event(QAPI_CLONE(InputEvent, evt));
+        return true;
     } else {
-        qemu_input_event_send_impl(src, evt);
+        return false;
     }
 }
 
-void replay_input_sync_event(void)
+/*
+ * return true if replay has eaten the event,
+ * false if normal event handling should be done.
+ */
+bool replay_input_sync_event(void)
 {
     if (replay_mode == REPLAY_MODE_PLAY) {
         /* Nothing */
+        return true;
     } else if (replay_mode == REPLAY_MODE_RECORD) {
         replay_add_input_sync_event();
+        return true;
     } else {
-        qemu_input_event_sync_impl();
+        return false;
     }
 }

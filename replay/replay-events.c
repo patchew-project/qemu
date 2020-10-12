@@ -128,24 +128,34 @@ void replay_add_event(ReplayAsyncEventKind event_kind,
     QTAILQ_INSERT_TAIL(&events_list, event, events);
 }
 
-void replay_bh_schedule_event(QEMUBH *bh)
+/*
+ * return true if replay has eaten the event,
+ * false if normal event handling should be done.
+ */
+bool replay_bh_schedule_event(QEMUBH *bh)
 {
     if (events_enabled) {
         uint64_t id = replay_get_current_icount();
         replay_add_event(REPLAY_ASYNC_EVENT_BH, bh, NULL, id);
+        return true;
     } else {
-        qemu_bh_schedule(bh);
+        return false;
     }
 }
 
-void replay_bh_schedule_oneshot_event(AioContext *ctx,
-    QEMUBHFunc *cb, void *opaque)
+/*
+ * return true if replay has eaten the event,
+ * false if normal event handling should be done.
+ */
+bool replay_bh_schedule_oneshot_event(AioContext *ctx,
+                                      QEMUBHFunc *cb, void *opaque)
 {
     if (events_enabled) {
         uint64_t id = replay_get_current_icount();
         replay_add_event(REPLAY_ASYNC_EVENT_BH_ONESHOT, cb, opaque, id);
+        return true;
     } else {
-        aio_bh_schedule_oneshot(ctx, cb, opaque);
+        return false;
     }
 }
 

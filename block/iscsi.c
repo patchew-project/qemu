@@ -283,8 +283,13 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
     }
 
     if (iTask->co) {
-        replay_bh_schedule_oneshot_event(iTask->iscsilun->aio_context,
-                                         iscsi_co_generic_bh_cb, iTask);
+        AioContext *ctx = iTask->iscsilun->aio_context;
+
+        if (!replay_bh_schedule_oneshot_event(ctx,
+                                              iscsi_co_generic_bh_cb, iTask)) {
+            /* regular case without replay */
+            aio_bh_schedule_oneshot(ctx, iscsi_co_generic_bh_cb, iTask);
+        }
     } else {
         iTask->complete = 1;
     }

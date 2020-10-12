@@ -857,13 +857,17 @@ static void rbd_finish_bh(void *opaque)
  */
 static void rbd_finish_aiocb(rbd_completion_t c, RADOSCB *rcb)
 {
+    AioContext *ctx;
     RBDAIOCB *acb = rcb->acb;
 
     rcb->ret = rbd_aio_get_return_value(c);
     rbd_aio_release(c);
 
-    replay_bh_schedule_oneshot_event(bdrv_get_aio_context(acb->common.bs),
-                                     rbd_finish_bh, rcb);
+    ctx = bdrv_get_aio_context(acb->common.bs);
+    if (!replay_bh_schedule_oneshot_event(ctx, rbd_finish_bh, rcb)) {
+        /* regular case without replay */
+        aio_bh_schedule_oneshot(ctx, rbd_finish_bh, rcb);
+    }
 }
 
 static int rbd_aio_discard_wrapper(rbd_image_t image,

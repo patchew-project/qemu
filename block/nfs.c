@@ -246,7 +246,9 @@ static void
 nfs_co_generic_cb(int ret, struct nfs_context *nfs, void *data,
                   void *private_data)
 {
+    AioContext *ctx;
     NFSRPC *task = private_data;
+
     task->ret = ret;
     assert(!task->st);
     if (task->ret > 0 && task->iov) {
@@ -259,8 +261,12 @@ nfs_co_generic_cb(int ret, struct nfs_context *nfs, void *data,
     if (task->ret < 0) {
         error_report("NFS Error: %s", nfs_get_error(nfs));
     }
-    replay_bh_schedule_oneshot_event(task->client->aio_context,
-                                     nfs_co_generic_bh_cb, task);
+
+    ctx = task->client->aio_context;
+    if (!replay_bh_schedule_oneshot_event(ctx, nfs_co_generic_bh_cb, task)) {
+        /* regular case without replay */
+        aio_bh_schedule_oneshot(ctx, nfs_co_generic_bh_cb, task);
+    }
 }
 
 static int coroutine_fn nfs_co_preadv(BlockDriverState *bs, uint64_t offset,

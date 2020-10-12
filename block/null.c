@@ -180,8 +180,12 @@ static inline BlockAIOCB *null_aio_common(BlockDriverState *bs,
         timer_mod_ns(&acb->timer,
                      qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + s->latency_ns);
     } else {
-        replay_bh_schedule_oneshot_event(bdrv_get_aio_context(bs),
-                                         null_bh_cb, acb);
+        AioContext *ctx = bdrv_get_aio_context(bs);
+
+        if (!replay_bh_schedule_oneshot_event(ctx, null_bh_cb, acb)) {
+            /* regular case without replay */
+            aio_bh_schedule_oneshot(ctx, null_bh_cb, acb);
+        }
     }
     return &acb->common;
 }

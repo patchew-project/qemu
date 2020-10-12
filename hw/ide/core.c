@@ -493,7 +493,10 @@ static void ide_issue_trim_cb(void *opaque, int ret)
 done:
     iocb->aiocb = NULL;
     if (iocb->bh) {
-        replay_bh_schedule_event(iocb->bh);
+        if (!replay_bh_schedule_event(iocb->bh)) {
+            /* regular case without replay */
+            qemu_bh_schedule(iocb->bh);
+        }
     }
 }
 
@@ -2277,6 +2280,7 @@ void ide_ctrl_write(void *opaque, uint32_t addr, uint32_t val)
     IDEBus *bus = opaque;
     IDEState *s;
     int i;
+    AioContext *ctx;
 
     trace_ide_ctrl_write(addr, val, bus);
 
@@ -2289,8 +2293,12 @@ void ide_ctrl_write(void *opaque, uint32_t addr, uint32_t val)
             s = &bus->ifs[i];
             s->status |= BUSY_STAT;
         }
-        replay_bh_schedule_oneshot_event(qemu_get_aio_context(),
-                                         ide_bus_perform_srst, bus);
+
+        ctx = qemu_get_aio_context();
+        if (!replay_bh_schedule_oneshot_event(ctx, ide_bus_perform_srst, bus)) {
+            /* regular case without replay */
+            aio_bh_schedule_oneshot(ctx, ide_bus_perform_srst, bus);
+        }
     }
 
     bus->cmd = val;
