@@ -198,13 +198,14 @@ void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
 
     if (arm_feature(env, ARM_FEATURE_M)) {
         /*
-         * M profile FPSCR is RES0 for the QC, STRIDE, FZ16, LEN bits
+         * M profile FPSCR is RES0 for the QC, STRIDE, LEN bits
          * and also for the trapped-exception-handling bits IxE.
          * From v8.1M with the low-overhead-loop extension bits
          * [18:16] are used for LTPSIZE and (since we don't implement
          * MVE) always read as 4 and ignore writes.
+         * FZ16 has already been handled as RES0 above if needed.
          */
-        val &= 0xf7c0009f;
+        val &= 0xf7c8009f;
         if (cpu_isar_feature(aa32_lob, cpu)) {
             val |= 4 << 16;
         }
