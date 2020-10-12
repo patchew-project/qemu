@@ -34,7 +34,6 @@ typedef struct StreamBlockJob {
     BlockDriverState *base_overlay; /* COW overlay (stream from this) */
     BlockDriverState *above_base;   /* Node directly above the base */
     BlockdevOnError on_error;
-    char *backing_file_str;
     bool bs_read_only;
     bool chain_frozen;
 } StreamBlockJob;
@@ -103,8 +102,6 @@ static void stream_clean(Job *job)
         blk_set_perm(bjob->blk, 0, BLK_PERM_ALL, &error_abort);
         bdrv_reopen_set_read_only(bs, true, NULL);
     }
-
-    g_free(s->backing_file_str);
 }
 
 static int coroutine_fn stream_run(Job *job, Error **errp)
@@ -220,7 +217,7 @@ static const BlockJobDriver stream_job_driver = {
 };
 
 void stream_start(const char *job_id, BlockDriverState *bs,
-                  BlockDriverState *base, const char *backing_file_str,
+                  BlockDriverState *base,
                   int creation_flags, int64_t speed,
                   BlockdevOnError on_error,
                   const char *filter_node_name,
@@ -295,7 +292,6 @@ void stream_start(const char *job_id, BlockDriverState *bs,
 
     s->base_overlay = base_overlay;
     s->above_base = above_base;
-    s->backing_file_str = g_strdup(backing_file_str);
     s->bs_read_only = bs_read_only;
     s->chain_frozen = true;
 
