@@ -189,7 +189,11 @@ static void sabre_config_write(void *opaque, hwaddr addr,
     case 0xa800 ... 0xa80f: /* Interrupt diagnostics */
     case 0xf000 ... 0xf01f: /* FFB config, memory control */
         /* we don't care */
+        break;
     default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Register 0x%04" HWADDR_PRIX " is reserved\n",
+                      __func__, addr);
         break;
     }
 }
@@ -235,7 +239,11 @@ static uint64_t sabre_config_read(void *opaque,
     case 0xa800 ... 0xa80f: /* Interrupt diagnostics */
     case 0xf000 ... 0xf01f: /* FFB config, memory control */
         /* we don't care */
+        break;
     default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Register 0x%04" HWADDR_PRIX " is reserved\n",
+                      __func__, addr);
         break;
     }
     trace_sabre_config_read(addr, val);
