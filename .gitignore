@@ -1,5 +1,5 @@
 /GNUmakefile
-/build/
+/build*/
 *.pyc
 .sdk
 .stgit-*
@@ -10,3 +10,5 @@ TAGS
 *~
 *.ast_raw
 *.depend_raw
+/meson/
+/roms/**/*
