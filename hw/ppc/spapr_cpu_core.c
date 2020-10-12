@@ -181,7 +181,7 @@ static const VMStateDescription vmstate_spapr_cpu_state = {
     }
 };
 
-static void spapr_delete_vcpu(PowerPCCPU *cpu, SpaprCpuCore *sc)
+static void spapr_delete_vcpu(PowerPCCPU *cpu)
 {
     SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
 
@@ -197,7 +197,7 @@ static void spapr_unrealize_vcpu(PowerPCCPU *cpu, SpaprCpuCore *sc)
     }
     spapr_irq_cpu_intc_destroy(SPAPR_MACHINE(qdev_get_machine()), cpu);
     cpu_remove_sync(CPU(cpu));
-    spapr_delete_vcpu(cpu, sc);
+    spapr_delete_vcpu(cpu);
 }
 
 /*
@@ -343,7 +343,7 @@ err_unrealize:
     }
 err:
     while (--i >= 0) {
-        spapr_delete_vcpu(sc->threads[i], sc);
+        spapr_delete_vcpu(sc->threads[i]);
     }
     g_free(sc->threads);
 }
