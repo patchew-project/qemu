@@ -197,7 +197,6 @@ static void spapr_unrealize_vcpu(PowerPCCPU *cpu, SpaprCpuCore *sc)
     }
     spapr_irq_cpu_intc_destroy(SPAPR_MACHINE(qdev_get_machine()), cpu);
     cpu_remove_sync(CPU(cpu));
-    spapr_delete_vcpu(cpu);
 }
 
 /*
@@ -233,7 +232,6 @@ static void spapr_cpu_core_unrealize(DeviceState *dev)
     for (i = 0; i < cc->nr_threads; i++) {
         spapr_unrealize_vcpu(sc->threads[i], sc);
     }
-    g_free(sc->threads);
 }
 
 static bool spapr_realize_vcpu(PowerPCCPU *cpu, SpaprMachineState *spapr,
@@ -320,11 +318,11 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    sc->threads = g_new(PowerPCCPU *, cc->nr_threads);
+    sc->threads = g_new0(PowerPCCPU *, cc->nr_threads);
     for (i = 0; i < cc->nr_threads; i++) {
         sc->threads[i] = spapr_create_vcpu(sc, i, errp);
         if (!sc->threads[i]) {
-            goto err;
+            return;
         }
     }
 
@@ -341,11 +339,6 @@ err_unrealize:
     while (--j >= 0) {
         spapr_unrealize_vcpu(sc->threads[j], sc);
     }
-err:
-    while (--i >= 0) {
-        spapr_delete_vcpu(sc->threads[i]);
-    }
-    g_free(sc->threads);
 }
 
 static Property spapr_cpu_core_properties[] = {
@@ -367,6 +360,20 @@ static void spapr_cpu_core_class_init(ObjectClass *oc, void *data)
     scc->cpu_type = data;
 }
 
+static void spapr_cpu_core_instance_finalize(Object *obj)
+{
+    SpaprCpuCore *sc = SPAPR_CPU_CORE(obj);
+    CPUCore *cc = CPU_CORE(sc);
+    int i;
+
+    for (i = 0; i < cc->nr_threads; i++) {
+        if (sc->threads[i]) {
+            spapr_delete_vcpu(sc->threads[i]);
+        }
+    }
+    g_free(sc->threads);
+}
+
 #define DEFINE_SPAPR_CPU_CORE_TYPE(cpu_model) \
     {                                                   \
         .parent = TYPE_SPAPR_CPU_CORE,                  \
@@ -382,6 +389,7 @@ static const TypeInfo spapr_cpu_core_type_infos[] = {
         .abstract = true,
         .instance_size = sizeof(SpaprCpuCore),
         .class_size = sizeof(SpaprCpuCoreClass),
+        .instance_finalize = spapr_cpu_core_instance_finalize,
     },
     DEFINE_SPAPR_CPU_CORE_TYPE("970_v2.2"),
     DEFINE_SPAPR_CPU_CORE_TYPE("970mp_v1.0"),
