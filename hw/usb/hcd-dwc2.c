@@ -324,6 +324,12 @@ babble:
             }
         }
 
+        if (mps == 0) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                    "%s: Bad HCCHAR_MPS set to zero\n", __func__);
+            return;
+        }
+
         tpcnt = actual / mps;
         if (actual % mps) {
             tpcnt++;
