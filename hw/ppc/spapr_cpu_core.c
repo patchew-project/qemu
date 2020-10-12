@@ -181,6 +181,15 @@ static const VMStateDescription vmstate_spapr_cpu_state = {
     }
 };
 
+static void spapr_delete_vcpu(PowerPCCPU *cpu, SpaprCpuCore *sc)
+{
+    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
+
+    cpu->machine_data = NULL;
+    g_free(spapr_cpu);
+    object_unparent(OBJECT(cpu));
+}
+
 static void spapr_unrealize_vcpu(PowerPCCPU *cpu, SpaprCpuCore *sc)
 {
     if (!sc->pre_3_0_migration) {
@@ -188,7 +197,7 @@ static void spapr_unrealize_vcpu(PowerPCCPU *cpu, SpaprCpuCore *sc)
     }
     spapr_irq_cpu_intc_destroy(SPAPR_MACHINE(qdev_get_machine()), cpu);
     cpu_remove_sync(CPU(cpu));
-    object_unparent(OBJECT(cpu));
+    spapr_delete_vcpu(cpu, sc);
 }
 
 /*
@@ -292,15 +301,6 @@ static PowerPCCPU *spapr_create_vcpu(SpaprCpuCore *sc, int i, Error **errp)
 err:
     object_unref(obj);
     return NULL;
-}
-
-static void spapr_delete_vcpu(PowerPCCPU *cpu, SpaprCpuCore *sc)
-{
-    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
-
-    cpu->machine_data = NULL;
-    g_free(spapr_cpu);
-    object_unparent(OBJECT(cpu));
 }
 
 static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
