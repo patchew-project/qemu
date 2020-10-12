@@ -73,6 +73,7 @@ enum {
 };
 
 #define MEMORY_WINDOW_COUNT 3
+#define PCI_BAR_COUNT 3
 
 struct PCIVPBState {
     PCIHostState parent_obj;
@@ -99,7 +100,7 @@ struct PCIVPBState {
 
     /* Variable state: */
     uint32_t imap[MEMORY_WINDOW_COUNT];
-    uint32_t smap[3];
+    uint32_t smap[PCI_BAR_COUNT];
     uint32_t selfid;
     uint32_t flags;
     uint8_t irq_mapping;
@@ -151,7 +152,7 @@ static const VMStateDescription pci_vpb_vmstate = {
     .post_load = pci_vpb_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(imap, PCIVPBState, MEMORY_WINDOW_COUNT),
-        VMSTATE_UINT32_ARRAY(smap, PCIVPBState, 3),
+        VMSTATE_UINT32_ARRAY(smap, PCIVPBState, PCI_BAR_COUNT),
         VMSTATE_UINT32(selfid, PCIVPBState),
         VMSTATE_UINT32(flags, PCIVPBState),
         VMSTATE_UINT8(irq_mapping, PCIVPBState),
@@ -203,8 +204,8 @@ static void pci_vpb_reg_write(void *opaque, hwaddr addr,
     case PCI_SMAP1:
     case PCI_SMAP2:
     {
-        int win = (addr - PCI_SMAP0) >> 2;
-        s->smap[win] = val;
+        int bar = (addr - PCI_SMAP0) >> 2;
+        s->smap[bar] = val;
         break;
     }
     default:
@@ -235,8 +236,8 @@ static uint64_t pci_vpb_reg_read(void *opaque, hwaddr addr,
     case PCI_SMAP1:
     case PCI_SMAP2:
     {
-        int win = (addr - PCI_SMAP0) >> 2;
-        return s->smap[win];
+        int bar = (addr - PCI_SMAP0) >> 2;
+        return s->smap[bar];
     }
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -377,9 +378,9 @@ static void pci_vpb_reset(DeviceState *d)
     for (i = 0; i < MEMORY_WINDOW_COUNT; i++) {
         s->imap[i] = 0;
     }
-    s->smap[0] = 0;
-    s->smap[1] = 0;
-    s->smap[2] = 0;
+    for (i = 0; i < PCI_BAR_COUNT; i++) {
+        s->smap[i] = 0;
+    }
     s->selfid = 0;
     s->flags = 0;
     s->irq_mapping = s->irq_mapping_prop;
