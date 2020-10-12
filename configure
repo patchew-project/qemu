@@ -234,6 +234,7 @@ cpu=""
 iasl="iasl"
 interp_prefix="/usr/gnemul/qemu-%M"
 static="no"
+cross_compile="no"
 cross_prefix=""
 audio_drv_list=""
 block_drv_rw_whitelist=""
@@ -456,6 +457,11 @@ for opt do
   optarg=$(expr "x$opt" : 'x[^=]*=\(.*\)')
   case "$opt" in
   --cross-prefix=*) cross_prefix="$optarg"
+                    cross_compile="yes"
+  ;;
+  --enable-cross-compile) cross_compile="yes"
+  ;;
+  --disable-cross-compile) cross_compile="no"
   ;;
   --cc=*) CC="$optarg"
   ;;
@@ -877,6 +883,10 @@ for opt do
   --interp-prefix=*) interp_prefix="$optarg"
   ;;
   --cross-prefix=*)
+  ;;
+  --enable-cross-compile)
+  ;;
+  --disable-cross-compile)
   ;;
   --cc=*)
   ;;
@@ -1687,6 +1697,7 @@ Advanced options (experts only):
   --efi-aarch64=PATH       PATH of efi file to use for aarch64 VMs.
   --with-suffix=SUFFIX     suffix for QEMU data inside datadir/libdir/sysconfdir/docdir [$qemu_suffix]
   --with-pkgversion=VERS   use specified string as sub-version of the package
+  --enable-cross-compile   enable cross compiling (set automatically if $cross_prefix is set)
   --enable-debug           enable common debug build options
   --enable-sanitizers      enable default sanitizers
   --enable-tsan            enable thread sanitizer
@@ -7164,7 +7175,7 @@ if has $sdl2_config; then
 fi
 echo "strip = [$(meson_quote $strip)]" >> $cross
 echo "windres = [$(meson_quote $windres)]" >> $cross
-if test -n "$cross_prefix"; then
+if test "$cross_compile" = "yes"; then
     cross_arg="--cross-file config-meson.cross"
     echo "[host_machine]" >> $cross
     if test "$mingw32" = "yes" ; then
