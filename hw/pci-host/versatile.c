@@ -72,6 +72,8 @@ enum {
     PCI_VPB_IRQMAP_FORCE_OK,
 };
 
+#define MEMORY_WINDOW_COUNT 3
+
 struct PCIVPBState {
     PCIHostState parent_obj;
 
@@ -86,17 +88,17 @@ struct PCIVPBState {
      * The offsets into pci_mem_space are controlled by the imap registers.
      */
     MemoryRegion pci_io_window;
-    MemoryRegion pci_mem_window[3];
+    MemoryRegion pci_mem_window[MEMORY_WINDOW_COUNT];
     PCIBus pci_bus;
     PCIDevice pci_dev;
 
     /* Constant for life of device: */
     int realview;
-    uint32_t mem_win_size[3];
+    uint32_t mem_win_size[MEMORY_WINDOW_COUNT];
     uint8_t irq_mapping_prop;
 
     /* Variable state: */
-    uint32_t imap[3];
+    uint32_t imap[MEMORY_WINDOW_COUNT];
     uint32_t smap[3];
     uint32_t selfid;
     uint32_t flags;
@@ -130,7 +132,7 @@ static void pci_vpb_update_all_windows(PCIVPBState *s)
     /* Update all alias windows based on the current register state */
     int i;
 
-    for (i = 0; i < 3; i++) {
+    for (i = 0; i < MEMORY_WINDOW_COUNT; i++) {
         pci_vpb_update_window(s, i);
     }
 }
@@ -148,7 +150,7 @@ static const VMStateDescription pci_vpb_vmstate = {
     .minimum_version_id = 1,
     .post_load = pci_vpb_post_load,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(imap, PCIVPBState, 3),
+        VMSTATE_UINT32_ARRAY(imap, PCIVPBState, MEMORY_WINDOW_COUNT),
         VMSTATE_UINT32_ARRAY(smap, PCIVPBState, 3),
         VMSTATE_UINT32(selfid, PCIVPBState),
         VMSTATE_UINT32(flags, PCIVPBState),
@@ -370,10 +372,11 @@ static void pci_vpb_set_irq(void *opaque, int irq_num, int level)
 static void pci_vpb_reset(DeviceState *d)
 {
     PCIVPBState *s = PCI_VPB(d);
+    int i;
 
-    s->imap[0] = 0;
-    s->imap[1] = 0;
-    s->imap[2] = 0;
+    for (i = 0; i < MEMORY_WINDOW_COUNT; i++) {
+        s->imap[i] = 0;
+    }
     s->smap[0] = 0;
     s->smap[1] = 0;
     s->smap[2] = 0;
@@ -453,7 +456,7 @@ static void pci_vpb_realize(DeviceState *dev, Error **errp)
      * PCI memory space. The sizes vary from board to board; the base
      * offsets are guest controllable via the IMAP registers.
      */
-    for (i = 0; i < 3; i++) {
+    for (i = 0; i < MEMORY_WINDOW_COUNT; i++) {
         memory_region_init_alias(&s->pci_mem_window[i], OBJECT(s), "pci-vbp-window",
                                  &s->pci_mem_space, 0, s->mem_win_size[i]);
         sysbus_init_mmio(sbd, &s->pci_mem_window[i]);
