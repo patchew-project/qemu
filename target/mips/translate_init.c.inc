@@ -297,6 +297,61 @@ const mips_def_t mips_defs[] =
         .insn_flags = CPU_MIPS32R2 | ASE_MIPS16 | ASE_DSP | ASE_MT,
         .mmu_type = MMU_TYPE_R4000,
     },
+    /*
+     * Verbatim copy of "34Kf" cpu, only bumped up number of TLB entries
+     * from 16 to 64 (see CP0_Config0 value at CP0C1_MMU bits) to improve
+     * performance by reducing number of TLB refill exceptions and
+     * eliminating need to run all corresponding TLB refill handling
+     * instructions.
+     */
+    {
+        .name = "34Kf-64tlb",
+        .CP0_PRid = 0x00019500,
+        .CP0_Config0 = MIPS_CONFIG0 | (0x1 << CP0C0_AR) |
+                       (MMU_TYPE_R4000 << CP0C0_MT),
+        .CP0_Config1 = MIPS_CONFIG1 | (1 << CP0C1_FP) | (63 << CP0C1_MMU) |
+                       (0 << CP0C1_IS) | (3 << CP0C1_IL) | (1 << CP0C1_IA) |
+                       (0 << CP0C1_DS) | (3 << CP0C1_DL) | (1 << CP0C1_DA) |
+                       (1 << CP0C1_CA),
+        .CP0_Config2 = MIPS_CONFIG2,
+        .CP0_Config3 = MIPS_CONFIG3 | (1 << CP0C3_VInt) | (1 << CP0C3_MT) |
+                       (1 << CP0C3_DSPP),
+        .CP0_LLAddr_rw_bitmask = 0,
+        .CP0_LLAddr_shift = 0,
+        .SYNCI_Step = 32,
+        .CCRes = 2,
+        .CP0_Status_rw_bitmask = 0x3778FF1F,
+        .CP0_TCStatus_rw_bitmask = (0 << CP0TCSt_TCU3) | (0 << CP0TCSt_TCU2) |
+                    (1 << CP0TCSt_TCU1) | (1 << CP0TCSt_TCU0) |
+                    (0 << CP0TCSt_TMX) | (1 << CP0TCSt_DT) |
+                    (1 << CP0TCSt_DA) | (1 << CP0TCSt_A) |
+                    (0x3 << CP0TCSt_TKSU) | (1 << CP0TCSt_IXMT) |
+                    (0xff << CP0TCSt_TASID),
+        .CP1_fcr0 = (1 << FCR0_F64) | (1 << FCR0_L) | (1 << FCR0_W) |
+                    (1 << FCR0_D) | (1 << FCR0_S) | (0x95 << FCR0_PRID),
+        .CP1_fcr31 = 0,
+        .CP1_fcr31_rw_bitmask = 0xFF83FFFF,
+        .CP0_SRSCtl = (0xf << CP0SRSCtl_HSS),
+        .CP0_SRSConf0_rw_bitmask = 0x3fffffff,
+        .CP0_SRSConf0 = (1U << CP0SRSC0_M) | (0x3fe << CP0SRSC0_SRS3) |
+                    (0x3fe << CP0SRSC0_SRS2) | (0x3fe << CP0SRSC0_SRS1),
+        .CP0_SRSConf1_rw_bitmask = 0x3fffffff,
+        .CP0_SRSConf1 = (1U << CP0SRSC1_M) | (0x3fe << CP0SRSC1_SRS6) |
+                    (0x3fe << CP0SRSC1_SRS5) | (0x3fe << CP0SRSC1_SRS4),
+        .CP0_SRSConf2_rw_bitmask = 0x3fffffff,
+        .CP0_SRSConf2 = (1U << CP0SRSC2_M) | (0x3fe << CP0SRSC2_SRS9) |
+                    (0x3fe << CP0SRSC2_SRS8) | (0x3fe << CP0SRSC2_SRS7),
+        .CP0_SRSConf3_rw_bitmask = 0x3fffffff,
+        .CP0_SRSConf3 = (1U << CP0SRSC3_M) | (0x3fe << CP0SRSC3_SRS12) |
+                    (0x3fe << CP0SRSC3_SRS11) | (0x3fe << CP0SRSC3_SRS10),
+        .CP0_SRSConf4_rw_bitmask = 0x3fffffff,
+        .CP0_SRSConf4 = (0x3fe << CP0SRSC4_SRS15) |
+                    (0x3fe << CP0SRSC4_SRS14) | (0x3fe << CP0SRSC4_SRS13),
+        .SEGBITS = 32,
+        .PABITS = 32,
+        .insn_flags = CPU_MIPS32R2 | ASE_MIPS16 | ASE_DSP | ASE_MT,
+        .mmu_type = MMU_TYPE_R4000,
+    },
     {
         .name = "74Kf",
         .CP0_PRid = 0x00019700,
