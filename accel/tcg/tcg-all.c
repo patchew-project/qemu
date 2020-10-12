@@ -39,6 +39,7 @@ struct TCGState {
 
     bool mttcg_enabled;
     unsigned long tb_size;
+    bool mirror_rwx;
 };
 typedef struct TCGState TCGState;
 
@@ -94,6 +95,7 @@ static void tcg_accel_instance_init(Object *obj)
     TCGState *s = TCG_STATE(obj);
 
     s->mttcg_enabled = default_mttcg_enabled();
+    s->mirror_rwx = false;
 }
 
 bool mttcg_enabled;
@@ -102,7 +104,7 @@ static int tcg_init(MachineState *ms)
 {
     TCGState *s = TCG_STATE(current_accel());
 
-    tcg_exec_init(s->tb_size * 1024 * 1024);
+    tcg_exec_init(s->tb_size * 1024 * 1024, s->mirror_rwx);
     mttcg_enabled = s->mttcg_enabled;
     cpus_register_accel(&tcg_cpus);
 
@@ -168,6 +170,22 @@ static void tcg_set_tb_size(Object *obj, Visitor *v,
     s->tb_size = value;
 }
 
+#ifdef CONFIG_IOS_JIT
+static bool tcg_get_mirror_rwx(Object *obj, Error **errp)
+{
+    TCGState *s = TCG_STATE(obj);
+
+    return s->mirror_rwx;
+}
+
+static void tcg_set_mirror_rwx(Object *obj, bool value, Error **errp)
+{
+    TCGState *s = TCG_STATE(obj);
+
+    s->mirror_rwx = value;
+}
+#endif
+
 static void tcg_accel_class_init(ObjectClass *oc, void *data)
 {
     AccelClass *ac = ACCEL_CLASS(oc);
@@ -184,6 +202,13 @@ static void tcg_accel_class_init(ObjectClass *oc, void *data)
         NULL, NULL);
     object_class_property_set_description(oc, "tb-size",
         "TCG translation block cache size");
+
+#ifdef CONFIG_IOS_JIT
+    object_class_property_add_bool(oc, "mirror-rwx",
+        tcg_get_mirror_rwx, tcg_set_mirror_rwx);
+    object_class_property_set_description(oc, "mirror-rwx",
+        "mirror map executable pages for TCG on iOS");
+#endif
 
 }
 
