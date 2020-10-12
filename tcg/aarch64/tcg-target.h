@@ -148,9 +148,19 @@ typedef enum {
 #define TCG_TARGET_DEFAULT_MO (0)
 #define TCG_TARGET_HAS_MEMORY_BSWAP     1
 
+#if defined(__APPLE__)
+void sys_icache_invalidate(void *start, size_t len);
+#endif
+
 static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
 {
+#if defined(__APPLE__)
+    sys_icache_invalidate((char *)start, stop - start);
+#elif defined(__GNUC__)
     __builtin___clear_cache((char *)start, (char *)stop);
+#else
+#error "Missing builtin to flush instruction cache"
+#endif
 }
 
 void tb_target_set_jmp_target(uintptr_t, uintptr_t, uintptr_t);

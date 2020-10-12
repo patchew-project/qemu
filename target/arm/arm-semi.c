@@ -891,6 +891,7 @@ target_ulong do_arm_semihosting(CPUARMState *env)
         return clock() / (CLOCKS_PER_SEC / 100);
     case TARGET_SYS_TIME:
         return set_swi_errno(env, time(NULL));
+#if !defined(CONFIG_IOS) /* iOS does not have system() */
     case TARGET_SYS_SYSTEM:
         GET_ARG(0);
         GET_ARG(1);
@@ -907,6 +908,7 @@ target_ulong do_arm_semihosting(CPUARMState *env)
             unlock_user(s, arg0, 0);
             return ret;
         }
+#endif /* CONFIG_IOS */
     case TARGET_SYS_ERRNO:
         return get_swi_errno(env);
     case TARGET_SYS_GET_CMDLINE:
