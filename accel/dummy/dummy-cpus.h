@@ -7,11 +7,11 @@
  * See the COPYING file in the top-level directory.
  */
 
-#ifndef QTEST_CPUS_H
-#define QTEST_CPUS_H
+#ifndef DUMMY_CPUS_H
+#define DUMMY_CPUS_H
 
-#include "sysemu/cpus.h"
+#include "qemu/typedefs.h"
 
-extern const CpusAccel qtest_cpus;
+void dummy_start_vcpu_thread(CPUState *);
 
-#endif /* QTEST_CPUS_H */
+#endif /* DUMMY_CPUS_H */
