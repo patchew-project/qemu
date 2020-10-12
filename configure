@@ -448,6 +448,7 @@ ninja=""
 skip_meson=no
 gettext=""
 host_block_device_support="yes"
+shared_lib="false"
 
 bogus_os="no"
 malloc_trim="auto"
@@ -1563,6 +1564,10 @@ for opt do
   ;;
   --disable-libdaxctl) libdaxctl=no
   ;;
+  --enable-shared-lib) shared_lib=true
+  ;;
+  --disable-shared-lib) shared_lib=false
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1770,6 +1775,7 @@ Advanced options (experts only):
                            enable plugins via shared library loading
   --disable-containers     don't use containers for cross-building
   --gdb=GDB-path           gdb to use for gdbstub tests [$gdb_bin]
+  --enable-shared-lib      build QEMU as a shared library
 
 Optional features, enabled with --enable-FEATURE and
 disabled with --disable-FEATURE, default is enabled if available:
@@ -7211,7 +7217,11 @@ echo "ranlib = [$(meson_quote $ranlib)]" >> $cross
 if has $sdl2_config; then
   echo "sdl2-config = [$(meson_quote $sdl2_config)]" >> $cross
 fi
-echo "strip = [$(meson_quote $strip)]" >> $cross
+if test "$shared_lib" = "true"; then
+  echo "strip = [$(meson_quote $strip), '-x']" >> $cross
+else
+  echo "strip = [$(meson_quote $strip)]" >> $cross
+fi
 echo "windres = [$(meson_quote $windres)]" >> $cross
 if test "$cross_compile" = "yes"; then
     cross_arg="--cross-file config-meson.cross"
@@ -7273,7 +7283,7 @@ NINJA=${ninja:-$PWD/ninjatool} $meson setup \
 	-Dcocoa=$cocoa -Dmpath=$mpath -Dsdl=$sdl -Dsdl_image=$sdl_image \
 	-Dvnc=$vnc -Dvnc_sasl=$vnc_sasl -Dvnc_jpeg=$vnc_jpeg -Dvnc_png=$vnc_png \
 	-Dgettext=$gettext -Dxkbcommon=$xkbcommon -Du2f=$u2f \
-	-Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt \
+	-Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt -Dshared-lib=$shared_lib \
         $cross_arg \
         "$PWD" "$source_path"
 
