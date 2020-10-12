@@ -713,6 +713,11 @@ void pc_smp_parse(MachineState *ms, QemuOpts *opts)
         unsigned cores   = qemu_opt_get_number(opts, "cores", 0);
         unsigned threads = qemu_opt_get_number(opts, "threads", 0);
 
+        if (dies <= 0) {
+            error_report("Invalid CPU topology: dies must be 1 or greater");
+            exit(1);
+        }
+
         /* compute missing values, prefer sockets over cores over threads */
         if (cpus == 0 || sockets == 0) {
             cores = cores > 0 ? cores : 1;
