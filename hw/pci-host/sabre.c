@@ -122,6 +122,7 @@ static void sabre_config_write(void *opaque, hwaddr addr,
 
     switch (addr) {
     case  0x30 ...  0x4f: /* DMA error registers */
+    case 0x200 ... 0x21f: /* IOMMU registers */
         qemu_log_mask(LOG_UNIMP,
                       "%s: Register 0x%02" HWADDR_PRIX " not implemented\n",
                       __func__, addr);
@@ -201,6 +202,7 @@ static uint64_t sabre_config_read(void *opaque,
 
     switch (addr) {
     case  0x30 ...  0x4f: /* DMA error registers */
+    case 0x200 ... 0x21f: /* IOMMU registers */
         qemu_log_mask(LOG_UNIMP,
                       "%s: Register 0x%02" HWADDR_PRIX " not implemented\n",
                       __func__, addr);
