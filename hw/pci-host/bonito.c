@@ -196,8 +196,8 @@ FIELD(BONGENCFG, PCIQUEUE,      12, 1)
 #define PCI_IDSEL_VIA686B          (1 << PCI_IDSEL_VIA686B_BIT)
 
 #define PCI_ADDR(busno , devno , funno , regno)  \
-    ((((busno) << 16) & 0xff0000) + (((devno) << 11) & 0xf800) + \
-    (((funno) << 8) & 0x700) + (regno))
+    ((((busno) << 8) & 0xff00) + (((devno) << 3) & 0xf8) + \
+    (((funno) & 0x7) << 8) + (regno))
 
 typedef struct BonitoState BonitoState;
 
