@@ -121,8 +121,10 @@ static void sabre_config_write(void *opaque, hwaddr addr,
     trace_sabre_config_write(addr, val);
 
     switch (addr) {
-    case 0x30 ... 0x4f: /* DMA error registers */
-        /* XXX: not implemented yet */
+    case  0x30 ...  0x4f: /* DMA error registers */
+        qemu_log_mask(LOG_UNIMP,
+                      "%s: Register 0x%02" HWADDR_PRIX " not implemented\n",
+                      __func__, addr);
         break;
     case 0xc00 ... 0xc3f: /* PCI interrupt control */
         if (addr & 4) {
@@ -198,8 +200,10 @@ static uint64_t sabre_config_read(void *opaque,
     uint32_t val = 0;
 
     switch (addr) {
-    case 0x30 ... 0x4f: /* DMA error registers */
-        /* XXX: not implemented yet */
+    case  0x30 ...  0x4f: /* DMA error registers */
+        qemu_log_mask(LOG_UNIMP,
+                      "%s: Register 0x%02" HWADDR_PRIX " not implemented\n",
+                      __func__, addr);
         break;
     case 0xc00 ... 0xc3f: /* PCI interrupt control */
         if (addr & 4) {
