@@ -258,6 +258,12 @@ replaced by the ``target`` output member.
 The ``query-events`` command has been superseded by the more powerful
 and accurate ``query-qmp-schema`` command.
 
+``block-stream`` argument ``backing-file`` (since 5.2)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The argument ``backing-file`` is deprecated. QEMU uses a backing file
+name of the base node overlay after the block-stream job completes.
+
 chardev client socket with ``wait`` option (since 4.0)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
