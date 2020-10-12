@@ -192,7 +192,7 @@ qos_test_ss.add(
 )
 qos_test_ss.add(when: 'CONFIG_VIRTFS', if_true: files('virtio-9p-test.c'))
 qos_test_ss.add(when: 'CONFIG_VHOST_USER', if_true: files('vhost-user-test.c'))
-qos_test_ss.add(when: ['CONFIG_LINUX', 'CONFIG_TOOLS'], if_true: files('vhost-user-blk-test.c'))
+qos_test_ss.add(when: ['CONFIG_VHOST_USER', 'CONFIG_TOOLS'], if_true: files('vhost-user-blk-test.c'))
 
 extra_qtest_deps = {
   'bios-tables-test': [io],
