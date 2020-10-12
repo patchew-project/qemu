@@ -1415,7 +1415,8 @@ static int coroutine_fn bdrv_aligned_preadv(BdrvChild *child,
 
     max_bytes = ROUND_UP(MAX(0, total_bytes - offset), align);
     if (bytes <= max_bytes && bytes <= max_transfer) {
-        ret = bdrv_driver_preadv(bs, offset, bytes, qiov, qiov_offset, 0);
+        ret = bdrv_driver_preadv(bs, offset, bytes, qiov, qiov_offset,
+                                 flags & bs->supported_read_flags);
         goto out;
     }
 
