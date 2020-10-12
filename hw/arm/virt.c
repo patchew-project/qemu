@@ -1117,11 +1117,11 @@ static void create_pcie_irq_map(const VirtMachineState *vms,
                                 int first_irq, const char *nodename)
 {
     int devfn, pin;
-    uint32_t full_irq_map[4 * 4 * 10] = { 0 };
+    uint32_t full_irq_map[4 * PCI_NUM_PINS * 10] = { 0 };
     uint32_t *irq_map = full_irq_map;
 
     for (devfn = 0; devfn <= 0x18; devfn += 0x8) {
-        for (pin = 0; pin < 4; pin++) {
+        for (pin = 0; pin < PCI_NUM_PINS; pin++) {
             int irq_type = GIC_FDT_IRQ_TYPE_SPI;
             int irq_nr = first_irq + ((pin + PCI_SLOT(devfn)) % PCI_NUM_PINS);
             int irq_level = GIC_FDT_IRQ_FLAGS_LEVEL_HI;
