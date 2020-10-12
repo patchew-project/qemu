@@ -25,6 +25,7 @@
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "sysemu/block-backend.h"
+#include "sysemu/runstate.h" /* for qemu_system_killed() prototype */
 #include "block/block_int.h"
 #include "block/nbd.h"
 #include "qemu/main-loop.h"
@@ -154,8 +155,12 @@ QEMU_COPYRIGHT "\n"
     , name);
 }
 
-#ifdef CONFIG_POSIX
-static void termsig_handler(int signum)
+#if CONFIG_POSIX
+/*
+ * The client thread uses SIGTERM to interrupt the server.  A signal
+ * handler ensures that "qemu-nbd -v -c" exits with a nice status code.
+ */
+void qemu_system_killed(int signum, pid_t pid)
 {
     qatomic_cmpxchg(&state, RUNNING, TERMINATE);
     qemu_notify_event();
@@ -581,20 +586,8 @@ int main(int argc, char **argv)
     const char *pid_file_name = NULL;
     BlockExportOptions *export_opts;
 
-#ifdef CONFIG_POSIX
-    /*
-     * Exit gracefully on various signals, which includes SIGTERM used
-     * by 'qemu-nbd -v -c'.
-     */
-    struct sigaction sa_sigterm;
-    memset(&sa_sigterm, 0, sizeof(sa_sigterm));
-    sa_sigterm.sa_handler = termsig_handler;
-    sigaction(SIGTERM, &sa_sigterm, NULL);
-    sigaction(SIGINT, &sa_sigterm, NULL);
-    sigaction(SIGHUP, &sa_sigterm, NULL);
-
-    signal(SIGPIPE, SIG_IGN);
-#endif
+    os_setup_early_signal_handling();
+    os_setup_signal_handling();
 
     socket_init();
     error_init(argv[0]);
