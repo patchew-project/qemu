@@ -176,7 +176,13 @@ extern bool have_vsx;
 #define TCG_TARGET_HAS_cmpsel_vec       0
 
 void flush_icache_range(uintptr_t start, uintptr_t stop);
-void tb_target_set_jmp_target(uintptr_t, uintptr_t, uintptr_t);
+void tb_target_set_jmp_target(uintptr_t, uintptr_t, uintptr_t, uintptr_t);
+#if defined(CONFIG_IOS_JIT)
+static inline void flush_dcache_range(uintptr_t start, uintptr_t stop)
+{
+#error "Unimplemented dcache flush function"
+}
+#endif
 
 #define TCG_TARGET_DEFAULT_MO (0)
 #define TCG_TARGET_HAS_MEMORY_BSWAP     1

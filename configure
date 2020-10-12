@@ -6220,6 +6220,7 @@ fi
 
 if test "$ios" = "yes" ; then
   echo "CONFIG_IOS=y" >> $config_host_mak
+  echo "CONFIG_IOS_JIT=y" >> $config_host_mak
 fi
 
 if test "$solaris" = "yes" ; then

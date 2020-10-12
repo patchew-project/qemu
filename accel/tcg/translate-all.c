@@ -60,6 +60,22 @@
 #include "sysemu/cpu-timers.h"
 #include "sysemu/tcg.h"
 
+#if defined(CONFIG_IOS_JIT)
+#include <mach/mach.h>
+extern kern_return_t mach_vm_remap(vm_map_t target_task,
+                                   mach_vm_address_t *target_address,
+                                   mach_vm_size_t size,
+                                   mach_vm_offset_t mask,
+                                   int flags,
+                                   vm_map_t src_task,
+                                   mach_vm_address_t src_address,
+                                   boolean_t copy,
+                                   vm_prot_t *cur_protection,
+                                   vm_prot_t *max_protection,
+                                   vm_inherit_t inheritance
+                                  );
+#endif
+
 /* #define DEBUG_TB_INVALIDATE */
 /* #define DEBUG_TB_FLUSH */
 /* make various TB consistency checks */
@@ -302,10 +318,13 @@ static target_long decode_sleb128(uint8_t **pp)
 
 static int encode_search(TranslationBlock *tb, uint8_t *block)
 {
-    uint8_t *highwater = tcg_ctx->code_gen_highwater;
-    uint8_t *p = block;
+    uint8_t *highwater;
+    uint8_t *p;
     int i, j, n;
 
+    highwater = (uint8_t *)TCG_CODE_PTR_RW(tcg_ctx,
+                                           tcg_ctx->code_gen_highwater);
+    p = (uint8_t *)TCG_CODE_PTR_RW(tcg_ctx, block);
     for (i = 0, n = tb->icount; i < n; ++i) {
         target_ulong prev;
 
@@ -329,7 +348,7 @@ static int encode_search(TranslationBlock *tb, uint8_t *block)
         }
     }
 
-    return p - block;
+    return p - (uint8_t *)TCG_CODE_PTR_RW(tcg_ctx, block);
 }
 
 /* The cpu state corresponding to 'searched_pc' is restored.
@@ -1067,7 +1086,11 @@ static inline void *alloc_code_gen_buffer(void)
 #else
 static inline void *alloc_code_gen_buffer(void)
 {
+#if defined(CONFIG_IOS_JIT)
+    int prot = PROT_READ | PROT_EXEC;
+#else
     int prot = PROT_WRITE | PROT_READ | PROT_EXEC;
+#endif
     int flags = MAP_PRIVATE | MAP_ANONYMOUS;
     size_t size = tcg_ctx->code_gen_buffer_size;
     void *buf;
@@ -1118,6 +1141,39 @@ static inline void *alloc_code_gen_buffer(void)
 }
 #endif /* USE_STATIC_CODE_GEN_BUFFER, WIN32, POSIX */
 
+#if defined(CONFIG_IOS_JIT)
+static inline void *alloc_jit_rw_mirror(void *base, size_t size)
+{
+    kern_return_t ret;
+    mach_vm_address_t mirror;
+    vm_prot_t cur_prot, max_prot;
+
+    mirror = 0;
+    ret = mach_vm_remap(mach_task_self(),
+                        &mirror,
+                        size,
+                        0,
+                        VM_FLAGS_ANYWHERE | VM_FLAGS_RANDOM_ADDR,
+                        mach_task_self(),
+                        (mach_vm_address_t)base,
+                        false,
+                        &cur_prot,
+                        &max_prot,
+                        VM_INHERIT_NONE
+                       );
+    if (ret != KERN_SUCCESS) {
+        return NULL;
+    }
+
+    if (mprotect((void *)mirror, size, PROT_READ | PROT_WRITE) != 0) {
+        munmap((void *)mirror, size);
+        return NULL;
+    }
+
+    return (void *)mirror;
+}
+#endif /* CONFIG_IOS_JIT */
+
 static inline void code_gen_alloc(size_t tb_size)
 {
     tcg_ctx->code_gen_buffer_size = size_code_gen_buffer(tb_size);
@@ -1126,6 +1182,19 @@ static inline void code_gen_alloc(size_t tb_size)
         fprintf(stderr, "Could not allocate dynamic translator buffer\n");
         exit(1);
     }
+#if defined(CONFIG_IOS_JIT)
+    void *mirror;
+
+    /* For iOS JIT we need a mirror mapping for code execution */
+    mirror = alloc_jit_rw_mirror(tcg_ctx->code_gen_buffer,
+                                 tcg_ctx->code_gen_buffer_size
+                                );
+    if (mirror == NULL) {
+        fprintf(stderr, "Could not remap code buffer mirror\n");
+        exit(1);
+    }
+    tcg_ctx->code_rw_mirror_diff = mirror - tcg_ctx->code_gen_buffer;
+#endif /* CONFIG_IOS_JIT */
 }
 
 static bool tb_cmp(const void *ap, const void *bp)
@@ -1721,6 +1790,9 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
         cpu_loop_exit(cpu);
     }
 
+#if defined(CONFIG_IOS_JIT)
+    tb->code_rw_mirror_diff = tcg_ctx->code_rw_mirror_diff;
+#endif
     gen_code_buf = tcg_ctx->code_gen_ptr;
     tb->tc.ptr = gen_code_buf;
     tb->pc = pc;

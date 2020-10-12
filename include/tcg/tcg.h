@@ -261,7 +261,7 @@ struct TCGLabel {
     unsigned refs : 16;
     union {
         uintptr_t value;
-        tcg_insn_unit *value_ptr;
+        const tcg_insn_unit *value_ptr;
     } u;
     QSIMPLEQ_HEAD(, TCGRelocation) relocs;
     QSIMPLEQ_ENTRY(TCGLabel) next;
@@ -593,7 +593,7 @@ struct TCGContext {
     int nb_ops;
 
     /* goto_tb support */
-    tcg_insn_unit *code_buf;
+    const tcg_insn_unit *code_buf;
     uint16_t *tb_jmp_reset_offset; /* tb->jmp_reset_offset */
     uintptr_t *tb_jmp_insn_offset; /* tb->jmp_target_arg if direct_jump */
     uintptr_t *tb_jmp_target_addr; /* tb->jmp_target_arg if !direct_jump */
@@ -627,6 +627,9 @@ struct TCGContext {
     size_t code_gen_buffer_size;
     void *code_gen_ptr;
     void *data_gen_ptr;
+#if defined(CONFIG_IOS_JIT)
+    ptrdiff_t code_rw_mirror_diff;
+#endif
 
     /* Threshold to flush the translated code buffer.  */
     void *code_gen_highwater;
@@ -676,6 +679,13 @@ struct TCGContext {
     uint16_t gen_insn_end_off[TCG_MAX_INSNS];
     target_ulong gen_insn_data[TCG_MAX_INSNS][TARGET_INSN_START_WORDS];
 };
+
+#if defined(CONFIG_IOS_JIT)
+# define TCG_CODE_PTR_RW(s, code_ptr) \
+    (tcg_insn_unit *)((uintptr_t)(code_ptr) + (s)->code_rw_mirror_diff)
+#else
+# define TCG_CODE_PTR_RW(s, code_ptr) (code_ptr)
+#endif
 
 extern TCGContext tcg_init_ctx;
 extern __thread TCGContext *tcg_ctx;
@@ -1099,7 +1109,7 @@ static inline TCGLabel *arg_label(TCGArg i)
  * correct result.
  */
 
-static inline ptrdiff_t tcg_ptr_byte_diff(void *a, void *b)
+static inline ptrdiff_t tcg_ptr_byte_diff(const void *a, const void *b)
 {
     return a - b;
 }
@@ -1113,7 +1123,7 @@ static inline ptrdiff_t tcg_ptr_byte_diff(void *a, void *b)
  * to the destination address.
  */
 
-static inline ptrdiff_t tcg_pcrel_diff(TCGContext *s, void *target)
+static inline ptrdiff_t tcg_pcrel_diff(TCGContext *s, const void *target)
 {
     return tcg_ptr_byte_diff(target, s->code_ptr);
 }
