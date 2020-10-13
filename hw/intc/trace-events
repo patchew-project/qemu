@@ -199,3 +199,11 @@ nvic_sysreg_write(uint64_t addr, uint32_t value, unsigned size) "NVIC sysreg wri
 heathrow_write(uint64_t addr, unsigned int n, uint64_t value) "0x%"PRIx64" %u: 0x%"PRIx64
 heathrow_read(uint64_t addr, unsigned int n, uint64_t value) "0x%"PRIx64" %u: 0x%"PRIx64
 heathrow_set_irq(int num, int level) "set_irq: num=0x%02x level=%d"
+
+# # goldfish_pic.c
+goldfish_irq_request(void *dev, int irq, int level) "pic: %p irq: %d level: %d"
+goldfish_pic_read(void *dev, unsigned int addr, unsigned int size, uint64_t value) "pic: %p reg: 0x%02x size: %d value: 0x%"PRIx64
+goldfish_pic_write(void *dev, unsigned int addr, unsigned int size, uint64_t value) "pic: %p reg: 0x%02x size: %d value: 0x%"PRIx64
+goldfish_pic_reset(void *dev) "pic: %p"
+goldfish_pic_realize(void *dev) "pic: %p"
+goldfish_pic_instance_init(void *dev) "pic: %p"
