@@ -194,4 +194,9 @@ ssize_t qemu_recv_wrap(int sockfd, void *buf, size_t len, int flags);
 ssize_t qemu_recvfrom_wrap(int sockfd, void *buf, size_t len, int flags,
                            struct sockaddr *addr, socklen_t *addrlen);
 
+#undef socketpair
+#define socketpair qemu_socketpair
+int qemu_socketpair(int family, int type, int protocol, int channel[2]);
+
+
 #endif

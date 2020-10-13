@@ -415,6 +415,22 @@ int qemu_close(int fd)
 }
 
 /*
+ * Create a symbolic link file from new_path2 to exist_path1
+ */
+int qemu_link(const char *exist_path1, const char *new_path2)
+{
+#if defined(_WIN32)
+    g_autofree gchar *current_dir = g_get_current_dir();
+    g_autofree gchar *full_path = g_build_filename(
+        current_dir, exist_path1, NULL);
+    return CreateSymbolicLinkA(new_path2, full_path,
+        0 | SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE) ? 0 : -1;
+#else
+    return link(exist_path1, new_path2);
+#endif
+}
+
+/*
  * Delete a file from the filesystem, unless the filename is /dev/fdset/...
  *
  * Returns: On success, zero is returned.  On error, -1 is returned,
