@@ -426,7 +426,11 @@ typedef void (*qemu_plugin_outs_t)(const char *string);
 
 #if !defined(QEMU_PLUGIN_API_IMPLEMENTATION)
 
+#if defined(QEMU_PLUGIN_IMPLEMENTATION)
 #define qemu_plugin_decl_symbol(symbol_name) symbol_name##_t symbol_name
+#else
+#define qemu_plugin_decl_symbol(symbol_name) extern symbol_name##_t symbol_name
+#endif
 
 #define qemu_plugin_load_symbol(info, symbol_name) do {\
     symbol_name = info->dlsym(info->context, #symbol_name); \
@@ -472,6 +476,7 @@ qemu_plugin_decl_symbol(qemu_plugin_n_vcpus);
 qemu_plugin_decl_symbol(qemu_plugin_n_max_vcpus);
 qemu_plugin_decl_symbol(qemu_plugin_outs);
 
+#if defined(QEMU_PLUGIN_IMPLEMENTATION)
 QEMU_PLUGIN_EXPORT int qemu_plugin_initialize(const qemu_info_t *info)
 {
     qemu_plugin_load_symbol(info, qemu_plugin_uninstall);
@@ -512,6 +517,7 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_initialize(const qemu_info_t *info)
     qemu_plugin_load_symbol(info, qemu_plugin_outs);
     return 0;
 }
+#endif /* QEMU_PLUGIN_IMPLEMENTATION */
 
 #endif /* QEMU_PLUGIN_API_IMPLEMENTATION */
 
