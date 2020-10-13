@@ -1141,12 +1141,22 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
     uint32_t addr; /* offset in pci config space */
     uint64_t wmask;
     pcibus_t size = memory_region_size(memory);
+    uint8_t hdr_type;
 
     assert(region_num >= 0);
     assert(region_num < PCI_NUM_REGIONS);
     if (size & (size-1)) {
         error_report("ERROR: PCI region size must be pow2 "
                     "type=0x%x, size=0x%"FMT_PCIBUS"", type, size);
+        exit(1);
+    }
+
+    hdr_type =
+        pci_dev->config[PCI_HEADER_TYPE] & ~PCI_HEADER_TYPE_MULTI_FUNCTION;
+    if (hdr_type == PCI_HEADER_TYPE_BRIDGE && region_num > 1) {
+        error_report("ERROR: PCI Type 1 header only has 2 BARs "
+                     "requested BAR=%d",
+                     region_num);
         exit(1);
     }
 
