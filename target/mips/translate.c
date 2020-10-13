@@ -39,6 +39,7 @@
 #include "exec/translator.h"
 #include "exec/log.h"
 #include "qemu/qemu-print.h"
+#include "qapi/error.h"
 
 #define MIPS_DEBUG_DISAS 0
 
@@ -31319,7 +31320,14 @@ void mips_tcg_init(void)
 bool cpu_mips_realize_env(CPUMIPSState *env, Error **errp)
 {
     env->exception_base = (int32_t)0xBFC00000;
-    env->tlb_entries = 1 + extract32(env->cpu_model->CP0_Config1, CP0C1_MMU, 6);
+    if (!env->tlb_entries) {
+        env->tlb_entries = 1 + extract32(env->cpu_model->CP0_Config1,
+                                         CP0C1_MMU, 6);
+    } else if (env->tlb_entries > 64) {
+        error_setg(errp, "Invalid value '%d' for property 'tlb-entries'",
+                   env->tlb_entries);
+        return false;
+    }
 
 #ifndef CONFIG_USER_ONLY
     mmu_init(env, env->cpu_model);
