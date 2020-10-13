@@ -1647,6 +1647,12 @@ struct X86CPUModel {
      * This matters only for "-cpu help" and query-cpu-definitions
      */
     bool is_alias;
+    /*
+     * Valid only if is_alias is true.
+     * If NULL, actual alias depend on machine type.
+     * If not NULL, name of actual CPU model this is an alias to.
+     */
+    const char *alias_of;
 };
 
 /* Get full model name for CPU version */
@@ -4927,14 +4933,13 @@ static void x86_cpu_list_entry(gpointer data, gpointer user_data)
     X86CPUClass *cc = X86_CPU_CLASS(oc);
     g_autofree char *name = x86_cpu_class_get_model_name(cc);
     g_autofree char *desc = g_strdup(cc->model_description);
-    g_autofree char *alias_of = x86_cpu_class_get_alias_of(cc);
     g_autofree char *model_id = x86_cpu_class_get_model_id(cc);
 
-    if (!desc && alias_of) {
-        if (cc->model && cc->model->version == CPU_VERSION_AUTO) {
+    if (!desc && cc->model && cc->model->is_alias) {
+        if (!cc->model->alias_of) {
             desc = g_strdup("(alias configured by machine type)");
         } else {
-            desc = g_strdup_printf("(alias of %s)", alias_of);
+            desc = g_strdup_printf("(alias of %s)", cc->model->alias_of);
         }
     }
     if (!desc && cc->model && cc->model->note) {
@@ -5418,6 +5423,7 @@ static void x86_register_cpudef_types(X86CPUDefinition *def)
     m->cpudef = def;
     m->version = CPU_VERSION_AUTO;
     m->is_alias = true;
+    m->alias_of = NULL; /* depends on machine type */
     x86_register_cpu_model_type(def->name, m);
 
     /* Versioned models: */
@@ -5436,6 +5442,7 @@ static void x86_register_cpudef_types(X86CPUDefinition *def)
             am->cpudef = def;
             am->version = vdef->version;
             am->is_alias = true;
+            am->alias_of = g_strdup(name);
             x86_register_cpu_model_type(vdef->alias, am);
         }
     }
