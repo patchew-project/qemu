@@ -63,6 +63,7 @@
 #include "migration/colo.h"
 #include "qemu/bitmap.h"
 #include "net/announce.h"
+#include "sysemu/tcg.h"
 
 const unsigned int postcopy_ram_discard_version = 0;
 
@@ -2674,10 +2675,12 @@ int save_snapshot(const char *name, Error **errp)
         return ret;
     }
 
-    if (!replay_can_snapshot()) {
-        error_setg(errp, "Record/replay does not allow making snapshot "
-                   "right now. Try once more later.");
-        return ret;
+    if (tcg_enabled()) {
+        if (!replay_can_snapshot()) {
+            error_setg(errp, "Record/replay does not allow making snapshot "
+                       "right now. Try once more later.");
+            return ret;
+        }
     }
 
     if (!bdrv_all_can_snapshot(&bs)) {
