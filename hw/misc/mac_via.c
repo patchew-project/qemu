@@ -324,6 +324,20 @@ static void via1_one_second_update(MOS6522Q800VIA1State *v1s)
     }
 }
 
+static void via_irq_request(void *opaque, int irq, int level)
+{
+    MOS6522State *s = MOS6522(opaque);
+    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
+
+    if (level) {
+        s->ifr |= 1 << irq;
+    } else {
+        s->ifr &= ~(1 << irq);
+    }
+
+    mdc->update_irq(s);
+}
+
 static void via1_VBL(void *opaque)
 {
     MOS6522Q800VIA1State *v1s = opaque;
@@ -346,21 +360,6 @@ static void via1_one_second(void *opaque)
     mdc->update_irq(s);
 
     via1_one_second_update(v1s);
-}
-
-static void via1_irq_request(void *opaque, int irq, int level)
-{
-    MOS6522Q800VIA1State *v1s = opaque;
-    MOS6522State *s = MOS6522(v1s);
-    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
-
-    if (level) {
-        s->ifr |= 1 << irq;
-    } else {
-        s->ifr &= ~(1 << irq);
-    }
-
-    mdc->update_irq(s);
 }
 
 static void via2_irq_request(void *opaque, int irq, int level)
@@ -1195,7 +1194,7 @@ static void mos6522_q800_via1_reset(DeviceState *dev)
 
 static void mos6522_q800_via1_init(Object *obj)
 {
-    qdev_init_gpio_in_named(DEVICE(obj), via1_irq_request, "via1-irq",
+    qdev_init_gpio_in_named(DEVICE(obj), via_irq_request, "via1-irq",
                             VIA1_IRQ_NB);
 }
 
