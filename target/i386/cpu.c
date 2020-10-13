@@ -56,6 +56,7 @@
 #ifndef CONFIG_USER_ONLY
 #include "exec/address-spaces.h"
 #include "hw/i386/apic_internal.h"
+#include "hw/i386/pc.h"
 #include "hw/boards.h"
 #endif
 
@@ -4187,6 +4188,13 @@ static char *x86_cpu_model_resolve_alias(const X86CPUModel *model,
     }
     return x86_cpu_versioned_model_name(model->cpudef, version);
 }
+
+static X86CPUVersion default_cpu_version_for_machine(MachineClass *mc)
+{
+    PCMachineClass *pcmc =
+        (PCMachineClass *)object_class_dynamic_cast(OBJECT_CLASS(mc), TYPE_PC_MACHINE);
+    return pcmc ? pcmc->default_cpu_version : 1;
+}
 #endif
 
 void x86_cpu_change_kvm_default(const char *prop, const char *value)
@@ -5027,12 +5035,24 @@ static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
     args->cpu_list = entry;
 }
 
-CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
+CpuDefinitionInfoList *qmp_query_cpu_definitions(bool has_machine,
+                                                 const char *machine,
+                                                 Error **errp)
 {
     X86CPUDefinitionArgs args = { .cpu_list = NULL };
     GSList *list = get_sorted_cpu_model_list();
 
-    args.default_version = default_cpu_version;
+    if (!has_machine) {
+        args.default_version = default_cpu_version;
+    } else {
+        MachineClass *mc = machine_find_class(machine);
+        if (!mc) {
+            error_setg(errp, "Machine type '%s' not found", machine);
+            return NULL;
+        }
+        args.default_version = default_cpu_version_for_machine(mc);
+    }
+
     g_slist_foreach(list, x86_cpu_definition_entry, &args);
     g_slist_free(list);
     return args.cpu_list;
