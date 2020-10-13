@@ -341,11 +341,8 @@ static void via_irq_request(void *opaque, int irq, int level)
 static void via1_VBL(void *opaque)
 {
     MOS6522Q800VIA1State *v1s = opaque;
-    MOS6522State *s = MOS6522(v1s);
-    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
 
-    s->ifr |= VIA1_IRQ_VBLANK;
-    mdc->update_irq(s);
+    via_irq_request(v1s, VIA1_IRQ_VBLANK, 1);
 
     via1_VBL_update(v1s);
 }
@@ -353,11 +350,8 @@ static void via1_VBL(void *opaque)
 static void via1_one_second(void *opaque)
 {
     MOS6522Q800VIA1State *v1s = opaque;
-    MOS6522State *s = MOS6522(v1s);
-    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
 
-    s->ifr |= VIA1_IRQ_ONE_SECOND;
-    mdc->update_irq(s);
+    via_irq_request(v1s, VIA1_IRQ_ONE_SECOND, 1);
 
     via1_one_second_update(v1s);
 }
