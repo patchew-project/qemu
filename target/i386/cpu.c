@@ -4158,11 +4158,12 @@ static X86CPUVersion x86_cpu_model_last_version(const X86CPUModel *model)
 }
 
 /* Return the actual version being used for a specific CPU model */
-static X86CPUVersion x86_cpu_model_resolve_version(const X86CPUModel *model)
+static X86CPUVersion x86_cpu_model_resolve_version(const X86CPUModel *model,
+                                                   X86CPUVersion default_version)
 {
     X86CPUVersion v = model->version;
     if (v == CPU_VERSION_AUTO) {
-        v = default_cpu_version;
+        v = default_version;
     }
     if (v == CPU_VERSION_LATEST) {
         return x86_cpu_model_last_version(model);
@@ -4171,14 +4172,15 @@ static X86CPUVersion x86_cpu_model_resolve_version(const X86CPUModel *model)
 }
 
 /* Resolve CPU model alias to actual CPU model name */
-static char *x86_cpu_model_resolve_alias(const X86CPUModel *model)
+static char *x86_cpu_model_resolve_alias(const X86CPUModel *model,
+                                         X86CPUVersion default_version)
 {
     X86CPUVersion version;
 
     if (!model->is_alias) {
         return NULL;
     }
-    version = x86_cpu_model_resolve_version(model);
+    version = x86_cpu_model_resolve_version(model, default_version);
     if (version <= 0) {
         return NULL;
     }
@@ -5004,7 +5006,8 @@ static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
      * doesn't break compatibility with previous QEMU versions.
      */
     if (cc->model && default_cpu_version != CPU_VERSION_LEGACY) {
-        info->alias_of = x86_cpu_model_resolve_alias(cc->model);
+        info->alias_of = x86_cpu_model_resolve_alias(cc->model,
+                                                     default_cpu_version);
         info->has_alias_of = !!info->alias_of;
     }
 
@@ -5075,7 +5078,8 @@ static void x86_cpu_apply_props(X86CPU *cpu, PropValue *props)
 static void x86_cpu_apply_version_props(X86CPU *cpu, X86CPUModel *model)
 {
     const X86CPUVersionDefinition *vdef;
-    X86CPUVersion version = x86_cpu_model_resolve_version(model);
+    X86CPUVersion version = x86_cpu_model_resolve_version(model,
+                                                          default_cpu_version);
 
     if (version == CPU_VERSION_LEGACY) {
         return;
