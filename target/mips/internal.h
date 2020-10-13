@@ -206,7 +206,15 @@ void mips_tcg_init(void);
 
 /* TODO QOM'ify CPU reset and remove */
 void cpu_state_reset(CPUMIPSState *s);
-void cpu_mips_realize_env(CPUMIPSState *env);
+
+/**
+ * cpu_mips_realize_env: Realize CPUMIPSState
+ * @env: CPUMIPSState object
+ * @errp: pointer to error object
+ * On success, return %true.
+ * On failure, store an error through @errp and return %false.
+ */
+bool cpu_mips_realize_env(CPUMIPSState *env, Error **errp);
 
 /* cp0_timer.c */
 uint32_t cpu_mips_get_random(CPUMIPSState *env);

@@ -31316,7 +31316,7 @@ void mips_tcg_init(void)
 
 #include "translate_init.c.inc"
 
-void cpu_mips_realize_env(CPUMIPSState *env)
+bool cpu_mips_realize_env(CPUMIPSState *env, Error **errp)
 {
     env->exception_base = (int32_t)0xBFC00000;
 
@@ -31325,6 +31325,8 @@ void cpu_mips_realize_env(CPUMIPSState *env)
 #endif
     fpu_init(env, env->cpu_model);
     mvp_init(env, env->cpu_model);
+
+    return true;
 }
 
 bool cpu_supports_cps_smp(const char *cpu_type)
