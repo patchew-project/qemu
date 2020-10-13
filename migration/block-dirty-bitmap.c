@@ -1064,15 +1064,13 @@ static int dirty_bitmap_load_header(QEMUFile *f, DBMLoadState *s,
     assert(nothing || s->cancelled || !!alias_map == !!bitmap_alias_map);
 
     if (s->flags & DIRTY_BITMAP_MIG_FLAG_BITMAP_NAME) {
-        const char *bitmap_name;
-
         if (!qemu_get_counted_string(f, s->bitmap_alias)) {
             error_report("Unable to read bitmap alias string");
             return -EINVAL;
         }
 
-        if (!s->cancelled) {
-            if (bitmap_alias_map) {
+        const char *bitmap_name = s->bitmap_alias;
+        if (!s->cancelled && bitmap_alias_map) {
                 bitmap_name = g_hash_table_lookup(bitmap_alias_map,
                                                   s->bitmap_alias);
                 if (!bitmap_name) {
@@ -1081,9 +1079,6 @@ static int dirty_bitmap_load_header(QEMUFile *f, DBMLoadState *s,
                                  s->bs->node_name, s->node_alias);
                     cancel_incoming_locked(s);
                 }
-            } else {
-                bitmap_name = s->bitmap_alias;
-            }
         }
 
         if (!s->cancelled) {
