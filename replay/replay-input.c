@@ -124,7 +124,7 @@ void replay_input_event(QemuConsole *src, InputEvent *evt)
     } else if (replay_mode == REPLAY_MODE_RECORD) {
         replay_add_input_event(QAPI_CLONE(InputEvent, evt));
     } else {
-        qemu_input_event_send_impl(src, evt);
+        g_assert_not_reached();
     }
 }
 
@@ -135,6 +135,6 @@ void replay_input_sync_event(void)
     } else if (replay_mode == REPLAY_MODE_RECORD) {
         replay_add_input_sync_event();
     } else {
-        qemu_input_event_sync_impl();
+        g_assert_not_reached();
     }
 }

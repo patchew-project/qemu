@@ -23,7 +23,6 @@
 #include "qemu/option.h"
 #include "qemu/vfio-helpers.h"
 #include "block/block_int.h"
-#include "sysemu/replay.h"
 #include "trace.h"
 
 #include "block/nvme.h"
@@ -313,8 +312,7 @@ static void nvme_put_free_req_locked(NVMeQueuePair *q, NVMeRequest *req)
 static void nvme_wake_free_req_locked(NVMeQueuePair *q)
 {
     if (!qemu_co_queue_empty(&q->free_req_queue)) {
-        replay_bh_schedule_oneshot_event(q->s->aio_context,
-                nvme_free_req_queue_cb, q);
+        bdrv_bh_schedule_oneshot(q->s->aio_context, nvme_free_req_queue_cb, q);
     }
 }
 
@@ -1068,7 +1066,7 @@ static void nvme_rw_cb(void *opaque, int ret)
         /* The rw coroutine hasn't yielded, don't try to enter. */
         return;
     }
-    replay_bh_schedule_oneshot_event(data->ctx, nvme_rw_cb_bh, data);
+    bdrv_bh_schedule_oneshot(data->ctx, nvme_rw_cb_bh, data);
 }
 
 static coroutine_fn int nvme_co_prw_aligned(BlockDriverState *bs,

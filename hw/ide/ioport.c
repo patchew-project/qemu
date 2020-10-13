@@ -33,7 +33,6 @@
 #include "sysemu/block-backend.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
-#include "sysemu/replay.h"
 
 #include "hw/ide/internal.h"
 #include "trace.h"

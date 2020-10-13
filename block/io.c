@@ -368,8 +368,8 @@ static void coroutine_fn bdrv_co_yield_to_drain(BlockDriverState *bs,
     if (bs) {
         bdrv_inc_in_flight(bs);
     }
-    replay_bh_schedule_oneshot_event(bdrv_get_aio_context(bs),
-                                     bdrv_co_drain_bh_cb, &data);
+    bdrv_bh_schedule_oneshot(bdrv_get_aio_context(bs),
+                             bdrv_co_drain_bh_cb, &data);
 
     qemu_coroutine_yield();
     /* If we are resumed from some other event (such as an aio completion or a
@@ -600,12 +600,12 @@ void bdrv_drain_all_begin(void)
         return;
     }
 
-    /*
-     * bdrv queue is managed by record/replay,
-     * waiting for finishing the I/O requests may
-     * be infinite
-     */
     if (replay_events_enabled()) {
+        /*
+         * bdrv queue is managed by record/replay,
+         * waiting for finishing the I/O requests may
+         * be infinite
+         */
         return;
     }
 
@@ -638,12 +638,12 @@ void bdrv_drain_all_end(void)
     BlockDriverState *bs = NULL;
     int drained_end_counter = 0;
 
-    /*
-     * bdrv queue is managed by record/replay,
-     * waiting for finishing the I/O requests may
-     * be endless
-     */
     if (replay_events_enabled()) {
+        /*
+         * bdrv queue is managed by record/replay,
+         * waiting for finishing the I/O requests may
+         * be endless
+         */
         return;
     }
 
@@ -2122,12 +2122,12 @@ int bdrv_flush_all(void)
     BlockDriverState *bs = NULL;
     int result = 0;
 
-    /*
-     * bdrv queue is managed by record/replay,
-     * creating new flush request for stopping
-     * the VM may break the determinism
-     */
     if (replay_events_enabled()) {
+        /*
+         * bdrv queue is managed by record/replay,
+         * creating new flush request for stopping
+         * the VM may break the determinism
+         */
         return result;
     }
 
@@ -3214,4 +3214,22 @@ out:
     bdrv_dec_in_flight(bs);
 
     return ret;
+}
+
+void bdrv_bh_schedule_oneshot(AioContext *ctx, QEMUBHFunc *cb, void *opaque)
+{
+    if (replay_events_enabled()) {
+        replay_bh_schedule_oneshot_event(ctx, cb, opaque);
+    } else {
+        aio_bh_schedule_oneshot(ctx, cb, opaque);
+    }
+}
+
+void bdrv_bh_schedule(QEMUBH *bh)
+{
+    if (replay_events_enabled()) {
+        replay_bh_schedule_event(bh);
+    } else {
+        qemu_bh_schedule(bh);
+    }
 }

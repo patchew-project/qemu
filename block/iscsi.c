@@ -40,7 +40,6 @@
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/uuid.h"
-#include "sysemu/replay.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-machine.h"
 #include "qapi/qmp/qdict.h"
@@ -283,8 +282,8 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
     }
 
     if (iTask->co) {
-        replay_bh_schedule_oneshot_event(iTask->iscsilun->aio_context,
-                                         iscsi_co_generic_bh_cb, iTask);
+        bdrv_bh_schedule_oneshot(iTask->iscsilun->aio_context,
+                                 iscsi_co_generic_bh_cb, iTask);
     } else {
         iTask->complete = 1;
     }

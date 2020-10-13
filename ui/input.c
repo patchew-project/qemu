@@ -375,7 +375,11 @@ void qemu_input_event_send(QemuConsole *src, InputEvent *evt)
         return;
     }
 
-    replay_input_event(src, evt);
+    if (replay_events_enabled()) {
+        replay_input_event(src, evt);
+    } else {
+        qemu_input_event_send_impl(src, evt);
+    }
 }
 
 void qemu_input_event_sync_impl(void)
@@ -401,7 +405,11 @@ void qemu_input_event_sync(void)
         return;
     }
 
-    replay_input_sync_event();
+    if (replay_events_enabled()) {
+        replay_input_sync_event();
+    } else {
+        qemu_input_event_sync_impl();
+    }
 }
 
 static InputEvent *qemu_input_event_new_key(KeyValue *key, bool down)

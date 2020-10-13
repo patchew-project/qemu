@@ -834,4 +834,33 @@ int coroutine_fn bdrv_co_copy_range(BdrvChild *src, uint64_t src_offset,
                                     BdrvChild *dst, uint64_t dst_offset,
                                     uint64_t bytes, BdrvRequestFlags read_flags,
                                     BdrvRequestFlags write_flags);
+
+/**
+ *
+ * bdrv_bh_schedule_oneshot:
+ *
+ * This is a wrapper for aio_bh_schedule_oneshot:
+ * allocate and schedule a oneshot aio bottom half, to be executed as soon as
+ * possible.
+ *
+ * If event-capturing frameworks are present and active,
+ * the event will instead be consumed by their internal queues.
+ *
+ * Arguments are as per aio_bh_schedule_oneshot.
+ **/
+void bdrv_bh_schedule_oneshot(AioContext *ctx, QEMUBHFunc *cb, void *opaque);
+
+/**
+ *
+ * bdrv_bh_schedule:
+ *
+ * This is a wrapper for qemu_bh_schedule.
+ *
+ * If event-capturing frameworks are present and active,
+ * the event will instead be consumed by their internal queues.
+ *
+ * Arguments are as per qemu_bh_schedule.
+ **/
+void bdrv_bh_schedule(QEMUBH *bh);
+
 #endif
