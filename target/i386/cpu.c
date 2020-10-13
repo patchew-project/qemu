@@ -4170,6 +4170,21 @@ static X86CPUVersion x86_cpu_model_resolve_version(const X86CPUModel *model)
     return v;
 }
 
+/* Resolve CPU model alias to actual CPU model name */
+static char *x86_cpu_model_resolve_alias(const X86CPUModel *model)
+{
+    X86CPUVersion version;
+
+    if (!model->is_alias) {
+        return NULL;
+    }
+    version = x86_cpu_model_resolve_version(model);
+    if (version <= 0) {
+        return NULL;
+    }
+    return x86_cpu_versioned_model_name(model->cpudef, version);
+}
+
 void x86_cpu_change_kvm_default(const char *prop, const char *value)
 {
     PropValue *pv;
@@ -4913,20 +4928,6 @@ static char *x86_cpu_class_get_model_id(X86CPUClass *xc)
     return r;
 }
 
-static char *x86_cpu_class_get_alias_of(X86CPUClass *cc)
-{
-    X86CPUVersion version;
-
-    if (!cc->model || !cc->model->is_alias) {
-        return NULL;
-    }
-    version = x86_cpu_model_resolve_version(cc->model);
-    if (version <= 0) {
-        return NULL;
-    }
-    return x86_cpu_versioned_model_name(cc->model->cpudef, version);
-}
-
 static void x86_cpu_list_entry(gpointer data, gpointer user_data)
 {
     ObjectClass *oc = data;
@@ -5002,8 +5003,8 @@ static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
      * Old machine types won't report aliases, so that alias translation
      * doesn't break compatibility with previous QEMU versions.
      */
-    if (default_cpu_version != CPU_VERSION_LEGACY) {
-        info->alias_of = x86_cpu_class_get_alias_of(cc);
+    if (cc->model && default_cpu_version != CPU_VERSION_LEGACY) {
+        info->alias_of = x86_cpu_model_resolve_alias(cc->model);
         info->has_alias_of = !!info->alias_of;
     }
 
