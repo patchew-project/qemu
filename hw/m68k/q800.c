@@ -174,6 +174,7 @@ static void q800_init(MachineState *machine)
     SysBusESPState *sysbus_esp;
     ESPState *esp;
     SysBusDevice *sysbus;
+    MOS6522State *ms;
     BusState *adb_bus;
     NubusBus *nubus;
     GLUEState *irq;
@@ -226,9 +227,11 @@ static void q800_init(MachineState *machine)
     sysbus = SYS_BUS_DEVICE(via_dev);
     sysbus_realize_and_unref(sysbus, &error_fatal);
     sysbus_mmio_map(sysbus, 0, VIA_BASE);
-    qdev_connect_gpio_out_named(DEVICE(sysbus), "irq", 0, pic[0]);
-    qdev_connect_gpio_out_named(DEVICE(sysbus), "irq", 1, pic[1]);
 
+    ms = MOS6522(object_resolve_path_component(OBJECT(via_dev), "via1"));
+    sysbus_connect_irq(SYS_BUS_DEVICE(ms), 0, pic[0]);
+    ms = MOS6522(object_resolve_path_component(OBJECT(via_dev), "via2"));
+    sysbus_connect_irq(SYS_BUS_DEVICE(ms), 0, pic[1]);
 
     adb_bus = qdev_get_child_bus(via_dev, "adb.0");
     dev = qdev_new(TYPE_ADB_KEYBOARD);
@@ -300,11 +303,12 @@ static void q800_init(MachineState *machine)
 
     sysbus = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(sysbus, &error_fatal);
-    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in_named(via_dev,
+    ms = MOS6522(object_resolve_path_component(OBJECT(via_dev), "via2"));
+    sysbus_connect_irq(sysbus, 0, qdev_get_gpio_in_named(DEVICE(ms),
                                                          "via2-irq",
                                                          VIA2_IRQ_SCSI_BIT));
     sysbus_connect_irq(sysbus, 1,
-                       qdev_get_gpio_in_named(via_dev, "via2-irq",
+                       qdev_get_gpio_in_named(DEVICE(ms), "via2-irq",
                                               VIA2_IRQ_SCSI_DATA_BIT));
     sysbus_mmio_map(sysbus, 0, ESP_BASE);
     sysbus_mmio_map(sysbus, 1, ESP_PDMA);

@@ -1016,40 +1016,21 @@ static void mac_via_realize(DeviceState *dev, Error **errp)
     struct tm tm;
     int ret;
 
-    /* Init VIAs 1 and 2 */
-    object_initialize_child(OBJECT(dev), "via1", &m->mos6522_via1,
-                            TYPE_MOS6522_Q800_VIA1);
-
-    object_initialize_child(OBJECT(dev), "via2", &m->mos6522_via2,
-                            TYPE_MOS6522_Q800_VIA2);
-
-    /* Pass through mos6522 output IRQs */
-    ms = MOS6522(&m->mos6522_via1);
-    object_property_add_alias(OBJECT(dev), "irq[0]", OBJECT(ms),
-                              SYSBUS_DEVICE_GPIO_IRQ "[0]");
-    ms = MOS6522(&m->mos6522_via2);
-    object_property_add_alias(OBJECT(dev), "irq[1]", OBJECT(ms),
-                              SYSBUS_DEVICE_GPIO_IRQ "[0]");
-
+    /* Realize VIAs */
     sysbus_realize(SYS_BUS_DEVICE(&m->mos6522_via1), &error_abort);
     sysbus_realize(SYS_BUS_DEVICE(&m->mos6522_via2), &error_abort);
 
-    /* Pass through mos6522 input IRQs */
-    qdev_pass_gpios(DEVICE(&m->mos6522_via1), dev, "via1-irq");
-    qdev_pass_gpios(DEVICE(&m->mos6522_via2), dev, "via2-irq");
-
     /* VIA 1 */
+    ms = MOS6522(&m->mos6522_via1);
     m->mos6522_via1.one_second_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
-                                                     via1_one_second,
-                                                     &m->mos6522_via1);
-    m->mos6522_via1.VBL_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, via1_VBL,
-                                              &m->mos6522_via1);
+                                                     via1_one_second, ms);
+    m->mos6522_via1.VBL_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, via1_VBL, ms);
 
     qemu_get_timedate(&tm, 0);
     m->tick_offset = (uint32_t)mktimegm(&tm) + RTC_OFFSET;
 
     adb_register_autopoll_callback(adb_bus, adb_via_poll, m);
-    m->adb_data_ready = qdev_get_gpio_in_named(dev, "via1-irq",
+    m->adb_data_ready = qdev_get_gpio_in_named(DEVICE(ms), "via1-irq",
                                                VIA1_IRQ_ADB_READY_BIT);
 
     if (m->blk) {
@@ -1079,6 +1060,13 @@ static void mac_via_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     MacVIAState *m = MAC_VIA(obj);
+
+    /* Init VIAs 1 and 2 */
+    object_initialize_child(obj, "via1", &m->mos6522_via1,
+                            TYPE_MOS6522_Q800_VIA1);
+
+    object_initialize_child(obj, "via2", &m->mos6522_via2,
+                            TYPE_MOS6522_Q800_VIA2);
 
     /* MMIO */
     memory_region_init(&m->mmio, obj, "mac-via", 2 * VIA_SIZE);
