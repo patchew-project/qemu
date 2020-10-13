@@ -1039,7 +1039,7 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .tcg_features = 0,
         .unmigratable_flags = 0,
     },
-    [FEAT_XSAVE] = {
+    [FEAT_XSAVE_INSTRUCTION] = {
         .type = CPUID_FEATURE_WORD,
         .feat_names = {
             "xsaveopt", "xsavec", "xgetbv1", "xsaves",
@@ -1073,7 +1073,7 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .cpuid = { .eax = 6, .reg = R_EAX, },
         .tcg_features = TCG_6_EAX_FEATURES,
     },
-    [FEAT_XSAVE_COMP_LO] = {
+    [FEAT_XSAVE_XCR0_LO] = {
         .type = CPUID_FEATURE_WORD,
         .cpuid = {
             .eax = 0xD,
@@ -1086,7 +1086,7 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             XSTATE_OPMASK_MASK | XSTATE_ZMM_Hi256_MASK | XSTATE_Hi16_ZMM_MASK |
             XSTATE_PKRU_MASK,
     },
-    [FEAT_XSAVE_COMP_HI] = {
+    [FEAT_XSAVE_XCR0_HI] = {
         .type = CPUID_FEATURE_WORD,
         .cpuid = {
             .eax = 0xD,
@@ -1358,7 +1358,7 @@ static FeatureDep feature_dependencies[] = {
         .to = { FEAT_VMX_SECONDARY_CTLS,    ~0ull },
     },
     {
-        .from = { FEAT_XSAVE,               CPUID_XSAVE_XSAVES },
+        .from = { FEAT_XSAVE_INSTRUCTION,   CPUID_XSAVE_XSAVES },
         .to = { FEAT_VMX_SECONDARY_CTLS,    VMX_SECONDARY_EXEC_XSAVES },
     },
     {
@@ -1491,8 +1491,8 @@ static inline bool accel_uses_host_cpuid(void)
 
 static inline uint64_t x86_cpu_xsave_components(X86CPU *cpu)
 {
-    return ((uint64_t)cpu->env.features[FEAT_XSAVE_COMP_HI]) << 32 |
-           cpu->env.features[FEAT_XSAVE_COMP_LO];
+    return ((uint64_t)cpu->env.features[FEAT_XSAVE_XCR0_HI]) << 32 |
+           cpu->env.features[FEAT_XSAVE_XCR0_LO];
 }
 
 const char *get_register_name_32(unsigned int reg)
@@ -2363,7 +2363,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             CPUID_EXT2_SYSCALL,
         .features[FEAT_8000_0001_ECX] =
             CPUID_EXT3_LAHF_LM,
-        .features[FEAT_XSAVE] =
+        .features[FEAT_XSAVE_INSTRUCTION] =
             CPUID_XSAVE_XSAVEOPT,
         .features[FEAT_6_EAX] =
             CPUID_6_EAX_ARAT,
@@ -2452,7 +2452,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             CPUID_EXT2_SYSCALL,
         .features[FEAT_8000_0001_ECX] =
             CPUID_EXT3_LAHF_LM,
-        .features[FEAT_XSAVE] =
+        .features[FEAT_XSAVE_INSTRUCTION] =
             CPUID_XSAVE_XSAVEOPT,
         .features[FEAT_6_EAX] =
             CPUID_6_EAX_ARAT,
@@ -2547,7 +2547,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             CPUID_7_0_EBX_HLE | CPUID_7_0_EBX_AVX2 | CPUID_7_0_EBX_SMEP |
             CPUID_7_0_EBX_BMI2 | CPUID_7_0_EBX_ERMS | CPUID_7_0_EBX_INVPCID |
             CPUID_7_0_EBX_RTM,
-        .features[FEAT_XSAVE] =
+        .features[FEAT_XSAVE_INSTRUCTION] =
             CPUID_XSAVE_XSAVEOPT,
         .features[FEAT_6_EAX] =
             CPUID_6_EAX_ARAT,
@@ -2677,7 +2677,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             CPUID_7_0_EBX_BMI2 | CPUID_7_0_EBX_ERMS | CPUID_7_0_EBX_INVPCID |
             CPUID_7_0_EBX_RTM | CPUID_7_0_EBX_RDSEED | CPUID_7_0_EBX_ADX |
             CPUID_7_0_EBX_SMAP,
-        .features[FEAT_XSAVE] =
+        .features[FEAT_XSAVE_INSTRUCTION] =
             CPUID_XSAVE_XSAVEOPT,
         .features[FEAT_6_EAX] =
             CPUID_6_EAX_ARAT,
@@ -2807,7 +2807,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
          * and the only one defined in Skylake (processor tracing)
          * probably will block migration anyway.
          */
-        .features[FEAT_XSAVE] =
+        .features[FEAT_XSAVE_INSTRUCTION] =
             CPUID_XSAVE_XSAVEOPT | CPUID_XSAVE_XSAVEC |
             CPUID_XSAVE_XGETBV1,
         .features[FEAT_6_EAX] =
@@ -2927,7 +2927,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
          * and the only one defined in Skylake (processor tracing)
          * probably will block migration anyway.
          */
-        .features[FEAT_XSAVE] =
+        .features[FEAT_XSAVE_INSTRUCTION] =
             CPUID_XSAVE_XSAVEOPT | CPUID_XSAVE_XSAVEC |
             CPUID_XSAVE_XGETBV1,
         .features[FEAT_6_EAX] =
@@ -3062,7 +3062,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
                 * and the only one defined in Skylake (processor tracing)
                 * probably will block migration anyway.
                 */
-        .features[FEAT_XSAVE] =
+        .features[FEAT_XSAVE_INSTRUCTION] =
             CPUID_XSAVE_XSAVEOPT | CPUID_XSAVE_XSAVEC |
             CPUID_XSAVE_XGETBV1,
         .features[FEAT_6_EAX] =
@@ -3201,7 +3201,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
          * and the only one defined in Skylake (processor tracing)
          * probably will block migration anyway.
          */
-        .features[FEAT_XSAVE] =
+        .features[FEAT_XSAVE_INSTRUCTION] =
             CPUID_XSAVE_XSAVEOPT | CPUID_XSAVE_XSAVEC |
             CPUID_XSAVE_XGETBV1,
         .features[FEAT_6_EAX] =
@@ -3304,7 +3304,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
                 * and the only one defined in Skylake (processor tracing)
                 * probably will block migration anyway.
                 */
-        .features[FEAT_XSAVE] =
+        .features[FEAT_XSAVE_INSTRUCTION] =
             CPUID_XSAVE_XSAVEOPT | CPUID_XSAVE_XSAVEC |
             CPUID_XSAVE_XGETBV1,
         .features[FEAT_6_EAX] =
@@ -3421,7 +3421,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
                 * and the only one defined in Skylake (processor tracing)
                 * probably will block migration anyway.
                 */
-        .features[FEAT_XSAVE] =
+        .features[FEAT_XSAVE_INSTRUCTION] =
             CPUID_XSAVE_XSAVEOPT | CPUID_XSAVE_XSAVEC |
             CPUID_XSAVE_XGETBV1,
         .features[FEAT_6_EAX] =
@@ -3554,7 +3554,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
          * and the only one defined in Skylake (processor tracing)
          * probably will block migration anyway.
          */
-        .features[FEAT_XSAVE] =
+        .features[FEAT_XSAVE_INSTRUCTION] =
             CPUID_XSAVE_XSAVEOPT | CPUID_XSAVE_XSAVEC | CPUID_XSAVE_XGETBV1,
         .features[FEAT_6_EAX] =
             CPUID_6_EAX_ARAT,
@@ -3685,7 +3685,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
          * and the only one defined in Skylake (processor tracing)
          * probably will block migration anyway.
          */
-        .features[FEAT_XSAVE] =
+        .features[FEAT_XSAVE_INSTRUCTION] =
             CPUID_XSAVE_XSAVEOPT | CPUID_XSAVE_XSAVEC |
             CPUID_XSAVE_XGETBV1,
         .features[FEAT_6_EAX] =
@@ -3787,7 +3787,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             CPUID_7_0_ECX_AVX512_VPOPCNTDQ,
         .features[FEAT_7_0_EDX] =
             CPUID_7_0_EDX_AVX512_4VNNIW | CPUID_7_0_EDX_AVX512_4FMAPS,
-        .features[FEAT_XSAVE] =
+        .features[FEAT_XSAVE_INSTRUCTION] =
             CPUID_XSAVE_XSAVEOPT,
         .features[FEAT_6_EAX] =
             CPUID_6_EAX_ARAT,
@@ -3958,7 +3958,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             CPUID_7_0_EBX_SMEP | CPUID_7_0_EBX_BMI2 | CPUID_7_0_EBX_RDSEED |
             CPUID_7_0_EBX_ADX | CPUID_7_0_EBX_SMAP | CPUID_7_0_EBX_CLFLUSHOPT |
             CPUID_7_0_EBX_SHA_NI,
-        .features[FEAT_XSAVE] =
+        .features[FEAT_XSAVE_INSTRUCTION] =
             CPUID_XSAVE_XSAVEOPT | CPUID_XSAVE_XSAVEC |
             CPUID_XSAVE_XGETBV1,
         .features[FEAT_6_EAX] =
@@ -4035,7 +4035,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
          * including v4.1 to v4.12).
          * KVM doesn't yet expose any XSAVES state save component.
          */
-        .features[FEAT_XSAVE] =
+        .features[FEAT_XSAVE_INSTRUCTION] =
             CPUID_XSAVE_XSAVEOPT | CPUID_XSAVE_XSAVEC |
             CPUID_XSAVE_XGETBV1,
         .features[FEAT_6_EAX] =
@@ -4085,7 +4085,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             CPUID_7_0_EBX_SHA_NI | CPUID_7_0_EBX_CLWB,
         .features[FEAT_7_0_ECX] =
             CPUID_7_0_ECX_UMIP | CPUID_7_0_ECX_RDPID,
-        .features[FEAT_XSAVE] =
+        .features[FEAT_XSAVE_INSTRUCTION] =
             CPUID_XSAVE_XSAVEOPT | CPUID_XSAVE_XSAVEC |
             CPUID_XSAVE_XGETBV1 | CPUID_XSAVE_XSAVES,
         .features[FEAT_6_EAX] =
@@ -4660,8 +4660,8 @@ static const char *x86_cpu_feature_name(FeatureWord w, int bitnr)
     /* XSAVE components are automatically enabled by other features,
      * so return the original feature name instead
      */
-    if (w == FEAT_XSAVE_COMP_LO || w == FEAT_XSAVE_COMP_HI) {
-        int comp = (w == FEAT_XSAVE_COMP_HI) ? bitnr + 32 : bitnr;
+    if (w == FEAT_XSAVE_XCR0_LO || w == FEAT_XSAVE_XCR0_HI) {
+        int comp = (w == FEAT_XSAVE_XCR0_HI) ? bitnr + 32 : bitnr;
 
         if (comp < ARRAY_SIZE(x86_ext_save_areas) &&
             x86_ext_save_areas[comp].bits) {
@@ -5707,8 +5707,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
 
         if (count == 0) {
             *ecx = xsave_area_size(x86_cpu_xsave_components(cpu));
-            *eax = env->features[FEAT_XSAVE_COMP_LO];
-            *edx = env->features[FEAT_XSAVE_COMP_HI];
+            *eax = env->features[FEAT_XSAVE_XCR0_LO];
+            *edx = env->features[FEAT_XSAVE_XCR0_HI];
             /*
              * The initial value of xcr0 and ebx == 0, On host without kvm
              * commit 412a3c41(e.g., CentOS 6), the ebx's value always == 0
@@ -5717,7 +5717,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
              */
             *ebx = kvm_enabled() ? *ecx : xsave_area_size(env->xcr0);
         } else if (count == 1) {
-            *eax = env->features[FEAT_XSAVE];
+            *eax = env->features[FEAT_XSAVE_INSTRUCTION];
         } else if (count < ARRAY_SIZE(x86_ext_save_areas)) {
             if ((x86_cpu_xsave_components(cpu) >> count) & 1) {
                 const ExtSaveArea *esa = &x86_ext_save_areas[count];
@@ -6280,8 +6280,8 @@ static void x86_cpu_enable_xsave_components(X86CPU *cpu)
         }
     }
 
-    env->features[FEAT_XSAVE_COMP_LO] = mask;
-    env->features[FEAT_XSAVE_COMP_HI] = mask >> 32;
+    env->features[FEAT_XSAVE_XCR0_LO] = mask;
+    env->features[FEAT_XSAVE_XCR0_HI] = mask >> 32;
 }
 
 /***** Steps involved on loading and filtering CPUID data
@@ -6396,7 +6396,7 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
         x86_cpu_adjust_feat_level(cpu, FEAT_8000_0008_EBX);
         x86_cpu_adjust_feat_level(cpu, FEAT_C000_0001_EDX);
         x86_cpu_adjust_feat_level(cpu, FEAT_SVM);
-        x86_cpu_adjust_feat_level(cpu, FEAT_XSAVE);
+        x86_cpu_adjust_feat_level(cpu, FEAT_XSAVE_INSTRUCTION);
 
         /* Intel Processor Trace requires CPUID[0x14] */
         if ((env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_INTEL_PT)) {

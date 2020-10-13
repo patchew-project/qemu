@@ -2891,7 +2891,7 @@ uint64_t helper_xgetbv(CPUX86State *env, uint32_t ecx)
     case 0:
         return env->xcr0;
     case 1:
-        if (env->features[FEAT_XSAVE] & CPUID_XSAVE_XGETBV1) {
+        if (env->features[FEAT_XSAVE_INSTRUCTION] & CPUID_XSAVE_XGETBV1) {
             return env->xcr0 & get_xinuse(env);
         }
         break;
