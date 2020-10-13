@@ -31319,6 +31319,7 @@ void mips_tcg_init(void)
 bool cpu_mips_realize_env(CPUMIPSState *env, Error **errp)
 {
     env->exception_base = (int32_t)0xBFC00000;
+    env->tlb_entries = 1 + extract32(env->cpu_model->CP0_Config1, CP0C1_MMU, 6);
 
 #ifndef CONFIG_USER_ONLY
     mmu_init(env, env->cpu_model);
@@ -31357,7 +31358,8 @@ void cpu_state_reset(CPUMIPSState *env)
 #ifdef TARGET_WORDS_BIGENDIAN
     env->CP0_Config0 |= (1 << CP0C0_BE);
 #endif
-    env->CP0_Config1 = env->cpu_model->CP0_Config1;
+    env->CP0_Config1 = deposit32(env->cpu_model->CP0_Config1, CP0C1_MMU, 6,
+                                 env->tlb_entries - 1);
     env->CP0_Config2 = env->cpu_model->CP0_Config2;
     env->CP0_Config3 = env->cpu_model->CP0_Config3;
     env->CP0_Config4 = env->cpu_model->CP0_Config4;

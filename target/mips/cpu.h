@@ -1140,6 +1140,7 @@ struct CPUMIPSState {
 #endif
 
     const mips_def_t *cpu_model;
+    uint8_t tlb_entries;
     void *irq[8];
     QEMUTimer *timer; /* Internal timer */
     struct MIPSITUState *itu;
