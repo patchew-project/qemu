@@ -878,11 +878,11 @@ static void set_pci_host_devaddr(Object *obj, Visitor *v, const char *name,
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     PCIHostDeviceAddress *addr = qdev_get_prop_ptr(dev, prop);
-    char *str, *p;
-    const char *e;
+    g_autofree char *str = NULL;
+    g_auto(GStrv) col_s0 = NULL;
+    g_auto(GStrv) dot_s = NULL;
+    char **col_s;
     unsigned long val;
-    unsigned long dom = 0, bus = 0;
-    unsigned int slot = 0, func = 0;
 
     if (dev->realized) {
         qdev_prop_set_after_realize(dev, name, errp);
@@ -893,57 +893,50 @@ static void set_pci_host_devaddr(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    p = str;
-    if (qemu_strtoul(p, &e, 16, &val) < 0 || val > 0xffff || e == p) {
+    col_s = col_s0 = g_strsplit(str, ":", 3);
+    if (!col_s || !col_s[0] || !col_s[1]) {
         goto inval;
     }
-    if (*e != ':') {
-        goto inval;
-    }
-    bus = val;
 
-    p = (char *)e + 1;
-    if (qemu_strtoul(p, &e, 16, &val) < 0 || val > 0x1f || e == p) {
-        goto inval;
-    }
-    if (*e == ':') {
-        dom = bus;
-        bus = val;
-        p = (char *)e + 1;
-        if (qemu_strtoul(p, &e, 16, &val) < 0 || val > 0x1f || e == p) {
+    /* domain */
+    if (col_s[2]) {
+        if (qemu_strtoul(col_s[0], NULL, 16, &val) < 0 || val > 0xffff) {
             goto inval;
         }
+        addr->domain = val;
+        col_s++;
+    } else {
+        addr->domain = 0;
     }
-    slot = val;
 
-    if (*e != '.') {
+    /* bus */
+    if (qemu_strtoul(col_s[0], NULL, 16, &val) < 0 || val > 0xff) {
         goto inval;
     }
-    p = (char *)e + 1;
-    if (qemu_strtoul(p, &e, 10, &val) < 0 || val > 7 || e == p) {
-        goto inval;
-    }
-    func = val;
+    addr->bus = val;
 
-    if (bus > 0xff) {
-        goto inval;
-    }
-
-    if (*e) {
+    /* <slot>.<func> */
+    dot_s = g_strsplit(col_s[1], ".", 2);
+    if (!dot_s || !dot_s[0] || !dot_s[1]) {
         goto inval;
     }
 
-    addr->domain = dom;
-    addr->bus = bus;
-    addr->slot = slot;
-    addr->function = func;
+    /* slot */
+    if (qemu_strtoul(dot_s[0], NULL, 16, &val) < 0 || val > 0x1f) {
+        goto inval;
+    }
+    addr->slot = val;
 
-    g_free(str);
+    /* func */
+    if (qemu_strtoul(dot_s[1], NULL, 10, &val) < 0 || val > 7) {
+        goto inval;
+    }
+    addr->function = val;
+
     return;
 
 inval:
     error_set_from_qdev_prop_error(errp, EINVAL, dev, prop, str);
-    g_free(str);
 }
 
 const PropertyInfo qdev_prop_pci_host_devaddr = {
