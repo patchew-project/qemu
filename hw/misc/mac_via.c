@@ -362,22 +362,6 @@ static void via1_one_second(void *opaque)
     via1_one_second_update(v1s);
 }
 
-static void via2_irq_request(void *opaque, int irq, int level)
-{
-    MOS6522Q800VIA2State *v2s = opaque;
-    MOS6522State *s = MOS6522(v2s);
-    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
-
-    if (level) {
-        s->ifr |= 1 << irq;
-    } else {
-        s->ifr &= ~(1 << irq);
-    }
-
-    mdc->update_irq(s);
-}
-
-
 static void pram_update(MacVIAState *m)
 {
     if (m->blk) {
@@ -1238,7 +1222,7 @@ static void mos6522_q800_via2_reset(DeviceState *dev)
 
 static void mos6522_q800_via2_init(Object *obj)
 {
-    qdev_init_gpio_in_named(DEVICE(obj), via2_irq_request, "via2-irq",
+    qdev_init_gpio_in_named(DEVICE(obj), via_irq_request, "via2-irq",
                             VIA2_IRQ_NB);
 }
 
