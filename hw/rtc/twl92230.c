@@ -271,37 +271,36 @@ static void menelaus_gpio_set(void *opaque, int line, int level)
 static uint8_t menelaus_read(void *opaque, uint8_t addr)
 {
     MenelausState *s = (MenelausState *) opaque;
-    int reg = 0;
 
     switch (addr) {
     case MENELAUS_REV:
         return 0x22;
 
-    case MENELAUS_VCORE_CTRL5: reg ++;
-    case MENELAUS_VCORE_CTRL4: reg ++;
-    case MENELAUS_VCORE_CTRL3: reg ++;
-    case MENELAUS_VCORE_CTRL2: reg ++;
+    case MENELAUS_VCORE_CTRL5:
+    case MENELAUS_VCORE_CTRL4:
+    case MENELAUS_VCORE_CTRL3:
+    case MENELAUS_VCORE_CTRL2:
     case MENELAUS_VCORE_CTRL1:
-        return s->vcore[reg];
+        return s->vcore[addr - MENELAUS_VCORE_CTRL1];
 
-    case MENELAUS_DCDC_CTRL3: reg ++;
-    case MENELAUS_DCDC_CTRL2: reg ++;
+    case MENELAUS_DCDC_CTRL3:
+    case MENELAUS_DCDC_CTRL2:
     case MENELAUS_DCDC_CTRL1:
-        return s->dcdc[reg];
+        return s->dcdc[addr - MENELAUS_VCORE_CTRL1];
 
-    case MENELAUS_LDO_CTRL8: reg ++;
-    case MENELAUS_LDO_CTRL7: reg ++;
-    case MENELAUS_LDO_CTRL6: reg ++;
-    case MENELAUS_LDO_CTRL5: reg ++;
-    case MENELAUS_LDO_CTRL4: reg ++;
-    case MENELAUS_LDO_CTRL3: reg ++;
-    case MENELAUS_LDO_CTRL2: reg ++;
+    case MENELAUS_LDO_CTRL8:
+    case MENELAUS_LDO_CTRL7:
+    case MENELAUS_LDO_CTRL6:
+    case MENELAUS_LDO_CTRL5:
+    case MENELAUS_LDO_CTRL4:
+    case MENELAUS_LDO_CTRL3:
+    case MENELAUS_LDO_CTRL2:
     case MENELAUS_LDO_CTRL1:
-        return s->ldo[reg];
+        return s->ldo[addr - MENELAUS_LDO_CTRL1];
 
-    case MENELAUS_SLEEP_CTRL2: reg ++;
+    case MENELAUS_SLEEP_CTRL2:
     case MENELAUS_SLEEP_CTRL1:
-        return s->sleep[reg];
+        return s->sleep[addr - MENELAUS_SLEEP_CTRL1];
 
     case MENELAUS_DEVICE_OFF:
         return 0;
@@ -395,10 +394,10 @@ static uint8_t menelaus_read(void *opaque, uint8_t addr)
     case MENELAUS_S2_PULL_DIR:
         return s->pull[3];
 
-    case MENELAUS_MCT_CTRL3: reg ++;
-    case MENELAUS_MCT_CTRL2: reg ++;
+    case MENELAUS_MCT_CTRL3:
+    case MENELAUS_MCT_CTRL2:
     case MENELAUS_MCT_CTRL1:
-        return s->mmc_ctrl[reg];
+        return s->mmc_ctrl[addr - MENELAUS_MCT_CTRL1];
     case MENELAUS_MCT_PIN_ST:
         /* TODO: return the real Card Detect */
         return 0;
@@ -418,7 +417,6 @@ static void menelaus_write(void *opaque, uint8_t addr, uint8_t value)
 {
     MenelausState *s = (MenelausState *) opaque;
     int line;
-    int reg = 0;
     struct tm tm;
 
     switch (addr) {
@@ -496,9 +494,9 @@ static void menelaus_write(void *opaque, uint8_t addr, uint8_t value)
         s->ldo[7] = value & 3;
         break;
 
-    case MENELAUS_SLEEP_CTRL2: reg ++;
+    case MENELAUS_SLEEP_CTRL2:
     case MENELAUS_SLEEP_CTRL1:
-        s->sleep[reg] = value;
+        s->sleep[addr - MENELAUS_SLEEP_CTRL1] = value;
         break;
 
     case MENELAUS_DEVICE_OFF:
