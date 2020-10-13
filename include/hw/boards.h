@@ -43,6 +43,8 @@ void machine_class_allow_dynamic_sysbus_dev(MachineClass *mc, const char *type);
 MemoryRegion *machine_consume_memdev(MachineState *machine,
                                      HostMemoryBackend *backend);
 
+MachineClass *machine_find_class(const char *name);
+
 /**
  * CPUArchId:
  * @arch_id - architecture-dependent CPU ID of present or possible CPU
