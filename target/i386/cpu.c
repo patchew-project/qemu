@@ -4990,11 +4990,16 @@ void x86_cpu_list(void)
 }
 
 #ifndef CONFIG_USER_ONLY
+typedef struct X86CPUDefinitionArgs {
+    CpuDefinitionInfoList *cpu_list;
+    X86CPUVersion default_version;
+} X86CPUDefinitionArgs;
+
 static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
 {
     ObjectClass *oc = data;
     X86CPUClass *cc = X86_CPU_CLASS(oc);
-    CpuDefinitionInfoList **cpu_list = user_data;
+    X86CPUDefinitionArgs *args = user_data;
     CpuDefinitionInfoList *entry;
     CpuDefinitionInfo *info;
 
@@ -5010,25 +5015,27 @@ static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
      * Old machine types won't report aliases, so that alias translation
      * doesn't break compatibility with previous QEMU versions.
      */
-    if (cc->model && default_cpu_version != CPU_VERSION_LEGACY) {
+    if (cc->model && args->default_version != CPU_VERSION_LEGACY) {
         info->alias_of = x86_cpu_model_resolve_alias(cc->model,
-                                                     default_cpu_version);
+                                                     args->default_version);
         info->has_alias_of = !!info->alias_of;
     }
 
     entry = g_malloc0(sizeof(*entry));
     entry->value = info;
-    entry->next = *cpu_list;
-    *cpu_list = entry;
+    entry->next = args->cpu_list;
+    args->cpu_list = entry;
 }
 
 CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
 {
-    CpuDefinitionInfoList *cpu_list = NULL;
+    X86CPUDefinitionArgs args = { .cpu_list = NULL };
     GSList *list = get_sorted_cpu_model_list();
-    g_slist_foreach(list, x86_cpu_definition_entry, &cpu_list);
+
+    args.default_version = default_cpu_version;
+    g_slist_foreach(list, x86_cpu_definition_entry, &args);
     g_slist_free(list);
-    return cpu_list;
+    return args.cpu_list;
 }
 #endif
 
