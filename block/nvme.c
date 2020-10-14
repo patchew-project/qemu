@@ -103,7 +103,7 @@ struct BDRVNVMeState {
      * [1..]: io queues.
      */
     NVMeQueuePair **queues;
-    int nr_queues;
+    unsigned nr_queues;
     size_t page_size;
     /* How many uint32_t elements does each doorbell entry take. */
     size_t doorbell_scale;
@@ -154,7 +154,7 @@ static QemuOptsList runtime_opts = {
 };
 
 static void nvme_init_queue(BDRVNVMeState *s, NVMeQueue *q,
-                            int nentries, int entry_bytes, Error **errp)
+                            unsigned nentries, size_t entry_bytes, Error **errp)
 {
     size_t bytes;
     int r;
@@ -198,7 +198,7 @@ static void nvme_free_req_queue_cb(void *opaque)
 
 static NVMeQueuePair *nvme_create_queue_pair(BDRVNVMeState *s,
                                              AioContext *aio_context,
-                                             int idx, int size,
+                                             unsigned idx, size_t size,
                                              Error **errp)
 {
     int i, r;
@@ -640,10 +640,10 @@ static bool nvme_poll_cb(void *opaque)
 static bool nvme_add_io_queue(BlockDriverState *bs, Error **errp)
 {
     BDRVNVMeState *s = bs->opaque;
-    int n = s->nr_queues;
+    unsigned n = s->nr_queues;
     NVMeQueuePair *q;
     NvmeCmd cmd;
-    int queue_size = NVME_QUEUE_SIZE;
+    unsigned queue_size = NVME_QUEUE_SIZE;
 
     q = nvme_create_queue_pair(s, bdrv_get_aio_context(bs),
                                n, queue_size, errp);
@@ -657,7 +657,7 @@ static bool nvme_add_io_queue(BlockDriverState *bs, Error **errp)
         .cdw11 = cpu_to_le32(0x3),
     };
     if (nvme_cmd_sync(bs, s->queues[INDEX_ADMIN], &cmd)) {
-        error_setg(errp, "Failed to create CQ io queue [%d]", n);
+        error_setg(errp, "Failed to create CQ io queue [%u]", n);
         goto out_error;
     }
     cmd = (NvmeCmd) {
@@ -667,7 +667,7 @@ static bool nvme_add_io_queue(BlockDriverState *bs, Error **errp)
         .cdw11 = cpu_to_le32(0x1 | (n << 16)),
     };
     if (nvme_cmd_sync(bs, s->queues[INDEX_ADMIN], &cmd)) {
-        error_setg(errp, "Failed to create SQ io queue [%d]", n);
+        error_setg(errp, "Failed to create SQ io queue [%u]", n);
         goto out_error;
     }
     s->queues = g_renew(NVMeQueuePair *, s->queues, n + 1);
@@ -869,10 +869,9 @@ static int nvme_enable_disable_write_cache(BlockDriverState *bs, bool enable,
 
 static void nvme_close(BlockDriverState *bs)
 {
-    int i;
     BDRVNVMeState *s = bs->opaque;
 
-    for (i = 0; i < s->nr_queues; ++i) {
+    for (unsigned i = 0; i < s->nr_queues; ++i) {
         nvme_free_queue_pair(s->queues[i]);
     }
     g_free(s->queues);
@@ -1380,7 +1379,7 @@ static void nvme_detach_aio_context(BlockDriverState *bs)
 {
     BDRVNVMeState *s = bs->opaque;
 
-    for (int i = 0; i < s->nr_queues; i++) {
+    for (unsigned i = 0; i < s->nr_queues; i++) {
         NVMeQueuePair *q = s->queues[i];
 
         qemu_bh_delete(q->completion_bh);
@@ -1401,7 +1400,7 @@ static void nvme_attach_aio_context(BlockDriverState *bs,
     aio_set_event_notifier(new_context, &s->irq_notifier[MSIX_SHARED_IRQ_IDX],
                            false, nvme_handle_event, nvme_poll_cb);
 
-    for (int i = 0; i < s->nr_queues; i++) {
+    for (unsigned i = 0; i < s->nr_queues; i++) {
         NVMeQueuePair *q = s->queues[i];
 
         q->completion_bh =
@@ -1418,11 +1417,10 @@ static void nvme_aio_plug(BlockDriverState *bs)
 
 static void nvme_aio_unplug(BlockDriverState *bs)
 {
-    int i;
     BDRVNVMeState *s = bs->opaque;
     assert(s->plugged);
     s->plugged = false;
-    for (i = INDEX_IO(0); i < s->nr_queues; i++) {
+    for (unsigned i = INDEX_IO(0); i < s->nr_queues; i++) {
         NVMeQueuePair *q = s->queues[i];
         qemu_mutex_lock(&q->lock);
         nvme_kick(q);
