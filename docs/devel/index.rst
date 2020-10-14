@@ -21,6 +21,7 @@ Contents:
    atomics
    stable-process
    testing
+   ci
    qtest
    decodetree
    secure-coding-practices
