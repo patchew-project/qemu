@@ -1,0 +1,9 @@
+# xlnx-zynqmp-can.c
+xlnx_can_transfer_fifo(const char *message) "%s"
+xlnx_can_srr_pre_write(const char *message) "%s"
+xlnx_can_update_rx_fifo(const char *message) "%s"
+xlnx_can_rxfifo_pre_read(const char *message) "%s"
+xlnx_can_tx_post_write(const char *message) "%s"
+xlnx_can_can_receive(const char *message) "%s"
+xlnx_can_receive(const char *message) "%s"
+xlnx_can_realize(const char *message) "%s"
