@@ -627,6 +627,16 @@ static void nvme_handle_event(EventNotifier *n)
     nvme_poll_queues(s);
 }
 
+static bool nvme_poll_cb(void *opaque)
+{
+    EventNotifier *e = opaque;
+    BDRVNVMeState *s = container_of(e, BDRVNVMeState,
+                                    irq_notifier[MSIX_SHARED_IRQ_IDX]);
+
+    trace_nvme_poll_cb(s);
+    return nvme_poll_queues(s);
+}
+
 static bool nvme_add_io_queue(BlockDriverState *bs, Error **errp)
 {
     BDRVNVMeState *s = bs->opaque;
@@ -667,16 +677,6 @@ static bool nvme_add_io_queue(BlockDriverState *bs, Error **errp)
 out_error:
     nvme_free_queue_pair(q);
     return false;
-}
-
-static bool nvme_poll_cb(void *opaque)
-{
-    EventNotifier *e = opaque;
-    BDRVNVMeState *s = container_of(e, BDRVNVMeState,
-                                    irq_notifier[MSIX_SHARED_IRQ_IDX]);
-
-    trace_nvme_poll_cb(s);
-    return nvme_poll_queues(s);
 }
 
 static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
