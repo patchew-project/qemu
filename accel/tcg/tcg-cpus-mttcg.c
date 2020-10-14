@@ -42,7 +42,7 @@
  * current CPUState for a given thread.
  */
 
-static void *tcg_cpu_thread_fn(void *arg)
+static void *mttcg_cpu_thread_fn(void *arg)
 {
     CPUState *cpu = arg;
 
@@ -68,7 +68,7 @@ static void *tcg_cpu_thread_fn(void *arg)
         if (cpu_can_run(cpu)) {
             int r;
             qemu_mutex_unlock_iothread();
-            r = tcg_cpu_exec(cpu);
+            r = tcg_cpus_exec(cpu);
             qemu_mutex_lock_iothread();
             switch (r) {
             case EXCP_DEBUG:
@@ -99,7 +99,7 @@ static void *tcg_cpu_thread_fn(void *arg)
         qemu_wait_io_event(cpu);
     } while (!cpu->unplug || cpu_can_run(cpu));
 
-    qemu_tcg_destroy_vcpu(cpu);
+    tcg_cpus_destroy(cpu);
     qemu_mutex_unlock_iothread();
     rcu_unregister_thread();
     return NULL;
@@ -126,7 +126,7 @@ static void mttcg_start_vcpu_thread(CPUState *cpu)
     snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/TCG",
              cpu->cpu_index);
 
-    qemu_thread_create(cpu->thread, thread_name, tcg_cpu_thread_fn,
+    qemu_thread_create(cpu->thread, thread_name, mttcg_cpu_thread_fn,
                        cpu, QEMU_THREAD_JOINABLE);
 
 #ifdef _WIN32
@@ -138,5 +138,5 @@ const CpusAccel tcg_cpus_mttcg = {
     .create_vcpu_thread = mttcg_start_vcpu_thread,
     .kick_vcpu_thread = mttcg_kick_vcpu_thread,
 
-    .handle_interrupt = tcg_handle_interrupt,
+    .handle_interrupt = tcg_cpus_handle_interrupt,
 };
