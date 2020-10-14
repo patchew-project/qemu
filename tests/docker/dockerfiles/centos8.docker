@@ -1,6 +1,9 @@
 FROM centos:8.1.1911
 
+RUN dnf -y install dnf-plugins-core
+RUN dnf config-manager --set-enabled PowerTools
 RUN dnf -y update
+
 ENV PACKAGES \
     SDL-devel \
     bzip2 \
