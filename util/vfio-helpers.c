@@ -462,7 +462,7 @@ static void qemu_vfio_ram_block_added(RAMBlockNotifier *n,
 {
     QEMUVFIOState *s = container_of(n, QEMUVFIOState, ram_notifier);
     trace_qemu_vfio_ram_block_added(s, host, size);
-    qemu_vfio_dma_map(s, host, size, false, NULL);
+    qemu_vfio_dma_map(s, host, size, false, NULL, NULL);
 }
 
 static void qemu_vfio_ram_block_removed(RAMBlockNotifier *n,
@@ -477,6 +477,7 @@ static void qemu_vfio_ram_block_removed(RAMBlockNotifier *n,
 
 static int qemu_vfio_init_ramblock(RAMBlock *rb, void *opaque)
 {
+    Error *local_err = NULL;
     void *host_addr = qemu_ram_get_host_addr(rb);
     ram_addr_t length = qemu_ram_get_used_length(rb);
     int ret;
@@ -485,10 +486,11 @@ static int qemu_vfio_init_ramblock(RAMBlock *rb, void *opaque)
     if (!host_addr) {
         return 0;
     }
-    ret = qemu_vfio_dma_map(s, host_addr, length, false, NULL);
+    ret = qemu_vfio_dma_map(s, host_addr, length, false, NULL, &local_err);
     if (ret) {
-        fprintf(stderr, "qemu_vfio_init_ramblock: failed %p %" PRId64 "\n",
-                host_addr, (uint64_t)length);
+        error_reportf_err(local_err,
+                          "qemu_vfio_init_ramblock: failed %p %" PRId64 ":",
+                          host_addr, (uint64_t)length);
     }
     return 0;
 }
@@ -724,7 +726,7 @@ qemu_vfio_find_temp_iova(QEMUVFIOState *s, size_t size, uint64_t *iova)
  * mapping status within this area is not allowed).
  */
 int qemu_vfio_dma_map(QEMUVFIOState *s, void *host, size_t size,
-                      bool temporary, uint64_t *iova)
+                      bool temporary, uint64_t *iova, Error **errp)
 {
     int ret = 0;
     int index;
