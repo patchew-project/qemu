@@ -175,6 +175,7 @@ static void nvme_init_queue(BDRVNVMeState *s, NVMeQueue *q,
 
 static void nvme_free_queue_pair(NVMeQueuePair *q)
 {
+    trace_nvme_free_queue_pair(q->index, q);
     if (q->completion_bh) {
         qemu_bh_delete(q->completion_bh);
     }
@@ -210,6 +211,8 @@ static NVMeQueuePair *nvme_create_queue_pair(BDRVNVMeState *s,
     if (!q) {
         return NULL;
     }
+    trace_nvme_create_queue_pair(idx, q, size, aio_context,
+                                 event_notifier_get_fd(s->irq_notifier));
     q->prp_list_pages = qemu_try_memalign(s->page_size,
                                           s->page_size * NVME_NUM_REQS);
     if (!q->prp_list_pages) {
