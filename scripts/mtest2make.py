@@ -70,8 +70,9 @@ def process_tests(test, targets, suites):
     print('.test.driver.%d := %s' % (i, driver))
     print('.test.env.%d := $(.test.env) %s' % (i, env))
     print('.test.cmd.%d := %s' % (i, cmd))
+    print('.test.deps.%d := %s' % (i, ' '.join(deps)))
     print('.PHONY: run-test-%d' % (i,))
-    print('run-test-%d: %s' % (i, ' '.join(deps)))
+    print('run-test-%d: $(.test.deps.%d)' % (i,i))
     print('\t@$(call .test.run,%d,$(.test.output-format))' % (i,))
 
     test_suites = test['suite'] or ['default']
@@ -128,3 +129,4 @@ for name, suite in benchsuites.items():
     emit_suite(name, suite, 'bench')
 
 print('run-tests: $(patsubst %, run-test-%, $(.tests))')
+print('ninja-cmd-goals += $(foreach t, $(.tests), $(.test.deps.$t))')

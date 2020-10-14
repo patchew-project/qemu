@@ -64,17 +64,34 @@ git-submodule-update:
 endif
 endif
 
-export NINJA=./ninjatool
+.PHONY: ninja-clean ninja-distclean
+ninja-clean ninja-distclean::
+ifneq ($(NINJA),)
+export NINJA
+NINJAFLAGS = $(if $V,-v,) \
+        $(filter-out -j, $(lastword -j1 $(filter -l% -j%, $(MAKEFLAGS)))) \
+        $(subst -k, -k0, $(filter -n -k,$(MAKEFLAGS)))
 
-# Running meson regenerates both build.ninja and ninjatool, and that is
-# enough to prime the rest of the build.
-ninjatool: build.ninja
-
-Makefile.ninja: build.ninja ninjatool
-	./ninjatool -t ninja2make --omit clean dist uninstall cscope TAGS ctags < $< > $@
 -include Makefile.ninja
+Makefile.ninja: build.ninja
+	{ echo 'ninja-targets = \'; $(NINJA) -t targets all | sed 's/:.*//; $$!s/$$/ \\/'; } > $@
 
-${ninja-targets-c_COMPILER} ${ninja-targets-cpp_COMPILER}: .var.command += -MP
+ninja-targets := $(filter-out build.ninja dist clean uninstall, $(ninja-targets))
+ninja-cmd-goals = $(or $(MAKECMDGOALS), all)
+.PHONY: $(ninja-targets) run-ninja
+$(ninja-targets): run-ninja
+
+# Use "| cat" to give Ninja a more "make-y" output.  Use "+" to bypass the
+# --output-sync line.
+run-ninja:
+	+$(NINJA) $(NINJAFLAGS) $(sort $(filter $(ninja-targets), $(ninja-cmd-goals))) | cat
+
+ninja-clean::
+	+$(quiet-@)$(NINJA) $(NINJAFLAGS) -t clean
+
+ninja-distclean::
+	+$(quiet-@)$(NINJA) $(NINJAFLAGS) -t clean -g
+endif
 
 # If MESON is empty, the rule will be re-evaluated after Makefiles are
 # reread (and MESON won't be empty anymore).
@@ -159,8 +176,8 @@ recurse-clean: $(addsuffix /clean, $(ROM_DIRS))
 
 ######################################################################
 
-clean: recurse-clean ninja-clean clean-ctlist
-	if test -f ninjatool; then ./ninjatool $(if $(V),-v,) -t clean; fi
+clean: recurse-clean ninja-clean
+	-test -f build.ninja && @$(NINJA) $(NINJAFLAGS) clean-ctlist || :
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
 	find . \( -name '*.so' -o -name '*.dll' -o -name '*.[oda]' \) -type f \
@@ -178,7 +195,6 @@ qemu-%.tar.bz2:
 	$(SRC_PATH)/scripts/make-release "$(SRC_PATH)" "$(patsubst qemu-%.tar.bz2,%,$@)"
 
 distclean: clean ninja-distclean
-	-test -f ninjatool && ./ninjatool $(if $(V),-v,) -t clean -g
 	rm -f config-host.mak config-host.h*
 	rm -f tests/tcg/config-*.mak
 	rm -f config-all-disas.mak config.status
@@ -187,7 +203,7 @@ distclean: clean ninja-distclean
 	rm -f qemu-plugins-ld.symbols qemu-plugins-ld64.symbols
 	rm -f *-config-target.h *-config-devices.mak *-config-devices.h
 	rm -rf meson-private meson-logs meson-info compile_commands.json
-	rm -f Makefile.ninja ninjatool ninjatool.stamp Makefile.mtest
+	rm -f Makefile.ninja Makefile.mtest
 	rm -f config.log
 	rm -f linux-headers/asm
 	rm -Rf .sdk
