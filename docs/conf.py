@@ -40,6 +40,11 @@ if sys.version_info < (3,6):
     raise ConfigError(
         "QEMU requires a Sphinx that uses Python 3.6 or better\n")
 
+# Sphinx 3.x may be able to build the documents, but it may generate
+# warnings and/or the document may be formatted incorrectly
+if sphinx.version_info >= (3, 0):
+    sys.stderr.write('WARNING: Sphinx 3.x is not fully supported by QEMU\n')
+
 # The per-manual conf.py will set qemu_docdir for a single-manual build;
 # otherwise set it here if this is an entire-manual-set build.
 # This is always the absolute path of the docs/ directory in the source tree.
