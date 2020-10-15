@@ -448,6 +448,7 @@ meson=""
 ninja=""
 skip_meson=no
 gettext=""
+mpqemu="no"
 
 bogus_os="no"
 malloc_trim="auto"
@@ -1513,6 +1514,10 @@ for opt do
   ;;
   --disable-libdaxctl) libdaxctl=no
   ;;
+  --enable-mpqemu) mpqemu=yes
+  ;;
+  --disable-mpqemu) mpqemu=no
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1832,6 +1837,8 @@ disabled with --disable-FEATURE, default is enabled if available:
   xkbcommon       xkbcommon support
   rng-none        dummy RNG, avoid using /dev/(u)random and getrandom()
   libdaxctl       libdaxctl support
+  mpqemu          multi-process QEMU support
+
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -6691,6 +6698,9 @@ if test "$pty_h" = "yes" ; then
 fi
 if test "$have_mlockall" = "yes" ; then
   echo "HAVE_MLOCKALL=y" >> $config_host_mak
+fi
+if test "$mpqemu" = "yes" ; then
+  echo "CONFIG_MPQEMU=y" >> $config_host_mak
 fi
 if test "$fuzzing" = "yes" ; then
   # If LIB_FUZZING_ENGINE is set, assume we are running on OSS-Fuzz, and the
