@@ -17,7 +17,13 @@ cc = meson.get_compiler('c')
 config_host = keyval.load(meson.current_build_dir() / 'config-host.mak')
 enable_modules = 'CONFIG_MODULES' in config_host
 enable_static = 'CONFIG_STATIC' in config_host
-build_docs = 'BUILD_DOCS' in config_host
+
+# Temporary directory used for files created while
+# configure runs. Since it is in the build directory
+# we can safely blow away any previous version of it
+# (and we need not jump through hoops to try to delete
+# it when configure exits.)
+tmpdir = meson.current_build_dir() / 'config-temp'
 
 if get_option('qemu_suffix').startswith('/')
   error('qemu_suffix cannot start with a /')
@@ -1235,12 +1241,52 @@ foreach d : hx_headers
 endforeach
 genh += hxdep
 
-SPHINX_ARGS = [config_host['SPHINX_BUILD'],
-               '-Dversion=' + meson.project_version(),
-               '-Drelease=' + config_host['PKGVERSION']]
+sphinx_build = not_found
+sphinx_build_option = get_option('sphinx_build')
+if sphinx_build_option == ''
+  sphinx_build = find_program('sphinx-build', required: false)
+else
+  sphinx_build = find_program(sphinx_build_option, required: false)
+endif
 
+SPHINX_TEST_ARGS = []
+# If we're making warnings fatal, apply this to Sphinx runs as well
 if get_option('werror')
-  SPHINX_ARGS += [ '-W' ]
+  SPHINX_TEST_ARGS += [ '-W' ]
+endif
+
+build_docs = false
+docs_option = get_option('docs')
+# Check if tools are available to build documentation.
+if sphinx_build.found() and not docs_option.disabled()
+    # This is a bit awkward but works: create a trivial document and
+    # try to run it with our configuration file (which enforces a
+    # version requirement). This will fail if either
+    # sphinx-build doesn't exist at all or if it is too old.
+    run_command('mkdir', ['-p', tmpdir / 'sphinx'])
+    run_command('touch', [tmpdir / 'sphinx/index.rst'])
+    sphinx_build_test_out = run_command(sphinx_build, SPHINX_TEST_ARGS + [
+      '-c', meson.current_source_dir() / 'docs',
+      '-b', 'html', tmpdir / 'sphinx',
+      tmpdir / 'sphinx/out'])
+    if sphinx_build_test_out.returncode() == 0
+      build_docs = true
+    else
+      if docs_option.enabled()
+        if sphinx_build_option != ''
+          warning('Warning: @0@ exists but it is either too old or uses too old a Python version'.format(sphinx_build_option))
+        endif
+        error('Warning: Install a Python 3 version of python-sphinx')
+      endif
+      # do not building docs
+    endif
+endif
+
+SPHINX_ARGS = []
+if build_docs
+  SPHINX_ARGS = [sphinx_build]
+  SPHINX_ARGS += SPHINX_TEST_ARGS
+  SPHINX_ARGS += ['-Dversion=' + meson.project_version(), '-Drelease=' + config_host['PKGVERSION']]
 endif
 
 sphinx_extn_depends = [ meson.source_root() / 'docs/sphinx/depfile.py',
@@ -1918,7 +1964,7 @@ summary_info += {'QEMU_CFLAGS':       config_host['QEMU_CFLAGS']}
 summary_info += {'QEMU_LDFLAGS':      config_host['QEMU_LDFLAGS']}
 summary_info += {'make':              config_host['MAKE']}
 summary_info += {'python':            '@0@ (version: @1@)'.format(python.full_path(), python.language_version())}
-summary_info += {'sphinx-build':      config_host['SPHINX_BUILD']}
+summary_info += {'sphinx-build':      sphinx_build.found()}
 summary_info += {'genisoimage':       config_host['GENISOIMAGE']}
 # TODO: add back version
 summary_info += {'slirp support':     slirp_opt == 'disabled' ? false : slirp_opt}
@@ -1986,7 +2032,7 @@ if config_host.has_key('CONFIG_XEN_BACKEND')
   summary_info += {'xen ctrl version':  config_host['CONFIG_XEN_CTRL_INTERFACE_VERSION']}
 endif
 summary_info += {'brlapi support':    config_host.has_key('CONFIG_BRLAPI')}
-summary_info += {'Documentation':     config_host.has_key('BUILD_DOCS')}
+summary_info += {'Documentation':     build_docs}
 summary_info += {'PIE':               get_option('b_pie')}
 summary_info += {'vde support':       config_host.has_key('CONFIG_VDE')}
 summary_info += {'netmap support':    config_host.has_key('CONFIG_NETMAP')}
