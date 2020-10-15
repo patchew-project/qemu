@@ -26,6 +26,7 @@
 #include "hw/qdev-core.h"
 #include "hw/pci/pci.h"
 #include "hw/boards.h"
+#include "general_fuzz_configs.h"
 
 /*
  * SEPARATOR is used to separate "operations" in the fuzz input
@@ -902,6 +903,17 @@ static GString *general_fuzz_cmdline(FuzzTarget *t)
     return cmd_line;
 }
 
+static GString *general_fuzz_predefined_config_cmdline(FuzzTarget *t)
+{
+    general_fuzz_config *config;
+    g_assert(t->opaque);
+
+    config = t->opaque;
+    setenv("QEMU_FUZZ_ARGS", config->args, 1);
+    setenv("QEMU_FUZZ_OBJECTS", config->objects, 1);
+    return general_fuzz_cmdline(t);
+}
+
 static void register_general_fuzz_targets(void)
 {
     fuzz_add_target(&(FuzzTarget){
@@ -912,6 +924,25 @@ static void register_general_fuzz_targets(void)
             .fuzz = general_fuzz,
             .crossover = general_fuzz_crossover
     });
+
+    GString *name;
+    general_fuzz_config *config;
+    GArray *predefined_configs = get_general_fuzz_configs();
+
+    for (int i = 0; i < predefined_configs->len; i++) {
+        config = &g_array_index(predefined_configs, general_fuzz_config, i);
+        name = g_string_new("general-fuzz");
+        g_string_append_printf(name, "-%s", config->name);
+        fuzz_add_target(&(FuzzTarget){
+                .name = name->str,
+                .description = "Predefined general-fuzz config.",
+                .get_init_cmdline = general_fuzz_predefined_config_cmdline,
+                .pre_fuzz = general_pre_fuzz,
+                .fuzz = general_fuzz,
+                .crossover = general_fuzz_crossover,
+                .opaque = config
+        });
+    }
 }
 
 fuzz_target_init(register_general_fuzz_targets);
