@@ -25,6 +25,7 @@ i386_ss.add(when: 'CONFIG_PC', if_true: files(
   'acpi-build.c',
   'port92.c'))
 i386_ss.add(when: 'CONFIG_MPQEMU', if_true: files('remote.c'))
+i386_ss.add(when: 'CONFIG_MPQEMU', if_true: files('remote-msg.c'))
 
 subdir('kvm')
 subdir('xen')
