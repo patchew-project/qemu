@@ -237,7 +237,7 @@ qapi_doc_out = custom_target('QAPI rST doc',
                              # we want it to always really run the QAPI doc
                              # generation code. It also means we don't
                              # clutter up the build dir with the cache.
-                             command: [SPHINX_ARGS,
+                             command:  SPHINX_ARGS + [
                                        '-b', 'text', '-E',
                                        '-c', meson.source_root() / 'docs',
                                        '-D', 'master_doc=doc-good',

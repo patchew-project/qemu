@@ -37,7 +37,7 @@ if build_docs
                 input: [files('conf.py'), files(manual / 'conf.py')],
                 depfile: manual + '.d',
                 depend_files: sphinx_extn_depends,
-                command: [SPHINX_ARGS, '-Ddepfile=@DEPFILE@',
+                command: SPHINX_ARGS + ['-Ddepfile=@DEPFILE@',
                           '-Ddepfile_stamp=@OUTPUT0@',
                           '-b', 'html', '-d', private_dir,
                           input_dir, output_dir])
@@ -59,7 +59,7 @@ if build_docs
                          input: this_manual,
                          install: build_docs,
                          install_dir: install_dirs,
-                         command: [SPHINX_ARGS, '-b', 'man', '-d', private_dir,
+                         command: SPHINX_ARGS + ['-b', 'man', '-d', private_dir,
                                    input_dir, meson.current_build_dir()])
     endif
   endforeach
