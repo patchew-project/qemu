@@ -13,3 +13,5 @@ io_ss.add(files(
   'net-listener.c',
   'task.c',
 ))
+
+io_ss.add(when: 'CONFIG_MPQEMU', if_true: files('mpqemu-link.c'))
