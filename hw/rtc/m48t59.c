@@ -565,9 +565,8 @@ const MemoryRegionOps m48t59_io_ops = {
 };
 
 /* Initialisation routine */
-Nvram *m48t59_init(qemu_irq IRQ, hwaddr mem_base,
-                   uint16_t size, int base_year,
-                   int model)
+Nvram *m48t59_init(MemoryRegion *mr, hwaddr mem_base, qemu_irq IRQ,
+                   uint16_t size, int base_year, int model)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -584,10 +583,7 @@ Nvram *m48t59_init(qemu_irq IRQ, hwaddr mem_base,
         s = SYS_BUS_DEVICE(dev);
         sysbus_realize_and_unref(s, &error_fatal);
         sysbus_connect_irq(s, 0, IRQ);
-        if (mem_base != 0) {
-            sysbus_mmio_map(s, 0, mem_base);
-        }
-
+        memory_region_add_subregion(mr, mem_base, sysbus_mmio_get_region(s, 0));
         return NVRAM(s);
     }
 

@@ -561,7 +561,6 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     SabreState *sabre;
     PCIBus *pci_bus, *pci_busA, *pci_busB;
     PCIDevice *ebus, *pci_dev;
-    SysBusDevice *s;
     DeviceState *iommu, *dev;
     FWCfgState *fw_cfg;
     NICInfo *nd;
@@ -671,10 +670,8 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     pci_ide_create_devs(pci_dev);
 
     /* Map NVRAM into I/O (ebus) space */
-    nvram = m48t59_init(NULL, 0, NVRAM_SIZE, 1968, 59);
-    s = SYS_BUS_DEVICE(nvram);
-    memory_region_add_subregion(pci_address_space_io(ebus), 0x2000,
-                                sysbus_mmio_get_region(s, 0));
+    nvram = m48t59_init(pci_address_space_io(ebus), 0x2000, NULL,
+                        NVRAM_SIZE, 1968, 59);
  
     initrd_size = 0;
     initrd_addr = 0;
