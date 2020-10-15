@@ -278,6 +278,12 @@ bool mpqemu_msg_valid(MPQemuMsg *msg)
             return false;
         }
         break;
+    case PCI_CONFIG_WRITE:
+    case PCI_CONFIG_READ:
+        if (msg->size != sizeof(ConfDataMsg)) {
+            return false;
+        }
+        break;
     default:
         break;
     }
