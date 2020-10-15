@@ -1806,8 +1806,6 @@ again:
              * structs before starting over. */
             assert(*m == NULL);
             goto again;
-        } else if (ret < 0) {
-            return ret;
         } else if (cur_bytes == 0) {
             break;
         } else {
