@@ -38,6 +38,7 @@ typedef enum {
     PCI_CONFIG_READ,
     BAR_WRITE,
     BAR_READ,
+    SET_IRQFD,
     MPQEMU_CMD_MAX,
 } MPQemuCmd;
 
