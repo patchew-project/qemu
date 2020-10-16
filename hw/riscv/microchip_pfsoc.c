@@ -97,6 +97,7 @@ static const struct MemmapEntry {
     [MICROCHIP_PFSOC_GPIO2] =           { 0x20122000,     0x1000 },
     [MICROCHIP_PFSOC_ENVM_CFG] =        { 0x20200000,     0x1000 },
     [MICROCHIP_PFSOC_ENVM_DATA] =       { 0x20220000,    0x20000 },
+    [MICROCHIP_PFSOC_IOSCB_CTRL] =      { 0x37020000,     0x1000 },
     [MICROCHIP_PFSOC_IOSCB_CFG] =       { 0x37080000,     0x1000 },
     [MICROCHIP_PFSOC_DRAM] =            { 0x80000000,        0x0 },
 };
@@ -341,6 +342,15 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
     create_unimplemented_device("microchip.pfsoc.ioscb.cfg",
         memmap[MICROCHIP_PFSOC_IOSCB_CFG].base,
         memmap[MICROCHIP_PFSOC_IOSCB_CFG].size);
+
+    /* IOSCBCTRL
+     *
+     * These registers are not documented in the official documentation
+     * but used by the polarfire-soc-bare-meta-library code
+     */
+    create_unimplemented_device("microchip.pfsoc.ioscb.ctrl",
+        memmap[MICROCHIP_PFSOC_IOSCB_CTRL].base,
+        memmap[MICROCHIP_PFSOC_IOSCB_CTRL].size);
 }
 
 static void microchip_pfsoc_soc_class_init(ObjectClass *oc, void *data)
