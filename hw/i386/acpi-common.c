@@ -122,7 +122,7 @@ void acpi_build_madt(GArray *table_data, BIOSLinker *linker,
         intsrcovr->flags  = cpu_to_le16(0); /* conforms to bus specifications */
     }
 
-    for (i = 1; i < 16; i++) {
+    for (i = 1; i < 24; i++) {
         if (!(x86ms->pci_irq_mask & (1 << i))) {
             /* No need for a INT source override structure. */
             continue;

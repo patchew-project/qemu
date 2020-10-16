@@ -206,7 +206,11 @@ static void microvm_devices_init(MicrovmMachineState *mms)
 
     mms->virtio_irq_base = 5;
     mms->virtio_num_transports = 8;
-    if (x86_machine_is_acpi_enabled(x86ms)) {
+    if (ioapic2) {
+        mms->pcie_irq_base = 16;
+        mms->virtio_irq_base = 24;
+        mms->virtio_num_transports = 24;
+    } else if (x86_machine_is_acpi_enabled(x86ms)) {
         mms->pcie_irq_base = 12;
         mms->virtio_irq_base = 16;
     }
