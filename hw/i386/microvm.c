@@ -100,7 +100,11 @@ static void microvm_gsi_handler(void *opaque, int n, int level)
 {
     GSIState *s = opaque;
 
-    qemu_set_irq(s->ioapic_irq[n], level);
+    if (n >= 24) {
+        qemu_set_irq(s->ioapic2_irq[n - 24], level);
+    } else {
+        qemu_set_irq(s->ioapic_irq[n], level);
+    }
 }
 
 static void create_gpex(MicrovmMachineState *mms)
@@ -158,6 +162,7 @@ static void microvm_devices_init(MicrovmMachineState *mms)
     ISABus *isa_bus;
     ISADevice *rtc_state;
     GSIState *gsi_state;
+    bool ioapic2 = false;
     int i;
 
     /* Core components */
@@ -166,8 +171,13 @@ static void microvm_devices_init(MicrovmMachineState *mms)
     if (mms->pic == ON_OFF_AUTO_ON || mms->pic == ON_OFF_AUTO_AUTO) {
         x86ms->gsi = qemu_allocate_irqs(gsi_handler, gsi_state, GSI_NUM_PINS);
     } else {
+        int pins = GSI_NUM_PINS;
+        if (!kvm_ioapic_in_kernel() && x86_machine_is_acpi_enabled(x86ms)) {
+            ioapic2 = true;
+            pins += 24;
+        }
         x86ms->gsi = qemu_allocate_irqs(microvm_gsi_handler,
-                                        gsi_state, GSI_NUM_PINS);
+                                        gsi_state, pins);
     }
 
     isa_bus = isa_bus_new(NULL, get_system_memory(), get_system_io(),
@@ -175,6 +185,22 @@ static void microvm_devices_init(MicrovmMachineState *mms)
     isa_bus_irqs(isa_bus, x86ms->gsi);
 
     ioapic_init_gsi(gsi_state, "machine");
+
+    if (ioapic2) {
+        DeviceState *dev;
+        SysBusDevice *d;
+        unsigned int i;
+
+        dev = qdev_new(TYPE_IOAPIC);
+        object_property_add_child(OBJECT(mms), "ioapic2", OBJECT(dev));
+        d = SYS_BUS_DEVICE(dev);
+        sysbus_realize_and_unref(d, &error_fatal);
+        sysbus_mmio_map(d, 0, IO_APIC_DEFAULT_ADDRESS + 0x10000);
+
+        for (i = 0; i < IOAPIC_NUM_PINS; i++) {
+            gsi_state->ioapic2_irq[i] = qdev_get_gpio_in(dev, i);
+        }
+    }
 
     kvmclock_create(true);
 
