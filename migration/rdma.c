@@ -3939,6 +3939,12 @@ static int qemu_rdma_registration_stop(QEMUFile *f, void *opaque,
 
                 qemu_sem_post(&multifd_send_param->sem_sync);
             }
+
+            /*
+             * Use multifd to migrate, we only register memory for
+             * multifd RDMA channel and main channel don't register it.
+             */
+            goto wait_reg_complete;
         }
 
         /*
@@ -3999,6 +4005,8 @@ static int qemu_rdma_registration_stop(QEMUFile *f, void *opaque,
                     rdma->dest_blocks[i].remote_host_addr;
             local->block[i].remote_rkey = rdma->dest_blocks[i].remote_rkey;
         }
+
+wait_reg_complete:
         /* Wait for all multifd channels to complete registration */
         if (migrate_use_multifd()) {
             int i;
