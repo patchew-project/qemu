@@ -3267,6 +3267,40 @@ static void rdma_cm_poll_handler(void *opaque)
     }
 }
 
+static bool qemu_rdma_accept_setup(RDMAContext *rdma)
+{
+    RDMAContext *multifd_rdma = NULL;
+    int thread_count;
+    int i;
+    MultiFDRecvParams *multifd_recv_param;
+    thread_count = migrate_multifd_channels();
+    /* create the multifd channels for RDMA */
+    for (i = 0; i < thread_count; i++) {
+        if (get_multifd_recv_param(i, &multifd_recv_param) < 0) {
+            error_report("rdma: error getting multifd_recv_param(%d)", i);
+            return false;
+        }
+
+        multifd_rdma = (RDMAContext *) multifd_recv_param->rdma;
+        if (multifd_rdma->cm_id == NULL) {
+            break;
+        } else {
+            multifd_rdma = NULL;
+        }
+    }
+
+    if (multifd_rdma) {
+        qemu_set_fd_handler(rdma->channel->fd,
+                            rdma_accept_incoming_migration,
+                            NULL, (void *)(intptr_t)multifd_rdma);
+    } else {
+        qemu_set_fd_handler(rdma->channel->fd, rdma_cm_poll_handler,
+                            NULL, rdma);
+    }
+
+    return true;
+}
+
 static int qemu_rdma_accept(RDMAContext *rdma)
 {
     RDMACapabilities cap;
@@ -3366,6 +3400,10 @@ static int qemu_rdma_accept(RDMAContext *rdma)
         qemu_set_fd_handler(rdma->channel->fd, rdma_accept_incoming_migration,
                             NULL,
                             (void *)(intptr_t)rdma->return_path);
+    } else if (migrate_use_multifd()) {
+        if (!qemu_rdma_accept_setup(rdma)) {
+            goto err_rdma_dest_wait;
+        }
     } else {
         qemu_set_fd_handler(rdma->channel->fd, rdma_cm_poll_handler,
                             NULL, rdma);
@@ -3976,6 +4014,35 @@ static QEMUFile *qemu_fopen_rdma(RDMAContext *rdma, const char *mode)
     return rioc->file;
 }
 
+static void migration_rdma_process_incoming(QEMUFile *f,
+                                            RDMAContext *rdma, Error **errp)
+{
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    QIOChannel *ioc = NULL;
+    bool start_migration = false;
+
+    /* FIXME: Need refactor */
+    if (!migrate_use_multifd()) {
+        rdma->migration_started_on_destination = 1;
+        migration_fd_process_incoming(f, errp);
+        return;
+    }
+
+    if (!mis->from_src_file) {
+        mis->from_src_file = f;
+        qemu_file_set_blocking(f, false);
+    } else {
+        ioc = QIO_CHANNEL(getQIOChannel(f));
+        /* Multiple connections */
+        assert(migrate_use_multifd());
+        start_migration = multifd_recv_new_channel(ioc, errp);
+    }
+
+    if (start_migration) {
+        migration_incoming_process();
+    }
+}
+
 static void rdma_accept_incoming_migration(void *opaque)
 {
     RDMAContext *rdma = opaque;
@@ -4004,8 +4071,7 @@ static void rdma_accept_incoming_migration(void *opaque)
         return;
     }
 
-    rdma->migration_started_on_destination = 1;
-    migration_fd_process_incoming(f, &local_err);
+    migration_rdma_process_incoming(f, rdma, &local_err);
     if (local_err) {
         error_reportf_err(local_err, "RDMA ERROR:");
     }
