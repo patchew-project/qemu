@@ -173,7 +173,7 @@ void multifd_register_ops(int method, MultiFDMethods *ops)
     multifd_ops[method] = ops;
 }
 
-static int multifd_send_initial_packet(MultiFDSendParams *p, Error **errp)
+int multifd_send_initial_packet(MultiFDSendParams *p, Error **errp)
 {
     MultiFDInit_t msg = {};
     int ret;
@@ -500,7 +500,7 @@ int multifd_queue_page(QEMUFile *f, RAMBlock *block, ram_addr_t offset)
     return 1;
 }
 
-static void multifd_send_terminate_threads(Error *err)
+void multifd_send_terminate_threads(Error *err)
 {
     int i;
 

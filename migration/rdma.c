@@ -4262,9 +4262,54 @@ err:
     g_free(rdma_return_path);
 }
 
+static int multifd_channel_rdma_connect(void *opaque)
+{
+    MultiFDSendParams *p = opaque;
+    Error *local_err = NULL;
+    int ret = 0;
+    MigrationState *s = migrate_get_current();
+
+    p->rdma = qemu_rdma_data_init(s->host_port, &local_err);
+    if (p->rdma == NULL) {
+        goto out;
+    }
+
+    ret = qemu_rdma_source_init(p->rdma,
+                                migrate_use_rdma_pin_all(),
+                                &local_err);
+    if (ret) {
+        goto out;
+    }
+
+    ret = qemu_rdma_connect(p->rdma, &local_err);
+    if (ret) {
+        goto out;
+    }
+
+    p->file = qemu_fopen_rdma(p->rdma, "wb");
+    if (p->file == NULL) {
+        goto out;
+    }
+
+    p->c = QIO_CHANNEL(getQIOChannel(p->file));
+
+out:
+    if (local_err) {
+        trace_multifd_send_error(p->id);
+    }
+
+    return ret;
+}
+
 static void *multifd_rdma_send_thread(void *opaque)
 {
     MultiFDSendParams *p = opaque;
+    Error *local_err = NULL;
+
+    trace_multifd_send_thread_start(p->id);
+    if (multifd_send_initial_packet(p, &local_err) < 0) {
+        goto out;
+    }
 
     while (true) {
         qemu_mutex_lock(&p->mutex);
@@ -4276,6 +4321,11 @@ static void *multifd_rdma_send_thread(void *opaque)
         qemu_sem_wait(&p->sem);
     }
 
+out:
+    if (local_err) {
+        trace_multifd_send_error(p->id);
+        multifd_send_terminate_threads(local_err);
+    }
     qemu_mutex_lock(&p->mutex);
     p->running = false;
     qemu_mutex_unlock(&p->mutex);
@@ -4286,6 +4336,12 @@ static void *multifd_rdma_send_thread(void *opaque)
 static void multifd_rdma_send_channel_setup(MultiFDSendParams *p)
 {
     Error *local_err = NULL;
+
+    if (multifd_channel_rdma_connect(p)) {
+        error_setg(&local_err, "multifd: rdma channel %d not established",
+                   p->id);
+        return ;
+    }
 
     if (p->quit) {
         error_setg(&local_err, "multifd: send id %d already quit", p->id);
