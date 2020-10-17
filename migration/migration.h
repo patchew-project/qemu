@@ -288,6 +288,7 @@ struct MigrationState {
 
     /* Need by Multi-RDMA */
     char *host_port;
+    int rdma_channel;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);

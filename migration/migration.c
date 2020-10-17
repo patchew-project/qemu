@@ -1944,6 +1944,7 @@ void migrate_init(MigrationState *s)
     s->migration_thread_running = false;
     s->enabled_rdma_migration = false;
     s->host_port = NULL;
+    s->rdma_channel = 0;
     error_free(s->error);
     s->error = NULL;
     s->hostname = NULL;
