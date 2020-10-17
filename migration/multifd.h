@@ -108,6 +108,10 @@ typedef struct {
     QemuSemaphore sem_sync;
     /* used for compression methods */
     void *data;
+    /* used for multifd rdma */
+    void *rdma;
+    /* communication channel */
+    QEMUFile *file;
 }  MultiFDSendParams;
 
 typedef struct {
@@ -147,6 +151,10 @@ typedef struct {
     QemuSemaphore sem_sync;
     /* used for de-compression methods */
     void *data;
+    /* used for multifd rdma */
+    void *rdma;
+    /* communication channel */
+    QEMUFile *file;
 } MultiFDRecvParams;
 
 typedef struct {
