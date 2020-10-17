@@ -1210,6 +1210,12 @@ MultiFDSetup *multifd_setup_ops_init(void)
 {
     MultiFDSetup *ops;
 
+#ifdef CONFIG_RDMA
+    if (migrate_use_rdma()) {
+        ops = multifd_rdma_setup();
+        return ops;
+    }
+#endif
     ops = &multifd_socket_ops;
     return ops;
 }

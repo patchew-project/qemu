@@ -173,6 +173,10 @@ typedef struct {
     void (*recv_channel_setup)(QIOChannel *ioc, MultiFDRecvParams *p);
 } MultiFDSetup;
 
+#ifdef CONFIG_RDMA
+MultiFDSetup *multifd_rdma_setup(void);
+#endif
+MultiFDSetup *multifd_setup_ops_init(void);
 void multifd_register_ops(int method, MultiFDMethods *ops);
 
 #endif
