@@ -260,6 +260,11 @@ void ram_control_before_iterate(QEMUFile *f, uint64_t flags)
     }
 }
 
+void *getQIOChannel(QEMUFile *f)
+{
+    return f->opaque;
+}
+
 void ram_control_after_iterate(QEMUFile *f, uint64_t flags)
 {
     int ret = 0;
