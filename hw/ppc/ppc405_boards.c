@@ -28,6 +28,7 @@
 #include "qemu-common.h"
 #include "cpu.h"
 #include "hw/ppc/ppc.h"
+#include "hw/sysbus.h"
 #include "ppc405.h"
 #include "hw/rtc/m48t59.h"
 #include "hw/block/flash.h"
@@ -227,7 +228,7 @@ static void ref405ep_init(MachineState *machine)
     /* Register FPGA */
     ref405ep_fpga_init(sysmem, 0xF0300000);
     /* Register NVRAM */
-    m48t59_init(NULL, 0xF0000000, 0, 8192, 1968, 8);
+    sysbus_create_simple("sysbus-m48t08", 0xF0000000, NULL);
     /* Load kernel */
     linux_boot = (kernel_filename != NULL);
     if (linux_boot) {
