@@ -534,6 +534,9 @@ void multifd_send_terminate_threads(Error *err)
         qemu_mutex_lock(&p->mutex);
         p->quit = true;
         qemu_sem_post(&p->sem);
+        if (migrate_use_rdma()) {
+            qemu_sem_post(&p->sem_sync);
+        }
         qemu_mutex_unlock(&p->mutex);
     }
 }
