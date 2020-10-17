@@ -387,6 +387,19 @@ struct {
     MultiFDSetup *setup_ops;
 } *multifd_send_state;
 
+int get_multifd_send_param(int id, MultiFDSendParams **param)
+{
+    int ret = 0;
+
+    if (id < 0 || id >= migrate_multifd_channels()) {
+        ret = -1;
+    } else {
+        *param = &(multifd_send_state->params[id]);
+    }
+
+    return ret;
+}
+
 /*
  * How we use multifd_send_state->pages and channel->pages?
  *
@@ -918,6 +931,19 @@ struct {
     /* multifd setup ops */
     MultiFDSetup *setup_ops;
 } *multifd_recv_state;
+
+int get_multifd_recv_param(int id, MultiFDRecvParams **param)
+{
+    int ret = 0;
+
+    if (id < 0 || id >= migrate_multifd_channels()) {
+        ret = -1;
+    } else {
+        *param = &(multifd_recv_state->params[id]);
+    }
+
+    return ret;
+}
 
 static void multifd_recv_terminate_threads(Error *err)
 {

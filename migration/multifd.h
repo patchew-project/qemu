@@ -176,6 +176,8 @@ typedef struct {
 #ifdef CONFIG_RDMA
 MultiFDSetup *multifd_rdma_setup(void);
 #endif
+int get_multifd_send_param(int id, MultiFDSendParams **param);
+int get_multifd_recv_param(int id, MultiFDRecvParams **param);
 MultiFDSetup *multifd_setup_ops_init(void);
 void multifd_register_ops(int method, MultiFDMethods *ops);
 
