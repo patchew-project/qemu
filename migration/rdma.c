@@ -4011,6 +4011,48 @@ static void rdma_accept_incoming_migration(void *opaque)
     }
 }
 
+static bool multifd_rdma_load_setup(const char *host_port,
+                                    RDMAContext *rdma, Error **errp)
+{
+    int thread_count;
+    int i;
+    int idx;
+    MultiFDRecvParams *multifd_recv_param;
+    RDMAContext *multifd_rdma;
+
+    if (!migrate_use_multifd()) {
+        return true;
+    }
+
+    if (multifd_load_setup(errp) != 0) {
+        /*
+         * We haven't been able to create multifd threads
+         * nothing better to do
+         */
+        return false;
+    }
+
+    thread_count = migrate_multifd_channels();
+    for (i = 0; i < thread_count; i++) {
+        if (get_multifd_recv_param(i, &multifd_recv_param) < 0) {
+            ERROR(errp, "rdma: error getting multifd_recv_param(%d)", i);
+            return false;
+        }
+
+        multifd_rdma = qemu_rdma_data_init(host_port, errp);
+        for (idx = 0; idx < RDMA_WRID_MAX; idx++) {
+            multifd_rdma->wr_data[idx].control_len = 0;
+            multifd_rdma->wr_data[idx].control_curr = NULL;
+        }
+        /* the CM channel and CM id is shared */
+        multifd_rdma->channel = rdma->channel;
+        multifd_rdma->listen_id = rdma->listen_id;
+        multifd_recv_param->rdma = (void *)multifd_rdma;
+    }
+
+    return true;
+}
+
 void rdma_start_incoming_migration(const char *host_port, Error **errp)
 {
     int ret;
@@ -4056,6 +4098,16 @@ void rdma_start_incoming_migration(const char *host_port, Error **errp)
         }
 
         qemu_rdma_return_path_dest_init(rdma_return_path, rdma);
+    }
+
+    /* multifd rdma setup */
+    if (!multifd_rdma_load_setup(host_port, rdma, &local_err)) {
+        /*
+         * We haven't been able to create multifd threads
+         * nothing better to do
+         */
+        error_report_err(local_err);
+        goto err;
     }
 
     qemu_set_fd_handler(rdma->channel->fd, rdma_accept_incoming_migration,
