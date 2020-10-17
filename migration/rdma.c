@@ -4207,6 +4207,8 @@ void rdma_start_outgoing_migration(void *opaque,
         goto err;
     }
 
+    s->host_port = g_strdup(host_port);
+
     ret = qemu_rdma_source_init(rdma,
         s->enabled_capabilities[MIGRATION_CAPABILITY_RDMA_PIN_ALL], errp);
 
@@ -4251,6 +4253,7 @@ void rdma_start_outgoing_migration(void *opaque,
 
     s->to_dst_file = qemu_fopen_rdma(rdma, "wb");
     migrate_fd_connect(s, NULL);
+    g_free(s->host_port);
     return;
 return_path_err:
     qemu_rdma_cleanup(rdma);
