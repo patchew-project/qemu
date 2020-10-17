@@ -580,6 +580,10 @@ void multifd_send_sync_main(QEMUFile *f)
     if (!migrate_use_multifd()) {
         return;
     }
+     /* Do not need sync for rdma */
+    if (migrate_use_rdma()) {
+        return;
+    }
     if (multifd_send_state->pages->used) {
         if (multifd_send_pages(f) < 0) {
             error_report("%s: multifd_send_pages fail", __func__);
@@ -1000,6 +1004,10 @@ void multifd_recv_sync_main(void)
     int i;
 
     if (!migrate_use_multifd()) {
+        return;
+    }
+    /* Do not need sync for rdma */
+    if (migrate_use_rdma()) {
         return;
     }
     for (i = 0; i < migrate_multifd_channels(); i++) {
