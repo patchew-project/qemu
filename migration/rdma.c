@@ -2369,7 +2369,7 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
 {
     int idx;
 
-    if (rdma->cm_id && rdma->connected) {
+    if (rdma->channel && rdma->cm_id && rdma->connected) {
         if ((rdma->error_state ||
              migrate_get_current()->state == MIGRATION_STATUS_CANCELLING) &&
             !rdma->received_error) {
@@ -4609,6 +4609,20 @@ static MultiFDSetup multifd_rdma_ops = {
     .send_channel_setup = multifd_rdma_send_channel_setup,
     .recv_channel_setup = multifd_rdma_recv_channel_setup
 };
+
+void multifd_rdma_cleanup(void *opaque)
+{
+    RDMAContext *rdma = (RDMAContext *)opaque;
+
+    if (!migrate_use_rdma()) {
+        return;
+    }
+
+    rdma->listen_id = NULL;
+    rdma->channel = NULL;
+    qemu_rdma_cleanup(rdma);
+    g_free(rdma);
+}
 
 MultiFDSetup *multifd_rdma_setup(void)
 {

@@ -183,6 +183,7 @@ typedef struct {
 
 #ifdef CONFIG_RDMA
 MultiFDSetup *multifd_rdma_setup(void);
+void multifd_rdma_cleanup(void *opaque);
 #endif
 void multifd_send_terminate_threads(Error *err);
 int multifd_send_initial_packet(MultiFDSendParams *p, Error **errp);
