@@ -3739,6 +3739,57 @@ out:
     return ret;
 }
 
+/*
+ * Dynamic page registrations for multifd RDMA threads.
+ */
+static int qemu_rdma_registration(void *opaque)
+{
+    RDMAContext *rdma = opaque;
+    RDMAControlHeader resp = {.type = RDMA_CONTROL_RAM_BLOCKS_RESULT };
+    RDMALocalBlocks *local = &rdma->local_ram_blocks;
+    int reg_result_idx, i, nb_dest_blocks;
+    RDMAControlHeader head = { .len = 0, .repeat = 1 };
+    int ret = 0;
+
+    head.type = RDMA_CONTROL_RAM_BLOCKS_REQUEST;
+
+    ret = qemu_rdma_exchange_send(rdma, &head, NULL, &resp,
+            &reg_result_idx, rdma->pin_all ?
+            qemu_rdma_reg_whole_ram_blocks : NULL);
+    if (ret < 0) {
+        goto out;
+    }
+
+    nb_dest_blocks = resp.len / sizeof(RDMADestBlock);
+
+    if (local->nb_blocks != nb_dest_blocks) {
+        rdma->error_state = -EINVAL;
+        ret = -1;
+        goto out;
+    }
+
+    qemu_rdma_move_header(rdma, reg_result_idx, &resp);
+    memcpy(rdma->dest_blocks,
+           rdma->wr_data[reg_result_idx].control_curr, resp.len);
+
+    for (i = 0; i < nb_dest_blocks; i++) {
+        network_to_dest_block(&rdma->dest_blocks[i]);
+
+        /* We require that the blocks are in the same order */
+        if (rdma->dest_blocks[i].length != local->block[i].length) {
+            rdma->error_state = -EINVAL;
+            ret = -1;
+            goto out;
+        }
+        local->block[i].remote_host_addr =
+            rdma->dest_blocks[i].remote_host_addr;
+        local->block[i].remote_rkey = rdma->dest_blocks[i].remote_rkey;
+    }
+
+out:
+    return ret;
+}
+
 /* Destination:
  * Called via a ram_control_load_hook during the initial RAM load section which
  * lists the RAMBlocks by name.  This lets us know the order of the RAMBlocks
