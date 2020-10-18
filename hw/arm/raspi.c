@@ -25,6 +25,7 @@
 #include "hw/arm/boot.h"
 #include "sysemu/sysemu.h"
 #include "qom/object.h"
+#include <libfdt.h>
 
 #define SMPBOOT_ADDR    0x300 /* this should leave enough space for ATAGS */
 #define MVBAR_ADDR      0x400 /* secure vectors */
@@ -200,6 +201,29 @@ static void reset_secondary(ARMCPU *cpu, const struct arm_boot_info *info)
     cpu_set_pc(cs, info->smp_loader_start);
 }
 
+static void raspi4_modify_dtb(const struct arm_boot_info *info, void *fdt)
+{
+    int offset;
+
+    offset = fdt_node_offset_by_compatible(fdt, -1, "brcm,genet-v5");
+    if (offset >= 0) {
+        /* FIXME we shouldn't nop the parent */
+        offset = fdt_parent_offset(fdt, offset);
+        if (offset >= 0) {
+            if (!fdt_nop_node(fdt, offset)) {
+                warn_report("dtc: bcm2838-genet removed!");
+            }
+        }
+    }
+
+    offset = fdt_node_offset_by_compatible(fdt, -1, "brcm,avs-tmon-bcm2838");
+    if (offset >= 0) {
+        if (!fdt_nop_node(fdt, offset)) {
+            warn_report("dtc: bcm2838-tmon removed!");
+        }
+    }
+}
+
 static void setup_boot(MachineState *machine, RaspiProcessorId processor_id,
                        size_t ram_size)
 {
@@ -233,6 +257,9 @@ static void setup_boot(MachineState *machine, RaspiProcessorId processor_id,
             s->binfo.write_secondary_boot = write_smpboot64;
         }
         s->binfo.secondary_cpu_reset_hook = reset_secondary;
+    }
+    if (processor_id >= PROCESSOR_ID_BCM2838) {
+        s->binfo.modify_dtb = raspi4_modify_dtb;
     }
 
     /* If the user specified a "firmware" image (e.g. UEFI), we bypass
