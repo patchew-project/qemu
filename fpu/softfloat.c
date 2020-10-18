@@ -2775,7 +2775,8 @@ static FloatParts int_to_float(int64_t a, int scale, float_status *status)
     return r;
 }
 
-float16 int64_to_float16_scalbn(int64_t a, int scale, float_status *status)
+float16 QEMU_FLATTEN
+int64_to_float16_scalbn(int64_t a, int scale, float_status *status)
 {
     FloatParts pa = int_to_float(a, scale, status);
     return float16_round_pack_canonical(pa, status);
@@ -2811,7 +2812,8 @@ float16 int8_to_float16(int8_t a, float_status *status)
     return int64_to_float16_scalbn(a, 0, status);
 }
 
-float32 int64_to_float32_scalbn(int64_t a, int scale, float_status *status)
+float32 QEMU_FLATTEN
+int64_to_float32_scalbn(int64_t a, int scale, float_status *status)
 {
     FloatParts pa = int_to_float(a, scale, status);
     return float32_round_pack_canonical(pa, status);
@@ -2842,7 +2844,8 @@ float32 int16_to_float32(int16_t a, float_status *status)
     return int64_to_float32_scalbn(a, 0, status);
 }
 
-float64 int64_to_float64_scalbn(int64_t a, int scale, float_status *status)
+float64 QEMU_FLATTEN
+int64_to_float64_scalbn(int64_t a, int scale, float_status *status)
 {
     FloatParts pa = int_to_float(a, scale, status);
     return float64_round_pack_canonical(pa, status);
@@ -2878,7 +2881,8 @@ float64 int16_to_float64(int16_t a, float_status *status)
  * to the bfloat16 format.
  */
 
-bfloat16 int64_to_bfloat16_scalbn(int64_t a, int scale, float_status *status)
+bfloat16 QEMU_FLATTEN
+int64_to_bfloat16_scalbn(int64_t a, int scale, float_status *status)
 {
     FloatParts pa = int_to_float(a, scale, status);
     return bfloat16_round_pack_canonical(pa, status);
@@ -2940,7 +2944,8 @@ static FloatParts uint_to_float(uint64_t a, int scale, float_status *status)
     return r;
 }
 
-float16 uint64_to_float16_scalbn(uint64_t a, int scale, float_status *status)
+float16 QEMU_FLATTEN
+uint64_to_float16_scalbn(uint64_t a, int scale, float_status *status)
 {
     FloatParts pa = uint_to_float(a, scale, status);
     return float16_round_pack_canonical(pa, status);
@@ -2976,7 +2981,8 @@ float16 uint8_to_float16(uint8_t a, float_status *status)
     return uint64_to_float16_scalbn(a, 0, status);
 }
 
-float32 uint64_to_float32_scalbn(uint64_t a, int scale, float_status *status)
+float32 QEMU_FLATTEN
+uint64_to_float32_scalbn(uint64_t a, int scale, float_status *status)
 {
     FloatParts pa = uint_to_float(a, scale, status);
     return float32_round_pack_canonical(pa, status);
@@ -3007,7 +3013,8 @@ float32 uint16_to_float32(uint16_t a, float_status *status)
     return uint64_to_float32_scalbn(a, 0, status);
 }
 
-float64 uint64_to_float64_scalbn(uint64_t a, int scale, float_status *status)
+float64 QEMU_FLATTEN
+uint64_to_float64_scalbn(uint64_t a, int scale, float_status *status)
 {
     FloatParts pa = uint_to_float(a, scale, status);
     return float64_round_pack_canonical(pa, status);
@@ -3043,7 +3050,8 @@ float64 uint16_to_float64(uint16_t a, float_status *status)
  * bfloat16 format.
  */
 
-bfloat16 uint64_to_bfloat16_scalbn(uint64_t a, int scale, float_status *status)
+bfloat16 QEMU_FLATTEN
+uint64_to_bfloat16_scalbn(uint64_t a, int scale, float_status *status)
 {
     FloatParts pa = uint_to_float(a, scale, status);
     return bfloat16_round_pack_canonical(pa, status);
