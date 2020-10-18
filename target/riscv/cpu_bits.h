@@ -481,6 +481,7 @@
  */
 #define FORCE_HS_EXCEP      2
 #define HS_TWO_STAGE        4
+#define HS_HYP_LD_ST        8
 
 /* RV32 satp CSR field masks */
 #define SATP32_MODE         0x80000000

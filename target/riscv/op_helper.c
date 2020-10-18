@@ -240,6 +240,7 @@ target_ulong helper_hyp_load(CPURISCVState *env, target_ulong address,
             get_field(env->hstatus, HSTATUS_HU))) {
         target_ulong pte;
 
+        riscv_cpu_set_hyp_load_store_inst(env, true);
         riscv_cpu_set_two_stage_lookup(env, true);
 
         switch (memop) {
@@ -269,6 +270,7 @@ target_ulong helper_hyp_load(CPURISCVState *env, target_ulong address,
         }
 
         riscv_cpu_set_two_stage_lookup(env, false);
+        riscv_cpu_set_hyp_load_store_inst(env, false);
 
         return pte;
     }
@@ -288,6 +290,8 @@ void helper_hyp_store(CPURISCVState *env, target_ulong address,
         (env->priv == PRV_S && !riscv_cpu_virt_enabled(env)) ||
         (env->priv == PRV_U && !riscv_cpu_virt_enabled(env) &&
             get_field(env->hstatus, HSTATUS_HU))) {
+
+        riscv_cpu_set_hyp_load_store_inst(env, true);
         riscv_cpu_set_two_stage_lookup(env, true);
 
         switch (memop) {
@@ -311,6 +315,7 @@ void helper_hyp_store(CPURISCVState *env, target_ulong address,
         }
 
         riscv_cpu_set_two_stage_lookup(env, false);
+        riscv_cpu_set_hyp_load_store_inst(env, false);
 
         return;
     }
@@ -331,6 +336,7 @@ target_ulong helper_hyp_x_load(CPURISCVState *env, target_ulong address,
             get_field(env->hstatus, HSTATUS_HU))) {
         target_ulong pte;
 
+        riscv_cpu_set_hyp_load_store_inst(env, true);
         riscv_cpu_set_two_stage_lookup(env, true);
 
         switch (memop) {
@@ -345,6 +351,7 @@ target_ulong helper_hyp_x_load(CPURISCVState *env, target_ulong address,
         }
 
         riscv_cpu_set_two_stage_lookup(env, false);
+        riscv_cpu_set_hyp_load_store_inst(env, false);
 
         return pte;
     }

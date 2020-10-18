@@ -238,6 +238,24 @@ void riscv_cpu_set_two_stage_lookup(CPURISCVState *env, bool enable)
     env->virt = set_field(env->virt, HS_TWO_STAGE, enable);
 }
 
+bool riscv_cpu_hyp_load_store_inst(CPURISCVState *env)
+{
+    if (!riscv_has_ext(env, RVH)) {
+        return false;
+    }
+
+    return get_field(env->virt, HS_HYP_LD_ST);
+}
+
+void riscv_cpu_set_hyp_load_store_inst(CPURISCVState *env, bool enable)
+{
+    if (!riscv_has_ext(env, RVH)) {
+        return;
+    }
+
+    env->virt = set_field(env->virt, HS_HYP_LD_ST, enable);
+}
+
 int riscv_cpu_claim_interrupts(RISCVCPU *cpu, uint32_t interrupts)
 {
     CPURISCVState *env = &cpu->env;
@@ -346,7 +364,11 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
         use_background = true;
     }
 
-    if (mode == PRV_M && access_type != MMU_INST_FETCH) {
+    /* MPRV does not affect the virtual-machine load/store
+       instructions, HLV, HLVX, and HSV. */
+    if (riscv_cpu_hyp_load_store_inst(env)) {
+        mode = get_field(env->hstatus, HSTATUS_SPVP);
+    } else if (mode == PRV_M && access_type != MMU_INST_FETCH) {
         if (get_field(env->mstatus, MSTATUS_MPRV)) {
             mode = get_field(env->mstatus, MSTATUS_MPP);
         }
@@ -711,17 +733,21 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     qemu_log_mask(CPU_LOG_MMU, "%s ad %" VADDR_PRIx " rw %d mmu_idx %d\n",
                   __func__, address, access_type, mmu_idx);
 
-    if (mode == PRV_M && access_type != MMU_INST_FETCH) {
+    /* MPRV does not affect the virtual-machine load/store
+       instructions, HLV, HLVX, and HSV. */
+    if (riscv_cpu_hyp_load_store_inst(env)) {
+        mode = get_field(env->hstatus, HSTATUS_SPVP);
+    } else if (mode == PRV_M && access_type != MMU_INST_FETCH) {
         if (get_field(env->mstatus, MSTATUS_MPRV)) {
             mode = get_field(env->mstatus, MSTATUS_MPP);
         }
-    }
 
-    if (riscv_has_ext(env, RVH) && env->priv == PRV_M &&
-        access_type != MMU_INST_FETCH &&
-        get_field(env->mstatus, MSTATUS_MPRV) &&
-        MSTATUS_MPV_ISSET(env)) {
-        riscv_cpu_set_two_stage_lookup(env, true);
+        if (riscv_has_ext(env, RVH) && env->priv == PRV_M &&
+            access_type != MMU_INST_FETCH &&
+            get_field(env->mstatus, MSTATUS_MPRV) &&
+            MSTATUS_MPV_ISSET(env)) {
+            riscv_cpu_set_two_stage_lookup(env, true);
+        }
     }
 
     if (riscv_cpu_virt_enabled(env) ||
@@ -777,12 +803,16 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                       __func__, address, ret, pa, prot);
     }
 
-    /* We did the two stage lookup based on MPRV, unset the lookup */
-    if (riscv_has_ext(env, RVH) && env->priv == PRV_M &&
-        access_type != MMU_INST_FETCH &&
-        get_field(env->mstatus, MSTATUS_MPRV) &&
-        MSTATUS_MPV_ISSET(env)) {
-        riscv_cpu_set_two_stage_lookup(env, false);
+    /* MPRV does not affect the virtual-machine load/store
+       instructions, HLV, HLVX, and HSV. */
+    if (!riscv_cpu_hyp_load_store_inst(env)) {
+        /* We did the two stage lookup based on MPRV, unset the lookup */
+        if (riscv_has_ext(env, RVH) && env->priv == PRV_M &&
+            access_type != MMU_INST_FETCH &&
+            get_field(env->mstatus, MSTATUS_MPRV) &&
+            MSTATUS_MPV_ISSET(env)) {
+            riscv_cpu_set_two_stage_lookup(env, false);
+        }
     }
 
     if (riscv_feature(env, RISCV_FEATURE_PMP) &&
@@ -949,6 +979,8 @@ void riscv_cpu_do_interrupt(CPUState *cs)
                 riscv_cpu_set_two_stage_lookup(env, false);
                 htval = env->guest_phys_fault_addr;
             }
+
+            riscv_cpu_set_hyp_load_store_inst(env, false);
         }
 
         s = env->mstatus;
