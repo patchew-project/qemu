@@ -53,10 +53,10 @@ void ati_2d_blt(ATIVGAState *s)
             s->vga.vbe_start_addr, surface_data(ds), surface_stride(ds),
             surface_bits_per_pixel(ds),
             (s->regs.dp_mix & GMC_ROP3_MASK) >> 16);
-    unsigned dst_x = (s->regs.dp_cntl & DST_X_LEFT_TO_RIGHT ?
-                      s->regs.dst_x : s->regs.dst_x + 1 - s->regs.dst_width);
-    unsigned dst_y = (s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM ?
-                      s->regs.dst_y : s->regs.dst_y + 1 - s->regs.dst_height);
+    unsigned dst_x = (s->regs.dp_cntl & DST_X_LEFT_TO_RIGHT ? s->regs.dst_x
+                        : (s->regs.dst_x + 1 - s->regs.dst_width) & 0x3fff);
+    unsigned dst_y = (s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM ? s->regs.dst_y
+                        : (s->regs.dst_y + 1 - s->regs.dst_height) & 0x3fff);
     int bpp = ati_bpp_from_datatype(s);
     if (!bpp) {
         qemu_log_mask(LOG_GUEST_ERROR, "Invalid bpp\n");
@@ -91,9 +91,9 @@ void ati_2d_blt(ATIVGAState *s)
     case ROP3_SRCCOPY:
     {
         unsigned src_x = (s->regs.dp_cntl & DST_X_LEFT_TO_RIGHT ?
-                       s->regs.src_x : s->regs.src_x + 1 - s->regs.dst_width);
+           s->regs.src_x : (s->regs.src_x + 1 - s->regs.dst_width) & 0x3fff);
         unsigned src_y = (s->regs.dp_cntl & DST_Y_TOP_TO_BOTTOM ?
-                       s->regs.src_y : s->regs.src_y + 1 - s->regs.dst_height);
+           s->regs.src_y : (s->regs.src_y + 1 - s->regs.dst_height) & 0x3fff);
         int src_stride = DEFAULT_CNTL ?
                          s->regs.src_pitch : s->regs.default_pitch;
         if (!src_stride) {
