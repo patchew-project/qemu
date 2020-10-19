@@ -355,6 +355,11 @@ This machine has been renamed ``fuloong2e``.
 These machine types are very old and likely can not be used for live migration
 from old QEMU versions anymore. A newer machine type should be used instead.
 
+Raspberry Pi ``raspi2`` and ``raspi3`` machines (since 5.2)
+'''''''''''''''''''''''''''''''''''''
+
+These machines have been respectively renamed ``raspi2b`` and ``raspi3b``.
+
 Device options
 --------------
 
