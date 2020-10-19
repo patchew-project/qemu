@@ -36,25 +36,29 @@
 
 static void ibex_uart_update_irqs(IbexUartState *s)
 {
-    if (s->uart_intr_state & s->uart_intr_enable & R_INTR_STATE_TX_WATERMARK_MASK) {
+    if (s->uart_intr_state & s->uart_intr_enable &
+        R_INTR_STATE_TX_WATERMARK_MASK) {
         qemu_set_irq(s->tx_watermark, 1);
     } else {
         qemu_set_irq(s->tx_watermark, 0);
     }
 
-    if (s->uart_intr_state & s->uart_intr_enable & R_INTR_STATE_RX_WATERMARK_MASK) {
+    if (s->uart_intr_state & s->uart_intr_enable &
+        R_INTR_STATE_RX_WATERMARK_MASK) {
         qemu_set_irq(s->rx_watermark, 1);
     } else {
         qemu_set_irq(s->rx_watermark, 0);
     }
 
-    if (s->uart_intr_state & s->uart_intr_enable & R_INTR_STATE_TX_EMPTY_MASK) {
+    if (s->uart_intr_state & s->uart_intr_enable &
+        R_INTR_STATE_TX_EMPTY_MASK) {
         qemu_set_irq(s->tx_empty, 1);
     } else {
         qemu_set_irq(s->tx_empty, 0);
     }
 
-    if (s->uart_intr_state & s->uart_intr_enable & R_INTR_STATE_RX_OVERFLOW_MASK) {
+    if (s->uart_intr_state & s->uart_intr_enable &
+        R_INTR_STATE_RX_OVERFLOW_MASK) {
         qemu_set_irq(s->rx_overflow, 1);
     } else {
         qemu_set_irq(s->rx_overflow, 0);

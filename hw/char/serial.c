@@ -86,7 +86,10 @@
 #define UART_LSR_DR	0x01	/* Receiver data ready */
 #define UART_LSR_INT_ANY 0x1E	/* Any of the lsr-interrupt-triggering status bits */
 
-/* Interrupt trigger levels. The byte-counts are for 16550A - in newer UARTs the byte-count for each ITL is higher. */
+/*
+ * Interrupt trigger levels. The byte-counts are for 16550A - in newer UARTs the
+ * byte-count for each ITL is higher.
+ */
 
 #define UART_FCR_ITL_1      0x00 /* 1 byte ITL */
 #define UART_FCR_ITL_2      0x40 /* 4 bytes ITL */
@@ -195,10 +198,14 @@ static void serial_update_msl(SerialState *s)
 
     omsr = s->msr;
 
-    s->msr = (flags & CHR_TIOCM_CTS) ? s->msr | UART_MSR_CTS : s->msr & ~UART_MSR_CTS;
-    s->msr = (flags & CHR_TIOCM_DSR) ? s->msr | UART_MSR_DSR : s->msr & ~UART_MSR_DSR;
-    s->msr = (flags & CHR_TIOCM_CAR) ? s->msr | UART_MSR_DCD : s->msr & ~UART_MSR_DCD;
-    s->msr = (flags & CHR_TIOCM_RI) ? s->msr | UART_MSR_RI : s->msr & ~UART_MSR_RI;
+    s->msr = (flags & CHR_TIOCM_CTS) ? s->msr | UART_MSR_CTS :
+              s->msr & ~UART_MSR_CTS;
+    s->msr = (flags & CHR_TIOCM_DSR) ? s->msr | UART_MSR_DSR :
+              s->msr & ~UART_MSR_DSR;
+    s->msr = (flags & CHR_TIOCM_CAR) ? s->msr | UART_MSR_DCD :
+              s->msr & ~UART_MSR_DCD;
+    s->msr = (flags & CHR_TIOCM_RI) ? s->msr | UART_MSR_RI :
+              s->msr & ~UART_MSR_RI;
 
     if (s->msr != omsr) {
          /* Set delta bits */
@@ -209,8 +216,11 @@ static void serial_update_msl(SerialState *s)
          serial_update_irq(s);
     }
 
-    /* The real 16550A apparently has a 250ns response latency to line status changes.
-       We'll be lazy and poll only every 10ms, and only poll it at all if MSI interrupts are turned on */
+    /*
+     * The real 16550A apparently has a 250ns response latency to line status
+     * changes. We'll be lazy and poll only every 10ms, and only poll it at all
+     * if MSI interrupts are turned on
+     */
 
     if (s->poll_msl) {
         timer_mod(s->modem_status_poll, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
@@ -369,8 +379,10 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
         } else {
             uint8_t changed = (s->ier ^ val) & 0x0f;
             s->ier = val & 0x0f;
-            /* If the backend device is a real serial port, turn polling of the modem
-             * status lines on physical port on or off depending on UART_IER_MSI state.
+            /*
+             * If the backend device is a real serial port, turn polling of the
+             * modem status lines on physical port on or off depending on
+             * UART_IER_MSI state.
              */
             if ((changed & UART_IER_MSI) && s->poll_msl >= 0) {
                 if (s->ier & UART_IER_MSI) {
@@ -386,9 +398,9 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
              * if LSR.THRE=1, even if it had been masked before by reading IIR.
              * This is not in the datasheet, but Windows relies on it.  It is
              * unclear if THRE has to be resampled every time THRI becomes
-             * 1, or only on the rising edge.  Bochs does the latter, and Windows
-             * always toggles IER to all zeroes and back to all ones, so do the
-             * same.
+             * 1, or only on the rising edge.  Bochs does the latter, and
+             * Windows always toggles IER to all zeroes and back to all ones,
+             * so do the same.
              *
              * If IER.THRI is zero, thr_ipending is not used.  Set it to zero
              * so that the thr_ipending subsection is not migrated.
@@ -407,7 +419,10 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
         }
         break;
     case 2:
-        /* Did the enable/disable flag change? If so, make sure FIFOs get flushed */
+        /*
+         * Did the enable/disable flag change? If so, make sure FIFOs get
+         * flushed
+         */
         if ((val ^ s->fcr) & UART_FCR_FE) {
             val |= UART_FCR_XFR | UART_FCR_RFR;
         }
@@ -452,9 +467,14 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
 
             if (s->poll_msl >= 0 && old_mcr != s->mcr) {
                 serial_update_tiocm(s);
-                /* Update the modem status after a one-character-send wait-time, since there may be a response
-                   from the device/computer at the other end of the serial line */
-                timer_mod(s->modem_status_poll, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + s->char_transmit_time);
+                /*
+                 * Update the modem status after a one-character-send wait-time,
+                 * since there may be a response from the device/computer at the
+                 * other end of the serial line
+                 */
+                timer_mod(s->modem_status_poll,
+                          qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                          s->char_transmit_time);
             }
         }
         break;
@@ -584,7 +604,10 @@ static void serial_receive_break(SerialState *s)
     serial_update_irq(s);
 }
 
-/* There's data in recv_fifo and s->rbr has not been read for 4 char transmit times */
+/*
+ * There's data in recv_fifo and s->rbr has not been read for 4 char transmit
+ * times
+ */
 static void fifo_timeout_int (void *opaque) {
     SerialState *s = opaque;
     if (s->recv_fifo.num) {

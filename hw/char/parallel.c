@@ -73,7 +73,8 @@
 #define PARA_CTR_AUTOLF	0x02	/* Auto linefeed complement */
 #define PARA_CTR_STROBE	0x01	/* Strobe complement */
 
-#define PARA_CTR_SIGNAL (PARA_CTR_SELECT|PARA_CTR_INIT|PARA_CTR_AUTOLF|PARA_CTR_STROBE)
+#define PARA_CTR_SIGNAL (PARA_CTR_SELECT | PARA_CTR_INIT | PARA_CTR_AUTOLF | \
+                         PARA_CTR_STROBE)
 
 typedef struct ParallelState {
     MemoryRegion iomem;
@@ -294,7 +295,8 @@ static uint32_t parallel_ioport_read_sw(void *opaque, uint32_t addr)
     case PARA_REG_STS:
         ret = s->status;
         s->irq_pending = 0;
-        if ((s->status & PARA_STS_BUSY) == 0 && (s->control & PARA_CTR_STROBE) == 0) {
+        if ((s->status & PARA_STS_BUSY) == 0 &&
+            (s->control & PARA_CTR_STROBE) == 0) {
             /* XXX Fixme: wait 5 microseconds */
             if (s->status & PARA_STS_ACK)
                 s->status &= ~PARA_STS_ACK;
@@ -397,7 +399,8 @@ parallel_ioport_eppdata_read_hw2(void *opaque, uint32_t addr)
     struct ParallelIOArg ioarg = {
         .buffer = &eppdata, .count = sizeof(eppdata)
     };
-    if ((s->control & (PARA_CTR_DIR|PARA_CTR_SIGNAL)) != (PARA_CTR_DIR|PARA_CTR_INIT)) {
+    if ((s->control & (PARA_CTR_DIR | PARA_CTR_SIGNAL)) !=
+        (PARA_CTR_DIR | PARA_CTR_INIT)) {
         /* Controls not correct for EPP data cycle, so do nothing */
         pdebug("re%04x s\n", eppdata);
         return eppdata;
@@ -425,7 +428,8 @@ parallel_ioport_eppdata_read_hw4(void *opaque, uint32_t addr)
     struct ParallelIOArg ioarg = {
         .buffer = &eppdata, .count = sizeof(eppdata)
     };
-    if ((s->control & (PARA_CTR_DIR|PARA_CTR_SIGNAL)) != (PARA_CTR_DIR|PARA_CTR_INIT)) {
+    if ((s->control & (PARA_CTR_DIR | PARA_CTR_SIGNAL)) !=
+        (PARA_CTR_DIR | PARA_CTR_INIT)) {
         /* Controls not correct for EPP data cycle, so do nothing */
         pdebug("re%08x s\n", eppdata);
         return eppdata;
