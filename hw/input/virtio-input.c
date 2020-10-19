@@ -61,7 +61,8 @@ void virtio_input_send(VirtIOInput *vinput, virtio_input_event *event)
     for (i = 0; i < vinput->qindex; i++) {
         elem = vinput->queue[i].elem;
         len = iov_from_buf(elem->in_sg, elem->in_num,
-                           0, &vinput->queue[i].event, sizeof(virtio_input_event));
+                           0, &vinput->queue[i].event,
+                           sizeof(virtio_input_event));
         virtqueue_push(vinput->evt, elem, len);
         g_free(elem);
     }

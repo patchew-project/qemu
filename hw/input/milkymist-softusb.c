@@ -259,13 +259,15 @@ static void milkymist_softusb_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->regs_region);
 
     /* register pmem and dmem */
-    memory_region_init_ram_nomigrate(&s->pmem, OBJECT(s), "milkymist-softusb.pmem",
-                           s->pmem_size, &error_fatal);
+    memory_region_init_ram_nomigrate(&s->pmem, OBJECT(s),
+                                     "milkymist-softusb.pmem", s->pmem_size,
+                                     &error_fatal);
     vmstate_register_ram_global(&s->pmem);
     s->pmem_ptr = memory_region_get_ram_ptr(&s->pmem);
     sysbus_init_mmio(sbd, &s->pmem);
-    memory_region_init_ram_nomigrate(&s->dmem, OBJECT(s), "milkymist-softusb.dmem",
-                           s->dmem_size, &error_fatal);
+    memory_region_init_ram_nomigrate(&s->dmem, OBJECT(s),
+                                     "milkymist-softusb.dmem", s->dmem_size,
+                                     &error_fatal);
     vmstate_register_ram_global(&s->dmem);
     s->dmem_ptr = memory_region_get_ram_ptr(&s->dmem);
     sysbus_init_mmio(sbd, &s->dmem);
@@ -289,8 +291,10 @@ static const VMStateDescription vmstate_milkymist_softusb = {
 };
 
 static Property milkymist_softusb_properties[] = {
-    DEFINE_PROP_UINT32("pmem_size", MilkymistSoftUsbState, pmem_size, 0x00001000),
-    DEFINE_PROP_UINT32("dmem_size", MilkymistSoftUsbState, dmem_size, 0x00002000),
+    DEFINE_PROP_UINT32("pmem_size", MilkymistSoftUsbState,
+                       pmem_size, 0x00001000),
+    DEFINE_PROP_UINT32("dmem_size", MilkymistSoftUsbState,
+                       dmem_size, 0x00002000),
     DEFINE_PROP_END_OF_LIST(),
 };
 

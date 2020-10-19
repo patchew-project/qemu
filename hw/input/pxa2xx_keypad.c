@@ -101,7 +101,8 @@ struct PXA2xxKeyPadState {
     uint32_t    kpkdi;
 };
 
-static void pxa27x_keypad_find_pressed_key(PXA2xxKeyPadState *kp, int *row, int *col)
+static void pxa27x_keypad_find_pressed_key(PXA2xxKeyPadState *kp, int *row,
+                                           int *col)
 {
     int i;
     for (i = 0; i < 4; i++)
