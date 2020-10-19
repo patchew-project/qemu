@@ -123,6 +123,9 @@ DEF("accel", HAS_ARG, QEMU_OPTION_accel,
     "                igd-passthru=on|off (enable Xen integrated Intel graphics passthrough, default=off)\n"
     "                kernel-irqchip=on|off|split controls accelerated irqchip support (default=on)\n"
     "                kvm-shadow-mem=size of KVM shadow MMU in bytes\n"
+#ifdef CONFIG_IOS_JIT
+    "                mirror-rwx=on|off (mirror map executable pages for TCG on iOS)\n"
+#endif
     "                tb-size=n (TCG translation block cache size)\n"
     "                thread=single|multi (enable multi-threaded TCG)\n", QEMU_ARCH_ALL)
 SRST
@@ -147,6 +150,14 @@ SRST
 
     ``kvm-shadow-mem=size``
         Defines the size of the KVM shadow MMU.
+
+#ifdef CONFIG_IOS_JIT
+
+    ``mirror-rwx=on|off``
+        Only applicable to TCG running on iOS hosts. When enabled, TB code
+        is written to a mirror mapped address separate from the address that is
+        executed. By default, this is disabled.
+#endif
 
     ``tb-size=n``
         Controls the size (in MiB) of the TCG translation block cache.

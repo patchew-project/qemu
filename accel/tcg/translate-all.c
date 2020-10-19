@@ -1042,11 +1042,14 @@ static inline void *split_cross_256mb(void *buf1, size_t size1)
 static uint8_t static_code_gen_buffer[DEFAULT_CODE_GEN_BUFFER_SIZE]
     __attribute__((aligned(CODE_GEN_ALIGN)));
 
-static inline void *alloc_code_gen_buffer(void)
+static inline void *alloc_code_gen_buffer(bool no_rwx_pages)
 {
     void *buf = static_code_gen_buffer;
     void *end = static_code_gen_buffer + sizeof(static_code_gen_buffer);
     size_t size;
+
+    /* not applicable */
+    assert(!no_rwx_pages);
 
     /* page-align the beginning and end of the buffer */
     buf = QEMU_ALIGN_PTR_UP(buf, qemu_real_host_page_size);
@@ -1076,23 +1079,31 @@ static inline void *alloc_code_gen_buffer(void)
     return buf;
 }
 #elif defined(_WIN32)
-static inline void *alloc_code_gen_buffer(void)
+static inline void *alloc_code_gen_buffer(bool no_rwx_pages)
 {
     size_t size = tcg_ctx->code_gen_buffer_size;
+    assert(!no_rwx_pages); /* not applicable */
     return VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT,
                         PAGE_EXECUTE_READWRITE);
 }
 #else
-static inline void *alloc_code_gen_buffer(void)
+static inline void *alloc_code_gen_buffer(bool no_rwx_pages)
 {
-#if defined(CONFIG_IOS_JIT)
     int prot = PROT_READ | PROT_EXEC;
-#else
-    int prot = PROT_WRITE | PROT_READ | PROT_EXEC;
-#endif
     int flags = MAP_PRIVATE | MAP_ANONYMOUS;
     size_t size = tcg_ctx->code_gen_buffer_size;
     void *buf;
+
+#if defined(CONFIG_DARWIN) /* both iOS and macOS (Apple Silicon) applicable */
+    if (!no_rwx_pages) {
+        prot |= PROT_WRITE;
+        flags |= MAP_JIT;
+    }
+#else
+    /* not applicable */
+    assert(!no_rwx_pages);
+    prot |= PROT_WRITE;
+#endif
 
     buf = mmap(NULL, size, prot, flags, -1, 0);
     if (buf == MAP_FAILED) {
@@ -1173,10 +1184,10 @@ static inline void *alloc_jit_rw_mirror(void *base, size_t size)
 }
 #endif /* CONFIG_IOS_JIT */
 
-static inline void code_gen_alloc(size_t tb_size)
+static inline void code_gen_alloc(size_t tb_size, bool mirror_rwx)
 {
     tcg_ctx->code_gen_buffer_size = size_code_gen_buffer(tb_size);
-    tcg_ctx->code_gen_buffer = alloc_code_gen_buffer();
+    tcg_ctx->code_gen_buffer = alloc_code_gen_buffer(mirror_rwx);
     if (tcg_ctx->code_gen_buffer == NULL) {
         fprintf(stderr, "Could not allocate dynamic translator buffer\n");
         exit(1);
@@ -1184,13 +1195,18 @@ static inline void code_gen_alloc(size_t tb_size)
 #if defined(CONFIG_IOS_JIT)
     void *mirror;
 
-    /* For iOS JIT we need a mirror mapping for code execution */
-    mirror = alloc_jit_rw_mirror(tcg_ctx->code_gen_buffer,
-                                 tcg_ctx->code_gen_buffer_size
-                                );
-    if (mirror == NULL) {
-        fprintf(stderr, "Could not remap code buffer mirror\n");
-        exit(1);
+    if (mirror_rwx) {
+        /* For iOS JIT we need a mirror mapping for code execution */
+        mirror = alloc_jit_rw_mirror(tcg_ctx->code_gen_buffer,
+                                     tcg_ctx->code_gen_buffer_size
+                                    );
+        if (mirror == NULL) {
+            fprintf(stderr, "Could not remap code buffer mirror\n");
+            exit(1);
+        }
+    } else {
+        /* If we have JIT entitlements */
+        mirror = tcg_ctx->code_gen_buffer;
     }
     tcg_ctx->code_rw_mirror_diff = mirror - tcg_ctx->code_gen_buffer;
 #endif /* CONFIG_IOS_JIT */
@@ -1217,16 +1233,18 @@ static void tb_htable_init(void)
     qht_init(&tb_ctx.htable, tb_cmp, CODE_GEN_HTABLE_SIZE, mode);
 }
 
-/* Must be called before using the QEMU cpus. 'tb_size' is the size
-   (in bytes) allocated to the translation buffer. Zero means default
-   size. */
-void tcg_exec_init(unsigned long tb_size)
+/*
+ * Must be called before using the QEMU cpus. 'tb_size' is the size
+ * (in bytes) allocated to the translation buffer. Zero means default
+ * size. mirror_rwx only applicable on iOS.
+ */
+void tcg_exec_init(unsigned long tb_size, bool mirror_rwx)
 {
     tcg_allowed = true;
     cpu_gen_init();
     page_init();
     tb_htable_init();
-    code_gen_alloc(tb_size);
+    code_gen_alloc(tb_size, mirror_rwx);
 #if defined(CONFIG_SOFTMMU)
     /* There's no guest base to take into account, so go ahead and
        initialize the prologue now.  */
