@@ -277,7 +277,7 @@ static void virtio_gpu_resource_create_2d(VirtIOGPU *g,
 
     res = virtio_gpu_find_resource(g, c2d.resource_id);
     if (res) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: resource already exists %d\n",
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: resource already exists %u\n",
                       __func__, c2d.resource_id);
         cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
         return;
@@ -293,7 +293,7 @@ static void virtio_gpu_resource_create_2d(VirtIOGPU *g,
     pformat = virtio_gpu_get_pixman_format(c2d.format);
     if (!pformat) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: host couldn't handle guest format %d\n",
+                      "%s: host couldn't handle guest format %u\n",
                       __func__, c2d.format);
         g_free(res);
         cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER;
@@ -310,7 +310,7 @@ static void virtio_gpu_resource_create_2d(VirtIOGPU *g,
 
     if (!res->image) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: resource creation failed %d %d %d\n",
+                      "%s: resource creation failed %u %u %u\n",
                       __func__, c2d.resource_id, c2d.width, c2d.height);
         g_free(res);
         cmd->error = VIRTIO_GPU_RESP_ERR_OUT_OF_MEMORY;
@@ -381,7 +381,7 @@ static void virtio_gpu_resource_unref(VirtIOGPU *g,
 
     res = virtio_gpu_find_resource(g, unref.resource_id);
     if (!res) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal resource specified %d\n",
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal resource specified %u\n",
                       __func__, unref.resource_id);
         cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
         return;
@@ -405,7 +405,7 @@ static void virtio_gpu_transfer_to_host_2d(VirtIOGPU *g,
 
     res = virtio_gpu_find_resource(g, t2d.resource_id);
     if (!res || !res->iov) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal resource specified %d\n",
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal resource specified %u\n",
                       __func__, t2d.resource_id);
         cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
         return;
@@ -418,7 +418,7 @@ static void virtio_gpu_transfer_to_host_2d(VirtIOGPU *g,
         t2d.r.x + t2d.r.width > res->width ||
         t2d.r.y + t2d.r.height > res->height) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: transfer bounds outside resource"
-                      " bounds for resource %d: %d %d %d %d vs %d %d\n",
+                      " bounds for resource %u: %u %u %u %u vs %u %u\n",
                       __func__, t2d.resource_id, t2d.r.x, t2d.r.y,
                       t2d.r.width, t2d.r.height, res->width, res->height);
         cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER;
@@ -463,7 +463,7 @@ static void virtio_gpu_resource_flush(VirtIOGPU *g,
 
     res = virtio_gpu_find_resource(g, rf.resource_id);
     if (!res) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal resource specified %d\n",
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal resource specified %u\n",
                       __func__, rf.resource_id);
         cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
         return;
@@ -476,7 +476,7 @@ static void virtio_gpu_resource_flush(VirtIOGPU *g,
         rf.r.x + rf.r.width > res->width ||
         rf.r.y + rf.r.height > res->height) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: flush bounds outside resource"
-                      " bounds for resource %d: %d %d %d %d vs %d %d\n",
+                      " bounds for resource %u: %u %u %u %u vs %u %u\n",
                       __func__, rf.resource_id, rf.r.x, rf.r.y,
                       rf.r.width, rf.r.height, res->width, res->height);
         cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER;
@@ -535,7 +535,7 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
                                      ss.r.width, ss.r.height, ss.r.x, ss.r.y);
 
     if (ss.scanout_id >= g->parent_obj.conf.max_outputs) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal scanout id specified %d",
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal scanout id specified %u",
                       __func__, ss.scanout_id);
         cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_SCANOUT_ID;
         return;
@@ -550,7 +550,7 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
     /* create a surface for this scanout */
     res = virtio_gpu_find_resource(g, ss.resource_id);
     if (!res) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal resource specified %d\n",
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal resource specified %u\n",
                       __func__, ss.resource_id);
         cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
         return;
@@ -564,8 +564,8 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
         ss.r.height > res->height ||
         ss.r.x + ss.r.width > res->width ||
         ss.r.y + ss.r.height > res->height) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal scanout %d bounds for"
-                      " resource %d, (%d,%d)+%d,%d vs %d %d\n",
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal scanout %u bounds for"
+                      " resource %u, (%u,%u)+%u,%u vs %u %u\n",
                       __func__, ss.scanout_id, ss.resource_id, ss.r.x, ss.r.y,
                       ss.r.width, ss.r.height, res->width, res->height);
         cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER;
@@ -623,7 +623,7 @@ int virtio_gpu_create_mapping_iov(VirtIOGPU *g,
 
     if (ab->nr_entries > 16384) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: nr_entries is too big (%d > 16384)\n",
+                      "%s: nr_entries is too big (%u > 16384)\n",
                       __func__, ab->nr_entries);
         return -1;
     }
@@ -656,7 +656,7 @@ int virtio_gpu_create_mapping_iov(VirtIOGPU *g,
         }
         if (!(*iov)[i].iov_base || len != l) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: failed to map MMIO memory for"
-                          " resource %d element %d\n",
+                          " resource %u element %d\n",
                           __func__, ab->resource_id, i);
             if ((*iov)[i].iov_base) {
                 i++; /* cleanup the 'i'th map */
@@ -713,7 +713,7 @@ virtio_gpu_resource_attach_backing(VirtIOGPU *g,
 
     res = virtio_gpu_find_resource(g, ab.resource_id);
     if (!res) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal resource specified %d\n",
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal resource specified %u\n",
                       __func__, ab.resource_id);
         cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
         return;
@@ -746,7 +746,7 @@ virtio_gpu_resource_detach_backing(VirtIOGPU *g,
 
     res = virtio_gpu_find_resource(g, detach.resource_id);
     if (!res || !res->iov) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal resource specified %d\n",
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: illegal resource specified %u\n",
                       __func__, detach.resource_id);
         cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
         return;
