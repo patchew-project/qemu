@@ -212,7 +212,13 @@ static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
     cacheflush ((void *)start, stop-start, ICACHE);
 }
 
-void tb_target_set_jmp_target(uintptr_t, uintptr_t, uintptr_t);
+void tb_target_set_jmp_target(uintptr_t, uintptr_t, uintptr_t, uintptr_t);
+#if defined(CONFIG_IOS_JIT)
+static inline void flush_dcache_range(uintptr_t start, uintptr_t stop)
+{
+#error "Unimplemented dcache flush function"
+}
+#endif
 
 #ifdef CONFIG_SOFTMMU
 #define TCG_TARGET_NEED_LDST_LABELS

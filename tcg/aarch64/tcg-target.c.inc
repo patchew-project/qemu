@@ -78,40 +78,44 @@ static const int tcg_target_call_oarg_regs[1] = {
 #define TCG_REG_GUEST_BASE TCG_REG_X28
 #endif
 
-static inline bool reloc_pc26(tcg_insn_unit *code_ptr,
+static inline bool reloc_pc26(TCGContext *s,
+                              tcg_insn_unit *code_ptr,
                               const tcg_insn_unit *target)
 {
     ptrdiff_t offset = target - code_ptr;
     if (offset == sextract64(offset, 0, 26)) {
         /* read instruction, mask away previous PC_REL26 parameter contents,
            set the proper offset, then write back the instruction. */
-        *code_ptr = deposit32(*code_ptr, 0, 26, offset);
+        *tcg_code_ptr_rw(s, code_ptr) =
+            deposit32(*tcg_code_ptr_rw(s, code_ptr), 0, 26, offset);
         return true;
     }
     return false;
 }
 
-static inline bool reloc_pc19(tcg_insn_unit *code_ptr,
+static inline bool reloc_pc19(TCGContext *s,
+                              tcg_insn_unit *code_ptr,
                               const tcg_insn_unit *target)
 {
     ptrdiff_t offset = target - code_ptr;
     if (offset == sextract64(offset, 0, 19)) {
-        *code_ptr = deposit32(*code_ptr, 5, 19, offset);
+        *tcg_code_ptr_rw(s, code_ptr) =
+            deposit32(*tcg_code_ptr_rw(s, code_ptr), 5, 19, offset);
         return true;
     }
     return false;
 }
 
-static inline bool patch_reloc(tcg_insn_unit *code_ptr, int type,
+static inline bool patch_reloc(TCGContext *s, tcg_insn_unit *code_ptr, int type,
                                intptr_t value, intptr_t addend)
 {
     tcg_debug_assert(addend == 0);
     switch (type) {
     case R_AARCH64_JUMP26:
     case R_AARCH64_CALL26:
-        return reloc_pc26(code_ptr, (tcg_insn_unit *)value);
+        return reloc_pc26(s, code_ptr, (tcg_insn_unit *)value);
     case R_AARCH64_CONDBR19:
-        return reloc_pc19(code_ptr, (tcg_insn_unit *)value);
+        return reloc_pc19(s, code_ptr, (tcg_insn_unit *)value);
     default:
         g_assert_not_reached();
     }
@@ -1343,7 +1347,7 @@ static inline void tcg_out_call(TCGContext *s, const tcg_insn_unit *target)
 }
 
 void tb_target_set_jmp_target(uintptr_t tc_ptr, uintptr_t jmp_addr,
-                              uintptr_t addr)
+                              uintptr_t addr, uintptr_t wr_addr)
 {
     tcg_insn_unit i1, i2;
     TCGType rt = TCG_TYPE_I64;
@@ -1364,7 +1368,10 @@ void tb_target_set_jmp_target(uintptr_t tc_ptr, uintptr_t jmp_addr,
         i2 = I3401_ADDI | rt << 31 | (addr & 0xfff) << 10 | rd << 5 | rd;
     }
     pair = (uint64_t)i2 << 32 | i1;
-    qatomic_set((uint64_t *)jmp_addr, pair);
+    qatomic_set((uint64_t *)wr_addr, pair);
+#if defined(CONFIG_IOS_JIT)
+    flush_dcache_range(wr_addr, wr_addr + 8);
+#endif
     flush_icache_range(jmp_addr, jmp_addr + 8);
 }
 
@@ -1583,7 +1590,7 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     MemOp opc = get_memop(oi);
     MemOp size = opc & MO_SIZE;
 
-    if (!reloc_pc19(lb->label_ptr[0], s->code_ptr)) {
+    if (!reloc_pc19(s, lb->label_ptr[0], s->code_ptr)) {
         return false;
     }
 
@@ -1608,7 +1615,7 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     MemOp opc = get_memop(oi);
     MemOp size = opc & MO_SIZE;
 
-    if (!reloc_pc19(lb->label_ptr[0], s->code_ptr)) {
+    if (!reloc_pc19(s, lb->label_ptr[0], s->code_ptr)) {
         return false;
     }
 
@@ -2919,11 +2926,11 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tcg_out_insn(s, 3207, RET, TCG_REG_LR);
 }
 
-static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
+static void tcg_out_nop_fill(TCGContext *s, tcg_insn_unit *p, int count)
 {
     int i;
     for (i = 0; i < count; ++i) {
-        p[i] = NOP;
+        (tcg_code_ptr_rw(s, p))[i] = NOP;
     }
 }
 

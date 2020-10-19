@@ -150,6 +150,7 @@ typedef enum {
 
 #if defined(__APPLE__)
 void sys_icache_invalidate(void *start, size_t len);
+void sys_dcache_flush(void *start, size_t len);
 #endif
 
 static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
@@ -163,7 +164,17 @@ static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
 #endif
 }
 
-void tb_target_set_jmp_target(uintptr_t, uintptr_t, uintptr_t);
+void tb_target_set_jmp_target(uintptr_t, uintptr_t, uintptr_t, uintptr_t);
+#if defined(CONFIG_IOS_JIT)
+static inline void flush_dcache_range(uintptr_t start, uintptr_t stop)
+{
+#if defined(__APPLE__)
+    sys_dcache_flush((char *)start, stop - start);
+#else
+#error "Missing function to flush data cache"
+#endif
+}
+#endif
 
 #ifdef CONFIG_SOFTMMU
 #define TCG_TARGET_NEED_LDST_LABELS

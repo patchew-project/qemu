@@ -206,16 +206,36 @@ extern bool have_avx2;
 #define TCG_TARGET_extract_i64_valid(ofs, len) \
     (((ofs) == 8 && (len) == 8) || ((ofs) + (len)) == 32)
 
+#ifdef __APPLE__
+void sys_dcache_flush(void *start, size_t len);
+#endif
+
 static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
 {
 }
 
+#if defined(CONFIG_IOS_JIT)
+static inline void flush_dcache_range(uintptr_t start, uintptr_t stop)
+{
+#if defined(__APPLE__)
+    sys_dcache_flush((char *)start, stop - start);
+#else
+#error "Missing function to flush data cache"
+#endif
+}
+#endif
+
 static inline void tb_target_set_jmp_target(uintptr_t tc_ptr,
-                                            uintptr_t jmp_addr, uintptr_t addr)
+                                            uintptr_t jmp_addr, uintptr_t addr,
+                                            uintptr_t wr_addr)
 {
     /* patch the branch destination */
-    qatomic_set((int32_t *)jmp_addr, addr - (jmp_addr + 4));
+    qatomic_set((int32_t *)wr_addr, addr - (jmp_addr + 4));
     /* no need to flush icache explicitly */
+#if defined(CONFIG_IOS_JIT)
+    /* we do need to flush mirror dcache */
+    flush_dcache_range(wr_addr, wr_addr + 4);
+#endif
 }
 
 /* This defines the natural memory order supported by this

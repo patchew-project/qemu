@@ -366,7 +366,7 @@ static void * const qemu_st_helpers[16] = {
 static const tcg_insn_unit *tb_ret_addr;
 uint64_t s390_facilities;
 
-static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
+static bool patch_reloc(TCGContext *s, tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
     intptr_t pcrel2;
@@ -378,13 +378,13 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
     switch (type) {
     case R_390_PC16DBL:
         if (pcrel2 == (int16_t)pcrel2) {
-            tcg_patch16(code_ptr, pcrel2);
+            tcg_patch16(s, code_ptr, pcrel2);
             return true;
         }
         break;
     case R_390_PC32DBL:
         if (pcrel2 == (int32_t)pcrel2) {
-            tcg_patch32(code_ptr, pcrel2);
+            tcg_patch32(s, code_ptr, pcrel2);
             return true;
         }
         break;
@@ -392,7 +392,7 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
         if (value == sextract64(value, 0, 20)) {
             old = *(uint32_t *)code_ptr & 0xf00000ff;
             old |= ((value & 0xfff) << 16) | ((value & 0xff000) >> 4);
-            tcg_patch32(code_ptr, old);
+            tcg_patch32(s, code_ptr, old);
             return true;
         }
         break;
@@ -1613,7 +1613,7 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     TCGMemOpIdx oi = lb->oi;
     MemOp opc = get_memop(oi);
 
-    if (!patch_reloc(lb->label_ptr[0], R_390_PC16DBL,
+    if (!patch_reloc(s, lb->label_ptr[0], R_390_PC16DBL,
                      (intptr_t)s->code_ptr, 2)) {
         return false;
     }
@@ -1638,7 +1638,7 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     TCGMemOpIdx oi = lb->oi;
     MemOp opc = get_memop(oi);
 
-    if (!patch_reloc(lb->label_ptr[0], R_390_PC16DBL,
+    if (!patch_reloc(s, lb->label_ptr[0], R_390_PC16DBL,
                      (intptr_t)s->code_ptr, 2)) {
         return false;
     }
@@ -2576,9 +2576,9 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tcg_out_insn(s, RR, BCR, S390_CC_ALWAYS, TCG_REG_R14);
 }
 
-static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
+static void tcg_out_nop_fill(TCGContext *s, tcg_insn_unit *p, int count)
 {
-    memset(p, 0x07, count * sizeof(tcg_insn_unit));
+    memset(tcg_code_ptr_rw(s, p), 0x07, count * sizeof(tcg_insn_unit));
 }
 
 typedef struct {

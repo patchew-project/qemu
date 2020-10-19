@@ -187,18 +187,21 @@ static const uint8_t tcg_cond_to_arm_cond[] = {
     [TCG_COND_GTU] = COND_HI,
 };
 
-static inline bool reloc_pc24(tcg_insn_unit *code_ptr,
+static inline bool reloc_pc24(TCGContext *s,
+                              tcg_insn_unit *code_ptr,
                               const tcg_insn_unit *target)
 {
     ptrdiff_t offset = (tcg_ptr_byte_diff(target, code_ptr) - 8) >> 2;
     if (offset == sextract32(offset, 0, 24)) {
-        *code_ptr = (*code_ptr & ~0xffffff) | (offset & 0xffffff);
+        *tcg_code_ptr_rw(s, code_ptr) =
+            (*tcg_code_ptr_rw(s, code_ptr) & ~0xffffff) | (offset & 0xffffff);
         return true;
     }
     return false;
 }
 
-static inline bool reloc_pc13(tcg_insn_unit *code_ptr,
+static inline bool reloc_pc13(TCGContext *s,
+                              tcg_insn_unit *code_ptr,
                               const tcg_insn_unit *target)
 {
     ptrdiff_t offset = tcg_ptr_byte_diff(target, code_ptr) - 8;
@@ -211,21 +214,21 @@ static inline bool reloc_pc13(tcg_insn_unit *code_ptr,
         }
         insn = deposit32(insn, 23, 1, u);
         insn = deposit32(insn, 0, 12, offset);
-        *code_ptr = insn;
+        *tcg_code_ptr_rw(s, code_ptr) = insn;
         return true;
     }
     return false;
 }
 
-static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
+static bool patch_reloc(TCGContext *s, tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
     tcg_debug_assert(addend == 0);
 
     if (type == R_ARM_PC24) {
-        return reloc_pc24(code_ptr, (tcg_insn_unit *)value);
+        return reloc_pc24(s, code_ptr, (tcg_insn_unit *)value);
     } else if (type == R_ARM_PC13) {
-        return reloc_pc13(code_ptr, (tcg_insn_unit *)value);
+        return reloc_pc13(s, code_ptr, (tcg_insn_unit *)value);
     } else {
         g_assert_not_reached();
     }
@@ -1350,7 +1353,7 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     MemOp opc = get_memop(oi);
     void *func;
 
-    if (!reloc_pc24(lb->label_ptr[0], s->code_ptr)) {
+    if (!reloc_pc24(s, lb->label_ptr[0], s->code_ptr)) {
         return false;
     }
 
@@ -1413,7 +1416,7 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     TCGMemOpIdx oi = lb->oi;
     MemOp opc = get_memop(oi);
 
-    if (!reloc_pc24(lb->label_ptr[0], s->code_ptr)) {
+    if (!reloc_pc24(s, lb->label_ptr[0], s->code_ptr)) {
         return false;
     }
 
@@ -2257,11 +2260,11 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
     tcg_out_movi32(s, COND_AL, ret, arg);
 }
 
-static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
+static void tcg_out_nop_fill(TCGContext *s, tcg_insn_unit *p, int count)
 {
     int i;
     for (i = 0; i < count; ++i) {
-        p[i] = INSN_NOP;
+        (tcg_code_ptr_rw(s, p))[i] = INSN_NOP;
     }
 }
 

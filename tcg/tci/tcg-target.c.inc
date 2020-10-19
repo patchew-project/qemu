@@ -369,7 +369,7 @@ static const char *const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 };
 #endif
 
-static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
+static bool patch_reloc(TCGContext *s, tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
     /* tcg_out_reloc always uses the same type, addend. */
@@ -377,9 +377,9 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
     tcg_debug_assert(addend == 0);
     tcg_debug_assert(value != 0);
     if (TCG_TARGET_REG_BITS == 32) {
-        tcg_patch32(code_ptr, value);
+        tcg_patch32(s, code_ptr, value);
     } else {
-        tcg_patch64(code_ptr, value);
+        tcg_patch64(s, code_ptr, value);
     }
     return true;
 }

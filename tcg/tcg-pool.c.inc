@@ -119,7 +119,7 @@ static inline void new_pool_l8(TCGContext *s, int rtype, tcg_insn_unit *label,
 }
 
 /* To be provided by cpu/tcg-target.c.inc.  */
-static void tcg_out_nop_fill(tcg_insn_unit *p, int count);
+static void tcg_out_nop_fill(TCGContext *s, tcg_insn_unit *p, int count);
 
 static int tcg_out_pool_finalize(TCGContext *s)
 {
@@ -135,7 +135,7 @@ static int tcg_out_pool_finalize(TCGContext *s)
        again when allocating the next TranslationBlock structure.  */
     a = (void *)ROUND_UP((uintptr_t)s->code_ptr,
                          sizeof(tcg_target_ulong) * p->nlong);
-    tcg_out_nop_fill(s->code_ptr, (tcg_insn_unit *)a - s->code_ptr);
+    tcg_out_nop_fill(s, s->code_ptr, (tcg_insn_unit *)a - s->code_ptr);
     s->data_gen_ptr = a;
 
     for (; p != NULL; p = p->next) {
@@ -144,11 +144,12 @@ static int tcg_out_pool_finalize(TCGContext *s)
             if (unlikely(a > s->code_gen_highwater)) {
                 return -1;
             }
-            memcpy(a, p->data, size);
+            memcpy(tcg_mirror_ptr_rw(s, a), p->data, size);
             a += size;
             l = p;
         }
-        if (!patch_reloc(p->label, p->rtype, (intptr_t)a - size, p->addend)) {
+        if (!patch_reloc(s, p->label, p->rtype,
+                         (intptr_t)a - size, p->addend)) {
             return -2;
         }
     }
