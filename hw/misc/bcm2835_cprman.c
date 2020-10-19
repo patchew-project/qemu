@@ -48,7 +48,7 @@
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "hw/misc/bcm2835_cprman.h"
-#include "hw/misc/bcm2835_cprman_internals.h"
+#include "bcm2835_cprman_internals.c.inc"
 #include "trace.h"
 
 /* PLL */
