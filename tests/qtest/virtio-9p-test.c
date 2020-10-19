@@ -967,13 +967,12 @@ static void fs_flush_ignored(void *obj, void *data, QGuestAllocator *t_alloc)
     g_free(wnames[0]);
 }
 
-static void fs_mkdir(void *obj, void *data, QGuestAllocator *t_alloc,
-                     const char *path, const char *cname)
+/* utility function: walk to requested dir and return fid for that dir */
+static uint32_t fs_walk_fid(void *obj, void *data, QGuestAllocator *t_alloc,
+                            const char *path)
 {
     QVirtio9P *v9p = obj;
-    alloc = t_alloc;
     char **wnames;
-    char *const name = g_strdup(cname);
     P9Req *req;
     const uint32_t fid = genfid();
 
@@ -983,12 +982,26 @@ static void fs_mkdir(void *obj, void *data, QGuestAllocator *t_alloc,
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rwalk(req, NULL, NULL);
 
+    split_free(&wnames);
+    return fid;
+}
+
+static void fs_mkdir(void *obj, void *data, QGuestAllocator *t_alloc,
+                     const char *path, const char *cname)
+{
+    QVirtio9P *v9p = obj;
+    alloc = t_alloc;
+    char *const name = g_strdup(cname);
+    uint32_t fid;
+    P9Req *req;
+
+    fid = fs_walk_fid(v9p, data, t_alloc, path);
+
     req = v9fs_tmkdir(v9p, fid, name, 0750, 0, 0);
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rmkdir(req, NULL);
 
     g_free(name);
-    split_free(&wnames);
 }
 
 static void fs_readdir_split_128(void *obj, void *data,
