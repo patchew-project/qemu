@@ -426,7 +426,8 @@ static void apic_eoi(APICCommonState *s)
     if (isrv < 0)
         return;
     apic_reset_bit(s->isr, isrv);
-    if (!(s->spurious_vec & APIC_SV_DIRECTED_IO) && apic_get_bit(s->tmr, isrv)) {
+    if (!(s->spurious_vec & APIC_SV_DIRECTED_IO) &&
+        apic_get_bit(s->tmr, isrv)) {
         ioapic_eoi_broadcast(isrv);
     }
     apic_sync_vapic(s, SYNC_FROM_VAPIC | SYNC_TO_VAPIC);

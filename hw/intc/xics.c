@@ -322,7 +322,8 @@ static void icp_realize(DeviceState *dev, Error **errp)
         break;
 
     default:
-        error_setg(errp, "XICS interrupt controller does not support this CPU bus model");
+        error_setg(errp, "XICS interrupt controller does not support this "
+                   "CPU bus model");
         return;
     }
 

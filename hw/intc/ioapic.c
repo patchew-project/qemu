@@ -237,7 +237,8 @@ void ioapic_eoi_broadcast(int vector)
             entry = s->ioredtbl[n];
 
             if ((entry & IOAPIC_VECTOR_MASK) != vector ||
-                ((entry >> IOAPIC_LVT_TRIGGER_MODE_SHIFT) & 1) != IOAPIC_TRIGGER_LEVEL) {
+                ((entry >> IOAPIC_LVT_TRIGGER_MODE_SHIFT) & 1) !=
+                IOAPIC_TRIGGER_LEVEL) {
                 continue;
             }
 

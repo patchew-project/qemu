@@ -400,7 +400,8 @@ int xics_kvm_connect(SpaprInterruptController *intc, uint32_t nr_servers,
     /* Create the KVM XICS device */
     rc = kvm_create_device(kvm_state, KVM_DEV_TYPE_XICS, false);
     if (rc < 0) {
-        error_setg_errno(&local_err, -rc, "Error on KVM_CREATE_DEVICE for XICS");
+        error_setg_errno(&local_err, -rc,
+                         "Error on KVM_CREATE_DEVICE for XICS");
         goto fail;
     }
 

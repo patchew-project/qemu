@@ -1976,8 +1976,9 @@ static MemTxResult gic_hyp_write(void *opaque, int cpu, hwaddr addr,
     return MEMTX_OK;
 }
 
-static MemTxResult gic_thiscpu_hyp_read(void *opaque, hwaddr addr, uint64_t *data,
-                                    unsigned size, MemTxAttrs attrs)
+static MemTxResult gic_thiscpu_hyp_read(void *opaque, hwaddr addr,
+                                        uint64_t *data, unsigned size,
+                                        MemTxAttrs attrs)
 {
     GICState *s = (GICState *)opaque;
 
