@@ -47,7 +47,8 @@
  * supporting such, so removing the capability is not required, and
  * it seems cleaner to have a given device look the same for all boards.
  *
- * TODO: some existing controllers violate the above rule. Identify and fix them.
+ * TODO: some existing controllers violate the above rule. Identify and fix
+ * them.
  */
 bool msi_nonbroken;
 

@@ -79,8 +79,8 @@ static void pcie_host_init(Object *obj)
     PCIExpressHost *e = PCIE_HOST_BRIDGE(obj);
 
     e->base_addr = PCIE_BASE_ADDR_UNMAPPED;
-    memory_region_init_io(&e->mmio, OBJECT(e), &pcie_mmcfg_ops, e, "pcie-mmcfg-mmio",
-                          PCIE_MMCFG_SIZE_MAX);
+    memory_region_init_io(&e->mmio, OBJECT(e), &pcie_mmcfg_ops, e,
+                          "pcie-mmcfg-mmio", PCIE_MMCFG_SIZE_MAX);
 }
 
 void pcie_host_mmcfg_unmap(PCIExpressHost *e)

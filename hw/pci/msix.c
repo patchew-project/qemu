@@ -334,11 +334,11 @@ int msix_init(struct PCIDevice *dev, unsigned short nentries,
 
     msix_mask_all(dev, nentries);
 
-    memory_region_init_io(&dev->msix_table_mmio, OBJECT(dev), &msix_table_mmio_ops, dev,
-                          "msix-table", table_size);
+    memory_region_init_io(&dev->msix_table_mmio, OBJECT(dev),
+                          &msix_table_mmio_ops, dev, "msix-table", table_size);
     memory_region_add_subregion(table_bar, table_offset, &dev->msix_table_mmio);
-    memory_region_init_io(&dev->msix_pba_mmio, OBJECT(dev), &msix_pba_mmio_ops, dev,
-                          "msix-pba", pba_size);
+    memory_region_init_io(&dev->msix_pba_mmio, OBJECT(dev),
+                          &msix_pba_mmio_ops, dev, "msix-pba", pba_size);
     memory_region_add_subregion(pba_bar, pba_offset, &dev->msix_pba_mmio);
 
     return 0;

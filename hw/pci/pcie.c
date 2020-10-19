@@ -644,10 +644,10 @@ void pcie_cap_slot_write_config(PCIDevice *dev,
     if (ranges_overlap(addr, len, pos + PCI_EXP_SLTSTA, 2)) {
         /*
          * Guests tend to clears all bits during init.
-         * If they clear bits that weren't set this is racy and will lose events:
-         * not a big problem for manual button presses, but a problem for us.
-         * As a work-around, detect this and revert status to what it was
-         * before the write.
+         * If they clear bits that weren't set this is racy and will lose
+         * events: not a big problem for manual button presses, but a problem
+         * for us. As a work-around, detect this and revert status to what it
+         * was before the write.
          *
          * Note: in theory this can be detected as a duplicate button press
          * which cancels the previous press. Does not seem to happen in
@@ -658,7 +658,8 @@ void pcie_cap_slot_write_config(PCIDevice *dev,
                           PCI_EXP_SLTSTA_CC)
 
         if (val & ~old_slt_sta & PCIE_SLOT_EVENTS) {
-            sltsta = (sltsta & ~PCIE_SLOT_EVENTS) | (old_slt_sta & PCIE_SLOT_EVENTS);
+            sltsta = (sltsta & ~PCIE_SLOT_EVENTS) |
+                     (old_slt_sta & PCIE_SLOT_EVENTS);
             pci_set_word(exp_cap + PCI_EXP_SLTSTA, sltsta);
         }
         hotplug_event_clear(dev);

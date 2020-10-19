@@ -1391,7 +1391,8 @@ uint32_t pci_default_read_config(PCIDevice *d,
     return le32_to_cpu(val);
 }
 
-void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val_in, int l)
+void pci_default_write_config(PCIDevice *d, uint32_t addr,
+                              uint32_t val_in, int l)
 {
     int i, was_irq_disabled = pci_irq_disabled(d);
     uint32_t val = val_in;
@@ -1691,9 +1692,11 @@ static PciMemoryRegionList *qmp_query_pci_regions(const PCIDevice *dev)
         } else {
             region->value->type = g_strdup("memory");
             region->value->has_prefetch = true;
-            region->value->prefetch = !!(r->type & PCI_BASE_ADDRESS_MEM_PREFETCH);
+            region->value->prefetch = !!(r->type &
+                                         PCI_BASE_ADDRESS_MEM_PREFETCH);
             region->value->has_mem_type_64 = true;
-            region->value->mem_type_64 = !!(r->type & PCI_BASE_ADDRESS_MEM_TYPE_64);
+            region->value->mem_type_64 = !!(r->type &
+                                            PCI_BASE_ADDRESS_MEM_TYPE_64);
         }
 
         region->value->bar = i;
@@ -1738,10 +1741,13 @@ static PciBridgeInfo *qmp_query_pci_bridge(PCIDevice *dev, PCIBus *bus,
     range->limit = pci_bridge_get_limit(dev, PCI_BASE_ADDRESS_MEM_PREFETCH);
 
     if (dev->config[PCI_SECONDARY_BUS] != 0) {
-        PCIBus *child_bus = pci_find_bus_nr(bus, dev->config[PCI_SECONDARY_BUS]);
+        PCIBus *child_bus =
+                   pci_find_bus_nr(bus, dev->config[PCI_SECONDARY_BUS]);
         if (child_bus) {
             info->has_devices = true;
-            info->devices = qmp_query_pci_devices(child_bus, dev->config[PCI_SECONDARY_BUS]);
+            info->devices =
+                qmp_query_pci_devices(child_bus,
+                                      dev->config[PCI_SECONDARY_BUS]);
         }
     }
 
@@ -1986,9 +1992,9 @@ PCIDevice *pci_vga_init(PCIBus *bus)
 static bool pci_secondary_bus_in_range(PCIDevice *dev, int bus_num)
 {
     return !(pci_get_word(dev->config + PCI_BRIDGE_CONTROL) &
-             PCI_BRIDGE_CTL_BUS_RESET) /* Don't walk the bus if it's reset. */ &&
-        dev->config[PCI_SECONDARY_BUS] <= bus_num &&
-        bus_num <= dev->config[PCI_SUBORDINATE_BUS];
+             PCI_BRIDGE_CTL_BUS_RESET) /* Don't walk the bus if it's reset. */
+             && dev->config[PCI_SECONDARY_BUS] <= bus_num
+             && bus_num <= dev->config[PCI_SUBORDINATE_BUS];
 }
 
 /* Whether a given bus number is in a range of a root bus */
@@ -2050,7 +2056,8 @@ static PCIBus *pci_find_bus_nr(PCIBus *bus, int bus_num)
 }
 
 void pci_for_each_bus_depth_first(PCIBus *bus,
-                                  void *(*begin)(PCIBus *bus, void *parent_state),
+                                  void *(*begin)(PCIBus *bus,
+                                  void *parent_state),
                                   void (*end)(PCIBus *bus, void *state),
                                   void *parent_state)
 {
@@ -2363,7 +2370,8 @@ static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom,
     if (vmsd) {
         snprintf(name, sizeof(name), "%s.rom", vmsd->name);
     } else {
-        snprintf(name, sizeof(name), "%s.rom", object_get_typename(OBJECT(pdev)));
+        snprintf(name, sizeof(name), "%s.rom",
+                 object_get_typename(OBJECT(pdev)));
     }
     pdev->has_rom = true;
     memory_region_init_rom(&pdev->rom, OBJECT(pdev), name, size, &error_fatal);
@@ -2729,7 +2737,8 @@ static void pci_dev_get_w64(PCIBus *b, PCIDevice *dev, void *opaque)
 
     if (pc->is_bridge) {
         pcibus_t base = pci_bridge_get_base(dev, PCI_BASE_ADDRESS_MEM_PREFETCH);
-        pcibus_t limit = pci_bridge_get_limit(dev, PCI_BASE_ADDRESS_MEM_PREFETCH);
+        pcibus_t limit = pci_bridge_get_limit(dev,
+                                              PCI_BASE_ADDRESS_MEM_PREFETCH);
 
         base = MAX(base, 0x1ULL << 32);
 
