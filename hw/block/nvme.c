@@ -510,12 +510,6 @@ static void nvme_process_aers(void *opaque)
             break;
         }
 
-        /* ignore if masked (cqe posted, but event not cleared) */
-        if (n->aer_mask & (1 << event->result.event_type)) {
-            trace_pci_nvme_aer_masked(event->result.event_type, n->aer_mask);
-            continue;
-        }
-
         QTAILQ_REMOVE(&n->aer_queue, event, entry);
         n->aer_queued--;
 
@@ -551,6 +545,12 @@ static void nvme_enqueue_event(NvmeCtrl *n, uint8_t event_type,
         return;
     }
 
+    /* ignore if masked (cqe posted, but event not cleared) */
+    if (n->aer_mask & (1 << event_type)) {
+        trace_pci_nvme_aer_masked(event_type, n->aer_mask);
+        return;
+    }
+
     event = g_new(NvmeAsyncEvent, 1);
     event->result = (NvmeAerResult) {
         .event_type = event_type,
@@ -566,9 +566,15 @@ static void nvme_enqueue_event(NvmeCtrl *n, uint8_t event_type,
 
 static void nvme_clear_events(NvmeCtrl *n, uint8_t event_type)
 {
+    NvmeAsyncEvent *event, *next;
+
     n->aer_mask &= ~(1 << event_type);
-    if (!QTAILQ_EMPTY(&n->aer_queue)) {
-        nvme_process_aers(n);
+
+    QTAILQ_FOREACH_SAFE(event, &n->aer_queue, entry, next) {
+        if (event->result.event_type == event_type) {
+            QTAILQ_REMOVE(&n->aer_queue, event, entry);
+            n->aer_queued--;
+        }
     }
 }
 
