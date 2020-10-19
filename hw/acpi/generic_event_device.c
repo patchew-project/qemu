@@ -334,8 +334,7 @@ static const VMStateDescription vmstate_ghes_state = {
     .minimum_version_id = 1,
     .needed = ghes_needed,
     .fields      = (VMStateField[]) {
-        VMSTATE_STRUCT(ghes_state, AcpiGedState, 1,
-                       vmstate_ghes_state, AcpiGhesState),
+        VMSTATE_UINT64(ghes_state.ghes_addr_le, AcpiGedState),
         VMSTATE_END_OF_LIST()
     }
 };
