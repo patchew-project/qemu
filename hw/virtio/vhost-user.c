@@ -308,7 +308,7 @@ static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
     /* validate message size is sane */
     if (msg->hdr.size > VHOST_USER_PAYLOAD_SIZE) {
         error_report("Failed to read msg header."
-                " Size %d exceeds the maximum %zu.", msg->hdr.size,
+                " Size %u exceeds the maximum %zu.", msg->hdr.size,
                 VHOST_USER_PAYLOAD_SIZE);
         return -1;
     }
@@ -319,7 +319,7 @@ static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
         r = qemu_chr_fe_read_all(chr, p, size);
         if (r != size) {
             error_report("Failed to read msg payload."
-                         " Read %d instead of %d.", r, msg->hdr.size);
+                         " Read %d instead of %u.", r, msg->hdr.size);
             return -1;
         }
     }
@@ -740,7 +740,7 @@ static int send_add_regions(struct vhost_dev *dev,
                  */
                 if (msg_reply.hdr.size != msg->hdr.size) {
                     error_report("%s: Unexpected size for postcopy reply "
-                                 "%d vs %d", __func__, msg_reply.hdr.size,
+                                 "%u vs %u", __func__, msg_reply.hdr.size,
                                  msg->hdr.size);
                     return -1;
                 }
@@ -905,7 +905,7 @@ static int vhost_user_set_mem_table_postcopy(struct vhost_dev *dev,
          */
         if (msg_reply.hdr.size != msg.hdr.size) {
             error_report("%s: Unexpected size for postcopy reply "
-                         "%d vs %d", __func__, msg_reply.hdr.size,
+                         "%u vs %u", __func__, msg_reply.hdr.size,
                          msg.hdr.size);
             return -1;
         }
@@ -1445,7 +1445,7 @@ static void slave_read(void *opaque)
 
     if (hdr.size > VHOST_USER_PAYLOAD_SIZE) {
         error_report("Failed to read msg header."
-                " Size %d exceeds the maximum %zu.", hdr.size,
+                " Size %u exceeds the maximum %zu.", hdr.size,
                 VHOST_USER_PAYLOAD_SIZE);
         goto err;
     }
