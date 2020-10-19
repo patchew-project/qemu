@@ -465,6 +465,59 @@ endif
 iconv = not_found
 curses = not_found
 if have_system and not get_option('curses').disabled()
+  curses_test = '''
+    #include <locale.h>
+    #include <curses.h>
+    #include <wchar.h>
+    int main(void) {
+      wchar_t wch = L'w';
+      setlocale(LC_ALL, "");
+      resize_term(0, 0);
+      addwstr(L"wide chars\n");
+      addnwstr(&wch, 1);
+      add_wch(WACS_DEGREE);
+      return 0;
+    }'''
+
+  curses = dependency((targetos == 'windows' ? 'ncurses' : 'ncursesw'),
+                      required: false,
+                      method: 'pkg-config',
+                      static: enable_static)
+  msg = get_option('curses').enabled() ? 'curses library not found' : ''
+  if curses.found()
+    if cc.links(curses_test, dependencies: [curses])
+      curses = declare_dependency(compile_args: '-DNCURSES_WIDECHAR', dependencies: [curses])
+    else
+      msg = 'curses package not usable'
+      curses = not_found
+    endif
+  endif
+  if not curses.found()
+    curses_compile_args = ['-DNCURSES_WIDECHAR']
+    has_curses_h = cc.has_header('curses.h', args: curses_compile_args)
+    if targetos != 'windows' and not has_curses_h
+      message('Trying with /usr/include/ncursesw')
+      curses_compile_args += ['-I/usr/include/ncursesw']
+      has_curses_h = cc.has_header('curses.h', args: curses_compile_args)
+    endif
+    if has_curses_h
+      curses_libname_list = (targetos == 'windows' ? ['pdcurses'] : ['ncursesw', 'cursesw'])
+      foreach curses_libname : curses_libname_list
+        libcurses = cc.find_library(curses_libname,
+                                    required: false,
+                                    static: enable_static)
+        if libcurses.found()
+          if cc.links(curses_test, args: curses_compile_args, dependencies: libcurses)
+            curses = declare_dependency(compile_args: curses_compile_args,
+                                        dependencies: [libcurses])
+            break
+          else
+            msg = 'curses library not usable'
+          endif
+        endif
+      endforeach
+    endif
+  endif
   if not get_option('iconv').disabled()
     libiconv = cc.find_library('iconv',
                                required: false,
@@ -478,57 +531,15 @@ if have_system and not get_option('curses').disabled()
       iconv = declare_dependency(dependencies: [libiconv])
     endif
   endif
-  if get_option('iconv').enabled() and not iconv.found()
-    error('Cannot detect iconv API')
+  if curses.found() and not iconv.found()
+    msg = 'iconv required for curses UI but not available'
+    curses = not_found
   endif
-  if iconv.found()
-    curses_libname_list = ['ncursesw', 'ncurses', 'cursesw', 'pdcurses']
-    curses_test = '''
-      #include <locale.h>
-      #include <curses.h>
-      #include <wchar.h>
-      int main(void) {
-        wchar_t wch = L'w';
-        setlocale(LC_ALL, "");
-        resize_term(0, 0);
-        addwstr(L"wide chars\n");
-        addnwstr(&wch, 1);
-        add_wch(WACS_DEGREE);
-        return 0;
-      }'''
-    foreach curses_libname : curses_libname_list
-      libcurses = dependency(curses_libname,
-                             required: false,
-                             method: 'pkg-config',
-                             static: enable_static)
-
-      if not libcurses.found()
-        dirs = ['/usr/include/ncursesw']
-        if targetos == 'windows'
-          dirs = []
-        endif
-        libcurses = cc.find_library(curses_libname,
-                                    required: false,
-                                    dirs: dirs,
-                                    static: enable_static)
-      endif
-      if libcurses.found()
-        if cc.links(curses_test, dependencies: [libcurses])
-          curses = declare_dependency(compile_args: '-DNCURSES_WIDECHAR', dependencies: [libcurses])
-          break
-        endif
-      endif
-    endforeach
-  endif
-  if not curses.found()
-    if iconv.found()
-      if get_option('curses').enabled()
-        error('Cannot find curses')
-      endif
-    elif get_option('curses').enabled()
-      error('iconv required for curses UI but not available')
+  if not curses.found() and msg != ''
+    if get_option('curses').enabled()
+      error(msg)
     else
-      warning('iconv required for curses UI but not available, disabling')
+      warning(msg + ', disabling')
     endif
   endif
 endif
