@@ -1,0 +1,233 @@
+---
+- name: Installation of basic packages to build QEMU
+  hosts: all
+  tasks:
+    - name: Install basic packages to build QEMU on Ubuntu 18.04/20.04
+      apt:
+        update_cache: yes
+        # Originally from tests/docker/dockerfiles/ubuntu1804.docker
+        pkg:
+          - ccache
+          - clang
+          - gcc
+          - gettext
+          - git
+          - glusterfs-common
+          - libaio-dev
+          - libattr1-dev
+          - libbrlapi-dev
+          - libbz2-dev
+          - libcacard-dev
+          - libcap-ng-dev
+          - libcurl4-gnutls-dev
+          - libdrm-dev
+          - libepoxy-dev
+          - libfdt-dev
+          - libgbm-dev
+          - libgtk-3-dev
+          - libibverbs-dev
+          - libiscsi-dev
+          - libjemalloc-dev
+          - libjpeg-turbo8-dev
+          - liblzo2-dev
+          - libncurses5-dev
+          - libncursesw5-dev
+          - libnfs-dev
+          - libnss3-dev
+          - libnuma-dev
+          - libpixman-1-dev
+          - librados-dev
+          - librbd-dev
+          - librdmacm-dev
+          - libsasl2-dev
+          - libsdl2-dev
+          - libseccomp-dev
+          - libsnappy-dev
+          - libspice-protocol-dev
+          - libssh-dev
+          - libusb-1.0-0-dev
+          - libusbredirhost-dev
+          - libvdeplug-dev
+          - libvte-2.91-dev
+          - libzstd-dev
+          - make
+          - ninja-build
+          - python3-yaml
+          - python3-sphinx
+          - sparse
+          - xfslibs-dev
+        state: present
+      when: "ansible_facts['distribution'] == 'Ubuntu'"
+
+    - name: Install packages to build QEMU on Ubuntu 18.04/20.04 on non-s390x
+      apt:
+        update_cache: yes
+        pkg:
+         - libspice-server-dev
+         - libxen-dev
+        state: present
+      when:
+        - "ansible_facts['distribution'] == 'Ubuntu'"
+        - "ansible_facts['architecture'] != 's390x'"
+
+    - name: Install basic packages to build QEMU on FreeBSD 12.x
+      pkgng:
+        # Originally from packages on .cirrus.yml under the freebsd_12_task
+        name: bash,curl,cyrus-sasl,git,glib,gmake,gnutls,gsed,nettle,ninja,perl5,pixman,pkgconf,png,usbredir
+        state: present
+      when: "ansible_facts['os_family'] == 'FreeBSD'"
+
+    - name: Install basic packages to build QEMU on Fedora 30, 31 and 32
+      dnf:
+        # Originally from tests/docker/dockerfiles/fedora.docker
+        name:
+          - SDL2-devel
+          - bc
+          - brlapi-devel
+          - bzip2
+          - bzip2-devel
+          - ccache
+          - clang
+          - cyrus-sasl-devel
+          - dbus-daemon
+          - device-mapper-multipath-devel
+          - diffutils
+          - findutils
+          - gcc
+          - gcc-c++
+          - genisoimage
+          - gettext
+          - git
+          - glib2-devel
+          - glusterfs-api-devel
+          - gnutls-devel
+          - gtk3-devel
+          - hostname
+          - libaio-devel
+          - libasan
+          - libattr-devel
+          - libblockdev-mpath-devel
+          - libcap-ng-devel
+          - libcurl-devel
+          - libepoxy-devel
+          - libfdt-devel
+          - libiscsi-devel
+          - libjpeg-devel
+          - libpmem-devel
+          - libpng-devel
+          - librbd-devel
+          - libseccomp-devel
+          - libssh-devel
+          - libubsan
+          - libudev-devel
+          - libusbx-devel
+          - libxml2-devel
+          - libzstd-devel
+          - llvm
+          - lzo-devel
+          - make
+          - mingw32-SDL2
+          - mingw32-bzip2
+          - mingw32-curl
+          - mingw32-glib2
+          - mingw32-gmp
+          - mingw32-gnutls
+          - mingw32-gtk3
+          - mingw32-libjpeg-turbo
+          - mingw32-libpng
+          - mingw32-libtasn1
+          - mingw32-nettle
+          - mingw32-nsis
+          - mingw32-pixman
+          - mingw32-pkg-config
+          - mingw64-SDL2
+          - mingw64-bzip2
+          - mingw64-curl
+          - mingw64-glib2
+          - mingw64-gmp
+          - mingw64-gnutls
+          - mingw64-gtk3
+          - mingw64-libjpeg-turbo
+          - mingw64-libpng
+          - mingw64-libtasn1
+          - mingw64-nettle
+          - mingw64-pixman
+          - mingw64-pkg-config
+          - ncurses-devel
+          - nettle-devel
+          - ninja-build
+          - nss-devel
+          - numactl-devel
+          - perl
+          - perl-Test-Harness
+          - pixman-devel
+          - python3
+          - python3-PyYAML
+          - python3-numpy
+          - python3-opencv
+          - python3-pillow
+          - python3-pip
+          - python3-sphinx
+          - python3-virtualenv
+          - rdma-core-devel
+          - snappy-devel
+          - sparse
+          - spice-server-devel
+          - systemd-devel
+          - systemtap-sdt-devel
+          - tar
+          - tesseract
+          - tesseract-langpack-eng
+          - usbredir-devel
+          - virglrenderer-devel
+          - vte291-devel
+          - which
+          - xen-devel
+          - zlib-devel
+        state: present
+      when: "ansible_facts['distribution'] == 'Fedora'"
+
+    - name: Enable PowerTools repo on CentOS 8
+      ini_file:
+        path: /etc/yum.repos.d/CentOS-PowerTools.repo
+        section: PowerTools
+        option: enabled
+        value: "1"
+      when:
+        - "ansible_facts['distribution'] == 'CentOS'"
+        - "ansible_facts['distribution_major_version'] == '8'"
+
+    - name: Install basic packages to build QEMU on CentOS 8
+      dnf:
+        # Originally from tests/docker/dockerfiles/centos8.docker
+        name:
+          - SDL-devel
+          - bzip2
+          - bzip2-devel
+          - dbus-daemon
+          - gcc
+          - gcc-c++
+          - genisoimage
+          - gettext
+          - git
+          - glib2-devel
+          - libaio-devel
+          - libepoxy-devel
+          - libgcrypt-devel
+          - lzo-devel
+          - make
+          - mesa-libEGL-devel
+          - nettle-devel
+          - ninja-build
+          - perl-Test-Harness
+          - pixman-devel
+          - python36
+          - rdma-core-devel
+          - spice-glib-devel
+          - spice-server
+          - tar
+          - zlib-devel
+        state: present
+      when:
+        - "ansible_facts['distribution'] == 'CentOS'"
+        - "ansible_facts['distribution_major_version'] == '8'"
