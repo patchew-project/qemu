@@ -212,7 +212,8 @@ static void balloon_stats_destroy_timer(VirtIOBalloon *s)
 
 static void balloon_stats_change_timer(VirtIOBalloon *s, int64_t secs)
 {
-    timer_mod(s->stats_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + secs * 1000);
+    timer_mod(s->stats_timer,
+              qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + secs * 1000);
 }
 
 static void balloon_stats_poll_cb(void *opaque)
@@ -425,7 +426,8 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
                     balloon_inflate_page(s, section.mr,
                                          section.offset_within_region, &pbp);
                 } else if (vq == s->dvq) {
-                    balloon_deflate_page(s, section.mr, section.offset_within_region);
+                    balloon_deflate_page(s, section.mr,
+                                         section.offset_within_region);
                 } else {
                     g_assert_not_reached();
                 }

@@ -755,8 +755,8 @@ static int send_add_regions(struct vhost_dev *dev,
                         reg_fd_idx, reg_idx);
                 } else {
                     error_report("%s: invalid postcopy reply for region. "
-                                 "Got guest physical address %" PRIX64 ", expected "
-                                 "%" PRIX64, __func__, reply_gpa,
+                                 "Got guest physical address %" PRIX64
+                                 ", expected %" PRIX64, __func__, reply_gpa,
                                  dev->mem->regions[reg_idx].guest_phys_addr);
                     return -1;
                 }
@@ -1872,9 +1872,9 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque)
 
             if (ram_slots < u->user->memory_slots) {
                 error_report("The backend specified a max ram slots limit "
-                             "of %" PRIu64", when the prior validated limit was %d. "
-                             "This limit should never decrease.", ram_slots,
-                             u->user->memory_slots);
+                             "of %" PRIu64", when the prior validated limit "
+                             "was %d. This limit should never decrease.",
+                             ram_slots, u->user->memory_slots);
                 return -1;
             }
 

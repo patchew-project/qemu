@@ -85,7 +85,8 @@ static int vhost_kernel_scsi_clear_endpoint(struct vhost_dev *dev,
     return vhost_kernel_call(dev, VHOST_SCSI_CLEAR_ENDPOINT, target);
 }
 
-static int vhost_kernel_scsi_get_abi_version(struct vhost_dev *dev, int *version)
+static int vhost_kernel_scsi_get_abi_version(struct vhost_dev *dev,
+                                             int *version)
 {
     return vhost_kernel_call(dev, VHOST_SCSI_GET_ABI_VERSION, version);
 }

@@ -798,7 +798,8 @@ static void virtio_crypto_device_realize(DeviceState *dev, Error **errp)
         return;
     } else if (cryptodev_backend_is_used(vcrypto->cryptodev)) {
         error_setg(errp, "can't use already used cryptodev backend: %s",
-                   object_get_canonical_path_component(OBJECT(vcrypto->conf.cryptodev)));
+                   object_get_canonical_path_component(
+                       OBJECT(vcrypto->conf.cryptodev)));
         return;
     }
 

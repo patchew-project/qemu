@@ -221,7 +221,8 @@ int virtio_bus_start_ioeventfd(VirtioBusState *bus)
     if (!bus->ioeventfd_grabbed) {
         r = vdc->start_ioeventfd(vdev);
         if (r < 0) {
-            error_report("%s: failed. Fallback to userspace (slower).", __func__);
+            error_report("%s: failed. Fallback to userspace (slower).",
+                         __func__);
             return r;
         }
     }
