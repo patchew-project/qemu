@@ -2017,7 +2017,8 @@ static const struct {
     [WIN_READ_ONCE]               = { cmd_read_pio, HD_CFA_OK },
     [WIN_READ_EXT]                = { cmd_read_pio, HD_CFA_OK },
     [WIN_READDMA_EXT]             = { cmd_read_dma, HD_CFA_OK },
-    [WIN_READ_NATIVE_MAX_EXT]     = { cmd_read_native_max, HD_CFA_OK | SET_DSC },
+    [WIN_READ_NATIVE_MAX_EXT]     = { cmd_read_native_max, HD_CFA_OK |
+                                      SET_DSC },
     [WIN_MULTREAD_EXT]            = { cmd_read_multiple, HD_CFA_OK },
     [WIN_WRITE]                   = { cmd_write_pio, HD_CFA_OK },
     [WIN_WRITE_ONCE]              = { cmd_write_pio, HD_CFA_OK },
@@ -2037,7 +2038,8 @@ static const struct {
     [WIN_IDLEIMMEDIATE2]          = { cmd_nop, HD_CFA_OK },
     [WIN_STANDBY2]                = { cmd_nop, HD_CFA_OK },
     [WIN_SETIDLE2]                = { cmd_nop, HD_CFA_OK },
-    [WIN_CHECKPOWERMODE2]         = { cmd_check_power_mode, HD_CFA_OK | SET_DSC },
+    [WIN_CHECKPOWERMODE2]         = { cmd_check_power_mode, HD_CFA_OK |
+                                      SET_DSC },
     [WIN_SLEEPNOW2]               = { cmd_nop, HD_CFA_OK },
     [WIN_PACKETCMD]               = { cmd_packet, CD_OK },
     [WIN_PIDENTIFY]               = { cmd_identify_packet, CD_OK },
@@ -2046,7 +2048,8 @@ static const struct {
     [CFA_ERASE_SECTORS]           = { cmd_cfa_erase_sectors, CFA_OK | SET_DSC },
     [WIN_MULTREAD]                = { cmd_read_multiple, HD_CFA_OK },
     [WIN_MULTWRITE]               = { cmd_write_multiple, HD_CFA_OK },
-    [WIN_SETMULT]                 = { cmd_set_multiple_mode, HD_CFA_OK | SET_DSC },
+    [WIN_SETMULT]                 = { cmd_set_multiple_mode, HD_CFA_OK |
+                                      SET_DSC },
     [WIN_READDMA]                 = { cmd_read_dma, HD_CFA_OK },
     [WIN_READDMA_ONCE]            = { cmd_read_dma, HD_CFA_OK },
     [WIN_WRITEDMA]                = { cmd_write_dma, HD_CFA_OK },
@@ -2056,15 +2059,19 @@ static const struct {
     [WIN_IDLEIMMEDIATE]           = { cmd_nop, HD_CFA_OK },
     [WIN_STANDBY]                 = { cmd_nop, HD_CFA_OK },
     [WIN_SETIDLE1]                = { cmd_nop, HD_CFA_OK },
-    [WIN_CHECKPOWERMODE1]         = { cmd_check_power_mode, HD_CFA_OK | SET_DSC },
+    [WIN_CHECKPOWERMODE1]         = { cmd_check_power_mode, HD_CFA_OK |
+                                      SET_DSC },
     [WIN_SLEEPNOW1]               = { cmd_nop, HD_CFA_OK },
     [WIN_FLUSH_CACHE]             = { cmd_flush_cache, ALL_OK },
     [WIN_FLUSH_CACHE_EXT]         = { cmd_flush_cache, HD_CFA_OK },
     [WIN_IDENTIFY]                = { cmd_identify, ALL_OK },
     [WIN_SETFEATURES]             = { cmd_set_features, ALL_OK | SET_DSC },
-    [IBM_SENSE_CONDITION]         = { cmd_ibm_sense_condition, CFA_OK | SET_DSC },
-    [CFA_WEAR_LEVEL]              = { cmd_cfa_erase_sectors, HD_CFA_OK | SET_DSC },
-    [WIN_READ_NATIVE_MAX]         = { cmd_read_native_max, HD_CFA_OK | SET_DSC },
+    [IBM_SENSE_CONDITION]         = { cmd_ibm_sense_condition, CFA_OK |
+                                      SET_DSC },
+    [CFA_WEAR_LEVEL]              = { cmd_cfa_erase_sectors, HD_CFA_OK |
+                                      SET_DSC },
+    [WIN_READ_NATIVE_MAX]         = { cmd_read_native_max, HD_CFA_OK |
+                                      SET_DSC },
 };
 
 static bool ide_cmd_permitted(IDEState *s, uint32_t cmd)

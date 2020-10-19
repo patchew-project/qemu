@@ -378,7 +378,8 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
 
     if (s->packet_transfer_size <= 0) {
         s->status = READY_STAT | SEEK_STAT;
-        s->nsector = (s->nsector & ~7) | ATAPI_INT_REASON_IO | ATAPI_INT_REASON_CD;
+        s->nsector = (s->nsector & ~7) | ATAPI_INT_REASON_IO |
+                      ATAPI_INT_REASON_CD;
         ide_set_irq(s->bus);
         goto eot;
     }
@@ -1232,9 +1233,9 @@ enum {
     ALLOW_UA = 0x01,
 
     /*
-     * Commands flagged with CHECK_READY can only execute if a medium is present.
-     * Otherwise they report the Not Ready Condition. (See MMC-5, section
-     * 4.1.8)
+     * Commands flagged with CHECK_READY can only execute if a medium is
+     * present. Otherwise they report the Not Ready Condition. (See MMC-5,
+     * section 4.1.8)
      */
     CHECK_READY = 0x02,
 

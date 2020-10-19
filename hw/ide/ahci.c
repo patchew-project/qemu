@@ -1252,7 +1252,8 @@ static void handle_reg_h2d_fis(AHCIState *s, int port,
     if (opts & AHCI_CMD_ATAPI) {
         memcpy(ide_state->io_buffer, &cmd_fis[AHCI_COMMAND_TABLE_ACMD], 0x10);
         if (trace_event_get_state_backends(TRACE_HANDLE_REG_H2D_FIS_DUMP)) {
-            char *pretty_fis = ahci_pretty_buffer_fis(ide_state->io_buffer, 0x10);
+            char *pretty_fis = ahci_pretty_buffer_fis(ide_state->io_buffer,
+                                                      0x10);
             trace_handle_reg_h2d_fis_dump(s, port, pretty_fis);
             g_free(pretty_fis);
         }
@@ -1356,9 +1357,10 @@ static void ahci_pio_transfer(const IDEDMA *dma)
      * The device only sets the 'I' bit in the PIO Setup FIS for device->host
      * requests (see "DPIOI1" in the SATA spec), or for host->device DRQs after
      * the first (see "DPIOO1").  The latter is consistent with the spec's
-     * description of the PACKET protocol, where the command part of ATAPI requests
-     * ("DPKT0") has the 'I' bit clear, while the data part of PIO ATAPI requests
-     * ("DPKT4a" and "DPKT7") has the 'I' bit set for both directions for all DRQs.
+     * description of the PACKET protocol, where the command part of ATAPI
+     * requests ("DPKT0") has the 'I' bit clear, while the data part of PIO
+     * ATAPI requests ("DPKT4a" and "DPKT7") has the 'I' bit set for both
+     * directions for all DRQs.
      */
     pio_fis_i = ad->done_first_drq || (!is_atapi && !is_write);
     ahci_write_fis_pio(ad, size, pio_fis_i);
