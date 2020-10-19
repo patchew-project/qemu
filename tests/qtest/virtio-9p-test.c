@@ -259,6 +259,7 @@ static const char *rmessage_name(uint8_t id)
         id == P9_RWRITE ? "RWRITE" :
         id == P9_RMKDIR ? "RMKDIR" :
         id == P9_RLCREATE ? "RLCREATE" :
+        id == P9_RSYMLINK ? "RSYMLINK" :
         id == P9_RUNLINKAT ? "RUNLINKAT" :
         id == P9_RFLUSH ? "RFLUSH" :
         id == P9_RREADDIR ? "READDIR" :
@@ -708,6 +709,39 @@ static void v9fs_rlcreate(P9Req *req, v9fs_qid *qid, uint32_t *iounit)
     v9fs_req_free(req);
 }
 
+/* size[4] Tsymlink tag[2] fid[4] name[s] symtgt[s] gid[4] */
+static P9Req *v9fs_tsymlink(QVirtio9P *v9p, uint32_t fid, const char *name,
+                            const char *symtgt, uint32_t gid, uint16_t tag)
+{
+    P9Req *req;
+
+    uint32_t body_size = 4 + 4;
+    uint16_t string_size = v9fs_string_size(name) + v9fs_string_size(symtgt);
+
+    g_assert_cmpint(body_size, <=, UINT32_MAX - string_size);
+    body_size += string_size;
+
+    req = v9fs_req_init(v9p, body_size, P9_TSYMLINK, tag);
+    v9fs_uint32_write(req, fid);
+    v9fs_string_write(req, name);
+    v9fs_string_write(req, symtgt);
+    v9fs_uint32_write(req, gid);
+    v9fs_req_send(req);
+    return req;
+}
+
+/* size[4] Rsymlink tag[2] qid[13] */
+static void v9fs_rsymlink(P9Req *req, v9fs_qid *qid)
+{
+    v9fs_req_recv(req, P9_RSYMLINK);
+    if (qid) {
+        v9fs_memread(req, qid, 13);
+    } else {
+        v9fs_memskip(req, 13);
+    }
+    v9fs_req_free(req);
+}
+
 /* size[4] Tunlinkat tag[2] dirfd[4] name[s] flags[4] */
 static P9Req *v9fs_tunlinkat(QVirtio9P *v9p, uint32_t dirfd, const char *name,
                              uint32_t flags, uint16_t tag)
@@ -1091,6 +1125,27 @@ static uint32_t fs_lcreate(void *obj, void *data, QGuestAllocator *t_alloc,
     return fid;
 }
 
+/* create symlink named @a clink in directory @a path pointing to @a to */
+static void fs_symlink(void *obj, void *data, QGuestAllocator *t_alloc,
+                       const char *path, const char *clink, const char *to)
+{
+    QVirtio9P *v9p = obj;
+    alloc = t_alloc;
+    char *const name = g_strdup(clink);
+    char *const dst = g_strdup(to);
+    uint32_t fid;
+    P9Req *req;
+
+    fid = fs_walk_fid(v9p, data, t_alloc, path);
+
+    req = v9fs_tsymlink(v9p, fid, name, dst, 0, 0);
+    v9fs_req_wait_for_reply(req, NULL);
+    v9fs_rsymlink(req, NULL);
+
+    g_free(dst);
+    g_free(name);
+}
+
 static void fs_unlinkat(void *obj, void *data, QGuestAllocator *t_alloc,
                         const char *atpath, const char *rpath, uint32_t flags)
 {
@@ -1216,6 +1271,28 @@ static void fs_unlinkat_file(void *obj, void *data, QGuestAllocator *t_alloc)
     g_free(new_file);
 }
 
+static void fs_symlink_file(void *obj, void *data, QGuestAllocator *t_alloc)
+{
+    QVirtio9P *v9p = obj;
+    struct stat st;
+    char *real_file = virtio_9p_test_path("05/real_file");
+    char *symlink_file = virtio_9p_test_path("05/symlink_file");
+
+    fs_attach(v9p, NULL, t_alloc);
+    fs_mkdir(v9p, data, t_alloc, "/", "05");
+    fs_lcreate(v9p, data, t_alloc, "05", "real_file");
+    g_assert(stat(real_file, &st) == 0);
+    g_assert((st.st_mode & S_IFMT) == S_IFREG);
+
+    fs_symlink(v9p, data, t_alloc, "05", "symlink_file", "real_file");
+
+    /* check if created link exists now */
+    g_assert(stat(symlink_file, &st) == 0);
+
+    g_free(symlink_file);
+    g_free(real_file);
+}
+
 static void *assign_9p_local_driver(GString *cmd_line, void *arg)
 {
     virtio_9p_assign_local_driver(cmd_line, "security_model=mapped-xattr");
@@ -1259,6 +1336,7 @@ static void register_virtio_9p_test(void)
     qos_add_test("local/unlinkat_dir", "virtio-9p", fs_unlinkat_dir, &opts);
     qos_add_test("local/create_file", "virtio-9p", fs_create_file, &opts);
     qos_add_test("local/unlinkat_file", "virtio-9p", fs_unlinkat_file, &opts);
+    qos_add_test("local/symlink_file", "virtio-9p", fs_symlink_file, &opts);
 }
 
 libqos_init(register_virtio_9p_test);
