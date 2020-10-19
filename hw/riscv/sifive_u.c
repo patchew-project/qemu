@@ -528,7 +528,8 @@ static void sifive_u_machine_init(MachineState *machine)
         reset_vec[i] = cpu_to_le32(reset_vec[i]);
     }
     rom_add_blob_fixed_as("mrom.reset", reset_vec, sizeof(reset_vec),
-                          memmap[SIFIVE_U_DEV_MROM].base, &address_space_memory);
+                          memmap[SIFIVE_U_DEV_MROM].base,
+                          &address_space_memory);
 
     riscv_rom_copy_firmware_info(memmap[SIFIVE_U_DEV_MROM].base,
                                  memmap[SIFIVE_U_DEV_MROM].size,
@@ -542,7 +543,8 @@ static bool sifive_u_machine_get_start_in_flash(Object *obj, Error **errp)
     return s->start_in_flash;
 }
 
-static void sifive_u_machine_set_start_in_flash(Object *obj, bool value, Error **errp)
+static void sifive_u_machine_set_start_in_flash(Object *obj, bool value,
+                                                Error **errp)
 {
     SiFiveUState *s = RISCV_U_MACHINE(obj);
 
@@ -731,13 +733,15 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->prci), errp)) {
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->prci), 0, memmap[SIFIVE_U_DEV_PRCI].base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->prci), 0,
+                    memmap[SIFIVE_U_DEV_PRCI].base);
 
     qdev_prop_set_uint32(DEVICE(&s->gpio), "ngpio", 16);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpio), errp)) {
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpio), 0, memmap[SIFIVE_U_DEV_GPIO].base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpio), 0,
+                    memmap[SIFIVE_U_DEV_GPIO].base);
 
     /* Pass all GPIOs to the SOC layer so they are available to the board */
     qdev_pass_gpios(DEVICE(&s->gpio), dev, NULL);
