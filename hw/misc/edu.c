@@ -129,7 +129,8 @@ static dma_addr_t edu_clamp_addr(const EduState *edu, dma_addr_t addr)
     dma_addr_t res = addr & edu->dma_mask;
 
     if (addr != res) {
-        printf("EDU: clamping DMA %#.16"PRIx64" to %#.16"PRIx64"!\n", addr, res);
+        printf("EDU: clamping DMA 0x%.16"PRIx64" to 0x%.16"PRIx64"!\n",
+               addr, res);
     }
 
     return res;

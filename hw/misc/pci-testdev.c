@@ -277,7 +277,8 @@ static void pci_testdev_realize(PCIDevice *pci_dev, Error **errp)
         test->hdr = g_malloc0(test->bufsize);
         memcpy(test->hdr->name, name, strlen(name) + 1);
         g_free(name);
-        test->hdr->offset = cpu_to_le32(IOTEST_SIZE(i) + i * IOTEST_ACCESS_WIDTH);
+        test->hdr->offset = cpu_to_le32(IOTEST_SIZE(i) +
+                            i * IOTEST_ACCESS_WIDTH);
         test->match_data = strcmp(IOTEST_TEST(i), "wildcard-eventfd");
         if (fastmmio && IOTEST_IS_MEM(i) && !test->match_data) {
             test->size = 0;

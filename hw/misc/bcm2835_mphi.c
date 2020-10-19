@@ -148,7 +148,8 @@ static void mphi_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     BCM2835MphiState *s = BCM2835_MPHI(obj);
 
-    memory_region_init_io(&s->iomem, obj, &mphi_mmio_ops, s, "mphi", MPHI_MMIO_SIZE);
+    memory_region_init_io(&s->iomem, obj, &mphi_mmio_ops, s,
+                          "mphi", MPHI_MMIO_SIZE);
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
