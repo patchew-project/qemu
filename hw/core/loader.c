@@ -211,14 +211,18 @@ static void bswap_ahdr(struct exec *e)
 #define N_TXTOFF(x)							\
     (N_MAGIC(x) == ZMAGIC ? _N_HDROFF((x)) + sizeof (struct exec) :	\
      (N_MAGIC(x) == QMAGIC ? 0 : sizeof (struct exec)))
-#define N_TXTADDR(x, target_page_size) (N_MAGIC(x) == QMAGIC ? target_page_size : 0)
-#define _N_SEGMENT_ROUND(x, target_page_size) (((x) + target_page_size - 1) & ~(target_page_size - 1))
+#define N_TXTADDR(x, target_page_size) \
+    (N_MAGIC(x) == QMAGIC ? target_page_size : 0)
+#define _N_SEGMENT_ROUND(x, target_page_size) \
+    (((x) + target_page_size - 1) & ~(target_page_size - 1))
 
-#define _N_TXTENDADDR(x, target_page_size) (N_TXTADDR(x, target_page_size)+(x).a_text)
+#define _N_TXTENDADDR(x, target_page_size) \
+    (N_TXTADDR(x, target_page_size) + (x).a_text)
 
 #define N_DATADDR(x, target_page_size) \
-    (N_MAGIC(x)==OMAGIC? (_N_TXTENDADDR(x, target_page_size)) \
-     : (_N_SEGMENT_ROUND (_N_TXTENDADDR(x, target_page_size), target_page_size)))
+    (N_MAGIC(x) == OMAGIC ? (_N_TXTENDADDR(x, target_page_size)) \
+     : (_N_SEGMENT_ROUND(_N_TXTENDADDR(x, target_page_size), \
+    target_page_size)))
 
 
 int load_aout(const char *filename, hwaddr addr, int max_sz,
@@ -1190,7 +1194,8 @@ int rom_check_and_register_reset(void)
         }
         section = memory_region_find(rom->mr ? rom->mr : get_system_memory(),
                                      rom->addr, 1);
-        rom->isrom = int128_nz(section.size) && memory_region_is_rom(section.mr);
+        rom->isrom = int128_nz(section.size)
+                     && memory_region_is_rom(section.mr);
         memory_region_unref(section.mr);
     }
     qemu_register_reset(rom_reset, NULL);

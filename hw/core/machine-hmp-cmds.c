@@ -73,7 +73,8 @@ void hmp_hotpluggable_cpus(Monitor *mon, const QDict *qdict)
             monitor_printf(mon, "    node-id: \"%" PRIu64 "\"\n", c->node_id);
         }
         if (c->has_socket_id) {
-            monitor_printf(mon, "    socket-id: \"%" PRIu64 "\"\n", c->socket_id);
+            monitor_printf(mon, "    socket-id: \"%" PRIu64 "\"\n",
+                           c->socket_id);
         }
         if (c->has_die_id) {
             monitor_printf(mon, "    die-id: \"%" PRIu64 "\"\n", c->die_id);
@@ -82,7 +83,8 @@ void hmp_hotpluggable_cpus(Monitor *mon, const QDict *qdict)
             monitor_printf(mon, "    core-id: \"%" PRIu64 "\"\n", c->core_id);
         }
         if (c->has_thread_id) {
-            monitor_printf(mon, "    thread-id: \"%" PRIu64 "\"\n", c->thread_id);
+            monitor_printf(mon, "    thread-id: \"%" PRIu64 "\"\n",
+                           c->thread_id);
         }
 
         l = l->next;

@@ -418,8 +418,8 @@ static void set_netdev(Object *obj, Visitor *v, const char *name,
     }
 
     if (queues > MAX_QUEUE_NUM) {
-        error_setg(errp, "queues of backend '%s'(%d) exceeds QEMU limitation(%d)",
-                   str, queues, MAX_QUEUE_NUM);
+        error_setg(errp, "queues of backend '%s'(%d) exceeds"
+                   "QEMU limitation(%d)", str, queues, MAX_QUEUE_NUM);
         goto out;
     }
 

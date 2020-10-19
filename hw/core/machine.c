@@ -317,7 +317,8 @@ static char *machine_get_dt_compatible(Object *obj, Error **errp)
     return g_strdup(ms->dt_compatible);
 }
 
-static void machine_set_dt_compatible(Object *obj, const char *value, Error **errp)
+static void machine_set_dt_compatible(Object *obj,
+                                      const char *value, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
 
