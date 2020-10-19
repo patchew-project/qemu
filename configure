@@ -5740,6 +5740,22 @@ but not implemented on your system"
 fi
 
 ##########################################
+# check for Apple Silicon JIT function
+
+if [ "$darwin" = "yes" ] ; then
+  cat > $TMPC << EOF
+#include <pthread.h>
+int main() { pthread_jit_write_protect_np(0); return 0; }
+EOF
+  if ! compile_prog ""; then
+    have_pthread_jit_protect='no'
+  else
+    have_pthread_jit_protect='yes'
+  fi
+fi
+
+
+##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
 
@@ -6845,6 +6861,10 @@ fi
 
 if test "$secret_keyring" = "yes" ; then
   echo "CONFIG_SECRET_KEYRING=y" >> $config_host_mak
+fi
+
+if test "$have_pthread_jit_protect" = "yes" ; then
+  echo "HAVE_PTHREAD_JIT_PROTECT=y" >> $config_host_mak
 fi
 
 if test "$tcg_interpreter" = "yes"; then

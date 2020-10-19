@@ -630,6 +630,9 @@ struct TCGContext {
 #if defined(CONFIG_IOS_JIT)
     ptrdiff_t code_rw_mirror_diff;
 #endif
+#if defined(CONFIG_DARWIN) && !defined(CONFIG_TCG_INTERPRETER)
+    bool code_gen_locked; /* on Darwin each thread tracks W^X flags */
+#endif
 
     /* Threshold to flush the translated code buffer.  */
     void *code_gen_highwater;
