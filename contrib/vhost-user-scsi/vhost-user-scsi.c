@@ -182,7 +182,7 @@ static int handle_cmd_sync(struct iscsi_context *ctx,
         task->iovector_in.niov = in_len;
     }
 
-    g_debug("Sending iscsi cmd (cdb_len=%d, dir=%d, task=%p)",
+    g_debug("Sending iscsi cmd (cdb_len=%d, dir=%u, task=%p)",
          cdb_len, dir, task);
     if (!iscsi_scsi_command_sync(ctx, 0, task, NULL)) {
         g_warning("Error serving SCSI command");
