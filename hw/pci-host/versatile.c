@@ -454,8 +454,9 @@ static void pci_vpb_realize(DeviceState *dev, Error **errp)
      * offsets are guest controllable via the IMAP registers.
      */
     for (i = 0; i < 3; i++) {
-        memory_region_init_alias(&s->pci_mem_window[i], OBJECT(s), "pci-vbp-window",
-                                 &s->pci_mem_space, 0, s->mem_win_size[i]);
+        memory_region_init_alias(&s->pci_mem_window[i], OBJECT(s),
+                                 "pci-vbp-window", &s->pci_mem_space, 0,
+                                 s->mem_win_size[i]);
         sysbus_init_mmio(sbd, &s->pci_mem_window[i]);
     }
 

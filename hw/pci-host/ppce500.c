@@ -423,8 +423,9 @@ static void e500_pcihost_bridge_realize(PCIDevice *d, Error **errp)
     PPCE500CCSRState *ccsr = CCSR(container_get(qdev_get_machine(),
                                   "/e500-ccsr"));
 
-    memory_region_init_alias(&b->bar0, OBJECT(ccsr), "e500-pci-bar0", &ccsr->ccsr_space,
-                             0, int128_get64(ccsr->ccsr_space.size));
+    memory_region_init_alias(&b->bar0, OBJECT(ccsr), "e500-pci-bar0",
+                             &ccsr->ccsr_space, 0,
+                             int128_get64(ccsr->ccsr_space.size));
     pci_register_bar(d, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &b->bar0);
 }
 
@@ -474,7 +475,8 @@ static void e500_pcihost_realize(DeviceState *dev, Error **errp)
 
     pci_create_simple(b, 0, "e500-host-bridge");
 
-    memory_region_init(&s->container, OBJECT(h), "pci-container", PCIE500_ALL_SIZE);
+    memory_region_init(&s->container, OBJECT(h), "pci-container",
+                       PCIE500_ALL_SIZE);
     memory_region_init_io(&h->conf_mem, OBJECT(h), &pci_host_conf_be_ops, h,
                           "pci-conf-idx", 4);
     memory_region_init_io(&h->data_mem, OBJECT(h), &pci_host_data_le_ops, h,

@@ -45,8 +45,8 @@ void init_pam(DeviceState *dev, MemoryRegion *ram_memory,
     memory_region_set_readonly(&mem->alias[1], true);
 
     /* XXX: should distinguish read/write cases */
-    memory_region_init_alias(&mem->alias[0], OBJECT(dev), "pam-pci", pci_address_space,
-                             start, size);
+    memory_region_init_alias(&mem->alias[0], OBJECT(dev), "pam-pci",
+                             pci_address_space, start, size);
     memory_region_init_alias(&mem->alias[2], OBJECT(dev), "pam-pci", ram_memory,
                              start, size);
 
