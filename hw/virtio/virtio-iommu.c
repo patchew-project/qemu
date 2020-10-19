@@ -632,7 +632,7 @@ static IOMMUTLBEntry virtio_iommu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
     ep = g_tree_lookup(s->endpoints, GUINT_TO_POINTER(sid));
     if (!ep) {
         if (!bypass_allowed) {
-            error_report_once("%s sid=%d is not known!!", __func__, sid);
+            error_report_once("%s sid=%u is not known!!", __func__, sid);
             virtio_iommu_report_fault(s, VIRTIO_IOMMU_FAULT_R_UNKNOWN,
                                       VIRTIO_IOMMU_FAULT_F_ADDRESS,
                                       sid, addr);
@@ -679,7 +679,7 @@ static IOMMUTLBEntry virtio_iommu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
                                    (void **)&mapping_key,
                                    (void **)&mapping_value);
     if (!found) {
-        error_report_once("%s no mapping for 0x%"PRIx64" for sid=%d",
+        error_report_once("%s no mapping for 0x%"PRIx64" for sid=%u",
                           __func__, addr, sid);
         virtio_iommu_report_fault(s, VIRTIO_IOMMU_FAULT_R_MAPPING,
                                   VIRTIO_IOMMU_FAULT_F_ADDRESS,
@@ -695,7 +695,7 @@ static IOMMUTLBEntry virtio_iommu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
     flags = read_fault ? VIRTIO_IOMMU_FAULT_F_READ : 0;
     flags |= write_fault ? VIRTIO_IOMMU_FAULT_F_WRITE : 0;
     if (flags) {
-        error_report_once("%s permission error on 0x%"PRIx64"(%d): allowed=%d",
+        error_report_once("%s permission error on 0x%"PRIx64"(%d): allowed=%u",
                           __func__, addr, flag, mapping_value->flags);
         flags |= VIRTIO_IOMMU_FAULT_F_ADDRESS;
         virtio_iommu_report_fault(s, VIRTIO_IOMMU_FAULT_R_MAPPING,
