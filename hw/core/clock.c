@@ -51,12 +51,14 @@ void clock_clear_callback(Clock *clk)
 
 bool clock_set(Clock *clk, uint64_t period)
 {
+    uint64_t old_hz;
+
     if (clk->period == period) {
         return false;
     }
-    trace_clock_set(CLOCK_PATH(clk), CLOCK_PERIOD_TO_NS(clk->period),
-                    CLOCK_PERIOD_TO_NS(period));
+    old_hz = clock_get_hz(clk);
     clk->period = period;
+    trace_clock_set(CLOCK_PATH(clk), old_hz, clock_get_hz(clk));
 
     return true;
 }
@@ -69,7 +71,7 @@ static void clock_propagate_period(Clock *clk, bool call_callbacks)
         if (child->period != clk->period) {
             child->period = clk->period;
             trace_clock_update(CLOCK_PATH(child), CLOCK_PATH(clk),
-                               CLOCK_PERIOD_TO_NS(clk->period),
+                               clock_get_hz(clk),
                                call_callbacks);
             if (call_callbacks && child->callback) {
                 child->callback(child->callback_opaque);
