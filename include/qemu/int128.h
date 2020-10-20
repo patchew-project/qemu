@@ -3,8 +3,10 @@
 
 #ifdef CONFIG_INT128
 #include "qemu/bswap.h"
+#include "qemu/host-utils.h"
 
 typedef __int128_t Int128;
+typedef __uint128_t Uint128;
 
 static inline Int128 int128_make64(uint64_t a)
 {
@@ -12,6 +14,11 @@ static inline Int128 int128_make64(uint64_t a)
 }
 
 static inline Int128 int128_make128(uint64_t lo, uint64_t hi)
+{
+    return (__uint128_t)hi << 64 | lo;
+}
+
+static inline Uint128 uint128_make128(uint64_t lo, uint64_t hi)
 {
     return (__uint128_t)hi << 64 | lo;
 }
@@ -28,12 +35,27 @@ static inline uint64_t int128_getlo(Int128 a)
     return a;
 }
 
+static inline uint64_t uint128_getlo(Uint128 a)
+{
+    return a;
+}
+
 static inline int64_t int128_gethi(Int128 a)
 {
     return a >> 64;
 }
 
+static inline uint64_t uint128_gethi(Uint128 a)
+{
+    return a >> 64;
+}
+
 static inline Int128 int128_zero(void)
+{
+    return 0;
+}
+
+static inline Uint128 uint128_zero(void)
 {
     return 0;
 }
@@ -58,7 +80,27 @@ static inline Int128 int128_and(Int128 a, Int128 b)
     return a & b;
 }
 
+static inline Uint128 uint128_and(Uint128 a, Uint128 b)
+{
+    return a & b;
+}
+
+static inline Int128 int128_or(Int128 a, Int128 b)
+{
+    return a | b;
+}
+
+static inline Uint128 uint128_or(Uint128 a, Uint128 b)
+{
+    return a | b;
+}
+
 static inline Int128 int128_rshift(Int128 a, int n)
+{
+    return a >> n;
+}
+
+static inline Uint128 uint128_rshift(Uint128 a, int n)
 {
     return a >> n;
 }
@@ -68,7 +110,17 @@ static inline Int128 int128_lshift(Int128 a, int n)
     return a << n;
 }
 
+static inline Uint128 uint128_lshift(Uint128 a, int n)
+{
+    return a << n;
+}
+
 static inline Int128 int128_add(Int128 a, Int128 b)
+{
+    return a + b;
+}
+
+static inline Uint128 uint128_add(Uint128 a, Uint128 b)
 {
     return a + b;
 }
@@ -83,12 +135,22 @@ static inline Int128 int128_sub(Int128 a, Int128 b)
     return a - b;
 }
 
+static inline Uint128 uint128_sub(Uint128 a, Uint128 b)
+{
+    return a - b;
+}
+
 static inline bool int128_nonneg(Int128 a)
 {
     return a >= 0;
 }
 
 static inline bool int128_eq(Int128 a, Int128 b)
+{
+    return a == b;
+}
+
+static inline bool uint128_eq(Uint128 a, Uint128 b)
 {
     return a == b;
 }
@@ -146,6 +208,66 @@ static inline void int128_subfrom(Int128 *a, Int128 b)
 static inline Int128 bswap128(Int128 a)
 {
     return int128_make128(bswap64(int128_gethi(a)), bswap64(int128_getlo(a)));
+}
+
+/**
+ * extract128:
+ * @value: the value to extract the bit field from
+ * @start: the lowest bit in the bit field (numbered from 0)
+ * @length: the length of the bit field
+ *
+ * Extract from the 128 bit input @value the bit field specified by the
+ * @start and @length parameters, and return it. The bit field must
+ * lie entirely within the 128 bit word. It is valid to request that
+ * all 128 bits are returned (ie @length 128 and @start 0).
+ *
+ * Returns: the value of the bit field extracted from the input value.
+ */
+static inline Uint128 extract128(Uint128 value, int start, int length)
+{
+    assert(start >= 0 && length > 0 && length <= 128 - start);
+    Uint128 mask = ~(Uint128)0 >> (128 - length);
+    Uint128 shifted = value >> start;
+    return shifted & mask;
+}
+
+/**
+ * deposit128:
+ * @value: initial value to insert bit field into
+ * @start: the lowest bit in the bit field (numbered from 0)
+ * @length: the length of the bit field
+ * @fieldval: the value to insert into the bit field
+ *
+ * Deposit @fieldval into the 128 bit @value at the bit field specified
+ * by the @start and @length parameters, and return the modified
+ * @value. Bits of @value outside the bit field are not modified.
+ * Bits of @fieldval above the least significant @length bits are
+ * ignored. The bit field must lie entirely within the 128 bit word.
+ * It is valid to request that all 128 bits are modified (ie @length
+ * 128 and @start 0).
+ *
+ * Returns: the modified @value.
+ */
+static inline Uint128 deposit128(Uint128 value, int start, int length,
+                                 Uint128 fieldval)
+{
+    assert(start >= 0 && length > 0 && length <= 128 - start);
+    Uint128 mask = (~(Uint128)0 >> (128 - length)) << start;
+    return (value & ~mask) | ((fieldval << start) & mask);
+}
+
+static inline int clz128(Uint128 val)
+{
+    if (val) {
+        uint64_t hi = uint128_gethi(val);
+        if (hi) {
+            return clz64(hi);
+        } else {
+            return 64 + clz64(uint128_getlo(val));
+        }
+    } else {
+        return 128;
+    }
 }
 
 #else /* !CONFIG_INT128 */
