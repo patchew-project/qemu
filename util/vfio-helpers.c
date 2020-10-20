@@ -190,49 +190,6 @@ void qemu_vfio_pci_unmap_bar(QEMUVFIOState *s, int index, void *bar,
 }
 
 /**
- * Initialize device IRQ with @irq_type and register an event notifier.
- */
-int qemu_vfio_pci_init_irq(QEMUVFIOState *s, EventNotifier *e,
-                           int irq_type, Error **errp)
-{
-    int r;
-    struct vfio_irq_set *irq_set;
-    size_t irq_set_size;
-    struct vfio_irq_info irq_info = { .argsz = sizeof(irq_info) };
-
-    irq_info.index = irq_type;
-    if (ioctl(s->device, VFIO_DEVICE_GET_IRQ_INFO, &irq_info)) {
-        error_setg_errno(errp, errno, "Failed to get device interrupt info");
-        return -errno;
-    }
-    if (!(irq_info.flags & VFIO_IRQ_INFO_EVENTFD)) {
-        error_setg(errp, "Device interrupt doesn't support eventfd");
-        return -EINVAL;
-    }
-
-    irq_set_size = sizeof(*irq_set) + sizeof(int);
-    irq_set = g_malloc0(irq_set_size);
-
-    /* Get to a known IRQ state */
-    *irq_set = (struct vfio_irq_set) {
-        .argsz = irq_set_size,
-        .flags = VFIO_IRQ_SET_DATA_EVENTFD | VFIO_IRQ_SET_ACTION_TRIGGER,
-        .index = irq_info.index,
-        .start = 0,
-        .count = 1,
-    };
-
-    *(int *)&irq_set->data = event_notifier_get_fd(e);
-    r = ioctl(s->device, VFIO_DEVICE_SET_IRQS, irq_set);
-    g_free(irq_set);
-    if (r) {
-        error_setg_errno(errp, errno, "Failed to setup device interrupt");
-        return -errno;
-    }
-    return 0;
-}
-
-/**
  * Initialize a MSIX IRQ and register its event notifier.
  * @irq_index: MSIX IRQ index
  * @notifier: notifier for the MSIX IRQ
