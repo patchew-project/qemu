@@ -690,6 +690,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     uint64_t deadline, now;
     Error *local_err = NULL;
     volatile NvmeBar *regs = NULL;
+    size_t min_page_size = 4096;
 
     qemu_co_mutex_init(&s->dma_map_lock);
     qemu_co_queue_init(&s->dma_flush_queue);
@@ -702,7 +703,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
         return ret;
     }
 
-    s->vfio = qemu_vfio_open_pci(device, errp);
+    s->vfio = qemu_vfio_open_pci(device, &min_page_size, errp);
     if (!s->vfio) {
         ret = -EINVAL;
         goto out;
@@ -724,7 +725,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
         goto out;
     }
 
-    s->page_size = MAX(4096, 1u << (12 + NVME_CAP_MPSMIN(cap)));
+    s->page_size = MAX(min_page_size, 1u << (12 + NVME_CAP_MPSMIN(cap)));
     s->doorbell_scale = (4 << NVME_CAP_DSTRD(cap)) / sizeof(uint32_t);
     bs->bl.opt_mem_alignment = s->page_size;
     timeout_ms = MIN(500 * NVME_CAP_TO(cap), 30000);

@@ -15,7 +15,8 @@
 
 typedef struct QEMUVFIOState QEMUVFIOState;
 
-QEMUVFIOState *qemu_vfio_open_pci(const char *device, Error **errp);
+QEMUVFIOState *qemu_vfio_open_pci(const char *device, size_t *min_page_size,
+                                  Error **errp);
 void qemu_vfio_close(QEMUVFIOState *s);
 int qemu_vfio_dma_map(QEMUVFIOState *s, void *host, size_t size,
                       bool temporary, uint64_t *iova_list);
