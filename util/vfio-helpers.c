@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include <sys/ioctl.h>
 #include <linux/vfio.h>
 #include "qapi/error.h"
@@ -273,7 +274,7 @@ static void collect_usable_iova_ranges(QEMUVFIOState *s, void *buf)
 }
 
 static int qemu_vfio_init_pci(QEMUVFIOState *s, const char *device,
-                              Error **errp)
+                              size_t *requested_page_size, Error **errp)
 {
     int ret;
     int i;
@@ -283,6 +284,8 @@ static int qemu_vfio_init_pci(QEMUVFIOState *s, const char *device,
     size_t iommu_info_size = sizeof(*iommu_info);
     struct vfio_device_info device_info = { .argsz = sizeof(device_info) };
     char *group_file = NULL;
+
+    assert(requested_page_size && is_power_of_2(*requested_page_size));
 
     s->usable_iova_ranges = NULL;
 
@@ -356,6 +359,27 @@ static int qemu_vfio_init_pci(QEMUVFIOState *s, const char *device,
     if (ioctl(s->container, VFIO_IOMMU_GET_INFO, iommu_info)) {
         error_setg_errno(errp, errno, "Failed to get IOMMU info");
         ret = -errno;
+        goto fail;
+    }
+    if (!(iommu_info->flags & VFIO_IOMMU_INFO_PGSIZES)) {
+        error_setg(errp, "Failed to get IOMMU page size info");
+        ret = -EINVAL;
+        goto fail;
+    }
+    trace_qemu_vfio_iommu_iova_pgsizes(iommu_info->iova_pgsizes);
+    if (!(iommu_info->iova_pgsizes & *requested_page_size)) {
+        g_autofree char *req_page_size_str = size_to_str(*requested_page_size);
+        g_autofree char *min_page_size_str = NULL;
+        uint64_t pgsizes_masked;
+
+        pgsizes_masked = MAKE_64BIT_MASK(0, ctz64(*requested_page_size));
+        *requested_page_size = 1U << ctz64(iommu_info->iova_pgsizes
+                                           & ~pgsizes_masked);
+        min_page_size_str = size_to_str(*requested_page_size);
+        error_setg(errp, "Unsupported IOMMU page size: %s", req_page_size_str);
+        error_append_hint(errp, "Minimum IOMMU page size: %s\n",
+                          min_page_size_str);
+        ret = -EINVAL;
         goto fail;
     }
 
@@ -500,7 +524,7 @@ QEMUVFIOState *qemu_vfio_open_pci(const char *device, size_t *min_page_size,
     int r;
     QEMUVFIOState *s = g_new0(QEMUVFIOState, 1);
 
-    r = qemu_vfio_init_pci(s, device, errp);
+    r = qemu_vfio_init_pci(s, device, min_page_size, errp);
     if (r) {
         g_free(s);
         return NULL;
