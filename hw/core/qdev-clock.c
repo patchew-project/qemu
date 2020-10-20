@@ -61,6 +61,7 @@ static NamedClockList *qdev_init_clocklist(DeviceState *dev, const char *name,
                                  object_get_typename(OBJECT(clk)),
                                  (Object **) &ncl->clock,
                                  NULL, OBJ_PROP_LINK_STRONG);
+        object_ref(OBJECT(clk));
     }
 
     ncl->clock = clk;
