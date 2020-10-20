@@ -40,7 +40,6 @@ typedef void ClockCallback(void *opaque);
 #define CLOCK_PERIOD_FROM_NS(ns) ((ns) * (CLOCK_PERIOD_1SEC / 1000000000llu))
 #define CLOCK_PERIOD_TO_NS(per) ((per) / (CLOCK_PERIOD_1SEC / 1000000000llu))
 #define CLOCK_PERIOD_FROM_HZ(hz) (((hz) != 0) ? CLOCK_PERIOD_1SEC / (hz) : 0u)
-#define CLOCK_PERIOD_TO_HZ(per) (((per) != 0) ? CLOCK_PERIOD_1SEC / (per) : 0u)
 
 /**
  * Clock:
@@ -203,9 +202,12 @@ static inline uint64_t clock_get(const Clock *clk)
     return clk->period;
 }
 
-static inline unsigned clock_get_hz(Clock *clk)
+static inline uint64_t clock_get_hz(Clock *clk)
 {
-    return CLOCK_PERIOD_TO_HZ(clock_get(clk));
+    if (!clk->period) {
+        return 0u;
+    }
+    return CLOCK_PERIOD_1SEC / clk->period;
 }
 
 static inline unsigned clock_get_ns(Clock *clk)
