@@ -125,6 +125,16 @@ static bool parts_is_snan_frac(uint64_t frac, float_status *status)
     }
 }
 
+static bool parts128_is_snan_frac(Uint128 frac, float_status *status)
+{
+    if (no_signaling_nans(status)) {
+        return false;
+    } else {
+        bool msb = extract128(frac, DECOMPOSED128_BINARY_POINT - 1, 1);
+        return msb == snan_bit_is_one(status);
+    }
+}
+
 /*----------------------------------------------------------------------------
 | The pattern for a default generated deconstructed floating-point NaN.
 *----------------------------------------------------------------------------*/
@@ -169,6 +179,23 @@ static FloatParts parts_default_nan(float_status *status)
     };
 }
 
+static FloatParts128 parts128_default_nan(float_status *status)
+{
+    bool sign = 0;
+    Uint128 frac;
+
+    /* !snan_bit_is_one, set sign and msb */
+    frac = uint128_lshift(1, DECOMPOSED128_BINARY_POINT - 1);
+    sign = 1;
+
+    return (FloatParts128) {
+        .cls = float_class_qnan,
+        .sign = sign,
+        .exp = INT_MAX,
+        .frac = frac
+    };
+}
+
 /*----------------------------------------------------------------------------
 | Returns a quiet NaN from a signalling NaN for the deconstructed
 | floating-point parts.
@@ -187,6 +214,18 @@ static FloatParts parts_silence_nan(FloatParts a, float_status *status)
         a.frac |= 1ULL << (DECOMPOSED_BINARY_POINT - 1);
     }
 #endif
+    a.cls = float_class_qnan;
+    return a;
+}
+
+static FloatParts128 parts128_silence_nan(FloatParts128 a, float_status *status)
+{
+    g_assert(!no_signaling_nans(status));
+    if (snan_bit_is_one(status)) {
+        return parts128_default_nan(status);
+    } else {
+        a.frac = uint128_or(a.frac, int128_lshift(1, DECOMPOSED128_BINARY_POINT - 1));
+    }
     a.cls = float_class_qnan;
     return a;
 }

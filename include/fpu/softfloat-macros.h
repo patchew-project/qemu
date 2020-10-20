@@ -259,6 +259,23 @@ static inline void
 
 }
 
+/* as above with Uint128 */
+static inline Uint128 shift128RightJammingUint128(Int128 in, int count)
+{
+    Uint128 out;
+
+    if (count == 0) {
+        out = in;
+    } else if ( count < 128 ) {
+        Uint128 jam_mask = uint128_sub(uint128_lshift(1, count), 1);
+        int shifted_away = uint128_and(in, jam_mask) != 0;
+        out = uint128_or(uint128_rshift(in, count), shifted_away);
+    } else {
+        out = ( in != 0 );
+    }
+    return out;
+}
+
 /*----------------------------------------------------------------------------
 | Shifts the 192-bit value formed by concatenating `a0', `a1', and `a2' right
 | by 64 _plus_ the number of bits given in `count'.  The shifted result is
