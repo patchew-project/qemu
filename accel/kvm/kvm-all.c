@@ -1006,6 +1006,43 @@ static uint32_t adjust_ioeventfd_endianness(uint32_t val, uint32_t size)
     return val;
 }
 
+static void dummy_notifier_read(EventNotifier *n)
+{
+    printf("Received ioeventfd read event\n");
+    event_notifier_test_and_clear(n);
+}
+
+static int kvm_set_ioeventfd_read(int fd, hwaddr addr, uint64_t val,
+				  uint64_t size, bool datamatch)
+{
+	int ret;
+	struct kvm_ioeventfd ioevent = {
+        	.datamatch = datamatch ? adjust_ioeventfd_endianness(val, size) : 0,
+		.dataread = val,
+		.addr = addr,
+		.len = size,
+		.flags = KVM_IOEVENTFD_FLAG_DATAREAD,
+		.fd = fd,
+	};
+
+	if (!kvm_enabled()) {
+		return -ENOSYS;
+	}
+
+	if (datamatch) {
+            ioevent.flags |= KVM_IOEVENTFD_FLAG_DATAMATCH;
+	}
+
+	ret = kvm_vm_ioctl(kvm_state, KVM_IOEVENTFD, &ioevent);
+
+	if (ret < 0) {
+		return -errno;
+	}
+
+	return 0;
+}
+
+
 static int kvm_set_ioeventfd_mmio(int fd, hwaddr addr, uint32_t val,
                                   bool assign, uint32_t size, bool datamatch)
 {
@@ -2012,6 +2049,7 @@ static int kvm_init(MachineState *ms)
     KVMState *s;
     const KVMCapabilityInfo *missing_cap;
     int ret;
+    int efd = -1;
     int type = 0;
     const char *kvm_type;
     uint64_t dirty_log_manual_caps;
@@ -2253,6 +2291,22 @@ static int kvm_init(MachineState *ms)
     }
 
     cpus_register_accel(&kvm_cpus);
+
+    EventNotifier *e = g_malloc0(sizeof(EventNotifier));
+    ret = event_notifier_init(e, false);
+    if (ret < 0) {
+	printf("Failed to initialize EventNotifier\n");
+    }
+    else {
+        AioContext *ctx = qemu_get_aio_context();
+        efd = event_notifier_get_fd(e);
+        aio_set_event_notifier(ctx, e, false, dummy_notifier_read, NULL);
+        ret = kvm_set_ioeventfd_read(efd, 0xff01003f, 123, 8, false);
+        if (ret < 0)
+            printf("ioeventfd read failed\n");
+    }
+
+
     return 0;
 
 err:
@@ -2267,6 +2321,7 @@ err:
 
     return ret;
 }
+
 
 void kvm_set_sigmask_len(KVMState *s, unsigned int sigmask_len)
 {
