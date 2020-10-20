@@ -691,6 +691,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     Error *local_err = NULL;
     volatile NvmeBar *regs = NULL;
     size_t min_page_size = 4096;
+    unsigned irq_count = MSIX_IRQ_COUNT;
 
     qemu_co_mutex_init(&s->dma_map_lock);
     qemu_co_queue_init(&s->dma_flush_queue);
@@ -784,8 +785,17 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
         }
     }
 
-    ret = qemu_vfio_pci_init_irq(s->vfio, s->irq_notifier,
-                                 VFIO_PCI_MSIX_IRQ_INDEX, errp);
+    ret = qemu_vfio_pci_msix_init_irqs(s->vfio, &irq_count, errp);
+    if (ret) {
+        if (ret == -EOVERFLOW) {
+            error_append_hint(errp, "%u IRQs requested but only %u available\n",
+                              MSIX_IRQ_COUNT, irq_count);
+        }
+        goto out;
+    }
+
+    ret = qemu_vfio_pci_msix_set_irq(s->vfio, MSIX_SHARED_IRQ_IDX,
+                                     s->irq_notifier, errp);
     if (ret) {
         goto out;
     }
