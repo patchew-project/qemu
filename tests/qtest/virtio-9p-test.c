@@ -589,16 +589,20 @@ static void fs_version(void *obj, void *data, QGuestAllocator *t_alloc)
     do_fs_version(obj);
 }
 
-static void fs_attach(void *obj, void *data, QGuestAllocator *t_alloc)
+static void do_fs_attach(QVirtio9P *v9p)
 {
-    QVirtio9P *v9p = obj;
-    alloc = t_alloc;
     P9Req *req;
 
     do_fs_version(v9p);
     req = v9fs_tattach(v9p, 0, getuid(), 0);
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rattach(req, NULL);
+}
+
+static void fs_attach(void *obj, void *data, QGuestAllocator *t_alloc)
+{
+    alloc = t_alloc;
+    do_fs_attach(obj);
 }
 
 static void fs_walk(void *obj, void *data, QGuestAllocator *t_alloc)
@@ -615,7 +619,7 @@ static void fs_walk(void *obj, void *data, QGuestAllocator *t_alloc)
         wnames[i] = g_strdup_printf(QTEST_V9FS_SYNTH_WALK_FILE, i);
     }
 
-    fs_attach(v9p, NULL, t_alloc);
+    do_fs_attach(v9p);
     req = v9fs_twalk(v9p, 0, 1, P9_MAXWELEM, wnames, 0);
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rwalk(req, &nwqid, &wqid);
@@ -684,7 +688,7 @@ static void fs_readdir(void *obj, void *data, QGuestAllocator *t_alloc)
     struct V9fsDirent *entries = NULL;
     P9Req *req;
 
-    fs_attach(v9p, NULL, t_alloc);
+    do_fs_attach(v9p);
     req = v9fs_twalk(v9p, 0, 1, 1, wnames, 0);
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rwalk(req, &nqid, NULL);
@@ -738,7 +742,7 @@ static void do_fs_readdir_split(QVirtio9P *v9p, uint32_t count)
     int fid;
     uint64_t offset;
 
-    fs_attach(v9p, NULL, t_alloc);
+    do_fs_attach(v9p);
 
     fid = 1;
     offset = 0;
@@ -814,7 +818,7 @@ static void fs_walk_no_slash(void *obj, void *data, QGuestAllocator *t_alloc)
     P9Req *req;
     uint32_t err;
 
-    fs_attach(v9p, NULL, t_alloc);
+    do_fs_attach(v9p);
     req = v9fs_twalk(v9p, 0, 1, 1, wnames, 0);
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rlerror(req, &err);
@@ -854,7 +858,7 @@ static void fs_lopen(void *obj, void *data, QGuestAllocator *t_alloc)
     char *const wnames[] = { g_strdup(QTEST_V9FS_SYNTH_LOPEN_FILE) };
     P9Req *req;
 
-    fs_attach(v9p, NULL, t_alloc);
+    do_fs_attach(v9p);
     req = v9fs_twalk(v9p, 0, 1, 1, wnames, 0);
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rwalk(req, NULL, NULL);
@@ -876,7 +880,7 @@ static void fs_write(void *obj, void *data, QGuestAllocator *t_alloc)
     uint32_t count;
     P9Req *req;
 
-    fs_attach(v9p, NULL, t_alloc);
+    do_fs_attach(v9p);
     req = v9fs_twalk(v9p, 0, 1, 1, wnames, 0);
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rwalk(req, NULL, NULL);
@@ -903,7 +907,7 @@ static void fs_flush_success(void *obj, void *data, QGuestAllocator *t_alloc)
     uint32_t reply_len;
     uint8_t should_block;
 
-    fs_attach(v9p, NULL, t_alloc);
+    do_fs_attach(v9p);
     req = v9fs_twalk(v9p, 0, 1, 1, wnames, 0);
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rwalk(req, NULL, NULL);
@@ -940,7 +944,7 @@ static void fs_flush_ignored(void *obj, void *data, QGuestAllocator *t_alloc)
     uint32_t count;
     uint8_t should_block;
 
-    fs_attach(v9p, NULL, t_alloc);
+    do_fs_attach(v9p);
     req = v9fs_twalk(v9p, 0, 1, 1, wnames, 0);
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rwalk(req, NULL, NULL);
@@ -1026,7 +1030,7 @@ static void fs_create_dir(void *obj, void *data, QGuestAllocator *t_alloc)
 
     g_assert(root_path != NULL);
 
-    fs_attach(v9p, NULL, t_alloc);
+    do_fs_attach(v9p);
     fs_mkdir(v9p, data, t_alloc, "/", "01");
 
     /* check if created directory really exists now ... */
