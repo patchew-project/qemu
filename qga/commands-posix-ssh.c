@@ -120,7 +120,8 @@ check_openssh_pub_keys(strList *keys, size_t *nkeys, Error **errp)
 }
 
 static bool
-write_authkeys(const char *path, const GStrv keys, Error **errp)
+write_authkeys(const char *path, const GStrv keys,
+               const struct passwd *p, Error **errp)
 {
     g_autofree char *contents = NULL;
     g_autoptr(GError) err = NULL;
@@ -130,6 +131,12 @@ write_authkeys(const char *path, const GStrv keys, Error **errp)
     contents = g_strjoinv("\n", keys);
     if (!g_file_set_contents(path, contents, -1, &err)) {
         error_setg(errp, "failed to write to '%s': %s", path, err->message);
+        return false;
+    }
+
+    if (chown(path, p->pw_uid, p->pw_gid) == -1) {
+        error_setg(errp, "failed to set ownership of directory '%s': %s",
+                   path, g_strerror(errno));
         return false;
     }
 
@@ -203,7 +210,7 @@ qmp_guest_ssh_add_authorized_keys(const char *username, strList *keys,
         authkeys[nauthkeys++] = g_strdup(k->value);
     }
 
-    write_authkeys(authkeys_path, authkeys, errp);
+    write_authkeys(authkeys_path, authkeys, p, errp);
 }
 
 void
@@ -254,7 +261,7 @@ qmp_guest_ssh_remove_authorized_keys(const char *username, strList *keys,
         new_keys[nkeys++] = *a;
     }
 
-    write_authkeys(authkeys_path, new_keys, errp);
+    write_authkeys(authkeys_path, new_keys, p, errp);
 }
 
 
