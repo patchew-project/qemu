@@ -1,11 +1,13 @@
 /*
  * QEMU VFIO helpers
  *
- * Copyright 2016 - 2018 Red Hat, Inc.
+ * Copyright 2016 - 2020 Red Hat, Inc.
  *
  * Authors:
  *   Fam Zheng <famz@redhat.com>
+ *   Philippe Mathieu-Daudé <philmd@redhat.com>
  *
+ * SPDX-License-Identifier: GPL-2.0-or-later
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
@@ -29,5 +31,7 @@ void qemu_vfio_pci_unmap_bar(QEMUVFIOState *s, int index, void *bar,
                              uint64_t offset, uint64_t size);
 int qemu_vfio_pci_init_irq(QEMUVFIOState *s, EventNotifier *e,
                            int irq_type, Error **errp);
+int qemu_vfio_pci_msix_init_irqs(QEMUVFIOState *s,
+                                 unsigned *irq_count, Error **errp);
 
 #endif
