@@ -2457,3 +2457,15 @@ GuestDeviceInfoList *qmp_guest_get_devices(Error **errp)
     }
     return head;
 }
+
+void qmp_guest_ssh_add_authorized_keys(const char *username,
+                                       strList *keys, Error **errp)
+{
+    error_setg(errp, QERR_UNSUPPORTED);
+}
+
+void qmp_guest_ssh_remove_authorized_keys(const char *username,
+                                          strList *keys, Error **errp)
+{
+    error_setg(errp, QERR_UNSUPPORTED);
+}
