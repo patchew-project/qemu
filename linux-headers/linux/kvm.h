@@ -695,6 +695,7 @@ struct kvm_guest_debug {
 
 enum {
 	kvm_ioeventfd_flag_nr_datamatch,
+	kvm_ioeventfd_flag_nr_dataread,
 	kvm_ioeventfd_flag_nr_pio,
 	kvm_ioeventfd_flag_nr_deassign,
 	kvm_ioeventfd_flag_nr_virtio_ccw_notify,
@@ -703,6 +704,7 @@ enum {
 };
 
 #define KVM_IOEVENTFD_FLAG_DATAMATCH (1 << kvm_ioeventfd_flag_nr_datamatch)
+#define KVM_IOEVENTFD_FLAG_DATAREAD (1 << kvm_ioeventfd_flag_nr_dataread)
 #define KVM_IOEVENTFD_FLAG_PIO       (1 << kvm_ioeventfd_flag_nr_pio)
 #define KVM_IOEVENTFD_FLAG_DEASSIGN  (1 << kvm_ioeventfd_flag_nr_deassign)
 #define KVM_IOEVENTFD_FLAG_VIRTIO_CCW_NOTIFY \
@@ -712,11 +714,12 @@ enum {
 
 struct kvm_ioeventfd {
 	__u64 datamatch;
+	__u64 dataread;
 	__u64 addr;        /* legal pio/mmio address */
 	__u32 len;         /* 1, 2, 4, or 8 bytes; or 0 to ignore length */
 	__s32 fd;
 	__u32 flags;
-	__u8  pad[36];
+	__u8  pad[28];
 };
 
 #define KVM_X86_DISABLE_EXITS_MWAIT          (1 << 0)
