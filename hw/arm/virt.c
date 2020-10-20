@@ -322,7 +322,7 @@ static void fdt_add_timer_nodes(const VirtMachineState *vms)
     if (vms->gic_version == VIRT_GIC_VERSION_2) {
         irqflags = deposit32(irqflags, GIC_FDT_IRQ_PPI_CPU_START,
                              GIC_FDT_IRQ_PPI_CPU_WIDTH,
-                             (1 << vms->smp_cpus) - 1);
+                             (1 << MACHINE(vms)->smp.cpus) - 1);
     }
 
     qemu_fdt_add_subnode(vms->fdt, "/timer");
@@ -363,7 +363,7 @@ static void fdt_add_cpu_nodes(const VirtMachineState *vms)
      *  The simplest way to go is to examine affinity IDs of all our CPUs. If
      *  at least one of them has Aff3 populated, we set #address-cells to 2.
      */
-    for (cpu = 0; cpu < vms->smp_cpus; cpu++) {
+    for (cpu = 0; cpu < ms->smp.cpus; cpu++) {
         ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(cpu));
 
         if (armcpu->mp_affinity & ARM_AFF3_MASK) {
@@ -376,7 +376,7 @@ static void fdt_add_cpu_nodes(const VirtMachineState *vms)
     qemu_fdt_setprop_cell(vms->fdt, "/cpus", "#address-cells", addr_cells);
     qemu_fdt_setprop_cell(vms->fdt, "/cpus", "#size-cells", 0x0);
 
-    for (cpu = vms->smp_cpus - 1; cpu >= 0; cpu--) {
+    for (cpu = ms->smp.cpus - 1; cpu >= 0; cpu--) {
         char *nodename = g_strdup_printf("/cpus/cpu@%d", cpu);
         ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(cpu));
         CPUState *cs = CPU(armcpu);
@@ -387,7 +387,7 @@ static void fdt_add_cpu_nodes(const VirtMachineState *vms)
                                     armcpu->dtb_compatible);
 
         if (vms->psci_conduit != QEMU_PSCI_CONDUIT_DISABLED
-            && vms->smp_cpus > 1) {
+            && ms->smp.cpus > 1) {
             qemu_fdt_setprop_string(vms->fdt, nodename,
                                         "enable-method", "psci");
         }
@@ -533,7 +533,7 @@ static void fdt_add_pmu_nodes(const VirtMachineState *vms)
     if (vms->gic_version == VIRT_GIC_VERSION_2) {
         irqflags = deposit32(irqflags, GIC_FDT_IRQ_PPI_CPU_START,
                              GIC_FDT_IRQ_PPI_CPU_WIDTH,
-                             (1 << vms->smp_cpus) - 1);
+                             (1 << MACHINE(vms)->smp.cpus) - 1);
     }
 
     qemu_fdt_add_subnode(vms->fdt, "/pmu");
@@ -622,14 +622,13 @@ static void create_gic(VirtMachineState *vms)
     SysBusDevice *gicbusdev;
     const char *gictype;
     int type = vms->gic_version, i;
-    unsigned int smp_cpus = ms->smp.cpus;
     uint32_t nb_redist_regions = 0;
 
     gictype = (type == 3) ? gicv3_class_name() : gic_class_name();
 
     vms->gic = qdev_new(gictype);
     qdev_prop_set_uint32(vms->gic, "revision", type);
-    qdev_prop_set_uint32(vms->gic, "num-cpu", smp_cpus);
+    qdev_prop_set_uint32(vms->gic, "num-cpu", ms->smp.cpus);
     /* Note that the num-irq property counts both internal and external
      * interrupts; there are always 32 of the former (mandated by GIC spec).
      */
@@ -641,7 +640,7 @@ static void create_gic(VirtMachineState *vms)
     if (type == 3) {
         uint32_t redist0_capacity =
                     vms->memmap[VIRT_GIC_REDIST].size / GICV3_REDIST_SIZE;
-        uint32_t redist0_count = MIN(smp_cpus, redist0_capacity);
+        uint32_t redist0_count = MIN(ms->smp.cpus, redist0_capacity);
 
         nb_redist_regions = virt_gicv3_redist_region_count(vms);
 
@@ -654,7 +653,7 @@ static void create_gic(VirtMachineState *vms)
                     vms->memmap[VIRT_HIGH_GIC_REDIST2].size / GICV3_REDIST_SIZE;
 
             qdev_prop_set_uint32(vms->gic, "redist-region-count[1]",
-                MIN(smp_cpus - redist0_count, redist1_capacity));
+                MIN(ms->smp.cpus - redist0_count, redist1_capacity));
         }
     } else {
         if (!kvm_irqchip_in_kernel()) {
@@ -683,7 +682,7 @@ static void create_gic(VirtMachineState *vms)
      * maintenance interrupt signal to the appropriate GIC PPI inputs,
      * and the GIC's IRQ/FIQ/VIRQ/VFIQ interrupt outputs to the CPU's inputs.
      */
-    for (i = 0; i < smp_cpus; i++) {
+    for (i = 0; i < ms->smp.cpus; i++) {
         DeviceState *cpudev = DEVICE(qemu_get_cpu(i));
         int ppibase = NUM_IRQS + i * GIC_INTERNAL + GIC_NR_SGIS;
         int irq;
@@ -711,7 +710,7 @@ static void create_gic(VirtMachineState *vms)
         } else if (vms->virt) {
             qemu_irq irq = qdev_get_gpio_in(vms->gic,
                                             ppibase + ARCH_GIC_MAINT_IRQ);
-            sysbus_connect_irq(gicbusdev, i + 4 * smp_cpus, irq);
+            sysbus_connect_irq(gicbusdev, i + 4 * ms->smp.cpus, irq);
         }
 
         qdev_connect_gpio_out_named(cpudev, "pmu-interrupt", 0,
@@ -719,11 +718,11 @@ static void create_gic(VirtMachineState *vms)
                                                      + VIRTUAL_PMU_IRQ));
 
         sysbus_connect_irq(gicbusdev, i, qdev_get_gpio_in(cpudev, ARM_CPU_IRQ));
-        sysbus_connect_irq(gicbusdev, i + smp_cpus,
+        sysbus_connect_irq(gicbusdev, i + ms->smp.cpus,
                            qdev_get_gpio_in(cpudev, ARM_CPU_FIQ));
-        sysbus_connect_irq(gicbusdev, i + 2 * smp_cpus,
+        sysbus_connect_irq(gicbusdev, i + 2 * ms->smp.cpus,
                            qdev_get_gpio_in(cpudev, ARM_CPU_VIRQ));
-        sysbus_connect_irq(gicbusdev, i + 3 * smp_cpus,
+        sysbus_connect_irq(gicbusdev, i + 3 * ms->smp.cpus,
                            qdev_get_gpio_in(cpudev, ARM_CPU_VFIQ));
     }
 
@@ -1572,7 +1571,7 @@ static void virt_set_memmap(VirtMachineState *vms)
  */
 static void finalize_gic_version(VirtMachineState *vms)
 {
-    unsigned int max_cpus = MACHINE(vms)->smp.max_cpus;
+    MachineState *ms = MACHINE(vms);
 
     if (kvm_enabled()) {
         int probe_bitmap;
@@ -1613,7 +1612,8 @@ static void finalize_gic_version(VirtMachineState *vms)
             }
             return;
         case VIRT_GIC_VERSION_NOSEL:
-            if ((probe_bitmap & KVM_ARM_VGIC_V2) && max_cpus <= GIC_NCPU) {
+            if ((probe_bitmap & KVM_ARM_VGIC_V2) &&
+                ms->smp.max_cpus <= GIC_NCPU) {
                 vms->gic_version = VIRT_GIC_VERSION_2;
             } else if (probe_bitmap & KVM_ARM_VGIC_V3) {
                 /*
@@ -1622,7 +1622,7 @@ static void finalize_gic_version(VirtMachineState *vms)
                  * to v3. In any case defaulting to v2 would be broken.
                  */
                 vms->gic_version = VIRT_GIC_VERSION_3;
-            } else if (max_cpus > GIC_NCPU) {
+            } else if (ms->smp.max_cpus > GIC_NCPU) {
                 error_report("host only supports in-kernel GICv2 emulation "
                              "but more than 8 vcpus are requested");
                 exit(1);
@@ -1743,8 +1743,6 @@ static void machvirt_init(MachineState *machine)
     bool firmware_loaded;
     bool aarch64 = true;
     bool has_ged = !vmc->no_ged;
-    unsigned int smp_cpus = machine->smp.cpus;
-    unsigned int max_cpus = machine->smp.max_cpus;
 
     /*
      * In accelerated mode, the memory map is computed earlier in kvm_type()
@@ -1815,10 +1813,10 @@ static void machvirt_init(MachineState *machine)
         virt_max_cpus = GIC_NCPU;
     }
 
-    if (max_cpus > virt_max_cpus) {
+    if (machine->smp.max_cpus > virt_max_cpus) {
         error_report("Number of SMP CPUs requested (%d) exceeds max CPUs "
                      "supported by machine 'mach-virt' (%d)",
-                     max_cpus, virt_max_cpus);
+                     machine->smp.max_cpus, virt_max_cpus);
         exit(1);
     }
 
@@ -1843,7 +1841,7 @@ static void machvirt_init(MachineState *machine)
         Object *cpuobj;
         CPUState *cs;
 
-        if (n >= smp_cpus) {
+        if (n >= machine->smp.cpus) {
             break;
         }
 
@@ -2015,7 +2013,7 @@ static void machvirt_init(MachineState *machine)
     }
 
     vms->bootinfo.ram_size = machine->ram_size;
-    vms->bootinfo.nb_cpus = smp_cpus;
+    vms->bootinfo.nb_cpus = machine->smp.cpus;
     vms->bootinfo.board_id = -1;
     vms->bootinfo.loader_start = vms->memmap[VIRT_MEM].base;
     vms->bootinfo.get_dtb = machvirt_dtb;
@@ -2208,17 +2206,16 @@ static int64_t virt_get_default_cpu_node_id(const MachineState *ms, int idx)
 static const CPUArchIdList *virt_possible_cpu_arch_ids(MachineState *ms)
 {
     int n;
-    unsigned int max_cpus = ms->smp.max_cpus;
     VirtMachineState *vms = VIRT_MACHINE(ms);
 
     if (ms->possible_cpus) {
-        assert(ms->possible_cpus->len == max_cpus);
+        assert(ms->possible_cpus->len == ms->smp.max_cpus);
         return ms->possible_cpus;
     }
 
     ms->possible_cpus = g_malloc0(sizeof(CPUArchIdList) +
-                                  sizeof(CPUArchId) * max_cpus);
-    ms->possible_cpus->len = max_cpus;
+                                  sizeof(CPUArchId) * ms->smp.max_cpus);
+    ms->possible_cpus->len = ms->smp.max_cpus;
     for (n = 0; n < ms->possible_cpus->len; n++) {
         ms->possible_cpus->cpus[n].type = ms->cpu_type;
         ms->possible_cpus->cpus[n].arch_id =
