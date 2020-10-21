@@ -517,6 +517,14 @@ typedef struct {
     bool sign;
 } FloatParts;
 
+/* Similar for float128.  */
+typedef struct {
+    Int128 frac;
+    int32_t exp;
+    FloatClass cls;
+    bool sign;
+} FloatParts128;
+
 #define DECOMPOSED_BINARY_POINT    (64 - 2)
 #define DECOMPOSED_IMPLICIT_BIT    (1ull << DECOMPOSED_BINARY_POINT)
 #define DECOMPOSED_OVERFLOW_BIT    (DECOMPOSED_IMPLICIT_BIT << 1)
@@ -540,12 +548,19 @@ typedef struct {
 } FloatFmt;
 
 /* Expand fields based on the size of exponent and fraction */
-#define FLOAT_PARAMS(E, F)                                           \
+#define FLOAT_PARAMS1(E, F)                                          \
     .exp_size       = E,                                             \
     .exp_bias       = ((1 << E) - 1) >> 1,                           \
     .exp_max        = (1 << E) - 1,                                  \
-    .frac_size      = F,                                             \
+    .frac_size      = F
+
+#define FLOAT_PARAMS(E, F)                                           \
+    FLOAT_PARAMS1(E, F),                                             \
     .frac_shift     = DECOMPOSED_BINARY_POINT - F
+
+#define FLOAT128_PARAMS(E, F)                                        \
+    FLOAT_PARAMS1(E, F),                                             \
+    .frac_shift     = DECOMPOSED_BINARY_POINT + 64 - F
 
 static const FloatFmt float16_params = {
     FLOAT_PARAMS(5, 10)
@@ -566,6 +581,10 @@ static const FloatFmt float32_params = {
 
 static const FloatFmt float64_params = {
     FLOAT_PARAMS(11, 52)
+};
+
+static const FloatFmt float128_params = {
+    FLOAT128_PARAMS(15, 112)
 };
 
 /* Unpack a float to parts, but do not canonicalize.  */
@@ -737,6 +756,51 @@ static FloatParts pick_nan_muladd(FloatParts a, FloatParts b, FloatParts c,
 #undef EQ
 #undef GEU
 #undef OR
+#undef SHL
+#undef SHR
+#undef SHR_JAM
+#undef SUB
+
+#define FUNC(X)           X##128
+#define FRAC_TYPE         Int128
+#define PARTS_TYPE        FloatParts128
+
+#define HI(P)             int128_gethi(P)
+#define LO(P)             int128_getlo(P)
+#define ZERO              int128_zero()
+#define MONE              int128_make128(-1, -1)
+#define ONE               int128_one()
+
+#define ADD(P1, P2)       int128_add(P1, P2)
+#define ADDI(P, I)        int128_add(P, int128_make64(I))
+#define CLZ(P)            int128_clz(P)
+#define EQ0(P)            (!int128_nz(P))
+#define EQ(P1, P2)        int128_eq(P1, P2)
+#define GEU(P1, P2)       int128_geu(P1, P2)
+#define OR(P1, P2)        int128_or(P1, P2)
+#define SHL(P, C)         int128_shl(P, C)
+#define SHR(P, C)         int128_shr(P, C)
+#define SHR_JAM(P, C)     \
+    ({ uint64_t _h, _l; shift128RightJamming(HI(P), LO(P), C, &_h, &_l); \
+       int128_make128(_l, _h); })
+#define SUB(P1, P2)       int128_sub(P1, P2)
+
+#include "softfloat-parts.c.inc"
+
+#undef FUNC
+#undef FRAC_TYPE
+#undef PARTS_TYPE
+#undef HI
+#undef LO
+#undef ZERO
+#undef MONE
+#undef ONE
+#undef ADD
+#undef ADDI
+#undef CLZ
+#undef EQ0
+#undef EQ
+#undef GEU
 #undef SHL
 #undef SHR
 #undef SHR_JAM
@@ -6664,225 +6728,59 @@ float128 float128_round_to_int(float128 a, float_status *status)
 
 }
 
-/*----------------------------------------------------------------------------
-| Returns the result of adding the absolute values of the quadruple-precision
-| floating-point values `a' and `b'.  If `zSign' is 1, the sum is negated
-| before being returned.  `zSign' is ignored if the result is a NaN.
-| The addition is performed according to the IEC/IEEE Standard for Binary
-| Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-static float128 addFloat128Sigs(float128 a, float128 b, bool zSign,
-                                float_status *status)
+static FloatParts128 float128_unpack_raw(float128 f)
 {
-    int32_t aExp, bExp, zExp;
-    uint64_t aSig0, aSig1, bSig0, bSig1, zSig0, zSig1, zSig2;
-    int32_t expDiff;
+    const int f_size = float128_params.frac_size;
+    const int e_size = float128_params.exp_size;
 
-    aSig1 = extractFloat128Frac1( a );
-    aSig0 = extractFloat128Frac0( a );
-    aExp = extractFloat128Exp( a );
-    bSig1 = extractFloat128Frac1( b );
-    bSig0 = extractFloat128Frac0( b );
-    bExp = extractFloat128Exp( b );
-    expDiff = aExp - bExp;
-    if ( 0 < expDiff ) {
-        if ( aExp == 0x7FFF ) {
-            if (aSig0 | aSig1) {
-                return propagateFloat128NaN(a, b, status);
-            }
-            return a;
-        }
-        if ( bExp == 0 ) {
-            --expDiff;
-        }
-        else {
-            bSig0 |= UINT64_C(0x0001000000000000);
-        }
-        shift128ExtraRightJamming(
-            bSig0, bSig1, 0, expDiff, &bSig0, &bSig1, &zSig2 );
-        zExp = aExp;
-    }
-    else if ( expDiff < 0 ) {
-        if ( bExp == 0x7FFF ) {
-            if (bSig0 | bSig1) {
-                return propagateFloat128NaN(a, b, status);
-            }
-            return packFloat128( zSign, 0x7FFF, 0, 0 );
-        }
-        if ( aExp == 0 ) {
-            ++expDiff;
-        }
-        else {
-            aSig0 |= UINT64_C(0x0001000000000000);
-        }
-        shift128ExtraRightJamming(
-            aSig0, aSig1, 0, - expDiff, &aSig0, &aSig1, &zSig2 );
-        zExp = bExp;
-    }
-    else {
-        if ( aExp == 0x7FFF ) {
-            if ( aSig0 | aSig1 | bSig0 | bSig1 ) {
-                return propagateFloat128NaN(a, b, status);
-            }
-            return a;
-        }
-        add128( aSig0, aSig1, bSig0, bSig1, &zSig0, &zSig1 );
-        if ( aExp == 0 ) {
-            if (status->flush_to_zero) {
-                if (zSig0 | zSig1) {
-                    float_raise(float_flag_output_denormal, status);
-                }
-                return packFloat128(zSign, 0, 0, 0);
-            }
-            return packFloat128( zSign, 0, zSig0, zSig1 );
-        }
-        zSig2 = 0;
-        zSig0 |= UINT64_C(0x0002000000000000);
-        zExp = aExp;
-        goto shiftRight1;
-    }
-    aSig0 |= UINT64_C(0x0001000000000000);
-    add128( aSig0, aSig1, bSig0, bSig1, &zSig0, &zSig1 );
-    --zExp;
-    if ( zSig0 < UINT64_C(0x0002000000000000) ) goto roundAndPack;
-    ++zExp;
- shiftRight1:
-    shift128ExtraRightJamming(
-        zSig0, zSig1, zSig2, 1, &zSig0, &zSig1, &zSig2 );
- roundAndPack:
-    return roundAndPackFloat128(zSign, zExp, zSig0, zSig1, zSig2, status);
-
+    return (FloatParts128) {
+        .cls = float_class_unclassified,
+        .sign = extract64(f.high, f_size + e_size - 64, 1),
+        .exp = extract64(f.high, f_size - 64, e_size),
+        .frac = int128_make128(f.low, extract64(f.high, 0, f_size - 64))
+    };
 }
 
-/*----------------------------------------------------------------------------
-| Returns the result of subtracting the absolute values of the quadruple-
-| precision floating-point values `a' and `b'.  If `zSign' is 1, the
-| difference is negated before being returned.  `zSign' is ignored if the
-| result is a NaN.  The subtraction is performed according to the IEC/IEEE
-| Standard for Binary Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
-
-static float128 subFloat128Sigs(float128 a, float128 b, bool zSign,
-                                float_status *status)
+static float128 float128_pack_raw(FloatParts128 p)
 {
-    int32_t aExp, bExp, zExp;
-    uint64_t aSig0, aSig1, bSig0, bSig1, zSig0, zSig1;
-    int32_t expDiff;
+    const int f_size = float128_params.frac_size;
+    const int e_size = float128_params.exp_size;
+    uint64_t h = int128_gethi(p.frac);
+    uint64_t l = int128_getlo(p.frac);
 
-    aSig1 = extractFloat128Frac1( a );
-    aSig0 = extractFloat128Frac0( a );
-    aExp = extractFloat128Exp( a );
-    bSig1 = extractFloat128Frac1( b );
-    bSig0 = extractFloat128Frac0( b );
-    bExp = extractFloat128Exp( b );
-    expDiff = aExp - bExp;
-    shortShift128Left( aSig0, aSig1, 14, &aSig0, &aSig1 );
-    shortShift128Left( bSig0, bSig1, 14, &bSig0, &bSig1 );
-    if ( 0 < expDiff ) goto aExpBigger;
-    if ( expDiff < 0 ) goto bExpBigger;
-    if ( aExp == 0x7FFF ) {
-        if ( aSig0 | aSig1 | bSig0 | bSig1 ) {
-            return propagateFloat128NaN(a, b, status);
-        }
-        float_raise(float_flag_invalid, status);
-        return float128_default_nan(status);
-    }
-    if ( aExp == 0 ) {
-        aExp = 1;
-        bExp = 1;
-    }
-    if ( bSig0 < aSig0 ) goto aBigger;
-    if ( aSig0 < bSig0 ) goto bBigger;
-    if ( bSig1 < aSig1 ) goto aBigger;
-    if ( aSig1 < bSig1 ) goto bBigger;
-    return packFloat128(status->float_rounding_mode == float_round_down,
-                        0, 0, 0);
- bExpBigger:
-    if ( bExp == 0x7FFF ) {
-        if (bSig0 | bSig1) {
-            return propagateFloat128NaN(a, b, status);
-        }
-        return packFloat128( zSign ^ 1, 0x7FFF, 0, 0 );
-    }
-    if ( aExp == 0 ) {
-        ++expDiff;
-    }
-    else {
-        aSig0 |= UINT64_C(0x4000000000000000);
-    }
-    shift128RightJamming( aSig0, aSig1, - expDiff, &aSig0, &aSig1 );
-    bSig0 |= UINT64_C(0x4000000000000000);
- bBigger:
-    sub128( bSig0, bSig1, aSig0, aSig1, &zSig0, &zSig1 );
-    zExp = bExp;
-    zSign ^= 1;
-    goto normalizeRoundAndPack;
- aExpBigger:
-    if ( aExp == 0x7FFF ) {
-        if (aSig0 | aSig1) {
-            return propagateFloat128NaN(a, b, status);
-        }
-        return a;
-    }
-    if ( bExp == 0 ) {
-        --expDiff;
-    }
-    else {
-        bSig0 |= UINT64_C(0x4000000000000000);
-    }
-    shift128RightJamming( bSig0, bSig1, expDiff, &bSig0, &bSig1 );
-    aSig0 |= UINT64_C(0x4000000000000000);
- aBigger:
-    sub128( aSig0, aSig1, bSig0, bSig1, &zSig0, &zSig1 );
-    zExp = aExp;
- normalizeRoundAndPack:
-    --zExp;
-    return normalizeRoundAndPackFloat128(zSign, zExp - 14, zSig0, zSig1,
-                                         status);
-
+    h = deposit64(h, f_size - 64, e_size, p.exp);
+    h = deposit64(h, f_size + e_size - 64, 1, p.sign);
+    return make_float128(h, l);
 }
 
-/*----------------------------------------------------------------------------
-| Returns the result of adding the quadruple-precision floating-point values
-| `a' and `b'.  The operation is performed according to the IEC/IEEE Standard
-| for Binary Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
+static FloatParts128 float128_unpack_canonical(float128 f, float_status *s)
+{
+    return sf_canonicalize128(float128_unpack_raw(f), &float128_params, s);
+}
+
+static float128 float128_round_pack_canonical(FloatParts128 p, float_status *s)
+{
+    return float128_pack_raw(round_canonical128(p, s, &float128_params));
+}
+
+static float128 QEMU_FLATTEN
+float128_addsub(float128 a, float128 b, float_status *status, bool subtract)
+{
+    FloatParts128 pa = float128_unpack_canonical(a, status);
+    FloatParts128 pb = float128_unpack_canonical(b, status);
+    FloatParts128 pr = addsub_floats128(pa, pb, subtract, status);
+
+    return float128_round_pack_canonical(pr, status);
+}
 
 float128 float128_add(float128 a, float128 b, float_status *status)
 {
-    bool aSign, bSign;
-
-    aSign = extractFloat128Sign( a );
-    bSign = extractFloat128Sign( b );
-    if ( aSign == bSign ) {
-        return addFloat128Sigs(a, b, aSign, status);
-    }
-    else {
-        return subFloat128Sigs(a, b, aSign, status);
-    }
-
+    return float128_addsub(a, b, status, false);
 }
-
-/*----------------------------------------------------------------------------
-| Returns the result of subtracting the quadruple-precision floating-point
-| values `a' and `b'.  The operation is performed according to the IEC/IEEE
-| Standard for Binary Floating-Point Arithmetic.
-*----------------------------------------------------------------------------*/
 
 float128 float128_sub(float128 a, float128 b, float_status *status)
 {
-    bool aSign, bSign;
-
-    aSign = extractFloat128Sign( a );
-    bSign = extractFloat128Sign( b );
-    if ( aSign == bSign ) {
-        return subFloat128Sigs(a, b, aSign, status);
-    }
-    else {
-        return addFloat128Sigs(a, b, aSign, status);
-    }
-
+    return float128_addsub(a, b, status, true);
 }
 
 /*----------------------------------------------------------------------------

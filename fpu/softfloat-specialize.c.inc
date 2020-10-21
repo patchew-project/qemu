@@ -169,6 +169,23 @@ static FloatParts parts_default_nan(float_status *status)
     };
 }
 
+static FloatParts128 parts_default_nan128(float_status *status)
+{
+    FloatParts p = parts_default_nan(status);
+
+    /*
+     * Extrapolate from the choices made by parts_default_nan to fill
+     * in the quad-floating format.  Copy the high bits across unchanged,
+     * and replicate the lsb to all lower bits.
+     */
+    return (FloatParts128) {
+        .cls = float_class_qnan,
+        .sign = p.sign,
+        .exp = INT_MAX,
+        .frac = int128_make128(-(p.frac & 1), p.frac)
+    };
+}
+
 /*----------------------------------------------------------------------------
 | Returns a quiet NaN from a signalling NaN for the deconstructed
 | floating-point parts.
@@ -187,6 +204,22 @@ static FloatParts parts_silence_nan(FloatParts a, float_status *status)
         a.frac |= 1ULL << (DECOMPOSED_BINARY_POINT - 1);
     }
 #endif
+    a.cls = float_class_qnan;
+    return a;
+}
+
+static FloatParts128 parts_silence_nan128(FloatParts128 a, float_status *s)
+{
+    g_assert(!no_signaling_nans(s));
+#if defined(TARGET_HPPA)
+    g_assert_not_reached();
+#endif
+    if (snan_bit_is_one(s)) {
+        return parts_default_nan128(s);
+    } else {
+        Int128 t = int128_make128(0, 1ULL << (DECOMPOSED_BINARY_POINT - 1));
+        a.frac = int128_or(a.frac, t);
+    }
     a.cls = float_class_qnan;
     return a;
 }
