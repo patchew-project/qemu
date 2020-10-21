@@ -1,9 +1,9 @@
 #ifndef INT128_H
 #define INT128_H
 
-#ifdef CONFIG_INT128
-#include "qemu/bswap.h"
+#include "qemu/host-utils.h"
 
+#ifdef CONFIG_INT128
 typedef __int128_t Int128;
 
 static inline Int128 int128_make64(uint64_t a)
@@ -328,4 +328,17 @@ static inline void int128_subfrom(Int128 *a, Int128 b)
 }
 
 #endif /* CONFIG_INT128 */
+
+static inline int int128_clz(Int128 a)
+{
+    uint64_t h = int128_gethi(a);
+    return h ? clz64(h) : 64 + clz64(int128_getlo(a));
+}
+
+static inline int int128_ctz(Int128 a)
+{
+    uint64_t l = int128_getlo(a);
+    return l ? ctz64(l) : 64 + ctz64(int128_gethi(a));
+}
+
 #endif /* INT128_H */
