@@ -22,6 +22,7 @@
 #include "hw/s390x/event-facility.h"
 #include "hw/s390x/s390-pci-bus.h"
 #include "hw/s390x/ipl.h"
+#include "hw/s390x/pv.h"
 
 static inline SCLPDevice *get_sclp_device(void)
 {
@@ -142,6 +143,15 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
     if (s390_has_feat(S390_FEAT_EXTENDED_LENGTH_SCCB)) {
         s390_get_feat_block(S390_FEAT_TYPE_SCLP_FAC134,
                             &read_info->fac134);
+        /*
+         * Diag318 is not available in protected mode and will result
+         * in an operation exception. As we can dynamically move in
+         * and out of protected mode, we need to fence the feature
+         * here rather than when creating the CPU model.
+         */
+        if (s390_is_pv()) {
+            read_info->fac134 &= ~0x80;
+        }
     }
 
     read_info->facilities = cpu_to_be64(SCLP_HAS_CPU_INFO |
