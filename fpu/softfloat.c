@@ -527,10 +527,6 @@ typedef struct {
  *   exp_max: the maximum normalised exponent
  *   frac_size: the size of the fraction field
  *   frac_shift: shift to normalise the fraction with DECOMPOSED_BINARY_POINT
- * The following are computed based the size of fraction
- *   frac_lsb: least significant bit of fraction
- *   frac_lsbm1: the bit below the least significant bit (for rounding)
- *   round_mask/roundeven_mask: masks used for rounding
  * The following optional modifiers are available:
  *   arm_althp: handle ARM Alternative Half Precision
  */
@@ -540,10 +536,6 @@ typedef struct {
     int exp_max;
     int frac_size;
     int frac_shift;
-    uint64_t frac_lsb;
-    uint64_t frac_lsbm1;
-    uint64_t round_mask;
-    uint64_t roundeven_mask;
     bool arm_althp;
 } FloatFmt;
 
@@ -553,11 +545,7 @@ typedef struct {
     .exp_bias       = ((1 << E) - 1) >> 1,                           \
     .exp_max        = (1 << E) - 1,                                  \
     .frac_size      = F,                                             \
-    .frac_shift     = DECOMPOSED_BINARY_POINT - F,                   \
-    .frac_lsb       = 1ull << (DECOMPOSED_BINARY_POINT - F),         \
-    .frac_lsbm1     = 1ull << ((DECOMPOSED_BINARY_POINT - F) - 1),   \
-    .round_mask     = (1ull << (DECOMPOSED_BINARY_POINT - F)) - 1,   \
-    .roundeven_mask = (2ull << (DECOMPOSED_BINARY_POINT - F)) - 1
+    .frac_shift     = DECOMPOSED_BINARY_POINT - F
 
 static const FloatFmt float16_params = {
     FLOAT_PARAMS(5, 10)
