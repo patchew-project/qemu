@@ -732,6 +732,7 @@ static FloatParts pick_nan_muladd(FloatParts a, FloatParts b, FloatParts c,
 #define EQ0(P)            ((P) == 0)
 #define EQ(P1, P2)        ((P1) == (P2))
 #define GEU(P1, P2)       ((P1) >= (P2))
+#define NEG(P)            (-(P))
 #define OR(P1, P2)        ((P1) | (P2))
 #define SHL(P, C)         ((P) << (C))
 #define SHR(P, C)         ((P) >> (C))
@@ -755,6 +756,7 @@ static FloatParts pick_nan_muladd(FloatParts a, FloatParts b, FloatParts c,
 #undef EQ0
 #undef EQ
 #undef GEU
+#undef NEG
 #undef OR
 #undef SHL
 #undef SHR
@@ -777,6 +779,7 @@ static FloatParts pick_nan_muladd(FloatParts a, FloatParts b, FloatParts c,
 #define EQ0(P)            (!int128_nz(P))
 #define EQ(P1, P2)        int128_eq(P1, P2)
 #define GEU(P1, P2)       int128_geu(P1, P2)
+#define NEG(P)            int128_neg(P)
 #define OR(P1, P2)        int128_or(P1, P2)
 #define SHL(P, C)         int128_shl(P, C)
 #define SHR(P, C)         int128_shr(P, C)
@@ -801,6 +804,7 @@ static FloatParts pick_nan_muladd(FloatParts a, FloatParts b, FloatParts c,
 #undef EQ0
 #undef EQ
 #undef GEU
+#undef NEG
 #undef SHL
 #undef SHR
 #undef SHR_JAM

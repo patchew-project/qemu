@@ -254,29 +254,37 @@ FUNC(addsub_floats)(PARTS_TYPE a, PARTS_TYPE b,
         /* Subtraction */
 
         if (likely(ab_mask == float_cmask_normal)) {
-            if (a.exp > b.exp || (a.exp == b.exp && GEU(a.frac, b.frac))) {
-                b.frac = SHR_JAM(b.frac, a.exp - b.exp);
+            int shift, diff_exp = a.exp - b.exp;
+
+            if (diff_exp > 0) {
+                b.frac = SHR_JAM(b.frac, diff_exp);
                 a.frac = SUB(a.frac, b.frac);
-            } else {
-                a.frac = SHR_JAM(a.frac, b.exp - a.exp);
+            } else if (diff_exp < 0) {
+                a.frac = SHR_JAM(a.frac, -diff_exp);
                 a.frac = SUB(b.frac, a.frac);
                 a.exp = b.exp;
                 a.sign ^= 1;
+            } else {
+                a.frac = SUB(b.frac, a.frac);
+                /* a.frac < b.frac results in carry into the overflow bit. */
+                if (HI(a.frac) & DECOMPOSED_OVERFLOW_BIT) {
+                    a.frac = NEG(a.frac);
+                    a.sign ^= 1;
+                } else if (EQ0(a.frac)) {
+                    a.cls = float_class_zero;
+                    goto sub_zero;
+                }
             }
 
-            if (EQ0(a.frac)) {
-                a.cls = float_class_zero;
-                a.sign = s->float_rounding_mode == float_round_down;
-            } else {
-                int shift = CLZ(a.frac) - 1;
-                a.frac = SHL(a.frac, shift);
-                a.exp -= shift;
-            }
+            shift = CLZ(a.frac) - 1;
+            a.frac = SHL(a.frac, shift);
+            a.exp -= shift;
             return a;
         }
 
         /* 0 - 0 */
         if (ab_mask == float_cmask_zero) {
+ sub_zero:
             a.sign = s->float_rounding_mode == float_round_down;
             return a;
         }
