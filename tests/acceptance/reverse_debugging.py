@@ -16,6 +16,7 @@ from avocado.utils import gdb
 from avocado.utils import process
 from avocado.utils.path import find_command
 from boot_linux_console import LinuxKernelTest
+from random import randrange
 
 class ReverseDebugging(LinuxKernelTest):
     """
@@ -43,7 +44,8 @@ class ReverseDebugging(LinuxKernelTest):
         else:
             logger.info('replaying the execution...')
             mode = 'replay'
-            vm.add_args('-s', '-S')
+            self.port = randrange(2048, 49152)
+            vm.add_args('-gdb', 'tcp::%d' % (self.port), '-S')
         vm.add_args('-icount', 'shift=%s,rr=%s,rrfile=%s,rrsnapshot=init' %
                     (shift, mode, replay_path),
                     '-net', 'none')
@@ -122,7 +124,7 @@ class ReverseDebugging(LinuxKernelTest):
         # replay and run debug commands
         vm = self.run_vm(False, shift, args, replay_path, image_path)
         logger.info('connecting to gdbstub')
-        g = gdb.GDBRemote('127.0.0.1', 1234, False, False)
+        g = gdb.GDBRemote('127.0.0.1', self.port, False, False)
         g.connect()
         r = g.cmd(b'qSupported')
         if b'qXfer:features:read+' in r:
