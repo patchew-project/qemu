@@ -97,5 +97,11 @@ do
     cp qemu-fuzz-i386 "$DEST_DIR/qemu-fuzz-i386-target-$target"
 done
 
+# Remove the general-fuzz target, as it requires some environment variables to
+# be configured. We have some general-fuzz-{pc-q35, floppy, ...} targets that
+# are thin wrappers around this target that set the required environment
+# variables according to predefined configs.
+rm "$DEST_DIR/qemu-fuzz-i386-target-general-fuzz"
+
 echo "Done. The fuzzers are located in $DEST_DIR"
 exit 0
