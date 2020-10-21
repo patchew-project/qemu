@@ -113,6 +113,11 @@ static inline bool int128_ge(Int128 a, Int128 b)
     return a >= b;
 }
 
+static inline bool int128_geu(Int128 a, Int128 b)
+{
+    return (__uint128_t)a >= (__uint128_t)b;
+}
+
 static inline bool int128_lt(Int128 a, Int128 b)
 {
     return a < b;
@@ -301,6 +306,11 @@ static inline bool int128_ne(Int128 a, Int128 b)
 static inline bool int128_ge(Int128 a, Int128 b)
 {
     return a.hi > b.hi || (a.hi == b.hi && a.lo >= b.lo);
+}
+
+static inline bool int128_geu(Int128 a, Int128 b)
+{
+    return (uint64_t)a.hi > (uint64_t)b.hi || (a.hi == b.hi && a.lo >= b.lo);
 }
 
 static inline bool int128_lt(Int128 a, Int128 b)
