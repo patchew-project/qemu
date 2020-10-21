@@ -1444,7 +1444,7 @@ void helper_vlogefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
         } else {                                                    \
             index = ((15 - (a & 0xf) + 1) * 8) - size;              \
         }                                                           \
-        return int128_getlo(int128_rshift(b->s128, index)) &        \
+        return int128_getlo(int128_sar(b->s128, index)) &           \
             MAKE_64BIT_MASK(0, size);                               \
     }
 #else
@@ -1457,7 +1457,7 @@ void helper_vlogefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
         } else {                                                    \
             index = (a & 0xf) * 8;                                  \
         }                                                           \
-        return int128_getlo(int128_rshift(b->s128, index)) &        \
+        return int128_getlo(int128_sar(b->s128, index)) &           \
             MAKE_64BIT_MASK(0, size);                               \
     }
 #endif

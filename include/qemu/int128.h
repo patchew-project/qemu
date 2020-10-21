@@ -63,12 +63,12 @@ static inline Int128 int128_or(Int128 a, Int128 b)
     return a | b;
 }
 
-static inline Int128 int128_rshift(Int128 a, int n)
+static inline Int128 int128_sar(Int128 a, int n)
 {
     return a >> n;
 }
 
-static inline Int128 int128_lshift(Int128 a, int n)
+static inline Int128 int128_shl(Int128 a, int n)
 {
     return a << n;
 }
@@ -218,7 +218,7 @@ static inline Int128 int128_or(Int128 a, Int128 b)
     return (Int128) { a.lo | b.lo, a.hi | b.hi };
 }
 
-static inline Int128 int128_rshift(Int128 a, int n)
+static inline Int128 int128_sar(Int128 a, int n)
 {
     int64_t h;
     if (!n) {
@@ -232,7 +232,7 @@ static inline Int128 int128_rshift(Int128 a, int n)
     }
 }
 
-static inline Int128 int128_lshift(Int128 a, int n)
+static inline Int128 int128_shl(Int128 a, int n)
 {
     uint64_t l = a.lo << (n & 63);
     if (n >= 64) {
