@@ -247,13 +247,13 @@ static PARTS_TYPE
 FUNC(addsub_floats)(PARTS_TYPE a, PARTS_TYPE b,
                     bool subtract, float_status *s)
 {
-    bool a_sign = a.sign;
     bool b_sign = b.sign ^ subtract;
+    int ab_mask = float_cmask(a.cls) | float_cmask(b.cls);
 
-    if (a_sign != b_sign) {
+    if (a.sign != b_sign) {
         /* Subtraction */
 
-        if (a.cls == float_class_normal && b.cls == float_class_normal) {
+        if (likely(ab_mask == float_cmask_normal)) {
             if (a.exp > b.exp || (a.exp == b.exp && GEU(a.frac, b.frac))) {
                 b.frac = SHR_JAM(b.frac, a.exp - b.exp);
                 a.frac = SUB(a.frac, b.frac);
@@ -261,7 +261,7 @@ FUNC(addsub_floats)(PARTS_TYPE a, PARTS_TYPE b,
                 a.frac = SHR_JAM(a.frac, b.exp - a.exp);
                 a.frac = SUB(b.frac, a.frac);
                 a.exp = b.exp;
-                a_sign ^= 1;
+                a.sign ^= 1;
             }
 
             if (EQ0(a.frac)) {
@@ -270,35 +270,37 @@ FUNC(addsub_floats)(PARTS_TYPE a, PARTS_TYPE b,
             } else {
                 int shift = CLZ(a.frac) - 1;
                 a.frac = SHL(a.frac, shift);
-                a.exp = a.exp - shift;
-                a.sign = a_sign;
+                a.exp -= shift;
             }
             return a;
         }
-        if (is_nan(a.cls) || is_nan(b.cls)) {
-            return FUNC(pick_nan)(a, b, s);
-        }
-        if (a.cls == float_class_inf) {
-            if (b.cls == float_class_inf) {
-                float_raise(float_flag_invalid, s);
-                return FUNC(parts_default_nan)(s);
-            }
-            return a;
-        }
-        if (a.cls == float_class_zero && b.cls == float_class_zero) {
+
+        /* 0 - 0 */
+        if (ab_mask == float_cmask_zero) {
             a.sign = s->float_rounding_mode == float_round_down;
             return a;
         }
-        if (a.cls == float_class_zero || b.cls == float_class_inf) {
-            b.sign = a_sign ^ 1;
-            return b;
+
+        /* Inf - Inf */
+        if (unlikely(ab_mask == float_cmask_inf)) {
+            float_raise(float_flag_invalid, s);
+            return FUNC(parts_default_nan)(s);
         }
-        if (b.cls == float_class_zero) {
-            return a;
+
+        if (!(ab_mask & float_cmask_anynan)) {
+            if (a.cls == float_class_inf || b.cls == float_class_zero) {
+                return a;
+            }
+            if (b.cls == float_class_inf || a.cls == float_class_zero) {
+                b.sign = a.sign ^ 1;
+                return b;
+            }
+            g_assert_not_reached();
         }
     } else {
         /* Addition */
-        if (a.cls == float_class_normal && b.cls == float_class_normal) {
+
+        if (likely(ab_mask == float_cmask_normal)) {
             if (a.exp > b.exp) {
                 b.frac = SHR_JAM(b.frac, a.exp - b.exp);
             } else if (a.exp < b.exp) {
@@ -312,16 +314,18 @@ FUNC(addsub_floats)(PARTS_TYPE a, PARTS_TYPE b,
             }
             return a;
         }
-        if (is_nan(a.cls) || is_nan(b.cls)) {
-            return FUNC(pick_nan)(a, b, s);
-        }
-        if (a.cls == float_class_inf || b.cls == float_class_zero) {
-            return a;
-        }
-        if (b.cls == float_class_inf || a.cls == float_class_zero) {
-            b.sign = b_sign;
-            return b;
+
+        if (!(ab_mask & float_cmask_anynan)) {
+            if (a.cls == float_class_inf || b.cls == float_class_zero) {
+                return a;
+            }
+            if (b.cls == float_class_inf || a.cls == float_class_zero) {
+                b.sign = b_sign;
+                return b;
+            }
+            g_assert_not_reached();
         }
     }
-    g_assert_not_reached();
+
+    return FUNC(pick_nan)(a, b, s);
 }
