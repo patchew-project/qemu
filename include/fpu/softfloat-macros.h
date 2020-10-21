@@ -84,6 +84,7 @@ this code that are retained.
 
 #include "fpu/softfloat-types.h"
 #include "qemu/host-utils.h"
+#include "qemu/int128.h"
 
 /*----------------------------------------------------------------------------
 | Shifts `a' right by the number of bits given in `count'.  If any nonzero
@@ -191,28 +192,14 @@ static inline void
 | which are stored at the locations pointed to by `z0Ptr' and `z1Ptr'.
 *----------------------------------------------------------------------------*/
 
-static inline void
- shift128Right(
-     uint64_t a0, uint64_t a1, int count, uint64_t *z0Ptr, uint64_t *z1Ptr)
+static inline void shift128Right(uint64_t a0, uint64_t a1, int count,
+                                 uint64_t *z0Ptr, uint64_t *z1Ptr)
 {
-    uint64_t z0, z1;
-    int8_t negCount = ( - count ) & 63;
+    Int128 a = int128_make128(a1, a0);
+    Int128 z = int128_shr(a, count);
 
-    if ( count == 0 ) {
-        z1 = a1;
-        z0 = a0;
-    }
-    else if ( count < 64 ) {
-        z1 = ( a0<<negCount ) | ( a1>>count );
-        z0 = a0>>count;
-    }
-    else {
-        z1 = (count < 128) ? (a0 >> (count & 63)) : 0;
-        z0 = 0;
-    }
-    *z1Ptr = z1;
-    *z0Ptr = z0;
-
+    *z0Ptr = int128_gethi(z);
+    *z1Ptr = int128_getlo(z);
 }
 
 /*----------------------------------------------------------------------------
@@ -352,13 +339,11 @@ static inline void shortShift128Left(uint64_t a0, uint64_t a1, int count,
 static inline void shift128Left(uint64_t a0, uint64_t a1, int count,
                                 uint64_t *z0Ptr, uint64_t *z1Ptr)
 {
-    if (count < 64) {
-        *z1Ptr = a1 << count;
-        *z0Ptr = count == 0 ? a0 : (a0 << count) | (a1 >> (-count & 63));
-    } else {
-        *z1Ptr = 0;
-        *z0Ptr = a1 << (count - 64);
-    }
+    Int128 a = int128_make128(a1, a0);
+    Int128 z = int128_shl(a, count);
+
+    *z0Ptr = int128_gethi(z);
+    *z1Ptr = int128_getlo(z);
 }
 
 /*----------------------------------------------------------------------------
@@ -405,15 +390,15 @@ static inline void
 *----------------------------------------------------------------------------*/
 
 static inline void
- add128(
-     uint64_t a0, uint64_t a1, uint64_t b0, uint64_t b1, uint64_t *z0Ptr, uint64_t *z1Ptr )
+add128(uint64_t a0, uint64_t a1, uint64_t b0, uint64_t b1,
+       uint64_t *z0Ptr, uint64_t *z1Ptr)
 {
-    uint64_t z1;
+    Int128 a = int128_make128(a1, a0);
+    Int128 b = int128_make128(b1, b0);
+    Int128 z = int128_add(a, b);
 
-    z1 = a1 + b1;
-    *z1Ptr = z1;
-    *z0Ptr = a0 + b0 + ( z1 < a1 );
-
+    *z0Ptr = int128_gethi(z);
+    *z1Ptr = int128_getlo(z);
 }
 
 /*----------------------------------------------------------------------------
@@ -463,13 +448,15 @@ static inline void
 *----------------------------------------------------------------------------*/
 
 static inline void
- sub128(
-     uint64_t a0, uint64_t a1, uint64_t b0, uint64_t b1, uint64_t *z0Ptr, uint64_t *z1Ptr )
+sub128(uint64_t a0, uint64_t a1, uint64_t b0, uint64_t b1,
+       uint64_t *z0Ptr, uint64_t *z1Ptr)
 {
+    Int128 a = int128_make128(a1, a0);
+    Int128 b = int128_make128(b1, b0);
+    Int128 z = int128_sub(a, b);
 
-    *z1Ptr = a1 - b1;
-    *z0Ptr = a0 - b0 - ( a1 < b1 );
-
+    *z0Ptr = int128_gethi(z);
+    *z1Ptr = int128_getlo(z);
 }
 
 /*----------------------------------------------------------------------------
