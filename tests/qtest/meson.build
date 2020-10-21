@@ -140,6 +140,7 @@ qtests_arm = \
    'm25p80-test',
    'npcm7xx_timer-test',
    'npcm7xx_watchdog_timer-test',
+   'npcm7xx_rng-test',
    'test-arm-mptimer',
    'boot-serial-test',
    'hexloader-test']
