@@ -410,11 +410,18 @@ void pcie_cap_slot_pre_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
     PCIDevice *hotplug_pdev = PCI_DEVICE(hotplug_dev);
     uint8_t *exp_cap = hotplug_pdev->config + hotplug_pdev->exp.exp_cap;
     uint32_t sltcap = pci_get_word(exp_cap + PCI_EXP_SLTCAP);
+    uint32_t sltctl = pci_get_word(exp_cap + PCI_EXP_SLTCTL);
 
     /* Check if hot-plug is disabled on the slot */
     if (dev->hotplugged && (sltcap & PCI_EXP_SLTCAP_HPC) == 0) {
         error_setg(errp, "Hot-plug failed: unsupported by the port device '%s'",
                          DEVICE(hotplug_pdev)->id);
+        return;
+    }
+
+    if ((sltctl & PCI_EXP_SLTCTL_PIC) == PCI_EXP_SLTCTL_PWR_IND_BLINK) {
+        error_setg(errp, "Hot-plug failed: %s is in Power Transition",
+                   DEVICE(hotplug_pdev)->id);
         return;
     }
 
