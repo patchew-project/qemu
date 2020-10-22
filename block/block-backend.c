@@ -38,6 +38,11 @@ static AioContext *blk_aiocb_get_aio_context(BlockAIOCB *acb);
 /* block backend rehandle timer interval 5s */
 #define BLOCK_BACKEND_REHANDLE_TIMER_INTERVAL   5000
 
+enum BlockIOHangStatus {
+    BLOCK_IO_HANG_STATUS_NORMAL = 0,
+    BLOCK_IO_HANG_STATUS_HANG,
+};
+
 typedef struct BlockBackendRehandleInfo {
     bool enable;
     QEMUTimer *ts;
@@ -109,6 +114,11 @@ struct BlockBackend {
     unsigned int in_flight;
 
     BlockBackendRehandleInfo reinfo;
+
+    int64_t iohang_timeout; /* The I/O hang timeout value in sec. */
+    int64_t iohang_time;    /* The I/O hang start time */
+    bool is_iohang_timeout;
+    int iohang_status;
 };
 
 typedef struct BlockBackendAIOCB {
@@ -2481,17 +2491,104 @@ static void blk_rehandle_timer_cb(void *opaque)
     aio_context_release(blk_get_aio_context(blk));
 }
 
+static bool blk_iohang_handle(BlockBackend *blk, int new_status)
+{
+    int64_t now;
+    int old_status = blk->iohang_status;
+    bool need_rehandle = false;
+
+    switch (new_status) {
+    case BLOCK_IO_HANG_STATUS_NORMAL:
+        if (old_status == BLOCK_IO_HANG_STATUS_HANG) {
+            /* Case when I/O Hang is recovered */
+            blk->is_iohang_timeout = false;
+            blk->iohang_time = 0;
+        }
+        break;
+    case BLOCK_IO_HANG_STATUS_HANG:
+        if (old_status != BLOCK_IO_HANG_STATUS_HANG) {
+            /* Case when I/O hang is first triggered */
+            blk->iohang_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME) / 1000;
+            need_rehandle = true;
+        } else {
+            if (!blk->is_iohang_timeout) {
+                now = qemu_clock_get_ms(QEMU_CLOCK_REALTIME) / 1000;
+                if (now >= (blk->iohang_time + blk->iohang_timeout)) {
+                    /* Case when I/O hang is timeout */
+                    blk->is_iohang_timeout = true;
+                } else {
+                    /* Case when I/O hang is continued */
+                    need_rehandle = true;
+                }
+            }
+        }
+        break;
+    default:
+        break;
+    }
+
+    blk->iohang_status = new_status;
+    return need_rehandle;
+}
+
+static bool blk_rehandle_aio(BlkAioEmAIOCB *acb, bool *has_timeout)
+{
+    bool need_rehandle = false;
+
+    /* Rehandle aio which returns EIO before hang timeout */
+    if (acb->rwco.ret == -EIO) {
+        if (acb->rwco.blk->is_iohang_timeout) {
+            /* I/O hang has timeout and not recovered */
+            *has_timeout = true;
+        } else {
+            need_rehandle = blk_iohang_handle(acb->rwco.blk,
+                                              BLOCK_IO_HANG_STATUS_HANG);
+            /* I/O hang timeout first trigger */
+            if (acb->rwco.blk->is_iohang_timeout) {
+                *has_timeout = true;
+            }
+        }
+    }
+
+    return need_rehandle;
+}
+
 static void blk_rehandle_aio_complete(BlkAioEmAIOCB *acb)
 {
+    bool has_timeout = false;
+    bool need_rehandle = false;
+
     if (acb->has_returned) {
         blk_dec_in_flight(acb->rwco.blk);
-        if (acb->rwco.ret == -EIO) {
+        need_rehandle = blk_rehandle_aio(acb, &has_timeout);
+        if (need_rehandle) {
             blk_rehandle_insert_aiocb(acb->rwco.blk, acb);
             return;
         }
 
         acb->common.cb(acb->common.opaque, acb->rwco.ret);
+
+        /* I/O hang return to normal status */
+        if (!has_timeout) {
+            blk_iohang_handle(acb->rwco.blk, BLOCK_IO_HANG_STATUS_NORMAL);
+        }
+
         qemu_aio_unref(acb);
+    }
+}
+
+void blk_iohang_init(BlockBackend *blk, int64_t iohang_timeout)
+{
+    if (!blk) {
+        return;
+    }
+
+    blk->is_iohang_timeout = false;
+    blk->iohang_time = 0;
+    blk->iohang_timeout = 0;
+    blk->iohang_status = BLOCK_IO_HANG_STATUS_NORMAL;
+    if (iohang_timeout > 0) {
+        blk->iohang_timeout = iohang_timeout;
     }
 }
 
