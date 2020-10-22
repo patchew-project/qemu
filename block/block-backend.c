@@ -37,6 +37,9 @@ static AioContext *blk_aiocb_get_aio_context(BlockAIOCB *acb);
 
 /* block backend rehandle timer interval 5s */
 #define BLOCK_BACKEND_REHANDLE_TIMER_INTERVAL   5000
+#define BLOCK_BACKEND_REHANDLE_NORMAL           1
+#define BLOCK_BACKEND_REHANDLE_DRAIN_REQUESTED  2
+#define BLOCK_BACKEND_REHANDLE_DRAINED          3
 
 enum BlockIOHangStatus {
     BLOCK_IO_HANG_STATUS_NORMAL = 0,
@@ -50,6 +53,8 @@ typedef struct BlockBackendRehandleInfo {
 
     unsigned int in_flight;
     QTAILQ_HEAD(, BlkAioEmAIOCB) re_aios;
+
+    int status;
 } BlockBackendRehandleInfo;
 
 typedef struct BlockBackendAioNotifier {
@@ -2461,6 +2466,51 @@ static void blk_rehandle_remove_aiocb(BlockBackend *blk, BlkAioEmAIOCB *acb)
     qatomic_dec(&blk->reinfo.in_flight);
 }
 
+static void blk_rehandle_drain(BlockBackend *blk)
+{
+    if (blk_bs(blk)) {
+        bdrv_drained_begin(blk_bs(blk));
+        BDRV_POLL_WHILE(blk_bs(blk), qatomic_read(&blk->reinfo.in_flight) > 0);
+        bdrv_drained_end(blk_bs(blk));
+    }
+}
+
+static bool blk_rehandle_is_paused(BlockBackend *blk)
+{
+    return blk->reinfo.status == BLOCK_BACKEND_REHANDLE_DRAIN_REQUESTED ||
+           blk->reinfo.status == BLOCK_BACKEND_REHANDLE_DRAINED;
+}
+
+void blk_rehandle_pause(BlockBackend *blk)
+{
+    BlockBackendRehandleInfo *reinfo = &blk->reinfo;
+
+    aio_context_acquire(blk_get_aio_context(blk));
+    if (!reinfo->enable || reinfo->status == BLOCK_BACKEND_REHANDLE_DRAINED) {
+        aio_context_release(blk_get_aio_context(blk));
+        return;
+    }
+
+    reinfo->status = BLOCK_BACKEND_REHANDLE_DRAIN_REQUESTED;
+    blk_rehandle_drain(blk);
+    reinfo->status = BLOCK_BACKEND_REHANDLE_DRAINED;
+    aio_context_release(blk_get_aio_context(blk));
+}
+
+void blk_rehandle_unpause(BlockBackend *blk)
+{
+    BlockBackendRehandleInfo *reinfo = &blk->reinfo;
+
+    aio_context_acquire(blk_get_aio_context(blk));
+    if (!reinfo->enable || reinfo->status == BLOCK_BACKEND_REHANDLE_NORMAL) {
+        aio_context_release(blk_get_aio_context(blk));
+        return;
+    }
+
+    reinfo->status = BLOCK_BACKEND_REHANDLE_NORMAL;
+    aio_context_release(blk_get_aio_context(blk));
+}
+
 static void blk_rehandle_timer_cb(void *opaque)
 {
     BlockBackend *blk = opaque;
@@ -2560,10 +2610,12 @@ static void blk_rehandle_aio_complete(BlkAioEmAIOCB *acb)
 
     if (acb->has_returned) {
         blk_dec_in_flight(acb->rwco.blk);
-        need_rehandle = blk_rehandle_aio(acb, &has_timeout);
-        if (need_rehandle) {
-            blk_rehandle_insert_aiocb(acb->rwco.blk, acb);
-            return;
+        if (!blk_rehandle_is_paused(acb->rwco.blk)) {
+            need_rehandle = blk_rehandle_aio(acb, &has_timeout);
+            if (need_rehandle) {
+                blk_rehandle_insert_aiocb(acb->rwco.blk, acb);
+                return;
+            }
         }
 
         acb->common.cb(acb->common.opaque, acb->rwco.ret);
