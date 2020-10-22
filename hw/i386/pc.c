@@ -1493,48 +1493,6 @@ static void pc_machine_set_vmport(Object *obj, Visitor *v, const char *name,
     visit_type_OnOffAuto(v, name, &pcms->vmport, errp);
 }
 
-static bool pc_machine_get_smbus(Object *obj, Error **errp)
-{
-    PCMachineState *pcms = PC_MACHINE(obj);
-
-    return pcms->smbus_enabled;
-}
-
-static void pc_machine_set_smbus(Object *obj, bool value, Error **errp)
-{
-    PCMachineState *pcms = PC_MACHINE(obj);
-
-    pcms->smbus_enabled = value;
-}
-
-static bool pc_machine_get_sata(Object *obj, Error **errp)
-{
-    PCMachineState *pcms = PC_MACHINE(obj);
-
-    return pcms->sata_enabled;
-}
-
-static void pc_machine_set_sata(Object *obj, bool value, Error **errp)
-{
-    PCMachineState *pcms = PC_MACHINE(obj);
-
-    pcms->sata_enabled = value;
-}
-
-static bool pc_machine_get_pit(Object *obj, Error **errp)
-{
-    PCMachineState *pcms = PC_MACHINE(obj);
-
-    return pcms->pit_enabled;
-}
-
-static void pc_machine_set_pit(Object *obj, bool value, Error **errp)
-{
-    PCMachineState *pcms = PC_MACHINE(obj);
-
-    pcms->pit_enabled = value;
-}
-
 static void pc_machine_get_max_ram_below_4g(Object *obj, Visitor *v,
                                             const char *name, void *opaque,
                                             Error **errp)
@@ -1697,14 +1655,17 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     object_class_property_set_description(oc, PC_MACHINE_VMPORT,
         "Enable vmport (pc & q35)");
 
-    object_class_property_add_bool(oc, PC_MACHINE_SMBUS,
-        pc_machine_get_smbus, pc_machine_set_smbus);
+    object_class_property_add_bool_ptr(oc, PC_MACHINE_SMBUS,
+                                       offsetof(PCMachineState, smbus_enabled),
+                                       OBJ_PROP_FLAG_READWRITE);
 
-    object_class_property_add_bool(oc, PC_MACHINE_SATA,
-        pc_machine_get_sata, pc_machine_set_sata);
+    object_class_property_add_bool_ptr(oc, PC_MACHINE_SATA,
+                                       offsetof(PCMachineState, sata_enabled),
+                                       OBJ_PROP_FLAG_READWRITE);
 
-    object_class_property_add_bool(oc, PC_MACHINE_PIT,
-        pc_machine_get_pit, pc_machine_set_pit);
+    object_class_property_add_bool_ptr(oc, PC_MACHINE_PIT,
+                                       offsetof(PCMachineState, pit_enabled),
+                                       OBJ_PROP_FLAG_READWRITE);
 }
 
 static const TypeInfo pc_machine_info = {
