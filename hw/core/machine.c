@@ -325,34 +325,6 @@ static void machine_set_dt_compatible(Object *obj, const char *value, Error **er
     ms->dt_compatible = g_strdup(value);
 }
 
-static bool machine_get_dump_guest_core(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return ms->dump_guest_core;
-}
-
-static void machine_set_dump_guest_core(Object *obj, bool value, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    ms->dump_guest_core = value;
-}
-
-static bool machine_get_mem_merge(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return ms->mem_merge;
-}
-
-static void machine_set_mem_merge(Object *obj, bool value, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    ms->mem_merge = value;
-}
-
 static bool machine_get_usb(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
@@ -368,20 +340,6 @@ static void machine_set_usb(Object *obj, bool value, Error **errp)
     ms->usb_disabled = !value;
 }
 
-static bool machine_get_graphics(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return ms->enable_graphics;
-}
-
-static void machine_set_graphics(Object *obj, bool value, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    ms->enable_graphics = value;
-}
-
 static char *machine_get_firmware(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
@@ -395,20 +353,6 @@ static void machine_set_firmware(Object *obj, const char *value, Error **errp)
 
     g_free(ms->firmware);
     ms->firmware = g_strdup(value);
-}
-
-static void machine_set_suppress_vmdesc(Object *obj, bool value, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    ms->suppress_vmdesc = value;
-}
-
-static bool machine_get_suppress_vmdesc(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return ms->suppress_vmdesc;
 }
 
 static void machine_set_enforce_config_section(Object *obj, bool value,
@@ -449,7 +393,7 @@ static void machine_set_memory_encryption(Object *obj, const char *value,
      * so there's no point in it trying to merge areas.
      */
     if (value) {
-        machine_set_mem_merge(obj, false, errp);
+        ms->mem_merge = false;
     }
 }
 
@@ -827,13 +771,15 @@ static void machine_class_init(ObjectClass *oc, void *data)
     object_class_property_set_description(oc, "dt-compatible",
         "Overrides the \"compatible\" property of the dt root node");
 
-    object_class_property_add_bool(oc, "dump-guest-core",
-        machine_get_dump_guest_core, machine_set_dump_guest_core);
+    object_class_property_add_bool_ptr(oc, "dump-guest-core",
+                                       offsetof(MachineState, dump_guest_core),
+                                       OBJ_PROP_FLAG_READWRITE);
     object_class_property_set_description(oc, "dump-guest-core",
         "Include guest memory in a core dump");
 
-    object_class_property_add_bool(oc, "mem-merge",
-        machine_get_mem_merge, machine_set_mem_merge);
+    object_class_property_add_bool_ptr(oc, "mem-merge",
+                                       offsetof(MachineState, mem_merge),
+                                       OBJ_PROP_FLAG_READWRITE);
     object_class_property_set_description(oc, "mem-merge",
         "Enable/disable memory merge support");
 
@@ -842,8 +788,9 @@ static void machine_class_init(ObjectClass *oc, void *data)
     object_class_property_set_description(oc, "usb",
         "Set on/off to enable/disable usb");
 
-    object_class_property_add_bool(oc, "graphics",
-        machine_get_graphics, machine_set_graphics);
+    object_class_property_add_bool_ptr(oc, "graphics",
+                                       offsetof(MachineState, enable_graphics),
+                                       OBJ_PROP_FLAG_READWRITE);
     object_class_property_set_description(oc, "graphics",
         "Set on/off to enable/disable graphics emulation");
 
@@ -852,8 +799,9 @@ static void machine_class_init(ObjectClass *oc, void *data)
     object_class_property_set_description(oc, "firmware",
         "Firmware image");
 
-    object_class_property_add_bool(oc, "suppress-vmdesc",
-        machine_get_suppress_vmdesc, machine_set_suppress_vmdesc);
+    object_class_property_add_bool_ptr(oc, "suppress-vmdesc",
+                                       offsetof(MachineState, suppress_vmdesc),
+                                       OBJ_PROP_FLAG_READWRITE);
     object_class_property_set_description(oc, "suppress-vmdesc",
         "Set on to disable self-describing migration");
 
