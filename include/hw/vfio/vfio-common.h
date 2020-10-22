@@ -99,6 +99,7 @@ typedef struct VFIOGuestIOMMU {
     IOMMUMemoryRegion *iommu;
     hwaddr iommu_offset;
     IOMMUNotifier n;
+    IOMMUNotifier dirty_notify;
     QLIST_ENTRY(VFIOGuestIOMMU) giommu_next;
 } VFIOGuestIOMMU;
 
