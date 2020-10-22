@@ -1392,6 +1392,9 @@ static int coroutine_fn bdrv_aligned_preadv(BdrvChild *child,
     if (flags & BDRV_REQ_COPY_ON_READ) {
         int64_t pnum;
 
+        /* The flag BDRV_REQ_COPY_ON_READ has reached its addressee */
+        flags &= ~BDRV_REQ_COPY_ON_READ;
+
         ret = bdrv_is_allocated(bs, offset, bytes, &pnum);
         if (ret < 0) {
             goto out;
@@ -1413,9 +1416,13 @@ static int coroutine_fn bdrv_aligned_preadv(BdrvChild *child,
         goto out;
     }
 
+    if (flags & ~bs->supported_read_flags) {
+        abort();
+    }
+
     max_bytes = ROUND_UP(MAX(0, total_bytes - offset), align);
     if (bytes <= max_bytes && bytes <= max_transfer) {
-        ret = bdrv_driver_preadv(bs, offset, bytes, qiov, qiov_offset, 0);
+        ret = bdrv_driver_preadv(bs, offset, bytes, qiov, qiov_offset, flags);
         goto out;
     }
 
@@ -1428,7 +1435,8 @@ static int coroutine_fn bdrv_aligned_preadv(BdrvChild *child,
 
             ret = bdrv_driver_preadv(bs, offset + bytes - bytes_remaining,
                                      num, qiov,
-                                     qiov_offset + bytes - bytes_remaining, 0);
+                                     qiov_offset + bytes - bytes_remaining,
+                                     flags);
             max_bytes -= num;
         } else {
             num = bytes_remaining;
