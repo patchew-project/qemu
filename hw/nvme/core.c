@@ -67,8 +67,8 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/cutils.h"
+#include "nvme-internal.h"
 #include "trace.h"
-#include "nvme.h"
 
 #define NVME_MAX_IOQPAIRS 0xffff
 #define NVME_DB_SIZE  4
