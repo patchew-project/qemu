@@ -4670,6 +4670,55 @@ static void bdrv_delete(BlockDriverState *bs)
     g_free(bs);
 }
 
+BlockDriverState *bdrv_insert_node(BlockDriverState *bs, QDict *node_options,
+                                   int flags, Error **errp)
+{
+    BlockDriverState *new_node_bs;
+    Error *local_err = NULL;
+
+    new_node_bs =  bdrv_open(NULL, NULL, node_options, flags, errp);
+    if (new_node_bs == NULL) {
+        error_prepend(errp, "Could not create node: ");
+        return NULL;
+    }
+
+    bdrv_drained_begin(bs);
+    bdrv_replace_node(bs, new_node_bs, &local_err);
+    bdrv_drained_end(bs);
+
+    if (local_err) {
+        bdrv_unref(new_node_bs);
+        error_propagate(errp, local_err);
+        return NULL;
+    }
+
+    return new_node_bs;
+}
+
+void bdrv_remove_node(BlockDriverState *bs)
+{
+    BdrvChild *child;
+    BlockDriverState *inferior_bs;
+
+    child = bdrv_filter_or_cow_child(bs);
+    if (!child) {
+        return;
+    }
+    inferior_bs = child->bs;
+
+    /* Retain the BDS until we complete the graph change. */
+    bdrv_ref(inferior_bs);
+    /* Hold a guest back from writing while permissions are being reset. */
+    bdrv_drained_begin(inferior_bs);
+    /* Refresh permissions before the graph change. */
+    bdrv_child_refresh_perms(bs, child, &error_abort);
+    bdrv_replace_node(bs, inferior_bs, &error_abort);
+
+    bdrv_drained_end(inferior_bs);
+    bdrv_unref(inferior_bs);
+    bdrv_unref(bs);
+}
+
 /*
  * Run consistency checks on an image
  *
