@@ -180,27 +180,6 @@ qauthz_list_file_prop_get_filename(Object *obj,
 
 
 static void
-qauthz_list_file_prop_set_refresh(Object *obj,
-                                  bool value,
-                                  Error **errp G_GNUC_UNUSED)
-{
-    QAuthZListFile *fauthz = QAUTHZ_LIST_FILE(obj);
-
-    fauthz->refresh = value;
-}
-
-
-static bool
-qauthz_list_file_prop_get_refresh(Object *obj,
-                                  Error **errp G_GNUC_UNUSED)
-{
-    QAuthZListFile *fauthz = QAUTHZ_LIST_FILE(obj);
-
-    return fauthz->refresh;
-}
-
-
-static void
 qauthz_list_file_finalize(Object *obj)
 {
     QAuthZListFile *fauthz = QAUTHZ_LIST_FILE(obj);
@@ -222,9 +201,9 @@ qauthz_list_file_class_init(ObjectClass *oc, void *data)
     object_class_property_add_str(oc, "filename",
                                   qauthz_list_file_prop_get_filename,
                                   qauthz_list_file_prop_set_filename);
-    object_class_property_add_bool(oc, "refresh",
-                                   qauthz_list_file_prop_get_refresh,
-                                   qauthz_list_file_prop_set_refresh);
+    object_class_property_add_bool_ptr(oc, "refresh",
+                                       offsetof(QAuthZListFile, refresh),
+                                       OBJ_PROP_FLAG_READWRITE);
 
     authz->is_allowed = qauthz_list_file_is_allowed;
 }
