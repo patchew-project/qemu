@@ -2713,6 +2713,37 @@ object_class_property_add_uint64_ptr(ObjectClass *klass, const char *name,
                                               flags, offset);
 }
 
+static void property_visit_bool_ptr(Object *obj, Visitor *v, const char *name,
+                                    void *opaque, Error **errp)
+{
+    PointerProperty *prop = opaque;
+    bool *field = pointer_property_get_ptr(obj, prop);
+    visit_type_bool(v, name, field, errp);
+}
+
+ObjectProperty *
+object_property_add_bool_ptr(Object *obj, const char *name,
+                             bool *v,
+                             ObjectPropertyFlags flags)
+{
+    return object_property_add_uint_ptr(obj, name, "bool",
+                                        property_visit_bool_ptr,
+                                        property_visit_bool_ptr,
+                                        flags,
+                                        (void *)v);
+}
+
+ObjectProperty *
+object_class_property_add_bool_ptr(ObjectClass *klass, const char *name,
+                                   ptrdiff_t offset,
+                                   ObjectPropertyFlags flags)
+{
+    return object_class_property_add_uint_ptr(klass, name, "bool",
+                                              property_visit_bool_ptr,
+                                              property_visit_bool_ptr,
+                                              flags, offset);
+}
+
 typedef struct {
     Object *target_obj;
     char *target_name;
