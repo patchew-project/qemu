@@ -34,6 +34,7 @@
 #define NOT_DONE 0x7fffffff /* used while emulated sync operation in progress */
 
 static AioContext *blk_aiocb_get_aio_context(BlockAIOCB *acb);
+static void blk_rehandle_disable(BlockBackend *blk);
 
 /* block backend rehandle timer interval 5s */
 #define BLOCK_BACKEND_REHANDLE_TIMER_INTERVAL   5000
@@ -476,6 +477,8 @@ static void blk_delete(BlockBackend *blk)
     assert(!blk->refcnt);
     assert(!blk->name);
     assert(!blk->dev);
+    assert(qatomic_read(&blk->reinfo.in_flight) == 0);
+    blk_rehandle_disable(blk);
     if (blk->public.throttle_group_member.throttle_state) {
         blk_io_limits_disable(blk);
     }
@@ -2629,6 +2632,42 @@ static void blk_rehandle_aio_complete(BlkAioEmAIOCB *acb)
     }
 }
 
+static void blk_rehandle_enable(BlockBackend *blk)
+{
+    BlockBackendRehandleInfo *reinfo = &blk->reinfo;
+
+    aio_context_acquire(blk_get_aio_context(blk));
+    if (reinfo->enable) {
+        aio_context_release(blk_get_aio_context(blk));
+        return;
+    }
+
+    reinfo->ts = aio_timer_new(blk_get_aio_context(blk), QEMU_CLOCK_REALTIME,
+                               SCALE_MS, blk_rehandle_timer_cb, blk);
+    reinfo->timer_interval_ms = BLOCK_BACKEND_REHANDLE_TIMER_INTERVAL;
+    reinfo->status = BLOCK_BACKEND_REHANDLE_NORMAL;
+    reinfo->enable = true;
+    aio_context_release(blk_get_aio_context(blk));
+}
+
+static void blk_rehandle_disable(BlockBackend *blk)
+{
+    if (!blk->reinfo.enable) {
+        return;
+    }
+
+    blk_rehandle_pause(blk);
+    timer_del(blk->reinfo.ts);
+    timer_free(blk->reinfo.ts);
+    blk->reinfo.ts = NULL;
+    blk->reinfo.enable = false;
+}
+
+bool blk_iohang_is_enabled(BlockBackend *blk)
+{
+    return blk->iohang_timeout != 0;
+}
+
 void blk_iohang_init(BlockBackend *blk, int64_t iohang_timeout)
 {
     if (!blk) {
@@ -2641,6 +2680,7 @@ void blk_iohang_init(BlockBackend *blk, int64_t iohang_timeout)
     blk->iohang_status = BLOCK_IO_HANG_STATUS_NORMAL;
     if (iohang_timeout > 0) {
         blk->iohang_timeout = iohang_timeout;
+        blk_rehandle_enable(blk);
     }
 }
 
