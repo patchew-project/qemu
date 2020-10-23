@@ -72,6 +72,7 @@ typedef struct SiFiveUState {
 enum {
     SIFIVE_U_DEV_DEBUG,
     SIFIVE_U_DEV_MROM,
+    SIFIVE_U_DEV_TEST,
     SIFIVE_U_DEV_CLINT,
     SIFIVE_U_DEV_L2CC,
     SIFIVE_U_DEV_PDMA,
