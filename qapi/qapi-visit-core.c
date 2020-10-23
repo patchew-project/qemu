@@ -145,6 +145,16 @@ bool visit_is_dealloc(Visitor *v)
     return v->type == VISITOR_DEALLOC;
 }
 
+bool visit_flat_simple_unions(Visitor *v)
+{
+    return v->flat_simple_unions;
+}
+
+void visit_set_flat_simple_unions(Visitor *v, bool flat)
+{
+    v->flat_simple_unions = flat;
+}
+
 bool visit_type_int(Visitor *v, const char *name, int64_t *obj, Error **errp)
 {
     assert(obj);

@@ -127,23 +127,31 @@ bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
                              case=case_str,
                              c_type=var.type.c_name(), c_name=c_name(var.name))
             elif var.wrapped:
+                if var.flat:
+                    cond = "!visit_flat_simple_unions(v)"
+                else:
+                    cond = "true"
                 ret += mcgen('''
     case %(case)s:
     {
         bool ok;
 
-        if (!visit_start_struct(v, "data", NULL, 0, errp)) {
-            return false;
+        if (%(cond)s) {
+            if (!visit_start_struct(v, "data", NULL, 0, errp)) {
+                return false;
+            }
         }
         ok = visit_type_%(c_type)s_members(v, &obj->u.%(c_name)s, errp);
-        if (ok) {
-            ok = visit_check_struct(v, errp);
+        if (%(cond)s) {
+            if (ok) {
+                ok = visit_check_struct(v, errp);
+            }
+            visit_end_struct(v, NULL);
         }
-        visit_end_struct(v, NULL);
         return ok;
     }
 ''',
-                             case=case_str,
+                             case=case_str, cond=cond,
                              c_type=var.type.c_name(), c_name=c_name(var.name))
 
             else:

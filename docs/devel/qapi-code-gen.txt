@@ -295,7 +295,9 @@ Syntax:
               '*features': FEATURES }
     BRANCHES = { BRANCH, ... }
     BRANCH = STRING : TYPE-REF
-           | STRING : { 'type': TYPE-REF, '*if': COND }
+           | STRING : { 'type': TYPE-REF,
+                        '*if': COND,
+                        '*allow-flat': BOOL }
 
 Member 'union' names the union type.
 
@@ -333,6 +335,13 @@ values to data types like in this example:
  { 'union': 'BlockdevOptionsSimple',
    'data': { 'file': 'BlockdevOptionsFile',
              'qcow2': 'BlockdevOptionsQcow2' } }
+
+Simple unions can support both wrapped and flat representation of
+branches that have a struct type, unless it is explicitly disabled in
+the schema with 'allow-flat': false.  Branches of other types are
+always wrapped.  Which representation is used in the generated visitor
+C code can be configured per visitor.  Flat representation is
+appropriate when parsing command line options.
 
 In the Client JSON Protocol, all simple union branches have wrapped
 representation, as in these examples:

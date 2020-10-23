@@ -496,6 +496,16 @@ bool visit_is_input(Visitor *v);
  */
 bool visit_is_dealloc(Visitor *v);
 
+/*
+ * Check if simple unions should be treated as flat.
+ */
+bool visit_flat_simple_unions(Visitor *v);
+
+/*
+ * Set if simple unions should be treated as flat.
+ */
+void visit_set_flat_simple_unions(Visitor *v, bool flat);
+
 /*** Visiting built-in types ***/
 
 /*
