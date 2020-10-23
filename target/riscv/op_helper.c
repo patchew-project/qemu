@@ -79,7 +79,8 @@ target_ulong helper_csrrc(CPURISCVState *env, target_ulong src,
 
 target_ulong helper_sret(CPURISCVState *env, target_ulong cpu_pc_deb)
 {
-    target_ulong prev_priv, prev_virt, mstatus;
+    uint64_t mstatus;
+    target_ulong prev_priv, prev_virt;
 
     if (!(env->priv >= PRV_S)) {
         riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
@@ -90,7 +91,7 @@ target_ulong helper_sret(CPURISCVState *env, target_ulong cpu_pc_deb)
         riscv_raise_exception(env, RISCV_EXCP_INST_ADDR_MIS, GETPC());
     }
 
-    if (get_field(env->mstatus, MSTATUS_TSR) && !(env->priv >= PRV_M)) {
+    if (get_field64(env->mstatus, MSTATUS_TSR) && !(env->priv >= PRV_M)) {
         riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
     }
 
@@ -105,14 +106,14 @@ target_ulong helper_sret(CPURISCVState *env, target_ulong cpu_pc_deb)
         /* We support Hypervisor extensions and virtulisation is disabled */
         target_ulong hstatus = env->hstatus;
 
-        prev_priv = get_field(mstatus, MSTATUS_SPP);
+        prev_priv = get_field64(mstatus, MSTATUS_SPP);
         prev_virt = get_field(hstatus, HSTATUS_SPV);
 
         hstatus = set_field(hstatus, HSTATUS_SPV, 0);
-        mstatus = set_field(mstatus, MSTATUS_SPP, 0);
-        mstatus = set_field(mstatus, SSTATUS_SIE,
-                            get_field(mstatus, SSTATUS_SPIE));
-        mstatus = set_field(mstatus, SSTATUS_SPIE, 1);
+        mstatus = set_field64(mstatus, MSTATUS_SPP, 0);
+        mstatus = set_field64(mstatus, SSTATUS_SIE,
+                              get_field64(mstatus, SSTATUS_SPIE));
+        mstatus = set_field64(mstatus, SSTATUS_SPIE, 1);
 
         env->mstatus = mstatus;
         env->hstatus = hstatus;
@@ -123,12 +124,12 @@ target_ulong helper_sret(CPURISCVState *env, target_ulong cpu_pc_deb)
 
         riscv_cpu_set_virt_enabled(env, prev_virt);
     } else {
-        prev_priv = get_field(mstatus, MSTATUS_SPP);
+        prev_priv = get_field64(mstatus, MSTATUS_SPP);
 
-        mstatus = set_field(mstatus, MSTATUS_SIE,
-                            get_field(mstatus, MSTATUS_SPIE));
-        mstatus = set_field(mstatus, MSTATUS_SPIE, 1);
-        mstatus = set_field(mstatus, MSTATUS_SPP, PRV_U);
+        mstatus = set_field64(mstatus, MSTATUS_SIE,
+                              get_field64(mstatus, MSTATUS_SPIE));
+        mstatus = set_field64(mstatus, MSTATUS_SPIE, 1);
+        mstatus = set_field64(mstatus, MSTATUS_SPP, PRV_U);
         env->mstatus = mstatus;
     }
 
@@ -148,18 +149,14 @@ target_ulong helper_mret(CPURISCVState *env, target_ulong cpu_pc_deb)
         riscv_raise_exception(env, RISCV_EXCP_INST_ADDR_MIS, GETPC());
     }
 
-    target_ulong mstatus = env->mstatus;
-    target_ulong prev_priv = get_field(mstatus, MSTATUS_MPP);
+    uint64_t mstatus = env->mstatus;
+    target_ulong prev_priv = get_field64(mstatus, MSTATUS_MPP);
     target_ulong prev_virt = MSTATUS_MPV_ISSET(env);
-    mstatus = set_field(mstatus, MSTATUS_MIE,
-                        get_field(mstatus, MSTATUS_MPIE));
-    mstatus = set_field(mstatus, MSTATUS_MPIE, 1);
-    mstatus = set_field(mstatus, MSTATUS_MPP, PRV_U);
-#ifdef TARGET_RISCV32
-    env->mstatush = set_field(env->mstatush, MSTATUS_MPV, 0);
-#else
-    mstatus = set_field(mstatus, MSTATUS_MPV, 0);
-#endif
+    mstatus = set_field64(mstatus, MSTATUS_MIE,
+                          get_field64(mstatus, MSTATUS_MPIE));
+    mstatus = set_field64(mstatus, MSTATUS_MPIE, 1);
+    mstatus = set_field64(mstatus, MSTATUS_MPP, PRV_U);
+    mstatus = set_field64(mstatus, MSTATUS_MPV, 0);
     env->mstatus = mstatus;
     riscv_cpu_set_mode(env, prev_priv);
 
@@ -179,7 +176,7 @@ void helper_wfi(CPURISCVState *env)
     CPUState *cs = env_cpu(env);
 
     if ((env->priv == PRV_S &&
-        get_field(env->mstatus, MSTATUS_TW)) ||
+        get_field64(env->mstatus, MSTATUS_TW)) ||
         riscv_cpu_virt_enabled(env)) {
         riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, GETPC());
     } else {
@@ -194,7 +191,7 @@ void helper_tlb_flush(CPURISCVState *env)
     CPUState *cs = env_cpu(env);
     if (!(env->priv >= PRV_S) ||
         (env->priv == PRV_S &&
-         get_field(env->mstatus, MSTATUS_TVM))) {
+         get_field64(env->mstatus, MSTATUS_TVM))) {
         riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
     } else if (riscv_has_ext(env, RVH) && riscv_cpu_virt_enabled(env) &&
                get_field(env->hstatus, HSTATUS_VTVM)) {
@@ -224,7 +221,7 @@ void helper_hyp_tlb_flush(CPURISCVState *env)
 void helper_hyp_gvma_tlb_flush(CPURISCVState *env)
 {
     if (env->priv == PRV_S && !riscv_cpu_virt_enabled(env) &&
-        get_field(env->mstatus, MSTATUS_TVM)) {
+        get_field64(env->mstatus, MSTATUS_TVM)) {
         riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
     }
 

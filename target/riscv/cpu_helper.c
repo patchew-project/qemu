@@ -39,9 +39,9 @@ static int riscv_cpu_local_irq_pending(CPURISCVState *env)
 {
     target_ulong irqs;
 
-    target_ulong mstatus_mie = get_field(env->mstatus, MSTATUS_MIE);
-    target_ulong mstatus_sie = get_field(env->mstatus, MSTATUS_SIE);
-    target_ulong hs_mstatus_sie = get_field(env->mstatus_hs, MSTATUS_SIE);
+    target_ulong mstatus_mie = get_field64(env->mstatus, MSTATUS_MIE);
+    target_ulong mstatus_sie = get_field64(env->mstatus, MSTATUS_SIE);
+    target_ulong hs_mstatus_sie = get_field64(env->mstatus_hs, MSTATUS_SIE);
 
     target_ulong pending = env->mip & env->mie &
                                ~(MIP_VSSIP | MIP_VSTIP | MIP_VSEIP);
@@ -110,14 +110,20 @@ bool riscv_cpu_fp_enabled(CPURISCVState *env)
 
 void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env)
 {
-    target_ulong mstatus_mask = MSTATUS_MXR | MSTATUS_SUM | MSTATUS_FS |
-                                MSTATUS_SPP | MSTATUS_SPIE | MSTATUS_SIE;
+    uint64_t mstatus_mask = MSTATUS_MXR | MSTATUS_SUM | MSTATUS_FS |
+                            MSTATUS_SPP | MSTATUS_SPIE | MSTATUS_SIE;
     bool current_virt = riscv_cpu_virt_enabled(env);
 
     g_assert(riscv_has_ext(env, RVH));
 
 #if defined(TARGET_RISCV64)
     mstatus_mask |= MSTATUS64_UXL;
+#elif defined(TARGET_RISCV32)
+    /*
+     * The upper 32 bits of env->mstatus is mstatush
+     * register in RISCV32. We need to backup it.
+     */
+    mstatus_mask |= (~0ULL << 32);
 #endif
 
     if (current_virt) {
@@ -125,11 +131,6 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env)
         env->vsstatus = env->mstatus & mstatus_mask;
         env->mstatus &= ~mstatus_mask;
         env->mstatus |= env->mstatus_hs;
-
-#if defined(TARGET_RISCV32)
-        env->vsstatush = env->mstatush;
-        env->mstatush |= env->mstatush_hs;
-#endif
 
         env->vstvec = env->stvec;
         env->stvec = env->stvec_hs;
@@ -153,11 +154,6 @@ void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env)
         env->mstatus_hs = env->mstatus & mstatus_mask;
         env->mstatus &= ~mstatus_mask;
         env->mstatus |= env->vsstatus;
-
-#if defined(TARGET_RISCV32)
-        env->mstatush_hs = env->mstatush;
-        env->mstatush |= env->vsstatush;
-#endif
 
         env->stvec_hs = env->stvec;
         env->stvec = env->vstvec;
@@ -347,8 +343,8 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
     }
 
     if (mode == PRV_M && access_type != MMU_INST_FETCH) {
-        if (get_field(env->mstatus, MSTATUS_MPRV)) {
-            mode = get_field(env->mstatus, MSTATUS_MPP);
+        if (get_field64(env->mstatus, MSTATUS_MPRV)) {
+            mode = get_field64(env->mstatus, MSTATUS_MPP);
         }
     }
 
@@ -370,9 +366,9 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
     int levels, ptidxbits, ptesize, vm, sum, mxr, widened;
 
     if (first_stage == true) {
-        mxr = get_field(env->mstatus, MSTATUS_MXR);
+        mxr = get_field64(env->mstatus, MSTATUS_MXR);
     } else {
-        mxr = get_field(env->vsstatus, MSTATUS_MXR);
+        mxr = get_field64(env->vsstatus, MSTATUS_MXR);
     }
 
     if (first_stage == true) {
@@ -389,7 +385,7 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
         vm = get_field(env->hgatp, HGATP_MODE);
         widened = 2;
     }
-    sum = get_field(env->mstatus, MSTATUS_SUM);
+    sum = get_field64(env->mstatus, MSTATUS_SUM);
     switch (vm) {
     case VM_1_10_SV32:
       levels = 2; ptidxbits = 10; ptesize = 4; break;
@@ -712,14 +708,14 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                   __func__, address, access_type, mmu_idx);
 
     if (mode == PRV_M && access_type != MMU_INST_FETCH) {
-        if (get_field(env->mstatus, MSTATUS_MPRV)) {
-            mode = get_field(env->mstatus, MSTATUS_MPP);
+        if (get_field64(env->mstatus, MSTATUS_MPRV)) {
+            mode = get_field64(env->mstatus, MSTATUS_MPP);
         }
     }
 
     if (riscv_has_ext(env, RVH) && env->priv == PRV_M &&
         access_type != MMU_INST_FETCH &&
-        get_field(env->mstatus, MSTATUS_MPRV) &&
+        get_field64(env->mstatus, MSTATUS_MPRV) &&
         MSTATUS_MPV_ISSET(env)) {
         riscv_cpu_set_two_stage_lookup(env, true);
     }
@@ -780,7 +776,7 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     /* We did the two stage lookup based on MPRV, unset the lookup */
     if (riscv_has_ext(env, RVH) && env->priv == PRV_M &&
         access_type != MMU_INST_FETCH &&
-        get_field(env->mstatus, MSTATUS_MPRV) &&
+        get_field64(env->mstatus, MSTATUS_MPRV) &&
         MSTATUS_MPV_ISSET(env)) {
         riscv_cpu_set_two_stage_lookup(env, false);
     }
@@ -844,7 +840,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
     bool force_hs_execp = riscv_cpu_force_hs_excep_enabled(env);
-    target_ulong s;
+    uint64_t s;
 
     /* cs->exception is 32-bits wide unlike mcause which is XLEN-bits wide
      * so we mask off the MSB and separate into trap type and cause.
@@ -932,7 +928,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
                 /* Trap into HS mode, from virt */
                 riscv_cpu_swap_hypervisor_regs(env);
                 env->hstatus = set_field(env->hstatus, HSTATUS_SPVP,
-                                         get_field(env->mstatus, SSTATUS_SPP));
+                                         get_field64(env->mstatus, SSTATUS_SPP));
                 env->hstatus = set_field(env->hstatus, HSTATUS_SPV,
                                          riscv_cpu_virt_enabled(env));
 
@@ -952,9 +948,9 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         }
 
         s = env->mstatus;
-        s = set_field(s, MSTATUS_SPIE, get_field(s, MSTATUS_SIE));
-        s = set_field(s, MSTATUS_SPP, env->priv);
-        s = set_field(s, MSTATUS_SIE, 0);
+        s = set_field64(s, MSTATUS_SPIE, get_field64(s, MSTATUS_SIE));
+        s = set_field64(s, MSTATUS_SPP, env->priv);
+        s = set_field64(s, MSTATUS_SIE, 0);
         env->mstatus = s;
         env->scause = cause | ((target_ulong)async << (TARGET_LONG_BITS - 1));
         env->sepc = env->pc;
@@ -969,19 +965,11 @@ void riscv_cpu_do_interrupt(CPUState *cs)
             if (riscv_cpu_virt_enabled(env)) {
                 riscv_cpu_swap_hypervisor_regs(env);
             }
-#ifdef TARGET_RISCV32
-            env->mstatush = set_field(env->mstatush, MSTATUS_MPV,
+            env->mstatus = set_field64(env->mstatus, MSTATUS_MPV,
                                        riscv_cpu_virt_enabled(env));
             if (riscv_cpu_virt_enabled(env) && tval) {
-                env->mstatush = set_field(env->mstatush, MSTATUS_GVA, 1);
+                env->mstatus = set_field64(env->mstatus, MSTATUS_GVA, 1);
             }
-#else
-            env->mstatus = set_field(env->mstatus, MSTATUS_MPV,
-                                      riscv_cpu_virt_enabled(env));
-            if (riscv_cpu_virt_enabled(env) && tval) {
-                env->mstatus = set_field(env->mstatus, MSTATUS_GVA, 1);
-            }
-#endif
 
             mtval2 = env->guest_phys_fault_addr;
 
@@ -991,9 +979,9 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         }
 
         s = env->mstatus;
-        s = set_field(s, MSTATUS_MPIE, get_field(s, MSTATUS_MIE));
-        s = set_field(s, MSTATUS_MPP, env->priv);
-        s = set_field(s, MSTATUS_MIE, 0);
+        s = set_field64(s, MSTATUS_MPIE, get_field64(s, MSTATUS_MIE));
+        s = set_field64(s, MSTATUS_MPP, env->priv);
+        s = set_field64(s, MSTATUS_MIE, 0);
         env->mstatus = s;
         env->mcause = cause | ~(((target_ulong)-1) >> async);
         env->mepc = env->pc;
