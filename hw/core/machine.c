@@ -510,11 +510,7 @@ static void machine_set_nvdimm_persistence(Object *obj, const char *value,
 
 void machine_class_allow_dynamic_sysbus_dev(MachineClass *mc, const char *type)
 {
-    strList *item = g_new0(strList, 1);
-
-    item->value = g_strdup(type);
-    item->next = mc->allowed_dynamic_sysbus_devices;
-    mc->allowed_dynamic_sysbus_devices = item;
+    QAPI_LIST_ADD(mc->allowed_dynamic_sysbus_devices, g_strdup(type));
 }
 
 static void validate_sysbus_device(SysBusDevice *sbdev, void *opaque)

@@ -8293,7 +8293,6 @@ static void arm_cpu_add_definition(gpointer data, gpointer user_data)
 {
     ObjectClass *oc = data;
     CpuDefinitionInfoList **cpu_list = user_data;
-    CpuDefinitionInfoList *entry;
     CpuDefinitionInfo *info;
     const char *typename;
 
@@ -8303,10 +8302,7 @@ static void arm_cpu_add_definition(gpointer data, gpointer user_data)
                            strlen(typename) - strlen("-" TYPE_ARM_CPU));
     info->q_typename = g_strdup(typename);
 
-    entry = g_malloc0(sizeof(*entry));
-    entry->value = info;
-    entry->next = *cpu_list;
-    *cpu_list = entry;
+    QAPI_LIST_ADD(*cpu_list, info);
 }
 
 CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)

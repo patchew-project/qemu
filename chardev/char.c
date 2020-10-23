@@ -776,15 +776,14 @@ static int qmp_query_chardev_foreach(Object *obj, void *data)
 {
     Chardev *chr = CHARDEV(obj);
     ChardevInfoList **list = data;
-    ChardevInfoList *info = g_malloc0(sizeof(*info));
+    ChardevInfo *value;
 
-    info->value = g_malloc0(sizeof(*info->value));
-    info->value->label = g_strdup(chr->label);
-    info->value->filename = g_strdup(chr->filename);
-    info->value->frontend_open = chr->be && chr->be->fe_open;
+    value = g_malloc0(sizeof(*value));
+    value->label = g_strdup(chr->label);
+    value->filename = g_strdup(chr->filename);
+    value->frontend_open = chr->be && chr->be->fe_open;
 
-    info->next = *list;
-    *list = info;
+    QAPI_LIST_ADD(*list, value);
 
     return 0;
 }
@@ -803,12 +802,10 @@ static void
 qmp_prepend_backend(const char *name, void *opaque)
 {
     ChardevBackendInfoList **list = opaque;
-    ChardevBackendInfoList *info = g_malloc0(sizeof(*info));
+    ChardevBackendInfo *value = g_new0(ChardevBackendInfo, 1);
 
-    info->value = g_malloc0(sizeof(*info->value));
-    info->value->name = g_strdup(name);
-    info->next = *list;
-    *list = info;
+    value->name = g_strdup(name);
+    QAPI_LIST_ADD(*list, value);
 }
 
 ChardevBackendInfoList *qmp_query_chardev_backends(Error **errp)

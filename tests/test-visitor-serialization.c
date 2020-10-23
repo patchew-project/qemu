@@ -704,10 +704,7 @@ static void test_nested_struct_list(gconstpointer opaque)
     int i = 0;
 
     for (i = 0; i < 8; i++) {
-        tmp = g_new0(UserDefTwoList, 1);
-        tmp->value = nested_struct_create();
-        tmp->next = listp;
-        listp = tmp;
+        QAPI_LIST_ADD(listp, nested_struct_create());
     }
 
     ops->serialize(listp, &serialize_data, visit_nested_struct_list,
