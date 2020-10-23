@@ -30,4 +30,12 @@ int qapi_enum_parse(const QEnumLookup *lookup, const char *buf,
 
 int parse_qapi_name(const char *name, bool complete);
 
+/* For any GenericList @list, insert @element at the front. */
+#define QAPI_LIST_ADD(list, element) do { \
+    typeof(list) _tmp = g_new(typeof(*(list)), 1); \
+    _tmp->value = (element); \
+    _tmp->next = (list); \
+    (list) = _tmp; \
+} while (0)
+
 #endif
