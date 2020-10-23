@@ -76,6 +76,7 @@ fi
 TMPB="qemu-conf"
 TMPC="${TMPDIR1}/${TMPB}.c"
 TMPO="${TMPDIR1}/${TMPB}.o"
+TMPA="${TMPDIR1}/lib${TMPB}.a"
 TMPCXX="${TMPDIR1}/${TMPB}.cxx"
 TMPE="${TMPDIR1}/${TMPB}.exe"
 TMPTXT="${TMPDIR1}/${TMPB}.txt"
@@ -180,6 +181,32 @@ compile_prog() {
       $LDFLAGS $CONFIGURE_LDFLAGS $QEMU_LDFLAGS $local_ldflags
 }
 
+do_run_filter() {
+    # Run a generic program, capturing its output to the log,
+    # but also filtering the output with grep.
+    # Returns the return value of grep.
+    # First argument is the filter string.
+    # Second argument is binary to execute.
+    local filter="$1"
+    local filter_pattern=""
+    if test "$filter" = "yes"; then
+      shift
+      filter_pattern="$1"
+    fi
+    shift
+    local program="$1"
+    shift
+    echo $program $@ >> config.log
+    $program $@ >> config.log 2>&1 || return $?
+    if test "$filter" = "yes"; then
+      $program $@ 2>&1 | grep "${filter_pattern}" >> /dev/null || return $?
+    fi
+}
+
+create_library() {
+  do_run_filter "no" "$ar" -rc${1} $TMPA $TMPO
+}
+
 # symbolically link $1 to $2.  Portable version of "ln -sf".
 symlink() {
   rm -rf "$2"
@@ -242,6 +269,7 @@ host_cc="cc"
 audio_win_int=""
 libs_qga=""
 debug_info="yes"
+lto="false"
 stack_protector=""
 safe_stack=""
 use_containers="yes"
@@ -1159,6 +1187,10 @@ for opt do
   ;;
   --disable-werror) werror="no"
   ;;
+  --enable-lto) lto="true"
+  ;;
+  --disable-lto) lto="false"
+  ;;
   --enable-stack-protector) stack_protector="yes"
   ;;
   --disable-stack-protector) stack_protector="no"
@@ -1735,6 +1767,8 @@ disabled with --disable-FEATURE, default is enabled if available:
   module-upgrades try to load modules from alternate paths for upgrades
   debug-tcg       TCG debugging (default is disabled)
   debug-info      debugging information
+  lto             Enable Link-Time Optimization.
+                  Depends on clang/llvm >=6.0
   sparse          sparse checker
   safe-stack      SafeStack Stack Smash Protection. Depends on
                   clang/llvm >= 3.7 and requires coroutine backend ucontext.
@@ -5222,6 +5256,62 @@ if  test "$plugins" = "yes" &&
 fi
 
 ########################################
+# lto (Link-Time Optimization)
+
+if test "$lto" = "true"; then
+  # Test compiler/ar/linker support for lto.
+  # compilation with lto is handled by meson. Just make sure that compiler
+  # support is fully functional, and add additional compatibility flags
+  # if necessary.
+
+  if ! echo | $cc -dM -E - | grep __clang__ > /dev/null 2>&1 ; then
+    # LTO with GCC and other compilers is not tested, and possibly broken
+    error_exit "QEMU only supports LTO with CLANG"
+  fi
+
+  # Check that lto is supported.
+  # Need to check for:
+  # - Valid compiler, that supports lto flags
+  # - Valid ar, able to support intermediate code
+  # - Valid linker, able to support intermediate code
+
+  #### Check for a valid *ar* for link-time optimization.
+  # Test it by creating a static library and linking it
+  # Compile an object first
+  cat > $TMPC << EOF
+int fun(int val);
+
+int fun(int val) {
+    return val;
+}
+EOF
+  if ! compile_object "-Werror -flto"; then
+    error_exit "LTO is not supported by your compiler"
+  fi
+  # Create a library out of it
+  if ! create_library "s" ; then
+    error_exit "LTO is not supported by ar. This usually happens when mixing GNU and LLVM toolchain."
+  fi
+  # Now create a binary using the library
+  cat > $TMPC << EOF
+int fun(int val);
+
+int main(int argc, char *argv[]) {
+  return fun(0);
+}
+EOF
+  if ! compile_prog "-Werror" "$test_ldflag -flto ${TMPA}"; then
+    error_exit "LTO is not supported by ar or the linker. This usually happens when mixing GNU and LLVM toolchain."
+  fi
+
+  #### All good, add the flags for CFI to our CFLAGS and LDFLAGS
+  # Flag needed both at compilation and at linking
+  QEMU_LDFLAGS="$QEMU_LDFLAGS $test_ldflag"
+  # Add -flto to CONFIGURE_*FLAGS since we need it in configure,
+  # but will be added by meson later
+  CONFIGURE_CFLAGS="$QEMU_CFLAGS -flto"
+  CONFIGURE_LDFLAGS="$QEMU_LDFLAGS -flto"
+fi
 # See if __attribute__((alias)) is supported.
 # This false for Xcode 9, but has been remedied for Xcode 10.
 # Unfortunately, travis uses Xcode 9 by default.
@@ -5531,6 +5621,43 @@ if test "$fuzzing" = "yes" && test -z "${LIB_FUZZING_ENGINE+xxx}"; then
   else
     error_exit "Your compiler doesn't support -fsanitize=fuzzer"
     exit 1
+  fi
+  # Make sure that the linker supports a custom linker script
+  # If LTO is enabled, switch linker to lld, since at the moment
+  # it is the only linker that works with lto and fuzzing:
+  # - gold does not support a custom script
+  # - bfd does not support wrapping functions with LTO
+  cat > $TMPC << EOF
+#include <stdlib.h>
+#include <stdio.h>
+void* __real_malloc(size_t size);
+void* __wrap_malloc(size_t size);
+
+void* __wrap_malloc(size_t size){
+  printf("Inside wrap_malloc\n");
+  return __real_malloc(size);
+}
+
+int main(int argc, char *argv[]) {
+  int *myint = (void*) malloc(sizeof(int));
+  *myint = 0;
+  return *myint;
+}
+EOF
+  extra_cflags="$CPU_CFLAGS -Werror"
+  extra_ldflags="-Wl,-T,${source_path}/tests/qtest/fuzz/fork_fuzz.ld"
+  extra_ldflags="${extra_ldflags} -Wl,--wrap,malloc"
+  if test "$lto" = "true"; then
+     extra_ldflags="${extra_ldflags} -fuse-ld=lld"
+  fi
+  if ! compile_prog "$extra_cflags" "$extra_ldflags"; then
+    error_exit "Your linker does not support our linker script"
+  fi
+  if ! do_run_filter "yes" "Inside wrap_malloc" ${TMPE} ""; then
+    error_exit "Your linker does not support our linker script"
+  fi
+  if test "$lto" = "true"; then
+     QEMU_LDFLAGS="${QEMU_LDFLAGS} -fuse-ld=lld"
   fi
 fi
 
@@ -7018,6 +7145,7 @@ NINJA=$ninja $meson setup \
         -Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt \
         -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
         -Ddocs=$docs -Dsphinx_build=$sphinx_build \
+        -Db_lto=$lto \
         $cross_arg \
         "$PWD" "$source_path"
 
