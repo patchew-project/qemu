@@ -3094,6 +3094,11 @@ S: Maintained
 F: hw/semihosting/
 F: include/hw/semihosting/
 
+Control Flow Integrity
+M: Daniele Buono <dbuono@linux.vnet.ibm.com>
+S: Maintained
+F: include/qemu/sanitizers.h
+
 Build and test automation
 -------------------------
 Build and test automation
