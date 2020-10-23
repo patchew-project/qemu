@@ -249,7 +249,7 @@ GIOStatus ga_channel_write_all(GAChannel *c, const gchar *buf, gsize size)
             buf += written;
         } else if (status != G_IO_STATUS_AGAIN) {
             g_warning("error writing to channel: %s", err->message);
-            return status;
+            goto out;
         }
     }
 
@@ -261,6 +261,10 @@ GIOStatus ga_channel_write_all(GAChannel *c, const gchar *buf, gsize size)
         g_warning("error flushing channel: %s", err->message);
     }
 
+out:
+    if (err) {
+        g_error_free(err);
+    }
     return status;
 }
 
