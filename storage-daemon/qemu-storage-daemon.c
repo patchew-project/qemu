@@ -37,6 +37,7 @@
 #include "qapi/error.h"
 #include "qapi/qapi-visit-block-core.h"
 #include "qapi/qapi-visit-block-export.h"
+#include "qapi/qapi-visit-char.h"
 #include "qapi/qapi-visit-control.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
@@ -207,18 +208,46 @@ static void process_options(int argc, char *argv[])
             }
         case OPTION_CHARDEV:
             {
-                /* TODO This interface is not stable until we QAPIfy it */
-                QemuOpts *opts = qemu_opts_parse_noisily(&qemu_chardev_opts,
-                                                         optarg, true);
-                if (opts == NULL) {
-                    exit(EXIT_FAILURE);
-                }
+                QDict *args;
+                Visitor *v;
+                ChardevBackend *chr_options;
+                char *id;
+                bool help;
 
-                if (!qemu_chr_new_from_opts(opts, NULL, &error_fatal)) {
-                    /* No error, but NULL returned means help was printed */
+                args = keyval_parse(optarg, "type", &help, &error_fatal);
+                if (help) {
+                    if (qdict_haskey(args, "type")) {
+                        /* TODO Print help based on the QAPI schema */
+                        qemu_opts_print_help(&qemu_chardev_opts, true);
+                    } else {
+                        qemu_chr_print_types();
+                    }
                     exit(EXIT_SUCCESS);
                 }
-                qemu_opts_del(opts);
+
+                /*
+                 * TODO Flattened version of chardev-add in the QAPI schema
+                 *
+                 * While it's not there, parse 'id' manually from the QDict
+                 * and treat everything else as the 'backend' option for
+                 * chardev-add.
+                 */
+                id = g_strdup(qdict_get_try_str(args, "id"));
+                if (!id) {
+                    error_report("Parameter 'id' is missing");
+                    exit(EXIT_FAILURE);
+                }
+                qdict_del(args, "id");
+
+                v = qobject_input_visitor_new_keyval(QOBJECT(args));
+                visit_set_flat_simple_unions(v, true);
+                visit_type_ChardevBackend(v, NULL, &chr_options, &error_fatal);
+                visit_free(v);
+
+                qmp_chardev_add(id, chr_options, &error_fatal);
+                qapi_free_ChardevBackend(chr_options);
+                g_free(id);
+                qobject_unref(args);
                 break;
             }
         case OPTION_EXPORT:
