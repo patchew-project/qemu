@@ -1,0 +1,6 @@
+# 'type' is in the implicit base type and clashes with a 'type' member
+# in branches if flat representation is not disabled
+{ 'struct': 'Branch', 'data': { 'type': 'str' } }
+{ 'union': 'MyUnion',
+  'data': { 'one': 'Branch',
+            'two': 'Branch' } }

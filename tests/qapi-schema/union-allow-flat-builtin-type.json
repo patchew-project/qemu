@@ -1,0 +1,5 @@
+# Can't use built-in types for branches with 'allow-flat': true
+{ 'struct': 'Branch', 'data': { 'name': 'str' } }
+{ 'union': 'MyUnion',
+  'data': { 'one': { 'type': 'int', 'allow-flat': true },
+            'two': 'Branch' } }

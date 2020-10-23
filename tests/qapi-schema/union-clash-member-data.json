@@ -1,0 +1,6 @@
+# For simple union branches, a 'data' member would prevent conversion
+# to flat representation, so we don't want to allow it
+{ 'struct': 'Branch', 'data': { 'data': 'str' } }
+{ 'union': 'MyUnion',
+  'data': { 'one': 'Branch',
+            'two': 'Branch' } }

@@ -1,0 +1,2 @@
+union-allow-flat-builtin-type.json: In union 'MyUnion':
+union-allow-flat-builtin-type.json:3: branch 'one' cannot use built-in type 'int'

@@ -1,0 +1,5 @@
+# allow-flat must be a boolean
+{ 'struct': 'Branch', 'data': { 'name': 'str' } }
+{ 'union': 'MyUnion',
+  'data': { 'one': { 'type': 'Branch', 'allow-flat': 'maybe' },
+            'two': 'Branch' } }

@@ -1,0 +1,2 @@
+union-clash-member-data.json: In union 'MyUnion':
+union-clash-member-data.json:4: member 'data' of type 'Branch' collides with flat representation of branch 'one'
