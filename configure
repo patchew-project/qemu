@@ -272,6 +272,8 @@ debug_info="yes"
 lto="false"
 stack_protector=""
 safe_stack=""
+cfi="no"
+cfi_debug="no"
 use_containers="yes"
 gdb_bin=$(command -v "gdb-multiarch" || command -v "gdb")
 
@@ -1199,6 +1201,16 @@ for opt do
   ;;
   --disable-safe-stack) safe_stack="no"
   ;;
+  --enable-cfi)
+      cfi="yes" ;
+      lto="true" ;
+  ;;
+  --disable-cfi) cfi="no"
+  ;;
+  --enable-cfi-debug) cfi_debug="yes"
+  ;;
+  --disable-cfi-debug) cfi_debug="no"
+  ;;
   --disable-curses) curses="disabled"
   ;;
   --enable-curses) curses="enabled"
@@ -1772,6 +1784,13 @@ disabled with --disable-FEATURE, default is enabled if available:
   sparse          sparse checker
   safe-stack      SafeStack Stack Smash Protection. Depends on
                   clang/llvm >= 3.7 and requires coroutine backend ucontext.
+  cfi             Enable Control-Flow Integrity for indirect function calls.
+                  In case of a cfi violation, QEMU is terminated with SIGILL
+                  Depends on lto and is incompatible with modules
+                  Automatically enables Link-Time Optimization (lto)
+  cfi-debug       In case of a cfi violation, a message containing the line that
+                  triggered the error is written to stderr. After the error,
+                  QEMU is still terminated with SIGILL
 
   gnutls          GNUTLS cryptography support
   nettle          nettle cryptography support
@@ -5312,6 +5331,64 @@ EOF
   CONFIGURE_CFLAGS="$QEMU_CFLAGS -flto"
   CONFIGURE_LDFLAGS="$QEMU_LDFLAGS -flto"
 fi
+
+########################################
+# cfi (Control Flow Integrity)
+
+if test "$cfi" = "yes"; then
+  # Compiler/Linker Flags that needs to be added for cfi:
+  # -fsanitize=cfi-icall to enable control-flow integrity checks on
+  #            indirect function calls.
+  # -fsanitize-cfi-icall-generalize-pointers to allow indirect function calls
+  #            with pointers of a different type (i.e. pass a void* to a
+  #            function that expects a char*). Used in some spots in QEMU,
+  #            with compile-time type checks done by macros
+  # -fno-sanitize-trap=cfi-icall, when debug is enabled, to display the
+  #            position in the code that triggered a CFI violation
+
+  # Make sure that LTO is enabled
+  if test "$lto" != "true"; then
+    error_exit "Control Flow Integrity requires Link-Time Optimization (LTO)"
+  fi
+
+  test_cflag="-fsanitize=cfi-icall -fsanitize-cfi-icall-generalize-pointers"
+  test_ldflag="-fsanitize=cfi-icall"
+
+  if test "$cfi_debug" = "yes"; then
+    # Disable the default trap mechanism so that a error message is displayed
+    # when a CFI violation happens. The code is still terminated after the
+    # message
+    test_cflag="${test_cflag} -fno-sanitize-trap=cfi-icall"
+    test_ldflag="${test_ldflag} -fno-sanitize-trap=cfi-icall"
+  fi
+
+  # Check that cfi is supported.
+  cat > $TMPC << EOF
+int main(int argc, char *argv[]) {
+  return 0;
+}
+EOF
+  # Manually add -flto because even if is enabled, flags for it will be
+  # set up later by meson
+  if ! compile_prog "-Werror $test_cflag" "$test_ldflag"; then
+    error_exit "Control Flow Integrity is not supported by your compiler"
+  fi
+
+  # Check for incompatible options
+  if test "$modules" = "yes"; then
+    error_exit "Control Flow Integrity is not compatible with modules"
+  fi
+
+  #### All good, add the flags for CFI to our CFLAGS and LDFLAGS
+  # Flag needed both at compilation and at linking
+  QEMU_CFLAGS="$QEMU_CFLAGS $test_cflag"
+  QEMU_LDFLAGS="$QEMU_LDFLAGS $test_ldflag"
+else
+  if test "$cfi_debug" = "yes"; then
+    error_exit "Cannot enable Control Flow Integrity debugging since CFI is not enabled"
+  fi
+fi
+
 # See if __attribute__((alias)) is supported.
 # This false for Xcode 9, but has been remedied for Xcode 10.
 # Unfortunately, travis uses Xcode 9 by default.
@@ -6970,6 +7047,13 @@ fi
 
 if test "$safe_stack" = "yes"; then
   echo "CONFIG_SAFESTACK=y" >> $config_host_mak
+fi
+
+if test "$cfi" = "yes"; then
+  echo "CONFIG_CFI=y" >> $config_host_mak
+  if test "$cfi_debug" = "yes"; then
+    echo "CONFIG_CFI_DEBUG=y" >> $config_host_mak
+  fi
 fi
 
 # If we're using a separate build tree, set it up now.
