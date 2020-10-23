@@ -248,7 +248,12 @@ def check_union(expr, info):
     for (key, value) in members.items():
         source = "'data' member '%s'" % key
         check_name_str(key, info, source)
-        check_keys(value, info, source, ['type'], ['if'])
+        check_keys(value, info, source, ['type'], ['if', 'allow-flat'])
+        if 'allow-flat' in value:
+            if discriminator is not None:
+                raise QAPISemError(info, "'allow-flat' requires simple union")
+            if not isinstance(value['allow-flat'], bool):
+                raise QAPISemError(info, "'allow-flat' must be a boolean")
         check_if(value, info, source)
         check_type(value['type'], info, source, allow_array=not base)
 

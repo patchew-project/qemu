@@ -612,7 +612,18 @@ class QAPISchemaVariants:
             # branch do not affect another branch.  Variants that are
             # never flat don't even conflict with the base.
             if isinstance(v.type, QAPISchemaObjectType):
-                v.type.check_clash(info, dict(seen) if v.flat else {})
+                nested_seen = dict(seen) if v.flat else {}
+                v.type.check_clash(info, nested_seen)
+
+                # Make sure that the presence of a 'data' member in
+                # some input always implies wrapped representation so
+                # that visitors can unambiguously accept both forms.
+                if v.wrapped and 'data' in nested_seen:
+                    raise QAPISemError(
+                        info,
+                        "%s collides with flat representation of %s"
+                        % (nested_seen['data'].describe(info),
+                           v.describe(info)))
 
 
 class QAPISchemaMember:
@@ -721,9 +732,9 @@ class QAPISchemaVariant(QAPISchemaObjectTypeMember):
         self.wrapped = bool(wrapper_type)
         self.wrapper_type = wrapper_type
 
-        # For now, unions are either flat or wrapped, never both
+        # Unions that are both flat and wrapped can look like either one,
+        # depending on Visitor.flat_simple_unions
         assert self.flat or self.wrapped
-        assert not (self.flat and self.wrapped)
 
     def check(self, schema):
         super().check(schema)
@@ -1038,7 +1049,7 @@ class QAPISchema:
     def _make_variant(self, case, typ, ifcond, info):
         return QAPISchemaVariant(case, info, typ, ifcond)
 
-    def _make_simple_variant(self, union_name, case, typ, ifcond, info):
+    def _make_simple_variant(self, union_name, case, typ, ifcond, flat, info):
         if isinstance(typ, list):
             assert len(typ) == 1
             typ = self._make_array_type(typ[0], info)
@@ -1049,7 +1060,14 @@ class QAPISchema:
         wrapper_member = self._make_member('data', typ, None, None, info)
         wrapper_type = QAPISchemaObjectType(wrapper_name, info, None, ifcond,
                                             None, None, [wrapper_member], None)
-        return QAPISchemaVariant(case, info, typ, ifcond, flat=False,
+
+        # Default to allowing flat representation for object types.
+        # Other types require a wrapper, so disable flat for them by default.
+        if flat is None:
+            variant_type = self.resolve_type(typ, info, 'variant type')
+            flat = isinstance(variant_type, QAPISchemaObjectType)
+
+        return QAPISchemaVariant(case, info, typ, ifcond, flat=flat,
                                  wrapper_type=wrapper_type)
 
     def _def_union_type(self, expr, info, doc):
@@ -1070,9 +1088,13 @@ class QAPISchema:
                         for (key, value) in data.items()]
             members = []
         else:
-            variants = [self._make_simple_variant(name, key, value['type'],
-                                                  value.get('if'), info)
-                        for (key, value) in data.items()]
+            variants = [
+                self._make_simple_variant(name, key, value['type'],
+                                          value.get('if'),
+                                          value.get('allow-flat'),
+                                          info)
+                for (key, value) in data.items()
+            ]
             enum = [{'name': v.name, 'if': v.ifcond} for v in variants]
             typ = self._make_implicit_enum_type(name, info, ifcond, enum)
             tag_member = QAPISchemaObjectTypeMember('type', info, typ, False)

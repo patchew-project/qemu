@@ -121,6 +121,9 @@ struct Visitor
 
     /* Must be set */
     void (*free)(Visitor *v);
+
+    /* Set to true to make simple unions look like flat unions */
+    bool flat_simple_unions;
 };
 
 #endif
