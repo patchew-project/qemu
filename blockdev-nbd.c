@@ -193,6 +193,19 @@ void qmp_nbd_server_add(NbdServerAddOptions *arg, Error **errp)
     }
 
     /*
+     * New code should use the list 'bitmaps'; but until this code is
+     * gone, we must support the older single 'bitmap'.  Use only one.
+     */
+    if (arg->has_bitmap) {
+        if (arg->has_bitmaps) {
+            error_setg(errp, "Can't mix 'bitmap' and 'bitmaps'");
+            return;
+        }
+        arg->has_bitmaps = true;
+        QAPI_LIST_ADD(arg->bitmaps, g_strdup(arg->bitmap));
+    }
+
+    /*
      * block-export-add would default to the node-name, but we may have to use
      * the device name as a default here for compatibility.
      */

@@ -268,7 +268,9 @@ the 'wait' field, which is only applicable to sockets in server mode
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Use the more generic commands ``block-export-add`` and ``block-export-del``
-instead.
+instead.  As part of this deprecation, it is now preferred to export a
+list of dirty bitmaps via ``bitmaps``, rather than a single bitmap via
+``bitmap``.
 
 Human Monitor Protocol (HMP) commands
 -------------------------------------

@@ -74,10 +74,10 @@
 # @description: Free-form description of the export, up to 4096 bytes.
 #               (Since 5.0)
 #
-# @bitmap: Also export the dirty bitmap reachable from @device, so the
-#          NBD client can use NBD_OPT_SET_META_CONTEXT with the
-#          metadata context name "qemu:dirty-bitmap:NAME" to inspect the
-#          bitmap. (since 4.0)
+# @bitmaps: Also export each of the named dirty bitmaps reachable from
+#           @device, so the NBD client can use NBD_OPT_SET_META_CONTEXT with
+#           the metadata context name "qemu:dirty-bitmap:BITMAP" to inspect
+#           each bitmap. (since 5.2)
 #
 # @allocation-depth: Also export the allocation depth map for @device, so
 #                    the NBD client can use NBD_OPT_SET_META_CONTEXT with
@@ -88,7 +88,7 @@
 ##
 { 'struct': 'BlockExportOptionsNbd',
   'data': { '*name': 'str', '*description': 'str',
-            '*bitmap': 'str', '*allocation-depth': 'bool' } }
+            '*bitmaps': ['str'], '*allocation-depth': 'bool' } }
 
 ##
 # @NbdServerAddOptions:
@@ -100,12 +100,18 @@
 # @writable: Whether clients should be able to write to the device via the
 #            NBD connection (default false).
 #
+# @bitmap: Also export a single dirty bitmap reachable from @device, so the
+#          NBD client can use NBD_OPT_SET_META_CONTEXT with the metadata
+#          context name "qemu:dirty-bitmap:BITMAP" to inspect the bitmap
+#          (since 4.0).  Mutually exclusive with @bitmaps, and newer
+#          clients should use that instead.
+#
 # Since: 5.0
 ##
 { 'struct': 'NbdServerAddOptions',
   'base': 'BlockExportOptionsNbd',
   'data': { 'device': 'str',
-            '*writable': 'bool' } }
+            '*writable': 'bool', '*bitmap': 'str' } }
 
 ##
 # @nbd-server-add:
