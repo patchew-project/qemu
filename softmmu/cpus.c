@@ -604,6 +604,11 @@ void qemu_init_vcpu(CPUState *cpu)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
 
+    if (cpu->cpu_index >= ms->smp.cpus) {
+        fprintf(stderr, "Machine definition error: trying to create too many CPUs\n");
+        exit(1);
+    }
+
     cpu->nr_cores = ms->smp.cores;
     cpu->nr_threads =  ms->smp.threads;
     cpu->stopped = true;
