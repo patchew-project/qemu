@@ -2414,8 +2414,9 @@ int coroutine_fn bdrv_is_allocated(BlockDriverState *bs, int64_t offset,
 /*
  * Given an image chain: ... -> [BASE] -> [INTER1] -> [INTER2] -> [TOP]
  *
- * Return 1 if (a prefix of) the given range is allocated in any image
- * between BASE and TOP (BASE is only included if include_base is set).
+ * Return a positive depth if (a prefix of) the given range is allocated
+ * in any image between BASE and TOP (BASE is only included if include_base
+ * is set).  Depth 1 is TOP, 2 is the first backing layer, and so forth.
  * BASE can be NULL to check if the given offset is allocated in any
  * image of the chain.  Return 0 otherwise, or negative errno on
  * failure.
@@ -2435,6 +2436,7 @@ int bdrv_is_allocated_above(BlockDriverState *top,
 {
     BlockDriverState *intermediate;
     int ret;
+    int depth = 0;
     int64_t n = bytes;
 
     assert(base || !include_base);
@@ -2444,14 +2446,15 @@ int bdrv_is_allocated_above(BlockDriverState *top,
         int64_t pnum_inter;
         int64_t size_inter;
 
+        depth++;
         assert(intermediate);
-        ret = bdrv_is_allocated(intermediate, offset, bytes, &pnum_inter);
+        ret = bdrv_is_allocated(intermediate, offset, n, &pnum_inter);
         if (ret < 0) {
             return ret;
         }
         if (ret) {
             *pnum = pnum_inter;
-            return 1;
+            return depth;
         }
 
         size_inter = bdrv_getlength(intermediate);
