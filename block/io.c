@@ -633,6 +633,19 @@ void bdrv_drain_all_begin(void)
     }
 }
 
+void bdrv_drained_end_quiesce(BlockDriverState *bs)
+{
+    int drained_end_counter = 0;
+
+    g_assert_cmpint(bs->quiesce_counter, >, 0);
+    g_assert_cmpint(bs->refcnt, ==, 0);
+
+    while (bs->quiesce_counter) {
+        bdrv_do_drained_end(bs, false, NULL, true, &drained_end_counter);
+    }
+    BDRV_POLL_WHILE(bs, qatomic_read(&drained_end_counter) > 0);
+}
+
 void bdrv_drain_all_end(void)
 {
     BlockDriverState *bs = NULL;
