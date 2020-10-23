@@ -11,6 +11,14 @@
 #ifndef QAPI_UTIL_H
 #define QAPI_UTIL_H
 
+/* This struct is layout-compatible with all other *List structs
+ * created by the QAPI generator.  It is used as a typical
+ * singly-linked list. */
+typedef struct GenericList {
+    struct GenericList *next;
+    char padding[];
+} GenericList;
+
 typedef struct QEnumLookup {
     const char *const *array;
     int size;

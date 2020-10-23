@@ -16,6 +16,7 @@
 #define QAPI_VISITOR_H
 
 #include "qapi/qapi-builtin-types.h"
+#include "qapi/util.h"
 
 /*
  * The QAPI schema defines both a set of C data types, and a QMP wire
@@ -227,14 +228,6 @@
  */
 
 /*** Useful types ***/
-
-/* This struct is layout-compatible with all other *List structs
- * created by the QAPI generator.  It is used as a typical
- * singly-linked list. */
-typedef struct GenericList {
-    struct GenericList *next;
-    char padding[];
-} GenericList;
 
 /* This struct is layout-compatible with all Alternate types
  * created by the QAPI generator. */
