@@ -1,0 +1,2 @@
+union-clash-member.json: In union 'MyUnion':
+union-clash-member.json:4: member 'type' of type 'Branch' collides with member 'type'

@@ -1,0 +1,2 @@
+flat-union-allow-flat.json: In union 'MyUnion':
+flat-union-allow-flat.json:6: 'allow-flat' requires simple union

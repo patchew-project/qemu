@@ -110,6 +110,16 @@
 { 'struct': 'UserDefC',
   'data': { 'string1': 'str', 'string2': 'str' } }
 
+{ 'struct': 'UserDefD',
+  'data': { 'type': 'str' } }
+
+{ 'union': 'UserDefSimpleUnion',
+  'data': { 'value1' : {'type': 'UserDefA'},
+            'value2' : 'UserDefB',
+            'value3' : 'UserDefB',
+            'value4' : { 'type': 'UserDefD', 'allow-flat': false }
+  } }
+
 # for testing use of 'number' within alternates
 { 'alternate': 'AltEnumBool', 'data': { 'e': 'EnumOne', 'b': 'bool' } }
 { 'alternate': 'AltEnumNum', 'data': { 'e': 'EnumOne', 'n': 'number' } }

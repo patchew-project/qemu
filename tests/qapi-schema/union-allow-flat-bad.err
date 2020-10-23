@@ -1,0 +1,2 @@
+union-allow-flat-bad.json: In union 'MyUnion':
+union-allow-flat-bad.json:3: 'allow-flat' must be a boolean

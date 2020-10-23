@@ -1,0 +1,10 @@
+# Flat unions must not use allow-flat
+{ 'enum': 'Enum', 'data': [ 'one', 'two' ] }
+{ 'struct': 'Base',
+  'data': { 'switch': 'Enum' } }
+{ 'struct': 'Branch', 'data': { 'name': 'str' } }
+{ 'union': 'MyUnion',
+  'base': 'Base',
+  'discriminator': 'switch',
+  'data': { 'one': { 'type': 'Branch', 'allow-flat': true },
+            'two': 'Branch' } }
