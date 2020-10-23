@@ -60,7 +60,6 @@ chr_spice_backend_new(void)
     ChardevBackend *be = g_new0(ChardevBackend, 1);
 
     be->type = CHARDEV_BACKEND_KIND_SPICEPORT;
-    be->u.spiceport.data = g_new0(ChardevSpicePort, 1);
 
     return be;
 }
@@ -83,7 +82,7 @@ static void vc_chr_open(Chardev *chr,
     }
 
     be = chr_spice_backend_new();
-    be->u.spiceport.data->fqdn = fqdn ?
+    be->u.spiceport.fqdn = fqdn ?
         g_strdup(fqdn) : g_strdup_printf("org.qemu.console.%s", chr->label);
     vc->parent_open(chr, be, be_opened, errp);
     qapi_free_ChardevBackend(be);
@@ -182,7 +181,7 @@ static void spice_app_display_init(DisplayState *ds, DisplayOptions *opts)
     GError *err = NULL;
     gchar *uri;
 
-    be->u.spiceport.data->fqdn = g_strdup("org.qemu.monitor.qmp.0");
+    be->u.spiceport.fqdn = g_strdup("org.qemu.monitor.qmp.0");
     qemu_chardev_new("org.qemu.monitor.qmp", TYPE_CHARDEV_SPICEPORT,
                      be, NULL, &error_abort);
     qopts = qemu_opts_create(qemu_find_opts("mon"),

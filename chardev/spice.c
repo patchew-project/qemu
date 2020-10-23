@@ -258,7 +258,7 @@ static void qemu_chr_open_spice_vmc(Chardev *chr,
                                     bool *be_opened,
                                     Error **errp)
 {
-    ChardevSpiceChannel *spicevmc = backend->u.spicevmc.data;
+    ChardevSpiceChannel *spicevmc = &backend->u.spicevmc;
     const char *type = spicevmc->type;
     const char **psubtype = spice_server_char_device_recognized_subtypes();
 
@@ -294,7 +294,7 @@ static void qemu_chr_open_spice_port(Chardev *chr,
                                      bool *be_opened,
                                      Error **errp)
 {
-    ChardevSpicePort *spiceport = backend->u.spiceport.data;
+    ChardevSpicePort *spiceport = &backend->u.spiceport;
     const char *name = spiceport->fqdn;
     SpiceChardev *s;
 
@@ -321,14 +321,13 @@ static void qemu_chr_parse_spice_vmc(QemuOpts *opts, ChardevBackend *backend,
                                      Error **errp)
 {
     const char *name = qemu_opt_get(opts, "name");
-    ChardevSpiceChannel *spicevmc;
+    ChardevSpiceChannel *spicevmc = &backend->u.spicevmc;
 
     if (name == NULL) {
         error_setg(errp, "chardev: spice channel: no name given");
         return;
     }
     backend->type = CHARDEV_BACKEND_KIND_SPICEVMC;
-    spicevmc = backend->u.spicevmc.data = g_new0(ChardevSpiceChannel, 1);
     qemu_chr_parse_common(opts, qapi_ChardevSpiceChannel_base(spicevmc));
     spicevmc->type = g_strdup(name);
 }
@@ -337,14 +336,13 @@ static void qemu_chr_parse_spice_port(QemuOpts *opts, ChardevBackend *backend,
                                       Error **errp)
 {
     const char *name = qemu_opt_get(opts, "name");
-    ChardevSpicePort *spiceport;
+    ChardevSpicePort *spiceport = &backend->u.spiceport;
 
     if (name == NULL) {
         error_setg(errp, "chardev: spice port: no name given");
         return;
     }
     backend->type = CHARDEV_BACKEND_KIND_SPICEPORT;
-    spiceport = backend->u.spiceport.data = g_new0(ChardevSpicePort, 1);
     qemu_chr_parse_common(opts, qapi_ChardevSpicePort_base(spiceport));
     spiceport->fqdn = g_strdup(name);
 }

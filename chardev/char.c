@@ -238,7 +238,7 @@ static void qemu_char_open(Chardev *chr, ChardevBackend *backend,
 {
     ChardevClass *cc = CHARDEV_GET_CLASS(chr);
     /* Any ChardevCommon member would work */
-    ChardevCommon *common = backend ? backend->u.null.data : NULL;
+    ChardevCommon *common = backend ? &backend->u.null : NULL;
 
     if (common && common->has_logfile) {
         int flags = O_WRONLY | O_CREAT;
@@ -625,9 +625,8 @@ ChardevBackend *qemu_chr_parse_opts(QemuOpts *opts, Error **errp)
             return NULL;
         }
     } else {
-        ChardevCommon *ccom = g_new0(ChardevCommon, 1);
-        qemu_chr_parse_common(opts, ccom);
-        backend->u.null.data = ccom; /* Any ChardevCommon member would work */
+        /* Any ChardevCommon member would work */
+        qemu_chr_parse_common(opts, &backend->u.null);
     }
 
     return backend;
@@ -689,8 +688,7 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts, GMainContext *context,
         qapi_free_ChardevBackend(backend);
         backend = g_new0(ChardevBackend, 1);
         backend->type = CHARDEV_BACKEND_KIND_MUX;
-        backend->u.mux.data = g_new0(ChardevMux, 1);
-        backend->u.mux.data->chardev = g_strdup(bid);
+        backend->u.mux.chardev = g_strdup(bid);
         mux = qemu_chardev_new(id, TYPE_CHARDEV_MUX, backend, context, errp);
         if (mux == NULL) {
             object_unparent(OBJECT(chr));

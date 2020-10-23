@@ -140,7 +140,7 @@ static void qemu_chr_parse_udp(QemuOpts *opts, ChardevBackend *backend,
     const char *localport = qemu_opt_get(opts, "localport");
     bool has_local = false;
     SocketAddressLegacy *addr;
-    ChardevUdp *udp;
+    ChardevUdp *udp = &backend->u.udp;
 
     backend->type = CHARDEV_BACKEND_KIND_UDP;
     if (host == NULL || strlen(host) == 0) {
@@ -161,13 +161,11 @@ static void qemu_chr_parse_udp(QemuOpts *opts, ChardevBackend *backend,
         has_local = true;
     }
 
-    udp = backend->u.udp.data = g_new0(ChardevUdp, 1);
     qemu_chr_parse_common(opts, qapi_ChardevUdp_base(udp));
 
     addr = g_new0(SocketAddressLegacy, 1);
     addr->type = SOCKET_ADDRESS_LEGACY_KIND_INET;
-    addr->u.inet.data = g_new(InetSocketAddress, 1);
-    *addr->u.inet.data = (InetSocketAddress) {
+    addr->u.inet = (InetSocketAddress) {
         .host = g_strdup(host),
         .port = g_strdup(port),
         .has_ipv4 = qemu_opt_get(opts, "ipv4"),
@@ -181,8 +179,7 @@ static void qemu_chr_parse_udp(QemuOpts *opts, ChardevBackend *backend,
         udp->has_local = true;
         addr = g_new0(SocketAddressLegacy, 1);
         addr->type = SOCKET_ADDRESS_LEGACY_KIND_INET;
-        addr->u.inet.data = g_new(InetSocketAddress, 1);
-        *addr->u.inet.data = (InetSocketAddress) {
+        addr->u.inet = (InetSocketAddress) {
             .host = g_strdup(localaddr),
             .port = g_strdup(localport),
         };
@@ -195,7 +192,7 @@ static void qmp_chardev_open_udp(Chardev *chr,
                                  bool *be_opened,
                                  Error **errp)
 {
-    ChardevUdp *udp = backend->u.udp.data;
+    ChardevUdp *udp = &backend->u.udp;
     SocketAddress *local_addr = socket_address_flatten(udp->local);
     SocketAddress *remote_addr = socket_address_flatten(udp->remote);
     QIOChannelSocket *sioc = qio_channel_socket_new();

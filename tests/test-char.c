@@ -1220,7 +1220,7 @@ static void char_file_fifo_test(void)
                          .has_in = true,
                          .out = out };
     ChardevBackend backend = { .type = CHARDEV_BACKEND_KIND_FILE,
-                               .u.file.data = &file };
+                               .u.file = file };
     FeHandler fe = { 0, };
     int fd, ret;
 
@@ -1273,19 +1273,17 @@ static void char_file_test_internal(Chardev *ext_chr, const char *filepath)
     char *out;
     Chardev *chr;
     char *contents = NULL;
-    ChardevFile file = {};
-    ChardevBackend backend = { .type = CHARDEV_BACKEND_KIND_FILE,
-                               .u.file.data = &file };
+    ChardevBackend backend = { .type = CHARDEV_BACKEND_KIND_FILE };
     gsize length;
     int ret;
 
     if (ext_chr) {
         chr = ext_chr;
         out = g_strdup(filepath);
-        file.out = out;
+        backend.u.file.out = out;
     } else {
         out = g_build_filename(tmp_path, "out", NULL);
-        file.out = out;
+        backend.u.file.out = out;
         chr = qemu_chardev_new(NULL, TYPE_CHARDEV_FILE, &backend,
                                NULL, &error_abort);
     }
@@ -1384,7 +1382,7 @@ static void char_hotswap_test(void)
     char *filename = g_build_filename(tmp_path, "file", NULL);
     ChardevFile file = { .out = filename };
     ChardevBackend backend = { .type = CHARDEV_BACKEND_KIND_FILE,
-                               .u.file.data = &file };
+                               .u.file = file };
     ChardevReturn *ret;
 
     int port;

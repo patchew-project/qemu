@@ -110,7 +110,7 @@ static void test_clone_complex1(void)
     dst = QAPI_CLONE(UserDefListUnion, src);
     g_assert(dst);
     g_assert_cmpint(dst->type, ==, src->type);
-    g_assert(!dst->u.string.data);
+    g_assert(!dst->u.string);
 
     qapi_free_UserDefListUnion(src);
     qapi_free_UserDefListUnion(dst);
@@ -155,30 +155,30 @@ static void test_clone_complex3(void)
     tmp = src->array = g_new0(__org_qemu_x_Union1List, 1);
     tmp->value = g_new0(__org_qemu_x_Union1, 1);
     tmp->value->type = ORG_QEMU_X_UNION1_KIND___ORG_QEMU_X_BRANCH;
-    tmp->value->u.__org_qemu_x_branch.data = g_strdup("one");
+    tmp->value->u.__org_qemu_x_branch = g_strdup("one");
     tmp = tmp->next = g_new0(__org_qemu_x_Union1List, 1);
     tmp->value = g_new0(__org_qemu_x_Union1, 1);
     tmp->value->type = ORG_QEMU_X_UNION1_KIND___ORG_QEMU_X_BRANCH;
-    tmp->value->u.__org_qemu_x_branch.data = g_strdup("two");
+    tmp->value->u.__org_qemu_x_branch = g_strdup("two");
     tmp = tmp->next = g_new0(__org_qemu_x_Union1List, 1);
     tmp->value = g_new0(__org_qemu_x_Union1, 1);
     tmp->value->type = ORG_QEMU_X_UNION1_KIND___ORG_QEMU_X_BRANCH;
-    tmp->value->u.__org_qemu_x_branch.data = g_strdup("three");
+    tmp->value->u.__org_qemu_x_branch = g_strdup("three");
 
     dst = QAPI_CLONE(__org_qemu_x_Struct2, src);
     g_assert(dst);
     tmp = dst->array;
     g_assert(tmp);
     g_assert(tmp->value);
-    g_assert_cmpstr(tmp->value->u.__org_qemu_x_branch.data, ==, "one");
+    g_assert_cmpstr(tmp->value->u.__org_qemu_x_branch, ==, "one");
     tmp = tmp->next;
     g_assert(tmp);
     g_assert(tmp->value);
-    g_assert_cmpstr(tmp->value->u.__org_qemu_x_branch.data, ==, "two");
+    g_assert_cmpstr(tmp->value->u.__org_qemu_x_branch, ==, "two");
     tmp = tmp->next;
     g_assert(tmp);
     g_assert(tmp->value);
-    g_assert_cmpstr(tmp->value->u.__org_qemu_x_branch.data, ==, "three");
+    g_assert_cmpstr(tmp->value->u.__org_qemu_x_branch, ==, "three");
     tmp = tmp->next;
     g_assert(!tmp);
 

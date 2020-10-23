@@ -263,7 +263,7 @@ static void qmp_chardev_open_serial(Chardev *chr,
                                     bool *be_opened,
                                     Error **errp)
 {
-    ChardevHostdev *serial = backend->u.serial.data;
+    ChardevHostdev *serial = &backend->u.serial;
     int fd;
 
     fd = qmp_chardev_open_file_source(serial->device, O_RDWR | O_NONBLOCK,
@@ -283,14 +283,13 @@ static void qemu_chr_parse_serial(QemuOpts *opts, ChardevBackend *backend,
                                   Error **errp)
 {
     const char *device = qemu_opt_get(opts, "path");
-    ChardevHostdev *serial;
+    ChardevHostdev *serial = &backend->u.serial;
 
     if (device == NULL) {
         error_setg(errp, "chardev: serial/tty: no device path given");
         return;
     }
     backend->type = CHARDEV_BACKEND_KIND_SERIAL;
-    serial = backend->u.serial.data = g_new0(ChardevHostdev, 1);
     qemu_chr_parse_common(opts, qapi_ChardevHostdev_base(serial));
     serial->device = g_strdup(device);
 }

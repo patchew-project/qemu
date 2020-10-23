@@ -216,6 +216,11 @@ class QAPISchemaBuiltinType(QAPISchemaType):
         self._json_type_name = json_type
         self._c_type_name = c_type
 
+    def check(self, schema):
+        # Don't check twice, it would fail an assertion
+        if not self._checked:
+            super().check(schema)
+
     def c_name(self):
         return self.name
 
@@ -593,18 +598,21 @@ class QAPISchemaVariants:
                         "branch '%s' is not a value of %s"
                         % (v.name, self.tag_member.type.describe()))
                 if (not isinstance(v.type, QAPISchemaObjectType)
-                        or v.type.variants):
+                        or v.type.variants) and v.flat:
                     raise QAPISemError(
                         self.info,
                         "%s cannot use %s"
                         % (v.describe(self.info), v.type.describe()))
-                v.type.check(schema)
+                if isinstance(v.type, QAPISchemaObjectType):
+                    v.type.check(schema)
 
     def check_clash(self, info, seen):
         for v in self.variants:
             # Reset seen map for each variant, since qapi names from one
-            # branch do not affect another branch
-            v.type.check_clash(info, dict(seen))
+            # branch do not affect another branch.  Variants that are
+            # never flat don't even conflict with the base.
+            if isinstance(v.type, QAPISchemaObjectType):
+                v.type.check_clash(info, dict(seen) if v.flat else {})
 
 
 class QAPISchemaMember:
@@ -705,9 +713,22 @@ class QAPISchemaObjectTypeMember(QAPISchemaMember):
 class QAPISchemaVariant(QAPISchemaObjectTypeMember):
     role = 'branch'
 
-    def __init__(self, name, info, typ, ifcond=None):
+    def __init__(self, name, info, typ, ifcond=None, flat=True,
+                 wrapper_type=None):
         super().__init__(name, info, typ, False, ifcond)
 
+        self.flat = flat
+        self.wrapped = bool(wrapper_type)
+        self.wrapper_type = wrapper_type
+
+        # For now, unions are either flat or wrapped, never both
+        assert self.flat or self.wrapped
+        assert not (self.flat and self.wrapped)
+
+    def check(self, schema):
+        super().check(schema)
+        if self.wrapped:
+            self.wrapper_type.check(schema)
 
 class QAPISchemaCommand(QAPISchemaEntity):
     meta = 'command'
@@ -1017,14 +1038,19 @@ class QAPISchema:
     def _make_variant(self, case, typ, ifcond, info):
         return QAPISchemaVariant(case, info, typ, ifcond)
 
-    def _make_simple_variant(self, case, typ, ifcond, info):
+    def _make_simple_variant(self, union_name, case, typ, ifcond, info):
         if isinstance(typ, list):
             assert len(typ) == 1
             typ = self._make_array_type(typ[0], info)
-        typ = self._make_implicit_object_type(
-            typ, info, self.lookup_type(typ),
-            'wrapper', [self._make_member('data', typ, None, None, info)])
-        return QAPISchemaVariant(case, info, typ, ifcond)
+
+        # The wrapper type is only used for introspection compatibility.
+        # Don't add it to the entity list of the schema.
+        wrapper_name = 'q_obj_%s-%s-wrapper' % (union_name, case)
+        wrapper_member = self._make_member('data', typ, None, None, info)
+        wrapper_type = QAPISchemaObjectType(wrapper_name, info, None, ifcond,
+                                            None, None, [wrapper_member], None)
+        return QAPISchemaVariant(case, info, typ, ifcond, flat=False,
+                                 wrapper_type=wrapper_type)
 
     def _def_union_type(self, expr, info, doc):
         name = expr['union']
@@ -1044,7 +1070,7 @@ class QAPISchema:
                         for (key, value) in data.items()]
             members = []
         else:
-            variants = [self._make_simple_variant(key, value['type'],
+            variants = [self._make_simple_variant(name, key, value['type'],
                                                   value.get('if'), info)
                         for (key, value) in data.items()]
             enum = [{'name': v.name, 'if': v.ifcond} for v in variants]

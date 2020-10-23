@@ -2932,18 +2932,14 @@ static ImageInfoSpecific *vmdk_get_specific_info(BlockDriverState *bs,
 
     *spec_info = (ImageInfoSpecific){
         .type = IMAGE_INFO_SPECIFIC_KIND_VMDK,
-        .u = {
-            .vmdk.data = g_new0(ImageInfoSpecificVmdk, 1),
+        .u.vmdk = (ImageInfoSpecificVmdk) {
+            .create_type = g_strdup(s->create_type),
+            .cid = s->cid,
+            .parent_cid = s->parent_cid,
         },
     };
 
-    *spec_info->u.vmdk.data = (ImageInfoSpecificVmdk) {
-        .create_type = g_strdup(s->create_type),
-        .cid = s->cid,
-        .parent_cid = s->parent_cid,
-    };
-
-    next = &spec_info->u.vmdk.data->extents;
+    next = &spec_info->u.vmdk.extents;
     for (i = 0; i < s->num_extents; i++) {
         *next = g_new0(ImageInfoList, 1);
         (*next)->value = vmdk_get_extent_info(&s->extents[i]);

@@ -775,8 +775,7 @@ block_crypto_get_specific_info_luks(BlockDriverState *bs, Error **errp)
 
     spec_info = g_new(ImageInfoSpecific, 1);
     spec_info->type = IMAGE_INFO_SPECIFIC_KIND_LUKS;
-    spec_info->u.luks.data = g_new(QCryptoBlockInfoLUKS, 1);
-    *spec_info->u.luks.data = info->u.luks;
+    spec_info->u.luks = info->u.luks;
 
     /* Blank out pointers we've just stolen to avoid double free */
     memset(&info->u.luks, 0, sizeof(info->u.luks));

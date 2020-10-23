@@ -310,7 +310,20 @@ The BRANCH's STRING name is the branch name.
 The BRANCH's value defines the branch's properties, in particular its
 type.  The form TYPE-REF is shorthand for { 'type': TYPE-REF }.
 
-A simple union type defines a mapping from automatic discriminator
+Each branch can have flat or wrapped representation in the Client JSON
+Protocol.
+
+Wrapped representation of a branch means that it is represented by a
+'data' member that is of the specified data type corresponding to the
+discriminator value.
+
+Flat representation means that the union forms a single object that
+contains both common members (from the base type) and the selected
+branch's members, without any additional nesting.  The two sets of
+member names must be disjoint.
+
+A simple union type automatically contains the 'type' member as a
+discriminator and defines a mapping from automatic discriminator
 values to data types like in this example:
 
  { 'struct': 'BlockdevOptionsFile', 'data': { 'filename': 'str' } }
@@ -321,10 +334,8 @@ values to data types like in this example:
    'data': { 'file': 'BlockdevOptionsFile',
              'qcow2': 'BlockdevOptionsQcow2' } }
 
-In the Client JSON Protocol, a simple union is represented by an
-object that contains the 'type' member as a discriminator, and a
-'data' member that is of the specified data type corresponding to the
-discriminator value, as in these examples:
+In the Client JSON Protocol, all simple union branches have wrapped
+representation, as in these examples:
 
  { "type": "file", "data": { "filename": "/some/place/my-image" } }
  { "type": "qcow2", "data": { "backing": "/some/place/my-image",
@@ -344,13 +355,12 @@ object, it defines common members just like a struct type's 'data'
 member defines struct type members.  If it is a STRING, it names a
 struct type whose members are the common members.
 
-All flat union branches must be of struct type.
+Member 'discriminator' must name a non-optional enum-typed member of
+the base struct and defines the option that should server as the
+discrimiator.
 
-In the Client JSON Protocol, a flat union is represented by an object
-with the common members (from the base type) and the selected branch's
-members.  The two sets of member names must be disjoint.  Member
-'discriminator' must name a non-optional enum-typed member of the base
-struct.
+All flat union branches must be of struct type.  They have always flat
+representation.
 
 The following example enhances the above simple union example by
 adding an optional common member 'read-only', renaming the

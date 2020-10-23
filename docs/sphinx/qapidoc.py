@@ -183,12 +183,14 @@ class QAPISchemaGenRSTVisitor(QAPISchemaVisitor):
 
         if variants:
             for v in variants.variants:
-                if v.type.is_implicit():
-                    assert not v.type.base and not v.type.variants
-                    for m in v.type.local_members:
-                        term = self._nodes_for_one_member(m)
-                        term.extend(self._nodes_for_variant_when(variants, v))
-                        dlnode += self._make_dlitem(term, None)
+                if v.wrapped:
+                    term = [nodes.literal('', 'data'),
+                            nodes.Text(': '),
+                            nodes.literal('', v.type.doc_type())]
+                    term.extend(self._nodes_for_variant_when(variants, v))
+                    dlnode += self._make_dlitem(term, None)
+                elif v.type.is_implicit():
+                    assert v.type.name == 'q_empty'
                 else:
                     term = [nodes.Text('The members of '),
                             nodes.literal('', v.type.doc_type())]

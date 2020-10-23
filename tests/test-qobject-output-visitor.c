@@ -444,7 +444,7 @@ static void init_list_union(UserDefListUnion *cvalue)
     int i;
     switch (cvalue->type) {
     case USER_DEF_LIST_UNION_KIND_INTEGER: {
-        intList **list = &cvalue->u.integer.data;
+        intList **list = &cvalue->u.integer;
         for (i = 0; i < 32; i++) {
             *list = g_new0(intList, 1);
             (*list)->value = i;
@@ -454,7 +454,7 @@ static void init_list_union(UserDefListUnion *cvalue)
         break;
     }
     case USER_DEF_LIST_UNION_KIND_S8: {
-        int8List **list = &cvalue->u.s8.data;
+        int8List **list = &cvalue->u.s8;
         for (i = 0; i < 32; i++) {
             *list = g_new0(int8List, 1);
             (*list)->value = i;
@@ -464,7 +464,7 @@ static void init_list_union(UserDefListUnion *cvalue)
         break;
     }
     case USER_DEF_LIST_UNION_KIND_S16: {
-        int16List **list = &cvalue->u.s16.data;
+        int16List **list = &cvalue->u.s16;
         for (i = 0; i < 32; i++) {
             *list = g_new0(int16List, 1);
             (*list)->value = i;
@@ -474,7 +474,7 @@ static void init_list_union(UserDefListUnion *cvalue)
         break;
     }
     case USER_DEF_LIST_UNION_KIND_S32: {
-        int32List **list = &cvalue->u.s32.data;
+        int32List **list = &cvalue->u.s32;
         for (i = 0; i < 32; i++) {
             *list = g_new0(int32List, 1);
             (*list)->value = i;
@@ -484,7 +484,7 @@ static void init_list_union(UserDefListUnion *cvalue)
         break;
     }
     case USER_DEF_LIST_UNION_KIND_S64: {
-        int64List **list = &cvalue->u.s64.data;
+        int64List **list = &cvalue->u.s64;
         for (i = 0; i < 32; i++) {
             *list = g_new0(int64List, 1);
             (*list)->value = i;
@@ -494,7 +494,7 @@ static void init_list_union(UserDefListUnion *cvalue)
         break;
     }
     case USER_DEF_LIST_UNION_KIND_U8: {
-        uint8List **list = &cvalue->u.u8.data;
+        uint8List **list = &cvalue->u.u8;
         for (i = 0; i < 32; i++) {
             *list = g_new0(uint8List, 1);
             (*list)->value = i;
@@ -504,7 +504,7 @@ static void init_list_union(UserDefListUnion *cvalue)
         break;
     }
     case USER_DEF_LIST_UNION_KIND_U16: {
-        uint16List **list = &cvalue->u.u16.data;
+        uint16List **list = &cvalue->u.u16;
         for (i = 0; i < 32; i++) {
             *list = g_new0(uint16List, 1);
             (*list)->value = i;
@@ -514,7 +514,7 @@ static void init_list_union(UserDefListUnion *cvalue)
         break;
     }
     case USER_DEF_LIST_UNION_KIND_U32: {
-        uint32List **list = &cvalue->u.u32.data;
+        uint32List **list = &cvalue->u.u32;
         for (i = 0; i < 32; i++) {
             *list = g_new0(uint32List, 1);
             (*list)->value = i;
@@ -524,7 +524,7 @@ static void init_list_union(UserDefListUnion *cvalue)
         break;
     }
     case USER_DEF_LIST_UNION_KIND_U64: {
-        uint64List **list = &cvalue->u.u64.data;
+        uint64List **list = &cvalue->u.u64;
         for (i = 0; i < 32; i++) {
             *list = g_new0(uint64List, 1);
             (*list)->value = i;
@@ -534,7 +534,7 @@ static void init_list_union(UserDefListUnion *cvalue)
         break;
     }
     case USER_DEF_LIST_UNION_KIND_BOOLEAN: {
-        boolList **list = &cvalue->u.boolean.data;
+        boolList **list = &cvalue->u.boolean;
         for (i = 0; i < 32; i++) {
             *list = g_new0(boolList, 1);
             (*list)->value = QEMU_IS_ALIGNED(i, 3);
@@ -544,7 +544,7 @@ static void init_list_union(UserDefListUnion *cvalue)
         break;
     }
     case USER_DEF_LIST_UNION_KIND_STRING: {
-        strList **list = &cvalue->u.string.data;
+        strList **list = &cvalue->u.string;
         for (i = 0; i < 32; i++) {
             *list = g_new0(strList, 1);
             (*list)->value = g_strdup_printf("%d", i);
@@ -554,7 +554,7 @@ static void init_list_union(UserDefListUnion *cvalue)
         break;
     }
     case USER_DEF_LIST_UNION_KIND_NUMBER: {
-        numberList **list = &cvalue->u.number.data;
+        numberList **list = &cvalue->u.number;
         for (i = 0; i < 32; i++) {
             *list = g_new0(numberList, 1);
             (*list)->value = (double)i / 3;

@@ -87,7 +87,7 @@ static void qemu_chr_open_stdio(Chardev *chr,
                                 bool *be_opened,
                                 Error **errp)
 {
-    ChardevStdio *opts = backend->u.stdio.data;
+    ChardevStdio *opts = &backend->u.stdio;
     struct sigaction act;
 
     if (is_daemonized()) {
@@ -120,10 +120,9 @@ static void qemu_chr_open_stdio(Chardev *chr,
 static void qemu_chr_parse_stdio(QemuOpts *opts, ChardevBackend *backend,
                                  Error **errp)
 {
-    ChardevStdio *stdio;
+    ChardevStdio *stdio = &backend->u.stdio;
 
     backend->type = CHARDEV_BACKEND_KIND_STDIO;
-    stdio = backend->u.stdio.data = g_new0(ChardevStdio, 1);
     qemu_chr_parse_common(opts, qapi_ChardevStdio_base(stdio));
     stdio->has_signal = true;
     stdio->signal = qemu_opt_get_bool(opts, "signal", true);

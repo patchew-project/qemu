@@ -201,7 +201,7 @@ static void xenfb_key_event(DeviceState *dev, QemuConsole *src,
                             InputEvent *evt)
 {
     struct XenInput *xenfb = (struct XenInput *)dev;
-    InputKeyEvent *key = evt->u.key.data;
+    InputKeyEvent *key = &evt->u.key;
     int qcode = qemu_input_key_value_to_qcode(key->key);
     int lnx;
 
@@ -236,7 +236,7 @@ static void xenfb_mouse_event(DeviceState *dev, QemuConsole *src,
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_BTN:
-        btn = evt->u.btn.data;
+        btn = &evt->u.btn;
         switch (btn->button) {
         case INPUT_BUTTON_LEFT:
             xenfb_send_key(xenfb, btn->down, BTN_LEFT);
@@ -263,7 +263,7 @@ static void xenfb_mouse_event(DeviceState *dev, QemuConsole *src,
         break;
 
     case INPUT_EVENT_KIND_ABS:
-        move = evt->u.abs.data;
+        move = &evt->u.abs;
         if (xenfb->raw_pointer_wanted) {
             xenfb->axis[move->axis] = move->value;
         } else {
@@ -289,7 +289,7 @@ static void xenfb_mouse_event(DeviceState *dev, QemuConsole *src,
         break;
 
     case INPUT_EVENT_KIND_REL:
-        move = evt->u.rel.data;
+        move = &evt->u.rel;
         xenfb->axis[move->axis] += move->value;
         break;
 

@@ -629,7 +629,8 @@ static TpmTypeOptions *tpm_emulator_get_tpm_options(TPMBackend *tb)
     TpmTypeOptions *options = g_new0(TpmTypeOptions, 1);
 
     options->type = TPM_TYPE_OPTIONS_KIND_EMULATOR;
-    options->u.emulator.data = QAPI_CLONE(TPMEmulatorOptions, tpm_emu->options);
+    QAPI_CLONE_MEMBERS(TPMEmulatorOptions, &options->u.emulator,
+                       tpm_emu->options);
 
     return options;
 }

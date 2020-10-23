@@ -97,7 +97,7 @@ static void qemu_chr_open_ringbuf(Chardev *chr,
                                   bool *be_opened,
                                   Error **errp)
 {
-    ChardevRingbuf *opts = backend->u.ringbuf.data;
+    ChardevRingbuf *opts = &backend->u.ringbuf;
     RingBufChardev *d = RINGBUF_CHARDEV(chr);
 
     d->size = opts->has_size ? opts->size : 65536;
@@ -210,10 +210,9 @@ static void qemu_chr_parse_ringbuf(QemuOpts *opts, ChardevBackend *backend,
                                    Error **errp)
 {
     int val;
-    ChardevRingbuf *ringbuf;
+    ChardevRingbuf *ringbuf = &backend->u.ringbuf;
 
     backend->type = CHARDEV_BACKEND_KIND_RINGBUF;
-    ringbuf = backend->u.ringbuf.data = g_new0(ChardevRingbuf, 1);
     qemu_chr_parse_common(opts, qapi_ChardevRingbuf_base(ringbuf));
 
     val = qemu_opt_get_size(opts, "size", 0);
