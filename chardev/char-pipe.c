@@ -109,7 +109,7 @@ static void qemu_chr_open_pipe(Chardev *chr,
                                bool *be_opened,
                                Error **errp)
 {
-    ChardevHostdev *opts = backend->u.pipe.data;
+    ChardevHostdev *opts = &backend->u.pipe;
     const char *filename = opts->device;
 
     if (win_chr_pipe_init(chr, filename, errp) < 0) {
@@ -124,7 +124,7 @@ static void qemu_chr_open_pipe(Chardev *chr,
                                bool *be_opened,
                                Error **errp)
 {
-    ChardevHostdev *opts = backend->u.pipe.data;
+    ChardevHostdev *opts = &backend->u.pipe;
     int fd_in, fd_out;
     char *filename_in;
     char *filename_out;
@@ -158,14 +158,13 @@ static void qemu_chr_parse_pipe(QemuOpts *opts, ChardevBackend *backend,
                                 Error **errp)
 {
     const char *device = qemu_opt_get(opts, "path");
-    ChardevHostdev *dev;
+    ChardevHostdev *dev = &backend->u.pipe;
 
     if (device == NULL) {
         error_setg(errp, "chardev: pipe: no device path given");
         return;
     }
     backend->type = CHARDEV_BACKEND_KIND_PIPE;
-    dev = backend->u.pipe.data = g_new0(ChardevHostdev, 1);
     qemu_chr_parse_common(opts, qapi_ChardevHostdev_base(dev));
     dev->device = g_strdup(device);
 }

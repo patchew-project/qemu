@@ -244,7 +244,7 @@ static void qmp_chardev_open_parallel(Chardev *chr,
                                       bool *be_opened,
                                       Error **errp)
 {
-    ChardevHostdev *parallel = backend->u.parallel.data;
+    ChardevHostdev *parallel = &backend->u.parallel;
     int fd;
 
     fd = qmp_chardev_open_file_source(parallel->device, O_RDWR, errp);
@@ -258,14 +258,13 @@ static void qemu_chr_parse_parallel(QemuOpts *opts, ChardevBackend *backend,
                                     Error **errp)
 {
     const char *device = qemu_opt_get(opts, "path");
-    ChardevHostdev *parallel;
+    ChardevHostdev *parallel = &backend->u.parallel;
 
     if (device == NULL) {
         error_setg(errp, "chardev: parallel: no device path given");
         return;
     }
     backend->type = CHARDEV_BACKEND_KIND_PARALLEL;
-    parallel = backend->u.parallel.data = g_new0(ChardevHostdev, 1);
     qemu_chr_parse_common(opts, qapi_ChardevHostdev_base(parallel));
     parallel->device = g_strdup(device);
 }

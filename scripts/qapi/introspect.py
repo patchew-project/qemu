@@ -188,7 +188,12 @@ const QLitObject %(c_name)s = %(c_string)s;
                 'variants': [self._gen_variant(v) for v in variants]}
 
     def _gen_variant(self, variant):
-        obj = {'case': variant.name, 'type': self._use_type(variant.type)}
+        if variant.wrapped:
+            obj = {'case': variant.name,
+                   'type': self._use_type(variant.wrapper_type)}
+        else:
+            obj = {'case': variant.name,
+                   'type': self._use_type(variant.type)}
         return _make_tree(obj, variant.ifcond, None)
 
     def visit_builtin_type(self, name, info, json_type):

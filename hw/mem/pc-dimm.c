@@ -236,10 +236,18 @@ static MemoryRegion *pc_dimm_md_get_memory_region(MemoryDeviceState *md,
 static void pc_dimm_md_fill_device_info(const MemoryDeviceState *md,
                                         MemoryDeviceInfo *info)
 {
-    PCDIMMDeviceInfo *di = g_new0(PCDIMMDeviceInfo, 1);
+    PCDIMMDeviceInfo *di;
     const DeviceClass *dc = DEVICE_GET_CLASS(md);
     const PCDIMMDevice *dimm = PC_DIMM(md);
     const DeviceState *dev = DEVICE(md);
+
+    if (object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM)) {
+        di = &info->u.nvdimm;
+        info->type = MEMORY_DEVICE_INFO_KIND_NVDIMM;
+    } else {
+        di = &info->u.dimm;
+        info->type = MEMORY_DEVICE_INFO_KIND_DIMM;
+    }
 
     if (dev->id) {
         di->has_id = true;
@@ -253,14 +261,6 @@ static void pc_dimm_md_fill_device_info(const MemoryDeviceState *md,
     di->size = object_property_get_uint(OBJECT(dimm), PC_DIMM_SIZE_PROP,
                                         NULL);
     di->memdev = object_get_canonical_path(OBJECT(dimm->hostmem));
-
-    if (object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM)) {
-        info->u.nvdimm.data = di;
-        info->type = MEMORY_DEVICE_INFO_KIND_NVDIMM;
-    } else {
-        info->u.dimm.data = di;
-        info->type = MEMORY_DEVICE_INFO_KIND_DIMM;
-    }
 }
 
 static void pc_dimm_class_init(ObjectClass *oc, void *data)

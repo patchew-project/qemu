@@ -314,7 +314,7 @@ static void qemu_chr_open_mux(Chardev *chr,
                               bool *be_opened,
                               Error **errp)
 {
-    ChardevMux *mux = backend->u.mux.data;
+    ChardevMux *mux = &backend->u.mux;
     Chardev *drv;
     MuxChardev *d = MUX_CHARDEV(chr);
 
@@ -336,14 +336,13 @@ static void qemu_chr_parse_mux(QemuOpts *opts, ChardevBackend *backend,
                                Error **errp)
 {
     const char *chardev = qemu_opt_get(opts, "chardev");
-    ChardevMux *mux;
+    ChardevMux *mux = &backend->u.mux;
 
     if (chardev == NULL) {
         error_setg(errp, "chardev: mux: no chardev given");
         return;
     }
     backend->type = CHARDEV_BACKEND_KIND_MUX;
-    mux = backend->u.mux.data = g_new0(ChardevMux, 1);
     qemu_chr_parse_common(opts, qapi_ChardevMux_base(mux));
     mux->chardev = g_strdup(chardev);
 }

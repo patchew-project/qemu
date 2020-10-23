@@ -918,7 +918,7 @@ void hmp_info_tpm(Monitor *mon, const QDict *qdict)
 
         switch (ti->options->type) {
         case TPM_TYPE_OPTIONS_KIND_PASSTHROUGH:
-            tpo = ti->options->u.passthrough.data;
+            tpo = &ti->options->u.passthrough;
             monitor_printf(mon, "%s%s%s%s",
                            tpo->has_path ? ",path=" : "",
                            tpo->has_path ? tpo->path : "",
@@ -926,7 +926,7 @@ void hmp_info_tpm(Monitor *mon, const QDict *qdict)
                            tpo->has_cancel_path ? tpo->cancel_path : "");
             break;
         case TPM_TYPE_OPTIONS_KIND_EMULATOR:
-            teo = ti->options->u.emulator.data;
+            teo = &ti->options->u.emulator;
             monitor_printf(mon, ",chardev=%s", teo->chardev);
             break;
         case TPM_TYPE_OPTIONS_KIND__MAX:
@@ -1728,14 +1728,14 @@ void hmp_sendkey(Monitor *mon, const QDict *qdict)
                 goto err_out;
             }
             keylist->value->type = KEY_VALUE_KIND_NUMBER;
-            keylist->value->u.number.data = value;
+            keylist->value->u.number = value;
         } else {
             int idx = index_from_key(keys, keyname_len);
             if (idx == Q_KEY_CODE__MAX) {
                 goto err_out;
             }
             keylist->value->type = KEY_VALUE_KIND_QCODE;
-            keylist->value->u.qcode.data = idx;
+            keylist->value->u.qcode = idx;
         }
 
         if (!*separator) {
@@ -1860,7 +1860,7 @@ void hmp_info_memory_devices(Monitor *mon, const QDict *qdict)
             case MEMORY_DEVICE_INFO_KIND_DIMM:
             case MEMORY_DEVICE_INFO_KIND_NVDIMM:
                 di = value->type == MEMORY_DEVICE_INFO_KIND_DIMM ?
-                     value->u.dimm.data : value->u.nvdimm.data;
+                     &value->u.dimm : &value->u.nvdimm;
                 monitor_printf(mon, "Memory device [%s]: \"%s\"\n",
                                MemoryDeviceInfoKind_str(value->type),
                                di->id ? di->id : "");
@@ -1875,7 +1875,7 @@ void hmp_info_memory_devices(Monitor *mon, const QDict *qdict)
                                di->hotpluggable ? "true" : "false");
                 break;
             case MEMORY_DEVICE_INFO_KIND_VIRTIO_PMEM:
-                vpi = value->u.virtio_pmem.data;
+                vpi = &value->u.virtio_pmem;
                 monitor_printf(mon, "Memory device [%s]: \"%s\"\n",
                                MemoryDeviceInfoKind_str(value->type),
                                vpi->id ? vpi->id : "");
@@ -1884,7 +1884,7 @@ void hmp_info_memory_devices(Monitor *mon, const QDict *qdict)
                 monitor_printf(mon, "  memdev: %s\n", vpi->memdev);
                 break;
             case MEMORY_DEVICE_INFO_KIND_VIRTIO_MEM:
-                vmi = value->u.virtio_mem.data;
+                vmi = &value->u.virtio_mem;
                 monitor_printf(mon, "Memory device [%s]: \"%s\"\n",
                                MemoryDeviceInfoKind_str(value->type),
                                vmi->id ? vmi->id : "");

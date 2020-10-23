@@ -118,6 +118,34 @@ bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
         break;
 ''',
                              case=case_str)
+            elif not isinstance(var.type, QAPISchemaObjectType):
+                assert not var.flat
+                ret += mcgen('''
+    case %(case)s:
+        return visit_type_%(c_type)s(v, "data", &obj->u.%(c_name)s, errp);
+''',
+                             case=case_str,
+                             c_type=var.type.c_name(), c_name=c_name(var.name))
+            elif var.wrapped:
+                ret += mcgen('''
+    case %(case)s:
+    {
+        bool ok;
+
+        if (!visit_start_struct(v, "data", NULL, 0, errp)) {
+            return false;
+        }
+        ok = visit_type_%(c_type)s_members(v, &obj->u.%(c_name)s, errp);
+        if (ok) {
+            ok = visit_check_struct(v, errp);
+        }
+        visit_end_struct(v, NULL);
+        return ok;
+    }
+''',
+                             case=case_str,
+                             c_type=var.type.c_name(), c_name=c_name(var.name))
+
             else:
                 ret += mcgen('''
     case %(case)s:

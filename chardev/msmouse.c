@@ -111,12 +111,12 @@ static void msmouse_input_event(DeviceState *dev, QemuConsole *src,
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_REL:
-        move = evt->u.rel.data;
+        move = &evt->u.rel;
         mouse->axis[move->axis] += move->value;
         break;
 
     case INPUT_EVENT_KIND_BTN:
-        btn = evt->u.btn.data;
+        btn = &evt->u.btn;
         mouse->btns[btn->button] = btn->down;
         mouse->btnc[btn->button] = true;
         break;

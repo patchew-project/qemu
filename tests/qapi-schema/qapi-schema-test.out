@@ -125,36 +125,6 @@ alternate AltStrObj
     tag type
     case s: str
     case o: TestStruct
-object q_obj_intList-wrapper
-    member data: intList optional=False
-object q_obj_int8List-wrapper
-    member data: int8List optional=False
-object q_obj_int16List-wrapper
-    member data: int16List optional=False
-object q_obj_int32List-wrapper
-    member data: int32List optional=False
-object q_obj_int64List-wrapper
-    member data: int64List optional=False
-object q_obj_uint8List-wrapper
-    member data: uint8List optional=False
-object q_obj_uint16List-wrapper
-    member data: uint16List optional=False
-object q_obj_uint32List-wrapper
-    member data: uint32List optional=False
-object q_obj_uint64List-wrapper
-    member data: uint64List optional=False
-object q_obj_numberList-wrapper
-    member data: numberList optional=False
-object q_obj_boolList-wrapper
-    member data: boolList optional=False
-object q_obj_strList-wrapper
-    member data: strList optional=False
-object q_obj_sizeList-wrapper
-    member data: sizeList optional=False
-object q_obj_anyList-wrapper
-    member data: anyList optional=False
-object q_obj_StatusList-wrapper
-    member data: StatusList optional=False
 enum UserDefListUnionKind
     member integer
     member s8
@@ -174,21 +144,21 @@ enum UserDefListUnionKind
 object UserDefListUnion
     member type: UserDefListUnionKind optional=False
     tag type
-    case integer: q_obj_intList-wrapper
-    case s8: q_obj_int8List-wrapper
-    case s16: q_obj_int16List-wrapper
-    case s32: q_obj_int32List-wrapper
-    case s64: q_obj_int64List-wrapper
-    case u8: q_obj_uint8List-wrapper
-    case u16: q_obj_uint16List-wrapper
-    case u32: q_obj_uint32List-wrapper
-    case u64: q_obj_uint64List-wrapper
-    case number: q_obj_numberList-wrapper
-    case boolean: q_obj_boolList-wrapper
-    case string: q_obj_strList-wrapper
-    case sizes: q_obj_sizeList-wrapper
-    case any: q_obj_anyList-wrapper
-    case user: q_obj_StatusList-wrapper
+    case integer: intList
+    case s8: int8List
+    case s16: int16List
+    case s32: int32List
+    case s64: int64List
+    case u8: uint8List
+    case u16: uint16List
+    case u32: uint32List
+    case u64: uint64List
+    case number: numberList
+    case boolean: boolList
+    case string: strList
+    case sizes: sizeList
+    case any: anyList
+    case user: StatusList
 include include/sub-module.json
 command user_def_cmd None -> None
     gen=True success_response=True boxed=False oob=False preconfig=False
@@ -263,14 +233,12 @@ object __org.qemu_x-Struct
     base __org.qemu_x-Base
     member __org.qemu_x-member2: str optional=False
     member wchar-t: int optional=True
-object q_obj_str-wrapper
-    member data: str optional=False
 enum __org.qemu_x-Union1Kind
     member __org.qemu_x-branch
 object __org.qemu_x-Union1
     member type: __org.qemu_x-Union1Kind optional=False
     tag type
-    case __org.qemu_x-branch: q_obj_str-wrapper
+    case __org.qemu_x-branch: str
 alternate __org.qemu_x-Alt1
     tag type
     case __org.qemu_x-branch: str
@@ -305,8 +273,6 @@ enum TestIfEnum
     member bar
         if ['defined(TEST_IF_ENUM_BAR)']
     if ['defined(TEST_IF_ENUM)']
-object q_obj_TestStruct-wrapper
-    member data: TestStruct optional=False
 enum TestIfUnionKind
     member foo
     member union_bar
@@ -315,8 +281,8 @@ enum TestIfUnionKind
 object TestIfUnion
     member type: TestIfUnionKind optional=False
     tag type
-    case foo: q_obj_TestStruct-wrapper
-    case union_bar: q_obj_str-wrapper
+    case foo: TestStruct
+    case union_bar: str
         if ['defined(TEST_IF_UNION_BAR)']
     if ['defined(TEST_IF_UNION) && defined(TEST_IF_STRUCT)']
 object q_obj_TestIfUnionCmd-arg

@@ -38,7 +38,7 @@ static uint32_t qcode_to_number(uint32_t qcode)
     uint32_t number;
 
     keyvalue.type = KEY_VALUE_KIND_QCODE;
-    keyvalue.u.qcode.data = qcode;
+    keyvalue.u.qcode = qcode;
     number = qemu_input_key_value_to_number(&keyvalue);
     assert(number != 0);
     return number;

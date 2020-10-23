@@ -1301,7 +1301,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
                                     Error **errp)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
-    ChardevSocket *sock = backend->u.socket.data;
+    ChardevSocket *sock = &backend->u.socket;
     bool do_nodelay     = sock->has_nodelay ? sock->nodelay : false;
     bool is_listen      = sock->has_server  ? sock->server  : true;
     bool is_telnet      = sock->has_telnet  ? sock->telnet  : false;
@@ -1403,7 +1403,7 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     }
 
     backend->type = CHARDEV_BACKEND_KIND_SOCKET;
-    sock = backend->u.socket.data = g_new0(ChardevSocket, 1);
+    sock = &backend->u.socket;
     qemu_chr_parse_common(opts, qapi_ChardevSocket_base(sock));
 
     sock->has_nodelay = qemu_opt_get(opts, "delay");
@@ -1435,16 +1435,14 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
 
     addr = g_new0(SocketAddressLegacy, 1);
     if (path) {
-        UnixSocketAddress *q_unix;
+        UnixSocketAddress *q_unix = &addr->u.q_unix;
         addr->type = SOCKET_ADDRESS_LEGACY_KIND_UNIX;
-        q_unix = addr->u.q_unix.data = g_new0(UnixSocketAddress, 1);
         q_unix->path = g_strdup(path);
         q_unix->tight = tight;
         q_unix->abstract = abstract;
     } else if (host) {
         addr->type = SOCKET_ADDRESS_LEGACY_KIND_INET;
-        addr->u.inet.data = g_new(InetSocketAddress, 1);
-        *addr->u.inet.data = (InetSocketAddress) {
+        addr->u.inet = (InetSocketAddress) {
             .host = g_strdup(host),
             .port = g_strdup(port),
             .has_to = qemu_opt_get(opts, "to"),
@@ -1456,8 +1454,7 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
         };
     } else if (fd) {
         addr->type = SOCKET_ADDRESS_LEGACY_KIND_FD;
-        addr->u.fd.data = g_new(String, 1);
-        addr->u.fd.data->str = g_strdup(fd);
+        addr->u.fd.str = g_strdup(fd);
     } else {
         g_assert_not_reached();
     }

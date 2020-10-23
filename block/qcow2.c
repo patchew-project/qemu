@@ -5064,10 +5064,9 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs,
     spec_info = g_new(ImageInfoSpecific, 1);
     *spec_info = (ImageInfoSpecific){
         .type  = IMAGE_INFO_SPECIFIC_KIND_QCOW2,
-        .u.qcow2.data = g_new0(ImageInfoSpecificQCow2, 1),
     };
     if (s->qcow_version == 2) {
-        *spec_info->u.qcow2.data = (ImageInfoSpecificQCow2){
+        spec_info->u.qcow2 = (ImageInfoSpecificQCow2){
             .compat             = g_strdup("0.10"),
             .refcount_bits      = s->refcount_bits,
         };
@@ -5080,7 +5079,7 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs,
             qapi_free_QCryptoBlockInfo(encrypt_info);
             return NULL;
         }
-        *spec_info->u.qcow2.data = (ImageInfoSpecificQCow2){
+        spec_info->u.qcow2 = (ImageInfoSpecificQCow2){
             .compat             = g_strdup("1.1"),
             .lazy_refcounts     = s->compatible_features &
                                   QCOW2_COMPAT_LAZY_REFCOUNTS,
@@ -5124,8 +5123,8 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs,
         memset(&encrypt_info->u, 0, sizeof(encrypt_info->u));
         qapi_free_QCryptoBlockInfo(encrypt_info);
 
-        spec_info->u.qcow2.data->has_encrypt = true;
-        spec_info->u.qcow2.data->encrypt = qencrypt;
+        spec_info->u.qcow2.has_encrypt = true;
+        spec_info->u.qcow2.encrypt = qencrypt;
     }
 
     return spec_info;

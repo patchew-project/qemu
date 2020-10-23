@@ -75,9 +75,9 @@ static KeyValue *copy_key_value(KeyValue *src)
     KeyValue *dst = g_new(KeyValue, 1);
     memcpy(dst, src, sizeof(*src));
     if (dst->type == KEY_VALUE_KIND_NUMBER) {
-        QKeyCode code = qemu_input_key_number_to_qcode(dst->u.number.data);
+        QKeyCode code = qemu_input_key_number_to_qcode(dst->u.number);
         dst->type = KEY_VALUE_KIND_QCODE;
-        dst->u.qcode.data = code;
+        dst->u.qcode = code;
     }
     return dst;
 }
@@ -113,7 +113,7 @@ static void legacy_kbd_event(DeviceState *dev, QemuConsole *src,
 {
     QEMUPutKbdEntry *entry = (QEMUPutKbdEntry *)dev;
     int scancodes[3], i, count;
-    InputKeyEvent *key = evt->u.key.data;
+    InputKeyEvent *key = &evt->u.key;
 
     if (!entry || !entry->put_kbd) {
         return;
@@ -159,7 +159,7 @@ static void legacy_mouse_event(DeviceState *dev, QemuConsole *src,
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_BTN:
-        btn = evt->u.btn.data;
+        btn = &evt->u.btn;
         if (btn->down) {
             s->buttons |= bmap[btn->button];
         } else {
@@ -181,11 +181,11 @@ static void legacy_mouse_event(DeviceState *dev, QemuConsole *src,
         }
         break;
     case INPUT_EVENT_KIND_ABS:
-        move = evt->u.abs.data;
+        move = &evt->u.abs;
         s->axis[move->axis] = move->value;
         break;
     case INPUT_EVENT_KIND_REL:
-        move = evt->u.rel.data;
+        move = &evt->u.rel;
         s->axis[move->axis] += move->value;
         break;
     default:

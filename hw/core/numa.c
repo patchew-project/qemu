@@ -765,19 +765,19 @@ static void numa_stat_memory_devices(NumaNodeMem node_mem[])
             case MEMORY_DEVICE_INFO_KIND_DIMM:
             case MEMORY_DEVICE_INFO_KIND_NVDIMM:
                 pcdimm_info = value->type == MEMORY_DEVICE_INFO_KIND_DIMM ?
-                              value->u.dimm.data : value->u.nvdimm.data;
+                              &value->u.dimm : &value->u.nvdimm;
                 node_mem[pcdimm_info->node].node_mem += pcdimm_info->size;
                 node_mem[pcdimm_info->node].node_plugged_mem +=
                     pcdimm_info->size;
                 break;
             case MEMORY_DEVICE_INFO_KIND_VIRTIO_PMEM:
-                vpi = value->u.virtio_pmem.data;
+                vpi = &value->u.virtio_pmem;
                 /* TODO: once we support numa, assign to right node */
                 node_mem[0].node_mem += vpi->size;
                 node_mem[0].node_plugged_mem += vpi->size;
                 break;
             case MEMORY_DEVICE_INFO_KIND_VIRTIO_MEM:
-                vmi = value->u.virtio_mem.data;
+                vmi = &value->u.virtio_mem;
                 node_mem[vmi->node].node_mem += vmi->size;
                 node_mem[vmi->node].node_plugged_mem += vmi->size;
                 break;

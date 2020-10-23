@@ -164,10 +164,10 @@ void qmp_input_send_event(bool has_device, const char *device,
         InputEvent *evt = e->value;
 
         if (evt->type == INPUT_EVENT_KIND_KEY &&
-            evt->u.key.data->key->type == KEY_VALUE_KIND_NUMBER) {
-            KeyValue *key = evt->u.key.data->key;
-            QKeyCode code = qemu_input_key_number_to_qcode(key->u.number.data);
-            qemu_input_event_send_key_qcode(con, code, evt->u.key.data->down);
+            evt->u.key.key->type == KEY_VALUE_KIND_NUMBER) {
+            KeyValue *key = evt->u.key.key;
+            QKeyCode code = qemu_input_key_number_to_qcode(key->u.number);
+            qemu_input_event_send_key_qcode(con, code, evt->u.key.down);
         } else {
             qemu_input_event_send(con, evt);
         }
@@ -183,7 +183,7 @@ static int qemu_input_transform_invert_abs_value(int value)
 
 static void qemu_input_transform_abs_rotate(InputEvent *evt)
 {
-    InputMoveEvent *move = evt->u.abs.data;
+    InputMoveEvent *move = &evt->u.abs;
     switch (graphic_rotate) {
     case 90:
         if (move->axis == INPUT_AXIS_X) {
@@ -220,16 +220,16 @@ static void qemu_input_event_trace(QemuConsole *src, InputEvent *evt)
     }
     switch (evt->type) {
     case INPUT_EVENT_KIND_KEY:
-        key = evt->u.key.data;
+        key = &evt->u.key;
         switch (key->key->type) {
         case KEY_VALUE_KIND_NUMBER:
-            qcode = qemu_input_key_number_to_qcode(key->key->u.number.data);
+            qcode = qemu_input_key_number_to_qcode(key->key->u.number);
             name = QKeyCode_str(qcode);
-            trace_input_event_key_number(idx, key->key->u.number.data,
+            trace_input_event_key_number(idx, key->key->u.number,
                                          name, key->down);
             break;
         case KEY_VALUE_KIND_QCODE:
-            name = QKeyCode_str(key->key->u.qcode.data);
+            name = QKeyCode_str(key->key->u.qcode);
             trace_input_event_key_qcode(idx, name, key->down);
             break;
         case KEY_VALUE_KIND__MAX:
@@ -238,17 +238,17 @@ static void qemu_input_event_trace(QemuConsole *src, InputEvent *evt)
         }
         break;
     case INPUT_EVENT_KIND_BTN:
-        btn = evt->u.btn.data;
+        btn = &evt->u.btn;
         name = InputButton_str(btn->button);
         trace_input_event_btn(idx, name, btn->down);
         break;
     case INPUT_EVENT_KIND_REL:
-        move = evt->u.rel.data;
+        move = &evt->u.rel;
         name = InputAxis_str(move->axis);
         trace_input_event_rel(idx, name, move->value);
         break;
     case INPUT_EVENT_KIND_ABS:
-        move = evt->u.abs.data;
+        move = &evt->u.abs;
         name = InputAxis_str(move->axis);
         trace_input_event_abs(idx, name, move->value);
         break;
@@ -355,7 +355,7 @@ void qemu_input_event_send(QemuConsole *src, InputEvent *evt)
     /* Expect all parts of QEMU to send events with QCodes exclusively.
      * Key numbers are only supported as end-user input via QMP */
     assert(!(evt->type == INPUT_EVENT_KIND_KEY &&
-             evt->u.key.data->key->type == KEY_VALUE_KIND_NUMBER));
+             evt->u.key.key->type == KEY_VALUE_KIND_NUMBER));
 
 
     /*
@@ -367,8 +367,8 @@ void qemu_input_event_send(QemuConsole *src, InputEvent *evt)
      * neeed to deal with this mistake
      */
     if (evt->type == INPUT_EVENT_KIND_KEY &&
-        evt->u.key.data->key->u.qcode.data == Q_KEY_CODE_SYSRQ) {
-        evt->u.key.data->key->u.qcode.data = Q_KEY_CODE_PRINT;
+        evt->u.key.key->u.qcode == Q_KEY_CODE_SYSRQ) {
+        evt->u.key.key->u.qcode = Q_KEY_CODE_PRINT;
     }
 
     if (!runstate_is_running() && !runstate_check(RUN_STATE_SUSPENDED)) {
@@ -407,10 +407,9 @@ void qemu_input_event_sync(void)
 static InputEvent *qemu_input_event_new_key(KeyValue *key, bool down)
 {
     InputEvent *evt = g_new0(InputEvent, 1);
-    evt->u.key.data = g_new0(InputKeyEvent, 1);
     evt->type = INPUT_EVENT_KIND_KEY;
-    evt->u.key.data->key = key;
-    evt->u.key.data->down = down;
+    evt->u.key.key = key;
+    evt->u.key.down = down;
     return evt;
 }
 
@@ -440,7 +439,7 @@ void qemu_input_event_send_key_qcode(QemuConsole *src, QKeyCode q, bool down)
 {
     KeyValue *key = g_new0(KeyValue, 1);
     key->type = KEY_VALUE_KIND_QCODE;
-    key->u.qcode.data = q;
+    key->u.qcode = q;
     qemu_input_event_send_key(src, key, down);
 }
 
@@ -469,7 +468,7 @@ void qemu_input_queue_btn(QemuConsole *src, InputButton btn, bool down)
     };
     InputEvent evt = {
         .type = INPUT_EVENT_KIND_BTN,
-        .u.btn.data = &bevt,
+        .u.btn = bevt,
     };
 
     qemu_input_event_send(src, &evt);
@@ -520,7 +519,7 @@ void qemu_input_queue_rel(QemuConsole *src, InputAxis axis, int value)
     };
     InputEvent evt = {
         .type = INPUT_EVENT_KIND_REL,
-        .u.rel.data = &move,
+        .u.rel = move,
     };
 
     qemu_input_event_send(src, &evt);
@@ -537,7 +536,7 @@ void qemu_input_queue_abs(QemuConsole *src, InputAxis axis, int value,
     };
     InputEvent evt = {
         .type = INPUT_EVENT_KIND_ABS,
-        .u.abs.data = &move,
+        .u.abs = move,
     };
 
     qemu_input_event_send(src, &evt);

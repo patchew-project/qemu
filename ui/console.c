@@ -2212,7 +2212,7 @@ static void vc_chr_open(Chardev *chr,
                         bool *be_opened,
                         Error **errp)
 {
-    ChardevVC *vc = backend->u.vc.data;
+    ChardevVC *vc = &backend->u.vc;
     VCChardev *drv = VC_CHARDEV(chr);
     QemuConsole *s;
     unsigned width = 0;
@@ -2362,10 +2362,9 @@ void qemu_display_help(void)
 void qemu_chr_parse_vc(QemuOpts *opts, ChardevBackend *backend, Error **errp)
 {
     int val;
-    ChardevVC *vc;
+    ChardevVC *vc = &backend->u.vc;
 
     backend->type = CHARDEV_BACKEND_KIND_VC;
-    vc = backend->u.vc.data = g_new0(ChardevVC, 1);
     qemu_chr_parse_common(opts, qapi_ChardevVC_base(vc));
 
     val = qemu_opt_get_number(opts, "width", 0);

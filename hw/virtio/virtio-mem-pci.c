@@ -58,7 +58,7 @@ static uint64_t virtio_mem_pci_get_plugged_size(const MemoryDeviceState *md,
 static void virtio_mem_pci_fill_device_info(const MemoryDeviceState *md,
                                             MemoryDeviceInfo *info)
 {
-    VirtioMEMDeviceInfo *vi = g_new0(VirtioMEMDeviceInfo, 1);
+    VirtioMEMDeviceInfo *vi = &info->u.virtio_mem;
     VirtIOMEMPCI *pci_mem = VIRTIO_MEM_PCI(md);
     VirtIOMEM *vmem = VIRTIO_MEM(&pci_mem->vdev);
     VirtIOMEMClass *vpc = VIRTIO_MEM_GET_CLASS(vmem);
@@ -72,7 +72,6 @@ static void virtio_mem_pci_fill_device_info(const MemoryDeviceState *md,
     /* let the real device handle everything else */
     vpc->fill_device_info(vmem, vi);
 
-    info->u.virtio_mem.data = vi;
     info->type = MEMORY_DEVICE_INFO_KIND_VIRTIO_MEM;
 }
 
