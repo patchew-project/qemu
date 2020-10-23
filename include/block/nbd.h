@@ -264,6 +264,8 @@ enum {
 #define NBD_STATE_DEPTH_UNALLOC      0x0
 #define NBD_STATE_DEPTH_LOCAL        0x1
 #define NBD_STATE_DEPTH_BACKING      0x2
+#define NBD_STATE_DEPTH_RAW_MASK     0xfffffff0
+#define NBD_STATE_DEPTH_RAW_SHIFT    4
 
 static inline bool nbd_reply_type_is_error(int type)
 {

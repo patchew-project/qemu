@@ -34,7 +34,8 @@ the image, with a single metadata context named:
 
     qemu:allocation-depth
 
-In the allocation depth context, bits 0 and 1 form a tri-state value:
+In the allocation depth context, bits 0 and 1 form a tri-state value,
+along with 28 bits giving an actual depth:
 
     bits 0-1: 00: NBD_STATE_DEPTH_UNALLOC, the extent is unallocated
               01: NBD_STATE_DEPTH_LOCAL, the extent is allocated in the
@@ -42,6 +43,9 @@ In the allocation depth context, bits 0 and 1 form a tri-state value:
               10: NBD_STATE_DEPTH_BACKING, the extent is inherited from a
                   backing layer
               11: invalid, never returned
+    bits 2-3: reserved, always 0
+    bits 4-31: NBD_STATE_DEPTH_RAW, the backing layer depth (0 if
+               UNALLOC, 1 for LOCAL, 2 or more for BACKING)
 
 For NBD_OPT_LIST_META_CONTEXT the following queries are supported
 in addition to the specific "qemu:allocation-depth" and

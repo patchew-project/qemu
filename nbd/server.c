@@ -2037,22 +2037,25 @@ static int blockalloc_to_extents(BlockDriverState *bs, uint64_t offset,
     while (bytes) {
         uint32_t flags;
         int64_t num;
-        int ret = bdrv_is_allocated(bs, offset, bytes, &num);
+        int depth = bdrv_is_allocated_above(bs, NULL, false, offset, bytes,
+                                            &num);
 
-        if (ret < 0) {
-            return ret;
-        }
-
-        if (ret == 1) {
+        switch (depth) {
+        case 0:
+            flags = NBD_STATE_DEPTH_UNALLOC;
+            break;
+        case 1:
             flags = NBD_STATE_DEPTH_LOCAL;
-        } else {
-            ret = bdrv_is_allocated_above(bs, NULL, false, offset, num,
-                                          &num);
-            if (ret < 0) {
-                return ret;
+            break;
+        default:
+            if (depth < 0) {
+                return depth;
             }
-            flags = ret ? NBD_STATE_DEPTH_BACKING : NBD_STATE_DEPTH_UNALLOC;
+            flags = NBD_STATE_DEPTH_BACKING;
+            break;
         }
+        assert(depth <= UINT32_MAX >> NBD_STATE_DEPTH_RAW_SHIFT);
+        flags |= depth << NBD_STATE_DEPTH_RAW_SHIFT;
 
         if (nbd_extent_array_add(ea, num, flags) < 0) {
             return 0;
