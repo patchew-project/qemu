@@ -10,6 +10,8 @@ This work is licensed under the terms of the GNU GPL, version 2.
 See the COPYING file in the top-level directory.
 """
 
+from typing import Optional, Sequence, cast
+
 from .common import (
     c_name,
     gen_endif,
@@ -30,6 +32,7 @@ def _make_tree(obj, ifcond, features, extra=None):
     if ifcond:
         extra['if'] = ifcond
     if features:
+        assert isinstance(obj, dict)
         obj['features'] = [(f.name, {'if': f.ifcond}) for f in features]
     if extra:
         return (obj, extra)
@@ -43,7 +46,7 @@ def _tree_to_qlit(obj, level=0, suppress_first_indent=False):
 
     if isinstance(obj, tuple):
         ifobj, extra = obj
-        ifcond = extra.get('if')
+        ifcond = cast(Optional[Sequence[str]], extra.get('if'))
         comment = extra.get('comment')
         ret = ''
         if comment:
