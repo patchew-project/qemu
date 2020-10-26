@@ -43,6 +43,7 @@
 #include "sysemu/tpm.h"
 #include "hw/acpi/tpm.h"
 #include "hw/acpi/vmgenid.h"
+#include "hw/acpi/erst.h"
 #include "hw/boards.h"
 #include "sysemu/tpm_backend.h"
 #include "hw/rtc/mc146818rtc_regs.h"
@@ -2478,6 +2479,9 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     acpi_add_table(table_offsets, tables_blob);
     acpi_build_madt(tables_blob, tables->linker, x86ms,
                     ACPI_DEVICE_IF(x86ms->acpi_dev));
+
+    acpi_add_table(table_offsets, tables_blob);
+    build_erst(tables_blob, tables->linker, HPET_BASE + 0x10000UL);
 
     vmgenid_dev = find_vmgenid_dev();
     if (vmgenid_dev) {
