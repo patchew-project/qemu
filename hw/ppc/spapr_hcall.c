@@ -361,12 +361,8 @@ static void *hpt_prepare_thread(void *opaque)
     size_t size = 1ULL << pending->shift;
 
     pending->hpt = qemu_memalign(size, size);
-    if (pending->hpt) {
-        memset(pending->hpt, 0, size);
-        pending->ret = H_SUCCESS;
-    } else {
-        pending->ret = H_NO_MEM;
-    }
+    memset(pending->hpt, 0, size);
+    pending->ret = H_SUCCESS;
 
     qemu_mutex_lock_iothread();
 
