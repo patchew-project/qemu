@@ -39,6 +39,7 @@ struct TCGState {
 
     bool mttcg_enabled;
     unsigned long tb_size;
+    bool mirror_jit;
 };
 typedef struct TCGState TCGState;
 
@@ -94,6 +95,11 @@ static void tcg_accel_instance_init(Object *obj)
     TCGState *s = TCG_STATE(obj);
 
     s->mttcg_enabled = default_mttcg_enabled();
+#if defined(CONFIG_MIRROR_JIT) && defined(CONFIG_DEBUG_TCG)
+    s->mirror_jit = true;
+#else
+    s->mirror_jit = false;
+#endif
 }
 
 bool mttcg_enabled;
@@ -102,7 +108,7 @@ static int tcg_init(MachineState *ms)
 {
     TCGState *s = TCG_STATE(current_accel());
 
-    tcg_exec_init(s->tb_size * 1024 * 1024);
+    tcg_exec_init(s->tb_size * 1024 * 1024, s->mirror_jit);
     mttcg_enabled = s->mttcg_enabled;
     cpus_register_accel(&tcg_cpus);
 
@@ -168,6 +174,22 @@ static void tcg_set_tb_size(Object *obj, Visitor *v,
     s->tb_size = value;
 }
 
+#ifdef CONFIG_MIRROR_JIT
+static bool tcg_get_mirror_jit(Object *obj, Error **errp)
+{
+    TCGState *s = TCG_STATE(obj);
+
+    return s->mirror_jit;
+}
+
+static void tcg_set_mirror_jit(Object *obj, bool value, Error **errp)
+{
+    TCGState *s = TCG_STATE(obj);
+
+    s->mirror_jit = value;
+}
+#endif
+
 static void tcg_accel_class_init(ObjectClass *oc, void *data)
 {
     AccelClass *ac = ACCEL_CLASS(oc);
@@ -184,6 +206,13 @@ static void tcg_accel_class_init(ObjectClass *oc, void *data)
         NULL, NULL);
     object_class_property_set_description(oc, "tb-size",
         "TCG translation block cache size");
+
+#ifdef CONFIG_MIRROR_JIT
+    object_class_property_add_bool(oc, "mirror-jit",
+        tcg_get_mirror_jit, tcg_set_mirror_jit);
+    object_class_property_set_description(oc, "mirror-jit",
+        "JIT pages mapped into separate RW and RX regions");
+#endif
 
 }
 

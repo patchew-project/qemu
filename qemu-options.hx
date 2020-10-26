@@ -115,6 +115,9 @@ DEF("accel", HAS_ARG, QEMU_OPTION_accel,
     "                igd-passthru=on|off (enable Xen integrated Intel graphics passthrough, default=off)\n"
     "                kernel-irqchip=on|off|split controls accelerated irqchip support (default=on)\n"
     "                kvm-shadow-mem=size of KVM shadow MMU in bytes\n"
+#ifdef CONFIG_MIRROR_JIT
+    "                mirror-jit=on|off (JIT pages mapped into separate RW and RX regions, default=off)\n"
+#endif
     "                tb-size=n (TCG translation block cache size)\n"
     "                thread=single|multi (enable multi-threaded TCG)\n", QEMU_ARCH_ALL)
 SRST
@@ -140,6 +143,14 @@ SRST
     ``kvm-shadow-mem=size``
         Defines the size of the KVM shadow MMU.
 
+#ifdef CONFIG_MIRROR_JIT
+    ``mirror-jit=on|off``
+        Useful for debugging TCG or running on a strict W^X platform. When
+        enabled, TB code is written to a mirror mapped RW address separate from
+        the RX address that is executed. (default=off, but on if built with
+        TCG debugging)
+
+#endif
     ``tb-size=n``
         Controls the size (in MiB) of the TCG translation block cache.
 

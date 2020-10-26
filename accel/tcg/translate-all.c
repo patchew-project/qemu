@@ -1027,11 +1027,14 @@ static inline void *split_cross_256mb(void *buf1, size_t size1)
 static uint8_t static_code_gen_buffer[DEFAULT_CODE_GEN_BUFFER_SIZE]
     __attribute__((aligned(CODE_GEN_ALIGN)));
 
-static inline void *alloc_code_gen_buffer(void)
+static inline void *alloc_code_gen_buffer(bool mirror_jit)
 {
     void *buf = static_code_gen_buffer;
     void *end = static_code_gen_buffer + sizeof(static_code_gen_buffer);
     size_t size;
+
+    /* not applicable */
+    assert(!mirror_jit);
 
     /* page-align the beginning and end of the buffer */
     buf = QEMU_ALIGN_PTR_UP(buf, qemu_real_host_page_size);
@@ -1061,14 +1064,15 @@ static inline void *alloc_code_gen_buffer(void)
     return buf;
 }
 #elif defined(_WIN32)
-static inline void *alloc_code_gen_buffer(void)
+static inline void *alloc_code_gen_buffer(bool mirror_jit)
 {
     size_t size = tcg_ctx->code_gen_buffer_size;
+    assert(!mirror_jit); /* not applicable */
     return VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT,
                         PAGE_EXECUTE_READWRITE);
 }
 #else
-static inline void *alloc_code_gen_buffer(void)
+static inline void *alloc_code_gen_buffer(bool mirror_jit)
 {
     int prot = PROT_READ | PROT_EXEC;
     int flags = 0;
@@ -1078,16 +1082,22 @@ static inline void *alloc_code_gen_buffer(void)
 
 #if defined(CONFIG_MIRROR_JIT)
 #if defined(CONFIG_LINUX)
-    fd = qemu_memfd_create("tcg-jit", size, false, 0, 0, NULL);
-    if (fd < 0) {
-        return NULL;
+    if (mirror_jit) {
+        fd = qemu_memfd_create("tcg-jit", size, false, 0, 0, NULL);
+        if (fd < 0) {
+            return NULL;
+        }
+        tcg_ctx->code_gen_buffer_fd = fd;
+        flags |= MAP_SHARED;
+    } else {
+        prot |= PROT_WRITE;
+        flags |= MAP_ANONYMOUS | MAP_PRIVATE;
     }
-    tcg_ctx->code_gen_buffer_fd = fd;
-    flags |= MAP_SHARED;
 #else /* defined(CONFIG_LINUX) */
 #error "Mirror JIT unimplemented for this platform."
 #endif /* defined(CONFIG_LINUX) */
 #else /* defined(CONFIG_MIRROR_JIT) */
+    assert(!mirror_jit);
     prot |= PROT_WRITE;
     flags |= MAP_ANONYMOUS | MAP_PRIVATE;
 #endif /* defined(CONFIG_MIRROR_JIT) */
@@ -1162,7 +1172,7 @@ static inline void *alloc_jit_rw_mirror(void)
 static inline void code_gen_alloc(size_t tb_size, bool mirror_jit)
 {
     tcg_ctx->code_gen_buffer_size = size_code_gen_buffer(tb_size);
-    tcg_ctx->code_gen_buffer = alloc_code_gen_buffer();
+    tcg_ctx->code_gen_buffer = alloc_code_gen_buffer(mirror_jit);
     if (tcg_ctx->code_gen_buffer == NULL) {
         fprintf(stderr, "Could not allocate dynamic translator buffer\n");
         exit(1);
@@ -1170,13 +1180,20 @@ static inline void code_gen_alloc(size_t tb_size, bool mirror_jit)
 #if defined(CONFIG_MIRROR_JIT)
     void *mirror;
 
-    /* For platforms that need a mirror mapping for code execution */
-    mirror = alloc_jit_rw_mirror();
-    if (mirror == NULL) {
-        fprintf(stderr, "Could not remap code buffer mirror\n");
-        exit(1);
+    if (mirror_jit) {
+        /* For platforms that need a mirror mapping for code execution */
+        mirror = alloc_jit_rw_mirror();
+        if (mirror == NULL) {
+            fprintf(stderr, "Could not remap code buffer mirror\n");
+            exit(1);
+        }
+    } else {
+        /* If we disable mirror mapping run option */
+        mirror = tcg_ctx->code_gen_buffer;
     }
     tcg_ctx->code_rw_mirror_diff = mirror - tcg_ctx->code_gen_buffer;
+#else
+    assert(!mirror_jit);
 #endif /* CONFIG_MIRROR_JIT */
 }
 
@@ -1201,16 +1218,18 @@ static void tb_htable_init(void)
     qht_init(&tb_ctx.htable, tb_cmp, CODE_GEN_HTABLE_SIZE, mode);
 }
 
-/* Must be called before using the QEMU cpus. 'tb_size' is the size
-   (in bytes) allocated to the translation buffer. Zero means default
-   size. */
-void tcg_exec_init(unsigned long tb_size)
+/*
+ * Must be called before using the QEMU cpus. 'tb_size' is the size
+ * (in bytes) allocated to the translation buffer. Zero means default
+ * size. mirror_jit separates RX and RW allocations.
+ */
+void tcg_exec_init(unsigned long tb_size, bool mirror_jit)
 {
     tcg_allowed = true;
     cpu_gen_init();
     page_init();
     tb_htable_init();
-    code_gen_alloc(tb_size);
+    code_gen_alloc(tb_size, mirror_jit);
 #if defined(CONFIG_SOFTMMU)
     /* There's no guest base to take into account, so go ahead and
        initialize the prologue now.  */
