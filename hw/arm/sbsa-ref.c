@@ -294,6 +294,7 @@ static bool sbsa_firmware_init(SBSAMachineState *sms,
                                MemoryRegion *sysmem,
                                MemoryRegion *secure_sysmem)
 {
+    const char *bios_name;
     int i;
     BlockBackend *pflash_blk0;
 
@@ -307,6 +308,7 @@ static bool sbsa_firmware_init(SBSAMachineState *sms,
 
     pflash_blk0 = pflash_cfi01_get_blk(sms->flash[0]);
 
+    bios_name = MACHINE(sms)->firmware;
     if (bios_name) {
         char *fname;
         MemoryRegion *mr;
