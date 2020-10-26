@@ -447,6 +447,7 @@ meson=""
 ninja=""
 skip_meson=no
 gettext=""
+mirror_jit="no"
 
 bogus_os="no"
 malloc_trim="auto"
@@ -5715,6 +5716,14 @@ if test "$mingw32" = "yes" ; then
     done
 fi
 
+# Enable mirror mapping if debug_tcg on supported platform
+
+if test "$debug_tcg" = "yes"; then
+  if test "$linux" = "yes"; then
+    mirror_jit=yes
+  fi
+fi
+
 # We can only support ivshmem if we have eventfd
 if [ "$eventfd" = "yes" ]; then
   ivshmem=yes
@@ -6799,6 +6808,10 @@ fi
 
 if test "$safe_stack" = "yes"; then
   echo "CONFIG_SAFESTACK=y" >> $config_host_mak
+fi
+
+if test "$mirror_jit" = "yes"; then
+  echo "CONFIG_MIRROR_JIT=y" >> $config_host_mak
 fi
 
 # If we're using a separate build tree, set it up now.

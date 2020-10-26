@@ -627,6 +627,10 @@ struct TCGContext {
     size_t code_gen_buffer_size;
     void *code_gen_ptr;
     void *data_gen_ptr;
+#if defined(CONFIG_MIRROR_JIT)
+    int code_gen_buffer_fd;
+    ptrdiff_t code_rw_mirror_diff;
+#endif
 
     /* Threshold to flush the translated code buffer.  */
     void *code_gen_highwater;
@@ -676,6 +680,20 @@ struct TCGContext {
     uint16_t gen_insn_end_off[TCG_MAX_INSNS];
     target_ulong gen_insn_data[TCG_MAX_INSNS][TARGET_INSN_START_WORDS];
 };
+
+static inline void *tcg_mirror_ptr_rw(TCGContext *s, const void *rx)
+{
+#if defined(CONFIG_MIRROR_JIT)
+    return (void *)rx + s->code_rw_mirror_diff;
+#else
+    return (void *)rx;
+#endif
+}
+
+static inline tcg_insn_unit *tcg_code_ptr_rw(TCGContext *s, const void *rx)
+{
+    return (tcg_insn_unit *)tcg_mirror_ptr_rw(s, rx);
+}
 
 extern TCGContext tcg_init_ctx;
 extern __thread TCGContext *tcg_ctx;

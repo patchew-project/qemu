@@ -59,6 +59,7 @@
 #include "sysemu/cpus.h"
 #include "sysemu/cpu-timers.h"
 #include "sysemu/tcg.h"
+#include "qemu/memfd.h"
 
 /* #define DEBUG_TB_INVALIDATE */
 /* #define DEBUG_TB_FLUSH */
@@ -302,10 +303,12 @@ static target_long decode_sleb128(uint8_t **pp)
 
 static int encode_search(TranslationBlock *tb, uint8_t *block)
 {
-    uint8_t *highwater = tcg_ctx->code_gen_highwater;
-    uint8_t *p = block;
+    const uint8_t *highwater, *start;
+    uint8_t *p;
     int i, j, n;
 
+    highwater = tcg_mirror_ptr_rw(tcg_ctx, tcg_ctx->code_gen_highwater);
+    start = p = tcg_mirror_ptr_rw(tcg_ctx, block);
     for (i = 0, n = tb->icount; i < n; ++i) {
         target_ulong prev;
 
@@ -329,7 +332,7 @@ static int encode_search(TranslationBlock *tb, uint8_t *block)
         }
     }
 
-    return p - block;
+    return p - start;
 }
 
 /* The cpu state corresponding to 'searched_pc' is restored.
@@ -1067,12 +1070,29 @@ static inline void *alloc_code_gen_buffer(void)
 #else
 static inline void *alloc_code_gen_buffer(void)
 {
-    int prot = PROT_WRITE | PROT_READ | PROT_EXEC;
-    int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+    int prot = PROT_READ | PROT_EXEC;
+    int flags = 0;
     size_t size = tcg_ctx->code_gen_buffer_size;
+    int fd = -1;
     void *buf;
 
-    buf = mmap(NULL, size, prot, flags, -1, 0);
+#if defined(CONFIG_MIRROR_JIT)
+#if defined(CONFIG_LINUX)
+    fd = qemu_memfd_create("tcg-jit", size, false, 0, 0, NULL);
+    if (fd < 0) {
+        return NULL;
+    }
+    tcg_ctx->code_gen_buffer_fd = fd;
+    flags |= MAP_SHARED;
+#else /* defined(CONFIG_LINUX) */
+#error "Mirror JIT unimplemented for this platform."
+#endif /* defined(CONFIG_LINUX) */
+#else /* defined(CONFIG_MIRROR_JIT) */
+    prot |= PROT_WRITE;
+    flags |= MAP_ANONYMOUS | MAP_PRIVATE;
+#endif /* defined(CONFIG_MIRROR_JIT) */
+
+    buf = mmap(NULL, size, prot, flags, fd, 0);
     if (buf == MAP_FAILED) {
         return NULL;
     }
@@ -1118,7 +1138,28 @@ static inline void *alloc_code_gen_buffer(void)
 }
 #endif /* USE_STATIC_CODE_GEN_BUFFER, WIN32, POSIX */
 
-static inline void code_gen_alloc(size_t tb_size)
+#if defined(CONFIG_MIRROR_JIT)
+#if defined(CONFIG_LINUX)
+static inline void *alloc_jit_rw_mirror(void)
+{
+    int fd = tcg_ctx->code_gen_buffer_fd;
+    size_t size = tcg_ctx->code_gen_buffer_size;
+    void *buf;
+
+    assert(fd >= 0);
+    buf = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (buf == MAP_FAILED) {
+        return NULL;
+    }
+
+    return buf;
+}
+#else
+#error "Mirror JIT unimplemented for this platform."
+#endif /* CONFIG_IOS */
+#endif /* CONFIG_MIRROR_JIT */
+
+static inline void code_gen_alloc(size_t tb_size, bool mirror_jit)
 {
     tcg_ctx->code_gen_buffer_size = size_code_gen_buffer(tb_size);
     tcg_ctx->code_gen_buffer = alloc_code_gen_buffer();
@@ -1126,6 +1167,17 @@ static inline void code_gen_alloc(size_t tb_size)
         fprintf(stderr, "Could not allocate dynamic translator buffer\n");
         exit(1);
     }
+#if defined(CONFIG_MIRROR_JIT)
+    void *mirror;
+
+    /* For platforms that need a mirror mapping for code execution */
+    mirror = alloc_jit_rw_mirror();
+    if (mirror == NULL) {
+        fprintf(stderr, "Could not remap code buffer mirror\n");
+        exit(1);
+    }
+    tcg_ctx->code_rw_mirror_diff = mirror - tcg_ctx->code_gen_buffer;
+#endif /* CONFIG_MIRROR_JIT */
 }
 
 static bool tb_cmp(const void *ap, const void *bp)
@@ -1721,6 +1773,9 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
         cpu_loop_exit(cpu);
     }
 
+#if defined(CONFIG_MIRROR_JIT)
+    tb->code_rw_mirror_diff = tcg_ctx->code_rw_mirror_diff;
+#endif
     gen_code_buf = tcg_ctx->code_gen_ptr;
     tb->tc.ptr = gen_code_buf;
     tb->pc = pc;

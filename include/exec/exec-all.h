@@ -519,6 +519,14 @@ struct TranslationBlock {
     uintptr_t jmp_list_head;
     uintptr_t jmp_list_next[2];
     uintptr_t jmp_dest[2];
+
+#if defined(CONFIG_MIRROR_JIT)
+    /*
+     * Store difference to writable mirror
+     * We need this when patching the jump instructions
+     */
+    ptrdiff_t code_rw_mirror_diff;
+#endif
 };
 
 extern bool parallel_cpus;
