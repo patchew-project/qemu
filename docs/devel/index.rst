@@ -34,3 +34,4 @@ Contents:
    clocks
    qom
    block-coroutine-wrapper
+   python/index
