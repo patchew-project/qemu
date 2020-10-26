@@ -700,6 +700,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     Error *local_err = NULL;
     volatile NvmeBar *regs = NULL;
     size_t device_page_size_min;
+    size_t device_page_size_max;
     size_t iommu_page_size_min = 4096;
 
     qemu_co_mutex_init(&s->dma_map_lock);
@@ -713,7 +714,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
         return ret;
     }
 
-    s->vfio = qemu_vfio_open_pci(device, errp);
+    s->vfio = qemu_vfio_open_pci(device, &iommu_page_size_min, errp);
     if (!s->vfio) {
         ret = -EINVAL;
         goto out;
@@ -746,6 +747,17 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     }
 
     device_page_size_min = 1u << (12 + NVME_CAP_MPSMIN(cap));
+    device_page_size_max = 1u << (12 + NVME_CAP_MPSMAX(cap));
+    if (iommu_page_size_min > device_page_size_max) {
+        g_autofree char *iommu_page_size_s = size_to_str(iommu_page_size_min);
+        g_autofree char *device_page_size_s = size_to_str(device_page_size_max);
+
+        error_setg(errp, "IOMMU minimum page size (%s)"
+                         " too big for device (max %s)",
+                   iommu_page_size_s, device_page_size_s);
+        ret = -EINVAL;
+        goto out;
+    }
     s->page_size = MAX(iommu_page_size_min, device_page_size_min);
     s->doorbell_scale = (4 << NVME_CAP_DSTRD(cap)) / sizeof(uint32_t);
     bs->bl.opt_mem_alignment = s->page_size;

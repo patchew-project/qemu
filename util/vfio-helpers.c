@@ -508,8 +508,14 @@ static void qemu_vfio_open_common(QEMUVFIOState *s)
 
 /**
  * Open a PCI device, e.g. "0000:00:01.0".
+ *
+ * @min_page_size: Pointer holding the minimum page size requested
+ *
+ * If the IOMMU can not be configured with @min_page_size, the minimum
+ * page size is stored in @min_page_size and -EINVAL is returned.
  */
-QEMUVFIOState *qemu_vfio_open_pci(const char *device, Error **errp)
+QEMUVFIOState *qemu_vfio_open_pci(const char *device, size_t *min_page_size,
+                                  Error **errp)
 {
     int r;
     QEMUVFIOState *s = g_new0(QEMUVFIOState, 1);
