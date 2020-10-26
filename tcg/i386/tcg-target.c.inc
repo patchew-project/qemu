@@ -167,7 +167,7 @@ static bool have_lzcnt;
 
 static const tcg_insn_unit *tb_ret_addr;
 
-static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
+static bool patch_reloc(TCGContext *s, tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
     value += addend;
@@ -179,14 +179,14 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
         }
         /* FALLTHRU */
     case R_386_32:
-        tcg_patch32(code_ptr, value);
+        tcg_patch32(s, code_ptr, value);
         break;
     case R_386_PC8:
         value -= (uintptr_t)code_ptr;
         if (value != (int8_t)value) {
             return false;
         }
-        tcg_patch8(code_ptr, value);
+        tcg_patch8(s, code_ptr, value);
         break;
     default:
         tcg_abort();
@@ -1805,9 +1805,9 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
     int rexw = (l->type == TCG_TYPE_I64 ? P_REXW : 0);
 
     /* resolve label address */
-    tcg_patch32(label_ptr[0], s->code_ptr - label_ptr[0] - 4);
+    tcg_patch32(s, label_ptr[0], s->code_ptr - label_ptr[0] - 4);
     if (TARGET_LONG_BITS > TCG_TARGET_REG_BITS) {
-        tcg_patch32(label_ptr[1], s->code_ptr - label_ptr[1] - 4);
+        tcg_patch32(s, label_ptr[1], s->code_ptr - label_ptr[1] - 4);
     }
 
     if (TCG_TARGET_REG_BITS == 32) {
@@ -1890,9 +1890,9 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
     TCGReg retaddr;
 
     /* resolve label address */
-    tcg_patch32(label_ptr[0], s->code_ptr - label_ptr[0] - 4);
+    tcg_patch32(s, label_ptr[0], s->code_ptr - label_ptr[0] - 4);
     if (TARGET_LONG_BITS > TCG_TARGET_REG_BITS) {
-        tcg_patch32(label_ptr[1], s->code_ptr - label_ptr[1] - 4);
+        tcg_patch32(s, label_ptr[1], s->code_ptr - label_ptr[1] - 4);
     }
 
     if (TCG_TARGET_REG_BITS == 32) {
@@ -3842,9 +3842,9 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tcg_out_opc(s, OPC_RET, 0, 0, 0);
 }
 
-static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
+static void tcg_out_nop_fill(TCGContext *s, tcg_insn_unit *p, int count)
 {
-    memset(p, 0x90, count);
+    memset(tcg_code_ptr_rw(s, p), 0x90, count);
 }
 
 static void tcg_target_init(TCGContext *s)

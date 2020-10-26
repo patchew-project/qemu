@@ -70,7 +70,7 @@
 static void tcg_target_init(TCGContext *s);
 static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode);
 static void tcg_target_qemu_prologue(TCGContext *s);
-static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
+static bool patch_reloc(TCGContext *s, tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend);
 
 /* The CIE and FDE header definitions will be common to all hosts.  */
@@ -203,13 +203,15 @@ static TCGRegSet tcg_target_call_clobber_regs;
 #if TCG_TARGET_INSN_UNIT_SIZE == 1
 static __attribute__((unused)) inline void tcg_out8(TCGContext *s, uint8_t v)
 {
-    *s->code_ptr++ = v;
+    *tcg_code_ptr_rw(s, s->code_ptr) = v;
+    s->code_ptr++;
 }
 
-static __attribute__((unused)) inline void tcg_patch8(tcg_insn_unit *p,
+static __attribute__((unused)) inline void tcg_patch8(TCGContext *s,
+                                                      tcg_insn_unit *p,
                                                       uint8_t v)
 {
-    *p = v;
+    *tcg_code_ptr_rw(s, p) = v;
 }
 #endif
 
@@ -217,21 +219,23 @@ static __attribute__((unused)) inline void tcg_patch8(tcg_insn_unit *p,
 static __attribute__((unused)) inline void tcg_out16(TCGContext *s, uint16_t v)
 {
     if (TCG_TARGET_INSN_UNIT_SIZE == 2) {
-        *s->code_ptr++ = v;
+        *tcg_code_ptr_rw(s, s->code_ptr) = v;
+        s->code_ptr++;
     } else {
         tcg_insn_unit *p = s->code_ptr;
-        memcpy(p, &v, sizeof(v));
+        memcpy(tcg_code_ptr_rw(s, p), &v, sizeof(v));
         s->code_ptr = p + (2 / TCG_TARGET_INSN_UNIT_SIZE);
     }
 }
 
-static __attribute__((unused)) inline void tcg_patch16(tcg_insn_unit *p,
+static __attribute__((unused)) inline void tcg_patch16(TCGContext *s,
+                                                       tcg_insn_unit *p,
                                                        uint16_t v)
 {
     if (TCG_TARGET_INSN_UNIT_SIZE == 2) {
-        *p = v;
+        *tcg_code_ptr_rw(s, p) = v;
     } else {
-        memcpy(p, &v, sizeof(v));
+        memcpy(tcg_code_ptr_rw(s, p), &v, sizeof(v));
     }
 }
 #endif
@@ -240,21 +244,23 @@ static __attribute__((unused)) inline void tcg_patch16(tcg_insn_unit *p,
 static __attribute__((unused)) inline void tcg_out32(TCGContext *s, uint32_t v)
 {
     if (TCG_TARGET_INSN_UNIT_SIZE == 4) {
-        *s->code_ptr++ = v;
+        *tcg_code_ptr_rw(s, s->code_ptr) = v;
+        s->code_ptr++;
     } else {
         tcg_insn_unit *p = s->code_ptr;
-        memcpy(p, &v, sizeof(v));
+        memcpy(tcg_code_ptr_rw(s, p), &v, sizeof(v));
         s->code_ptr = p + (4 / TCG_TARGET_INSN_UNIT_SIZE);
     }
 }
 
-static __attribute__((unused)) inline void tcg_patch32(tcg_insn_unit *p,
+static __attribute__((unused)) inline void tcg_patch32(TCGContext *s,
+                                                       tcg_insn_unit *p,
                                                        uint32_t v)
 {
     if (TCG_TARGET_INSN_UNIT_SIZE == 4) {
         *p = v;
     } else {
-        memcpy(p, &v, sizeof(v));
+        memcpy(tcg_code_ptr_rw(s, p), &v, sizeof(v));
     }
 }
 #endif
@@ -263,21 +269,23 @@ static __attribute__((unused)) inline void tcg_patch32(tcg_insn_unit *p,
 static __attribute__((unused)) inline void tcg_out64(TCGContext *s, uint64_t v)
 {
     if (TCG_TARGET_INSN_UNIT_SIZE == 8) {
-        *s->code_ptr++ = v;
+        *tcg_code_ptr_rw(s, s->code_ptr) = v;
+        s->code_ptr++;
     } else {
         tcg_insn_unit *p = s->code_ptr;
-        memcpy(p, &v, sizeof(v));
+        memcpy(tcg_code_ptr_rw(s, p), &v, sizeof(v));
         s->code_ptr = p + (8 / TCG_TARGET_INSN_UNIT_SIZE);
     }
 }
 
-static __attribute__((unused)) inline void tcg_patch64(tcg_insn_unit *p,
+static __attribute__((unused)) inline void tcg_patch64(TCGContext *s,
+                                                       tcg_insn_unit *p,
                                                        uint64_t v)
 {
     if (TCG_TARGET_INSN_UNIT_SIZE == 8) {
         *p = v;
     } else {
-        memcpy(p, &v, sizeof(v));
+        memcpy(tcg_code_ptr_rw(s, p), &v, sizeof(v));
     }
 }
 #endif
@@ -325,7 +333,7 @@ static bool tcg_resolve_relocs(TCGContext *s)
         uintptr_t value = l->u.value;
 
         QSIMPLEQ_FOREACH(r, &l->relocs, next) {
-            if (!patch_reloc(r->ptr, r->type, value, r->addend)) {
+            if (!patch_reloc(s, r->ptr, r->type, value, r->addend)) {
                 return false;
             }
         }
@@ -1039,7 +1047,7 @@ TranslationBlock *tcg_tb_alloc(TCGContext *s)
     }
     qatomic_set(&s->code_gen_ptr, next);
     s->data_gen_ptr = NULL;
-    return tb;
+    return (TranslationBlock *)tcg_mirror_ptr_rw(s, tb);
 }
 
 void tcg_prologue_init(TCGContext *s)
@@ -1076,6 +1084,10 @@ void tcg_prologue_init(TCGContext *s)
 #endif
 
     buf1 = s->code_ptr;
+#if defined(CONFIG_MIRROR_JIT)
+    flush_dcache_range((uintptr_t)tcg_mirror_ptr_rw(s, buf0),
+                       (uintptr_t)tcg_mirror_ptr_rw(s, buf1));
+#endif
     flush_icache_range((uintptr_t)buf0, (uintptr_t)buf1);
 
     /* Deduct the prologue from the buffer.  */
@@ -4266,6 +4278,12 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
     if (!tcg_resolve_relocs(s)) {
         return -2;
     }
+
+#if defined(CONFIG_MIRROR_JIT)
+    /* flush data cache on mirror */
+    flush_dcache_range((uintptr_t)tcg_mirror_ptr_rw(s, s->code_buf),
+                       (uintptr_t)tcg_mirror_ptr_rw(s, s->code_ptr));
+#endif
 
     /* flush instruction cache */
     flush_icache_range((uintptr_t)s->code_buf, (uintptr_t)s->code_ptr);

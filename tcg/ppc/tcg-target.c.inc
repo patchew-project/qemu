@@ -192,12 +192,14 @@ static uint32_t reloc_pc24_val(const tcg_insn_unit *pc,
     return disp & 0x3fffffc;
 }
 
-static bool reloc_pc24(tcg_insn_unit *pc,
+static bool reloc_pc24(TCGContext *s,
+                       tcg_insn_unit *pc,
                        const tcg_insn_unit *target)
 {
     ptrdiff_t disp = tcg_ptr_byte_diff(target, pc);
     if (in_range_b(disp)) {
-        *pc = (*pc & ~0x3fffffc) | (disp & 0x3fffffc);
+        *tcg_code_ptr_rw(s, pc) =
+            (*tcg_code_ptr_rw(s, pc) & ~0x3fffffc) | (disp & 0x3fffffc);
         return true;
     }
     return false;
@@ -211,12 +213,14 @@ static uint16_t reloc_pc14_val(const tcg_insn_unit *pc,
     return disp & 0xfffc;
 }
 
-static bool reloc_pc14(tcg_insn_unit *pc,
+static bool reloc_pc14(TCGContext *s,
+                       tcg_insn_unit *pc,
                        const tcg_insn_unit *target)
 {
     ptrdiff_t disp = tcg_ptr_byte_diff(target, pc);
     if (disp == (int16_t) disp) {
-        *pc = (*pc & ~0xfffc) | (disp & 0xfffc);
+        *tcg_code_ptr_rw(s, pc) =
+            (*tcg_code_ptr_rw(s, pc) & ~0xfffc) | (disp & 0xfffc);
         return true;
     }
     return false;
@@ -674,7 +678,7 @@ static const uint32_t tcg_to_isel[] = {
     [TCG_COND_GTU] = ISEL | BC_(7, CR_GT),
 };
 
-static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
+static bool patch_reloc(TCGContext *s, tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend)
 {
     tcg_insn_unit *target;
@@ -686,9 +690,9 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
 
     switch (type) {
     case R_PPC_REL14:
-        return reloc_pc14(code_ptr, target);
+        return reloc_pc14(s, code_ptr, target);
     case R_PPC_REL24:
-        return reloc_pc24(code_ptr, target);
+        return reloc_pc24(s, code_ptr, target);
     case R_PPC_ADDR16:
         /*
          * We are (slightly) abusing this relocation type.  In particular,
@@ -1727,7 +1731,7 @@ static void tcg_out_mb(TCGContext *s, TCGArg a0)
 }
 
 void tb_target_set_jmp_target(uintptr_t tc_ptr, uintptr_t jmp_addr,
-                              uintptr_t addr)
+                              uintptr_t addr, uintptr_t wr_addr)
 {
     if (TCG_TARGET_REG_BITS == 64) {
         tcg_insn_unit i1, i2;
@@ -1756,12 +1760,18 @@ void tb_target_set_jmp_target(uintptr_t tc_ptr, uintptr_t jmp_addr,
 
         /* As per the enclosing if, this is ppc64.  Avoid the _Static_assert
            within qatomic_set that would fail to build a ppc32 host.  */
-        qatomic_set__nocheck((uint64_t *)jmp_addr, pair);
+        qatomic_set__nocheck((uint64_t *)wr_addr, pair);
+#if defined(CONFIG_MIRROR_JIT)
+        flush_dcache_range(wr_addr, wr_addr + 8);
+#endif
         flush_icache_range(jmp_addr, jmp_addr + 8);
     } else {
         intptr_t diff = addr - jmp_addr;
         tcg_debug_assert(in_range_b(diff));
-        qatomic_set((uint32_t *)jmp_addr, B | (diff & 0x3fffffc));
+        qatomic_set((uint32_t *)wr_addr, B | (diff & 0x3fffffc));
+#if defined(CONFIG_MIRROR_JIT)
+        flush_dcache_range(wr_addr, wr_addr + 8);
+#endif
         flush_icache_range(jmp_addr, jmp_addr + 4);
     }
 }
@@ -2012,7 +2022,7 @@ static bool tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     MemOp opc = get_memop(oi);
     TCGReg hi, lo, arg = TCG_REG_R3;
 
-    if (!reloc_pc14(lb->label_ptr[0], s->code_ptr)) {
+    if (!reloc_pc14(s, lb->label_ptr[0], s->code_ptr)) {
         return false;
     }
 
@@ -2060,7 +2070,7 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     MemOp s_bits = opc & MO_SIZE;
     TCGReg hi, lo, arg = TCG_REG_R3;
 
-    if (!reloc_pc14(lb->label_ptr[0], s->code_ptr)) {
+    if (!reloc_pc14(s, lb->label_ptr[0], s->code_ptr)) {
         return false;
     }
 
@@ -2257,11 +2267,11 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
 #endif
 }
 
-static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
+static void tcg_out_nop_fill(TCGContext *s, tcg_insn_unit *p, int count)
 {
     int i;
     for (i = 0; i < count; ++i) {
-        p[i] = NOP;
+        (tcg_code_ptr_rw(s, p))[i] = NOP;
     }
 }
 

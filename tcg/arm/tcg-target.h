@@ -139,8 +139,21 @@ static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
     __builtin___clear_cache((char *) start, (char *) stop);
 }
 
+#if defined(CONFIG_MIRROR_JIT)
+static inline void flush_dcache_range(uintptr_t start, uintptr_t stop)
+{
+#if defined(__APPLE__)
+    sys_dcache_flush((char *)start, stop - start);
+#elif defined(__GNUC__)
+    __builtin___clear_cache((char *)start, (char *)stop);
+#else
+#error "Missing function to flush data cache"
+#endif
+}
+#endif
+
 /* not defined -- call should be eliminated at compile time */
-void tb_target_set_jmp_target(uintptr_t, uintptr_t, uintptr_t);
+void tb_target_set_jmp_target(uintptr_t, uintptr_t, uintptr_t, uintptr_t);
 
 #ifdef CONFIG_SOFTMMU
 #define TCG_TARGET_NEED_LDST_LABELS

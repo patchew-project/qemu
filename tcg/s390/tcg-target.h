@@ -149,13 +149,28 @@ static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
 {
 }
 
+#if defined(CONFIG_MIRROR_JIT)
+static inline void flush_dcache_range(uintptr_t start, uintptr_t stop)
+{
+#if defined(__GNUC__)
+    __builtin___clear_cache((char *)start, (char *)stop);
+#else
+#error "Missing function to flush data cache"
+#endif
+}
+#endif
+
 static inline void tb_target_set_jmp_target(uintptr_t tc_ptr,
-                                            uintptr_t jmp_addr, uintptr_t addr)
+                                            uintptr_t jmp_addr, uintptr_t addr,
+                                            uintptr_t wr_addr)
 {
     /* patch the branch destination */
     intptr_t disp = addr - (jmp_addr - 2);
     qatomic_set((int32_t *)jmp_addr, disp / 2);
     /* no need to flush icache explicitly */
+#if defined(CONFIG_MIRROR_JIT)
+    flush_dcache_range(wr_addr, wr_addr + 4);
+#endif
 }
 
 #ifdef CONFIG_SOFTMMU
