@@ -76,16 +76,12 @@ Annotated = Tuple[_value, Annotations]
 
 
 def _make_tree(obj: Union[_DObject, str], ifcond: List[str],
-               features: List[QAPISchemaFeature],
                extra: Optional[Annotations] = None
                ) -> TreeValue:
     if extra is None:
         extra = {}
     if ifcond:
         extra['if'] = ifcond
-    if features:
-        assert isinstance(obj, dict)
-        obj['features'] = [(f.name, {'if': f.ifcond}) for f in features]
     if extra:
         return (obj, extra)
     return obj
@@ -221,6 +217,11 @@ const QLitObject %(c_name)s = %(c_string)s;
             return '[' + self._use_type(typ.element_type) + ']'
         return self._name(typ.name)
 
+    @classmethod
+    def _gen_features(cls,
+                      features: List[QAPISchemaFeature]) -> List[TreeValue]:
+        return [_make_tree(f.name, f.ifcond) for f in features]
+
     def _gen_tree(self, name: str, mtype: str, obj: _DObject,
                   ifcond: List[str],
                   features: Optional[List[QAPISchemaFeature]]) -> None:
@@ -233,7 +234,9 @@ const QLitObject %(c_name)s = %(c_string)s;
             name = self._name(name)
         obj['name'] = name
         obj['meta-type'] = mtype
-        self._trees.append(_make_tree(obj, ifcond, features, extra))
+        if features:
+            obj['features'] = self._gen_features(features)
+        self._trees.append(_make_tree(obj, ifcond, extra))
 
     def _gen_member(self,
                     member: QAPISchemaObjectTypeMember) -> TreeValue:
@@ -243,7 +246,9 @@ const QLitObject %(c_name)s = %(c_string)s;
         }
         if member.optional:
             obj['default'] = None
-        return _make_tree(obj, member.ifcond, member.features)
+        if member.features:
+            obj['features'] = self._gen_features(member.features)
+        return _make_tree(obj, member.ifcond)
 
     def _gen_variants(self, tag_name: str,
                       variants: List[QAPISchemaVariant]) -> _DObject:
@@ -255,7 +260,7 @@ const QLitObject %(c_name)s = %(c_string)s;
             'case': variant.name,
             'type': self._use_type(variant.type)
         }
-        return _make_tree(obj, variant.ifcond, None)
+        return _make_tree(obj, variant.ifcond)
 
     def visit_builtin_type(self, name: str, info: Optional[QAPISourceInfo],
                            json_type: str) -> None:
