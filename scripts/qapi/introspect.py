@@ -76,12 +76,11 @@ Annotated = Tuple[_value, Annotations]
 
 
 def _make_tree(obj: Union[_DObject, str], ifcond: List[str],
-               extra: Optional[Annotations] = None
-               ) -> Annotated:
-    if extra is None:
-        extra = {}
-    if ifcond:
-        extra['if'] = ifcond
+               comment: Optional[str] = None) -> Annotated:
+    extra: Annotations = {
+        'if': ifcond,
+        'comment': comment,
+    }
     return (obj, extra)
 
 
@@ -228,18 +227,18 @@ const QLitObject %(c_name)s = %(c_string)s;
     def _gen_tree(self, name: str, mtype: str, obj: _DObject,
                   ifcond: List[str],
                   features: Optional[List[QAPISchemaFeature]]) -> None:
-        extra: Optional[Annotations] = None
+        comment: Optional[str] = None
         if mtype not in ('command', 'event', 'builtin', 'array'):
             if not self._unmask:
                 # Output a comment to make it easy to map masked names
                 # back to the source when reading the generated output.
-                extra = {'comment': '"%s" = %s' % (self._name(name), name)}
+                comment = f'"{self._name(name)}" = {name}'
             name = self._name(name)
         obj['name'] = name
         obj['meta-type'] = mtype
         if features:
             obj['features'] = self._gen_features(features)
-        self._trees.append(_make_tree(obj, ifcond, extra))
+        self._trees.append(_make_tree(obj, ifcond, comment))
 
     def _gen_member(self,
                     member: QAPISchemaObjectTypeMember) -> Annotated:
