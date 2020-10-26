@@ -20,6 +20,9 @@ linux_user_ss.add(when: 'TARGET_I386', if_true: files('vm86.c'))
 linux_user_ss.add(when: 'TARGET_AARCH64', if_true: files('semihost.c'))
 linux_user_ss.add(when: 'TARGET_ARM', if_true: files('semihost.c'))
 
+linux_user_ss.add(when: 'TARGET_RISCV64', if_true: files('semihost.c'))
+linux_user_ss.add(when: 'TARGET_RISCV32', if_true: files('semihost.c'))
+
 syscall_nr_generators = {}
 
 subdir('alpha')
