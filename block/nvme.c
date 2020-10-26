@@ -699,6 +699,8 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     uint64_t deadline, now;
     Error *local_err = NULL;
     volatile NvmeBar *regs = NULL;
+    size_t device_page_size_min;
+    size_t iommu_page_size_min = 4096;
 
     qemu_co_mutex_init(&s->dma_map_lock);
     qemu_co_queue_init(&s->dma_flush_queue);
@@ -733,7 +735,8 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
         goto out;
     }
 
-    s->page_size = MAX(4096, 1u << (12 + NVME_CAP_MPSMIN(cap)));
+    device_page_size_min = 1u << (12 + NVME_CAP_MPSMIN(cap));
+    s->page_size = MAX(iommu_page_size_min, device_page_size_min);
     s->doorbell_scale = (4 << NVME_CAP_DSTRD(cap)) / sizeof(uint32_t);
     bs->bl.opt_mem_alignment = s->page_size;
     bs->bl.request_alignment = s->page_size;
