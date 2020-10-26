@@ -168,6 +168,7 @@ static const int sector_len = 32 * KiB;
 static
 void mips_r4k_init(MachineState *machine)
 {
+    const char *bios_name = machine->firmware ?: BIOS_FILENAME;
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
@@ -221,9 +222,6 @@ void mips_r4k_init(MachineState *machine)
      * run.
      */
 
-    if (bios_name == NULL) {
-        bios_name = BIOS_FILENAME;
-    }
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
     if (filename) {
         bios_size = get_image_size(filename);
