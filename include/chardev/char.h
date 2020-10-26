@@ -284,6 +284,11 @@ extern int term_escape_char;
 GSource *qemu_chr_timeout_add_ms(Chardev *chr, guint ms,
                                  GSourceFunc func, void *private);
 
+/* char-legacy.c */
+
+/* TODO replace by conversion in opposite direction */
+q_obj_chardev_add_arg *chardev_options_crumple(ChardevOptions *chr);
+
 /* console.c */
 void qemu_chr_parse_vc(QemuOpts *opts, ChardevBackend *backend, Error **errp);
 

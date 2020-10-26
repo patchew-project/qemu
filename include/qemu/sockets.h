@@ -111,4 +111,7 @@ SocketAddress *socket_remote_address(int fd, Error **errp);
  */
 SocketAddress *socket_address_flatten(SocketAddressLegacy *addr);
 
+/* TODO remove along with chardev_options_crumple() */
+SocketAddressLegacy *socket_address_crumple(SocketAddress *addr);
+
 #endif /* QEMU_SOCKETS_H */

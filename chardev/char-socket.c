@@ -1404,7 +1404,8 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
 
     backend->type = CHARDEV_BACKEND_KIND_SOCKET;
     sock = backend->u.socket.data = g_new0(ChardevSocket, 1);
-    qemu_chr_parse_common(opts, qapi_ChardevSocket_base(sock));
+    qemu_chr_parse_common(opts,
+            qapi_ChardevSocketBase_base(qapi_ChardevSocket_base(sock)));
 
     sock->has_nodelay = qemu_opt_get(opts, "delay");
     sock->nodelay = !qemu_opt_get_bool(opts, "delay", true);

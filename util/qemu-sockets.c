@@ -1387,3 +1387,41 @@ SocketAddress *socket_address_flatten(SocketAddressLegacy *addr_legacy)
 
     return addr;
 }
+
+/* TODO remove along with chardev_options_crumple() */
+SocketAddressLegacy *socket_address_crumple(SocketAddress *addr)
+{
+    SocketAddressLegacy *addr_legacy;
+
+    if (!addr) {
+        return NULL;
+    }
+
+    addr_legacy = g_malloc(sizeof(*addr_legacy));
+
+    switch (addr->type) {
+    case SOCKET_ADDRESS_TYPE_INET:
+        addr_legacy->type = SOCKET_ADDRESS_LEGACY_KIND_INET;
+        addr_legacy->u.inet.data = QAPI_CLONE(InetSocketAddress,
+                                              &addr->u.inet);
+        break;
+    case SOCKET_ADDRESS_TYPE_UNIX:
+        addr_legacy->type = SOCKET_ADDRESS_LEGACY_KIND_UNIX;
+        addr_legacy->u.q_unix.data = QAPI_CLONE(UnixSocketAddress,
+                                                &addr->u.q_unix);
+        break;
+    case SOCKET_ADDRESS_TYPE_VSOCK:
+        addr_legacy->type = SOCKET_ADDRESS_LEGACY_KIND_VSOCK;
+        addr_legacy->u.vsock.data = QAPI_CLONE(VsockSocketAddress,
+                                               &addr->u.vsock);
+        break;
+    case SOCKET_ADDRESS_TYPE_FD:
+        addr_legacy->type = SOCKET_ADDRESS_LEGACY_KIND_FD;
+        addr_legacy->u.fd.data = QAPI_CLONE(String, &addr->u.fd);
+        break;
+    default:
+        abort();
+    }
+
+    return addr_legacy;
+}

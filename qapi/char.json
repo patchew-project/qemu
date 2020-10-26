@@ -244,12 +244,8 @@
   'base': 'ChardevCommon' }
 
 ##
-# @ChardevSocket:
+# @ChardevSocketBase:
 #
-# Configuration info for (stream) socket chardevs.
-#
-# @addr: socket address to listen on (server=true)
-#        or connect to (server=false)
 # @tls-creds: the ID of the TLS credentials object (since 2.6)
 # @tls-authz: the ID of the QAuthZ authorization object against which
 #             the client's x509 distinguished name will be validated. This
@@ -274,9 +270,8 @@
 #
 # Since: 1.4
 ##
-{ 'struct': 'ChardevSocket',
-  'data': { 'addr': 'SocketAddressLegacy',
-            '*tls-creds': 'str',
+{ 'struct': 'ChardevSocketBase',
+  'data': { '*tls-creds': 'str',
             '*tls-authz'  : 'str',
             '*server': 'bool',
             '*wait': 'bool',
@@ -286,6 +281,35 @@
             '*websocket': 'bool',
             '*reconnect': 'int' },
   'base': 'ChardevCommon' }
+
+##
+# @ChardevSocket:
+#
+# Configuration info for (stream) socket chardevs.
+#
+# @addr: socket address to listen on (server=true)
+#        or connect to (server=false)
+#
+# Since: 1.4
+##
+{ 'struct': 'ChardevSocket',
+  # Do not add to 'data', it breaks chardev_options_crumple()!  Add to
+  # ChardevSocketBase's 'data' instead.
+  'data': { 'addr': 'SocketAddressLegacy' },
+  'base': 'ChardevSocketBase' }
+
+##
+# @ChardevSocketFlat:
+#
+# Note: This type should eventually replace ChardevSocket.  The
+#       difference between the two: ChardevSocketFlat uses
+#       SocketAddressLegacy, ChardevSocket uses SocketAddress.
+##
+{ 'struct': 'ChardevSocketFlat',
+  # Do not add to 'data', it breaks chardev_options_crumple()!  Add to
+  # ChardevSocketBase's 'data' instead.
+  'data': { 'addr': 'SocketAddress' },
+  'base': 'ChardevSocketBase' }
 
 ##
 # @ChardevUdp:
@@ -298,8 +322,24 @@
 # Since: 1.5
 ##
 { 'struct': 'ChardevUdp',
+  # Do not add to 'data', it breaks chardev_options_crumple()!  Create
+  # ChardevUdpBase instead, similar to ChardevSocketBase.
   'data': { 'remote': 'SocketAddressLegacy',
             '*local': 'SocketAddressLegacy' },
+  'base': 'ChardevCommon' }
+
+##
+# @ChardevUdpFlat:
+#
+# Note: This type should eventually replace ChardevUdp.  The
+#       difference between the two: ChardevUdpFlat uses
+#       SocketAddressLegacy, ChardevUdp uses SocketAddress.
+##
+{ 'struct': 'ChardevUdpFlat',
+  # Do not add to 'data', it breaks chardev_options_crumple()!  Create
+  # ChardevUdpBase instead, similar to ChardevSocketBase.
+  'data': { 'remote': 'SocketAddress',
+            '*local': 'SocketAddress' },
   'base': 'ChardevCommon' }
 
 ##
@@ -421,6 +461,56 @@
             'ringbuf': 'ChardevRingbuf',
             # next one is just for compatibility
             'memory': 'ChardevRingbuf' } }
+
+##
+# @ChardevBackendType:
+#
+# Since: 5.2
+##
+{ 'enum': 'ChardevBackendType',
+
+  'data': [ 'file', 'serial', 'parallel', 'pipe', 'socket', 'udp',
+            'pty', 'null', 'mux', 'msmouse', 'wctablet', 'braille',
+            'testdev', 'stdio', 'console', 'spicevmc', 'spiceport',
+            'vc', 'ringbuf' ] }
+
+##
+# @ChardevOptions:
+#
+# Note: This type should eventually replace the implicit arguments
+#       type of chardev-add and chardev-chardev.  The differences
+#       between the two: 1. ChardevSocketOptions is a flat union
+#       rather than a struct with a simple union member, and 2. it
+#       uses SocketAddress instead of SocketAddressLegacy.  This
+#       avoids nesting on the wire, i.e. we need fewer {}.
+#
+# Since: 5.2
+##
+{ 'union': 'ChardevOptions',
+  'base': { 'backend': 'ChardevBackendType',
+            'id': 'str' },
+  'discriminator': 'backend',
+  'data': { 'file': 'ChardevFile',
+            'serial': 'ChardevHostdev',
+            'parallel': 'ChardevHostdev',
+            'pipe': 'ChardevHostdev',
+            'socket': 'ChardevSocketFlat',
+            'udp': 'ChardevUdpFlat',
+            'pty': 'ChardevCommon',
+            'null': 'ChardevCommon',
+            'mux': 'ChardevMux',
+            'msmouse': 'ChardevCommon',
+            'wctablet': 'ChardevCommon',
+            'braille': 'ChardevCommon',
+            'testdev': 'ChardevCommon',
+            'stdio': 'ChardevStdio',
+            'console': 'ChardevCommon',
+            'spicevmc': { 'type': 'ChardevSpiceChannel',
+                          'if': 'defined(CONFIG_SPICE)' },
+            'spiceport': { 'type': 'ChardevSpicePort',
+                           'if': 'defined(CONFIG_SPICE)' },
+            'vc': 'ChardevVC',
+            'ringbuf': 'ChardevRingbuf' } }
 
 ##
 # @ChardevReturn:
