@@ -55,6 +55,8 @@
 #include "sysemu/cpu-throttle.h"
 #include "savevm.h"
 #include "qemu/iov.h"
+#include "crypto/hash.h"
+#include "qemu/typedefs.h"
 #include "multifd.h"
 
 /***********************************************************/
@@ -196,6 +198,77 @@ int foreach_not_ignored_block(RAMBlockIterFunc func, void *opaque)
         }
     }
     return ret;
+}
+
+#define SHA256_DIGEST_LENGTH 32
+#define SHA256_CHUNK_SIZE 0x80000000
+
+static void ram_debug_dump_sha256(uint8_t *md, const char *idstr,
+                                  const char *prefix)
+{
+    int i;
+    char buf[2 * SHA256_DIGEST_LENGTH + 1] = { 0 };
+
+    for (i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+        sprintf(&buf[2 * i], "%02x", md[i]);
+    }
+
+    fprintf(stderr, "CheckPoint: %s, Ramblock: %s, CheckValue: %s\n",
+            prefix, idstr, buf);
+}
+
+static void ram_debug_calc_sha256(RAMBlock *block, const char *idstr,
+                                  const char *prefix)
+{
+    uint8_t *md = NULL;
+    size_t sha256_len;
+    size_t i, niov;
+    void *addr = NULL;
+    ram_addr_t remaining = 0;
+    size_t resultlen = 0;
+    struct iovec *iov_array = NULL;
+
+    sha256_len = qcrypto_hash_digest_len(QCRYPTO_HASH_ALG_SHA256);
+    assert(sha256_len == SHA256_DIGEST_LENGTH);
+
+    niov = DIV_ROUND_UP(qemu_ram_get_used_length(block), SHA256_CHUNK_SIZE);
+    iov_array = g_malloc0_n(niov, sizeof(struct iovec));
+
+    addr = qemu_ram_get_host_addr(block);
+    remaining = qemu_ram_get_used_length(block);
+    for (i = 0; i < niov; i++) {
+        iov_array[i].iov_base = addr;
+        iov_array[i].iov_len = MIN(SHA256_CHUNK_SIZE, remaining);
+        addr += SHA256_CHUNK_SIZE;
+        remaining -= SHA256_CHUNK_SIZE;
+    }
+
+    if (qcrypto_hash_bytesv(QCRYPTO_HASH_ALG_SHA256,
+                            iov_array, niov,
+                            &md, &resultlen, NULL) || !md) {
+        fprintf(stderr, "Consistency check(%s) calc failed.\n", prefix);
+        goto out;
+    }
+
+    ram_debug_dump_sha256(md, idstr, prefix);
+
+out:
+    g_free(iov_array);
+}
+
+static int ram_debug_consistency(RAMBlock *block, void *opaque)
+{
+    const char *prefix = opaque;
+    const char *idstr = qemu_ram_get_idstr(block);
+
+    ram_debug_calc_sha256(block, idstr, prefix);
+
+    return 0;
+}
+
+void migration_debug_ram_consistency(const char *prefix)
+{
+    foreach_migratable_block(ram_debug_consistency, (void *)prefix);
 }
 
 static void ramblock_recv_map_init(void)
