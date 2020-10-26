@@ -29,6 +29,7 @@
 
 #include "exec/memory-internal.h"
 #include "exec/ram_addr.h"
+#include "sysemu/cpus.h"
 #include "sysemu/kvm.h"
 #include "sysemu/runstate.h"
 #include "sysemu/tcg.h"
@@ -1058,7 +1059,9 @@ static void address_space_update_topology(AddressSpace *as)
 void memory_region_transaction_begin(void)
 {
     qemu_flush_coalesced_mmio_buffer();
-    ++memory_region_transaction_depth;
+    if ((++memory_region_transaction_depth == 1) && kvm_enabled()) {
+        pause_all_vcpus();
+    }
 }
 
 void memory_region_transaction_commit(void)
@@ -1088,7 +1091,11 @@ void memory_region_transaction_commit(void)
             }
             ioeventfd_update_pending = false;
         }
-   }
+
+        if (kvm_enabled()) {
+            resume_all_vcpus();
+        }
+    }
 }
 
 static void memory_region_destructor_none(MemoryRegion *mr)
