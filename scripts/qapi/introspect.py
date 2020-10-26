@@ -1,10 +1,11 @@
 """
 QAPI introspection generator
 
-Copyright (C) 2015-2018 Red Hat, Inc.
+Copyright (C) 2015-2020 Red Hat, Inc.
 
 Authors:
  Markus Armbruster <armbru@redhat.com>
+ John Snow <jsnow@redhat.com>
 
 This work is licensed under the terms of the GNU GPL, version 2.
 See the COPYING file in the top-level directory.
@@ -90,6 +91,13 @@ class Annotated(Generic[_AnnoType]):
 
 def _tree_to_qlit(obj: TreeValue, level: int = 0,
                   suppress_first_indent: bool = False) -> str:
+    """
+    Convert the type tree into a QLIT C string, recursively.
+
+    :param obj: The value to convert.
+    :param level: The indentation level for this particular value.
+    :param suppress_first_indent: True for dict value children.
+    """
 
     def indent(level: int) -> str:
         return level * 4 * ' '
