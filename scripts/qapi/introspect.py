@@ -77,14 +77,12 @@ Annotated = Tuple[_value, Annotations]
 
 def _make_tree(obj: Union[_DObject, str], ifcond: List[str],
                extra: Optional[Annotations] = None
-               ) -> TreeValue:
+               ) -> Annotated:
     if extra is None:
         extra = {}
     if ifcond:
         extra['if'] = ifcond
-    if extra:
-        return (obj, extra)
-    return obj
+    return (obj, extra)
 
 
 def _tree_to_qlit(obj: TreeValue,
@@ -98,12 +96,16 @@ def _tree_to_qlit(obj: TreeValue,
         ifobj, extra = obj
         ifcond = cast(Optional[Sequence[str]], extra.get('if'))
         comment = extra.get('comment')
+
+        msg = "Comments and Conditionals not implemented for dict values"
+        assert not (suppress_first_indent and (ifcond or comment)), msg
+
         ret = ''
         if comment:
             ret += indent(level) + '/* %s */\n' % comment
         if ifcond:
             ret += gen_if(ifcond)
-        ret += _tree_to_qlit(ifobj, level)
+        ret += _tree_to_qlit(ifobj, level, suppress_first_indent)
         if ifcond:
             ret += '\n' + gen_endif(ifcond)
         return ret
@@ -152,7 +154,7 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
             ' * QAPI/QMP schema introspection', __doc__)
         self._unmask = unmask
         self._schema: Optional[QAPISchema] = None
-        self._trees: List[TreeValue] = []
+        self._trees: List[Annotated] = []
         self._used_types: List[QAPISchemaType] = []
         self._name_map: Dict[str, str] = {}
         self._genc.add(mcgen('''
@@ -219,7 +221,8 @@ const QLitObject %(c_name)s = %(c_string)s;
 
     @classmethod
     def _gen_features(cls,
-                      features: List[QAPISchemaFeature]) -> List[TreeValue]:
+                      features: List[QAPISchemaFeature]
+                      ) -> List[Annotated]:
         return [_make_tree(f.name, f.ifcond) for f in features]
 
     def _gen_tree(self, name: str, mtype: str, obj: _DObject,
@@ -239,7 +242,7 @@ const QLitObject %(c_name)s = %(c_string)s;
         self._trees.append(_make_tree(obj, ifcond, extra))
 
     def _gen_member(self,
-                    member: QAPISchemaObjectTypeMember) -> TreeValue:
+                    member: QAPISchemaObjectTypeMember) -> Annotated:
         obj: _DObject = {
             'name': member.name,
             'type': self._use_type(member.type)
@@ -255,7 +258,7 @@ const QLitObject %(c_name)s = %(c_string)s;
         return {'tag': tag_name,
                 'variants': [self._gen_variant(v) for v in variants]}
 
-    def _gen_variant(self, variant: QAPISchemaVariant) -> TreeValue:
+    def _gen_variant(self, variant: QAPISchemaVariant) -> Annotated:
         obj: _DObject = {
             'case': variant.name,
             'type': self._use_type(variant.type)
