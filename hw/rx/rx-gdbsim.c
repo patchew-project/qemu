@@ -142,6 +142,13 @@ static void rx_gdbsim_init(MachineState *machine)
             /* Set dtb address to R1 */
             RX_CPU(first_cpu)->env.regs[1] = SDRAM_BASE + dtb_offset;
         }
+    } else {
+        if (machine->firmware) {
+            rom_add_file_fixed(machine->firmware, RX62N_CFLASH_BASE, 0);
+        } else if (!qtest_enabled()) {
+            error_report("No bios or kernel specified");
+            exit(1);
+        }
     }
 }
 
