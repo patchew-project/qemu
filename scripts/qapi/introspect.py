@@ -13,12 +13,13 @@ See the COPYING file in the top-level directory.
 from typing import (
     Any,
     Dict,
+    Generic,
+    Iterable,
     List,
     Optional,
     Sequence,
-    Tuple,
+    TypeVar,
     Union,
-    cast,
 )
 
 from .common import (
@@ -63,50 +64,48 @@ _stub = Any
 _scalar = Union[str, bool, None]
 _nonscalar = Union[Dict[str, _stub], List[_stub]]
 _value = Union[_scalar, _nonscalar]
-TreeValue = Union[_value, 'Annotated']
+TreeValue = Union[_value, 'Annotated[_value]']
 
 # This is just an alias for an object in the structure described above:
 _DObject = Dict[str, object]
 
-# Represents the annotations themselves:
-Annotations = Dict[str, object]
 
-# Represents an annotated node (of some kind).
-Annotated = Tuple[_value, Annotations]
+_AnnoType = TypeVar('_AnnoType', bound=TreeValue)
 
 
-def _make_tree(obj: Union[_DObject, str], ifcond: List[str],
-               comment: Optional[str] = None) -> Annotated:
-    extra: Annotations = {
-        'if': ifcond,
-        'comment': comment,
-    }
-    return (obj, extra)
+class Annotated(Generic[_AnnoType]):
+    """
+    Annotated generally contains a SchemaInfo-like type (as a dict),
+    But it also used to wrap comments/ifconds around scalar leaf values,
+    for the benefit of features and enums.
+    """
+    # Remove after 3.7 adds @dataclass:
+    # pylint: disable=too-few-public-methods
+    def __init__(self, value: _AnnoType, ifcond: Iterable[str],
+                 comment: Optional[str] = None):
+        self.value = value
+        self.comment: Optional[str] = comment
+        self.ifcond: Sequence[str] = tuple(ifcond)
 
 
-def _tree_to_qlit(obj: TreeValue,
-                  level: int = 0,
+def _tree_to_qlit(obj: TreeValue, level: int = 0,
                   suppress_first_indent: bool = False) -> str:
 
     def indent(level: int) -> str:
         return level * 4 * ' '
 
-    if isinstance(obj, tuple):
-        ifobj, extra = obj
-        ifcond = cast(Optional[Sequence[str]], extra.get('if'))
-        comment = extra.get('comment')
-
+    if isinstance(obj, Annotated):
         msg = "Comments and Conditionals not implemented for dict values"
-        assert not (suppress_first_indent and (ifcond or comment)), msg
+        assert not (suppress_first_indent and (obj.comment or obj.ifcond)), msg
 
         ret = ''
-        if comment:
-            ret += indent(level) + '/* %s */\n' % comment
-        if ifcond:
-            ret += gen_if(ifcond)
-        ret += _tree_to_qlit(ifobj, level, suppress_first_indent)
-        if ifcond:
-            ret += '\n' + gen_endif(ifcond)
+        if obj.comment:
+            ret += indent(level) + '/* %s */\n' % obj.comment
+        if obj.ifcond:
+            ret += gen_if(obj.ifcond)
+        ret += _tree_to_qlit(obj.value, level, suppress_first_indent)
+        if obj.ifcond:
+            ret += '\n' + gen_endif(obj.ifcond)
         return ret
 
     ret = ''
@@ -153,7 +152,7 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
             ' * QAPI/QMP schema introspection', __doc__)
         self._unmask = unmask
         self._schema: Optional[QAPISchema] = None
-        self._trees: List[Annotated] = []
+        self._trees: List[Annotated[_DObject]] = []
         self._used_types: List[QAPISchemaType] = []
         self._name_map: Dict[str, str] = {}
         self._genc.add(mcgen('''
@@ -219,10 +218,9 @@ const QLitObject %(c_name)s = %(c_string)s;
         return self._name(typ.name)
 
     @classmethod
-    def _gen_features(cls,
-                      features: List[QAPISchemaFeature]
-                      ) -> List[Annotated]:
-        return [_make_tree(f.name, f.ifcond) for f in features]
+    def _gen_features(
+            cls, features: List[QAPISchemaFeature]) -> List[Annotated[str]]:
+        return [Annotated(f.name, f.ifcond) for f in features]
 
     def _gen_tree(self, name: str, mtype: str, obj: _DObject,
                   ifcond: List[str],
@@ -238,10 +236,10 @@ const QLitObject %(c_name)s = %(c_string)s;
         obj['meta-type'] = mtype
         if features:
             obj['features'] = self._gen_features(features)
-        self._trees.append(_make_tree(obj, ifcond, comment))
+        self._trees.append(Annotated(obj, ifcond, comment))
 
     def _gen_member(self,
-                    member: QAPISchemaObjectTypeMember) -> Annotated:
+                    member: QAPISchemaObjectTypeMember) -> Annotated[_DObject]:
         obj: _DObject = {
             'name': member.name,
             'type': self._use_type(member.type)
@@ -250,19 +248,19 @@ const QLitObject %(c_name)s = %(c_string)s;
             obj['default'] = None
         if member.features:
             obj['features'] = self._gen_features(member.features)
-        return _make_tree(obj, member.ifcond)
+        return Annotated(obj, member.ifcond)
 
     def _gen_variants(self, tag_name: str,
                       variants: List[QAPISchemaVariant]) -> _DObject:
         return {'tag': tag_name,
                 'variants': [self._gen_variant(v) for v in variants]}
 
-    def _gen_variant(self, variant: QAPISchemaVariant) -> Annotated:
+    def _gen_variant(self, variant: QAPISchemaVariant) -> Annotated[_DObject]:
         obj: _DObject = {
             'case': variant.name,
             'type': self._use_type(variant.type)
         }
-        return _make_tree(obj, variant.ifcond)
+        return Annotated(obj, variant.ifcond)
 
     def visit_builtin_type(self, name: str, info: Optional[QAPISourceInfo],
                            json_type: str) -> None:
@@ -272,10 +270,11 @@ const QLitObject %(c_name)s = %(c_string)s;
                         ifcond: List[str], features: List[QAPISchemaFeature],
                         members: List[QAPISchemaEnumMember],
                         prefix: Optional[str]) -> None:
-        self._gen_tree(name, 'enum',
-                       {'values': [_make_tree(m.name, m.ifcond, None)
-                                   for m in members]},
-                       ifcond, features)
+        self._gen_tree(
+            name, 'enum',
+            {'values': [Annotated(m.name, m.ifcond) for m in members]},
+            ifcond, features
+        )
 
     def visit_array_type(self, name: str, info: Optional[QAPISourceInfo],
                          ifcond: List[str],
@@ -300,12 +299,12 @@ const QLitObject %(c_name)s = %(c_string)s;
                              ifcond: List[str],
                              features: List[QAPISchemaFeature],
                              variants: QAPISchemaVariants) -> None:
-        self._gen_tree(name, 'alternate',
-                       {'members': [
-                           _make_tree({'type': self._use_type(m.type)},
-                                      m.ifcond, None)
-                           for m in variants.variants]},
-                       ifcond, features)
+        self._gen_tree(
+            name, 'alternate',
+            {'members': [Annotated({'type': self._use_type(m.type)}, m.ifcond)
+                         for m in variants.variants]},
+            ifcond, features
+        )
 
     def visit_command(self, name: str, info: QAPISourceInfo, ifcond: List[str],
                       features: List[QAPISchemaFeature],
