@@ -55,6 +55,7 @@ static void digic4_board_init(MachineState *machine, DigicBoard *board)
     DigicState *s = DIGIC(object_new(TYPE_DIGIC));
     MachineClass *mc = MACHINE_GET_CLASS(machine);
 
+    s->firmware = machine->firmware;
     if (machine->ram_size != mc->default_ram_size) {
         char *sz = size_to_str(mc->default_ram_size);
         error_report("Invalid RAM size, should be %s", sz);
@@ -91,8 +92,8 @@ static void digic_load_rom(DigicState *s, hwaddr addr,
         return;
     }
 
-    if (bios_name) {
-        filename = bios_name;
+    if (s->firmware) {
+        filename = s->firmware;
     } else {
         filename = def_filename;
     }

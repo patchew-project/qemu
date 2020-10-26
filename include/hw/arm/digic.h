@@ -36,6 +36,7 @@ struct DigicState {
 
     ARMCPU cpu;
 
+    const char *firmware;
     DigicTimerState timer[DIGIC4_NB_TIMERS];
     DigicUartState uart;
 };
