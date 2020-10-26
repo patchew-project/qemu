@@ -166,6 +166,22 @@ bool ramblock_is_ignored(RAMBlock *block)
 
 #undef RAMBLOCK_FOREACH
 
+static int foreach_migratable_block(RAMBlockIterFunc func, void *opaque)
+{
+    RAMBlock *block;
+    int ret = 0;
+
+    rcu_read_lock();
+    RAMBLOCK_FOREACH_MIGRATABLE(block) {
+        ret = func(block, opaque);
+        if (ret) {
+            break;
+        }
+    }
+    rcu_read_unlock();
+    return ret;
+}
+
 int foreach_not_ignored_block(RAMBlockIterFunc func, void *opaque)
 {
     RAMBlock *block;
