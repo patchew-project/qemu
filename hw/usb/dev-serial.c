@@ -360,9 +360,8 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
         /* TODO: TX ON/OFF */
         break;
     case VendorDeviceRequest | FTDI_GET_MDM_ST:
-        data[0] = usb_get_modem_lines(s) | 1;
-        data[1] = FTDI_THRE | FTDI_TEMT;
-        p->actual_length = 2;
+        data[0] = usb_get_modem_lines(s);
+        p->actual_length = 1;
         break;
     case VendorDeviceOutRequest | FTDI_SET_EVENT_CHR:
         /* TODO: handle it */
