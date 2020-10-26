@@ -1400,10 +1400,19 @@
 #
 # @use-copy-range: Use copy offloading. Default true.
 #
+# @max-workers: Maximum number of parallel requests for the sustained background
+#               copying process. Doesn't influence copy-before-write operations.
+#               Default 64.
+#
+# @max-chunk: Maximum request length for the sustained background copying
+#             process. Doesn't influence copy-before-write operations.
+#             0 means unlimited. Default 0.
+#
 # Since: 5.2
 ##
 { 'struct': 'BackupPerf',
-  'data': { '*use-copy-range': 'bool' }}
+  'data': { '*use-copy-range': 'bool',
+            '*max-workers': 'int', '*max-chunk': 'int64' } }
 
 ##
 # @BackupCommon:
