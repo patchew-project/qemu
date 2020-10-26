@@ -37,10 +37,13 @@
 #include "qapi/error.h"
 #include "qapi/qapi-visit-block-core.h"
 #include "qapi/qapi-visit-block-export.h"
+#include "qapi/qapi-visit-char.h"
+#include "qapi/qapi-visit-char.h"
 #include "qapi/qapi-visit-control.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi/qobject-input-visitor.h"
+#include "qapi/qobject-output-visitor.h"
 
 #include "qemu-common.h"
 #include "qemu-version.h"
@@ -207,18 +210,34 @@ static void process_options(int argc, char *argv[])
             }
         case OPTION_CHARDEV:
             {
-                /* TODO This interface is not stable until we QAPIfy it */
-                QemuOpts *opts = qemu_opts_parse_noisily(&qemu_chardev_opts,
-                                                         optarg, true);
-                if (opts == NULL) {
-                    exit(EXIT_FAILURE);
-                }
+                QDict *args;
+                Visitor *v;
+                ChardevOptions *chr;
+                q_obj_chardev_add_arg *arg;
+                bool help;
 
-                if (!qemu_chr_new_from_opts(opts, NULL, &error_fatal)) {
-                    /* No error, but NULL returned means help was printed */
+                args = keyval_parse(optarg, "backend", &help, &error_fatal);
+                if (help) {
+                    if (qdict_haskey(args, "backend")) {
+                        /* FIXME wrong where QAPI differs from QemuOpts */
+                        qemu_opts_print_help(&qemu_chardev_opts, true);
+                    } else {
+                        qemu_chr_print_types();
+                    }
                     exit(EXIT_SUCCESS);
                 }
-                qemu_opts_del(opts);
+
+                v = qobject_input_visitor_new_keyval(QOBJECT(args));
+                visit_type_ChardevOptions(v, NULL, &chr, &error_fatal);
+                visit_free(v);
+
+                arg = chardev_options_crumple(chr);
+
+                qmp_chardev_add(arg->id, arg->backend, &error_fatal);
+                g_free(arg->id);
+                qapi_free_ChardevBackend(arg->backend);
+                qapi_free_ChardevOptions(chr);
+                qobject_unref(args);
                 break;
             }
         case OPTION_EXPORT:
