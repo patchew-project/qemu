@@ -1678,6 +1678,7 @@ static void migrate_fd_cleanup(MigrationState *s)
         tmp = s->to_dst_file;
         s->to_dst_file = NULL;
         qemu_mutex_unlock(&s->qemu_file_lock);
+        MIGRATION_RAM_CONSISTENCY_CHECK();
         /*
          * Close the file handle without the lock to make sure the
          * critical section won't block for long.

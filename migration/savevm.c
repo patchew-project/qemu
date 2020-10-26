@@ -2636,6 +2636,13 @@ int qemu_loadvm_state(QEMUFile *f)
     }
 
     qemu_loadvm_state_cleanup();
+    /*
+     * cpu_synchronize_all_post_init->kvm_put_msrs will update the
+     * kvmclock share-mem.
+     * So this's the latest point at which the ram is the same as source
+     */
+    MIGRATION_RAM_CONSISTENCY_CHECK();
+
     cpu_synchronize_all_post_init();
 
     return ret;
