@@ -233,6 +233,41 @@ int qemu_vfio_pci_init_irq(QEMUVFIOState *s, EventNotifier *e,
 }
 
 /**
+ * Initialize a MSIX IRQ and register its event notifier.
+ * @irq_index: MSIX IRQ index
+ * @notifier: notifier for the MSIX IRQ
+ */
+int qemu_vfio_pci_msix_set_irq(QEMUVFIOState *s, unsigned irq_index,
+                               EventNotifier *notifier, Error **errp)
+{
+    int r;
+    int fd = event_notifier_get_fd(notifier);
+    size_t irq_set_size;
+    struct vfio_irq_set *irq_set;
+
+    trace_qemu_vfio_pci_msix_set_irq(irq_index, fd);
+    irq_set_size = sizeof(*irq_set) + sizeof(int32_t);
+    irq_set = g_malloc0(irq_set_size);
+    /* Get to a known IRQ state */
+    *irq_set = (struct vfio_irq_set) {
+        .argsz = irq_set_size,
+        .flags = VFIO_IRQ_SET_DATA_EVENTFD | VFIO_IRQ_SET_ACTION_TRIGGER,
+        .index = VFIO_PCI_MSIX_IRQ_INDEX,
+        .start = irq_index,
+        .count = 1,
+    };
+    ((int32_t *)&irq_set->data)[0] = fd;
+    r = ioctl(s->device, VFIO_DEVICE_SET_IRQS, irq_set);
+    g_free(irq_set);
+    if (r) {
+        error_setg_errno(errp, errno, "Failed to setup device interrupt #%u",
+                         irq_index);
+        return -errno;
+    }
+    return 0;
+}
+
+/**
  * Initialize device MSIX IRQs and register event notifiers.
  * @irq_count: pointer to number of MSIX IRQs to initialize
  *

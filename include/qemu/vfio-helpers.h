@@ -33,5 +33,7 @@ int qemu_vfio_pci_init_irq(QEMUVFIOState *s, EventNotifier *e,
                            int irq_type, Error **errp);
 int qemu_vfio_pci_msix_init_irqs(QEMUVFIOState *s,
                                  unsigned *irq_count, Error **errp);
+int qemu_vfio_pci_msix_set_irq(QEMUVFIOState *s, unsigned irq_index,
+                               EventNotifier *notifier, Error **errp);
 
 #endif
