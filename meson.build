@@ -736,6 +736,10 @@ if not has_malloc_trim and get_option('malloc_trim').enabled()
   endif
 endif
 
+fuse = dependency('fuse3', required: get_option('fuse'),
+                  version: '>=3.1', method: 'pkg-config',
+                  static: enable_static)
+
 #################
 # config-host.h #
 #################
@@ -768,6 +772,7 @@ config_host_data.set('CONFIG_XKBCOMMON', xkbcommon.found())
 config_host_data.set('CONFIG_KEYUTILS', keyutils.found())
 config_host_data.set('CONFIG_GETTID', has_gettid)
 config_host_data.set('CONFIG_MALLOC_TRIM', has_malloc_trim)
+config_host_data.set('CONFIG_FUSE', fuse.found())
 config_host_data.set('QEMU_VERSION', '"@0@"'.format(meson.project_version()))
 config_host_data.set('QEMU_VERSION_MAJOR', meson.project_version().split('.')[0])
 config_host_data.set('QEMU_VERSION_MINOR', meson.project_version().split('.')[1])
@@ -2163,6 +2168,7 @@ endif
 summary_info += {'thread sanitizer':  config_host.has_key('CONFIG_TSAN')}
 summary_info += {'rng-none':          config_host.has_key('CONFIG_RNG_NONE')}
 summary_info += {'Linux keyring':     config_host.has_key('CONFIG_SECRET_KEYRING')}
+summary_info += {'FUSE exports':      fuse.found()}
 summary(summary_info, bool_yn: true)
 
 if not supported_cpus.contains(cpu)
