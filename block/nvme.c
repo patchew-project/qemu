@@ -487,9 +487,10 @@ static void nvme_cmd_sync_cb(void *opaque, int ret)
     aio_wait_kick();
 }
 
-static int nvme_cmd_sync(BlockDriverState *bs, NVMeQueuePair *q,
-                         NvmeCmd *cmd)
+static int nvme_cmd_sync(BlockDriverState *bs, NvmeCmd *cmd)
 {
+    BDRVNVMeState *s = bs->opaque;
+    NVMeQueuePair *q = s->queues[INDEX_ADMIN];
     AioContext *aio_context = bdrv_get_aio_context(bs);
     NVMeRequest *req;
     int ret = -EINPROGRESS;
@@ -534,7 +535,7 @@ static bool nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
 
     memset(id, 0, sizeof(*id));
     cmd.dptr.prp1 = cpu_to_le64(iova);
-    if (nvme_cmd_sync(bs, s->queues[INDEX_ADMIN], &cmd)) {
+    if (nvme_cmd_sync(bs, &cmd)) {
         error_setg(errp, "Failed to identify controller");
         goto out;
     }
@@ -557,7 +558,7 @@ static bool nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
     memset(id, 0, sizeof(*id));
     cmd.cdw10 = 0;
     cmd.nsid = cpu_to_le32(namespace);
-    if (nvme_cmd_sync(bs, s->queues[INDEX_ADMIN], &cmd)) {
+    if (nvme_cmd_sync(bs, &cmd)) {
         error_setg(errp, "Failed to identify namespace");
         goto out;
     }
@@ -663,7 +664,7 @@ static bool nvme_add_io_queue(BlockDriverState *bs, Error **errp)
         .cdw10 = cpu_to_le32(((queue_size - 1) << 16) | n),
         .cdw11 = cpu_to_le32(NVME_CQ_IEN | NVME_CQ_PC),
     };
-    if (nvme_cmd_sync(bs, s->queues[INDEX_ADMIN], &cmd)) {
+    if (nvme_cmd_sync(bs, &cmd)) {
         error_setg(errp, "Failed to create CQ io queue [%u]", n);
         goto out_error;
     }
@@ -673,7 +674,7 @@ static bool nvme_add_io_queue(BlockDriverState *bs, Error **errp)
         .cdw10 = cpu_to_le32(((queue_size - 1) << 16) | n),
         .cdw11 = cpu_to_le32(NVME_SQ_PC | (n << 16)),
     };
-    if (nvme_cmd_sync(bs, s->queues[INDEX_ADMIN], &cmd)) {
+    if (nvme_cmd_sync(bs, &cmd)) {
         error_setg(errp, "Failed to create SQ io queue [%u]", n);
         goto out_error;
     }
@@ -889,7 +890,7 @@ static int nvme_enable_disable_write_cache(BlockDriverState *bs, bool enable,
         .cdw11 = cpu_to_le32(enable ? 0x01 : 0x00),
     };
 
-    ret = nvme_cmd_sync(bs, s->queues[INDEX_ADMIN], &cmd);
+    ret = nvme_cmd_sync(bs, &cmd);
     if (ret) {
         error_setg(errp, "Failed to configure NVMe write cache");
     }
