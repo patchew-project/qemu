@@ -926,10 +926,8 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
                 error_free(local_err);
                 goto out;
             }
-            list = g_malloc0(sizeof(*list));
-            list->value = disk;
+            QAPI_LIST_ADD(list, disk);
             disk = NULL;
-            list->next = NULL;
             goto out;
         } else {
             error_setg_win32(errp, GetLastError(),
@@ -1064,7 +1062,7 @@ free:
 GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
 {
     HANDLE vol_h;
-    GuestFilesystemInfoList *new, *ret = NULL;
+    GuestFilesystemInfoList *ret = NULL;
     char guid[256];
 
     vol_h = FindFirstVolume(guid, sizeof(guid));
@@ -1082,10 +1080,7 @@ GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
             error_free(local_err);
             continue;
         }
-        new = g_malloc(sizeof(*ret));
-        new->value = info;
-        new->next = ret;
-        ret = new;
+        QAPI_LIST_ADD(ret, info);
     } while (FindNextVolume(vol_h, guid, sizeof(guid)));
 
     if (GetLastError() != ERROR_NO_MORE_FILES) {
@@ -1268,11 +1263,7 @@ qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
 
         res->path = path;
 
-        list = g_new0(GuestFilesystemTrimResultList, 1);
-        list->value = res;
-        list->next = resp->paths;
-
-        resp->paths = list;
+        QAPI_LIST_ADD(resp->paths, res);
 
         memset(argv, 0, sizeof(argv));
         argv[0] = (gchar *)"defrag.exe";

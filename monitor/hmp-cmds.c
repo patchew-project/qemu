@@ -1248,7 +1248,8 @@ void hmp_migrate_set_capability(Monitor *mon, const QDict *qdict)
     const char *cap = qdict_get_str(qdict, "capability");
     bool state = qdict_get_bool(qdict, "state");
     Error *err = NULL;
-    MigrationCapabilityStatusList *caps = g_malloc0(sizeof(*caps));
+    MigrationCapabilityStatusList *caps = NULL;
+    MigrationCapabilityStatus *value = NULL;
     int val;
 
     val = qapi_enum_parse(&MigrationCapability_lookup, cap, -1, &err);
@@ -1256,10 +1257,10 @@ void hmp_migrate_set_capability(Monitor *mon, const QDict *qdict)
         goto end;
     }
 
-    caps->value = g_malloc0(sizeof(*caps->value));
-    caps->value->capability = val;
-    caps->value->state = state;
-    caps->next = NULL;
+    value = g_malloc0(sizeof(*value));
+    value->capability = val;
+    value->state = state;
+    QAPI_LIST_ADD(caps, value);
     qmp_migrate_set_capabilities(caps, &err);
 
 end:

@@ -1211,7 +1211,7 @@ GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
 {
     FsMountList mounts;
     struct FsMount *mount;
-    GuestFilesystemInfoList *new, *ret = NULL;
+    GuestFilesystemInfoList *ret = NULL;
     Error *local_err = NULL;
 
     QTAILQ_INIT(&mounts);
@@ -1224,10 +1224,7 @@ GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
     QTAILQ_FOREACH(mount, &mounts, next) {
         g_debug("Building guest fsinfo for '%s'", mount->dirname);
 
-        new = g_malloc0(sizeof(*ret));
-        new->value = build_guest_fsinfo(mount, &local_err);
-        new->next = ret;
-        ret = new;
+        QAPI_LIST_ADD(ret, build_guest_fsinfo(mount, &local_err));
         if (local_err) {
             error_propagate(errp, local_err);
             qapi_free_GuestFilesystemInfoList(ret);
@@ -1493,7 +1490,6 @@ GuestFilesystemTrimResponse *
 qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
 {
     GuestFilesystemTrimResponse *response;
-    GuestFilesystemTrimResultList *list;
     GuestFilesystemTrimResult *result;
     int ret = 0;
     FsMountList mounts;
@@ -1517,10 +1513,7 @@ qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
         result = g_malloc0(sizeof(*result));
         result->path = g_strdup(mount->dirname);
 
-        list = g_malloc0(sizeof(*list));
-        list->value = result;
-        list->next = response->paths;
-        response->paths = list;
+        QAPI_LIST_ADD(response->paths, result);
 
         fd = qemu_open_old(mount->dirname, O_RDONLY);
         if (fd == -1) {

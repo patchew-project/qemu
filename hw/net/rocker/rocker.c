@@ -127,13 +127,11 @@ RockerPortList *qmp_query_rocker_ports(const char *name, Error **errp)
     }
 
     for (i = r->fp_ports - 1; i >= 0; i--) {
-        RockerPortList *info = g_malloc0(sizeof(*info));
-        info->value = g_malloc0(sizeof(*info->value));
+        RockerPort *value = g_malloc0(sizeof(*value));
         struct fp_port *port = r->fp_port[i];
 
-        fp_port_get_info(port, info);
-        info->next = list;
-        list = info;
+        fp_port_get_info(port, value);
+        QAPI_LIST_ADD(list, value);
     }
 
     return list;

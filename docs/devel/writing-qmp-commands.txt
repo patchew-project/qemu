@@ -531,15 +531,10 @@ TimerAlarmMethodList *qmp_query_alarm_methods(Error **errp)
     bool current = true;
 
     for (p = alarm_timers; p->name; p++) {
-        TimerAlarmMethodList *info = g_malloc0(sizeof(*info));
-        info->value = g_malloc0(sizeof(*info->value));
-        info->value->method_name = g_strdup(p->name);
-        info->value->current = current;
-
-        current = false;
-
-        info->next = method_list;
-        method_list = info;
+	TimerAlarmMethod *value = g_new0(TimerAlarmMethod, 1);
+        value->method_name = g_strdup(p->name);
+        value->current = current;
+        QAPI_LIST_ADD(method_list, value);
     }
 
     return method_list;
