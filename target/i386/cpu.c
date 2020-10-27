@@ -4720,13 +4720,30 @@ static void x86_cpu_parse_featurestr(const char *typename, char *features,
         GlobalProperty *prop;
 
         /* Compatibility syntax: */
-        if (featurestr[0] == '+') {
-            plus_features = g_list_append(plus_features,
-                                          g_strdup(featurestr + 1));
-            continue;
-        } else if (featurestr[0] == '-') {
-            minus_features = g_list_append(minus_features,
-                                           g_strdup(featurestr + 1));
+        if (featurestr[0] == '+' || featurestr[0] == '-') {
+            const char *feat = featurestr + 1;
+            GList *val;
+            char *data;
+
+            /* Remove any existing +/- setting. */
+            val = g_list_find_custom(minus_features, feat, compare_string);
+            if (val) {
+                data = val->data;
+                minus_features = g_list_remove(minus_features, data);
+                g_free(data);
+            }
+            val = g_list_find_custom(plus_features, feat, compare_string);
+            if (val) {
+                data = val->data;
+                plus_features = g_list_remove(plus_features, data);
+                g_free(data);
+            }
+
+            if (featurestr[0] == '+') {
+                plus_features = g_list_append(plus_features, g_strdup(feat));
+            } else {
+                minus_features = g_list_append(minus_features, g_strdup(feat));
+            }
             continue;
         }
 
