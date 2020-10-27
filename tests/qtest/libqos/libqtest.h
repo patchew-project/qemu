@@ -133,6 +133,23 @@ void qtest_qmp_send_raw(QTestState *s, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
 
 /**
+ * qtest_socket_client:
+ * @server_socket_path: the socket server's path
+ *
+ * Connect to a socket server.
+ */
+int qtest_socket_client(char *server_socket_path);
+
+/**
+ * qtest_create_state_with_qmp_fd:
+ * @fd: socket fd
+ *
+ * Wrap socket fd in QTestState to make use of qtest_qmp*
+ * functions
+ */
+QTestState *qtest_create_state_with_qmp_fd(int fd);
+
+/**
  * qtest_vqmp_fds:
  * @s: #QTestState instance to operate on.
  * @fds: array of file descriptors

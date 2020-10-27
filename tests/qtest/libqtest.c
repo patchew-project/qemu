@@ -4,11 +4,13 @@
  * Copyright IBM, Corp. 2012
  * Copyright Red Hat, Inc. 2012
  * Copyright SUSE LINUX Products GmbH 2013
+ * Copyright Copyright (c) Coiby Xu
  *
  * Authors:
  *  Anthony Liguori   <aliguori@us.ibm.com>
  *  Paolo Bonzini     <pbonzini@redhat.com>
  *  Andreas Färber    <afaerber@suse.de>
+ *  Coiby Xu          <coiby.xu@gmail.com>
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
@@ -52,8 +54,7 @@ typedef struct QTestClientTransportOps {
     QTestRecvFn     recv_line; /* for receiving qtest command responses */
 } QTestTransportOps;
 
-struct QTestState
-{
+struct QTestState {
     int fd;
     int qmp_fd;
     pid_t qemu_pid;  /* our child QEMU process */
@@ -628,6 +629,37 @@ QDict *qtest_qmp_receive(QTestState *s)
 QDict *qtest_qmp_receive_dict(QTestState *s)
 {
     return qmp_fd_receive(s->qmp_fd);
+}
+
+QTestState *qtest_create_state_with_qmp_fd(int fd)
+{
+    QTestState *qmp_test_state = g_new0(QTestState, 1);
+    qmp_test_state->qmp_fd = fd;
+    return qmp_test_state;
+}
+
+int qtest_socket_client(char *server_socket_path)
+{
+    struct sockaddr_un serv_addr;
+    int sock;
+    int ret;
+    int retries = 0;
+    sock = socket(PF_UNIX, SOCK_STREAM, 0);
+    g_assert_cmpint(sock, !=, -1);
+    serv_addr.sun_family = AF_UNIX;
+    snprintf(serv_addr.sun_path, sizeof(serv_addr.sun_path), "%s",
+             server_socket_path);
+
+    for (retries = 0; retries < 3; retries++) {
+        ret = connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+        if (ret == 0) {
+            break;
+        }
+        g_usleep(G_USEC_PER_SEC);
+    }
+
+    g_assert_cmpint(ret, ==, 0);
+    return sock;
 }
 
 /**
