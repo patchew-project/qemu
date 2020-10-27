@@ -705,8 +705,8 @@ static void quit_storage_daemon(void *qmp_test_state)
     g_free(qmp_test_state);
 }
 
-static char *start_vhost_user_blk(GString *cmd_line, int vus_instances,
-                                  int num_queues)
+static void start_vhost_user_blk(GString *cmd_line, int vus_instances,
+                                 int num_queues)
 {
     const char *vhost_user_blk_bin = qtest_qemu_storage_daemon_binary();
     int fd, qmp_fd, i;
@@ -774,7 +774,6 @@ static char *start_vhost_user_blk(GString *cmd_line, int vus_instances,
     g_test_queue_destroy(quit_storage_daemon, qmp_test_state);
 
     qobject_unref(qtest_qmp(qmp_test_state, "{'execute': 'qmp_capabilities'}"));
-    return sock_path;
 }
 
 static void *vhost_user_blk_test_setup(GString *cmd_line, void *arg)
