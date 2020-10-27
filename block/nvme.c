@@ -506,9 +506,11 @@ static int nvme_cmd_sync(BlockDriverState *bs, NVMeQueuePair *q,
     return ret;
 }
 
-static void nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
+/* Returns true on success, false on failure. */
+static bool nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
 {
     BDRVNVMeState *s = bs->opaque;
+    bool ret = false;
     union {
         NvmeIdCtrl ctrl;
         NvmeIdNs ns;
@@ -585,10 +587,13 @@ static void nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
         goto out;
     }
 
+    ret = true;
     s->blkshift = lbaf->ds;
 out:
     qemu_vfio_dma_unmap(s->vfio, id);
     qemu_vfree(id);
+
+    return ret;
 }
 
 static bool nvme_poll_queue(NVMeQueuePair *q)
