@@ -658,7 +658,8 @@ static const char *qtest_qemu_storage_daemon_binary(void)
     return qemu_storage_daemon_bin;
 }
 
-static void drive_destroy(void *path)
+/* g_test_queue_destroy() cleanup function for files */
+static void destroy_file(void *path)
 {
     unlink(path);
     g_free(path);
@@ -678,7 +679,7 @@ static char *drive_create(void)
     g_assert_cmpint(ret, ==, 0);
     close(fd);
 
-    g_test_queue_destroy(drive_destroy, t_path);
+    g_test_queue_destroy(destroy_file, t_path);
     return t_path;
 }
 
@@ -717,7 +718,7 @@ static char *start_vhost_user_blk(GString *cmd_line, int vus_instances,
 
     qmp_fd = mkstemp(qmp_sock_path);
     g_assert_cmpint(qmp_fd, >=, 0);
-    g_test_queue_destroy(drive_destroy, qmp_sock_path);
+    g_test_queue_destroy(destroy_file, qmp_sock_path);
 
     g_string_append_printf(storage_daemon_command,
             "exec %s "
@@ -731,7 +732,7 @@ static char *start_vhost_user_blk(GString *cmd_line, int vus_instances,
         sock_path = g_strdup(sock_path_tempate);
         fd = mkstemp(sock_path);
         g_assert_cmpint(fd, >=, 0);
-        g_test_queue_destroy(drive_destroy, sock_path);
+        g_test_queue_destroy(drive_file, sock_path);
         /* create image file */
         img_path = drive_create();
         g_string_append_printf(storage_daemon_command,
