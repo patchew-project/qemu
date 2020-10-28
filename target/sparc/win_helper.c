@@ -303,6 +303,7 @@ static inline uint64_t *get_gregset(CPUSPARCState *env, uint32_t pstate)
     default:
         trace_win_helper_gregset_error(pstate);
         /* pass through to normal set of global registers */
+        /* fall through */
     case 0:
         return env->bgregs;
     case PS_AG:
