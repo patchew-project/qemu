@@ -426,6 +426,7 @@ void do_nios2_semihosting(CPUNios2State *env)
             result = isatty(arg0);
         }
         break;
+#if !defined(CONFIG_IOS) /* iOS does not have system() */
     case HOSTED_SYSTEM:
         GET_ARG(0);
         GET_ARG(1);
@@ -444,6 +445,7 @@ void do_nios2_semihosting(CPUNios2State *env)
             }
         }
         break;
+#endif
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "nios2-semihosting: unsupported "
                       "semihosting syscall %d\n", nr);

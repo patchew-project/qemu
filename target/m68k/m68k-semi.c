@@ -402,6 +402,7 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
             result = isatty(arg0);
         }
         break;
+#if !defined(CONFIG_IOS) /* iOS does not have system() */
     case HOSTED_SYSTEM:
         GET_ARG(0);
         GET_ARG(1);
@@ -420,6 +421,7 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
             }
         }
         break;
+#endif /* CONFIG_IOS */
     case HOSTED_INIT_SIM:
 #if defined(CONFIG_USER_ONLY)
         {

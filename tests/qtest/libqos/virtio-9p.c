@@ -54,6 +54,7 @@ static void create_local_test_dir(void)
 }
 
 /* Deletes directory previously created by create_local_test_dir(). */
+#if !defined(CONFIG_IOS) /* iOS does not have system() */
 static void remove_local_test_dir(void)
 {
     g_assert(local_test_path != NULL);
@@ -64,6 +65,13 @@ static void remove_local_test_dir(void)
     }
     g_free(cmd);
 }
+#else
+static void remove_local_test_dir(void)
+{
+    fprintf(stderr, "Test not implemented for iOS\n");
+    g_assert(0);
+}
+#endif
 
 char *virtio_9p_test_path(const char *path)
 {
