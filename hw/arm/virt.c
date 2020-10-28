@@ -152,6 +152,7 @@ static const MemMapEntry base_memmap[] = {
     [VIRT_ACPI_GED] =           { 0x09080000, ACPI_GED_EVT_SEL_LEN },
     [VIRT_NVDIMM_ACPI] =        { 0x09090000, NVDIMM_ACPI_IO_LEN},
     [VIRT_PVTIME] =             { 0x090a0000, 0x00010000 },
+    [VIRT_EC] =                 { 0x090c0000, 0x00001000 },
     [VIRT_MMIO] =               { 0x0a000000, 0x00000200 },
     /* ...repeating for a total of NUM_VIRTIO_TRANSPORTS, each of that size */
     [VIRT_PLATFORM_BUS] =       { 0x0c000000, 0x02000000 },
@@ -1729,6 +1730,13 @@ static void virt_cpu_post_init(VirtMachineState *vms, int max_cpus,
     }
 }
 
+static void init_ec_controller(VirtMachineState *vms)
+{
+    vms->ec = qdev_new("sbsa-ec");
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(vms->ec), 0, vms->memmap[VIRT_EC].base);
+}
+
 static void machvirt_init(MachineState *machine)
 {
     VirtMachineState *vms = VIRT_MACHINE(machine);
@@ -1797,6 +1805,7 @@ static void machvirt_init(MachineState *machine)
      */
     if (vms->secure && firmware_loaded) {
         vms->psci_conduit = QEMU_PSCI_CONDUIT_DISABLED;
+        init_ec_controller(vms);
     } else if (vms->virt) {
         vms->psci_conduit = QEMU_PSCI_CONDUIT_SMC;
     } else {
