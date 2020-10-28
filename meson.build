@@ -81,6 +81,8 @@ if cpu in ['x86', 'x86_64']
     'CONFIG_HVF': ['x86_64-softmmu'],
     'CONFIG_WHPX': ['i386-softmmu', 'x86_64-softmmu'],
   }
+elif cpu in [ 'arm', 'aarch64' ]
+  accelerator_targets += { 'CONFIG_XEN': ['i386-softmmu'] }
 endif
 
 ##################
