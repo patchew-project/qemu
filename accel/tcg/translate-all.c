@@ -27,6 +27,9 @@
 #include "disas/disas.h"
 #include "exec/exec-all.h"
 #include "tcg/tcg.h"
+#if defined(CONFIG_DARWIN)
+#include "tcg/tcg-apple-jit.h"
+#endif
 #if defined(CONFIG_USER_ONLY)
 #include "qemu.h"
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
@@ -60,6 +63,9 @@
 #include "sysemu/cpu-timers.h"
 #include "sysemu/tcg.h"
 #include "qemu/memfd.h"
+
+static bool tb_exec_is_locked(void);
+static void tb_exec_change(bool locked);
 
 /* #define DEBUG_TB_INVALIDATE */
 /* #define DEBUG_TB_FLUSH */
@@ -1093,6 +1099,12 @@ static inline void *alloc_code_gen_buffer(bool mirror_jit)
         prot |= PROT_WRITE;
         flags |= MAP_ANONYMOUS | MAP_PRIVATE;
     }
+#elif defined(CONFIG_DARWIN) /* both iOS and macOS (Apple Silicon) applicable */
+    if (!mirror_jit) {
+        prot |= PROT_WRITE;
+        flags |= MAP_JIT;
+    }
+    flags |= MAP_ANONYMOUS | MAP_PRIVATE;
 #else /* defined(CONFIG_LINUX) */
 #error "Mirror JIT unimplemented for this platform."
 #endif /* defined(CONFIG_LINUX) */
@@ -1164,9 +1176,42 @@ static inline void *alloc_jit_rw_mirror(void)
 
     return buf;
 }
+#elif defined(CONFIG_DARWIN)
+static inline void *alloc_jit_rw_mirror(void)
+{
+    void *base = tcg_ctx->code_gen_buffer;
+    size_t size = tcg_ctx->code_gen_buffer_size;
+    kern_return_t ret;
+    mach_vm_address_t mirror;
+    vm_prot_t cur_prot, max_prot;
+
+    mirror = 0;
+    ret = mach_vm_remap(mach_task_self(),
+                        &mirror,
+                        size,
+                        0,
+                        VM_FLAGS_ANYWHERE | VM_FLAGS_RANDOM_ADDR,
+                        mach_task_self(),
+                        (mach_vm_address_t)base,
+                        false,
+                        &cur_prot,
+                        &max_prot,
+                        VM_INHERIT_NONE
+                       );
+    if (ret != KERN_SUCCESS) {
+        return NULL;
+    }
+
+    if (mprotect((void *)mirror, size, PROT_READ | PROT_WRITE) != 0) {
+        munmap((void *)mirror, size);
+        return NULL;
+    }
+
+    return (void *)mirror;
+}
 #else
 #error "Mirror JIT unimplemented for this platform."
-#endif /* CONFIG_IOS */
+#endif /* CONFIG_DARWIN */
 #endif /* CONFIG_MIRROR_JIT */
 
 static inline void code_gen_alloc(size_t tb_size, bool mirror_jit)
@@ -1230,6 +1275,7 @@ void tcg_exec_init(unsigned long tb_size, bool mirror_jit)
     page_init();
     tb_htable_init();
     code_gen_alloc(tb_size, mirror_jit);
+    tb_exec_unlock();
 #if defined(CONFIG_SOFTMMU)
     /* There's no guest base to take into account, so go ahead and
        initialize the prologue now.  */
@@ -1506,8 +1552,11 @@ static void do_tb_phys_invalidate(TranslationBlock *tb, bool rm_from_page_list)
     PageDesc *p;
     uint32_t h;
     tb_page_addr_t phys_pc;
+    bool code_gen_locked;
 
     assert_memory_lock();
+    code_gen_locked = tb_exec_is_locked();
+    tb_exec_unlock();
 
     /* make sure no further incoming jumps will be chained to this TB */
     qemu_spin_lock(&tb->jmp_lock);
@@ -1520,6 +1569,7 @@ static void do_tb_phys_invalidate(TranslationBlock *tb, bool rm_from_page_list)
                      tb->trace_vcpu_dstate);
     if (!(tb->cflags & CF_NOCACHE) &&
         !qht_remove(&tb_ctx.htable, tb, h)) {
+        tb_exec_change(code_gen_locked);
         return;
     }
 
@@ -1552,6 +1602,8 @@ static void do_tb_phys_invalidate(TranslationBlock *tb, bool rm_from_page_list)
 
     qatomic_set(&tcg_ctx->tb_phys_invalidate_count,
                tcg_ctx->tb_phys_invalidate_count + 1);
+
+    tb_exec_change(code_gen_locked);
 }
 
 static void tb_phys_invalidate__locked(TranslationBlock *tb)
@@ -2791,4 +2843,37 @@ void tcg_flush_softmmu_tlb(CPUState *cs)
 #ifdef CONFIG_SOFTMMU
     tlb_flush(cs);
 #endif
+}
+
+#if defined(CONFIG_DARWIN) && !defined(CONFIG_TCG_INTERPRETER)
+static bool tb_exec_is_locked(void)
+{
+    return tcg_ctx->code_gen_locked;
+}
+
+static void tb_exec_change(bool locked)
+{
+    if (jit_write_protect_supported()) {
+        jit_write_protect(locked);
+    }
+    tcg_ctx->code_gen_locked = locked;
+}
+#else /* not needed on non-Darwin platforms */
+static bool tb_exec_is_locked(void)
+{
+    return false;
+}
+
+static void tb_exec_change(bool locked) {}
+#endif
+
+void tb_exec_lock(void)
+{
+    /* assumes sys_icache_invalidate already called */
+    tb_exec_change(true);
+}
+
+void tb_exec_unlock(void)
+{
+    tb_exec_change(false);
 }

@@ -781,6 +781,8 @@ static void alloc_tcg_plugin_context(TCGContext *s)
 void tcg_register_thread(void)
 {
     tcg_ctx = &tcg_init_ctx;
+
+    tb_exec_unlock();
 }
 #else
 void tcg_register_thread(void)
@@ -815,6 +817,8 @@ void tcg_register_thread(void)
     err = tcg_region_initial_alloc__locked(tcg_ctx);
     g_assert(!err);
     qemu_mutex_unlock(&region.lock);
+
+    tb_exec_unlock();
 }
 #endif /* !CONFIG_USER_ONLY */
 
