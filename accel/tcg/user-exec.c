@@ -167,7 +167,7 @@ static inline int handle_cpu_signal(uintptr_t pc, siginfo_t *info,
              */
             clear_helper_retaddr();
             cpu_exit_tb_from_sighandler(cpu, old_set);
-            /* NORETURN */
+            /* fall through */
 
         default:
             g_assert_not_reached();
