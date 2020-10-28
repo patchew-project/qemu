@@ -1355,6 +1355,7 @@ void dump_mmu(CPUPPCState *env)
             break;
         }
 #endif
+        /* fall through */
     default:
         qemu_log_mask(LOG_UNIMP, "%s: unimplemented\n", __func__);
     }
