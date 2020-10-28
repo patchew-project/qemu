@@ -29,11 +29,23 @@
 #include "qapi/error.h"
 #include "qemu/fifo8.h"
 
+#define FIFO_SIZE   1024
+
+/* Access to this structure is protected by the BQL */
+typedef struct SemihostingConsole {
+    CharBackend         backend;
+    GSList              *sleeping_cpus;
+    bool                got;
+    Fifo8               fifo;
+    Chardev             *chardev;
+} SemihostingConsole;
+
+static SemihostingConsole console;
+
 int qemu_semihosting_log_out(const char *s, int len)
 {
-    Chardev *chardev = semihosting_get_chardev();
-    if (chardev) {
-        return qemu_chr_write_all(chardev, (uint8_t *) s, len);
+    if (console.chardev) {
+        return qemu_chr_write_all(console.chardev, (uint8_t *) s, len);
     } else {
         return write(STDERR_FILENO, s, len);
     }
@@ -107,17 +119,6 @@ void qemu_semihosting_console_outc(CPUArchState *env, target_ulong addr)
     }
 }
 
-#define FIFO_SIZE   1024
-
-/* Access to this structure is protected by the BQL */
-typedef struct SemihostingConsole {
-    CharBackend         backend;
-    GSList              *sleeping_cpus;
-    bool                got;
-    Fifo8               fifo;
-} SemihostingConsole;
-
-static SemihostingConsole console;
 
 static int console_can_read(void *opaque)
 {
@@ -166,15 +167,24 @@ target_ulong qemu_semihosting_console_inc(CPUArchState *env)
 
 void qemu_semihosting_console_init(void)
 {
-    Chardev *chr = semihosting_get_chardev();
+    const char *chardev = semihosting_get_chardev();
 
-    if  (chr) {
-        fifo8_create(&console.fifo, FIFO_SIZE);
-        qemu_chr_fe_init(&console.backend, chr, &error_abort);
-        qemu_chr_fe_set_handlers(&console.backend,
-                                 console_can_read,
-                                 console_read,
-                                 NULL, NULL, &console,
-                                 NULL, true);
+    if (chardev == NULL) {
+        return;
     }
+
+    console.chardev = qemu_chr_find(chardev);
+
+    if (console.chardev == NULL) {
+        error_report("semihosting chardev '%s' not found", chardev);
+        exit(1);
+    }
+
+    fifo8_create(&console.fifo, FIFO_SIZE);
+    qemu_chr_fe_init(&console.backend, console.chardev, &error_abort);
+    qemu_chr_fe_set_handlers(&console.backend,
+                             console_can_read,
+                             console_read,
+                             NULL, NULL, &console,
+                             NULL, true);
 }
