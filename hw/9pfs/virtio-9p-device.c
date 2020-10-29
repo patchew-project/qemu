@@ -201,6 +201,7 @@ static void virtio_9p_device_realize(DeviceState *dev, Error **errp)
     V9fsVirtioState *v = VIRTIO_9P(dev);
     V9fsState *s = &v->state;
     FsDriverEntry *fse = get_fsdev_fsentry(s->fsconf.fsdev_id);
+    size_t config_size;
 
     if (qtest_enabled() && fse) {
         fse->export_flags |= V9FS_NO_PERF_WARN;
@@ -211,7 +212,8 @@ static void virtio_9p_device_realize(DeviceState *dev, Error **errp)
     }
 
     v->config_size = sizeof(struct virtio_9p_config) + strlen(s->fsconf.tag);
-    virtio_init(vdev, "virtio-9p", VIRTIO_ID_9P, v->config_size);
+    config_size = ROUND_UP(v->config_size, 4);
+    virtio_init(vdev, "virtio-9p", VIRTIO_ID_9P, config_size);
     v->vq = virtio_add_queue(vdev, MAX_REQ, handle_9p_output);
 }
 
