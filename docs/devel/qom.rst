@@ -379,3 +379,9 @@ API Reference
 -------------
 
 .. kernel-doc:: include/qom/object.h
+
+
+Static Property API Reference
+-----------------------------
+
+.. kernel-doc:: include/qom/static-property.h
