@@ -1202,6 +1202,108 @@ int vfio_pci_igd_opregion_init(VFIOPCIDevice *vdev,
     return 0;
 }
 
+#define PCI_VENDOR_ID_HUAWEI      0x19e5
+#define PCI_DEVICE_ID_ASCEND910   0xd801
+#define PCI_DEVICE_ID_ASCEND310   0xd100
+#define ASCEND910_XLOADER_SIZE    4
+#define ASCEND910_XLOADER_OFFSET  0x80400
+#define ASCEND310_XLOADER_SIZE    4
+#define ASCEND310_XLOADER_OFFSET  0x400
+
+typedef struct VFIOAscendBarQuirk {
+    struct VFIOPCIDevice *vdev;
+    pcibus_t offset;
+    uint8_t bar;
+    MemoryRegion *mem;
+} VFIOAscendBarQuirk;
+
+static uint64_t vfio_ascend_quirk_read(void *opaque,
+                                       hwaddr addr, unsigned size)
+{
+    VFIOAscendBarQuirk *quirk = opaque;
+    VFIOPCIDevice *vdev = quirk->vdev;
+
+    return vfio_region_read(&vdev->bars[quirk->bar].region,
+                            addr + quirk->offset, size);
+}
+
+static void vfio_ascend_quirk_write(void *opaque, hwaddr addr,
+                                    uint64_t data, unsigned size)
+{
+}
+
+static const MemoryRegionOps vfio_ascend_intercept_regs_quirk = {
+    .read = vfio_ascend_quirk_read,
+    .write = vfio_ascend_quirk_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static void vfio_probe_ascend_bar0_quirk(VFIOPCIDevice *vdev, int nr)
+{
+    VFIOQuirk *quirk;
+    VFIOAscendBarQuirk *bar0_quirk;
+
+    if (!vfio_pci_is(vdev, PCI_VENDOR_ID_HUAWEI, PCI_DEVICE_ID_ASCEND910) ||
+        nr != 0) {
+        return;
+    }
+
+    quirk = g_malloc0(sizeof(*quirk));
+    quirk->nr_mem = 1;
+    quirk->mem = g_new0(MemoryRegion, quirk->nr_mem);
+    bar0_quirk = quirk->data = g_new0(typeof(*bar0_quirk), quirk->nr_mem);
+    bar0_quirk[0].vdev = vdev;
+    bar0_quirk[0].offset = ASCEND910_XLOADER_OFFSET;
+    bar0_quirk[0].bar = nr;
+
+    /*
+     * intercept w/r to the xloader-updating register,
+     * so the vm can't enable xloader-updating
+     */
+    memory_region_init_io(&quirk->mem[0], OBJECT(vdev),
+                          &vfio_ascend_intercept_regs_quirk,
+                          &bar0_quirk[0],
+                          "vfio-ascend-bar0-intercept-regs-quirk",
+                          ASCEND910_XLOADER_SIZE);
+    memory_region_add_subregion_overlap(vdev->bars[nr].region.mem,
+                                        bar0_quirk[0].offset,
+                                        &quirk->mem[0], 1);
+    QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
+}
+
+static void vfio_probe_ascend_bar4_quirk(VFIOPCIDevice *vdev, int nr)
+{
+    VFIOQuirk *quirk;
+    VFIOAscendBarQuirk *bar4_quirk;
+
+    if (!vfio_pci_is(vdev, PCI_VENDOR_ID_HUAWEI, PCI_DEVICE_ID_ASCEND310) ||
+        nr != 4) {
+        return;
+    }
+
+    quirk = g_malloc0(sizeof(*quirk));
+    quirk->nr_mem = 1;
+    quirk->mem = g_new0(MemoryRegion, quirk->nr_mem);
+    bar4_quirk = quirk->data = g_new0(typeof(*bar4_quirk), quirk->nr_mem);
+    bar4_quirk[0].vdev = vdev;
+    bar4_quirk[0].offset = ASCEND310_XLOADER_OFFSET;
+    bar4_quirk[0].bar = nr;
+
+    /*
+     * intercept w/r to the xloader-updating register,
+     * so the vm can't enable xloader-updating
+     */
+    memory_region_init_io(&quirk->mem[0], OBJECT(vdev),
+                          &vfio_ascend_intercept_regs_quirk,
+                          &bar4_quirk[0],
+                          "vfio-ascend-bar4-intercept-regs-quirk",
+                          ASCEND310_XLOADER_SIZE);
+    memory_region_add_subregion_overlap(vdev->bars[nr].region.mem,
+                                        bar4_quirk[0].offset,
+                                        &quirk->mem[0], 1);
+    QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
+}
+
 /*
  * Common quirk probe entry points.
  */
@@ -1251,6 +1353,8 @@ void vfio_bar_quirk_setup(VFIOPCIDevice *vdev, int nr)
     vfio_probe_nvidia_bar5_quirk(vdev, nr);
     vfio_probe_nvidia_bar0_quirk(vdev, nr);
     vfio_probe_rtl8168_bar2_quirk(vdev, nr);
+    vfio_probe_ascend_bar0_quirk(vdev, nr);
+    vfio_probe_ascend_bar4_quirk(vdev, nr);
 #ifdef CONFIG_VFIO_IGD
     vfio_probe_igd_bar4_quirk(vdev, nr);
 #endif
