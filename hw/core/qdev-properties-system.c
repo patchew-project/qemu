@@ -23,7 +23,7 @@
 #include "qemu/cutils.h"
 #include "qemu/units.h"
 #include "qemu/error-report.h"
-#include "qdev-prop-internal.h"
+#include "qom/static-property-internal.h"
 
 #include "audio/audio.h"
 #include "chardev/char-fe.h"
