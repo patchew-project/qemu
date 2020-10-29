@@ -365,6 +365,9 @@ static void pci_edu_realize(PCIDevice *pdev, Error **errp)
     uint8_t *pci_conf = pdev->config;
 
     pci_config_set_interrupt_pin(pci_conf, 1);
+    if (pci_add_capability(pdev, PCI_CAP_ID_PM, 0, PCI_PM_SIZEOF, errp) < 0) {
+        return;
+    }
 
     if (msi_init(pdev, 0, 1, true, false, errp)) {
         return;
