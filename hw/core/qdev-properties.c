@@ -885,9 +885,9 @@ const PropertyInfo qdev_prop_link = {
     .create = create_link_property,
 };
 
-void qdev_property_add_static(DeviceState *dev, Property *prop)
+ObjectProperty *
+object_property_add_static(Object *obj, Property *prop)
 {
-    Object *obj = OBJECT(dev);
     ObjectProperty *op;
 
     assert(!prop->info->create);
@@ -907,11 +907,13 @@ void qdev_property_add_static(DeviceState *dev, Property *prop)
             op->init(obj, op);
         }
     }
+
+    return op;
 }
 
-static void qdev_class_add_property(DeviceClass *klass, Property *prop)
+ObjectProperty *
+object_class_property_add_static(ObjectClass *oc, Property *prop)
 {
-    ObjectClass *oc = OBJECT_CLASS(klass);
     ObjectProperty *op;
 
     if (prop->info->create) {
@@ -931,6 +933,21 @@ static void qdev_class_add_property(DeviceClass *klass, Property *prop)
         object_class_property_set_description(oc, prop->name,
                                             prop->info->description);
     }
+    return op;
+}
+
+void object_class_add_static_props(ObjectClass *oc, Property *props)
+{
+    Property *prop;
+
+    for (prop = props; prop && prop->name; prop++) {
+        object_class_property_add_static(oc, prop);
+    }
+}
+
+void qdev_property_add_static(DeviceState *dev, Property *prop)
+{
+    object_property_add_static(OBJECT(dev), prop);
 }
 
 /**
@@ -979,15 +996,18 @@ static void qdev_class_add_legacy_property(DeviceClass *dc, Property *prop)
         NULL, NULL, prop);
 }
 
-void device_class_set_props(DeviceClass *dc, Property *props)
+static void qdev_class_add_legacy_properties(DeviceClass *dc, Property *props)
 {
     Property *prop;
-
-    dc->props_ = props;
     for (prop = props; prop && prop->name; prop++) {
         qdev_class_add_legacy_property(dc, prop);
-        qdev_class_add_property(dc, prop);
     }
+}
+void device_class_set_props(DeviceClass *dc, Property *props)
+{
+    dc->props_ = props;
+    qdev_class_add_legacy_properties(dc, props);
+    object_class_add_static_props(OBJECT_CLASS(dc), props);
 }
 
 void qdev_alias_all_properties(DeviceState *target, Object *source)

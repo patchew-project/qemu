@@ -27,4 +27,15 @@ void qdev_propinfo_get_int32(Object *obj, Visitor *v, const char *name,
 void qdev_propinfo_get_size32(Object *obj, Visitor *v, const char *name,
                               void *opaque, Error **errp);
 
+/**
+ * object_property_add_static: Add a static property to an object instance
+ * @obj: object instance
+ * @prop: property definition
+ *
+ * This function should not be used in new code.  Please add class properties
+ * instead, using object_class_add_static_props().
+ */
+ObjectProperty *
+object_property_add_static(Object *obj, Property *prop);
+
 #endif

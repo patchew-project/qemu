@@ -275,6 +275,30 @@ extern const PropertyInfo qdev_prop_pcie_link_width;
 #define DEFINE_PROP_END_OF_LIST()               \
     {}
 
+/**
+ * object_class_property_add_static: Add a static property to object class
+ * @oc: object class
+ * @prop: property definition
+ *
+ * Add a property to an object class based on the property definition
+ * at @prop.
+ *
+ * The property definition at @prop should be defined using the
+ * ``DEFINE_PROP`` family of macros.  *@prop must exist for the
+ * life time of @oc.
+ */
+ObjectProperty *
+object_class_property_add_static(ObjectClass *oc, Property *prop);
+
+/**
+ * object_class_add_static_props: Add multiple static properties to object class
+ * @oc: object class
+ * @props: property definition array, terminated by DEFINED_PROP_END_OF_LIST()
+ *
+ * Add properties from @props using object_class_property_add_static()
+ */
+void object_class_add_static_props(ObjectClass *oc, Property *props);
+
 /*
  * Set properties between creation and realization.
  *
