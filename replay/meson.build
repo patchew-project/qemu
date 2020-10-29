@@ -11,3 +11,4 @@ softmmu_ss.add(when: 'CONFIG_TCG', if_true: files(
   'replay-random.c',
   'replay-debugging.c',
 ), if_false: files('stubs-system.c'))
+softmmu_ss.add(when: 'CONFIG_ALL', if_true: files('stubs-system.c'))
