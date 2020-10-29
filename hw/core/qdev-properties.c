@@ -26,13 +26,13 @@ void qdev_prop_set_after_realize(DeviceState *dev, const char *name,
 }
 
 /* returns: true if property is allowed to be set, false otherwise */
-static bool qdev_prop_allow_set(Object *obj, const char *name,
+static bool qdev_prop_allow_set(Object *obj, ObjectProperty *op,
                                 Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
 
     if (dev->realized) {
-        qdev_prop_set_after_realize(dev, name, errp);
+        qdev_prop_set_after_realize(dev, op->name, errp);
         return false;
     }
     return true;
@@ -79,10 +79,6 @@ static void static_prop_set(Object *obj, Visitor *v, const char *name,
                             void *opaque, Error **errp)
 {
     Property *prop = opaque;
-
-    if (!qdev_prop_allow_set(obj, name, errp)) {
-        return;
-    }
 
     return prop->info->set(obj, v, name, opaque, errp);
 }
@@ -631,7 +627,9 @@ static void object_property_add_array_element(Object *obj,
                                               Property *array_len_prop,
                                               ArrayElementProperty *prop)
 {
-    ObjectProperty *op = object_property_add_static(obj, &prop->prop);
+    ObjectProperty *array_op = object_property_find(obj, array_len_prop->name);
+    ObjectProperty *op = object_property_add_static(obj, &prop->prop,
+                                                    array_op->allow_set);
 
     assert((void *)prop == (void *)&prop->prop);
     prop->release = op->release;
@@ -894,9 +892,13 @@ const PropertyInfo qdev_prop_size = {
 
 static ObjectProperty *create_link_property(ObjectClass *oc, Property *prop)
 {
+    /*
+     * NOTE: object_property_allow_set_link is unconditional, but
+     *       ObjectProperty.allow_set may be set for the property too.
+     */
     return object_class_property_add_link(oc, prop->name, prop->link_type,
                                           prop->offset,
-                                          qdev_prop_allow_set_link_before_realize,
+                                          object_property_allow_set_link,
                                           OBJ_PROP_LINK_STRONG);
 }
 
@@ -906,7 +908,8 @@ const PropertyInfo qdev_prop_link = {
 };
 
 ObjectProperty *
-object_property_add_static(Object *obj, Property *prop)
+object_property_add_static(Object *obj, Property *prop,
+                           ObjectPropertyAllowSet allow_set)
 {
     ObjectProperty *op;
 
@@ -928,11 +931,13 @@ object_property_add_static(Object *obj, Property *prop)
         }
     }
 
+    op->allow_set = allow_set;
     return op;
 }
 
 ObjectProperty *
-object_class_property_add_static(ObjectClass *oc, Property *prop)
+object_class_property_add_static(ObjectClass *oc, Property *prop,
+                                 ObjectPropertyAllowSet allow_set)
 {
     ObjectProperty *op;
 
@@ -953,21 +958,24 @@ object_class_property_add_static(ObjectClass *oc, Property *prop)
         object_class_property_set_description(oc, prop->name,
                                             prop->info->description);
     }
+
+    op->allow_set = allow_set;
     return op;
 }
 
-void object_class_add_static_props(ObjectClass *oc, Property *props)
+void object_class_add_static_props(ObjectClass *oc, Property *props,
+                                   ObjectPropertyAllowSet allow_set)
 {
     Property *prop;
 
     for (prop = props; prop && prop->name; prop++) {
-        object_class_property_add_static(oc, prop);
+        object_class_property_add_static(oc, prop, allow_set);
     }
 }
 
 void qdev_property_add_static(DeviceState *dev, Property *prop)
 {
-    object_property_add_static(OBJECT(dev), prop);
+    object_property_add_static(OBJECT(dev), prop, qdev_prop_allow_set);
 }
 
 /**
@@ -1027,7 +1035,7 @@ void device_class_set_props(DeviceClass *dc, Property *props)
 {
     dc->props_ = props;
     qdev_class_add_legacy_properties(dc, props);
-    object_class_add_static_props(OBJECT_CLASS(dc), props);
+    object_class_add_static_props(OBJECT_CLASS(dc), props, qdev_prop_allow_set);
 }
 
 void qdev_alias_all_properties(DeviceState *target, Object *source)

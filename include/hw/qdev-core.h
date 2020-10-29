@@ -765,6 +765,16 @@ void qdev_machine_init(void);
  */
 void device_legacy_reset(DeviceState *dev);
 
+/**
+ * device_class_set_props: Add class properties from #Property array
+ *
+ * @dc: Device class
+ * @props: array of device properties, terminated by DEFINE_PROP_END_OF_LIST
+ *
+ * Add class properties from the array at @props.
+ * Properties added using this function will be settable only
+ * before the device is realized.
+ */
 void device_class_set_props(DeviceClass *dc, Property *props);
 
 /**
