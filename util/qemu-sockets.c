@@ -919,7 +919,7 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
     if (saddr->abstract) {
         un.sun_path[0] = '\0';
         memcpy(&un.sun_path[1], path, pathlen);
-        if (saddr->tight) {
+        if (!saddr->has_tight || saddr->tight) {
             addrlen = offsetof(struct sockaddr_un, sun_path) + 1 + pathlen;
         }
     } else {
@@ -979,7 +979,7 @@ static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
     if (saddr->abstract) {
         un.sun_path[0] = '\0';
         memcpy(&un.sun_path[1], saddr->path, pathlen);
-        if (saddr->tight) {
+        if (!saddr->has_tight || saddr->tight) {
             addrlen = offsetof(struct sockaddr_un, sun_path) + 1 + pathlen;
         }
     } else {
