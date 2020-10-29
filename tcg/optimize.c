@@ -26,6 +26,12 @@
 #include "qemu/osdep.h"
 #include "tcg/tcg-op.h"
 
+#if __has_attribute(fallthrough)
+# define fallthrough() __attribute__((fallthrough))
+#else
+# define fallthrough() do {} while (0)
+#endif
+
 #define CASE_OP_32_64(x)                        \
         glue(glue(case INDEX_op_, x), _i32):    \
         glue(glue(case INDEX_op_, x), _i64)
@@ -855,6 +861,7 @@ void tcg_optimize(TCGContext *s)
             if ((arg_info(op->args[1])->mask & 0x80) != 0) {
                 break;
             }
+            fallthrough();
         CASE_OP_32_64(ext8u):
             mask = 0xff;
             goto and_const;
@@ -862,6 +869,7 @@ void tcg_optimize(TCGContext *s)
             if ((arg_info(op->args[1])->mask & 0x8000) != 0) {
                 break;
             }
+            fallthrough();
         CASE_OP_32_64(ext16u):
             mask = 0xffff;
             goto and_const;
@@ -869,6 +877,7 @@ void tcg_optimize(TCGContext *s)
             if ((arg_info(op->args[1])->mask & 0x80000000) != 0) {
                 break;
             }
+            fallthrough();
         case INDEX_op_ext32u_i64:
             mask = 0xffffffffU;
             goto and_const;
@@ -886,6 +895,7 @@ void tcg_optimize(TCGContext *s)
             if ((arg_info(op->args[1])->mask & 0x80000000) != 0) {
                 break;
             }
+            fallthrough();
         case INDEX_op_extu_i32_i64:
             /* We do not compute affected as it is a size changing op.  */
             mask = (uint32_t)arg_info(op->args[1])->mask;
