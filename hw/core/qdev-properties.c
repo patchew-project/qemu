@@ -588,6 +588,32 @@ typedef struct {
     ObjectPropertyRelease *release;
 } ArrayElementProperty;
 
+/**
+ * Create ArrayElementProperty based on array length property
+ * @array_len_prop (which was previously defined using DEFINE_PROP_ARRAY()).
+ */
+static ArrayElementProperty *array_element_new(Object *obj,
+                                               Property *array_len_prop,
+                                               const char *arrayname,
+                                               int index,
+                                               void *eltptr)
+{
+    char *propname = g_strdup_printf("%s[%d]", arrayname, index);
+    ArrayElementProperty *arrayprop = g_new0(ArrayElementProperty, 1);
+    arrayprop->release = array_len_prop->arrayinfo->release;
+    arrayprop->propname = propname;
+    arrayprop->prop.info = array_len_prop->arrayinfo;
+    arrayprop->prop.name = propname;
+    /* This ugly piece of pointer arithmetic sets up the offset so
+     * that when the underlying get/set hooks call qdev_get_prop_ptr
+     * they get the right answer despite the array element not actually
+     * being inside the device struct.
+     */
+    arrayprop->prop.offset = eltptr - (void *)obj;
+    assert(qdev_get_prop_ptr(obj, &arrayprop->prop) == eltptr);
+    return arrayprop;
+}
+
 /* object property release callback for array element properties:
  * we call the underlying element's property release hook, and
  * then free the memory we allocated when we added the property.
@@ -600,6 +626,18 @@ static void array_element_release(Object *obj, const char *name, void *opaque)
     }
     g_free(p->propname);
     g_free(p);
+}
+
+static void object_property_add_array_element(Object *obj,
+                                              Property *array_len_prop,
+                                              ArrayElementProperty *prop)
+{
+    object_property_add(obj, prop->prop.name,
+                        prop->prop.info->name,
+                        static_prop_getter(prop->prop.info),
+                        static_prop_setter(prop->prop.info),
+                        array_element_release,
+                        prop);
 }
 
 static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
@@ -641,25 +679,9 @@ static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
      */
     *arrayptr = eltptr = g_malloc0(*alenptr * prop->arrayfieldsize);
     for (i = 0; i < *alenptr; i++, eltptr += prop->arrayfieldsize) {
-        char *propname = g_strdup_printf("%s[%d]", arrayname, i);
-        ArrayElementProperty *arrayprop = g_new0(ArrayElementProperty, 1);
-        arrayprop->release = prop->arrayinfo->release;
-        arrayprop->propname = propname;
-        arrayprop->prop.info = prop->arrayinfo;
-        arrayprop->prop.name = propname;
-        /* This ugly piece of pointer arithmetic sets up the offset so
-         * that when the underlying get/set hooks call qdev_get_prop_ptr
-         * they get the right answer despite the array element not actually
-         * being inside the device struct.
-         */
-        arrayprop->prop.offset = eltptr - (void *)obj;
-        assert(qdev_get_prop_ptr(obj, &arrayprop->prop) == eltptr);
-        object_property_add(obj, propname,
-                            arrayprop->prop.info->name,
-                            static_prop_getter(arrayprop->prop.info),
-                            static_prop_setter(arrayprop->prop.info),
-                            array_element_release,
-                            arrayprop);
+        ArrayElementProperty *elt_prop = array_element_new(obj, prop, arrayname,
+                                                           i, eltptr);
+        object_property_add_array_element(obj, prop, elt_prop);
     }
 }
 
