@@ -26,6 +26,8 @@
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qom/object_interfaces.h"
+#include "qom/static-property.h"
+#include "qom/static-property-internal.h"
 
 
 #define TYPE_DUMMY "qemu-dummy"
@@ -68,24 +70,6 @@ struct DummyObjectClass {
 };
 
 
-static void dummy_set_bv(Object *obj,
-                         bool value,
-                         Error **errp)
-{
-    DummyObject *dobj = DUMMY_OBJECT(obj);
-
-    dobj->bv = value;
-}
-
-static bool dummy_get_bv(Object *obj,
-                         Error **errp)
-{
-    DummyObject *dobj = DUMMY_OBJECT(obj);
-
-    return dobj->bv;
-}
-
-
 static void dummy_set_av(Object *obj,
                          int value,
                          Error **errp)
@@ -103,39 +87,20 @@ static int dummy_get_av(Object *obj,
     return dobj->av;
 }
 
+static Property bv_prop =
+    DEFINE_PROP_BOOL("bv", DummyObject, bv, false);
 
-static void dummy_set_sv(Object *obj,
-                         const char *value,
-                         Error **errp)
-{
-    DummyObject *dobj = DUMMY_OBJECT(obj);
-
-    g_free(dobj->sv);
-    dobj->sv = g_strdup(value);
-}
-
-static char *dummy_get_sv(Object *obj,
-                          Error **errp)
-{
-    DummyObject *dobj = DUMMY_OBJECT(obj);
-
-    return g_strdup(dobj->sv);
-}
-
+static Property sv_prop =
+    DEFINE_PROP_STRING("sv", DummyObject, sv);
 
 static void dummy_init(Object *obj)
 {
-    object_property_add_bool(obj, "bv",
-                             dummy_get_bv,
-                             dummy_set_bv);
+    object_property_add_static(obj, &bv_prop, NULL);
 }
-
 
 static void dummy_class_init(ObjectClass *cls, void *data)
 {
-    object_class_property_add_str(cls, "sv",
-                                  dummy_get_sv,
-                                  dummy_set_sv);
+    object_class_property_add_static(cls, &sv_prop, NULL);
     object_class_property_add_enum(cls, "av",
                                    "DummyAnimal",
                                    &dummy_animal_map,
@@ -143,21 +108,11 @@ static void dummy_class_init(ObjectClass *cls, void *data)
                                    dummy_set_av);
 }
 
-
-static void dummy_finalize(Object *obj)
-{
-    DummyObject *dobj = DUMMY_OBJECT(obj);
-
-    g_free(dobj->sv);
-}
-
-
 static const TypeInfo dummy_info = {
     .name          = TYPE_DUMMY,
     .parent        = TYPE_OBJECT,
     .instance_size = sizeof(DummyObject),
     .instance_init = dummy_init,
-    .instance_finalize = dummy_finalize,
     .class_size = sizeof(DummyObjectClass),
     .class_init = dummy_class_init,
     .interfaces = (InterfaceInfo[]) {
