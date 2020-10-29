@@ -912,24 +912,25 @@ void qdev_property_add_static(DeviceState *dev, Property *prop)
 static void qdev_class_add_property(DeviceClass *klass, Property *prop)
 {
     ObjectClass *oc = OBJECT_CLASS(klass);
+    ObjectProperty *op;
 
     if (prop->info->create) {
-        prop->info->create(oc, prop);
+        op = prop->info->create(oc, prop);
     } else {
-        ObjectProperty *op;
-
         op = object_class_property_add(oc,
                                        prop->name, prop->info->name,
                                        static_prop_getter(prop->info),
                                        static_prop_setter(prop->info),
                                        prop->info->release,
                                        prop);
-        if (prop->set_default) {
-            prop->info->set_default_value(op, prop);
-        }
     }
-    object_class_property_set_description(oc, prop->name,
-                                          prop->info->description);
+    if (prop->set_default) {
+        prop->info->set_default_value(op, prop);
+    }
+    if (prop->info->description) {
+        object_class_property_set_description(oc, prop->name,
+                                            prop->info->description);
+    }
 }
 
 /**
