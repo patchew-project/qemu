@@ -400,11 +400,6 @@ static void xen_block_set_vdev(Object *obj, Visitor *v, const char *name,
     char *str, *p;
     const char *end;
 
-    if (dev->realized) {
-        qdev_prop_set_after_realize(dev, name, errp);
-        return;
-    }
-
     if (!visit_type_str(v, name, &str, errp)) {
         return;
     }
