@@ -236,34 +236,6 @@ static void machine_set_phandle_start(Object *obj, Visitor *v,
     ms->phandle_start = value;
 }
 
-static bool machine_get_dump_guest_core(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return ms->dump_guest_core;
-}
-
-static void machine_set_dump_guest_core(Object *obj, bool value, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    ms->dump_guest_core = value;
-}
-
-static bool machine_get_mem_merge(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return ms->mem_merge;
-}
-
-static void machine_set_mem_merge(Object *obj, bool value, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    ms->mem_merge = value;
-}
-
 static Property machine_props[] = {
     DEFINE_PROP_STRING("kernel", MachineState, kernel_filename),
     DEFINE_PROP_STRING("initrd", MachineState, initrd_filename),
@@ -273,6 +245,10 @@ static Property machine_props[] = {
     DEFINE_PROP_STRING("dt-compatible", MachineState, dt_compatible),
     DEFINE_PROP_STRING("firmware", MachineState, firmware),
     DEFINE_PROP_STRING("memory-backend", MachineState, ram_memdev_id),
+    DEFINE_PROP_BOOL("dump-guest-core", MachineState, dump_guest_core, true),
+    DEFINE_PROP_BOOL("mem-merge", MachineState, mem_merge, true),
+    DEFINE_PROP_BOOL("graphics", MachineState, enable_graphics, true),
+    DEFINE_PROP_BOOL("suppress-vmdesc", MachineState, suppress_vmdesc, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -289,34 +265,6 @@ static void machine_set_usb(Object *obj, bool value, Error **errp)
 
     ms->usb = value;
     ms->usb_disabled = !value;
-}
-
-static bool machine_get_graphics(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return ms->enable_graphics;
-}
-
-static void machine_set_graphics(Object *obj, bool value, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    ms->enable_graphics = value;
-}
-
-static void machine_set_suppress_vmdesc(Object *obj, bool value, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    ms->suppress_vmdesc = value;
-}
-
-static bool machine_get_suppress_vmdesc(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return ms->suppress_vmdesc;
 }
 
 static char *machine_get_memory_encryption(Object *obj, Error **errp)
@@ -339,7 +287,7 @@ static void machine_set_memory_encryption(Object *obj, const char *value,
      * so there's no point in it trying to merge areas.
      */
     if (value) {
-        machine_set_mem_merge(obj, false, errp);
+        ms->mem_merge = false;
     }
 }
 
@@ -692,13 +640,8 @@ static void machine_class_init(ObjectClass *oc, void *data)
     object_class_property_set_description(oc, "dt-compatible",
         "Overrides the \"compatible\" property of the dt root node");
 
-    object_class_property_add_bool(oc, "dump-guest-core",
-        machine_get_dump_guest_core, machine_set_dump_guest_core);
     object_class_property_set_description(oc, "dump-guest-core",
         "Include guest memory in a core dump");
-
-    object_class_property_add_bool(oc, "mem-merge",
-        machine_get_mem_merge, machine_set_mem_merge);
     object_class_property_set_description(oc, "mem-merge",
         "Enable/disable memory merge support");
 
@@ -707,16 +650,10 @@ static void machine_class_init(ObjectClass *oc, void *data)
     object_class_property_set_description(oc, "usb",
         "Set on/off to enable/disable usb");
 
-    object_class_property_add_bool(oc, "graphics",
-        machine_get_graphics, machine_set_graphics);
     object_class_property_set_description(oc, "graphics",
         "Set on/off to enable/disable graphics emulation");
-
     object_class_property_set_description(oc, "firmware",
         "Firmware image");
-
-    object_class_property_add_bool(oc, "suppress-vmdesc",
-        machine_get_suppress_vmdesc, machine_set_suppress_vmdesc);
     object_class_property_set_description(oc, "suppress-vmdesc",
         "Set on to disable self-describing migration");
 
@@ -750,10 +687,6 @@ static void machine_initfn(Object *obj)
 {
     MachineState *ms = MACHINE(obj);
     MachineClass *mc = MACHINE_GET_CLASS(obj);
-
-    ms->dump_guest_core = true;
-    ms->mem_merge = true;
-    ms->enable_graphics = true;
 
     if (mc->nvdimm_supported) {
         Object *obj = OBJECT(ms);
