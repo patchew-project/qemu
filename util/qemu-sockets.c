@@ -871,7 +871,7 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
         return -1;
     }
 
-    if (saddr->path && saddr->path[0]) {
+    if (saddr->path[0] || saddr->abstract) {
         path = saddr->path;
     } else {
         const char *tmpdir = getenv("TMPDIR");
