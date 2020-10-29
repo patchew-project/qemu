@@ -1656,7 +1656,7 @@ static uint16_t vmbus_recv_message(const struct hyperv_post_message_input *msg,
 
     if (vmbus_msg->message_type == VMBUS_MSG_INVALID ||
         vmbus_msg->message_type >= VMBUS_MSG_COUNT) {
-        error_report("vmbus: unknown message type %#x",
+        error_report("vmbus: unknown message type 0x%x",
                      vmbus_msg->message_type);
         return HV_STATUS_INVALID_HYPERCALL_INPUT;
     }
@@ -2230,7 +2230,7 @@ static void process_message(VMBus *vmbus)
         handle_unload(vmbus, msgdata, msglen);
         break;
     default:
-        error_report("unknown message type %#x", msg->message_type);
+        error_report("unknown message type 0x%x", msg->message_type);
         break;
     }
 
