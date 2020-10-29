@@ -891,6 +891,7 @@ char *freq_to_str(uint64_t freq_hz)
     double freq = freq_hz;
     size_t idx = 0;
 
+    assert(freq <= UINT64_MAX); /* Max 64-bit value is less than 1000 EHz */
     while (freq >= 1000.0 && idx < ARRAY_SIZE(suffixes)) {
         freq /= 1000.0;
         idx++;
