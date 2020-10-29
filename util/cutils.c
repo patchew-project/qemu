@@ -891,7 +891,7 @@ char *freq_to_str(uint64_t freq_hz)
     double freq = freq_hz;
     size_t idx = 0;
 
-    while (freq >= 1000.0 && idx < ARRAY_SIZE(suffixes)) {
+    while (freq >= 1000.0 && idx < ARRAY_SIZE(suffixes) - 1) {
         freq /= 1000.0;
         idx++;
     }
