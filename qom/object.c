@@ -1395,6 +1395,10 @@ bool object_property_set(Object *obj, const char *name, Visitor *v,
         error_setg(errp, QERR_PERMISSION_DENIED);
         return false;
     }
+    if (prop->allow_set && !prop->allow_set(obj, prop, errp)) {
+        return false;
+    }
+
     prop->set(obj, v, name, prop->opaque, &err);
     error_propagate(errp, err);
     return !err;

@@ -86,6 +86,21 @@ typedef void (ObjectPropertyRelease)(Object *obj,
  */
 typedef void (ObjectPropertyInit)(Object *obj, ObjectProperty *prop);
 
+/**
+ * typedef ObjectPropertyAllowSet:
+ * @obj: the object that owns the property
+ * @prop: the property being set
+ * @errp: pointer to error information
+ *
+ * Called when a property is being set.
+ *
+ * If return value is false, it will prevent the property from
+ * being changed.  Error information should be filled in @errp
+ * if return vlaue is false.
+ */
+typedef bool (ObjectPropertyAllowSet)(Object *obj, ObjectProperty *prop,
+                                      Error **errp);
+
 struct ObjectProperty
 {
     char *name;
@@ -96,6 +111,7 @@ struct ObjectProperty
     ObjectPropertyResolve *resolve;
     ObjectPropertyRelease *release;
     ObjectPropertyInit *init;
+    ObjectPropertyAllowSet *allow_set;
     void *opaque;
     QObject *defval;
 };
