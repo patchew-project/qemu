@@ -344,7 +344,7 @@ static inline int nvme_translate_error(const NvmeCqe *c)
         trace_nvme_error(le32_to_cpu(c->result),
                          le16_to_cpu(c->sq_head),
                          le16_to_cpu(c->sq_id),
-                         le16_to_cpu(c->cid),
+                         c->cid,
                          le16_to_cpu(status));
     }
     switch (status) {
@@ -401,7 +401,7 @@ static bool nvme_process_completion(NVMeQueuePair *q)
         if (!q->cq.head) {
             q->cq_phase = !q->cq_phase;
         }
-        cid = le16_to_cpu(c->cid);
+        cid = c->cid;
         if (cid == 0 || cid > NVME_QUEUE_SIZE) {
             warn_report("NVMe: Unexpected CID in completion queue: %"PRIu32", "
                         "queue size: %u", cid, NVME_QUEUE_SIZE);
@@ -469,7 +469,7 @@ static void nvme_submit_command(NVMeQueuePair *q, NVMeRequest *req,
     assert(!req->cb);
     req->cb = cb;
     req->opaque = opaque;
-    cmd->cid = cpu_to_le16(req->cid);
+    cmd->cid = req->cid;
 
     trace_nvme_submit_command(q->s, q->index, req->cid);
     nvme_trace_command(cmd);
