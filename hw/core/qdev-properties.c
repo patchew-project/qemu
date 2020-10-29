@@ -600,7 +600,6 @@ static ArrayElementProperty *array_element_new(Object *obj,
 {
     char *propname = g_strdup_printf("%s[%d]", arrayname, index);
     ArrayElementProperty *arrayprop = g_new0(ArrayElementProperty, 1);
-    arrayprop->release = array_len_prop->arrayinfo->release;
     arrayprop->propname = propname;
     arrayprop->prop.info = array_len_prop->arrayinfo;
     arrayprop->prop.name = propname;
@@ -632,12 +631,12 @@ static void object_property_add_array_element(Object *obj,
                                               Property *array_len_prop,
                                               ArrayElementProperty *prop)
 {
-    object_property_add(obj, prop->prop.name,
-                        prop->prop.info->name,
-                        static_prop_getter(prop->prop.info),
-                        static_prop_setter(prop->prop.info),
-                        array_element_release,
-                        prop);
+    ObjectProperty *op = object_property_add_static(obj, &prop->prop);
+
+    assert((void *)prop == (void *)&prop->prop);
+    prop->release = op->release;
+    /* array_element_release() will call the original release function */
+    op->release = array_element_release;
 }
 
 static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
