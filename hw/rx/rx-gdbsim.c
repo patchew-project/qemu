@@ -122,7 +122,7 @@ static void rx_gdbsim_init(MachineState *machine)
         if (dtb_filename) {
             ram_addr_t dtb_offset;
             int dtb_size;
-            void *dtb;
+            g_autofree void *dtb = NULL;
 
             dtb = load_device_tree(dtb_filename, &dtb_size);
             if (dtb == NULL) {
