@@ -248,11 +248,9 @@ static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
 
     s = qemu_chr_find(str);
     if (s == NULL) {
-        error_setg(errp, "Property '%s.%s' can't find value '%s'",
-                   object_get_typename(obj), prop->name, str);
-    } else if (!qemu_chr_fe_init(be, s, errp)) {
-        error_prepend(errp, "Property '%s.%s' can't take value '%s': ",
-                      object_get_typename(obj), prop->name, str);
+        error_setg(errp, "chardev not found");
+    } else {
+        qemu_chr_fe_init(be, s, errp);
     }
     g_free(str);
 }
