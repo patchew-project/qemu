@@ -2398,13 +2398,17 @@ static DisasJumpType op_diag(DisasContext *s, DisasOps *o)
     TCGv_i32 r1 = tcg_const_i32(get_field(s, r1));
     TCGv_i32 r3 = tcg_const_i32(get_field(s, r3));
     TCGv_i32 func_code = tcg_const_i32(get_field(s, i2));
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
 
     gen_helper_diag(cpu_env, r1, r3, func_code);
 
     tcg_temp_free_i32(func_code);
     tcg_temp_free_i32(r3);
     tcg_temp_free_i32(r1);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 #endif
 
@@ -4069,20 +4073,28 @@ static DisasJumpType op_sqxb(DisasContext *s, DisasOps *o)
 #ifndef CONFIG_USER_ONLY
 static DisasJumpType op_servc(DisasContext *s, DisasOps *o)
 {
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
     gen_helper_servc(cc_op, cpu_env, o->in2, o->in1);
     set_cc_static(s);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_sigp(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 r1 = tcg_const_i32(get_field(s, r1));
     TCGv_i32 r3 = tcg_const_i32(get_field(s, r3));
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
     gen_helper_sigp(cc_op, cpu_env, o->in2, r1, r3);
     set_cc_static(s);
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r3);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 #endif
 
@@ -4226,6 +4238,10 @@ static DisasJumpType op_ectg(DisasContext *s, DisasOps *o)
     int d2 = get_field(s, d2);
     int r3 = get_field(s, r3);
     TCGv_i64 tmp = tcg_temp_new_i64();
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
 
     /* fetch all operands first */
     o->in1 = tcg_temp_new_i64();
@@ -4245,7 +4261,7 @@ static DisasJumpType op_ectg(DisasContext *s, DisasOps *o)
     tcg_gen_mov_i64(regs[1], o->in2);
 
     tcg_temp_free_i64(tmp);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -4278,10 +4294,15 @@ static DisasJumpType op_stap(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_stck(DisasContext *s, DisasOps *o)
 {
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
+
     gen_helper_stck(o->out, cpu_env);
     /* ??? We don't implement clock states.  */
     gen_op_movi_cc(s, 0);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_stcke(DisasContext *s, DisasOps *o)
@@ -4289,6 +4310,11 @@ static DisasJumpType op_stcke(DisasContext *s, DisasOps *o)
     TCGv_i64 c1 = tcg_temp_new_i64();
     TCGv_i64 c2 = tcg_temp_new_i64();
     TCGv_i64 todpr = tcg_temp_new_i64();
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+
+    if (icount) {
+        gen_io_start();
+    }
     gen_helper_stck(c1, cpu_env);
     /* 16 bit value store in an uint32_t (only valid bits set) */
     tcg_gen_ld32u_i64(todpr, cpu_env, offsetof(CPUS390XState, todpr));
@@ -4308,22 +4334,30 @@ static DisasJumpType op_stcke(DisasContext *s, DisasOps *o)
     tcg_temp_free_i64(todpr);
     /* ??? We don't implement clock states.  */
     gen_op_movi_cc(s, 0);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 #ifndef CONFIG_USER_ONLY
 static DisasJumpType op_sck(DisasContext *s, DisasOps *o)
 {
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
     tcg_gen_qemu_ld_i64(o->in1, o->addr1, get_mem_index(s), MO_TEQ | MO_ALIGN);
     gen_helper_sck(cc_op, cpu_env, o->in1);
     set_cc_static(s);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_sckc(DisasContext *s, DisasOps *o)
 {
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
     gen_helper_sckc(cpu_env, o->in2);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_sckpf(DisasContext *s, DisasOps *o)
@@ -4366,8 +4400,12 @@ static DisasJumpType op_stidp(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_spt(DisasContext *s, DisasOps *o)
 {
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
     gen_helper_spt(cpu_env, o->in2);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_stfl(DisasContext *s, DisasOps *o)
@@ -4378,8 +4416,12 @@ static DisasJumpType op_stfl(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_stpt(DisasContext *s, DisasOps *o)
 {
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
     gen_helper_stpt(o->out, cpu_env);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_stsi(DisasContext *s, DisasOps *o)
@@ -4397,56 +4439,88 @@ static DisasJumpType op_spx(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_xsch(DisasContext *s, DisasOps *o)
 {
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
     gen_helper_xsch(cpu_env, regs[1]);
     set_cc_static(s);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_csch(DisasContext *s, DisasOps *o)
 {
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
     gen_helper_csch(cpu_env, regs[1]);
     set_cc_static(s);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_hsch(DisasContext *s, DisasOps *o)
 {
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
     gen_helper_hsch(cpu_env, regs[1]);
     set_cc_static(s);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_msch(DisasContext *s, DisasOps *o)
 {
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
     gen_helper_msch(cpu_env, regs[1], o->in2);
     set_cc_static(s);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_rchp(DisasContext *s, DisasOps *o)
 {
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
     gen_helper_rchp(cpu_env, regs[1]);
     set_cc_static(s);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_rsch(DisasContext *s, DisasOps *o)
 {
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
     gen_helper_rsch(cpu_env, regs[1]);
     set_cc_static(s);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_sal(DisasContext *s, DisasOps *o)
 {
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
     gen_helper_sal(cpu_env, regs[1]);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_schm(DisasContext *s, DisasOps *o)
 {
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
     gen_helper_schm(cpu_env, regs[1], regs[2], o->in2);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_siga(DisasContext *s, DisasOps *o)
@@ -4464,44 +4538,68 @@ static DisasJumpType op_stcps(DisasContext *s, DisasOps *o)
 
 static DisasJumpType op_ssch(DisasContext *s, DisasOps *o)
 {
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
     gen_helper_ssch(cpu_env, regs[1], o->in2);
     set_cc_static(s);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_stsch(DisasContext *s, DisasOps *o)
 {
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
     gen_helper_stsch(cpu_env, regs[1], o->in2);
     set_cc_static(s);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_stcrw(DisasContext *s, DisasOps *o)
 {
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
     gen_helper_stcrw(cpu_env, o->in2);
     set_cc_static(s);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_tpi(DisasContext *s, DisasOps *o)
 {
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
     gen_helper_tpi(cc_op, cpu_env, o->addr1);
     set_cc_static(s);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_tsch(DisasContext *s, DisasOps *o)
 {
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
     gen_helper_tsch(cpu_env, regs[1], o->in2);
     set_cc_static(s);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_chsc(DisasContext *s, DisasOps *o)
 {
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
     gen_helper_chsc(cpu_env, o->in2);
     set_cc_static(s);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_stpx(DisasContext *s, DisasOps *o)
@@ -5067,65 +5165,89 @@ static DisasJumpType op_zero2(DisasContext *s, DisasOps *o)
 static DisasJumpType op_clp(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 r2 = tcg_const_i32(get_field(s, r2));
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
 
     gen_helper_clp(cpu_env, r2);
     tcg_temp_free_i32(r2);
     set_cc_static(s);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_pcilg(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 r1 = tcg_const_i32(get_field(s, r1));
     TCGv_i32 r2 = tcg_const_i32(get_field(s, r2));
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
 
     gen_helper_pcilg(cpu_env, r1, r2);
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r2);
     set_cc_static(s);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_pcistg(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 r1 = tcg_const_i32(get_field(s, r1));
     TCGv_i32 r2 = tcg_const_i32(get_field(s, r2));
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
 
     gen_helper_pcistg(cpu_env, r1, r2);
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r2);
     set_cc_static(s);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_stpcifc(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 r1 = tcg_const_i32(get_field(s, r1));
     TCGv_i32 ar = tcg_const_i32(get_field(s, b2));
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
 
     gen_helper_stpcifc(cpu_env, r1, o->addr1, ar);
     tcg_temp_free_i32(ar);
     tcg_temp_free_i32(r1);
     set_cc_static(s);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_sic(DisasContext *s, DisasOps *o)
 {
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
     gen_helper_sic(cpu_env, o->in1, o->in2);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_rpcit(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 r1 = tcg_const_i32(get_field(s, r1));
     TCGv_i32 r2 = tcg_const_i32(get_field(s, r2));
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
 
     gen_helper_rpcit(cpu_env, r1, r2);
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r2);
     set_cc_static(s);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_pcistb(DisasContext *s, DisasOps *o)
@@ -5133,25 +5255,33 @@ static DisasJumpType op_pcistb(DisasContext *s, DisasOps *o)
     TCGv_i32 r1 = tcg_const_i32(get_field(s, r1));
     TCGv_i32 r3 = tcg_const_i32(get_field(s, r3));
     TCGv_i32 ar = tcg_const_i32(get_field(s, b2));
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
 
     gen_helper_pcistb(cpu_env, r1, r3, o->addr1, ar);
     tcg_temp_free_i32(ar);
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r3);
     set_cc_static(s);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 
 static DisasJumpType op_mpcifc(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 r1 = tcg_const_i32(get_field(s, r1));
     TCGv_i32 ar = tcg_const_i32(get_field(s, b2));
+    bool icount = tb_cflags(s->base.tb) & CF_USE_ICOUNT;
+    if (icount) {
+        gen_io_start();
+    }
 
     gen_helper_mpcifc(cpu_env, r1, o->addr1, ar);
     tcg_temp_free_i32(ar);
     tcg_temp_free_i32(r1);
     set_cc_static(s);
-    return DISAS_NEXT;
+    return icount ? DISAS_PC_STALE : DISAS_NEXT;
 }
 #endif
 
