@@ -2384,7 +2384,7 @@ static void set_css_devid(Object *obj, Visitor *v, const char *name,
 
     num = sscanf(str, "%2x.%1x%n.%4x%n", &cssid, &ssid, &n1, &devid, &n2);
     if (num != 3 || (n2 - n1) != 5 || strlen(str) != n2) {
-        error_set_from_qdev_prop_error(errp, EINVAL, obj, prop, str);
+        error_setg(errp, "invalid devno");
         goto out;
     }
     if ((cssid > MAX_CSSID) || (ssid > MAX_SSID)) {
