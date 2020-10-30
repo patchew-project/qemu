@@ -85,28 +85,6 @@ static Property *qdev_prop_find(DeviceState *dev, const char *name)
     return NULL;
 }
 
-void error_set_from_qdev_prop_error(Error **errp, int ret, Object *obj,
-                                    Property *prop, const char *value)
-{
-    switch (ret) {
-    case -EEXIST:
-        error_setg(errp, "Property '%s.%s' can't take value '%s', it's in use",
-                  object_get_typename(obj), prop->name, value);
-        break;
-    default:
-    case -EINVAL:
-        error_setg(errp, QERR_PROPERTY_VALUE_BAD,
-                   object_get_typename(obj), prop->name, value);
-        break;
-    case -ENOENT:
-        error_setg(errp, "Property '%s.%s' can't find value '%s'",
-                  object_get_typename(obj), prop->name, value);
-        break;
-    case 0:
-        break;
-    }
-}
-
 void qdev_prop_set_bit(DeviceState *dev, const char *name, bool value)
 {
     object_property_set_bool(OBJECT(dev), name, value, &error_abort);
