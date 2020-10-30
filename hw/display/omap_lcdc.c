@@ -78,7 +78,7 @@ static void omap_lcd_interrupts(struct omap_lcd_panel_s *s)
 static void omap_update_display(void *opaque)
 {
     struct omap_lcd_panel_s *omap_lcd = (struct omap_lcd_panel_s *) opaque;
-    DisplaySurface *surface = qemu_console_surface(omap_lcd->con);
+    DisplaySurface *surface;
     draw_line_func draw_line;
     int size, height, first, last;
     int width, linesize, step, bpp, frame_offset;
@@ -89,6 +89,7 @@ static void omap_update_display(void *opaque)
         return;
     }
 
+    surface = qemu_console_surface(omap_lcd->con);
     frame_offset = 0;
     if (omap_lcd->plm != 2) {
         cpu_physical_memory_read(
