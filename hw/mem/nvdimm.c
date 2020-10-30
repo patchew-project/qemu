@@ -56,8 +56,7 @@ static void nvdimm_set_label_size(Object *obj, Visitor *v, const char *name,
         return;
     }
     if (value < MIN_NAMESPACE_LABEL_SIZE) {
-        error_setg(errp, "Property '%s.%s' (0x%" PRIx64 ") is required"
-                   " at least 0x%lx", object_get_typename(obj), name, value,
+        error_setg(errp, "label size should be at least 0x%lx",
                    MIN_NAMESPACE_LABEL_SIZE);
         return;
     }
@@ -89,8 +88,7 @@ static void nvdimm_set_uuid(Object *obj, Visitor *v, const char *name,
     }
 
     if (qemu_uuid_parse(value, &nvdimm->uuid) != 0) {
-        error_setg(errp, "Property '%s.%s' has invalid value",
-                   object_get_typename(obj), name);
+        error_setg(errp, "invalid UUID");
     }
 
     g_free(value);
