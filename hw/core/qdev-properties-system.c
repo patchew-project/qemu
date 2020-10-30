@@ -447,7 +447,6 @@ static void set_audiodev(Object *obj, Visitor *v, const char* name,
     Property *prop = opaque;
     QEMUSoundCard *card = object_static_prop_ptr(obj, prop);
     AudioState *state;
-    int err = 0;
     char *str;
 
     if (!visit_type_str(v, name, &str, errp)) {
@@ -457,13 +456,12 @@ static void set_audiodev(Object *obj, Visitor *v, const char* name,
     state = audio_state_by_name(str);
 
     if (!state) {
-        err = -ENOENT;
+        error_setg(errp, "audiodev not found");
         goto out;
     }
     card->state = state;
 
 out:
-    error_set_from_qdev_prop_error(errp, err, obj, prop, str);
     g_free(str);
 }
 
