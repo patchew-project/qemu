@@ -336,7 +336,7 @@ static void set_mac(Object *obj, Visitor *v, const char *name, void *opaque,
     return;
 
 inval:
-    error_set_from_qdev_prop_error(errp, EINVAL, obj, prop, str);
+    error_setg(errp, "invalid mac address");
     g_free(str);
 }
 
