@@ -1088,16 +1088,10 @@ static bool alloc_code_gen_buffer(size_t size, int mirror, Error **errp)
     return true;
 }
 #else
-static bool alloc_code_gen_buffer(size_t size, int mirror, Error **errp)
+static bool alloc_code_gen_buffer_anon(size_t size, int prot, Error **errp)
 {
-    int prot = PROT_WRITE | PROT_READ | PROT_EXEC;
     int flags = MAP_PRIVATE | MAP_ANONYMOUS;
     void *buf;
-
-    if (mirror > 0) {
-        error_setg(errp, "jit split-rwx not supported");
-        return false;
-    }
 
     buf = mmap(NULL, size, prot, flags, -1, 0);
     if (buf == MAP_FAILED) {
@@ -1146,6 +1140,85 @@ static bool alloc_code_gen_buffer(size_t size, int mirror, Error **errp)
 
     tcg_ctx->code_gen_buffer = buf;
     return true;
+}
+
+#ifdef CONFIG_LINUX
+#include "qemu/memfd.h"
+
+static bool alloc_code_gen_buffer_mirror_memfd(size_t size, Error **errp)
+{
+    void *buf_rw, *buf_rx;
+    int fd;
+
+    fd = qemu_memfd_create("tcg-jit", size, false, 0, 0, errp);
+    if (fd < 0) {
+        return false;
+    }
+
+    buf_rw = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (buf_rw == MAP_FAILED) {
+        error_setg_errno(errp, errno,
+                         "allocate %zu bytes for jit buffer", size);
+        close(fd);
+        return false;
+    }
+
+    buf_rx = mmap(NULL, size, PROT_READ | PROT_EXEC, MAP_SHARED, fd, 0);
+    if (buf_rx == MAP_FAILED) {
+        error_setg_errno(errp, errno,
+                         "allocate %zu bytes for jit mirror", size);
+        munmap(buf_rw, size);
+        close(fd);
+        return false;
+    }
+    close(fd);
+
+    tcg_ctx->code_gen_buffer = buf_rw;
+    tcg_ctx->code_gen_buffer_size = size;
+    tcg_rx_mirror_diff = buf_rx - buf_rw;
+
+    /* Request large pages for the buffer and the mirror.  */
+    qemu_madvise(buf_rw, size, QEMU_MADV_HUGEPAGE);
+    qemu_madvise(buf_rx, size, QEMU_MADV_HUGEPAGE);
+    return true;
+}
+#endif
+
+static bool alloc_code_gen_buffer_mirror(size_t size, Error **errp)
+{
+    if (TCG_TARGET_SUPPORT_MIRROR) {
+#ifdef CONFIG_LINUX
+        return alloc_code_gen_buffer_mirror_memfd(size, errp);
+#endif
+    }
+    error_setg(errp, "jit split-rwx not supported");
+    return false;
+}
+
+static bool alloc_code_gen_buffer(size_t size, int mirror, Error **errp)
+{
+    if (mirror) {
+        Error *local_err = NULL;
+        if (alloc_code_gen_buffer_mirror(size, &local_err)) {
+            return true;
+        }
+        /*
+         * If mirror force-on (1), fail;
+         * if mirror default-on (-1), fall through to mirror off.
+         */
+        if (mirror > 0) {
+            error_propagate(errp, local_err);
+            return false;
+        }
+    }
+
+    int prot = PROT_READ | PROT_WRITE | PROT_EXEC;
+#ifdef CONFIG_TCG_INTERPRETER
+    /* The tcg interpreter does not need execute permission. */
+    prot = PROT_READ | PROT_WRITE;
+#endif
+
+    return alloc_code_gen_buffer_anon(size, prot, errp);
 }
 #endif /* USE_STATIC_CODE_GEN_BUFFER, WIN32, POSIX */
 
