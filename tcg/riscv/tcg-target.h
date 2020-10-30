@@ -159,9 +159,13 @@ typedef enum {
 #define TCG_TARGET_HAS_mulsh_i64        1
 #endif
 
-static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
+/* Flush the dcache at RW, and the icache at RX, as necessary. */
+static inline void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
 {
-    __builtin___clear_cache((char *)start, (char *)stop);
+    if (rx != rw) {
+        __builtin___clear_cache((char *)rw, (char *)(rw + len));
+    }
+    __builtin___clear_cache((char *)rx, (char *)(rx + len));
 }
 
 /* not defined -- call should be eliminated at compile time */

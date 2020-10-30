@@ -1753,12 +1753,12 @@ void tb_target_set_jmp_target(uintptr_t tc_ptr, uintptr_t jmp_addr,
         /* As per the enclosing if, this is ppc64.  Avoid the _Static_assert
            within qatomic_set that would fail to build a ppc32 host.  */
         qatomic_set__nocheck((uint64_t *)jmp_addr, pair);
-        flush_icache_range(jmp_addr, jmp_addr + 8);
+        flush_idcache_range(jmp_addr, jmp_addr, 8);
     } else {
         intptr_t diff = addr - jmp_addr;
         tcg_debug_assert(in_range_b(diff));
         qatomic_set((uint32_t *)jmp_addr, B | (diff & 0x3fffffc));
-        flush_icache_range(jmp_addr, jmp_addr + 4);
+        flush_idcache_range(jmp_addr, jmp_addr, 4);
     }
 }
 
@@ -3864,22 +3864,23 @@ void tcg_register_jit(void *buf, size_t buf_size)
 }
 #endif /* __ELF__ */
 
-void flush_icache_range(uintptr_t start, uintptr_t stop)
+/* Flush the dcache at RW, and the icache at RX, as necessary. */
+void flush_idcache_range(uintptr_t rx, uintptr_t rw, uintptr_t len)
 {
-    uintptr_t p, start1, stop1;
+    uintptr_t p, start, stop;
     size_t dsize = qemu_dcache_linesize;
     size_t isize = qemu_icache_linesize;
 
-    start1 = start & ~(dsize - 1);
-    stop1 = (stop + dsize - 1) & ~(dsize - 1);
-    for (p = start1; p < stop1; p += dsize) {
+    start = rw & ~(dsize - 1);
+    stop = (rw + len + dsize - 1) & ~(dsize - 1);
+    for (p = start; p < stop; p += dsize) {
         asm volatile ("dcbst 0,%0" : : "r"(p) : "memory");
     }
     asm volatile ("sync" : : : "memory");
 
-    start &= start & ~(isize - 1);
-    stop1 = (stop + isize - 1) & ~(isize - 1);
-    for (p = start1; p < stop1; p += isize) {
+    start = rx & ~(isize - 1);
+    stop = (rx + len + isize - 1) & ~(isize - 1);
+    for (p = start; p < stop; p += isize) {
         asm volatile ("icbi 0,%0" : : "r"(p) : "memory");
     }
     asm volatile ("sync" : : : "memory");

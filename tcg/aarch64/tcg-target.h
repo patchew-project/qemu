@@ -148,9 +148,14 @@ typedef enum {
 #define TCG_TARGET_DEFAULT_MO (0)
 #define TCG_TARGET_HAS_MEMORY_BSWAP     1
 
-static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
+/* Flush the dcache at RW, and the icache at RX, as necessary. */
+static inline void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
 {
-    __builtin___clear_cache((char *)start, (char *)stop);
+    /* TODO: Copy this from gcc to avoid 4 loops instead of 2. */
+    if (rw != rx) {
+        __builtin___clear_cache((char *)rw, (char *)(rw + len));
+    }
+    __builtin___clear_cache((char *)rx, (char *)(rx + len));
 }
 
 void tb_target_set_jmp_target(uintptr_t, uintptr_t, uintptr_t);
