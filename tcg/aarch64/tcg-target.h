@@ -158,7 +158,7 @@ static inline void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
     __builtin___clear_cache((char *)rx, (char *)(rx + len));
 }
 
-void tb_target_set_jmp_target(uintptr_t, uintptr_t, uintptr_t);
+void tb_target_set_jmp_target(uintptr_t, uintptr_t, uintptr_t, uintptr_t);
 
 #ifdef CONFIG_SOFTMMU
 #define TCG_TARGET_NEED_LDST_LABELS
