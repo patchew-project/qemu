@@ -134,8 +134,7 @@ static void set_drive_helper(Object *obj, Visitor *v, const char *name,
         }
     }
     if (!blk) {
-        error_setg(errp, "Property '%s.%s' can't find value '%s'",
-                   object_get_typename(OBJECT(dev)), prop->name, str);
+        error_setg(errp, "block backend not found");
         goto fail;
     }
     if (blk_attach_dev(blk, dev) < 0) {
