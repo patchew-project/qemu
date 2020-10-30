@@ -161,6 +161,7 @@ static TCGContext **tcg_ctxs;
 static unsigned int n_tcg_ctxs;
 TCGv_env cpu_env = 0;
 void *tcg_code_gen_epilogue;
+uintptr_t tcg_rx_mirror_diff;
 
 #ifndef CONFIG_TCG_INTERPRETER
 tcg_prologue_fn *tcg_qemu_tb_exec;
@@ -304,7 +305,7 @@ static void tcg_out_label(TCGContext *s, TCGLabel *l, tcg_insn_unit *ptr)
 {
     tcg_debug_assert(!l->has_value);
     l->has_value = 1;
-    l->u.value_ptr = ptr;
+    l->u.value_ptr = tcg_mirror_rw_to_rx(ptr);
 }
 
 TCGLabel *gen_new_label(void)
@@ -404,8 +405,9 @@ static void tcg_region_trees_init(void)
     }
 }
 
-static struct tcg_region_tree *tc_ptr_to_region_tree(void *p)
+static struct tcg_region_tree *tc_ptr_to_region_tree(const void *cp)
 {
+    void *p = tcg_mirror_rx_to_rw(cp);
     size_t region_idx;
 
     if (p < region.start_aligned) {
@@ -699,6 +701,7 @@ void tcg_region_init(void)
     size_t region_size;
     size_t n_regions;
     size_t i;
+    uintptr_t mirror_diff;
 
     n_regions = tcg_n_regions();
 
@@ -729,6 +732,7 @@ void tcg_region_init(void)
     region.end -= page_size;
 
     /* set guard pages */
+    mirror_diff = tcg_rx_mirror_diff;
     for (i = 0; i < region.n; i++) {
         void *start, *end;
         int rc;
@@ -736,6 +740,10 @@ void tcg_region_init(void)
         tcg_region_bounds(i, &start, &end);
         rc = qemu_mprotect_none(end, page_size);
         g_assert(!rc);
+        if (mirror_diff) {
+            rc = qemu_mprotect_none(end + mirror_diff, page_size);
+            g_assert(!rc);
+        }
     }
 
     tcg_region_trees_init();
@@ -749,6 +757,29 @@ void tcg_region_init(void)
     }
 #endif
 }
+
+#ifdef CONFIG_DEBUG_TCG
+const void *tcg_mirror_rw_to_rx(void *rw)
+{
+    /* Pass NULL pointers unchanged. */
+    if (rw) {
+        g_assert(rw >= region.start && rw <= region.end);
+        rw += tcg_rx_mirror_diff;
+    }
+    return rw;
+}
+
+void *tcg_mirror_rx_to_rw(const void *rx)
+{
+    /* Pass NULL pointers unchanged. */
+    if (rx) {
+        rx -= tcg_rx_mirror_diff;
+        /* Assert that we end with a pointer in the rw region. */
+        g_assert(rx >= region.start && rx <= region.end);
+    }
+    return (void *)rx;
+}
+#endif /* CONFIG_DEBUG_TCG */
 
 static void alloc_tcg_plugin_context(TCGContext *s)
 {
@@ -1059,8 +1090,15 @@ void tcg_prologue_init(TCGContext *s)
     s->code_buf = buf0;
     s->data_gen_ptr = NULL;
 
+    /*
+     * The region trees are not yet configured, but tcg_mirror_rw_to_rx
+     * needs the bounds for an assert.
+     */
+    region.start = buf0;
+    region.end = buf0 + total_size;
+
 #ifndef CONFIG_TCG_INTERPRETER
-    tcg_qemu_tb_exec = (tcg_prologue_fn *)buf0;
+    tcg_qemu_tb_exec = (tcg_prologue_fn *)tcg_mirror_rw_to_rx(buf0);
 #endif
 
     /* Compute a high-water mark, at which we voluntarily flush the buffer
@@ -1084,7 +1122,8 @@ void tcg_prologue_init(TCGContext *s)
 #endif
 
     buf1 = s->code_ptr;
-    flush_idcache_range((uintptr_t)buf0, (uintptr_t)buf0, buf1 - buf0);
+    flush_idcache_range((uintptr_t)tcg_mirror_rw_to_rx(buf0),
+                        (uintptr_t)buf0, buf1 - buf0);
 
     /* Deduct the prologue from the buffer.  */
     prologue_size = tcg_current_code_size(s);
@@ -4171,8 +4210,13 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
 
     tcg_reg_alloc_start(s);
 
-    s->code_buf = tb->tc.ptr;
-    s->code_ptr = tb->tc.ptr;
+    /*
+     * Reset the buffer pointers when restarting after overflow.
+     * TODO: Move this into translate-all.c with the rest of the
+     * buffer management.  Having only this done here is confusing.
+     */
+    s->code_buf = tcg_mirror_rx_to_rw(tb->tc.ptr);
+    s->code_ptr = s->code_buf;
 
 #ifdef TCG_TARGET_NEED_LDST_LABELS
     QSIMPLEQ_INIT(&s->ldst_labels);
@@ -4276,8 +4320,8 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
     }
 
     /* flush instruction cache */
-    flush_idcache_range((uintptr_t)s->code_buf, (uintptr_t)s->code_buf,
-                        s->code_ptr - s->code_buf);
+    flush_idcache_range((uintptr_t)tcg_mirror_rw_to_rx(s->code_buf),
+                        (uintptr_t)s->code_buf, s->code_ptr - s->code_buf);
 
     return tcg_current_code_size(s);
 }
