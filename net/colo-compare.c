@@ -1097,8 +1097,7 @@ static void compare_set_timeout(Object *obj, Visitor *v,
         return;
     }
     if (!value) {
-        error_setg(errp, "Property '%s.%s' requires a positive value",
-                   object_get_typename(obj), name);
+        error_setg(errp, "timeout can't be zero");
         return;
     }
     s->compare_timeout = value;
@@ -1125,8 +1124,7 @@ static void compare_set_expired_scan_cycle(Object *obj, Visitor *v,
         return;
     }
     if (!value) {
-        error_setg(errp, "Property '%s.%s' requires a positive value",
-                   object_get_typename(obj), name);
+        error_setg(errp, "expired_scan_cycle can't be zero");
         return;
     }
     s->expired_scan_cycle = value;
@@ -1153,8 +1151,7 @@ static void set_max_queue_size(Object *obj, Visitor *v,
         goto out;
     }
     if (!value) {
-        error_setg(&local_err, "Property '%s.%s' requires a positive value",
-                   object_get_typename(obj), name);
+        error_setg(errp, "queue size can't be zero");
         goto out;
     }
     max_queue_size = value;
