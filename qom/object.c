@@ -1640,14 +1640,8 @@ bool object_property_parse(Object *obj, const char *name,
     bool ok = object_property_set(obj, name, v, errp);
 
     if (!ok) {
-        /*
-         * Temporary check for existing prefix, until all error reporting
-         * functions remove their own prefix.
-         */
-        if (!g_str_has_prefix(error_get_pretty(*errp), "Property '")) {
-            error_prepend(errp, "Property '%s.%s' can't take value '%s': ",
-                        object_get_typename(obj), name, string);
-        }
+        error_prepend(errp, "Property '%s.%s' can't take value '%s': ",
+                      object_get_typename(obj), name, string);
     }
     visit_free(v);
     return ok;
