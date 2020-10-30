@@ -175,8 +175,7 @@ static void filter_buffer_set_interval(Object *obj, Visitor *v,
         return;
     }
     if (!value) {
-        error_setg(errp, "Property '%s.%s' requires a positive value",
-                   object_get_typename(obj), name);
+        error_setg(errp, "interval can't be zero");
         return;
     }
     s->interval = value;
