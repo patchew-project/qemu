@@ -1093,6 +1093,11 @@ static bool alloc_code_gen_buffer_anon(size_t size, int prot, Error **errp)
     int flags = MAP_PRIVATE | MAP_ANONYMOUS;
     void *buf;
 
+#ifdef CONFIG_DARWIN
+    /* Applicable to both iOS and macOS (Apple Silicon). */
+    flags |= MAP_JIT;
+#endif
+
     buf = mmap(NULL, size, prot, flags, -1, 0);
     if (buf == MAP_FAILED) {
         error_setg_errno(errp, errno,
@@ -1182,13 +1187,74 @@ static bool alloc_code_gen_buffer_mirror_memfd(size_t size, Error **errp)
     qemu_madvise(buf_rx, size, QEMU_MADV_HUGEPAGE);
     return true;
 }
-#endif
+#endif /* CONFIG_LINUX */
+
+#ifdef CONFIG_DARWIN
+#include <mach/mach.h>
+
+extern kern_return_t mach_vm_remap(vm_map_t target_task,
+                                   mach_vm_address_t *target_address,
+                                   mach_vm_size_t size,
+                                   mach_vm_offset_t mask,
+                                   int flags,
+                                   vm_map_t src_task,
+                                   mach_vm_address_t src_address,
+                                   boolean_t copy,
+                                   vm_prot_t *cur_protection,
+                                   vm_prot_t *max_protection,
+                                   vm_inherit_t inheritance);
+
+static bool alloc_code_gen_buffer_mirror_vmremap(size_t size, Error **errp)
+{
+    kern_return_t ret;
+    mach_vm_address_t buf_rw, buf_rx;
+    vm_prot_t cur_prot, max_prot;
+
+    /* Map the read-write portion via normal anon memory. */
+    if (!alloc_code_gen_buffer_anon(size, PROT_READ | PROT_WRITE, errp)) {
+        return false;
+    }
+
+    buf_rw = tcg_ctx->code_gen_buffer;
+    buf_rx = 0;
+    ret = mach_vm_remap(mach_task_self(),
+                        &buf_rx,
+                        size,
+                        0,
+                        VM_FLAGS_ANYWHERE | VM_FLAGS_RANDOM_ADDR,
+                        mach_task_self(),
+                        buf_rw,
+                        false,
+                        &cur_prot,
+                        &max_prot,
+                        VM_INHERIT_NONE);
+    if (ret != KERN_SUCCESS) {
+        /* TODO: Convert "ret" to a human readable error message. */
+        error_setg(errp, "vm_remap for jit mirror failed");
+        munmap((void *)buf_rw, size);
+        return false;
+    }
+
+    if (mprotect((void *)buf_rx, size, PROT_READ | PROT_EXEC) != 0) {
+        error_setg_errno(errp, errno, "mprotect for jit mirror");
+        munmap((void *)buf_rx, size);
+        munmap((void *)buf_rw, size);
+        return false;
+    }
+
+    tcg_rx_mirror_diff = buf_rx - buf_rw;
+    return true;
+}
+#endif /* CONFIG_DARWIN */
 
 static bool alloc_code_gen_buffer_mirror(size_t size, Error **errp)
 {
     if (TCG_TARGET_SUPPORT_MIRROR) {
 #ifdef CONFIG_LINUX
         return alloc_code_gen_buffer_mirror_memfd(size, errp);
+#endif
+#ifdef CONFIG_DARWIN
+        return alloc_code_gen_buffer_mirror_vmremap(size, errp);
 #endif
     }
     error_setg(errp, "jit split-rwx not supported");
