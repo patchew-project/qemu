@@ -2106,15 +2106,20 @@ static void bdrv_abort_perm_update(BlockDriverState *bs)
     }
 }
 
-static void bdrv_set_perm(BlockDriverState *bs, uint64_t cumulative_perms,
-                          uint64_t cumulative_shared_perms)
+static void bdrv_set_perm(BlockDriverState *bs, uint64_t _cumulative_perms,
+                          uint64_t _cumulative_shared_perms)
 {
+    uint64_t cumulative_perms, cumulative_shared_perms;
     BlockDriver *drv = bs->drv;
     BdrvChild *c;
 
     if (!drv) {
         return;
     }
+
+    bdrv_get_cumulative_perm(bs, &cumulative_perms, &cumulative_shared_perms);
+    assert(_cumulative_perms == cumulative_perms);
+    assert(_cumulative_shared_perms == cumulative_shared_perms);
 
     /* Update this node */
     if (drv->bdrv_set_perm) {
@@ -2302,6 +2307,8 @@ static void bdrv_child_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared)
 
     c->has_backup_perm = false;
 
+    assert(c->perm == perm);
+    assert(c->shared_perm == shared);
     c->perm = perm;
     c->shared_perm = shared;
 
