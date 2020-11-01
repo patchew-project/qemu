@@ -889,11 +889,13 @@ char *freq_to_str(uint64_t freq_hz)
 {
     static const char *const suffixes[] = { "", "K", "M", "G", "T", "P", "E" };
     double freq = freq_hz;
-    size_t idx = 0;
+    size_t idx;
 
-    while (freq >= 1000.0 && idx < ARRAY_SIZE(suffixes)) {
+    for (idx = 0; idx < ARRAY_SIZE(suffixes) - 1; idx++) {
+        if (freq < 1000.0) {
+            break;
+        }
         freq /= 1000.0;
-        idx++;
     }
 
     return g_strdup_printf("%0.3g %sHz", freq, suffixes[idx]);
