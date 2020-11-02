@@ -1150,9 +1150,9 @@ void pc_basic_device_init(struct PCMachineState *pcms,
             exit(1);
         }
         /* For pc-piix-*, hpet's intcap is always IRQ2. For pc-q35-1.7
-            * and earlier, use IRQ2 for compat. Otherwise, use IRQ16~23,
-            * IRQ8 and IRQ2.
-            */
+         * and earlier, use IRQ2 for compat. Otherwise, use IRQ16~23,
+         * IRQ8 and IRQ2.
+         */
         uint8_t compat = object_property_get_uint(OBJECT(hpet),
                 HPET_INTCAP, NULL);
         if (!compat) {
