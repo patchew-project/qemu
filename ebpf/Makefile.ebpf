@@ -1,0 +1,38 @@
+OBJS = rss.bpf.o
+
+LLC ?= llc
+CLANG ?= clang
+INC_FLAGS = -nostdinc -isystem `$(CLANG) -print-file-name=include`
+EXTRA_CFLAGS ?= -O2 -emit-llvm
+
+linuxhdrs = ~/src/kernel/master
+
+LINUXINCLUDE =  -I $(linuxhdrs)/arch/x86/include/uapi \
+                -I $(linuxhdrs)/arch/x86/include/generated/uapi \
+                -I $(linuxhdrs)/arch/x86/include/generated \
+                -I $(linuxhdrs)/include/generated/uapi \
+                -I $(linuxhdrs)/include/uapi \
+                -I $(linuxhdrs)/include \
+                -I $(linuxhdrs)/tools/lib
+
+all: $(OBJS)
+
+.PHONY: clean
+
+clean:
+	rm -f $(OBJS)
+
+INC_FLAGS = -nostdinc -isystem `$(CLANG) -print-file-name=include`
+
+$(OBJS):  %.o:%.c
+	$(CLANG) $(INC_FLAGS) \
+                -D__KERNEL__ -D__ASM_SYSREG_H \
+                -Wno-unused-value -Wno-pointer-sign \
+                -Wno-compare-distinct-pointer-types \
+                -Wno-gnu-variable-sized-type-not-at-end \
+                -Wno-address-of-packed-member -Wno-tautological-compare \
+                -Wno-unknown-warning-option \
+                -I../include $(LINUXINCLUDE) \
+                $(EXTRA_CFLAGS) -c $< -o -| $(LLC) -march=bpf -filetype=obj -o $@
+	python3 EbpfElf_to_C.py -f rss.bpf.o -s tun_rss_steering
+
