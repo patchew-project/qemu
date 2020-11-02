@@ -3111,6 +3111,12 @@ S: Maintained
 F: hw/semihosting/
 F: include/hw/semihosting/
 
+EBPF:
+M: Andrew Melnychenko <andrew@daynix.com>
+M: Yuri Benditovich <yuri.benditovich@daynix.com>
+S: Maintained
+F: ebpf/*
+
 Build and test automation
 -------------------------
 Build and test automation
