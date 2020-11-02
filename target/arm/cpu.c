@@ -1306,6 +1306,8 @@ static void arm_cpu_set_feature_prop(Object *obj, Visitor *v, const char *name,
         return;
     }
 
+    isar->user_mask[feat->reg] |= MAKE_64BIT_MASK(feat->shift, feat->length);
+
     if (value) {
         if (object_property_get_bool(obj, feat->name, &error_abort)) {
             return;
