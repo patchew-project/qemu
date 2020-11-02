@@ -328,8 +328,8 @@ The 'scsi-disk' device is deprecated. Users should use 'scsi-hd' or
 System emulator machines
 ------------------------
 
-mips ``r4k`` platform (since 5.0)
-'''''''''''''''''''''''''''''''''
+mips ``r4k`` platform (removed in 5.2)
+''''''''''''''''''''''''''''''''''''''
 
 This machine type is very old and unmaintained. Users should use the ``malta``
 machine type instead.
