@@ -20,14 +20,15 @@ if sphinx_build.found()
   # version requirement). This will fail if sphinx-build is too old.
   run_command('mkdir', ['-p', tmpdir / 'sphinx'])
   run_command('touch', [tmpdir / 'sphinx/index.rst'])
-  sphinx_build_test_out = run_command(SPHINX_ARGS + [
+  sphinx_cmd = run_command(SPHINX_ARGS + [
     '-c', meson.current_source_dir(),
     '-b', 'html', tmpdir / 'sphinx',
     tmpdir / 'sphinx/out'])
-  build_docs = (sphinx_build_test_out.returncode() == 0)
+  build_docs = (sphinx_cmd.returncode() == 0)
 
   if not build_docs
-    warning('@0@ exists but it is either too old or uses too old a Python version'.format(get_option('sphinx_build')))
+    warning('@0@ exists but it is either too old or uses too old a Python version\nstdout:@1@\nstderr:@2@'.format(
+      get_option('sphinx_build'), sphinx_cmd.stdout().strip(), sphinx_cmd.stderr().strip()))
     if get_option('docs').enabled()
       error('Install a Python 3 version of python-sphinx')
     endif
