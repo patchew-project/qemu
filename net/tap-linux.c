@@ -31,6 +31,7 @@
 
 #include <net/if.h>
 #include <sys/ioctl.h>
+#include <linux/if_tun.h> /* TUNSETSTEERINGEBPF */
 
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -315,4 +316,22 @@ int tap_fd_get_ifname(int fd, char *ifname)
 
     pstrcpy(ifname, sizeof(ifr.ifr_name), ifr.ifr_name);
     return 0;
+}
+
+int tap_fd_set_steering_ebpf(int fd, int prog_fd)
+{
+#ifdef TUNSETSTEERINGEBPF
+    if (ioctl(fd, TUNSETSTEERINGEBPF, (void *) &prog_fd) != 0) {
+        error_report("Issue while setting TUNSETSTEERINGEBPF:"
+                    " %s with fd: %d, prog_fd: %d",
+                    strerror(errno), fd, prog_fd);
+
+       return -1;
+    }
+
+    return 0;
+#else
+    error_report("TUNSETSTEERINGEBPF is not supported");
+    return -1;
+#endif
 }
