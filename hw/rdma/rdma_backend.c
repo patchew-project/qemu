@@ -90,7 +90,7 @@ static void clean_recv_mads(RdmaBackendDev *backend_dev)
 
 static int rdma_poll_cq(RdmaDeviceResources *rdma_dev_res, struct ibv_cq *ibcq)
 {
-    int i, ne, total_ne = 0;
+    int i, ne = 0, total_ne = 0;
     BackendCtx *bctx;
     struct ibv_wc wc[2];
     RdmaProtectedGSList *cqe_ctx_list;
