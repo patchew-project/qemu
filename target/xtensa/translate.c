@@ -953,7 +953,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
 
         for (opnd = vopnd = 0; opnd < opnds; ++opnd) {
             void **register_file = NULL;
-            xtensa_regfile rf;
+            xtensa_regfile rf = -1;
 
             if (xtensa_operand_is_register(isa, opc, opnd)) {
                 rf = xtensa_operand_regfile(isa, opc, opnd);
