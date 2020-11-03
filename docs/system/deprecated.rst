@@ -146,6 +146,13 @@ Drives with interface types other than ``if=none`` are for onboard
 devices.  It is possible to use drives the board doesn't pick up with
 -device.  This usage is now deprecated.  Use ``if=none`` instead.
 
+Short-form boolean options (since 5.2)
+''''''''''''''''''''''''''''''''''''''
+
+Boolean options such as ``share=on``/``share=off`` can be written
+in short form as ``share`` and ``noshare``.  This is deprecated
+for all command-line options except ``-chardev` and ``-spice``, for
+which the short form was in wide use.
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------

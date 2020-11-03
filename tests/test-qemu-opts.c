@@ -77,6 +77,7 @@ static QemuOptsList opts_list_02 = {
 static QemuOptsList opts_list_03 = {
     .name = "opts_list_03",
     .implied_opt_name = "implied",
+    .allow_flag_options = true,
     .head = QTAILQ_HEAD_INITIALIZER(opts_list_03.head),
     .desc = {
         /* no elements => accept any params */
