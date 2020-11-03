@@ -104,6 +104,8 @@ struct FWCfgMemState {
     MemoryRegionOps wide_data_ops;
 };
 
+void fw_cfg_write_extra_pci_roots(PCIBus *bus, FWCfgState *s);
+
 /**
  * fw_cfg_add_bytes:
  * @s: fw_cfg device being modified

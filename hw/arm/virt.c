@@ -78,6 +78,8 @@
 #include "hw/virtio/virtio-iommu.h"
 #include "hw/char/pl011.h"
 #include "qemu/guest-random.h"
+#include "hw/pci/pci_bus.h"
+#include "hw/pci/pcie_host.h"
 
 #define DEFINE_VIRT_MACHINE_LATEST(major, minor, latest) \
     static void virt_##major##_##minor##_class_init(ObjectClass *oc, \
@@ -1463,6 +1465,10 @@ void virt_machine_done(Notifier *notifier, void *data)
     ARMCPU *cpu = ARM_CPU(first_cpu);
     struct arm_boot_info *info = &vms->bootinfo;
     AddressSpace *as = arm_boot_address_space(cpu, info);
+    PCIHostState *s = PCI_GET_PCIE_HOST_STATE;
+
+    PCIBus *bus = s->bus;
+    FWCfgState *fw_cfg = vms->fw_cfg;
 
     /*
      * If the user provided a dtb, we assume the dynamic sysbus nodes
@@ -1480,6 +1486,8 @@ void virt_machine_done(Notifier *notifier, void *data)
     if (arm_load_dtb(info->dtb_start, info, info->dtb_limit, as, ms) < 0) {
         exit(1);
     }
+
+    fw_cfg_write_extra_pci_roots(bus, fw_cfg);
 
     virt_acpi_setup(vms);
     virt_build_smbios(vms);

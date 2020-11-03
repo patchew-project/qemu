@@ -27,6 +27,10 @@
 
 #define TYPE_PCIE_HOST_BRIDGE "pcie-host-bridge"
 OBJECT_DECLARE_SIMPLE_TYPE(PCIExpressHost, PCIE_HOST_BRIDGE)
+#define PCI_GET_PCIE_HOST_STATE \
+    OBJECT_CHECK(PCIHostState, \
+                 object_resolve_path_type("", "pcie-host-bridge", NULL), \
+                 TYPE_PCIE_HOST_BRIDGE)
 
 #define PCIE_HOST_MCFG_BASE "MCFG"
 #define PCIE_HOST_MCFG_SIZE "mcfg_size"
