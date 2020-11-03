@@ -303,7 +303,6 @@ static void watchdog_add_test(const char *name, const Watchdog* wd,
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
-    g_test_set_nonfatal_assertions();
 
     for (int i = 0; i < ARRAY_SIZE(watchdog_list); ++i) {
         const Watchdog *wd = &watchdog_list[i];

@@ -357,7 +357,6 @@ int main(int argc, char **argv)
     int i;
 
     g_test_init(&argc, &argv, NULL);
-    g_test_set_nonfatal_assertions();
 
     qtest_add_func("/npcm7xx_gpio/dout_to_din", test_dout_to_din);
     qtest_add_func("/npcm7xx_gpio/pullup_pulldown", test_pullup_pulldown);

@@ -530,7 +530,6 @@ int main(int argc, char **argv)
     int i, j;
 
     g_test_init(&argc, &argv, NULL);
-    g_test_set_nonfatal_assertions();
 
     for (i = 0; i < ARRAY_SIZE(timer_block); i++) {
         for (j = 0; j < ARRAY_SIZE(timer); j++) {
