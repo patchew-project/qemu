@@ -23,7 +23,16 @@ static bool trans_hlv_b(DisasContext *ctx, arg_hlv_b *a)
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
 
-    gen_helper_hyp_access_check(cpu_env);
+    if (!ctx->hlsx) {
+        if (ctx->virt_enabled) {
+            generate_exception(ctx, RISCV_EXCP_VIRT_INSTRUCTION_FAULT);
+        } else {
+            generate_exception(ctx, RISCV_EXCP_ILLEGAL_INST);
+        }
+        exit_tb(ctx); /* no chaining */
+        ctx->base.is_jmp = DISAS_NORETURN;
+        return false;
+    }
 
     gen_get_gpr(t0, a->rs1);
 
@@ -45,7 +54,16 @@ static bool trans_hlv_h(DisasContext *ctx, arg_hlv_h *a)
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
 
-    gen_helper_hyp_access_check(cpu_env);
+    if (!ctx->hlsx) {
+        if (ctx->virt_enabled) {
+            generate_exception(ctx, RISCV_EXCP_VIRT_INSTRUCTION_FAULT);
+        } else {
+            generate_exception(ctx, RISCV_EXCP_ILLEGAL_INST);
+        }
+        exit_tb(ctx); /* no chaining */
+        ctx->base.is_jmp = DISAS_NORETURN;
+        return false;
+    }
 
     gen_get_gpr(t0, a->rs1);
 
@@ -67,7 +85,16 @@ static bool trans_hlv_w(DisasContext *ctx, arg_hlv_w *a)
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
 
-    gen_helper_hyp_access_check(cpu_env);
+    if (!ctx->hlsx) {
+        if (ctx->virt_enabled) {
+            generate_exception(ctx, RISCV_EXCP_VIRT_INSTRUCTION_FAULT);
+        } else {
+            generate_exception(ctx, RISCV_EXCP_ILLEGAL_INST);
+        }
+        exit_tb(ctx); /* no chaining */
+        ctx->base.is_jmp = DISAS_NORETURN;
+        return false;
+    }
 
     gen_get_gpr(t0, a->rs1);
 
@@ -89,7 +116,16 @@ static bool trans_hlv_bu(DisasContext *ctx, arg_hlv_bu *a)
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
 
-    gen_helper_hyp_access_check(cpu_env);
+    if (!ctx->hlsx) {
+        if (ctx->virt_enabled) {
+            generate_exception(ctx, RISCV_EXCP_VIRT_INSTRUCTION_FAULT);
+        } else {
+            generate_exception(ctx, RISCV_EXCP_ILLEGAL_INST);
+        }
+        exit_tb(ctx); /* no chaining */
+        ctx->base.is_jmp = DISAS_NORETURN;
+        return false;
+    }
 
     gen_get_gpr(t0, a->rs1);
 
@@ -111,7 +147,16 @@ static bool trans_hlv_hu(DisasContext *ctx, arg_hlv_hu *a)
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
 
-    gen_helper_hyp_access_check(cpu_env);
+    if (!ctx->hlsx) {
+        if (ctx->virt_enabled) {
+            generate_exception(ctx, RISCV_EXCP_VIRT_INSTRUCTION_FAULT);
+        } else {
+            generate_exception(ctx, RISCV_EXCP_ILLEGAL_INST);
+        }
+        exit_tb(ctx); /* no chaining */
+        ctx->base.is_jmp = DISAS_NORETURN;
+        return false;
+    }
 
     gen_get_gpr(t0, a->rs1);
     tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx | TB_FLAGS_PRIV_HYP_ACCESS_MASK, MO_TEUW);
@@ -132,7 +177,16 @@ static bool trans_hsv_b(DisasContext *ctx, arg_hsv_b *a)
     TCGv t0 = tcg_temp_new();
     TCGv dat = tcg_temp_new();
 
-    gen_helper_hyp_access_check(cpu_env);
+    if (!ctx->hlsx) {
+        if (ctx->virt_enabled) {
+            generate_exception(ctx, RISCV_EXCP_VIRT_INSTRUCTION_FAULT);
+        } else {
+            generate_exception(ctx, RISCV_EXCP_ILLEGAL_INST);
+        }
+        exit_tb(ctx); /* no chaining */
+        ctx->base.is_jmp = DISAS_NORETURN;
+        return false;
+    }
 
     gen_get_gpr(t0, a->rs1);
     gen_get_gpr(dat, a->rs2);
@@ -154,7 +208,16 @@ static bool trans_hsv_h(DisasContext *ctx, arg_hsv_h *a)
     TCGv t0 = tcg_temp_new();
     TCGv dat = tcg_temp_new();
 
-    gen_helper_hyp_access_check(cpu_env);
+    if (!ctx->hlsx) {
+        if (ctx->virt_enabled) {
+            generate_exception(ctx, RISCV_EXCP_VIRT_INSTRUCTION_FAULT);
+        } else {
+            generate_exception(ctx, RISCV_EXCP_ILLEGAL_INST);
+        }
+        exit_tb(ctx); /* no chaining */
+        ctx->base.is_jmp = DISAS_NORETURN;
+        return false;
+    }
 
     gen_get_gpr(t0, a->rs1);
     gen_get_gpr(dat, a->rs2);
@@ -176,7 +239,16 @@ static bool trans_hsv_w(DisasContext *ctx, arg_hsv_w *a)
     TCGv t0 = tcg_temp_new();
     TCGv dat = tcg_temp_new();
 
-    gen_helper_hyp_access_check(cpu_env);
+    if (!ctx->hlsx) {
+        if (ctx->virt_enabled) {
+            generate_exception(ctx, RISCV_EXCP_VIRT_INSTRUCTION_FAULT);
+        } else {
+            generate_exception(ctx, RISCV_EXCP_ILLEGAL_INST);
+        }
+        exit_tb(ctx); /* no chaining */
+        ctx->base.is_jmp = DISAS_NORETURN;
+        return false;
+    }
 
     gen_get_gpr(t0, a->rs1);
     gen_get_gpr(dat, a->rs2);
@@ -199,7 +271,16 @@ static bool trans_hlv_wu(DisasContext *ctx, arg_hlv_wu *a)
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
 
-    gen_helper_hyp_access_check(cpu_env);
+    if (!ctx->hlsx) {
+        if (ctx->virt_enabled) {
+            generate_exception(ctx, RISCV_EXCP_VIRT_INSTRUCTION_FAULT);
+        } else {
+            generate_exception(ctx, RISCV_EXCP_ILLEGAL_INST);
+        }
+        exit_tb(ctx); /* no chaining */
+        ctx->base.is_jmp = DISAS_NORETURN;
+        return false;
+    }
 
     gen_get_gpr(t0, a->rs1);
 
@@ -221,7 +302,16 @@ static bool trans_hlv_d(DisasContext *ctx, arg_hlv_d *a)
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
 
-    gen_helper_hyp_access_check(cpu_env);
+    if (!ctx->hlsx) {
+        if (ctx->virt_enabled) {
+            generate_exception(ctx, RISCV_EXCP_VIRT_INSTRUCTION_FAULT);
+        } else {
+            generate_exception(ctx, RISCV_EXCP_ILLEGAL_INST);
+        }
+        exit_tb(ctx); /* no chaining */
+        ctx->base.is_jmp = DISAS_NORETURN;
+        return false;
+    }
 
     gen_get_gpr(t0, a->rs1);
 
@@ -243,7 +333,16 @@ static bool trans_hsv_d(DisasContext *ctx, arg_hsv_d *a)
     TCGv t0 = tcg_temp_new();
     TCGv dat = tcg_temp_new();
 
-    gen_helper_hyp_access_check(cpu_env);
+    if (!ctx->hlsx) {
+        if (ctx->virt_enabled) {
+            generate_exception(ctx, RISCV_EXCP_VIRT_INSTRUCTION_FAULT);
+        } else {
+            generate_exception(ctx, RISCV_EXCP_ILLEGAL_INST);
+        }
+        exit_tb(ctx); /* no chaining */
+        ctx->base.is_jmp = DISAS_NORETURN;
+        return false;
+    }
 
     gen_get_gpr(t0, a->rs1);
     gen_get_gpr(dat, a->rs2);
