@@ -512,16 +512,11 @@ static bool qobject_input_type_bool_keyval(Visitor *v, const char *name,
         return false;
     }
 
-    if (!strcmp(str, "on")) {
-        *obj = true;
-    } else if (!strcmp(str, "off")) {
-        *obj = false;
-    } else {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
-                   full_name(qiv, name), "'on' or 'off'");
-        return false;
-    }
-    return true;
+    /*
+     * Calling full_name is a bit slow, but keyval (human/CLI) parsing
+     * is not a hot path.
+     */
+    return qapi_bool_parse(full_name(qiv, name), str, obj, errp);
 }
 
 static bool qobject_input_type_str(Visitor *v, const char *name, char **obj,
