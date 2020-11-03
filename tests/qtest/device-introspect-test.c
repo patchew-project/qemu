@@ -104,7 +104,9 @@ static QList *device_type_list(QTestState *qts, bool abstract)
 static void test_one_device(QTestState *qts, const char *type)
 {
     QDict *resp;
-    char *help;
+    g_autofree char *help;
+    g_autofree GRegex *comma;
+    g_autofree char *escaped;
 
     g_test_message("Testing device '%s'", type);
 
@@ -113,8 +115,9 @@ static void test_one_device(QTestState *qts, const char *type)
                type);
     qobject_unref(resp);
 
-    help = qtest_hmp(qts, "device_add \"%s,help\"", type);
-    g_free(help);
+    comma = g_regex_new(",", 0, 0, NULL);
+    escaped = g_regex_replace_literal(comma, type, -1, 0, ",,", 0, NULL);
+    help = qtest_hmp(qts, "device_add \"%s,help\"", escaped);
 }
 
 static void test_device_intro_list(void)
