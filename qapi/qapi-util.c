@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/ctype.h"
+#include "qapi/qmp/qerror.h"
 
 const char *qapi_enum_lookup(const QEnumLookup *lookup, int val)
 {
@@ -38,6 +39,28 @@ int qapi_enum_parse(const QEnumLookup *lookup, const char *buf,
 
     error_setg(errp, "invalid parameter value: %s", buf);
     return def;
+}
+
+bool qapi_bool_parse(const char *name, const char *value, bool *obj, Error **errp)
+{
+    if (!strcasecmp(value, "on") ||
+        !strcasecmp(value, "yes") ||
+        !strcasecmp(value, "true") ||
+        !strcasecmp(value, "y")) {
+        *obj = true;
+        return true;
+    }
+    if (!strcasecmp(value, "off") ||
+        !strcasecmp(value, "no") ||
+        !strcasecmp(value, "false") ||
+        !strcasecmp(value, "n")) {
+        *obj = false;
+        return true;
+    }
+
+    error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name ? name : "null",
+               "boolean (on/off, yes/no, true/false, y/n)");
+    return false;
 }
 
 /*
