@@ -459,7 +459,7 @@ void timer_mod_ns(QEMUTimer *ts, int64_t expire_time)
 void timer_mod_anticipate_ns(QEMUTimer *ts, int64_t expire_time)
 {
     QEMUTimerList *timer_list = ts->timer_list;
-    bool rearm;
+    bool rearm = false;
 
     WITH_QEMU_LOCK_GUARD(&timer_list->active_timers_lock) {
         if (ts->expire_time == -1 || ts->expire_time > expire_time) {
@@ -467,8 +467,6 @@ void timer_mod_anticipate_ns(QEMUTimer *ts, int64_t expire_time)
                 timer_del_locked(timer_list, ts);
             }
             rearm = timer_mod_ns_locked(timer_list, ts, expire_time);
-        } else {
-            rearm = false;
         }
     }
     if (rearm) {
