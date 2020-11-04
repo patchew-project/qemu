@@ -19,9 +19,12 @@ include:
   - local: '/.gitlab-ci.d/containers.yml'
   - local: '/.gitlab-ci.d/crossbuilds.yml'
 
-.native_build_job:
-  stage: build
+.native_common_job:
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
+
+.native_build_job:
+  extends: .native_common_job
+  stage: build
   before_script:
     - JOBS=$(expr $(nproc) + 1)
     - sed -i s,git.qemu.org/git,gitlab.com/qemu-project, .gitmodules
@@ -41,8 +44,8 @@ include:
       fi
 
 .native_test_job:
+  extends: .native_common_job
   stage: test
-  image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
   script:
     - cd build
     - find . -type f -exec touch {} +
