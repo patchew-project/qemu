@@ -117,7 +117,7 @@ void field_prop_set_default_value_enum(ObjectProperty *op,
         qapi_enum_lookup(prop->info->enum_table, prop->defval.i));
 }
 
-const PropertyInfo qdev_prop_enum = {
+const PropertyInfo prop_info_enum = {
     .name  = "enum",
     .get   = field_prop_get_enum,
     .set   = field_prop_set_enum,
@@ -128,7 +128,7 @@ const PropertyInfo qdev_prop_enum = {
 
 static uint32_t qdev_get_prop_mask(Property *prop)
 {
-    assert(prop->info == &qdev_prop_bit);
+    assert(prop->info == &prop_info_bit);
     return 0x1 << prop->bitnr;
 }
 
@@ -170,7 +170,7 @@ static void set_default_value_bool(ObjectProperty *op, const Property *prop)
     object_property_set_default_bool(op, prop->defval.u);
 }
 
-const PropertyInfo qdev_prop_bit = {
+const PropertyInfo prop_info_bit = {
     .name  = "bool",
     .description = "on/off",
     .get   = prop_get_bit,
@@ -182,7 +182,7 @@ const PropertyInfo qdev_prop_bit = {
 
 static uint64_t qdev_get_prop_mask64(Property *prop)
 {
-    assert(prop->info == &qdev_prop_bit64);
+    assert(prop->info == &prop_info_bit64);
     return 0x1ull << prop->bitnr;
 }
 
@@ -219,7 +219,7 @@ static void prop_set_bit64(Object *obj, Visitor *v, const char *name,
     bit64_prop_set(obj, prop, value);
 }
 
-const PropertyInfo qdev_prop_bit64 = {
+const PropertyInfo prop_info_bit64 = {
     .name  = "bool",
     .description = "on/off",
     .get   = prop_get_bit64,
@@ -247,7 +247,7 @@ static void set_bool(Object *obj, Visitor *v, const char *name, void *opaque,
     visit_type_bool(v, name, ptr, errp);
 }
 
-const PropertyInfo qdev_prop_bool = {
+const PropertyInfo prop_info_bool = {
     .name  = "bool",
     .get   = get_bool,
     .set   = set_bool,
@@ -286,7 +286,7 @@ void field_prop_set_default_value_uint(ObjectProperty *op,
     object_property_set_default_uint(op, prop->defval.u);
 }
 
-const PropertyInfo qdev_prop_uint8 = {
+const PropertyInfo prop_info_uint8 = {
     .name  = "uint8",
     .get   = get_uint8,
     .set   = set_uint8,
@@ -313,7 +313,7 @@ static void set_uint16(Object *obj, Visitor *v, const char *name,
     visit_type_uint16(v, name, ptr, errp);
 }
 
-const PropertyInfo qdev_prop_uint16 = {
+const PropertyInfo prop_info_uint16 = {
     .name  = "uint16",
     .get   = get_uint16,
     .set   = set_uint16,
@@ -358,14 +358,14 @@ static void set_int32(Object *obj, Visitor *v, const char *name, void *opaque,
     visit_type_int32(v, name, ptr, errp);
 }
 
-const PropertyInfo qdev_prop_uint32 = {
+const PropertyInfo prop_info_uint32 = {
     .name  = "uint32",
     .get   = get_uint32,
     .set   = set_uint32,
     .set_default_value = field_prop_set_default_value_uint,
 };
 
-const PropertyInfo qdev_prop_int32 = {
+const PropertyInfo prop_info_int32 = {
     .name  = "int32",
     .get   = field_prop_get_int32,
     .set   = set_int32,
@@ -410,14 +410,14 @@ static void set_int64(Object *obj, Visitor *v, const char *name,
     visit_type_int64(v, name, ptr, errp);
 }
 
-const PropertyInfo qdev_prop_uint64 = {
+const PropertyInfo prop_info_uint64 = {
     .name  = "uint64",
     .get   = get_uint64,
     .set   = set_uint64,
     .set_default_value = field_prop_set_default_value_uint,
 };
 
-const PropertyInfo qdev_prop_int64 = {
+const PropertyInfo prop_info_int64 = {
     .name  = "int64",
     .get   = get_int64,
     .set   = set_int64,
@@ -460,7 +460,7 @@ static void set_string(Object *obj, Visitor *v, const char *name,
     *ptr = str;
 }
 
-const PropertyInfo qdev_prop_string = {
+const PropertyInfo prop_info_string = {
     .name  = "str",
     .release = release_string,
     .get   = get_string,
@@ -469,7 +469,7 @@ const PropertyInfo qdev_prop_string = {
 
 /* --- on/off/auto --- */
 
-const PropertyInfo qdev_prop_on_off_auto = {
+const PropertyInfo prop_info_on_off_auto = {
     .name = "OnOffAuto",
     .description = "on/off/auto",
     .enum_table = &OnOffAuto_lookup,
@@ -512,7 +512,7 @@ static void set_size32(Object *obj, Visitor *v, const char *name, void *opaque,
     *ptr = value;
 }
 
-const PropertyInfo qdev_prop_size32 = {
+const PropertyInfo prop_info_size32 = {
     .name  = "size",
     .get = field_prop_get_size32,
     .set = set_size32,
@@ -575,7 +575,7 @@ static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
     }
 }
 
-const PropertyInfo qdev_prop_arraylen = {
+const PropertyInfo prop_info_arraylen = {
     .name = "uint32",
     .get = get_uint32,
     .set = set_prop_arraylen,
@@ -774,7 +774,7 @@ static void set_size(Object *obj, Visitor *v, const char *name, void *opaque,
     visit_type_size(v, name, ptr, errp);
 }
 
-const PropertyInfo qdev_prop_size = {
+const PropertyInfo prop_info_size = {
     .name  = "size",
     .get = get_size,
     .set = set_size,
@@ -796,7 +796,7 @@ static ObjectProperty *create_link_property(ObjectClass *oc, const char *name,
                                           OBJ_PROP_LINK_STRONG);
 }
 
-const PropertyInfo qdev_prop_link = {
+const PropertyInfo prop_info_link = {
     .name = "link",
     .create = create_link_property,
 };
