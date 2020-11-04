@@ -32,12 +32,14 @@ void qdev_propinfo_get_size32(Object *obj, Visitor *v, const char *name,
  * @obj: object instance
  * @name: property name
  * @prop: property definition
+ * @allow_set: check function called when property is set
  *
  * This function should not be used in new code.  Please add class properties
  * instead, using object_class_add_field().
  */
 ObjectProperty *
 object_property_add_field(Object *obj, const char *name,
-                          Property *prop);
+                          Property *prop,
+                          ObjectPropertyAllowSet allow_set);
 
 #endif
