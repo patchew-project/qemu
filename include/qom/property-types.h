@@ -242,7 +242,7 @@ extern const PropertyInfo prop_info_link;
  */
 
 #define FIELD_PROP(def) \
-    ({ static Property _p = def; &p; })
+    ({ static Property _p = def; &_p; })
 
 #define PROP_SIGNED(...) \
     FIELD_PROP(DEFINE_PROP_SIGNED(NULL, __VA_ARGS__))
