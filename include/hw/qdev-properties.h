@@ -173,6 +173,60 @@ extern const PropertyInfo prop_info_link;
 #define DEFINE_PROP_END_OF_LIST()               \
     {}
 
+/*
+ * The PROP_* macros can be used as arguments for
+ * object_class_property_add_field().  They will evaluate to a
+ * pointer to a static variable.
+ */
+
+#define FIELD_PROP(def) \
+    ({ static Property _p = def; &p; })
+
+#define PROP_SIGNED(...) \
+    FIELD_PROP(DEFINE_PROP_SIGNED(NULL, __VA_ARGS__))
+#define PROP_SIGNED_NODEFAULT(...) \
+    FIELD_PROP(DEFINE_PROP_SIGNED_NODEFAULT(NULL, __VA_ARGS__))
+#define PROP_BIT(...) \
+    FIELD_PROP(DEFINE_PROP_BIT(NULL, __VA_ARGS__))
+#define PROP_UNSIGNED(...) \
+    FIELD_PROP(DEFINE_PROP_UNSIGNED(NULL, __VA_ARGS__))
+#define PROP_UNSIGNED_NODEFAULT(...) \
+    FIELD_PROP(DEFINE_PROP_UNSIGNED_NODEFAULT(NULL, __VA_ARGS__))
+#define PROP_BIT64(...) \
+    FIELD_PROP(DEFINE_PROP_BIT64(NULL, __VA_ARGS__))
+#define PROP_BOOL(...) \
+    FIELD_PROP(DEFINE_PROP_BOOL(NULL, __VA_ARGS__))
+#define PROP_ARRAY(...) \
+    FIELD_PROP(DEFINE_PROP_ARRAY(NULL, __VA_ARGS__))
+#define PROP_LINK(...) \
+    FIELD_PROP(DEFINE_PROP_LINK(NULL, __VA_ARGS__))
+#define PROP_UINT8(...) \
+    FIELD_PROP(DEFINE_PROP_UINT8(NULL, __VA_ARGS__))
+#define PROP_UINT16(...) \
+    FIELD_PROP(DEFINE_PROP_UINT16(NULL, __VA_ARGS__))
+#define PROP_UINT32(...) \
+    FIELD_PROP(DEFINE_PROP_UINT32(NULL, __VA_ARGS__))
+#define PROP_INT32(...) \
+    FIELD_PROP(DEFINE_PROP_INT32(NULL, __VA_ARGS__))
+#define PROP_UINT64(...) \
+    FIELD_PROP(DEFINE_PROP_UINT64(NULL, __VA_ARGS__))
+#define PROP_INT64(...) \
+    FIELD_PROP(DEFINE_PROP_INT64(NULL, __VA_ARGS__))
+#define PROP_SIZE(...) \
+    FIELD_PROP(DEFINE_PROP_SIZE(NULL, __VA_ARGS__))
+#define PROP_STRING(...) \
+    FIELD_PROP(DEFINE_PROP_STRING(NULL, __VA_ARGS__))
+#define PROP_ON_OFF_AUTO(...) \
+    FIELD_PROP(DEFINE_PROP_ON_OFF_AUTO(NULL, __VA_ARGS__))
+#define PROP_SIZE32(...) \
+    FIELD_PROP(DEFINE_PROP_SIZE32(NULL, __VA_ARGS__))
+#define PROP_UUID(...) \
+    FIELD_PROP(DEFINE_PROP_UUID(NULL, __VA_ARGS__))
+#define PROP_UUID_NODEFAULT(...) \
+    FIELD_PROP(DEFINE_PROP_UUID_NODEFAULT(NULL, __VA_ARGS__))
+#define PROP_END_OF_LIST(...) \
+    FIELD_PROP(DEFINE_PROP_END_OF_LIST(NULL, __VA_ARGS__))
+
 /**
  * object_class_property_add_field: Add a field property to object class
  * @oc: object class
