@@ -134,9 +134,9 @@ static int execute_command(BlockBackend *blk,
     return 0;
 }
 
-static void scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s)
+static int scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s, int len)
 {
-    uint8_t page, page_idx;
+    uint8_t page;
 
     /*
      *  EVPD set to zero returns the standard INQUIRY data.
@@ -188,20 +188,26 @@ static void scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s)
              * right place with an in-place insert.  When the while loop
              * begins the device response is at r[0] to r[page_idx - 1].
              */
-            page_idx = lduw_be_p(r->buf + 2) + 4;
-            page_idx = MIN(page_idx, r->buflen);
+            uint16_t page_len = lduw_be_p(r->buf + 2) + 4;
+
+            /* pointer to first byte after the page that device gave us */
+            uint16_t page_idx = page_len;
+
+            if (page_idx >= r->buflen)
+                return len;
+
             while (page_idx > 4 && r->buf[page_idx - 1] >= 0xb0) {
-                if (page_idx < r->buflen) {
-                    r->buf[page_idx] = r->buf[page_idx - 1];
-                }
+                r->buf[page_idx] = r->buf[page_idx - 1];
                 page_idx--;
             }
-            if (page_idx < r->buflen) {
-                r->buf[page_idx] = 0xb0;
-            }
+            r->buf[page_idx] = 0xb0;
+
+            /* increase the page len field */
             stw_be_p(r->buf + 2, lduw_be_p(r->buf + 2) + 1);
+            len++;
         }
     }
+    return len;
 }
 
 static int scsi_generic_emulate_block_limits(SCSIGenericReq *r, SCSIDevice *s)
@@ -316,7 +322,7 @@ static void scsi_read_complete(void * opaque, int ret)
         }
     }
     if (r->req.cmd.buf[0] == INQUIRY) {
-        scsi_handle_inquiry_reply(r, s);
+        len = scsi_handle_inquiry_reply(r, s, len);
     }
 
 req_complete:
