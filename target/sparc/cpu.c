@@ -789,8 +789,8 @@ static void sparc_cpu_initfn(Object *obj)
 static void sparc_get_nwindows(Object *obj, Visitor *v, const char *name,
                                Property *prop, Error **errp)
 {
-    SPARCCPU *cpu = SPARC_CPU(obj);
-    int64_t value = cpu->env.def.nwindows;
+    uint32_t *ptr = FIELD_PTR(obj, prop, uint32_t);
+    int64_t value = *ptr;
 
     visit_type_int(v, name, &value, errp);
 }
@@ -798,9 +798,9 @@ static void sparc_get_nwindows(Object *obj, Visitor *v, const char *name,
 static void sparc_set_nwindows(Object *obj, Visitor *v, const char *name,
                                Property *prop, Error **errp)
 {
+    uint32_t *ptr = FIELD_PTR(obj, prop, uint32_t);
     const int64_t min = MIN_NWINDOWS;
     const int64_t max = MAX_NWINDOWS;
-    SPARCCPU *cpu = SPARC_CPU(obj);
     int64_t value;
 
     if (!visit_type_int(v, name, &value, errp)) {
@@ -814,7 +814,7 @@ static void sparc_set_nwindows(Object *obj, Visitor *v, const char *name,
                    value, min, max);
         return;
     }
-    cpu->env.def.nwindows = value;
+    *ptr = value;
 }
 
 static PropertyInfo qdev_prop_nwindows = {
