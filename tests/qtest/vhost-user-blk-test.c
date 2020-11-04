@@ -683,8 +683,22 @@ static char *drive_create(void)
     return t_path;
 }
 
-static char sock_path_tempate[] = "/tmp/qtest.vhost_user_blk.XXXXXX";
-static char qmp_sock_path_tempate[] = "/tmp/qtest.vhost_user_blk.qmp.XXXXXX";
+static char *create_listen_socket(int *fd)
+{
+    int tmp_fd;
+    char *path;
+
+    /* No race because our pid makes the path unique */
+    path = g_strdup_printf("/tmp/qtest-%d-sock.XXXXXX", getpid());
+    tmp_fd = mkstemp(path);
+    g_assert_cmpint(tmp_fd, >=, 0);
+    close(tmp_fd);
+    unlink(path);
+
+    *fd = qtest_socket_server(path);
+    g_test_queue_destroy(destroy_file, path);
+    return path;
+}
 
 static void quit_storage_daemon(void *qmp_test_state)
 {
@@ -709,37 +723,33 @@ static void start_vhost_user_blk(GString *cmd_line, int vus_instances,
                                  int num_queues)
 {
     const char *vhost_user_blk_bin = qtest_qemu_storage_daemon_binary();
-    int fd, qmp_fd, i;
+    int qmp_fd, i;
     QTestState *qmp_test_state;
     gchar *img_path;
-    char *sock_path = NULL;
-    char *qmp_sock_path = g_strdup(qmp_sock_path_tempate);
+    char *qmp_sock_path;
     GString *storage_daemon_command = g_string_new(NULL);
 
-    qmp_fd = mkstemp(qmp_sock_path);
-    g_assert_cmpint(qmp_fd, >=, 0);
-    g_test_queue_destroy(destroy_file, qmp_sock_path);
+    qmp_sock_path = create_listen_socket(&qmp_fd);
 
     g_string_append_printf(storage_daemon_command,
             "exec %s "
-            "--chardev socket,id=qmp,path=%s,server,nowait --monitor chardev=qmp ",
-            vhost_user_blk_bin, qmp_sock_path);
+            "--chardev socket,id=qmp,fd=%d,server,nowait --monitor chardev=qmp ",
+            vhost_user_blk_bin, qmp_fd);
 
     g_string_append_printf(cmd_line,
             " -object memory-backend-memfd,id=mem,size=256M,share=on -M memory-backend=mem ");
 
     for (i = 0; i < vus_instances; i++) {
-        sock_path = g_strdup(sock_path_tempate);
-        fd = mkstemp(sock_path);
-        g_assert_cmpint(fd, >=, 0);
-        g_test_queue_destroy(drive_file, sock_path);
+        int fd;
+        char *sock_path = create_listen_socket(&fd);
+
         /* create image file */
         img_path = drive_create();
         g_string_append_printf(storage_daemon_command,
             "--blockdev driver=file,node-name=disk%d,filename=%s "
-            "--export type=vhost-user-blk,id=disk%d,addr.type=unix,addr.path=%s,"
+            "--export type=vhost-user-blk,id=disk%d,addr.type=fd,addr.str=%d,"
             "node-name=disk%i,writable=on,num-queues=%d ",
-            i, img_path, i, sock_path, i, num_queues);
+            i, img_path, i, fd, i, num_queues);
 
         g_string_append_printf(cmd_line, "-chardev socket,id=char%d,path=%s ",
                                i + 1, sock_path);
