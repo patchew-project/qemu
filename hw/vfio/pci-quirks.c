@@ -1488,7 +1488,7 @@ static void get_nv_gpudirect_clique_id(Object *obj, Visitor *v,
                                        const char *name,
                                        Property *prop, Error **errp)
 {
-    uint8_t *ptr = object_field_prop_ptr(obj, prop);
+    uint8_t *ptr = FIELD_PTR(obj, prop, uint8_t);
 
     visit_type_uint8(v, name, ptr, errp);
 }
@@ -1497,7 +1497,7 @@ static void set_nv_gpudirect_clique_id(Object *obj, Visitor *v,
                                        const char *name,
                                        Property *prop, Error **errp)
 {
-    uint8_t value, *ptr = object_field_prop_ptr(obj, prop);
+    uint8_t value, *ptr = FIELD_PTR(obj, prop, uint8_t);
 
     if (!visit_type_uint8(v, name, &value, errp)) {
         return;

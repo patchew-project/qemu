@@ -5,10 +5,11 @@
 #include "qom/field-property.h"
 #include "qom/field-property-internal.h"
 
-void *object_field_prop_ptr(Object *obj, Property *prop)
+void *object_field_prop_ptr(Object *obj, Property *prop, size_t expected_size)
 {
     void *ptr = obj;
     ptr += prop->offset;
+    assert(prop->size == expected_size);
     return ptr;
 }
 

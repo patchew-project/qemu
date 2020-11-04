@@ -61,7 +61,7 @@ static bool check_prop_still_unset(Object *obj, const char *name,
 static void get_drive(Object *obj, Visitor *v, const char *name,
                       Property *prop, Error **errp)
 {
-    void **ptr = object_field_prop_ptr(obj, prop);
+    void **ptr = FIELD_PTR(obj, prop, void *);
     const char *value;
     char *p;
 
@@ -87,7 +87,7 @@ static void set_drive_helper(Object *obj, Visitor *v, const char *name,
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
-    void **ptr = object_field_prop_ptr(obj, prop);
+    void **ptr = FIELD_PTR(obj, prop, void *);
     char *str;
     BlockBackend *blk;
     bool blk_created = false;
@@ -179,7 +179,7 @@ static void set_drive_iothread(Object *obj, Visitor *v, const char *name,
 static void release_drive(Object *obj, const char *name, Property *prop)
 {
     DeviceState *dev = DEVICE(obj);
-    BlockBackend **ptr = object_field_prop_ptr(obj, prop);
+    BlockBackend **ptr = FIELD_PTR(obj, prop, BlockBackend *);
 
     if (*ptr) {
         AioContext *ctx = blk_get_aio_context(*ptr);
@@ -212,7 +212,7 @@ const PropertyInfo qdev_prop_drive_iothread = {
 static void get_chr(Object *obj, Visitor *v, const char *name,
                     Property *prop, Error **errp)
 {
-    CharBackend *be = object_field_prop_ptr(obj, prop);
+    CharBackend *be = FIELD_PTR(obj, prop, CharBackend);
     char *p;
 
     p = g_strdup(be->chr && be->chr->label ? be->chr->label : "");
@@ -223,7 +223,7 @@ static void get_chr(Object *obj, Visitor *v, const char *name,
 static void set_chr(Object *obj, Visitor *v, const char *name,
                     Property *prop, Error **errp)
 {
-    CharBackend *be = object_field_prop_ptr(obj, prop);
+    CharBackend *be = FIELD_PTR(obj, prop, CharBackend);
     Chardev *s;
     char *str;
 
@@ -258,7 +258,7 @@ static void set_chr(Object *obj, Visitor *v, const char *name,
 
 static void release_chr(Object *obj, const char *name, Property *prop)
 {
-    CharBackend *be = object_field_prop_ptr(obj, prop);
+    CharBackend *be = FIELD_PTR(obj, prop, CharBackend);
 
     qemu_chr_fe_deinit(be, false);
 }
@@ -281,7 +281,7 @@ const PropertyInfo qdev_prop_chr = {
 static void get_mac(Object *obj, Visitor *v, const char *name,
                     Property *prop, Error **errp)
 {
-    MACAddr *mac = object_field_prop_ptr(obj, prop);
+    MACAddr *mac = FIELD_PTR(obj, prop, MACAddr);
     char buffer[2 * 6 + 5 + 1];
     char *p = buffer;
 
@@ -295,7 +295,7 @@ static void get_mac(Object *obj, Visitor *v, const char *name,
 static void set_mac(Object *obj, Visitor *v, const char *name,
                     Property *prop, Error **errp)
 {
-    MACAddr *mac = object_field_prop_ptr(obj, prop);
+    MACAddr *mac = FIELD_PTR(obj, prop, MACAddr);
     int i, pos;
     char *str;
     const char *p;
@@ -356,7 +356,7 @@ void qdev_prop_set_macaddr(DeviceState *dev, const char *name,
 static void get_netdev(Object *obj, Visitor *v, const char *name,
                         Property *prop, Error **errp)
 {
-    NICPeers *peers_ptr = object_field_prop_ptr(obj, prop);
+    NICPeers *peers_ptr = FIELD_PTR(obj, prop, NICPeers);
     char *p = g_strdup(peers_ptr->ncs[0] ? peers_ptr->ncs[0]->name : "");
 
     visit_type_str(v, name, &p, errp);
@@ -366,7 +366,7 @@ static void get_netdev(Object *obj, Visitor *v, const char *name,
 static void set_netdev(Object *obj, Visitor *v, const char *name,
                         Property *prop, Error **errp)
 {
-    NICPeers *peers_ptr = object_field_prop_ptr(obj, prop);
+    NICPeers *peers_ptr = FIELD_PTR(obj, prop, NICPeers);
     NetClientState **ncs = peers_ptr->ncs;
     NetClientState *peers[MAX_QUEUE_NUM];
     int queues, err = 0, i = 0;
@@ -427,7 +427,7 @@ const PropertyInfo qdev_prop_netdev = {
 static void get_audiodev(Object *obj, Visitor *v, const char* name,
                           Property *prop, Error **errp)
 {
-    QEMUSoundCard *card = object_field_prop_ptr(obj, prop);
+    QEMUSoundCard *card = FIELD_PTR(obj, prop, QEMUSoundCard);
     char *p = g_strdup(audio_get_id(card));
 
     visit_type_str(v, name, &p, errp);
@@ -437,7 +437,7 @@ static void get_audiodev(Object *obj, Visitor *v, const char* name,
 static void set_audiodev(Object *obj, Visitor *v, const char* name,
                           Property *prop, Error **errp)
 {
-    QEMUSoundCard *card = object_field_prop_ptr(obj, prop);
+    QEMUSoundCard *card = FIELD_PTR(obj, prop, QEMUSoundCard);
     AudioState *state;
     int err = 0;
     char *str;
@@ -538,7 +538,7 @@ static void set_blocksize(Object *obj, Visitor *v, const char *name,
                            Property *prop, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
-    uint32_t *ptr = object_field_prop_ptr(obj, prop);
+    uint32_t *ptr = FIELD_PTR(obj, prop, uint32_t);
     uint64_t value;
     Error *local_err = NULL;
 
@@ -625,7 +625,7 @@ const PropertyInfo qdev_prop_multifd_compression = {
 static void get_reserved_region(Object *obj, Visitor *v, const char *name,
                                  Property *prop, Error **errp)
 {
-    ReservedRegion *rr = object_field_prop_ptr(obj, prop);
+    ReservedRegion *rr = FIELD_PTR(obj, prop, ReservedRegion);
     char buffer[64];
     char *p = buffer;
     int rc;
@@ -640,7 +640,7 @@ static void get_reserved_region(Object *obj, Visitor *v, const char *name,
 static void set_reserved_region(Object *obj, Visitor *v, const char *name,
                                  Property *prop, Error **errp)
 {
-    ReservedRegion *rr = object_field_prop_ptr(obj, prop);
+    ReservedRegion *rr = FIELD_PTR(obj, prop, ReservedRegion);
     Error *local_err = NULL;
     const char *endptr;
     char *str;
@@ -701,7 +701,7 @@ const PropertyInfo qdev_prop_reserved_region = {
 static void set_pci_devfn(Object *obj, Visitor *v, const char *name,
                            Property *prop, Error **errp)
 {
-    int32_t value, *ptr = object_field_prop_ptr(obj, prop);
+    int32_t value, *ptr = FIELD_PTR(obj, prop, int32_t);
     unsigned int slot, fn, n;
     char *str;
 
@@ -739,7 +739,7 @@ invalid:
 static int print_pci_devfn(Object *obj, Property *prop, char *dest,
                            size_t len)
 {
-    int32_t *ptr = object_field_prop_ptr(obj, prop);
+    int32_t *ptr = FIELD_PTR(obj, prop, int32_t);
 
     if (*ptr == -1) {
         return snprintf(dest, len, "<unset>");
@@ -762,7 +762,7 @@ const PropertyInfo qdev_prop_pci_devfn = {
 static void get_pci_host_devaddr(Object *obj, Visitor *v, const char *name,
                                   Property *prop, Error **errp)
 {
-    PCIHostDeviceAddress *addr = object_field_prop_ptr(obj, prop);
+    PCIHostDeviceAddress *addr = FIELD_PTR(obj, prop, PCIHostDeviceAddress);
     char buffer[] = "ffff:ff:ff.f";
     char *p = buffer;
     int rc = 0;
@@ -787,7 +787,7 @@ static void get_pci_host_devaddr(Object *obj, Visitor *v, const char *name,
 static void set_pci_host_devaddr(Object *obj, Visitor *v, const char *name,
                                   Property *prop, Error **errp)
 {
-    PCIHostDeviceAddress *addr = object_field_prop_ptr(obj, prop);
+    PCIHostDeviceAddress *addr = FIELD_PTR(obj, prop, PCIHostDeviceAddress);
     char *str, *p;
     const char *e;
     unsigned long val;
@@ -875,7 +875,7 @@ const PropertyInfo qdev_prop_off_auto_pcibar = {
 static void get_prop_pcielinkspeed(Object *obj, Visitor *v, const char *name,
                                     Property *prop, Error **errp)
 {
-    PCIExpLinkSpeed *p = object_field_prop_ptr(obj, prop);
+    PCIExpLinkSpeed *p = FIELD_PTR(obj, prop, PCIExpLinkSpeed);
     int speed;
 
     switch (*p) {
@@ -902,7 +902,7 @@ static void get_prop_pcielinkspeed(Object *obj, Visitor *v, const char *name,
 static void set_prop_pcielinkspeed(Object *obj, Visitor *v, const char *name,
                                     Property *prop, Error **errp)
 {
-    PCIExpLinkSpeed *p = object_field_prop_ptr(obj, prop);
+    PCIExpLinkSpeed *p = FIELD_PTR(obj, prop, PCIExpLinkSpeed);
     int speed;
 
     if (!visit_type_enum(v, name, &speed, prop->info->enum_table,
@@ -943,7 +943,7 @@ const PropertyInfo qdev_prop_pcie_link_speed = {
 static void get_prop_pcielinkwidth(Object *obj, Visitor *v, const char *name,
                                     Property *prop, Error **errp)
 {
-    PCIExpLinkWidth *p = object_field_prop_ptr(obj, prop);
+    PCIExpLinkWidth *p = FIELD_PTR(obj, prop, PCIExpLinkWidth);
     int width;
 
     switch (*p) {
@@ -979,7 +979,7 @@ static void get_prop_pcielinkwidth(Object *obj, Visitor *v, const char *name,
 static void set_prop_pcielinkwidth(Object *obj, Visitor *v, const char *name,
                                     Property *prop, Error **errp)
 {
-    PCIExpLinkWidth *p = object_field_prop_ptr(obj, prop);
+    PCIExpLinkWidth *p = FIELD_PTR(obj, prop, PCIExpLinkWidth);
     int width;
 
     if (!visit_type_enum(v, name, &width, prop->info->enum_table,
@@ -1029,7 +1029,7 @@ const PropertyInfo qdev_prop_pcie_link_width = {
 static void get_uuid(Object *obj, Visitor *v, const char *name,
                      Property *prop, Error **errp)
 {
-    QemuUUID *uuid = object_field_prop_ptr(obj, prop);
+    QemuUUID *uuid = FIELD_PTR(obj, prop, QemuUUID);
     char buffer[UUID_FMT_LEN + 1];
     char *p = buffer;
 
@@ -1043,7 +1043,7 @@ static void get_uuid(Object *obj, Visitor *v, const char *name,
 static void set_uuid(Object *obj, Visitor *v, const char *name,
                     Property *prop, Error **errp)
 {
-    QemuUUID *uuid = object_field_prop_ptr(obj, prop);
+    QemuUUID *uuid = FIELD_PTR(obj, prop, QemuUUID);
     char *str;
 
     if (!visit_type_str(v, name, &str, errp)) {

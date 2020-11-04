@@ -125,6 +125,25 @@ object_class_property_add_field(ObjectClass *oc, const char *name,
                                 Property *prop,
                                 ObjectPropertyAllowSet allow_set);
 
-void *object_field_prop_ptr(Object *obj, Property *prop);
+/**
+ * object_field_prop_ptr: Get pointer to property field
+ * @obj: the object instance
+ * @prop: field property definition
+ * @expected_size: expected size of struct field
+ *
+ * Don't use this function directly, use the FIELD_PTR() macro instead.
+ */
+void *object_field_prop_ptr(Object *obj, Property *prop, size_t expected_size);
+
+/**
+ * FIELD_PTR: Get pointer to struct field for property
+ *
+ * This returns a pointer to type @type, pointing to the struct
+ * field containing the property value.
+ *
+ * @type must match the expected type for the property.
+ */
+#define FIELD_PTR(obj, prop, type) \
+    ((type *)object_field_prop_ptr((obj), (prop), sizeof(type)))
 
 #endif
