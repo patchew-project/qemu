@@ -835,20 +835,20 @@ const PropertyInfo qdev_prop_link = {
     .create = create_link_property,
 };
 
-void qdev_property_add_static(DeviceState *dev, Property *prop)
+ObjectProperty *
+object_property_add_field(Object *obj, const char *name, Property *prop)
 {
-    Object *obj = OBJECT(dev);
     ObjectProperty *op;
 
     assert(!prop->info->create);
 
-    op = object_property_add(obj, prop->name, prop->info->name,
+    op = object_property_add(obj, name, prop->info->name,
                              field_prop_getter(prop->info),
                              field_prop_setter(prop->info),
                              prop->info->release,
                              prop);
 
-    object_property_set_description(obj, prop->name,
+    object_property_set_description(obj, name,
                                     prop->info->description);
 
     if (prop->set_default) {
@@ -857,12 +857,14 @@ void qdev_property_add_static(DeviceState *dev, Property *prop)
             op->init(obj, op);
         }
     }
+
+    return op;
 }
 
-static void qdev_class_add_property(DeviceClass *klass, const char *name,
-                                    Property *prop)
+ObjectProperty *
+object_class_property_add_field(ObjectClass *oc, const char *name,
+                                Property *prop)
 {
-    ObjectClass *oc = OBJECT_CLASS(klass);
     ObjectProperty *op;
 
     if (prop->info->create) {
@@ -882,6 +884,12 @@ static void qdev_class_add_property(DeviceClass *klass, const char *name,
         object_class_property_set_description(oc, name,
                                               prop->info->description);
     }
+    return op;
+}
+
+void qdev_property_add_static(DeviceState *dev, Property *prop)
+{
+    object_property_add_field(OBJECT(dev), prop->name, prop);
 }
 
 /**
@@ -932,12 +940,13 @@ static void qdev_class_add_legacy_property(DeviceClass *dc, Property *prop)
 
 void device_class_set_props(DeviceClass *dc, Property *props)
 {
+    ObjectClass *oc = OBJECT_CLASS(dc);
     Property *prop;
 
     dc->props_ = props;
     for (prop = props; prop && prop->name; prop++) {
         qdev_class_add_legacy_property(dc, prop);
-        qdev_class_add_property(dc, prop->name, prop);
+        object_class_property_add_field(oc, prop->name, prop);
     }
 }
 
