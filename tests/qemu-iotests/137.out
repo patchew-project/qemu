@@ -15,7 +15,7 @@ read 33554432/33554432 bytes at offset 0
 
 === Try setting some invalid values ===
 
-qemu-io: Parameter 'lazy-refcounts' expects 'on' or 'off'
+qemu-io: Parameter 'lazy-refcounts' expects boolean (on/off)
 qemu-io: cache-size, l2-cache-size and refcount-cache-size may not be set at the same time
 qemu-io: l2-cache-size may not exceed cache-size
 qemu-io: refcount-cache-size may not exceed cache-size
@@ -38,7 +38,7 @@ wrote 512/512 bytes at offset 0
 ./common.rc: Killed                  ( VALGRIND_QEMU="${VALGRIND_QEMU_IO}" _qemu_proc_exec "${VALGRIND_LOGFILE}" "$QEMU_IO_PROG" $QEMU_IO_ARGS "$@" )
 OK: Dirty bit not set
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-qemu-io: Parameter 'lazy-refcounts' expects 'on' or 'off'
+qemu-io: Parameter 'lazy-refcounts' expects boolean (on/off)
 qcow2: Marking image as corrupt: Preventing invalid allocation of L2 table at offset 0; further corruption events will be suppressed
 write failed: Input/output error
 *** done

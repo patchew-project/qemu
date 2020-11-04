@@ -35,8 +35,8 @@ qemu-io: Cannot set both -c and the cache options
 
 === Check that invalid options are handled correctly ===
 
-qemu-io: Parameter 'read-only' expects 'on' or 'off'
-qemu-io: Parameter 'cache.no-flush' expects 'on' or 'off'
-qemu-io: Parameter 'cache.direct' expects 'on' or 'off'
-qemu-io: Parameter 'auto-read-only' expects 'on' or 'off'
+qemu-io: Parameter 'read-only' expects boolean (on/off)
+qemu-io: Parameter 'cache.no-flush' expects boolean (on/off)
+qemu-io: Parameter 'cache.direct' expects boolean (on/off)
+qemu-io: Parameter 'auto-read-only' expects boolean (on/off)
 *** done
