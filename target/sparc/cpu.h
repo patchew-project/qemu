@@ -252,7 +252,7 @@ typedef struct trap_state {
 
 struct sparc_def_t {
     const char *name;
-    target_ulong iu_version;
+    uint64_t iu_version;
     uint32_t fpu_version;
     uint32_t mmu_version;
     uint32_t mmu_bm;

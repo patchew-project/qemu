@@ -576,7 +576,7 @@ void sparc_cpu_list(void)
     unsigned int i;
 
     for (i = 0; i < ARRAY_SIZE(sparc_defs); i++) {
-        qemu_printf("Sparc %16s IU " TARGET_FMT_lx
+        qemu_printf("Sparc %16s IU %" PRIx64
                     " FPU %08x MMU %08x NWINS %d ",
                     sparc_defs[i].name,
                     sparc_defs[i].iu_version,
@@ -838,8 +838,7 @@ static Property sparc_cpu_properties[] = {
     DEFINE_PROP_BIT("hypv",     SPARCCPU, env.def.features, 11, false),
     DEFINE_PROP_BIT("cmt",      SPARCCPU, env.def.features, 12, false),
     DEFINE_PROP_BIT("gl",       SPARCCPU, env.def.features, 13, false),
-    DEFINE_PROP_UNSIGNED("iu-version", SPARCCPU, env.def.iu_version, 0,
-                         prop_info_uint64, target_ulong),
+    DEFINE_PROP_UINT64("iu-version", SPARCCPU, env.def.iu_version, 0),
     DEFINE_PROP_UINT32("fpu-version", SPARCCPU, env.def.fpu_version, 0),
     DEFINE_PROP_UINT32("mmu-version", SPARCCPU, env.def.mmu_version, 0),
     DEFINE_PROP("nwindows",     SPARCCPU, env.def.nwindows,
