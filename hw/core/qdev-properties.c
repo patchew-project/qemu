@@ -525,30 +525,6 @@ const PropertyInfo qdev_prop_size32 = {
 
 /* --- support for array properties --- */
 
-/* Used as an opaque for the object properties we add for each
- * array element. Note that the struct Property must be first
- * in the struct so that a pointer to this works as the opaque
- * for the underlying element's property hooks as well as for
- * our own release callback.
- */
-typedef struct {
-    struct Property prop;
-    ObjectPropertyRelease *release;
-} ArrayElementProperty;
-
-/* object property release callback for array element properties:
- * we call the underlying element's property release hook, and
- * then free the memory we allocated when we added the property.
- */
-static void array_element_release(Object *obj, const char *name, void *opaque)
-{
-    ArrayElementProperty *p = opaque;
-    if (p->release) {
-        p->release(obj, name, opaque);
-    }
-    g_free(p);
-}
-
 static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
                               void *opaque, Error **errp)
 {
@@ -589,21 +565,20 @@ static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
     *arrayptr = eltptr = g_malloc0(*alenptr * prop->arrayfieldsize);
     for (i = 0; i < *alenptr; i++, eltptr += prop->arrayfieldsize) {
         g_autofree char *propname = g_strdup_printf("%s[%d]", arrayname, i);
-        ArrayElementProperty *arrayprop = g_new0(ArrayElementProperty, 1);
-        arrayprop->release = prop->arrayinfo->release;
-        arrayprop->prop.info = prop->arrayinfo;
+        Property *arrayprop = g_new0(Property, 1);
+        arrayprop->info = prop->arrayinfo;
         /* This ugly piece of pointer arithmetic sets up the offset so
          * that when the underlying get/set hooks call qdev_get_prop_ptr
          * they get the right answer despite the array element not actually
          * being inside the device struct.
          */
-        arrayprop->prop.offset = eltptr - (void *)obj;
-        assert(qdev_get_prop_ptr(obj, &arrayprop->prop) == eltptr);
+        arrayprop->offset = eltptr - (void *)obj;
+        assert(qdev_get_prop_ptr(obj, arrayprop) == eltptr);
         object_property_add(obj, propname,
-                            arrayprop->prop.info->name,
-                            field_prop_getter(arrayprop->prop.info),
-                            field_prop_setter(arrayprop->prop.info),
-                            array_element_release,
+                            arrayprop->info->name,
+                            field_prop_getter(arrayprop->info),
+                            field_prop_setter(arrayprop->info),
+                            arrayprop->info->release,
                             arrayprop);
     }
 }
