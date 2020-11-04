@@ -2,7 +2,6 @@ FROM fedora:32
 
 # Please keep this list sorted alphabetically
 ENV PACKAGES \
-    bc \
     brlapi-devel \
     bzip2 \
     bzip2-devel \

@@ -2,7 +2,6 @@ FROM fedora:32
 
 # Please keep this list sorted alphabetically
 ENV PACKAGES \
-    bc \
     bzip2 \
     diffutils \
     findutils \
