@@ -24,7 +24,7 @@
 #include "qemu/units.h"
 #include "qemu/uuid.h"
 #include "qemu/error-report.h"
-#include "qdev-prop-internal.h"
+#include "qom/field-property-internal.h"
 
 #include "audio/audio.h"
 #include "chardev/char-fe.h"

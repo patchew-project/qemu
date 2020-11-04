@@ -4,6 +4,7 @@ qom_ss.add(files(
   'object.c',
   'object_interfaces.c',
   'qom-qobject.c',
+  'field-property.c',
 ))
 
 qmp_ss.add(files('qom-qmp-cmds.c'))

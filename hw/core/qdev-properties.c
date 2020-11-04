@@ -8,7 +8,7 @@
 #include "qapi/visitor.h"
 #include "qemu/units.h"
 #include "qemu/cutils.h"
-#include "qdev-prop-internal.h"
+#include "qom/field-property-internal.h"
 
 void qdev_prop_set_after_realize(DeviceState *dev, const char *name,
                                   Error **errp)
@@ -48,48 +48,6 @@ void qdev_prop_allow_set_link_before_realize(const Object *obj,
                    "(type '%s') after it was realized",
                    name, dev->id, object_get_typename(obj));
     }
-}
-
-void *object_field_prop_ptr(Object *obj, Property *prop)
-{
-    void *ptr = obj;
-    ptr += prop->offset;
-    return ptr;
-}
-
-static void field_prop_get(Object *obj, Visitor *v, const char *name,
-                           void *opaque, Error **errp)
-{
-    Property *prop = opaque;
-    return prop->info->get(obj, v, name, opaque, errp);
-}
-
-/**
- * field_prop_getter: Return getter function to be used for property
- *
- * Return value can be NULL if @info has no getter function.
- */
-static ObjectPropertyAccessor *field_prop_getter(const PropertyInfo *info)
-{
-    return info->get ? field_prop_get : NULL;
-}
-
-static void field_prop_set(Object *obj, Visitor *v, const char *name,
-                           void *opaque, Error **errp)
-{
-    Property *prop = opaque;
-
-    return prop->info->set(obj, v, name, opaque, errp);
-}
-
-/**
- * field_prop_setter: Return setter function to be used for property
- *
- * Return value can be NULL if @info has not setter function.
- */
-static ObjectPropertyAccessor *field_prop_setter(const PropertyInfo *info)
-{
-    return info->set ? field_prop_set : NULL;
 }
 
 void field_prop_get_enum(Object *obj, Visitor *v, const char *name,
@@ -800,66 +758,6 @@ const PropertyInfo prop_info_link = {
     .name = "link",
     .create = create_link_property,
 };
-
-ObjectProperty *
-object_property_add_field(Object *obj, const char *name, Property *prop,
-                          ObjectPropertyAllowSet allow_set)
-{
-    ObjectProperty *op;
-
-    assert(allow_set);
-    assert(!prop->info->create);
-
-    op = object_property_add(obj, name, prop->info->name,
-                             field_prop_getter(prop->info),
-                             field_prop_setter(prop->info),
-                             prop->info->release,
-                             prop);
-
-    object_property_set_description(obj, name,
-                                    prop->info->description);
-
-    if (prop->set_default) {
-        prop->info->set_default_value(op, prop);
-        if (op->init) {
-            op->init(obj, op);
-        }
-    }
-
-    op->allow_set = allow_set;
-    return op;
-}
-
-ObjectProperty *
-object_class_property_add_field(ObjectClass *oc, const char *name,
-                                Property *prop,
-                                ObjectPropertyAllowSet allow_set)
-{
-    ObjectProperty *op;
-
-    assert(allow_set);
-
-    if (prop->info->create) {
-        op = prop->info->create(oc, name, prop);
-    } else {
-        op = object_class_property_add(oc,
-                                       name, prop->info->name,
-                                       field_prop_getter(prop->info),
-                                       field_prop_setter(prop->info),
-                                       prop->info->release,
-                                       prop);
-    }
-    if (prop->set_default) {
-        prop->info->set_default_value(op, prop);
-    }
-    if (prop->info->description) {
-        object_class_property_set_description(oc, name,
-                                              prop->info->description);
-    }
-
-    op->allow_set = allow_set;
-    return op;
-}
 
 void qdev_property_add_static(DeviceState *dev, Property *prop)
 {

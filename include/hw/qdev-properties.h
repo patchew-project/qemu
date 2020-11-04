@@ -2,52 +2,7 @@
 #define QEMU_QDEV_PROPERTIES_H
 
 #include "hw/qdev-core.h"
-
-/**
- * Property:
- * @set_default: true if the default value should be set from @defval,
- *    in which case @info->set_default_value must not be NULL
- *    (if false then no default value is set by the property system
- *     and the field retains whatever value it was given by instance_init).
- * @defval: default value for the property. This is used only if @set_default
- *     is true.
- */
-struct Property {
-    /**
-     * @qdev_prop_name: qdev property name
-     *
-     * qdev_prop_name is used only by TYPE_DEVICE code
-     * (device_class_set_props(), qdev_class_add_property(), and
-     * others).
-     */
-    const char   *qdev_prop_name;
-    const PropertyInfo *info;
-    ptrdiff_t    offset;
-    uint8_t      bitnr;
-    bool         set_default;
-    union {
-        int64_t i;
-        uint64_t u;
-    } defval;
-    int          arrayoffset;
-    const PropertyInfo *arrayinfo;
-    int          arrayfieldsize;
-    const char   *link_type;
-};
-
-struct PropertyInfo {
-    const char *name;
-    const char *description;
-    const QEnumLookup *enum_table;
-    int (*print)(Object *obj, Property *prop, char *dest, size_t len);
-    void (*set_default_value)(ObjectProperty *op, const Property *prop);
-    ObjectProperty *(*create)(ObjectClass *oc, const char *name,
-                              Property *prop);
-    ObjectPropertyAccessor *get;
-    ObjectPropertyAccessor *set;
-    ObjectPropertyRelease *release;
-};
-
+#include "qom/field-property.h"
 
 /*** qdev-properties.c ***/
 
@@ -227,28 +182,6 @@ extern const PropertyInfo prop_info_link;
 #define PROP_END_OF_LIST(...) \
     FIELD_PROP(DEFINE_PROP_END_OF_LIST(NULL, __VA_ARGS__))
 
-/**
- * object_class_property_add_field: Add a field property to object class
- * @oc: object class
- * @name: property name
- * @prop: property definition
- * @allow_set: check function called when property is set
- *
- * Add a field property to an object class.  A field property is
- * a property that will change a field at a specific offset of the
- * object instance struct.
- *
- * *@prop must exist for the life time of @oc.
- *
- * @allow_set should not be NULL.  If the property can always be
- * set, `prop_allow_set_always` can be used.  If the property can
- * never be set, `prop_allow_set_never` can be used.
- */
-ObjectProperty *
-object_class_property_add_field(ObjectClass *oc, const char *name,
-                                Property *prop,
-                                ObjectPropertyAllowSet allow_set);
-
 /*
  * Set properties between creation and realization.
  *
@@ -275,8 +208,6 @@ void qdev_prop_set_drive(DeviceState *dev, const char *name,
 void qdev_prop_set_macaddr(DeviceState *dev, const char *name,
                            const uint8_t *value);
 void qdev_prop_set_enum(DeviceState *dev, const char *name, int value);
-
-void *object_field_prop_ptr(Object *obj, Property *prop);
 
 void qdev_prop_register_global(GlobalProperty *prop);
 const GlobalProperty *qdev_find_global_prop(Object *obj,
