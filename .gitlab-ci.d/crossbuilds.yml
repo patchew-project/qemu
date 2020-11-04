@@ -1,6 +1,16 @@
 .cross_common_job:
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
+  rules:
+    # If the if statement is true, the job is excluded from a pipeline.
+    - if: $SKIP_BUILD =~ /cross/
+      when: never
+    - if: $CI_JOB_NAME =~ /system/ && $SKIP_BUILD =~ /system/
+      when: never
+    - if: $CI_JOB_NAME =~ /user/ && $SKIP_BUILD =~ /user/
+      when: never
+    # In all other cases, the job is added to the pipeline.
+    - when: on_success
 
 .cross_system_build_job:
   extends: .cross_common_job
