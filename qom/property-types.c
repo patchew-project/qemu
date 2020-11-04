@@ -485,6 +485,7 @@ static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
          * being inside the device struct.
          */
         arrayprop->offset = eltptr - (void *)obj;
+        arrayprop->size = prop->arrayfieldsize;
         assert(object_field_prop_ptr(obj, arrayprop) == eltptr);
         object_property_add_field(obj, propname, arrayprop, op->allow_set);
     }
