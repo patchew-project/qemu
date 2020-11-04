@@ -27,6 +27,8 @@
 #include "hw/pci/pci.h"
 #include "hw/mem/nvdimm.h"
 #include "migration/vmstate.h"
+#include "qom/field-property.h"
+#include "qom/property-types.h"
 
 GlobalProperty hw_compat_5_1[] = {
     { "vhost-scsi", "num_queues", "1"},
@@ -212,81 +214,6 @@ GlobalProperty hw_compat_2_1[] = {
 };
 const size_t hw_compat_2_1_len = G_N_ELEMENTS(hw_compat_2_1);
 
-static char *machine_get_kernel(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return g_strdup(ms->kernel_filename);
-}
-
-static void machine_set_kernel(Object *obj, const char *value, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    g_free(ms->kernel_filename);
-    ms->kernel_filename = g_strdup(value);
-}
-
-static char *machine_get_initrd(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return g_strdup(ms->initrd_filename);
-}
-
-static void machine_set_initrd(Object *obj, const char *value, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    g_free(ms->initrd_filename);
-    ms->initrd_filename = g_strdup(value);
-}
-
-static char *machine_get_append(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return g_strdup(ms->kernel_cmdline);
-}
-
-static void machine_set_append(Object *obj, const char *value, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    g_free(ms->kernel_cmdline);
-    ms->kernel_cmdline = g_strdup(value);
-}
-
-static char *machine_get_dtb(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return g_strdup(ms->dtb);
-}
-
-static void machine_set_dtb(Object *obj, const char *value, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    g_free(ms->dtb);
-    ms->dtb = g_strdup(value);
-}
-
-static char *machine_get_dumpdtb(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return g_strdup(ms->dumpdtb);
-}
-
-static void machine_set_dumpdtb(Object *obj, const char *value, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    g_free(ms->dumpdtb);
-    ms->dumpdtb = g_strdup(value);
-}
-
 static void machine_get_phandle_start(Object *obj, Visitor *v,
                                       const char *name, void *opaque,
                                       Error **errp)
@@ -311,48 +238,6 @@ static void machine_set_phandle_start(Object *obj, Visitor *v,
     ms->phandle_start = value;
 }
 
-static char *machine_get_dt_compatible(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return g_strdup(ms->dt_compatible);
-}
-
-static void machine_set_dt_compatible(Object *obj, const char *value, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    g_free(ms->dt_compatible);
-    ms->dt_compatible = g_strdup(value);
-}
-
-static bool machine_get_dump_guest_core(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return ms->dump_guest_core;
-}
-
-static void machine_set_dump_guest_core(Object *obj, bool value, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    ms->dump_guest_core = value;
-}
-
-static bool machine_get_mem_merge(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return ms->mem_merge;
-}
-
-static void machine_set_mem_merge(Object *obj, bool value, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    ms->mem_merge = value;
-}
 
 static bool machine_get_usb(Object *obj, Error **errp)
 {
@@ -367,49 +252,6 @@ static void machine_set_usb(Object *obj, bool value, Error **errp)
 
     ms->usb = value;
     ms->usb_disabled = !value;
-}
-
-static bool machine_get_graphics(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return ms->enable_graphics;
-}
-
-static void machine_set_graphics(Object *obj, bool value, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    ms->enable_graphics = value;
-}
-
-static char *machine_get_firmware(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return g_strdup(ms->firmware);
-}
-
-static void machine_set_firmware(Object *obj, const char *value, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    g_free(ms->firmware);
-    ms->firmware = g_strdup(value);
-}
-
-static void machine_set_suppress_vmdesc(Object *obj, bool value, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    ms->suppress_vmdesc = value;
-}
-
-static bool machine_get_suppress_vmdesc(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return ms->suppress_vmdesc;
 }
 
 static char *machine_get_memory_encryption(Object *obj, Error **errp)
@@ -432,7 +274,7 @@ static void machine_set_memory_encryption(Object *obj, const char *value,
      * so there's no point in it trying to merge areas.
      */
     if (value) {
-        machine_set_mem_merge(obj, false, errp);
+        ms->mem_merge = false;
     }
 }
 
@@ -518,21 +360,6 @@ static void validate_sysbus_device(SysBusDevice *sbdev, void *opaque)
                      object_class_get_name(object_get_class(OBJECT(sbdev))));
         exit(1);
     }
-}
-
-static char *machine_get_memdev(Object *obj, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    return g_strdup(ms->ram_memdev_id);
-}
-
-static void machine_set_memdev(Object *obj, const char *value, Error **errp)
-{
-    MachineState *ms = MACHINE(obj);
-
-    g_free(ms->ram_memdev_id);
-    ms->ram_memdev_id = g_strdup(value);
 }
 
 
@@ -774,28 +601,29 @@ static void machine_class_init(ObjectClass *oc, void *data)
      */
     mc->numa_mem_align_shift = 23;
 
-    object_class_property_add_str(oc, "kernel",
-        machine_get_kernel, machine_set_kernel);
+    object_class_property_add_field(oc, "kernel",
+                                    PROP_STRING(MachineState, kernel_filename),
+                                    prop_allow_set_always);
     object_class_property_set_description(oc, "kernel",
         "Linux kernel image file");
-
-    object_class_property_add_str(oc, "initrd",
-        machine_get_initrd, machine_set_initrd);
+    object_class_property_add_field(oc, "initrd",
+                                    PROP_STRING(MachineState, initrd_filename),
+                                    prop_allow_set_always);
     object_class_property_set_description(oc, "initrd",
         "Linux initial ramdisk file");
-
-    object_class_property_add_str(oc, "append",
-        machine_get_append, machine_set_append);
+    object_class_property_add_field(oc, "append",
+                                    PROP_STRING(MachineState, kernel_cmdline),
+                                    prop_allow_set_always);
     object_class_property_set_description(oc, "append",
         "Linux kernel command line");
-
-    object_class_property_add_str(oc, "dtb",
-        machine_get_dtb, machine_set_dtb);
+    object_class_property_add_field(oc, "dtb",
+                                    PROP_STRING(MachineState, dtb),
+                                    prop_allow_set_always);
     object_class_property_set_description(oc, "dtb",
         "Linux kernel device tree file");
-
-    object_class_property_add_str(oc, "dumpdtb",
-        machine_get_dumpdtb, machine_set_dumpdtb);
+    object_class_property_add_field(oc, "dumpdtb",
+                                    PROP_STRING(MachineState, dumpdtb),
+                                    prop_allow_set_always);
     object_class_property_set_description(oc, "dumpdtb",
         "Dump current dtb to a file and quit");
 
@@ -805,18 +633,20 @@ static void machine_class_init(ObjectClass *oc, void *data)
     object_class_property_set_description(oc, "phandle-start",
         "The first phandle ID we may generate dynamically");
 
-    object_class_property_add_str(oc, "dt-compatible",
-        machine_get_dt_compatible, machine_set_dt_compatible);
+    object_class_property_add_field(oc, "dt-compatible",
+                                    PROP_STRING(MachineState, dt_compatible),
+                                    prop_allow_set_always);
     object_class_property_set_description(oc, "dt-compatible",
         "Overrides the \"compatible\" property of the dt root node");
 
-    object_class_property_add_bool(oc, "dump-guest-core",
-        machine_get_dump_guest_core, machine_set_dump_guest_core);
+    object_class_property_add_field(oc, "dump-guest-core",
+                                    PROP_BOOL(MachineState, dump_guest_core, true),
+                                    prop_allow_set_always);
     object_class_property_set_description(oc, "dump-guest-core",
         "Include guest memory in a core dump");
-
-    object_class_property_add_bool(oc, "mem-merge",
-        machine_get_mem_merge, machine_set_mem_merge);
+    object_class_property_add_field(oc, "mem-merge",
+                                    PROP_BOOL(MachineState, mem_merge, true),
+                                    prop_allow_set_always);
     object_class_property_set_description(oc, "mem-merge",
         "Enable/disable memory merge support");
 
@@ -825,18 +655,20 @@ static void machine_class_init(ObjectClass *oc, void *data)
     object_class_property_set_description(oc, "usb",
         "Set on/off to enable/disable usb");
 
-    object_class_property_add_bool(oc, "graphics",
-        machine_get_graphics, machine_set_graphics);
+    object_class_property_add_field(oc, "graphics",
+                                    PROP_BOOL(MachineState, enable_graphics, true),
+                                    prop_allow_set_always);
     object_class_property_set_description(oc, "graphics",
         "Set on/off to enable/disable graphics emulation");
 
-    object_class_property_add_str(oc, "firmware",
-        machine_get_firmware, machine_set_firmware);
+    object_class_property_add_field(oc, "firmware",
+                                    PROP_STRING(MachineState, firmware),
+                                    prop_allow_set_always);
     object_class_property_set_description(oc, "firmware",
         "Firmware image");
-
-    object_class_property_add_bool(oc, "suppress-vmdesc",
-        machine_get_suppress_vmdesc, machine_set_suppress_vmdesc);
+    object_class_property_add_field(oc, "suppress-vmdesc",
+                                    PROP_BOOL(MachineState, suppress_vmdesc, false),
+                                    prop_allow_set_always);
     object_class_property_set_description(oc, "suppress-vmdesc",
         "Set on to disable self-describing migration");
 
@@ -845,8 +677,9 @@ static void machine_class_init(ObjectClass *oc, void *data)
     object_class_property_set_description(oc, "memory-encryption",
         "Set memory encryption object to use");
 
-    object_class_property_add_str(oc, "memory-backend",
-                                  machine_get_memdev, machine_set_memdev);
+    object_class_property_add_field(oc, "memory-backend",
+                                    PROP_STRING(MachineState, ram_memdev_id),
+                                    prop_allow_set_always);
     object_class_property_set_description(oc, "memory-backend",
                                           "Set RAM backend"
                                           "Valid value is ID of hostmem based backend");
@@ -872,10 +705,6 @@ static void machine_initfn(Object *obj)
 {
     MachineState *ms = MACHINE(obj);
     MachineClass *mc = MACHINE_GET_CLASS(obj);
-
-    ms->dump_guest_core = true;
-    ms->mem_merge = true;
-    ms->enable_graphics = true;
 
     if (mc->nvdimm_supported) {
         Object *obj = OBJECT(ms);
@@ -921,13 +750,6 @@ static void machine_finalize(Object *obj)
 {
     MachineState *ms = MACHINE(obj);
 
-    g_free(ms->kernel_filename);
-    g_free(ms->initrd_filename);
-    g_free(ms->kernel_cmdline);
-    g_free(ms->dtb);
-    g_free(ms->dumpdtb);
-    g_free(ms->dt_compatible);
-    g_free(ms->firmware);
     g_free(ms->device_memory);
     g_free(ms->nvdimms_state);
     g_free(ms->numa_state);
