@@ -86,8 +86,10 @@ bool set_preferred_target_page_bits(int bits)
         }
         init_target_page.bits = bits;
     }
-#endif
     return true;
+#else
+    return false;
+#endif
 }
 
 void finalize_target_page_bits(void)

@@ -70,7 +70,9 @@ void cpu_exec_step_atomic(CPUState *cpu);
  * size may be smaller than any given CPU's preference).
  * Returns true on success, false on failure (which can only happen
  * if this is called after the system has already finalized its
- * choice of page size and the requested page size is smaller than that).
+ * choice of page size and the requested page size is smaller than
+ * that). Only target supporting variable page size should set a
+ * preferred target page size.
  */
 bool set_preferred_target_page_bits(int bits);
 
