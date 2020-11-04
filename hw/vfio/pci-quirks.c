@@ -1485,20 +1485,18 @@ void vfio_setup_resetfn_quirk(VFIOPCIDevice *vdev)
  * https://lists.gnu.org/archive/html/qemu-devel/2017-08/pdfUda5iEpgOS.pdf
  */
 static void get_nv_gpudirect_clique_id(Object *obj, Visitor *v,
-                                       const char *name, void *opaque,
-                                       Error **errp)
+                                       const char *name,
+                                       Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     uint8_t *ptr = object_field_prop_ptr(obj, prop);
 
     visit_type_uint8(v, name, ptr, errp);
 }
 
 static void set_nv_gpudirect_clique_id(Object *obj, Visitor *v,
-                                       const char *name, void *opaque,
-                                       Error **errp)
+                                       const char *name,
+                                       Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     uint8_t value, *ptr = object_field_prop_ptr(obj, prop);
 
     if (!visit_type_uint8(v, name, &value, errp)) {

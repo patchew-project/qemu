@@ -787,7 +787,7 @@ static void sparc_cpu_initfn(Object *obj)
 }
 
 static void sparc_get_nwindows(Object *obj, Visitor *v, const char *name,
-                               void *opaque, Error **errp)
+                               Property *prop, Error **errp)
 {
     SPARCCPU *cpu = SPARC_CPU(obj);
     int64_t value = cpu->env.def.nwindows;
@@ -796,7 +796,7 @@ static void sparc_get_nwindows(Object *obj, Visitor *v, const char *name,
 }
 
 static void sparc_set_nwindows(Object *obj, Visitor *v, const char *name,
-                               void *opaque, Error **errp)
+                               Property *prop, Error **errp)
 {
     const int64_t min = MIN_NWINDOWS;
     const int64_t max = MAX_NWINDOWS;

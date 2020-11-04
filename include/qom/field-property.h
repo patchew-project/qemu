@@ -55,6 +55,18 @@ struct Property {
 };
 
 /**
+ * typedef FieldAccessor: a field property getter or setter function
+ * @obj: the object instance
+ * @v: the visitor that contains the property data
+ * @name: the name of the property
+ * @prop: Field property definition
+ * @errp: pointer to error information
+ */
+typedef void FieldAccessor(Object *obj, Visitor *v,
+                           const char *name, Property *prop,
+                           Error **errp);
+
+/**
  * struct PropertyInfo: information on a specific QOM property type
  */
 struct PropertyInfo {
@@ -71,16 +83,10 @@ struct PropertyInfo {
     /** @create: Optional callback for creation of property */
     ObjectProperty *(*create)(ObjectClass *oc, const char *name,
                               Property *prop);
-    /**
-     * @get: Property getter.  The opaque parameter will point to
-     *        the &Property struct for the property.
-     */
-    ObjectPropertyAccessor *get;
-    /**
-     * @set: Property setter.  The opaque parameter will point to
-     *        the &Property struct for the property.
-     */
-    ObjectPropertyAccessor *set;
+    /** @get: Property getter */
+    FieldAccessor *get;
+    /** @set: Property setter */
+    FieldAccessor *set;
     /**
      * @release: Optional release function, called when the object
      * is destroyed

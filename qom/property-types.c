@@ -8,18 +8,16 @@
 #include "qemu/uuid.h"
 
 void field_prop_get_enum(Object *obj, Visitor *v, const char *name,
-                         void *opaque, Error **errp)
+                          Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     int *ptr = object_field_prop_ptr(obj, prop);
 
     visit_type_enum(v, name, ptr, prop->info->enum_table, errp);
 }
 
 void field_prop_set_enum(Object *obj, Visitor *v, const char *name,
-                         void *opaque, Error **errp)
+                          Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     int *ptr = object_field_prop_ptr(obj, prop);
 
     visit_type_enum(v, name, ptr, prop->info->enum_table, errp);
@@ -59,9 +57,8 @@ static void bit_prop_set(Object *obj, Property *props, bool val)
 }
 
 static void prop_get_bit(Object *obj, Visitor *v, const char *name,
-                         void *opaque, Error **errp)
+                          Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     uint32_t *p = object_field_prop_ptr(obj, prop);
     bool value = (*p & qdev_get_prop_mask(prop)) != 0;
 
@@ -69,9 +66,8 @@ static void prop_get_bit(Object *obj, Visitor *v, const char *name,
 }
 
 static void prop_set_bit(Object *obj, Visitor *v, const char *name,
-                         void *opaque, Error **errp)
+                          Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     bool value;
 
     if (!visit_type_bool(v, name, &value, errp)) {
@@ -113,9 +109,8 @@ static void bit64_prop_set(Object *obj, Property *props, bool val)
 }
 
 static void prop_get_bit64(Object *obj, Visitor *v, const char *name,
-                           void *opaque, Error **errp)
+                            Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     uint64_t *p = object_field_prop_ptr(obj, prop);
     bool value = (*p & qdev_get_prop_mask64(prop)) != 0;
 
@@ -123,9 +118,8 @@ static void prop_get_bit64(Object *obj, Visitor *v, const char *name,
 }
 
 static void prop_set_bit64(Object *obj, Visitor *v, const char *name,
-                           void *opaque, Error **errp)
+                            Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     bool value;
 
     if (!visit_type_bool(v, name, &value, errp)) {
@@ -144,19 +138,17 @@ const PropertyInfo prop_info_bit64 = {
 
 /* --- bool --- */
 
-static void get_bool(Object *obj, Visitor *v, const char *name, void *opaque,
-                     Error **errp)
+static void get_bool(Object *obj, Visitor *v, const char *name,
+                     Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     bool *ptr = object_field_prop_ptr(obj, prop);
 
     visit_type_bool(v, name, ptr, errp);
 }
 
-static void set_bool(Object *obj, Visitor *v, const char *name, void *opaque,
-                     Error **errp)
+static void set_bool(Object *obj, Visitor *v, const char *name,
+                     Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     bool *ptr = object_field_prop_ptr(obj, prop);
 
     visit_type_bool(v, name, ptr, errp);
@@ -171,19 +163,17 @@ const PropertyInfo prop_info_bool = {
 
 /* --- 8bit integer --- */
 
-static void get_uint8(Object *obj, Visitor *v, const char *name, void *opaque,
-                      Error **errp)
+static void get_uint8(Object *obj, Visitor *v, const char *name,
+                      Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     uint8_t *ptr = object_field_prop_ptr(obj, prop);
 
     visit_type_uint8(v, name, ptr, errp);
 }
 
-static void set_uint8(Object *obj, Visitor *v, const char *name, void *opaque,
-                      Error **errp)
+static void set_uint8(Object *obj, Visitor *v, const char *name,
+                      Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     uint8_t *ptr = object_field_prop_ptr(obj, prop);
 
     visit_type_uint8(v, name, ptr, errp);
@@ -211,18 +201,16 @@ const PropertyInfo prop_info_uint8 = {
 /* --- 16bit integer --- */
 
 static void get_uint16(Object *obj, Visitor *v, const char *name,
-                       void *opaque, Error **errp)
+                        Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     uint16_t *ptr = object_field_prop_ptr(obj, prop);
 
     visit_type_uint16(v, name, ptr, errp);
 }
 
 static void set_uint16(Object *obj, Visitor *v, const char *name,
-                       void *opaque, Error **errp)
+                        Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     uint16_t *ptr = object_field_prop_ptr(obj, prop);
 
     visit_type_uint16(v, name, ptr, errp);
@@ -238,36 +226,32 @@ const PropertyInfo prop_info_uint16 = {
 /* --- 32bit integer --- */
 
 static void get_uint32(Object *obj, Visitor *v, const char *name,
-                       void *opaque, Error **errp)
+                        Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     uint32_t *ptr = object_field_prop_ptr(obj, prop);
 
     visit_type_uint32(v, name, ptr, errp);
 }
 
 static void set_uint32(Object *obj, Visitor *v, const char *name,
-                       void *opaque, Error **errp)
+                        Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     uint32_t *ptr = object_field_prop_ptr(obj, prop);
 
     visit_type_uint32(v, name, ptr, errp);
 }
 
 void field_prop_get_int32(Object *obj, Visitor *v, const char *name,
-                          void *opaque, Error **errp)
+                           Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     int32_t *ptr = object_field_prop_ptr(obj, prop);
 
     visit_type_int32(v, name, ptr, errp);
 }
 
-static void set_int32(Object *obj, Visitor *v, const char *name, void *opaque,
-                      Error **errp)
+static void set_int32(Object *obj, Visitor *v, const char *name,
+                      Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     int32_t *ptr = object_field_prop_ptr(obj, prop);
 
     visit_type_int32(v, name, ptr, errp);
@@ -290,36 +274,32 @@ const PropertyInfo prop_info_int32 = {
 /* --- 64bit integer --- */
 
 static void get_uint64(Object *obj, Visitor *v, const char *name,
-                       void *opaque, Error **errp)
+                        Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     uint64_t *ptr = object_field_prop_ptr(obj, prop);
 
     visit_type_uint64(v, name, ptr, errp);
 }
 
 static void set_uint64(Object *obj, Visitor *v, const char *name,
-                       void *opaque, Error **errp)
+                        Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     uint64_t *ptr = object_field_prop_ptr(obj, prop);
 
     visit_type_uint64(v, name, ptr, errp);
 }
 
 static void get_int64(Object *obj, Visitor *v, const char *name,
-                      void *opaque, Error **errp)
+                       Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     int64_t *ptr = object_field_prop_ptr(obj, prop);
 
     visit_type_int64(v, name, ptr, errp);
 }
 
 static void set_int64(Object *obj, Visitor *v, const char *name,
-                      void *opaque, Error **errp)
+                       Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     int64_t *ptr = object_field_prop_ptr(obj, prop);
 
     visit_type_int64(v, name, ptr, errp);
@@ -348,9 +328,8 @@ static void release_string(Object *obj, const char *name, void *opaque)
 }
 
 static void get_string(Object *obj, Visitor *v, const char *name,
-                       void *opaque, Error **errp)
+                        Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     char **ptr = object_field_prop_ptr(obj, prop);
 
     if (!*ptr) {
@@ -362,9 +341,8 @@ static void get_string(Object *obj, Visitor *v, const char *name,
 }
 
 static void set_string(Object *obj, Visitor *v, const char *name,
-                       void *opaque, Error **errp)
+                        Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     char **ptr = object_field_prop_ptr(obj, prop);
     char *str;
 
@@ -396,19 +374,17 @@ const PropertyInfo prop_info_on_off_auto = {
 /* --- 32bit unsigned int 'size' type --- */
 
 void field_prop_get_size32(Object *obj, Visitor *v, const char *name,
-                           void *opaque, Error **errp)
+                            Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     uint32_t *ptr = object_field_prop_ptr(obj, prop);
     uint64_t value = *ptr;
 
     visit_type_size(v, name, &value, errp);
 }
 
-static void set_size32(Object *obj, Visitor *v, const char *name, void *opaque,
-                       Error **errp)
+static void set_size32(Object *obj, Visitor *v, const char *name,
+                       Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     uint32_t *ptr = object_field_prop_ptr(obj, prop);
     uint64_t value;
 
@@ -437,14 +413,8 @@ const PropertyInfo prop_info_size32 = {
 /* --- support for array properties --- */
 
 static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
-                              void *opaque, Error **errp)
+                               Property *prop, Error **errp)
 {
-    /* Setter for the property which defines the length of a
-     * variable-sized property array. As well as actually setting the
-     * array-length field in the device struct, we have to create the
-     * array itself and dynamically add the corresponding properties.
-     */
-    Property *prop = opaque;
     ObjectProperty *op = object_property_find_err(obj, name, &error_abort);
     uint32_t *alenptr = object_field_prop_ptr(obj, prop);
     void **arrayptr = (void *)obj + prop->arrayoffset;
@@ -500,19 +470,17 @@ const PropertyInfo prop_info_arraylen = {
 
 /* --- 64bit unsigned int 'size' type --- */
 
-static void get_size(Object *obj, Visitor *v, const char *name, void *opaque,
-                     Error **errp)
+static void get_size(Object *obj, Visitor *v, const char *name,
+                     Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     uint64_t *ptr = object_field_prop_ptr(obj, prop);
 
     visit_type_size(v, name, ptr, errp);
 }
 
-static void set_size(Object *obj, Visitor *v, const char *name, void *opaque,
-                     Error **errp)
+static void set_size(Object *obj, Visitor *v, const char *name,
+                     Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     uint64_t *ptr = object_field_prop_ptr(obj, prop);
 
     visit_type_size(v, name, ptr, errp);

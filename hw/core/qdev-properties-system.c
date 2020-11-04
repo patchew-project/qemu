@@ -58,10 +58,9 @@ static bool check_prop_still_unset(Object *obj, const char *name,
 
 /* --- drive --- */
 
-static void get_drive(Object *obj, Visitor *v, const char *name, void *opaque,
-                      Error **errp)
+static void get_drive(Object *obj, Visitor *v, const char *name,
+                      Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     void **ptr = object_field_prop_ptr(obj, prop);
     const char *value;
     char *p;
@@ -165,16 +164,16 @@ fail:
     g_free(str);
 }
 
-static void set_drive(Object *obj, Visitor *v, const char *name, void *opaque,
+static void set_drive(Object *obj, Visitor *v, const char *name, Property *prop,
                       Error **errp)
 {
-    set_drive_helper(obj, v, name, opaque, false, errp);
+    set_drive_helper(obj, v, name, prop, false, errp);
 }
 
 static void set_drive_iothread(Object *obj, Visitor *v, const char *name,
-                               void *opaque, Error **errp)
+                               Property *prop, Error **errp)
 {
-    set_drive_helper(obj, v, name, opaque, true, errp);
+    set_drive_helper(obj, v, name, prop, true, errp);
 }
 
 static void release_drive(Object *obj, const char *name, void *opaque)
@@ -211,10 +210,10 @@ const PropertyInfo qdev_prop_drive_iothread = {
 
 /* --- character device --- */
 
-static void get_chr(Object *obj, Visitor *v, const char *name, void *opaque,
-                    Error **errp)
+static void get_chr(Object *obj, Visitor *v, const char *name,
+                    Property *prop, Error **errp)
 {
-    CharBackend *be = object_field_prop_ptr(obj, opaque);
+    CharBackend *be = object_field_prop_ptr(obj, prop);
     char *p;
 
     p = g_strdup(be->chr && be->chr->label ? be->chr->label : "");
@@ -222,10 +221,9 @@ static void get_chr(Object *obj, Visitor *v, const char *name, void *opaque,
     g_free(p);
 }
 
-static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
-                    Error **errp)
+static void set_chr(Object *obj, Visitor *v, const char *name,
+                    Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     CharBackend *be = object_field_prop_ptr(obj, prop);
     Chardev *s;
     char *str;
@@ -282,10 +280,9 @@ const PropertyInfo qdev_prop_chr = {
  *   01:02:03:04:05:06
  *   01-02-03-04-05-06
  */
-static void get_mac(Object *obj, Visitor *v, const char *name, void *opaque,
-                    Error **errp)
+static void get_mac(Object *obj, Visitor *v, const char *name,
+                    Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     MACAddr *mac = object_field_prop_ptr(obj, prop);
     char buffer[2 * 6 + 5 + 1];
     char *p = buffer;
@@ -297,10 +294,9 @@ static void get_mac(Object *obj, Visitor *v, const char *name, void *opaque,
     visit_type_str(v, name, &p, errp);
 }
 
-static void set_mac(Object *obj, Visitor *v, const char *name, void *opaque,
-                    Error **errp)
+static void set_mac(Object *obj, Visitor *v, const char *name,
+                    Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     MACAddr *mac = object_field_prop_ptr(obj, prop);
     int i, pos;
     char *str;
@@ -360,9 +356,8 @@ void qdev_prop_set_macaddr(DeviceState *dev, const char *name,
 
 /* --- netdev device --- */
 static void get_netdev(Object *obj, Visitor *v, const char *name,
-                       void *opaque, Error **errp)
+                        Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     NICPeers *peers_ptr = object_field_prop_ptr(obj, prop);
     char *p = g_strdup(peers_ptr->ncs[0] ? peers_ptr->ncs[0]->name : "");
 
@@ -371,9 +366,8 @@ static void get_netdev(Object *obj, Visitor *v, const char *name,
 }
 
 static void set_netdev(Object *obj, Visitor *v, const char *name,
-                       void *opaque, Error **errp)
+                        Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     NICPeers *peers_ptr = object_field_prop_ptr(obj, prop);
     NetClientState **ncs = peers_ptr->ncs;
     NetClientState *peers[MAX_QUEUE_NUM];
@@ -433,9 +427,8 @@ const PropertyInfo qdev_prop_netdev = {
 
 /* --- audiodev --- */
 static void get_audiodev(Object *obj, Visitor *v, const char* name,
-                         void *opaque, Error **errp)
+                          Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     QEMUSoundCard *card = object_field_prop_ptr(obj, prop);
     char *p = g_strdup(audio_get_id(card));
 
@@ -444,9 +437,8 @@ static void get_audiodev(Object *obj, Visitor *v, const char* name,
 }
 
 static void set_audiodev(Object *obj, Visitor *v, const char* name,
-                         void *opaque, Error **errp)
+                          Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     QEMUSoundCard *card = object_field_prop_ptr(obj, prop);
     AudioState *state;
     int err = 0;
@@ -545,10 +537,9 @@ const PropertyInfo qdev_prop_losttickpolicy = {
 /* --- blocksize --- */
 
 static void set_blocksize(Object *obj, Visitor *v, const char *name,
-                          void *opaque, Error **errp)
+                           Property *prop, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
-    Property *prop = opaque;
     uint32_t *ptr = object_field_prop_ptr(obj, prop);
     uint64_t value;
     Error *local_err = NULL;
@@ -634,9 +625,8 @@ const PropertyInfo qdev_prop_multifd_compression = {
  *   and type is a non-negative decimal integer
  */
 static void get_reserved_region(Object *obj, Visitor *v, const char *name,
-                                void *opaque, Error **errp)
+                                 Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     ReservedRegion *rr = object_field_prop_ptr(obj, prop);
     char buffer[64];
     char *p = buffer;
@@ -650,9 +640,8 @@ static void get_reserved_region(Object *obj, Visitor *v, const char *name,
 }
 
 static void set_reserved_region(Object *obj, Visitor *v, const char *name,
-                                void *opaque, Error **errp)
+                                 Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     ReservedRegion *rr = object_field_prop_ptr(obj, prop);
     Error *local_err = NULL;
     const char *endptr;
@@ -712,9 +701,8 @@ const PropertyInfo qdev_prop_reserved_region = {
  * bus-local address, i.e. "$slot" or "$slot.$fn"
  */
 static void set_pci_devfn(Object *obj, Visitor *v, const char *name,
-                          void *opaque, Error **errp)
+                           Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     int32_t value, *ptr = object_field_prop_ptr(obj, prop);
     unsigned int slot, fn, n;
     char *str;
@@ -774,9 +762,8 @@ const PropertyInfo qdev_prop_pci_devfn = {
 /* --- pci host address --- */
 
 static void get_pci_host_devaddr(Object *obj, Visitor *v, const char *name,
-                                 void *opaque, Error **errp)
+                                  Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     PCIHostDeviceAddress *addr = object_field_prop_ptr(obj, prop);
     char buffer[] = "ffff:ff:ff.f";
     char *p = buffer;
@@ -800,9 +787,8 @@ static void get_pci_host_devaddr(Object *obj, Visitor *v, const char *name,
  *   if <domain> is not supplied, it's assumed to be 0.
  */
 static void set_pci_host_devaddr(Object *obj, Visitor *v, const char *name,
-                                 void *opaque, Error **errp)
+                                  Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     PCIHostDeviceAddress *addr = object_field_prop_ptr(obj, prop);
     char *str, *p;
     const char *e;
@@ -889,9 +875,8 @@ const PropertyInfo qdev_prop_off_auto_pcibar = {
 /* --- PCIELinkSpeed 2_5/5/8/16 -- */
 
 static void get_prop_pcielinkspeed(Object *obj, Visitor *v, const char *name,
-                                   void *opaque, Error **errp)
+                                    Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     PCIExpLinkSpeed *p = object_field_prop_ptr(obj, prop);
     int speed;
 
@@ -917,9 +902,8 @@ static void get_prop_pcielinkspeed(Object *obj, Visitor *v, const char *name,
 }
 
 static void set_prop_pcielinkspeed(Object *obj, Visitor *v, const char *name,
-                                   void *opaque, Error **errp)
+                                    Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     PCIExpLinkSpeed *p = object_field_prop_ptr(obj, prop);
     int speed;
 
@@ -959,9 +943,8 @@ const PropertyInfo qdev_prop_pcie_link_speed = {
 /* --- PCIELinkWidth 1/2/4/8/12/16/32 -- */
 
 static void get_prop_pcielinkwidth(Object *obj, Visitor *v, const char *name,
-                                   void *opaque, Error **errp)
+                                    Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     PCIExpLinkWidth *p = object_field_prop_ptr(obj, prop);
     int width;
 
@@ -996,9 +979,8 @@ static void get_prop_pcielinkwidth(Object *obj, Visitor *v, const char *name,
 }
 
 static void set_prop_pcielinkwidth(Object *obj, Visitor *v, const char *name,
-                                   void *opaque, Error **errp)
+                                    Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     PCIExpLinkWidth *p = object_field_prop_ptr(obj, prop);
     int width;
 
@@ -1046,10 +1028,9 @@ const PropertyInfo qdev_prop_pcie_link_width = {
 
 /* --- UUID --- */
 
-static void get_uuid(Object *obj, Visitor *v, const char *name, void *opaque,
-                     Error **errp)
+static void get_uuid(Object *obj, Visitor *v, const char *name,
+                     Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     QemuUUID *uuid = object_field_prop_ptr(obj, prop);
     char buffer[UUID_FMT_LEN + 1];
     char *p = buffer;
@@ -1061,10 +1042,9 @@ static void get_uuid(Object *obj, Visitor *v, const char *name, void *opaque,
 
 #define UUID_VALUE_AUTO        "auto"
 
-static void set_uuid(Object *obj, Visitor *v, const char *name, void *opaque,
-                    Error **errp)
+static void set_uuid(Object *obj, Visitor *v, const char *name,
+                    Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     QemuUUID *uuid = object_field_prop_ptr(obj, prop);
     char *str;
 

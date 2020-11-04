@@ -2341,9 +2341,8 @@ void css_reset(void)
 }
 
 static void get_css_devid(Object *obj, Visitor *v, const char *name,
-                          void *opaque, Error **errp)
+                           Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     CssDevId *dev_id = object_field_prop_ptr(obj, prop);
     char buffer[] = "xx.x.xxxx";
     char *p = buffer;
@@ -2370,9 +2369,8 @@ static void get_css_devid(Object *obj, Visitor *v, const char *name,
  * parse <cssid>.<ssid>.<devid> and assert valid range for cssid/ssid
  */
 static void set_css_devid(Object *obj, Visitor *v, const char *name,
-                          void *opaque, Error **errp)
+                           Property *prop, Error **errp)
 {
-    Property *prop = opaque;
     CssDevId *dev_id = object_field_prop_ptr(obj, prop);
     char *str;
     int num, n1, n2;
