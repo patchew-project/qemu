@@ -2065,6 +2065,7 @@ static void iscsi_refresh_limits(BlockDriverState *bs, Error **errp)
 
     if (max_xfer_len * block_size < INT_MAX) {
         bs->bl.max_transfer = max_xfer_len * iscsilun->block_size;
+        bs->bl.max_ioctl_transfer = bs->bl.max_transfer;
     }
 
     if (iscsilun->lbp.lbpu) {

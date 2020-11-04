@@ -167,7 +167,7 @@ static void scsi_handle_inquiry_reply(SCSIGenericReq *r, SCSIDevice *s)
         page = r->req.cmd.buf[2];
         if (page == 0xb0) {
             uint32_t max_transfer =
-                blk_get_max_transfer(s->conf.blk) / s->blocksize;
+                blk_get_max_ioctl_transfer(s->conf.blk) / s->blocksize;
 
             assert(max_transfer);
             stl_be_p(&r->buf[8], max_transfer);
@@ -210,7 +210,7 @@ static int scsi_generic_emulate_block_limits(SCSIGenericReq *r, SCSIDevice *s)
     uint8_t buf[64];
 
     SCSIBlockLimits bl = {
-        .max_io_sectors = blk_get_max_transfer(s->conf.blk) / s->blocksize
+        .max_io_sectors = blk_get_max_ioctl_transfer(s->conf.blk) / s->blocksize
     };
 
     memset(r->buf, 0, r->buflen);
