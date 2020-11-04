@@ -25,7 +25,6 @@ ENV PACKAGES \
     libaio-devel \
     libasan \
     libattr-devel \
-    libblockdev-mpath-devel \
     libcap-ng-devel \
     libcacard-devel \
     libcurl-devel \
