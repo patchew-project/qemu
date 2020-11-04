@@ -13,7 +13,14 @@
  *     is true.
  */
 struct Property {
-    const char   *name;
+    /**
+     * @qdev_prop_name: qdev property name
+     *
+     * qdev_prop_name is used only by TYPE_DEVICE code
+     * (device_class_set_props(), qdev_class_add_property(), and
+     * others).
+     */
+    const char   *qdev_prop_name;
     const PropertyInfo *info;
     ptrdiff_t    offset;
     uint8_t      bitnr;
@@ -63,7 +70,7 @@ extern const PropertyInfo qdev_prop_arraylen;
 extern const PropertyInfo qdev_prop_link;
 
 #define DEFINE_PROP(_name, _state, _field, _prop, _type, ...) {  \
-        .name      = (_name),                                    \
+        .qdev_prop_name      = (_name),                          \
         .info      = &(_prop),                                   \
         .offset    = offsetof(_state, _field)                    \
             + type_check(_type, typeof_field(_state, _field)),   \

@@ -596,7 +596,7 @@ static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
         arrayprop->release = prop->arrayinfo->release;
         arrayprop->propname = propname;
         arrayprop->prop.info = prop->arrayinfo;
-        arrayprop->prop.name = propname;
+        arrayprop->prop.qdev_prop_name = propname;
         /* This ugly piece of pointer arithmetic sets up the offset so
          * that when the underlying get/set hooks call qdev_get_prop_ptr
          * they get the right answer despite the array element not actually
@@ -627,8 +627,8 @@ static Property *qdev_prop_walk(Property *props, const char *name)
     if (!props) {
         return NULL;
     }
-    while (props->name) {
-        if (strcmp(props->name, name) == 0) {
+    while (props->qdev_prop_name) {
+        if (strcmp(props->qdev_prop_name, name) == 0) {
             return props;
         }
         props++;
@@ -889,7 +889,7 @@ object_class_property_add_field(ObjectClass *oc, const char *name,
 
 void qdev_property_add_static(DeviceState *dev, Property *prop)
 {
-    object_property_add_field(OBJECT(dev), prop->name, prop);
+    object_property_add_field(OBJECT(dev), prop->qdev_prop_name, prop);
 }
 
 /**
@@ -932,7 +932,7 @@ static void qdev_class_add_legacy_property(DeviceClass *dc, Property *prop)
         return;
     }
 
-    name = g_strdup_printf("legacy-%s", prop->name);
+    name = g_strdup_printf("legacy-%s", prop->qdev_prop_name);
     object_class_property_add(OBJECT_CLASS(dc), name, "str",
         prop->info->print ? qdev_get_legacy_property : prop->info->get,
         NULL, NULL, prop);
@@ -944,9 +944,9 @@ void device_class_set_props(DeviceClass *dc, Property *props)
     Property *prop;
 
     dc->props_ = props;
-    for (prop = props; prop && prop->name; prop++) {
+    for (prop = props; prop && prop->qdev_prop_name; prop++) {
         qdev_class_add_legacy_property(dc, prop);
-        object_class_property_add_field(oc, prop->name, prop);
+        object_class_property_add_field(oc, prop->qdev_prop_name, prop);
     }
 }
 
@@ -959,9 +959,9 @@ void qdev_alias_all_properties(DeviceState *target, Object *source)
     do {
         DeviceClass *dc = DEVICE_CLASS(class);
 
-        for (prop = dc->props_; prop && prop->name; prop++) {
-            object_property_add_alias(source, prop->name,
-                                      OBJECT(target), prop->name);
+        for (prop = dc->props_; prop && prop->qdev_prop_name; prop++) {
+            object_property_add_alias(source, prop->qdev_prop_name,
+                                      OBJECT(target), prop->qdev_prop_name);
         }
         class = object_class_get_parent(class);
     } while (class != object_class_by_name(TYPE_DEVICE));
