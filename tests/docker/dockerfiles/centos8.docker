@@ -13,6 +13,7 @@ ENV PACKAGES \
     git \
     glib2-devel \
     libaio-devel \
+    libcacard-devel \
     libepoxy-devel \
     libgcrypt-devel \
     lzo-devel \

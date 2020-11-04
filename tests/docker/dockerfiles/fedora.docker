@@ -28,6 +28,7 @@ ENV PACKAGES \
     libattr-devel \
     libblockdev-mpath-devel \
     libcap-ng-devel \
+    libcacard-devel \
     libcurl-devel \
     libepoxy-devel \
     libfdt-devel \
@@ -77,7 +78,6 @@ ENV PACKAGES \
     ncurses-devel \
     nettle-devel \
     ninja-build \
-    nss-devel \
     numactl-devel \
     perl \
     perl-Test-Harness \
