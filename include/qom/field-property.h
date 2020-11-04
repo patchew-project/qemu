@@ -67,6 +67,15 @@ typedef void FieldAccessor(Object *obj, Visitor *v,
                            Error **errp);
 
 /**
+ * typedef FieldRelease:
+ * @obj: the object instance
+ * @name: the name of the property
+ * @prop: Field property definition
+ */
+typedef void FieldRelease(Object *obj, const char *name, Property *prop);
+
+
+/**
  * struct PropertyInfo: information on a specific QOM property type
  */
 struct PropertyInfo {
@@ -91,7 +100,7 @@ struct PropertyInfo {
      * @release: Optional release function, called when the object
      * is destroyed
      */
-    ObjectPropertyRelease *release;
+    FieldRelease *release;
 };
 
 /**

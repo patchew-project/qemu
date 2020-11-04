@@ -176,10 +176,9 @@ static void set_drive_iothread(Object *obj, Visitor *v, const char *name,
     set_drive_helper(obj, v, name, prop, true, errp);
 }
 
-static void release_drive(Object *obj, const char *name, void *opaque)
+static void release_drive(Object *obj, const char *name, Property *prop)
 {
     DeviceState *dev = DEVICE(obj);
-    Property *prop = opaque;
     BlockBackend **ptr = object_field_prop_ptr(obj, prop);
 
     if (*ptr) {
@@ -257,9 +256,8 @@ static void set_chr(Object *obj, Visitor *v, const char *name,
     g_free(str);
 }
 
-static void release_chr(Object *obj, const char *name, void *opaque)
+static void release_chr(Object *obj, const char *name, Property *prop)
 {
-    Property *prop = opaque;
     CharBackend *be = object_field_prop_ptr(obj, prop);
 
     qemu_chr_fe_deinit(be, false);

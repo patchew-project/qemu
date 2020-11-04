@@ -321,9 +321,8 @@ const PropertyInfo prop_info_int64 = {
 
 /* --- string --- */
 
-static void release_string(Object *obj, const char *name, void *opaque)
+static void release_string(Object *obj, const char *name, Property *prop)
 {
-    Property *prop = opaque;
     g_free(*(char **)object_field_prop_ptr(obj, prop));
 }
 

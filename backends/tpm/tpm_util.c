@@ -63,9 +63,8 @@ static void set_tpm(Object *obj, Visitor *v, const char *name,
     g_free(str);
 }
 
-static void release_tpm(Object *obj, const char *name, void *opaque)
+static void release_tpm(Object *obj, const char *name, Property *prop)
 {
-    Property *prop = opaque;
     TPMBackend **be = object_field_prop_ptr(obj, prop);
 
     if (*be) {
