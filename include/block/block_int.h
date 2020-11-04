@@ -678,6 +678,10 @@ typedef struct BlockLimits {
      * clamped down. */
     uint32_t max_transfer;
 
+    /* Maximal transfer length for SCSI passthrough (ioctl interface) */
+    uint32_t max_ioctl_transfer;
+
+
     /* memory alignment, in bytes so that no bounce buffer is needed */
     size_t min_mem_alignment;
 
