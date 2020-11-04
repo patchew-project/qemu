@@ -574,12 +574,7 @@ static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
          */
         arrayprop->offset = eltptr - (void *)obj;
         assert(qdev_get_prop_ptr(obj, arrayprop) == eltptr);
-        object_property_add(obj, propname,
-                            arrayprop->info->name,
-                            field_prop_getter(arrayprop->info),
-                            field_prop_setter(arrayprop->info),
-                            arrayprop->info->release,
-                            arrayprop);
+        object_property_add_field(obj, propname, arrayprop);
     }
 }
 
