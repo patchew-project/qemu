@@ -1381,6 +1381,18 @@ bool object_property_get(Object *obj, const char *name, Visitor *v,
     return !err;
 }
 
+bool prop_allow_set_always(Object *obj, ObjectProperty *prop, Error **errp)
+{
+    return true;
+}
+
+bool prop_allow_set_never(Object *obj, ObjectProperty *prop, Error **errp)
+{
+    error_setg(errp, "Property '%s.%s' can't be set",
+               object_get_typename(obj), prop->name);
+    return false;
+}
+
 bool object_property_set(Object *obj, const char *name, Visitor *v,
                          Error **errp)
 {
@@ -1395,6 +1407,10 @@ bool object_property_set(Object *obj, const char *name, Visitor *v,
         error_setg(errp, QERR_PERMISSION_DENIED);
         return false;
     }
+    if (prop->allow_set && !prop->allow_set(obj, prop, errp)) {
+        return false;
+    }
+
     prop->set(obj, v, name, prop->opaque, &err);
     error_propagate(errp, err);
     return !err;
