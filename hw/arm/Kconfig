@@ -20,6 +20,7 @@ config ARM_VIRT
     select PLATFORM_BUS
     select SMBIOS
     select VIRTIO_MMIO
+    select VIRTIO_MEM_SUPPORTED if ARCH_VIRTIO_MEM_SUPPORTED
     select ACPI_PCI
     select MEM_DEVICE
     select DIMM
