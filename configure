@@ -399,6 +399,8 @@ coroutine=""
 coroutine_pool=""
 debug_stack_usage="no"
 crypto_afalg="no"
+cfi="disabled"
+cfi_debug="disabled"
 seccomp=""
 glusterfs=""
 glusterfs_xlator_opt="no"
@@ -1179,6 +1181,16 @@ for opt do
   ;;
   --disable-safe-stack) safe_stack="no"
   ;;
+  --enable-cfi)
+      cfi="enabled";
+      lto="true";
+  ;;
+  --disable-cfi) cfi="disabled"
+  ;;
+  --enable-cfi-debug) cfi_debug="enabled"
+  ;;
+  --disable-cfi-debug) cfi_debug="disabled"
+  ;;
   --disable-curses) curses="disabled"
   ;;
   --enable-curses) curses="enabled"
@@ -1753,6 +1765,13 @@ disabled with --disable-FEATURE, default is enabled if available:
   sparse          sparse checker
   safe-stack      SafeStack Stack Smash Protection. Depends on
                   clang/llvm >= 3.7 and requires coroutine backend ucontext.
+  cfi             Enable Control-Flow Integrity for indirect function calls.
+                  In case of a cfi violation, QEMU is terminated with SIGILL
+                  Depends on lto and is incompatible with modules
+                  Automatically enables Link-Time Optimization (lto)
+  cfi-debug       In case of a cfi violation, a message containing the line that
+                  triggered the error is written to stderr. After the error,
+                  QEMU is still terminated with SIGILL
 
   gnutls          GNUTLS cryptography support
   nettle          nettle cryptography support
@@ -6997,7 +7016,7 @@ NINJA=$ninja $meson setup \
         -Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt \
         -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
         -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
-        -Db_lto=$lto \
+        -Db_lto=$lto -Dcfi=$cfi -Dcfi_debug=$cfi_debug \
         $cross_arg \
         "$PWD" "$source_path"
 
