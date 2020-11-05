@@ -829,6 +829,7 @@ Chardev *qemu_chr_find(const char *name)
 
 QemuOptsList qemu_chardev_opts = {
     .name = "chardev",
+    .allow_flag_options = true, /* server, nowait, etc. */
     .implied_opt_name = "backend",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_chardev_opts.head),
     .desc = {
