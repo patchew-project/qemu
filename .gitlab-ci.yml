@@ -13,7 +13,7 @@ include:
   - local: '/.gitlab-ci.d/containers.yml'
   - local: '/.gitlab-ci.d/crossbuilds.yml'
 
-.native_build_job_template: &native_build_job_definition
+.native_build_job:
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
   before_script:
@@ -68,7 +68,7 @@ include:
     - du -chs ${CI_PROJECT_DIR}/avocado-cache
 
 build-system-ubuntu:
-  <<: *native_build_job_definition
+  extends: .native_build_job
   variables:
     IMAGE: ubuntu2004
     TARGETS: aarch64-softmmu alpha-softmmu cris-softmmu hppa-softmmu
@@ -99,7 +99,7 @@ acceptance-system-ubuntu:
   <<: *acceptance_definition
 
 build-system-debian:
-  <<: *native_build_job_definition
+  extends: .native_build_job
   variables:
     IMAGE: debian-amd64
     TARGETS: arm-softmmu avr-softmmu i386-softmmu mipsel-softmmu
@@ -130,7 +130,7 @@ acceptance-system-debian:
   <<: *acceptance_definition
 
 build-system-fedora:
-  <<: *native_build_job_definition
+  extends: .native_build_job
   variables:
     IMAGE: fedora
     CONFIGURE_ARGS: --disable-gcrypt --enable-nettle
@@ -162,7 +162,7 @@ acceptance-system-fedora:
   <<: *acceptance_definition
 
 build-system-centos:
-  <<: *native_build_job_definition
+  extends: .native_build_job
   variables:
     IMAGE: centos8
     CONFIGURE_ARGS: --disable-nettle --enable-gcrypt
@@ -194,7 +194,7 @@ acceptance-system-centos:
   <<: *acceptance_definition
 
 build-disabled:
-  <<: *native_build_job_definition
+  extends: .native_build_job
   variables:
     IMAGE: fedora
     CONFIGURE_ARGS: --disable-attr --disable-avx2 --disable-bochs
@@ -219,7 +219,7 @@ build-disabled:
     MAKE_CHECK_ARGS: check-qtest SPEED=slow
 
 build-tcg-disabled:
-  <<: *native_build_job_definition
+  extends: .native_build_job
   variables:
     IMAGE: centos8
   script:
@@ -239,7 +239,7 @@ build-tcg-disabled:
             260 261 262 263 264 270 272 273 277 279
 
 build-user:
-  <<: *native_build_job_definition
+  extends: .native_build_job
   variables:
     IMAGE: debian-all-test-cross
     CONFIGURE_ARGS: --disable-tools --disable-system
@@ -249,7 +249,7 @@ build-user:
 # we skip sparc64-linux-user until it has been fixed somewhat
 # we skip cris-linux-user as it doesn't use the common run loop
 build-user-plugins:
-  <<: *native_build_job_definition
+  extends: .native_build_job
   variables:
     IMAGE: debian-all-test-cross
     CONFIGURE_ARGS: --disable-tools --disable-system --enable-plugins --enable-debug-tcg --target-list-exclude=sparc64-linux-user,cris-linux-user
@@ -257,7 +257,7 @@ build-user-plugins:
   timeout: 1h 30m
 
 build-clang:
-  <<: *native_build_job_definition
+  extends: .native_build_job
   variables:
     IMAGE: fedora
     CONFIGURE_ARGS: --cc=clang --cxx=clang++
@@ -267,7 +267,7 @@ build-clang:
 
 # These targets are on the way out
 build-deprecated:
-  <<: *native_build_job_definition
+  extends: .native_build_job
   variables:
     IMAGE: debian-all-test-cross
     CONFIGURE_ARGS: --disable-docs --disable-tools
@@ -292,7 +292,7 @@ check-deprecated:
   allow_failure: true
 
 build-oss-fuzz:
-  <<: *native_build_job_definition
+  extends: .native_build_job
   variables:
     IMAGE: fedora
   script:
@@ -310,7 +310,7 @@ build-oss-fuzz:
     - cd build-oss-fuzz && make check-qtest-i386 check-unit
 
 build-tci:
-  <<: *native_build_job_definition
+  extends: .native_build_job
   variables:
     IMAGE: fedora
   script:
@@ -335,7 +335,7 @@ build-tci:
 # These jobs test old gcrypt and nettle from RHEL7
 # which had some API differences.
 build-crypto-old-nettle:
-  <<: *native_build_job_definition
+  extends: .native_build_job
   variables:
     IMAGE: centos7
     TARGETS: x86_64-softmmu x86_64-linux-user
@@ -356,7 +356,7 @@ check-crypto-old-nettle:
 
 
 build-crypto-old-gcrypt:
-  <<: *native_build_job_definition
+  extends: .native_build_job
   variables:
     IMAGE: centos7
     TARGETS: x86_64-softmmu x86_64-linux-user
@@ -377,7 +377,7 @@ check-crypto-old-gcrypt:
 
 
 build-crypto-only-gnutls:
-  <<: *native_build_job_definition
+  extends: .native_build_job
   variables:
     IMAGE: centos7
     TARGETS: x86_64-softmmu x86_64-linux-user
