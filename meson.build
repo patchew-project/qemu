@@ -2095,8 +2095,15 @@ if vnc.found()
   summary_info += {'VNC JPEG support':  jpeg.found()}
   summary_info += {'VNC PNG support':   png.found()}
 endif
-summary_info += {'xen support':       config_host.has_key('CONFIG_XEN_BACKEND')}
 if config_host.has_key('CONFIG_XEN_BACKEND')
+  xen_features = ['backend']
+  if config_all.has_key('CONFIG_XEN_HVM')
+    xen_features += 'HVM'
+  endif
+  if config_all.has_key('CONFIG_XEN_PCI_PASSTHROUGH')
+    xen_features += 'PCI Passthrough'
+  endif
+  summary_info += {'xen features':      ' '.join(xen_features)}
   summary_info += {'xen ctrl version':  config_host['CONFIG_XEN_CTRL_INTERFACE_VERSION']}
 endif
 summary_info += {'brlapi support':    config_host.has_key('CONFIG_BRLAPI')}
@@ -2109,6 +2116,7 @@ summary_info += {'Linux io_uring support': config_host.has_key('CONFIG_LINUX_IO_
 summary_info += {'ATTR/XATTR support': config_host.has_key('CONFIG_ATTR')}
 summary_info += {'Install blobs':     get_option('install_blobs')}
 summary_info += {'KVM support':       config_all.has_key('CONFIG_KVM')}
+summary_info += {'XEN support':       config_all.has_key('CONFIG_XEN')}
 summary_info += {'HAX support':       config_all.has_key('CONFIG_HAX')}
 summary_info += {'HVF support':       config_all.has_key('CONFIG_HVF')}
 summary_info += {'WHPX support':      config_all.has_key('CONFIG_WHPX')}
