@@ -83,6 +83,7 @@ endif
 if cpu in ['x86', 'x86_64']
   accelerator_targets += {
     'CONFIG_HAX': ['i386-softmmu', 'x86_64-softmmu'],
+    'CONFIG_XEN_HVM': ['i386-softmmu', 'x86_64-softmmu'],
     'CONFIG_HVF': ['x86_64-softmmu'],
     'CONFIG_WHPX': ['i386-softmmu', 'x86_64-softmmu'],
   }
@@ -204,6 +205,9 @@ if not get_option('kvm').disabled() and targetos == 'linux'
 endif
 if not get_option('xen').disabled() and 'CONFIG_XEN_BACKEND' in config_host
   accelerators += 'CONFIG_XEN'
+  if host_machine.cpu() == 'x86_64'
+    accelerators += 'CONFIG_XEN_HVM'
+  endif
   have_xen_pci_passthrough = not get_option('xen_pci_passthrough').disabled() and targetos == 'linux'
 else
   have_xen_pci_passthrough = false
@@ -937,7 +941,7 @@ foreach target : target_dirs
     if sym == 'CONFIG_TCG' or target in accelerator_targets.get(sym, [])
       config_target += { sym: 'y' }
       config_all += { sym: 'y' }
-      if sym == 'CONFIG_XEN' and have_xen_pci_passthrough
+      if sym == 'CONFIG_XEN_HVM' and have_xen_pci_passthrough
         config_target += { 'CONFIG_XEN_PCI_PASSTHROUGH': 'y' }
       endif
       have_accel = true
