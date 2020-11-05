@@ -308,11 +308,9 @@ static void rxicu_realize(DeviceState *dev, Error **errp)
         return;
     }
     for (i = j = 0; i < NR_IRQS; i++) {
-        if (icu->init_sense[j] == i) {
+        if (j < icu->nr_sense && icu->init_sense[j] == i) {
             icu->src[i].sense = TRG_LEVEL;
-            if (j < icu->nr_sense) {
-                j++;
-            }
+            j++;
         } else {
             icu->src[i].sense = TRG_PEDGE;
         }
