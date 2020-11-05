@@ -154,9 +154,9 @@ struct UASRequest {
 
 struct UASStatus {
     uint32_t                  stream;
-    uas_iu                    status;
     uint32_t                  length;
     QTAILQ_ENTRY(UASStatus)   next;
+    uas_iu                    status;
 };
 
 /* --------------------------------------------------------------------- */
