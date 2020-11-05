@@ -2962,8 +2962,9 @@ static uint64_t xhci_runtime_read(void *ptr, hwaddr reg,
 {
     XHCIState *xhci = ptr;
     uint32_t ret = 0;
+    int v = (reg - 0x20) / 0x20;
 
-    if (reg < 0x20) {
+    if (reg < 0x20 || v < 0 || v >= XHCI_MAXINTRS) {
         switch (reg) {
         case 0x00: /* MFINDEX */
             ret = xhci_mfindex_get(xhci) & 0x3fff;
@@ -2973,7 +2974,6 @@ static uint64_t xhci_runtime_read(void *ptr, hwaddr reg,
             break;
         }
     } else {
-        int v = (reg - 0x20) / 0x20;
         XHCIInterrupter *intr = &xhci->intr[v];
         switch (reg & 0x1f) {
         case 0x00: /* IMAN */
@@ -3009,13 +3009,15 @@ static void xhci_runtime_write(void *ptr, hwaddr reg,
 {
     XHCIState *xhci = ptr;
     int v = (reg - 0x20) / 0x20;
-    XHCIInterrupter *intr = &xhci->intr[v];
+    XHCIInterrupter *intr;
     trace_usb_xhci_runtime_write(reg, val);
 
-    if (reg < 0x20) {
+    if (reg < 0x20 || v < 0 || v >= XHCI_MAXINTRS) {
         trace_usb_xhci_unimplemented("runtime write", reg);
         return;
     }
+
+    intr = &xhci->intr[v];
 
     switch (reg & 0x1f) {
     case 0x00: /* IMAN */
