@@ -302,6 +302,7 @@ fdt="auto"
 netmap="no"
 sdl="auto"
 sdl_image="auto"
+virtio_legacy="enabled"
 virtiofsd="auto"
 virtfs=""
 libudev="auto"
@@ -1000,6 +1001,10 @@ for opt do
   --disable-libudev) libudev="disabled"
   ;;
   --enable-libudev) libudev="enabled"
+  ;;
+  --disable-virtio-legacy) virtio_legacy="disabled"
+  ;;
+  --enable-virtio-legacy) virtio_legacy="enabled"
   ;;
   --disable-virtiofsd) virtiofsd="disabled"
   ;;
@@ -1764,6 +1769,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   vnc-png         PNG compression for VNC server
   cocoa           Cocoa UI (Mac OS X only)
   virtfs          VirtFS
+  virtio-legacy   enable support for legacy virtio (before VIRTIO 1.0)
   virtiofsd       build virtiofs daemon (virtiofsd)
   libudev         Use libudev to enumerate host devices
   mpath           Multipath persistent reservation passthrough
@@ -6814,6 +6820,10 @@ fi
 
 if test "$safe_stack" = "yes"; then
   echo "CONFIG_SAFESTACK=y" >> $config_host_mak
+fi
+
+if test "$virtio_legacy" = "enabled"; then
+  echo "CONFIG_VIRTIO_LEGACY=y" >> $config_host_mak
 fi
 
 # If we're using a separate build tree, set it up now.
