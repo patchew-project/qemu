@@ -218,6 +218,7 @@ build-disabled:
       --disable-strip --disable-tpm --disable-usb-redir --disable-vdi
       --disable-vhost-crypto --disable-vhost-net --disable-vhost-scsi
       --disable-vhost-user --disable-vhost-vdpa --disable-vhost-vsock
+      --disable-virtio-legacy
       --disable-virglrenderer --disable-vnc --disable-vte --disable-vvfat
       --disable-xen --disable-zstd
     TARGETS: arm-softmmu i386-softmmu ppc64-softmmu mips64-softmmu
