@@ -48,6 +48,10 @@ config VIRTIO_PMEM
     depends on VIRTIO_PMEM_SUPPORTED
     select MEM_DEVICE
 
+config ARCH_VIRTIO_MEM_SUPPORTED
+    bool
+    default n
+
 config VIRTIO_MEM_SUPPORTED
     bool
 
