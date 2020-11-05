@@ -35,6 +35,7 @@ my $summary_file = 0;
 my $root;
 my %debug;
 my $help = 0;
+my $max_line_length = 100;
 
 sub help {
 	my ($exitcode) = @_;
@@ -1628,17 +1629,13 @@ sub process {
 # check we are in a valid source file if not then ignore this hunk
 		next if ($realfile !~ /$SrcFile/);
 
-#90 column limit; exempt URLs, if no other words on line
+#$max_line_length column limit; exempt URLs, if no other words on line
 		if ($line =~ /^\+/ &&
 		    !($line =~ /^\+\s*"[^"]*"\s*(?:\s*|,|\)\s*;)\s*$/) &&
 		    !($rawline =~ /^[^[:alnum:]]*https?:\S*$/) &&
-		    $length > 80)
+		    $length > $max_line_length)
 		{
-			if ($length > 90) {
-				ERROR("line over 90 characters\n" . $herecurr);
-			} else {
-				WARN("line over 80 characters\n" . $herecurr);
-			}
+			WARN("line over $max_line_length characters\n" . $herecurr);
 		}
 
 # check for spaces before a quoted newline
@@ -1831,13 +1828,8 @@ sub process {
 			#print "realcnt<$realcnt> ctx_cnt<$ctx_cnt>\n";
 			#print "pre<$pre_ctx>\nline<$line>\nctx<$ctx>\nnext<$lines[$ctx_ln - 1]>\n";
 
-			# The length of the "previous line" is checked against 80 because it
-			# includes the + at the beginning of the line (if the actual line has
-			# 79 or 80 characters, it is no longer possible to add a space and an
-			# opening brace there)
 			if ($#ctx == 0 && $ctx !~ /{\s*/ &&
-			    defined($lines[$ctx_ln - 1]) && $lines[$ctx_ln - 1] =~ /^\+\s*\{/ &&
-			    defined($lines[$ctx_ln - 2]) && length($lines[$ctx_ln - 2]) < 80) {
+			    defined($lines[$ctx_ln - 1]) && $lines[$ctx_ln - 1] =~ /^\+\s*\{/) {
 				ERROR("that open brace { should be on the previous line\n" .
 					"$here\n$ctx\n$rawlines[$ctx_ln - 1]\n");
 			}
