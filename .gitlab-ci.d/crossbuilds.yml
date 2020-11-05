@@ -1,7 +1,9 @@
-
-.cross_system_build_job:
+.cross_common_job:
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
+
+.cross_system_build_job:
+  extends: .cross_common_job
   timeout: 80m
   script:
     - mkdir build
@@ -14,8 +16,7 @@
     - make -j$(expr $(nproc) + 1) all check-build
 
 .cross_user_build_job:
-  stage: build
-  image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
+  extends: .cross_common_job
   script:
     - mkdir build
     - cd build
