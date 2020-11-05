@@ -13,7 +13,7 @@
 
 typedef hwaddr (*phys_offset_to_gaddr_t)(hwaddr phys_offset,
                                          ram_addr_t size);
-#ifdef CONFIG_XEN
+#ifdef CONFIG_XEN_HVM
 
 void xen_map_cache_init(phys_offset_to_gaddr_t f,
                         void *opaque);

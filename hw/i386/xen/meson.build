@@ -1,4 +1,4 @@
-i386_ss.add(when: 'CONFIG_XEN', if_true: files(
+i386_ss.add(when: 'CONFIG_XEN_HVM', if_true: files(
   'xen-hvm.c',
   'xen-mapcache.c',
   'xen_apic.c',

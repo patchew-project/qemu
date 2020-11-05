@@ -7,8 +7,5 @@
 
 #include "qemu/osdep.h"
 #include "sysemu/xen.h"
-#include "qapi/qapi-commands-migration.h"
 
-void qmp_xen_set_global_dirty_log(bool enable, Error **errp)
-{
-}
+bool xen_allowed;
