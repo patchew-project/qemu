@@ -15,6 +15,44 @@ include:
 
 .native_common_job:
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
+  rules:
+    # If the if statement is true, the job is added to the pipeline.
+    # We only filter for push events
+    - if: '$CI_PIPELINE_SOURCE != "push"'
+    # Build all when no variable defined, or set to "all"
+    - if: $QEMU_BUILD == null || $QEMU_BUILD =~ /^all$/
+    # Build specific job name
+    - if: $QEMU_BUILD == $CI_JOB_NAME
+    # Build jobs using particular distribution image
+    - if: $QEMU_BUILD =~ /centos/ && $IMAGE =~ /^centos/
+    - if: $QEMU_BUILD =~ /debian/ && $IMAGE =~ /^debian/
+    - if: $QEMU_BUILD =~ /fedora/ && $IMAGE =~ /^fedora/
+    - if: $QEMU_BUILD =~ /ubuntu/ && $IMAGE =~ /^ubuntu/
+    # Build set of jobs by feature
+    - if: $QEMU_BUILD =~ /system/ && ($TARGETS =~ /softmmu/ || $CONFIGURE_ARGS =~ /disable-user/)
+    - if: $QEMU_BUILD =~ /user/ && ($TARGETS =~ /user/ || $CONFIGURE_ARGS =~ /disable-system/)
+    - if: $QEMU_BUILD =~ /integration/ && ($CI_JOB_NAME =~ /^integration/ || $CI_JOB_NAME =~ /^build-system/ || $MAKE_CHECK_ARGS =~ /check-acceptance/) # integration depends on build-system
+    - if: $QEMU_BUILD =~ /crypto/ && $CI_JOB_NAME =~ /crypto/
+    - if: $QEMU_BUILD =~ /tci/ && $CI_JOB_NAME =~ /tci$/
+    - if: $QEMU_BUILD =~ /fuzz/ && $CI_JOB_NAME =~ /fuzz$/
+    # Build set of jobs by arch
+    - if: $QEMU_BUILD =~ /aarch64/ && ($CI_JOB_NAME =~ /aarch64/ || $TARGETS =~ /aarch64/)
+    - if: $QEMU_BUILD =~ /alpha/ && ($CI_JOB_NAME =~ /alpha/ || $TARGETS =~ /alpha/)
+    - if: $QEMU_BUILD =~ /arm/ && ($CI_JOB_NAME =~ /arm/ || $TARGETS =~ /arm/)
+    - if: $QEMU_BUILD =~ /avr/ && ($CI_JOB_NAME =~ /avr/ || $TARGETS =~ /avr/)
+    - if: $QEMU_BUILD =~ /hppa/ && ($CI_JOB_NAME =~ /hppa/ || $TARGETS =~ /hppa/)
+    - if: $QEMU_BUILD =~ /i386/ && ($CI_JOB_NAME =~ /i386/ || $TARGETS =~ /i386/)
+    - if: $QEMU_BUILD =~ /lm32/ && ($CI_JOB_NAME =~ /lm32/ || $TARGETS =~ /lm32/)
+    - if: $QEMU_BUILD =~ /m68k/ && ($CI_JOB_NAME =~ /m68k/ || $TARGETS =~ /m68k/)
+    - if: $QEMU_BUILD =~ /ppc/ && ($CI_JOB_NAME =~ /ppc/ || $TARGETS =~ /ppc/)
+    - if: $QEMU_BUILD =~ /riscv/ && ($CI_JOB_NAME =~ /riscv/ || $TARGETS =~ /riscv/)
+    - if: $QEMU_BUILD =~ /s390x/ && ($CI_JOB_NAME =~ /s390x/ || $TARGETS =~ /s390x/)
+    - if: $QEMU_BUILD =~ /sparc/ && ($CI_JOB_NAME =~ /sparc/ || $TARGETS =~ /sparc/)
+    - if: $QEMU_BUILD =~ /tricore/ && ($CI_JOB_NAME =~ /tricore/ || $TARGETS =~ /tricore/)
+    - if: $QEMU_BUILD =~ /x86/ && ($CI_JOB_NAME =~ /x86/ || $TARGETS =~ /x86/)
+    - if: $QEMU_BUILD =~ /xtensa/ && ($CI_JOB_NAME =~ /xtensa/ || $TARGETS =~ /xtensa/)
+    # In all other cases, the job is excluded from a pipeline.
+    - when: never
 
 .native_build_job:
   extends: .native_common_job
