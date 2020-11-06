@@ -338,7 +338,7 @@ static void scsi_read_complete(void *opaque, int ret)
 static void scsi_do_read(SCSIDiskReq *r, int ret)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
-    SCSIDiskClass *sdc = (SCSIDiskClass *) object_get_class(OBJECT(s));
+    SCSIDiskClass *sdc = SCSI_DISK_GET_CLASS(s);
 
     assert (r->req.aiocb == NULL);
     if (scsi_disk_req_check_error(r, ret, false)) {
@@ -438,7 +438,7 @@ static bool scsi_handle_rw_error(SCSIDiskReq *r, int error, bool acct_failed)
 {
     bool is_read = (r->req.cmd.mode == SCSI_XFER_FROM_DEV);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
-    SCSIDiskClass *sdc = (SCSIDiskClass *) object_get_class(OBJECT(s));
+    SCSIDiskClass *sdc = SCSI_DISK_GET_CLASS(s);
     BlockErrorAction action = blk_get_error_action(s->qdev.conf.blk,
                                                    is_read, error);
 
@@ -538,7 +538,7 @@ static void scsi_write_data(SCSIRequest *req)
 {
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
-    SCSIDiskClass *sdc = (SCSIDiskClass *) object_get_class(OBJECT(s));
+    SCSIDiskClass *sdc = SCSI_DISK_GET_CLASS(s);
 
     /* No data transfer may already be in progress */
     assert(r->req.aiocb == NULL);
@@ -2149,7 +2149,7 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
 {
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
-    SCSIDiskClass *sdc = (SCSIDiskClass *) object_get_class(OBJECT(s));
+    SCSIDiskClass *sdc = SCSI_DISK_GET_CLASS(s);
     uint32_t len;
     uint8_t command;
 
