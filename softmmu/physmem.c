@@ -2954,7 +2954,14 @@ static inline MemTxResult address_space_write_rom_internal(AddressSpace *as,
                 invalidate_and_set_dirty(mr, addr1, l);
                 break;
             case FLUSH_CACHE:
-                flush_icache_range((uintptr_t)ram_ptr, (uintptr_t)ram_ptr + l);
+                /*
+                 * FIXME: This function is currently located in tcg/host/,
+                 * but we never come here when tcg is enabled; only for
+                 * real hardware acceleration.  This can actively fail
+                 * when TCI is configured, since that function is a nop.
+                 * We should move this to util/ or something.
+                 */
+                flush_idcache_range((uintptr_t)ram_ptr, (uintptr_t)ram_ptr, l);
                 break;
             }
         }
