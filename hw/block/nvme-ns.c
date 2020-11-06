@@ -25,6 +25,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-core.h"
 
+#include "trace.h"
 #include "nvme.h"
 #include "nvme-ns.h"
 
@@ -74,6 +75,151 @@ static int nvme_ns_init_blk(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
     return 0;
 }
 
+static int nvme_calc_zone_geometry(NvmeNamespace *ns, Error **errp)
+{
+    uint64_t zone_size, zone_cap;
+    uint32_t nz, lbasz = ns->blkconf.logical_block_size;
+
+    if (ns->params.zone_size_bs) {
+        zone_size = ns->params.zone_size_bs;
+    } else {
+        zone_size = NVME_DEFAULT_ZONE_SIZE;
+    }
+    if (ns->params.zone_cap_bs) {
+        zone_cap = ns->params.zone_cap_bs;
+    } else {
+        zone_cap = zone_size;
+    }
+    if (zone_cap > zone_size) {
+        error_setg(errp, "zone capacity %luB exceeds zone size %luB",
+                   zone_cap, zone_size);
+        return -1;
+    }
+    if (zone_size < lbasz) {
+        error_setg(errp, "zone size %luB too small, must be at least %uB",
+                   zone_size, lbasz);
+        return -1;
+    }
+    if (zone_cap < lbasz) {
+        error_setg(errp, "zone capacity %luB too small, must be at least %uB",
+                   zone_cap, lbasz);
+        return -1;
+    }
+    ns->zone_size = zone_size / lbasz;
+    ns->zone_capacity = zone_cap / lbasz;
+
+    nz = DIV_ROUND_UP(ns->size / lbasz, ns->zone_size);
+    ns->num_zones = nz;
+    ns->zone_array_size = sizeof(NvmeZone) * nz;
+    ns->zone_size_log2 = 0;
+    if (is_power_of_2(ns->zone_size)) {
+        ns->zone_size_log2 = 63 - clz64(ns->zone_size);
+    }
+
+    return 0;
+}
+
+static void nvme_init_zone_state(NvmeNamespace *ns)
+{
+    uint64_t start = 0, zone_size = ns->zone_size;
+    uint64_t capacity = ns->num_zones * zone_size;
+    NvmeZone *zone;
+    int i;
+
+    ns->zone_array = g_malloc0(ns->zone_array_size);
+
+    QTAILQ_INIT(&ns->exp_open_zones);
+    QTAILQ_INIT(&ns->imp_open_zones);
+    QTAILQ_INIT(&ns->closed_zones);
+    QTAILQ_INIT(&ns->full_zones);
+
+    zone = ns->zone_array;
+    for (i = 0; i < ns->num_zones; i++, zone++) {
+        if (start + zone_size > capacity) {
+            zone_size = capacity - start;
+        }
+        zone->d.zt = NVME_ZONE_TYPE_SEQ_WRITE;
+        nvme_set_zone_state(zone, NVME_ZONE_STATE_EMPTY);
+        zone->d.za = 0;
+        zone->d.zcap = ns->zone_capacity;
+        zone->d.zslba = start;
+        zone->d.wp = start;
+        zone->w_ptr = start;
+        start += zone_size;
+    }
+}
+
+static int nvme_zoned_init_ns(NvmeCtrl *n, NvmeNamespace *ns, int lba_index,
+                              Error **errp)
+{
+    NvmeIdNsZoned *id_ns_z;
+
+    if (nvme_calc_zone_geometry(ns, errp) != 0) {
+        return -1;
+    }
+
+    nvme_init_zone_state(ns);
+
+    id_ns_z = g_malloc0(sizeof(NvmeIdNsZoned));
+
+    /* MAR/MOR are zeroes-based, 0xffffffff means no limit */
+    id_ns_z->mar = 0xffffffff;
+    id_ns_z->mor = 0xffffffff;
+    id_ns_z->zoc = 0;
+    id_ns_z->ozcs = ns->params.cross_zone_read ? 0x01 : 0x00;
+
+    id_ns_z->lbafe[lba_index].zsze = cpu_to_le64(ns->zone_size);
+    id_ns_z->lbafe[lba_index].zdes = 0;
+
+    ns->csi = NVME_CSI_ZONED;
+    ns->id_ns.nsze = cpu_to_le64(ns->zone_size * ns->num_zones);
+    ns->id_ns.ncap = cpu_to_le64(ns->zone_capacity * ns->num_zones);
+    ns->id_ns.nuse = ns->id_ns.ncap;
+
+    ns->id_ns_zoned = id_ns_z;
+
+    return 0;
+}
+
+static void nvme_clear_zone(NvmeNamespace *ns, NvmeZone *zone)
+{
+    uint8_t state;
+
+    zone->w_ptr = zone->d.wp;
+    state = nvme_get_zone_state(zone);
+    if (zone->d.wp != zone->d.zslba) {
+        if (state != NVME_ZONE_STATE_CLOSED) {
+            trace_pci_nvme_clear_ns_close(state, zone->d.zslba);
+            nvme_set_zone_state(zone, NVME_ZONE_STATE_CLOSED);
+        }
+        QTAILQ_INSERT_HEAD(&ns->closed_zones, zone, entry);
+    } else {
+        trace_pci_nvme_clear_ns_reset(state, zone->d.zslba);
+        nvme_set_zone_state(zone, NVME_ZONE_STATE_EMPTY);
+    }
+}
+
+/*
+ * Close all the zones that are currently open.
+ */
+static void nvme_zoned_ns_shutdown(NvmeNamespace *ns)
+{
+    NvmeZone *zone, *next;
+
+    QTAILQ_FOREACH_SAFE(zone, &ns->closed_zones, entry, next) {
+        QTAILQ_REMOVE(&ns->closed_zones, zone, entry);
+        nvme_clear_zone(ns, zone);
+    }
+    QTAILQ_FOREACH_SAFE(zone, &ns->imp_open_zones, entry, next) {
+        QTAILQ_REMOVE(&ns->imp_open_zones, zone, entry);
+        nvme_clear_zone(ns, zone);
+    }
+    QTAILQ_FOREACH_SAFE(zone, &ns->exp_open_zones, entry, next) {
+        QTAILQ_REMOVE(&ns->exp_open_zones, zone, entry);
+        nvme_clear_zone(ns, zone);
+    }
+}
+
 static int nvme_ns_check_constraints(NvmeNamespace *ns, Error **errp)
 {
     if (!ns->blkconf.blk) {
@@ -95,6 +241,12 @@ int nvme_ns_setup(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
     }
 
     nvme_ns_init(ns);
+    if (ns->params.zoned) {
+        if (nvme_zoned_init_ns(n, ns, 0, errp) != 0) {
+            return -1;
+        }
+    }
+
     if (nvme_register_namespace(n, ns, errp)) {
         return -1;
     }
@@ -110,6 +262,21 @@ void nvme_ns_drain(NvmeNamespace *ns)
 void nvme_ns_flush(NvmeNamespace *ns)
 {
     blk_flush(ns->blkconf.blk);
+}
+
+void nvme_ns_shutdown(NvmeNamespace *ns)
+{
+    if (ns->params.zoned) {
+        nvme_zoned_ns_shutdown(ns);
+    }
+}
+
+void nvme_ns_cleanup(NvmeNamespace *ns)
+{
+    if (ns->params.zoned) {
+        g_free(ns->id_ns_zoned);
+        g_free(ns->zone_array);
+    }
 }
 
 static void nvme_ns_realize(DeviceState *dev, Error **errp)
@@ -130,6 +297,12 @@ static Property nvme_ns_props[] = {
     DEFINE_BLOCK_PROPERTIES(NvmeNamespace, blkconf),
     DEFINE_PROP_UINT32("nsid", NvmeNamespace, params.nsid, 0),
     DEFINE_PROP_UUID("uuid", NvmeNamespace, params.uuid),
+    DEFINE_PROP_BOOL("zoned", NvmeNamespace, params.zoned, false),
+    DEFINE_PROP_SIZE("zoned.zsze", NvmeNamespace, params.zone_size_bs,
+                     NVME_DEFAULT_ZONE_SIZE),
+    DEFINE_PROP_SIZE("zoned.zcap", NvmeNamespace, params.zone_cap_bs, 0),
+    DEFINE_PROP_BOOL("zoned.cross_read", NvmeNamespace,
+                     params.cross_zone_read, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
