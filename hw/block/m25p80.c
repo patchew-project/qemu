@@ -413,6 +413,12 @@ typedef enum {
     MAN_GENERIC,
 } Manufacturer;
 
+typedef enum {
+    MODE_STD = 0,
+    MODE_DIO = 1,
+    MODE_QIO = 2
+} SPIMode;
+
 #define M25P80_INTERNAL_DATA_BUFFER_SZ 16
 
 struct Flash {
@@ -820,6 +826,70 @@ static void reset_memory(Flash *s)
     trace_m25p80_reset_done(s);
 }
 
+static uint8_t numonyx_get_mode(Flash *s)
+{
+    uint8_t mode;
+
+    if (s->enh_volatile_cfg & EVCFG_QUAD_IO_ENABLED) {
+        mode = MODE_QIO;
+    } else if (s->enh_volatile_cfg & EVCFG_DUAL_IO_ENABLED) {
+        mode = MODE_DIO;
+    } else {
+        mode = MODE_STD;
+    }
+
+    return mode;
+}
+
+static bool numonyx_check_cmd_mode(Flash *s)
+{
+    uint8_t mode;
+    assert(get_man(s) == MAN_NUMONYX);
+
+    mode = numonyx_get_mode(s);
+
+    switch (mode) {
+    case MODE_STD:
+        return true;
+    case MODE_DIO:
+        switch (s->cmd_in_progress) {
+        case QOR:
+        case QOR4:
+        case QIOR:
+        case QIOR4:
+        case QPP:
+        case QPP_4:
+        case PP4_4:
+        case JEDEC_READ:
+        case READ:
+        case READ4:
+            qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Cannot execute cmd %x in "
+                          "DIO mode\n", s->cmd_in_progress);
+            return false;
+        default:
+            return true;
+        }
+    case MODE_QIO:
+        switch (s->cmd_in_progress) {
+        case DOR:
+        case DOR4:
+        case DIOR:
+        case DIOR4:
+        case DPP:
+        case JEDEC_READ:
+        case READ:
+        case READ4:
+            qemu_log_mask(LOG_GUEST_ERROR, "M25P80: Cannot execute cmd %x in "
+                          "QIO mode\n", s->cmd_in_progress);
+            return false;
+        default:
+            return true;
+        }
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static void decode_fast_read_cmd(Flash *s)
 {
     s->needed_bytes = get_addr_length(s);
@@ -827,9 +897,13 @@ static void decode_fast_read_cmd(Flash *s)
     /* Dummy cycles - modeled with bytes writes instead of bits */
     case MAN_WINBOND:
         s->needed_bytes += 8;
+        s->state = STATE_COLLECTING_DATA;
         break;
     case MAN_NUMONYX:
-        s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
+        if (numonyx_check_cmd_mode(s)) {
+            s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
+            s->state = STATE_COLLECTING_DATA;
+        }
         break;
     case MAN_MACRONIX:
         if (extract32(s->volatile_cfg, 6, 2) == 1) {
@@ -837,19 +911,21 @@ static void decode_fast_read_cmd(Flash *s)
         } else {
             s->needed_bytes += 8;
         }
+        s->state = STATE_COLLECTING_DATA;
         break;
     case MAN_SPANSION:
         s->needed_bytes += extract32(s->spansion_cr2v,
                                     SPANSION_DUMMY_CLK_POS,
                                     SPANSION_DUMMY_CLK_LEN
                                     );
+        s->state = STATE_COLLECTING_DATA;
         break;
     default:
+        s->state = STATE_COLLECTING_DATA;
         break;
     }
     s->pos = 0;
     s->len = 0;
-    s->state = STATE_COLLECTING_DATA;
 }
 
 static void decode_dio_read_cmd(Flash *s)
@@ -859,6 +935,7 @@ static void decode_dio_read_cmd(Flash *s)
     switch (get_man(s)) {
     case MAN_WINBOND:
         s->needed_bytes += WINBOND_CONTINUOUS_READ_MODE_CMD_LEN;
+        s->state = STATE_COLLECTING_DATA;
         break;
     case MAN_SPANSION:
         s->needed_bytes += SPANSION_CONTINUOUS_READ_MODE_CMD_LEN;
@@ -866,9 +943,13 @@ static void decode_dio_read_cmd(Flash *s)
                                     SPANSION_DUMMY_CLK_POS,
                                     SPANSION_DUMMY_CLK_LEN
                                     );
+        s->state = STATE_COLLECTING_DATA;
         break;
     case MAN_NUMONYX:
-        s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
+        if (numonyx_check_cmd_mode(s)) {
+            s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
+            s->state = STATE_COLLECTING_DATA;
+        }
         break;
     case MAN_MACRONIX:
         switch (extract32(s->volatile_cfg, 6, 2)) {
@@ -882,13 +963,14 @@ static void decode_dio_read_cmd(Flash *s)
             s->needed_bytes += 4;
             break;
         }
+        s->state = STATE_COLLECTING_DATA;
         break;
     default:
+        s->state = STATE_COLLECTING_DATA;
         break;
     }
     s->pos = 0;
     s->len = 0;
-    s->state = STATE_COLLECTING_DATA;
 }
 
 static void decode_qio_read_cmd(Flash *s)
@@ -899,6 +981,7 @@ static void decode_qio_read_cmd(Flash *s)
     case MAN_WINBOND:
         s->needed_bytes += WINBOND_CONTINUOUS_READ_MODE_CMD_LEN;
         s->needed_bytes += 4;
+        s->state = STATE_COLLECTING_DATA;
         break;
     case MAN_SPANSION:
         s->needed_bytes += SPANSION_CONTINUOUS_READ_MODE_CMD_LEN;
@@ -906,9 +989,13 @@ static void decode_qio_read_cmd(Flash *s)
                                     SPANSION_DUMMY_CLK_POS,
                                     SPANSION_DUMMY_CLK_LEN
                                     );
+        s->state = STATE_COLLECTING_DATA;
         break;
     case MAN_NUMONYX:
-        s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
+        if (numonyx_check_cmd_mode(s)) {
+            s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
+            s->state = STATE_COLLECTING_DATA;
+        }
         break;
     case MAN_MACRONIX:
         switch (extract32(s->volatile_cfg, 6, 2)) {
@@ -922,13 +1009,14 @@ static void decode_qio_read_cmd(Flash *s)
             s->needed_bytes += 6;
             break;
         }
+        s->state = STATE_COLLECTING_DATA;
         break;
     default:
+        s->state = STATE_COLLECTING_DATA;
         break;
     }
     s->pos = 0;
     s->len = 0;
-    s->state = STATE_COLLECTING_DATA;
 }
 
 static void decode_new_cmd(Flash *s, uint32_t value)
@@ -950,6 +1038,15 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     case ERASE4_32K:
     case ERASE_SECTOR:
     case ERASE4_SECTOR:
+    case DIE_ERASE:
+    case RDID_90:
+    case RDID_AB:
+        s->needed_bytes = get_addr_length(s);
+        s->pos = 0;
+        s->len = 0;
+        s->state = STATE_COLLECTING_DATA;
+        break;
+
     case READ:
     case READ4:
     case DPP:
@@ -958,13 +1055,19 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     case PP:
     case PP4:
     case PP4_4:
-    case DIE_ERASE:
-    case RDID_90:
-    case RDID_AB:
-        s->needed_bytes = get_addr_length(s);
-        s->pos = 0;
-        s->len = 0;
-        s->state = STATE_COLLECTING_DATA;
+        if (get_man(s) == MAN_NUMONYX) {
+            if (numonyx_check_cmd_mode(s)) {
+                s->needed_bytes = get_addr_length(s);
+                s->pos = 0;
+                s->len = 0;
+                s->state = STATE_COLLECTING_DATA;
+            }
+        } else {
+            s->needed_bytes = get_addr_length(s);
+            s->pos = 0;
+            s->len = 0;
+            s->state = STATE_COLLECTING_DATA;
+        }
         break;
 
     case FAST_READ:
@@ -1035,6 +1138,9 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         break;
 
     case JEDEC_READ:
+        if (get_man(s) == MAN_NUMONYX && !numonyx_check_cmd_mode(s)) {
+            break;
+        }
         trace_m25p80_populated_jedec(s);
         for (i = 0; i < s->pi->id_len; i++) {
             s->data[i] = s->pi->id[i];
