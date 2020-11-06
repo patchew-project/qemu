@@ -783,10 +783,10 @@ static void reset_memory(Flash *s)
         s->enh_volatile_cfg |= EVCFG_OUT_DRIVER_STRENGTH_DEF;
         s->enh_volatile_cfg |= EVCFG_VPP_ACCELERATOR;
         s->enh_volatile_cfg |= EVCFG_RESET_HOLD_ENABLED;
-        if (s->nonvolatile_cfg & NVCFG_DUAL_IO_MASK) {
+        if (!(s->nonvolatile_cfg & NVCFG_DUAL_IO_MASK)) {
             s->enh_volatile_cfg |= EVCFG_DUAL_IO_ENABLED;
         }
-        if (s->nonvolatile_cfg & NVCFG_QUAD_IO_MASK) {
+        if (!(s->nonvolatile_cfg & NVCFG_QUAD_IO_MASK)) {
             s->enh_volatile_cfg |= EVCFG_QUAD_IO_ENABLED;
         }
         if (!(s->nonvolatile_cfg & NVCFG_4BYTE_ADDR_MASK)) {
