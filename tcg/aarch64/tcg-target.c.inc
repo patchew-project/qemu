@@ -2968,3 +2968,67 @@ void tcg_register_jit(const void *buf, size_t buf_size)
 {
     tcg_register_jit_int(buf, buf_size, &debug_frame, sizeof(debug_frame));
 }
+
+/* Flush the dcache at RW, and the icache at RX, as necessary. */
+#ifdef CONFIG_DARWIN
+/* Apple does not expose CTR_EL0, so we must use system interfaces. */
+extern void sys_icache_invalidate(void *start, size_t len);
+extern void sys_dcache_flush(void *start, size_t len);
+void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
+{
+    sys_dcache_flush((void *)rw, len);
+    sys_icache_invalidate((void *)rx, len);
+}
+#else
+/*
+ * This is a copy of gcc's __aarch64_sync_cache_range, modified
+ * to fit this three-operand interface.
+ */
+void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
+{
+    const unsigned CTR_IDC = 1u << 28;
+    const unsigned CTR_DIC = 1u << 29;
+    static unsigned int cache_info;
+    uintptr_t icache_lsize, dcache_lsize, p;
+
+    if (!cache_info) {
+        /*
+         * CTR_EL0 [3:0] contains log2 of icache line size in words.
+         * CTR_EL0 [19:16] contains log2 of dcache line size in words.
+         */
+        asm volatile("mrs\t%0, ctr_el0" : "=r"(cache_info));
+    }
+
+    icache_lsize = 4 << extract32(cache_info, 0, 4);
+    dcache_lsize = 4 << extract32(cache_info, 16, 4);
+
+    /*
+     * If CTR_EL0.IDC is enabled, Data cache clean to the Point of Unification
+     * is not required for instruction to data coherence.
+     */
+    if (!(cache_info & CTR_IDC)) {
+        /*
+         * Loop over the address range, clearing one cache line at once.
+         * Data cache must be flushed to unification first to make sure
+         * the instruction cache fetches the updated data.
+         */
+        for (p = rw & -dcache_lsize; p < rw + len; p += dcache_lsize) {
+            asm volatile("dc\tcvau, %0" : : "r" (p) : "memory");
+        }
+        asm volatile("dsb\tish" : : : "memory");
+    }
+
+    /*
+     * If CTR_EL0.DIC is enabled, Instruction cache cleaning to the Point
+     * of Unification is not required for instruction to data coherence.
+     */
+    if (!(cache_info & CTR_DIC)) {
+        for (p = rx & -icache_lsize; p < rx + len; p += icache_lsize) {
+            asm volatile("ic\tivau, %0" : : "r"(p) : "memory");
+        }
+        asm volatile ("dsb\tish" : : : "memory");
+    }
+
+    asm volatile("isb" : : : "memory");
+}
+#endif /* CONFIG_DARWIN */
