@@ -841,6 +841,43 @@ static uint8_t numonyx_get_mode(Flash *s)
     return mode;
 }
 
+static uint8_t numonyx_extract_cfg_num_dummies(Flash *s)
+{
+    uint8_t cycle_count;
+    uint8_t num_dummies;
+    uint8_t mode;
+    uint8_t cycle_table[0x100][3] = {
+        [FAST_READ] = {8, 8, 10},
+        [FAST_READ4] = {8, 8, 10},
+        [DOR] = {8, 8, 0xff},
+        [DOR4] = {8, 8, 0xff},
+        [QOR] = {8, 0xff, 10},
+        [QOR4] = {8, 0xff, 10},
+        [DIOR] = {8, 8, 0xff},
+        [DIOR4] = {8, 8, 0xff},
+        [QIOR] = {10, 0xff, 10},
+        [QIOR4] = {10, 0xff, 10},
+    };
+    assert(get_man(s) == MAN_NUMONYX);
+
+    mode = numonyx_get_mode(s);
+
+    cycle_count = extract32(s->volatile_cfg, 4, 4);
+    if (cycle_count == 0x0 || cycle_count == 0xf) {
+        num_dummies = cycle_table[s->cmd_in_progress][mode];
+    } else {
+        num_dummies = cycle_count;
+    }
+
+    /*
+     * Validation if the command can be executed should be done outside of
+     * this function. e.g. trying to execute DIOR in QIO mode.
+     */
+    assert(num_dummies != 0xff);
+
+    return num_dummies;
+}
+
 static bool numonyx_check_cmd_mode(Flash *s)
 {
     uint8_t mode;
@@ -901,7 +938,7 @@ static void decode_fast_read_cmd(Flash *s)
         break;
     case MAN_NUMONYX:
         if (numonyx_check_cmd_mode(s)) {
-            s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
+            s->needed_bytes += numonyx_extract_cfg_num_dummies(s);
             s->state = STATE_COLLECTING_DATA;
         }
         break;
@@ -947,7 +984,7 @@ static void decode_dio_read_cmd(Flash *s)
         break;
     case MAN_NUMONYX:
         if (numonyx_check_cmd_mode(s)) {
-            s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
+            s->needed_bytes += numonyx_extract_cfg_num_dummies(s);
             s->state = STATE_COLLECTING_DATA;
         }
         break;
@@ -993,7 +1030,7 @@ static void decode_qio_read_cmd(Flash *s)
         break;
     case MAN_NUMONYX:
         if (numonyx_check_cmd_mode(s)) {
-            s->needed_bytes += extract32(s->volatile_cfg, 4, 4);
+            s->needed_bytes += numonyx_extract_cfg_num_dummies(s);
             s->state = STATE_COLLECTING_DATA;
         }
         break;
