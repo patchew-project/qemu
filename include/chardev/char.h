@@ -70,6 +70,14 @@ struct Chardev {
     DECLARE_BITMAP(features, QEMU_CHAR_FEATURE_LAST);
 };
 
+typedef struct {
+    uint8_t buf[CHR_READ_BUF_LEN];
+    int load;
+    int cursor;
+    int brace_count;
+    int bracket_count;
+} JSONthrottle;
+
 /**
  * qemu_chr_new_from_opts:
  * @opts: see qemu-config.c for a list of valid options
@@ -139,6 +147,13 @@ Chardev *qemu_chr_new_mux_mon(const char *label, const char *filename,
  * Change an existing character backend
  */
 void qemu_chr_change(QemuOpts *opts, Error **errp);
+
+/**
+ * Split the incoming buffered stream so that the QMP monitor queue is not
+ * overwhelmed with requests. The function looks for the last paired
+ * brace/bracket in a JSON command.
+ */
+int qemu_chr_end_position(const char *buf, int size, JSONthrottle *thl);
 
 /**
  * qemu_chr_cleanup:

@@ -33,6 +33,8 @@
 #include "chardev/char-fd.h"
 #include "chardev/char-io.h"
 
+#include "monitor/monitor-internal.h"
+
 /* Called with chr_write_lock held.  */
 static int fd_chr_write(Chardev *chr, const uint8_t *buf, int len)
 {
@@ -41,7 +43,7 @@ static int fd_chr_write(Chardev *chr, const uint8_t *buf, int len)
     return io_channel_send(s->ioc_out, buf, len);
 }
 
-static gboolean fd_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
+static gboolean fd_chr_read_hmp(QIOChannel *chan, void *opaque)
 {
     Chardev *chr = CHARDEV(opaque);
     FDChardev *s = FD_CHARDEV(opaque);
@@ -69,6 +71,66 @@ static gboolean fd_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
     }
 
     return TRUE;
+}
+
+static gboolean fd_chr_read_qmp(QIOChannel *chan, void *opaque)
+{
+    static JSONthrottle thl = {0};
+    uint8_t *start;
+    Chardev *chr = CHARDEV(opaque);
+    FDChardev *s = FD_CHARDEV(opaque);
+    int len, size, pos;
+    ssize_t ret;
+
+    if (!thl.load) {
+        len = sizeof(thl.buf);
+        if (len > s->max_size) {
+            len = s->max_size;
+        }
+        if (len == 0) {
+            return TRUE;
+        }
+
+        ret = qio_channel_read(
+            chan, (gchar *)thl.buf, len, NULL);
+        if (ret == 0) {
+            remove_fd_in_watch(chr);
+            qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
+            thl = (const JSONthrottle){0};
+            return FALSE;
+        }
+        if (ret < 0) {
+            return TRUE;
+        }
+        thl.load = ret;
+        thl.cursor = 0;
+    }
+
+    size = thl.load;
+    start = thl.buf + thl.cursor;
+    pos = qemu_chr_end_position((const char *) start, size, &thl);
+    if (pos >= 0) {
+        size = pos + 1;
+    }
+
+    qemu_chr_be_write(chr, start, size);
+    thl.cursor += size;
+    thl.load -= size;
+
+    return TRUE;
+}
+
+static gboolean fd_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
+{
+    Chardev *chr = CHARDEV(opaque);
+    CharBackend *be = chr->be;
+    Monitor *mon = (Monitor *)be->opaque;
+
+    if (monitor_is_qmp(mon)) {
+        return fd_chr_read_qmp(chan, opaque);
+    }
+
+    return fd_chr_read_hmp(chan, opaque);
 }
 
 static int fd_chr_read_poll(void *opaque)

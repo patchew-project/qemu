@@ -1178,6 +1178,46 @@ GSource *qemu_chr_timeout_add_ms(Chardev *chr, guint ms,
     return source;
 }
 
+/*
+ * Split the incoming buffered stream so that the QMP monitor queue is not
+ * overwhelmed with requests. The function looks for the last paired
+ * brace/bracket in a JSON command.
+ */
+int qemu_chr_end_position(const char *buf, int size, JSONthrottle *thl)
+{
+    int i;
+
+    for (i = 0; i < size; i++) {
+        switch (buf[i]) {
+        case ' ':
+        case '\n':
+        case '\r':
+            continue;
+        case '{':
+            thl->brace_count++;
+            break;
+        case '}':
+            thl->brace_count--;
+            break;
+        case '[':
+            thl->bracket_count++;
+            break;
+        case ']':
+            thl->bracket_count--;
+            break;
+        default:
+            break;
+        }
+        /* The same condition as it is in the json_message_process_token() */
+        if ((thl->brace_count > 0 || thl->bracket_count > 0)
+            && thl->brace_count >= 0 && thl->bracket_count >= 0) {
+            continue;
+        }
+        return i;
+    }
+    return -1;
+}
+
 void qemu_chr_cleanup(void)
 {
     object_unparent(get_chardevs_root());

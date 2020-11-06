@@ -520,30 +520,54 @@ static void tcp_chr_disconnect(Chardev *chr)
 
 static gboolean tcp_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
 {
+    static JSONthrottle thl = {0};
+    uint8_t *start;
     Chardev *chr = CHARDEV(opaque);
     SocketChardev *s = SOCKET_CHARDEV(opaque);
-    uint8_t buf[CHR_READ_BUF_LEN];
-    int len, size;
+    int len, size, pos;
 
     if ((s->state != TCP_CHARDEV_STATE_CONNECTED) ||
         s->max_size <= 0) {
         return TRUE;
     }
-    len = sizeof(buf);
-    if (len > s->max_size) {
-        len = s->max_size;
+
+    if (!thl.load) {
+        len = sizeof(thl.buf);
+        if (len > s->max_size) {
+            len = s->max_size;
+        }
+        size = tcp_chr_recv(chr, (void *)thl.buf, len);
+        if (size == 0 || (size == -1 && errno != EAGAIN)) {
+            /* connection closed */
+            tcp_chr_disconnect(chr);
+            thl = (const JSONthrottle){0};
+            return TRUE;
+        }
+        if (size < 0) {
+            return TRUE;
+        }
+        thl.load = size;
+        thl.cursor = 0;
     }
-    size = tcp_chr_recv(chr, (void *)buf, len);
-    if (size == 0 || (size == -1 && errno != EAGAIN)) {
-        /* connection closed */
-        tcp_chr_disconnect(chr);
-    } else if (size > 0) {
-        if (s->do_telnetopt) {
-            tcp_chr_process_IAC_bytes(chr, s, buf, &size);
-        }
-        if (size > 0) {
-            qemu_chr_be_write(chr, buf, size);
-        }
+
+    size = thl.load;
+    start = thl.buf + thl.cursor;
+    pos = qemu_chr_end_position((const char *) start, size, &thl);
+    if (pos >= 0) {
+        size = pos + 1;
+    }
+    len = size;
+
+    if (s->do_telnetopt) {
+        tcp_chr_process_IAC_bytes(chr, s, start, &size);
+    }
+    if (size > 0) {
+        qemu_chr_be_write(chr, start, size);
+        thl.cursor += size;
+        thl.load -= size;
+    } else {
+        thl.cursor += len;
+        thl.load -= len;
     }
 
     return TRUE;
