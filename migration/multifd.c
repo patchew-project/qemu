@@ -523,6 +523,19 @@ static void multifd_send_terminate_threads(Error *err)
     }
 }
 
+static void multifd_tls_socket_close(QIOChannel *ioc, Error *err)
+{
+    if (ioc &&
+        object_dynamic_cast(OBJECT(ioc),
+                            TYPE_QIO_CHANNEL_TLS)) {
+        /*
+         * TLS channel is special, we need close it before
+         * socket finalize.
+         */
+        qio_channel_close(ioc, &err);
+    }
+}
+
 void multifd_save_cleanup(void)
 {
     int i;
@@ -542,6 +555,7 @@ void multifd_save_cleanup(void)
         MultiFDSendParams *p = &multifd_send_state->params[i];
         Error *local_err = NULL;
 
+        multifd_tls_socket_close(p->c, NULL);
         socket_send_channel_destroy(p->c);
         p->c = NULL;
         qemu_mutex_destroy(&p->mutex);
