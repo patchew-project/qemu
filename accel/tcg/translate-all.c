@@ -1257,14 +1257,14 @@ static bool alloc_code_gen_buffer_splitwx_vmremap(size_t size, Error **errp)
 
 static bool alloc_code_gen_buffer_splitwx(size_t size, Error **errp)
 {
-    if (TCG_TARGET_SUPPORT_MIRROR) {
-#ifdef CONFIG_DARWIN
-        return alloc_code_gen_buffer_splitwx_vmremap(size, errp);
+#ifndef CONFIG_TCG_INTERPRETER
+# ifdef CONFIG_DARWIN
+    return alloc_code_gen_buffer_splitwx_vmremap(size, errp);
+# endif
+# ifdef CONFIG_POSIX
+    return alloc_code_gen_buffer_splitwx_memfd(size, errp);
+# endif
 #endif
-#ifdef CONFIG_POSIX
-        return alloc_code_gen_buffer_splitwx_memfd(size, errp);
-#endif
-    }
     error_setg(errp, "jit split-wx not supported");
     return false;
 }
