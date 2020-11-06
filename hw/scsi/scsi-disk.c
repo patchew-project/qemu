@@ -53,9 +53,9 @@
 #define DEFAULT_MAX_UNMAP_SIZE      (1 * GiB)
 #define DEFAULT_MAX_IO_SIZE         INT_MAX     /* 2 GB - 1 block */
 
-#define TYPE_SCSI_DISK_BASE         "scsi-disk-base"
+#define TYPE_SCSI_DISK              "scsi-disk-base"
 
-OBJECT_DECLARE_TYPE(SCSIDiskState, SCSIDiskClass, SCSI_DISK_BASE)
+OBJECT_DECLARE_TYPE(SCSIDiskState, SCSIDiskClass, SCSI_DISK)
 
 struct SCSIDiskClass {
     SCSIDeviceClass parent_class;
@@ -2956,7 +2956,7 @@ BlockAIOCB *scsi_dma_writev(int64_t offset, QEMUIOVector *iov,
 static void scsi_disk_base_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SCSIDiskClass *sdc = SCSI_DISK_BASE_CLASS(klass);
+    SCSIDiskClass *sdc = SCSI_DISK_CLASS(klass);
 
     dc->fw_name = "disk";
     dc->reset = scsi_disk_reset;
@@ -2966,7 +2966,7 @@ static void scsi_disk_base_class_initfn(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo scsi_disk_base_info = {
-    .name          = TYPE_SCSI_DISK_BASE,
+    .name          = TYPE_SCSI_DISK,
     .parent        = TYPE_SCSI_DEVICE,
     .class_init    = scsi_disk_base_class_initfn,
     .instance_size = sizeof(SCSIDiskState),
@@ -3036,7 +3036,7 @@ static void scsi_hd_class_initfn(ObjectClass *klass, void *data)
 
 static const TypeInfo scsi_hd_info = {
     .name          = "scsi-hd",
-    .parent        = TYPE_SCSI_DISK_BASE,
+    .parent        = TYPE_SCSI_DISK,
     .class_init    = scsi_hd_class_initfn,
 };
 
@@ -3067,7 +3067,7 @@ static void scsi_cd_class_initfn(ObjectClass *klass, void *data)
 
 static const TypeInfo scsi_cd_info = {
     .name          = "scsi-cd",
-    .parent        = TYPE_SCSI_DISK_BASE,
+    .parent        = TYPE_SCSI_DISK,
     .class_init    = scsi_cd_class_initfn,
 };
 
@@ -3090,7 +3090,7 @@ static void scsi_block_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);
-    SCSIDiskClass *sdc = SCSI_DISK_BASE_CLASS(klass);
+    SCSIDiskClass *sdc = SCSI_DISK_CLASS(klass);
 
     sc->realize      = scsi_block_realize;
     sc->alloc_req    = scsi_block_new_request;
@@ -3106,7 +3106,7 @@ static void scsi_block_class_initfn(ObjectClass *klass, void *data)
 
 static const TypeInfo scsi_block_info = {
     .name          = "scsi-block",
-    .parent        = TYPE_SCSI_DISK_BASE,
+    .parent        = TYPE_SCSI_DISK,
     .class_init    = scsi_block_class_initfn,
 };
 #endif
@@ -3146,7 +3146,7 @@ static void scsi_disk_class_initfn(ObjectClass *klass, void *data)
 
 static const TypeInfo scsi_disk_info = {
     .name          = "scsi-disk",
-    .parent        = TYPE_SCSI_DISK_BASE,
+    .parent        = TYPE_SCSI_DISK,
     .class_init    = scsi_disk_class_initfn,
 };
 
