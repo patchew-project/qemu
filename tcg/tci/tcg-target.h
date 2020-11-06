@@ -189,8 +189,6 @@ typedef enum {
 
 void tci_disas(uint8_t opc);
 
-#define HAVE_TCG_QEMU_TB_EXEC
-
 /* Flush the dcache at RW, and the icache at RX, as necessary. */
 static inline void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
 {
