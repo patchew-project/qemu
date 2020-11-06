@@ -680,6 +680,12 @@ extern __thread TCGContext *tcg_ctx;
 extern void *tcg_code_gen_epilogue;
 extern TCGv_env cpu_env;
 
+static inline bool in_code_gen_buffer(const void *p)
+{
+    const TCGContext *s = &tcg_init_ctx;
+    return (size_t)(p - s->code_gen_buffer) <= s->code_gen_buffer_size;
+}
+
 static inline size_t temp_idx(TCGTemp *ts)
 {
     ptrdiff_t n = ts - tcg_ctx->temps;
