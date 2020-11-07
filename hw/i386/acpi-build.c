@@ -349,7 +349,7 @@ static void build_append_pcihp_notify_entry(Aml *method, int slot)
 static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
                                          bool pcihp_bridge_en)
 {
-    Aml *dev, *notify_method = NULL, *method;
+    Aml *dev, *notify_method = NULL, *method = NULL;
     QObject *bsel;
     PCIBus *sec;
     int i;
@@ -492,7 +492,7 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
         }
     }
 
-    if (bsel || pcihp_bridge_en) {
+    if (method) {
         aml_append(parent_scope, method);
     }
     qobject_unref(bsel);
