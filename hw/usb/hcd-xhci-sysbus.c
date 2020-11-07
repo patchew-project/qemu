@@ -58,7 +58,7 @@ static void xhci_sysbus_instance_init(Object *obj)
 {
     XHCISysbusState *s = XHCI_SYSBUS(obj);
 
-    object_initialize_child(obj, "xhci-core", &s->xhci, TYPE_XHCI);
+    object_initialize_child(obj, "xhci-core", &s->xhci, TYPE_XHCI_COMMON);
     qdev_alias_all_properties(DEVICE(&s->xhci), obj);
 
     object_property_add_link(obj, "dma", TYPE_MEMORY_REGION,

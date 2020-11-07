@@ -193,7 +193,7 @@ static void xhci_instance_init(Object *obj)
      * line, therefore, no need to wait to realize like other devices
      */
     PCI_DEVICE(obj)->cap_present |= QEMU_PCI_CAP_EXPRESS;
-    object_initialize_child(obj, "xhci-core", &s->xhci, TYPE_XHCI);
+    object_initialize_child(obj, "xhci-core", &s->xhci, TYPE_XHCI_COMMON);
     qdev_alias_all_properties(DEVICE(&s->xhci), obj);
 }
 

@@ -2637,7 +2637,7 @@ static void xhci_port_reset(XHCIPort *port, bool warm_reset)
 
 static void xhci_reset(DeviceState *dev)
 {
-    XHCIState *xhci = XHCI(dev);
+    XHCIState *xhci = XHCI_COMMON(dev);
     int i;
 
     trace_usb_xhci_reset();
@@ -2891,7 +2891,7 @@ static uint64_t xhci_oper_read(void *ptr, hwaddr reg, unsigned size)
 static void xhci_oper_write(void *ptr, hwaddr reg,
                             uint64_t val, unsigned size)
 {
-    XHCIState *xhci = XHCI(ptr);
+    XHCIState *xhci = XHCI_COMMON(ptr);
 
     trace_usb_xhci_oper_write(reg, val);
 
@@ -3327,7 +3327,7 @@ static void usb_xhci_realize(DeviceState *dev, Error **errp)
 {
     int i;
 
-    XHCIState *xhci = XHCI(dev);
+    XHCIState *xhci = XHCI_COMMON(dev);
 
     if (xhci->numintrs > XHCI_MAXINTRS) {
         xhci->numintrs = XHCI_MAXINTRS;
@@ -3381,7 +3381,7 @@ static void usb_xhci_realize(DeviceState *dev, Error **errp)
 static void usb_xhci_unrealize(DeviceState *dev)
 {
     int i;
-    XHCIState *xhci = XHCI(dev);
+    XHCIState *xhci = XHCI_COMMON(dev);
 
     trace_usb_xhci_exit();
 
@@ -3591,7 +3591,7 @@ static void xhci_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo xhci_info = {
-    .name          = TYPE_XHCI,
+    .name          = TYPE_XHCI_COMMON,
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(XHCIState),
     .class_init    = xhci_class_init,

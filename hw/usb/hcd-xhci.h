@@ -27,7 +27,9 @@
 #include "hw/usb/xhci.h"
 #include "sysemu/dma.h"
 
-OBJECT_DECLARE_SIMPLE_TYPE(XHCIState, XHCI)
+#define TYPE_XHCI_COMMON "base-xhci" /* Common to PCI and Sysbus */
+
+OBJECT_DECLARE_SIMPLE_TYPE(XHCIState, XHCI_COMMON)
 
 /* Very pessimistic, let's hope it's enough for all cases */
 #define EV_QUEUE (((3 * 24) + 16) * XHCI_MAXSLOTS)
