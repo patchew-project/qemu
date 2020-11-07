@@ -3595,6 +3595,7 @@ static const TypeInfo xhci_info = {
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(XHCIState),
     .class_init    = xhci_class_init,
+    .abstract      = true,
 };
 
 static void xhci_register_types(void)
