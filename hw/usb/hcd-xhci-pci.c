@@ -80,14 +80,14 @@ static void xhci_pci_intr_raise(XHCIState *xhci, int n, bool level)
 
 static void xhci_pci_reset(DeviceState *dev)
 {
-    XHCIPciState *s = XHCI_PCI(dev);
+    XHCIPciState *s = XHCI_PCI_COMMON(dev);
 
     device_legacy_reset(DEVICE(&s->xhci));
 }
 
 static int xhci_pci_vmstate_post_load(void *opaque, int version_id)
 {
-    XHCIPciState *s = XHCI_PCI(opaque);
+    XHCIPciState *s = XHCI_PCI_COMMON(opaque);
     PCIDevice *pci_dev = PCI_DEVICE(s);
     int intr;
 
@@ -105,7 +105,7 @@ static void usb_xhci_pci_realize(struct PCIDevice *dev, Error **errp)
 {
     int ret;
     Error *err = NULL;
-    XHCIPciState *s = XHCI_PCI(dev);
+    XHCIPciState *s = XHCI_PCI_COMMON(dev);
 
     dev->config[PCI_CLASS_PROG] = 0x30;    /* xHCI */
     dev->config[PCI_INTERRUPT_PIN] = 0x01; /* interrupt pin 1 */
@@ -165,7 +165,7 @@ static void usb_xhci_pci_realize(struct PCIDevice *dev, Error **errp)
 
 static void usb_xhci_pci_exit(PCIDevice *dev)
 {
-    XHCIPciState *s = XHCI_PCI(dev);
+    XHCIPciState *s = XHCI_PCI_COMMON(dev);
     /* destroy msix memory region */
     if (dev->msix_table && dev->msix_pba
         && dev->msix_entry_used) {
@@ -187,7 +187,7 @@ static const VMStateDescription vmstate_xhci_pci = {
 
 static void xhci_instance_init(Object *obj)
 {
-    XHCIPciState *s = XHCI_PCI(obj);
+    XHCIPciState *s = XHCI_PCI_COMMON(obj);
     /*
      * QEMU_PCI_CAP_EXPRESS initialization does not depend on QEMU command
      * line, therefore, no need to wait to realize like other devices
@@ -211,7 +211,7 @@ static void xhci_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo xhci_pci_info = {
-    .name          = TYPE_XHCI_PCI,
+    .name          = TYPE_XHCI_PCI_COMMON,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(XHCIPciState),
     .class_init    = xhci_class_init,
@@ -235,7 +235,7 @@ static void qemu_xhci_class_init(ObjectClass *klass, void *data)
 
 static void qemu_xhci_instance_init(Object *obj)
 {
-    XHCIPciState *s = XHCI_PCI(obj);
+    XHCIPciState *s = XHCI_PCI_COMMON(obj);
     XHCIState *xhci = &s->xhci;
 
     s->msi      = ON_OFF_AUTO_OFF;
@@ -247,7 +247,7 @@ static void qemu_xhci_instance_init(Object *obj)
 
 static const TypeInfo qemu_xhci_info = {
     .name          = TYPE_QEMU_XHCI,
-    .parent        = TYPE_XHCI_PCI,
+    .parent        = TYPE_XHCI_PCI_COMMON,
     .class_init    = qemu_xhci_class_init,
     .instance_init = qemu_xhci_instance_init,
 };
