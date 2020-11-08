@@ -625,6 +625,9 @@ struct TCGContext {
     size_t code_gen_buffer_size;
     void *code_gen_ptr;
     void *data_gen_ptr;
+#if defined(CONFIG_DARWIN) && !defined(CONFIG_TCG_INTERPRETER)
+    bool code_gen_locked; /* on Darwin each thread tracks W^X flags */
+#endif
 
     /* Threshold to flush the translated code buffer.  */
     void *code_gen_highwater;
