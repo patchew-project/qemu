@@ -34,7 +34,7 @@ include:
         make -j"$JOBS" $MAKE_CHECK_ARGS ;
       fi
 
-.native_test_job_template: &native_test_job_definition
+.native_test_job:
   stage: test
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
   script:
@@ -80,7 +80,7 @@ build-system-ubuntu:
       - build
 
 check-system-ubuntu:
-  <<: *native_test_job_definition
+  extends: .native_test_job
   needs:
     - job: build-system-ubuntu
       artifacts: true
@@ -89,7 +89,7 @@ check-system-ubuntu:
     MAKE_CHECK_ARGS: check
 
 acceptance-system-ubuntu:
-  <<: *native_test_job_definition
+  extends: .native_test_job
   needs:
     - job: build-system-ubuntu
       artifacts: true
@@ -111,7 +111,7 @@ build-system-debian:
       - build
 
 check-system-debian:
-  <<: *native_test_job_definition
+  extends: .native_test_job
   needs:
     - job: build-system-debian
       artifacts: true
@@ -120,7 +120,7 @@ check-system-debian:
     MAKE_CHECK_ARGS: check
 
 acceptance-system-debian:
-  <<: *native_test_job_definition
+  extends: .native_test_job
   needs:
     - job: build-system-debian
       artifacts: true
@@ -143,7 +143,7 @@ build-system-fedora:
       - build
 
 check-system-fedora:
-  <<: *native_test_job_definition
+  extends: .native_test_job
   needs:
     - job: build-system-fedora
       artifacts: true
@@ -152,7 +152,7 @@ check-system-fedora:
     MAKE_CHECK_ARGS: check
 
 acceptance-system-fedora:
-  <<: *native_test_job_definition
+  extends: .native_test_job
   needs:
     - job: build-system-fedora
       artifacts: true
@@ -175,7 +175,7 @@ build-system-centos:
       - build
 
 check-system-centos:
-  <<: *native_test_job_definition
+  extends: .native_test_job
   needs:
     - job: build-system-centos
       artifacts: true
@@ -184,7 +184,7 @@ check-system-centos:
     MAKE_CHECK_ARGS: check
 
 acceptance-system-centos:
-  <<: *native_test_job_definition
+  extends: .native_test_job
   needs:
     - job: build-system-centos
       artifacts: true
@@ -282,7 +282,7 @@ build-deprecated:
 # We split the check-tcg step as test failures are expected but we still
 # want to catch the build breaking.
 check-deprecated:
-  <<: *native_test_job_definition
+  extends: .native_test_job
   needs:
     - job: build-deprecated
       artifacts: true
@@ -346,7 +346,7 @@ build-crypto-old-nettle:
       - build
 
 check-crypto-old-nettle:
-  <<: *native_test_job_definition
+  extends: .native_test_job
   needs:
     - job: build-crypto-old-nettle
       artifacts: true
@@ -367,7 +367,7 @@ build-crypto-old-gcrypt:
       - build
 
 check-crypto-old-gcrypt:
-  <<: *native_test_job_definition
+  extends: .native_test_job
   needs:
     - job: build-crypto-old-gcrypt
       artifacts: true
@@ -388,7 +388,7 @@ build-crypto-only-gnutls:
       - build
 
 check-crypto-only-gnutls:
-  <<: *native_test_job_definition
+  extends: .native_test_job
   needs:
     - job: build-crypto-only-gnutls
       artifacts: true
