@@ -79,6 +79,10 @@ include:
       then
         make -j"$JOBS" $MAKE_CHECK_ARGS ;
       fi
+  artifacts:
+    expire_in: 2 days
+    paths:
+      - build
 
 .native_test_job:
   extends: .native_common_job
@@ -121,10 +125,6 @@ build-system-ubuntu:
     TARGETS: aarch64-softmmu alpha-softmmu cris-softmmu hppa-softmmu
       moxie-softmmu microblazeel-softmmu mips64el-softmmu
     MAKE_CHECK_ARGS: check-build
-  artifacts:
-    expire_in: 2 days
-    paths:
-      - build
 
 check-system-ubuntu:
   extends: .native_test_job
@@ -151,10 +151,6 @@ build-system-debian:
     TARGETS: arm-softmmu avr-softmmu i386-softmmu mipsel-softmmu
       riscv64-softmmu sh4eb-softmmu sparc-softmmu xtensaeb-softmmu
     MAKE_CHECK_ARGS: check-build
-  artifacts:
-    expire_in: 2 days
-    paths:
-      - build
 
 check-system-debian:
   extends: .native_test_job
@@ -182,10 +178,6 @@ build-system-fedora:
     TARGETS: tricore-softmmu microblaze-softmmu mips-softmmu
       xtensa-softmmu m68k-softmmu riscv32-softmmu ppc-softmmu sparc64-softmmu
     MAKE_CHECK_ARGS: check-build
-  artifacts:
-    expire_in: 2 days
-    paths:
-      - build
 
 check-system-fedora:
   extends: .native_test_job
@@ -213,10 +205,6 @@ build-system-centos:
     TARGETS: ppc64-softmmu or1k-softmmu s390x-softmmu
       x86_64-softmmu rx-softmmu sh4-softmmu nios2-softmmu
     MAKE_CHECK_ARGS: check-build
-  artifacts:
-    expire_in: 2 days
-    paths:
-      - build
 
 check-system-centos:
   extends: .native_test_job
@@ -317,10 +305,6 @@ build-deprecated:
     MAKE_CHECK_ARGS: build-tcg
     TARGETS: ppc64abi32-linux-user tilegx-linux-user lm32-softmmu
       unicore32-softmmu
-  artifacts:
-    expire_in: 2 days
-    paths:
-      - build
 
 # We split the check-tcg step as test failures are expected but we still
 # want to catch the build breaking.
