@@ -153,3 +153,13 @@ int net_init_vde(const Netdev *netdev, const char *name,
 
     return 0;
 }
+
+int net_vde_get_fd(const NetClientState *nc)
+{
+    VDEState *s;
+    assert(nc->info->type == NET_CLIENT_DRIVER_VDE);
+
+    s = DO_UPCAST(VDEState, nc, nc);
+
+    return vde_datafd(s->vde);
+}

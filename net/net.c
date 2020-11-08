@@ -1175,14 +1175,182 @@ static void netfilter_print_info(Monitor *mon, NetFilterState *nf)
     monitor_printf(mon, "\n");
 }
 
-void print_net_client(Monitor *mon, NetClientState *nc)
+static NetdevInfo *get_netdev_info(NetdevInfoList *ni_list, char *name)
+{
+    NetdevInfo *ni;
+
+    while (ni_list) {
+        ni = ni_list->value;
+        if (g_str_equal(ni->id, name)) {
+            return ni;
+        }
+        ni_list = ni_list->next;
+    }
+
+    return NULL;
+}
+
+static char *generate_info_str(NetdevInfo *ni, NetClientState *nc)
+{
+    char *info_str;
+
+    /* Use legacy field info_str for NIC and hubports */
+    if ((nc->info->type == NET_CLIENT_DRIVER_NIC) ||
+        (nc->info->type == NET_CLIENT_DRIVER_HUBPORT)) {
+        return g_strdup(nc->info_str);
+    }
+
+    if (!ni) {
+        return g_malloc0(1);
+    }
+
+    switch (ni->type) {
+#ifdef CONFIG_SLIRP
+        case NET_BACKEND_USER: {
+            size_t len = strchr(ni->u.user.net, '/') - ni->u.user.net;
+            char *net = g_strndup(ni->u.user.net, len);
+
+            info_str = g_strdup_printf("net=%s,restrict=%s",
+                                       net,
+                                       ni->u.user.q_restrict ? "on" : "off");
+            g_free(net);
+            break;
+        }
+#endif /* CONFIG_SLIRP */
+        case NET_BACKEND_TAP: {
+#ifndef _WIN32
+            if (ni->u.tap.has_fds) {
+                char **fds = g_strsplit(ni->u.tap.fds, ":", -1);
+
+                info_str = g_strdup_printf("fd=%s", fds[nc->queue_index]);
+                g_strfreev(fds);
+            } else if (ni->u.tap.has_helper) {
+                info_str = g_strdup_printf("helper=%s", ni->u.tap.helper);
+            } else {
+                info_str = g_strdup_printf("ifname=%s,script=%s,downscript=%s",
+                    ni->u.tap.ifname,
+                    nc->queue_index == 0 ? ni->u.tap.script : "no",
+                    nc->queue_index == 0 ? ni->u.tap.downscript : "no");
+            }
+#else
+            info_str = g_strdup_printf("tap: ifname=%s", ni->u.tap.ifname);
+#endif /* _WIN32 */
+            break;
+        }
+#ifdef CONFIG_L2TPV3
+        case NET_BACKEND_L2TPV3: {
+            info_str = g_strdup_printf("l2tpv3: connected");
+            break;
+        }
+#endif /* CONFIG_L2TPV3 */
+        case NET_BACKEND_SOCKET: {
+            if (ni->u.socket.has_listen) {
+                if (ni->u.socket.has_fd) {
+                    info_str = g_strdup_printf("socket: connection from %s",
+                                               ni->u.socket.listen);
+                } else {
+                    info_str = g_strdup_printf("socket: wait from %s",
+                                               ni->u.socket.listen);
+                }
+            } else if (ni->u.socket.has_connect && ni->u.socket.has_fd) {
+                info_str = g_strdup_printf("socket: connect to %s",
+                                           ni->u.socket.connect);
+            } else if (ni->u.socket.has_mcast && ni->u.socket.has_fd) {
+                info_str = g_strdup_printf("socket: mcast=%s",
+                                           ni->u.socket.mcast);
+            } else if (ni->u.socket.has_udp && ni->u.socket.has_fd) {
+                info_str = g_strdup_printf("socket: udp=%s", ni->u.socket.udp);
+            } else {
+                g_assert(ni->u.socket.has_fd);
+                int so_type = -1;
+                int optlen = sizeof(so_type);
+                int fd = atoi(ni->u.socket.fd);
+
+                getsockopt(fd, SOL_SOCKET, SO_TYPE, (char *)&so_type,
+                           (socklen_t *)&optlen);
+                if (so_type == SOCK_STREAM) {
+                    info_str = g_strdup_printf("socket: fd=%s",
+                                               ni->u.socket.fd);
+                } else {
+                    if (ni->u.socket.has_mcast) {
+                        /*
+                         * This branch is unreachable, according to how it is in
+                         * net/socket.c at this moment
+                         */
+                        info_str = g_strdup_printf("socket: fd=%s "
+                                                   "(cloned mcast=%s)",
+                                                   ni->u.socket.fd,
+                                                   ni->u.socket.mcast);
+                    } else {
+                        SocketAddress *sa = socket_local_address(fd, NULL);
+
+                        info_str = g_strdup_printf("socket: fd=%s %s",
+                            ni->u.socket.fd,
+                            SocketAddressType_str(sa->type));
+                        qapi_free_SocketAddress(sa);
+                    }
+                }
+            }
+            break;
+        }
+#ifdef CONFIG_VDE
+        case NET_BACKEND_VDE: {
+            info_str = g_strdup_printf("sock=%s,fd=%d",
+                                       ni->u.vde.sock,
+                                       net_vde_get_fd(nc));
+            break;
+        }
+#endif /* CONFIG_VDE */
+#ifdef CONFIG_NET_BRIDGE
+        case NET_BACKEND_BRIDGE: {
+            info_str = g_strdup_printf("helper=%s,br=%s",
+                                       ni->u.bridge.helper,
+                                       ni->u.bridge.br);
+            break;
+        }
+#endif /* CONFIG_NET_BRIDGE */
+#ifdef CONFIG_NETMAP
+        case NET_BACKEND_NETMAP: {
+            info_str = g_strdup_printf("netmap: ifname=%s",
+                                       ni->u.netmap.ifname);
+            break;
+        }
+#endif /* CONFIG_NETMAP */
+#ifdef CONFIG_VHOST_NET_USER
+        case NET_BACKEND_VHOST_USER: {
+            info_str = g_strdup_printf("vhost-user%d to %s",
+                                       nc->queue_index,
+                                       ni->u.vhost_user.chardev);
+            break;
+        }
+#endif /* CONFIG_VHOST_NET_USER */
+#ifdef CONFIG_VHOST_NET_VDPA
+        case NET_BACKEND_VHOST_VDPA: {
+            info_str = g_strdup("vhost-vdpa");
+            break;
+        }
+#endif /* CONFIG_VHOST_NET_VDPA */
+        default: {
+            info_str = g_malloc0(1);
+            break;
+        }
+    }
+
+    return info_str;
+}
+
+void print_net_client(Monitor *mon, NetClientState *nc, NetdevInfoList *ni_list)
 {
     NetFilterState *nf;
+    NetdevInfo *ni = get_netdev_info(ni_list, nc->name);
+    char *info_str = generate_info_str(ni, nc);
 
     monitor_printf(mon, "%s: index=%d,type=%s,%s\n", nc->name,
                    nc->queue_index,
                    NetClientDriver_str(nc->info->type),
-                   nc->info_str);
+                   info_str);
+    g_free(info_str);
+
     if (!QTAILQ_EMPTY(&nc->filters)) {
         monitor_printf(mon, "filters:\n");
     }
@@ -1286,8 +1454,9 @@ void hmp_info_network(Monitor *mon, const QDict *qdict)
 {
     NetClientState *nc, *peer;
     NetClientDriver type;
+    NetdevInfoList *ni_list = qmp_query_netdev(NULL);
 
-    net_hub_info(mon);
+    net_hub_info(mon, ni_list);
 
     QTAILQ_FOREACH(nc, &net_clients, next) {
         peer = nc->peer;
@@ -1299,13 +1468,15 @@ void hmp_info_network(Monitor *mon, const QDict *qdict)
         }
 
         if (!peer || type == NET_CLIENT_DRIVER_NIC) {
-            print_net_client(mon, nc);
+            print_net_client(mon, nc, ni_list);
         } /* else it's a netdev connected to a NIC, printed with the NIC */
         if (peer && type == NET_CLIENT_DRIVER_NIC) {
             monitor_printf(mon, " \\ ");
-            print_net_client(mon, peer);
+            print_net_client(mon, peer, ni_list);
         }
     }
+
+    qapi_free_NetdevInfoList(ni_list);
 }
 
 void colo_notify_filters_event(int event, Error **errp)
