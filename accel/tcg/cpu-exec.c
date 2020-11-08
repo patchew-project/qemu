@@ -176,7 +176,9 @@ static inline TranslationBlock *cpu_tb_exec(CPUState *cpu,
     }
 #endif /* DEBUG_DISAS */
 
+    tb_exec_lock();
     ret = tcg_qemu_tb_exec(env, tb_ptr);
+    tb_exec_unlock();
     cpu->can_do_io = 1;
     /*
      * TODO: Delay swapping back to the read-write region of the TB

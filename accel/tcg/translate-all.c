@@ -27,6 +27,9 @@
 #include "disas/disas.h"
 #include "exec/exec-all.h"
 #include "tcg/tcg.h"
+#if defined(CONFIG_DARWIN)
+#include "tcg/tcg-apple-jit.h"
+#endif
 #if defined(CONFIG_USER_ONLY)
 #include "qemu.h"
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
@@ -60,6 +63,9 @@
 #include "sysemu/cpu-timers.h"
 #include "sysemu/tcg.h"
 #include "qapi/error.h"
+
+static bool tb_exec_is_locked(void);
+static void tb_exec_change(bool locked);
 
 /* #define DEBUG_TB_INVALIDATE */
 /* #define DEBUG_TB_FLUSH */
@@ -1339,6 +1345,7 @@ void tcg_exec_init(unsigned long tb_size, int splitwx)
                                splitwx, &error_fatal);
     assert(ok);
 
+    tb_exec_unlock();
 #if defined(CONFIG_SOFTMMU)
     /* There's no guest base to take into account, so go ahead and
        initialize the prologue now.  */
@@ -1615,8 +1622,11 @@ static void do_tb_phys_invalidate(TranslationBlock *tb, bool rm_from_page_list)
     PageDesc *p;
     uint32_t h;
     tb_page_addr_t phys_pc;
+    bool code_gen_locked;
 
     assert_memory_lock();
+    code_gen_locked = tb_exec_is_locked();
+    tb_exec_unlock();
 
     /* make sure no further incoming jumps will be chained to this TB */
     qemu_spin_lock(&tb->jmp_lock);
@@ -1629,6 +1639,7 @@ static void do_tb_phys_invalidate(TranslationBlock *tb, bool rm_from_page_list)
                      tb->trace_vcpu_dstate);
     if (!(tb->cflags & CF_NOCACHE) &&
         !qht_remove(&tb_ctx.htable, tb, h)) {
+        tb_exec_change(code_gen_locked);
         return;
     }
 
@@ -1661,6 +1672,8 @@ static void do_tb_phys_invalidate(TranslationBlock *tb, bool rm_from_page_list)
 
     qatomic_set(&tcg_ctx->tb_phys_invalidate_count,
                tcg_ctx->tb_phys_invalidate_count + 1);
+
+    tb_exec_change(code_gen_locked);
 }
 
 static void tb_phys_invalidate__locked(TranslationBlock *tb)
@@ -2898,4 +2911,37 @@ void tcg_flush_softmmu_tlb(CPUState *cs)
 #ifdef CONFIG_SOFTMMU
     tlb_flush(cs);
 #endif
+}
+
+#if defined(CONFIG_DARWIN) && !defined(CONFIG_TCG_INTERPRETER)
+static bool tb_exec_is_locked(void)
+{
+    return tcg_ctx->code_gen_locked;
+}
+
+static void tb_exec_change(bool locked)
+{
+    if (jit_write_protect_supported()) {
+        jit_write_protect(locked);
+    }
+    tcg_ctx->code_gen_locked = locked;
+}
+#else /* not needed on non-Darwin platforms */
+static bool tb_exec_is_locked(void)
+{
+    return false;
+}
+
+static void tb_exec_change(bool locked) {}
+#endif
+
+void tb_exec_lock(void)
+{
+    /* assumes sys_icache_invalidate already called */
+    tb_exec_change(true);
+}
+
+void tb_exec_unlock(void)
+{
+    tb_exec_change(false);
 }
