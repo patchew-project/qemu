@@ -1,6 +1,41 @@
 .cross_common_job:
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
+  rules:
+    # If the if statement is true, the job is added to the pipeline.
+    # We only filter for push events
+    - if: '$CI_PIPELINE_SOURCE != "push"'
+    # Build all when no variable defined, or set to "all"
+    - if: $QEMU_BUILD == null || $QEMU_BUILD =~ /^all$/
+    # Build specific job name
+    - if: $QEMU_BUILD =~ /^$CI_JOB_NAME$/
+    # Build set of jobs by feature
+    - if: $QEMU_BUILD =~ /cross/
+    - if: $QEMU_BUILD =~ /system/ && $CI_JOB_NAME =~ /system/
+    - if: $QEMU_BUILD =~ /user/ && $CI_JOB_NAME =~ /user/
+    # Build set of jobs by arch
+    - if: $QEMU_BUILD =~ /aarch64/ && ($CI_JOB_NAME =~ /aarch64/ || $IMAGE =~ /aarch64/)
+    - if: $QEMU_BUILD =~ /alpha/ && ($CI_JOB_NAME =~ /alpha/ || $IMAGE =~ /alpha/)
+    - if: $QEMU_BUILD =~ /arm/ && ($CI_JOB_NAME =~ /arm/ || $IMAGE =~ /arm/)
+    - if: $QEMU_BUILD =~ /avr/ && ($CI_JOB_NAME =~ /avr/ || $IMAGE =~ /avr/)
+    - if: $QEMU_BUILD =~ /hppa/ && ($CI_JOB_NAME =~ /hppa/ || $IMAGE =~ /hppa/)
+    - if: $QEMU_BUILD =~ /i386/ && ($CI_JOB_NAME =~ /i386/ || $IMAGE =~ /i386/)
+    - if: $QEMU_BUILD =~ /lm32/ && ($CI_JOB_NAME =~ /lm32/ || $IMAGE =~ /lm32/)
+    - if: $QEMU_BUILD =~ /m68k/ && ($CI_JOB_NAME =~ /m68k/ || $IMAGE =~ /m68k/)
+    - if: $QEMU_BUILD =~ /mips/ && ($CI_JOB_NAME =~ /mips/ || $IMAGE =~ /mips/)
+    - if: $QEMU_BUILD =~ /ppc/ && ($CI_JOB_NAME =~ /ppc/ || $IMAGE =~ /ppc/)
+    - if: $QEMU_BUILD =~ /riscv/ && ($CI_JOB_NAME =~ /riscv/ || $IMAGE =~ /riscv/)
+    - if: $QEMU_BUILD =~ /s390x/ && ($CI_JOB_NAME =~ /s390x/ || $IMAGE =~ /s390x/)
+    - if: $QEMU_BUILD =~ /sparc/ && ($CI_JOB_NAME =~ /sparc/ || $IMAGE =~ /sparc/)
+    - if: $QEMU_BUILD =~ /tricore/ && ($CI_JOB_NAME =~ /tricore/ || $IMAGE =~ /tricore/)
+    - if: $QEMU_BUILD =~ /x86/ && ($CI_JOB_NAME =~ /x86/ || $IMAGE =~ /x86/)
+    - if: $QEMU_BUILD =~ /xtensa/ && ($CI_JOB_NAME =~ /xtensa/ || $IMAGE =~ /xtensa/)
+    # In all other cases, do not not execute the job automatically. Note the
+    # job is not excluded from the pipeline, user can still start it manually.
+    # As the job is optional, we have to mark it 'allow_failure' to not block
+    # the pipeline.
+    - when: manual
+      allow_failure: true
 
 .cross_system_build_job:
   extends: .cross_common_job
