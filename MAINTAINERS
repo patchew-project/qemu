@@ -528,6 +528,13 @@ F: include/*/*win32*
 X: qga/*win32*
 F: qemu.nsi
 
+IOS
+M: Joelle van Dyne <j@getutm.app>
+S: Maintained
+K: ^Subject:.*(?i)iOS
+F: docs/devel/ios.rst
+F: include/tcg/tcg-apple-jit.h
+
 Alpha Machines
 --------------
 M: Richard Henderson <rth@twiddle.net>
