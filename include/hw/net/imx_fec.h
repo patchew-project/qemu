@@ -115,13 +115,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(IMXFECState, IMX_FEC)
 #define ENET_INT_TXF1          (1 <<  3)
 #define ENET_INT_TXB1          (1 <<  2)
 
-#define ENET_INT_MAC           (ENET_INT_HB | ENET_INT_BABR | ENET_INT_BABT | \
-                                ENET_INT_GRA | ENET_INT_TXF | ENET_INT_TXB | \
-                                ENET_INT_RXF | ENET_INT_RXB | ENET_INT_MII | \
-                                ENET_INT_EBERR | ENET_INT_LC | ENET_INT_RL | \
-                                ENET_INT_UN | ENET_INT_PLR | ENET_INT_WAKEUP | \
-                                ENET_INT_TS_AVAIL | ENET_INT_TXF1 | \
-                                ENET_INT_TXB1 | ENET_INT_TXF2 | ENET_INT_TXB2)
+#define ENET_INT_MAC           (ENET_INT_HB | ENET_INT_BABR | ENET_INT_BABT | ENET_INT_GRA | ENET_INT_TXF | ENET_INT_TXB | ENET_INT_RXF | ENET_INT_RXB | ENET_INT_MII | ENET_INT_EBERR | ENET_INT_LC | ENET_INT_RL | ENET_INT_UN | ENET_INT_PLR | ENET_INT_WAKEUP | ENET_INT_TS_AVAIL | ENET_INT_TXF1 | ENET_INT_TXB1 | ENET_INT_TXF2 | ENET_INT_TXB2)
 
 /* RDAR */
 #define ENET_RDAR_RDAR         (1 << 24)
