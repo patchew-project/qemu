@@ -28,9 +28,7 @@
 #include "hcd-xhci.h"
 
 #define TYPE_XHCI_PCI "pci-xhci"
-#define XHCI_PCI(obj) \
-    OBJECT_CHECK(XHCIPciState, (obj), TYPE_XHCI_PCI)
-
+OBJECT_DECLARE_SIMPLE_TYPE(XHCIPciState, XHCI_PCI)
 
 typedef struct XHCIPciState {
     /*< private >*/
