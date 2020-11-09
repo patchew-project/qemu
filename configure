@@ -2369,6 +2369,10 @@ test "$vhost_user_fs" = "" && vhost_user_fs=$vhost_user
 if test "$vhost_user_fs" = "yes" && test "$vhost_user" = "no"; then
   error_exit "--enable-vhost-user-fs requires --enable-vhost-user"
 fi
+test "$vhost_user_blk_server" = "" && vhost_user_blk_server=$vhost_user
+if test "$vhost_user_blk_server" = "yes" && test "$vhost_user" = "no"; then
+  error_exit "--enable-vhost-user-blk-server requires --enable-vhost-user"
+fi
 #vhost-vdpa backends
 test "$vhost_net_vdpa" = "" && vhost_net_vdpa=$vhost_vdpa
 if test "$vhost_net_vdpa" = "yes" && test "$vhost_vdpa" = "no"; then
