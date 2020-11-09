@@ -70,7 +70,7 @@ vu_blk_discard_write_zeroes(BlockBackend *blk, struct iovec *iov,
     }
 
     uint64_t range[2] = { le64_to_cpu(desc.sector) << 9,
-                          le32_to_cpu(desc.num_sectors) << 9 };
+                          (uint64_t)le32_to_cpu(desc.num_sectors) << 9 };
     if (type == VIRTIO_BLK_T_DISCARD) {
         if (blk_co_pdiscard(blk, range[0], range[1]) == 0) {
             return 0;
