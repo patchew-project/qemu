@@ -138,22 +138,7 @@ typedef enum PCIExpLinkWidth {
                                          PCI_ERR_ROOT_NONFATAL_RCV |    \
                                          PCI_ERR_ROOT_FATAL_RCV)
 
-#define PCI_ERR_UNC_SUPPORTED           (PCI_ERR_UNC_DLP |              \
-                                         PCI_ERR_UNC_SDN |              \
-                                         PCI_ERR_UNC_POISON_TLP |       \
-                                         PCI_ERR_UNC_FCP |              \
-                                         PCI_ERR_UNC_COMP_TIME |        \
-                                         PCI_ERR_UNC_COMP_ABORT |       \
-                                         PCI_ERR_UNC_UNX_COMP |         \
-                                         PCI_ERR_UNC_RX_OVER |          \
-                                         PCI_ERR_UNC_MALF_TLP |         \
-                                         PCI_ERR_UNC_ECRC |             \
-                                         PCI_ERR_UNC_UNSUP |            \
-                                         PCI_ERR_UNC_ACSV |             \
-                                         PCI_ERR_UNC_INTN |             \
-                                         PCI_ERR_UNC_MCBTLP |           \
-                                         PCI_ERR_UNC_ATOP_EBLOCKED |    \
-                                         PCI_ERR_UNC_TLP_PRF_BLOCKED)
+#define PCI_ERR_UNC_SUPPORTED           (PCI_ERR_UNC_DLP | PCI_ERR_UNC_SDN | PCI_ERR_UNC_POISON_TLP | PCI_ERR_UNC_FCP | PCI_ERR_UNC_COMP_TIME | PCI_ERR_UNC_COMP_ABORT | PCI_ERR_UNC_UNX_COMP | PCI_ERR_UNC_RX_OVER | PCI_ERR_UNC_MALF_TLP | PCI_ERR_UNC_ECRC | PCI_ERR_UNC_UNSUP | PCI_ERR_UNC_ACSV | PCI_ERR_UNC_INTN | PCI_ERR_UNC_MCBTLP | PCI_ERR_UNC_ATOP_EBLOCKED | PCI_ERR_UNC_TLP_PRF_BLOCKED)
 
 #define PCI_ERR_UNC_SEVERITY_DEFAULT    (PCI_ERR_UNC_DLP |              \
                                          PCI_ERR_UNC_SDN |              \
