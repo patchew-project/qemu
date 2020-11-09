@@ -57,6 +57,10 @@
 #include "qemu/iov.h"
 #include "multifd.h"
 
+#ifdef CONFIG_ZSTD
+#include <zstd.h>
+#include <zstd_errors.h>
+#endif
 /***********************************************************/
 /* ram save/restore */
 
@@ -424,6 +428,11 @@ struct CompressParam {
     /* for zlib compression */
     z_stream stream;
 
+#ifdef CONFIG_ZSTD
+    ZSTD_CStream *zstd_cs;
+    ZSTD_inBuffer in;
+    ZSTD_outBuffer out;
+#endif
 };
 typedef struct CompressParam CompressParam;
 
@@ -438,6 +447,12 @@ struct DecompressParam {
 
     /* for zlib compression */
     z_stream stream;
+
+#ifdef CONFIG_ZSTD
+    ZSTD_DStream *zstd_ds;
+    ZSTD_inBuffer in;
+    ZSTD_outBuffer out;
+#endif
 };
 typedef struct DecompressParam DecompressParam;
 
@@ -571,6 +586,102 @@ static int zlib_check_len(int len)
     return len < 0 || len > compressBound(TARGET_PAGE_SIZE);
 }
 
+#ifdef CONFIG_ZSTD
+static int zstd_save_setup(CompressParam *param)
+{
+    int res;
+    param->zstd_cs = ZSTD_createCStream();
+    if (!param->zstd_cs) {
+        return -1;
+    }
+    res = ZSTD_initCStream(param->zstd_cs, migrate_compress_level());
+    if (ZSTD_isError(res)) {
+        return -1;
+    }
+    return 0;
+}
+static void zstd_save_cleanup(CompressParam *param)
+{
+    ZSTD_freeCStream(param->zstd_cs);
+    param->zstd_cs = NULL;
+}
+static ssize_t zstd_compress_data(CompressParam *param, size_t size)
+{
+    int ret;
+    uint8_t *dest = NULL;
+    uint8_t *p = param->originbuf;
+    QEMUFile *f = f = param->file;
+    ssize_t blen = qemu_put_compress_start(f, &dest);
+    if (blen < ZSTD_compressBound(size)) {
+        return -1;
+    }
+    param->out.dst = dest;
+    param->out.size = blen;
+    param->out.pos = 0;
+    param->in.src = p;
+    param->in.size = size;
+    param->in.pos = 0;
+    do {
+        ret = ZSTD_compressStream2(param->zstd_cs, &param->out,
+                                   &param->in, ZSTD_e_end);
+    } while (ret > 0 && (param->in.size - param->in.pos > 0)
+            && (param->out.size - param->out.pos > 0));
+    if (ret > 0 && (param->in.size - param->in.pos > 0)) {
+        return -1;
+    }
+    if (ZSTD_isError(ret)) {
+        return -1;
+    }
+    blen = param->out.pos;
+    qemu_put_compress_end(f, blen);
+    return blen + sizeof(int32_t);
+}
+static int zstd_load_setup(DecompressParam *param)
+{
+    int ret;
+    param->zstd_ds = ZSTD_createDStream();
+    if (!param->zstd_ds) {
+        return -1;
+    }
+    ret = ZSTD_initDStream(param->zstd_ds);
+    if (ZSTD_isError(ret)) {
+        return -1;
+    }
+    return 0;
+}
+static void zstd_load_cleanup(DecompressParam *param)
+{
+    ZSTD_freeDStream(param->zstd_ds);
+    param->zstd_ds = NULL;
+}
+static int
+zstd_decompress_data(DecompressParam *param, uint8_t *dest, size_t size)
+{
+    int ret;
+    param->out.dst = dest;
+    param->out.size = size;
+    param->out.pos = 0;
+    param->in.src = param->compbuf;
+    param->in.size = param->len;
+    param->in.pos = 0;
+    do {
+        ret = ZSTD_decompressStream(param->zstd_ds, &param->out, &param->in);
+    } while (ret > 0 && (param->in.size - param->in.pos > 0)
+                    && (param->out.size - param->out.pos > 0));
+    if (ret > 0 && (param->in.size - param->in.pos > 0)) {
+        return -1;
+    }
+    if (ZSTD_isError(ret)) {
+        return -1;
+    }
+    return ret;
+}
+static int zstd_check_len(int len)
+{
+    return len < 0 || len > ZSTD_compressBound(TARGET_PAGE_SIZE);
+}
+#endif
+
 static int set_compress_ops(void)
 {
    compress_ops = g_new0(MigrationCompressOps, 1);
@@ -581,9 +692,16 @@ static int set_compress_ops(void)
         compress_ops->save_cleanup = zlib_save_cleanup;
         compress_ops->compress_data = zlib_compress_data;
         break;
+#ifdef CONFIG_ZSTD
+    case COMPRESS_METHOD_ZSTD:
+        compress_ops->save_setup = zstd_save_setup;
+        compress_ops->save_cleanup = zstd_save_cleanup;
+        compress_ops->compress_data = zstd_compress_data;
+        break;
+#endif
     default:
         return -1;
-    }
+   }
 
     return 0;
 }
@@ -599,6 +717,14 @@ static int set_decompress_ops(void)
         decompress_ops->decompress_data = zlib_decompress_data;
         decompress_ops->check_len = zlib_check_len;
         break;
+#ifdef CONFIG_ZSTD
+    case COMPRESS_METHOD_ZSTD:
+        decompress_ops->load_setup = zstd_load_setup;
+        decompress_ops->load_cleanup = zstd_load_cleanup;
+        decompress_ops->decompress_data = zstd_decompress_data;
+        decompress_ops->check_len = zstd_check_len;
+        break;
+#endif
     default:
         return -1;
    }

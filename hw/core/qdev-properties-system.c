@@ -667,7 +667,7 @@ const PropertyInfo qdev_prop_multifd_compression = {
 const PropertyInfo qdev_prop_compress_method = {
     .name = "CompressMethod",
     .description = "multi-thread compression method, "
-                   "zlib",
+                   "zlib/zstd",
     .enum_table = &CompressMethod_lookup,
     .get = qdev_propinfo_get_enum,
     .set = qdev_propinfo_set_enum,
