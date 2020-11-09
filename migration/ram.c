@@ -453,27 +453,22 @@ static QemuThread *decompress_threads;
 static QemuMutex decomp_done_lock;
 static QemuCond decomp_done_cond;
 
-static bool do_compress_ram_page(QEMUFile *f, z_stream *stream, RAMBlock *block,
-                                 ram_addr_t offset, uint8_t *source_buf);
+static bool do_compress_ram_page(CompressParam *param, RAMBlock *block);
 
 static void *do_data_compress(void *opaque)
 {
     CompressParam *param = opaque;
     RAMBlock *block;
-    ram_addr_t offset;
     bool zero_page;
 
     qemu_mutex_lock(&param->mutex);
     while (!param->quit) {
         if (param->block) {
             block = param->block;
-            offset = param->offset;
             param->block = NULL;
             qemu_mutex_unlock(&param->mutex);
 
-            zero_page = do_compress_ram_page(param->file, &param->stream,
-                                             block, offset, param->originbuf);
-
+            zero_page = do_compress_ram_page(param, block);
             qemu_mutex_lock(&comp_done_lock);
             param->done = true;
             param->zero_page = zero_page;
@@ -1214,28 +1209,73 @@ static int ram_save_multifd_page(RAMState *rs, RAMBlock *block,
     return 1;
 }
 
-static bool do_compress_ram_page(QEMUFile *f, z_stream *stream, RAMBlock *block,
-                                 ram_addr_t offset, uint8_t *source_buf)
+/*
+ * Compress size bytes of data start at p and store the compressed
+ * data to the buffer of f.
+ *
+ * Since the file is dummy file with empty_ops, return -1 if f has no space to
+ * save the compressed data.
+ */
+static ssize_t qemu_put_compression_data(CompressParam *param, size_t size)
+{
+    int err;
+    uint8_t *dest = NULL;
+    z_stream *stream = &param->stream;
+    uint8_t *p = param->originbuf;
+    QEMUFile *f = f = param->file;
+    ssize_t blen = qemu_put_compress_start(f, &dest);
+
+    if (blen < compressBound(size)) {
+        return -1;
+    }
+
+    err = deflateReset(stream);
+    if (err != Z_OK) {
+        return -1;
+    }
+
+    stream->avail_in = size;
+    stream->next_in = p;
+    stream->avail_out = blen;
+    stream->next_out = dest;
+
+    err = deflate(stream, Z_FINISH);
+    if (err != Z_STREAM_END) {
+        return -1;
+    }
+
+    blen = stream->next_out - dest;
+    if (blen < 0) {
+        return -1;
+    }
+
+    qemu_put_compress_end(f, blen);
+    return blen + sizeof(int32_t);
+}
+
+static bool do_compress_ram_page(CompressParam *param, RAMBlock *block)
 {
     RAMState *rs = ram_state;
+    ram_addr_t offset = param->offset;
     uint8_t *p = block->host + (offset & TARGET_PAGE_MASK);
     bool zero_page = false;
     int ret;
 
-    if (save_zero_page_to_file(rs, f, block, offset)) {
+    if (save_zero_page_to_file(rs, param->file, block, offset)) {
         zero_page = true;
         goto exit;
     }
 
-    save_page_header(rs, f, block, offset | RAM_SAVE_FLAG_COMPRESS_PAGE);
+    save_page_header(rs, param->file, block,
+                         offset | RAM_SAVE_FLAG_COMPRESS_PAGE);
 
     /*
      * copy it to a internal buffer to avoid it being modified by VM
      * so that we can catch up the error during compression and
      * decompression
      */
-    memcpy(source_buf, p, TARGET_PAGE_SIZE);
-    ret = qemu_put_compression_data(f, stream, source_buf, TARGET_PAGE_SIZE);
+    memcpy(param->originbuf, p, TARGET_PAGE_SIZE);
+    ret = qemu_put_compression_data(param, TARGET_PAGE_SIZE);
     if (ret < 0) {
         qemu_file_set_error(migrate_get_current()->to_dst_file, ret);
         error_report("compressed data failed!");
@@ -2826,19 +2866,20 @@ void ram_handle_compressed(void *host, uint8_t ch, uint64_t size)
 
 /* return the size after decompression, or negative value on error */
 static int
-qemu_uncompress_data(z_stream *stream, uint8_t *dest, size_t dest_len,
-                     const uint8_t *source, size_t source_len)
+qemu_uncompress_data(DecompressParam *param, uint8_t *dest, size_t pagesize)
 {
     int err;
+
+    z_stream *stream = &param->stream;
 
     err = inflateReset(stream);
     if (err != Z_OK) {
         return -1;
     }
 
-    stream->avail_in = source_len;
-    stream->next_in = (uint8_t *)source;
-    stream->avail_out = dest_len;
+    stream->avail_in = param->len;
+    stream->next_in = param->compbuf;
+    stream->avail_out = pagesize;
     stream->next_out = dest;
 
     err = inflate(stream, Z_NO_FLUSH);
@@ -2852,22 +2893,17 @@ qemu_uncompress_data(z_stream *stream, uint8_t *dest, size_t dest_len,
 static void *do_data_decompress(void *opaque)
 {
     DecompressParam *param = opaque;
-    unsigned long pagesize;
     uint8_t *des;
-    int len, ret;
+    int ret;
 
     qemu_mutex_lock(&param->mutex);
     while (!param->quit) {
         if (param->des) {
             des = param->des;
-            len = param->len;
             param->des = 0;
             qemu_mutex_unlock(&param->mutex);
 
-            pagesize = TARGET_PAGE_SIZE;
-
-            ret = qemu_uncompress_data(&param->stream, des, pagesize,
-                                       param->compbuf, len);
+            ret = qemu_uncompress_data(param, des, TARGET_PAGE_SIZE);
             if (ret < 0 && migrate_get_current()->decompress_error_check) {
                 error_report("decompress data failed");
                 qemu_file_set_error(decomp_file, ret);
