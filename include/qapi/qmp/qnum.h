@@ -106,6 +106,7 @@ double qnum_get_double(const QNum *qn);
 
 char *qnum_to_string(QNum *qn);
 
+bool qnum_value_is_equal(const QNumValue *num_x, const QNumValue *num_y);
 bool qnum_is_equal(const QObject *x, const QObject *y);
 void qnum_destroy_obj(QObject *obj);
 
