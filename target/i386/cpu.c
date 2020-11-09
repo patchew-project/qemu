@@ -7050,8 +7050,16 @@ static TypeInfo x86_base_cpu_type_info = {
  */
 void x86_cpu_register_cpu_models(const char *parent_type)
 {
+    static bool x86_cpu_models_registered;
     int i;
 
+    if (x86_cpu_models_registered) {
+        /*
+         * already registered by an accelerator-specific specialization
+         * of x86_cpu
+         */
+        return;
+    }
     for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); i++) {
         x86_register_cpudef(&builtin_x86_defs[i], parent_type);
     }
@@ -7060,6 +7068,8 @@ void x86_cpu_register_cpu_models(const char *parent_type)
 
     x86_base_cpu_type_info.parent = parent_type;
     type_register(&x86_base_cpu_type_info);
+
+    x86_cpu_models_registered = true;
 }
 
 static void x86_cpu_register_base_type(void)
@@ -7077,9 +7087,7 @@ static void x86_cpu_type_init(void)
     /*
      * I would like something better than this check.
      */
-    if (!tcg_enabled() && !kvm_enabled() && !hvf_enabled()) {
-        x86_cpu_register_cpu_models(TYPE_X86_CPU);
-    }
+    x86_cpu_register_cpu_models(TYPE_X86_CPU);
 }
 
-accel_cpu_init(x86_cpu_type_init);
+accel_cpu_init_last(x86_cpu_type_init);

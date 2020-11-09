@@ -30,12 +30,24 @@ static void __attribute__((constructor)) do_qemu_init_ ## function(void)    \
 {                                                                           \
     register_dso_module_init(function, type);                               \
 }
+
+#define module_init_prio(function, type, prio)                                 \
+static void __attribute__((constructor(prio))) do_qemu_init_ ## function(void) \
+{                                                                              \
+    register_dso_module_init(function, type);                                  \
+}
+
 #else
 /* This should not be used directly.  Use block_init etc. instead.  */
 #define module_init(function, type)                                         \
 static void __attribute__((constructor)) do_qemu_init_ ## function(void)    \
 {                                                                           \
     register_module_init(function, type);                                   \
+}
+#define module_init_prio(function, type, prio)                                 \
+static void __attribute__((constructor(prio))) do_qemu_init_ ## function(void) \
+{                                                                              \
+    register_module_init(function, type);                                      \
 }
 #endif
 
@@ -55,7 +67,10 @@ typedef enum {
 #define block_init(function) module_init(function, MODULE_INIT_BLOCK)
 #define opts_init(function) module_init(function, MODULE_INIT_OPTS)
 #define type_init(function) module_init(function, MODULE_INIT_QOM)
-#define accel_cpu_init(function) module_init(function, MODULE_INIT_ACCEL_CPU)
+#define accel_cpu_init(function) \
+    module_init_prio(function, MODULE_INIT_ACCEL_CPU, 101)
+#define accel_cpu_init_last(function) \
+    module_init_prio(function, MODULE_INIT_ACCEL_CPU, 65535)
 #define trace_init(function) module_init(function, MODULE_INIT_TRACE)
 #define xen_backend_init(function) module_init(function, \
                                                MODULE_INIT_XEN_BACKEND)
