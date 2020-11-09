@@ -23,7 +23,9 @@ typedef enum {
     QNUM_DOUBLE
 } QNumKind;
 
-/*
+/**
+ * DOC:
+ *
  * QNum encapsulates how our dialect of JSON fills in the blanks left
  * by the JSON specification (RFC 8259) regarding numbers.
  *

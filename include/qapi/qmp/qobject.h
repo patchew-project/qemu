@@ -1,5 +1,5 @@
 /*
- * QEMU Object Model.
+ * QObject API
  *
  * Based on ideas by Avi Kivity <avi@redhat.com>
  *
@@ -10,24 +10,31 @@
  *
  * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
  * See the COPYING.LIB file in the top-level directory.
+ */
+
+/**
+ * DOC: QObject Reference Counts Terminology
  *
- * QObject Reference Counts Terminology
- * ------------------------------------
+ * Returning references
+ * --------------------
  *
- *  - Returning references: A function that returns an object may
- *  return it as either a weak or a strong reference.  If the
- *  reference is strong, you are responsible for calling
- *  qobject_unref() on the reference when you are done.
+ * A function that returns an object may return it as either a
+ * weak or a strong reference.  If the reference is strong, you
+ * are responsible for calling qobject_unref() on the reference
+ * when you are done.
  *
- *  If the reference is weak, the owner of the reference may free it at
- *  any time in the future.  Before storing the reference anywhere, you
- *  should call qobject_ref() to make the reference strong.
+ * If the reference is weak, the owner of the reference may free it at
+ * any time in the future.  Before storing the reference anywhere, you
+ * should call qobject_ref() to make the reference strong.
  *
- *  - Transferring ownership: when you transfer ownership of a reference
- *  by calling a function, you are no longer responsible for calling
- *  qobject_unref() when the reference is no longer needed.  In other words,
- *  when the function returns you must behave as if the reference to the
- *  passed object was weak.
+ * Transferring ownership
+ * ----------------------
+ *
+ * When you transfer ownership of a reference by calling a
+ * function, you are no longer responsible for calling
+ * qobject_unref() when the reference is no longer needed.  In
+ * other words, when the function returns you must behave as if
+ * the reference to the passed object was weak.
  */
 #ifndef QOBJECT_H
 #define QOBJECT_H
@@ -81,6 +88,8 @@ static inline void qobject_ref_impl(QObject *obj)
 
 /**
  * qobject_is_equal(): Return whether the two objects are equal.
+ * @x: QObject pointer
+ * @y: QObject pointer
  *
  * Any of the pointers may be NULL; return true if both are.  Always
  * return false if only one is (therefore a QNull object is not
@@ -90,6 +99,7 @@ bool qobject_is_equal(const QObject *x, const QObject *y);
 
 /**
  * qobject_destroy(): Free resources used by the object
+ * @obj: QObject pointer
  */
 void qobject_destroy(QObject *obj);
 
@@ -103,6 +113,7 @@ static inline void qobject_unref_impl(QObject *obj)
 
 /**
  * qobject_ref(): Increment QObject's reference count
+ * @obj: QObject pointer
  *
  * Returns: the same @obj. The type of @obj will be propagated to the
  * return type.
@@ -115,12 +126,14 @@ static inline void qobject_unref_impl(QObject *obj)
 
 /**
  * qobject_unref(): Decrement QObject's reference count, deallocate
- * when it reaches zero
+ *                  when it reaches zero
+ * @obj: QObject pointer
  */
 #define qobject_unref(obj) qobject_unref_impl(QOBJECT(obj))
 
 /**
  * qobject_type(): Return the QObject's type
+ * @obj: QObject pointer
  */
 static inline QType qobject_type(const QObject *obj)
 {
@@ -130,6 +143,9 @@ static inline QType qobject_type(const QObject *obj)
 
 /**
  * qobject_check_type(): Helper function for the qobject_to() macro.
+ * @obj: QObject pointer
+ * @type: Expected type of QObject
+ *
  * Return @obj, but only if @obj is not NULL and @type is equal to
  * @obj's type.  Return NULL otherwise.
  */

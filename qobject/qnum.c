@@ -17,6 +17,7 @@
 
 /**
  * qnum_from_int(): Create a new QNum from an int64_t
+ * @value: int64_t value
  *
  * Return strong reference.
  */
@@ -33,6 +34,7 @@ QNum *qnum_from_int(int64_t value)
 
 /**
  * qnum_from_uint(): Create a new QNum from an uint64_t
+ * @value: uint64_t value
  *
  * Return strong reference.
  */
@@ -49,6 +51,7 @@ QNum *qnum_from_uint(uint64_t value)
 
 /**
  * qnum_from_double(): Create a new QNum from a double
+ * @value: double value
  *
  * Return strong reference.
  */
@@ -65,6 +68,8 @@ QNum *qnum_from_double(double value)
 
 /**
  * qnum_get_try_int(): Get an integer representation of the number
+ * @qn: QNum object
+ * @val: pointer to value
  *
  * Return true on success.
  */
@@ -90,6 +95,7 @@ bool qnum_get_try_int(const QNum *qn, int64_t *val)
 
 /**
  * qnum_get_int(): Get an integer representation of the number
+ * @qn: QNum object
  *
  * assert() on failure.
  */
@@ -102,7 +108,9 @@ int64_t qnum_get_int(const QNum *qn)
 }
 
 /**
- * qnum_get_uint(): Get an unsigned integer from the number
+ * qnum_value_get_try_uint(): Get an unsigned integer from the number
+ * @qn: QNum object
+ * @val: pointer to value
  *
  * Return true on success.
  */
@@ -128,6 +136,7 @@ bool qnum_get_try_uint(const QNum *qn, uint64_t *val)
 
 /**
  * qnum_get_uint(): Get an unsigned integer from the number
+ * @qn: QNum object
  *
  * assert() on failure.
  */
@@ -141,6 +150,7 @@ uint64_t qnum_get_uint(const QNum *qn)
 
 /**
  * qnum_get_double(): Get a float representation of the number
+ * @qn: QNum object
  *
  * qnum_get_double() loses precision for integers beyond 53 bits.
  */
@@ -200,6 +210,8 @@ char *qnum_to_string(QNum *qn)
 
 /**
  * qnum_is_equal(): Test whether the two QNums are equal
+ * @x: QNum object
+ * @y: QNum object
  *
  * Negative integers are never considered equal to unsigned integers,
  * but positive integers in the range [0, INT64_MAX] are considered
@@ -253,8 +265,9 @@ bool qnum_is_equal(const QObject *x, const QObject *y)
 }
 
 /**
- * qnum_destroy_obj(): Free all memory allocated by a
- * QNum object
+ * qnum_destroy_obj(): Free all memory allocated by a QNum object
+ *
+ * @obj: QNum object to be destroyed
  */
 void qnum_destroy_obj(QObject *obj)
 {
