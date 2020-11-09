@@ -83,6 +83,7 @@
 #define DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT 2
 /*0: means nocompress, 1: best speed, ... 9: best compress ratio */
 #define DEFAULT_MIGRATE_COMPRESS_LEVEL 1
+#define DEFAULT_MIGRATE_COMPRESS_METHOD COMPRESS_METHOD_ZLIB
 /* Define default autoconverge cpu throttle migration parameters */
 #define DEFAULT_MIGRATE_THROTTLE_TRIGGER_THRESHOLD 50
 #define DEFAULT_MIGRATE_CPU_THROTTLE_INITIAL 20
@@ -843,6 +844,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->compress_wait_thread = s->parameters.compress_wait_thread;
     params->has_decompress_threads = true;
     params->decompress_threads = s->parameters.decompress_threads;
+    params->has_compress_method = true;
+    params->compress_method = s->parameters.compress_method;
     params->has_throttle_trigger_threshold = true;
     params->throttle_trigger_threshold = s->parameters.throttle_trigger_threshold;
     params->has_cpu_throttle_initial = true;
@@ -1407,6 +1410,10 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
         dest->decompress_threads = params->decompress_threads;
     }
 
+    if (params->has_compress_method) {
+        dest->compress_method = params->compress_method;
+    }
+
     if (params->has_throttle_trigger_threshold) {
         dest->throttle_trigger_threshold = params->throttle_trigger_threshold;
     }
@@ -1502,6 +1509,10 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
 
     if (params->has_decompress_threads) {
         s->parameters.decompress_threads = params->decompress_threads;
+    }
+
+    if (params->has_compress_method) {
+        s->parameters.compress_method = params->compress_method;
     }
 
     if (params->has_throttle_trigger_threshold) {
@@ -3715,6 +3726,9 @@ static Property migration_properties[] = {
     DEFINE_PROP_UINT8("x-decompress-threads", MigrationState,
                       parameters.decompress_threads,
                       DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT),
+    DEFINE_PROP_COMPRESS_METHOD("compress-method", MigrationState,
+                      parameters.compress_method,
+                      DEFAULT_MIGRATE_COMPRESS_METHOD),
     DEFINE_PROP_UINT8("x-throttle-trigger-threshold", MigrationState,
                       parameters.throttle_trigger_threshold,
                       DEFAULT_MIGRATE_THROTTLE_TRIGGER_THRESHOLD),
@@ -3829,6 +3843,7 @@ static void migration_instance_init(Object *obj)
     params->has_compress_level = true;
     params->has_compress_threads = true;
     params->has_decompress_threads = true;
+    params->has_compress_method = true;
     params->has_throttle_trigger_threshold = true;
     params->has_cpu_throttle_initial = true;
     params->has_cpu_throttle_increment = true;

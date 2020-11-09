@@ -526,6 +526,19 @@
             { 'name': 'zstd', 'if': 'defined(CONFIG_ZSTD)' } ] }
 
 ##
+# @CompressMethod:
+#
+# An enumeration of multi-thread compression methods.
+#
+# @zlib: use zlib compression method.
+#
+# Since: 5.0
+#
+##
+{ 'enum': 'CompressMethod',
+  'data': [ 'zlib' ] }
+
+##
 # @BitmapMigrationBitmapAlias:
 #
 # @name: The name of the bitmap.
@@ -598,6 +611,9 @@
 #                      and 255. Usually, decompression is at least 4 times as fast as
 #                      compression, so set the decompress-threads to the number about 1/4
 #                      of compress-threads is adequate.
+#
+# @compress-method: Set compression method to use in multi-thread compression.
+#                   Defaults to none. (Since 5.0)
 #
 # @throttle-trigger-threshold: The ratio of bytes_dirty_period and bytes_xfer_period
 #                              to trigger throttling. It is expressed as percentage.
@@ -722,7 +738,7 @@
   'data': ['announce-initial', 'announce-max',
            'announce-rounds', 'announce-step',
            'compress-level', 'compress-threads', 'decompress-threads',
-           'compress-wait-thread', 'throttle-trigger-threshold',
+           'compress-wait-thread', 'compress-method', 'throttle-trigger-threshold',
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'cpu-throttle-tailslow',
            'tls-creds', 'tls-hostname', 'tls-authz', 'max-bandwidth',
@@ -758,6 +774,9 @@
 #                        send the page uncompressed. (Since 3.1)
 #
 # @decompress-threads: decompression thread count
+#
+# @compress-method: Which multi-thread compression method to use.
+#                   Defaults to none. (Since 5.0)
 #
 # @throttle-trigger-threshold: The ratio of bytes_dirty_period and bytes_xfer_period
 #                              to trigger throttling. It is expressed as percentage.
@@ -889,6 +908,7 @@
             '*compress-threads': 'int',
             '*compress-wait-thread': 'bool',
             '*decompress-threads': 'int',
+            '*compress-method': 'CompressMethod',
             '*throttle-trigger-threshold': 'int',
             '*cpu-throttle-initial': 'int',
             '*cpu-throttle-increment': 'int',
@@ -952,6 +972,9 @@
 #                        send the page uncompressed. (Since 3.1)
 #
 # @decompress-threads: decompression thread count
+#
+# @compress-method: Which multi-thread compression method to use.
+#                   Defaults to none. (Since 5.0)
 #
 # @throttle-trigger-threshold: The ratio of bytes_dirty_period and bytes_xfer_period
 #                              to trigger throttling. It is expressed as percentage.
@@ -1083,6 +1106,7 @@
             '*compress-threads': 'uint8',
             '*compress-wait-thread': 'bool',
             '*decompress-threads': 'uint8',
+            '*compress-method': 'CompressMethod',
             '*throttle-trigger-threshold': 'uint8',
             '*cpu-throttle-initial': 'uint8',
             '*cpu-throttle-increment': 'uint8',
