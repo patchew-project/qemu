@@ -887,7 +887,6 @@ static int hvf_accel_init(MachineState *ms)
   
     hvf_state = s;
     memory_listener_register(&hvf_memory_listener, &address_space_memory);
-    cpus_register_accel(&hvf_cpus);
     return 0;
 }
 
@@ -911,3 +910,12 @@ static void hvf_type_init(void)
 }
 
 type_init(hvf_type_init);
+
+static void hvf_accel_cpu_init(void)
+{
+    if (hvf_enabled()) {
+        cpus_register_accel(&hvf_cpus);
+    }
+}
+
+accel_cpu_init(hvf_accel_cpu_init);

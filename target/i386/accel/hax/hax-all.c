@@ -364,9 +364,6 @@ static int hax_accel_init(MachineState *ms)
                 !ret ? "working" : "not working",
                 !ret ? "fast virt" : "emulation");
     }
-    if (ret == 0) {
-        cpus_register_accel(&hax_cpus);
-    }
     return ret;
 }
 
@@ -1141,3 +1138,12 @@ static void hax_type_init(void)
 }
 
 type_init(hax_type_init);
+
+static void hax_accel_cpu_init(void)
+{
+    if (hax_enabled()) {
+        cpus_register_accel(&hax_cpus);
+    }
+}
+
+accel_cpu_init(hax_accel_cpu_init);

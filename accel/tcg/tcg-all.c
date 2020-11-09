@@ -104,8 +104,6 @@ static int tcg_init(MachineState *ms)
 
     tcg_exec_init(s->tb_size * 1024 * 1024);
     mttcg_enabled = s->mttcg_enabled;
-    cpus_register_accel(&tcg_cpus);
-
     return 0;
 }
 
@@ -201,3 +199,12 @@ static void register_accel_types(void)
 }
 
 type_init(register_accel_types);
+
+static void tcg_accel_cpu_init(void)
+{
+    if (tcg_enabled()) {
+        cpus_register_accel(&tcg_cpus);
+    }
+}
+
+accel_cpu_init(tcg_accel_cpu_init);
