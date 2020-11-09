@@ -1,7 +1,6 @@
 #ifndef HW_USB_XHCI_H
 #define HW_USB_XHCI_H
 
-#define TYPE_XHCI "base-xhci"
 #define TYPE_NEC_XHCI "nec-usb-xhci"
 #define TYPE_QEMU_XHCI "qemu-xhci"
 #define TYPE_XHCI_SYSBUS "sysbus-xhci"
