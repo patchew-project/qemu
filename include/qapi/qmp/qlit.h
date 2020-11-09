@@ -59,4 +59,9 @@ bool qlit_equal_qobject(const QLitObject *lhs, const QObject *rhs);
 
 QObject *qobject_from_qlit(const QLitObject *qlit);
 
+static inline QType qlit_type(const QLitObject *qlit)
+{
+    return qlit->type;
+}
+
 #endif /* QLIT_H */
