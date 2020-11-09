@@ -30,7 +30,7 @@
 #include "sysemu/hvf.h"
 #include "sysemu/cpus.h"
 #include "sysemu/xen.h"
-#include "kvm_i386.h"
+#include "accel/kvm/kvm_i386.h"
 #include "sev_i386.h"
 
 #include "qemu/error-report.h"
