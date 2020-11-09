@@ -2356,6 +2356,15 @@ int migrate_decompress_threads(void)
     return s->parameters.decompress_threads;
 }
 
+CompressMethod migrate_compress_method(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->parameters.compress_method;
+}
+
 bool migrate_dirty_bitmaps(void)
 {
     MigrationState *s;
