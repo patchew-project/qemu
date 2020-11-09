@@ -154,7 +154,7 @@ uint64_t qnum_get_uint(const QNum *qn)
  *
  * qnum_get_double() loses precision for integers beyond 53 bits.
  */
-double qnum_get_double(QNum *qn)
+double qnum_get_double(const QNum *qn)
 {
     switch (qn->kind) {
     case QNUM_I64:
