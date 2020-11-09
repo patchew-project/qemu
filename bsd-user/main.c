@@ -911,6 +911,10 @@ int main(int argc, char **argv)
 
     /* init tcg before creating CPUs and to get qemu_host_page_size */
     tcg_exec_init(0);
+    /*
+     * TCG has been initialized, now it is time to register the cpu models.
+     */
+    module_call_init(MODULE_INIT_ACCEL_CPU);
 
     cpu_type = parse_cpu_option(cpu_model);
     cpu = cpu_create(cpu_type);
