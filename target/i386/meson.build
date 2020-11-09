@@ -31,7 +31,7 @@ i386_softmmu_ss.add(files(
 subdir('accel/kvm')
 subdir('accel/hax')
 subdir('accel/whpx')
-subdir('hvf')
+subdir('accel/hvf')
 
 target_arch += {'i386': i386_ss}
 target_softmmu_arch += {'i386': i386_softmmu_ss}
