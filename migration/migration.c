@@ -1235,16 +1235,40 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
     }
 }
 
+static bool compress_level_check(MigrationParameters *params, Error **errp)
+{
+    switch (params->compress_method) {
+    case COMPRESS_METHOD_ZLIB:
+        if (params->compress_level > 9 || params->compress_level < 1) {
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "compress_level",
+                           "a value in the range of 0 to 9 for Zlib method");
+            return false;
+        }
+        break;
+#ifdef CONFIG_ZSTD
+    case COMPRESS_METHOD_ZSTD:
+        if (params->compress_level > 19 || params->compress_level < 1) {
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "compress_level",
+                        "a value in the range of 1 to 19 for Zstd method");
+            return false;
+        }
+        break;
+#endif
+    default:
+        error_setg(errp, "Checking compress_level failed for unknown reason");
+        return false;
+    }
+
+    return true;
+}
+
 /*
  * Check whether the parameters are valid. Error will be put into errp
  * (if provided). Return true if valid, otherwise false.
  */
 static bool migrate_params_check(MigrationParameters *params, Error **errp)
 {
-    if (params->has_compress_level &&
-        (params->compress_level > 9)) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "compress_level",
-                   "is invalid, it should be in the range of 0 to 9");
+    if (params->has_compress_level && !compress_level_check(params, errp)) {
         return false;
     }
 
