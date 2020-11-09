@@ -47,6 +47,20 @@ static ObjectPropertyAccessor *field_prop_setter(const PropertyInfo *info)
     return info->set ? field_prop_set : NULL;
 }
 
+static void field_prop_set_default_value(ObjectProperty *op,
+                                         Property *prop)
+{
+    if (qlit_type(&prop->defval) == QTYPE_QNULL) {
+        return;
+    }
+
+    if (prop->info->set_default_value) {
+        prop->info->set_default_value(op, prop);
+    } else {
+        object_property_set_default(op, qobject_from_qlit(&prop->defval));
+    }
+}
+
 ObjectProperty *
 object_property_add_field(Object *obj, const char *name, Property *prop,
                           ObjectPropertyAllowSet allow_set)
@@ -65,11 +79,9 @@ object_property_add_field(Object *obj, const char *name, Property *prop,
     object_property_set_description(obj, name,
                                     prop->info->description);
 
-    if (prop->set_default) {
-        prop->info->set_default_value(op, prop);
-        if (op->init) {
-            op->init(obj, op);
-        }
+    field_prop_set_default_value(op, prop);
+    if (op->init) {
+        op->init(obj, op);
     }
 
     op->allow_set = allow_set;
@@ -95,9 +107,8 @@ object_class_property_add_field(ObjectClass *oc, const char *name,
                                        prop->info->release,
                                        prop);
     }
-    if (prop->set_default) {
-        prop->info->set_default_value(op, prop);
-    }
+
+    field_prop_set_default_value(op, prop);
     if (prop->info->description) {
         object_class_property_set_description(oc, name,
                                               prop->info->description);

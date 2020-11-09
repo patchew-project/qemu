@@ -5,6 +5,7 @@
 #define QOM_PROPERTY_TYPES_H
 
 #include "qom/field-property.h"
+#include "qapi/qmp/qlit.h"
 
 extern const PropertyInfo prop_info_bit;
 extern const PropertyInfo prop_info_bit64;
@@ -28,13 +29,14 @@ extern const PropertyInfo prop_info_link;
         .info      = &(_prop),                                   \
         .offset    = offsetof(_state, _field)                    \
             + type_check(_type, typeof_field(_state, _field)),   \
+        .defval = QLIT_QNULL,                                    \
+        /* Note that __VA_ARGS__ can still override .defval */   \
         __VA_ARGS__                                              \
         }
 
 #define DEFINE_PROP_SIGNED(_name, _state, _field, _defval, _prop, _type) \
     DEFINE_PROP(_name, _state, _field, _prop, _type,                     \
-                .set_default = true,                                     \
-                .defval.i    = (_type)_defval)
+                .defval = QLIT_QNUM_INT(_defval))
 
 #define DEFINE_PROP_SIGNED_NODEFAULT(_name, _state, _field, _prop, _type) \
     DEFINE_PROP(_name, _state, _field, _prop, _type)
@@ -50,13 +52,11 @@ extern const PropertyInfo prop_info_link;
 #define DEFINE_PROP_BIT(_name, _state, _field, _bit, _defval)   \
     DEFINE_PROP(_name, _state, _field, prop_info_bit, uint32_t, \
                 .bitnr       = (_bit),                          \
-                .set_default = true,                            \
-                .defval.u    = (bool)_defval)
+                .defval = QLIT_QBOOL(_defval))
 
 #define DEFINE_PROP_UNSIGNED(_name, _state, _field, _defval, _prop, _type) \
     DEFINE_PROP(_name, _state, _field, _prop, _type,                       \
-                .set_default = true,                                       \
-                .defval.u  = (_type)_defval)
+                .defval = QLIT_QNUM_UINT(_defval))
 
 #define DEFINE_PROP_UNSIGNED_NODEFAULT(_name, _state, _field, _prop, _type) \
     DEFINE_PROP(_name, _state, _field, _prop, _type)
@@ -72,8 +72,7 @@ extern const PropertyInfo prop_info_link;
 #define DEFINE_PROP_BIT64(_name, _state, _field, _bit, _defval)   \
     DEFINE_PROP(_name, _state, _field, prop_info_bit64, uint64_t, \
                 .bitnr    = (_bit),                               \
-                .set_default = true,                              \
-                .defval.u  = (bool)_defval)
+                .defval = QLIT_QBOOL(_defval))
 
 /**
  * DEFINE_PROP_BOOL:
@@ -84,8 +83,7 @@ extern const PropertyInfo prop_info_link;
  */
 #define DEFINE_PROP_BOOL(_name, _state, _field, _defval)     \
     DEFINE_PROP(_name, _state, _field, prop_info_bool, bool, \
-                .set_default = true,                         \
-                .defval.u    = (bool)_defval)
+                .defval = QLIT_QBOOL(_defval))
 
 #define PROP_ARRAY_LEN_PREFIX "len-"
 
@@ -118,8 +116,7 @@ extern const PropertyInfo prop_info_link;
                           _arrayfield, _arrayprop, _arraytype) \
     DEFINE_PROP((PROP_ARRAY_LEN_PREFIX _name),                 \
                 _state, _field, prop_info_arraylen, uint32_t,  \
-                .set_default = true,                           \
-                .defval.u = 0,                                 \
+                .defval = QLIT_QNUM_UINT(0),                   \
                 .arrayinfo = &(_arrayprop),                    \
                 .arrayfieldsize = sizeof(_arraytype),          \
                 .arrayoffset = offsetof(_state, _arrayfield))

@@ -6,6 +6,7 @@
 
 #include "qom/object.h"
 #include "qapi/util.h"
+#include "qapi/qmp/qlit.h"
 
 /**
  * struct Property: definition of a field property
@@ -29,21 +30,8 @@ struct Property {
     const PropertyInfo *info;
     ptrdiff_t    offset;
     uint8_t      bitnr;
-    /**
-     * @set_default: true if the default value should be set from @defval,
-     *    in which case @info->set_default_value must not be NULL
-     *    (if false then no default value is set by the property system
-     *     and the field retains whatever value it was given by instance_init).
-     */
-    bool         set_default;
-    /**
-     * @defval: default value for the property. This is used only if @set_default
-     *     is true.
-     */
-    union {
-        int64_t i;
-        uint64_t u;
-    } defval;
+    /** @defval: If not QNull, the default value for the property */
+    QLitObject defval;
     /* private: */
     int          arrayoffset;
     const PropertyInfo *arrayinfo;
@@ -63,7 +51,13 @@ struct PropertyInfo {
     const QEnumLookup *enum_table;
     /** @print: String formatting function, for the human monitor */
     int (*print)(Object *obj, Property *prop, char *dest, size_t len);
-    /** @set_default_value: Callback for initializing the default value */
+    /**
+     * @set_default_value: Optional callback for initializing the default value
+     *
+     * Most property types don't need to set this, as by default
+     * object_property_set_default() is called with the value at
+     * Property.defval.
+     */
     void (*set_default_value)(ObjectProperty *op, const Property *prop);
     /** @create: Optional callback for creation of property */
     ObjectProperty *(*create)(ObjectClass *oc, const char *name,
