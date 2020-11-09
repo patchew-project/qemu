@@ -27,8 +27,8 @@
 #include "hw/usb.h"
 #include "hcd-xhci.h"
 
-#define TYPE_XHCI_PCI "pci-xhci"
-OBJECT_DECLARE_SIMPLE_TYPE(XHCIPciState, XHCI_PCI)
+#define TYPE_XHCI_PCI_COMMON "pci-xhci"
+OBJECT_DECLARE_SIMPLE_TYPE(XHCIPciState, XHCI_PCI_COMMON)
 
 typedef struct XHCIPciState {
     /*< private >*/

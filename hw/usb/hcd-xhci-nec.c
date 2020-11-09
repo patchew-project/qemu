@@ -52,7 +52,7 @@ static void nec_xhci_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo nec_xhci_info = {
     .name          = TYPE_NEC_XHCI,
-    .parent        = TYPE_XHCI_PCI,
+    .parent        = TYPE_XHCI_PCI_COMMON,
     .class_init    = nec_xhci_class_init,
 };
 
