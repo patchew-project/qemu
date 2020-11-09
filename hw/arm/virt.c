@@ -1977,6 +1977,9 @@ static void machvirt_init(MachineState *machine)
 
         qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
         object_unref(cpuobj);
+
+        /* Initialize cpu member here since cpu hotplug is not supported yet */
+        machine->possible_cpus->cpus[n].cpu = cpuobj;
     }
     fdt_add_timer_nodes(vms);
     fdt_add_cpu_nodes(vms);
