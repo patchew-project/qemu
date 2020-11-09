@@ -15,6 +15,15 @@
 #include "qemu/osdep.h"
 #include "qapi/qmp/qnum.h"
 
+QNum *qnum_from_value(QNumValue value)
+{
+    QNum *qn = g_new(QNum, 1);
+
+    qobject_init(QOBJECT(qn), QTYPE_QNUM);
+    qn->value = value;
+    return qn;
+}
+
 /**
  * qnum_from_int(): Create a new QNum from an int64_t
  * @value: int64_t value
@@ -23,13 +32,7 @@
  */
 QNum *qnum_from_int(int64_t value)
 {
-    QNum *qn = g_new(QNum, 1);
-
-    qobject_init(QOBJECT(qn), QTYPE_QNUM);
-    qn->kind = QNUM_I64;
-    qn->u.i64 = value;
-
-    return qn;
+    return qnum_from_value((QNumValue) QNUM_VAL_INT(value));
 }
 
 /**
@@ -40,13 +43,7 @@ QNum *qnum_from_int(int64_t value)
  */
 QNum *qnum_from_uint(uint64_t value)
 {
-    QNum *qn = g_new(QNum, 1);
-
-    qobject_init(QOBJECT(qn), QTYPE_QNUM);
-    qn->kind = QNUM_U64;
-    qn->u.u64 = value;
-
-    return qn;
+    return qnum_from_value((QNumValue) QNUM_VAL_UINT(value));
 }
 
 /**
@@ -57,13 +54,7 @@ QNum *qnum_from_uint(uint64_t value)
  */
 QNum *qnum_from_double(double value)
 {
-    QNum *qn = g_new(QNum, 1);
-
-    qobject_init(QOBJECT(qn), QTYPE_QNUM);
-    qn->kind = QNUM_DOUBLE;
-    qn->u.dbl = value;
-
-    return qn;
+    return qnum_from_value((QNumValue) QNUM_VAL_DOUBLE(value));
 }
 
 /**
@@ -75,15 +66,17 @@ QNum *qnum_from_double(double value)
  */
 bool qnum_get_try_int(const QNum *qn, int64_t *val)
 {
-    switch (qn->kind) {
+    const QNumValue *qv = &qn->value;
+
+    switch (qv->kind) {
     case QNUM_I64:
-        *val = qn->u.i64;
+        *val = qv->u.i64;
         return true;
     case QNUM_U64:
-        if (qn->u.u64 > INT64_MAX) {
+        if (qv->u.u64 > INT64_MAX) {
             return false;
         }
-        *val = qn->u.u64;
+        *val = qv->u.u64;
         return true;
     case QNUM_DOUBLE:
         return false;
@@ -116,15 +109,17 @@ int64_t qnum_get_int(const QNum *qn)
  */
 bool qnum_get_try_uint(const QNum *qn, uint64_t *val)
 {
-    switch (qn->kind) {
+    const QNumValue *qv = &qn->value;
+
+    switch (qv->kind) {
     case QNUM_I64:
-        if (qn->u.i64 < 0) {
+        if (qv->u.i64 < 0) {
             return false;
         }
-        *val = qn->u.i64;
+        *val = qv->u.i64;
         return true;
     case QNUM_U64:
-        *val = qn->u.u64;
+        *val = qv->u.u64;
         return true;
     case QNUM_DOUBLE:
         return false;
@@ -156,13 +151,15 @@ uint64_t qnum_get_uint(const QNum *qn)
  */
 double qnum_get_double(const QNum *qn)
 {
-    switch (qn->kind) {
+    const QNumValue *qv = &qn->value;
+
+    switch (qv->kind) {
     case QNUM_I64:
-        return qn->u.i64;
+        return qv->u.i64;
     case QNUM_U64:
-        return qn->u.u64;
+        return qv->u.u64;
     case QNUM_DOUBLE:
-        return qn->u.dbl;
+        return qv->u.dbl;
     }
 
     assert(0);
@@ -171,14 +168,15 @@ double qnum_get_double(const QNum *qn)
 
 char *qnum_to_string(QNum *qn)
 {
+    const QNumValue *qv = &qn->value;
     char *buffer;
     int len;
 
-    switch (qn->kind) {
+    switch (qv->kind) {
     case QNUM_I64:
-        return g_strdup_printf("%" PRId64, qn->u.i64);
+        return g_strdup_printf("%" PRId64, qv->u.i64);
     case QNUM_U64:
-        return g_strdup_printf("%" PRIu64, qn->u.u64);
+        return g_strdup_printf("%" PRIu64, qv->u.u64);
     case QNUM_DOUBLE:
         /* FIXME: snprintf() is locale dependent; but JSON requires
          * numbers to be formatted as if in the C locale. Dependence
@@ -189,7 +187,7 @@ char *qnum_to_string(QNum *qn)
          * rounding errors; we should be using DBL_DECIMAL_DIG (17),
          * and only rounding to a shorter number if the result would
          * still produce the same floating point value.  */
-        buffer = g_strdup_printf("%f" , qn->u.dbl);
+        buffer = g_strdup_printf("%f" , qv->u.dbl);
         len = strlen(buffer);
         while (len > 0 && buffer[len - 1] == '0') {
             len--;
@@ -221,8 +219,10 @@ char *qnum_to_string(QNum *qn)
  */
 bool qnum_is_equal(const QObject *x, const QObject *y)
 {
-    QNum *num_x = qobject_to(QNum, x);
-    QNum *num_y = qobject_to(QNum, y);
+    const QNum *qnum_x = qobject_to(QNum, x);
+    const QNum *qnum_y = qobject_to(QNum, y);
+    const QNumValue *num_x = &qnum_x->value;
+    const QNumValue *num_y = &qnum_y->value;
 
     switch (num_x->kind) {
     case QNUM_I64:
