@@ -280,6 +280,7 @@ class ReplayKernelNormal(ReplayKernelBase):
         file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
         self.do_test_advcal_2018(file_path, 'sanity-clause.elf')
 
+    @skipUnless(os.getenv('AVOCADO_TIMEOUT_EXPECTED'), 'Test might timeout')
     def test_microblaze_s3adsp1800(self):
         """
         :avocado: tags=arch:microblaze
