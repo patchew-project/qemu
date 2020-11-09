@@ -796,20 +796,23 @@ static void simple_number(void)
     int i;
     struct {
         const char *encoded;
+        QLitObject qlit;
         int64_t decoded;
         int skip;
     } test_cases[] = {
-        { "0", 0 },
-        { "1234", 1234 },
-        { "1", 1 },
-        { "-32", -32 },
-        { "-0", 0, .skip = 1 },
+        { "0",    QLIT_QNUM(0),    0, },
+        { "1234", QLIT_QNUM(1234), 1234, },
+        { "1",    QLIT_QNUM(1),    1, },
+        { "-32",  QLIT_QNUM(-32),  -32, },
+        { "-0",   QLIT_QNUM(0),    0, .skip = 1 },
         { },
     };
 
     for (i = 0; test_cases[i].encoded; i++) {
         QNum *qnum;
         int64_t val;
+        QNum *qlit_num;
+        int64_t qlit_val;
 
         qnum = qobject_to(QNum,
                           qobject_from_json(test_cases[i].encoded,
@@ -817,6 +820,7 @@ static void simple_number(void)
         g_assert(qnum);
         g_assert(qnum_get_try_int(qnum, &val));
         g_assert_cmpint(val, ==, test_cases[i].decoded);
+
         if (test_cases[i].skip == 0) {
             QString *str;
 
@@ -826,7 +830,64 @@ static void simple_number(void)
         }
 
         qobject_unref(qnum);
+
+        qlit_num = qobject_to(QNum,
+                              qobject_from_qlit(&test_cases[i].qlit));
+        g_assert(qlit_num);
+        g_assert(qnum_get_try_int(qlit_num, &qlit_val));
+        g_assert_cmpint(qlit_val, ==, test_cases[i].decoded);
+
+        qobject_unref(qlit_num);
     }
+}
+
+static void qlit_large_number(void)
+{
+    QLitObject maxu64 = QLIT_QNUM_UINT(UINT64_MAX);
+    QLitObject maxi64 = QLIT_QNUM(INT64_MAX);
+    QLitObject mini64 = QLIT_QNUM(INT64_MIN);
+    QLitObject gtu64  = QLIT_QNUM_DOUBLE(18446744073709552e3);
+    QLitObject lti64  = QLIT_QNUM_DOUBLE(-92233720368547758e2);
+    QNum *qnum;
+    uint64_t val;
+    int64_t ival;
+
+    qnum = qobject_to(QNum, qobject_from_qlit(&maxu64));
+    g_assert(qnum);
+    g_assert_cmpuint(qnum_get_uint(qnum), ==, UINT64_MAX);
+    g_assert(!qnum_get_try_int(qnum, &ival));
+
+    qobject_unref(qnum);
+
+    qnum = qobject_to(QNum, qobject_from_qlit(&maxi64));
+    g_assert(qnum);
+    g_assert_cmpuint(qnum_get_uint(qnum), ==, INT64_MAX);
+    g_assert_cmpint(qnum_get_int(qnum), ==, INT64_MAX);
+
+    qobject_unref(qnum);
+
+    qnum = qobject_to(QNum, qobject_from_qlit(&mini64));
+    g_assert(qnum);
+    g_assert(!qnum_get_try_uint(qnum, &val));
+    g_assert_cmpuint(qnum_get_int(qnum), ==, INT64_MIN);
+
+    qobject_unref(qnum);
+
+    qnum = qobject_to(QNum, qobject_from_qlit(&gtu64));
+    g_assert(qnum);
+    g_assert_cmpfloat(qnum_get_double(qnum), ==, 18446744073709552e3);
+    g_assert(!qnum_get_try_uint(qnum, &val));
+    g_assert(!qnum_get_try_int(qnum, &ival));
+
+    qobject_unref(qnum);
+
+    qnum = qobject_to(QNum, qobject_from_qlit(&lti64));
+    g_assert(qnum);
+    g_assert_cmpfloat(qnum_get_double(qnum), ==, -92233720368547758e2);
+    g_assert(!qnum_get_try_uint(qnum, &val));
+    g_assert(!qnum_get_try_int(qnum, &ival));
+
+    qobject_unref(qnum);
 }
 
 static void large_number(void)
@@ -1472,6 +1533,7 @@ int main(int argc, char **argv)
     g_test_add_func("/literals/string/utf8", utf8_string);
 
     g_test_add_func("/literals/number/simple", simple_number);
+    g_test_add_func("/literals/number/qlit_large", qlit_large_number);
     g_test_add_func("/literals/number/large", large_number);
     g_test_add_func("/literals/number/float", float_number);
 

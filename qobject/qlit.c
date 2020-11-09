@@ -71,7 +71,7 @@ bool qlit_equal_qobject(const QLitObject *lhs, const QObject *rhs)
     case QTYPE_QBOOL:
         return lhs->value.qbool == qbool_get_bool(qobject_to(QBool, rhs));
     case QTYPE_QNUM:
-        return lhs->value.qnum ==  qnum_get_int(qobject_to(QNum, rhs));
+        return qnum_value_is_equal(&lhs->value.qnum, qnum_get_value(qobject_to(QNum, rhs)));
     case QTYPE_QSTRING:
         return (strcmp(lhs->value.qstr,
                        qstring_get_str(qobject_to(QString, rhs))) == 0);
@@ -94,7 +94,7 @@ QObject *qobject_from_qlit(const QLitObject *qlit)
     case QTYPE_QNULL:
         return QOBJECT(qnull());
     case QTYPE_QNUM:
-        return QOBJECT(qnum_from_int(qlit->value.qnum));
+        return QOBJECT(qnum_from_value(qlit->value.qnum));
     case QTYPE_QSTRING:
         return QOBJECT(qstring_from_str(qlit->value.qstr));
     case QTYPE_QDICT: {
