@@ -1091,6 +1091,17 @@ ObjectProperty *object_class_property_add(ObjectClass *klass, const char *name,
                                           void *opaque);
 
 /**
+ * object_property_set_default:
+ * @prop: the property to set
+ * @value: the value to be written to the property
+ *
+ * Set the property default value.
+ *
+ * Ownership of @value is transferred to the property.
+ */
+void object_property_set_default(ObjectProperty *prop, QObject *value);
+
+/**
  * object_property_set_default_bool:
  * @prop: the property to set
  * @value: the value to be written to the property

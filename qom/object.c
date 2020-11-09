@@ -1547,7 +1547,7 @@ static void object_property_init_defval(Object *obj, ObjectProperty *prop)
     visit_free(v);
 }
 
-static void object_property_set_default(ObjectProperty *prop, QObject *defval)
+void object_property_set_default(ObjectProperty *prop, QObject *defval)
 {
     assert(!prop->defval);
     assert(!prop->init);
