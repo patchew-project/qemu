@@ -114,3 +114,9 @@ config IMX_USBPHY
     bool
     default y
     depends on USB
+
+config USB_DWC3
+    bool
+    default y if USB_XHCI_SYSBUS
+    select USB
+    select REGISTER
