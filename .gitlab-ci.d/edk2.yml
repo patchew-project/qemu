@@ -1,10 +1,5 @@
 docker-edk2:
  stage: containers
- rules: # Only run this job when the Dockerfile is modified
- - changes:
-   - .gitlab-ci.d/edk2.yml
-   - .gitlab-ci.d/edk2/Dockerfile
-   when: always
  image: docker:19.03.1
  services:
  - docker:19.03.1-dind
@@ -26,13 +21,15 @@ docker-edk2:
 build-edk2:
  stage: build
  rules: # Only run this job when ...
- - changes: # ... roms/edk2/ is modified (submodule updated)
-   - roms/edk2/*
+ - if: $CI_COMMIT_TAG # we pushed a tag
    when: always
  - if: '$CI_COMMIT_REF_NAME =~ /^edk2/' # or the branch/tag starts with 'edk2'
    when: always
  - if: '$CI_COMMIT_MESSAGE =~ /edk2/i' # or last commit description contains 'EDK2'
    when: always
+   # ... else allow manual run on the WebUI
+ - when: manual
+   allow_failure: true
  artifacts:
    paths: # 'artifacts.zip' will contains the following files:
    - pc-bios/edk2*bz2
