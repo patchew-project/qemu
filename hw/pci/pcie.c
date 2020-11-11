@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "hw/mem/memory-device.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pcie.h"
 #include "hw/pci/msix.h"
@@ -27,6 +28,8 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pcie_regs.h"
 #include "hw/pci/pcie_port.h"
+#include "hw/cxl/cxl.h"
+#include "hw/boards.h"
 #include "qemu/range.h"
 
 //#define DEBUG_PCIE
@@ -419,6 +422,28 @@ void pcie_cap_slot_pre_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
     }
 
     pcie_cap_slot_plug_common(PCI_DEVICE(hotplug_dev), dev, errp);
+
+#ifdef CXL_MEM_DEVICE
+    /*
+     * FIXME:
+     * if (object_dynamic_cast(OBJECT(dev), TYPE_CXL_TYPE3_DEV)) {
+     *    HotplugHandler *hotplug_ctrl;
+     *   Error *local_err = NULL;
+     *  hotplug_ctrl = qdev_get_hotplug_handler(dev);
+     *  if (hotplug_ctrl) {
+     *      hotplug_handler_pre_plug(hotplug_ctrl, dev, &local_err);
+     *      if (local_err) {
+     *          error_propagate(errp, local_err);
+     *          return;
+     *      }
+     *  }
+     */
+
+    if (object_dynamic_cast(OBJECT(dev), TYPE_CXL_TYPE3_DEV)) {
+        memory_device_pre_plug(MEMORY_DEVICE(dev), MACHINE(qdev_get_machine()),
+                               NULL, errp);
+    }
+#endif
 }
 
 void pcie_cap_slot_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
@@ -455,6 +480,11 @@ void pcie_cap_slot_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
         pcie_cap_slot_event(hotplug_pdev,
                             PCI_EXP_HP_EV_PDC | PCI_EXP_HP_EV_ABP);
     }
+
+#ifdef CXL_MEM_DEVICE
+    if (object_dynamic_cast(OBJECT(dev), TYPE_CXL_TYPE3_DEV))
+        memory_device_plug(MEMORY_DEVICE(dev), MACHINE(qdev_get_machine()));
+#endif
 }
 
 void pcie_cap_slot_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,

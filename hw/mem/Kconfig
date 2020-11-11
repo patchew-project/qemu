@@ -10,3 +10,8 @@ config NVDIMM
     default y
     depends on (PC || PSERIES || ARM_VIRT)
     select MEM_DEVICE
+
+config CXL_MEM_DEVICE
+    bool
+    default y if CXL
+    select MEM_DEVICE

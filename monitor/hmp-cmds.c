@@ -1881,6 +1881,21 @@ void hmp_info_memory_devices(Monitor *mon, const QDict *qdict)
                 monitor_printf(mon, "  hotpluggable: %s\n",
                                di->hotpluggable ? "true" : "false");
                 break;
+            case MEMORY_DEVICE_INFO_KIND_CXL:
+                di = value->u.cxl.data;
+                monitor_printf(mon, "Memory device [%s]: \"%s\"\n",
+                               MemoryDeviceInfoKind_str(value->type),
+                               di->id ? di->id : "");
+                monitor_printf(mon, "  addr: 0x%" PRIx64 "\n", di->addr);
+                monitor_printf(mon, "  slot: %" PRId64 "\n", di->slot);
+                monitor_printf(mon, "  node: %" PRId64 "\n", di->node);
+                monitor_printf(mon, "  size: %" PRIu64 "\n", di->size);
+                monitor_printf(mon, "  memdev: %s\n", di->memdev);
+                monitor_printf(mon, "  hotplugged: %s\n",
+                               di->hotplugged ? "true" : "false");
+                monitor_printf(mon, "  hotpluggable: %s\n",
+                               di->hotpluggable ? "true" : "false");
+                break;
             case MEMORY_DEVICE_INFO_KIND_VIRTIO_PMEM:
                 vpi = value->u.virtio_pmem.data;
                 monitor_printf(mon, "Memory device [%s]: \"%s\"\n",
