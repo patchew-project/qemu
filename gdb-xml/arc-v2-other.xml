@@ -1,0 +1,235 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2018 Free Software Foundation, Inc.
+     Copying and distribution of this file, with or without modification,
+     are permitted in any medium without royalty provided the copyright
+     notice and this notice are preserved.  -->
+
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<feature name="org.gnu.gdb.arc.other">
+  <flags id="timer_build_type" size="4">
+    <field name="version" start="0"  end="7"/>
+    <field name="t0"      start="8"  end="8"/>
+    <field name="t1"      start="9"  end="9"/>
+    <field name="rtc"     start="10" end="10"/>
+    <field name="p0"      start="16" end="19"/>
+    <field name="p1"      start="20" end="23"/>
+  </flags>
+  <flags id="irq_build_type" size="4">
+    <field name="version" start="0"  end="7"/>
+    <field name="IRQs"    start="8"  end="15"/>
+    <field name="exts"    start="16" end="23"/>
+    <field name="p"       start="24" end="27"/>
+    <field name="f"       start="28" end="28"/>
+  </flags>
+  <flags id="mpy_build_type" size="4">
+    <field name="version32x32" start="0"  end="7"/>
+    <field name="type"         start="8"  end="9"/>
+    <field name="cyc"          start="10" end="11"/>
+    <field name="DSP"          start="12" end="15"/>
+    <field name="version16x16" start="16" end="23"/>
+  </flags>
+  <flags id="vecbase_build_type" size="4">
+    <field name="version" start="2"  end="9"/>
+    <field name="addr"    start="10" end="31"/>
+  </flags>
+  <flags id="isa_config_type" size="4">
+    <field name="version"   start="0"  end="7"/>
+    <field name="pc_size"   start="8"  end="11"/>
+    <field name="lpc_size"  start="12" end="15"/>
+    <field name="addr_size" start="16" end="19"/>
+    <field name="b"         start="20" end="20"/>
+    <field name="a"         start="21" end="21"/>
+    <field name="n"         start="22" end="22"/>
+    <field name="l"         start="23" end="23"/>
+    <field name="c"         start="24" end="27"/>
+    <field name="d"         start="28" end="31"/>
+  </flags>
+  <flags id="timer_ctrl_type" size="4">
+    <field name="ie" start="0" end="0"/>
+    <field name="nh" start="1" end="1"/>
+    <field name="w"  start="2" end="2"/>
+    <field name="ip" start="3" end="3"/>
+    <field name="pd" start="4" end="4"/>
+  </flags>
+  <flags id="tlbpd0_type" size="4">
+    <field name="a"   start="0"  end="7"  type="uint8"/>
+    <field name="g"   start="8"  end="8"  type="bool"/>
+    <field name="v"   start="9"  end="9"  type="bool"/>
+    <field name="sz " start="10" end="10" type="bool"/>
+    <field name="vpn" start="12" end="30" type="uint32"/>
+    <field name="s"   start="31" end="31" type="bool"/>
+  </flags>
+  <flags id="tlbpd1_type" size="4">
+    <field name="fc"  start="0"  end="0"/>
+    <field name="eu"  start="1"  end="1"/>
+    <field name="wu"  start="2"  end="2"/>
+    <field name="ru"  start="3"  end="3"/>
+    <field name="ek"  start="4"  end="4"/>
+    <field name="wk"  start="5"  end="5"/>
+    <field name="rk"  start="6"  end="6"/>
+    <field name="ppn" start="12" end="31"/>
+  </flags>
+  <flags id="tlbindex_type" size="4">
+    <field name="index" start="0"  end="12"/>
+    <field name="rc"    start="28" end="30"/>
+    <field name="e"     start="31" end="31"/>
+  </flags>
+  <flags id="tlbcmd_type" size="4">
+    <field name="cmd" start="0" end="5"/>
+  </flags>
+  <flags id="pid_type" size="4">
+    <field name="p" start="0"  end="7" />
+    <field name="s" start="29" end="29"/>
+    <field name="t" start="31" end="31"/>
+  </flags>
+  <flags id="erstatus_type" size="4">
+    <field name="e"  start="1"  end="4" />
+    <field name="ae" start="5"  end="5" />
+    <field name="de" start="6"  end="6" />
+    <field name="u"  start="7"  end="7" />
+    <field name="v"  start="8"  end="8" />
+    <field name="c"  start="9"  end="9" />
+    <field name="n"  start="10" end="10"/>
+    <field name="z"  start="11" end="11"/>
+    <field name="l"  start="12" end="12"/>
+    <field name="dz" start="13" end="13"/>
+    <field name="sc" start="14" end="14"/>
+    <field name="es" start="15" end="15"/>
+    <field name="rb" start="16" end="18"/>
+    <field name="ad" start="19" end="19"/>
+    <field name="us" start="20" end="20"/>
+    <field name="ie" start="31" end="31"/>
+  </flags>
+  <flags id="ecr_type" size="4">
+    <field name="parameter"    start="0"  end="7" />
+    <field name="causecode"    start="8"  end="15"/>
+    <field name="vectornumber" start="16" end="23"/>
+    <field name="u"            start="30" end="30"/>
+    <field name="p"            start="31" end="31"/>
+  </flags>
+  <flags id="irq_ctrl_type" size="4">
+    <field name="nr" start="0"  end="4"/>
+    <field name="b"  start="9"  end="9"/>
+    <field name="l"  start="10" end="10"/>
+    <field name="u"  start="11" end="11"/>
+    <field name="lp" start="13" end="13"/>
+  </flags>
+  <flags id="irq_act_type" size="4">
+    <field name="active" start="0" end="15"/>
+    <field name="u" start="31" end="31"/>
+  </flags>
+  <flags id="irq_status_type" size="4">
+    <field name="p"  start="0"  end="3"/>
+    <field name="e"  start="4"  end="4"/>
+    <field name="t"  start="5"  end="5"/>
+    <field name="ip" start="31" end="31"/>
+  </flags>
+  <flags id="mpu_build_type" size="4">
+    <field name="version" start="0" end="7"/>
+    <field name="regions" start="8" end="15"/>
+  </flags>
+  <flags id="mpuen_type" size="4">
+    <field name="ue" start="3"  end="3"/>
+    <field name="uw" start="4"  end="4"/>
+    <field name="ur" start="5"  end="5"/>
+    <field name="ke" start="6"  end="6"/>
+    <field name="kw" start="7"  end="7"/>
+    <field name="kr" start="8"  end="8"/>
+    <field name="en" start="30" end="30"/>
+  </flags>
+  <flags id="mpuecr_type" size="4">
+    <field name="mr"      start="0"  end="7"/>
+    <field name="vt"      start="8"  end="9"/>
+    <field name="ec_code" start="16" end="31"/>
+  </flags>
+  <flags id="mpurdb_type" size="4">
+    <field name="v"         start="0" end="0"/>
+    <field name="base_addr" start="5" end="31"/>
+  </flags>
+  <flags id="mpurdp_type" size="4">
+    <field name="size_lower" start="0"  end="1"/>
+    <field name="ue"         start="3"  end="3"/>
+    <field name="uw"         start="4"  end="4"/>
+    <field name="ur"         start="5"  end="5"/>
+    <field name="ke"         start="6"  end="6"/>
+    <field name="kw"         start="7"  end="7"/>
+    <field name="kr"         start="8"  end="8"/>
+    <field name="size_upper" start="9"  end="11"/>
+  </flags>
+  <!-- build registers -->
+  <reg name="timer_build"   bitsize="32" regnum="40" type="timer_build_type"   group=""/>
+  <reg name="irq_build"     bitsize="32" regnum="41" type="irq_build_type"     group=""/>
+  <reg name="mpy_build"     bitsize="32" regnum="42" type="mpy_build_type"     group=""/>
+  <reg name="vecbase_build" bitsize="32" regnum="43" type="vecbase_build_type" group=""/>
+  <reg name="isa_config"    bitsize="32" regnum="44" type="isa_config_type"    group=""/>
+  <!-- timer registers -->
+  <reg name="timer_count0" bitsize="32" regnum="45"                        group="general"/>
+  <reg name="timer_ctrl0"  bitsize="32" regnum="46" type="timer_ctrl_type" group="general"/>
+  <reg name="timer_limit0" bitsize="32" regnum="47"                        group="general"/>
+  <reg name="timer_count1" bitsize="32" regnum="48"                        group="general"/>
+  <reg name="timer_ctrl1"  bitsize="32" regnum="49" type="timer_ctrl_type" group="general"/>
+  <reg name="timer_limit1" bitsize="32" regnum="50"                        group="general"/>
+  <!-- mmu registers -->
+  <reg name="pid"      bitsize="32" regnum="51" type="pid_type"      group="general"/>
+  <reg name="tlbpd0"   bitsize="32" regnum="52" type="tlbpd0_type"   group="general"/>
+  <reg name="tlbpd1"   bitsize="32" regnum="53" type="tlbpd1_type"   group="general"/>
+  <reg name="tlbindex" bitsize="32" regnum="54" type="tlbindex_type" group="general"/>
+  <reg name="tlbcmd"   bitsize="32" regnum="55" type="tlbcmd_type"   group="general"/>
+  <!-- mpu registers -->
+  <reg name="mpu_build" bitsize="32" regnum="56"  type="mpu_build_type" group=""/>
+  <reg name="mpuen"     bitsize="32" regnum="57"  type="mpuen_type"     group=""/>
+  <reg name="mpuecr"    bitsize="32" regnum="58"  type="mpuecr_type"    group=""/>
+  <reg name="mpurdb0"   bitsize="32" regnum="59"  type="mpurdb_type"    group=""/>
+  <reg name="mpurdb1"   bitsize="32" regnum="60"  type="mpurdb_type"    group=""/>
+  <reg name="mpurdb2"   bitsize="32" regnum="61"  type="mpurdb_type"    group=""/>
+  <reg name="mpurdb3"   bitsize="32" regnum="62"  type="mpurdb_type"    group=""/>
+  <reg name="mpurdb4"   bitsize="32" regnum="63"  type="mpurdb_type"    group=""/>
+  <reg name="mpurdb5"   bitsize="32" regnum="64"  type="mpurdb_type"    group=""/>
+  <reg name="mpurdb6"   bitsize="32" regnum="65"  type="mpurdb_type"    group=""/>
+  <reg name="mpurdb7"   bitsize="32" regnum="66"  type="mpurdb_type"    group=""/>
+  <reg name="mpurdb8"   bitsize="32" regnum="67"  type="mpurdb_type"    group=""/>
+  <reg name="mpurdb9"   bitsize="32" regnum="68"  type="mpurdb_type"    group=""/>
+  <reg name="mpurdb10"  bitsize="32" regnum="69"  type="mpurdb_type"    group=""/>
+  <reg name="mpurdb11"  bitsize="32" regnum="70"  type="mpurdb_type"    group=""/>
+  <reg name="mpurdb12"  bitsize="32" regnum="71"  type="mpurdb_type"    group=""/>
+  <reg name="mpurdb13"  bitsize="32" regnum="72"  type="mpurdb_type"    group=""/>
+  <reg name="mpurdb14"  bitsize="32" regnum="73"  type="mpurdb_type"    group=""/>
+  <reg name="mpurdb15"  bitsize="32" regnum="74"  type="mpurdb_type"    group=""/>
+  <reg name="mpurdp0"   bitsize="32" regnum="75"  type="mpurdp_type"    group=""/>
+  <reg name="mpurdp1"   bitsize="32" regnum="76"  type="mpurdp_type"    group=""/>
+  <reg name="mpurdp2"   bitsize="32" regnum="77"  type="mpurdp_type"    group=""/>
+  <reg name="mpurdp3"   bitsize="32" regnum="78"  type="mpurdp_type"    group=""/>
+  <reg name="mpurdp4"   bitsize="32" regnum="79"  type="mpurdp_type"    group=""/>
+  <reg name="mpurdp5"   bitsize="32" regnum="80"  type="mpurdp_type"    group=""/>
+  <reg name="mpurdp6"   bitsize="32" regnum="81"  type="mpurdp_type"    group=""/>
+  <reg name="mpurdp7"   bitsize="32" regnum="82"  type="mpurdp_type"    group=""/>
+  <reg name="mpurdp8"   bitsize="32" regnum="83"  type="mpurdp_type"    group=""/>
+  <reg name="mpurdp9"   bitsize="32" regnum="84"  type="mpurdp_type"    group=""/>
+  <reg name="mpurdp10"  bitsize="32" regnum="85"  type="mpurdp_type"    group=""/>
+  <reg name="mpurdp11"  bitsize="32" regnum="86"  type="mpurdp_type"    group=""/>
+  <reg name="mpurdp12"  bitsize="32" regnum="87"  type="mpurdp_type"    group=""/>
+  <reg name="mpurdp13"  bitsize="32" regnum="88"  type="mpurdp_type"    group=""/>
+  <reg name="mpurdp14"  bitsize="32" regnum="89"  type="mpurdp_type"    group=""/>
+  <reg name="mpurdp15"  bitsize="32" regnum="90"  type="mpurdp_type"    group=""/>
+  <!-- exception registers -->
+  <reg name="erstatus" bitsize="32" regnum="91" type="erstatus_type" group="general"/>
+  <reg name="erbta"    bitsize="32" regnum="92" type="code_ptr"      group="general"/>
+  <reg name="ecr"      bitsize="32" regnum="93" type="ecr_type"      group="general"/>
+  <reg name="eret"     bitsize="32" regnum="94" type="code_ptr"      group="general"/>
+  <reg name="efa"      bitsize="32" regnum="95" type="uint32"        group="general"/>
+  <!-- irq registers -->
+  <reg name="icause"               bitsize="32" regnum="96"  type="uint8"           group="general"/>
+  <reg name="aux_irq_ctrl"         bitsize="32" regnum="97"  type="irq_ctrl_type"   group="general"/>
+  <reg name="aux_irq_act"          bitsize="32" regnum="98"  type="irq_act_type"    group="general"/>
+  <reg name="irq_priority_pending" bitsize="32" regnum="99"  type="uint16"          group="general"/>
+  <reg name="aux_irq_hint"         bitsize="32" regnum="100" type="uint8"           group="general"/>
+  <reg name="irq_select"           bitsize="32" regnum="101" type="uint8"           group="general"/>
+  <reg name="irq_enable"           bitsize="32" regnum="102" type="bool"            group="general"/>
+  <reg name="irq_trigger"          bitsize="32" regnum="103" type="bool"            group="general"/>
+  <reg name="irq_status"           bitsize="32" regnum="104" type="irq_status_type" group="general"/>
+  <reg name="irq_pulse_cancel"     bitsize="32" regnum="105" type="bool"            group="general"/>
+  <reg name="irq_pending"          bitsize="32" regnum="106" type="bool"            group="general"/>
+  <reg name="irq_priority"         bitsize="32" regnum="107" type="uint8"           group="general"/>
+  <!-- miscellaneous -->
+  <reg name="bta" bitsize="32" regnum="108" type="code_ptr" group="general"/>
+</feature>

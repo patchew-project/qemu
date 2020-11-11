@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2018 Free Software Foundation, Inc.
+     Copying and distribution of this file, with or without modification,
+     are permitted in any medium without royalty provided the copyright
+     notice and this notice are preserved.  -->
+
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<feature name="org.gnu.gdb.arc.core">
+  <reg name="r0"       bitsize="32" regnum="0"                  group="general"/>
+  <reg name="r1"       bitsize="32" regnum="1"                  group="general"/>
+  <reg name="r2"       bitsize="32" regnum="2"                  group="general"/>
+  <reg name="r3"       bitsize="32" regnum="3"                  group="general"/>
+  <reg name="r4"       bitsize="32" regnum="4"                  group="general"/>
+  <reg name="r5"       bitsize="32" regnum="5"                  group="general"/>
+  <reg name="r6"       bitsize="32" regnum="6"                  group="general"/>
+  <reg name="r7"       bitsize="32" regnum="7"                  group="general"/>
+  <reg name="r8"       bitsize="32" regnum="8"                  group="general"/>
+  <reg name="r9"       bitsize="32" regnum="9"                  group="general"/>
+  <reg name="r10"      bitsize="32" regnum="10"                 group="general"/>
+  <reg name="r11"      bitsize="32" regnum="11"                 group="general"/>
+  <reg name="r12"      bitsize="32" regnum="12"                 group="general"/>
+  <reg name="r13"      bitsize="32" regnum="13"                 group="general"/>
+  <reg name="r14"      bitsize="32" regnum="14"                 group="general"/>
+  <reg name="r15"      bitsize="32" regnum="15"                 group="general"/>
+  <reg name="r16"      bitsize="32" regnum="16"                 group="general"/>
+  <reg name="r17"      bitsize="32" regnum="17"                 group="general"/>
+  <reg name="r18"      bitsize="32" regnum="18"                 group="general"/>
+  <reg name="r19"      bitsize="32" regnum="19"                 group="general"/>
+  <reg name="r20"      bitsize="32" regnum="20"                 group="general"/>
+  <reg name="r21"      bitsize="32" regnum="21"                 group="general"/>
+  <reg name="r22"      bitsize="32" regnum="22"                 group="general"/>
+  <reg name="r23"      bitsize="32" regnum="23"                 group="general"/>
+  <reg name="r24"      bitsize="32" regnum="24"                 group="general"/>
+  <reg name="r25"      bitsize="32" regnum="25"                 group="general"/>
+  <reg name="gp"       bitsize="32" regnum="26" type="data_ptr" group="general"/>
+  <reg name="fp"       bitsize="32" regnum="27" type="data_ptr" group="general"/>
+  <reg name="sp"       bitsize="32" regnum="28" type="data_ptr" group="general"/>
+  <reg name="ilink"    bitsize="32" regnum="29" type="code_ptr" group="general"/>
+  <reg name="r30"      bitsize="32" regnum="30"                 group="general"/>
+  <reg name="blink"    bitsize="32" regnum="31" type="code_ptr" group="general"/>
+  <reg name="accl"     bitsize="32" regnum="32"                 group="general"/>
+  <reg name="acch"     bitsize="32" regnum="33"                 group="general"/>
+  <reg name="lp_count" bitsize="32" regnum="34" type="uint32"   group="general"/>
+  <reg name="pcl"      bitsize="32" regnum="35" type="code_ptr" group="general"/>
+</feature>
