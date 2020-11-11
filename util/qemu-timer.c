@@ -183,7 +183,7 @@ bool qemu_clock_has_timers(QEMUClockType type)
 
 bool timerlist_expired(QEMUTimerList *timer_list)
 {
-    int64_t expire_time;
+    int64_t expire_time = -1;
 
     if (!qatomic_read(&timer_list->active_timers)) {
         return false;
@@ -213,7 +213,7 @@ bool qemu_clock_expired(QEMUClockType type)
 int64_t timerlist_deadline_ns(QEMUTimerList *timer_list)
 {
     int64_t delta;
-    int64_t expire_time;
+    int64_t expire_time = -1;
 
     if (!qatomic_read(&timer_list->active_timers)) {
         return -1;
