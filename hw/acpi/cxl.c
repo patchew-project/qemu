@@ -18,13 +18,85 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/sysbus.h"
+#include "hw/pci/pci_bridge.h"
+#include "hw/pci/pci_host.h"
 #include "hw/cxl/cxl.h"
+#include "hw/mem/memory-device.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/aml-build.h"
 #include "hw/acpi/bios-linker-loader.h"
 #include "hw/acpi/cxl.h"
+#include "hw/acpi/cxl.h"
 #include "qapi/error.h"
 #include "qemu/uuid.h"
+
+static void cedt_build_chbs(GArray *table_data, PXBDev *cxl)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(cxl->cxl.cxl_host_bridge);
+    struct MemoryRegion *mr = sbd->mmio[0].memory;
+
+    /* Type */
+    build_append_int_noprefix(table_data, 0, 1);
+
+    /* Reserved */
+    build_append_int_noprefix(table_data, 0xff, 1);
+
+    /* Record Length */
+    build_append_int_noprefix(table_data, 32, 2);
+
+    /* UID */
+    build_append_int_noprefix(table_data, cxl->uid, 4);
+
+    /* Version */
+    build_append_int_noprefix(table_data, 1, 4);
+
+    /* Reserved */
+    build_append_int_noprefix(table_data, 0xffffffff, 4);
+
+    /* Base */
+    build_append_int_noprefix(table_data, mr->addr, 8);
+
+    /* Length */
+    build_append_int_noprefix(table_data, memory_region_size(mr), 4);
+
+    /* Reserved */
+    build_append_int_noprefix(table_data, 0xffffffff, 4);
+}
+
+static int cxl_foreach_pxb_hb(Object *obj, void *opaque)
+{
+    Aml *cedt = opaque;
+
+    if (object_dynamic_cast(obj, TYPE_PXB_CXL_DEVICE)) {
+        PXBDev *pxb = PXB_CXL_DEV(obj);
+
+        cedt_build_chbs(cedt->buf, pxb);
+    }
+
+    return 0;
+}
+
+void cxl_build_cedt(GArray *table_offsets, GArray *table_data,
+                    BIOSLinker *linker)
+{
+    const int cedt_start = table_data->len;
+    Aml *cedt;
+
+    cedt = init_aml_allocator();
+
+    /* reserve space for CEDT header */
+    acpi_add_table(table_offsets, table_data);
+    acpi_data_push(cedt->buf, sizeof(AcpiTableHeader));
+
+    object_child_foreach_recursive(object_get_root(), cxl_foreach_pxb_hb, cedt);
+
+    /* copy AML table into ACPI tables blob and patch header there */
+    g_array_append_vals(table_data, cedt->buf->data, cedt->buf->len);
+    build_header(linker, table_data, (void *)(table_data->data + cedt_start),
+                 "CEDT", table_data->len - cedt_start, 1, NULL, NULL);
+    free_aml_allocator();
+}
 
 static Aml *__build_cxl_osc_method(void)
 {

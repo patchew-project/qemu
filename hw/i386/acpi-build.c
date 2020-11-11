@@ -75,6 +75,8 @@
 #include "hw/acpi/ipmi.h"
 #include "hw/acpi/hmat.h"
 
+#include "hw/acpi/cxl.h"
+
 /* These are used to size the ACPI tables for -M pc-i440fx-1.7 and
  * -M pc-i440fx-2.0.  Even if the actual amount of AML generated grows
  * a little bit, there should be plenty of free space since the DSDT
@@ -1662,7 +1664,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
 
             scope = aml_scope("\\_SB");
             if (type == CXL) {
-                dev = aml_device("CXL%.01X", pci_bus_uid(bus));
+                dev = aml_device("CXL%.01X", uid);
             } else {
                 dev = aml_device("PC%.02X", bus_num);
             }
@@ -2567,6 +2569,8 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
         nvdimm_build_acpi(table_offsets, tables_blob, tables->linker,
                           machine->nvdimms_state, machine->ram_slots);
     }
+
+    cxl_build_cedt(table_offsets, tables_blob, tables->linker);
 
     acpi_add_table(table_offsets, tables_blob);
     build_waet(tables_blob, tables->linker);
