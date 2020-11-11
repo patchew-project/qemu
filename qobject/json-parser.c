@@ -267,10 +267,13 @@ static int parse_pair(JSONParserContext *ctxt, QDict *dict)
         goto out;
     }
 
-    key = qobject_to(QString, parse_value(ctxt));
-    if (!key) {
-        parse_error(ctxt, peek, "key is not a string in object");
+    value = parse_value(ctxt);
+    if (!value || qobject_type(value) != QTYPE_QSTRING) {
+        qobject_unref(value);
+        parse_error(ctxt, peek, "value is not a string in object");
         goto out;
+    } else {
+        key = qobject_to(QString, value);
     }
 
     token = parser_context_pop_token(ctxt);
