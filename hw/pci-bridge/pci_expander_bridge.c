@@ -69,12 +69,19 @@ struct PXBDev {
     uint8_t bus_nr;
     uint16_t numa_node;
     int32_t uid;
+    struct cxl_dev {
+        HostMemoryBackend *memory_window[CXL_WINDOW_MAX];
+
+        uint32_t num_windows;
+        hwaddr *window_base[CXL_WINDOW_MAX];
+    } cxl;
 };
 
 typedef struct CXLHost {
     PCIHostState parent_obj;
 
     CXLComponentState cxl_cstate;
+    PXBDev *dev;
 } CXLHost;
 
 static PXBDev *convert_to_pxb(PCIDevice *dev)
@@ -213,16 +220,31 @@ static void pxb_cxl_realize(DeviceState *dev, Error **errp)
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
     CXLHost *cxl = PXB_CXL_HOST(dev);
+    struct cxl_dev *cxl_dev = &cxl->dev->cxl;
     CXLComponentState *cxl_cstate = &cxl->cxl_cstate;
     struct MemoryRegion *mr = &cxl_cstate->crb.component_registers;
+    int uid = pci_bus_uid(phb->bus);
 
     cxl_component_register_block_init(OBJECT(dev), cxl_cstate,
                                       TYPE_PXB_CXL_HOST);
     sysbus_init_mmio(sbd, mr);
 
-    /* FIXME: support multiple host bridges. */
-    sysbus_mmio_map(sbd, 0, CXL_HOST_BASE +
-                            memory_region_size(mr) * pci_bus_uid(phb->bus));
+    sysbus_mmio_map(sbd, 0, CXL_HOST_BASE + memory_region_size(mr) * uid);
+
+    /*
+     * A CXL host bridge can exist without a fixed memory window, but it would
+     * only operate in legacy PCIe mode.
+     */
+    if (!cxl_dev->memory_window[uid]) {
+        warn_report(
+            "CXL expander bridge created without window. Consider using %s",
+            "memdev[0]=<memory_backend>");
+        return;
+    }
+
+    mr = host_memory_backend_get_memory(cxl_dev->memory_window[uid]);
+    sysbus_init_mmio(sbd, mr);
+    sysbus_mmio_map(sbd, 1 + uid, *cxl_dev->window_base[uid]);
 }
 
 static void pxb_cxl_host_class_init(ObjectClass *class, void *data)
@@ -328,6 +350,7 @@ static void pxb_dev_realize_common(PCIDevice *dev, enum BusType type,
     } else if (type == CXL) {
         bus = pci_root_bus_new(ds, dev_name, NULL, NULL, 0, TYPE_PXB_CXL_BUS);
         bus->flags |= PCI_BUS_CXL;
+        PXB_CXL_HOST(ds)->dev = PXB_CXL_DEV(dev);
     } else {
         bus = pci_root_bus_new(ds, "pxb-internal", NULL, NULL, 0, TYPE_PXB_BUS);
         bds = qdev_new("pci-bridge");
@@ -389,6 +412,8 @@ static Property pxb_dev_properties[] = {
     DEFINE_PROP_UINT8("bus_nr", PXBDev, bus_nr, 0),
     DEFINE_PROP_UINT16("numa_node", PXBDev, numa_node, NUMA_NODE_UNASSIGNED),
     DEFINE_PROP_INT32("uid", PXBDev, uid, -1),
+    DEFINE_PROP_ARRAY("window-base", PXBDev, cxl.num_windows, cxl.window_base,
+                      qdev_prop_uint64, hwaddr),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -460,7 +485,9 @@ static const TypeInfo pxb_pcie_dev_info = {
 
 static void pxb_cxl_dev_realize(PCIDevice *dev, Error **errp)
 {
-    PXBDev *pxb = convert_to_pxb(dev);
+    PXBDev *pxb = PXB_CXL_DEV(dev);
+    struct cxl_dev *cxl = &pxb->cxl;
+    int count = 0;
 
     /* A CXL PXB's parent bus is still PCIe */
     if (!pci_bus_is_express(pci_get_bus(dev))) {
@@ -476,6 +503,23 @@ static void pxb_cxl_dev_realize(PCIDevice *dev, Error **errp)
     /* FIXME: Check that uid doesn't collide with UIDs of other host bridges */
 
     pxb_dev_realize_common(dev, CXL, errp);
+
+    for (unsigned i = 0; i < CXL_WINDOW_MAX; i++) {
+        if (!cxl->memory_window[i]) {
+            continue;
+        }
+
+        count++;
+    }
+
+    if (!count) {
+        warn_report("memory-windows should be set when creating CXL host bridges");
+    }
+
+    if (count != cxl->num_windows) {
+        error_setg(errp, "window bases count (%d) must match window count (%d)",
+                   cxl->num_windows, count);
+    }
 }
 
 static void pxb_cxl_dev_class_init(ObjectClass *klass, void *data)
@@ -496,6 +540,19 @@ static void pxb_cxl_dev_class_init(ObjectClass *klass, void *data)
 
     /* Host bridges aren't hotpluggable. FIXME: spec reference */
     dc->hotpluggable = false;
+
+    /*
+     * Below is moral equivalent of:
+     *   DEFINE_PROP_ARRAY("memdev", PXBDev, window_count, windows,
+     *                     qdev_prop_memory_device, HostMemoryBackend)
+     */
+    for (unsigned i = 0; i < CXL_WINDOW_MAX; i++) {
+        g_autofree char *name = g_strdup_printf("memdev[%u]", i);
+        object_class_property_add_link(klass, name, TYPE_MEMORY_BACKEND,
+                offsetof(PXBDev, cxl.memory_window[i]),
+                qdev_prop_allow_set_link_before_realize,
+                OBJ_PROP_LINK_STRONG);
+    }
 }
 
 static const TypeInfo pxb_cxl_dev_info = {
