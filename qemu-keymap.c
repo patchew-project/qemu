@@ -77,11 +77,11 @@ static void walk_map(struct xkb_keymap *map, xkb_keycode_t code, void *data)
         xkb_state_update_mask(state,  0, 0, 0,  0, 0, 0);
         kbase = xkb_state_key_get_one_sym(state, code);
         xkb_keysym_get_name(kbase, name, sizeof(name));
-        fprintf(outfile, "# evdev %d (0x%x): no evdev -> QKeyCode mapping"
+        fprintf(outfile, "# evdev %u (0x%x): no evdev -> QKeyCode mapping"
                 " (xkb keysym %s)\n", evdev, evdev, name);
         return;
     }
-    fprintf(outfile, "# evdev %d (0x%x), QKeyCode \"%s\", number 0x%x\n",
+    fprintf(outfile, "# evdev %u (0x%x), QKeyCode \"%s\", number 0x%x\n",
             evdev, evdev,
             QKeyCode_str(qcode),
             qcode_to_number(qcode));
