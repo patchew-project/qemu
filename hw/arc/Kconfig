@@ -1,0 +1,7 @@
+config ARC_VIRT
+    bool
+    select SERIAL
+    select VIRTIO_MMIO
+
+config ARC
+    bool

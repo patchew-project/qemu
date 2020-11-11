@@ -207,6 +207,9 @@ typedef struct mips_elf_abiflags_v0 {
 
 #define EM_TILEGX   191 /* TILE-Gx */
 
+#define EM_ARC_COMPACT  93  /* Synopsys ARCompact */
+#define EM_ARC_COMPACT2 195 /* Synopsys ARCompact V2 */
+
 #define EM_MOXIE           223     /* Moxie processor family */
 #define EM_MOXIE_OLD       0xFEED
 
