@@ -17,5 +17,7 @@
 #define COMPONENT_REG_BAR_IDX 0
 #define DEVICE_REG_BAR_IDX 2
 
+#define CXL_HOST_BASE 0xD0000000
+
 #endif
 
