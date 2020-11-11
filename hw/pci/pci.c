@@ -168,6 +168,11 @@ static uint16_t pcibus_numa_node(PCIBus *bus)
     return NUMA_NODE_UNASSIGNED;
 }
 
+static int32_t pcibus_uid(PCIBus *bus)
+{
+    return -1;
+}
+
 static void pci_bus_class_init(ObjectClass *klass, void *data)
 {
     BusClass *k = BUS_CLASS(klass);
@@ -182,6 +187,7 @@ static void pci_bus_class_init(ObjectClass *klass, void *data)
 
     pbc->bus_num = pcibus_num;
     pbc->numa_node = pcibus_numa_node;
+    pbc->uid = pcibus_uid;
 }
 
 static const TypeInfo pci_bus_info = {
@@ -526,6 +532,11 @@ int pci_bus_num(PCIBus *s)
 int pci_bus_numa_node(PCIBus *bus)
 {
     return PCI_BUS_GET_CLASS(bus)->numa_node(bus);
+}
+
+int pci_bus_uid(PCIBus *bus)
+{
+    return PCI_BUS_GET_CLASS(bus)->uid(bus);
 }
 
 static int get_pci_config_device(QEMUFile *f, void *pv, size_t size,
