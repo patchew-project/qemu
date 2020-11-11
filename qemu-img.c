@@ -1722,7 +1722,7 @@ static void convert_select_part(ImgConvertState *s, int64_t sector_num,
 static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
 {
     int64_t src_cur_offset;
-    int ret, n, src_cur;
+    int ret, n, src_cur, alignment;
     bool post_backing_zero = false;
 
     convert_select_part(s, sector_num, &src_cur, &src_cur_offset);
@@ -1785,11 +1785,14 @@ static int convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
         n = DIV_ROUND_UP(count, BDRV_SECTOR_SIZE);
 
         /*
-         * Avoid that s->sector_next_status becomes unaligned to the source
-         * request alignment and/or cluster size to avoid unnecessary read
-         * cycles.
+         * Avoid that s->sector_next_status becomes unaligned to the
+         * source/destination request alignment and/or cluster size to avoid
+         * unnecessary read/write cycles.
          */
-        tail = (sector_num - src_cur_offset + n) % s->src_alignment[src_cur];
+        alignment = MAX(s->src_alignment[src_cur], s->alignment);
+        assert(is_power_of_2(alignment));
+
+        tail = (sector_num - src_cur_offset + n) % alignment;
         if (n > tail) {
             n -= tail;
         }
