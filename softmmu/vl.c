@@ -3045,10 +3045,6 @@ void qemu_init(int argc, char **argv, char **envp)
                     exit(1);
                 }
                 break;
-            case QEMU_OPTION_set:
-                if (qemu_set_option(optarg) != 0)
-                    exit(1);
-                break;
             case QEMU_OPTION_global:
                 if (qemu_global_option(optarg) != 0)
                     exit(1);

@@ -690,6 +690,12 @@ topologies described with -smp include all possible cpus, i.e.
 The ``enforce-config-section`` property was replaced by the
 ``-global migration.send-configuration={on|off}`` option.
 
+``-set`` (removed 6.0)
+''''''''''''''''''''''
+
+The ``-set`` option was removed with no replacement and no prior
+deprecation period.
+
 Block devices
 -------------
 

@@ -371,15 +371,6 @@ SRST
          -drive file=/dev/fdset/2,index=0,media=disk
 ERST
 
-DEF("set", HAS_ARG, QEMU_OPTION_set,
-    "-set group.id.arg=value\n"
-    "                set <arg> parameter for item <id> of type <group>\n"
-    "                i.e. -set drive.$id.file=/path/to/image\n", QEMU_ARCH_ALL)
-SRST
-``-set group.id.arg=value``
-    Set parameter arg for item id of type group
-ERST
-
 DEF("global", HAS_ARG, QEMU_OPTION_global,
     "-global driver.property=value\n"
     "-global driver=driver,property=property,value=value\n"
