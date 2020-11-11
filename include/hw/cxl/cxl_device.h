@@ -127,6 +127,22 @@ CXL_DEVICE_CAPABILITY_HEADER_REGISTER(DEVICE, CXL_DEVICE_CAP_HDR1_OFFSET)
 CXL_DEVICE_CAPABILITY_HEADER_REGISTER(MAILBOX, CXL_DEVICE_CAP_HDR1_OFFSET + \
                                                CXL_DEVICE_CAP_REG_SIZE)
 
+#define cxl_device_cap_init(dstate, reg, cap_id)                                   \
+    do {                                                                           \
+        uint32_t *cap_hdrs = dstate->caps_reg_state32;                             \
+        int which = R_CXL_DEV_##reg##_CAP_HDR0;                                    \
+        cap_hdrs[which] =                                                          \
+            FIELD_DP32(cap_hdrs[which], CXL_DEV_##reg##_CAP_HDR0, CAP_ID, cap_id); \
+        cap_hdrs[which] = FIELD_DP32(                                              \
+            cap_hdrs[which], CXL_DEV_##reg##_CAP_HDR0, CAP_VERSION, 1);            \
+        cap_hdrs[which + 1] =                                                      \
+            FIELD_DP32(cap_hdrs[which + 1], CXL_DEV_##reg##_CAP_HDR1,              \
+                       CAP_OFFSET, CXL_##reg##_REGISTERS_OFFSET);                  \
+        cap_hdrs[which + 2] =                                                      \
+            FIELD_DP32(cap_hdrs[which + 2], CXL_DEV_##reg##_CAP_HDR2,              \
+                       CAP_LENGTH, CXL_##reg##_REGISTERS_LENGTH);                  \
+    } while (0)
+
 REG32(CXL_DEV_MAILBOX_CAP, 0)
     FIELD(CXL_DEV_MAILBOX_CAP, PAYLOAD_SIZE, 0, 5)
     FIELD(CXL_DEV_MAILBOX_CAP, INT_CAP, 5, 1)
@@ -138,42 +154,9 @@ REG32(CXL_DEV_MAILBOX_CTRL, 4)
     FIELD(CXL_DEV_MAILBOX_CTRL, INT_EN, 1, 2)
     FIELD(CXL_DEV_MAILBOX_CTRL, BG_INT_EN, 2, 1)
 
-enum {
-    CXL_CMD_EVENTS              = 0x1,
-    CXL_CMD_IDENTIFY            = 0x40,
-};
-
 REG32(CXL_DEV_MAILBOX_CMD, 8)
     FIELD(CXL_DEV_MAILBOX_CMD, OP, 0, 16)
     FIELD(CXL_DEV_MAILBOX_CMD, LENGTH, 16, 20)
-
-/* 8.2.8.4.5.1 Command Return Codes */
-enum {
-    RET_SUCCESS                 = 0x0,
-    RET_BG_STARTED              = 0x1, /* Background Command Started */
-    RET_EINVAL                  = 0x2, /* Invalid Input */
-    RET_ENOTSUP                 = 0x3, /* Unsupported */
-    RET_ENODEV                  = 0x4, /* Internal Error */
-    RET_ERESTART                = 0x5, /* Retry Required */
-    RET_EBUSY                   = 0x6, /* Busy */
-    RET_MEDIA_DISABLED          = 0x7, /* Media Disabled */
-    RET_FW_EBUSY                = 0x8, /* FW Transfer in Progress */
-    RET_FW_OOO                  = 0x9, /* FW Transfer Out of Order */
-    RET_FW_AUTH                 = 0xa, /* FW Authentication Failed */
-    RET_FW_EBADSLT              = 0xb, /* Invalid Slot */
-    RET_FW_ROLLBACK             = 0xc, /* Activation Failed, FW Rolled Back */
-    RET_FW_REBOOT               = 0xd, /* Activation Failed, Cold Reset Required */
-    RET_ENOENT                  = 0xe, /* Invalid Handle */
-    RET_EFAULT                  = 0xf, /* Invalid Physical Address */
-    RET_POISON_E2BIG            = 0x10, /* Inject Poison Limit Reached */
-    RET_EIO                     = 0x11, /* Permanent Media Failure */
-    RET_ECANCELED               = 0x12, /* Aborted */
-    RET_EACCESS                 = 0x13, /* Invalid Security State */
-    RET_EPERM                   = 0x14, /* Incorrect Passphrase */
-    RET_EPROTONOSUPPORT         = 0x15, /* Unsupported Mailbox */
-    RET_EMSGSIZE                = 0x16, /* Invalid Payload Length */
-    RET_MAX                     = 0x17
-};
 
 /* XXX: actually a 64b register */
 REG32(CXL_DEV_MAILBOX_STS, 0x10)
