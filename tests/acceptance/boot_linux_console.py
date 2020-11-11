@@ -137,6 +137,26 @@ class BootLinuxConsole(LinuxKernelTest):
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.wait_for_console_pattern(console_pattern)
 
+    def test_mips_malta(self):
+        """
+        :avocado: tags=arch:arc
+        """
+        deb_url = ('http://snapshot.debian.org/archive/debian/'
+                   '20130217T032700Z/pool/main/l/linux-2.6/'
+                   'linux-image-2.6.32-5-4kc-malta_2.6.32-48_mips.deb')
+        deb_hash = 'a8cfc28ad8f45f54811fc6cf74fc43ffcfe0ba04'
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        kernel_path = self.extract_from_deb(deb_path,
+                                            '/boot/vmlinux-archs')
+
+        self.vm.set_console()
+        kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'console=ttyS0'
+        self.vm.add_args('-kernel', kernel_path,
+                         '-append', kernel_command_line)
+        self.vm.launch()
+        console_pattern = 'Kernel command line: %s' % kernel_command_line
+        self.wait_for_console_pattern(console_pattern)
+
     def test_mips64el_malta(self):
         """
         This test requires the ar tool to extract "data.tar.gz" from
@@ -973,6 +993,17 @@ class BootLinuxConsole(LinuxKernelTest):
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.wait_for_console_pattern(console_pattern)
 
+    def do_test_arc(self, kernel_name, console=0):
+        tar_url = ('https://github.com/cupertinomiranda/arc-qemu-resources/archive/master.tar.gz')
+        file_path = self.fetch_asset(tar_url)
+        archive.extract(file_path, self.workdir)
+
+        self.vm.set_console(console_index=console)
+        self.vm.add_args('-kernel',
+                         self.workdir + '/' + kernel_name)
+        self.vm.launch()
+        self.wait_for_console_pattern('QEMU advent calendar')
+
     def test_m68k_q800(self):
         """
         :avocado: tags=arch:m68k
@@ -1101,3 +1132,27 @@ class BootLinuxConsole(LinuxKernelTest):
         tar_hash = '49e88d9933742f0164b60839886c9739cb7a0d34'
         self.vm.add_args('-cpu', 'dc233c')
         self.do_test_advcal_2018('02', tar_hash, 'santas-sleigh-ride.elf')
+
+    timeout = 240
+    def test_arc_virt(self):
+        """
+        :avocado: tags=arch:arc
+        :avocado: tags=machine:virt
+        """
+
+        tar_url = ('https://github.com/cupertinomiranda/'
+                   'arc-qemu-resources/archive/master.tar.gz')
+        file_path = self.fetch_asset(tar_url)
+        archive.extract(file_path, self.workdir)
+
+        kernel_path = self.workdir + '/arc-qemu-resources-master/vmlinux_archs'
+
+        self.vm.set_console()
+        kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE)
+        self.vm.add_args('-kernel', kernel_path)
+        self.vm.add_args('-device', 'virtio-net-device,netdev=net0')
+        self.vm.add_args('-netdev', 'user,id=net0,hostfwd=tcp::5558-:21,hostfwd=tcp::5557-:23')
+        self.vm.launch()
+
+        console_pattern = 'Welcome to Buildroot'
+        self.wait_for_console_pattern(console_pattern)
