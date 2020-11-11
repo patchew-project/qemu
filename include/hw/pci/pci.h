@@ -405,6 +405,7 @@ typedef PCIINTxRoute (*pci_route_irq_fn)(void *opaque, int pin);
 #define TYPE_PCI_BUS "PCI"
 OBJECT_DECLARE_TYPE(PCIBus, PCIBusClass, PCI_BUS)
 #define TYPE_PCIE_BUS "PCIE"
+#define TYPE_CXL_BUS "CXL"
 
 bool pci_bus_is_express(PCIBus *bus);
 
@@ -751,6 +752,11 @@ static inline void pci_irq_pulse(PCIDevice *pci_dev)
 {
     pci_irq_assert(pci_dev);
     pci_irq_deassert(pci_dev);
+}
+
+static inline int pci_is_cxl(const PCIDevice *d)
+{
+    return d->cap_present & QEMU_PCIE_CAP_CXL;
 }
 
 static inline int pci_is_express(const PCIDevice *d)
