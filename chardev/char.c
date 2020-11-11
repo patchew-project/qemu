@@ -547,7 +547,7 @@ static const struct ChardevAlias {
 };
 
 typedef struct ChadevClassFE {
-    void (*fn)(const char *name, void *opaque);
+    void (*fn)(const char *name, bool is_cli_alias, void *opaque);
     void *opaque;
 } ChadevClassFE;
 
@@ -561,11 +561,13 @@ chardev_class_foreach(ObjectClass *klass, void *opaque)
         return;
     }
 
-    fe->fn(object_class_get_name(klass) + 8, fe->opaque);
+    fe->fn(object_class_get_name(klass) + 8, false, fe->opaque);
 }
 
 static void
-chardev_name_foreach(void (*fn)(const char *name, void *opaque), void *opaque)
+chardev_name_foreach(void (*fn)(const char *name, bool is_cli_alias,
+                                void *opaque),
+                     void *opaque)
 {
     ChadevClassFE fe = { .fn = fn, .opaque = opaque };
     int i;
@@ -573,12 +575,12 @@ chardev_name_foreach(void (*fn)(const char *name, void *opaque), void *opaque)
     object_class_foreach(chardev_class_foreach, TYPE_CHARDEV, false, &fe);
 
     for (i = 0; i < (int)ARRAY_SIZE(chardev_alias_table); i++) {
-        fn(chardev_alias_table[i].alias, opaque);
+        fn(chardev_alias_table[i].alias, true, opaque);
     }
 }
 
 static void
-help_string_append(const char *name, void *opaque)
+help_string_append(const char *name, bool is_cli_alias, void *opaque)
 {
     GString *str = opaque;
 
@@ -800,11 +802,16 @@ ChardevInfoList *qmp_query_chardev(Error **errp)
 }
 
 static void
-qmp_prepend_backend(const char *name, void *opaque)
+qmp_prepend_backend(const char *name, bool is_cli_alias, void *opaque)
 {
     ChardevBackendInfoList **list = opaque;
-    ChardevBackendInfoList *info = g_malloc0(sizeof(*info));
+    ChardevBackendInfoList *info;
 
+    if (is_cli_alias) {
+        return;
+    }
+
+    info = g_malloc0(sizeof(*info));
     info->value = g_malloc0(sizeof(*info->value));
     info->value->name = g_strdup(name);
     info->next = *list;
