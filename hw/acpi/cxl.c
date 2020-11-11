@@ -29,6 +29,7 @@
 static Aml *__build_cxl_osc_method(void)
 {
     Aml *method, *if_uuid, *else_uuid, *if_arg1_not_1, *if_cxl, *if_caps_masked;
+    Aml *if_compat, *else_nocompat;
     Aml *a_ctrl = aml_local(0);
     Aml *a_cdw1 = aml_name("CDW1");
 
@@ -37,31 +38,51 @@ static Aml *__build_cxl_osc_method(void)
 
     /* 9.14.2.1.4 */
     if_uuid = aml_if(
-        aml_lor(aml_equal(aml_arg(0),
+        aml_lor(
+            aml_lor(aml_equal(aml_arg(0),
                           aml_touuid("33DB4D5B-1FF7-401C-9657-7441C03DD766")),
-                aml_equal(aml_arg(0),
-                          aml_touuid("68F2D50B-C469-4D8A-BD3D-941A103FD3FC"))));
-    aml_append(if_uuid, aml_create_dword_field(aml_arg(3), aml_int(4), "CDW2"));
-    aml_append(if_uuid, aml_create_dword_field(aml_arg(3), aml_int(8), "CDW3"));
+                    aml_equal(aml_arg(0),
+                          aml_touuid("68F2D50B-C469-4D8A-BD3D-941A103FD3FC"))),
+                    aml_equal(aml_arg(0),
+                          aml_touuid("A4D1629D-FF52-4888-BE96-E5CADE548DB1"))));
 
-    aml_append(if_uuid, aml_store(aml_name("CDW3"), a_ctrl));
+    if_compat = aml_if(aml_equal(aml_arg(0),
+                          aml_touuid("A4D1629D-FF52-4888-BE96-E5CADE548DB1")));
+    aml_append(if_compat,
+               aml_create_dword_field(aml_arg(3), aml_int(4), "CDW2"));
+    aml_append(if_compat,
+               aml_create_dword_field(aml_arg(3), aml_int(8), "CDW3"));
+    aml_append(if_compat, aml_store(aml_name("CDW2"), aml_name("SUPC")));
+    aml_append(if_compat, aml_store(aml_name("CDW3"), aml_name("CTRC")));
+    aml_append(if_compat,
+               aml_or(aml_name("CDW3"), aml_int(0x1), aml_name("CDW3")));
+    aml_append(if_compat, aml_return(aml_arg(3)));
+    aml_append(if_uuid, if_compat);
+
+    else_nocompat = aml_else();
+    aml_append(else_nocompat,
+               aml_create_dword_field(aml_arg(3), aml_int(4), "CDW2"));
+    aml_append(else_nocompat,
+               aml_create_dword_field(aml_arg(3), aml_int(8), "CDW3"));
+
+    aml_append(else_nocompat, aml_store(aml_name("CDW3"), a_ctrl));
 
     /* This is all the same as what's used for PCIe */
-    aml_append(if_uuid,
+    aml_append(else_nocompat,
                aml_and(aml_name("CTRL"), aml_int(0x1F), aml_name("CTRL")));
 
     if_arg1_not_1 = aml_if(aml_lnot(aml_equal(aml_arg(1), aml_int(0x1))));
     /* Unknown revision */
     aml_append(if_arg1_not_1, aml_or(a_cdw1, aml_int(0x08), a_cdw1));
-    aml_append(if_uuid, if_arg1_not_1);
+    aml_append(else_nocompat, if_arg1_not_1);
 
     if_caps_masked = aml_if(aml_lnot(aml_equal(aml_name("CDW3"), a_ctrl)));
     /* Capability bits were masked */
     aml_append(if_caps_masked, aml_or(a_cdw1, aml_int(0x10), a_cdw1));
-    aml_append(if_uuid, if_caps_masked);
+    aml_append(else_nocompat, if_caps_masked);
 
-    aml_append(if_uuid, aml_store(aml_name("CDW2"), aml_name("SUPP")));
-    aml_append(if_uuid, aml_store(aml_name("CDW3"), aml_name("CTRL")));
+    aml_append(else_nocompat, aml_store(aml_name("CDW2"), aml_name("SUPP")));
+    aml_append(else_nocompat, aml_store(aml_name("CDW3"), aml_name("CTRL")));
 
     if_cxl = aml_if(aml_equal(
         aml_arg(0), aml_touuid("68F2D50B-C469-4D8A-BD3D-941A103FD3FC")));
@@ -75,12 +96,13 @@ static Aml *__build_cxl_osc_method(void)
     /* CXL 2.0 Port/Device Register access */
     aml_append(if_cxl,
                aml_or(aml_name("CDW5"), aml_int(0x1), aml_name("CDW5")));
-    aml_append(if_uuid, if_cxl);
+    aml_append(else_nocompat, if_cxl);
 
     /* Update DWORD3 (the return value) */
-    aml_append(if_uuid, aml_store(a_ctrl, aml_name("CDW3")));
+    aml_append(else_nocompat, aml_store(a_ctrl, aml_name("CDW3")));
 
-    aml_append(if_uuid, aml_return(aml_arg(3)));
+    aml_append(else_nocompat, aml_return(aml_arg(3)));
+    aml_append(if_uuid, else_nocompat);
     aml_append(method, if_uuid);
 
     else_uuid = aml_else();
@@ -88,7 +110,7 @@ static Aml *__build_cxl_osc_method(void)
     /* unrecognized uuid */
     aml_append(else_uuid,
                aml_or(aml_name("CDW1"), aml_int(0x4), aml_name("CDW1")));
-    aml_append(else_uuid, aml_return(aml_arg(3)));
+    aml_append(method, aml_return(aml_arg(3)));
     aml_append(method, else_uuid);
 
     return method;
