@@ -1,0 +1,40 @@
+/*
+ * QEMU ARC EXTRA MAPPING
+ *
+ * Copyright (c) 2020 Synopsys Inc.
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, see
+ * http://www.gnu.org/licenses/lgpl-2.1.html
+ */
+
+SEMANTIC_FUNCTION(SWI, 1)
+SEMANTIC_FUNCTION(SWI, 1)
+SEMANTIC_FUNCTION(UNIMP, 0)
+SEMANTIC_FUNCTION(RTIE, 0)
+SEMANTIC_FUNCTION(SLEEP, 1)
+
+MAPPING(swi, SWI, 0)
+CONSTANT(SWI, swi_s, 0, 0)
+MAPPING(swi_s, SWI, 1, 0)
+MAPPING(trap_s, TRAP, 1, 0)
+MAPPING(rtie, RTIE, 0)
+MAPPING(sleep, SLEEP, 1, 0)
+MAPPING(vadd2, VADD, 3, 0, 1, 2)
+MAPPING(vadd2h, VADD, 3, 0, 1, 2)
+MAPPING(vadd4h, VADD, 3, 0, 1, 2)
+MAPPING(vsub2, VSUB, 3, 0, 1, 2)
+MAPPING(vsub2h, VSUB, 3, 0, 1, 2)
+MAPPING(vsub4h, VSUB, 3, 0, 1, 2)
+MAPPING(mpyd, MPYD, 3, 0, 1, 2)
+MAPPING(mpydu, MPYD, 3, 0, 1, 2)
