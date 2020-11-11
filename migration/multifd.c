@@ -728,7 +728,8 @@ static void multifd_tls_outgoing_handshake(QIOTask *task,
                                            gpointer opaque)
 {
     MultiFDSendParams *p = opaque;
-    QIOChannel *ioc = QIO_CHANNEL(qio_task_get_source(task));
+    QIOChannelTLS *tioc = QIO_CHANNEL_TLS(qio_task_get_source(task));
+    QIOChannel *ioc = QIO_CHANNEL(tioc);
     Error *err = NULL;
 
     if (qio_task_propagate_error(task, &err)) {
@@ -737,6 +738,7 @@ static void multifd_tls_outgoing_handshake(QIOTask *task,
         trace_multifd_tls_outgoing_handshake_complete(ioc);
     }
     multifd_channel_connect(p, ioc, err);
+    object_unref(OBJECT(tioc->master));
 }
 
 static void multifd_tls_channel_connect(MultiFDSendParams *p,
