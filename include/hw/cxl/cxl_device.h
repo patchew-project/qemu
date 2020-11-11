@@ -87,6 +87,11 @@ typedef struct cxl_device_state {
         uint8_t caps_reg_state[CXL_DEVICE_CAP_REG_SIZE * 4]; /* ARRAY + 3 CAPS */
         uint32_t caps_reg_state32[0];
     };
+    union {
+        uint8_t mbox_reg_state[CXL_MAILBOX_REGISTERS_LENGTH];
+        uint32_t mbox_reg_state32[0];
+        uint64_t mbox_reg_state64[0];
+    };
 } CXLDeviceState;
 
 /* Initialize the register block for a device */
@@ -127,6 +132,8 @@ CXL_DEVICE_CAPABILITY_HEADER_REGISTER(DEVICE, CXL_DEVICE_CAP_HDR1_OFFSET)
 CXL_DEVICE_CAPABILITY_HEADER_REGISTER(MAILBOX, CXL_DEVICE_CAP_HDR1_OFFSET + \
                                                CXL_DEVICE_CAP_REG_SIZE)
 
+void process_mailbox(CXLDeviceState *cxl_dstate);
+
 #define cxl_device_cap_init(dstate, reg, cap_id)                                   \
     do {                                                                           \
         uint32_t *cap_hdrs = dstate->caps_reg_state32;                             \
@@ -155,7 +162,8 @@ REG32(CXL_DEV_MAILBOX_CTRL, 4)
     FIELD(CXL_DEV_MAILBOX_CTRL, BG_INT_EN, 2, 1)
 
 REG32(CXL_DEV_MAILBOX_CMD, 8)
-    FIELD(CXL_DEV_MAILBOX_CMD, OP, 0, 16)
+    FIELD(CXL_DEV_MAILBOX_CMD, COMMAND, 0, 8)
+    FIELD(CXL_DEV_MAILBOX_CMD, COMMAND_SET, 8, 8)
     FIELD(CXL_DEV_MAILBOX_CMD, LENGTH, 16, 20)
 
 /* XXX: actually a 64b register */
