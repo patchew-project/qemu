@@ -12,6 +12,12 @@
 #include "hw/pci/pci.h"
 #include "hw/cxl/cxl.h"
 
+enum cxl_opcode {
+    CXL_EVENTS      = 0x1,
+    CXL_IDENTIFY    = 0x40,
+        #define CXL_IDENTIFY_MEMORY_DEVICE = 0x0
+};
+
 /* 8.2.8.4.5.1 Command Return Codes */
 enum {
     RET_SUCCESS                 = 0x0,
@@ -40,6 +46,43 @@ enum {
     RET_MAX                     = 0x17
 };
 
+/* 8.2.9.5.1.1 */
+static int cmd_set_identify(CXLDeviceState *cxl_dstate, uint8_t cmd,
+                            uint32_t *ret_size)
+{
+    struct identify {
+        char fw_revision[0x10];
+        uint64_t total_capacity;
+        uint64_t volatile_capacity;
+        uint64_t persistent_capacity;
+        uint64_t partition_align;
+        uint16_t info_event_log_size;
+        uint16_t warning_event_log_size;
+        uint16_t failure_event_log_size;
+        uint16_t fatal_event_log_size;
+        uint32_t lsa_size;
+        uint8_t poison_list_max_mer[3];
+        uint16_t inject_poison_limit;
+        uint8_t poison_caps;
+        uint8_t qos_telemetry_caps;
+    } __attribute__((packed)) *id;
+    _Static_assert(sizeof(struct identify) == 0x43, "Bad identify size");
+
+    if (memory_region_size(cxl_dstate->pmem) < (256 << 20)) {
+        return RET_ENODEV;
+    }
+
+    /* PMEM only */
+    id = (struct identify *)((void *)cxl_dstate->mbox_reg_state +
+                             A_CXL_DEV_CMD_PAYLOAD);
+    snprintf(id->fw_revision, 0x10, "BWFW VERSION %02d", 0);
+    id->total_capacity = memory_region_size(cxl_dstate->pmem);
+    id->persistent_capacity = memory_region_size(cxl_dstate->pmem);
+
+    *ret_size = 0x43;
+    return RET_SUCCESS;
+}
+
 void process_mailbox(CXLDeviceState *cxl_dstate)
 {
     uint16_t ret = RET_SUCCESS;
@@ -63,8 +106,11 @@ void process_mailbox(CXLDeviceState *cxl_dstate)
 
     uint8_t cmd_set = FIELD_EX64(command_reg, CXL_DEV_MAILBOX_CMD, COMMAND_SET);
     uint8_t cmd = FIELD_EX64(command_reg, CXL_DEV_MAILBOX_CMD, COMMAND);
-    (void)cmd;
     switch (cmd_set) {
+    case CXL_IDENTIFY:
+        ret = cmd_set_identify(cxl_dstate, cmd, &ret_len);
+        /* Fill in payload here */
+        break;
     default:
         ret = RET_ENOTSUP;
     }
