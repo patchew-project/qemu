@@ -9,3 +9,4 @@
 #include "qom/object_interfaces.h"
 #include "qom/qom-qobject.h"
 #include "qom/field-property.h"
+#include "qom/property-types.h"
