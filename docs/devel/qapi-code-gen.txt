@@ -231,7 +231,8 @@ Syntax:
                'data': MEMBERS,
                '*base': STRING,
                '*if': COND,
-               '*features': FEATURES }
+               '*features': FEATURES,
+               '*aliases': ALIASES }
     MEMBERS = { MEMBER, ... }
     MEMBER = STRING : TYPE-REF
            | STRING : { 'type': TYPE-REF,
@@ -286,13 +287,15 @@ Syntax:
     UNION = { 'union': STRING,
               'data': BRANCHES,
               '*if': COND,
-              '*features': FEATURES }
+              '*features': FEATURES,
+              '*aliases': ALIASES }
           | { 'union': STRING,
               'data': BRANCHES,
               'base': ( MEMBERS | STRING ),
               'discriminator': STRING,
               '*if': COND,
-              '*features': FEATURES }
+              '*features': FEATURES,
+              '*aliases': ALIASES }
     BRANCHES = { BRANCH, ... }
     BRANCH = STRING : TYPE-REF
            | STRING : { 'type': TYPE-REF, '*if': COND }
@@ -833,6 +836,34 @@ generator is unable to check it at this point.
 The conditions apply to introspection as well, i.e. introspection
 shows a conditional entity only when the condition is satisfied in
 this particular build.
+
+
+=== Aliases ===
+
+Object types, including structs and unions, can contain alias
+definitions.
+
+Aliases define alternative member names that may be used in the
+external representation to provide a value for a member in the same
+object or in a nested object.
+
+Syntax:
+    ALIAS = { '*alias': STRING,
+              'source': [ STRING, ... ] }
+
+'source' is a list of member names representing the path to an object
+member, starting from the type where the alias definition is
+specified.  It may refer to another alias name.  It is allowed to use
+a path that doesn't necessarily match an existing member in every
+variant or even at all; in this case, the alias remains unused.
+
+If 'alias' is present, then the single member referred to by 'source'
+is made accessible with the name given in 'alias' in the type where
+the alias definition is specified.
+
+If 'alias' is not present, then all members in the object referred to
+by 'source' are made accessible in the type where the alias definition
+is specified with the same name as they have in 'source'.
 
 
 === Documentation comments ===

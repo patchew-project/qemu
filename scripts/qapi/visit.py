@@ -26,6 +26,7 @@ from .common import (
 from .gen import QAPISchemaModularCVisitor, ifcontext
 from .schema import (
     QAPISchema,
+    QAPISchemaAlias,
     QAPISchemaEnumMember,
     QAPISchemaEnumType,
     QAPISchemaFeature,
@@ -60,13 +61,33 @@ bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp);
 def gen_visit_object_members(name: str,
                              base: Optional[QAPISchemaObjectType],
                              members: List[QAPISchemaObjectTypeMember],
-                             variants: Optional[QAPISchemaVariants]) -> str:
+                             variants: Optional[QAPISchemaVariants],
+                             aliases: List[QAPISchemaAlias]) -> str:
     ret = mcgen('''
 
 bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
 {
 ''',
                 c_name=c_name(name))
+
+    if aliases:
+        ret += mcgen('''
+    visit_start_alias_scope(v);
+''')
+
+    for a in aliases:
+        if a.alias:
+            alias = '"%s"' % a.alias
+        else:
+            alias = "NULL"
+
+        source_list = ", ".join('"%s"' % x for x in a.source)
+        source = "(const char * []) { %s, NULL }" % source_list
+
+        ret += mcgen('''
+    visit_define_alias(v, %(alias)s, %(source)s);
+''',
+                     alias=alias, source=source)
 
     if base:
         ret += mcgen('''
@@ -131,6 +152,11 @@ bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
     default:
         abort();
     }
+''')
+
+    if aliases:
+        ret += mcgen('''
+    visit_end_alias_scope(v);
 ''')
 
     ret += mcgen('''
@@ -361,14 +387,15 @@ class QAPISchemaGenVisitVisitor(QAPISchemaModularCVisitor):
                           features: List[QAPISchemaFeature],
                           base: Optional[QAPISchemaObjectType],
                           members: List[QAPISchemaObjectTypeMember],
-                          variants: Optional[QAPISchemaVariants]) -> None:
+                          variants: Optional[QAPISchemaVariants],
+                          aliases: List[QAPISchemaAlias]) -> None:
         # Nothing to do for the special empty builtin
         if name == 'q_empty':
             return
         with ifcontext(ifcond, self._genh, self._genc):
             self._genh.add(gen_visit_members_decl(name))
             self._genc.add(gen_visit_object_members(name, base,
-                                                    members, variants))
+                                                    members, variants, aliases))
             # TODO Worth changing the visitor signature, so we could
             # directly use rather than repeat type.is_implicit()?
             if not name.startswith('q_'):

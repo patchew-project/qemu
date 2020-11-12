@@ -117,7 +117,7 @@ class QAPISchemaVisitor:
         pass
 
     def visit_object_type(self, name, info, ifcond, features,
-                          base, members, variants):
+                          base, members, variants, aliases):
         pass
 
     def visit_object_type_flat(self, name, info, ifcond, features,
@@ -331,9 +331,16 @@ class QAPISchemaArrayType(QAPISchemaType):
         return "%s type ['%s']" % (self.meta, self._element_type_name)
 
 
+class QAPISchemaAlias:
+    def __init__(self, alias, source):
+        assert source
+        self.alias = alias
+        self.source = source
+
+
 class QAPISchemaObjectType(QAPISchemaType):
     def __init__(self, name, info, doc, ifcond, features,
-                 base, local_members, variants):
+                 base, local_members, variants, aliases=None):
         # struct has local_members, optional base, and no variants
         # flat union has base, variants, and no local_members
         # simple union has local_members, variants, and no base
@@ -351,6 +358,7 @@ class QAPISchemaObjectType(QAPISchemaType):
         self.local_members = local_members
         self.variants = variants
         self.members = None
+        self.aliases = aliases or []
 
     def check(self, schema):
         # This calls another type T's .check() exactly when the C
@@ -443,7 +451,7 @@ class QAPISchemaObjectType(QAPISchemaType):
         super().visit(visitor)
         visitor.visit_object_type(
             self.name, self.info, self.ifcond, self.features,
-            self.base, self.local_members, self.variants)
+            self.base, self.local_members, self.variants, self.aliases)
         visitor.visit_object_type_flat(
             self.name, self.info, self.ifcond, self.features,
             self.members, self.variants)
@@ -934,6 +942,12 @@ class QAPISchema:
         return [QAPISchemaFeature(f['name'], info, f.get('if'))
                 for f in features]
 
+    def _make_aliases(self, aliases):
+        if aliases is None:
+            return []
+        return [QAPISchemaAlias(a.get('alias'), a['source'])
+                for a in aliases]
+
     def _make_enum_members(self, values, info):
         return [QAPISchemaEnumMember(v['name'], info, v.get('if'))
                 for v in values]
@@ -1008,11 +1022,12 @@ class QAPISchema:
         base = expr.get('base')
         data = expr['data']
         ifcond = expr.get('if')
+        aliases = self._make_aliases(expr.get('aliases'))
         features = self._make_features(expr.get('features'), info)
         self._def_entity(QAPISchemaObjectType(
             name, info, doc, ifcond, features, base,
             self._make_members(data, info),
-            None))
+            None, aliases))
 
     def _make_variant(self, case, typ, ifcond, info):
         return QAPISchemaVariant(case, info, typ, ifcond)
@@ -1031,6 +1046,7 @@ class QAPISchema:
         data = expr['data']
         base = expr.get('base')
         ifcond = expr.get('if')
+        aliases = self._make_aliases(expr.get('aliases'))
         features = self._make_features(expr.get('features'), info)
         tag_name = expr.get('discriminator')
         tag_member = None
@@ -1055,7 +1071,8 @@ class QAPISchema:
             QAPISchemaObjectType(name, info, doc, ifcond, features,
                                  base, members,
                                  QAPISchemaVariants(
-                                     tag_name, info, tag_member, variants)))
+                                     tag_name, info, tag_member, variants),
+                                 aliases))
 
     def _def_alternate_type(self, expr, info, doc):
         name = expr['alternate']
