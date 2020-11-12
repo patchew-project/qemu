@@ -135,6 +135,27 @@ bool visit_optional(Visitor *v, const char *name, bool *present)
     return *present;
 }
 
+void visit_define_alias(Visitor *v, const char *alias, const char **source)
+{
+    if (v->define_alias) {
+        v->define_alias(v, alias, source);
+    }
+}
+
+void visit_start_alias_scope(Visitor *v)
+{
+    if (v->start_alias_scope) {
+        v->start_alias_scope(v);
+    }
+}
+
+void visit_end_alias_scope(Visitor *v)
+{
+    if (v->end_alias_scope) {
+        v->end_alias_scope(v);
+    }
+}
+
 bool visit_is_input(Visitor *v)
 {
     return v->type == VISITOR_INPUT;
