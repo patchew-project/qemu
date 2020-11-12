@@ -1,0 +1,3 @@
+{ 'struct': 'AliasStruct0',
+  'data': { 'foo': 'int' },
+  'aliases': [ { 'alias': 'bar', 'source': [] } ] }

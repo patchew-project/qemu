@@ -1,0 +1,2 @@
+alias-source-bad-type.json: In struct 'AliasStruct0':
+alias-source-bad-type.json:1: 'source' must be an array

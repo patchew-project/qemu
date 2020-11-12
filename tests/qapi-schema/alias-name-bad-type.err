@@ -1,0 +1,2 @@
+alias-name-bad-type.json: In struct 'AliasStruct0':
+alias-name-bad-type.json:1: alias member 'alias' requires a string name

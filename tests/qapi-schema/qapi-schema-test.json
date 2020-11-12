@@ -325,3 +325,27 @@
 
 { 'event': 'TEST-EVENT-FEATURES1',
   'features': [ 'deprecated' ] }
+
+# test  'aliases'
+
+{ 'struct': 'AliasStruct0',
+  'data': { 'foo': 'int' },
+  'aliases': [] }
+{ 'struct': 'AliasStruct1',
+  'data': { 'foo': 'int' },
+  'aliases': [ { 'alias': 'bar', 'source': ['foo'] } ] }
+{ 'struct': 'AliasStruct2',
+  'data': { 'nested': 'AliasStruct1' },
+  'aliases': [ { 'alias': 'bar', 'source': ['nested', 'foo'] } ] }
+{ 'struct': 'AliasStruct3',
+  'data': { 'nested': 'AliasStruct1' },
+  'aliases': [ { 'source': ['nested'] } ] }
+
+{ 'union': 'AliasFlatUnion',
+  'base': { 'tag': 'FeatureEnum1' },
+  'discriminator': 'tag',
+  'data': { 'eins': 'FeatureStruct1' },
+  'aliases': [ { 'alias': 'bar', 'source': ['foo'] } ] }
+{ 'union': 'AliasSimpleUnion',
+  'data': { 'eins': 'AliasStruct1' },
+  'aliases': [ { 'source': ['data'] } ] }

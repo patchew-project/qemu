@@ -1,0 +1,3 @@
+alias-unknown-key.json: In struct 'AliasStruct0':
+alias-unknown-key.json:1: alias has unknown key 'known'
+Valid keys are 'alias', 'source'.

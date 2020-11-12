@@ -1,0 +1,2 @@
+alias-bad-type.json: In struct 'AliasStruct0':
+alias-bad-type.json:1: 'aliases' entries must be objects

@@ -443,6 +443,35 @@ command test-command-cond-features3 None -> None
 event TEST-EVENT-FEATURES1 None
     boxed=False
     feature deprecated
+object AliasStruct0
+    member foo: int optional=False
+object AliasStruct1
+    member foo: int optional=False
+    alias bar -> foo
+object AliasStruct2
+    member nested: AliasStruct1 optional=False
+    alias bar -> nested/foo
+object AliasStruct3
+    member nested: AliasStruct1 optional=False
+    alias * -> nested/*
+object q_obj_AliasFlatUnion-base
+    member tag: FeatureEnum1 optional=False
+object AliasFlatUnion
+    base q_obj_AliasFlatUnion-base
+    alias bar -> foo
+    tag tag
+    case eins: FeatureStruct1
+    case zwei: q_empty
+    case drei: q_empty
+object q_obj_AliasStruct1-wrapper
+    member data: AliasStruct1 optional=False
+enum AliasSimpleUnionKind
+    member eins
+object AliasSimpleUnion
+    member type: AliasSimpleUnionKind optional=False
+    alias * -> data/*
+    tag type
+    case eins: q_obj_AliasStruct1-wrapper
 module include/sub-module.json
 include sub-sub-module.json
 object SecondArrayRef

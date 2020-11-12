@@ -1,0 +1,2 @@
+alias-missing-source.json: In struct 'AliasStruct0':
+alias-missing-source.json:1: alias misses key 'source'

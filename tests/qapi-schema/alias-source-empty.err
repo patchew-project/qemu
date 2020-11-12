@@ -1,0 +1,2 @@
+alias-source-empty.json: In struct 'AliasStruct0':
+alias-source-empty.json:1: 'source' must not be empty
