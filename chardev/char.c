@@ -656,70 +656,6 @@ void qemu_chr_print_types(void)
     qemu_printf("Available chardev backend types: %s\n", str->str);
 }
 
-Chardev *qemu_chr_new_from_opts(QemuOpts *opts, GMainContext *context,
-                                Error **errp)
-{
-    const ChardevClass *cc;
-    Chardev *chr = NULL;
-    ChardevBackend *backend = NULL;
-    const char *name = chardev_alias_translate(qemu_opt_get(opts, "backend"));
-    const char *id = qemu_opts_id(opts);
-    char *bid = NULL;
-
-    if (name && is_help_option(name)) {
-        qemu_chr_print_types();
-        return NULL;
-    }
-
-    if (id == NULL) {
-        error_setg(errp, "chardev: no id specified");
-        return NULL;
-    }
-
-    backend = qemu_chr_parse_opts(opts, errp);
-    if (backend == NULL) {
-        return NULL;
-    }
-
-    cc = char_get_class(name, errp);
-    if (cc == NULL) {
-        goto out;
-    }
-
-    if (qemu_opt_get_bool(opts, "mux", 0)) {
-        bid = g_strdup_printf("%s-base", id);
-    }
-
-    chr = qemu_chardev_new(bid ? bid : id,
-                           object_class_get_name(OBJECT_CLASS(cc)),
-                           backend, context, errp);
-
-    if (chr == NULL) {
-        goto out;
-    }
-
-    if (bid) {
-        Chardev *mux;
-        qapi_free_ChardevBackend(backend);
-        backend = g_new0(ChardevBackend, 1);
-        backend->type = CHARDEV_BACKEND_KIND_MUX;
-        backend->u.mux.data = g_new0(ChardevMux, 1);
-        backend->u.mux.data->chardev = g_strdup(bid);
-        mux = qemu_chardev_new(id, TYPE_CHARDEV_MUX, backend, context, errp);
-        if (mux == NULL) {
-            object_unparent(OBJECT(chr));
-            chr = NULL;
-            goto out;
-        }
-        chr = mux;
-    }
-
-out:
-    qapi_free_ChardevBackend(backend);
-    g_free(bid);
-    return chr;
-}
-
 void qemu_chr_translate_legacy_options(QDict *args)
 {
     const ChardevClass *cc;
@@ -1065,7 +1001,7 @@ Chardev *qemu_chardev_new(const char *id, const char *typename,
 }
 
 static Chardev *chardev_new_qapi(const char *id, ChardevBackend *backend,
-                                 Error **errp)
+                                 GMainContext *context, Error **errp)
 {
     const ChardevClass *cc;
 
@@ -1075,7 +1011,7 @@ static Chardev *chardev_new_qapi(const char *id, ChardevBackend *backend,
     }
 
     return chardev_new(id, object_class_get_name(OBJECT_CLASS(cc)),
-                       backend, NULL, errp);
+                       backend, context, errp);
 }
 
 ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
@@ -1084,7 +1020,7 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     ChardevReturn *ret;
     Chardev *chr;
 
-    chr = chardev_new_qapi(id, backend, errp);
+    chr = chardev_new_qapi(id, backend, NULL, errp);
     if (!chr) {
         return NULL;
     }
@@ -1098,7 +1034,9 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     return ret;
 }
 
-Chardev *qemu_chr_new_cli(ChardevOptions *options, Error **errp)
+static Chardev *qemu_chr_new_cli_gcontext(ChardevOptions *options,
+                                          GMainContext *context,
+                                          Error **errp)
 {
     Chardev *chr;
     char *bid = NULL;
@@ -1107,7 +1045,7 @@ Chardev *qemu_chr_new_cli(ChardevOptions *options, Error **errp)
         bid = g_strdup_printf("%s-base", options->id);
     }
 
-    chr = chardev_new_qapi(bid ?: options->id, options->backend, errp);
+    chr = chardev_new_qapi(bid ?: options->id, options->backend, context, errp);
     if (!chr) {
         goto out;
     }
@@ -1122,8 +1060,8 @@ Chardev *qemu_chr_new_cli(ChardevOptions *options, Error **errp)
             .u.mux.data = &mux_data,
         };
 
-        mux = qemu_chardev_new(options->id, TYPE_CHARDEV_MUX, &backend, NULL,
-                               errp);
+        mux = qemu_chardev_new(options->id, TYPE_CHARDEV_MUX, &backend,
+                               context, errp);
         if (mux == NULL) {
             object_unparent(OBJECT(chr));
             chr = NULL;
@@ -1135,6 +1073,11 @@ Chardev *qemu_chr_new_cli(ChardevOptions *options, Error **errp)
 out:
     g_free(bid);
     return chr;
+}
+
+Chardev *qemu_chr_new_cli(ChardevOptions *options, Error **errp)
+{
+    return qemu_chr_new_cli_gcontext(options, NULL, errp);
 }
 
 ChardevOptions *qemu_chr_parse_cli_dict(QDict *args, bool help,
@@ -1178,6 +1121,37 @@ ChardevOptions *qemu_chr_parse_cli_str(const char *optarg, Error **errp)
     qobject_unref(args);
 
     return chr_options;
+}
+
+Chardev *qemu_chr_new_from_opts(QemuOpts *opts, GMainContext *context,
+                                Error **errp)
+{
+    ChardevOptions *chr_options;
+    Chardev *chr;
+    QDict *args;
+    const char *name = qemu_opt_get(opts, "backend");
+    bool help;
+
+    args = qemu_opts_to_qdict(opts, NULL);
+
+    if (name && is_help_option(name)) {
+        qdict_del(args, "backend");
+        qdict_del(args, "type");
+        help = true;
+    } else {
+        help = qemu_opt_has_help_opt(opts);
+    }
+
+    chr_options = qemu_chr_parse_cli_dict(args, help, errp);
+    qobject_unref(args);
+
+    if (!chr_options) {
+        return NULL;
+    }
+
+    chr = qemu_chr_new_cli_gcontext(chr_options, context, errp);
+    qapi_free_ChardevOptions(chr_options);
+    return chr;
 }
 
 ChardevReturn *qmp_chardev_change(const char *id, ChardevBackend *backend,
