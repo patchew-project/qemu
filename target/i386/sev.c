@@ -28,7 +28,7 @@
 #include "sysemu/runstate.h"
 #include "trace.h"
 #include "migration/blocker.h"
-#include "qom/object.h"
+#include "qom/qom.h"
 
 #define TYPE_SEV_GUEST "sev-guest"
 OBJECT_DECLARE_SIMPLE_TYPE(SevGuestState, SEV_GUEST)
@@ -298,6 +298,19 @@ sev_guest_class_init(ObjectClass *oc, void *data)
                                   sev_guest_set_session_file);
     object_class_property_set_description(oc, "session-file",
             "guest owners session parameters (encoded with base64)");
+
+    object_class_property_add_field(oc, "policy",
+            PROP_UINT32(SevGuestState, policy, DEFAULT_GUEST_POLICY),
+            prop_allow_set_always);
+    object_class_property_add_field(oc, "handle",
+            PROP_UINT32(SevGuestState, handle, 0),
+            prop_allow_set_always);
+    object_class_property_add_field(oc, "cbitpos",
+            PROP_UINT32(SevGuestState, cbitpos, 0),
+            prop_allow_set_always);
+    object_class_property_add_field(oc, "reduced-phys-bits",
+            PROP_UINT32(SevGuestState, reduced_phys_bits, 0),
+            prop_allow_set_always);
 }
 
 static void
@@ -306,16 +319,6 @@ sev_guest_instance_init(Object *obj)
     SevGuestState *sev = SEV_GUEST(obj);
 
     sev->sev_device = g_strdup(DEFAULT_SEV_DEVICE);
-    sev->policy = DEFAULT_GUEST_POLICY;
-    object_property_add_uint32_ptr(obj, "policy", &sev->policy,
-                                   OBJ_PROP_FLAG_READWRITE);
-    object_property_add_uint32_ptr(obj, "handle", &sev->handle,
-                                   OBJ_PROP_FLAG_READWRITE);
-    object_property_add_uint32_ptr(obj, "cbitpos", &sev->cbitpos,
-                                   OBJ_PROP_FLAG_READWRITE);
-    object_property_add_uint32_ptr(obj, "reduced-phys-bits",
-                                   &sev->reduced_phys_bits,
-                                   OBJ_PROP_FLAG_READWRITE);
 }
 
 /* sev guest info */
