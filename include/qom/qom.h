@@ -8,3 +8,4 @@
 #include "qom/object.h"
 #include "qom/object_interfaces.h"
 #include "qom/qom-qobject.h"
+#include "qom/field-property.h"

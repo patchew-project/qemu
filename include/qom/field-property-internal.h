@@ -1,12 +1,12 @@
 /*
- * qdev property parsing
+ * QOM field property internal API (for implementing custom types)
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
 
-#ifndef HW_CORE_QDEV_PROP_INTERNAL_H
-#define HW_CORE_QDEV_PROP_INTERNAL_H
+#ifndef QOM_STATIC_PROPERTY_INTERNAL_H
+#define QOM_STATIC_PROPERTY_INTERNAL_H
 
 void field_prop_get_enum(Object *obj, Visitor *v, const char *name,
                          void *opaque, Error **errp);
