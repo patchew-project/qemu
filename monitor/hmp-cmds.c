@@ -1793,34 +1793,25 @@ void hmp_chardev_add(Monitor *mon, const QDict *qdict)
 void hmp_chardev_change(Monitor *mon, const QDict *qdict)
 {
     const char *args = qdict_get_str(qdict, "args");
-    const char *id;
+    const char *id = qdict_get_str(qdict, "id");
+    char *optstr;
     Error *err = NULL;
-    ChardevBackend *backend = NULL;
+    ChardevOptions *options = NULL;
     ChardevReturn *ret = NULL;
-    QemuOpts *opts = qemu_opts_parse_noisily(qemu_find_opts("chardev"), args,
-                                             true);
-    if (!opts) {
-        error_setg(&err, "Parsing chardev args failed");
+
+    optstr = g_strdup_printf("%s,id=%s", args, id);
+
+    options = qemu_chr_parse_cli_str(optstr, &err);
+    if (!options) {
         goto end;
     }
 
-    id = qdict_get_str(qdict, "id");
-    if (qemu_opts_id(opts)) {
-        error_setg(&err, "Unexpected 'id' parameter");
-        goto end;
-    }
-
-    backend = qemu_chr_parse_opts(opts, &err);
-    if (!backend) {
-        goto end;
-    }
-
-    ret = qmp_chardev_change(id, backend, &err);
+    ret = qmp_chardev_change(options->id, options->backend, &err);
 
 end:
+    g_free(optstr);
     qapi_free_ChardevReturn(ret);
-    qapi_free_ChardevBackend(backend);
-    qemu_opts_del(opts);
+    qapi_free_ChardevOptions(options);
     hmp_handle_error(mon, err);
 }
 
