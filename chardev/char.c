@@ -610,43 +610,6 @@ static const char *chardev_alias_translate(const char *name)
     return name;
 }
 
-ChardevBackend *qemu_chr_parse_opts(QemuOpts *opts, Error **errp)
-{
-    Error *local_err = NULL;
-    const ChardevClass *cc;
-    ChardevBackend *backend = NULL;
-    const char *name = chardev_alias_translate(qemu_opt_get(opts, "backend"));
-
-    if (name == NULL) {
-        error_setg(errp, "chardev: \"%s\" missing backend",
-                   qemu_opts_id(opts));
-        return NULL;
-    }
-
-    cc = char_get_class(name, errp);
-    if (cc == NULL) {
-        return NULL;
-    }
-
-    backend = g_new0(ChardevBackend, 1);
-    backend->type = CHARDEV_BACKEND_KIND_NULL;
-
-    if (cc->parse) {
-        cc->parse(opts, backend, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            qapi_free_ChardevBackend(backend);
-            return NULL;
-        }
-    } else {
-        ChardevCommon *ccom = g_new0(ChardevCommon, 1);
-        qemu_chr_parse_common(opts, ccom);
-        backend->u.null.data = ccom; /* Any ChardevCommon member would work */
-    }
-
-    return backend;
-}
-
 void qemu_chr_print_types(void)
 {
     g_autoptr(GString) str = g_string_new("");
