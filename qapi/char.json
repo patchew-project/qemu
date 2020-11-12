@@ -454,12 +454,14 @@
 #
 # @id: the chardev's ID, must be unique
 # @backend: backend type and parameters
+# @mux: enable multiplexing mode (default: false)
 #
 # Since: 6.0
 ##
 { 'struct': 'ChardevOptions',
   'data': { 'id': 'str',
-            'backend': 'ChardevBackend' },
+            'backend': 'ChardevBackend',
+            '*mux': 'bool' },
   'aliases': [ { 'source': ['backend'] } ] }
 
 ##

@@ -742,11 +742,6 @@ void qemu_chr_translate_legacy_options(QDict *args)
 
     /* name may refer to a QDict entry, so delete it only now */
     qdict_del(args, "backend");
-
-    /*
-     * TODO:
-     * All backend types: "mux"
-     */
 }
 
 Chardev *qemu_chr_new_noreplay(const char *label, const char *filename,
@@ -1105,7 +1100,41 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
 
 Chardev *qemu_chr_new_cli(ChardevOptions *options, Error **errp)
 {
-    return chardev_new_qapi(options->id, options->backend, errp);
+    Chardev *chr;
+    char *bid = NULL;
+
+    if (options->mux) {
+        bid = g_strdup_printf("%s-base", options->id);
+    }
+
+    chr = chardev_new_qapi(bid ?: options->id, options->backend, errp);
+    if (!chr) {
+        goto out;
+    }
+
+    if (options->mux) {
+        Chardev *mux;
+        ChardevMux mux_data = {
+            .chardev = bid,
+        };
+        ChardevBackend backend = {
+            .type = CHARDEV_BACKEND_KIND_MUX,
+            .u.mux.data = &mux_data,
+        };
+
+        mux = qemu_chardev_new(options->id, TYPE_CHARDEV_MUX, &backend, NULL,
+                               errp);
+        if (mux == NULL) {
+            object_unparent(OBJECT(chr));
+            chr = NULL;
+            goto out;
+        }
+        chr = mux;
+    }
+
+out:
+    g_free(bid);
+    return chr;
 }
 
 ChardevOptions *qemu_chr_parse_cli_dict(QDict *args, bool help,
