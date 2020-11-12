@@ -529,7 +529,6 @@ const PropertyInfo prop_info_size32 = {
  */
 typedef struct {
     struct Property prop;
-    char *propname;
     ObjectPropertyRelease *release;
 } ArrayElementProperty;
 
@@ -543,7 +542,6 @@ static void array_element_release(Object *obj, const char *name, void *opaque)
     if (p->release) {
         p->release(obj, name, opaque);
     }
-    g_free(p->propname);
     g_free(p);
 }
 
@@ -587,11 +585,10 @@ static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
      */
     *arrayptr = eltptr = g_malloc0(*alenptr * prop->arrayfieldsize);
     for (i = 0; i < *alenptr; i++, eltptr += prop->arrayfieldsize) {
-        char *propname = g_strdup_printf("%s[%d]", arrayname, i);
+        g_autofree char *propname = g_strdup_printf("%s[%d]", arrayname, i);
         ArrayElementProperty *arrayprop = g_new0(ArrayElementProperty, 1);
         ObjectProperty *elmop;
         arrayprop->release = prop->arrayinfo->release;
-        arrayprop->propname = propname;
         arrayprop->prop.info = prop->arrayinfo;
         /* This ugly piece of pointer arithmetic sets up the offset so
          * that when the underlying get/set hooks call qdev_get_prop_ptr
