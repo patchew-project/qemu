@@ -108,4 +108,21 @@ object_class_property_add_field(ObjectClass *oc, const char *name,
 
 void *object_field_prop_ptr(Object *obj, Property *prop);
 
+/**
+ * FIELD_PROP: Expands to a compound literal for a #Property struct
+ *
+ * @_state: name of the object state structure type
+ * @_field: name of field in @_state
+ * @_prop: name of #PropertyInfo variable with type information
+ * @_type: expected type of field @_field in struct @_state
+ * @...: additional initializers for #Property struct fields
+ */
+#define FIELD_PROP(_state, _field, _prop, _type, ...) \
+    (Property) {                                                 \
+        .info      = &(_prop),                                   \
+        .offset    = offsetof(_state, _field)                    \
+            + type_check(_type, typeof_field(_state, _field)),   \
+        __VA_ARGS__                                              \
+    }
+
 #endif

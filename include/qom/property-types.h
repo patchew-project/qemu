@@ -23,13 +23,25 @@ extern const PropertyInfo prop_info_size32;
 extern const PropertyInfo prop_info_arraylen;
 extern const PropertyInfo prop_info_link;
 
-#define DEFINE_PROP(_name, _state, _field, _prop, _type, ...) {  \
-        .name_template = (_name),                           \
-        .info      = &(_prop),                                   \
-        .offset    = offsetof(_state, _field)                    \
-            + type_check(_type, typeof_field(_state, _field)),   \
-        __VA_ARGS__                                              \
-        }
+/**
+ * DEFINE_PROP: Define a #Property struct, including a property name
+ *
+ * @_name: name of the property
+ * @_state: name of the object state structure type
+ * @_field: name of field in @_state
+ * @_prop: name of #PropertyInfo variable with type information
+ * @_type: expected type of field @_field in struct @_state
+ * @...: additional initializers for #Property struct fields
+ *
+ * `DEFINE_PROP` or other ``DEFINE_PROP_*`` macros are normally
+ * used when initialiing static const #Property arrays, to be
+ * used with object_class_add_field_properties() or
+ * device_class_set_props().
+ */
+#define DEFINE_PROP(_name, _state, _field, _prop, _type, ...) \
+    FIELD_PROP(_state, _field, _prop, _type,                  \
+               .name_template = (_name),                      \
+               __VA_ARGS__)
 
 #define DEFINE_PROP_SIGNED(_name, _state, _field, _defval, _prop, _type) \
     DEFINE_PROP(_name, _state, _field, _prop, _type,                     \
