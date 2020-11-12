@@ -44,11 +44,16 @@ struct MyType {
 
     uint32_t prop1;
     uint32_t prop2;
+
+    char **myarray;
+    uint32_t myarray_len;
 };
 
 static Property static_props[] = {
     DEFINE_PROP_UINT32("prop1", MyType, prop1, PROP_DEFAULT),
     DEFINE_PROP_UINT32("prop2", MyType, prop2, PROP_DEFAULT),
+    DEFINE_PROP_ARRAY("myarray", MyType, myarray_len, myarray,
+                      prop_info_string, char *),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -60,11 +65,19 @@ static void static_prop_class_init(ObjectClass *oc, void *data)
     device_class_set_props(dc, static_props);
 }
 
+static void static_props_finalize(Object *obj)
+{
+    MyType *mt = STATIC_TYPE(obj);
+
+    g_free(mt->myarray);
+}
+
 static const TypeInfo static_prop_type = {
     .name = TYPE_STATIC_PROPS,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(MyType),
     .class_init = static_prop_class_init,
+    .instance_finalize = static_props_finalize,
 };
 
 static const TypeInfo subclass_type = {
@@ -89,6 +102,52 @@ static void test_static_prop(void)
     g_test_trap_assert_passed();
     g_test_trap_assert_stderr("");
     g_test_trap_assert_stdout("");
+}
+
+static void test_static_prop_array(void)
+{
+    Error *err = NULL;
+    ObjectClass *oc = object_class_by_name(TYPE_STATIC_PROPS);
+    Object *obj = object_new(TYPE_STATIC_PROPS);
+    char *s = NULL;
+
+    g_assert_nonnull(object_class_property_find(oc, "len-myarray"));
+    g_assert_null(object_class_property_find(oc, "myarray[0]"));
+
+    g_assert_nonnull(object_property_find(obj, "len-myarray"));
+    g_assert_null(object_property_find(obj, "myarray[0]"));
+
+    g_assert_cmpint(object_property_get_int(obj, "len-myarray", &error_abort), ==, 0);
+    object_property_set_int(obj, "len-myarray", 3, &error_abort);
+    g_assert_cmpint(object_property_get_int(obj, "len-myarray", &error_abort), ==, 3);
+
+    g_assert_nonnull(object_property_find(obj, "myarray[0]"));
+    g_assert_nonnull(object_property_find(obj, "myarray[1]"));
+    g_assert_nonnull(object_property_find(obj, "myarray[2]"));
+    g_assert_null(object_property_find(obj, "myarray[3]"));
+
+    /* Setting length a second time must fail */
+    object_property_set_int(obj, "len-myarray", 42, &err);
+    error_free_or_abort(&err);
+
+    g_assert_nonnull(object_property_find(obj, "myarray[2]"));
+    g_assert_null(object_property_find(obj, "myarray[3]"));
+
+    s = object_property_get_str(obj, "myarray[2]", &error_abort);
+    g_assert_cmpstr(s, ==, "");
+    g_free(s);
+
+    object_property_set_str(obj, "myarray[1]", "value", &error_abort);
+
+    s = object_property_get_str(obj, "myarray[1]", &error_abort);
+    g_assert_cmpstr(s, ==, "value");
+    g_free(s);
+
+    s = object_property_get_str(obj, "myarray[2]", &error_abort);
+    g_assert_cmpstr(s, ==, "");
+    g_free(s);
+
+    object_unref(obj);
 }
 
 static void register_global_properties(GlobalProperty *props)
@@ -299,6 +358,8 @@ int main(int argc, char **argv)
                     test_static_prop_subprocess);
     g_test_add_func("/qdev/properties/static/default",
                     test_static_prop);
+    g_test_add_func("/qdev/properties/static/array",
+                    test_static_prop_array);
 
     g_test_add_func("/qdev/properties/static/global/subprocess",
                     test_static_globalprop_subprocess);
