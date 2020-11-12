@@ -23,6 +23,64 @@ extern const PropertyInfo prop_info_size32;
 extern const PropertyInfo prop_info_arraylen;
 extern const PropertyInfo prop_info_link;
 
+#define PROP_SIGNED(_state, _field, _defval, _prop, _type, ...) \
+    FIELD_PROP(_state, _field, _prop, _type,                    \
+               .set_default = true,                             \
+               .defval.i    = (_type)_defval,                   \
+               __VA_ARGS__)
+
+#define PROP_UNSIGNED(_state, _field, _defval, _prop, _type, ...) \
+    FIELD_PROP(_state, _field, _prop, _type,                    \
+               .set_default = true,                             \
+               .defval.u  = (_type)_defval,                     \
+               __VA_ARGS__)
+
+#define PROP_BIT(_state, _field, _bit, _defval, ...) \
+    FIELD_PROP(_state, _field, prop_info_bit, uint32_t,         \
+               .bitnr       = (_bit),                           \
+               .set_default = true,                             \
+               .defval.u    = (bool)_defval,                    \
+               __VA_ARGS__)
+
+#define PROP_BIT64(_state, _field, _bit, _defval, ...) \
+    FIELD_PROP(_state, _field, prop_info_bit64, uint64_t,       \
+               .bitnr    = (_bit),                              \
+               .set_default = true,                             \
+               .defval.u  = (bool)_defval,                      \
+               __VA_ARGS__)
+
+#define PROP_BOOL(_state, _field, _defval, ...) \
+    FIELD_PROP(_state, _field, prop_info_bool, bool,            \
+               .set_default = true,                             \
+               .defval.u    = (bool)_defval,                    \
+               __VA_ARGS__)
+
+#define PROP_LINK(_state, _field, _type, _ptr_type, ...) \
+    FIELD_PROP(_state, _field, prop_info_link, _ptr_type,       \
+               .link_type  = _type,                             \
+               __VA_ARGS__)
+
+#define PROP_UINT8(_s, _f, _d, ...) \
+    PROP_UNSIGNED(_s, _f, _d, prop_info_uint8, uint8_t, __VA_ARGS__)
+#define PROP_UINT16(_s, _f, _d, ...) \
+    PROP_UNSIGNED(_s, _f, _d, prop_info_uint16, uint16_t, __VA_ARGS__)
+#define PROP_UINT32(_s, _f, _d, ...) \
+    PROP_UNSIGNED(_s, _f, _d, prop_info_uint32, uint32_t, __VA_ARGS__)
+#define PROP_INT32(_s, _f, _d, ...) \
+    PROP_SIGNED(_s, _f, _d, prop_info_int32, int32_t, __VA_ARGS__)
+#define PROP_UINT64(_s, _f, _d, ...) \
+    PROP_UNSIGNED(_s, _f, _d, prop_info_uint64, uint64_t, __VA_ARGS__)
+#define PROP_INT64(_s, _f, _d, ...) \
+    PROP_SIGNED(_s, _f, _d, prop_info_int64, int64_t, __VA_ARGS__)
+#define PROP_SIZE(_s, _f, _d, ...) \
+    PROP_UNSIGNED(_s, _f, _d, prop_info_size, uint64_t, __VA_ARGS__)
+#define PROP_STRING(_s, _f, ...) \
+    FIELD_PROP(_s, _f, prop_info_string, char*, __VA_ARGS__)
+#define PROP_ON_OFF_AUTO(_s, _f, _d, ...) \
+    PROP_SIGNED(_s, _f, _d, prop_info_on_off_auto, OnOffAuto, __VA_ARGS__)
+#define PROP_SIZE32(_s, _f, _d, ...) \
+    PROP_UNSIGNED(_s, _f, _d, prop_info_size32, uint32_t, __VA_ARGS__)
+
 /**
  * DEFINE_PROP: Define a #Property struct, including a property name
  *
@@ -42,33 +100,6 @@ extern const PropertyInfo prop_info_link;
     FIELD_PROP(_state, _field, _prop, _type,                  \
                .name_template = (_name),                      \
                __VA_ARGS__)
-
-#define DEFINE_PROP_SIGNED(_name, _state, _field, _defval, _prop, _type) \
-    DEFINE_PROP(_name, _state, _field, _prop, _type,                     \
-                .set_default = true,                                     \
-                .defval.i    = (_type)_defval)
-
-#define DEFINE_PROP_BIT(_name, _state, _field, _bit, _defval)   \
-    DEFINE_PROP(_name, _state, _field, prop_info_bit, uint32_t, \
-                .bitnr       = (_bit),                          \
-                .set_default = true,                            \
-                .defval.u    = (bool)_defval)
-
-#define DEFINE_PROP_UNSIGNED(_name, _state, _field, _defval, _prop, _type) \
-    DEFINE_PROP(_name, _state, _field, _prop, _type,                       \
-                .set_default = true,                                       \
-                .defval.u  = (_type)_defval)
-
-#define DEFINE_PROP_BIT64(_name, _state, _field, _bit, _defval)   \
-    DEFINE_PROP(_name, _state, _field, prop_info_bit64, uint64_t, \
-                .bitnr    = (_bit),                               \
-                .set_default = true,                              \
-                .defval.u  = (bool)_defval)
-
-#define DEFINE_PROP_BOOL(_name, _state, _field, _defval)     \
-    DEFINE_PROP(_name, _state, _field, prop_info_bool, bool, \
-                .set_default = true,                         \
-                .defval.u    = (bool)_defval)
 
 #define PROP_ARRAY_LEN_PREFIX "len-"
 
@@ -106,30 +137,38 @@ extern const PropertyInfo prop_info_link;
                 .arrayfieldsize = sizeof(_arraytype),          \
                 .arrayoffset = offsetof(_state, _arrayfield))
 
-#define DEFINE_PROP_LINK(_name, _state, _field, _type, _ptr_type)     \
-    DEFINE_PROP(_name, _state, _field, prop_info_link, _ptr_type,     \
-                .link_type  = _type)
-
-#define DEFINE_PROP_UINT8(_n, _s, _f, _d)                       \
-    DEFINE_PROP_UNSIGNED(_n, _s, _f, _d, prop_info_uint8, uint8_t)
-#define DEFINE_PROP_UINT16(_n, _s, _f, _d)                      \
-    DEFINE_PROP_UNSIGNED(_n, _s, _f, _d, prop_info_uint16, uint16_t)
-#define DEFINE_PROP_UINT32(_n, _s, _f, _d)                      \
-    DEFINE_PROP_UNSIGNED(_n, _s, _f, _d, prop_info_uint32, uint32_t)
-#define DEFINE_PROP_INT32(_n, _s, _f, _d)                      \
-    DEFINE_PROP_SIGNED(_n, _s, _f, _d, prop_info_int32, int32_t)
-#define DEFINE_PROP_UINT64(_n, _s, _f, _d)                      \
-    DEFINE_PROP_UNSIGNED(_n, _s, _f, _d, prop_info_uint64, uint64_t)
-#define DEFINE_PROP_INT64(_n, _s, _f, _d)                      \
-    DEFINE_PROP_SIGNED(_n, _s, _f, _d, prop_info_int64, int64_t)
-#define DEFINE_PROP_SIZE(_n, _s, _f, _d)                       \
-    DEFINE_PROP_UNSIGNED(_n, _s, _f, _d, prop_info_size, uint64_t)
-#define DEFINE_PROP_STRING(_n, _s, _f)             \
-    DEFINE_PROP(_n, _s, _f, prop_info_string, char*)
-#define DEFINE_PROP_ON_OFF_AUTO(_n, _s, _f, _d) \
-    DEFINE_PROP_SIGNED(_n, _s, _f, _d, prop_info_on_off_auto, OnOffAuto)
-#define DEFINE_PROP_SIZE32(_n, _s, _f, _d)                       \
-    DEFINE_PROP_UNSIGNED(_n, _s, _f, _d, prop_info_size32, uint32_t)
+#define DEFINE_PROP_SIGNED(_n, ...) \
+    PROP_SIGNED(__VA_ARGS__, .name_template = (_n))
+#define DEFINE_PROP_BIT(_n, ...) \
+    PROP_BIT(__VA_ARGS__, .name_template = (_n))
+#define DEFINE_PROP_UNSIGNED(_n, ...) \
+    PROP_UNSIGNED(__VA_ARGS__, .name_template = (_n))
+#define DEFINE_PROP_BIT64(_n, ...) \
+    PROP_BIT64(__VA_ARGS__, .name_template = (_n))
+#define DEFINE_PROP_BOOL(_n, ...) \
+    PROP_BOOL(__VA_ARGS__, .name_template = (_n))
+#define DEFINE_PROP_LINK(_n, ...) \
+    PROP_LINK(__VA_ARGS__, .name_template = (_n))
+#define DEFINE_PROP_UINT8(_n, ...) \
+    PROP_UINT8(__VA_ARGS__, .name_template = (_n))
+#define DEFINE_PROP_UINT16(_n, ...) \
+    PROP_UINT16(__VA_ARGS__, .name_template = (_n))
+#define DEFINE_PROP_UINT32(_n, ...) \
+    PROP_UINT32(__VA_ARGS__, .name_template = (_n))
+#define DEFINE_PROP_INT32(_n, ...) \
+    PROP_INT32(__VA_ARGS__, .name_template = (_n))
+#define DEFINE_PROP_UINT64(_n, ...) \
+    PROP_UINT64(__VA_ARGS__, .name_template = (_n))
+#define DEFINE_PROP_INT64(_n, ...) \
+    PROP_INT64(__VA_ARGS__, .name_template = (_n))
+#define DEFINE_PROP_SIZE(_n, ...) \
+    PROP_SIZE(__VA_ARGS__, .name_template = (_n))
+#define DEFINE_PROP_STRING(_n, ...) \
+    PROP_STRING(__VA_ARGS__, .name_template = (_n))
+#define DEFINE_PROP_ON_OFF_AUTO(_n, ...) \
+    PROP_ON_OFF_AUTO(__VA_ARGS__, .name_template = (_n))
+#define DEFINE_PROP_SIZE32(_n, ...) \
+    PROP_SIZE32(__VA_ARGS__, .name_template = (_n))
 
 #define DEFINE_PROP_END_OF_LIST()               \
     {}
