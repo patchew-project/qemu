@@ -529,7 +529,6 @@ const PropertyInfo prop_info_size32 = {
  */
 typedef struct {
     struct Property prop;
-    ObjectPropertyRelease *release;
 } ArrayElementProperty;
 
 /* object property release callback for array element properties:
@@ -539,8 +538,8 @@ typedef struct {
 static void array_element_release(Object *obj, const char *name, void *opaque)
 {
     ArrayElementProperty *p = opaque;
-    if (p->release) {
-        p->release(obj, name, opaque);
+    if (p->prop.info->release) {
+        p->prop.info->release(obj, name, opaque);
     }
     g_free(p);
 }
@@ -588,7 +587,6 @@ static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
         g_autofree char *propname = g_strdup_printf("%s[%d]", arrayname, i);
         ArrayElementProperty *arrayprop = g_new0(ArrayElementProperty, 1);
         ObjectProperty *elmop;
-        arrayprop->release = prop->arrayinfo->release;
         arrayprop->prop.info = prop->arrayinfo;
         /* This ugly piece of pointer arithmetic sets up the offset so
          * that when the underlying get/set hooks call qdev_get_prop_ptr
