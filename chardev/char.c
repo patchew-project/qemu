@@ -720,6 +720,7 @@ out:
 
 void qemu_chr_translate_legacy_options(QDict *args)
 {
+    const ChardevClass *cc;
     const char *name;
 
     /* "backend" instead of "type" enables legacy CLI compatibility */
@@ -730,12 +731,19 @@ void qemu_chr_translate_legacy_options(QDict *args)
 
     name = chardev_alias_translate(name);
     qdict_put_str(args, "type", name);
+
+    cc = char_get_class(name, NULL);
+    if (cc != NULL && cc->translate_legacy_options) {
+        QDict *backend_data = qdict_get_qdict(args, "data") ?: args;
+        cc->translate_legacy_options(backend_data);
+    }
+
+    /* name may refer to a QDict entry, so delete it only now */
     qdict_del(args, "backend");
 
     /*
      * TODO:
      * All backend types: "mux"
-     * socket: "addr.type", "delay", "server", "wait", "fd"
      * udp: defaults for "host"/"localaddr"/"localport"
      */
 }

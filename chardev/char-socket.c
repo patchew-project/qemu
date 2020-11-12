@@ -34,6 +34,7 @@
 #include "qapi/error.h"
 #include "qapi/clone-visitor.h"
 #include "qapi/qapi-visit-sockets.h"
+#include "qapi/qmp/qdict.h"
 
 #include "chardev/char-io.h"
 #include "qom/object.h"
@@ -1484,6 +1485,57 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     sock->addr = addr;
 }
 
+static void qemu_chr_translate_socket(QDict *args)
+{
+    const char *path = qdict_get_try_str(args, "path");
+    const char *host = qdict_get_try_str(args, "host");
+    const char *fd = qdict_get_try_str(args, "fd");
+    const char *delay = qdict_get_try_str(args, "delay");
+    const char *server = qdict_get_try_str(args, "server");
+    const char *wait = qdict_get_try_str(args, "wait");
+    QDict *addr;
+
+    if ((!!path + !!fd + !!host) != 1) {
+        return;
+    }
+
+    /* If "addr" is not present, automatically set the type */
+    if (!qdict_haskey(args, "addr")) {
+        addr = qdict_new();
+        qdict_put(args, "addr", addr);
+
+        if (path) {
+            qdict_put_str(addr, "type", "unix");
+        } else if (host) {
+            qdict_put_str(addr, "type", "inet");
+        } else if (fd) {
+            qdict_put_str(addr, "type", "fd");
+        }
+    }
+
+    /* "delay" is translated into "nodelay" */
+    if (delay && !qdict_haskey(args, "nodelay")) {
+        if (!strcmp(delay, "on")) {
+            qdict_put_str(args, "nodelay", "off");
+            qdict_del(args, "delay");
+        } else if (!strcmp(delay, "off")) {
+            qdict_put_str(args, "nodelay", "on");
+            qdict_del(args, "delay");
+        }
+    }
+
+    /* "server=off" is the CLI default */
+    if (!server) {
+        server = "off";
+        qdict_put_str(args, "server", server);
+    }
+
+    /* "wait=on" is the default if "server=on" */
+    if (!wait && !strcmp(server, "on")) {
+        qdict_put_str(args, "wait", "on");
+    }
+}
+
 static void
 char_socket_get_addr(Object *obj, Visitor *v, const char *name,
                      void *opaque, Error **errp)
@@ -1506,6 +1558,7 @@ static void char_socket_class_init(ObjectClass *oc, void *data)
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
     cc->parse = qemu_chr_parse_socket;
+    cc->translate_legacy_options = qemu_chr_translate_socket;
     cc->open = qmp_chardev_open_socket;
     cc->chr_wait_connected = tcp_chr_wait_connected;
     cc->chr_write = tcp_chr_write;

@@ -287,7 +287,8 @@
             '*tn3270': 'bool',
             '*websocket': 'bool',
             '*reconnect': 'int' },
-  'base': 'ChardevCommon' }
+  'base': 'ChardevCommon',
+  'aliases': [ { 'source': ['addr'] } ] }
 
 ##
 # @ChardevUdp:

@@ -275,6 +275,7 @@ struct ChardevClass {
 
     bool internal; /* TODO: eventually use TYPE_USER_CREATABLE */
     void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp);
+    void (*translate_legacy_options)(QDict *args);
 
     void (*open)(Chardev *chr, ChardevBackend *backend,
                  bool *be_opened, Error **errp);
