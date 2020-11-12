@@ -839,7 +839,7 @@ static Property sparc_cpu_properties[] = {
     DEFINE_PROP_BIT("cmt",      SPARCCPU, env.def.features, 12, false),
     DEFINE_PROP_BIT("gl",       SPARCCPU, env.def.features, 13, false),
     DEFINE_PROP_UNSIGNED("iu-version", SPARCCPU, env.def.iu_version, 0,
-                         qdev_prop_uint64, target_ulong),
+                         prop_info_uint64, target_ulong),
     DEFINE_PROP_UINT32("fpu-version", SPARCCPU, env.def.fpu_version, 0),
     DEFINE_PROP_UINT32("mmu-version", SPARCCPU, env.def.mmu_version, 0),
     DEFINE_PROP("nwindows",     SPARCCPU, env.def.nwindows,
