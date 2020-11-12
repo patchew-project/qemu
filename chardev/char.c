@@ -744,7 +744,6 @@ void qemu_chr_translate_legacy_options(QDict *args)
     /*
      * TODO:
      * All backend types: "mux"
-     * udp: defaults for "host"/"localaddr"/"localport"
      */
 }
 

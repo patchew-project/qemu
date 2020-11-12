@@ -23,9 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#include "block/qdict.h"
 #include "chardev/char.h"
 #include "io/channel-socket.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qdict.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
 
@@ -190,6 +192,36 @@ static void qemu_chr_parse_udp(QemuOpts *opts, ChardevBackend *backend,
     }
 }
 
+static void qemu_chr_translate_udp(QDict *args)
+{
+    QDict *remote;
+    QDict *local;
+
+    /*
+     * If "local" or "remote" are given, it's not a legacy command line.
+     * Not translating in this case saves us checking whether an alias is
+     * already given before applying defaults.
+     */
+    if (qdict_haskey(args, "local") || qdict_haskey(args, "remote")) {
+        return;
+    }
+
+    remote = qdict_new();
+    qdict_put_str(remote, "type", "inet");
+    qdict_put(args, "remote", remote);
+
+    qdict_set_default_str(args, "host", "localhost");
+
+    if (qdict_haskey(args, "localaddr") || qdict_haskey(args, "localport")) {
+        local = qdict_new();
+        qdict_put_str(local, "type", "inet");
+        qdict_put(args, "local", local);
+
+        qdict_set_default_str(args, "localaddr", "");
+        qdict_set_default_str(args, "localport", "0");
+    }
+}
+
 static void qmp_chardev_open_udp(Chardev *chr,
                                  ChardevBackend *backend,
                                  bool *be_opened,
@@ -225,6 +257,7 @@ static void char_udp_class_init(ObjectClass *oc, void *data)
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
     cc->parse = qemu_chr_parse_udp;
+    cc->translate_legacy_options = qemu_chr_translate_udp;
     cc->open = qmp_chardev_open_udp;
     cc->chr_write = udp_chr_write;
     cc->chr_update_read_handler = udp_chr_update_read_handler;

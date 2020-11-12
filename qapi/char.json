@@ -303,7 +303,12 @@
 { 'struct': 'ChardevUdp',
   'data': { 'remote': 'SocketAddressLegacy',
             '*local': 'SocketAddressLegacy' },
-  'base': 'ChardevCommon' }
+  'base': 'ChardevCommon',
+  'aliases': [
+    { 'source': ['remote'] },
+    { 'alias': 'localaddr', 'source': ['local', 'host'] },
+    { 'alias': 'localport', 'source': ['local', 'port'] }
+  ]}
 
 ##
 # @ChardevMux:
