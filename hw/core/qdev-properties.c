@@ -828,21 +828,23 @@ object_property_add_field(Object *obj, const char *name,
                           ObjectPropertyAllowSet allow_set)
 {
     ObjectProperty *op;
+    Property *newprop = g_new0(Property, 1);
 
     assert(allow_set);
     assert(!prop->info->create);
 
-    op = object_property_add(obj, name, prop->info->name,
-                             field_prop_getter(prop->info),
-                             field_prop_setter(prop->info),
-                             prop->info->release,
-                             prop);
+    *newprop = *prop;
+    op = object_property_add(obj, name, newprop->info->name,
+                             field_prop_getter(newprop->info),
+                             field_prop_setter(newprop->info),
+                             static_prop_release_dynamic_prop,
+                             newprop);
 
     object_property_set_description(obj, name,
-                                    prop->info->description);
+                                    newprop->info->description);
 
-    if (prop->set_default) {
-        prop->info->set_default_value(op, prop);
+    if (newprop->set_default) {
+        newprop->info->set_default_value(op, newprop);
         if (op->init) {
             op->init(obj, op);
         }
