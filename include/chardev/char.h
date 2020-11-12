@@ -86,6 +86,15 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts,
                                 Error **errp);
 
 /**
+ * qemu_chr_new_cli:
+ * @options: Character device creation options as defined in QAPI
+ *
+ * Returns: on success: a new character backend
+ *          otherwise:  NULL; @errp specifies the error
+ */
+Chardev *qemu_chr_new_cli(ChardevOptions *options, Error **errp);
+
+/**
  * qemu_chr_parse_common:
  * @opts: the options that still need parsing
  * @backend: a new backend

@@ -437,6 +437,21 @@
   'data': { '*pty': 'str' } }
 
 ##
+# @ChardevOptions:
+#
+# Command line options for creating a character device backend
+#
+# @id: the chardev's ID, must be unique
+# @backend: backend type and parameters
+#
+# Since: 6.0
+##
+{ 'struct': 'ChardevOptions',
+  'data': { 'id': 'str',
+            'backend': 'ChardevBackend' },
+  'aliases': [ { 'source': ['backend'] } ] }
+
+##
 # @chardev-add:
 #
 # Add a character device backend

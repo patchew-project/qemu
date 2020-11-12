@@ -1037,20 +1037,27 @@ Chardev *qemu_chardev_new(const char *id, const char *typename,
     return chardev_new(id, typename, backend, gcontext, errp);
 }
 
-ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
-                               Error **errp)
+static Chardev *chardev_new_qapi(const char *id, ChardevBackend *backend,
+                                 Error **errp)
 {
     const ChardevClass *cc;
-    ChardevReturn *ret;
-    Chardev *chr;
 
     cc = char_get_class(ChardevBackendKind_str(backend->type), errp);
     if (!cc) {
         return NULL;
     }
 
-    chr = chardev_new(id, object_class_get_name(OBJECT_CLASS(cc)),
-                      backend, NULL, errp);
+    return chardev_new(id, object_class_get_name(OBJECT_CLASS(cc)),
+                       backend, NULL, errp);
+}
+
+ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
+                               Error **errp)
+{
+    ChardevReturn *ret;
+    Chardev *chr;
+
+    chr = chardev_new_qapi(id, backend, errp);
     if (!chr) {
         return NULL;
     }
@@ -1062,6 +1069,11 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     }
 
     return ret;
+}
+
+Chardev *qemu_chr_new_cli(ChardevOptions *options, Error **errp)
+{
+    return chardev_new_qapi(options->id, options->backend, errp);
 }
 
 ChardevReturn *qmp_chardev_change(const char *id, ChardevBackend *backend,
