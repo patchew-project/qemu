@@ -521,20 +521,6 @@ const PropertyInfo prop_info_size32 = {
 
 /* --- support for array properties --- */
 
-/* object property release callback for dynamically-created properties:
- * we call the underlying element's property release hook, and
- * then free the memory we allocated when we added the property.
- */
-static void static_prop_release_dynamic_prop(Object *obj, const char *name,
-                                             void *opaque)
-{
-    Property *prop = opaque;
-    if (prop->info->release) {
-        prop->info->release(obj, name, opaque);
-    }
-    g_free(prop);
-}
-
 static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
                               void *opaque, Error **errp)
 {
@@ -815,6 +801,21 @@ const PropertyInfo prop_info_link = {
     .name = "link",
     .create = create_link_property,
 };
+
+/*
+ * Property release callback for dynamically-created properties:
+ * We call the underlying element's property release hook, and
+ * then free the memory we allocated when we added the property.
+ */
+static void static_prop_release_dynamic_prop(Object *obj, const char *name,
+                                             void *opaque)
+{
+    Property *prop = opaque;
+    if (prop->info->release) {
+        prop->info->release(obj, name, opaque);
+    }
+    g_free(prop);
+}
 
 ObjectProperty *
 object_property_add_field(Object *obj, const char *name,
