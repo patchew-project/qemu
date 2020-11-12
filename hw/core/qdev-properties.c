@@ -25,13 +25,13 @@ void qdev_prop_set_after_realize(DeviceState *dev, const char *name,
 }
 
 /* returns: true if property is allowed to be set, false otherwise */
-static bool qdev_prop_allow_set(Object *obj, const char *name,
+static bool qdev_prop_allow_set(Object *obj, ObjectProperty *op,
                                 Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
 
     if (dev->realized) {
-        qdev_prop_set_after_realize(dev, name, errp);
+        qdev_prop_set_after_realize(dev, op->name, errp);
         return false;
     }
     return true;
@@ -78,10 +78,6 @@ static void field_prop_set(Object *obj, Visitor *v, const char *name,
                            void *opaque, Error **errp)
 {
     Property *prop = opaque;
-
-    if (!qdev_prop_allow_set(obj, name, errp)) {
-        return;
-    }
 
     return prop->info->set(obj, v, name, opaque, errp);
 }
@@ -560,6 +556,7 @@ static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
      * array itself and dynamically add the corresponding properties.
      */
     Property *prop = opaque;
+    ObjectProperty *op = object_property_find_err(obj, name, &error_abort);
     uint32_t *alenptr = object_field_prop_ptr(obj, prop);
     void **arrayptr = (void *)obj + prop->arrayoffset;
     void *eltptr;
@@ -592,6 +589,7 @@ static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
     for (i = 0; i < *alenptr; i++, eltptr += prop->arrayfieldsize) {
         char *propname = g_strdup_printf("%s[%d]", arrayname, i);
         ArrayElementProperty *arrayprop = g_new0(ArrayElementProperty, 1);
+        ObjectProperty *elmop;
         arrayprop->release = prop->arrayinfo->release;
         arrayprop->propname = propname;
         arrayprop->prop.info = prop->arrayinfo;
@@ -603,12 +601,13 @@ static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
          */
         arrayprop->prop.offset = eltptr - (void *)obj;
         assert(object_field_prop_ptr(obj, &arrayprop->prop) == eltptr);
-        object_property_add(obj, propname,
-                            arrayprop->prop.info->name,
-                            field_prop_getter(arrayprop->prop.info),
-                            field_prop_setter(arrayprop->prop.info),
-                            array_element_release,
-                            arrayprop);
+        elmop = object_property_add(obj, propname,
+                                    arrayprop->prop.info->name,
+                                    field_prop_getter(arrayprop->prop.info),
+                                    field_prop_setter(arrayprop->prop.info),
+                                    array_element_release,
+                                    arrayprop);
+        elmop->allow_set = op->allow_set;
     }
 }
 
@@ -823,9 +822,13 @@ const PropertyInfo prop_info_size = {
 static ObjectProperty *create_link_property(ObjectClass *oc, const char *name,
                                             Property *prop)
 {
+    /*
+     * NOTE: object_property_allow_set_link is unconditional, but
+     *       ObjectProperty.allow_set may be set for the property too.
+     */
     return object_class_property_add_link(oc, name, prop->link_type,
                                           prop->offset,
-                                          qdev_prop_allow_set_link_before_realize,
+                                          object_property_allow_set_link,
                                           OBJ_PROP_LINK_STRONG);
 }
 
@@ -836,10 +839,12 @@ const PropertyInfo prop_info_link = {
 
 ObjectProperty *
 object_property_add_field(Object *obj, const char *name,
-                          Property *prop)
+                          Property *prop,
+                          ObjectPropertyAllowSet allow_set)
 {
     ObjectProperty *op;
 
+    assert(allow_set);
     assert(!prop->info->create);
 
     op = object_property_add(obj, name, prop->info->name,
@@ -858,14 +863,18 @@ object_property_add_field(Object *obj, const char *name,
         }
     }
 
+    op->allow_set = allow_set;
     return op;
 }
 
 ObjectProperty *
 object_class_property_add_field_static(ObjectClass *oc, const char *name,
-                                       Property *prop)
+                                       Property *prop,
+                                       ObjectPropertyAllowSet allow_set)
 {
     ObjectProperty *op;
+
+    assert(allow_set);
 
     if (prop->info->create) {
         op = prop->info->create(oc, name, prop);
@@ -884,22 +893,26 @@ object_class_property_add_field_static(ObjectClass *oc, const char *name,
         object_class_property_set_description(oc, name,
                                               prop->info->description);
     }
+
+    op->allow_set = allow_set;
     return op;
 }
 
-void object_class_add_field_properties(ObjectClass *oc, Property *props)
+void object_class_add_field_properties(ObjectClass *oc, Property *props,
+                                       ObjectPropertyAllowSet allow_set)
 {
     Property *prop;
 
     for (prop = props; prop && prop->name; prop++) {
-        object_class_property_add_field_static(oc, prop->name, prop);
+        object_class_property_add_field_static(oc, prop->name, prop, allow_set);
     }
 }
 
 
 void qdev_property_add_static(DeviceState *dev, Property *prop)
 {
-    object_property_add_field(OBJECT(dev), prop->name, prop);
+    object_property_add_field(OBJECT(dev), prop->name, prop,
+                              qdev_prop_allow_set);
 }
 
 /**
@@ -958,7 +971,7 @@ void device_class_set_props(DeviceClass *dc, Property *props)
         qdev_class_add_legacy_property(dc, prop);
     }
 
-    object_class_add_field_properties(oc, props);
+    object_class_add_field_properties(oc, props, qdev_prop_allow_set);
 }
 
 void qdev_alias_all_properties(DeviceState *target, Object *source)
