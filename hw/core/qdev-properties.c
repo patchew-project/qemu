@@ -593,7 +593,6 @@ static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
         arrayprop->release = prop->arrayinfo->release;
         arrayprop->propname = propname;
         arrayprop->prop.info = prop->arrayinfo;
-        arrayprop->prop.name_template = propname;
         /* This ugly piece of pointer arithmetic sets up the offset so
          * that when the underlying get/set hooks call qdev_get_prop_ptr
          * they get the right answer despite the array element not actually
