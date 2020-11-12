@@ -1106,9 +1106,9 @@ static Property arm_cpu_has_mpu_property =
  * to override that with an incorrect constant value.
  */
 static Property arm_cpu_pmsav7_dregion_property =
-            DEFINE_PROP_UNSIGNED_NODEFAULT("pmsav7-dregion", ARMCPU,
-                                           pmsav7_dregion,
-                                           prop_info_uint32, uint32_t);
+            DEFINE_PROP("pmsav7-dregion", ARMCPU,
+                        pmsav7_dregion,
+                        prop_info_uint32, uint32_t);
 
 static bool arm_get_pmu(Object *obj, Error **errp)
 {

@@ -48,9 +48,6 @@ extern const PropertyInfo prop_info_link;
                 .set_default = true,                                     \
                 .defval.i    = (_type)_defval)
 
-#define DEFINE_PROP_SIGNED_NODEFAULT(_name, _state, _field, _prop, _type) \
-    DEFINE_PROP(_name, _state, _field, _prop, _type)
-
 #define DEFINE_PROP_BIT(_name, _state, _field, _bit, _defval)   \
     DEFINE_PROP(_name, _state, _field, prop_info_bit, uint32_t, \
                 .bitnr       = (_bit),                          \
@@ -61,9 +58,6 @@ extern const PropertyInfo prop_info_link;
     DEFINE_PROP(_name, _state, _field, _prop, _type,                       \
                 .set_default = true,                                       \
                 .defval.u  = (_type)_defval)
-
-#define DEFINE_PROP_UNSIGNED_NODEFAULT(_name, _state, _field, _prop, _type) \
-    DEFINE_PROP(_name, _state, _field, _prop, _type)
 
 #define DEFINE_PROP_BIT64(_name, _state, _field, _bit, _defval)   \
     DEFINE_PROP(_name, _state, _field, prop_info_bit64, uint64_t, \
