@@ -125,6 +125,20 @@ object_class_property_add_field_static(ObjectClass *oc, const char *name,
     return op;
 }
 
+ObjectProperty *
+object_class_property_add_field(ObjectClass *oc, const char *name,
+                                Property prop,
+                                ObjectPropertyAllowSet allow_set)
+{
+    /*
+     * QOM classes and class properties are never deallocated, so we don't
+     * have a corresponding release function that will free newprop.
+     */
+    Property *newprop = g_new0(Property, 1);
+    *newprop = prop;
+    return object_class_property_add_field_static(oc, name, newprop, allow_set);
+}
+
 void object_class_add_field_properties(ObjectClass *oc, Property *props,
                                        ObjectPropertyAllowSet allow_set)
 {
