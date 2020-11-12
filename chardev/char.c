@@ -32,6 +32,7 @@
 #include "chardev/char.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-char.h"
+#include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/replay.h"
 #include "qemu/help_option.h"
@@ -715,6 +716,28 @@ out:
     qapi_free_ChardevBackend(backend);
     g_free(bid);
     return chr;
+}
+
+void qemu_chr_translate_legacy_options(QDict *args)
+{
+    const char *name;
+
+    /* "backend" instead of "type" enables legacy CLI compatibility */
+    name = qdict_get_try_str(args, "backend");
+    if (!name || qdict_haskey(args, "type")) {
+        return;
+    }
+
+    name = chardev_alias_translate(name);
+    qdict_put_str(args, "type", name);
+    qdict_del(args, "backend");
+
+    /*
+     * TODO:
+     * All backend types: "mux"
+     * socket: "addr.type", "delay", "server", "wait", "fd"
+     * udp: defaults for "host"/"localaddr"/"localport"
+     */
 }
 
 Chardev *qemu_chr_new_noreplay(const char *label, const char *filename,

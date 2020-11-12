@@ -95,6 +95,19 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts,
 Chardev *qemu_chr_new_cli(ChardevOptions *options, Error **errp);
 
 /**
+ * qemu_chr_translate_legacy_options:
+ * @args: Character device creation options as returned by the keyval parser
+ *
+ * Change @args so that the legacy command line options in it are translated
+ * and @args can be used as the input for a ChardevOptions visitor.
+ *
+ * If @args was not a valid legacy command line, translation may be partially
+ * skipped and the visitor may return an error if @args was not already
+ * suitable for QAPI parsing.
+ */
+void qemu_chr_translate_legacy_options(QDict *args);
+
+/**
  * qemu_chr_parse_common:
  * @opts: the options that still need parsing
  * @backend: a new backend
