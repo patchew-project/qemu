@@ -13,7 +13,14 @@
  *     is true.
  */
 struct Property {
-    const char   *name;
+    /**
+     * @name_template: Property name template
+     *
+     * This is a string containing the template to be used when
+     * creating the property.  It can be NULL, and code shouldn't
+     * assume it will contain the actual property name.
+     */
+    const char   *name_template;
     const PropertyInfo *info;
     ptrdiff_t    offset;
     uint8_t      bitnr;
@@ -62,7 +69,7 @@ extern const PropertyInfo prop_info_arraylen;
 extern const PropertyInfo prop_info_link;
 
 #define DEFINE_PROP(_name, _state, _field, _prop, _type, ...) {  \
-        .name      = (_name),                                    \
+        .name_template = (_name),                           \
         .info      = &(_prop),                                   \
         .offset    = offsetof(_state, _field)                    \
             + type_check(_type, typeof_field(_state, _field)),   \

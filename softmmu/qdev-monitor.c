@@ -697,14 +697,14 @@ static void qdev_print_props(Monitor *mon, DeviceState *dev, Property *props,
 {
     if (!props)
         return;
-    for (; props->name; props++) {
+    for (; props->name_template; props++) {
         char *value;
-        char *legacy_name = g_strdup_printf("legacy-%s", props->name);
+        char *legacy_name = g_strdup_printf("legacy-%s", props->name_template);
 
         if (object_property_get_type(OBJECT(dev), legacy_name, NULL)) {
             value = object_property_get_str(OBJECT(dev), legacy_name, NULL);
         } else {
-            value = object_property_print(OBJECT(dev), props->name, true,
+            value = object_property_print(OBJECT(dev), props->name_template, true,
                                           NULL);
         }
         g_free(legacy_name);
@@ -712,7 +712,7 @@ static void qdev_print_props(Monitor *mon, DeviceState *dev, Property *props,
         if (!value) {
             continue;
         }
-        qdev_printf("%s = %s\n", props->name,
+        qdev_printf("%s = %s\n", props->name_template,
                     *value ? value : "<null>");
         g_free(value);
     }
