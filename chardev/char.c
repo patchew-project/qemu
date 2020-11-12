@@ -32,8 +32,10 @@
 #include "chardev/char.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-char.h"
+#include "qapi/qapi-visit-char.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
+#include "qapi/qobject-input-visitor.h"
 #include "sysemu/replay.h"
 #include "qemu/help_option.h"
 #include "qemu/module.h"
@@ -1104,6 +1106,49 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
 Chardev *qemu_chr_new_cli(ChardevOptions *options, Error **errp)
 {
     return chardev_new_qapi(options->id, options->backend, errp);
+}
+
+ChardevOptions *qemu_chr_parse_cli_dict(QDict *args, bool help,
+                                        Error **errp)
+{
+    Visitor *v;
+    ChardevOptions *chr_options;
+
+    qemu_chr_translate_legacy_options(args);
+
+    if (help) {
+        if (qdict_haskey(args, "type")) {
+            /* TODO Print help based on the QAPI schema */
+            qemu_opts_print_help(&qemu_chardev_opts, true);
+        } else {
+            qemu_chr_print_types();
+        }
+        return NULL;
+    }
+
+    v = qobject_input_visitor_new_keyval(QOBJECT(args));
+    visit_type_ChardevOptions(v, NULL, &chr_options, errp);
+    visit_free(v);
+
+    return chr_options;
+}
+
+ChardevOptions *qemu_chr_parse_cli_str(const char *optarg, Error **errp)
+{
+    ERRP_GUARD();
+    QDict *args;
+    ChardevOptions *chr_options;
+    bool help;
+
+    args = keyval_parse(optarg, "backend", &help, errp);
+    if (!args) {
+        return NULL;
+    }
+
+    chr_options = qemu_chr_parse_cli_dict(args, help, errp);
+    qobject_unref(args);
+
+    return chr_options;
 }
 
 ChardevReturn *qmp_chardev_change(const char *id, ChardevBackend *backend,

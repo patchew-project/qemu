@@ -95,6 +95,36 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts,
 Chardev *qemu_chr_new_cli(ChardevOptions *options, Error **errp);
 
 /**
+ * qemu_chr_parse_cli_dict:
+ * @args: Options defining a new character device
+ * @help: true if help should be printed instead of returning ChardevOptions
+ *
+ * Parses the given command line option QDict into ChardevOptions, using
+ * qemu_chr_translate_legacy_options() to maintain compatibility with
+ * legacy command line syntax.
+ *
+ * Returns: On successful conversion, a ChardevOptions object containing the
+ * requested options. NULL and @errp is unchanged if help was requested and
+ * printed. NULL and @errp is set in error cases.
+ */
+ChardevOptions *qemu_chr_parse_cli_dict(QDict *args, bool help,
+                                        Error **errp);
+
+/**
+ * qemu_chr_parse_cli_str:
+ * @optarg: Command line argument defining a new character device
+ *
+ * Parses the given command line option into ChardevOptions, using
+ * qemu_chr_translate_legacy_options() to maintain compatibility with
+ * legacy command line syntax.
+ *
+ * Returns: On successful conversion, a ChardevOptions object containing the
+ * requested options. NULL and @errp is unchanged if help was requested and
+ * printed. NULL and @errp is set in error cases.
+ */
+ChardevOptions *qemu_chr_parse_cli_str(const char *optarg, Error **errp);
+
+/**
  * qemu_chr_translate_legacy_options:
  * @args: Character device creation options as returned by the keyval parser
  *
