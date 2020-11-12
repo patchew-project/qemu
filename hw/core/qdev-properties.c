@@ -521,11 +521,12 @@ const PropertyInfo prop_info_size32 = {
 
 /* --- support for array properties --- */
 
-/* object property release callback for array element properties:
+/* object property release callback for dynamically-created properties:
  * we call the underlying element's property release hook, and
  * then free the memory we allocated when we added the property.
  */
-static void array_element_release(Object *obj, const char *name, void *opaque)
+static void static_prop_release_dynamic_prop(Object *obj, const char *name,
+                                             void *opaque)
 {
     Property *prop = opaque;
     if (prop->info->release) {
@@ -589,7 +590,7 @@ static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
                                     arrayprop->info->name,
                                     field_prop_getter(arrayprop->info),
                                     field_prop_setter(arrayprop->info),
-                                    array_element_release,
+                                    static_prop_release_dynamic_prop,
                                     arrayprop);
         elmop->allow_set = op->allow_set;
     }
