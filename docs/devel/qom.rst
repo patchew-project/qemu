@@ -376,6 +376,21 @@ the OBJECT_DEFINE_ABSTRACT_TYPE() macro can be used instead:
 
 
 API Reference
--------------
+=============
+
+Core QOM API Reference
+----------------------
 
 .. kernel-doc:: include/qom/object.h
+
+
+Field Property API Reference
+----------------------------
+
+.. kernel-doc:: include/qom/field-property.h
+
+
+Property Types Reference
+------------------------
+
+.. kernel-doc:: include/qom/property-types.h

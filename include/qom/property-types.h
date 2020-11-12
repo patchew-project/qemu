@@ -71,7 +71,7 @@ extern const PropertyInfo prop_info_link;
  * @_name: name of the array
  * @_state: name of the device state structure type
  * @_field: uint32_t field in @_state to hold the array length
- * @_arrayfield: field in @_state (of type '@_arraytype *') which
+ * @_arrayfield: field in @_state (of type ``_arraytype *``) which
  *               will point to the array
  * @_arrayprop: PropertyInfo defining what property the array elements have
  * @_arraytype: C type of the array elements
