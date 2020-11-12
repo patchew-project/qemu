@@ -133,65 +133,6 @@ static void char_udp_finalize(Object *obj)
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
 }
 
-static void qemu_chr_parse_udp(QemuOpts *opts, ChardevBackend *backend,
-                               Error **errp)
-{
-    const char *host = qemu_opt_get(opts, "host");
-    const char *port = qemu_opt_get(opts, "port");
-    const char *localaddr = qemu_opt_get(opts, "localaddr");
-    const char *localport = qemu_opt_get(opts, "localport");
-    bool has_local = false;
-    SocketAddressLegacy *addr;
-    ChardevUdp *udp;
-
-    backend->type = CHARDEV_BACKEND_KIND_UDP;
-    if (host == NULL || strlen(host) == 0) {
-        host = "localhost";
-    }
-    if (port == NULL || strlen(port) == 0) {
-        error_setg(errp, "chardev: udp: remote port not specified");
-        return;
-    }
-    if (localport == NULL || strlen(localport) == 0) {
-        localport = "0";
-    } else {
-        has_local = true;
-    }
-    if (localaddr == NULL || strlen(localaddr) == 0) {
-        localaddr = "";
-    } else {
-        has_local = true;
-    }
-
-    udp = backend->u.udp.data = g_new0(ChardevUdp, 1);
-    qemu_chr_parse_common(opts, qapi_ChardevUdp_base(udp));
-
-    addr = g_new0(SocketAddressLegacy, 1);
-    addr->type = SOCKET_ADDRESS_LEGACY_KIND_INET;
-    addr->u.inet.data = g_new(InetSocketAddress, 1);
-    *addr->u.inet.data = (InetSocketAddress) {
-        .host = g_strdup(host),
-        .port = g_strdup(port),
-        .has_ipv4 = qemu_opt_get(opts, "ipv4"),
-        .ipv4 = qemu_opt_get_bool(opts, "ipv4", 0),
-        .has_ipv6 = qemu_opt_get(opts, "ipv6"),
-        .ipv6 = qemu_opt_get_bool(opts, "ipv6", 0),
-    };
-    udp->remote = addr;
-
-    if (has_local) {
-        udp->has_local = true;
-        addr = g_new0(SocketAddressLegacy, 1);
-        addr->type = SOCKET_ADDRESS_LEGACY_KIND_INET;
-        addr->u.inet.data = g_new(InetSocketAddress, 1);
-        *addr->u.inet.data = (InetSocketAddress) {
-            .host = g_strdup(localaddr),
-            .port = g_strdup(localport),
-        };
-        udp->local = addr;
-    }
-}
-
 static void qemu_chr_translate_udp(QDict *args)
 {
     QDict *remote;
@@ -256,7 +197,6 @@ static void char_udp_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_udp;
     cc->translate_legacy_options = qemu_chr_translate_udp;
     cc->open = qmp_chardev_open_udp;
     cc->chr_write = udp_chr_write;

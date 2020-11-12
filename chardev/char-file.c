@@ -96,30 +96,10 @@ static void qmp_chardev_open_file(Chardev *chr,
 #endif
 }
 
-static void qemu_chr_parse_file_out(QemuOpts *opts, ChardevBackend *backend,
-                                    Error **errp)
-{
-    const char *path = qemu_opt_get(opts, "path");
-    ChardevFile *file;
-
-    backend->type = CHARDEV_BACKEND_KIND_FILE;
-    if (path == NULL) {
-        error_setg(errp, "chardev: file: no filename given");
-        return;
-    }
-    file = backend->u.file.data = g_new0(ChardevFile, 1);
-    qemu_chr_parse_common(opts, qapi_ChardevFile_base(file));
-    file->out = g_strdup(path);
-
-    file->has_append = true;
-    file->append = qemu_opt_get_bool(opts, "append", false);
-}
-
 static void char_file_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_file_out;
     cc->open = qmp_chardev_open_file;
 }
 

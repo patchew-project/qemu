@@ -332,22 +332,6 @@ static void qemu_chr_open_mux(Chardev *chr,
     qemu_chr_fe_init(&d->chr, drv, errp);
 }
 
-static void qemu_chr_parse_mux(QemuOpts *opts, ChardevBackend *backend,
-                               Error **errp)
-{
-    const char *chardev = qemu_opt_get(opts, "chardev");
-    ChardevMux *mux;
-
-    if (chardev == NULL) {
-        error_setg(errp, "chardev: mux: no chardev given");
-        return;
-    }
-    backend->type = CHARDEV_BACKEND_KIND_MUX;
-    mux = backend->u.mux.data = g_new0(ChardevMux, 1);
-    qemu_chr_parse_common(opts, qapi_ChardevMux_base(mux));
-    mux->chardev = g_strdup(chardev);
-}
-
 /**
  * Called after processing of default and command-line-specified
  * chardevs to deliver CHR_EVENT_OPENED events to any FEs attached
@@ -377,7 +361,6 @@ static void char_mux_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_mux;
     cc->open = qemu_chr_open_mux;
     cc->chr_write = mux_chr_write;
     cc->chr_accept_input = mux_chr_accept_input;

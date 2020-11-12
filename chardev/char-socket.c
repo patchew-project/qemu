@@ -1394,97 +1394,6 @@ static void qmp_chardev_open_socket(Chardev *chr,
     }
 }
 
-static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
-                                  Error **errp)
-{
-    const char *path = qemu_opt_get(opts, "path");
-    const char *host = qemu_opt_get(opts, "host");
-    const char *port = qemu_opt_get(opts, "port");
-    const char *fd = qemu_opt_get(opts, "fd");
-#ifdef CONFIG_LINUX
-    bool tight = qemu_opt_get_bool(opts, "tight", true);
-    bool abstract = qemu_opt_get_bool(opts, "abstract", false);
-#endif
-    SocketAddressLegacy *addr;
-    ChardevSocket *sock;
-
-    if ((!!path + !!fd + !!host) != 1) {
-        error_setg(errp,
-                   "Exactly one of 'path', 'fd' or 'host' required");
-        return;
-    }
-
-    if (host && !port) {
-        error_setg(errp, "chardev: socket: no port given");
-        return;
-    }
-
-    backend->type = CHARDEV_BACKEND_KIND_SOCKET;
-    sock = backend->u.socket.data = g_new0(ChardevSocket, 1);
-    qemu_chr_parse_common(opts, qapi_ChardevSocket_base(sock));
-
-    sock->has_nodelay = qemu_opt_get(opts, "delay");
-    sock->nodelay = !qemu_opt_get_bool(opts, "delay", true);
-    /*
-     * We have different default to QMP for 'server', hence
-     * we can't just check for existence of 'server'
-     */
-    sock->has_server = true;
-    sock->server = qemu_opt_get_bool(opts, "server", false);
-    sock->has_telnet = qemu_opt_get(opts, "telnet");
-    sock->telnet = qemu_opt_get_bool(opts, "telnet", false);
-    sock->has_tn3270 = qemu_opt_get(opts, "tn3270");
-    sock->tn3270 = qemu_opt_get_bool(opts, "tn3270", false);
-    sock->has_websocket = qemu_opt_get(opts, "websocket");
-    sock->websocket = qemu_opt_get_bool(opts, "websocket", false);
-    /*
-     * We have different default to QMP for 'wait' when 'server'
-     * is set, hence we can't just check for existence of 'wait'
-     */
-    sock->has_wait = qemu_opt_find(opts, "wait") || sock->server;
-    sock->wait = qemu_opt_get_bool(opts, "wait", true);
-    sock->has_reconnect = qemu_opt_find(opts, "reconnect");
-    sock->reconnect = qemu_opt_get_number(opts, "reconnect", 0);
-    sock->has_tls_creds = qemu_opt_get(opts, "tls-creds");
-    sock->tls_creds = g_strdup(qemu_opt_get(opts, "tls-creds"));
-    sock->has_tls_authz = qemu_opt_get(opts, "tls-authz");
-    sock->tls_authz = g_strdup(qemu_opt_get(opts, "tls-authz"));
-
-    addr = g_new0(SocketAddressLegacy, 1);
-    if (path) {
-        UnixSocketAddress *q_unix;
-        addr->type = SOCKET_ADDRESS_LEGACY_KIND_UNIX;
-        q_unix = addr->u.q_unix.data = g_new0(UnixSocketAddress, 1);
-        q_unix->path = g_strdup(path);
-#ifdef CONFIG_LINUX
-        q_unix->has_tight = true;
-        q_unix->tight = tight;
-        q_unix->has_abstract = true;
-        q_unix->abstract = abstract;
-#endif
-    } else if (host) {
-        addr->type = SOCKET_ADDRESS_LEGACY_KIND_INET;
-        addr->u.inet.data = g_new(InetSocketAddress, 1);
-        *addr->u.inet.data = (InetSocketAddress) {
-            .host = g_strdup(host),
-            .port = g_strdup(port),
-            .has_to = qemu_opt_get(opts, "to"),
-            .to = qemu_opt_get_number(opts, "to", 0),
-            .has_ipv4 = qemu_opt_get(opts, "ipv4"),
-            .ipv4 = qemu_opt_get_bool(opts, "ipv4", 0),
-            .has_ipv6 = qemu_opt_get(opts, "ipv6"),
-            .ipv6 = qemu_opt_get_bool(opts, "ipv6", 0),
-        };
-    } else if (fd) {
-        addr->type = SOCKET_ADDRESS_LEGACY_KIND_FD;
-        addr->u.fd.data = g_new(String, 1);
-        addr->u.fd.data->str = g_strdup(fd);
-    } else {
-        g_assert_not_reached();
-    }
-    sock->addr = addr;
-}
-
 static void qemu_chr_translate_socket(QDict *args)
 {
     const char *path = qdict_get_try_str(args, "path");
@@ -1557,7 +1466,6 @@ static void char_socket_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_socket;
     cc->translate_legacy_options = qemu_chr_translate_socket;
     cc->open = qmp_chardev_open_socket;
     cc->chr_wait_connected = tcp_chr_wait_connected;

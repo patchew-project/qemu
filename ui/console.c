@@ -2386,40 +2386,6 @@ void qemu_display_help(void)
     }
 }
 
-void qemu_chr_parse_vc(QemuOpts *opts, ChardevBackend *backend, Error **errp)
-{
-    int val;
-    ChardevVC *vc;
-
-    backend->type = CHARDEV_BACKEND_KIND_VC;
-    vc = backend->u.vc.data = g_new0(ChardevVC, 1);
-    qemu_chr_parse_common(opts, qapi_ChardevVC_base(vc));
-
-    val = qemu_opt_get_number(opts, "width", 0);
-    if (val != 0) {
-        vc->has_width = true;
-        vc->width = val;
-    }
-
-    val = qemu_opt_get_number(opts, "height", 0);
-    if (val != 0) {
-        vc->has_height = true;
-        vc->height = val;
-    }
-
-    val = qemu_opt_get_number(opts, "cols", 0);
-    if (val != 0) {
-        vc->has_cols = true;
-        vc->cols = val;
-    }
-
-    val = qemu_opt_get_number(opts, "rows", 0);
-    if (val != 0) {
-        vc->has_rows = true;
-        vc->rows = val;
-    }
-}
-
 static const TypeInfo qemu_console_info = {
     .name = TYPE_QEMU_CONSOLE,
     .parent = TYPE_OBJECT,
@@ -2431,7 +2397,6 @@ static void char_vc_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_vc;
     cc->open = vc_chr_open;
     cc->chr_write = vc_chr_write;
     cc->chr_set_echo = vc_chr_set_echo;

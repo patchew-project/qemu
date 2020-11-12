@@ -154,27 +154,10 @@ static void qemu_chr_open_pipe(Chardev *chr,
 
 #endif /* !_WIN32 */
 
-static void qemu_chr_parse_pipe(QemuOpts *opts, ChardevBackend *backend,
-                                Error **errp)
-{
-    const char *device = qemu_opt_get(opts, "path");
-    ChardevHostdev *dev;
-
-    if (device == NULL) {
-        error_setg(errp, "chardev: pipe: no device path given");
-        return;
-    }
-    backend->type = CHARDEV_BACKEND_KIND_PIPE;
-    dev = backend->u.pipe.data = g_new0(ChardevHostdev, 1);
-    qemu_chr_parse_common(opts, qapi_ChardevHostdev_base(dev));
-    dev->device = g_strdup(device);
-}
-
 static void char_pipe_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_pipe;
     cc->open = qemu_chr_open_pipe;
 }
 

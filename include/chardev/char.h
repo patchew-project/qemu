@@ -138,15 +138,6 @@ ChardevOptions *qemu_chr_parse_cli_str(const char *optarg, Error **errp);
 void qemu_chr_translate_legacy_options(QDict *args);
 
 /**
- * qemu_chr_parse_common:
- * @opts: the options that still need parsing
- * @backend: a new backend
- *
- * Parse the common options available to all character backends.
- */
-void qemu_chr_parse_common(QemuOpts *opts, ChardevCommon *backend);
-
-/**
  * qemu_chr_new:
  * @label: the name of the backend
  * @filename: the URI
@@ -294,7 +285,6 @@ struct ChardevClass {
     ObjectClass parent_class;
 
     bool internal; /* TODO: eventually use TYPE_USER_CREATABLE */
-    void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp);
     void (*translate_legacy_options)(QDict *args);
 
     void (*open)(Chardev *chr, ChardevBackend *backend,

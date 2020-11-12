@@ -119,23 +119,10 @@ static void qemu_chr_open_stdio(Chardev *chr,
 }
 #endif
 
-static void qemu_chr_parse_stdio(QemuOpts *opts, ChardevBackend *backend,
-                                 Error **errp)
-{
-    ChardevStdio *stdio;
-
-    backend->type = CHARDEV_BACKEND_KIND_STDIO;
-    stdio = backend->u.stdio.data = g_new0(ChardevStdio, 1);
-    qemu_chr_parse_common(opts, qapi_ChardevStdio_base(stdio));
-    stdio->has_signal = true;
-    stdio->signal = qemu_opt_get_bool(opts, "signal", true);
-}
-
 static void char_stdio_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_stdio;
 #ifndef _WIN32
     cc->open = qemu_chr_open_stdio;
     cc->chr_set_echo = qemu_chr_set_echo_stdio;

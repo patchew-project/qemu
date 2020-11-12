@@ -101,7 +101,6 @@ static void char_vc_class_init(ObjectClass *oc, void *data)
 
     vc->parent_open = cc->open;
 
-    cc->parse = qemu_chr_parse_vc;
     cc->open = vc_chr_open;
     cc->chr_set_echo = vc_chr_set_echo;
 }

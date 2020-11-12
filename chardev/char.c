@@ -497,17 +497,6 @@ fail:
     return NULL;
 }
 
-void qemu_chr_parse_common(QemuOpts *opts, ChardevCommon *backend)
-{
-    const char *logfile = qemu_opt_get(opts, "logfile");
-
-    backend->has_logfile = logfile != NULL;
-    backend->logfile = g_strdup(logfile);
-
-    backend->has_logappend = true;
-    backend->logappend = qemu_opt_get_bool(opts, "logappend", false);
-}
-
 static const ChardevClass *char_get_class(const char *driver, Error **errp)
 {
     ObjectClass *oc;

@@ -206,28 +206,10 @@ char *qmp_ringbuf_read(const char *device, int64_t size,
     return data;
 }
 
-static void qemu_chr_parse_ringbuf(QemuOpts *opts, ChardevBackend *backend,
-                                   Error **errp)
-{
-    int val;
-    ChardevRingbuf *ringbuf;
-
-    backend->type = CHARDEV_BACKEND_KIND_RINGBUF;
-    ringbuf = backend->u.ringbuf.data = g_new0(ChardevRingbuf, 1);
-    qemu_chr_parse_common(opts, qapi_ChardevRingbuf_base(ringbuf));
-
-    val = qemu_opt_get_size(opts, "size", 0);
-    if (val != 0) {
-        ringbuf->has_size = true;
-        ringbuf->size = val;
-    }
-}
-
 static void char_ringbuf_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_ringbuf;
     cc->open = qemu_chr_open_ringbuf;
     cc->chr_write = ringbuf_chr_write;
 }

@@ -279,27 +279,10 @@ static void qmp_chardev_open_serial(Chardev *chr,
 #endif /* __linux__ || __sun__ */
 
 #ifdef HAVE_CHARDEV_SERIAL
-static void qemu_chr_parse_serial(QemuOpts *opts, ChardevBackend *backend,
-                                  Error **errp)
-{
-    const char *device = qemu_opt_get(opts, "path");
-    ChardevHostdev *serial;
-
-    if (device == NULL) {
-        error_setg(errp, "chardev: serial/tty: no device path given");
-        return;
-    }
-    backend->type = CHARDEV_BACKEND_KIND_SERIAL;
-    serial = backend->u.serial.data = g_new0(ChardevHostdev, 1);
-    qemu_chr_parse_common(opts, qapi_ChardevHostdev_base(serial));
-    serial->device = g_strdup(device);
-}
-
 static void char_serial_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
-    cc->parse = qemu_chr_parse_serial;
     cc->open = qmp_chardev_open_serial;
 #ifndef _WIN32
     cc->chr_ioctl = tty_serial_ioctl;
