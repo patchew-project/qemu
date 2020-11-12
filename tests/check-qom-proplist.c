@@ -25,7 +25,7 @@
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
-#include "qom/object_interfaces.h"
+#include "qom/qom.h"
 
 
 #define TYPE_DUMMY "qemu-dummy"
@@ -103,26 +103,6 @@ static int dummy_get_av(Object *obj,
     return dobj->av;
 }
 
-
-static void dummy_set_sv(Object *obj,
-                         const char *value,
-                         Error **errp)
-{
-    DummyObject *dobj = DUMMY_OBJECT(obj);
-
-    g_free(dobj->sv);
-    dobj->sv = g_strdup(value);
-}
-
-static char *dummy_get_sv(Object *obj,
-                          Error **errp)
-{
-    DummyObject *dobj = DUMMY_OBJECT(obj);
-
-    return g_strdup(dobj->sv);
-}
-
-
 static void dummy_init(Object *obj)
 {
     object_property_add_bool(obj, "bv",
@@ -130,12 +110,11 @@ static void dummy_init(Object *obj)
                              dummy_set_bv);
 }
 
-
 static void dummy_class_init(ObjectClass *cls, void *data)
 {
-    object_class_property_add_str(cls, "sv",
-                                  dummy_get_sv,
-                                  dummy_set_sv);
+    object_class_property_add_field(cls, "sv",
+                                    PROP_STRING(DummyObject, sv),
+                                    prop_allow_set_always);
     object_class_property_add_enum(cls, "av",
                                    "DummyAnimal",
                                    &dummy_animal_map,
@@ -143,21 +122,11 @@ static void dummy_class_init(ObjectClass *cls, void *data)
                                    dummy_set_av);
 }
 
-
-static void dummy_finalize(Object *obj)
-{
-    DummyObject *dobj = DUMMY_OBJECT(obj);
-
-    g_free(dobj->sv);
-}
-
-
 static const TypeInfo dummy_info = {
     .name          = TYPE_DUMMY,
     .parent        = TYPE_OBJECT,
     .instance_size = sizeof(DummyObject),
     .instance_init = dummy_init,
-    .instance_finalize = dummy_finalize,
     .class_size = sizeof(DummyObjectClass),
     .class_init = dummy_class_init,
     .interfaces = (InterfaceInfo[]) {
