@@ -2945,10 +2945,7 @@ static ImageInfoSpecific *vmdk_get_specific_info(BlockDriverState *bs,
 
     next = &spec_info->u.vmdk.data->extents;
     for (i = 0; i < s->num_extents; i++) {
-        *next = g_new0(ImageInfoList, 1);
-        (*next)->value = vmdk_get_extent_info(&s->extents[i]);
-        (*next)->next = NULL;
-        next = &(*next)->next;
+        QAPI_LIST_APPEND(next, vmdk_get_extent_info(&s->extents[i]));
     }
 
     return spec_info;

@@ -342,7 +342,6 @@ BlockExportInfoList *qmp_query_block_exports(Error **errp)
     BlockExport *exp;
 
     QLIST_FOREACH(exp, &block_exports, next) {
-        BlockExportInfoList *entry = g_new0(BlockExportInfoList, 1);
         BlockExportInfo *info = g_new(BlockExportInfo, 1);
         *info = (BlockExportInfo) {
             .id             = g_strdup(exp->id),
@@ -351,9 +350,7 @@ BlockExportInfoList *qmp_query_block_exports(Error **errp)
             .shutting_down  = !exp->user_owned,
         };
 
-        entry->value = info;
-        *p_next = entry;
-        p_next = &entry->next;
+        QAPI_LIST_APPEND(p_next, info);
     }
 
     return head;

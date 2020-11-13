@@ -311,7 +311,6 @@ AioContext *iothread_get_aio_context(IOThread *iothread)
 static int query_one_iothread(Object *object, void *opaque)
 {
     IOThreadInfoList ***prev = opaque;
-    IOThreadInfoList *elem;
     IOThreadInfo *info;
     IOThread *iothread;
 
@@ -327,12 +326,7 @@ static int query_one_iothread(Object *object, void *opaque)
     info->poll_grow = iothread->poll_grow;
     info->poll_shrink = iothread->poll_shrink;
 
-    elem = g_new0(IOThreadInfoList, 1);
-    elem->value = info;
-    elem->next = NULL;
-
-    **prev = elem;
-    *prev = &elem->next;
+    QAPI_LIST_APPEND(*prev, info);
     return 0;
 }
 

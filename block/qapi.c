@@ -421,13 +421,8 @@ static uint64List *uint64_list(uint64_t *list, int size)
     uint64List **pout_list = &out_list;
 
     for (i = 0; i < size; i++) {
-        uint64List *entry = g_new(uint64List, 1);
-        entry->value = list[i];
-        *pout_list = entry;
-        pout_list = &entry->next;
+        QAPI_LIST_APPEND(pout_list, list[i]);
     }
-
-    *pout_list = NULL;
 
     return out_list;
 }
@@ -643,19 +638,14 @@ BlockStatsList *qmp_query_blockstats(bool has_query_nodes,
     /* Just to be safe if query_nodes is not always initialized */
     if (has_query_nodes && query_nodes) {
         for (bs = bdrv_next_node(NULL); bs; bs = bdrv_next_node(bs)) {
-            BlockStatsList *info = g_malloc0(sizeof(*info));
             AioContext *ctx = bdrv_get_aio_context(bs);
 
             aio_context_acquire(ctx);
-            info->value = bdrv_query_bds_stats(bs, false);
+            QAPI_LIST_APPEND(p_next, bdrv_query_bds_stats(bs, false));
             aio_context_release(ctx);
-
-            *p_next = info;
-            p_next = &info->next;
         }
     } else {
         for (blk = blk_all_next(NULL); blk; blk = blk_all_next(blk)) {
-            BlockStatsList *info;
             AioContext *ctx = blk_get_aio_context(blk);
             BlockStats *s;
             char *qdev;
@@ -680,10 +670,7 @@ BlockStatsList *qmp_query_blockstats(bool has_query_nodes,
             bdrv_query_blk_stats(s->stats, blk);
             aio_context_release(ctx);
 
-            info = g_malloc0(sizeof(*info));
-            info->value = s;
-            *p_next = info;
-            p_next = &info->next;
+            QAPI_LIST_APPEND(p_next, s);
         }
     }
 

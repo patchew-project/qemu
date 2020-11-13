@@ -94,9 +94,7 @@ static void test_visitor_out_intList(TestOutputVisitorData *data,
     char *str;
 
     for (i = 0; i < ARRAY_SIZE(value); i++) {
-        *tmp = g_malloc0(sizeof(**tmp));
-        (*tmp)->value = value[i];
-        tmp = &(*tmp)->next;
+        QAPI_LIST_APPEND(tmp, value[i]);
     }
 
     visit_type_intList(data->ov, NULL, &list, &err);
