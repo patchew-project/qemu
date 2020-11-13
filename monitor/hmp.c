@@ -1079,6 +1079,9 @@ void handle_hmp_command(MonitorHMP *mon, const char *cmdline)
 
     trace_handle_hmp_command(mon, cmdline);
 
+    /* old_mon is non-NULL when called from qmp_human_monitor_command() */
+    Monitor *old_mon = monitor_set_cur(qemu_coroutine_self(), &mon->common);
+
     cmd = monitor_parse_command(mon, cmdline, &cmdline, hmp_cmds);
     if (!cmd) {
         return;
@@ -1095,10 +1098,7 @@ void handle_hmp_command(MonitorHMP *mon, const char *cmdline)
     }
 
     if (!cmd->coroutine) {
-        /* old_mon is non-NULL when called from qmp_human_monitor_command() */
-        Monitor *old_mon = monitor_set_cur(qemu_coroutine_self(), &mon->common);
         cmd->cmd(&mon->common, qdict);
-        monitor_set_cur(qemu_coroutine_self(), old_mon);
     } else {
         HandleHmpCommandCo data = {
             .mon = &mon->common,
@@ -1107,10 +1107,10 @@ void handle_hmp_command(MonitorHMP *mon, const char *cmdline)
             .done = false,
         };
         Coroutine *co = qemu_coroutine_create(handle_hmp_command_co, &data);
-        monitor_set_cur(co, &mon->common);
         aio_co_enter(qemu_get_aio_context(), co);
         AIO_WAIT_WHILE(qemu_get_aio_context(), !data.done);
     }
+    monitor_set_cur(qemu_coroutine_self(), old_mon);
 
     qobject_unref(qdict);
 }
