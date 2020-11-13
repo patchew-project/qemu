@@ -1240,21 +1240,21 @@ static bool migrate_params_check(MigrationParameters *params, Error **errp)
     if (params->has_compress_level &&
         (params->compress_level > 9)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "compress_level",
-                   "is invalid, it should be in the range of 0 to 9");
+                   "a value between 0 and 9");
         return false;
     }
 
     if (params->has_compress_threads && (params->compress_threads < 1)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    "compress_threads",
-                   "is invalid, it should be in the range of 1 to 255");
+                   "a value between 1 and 255");
         return false;
     }
 
     if (params->has_decompress_threads && (params->decompress_threads < 1)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    "decompress_threads",
-                   "is invalid, it should be in the range of 1 to 255");
+                   "a value between 1 and 255");
         return false;
     }
 
@@ -1307,21 +1307,21 @@ static bool migrate_params_check(MigrationParameters *params, Error **errp)
     if (params->has_multifd_channels && (params->multifd_channels < 1)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    "multifd_channels",
-                   "is invalid, it should be in the range of 1 to 255");
+                   "a value between 1 and 255");
         return false;
     }
 
     if (params->has_multifd_zlib_level &&
         (params->multifd_zlib_level > 9)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "multifd_zlib_level",
-                   "is invalid, it should be in the range of 0 to 9");
+                   "a value between 0 and 9");
         return false;
     }
 
     if (params->has_multifd_zstd_level &&
         (params->multifd_zstd_level > 20)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "multifd_zstd_level",
-                   "is invalid, it should be in the range of 0 to 20");
+                   "a value between 0 and 20");
         return false;
     }
 
@@ -1330,8 +1330,7 @@ static bool migrate_params_check(MigrationParameters *params, Error **errp)
          !is_power_of_2(params->xbzrle_cache_size))) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    "xbzrle_cache_size",
-                   "is invalid, it should be bigger than target page size"
-                   " and a power of 2");
+                   "a power of two no less than the target page size");
         return false;
     }
 
@@ -1348,21 +1347,21 @@ static bool migrate_params_check(MigrationParameters *params, Error **errp)
         params->announce_initial > 100000) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    "announce_initial",
-                   "is invalid, it must be less than 100000 ms");
+                   "a value between 0 and 100000");
         return false;
     }
     if (params->has_announce_max &&
         params->announce_max > 100000) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    "announce_max",
-                   "is invalid, it must be less than 100000 ms");
+                   "a value between 0 and 100000");
        return false;
     }
     if (params->has_announce_rounds &&
         params->announce_rounds > 1000) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    "announce_rounds",
-                   "is invalid, it must be in the range of 0 to 1000");
+                   "a value between 0 and 1000");
        return false;
     }
     if (params->has_announce_step &&
@@ -1370,7 +1369,7 @@ static bool migrate_params_check(MigrationParameters *params, Error **errp)
         params->announce_step > 10000)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    "announce_step",
-                   "is invalid, it must be in the range of 1 to 10000 ms");
+                   "a value between 0 and 10000");
        return false;
     }
 
