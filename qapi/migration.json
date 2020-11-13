@@ -928,7 +928,7 @@
 ##
 # @MigrationParameters:
 #
-# The optional members aren't actually optional.
+# The optional members aren't actually optional, except for @tls-authz.
 #
 # @announce-initial: Initial delay (in milliseconds) before sending the
 #                    first announce (Since 4.0)

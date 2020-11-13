@@ -476,7 +476,7 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
             params->max_postcopy_bandwidth);
         monitor_printf(mon, "%s: '%s'\n",
             MigrationParameter_str(MIGRATION_PARAMETER_TLS_AUTHZ),
-            params->tls_authz);
+            params->has_tls_authz ? params->tls_authz : "");
 
         if (params->has_block_bitmap_mapping) {
             const BitmapMigrationNodeAliasList *bmnal;
