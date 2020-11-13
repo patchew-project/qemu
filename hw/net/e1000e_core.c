@@ -829,6 +829,11 @@ e1000e_ring_head_descr(E1000ECore *core, const E1000E_RingInfo *r)
 static inline void
 e1000e_ring_advance(E1000ECore *core, const E1000E_RingInfo *r, uint32_t count)
 {
+    if (count > 1 && core->mac[r->dh] < core->mac[r->dt] &&
+        core->mac[r->dh] + count > core->mac[r->dt]) {
+        count = core->mac[r->dt] - core->mac[r->dh];
+    }
+
     core->mac[r->dh] += count;
 
     if (core->mac[r->dh] * E1000_RING_DESC_LEN >= core->mac[r->dlen]) {
