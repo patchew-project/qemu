@@ -7080,4 +7080,4 @@ done
 echo ' "$@"' >>config.status
 chmod +x config.status
 
-rm -r "$TMPDIR1"
+rm -rf "$TMPDIR1"
