@@ -10623,7 +10623,6 @@ static void ppc_cpu_defs_entry(gpointer data, gpointer user_data)
     ObjectClass *oc = data;
     CpuDefinitionInfoList **first = user_data;
     const char *typename;
-    CpuDefinitionInfoList *entry;
     CpuDefinitionInfo *info;
 
     typename = object_class_get_name(oc);
@@ -10631,10 +10630,7 @@ static void ppc_cpu_defs_entry(gpointer data, gpointer user_data)
     info->name = g_strndup(typename,
                            strlen(typename) - strlen(POWERPC_CPU_TYPE_SUFFIX));
 
-    entry = g_malloc0(sizeof(*entry));
-    entry->value = info;
-    entry->next = *first;
-    *first = entry;
+    QAPI_LIST_PREPEND(*first, info);
 }
 
 CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
@@ -10650,7 +10646,6 @@ CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
     for (i = 0; ppc_cpu_aliases[i].alias != NULL; i++) {
         PowerPCCPUAlias *alias = &ppc_cpu_aliases[i];
         ObjectClass *oc;
-        CpuDefinitionInfoList *entry;
         CpuDefinitionInfo *info;
 
         oc = ppc_cpu_class_by_name(alias->model);
@@ -10662,10 +10657,7 @@ CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
         info->name = g_strdup(alias->alias);
         info->q_typename = g_strdup(object_class_get_name(oc));
 
-        entry = g_malloc0(sizeof(*entry));
-        entry->value = info;
-        entry->next = cpu_list;
-        cpu_list = entry;
+        QAPI_LIST_PREPEND(cpu_list, info);
     }
 
     return cpu_list;
