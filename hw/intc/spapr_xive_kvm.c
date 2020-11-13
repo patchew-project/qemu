@@ -30,6 +30,7 @@
  */
 typedef struct KVMEnabledCPU {
     unsigned long vcpu_id;
+    XiveEAS *ipi_eas;
     QLIST_ENTRY(KVMEnabledCPU) node;
 } KVMEnabledCPU;
 
@@ -55,6 +56,7 @@ static void kvm_cpu_enable(CPUState *cs)
 
     enabled_cpu = g_malloc(sizeof(*enabled_cpu));
     enabled_cpu->vcpu_id = vcpu_id;
+    enabled_cpu->ipi_eas = NULL;
     QLIST_INSERT_HEAD(&kvm_enabled_cpus, enabled_cpu, node);
 }
 
@@ -156,26 +158,29 @@ int kvmppc_xive_cpu_synchronize_state(XiveTCTX *tctx, Error **errp)
  */
 typedef struct {
     SpaprXive *xive;
+    uint32_t lisn;
     Error *err;
     int rc;
 } XiveInitIPI;
 
 static void kvmppc_xive_reset_ipi_on_cpu(CPUState *cs, run_on_cpu_data arg)
 {
-    unsigned long ipi = kvm_arch_vcpu_id(cs);
     XiveInitIPI *s = arg.host_ptr;
+    unsigned long ipi = s->lisn;
     uint64_t state = 0;
 
     s->rc = kvm_device_access(s->xive->fd, KVM_DEV_XIVE_GRP_SOURCE, ipi,
                               &state, true, &s->err);
 }
 
-static int kvmppc_xive_reset_ipi(SpaprXive *xive, CPUState *cs, Error **errp)
+static int kvmppc_xive_reset_ipi(SpaprXive *xive, CPUState *cs, uint32_t lisn,
+                                 Error **errp)
 {
     XiveInitIPI s = {
         .xive = xive,
         .err  = NULL,
         .rc   = 0,
+        .lisn = lisn,
     };
 
     run_on_cpu(cs, kvmppc_xive_reset_ipi_on_cpu, RUN_ON_CPU_HOST_PTR(&s));
@@ -214,12 +219,6 @@ int kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
         return ret;
     }
 
-    /* Create/reset the vCPU IPI */
-    ret = kvmppc_xive_reset_ipi(xive, tctx->cs, errp);
-    if (ret < 0) {
-        return ret;
-    }
-
     kvm_cpu_enable(tctx->cs);
     return 0;
 }
@@ -227,6 +226,62 @@ int kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
 /*
  * XIVE Interrupt Source (KVM)
  */
+
+static bool spapr_xive_is_ipi(uint32_t lisn)
+{
+    return lisn < SPAPR_XIRQ_BASE;
+}
+
+static bool kvm_ipi_is_enabled(SpaprXive *xive, uint32_t lisn)
+{
+    KVMEnabledCPU *enabled_cpu;
+
+    g_assert(spapr_xive_is_ipi(lisn));
+
+    QLIST_FOREACH(enabled_cpu, &kvm_enabled_cpus, node) {
+        if (enabled_cpu->ipi_eas == &xive->eat[lisn]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static int kvm_ipi_enable(SpaprXive *xive, uint32_t lisn, uint32_t vcpu_id,
+                          Error **errp)
+{
+    KVMEnabledCPU *enabled_cpu;
+
+    g_assert(spapr_xive_is_ipi(lisn));
+
+    QLIST_FOREACH(enabled_cpu, &kvm_enabled_cpus, node) {
+        if (enabled_cpu->vcpu_id == vcpu_id) {
+            CPUState *cs = CPU(spapr_find_cpu(vcpu_id));
+            XiveEAS *eas = &xive->eat[lisn];
+
+            /* No change ? */
+            if (enabled_cpu->ipi_eas && enabled_cpu->ipi_eas == eas) {
+                return 0;
+            }
+
+            /* XXX: abort ? */
+            if (!cs) {
+                break;
+            }
+
+            /* Create/reset the vCPU IPI */
+            int ret = kvmppc_xive_reset_ipi(xive, cs, lisn, errp);
+            if (ret < 0) {
+                return ret;
+            }
+
+            enabled_cpu->ipi_eas = eas;
+            return 0;
+        }
+    }
+
+    error_setg(errp, "vCPU #%d not found", vcpu_id);
+    return -ESRCH;
+}
 
 int kvmppc_xive_set_source_config(SpaprXive *xive, uint32_t lisn, XiveEAS *eas,
                                   Error **errp)
@@ -247,6 +302,14 @@ int kvmppc_xive_set_source_config(SpaprXive *xive, uint32_t lisn, XiveEAS *eas,
     masked = xive_eas_is_masked(eas);
 
     spapr_xive_end_to_target(end_blk, end_idx, &server, &priority);
+
+    if (spapr_xive_is_ipi(lisn)) {
+        /* Create the vCPU IPI */
+        int ret = kvm_ipi_enable(xive, lisn, server, errp);
+        if (ret < 0) {
+            return ret;
+        }
+    }
 
     kvm_src = priority << KVM_XIVE_SOURCE_PRIORITY_SHIFT &
         KVM_XIVE_SOURCE_PRIORITY_MASK;
@@ -280,7 +343,7 @@ int kvmppc_xive_source_reset_one(XiveSource *xsrc, int srcno, Error **errp)
     assert(xive->fd != -1);
 
     /*
-     * The vCPU IPIs are now allocated in kvmppc_xive_cpu_connect()
+     * The vCPU IPIs are now allocated in kvmppc_xive_set_source_config()
      * and not with all sources in kvmppc_xive_source_reset()
      */
     assert(srcno >= SPAPR_XIRQ_BASE);
@@ -300,12 +363,12 @@ int kvmppc_xive_source_reset_one(XiveSource *xsrc, int srcno, Error **errp)
  * To be valid, a source must have been claimed by the machine (valid
  * entry in the EAS table) and if it is a vCPU IPI, the vCPU should
  * have been enabled, which means the IPI has been allocated in
- * kvmppc_xive_cpu_connect().
+ * kvmppc_xive_set_source_config().
  */
 static bool xive_source_is_valid(SpaprXive *xive, int i)
 {
     return xive_eas_is_valid(&xive->eat[i]) &&
-        (i >= SPAPR_XIRQ_BASE || kvm_cpu_is_enabled(i));
+        (!spapr_xive_is_ipi(i) || kvm_ipi_is_enabled(xive, i));
 }
 
 static int kvmppc_xive_source_reset(XiveSource *xsrc, Error **errp)
@@ -314,8 +377,8 @@ static int kvmppc_xive_source_reset(XiveSource *xsrc, Error **errp)
     int i;
 
     /*
-     * Skip the vCPU IPIs. These are created/reset when the vCPUs are
-     * connected in kvmppc_xive_cpu_connect()
+     * Skip the vCPU IPIs. These are created/reset on-demand in
+     * kvmppc_xive_set_source_config().
      */
     for (i = SPAPR_XIRQ_BASE; i < xsrc->nr_irqs; i++) {
         int ret;
@@ -724,7 +787,57 @@ int kvmppc_xive_post_load(SpaprXive *xive, int version_id)
     }
 
     /* Restore the EAT */
-    for (i = 0; i < xive->nr_irqs; i++) {
+
+    /* IPIs are restored from the appropriate vCPU context */
+    CPU_FOREACH(cs) {
+        /*
+         * The EAT has valid entries to accomodate all possible vCPUs,
+         * but we only want to allocate in KVM the IPIs that were
+         * actually allocated before migration. Let's consider the full
+         * list of IPIs to find an EAS that matches the vCPU id.
+         *
+         * If an IPI appears unmasked in the EAT, it is a proof that the
+         * guest did successfully call H_INT_SET_SOURCE_CONFIG and we
+         * should thus create the IPI at the KVM level if the END index
+         * matches the vCPU id.
+         *
+         * If an IPI appears masked in the EAT, then we don't know exactly
+         * what happened before migration but we don't care. The IPI will
+         * be created when the guest eventually unmasks it with a subsequent
+         * call to H_INT_SET_SOURCE_CONFIG.
+         */
+        for (i = 0; i < SPAPR_XIRQ_BASE; i++) {
+            XiveEAS *eas = &xive->eat[i];
+            uint32_t end_idx;
+            uint32_t end_blk;
+            uint8_t priority;
+            uint32_t server;
+
+            if (!xive_eas_is_valid(eas)) {
+                continue;
+            }
+
+            if (xive_eas_is_masked(eas)) {
+                continue;
+            }
+
+            end_idx = xive_get_field64(EAS_END_INDEX, eas->w);
+            end_blk = xive_get_field64(EAS_END_BLOCK, eas->w);
+            spapr_xive_end_to_target(end_blk, end_idx, &server, &priority);
+            if (server != kvm_arch_vcpu_id(cs)) {
+                continue;
+            }
+
+            ret = kvmppc_xive_set_source_config(xive, i, eas, &local_err);
+            if (ret < 0) {
+                goto fail;
+            }
+            break;
+        }
+    }
+
+    /* Now restore non-IPIs */
+    for (i = SPAPR_XIRQ_BASE; i < xive->nr_irqs; i++) {
         if (!xive_source_is_valid(xive, i)) {
             continue;
         }
