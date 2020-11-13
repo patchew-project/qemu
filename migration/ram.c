@@ -131,13 +131,6 @@ int xbzrle_cache_resize(uint64_t new_size, Error **errp)
     PageCache *new_cache;
     int64_t ret = 0;
 
-    /* Check for truncation */
-    if (new_size != (size_t)new_size) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
-                   "exceeding address space");
-        return -1;
-    }
-
     if (new_size == migrate_xbzrle_cache_size()) {
         /* nothing to do */
         return 0;
