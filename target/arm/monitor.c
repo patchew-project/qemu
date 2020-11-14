@@ -31,6 +31,9 @@
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qdict.h"
 #include "qom/qom-qobject.h"
+#include "monitor/monitor.h"
+#include "monitor/hmp-target.h"
+#include "internals.h"
 
 static GICCapability *gic_cap_new(int version)
 {
@@ -235,4 +238,184 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     object_unref(obj);
 
     return expansion_info;
+}
+
+/* Perform linear address sign extension */
+static target_ulong addr_canonical(int va_bits, target_ulong addr)
+{
+#ifdef TARGET_AARCH64
+    if (addr & (1UL << (va_bits - 1))) {
+        addr |= (hwaddr)-(1L << va_bits);
+    }
+#endif
+
+    return addr;
+}
+
+#define PTE_HEADER_FIELDS       "vaddr            paddr            "\
+                                "size             attr\n"
+#define PTE_HEADER_DELIMITER    "---------------- ---------------- "\
+                                "---------------- ------------------------------\n"
+
+static void print_pte_header(Monitor *mon)
+{
+    monitor_printf(mon, PTE_HEADER_FIELDS);
+    monitor_printf(mon, PTE_HEADER_DELIMITER);
+}
+
+static void
+print_pte_lpae(Monitor *mon, uint32_t tableattrs, int va_bits,
+               target_ulong vaddr, hwaddr paddr, target_ulong size,
+               target_ulong pte)
+{
+    uint32_t ns = extract64(pte, 5, 1) | extract32(tableattrs, 4, 1);
+    uint32_t ap = extract64(pte, 6, 2) & ~extract32(tableattrs, 2, 2);
+    uint32_t af = extract64(pte, 10, 1);
+    uint32_t ng = extract64(pte, 11, 1);
+    uint32_t gp = extract64(pte, 50, 1);
+    uint32_t con = extract64(pte, 52, 1);
+    uint32_t pxn = extract64(pte, 53, 1) | extract32(tableattrs, 0, 1);
+    uint32_t uxn = extract64(pte, 54, 1) | extract32(tableattrs, 1, 1);
+
+    monitor_printf(mon, TARGET_FMT_lx " " TARGET_FMT_plx " " TARGET_FMT_lx
+                   " %s %s %s %s %s %s %s %s %s\n",
+                   addr_canonical(va_bits, vaddr), paddr, size,
+                   ap & 0x2 ? "ro" : "RW",
+                   ap & 0x1 ? "USR" : "   ",
+                   ns ? "NS" : "  ",
+                   af ? "AF" : "  ",
+                   ng ? "nG" : "  ",
+                   gp ? "GP" : "  ",
+                   con ? "Con" : "   ",
+                   pxn ? "PXN" : "   ",
+                   uxn ? "UXN" : "   ");
+}
+
+static void
+walk_pte_lpae(Monitor *mon, bool aarch64, uint32_t tableattrs, hwaddr pt_base,
+              target_ulong vstart, int cur_level, int stride, int va_bits)
+{
+    int pg_shift = stride + 3;
+    int descaddr_high = aarch64 ? 47 : 39;
+    int max_level = 3;
+    int ptshift = pg_shift + (max_level - cur_level) * stride;
+    target_ulong pgsize = 1UL << ptshift;
+    int idx;
+
+    for (idx = 0; idx < (1UL << stride) && vstart < (1UL << va_bits);
+         idx++, vstart += pgsize) {
+        hwaddr pte_addr = pt_base + idx * 8;
+        target_ulong pte = 0;
+        hwaddr paddr;
+
+        cpu_physical_memory_read(pte_addr, &pte, 8);
+
+        if (!extract64(pte, 0, 1)) {
+            /* invalid entry */
+            continue;
+        }
+
+        if (cur_level == max_level) {
+            /* leaf entry */
+            paddr = (hwaddr)extract64(pte, pg_shift,
+                                descaddr_high - pg_shift + 1) << pg_shift;
+            print_pte_lpae(mon, tableattrs, va_bits, vstart, paddr,
+                           pgsize, pte);
+        } else {
+            if (extract64(pte, 1, 1)) {
+                /* table entry */
+                paddr = (hwaddr)extract64(pte, pg_shift,
+                                    descaddr_high - pg_shift + 1) << pg_shift;
+                tableattrs |= extract64(pte, 59, 5);
+
+                walk_pte_lpae(mon, aarch64, tableattrs, paddr, vstart,
+                              cur_level + 1, stride, va_bits);
+            } else {
+                /* block entry */
+                if ((pg_shift == 12 && (cur_level != 1 && cur_level != 2)) ||
+                    (pg_shift == 14 && (cur_level != 2)) ||
+                    (pg_shift == 16 && (cur_level != 0 && cur_level != 1))) {
+                    monitor_printf(mon, "illegal block entry at level%d\n",
+                                   cur_level);
+                    continue;
+                }
+                paddr = (hwaddr)extract64(pte, ptshift,
+                                    descaddr_high - ptshift + 1) << ptshift;
+                print_pte_lpae(mon, tableattrs, va_bits, vstart, paddr,
+                               pgsize, pte);
+            }
+        }
+    }
+}
+
+/* ARMv8-A AArch64 Long Descriptor format */
+static void tlb_info_vmsav8_64(Monitor *mon, CPUArchState *env)
+{
+    ARMMMUIdx mmu_idx = arm_stage1_mmu_idx(env);
+    uint64_t ttbr[2];
+    uint64_t tcr;
+    int tsz[2];
+    bool using16k, using64k;
+    int stride;
+
+    ttbr[0] = regime_ttbr(env, mmu_idx, 0);
+    ttbr[1] = regime_ttbr(env, mmu_idx, 1);
+
+    tcr = regime_tcr(env, mmu_idx)->raw_tcr;
+    using64k = extract32(tcr, 14, 1);
+    using16k = extract32(tcr, 15, 1);
+    tsz[0] = extract32(tcr, 0, 6);
+    tsz[1] = extract32(tcr, 16, 6);
+
+    if (using64k) {
+        stride = 13;
+    } else if (using16k) {
+        stride = 11;
+    } else {
+        stride = 9;
+    }
+
+    /* print header */
+    print_pte_header(mon);
+
+    for (unsigned int i = 0; i < 2; i++) {
+        if (ttbr[i]) {
+            hwaddr base = extract64(ttbr[i], 1, 47) << 1;
+            int va_bits = 64 - tsz[i];
+            target_ulong vstart = (target_ulong)i << (va_bits - 1);
+            int startlevel = pt_start_level_stage1(va_bits, stride);
+
+            /* walk ttbrx page tables, starting from address @vstart */
+            walk_pte_lpae(mon, true, 0, base, vstart, startlevel,
+                          stride, va_bits);
+        }
+    }
+}
+
+void hmp_info_tlb(Monitor *mon, const QDict *qdict)
+{
+    CPUArchState *env;
+
+    env = mon_get_cpu_env();
+    if (!env) {
+        monitor_printf(mon, "No CPU available\n");
+        return;
+    }
+
+    if (arm_feature(env, ARM_FEATURE_PMSA)) {
+        monitor_printf(mon, "No MMU\n");
+        return;
+    }
+
+    if (regime_translation_disabled(env, arm_stage1_mmu_idx(env))) {
+        monitor_printf(mon, "MMU disabled\n");
+        return;
+    }
+
+    if (!arm_el_is_aa64(env, 1)) {
+        monitor_printf(mon, "Only AArch64 Long Descriptor is supported\n");
+        return;
+    }
+
+    tlb_info_vmsav8_64(mon, env);
 }

@@ -949,6 +949,8 @@ static inline uint32_t regime_el(CPUARMState *env, ARMMMUIdx mmu_idx)
     }
 }
 
+bool regime_translation_disabled(CPUARMState *env, ARMMMUIdx mmu_idx);
+
 /* Return the TCR controlling this translation regime */
 static inline TCR *regime_tcr(CPUARMState *env, ARMMMUIdx mmu_idx)
 {
@@ -956,6 +958,20 @@ static inline TCR *regime_tcr(CPUARMState *env, ARMMMUIdx mmu_idx)
         return &env->cp15.vtcr_el2;
     }
     return &env->cp15.tcr_el[regime_el(env, mmu_idx)];
+}
+
+/* Return the TTBR associated with this translation regime */
+static inline uint64_t regime_ttbr(CPUARMState *env, ARMMMUIdx mmu_idx,
+                                   int ttbrn)
+{
+    if (mmu_idx == ARMMMUIdx_Stage2) {
+        return env->cp15.vttbr_el2;
+    }
+    if (ttbrn == 0) {
+        return env->cp15.ttbr0_el[regime_el(env, mmu_idx)];
+    } else {
+        return env->cp15.ttbr1_el[regime_el(env, mmu_idx)];
+    }
 }
 
 /* Return the FSR value for a debug exception (watchpoint, hardware
@@ -1290,6 +1306,22 @@ typedef struct ARMCacheAttrs {
     unsigned int attrs:8; /* as in the MAIR register encoding */
     unsigned int shareability:2; /* as in the SH field of the VMSAv8-64 PTEs */
 } ARMCacheAttrs;
+
+static inline int pt_start_level_stage1(int inputsize, int stride)
+{
+    /* The starting level depends on the virtual address size (which can
+     * be up to 48 bits) and the translation granule size. It indicates
+     * the number of strides (stride bits at a time) needed to
+     * consume the bits of the input address. In the pseudocode this is:
+     *  level = 4 - RoundUp((inputsize - grainsize) / stride)
+     * where their 'inputsize' is our 'inputsize', 'grainsize' is
+     * our 'stride + 3' and 'stride' is our 'stride'.
+     * Applying the usual "rounded up m/n is (m+n-1)/n" and simplifying:
+     * = 4 - (inputsize - stride - 3 + stride - 1) / stride
+     * = 4 - (inputsize - 4) / stride;
+     */
+    return 4 - (inputsize - 4) / stride;
+}
 
 bool get_phys_addr(CPUARMState *env, target_ulong address,
                    MMUAccessType access_type, ARMMMUIdx mmu_idx,
