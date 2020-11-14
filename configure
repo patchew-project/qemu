@@ -3123,6 +3123,13 @@ if check_include "sys/signal.h" ; then
   have_sys_signal_h=yes
 fi
 
+#########################################
+# sys/ioccom.h check
+have_sys_ioccom_h=no
+if check_include "sys/ioccom.h" ; then
+  have_sys_ioccom_h=yes
+fi
+
 ##########################################
 # VTE probe
 
@@ -6214,7 +6221,9 @@ fi
 if test "$have_sys_signal_h" = "yes" ; then
     echo "HAVE_SYS_SIGNAL_H=y" >> $config_host_mak
 fi
-
+if test "$have_sys_ioccom_h" = "yes" ; then
+    echo "HAVE_SYS_IOCCOM_H=y" >> $config_host_mak
+fi
 # Work around a system header bug with some kernel/XFS header
 # versions where they both try to define 'struct fsxattr':
 # xfs headers will not try to redefine structs from linux headers
