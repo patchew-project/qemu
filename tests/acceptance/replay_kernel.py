@@ -60,7 +60,7 @@ class ReplayKernelBase(LinuxKernelTest):
             logger.info('finished the recording with log size %s bytes'
                         % os.path.getsize(replay_path))
         else:
-            vm.wait()
+            vm.wait(None)
             logger.info('successfully finished the replay')
         elapsed = time.time() - start_time
         logger.info('elapsed time %.2f sec' % elapsed)
