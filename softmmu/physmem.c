@@ -3346,6 +3346,53 @@ inline MemTxResult address_space_write_rom_debug(AddressSpace *as,
     return MEMTX_OK;
 }
 
+uint32_t ldl_phys_debug(CPUState *cpu, hwaddr addr)
+{
+    MemTxAttrs attrs;
+    int asidx = cpu_asidx_from_attrs(cpu, attrs);
+    uint32_t val;
+
+    /* set debug attrs to indicate memory access is from the debugger */
+    attrs.debug = 1;
+
+    debug_ops->read(cpu->cpu_ases[asidx].as, addr, attrs,
+                    (void *) &val, 4);
+
+    return tswap32(val);
+}
+
+uint64_t ldq_phys_debug(CPUState *cpu, hwaddr addr)
+{
+    MemTxAttrs attrs;
+    int asidx = cpu_asidx_from_attrs(cpu, attrs);
+    uint64_t val;
+
+    /* set debug attrs to indicate memory access is from the debugger */
+    attrs.debug = 1;
+
+    debug_ops->read(cpu->cpu_ases[asidx].as, addr, attrs,
+                    (void *) &val, 8);
+    return val;
+}
+
+void cpu_physical_memory_rw_debug(hwaddr addr, uint8_t *buf,
+                                  int len, int is_write)
+{
+    MemTxAttrs attrs;
+
+    /* set debug attrs to indicate memory access is from the debugger */
+    attrs.debug = 1;
+
+    if (is_write) {
+                debug_ops->write(&address_space_memory, addr,
+                                 attrs, buf, len);
+        } else {
+                debug_ops->read(&address_space_memory, addr,
+                                attrs, buf, len);
+        }
+
+}
+
 int64_t address_space_cache_init(MemoryRegionCache *cache,
                                  AddressSpace *as,
                                  hwaddr addr,
