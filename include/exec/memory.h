@@ -2432,6 +2432,17 @@ MemTxResult address_space_write_cached_slow(MemoryRegionCache *cache,
                                             hwaddr addr, const void *buf,
                                             hwaddr len);
 
+typedef struct MemoryDebugOps {
+    MemTxResult (*read)(AddressSpace *as, hwaddr phys_addr,
+                        MemTxAttrs attrs, void *buf,
+                        hwaddr len);
+    MemTxResult (*write)(AddressSpace *as, hwaddr phys_addr,
+                         MemTxAttrs attrs, const void *buf,
+                         hwaddr len);
+} MemoryDebugOps;
+
+void address_space_set_debug_ops(const MemoryDebugOps *ops);
+
 static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
 {
     if (is_write) {
