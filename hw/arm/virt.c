@@ -967,9 +967,21 @@ static void virt_flash_map1(PFlashCFI01 *flash,
                             MemoryRegion *sysmem)
 {
     DeviceState *dev = DEVICE(flash);
+    const char *name = blk_name(pflash_cfi01_get_blk(flash));
 
-    assert(QEMU_IS_ALIGNED(size, VIRT_FLASH_SECTOR_SIZE));
-    assert(size / VIRT_FLASH_SECTOR_SIZE <= UINT32_MAX);
+    if (size == 0 || !QEMU_IS_ALIGNED(size, VIRT_FLASH_SECTOR_SIZE)) {
+        error_report("system firmware block device %s has invalid size "
+                     "%" PRId64, name, size);
+        info_report("its size must be a non-zero multiple of 0x%" PRIx64,
+                    VIRT_FLASH_SECTOR_SIZE);
+        exit(1);
+    }
+    if (!(size / VIRT_FLASH_SECTOR_SIZE <= UINT32_MAX)) {
+        error_report("system firmware block device %s is too large "
+                     "(%" PRId64 ")", name, size);
+        exit(1);
+    }
+
     qdev_prop_set_uint32(dev, "num-blocks", size / VIRT_FLASH_SECTOR_SIZE);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
