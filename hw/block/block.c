@@ -20,9 +20,6 @@
  * BDRV_REQUEST_MAX_BYTES.
  * On success, return true.
  * On failure, store an error through @errp and return false.
- * Note that the error messages do not identify the block backend.
- * TODO Since callers don't either, this can result in confusing
- * errors.
  * This function not intended for actual block devices, which read on
  * demand.  It's for things like memory devices that (ab)use a block
  * backend to provide persistence.
@@ -32,17 +29,19 @@ bool blk_check_size_and_read_all(BlockBackend *blk, void *buf, hwaddr size,
 {
     int64_t blk_len;
     int ret;
+    const char *name = blk_name(blk);
 
     blk_len = blk_getlength(blk);
     if (blk_len < 0) {
         error_setg_errno(errp, -blk_len,
-                         "can't get size of block backend");
+                         "can't get size of block backend %s",
+                         name);
         return false;
     }
     if (blk_len != size) {
         error_setg(errp, "device requires %" HWADDR_PRIu " bytes, "
-                   "block backend provides %" PRIu64 " bytes",
-                   size, blk_len);
+                   "block backend %s provides %" PRIu64 " bytes",
+                   size, name, blk_len);
         return false;
     }
 
@@ -55,7 +54,8 @@ bool blk_check_size_and_read_all(BlockBackend *blk, void *buf, hwaddr size,
     assert(size <= BDRV_REQUEST_MAX_BYTES);
     ret = blk_pread(blk, 0, buf, size);
     if (ret < 0) {
-        error_setg_errno(errp, -ret, "can't read block backend");
+        error_setg_errno(errp, -ret, "can't read block backend %s",
+                         name);
         return false;
     }
     return true;
