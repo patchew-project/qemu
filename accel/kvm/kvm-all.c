@@ -2232,6 +2232,8 @@ static int kvm_init(MachineState *ms)
         }
 
         kvm_state->memcrypt_encrypt_data = sev_encrypt_data;
+        kvm_state->memcrypt_debug_ops_memory_region =
+            sev_set_debug_ops_memory_region;
     }
 
     ret = kvm_arch_init(ms, s);

@@ -18,4 +18,5 @@
 
 void *sev_guest_init(const char *id);
 int sev_encrypt_data(void *handle, uint8_t *ptr, uint64_t len);
+void sev_set_debug_ops_memory_region(void *handle, MemoryRegion *mr);
 #endif
