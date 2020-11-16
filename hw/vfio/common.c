@@ -597,6 +597,45 @@ static bool vfio_get_xlat_addr(IOMMUTLBEntry *iotlb, void **vaddr,
     return true;
 }
 
+/* Propagate a guest IOTLB invalidation to the host (nested mode) */
+static void vfio_iommu_unmap_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
+{
+    VFIOGuestIOMMU *giommu = container_of(n, VFIOGuestIOMMU, n);
+    hwaddr start = iotlb->iova + giommu->iommu_offset;
+    VFIOContainer *container = giommu->container;
+    struct vfio_iommu_type1_cache_invalidate ustruct = {};
+    struct iommu_inv_addr_info *addr_info = &ustruct.info.granu.addr_info;
+    size_t size = iotlb->addr_mask + 1;
+    int ret;
+
+    assert(iotlb->perm == IOMMU_NONE);
+
+    ustruct.argsz = sizeof(ustruct);
+    ustruct.flags = 0;
+    ustruct.info.argsz = sizeof(struct iommu_cache_invalidate_info);
+    ustruct.info.version = IOMMU_CACHE_INVALIDATE_INFO_VERSION_1;
+
+    ustruct.info.cache = IOMMU_CACHE_INV_TYPE_IOTLB;
+    ustruct.info.granularity = IOMMU_INV_GRANU_ADDR;
+    addr_info->flags = IOMMU_INV_ADDR_FLAGS_ARCHID;
+    if (iotlb->leaf) {
+        addr_info->flags |= IOMMU_INV_ADDR_FLAGS_LEAF;
+    }
+    addr_info->archid = iotlb->arch_id;
+    addr_info->addr = start;
+    addr_info->granule_size = size;
+    addr_info->nb_granules = 1;
+    trace_vfio_iommu_addr_inv_iotlb(iotlb->arch_id, start, size, 1,
+                                    iotlb->leaf);
+
+    ret = ioctl(container->fd, VFIO_IOMMU_CACHE_INVALIDATE, &ustruct);
+    if (ret) {
+        error_report("%p: failed to invalidate CACHE for 0x%"PRIx64
+                     " mask=0x%"PRIx64" (%d)",
+                     container, start, iotlb->addr_mask, ret);
+    }
+}
+
 static void vfio_iommu_map_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
 {
     VFIOGuestIOMMU *giommu = container_of(n, VFIOGuestIOMMU, n);
@@ -778,6 +817,35 @@ static void vfio_dma_unmap_ram_section(VFIOContainer *container,
     }
 }
 
+static void vfio_prereg_listener_region_add(MemoryListener *listener,
+                                            MemoryRegionSection *section)
+{
+    VFIOContainer *container =
+        container_of(listener, VFIOContainer, prereg_listener);
+    Error *err = NULL;
+
+    if (!memory_region_is_ram(section->mr)) {
+        return;
+    }
+
+    vfio_dma_map_ram_section(container, section, &err);
+    if (err) {
+        error_report_err(err);
+    }
+}
+static void vfio_prereg_listener_region_del(MemoryListener *listener,
+                                     MemoryRegionSection *section)
+{
+    VFIOContainer *container =
+        container_of(listener, VFIOContainer, prereg_listener);
+
+    if (!memory_region_is_ram(section->mr)) {
+        return;
+    }
+
+    vfio_dma_unmap_ram_section(container, section);
+}
+
 static void vfio_listener_region_add(MemoryListener *listener,
                                      MemoryRegionSection *section)
 {
@@ -880,9 +948,10 @@ static void vfio_listener_region_add(MemoryListener *listener,
     memory_region_ref(section->mr);
 
     if (memory_region_is_iommu(section->mr)) {
+        IOMMUNotify notify;
         VFIOGuestIOMMU *giommu;
         IOMMUMemoryRegion *iommu_mr = IOMMU_MEMORY_REGION(section->mr);
-        int iommu_idx;
+        int iommu_idx, flags;
 
         trace_vfio_listener_region_add_iommu(iova, end);
         /*
@@ -901,8 +970,18 @@ static void vfio_listener_region_add(MemoryListener *listener,
         llend = int128_sub(llend, int128_one());
         iommu_idx = memory_region_iommu_attrs_to_index(iommu_mr,
                                                        MEMTXATTRS_UNSPECIFIED);
-        iommu_notifier_init(&giommu->n, vfio_iommu_map_notify,
-                            IOMMU_NOTIFIER_ALL,
+
+        if (container->iommu_type == VFIO_TYPE1_NESTING_IOMMU) {
+            /* IOTLB unmap notifier to propagate guest IOTLB invalidations */
+            flags = IOMMU_NOTIFIER_UNMAP;
+            notify = vfio_iommu_unmap_notify;
+        } else {
+            /* MAP/UNMAP IOTLB notifier */
+            flags = IOMMU_NOTIFIER_ALL;
+            notify = vfio_iommu_map_notify;
+        }
+
+        iommu_notifier_init(&giommu->n, notify, flags,
                             section->offset_within_region,
                             int128_get64(llend),
                             iommu_idx);
@@ -922,7 +1001,9 @@ static void vfio_listener_region_add(MemoryListener *listener,
             goto fail;
         }
         QLIST_INSERT_HEAD(&container->giommu_list, giommu, giommu_next);
-        memory_region_iommu_replay(giommu->iommu, &giommu->n);
+        if (flags & IOMMU_NOTIFIER_MAP) {
+            memory_region_iommu_replay(giommu->iommu, &giommu->n);
+        }
 
         return;
     }
@@ -1169,10 +1250,16 @@ static const MemoryListener vfio_memory_listener = {
     .log_sync = vfio_listerner_log_sync,
 };
 
+static MemoryListener vfio_memory_prereg_listener = {
+    .region_add = vfio_prereg_listener_region_add,
+    .region_del = vfio_prereg_listener_region_del,
+};
+
 static void vfio_listener_release(VFIOContainer *container)
 {
     memory_listener_unregister(&container->listener);
-    if (container->iommu_type == VFIO_SPAPR_TCE_v2_IOMMU) {
+    if (container->iommu_type == VFIO_SPAPR_TCE_v2_IOMMU ||
+        container->iommu_type == VFIO_TYPE1_NESTING_IOMMU) {
         memory_listener_unregister(&container->prereg_listener);
     }
 }
@@ -1819,6 +1906,20 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
             vfio_get_iommu_info_migration(container, info);
         }
         g_free(info);
+
+        if (container->iommu_type == VFIO_TYPE1_NESTING_IOMMU) {
+            container->prereg_listener = vfio_memory_prereg_listener;
+            memory_listener_register(&container->prereg_listener,
+                                     &address_space_memory);
+            if (container->error) {
+                memory_listener_unregister(&container->prereg_listener);
+                ret = -1;
+                error_propagate_prepend(errp, container->error,
+                                    "RAM memory listener initialization failed "
+                                    "for container");
+                goto free_container_exit;
+            }
+        }
         break;
     }
     case VFIO_SPAPR_TCE_v2_IOMMU:
