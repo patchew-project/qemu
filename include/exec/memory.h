@@ -2466,6 +2466,7 @@ typedef struct MemoryDebugOps {
     MemTxResult (*write)(AddressSpace *as, hwaddr phys_addr,
                          MemTxAttrs attrs, const void *buf,
                          hwaddr len);
+    uint64_t (*pte_mask)(void);
 } MemoryDebugOps;
 
 void address_space_set_debug_ops(const MemoryDebugOps *ops);

@@ -1003,7 +1003,8 @@ MemTxResult sev_address_space_read_debug(AddressSpace *as, hwaddr addr,
 
 static const MemoryDebugOps sev_debug_ops = {
     .read = sev_address_space_read_debug,
-    .write = sev_address_space_write_rom_debug
+    .write = sev_address_space_write_rom_debug,
+    .pte_mask = sev_get_me_mask,
 };
 
 void

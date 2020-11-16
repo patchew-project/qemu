@@ -166,9 +166,15 @@ struct DirtyBitmapSnapshot {
     unsigned long dirty[];
 };
 
+static uint64_t address_space_pte_mask(void)
+{
+    return ~0;
+}
+
 static const MemoryDebugOps default_debug_ops = {
     .read = address_space_read,
-    .write = address_space_write_rom
+    .write = address_space_write_rom,
+    .pte_mask = address_space_pte_mask
 };
 
 static const MemoryDebugOps *debug_ops = &default_debug_ops;
@@ -3391,6 +3397,11 @@ void cpu_physical_memory_rw_debug(hwaddr addr, uint8_t *buf,
                                 attrs, buf, len);
         }
 
+}
+
+uint64_t cpu_physical_memory_pte_mask_debug(void)
+{
+    return debug_ops->pte_mask();
 }
 
 int64_t address_space_cache_init(MemoryRegionCache *cache,
