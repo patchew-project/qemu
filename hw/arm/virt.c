@@ -50,6 +50,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/tpm.h"
 #include "sysemu/kvm.h"
+#include "sysemu/block-backend.h"
 #include "hw/loader.h"
 #include "exec/address-spaces.h"
 #include "qemu/bitops.h"
@@ -78,6 +79,7 @@
 #include "hw/virtio/virtio-iommu.h"
 #include "hw/char/pl011.h"
 #include "qemu/guest-random.h"
+#include "trace.h"
 
 #define DEFINE_VIRT_MACHINE_LATEST(major, minor, latest) \
     static void virt_##major##_##minor##_class_init(ObjectClass *oc, \
@@ -931,6 +933,11 @@ static void create_virtio_devices(const VirtMachineState *vms)
 
 #define VIRT_FLASH_SECTOR_SIZE (256 * KiB)
 
+int64_t virt_flash_size(PFlashCFI01 *flash)
+{
+    return blk_getlength(pflash_cfi01_get_blk(flash));
+}
+
 static PFlashCFI01 *virt_flash_create1(VirtMachineState *vms,
                                         const char *name,
                                         const char *alias_prop_name)
@@ -969,6 +976,8 @@ static void virt_flash_map1(PFlashCFI01 *flash,
     DeviceState *dev = DEVICE(flash);
     const char *name = blk_name(pflash_cfi01_get_blk(flash));
 
+    trace_virt_flash_map1(name, base, size);
+
     if (size == 0 || !QEMU_IS_ALIGNED(size, VIRT_FLASH_SECTOR_SIZE)) {
         error_report("system firmware block device %s has invalid size "
                      "%" PRId64, name, size);
@@ -995,63 +1004,57 @@ static void virt_flash_map(VirtMachineState *vms,
                            MemoryRegion *secure_sysmem)
 {
     /*
-     * Map two flash devices to fill the VIRT_FLASH space in the memmap.
+     * Map two flash devices in the VIRT_FLASH space in the memmap.
      * sysmem is the system memory space. secure_sysmem is the secure view
      * of the system, and the first flash device should be made visible only
      * there. The second flash device is visible to both secure and nonsecure.
      * If sysmem == secure_sysmem this means there is no separate Secure
      * address space and both flash devices are generally visible.
      */
-    hwaddr flashsize = vms->memmap[VIRT_FLASH].size / 2;
-    hwaddr flashbase = vms->memmap[VIRT_FLASH].base;
+    MemMapEntry *m = &vms->memmap[VIRT_FLASH];
 
-    virt_flash_map1(vms->flash[0], flashbase, flashsize,
-                    secure_sysmem);
-    virt_flash_map1(vms->flash[1], flashbase + flashsize, flashsize,
-                    sysmem);
+    virt_flash_map1(vms->flash[0], m->base,
+                    virt_flash_size(vms->flash[0]), secure_sysmem);
+
+    virt_flash_map1(vms->flash[1], m->base + m->size / 2,
+                    virt_flash_size(vms->flash[1]), sysmem);
 }
 
 static void virt_flash_fdt(VirtMachineState *vms,
                            MemoryRegion *sysmem,
                            MemoryRegion *secure_sysmem)
 {
-    hwaddr flashsize = vms->memmap[VIRT_FLASH].size / 2;
-    hwaddr flashbase = vms->memmap[VIRT_FLASH].base;
+    bool secure = sysmem != secure_sysmem;
+    MemMapEntry *m = &vms->memmap[VIRT_FLASH];
+    hwaddr flashbase0 = m->base;
+    hwaddr flashbase1 = m->base + m->size / 2;
+    hwaddr flashsize0 = virt_flash_size(vms->flash[0]);
+    hwaddr flashsize1 = virt_flash_size(vms->flash[1]);
     char *nodename;
 
-    if (sysmem == secure_sysmem) {
-        /* Report both flash devices as a single node in the DT */
-        nodename = g_strdup_printf("/flash@%" PRIx64, flashbase);
-        qemu_fdt_add_subnode(vms->fdt, nodename);
-        qemu_fdt_setprop_string(vms->fdt, nodename, "compatible", "cfi-flash");
-        qemu_fdt_setprop_sized_cells(vms->fdt, nodename, "reg",
-                                     2, flashbase, 2, flashsize,
-                                     2, flashbase + flashsize, 2, flashsize);
-        qemu_fdt_setprop_cell(vms->fdt, nodename, "bank-width", 4);
-        g_free(nodename);
+    if (secure) {
+        nodename = g_strdup_printf("/secflash@%" PRIx64, flashbase0);
     } else {
-        /*
-         * Report the devices as separate nodes so we can mark one as
-         * only visible to the secure world.
-         */
-        nodename = g_strdup_printf("/secflash@%" PRIx64, flashbase);
-        qemu_fdt_add_subnode(vms->fdt, nodename);
-        qemu_fdt_setprop_string(vms->fdt, nodename, "compatible", "cfi-flash");
-        qemu_fdt_setprop_sized_cells(vms->fdt, nodename, "reg",
-                                     2, flashbase, 2, flashsize);
-        qemu_fdt_setprop_cell(vms->fdt, nodename, "bank-width", 4);
+        nodename = g_strdup_printf("/flash@%" PRIx64, flashbase0);
+    }
+    qemu_fdt_add_subnode(vms->fdt, nodename);
+    qemu_fdt_setprop_string(vms->fdt, nodename, "compatible", "cfi-flash");
+    qemu_fdt_setprop_sized_cells(vms->fdt, nodename, "reg",
+                                 2, flashbase0, 2, flashsize0);
+    qemu_fdt_setprop_cell(vms->fdt, nodename, "bank-width", 4);
+    if (secure) {
         qemu_fdt_setprop_string(vms->fdt, nodename, "status", "disabled");
         qemu_fdt_setprop_string(vms->fdt, nodename, "secure-status", "okay");
-        g_free(nodename);
-
-        nodename = g_strdup_printf("/flash@%" PRIx64, flashbase);
-        qemu_fdt_add_subnode(vms->fdt, nodename);
-        qemu_fdt_setprop_string(vms->fdt, nodename, "compatible", "cfi-flash");
-        qemu_fdt_setprop_sized_cells(vms->fdt, nodename, "reg",
-                                     2, flashbase + flashsize, 2, flashsize);
-        qemu_fdt_setprop_cell(vms->fdt, nodename, "bank-width", 4);
-        g_free(nodename);
     }
+    g_free(nodename);
+
+    nodename = g_strdup_printf("/flash@%" PRIx64, flashbase1);
+    qemu_fdt_add_subnode(vms->fdt, nodename);
+    qemu_fdt_setprop_string(vms->fdt, nodename, "compatible", "cfi-flash");
+    qemu_fdt_setprop_sized_cells(vms->fdt, nodename, "reg",
+                                 2, flashbase1, 2, flashsize1);
+    qemu_fdt_setprop_cell(vms->fdt, nodename, "bank-width", 4);
+    g_free(nodename);
 }
 
 static bool virt_firmware_init(VirtMachineState *vms,
