@@ -195,6 +195,66 @@ acceptance-system-centos:
     MAKE_CHECK_ARGS: check-acceptance
   <<: *acceptance_definition
 
+build-system-opensusetw:
+  <<: *native_build_job_definition
+  variables:
+    IMAGE: opensusetw
+    TARGETS: s390x-softmmu x86_64-softmmu aarch64-softmmu
+    MAKE_CHECK_ARGS: check-build
+  artifacts:
+    expire_in: 2 days
+    paths:
+      - build
+
+check-system-opensusetw:
+  <<: *native_test_job_definition
+  needs:
+    - job: build-system-opensusetw
+      artifacts: true
+  variables:
+    IMAGE: opensusetw
+    MAKE_CHECK_ARGS: check
+
+acceptance-system-opensusetw:
+  <<: *native_test_job_definition
+  needs:
+    - job: build-system-opensusetw
+      artifacts: true
+  variables:
+    IMAGE: opensusetw
+    MAKE_CHECK_ARGS: check-acceptance
+  <<: *acceptance_definition
+
+build-system-opensuse152:
+  <<: *native_build_job_definition
+  variables:
+    IMAGE: opensuse152
+    TARGETS: s390x-softmmu x86_64-softmmu aarch64-softmmu
+    MAKE_CHECK_ARGS: check-build
+  artifacts:
+    expire_in: 2 days
+    paths:
+      - build
+
+check-system-opensuse152:
+  <<: *native_test_job_definition
+  needs:
+    - job: build-system-opensuse152
+      artifacts: true
+  variables:
+    IMAGE: opensuse152
+    MAKE_CHECK_ARGS: check
+
+acceptance-system-opensuse152:
+  <<: *native_test_job_definition
+  needs:
+    - job: build-system-opensuse152
+      artifacts: true
+  variables:
+    IMAGE: opensuse152
+    MAKE_CHECK_ARGS: check-acceptance
+  <<: *acceptance_definition
+
 build-disabled:
   <<: *native_build_job_definition
   variables:

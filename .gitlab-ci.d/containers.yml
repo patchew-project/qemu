@@ -48,6 +48,16 @@ amd64-debian11-container:
   variables:
     NAME: debian11
 
+amd64-opensuseTW-container:
+  <<: *container_job_definition
+  variables:
+    NAME: opensusetw
+
+amd64-opensuse152-container:
+  <<: *container_job_definition
+  variables:
+    NAME: opensuse152
+
 alpha-debian-cross-container:
   <<: *container_job_definition
   stage: containers-layer2
