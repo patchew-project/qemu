@@ -20,6 +20,7 @@
 #include "chardev/char.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/runstate.h"
+#include "sysemu/accel.h"
 #include "qemu/config-file.h"
 #include "qemu/option.h"
 #include "qemu/timer.h"
@@ -132,6 +133,37 @@ void hmp_info_kvm(Monitor *mon, const QDict *qdict)
     }
 
     qapi_free_AccelInfo(info);
+}
+
+void hmp_info_accel(Monitor *mon, const QDict *qdict)
+{
+    AccelInfo *info;
+    AccelClass *acc;
+    const char *name, *typename;
+    char *current_name;
+    int len;
+
+    /* Figure out current accelerator */
+    acc = ACCEL_GET_CLASS(current_accel());
+    typename = object_class_get_name(OBJECT_CLASS(acc));
+    len = strlen(typename) - strlen(ACCEL_CLASS_SUFFIX);
+    current_name = g_strndup(typename, len);
+
+    name = qdict_get_try_str(qdict, "name");
+    if (!name) {
+        name = current_name;
+    }
+
+    info = qmp_query_accel(name, NULL);
+    monitor_printf(mon, "%s support: ", name);
+    if (info->present) {
+        monitor_printf(mon, "%s\n", info->enabled ? "enabled" : "disabled");
+    } else {
+        monitor_printf(mon, "not compiled\n");
+    }
+
+    qapi_free_AccelInfo(info);
+    g_free(current_name);
 }
 
 void hmp_info_status(Monitor *mon, const QDict *qdict)

@@ -338,6 +338,19 @@ SRST
 ERST
 
     {
+        .name       = "accel",
+        .args_type  = "name:s?",
+        .params     = "[name]",
+        .help       = "show accelerator information",
+        .cmd        = hmp_info_accel,
+    },
+
+SRST
+  ``info accel``` [*name*]
+    Show accelerator information.
+ERST
+
+    {
         .name       = "numa",
         .args_type  = "",
         .params     = "",
