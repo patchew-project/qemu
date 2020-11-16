@@ -91,6 +91,14 @@ int kvm_memcrypt_encrypt_data(uint8_t *ptr, uint64_t len)
   return 1;
 }
 
+void kvm_memcrypt_set_debug_ops_memory_region(MemoryRegion *mr)
+{
+}
+
+void kvm_memcrypt_set_debug_ops_cpu_state(CPUState *cs)
+{
+}
+
 #ifndef CONFIG_USER_ONLY
 int kvm_irqchip_add_msi_route(KVMState *s, int vector, PCIDevice *dev)
 {

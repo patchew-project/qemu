@@ -123,6 +123,8 @@ struct KVMState
     /* memory encryption */
     void *memcrypt_handle;
     int (*memcrypt_encrypt_data)(void *handle, uint8_t *ptr, uint64_t len);
+    void (*memcrypt_debug_ops_memory_region)(void *handle, MemoryRegion *mr);
+    void (*memcrypt_debug_ops_cpu_state)(void *handle, CPUState *cpu);
 
     /* For "info mtree -f" to tell if an MR is registered in KVM */
     int nr_as;
@@ -220,6 +222,23 @@ int kvm_get_max_memslots(void)
     KVMState *s = KVM_STATE(current_accel());
 
     return s->nr_slots;
+}
+
+void kvm_memcrypt_set_debug_ops_memory_region(MemoryRegion *mr)
+{
+    if (kvm_state->memcrypt_handle &&
+        kvm_state->memcrypt_debug_ops_memory_region) {
+        kvm_state->memcrypt_debug_ops_memory_region(kvm_state->memcrypt_handle,
+                                                    mr);
+    }
+}
+
+void kvm_memcrypt_set_debug_ops_cpu_state(CPUState *cs)
+{
+    if (kvm_state->memcrypt_handle &&
+        kvm_state->memcrypt_debug_ops_cpu_state) {
+        kvm_state->memcrypt_debug_ops_cpu_state(kvm_state->memcrypt_handle, cs);
+    }
 }
 
 bool kvm_memcrypt_enabled(void)

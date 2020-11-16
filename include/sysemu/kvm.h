@@ -470,6 +470,21 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *env, uint32_t function,
                                       uint32_t index, int reg);
 uint64_t kvm_arch_get_supported_msr_feature(KVMState *s, uint32_t index);
 
+/**
+ * kvm_memcrypt_set_debug_ram_ops: set debug_ram_ops callback
+ *
+ * When debug_ram_ops is set, debug access to this memory region will use
+ * memory encryption APIs.
+ */
+void kvm_memcrypt_set_debug_ops_memory_region(MemoryRegion *mr);
+
+/**
+ * kvm_memcrypt_set_debug_ops_cpu_state: override cpu_class callbacks
+ *
+ * This interface allows vendor specific debug ops to override any
+ * cpu_class callbacks.
+ */
+void kvm_memcrypt_set_debug_ops_cpu_state(CPUState *cs);
 
 void kvm_set_sigmask_len(KVMState *s, unsigned int sigmask_len);
 
