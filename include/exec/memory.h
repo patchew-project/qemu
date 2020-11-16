@@ -428,6 +428,18 @@ struct IOMMUMemoryRegionClass {
 typedef struct CoalescedMemoryRange CoalescedMemoryRange;
 typedef struct MemoryRegionIoeventfd MemoryRegionIoeventfd;
 
+/* Memory Region RAM debug callback */
+typedef struct MemoryRegionRAMReadWriteOps MemoryRegionRAMReadWriteOps;
+
+struct MemoryRegionRAMReadWriteOps {
+    /* Write data into guest memory */
+    int (*write) (uint8_t *dest, const uint8_t *src,
+                  uint32_t len, MemTxAttrs attrs);
+    /* Read data from guest memory */
+    int (*read) (uint8_t *dest, const uint8_t *src,
+                 uint32_t len, MemTxAttrs attrs);
+};
+
 /** MemoryRegion:
  *
  * A struct representing a memory region.
@@ -471,6 +483,7 @@ struct MemoryRegion {
     const char *name;
     unsigned ioeventfd_nb;
     MemoryRegionIoeventfd *ioeventfds;
+    const MemoryRegionRAMReadWriteOps *ram_debug_ops;
 };
 
 struct IOMMUMemoryRegion {
@@ -1085,6 +1098,20 @@ void memory_region_init_rom_nomigrate(MemoryRegion *mr,
                                       const char *name,
                                       uint64_t size,
                                       Error **errp);
+
+/**
+ * memory_region_set_ram_debug_ops: Set access ops for a give memory region.
+ *
+ * @mr: the #MemoryRegion to be initialized
+ * @ops: a function that will be used when accessing @target region during
+ *       debug
+ */
+static inline void
+memory_region_set_ram_debug_ops(MemoryRegion *mr,
+                                const MemoryRegionRAMReadWriteOps *ops)
+{
+    mr->ram_debug_ops = ops;
+}
 
 /**
  * memory_region_init_rom_device_nomigrate:  Initialize a ROM memory region.
