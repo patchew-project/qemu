@@ -798,7 +798,7 @@ epilogue:
 static void smmuv3_notify_iova(IOMMUMemoryRegion *mr,
                                IOMMUNotifier *n,
                                int asid, dma_addr_t iova,
-                               uint8_t tg, uint64_t num_pages)
+                               uint8_t tg, uint64_t num_pages, bool leaf)
 {
     SMMUDevice *sdev = container_of(mr, SMMUDevice, iommu);
     IOMMUTLBEntry entry;
@@ -829,13 +829,13 @@ static void smmuv3_notify_iova(IOMMUMemoryRegion *mr,
     entry.addr_mask = num_pages * (1 << granule) - 1;
     entry.perm = IOMMU_NONE;
     entry.arch_id = asid;
+    entry.leaf = leaf;
 
     memory_region_notify_one(n, &entry);
 }
 
-/* invalidate an asid/iova range tuple in all mr's */
 static void smmuv3_inv_notifiers_iova(SMMUState *s, int asid, dma_addr_t iova,
-                                      uint8_t tg, uint64_t num_pages)
+                                      uint8_t tg, uint64_t num_pages, bool leaf)
 {
     SMMUDevice *sdev;
 
@@ -847,7 +847,7 @@ static void smmuv3_inv_notifiers_iova(SMMUState *s, int asid, dma_addr_t iova,
                                         tg, num_pages);
 
         IOMMU_NOTIFIER_FOREACH(n, mr) {
-            smmuv3_notify_iova(mr, n, asid, iova, tg, num_pages);
+            smmuv3_notify_iova(mr, n, asid, iova, tg, num_pages, leaf);
         }
     }
 }
@@ -874,7 +874,7 @@ static void smmuv3_s1_range_inval(SMMUState *s, Cmd *cmd)
         asid = CMD_ASID(cmd);
     }
     trace_smmuv3_s1_range_inval(vmid, asid, addr, tg, num_pages, ttl, leaf);
-    smmuv3_inv_notifiers_iova(s, asid, addr, tg, num_pages);
+    smmuv3_inv_notifiers_iova(s, asid, addr, tg, num_pages, leaf);
     smmu_iotlb_inv_iova(s, asid, addr, tg, num_pages, ttl);
 }
 
