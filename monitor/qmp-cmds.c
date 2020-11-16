@@ -54,12 +54,7 @@ NameInfo *qmp_query_name(Error **errp)
 
 AccelInfo *qmp_query_kvm(Error **errp)
 {
-    AccelInfo *info = g_malloc0(sizeof(*info));
-
-    info->enabled = kvm_enabled();
-    info->present = kvm_available();
-
-    return info;
+    return qmp_query_accel("kvm", errp);
 }
 
 AccelInfo *qmp_query_accel(const char *name, Error **errp)
