@@ -16,8 +16,8 @@
 
 /*
  * Read the entire contents of @blk into @buf.
- * @blk's contents must be @size bytes, and @size must be at most
- * BDRV_REQUEST_MAX_BYTES.
+ * @blk's contents must not be more than @size bytes, and must be at
+ * most BDRV_REQUEST_MAX_BYTES in length.
  * On success, return true.
  * On failure, store an error through @errp and return false.
  * This function not intended for actual block devices, which read on
@@ -38,10 +38,10 @@ bool blk_check_size_and_read_all(BlockBackend *blk, void *buf, hwaddr size,
                          name);
         return false;
     }
-    if (blk_len != size) {
-        error_setg(errp, "device requires %" HWADDR_PRIu " bytes, "
-                   "block backend %s provides %" PRIu64 " bytes",
-                   size, name, blk_len);
+    if (blk_len > size) {
+        error_setg(errp, "block backend %s is too large for device "
+                   "(%" PRIu64 " > %" HWADDR_PRIu ")",
+                   name, blk_len, size);
         return false;
     }
 
@@ -51,8 +51,8 @@ bool blk_check_size_and_read_all(BlockBackend *blk, void *buf, hwaddr size,
      * should probably rework the device to be more like an actual
      * block device and read only on demand.
      */
-    assert(size <= BDRV_REQUEST_MAX_BYTES);
-    ret = blk_pread(blk, 0, buf, size);
+    assert(blk_len <= BDRV_REQUEST_MAX_BYTES);
+    ret = blk_pread(blk, 0, buf, blk_len);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "can't read block backend %s",
                          name);
