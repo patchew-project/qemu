@@ -579,6 +579,9 @@
 #
 # Returns information about KVM acceleration
 #
+# Features:
+# @deprecated: This command is deprecated, use 'query-accel' instead.
+#
 # Returns: @AccelInfo
 #
 # Since: 0.14.0
@@ -589,7 +592,8 @@
 # <- { "return": { "enabled": true, "present": true } }
 #
 ##
-{ 'command': 'query-kvm', 'returns': 'AccelInfo' }
+{ 'command': 'query-kvm', 'returns': 'AccelInfo',
+  'features': [ 'deprecated' ] }
 
 ##
 # @query-accel:
