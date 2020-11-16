@@ -2470,6 +2470,16 @@ typedef struct MemoryDebugOps {
 
 void address_space_set_debug_ops(const MemoryDebugOps *ops);
 
+MemTxResult address_space_write_rom_debug(AddressSpace *as,
+                                          hwaddr addr,
+                                          MemTxAttrs attrs,
+                                          const void *ptr,
+                                          hwaddr len);
+
+MemTxResult address_space_read_debug(AddressSpace *as, hwaddr addr,
+                                     MemTxAttrs attrs, void *buf,
+                                     hwaddr len);
+
 static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
 {
     if (is_write) {
