@@ -562,24 +562,24 @@
 { 'command': 'inject-nmi' }
 
 ##
-# @KvmInfo:
+# @AccelInfo:
 #
-# Information about support for KVM acceleration
+# Information about support for an acceleration
 #
-# @enabled: true if KVM acceleration is active
+# @enabled: true if an acceleration is active
 #
-# @present: true if KVM acceleration is built into this executable
+# @present: true if an acceleration is built into this executable
 #
 # Since: 0.14.0
 ##
-{ 'struct': 'KvmInfo', 'data': {'enabled': 'bool', 'present': 'bool'} }
+{ 'struct': 'AccelInfo', 'data': {'enabled': 'bool', 'present': 'bool'} }
 
 ##
 # @query-kvm:
 #
 # Returns information about KVM acceleration
 #
-# Returns: @KvmInfo
+# Returns: @AccelInfo
 #
 # Since: 0.14.0
 #
@@ -589,14 +589,14 @@
 # <- { "return": { "enabled": true, "present": true } }
 #
 ##
-{ 'command': 'query-kvm', 'returns': 'KvmInfo' }
+{ 'command': 'query-kvm', 'returns': 'AccelInfo' }
 
 ##
 # @query-accel:
 #
 # Returns information about an accelerator
 #
-# Returns: @KvmInfo
+# Returns: @AccelInfo
 #
 # Since: 6.0.0
 #
@@ -608,7 +608,7 @@
 ##
 { 'command': 'query-accel',
   'data': { 'name': 'str' },
-  'returns': 'KvmInfo' }
+  'returns': 'AccelInfo' }
 
 ##
 # @NumaOptionsType:

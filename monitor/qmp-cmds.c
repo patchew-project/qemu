@@ -52,9 +52,9 @@ NameInfo *qmp_query_name(Error **errp)
     return info;
 }
 
-KvmInfo *qmp_query_kvm(Error **errp)
+AccelInfo *qmp_query_kvm(Error **errp)
 {
-    KvmInfo *info = g_malloc0(sizeof(*info));
+    AccelInfo *info = g_malloc0(sizeof(*info));
 
     info->enabled = kvm_enabled();
     info->present = kvm_available();
@@ -62,9 +62,9 @@ KvmInfo *qmp_query_kvm(Error **errp)
     return info;
 }
 
-KvmInfo *qmp_query_accel(const char *name, Error **errp)
+AccelInfo *qmp_query_accel(const char *name, Error **errp)
 {
-    KvmInfo *info = g_malloc0(sizeof(*info));
+    AccelInfo *info = g_malloc0(sizeof(*info));
 
     AccelClass *ac = accel_find(name);
 

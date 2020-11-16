@@ -121,7 +121,7 @@ void hmp_info_version(Monitor *mon, const QDict *qdict)
 
 void hmp_info_kvm(Monitor *mon, const QDict *qdict)
 {
-    KvmInfo *info;
+    AccelInfo *info;
 
     info = qmp_query_kvm(NULL);
     monitor_printf(mon, "kvm support: ");
@@ -131,7 +131,7 @@ void hmp_info_kvm(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "not compiled\n");
     }
 
-    qapi_free_KvmInfo(info);
+    qapi_free_AccelInfo(info);
 }
 
 void hmp_info_status(Monitor *mon, const QDict *qdict)
