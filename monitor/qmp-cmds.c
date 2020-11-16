@@ -62,6 +62,21 @@ KvmInfo *qmp_query_kvm(Error **errp)
     return info;
 }
 
+KvmInfo *qmp_query_accel(const char *name, Error **errp)
+{
+    KvmInfo *info = g_malloc0(sizeof(*info));
+
+    AccelClass *ac = accel_find(name);
+
+    if (ac) {
+        info->enabled = *ac->allowed;
+        info->present = true;
+    }
+
+    return info;
+}
+
+
 UuidInfo *qmp_query_uuid(Error **errp)
 {
     UuidInfo *info = g_malloc0(sizeof(*info));

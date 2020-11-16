@@ -592,6 +592,25 @@
 { 'command': 'query-kvm', 'returns': 'KvmInfo' }
 
 ##
+# @query-accel:
+#
+# Returns information about an accelerator
+#
+# Returns: @KvmInfo
+#
+# Since: 6.0.0
+#
+# Example:
+#
+# -> { "execute": "query-accel", "arguments": { "name": "kvm" } }
+# <- { "return": { "enabled": true, "present": true } }
+#
+##
+{ 'command': 'query-accel',
+  'data': { 'name': 'str' },
+  'returns': 'KvmInfo' }
+
+##
 # @NumaOptionsType:
 #
 # @node: NUMA nodes configuration
