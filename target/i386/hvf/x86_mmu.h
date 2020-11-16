@@ -34,7 +34,8 @@
 #define MMU_PAGE_PT             (1 << 0)
 #define MMU_PAGE_WT             (1 << 1)
 #define MMU_PAGE_US             (1 << 2)
-#define MMU_PAGE_NX             (1 << 3)
+#define MMU_PAGE_RS             (1 << 3)
+#define MMU_PAGE_NX             (1 << 4)
 
 bool mmu_gva_to_gpa(struct CPUState *cpu, target_ulong gva, uint64_t *gpa);
 
