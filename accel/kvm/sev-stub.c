@@ -19,6 +19,10 @@ void sev_set_debug_ops_memory_region(void *handle, MemoryRegion *mr)
 {
 }
 
+void sev_set_debug_ops_cpu_state(void *handle, CPUState *cpu)
+{
+}
+
 int sev_encrypt_data(void *handle, uint8_t *ptr, uint64_t len)
 {
     abort();

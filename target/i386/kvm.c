@@ -1840,6 +1840,10 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
     kvm_init_msrs(cpu);
 
+    if (kvm_memcrypt_enabled()) {
+        kvm_memcrypt_set_debug_ops_cpu_state(cs);
+    }
+
     r = hyperv_init_vcpu(cpu);
     if (r) {
         goto fail;
