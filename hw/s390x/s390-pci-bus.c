@@ -780,12 +780,12 @@ static void s390_pci_init_default_group(void)
 
 static void set_pbdev_info(S390PCIBusDevice *pbdev)
 {
-    pbdev->zpci_fn.sdma = ZPCI_SDMA_ADDR;
-    pbdev->zpci_fn.edma = ZPCI_EDMA_ADDR;
-    pbdev->zpci_fn.pchid = 0;
+    stq_p(&pbdev->zpci_fn.sdma, ZPCI_SDMA_ADDR);
+    stq_p(&pbdev->zpci_fn.edma, ZPCI_EDMA_ADDR);
+    stw_p(&pbdev->zpci_fn.pchid, 0);
     pbdev->zpci_fn.pfgid = ZPCI_DEFAULT_FN_GRP;
-    pbdev->zpci_fn.fid = pbdev->fid;
-    pbdev->zpci_fn.uid = pbdev->uid;
+    stl_p(&pbdev->zpci_fn.fid, pbdev->fid);
+    stl_p(&pbdev->zpci_fn.uid, pbdev->uid);
     pbdev->pci_group = s390_group_find(ZPCI_DEFAULT_FN_GRP);
 }
 
@@ -864,7 +864,7 @@ static int s390_pci_msix_init(S390PCIBusDevice *pbdev)
     memory_region_init_io(&pbdev->msix_notify_mr, OBJECT(pbdev),
                           &s390_msi_ctrl_ops, pbdev, name, PAGE_SIZE);
     memory_region_add_subregion(&pbdev->iommu->mr,
-                                pbdev->pci_group->zpci_group.msia,
+                                ldq_p(&pbdev->pci_group->zpci_group.msia),
                                 &pbdev->msix_notify_mr);
     g_free(name);
 

@@ -116,10 +116,10 @@ static void s390_pci_read_base(S390PCIBusDevice *pbdev,
     }
     cap = (void *) hdr;
 
-    pbdev->zpci_fn.sdma = cap->start_dma;
-    pbdev->zpci_fn.edma = cap->end_dma;
-    pbdev->zpci_fn.pchid = cap->pchid;
-    pbdev->zpci_fn.vfn = cap->vfn;
+    stq_p(&pbdev->zpci_fn.sdma, cap->start_dma);
+    stq_p(&pbdev->zpci_fn.edma, cap->end_dma);
+    stw_p(&pbdev->zpci_fn.pchid, cap->pchid);
+    stw_p(&pbdev->zpci_fn.vfn, cap->vfn);
     pbdev->zpci_fn.pfgid = cap->gid;
     /* The following values remain 0 until we support other FMB formats */
     pbdev->zpci_fn.fmbl = 0;

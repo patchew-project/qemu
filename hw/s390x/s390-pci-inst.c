@@ -305,7 +305,7 @@ int clp_service_call(S390CPU *cpu, uint8_t r2, uintptr_t ra)
         ClpReqQueryPciGrp *reqgrp = (ClpReqQueryPciGrp *)reqh;
         S390PCIGroup *group;
 
-        group = s390_group_find(reqgrp->g);
+        group = s390_group_find(ldl_p(&reqgrp->g));
         if (!group) {
             /* We do not allow access to unknown groups */
             /* The group must have been obtained with a vfio device */
@@ -788,7 +788,7 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
     /* Length must be greater than 8, a multiple of 8 */
     /* and not greater than maxstbl */
     if ((len <= 8) || (len % 8) ||
-        (len > pbdev->pci_group->zpci_group.maxstbl)) {
+        (len > lduw_p(&pbdev->pci_group->zpci_group.maxstbl))) {
         goto specification_error;
     }
     /* Do not cross a 4K-byte boundary */
