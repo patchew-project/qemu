@@ -17,6 +17,11 @@
 #include "standard-headers/linux/virtio_input.h"
 #include "qapi/error.h"
 
+#ifndef input_event_sec
+#define input_event_sec time.tv_sec
+#define input_event_usec time.tv_usec
+#endif
+
 enum {
     VHOST_USER_INPUT_MAX_QUEUES = 2,
 };
@@ -115,13 +120,16 @@ vi_evdev_watch(VuDev *dev, int condition, void *data)
 static void vi_handle_status(VuInput *vi, virtio_input_event *event)
 {
     struct input_event evdev;
+    struct timeval tval;
     int rc;
 
-    if (gettimeofday(&evdev.time, NULL)) {
+    if (gettimeofday(&tval, NULL)) {
         perror("vi_handle_status: gettimeofday");
         return;
     }
 
+    evdev.input_event_sec = tval.tv_sec;
+    evdev.input_event_usec = tval.tv_usec;
     evdev.type = le16toh(event->type);
     evdev.code = le16toh(event->code);
     evdev.value = le32toh(event->value);
