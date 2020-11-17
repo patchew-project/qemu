@@ -305,7 +305,7 @@ int clp_service_call(S390CPU *cpu, uint8_t r2, uintptr_t ra)
         ClpReqQueryPciGrp *reqgrp = (ClpReqQueryPciGrp *)reqh;
         S390PCIGroup *group;
 
-        group = s390_group_find(reqgrp->g);
+        group = s390_group_find(ldl_p(&reqgrp->g));
         if (!group) {
             /* We do not allow access to unknown groups */
             /* The group must have been obtained with a vfio device */
