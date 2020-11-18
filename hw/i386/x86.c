@@ -52,7 +52,7 @@
 #include "elf.h"
 #include "standard-headers/asm-x86/bootparam.h"
 #include CONFIG_DEVICES
-#include "kvm_i386.h"
+#include "kvm/kvm_i386.h"
 
 #define BIOS_FILENAME "bios.bin"
 

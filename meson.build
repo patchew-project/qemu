@@ -1468,6 +1468,7 @@ trace_events_subdirs += [
   'target/arm',
   'target/hppa',
   'target/i386',
+  'target/i386/kvm',
   'target/mips',
   'target/ppc',
   'target/riscv',
