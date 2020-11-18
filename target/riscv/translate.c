@@ -737,6 +737,12 @@ static bool gen_cxzw(DisasContext *ctx, arg_r2 *a,
     return true;
 }
 
+static void gen_pcntw(TCGv ret, TCGv arg1)
+{
+    tcg_gen_ext32u_tl(arg1, arg1);
+    tcg_gen_ctpop_tl(ret, arg1);
+}
+
 #endif
 
 static bool gen_arith(DisasContext *ctx, arg_r *a,
@@ -788,6 +794,21 @@ static bool gen_cxz(DisasContext *ctx, arg_r2 *a,
 #else
     (*func)(source, source, 32);
 #endif
+
+    gen_set_gpr(a->rd, source);
+    tcg_temp_free(source);
+    return true;
+}
+
+static bool gen_unary(DisasContext *ctx, arg_r2 *a,
+                      void(*func)(TCGv, TCGv))
+{
+    TCGv source;
+    source = tcg_temp_new();
+
+    gen_get_gpr(source, a->rs1);
+
+    (*func)(source, source);
 
     gen_set_gpr(a->rd, source);
     tcg_temp_free(source);
