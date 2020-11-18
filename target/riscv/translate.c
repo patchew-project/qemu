@@ -711,6 +711,34 @@ static bool gen_arith_div_uw(DisasContext *ctx, arg_r *a,
 
 #endif
 
+#ifdef TARGET_RISCV64
+
+static bool gen_cxzw(DisasContext *ctx, arg_r2 *a,
+                     void(*func)(TCGv_i32, TCGv_i32, uint32_t))
+{
+    TCGv source;
+    TCGv_i32 tmp;
+
+    tmp = tcg_temp_new_i32();
+    source = tcg_temp_new();
+
+    gen_get_gpr(source, a->rs1);
+    /* truncate to 32-bits */
+    tcg_gen_trunc_tl_i32(tmp, source);
+
+    (*func)(tmp, tmp, 32);
+
+    /* sign-extend 64-bits */
+    tcg_gen_ext_i32_tl(source, tmp);
+    gen_set_gpr(a->rd, source);
+
+    tcg_temp_free(source);
+    tcg_temp_free_i32(tmp);
+    return true;
+}
+
+#endif
+
 static bool gen_arith(DisasContext *ctx, arg_r *a,
                       void(*func)(TCGv, TCGv, TCGv))
 {
@@ -747,6 +775,25 @@ static bool gen_shift(DisasContext *ctx, arg_r *a,
     return true;
 }
 
+static bool gen_cxz(DisasContext *ctx, arg_r2 *a,
+                    void(*func)(TCGv, TCGv, target_ulong))
+{
+    TCGv source;
+    source = tcg_temp_new();
+
+    gen_get_gpr(source, a->rs1);
+
+#ifdef TARGET_RISCV64
+    (*func)(source, source, 64);
+#else
+    (*func)(source, source, 32);
+#endif
+
+    gen_set_gpr(a->rd, source);
+    tcg_temp_free(source);
+    return true;
+}
+
 /* Include insn module translation function */
 #include "insn_trans/trans_rvi.c.inc"
 #include "insn_trans/trans_rvm.c.inc"
@@ -755,6 +802,7 @@ static bool gen_shift(DisasContext *ctx, arg_r *a,
 #include "insn_trans/trans_rvd.c.inc"
 #include "insn_trans/trans_rvh.c.inc"
 #include "insn_trans/trans_rvv.c.inc"
+#include "insn_trans/trans_rvb.c.inc"
 #include "insn_trans/trans_privileged.c.inc"
 
 /* Include the auto-generated decoder for 16 bit insn */
