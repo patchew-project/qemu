@@ -102,28 +102,31 @@ static void acpi_dsdt_add_fw_cfg(Aml *scope, const MemMapEntry *fw_cfg_memmap)
     aml_append(scope, dev);
 }
 
-static void acpi_dsdt_add_flash(Aml *scope, const MemMapEntry *flash_memmap)
+static void acpi_dsdt_add_flash1(Aml *scope, int index,
+                                 hwaddr base, hwaddr size)
 {
     Aml *dev, *crs;
-    hwaddr base = flash_memmap->base;
-    hwaddr size = flash_memmap->size / 2;
 
-    dev = aml_device("FLS0");
+    dev = aml_device("FLS%u", index);
     aml_append(dev, aml_name_decl("_HID", aml_string("LNRO0015")));
-    aml_append(dev, aml_name_decl("_UID", aml_int(0)));
+    aml_append(dev, aml_name_decl("_UID", aml_int(index)));
 
     crs = aml_resource_template();
     aml_append(crs, aml_memory32_fixed(base, size, AML_READ_WRITE));
     aml_append(dev, aml_name_decl("_CRS", crs));
     aml_append(scope, dev);
+}
 
-    dev = aml_device("FLS1");
-    aml_append(dev, aml_name_decl("_HID", aml_string("LNRO0015")));
-    aml_append(dev, aml_name_decl("_UID", aml_int(1)));
-    crs = aml_resource_template();
-    aml_append(crs, aml_memory32_fixed(base + size, size, AML_READ_WRITE));
-    aml_append(dev, aml_name_decl("_CRS", crs));
-    aml_append(scope, dev);
+static void acpi_dsdt_add_flash(Aml *scope, const MemMapEntry *flash_memmap,
+    PFlashCFI01 *flash[2])
+{
+    acpi_dsdt_add_flash1(scope, 0,
+                         flash_memmap->base,
+                         virt_flash_size(flash[0]));
+
+    acpi_dsdt_add_flash1(scope, 1,
+                         flash_memmap->base + flash_memmap->size / 2,
+                         virt_flash_size(flash[1]));
 }
 
 static void acpi_dsdt_add_virtio(Aml *scope,
@@ -603,7 +606,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     acpi_dsdt_add_uart(scope, &memmap[VIRT_UART],
                        (irqmap[VIRT_UART] + ARM_SPI_BASE));
     if (vmc->acpi_expose_flash) {
-        acpi_dsdt_add_flash(scope, &memmap[VIRT_FLASH]);
+        acpi_dsdt_add_flash(scope, &memmap[VIRT_FLASH], vms->flash);
     }
     acpi_dsdt_add_fw_cfg(scope, &memmap[VIRT_FW_CFG]);
     acpi_dsdt_add_virtio(scope, &memmap[VIRT_MMIO],
