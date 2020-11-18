@@ -38,13 +38,11 @@
 typedef struct InterfaceImpl InterfaceImpl;
 typedef struct TypeImpl TypeImpl;
 
-struct InterfaceImpl
-{
+struct InterfaceImpl {
     const char *typename;
 };
 
-struct TypeImpl
-{
+struct TypeImpl {
     const char *name;
 
     size_t class_size;
@@ -1048,8 +1046,7 @@ ObjectClass *object_class_get_parent(ObjectClass *class)
     return type->class;
 }
 
-typedef struct OCFData
-{
+typedef struct OCFData {
     void (*fn)(ObjectClass *klass, void *opaque);
     const char *implements_type;
     bool include_abstract;
@@ -2137,8 +2134,7 @@ Object *object_resolve_path(const char *path, bool *ambiguous)
     return object_resolve_path_type(path, TYPE_OBJECT, ambiguous);
 }
 
-typedef struct StringProperty
-{
+typedef struct StringProperty {
     char *(*get)(Object *, Error **);
     void (*set)(Object *, const char *, Error **);
 } StringProperty;
@@ -2216,8 +2212,7 @@ object_class_property_add_str(ObjectClass *klass, const char *name,
                                      prop);
 }
 
-typedef struct BoolProperty
-{
+typedef struct BoolProperty {
     bool (*get)(Object *, Error **);
     void (*set)(Object *, bool, Error **);
 } BoolProperty;
