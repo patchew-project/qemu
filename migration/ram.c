@@ -325,6 +325,10 @@ struct RAMState {
     /* these variables are used for bitmap sync */
     /* last time we did a full bitmap_sync */
     int64_t time_last_bitmap_sync;
+    /* last time UFFD fault occured */
+    int64_t last_fault_ns;
+    /* linear scan throttling counter */
+    int throttle_skip_counter;
     /* bytes transferred at start_time */
     uint64_t bytes_xfer_prev;
     /* number of dirty pages since start_time */
@@ -575,9 +579,6 @@ static int uffd_protect_memory(int uffd, hwaddr start, hwaddr length, bool wp)
 
     return 0;
 }
-
-__attribute__ ((unused))
-static bool uffd_poll_events(int uffd, int tmo);
 
 /**
  * uffd_read_events: read pending UFFD events
@@ -2006,7 +2007,49 @@ static bool get_fault_page(RAMState *rs, PageSearchStatus *pss)
         return false;
     }
 
+    rs->last_fault_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     return true;
+}
+
+#define FAULT_HIGH_LATENCY_NS   5000000     /* 5 ms */
+#define SLOW_FAULT_POLL_TMO     5           /* 5 ms */
+#define SLOW_FAULT_SKIP_PAGES   200
+
+/**
+ * limit_scan_rate: limit RAM linear scan rate in case of growing write fault
+ *  latencies, used in write-tracking migration implementation
+ *
+ * @rs: current RAM state
+ *
+ */
+static void limit_scan_rate(RAMState *rs)
+{
+    int64_t last_fault_latency_ns = 0;
+
+    if (!rs->ram_wt_enabled) {
+        return;
+    }
+
+    /* Check if last write fault time is available */
+    if (rs->last_fault_ns) {
+        last_fault_latency_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) -
+                rs->last_fault_ns;
+        rs->last_fault_ns = 0;
+    }
+
+    /* In case last fault time was available and we have
+     * latency value, check if it's not too high */
+    if (last_fault_latency_ns > FAULT_HIGH_LATENCY_NS) {
+        /* Reset counter after each slow write fault */
+        rs->throttle_skip_counter = SLOW_FAULT_SKIP_PAGES;
+    }
+    /* Delay thread execution till next write fault occures or timeout expires.
+     * Next SLOW_FAULT_SKIP_PAGES can be write fault pages only, not from pages going from
+     * linear scan logic. Thus we moderate migration stream rate to reduce latencies */
+    if (rs->throttle_skip_counter > 0) {
+        uffd_poll_events(rs->uffdio_fd, SLOW_FAULT_POLL_TMO);
+        rs->throttle_skip_counter--;
+    }
 }
 
 /**
@@ -2078,6 +2121,9 @@ static int ram_find_and_save_block(RAMState *rs, bool last_stage)
                 if (res < 0) {
                     break;
                 }
+
+                /* Linear scan rate limiting */
+                limit_scan_rate(rs);
             }
         }
     } while (!pages && again);
@@ -2191,12 +2237,15 @@ static void ram_state_reset(RAMState *rs)
     rs->last_sent_block = NULL;
     rs->last_page = 0;
     rs->last_version = ram_list.version;
+    rs->last_fault_ns = 0;
+    rs->throttle_skip_counter = 0;
     rs->ram_wt_enabled = migrate_track_writes_ram();
     rs->ram_bulk_stage = !rs->ram_wt_enabled;
     rs->fpo_enabled = false;
 }
 
 #define MAX_WAIT 50 /* ms, half buffered_file limit */
+#define WT_MAX_WAIT 1000 /* 1000 ms, need bigger limit for 'write-tracking' migration */
 
 /*
  * 'expected' is the value you expect the bitmap mostly to be full
@@ -2872,7 +2921,8 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
             if ((i & 63) == 0) {
                 uint64_t t1 = (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - t0) /
                               1000000;
-                if (t1 > MAX_WAIT) {
+                uint64_t max_wait = rs->ram_wt_enabled ? WT_MAX_WAIT : MAX_WAIT;
+                if (t1 > max_wait) {
                     trace_ram_save_iterate_big_wait(t1, i);
                     break;
                 }
