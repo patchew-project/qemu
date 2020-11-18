@@ -2783,7 +2783,7 @@ static void load_elf_image(const char *image_name, int image_fd,
              * segment, in that case just let zero_bss allocate an empty buffer
              * for it.
              */
-            if (eppnt->p_filesz != 0) {
+            if (vaddr_len != 0) {
                 error = target_mmap(vaddr_ps, vaddr_len, elf_prot,
                                     MAP_PRIVATE | MAP_FIXED,
                                     image_fd, eppnt->p_offset - vaddr_po);
