@@ -969,6 +969,21 @@ static void gen_gorc(TCGv ret, TCGv arg1, TCGv arg2)
     tcg_temp_free(shamt);
 }
 
+#define GEN_SHADD(SHAMT)                                       \
+static void gen_sh##SHAMT##add(TCGv ret, TCGv arg1, TCGv arg2) \
+{                                                              \
+    TCGv t;                                                    \
+    t = tcg_temp_new();                                        \
+                                                               \
+    tcg_gen_shli_tl(t, arg1, SHAMT);                           \
+    tcg_gen_add_tl(ret, t, arg2);                              \
+                                                               \
+    tcg_temp_free(t);                                          \
+}
+
+GEN_SHADD(1)
+GEN_SHADD(2)
+GEN_SHADD(3)
 
 #ifdef TARGET_RISCV64
 
@@ -1219,6 +1234,24 @@ static void gen_gorcw(TCGv ret, TCGv arg1, TCGv arg2)
 
     tcg_temp_free(shamt);
 }
+
+#define GEN_SHADDU_W(SHAMT)                                       \
+static void gen_sh##SHAMT##addu_w(TCGv ret, TCGv arg1, TCGv arg2) \
+{                                                                 \
+    TCGv t;                                                       \
+    t = tcg_temp_new();                                           \
+                                                                  \
+    tcg_gen_ext32u_tl(t, arg1);                                   \
+                                                                  \
+    tcg_gen_shli_tl(t, t, SHAMT);                                 \
+    tcg_gen_add_tl(ret, t, arg2);                                 \
+                                                                  \
+    tcg_temp_free(t);                                             \
+}
+
+GEN_SHADDU_W(1)
+GEN_SHADDU_W(2)
+GEN_SHADDU_W(3)
 
 #endif
 
