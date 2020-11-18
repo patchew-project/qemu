@@ -3548,6 +3548,18 @@ static void *migration_thread(void *opaque)
     qemu_savevm_state_setup(s->to_dst_file);
 
     if (qemu_savevm_state_guest_unplug_pending()) {
+        /* if guest is paused, it can send back the wait event */
+        if (!runstate_is_running()) {
+            Error *local_err = NULL;
+
+            error_setg(&local_err, "migration: network failover and "
+                       "guest is paused'");
+            migrate_set_error(s, local_err);
+            error_free(local_err);
+            migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
+                              MIGRATION_STATUS_FAILED);
+            goto end;
+        }
         migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
                           MIGRATION_STATUS_WAIT_UNPLUG);
 
@@ -3597,6 +3609,7 @@ static void *migration_thread(void *opaque)
     }
 
     trace_migration_thread_after_loop();
+end:
     migration_iteration_finish(s);
     object_unref(OBJECT(s));
     rcu_unregister_thread();
