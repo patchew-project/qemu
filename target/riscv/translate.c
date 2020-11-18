@@ -888,6 +888,38 @@ static void gen_sbext(TCGv ret, TCGv arg1, TCGv arg2)
     tcg_temp_free(shamt);
 }
 
+static void gen_slo(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv shamt, t;
+    shamt = tcg_temp_new();
+    t = tcg_temp_new();
+
+    gen_sbop_shamt(shamt, arg2);
+
+    tcg_gen_not_tl(t, arg1);
+    tcg_gen_shl_tl(t, t, arg2);
+    tcg_gen_not_tl(ret, t);
+
+    tcg_temp_free(shamt);
+    tcg_temp_free(t);
+}
+
+static void gen_sro(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv shamt, t;
+    shamt = tcg_temp_new();
+    t = tcg_temp_new();
+
+    gen_sbop_shamt(shamt, arg2);
+
+    tcg_gen_not_tl(t, arg1);
+    tcg_gen_shr_tl(t, t, arg2);
+    tcg_gen_not_tl(ret, t);
+
+    tcg_temp_free(shamt);
+    tcg_temp_free(t);
+}
+
 
 #ifdef TARGET_RISCV64
 
@@ -1021,6 +1053,44 @@ static void gen_sbextw(TCGv ret, TCGv arg1, TCGv arg2)
     tcg_gen_andi_tl(ret, ret, 1);
 
     tcg_temp_free(shamt);
+}
+
+static void gen_slow(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv shamt, t;
+    shamt = tcg_temp_new();
+    t = tcg_temp_new();
+
+    tcg_gen_ext32u_tl(arg1, arg1);
+
+    gen_sbopw_shamt(shamt, arg2);
+    tcg_gen_not_tl(t, arg1);
+    tcg_gen_shl_tl(t, t, shamt);
+    tcg_gen_not_tl(ret, t);
+
+    tcg_gen_ext32s_tl(ret, ret);
+
+    tcg_temp_free(shamt);
+    tcg_temp_free(t);
+}
+
+static void gen_srow(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv shamt, t;
+    shamt = tcg_temp_new();
+    t = tcg_temp_new();
+
+    tcg_gen_ext32u_tl(arg1, arg1);
+
+    gen_sbopw_shamt(shamt, arg2);
+    tcg_gen_not_tl(t, arg1);
+    tcg_gen_shr_tl(t, t, shamt);
+    tcg_gen_not_tl(ret, t);
+
+    tcg_gen_ext32s_tl(ret, ret);
+
+    tcg_temp_free(shamt);
+    tcg_temp_free(t);
 }
 
 #endif
