@@ -10,4 +10,5 @@ i386_ss.add(when: 'CONFIG_TCG', if_true: files(
   'seg_helper.c',
   'smm_helper.c',
   'svm_helper.c',
-  'translate.c'), if_false: files('tcg-stub.c'))
+  'translate.c',
+  'cpu.c'), if_false: files('tcg-stub.c'))
