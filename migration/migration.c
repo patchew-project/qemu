@@ -3716,7 +3716,13 @@ static void *migration_thread(void *opaque)
 
 static void wt_migration_vm_start_bh(void *opaque)
 {
-    /* TODO: implement */
+    MigrationState *s = opaque;
+
+    qemu_bh_delete(s->wt_vm_start_bh);
+    s->wt_vm_start_bh = NULL;
+
+    vm_start();
+    s->downtime = qemu_clock_get_ms(QEMU_CLOCK_REALTIME) - s->downtime_start;
 }
 
 /*
