@@ -56,6 +56,7 @@
 #include "net/announce.h"
 #include "qemu/queue.h"
 #include "multifd.h"
+#include "sysemu/cpus.h"
 
 #ifdef CONFIG_VFIO
 #include "hw/vfio/vfio-common.h"
@@ -1161,6 +1162,91 @@ static bool migrate_caps_check(bool *cap_list,
 
         if (cap_list[MIGRATION_CAPABILITY_X_IGNORE_SHARED]) {
             error_setg(errp, "Postcopy is not compatible with ignore-shared");
+            return false;
+        }
+    }
+
+    if (cap_list[MIGRATION_CAPABILITY_TRACK_WRITES_RAM]) {
+        if (cap_list[MIGRATION_CAPABILITY_POSTCOPY_RAM]) {
+            error_setg(errp,
+                    "Track-writes is not compatible with postcopy-ram");
+            return false;
+        }
+
+        if (cap_list[MIGRATION_CAPABILITY_DIRTY_BITMAPS]) {
+            error_setg(errp,
+                    "Track-writes is not compatible with dirty-bitmaps");
+            return false;
+        }
+
+        if (cap_list[MIGRATION_CAPABILITY_POSTCOPY_BLOCKTIME]) {
+            error_setg(errp,
+                    "Track-writes is not compatible with postcopy-blocktime");
+            return false;
+        }
+
+        if (cap_list[MIGRATION_CAPABILITY_LATE_BLOCK_ACTIVATE]) {
+            error_setg(errp,
+                    "Track-writes is not compatible with late-block-activate");
+            return false;
+        }
+
+        if (cap_list[MIGRATION_CAPABILITY_RETURN_PATH]) {
+            error_setg(errp,
+                    "Track-writes is not compatible with return-path");
+            return false;
+        }
+
+        if (cap_list[MIGRATION_CAPABILITY_MULTIFD]) {
+            error_setg(errp, "Track-writes is not compatible with multifd");
+            return false;
+        }
+
+        if (cap_list[MIGRATION_CAPABILITY_PAUSE_BEFORE_SWITCHOVER]) {
+            error_setg(errp,
+                    "Track-writes is not compatible with pause-before-switchover");
+            return false;
+        }
+
+        if (cap_list[MIGRATION_CAPABILITY_AUTO_CONVERGE]) {
+            error_setg(errp,
+                    "Track-writes is not compatible with auto-converge");
+            return false;
+        }
+
+        if (cap_list[MIGRATION_CAPABILITY_RELEASE_RAM]) {
+            error_setg(errp,
+                    "Track-writes is not compatible with release-ram");
+            return false;
+        }
+
+        if (cap_list[MIGRATION_CAPABILITY_RDMA_PIN_ALL]) {
+            error_setg(errp,
+                    "Track-writes is not compatible with rdma-pin-all");
+            return false;
+        }
+
+        if (cap_list[MIGRATION_CAPABILITY_COMPRESS]) {
+            error_setg(errp,
+                    "Track-writes is not compatible with compression");
+            return false;
+        }
+
+        if (cap_list[MIGRATION_CAPABILITY_XBZRLE]) {
+            error_setg(errp,
+                    "Track-writes is not compatible with XBZLRE");
+            return false;
+        }
+
+        if (cap_list[MIGRATION_CAPABILITY_X_COLO]) {
+            error_setg(errp,
+                    "Track-writes is not compatible with x-colo");
+            return false;
+        }
+
+        if (cap_list[MIGRATION_CAPABILITY_VALIDATE_UUID]) {
+            error_setg(errp,
+                    "Track-writes is not compatible with validate-uuid");
             return false;
         }
     }
@@ -2490,6 +2576,15 @@ bool migrate_use_block_incremental(void)
     return s->parameters.block_incremental;
 }
 
+bool migrate_track_writes_ram(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_TRACK_WRITES_RAM];
+}
+
 /* migration thread support */
 /*
  * Something bad happened to the RP stream, mark an error
@@ -3783,6 +3878,7 @@ static Property migration_properties[] = {
     DEFINE_PROP_MIG_CAP("x-block", MIGRATION_CAPABILITY_BLOCK),
     DEFINE_PROP_MIG_CAP("x-return-path", MIGRATION_CAPABILITY_RETURN_PATH),
     DEFINE_PROP_MIG_CAP("x-multifd", MIGRATION_CAPABILITY_MULTIFD),
+    DEFINE_PROP_MIG_CAP("x-track-writes-ram", MIGRATION_CAPABILITY_TRACK_WRITES_RAM),
 
     DEFINE_PROP_END_OF_LIST(),
 };
