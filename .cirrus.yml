@@ -29,7 +29,7 @@ macos_task:
                    --extra-cflags='-Wno-error=deprecated-declarations'
                    || { cat config.log meson-logs/meson-log.txt; exit 1; }
     - gmake -j$(sysctl -n hw.ncpu)
-    - gmake check V=1
+    - gmake -j$(sysctl -n hw.ncpu) check V=1
 
 macos_xcode_task:
   osx_instance:
@@ -43,7 +43,7 @@ macos_xcode_task:
     - ../configure --extra-cflags='-Wno-error=deprecated-declarations' --enable-modules
                    --enable-werror --cc=clang || { cat config.log meson-logs/meson-log.txt; exit 1; }
     - gmake -j$(sysctl -n hw.ncpu)
-    - gmake check V=1
+    - gmake -j$(sysctl -n hw.ncpu) check V=1
 
 windows_msys2_task:
   timeout_in: 90m
