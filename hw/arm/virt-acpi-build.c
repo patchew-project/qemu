@@ -117,16 +117,17 @@ static void acpi_dsdt_add_flash1(Aml *scope, int index,
     aml_append(scope, dev);
 }
 
-static void acpi_dsdt_add_flash(Aml *scope, const MemMapEntry *flash_memmap,
-    PFlashCFI01 *flash[2])
+static void acpi_dsdt_add_flash(Aml *scope, VirtMachineState *vms)
 {
+    MemMapEntry *flash_memmap = &vms->memmap[VIRT_FLASH];
+
     acpi_dsdt_add_flash1(scope, 0,
                          flash_memmap->base,
-                         virt_flash_size(flash[0]));
+                         virt_flash_size(vms, vms->flash[0]));
 
     acpi_dsdt_add_flash1(scope, 1,
                          flash_memmap->base + flash_memmap->size / 2,
-                         virt_flash_size(flash[1]));
+                         virt_flash_size(vms, vms->flash[1]));
 }
 
 static void acpi_dsdt_add_virtio(Aml *scope,
@@ -606,7 +607,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     acpi_dsdt_add_uart(scope, &memmap[VIRT_UART],
                        (irqmap[VIRT_UART] + ARM_SPI_BASE));
     if (vmc->acpi_expose_flash) {
-        acpi_dsdt_add_flash(scope, &memmap[VIRT_FLASH], vms->flash);
+        acpi_dsdt_add_flash(scope, vms);
     }
     acpi_dsdt_add_fw_cfg(scope, &memmap[VIRT_FW_CFG]);
     acpi_dsdt_add_virtio(scope, &memmap[VIRT_MMIO],
