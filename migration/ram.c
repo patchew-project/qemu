@@ -314,6 +314,8 @@ struct RAMState {
     ram_addr_t last_page;
     /* last ram version we have seen */
     uint32_t last_version;
+    /* 'write-tracking' migration is enabled */
+    bool ram_wt_enabled;
     /* We are in the first round */
     bool ram_bulk_stage;
     /* The free page optimization is enabled */
@@ -574,8 +576,6 @@ static int uffd_protect_memory(int uffd, hwaddr start, hwaddr length, bool wp)
     return 0;
 }
 
-__attribute__ ((unused))
-static int uffd_read_events(int uffd, struct uffd_msg *msgs, int count);
 __attribute__ ((unused))
 static bool uffd_poll_events(int uffd, int tmo);
 
@@ -1930,6 +1930,86 @@ static int ram_save_host_page(RAMState *rs, PageSearchStatus *pss,
 }
 
 /**
+ * ram_find_block_by_host_address: find RAM block containing host page
+ *
+ * Returns true if RAM block is found and pss->block/page are
+ * pointing to the given host page, false in case of an error
+ *
+ * @rs: current RAM state
+ * @pss: page-search-status structure
+ */
+static bool ram_find_block_by_host_address(RAMState *rs, PageSearchStatus *pss,
+        hwaddr page_address)
+{
+    bool found = false;
+
+    pss->block = rs->last_seen_block;
+    do {
+        if (page_address >= (hwaddr) pss->block->host &&
+            (page_address + TARGET_PAGE_SIZE) <=
+                    ((hwaddr) pss->block->host + pss->block->used_length)) {
+            pss->page = (unsigned long)
+                    ((page_address - (hwaddr) pss->block->host) >> TARGET_PAGE_BITS);
+            found = true;
+            break;
+        }
+
+        pss->block = QLIST_NEXT_RCU(pss->block, next);
+        if (!pss->block) {
+            /* Hit the end of the list */
+            pss->block = QLIST_FIRST_RCU(&ram_list.blocks);
+        }
+    } while (pss->block != rs->last_seen_block);
+
+    rs->last_seen_block = pss->block;
+    /*
+     * Since we are in the same loop with ram_find_and_save_block(),
+     * need to reset pss->complete_round after switching to
+     * other block/page in pss.
+     */
+    pss->complete_round = false;
+
+    return found;
+}
+
+/**
+ * get_fault_page: try to get next UFFD write fault page and, if pending fault
+ *   is found, put info about RAM block and block page into pss structure
+ *
+ * Returns true in case of UFFD write fault detected, false otherwise
+ *
+ * @rs: current RAM state
+ * @pss: page-search-status structure
+ *
+ */
+static bool get_fault_page(RAMState *rs, PageSearchStatus *pss)
+{
+    struct uffd_msg uffd_msg;
+    hwaddr page_address;
+    int res;
+
+    if (!rs->ram_wt_enabled) {
+        return false;
+    }
+
+    res = uffd_read_events(rs->uffdio_fd, &uffd_msg, 1);
+    if (res <= 0) {
+        return false;
+    }
+
+    page_address = uffd_msg.arg.pagefault.address;
+    if (!ram_find_block_by_host_address(rs, pss, page_address)) {
+        /* In case we couldn't find respective block, just unprotect faulting page */
+        uffd_protect_memory(rs->uffdio_fd, page_address, TARGET_PAGE_SIZE, false);
+        error_report("ram_find_block_by_host_address() failed: address=0x%0lx",
+                     page_address);
+        return false;
+    }
+
+    return true;
+}
+
+/**
  * ram_find_and_save_block: finds a dirty page and sends it to f
  *
  * Called within an RCU critical section.
@@ -1955,25 +2035,50 @@ static int ram_find_and_save_block(RAMState *rs, bool last_stage)
         return pages;
     }
 
+    if (!rs->last_seen_block) {
+        rs->last_seen_block = QLIST_FIRST_RCU(&ram_list.blocks);
+    }
     pss.block = rs->last_seen_block;
     pss.page = rs->last_page;
     pss.complete_round = false;
 
-    if (!pss.block) {
-        pss.block = QLIST_FIRST_RCU(&ram_list.blocks);
-    }
-
     do {
-        again = true;
-        found = get_queued_page(rs, &pss);
+        ram_addr_t page;
+        ram_addr_t page_to;
 
+        again = true;
+        /* In case of 'write-tracking' migration we first try
+         * to poll UFFD and get write page fault event */
+        found = get_fault_page(rs, &pss);
+        if (!found) {
+            /* No trying to fetch something from the priority queue */
+            found = get_queued_page(rs, &pss);
+        }
         if (!found) {
             /* priority queue empty, so just search for something dirty */
             found = find_dirty_block(rs, &pss, &again);
         }
 
         if (found) {
+            page = pss.page;
             pages = ram_save_host_page(rs, &pss, last_stage);
+            page_to = pss.page;
+
+            /* Check if page is from UFFD-managed region */
+            if (pss.block->flags & RAM_UF_WRITEPROTECT) {
+                hwaddr page_address = (hwaddr) pss.block->host +
+                        ((hwaddr) page << TARGET_PAGE_BITS);
+                hwaddr run_length = (hwaddr) (page_to - page + 1) << TARGET_PAGE_BITS;
+                int res;
+
+                /* Flush async buffers before un-protect */
+                qemu_fflush(rs->f);
+                /* Un-protect memory range */
+                res = uffd_protect_memory(rs->uffdio_fd, page_address, run_length, false);
+                if (res < 0) {
+                    break;
+                }
+            }
         }
     } while (!pages && again);
 
@@ -2086,7 +2191,8 @@ static void ram_state_reset(RAMState *rs)
     rs->last_sent_block = NULL;
     rs->last_page = 0;
     rs->last_version = ram_list.version;
-    rs->ram_bulk_stage = true;
+    rs->ram_wt_enabled = migrate_track_writes_ram();
+    rs->ram_bulk_stage = !rs->ram_wt_enabled;
     rs->fpo_enabled = false;
 }
 
