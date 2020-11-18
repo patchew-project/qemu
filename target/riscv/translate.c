@@ -744,6 +744,65 @@ static void gen_xnor(TCGv ret, TCGv arg1, TCGv arg2)
     tcg_temp_free(t);
 }
 
+static void gen_pack(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv lower, higher;
+    lower = tcg_temp_new();
+    higher = tcg_temp_new();
+
+#ifdef TARGET_RISCV64
+    tcg_gen_ext32u_tl(lower, arg1);
+    tcg_gen_shli_tl(higher, arg2, 32);
+#else
+    tcg_gen_ext16u_tl(lower, arg1);
+    tcg_gen_shli_tl(higher, arg2, 16);
+#endif
+
+    tcg_gen_or_tl(ret, higher, lower);
+
+    tcg_temp_free(lower);
+    tcg_temp_free(higher);
+}
+
+static void gen_packu(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv lower, higher;
+    lower = tcg_temp_new();
+    higher = tcg_temp_new();
+
+#ifdef TARGET_RISCV64
+    tcg_gen_shri_tl(lower, arg1, 32);
+    tcg_gen_shri_tl(higher, arg2, 32);
+    tcg_gen_shli_tl(higher, higher, 32);
+#else
+    tcg_gen_shri_tl(lower, arg1, 16);
+    tcg_gen_shri_tl(higher, arg2, 16);
+    tcg_gen_shli_tl(higher, higher, 16);
+#endif
+
+    tcg_gen_or_tl(ret, higher, lower);
+
+    tcg_temp_free(lower);
+    tcg_temp_free(higher);
+}
+
+static void gen_packh(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv lower, higher;
+    lower = tcg_temp_new();
+    higher = tcg_temp_new();
+
+    tcg_gen_ext8u_tl(lower, arg1);
+    tcg_gen_ext8u_tl(higher, arg2);
+    tcg_gen_shli_tl(higher, higher, 8);
+
+    tcg_gen_or_tl(ret, higher, lower);
+
+    tcg_temp_free(lower);
+    tcg_temp_free(higher);
+}
+
+
 #ifdef TARGET_RISCV64
 
 static bool gen_cxzw(DisasContext *ctx, arg_r2 *a,
@@ -774,6 +833,39 @@ static void gen_pcntw(TCGv ret, TCGv arg1)
 {
     tcg_gen_ext32u_tl(arg1, arg1);
     tcg_gen_ctpop_tl(ret, arg1);
+}
+
+static void gen_packw(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv lower, higher;
+    lower = tcg_temp_new();
+    higher = tcg_temp_new();
+
+    tcg_gen_ext16u_tl(lower, arg1);
+    tcg_gen_shli_tl(higher, arg2, 16);
+    tcg_gen_or_tl(ret, higher, lower);
+
+    tcg_gen_ext32s_tl(ret, ret);
+
+    tcg_temp_free(lower);
+    tcg_temp_free(higher);
+}
+
+static void gen_packuw(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv lower, higher;
+    lower = tcg_temp_new();
+    higher = tcg_temp_new();
+
+    tcg_gen_shri_tl(lower, arg1, 16);
+    tcg_gen_shri_tl(higher, arg2, 16);
+    tcg_gen_shli_tl(higher, higher, 16);
+    tcg_gen_or_tl(ret, higher, lower);
+
+    tcg_gen_ext32s_tl(ret, ret);
+
+    tcg_temp_free(lower);
+    tcg_temp_free(higher);
 }
 
 #endif
