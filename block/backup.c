@@ -36,6 +36,7 @@ typedef struct BackupBlockJob {
     BlockJob common;
     BlockDriverState *backup_top;
     BlockDriverState *source_bs;
+    BlockDriverState *target_bs;
 
     BdrvDirtyBitmap *sync_bitmap;
 
@@ -279,6 +280,13 @@ static int coroutine_fn backup_run(Job *job, Error **errp)
     return ret;
 }
 
+static void backup_cancel(Job *job)
+{
+    BackupBlockJob *s = container_of(job, BackupBlockJob, common.job);
+
+    bdrv_cancel_in_flight(s->target_bs);
+}
+
 static const BlockJobDriver backup_job_driver = {
     .job_driver = {
         .instance_size          = sizeof(BackupBlockJob),
@@ -289,6 +297,7 @@ static const BlockJobDriver backup_job_driver = {
         .commit                 = backup_commit,
         .abort                  = backup_abort,
         .clean                  = backup_clean,
+        .cancel                 = backup_cancel,
     }
 };
 
@@ -456,6 +465,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
 
     job->backup_top = backup_top;
     job->source_bs = bs;
+    job->target_bs = target;
     job->on_source_error = on_source_error;
     job->on_target_error = on_target_error;
     job->sync_mode = sync_mode;
