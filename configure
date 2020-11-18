@@ -3094,14 +3094,6 @@ EOF
     fi
 fi
 
-##########################################
-# getifaddrs (for tests/test-io-channel-socket )
-
-have_ifaddrs_h=yes
-if ! check_include "ifaddrs.h" ; then
-  have_ifaddrs_h=no
-fi
-
 #########################################
 # libdrm check
 have_drm_h=no
@@ -6205,9 +6197,6 @@ if test "$tasn1" = "yes" ; then
 fi
 if test "$auth_pam" = "yes" ; then
     echo "CONFIG_AUTH_PAM=y" >> $config_host_mak
-fi
-if test "$have_ifaddrs_h" = "yes" ; then
-    echo "HAVE_IFADDRS_H=y" >> $config_host_mak
 fi
 if test "$have_drm_h" = "yes" ; then
   echo "HAVE_DRM_H=y" >> $config_host_mak
