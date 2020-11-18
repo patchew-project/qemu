@@ -117,9 +117,6 @@ int qemu_mprotect_none(void *addr, size_t size)
 
 #ifndef _WIN32
 
-static int fcntl_op_setlk = -1;
-static int fcntl_op_getlk = -1;
-
 /*
  * Dups an fd and sets the flags
  */
@@ -187,68 +184,82 @@ static int qemu_parse_fdset(const char *param)
     return qemu_parse_fd(param);
 }
 
-static void qemu_probe_lock_ops(void)
+bool qemu_has_ofd_lock(int fd)
 {
-    if (fcntl_op_setlk == -1) {
 #ifdef F_OFD_SETLK
-        int fd;
-        int ret;
-        struct flock fl = {
-            .l_whence = SEEK_SET,
-            .l_start  = 0,
-            .l_len    = 0,
-            .l_type   = F_WRLCK,
-        };
+    int ret;
+    struct flock fl = {
+        .l_whence = SEEK_SET,
+        .l_start  = 0,
+        .l_len    = 0,
+        .l_type   = F_RDLCK,
+        .l_pid    = 0,
+    };
 
-        fd = open("/dev/null", O_RDWR);
-        if (fd < 0) {
-            fprintf(stderr,
-                    "Failed to open /dev/null for OFD lock probing: %s\n",
-                    strerror(errno));
-            fcntl_op_setlk = F_SETLK;
-            fcntl_op_getlk = F_GETLK;
-            return;
-        }
-        ret = fcntl(fd, F_OFD_GETLK, &fl);
-        close(fd);
-        if (!ret) {
-            fcntl_op_setlk = F_OFD_SETLK;
-            fcntl_op_getlk = F_OFD_GETLK;
-        } else {
-            fcntl_op_setlk = F_SETLK;
-            fcntl_op_getlk = F_GETLK;
-        }
-#else
-        fcntl_op_setlk = F_SETLK;
-        fcntl_op_getlk = F_GETLK;
-#endif
-    }
-}
+    ret = fcntl(fd, F_OFD_GETLK, &fl);
 
-bool qemu_has_ofd_lock(void)
-{
-    qemu_probe_lock_ops();
-#ifdef F_OFD_SETLK
-    return fcntl_op_setlk == F_OFD_SETLK;
+    return ret == 0;
 #else
     return false;
 #endif
 }
 
-static int qemu_lock_fcntl(int fd, int64_t start, int64_t len, int fl_type)
+static int qemu_fcntl(int fd, struct flock *fl, bool setlk, bool *ofd_lock)
 {
     int ret;
+    int op = setlk ? F_SETLK : F_GETLK;
+
+    if (*ofd_lock) {
+#ifdef F_OFD_SETLK
+        if (op == F_SETLK) {
+            op = F_OFD_SETLK;
+        } else {
+            op = F_OFD_GETLK;
+        }
+
+        ret = fcntl(fd, op, fl);
+        if (ret == -1 && errno == EINVAL) {
+            *ofd_lock = false;
+            if (op == F_OFD_SETLK) {
+                op = F_SETLK;
+            } else {
+                op = F_GETLK;
+            }
+        }
+#else
+        *ofd_lock = false;
+#endif
+    }
+    if (!*ofd_lock) {
+        ret = fcntl(fd, op, fl);
+    }
+
+    return ret;
+}
+
+static inline int _qemu_lock_fcntl(int fd, struct flock *fl)
+{
+    int ret;
+    bool ofd_lock = true;
+
+    do {
+        ret = qemu_fcntl(fd, fl, true, &ofd_lock);
+    } while (ret == -1 && errno == EINTR);
+
+    return ret == -1 ? -errno : 0;
+}
+
+static int qemu_lock_fcntl(int fd, int64_t start, int64_t len, int fl_type)
+{
     struct flock fl = {
         .l_whence = SEEK_SET,
         .l_start  = start,
         .l_len    = len,
         .l_type   = fl_type,
+        .l_pid    = 0,
     };
-    qemu_probe_lock_ops();
-    do {
-        ret = fcntl(fd, fcntl_op_setlk, &fl);
-    } while (ret == -1 && errno == EINTR);
-    return ret == -1 ? -errno : 0;
+
+    return _qemu_lock_fcntl(fd, &fl);
 }
 
 int qemu_lock_fd(int fd, int64_t start, int64_t len, bool exclusive)
@@ -261,22 +272,30 @@ int qemu_unlock_fd(int fd, int64_t start, int64_t len)
     return qemu_lock_fcntl(fd, start, len, F_UNLCK);
 }
 
-int qemu_lock_fd_test(int fd, int64_t start, int64_t len, bool exclusive)
+static inline int _qemu_lock_fd_test(int fd, struct flock *fl)
 {
     int ret;
+    bool ofd_lock = true;
+
+    ret = qemu_fcntl(fd, fl, false, &ofd_lock);
+    if (ret == -1) {
+        return -errno;
+    } else {
+        return fl->l_type == F_UNLCK ? 0 : -EAGAIN;
+    }
+}
+
+int qemu_lock_fd_test(int fd, int64_t start, int64_t len, bool exclusive)
+{
     struct flock fl = {
         .l_whence = SEEK_SET,
         .l_start  = start,
         .l_len    = len,
         .l_type   = exclusive ? F_WRLCK : F_RDLCK,
+        .l_pid    = 0,
     };
-    qemu_probe_lock_ops();
-    ret = fcntl(fd, fcntl_op_getlk, &fl);
-    if (ret == -1) {
-        return -errno;
-    } else {
-        return fl.l_type == F_UNLCK ? 0 : -EAGAIN;
-    }
+
+    return _qemu_lock_fd_test(fd, &fl);
 }
 #endif
 

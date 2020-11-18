@@ -584,34 +584,6 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     s->use_linux_io_uring = (aio == BLOCKDEV_AIO_OPTIONS_IO_URING);
 #endif
 
-    locking = qapi_enum_parse(&OnOffAuto_lookup,
-                              qemu_opt_get(opts, "locking"),
-                              ON_OFF_AUTO_AUTO, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        ret = -EINVAL;
-        goto fail;
-    }
-    switch (locking) {
-    case ON_OFF_AUTO_ON:
-        s->use_lock = true;
-        if (!qemu_has_ofd_lock()) {
-            warn_report("File lock requested but OFD locking syscall is "
-                        "unavailable, falling back to POSIX file locks");
-            error_printf("Due to the implementation, locks can be lost "
-                         "unexpectedly.\n");
-        }
-        break;
-    case ON_OFF_AUTO_OFF:
-        s->use_lock = false;
-        break;
-    case ON_OFF_AUTO_AUTO:
-        s->use_lock = qemu_has_ofd_lock();
-        break;
-    default:
-        abort();
-    }
-
     str = qemu_opt_get(opts, "pr-manager");
     if (str) {
         s->pr_mgr = pr_manager_lookup(str, &local_err);
@@ -640,6 +612,34 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
         goto fail;
     }
     s->fd = fd;
+
+    locking = qapi_enum_parse(&OnOffAuto_lookup,
+                              qemu_opt_get(opts, "locking"),
+                              ON_OFF_AUTO_AUTO, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
+    switch (locking) {
+    case ON_OFF_AUTO_ON:
+        s->use_lock = true;
+        if (!qemu_has_ofd_lock(s->fd)) {
+            warn_report("File lock requested but OFD locking syscall is "
+                        "unavailable, falling back to POSIX file locks");
+            error_printf("Due to the implementation, locks can be lost "
+                         "unexpectedly.\n");
+        }
+        break;
+    case ON_OFF_AUTO_OFF:
+        s->use_lock = false;
+        break;
+    case ON_OFF_AUTO_AUTO:
+        s->use_lock = qemu_has_ofd_lock(s->fd);
+        break;
+    default:
+        abort();
+    }
 
     /* Check s->open_flags rather than bdrv_flags due to auto-read-only */
     if (s->open_flags & O_RDWR) {

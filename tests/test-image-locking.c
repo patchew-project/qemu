@@ -144,14 +144,21 @@ static void test_set_perm_abort(void)
 
 int main(int argc, char **argv)
 {
+    int fd;
+
     bdrv_init();
     qemu_init_main_loop(&error_abort);
 
     g_test_init(&argc, &argv, NULL);
 
-    if (qemu_has_ofd_lock()) {
-        g_test_add_func("/image-locking/basic", test_image_locking_basic);
-        g_test_add_func("/image-locking/set-perm-abort", test_set_perm_abort);
+    fd = open("/dev/null", O_RDONLY);
+
+    if (fd != -1 && qemu_has_ofd_lock(fd)) {
+        if (qemu_has_ofd_lock(fd)) {
+            g_test_add_func("/image-locking/basic", test_image_locking_basic);
+            g_test_add_func("/image-locking/set-perm-abort",
+                            test_set_perm_abort);
+        }
     }
 
     return g_test_run();
