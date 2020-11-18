@@ -673,10 +673,22 @@ static void gen_addw(TCGv ret, TCGv arg1, TCGv arg2)
     tcg_gen_ext32s_tl(ret, ret);
 }
 
+static void gen_addwu(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    tcg_gen_add_tl(ret, arg1, arg2);
+    tcg_gen_ext32u_tl(ret, ret);
+}
+
 static void gen_subw(TCGv ret, TCGv arg1, TCGv arg2)
 {
     tcg_gen_sub_tl(ret, arg1, arg2);
     tcg_gen_ext32s_tl(ret, ret);
+}
+
+static void gen_subwu(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    tcg_gen_sub_tl(ret, arg1, arg2);
+    tcg_gen_ext32u_tl(ret, ret);
 }
 
 static void gen_mulw(TCGv ret, TCGv arg1, TCGv arg2)
@@ -1252,6 +1264,12 @@ static void gen_sh##SHAMT##addu_w(TCGv ret, TCGv arg1, TCGv arg2) \
 GEN_SHADDU_W(1)
 GEN_SHADDU_W(2)
 GEN_SHADDU_W(3)
+
+static void gen_addu_w(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    tcg_gen_ext32u_tl(arg1, arg1);
+    tcg_gen_add_tl(ret, arg1, arg2);
+}
 
 #endif
 

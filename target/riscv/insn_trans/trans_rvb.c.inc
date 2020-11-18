@@ -434,4 +434,42 @@ GEN_TRANS_SHADDU_W(1)
 GEN_TRANS_SHADDU_W(2)
 GEN_TRANS_SHADDU_W(3)
 
+static bool trans_addwu(DisasContext *ctx, arg_addwu *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_arith(ctx, a, &gen_addwu);
+}
+
+static bool trans_addiwu(DisasContext *ctx, arg_addiwu *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_arith_imm_tl(ctx, a, &gen_addwu);
+}
+
+static bool trans_subwu(DisasContext *ctx, arg_subwu *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_arith(ctx, a, &gen_subwu);
+}
+
+static bool trans_addu_w(DisasContext *ctx, arg_addu_w *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_arith(ctx, a, &gen_addu_w);
+}
+
+static bool trans_slliu_w(DisasContext *ctx, arg_slliu_w *a)
+{
+    TCGv source1;
+    source1 = tcg_temp_new();
+    gen_get_gpr(source1, a->rs1);
+
+    tcg_gen_ext32u_tl(source1, source1);
+    tcg_gen_shli_tl(source1, source1, a->shamt);
+    gen_set_gpr(a->rd, source1);
+
+    tcg_temp_free(source1);
+    return true;
+}
+
 #endif
