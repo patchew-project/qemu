@@ -958,6 +958,17 @@ static bool gen_grevi(DisasContext *ctx, arg_grevi *a)
     return true;
 }
 
+static void gen_gorc(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv shamt;
+    shamt = tcg_temp_new();
+
+    gen_sbop_shamt(shamt, arg2);
+    gen_helper_gorc(ret, arg1, shamt);
+
+    tcg_temp_free(shamt);
+}
+
 
 #ifdef TARGET_RISCV64
 
@@ -1188,6 +1199,21 @@ static void gen_grevw(TCGv ret, TCGv arg1, TCGv arg2)
 
     gen_sbopw_shamt(shamt, arg2);
     gen_helper_grev(ret, arg1, shamt);
+
+    tcg_gen_ext32s_tl(ret, ret);
+
+    tcg_temp_free(shamt);
+}
+
+static void gen_gorcw(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv shamt;
+    shamt = tcg_temp_new();
+
+    tcg_gen_ext32u_tl(arg1, arg1);
+
+    gen_sbopw_shamt(shamt, arg2);
+    gen_helper_gorc(ret, arg1, shamt);
 
     tcg_gen_ext32s_tl(ret, ret);
 

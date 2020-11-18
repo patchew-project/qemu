@@ -77,3 +77,52 @@ target_ulong HELPER(grevw)(target_ulong rs1, target_ulong rs2)
 
 #endif
 
+static target_ulong do_gorc(target_ulong rs1,
+                            target_ulong rs2,
+                            const target_ulong masks[])
+{
+    target_ulong x = rs1;
+    int shift = 1;
+    int i = 0;
+
+    while (shift < TARGET_LONG_BITS) {
+        if (rs2 & shift) {
+            x |= do_swap(x, masks[i], shift);
+        }
+        shift <<= 1;
+        ++i;
+    }
+
+    return x;
+}
+
+target_ulong HELPER(gorc)(target_ulong rs1, target_ulong rs2)
+{
+    static const target_ulong masks[] = {
+#ifdef TARGET_RISCV32
+        0x55555555, 0x33333333, 0x0f0f0f0f,
+        0x00ff00ff, 0x0000ffff,
+#else
+        0x5555555555555555, 0x3333333333333333, 0x0f0f0f0f0f0f0f0f,
+        0x00ff00ff00ff00ff, 0x0000ffff0000ffff, 0x00000000ffffffff,
+#endif
+    };
+
+    return do_gorc(rs1, rs2, masks);
+}
+
+/* RV64-only instruction */
+#ifdef TARGET_RISCV64
+
+target_ulong HELPER(gorcw)(target_ulong rs1, target_ulong rs2)
+{
+    static const target_ulong masks[] = {
+        0x55555555, 0x33333333, 0x0f0f0f0f,
+        0x00ff00ff, 0x0000ffff,
+    };
+
+    return do_gorc(rs1, rs2, masks);
+}
+
+#endif
+
