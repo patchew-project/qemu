@@ -920,6 +920,44 @@ static void gen_sro(TCGv ret, TCGv arg1, TCGv arg2)
     tcg_temp_free(t);
 }
 
+static void gen_grev(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv shamt;
+    shamt = tcg_temp_new();
+
+    gen_sbop_shamt(shamt, arg2);
+    gen_helper_grev(ret, arg1, shamt);
+
+    tcg_temp_free(shamt);
+}
+
+static bool gen_grevi(DisasContext *ctx, arg_grevi *a)
+{
+    TCGv source1, source2;
+    source1 = tcg_temp_new();
+
+    gen_get_gpr(source1, a->rs1);
+
+    if (a->shamt == (TARGET_LONG_BITS - 8)) {
+        /* rev8, byte swaps */
+#ifdef TARGET_RISCV32
+        tcg_gen_bswap32_tl(source1, source1);
+#else
+        tcg_gen_bswap64_tl(source1, source1);
+#endif
+    } else {
+        source2 = tcg_temp_new();
+        tcg_gen_movi_tl(source2, a->shamt);
+        gen_helper_grev(source1, source1, source2);
+        tcg_temp_free(source2);
+    }
+
+    gen_set_gpr(a->rd, source1);
+
+    tcg_temp_free(source1);
+    return true;
+}
+
 
 #ifdef TARGET_RISCV64
 
@@ -1139,6 +1177,21 @@ static void gen_rolw(TCGv ret, TCGv arg1, TCGv arg2)
     tcg_temp_free(shamt);
     tcg_temp_free_i32(t1);
     tcg_temp_free_i32(t2);
+}
+
+static void gen_grevw(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv shamt;
+    shamt = tcg_temp_new();
+
+    tcg_gen_ext32u_tl(arg1, arg1);
+
+    gen_sbopw_shamt(shamt, arg2);
+    gen_helper_grev(ret, arg1, shamt);
+
+    tcg_gen_ext32s_tl(ret, ret);
+
+    tcg_temp_free(shamt);
 }
 
 #endif
