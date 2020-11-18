@@ -2251,8 +2251,6 @@ static int kvm_init(MachineState *ms)
         ret = ram_block_discard_disable(true);
         assert(!ret);
     }
-
-    cpus_register_accel(&kvm_cpus);
     return 0;
 
 err:
@@ -3236,3 +3234,12 @@ static void kvm_type_init(void)
 }
 
 type_init(kvm_type_init);
+
+static void kvm_accel_cpu_init(void)
+{
+    if (kvm_enabled()) {
+        cpus_register_accel(&kvm_cpus);
+    }
+}
+
+accel_cpu_init(kvm_accel_cpu_init);
