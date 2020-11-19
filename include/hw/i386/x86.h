@@ -38,6 +38,9 @@ struct X86MachineClass {
     bool save_tsc_khz;
     /* Enables contiguous-apic-ID mode */
     bool compat_apic_id_mode;
+
+    /* Hyper-V features enabled with 'hyperv=on' */
+    uint64_t default_hyperv_features;
 };
 
 struct X86MachineState {
@@ -71,10 +74,14 @@ struct X86MachineState {
      * will be translated to MSI messages in the address space.
      */
     AddressSpace *ioapic_as;
+
+    /* Hyper-V emulation */
+    bool hyperv_enabled;
 };
 
 #define X86_MACHINE_SMM              "smm"
 #define X86_MACHINE_ACPI             "acpi"
+#define X86_MACHINE_HYPERV           "hyperv"
 
 #define TYPE_X86_MACHINE   MACHINE_TYPE_NAME("x86")
 OBJECT_DECLARE_TYPE(X86MachineState, X86MachineClass, X86_MACHINE)

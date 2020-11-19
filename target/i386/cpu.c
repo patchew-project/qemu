@@ -53,6 +53,7 @@
 #include "sysemu/tcg.h"
 #include "hw/qdev-properties.h"
 #include "hw/i386/topology.h"
+#include "hw/i386/x86.h"
 #ifndef CONFIG_USER_ONLY
 #include "exec/address-spaces.h"
 #include "hw/i386/apic_internal.h"
@@ -6511,7 +6512,20 @@ static void x86_cpu_filter_features(X86CPU *cpu, bool verbose)
 
 static void x86_cpu_hyperv_realize(X86CPU *cpu)
 {
+    X86MachineState *x86ms = X86_MACHINE(qdev_get_machine());
+    X86MachineClass *x86mc = X86_MACHINE_GET_CLASS(x86ms);
+    uint64_t feat;
     size_t len;
+
+    if (x86ms->hyperv_enabled) {
+        feat = x86mc->default_hyperv_features;
+        /* Enlightened VMCS is only available on Intel/VMX */
+        if (!cpu_has_vmx(&cpu->env)) {
+            feat &= ~BIT(HYPERV_FEAT_EVMCS);
+        }
+
+        cpu->hyperv_features |= feat;
+    }
 
     /* Hyper-V vendor id */
     if (!cpu->hyperv_vendor) {
