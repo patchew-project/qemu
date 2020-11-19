@@ -80,6 +80,20 @@ get_id_list_set(DBusVMState *self)
     return g_steal_pointer(&set);
 }
 
+static void
+clear_dbus_connection(DBusVMState *self)
+{
+    g_autoptr(GError) err = NULL;
+    if (self->bus) {
+        g_dbus_connection_close_sync(self->bus, NULL, &err);
+        if (err) {
+            warn_report("%s: Failed to close the Dbus connection: %s",
+                        __func__, err->message);
+        }
+        g_clear_object(&self->bus);
+    }
+}
+
 static GHashTable *
 dbus_get_proxies(DBusVMState *self, GError **err)
 {
@@ -195,9 +209,21 @@ static int dbus_vmstate_post_load(void *opaque, int version_id)
 
     trace_dbus_vmstate_post_load(version_id);
 
+    self->bus = g_dbus_connection_new_for_address_sync(self->dbus_addr,
+                    G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_CLIENT |
+                    G_DBUS_CONNECTION_FLAGS_MESSAGE_BUS_CONNECTION,
+                    NULL, NULL, &err);
+    if (err) {
+        error_report("%s: Failed to connect to DBus: '%s'",
+                     __func__, err->message);
+        clear_dbus_connection(self);
+        return -1;
+    }
+
     proxies = dbus_get_proxies(self, &err);
     if (!proxies) {
         error_report("%s: Failed to get proxies: %s", __func__, err->message);
+        clear_dbus_connection(self);
         return -1;
     }
 
@@ -223,6 +249,7 @@ static int dbus_vmstate_post_load(void *opaque, int version_id)
         if (len >= 256) {
             error_report("%s: Invalid DBus vmstate proxy name %u",
                          __func__, len);
+            clear_dbus_connection(self);
             return -1;
         }
         if (!g_input_stream_read_all(G_INPUT_STREAM(s), id, len,
@@ -237,6 +264,7 @@ static int dbus_vmstate_post_load(void *opaque, int version_id)
         proxy = g_hash_table_lookup(proxies, id);
         if (!proxy) {
             error_report("%s: Failed to find proxy Id '%s'", __func__, id);
+            clear_dbus_connection(self);
             return -1;
         }
 
@@ -246,6 +274,7 @@ static int dbus_vmstate_post_load(void *opaque, int version_id)
 
         if (len > DBUS_VMSTATE_SIZE_LIMIT || len > avail) {
             error_report("%s: Invalid vmstate size: %u", __func__, len);
+            clear_dbus_connection(self);
             return -1;
         }
 
@@ -254,6 +283,7 @@ static int dbus_vmstate_post_load(void *opaque, int version_id)
                                                     NULL),
                 len) < 0) {
             error_report("%s: Failed to restore Id '%s'", __func__, id);
+            clear_dbus_connection(self);
             return -1;
         }
 
@@ -264,10 +294,12 @@ static int dbus_vmstate_post_load(void *opaque, int version_id)
         nelem -= 1;
     }
 
+    clear_dbus_connection(self);
     return 0;
 
 error:
     error_report("%s: Failed to read from stream: %s", __func__, err->message);
+    clear_dbus_connection(self);
     return -1;
 }
 
@@ -327,9 +359,21 @@ static int dbus_vmstate_pre_save(void *opaque)
 
     trace_dbus_vmstate_pre_save();
 
+    self->bus = g_dbus_connection_new_for_address_sync(self->dbus_addr,
+                    G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_CLIENT |
+                    G_DBUS_CONNECTION_FLAGS_MESSAGE_BUS_CONNECTION,
+                    NULL, NULL, &err);
+    if (err) {
+        error_report("%s: Failed to connect to DBus: '%s'",
+                     __func__, err->message);
+        clear_dbus_connection(self);
+        return -1;
+    }
+
     proxies = dbus_get_proxies(self, &err);
     if (!proxies) {
         error_report("%s: Failed to get proxies: %s", __func__, err->message);
+        clear_dbus_connection(self);
         return -1;
     }
 
@@ -341,6 +385,7 @@ static int dbus_vmstate_pre_save(void *opaque)
                                          NULL, &err)) {
         error_report("%s: Failed to write to stream: %s",
                      __func__, err->message);
+        clear_dbus_connection(self);
         return -1;
     }
 
@@ -349,11 +394,13 @@ static int dbus_vmstate_pre_save(void *opaque)
     if (g_memory_output_stream_get_size(G_MEMORY_OUTPUT_STREAM(m))
         > UINT32_MAX) {
         error_report("%s: DBus vmstate buffer is too large", __func__);
+        clear_dbus_connection(self);
         return -1;
     }
 
     if (!g_output_stream_close(G_OUTPUT_STREAM(m), NULL, &err)) {
         error_report("%s: Failed to close stream: %s", __func__, err->message);
+        clear_dbus_connection(self);
         return -1;
     }
 
@@ -363,6 +410,7 @@ static int dbus_vmstate_pre_save(void *opaque)
     self->data =
         g_memory_output_stream_steal_data(G_MEMORY_OUTPUT_STREAM(m));
 
+    clear_dbus_connection(self);
     return 0;
 }
 
@@ -382,7 +430,6 @@ static void
 dbus_vmstate_complete(UserCreatable *uc, Error **errp)
 {
     DBusVMState *self = DBUS_VMSTATE(uc);
-    g_autoptr(GError) err = NULL;
 
     if (!object_resolve_path_type("", TYPE_DBUS_VMSTATE, NULL)) {
         error_setg(errp, "There is already an instance of %s",
@@ -392,15 +439,6 @@ dbus_vmstate_complete(UserCreatable *uc, Error **errp)
 
     if (!self->dbus_addr) {
         error_setg(errp, QERR_MISSING_PARAMETER, "addr");
-        return;
-    }
-
-    self->bus = g_dbus_connection_new_for_address_sync(self->dbus_addr,
-                    G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_CLIENT |
-                    G_DBUS_CONNECTION_FLAGS_MESSAGE_BUS_CONNECTION,
-                    NULL, NULL, &err);
-    if (err) {
-        error_setg(errp, "failed to connect to DBus: '%s'", err->message);
         return;
     }
 
