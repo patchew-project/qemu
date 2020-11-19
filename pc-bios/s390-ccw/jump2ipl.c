@@ -72,16 +72,6 @@ void jump_to_IPL_code(uint64_t address)
 
 void jump_to_low_kernel(void)
 {
-    /*
-     * If it looks like a Linux binary, i.e. there is the "S390EP" magic from
-     * arch/s390/kernel/head.S here, then let's jump to the well-known Linux
-     * kernel start address (when jumping to the PSW-at-zero address instead,
-     * the kernel startup code fails when we booted from a network device).
-     */
-    if (!memcmp((char *)0x10008, "S390EP", 6)) {
-        jump_to_IPL_code(KERN_IMAGE_START);
-    }
-
     /* Trying to get PSW at zero address */
     if (*((uint64_t *)0) & RESET_PSW_MASK) {
         /*
@@ -90,6 +80,16 @@ void jump_to_low_kernel(void)
          * psw at 0x0 and not jump to the entry.
          */
         jump_to_IPL_code(0);
+    }
+
+    /*
+     * If it looks like a Linux binary, i.e. there is the "S390EP" magic from
+     * arch/s390/kernel/head.S here, then let's jump to the well-known Linux
+     * kernel start address (when jumping to the PSW-at-zero address instead,
+     * the kernel startup code fails when we booted from a network device).
+     */
+    if (!memcmp((char *)0x10008, "S390EP", 6)) {
+        jump_to_IPL_code(KERN_IMAGE_START);
     }
 
     /* No other option left, so use the Linux kernel start address */
