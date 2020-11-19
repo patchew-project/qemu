@@ -23,6 +23,7 @@
 #include "qxl.h"
 #include "sysemu/runstate.h"
 #include "trace.h"
+#include "trace/trace-hw_display_qxl.h"
 
 static void qxl_blit(PCIQXLDevice *qxl, QXLRect *rect)
 {
