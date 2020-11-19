@@ -5035,7 +5035,8 @@ int64_t bdrv_get_allocated_file_size(BlockDriverState *bs)
         return -ENOTSUP;
     } else if (drv->is_filter) {
         /* Filter drivers default to the size of their filtered child */
-        return bdrv_get_allocated_file_size(bdrv_filter_bs(bs));
+        return bdrv_filter_child(bs) ?
+            bdrv_get_allocated_file_size(bdrv_filter_bs(bs)) : -ENOMEDIUM;
     } else {
         /* Other drivers default to summing their children's sizes */
         return bdrv_sum_allocated_file_size(bs);
@@ -5380,6 +5381,51 @@ XDbgBlockGraph *bdrv_get_xdbg_block_graph(void)
     }
 
     return xdbg_graph_finalize(gr);
+}
+
+int dbg_dump_block_layer(const char *filename, Error **errp)
+{
+    ERRP_GUARD();
+    Visitor *v;
+    g_autoptr(XDbgBlockLayerDump) dump = g_new0(XDbgBlockLayerDump, 1);
+    QObject *obj = NULL;
+    QString *json;
+    FILE *f;
+
+    dump->nodes = bdrv_named_nodes_list(false, errp);
+    if (*errp) {
+        return -EINVAL;
+    }
+    dump->jobs = block_jobs_info_list(errp);
+    if (*errp) {
+        return -EINVAL;
+    }
+    dump->graph = bdrv_get_xdbg_block_graph();
+
+    v = qobject_output_visitor_new(&obj);
+    if (visit_type_XDbgBlockLayerDump(v, "unused", &dump, errp)) {
+        visit_complete(v, &obj);
+    }
+    visit_free(v);
+    if (*errp) {
+        return -EINVAL;
+    }
+
+    json = qobject_to_json_pretty(obj);
+    qobject_unref(obj);
+
+    f = fopen(filename, "w");
+    if (!f) {
+        error_setg_errno(errp, errno, "Can't open file '%s'", filename);
+        qobject_unref(json);
+        return -EINVAL;
+    }
+
+    fputs(qstring_get_str(json), f);
+    fclose(f);
+    qobject_unref(json);
+
+    return 0;
 }
 
 BlockDriverState *bdrv_lookup_bs(const char *device,
@@ -6885,6 +6931,9 @@ void bdrv_refresh_filename(BlockDriverState *bs)
     if (bs->implicit) {
         /* For implicit nodes, just copy everything from the single child */
         child = QLIST_FIRST(&bs->children);
+        if (!child) {
+            return;
+        }
         assert(QLIST_NEXT(child, next) == NULL);
 
         pstrcpy(bs->exact_filename, sizeof(bs->exact_filename),

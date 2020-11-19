@@ -1909,6 +1909,19 @@
 { 'command': 'x-debug-query-block-graph', 'returns': 'XDbgBlockGraph' }
 
 ##
+# @XDbgBlockLayerDump:
+#
+# Unite query-named-block-nodes, query-block-jobs and
+# x-debug-query-block-graph results into one structure for block_layer_dump()
+# function.
+#
+# Since: 5.3
+##
+{ 'struct': 'XDbgBlockLayerDump',
+  'data': { 'nodes': ['BlockDeviceInfo'], 'jobs': ['BlockJobInfo'],
+            'graph': 'XDbgBlockGraph' } }
+
+##
 # @drive-mirror:
 #
 # Start mirroring a block device's writes to a new destination. target
