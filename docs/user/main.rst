@@ -211,6 +211,9 @@ Other binaries
 
    * ``qemu-mipsel`` executes 32-bit little endian MIPS binaries (MIPS O32 ABI).
 
+   * ``qemu-mips64o32el`` executes 64-bit little endian MIPS binaries (MIPS O32
+     ABI).
+
    * ``qemu-mips64`` executes 64-bit big endian MIPS binaries (MIPS N64 ABI).
 
    * ``qemu-mips64el`` executes 64-bit little endian MIPS binaries (MIPS N64
