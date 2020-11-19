@@ -4832,6 +4832,7 @@ if have_backend "dtrace"; then
   trace_backend_stap="no"
   if has 'stap' ; then
     trace_backend_stap="yes"
+    QEMU_CFLAGS="$QEMU_CFLAGS -DSTAP_SDT_V2"
   fi
 fi
 
