@@ -46,6 +46,7 @@ if config_all_devices.has_key('CONFIG_QXL')
   trace_events_config += {
     'file'  : meson.source_root() / 'hw' / 'display' / 'trace-events-qxl',
     'group' : 'hw_display_qxl',
+    'ss'    : qxl_ss,
   }
   hw_display_modules += {'qxl': qxl_ss}
 endif
