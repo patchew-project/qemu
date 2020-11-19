@@ -3650,8 +3650,14 @@ void mtree_print_dispatch(AddressSpaceDispatch *d, MemoryRegion *root)
     }
 }
 
+/* Require any discards to work. */
 static unsigned int ram_block_discard_requirers;
+/* Require only coordinated discards to work. */
+static unsigned int ram_block_coordinated_discard_requirers;
+/* Disable any discards. */
 static unsigned int ram_block_discard_disablers;
+/* Disable only uncoordinated disards. */
+static unsigned int ram_block_uncoordinated_discard_disablers;
 static QemuMutex ram_block_discard_disable_mutex;
 
 static void ram_block_discard_disable_mutex_lock(void)
@@ -3677,10 +3683,27 @@ int ram_block_discard_disable(bool state)
     ram_block_discard_disable_mutex_lock();
     if (!state) {
         ram_block_discard_disablers--;
-    } else if (!ram_block_discard_requirers) {
-        ram_block_discard_disablers++;
-    } else {
+    } else if (ram_block_discard_requirers ||
+               ram_block_coordinated_discard_requirers) {
         ret = -EBUSY;
+    } else {
+        ram_block_discard_disablers++;
+    }
+    ram_block_discard_disable_mutex_unlock();
+    return ret;
+}
+
+int ram_block_uncoordinated_discard_disable(bool state)
+{
+    int ret = 0;
+
+    ram_block_discard_disable_mutex_lock();
+    if (!state) {
+        ram_block_uncoordinated_discard_disablers--;
+    } else if (ram_block_discard_requirers) {
+        ret = -EBUSY;
+    } else {
+        ram_block_uncoordinated_discard_disablers++;
     }
     ram_block_discard_disable_mutex_unlock();
     return ret;
@@ -3693,10 +3716,27 @@ int ram_block_discard_require(bool state)
     ram_block_discard_disable_mutex_lock();
     if (!state) {
         ram_block_discard_requirers--;
-    } else if (!ram_block_discard_disablers) {
-        ram_block_discard_requirers++;
-    } else {
+    } else if (ram_block_discard_disablers ||
+               ram_block_uncoordinated_discard_disablers) {
         ret = -EBUSY;
+    } else {
+        ram_block_discard_requirers++;
+    }
+    ram_block_discard_disable_mutex_unlock();
+    return ret;
+}
+
+int ram_block_coordinated_discard_require(bool state)
+{
+    int ret = 0;
+
+    ram_block_discard_disable_mutex_lock();
+    if (!state) {
+        ram_block_coordinated_discard_requirers--;
+    } else if (ram_block_discard_disablers) {
+        ret = -EBUSY;
+    } else {
+        ram_block_coordinated_discard_requirers++;
     }
     ram_block_discard_disable_mutex_unlock();
     return ret;
@@ -3704,10 +3744,12 @@ int ram_block_discard_require(bool state)
 
 bool ram_block_discard_is_disabled(void)
 {
-    return qatomic_read(&ram_block_discard_disablers);
+    return qatomic_read(&ram_block_discard_disablers) ||
+           qatomic_read(&ram_block_uncoordinated_discard_disablers);
 }
 
 bool ram_block_discard_is_required(void)
 {
-    return qatomic_read(&ram_block_discard_requirers);
+    return qatomic_read(&ram_block_discard_requirers) ||
+           qatomic_read(&ram_block_coordinated_discard_requirers);
 }
