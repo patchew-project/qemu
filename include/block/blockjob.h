@@ -173,4 +173,11 @@ bool block_job_is_internal(BlockJob *job);
  */
 const BlockJobDriver *block_job_driver(BlockJob *job);
 
+/**
+ * block_jobs_info_list:
+ *
+ * Returns the list of jobs info.
+ */
+BlockJobInfoList *block_jobs_info_list(Error **errp);
+
 #endif

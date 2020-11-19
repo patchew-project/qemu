@@ -515,3 +515,32 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
     }
     return action;
 }
+
+BlockJobInfoList *block_jobs_info_list(Error **errp)
+{
+    BlockJobInfoList *head = NULL, **p_next = &head;
+    BlockJob *job;
+
+    for (job = block_job_next(NULL); job; job = block_job_next(job)) {
+        BlockJobInfoList *elem;
+        AioContext *aio_context;
+
+        if (block_job_is_internal(job)) {
+            continue;
+        }
+        elem = g_new0(BlockJobInfoList, 1);
+        aio_context = blk_get_aio_context(job->blk);
+        aio_context_acquire(aio_context);
+        elem->value = block_job_query(job, errp);
+        aio_context_release(aio_context);
+        if (!elem->value) {
+            g_free(elem);
+            qapi_free_BlockJobInfoList(head);
+            return NULL;
+        }
+        *p_next = elem;
+        p_next = &elem->next;
+    }
+
+    return head;
+}
