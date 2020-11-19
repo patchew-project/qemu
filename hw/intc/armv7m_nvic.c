@@ -1100,6 +1100,12 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
          */
         val = cpu->env.v7m.ccr[attrs.secure];
         val |= cpu->env.v7m.ccr[M_REG_NS] & R_V7M_CCR_BFHFNMIGN_MASK;
+        /* BFHFNMIGN is RAZ/WI from NS if AIRCR.BFHFNMINS is 0 */
+        if (!attrs.secure) {
+            if (!(cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK)) {
+                val &= ~R_V7M_CCR_BFHFNMIGN_MASK;
+            }
+        }
         return val;
     case 0xd24: /* System Handler Control and State (SHCSR) */
         if (!arm_feature(&cpu->env, ARM_FEATURE_V7)) {
@@ -1662,6 +1668,11 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
                 (cpu->env.v7m.ccr[M_REG_NS] & ~R_V7M_CCR_BFHFNMIGN_MASK)
                 | (value & R_V7M_CCR_BFHFNMIGN_MASK);
             value &= ~R_V7M_CCR_BFHFNMIGN_MASK;
+        } else {
+            /* BFHFNMIGN is RAZ/WI from NS if AIRCR.BFHFNMINS is 0 */
+            if (!(cpu->env.v7m.aircr & R_V7M_AIRCR_BFHFNMINS_MASK)) {
+                value &= ~R_V7M_CCR_BFHFNMIGN_MASK;
+            }
         }
 
         cpu->env.v7m.ccr[attrs.secure] = value;
