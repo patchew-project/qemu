@@ -2,7 +2,7 @@
 #
 # Render Qemu Block Graph
 #
-# Copyright (c) 2018 Virtuozzo International GmbH. All rights reserved.
+# Copyright (c) 2018-2020 Virtuozzo International GmbH.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -40,19 +40,14 @@ def perm(arr):
     return s
 
 
-def render_block_graph(qmp, filename, format='png'):
+def do_render_block_graph(nodes, jobs, block_graph, filename, format='png'):
     '''
     Render graph in text (dot) representation into "@filename" and
     representation in @format into "@filename.@format"
     '''
+    bds_nodes = {n['node-name']: n for n in nodes}
 
-    bds_nodes = qmp.command('query-named-block-nodes')
-    bds_nodes = {n['node-name']: n for n in bds_nodes}
-
-    job_nodes = qmp.command('query-block-jobs')
-    job_nodes = {n['device']: n for n in job_nodes}
-
-    block_graph = qmp.command('x-debug-query-block-graph')
+    job_nodes = {n['device']: n for n in jobs}
 
     graph = Digraph(comment='Block Nodes Graph')
     graph.format = format
@@ -93,6 +88,19 @@ def render_block_graph(qmp, filename, format='png'):
     graph.render(filename)
 
 
+def render_block_graph(qmp, filename, format='png'):
+    '''
+    Render graph in text (dot) representation into "@filename" and
+    representation in @format into "@filename.@format"
+    '''
+
+    nodes = qmp.command('query-named-block-nodes')
+    jobs = qmp.command('query-block-jobs')
+    graph = qmp.command('x-debug-query-block-graph')
+
+    do_render_block_graph(nodes, jobs, graph, filename, format)
+
+
 class LibvirtGuest():
     def __init__(self, name):
         self.name = name
@@ -111,15 +119,22 @@ class LibvirtGuest():
 
 
 if __name__ == '__main__':
-    obj = sys.argv[1]
-    out = sys.argv[2]
-
-    if os.path.exists(obj):
-        # assume unix socket
-        qmp = QEMUMonitorProtocol(obj)
-        qmp.connect()
+    if sys.argv[1] == '--json':
+        json_file = sys.argv[2]
+        out = sys.argv[3]
+        with open(json_file) as f:
+            dump = json.load(f)
+        do_render_block_graph(dump['nodes'], dump['jobs'], dump['graph'], out)
     else:
-        # assume libvirt guest name
-        qmp = LibvirtGuest(obj)
+        obj = sys.argv[1]
+        out = sys.argv[2]
 
-    render_block_graph(qmp, out)
+        if os.path.exists(obj):
+            # assume unix socket
+            qmp = QEMUMonitorProtocol(obj)
+            qmp.connect()
+        else:
+            # assume libvirt guest name
+            qmp = LibvirtGuest(obj)
+
+        render_block_graph(qmp, out)
