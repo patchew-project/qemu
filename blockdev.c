@@ -2911,7 +2911,7 @@ BlockDeviceInfoList *qmp_query_named_block_nodes(bool has_flat,
 
 XDbgBlockGraph *qmp_x_debug_query_block_graph(Error **errp)
 {
-    return bdrv_get_xdbg_block_graph(errp);
+    return bdrv_get_xdbg_block_graph();
 }
 
 void qmp_blockdev_backup(BlockdevBackup *backup, Error **errp)

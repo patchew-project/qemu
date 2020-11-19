@@ -5338,7 +5338,7 @@ static void xdbg_graph_add_edge(XDbgBlockGraphConstructor *gr, void *parent,
 }
 
 
-XDbgBlockGraph *bdrv_get_xdbg_block_graph(Error **errp)
+XDbgBlockGraph *bdrv_get_xdbg_block_graph(void)
 {
     BlockBackend *blk;
     BlockJob *job;
