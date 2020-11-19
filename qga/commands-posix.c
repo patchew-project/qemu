@@ -2466,15 +2466,15 @@ GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
 {
     int64_t current;
     GuestLogicalProcessorList *head, **link;
-    long sc_max;
+    long max_loop_count;
     Error *local_err = NULL;
 
     current = 0;
     head = NULL;
     link = &head;
-    sc_max = SYSCONF_EXACT(_SC_NPROCESSORS_CONF, &local_err);
+    max_loop_count = SYSCONF_EXACT(_SC_NPROCESSORS_CONF, &local_err);
 
-    while (local_err == NULL && current < sc_max) {
+    while (local_err == NULL && current < max_loop_count) {
         GuestLogicalProcessor *vcpu;
         GuestLogicalProcessorList *entry;
         int64_t id = current++;
@@ -2491,6 +2491,8 @@ GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
             *link = entry;
             link = &entry->next;
         }
+        else
+            max_loop_count += 1;
         g_free(path);
     }
 
