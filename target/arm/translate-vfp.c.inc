@@ -647,8 +647,20 @@ typedef enum fp_sysreg_check_result {
     fp_sysreg_check_continue, /* caller should continue generating code */
 } fp_sysreg_check_result;
 
-static fp_sysreg_check_result fp_sysreg_checks(DisasContext *s, int regno)
+/*
+ * Emit code to check common UNDEF cases and handle lazy state preservation
+ * including the special casing for FPCXT_NS. For reads of sysregs, caller
+ * should provide storefn and opaque; for writes to sysregs these can be NULL.
+ * On return, if *insn_end_label is not NULL the caller needs to gen_set_label()
+ * it at the end of the other code generated for the insn.
+ */
+static fp_sysreg_check_result fp_sysreg_checks(DisasContext *s, int regno,
+                                               fp_sysreg_storefn *storefn,
+                                               void *opaque,
+                                               TCGLabel **insn_end_label)
 {
+    *insn_end_label = NULL;
+
     if (!dc_isar_feature(aa32_fpsp_v2, s)) {
         return fp_sysreg_check_failed;
     }
@@ -663,6 +675,7 @@ static fp_sysreg_check_result fp_sysreg_checks(DisasContext *s, int regno)
         }
         break;
     case ARM_VFP_FPCXT_S:
+    case ARM_VFP_FPCXT_NS:
         if (!arm_dc_feature(s, ARM_FEATURE_V8_1M)) {
             return false;
         }
@@ -674,8 +687,46 @@ static fp_sysreg_check_result fp_sysreg_checks(DisasContext *s, int regno)
         return fp_sysreg_check_failed;
     }
 
-    if (!vfp_access_check(s)) {
-        return fp_sysreg_check_done;
+    /*
+     * FPCXT_NS is a special case: it has specific handling for
+     * "current FP state is inactive", and must do the PreserveFPState()
+     * but not the usual full set of actions done by ExecuteFPCheck().
+     * We don't have a TB flag that matches the fpInactive check, so we
+     * do it at runtime as we don't expect FPCXT_NS accesses to be frequent.
+     * The code emitted here handles the fpInactive special case;
+     * the caller just has to do the codegen for the normal (!fpInactive)
+     * special case, and then set the label at the end.
+     */
+    if (regno == ARM_VFP_FPCXT_NS) {
+        /* fpInactive = FPCCR_NS.ASPEN == 1 && CONTROL.FPCA == 0 */
+        TCGLabel *fp_active_label = gen_new_label();
+        TCGv_i32 aspen, fpca;
+        aspen = load_cpu_field(v7m.fpccr[M_REG_NS]);
+        fpca = load_cpu_field(v7m.control[M_REG_S]);
+        tcg_gen_andi_i32(aspen, aspen, R_V7M_FPCCR_ASPEN_MASK);
+        tcg_gen_xori_i32(aspen, aspen, R_V7M_FPCCR_ASPEN_MASK);
+        tcg_gen_andi_i32(fpca, fpca, R_V7M_CONTROL_FPCA_MASK);
+        tcg_gen_or_i32(fpca, fpca, aspen);
+        tcg_gen_brcondi_i32(TCG_COND_NE, fpca, 0, fp_active_label);
+        tcg_temp_free_i32(aspen);
+        tcg_temp_free_i32(fpca);
+
+        /* fpInactive case: FPCXT_NS reads as FPDSCR_NS, write is NOP */
+        if (storefn) {
+            TCGv_i32 tmp = load_cpu_field(v7m.fpdscr[M_REG_NS]);
+            storefn(s, opaque, tmp);
+        }
+        /* jump to end of insn */
+        *insn_end_label = gen_new_label();
+        tcg_gen_br(*insn_end_label);
+
+        gen_set_label(fp_active_label);
+        /* !fpInactive: PreserveFPState() and handle register as normal */
+        gen_preserve_fp_state(s);
+    } else {
+        if (!vfp_access_check(s)) {
+            return fp_sysreg_check_done;
+        }
     }
 
     return fp_sysreg_check_continue;
@@ -687,8 +738,10 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
 {
     /* Do a write to an M-profile floating point system register */
     TCGv_i32 tmp;
+    TCGLabel *insn_end_label;
+    bool lookup_tb = false;
 
-    switch (fp_sysreg_checks(s, regno)) {
+    switch (fp_sysreg_checks(s, regno, NULL, NULL, &insn_end_label)) {
     case fp_sysreg_check_failed:
         return false;
     case fp_sysreg_check_done:
@@ -702,7 +755,7 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
         tmp = loadfn(s, opaque);
         gen_helper_vfp_set_fpscr(cpu_env, tmp);
         tcg_temp_free_i32(tmp);
-        gen_lookup_tb(s);
+        lookup_tb = true;
         break;
     case ARM_VFP_FPSCR_NZCVQC:
     {
@@ -721,6 +774,7 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
         break;
     }
     case ARM_VFP_FPCXT_S:
+    case ARM_VFP_FPCXT_NS:
     {
         TCGv_i32 sfpa, control, fpscr;
         /* Set FPSCR[27:0] and CONTROL.SFPA from value */
@@ -743,6 +797,12 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
     default:
         g_assert_not_reached();
     }
+    if (insn_end_label) {
+        gen_set_label(insn_end_label);
+    }
+    if (lookup_tb) {
+        gen_lookup_tb(s);
+    }
     return true;
 }
 
@@ -752,8 +812,10 @@ static bool gen_M_fp_sysreg_read(DisasContext *s, int regno,
 {
     /* Do a read from an M-profile floating point system register */
     TCGv_i32 tmp;
+    TCGLabel *insn_end_label;
+    bool lookup_tb = false;
 
-    switch (fp_sysreg_checks(s, regno)) {
+    switch (fp_sysreg_checks(s, regno, storefn, opaque, &insn_end_label)) {
     case fp_sysreg_check_failed:
         return false;
     case fp_sysreg_check_done:
@@ -810,11 +872,45 @@ static bool gen_M_fp_sysreg_read(DisasContext *s, int regno,
         fpscr = load_cpu_field(v7m.fpdscr[M_REG_NS]);
         gen_helper_vfp_set_fpscr(cpu_env, fpscr);
         tcg_temp_free_i32(fpscr);
-        gen_lookup_tb(s);
+        lookup_tb = true;
+        break;
+    }
+    case ARM_VFP_FPCXT_NS:
+    {
+        TCGv_i32 control, sfpa, fpscr, fpdscr, zero;
+        /* Reads the same as FPCXT_S, but side effects differ */
+        tmp = tcg_temp_new_i32();
+        sfpa = tcg_temp_new_i32();
+        fpscr = tcg_temp_new_i32();
+        gen_helper_vfp_get_fpscr(fpscr, cpu_env);
+        tcg_gen_andi_i32(tmp, fpscr, ~FPCR_NZCV_MASK);
+        control = load_cpu_field(v7m.control[M_REG_S]);
+        tcg_gen_andi_i32(sfpa, control, R_V7M_CONTROL_SFPA_MASK);
+        tcg_gen_shli_i32(sfpa, sfpa, 31 - R_V7M_CONTROL_SFPA_SHIFT);
+        tcg_gen_or_i32(tmp, tmp, sfpa);
+        tcg_temp_free_i32(control);
+        /* Store result before updating FPSCR, in case it faults */
+        storefn(s, opaque, tmp);
+        /* If SFPA is zero then set FPSCR from FPDSCR_NS */
+        fpdscr = load_cpu_field(v7m.fpdscr[M_REG_NS]);
+        zero = tcg_const_i32(0);
+        tcg_gen_movcond_i32(TCG_COND_EQ, fpscr, sfpa, zero, fpdscr, fpscr);
+        gen_helper_vfp_set_fpscr(cpu_env, fpscr);
+        tcg_temp_free_i32(zero);
+        tcg_temp_free_i32(sfpa);
+        tcg_temp_free_i32(fpdscr);
+        tcg_temp_free_i32(fpscr);
+        lookup_tb = true;
         break;
     }
     default:
         g_assert_not_reached();
+    }
+    if (insn_end_label) {
+        gen_set_label(insn_end_label);
+    }
+    if (lookup_tb) {
+        gen_lookup_tb(s);
     }
     return true;
 }
