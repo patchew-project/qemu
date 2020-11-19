@@ -79,4 +79,8 @@ void colo_flush_ram_cache(void);
 void colo_release_ram_cache(void);
 void colo_incoming_start_dirty_log(void);
 
+/* Live snapshots */
+int ram_write_tracking_start(void);
+void ram_write_tracking_stop(void);
+
 #endif
