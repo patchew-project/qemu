@@ -32,7 +32,6 @@ const CpusAccel qtest_cpus = {
 
 static int qtest_init_accel(MachineState *ms)
 {
-    cpus_register_accel(&qtest_cpus);
     return 0;
 }
 
@@ -58,3 +57,12 @@ static void qtest_type_init(void)
 }
 
 type_init(qtest_type_init);
+
+static void qtest_accel_cpu_init(void)
+{
+    if (qtest_enabled()) {
+        cpus_register_accel(&qtest_cpus);
+    }
+}
+
+accel_cpu_init(qtest_accel_cpu_init);

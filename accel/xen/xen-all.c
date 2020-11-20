@@ -185,9 +185,6 @@ static int xen_init(MachineState *ms)
      * opt out of system RAM being allocated by generic code
      */
     mc->default_ram_id = NULL;
-
-    cpus_register_accel(&xen_cpus);
-
     return 0;
 }
 
@@ -228,3 +225,12 @@ static void xen_type_init(void)
 }
 
 type_init(xen_type_init);
+
+static void xen_accel_cpu_init(void)
+{
+    if (xen_enabled()) {
+        cpus_register_accel(&xen_cpus);
+    }
+}
+
+accel_cpu_init(xen_accel_cpu_init);

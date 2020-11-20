@@ -1642,8 +1642,6 @@ static int whpx_accel_init(MachineState *ms)
 
     whpx_memory_init();
 
-    cpus_register_accel(&whpx_cpus);
-
     printf("Windows Hypervisor Platform accelerator is operational\n");
     return 0;
 
@@ -1713,3 +1711,12 @@ error:
 }
 
 type_init(whpx_type_init);
+
+static void whpx_accel_cpu_init(void)
+{
+    if (whpx_enabled()) {
+        cpus_register_accel(&whpx_cpus);
+    }
+}
+
+accel_cpu_init(whpx_accel_cpu_init);
