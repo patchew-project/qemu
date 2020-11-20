@@ -812,6 +812,21 @@ static int vhost_virtqueue_set_addr(struct vhost_dev *dev,
     return 0;
 }
 
+static void vhost_virtqueue_memory_unmap(struct vhost_dev *dev,
+                                        struct vhost_virtqueue *vq,
+                                        bool used_is_dirty)
+{
+    if (vq->used) {
+        vhost_memory_unmap(dev, vq->used, vq->used_size, used_is_dirty, 0);
+    }
+    if (vq->avail) {
+        vhost_memory_unmap(dev, vq->avail, vq->avail_size, 0, 0);
+    }
+    if (vq->desc) {
+        vhost_memory_unmap(dev, vq->desc, vq->desc_size, 0, 0);
+    }
+}
+
 static int vhost_dev_set_features(struct vhost_dev *dev,
                                   bool enable_log)
 {
@@ -1301,21 +1316,21 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
     vq->desc = vhost_memory_map(dev, a, &l, false);
     if (!vq->desc || l != s) {
         r = -ENOMEM;
-        goto fail_alloc_desc;
+        goto fail_alloc;
     }
     vq->avail_size = s = l = virtio_queue_get_avail_size(vdev, idx);
     vq->avail_phys = a = virtio_queue_get_avail_addr(vdev, idx);
     vq->avail = vhost_memory_map(dev, a, &l, false);
     if (!vq->avail || l != s) {
         r = -ENOMEM;
-        goto fail_alloc_avail;
+        goto fail_alloc;
     }
     vq->used_size = s = l = virtio_queue_get_used_size(vdev, idx);
     vq->used_phys = a = virtio_queue_get_used_addr(vdev, idx);
     vq->used = vhost_memory_map(dev, a, &l, true);
     if (!vq->used || l != s) {
         r = -ENOMEM;
-        goto fail_alloc_used;
+        goto fail_alloc;
     }
 
     r = vhost_virtqueue_set_addr(dev, vq, vhost_vq_index, dev->log_enabled);
@@ -1358,15 +1373,7 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
 fail_vector:
 fail_kick:
 fail_alloc:
-    vhost_memory_unmap(dev, vq->used, virtio_queue_get_used_size(vdev, idx),
-                       0, 0);
-fail_alloc_used:
-    vhost_memory_unmap(dev, vq->avail, virtio_queue_get_avail_size(vdev, idx),
-                       0, 0);
-fail_alloc_avail:
-    vhost_memory_unmap(dev, vq->desc, virtio_queue_get_desc_size(vdev, idx),
-                       0, 0);
-fail_alloc_desc:
+    vhost_virtqueue_memory_unmap(dev, vq, false);
     return r;
 }
 
@@ -1408,12 +1415,7 @@ static void vhost_virtqueue_stop(struct vhost_dev *dev,
                                                 vhost_vq_index);
     }
 
-    vhost_memory_unmap(dev, vq->used, virtio_queue_get_used_size(vdev, idx),
-                       1, virtio_queue_get_used_size(vdev, idx));
-    vhost_memory_unmap(dev, vq->avail, virtio_queue_get_avail_size(vdev, idx),
-                       0, virtio_queue_get_avail_size(vdev, idx));
-    vhost_memory_unmap(dev, vq->desc, virtio_queue_get_desc_size(vdev, idx),
-                       0, virtio_queue_get_desc_size(vdev, idx));
+    vhost_virtqueue_memory_unmap(dev, vq, true);
 }
 
 static void vhost_eventfd_add(MemoryListener *listener,
