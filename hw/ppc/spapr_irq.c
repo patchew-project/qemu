@@ -480,7 +480,6 @@ static void set_active_intc(SpaprMachineState *spapr,
                             SpaprInterruptController *new_intc)
 {
     SpaprInterruptControllerClass *sicc;
-    uint32_t nr_servers = spapr_max_server_number(spapr);
 
     assert(new_intc);
 
@@ -498,7 +497,7 @@ static void set_active_intc(SpaprMachineState *spapr,
 
     sicc = SPAPR_INTC_GET_CLASS(new_intc);
     if (sicc->activate) {
-        sicc->activate(new_intc, nr_servers, &error_fatal);
+        sicc->activate(new_intc, &error_fatal);
     }
 
     spapr->active_intc = new_intc;

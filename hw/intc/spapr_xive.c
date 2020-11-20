@@ -754,8 +754,7 @@ static void spapr_xive_dt(SpaprInterruptController *intc, uint32_t nr_servers,
                      plat_res_int_priorities, sizeof(plat_res_int_priorities)));
 }
 
-static int spapr_xive_activate(SpaprInterruptController *intc,
-                               uint32_t nr_servers, Error **errp)
+static int spapr_xive_activate(SpaprInterruptController *intc, Error **errp)
 {
     SpaprXive *xive = SPAPR_XIVE(intc);
 

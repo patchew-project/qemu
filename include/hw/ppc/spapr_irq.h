@@ -43,8 +43,7 @@ DECLARE_CLASS_CHECKERS(SpaprInterruptControllerClass, SPAPR_INTC,
 struct SpaprInterruptControllerClass {
     InterfaceClass parent;
 
-    int (*activate)(SpaprInterruptController *intc, uint32_t nr_servers,
-                    Error **errp);
+    int (*activate)(SpaprInterruptController *intc, Error **errp);
     void (*deactivate)(SpaprInterruptController *intc);
 
     /*
