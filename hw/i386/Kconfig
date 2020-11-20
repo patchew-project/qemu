@@ -96,6 +96,8 @@ config Q35
 
 config MICROVM
     bool
+    imply PCI_EXPRESS_GENERIC_BRIDGE
+    imply USB_XHCI_SYSBUS
     select SERIAL_ISA # for serial_hds_isa_init()
     select ISA_BUS
     select APIC
@@ -104,8 +106,6 @@ config MICROVM
     select MC146818RTC
     select VIRTIO_MMIO
     select ACPI_HW_REDUCED
-    select PCI_EXPRESS_GENERIC_BRIDGE
-    select USB_XHCI_SYSBUS
 
 config X86_IOMMU
     bool
