@@ -1424,17 +1424,22 @@ static void vhost_virtqueue_stop(struct vhost_dev *dev,
     struct vhost_vring_state state = {
         .index = vhost_vq_index,
     };
-    int r;
+    int r = -1;
 
     if (virtio_queue_get_desc_addr(vdev, idx) == 0) {
         /* Don't stop the virtqueue which might have not been started */
         return;
     }
 
-    r = dev->vhost_ops->vhost_get_vring_base(dev, &state);
-    if (r < 0) {
-        VHOST_OPS_DEBUG("vhost VQ %u ring restore failed: %d", idx, r);
-        /* Connection to the backend is broken, so let's sync internal
+    if (!dev->sw_lm_enabled) {
+        r = dev->vhost_ops->vhost_get_vring_base(dev, &state);
+        if (r < 0) {
+            VHOST_OPS_DEBUG("vhost VQ %u ring restore failed: %d", idx, r);
+        }
+    }
+
+    if (!dev->sw_lm_enabled || r < 0) {
+        /* Connection to the backend is unusable, so let's sync internal
          * last avail idx to the device used idx.
          */
         virtio_queue_restore_last_avail_idx(vdev, idx);
