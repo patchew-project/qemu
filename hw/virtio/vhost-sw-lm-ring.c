@@ -187,6 +187,35 @@ int vhost_vring_add(VhostShadowVirtqueue *vq, VirtQueueElement *elem)
     return 0;
 }
 
+VirtQueueElement *vhost_vring_get_buf_rcu(VhostShadowVirtqueue *vq, size_t sz)
+{
+    const vring_used_t *used = vq->vring.used;
+    VirtQueueElement *ret;
+    vring_used_elem_t used_elem;
+    uint16_t last_used;
+
+    if (!vhost_vring_poll_rcu(vq)) {
+        return NULL;
+    }
+
+    last_used = vq->used_idx & (vq->vring.num - 1);
+    used_elem.id = virtio_tswap32(vq->vdev, used->ring[last_used].id);
+    used_elem.len = virtio_tswap32(vq->vdev, used->ring[last_used].len);
+
+    if (unlikely(used_elem.id >= vq->vring.num)) {
+        virtio_error(vq->vdev, "Device says index %u is available",
+                     used_elem.id);
+        return NULL;
+    }
+
+    ret = vq->ring_id_maps[used_elem.id];
+    ret->len = used_elem.len;
+
+    vq->used_idx++;
+
+    return ret;
+}
+
 void vhost_vring_write_addr(const VhostShadowVirtqueue *vq,
                             struct vhost_vring_addr *addr)
 {

@@ -19,6 +19,7 @@ typedef struct VhostShadowVirtqueue VhostShadowVirtqueue;
 
 bool vhost_vring_kick(VhostShadowVirtqueue *vq);
 int vhost_vring_add(VhostShadowVirtqueue *vq, VirtQueueElement *elem);
+VirtQueueElement *vhost_vring_get_buf_rcu(VhostShadowVirtqueue *vq, size_t sz);
 
 /* Called within rcu_read_lock().  */
 void vhost_vring_set_notification_rcu(VhostShadowVirtqueue *vq, bool enable);
