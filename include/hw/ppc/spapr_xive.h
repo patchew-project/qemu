@@ -23,6 +23,16 @@
 typedef struct SpaprXive {
     XiveRouter    parent;
 
+    /*
+     * The XIVE device needs to know the highest vCPU id it might
+     * be exposed to in order to size the END table. It may also
+     * propagate the value to the KVM XIVE device in order to
+     * optimize resource allocation in the HW.
+     * This must be set to a non-null value using the "nr-servers"
+     * property, before realizing the device.
+     */
+    uint32_t      nr_servers;
+
     /* Internal interrupt source for IPIs and virtual devices */
     XiveSource    source;
     hwaddr        vc_base;
@@ -38,7 +48,11 @@ typedef struct SpaprXive {
     XiveEAS       *eat;
     uint32_t      nr_irqs;
     XiveEND       *endt;
-    uint32_t      nr_ends;
+    /*
+     * This is derived from nr_servers but it must be kept around because
+     * vmstate_spapr_xive uses it.
+     */
+    uint32_t      nr_ends_vmstate;
 
     /* TIMA mapping address */
     hwaddr        tm_base;

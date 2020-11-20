@@ -330,11 +330,7 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
 
         dev = qdev_new(TYPE_SPAPR_XIVE);
         qdev_prop_set_uint32(dev, "nr-irqs", smc->nr_xirqs + SPAPR_XIRQ_BASE);
-        /*
-         * 8 XIVE END structures per CPU. One for each available
-         * priority
-         */
-        qdev_prop_set_uint32(dev, "nr-ends", nr_servers << 3);
+        qdev_prop_set_uint32(dev, "nr-servers", nr_servers);
         object_property_set_link(OBJECT(dev), "xive-fabric", OBJECT(spapr),
                                  &error_abort);
         sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);

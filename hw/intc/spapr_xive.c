@@ -99,6 +99,12 @@ int spapr_xive_end_to_target(uint8_t end_blk, uint32_t end_idx,
     return 0;
 }
 
+/*
+ * 8 XIVE END structures per CPU. One for each available
+ * priority
+ */
+#define spapr_xive_cpu_end_idx(vcpu, prio) (((vcpu) << 3) + prio)
+
 static void spapr_xive_cpu_to_end(PowerPCCPU *cpu, uint8_t prio,
                                   uint8_t *out_end_blk, uint32_t *out_end_idx)
 {
@@ -109,7 +115,7 @@ static void spapr_xive_cpu_to_end(PowerPCCPU *cpu, uint8_t prio,
     }
 
     if (out_end_idx) {
-        *out_end_idx = (cpu->vcpu_id << 3) + prio;
+        *out_end_idx = spapr_xive_cpu_end_idx(cpu->vcpu_id, prio);
     }
 }
 
@@ -290,7 +296,8 @@ static void spapr_xive_instance_init(Object *obj)
 
 uint32_t spapr_xive_nr_ends(const SpaprXive *xive)
 {
-    return xive->nr_ends;
+    g_assert(xive->nr_servers);
+    return spapr_xive_cpu_end_idx(xive->nr_servers, 0);
 }
 
 static void spapr_xive_realize(DeviceState *dev, Error **errp)
@@ -303,7 +310,7 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
 
     /* Set by spapr_irq_init() */
     g_assert(xive->nr_irqs);
-    g_assert(xive->nr_ends);
+    g_assert(xive->nr_servers);
 
     sxc->parent_realize(dev, &local_err);
     if (local_err) {
@@ -360,6 +367,8 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(xive), 0, xive->vc_base);
     sysbus_mmio_map(SYS_BUS_DEVICE(xive), 1, xive->end_base);
     sysbus_mmio_map(SYS_BUS_DEVICE(xive), 2, xive->tm_base);
+
+    xive->nr_ends_vmstate = spapr_xive_nr_ends(xive);
 }
 
 static int spapr_xive_get_eas(XiveRouter *xrtr, uint8_t eas_blk,
@@ -547,7 +556,7 @@ static const VMStateDescription vmstate_spapr_xive = {
         VMSTATE_UINT32_EQUAL(nr_irqs, SpaprXive, NULL),
         VMSTATE_STRUCT_VARRAY_POINTER_UINT32(eat, SpaprXive, nr_irqs,
                                      vmstate_spapr_xive_eas, XiveEAS),
-        VMSTATE_STRUCT_VARRAY_POINTER_UINT32(endt, SpaprXive, nr_ends,
+        VMSTATE_STRUCT_VARRAY_POINTER_UINT32(endt, SpaprXive, nr_ends_vmstate,
                                              vmstate_spapr_xive_end, XiveEND),
         VMSTATE_END_OF_LIST()
     },
@@ -591,7 +600,14 @@ static void spapr_xive_free_irq(SpaprInterruptController *intc, int lisn)
 
 static Property spapr_xive_properties[] = {
     DEFINE_PROP_UINT32("nr-irqs", SpaprXive, nr_irqs, 0),
-    DEFINE_PROP_UINT32("nr-ends", SpaprXive, nr_ends, 0),
+    /*
+     * "nr-ends" is deprecated by "nr-servers" since QEMU 6.0.
+     * It is just kept around because it is exposed to the user
+     * through -global and we don't want it to fail, even if
+     * the value is actually overridden internally.
+     */
+    DEFINE_PROP_UINT32("nr-ends", SpaprXive, nr_ends_vmstate, 0),
+    DEFINE_PROP_UINT32("nr-servers", SpaprXive, nr_servers, 0),
     DEFINE_PROP_UINT64("vc-base", SpaprXive, vc_base, SPAPR_XIVE_VC_BASE),
     DEFINE_PROP_UINT64("tm-base", SpaprXive, tm_base, SPAPR_XIVE_TM_BASE),
     DEFINE_PROP_UINT8("hv-prio", SpaprXive, hv_prio, 7),
@@ -742,7 +758,7 @@ static int spapr_xive_activate(SpaprInterruptController *intc,
     SpaprXive *xive = SPAPR_XIVE(intc);
 
     if (kvm_enabled()) {
-        int rc = spapr_irq_init_kvm(kvmppc_xive_connect, intc, nr_servers,
+        int rc = spapr_irq_init_kvm(kvmppc_xive_connect, intc, xive->nr_servers,
                                     errp);
         if (rc < 0) {
             return rc;
