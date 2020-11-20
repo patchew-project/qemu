@@ -932,7 +932,11 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
     blk_get_geometry(s->blk, &capacity);
     memset(&blkcfg, 0, sizeof(blkcfg));
     virtio_stq_p(vdev, &blkcfg.capacity, capacity);
-    virtio_stl_p(vdev, &blkcfg.seg_max,
+    if virtio_host_has_feature(vdev, VIRTIO_RING_F_INDIRECT_DESC)
+        virtio_stl_p(vdev, &blkcfg.seg_max,
+                 s->conf.seg_max_adjust ? s->conf.queue_size : 128);
+    else
+        virtio_stl_p(vdev, &blkcfg.seg_max,
                  s->conf.seg_max_adjust ? s->conf.queue_size - 2 : 128 - 2);
     virtio_stw_p(vdev, &blkcfg.geometry.cylinders, conf->cyls);
     virtio_stl_p(vdev, &blkcfg.blk_size, blk_size);
