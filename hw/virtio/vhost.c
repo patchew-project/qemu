@@ -827,6 +827,42 @@ static void vhost_virtqueue_memory_unmap(struct vhost_dev *dev,
     }
 }
 
+static int vhost_virtqueue_memory_map(struct vhost_dev *dev,
+                                      struct vhost_virtqueue *vq,
+                                      unsigned int vhost_vq_index)
+{
+    int r;
+    hwaddr a, l, s;
+
+    a = vq->desc_phys;
+    s = l = vq->desc_size;
+    vq->desc = vhost_memory_map(dev, a, &l, false);
+    if (!vq->desc || l != s) {
+        return -ENOMEM;
+    }
+
+    a = vq->avail_phys;
+    s = l = vq->avail_size;
+    vq->avail = vhost_memory_map(dev, a, &l, false);
+    if (!vq->avail || l != s) {
+        return -ENOMEM;
+    }
+
+    a = vq->used_phys;
+    s = l = vq->used_size;
+    vq->used = vhost_memory_map(dev, a, &l, true);
+    if (!vq->used || l != s) {
+        return -ENOMEM;
+    }
+
+    r = vhost_virtqueue_set_addr(dev, vq, vhost_vq_index, dev->log_enabled);
+    if (r < 0) {
+        return -errno;
+    }
+
+    return 0;
+}
+
 static int vhost_dev_set_features(struct vhost_dev *dev,
                                   bool enable_log)
 {
@@ -1271,7 +1307,7 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
     VirtioBusState *vbus = VIRTIO_BUS(qbus);
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
-    hwaddr s, l, a;
+    hwaddr a;
     int r;
     int vhost_vq_index = dev->vhost_ops->vhost_get_vq_index(dev, idx);
     struct vhost_vring_file file = {
@@ -1311,31 +1347,15 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
         }
     }
 
-    vq->desc_size = s = l = virtio_queue_get_desc_size(vdev, idx);
+    vq->desc_size = virtio_queue_get_desc_size(vdev, idx);
     vq->desc_phys = a;
-    vq->desc = vhost_memory_map(dev, a, &l, false);
-    if (!vq->desc || l != s) {
-        r = -ENOMEM;
-        goto fail_alloc;
-    }
-    vq->avail_size = s = l = virtio_queue_get_avail_size(vdev, idx);
-    vq->avail_phys = a = virtio_queue_get_avail_addr(vdev, idx);
-    vq->avail = vhost_memory_map(dev, a, &l, false);
-    if (!vq->avail || l != s) {
-        r = -ENOMEM;
-        goto fail_alloc;
-    }
-    vq->used_size = s = l = virtio_queue_get_used_size(vdev, idx);
-    vq->used_phys = a = virtio_queue_get_used_addr(vdev, idx);
-    vq->used = vhost_memory_map(dev, a, &l, true);
-    if (!vq->used || l != s) {
-        r = -ENOMEM;
-        goto fail_alloc;
-    }
+    vq->avail_size = virtio_queue_get_avail_size(vdev, idx);
+    vq->avail_phys = virtio_queue_get_avail_addr(vdev, idx);
+    vq->used_size = virtio_queue_get_used_size(vdev, idx);
+    vq->used_phys = virtio_queue_get_used_addr(vdev, idx);
 
-    r = vhost_virtqueue_set_addr(dev, vq, vhost_vq_index, dev->log_enabled);
-    if (r < 0) {
-        r = -errno;
+    r = vhost_virtqueue_memory_map(dev, vq, vhost_vq_index);
+    if (r) {
         goto fail_alloc;
     }
 
