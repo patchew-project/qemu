@@ -312,8 +312,8 @@ static void ics_spapr_realize(DeviceState *dev, Error **errp)
     spapr_register_hypercall(H_IPOLL, h_ipoll);
 }
 
-static void xics_spapr_dt(SpaprInterruptController *intc, uint32_t nr_servers,
-                          void *fdt, uint32_t phandle)
+static void xics_spapr_dt(SpaprInterruptController *intc, void *fdt,
+                          uint32_t phandle)
 {
     uint32_t interrupt_server_ranges_prop[] = {
         0, cpu_to_be32(ICS_SPAPR(intc)->nr_servers),

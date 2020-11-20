@@ -271,13 +271,12 @@ void spapr_irq_print_info(SpaprMachineState *spapr, Monitor *mon)
     sicc->print_info(spapr->active_intc, mon);
 }
 
-void spapr_irq_dt(SpaprMachineState *spapr, uint32_t nr_servers,
-                  void *fdt, uint32_t phandle)
+void spapr_irq_dt(SpaprMachineState *spapr, void *fdt, uint32_t phandle)
 {
     SpaprInterruptControllerClass *sicc
         = SPAPR_INTC_GET_CLASS(spapr->active_intc);
 
-    sicc->dt(spapr->active_intc, nr_servers, fdt, phandle);
+    sicc->dt(spapr->active_intc, fdt, phandle);
 }
 
 uint32_t spapr_irq_nr_msis(SpaprMachineState *spapr)

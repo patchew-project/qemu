@@ -691,8 +691,8 @@ static void spapr_xive_print_info(SpaprInterruptController *intc, Monitor *mon)
     spapr_xive_pic_print_info(xive, mon);
 }
 
-static void spapr_xive_dt(SpaprInterruptController *intc, uint32_t nr_servers,
-                          void *fdt, uint32_t phandle)
+static void spapr_xive_dt(SpaprInterruptController *intc, void *fdt,
+                          uint32_t phandle)
 {
     SpaprXive *xive = SPAPR_XIVE(intc);
     int node;

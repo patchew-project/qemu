@@ -1164,7 +1164,7 @@ void *spapr_build_fdt(SpaprMachineState *spapr, bool reset, size_t space)
     _FDT(fdt_setprop_cell(fdt, 0, "#size-cells", 2));
 
     /* /interrupt controller */
-    spapr_irq_dt(spapr, spapr_max_server_number(spapr), fdt, PHANDLE_INTC);
+    spapr_irq_dt(spapr, fdt, PHANDLE_INTC);
 
     ret = spapr_dt_memory(spapr, fdt);
     if (ret < 0) {
