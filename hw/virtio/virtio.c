@@ -377,20 +377,6 @@ static inline void vring_used_idx_set(VirtQueue *vq, uint16_t val)
     vq->used_idx = val;
 }
 
-bool virtio_queue_get_used_notify_split(VirtQueue *vq)
-{
-    VRingMemoryRegionCaches *caches;
-    hwaddr pa = offsetof(VRingUsed, flags);
-    uint16_t flags;
-
-    RCU_READ_LOCK_GUARD();
-
-    caches = vring_get_region_caches(vq);
-    assert(caches);
-    flags = virtio_lduw_phys_cached(vq->vdev, &caches->used, pa);
-    return !(VRING_USED_F_NO_NOTIFY & flags);
-}
-
 /* Called within rcu_read_lock().  */
 static inline void vring_used_flags_set_bit(VirtQueue *vq, int mask)
 {
