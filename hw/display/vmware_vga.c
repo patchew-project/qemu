@@ -34,6 +34,7 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
+#include "qemu/error-report.h"
 
 #undef VERBOSE
 #define HW_RECT_ACCEL
@@ -298,45 +299,45 @@ static inline bool vmsvga_verify_rect(DisplaySurface *surface,
                                       int x, int y, int w, int h)
 {
     if (x < 0) {
-        fprintf(stderr, "%s: x was < 0 (%d)\n", name, x);
+        error_report("%s: x was < 0 (%d)", name, x);
         return false;
     }
     if (x > SVGA_MAX_WIDTH) {
-        fprintf(stderr, "%s: x was > %d (%d)\n", name, SVGA_MAX_WIDTH, x);
+        error_report("%s: x was > %d (%d)", name, SVGA_MAX_WIDTH, x);
         return false;
     }
     if (w < 0) {
-        fprintf(stderr, "%s: w was < 0 (%d)\n", name, w);
+        error_report("%s: w was < 0 (%d)", name, w);
         return false;
     }
     if (w > SVGA_MAX_WIDTH) {
-        fprintf(stderr, "%s: w was > %d (%d)\n", name, SVGA_MAX_WIDTH, w);
+        error_report("%s: w was > %d (%d)", name, SVGA_MAX_WIDTH, w);
         return false;
     }
     if (x + w > surface_width(surface)) {
-        fprintf(stderr, "%s: width was > %d (x: %d, w: %d)\n",
+        error_report("%s: width was > %d (x: %d, w: %d)",
                 name, surface_width(surface), x, w);
         return false;
     }
 
     if (y < 0) {
-        fprintf(stderr, "%s: y was < 0 (%d)\n", name, y);
+        error_report("%s: y was < 0 (%d)", name, y);
         return false;
     }
     if (y > SVGA_MAX_HEIGHT) {
-        fprintf(stderr, "%s: y was > %d (%d)\n", name, SVGA_MAX_HEIGHT, y);
+        error_report("%s: y was > %d (%d)", name, SVGA_MAX_HEIGHT, y);
         return false;
     }
     if (h < 0) {
-        fprintf(stderr, "%s: h was < 0 (%d)\n", name, h);
+        error_report("%s: h was < 0 (%d)", name, h);
         return false;
     }
     if (h > SVGA_MAX_HEIGHT) {
-        fprintf(stderr, "%s: h was > %d (%d)\n", name, SVGA_MAX_HEIGHT, h);
+        error_report("%s: h was > %d (%d)", name, SVGA_MAX_HEIGHT, h);
         return false;
     }
     if (y + h > surface_height(surface)) {
-        fprintf(stderr, "%s: update height > %d (y: %d, h: %d)\n",
+        error_report("%s: update height > %d (y: %d, h: %d)",
                 name, surface_height(surface), y, h);
         return false;
     }
@@ -534,7 +535,7 @@ static inline void vmsvga_cursor_define(struct vmsvga_state_s *s,
 #endif
         break;
     default:
-        fprintf(stderr, "%s: unhandled bpp %u, using fallback cursor\n",
+        error_report("%s: unhandled bpp %u, using fallback cursor",
                 __func__, c->bpp);
         cursor_put(qc);
         qc = cursor_builtin_left_ptr();
