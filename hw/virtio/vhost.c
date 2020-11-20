@@ -1109,6 +1109,10 @@ static int vhost_sw_live_migration_start(struct vhost_dev *dev)
 
     assert(dev->vhost_ops->vhost_set_vring_enable);
     dev->vhost_ops->vhost_set_vring_enable(dev, false);
+    if (vhost_dev_has_iommu(dev)) {
+        r = vhost_backend_invalidate_device_iotlb(dev, 0, -1ULL);
+        assert(r == 0);
+    }
 
     for (idx = 0; idx < dev->nvqs; ++idx) {
         struct vhost_virtqueue *vq = &dev->vqs[idx];
@@ -1268,6 +1272,19 @@ int vhost_device_iotlb_miss(struct vhost_dev *dev, uint64_t iova, int write)
     RCU_READ_LOCK_GUARD();
 
     trace_vhost_iotlb_miss(dev, 1);
+
+    if (dev->sw_lm_enabled) {
+        uaddr = iova;
+        len = 4096;
+        ret = vhost_backend_update_device_iotlb(dev, iova, uaddr, len,
+                                                IOMMU_RW);
+        if (ret) {
+            trace_vhost_iotlb_miss(dev, 2);
+            error_report("Fail to update device iotlb");
+        }
+
+        return ret;
+    }
 
     iotlb = address_space_get_iotlb_entry(dev->vdev->dma_as,
                                           iova, write,
