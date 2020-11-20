@@ -27,6 +27,7 @@
 
 static void spapr_reset_vcpu(PowerPCCPU *cpu)
 {
+    PowerPCCPU *first_ppc_cpu = POWERPC_CPU(first_cpu);
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
@@ -69,6 +70,18 @@ static void spapr_reset_vcpu(PowerPCCPU *cpu)
     kvm_check_mmu(cpu, &error_fatal);
 
     spapr_irq_cpu_intc_reset(spapr, cpu);
+
+    /*
+     * The boot CPU is only reset during machine reset : reset its
+     * compatibility mode to the machine default. For other CPUs,
+     * either cold plugged or hot plugged, set the compatibility mode
+     * to match the boot CPU, which was either set by the machine reset
+     * code or by CAS.
+     */
+    ppc_set_compat(cpu,
+                   cpu == first_ppc_cpu ?
+                   spapr->max_compat_pvr : first_ppc_cpu->compat_pvr,
+                   &error_fatal);
 }
 
 void spapr_cpu_set_entry_state(PowerPCCPU *cpu, target_ulong nip,

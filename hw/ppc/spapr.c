@@ -1606,8 +1606,6 @@ static void spapr_machine_reset(MachineState *machine)
     spapr_ovec_cleanup(spapr->ov5_cas);
     spapr->ov5_cas = spapr_ovec_new();
 
-    ppc_set_compat_all(spapr->max_compat_pvr, &error_fatal);
-
     /*
      * This is fixing some of the default configuration of the XIVE
      * devices. To be called after the reset of the machine devices.
@@ -3784,20 +3782,6 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     }
 
     core_slot->cpu = OBJECT(dev);
-
-    /*
-     * Set compatibility mode to match the boot CPU, which was either set
-     * by the machine reset code or by CAS.
-     */
-    if (hotplugged) {
-        for (i = 0; i < cc->nr_threads; i++) {
-            if (ppc_set_compat(core->threads[i],
-                               POWERPC_CPU(first_cpu)->compat_pvr,
-                               errp) < 0) {
-                return;
-            }
-        }
-    }
 
     if (smc->pre_2_10_has_unused_icps) {
         for (i = 0; i < cc->nr_threads; i++) {
