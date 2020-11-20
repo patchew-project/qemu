@@ -828,6 +828,10 @@ static int vhost_dev_set_log(struct vhost_dev *dev, bool enable_log)
     int r, i, idx;
     hwaddr addr;
 
+    if (enable_log) {
+        vhost_dev_log_resize(dev, vhost_get_log_size(dev));
+    }
+
     r = vhost_dev_set_features(dev, enable_log);
     if (r < 0) {
         goto err_features;
@@ -849,6 +853,10 @@ static int vhost_dev_set_log(struct vhost_dev *dev, bool enable_log)
         if (r < 0) {
             goto err_vq;
         }
+    }
+
+    if (!enable_log) {
+        vhost_log_put(dev, false);
     }
     return 0;
 err_vq:
@@ -877,22 +885,8 @@ static int vhost_migration_log(MemoryListener *listener,
         return 0;
     }
 
-    r = 0;
-    if (!enable) {
-        r = device_cb(dev, false);
-        if (r < 0) {
-            goto check_dev_state;
-        }
-        vhost_log_put(dev, false);
-    } else {
-        vhost_dev_log_resize(dev, vhost_get_log_size(dev));
-        r = device_cb(dev, true);
-        if (r < 0) {
-            goto check_dev_state;
-        }
-    }
+    r = device_cb(dev, enable);
 
-check_dev_state:
     dev->log_enabled = enable;
     /*
      * vhost-user-* devices could change their state during log
