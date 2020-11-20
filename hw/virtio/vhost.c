@@ -862,7 +862,9 @@ err_features:
     return r;
 }
 
-static int vhost_migration_log(MemoryListener *listener, bool enable)
+static int vhost_migration_log(MemoryListener *listener,
+                               bool enable,
+                               int (*device_cb)(struct vhost_dev *, bool))
 {
     struct vhost_dev *dev = container_of(listener, struct vhost_dev,
                                          memory_listener);
@@ -877,14 +879,14 @@ static int vhost_migration_log(MemoryListener *listener, bool enable)
 
     r = 0;
     if (!enable) {
-        r = vhost_dev_set_log(dev, false);
+        r = device_cb(dev, false);
         if (r < 0) {
             goto check_dev_state;
         }
         vhost_log_put(dev, false);
     } else {
         vhost_dev_log_resize(dev, vhost_get_log_size(dev));
-        r = vhost_dev_set_log(dev, true);
+        r = device_cb(dev, true);
         if (r < 0) {
             goto check_dev_state;
         }
@@ -916,7 +918,7 @@ static void vhost_log_global_start(MemoryListener *listener)
 {
     int r;
 
-    r = vhost_migration_log(listener, true);
+    r = vhost_migration_log(listener, true, vhost_dev_set_log);
     if (r < 0) {
         abort();
     }
@@ -926,7 +928,7 @@ static void vhost_log_global_stop(MemoryListener *listener)
 {
     int r;
 
-    r = vhost_migration_log(listener, false);
+    r = vhost_migration_log(listener, false, vhost_dev_set_log);
     if (r < 0) {
         abort();
     }
