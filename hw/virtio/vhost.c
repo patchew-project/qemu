@@ -13,6 +13,8 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
+#include "hw/virtio/vhost-sw-lm-ring.h"
+
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/virtio/vhost.h"
@@ -59,6 +61,20 @@ bool vhost_has_free_slot(void)
         slots_limit = MIN(slots_limit, r);
     }
     return slots_limit > used_memslots;
+}
+
+static struct vhost_dev *vhost_dev_from_virtio(const VirtIODevice *vdev)
+{
+    struct vhost_dev *hdev;
+
+    QLIST_FOREACH(hdev, &vhost_devices, entry) {
+        if (hdev->vdev == vdev) {
+            return hdev;
+        }
+    }
+
+    assert(hdev);
+    return NULL;
 }
 
 static bool vhost_dev_can_log(const struct vhost_dev *hdev)
@@ -146,6 +162,12 @@ static int vhost_sync_dirty_bitmap(struct vhost_dev *dev,
                               range_get_last(vq->used_phys, vq->used_size));
     }
     return 0;
+}
+
+static void vhost_log_sync_nop(MemoryListener *listener,
+                               MemoryRegionSection *section)
+{
+    return;
 }
 
 static void vhost_log_sync(MemoryListener *listener,
@@ -928,6 +950,71 @@ static void vhost_log_global_stop(MemoryListener *listener)
     }
 }
 
+static void handle_sw_lm_vq(VirtIODevice *vdev, VirtQueue *vq)
+{
+    struct vhost_dev *hdev = vhost_dev_from_virtio(vdev);
+    uint16_t idx = virtio_get_queue_index(vq);
+
+    VhostShadowVirtqueue *svq = hdev->sw_lm_shadow_vq[idx];
+
+    vhost_vring_kick(svq);
+}
+
+static int vhost_sw_live_migration_stop(struct vhost_dev *dev)
+{
+    int idx;
+
+    vhost_dev_enable_notifiers(dev, dev->vdev);
+    for (idx = 0; idx < dev->nvqs; ++idx) {
+        vhost_sw_lm_shadow_vq_free(dev->sw_lm_shadow_vq[idx]);
+    }
+
+    return 0;
+}
+
+static int vhost_sw_live_migration_start(struct vhost_dev *dev)
+{
+    int idx;
+
+    for (idx = 0; idx < dev->nvqs; ++idx) {
+        dev->sw_lm_shadow_vq[idx] = vhost_sw_lm_shadow_vq(dev, idx);
+    }
+
+    vhost_dev_disable_notifiers(dev, dev->vdev);
+
+    return 0;
+}
+
+static int vhost_sw_live_migration_enable(struct vhost_dev *dev,
+                                          bool enable_lm)
+{
+    if (enable_lm) {
+        return vhost_sw_live_migration_start(dev);
+    } else {
+        return vhost_sw_live_migration_stop(dev);
+    }
+}
+
+static void vhost_sw_lm_global_start(MemoryListener *listener)
+{
+    int r;
+
+    r = vhost_migration_log(listener, true, vhost_sw_live_migration_enable);
+    if (r < 0) {
+        abort();
+    }
+}
+
+static void vhost_sw_lm_global_stop(MemoryListener *listener)
+{
+    int r;
+
+    r = vhost_migration_log(listener, false, vhost_sw_live_migration_enable);
+    if (r < 0) {
+        abort();
+    }
+}
+
 static void vhost_log_start(MemoryListener *listener,
                             MemoryRegionSection *section,
                             int old, int new)
@@ -1334,9 +1421,14 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         .region_nop = vhost_region_addnop,
         .log_start = vhost_log_start,
         .log_stop = vhost_log_stop,
-        .log_sync = vhost_log_sync,
-        .log_global_start = vhost_log_global_start,
-        .log_global_stop = vhost_log_global_stop,
+        .log_sync = !vhost_dev_can_log(hdev) ?
+                    vhost_log_sync_nop :
+                    vhost_log_sync,
+        .log_global_start = !vhost_dev_can_log(hdev) ?
+                            vhost_sw_lm_global_start :
+                            vhost_log_global_start,
+        .log_global_stop = !vhost_dev_can_log(hdev) ? vhost_sw_lm_global_stop :
+                                                      vhost_log_global_stop,
         .eventfd_add = vhost_eventfd_add,
         .eventfd_del = vhost_eventfd_del,
         .priority = 10
@@ -1364,6 +1456,8 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
             error_free(hdev->migration_blocker);
             goto fail_busyloop;
         }
+    } else {
+        hdev->sw_lm_vq_handler = handle_sw_lm_vq;
     }
 
     hdev->mem = g_malloc0(offsetof(struct vhost_memory, regions));
