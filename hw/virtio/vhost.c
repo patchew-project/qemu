@@ -986,17 +986,50 @@ static void handle_sw_lm_vq(VirtIODevice *vdev, VirtQueue *vq)
     } while(!virtio_queue_empty(vq));
 }
 
+static void handle_sw_lm_vq_call(struct vhost_dev *hdev,
+                                 VhostShadowVirtqueue *svq)
+{
+    VirtQueueElement *elem;
+    VirtIODevice *vdev = vhost_vring_vdev(svq);
+    VirtQueue *vq = vhost_vring_vdev_vq(svq);
+    uint16_t idx = virtio_get_queue_index(vq);
+
+    RCU_READ_LOCK_GUARD();
+    /*
+     * Make used all buffers as possible.
+     */
+    do {
+        unsigned i = 0;
+
+        vhost_vring_set_notification_rcu(svq, false);
+        while (true) {
+            elem = vhost_vring_get_buf_rcu(svq, sizeof(*elem));
+            if (!elem) {
+                break;
+            }
+
+            assert(i < virtio_queue_get_num(vdev, idx));
+            virtqueue_fill(vq, elem, elem->len, i++);
+        }
+
+        virtqueue_flush(vq, i);
+        virtio_notify_irqfd(vdev, vq);
+
+        vhost_vring_set_notification_rcu(svq, true);
+    } while (vhost_vring_poll_rcu(svq));
+}
+
 static void vhost_handle_call(EventNotifier *n)
 {
     struct vhost_virtqueue *hvq = container_of(n,
                                               struct vhost_virtqueue,
                                               masked_notifier);
     struct vhost_dev *vdev = hvq->dev;
-    int idx = vdev->vq_index + (hvq == &vdev->vqs[0] ? 0 : 1);
-    VirtQueue *vq = virtio_get_queue(vdev->vdev, idx);
+    int idx = hvq == &vdev->vqs[0] ? 0 : 1;
+    VhostShadowVirtqueue *vq = vdev->sw_lm_shadow_vq[idx];
 
     if (event_notifier_test_and_clear(n)) {
-        virtio_notify_irqfd(vdev->vdev, vq);
+        handle_sw_lm_vq_call(vdev, vq);
     }
 }
 
@@ -1028,6 +1061,7 @@ static int vhost_sw_live_migration_start(struct vhost_dev *dev)
 
     for (idx = 0; idx < dev->nvqs; ++idx) {
         struct vhost_virtqueue *vq = &dev->vqs[idx];
+        unsigned num = virtio_queue_get_num(dev->vdev, idx);
         struct vhost_vring_addr addr = {
             .index = idx,
         };
@@ -1042,6 +1076,12 @@ static int vhost_sw_live_migration_start(struct vhost_dev *dev)
 
         vhost_vring_write_addr(dev->sw_lm_shadow_vq[idx], &addr);
         r = dev->vhost_ops->vhost_set_vring_addr(dev, &addr);
+        assert(r == 0);
+
+        r = vhost_backend_update_device_iotlb(dev, addr.used_user_addr,
+                                              addr.used_user_addr,
+                                              sizeof(vring_used_elem_t) * num,
+                                              IOMMU_RW);
         assert(r == 0);
 
         r = dev->vhost_ops->vhost_set_vring_base(dev, &s);

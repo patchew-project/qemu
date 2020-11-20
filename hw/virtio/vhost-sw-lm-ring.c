@@ -46,6 +46,16 @@ typedef struct VhostShadowVirtqueue {
     vring_desc_t descs[];
 } VhostShadowVirtqueue;
 
+VirtIODevice *vhost_vring_vdev(VhostShadowVirtqueue *svq)
+{
+    return svq->vdev;
+}
+
+VirtQueue *vhost_vring_vdev_vq(VhostShadowVirtqueue *svq)
+{
+    return svq->vq;
+}
+
 static bool vhost_vring_should_kick_rcu(VhostShadowVirtqueue *vq)
 {
     VirtIODevice *vdev = vq->vdev;
@@ -179,10 +189,6 @@ static int vhost_vring_add_split(VhostShadowVirtqueue *vq,
 int vhost_vring_add(VhostShadowVirtqueue *vq, VirtQueueElement *elem)
 {
     int host_head = vhost_vring_add_split(vq, elem);
-    if (vq->ring_id_maps[host_head]) {
-        g_free(vq->ring_id_maps[host_head]);
-    }
-
     vq->ring_id_maps[host_head] = elem;
     return 0;
 }

@@ -17,6 +17,9 @@
 
 typedef struct VhostShadowVirtqueue VhostShadowVirtqueue;
 
+VirtIODevice *vhost_vring_vdev(VhostShadowVirtqueue *svq);
+VirtQueue *vhost_vring_vdev_vq(VhostShadowVirtqueue *svq);
+
 bool vhost_vring_kick(VhostShadowVirtqueue *vq);
 int vhost_vring_add(VhostShadowVirtqueue *vq, VirtQueueElement *elem);
 VirtQueueElement *vhost_vring_get_buf_rcu(VhostShadowVirtqueue *vq, size_t sz);
