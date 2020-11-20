@@ -86,6 +86,8 @@ static int use_bdrv_whitelist;
 
 bool abort_on_set_to_true = false;
 
+CoMutex graph_modify_mutex;
+
 #ifdef _WIN32
 static int is_windows_drive_prefix(const char *filename)
 {

@@ -20,6 +20,8 @@
  */
 #define generated_co_wrapper
 
+extern CoMutex graph_modify_mutex;
+
 /* block.c */
 typedef struct BlockDriver BlockDriver;
 typedef struct BdrvChild BdrvChild;

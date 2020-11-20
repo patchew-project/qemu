@@ -61,6 +61,8 @@ static void stream_abort(Job *job)
 
 int coroutine_fn stream_co_prepare(Job *job)
 {
+    QEMU_LOCK_GUARD(&graph_modify_mutex);
+
     StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
     BlockJob *bjob = &s->common;
     BlockDriverState *bs = blk_bs(bjob->blk);
@@ -93,6 +95,8 @@ int coroutine_fn stream_co_prepare(Job *job)
 
 void coroutine_fn stream_co_clean(Job *job)
 {
+    QEMU_LOCK_GUARD(&graph_modify_mutex);
+
     StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
     BlockJob *bjob = &s->common;
     BlockDriverState *bs = blk_bs(bjob->blk);

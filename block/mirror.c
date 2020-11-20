@@ -628,6 +628,8 @@ static void coroutine_fn mirror_wait_for_all_io(MirrorBlockJob *s)
  */
 int coroutine_fn mirror_co_exit_common(Job *job)
 {
+    QEMU_LOCK_GUARD(&graph_modify_mutex);
+
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common.job);
     BlockJob *bjob = &s->common;
     MirrorBDSOpaque *bs_opaque;
@@ -1106,6 +1108,8 @@ immediate_exit:
 
 void coroutine_fn mirror_co_complete(Job *job, Error **errp)
 {
+    QEMU_LOCK_GUARD(&graph_modify_mutex);
+
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common.job);
     BlockDriverState *target;
 
