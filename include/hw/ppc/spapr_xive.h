@@ -75,6 +75,7 @@ void spapr_xive_map_mmio(SpaprXive *xive);
 
 int spapr_xive_end_to_target(uint8_t end_blk, uint32_t end_idx,
                              uint32_t *out_server, uint8_t *out_prio);
+uint32_t spapr_xive_nr_ends(const SpaprXive *xive);
 
 /*
  * KVM XIVE device helpers

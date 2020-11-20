@@ -465,7 +465,7 @@ static int kvmppc_xive_get_queues(SpaprXive *xive, Error **errp)
     int i;
     int ret;
 
-    for (i = 0; i < xive->nr_ends; i++) {
+    for (i = 0; i < spapr_xive_nr_ends(xive); i++) {
         if (!xive_end_is_valid(&xive->endt[i])) {
             continue;
         }
@@ -635,7 +635,7 @@ int kvmppc_xive_post_load(SpaprXive *xive, int version_id)
     assert(xive->fd != -1);
 
     /* Restore the ENDT first. The targetting depends on it. */
-    for (i = 0; i < xive->nr_ends; i++) {
+    for (i = 0; i < spapr_xive_nr_ends(xive); i++) {
         if (!xive_end_is_valid(&xive->endt[i])) {
             continue;
         }

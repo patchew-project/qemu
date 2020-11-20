@@ -192,7 +192,7 @@ void spapr_xive_pic_print_info(SpaprXive *xive, Monitor *mon)
             uint32_t end_idx = xive_get_field64(EAS_END_INDEX, eas->w);
             XiveEND *end;
 
-            assert(end_idx < xive->nr_ends);
+            assert(end_idx < spapr_xive_nr_ends(xive));
             end = &xive->endt[end_idx];
 
             if (xive_end_is_valid(end)) {
@@ -270,7 +270,7 @@ static void spapr_xive_reset(void *dev)
     }
 
     /* Clear all ENDs */
-    for (i = 0; i < xive->nr_ends; i++) {
+    for (i = 0; i < spapr_xive_nr_ends(xive); i++) {
         spapr_xive_end_reset(&xive->endt[i]);
     }
 }
@@ -286,6 +286,11 @@ static void spapr_xive_instance_init(Object *obj)
 
     /* Not connected to the KVM XIVE device */
     xive->fd = -1;
+}
+
+uint32_t spapr_xive_nr_ends(const SpaprXive *xive)
+{
+    return xive->nr_ends;
 }
 
 static void spapr_xive_realize(DeviceState *dev, Error **errp)
@@ -336,7 +341,7 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
      * Allocate the routing tables
      */
     xive->eat = g_new0(XiveEAS, xive->nr_irqs);
-    xive->endt = g_new0(XiveEND, xive->nr_ends);
+    xive->endt = g_new0(XiveEND, spapr_xive_nr_ends(xive));
 
     xive->nodename = g_strdup_printf("interrupt-controller@%" PRIx64,
                            xive->tm_base + XIVE_TM_USER_PAGE * (1 << TM_SHIFT));
@@ -375,7 +380,7 @@ static int spapr_xive_get_end(XiveRouter *xrtr,
 {
     SpaprXive *xive = SPAPR_XIVE(xrtr);
 
-    if (end_idx >= xive->nr_ends) {
+    if (end_idx >= spapr_xive_nr_ends(xive)) {
         return -1;
     }
 
@@ -389,7 +394,7 @@ static int spapr_xive_write_end(XiveRouter *xrtr, uint8_t end_blk,
 {
     SpaprXive *xive = SPAPR_XIVE(xrtr);
 
-    if (end_idx >= xive->nr_ends) {
+    if (end_idx >= spapr_xive_nr_ends(xive)) {
         return -1;
     }
 
@@ -1138,7 +1143,7 @@ static target_ulong h_int_get_source_config(PowerPCCPU *cpu,
     /* EAS_END_BLOCK is unused on sPAPR */
     end_idx = xive_get_field64(EAS_END_INDEX, eas.w);
 
-    assert(end_idx < xive->nr_ends);
+    assert(end_idx < spapr_xive_nr_ends(xive));
     end = &xive->endt[end_idx];
 
     nvt_blk = xive_get_field32(END_W6_NVT_BLOCK, end->w6);
@@ -1216,7 +1221,7 @@ static target_ulong h_int_get_queue_info(PowerPCCPU *cpu,
         return H_P2;
     }
 
-    assert(end_idx < xive->nr_ends);
+    assert(end_idx < spapr_xive_nr_ends(xive));
     end = &xive->endt[end_idx];
 
     args[0] = xive->end_base + (1ull << (end_xsrc->esb_shift + 1)) * end_idx;
@@ -1304,7 +1309,7 @@ static target_ulong h_int_set_queue_config(PowerPCCPU *cpu,
         return H_P2;
     }
 
-    assert(end_idx < xive->nr_ends);
+    assert(end_idx < spapr_xive_nr_ends(xive));
     memcpy(&end, &xive->endt[end_idx], sizeof(XiveEND));
 
     switch (qsize) {
@@ -1470,7 +1475,7 @@ static target_ulong h_int_get_queue_config(PowerPCCPU *cpu,
         return H_P2;
     }
 
-    assert(end_idx < xive->nr_ends);
+    assert(end_idx < spapr_xive_nr_ends(xive));
     end = &xive->endt[end_idx];
 
     args[0] = 0;
