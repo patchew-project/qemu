@@ -311,6 +311,7 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
     /* Set by spapr_irq_init() */
     g_assert(xive->nr_irqs);
     g_assert(xive->nr_servers);
+    g_assert(xive->nr_ipis);
 
     sxc->parent_realize(dev, &local_err);
     if (local_err) {
@@ -608,6 +609,7 @@ static Property spapr_xive_properties[] = {
      */
     DEFINE_PROP_UINT32("nr-ends", SpaprXive, nr_ends_vmstate, 0),
     DEFINE_PROP_UINT32("nr-servers", SpaprXive, nr_servers, 0),
+    DEFINE_PROP_UINT32("nr-ipis", SpaprXive, nr_ipis, 0),
     DEFINE_PROP_UINT64("vc-base", SpaprXive, vc_base, SPAPR_XIVE_VC_BASE),
     DEFINE_PROP_UINT64("tm-base", SpaprXive, tm_base, SPAPR_XIVE_TM_BASE),
     DEFINE_PROP_UINT8("hv-prio", SpaprXive, hv_prio, 7),
@@ -698,7 +700,7 @@ static void spapr_xive_dt(SpaprInterruptController *intc, uint32_t nr_servers,
     /* Interrupt number ranges for the IPIs */
     uint32_t lisn_ranges[] = {
         cpu_to_be32(SPAPR_IRQ_IPI),
-        cpu_to_be32(SPAPR_IRQ_IPI + nr_servers),
+        cpu_to_be32(SPAPR_IRQ_IPI + xive->nr_ipis),
     };
     /*
      * EQ size - the sizes of pages supported by the system 4K, 64K,

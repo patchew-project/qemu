@@ -325,12 +325,14 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
 
     if (spapr->irq->xive) {
         uint32_t nr_servers = spapr_max_server_number(spapr);
+        uint32_t max_cpus = MACHINE(spapr)->smp.max_cpus;
         DeviceState *dev;
         int i;
 
         dev = qdev_new(TYPE_SPAPR_XIVE);
         qdev_prop_set_uint32(dev, "nr-irqs", smc->nr_xirqs + SPAPR_XIRQ_BASE);
         qdev_prop_set_uint32(dev, "nr-servers", nr_servers);
+        qdev_prop_set_uint32(dev, "nr-ipis", max_cpus);
         object_property_set_link(OBJECT(dev), "xive-fabric", OBJECT(spapr),
                                  &error_abort);
         sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
@@ -338,7 +340,7 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
         spapr->xive = SPAPR_XIVE(dev);
 
         /* Enable the CPU IPIs */
-        for (i = 0; i < nr_servers; ++i) {
+        for (i = 0; i < max_cpus; ++i) {
             SpaprInterruptControllerClass *sicc
                 = SPAPR_INTC_GET_CLASS(spapr->xive);
 

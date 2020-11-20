@@ -43,6 +43,14 @@ typedef struct SpaprXive {
 
     /* DT */
     gchar *nodename;
+    /*
+     * The sPAPR XIVE device needs to know how many vCPUs it
+     * might be exposed to in order to size the IPI range in
+     * "ibm,interrupt-server-ranges". It is the purpose of the
+     * "nr-ipis" property which *must* be set to a non-null
+     * value before realizing the sPAPR XIVE device.
+     */
+    uint32_t nr_ipis;
 
     /* Routing table */
     XiveEAS       *eat;
