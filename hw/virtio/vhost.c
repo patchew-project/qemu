@@ -956,8 +956,34 @@ static void handle_sw_lm_vq(VirtIODevice *vdev, VirtQueue *vq)
     uint16_t idx = virtio_get_queue_index(vq);
 
     VhostShadowVirtqueue *svq = hdev->sw_lm_shadow_vq[idx];
+    VirtQueueElement *elem;
 
-    vhost_vring_kick(svq);
+    /*
+     * Make available all buffers as possible.
+     */
+    do {
+        if (virtio_queue_get_notification(vq)) {
+            virtio_queue_set_notification(vq, false);
+        }
+
+        while (true) {
+            int r;
+            if (virtio_queue_full(vq)) {
+                break;
+            }
+
+            elem = virtqueue_pop(vq, sizeof(*elem));
+            if (!elem) {
+                break;
+            }
+
+            r = vhost_vring_add(svq, elem);
+            assert(r >= 0);
+            vhost_vring_kick(svq);
+        }
+
+        virtio_queue_set_notification(vq, true);
+    } while(!virtio_queue_empty(vq));
 }
 
 static void vhost_handle_call(EventNotifier *n)
@@ -975,6 +1001,11 @@ static void vhost_handle_call(EventNotifier *n)
     }
 }
 
+static void vhost_virtqueue_stop(struct vhost_dev *dev,
+                                 struct VirtIODevice *vdev,
+                                 struct vhost_virtqueue *vq,
+                                 unsigned idx);
+
 static int vhost_sw_live_migration_stop(struct vhost_dev *dev)
 {
     int idx;
@@ -991,16 +1022,40 @@ static int vhost_sw_live_migration_stop(struct vhost_dev *dev)
 
 static int vhost_sw_live_migration_start(struct vhost_dev *dev)
 {
-    int idx;
+    int idx, r;
+
+    assert(dev->vhost_ops->vhost_set_vring_enable);
+    dev->vhost_ops->vhost_set_vring_enable(dev, false);
 
     for (idx = 0; idx < dev->nvqs; ++idx) {
         struct vhost_virtqueue *vq = &dev->vqs[idx];
+        struct vhost_vring_addr addr = {
+            .index = idx,
+        };
+        struct vhost_vring_state s = {
+            .index = idx,
+        };
+
+        vhost_virtqueue_stop(dev, dev->vdev, &dev->vqs[idx], idx);
 
         dev->sw_lm_shadow_vq[idx] = vhost_sw_lm_shadow_vq(dev, idx);
         event_notifier_set_handler(&vq->masked_notifier, vhost_handle_call);
+
+        vhost_vring_write_addr(dev->sw_lm_shadow_vq[idx], &addr);
+        r = dev->vhost_ops->vhost_set_vring_addr(dev, &addr);
+        assert(r == 0);
+
+        r = dev->vhost_ops->vhost_set_vring_base(dev, &s);
+        assert(r == 0);
     }
 
+    dev->vhost_ops->vhost_set_vring_enable(dev, true);
     vhost_dev_disable_notifiers(dev, dev->vdev);
+
+    for (idx = 0; idx < dev->nvqs; ++idx) {
+        vhost_virtqueue_mask(dev, dev->vdev, idx, true);
+        vhost_virtqueue_pending(dev, idx);
+    }
 
     return 0;
 }

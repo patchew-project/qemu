@@ -18,6 +18,9 @@
 typedef struct VhostShadowVirtqueue VhostShadowVirtqueue;
 
 bool vhost_vring_kick(VhostShadowVirtqueue *vq);
+int vhost_vring_add(VhostShadowVirtqueue *vq, VirtQueueElement *elem);
+void vhost_vring_write_addr(const VhostShadowVirtqueue *vq,
+	                    struct vhost_vring_addr *addr);
 
 VhostShadowVirtqueue *vhost_sw_lm_shadow_vq(struct vhost_dev *dev, int idx);
 
