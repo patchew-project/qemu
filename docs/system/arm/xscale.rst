@@ -1,16 +1,19 @@
-Sharp XScale-based PDA models (``akita``, ``borzoi``, ``spitz``, ``terrier``)
-=============================================================================
+Sharp XScale-based PDA models (``tosa``, ``spitz``, ``akita``, ``borzoi``, ``terrier``)
+=======================================================================================
+
+The Sharp Zaurus SL-6000 (``tosa``), released in 2005, was a PDA based on the
+PXA255.
 
 The XScale-based clamshell PDA models (\"Spitz\", \"Akita\", \"Borzoi\"
 and \"Terrier\") emulation includes the following peripherals:
 
--  Intel PXA270 System-on-chip (ARMv5TE core)
+-  Intel PXA255/PXA270 System-on-chip (ARMv5TE core)
 
--  NAND Flash memory
+-  NAND Flash memory - not in \"Tosa\"
 
 -  IBM/Hitachi DSCM microdrive in a PXA PCMCIA slot - not in \"Akita\"
 
--  On-chip OHCI USB controller
+-  On-chip OHCI USB controller - not in \"Tosa\"
 
 -  On-chip LCD controller
 
