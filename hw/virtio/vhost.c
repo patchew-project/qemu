@@ -996,7 +996,6 @@ static void vhost_handle_call(EventNotifier *n)
     VirtQueue *vq = virtio_get_queue(vdev->vdev, idx);
 
     if (event_notifier_test_and_clear(n)) {
-        virtio_queue_invalidate_signalled_used(vdev->vdev, idx);
         virtio_notify_irqfd(vdev->vdev, vq);
     }
 }
