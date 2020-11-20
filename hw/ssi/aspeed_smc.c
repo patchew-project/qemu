@@ -127,6 +127,8 @@
 
 /* DMA Control/Status Register */
 #define R_DMA_CTRL        (0x80 / 4)
+#define   DMA_CTRL_REQUEST      (1 << 31)
+#define   DMA_CTRL_GRANT        (1 << 30)
 #define   DMA_CTRL_DELAY_MASK   0xf
 #define   DMA_CTRL_DELAY_SHIFT  8
 #define   DMA_CTRL_FREQ_MASK    0xf
@@ -1237,6 +1239,11 @@ static void aspeed_smc_dma_done(AspeedSMCState *s)
 
 static void aspeed_smc_dma_ctrl(AspeedSMCState *s, uint64_t dma_ctrl)
 {
+    if (dma_ctrl & DMA_CTRL_REQUEST) {
+            s->regs[R_DMA_CTRL] = dma_ctrl | DMA_CTRL_GRANT;
+            return;
+    }
+
     if (!(dma_ctrl & DMA_CTRL_ENABLE)) {
         s->regs[R_DMA_CTRL] = dma_ctrl;
 
