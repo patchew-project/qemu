@@ -52,7 +52,7 @@ class TestSingleDrive(iotests.QMPTestCase):
         os.remove(mid_img)
         os.remove(backing_img)
 
-    def test_stream(self):
+    def ntest_stream(self):
         self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0')
@@ -67,7 +67,7 @@ class TestSingleDrive(iotests.QMPTestCase):
                          qemu_io('-f', iotests.imgfmt, '-c', 'map', test_img),
                          'image file map does not match backing file after streaming')
 
-    def test_stream_intermediate(self):
+    def ntest_stream_intermediate(self):
         self.assert_no_active_block_jobs()
 
         self.assertNotEqual(qemu_io('-f', 'raw', '-rU', '-c', 'map', backing_img),
@@ -86,7 +86,7 @@ class TestSingleDrive(iotests.QMPTestCase):
                          qemu_io('-f', iotests.imgfmt, '-c', 'map', mid_img),
                          'image file map does not match backing file after streaming')
 
-    def test_stream_pause(self):
+    def ntest_stream_pause(self):
         self.assert_no_active_block_jobs()
 
         self.vm.pause_drive('drive0')
@@ -116,7 +116,7 @@ class TestSingleDrive(iotests.QMPTestCase):
                          qemu_io('-f', iotests.imgfmt, '-c', 'map', test_img),
                          'image file map does not match backing file after streaming')
 
-    def test_stream_no_op(self):
+    def ntest_stream_no_op(self):
         self.assert_no_active_block_jobs()
 
         # The image map is empty before the operation
@@ -134,7 +134,7 @@ class TestSingleDrive(iotests.QMPTestCase):
         self.assertEqual(qemu_io('-f', iotests.imgfmt, '-c', 'map', test_img),
                          empty_map, 'image file map changed after a no-op')
 
-    def test_stream_partial(self):
+    def ntest_stream_partial(self):
         self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0', base=backing_img)
@@ -149,16 +149,16 @@ class TestSingleDrive(iotests.QMPTestCase):
                          qemu_io('-f', iotests.imgfmt, '-c', 'map', test_img),
                          'image file map does not match backing file after streaming')
 
-    def test_device_not_found(self):
+    def ntest_device_not_found(self):
         result = self.vm.qmp('block-stream', device='nonexistent')
         self.assert_qmp(result, 'error/desc',
             'Cannot find device=nonexistent nor node_name=nonexistent')
 
-    def test_job_id_missing(self):
+    def ntest_job_id_missing(self):
         result = self.vm.qmp('block-stream', device='mid')
         self.assert_qmp(result, 'error/desc', "Invalid job ID ''")
 
-    def test_read_only(self):
+    def ntest_read_only(self):
         # Create a new file that we can attach (we need a read-only top)
         with iotests.FilePath('ro-top.img') as ro_top_path:
             qemu_img('create', '-f', iotests.imgfmt, ro_top_path,
@@ -230,7 +230,7 @@ class TestParallelOps(iotests.QMPTestCase):
     # Test that it's possible to run several block-stream operations
     # in parallel in the same snapshot chain
     @unittest.skipIf(os.environ.get('QEMU_CHECK_BLOCK_AUTO'), 'disabled in CI')
-    def test_stream_parallel(self):
+    def ntest_stream_parallel(self):
         self.assert_no_active_block_jobs()
 
         # Check that the maps don't match before the streaming operations
@@ -272,7 +272,7 @@ class TestParallelOps(iotests.QMPTestCase):
 
     # Test that it's not possible to perform two block-stream
     # operations if there are nodes involved in both.
-    def test_overlapping_1(self):
+    def ntest_overlapping_1(self):
         self.assert_no_active_block_jobs()
 
         # Set a speed limit to make sure that this job blocks the rest
@@ -313,7 +313,7 @@ class TestParallelOps(iotests.QMPTestCase):
 
     # Similar to test_overlapping_1, but with block-commit
     # blocking the other jobs
-    def test_overlapping_2(self):
+    def ntest_overlapping_2(self):
         self.assertLessEqual(9, self.num_imgs)
         self.assert_no_active_block_jobs()
 
@@ -349,7 +349,7 @@ class TestParallelOps(iotests.QMPTestCase):
 
     # Similar to test_overlapping_2, but here block-commit doesn't use the 'top' parameter.
     # Internally this uses a mirror block job, hence the separate test case.
-    def test_overlapping_3(self):
+    def ntest_overlapping_3(self):
         self.assertLessEqual(8, self.num_imgs)
         self.assert_no_active_block_jobs()
 
@@ -377,7 +377,7 @@ class TestParallelOps(iotests.QMPTestCase):
     # In this case the base node of the stream job is the same as the
     # top node of commit job. Since this results in the commit filter
     # node being part of the stream chain, this is not allowed.
-    def test_overlapping_4(self):
+    def ntest_overlapping_4(self):
         self.assert_no_active_block_jobs()
 
         # Commit from node2 into node0
@@ -401,7 +401,7 @@ class TestParallelOps(iotests.QMPTestCase):
     # filter node.  stream does not have a real dependency on its base
     # node, so even though commit removes it when it is done, there is
     # no conflict.
-    def test_overlapping_5(self):
+    def ntest_overlapping_5(self):
         self.assert_no_active_block_jobs()
 
         # Commit from node2 into node0
@@ -457,7 +457,7 @@ class TestParallelOps(iotests.QMPTestCase):
 
     # This is similar to test_stream_commit_1 but both jobs are slowed
     # down so they can run in parallel for a little while.
-    def test_stream_commit_2(self):
+    def ntest_stream_commit_2(self):
         self.assertLessEqual(8, self.num_imgs)
         self.assert_no_active_block_jobs()
 
@@ -492,7 +492,7 @@ class TestParallelOps(iotests.QMPTestCase):
         self.assert_no_active_block_jobs()
 
     # Test the base_node parameter
-    def test_stream_base_node_name(self):
+    def ntest_stream_base_node_name(self):
         self.assert_no_active_block_jobs()
 
         self.assertNotEqual(qemu_io('-f', iotests.imgfmt, '-rU', '-c', 'map', self.imgs[4]),
@@ -568,7 +568,7 @@ class TestQuorum(iotests.QMPTestCase):
         for img in self.backing:
             os.remove(img)
 
-    def test_stream_quorum(self):
+    def ntest_stream_quorum(self):
         self.assertNotEqual(qemu_io('-f', iotests.imgfmt, '-rU', '-c', 'map', self.children[0]),
                             qemu_io('-f', iotests.imgfmt, '-rU', '-c', 'map', self.backing[0]),
                             'image file map matches backing file before streaming')
@@ -601,7 +601,7 @@ class TestSmallerBackingFile(iotests.QMPTestCase):
 
     # If this hangs, then you are missing a fix to complete streaming when the
     # end of the backing file is reached.
-    def test_stream(self):
+    def ntest_stream(self):
         self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0')
@@ -659,7 +659,7 @@ class TestEIO(TestErrors):
         os.remove(backing_img)
         os.remove(self.blkdebug_file)
 
-    def test_report(self):
+    def ntest_report(self):
         self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0')
@@ -687,7 +687,7 @@ class TestEIO(TestErrors):
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
-    def test_ignore(self):
+    def ntest_ignore(self):
         self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0', on_error='ignore')
@@ -720,7 +720,7 @@ class TestEIO(TestErrors):
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
-    def test_stop(self):
+    def ntest_stop(self):
         self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0', on_error='stop')
@@ -763,7 +763,7 @@ class TestEIO(TestErrors):
         self.assert_no_active_block_jobs()
         self.vm.shutdown()
 
-    def test_enospc(self):
+    def ntest_enospc(self):
         self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0', on_error='enospc')
@@ -809,7 +809,7 @@ class TestENOSPC(TestErrors):
         os.remove(backing_img)
         os.remove(self.blkdebug_file)
 
-    def test_enospc(self):
+    def ntest_enospc(self):
         self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0', on_error='enospc')
@@ -870,7 +870,7 @@ class TestStreamStop(iotests.QMPTestCase):
         os.remove(test_img)
         os.remove(backing_img)
 
-    def test_stream_stop(self):
+    def ntest_stream_stop(self):
         self.assert_no_active_block_jobs()
 
         self.vm.pause_drive('drive0')
@@ -918,7 +918,7 @@ class TestSetSpeed(iotests.QMPTestCase):
 
         self.assert_no_active_block_jobs()
 
-    def test_set_speed(self):
+    def ntest_set_speed(self):
         self.assert_no_active_block_jobs()
 
         self.vm.pause_drive('drive0')
@@ -951,7 +951,7 @@ class TestSetSpeed(iotests.QMPTestCase):
 
         self.cancel_and_wait(resume=True)
 
-    def test_set_speed_invalid(self):
+    def ntest_set_speed_invalid(self):
         self.assert_no_active_block_jobs()
 
         result = self.vm.qmp('block-stream', device='drive0', speed=-1)
