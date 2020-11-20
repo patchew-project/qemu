@@ -4218,15 +4218,16 @@ static void spapr_phb_placement(SpaprMachineState *spapr, uint32_t index,
 static ICSState *spapr_ics_get(XICSFabric *dev, int irq)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(dev);
+    ICSState *ics = ICS(spapr->ics);
 
-    return ics_valid_irq(spapr->ics, irq) ? spapr->ics : NULL;
+    return ics_valid_irq(ics, irq) ? ics : NULL;
 }
 
 static void spapr_ics_resend(XICSFabric *dev)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(dev);
 
-    ics_resend(spapr->ics);
+    ics_resend(ICS(spapr->ics));
 }
 
 static ICPState *spapr_icp_get(XICSFabric *xi, int vcpu_id)

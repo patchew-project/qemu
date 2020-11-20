@@ -34,6 +34,7 @@
 #include "hw/ppc/xics.h"
 #include "hw/ppc/xics_spapr.h"
 #include "hw/ppc/fdt.h"
+#include "hw/qdev-properties.h"
 #include "qapi/visitor.h"
 
 /*
@@ -154,7 +155,7 @@ static void rtas_set_xive(PowerPCCPU *cpu, SpaprMachineState *spapr,
                           uint32_t nargs, target_ulong args,
                           uint32_t nret, target_ulong rets)
 {
-    ICSState *ics = spapr->ics;
+    ICSState *ics = ICS(spapr->ics);
     uint32_t nr, srcno, server, priority;
 
     CHECK_EMULATED_XICS_RTAS(spapr, rets);
@@ -189,7 +190,7 @@ static void rtas_get_xive(PowerPCCPU *cpu, SpaprMachineState *spapr,
                           uint32_t nargs, target_ulong args,
                           uint32_t nret, target_ulong rets)
 {
-    ICSState *ics = spapr->ics;
+    ICSState *ics = ICS(spapr->ics);
     uint32_t nr, srcno;
 
     CHECK_EMULATED_XICS_RTAS(spapr, rets);
@@ -221,7 +222,7 @@ static void rtas_int_off(PowerPCCPU *cpu, SpaprMachineState *spapr,
                          uint32_t nargs, target_ulong args,
                          uint32_t nret, target_ulong rets)
 {
-    ICSState *ics = spapr->ics;
+    ICSState *ics = ICS(spapr->ics);
     uint32_t nr, srcno;
 
     CHECK_EMULATED_XICS_RTAS(spapr, rets);
@@ -254,7 +255,7 @@ static void rtas_int_on(PowerPCCPU *cpu, SpaprMachineState *spapr,
                         uint32_t nargs, target_ulong args,
                         uint32_t nret, target_ulong rets)
 {
-    ICSState *ics = spapr->ics;
+    ICSState *ics = ICS(spapr->ics);
     uint32_t nr, srcno;
 
     CHECK_EMULATED_XICS_RTAS(spapr, rets);
@@ -285,9 +286,12 @@ static void rtas_int_on(PowerPCCPU *cpu, SpaprMachineState *spapr,
 
 static void ics_spapr_realize(DeviceState *dev, Error **errp)
 {
-    ICSState *ics = ICS_SPAPR(dev);
-    ICSStateClass *icsc = ICS_GET_CLASS(ics);
+    IcsSpaprState *sics = ICS_SPAPR(dev);
+    ICSStateClass *icsc = ICS_GET_CLASS(dev);
     Error *local_err = NULL;
+
+    /* Set by spapr_irq_init() */
+    g_assert(sics->nr_servers);
 
     icsc->parent_realize(dev, &local_err);
     if (local_err) {
@@ -312,7 +316,7 @@ static void xics_spapr_dt(SpaprInterruptController *intc, uint32_t nr_servers,
                           void *fdt, uint32_t phandle)
 {
     uint32_t interrupt_server_ranges_prop[] = {
-        0, cpu_to_be32(nr_servers),
+        0, cpu_to_be32(ICS_SPAPR(intc)->nr_servers),
     };
     int node;
 
@@ -333,7 +337,7 @@ static void xics_spapr_dt(SpaprInterruptController *intc, uint32_t nr_servers,
 static int xics_spapr_cpu_intc_create(SpaprInterruptController *intc,
                                        PowerPCCPU *cpu, Error **errp)
 {
-    ICSState *ics = ICS_SPAPR(intc);
+    ICSState *ics = ICS(intc);
     Object *obj;
     SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
 
@@ -364,7 +368,7 @@ static void xics_spapr_cpu_intc_destroy(SpaprInterruptController *intc,
 static int xics_spapr_claim_irq(SpaprInterruptController *intc, int irq,
                                 bool lsi, Error **errp)
 {
-    ICSState *ics = ICS_SPAPR(intc);
+    ICSState *ics = ICS(intc);
 
     assert(ics);
     assert(ics_valid_irq(ics, irq));
@@ -380,7 +384,7 @@ static int xics_spapr_claim_irq(SpaprInterruptController *intc, int irq,
 
 static void xics_spapr_free_irq(SpaprInterruptController *intc, int irq)
 {
-    ICSState *ics = ICS_SPAPR(intc);
+    ICSState *ics = ICS(intc);
     uint32_t srcno = irq - ics->offset;
 
     assert(ics_valid_irq(ics, irq));
@@ -390,7 +394,7 @@ static void xics_spapr_free_irq(SpaprInterruptController *intc, int irq)
 
 static void xics_spapr_set_irq(SpaprInterruptController *intc, int irq, int val)
 {
-    ICSState *ics = ICS_SPAPR(intc);
+    ICSState *ics = ICS(intc);
     uint32_t srcno = irq - ics->offset;
 
     ics_set_irq(ics, srcno, val);
@@ -398,7 +402,7 @@ static void xics_spapr_set_irq(SpaprInterruptController *intc, int irq, int val)
 
 static void xics_spapr_print_info(SpaprInterruptController *intc, Monitor *mon)
 {
-    ICSState *ics = ICS_SPAPR(intc);
+    ICSState *ics = ICS(intc);
     CPUState *cs;
 
     CPU_FOREACH(cs) {
@@ -426,7 +430,8 @@ static int xics_spapr_activate(SpaprInterruptController *intc,
                                uint32_t nr_servers, Error **errp)
 {
     if (kvm_enabled()) {
-        return spapr_irq_init_kvm(xics_kvm_connect, intc, nr_servers, errp);
+        return spapr_irq_init_kvm(xics_kvm_connect, intc,
+                                  ICS_SPAPR(intc)->nr_servers, errp);
     }
     return 0;
 }
@@ -438,6 +443,11 @@ static void xics_spapr_deactivate(SpaprInterruptController *intc)
     }
 }
 
+static Property ics_spapr_properties[] = {
+    DEFINE_PROP_UINT32("nr-servers", IcsSpaprState, nr_servers, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void ics_spapr_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -446,6 +456,7 @@ static void ics_spapr_class_init(ObjectClass *klass, void *data)
 
     device_class_set_parent_realize(dc, ics_spapr_realize,
                                     &isc->parent_realize);
+    device_class_set_props(dc, ics_spapr_properties);
     sicc->activate = xics_spapr_activate;
     sicc->deactivate = xics_spapr_deactivate;
     sicc->cpu_intc_create = xics_spapr_cpu_intc_create;
@@ -462,6 +473,7 @@ static void ics_spapr_class_init(ObjectClass *klass, void *data)
 static const TypeInfo ics_spapr_info = {
     .name = TYPE_ICS_SPAPR,
     .parent = TYPE_ICS,
+    .instance_size = sizeof(IcsSpaprState),
     .class_init = ics_spapr_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_SPAPR_INTC },

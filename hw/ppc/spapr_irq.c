@@ -316,6 +316,9 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
         object_property_set_link(obj, ICS_PROP_XICS, OBJECT(spapr),
                                  &error_abort);
         object_property_set_int(obj, "nr-irqs", smc->nr_xirqs, &error_abort);
+        object_property_set_uint(obj, "nr-servers",
+                                 spapr_max_server_number(spapr),
+                                 &error_abort);
         if (!qdev_realize(DEVICE(obj), NULL, errp)) {
             return;
         }
@@ -426,7 +429,7 @@ qemu_irq spapr_qirq(SpaprMachineState *spapr, int irq)
     assert(irq < (smc->nr_xirqs + SPAPR_XIRQ_BASE));
 
     if (spapr->ics) {
-        assert(ics_valid_irq(spapr->ics, irq));
+        assert(ics_valid_irq(ICS(spapr->ics), irq));
     }
     if (spapr->xive) {
         assert(irq < spapr->xive->nr_irqs);
@@ -556,7 +559,7 @@ static int ics_find_free_block(ICSState *ics, int num, int alignnum)
 
 int spapr_irq_find(SpaprMachineState *spapr, int num, bool align, Error **errp)
 {
-    ICSState *ics = spapr->ics;
+    ICSState *ics = ICS(spapr->ics);
     int first = -1;
 
     assert(ics);

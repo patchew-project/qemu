@@ -10,7 +10,7 @@
 #include "hw/ppc/spapr_irq.h"
 #include "qom/object.h"
 #include "hw/ppc/spapr_xive.h"  /* For SpaprXive */
-#include "hw/ppc/xics.h"        /* For ICSState */
+#include "hw/ppc/xics_spapr.h"  /* For IcsSpaprState */
 #include "hw/ppc/spapr_tpm_proxy.h"
 
 struct SpaprVioBus;
@@ -230,7 +230,7 @@ struct SpaprMachineState {
     SpaprIrq *irq;
     qemu_irq *qirqs;
     SpaprInterruptController *active_intc;
-    ICSState *ics;
+    IcsSpaprState *ics;
     SpaprXive *xive;
 
     bool cmd_line_caps[SPAPR_CAP_NUM];

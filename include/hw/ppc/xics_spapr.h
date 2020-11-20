@@ -28,12 +28,27 @@
 #define XICS_SPAPR_H
 
 #include "hw/ppc/spapr.h"
+#include "hw/ppc/xics.h"
 #include "qom/object.h"
 
+typedef struct IcsSpaprState {
+    /*< private >*/
+    ICPState parent_obj;
+
+    /*
+     * The ICS needs to know the upper limit to vCPU ids it
+     * might be exposed to in order to size the vCPU id range
+     * in "ibm,interrupt-server-ranges" and to optimize HW
+     * resource allocation when using the XICS-on-XIVE KVM
+     * device. It is the purpose of the "nr-servers" property
+     * which *must* be set to a non-null value before realizing
+     * the ICS.
+     */
+    uint32_t nr_servers;
+} IcsSpaprState;
+
 #define TYPE_ICS_SPAPR "ics-spapr"
-/* This is reusing the ICSState typedef from TYPE_ICS */
-DECLARE_INSTANCE_CHECKER(ICSState, ICS_SPAPR,
-                         TYPE_ICS_SPAPR)
+DECLARE_INSTANCE_CHECKER(IcsSpaprState, ICS_SPAPR, TYPE_ICS_SPAPR)
 
 int xics_kvm_connect(SpaprInterruptController *intc, uint32_t nr_servers,
                      Error **errp);
