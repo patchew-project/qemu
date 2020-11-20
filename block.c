@@ -84,6 +84,8 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
 /* If non-zero, use only whitelisted block drivers */
 static int use_bdrv_whitelist;
 
+bool abort_on_set_to_true = false;
+
 #ifdef _WIN32
 static int is_windows_drive_prefix(const char *filename)
 {
@@ -2002,6 +2004,9 @@ static int bdrv_check_perm(BlockDriverState *bs, BlockReopenQueue *q,
         added_perms = cumulative_perms & ~current_perms;
         removed_shared_perms = current_shared & ~cumulative_shared_perms;
 
+        if ((added_perms || removed_shared_perms) && tighten_restrictions == &abort_on_set_to_true) {
+            abort();
+        }
         *tighten_restrictions = added_perms || removed_shared_perms;
     }
 
@@ -2066,12 +2071,17 @@ static int bdrv_check_perm(BlockDriverState *bs, BlockReopenQueue *q,
         bdrv_child_perm(bs, c->bs, c, c->role, q,
                         cumulative_perms, cumulative_shared_perms,
                         &cur_perm, &cur_shared);
-        ret = bdrv_child_check_perm(c, q, cur_perm, cur_shared, ignore_children,
-                                    tighten_restrictions ? &child_tighten_restr
-                                                         : NULL,
-                                    errp);
-        if (tighten_restrictions) {
-            *tighten_restrictions |= child_tighten_restr;
+        if (tighten_restrictions == &abort_on_set_to_true) {
+            ret = bdrv_child_check_perm(c, q, cur_perm, cur_shared, ignore_children,
+                                        &abort_on_set_to_true, errp);
+        } else {
+            ret = bdrv_child_check_perm(c, q, cur_perm, cur_shared, ignore_children,
+                                        tighten_restrictions ? &child_tighten_restr
+                                                             : NULL,
+                                        errp);
+            if (tighten_restrictions) {
+                *tighten_restrictions |= child_tighten_restr;
+            }
         }
         if (ret < 0) {
             return ret;
@@ -2227,6 +2237,9 @@ static int bdrv_check_update_perm(BlockDriverState *bs, BlockReopenQueue *q,
             char *perm_names = bdrv_perm_names(new_used_perm & ~c->shared_perm);
 
             if (tighten_restrictions) {
+                if (tighten_restrictions == &abort_on_set_to_true) {
+                    abort();
+                }
                 *tighten_restrictions = true;
             }
 
@@ -2243,6 +2256,9 @@ static int bdrv_check_update_perm(BlockDriverState *bs, BlockReopenQueue *q,
             char *perm_names = bdrv_perm_names(c->perm & ~new_shared_perm);
 
             if (tighten_restrictions) {
+                if (tighten_restrictions == &abort_on_set_to_true) {
+                    abort();
+                }
                 *tighten_restrictions = true;
             }
 
@@ -2639,13 +2655,13 @@ static void bdrv_replace_child(BdrvChild *child, BlockDriverState *new_bs)
         /* Update permissions for old node. This is guaranteed to succeed
          * because we're just taking a parent away, so we're loosening
          * restrictions. */
-        bool tighten_restrictions;
         int ret;
 
+        assert(abort_on_set_to_true == false);
         bdrv_get_cumulative_perm(old_bs, &perm, &shared_perm);
         ret = bdrv_check_perm(old_bs, NULL, perm, shared_perm, NULL,
-                              &tighten_restrictions, NULL);
-        assert(tighten_restrictions == false);
+                              &abort_on_set_to_true, NULL);
+        assert(abort_on_set_to_true == false);
         if (ret < 0) {
             /* We only tried to loosen restrictions, so errors are not fatal */
             bdrv_abort_perm_update(old_bs);
