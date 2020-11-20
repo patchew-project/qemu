@@ -2467,6 +2467,7 @@ GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
     int64_t current;
     GuestLogicalProcessorList *head, **link;
     long sc_max;
+    int i = 0;
     Error *local_err = NULL;
 
     current = 0;
@@ -2474,7 +2475,7 @@ GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
     link = &head;
     sc_max = SYSCONF_EXACT(_SC_NPROCESSORS_CONF, &local_err);
 
-    while (local_err == NULL && current < sc_max) {
+    while (local_err == NULL && i < sc_max) {
         GuestLogicalProcessor *vcpu;
         GuestLogicalProcessorList *entry;
         int64_t id = current++;
@@ -2482,6 +2483,7 @@ GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
                                      id);
 
         if (g_file_test(path, G_FILE_TEST_EXISTS)) {
+            i++;
             vcpu = g_malloc0(sizeof *vcpu);
             vcpu->logical_id = id;
             vcpu->has_can_offline = true; /* lolspeak ftw */
