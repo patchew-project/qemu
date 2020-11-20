@@ -79,7 +79,7 @@ static struct vhost_dev *vhost_dev_from_virtio(const VirtIODevice *vdev)
 
 static bool vhost_dev_can_log(const struct vhost_dev *hdev)
 {
-    return hdev->features & (0x1ULL << VHOST_F_LOG_ALL);
+    return false;
 }
 
 static void vhost_dev_sync_region(struct vhost_dev *dev,
