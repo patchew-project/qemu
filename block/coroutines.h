@@ -26,6 +26,7 @@
 #define BLOCK_COROUTINES_INT_H
 
 #include "block/block_int.h"
+#include "sysemu/block-backend.h"
 
 int coroutine_fn bdrv_co_check(BlockDriverState *bs,
                                BdrvCheckResult *res, BdrvCheckMode fix);
@@ -65,5 +66,15 @@ int coroutine_fn bdrv_co_readv_vmstate(BlockDriverState *bs,
                                        QEMUIOVector *qiov, int64_t pos);
 int coroutine_fn bdrv_co_writev_vmstate(BlockDriverState *bs,
                                         QEMUIOVector *qiov, int64_t pos);
+
+void generated_co_wrapper stream_clean(Job *job);
+void coroutine_fn stream_co_clean(Job *job);
+int generated_co_wrapper stream_prepare(Job *job);
+int coroutine_fn stream_co_prepare(Job *job);
+
+void generated_co_wrapper mirror_complete(Job *job, Error **errp);
+void coroutine_fn mirror_co_complete(Job *job, Error **errp);
+int generated_co_wrapper mirror_exit_common(Job *job);
+int coroutine_fn mirror_co_exit_common(Job *job);
 
 #endif /* BLOCK_COROUTINES_INT_H */

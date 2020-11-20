@@ -15,6 +15,7 @@
 #include "trace.h"
 #include "block/block_int.h"
 #include "block/blockjob_int.h"
+#include "block/coroutines.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/ratelimit.h"
@@ -58,7 +59,7 @@ static void stream_abort(Job *job)
     }
 }
 
-static int stream_prepare(Job *job)
+int coroutine_fn stream_co_prepare(Job *job)
 {
     StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
     BlockJob *bjob = &s->common;
@@ -90,7 +91,7 @@ static int stream_prepare(Job *job)
     return ret;
 }
 
-static void stream_clean(Job *job)
+void coroutine_fn stream_co_clean(Job *job)
 {
     StreamBlockJob *s = container_of(job, StreamBlockJob, common.job);
     BlockJob *bjob = &s->common;

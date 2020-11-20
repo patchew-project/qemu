@@ -18,6 +18,7 @@
 #include "trace.h"
 #include "block/blockjob_int.h"
 #include "block/block_int.h"
+#include "block/coroutines.h"
 #include "sysemu/block-backend.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
@@ -625,7 +626,7 @@ static void coroutine_fn mirror_wait_for_all_io(MirrorBlockJob *s)
  * for .prepare, returns 0 on success and -errno on failure.
  * for .abort cases, denoted by abort = true, MUST return 0.
  */
-static int mirror_exit_common(Job *job)
+int coroutine_fn mirror_co_exit_common(Job *job)
 {
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common.job);
     BlockJob *bjob = &s->common;
@@ -1103,7 +1104,7 @@ immediate_exit:
     return ret;
 }
 
-static void mirror_complete(Job *job, Error **errp)
+void coroutine_fn mirror_co_complete(Job *job, Error **errp)
 {
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common.job);
     BlockDriverState *target;
