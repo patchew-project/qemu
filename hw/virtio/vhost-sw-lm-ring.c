@@ -34,6 +34,9 @@ typedef struct VhostShadowVirtqueue {
     /* Next free descriptor */
     uint16_t free_head;
 
+    /* Cache for exposed notification flag */
+    bool notification;
+
     vring_desc_t descs[];
 } VhostShadowVirtqueue;
 
@@ -58,6 +61,26 @@ bool vhost_vring_kick(VhostShadowVirtqueue *vq)
 {
     return vhost_vring_should_kick(vq) ? event_notifier_set(&vq->hdev_notifier)
                                        : true;
+}
+
+void vhost_vring_set_notification_rcu(VhostShadowVirtqueue *vq, bool enable)
+{
+    uint16_t notification_flag;
+
+    if (vq->notification == enable) {
+        return;
+    }
+
+    notification_flag = virtio_tswap16(vq->vdev, VRING_AVAIL_F_NO_INTERRUPT);
+
+    vq->notification = enable;
+    if (enable) {
+        vq->vring.avail->flags &= ~notification_flag;
+    } else {
+        vq->vring.avail->flags |= notification_flag;
+    }
+
+    smp_mb();
 }
 
 static void vhost_vring_write_descs(VhostShadowVirtqueue *vq,
