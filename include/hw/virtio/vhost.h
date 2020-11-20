@@ -83,6 +83,7 @@ struct vhost_dev {
     bool started;
     bool log_enabled;
     uint64_t log_size;
+    VirtIOHandleOutput sw_lm_vq_handler;
     Error *migration_blocker;
     const VhostOps *vhost_ops;
     void *opaque;

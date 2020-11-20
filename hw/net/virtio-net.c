@@ -2628,24 +2628,32 @@ static void virtio_net_tx_bh(void *opaque)
     }
 }
 
-static void virtio_net_add_queue(VirtIONet *n, int index)
+static void virtio_net_add_queue(VirtIONet *n, int index,
+                                 VirtIOHandleOutput custom_handler)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    VirtIOHandleOutput rx_vq_handler = virtio_net_handle_rx;
+    VirtIOHandleOutput tx_vq_handler;
+    bool tx_timer = n->net_conf.tx && !strcmp(n->net_conf.tx, "timer");
+
+    if (custom_handler) {
+        rx_vq_handler = tx_vq_handler = custom_handler;
+    } else if (tx_timer) {
+        tx_vq_handler = virtio_net_handle_tx_timer;
+    } else {
+        tx_vq_handler = virtio_net_handle_tx_bh;
+    }
 
     n->vqs[index].rx_vq = virtio_add_queue(vdev, n->net_conf.rx_queue_size,
-                                           virtio_net_handle_rx);
+                                           rx_vq_handler);
+    n->vqs[index].tx_vq = virtio_add_queue(vdev, n->net_conf.tx_queue_size,
+                                           tx_vq_handler);
 
-    if (n->net_conf.tx && !strcmp(n->net_conf.tx, "timer")) {
-        n->vqs[index].tx_vq =
-            virtio_add_queue(vdev, n->net_conf.tx_queue_size,
-                             virtio_net_handle_tx_timer);
+    if (tx_timer) {
         n->vqs[index].tx_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                               virtio_net_tx_timer,
                                               &n->vqs[index]);
     } else {
-        n->vqs[index].tx_vq =
-            virtio_add_queue(vdev, n->net_conf.tx_queue_size,
-                             virtio_net_handle_tx_bh);
         n->vqs[index].tx_bh = qemu_bh_new(virtio_net_tx_bh, &n->vqs[index]);
     }
 
@@ -2677,6 +2685,10 @@ static void virtio_net_del_queue(VirtIONet *n, int index)
 static void virtio_net_change_num_queues(VirtIONet *n, int new_max_queues)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    NetClientState *nc = n->nic->conf->peers.ncs[0];
+    struct vhost_net *hdev = get_vhost_net(nc);
+    VirtIOHandleOutput custom_handler = hdev ? hdev->dev.sw_lm_vq_handler
+                                             : NULL;
     int old_num_queues = virtio_get_num_queues(vdev);
     int new_num_queues = new_max_queues * 2 + 1;
     int i;
@@ -2702,7 +2714,7 @@ static void virtio_net_change_num_queues(VirtIONet *n, int new_max_queues)
 
     for (i = old_num_queues - 1; i < new_num_queues - 1; i += 2) {
         /* new_num_queues > old_num_queues */
-        virtio_net_add_queue(n, i / 2);
+        virtio_net_add_queue(n, i / 2, custom_handler);
     }
 
     /* add ctrl_vq last */
@@ -3256,6 +3268,8 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIONet *n = VIRTIO_NET(dev);
     NetClientState *nc;
+    struct vhost_net *hdev;
+    VirtIOHandleOutput custom_handler;
     int i;
 
     if (n->net_conf.mtu) {
@@ -3347,8 +3361,11 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     n->net_conf.tx_queue_size = MIN(virtio_net_max_tx_queue_size(n),
                                     n->net_conf.tx_queue_size);
 
+    nc = n->nic_conf.peers.ncs[0];
+    hdev = get_vhost_net(nc);
+    custom_handler = hdev ? hdev->dev.sw_lm_vq_handler : NULL;
     for (i = 0; i < n->max_queues; i++) {
-        virtio_net_add_queue(n, i);
+        virtio_net_add_queue(n, i, custom_handler);
     }
 
     n->ctrl_vq = virtio_add_queue(vdev, 64, virtio_net_handle_ctrl);
