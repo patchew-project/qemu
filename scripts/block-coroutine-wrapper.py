@@ -64,6 +64,7 @@ class ParamDecl:
 class FuncDecl:
     def __init__(self, return_type: str, name: str, args: str) -> None:
         self.return_type = return_type.strip()
+        self.void = return_type == 'void'
         self.name = name.strip()
         self.args = [ParamDecl(arg.strip()) for arg in args.split(',')]
 
@@ -73,16 +74,19 @@ class FuncDecl:
     def gen_block(self, format: str) -> str:
         return '\n'.join(format.format_map(arg.__dict__) for arg in self.args)
 
+    def if_ret(self, value: str) -> str:
+        return '' if self.void else value
+
 
 # Match wrappers declared with a generated_co_wrapper mark
-func_decl_re = re.compile(r'^int\s*generated_co_wrapper\s*'
+func_decl_re = re.compile(r'^(?P<return_type>(void|int))\s*generated_co_wrapper\s*'
                           r'(?P<wrapper_name>[a-z][a-z0-9_]*)'
                           r'\((?P<args>[^)]*)\);$', re.MULTILINE)
 
 
 def func_decl_iter(text: str) -> Iterator:
     for m in func_decl_re.finditer(text):
-        yield FuncDecl(return_type='int',
+        yield FuncDecl(return_type=m.group('return_type'),
                        name=m.group('wrapper_name'),
                        args=m.group('args'))
 
@@ -98,13 +102,19 @@ def snake_to_camel(func_name: str) -> str:
 
 
 def gen_wrapper(func: FuncDecl) -> str:
-    assert func.name.startswith('bdrv_')
-    assert not func.name.startswith('bdrv_co_')
-    assert func.return_type == 'int'
-    assert func.args[0].type in ['BlockDriverState *', 'BdrvChild *']
+    subsystem, rname = func.name.split('_', 1)
+    assert not rname.startswith('co_')
+    assert func.return_type in ('int', 'void')
+    assert func.args[0].type in ['BlockDriverState *', 'BdrvChild *', 'Job *']
 
-    name = 'bdrv_co_' + func.name[5:]
-    bs = 'bs' if func.args[0].type == 'BlockDriverState *' else 'child->bs'
+    name = f'{subsystem}_co_{rname}'
+    arg0_t = func.args[0].type
+    if arg0_t == 'BlockDriverState *':
+        bs = 'bs'
+    elif arg0_t == 'BdrvChild *':
+        bs = 'child->bs'
+    elif arg0_t == 'Job *':
+        bs = 'blk_bs(container_of(job, BlockJob, job)->blk)'
     struct_name = snake_to_camel(name)
 
     return f"""\
@@ -121,16 +131,16 @@ static void coroutine_fn {name}_entry(void *opaque)
 {{
     {struct_name} *s = opaque;
 
-    s->poll_state.ret = {name}({ func.gen_list('s->{name}') });
+    {func.if_ret('s->poll_state.ret = ')}{name}({ func.gen_list('s->{name}') });
     s->poll_state.in_progress = false;
 
     aio_wait_kick();
 }}
 
-int {func.name}({ func.gen_list('{decl}') })
+{func.return_type} {func.name}({ func.gen_list('{decl}') })
 {{
     if (qemu_in_coroutine()) {{
-        return {name}({ func.gen_list('{name}') });
+        {func.if_ret('return ')}{name}({ func.gen_list('{name}') });
     }} else {{
         {struct_name} s = {{
             .poll_state.bs = {bs},
@@ -141,7 +151,7 @@ int {func.name}({ func.gen_list('{decl}') })
 
         s.poll_state.co = qemu_coroutine_create({name}_entry, &s);
 
-        return bdrv_poll_co(&s.poll_state);
+        {func.if_ret('return ')}bdrv_poll_co(&s.poll_state);
     }}
 }}"""
 
