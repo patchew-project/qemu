@@ -16,8 +16,11 @@
 #include "qemu/event_notifier.h"
 
 typedef struct VhostShadowVirtqueue {
+    struct vring vring;
     EventNotifier hdev_notifier;
     VirtQueue *vq;
+
+    vring_desc_t descs[];
 } VhostShadowVirtqueue;
 
 static inline bool vhost_vring_should_kick(VhostShadowVirtqueue *vq)
@@ -37,10 +40,12 @@ VhostShadowVirtqueue *vhost_sw_lm_shadow_vq(struct vhost_dev *dev, int idx)
         .index = idx
     };
     VirtQueue *vq = virtio_get_queue(dev->vdev, idx);
+    unsigned num = virtio_queue_get_num(dev->vdev, idx);
+    size_t ring_size = vring_size(num, VRING_DESC_ALIGN_SIZE);
     VhostShadowVirtqueue *svq;
     int r;
 
-    svq = g_new0(VhostShadowVirtqueue, 1);
+    svq = g_malloc0(sizeof(*svq) + ring_size);
     svq->vq = vq;
 
     r = event_notifier_init(&svq->hdev_notifier, 0);
