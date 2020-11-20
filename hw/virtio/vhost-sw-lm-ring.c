@@ -50,6 +50,9 @@ VhostShadowVirtqueue *vhost_sw_lm_shadow_vq(struct vhost_dev *dev, int idx)
     r = dev->vhost_ops->vhost_set_vring_kick(dev, &file);
     assert(r == 0);
 
+    vhost_virtqueue_mask(dev, dev->vdev, idx, true);
+    vhost_virtqueue_pending(dev, idx);
+
     return svq;
 }
 

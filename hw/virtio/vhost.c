@@ -960,12 +960,29 @@ static void handle_sw_lm_vq(VirtIODevice *vdev, VirtQueue *vq)
     vhost_vring_kick(svq);
 }
 
+static void vhost_handle_call(EventNotifier *n)
+{
+    struct vhost_virtqueue *hvq = container_of(n,
+                                              struct vhost_virtqueue,
+                                              masked_notifier);
+    struct vhost_dev *vdev = hvq->dev;
+    int idx = vdev->vq_index + (hvq == &vdev->vqs[0] ? 0 : 1);
+    VirtQueue *vq = virtio_get_queue(vdev->vdev, idx);
+
+    if (event_notifier_test_and_clear(n)) {
+        virtio_queue_invalidate_signalled_used(vdev->vdev, idx);
+        virtio_notify_irqfd(vdev->vdev, vq);
+    }
+}
+
 static int vhost_sw_live_migration_stop(struct vhost_dev *dev)
 {
     int idx;
 
     vhost_dev_enable_notifiers(dev, dev->vdev);
     for (idx = 0; idx < dev->nvqs; ++idx) {
+        vhost_virtqueue_mask(dev, dev->vdev, idx, false);
+        vhost_virtqueue_pending(dev, idx);
         vhost_sw_lm_shadow_vq_free(dev->sw_lm_shadow_vq[idx]);
     }
 
@@ -977,7 +994,10 @@ static int vhost_sw_live_migration_start(struct vhost_dev *dev)
     int idx;
 
     for (idx = 0; idx < dev->nvqs; ++idx) {
+        struct vhost_virtqueue *vq = &dev->vqs[idx];
+
         dev->sw_lm_shadow_vq[idx] = vhost_sw_lm_shadow_vq(dev, idx);
+        event_notifier_set_handler(&vq->masked_notifier, vhost_handle_call);
     }
 
     vhost_dev_disable_notifiers(dev, dev->vdev);
