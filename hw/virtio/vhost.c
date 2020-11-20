@@ -988,11 +988,16 @@ static int vhost_sw_live_migration_start(struct vhost_dev *dev)
 static int vhost_sw_live_migration_enable(struct vhost_dev *dev,
                                           bool enable_lm)
 {
+    int r;
+
     if (enable_lm) {
-        return vhost_sw_live_migration_start(dev);
+        r = vhost_sw_live_migration_start(dev);
     } else {
-        return vhost_sw_live_migration_stop(dev);
+        r = vhost_sw_live_migration_stop(dev);
     }
+
+    dev->sw_lm_enabled = enable_lm;
+    return r;
 }
 
 static void vhost_sw_lm_global_start(MemoryListener *listener)
@@ -1466,6 +1471,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     hdev->log = NULL;
     hdev->log_size = 0;
     hdev->log_enabled = false;
+    hdev->sw_lm_enabled = false;
     hdev->started = false;
     memory_listener_register(&hdev->memory_listener, &address_space_memory);
     QLIST_INSERT_HEAD(&vhost_devices, hdev, entry);
@@ -1570,6 +1576,13 @@ void vhost_dev_disable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
 {
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
     int i, r;
+
+    if (hdev->sw_lm_enabled) {
+        /* We've been called after migration is completed, so no need to
+           disable it again
+        */
+        return;
+    }
 
     for (i = 0; i < hdev->nvqs; ++i) {
         r = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), hdev->vq_index + i,

@@ -84,6 +84,7 @@ struct vhost_dev {
     uint64_t backend_cap;
     bool started;
     bool log_enabled;
+    bool sw_lm_enabled;
     uint64_t log_size;
     VhostShadowVirtqueue *sw_lm_shadow_vq[2];
     VirtIOHandleOutput sw_lm_vq_handler;
