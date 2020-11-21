@@ -40,7 +40,7 @@ SRST
 ERST
 
     {
-        .name       = "q|quit",
+        .name       = "quit|q",
         .args_type  = "",
         .params     = "",
         .help       = "quit the emulator",
@@ -48,7 +48,7 @@ ERST
     },
 
 SRST
-``q`` or ``quit``
+``quit`` or ``q``
   Quit the emulator.
 ERST
 
@@ -400,7 +400,7 @@ SRST
 ERST
 
     {
-        .name       = "c|cont",
+        .name       = "cont|c",
         .args_type  = "",
         .params     = "",
         .help       = "resume emulation",
@@ -408,7 +408,7 @@ ERST
     },
 
 SRST
-``c`` or ``cont``
+``cont`` or ``c``
   Resume emulation.
 ERST
 
@@ -553,7 +553,7 @@ SRST
 ERST
 
     {
-        .name       = "p|print",
+        .name       = "print|p",
         .args_type  = "fmt:/,val:l",
         .params     = "/fmt expr",
         .help       = "print expression value (use $reg for CPU register access)",
@@ -561,7 +561,7 @@ ERST
     },
 
 SRST
-``p`` or ``print/``\ *fmt* *expr*
+``print`` or ``p/``\ *fmt* *expr*
   Print expression value. Only the *format* part of *fmt* is
   used.
 ERST
