@@ -1454,20 +1454,27 @@ static void register_virtio_9p_test(void)
     qos_add_test("synth/readdir/split_128", "virtio-9p",
                  fs_readdir_split_128,  &opts);
 
-
-    /* 9pfs test cases using the 'local' filesystem driver */
-    opts.before = assign_9p_local_driver;
-    qos_add_test("local/config", "virtio-9p", pci_config,  &opts);
-    qos_add_test("local/create_dir", "virtio-9p", fs_create_dir, &opts);
-    qos_add_test("local/unlinkat_dir", "virtio-9p", fs_unlinkat_dir, &opts);
-    qos_add_test("local/create_file", "virtio-9p", fs_create_file, &opts);
-    qos_add_test("local/unlinkat_file", "virtio-9p", fs_unlinkat_file, &opts);
-    qos_add_test("local/symlink_file", "virtio-9p", fs_symlink_file, &opts);
-    qos_add_test("local/unlinkat_symlink", "virtio-9p", fs_unlinkat_symlink,
-                 &opts);
-    qos_add_test("local/hardlink_file", "virtio-9p", fs_hardlink_file, &opts);
-    qos_add_test("local/unlinkat_hardlink", "virtio-9p", fs_unlinkat_hardlink,
-                 &opts);
+    if (g_test_slow()) {
+        /* 9pfs test cases using the 'local' filesystem driver */
+        /*
+         * XXX: Until we are sure that these tests can run everywhere,
+         * keep them as "slow" so that they aren't run with "make check"
+         */
+        opts.before = assign_9p_local_driver;
+        qos_add_test("local/config", "virtio-9p", pci_config,  &opts);
+        qos_add_test("local/create_dir", "virtio-9p", fs_create_dir, &opts);
+        qos_add_test("local/unlinkat_dir", "virtio-9p", fs_unlinkat_dir, &opts);
+        qos_add_test("local/create_file", "virtio-9p", fs_create_file, &opts);
+        qos_add_test("local/unlinkat_file", "virtio-9p", fs_unlinkat_file,
+                     &opts);
+        qos_add_test("local/symlink_file", "virtio-9p", fs_symlink_file, &opts);
+        qos_add_test("local/unlinkat_symlink", "virtio-9p", fs_unlinkat_symlink,
+                     &opts);
+        qos_add_test("local/hardlink_file", "virtio-9p", fs_hardlink_file,
+                     &opts);
+        qos_add_test("local/unlinkat_hardlink", "virtio-9p",
+                     fs_unlinkat_hardlink, &opts);
+    }
 }
 
 libqos_init(register_virtio_9p_test);
