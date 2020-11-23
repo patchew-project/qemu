@@ -59,6 +59,8 @@ TEST_IMG="$TEST_IMG.4" _make_test_img $size
 {"execute":"block-commit",
  "arguments":{"device":"format-4", "top-node": "format-2", "base-node":"format-0", "job-id":"job0"}}
 EOF
+sleep 1
+echo '{"execute":"query-status"}'
 if [ "${VALGRIND_QEMU}" == "y" ]; then
     sleep 10
 else
