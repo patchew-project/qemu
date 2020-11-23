@@ -1146,17 +1146,23 @@ ARMMMUIdx arm_stage1_mmu_idx(CPUARMState *env);
 
 /**
  * arm_mmu_idx_is_stage1_of_2:
- * @mmu_idx: The ARMMMUIdx to test
+ * @s1_mmu_idx: The ARMMMUIdx to test
+ * @s2_mmu_idx: Storage space for the stage 2 ARMMMUIdx
  *
- * Return true if @mmu_idx is a NOTLB mmu_idx that is the
- * first stage of a two stage regime.
+ * Return true if @mmu_idx is a NOTLB mmu_idx that is the first stage
+ * of a two stage regime. The corresponding second stage will be
+ * stored in @s2_mmu_idx.
  */
-static inline bool arm_mmu_idx_is_stage1_of_2(ARMMMUIdx mmu_idx)
+static inline bool arm_mmu_idx_is_stage1_of_2(ARMMMUIdx s1_mmu_idx,
+                                              ARMMMUIdx *s2_mmu_idx)
 {
-    switch (mmu_idx) {
+    switch (s1_mmu_idx) {
     case ARMMMUIdx_Stage1_E0:
     case ARMMMUIdx_Stage1_E1:
     case ARMMMUIdx_Stage1_E1_PAN:
+        if (s2_mmu_idx != NULL) {
+            *s2_mmu_idx = ARMMMUIdx_Stage2;
+        }
         return true;
     default:
         return false;

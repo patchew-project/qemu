@@ -3424,7 +3424,7 @@ static uint64_t do_ats_write(CPUARMState *env, uint64_t value,
         bool take_exc = false;
 
         if (fi.s1ptw && current_el == 1 && !arm_is_secure(env)
-            && arm_mmu_idx_is_stage1_of_2(mmu_idx)) {
+            && arm_mmu_idx_is_stage1_of_2(mmu_idx, NULL)) {
             /*
              * Synchronous stage 2 fault on an access made as part of the
              * translation table walk for AT S1E0* or AT S1E1* insn
@@ -10008,7 +10008,7 @@ static inline bool regime_translation_disabled(CPUARMState *env,
         }
     }
 
-    if ((hcr_el2 & HCR_DC) && arm_mmu_idx_is_stage1_of_2(mmu_idx)) {
+    if ((hcr_el2 & HCR_DC) && arm_mmu_idx_is_stage1_of_2(mmu_idx, NULL)) {
         /* HCR.DC means SCTLR_EL1.M behaves as 0 */
         return true;
     }
@@ -10340,16 +10340,17 @@ static hwaddr S1_ptw_translate(CPUARMState *env, ARMMMUIdx mmu_idx,
                                hwaddr addr, MemTxAttrs txattrs,
                                ARMMMUFaultInfo *fi)
 {
-    if (arm_mmu_idx_is_stage1_of_2(mmu_idx) &&
-        !regime_translation_disabled(env, ARMMMUIdx_Stage2)) {
+    ARMMMUIdx s2_mmu_idx;
+
+    if (arm_mmu_idx_is_stage1_of_2(mmu_idx, &s2_mmu_idx) &&
+        !regime_translation_disabled(env, s2_mmu_idx)) {
         target_ulong s2size;
         hwaddr s2pa;
         int s2prot;
         int ret;
         ARMCacheAttrs cacheattrs = {};
 
-        ret = get_phys_addr_lpae(env, addr, MMU_DATA_LOAD, ARMMMUIdx_Stage2,
-                                 false,
+        ret = get_phys_addr_lpae(env, addr, MMU_DATA_LOAD, s2_mmu_idx, false,
                                  &s2pa, &txattrs, &s2prot, &s2size, fi,
                                  &cacheattrs);
         if (ret) {
