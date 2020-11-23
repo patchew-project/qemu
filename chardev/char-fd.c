@@ -33,6 +33,8 @@
 #include "chardev/char-fd.h"
 #include "chardev/char-io.h"
 
+#include "monitor/monitor-internal.h"
+
 /* Called with chr_write_lock held.  */
 static int fd_chr_write(Chardev *chr, const uint8_t *buf, int len)
 {
@@ -45,8 +47,12 @@ static gboolean fd_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
 {
     Chardev *chr = CHARDEV(opaque);
     FDChardev *s = FD_CHARDEV(opaque);
+    CharBackend *be = chr->be;
+    Monitor *mon = (Monitor *)be->opaque;
     int len;
     uint8_t buf[CHR_READ_BUF_LEN];
+    uint8_t *cursor;
+    int load, size, pos;
     ssize_t ret;
 
     len = sizeof(buf);
@@ -62,10 +68,35 @@ static gboolean fd_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
     if (ret == 0) {
         remove_fd_in_watch(chr);
         qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
+        chr->json_thl = (const JSONthrottle){0};
         return FALSE;
     }
-    if (ret > 0) {
-        qemu_chr_be_write(chr, buf, ret);
+    if (ret < 0) {
+        return TRUE;
+    }
+    load = ret;
+    cursor = buf;
+
+    while (load > 0) {
+        size = load;
+        if (monitor_is_qmp(mon)) {
+            /* Find the end position of a JSON command in the input buffer */
+            pos = qemu_chr_end_position((const char *) cursor, size,
+                                        &chr->json_thl);
+            if (pos >= 0) {
+                size = pos + 1;
+            }
+        }
+
+        qemu_chr_be_write(chr, cursor, size);
+        cursor += size;
+        load -= size;
+
+        if (load > 0) {
+            while (qatomic_mb_read(&mon->suspend_cnt)) {
+                g_usleep(40);
+            }
+        }
     }
 
     return TRUE;

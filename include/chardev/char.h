@@ -16,6 +16,8 @@
 
 /* character device */
 typedef struct CharBackend CharBackend;
+/* Throttler helper to separate QMP commands in JSON format text */
+typedef struct JSONthrottle JSONthrottle;
 
 typedef enum {
     CHR_EVENT_BREAK, /* serial break char */
@@ -56,6 +58,11 @@ typedef enum {
 
 #define qemu_chr_replay(chr) qemu_chr_has_feature(chr, QEMU_CHAR_FEATURE_REPLAY)
 
+struct JSONthrottle {
+    int brace_count;
+    int bracket_count;
+};
+
 struct Chardev {
     Object parent_obj;
 
@@ -65,6 +72,7 @@ struct Chardev {
     char *filename;
     int logfd;
     int be_open;
+    JSONthrottle json_thl;
     GSource *gsource;
     GMainContext *gcontext;
     DECLARE_BITMAP(features, QEMU_CHAR_FEATURE_LAST);
@@ -139,6 +147,13 @@ Chardev *qemu_chr_new_mux_mon(const char *label, const char *filename,
  * Change an existing character backend
  */
 void qemu_chr_change(QemuOpts *opts, Error **errp);
+
+/**
+ * Split the incoming buffered stream so that the QMP monitor queue is not
+ * overflown with requests. The function looks for the last paired
+ * brace/bracket in a JSON command.
+ */
+int qemu_chr_end_position(const char *buf, int size, JSONthrottle *thl);
 
 /**
  * qemu_chr_cleanup:

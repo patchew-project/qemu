@@ -38,6 +38,8 @@
 #include "chardev/char-io.h"
 #include "qom/object.h"
 
+#include "monitor/monitor-internal.h"
+
 /***********************************************************/
 /* TCP Net console */
 
@@ -522,7 +524,11 @@ static gboolean tcp_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
 {
     Chardev *chr = CHARDEV(opaque);
     SocketChardev *s = SOCKET_CHARDEV(opaque);
+    CharBackend *be = chr->be;
+    Monitor *mon = (Monitor *)be->opaque;
     uint8_t buf[CHR_READ_BUF_LEN];
+    uint8_t *cursor;
+    int load, pos;
     int len, size;
 
     if ((s->state != TCP_CHARDEV_STATE_CONNECTED) ||
@@ -537,12 +543,42 @@ static gboolean tcp_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
     if (size == 0 || (size == -1 && errno != EAGAIN)) {
         /* connection closed */
         tcp_chr_disconnect(chr);
-    } else if (size > 0) {
+        chr->json_thl = (const JSONthrottle){0};
+        return TRUE;
+    }
+    if (size < 0) {
+        return TRUE;
+    }
+    load = size;
+    cursor = buf;
+
+    while (load > 0) {
+        size = load;
+        if (monitor_is_qmp(mon)) {
+            /* Find the end position of a JSON command in the input buffer */
+            pos = qemu_chr_end_position((const char *) cursor, size,
+                                        &chr->json_thl);
+            if (pos >= 0) {
+                size = pos + 1;
+            }
+        }
+        len = size;
+
         if (s->do_telnetopt) {
-            tcp_chr_process_IAC_bytes(chr, s, buf, &size);
+            tcp_chr_process_IAC_bytes(chr, s, cursor, &size);
         }
         if (size > 0) {
-            qemu_chr_be_write(chr, buf, size);
+            qemu_chr_be_write(chr, cursor, size);
+            cursor += size;
+            load -= size;
+        } else {
+            cursor += len;
+            load -= len;
+        }
+        if (load > 0) {
+            while (qatomic_mb_read(&mon->suspend_cnt)) {
+                g_usleep(40);
+            }
         }
     }
 
