@@ -1,6 +1,7 @@
 specific_ss.add(files('control-target.c'))
 
 trace_events_files = []
+module_trace = {}
 
 trace_events_config += {
   'file'  : meson.source_root() / 'trace-events',
@@ -18,6 +19,8 @@ foreach c : trace_events_config
   trace_events_files += [ trace_events_file ]
   group = '--group=' + c.get('group')
   fmt = '@0@-' + c.get('group') + '.@1@'
+  mod = c.get('module', '')
+  module_trace_src = []
 
   trace_h = custom_target(fmt.format('trace', 'h'),
                           output: fmt.format('trace', 'h'),
@@ -36,10 +39,10 @@ foreach c : trace_events_config
                                 input: trace_events_file,
                                 command: [ tracetool, group, '--format=ust-events-h', '@INPUT@' ],
                                 capture: true)
-    trace_ss.add(trace_ust_h, lttng, urcubp)
+    module_trace_src += [ trace_ust_h, lttng, urcubp ]
     genh += trace_ust_h
   endif
-  trace_ss.add(trace_h, trace_c)
+  module_trace_src += [ trace_h, trace_c ]
   if 'CONFIG_TRACE_DTRACE' in config_host
     trace_dtrace = custom_target(fmt.format('trace-dtrace', 'dtrace'),
                                  output: fmt.format('trace-dtrace', 'dtrace'),
@@ -50,16 +53,21 @@ foreach c : trace_events_config
                                    output: fmt.format('trace-dtrace', 'h'),
                                    input: trace_dtrace,
                                    command: [ 'dtrace', '-DSTAP_SDT_V2', '-o', '@OUTPUT@', '-h', '-s', '@INPUT@' ])
-    trace_ss.add(trace_dtrace_h)
+    module_trace_src += trace_dtrace_h
     if host_machine.system() != 'darwin'
       trace_dtrace_o = custom_target(fmt.format('trace-dtrace', 'o'),
                                      output: fmt.format('trace-dtrace', 'o'),
                                      input: trace_dtrace,
                                      command: [ 'dtrace', '-DSTAP_SDT_V2', '-o', '@OUTPUT@', '-G', '-s', '@INPUT@' ])
-      trace_ss.add(trace_dtrace_o)
+      module_trace_src += trace_dtrace_o
     endif
 
     genh += trace_dtrace_h
+  endif
+  if enable_modules and mod != ''
+    module_trace += { mod : module_trace_src }
+  else
+    trace_ss.add(module_trace_src)
   endif
 endforeach
 
