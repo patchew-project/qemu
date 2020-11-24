@@ -210,6 +210,7 @@ static void versal_create_sds(Versal *s, qemu_irq *pic)
     int i;
 
     for (i = 0; i < ARRAY_SIZE(s->pmc.iou.sd); i++) {
+        g_autofree char *bus_name = NULL;
         DeviceState *dev;
         MemoryRegion *mr;
 
@@ -223,6 +224,10 @@ static void versal_create_sds(Versal *s, qemu_irq *pic)
                                  &error_fatal);
         object_property_set_uint(OBJECT(dev), "uhs", UHS_I, &error_fatal);
         sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
+
+        /* Alias controller SD bus to the SoC itself */
+        bus_name = g_strdup_printf("sd-bus%d", i);
+        object_property_add_alias(OBJECT(s), bus_name, OBJECT(dev), "sd-bus");
 
         mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
         memory_region_add_subregion(&s->mr_ps,
