@@ -1477,6 +1477,8 @@ trace_events_subdirs += [
   'util',
 ]
 
+subdir('hw')
+
 subdir('contrib/libvhost-user')
 subdir('qapi')
 subdir('qobject')
@@ -1564,7 +1566,6 @@ subdir('migration')
 subdir('monitor')
 subdir('net')
 subdir('replay')
-subdir('hw')
 subdir('accel')
 subdir('plugins')
 subdir('bsd-user')
