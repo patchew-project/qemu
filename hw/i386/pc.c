@@ -99,6 +99,7 @@
 
 GlobalProperty pc_compat_5_1[] = {
     { "ICH9-LPC", "x-smi-cpu-hotplug", "off" },
+    { "ICH9-LPC", "x-smi-cpu-hotunplug", "off" },
 };
 const size_t pc_compat_5_1_len = G_N_ELEMENTS(pc_compat_5_1);
 
