@@ -408,6 +408,7 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
 
     /*** SD/MMC host controllers ***/
     for (n = 0; n < EXYNOS4210_SDHCI_NUMBER; n++) {
+        g_autofree char *bus_name = NULL;
         DeviceState *carddev;
         BlockBackend *blk;
         DriveInfo *di;
@@ -431,6 +432,10 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
         sysbus_realize_and_unref(busdev, &error_fatal);
         sysbus_mmio_map(busdev, 0, EXYNOS4210_SDHCI_ADDR(n));
         sysbus_connect_irq(busdev, 0, s->irq_table[exynos4210_get_irq(29, n)]);
+
+        /* Alias controller SD bus to the SoC itself */
+        bus_name = g_strdup_printf("sd-bus%d", n);
+        object_property_add_alias(OBJECT(s), bus_name, OBJECT(dev), "sd-bus");
 
         di = drive_get(IF_SD, 0, n);
         blk = di ? blk_by_legacy_dinfo(di) : NULL;
