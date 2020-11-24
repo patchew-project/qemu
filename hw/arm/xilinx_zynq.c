@@ -286,6 +286,7 @@ static void zynq_init(MachineState *machine)
         DriveInfo *di;
         BlockBackend *blk;
         DeviceState *carddev;
+        g_autofree char *bus_name = NULL;
 
         /* Compatible with:
          * - SD Host Controller Specification Version 2.0 Part A2
@@ -298,6 +299,11 @@ static void zynq_init(MachineState *machine)
         sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
         sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, hci_addr);
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[hci_irq - IRQ_OFFSET]);
+
+        /* Alias controller SD bus to the machine itself */
+        bus_name = g_strdup_printf("sd-bus%d", n);
+        object_property_add_alias(OBJECT(machine), bus_name,
+                                  OBJECT(dev), "sd-bus");
 
         di = drive_get_next(IF_SD);
         blk = di ? blk_by_legacy_dinfo(di) : NULL;
