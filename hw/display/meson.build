@@ -43,6 +43,11 @@ if config_all_devices.has_key('CONFIG_QXL')
   qxl_ss = ss.source_set()
   qxl_ss.add(when: 'CONFIG_QXL', if_true: [files('qxl.c', 'qxl-logger.c', 'qxl-render.c'),
                                            pixman, spice])
+  trace_events_config += {
+    'file'   : meson.source_root() / 'hw' / 'display' / 'trace-events-qxl',
+    'group'  : 'hw_display_qxl',
+    'module' : 'hw-display-qxl',
+  }
   hw_display_modules += {'qxl': qxl_ss}
 endif
 

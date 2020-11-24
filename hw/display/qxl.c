@@ -33,6 +33,7 @@
 #include "migration/blocker.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "trace/trace-hw_display_qxl.h"
 
 #include "qxl.h"
 
