@@ -32,6 +32,4 @@ enum {
 
 extern const uint32_t arch_type;
 
-int xen_available(void);
-
 #endif
