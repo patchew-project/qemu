@@ -621,8 +621,13 @@ void qemu_init_vcpu(CPUState *cpu)
     g_assert(cpus_accel != NULL && cpus_accel->create_vcpu_thread != NULL);
     cpus_accel->create_vcpu_thread(cpu);
 
-    while (!cpu->created) {
-        qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
+    if (cpu->last_cpu) {
+        CPUState *cs = first_cpu;
+        CPU_FOREACH(cs) {
+            while (!cs->created) {
+                qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
+            }
+        }
     }
 }
 

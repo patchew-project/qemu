@@ -101,9 +101,11 @@ uint32_t x86_cpu_apic_id_from_index(X86MachineState *x86ms,
 }
 
 
-void x86_cpu_new(X86MachineState *x86ms, int64_t apic_id, Error **errp)
+void x86_cpu_new(X86MachineState *x86ms, int64_t apic_id,
+                 bool last_cpu, Error **errp)
 {
     Object *cpu = object_new(MACHINE(x86ms)->cpu_type);
+    ((CPUState *)cpu)->last_cpu = last_cpu;
 
     if (!object_property_set_uint(cpu, "apic-id", apic_id, errp)) {
         goto out;
@@ -135,7 +137,8 @@ void x86_cpus_init(X86MachineState *x86ms, int default_cpu_version)
                                                       ms->smp.max_cpus - 1) + 1;
     possible_cpus = mc->possible_cpu_arch_ids(ms);
     for (i = 0; i < ms->smp.cpus; i++) {
-        x86_cpu_new(x86ms, possible_cpus->cpus[i].arch_id, &error_fatal);
+        x86_cpu_new(x86ms, possible_cpus->cpus[i].arch_id,
+                    i == ms->smp.cpus - 1, &error_fatal);
     }
 }
 
