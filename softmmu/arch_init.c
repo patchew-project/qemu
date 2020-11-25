@@ -50,15 +50,6 @@ int graphic_depth = 32;
 
 const uint32_t arch_type = QEMU_ARCH;
 
-int kvm_available(void)
-{
-#ifdef CONFIG_KVM
-    return 1;
-#else
-    return 0;
-#endif
-}
-
 int xen_available(void)
 {
 #ifdef CONFIG_XEN
