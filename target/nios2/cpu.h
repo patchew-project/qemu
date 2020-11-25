@@ -207,6 +207,7 @@ void nios2_check_interrupts(CPUNios2State *env);
 void do_nios2_semihosting(CPUNios2State *env);
 
 #define CPU_RESOLVING_TYPE TYPE_NIOS2_CPU
+#define QEMU_ARCH QEMU_ARCH_NIOS2
 
 #define cpu_gen_code cpu_nios2_gen_code
 #define cpu_signal_handler cpu_nios2_signal_handler

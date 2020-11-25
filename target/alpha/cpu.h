@@ -438,6 +438,7 @@ void alpha_translate_init(void);
 #define ALPHA_CPU_TYPE_SUFFIX "-" TYPE_ALPHA_CPU
 #define ALPHA_CPU_TYPE_NAME(model) model ALPHA_CPU_TYPE_SUFFIX
 #define CPU_RESOLVING_TYPE TYPE_ALPHA_CPU
+#define QEMU_ARCH QEMU_ARCH_ALPHA
 
 void alpha_cpu_list(void);
 /* you can call this signal handler from your SIGBUS and SIGSEGV

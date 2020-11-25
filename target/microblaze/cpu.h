@@ -378,6 +378,7 @@ int cpu_mb_signal_handler(int host_signum, void *pinfo,
                           void *puc);
 
 #define CPU_RESOLVING_TYPE TYPE_MICROBLAZE_CPU
+#define QEMU_ARCH QEMU_ARCH_MICROBLAZE
 
 #define cpu_signal_handler cpu_mb_signal_handler
 

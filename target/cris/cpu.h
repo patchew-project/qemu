@@ -249,6 +249,7 @@ enum {
 #define CRIS_CPU_TYPE_SUFFIX "-" TYPE_CRIS_CPU
 #define CRIS_CPU_TYPE_NAME(name) (name CRIS_CPU_TYPE_SUFFIX)
 #define CPU_RESOLVING_TYPE TYPE_CRIS_CPU
+#define QEMU_ARCH QEMU_ARCH_CRIS
 
 #define cpu_signal_handler cpu_cris_signal_handler
 

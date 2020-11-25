@@ -348,6 +348,7 @@ void cpu_openrisc_count_stop(OpenRISCCPU *cpu);
 #define OPENRISC_CPU_TYPE_SUFFIX "-" TYPE_OPENRISC_CPU
 #define OPENRISC_CPU_TYPE_NAME(model) model OPENRISC_CPU_TYPE_SUFFIX
 #define CPU_RESOLVING_TYPE TYPE_OPENRISC_CPU
+#define QEMU_ARCH QEMU_ARCH_OPENRISC
 
 typedef CPUOpenRISCState CPUArchState;
 typedef OpenRISCCPU ArchCPU;
