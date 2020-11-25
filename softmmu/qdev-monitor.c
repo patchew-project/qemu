@@ -22,7 +22,7 @@
 #include "monitor/hmp.h"
 #include "monitor/monitor.h"
 #include "monitor/qdev.h"
-#include "sysemu/arch_init.h"
+#include "sysemu/arch_type.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-qdev.h"
 #include "qapi/qmp/qdict.h"

@@ -95,7 +95,7 @@
 #include "trace/control.h"
 #include "qemu/plugin.h"
 #include "qemu/queue.h"
-#include "sysemu/arch_init.h"
+#include "sysemu/arch_type.h"
 
 #include "ui/qemu-spice.h"
 #include "qapi/string-input-visitor.h"

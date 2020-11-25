@@ -24,7 +24,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "sysemu/sysemu.h"
-#include "sysemu/arch_init.h"
+#include "sysemu/arch_type.h"
 #include "hw/pci/pci.h"
 #include "hw/audio/soundhw.h"
 #include "qapi/error.h"
