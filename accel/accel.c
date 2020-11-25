@@ -46,6 +46,11 @@ AccelClass *accel_find(const char *opt_name)
     return ac;
 }
 
+bool accel_available(const char *name)
+{
+    return accel_find(name) != NULL;
+}
+
 int accel_init_machine(AccelState *accel, MachineState *ms)
 {
     AccelClass *acc = ACCEL_GET_CLASS(accel);
