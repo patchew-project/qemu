@@ -44,7 +44,6 @@
 #include "qapi/qmp/qerror.h"
 #include "qapi/visitor.h"
 #include "qom/qom-qobject.h"
-#include "sysemu/arch_init.h"
 #include "qapi/qapi-commands-machine-target.h"
 
 #include "standard-headers/asm-x86/kvm_para.h"

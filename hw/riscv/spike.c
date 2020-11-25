@@ -38,7 +38,6 @@
 #include "hw/char/riscv_htif.h"
 #include "hw/intc/sifive_clint.h"
 #include "chardev/char.h"
-#include "sysemu/arch_init.h"
 #include "sysemu/device_tree.h"
 #include "sysemu/qtest.h"
 #include "sysemu/sysemu.h"
