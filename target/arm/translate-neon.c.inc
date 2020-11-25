@@ -427,9 +427,12 @@ static void gen_neon_ldst_base_update(DisasContext *s, int rm, int rn,
 
 static bool trans_VLDST_multiple(DisasContext *s, arg_VLDST_multiple *a)
 {
+    static const MemOp mop_align[4] = {
+        0, MO_ALIGN_8, MO_ALIGN_16, MO_ALIGN_32
+    };
     /* Neon load/store multiple structures */
     int nregs, interleave, spacing, reg, n;
-    MemOp endian = s->be_data;
+    MemOp mop, endian = s->be_data;
     int mmu_idx = get_mem_index(s);
     int size = a->size;
     TCGv_i64 tmp64;
@@ -487,6 +490,10 @@ static bool trans_VLDST_multiple(DisasContext *s, arg_VLDST_multiple *a)
     addr = tcg_temp_new_i32();
     tmp = tcg_const_i32(1 << size);
     load_reg_var(s, addr, a->rn);
+
+    /* Enforce the requested alignment for the first memory operation. */
+    mop = endian | size | mop_align[a->align];
+
     for (reg = 0; reg < nregs; reg++) {
         for (n = 0; n < 8 >> size; n++) {
             int xs;
@@ -494,13 +501,16 @@ static bool trans_VLDST_multiple(DisasContext *s, arg_VLDST_multiple *a)
                 int tt = a->vd + reg + spacing * xs;
 
                 if (a->l) {
-                    gen_aa32_ld_i64(s, tmp64, addr, mmu_idx, endian | size);
+                    gen_aa32_ld_i64(s, tmp64, addr, mmu_idx, mop);
                     neon_store_element64(tt, n, size, tmp64);
                 } else {
                     neon_load_element64(tmp64, tt, n, size);
-                    gen_aa32_st_i64(s, tmp64, addr, mmu_idx, endian | size);
+                    gen_aa32_st_i64(s, tmp64, addr, mmu_idx, mop);
                 }
                 tcg_gen_add_i32(addr, addr, tmp);
+
+                /* Subsequent memory operations inherit alignment */
+                mop &= ~MO_AMASK;
             }
         }
     }
