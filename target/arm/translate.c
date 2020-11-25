@@ -6876,7 +6876,7 @@ static bool op_stl(DisasContext *s, arg_STL *a, MemOp mop)
 
 static bool trans_STL(DisasContext *s, arg_STL *a)
 {
-    return op_stl(s, a, MO_UL);
+    return op_stl(s, a, MO_UL | MO_ALIGN);
 }
 
 static bool trans_STLB(DisasContext *s, arg_STL *a)
@@ -6886,7 +6886,7 @@ static bool trans_STLB(DisasContext *s, arg_STL *a)
 
 static bool trans_STLH(DisasContext *s, arg_STL *a)
 {
-    return op_stl(s, a, MO_UW);
+    return op_stl(s, a, MO_UW | MO_ALIGN);
 }
 
 static bool op_ldrex(DisasContext *s, arg_LDREX *a, MemOp mop, bool acq)
@@ -7033,7 +7033,7 @@ static bool op_lda(DisasContext *s, arg_LDA *a, MemOp mop)
 
 static bool trans_LDA(DisasContext *s, arg_LDA *a)
 {
-    return op_lda(s, a, MO_UL);
+    return op_lda(s, a, MO_UL | MO_ALIGN);
 }
 
 static bool trans_LDAB(DisasContext *s, arg_LDA *a)
@@ -7043,7 +7043,7 @@ static bool trans_LDAB(DisasContext *s, arg_LDA *a)
 
 static bool trans_LDAH(DisasContext *s, arg_LDA *a)
 {
-    return op_lda(s, a, MO_UW);
+    return op_lda(s, a, MO_UW | MO_ALIGN);
 }
 
 /*
