@@ -7,19 +7,10 @@
 #ifndef COMPILER_H
 #define COMPILER_H
 
+#include "glib-compat.h"
+
 #if defined __clang_analyzer__ || defined __COVERITY__
 #define QEMU_STATIC_ANALYSIS 1
-#endif
-
-/*----------------------------------------------------------------------------
-| The macro QEMU_GNUC_PREREQ tests for minimum version of the GNU C compiler.
-| The code is a copy of SOFTFLOAT_GNUC_PREREQ, see softfloat-macros.h.
-*----------------------------------------------------------------------------*/
-#if defined(__GNUC__) && defined(__GNUC_MINOR__)
-# define QEMU_GNUC_PREREQ(maj, min) \
-         ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
-#else
-# define QEMU_GNUC_PREREQ(maj, min) 0
 #endif
 
 #define QEMU_NORETURN __attribute__ ((__noreturn__))
@@ -104,7 +95,7 @@
                                    sizeof(QEMU_BUILD_BUG_ON_STRUCT(x)))
 
 #if defined __GNUC__
-# if !QEMU_GNUC_PREREQ(4, 4)
+# if !G_GNUC_CHECK_VERSION(4, 4)
    /* gcc versions before 4.4.x don't support gnu_printf, so use printf. */
 #  define GCC_FMT_ATTR(n, m) __attribute__((format(printf, n, m)))
 # else

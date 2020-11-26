@@ -248,7 +248,7 @@
  * 4.3 (http://gcc.gnu.org/bugzilla/show_bug.cgi?id=36793).
  */
 #if defined(__i386__) || defined(__x86_64__)
-#if !QEMU_GNUC_PREREQ(4, 4)
+#if !G_GNUC_CHECK_VERSION(4, 4)
 #if defined __x86_64__
 #define smp_mb()    ({ asm volatile("mfence" ::: "memory"); (void)0; })
 #else
