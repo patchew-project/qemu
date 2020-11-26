@@ -3182,6 +3182,50 @@ fail:
                       MIGRATION_STATUS_FAILED);
 }
 
+/**
+ * bg_migration_completion: Used by bg_migration_thread when after all the
+ *   RAM has been saved. The caller 'breaks' the loop when this returns.
+ *
+ * @s: Current migration state
+ */
+static void bg_migration_completion(MigrationState *s)
+{
+    int current_active_state = s->state;
+
+    /*
+     * Stop tracking RAM writes - un-protect memory, un-register UFFD
+     * memory ranges, flush kernel wait queues and wake up threads
+     * waiting for write fault to be resolved.
+     */
+    ram_write_tracking_stop();
+
+    if (s->state == MIGRATION_STATUS_ACTIVE) {
+        /*
+         * By this moment we have RAM content saved into the migration stream.
+         * The next step is to flush the non-RAM content (device state)
+         * right after the ram content. The device state has been stored into
+         * the temporary buffer before RAM saving started.
+         */
+        qemu_put_buffer(s->to_dst_file, s->bioc->data, s->bioc->usage);
+        qemu_fflush(s->to_dst_file);
+    } else if (s->state == MIGRATION_STATUS_CANCELLING) {
+        goto fail;
+    }
+
+    if (qemu_file_get_error(s->to_dst_file)) {
+        trace_migration_completion_file_err();
+        goto fail;
+    }
+
+    migrate_set_state(&s->state, current_active_state,
+                      MIGRATION_STATUS_COMPLETED);
+    return;
+
+fail:
+    migrate_set_state(&s->state, current_active_state,
+                      MIGRATION_STATUS_FAILED);
+}
+
 bool migrate_colo_enabled(void)
 {
     MigrationState *s = migrate_get_current();
@@ -3524,7 +3568,26 @@ static void migration_iteration_finish(MigrationState *s)
 
 static void bg_migration_iteration_finish(MigrationState *s)
 {
-    /* TODO: implement */
+    qemu_mutex_lock_iothread();
+    switch (s->state) {
+    case MIGRATION_STATUS_COMPLETED:
+        migration_calculate_complete(s);
+        break;
+
+    case MIGRATION_STATUS_ACTIVE:
+    case MIGRATION_STATUS_FAILED:
+    case MIGRATION_STATUS_CANCELLED:
+    case MIGRATION_STATUS_CANCELLING:
+        break;
+
+    default:
+        /* Should not reach here, but if so, forgive the VM. */
+        error_report("%s: Unknown ending state %d", __func__, s->state);
+        break;
+    }
+
+    migrate_fd_cleanup_schedule(s);
+    qemu_mutex_unlock_iothread();
 }
 
 /*
@@ -3533,7 +3596,14 @@ static void bg_migration_iteration_finish(MigrationState *s)
  */
 static MigIterateState bg_migration_iteration_run(MigrationState *s)
 {
-    /* TODO: implement */
+    int res;
+
+    res = qemu_savevm_state_iterate(s->to_dst_file, false);
+    if (res > 0) {
+        bg_migration_completion(s);
+        return MIG_ITERATE_BREAK;
+    }
+
     return MIG_ITERATE_RESUME;
 }
 
