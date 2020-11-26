@@ -418,8 +418,20 @@ static void hvf_start_vcpu_thread(CPUState *cpu)
                        cpu, QEMU_THREAD_JOINABLE);
 }
 
+#ifdef __aarch64__
+static void hvf_kick_vcpu_thread(CPUState *cpu)
+{
+    if (!qemu_cpu_is_self(cpu)) {
+        hv_vcpus_exit(&cpu->hvf_fd, 1);
+    }
+}
+#endif
+
 static const CpusAccel hvf_cpus = {
     .create_vcpu_thread = hvf_start_vcpu_thread,
+#ifdef __aarch64__
+    .kick_vcpu_thread = hvf_kick_vcpu_thread,
+#endif
 
     .synchronize_post_reset = hvf_cpu_synchronize_post_reset,
     .synchronize_post_init = hvf_cpu_synchronize_post_init,
