@@ -56,6 +56,11 @@
 #include "savevm.h"
 #include "qemu/iov.h"
 #include "multifd.h"
+#include "sysemu/runstate.h"
+
+#ifdef CONFIG_LINUX
+#include "qemu/userfaultfd.h"
+#endif
 
 /***********************************************************/
 /* ram save/restore */
@@ -298,6 +303,8 @@ struct RAMSrcPageRequest {
 struct RAMState {
     /* QEMUFile used for this migration */
     QEMUFile *f;
+    /* UFFD file descriptor, used in 'write-tracking' migration */
+    int uffdio_fd;
     /* Last block that we have visited searching for dirty pages */
     RAMBlock *last_seen_block;
     /* Last block from where we have sent data */
@@ -3786,6 +3793,119 @@ static int ram_resume_prepare(MigrationState *s, void *opaque)
     ram_state_resume_prepare(rs, s->to_dst_file);
 
     return 0;
+}
+
+/*
+ * ram_write_tracking_start: start UFFD-WP memory tracking
+ *
+ * Returns 0 for success or negative value in case of error
+ *
+ */
+int ram_write_tracking_start(void)
+{
+#ifdef CONFIG_LINUX
+    int uffd;
+    RAMState *rs = ram_state;
+    RAMBlock *bs;
+
+    /* Open UFFD file descriptor */
+    uffd = uffd_create_fd();
+    if (uffd < 0) {
+        return uffd;
+    }
+    rs->uffdio_fd = uffd;
+
+    RAMBLOCK_FOREACH_NOT_IGNORED(bs) {
+        /* Nothing to do with read-only and MMIO-writable regions */
+        if (bs->mr->readonly || bs->mr->rom_device) {
+            continue;
+        }
+
+        bs->flags |= RAM_UF_WRITEPROTECT;
+        /* Register block memory with UFFD to track writes */
+        if (uffd_register_memory(rs->uffdio_fd, (hwaddr) bs->host,
+                bs->max_length, false, true)) {
+            goto fail;
+        }
+        /* Apply UFFD write protection to the block memory range */
+        if (uffd_protect_memory(rs->uffdio_fd, (hwaddr) bs->host,
+                bs->max_length, true)) {
+            goto fail;
+        }
+
+        info_report("UFFD-WP write-tracking enabled: "
+                "block_id=%s page_size=%zu start=%p length=%lu "
+                "romd_mode=%i ram=%i readonly=%i nonvolatile=%i rom_device=%i",
+                bs->idstr, bs->page_size, bs->host, bs->max_length,
+                bs->mr->romd_mode, bs->mr->ram, bs->mr->readonly,
+                bs->mr->nonvolatile, bs->mr->rom_device);
+    }
+
+    return 0;
+
+fail:
+    error_report("ram_write_tracking_start() failed: restoring initial memory state");
+
+    RAMBLOCK_FOREACH_NOT_IGNORED(bs) {
+        if ((bs->flags & RAM_UF_WRITEPROTECT) == 0) {
+            continue;
+        }
+        /*
+         * In case some memory block failed to be write-protected
+         * remove protection and unregister all succeeded RAM blocks
+         */
+        uffd_protect_memory(rs->uffdio_fd, (hwaddr) bs->host, bs->max_length, false);
+        uffd_unregister_memory(rs->uffdio_fd, (hwaddr) bs->host, bs->max_length);
+        /* Cleanup flags */
+        bs->flags &= ~RAM_UF_WRITEPROTECT;
+    }
+
+    uffd_close_fd(uffd);
+    rs->uffdio_fd = -1;
+    return -1;
+#else
+    rs->uffdio_fd = -1;
+    error_setg(&migrate_get_current()->error,
+            "Background-snapshot not supported on non-Linux hosts");
+    return -1;
+#endif /* CONFIG_LINUX */
+}
+
+/**
+ * ram_write_tracking_stop: stop UFFD-WP memory tracking and remove protection
+ */
+void ram_write_tracking_stop(void)
+{
+#ifdef CONFIG_LINUX
+    RAMState *rs = ram_state;
+    RAMBlock *bs;
+    assert(rs->uffdio_fd >= 0);
+
+    RAMBLOCK_FOREACH_NOT_IGNORED(bs) {
+        if ((bs->flags & RAM_UF_WRITEPROTECT) == 0) {
+            continue;
+        }
+        /* Remove protection and unregister all affected RAM blocks */
+        uffd_protect_memory(rs->uffdio_fd, (hwaddr) bs->host, bs->max_length, false);
+        uffd_unregister_memory(rs->uffdio_fd, (hwaddr) bs->host, bs->max_length);
+        /* Cleanup flags */
+        bs->flags &= ~RAM_UF_WRITEPROTECT;
+
+        info_report("UFFD-WP write-tracking disabled: "
+                "block_id=%s page_size=%zu start=%p length=%lu "
+                "romd_mode=%i ram=%i readonly=%i nonvolatile=%i rom_device=%i",
+                bs->idstr, bs->page_size, bs->host, bs->max_length,
+                bs->mr->romd_mode, bs->mr->ram, bs->mr->readonly,
+                bs->mr->nonvolatile, bs->mr->rom_device);
+    }
+
+    /* Finally close UFFD file descriptor */
+    uffd_close_fd(rs->uffdio_fd);
+    rs->uffdio_fd = -1;
+#else
+    error_setg(&migrate_get_current()->error,
+            "Background-snapshot not supported on non-Linux hosts");
+#endif /* CONFIG_LINUX */
 }
 
 static SaveVMHandlers savevm_ram_handlers = {
