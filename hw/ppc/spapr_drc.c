@@ -15,6 +15,7 @@
 #include "qapi/qmp/qnull.h"
 #include "cpu.h"
 #include "qemu/cutils.h"
+#include "qemu/guest-random.h"
 #include "hw/ppc/spapr_drc.h"
 #include "qom/object.h"
 #include "migration/vmstate.h"
@@ -421,6 +422,145 @@ void spapr_drc_detach(SpaprDrc *drc)
     spapr_drc_release(drc);
 }
 
+
+/*
+ * @drc : device DRC targetting which the async hcalls to be made.
+ *
+ * All subsequent requests to run/query the status should use the
+ * unique token returned here.
+ */
+uint64_t spapr_drc_get_new_async_hcall_token(SpaprDrc *drc)
+{
+    Error *err = NULL;
+    uint64_t token;
+    SpaprDrcDeviceAsyncHCallState *tmp, *next, *state;
+
+    state = g_malloc0(sizeof(*state));
+    state->pending = true;
+
+    qemu_mutex_lock(&drc->async_hcall_states_lock);
+retry:
+    if (qemu_guest_getrandom(&token, sizeof(token), &err) < 0) {
+        error_report_err(err);
+        g_free(state);
+        return 0;
+    }
+
+    if (!token) /* Token should be non-zero */
+        goto retry;
+
+    if (!QLIST_EMPTY(&drc->async_hcall_states)) {
+        QLIST_FOREACH_SAFE(tmp, &drc->async_hcall_states, node, next) {
+            if (tmp->continue_token == token) {
+                /* If the token already in use, get a new one */
+                goto retry;
+            }
+        }
+    }
+
+    state->continue_token = token;
+    QLIST_INSERT_HEAD(&drc->async_hcall_states, state, node);
+
+    qemu_mutex_unlock(&drc->async_hcall_states_lock);
+
+    return state->continue_token;
+}
+
+static void *spapr_drc_async_hcall_runner(void *opaque)
+{
+    int response = -1;
+    SpaprDrcDeviceAsyncHCallState *state = opaque;
+
+    /*
+     * state is freed only after this thread finishes(after pthread_join()),
+     * don't worry about it becoming NULL.
+     */
+
+    response = state->func(state->data);
+
+    state->hcall_ret = response;
+    state->pending = 0;
+
+    return NULL;
+}
+
+/*
+ * @drc  : device DRC targetting which the async hcalls to be made.
+ * token : The continue token to be used for tracking as recived from
+ *         spapr_drc_get_new_async_hcall_token
+ * @func() : the worker function which needs to be executed asynchronously
+ * @data : data to be passed to the asynchronous function. Worker is supposed
+ *         to free/cleanup the data that is passed here
+ */
+void spapr_drc_run_async_hcall(SpaprDrc *drc, uint64_t token,
+                               SpaprDrcAsyncHcallWorkerFunc *func, void *data)
+{
+    SpaprDrcDeviceAsyncHCallState *state, *next;
+
+    qemu_mutex_lock(&drc->async_hcall_states_lock);
+    QLIST_FOREACH_SAFE(state, &drc->async_hcall_states, node, next) {
+        if (state->continue_token == token) {
+            state->func = func;
+            state->data = data;
+            qemu_thread_create(&state->thread, "sPAPR Async HCALL",
+                               spapr_drc_async_hcall_runner, state,
+                               QEMU_THREAD_JOINABLE);
+            break;
+        }
+    }
+    qemu_mutex_unlock(&drc->async_hcall_states_lock);
+}
+
+/*
+ * spapr_drc_finish_async_hcalls
+ *      Waits for all pending async requests to complete
+ *      thier execution and free the states
+ */
+static void spapr_drc_finish_async_hcalls(SpaprDrc *drc)
+{
+    SpaprDrcDeviceAsyncHCallState *state, *next;
+
+    if (QLIST_EMPTY(&drc->async_hcall_states)) {
+        return;
+    }
+
+    QLIST_FOREACH_SAFE(state, &drc->async_hcall_states, node, next) {
+        qemu_thread_join(&state->thread);
+        QLIST_REMOVE(state, node);
+        g_free(state);
+    }
+}
+
+/*
+ * spapr_drc_get_async_hcall_status
+ *      Fetches the status of the hcall worker and returns H_BUSY
+ *      if the worker is still running.
+ */
+int spapr_drc_get_async_hcall_status(SpaprDrc *drc, uint64_t token)
+{
+    int ret = H_PARAMETER;
+    SpaprDrcDeviceAsyncHCallState *state, *node;
+
+    qemu_mutex_lock(&drc->async_hcall_states_lock);
+    QLIST_FOREACH_SAFE(state, &drc->async_hcall_states, node, node) {
+        if (state->continue_token == token) {
+            if (state->pending) {
+                ret = H_BUSY;
+                break;
+            } else {
+                ret = state->hcall_ret;
+                qemu_thread_join(&state->thread);
+                QLIST_REMOVE(state, node);
+                g_free(state);
+                break;
+            }
+        }
+    }
+    qemu_mutex_unlock(&drc->async_hcall_states_lock);
+
+    return ret;
+}
+
 void spapr_drc_reset(SpaprDrc *drc)
 {
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
@@ -448,6 +588,7 @@ void spapr_drc_reset(SpaprDrc *drc)
         drc->ccs_offset = -1;
         drc->ccs_depth = -1;
     }
+    spapr_drc_finish_async_hcalls(drc);
 }
 
 static bool spapr_drc_unplug_requested_needed(void *opaque)
@@ -558,6 +699,7 @@ SpaprDrc *spapr_dr_connector_new(Object *owner, const char *type,
     drc->owner = owner;
     prop_name = g_strdup_printf("dr-connector[%"PRIu32"]",
                                 spapr_drc_index(drc));
+
     object_property_add_child(owner, prop_name, OBJECT(drc));
     object_unref(OBJECT(drc));
     qdev_realize(DEVICE(drc), NULL, NULL);
@@ -577,6 +719,10 @@ static void spapr_dr_connector_instance_init(Object *obj)
     object_property_add(obj, "fdt", "struct", prop_get_fdt,
                         NULL, NULL, NULL);
     drc->state = drck->empty_state;
+
+    qemu_mutex_init(&drc->async_hcall_states_lock);
+    QLIST_INIT(&drc->async_hcall_states);
+
 }
 
 static void spapr_dr_connector_class_init(ObjectClass *k, void *data)
