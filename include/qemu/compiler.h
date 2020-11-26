@@ -55,14 +55,10 @@
     (offsetof(container, field) + sizeof_field(container, field))
 
 /* Convert from a base type to a parent type, with compile time checking.  */
-#ifdef __GNUC__
 #define DO_UPCAST(type, field, dev) ( __extension__ ( { \
     char __attribute__((unused)) offset_must_be_zero[ \
         -offsetof(type, field)]; \
     container_of(dev, type, field);}))
-#else
-#define DO_UPCAST(type, field, dev) container_of(dev, type, field)
-#endif
 
 #define typeof_field(type, field) typeof(((type *)0)->field)
 #define type_check(t1,t2) ((t1*)0 - (t2*)0)
@@ -93,7 +89,7 @@
 #if defined(__clang__)
   /* clang doesn't support gnu_printf, so use printf. */
 # define GCC_FMT_ATTR(n, m) __attribute__((format(printf, n, m)))
-#elif defined(__GNUC__)
+#else
    /* Use gnu_printf (qemu uses standard format strings). */
 # define GCC_FMT_ATTR(n, m) __attribute__((format(gnu_printf, n, m)))
 # if defined(_WIN32)
@@ -101,8 +97,6 @@
     * even when MinGW or GLib include files use __printf__. */
 #  define __printf__ __gnu_printf__
 # endif
-#else
-#define GCC_FMT_ATTR(n, m)
 #endif
 
 #ifndef __has_warning
