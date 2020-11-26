@@ -51,6 +51,7 @@ OBJECT_DECLARE_TYPE(NVDIMMDevice, NVDIMMClass, NVDIMM)
 #define NVDIMM_LABEL_SIZE_PROP "label-size"
 #define NVDIMM_UUID_PROP       "uuid"
 #define NVDIMM_UNARMED_PROP    "unarmed"
+#define NVDIMM_SYNC_DAX_PROP    "sync-dax"
 
 struct NVDIMMDevice {
     /* private */
@@ -84,6 +85,15 @@ struct NVDIMMDevice {
      * the guest write persistence.
      */
     bool unarmed;
+
+    /*
+     * On PPC64,
+     * The 'off' value results in the async-flush-required property set
+     * in the device tree for pseries machines. When 'off', the guest
+     * initiates explicity flush requests to the backend device ensuring
+     * write persistence.
+     */
+    bool sync_dax;
 
     /*
      * The PPC64 - spapr requires each nvdimm device have a uuid.

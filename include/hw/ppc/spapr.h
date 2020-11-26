@@ -535,8 +535,9 @@ struct SpaprMachineState {
 #define H_SCM_BIND_MEM          0x3EC
 #define H_SCM_UNBIND_MEM        0x3F0
 #define H_SCM_UNBIND_ALL        0x3FC
+#define H_SCM_ASYNC_FLUSH       0x4A0
 
-#define MAX_HCALL_OPCODE        H_SCM_UNBIND_ALL
+#define MAX_HCALL_OPCODE        H_SCM_ASYNC_FLUSH
 
 /* The hcalls above are standardized in PAPR and implemented by pHyp
  * as well.
