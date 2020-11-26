@@ -60,6 +60,10 @@
 
 #include <Hypervisor/Hypervisor.h>
 
+#ifdef __aarch64__
+#define HV_VM_DEFAULT NULL
+#endif
+
 /* Memory slots */
 
 struct mac_slot {
