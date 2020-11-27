@@ -87,6 +87,13 @@ static void bdrv_parent_set_aio_context_ignore(BdrvChild *c, AioContext *ctx,
                                                GSList **ignore);
 static void bdrv_replace_child_noperm(BdrvChild *child,
                                       BlockDriverState *new_bs);
+static int bdrv_attach_child_common(BlockDriverState *child_bs,
+                                    const char *child_name,
+                                    const BdrvChildClass *child_class,
+                                    BdrvChildRole child_role,
+                                    uint64_t perm, uint64_t shared_perm,
+                                    void *opaque, BdrvChild **child,
+                                    GSList **tran, Error **errp);
 
 static int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue
                                *queue, Error **errp);
@@ -2905,55 +2912,22 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                   uint64_t perm, uint64_t shared_perm,
                                   void *opaque, Error **errp)
 {
-    BdrvChild *child;
-    Error *local_err = NULL;
     int ret;
-    AioContext *ctx;
+    BdrvChild *child = NULL;
+    GSList *tran = NULL;
 
-    ret = bdrv_check_update_perm(child_bs, NULL, perm, shared_perm, NULL, errp);
+    ret = bdrv_attach_child_common(child_bs, child_name, child_class,
+                                   child_role, perm, shared_perm, opaque,
+                                   &child, &tran, errp);
     if (ret < 0) {
-        bdrv_abort_perm_update(child_bs);
         bdrv_unref(child_bs);
         return NULL;
     }
 
-    child = g_new(BdrvChild, 1);
-    *child = (BdrvChild) {
-        .bs             = NULL,
-        .name           = g_strdup(child_name),
-        .klass          = child_class,
-        .role           = child_role,
-        .perm           = perm,
-        .shared_perm    = shared_perm,
-        .opaque         = opaque,
-    };
+    ret = bdrv_refresh_perms(child_bs, errp);
+    tran_finalize(tran, ret);
 
-    ctx = bdrv_child_get_parent_aio_context(child);
-
-    /* If the AioContexts don't match, first try to move the subtree of
-     * child_bs into the AioContext of the new parent. If this doesn't work,
-     * try moving the parent into the AioContext of child_bs instead. */
-    if (bdrv_get_aio_context(child_bs) != ctx) {
-        ret = bdrv_try_set_aio_context(child_bs, ctx, &local_err);
-        if (ret < 0) {
-            if (bdrv_parent_try_set_aio_context(child, ctx, NULL) == 0) {
-                ret = 0;
-                error_free(local_err);
-                local_err = NULL;
-            }
-        }
-        if (ret < 0) {
-            error_propagate(errp, local_err);
-            g_free(child);
-            bdrv_abort_perm_update(child_bs);
-            bdrv_unref(child_bs);
-            return NULL;
-        }
-    }
-
-    /* This performs the matching bdrv_set_perm() for the above check. */
-    bdrv_replace_child(child, child_bs);
-
+    bdrv_unref(child_bs);
     return child;
 }
 
@@ -2995,14 +2969,112 @@ BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
     return child;
 }
 
-static void bdrv_detach_child(BdrvChild *child)
+static void bdrv_remove_empty_child(BdrvChild *child)
 {
+    assert(!child->bs);
     QLIST_SAFE_REMOVE(child, next);
-
-    bdrv_replace_child(child, NULL);
-
     g_free(child->name);
     g_free(child);
+}
+
+typedef struct BdrvAttachChildCommonState {
+    BdrvChild **child;
+    AioContext *old_parent_ctx;
+    AioContext *old_child_ctx;
+} BdrvAttachChildCommonState;
+
+static void bdrv_attach_child_common_abort(void *opaque)
+{
+    BdrvAttachChildCommonState *s = opaque;
+    BdrvChild *child = *s->child;
+    BlockDriverState *bs = child->bs;
+
+    bdrv_replace_child_noperm(child, NULL);
+
+    if (bdrv_get_aio_context(bs) != s->old_child_ctx) {
+        bdrv_try_set_aio_context(bs, s->old_child_ctx, &error_abort);
+    }
+
+    if (bdrv_child_get_parent_aio_context(child) != s->old_parent_ctx) {
+        bdrv_parent_try_set_aio_context(child, s->old_parent_ctx,
+                                        &error_abort);
+    }
+
+    bdrv_unref(bs);
+    bdrv_remove_empty_child(child);
+    *s->child = NULL;
+}
+
+static TransactionActionDrv bdrv_attach_child_common_drv = {
+    .abort = bdrv_attach_child_common_abort,
+};
+
+/*
+ * Common part of attoching bdrv child to bs or to blk or to job
+ */
+static int bdrv_attach_child_common(BlockDriverState *child_bs,
+                                    const char *child_name,
+                                    const BdrvChildClass *child_class,
+                                    BdrvChildRole child_role,
+                                    uint64_t perm, uint64_t shared_perm,
+                                    void *opaque, BdrvChild **child,
+                                    GSList **tran, Error **errp)
+{
+    int ret;
+    BdrvChild *new_child;
+    AioContext *parent_ctx;
+    AioContext *child_ctx = bdrv_get_aio_context(child_bs);
+
+    assert(child);
+    assert(*child == NULL);
+
+    new_child = g_new(BdrvChild, 1);
+    *new_child = (BdrvChild) {
+        .bs             = NULL,
+        .name           = g_strdup(child_name),
+        .klass          = child_class,
+        .role           = child_role,
+        .perm           = perm,
+        .shared_perm    = shared_perm,
+        .opaque         = opaque,
+    };
+
+    parent_ctx = bdrv_child_get_parent_aio_context(new_child);
+    if (child_ctx != parent_ctx) {
+        ret = bdrv_try_set_aio_context(child_bs, parent_ctx, NULL);
+        if (ret < 0) {
+            /*
+             * bdrv_try_set_aio_context_tran don't need rollback after failure,
+             * so we don't care.
+             */
+            ret = bdrv_parent_try_set_aio_context(new_child, child_ctx, errp);
+        }
+        if (ret < 0) {
+            bdrv_remove_empty_child(new_child);
+            return ret;
+        }
+    }
+
+    bdrv_ref(child_bs);
+    bdrv_replace_child_noperm(new_child, child_bs);
+
+    *child = new_child;
+
+    BdrvAttachChildCommonState *s = g_new(BdrvAttachChildCommonState, 1);
+    *s = (BdrvAttachChildCommonState) {
+        .child = child,
+        .old_parent_ctx = parent_ctx,
+        .old_child_ctx = child_ctx,
+    };
+    tran_prepend(tran, &bdrv_attach_child_common_drv, s);
+
+    return 0;
+}
+
+static void bdrv_detach_child(BdrvChild *child)
+{
+    bdrv_replace_child(child, NULL);
+    bdrv_remove_empty_child(child);
 }
 
 /* Callers must ensure that child->frozen is false. */
