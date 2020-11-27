@@ -313,6 +313,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
     commit_top_bs->total_sectors = top->total_sectors;
 
     bdrv_append(commit_top_bs, top, &local_err);
+    bdrv_unref(commit_top_bs); /* referenced by new parents or failed */
     if (local_err) {
         commit_top_bs = NULL;
         error_propagate(errp, local_err);

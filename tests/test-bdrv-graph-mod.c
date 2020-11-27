@@ -138,6 +138,7 @@ static void test_update_perm_tree(void)
     bdrv_append(filter, bs, &local_err);
     error_free_or_abort(&local_err);
 
+    bdrv_unref(filter);
     blk_unref(root);
 }
 
@@ -202,6 +203,7 @@ static void test_should_update_child(void)
     bdrv_append(filter, bs, &error_abort);
     g_assert(target->backing->bs == bs);
 
+    bdrv_unref(filter);
     bdrv_unref(bs);
     blk_unref(root);
 }
