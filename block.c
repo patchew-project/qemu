@@ -104,8 +104,9 @@ static int bdrv_attach_child_common(BlockDriverState *child_bs,
                                     GSList **tran, Error **errp);
 static void bdrv_remove_backing(BlockDriverState *bs, GSList **tran);
 
-static int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue
-                               *queue, Error **errp);
+static int bdrv_reopen_prepare(BDRVReopenState *reopen_state,
+                               BlockReopenQueue *queue,
+                               GSList **set_backings_tran, Error **errp);
 static void bdrv_reopen_commit(BDRVReopenState *reopen_state);
 static void bdrv_reopen_abort(BDRVReopenState *reopen_state);
 
@@ -2410,6 +2411,7 @@ static void bdrv_list_abort_perm_update(GSList *list)
     }
 }
 
+__attribute__((unused))
 static void bdrv_abort_perm_update(BlockDriverState *bs)
 {
     g_autoptr(GSList) list = bdrv_topological_dfs(NULL, NULL, bs);
@@ -2505,6 +2507,7 @@ char *bdrv_perm_names(uint64_t perm)
  *
  * Needs to be followed by a call to either bdrv_set_perm() or
  * bdrv_abort_perm_update(). */
+__attribute__((unused))
 static int bdrv_check_update_perm(BlockDriverState *bs, BlockReopenQueue *q,
                                   uint64_t new_used_perm,
                                   uint64_t new_shared_perm,
@@ -4107,10 +4110,6 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
     bs_entry->state.explicit_options = explicit_options;
     bs_entry->state.flags = flags;
 
-    /* This needs to be overwritten in bdrv_reopen_prepare() */
-    bs_entry->state.perm = UINT64_MAX;
-    bs_entry->state.shared_perm = 0;
-
     /*
      * If keep_old_opts is false then it means that unspecified
      * options must be reset to their original value. We don't allow
@@ -4193,40 +4192,37 @@ BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
  */
 int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
 {
-    int ret = -1;
+    int ret = 0;
     BlockReopenQueueEntry *bs_entry, *next;
+    GSList *tran = NULL;
+    g_autoptr(GHashTable) found = NULL;
+    g_autoptr(GSList) refresh_list = NULL;
 
     assert(bs_queue != NULL);
 
     QTAILQ_FOREACH(bs_entry, bs_queue, entry) {
         assert(bs_entry->state.bs->quiesce_counter > 0);
-        if (bdrv_reopen_prepare(&bs_entry->state, bs_queue, errp)) {
-            goto cleanup;
+        ret = bdrv_reopen_prepare(&bs_entry->state, bs_queue, &tran, errp);
+        if (ret < 0) {
+            goto abort;
         }
         bs_entry->prepared = true;
     }
 
+    found = g_hash_table_new(NULL, NULL);
     QTAILQ_FOREACH(bs_entry, bs_queue, entry) {
         BDRVReopenState *state = &bs_entry->state;
-        ret = bdrv_check_perm(state->bs, bs_queue, state->perm,
-                              state->shared_perm, errp);
-        if (ret < 0) {
-            goto cleanup_perm;
+
+        refresh_list = bdrv_topological_dfs(refresh_list, found, state->bs);
+        if (state->old_backing_bs) {
+            refresh_list = bdrv_topological_dfs(refresh_list, found,
+                                                state->old_backing_bs);
         }
-        /* Check if new_backing_bs would accept the new permissions */
-        if (state->replace_backing_bs && state->new_backing_bs) {
-            uint64_t nperm, nshared;
-            bdrv_child_perm(state->bs, state->new_backing_bs,
-                            NULL, bdrv_backing_role(state->bs),
-                            bs_queue, state->perm, state->shared_perm,
-                            &nperm, &nshared);
-            ret = bdrv_check_update_perm(state->new_backing_bs, NULL,
-                                         nperm, nshared, errp);
-            if (ret < 0) {
-                goto cleanup_perm;
-            }
-        }
-        bs_entry->perms_checked = true;
+    }
+
+    ret = bdrv_list_refresh_perms(refresh_list, bs_queue, &tran, errp);
+    if (ret < 0) {
+        goto abort;
     }
 
     /*
@@ -4242,51 +4238,29 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
         bdrv_reopen_commit(&bs_entry->state);
     }
 
-    ret = 0;
-cleanup_perm:
+    tran_commit(tran);
+
+    QTAILQ_FOREACH_REVERSE(bs_entry, bs_queue, entry) {
+        BlockDriverState *bs = bs_entry->state.bs;
+
+        if (bs->drv->bdrv_reopen_commit_post) {
+            bs->drv->bdrv_reopen_commit_post(&bs_entry->state);
+        }
+    }
+    goto cleanup;
+
+abort:
+    tran_abort(tran);
     QTAILQ_FOREACH_SAFE(bs_entry, bs_queue, entry, next) {
-        BDRVReopenState *state = &bs_entry->state;
-
-        if (!bs_entry->perms_checked) {
-            continue;
+        if (bs_entry->prepared) {
+            bdrv_reopen_abort(&bs_entry->state);
         }
-
-        if (ret == 0) {
-            uint64_t perm, shared;
-
-            bdrv_get_cumulative_perm(state->bs, &perm, &shared);
-            assert(perm == state->perm);
-            assert(shared == state->shared_perm);
-
-            bdrv_set_perm(state->bs);
-        } else {
-            bdrv_abort_perm_update(state->bs);
-            if (state->replace_backing_bs && state->new_backing_bs) {
-                bdrv_abort_perm_update(state->new_backing_bs);
-            }
-        }
+        qobject_unref(bs_entry->state.explicit_options);
+        qobject_unref(bs_entry->state.options);
     }
 
-    if (ret == 0) {
-        QTAILQ_FOREACH_REVERSE(bs_entry, bs_queue, entry) {
-            BlockDriverState *bs = bs_entry->state.bs;
-
-            if (bs->drv->bdrv_reopen_commit_post)
-                bs->drv->bdrv_reopen_commit_post(&bs_entry->state);
-        }
-    }
 cleanup:
     QTAILQ_FOREACH_SAFE(bs_entry, bs_queue, entry, next) {
-        if (ret) {
-            if (bs_entry->prepared) {
-                bdrv_reopen_abort(&bs_entry->state);
-            }
-            qobject_unref(bs_entry->state.explicit_options);
-            qobject_unref(bs_entry->state.options);
-        }
-        if (bs_entry->state.new_backing_bs) {
-            bdrv_unref(bs_entry->state.new_backing_bs);
-        }
         g_free(bs_entry);
     }
     g_free(bs_queue);
@@ -4309,53 +4283,6 @@ int bdrv_reopen_set_read_only(BlockDriverState *bs, bool read_only,
     bdrv_subtree_drained_end(bs);
 
     return ret;
-}
-
-static BlockReopenQueueEntry *find_parent_in_reopen_queue(BlockReopenQueue *q,
-                                                          BdrvChild *c)
-{
-    BlockReopenQueueEntry *entry;
-
-    QTAILQ_FOREACH(entry, q, entry) {
-        BlockDriverState *bs = entry->state.bs;
-        BdrvChild *child;
-
-        QLIST_FOREACH(child, &bs->children, next) {
-            if (child == c) {
-                return entry;
-            }
-        }
-    }
-
-    return NULL;
-}
-
-static void bdrv_reopen_perm(BlockReopenQueue *q, BlockDriverState *bs,
-                             uint64_t *perm, uint64_t *shared)
-{
-    BdrvChild *c;
-    BlockReopenQueueEntry *parent;
-    uint64_t cumulative_perms = 0;
-    uint64_t cumulative_shared_perms = BLK_PERM_ALL;
-
-    QLIST_FOREACH(c, &bs->parents, next_parent) {
-        parent = find_parent_in_reopen_queue(q, c);
-        if (!parent) {
-            cumulative_perms |= c->perm;
-            cumulative_shared_perms &= c->shared_perm;
-        } else {
-            uint64_t nperm, nshared;
-
-            bdrv_child_perm(parent->state.bs, bs, c, c->role, q,
-                            parent->state.perm, parent->state.shared_perm,
-                            &nperm, &nshared);
-
-            cumulative_perms |= nperm;
-            cumulative_shared_perms &= nshared;
-        }
-    }
-    *perm = cumulative_perms;
-    *shared = cumulative_shared_perms;
 }
 
 static bool bdrv_reopen_can_attach(BlockDriverState *parent,
@@ -4399,6 +4326,7 @@ static bool bdrv_reopen_can_attach(BlockDriverState *parent,
  * Return 0 on success, otherwise return < 0 and set @errp.
  */
 static int bdrv_reopen_parse_backing(BDRVReopenState *reopen_state,
+                                     GSList **set_backings_tran,
                                      Error **errp)
 {
     BlockDriverState *bs = reopen_state->bs;
@@ -4475,6 +4403,8 @@ static int bdrv_reopen_parse_backing(BDRVReopenState *reopen_state,
 
     /* If we want to replace the backing file we need some extra checks */
     if (new_backing_bs != bdrv_filter_or_cow_bs(overlay_bs)) {
+        int ret;
+
         /* Check for implicit nodes between bs and its backing file */
         if (bs != overlay_bs) {
             error_setg(errp, "Cannot change backing link if '%s' has "
@@ -4495,9 +4425,11 @@ static int bdrv_reopen_parse_backing(BDRVReopenState *reopen_state,
             return -EPERM;
         }
         reopen_state->replace_backing_bs = true;
-        if (new_backing_bs) {
-            bdrv_ref(new_backing_bs);
-            reopen_state->new_backing_bs = new_backing_bs;
+        reopen_state->old_backing_bs = bs->backing ? bs->backing->bs : NULL;
+        ret = bdrv_set_backing_noperm(bs, new_backing_bs, set_backings_tran,
+                                      errp);
+        if (ret < 0) {
+            return ret;
         }
     }
 
@@ -4522,7 +4454,8 @@ static int bdrv_reopen_parse_backing(BDRVReopenState *reopen_state,
  *
  */
 static int bdrv_reopen_prepare(BDRVReopenState *reopen_state,
-                               BlockReopenQueue *queue, Error **errp)
+                               BlockReopenQueue *queue,
+                               GSList **set_backings_tran, Error **errp)
 {
     int ret = -1;
     int old_flags;
@@ -4589,10 +4522,6 @@ static int bdrv_reopen_prepare(BDRVReopenState *reopen_state,
         goto error;
     }
 
-    /* Calculate required permissions after reopening */
-    bdrv_reopen_perm(queue, reopen_state->bs,
-                     &reopen_state->perm, &reopen_state->shared_perm);
-
     ret = bdrv_flush(reopen_state->bs);
     if (ret) {
         error_setg_errno(errp, -ret, "Error flushing drive");
@@ -4652,7 +4581,7 @@ static int bdrv_reopen_prepare(BDRVReopenState *reopen_state,
      * either a reference to an existing node (using its node name)
      * or NULL to simply detach the current backing file.
      */
-    ret = bdrv_reopen_parse_backing(reopen_state, errp);
+    ret = bdrv_reopen_parse_backing(reopen_state, set_backings_tran, errp);
     if (ret < 0) {
         goto error;
     }
@@ -4774,22 +4703,6 @@ static void bdrv_reopen_commit(BDRVReopenState *reopen_state)
         qdict_del(bs->explicit_options, child->name);
         qdict_del(bs->options, child->name);
     }
-
-    /*
-     * Change the backing file if a new one was specified. We do this
-     * after updating bs->options, so bdrv_refresh_filename() (called
-     * from bdrv_set_backing_hd()) has the new values.
-     */
-    if (reopen_state->replace_backing_bs) {
-        BlockDriverState *old_backing_bs = child_bs(bs->backing);
-        assert(!old_backing_bs || !old_backing_bs->implicit);
-        /* Abort the permission update on the backing bs we're detaching */
-        if (old_backing_bs) {
-            bdrv_abort_perm_update(old_backing_bs);
-        }
-        bdrv_set_backing_hd(bs, reopen_state->new_backing_bs, &error_abort);
-    }
-
     bdrv_refresh_limits(bs, NULL);
 }
 

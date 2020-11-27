@@ -205,7 +205,7 @@ typedef struct BDRVReopenState {
     BlockdevDetectZeroesOptions detect_zeroes;
     bool backing_missing;
     bool replace_backing_bs;  /* new_backing_bs is ignored if this is false */
-    BlockDriverState *new_backing_bs; /* If NULL then detach the current bs */
+    BlockDriverState *old_backing_bs; /* keep pointer for permissions update */
     uint64_t perm, shared_perm;
     QDict *options;
     QDict *explicit_options;
