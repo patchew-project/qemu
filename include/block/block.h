@@ -698,6 +698,9 @@ bool bdrv_can_set_aio_context(BlockDriverState *bs, AioContext *ctx,
                               GSList **ignore, Error **errp);
 int bdrv_parent_try_set_aio_context(BdrvChild *c, AioContext *ctx,
                                     Error **errp);
+
+AioContext *bdrv_child_get_parent_aio_context(BdrvChild *c);
+
 int bdrv_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz);
 int bdrv_probe_geometry(BlockDriverState *bs, HDGeometry *geo);
 
