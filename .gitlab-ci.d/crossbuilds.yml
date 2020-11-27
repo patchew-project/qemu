@@ -11,7 +11,7 @@
         --target-list-exclude="aarch64-softmmu i386-softmmu microblaze-softmmu
           mips-softmmu mipsel-softmmu mips64-softmmu ppc64-softmmu sh4-softmmu
           xtensa-softmmu"
-    - make -j$(expr $(nproc) + 1) all check-build
+    - make -j$(expr $(nproc) + 1) all check-build $MAKE_CHECK_ARGS
 
 .cross_user_build_job_template: &cross_user_build_job_definition
   stage: build
@@ -21,7 +21,7 @@
     - cd build
     - PKG_CONFIG_PATH=$PKG_CONFIG_PATH
       ../configure --enable-werror $QEMU_CONFIGURE_OPTS --disable-system
-    - make -j$(expr $(nproc) + 1) all check-build
+    - make -j$(expr $(nproc) + 1) all check-build $MAKE_CHECK_ARGS
 
 cross-armel-system:
   <<: *cross_system_build_job_definition
@@ -52,6 +52,18 @@ cross-arm64-user:
   <<: *cross_user_build_job_definition
   variables:
     IMAGE: debian-arm64-cross
+
+cross-i386-system:
+  <<: *cross_system_build_job_definition
+  variables:
+    IMAGE: fedora-i386-cross
+    MAKE_CHECK_ARGS: check
+
+cross-i386-user:
+  <<: *cross_user_build_job_definition
+  variables:
+    IMAGE: fedora-i386-cross
+    MAKE_CHECK_ARGS: check
 
 cross-mips-system:
   <<: *cross_system_build_job_definition
