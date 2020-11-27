@@ -102,6 +102,7 @@ static int bdrv_attach_child_common(BlockDriverState *child_bs,
                                     uint64_t perm, uint64_t shared_perm,
                                     void *opaque, BdrvChild **child,
                                     GSList **tran, Error **errp);
+static void bdrv_remove_backing(BlockDriverState *bs, GSList **tran);
 
 static int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue
                                *queue, Error **errp);
@@ -3201,45 +3202,111 @@ static BdrvChildRole bdrv_backing_role(BlockDriverState *bs)
     }
 }
 
+typedef struct BdrvSetBackingNoPermState {
+    BlockDriverState *bs;
+    BlockDriverState *backing_bs;
+    BlockDriverState *old_inherits_from;
+    GSList *attach_tran;
+} BdrvSetBackingNoPermState;
+
+static void bdrv_set_backing_noperm_abort(void *opaque)
+{
+    BdrvSetBackingNoPermState *s = opaque;
+
+    if (s->backing_bs) {
+        s->backing_bs->inherits_from = s->old_inherits_from;
+    }
+
+    tran_abort(s->attach_tran);
+
+    bdrv_refresh_limits(s->bs, NULL);
+    if (s->old_inherits_from) {
+        bdrv_refresh_limits(s->old_inherits_from, NULL);
+    }
+}
+
+static void bdrv_set_backing_noperm_commit(void *opaque)
+{
+    BdrvSetBackingNoPermState *s = opaque;
+
+    tran_commit(s->attach_tran);
+}
+
+static TransactionActionDrv bdrv_set_backing_noperm_drv = {
+    .abort = bdrv_set_backing_noperm_abort,
+    .commit = bdrv_set_backing_noperm_commit,
+    .clean = g_free,
+};
+
 /*
  * Sets the bs->backing link of a BDS. A new reference is created; callers
  * which don't need their own reference any more must call bdrv_unref().
  */
+static int bdrv_set_backing_noperm(BlockDriverState *bs,
+                                   BlockDriverState *backing_bs,
+                                   GSList **tran, Error **errp)
+{
+    int ret = 0;
+    bool update_inherits_from = bdrv_chain_contains(bs, backing_bs) &&
+        bdrv_inherits_from_recursive(backing_bs, bs);
+    GSList *attach_tran = NULL;
+    BdrvSetBackingNoPermState *s;
+
+    if (bdrv_is_backing_chain_frozen(bs, child_bs(bs->backing), errp)) {
+        return -EPERM;
+    }
+
+    if (bs->backing && backing_bs) {
+        bdrv_replace_child_safe(bs->backing, backing_bs, tran);
+    } else if (bs->backing && !backing_bs) {
+        bdrv_remove_backing(bs, tran);
+    } else if (backing_bs) {
+        assert(!bs->backing);
+        ret = bdrv_attach_child_noperm(bs, backing_bs, "backing",
+                                       &child_of_bds, bdrv_backing_role(bs),
+                                       &bs->backing, &attach_tran, errp);
+        if (ret < 0) {
+            tran_abort(attach_tran);
+            return ret;
+        }
+    }
+
+    s = g_new(BdrvSetBackingNoPermState, 1);
+    *s = (BdrvSetBackingNoPermState) {
+        .bs = bs,
+        .backing_bs = backing_bs,
+        .old_inherits_from = backing_bs ? backing_bs->inherits_from : NULL,
+    };
+    tran_prepend(tran, &bdrv_set_backing_noperm_drv, s);
+
+    /*
+     * If backing_bs was already part of bs's backing chain, and
+     * inherits_from pointed recursively to bs then let's update it to
+     * point directly to bs (else it will become NULL).
+     */
+    if (backing_bs && update_inherits_from) {
+        backing_bs->inherits_from = bs;
+    }
+
+    bdrv_refresh_limits(bs, NULL);
+
+    return 0;
+}
+
 void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
                          Error **errp)
 {
-    bool update_inherits_from = bdrv_chain_contains(bs, backing_hd) &&
-        bdrv_inherits_from_recursive(backing_hd, bs);
+    int ret;
+    GSList *tran = NULL;
 
-    if (bdrv_is_backing_chain_frozen(bs, child_bs(bs->backing), errp)) {
-        return;
-    }
-
-    if (backing_hd) {
-        bdrv_ref(backing_hd);
-    }
-
-    if (bs->backing) {
-        /* Cannot be frozen, we checked that above */
-        bdrv_unref_child(bs, bs->backing);
-        bs->backing = NULL;
-    }
-
-    if (!backing_hd) {
+    ret = bdrv_set_backing_noperm(bs, backing_hd, &tran, errp);
+    if (ret < 0) {
         goto out;
     }
 
-    bs->backing = bdrv_attach_child(bs, backing_hd, "backing", &child_of_bds,
-                                    bdrv_backing_role(bs), errp);
-    /* If backing_hd was already part of bs's backing chain, and
-     * inherits_from pointed recursively to bs then let's update it to
-     * point directly to bs (else it will become NULL). */
-    if (bs->backing && update_inherits_from) {
-        backing_hd->inherits_from = bs;
-    }
-
+    ret = bdrv_refresh_perms(bs, errp);
 out:
-    bdrv_refresh_limits(bs, NULL);
+    tran_finalize(tran, ret);
 }
 
 /*
