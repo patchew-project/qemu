@@ -66,6 +66,15 @@ include:
     - cd build
     - python3 -c 'import json; r = json.load(open("tests/results/latest/results.json")); [print(t["logfile"]) for t in r["tests"] if t["status"] not in ("PASS", "SKIP", "CANCEL")]' | xargs cat
     - du -chs ${CI_PROJECT_DIR}/avocado-cache
+  rules:
+  # As of QEMU 5.2, Avocado is not yet ready to run in CI environments, therefore
+  # the jobs based on this template are not run automatically (except if the user
+  # explicitly sets the QEMU_CI_INTEGRATION_JOBS_PRE_5_2_RELEASE environment
+  # variable). Adding new jobs on top of this template is strongly discouraged.
+  - if: $QEMU_CI_INTEGRATION_JOBS_PRE_5_2_RELEASE == null
+    when: manual
+    allow_failure: true
+  - when: always
 
 build-system-ubuntu:
   <<: *native_build_job_definition
