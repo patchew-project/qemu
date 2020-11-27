@@ -102,6 +102,8 @@ static void qemu_net_queue_append(NetQueue *queue,
     if (queue->nq_count >= queue->nq_maxlen && !sent_cb) {
         return; /* drop if queue full and no callback */
     }
+
+    assert(size <= NET_BUFSIZE);
     packet = g_malloc(sizeof(NetPacket) + size);
     packet->sender = sender;
     packet->flags = flags;
@@ -131,6 +133,7 @@ void qemu_net_queue_append_iov(NetQueue *queue,
         max_len += iov[i].iov_len;
     }
 
+    assert(max_len <= NET_BUFSIZE);
     packet = g_malloc(sizeof(NetPacket) + max_len);
     packet->sender = sender;
     packet->sent_cb = sent_cb;
