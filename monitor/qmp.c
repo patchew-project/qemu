@@ -75,36 +75,32 @@ static void monitor_qmp_cleanup_req_queue_locked(MonitorQMP *mon)
     }
 }
 
-static void monitor_qmp_cleanup_queue_and_resume(MonitorQMP *mon)
+/*
+ * Let unprocessed QMP commands be handled.
+ */
+static void monitor_qmp_drain_queue(MonitorQMP *mon)
 {
-    qemu_mutex_lock(&mon->qmp_queue_lock);
+    bool q_is_empty = false;
 
-    /*
-     * Same condition as in monitor_qmp_dispatcher_co(), but before
-     * removing an element from the queue (hence no `- 1`).
-     * Also, the queue should not be empty either, otherwise the
-     * monitor hasn't been suspended yet (or was already resumed).
-     */
-    bool need_resume = (!qmp_oob_enabled(mon) ||
-        mon->qmp_requests->length == QMP_REQ_QUEUE_LEN_MAX)
-        && !g_queue_is_empty(mon->qmp_requests);
+    while (!q_is_empty) {
+        qemu_mutex_lock(&mon->qmp_queue_lock);
+        q_is_empty = g_queue_is_empty(mon->qmp_requests);
+        qemu_mutex_unlock(&mon->qmp_queue_lock);
 
-    monitor_qmp_cleanup_req_queue_locked(mon);
-
-    if (need_resume) {
-        /*
-         * handle_qmp_command() suspended the monitor because the
-         * request queue filled up, to be resumed when the queue has
-         * space again.  We just emptied it; resume the monitor.
-         *
-         * Without this, the monitor would remain suspended forever
-         * when we get here while the monitor is suspended.  An
-         * unfortunately timed CHR_EVENT_CLOSED can do the trick.
-         */
-        monitor_resume(&mon->common);
+        if (!q_is_empty) {
+            if (!qatomic_xchg(&qmp_dispatcher_co_busy, true)) {
+                /* Kick the dispatcher coroutine */
+                aio_co_wake(qmp_dispatcher_co);
+            } else {
+                /* Let the dispatcher do its job for a while */
+                g_usleep(40);
+            }
+        }
     }
 
-    qemu_mutex_unlock(&mon->qmp_queue_lock);
+    if (qatomic_mb_read(&mon->common.suspend_cnt)) {
+        monitor_resume(&mon->common);
+    }
 }
 
 void qmp_send_response(MonitorQMP *mon, const QDict *rsp)
@@ -418,7 +414,7 @@ static void monitor_qmp_event(void *opaque, QEMUChrEvent event)
          * stdio, it's possible that stdout is still open when stdin
          * is closed.
          */
-        monitor_qmp_cleanup_queue_and_resume(mon);
+        monitor_qmp_drain_queue(mon);
         json_message_parser_destroy(&mon->parser);
         json_message_parser_init(&mon->parser, handle_qmp_command,
                                  mon, NULL);
