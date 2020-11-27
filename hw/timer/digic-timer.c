@@ -154,6 +154,13 @@ static void digic_timer_init(Object *obj)
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
 }
 
+static void digic_timer_finalize(Object *obj)
+{
+    DigicTimerState *s = DIGIC_TIMER(obj);
+
+    ptimer_free(s->ptimer);
+}
+
 static void digic_timer_class_init(ObjectClass *klass, void *class_data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -163,11 +170,12 @@ static void digic_timer_class_init(ObjectClass *klass, void *class_data)
 }
 
 static const TypeInfo digic_timer_info = {
-    .name = TYPE_DIGIC_TIMER,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(DigicTimerState),
-    .instance_init = digic_timer_init,
-    .class_init = digic_timer_class_init,
+    .name              = TYPE_DIGIC_TIMER,
+    .parent            = TYPE_SYS_BUS_DEVICE,
+    .instance_size     = sizeof(DigicTimerState),
+    .instance_init     = digic_timer_init,
+    .instance_finalize = digic_timer_finalize,
+    .class_init        = digic_timer_class_init,
 };
 
 static void digic_timer_register_type(void)
