@@ -1530,6 +1530,19 @@ static void exynos4210_mct_init(Object *obj)
     sysbus_init_mmio(dev, &s->iomem);
 }
 
+static void exynos4210_mct_finalize(Object *obj)
+{
+    int i;
+    Exynos4210MCTState *s = EXYNOS4210_MCT(obj);
+
+    ptimer_free(s->g_timer.ptimer_frc);
+
+    for (i = 0; i < 2; i++) {
+        ptimer_free(s->l_timer[i].tick_timer.ptimer_tick);
+        ptimer_free(s->l_timer[i].ptimer_frc);
+    }
+}
+
 static void exynos4210_mct_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1539,11 +1552,12 @@ static void exynos4210_mct_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo exynos4210_mct_info = {
-    .name          = TYPE_EXYNOS4210_MCT,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(Exynos4210MCTState),
-    .instance_init = exynos4210_mct_init,
-    .class_init    = exynos4210_mct_class_init,
+    .name              = TYPE_EXYNOS4210_MCT,
+    .parent            = TYPE_SYS_BUS_DEVICE,
+    .instance_size     = sizeof(Exynos4210MCTState),
+    .instance_init     = exynos4210_mct_init,
+    .instance_finalize = exynos4210_mct_finalize,
+    .class_init        = exynos4210_mct_class_init,
 };
 
 static void exynos4210_mct_register_types(void)
