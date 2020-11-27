@@ -2980,12 +2980,19 @@ out:
     return child;
 }
 
+static void bdrv_child_free(void *opaque)
+{
+    BdrvChild *c = opaque;
+
+    g_free(c->name);
+    g_free(c);
+}
+
 static void bdrv_remove_empty_child(BdrvChild *child)
 {
     assert(!child->bs);
     QLIST_SAFE_REMOVE(child, next);
-    g_free(child->name);
-    g_free(child);
+    bdrv_child_free(child);
 }
 
 typedef struct BdrvAttachChildCommonState {
@@ -4902,6 +4909,37 @@ static bool should_update_child(BdrvChild *c, BlockDriverState *to)
     g_hash_table_destroy(found);
 
     return ret;
+}
+
+/* this doesn't restore original child bs, only the child itself */
+static void bdrv_remove_backing_abort(void *opaque)
+{
+    BdrvChild *c = opaque;
+    BlockDriverState *parent_bs = c->opaque;
+
+    QLIST_INSERT_HEAD(&parent_bs->children, c, next);
+    parent_bs->backing = c;
+}
+
+static TransactionActionDrv bdrv_remove_backing_drv = {
+    .abort = bdrv_remove_backing_abort,
+    .commit = bdrv_child_free,
+};
+
+__attribute__((unused))
+static void bdrv_remove_backing(BlockDriverState *bs, GSList **tran)
+{
+    if (!bs->backing) {
+        return;
+    }
+
+    if (bs->backing->bs) {
+        bdrv_replace_child_safe(bs->backing, NULL, tran);
+    }
+
+    tran_prepend(tran, &bdrv_remove_backing_drv, bs->backing);
+    QLIST_SAFE_REMOVE(bs->backing, next);
+    bs->backing = NULL;
 }
 
 static int bdrv_replace_node_noperm(BlockDriverState *from,
