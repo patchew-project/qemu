@@ -82,6 +82,9 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
                                            BdrvChildRole child_role,
                                            Error **errp);
 
+static void bdrv_parent_set_aio_context_ignore(BdrvChild *c, AioContext *ctx,
+                                               GSList **ignore);
+
 /* If non-zero, use only whitelisted block drivers */
 static int use_bdrv_whitelist;
 
@@ -2662,17 +2665,12 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
      * try moving the parent into the AioContext of child_bs instead. */
     if (bdrv_get_aio_context(child_bs) != ctx) {
         ret = bdrv_try_set_aio_context(child_bs, ctx, &local_err);
-        if (ret < 0 && child_class->can_set_aio_ctx) {
-            GSList *ignore = g_slist_prepend(NULL, child);
-            ctx = bdrv_get_aio_context(child_bs);
-            if (child_class->can_set_aio_ctx(child, ctx, &ignore, NULL)) {
-                error_free(local_err);
+        if (ret < 0) {
+            if (bdrv_parent_try_set_aio_context(child, ctx, NULL) == 0) {
                 ret = 0;
-                g_slist_free(ignore);
-                ignore = g_slist_prepend(NULL, child);
-                child_class->set_aio_ctx(child, ctx, &ignore);
+                error_free(local_err);
+                local_err = NULL;
             }
-            g_slist_free(ignore);
         }
         if (ret < 0) {
             error_propagate(errp, local_err);
@@ -6423,9 +6421,7 @@ void bdrv_set_aio_context_ignore(BlockDriverState *bs,
         if (g_slist_find(*ignore, child)) {
             continue;
         }
-        assert(child->klass->set_aio_ctx);
-        *ignore = g_slist_prepend(*ignore, child);
-        child->klass->set_aio_ctx(child, new_context, ignore);
+        bdrv_parent_set_aio_context_ignore(child, new_context, ignore);
     }
 
     bdrv_detach_aio_context(bs);
@@ -6480,6 +6476,37 @@ static bool bdrv_parent_can_set_aio_context(BdrvChild *c, AioContext *ctx,
         return false;
     }
     return true;
+}
+
+static void bdrv_parent_set_aio_context_ignore(BdrvChild *c, AioContext *ctx,
+                                               GSList **ignore)
+{
+    if (g_slist_find(*ignore, c)) {
+        return;
+    }
+    *ignore = g_slist_prepend(*ignore, c);
+
+    assert(c->klass->set_aio_ctx);
+    c->klass->set_aio_ctx(c, ctx, ignore);
+}
+
+int bdrv_parent_try_set_aio_context(BdrvChild *c, AioContext *ctx,
+                                    Error **errp)
+{
+    GSList *ignore = NULL;
+
+    if (!bdrv_parent_can_set_aio_context(c, ctx, &ignore, errp)) {
+        g_slist_free(ignore);
+        return -EPERM;
+    }
+
+    g_slist_free(ignore);
+    ignore = NULL;
+
+    bdrv_parent_set_aio_context_ignore(c, ctx, &ignore);
+    g_slist_free(ignore);
+
+    return 0;
 }
 
 bool bdrv_child_can_set_aio_context(BdrvChild *c, AioContext *ctx,
