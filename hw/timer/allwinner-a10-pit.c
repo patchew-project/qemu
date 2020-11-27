@@ -279,6 +279,16 @@ static void a10_pit_init(Object *obj)
     }
 }
 
+static void a10_pit_finalize(Object *obj)
+{
+    AwA10PITState *s = AW_A10_PIT(obj);
+    int i;
+
+    for (i = 0; i < AW_A10_PIT_TIMER_NR; i++) {
+        ptimer_free(s->timer[i]);
+    }
+}
+
 static void a10_pit_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -290,11 +300,12 @@ static void a10_pit_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo a10_pit_info = {
-    .name = TYPE_AW_A10_PIT,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AwA10PITState),
-    .instance_init = a10_pit_init,
-    .class_init = a10_pit_class_init,
+    .name              = TYPE_AW_A10_PIT,
+    .parent            = TYPE_SYS_BUS_DEVICE,
+    .instance_size     = sizeof(AwA10PITState),
+    .instance_init     = a10_pit_init,
+    .instance_finalize = a10_pit_finalize,
+    .class_init        = a10_pit_class_init,
 };
 
 static void a10_register_types(void)
