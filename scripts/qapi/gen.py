@@ -123,7 +123,7 @@ def build_params(arg_type: Optional[QAPISchemaObjectType],
 class QAPIGenCCode(QAPIGen):
     def __init__(self, fname: Optional[str]):
         super().__init__(fname)
-        self._start_if: Optional[Tuple[List[str], str, str]] = None
+        self._start_if = None
 
     def start_if(self, ifcond: List[str]) -> None:
         assert self._start_if is None
@@ -243,10 +243,10 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
         self._user_blurb = user_blurb
         self._builtin_blurb = builtin_blurb
         self._pydoc = pydoc
-        self._genc: Optional[QAPIGenC] = None
-        self._genh: Optional[QAPIGenH] = None
-        self._module: Dict[Optional[str], Tuple[QAPIGenC, QAPIGenH]] = {}
-        self._main_module: Optional[str] = None
+        self._genc = None
+        self._genh = None
+        self._module = {}
+        self._main_module = None
 
     @staticmethod
     def _is_user_module(name: Optional[str]) -> bool:

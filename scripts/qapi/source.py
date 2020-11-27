@@ -22,9 +22,9 @@ class QAPISchemaPragma:
         # Are documentation comments required?
         self.doc_required = False
         # Whitelist of commands allowed to return a non-dictionary
-        self.returns_whitelist: List[str] = []
+        self.returns_whitelist = []
         # Whitelist of entities allowed to violate case conventions
-        self.name_case_whitelist: List[str] = []
+        self.name_case_whitelist = []
 
 
 class QAPISourceInfo:
@@ -35,11 +35,11 @@ class QAPISourceInfo:
         self.fname = fname
         self.line = line
         self.parent = parent
-        self.pragma: QAPISchemaPragma = (
+        self.pragma = (
             parent.pragma if parent else QAPISchemaPragma()
         )
-        self.defn_meta: Optional[str] = None
-        self.defn_name: Optional[str] = None
+        self.defn_meta = None
+        self.defn_name = None
 
     def set_defn(self, meta: str, name: str) -> None:
         self.defn_meta = meta

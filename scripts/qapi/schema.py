@@ -26,7 +26,7 @@ from .parser import QAPISchemaParser
 
 
 class QAPISchemaEntity:
-    meta: Optional[str] = None
+    meta = None
 
     def __init__(self, name, info, doc, ifcond=None, features=None):
         assert name is None or isinstance(name, str)

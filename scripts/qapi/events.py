@@ -162,7 +162,7 @@ class QAPISchemaGenEventVisitor(QAPISchemaModularCVisitor):
             prefix, 'qapi-events',
             ' * Schema-defined QAPI/QMP events', None, __doc__)
         self._event_enum_name = c_name(prefix + 'QAPIEvent', protect=False)
-        self._event_enum_members: List[QAPISchemaEnumMember] = []
+        self._event_enum_members = []
         self._event_emit_name = c_name(prefix + 'qapi_event_emit')
 
     def _begin_user_module(self, name: str) -> None:

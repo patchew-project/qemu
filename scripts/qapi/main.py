@@ -79,8 +79,8 @@ def main() -> int:
 
     funny_char = invalid_prefix_char(args.prefix)
     if funny_char:
-        msg = f"funny character '{funny_char}' in argument of --prefix"
-        print(f"{sys.argv[0]}: {msg}", file=sys.stderr)
+        msg = ("funny character '%s' in argument of --prefix" % funny_char)
+        print("%s: %s" % (sys.argv[0], msg), file=sys.stderr)
         return 1
 
     try:
@@ -90,6 +90,6 @@ def main() -> int:
                  unmask=args.unmask,
                  builtins=args.builtins)
     except QAPIError as err:
-        print(f"{sys.argv[0]}: {str(err)}", file=sys.stderr)
+        print("%s: %s" % (sys.argv[0], str(err)), file=sys.stderr)
         return 1
     return 0

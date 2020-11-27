@@ -256,7 +256,7 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
             prefix, 'qapi-commands',
             ' * Schema-defined QAPI/QMP commands', None, __doc__)
         self._regy = QAPIGenCCode(None)
-        self._visited_ret_types: Dict[QAPIGenC, Set[QAPISchemaType]] = {}
+        self._visited_ret_types = {}
 
     def _begin_user_module(self, name: str) -> None:
         self._visited_ret_types[self._genc] = set()

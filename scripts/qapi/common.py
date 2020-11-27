@@ -147,7 +147,7 @@ class Indentation:
         """Decrease the indentation level by ``amount``, default 4."""
         if self._level < amount:
             raise ArithmeticError(
-                f"Can't remove {amount:d} spaces from {self!r}")
+                "Can't remove %d spaces from %s" % (amount, self.r))
         self._level -= amount
 
 
