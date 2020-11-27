@@ -5005,22 +5005,28 @@ int bdrv_replace_node(BlockDriverState *from, BlockDriverState *to,
 int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
                 Error **errp)
 {
-    Error *local_err = NULL;
+    int ret;
+    GSList *tran = NULL;
 
-    bdrv_set_backing_hd(bs_new, bs_top, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return -EPERM;
+    assert(!bs_new->backing);
+
+    ret = bdrv_attach_child_noperm(bs_new, bs_top, "backing",
+                                   &child_of_bds, bdrv_backing_role(bs_new),
+                                   &bs_new->backing, &tran, errp);
+    if (ret < 0) {
+        goto out;
     }
 
-    bdrv_replace_node(bs_top, bs_new, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        bdrv_set_backing_hd(bs_new, NULL, &error_abort);
-        return -EPERM;
+    ret = bdrv_replace_node_noperm(bs_top, bs_new, true, &tran, errp);
+    if (ret < 0) {
+        goto out;
     }
 
-    return 0;
+    ret = bdrv_refresh_perms(bs_new, errp);
+out:
+    tran_finalize(tran, ret);
+
+    return ret;
 }
 
 static void bdrv_delete(BlockDriverState *bs)
