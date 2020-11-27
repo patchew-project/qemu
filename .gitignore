@@ -10,3 +10,5 @@ TAGS
 *~
 *.ast_raw
 *.depend_raw
+config-temp/
+config.log
