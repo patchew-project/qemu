@@ -206,6 +206,7 @@ class KconfigData:
         self.defined_vars = set()
         self.referenced_vars = dict()
         self.clauses = list()
+        self.title = None
 
     # semantic analysis -------------
 
@@ -290,6 +291,9 @@ class KconfigData:
         cond = (cond & var) if cond is not None else var
         self.clauses.append(KconfigData.SelectClause(symbol, cond))
 
+    def do_title(self, title):
+        self.title = title
+
     def do_imply(self, var, symbol, cond=None):
         # "config X imply Y [if COND]" is the same as
         # "config Y default y if X [&& COND]"
@@ -323,6 +327,7 @@ TOK_BOOL = 15;    TOKENS[TOK_BOOL] = '"bool"';
 TOK_IF = 16;      TOKENS[TOK_IF] = '"if"';
 TOK_ID = 17;      TOKENS[TOK_ID] = 'identifier';
 TOK_EOF = 18;     TOKENS[TOK_EOF] = 'end of file';
+TOK_QUOTED = 19;  TOKENS[TOK_QUOTED] = 'quoted string';
 
 class KconfigParserError(Exception):
     def __init__(self, parser, msg, tok=None):
@@ -501,6 +506,7 @@ class KconfigParser:
     # property: DEFAULT y_or_n condition
     #       | DEPENDS ON expr
     #       | SELECT var condition
+    #       | BOOL "comment"
     #       | BOOL
     def parse_property(self, var):
         if self.tok == TOK_DEFAULT:
@@ -526,6 +532,9 @@ class KconfigParser:
             self.data.do_imply(var, symbol, cond)
         elif self.tok == TOK_BOOL:
             self.get_token()
+            if self.tok == TOK_QUOTED:
+                self.data.do_title(self.val)
+                self.get_token()
         else:
             raise KconfigParserError(self, 'Error in recursive descent?')
 
@@ -645,6 +654,11 @@ class KconfigParser:
             self.cursor = self.src.find('\n', self.cursor)
             self.val = self.src[start:self.cursor]
             return TOK_SOURCE
+        elif self.tok == '"':
+            start = self.cursor
+            self.cursor = self.src.find('"', self.cursor)+1
+            self.val = self.src[start:self.cursor]
+            return TOK_QUOTED;
         elif self.tok.isalnum():
             # identifier
             while self.src[self.cursor].isalnum() or self.src[self.cursor] == '_':
