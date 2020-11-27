@@ -3537,7 +3537,6 @@ fail:
 void qmp_x_blockdev_reopen(BlockdevOptions *options, Error **errp)
 {
     BlockDriverState *bs;
-    AioContext *ctx;
     QObject *obj;
     Visitor *v = qobject_output_visitor_new(&obj);
     BlockReopenQueue *queue;
@@ -3563,13 +3562,29 @@ void qmp_x_blockdev_reopen(BlockdevOptions *options, Error **errp)
     qdict_flatten(qdict);
 
     /* Perform the reopen operation */
-    ctx = bdrv_get_aio_context(bs);
-    aio_context_acquire(ctx);
+    BdrvNextIterator it;
+    GSList *aio_ctxs = NULL, *ctx;
+    BlockDriverState *it_bs;
+
+    for (it_bs = bdrv_first(&it); it_bs; it_bs = bdrv_next(&it)) {
+        AioContext *aio_context = bdrv_get_aio_context(it_bs);
+
+        if (!g_slist_find(aio_ctxs, aio_context)) {
+            aio_ctxs = g_slist_prepend(aio_ctxs, aio_context);
+            aio_context_acquire(aio_context);
+        }
+    }
+
     bdrv_subtree_drained_begin(bs);
     queue = bdrv_reopen_queue(NULL, bs, qdict, false);
     bdrv_reopen_multiple(queue, errp);
     bdrv_subtree_drained_end(bs);
-    aio_context_release(ctx);
+
+    for (ctx = aio_ctxs; ctx != NULL; ctx = ctx->next) {
+        AioContext *aio_context = ctx->data;
+        aio_context_release(aio_context);
+    }
+    g_slist_free(aio_ctxs);
 
 fail:
     visit_free(v);
