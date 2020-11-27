@@ -280,10 +280,11 @@ void json_lexer_init(JSONLexer *lexer, bool enable_interpolation)
     lexer->x = lexer->y = 0;
 }
 
-static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
+static JSONTokenType json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
 {
     int new_state;
     bool char_consumed = false;
+    JSONTokenType ret;
 
     lexer->x++;
     if (ch == '\n') {
@@ -310,16 +311,16 @@ static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
         case JSON_FLOAT:
         case JSON_KEYWORD:
         case JSON_STRING:
-            json_message_process_token(lexer, lexer->token, new_state,
-                                       lexer->x, lexer->y);
+            ret = json_message_process_token(lexer, lexer->token, new_state,
+                                             lexer->x, lexer->y);
             /* fall through */
         case IN_START:
             g_string_truncate(lexer->token, 0);
             new_state = lexer->start_state;
             break;
         case JSON_ERROR:
-            json_message_process_token(lexer, lexer->token, JSON_ERROR,
-                                       lexer->x, lexer->y);
+            ret = json_message_process_token(lexer, lexer->token, JSON_ERROR,
+                                             lexer->x, lexer->y);
             new_state = IN_RECOVERY;
             /* fall through */
         case IN_RECOVERY:
@@ -335,20 +336,31 @@ static void json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
      * this is a security consideration.
      */
     if (lexer->token->len > MAX_TOKEN_SIZE) {
-        json_message_process_token(lexer, lexer->token, lexer->state,
-                                   lexer->x, lexer->y);
+        ret = json_message_process_token(lexer, lexer->token, lexer->state,
+                                         lexer->x, lexer->y);
         g_string_truncate(lexer->token, 0);
         lexer->state = lexer->start_state;
     }
+    return ret;
 }
 
-void json_lexer_feed(JSONLexer *lexer, const char *buffer, size_t size)
+/*
+ * Return the number of characters fed until the end of a QMP command or
+ * the buffer size if not any or else not tracked.
+ */
+size_t json_lexer_feed(JSONLexer *lexer, const char *buffer, size_t size,
+                       bool track)
 {
     size_t i;
+    JSONTokenType type = JSON_ERROR;
 
     for (i = 0; i < size; i++) {
-        json_lexer_feed_char(lexer, buffer[i], false);
+        if ((type == JSON_QMP_CMD_END) && track) {
+            break;
+        }
+        type = json_lexer_feed_char(lexer, buffer[i], false);
     }
+    return i;
 }
 
 void json_lexer_flush(JSONLexer *lexer)

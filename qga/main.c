@@ -605,7 +605,7 @@ static gboolean channel_event_cb(GIOCondition condition, gpointer data)
     case G_IO_STATUS_NORMAL:
         buf[count] = 0;
         g_debug("read data, count: %d, data: %s", (int)count, buf);
-        json_message_parser_feed(&s->parser, (char *)buf, (int)count);
+        json_message_parser_feed(&s->parser, (char *)buf, (int)count, false);
         break;
     case G_IO_STATUS_EOF:
         g_debug("received EOF");

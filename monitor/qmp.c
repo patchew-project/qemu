@@ -367,8 +367,22 @@ static void handle_qmp_command(void *opaque, QObject *req, Error *err)
 static void monitor_qmp_read(void *opaque, const uint8_t *buf, int size)
 {
     MonitorQMP *mon = opaque;
+    char *cursor = (char *) buf;
+    size_t len;
 
-    json_message_parser_feed(&mon->parser, (const char *) buf, size);
+    while (size > 0) {
+        len = json_message_parser_feed(&mon->parser, (const char *) cursor,
+                                       size, true);
+        cursor += len;
+        size -= len;
+
+        if (size > 0) {
+            /* Let the dispatcher process the QMP command */
+            while (qatomic_mb_read(&mon->common.suspend_cnt)) {
+                g_usleep(20);
+            }
+        }
+    }
 }
 
 static QDict *qmp_greeting(MonitorQMP *mon)

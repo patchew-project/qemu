@@ -31,6 +31,7 @@ typedef enum json_token_type {
     JSON_KEYWORD,
     JSON_STRING,
     JSON_INTERP,
+    JSON_QMP_CMD_END,
     JSON_END_OF_INPUT,
     JSON_MAX = JSON_END_OF_INPUT
 } JSONTokenType;
@@ -39,13 +40,14 @@ typedef struct JSONToken JSONToken;
 
 /* json-lexer.c */
 void json_lexer_init(JSONLexer *lexer, bool enable_interpolation);
-void json_lexer_feed(JSONLexer *lexer, const char *buffer, size_t size);
+size_t json_lexer_feed(JSONLexer *lexer, const char *buffer, size_t size,
+                       bool track);
 void json_lexer_flush(JSONLexer *lexer);
 void json_lexer_destroy(JSONLexer *lexer);
 
 /* json-streamer.c */
-void json_message_process_token(JSONLexer *lexer, GString *input,
-                                JSONTokenType type, int x, int y);
+JSONTokenType json_message_process_token(JSONLexer *lexer, GString *input,
+                                         JSONTokenType type, int x, int y);
 
 /* json-parser.c */
 JSONToken *json_token(JSONTokenType type, int x, int y, GString *tokstr);

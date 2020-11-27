@@ -36,8 +36,9 @@ void json_message_parser_init(JSONMessageParser *parser,
                                            Error *err),
                               void *opaque, va_list *ap);
 
-void json_message_parser_feed(JSONMessageParser *parser,
-                             const char *buffer, size_t size);
+size_t  json_message_parser_feed(JSONMessageParser *parser,
+                                 const char *buffer, size_t size,
+                                 bool track_qmp);
 
 void json_message_parser_flush(JSONMessageParser *parser);
 

@@ -28,8 +28,8 @@ static void json_message_free_tokens(JSONMessageParser *parser)
     }
 }
 
-void json_message_process_token(JSONLexer *lexer, GString *input,
-                                JSONTokenType type, int x, int y)
+JSONTokenType json_message_process_token(JSONLexer *lexer, GString *input,
+                                         JSONTokenType type, int x, int y)
 {
     JSONMessageParser *parser = container_of(lexer, JSONMessageParser, lexer);
     QObject *json = NULL;
@@ -54,7 +54,7 @@ void json_message_process_token(JSONLexer *lexer, GString *input,
         goto out_emit;
     case JSON_END_OF_INPUT:
         if (g_queue_is_empty(&parser->tokens)) {
-            return;
+            return type;
         }
         json = json_parser_parse(&parser->tokens, parser->ap, &err);
         goto out_emit;
@@ -86,7 +86,7 @@ void json_message_process_token(JSONLexer *lexer, GString *input,
 
     if ((parser->brace_count > 0 || parser->bracket_count > 0)
         && parser->brace_count >= 0 && parser->bracket_count >= 0) {
-        return;
+        return type;
     }
 
     json = json_parser_parse(&parser->tokens, parser->ap, &err);
@@ -97,6 +97,7 @@ out_emit:
     json_message_free_tokens(parser);
     parser->token_size = 0;
     parser->emit(parser->opaque, json, err);
+    return JSON_QMP_CMD_END;
 }
 
 void json_message_parser_init(JSONMessageParser *parser,
@@ -115,10 +116,10 @@ void json_message_parser_init(JSONMessageParser *parser,
     json_lexer_init(&parser->lexer, !!ap);
 }
 
-void json_message_parser_feed(JSONMessageParser *parser,
-                             const char *buffer, size_t size)
+size_t json_message_parser_feed(JSONMessageParser *parser,
+                                const char *buffer, size_t size, bool track_qmp)
 {
-    json_lexer_feed(&parser->lexer, buffer, size);
+    return json_lexer_feed(&parser->lexer, buffer, size, track_qmp);
 }
 
 void json_message_parser_flush(JSONMessageParser *parser)

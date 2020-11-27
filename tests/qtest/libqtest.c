@@ -611,7 +611,7 @@ QDict *qmp_fd_receive(int fd)
         if (log) {
             len = write(2, &c, 1);
         }
-        json_message_parser_feed(&qmp.parser, &c, 1);
+        json_message_parser_feed(&qmp.parser, &c, 1, false);
     }
     json_message_parser_destroy(&qmp.parser);
 
