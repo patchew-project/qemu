@@ -4459,7 +4459,6 @@ void qemu_init(int argc, char **argv, char **envp)
     qemu_run_machine_init_done_notifiers();
 
     if (rom_check_and_register_reset() != 0) {
-        error_report("rom check and register reset failed");
         exit(1);
     }
 
