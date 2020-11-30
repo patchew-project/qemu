@@ -1,5 +1,5 @@
-#ifndef HW_NVME_H
-#define HW_NVME_H
+#ifndef HW_NVME_INTERNAL_H
+#define HW_NVME_INTERNAL_H
 
 #include "block/nvme.h"
 #include "nvme-ns.h"
