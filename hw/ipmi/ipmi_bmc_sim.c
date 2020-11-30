@@ -2214,6 +2214,7 @@ static void ipmi_sim_class_init(ObjectClass *oc, void *data)
     dc->realize = ipmi_sim_realize;
     device_class_set_props(dc, ipmi_sim_properties);
     bk->handle_command = ipmi_sim_handle_command;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static const TypeInfo ipmi_sim_type = {

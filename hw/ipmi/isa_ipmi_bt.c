@@ -152,6 +152,7 @@ static void isa_ipmi_bt_class_init(ObjectClass *oc, void *data)
     iic->get_backend_data = isa_ipmi_bt_get_backend_data;
     ipmi_bt_class_init(iic);
     iic->get_fwinfo = isa_ipmi_bt_get_fwinfo;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
 static const TypeInfo isa_ipmi_bt_info = {

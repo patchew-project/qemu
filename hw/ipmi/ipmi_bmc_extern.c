@@ -529,6 +529,7 @@ static void ipmi_bmc_extern_class_init(ObjectClass *oc, void *data)
     dc->hotpluggable = false;
     dc->realize = ipmi_bmc_extern_realize;
     device_class_set_props(dc, ipmi_bmc_extern_properties);
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static const TypeInfo ipmi_bmc_extern_type = {
