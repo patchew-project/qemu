@@ -849,9 +849,15 @@ def parse_generic(lineno, parent_pat, name, toks):
             continue
 
         # 'Foo=number' sets an argument field to a constant value
-        if re.fullmatch(re_C_ident + '=[+-]?[0-9]+', t):
+        if re.fullmatch(re_C_ident + '=[+-]?(0[bx])?[0-9]+', t):
             (fname, value) = t.split('=')
-            value = int(value)
+            if re.fullmatch('[+-]?0b[0-9]+', value):
+                base = 2
+            elif re.fullmatch('[+-]?0x[0-9]+', value):
+                base = 16
+            else:
+                base = 10
+            value = int(value, base)
             flds = add_field(lineno, flds, fname, ConstField(value))
             continue
 
