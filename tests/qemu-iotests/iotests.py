@@ -89,16 +89,21 @@ luks_default_secret_object = 'secret,id=keysec0,data=' + \
 luks_default_key_secret_opt = 'key-secret=keysec0'
 
 
+def qemu_tool_popen(tool: str, args: Sequence[str],
+                    connect_stderr: bool = True) -> subprocess.Popen:
+    stderr = subprocess.STDOUT if connect_stderr else None
+    return subprocess.Popen(args,
+                            stdout=subprocess.PIPE,
+                            stderr=stderr,
+                            universal_newlines=True)
+
+
 def qemu_tool_pipe_and_status(tool: str, args: Sequence[str],
                               connect_stderr: bool = True) -> Tuple[str, int]:
     """
     Run a tool and return both its output and its exit code
     """
-    stderr = subprocess.STDOUT if connect_stderr else None
-    subp = subprocess.Popen(args,
-                            stdout=subprocess.PIPE,
-                            stderr=stderr,
-                            universal_newlines=True)
+    subp = qemu_tool_popen(tool, args, connect_stderr)
     output = subp.communicate()[0]
     if subp.returncode < 0:
         cmd = ' '.join(args)
