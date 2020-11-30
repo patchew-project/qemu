@@ -2132,6 +2132,8 @@ static void reclaim_ramblock(RAMBlock *block)
 
 void qemu_ram_free(RAMBlock *block)
 {
+    ram_addr_t old_ram_size, new_ram_size;
+
     if (!block) {
         return;
     }
@@ -2141,12 +2143,18 @@ void qemu_ram_free(RAMBlock *block)
     }
 
     qemu_mutex_lock_ramlist();
+
+    old_ram_size = last_ram_page();
     QLIST_REMOVE_RCU(block, next);
+    new_ram_size = last_ram_page();
+    dirty_memory_resize(old_ram_size, new_ram_size);
+
     ram_list.mru_block = NULL;
     /* Write list before version */
     smp_wmb();
     ram_list.version++;
     call_rcu(block, reclaim_ramblock, rcu);
+
     qemu_mutex_unlock_ramlist();
 }
 
