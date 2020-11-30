@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "hw/ppc/spapr_drc.h"
 #include "hw/ppc/spapr_nvdimm.h"
@@ -154,6 +155,11 @@ static int spapr_dt_nvdimm(SpaprMachineState *spapr, void *fdt,
     _FDT((fdt_setprop_string(fdt, child_offset, "ibm,pmem-application",
                              "operating-system")));
     _FDT(fdt_setprop(fdt, child_offset, "ibm,cache-flush-required", NULL, 0));
+
+    if (!nvdimm->sync_dax) {
+        _FDT(fdt_setprop(fdt, child_offset, "ibm,async-flush-required",
+                         NULL, 0));
+    }
 
     return child_offset;
 }
@@ -370,6 +376,78 @@ static target_ulong h_scm_bind_mem(PowerPCCPU *cpu, SpaprMachineState *spapr,
     return H_SUCCESS;
 }
 
+typedef struct SCMAsyncFlushData {
+    int fd;
+    uint64_t token;
+} SCMAsyncFlushData;
+
+static int flush_worker_cb(void *opaque)
+{
+    int ret = H_SUCCESS;
+    SCMAsyncFlushData *req_data = opaque;
+
+    /* flush raw backing image */
+    if (qemu_fdatasync(req_data->fd) < 0) {
+        error_report("papr_scm: Could not sync nvdimm to backend file: %s",
+                     strerror(errno));
+        ret = H_HARDWARE;
+    }
+
+    g_free(req_data);
+
+    return ret;
+}
+
+static target_ulong h_scm_async_flush(PowerPCCPU *cpu, SpaprMachineState *spapr,
+                                      target_ulong opcode, target_ulong *args)
+{
+    int ret;
+    uint32_t drc_index = args[0];
+    uint64_t continue_token = args[1];
+    SpaprDrc *drc = spapr_drc_by_index(drc_index);
+    PCDIMMDevice *dimm;
+    HostMemoryBackend *backend = NULL;
+    SCMAsyncFlushData *req_data = NULL;
+
+    if (!drc || !drc->dev ||
+        spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PMEM) {
+        return H_PARAMETER;
+    }
+
+    if (continue_token != 0) {
+        ret = spapr_drc_get_async_hcall_status(drc, continue_token);
+        if (ret == H_BUSY) {
+            args[0] = continue_token;
+            return H_LONG_BUSY_ORDER_1_SEC;
+        }
+
+        return ret;
+    }
+
+    dimm = PC_DIMM(drc->dev);
+    backend = MEMORY_BACKEND(dimm->hostmem);
+
+    req_data = g_malloc0(sizeof(SCMAsyncFlushData));
+    req_data->fd = memory_region_get_fd(&backend->mr);
+
+    continue_token = spapr_drc_get_new_async_hcall_token(drc);
+    if (!continue_token) {
+        g_free(req_data);
+        return H_P2;
+    }
+    req_data->token = continue_token;
+
+    spapr_drc_run_async_hcall(drc, continue_token, &flush_worker_cb, req_data);
+
+    ret = spapr_drc_get_async_hcall_status(drc, continue_token);
+    if (ret == H_BUSY) {
+        args[0] = req_data->token;
+        return ret;
+    }
+
+    return ret;
+}
+
 static target_ulong h_scm_unbind_mem(PowerPCCPU *cpu, SpaprMachineState *spapr,
                                      target_ulong opcode, target_ulong *args)
 {
@@ -486,6 +564,7 @@ static void spapr_scm_register_types(void)
     spapr_register_hypercall(H_SCM_BIND_MEM, h_scm_bind_mem);
     spapr_register_hypercall(H_SCM_UNBIND_MEM, h_scm_unbind_mem);
     spapr_register_hypercall(H_SCM_UNBIND_ALL, h_scm_unbind_all);
+    spapr_register_hypercall(H_SCM_ASYNC_FLUSH, h_scm_async_flush);
 }
 
 type_init(spapr_scm_register_types)
