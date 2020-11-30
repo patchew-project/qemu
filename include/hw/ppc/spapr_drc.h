@@ -18,6 +18,7 @@
 #include "sysemu/runstate.h"
 #include "hw/qdev-core.h"
 #include "qapi/error.h"
+#include "block/thread-pool.h"
 
 #define TYPE_SPAPR_DR_CONNECTOR "spapr-dr-connector"
 #define SPAPR_DR_CONNECTOR_GET_CLASS(obj) \
@@ -168,6 +169,21 @@ typedef enum {
     SPAPR_DRC_STATE_PHYSICAL_CONFIGURED = 8,
 } SpaprDrcState;
 
+typedef struct SpaprDrc SpaprDrc;
+
+typedef int SpaprDrcAsyncHcallWorkerFunc(void *opaque);
+typedef struct SpaprDrcDeviceAsyncHCallState {
+    uint64_t continue_token;
+    bool pending;
+
+    int hcall_ret;
+    SpaprDrcAsyncHcallWorkerFunc *func;
+    void *data;
+
+    QemuThread thread;
+
+    QLIST_ENTRY(SpaprDrcDeviceAsyncHCallState) node;
+} SpaprDrcDeviceAsyncHCallState;
 typedef struct SpaprDrc {
     /*< private >*/
     DeviceState parent;
@@ -181,6 +197,10 @@ typedef struct SpaprDrc {
     /* (only valid in UNISOLATE state) */
     int ccs_offset;
     int ccs_depth;
+
+    /* async hcall states */
+    QemuMutex async_hcall_states_lock;
+    QLIST_HEAD(, SpaprDrcDeviceAsyncHCallState) async_hcall_states;
 
     /* device pointer, via link property */
     DeviceState *dev;
@@ -240,6 +260,11 @@ void spapr_drc_detach(SpaprDrc *drc);
 
 /* Returns true if a hot plug/unplug request is pending */
 bool spapr_drc_transient(SpaprDrc *drc);
+
+uint64_t spapr_drc_get_new_async_hcall_token(SpaprDrc *drc);
+void spapr_drc_run_async_hcall(SpaprDrc *drc, uint64_t token,
+                               SpaprDrcAsyncHcallWorkerFunc, void *data);
+int spapr_drc_get_async_hcall_status(SpaprDrc *drc, uint64_t token);
 
 static inline bool spapr_drc_unplug_requested(SpaprDrc *drc)
 {
