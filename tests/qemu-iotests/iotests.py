@@ -190,10 +190,15 @@ def img_info_log(filename, filter_path=None, imgopts=False, extra_args=()):
         filter_path = filename
     log(filter_img_info(output, filter_path))
 
+def qemu_io_wrap_args(args: Sequence[str]):
+    if '-f' in args or '--image-opts' in args:
+        return qemu_io_args_no_fmt + list(args)
+    else:
+        return qemu_io_args + list(args)
+
 def qemu_io(*args):
     '''Run qemu-io and return the stdout data'''
-    args = qemu_io_args + list(args)
-    return qemu_tool_pipe_and_status('qemu-io', args)[0]
+    return qemu_tool_pipe_and_status('qemu-io', qemu_io_wrap_args(args))[0]
 
 def qemu_io_log(*args):
     result = qemu_io(*args)
@@ -202,7 +207,7 @@ def qemu_io_log(*args):
 
 def qemu_io_silent(*args):
     '''Run qemu-io and return the exit code, suppressing stdout'''
-    args = qemu_io_args + list(args)
+    args = qemu_io_wrap_args(args)
     exitcode = subprocess.call(args, stdout=open('/dev/null', 'w'))
     if exitcode < 0:
         sys.stderr.write('qemu-io received signal %i: %s\n' %
@@ -211,7 +216,7 @@ def qemu_io_silent(*args):
 
 def qemu_io_silent_check(*args):
     '''Run qemu-io and return the true if subprocess returned 0'''
-    args = qemu_io_args + list(args)
+    args = qemu_io_wrap_args(args)
     exitcode = subprocess.call(args, stdout=open('/dev/null', 'w'),
                                stderr=subprocess.STDOUT)
     return exitcode == 0
@@ -223,7 +228,7 @@ def get_virtio_scsi_device():
 
 class QemuIoInteractive:
     def __init__(self, *args):
-        self.args = qemu_io_args_no_fmt + list(args)
+        self.args = qemu_io_wrap_args(args)
         self._p = subprocess.Popen(self.args, stdin=subprocess.PIPE,
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT,
