@@ -1397,6 +1397,7 @@ static void m25p80_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, m25p80_properties);
     dc->reset = m25p80_reset;
     mc->pi = data;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
 static const TypeInfo m25p80_info = {
