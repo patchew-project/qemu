@@ -2479,6 +2479,18 @@
             '*iops-size' : 'int' } }
 
 ##
+# @ThrottleGroupProperties:
+#
+# Properties for throttle-group objects.
+#
+# @limits: limits to apply for this throttle group
+#
+# Since: 6.0
+##
+{ 'struct': 'ThrottleGroupProperties',
+  'data': { '*limits': 'ThrottleLimits' } }
+
+##
 # @block-stream:
 #
 # Copy data from a backing file into a block device.
