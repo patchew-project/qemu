@@ -1621,6 +1621,13 @@ static const TypeInfo amdvi = {
     .class_init = amdvi_class_init
 };
 
+static void amdvi_pci_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+}
+
 static const TypeInfo amdviPCI = {
     .name = TYPE_AMD_IOMMU_PCI,
     .parent = TYPE_PCI_DEVICE,
@@ -1629,6 +1636,7 @@ static const TypeInfo amdviPCI = {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },
+    .class_init = amdvi_pci_class_init
 };
 
 static void amdvi_iommu_memory_region_class_init(ObjectClass *klass, void *data)
