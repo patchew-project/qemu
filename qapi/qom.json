@@ -369,6 +369,52 @@
             '*seal': 'bool' } }
 
 ##
+# @RngProperties:
+#
+# Properties for objects of classes derived from rng.
+#
+# @opened: if true, the device is opened immediately when applying this option
+#          and will probably fail when processing the next option. Don't use;
+#          only provided for compatibility. (default: false)
+#
+# Features:
+# @deprecated: Member @opened is deprecated.  Setting true doesn't make sense,
+#              and false is already the default.
+#
+# Since: 6.0
+##
+{ 'struct': 'RngProperties',
+  'data': { '*opened': { 'type': 'bool', 'features': ['deprecated'] } } }
+
+##
+# @RngEgdProperties:
+#
+# Properties for rng-egd objects.
+#
+# @chardev: the name of a character device backend that provides the connection
+#           to the RNG daemon
+#
+# Since: 6.0
+##
+{ 'struct': 'RngEgdProperties',
+  'base': 'RngProperties',
+  'data': { 'chardev': 'str' } }
+
+##
+# @RngRandomProperties:
+#
+# Properties for rng-random objects.
+#
+# @filename: the filename of the device on the host to obtain entropy from
+#            (default: "/dev/urandom")
+#
+# Since: 6.0
+##
+{ 'struct': 'RngRandomProperties',
+  'base': 'RngProperties',
+  'data': { '*filename': 'str' } }
+
+##
 # @ObjectType:
 #
 # Since: 6.0
@@ -386,7 +432,10 @@
     'iothread',
     'memory-backend-file',
     'memory-backend-memfd',
-    'memory-backend-ram'
+    'memory-backend-ram',
+    'rng-builtin',
+    'rng-egd',
+    'rng-random'
   ] }
 
 ##
@@ -416,7 +465,10 @@
       'iothread':                   'IothreadProperties',
       'memory-backend-file':        'MemoryBackendFileProperties',
       'memory-backend-memfd':       'MemoryBackendMemfdProperties',
-      'memory-backend-ram':         'MemoryBackendProperties'
+      'memory-backend-ram':         'MemoryBackendProperties',
+      'rng-builtin':                'RngProperties',
+      'rng-egd':                    'RngEgdProperties',
+      'rng-random':                 'RngRandomProperties'
   } }
 
 ##
