@@ -7231,6 +7231,7 @@ static Property x86_cpu_properties[] = {
                      false),
     DEFINE_PROP_BOOL("x-intel-pt-auto-level", X86CPU, intel_pt_auto_level,
                      true),
+    DEFINE_PROP_BOOL("x-precise-tsc", X86CPU, precise_tsc, false),
     DEFINE_PROP_END_OF_LIST()
 };
 

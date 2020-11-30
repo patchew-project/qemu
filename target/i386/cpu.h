@@ -1460,6 +1460,7 @@ typedef struct CPUX86State {
     uint64_t tsc_adjust;
     uint64_t tsc_deadline;
     uint64_t tsc_aux;
+    uint64_t tsc_ns_timestamp;
 
     uint64_t xcr0;
 
@@ -1742,6 +1743,9 @@ struct X86CPU {
 
     /* Number of physical address bits supported */
     uint32_t phys_bits;
+
+    /* Use KVM_GET_TSC_PRECISE/KVM_SET_TSC_PRECISE to access IA32_TSC */
+    bool precise_tsc;
 
     /* in order to simplify APIC support, we leave this pointer to the
        user */
