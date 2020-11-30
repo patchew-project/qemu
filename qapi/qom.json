@@ -208,6 +208,21 @@
   'allow-preconfig': true }
 
 ##
+# @CanHostSocketcanProperties:
+#
+# Properties for can-host-socketcan objects.
+#
+# @if: interface name of the host system CAN bus to connect to
+#
+# @canbus: object ID of the can-bus object to connect to the host interface
+#
+# Since: 6.0
+##
+{ 'struct': 'CanHostSocketcanProperties',
+  'data': { 'if': 'str',
+            'canbus': 'str' } }
+
+##
 # @CryptodevBackendProperties:
 #
 # Properties for cryptodev-backend and cryptodev-backend-builtin objects.
@@ -427,6 +442,8 @@
     'authz-listfile',
     'authz-pam',
     'authz-simple',
+    'can-bus',
+    'can-host-socketcan',
     'cryptodev-backend',
     'cryptodev-backend-builtin',
     'cryptodev-vhost-user',
@@ -467,6 +484,7 @@
       'authz-listfile':             'AuthZListFileProperties',
       'authz-pam':                  'AuthZPAMProperties',
       'authz-simple':               'AuthZSimpleProperties',
+      'can-host-socketcan':         'CanHostSocketcanProperties',
       'cryptodev-backend':          'CryptodevBackendProperties',
       'cryptodev-backend-builtin':  'CryptodevBackendProperties',
       'cryptodev-vhost-user':       'CryptodevVhostUserProperties',
