@@ -208,6 +208,17 @@ def qemu_io_log(*args):
     log(result, filters=[filter_testfiles, filter_qemu_io])
     return result
 
+def qemu_io_popen(*args):
+    '''Run qemu-nbd in daemon mode and return the parent's exit code'''
+    default_args = qemu_io_args[:]
+
+    if ('-f' in args or '--image-opts' in args) and '-f' in default_args:
+        ind = default_args.index('-f')
+        del default_args[ind:ind+2]
+
+    return subprocess.Popen(default_args + list(args), stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, universal_newlines=True)
+
 def qemu_io_silent(*args):
     '''Run qemu-io and return the exit code, suppressing stdout'''
     args = qemu_io_wrap_args(args)
