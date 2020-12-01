@@ -1676,7 +1676,12 @@ static int megasas_handle_scsi(MegasasState *s, MegasasCmd *cmd,
     lun_id = cmd->frame->header.lun_id;
     cdb_len = cmd->frame->header.cdb_len;
 
-    assert(cdb_len > 0 && scsi_cdb_length(cdb) >= cdb_len);
+    if (!cdb_len || scsi_cdb_length(cdb) < cdb_len) {
+        trace_megasas_scsi_invalid_cdb_len(mfi_frame_desc(frame_cmd),
+                                           is_logical, target_id,
+                                           lun_id, cdb_len);
+        return MFI_STAT_ABORT_NOT_POSSIBLE;
+    }
     if (is_logical) {
         if (target_id >= MFI_MAX_LD || lun_id != 0) {
             trace_megasas_scsi_target_not_present(
