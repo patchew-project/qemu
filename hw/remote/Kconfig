@@ -1,3 +1,4 @@
 config MULTIPROCESS
     bool
     depends on PCI && KVM
+    select MULTIPROCESS_HOST

@@ -60,3 +60,6 @@ config PCI_BONITO
     select PCI
     select UNIMP
     bool
+
+config MULTIPROCESS_HOST
+    bool
