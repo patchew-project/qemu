@@ -17,6 +17,7 @@
 #include "sysemu/runstate.h"
 #include "hw/pci/pci.h"
 #include "exec/memattrs.h"
+#include "hw/remote/memory.h"
 
 static void process_config_write(QIOChannel *ioc, PCIDevice *dev,
                                  MPQemuMsg *msg);
@@ -64,6 +65,10 @@ void coroutine_fn mpqemu_remote_msg_loop_co(void *data)
         case BAR_READ:
             process_bar_read(com->ioc, &msg, &local_err);
             break;
+        case SYNC_SYSMEM:
+            remote_sysmem_reconfig(&msg, &local_err);
+            break;
+
         default:
             error_setg(&local_err,
                        "Unknown command (%d) received for device %s (pid=%d)",
