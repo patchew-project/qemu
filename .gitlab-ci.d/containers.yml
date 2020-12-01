@@ -241,8 +241,3 @@ amd64-ubuntu2004-container:
   <<: *container_job_definition
   variables:
     NAME: ubuntu2004
-
-amd64-ubuntu-container:
-  <<: *container_job_definition
-  variables:
-    NAME: ubuntu
