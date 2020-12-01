@@ -1,4 +1,4 @@
-FROM centos:7
+FROM registry.centos.org/centos:7
 RUN yum install -y epel-release centos-release-xen-48
 
 RUN yum -y update

@@ -1,4 +1,4 @@
-FROM centos:8.1.1911
+FROM registry.centos.org/centos:8
 
 RUN dnf -y update
 ENV PACKAGES \
