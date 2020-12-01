@@ -3136,6 +3136,7 @@ M: Jagannathan Raman <jag.raman@oracle.com>
 M: John G Johnson <john.g.johnson@oracle.com>
 S: Maintained
 F: docs/devel/multi-process.rst
+F: tests/multiprocess/multiprocess-lsi53c895a.py
 
 Build and test automation
 -------------------------
