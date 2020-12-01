@@ -1680,7 +1680,15 @@ static int megasas_handle_scsi(MegasasState *s, MegasasCmd *cmd,
     if (cdb_len > 0) {
         len = scsi_cdb_length(cdb);
     }
-    assert(len > 0 && cdb_len >= len);
+    if (len < 0 || len < cdb_len) {
+        trace_megasas_scsi_invalid_cdb_len(mfi_frame_desc(frame_cmd),
+                                           is_logical, target_id,
+                                           lun_id, cdb_len);
+        megasas_write_sense(cmd, SENSE_CODE(INVALID_FIELD));
+        cmd->frame->header.scsi_status = TASK_ABORTED;
+        s->event_count++;
+        return MFI_STAT_ABORT_NOT_POSSIBLE;
+    }
     if (is_logical) {
         if (target_id >= MFI_MAX_LD || lun_id != 0) {
             trace_megasas_scsi_target_not_present(
