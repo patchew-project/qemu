@@ -275,7 +275,7 @@ static void *nbd_client_thread(void *arg)
                                         saddr,
                                         &local_error) < 0) {
         error_report_err(local_error);
-        goto out;
+        goto out_socket;
     }
 
     ret = nbd_receive_negotiate(NULL, QIO_CHANNEL(sioc),
@@ -325,7 +325,6 @@ out_fd:
     close(fd);
 out_socket:
     object_unref(OBJECT(sioc));
-out:
     g_free(info.name);
     kill(getpid(), SIGTERM);
     return (void *) EXIT_FAILURE;
