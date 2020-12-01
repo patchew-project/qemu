@@ -50,6 +50,7 @@ re_arg_ident = '&[a-zA-Z0-9_]*'
 re_fld_ident = '%[a-zA-Z0-9_]*'
 re_fmt_ident = '@[a-zA-Z0-9_]*'
 re_pat_ident = '[a-zA-Z0-9_]*'
+re_num_ident = '[+-]?([0-9]+|0x[0-9a-fA-F]+|0b[01]+)'
 
 def error_with_file(file, lineno, *args):
     """Print an error message from file:line and args and exit."""
@@ -849,9 +850,9 @@ def parse_generic(lineno, parent_pat, name, toks):
             continue
 
         # 'Foo=number' sets an argument field to a constant value
-        if re.fullmatch(re_C_ident + '=[+-]?[0-9]+', t):
+        if re.fullmatch(re_C_ident + '=' + re_num_ident, t):
             (fname, value) = t.split('=')
-            value = int(value)
+            value = int(value, 0)
             flds = add_field(lineno, flds, fname, ConstField(value))
             continue
 
