@@ -9,8 +9,7 @@ ENV PACKAGES \
     bzip2 \
     bzip2-devel \
     ccache \
-    csnappy-devel \
-    dbus-daemon \
+    dbus \
     gcc \
     gcc-c++ \
     gettext \
@@ -22,21 +21,21 @@ ENV PACKAGES \
     libepoxy-devel \
     libfdt-devel \
     libgcrypt-devel \
-    librdmacm-devel \
     libzstd-devel \
     lzo-devel \
     make \
-    mesa-libEGL-devel \
     mesa-libgbm-devel \
     nettle-devel \
     ninja-build \
     perl-Test-Harness \
     pixman-devel \
     python3 \
-    spice-glib-devel \
+    rdma-core-devel \
+    snappy-devel \
+    spice-protocol \
     spice-server-devel \
     tar \
-    vte-devel \
+    vte291-devel \
     xen-devel \
     zlib-devel
 RUN yum install -y $PACKAGES
