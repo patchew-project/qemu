@@ -25,6 +25,7 @@ typedef struct RemotePCIHost {
 
     MemoryRegion *mr_pci_mem;
     MemoryRegion *mr_sys_io;
+    MemoryRegion *mr_sys_mem;
 } RemotePCIHost;
 
 #endif
