@@ -48,6 +48,23 @@ static void test_lp1878642_pci_bus_get_irq_level_assert(void)
     qtest_quit(s);
 }
 
+static void test_megasas_cdb_len_zero(void)
+{
+    QTestState *s;
+
+    s = qtest_init("-M pc -nodefaults "
+                   "-device megasas-gen2 -device scsi-cd,drive=null0 "
+                   "-blockdev driver=null-co,read-zeroes=on,node-name=null0");
+
+    qtest_outl(s, 0xcf8, 0x80001011);
+    qtest_outb(s, 0xcfc, 0xbb);
+    qtest_outl(s, 0xcf8, 0x80001002);
+    qtest_outl(s, 0xcfc, 0xf3ff2966);
+    qtest_writeb(s, 0x4600, 0x03);
+    qtest_outw(s, 0xbb40, 0x460b);
+    qtest_quit(s);
+}
+
 int main(int argc, char **argv)
 {
     const char *arch = qtest_get_arch();
@@ -59,6 +76,8 @@ int main(int argc, char **argv)
                        test_lp1878263_megasas_zero_iov_cnt);
         qtest_add_func("fuzz/test_lp1878642_pci_bus_get_irq_level_assert",
                        test_lp1878642_pci_bus_get_irq_level_assert);
+        qtest_add_func("fuzz/test_megasas_cdb_len_zero",
+                       test_megasas_cdb_len_zero);
     }
 
     return g_test_run();
