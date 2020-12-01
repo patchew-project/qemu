@@ -1667,6 +1667,7 @@ static int megasas_handle_scsi(MegasasState *s, MegasasCmd *cmd,
 {
     uint8_t *cdb;
     int target_id, lun_id, cdb_len;
+    int len = -1;
     bool is_write;
     struct SCSIDevice *sdev = NULL;
     bool is_logical = (frame_cmd == MFI_CMD_LD_SCSI_IO);
@@ -1676,6 +1677,10 @@ static int megasas_handle_scsi(MegasasState *s, MegasasCmd *cmd,
     lun_id = cmd->frame->header.lun_id;
     cdb_len = cmd->frame->header.cdb_len;
 
+    if (cdb_len > 0) {
+        len = scsi_cdb_length(cdb);
+    }
+    assert(len > 0 && cdb_len >= len);
     if (is_logical) {
         if (target_id >= MFI_MAX_LD || lun_id != 0) {
             trace_megasas_scsi_target_not_present(
