@@ -2,7 +2,7 @@
 #
 #  $ lcitool dockerfile fedora-32 qemu
 #
-# https://gitlab.com/berrange/libvirt-ci/-/commit/5ae4c04258978fae40be7113ac33587d71fe3c4f
+# https://gitlab.com/libvirt/libvirt-ci/-/commit/5ae4c04258978fae40be7113ac33587d71fe3c4f
 
 FROM registry.fedoraproject.org/fedora:32
 
