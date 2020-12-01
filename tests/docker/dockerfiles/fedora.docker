@@ -27,7 +27,6 @@ ENV PACKAGES \
     libaio-devel \
     libasan \
     libattr-devel \
-    libblockdev-mpath-devel \
     libcacard-devel \
     libcap-ng-devel \
     libcurl-devel \
@@ -45,7 +44,6 @@ ENV PACKAGES \
     libusbx-devel \
     libxml2-devel \
     libzstd-devel \
-    llvm \
     lzo-devel \
     make \
     mingw32-bzip2 \
