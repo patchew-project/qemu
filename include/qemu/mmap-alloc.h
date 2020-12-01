@@ -25,7 +25,8 @@ void *qemu_ram_mmap(int fd,
                     size_t size,
                     size_t align,
                     bool shared,
-                    bool is_pmem);
+                    bool is_pmem,
+                    off_t start);
 
 void qemu_ram_munmap(int fd, void *ptr, size_t size);
 
