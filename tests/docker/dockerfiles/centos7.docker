@@ -5,13 +5,14 @@ RUN yum -y update
 
 # Please keep this list sorted alphabetically
 ENV PACKAGES \
+    SDL2-devel \
     bzip2 \
     bzip2-devel \
     ccache \
     csnappy-devel \
     dbus-daemon \
-    gcc-c++ \
     gcc \
+    gcc-c++ \
     gettext \
     git \
     glib2-devel \
@@ -32,7 +33,6 @@ ENV PACKAGES \
     perl-Test-Harness \
     pixman-devel \
     python3 \
-    SDL2-devel \
     spice-glib-devel \
     spice-server-devel \
     tar \
