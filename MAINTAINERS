@@ -3146,6 +3146,8 @@ F: include/hw/remote/mpqemu-link.h
 F: hw/remote/message.c
 F: include/hw/remote/remote-obj.h
 F: hw/remote/remote-obj.c
+F: include/hw/remote/memory.h
+F: hw/remote/memory.c
 
 Build and test automation
 -------------------------
