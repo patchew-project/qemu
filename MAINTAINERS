@@ -3152,6 +3152,8 @@ F: hw/remote/proxy.c
 F: include/hw/remote/proxy.h
 F: hw/remote/memory-sync.c
 F: include/hw/remote/memory-sync.h
+F: hw/remote/iohub.c
+F: include/hw/remote/iohub.h
 
 Build and test automation
 -------------------------

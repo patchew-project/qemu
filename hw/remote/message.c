@@ -18,6 +18,7 @@
 #include "hw/pci/pci.h"
 #include "exec/memattrs.h"
 #include "hw/remote/memory.h"
+#include "hw/remote/iohub.h"
 
 static void process_config_write(QIOChannel *ioc, PCIDevice *dev,
                                  MPQemuMsg *msg);
@@ -67,6 +68,9 @@ void coroutine_fn mpqemu_remote_msg_loop_co(void *data)
             break;
         case SYNC_SYSMEM:
             remote_sysmem_reconfig(&msg, &local_err);
+            break;
+        case SET_IRQFD:
+            process_set_irqfd_msg(pci_dev, &msg);
             break;
 
         default:
