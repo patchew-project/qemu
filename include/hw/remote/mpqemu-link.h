@@ -36,6 +36,8 @@ typedef enum {
     RET_MSG,
     PCI_CONFIG_WRITE,
     PCI_CONFIG_READ,
+    BAR_WRITE,
+    BAR_READ,
     MPQEMU_CMD_MAX,
 } MPQemuCmd;
 
@@ -50,6 +52,13 @@ typedef struct {
     uint32_t val;
     int l;
 } PciConfDataMsg;
+
+typedef struct {
+    hwaddr addr;
+    uint64_t val;
+    unsigned size;
+    bool memory;
+} BarAccessMsg;
 
 /**
  * MPQemuMsg:
@@ -70,6 +79,7 @@ typedef struct {
         uint64_t u64;
         PciConfDataMsg pci_conf_data;
         SyncSysmemMsg sync_sysmem;
+        BarAccessMsg bar_access;
     } data;
 
     int fds[REMOTE_MAX_FDS];
