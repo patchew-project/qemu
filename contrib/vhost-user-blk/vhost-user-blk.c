@@ -404,7 +404,11 @@ vub_get_config(VuDev *vu_dev, uint8_t *config, uint32_t len)
     VugDev *gdev;
     VubDev *vdev_blk;
 
-    g_return_val_if_fail(len <= sizeof(struct virtio_blk_config), -1);
+    if (len > sizeof(struct virtio_blk_config)) {
+        fprintf(stderr, "Invalid get_config len %u, expected <= %zu\n",
+                len, sizeof(struct virtio_blk_config));
+        return -1;
+    }
 
     gdev = container_of(vu_dev, VugDev, parent);
     vdev_blk = container_of(gdev, VubDev, parent);
