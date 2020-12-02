@@ -17,6 +17,7 @@
 #include "block/blockjob_int.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
+#include "qemu/error-report.h"
 #include "qemu/ratelimit.h"
 #include "sysemu/block-backend.h"
 
@@ -65,6 +66,8 @@ static int stream_prepare(Job *job)
     BlockDriverState *bs = blk_bs(bjob->blk);
     BlockDriverState *unfiltered_bs = bdrv_skip_filters(bs);
     BlockDriverState *base = bdrv_filter_or_cow_bs(s->above_base);
+    BlockDriverState *base_unfiltered;
+    BlockDriverState *backing_bs;
     Error *local_err = NULL;
     int ret = 0;
 
@@ -75,8 +78,22 @@ static int stream_prepare(Job *job)
         const char *base_id = NULL, *base_fmt = NULL;
         if (base) {
             base_id = s->backing_file_str;
-            if (base->drv) {
-                base_fmt = base->drv->format_name;
+            if (base_id) {
+                backing_bs = bdrv_find_backing_image(bs, base_id);
+                if (backing_bs && backing_bs->drv) {
+                    base_fmt = backing_bs->drv->format_name;
+                } else {
+                    error_report("Format not found for backing file %s",
+                                 s->backing_file_str);
+                }
+            } else {
+                base_unfiltered = bdrv_skip_filters(base);
+                if (base_unfiltered) {
+                    base_id = base_unfiltered->filename;
+                    if (base_unfiltered->drv) {
+                        base_fmt = base_unfiltered->drv->format_name;
+                    }
+                }
             }
         }
         bdrv_set_backing_hd(unfiltered_bs, base, &local_err);
