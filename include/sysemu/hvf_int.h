@@ -11,6 +11,7 @@
 #ifndef HVF_INT_H
 #define HVF_INT_H
 
+#include "qemu/osdep.h"
 #include <Hypervisor/Hypervisor.h>
 
 #define HVF_MAX_VCPU 0x10
@@ -59,7 +60,8 @@ struct HVFState {
 extern HVFState *hvf_state;
 
 struct hvf_vcpu_state {
-    int fd;
+    uint64_t fd;
+    void *exit;
 };
 
 void assert_hvf_ok(hv_return_t ret);
@@ -69,5 +71,6 @@ int hvf_arch_init_vcpu(CPUState *cpu);
 void hvf_arch_vcpu_destroy(CPUState *cpu);
 int hvf_vcpu_exec(CPUState *cpu);
 hvf_slot *hvf_find_overlap_slot(uint64_t, uint64_t);
+void hvf_kick_vcpu_thread(CPUState *cpu);
 
 #endif
