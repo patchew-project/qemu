@@ -38,7 +38,6 @@ bool spapr_nvdimm_validate(HotplugHandler *hotplug_dev, NVDIMMDevice *nvdimm,
 {
     const MachineClass *mc = MACHINE_GET_CLASS(hotplug_dev);
     const MachineState *ms = MACHINE(hotplug_dev);
-    const char *nvdimm_opt = qemu_opt_get(qemu_get_machine_opts(), "nvdimm");
     g_autofree char *uuidstr = NULL;
     QemuUUID uuid;
     int ret;
@@ -57,10 +56,11 @@ bool spapr_nvdimm_validate(HotplugHandler *hotplug_dev, NVDIMMDevice *nvdimm,
      * ensure that, if the user sets nvdimm=off, we error out
      * regardless of being 5.1 or newer.
      */
-    if (!ms->nvdimms_state->is_enabled && nvdimm_opt) {
+    if (!ms->nvdimms_state->is_enabled && ms->nvdimms_state->has_is_enabled) {
         error_setg(errp, "nvdimm device found but 'nvdimm=off' was set");
         return false;
     }
+    ms->nvdimms_state->is_enabled = true;
 
     if (object_property_get_int(OBJECT(nvdimm), NVDIMM_LABEL_SIZE_PROP,
                                 &error_abort) == 0) {
