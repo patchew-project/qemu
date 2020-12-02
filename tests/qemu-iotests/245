@@ -899,17 +899,25 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         # make hd1 read-only and block-stream requires it to be read-write
         # (Which error message appears depends on whether the stream job is
         # already done with copying at this point.)
-        self.reopen(opts, {},
-            ["Can't set node 'hd1' to r/o with copy-on-read enabled",
-             "Cannot make block node read-only, there is a writer on it"])
+        # As the COR-filter node is inserted into the backing chain with the
+        # 'block-stream' operation, we move the options to their proper nodes.
+        opts = hd_opts(1)
+        opts['backing'] = hd_opts(2)
+        opts['backing']['backing'] = None
+        self.reopen(opts, {'read-only': True},
+             ["Cannot make block node read-only, there is a writer on it"])
 
         # We can't remove hd2 while the stream job is ongoing
-        opts['backing']['backing'] = None
-        self.reopen(opts, {'backing.read-only': False}, "Cannot change 'backing' link from 'hd1' to 'hd2'")
-
-        # We can detach hd1 from hd0 because it doesn't affect the stream job
         opts['backing'] = None
-        self.reopen(opts)
+        self.reopen(opts, {'read-only': False},
+                    "Cannot change 'backing' link from 'hd1' to 'hd2'")
+
+        # We can't detach hd1 from hd0 because there is the COR-filter implicit
+        # node in between.
+        opts = hd_opts(0)
+        opts['backing'] = None
+        self.reopen(opts, {},
+                    "Cannot change backing link if 'hd0' has an implicit backing file")
 
         self.vm.run_job('stream0', auto_finalize = False, auto_dismiss = True)
 
