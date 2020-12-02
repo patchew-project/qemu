@@ -129,7 +129,7 @@ typedef struct NvdimmFitBuffer NvdimmFitBuffer;
 
 struct NVDIMMState {
     /* detect if NVDIMM support is enabled. */
-    bool is_enabled;
+    bool has_is_enabled, is_enabled;
 
     /* the data of the fw_cfg file NVDIMM_DSM_MEM_FILE. */
     GArray *dsm_mem;

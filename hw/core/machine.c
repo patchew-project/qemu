@@ -455,6 +455,7 @@ static void machine_set_nvdimm(Object *obj, bool value, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
 
+    ms->nvdimms_state->has_is_enabled = true;
     ms->nvdimms_state->is_enabled = value;
 }
 
