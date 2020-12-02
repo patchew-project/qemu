@@ -359,6 +359,7 @@ typedef enum {
     QPP_4 = 0x34,
     RDID_90 = 0x90,
     RDID_AB = 0xab,
+    AAI_WP = 0xad,
 
     ERASE_4K = 0x20,
     ERASE4_4K = 0x21,
@@ -449,6 +450,7 @@ struct Flash {
     bool four_bytes_address_mode;
     bool reset_enable;
     bool quad_enable;
+    bool aai_enable;
     uint8_t ear;
 
     int64_t dirty_page;
@@ -661,6 +663,7 @@ static void complete_collecting_data(Flash *s)
     case PP:
     case PP4:
     case PP4_4:
+    case AAI_WP:
         s->state = STATE_PAGE_PROGRAM;
         break;
     case READ:
@@ -1007,6 +1010,9 @@ static void decode_new_cmd(Flash *s, uint32_t value)
 
     case WRDI:
         s->write_enable = false;
+        if (get_man(s) == MAN_SST) {
+            s->aai_enable = false;
+        }
         break;
     case WREN:
         s->write_enable = true;
@@ -1158,6 +1164,17 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         break;
     case RSTQIO:
         s->quad_enable = false;
+        break;
+    case AAI_WP:
+        if (get_man(s) == MAN_SST && s->write_enable) {
+            if (s->aai_enable) {
+                s->state = STATE_PAGE_PROGRAM;
+            } else {
+                s->aai_enable = true;
+                s->needed_bytes = get_addr_length(s);
+                s->state = STATE_COLLECTING_DATA;
+            }
+        }
         break;
     default:
         s->pos = 0;
