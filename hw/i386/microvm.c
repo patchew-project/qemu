@@ -154,6 +154,7 @@ static void create_gpex(MicrovmMachineState *mms)
 
 static void microvm_devices_init(MicrovmMachineState *mms)
 {
+    const char *default_firmware;
     X86MachineState *x86ms = X86_MACHINE(mms);
     ISABus *isa_bus;
     ISADevice *rtc_state;
@@ -259,12 +260,10 @@ static void microvm_devices_init(MicrovmMachineState *mms)
         serial_hds_isa_init(isa_bus, 0, 1);
     }
 
-    if (bios_name == NULL) {
-        bios_name = x86_machine_is_acpi_enabled(x86ms)
+    default_firmware = x86_machine_is_acpi_enabled(x86ms)
             ? MICROVM_BIOS_FILENAME
             : MICROVM_QBOOT_FILENAME;
-    }
-    x86_bios_rom_init(get_system_memory(), true);
+    x86_bios_rom_init(MACHINE(mms), default_firmware, get_system_memory(), true);
 }
 
 static void microvm_memory_init(MicrovmMachineState *mms)
