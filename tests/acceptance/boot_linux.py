@@ -42,13 +42,13 @@ class BootLinuxBase(Test):
         vmimage.QEMU_IMG = qemu_img
 
         self.log.info('Downloading/preparing boot image')
-        # Fedora 31 only provides ppc64le images
+        # Fedora 32 only provides ppc64le images
         image_arch = self.arch
         if image_arch == 'ppc64':
             image_arch = 'ppc64le'
         try:
             boot = vmimage.get(
-                'fedora', arch=image_arch, version='31',
+                'fedora', arch=image_arch, version='32',
                 checksum=self.chksum,
                 algorithm='sha256',
                 cache_dir=self.cache_dirs[0],
@@ -111,7 +111,7 @@ class BootLinuxX8664(BootLinux):
     :avocado: tags=arch:x86_64
     """
 
-    chksum = 'e3c1b309d9203604922d6e255c2c5d098a309c2d46215d8fc026954f3c5c27a0'
+    chksum = '423a4ce32fa32c50c11e3d3ff392db97a762533b81bef9d00599de518a7469c8'
 
     def test_pc_i440fx_tcg(self):
         """
@@ -161,7 +161,7 @@ class BootLinuxAarch64(BootLinux):
     :avocado: tags=machine:gic-version=2
     """
 
-    chksum = '1e18d9c0cf734940c4b5d5ec592facaed2af0ad0329383d5639c997fdf16fe49'
+    chksum = 'b367755c664a2d7a26955bbfff985855adfa2ca15e908baf15b4b176d68d3967'
 
     def add_common_args(self):
         self.vm.add_args('-bios',
@@ -217,7 +217,7 @@ class BootLinuxPPC64(BootLinux):
     :avocado: tags=arch:ppc64
     """
 
-    chksum = '7c3528b85a3df4b2306e892199a9e1e43f991c506f2cc390dc4efa2026ad2f58'
+    chksum = 'dd989a078d641713c55720ba3e4320b204ade6954e2bfe4570c8058dc36e2e5d'
 
     def test_pseries_tcg(self):
         """
@@ -235,7 +235,7 @@ class BootLinuxS390X(BootLinux):
     :avocado: tags=arch:s390x
     """
 
-    chksum = '4caaab5a434fd4d1079149a072fdc7891e354f834d355069ca982fdcaf5a122d'
+    chksum = '93e49b98fa016797a6864a95cbb7beaec86ffd61dbcd42a951158ae732dae1ec'
 
     @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
     def test_s390_ccw_virtio_tcg(self):
