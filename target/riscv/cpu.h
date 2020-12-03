@@ -243,6 +243,8 @@ struct CPURISCVState {
     uint64_t kvm_timer_time;
     uint64_t kvm_timer_compare;
     uint64_t kvm_timer_state;
+    uint64_t user_frequency;
+    uint64_t frequency;
 };
 
 OBJECT_DECLARE_TYPE(RISCVCPU, RISCVCPUClass,

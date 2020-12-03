@@ -494,6 +494,8 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
 
     riscv_cpu_register_gdb_regs_for_features(cs);
 
+    env->user_frequency = env->frequency;
+
     qemu_init_vcpu(cs);
     cpu_reset(cs);
 
@@ -531,6 +533,7 @@ static Property riscv_cpu_properties[] = {
     DEFINE_PROP_BOOL("mmu", RISCVCPU, cfg.mmu, true),
     DEFINE_PROP_BOOL("pmp", RISCVCPU, cfg.pmp, true),
     DEFINE_PROP_UINT64("resetvec", RISCVCPU, cfg.resetvec, DEFAULT_RSTVEC),
+    DEFINE_PROP_UINT64("time-frequency", RISCVCPU, env.frequency, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
