@@ -144,6 +144,13 @@ static int cpu_post_load(void *opaque, int version_id)
     CPURISCVState *env = &cpu->env;
 
     env->kvm_timer_dirty = true;
+
+    if (env->user_frequency && env->user_frequency != env->frequency) {
+        error_report("Mismatch between user-specified time frequency and "
+                     "migrated time frequency");
+        return -EINVAL;
+    }
+
     return 0;
 }
 
@@ -198,6 +205,7 @@ const VMStateDescription vmstate_riscv_cpu = {
         VMSTATE_UINT64(env.kvm_timer_time, RISCVCPU),
         VMSTATE_UINT64(env.kvm_timer_compare, RISCVCPU),
         VMSTATE_UINT64(env.kvm_timer_state, RISCVCPU),
+        VMSTATE_UINT64(env.frequency, RISCVCPU),
 
         VMSTATE_END_OF_LIST()
     },
