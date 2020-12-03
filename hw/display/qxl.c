@@ -1177,8 +1177,35 @@ static const QXLInterface qxl_interface = {
     .client_monitors_config = interface_client_monitors_config,
 };
 
+static int qxl_ui_info(void *opaque, uint32_t idx, QemuUIInfo *info)
+{
+    PCIQXLDevice *qxl = opaque;
+    VDAgentMonitorsConfig *cfg;
+    size_t size;
+
+    if (using_spice) {
+        /* spice agent will handle display resize */
+        return -1;
+    }
+    if (idx > 0) {
+        /* supporting only single head for now */
+        return -1;
+    }
+
+    /* go fake a spice agent message */
+    size = sizeof(VDAgentMonitorsConfig) + sizeof(VDAgentMonConfig);
+    cfg = g_malloc0(size);
+    cfg->num_of_monitors = 1;
+    cfg->monitors[0].width = info->width;
+    cfg->monitors[0].height = info->height;
+    interface_client_monitors_config(&qxl->ssd.qxl, cfg);
+    g_free(cfg);
+    return 0;
+}
+
 static const GraphicHwOps qxl_ops = {
     .gfx_update  = qxl_hw_update,
+    .ui_info     = qxl_ui_info,
     .gfx_update_async = true,
 };
 
