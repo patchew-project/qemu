@@ -1539,7 +1539,9 @@ static void dpy_set_ui_info_timer(void *opaque)
 {
     QemuConsole *con = opaque;
 
-    con->hw_ops->ui_info(con->hw, con->head, &con->ui_info);
+    if (con->hw_ops->ui_info) {
+        con->hw_ops->ui_info(con->hw, con->head, &con->ui_info);
+    }
 }
 
 bool dpy_ui_info_supported(QemuConsole *con)
