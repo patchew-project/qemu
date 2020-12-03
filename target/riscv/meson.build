@@ -23,6 +23,7 @@ riscv_ss.add(files(
   'vector_helper.c',
   'translate.c',
 ))
+riscv_ss.add(when: 'CONFIG_KVM', if_true: files('kvm.c'))
 
 riscv_softmmu_ss = ss.source_set()
 riscv_softmmu_ss.add(files(
