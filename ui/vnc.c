@@ -664,13 +664,14 @@ void vnc_framebuffer_update(VncState *vs, int x, int y, int w, int h,
 }
 
 
-static void vnc_desktop_resize(VncState *vs)
+static void vnc_desktop_resize(VncState *vs, bool force)
 {
     if (vs->ioc == NULL || !vnc_has_feature(vs, VNC_FEATURE_RESIZE)) {
         return;
     }
     if (vs->client_width == pixman_image_get_width(vs->vd->server) &&
-        vs->client_height == pixman_image_get_height(vs->vd->server)) {
+        vs->client_height == pixman_image_get_height(vs->vd->server) &&
+        !force) {
         return;
     }
 
@@ -800,7 +801,7 @@ static void vnc_dpy_switch(DisplayChangeListener *dcl,
 
     QTAILQ_FOREACH(vs, &vd->clients, next) {
         vnc_colordepth(vs);
-        vnc_desktop_resize(vs);
+        vnc_desktop_resize(vs, false);
         if (vs->vd->cursor) {
             vnc_cursor_define(vs);
         }
@@ -2143,7 +2144,7 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
             break;
         }
     }
-    vnc_desktop_resize(vs);
+    vnc_desktop_resize(vs, true);
     check_pointer_type_change(&vs->mouse_mode_notifier, NULL);
     vnc_led_state_change(vs);
     if (vs->vd->cursor) {
