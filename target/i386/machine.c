@@ -1359,6 +1359,24 @@ static const VMStateDescription vmstate_msr_tsx_ctrl = {
     }
 };
 
+
+static bool tsc_ns_timestamp_needed(void *opaque)
+{
+    return kvm_has_precise_tsc();
+}
+
+static const VMStateDescription vmstate_tsc_ns_timestamp = {
+    .name = "cpu/tsc_ns_timestamp",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = tsc_ns_timestamp_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(env.tsc_ns_timestamp, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+
 VMStateDescription vmstate_x86_cpu = {
     .name = "cpu",
     .version_id = 12,
@@ -1493,6 +1511,7 @@ VMStateDescription vmstate_x86_cpu = {
 #endif
 #ifdef CONFIG_KVM
         &vmstate_nested_state,
+        &vmstate_tsc_ns_timestamp,
 #endif
         &vmstate_msr_tsx_ctrl,
         NULL

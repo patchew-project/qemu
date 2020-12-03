@@ -104,6 +104,8 @@ struct KVMState
     OnOffAuto kernel_irqchip_split;
     bool sync_mmu;
     uint64_t manual_dirty_log_protect;
+    /* Use KVM_GET_TSC_PRECISE/KVM_SET_TSC_PRECISE to access IA32_TSC */
+    bool precise_tsc;
     /* The man page (and posix) say ioctl numbers are signed int, but
      * they're not.  Linux, glibc and *BSD all treat ioctl numbers as
      * unsigned, and treating them as signed here can break things */
@@ -3194,6 +3196,24 @@ bool kvm_kernel_irqchip_split(void)
     return kvm_state->kernel_irqchip_split == ON_OFF_AUTO_ON;
 }
 
+bool kvm_has_precise_tsc(void)
+{
+    return kvm_state && kvm_state->precise_tsc;
+}
+
+static void kvm_set_precise_tsc(Object *obj,
+                                bool value, Error **errp G_GNUC_UNUSED)
+{
+    KVMState *s = KVM_STATE(obj);
+    s->precise_tsc = value;
+}
+
+static bool kvm_get_precise_tsc(Object *obj, Error **errp G_GNUC_UNUSED)
+{
+    KVMState *s = KVM_STATE(obj);
+    return s->precise_tsc;
+}
+
 static void kvm_accel_instance_init(Object *obj)
 {
     KVMState *s = KVM_STATE(obj);
@@ -3222,6 +3242,14 @@ static void kvm_accel_class_init(ObjectClass *oc, void *data)
         NULL, NULL);
     object_class_property_set_description(oc, "kvm-shadow-mem",
         "KVM shadow MMU size");
+
+    object_class_property_add_bool(oc, "x-precise-tsc",
+                                   kvm_get_precise_tsc,
+                                   kvm_set_precise_tsc);
+
+    object_class_property_set_description(oc, "x-precise-tsc",
+                                          "Use precise tsc kvm API");
+
 }
 
 static const TypeInfo kvm_accel_type = {

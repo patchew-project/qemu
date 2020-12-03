@@ -121,7 +121,6 @@ static int has_xsave;
 static int has_xcrs;
 static int has_pit_state2;
 static int has_exception_payload;
-
 static bool has_msr_mcg_ext_ctl;
 
 static struct kvm_cpuid2 *cpuid_cache;
@@ -196,29 +195,110 @@ static int kvm_get_tsc(CPUState *cs)
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
-    struct {
-        struct kvm_msrs info;
-        struct kvm_msr_entry entries[1];
-    } msr_data = {};
     int ret;
 
     if (env->tsc_valid) {
         return 0;
     }
 
-    memset(&msr_data, 0, sizeof(msr_data));
-    msr_data.info.nmsrs = 1;
-    msr_data.entries[0].index = MSR_IA32_TSC;
-    env->tsc_valid = !runstate_is_running();
+    if (kvm_has_precise_tsc()) {
+        struct kvm_tsc_state tsc_state;
 
-    ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_MSRS, &msr_data);
-    if (ret < 0) {
-        return ret;
+        ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_TSC_STATE, &tsc_state);
+        if (ret < 0) {
+            return ret;
+        }
+
+        env->tsc = tsc_state.tsc;
+
+        if (tsc_state.flags & KVM_TSC_STATE_TIMESTAMP_VALID) {
+            env->tsc_ns_timestamp = tsc_state.nsec;
+        }
+
+        if (tsc_state.flags & KVM_TSC_STATE_TSC_ADJUST_VALID) {
+            env->tsc_adjust = tsc_state.tsc_adjust;
+        }
+
+    } else {
+        struct {
+            struct kvm_msrs info;
+            struct kvm_msr_entry entries[2];
+        } msr_data = {
+            .info.nmsrs = 1,
+            .entries[0].index = MSR_IA32_TSC,
+        };
+
+        if (has_msr_tsc_adjust) {
+            msr_data.info.nmsrs++;
+            msr_data.entries[1].index = MSR_TSC_ADJUST;
+        }
+
+        ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_MSRS, &msr_data);
+        if (ret < 0) {
+            return ret;
+        }
+
+        assert(ret == msr_data.info.nmsrs);
+        env->tsc = msr_data.entries[0].data;
+        if (has_msr_tsc_adjust) {
+            env->tsc_adjust = msr_data.entries[1].data;
+        }
     }
 
-    assert(ret == 1);
-    env->tsc = msr_data.entries[0].data;
+    env->tsc_valid = !runstate_is_running();
     return 0;
+}
+
+static int kvm_set_tsc(CPUState *cs)
+{
+    int ret;
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
+
+    if (kvm_has_precise_tsc()) {
+        struct kvm_tsc_state tsc_state = {
+                .tsc = env->tsc,
+        };
+
+        if (env->tsc_ns_timestamp) {
+            tsc_state.nsec = env->tsc_ns_timestamp;
+            tsc_state.flags |= KVM_TSC_STATE_TIMESTAMP_VALID;
+        }
+
+        if (has_msr_tsc_adjust) {
+            tsc_state.tsc_adjust = env->tsc_adjust;
+            tsc_state.flags |= KVM_TSC_STATE_TSC_ADJUST_VALID;
+        }
+
+        ret = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_TSC_STATE, &tsc_state);
+        if (ret < 0) {
+            return ret;
+        }
+
+    } else {
+        struct {
+            struct kvm_msrs info;
+            struct kvm_msr_entry entries[2];
+        } msr_data = {
+            .info.nmsrs = 1,
+            .entries[0].index = MSR_IA32_TSC,
+            .entries[0].data = env->tsc,
+        };
+
+        if (has_msr_tsc_adjust) {
+            msr_data.info.nmsrs++;
+            msr_data.entries[1].index = MSR_TSC_ADJUST;
+            msr_data.entries[1].data = env->tsc_adjust;
+        }
+
+        ret = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, &msr_data);
+        if (ret < 0) {
+            return ret;
+        }
+
+        assert(ret == msr_data.info.nmsrs);
+    }
+    return ret;
 }
 
 static inline void do_kvm_synchronize_tsc(CPUState *cpu, run_on_cpu_data arg)
@@ -1780,6 +1860,13 @@ int kvm_arch_init_vcpu(CPUState *cs)
         }
     }
 
+    if (kvm_has_precise_tsc()) {
+        if (!kvm_check_extension(cs->kvm_state, KVM_CAP_PRECISE_TSC)) {
+            error_report("kvm: Precise TSC is not supported by the host's KVM");
+            return -ENOTSUP;
+        }
+    }
+
     if (cpu->vmware_cpuid_freq
         /* Guests depend on 0x40000000 to detect this feature, so only expose
          * it if KVM exposes leaf 0x40000000. (Conflicts with Hyper-V) */
@@ -2756,9 +2843,6 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
     if (has_msr_tsc_aux) {
         kvm_msr_entry_add(cpu, MSR_TSC_AUX, env->tsc_aux);
     }
-    if (has_msr_tsc_adjust) {
-        kvm_msr_entry_add(cpu, MSR_TSC_ADJUST, env->tsc_adjust);
-    }
     if (has_msr_misc_enable) {
         kvm_msr_entry_add(cpu, MSR_IA32_MISC_ENABLE,
                           env->msr_ia32_misc_enable);
@@ -2802,7 +2886,6 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
      * for normal writeback. Limit them to reset or full state updates.
      */
     if (level >= KVM_PUT_RESET_STATE) {
-        kvm_msr_entry_add(cpu, MSR_IA32_TSC, env->tsc);
         kvm_msr_entry_add(cpu, MSR_KVM_SYSTEM_TIME, env->system_time_msr);
         kvm_msr_entry_add(cpu, MSR_KVM_WALL_CLOCK, env->wall_clock_msr);
         if (env->features[FEAT_KVM] & (1 << KVM_FEATURE_ASYNC_PF_INT)) {
@@ -3142,9 +3225,6 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (has_msr_tsc_aux) {
         kvm_msr_entry_add(cpu, MSR_TSC_AUX, 0);
     }
-    if (has_msr_tsc_adjust) {
-        kvm_msr_entry_add(cpu, MSR_TSC_ADJUST, 0);
-    }
     if (has_msr_tsc_deadline) {
         kvm_msr_entry_add(cpu, MSR_IA32_TSCDEADLINE, 0);
     }
@@ -3177,10 +3257,6 @@ static int kvm_get_msrs(X86CPU *cpu)
     }
     if (has_msr_virt_ssbd) {
         kvm_msr_entry_add(cpu, MSR_VIRT_SSBD, 0);
-    }
-    if (!env->tsc_valid) {
-        kvm_msr_entry_add(cpu, MSR_IA32_TSC, 0);
-        env->tsc_valid = !runstate_is_running();
     }
 
 #ifdef TARGET_X86_64
@@ -3384,9 +3460,6 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case MSR_TSC_AUX:
             env->tsc_aux = msrs[i].data;
-            break;
-        case MSR_TSC_ADJUST:
-            env->tsc_adjust = msrs[i].data;
             break;
         case MSR_IA32_TSCDEADLINE:
             env->tsc_deadline = msrs[i].data;
@@ -3995,6 +4068,11 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
         if (ret < 0) {
             return ret;
         }
+
+        ret = kvm_set_tsc(cpu);
+        if (ret < 0) {
+            return ret;
+        }
     }
 
     ret = kvm_put_tscdeadline_msr(x86_cpu);
@@ -4064,6 +4142,12 @@ int kvm_arch_get_registers(CPUState *cs)
     if (ret < 0) {
         goto out;
     }
+
+    ret = kvm_get_tsc(cs);
+    if (ret < 0) {
+        goto out;
+    }
+
     ret = 0;
  out:
     cpu_sync_bndcs_hflags(&cpu->env);

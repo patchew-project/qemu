@@ -519,6 +519,7 @@ void kvm_init_irq_routing(KVMState *s);
 bool kvm_kernel_irqchip_allowed(void);
 bool kvm_kernel_irqchip_required(void);
 bool kvm_kernel_irqchip_split(void);
+bool kvm_has_precise_tsc(void);
 
 /**
  * kvm_arch_irqchip_create:

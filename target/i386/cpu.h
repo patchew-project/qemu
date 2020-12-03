@@ -1460,6 +1460,7 @@ typedef struct CPUX86State {
     uint64_t tsc_adjust;
     uint64_t tsc_deadline;
     uint64_t tsc_aux;
+    uint64_t tsc_ns_timestamp;
 
     uint64_t xcr0;
 
