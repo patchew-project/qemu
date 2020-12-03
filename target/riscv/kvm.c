@@ -409,6 +409,8 @@ int kvm_arch_get_registers(CPUState *cs)
 int kvm_arch_put_registers(CPUState *cs, int level)
 {
     int ret = 0;
+    RISCVCPU *cpu = RISCV_CPU(cs);
+    CPURISCVState *env = &cpu->env;
 
     ret = kvm_riscv_put_regs_core(cs);
     if (ret) {
@@ -423,6 +425,10 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     ret = kvm_riscv_put_regs_fp(cs);
     if (ret) {
         return ret;
+    }
+
+    if (env->frequency) {
+        ret = kvm_set_one_reg(cs, RISCV_TIMER_REG(frequency), &env->frequency);
     }
 
     return ret;
@@ -480,6 +486,17 @@ int kvm_arch_init_vcpu(CPUState *cs)
         return ret;
     }
     env->misa = isa;
+
+    /*
+     * Synchronize vcpu's frequency with KVM. If vcpu's frequency is specified
+     * by cpu option 'frequency', this will be set to KVM. Otherwise, vcpu's
+     * frequency will follow KVM.
+     */
+    if (env->user_frequency) {
+        ret = kvm_set_one_reg(cs, RISCV_TIMER_REG(frequency), &env->frequency);
+    } else {
+        ret = kvm_get_one_reg(cs, RISCV_TIMER_REG(frequency), &env->frequency);
+    }
 
     return ret;
 }
