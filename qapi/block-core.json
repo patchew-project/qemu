@@ -2522,6 +2522,10 @@
 # @base-node: the node name of the backing file.
 #             It cannot be set if @base is also set. (Since 2.8)
 #
+# @bottom: the last node in the chain that should be streamed into
+#          top. It cannot be set any of @base, @base-node or @backing-file
+#          is set. It cannot be filter node. (Since 6.0)
+#
 # @backing-file: The backing file string to write into the top
 #                image. This filename is not validated.
 #
@@ -2576,8 +2580,8 @@
 ##
 { 'command': 'block-stream',
   'data': { '*job-id': 'str', 'device': 'str', '*base': 'str',
-            '*base-node': 'str', '*backing-file': 'str', '*speed': 'int',
-            '*on-error': 'BlockdevOnError',
+            '*base-node': 'str', '*backing-file': 'str', '*bottom': 'str',
+            '*speed': 'int', '*on-error': 'BlockdevOnError',
             '*filter-node-name': 'str',
             '*auto-finalize': 'bool', '*auto-dismiss': 'bool' } }
 
