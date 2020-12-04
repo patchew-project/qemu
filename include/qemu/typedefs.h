@@ -116,6 +116,7 @@ typedef struct QString QString;
 typedef struct RAMBlock RAMBlock;
 typedef struct Range Range;
 typedef struct SavedIOTLB SavedIOTLB;
+typedef struct SecurableGuestMemory SecurableGuestMemory;
 typedef struct SHPCDevice SHPCDevice;
 typedef struct SSIBus SSIBus;
 typedef struct VirtIODevice VirtIODevice;
