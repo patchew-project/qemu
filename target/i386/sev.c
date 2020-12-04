@@ -68,6 +68,7 @@ struct SevGuestState {
 
 #define DEFAULT_GUEST_POLICY    0x1 /* disable debug */
 #define DEFAULT_SEV_DEVICE      "/dev/sev"
+#define DEFAULT_ATTESATION_REPORT_BUF_SIZE      4096
 
 static SevGuestState *sev_guest;
 static Error *sev_mig_blocker;
@@ -488,6 +489,59 @@ out:
     g_free(cert_chain_data);
     close(fd);
     return cap;
+}
+
+SevAttestationReport *
+sev_get_attestation_report(const char *mnonce, Error **errp)
+{
+    struct kvm_sev_attestation_report input = {};
+    SevGuestState *sev = sev_guest;
+    SevAttestationReport *report;
+    guchar *data;
+    int err = 0, ret;
+
+    if (!sev_enabled()) {
+        error_setg(errp, "SEV is not enabled");
+        return NULL;
+    }
+
+    /* Verify that user provided random data length */
+    if (strlen(mnonce) != sizeof(input.mnonce)) {
+        error_setg(errp, "Expected mnonce data len %ld got %ld",
+                sizeof(input.mnonce), strlen(mnonce));
+        return NULL;
+    }
+
+    /* Query the report length */
+    ret = sev_ioctl(sev->sev_fd, KVM_SEV_GET_ATTESTATION_REPORT,
+            &input, &err);
+    if (ret < 0) {
+        if (err != SEV_RET_INVALID_LEN) {
+            error_setg(errp, "failed to query the attestation report length "
+                    "ret=%d fw_err=%d (%s)", ret, err, fw_error_to_str(err));
+            return NULL;
+        }
+    }
+
+    data = g_malloc(input.len);
+    input.uaddr = (unsigned long)data;
+    memcpy(input.mnonce, mnonce, sizeof(input.mnonce));
+
+    /* Query the report */
+    ret = sev_ioctl(sev->sev_fd, KVM_SEV_GET_ATTESTATION_REPORT,
+            &input, &err);
+    if (ret) {
+        error_setg_errno(errp, errno, "Failed to get attestation report"
+                " ret=%d fw_err=%d (%s)", ret, err, fw_error_to_str(err));
+        goto e_free_data;
+    }
+
+    report = g_new0(SevAttestationReport, 1);
+    report->data = g_base64_encode(data, input.len);
+
+e_free_data:
+    g_free(data);
+    return report;
 }
 
 static int
