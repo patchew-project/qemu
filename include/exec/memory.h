@@ -140,6 +140,13 @@ typedef struct IOMMUNotifier IOMMUNotifier;
 #define RAM_PMEM (1 << 5)
 
 
+/*
+ * UFFDIO_WRITEPROTECT is used on this RAMBlock to
+ * support 'write-tracking' migration type.
+ * Implies ram_state->ram_wt_enabled.
+ */
+#define RAM_UF_WRITEPROTECT (1 << 6)
+
 static inline void iommu_notifier_init(IOMMUNotifier *n, IOMMUNotify fn,
                                        IOMMUNotifierFlag flags,
                                        hwaddr start, hwaddr end,
