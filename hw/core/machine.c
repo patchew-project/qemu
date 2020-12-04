@@ -27,6 +27,7 @@
 #include "hw/pci/pci.h"
 #include "hw/mem/nvdimm.h"
 #include "migration/vmstate.h"
+#include "exec/securable-guest-memory.h"
 
 GlobalProperty hw_compat_5_1[] = {
     { "vhost-scsi", "num_queues", "1"},
@@ -417,16 +418,37 @@ static char *machine_get_memory_encryption(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
 
-    return g_strdup(ms->memory_encryption);
+    if (ms->sgm) {
+        return g_strdup(object_get_canonical_path_component(OBJECT(ms->sgm)));
+    }
+
+    return NULL;
 }
 
 static void machine_set_memory_encryption(Object *obj, const char *value,
                                         Error **errp)
 {
-    MachineState *ms = MACHINE(obj);
+    Object *sgm =
+        object_resolve_path_component(object_get_objects_root(), value);
 
-    g_free(ms->memory_encryption);
-    ms->memory_encryption = g_strdup(value);
+    if (!sgm) {
+        error_setg(errp, "No such memory encryption object '%s'", value);
+        return;
+    }
+
+    object_property_set_link(obj, "securable-guest-memory", sgm, errp);
+}
+
+static void machine_check_securable_guest_memory(const Object *obj,
+                                                 const char *name,
+                                                 Object *new_target,
+                                                 Error **errp)
+{
+    /*
+     * So far the only constraint is that the target has the
+     * TYPE_SECURABLE_GUEST_MEMORY interface, and that's checked by
+     * the QOM core
+     */
 }
 
 static bool machine_get_nvdimm(Object *obj, Error **errp)
@@ -833,6 +855,15 @@ static void machine_class_init(ObjectClass *oc, void *data)
     object_class_property_set_description(oc, "suppress-vmdesc",
         "Set on to disable self-describing migration");
 
+    object_class_property_add_link(oc, "securable-guest-memory",
+                                   TYPE_SECURABLE_GUEST_MEMORY,
+                                   offsetof(MachineState, sgm),
+                                   machine_check_securable_guest_memory,
+                                   OBJ_PROP_LINK_STRONG);
+    object_class_property_set_description(oc, "securable-guest-memory",
+        "Set securable guest memory scheme to use");
+
+    /* For compatibility */
     object_class_property_add_str(oc, "memory-encryption",
         machine_get_memory_encryption, machine_set_memory_encryption);
     object_class_property_set_description(oc, "memory-encryption",
@@ -1123,9 +1154,9 @@ void machine_run_board_init(MachineState *machine)
                     cc->deprecation_note);
     }
 
-    if (machine->memory_encryption) {
+    if (machine->sgm) {
         /*
-         * With memory encryption, the host can't see the real
+         * With securable guest memory, the host can't see the real
          * contents of RAM, so there's no point in it trying to merge
          * areas.
          */

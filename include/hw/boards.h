@@ -269,7 +269,7 @@ struct MachineState {
     bool iommu;
     bool suppress_vmdesc;
     bool enable_graphics;
-    char *memory_encryption;
+    SecurableGuestMemory *sgm;
     char *ram_memdev_id;
     /*
      * convenience alias to ram_memdev_id backend memory region

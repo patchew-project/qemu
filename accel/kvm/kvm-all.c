@@ -2207,24 +2207,14 @@ static int kvm_init(MachineState *ms)
      * if memory encryption object is specified then initialize the memory
      * encryption context.
      */
-    if (ms->memory_encryption) {
-        Object *obj = object_resolve_path_component(object_get_objects_root(),
-                                                    ms->memory_encryption);
-
-        if (object_dynamic_cast(obj, TYPE_SECURABLE_GUEST_MEMORY)) {
-            SecurableGuestMemory *sgm = SECURABLE_GUEST_MEMORY(obj);
-
-            /* FIXME handle mechanisms other than SEV */
-            ret = sev_kvm_init(sgm);
-            if (ret < 0) {
-                goto err;
-            }
-
-            kvm_state->sgm = sgm;
-        } else {
-            ret = -1;
+    if (ms->sgm) {
+        /* FIXME handle mechanisms other than SEV */
+        ret = sev_kvm_init(ms->sgm);
+        if (ret < 0) {
             goto err;
         }
+
+        kvm_state->sgm = ms->sgm;
     }
 
     ret = kvm_arch_init(ms, s);
