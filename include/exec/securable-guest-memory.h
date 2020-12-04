@@ -36,6 +36,8 @@
 
 struct SecurableGuestMemory {
     Object parent;
+
+    bool ready;
 };
 
 typedef struct SecurableGuestMemoryClass {
