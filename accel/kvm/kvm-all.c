@@ -47,6 +47,7 @@
 #include "qemu/guest-random.h"
 #include "sysemu/hw_accel.h"
 #include "kvm-cpus.h"
+#include "exec/securable-guest-memory.h"
 
 #include "hw/boards.h"
 
@@ -120,9 +121,8 @@ struct KVMState
     KVMMemoryListener memory_listener;
     QLIST_HEAD(, KVMParkedVcpu) kvm_parked_vcpus;
 
-    /* memory encryption */
-    void *memcrypt_handle;
-    int (*memcrypt_encrypt_data)(void *handle, uint8_t *ptr, uint64_t len);
+    /* securable guest memory (e.g. by guest memory encryption) */
+    SecurableGuestMemory *sgm;
 
     /* For "info mtree -f" to tell if an MR is registered in KVM */
     int nr_as;
@@ -224,7 +224,7 @@ int kvm_get_max_memslots(void)
 
 bool kvm_memcrypt_enabled(void)
 {
-    if (kvm_state && kvm_state->memcrypt_handle) {
+    if (kvm_state && kvm_state->sgm) {
         return true;
     }
 
@@ -233,10 +233,12 @@ bool kvm_memcrypt_enabled(void)
 
 int kvm_memcrypt_encrypt_data(uint8_t *ptr, uint64_t len)
 {
-    if (kvm_state->memcrypt_handle &&
-        kvm_state->memcrypt_encrypt_data) {
-        return kvm_state->memcrypt_encrypt_data(kvm_state->memcrypt_handle,
-                                              ptr, len);
+    SecurableGuestMemory *sgm = kvm_state->sgm;
+
+    if (sgm) {
+        SecurableGuestMemoryClass *sgmc = SECURABLE_GUEST_MEMORY_GET_CLASS(sgm);
+
+        return sgmc->encrypt_data(sgm, ptr, len);
     }
 
     return 1;
@@ -2206,13 +2208,23 @@ static int kvm_init(MachineState *ms)
      * encryption context.
      */
     if (ms->memory_encryption) {
-        kvm_state->memcrypt_handle = sev_guest_init(ms->memory_encryption);
-        if (!kvm_state->memcrypt_handle) {
+        Object *obj = object_resolve_path_component(object_get_objects_root(),
+                                                    ms->memory_encryption);
+
+        if (object_dynamic_cast(obj, TYPE_SECURABLE_GUEST_MEMORY)) {
+            SecurableGuestMemory *sgm = SECURABLE_GUEST_MEMORY(obj);
+
+            /* FIXME handle mechanisms other than SEV */
+            ret = sev_kvm_init(sgm);
+            if (ret < 0) {
+                goto err;
+            }
+
+            kvm_state->sgm = sgm;
+        } else {
             ret = -1;
             goto err;
         }
-
-        kvm_state->memcrypt_encrypt_data = sev_encrypt_data;
     }
 
     ret = kvm_arch_init(ms, s);

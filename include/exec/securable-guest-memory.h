@@ -39,6 +39,8 @@ struct SecurableGuestMemory {
 
 typedef struct SecurableGuestMemoryClass {
     ObjectClass parent;
+
+    int (*encrypt_data)(SecurableGuestMemory *, uint8_t *, uint64_t);
 } SecurableGuestMemoryClass;
 
 #endif /* !CONFIG_USER_ONLY */

@@ -15,7 +15,8 @@
 #define QEMU_SEV_H
 
 #include "sysemu/kvm.h"
+#include "exec/securable-guest-memory.h"
 
-void *sev_guest_init(const char *id);
-int sev_encrypt_data(void *handle, uint8_t *ptr, uint64_t len);
+int sev_kvm_init(SecurableGuestMemory *sgm);
+
 #endif
