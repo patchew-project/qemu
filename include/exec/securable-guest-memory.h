@@ -21,6 +21,7 @@
 #ifndef CONFIG_USER_ONLY
 
 #include "qom/object.h"
+#include "hw/boards.h"
 
 #define TYPE_SECURABLE_GUEST_MEMORY "securable-guest-memory"
 #define SECURABLE_GUEST_MEMORY(obj)                                    \
@@ -42,6 +43,41 @@ typedef struct SecurableGuestMemoryClass {
 
     int (*encrypt_data)(SecurableGuestMemory *, uint8_t *, uint64_t);
 } SecurableGuestMemoryClass;
+
+/**
+ * securable_guest_memory_enabled - return whether guest memory is protected
+ *                               from hypervisor access (with memory
+ *                               encryption or otherwise)
+ * Returns: true guest memory is not directly accessible to qemu
+ *          false guest memory is directly accessible to qemu
+ */
+static inline bool securable_guest_memory_enabled(MachineState *machine)
+{
+    return !!machine->sgm;
+}
+
+/**
+ * securable_guest_memory_encrypt: encrypt the memory range to make
+ *                              it guest accessible
+ *
+ * Return: 1 failed to encrypt the range
+ *         0 succesfully encrypted memory region
+ */
+static inline int securable_guest_memory_encrypt(MachineState *machine,
+                                              uint8_t *ptr, uint64_t len)
+{
+    SecurableGuestMemory *sgm = machine->sgm;
+
+    if (sgm) {
+        SecurableGuestMemoryClass *sgmc = SECURABLE_GUEST_MEMORY_GET_CLASS(sgm);
+
+        if (sgmc->encrypt_data) {
+            return sgmc->encrypt_data(sgm, ptr, len);
+        }
+    }
+
+    return 1;
+}
 
 #endif /* !CONFIG_USER_ONLY */
 

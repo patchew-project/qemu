@@ -121,9 +121,6 @@ struct KVMState
     KVMMemoryListener memory_listener;
     QLIST_HEAD(, KVMParkedVcpu) kvm_parked_vcpus;
 
-    /* securable guest memory (e.g. by guest memory encryption) */
-    SecurableGuestMemory *sgm;
-
     /* For "info mtree -f" to tell if an MR is registered in KVM */
     int nr_as;
     struct KVMAs {
@@ -220,28 +217,6 @@ int kvm_get_max_memslots(void)
     KVMState *s = KVM_STATE(current_accel());
 
     return s->nr_slots;
-}
-
-bool kvm_memcrypt_enabled(void)
-{
-    if (kvm_state && kvm_state->sgm) {
-        return true;
-    }
-
-    return false;
-}
-
-int kvm_memcrypt_encrypt_data(uint8_t *ptr, uint64_t len)
-{
-    SecurableGuestMemory *sgm = kvm_state->sgm;
-
-    if (sgm) {
-        SecurableGuestMemoryClass *sgmc = SECURABLE_GUEST_MEMORY_GET_CLASS(sgm);
-
-        return sgmc->encrypt_data(sgm, ptr, len);
-    }
-
-    return 1;
 }
 
 /* Called with KVMMemoryListener.slots_lock held */
@@ -2213,8 +2188,6 @@ static int kvm_init(MachineState *ms)
         if (ret < 0) {
             goto err;
         }
-
-        kvm_state->sgm = ms->sgm;
     }
 
     ret = kvm_arch_init(ms, s);
