@@ -17,6 +17,6 @@
 #include "sysemu/kvm.h"
 #include "exec/securable-guest-memory.h"
 
-int sev_kvm_init(SecurableGuestMemory *sgm);
+int sev_kvm_init(SecurableGuestMemory *sgm, Error **errp);
 
 #endif
