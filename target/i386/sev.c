@@ -628,12 +628,17 @@ sev_vm_state_change(void *opaque, int running, RunState state)
 
 int sev_kvm_init(SecurableGuestMemory *sgm, Error **errp)
 {
-    SevGuestState *sev = SEV_GUEST(sgm);
+    SevGuestState *sev
+        = (SevGuestState *)object_dynamic_cast(OBJECT(sgm), TYPE_SEV_GUEST);
     char *devname;
     int ret, fw_error;
     uint32_t ebx;
     uint32_t host_cbitpos;
     struct sev_user_data_status status = {};
+
+    if (!sev) {
+        return 0;
+    }
 
     ret = ram_block_discard_disable(true);
     if (ret) {
