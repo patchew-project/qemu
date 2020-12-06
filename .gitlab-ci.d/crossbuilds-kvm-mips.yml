@@ -1,0 +1,5 @@
+cross-mips64el-kvm:
+  extends: .cross_accel_build_job
+  variables:
+    IMAGE: debian-mips64el-cross
+    TARGETS: mips64el-softmmu

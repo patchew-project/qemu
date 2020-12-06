@@ -392,6 +392,7 @@ MIPS KVM CPUs
 M: Huacai Chen <chenhc@lemote.com>
 S: Odd Fixes
 F: target/mips/kvm.c
+F: .gitlab-ci.d/crossbuilds-kvm-mips.yml
 
 PPC KVM CPUs
 M: David Gibson <david@gibson.dropbear.id.au>
