@@ -1,0 +1,5 @@
+cross-ppc64el-kvm:
+  extends: .cross_accel_build_job
+  variables:
+    IMAGE: debian-ppc64el-cross
+    TARGETS: ppc64-softmmu

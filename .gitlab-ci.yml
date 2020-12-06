@@ -15,6 +15,7 @@ include:
   - local: '/.gitlab-ci.d/crossbuilds-kvm-x86.yml'
   - local: '/.gitlab-ci.d/crossbuilds-kvm-arm.yml'
   - local: '/.gitlab-ci.d/crossbuilds-kvm-s390x.yml'
+  - local: '/.gitlab-ci.d/crossbuilds-kvm-ppc.yml'
 
 .native_build_job_template: &native_build_job_definition
   stage: build

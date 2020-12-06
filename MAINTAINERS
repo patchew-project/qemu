@@ -397,6 +397,7 @@ PPC KVM CPUs
 M: David Gibson <david@gibson.dropbear.id.au>
 S: Maintained
 F: target/ppc/kvm.c
+F: .gitlab-ci.d/crossbuilds-kvm-ppc.yml
 
 S390 KVM CPUs
 M: Halil Pasic <pasic@linux.ibm.com>
