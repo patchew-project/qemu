@@ -427,6 +427,7 @@ L: kvm@vger.kernel.org
 S: Supported
 F: target/i386/kvm.c
 F: scripts/kvm/vmxcap
+F: .gitlab-ci.d/crossbuilds-kvm-x86.yml
 
 Guest CPU Cores (other accelerators)
 ------------------------------------
