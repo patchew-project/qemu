@@ -488,6 +488,7 @@ F: include/hw/xen/
 F: include/sysemu/xen.h
 F: include/sysemu/xen-mapcache.h
 F: stubs/xen-hw-stub.c
+F: .gitlab-ci.d/crossbuilds-xen.yml
 
 Guest CPU Cores (HAXM)
 ---------------------
