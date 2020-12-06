@@ -102,7 +102,16 @@ static bool mips_cpu_has_work(CPUState *cs)
     return has_work;
 }
 
-#include "translate_init.c.inc"
+#include "cpu-defs.c.inc"
+
+void mips_cpu_list(void)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(mips_defs); i++) {
+        qemu_printf("MIPS '%s'\n", mips_defs[i].name);
+    }
+}
 
 /* TODO QOM'ify CPU reset and remove */
 static void cpu_state_reset(CPUMIPSState *env)
