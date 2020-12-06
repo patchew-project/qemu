@@ -1,11 +1,13 @@
 mips_ss = ss.source_set()
 mips_ss.add(files(
-  'common_helper.c',
-  'cp0_helper.c',
   'cpu.c',
+  'gdbstub.c',
+  'common_helper.c',
+))
+mips_ss.add(when: 'CONFIG_TCG', if_true: files(
+  'cp0_helper.c',
   'dsp_helper.c',
   'fpu_helper.c',
-  'gdbstub.c',
   'lmmi_helper.c',
   'msa_helper.c',
   'op_helper.c',
