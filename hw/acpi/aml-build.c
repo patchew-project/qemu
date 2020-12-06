@@ -28,6 +28,9 @@
 #include "hw/boards.h"
 #include "hw/acpi/tpm.h"
 
+#define ACPI_BUILD_APPNAME6 "BOCHS "
+#define ACPI_BUILD_APPNAME4 "BXPC"
+
 static GArray *build_alloc_array(void)
 {
     return g_array_new(false, true /* clear */, 1);
@@ -1538,6 +1541,47 @@ Aml *aml_object_type(Aml *object)
     return var;
 }
 
+void acpi_get_oem_id_default(unsigned char *oem_id)
+{
+    QemuOpts *opts;
+    const char *opt_oem_id = NULL;
+
+    opts = qemu_opts_find(qemu_find_opts("acpidefault"), NULL);
+    if (opts) {
+        opt_oem_id = qemu_opt_get(opts, "oem_id");
+    }
+
+    if (opt_oem_id == NULL) {
+        memcpy(oem_id, ACPI_BUILD_APPNAME6, 6);
+    } else {
+        memcpy(oem_id, opt_oem_id, 6);
+    }
+}
+
+void acpi_get_oem_table_id_default(const char *sig,
+                                   unsigned char *oem_table_id)
+{
+    QemuOpts *opts;
+    const char *opt_oem_table_id = NULL;
+
+    opts = qemu_opts_find(qemu_find_opts("acpidefault"), NULL);
+    if (opts) {
+        opt_oem_table_id = qemu_opt_get(opts, "oem_table_id");
+    }
+
+    if (opt_oem_table_id == NULL) {
+        memcpy(oem_table_id, ACPI_BUILD_APPNAME4, 4);
+        if (sig) {
+            memcpy(oem_table_id + 4, sig, 4);
+        }
+    } else {
+        memcpy(oem_table_id, opt_oem_table_id, 4);
+        if (sig) {
+            memcpy(oem_table_id + 4, sig, 4);
+        }
+    }
+}
+
 void
 build_header(BIOSLinker *linker, GArray *table_data,
              AcpiTableHeader *h, const char *sig, int len, uint8_t rev,
@@ -1552,18 +1596,17 @@ build_header(BIOSLinker *linker, GArray *table_data,
     if (oem_id) {
         strncpy((char *)h->oem_id, oem_id, sizeof h->oem_id);
     } else {
-        memcpy(h->oem_id, ACPI_BUILD_APPNAME6, 6);
+        acpi_get_oem_id_default(h->oem_id);
     }
 
     if (oem_table_id) {
         strncpy((char *)h->oem_table_id, oem_table_id, sizeof(h->oem_table_id));
     } else {
-        memcpy(h->oem_table_id, ACPI_BUILD_APPNAME4, 4);
-        memcpy(h->oem_table_id + 4, sig, 4);
+        acpi_get_oem_table_id_default(sig, h->oem_table_id);
     }
 
     h->oem_revision = cpu_to_le32(1);
-    memcpy(h->asl_compiler_id, ACPI_BUILD_APPNAME4, 4);
+    acpi_get_oem_table_id_default(NULL, h->asl_compiler_id);
     h->asl_compiler_revision = cpu_to_le32(1);
     /* Checksum to be filled in by Guest linker */
     bios_linker_loader_add_checksum(linker, ACPI_BUILD_TABLE_FILE,

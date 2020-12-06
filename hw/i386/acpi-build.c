@@ -2555,10 +2555,10 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     {
         AcpiRsdpData rsdp_data = {
             .revision = 0,
-            .oem_id = ACPI_BUILD_APPNAME6,
             .xsdt_tbl_offset = NULL,
             .rsdt_tbl_offset = &rsdt,
         };
+        acpi_get_oem_id_default(rsdp_data.oem_id);
         build_rsdp(tables->rsdp, tables->linker, &rsdp_data);
         if (!pcmc->rsdp_in_ram) {
             /* We used to allocate some extra space for RSDP revision 2 but

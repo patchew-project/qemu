@@ -734,10 +734,10 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
     {
         AcpiRsdpData rsdp_data = {
             .revision = 2,
-            .oem_id = ACPI_BUILD_APPNAME6,
             .xsdt_tbl_offset = &xsdt,
             .rsdt_tbl_offset = NULL,
         };
+        acpi_get_oem_id_default(rsdp_data.oem_id);
         build_rsdp(tables->rsdp, tables->linker, &rsdp_data);
     }
 

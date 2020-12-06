@@ -3457,6 +3457,24 @@ SRST
     from ./my\_blob.bin.
 ERST
 
+DEF("acpidefault", HAS_ARG, QEMU_OPTION_acpidefault,
+    "-acpidefault oem_id=<OEMID>,oem_table_id=<OEMTABLEID>\n"
+    "                set default OEM ID (6 bytes) and OEM table ID (4 bytes)\n",
+    QEMU_ARCH_ALL)
+SRST
+``-acpidefault oem_id=oem-id,oem_table_id=oem-table-id``
+    Set the default OEM ID and OEM table ID used in ACPI tables.  The
+    OEM ID should be 6 bytes (pad with spaces if needed), and the OEM
+    table ID should be 4 bytes.
+
+    If not set, qemu uses ``BOCHS`` and ``BXPCxxxx`` where
+    xxxx is the table name (eg. ``BXPCRSDT`` in the RSDT table).
+
+    If you are adding user-defined ACPI tables on the qemu command line,
+    use ``-acpitable`` instead.  The defaults here will not be used in this
+    case.
+ERST
+
 DEF("serial", HAS_ARG, QEMU_OPTION_serial, \
     "-serial dev     redirect the serial port to char device 'dev'\n",
     QEMU_ARCH_ALL)

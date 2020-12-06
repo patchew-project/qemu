@@ -215,10 +215,10 @@ static void acpi_build_microvm(AcpiBuildTables *tables,
         AcpiRsdpData rsdp_data = {
             /* ACPI 2.0: 5.2.4.3 RSDP Structure */
             .revision = 2, /* xsdt needs v2 */
-            .oem_id = ACPI_BUILD_APPNAME6,
             .xsdt_tbl_offset = &xsdt,
             .rsdt_tbl_offset = NULL,
         };
+        acpi_get_oem_id_default(rsdp_data.oem_id);
         build_rsdp(tables->rsdp, tables->linker, &rsdp_data);
     }
 

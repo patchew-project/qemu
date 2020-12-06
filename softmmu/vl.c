@@ -506,6 +506,24 @@ static QemuOptsList qemu_fw_cfg_opts = {
     },
 };
 
+static QemuOptsList qemu_acpidefault_opts = {
+    .name = "acpidefault",
+    .merge_lists = true,
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_acpidefault_opts.head),
+    .desc = {
+        {
+            .name = "oem_id",
+            .type = QEMU_OPT_STRING,
+            .help = "Set default OEM ID (6 bytes)",
+        }, {
+            .name = "oem_table_id",
+            .type = QEMU_OPT_STRING,
+            .help = "Set default OEM table ID (4 bytes)",
+        },
+        { /* end of list */ }
+    },
+};
+
 /**
  * Get machine options
  *
@@ -2092,6 +2110,30 @@ static int parse_fw_cfg(void *opaque, QemuOpts *opts, Error **errp)
     return 0;
 }
 
+static int check_acpi_option(QemuOpts *opts)
+{
+    const char *oem_id;
+    const char *oem_table_id;
+
+    oem_id = qemu_opt_get(opts, "oem_id");
+    if (oem_id) {
+        if (strlen(oem_id) != 6) {
+            error_report("-acpidefault oem_id parameter must be 6 bytes long");
+            return -1;
+        }
+    }
+    oem_table_id = qemu_opt_get(opts, "oem_table_id");
+    if (oem_table_id) {
+        size_t len = strlen(oem_table_id);
+        if (len != 4) {
+            error_report("-acpidefault oem_table_id parameter "
+                         "must be 4 bytes long");
+            return -1;
+        }
+    }
+    return 0;
+}
+
 static int device_help_func(void *opaque, QemuOpts *opts, Error **errp)
 {
     return qdev_device_help(opts);
@@ -2948,6 +2990,7 @@ void qemu_init(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_icount_opts);
     qemu_add_opts(&qemu_semihosting_config_opts);
     qemu_add_opts(&qemu_fw_cfg_opts);
+    qemu_add_opts(&qemu_acpidefault_opts);
     module_call_init(MODULE_INIT_OPTS);
 
     runstate_init();
@@ -3486,6 +3529,13 @@ void qemu_init(int argc, char **argv, char **envp)
             case QEMU_OPTION_fwcfg:
                 opts = qemu_opts_parse_noisily(qemu_find_opts("fw_cfg"),
                                                optarg, true);
+                if (opts == NULL) {
+                    exit(1);
+                }
+                break;
+            case QEMU_OPTION_acpidefault:
+                opts = qemu_opts_parse_noisily(qemu_find_opts("acpidefault"),
+                                               optarg, false);
                 if (opts == NULL) {
                     exit(1);
                 }
@@ -4386,6 +4436,11 @@ void qemu_init(int argc, char **argv, char **envp)
 
     qemu_opts_foreach(qemu_find_opts("fw_cfg"),
                       parse_fw_cfg, fw_cfg_find(), &error_fatal);
+
+     if (check_acpi_option(qemu_opts_find(qemu_find_opts("acpidefault"),
+                                         NULL)) < 0) {
+        exit(1);
+    }
 
     /* init USB devices */
     if (machine_usb(current_machine)) {
