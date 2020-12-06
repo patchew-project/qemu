@@ -1,5 +1,6 @@
 mips_ss = ss.source_set()
 mips_ss.add(files(
+  'common_helper.c',
   'cp0_helper.c',
   'cpu.c',
   'dsp_helper.c',
