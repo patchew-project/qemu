@@ -1,0 +1,5 @@
+cross-arm64-kvm:
+  extends: .cross_accel_build_job
+  variables:
+    IMAGE: debian-arm64-cross
+    TARGETS: aarch64-softmmu

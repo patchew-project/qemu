@@ -386,6 +386,7 @@ M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
 S: Maintained
 F: target/arm/kvm.c
+F: .gitlab-ci.d/crossbuilds-kvm-arm.yml
 
 MIPS KVM CPUs
 M: Huacai Chen <chenhc@lemote.com>
