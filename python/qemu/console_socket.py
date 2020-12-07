@@ -45,6 +45,14 @@ class ConsoleSocket(socket.socket):
         if drain:
             self._drain_thread = self._thread_start()
 
+    def __repr__(self):
+        s = super(ConsoleSocket, self).__repr__()
+        s = s.rstrip(">")
+        s += ", logfile=%s" % (self._logfile)
+        s += ", drain_thread=%s" % (self._drain_thread)
+        s += ">"
+        return s
+
     def _drain_fn(self) -> None:
         """Drains the socket and runs while the socket is open."""
         while self._open:
