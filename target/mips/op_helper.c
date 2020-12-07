@@ -28,6 +28,7 @@
 #include "exec/cpu_ldst.h"
 #include "exec/memop.h"
 #include "sysemu/kvm.h"
+#include "fpu_helper.h"
 
 
 /*****************************************************************************/
