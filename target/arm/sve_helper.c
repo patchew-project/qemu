@@ -4282,9 +4282,10 @@ static bool sve_cont_ldst_pages(SVEContLdSt *info, SVEContFault fault,
          * to generate faults for the second page.  For no-fault,
          * we have work only if the second page is valid.
          */
-        if (info->mem_off_first[0] < info->mem_off_split) {
-            nofault = FAULT_FIRST;
-            have_work = false;
+        if (info->mem_off_first[0] == info->mem_off_split) {
+            if (nofault) {
+                have_work = false;
+            }
         }
     } else {
         /*
