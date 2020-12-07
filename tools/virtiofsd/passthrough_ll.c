@@ -1956,7 +1956,7 @@ static void lo_flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
     struct lo_data *lo = lo_data(req);
 
     inode = lo_inode(req, ino);
-    if (!inode) {
+    if (!inode || !S_ISREG(inode->filetype)) {
         fuse_reply_err(req, EBADF);
         return;
     }
