@@ -1825,12 +1825,16 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
         spapr_setup_hpt(spapr);
     }
 
-    fdt = spapr_build_fdt(spapr, false, fdt_bufsize);
+    fdt = spapr_build_fdt(spapr, spapr->vof, fdt_bufsize);
 
     g_free(spapr->fdt_blob);
     spapr->fdt_size = fdt_totalsize(fdt);
     spapr->fdt_initial_size = spapr->fdt_size;
     spapr->fdt_blob = fdt;
+
+    if (spapr->vof) {
+        spapr_of_client_dt_finalize(spapr);
+    }
 
     return H_SUCCESS;
 }

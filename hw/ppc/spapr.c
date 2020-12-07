@@ -100,6 +100,7 @@
 #define RTAS_MAX_ADDR           0x80000000 /* RTAS must stay below that */
 #define FW_MAX_SIZE             0x400000
 #define FW_FILE_NAME            "slof.bin"
+#define FW_FILE_NAME_VOF        "vof.bin"
 #define FW_OVERHEAD             0x2800000
 #define KERNEL_LOAD_ADDR        FW_MAX_SIZE
 
@@ -1244,6 +1245,9 @@ void *spapr_build_fdt(SpaprMachineState *spapr, bool reset, size_t space)
     if (mc->nvdimm_supported) {
         spapr_dt_persistent_memory(spapr, fdt);
     }
+    if (spapr->vof) {
+        spapr_of_client_dt(spapr, fdt);
+    }
 
     return fdt;
 }
@@ -1642,22 +1646,36 @@ static void spapr_machine_reset(MachineState *machine)
 
     fdt = spapr_build_fdt(spapr, true, FDT_MAX_SIZE);
 
-    rc = fdt_pack(fdt);
-
-    /* Should only fail if we've built a corrupted tree */
-    assert(rc == 0);
-
-    /* Load the fdt */
     qemu_fdt_dumpdtb(fdt, fdt_totalsize(fdt));
-    cpu_physical_memory_write(fdt_addr, fdt, fdt_totalsize(fdt));
+
     g_free(spapr->fdt_blob);
-    spapr->fdt_size = fdt_totalsize(fdt);
-    spapr->fdt_initial_size = spapr->fdt_size;
     spapr->fdt_blob = fdt;
 
     /* Set up the entry state */
-    spapr_cpu_set_entry_state(first_ppc_cpu, SPAPR_ENTRY_POINT, 0, fdt_addr, 0);
     first_ppc_cpu->env.gpr[5] = 0;
+    if (spapr->vof) {
+        target_ulong stack_ptr = 0;
+
+        spapr->fdt_size = fdt_totalsize(spapr->fdt_blob);
+        spapr_setup_of_client(spapr, &stack_ptr);
+        spapr_of_client_dt_finalize(spapr);
+        spapr_cpu_set_entry_state(first_ppc_cpu, SPAPR_ENTRY_POINT,
+                                  stack_ptr, spapr->initrd_base,
+                                  spapr->initrd_size);
+    } else {
+        /* Load the fdt */
+        rc = fdt_pack(spapr->fdt_blob);
+        /* Should only fail if we've built a corrupted tree */
+        assert(rc == 0);
+
+        spapr->fdt_size = fdt_totalsize(spapr->fdt_blob);
+        cpu_physical_memory_write(fdt_addr, spapr->fdt_blob, spapr->fdt_size);
+
+        spapr_cpu_set_entry_state(first_ppc_cpu, SPAPR_ENTRY_POINT,
+                                  0, fdt_addr, 0);
+    }
+
+    spapr->fdt_initial_size = spapr->fdt_size;
 
     spapr->fwnmi_system_reset_addr = -1;
     spapr->fwnmi_machine_check_addr = -1;
@@ -2981,7 +2999,7 @@ static void spapr_machine_init(MachineState *machine)
     }
 
     if (bios_name == NULL) {
-        bios_name = FW_FILE_NAME;
+        bios_name = spapr->vof ? FW_FILE_NAME_VOF : FW_FILE_NAME;
     }
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
     if (!filename) {
@@ -2994,6 +3012,10 @@ static void spapr_machine_init(MachineState *machine)
         exit(1);
     }
     g_free(filename);
+
+    if (spapr->vof) {
+        spapr_of_client_machine_init(spapr);
+    }
 
     /* FIXME: Should register things through the MachineState's qdev
      * interface, this is a legacy from the sPAPREnvironment structure
@@ -3199,6 +3221,20 @@ static void spapr_set_resize_hpt(Object *obj, const char *value, Error **errp)
     }
 }
 
+static bool spapr_get_vof(Object *obj, Error **errp)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(obj);
+
+    return spapr->vof;
+}
+
+static void spapr_set_vof(Object *obj, bool value, Error **errp)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(obj);
+
+    spapr->vof = value;
+}
+
 static char *spapr_get_ic_mode(Object *obj, Error **errp)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(obj);
@@ -3306,6 +3342,10 @@ static void spapr_instance_init(Object *obj)
                                     stringify(KERNEL_LOAD_ADDR)
                                     " for -kernel is the default");
     spapr->kernel_addr = KERNEL_LOAD_ADDR;
+    object_property_add_bool(obj, "x-vof", spapr_get_vof, spapr_set_vof);
+    object_property_set_description(obj, "x-vof",
+                                    "Enable Virtual Open Firmware");
+
     /* The machine class defines the default interrupt controller mode */
     spapr->irq = smc->irq;
     object_property_add_str(obj, "ic-mode", spapr_get_ic_mode,
