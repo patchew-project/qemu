@@ -6147,11 +6147,30 @@ int sve_exception_el(CPUARMState *env, int el)
      * they will be zero when EL2 is not present.
      */
     if (el <= 2 && !arm_is_secure_below_el3(env)) {
-        if (env->cp15.cptr_el[2] & CPTR_TZ) {
-            return 2;
-        }
-        if (env->cp15.cptr_el[2] & CPTR_TFP) {
-            return 0;
+        /* Since we exclude secure first, we may read HCR_EL2 directly. */
+        if (env->cp15.hcr_el2 & HCR_E2H) {
+            int zen = extract32(env->cp15.cptr_el[2], 16, 2);
+            switch (zen) {
+            case 0:
+            case 2:
+                return 2;
+            case 1:
+                if (env->cp15.hcr_el2 & HCR_TGE) {
+                    if (el == 0) {
+                        return 2;
+                    }
+                }
+                break;
+            case 3:
+                break;
+            }
+        } else {
+            if (env->cp15.cptr_el[2] & CPTR_TZ) {
+                return 2;
+            }
+            if (env->cp15.cptr_el[2] & CPTR_TFP) {
+                return 0;
+            }
         }
     }
 
@@ -12635,12 +12654,30 @@ int fp_exception_el(CPUARMState *env, int cur_el)
      */
 
     /* CPTR_EL2 : present in v7VE or v8 */
-    if (cur_el <= 2 && extract32(env->cp15.cptr_el[2], 10, 1)
-        && !arm_is_secure_below_el3(env)) {
+    if ((cur_el <= 2) && !arm_is_secure_below_el3(env)) {
         /* Trap FP ops at EL2, NS-EL1 or NS-EL0 to EL2 */
-        return 2;
+        if ((arm_hcr_el2_eff(env) & HCR_E2H) == HCR_E2H) {
+            int fpen = extract32(env->cp15.cptr_el[2], 20, 2);
+            switch (fpen) {
+            case 0:
+            case 2:
+                return 2;
+            case 1:
+                if ((arm_hcr_el2_eff(env) & HCR_TGE) == HCR_TGE) {
+                    if (cur_el == 0) {
+                        return 2;
+                    }
+                }
+                break;
+            case 3:
+                break;
+            }
+        } else {
+            if (extract32(env->cp15.cptr_el[2], 10, 1)) {
+                return 2;
+            }
+        }
     }
-
     /* CPTR_EL3 : present in v8 */
     if (extract32(env->cp15.cptr_el[3], 10, 1)) {
         /* Trap all FP ops to EL3 */
