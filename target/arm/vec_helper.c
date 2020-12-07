@@ -544,6 +544,10 @@ void HELPER(gvec_fcmlah_idx)(void *vd, void *vn, void *vm,
     neg_real <<= 15;
     neg_imag <<= 15;
 
+    /* Adjust eltspersegment for simd 4H */
+    if (eltspersegment > elements) {
+        eltspersegment = elements;
+    }
     for (i = 0; i < elements; i += eltspersegment) {
         float16 mr = m[H2(i + 2 * index + 0)];
         float16 mi = m[H2(i + 2 * index + 1)];
@@ -610,6 +614,10 @@ void HELPER(gvec_fcmlas_idx)(void *vd, void *vn, void *vm,
     neg_real <<= 31;
     neg_imag <<= 31;
 
+    /* Adjust eltspersegment for simd 4H */
+    if (eltspersegment > elements) {
+        eltspersegment = elements;
+    }
     for (i = 0; i < elements; i += eltspersegment) {
         float32 mr = m[H4(i + 2 * index + 0)];
         float32 mi = m[H4(i + 2 * index + 1)];
