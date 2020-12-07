@@ -841,14 +841,12 @@ static void write_bootloader_nanomips(uint8_t *base, int64_t run_addr,
 static void write_bootloader(uint8_t *base, int64_t run_addr,
                              int64_t kernel_entry)
 {
-    uint32_t *p;
+    uint32_t *p, a0;
 
     /* Small bootloader */
     p = (uint32_t *)base;
 
-    stl_p(p++, 0x08000000 |                  /* j 0x1fc00580 */
-                 ((run_addr + 0x580) & 0x0fffffff) >> 2);
-    stl_p(p++, 0x00000000);                  /* nop */
+    bl_gen_jump_to(&p, run_addr + 0x580);
 
     /* YAMON service vector */
     stl_p(base + 0x500, run_addr + 0x0580);  /* start: */
@@ -869,88 +867,34 @@ static void write_bootloader(uint8_t *base, int64_t run_addr,
     /* Second part of the bootloader */
     p = (uint32_t *) (base + 0x580);
 
-    if (semihosting_get_argc()) {
-        /* Preserve a0 content as arguments have been passed */
-        stl_p(p++, 0x00000000);              /* nop */
-    } else {
-        stl_p(p++, 0x24040002);              /* addiu a0, zero, 2 */
-    }
-
-    /* lui sp, high(ENVP_ADDR) */
-    stl_p(p++, 0x3c1d0000 | (((ENVP_ADDR - 64) >> 16) & 0xffff));
-    /* ori sp, sp, low(ENVP_ADDR) */
-    stl_p(p++, 0x37bd0000 | ((ENVP_ADDR - 64) & 0xffff));
-    /* lui a1, high(ENVP_ADDR) */
-    stl_p(p++, 0x3c050000 | ((ENVP_ADDR >> 16) & 0xffff));
-    /* ori a1, a1, low(ENVP_ADDR) */
-    stl_p(p++, 0x34a50000 | (ENVP_ADDR & 0xffff));
-    /* lui a2, high(ENVP_ADDR + 8) */
-    stl_p(p++, 0x3c060000 | (((ENVP_ADDR + 8) >> 16) & 0xffff));
-    /* ori a2, a2, low(ENVP_ADDR + 8) */
-    stl_p(p++, 0x34c60000 | ((ENVP_ADDR + 8) & 0xffff));
-    /* lui a3, high(ram_low_size) */
-    stl_p(p++, 0x3c070000 | (loaderparams.ram_low_size >> 16));
-    /* ori a3, a3, low(ram_low_size) */
-    stl_p(p++, 0x34e70000 | (loaderparams.ram_low_size & 0xffff));
-
+    /* GT64xxxx is always big endian */
+#ifdef TARGET_WORDS_BIGENDIAN
+#define cpu_to_gt32(x) cpu_to_le32(x)
+#else
+#define cpu_to_gt32(x) cpu_to_be32(x)
+#endif
     /* Load BAR registers as done by YAMON */
-    stl_p(p++, 0x3c09b400);                  /* lui t1, 0xb400 */
+    /* move GT64120 registers from 0x14000000 to 0x1be00000 */
+    bl_gen_writel(&p, cpu_to_gt32(0xdf000000), 0xb4000068);
 
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_p(p++, 0x3c08df00);                  /* lui t0, 0xdf00 */
-#else
-    stl_p(p++, 0x340800df);                  /* ori t0, r0, 0x00df */
-#endif
-    stl_p(p++, 0xad280068);                  /* sw t0, 0x0068(t1) */
+    /* setup MEM-to-PCI0 mapping */
+    /* setup PCI0 io window to 0x18000000-0x181fffff */
+    bl_gen_writel(&p, cpu_to_gt32(0xc0000000), 0xbbe00048);
+    bl_gen_writel(&p, cpu_to_gt32(0x40000000), 0xbbe00050);
+    /* setup PCI0 mem windows */
+    bl_gen_writel(&p, cpu_to_gt32(0x80000000), 0xbbe00058);
+    bl_gen_writel(&p, cpu_to_gt32(0x3f000000), 0xbbe00060);
+    bl_gen_writel(&p, cpu_to_gt32(0xc1000000), 0xbbe00080);
+    bl_gen_writel(&p, cpu_to_gt32(0x5e000000), 0xbbe00088);
+#undef cpu_to_gt32
 
-    stl_p(p++, 0x3c09bbe0);                  /* lui t1, 0xbbe0 */
-
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_p(p++, 0x3c08c000);                  /* lui t0, 0xc000 */
-#else
-    stl_p(p++, 0x340800c0);                  /* ori t0, r0, 0x00c0 */
-#endif
-    stl_p(p++, 0xad280048);                  /* sw t0, 0x0048(t1) */
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_p(p++, 0x3c084000);                  /* lui t0, 0x4000 */
-#else
-    stl_p(p++, 0x34080040);                  /* ori t0, r0, 0x0040 */
-#endif
-    stl_p(p++, 0xad280050);                  /* sw t0, 0x0050(t1) */
-
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_p(p++, 0x3c088000);                  /* lui t0, 0x8000 */
-#else
-    stl_p(p++, 0x34080080);                  /* ori t0, r0, 0x0080 */
-#endif
-    stl_p(p++, 0xad280058);                  /* sw t0, 0x0058(t1) */
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_p(p++, 0x3c083f00);                  /* lui t0, 0x3f00 */
-#else
-    stl_p(p++, 0x3408003f);                  /* ori t0, r0, 0x003f */
-#endif
-    stl_p(p++, 0xad280060);                  /* sw t0, 0x0060(t1) */
-
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_p(p++, 0x3c08c100);                  /* lui t0, 0xc100 */
-#else
-    stl_p(p++, 0x340800c1);                  /* ori t0, r0, 0x00c1 */
-#endif
-    stl_p(p++, 0xad280080);                  /* sw t0, 0x0080(t1) */
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_p(p++, 0x3c085e00);                  /* lui t0, 0x5e00 */
-#else
-    stl_p(p++, 0x3408005e);                  /* ori t0, r0, 0x005e */
-#endif
-    stl_p(p++, 0xad280088);                  /* sw t0, 0x0088(t1) */
-
-    /* Jump to kernel code */
-    stl_p(p++, 0x3c1f0000 |
-          ((kernel_entry >> 16) & 0xffff));  /* lui ra, high(kernel_entry) */
-    stl_p(p++, 0x37ff0000 |
-          (kernel_entry & 0xffff));          /* ori ra, ra, low(kernel_entry) */
-    stl_p(p++, 0x03e00009);                  /* jalr ra */
-    stl_p(p++, 0x00000000);                  /* nop */
+    if (semihosting_get_argc()) {
+        a0 = 0;
+    } else {
+        a0 = 2;
+    }
+    bl_gen_jump_kernel(&p, ENVP_ADDR - 64, a0, ENVP_ADDR, (ENVP_ADDR + 8),
+                        loaderparams.ram_low_size, kernel_entry);
 
     /* YAMON subroutines */
     p = (uint32_t *) (base + 0x800);
