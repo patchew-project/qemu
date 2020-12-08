@@ -1535,6 +1535,7 @@ F: qapi/machine.json
 F: qapi/machine-target.json
 F: include/hw/boards.h
 F: include/hw/core/cpu.h
+F: include/hw/core/tcg-cpu-ops.h
 F: include/hw/cpu/cluster.h
 F: include/sysemu/numa.h
 T: git https://github.com/ehabkost/qemu.git machine-next

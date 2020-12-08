@@ -76,6 +76,10 @@ typedef struct CPUWatchpoint CPUWatchpoint;
 
 struct TranslationBlock;
 
+#ifdef CONFIG_TCG
+#include "tcg-cpu-ops.h"
+#endif /* CONFIG_TCG */
+
 /**
  * CPUClass:
  * @class_by_name: Callback to map -cpu command line model name to an
@@ -221,12 +225,15 @@ struct CPUClass {
 
     void (*disas_set_info)(CPUState *cpu, disassemble_info *info);
     vaddr (*adjust_watchpoint_address)(CPUState *cpu, vaddr addr, int len);
-    void (*tcg_initialize)(void);
 
     const char *deprecation_note;
     /* Keep non-pointer data at the end to minimize holes.  */
     int gdb_num_core_regs;
     bool gdb_stop_before_watchpoint;
+
+#ifdef CONFIG_TCG
+    TcgCpuOperations tcg_ops;
+#endif /* CONFIG_TCG */
 };
 
 /*
