@@ -4263,7 +4263,8 @@ static bool trans_UCVTF_dd(DisasContext *s, arg_rpr_esz *a)
  * The load should begin at the address Rn + IMM.
  */
 
-static void do_ldr(DisasContext *s, uint32_t vofs, int len, int rn, int imm)
+static void do_ldr(DisasContext *s, uint32_t vofs, int len,
+                   MemOp align, int rn, int imm)
 {
     int len_align = QEMU_ALIGN_DOWN(len, 8);
     int len_remain = len % 8;
@@ -4275,6 +4276,10 @@ static void do_ldr(DisasContext *s, uint32_t vofs, int len, int rn, int imm)
     tcg_gen_addi_i64(dirty_addr, cpu_reg_sp(s, rn), imm);
     clean_addr = gen_mte_checkN(s, dirty_addr, false, rn != 31, len, MO_8);
     tcg_temp_free_i64(dirty_addr);
+
+    if (!s->align_mem) {
+        align = 0;
+    }
 
     /*
      * Note that unpredicated load/store of vector/predicate registers
@@ -4288,7 +4293,8 @@ static void do_ldr(DisasContext *s, uint32_t vofs, int len, int rn, int imm)
 
         t0 = tcg_temp_new_i64();
         for (i = 0; i < len_align; i += 8) {
-            tcg_gen_qemu_ld_i64(t0, clean_addr, midx, MO_LEQ);
+            tcg_gen_qemu_ld_i64(t0, clean_addr, midx, MO_LEQ | align);
+            align = 0;
             tcg_gen_st_i64(t0, cpu_env, vofs + i);
             tcg_gen_addi_i64(clean_addr, clean_addr, 8);
         }
@@ -4301,6 +4307,16 @@ static void do_ldr(DisasContext *s, uint32_t vofs, int len, int rn, int imm)
         t0 = clean_addr;
         clean_addr = new_tmp_a64_local(s);
         tcg_gen_mov_i64(clean_addr, t0);
+
+        if (align > MO_ALIGN_8) {
+            t0 = tcg_temp_new_i64();
+            tcg_gen_qemu_ld_i64(t0, clean_addr, midx, MO_LEQ | align);
+            tcg_gen_addi_i64(clean_addr, clean_addr, 8);
+            tcg_gen_addi_ptr(i, i, 8);
+            tcg_gen_st_i64(t0, cpu_env, vofs);
+            tcg_temp_free_i64(t0);
+            align = 0;
+        }
 
         gen_set_label(loop);
 
@@ -4330,12 +4346,12 @@ static void do_ldr(DisasContext *s, uint32_t vofs, int len, int rn, int imm)
         case 4:
         case 8:
             tcg_gen_qemu_ld_i64(t0, clean_addr, midx,
-                                MO_LE | ctz32(len_remain));
+                                MO_LE | ctz32(len_remain) | align);
             break;
 
         case 6:
             t1 = tcg_temp_new_i64();
-            tcg_gen_qemu_ld_i64(t0, clean_addr, midx, MO_LEUL);
+            tcg_gen_qemu_ld_i64(t0, clean_addr, midx, MO_LEUL | align);
             tcg_gen_addi_i64(clean_addr, clean_addr, 4);
             tcg_gen_qemu_ld_i64(t1, clean_addr, midx, MO_LEUW);
             tcg_gen_deposit_i64(t0, t0, t1, 32, 32);
@@ -4351,7 +4367,8 @@ static void do_ldr(DisasContext *s, uint32_t vofs, int len, int rn, int imm)
 }
 
 /* Similarly for stores.  */
-static void do_str(DisasContext *s, uint32_t vofs, int len, int rn, int imm)
+static void do_str(DisasContext *s, uint32_t vofs, int len, MemOp align,
+                   int rn, int imm)
 {
     int len_align = QEMU_ALIGN_DOWN(len, 8);
     int len_remain = len % 8;
@@ -4363,6 +4380,10 @@ static void do_str(DisasContext *s, uint32_t vofs, int len, int rn, int imm)
     tcg_gen_addi_i64(dirty_addr, cpu_reg_sp(s, rn), imm);
     clean_addr = gen_mte_checkN(s, dirty_addr, false, rn != 31, len, MO_8);
     tcg_temp_free_i64(dirty_addr);
+
+    if (!s->align_mem) {
+        align = 0;
+    }
 
     /* Note that unpredicated load/store of vector/predicate registers
      * are defined as a stream of bytes, which equates to little-endian
@@ -4378,7 +4399,8 @@ static void do_str(DisasContext *s, uint32_t vofs, int len, int rn, int imm)
         t0 = tcg_temp_new_i64();
         for (i = 0; i < len_align; i += 8) {
             tcg_gen_ld_i64(t0, cpu_env, vofs + i);
-            tcg_gen_qemu_st_i64(t0, clean_addr, midx, MO_LEQ);
+            tcg_gen_qemu_st_i64(t0, clean_addr, midx, MO_LEQ | align);
+            align = 0;
             tcg_gen_addi_i64(clean_addr, clean_addr, 8);
         }
         tcg_temp_free_i64(t0);
@@ -4391,6 +4413,16 @@ static void do_str(DisasContext *s, uint32_t vofs, int len, int rn, int imm)
         clean_addr = new_tmp_a64_local(s);
         tcg_gen_mov_i64(clean_addr, t0);
 
+        if (align > MO_ALIGN_8) {
+            t0 = tcg_temp_new_i64();
+            tcg_gen_ld_i64(t0, cpu_env, vofs);
+            tcg_gen_qemu_st_i64(t0, clean_addr, midx, MO_LEQ | align);
+            tcg_gen_addi_i64(clean_addr, clean_addr, 8);
+            tcg_gen_addi_ptr(i, i, 8);
+            tcg_temp_free_i64(t0);
+            align = 0;
+        }
+
         gen_set_label(loop);
 
         t0 = tcg_temp_new_i64();
@@ -4400,7 +4432,7 @@ static void do_str(DisasContext *s, uint32_t vofs, int len, int rn, int imm)
         tcg_gen_addi_ptr(i, i, 8);
         tcg_temp_free_ptr(tp);
 
-        tcg_gen_qemu_st_i64(t0, clean_addr, midx, MO_LEQ);
+        tcg_gen_qemu_st_i64(t0, clean_addr, midx, MO_LEQ | align);
         tcg_gen_addi_i64(clean_addr, clean_addr, 8);
         tcg_temp_free_i64(t0);
 
@@ -4418,11 +4450,11 @@ static void do_str(DisasContext *s, uint32_t vofs, int len, int rn, int imm)
         case 4:
         case 8:
             tcg_gen_qemu_st_i64(t0, clean_addr, midx,
-                                MO_LE | ctz32(len_remain));
+                                MO_LE | ctz32(len_remain) | align);
             break;
 
         case 6:
-            tcg_gen_qemu_st_i64(t0, clean_addr, midx, MO_LEUL);
+            tcg_gen_qemu_st_i64(t0, clean_addr, midx, MO_LEUL | align);
             tcg_gen_addi_i64(clean_addr, clean_addr, 4);
             tcg_gen_shri_i64(t0, t0, 32);
             tcg_gen_qemu_st_i64(t0, clean_addr, midx, MO_LEUW);
@@ -4440,7 +4472,7 @@ static bool trans_LDR_zri(DisasContext *s, arg_rri *a)
     if (sve_access_check(s)) {
         int size = vec_full_reg_size(s);
         int off = vec_full_reg_offset(s, a->rd);
-        do_ldr(s, off, size, a->rn, a->imm * size);
+        do_ldr(s, off, size, MO_ALIGN_16, a->rn, a->imm * size);
     }
     return true;
 }
@@ -4450,7 +4482,7 @@ static bool trans_LDR_pri(DisasContext *s, arg_rri *a)
     if (sve_access_check(s)) {
         int size = pred_full_reg_size(s);
         int off = pred_full_reg_offset(s, a->rd);
-        do_ldr(s, off, size, a->rn, a->imm * size);
+        do_ldr(s, off, size, MO_ALIGN_2, a->rn, a->imm * size);
     }
     return true;
 }
@@ -4460,7 +4492,7 @@ static bool trans_STR_zri(DisasContext *s, arg_rri *a)
     if (sve_access_check(s)) {
         int size = vec_full_reg_size(s);
         int off = vec_full_reg_offset(s, a->rd);
-        do_str(s, off, size, a->rn, a->imm * size);
+        do_str(s, off, size, MO_ALIGN_16, a->rn, a->imm * size);
     }
     return true;
 }
@@ -4470,7 +4502,7 @@ static bool trans_STR_pri(DisasContext *s, arg_rri *a)
     if (sve_access_check(s)) {
         int size = pred_full_reg_size(s);
         int off = pred_full_reg_offset(s, a->rd);
-        do_str(s, off, size, a->rn, a->imm * size);
+        do_str(s, off, size, MO_ALIGN_2, a->rn, a->imm * size);
     }
     return true;
 }
