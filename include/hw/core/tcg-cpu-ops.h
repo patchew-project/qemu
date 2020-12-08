@@ -37,6 +37,9 @@ typedef struct TcgCpuOperations {
     void (*cpu_exec_exit)(CPUState *cpu);
     /** @cpu_exec_interrupt: Callback for processing interrupts in cpu_exec */
     bool (*cpu_exec_interrupt)(CPUState *cpu, int interrupt_request);
+    /** @do_interrupt: Callback for interrupt handling. */
+    void (*do_interrupt)(CPUState *cpu);
+
     /**
      * @tlb_fill: Handle a softmmu tlb miss or user-only address fault
      *
