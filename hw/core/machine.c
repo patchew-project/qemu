@@ -882,6 +882,7 @@ static void machine_initfn(Object *obj)
         Object *obj = OBJECT(ms);
 
         ms->nvdimms_state = g_new0(NVDIMMState, 1);
+        ms->nvdimms_state->is_enabled = mc->nvdimm_enabled_default;
         object_property_add_bool(obj, "nvdimm",
                                  machine_get_nvdimm, machine_set_nvdimm);
         object_property_set_description(obj, "nvdimm",

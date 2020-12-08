@@ -205,6 +205,7 @@ struct MachineClass {
     bool ignore_boot_device_suffixes;
     bool smbus_no_migration_support;
     bool nvdimm_supported;
+    bool nvdimm_enabled_default;
     bool numa_mem_supported;
     bool auto_enable_numa;
     const char *default_ram_id;
