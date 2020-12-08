@@ -41,6 +41,15 @@ typedef struct TcgCpuOperations {
     void (*do_interrupt)(CPUState *cpu);
 
     /**
+     * @do_transaction_failed: Callback for handling failed memory transactions
+     * (ie bus faults or external aborts; not MMU faults)
+     */
+    void (*do_transaction_failed)(CPUState *cpu, hwaddr physaddr, vaddr addr,
+                                  unsigned size, MMUAccessType access_type,
+                                  int mmu_idx, MemTxAttrs attrs,
+                                  MemTxResult response, uintptr_t retaddr);
+
+    /**
      * @tlb_fill: Handle a softmmu tlb miss or user-only address fault
      *
      * For system mode, if the access is valid, call tlb_set_page
