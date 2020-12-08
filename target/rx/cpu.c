@@ -105,7 +105,7 @@ static ObjectClass *rx_cpu_class_by_name(const char *cpu_model)
     return oc;
 }
 
-static void rx_cpu_realize(DeviceState *dev, Error **errp)
+static void rx_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
     RXCPUClass *rcc = RX_CPU_GET_CLASS(dev);
@@ -117,10 +117,8 @@ static void rx_cpu_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    qemu_init_vcpu(cs);
-    cpu_reset(cs);
-
     rcc->parent_realize(dev, errp);
+    cpu_reset(cs);
 }
 
 static void rx_cpu_set_irq(void *opaque, int no, int request)
@@ -178,7 +176,7 @@ static void rx_cpu_class_init(ObjectClass *klass, void *data)
     CPUClass *cc = CPU_CLASS(klass);
     RXCPUClass *rcc = RX_CPU_CLASS(klass);
 
-    device_class_set_parent_realize(dc, rx_cpu_realize,
+    device_class_set_parent_realize(dc, rx_cpu_realizefn,
                                     &rcc->parent_realize);
     device_class_set_parent_reset(dc, rx_cpu_reset,
                                   &rcc->parent_reset);
