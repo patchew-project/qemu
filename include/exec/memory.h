@@ -42,6 +42,12 @@ typedef struct IOMMUMemoryRegionClass IOMMUMemoryRegionClass;
 DECLARE_OBJ_CHECKERS(IOMMUMemoryRegion, IOMMUMemoryRegionClass,
                      IOMMU_MEMORY_REGION, TYPE_IOMMU_MEMORY_REGION)
 
+#define TYPE_RAM_DISCARD_MGR "qemu:ram-discard-mgr"
+typedef struct RamDiscardMgrClass RamDiscardMgrClass;
+typedef struct RamDiscardMgr RamDiscardMgr;
+DECLARE_OBJ_CHECKERS(RamDiscardMgr, RamDiscardMgrClass, RAM_DISCARD_MGR,
+                     TYPE_RAM_DISCARD_MGR);
+
 #ifdef CONFIG_FUZZ
 void fuzz_dma_read_cb(size_t addr,
                       size_t len,
@@ -116,6 +122,66 @@ struct IOMMUNotifier {
 };
 typedef struct IOMMUNotifier IOMMUNotifier;
 
+struct RamDiscardListener;
+typedef int (*NotifyRamPopulate)(struct RamDiscardListener *rdl,
+                                 const MemoryRegion *mr, ram_addr_t offset,
+                                 ram_addr_t size);
+typedef void (*NotifyRamDiscard)(struct RamDiscardListener *rdl,
+                                 const MemoryRegion *mr, ram_addr_t offset,
+                                 ram_addr_t size);
+typedef void (*NotifyRamDiscardAll)(struct RamDiscardListener *rdl,
+                                    const MemoryRegion *mr);
+
+typedef struct RamDiscardListener {
+    /*
+     * @notify_populate:
+     *
+     * Notification that previously discarded memory is about to get populated.
+     * Listeners are able to object. If any listener objects, already
+     * successfully notified listeners are notified about a discard again.
+     *
+     * @rdl: the #RamDiscardListener getting notified
+     * @mr: the relevant #MemoryRegion
+     * @offset: offset into the #MemoryRegion, aligned to minimum granularity of
+     *          the #RamDiscardMgr
+     * @size: the size, aligned to minimum granularity of the #RamDiscardMgr
+     *
+     * Returns 0 on success. If the notification is rejected by the listener,
+     * an error is returned.
+     */
+    NotifyRamPopulate notify_populate;
+
+    /*
+     * @notify_discard:
+     *
+     * Notification that previously populated memory was discarded successfully
+     * and listeners should drop all references to such memory and prevent
+     * new population (e.g., unmap).
+     *
+     * @rdl: the #RamDiscardListener getting notified
+     * @mr: the relevant #MemoryRegion
+     * @offset: offset into the #MemoryRegion, aligned to minimum granularity of
+     *          the #RamDiscardMgr
+     * @size: the size, aligned to minimum granularity of the #RamDiscardMgr
+     */
+    NotifyRamDiscard notify_discard;
+
+    /*
+     * @notify_discard_all:
+     *
+     * Notification that all previously populated memory was discarded
+     * successfully.
+     *
+     * Note: this callback is optional. If not set, individual notify_populate()
+     * notifications are triggered.
+     *
+     * @rdl: the #RamDiscardListener getting notified
+     * @mr: the relevant #MemoryRegion
+     */
+    NotifyRamDiscardAll notify_discard_all;
+    QLIST_ENTRY(RamDiscardListener) next;
+} RamDiscardListener;
+
 /* RAM is pre-allocated and passed into qemu_ram_alloc_from_ptr */
 #define RAM_PREALLOC   (1 << 0)
 
@@ -149,6 +215,16 @@ static inline void iommu_notifier_init(IOMMUNotifier *n, IOMMUNotify fn,
     n->start = start;
     n->end = end;
     n->iommu_idx = iommu_idx;
+}
+
+static inline void ram_discard_listener_init(RamDiscardListener *rdl,
+                                             NotifyRamPopulate populate_fn,
+                                             NotifyRamDiscard discard_fn,
+                                             NotifyRamDiscardAll discard_all_fn)
+{
+    rdl->notify_populate = populate_fn;
+    rdl->notify_discard = discard_fn;
+    rdl->notify_discard_all = discard_all_fn;
 }
 
 /*
@@ -425,6 +501,126 @@ struct IOMMUMemoryRegionClass {
                                      Error **errp);
 };
 
+/*
+ * RamDiscardMgrClass:
+ *
+ * A #RamDiscardMgr coordinates which parts of specific RAM #MemoryRegion
+ * regions are currently populated to be used/accessed by the VM, notifying
+ * after parts were discarded (freeing up memory) and before parts will be
+ * populated (consuming memory), to be used/acessed by the VM.
+ *
+ * A #RamDiscardMgr can only be set for a RAM #MemoryRegion while the
+ * #MemoryRegion isn't mapped yet; it cannot change while the #MemoryRegion is
+ * mapped.
+ *
+ * The #RamDiscardMgr is intended to be used by technologies that are
+ * incompatible with discarding of RAM (e.g., VFIO, which may pin all
+ * memory inside a #MemoryRegion), and require proper coordination to only
+ * map the currently populated parts, to hinder parts that are expected to
+ * remain discarded from silently getting populated and consuming memory.
+ * Technologies that support discarding of RAM don't have to bother and can
+ * simply map the whole #MemoryRegion.
+ *
+ * An example #RamDiscardMgr is virtio-mem, which logically (un)plugs
+ * memory within an assigned RAM #MemoryRegion, coordinated with the VM.
+ * Logically unplugging memory consists of discarding RAM. The VM agreed to not
+ * access unplugged (discarded) memory - especially via DMA. virtio-mem will
+ * properly coordinate with listeners before memory is plugged (populated),
+ * and after memory is unplugged (discarded).
+ *
+ * Listeners are called in multiples of the minimum granularity and changes are
+ * aligned to the minimum granularity within the #MemoryRegion. Listeners have
+ * to prepare for memory becomming discarded in a different granularity than it
+ * was populated and the other way around.
+ */
+struct RamDiscardMgrClass {
+    /* private */
+    InterfaceClass parent_class;
+
+    /* public */
+
+    /**
+     * @get_min_granularity:
+     *
+     * Get the minimum granularity in which listeners will get notified
+     * about changes within the #MemoryRegion via the #RamDiscardMgr.
+     *
+     * @rdm: the #RamDiscardMgr
+     * @mr: the #MemoryRegion
+     *
+     * Returns the minimum granularity.
+     */
+    uint64_t (*get_min_granularity)(const RamDiscardMgr *rdm,
+                                    const MemoryRegion *mr);
+
+    /**
+     * @is_populated:
+     *
+     * Check whether the given range within the #MemoryRegion is completely
+     * populated (i.e., no parts are currently discarded). There are no
+     * alignment requirements for the range.
+     *
+     * @rdm: the #RamDiscardMgr
+     * @mr: the #MemoryRegion
+     * @offset: offset into the #MemoryRegion
+     * @size: size in the #MemoryRegion
+     *
+     * Returns whether the given range is completely populated.
+     */
+    bool (*is_populated)(const RamDiscardMgr *rdm, const MemoryRegion *mr,
+                         ram_addr_t start, ram_addr_t offset);
+
+    /**
+     * @register_listener:
+     *
+     * Register a #RamDiscardListener for a #MemoryRegion via the
+     * #RamDiscardMgr and immediately notify the #RamDiscardListener about all
+     * populated parts within the #MemoryRegion via the #RamDiscardMgr.
+     *
+     * In case any notification fails, no further notifications are triggered
+     * and an error is logged.
+     *
+     * @rdm: the #RamDiscardMgr
+     * @mr: the #MemoryRegion
+     * @rdl: the #RamDiscardListener
+     */
+    void (*register_listener)(RamDiscardMgr *rdm, const MemoryRegion *mr,
+                              RamDiscardListener *rdl);
+
+    /**
+     * @unregister_listener:
+     *
+     * Unregister a previously registered #RamDiscardListener for a
+     * #MemoryRegion via the #RamDiscardMgr after notifying the
+     * #RamDiscardListener about all populated parts becoming unpopulated
+     * within the #MemoryRegion via the #RamDiscardMgr.
+     *
+     * @rdm: the #RamDiscardMgr
+     * @mr: the #MemoryRegion
+     * @rdl: the #RamDiscardListener
+     */
+    void (*unregister_listener)(RamDiscardMgr *rdm, const MemoryRegion *mr,
+                                RamDiscardListener *rdl);
+
+    /**
+     * @replay_populated:
+     *
+     * Notify the #RamDiscardListener about all populated parts within the
+     * #MemoryRegion via the #RamDiscardMgr.
+     *
+     * In case any notification fails, no further notifications are triggered.
+     * The listener is not required to be registered.
+     *
+     * @rdm: the #RamDiscardMgr
+     * @mr: the #MemoryRegion
+     * @rdl: the #RamDiscardListener
+     *
+     * Returns 0 on success, or a negative error if any notification failed.
+     */
+    int (*replay_populated)(const RamDiscardMgr *rdm, const MemoryRegion *mr,
+                            RamDiscardListener *rdl);
+};
+
 typedef struct CoalescedMemoryRange CoalescedMemoryRange;
 typedef struct MemoryRegionIoeventfd MemoryRegionIoeventfd;
 
@@ -471,6 +667,7 @@ struct MemoryRegion {
     const char *name;
     unsigned ioeventfd_nb;
     MemoryRegionIoeventfd *ioeventfds;
+    RamDiscardMgr *rdm; /* Only for RAM */
 };
 
 struct IOMMUMemoryRegion {
@@ -1964,6 +2161,40 @@ bool memory_region_present(MemoryRegion *container, hwaddr addr);
  * @mr: a #MemoryRegion which should be checked if it's mapped
  */
 bool memory_region_is_mapped(MemoryRegion *mr);
+
+/**
+ * memory_region_get_ram_discard_mgr: get the #RamDiscardMgr for a
+ * #MemoryRegion
+ *
+ * The #RamDiscardMgr cannot change while a memory region is mapped.
+ *
+ * @mr: the #MemoryRegion
+ */
+RamDiscardMgr *memory_region_get_ram_discard_mgr(MemoryRegion *mr);
+
+/**
+ * memory_region_has_ram_discard_mgr: check whether a #MemoryRegion has a
+ * #RamDiscardMgr assigned
+ *
+ * @mr: the #MemoryRegion
+ */
+static inline bool memory_region_has_ram_discard_mgr(MemoryRegion *mr)
+{
+    return !!memory_region_get_ram_discard_mgr(mr);
+}
+
+/**
+ * memory_region_set_ram_discard_mgr: set the #RamDiscardMgr for a
+ * #MemoryRegion
+ *
+ * This function must not be called for a mapped #MemoryRegion, a #MemoryRegion
+ * that does not cover RAM, or a #MemoryRegion that already has a
+ * #RamDiscardMgr assigned.
+ *
+ * @mr: the #MemoryRegion
+ * @urn: #RamDiscardMgr to set
+ */
+void memory_region_set_ram_discard_mgr(MemoryRegion *mr, RamDiscardMgr *rdm);
 
 /**
  * memory_region_find: translate an address/size relative to a
