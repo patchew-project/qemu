@@ -29,7 +29,7 @@ static void runstate_action_help(void)
  * Set the internal state to react to a guest reboot event
  * as specified by the action parameter.
  */
-static void qmp_reboot_set_action(RebootAction act, Error **errp)
+void qmp_reboot_set_action(RebootAction act, Error **errp)
 {
     switch (act) {
     case REBOOT_ACTION_NONE:
@@ -47,7 +47,7 @@ static void qmp_reboot_set_action(RebootAction act, Error **errp)
  * Set the internal state to react to a guest shutdown event
  * as specified by the action parameter.
  */
-static void qmp_shutdown_set_action(ShutdownAction act, Error **errp)
+void qmp_shutdown_set_action(ShutdownAction act, Error **errp)
 {
     switch (act) {
     case SHUTDOWN_ACTION_PAUSE:
@@ -65,7 +65,7 @@ static void qmp_shutdown_set_action(ShutdownAction act, Error **errp)
  * Set the internal state to react to a guest panic event
  * as specified by the action parameter.
  */
-static void qmp_panic_set_action(PanicAction action, Error **errp)
+void qmp_panic_set_action(PanicAction action, Error **errp)
 {
     switch (action) {
     case PANIC_ACTION_NONE:

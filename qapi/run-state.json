@@ -451,6 +451,33 @@
 { 'command': 'watchdog-set-action', 'data' : {'action': 'WatchdogAction'} }
 
 ##
+# @reboot-set-action:
+#
+# Set reboot action
+#
+# Since: 6.0
+##
+{ 'command': 'reboot-set-action', 'data' : {'action': 'RebootAction'} }
+
+##
+# @shutdown-set-action:
+#
+# Set shutdown action
+#
+# Since: 6.0
+##
+{ 'command': 'shutdown-set-action', 'data' : {'action': 'ShutdownAction'} }
+
+##
+# @panic-set-action:
+#
+# Set panic action
+#
+# Since: 6.0
+##
+{ 'command': 'panic-set-action', 'data' : {'action': 'PanicAction'} }
+
+##
 # @GUEST_PANICKED:
 #
 # Emitted when guest OS panic is detected
