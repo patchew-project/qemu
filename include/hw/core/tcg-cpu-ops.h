@@ -10,6 +10,9 @@
 #ifndef TCG_CPU_OPS_H
 #define TCG_CPU_OPS_H
 
+/**
+ * struct TcgCpuOperations: TCG operations specific to a CPU class
+ */
 typedef struct TcgCpuOperations {
     /**
      * @initialize: Initalize TCG state
@@ -28,6 +31,12 @@ typedef struct TcgCpuOperations {
      * @set_pc(tb->pc).
      */
     void (*synchronize_from_tb)(CPUState *cpu, struct TranslationBlock *tb);
+    /** @cpu_exec_enter: Callback for cpu_exec preparation */
+    void (*cpu_exec_enter)(CPUState *cpu);
+    /** @cpu_exec_exit: Callback for cpu_exec cleanup */
+    void (*cpu_exec_exit)(CPUState *cpu);
+    /** @cpu_exec_interrupt: Callback for processing interrupts in cpu_exec */
+    bool (*cpu_exec_interrupt)(CPUState *cpu, int interrupt_request);
 } TcgCpuOperations;
 
 #endif /* TCG_CPU_OPS_H */

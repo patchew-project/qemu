@@ -59,10 +59,10 @@ static void x86_cpu_synchronize_from_tb(CPUState *cs, TranslationBlock *tb)
 void tcg_cpu_common_class_init(CPUClass *cc)
 {
     cc->do_interrupt = x86_cpu_do_interrupt;
-    cc->cpu_exec_interrupt = x86_cpu_exec_interrupt;
+    cc->tcg_ops.cpu_exec_interrupt = x86_cpu_exec_interrupt;
     cc->tcg_ops.synchronize_from_tb = x86_cpu_synchronize_from_tb;
-    cc->cpu_exec_enter = x86_cpu_exec_enter;
-    cc->cpu_exec_exit = x86_cpu_exec_exit;
+    cc->tcg_ops.cpu_exec_enter = x86_cpu_exec_enter;
+    cc->tcg_ops.cpu_exec_exit = x86_cpu_exec_exit;
     cc->tcg_ops.initialize = tcg_x86_init;
     cc->tlb_fill = x86_cpu_tlb_fill;
 #ifndef CONFIG_USER_ONLY
