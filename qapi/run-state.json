@@ -337,12 +337,14 @@
 #
 # @shutdown: Guest shutdown
 #
+# @panic: Guest has panicked
+#
 # @watchdog: A watchdog device's timer has expired
 #
 # Since: 6.0
 ##
 { 'enum': 'RunStateEventType',
-  'data': [ 'reboot', 'shutdown', 'watchdog' ] }
+  'data': [ 'reboot', 'shutdown', 'panic', 'watchdog' ] }
 
 ##
 # @RunStateAction:
@@ -358,6 +360,7 @@
   'data': {
     'reboot': 'RunStateRebootAction',
     'shutdown': 'RunStateShutdownAction',
+    'panic': 'RunStatePanicAction',
     'watchdog': 'RunStateWatchdogAction' } }
 
 ##
@@ -405,6 +408,28 @@
 ##
 { 'enum': 'ShutdownAction',
   'data': [ 'pause', 'poweroff' ] }
+
+##
+# @RunStatePanicAction:
+#
+# @action: Action taken by QEMU when guest panicks
+#
+# Since: 6.0
+##
+{ 'struct': 'RunStatePanicAction',
+  'data': { 'action': 'PanicAction' } }
+
+##
+# @PanicAction:
+#
+# @none: Continue VM execution
+#
+# @pause: Pause the VM
+#
+# Since: 6.0
+##
+{ 'enum': 'PanicAction',
+  'data': [ 'none', 'pause' ] }
 
 ##
 # @RunStateWatchdogAction:

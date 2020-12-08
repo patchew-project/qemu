@@ -62,6 +62,24 @@ static void qmp_shutdown_set_action(ShutdownAction act, Error **errp)
 }
 
 /*
+ * Set the internal state to react to a guest panic event
+ * as specified by the action parameter.
+ */
+static void qmp_panic_set_action(PanicAction action, Error **errp)
+{
+    switch (action) {
+    case PANIC_ACTION_NONE:
+        pause_on_panic = 0;
+        break;
+    case PANIC_ACTION_PAUSE:
+        pause_on_panic = 1;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+/*
  * Process an event|action pair and set the appropriate internal
  * state if event and action are valid.
  */
@@ -80,6 +98,10 @@ static int set_runstate_action(void *opaque, const char *event,
     case RUN_STATE_EVENT_TYPE_SHUTDOWN:
         act_idx = qapi_enum_parse(&ShutdownAction_lookup, action, -1, errp);
         qmp_shutdown_set_action(act_idx, NULL);
+        break;
+    case RUN_STATE_EVENT_TYPE_PANIC:
+        act_idx = qapi_enum_parse(&PanicAction_lookup, action, -1, errp);
+        qmp_panic_set_action(act_idx, NULL);
         break;
     case RUN_STATE_EVENT_TYPE_WATCHDOG:
         if (select_watchdog_action(action) == -1) {
