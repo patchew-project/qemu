@@ -48,6 +48,13 @@ typedef struct TcgCpuOperations {
                                   unsigned size, MMUAccessType access_type,
                                   int mmu_idx, MemTxAttrs attrs,
                                   MemTxResult response, uintptr_t retaddr);
+    /**
+     * @do_unaligned_access: Callback for unaligned access handling, if
+     * the target defines #TARGET_ALIGNED_ONLY.
+     */
+    void (*do_unaligned_access)(CPUState *cpu, vaddr addr,
+                                MMUAccessType access_type,
+                                int mmu_idx, uintptr_t retaddr);
 
     /**
      * @tlb_fill: Handle a softmmu tlb miss or user-only address fault
