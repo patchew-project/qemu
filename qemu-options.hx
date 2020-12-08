@@ -2294,7 +2294,9 @@ DEF("smbios", HAS_ARG, QEMU_OPTION_smbios,
     "                specify SMBIOS type 11 fields\n"
     "-smbios type=17[,loc_pfx=str][,bank=str][,manufacturer=str][,serial=str]\n"
     "               [,asset=str][,part=str][,speed=%d]\n"
-    "                specify SMBIOS type 17 fields\n",
+    "                specify SMBIOS type 17 fields\n"
+    "-smbios entry-point-type=2.1|3.0\n"
+    "                specify SMBIOS entry point type\n",
     QEMU_ARCH_I386 | QEMU_ARCH_ARM)
 SRST
 ``-smbios file=binary``
@@ -2356,6 +2358,18 @@ SRST
 
 ``-smbios type=17[,loc_pfx=str][,bank=str][,manufacturer=str][,serial=str][,asset=str][,part=str][,speed=%d]``
     Specify SMBIOS type 17 fields
+
+``-smbios entry-point-type=2.1|3.0``
+    Specify SMBIOS entry point type
+
+    SMBIOS 3.0 allows the total size of SMBIOS tables to be much
+    larger, but note that Seabios for x86 does not support SMBIOS
+    3.0 (as of Seabios v1.14.0).
+
+    Note that this option only affects the SMBIOS data exposed
+    through fw_cfg.  It's still up to the firmware to generate
+    the actual SMBIOS entry point(s) seen by the guest operating
+    system.
 ERST
 
 DEFHEADING()

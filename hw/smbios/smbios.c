@@ -62,6 +62,7 @@ size_t smbios_tables_len;
 unsigned smbios_table_max;
 unsigned smbios_table_cnt;
 static SmbiosEntryPointType smbios_ep_type = SMBIOS_ENTRY_POINT_21;
+static bool smbios_ep_type_set;
 
 static SmbiosEntryPoint ep;
 
@@ -135,6 +136,15 @@ static const QemuOptDesc qemu_smbios_file_opts[] = {
         .name = "file",
         .type = QEMU_OPT_STRING,
         .help = "binary file containing an SMBIOS element",
+    },
+    { /* end of list */ }
+};
+
+static const QemuOptDesc qemu_smbios_entry_point_opts[] = {
+    {
+        .name = "entry-point-type",
+        .type = QEMU_OPT_STRING,
+        .help = "SMBIOS Entry Point type (2.1 or 3.0)",
     },
     { /* end of list */ }
 };
@@ -797,7 +807,9 @@ void smbios_set_defaults(const char *manufacturer, const char *product,
     smbios_have_defaults = true;
     smbios_legacy = legacy_mode;
     smbios_uuid_encoded = uuid_encoded;
-    smbios_ep_type = ep_type;
+    if (!smbios_ep_type_set) {
+        smbios_ep_type = ep_type;
+    }
 
     /* drop unwanted version of command-line file blob(s) */
     if (smbios_legacy) {
@@ -1232,5 +1244,28 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
         }
     }
 
-    error_setg(errp, "Must specify type= or file=");
+    val = qemu_opt_get(opts, "entry-point-type");
+    if (val) {
+        if (!qemu_opts_validate(opts, qemu_smbios_entry_point_opts, errp)) {
+            return;
+        }
+
+        if (smbios_ep_type_set) {
+            error_setg(errp, "entry-point-type can't be set twice");
+            return;
+        }
+
+        if (!strcmp(val, "2.1")) {
+            smbios_ep_type = SMBIOS_ENTRY_POINT_21;
+            smbios_ep_type_set = true;
+        } else if (!strcmp(val, "3.0")) {
+            smbios_ep_type = SMBIOS_ENTRY_POINT_30;
+            smbios_ep_type_set = true;
+        } else {
+            error_setg(errp, "Invalid entry point type: %s", val);
+        }
+        return;
+    }
+
+    error_setg(errp, "Must specify type=, file=, or entry-point-type=");
 }
