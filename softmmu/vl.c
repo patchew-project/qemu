@@ -34,6 +34,7 @@
 #include "qemu/uuid.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
+#include "sysemu/runstate-action.h"
 #include "sysemu/seccomp.h"
 #include "sysemu/tcg.h"
 #include "sysemu/xen.h"
@@ -147,7 +148,7 @@ Chardev *parallel_hds[MAX_PARALLEL_PORTS];
 int win2k_install_hack = 0;
 int singlestep = 0;
 int fd_bootchk = 1;
-static int no_reboot;
+int no_reboot;
 int no_shutdown = 0;
 int graphic_rotate = 0;
 const char *watchdog;
@@ -503,6 +504,21 @@ static QemuOptsList qemu_fw_cfg_opts = {
                     "to be inserted",
         },
         { /* end of list */ }
+    },
+};
+
+static QemuOptsList qemu_action_opts = {
+    .name = "action",
+    /*
+     * When lists are merged, the location is set to the first use of the
+     * option. If a subsequent option has an invalid parameter, the error msg
+     * will display the wrong location. Avoid this by not merging the lists.
+     */
+    .merge_lists = false,
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_action_opts.head),
+    .desc = {
+        /* Validation is done when processing the runstate actions */
+        { }
     },
 };
 
@@ -2948,6 +2964,7 @@ void qemu_init(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_icount_opts);
     qemu_add_opts(&qemu_semihosting_config_opts);
     qemu_add_opts(&qemu_fw_cfg_opts);
+    qemu_add_opts(&qemu_action_opts);
     module_call_init(MODULE_INIT_OPTS);
 
     runstate_init();
@@ -3419,6 +3436,12 @@ void qemu_init(int argc, char **argv, char **envp)
                     exit(1);
                 }
                 watchdog = optarg;
+                break;
+            case QEMU_OPTION_action:
+                if (runstate_action_parse(qemu_find_opts("action"),
+                                            optarg) < 0) {
+                    exit(1);
+                }
                 break;
             case QEMU_OPTION_watchdog_action:
                 if (select_watchdog_action(optarg) == -1) {
@@ -3901,6 +3924,11 @@ void qemu_init(int argc, char **argv, char **envp)
 
     qemu_opts_foreach(qemu_find_opts("name"),
                       parse_name, NULL, &error_fatal);
+
+    if (qemu_opts_foreach(qemu_find_opts("action"),
+                        process_runstate_actions, NULL, &error_fatal)) {
+        exit(1);
+    }
 
 #ifndef _WIN32
     qemu_opts_foreach(qemu_find_opts("add-fd"),
