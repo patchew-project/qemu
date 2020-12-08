@@ -3252,15 +3252,15 @@ typedef ARMCPU ArchCPU;
  * We put flags which are shared between 32 and 64 bit mode at the top
  * of the word, and flags which apply to only one mode at the bottom.
  *
- *  31          20    18    14          9              0
- * +--------------+-----+-----+----------+--------------+
- * |              |     |   TBFLAG_A32   |              |
- * |              |     +-----+----------+  TBFLAG_AM32 |
- * |  TBFLAG_ANY  |           |TBFLAG_M32|              |
- * |              +-----------+----------+--------------|
- * |              |            TBFLAG_A64               |
- * +--------------+-------------------------------------+
- *  31          20                                     0
+ *  31          19  18    14          9              0
+ * +--------------+---+-----+----------+--------------+
+ * |              |   |   TBFLAG_A32   |              |
+ * |              |   +-----+----------+  TBFLAG_AM32 |
+ * |  TBFLAG_ANY  |         |TBFLAG_M32|              |
+ * |              +---------+----------+--------------|
+ * |              |          TBFLAG_A64               |
+ * +--------------+-----------------------------------+
+ *  31          19                                   0
  *
  * Unless otherwise noted, these bits are cached in env->hflags.
  */
@@ -3273,6 +3273,8 @@ FIELD(TBFLAG_ANY, MMUIDX, 24, 4)
 FIELD(TBFLAG_ANY, FPEXC_EL, 22, 2)
 /* For A-profile only, target EL for debug exceptions.  */
 FIELD(TBFLAG_ANY, DEBUG_TARGET_EL, 20, 2)
+/* Memory operations require alignment: SCTLR_ELx.A or CCR.UNALIGN_TRP */
+FIELD(TBFLAG_ANY, ALIGN_MEM, 19, 1)
 
 /*
  * Bit usage when in AArch32 state, both A- and M-profile.
