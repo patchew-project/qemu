@@ -1616,7 +1616,6 @@ vu_inflight_queue_size(uint16_t queue_size)
            sizeof(uint16_t), INFLIGHT_ALIGNMENT);
 }
 
-#ifdef MFD_ALLOW_SEALING
 static void *
 memfd_alloc(const char *name, size_t size, unsigned int flags, int *fd)
 {
@@ -1648,7 +1647,6 @@ memfd_alloc(const char *name, size_t size, unsigned int flags, int *fd)
 
     return ptr;
 }
-#endif
 
 static bool
 vu_get_inflight_fd(VuDev *dev, VhostUserMsg *vmsg)
@@ -1672,13 +1670,9 @@ vu_get_inflight_fd(VuDev *dev, VhostUserMsg *vmsg)
 
     mmap_size = vu_inflight_queue_size(queue_size) * num_queues;
 
-#ifdef MFD_ALLOW_SEALING
     addr = memfd_alloc("vhost-inflight", mmap_size,
                        F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL,
                        &fd);
-#else
-    vu_panic(dev, "Not implemented: memfd support is missing");
-#endif
 
     if (!addr) {
         vu_panic(dev, "Failed to alloc vhost inflight area");
