@@ -45,6 +45,7 @@ extern int ctrl_grab;
 extern int graphic_rotate;
 extern int no_reboot;
 extern int no_shutdown;
+extern int pause_on_panic;
 extern int old_param;
 extern int boot_menu;
 extern bool boot_strict;
