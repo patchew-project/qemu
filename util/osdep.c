@@ -187,7 +187,7 @@ static int qemu_parse_fdset(const char *param)
     return qemu_parse_fd(param);
 }
 
-static void qemu_probe_lock_ops(void)
+static void qemu_probe_lock_ops(const char *filename)
 {
     if (fcntl_op_setlk == -1) {
 #ifdef F_OFD_SETLK
@@ -200,10 +200,15 @@ static void qemu_probe_lock_ops(void)
             .l_type   = F_WRLCK,
         };
 
-        fd = open("/dev/null", O_RDWR);
+        if (filename) {
+            fd = open(filename, O_RDWR);
+        } else {
+            fd = open("/dev/null", O_RDONLY);
+        }
         if (fd < 0) {
             fprintf(stderr,
-                    "Failed to open /dev/null for OFD lock probing: %s\n",
+                    "Failed to open %s for OFD lock probing: %s\n",
+                    filename ? filename : "/dev/null",
                     strerror(errno));
             fcntl_op_setlk = F_SETLK;
             fcntl_op_getlk = F_GETLK;
@@ -225,9 +230,9 @@ static void qemu_probe_lock_ops(void)
     }
 }
 
-bool qemu_has_ofd_lock(void)
+bool qemu_has_ofd_lock(const char *filename)
 {
-    qemu_probe_lock_ops();
+    qemu_probe_lock_ops(filename);
 #ifdef F_OFD_SETLK
     return fcntl_op_setlk == F_OFD_SETLK;
 #else
@@ -244,7 +249,7 @@ static int qemu_lock_fcntl(int fd, int64_t start, int64_t len, int fl_type)
         .l_len    = len,
         .l_type   = fl_type,
     };
-    qemu_probe_lock_ops();
+    qemu_probe_lock_ops(NULL);
     do {
         ret = fcntl(fd, fcntl_op_setlk, &fl);
     } while (ret == -1 && errno == EINTR);
@@ -270,7 +275,7 @@ int qemu_lock_fd_test(int fd, int64_t start, int64_t len, bool exclusive)
         .l_len    = len,
         .l_type   = exclusive ? F_WRLCK : F_RDLCK,
     };
-    qemu_probe_lock_ops();
+    qemu_probe_lock_ops(NULL);
     ret = fcntl(fd, fcntl_op_getlk, &fl);
     if (ret == -1) {
         return -errno;
