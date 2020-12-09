@@ -1284,12 +1284,12 @@ static void hdev_refresh_limits(BlockDriverState *bs, Error **errp)
                        get_max_transfer_length(s->fd);
 
     if (ret > 0 && ret <= BDRV_REQUEST_MAX_BYTES) {
-        bs->bl.max_transfer = pow2floor(ret);
+        bs->bl.max_ioctl_transfer = pow2floor(ret);
     }
 
     ret = bs->sg ? sg_get_max_segments(s->fd) : get_max_segments(s->fd);
     if (ret > 0) {
-        bs->bl.max_transfer = MIN_NON_ZERO(bs->bl.max_transfer,
+        bs->bl.max_ioctl_transfer = MIN_NON_ZERO(bs->bl.max_ioctl_transfer,
                                            ret * qemu_real_host_page_size);
     }
 
