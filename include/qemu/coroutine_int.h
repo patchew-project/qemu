@@ -49,6 +49,7 @@ struct Coroutine {
     /* Only used when the coroutine has terminated.  */
     QSLIST_ENTRY(Coroutine) pool_next;
 
+    CoMutex *wait_on_mutex;
     size_t locks_held;
 
     /* Only used when the coroutine has yielded.  */

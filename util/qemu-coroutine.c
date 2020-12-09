@@ -136,6 +136,12 @@ void qemu_aio_coroutine_enter(AioContext *ctx, Coroutine *co)
             abort();
         }
 
+        if (to->wait_on_mutex) {
+            fprintf(stderr, "Co-routine waiting on mutex is entered not by "
+                    "qemu_co_mutex_wake()\n");
+            abort();
+        }
+
         to->caller = from;
         to->ctx = ctx;
 

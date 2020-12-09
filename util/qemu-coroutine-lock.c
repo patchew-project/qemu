@@ -193,6 +193,9 @@ static void coroutine_fn qemu_co_mutex_wake(CoMutex *mutex, Coroutine *co)
      */
     smp_read_barrier_depends();
     mutex->ctx = co->ctx;
+    mutex->holder = co;
+    assert(mutex == co->wait_on_mutex);
+    co->wait_on_mutex = NULL;  /* asserted in qemu_coroutine_enter */
     aio_co_wake(co);
 }
 
@@ -223,13 +226,16 @@ static void coroutine_fn qemu_co_mutex_lock_slowpath(AioContext *ctx,
             /* We got the lock ourselves!  */
             assert(to_wake == &w);
             mutex->ctx = ctx;
+            mutex->holder = self;
             return;
         }
 
         qemu_co_mutex_wake(mutex, co);
     }
 
+    self->wait_on_mutex = mutex;
     qemu_coroutine_yield();
+    assert(mutex->holder == self); /* set by qemu_co_mutex_wake() */
     trace_qemu_co_mutex_lock_return(mutex, self);
 }
 
@@ -266,10 +272,12 @@ retry_fast_path:
         /* Uncontended.  */
         trace_qemu_co_mutex_lock_uncontended(mutex, self);
         mutex->ctx = ctx;
+        mutex->holder = self;
     } else {
         qemu_co_mutex_lock_slowpath(ctx, mutex);
+        assert(mutex->ctx == ctx);
+        assert(mutex->holder == self);
     }
-    mutex->holder = self;
     self->locks_held++;
 }
 
