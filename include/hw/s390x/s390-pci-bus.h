@@ -325,6 +325,26 @@ typedef struct S390PCIGroup {
 S390PCIGroup *s390_group_create(int id);
 S390PCIGroup *s390_group_find(int id);
 
+typedef struct ZpciOps {
+    int (*pcistg)(S390PCIBusDevice *pbdev,
+                  uint64_t data,
+                  uint8_t pcias,
+                  uint16_t len,
+                  uint64_t offset);
+    int (*pcilg)(S390PCIBusDevice *pbdev,
+                 uint64_t *data,
+                 uint8_t pcias,
+                 uint16_t len,
+                 uint64_t offset);
+    int (*pcistb)(S390PCIBusDevice *pbdev,
+                  S390CPU *cpu,
+                  uint64_t gaddr,
+                  uint8_t ar,
+                  uint8_t pcias,
+                  uint16_t len,
+                  uint64_t offset);
+} ZpciOps;
+
 struct S390PCIBusDevice {
     DeviceState qdev;
     PCIDevice *pdev;
@@ -350,6 +370,8 @@ struct S390PCIBusDevice {
     MemoryRegion msix_notify_mr;
     IndAddr *summary_ind;
     IndAddr *indicator;
+    ZpciOps ops;
+    uint8_t *pcistb_buf;
     bool pci_unplug_request_processed;
     bool unplug_requested;
     QTAILQ_ENTRY(S390PCIBusDevice) link;
