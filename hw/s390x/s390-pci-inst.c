@@ -795,9 +795,11 @@ static int pcistb_default(S390PCIBusDevice *pbdev, S390CPU *cpu,
     mr = s390_get_subregion(mr, offset, len);
     offset -= mr->addr;
 
-    if (!memory_region_access_valid(mr, offset, len, true,
-                                    MEMTXATTRS_UNSPECIFIED)) {
-        return -EINVAL;
+    for (i = 0; i < len / 8; i++) {
+        if (!memory_region_access_valid(mr, offset + i * 8, 8, true,
+                                        MEMTXATTRS_UNSPECIFIED)) {
+            return -EINVAL;
+        }
     }
 
     if (s390_cpu_virt_mem_read(cpu, gaddr, ar, pbdev->pcistb_buf, len)) {
