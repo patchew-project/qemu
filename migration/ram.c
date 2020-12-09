@@ -56,6 +56,11 @@
 #include "savevm.h"
 #include "qemu/iov.h"
 #include "multifd.h"
+#include "sysemu/runstate.h"
+
+#ifdef CONFIG_LINUX
+#include "qemu/userfaultfd.h"
+#endif
 
 /***********************************************************/
 /* ram save/restore */
@@ -298,6 +303,8 @@ struct RAMSrcPageRequest {
 struct RAMState {
     /* QEMUFile used for this migration */
     QEMUFile *f;
+    /* UFFD file descriptor, used in 'write-tracking' migration */
+    int uffdio_fd;
     /* Last block that we have visited searching for dirty pages */
     RAMBlock *last_seen_block;
     /* Last block from where we have sent data */
@@ -1434,6 +1441,40 @@ static RAMBlock *unqueue_page(RAMState *rs, ram_addr_t *offset)
     return block;
 }
 
+#ifdef CONFIG_LINUX
+/**
+ * poll_fault_page: try to get next UFFD write fault page and, if pending fault
+ *   is found, return RAM block pointer and page offset
+ *
+ * Returns pointer to the RAMBlock containing faulting page,
+ *   NULL if no write faults are pending
+ *
+ * @rs: current RAM state
+ * @offset: page offset from the beginning of the block
+ */
+static RAMBlock *poll_fault_page(RAMState *rs, ram_addr_t *offset)
+{
+    struct uffd_msg uffd_msg;
+    void *page_address;
+    RAMBlock *bs;
+    int res;
+
+    if (!migrate_background_snapshot()) {
+        return NULL;
+    }
+
+    res = uffd_read_events(rs->uffdio_fd, &uffd_msg, 1);
+    if (res <= 0) {
+        return NULL;
+    }
+
+    page_address = (void *) uffd_msg.arg.pagefault.address;
+    bs = qemu_ram_block_from_host(page_address, false, offset);
+    assert(bs && (bs->flags & RAM_UF_WRITEPROTECT) != 0);
+    return bs;
+}
+#endif /* CONFIG_LINUX */
+
 /**
  * get_queued_page: unqueue a page from the postcopy requests
  *
@@ -1472,6 +1513,16 @@ static bool get_queued_page(RAMState *rs, PageSearchStatus *pss)
         }
 
     } while (block && !dirty);
+
+#ifdef CONFIG_LINUX
+    if (!block) {
+        /*
+         * Poll write faults too if background snapshot is enabled; that's
+         * when we have vcpus got blocked by the write protected pages.
+         */
+        block = poll_fault_page(rs, &offset);
+    }
+#endif /* CONFIG_LINUX */
 
     if (block) {
         /*
@@ -1747,6 +1798,53 @@ static int ram_save_host_page(RAMState *rs, PageSearchStatus *pss,
 }
 
 /**
+ * ram_save_host_page_pre: ram_save_host_page() pre-notifier
+ *
+ * @rs: current RAM state
+ * @pss: page-search-status structure
+ * @opaque: pointer to receive opaque context value
+ */
+static inline
+void ram_save_host_page_pre(RAMState *rs, PageSearchStatus *pss, void **opaque)
+{
+    *(unsigned long *) opaque = pss->page;
+}
+
+/**
+ * ram_save_host_page_post: ram_save_host_page() post-notifier
+ *
+ * @rs: current RAM state
+ * @pss: page-search-status structure
+ * @opaque: opaque context value
+ * @res_override: pointer to the return value of ram_save_host_page(),
+ *   overwritten in case of an error
+ */
+static void ram_save_host_page_post(RAMState *rs, PageSearchStatus *pss,
+        void *opaque, int *res_override)
+{
+#ifdef CONFIG_LINUX
+    /* Check if page is from UFFD-managed region. */
+    if (pss->block->flags & RAM_UF_WRITEPROTECT) {
+        unsigned long page_from = (unsigned long) opaque;
+
+        void *page_address = pss->block->host + (page_from << TARGET_PAGE_BITS);
+        uint64_t run_length = (pss->page - page_from + 1) << TARGET_PAGE_BITS;
+        int res;
+
+        /* Flush async buffers before un-protect. */
+        qemu_fflush(rs->f);
+        /* Un-protect memory range. */
+        res = uffd_change_protection(rs->uffdio_fd, page_address, run_length,
+                false, false);
+        /* We don't want to override existing error from ram_save_host_page(). */
+        if (res < 0 && *res_override >= 0) {
+            *res_override = res;
+        }
+    }
+#endif /* CONFIG_LINUX */
+}
+
+/**
  * ram_find_and_save_block: finds a dirty page and sends it to f
  *
  * Called within an RCU critical section.
@@ -1790,7 +1888,11 @@ static int ram_find_and_save_block(RAMState *rs, bool last_stage)
         }
 
         if (found) {
+            void *opaque;
+
+            ram_save_host_page_pre(rs, &pss, &opaque);
             pages = ram_save_host_page(rs, &pss, last_stage);
+            ram_save_host_page_post(rs, &pss, opaque, &pages);
         }
     } while (!pages && again);
 
@@ -3794,7 +3896,14 @@ static int ram_resume_prepare(MigrationState *s, void *opaque)
  */
 bool ram_write_tracking_available(void)
 {
-    /* TODO: implement */
+#ifdef CONFIG_LINUX
+    uint64_t uffd_features;
+    int res;
+
+    res = uffd_query_features(&uffd_features);
+    return (res == 0 &&
+            (uffd_features & UFFD_FEATURE_PAGEFAULT_FLAG_WP) != 0);
+#endif
     return false;
 }
 
@@ -3805,8 +3914,146 @@ bool ram_write_tracking_available(void)
  */
 bool ram_write_tracking_compatible(void)
 {
-    /* TODO: implement */
+#ifdef CONFIG_LINUX
+    const uint64_t uffd_ioctls_mask = BIT(_UFFDIO_WRITEPROTECT);
+    int uffd_fd;
+    RAMBlock *bs;
+    bool ret = false;
+
+    /* Open UFFD file descriptor */
+    uffd_fd = uffd_create_fd(UFFD_FEATURE_PAGEFAULT_FLAG_WP, false);
+    if (uffd_fd < 0) {
+        return false;
+    }
+
+    RCU_READ_LOCK_GUARD();
+
+    RAMBLOCK_FOREACH_NOT_IGNORED(bs) {
+        uint64_t uffd_ioctls;
+
+        /* Nothing to do with read-only and MMIO-writable regions */
+        if (bs->mr->readonly || bs->mr->rom_device) {
+            continue;
+        }
+        /* Try to register block memory via UFFD-IO to track writes */
+        if (uffd_register_memory(uffd_fd, bs->host, bs->max_length,
+                UFFDIO_REGISTER_MODE_WP, &uffd_ioctls)) {
+            goto out;
+        }
+        if ((uffd_ioctls & uffd_ioctls_mask) != uffd_ioctls_mask) {
+            goto out;
+        }
+    }
+    ret = true;
+
+out:
+    uffd_close_fd(uffd_fd);
+    return ret;
+#endif
     return false;
+}
+
+/*
+ * ram_write_tracking_start: start UFFD-WP memory tracking
+ *
+ * Returns 0 for success or negative value in case of error
+ */
+int ram_write_tracking_start(void)
+{
+#ifdef CONFIG_LINUX
+    int uffd_fd;
+    RAMState *rs = ram_state;
+    RAMBlock *bs;
+
+    /* Open UFFD file descriptor */
+    uffd_fd = uffd_create_fd(UFFD_FEATURE_PAGEFAULT_FLAG_WP, true);
+    if (uffd_fd < 0) {
+        return uffd_fd;
+    }
+    rs->uffdio_fd = uffd_fd;
+
+    RCU_READ_LOCK_GUARD();
+
+    RAMBLOCK_FOREACH_NOT_IGNORED(bs) {
+        /* Nothing to do with read-only and MMIO-writable regions */
+        if (bs->mr->readonly || bs->mr->rom_device) {
+            continue;
+        }
+
+        /* Register block memory with UFFD to track writes */
+        if (uffd_register_memory(rs->uffdio_fd, bs->host,
+                bs->max_length, UFFDIO_REGISTER_MODE_WP, NULL)) {
+            goto fail;
+        }
+        /* Apply UFFD write protection to the block memory range */
+        if (uffd_change_protection(rs->uffdio_fd, bs->host,
+                bs->max_length, true, false)) {
+            goto fail;
+        }
+        bs->flags |= RAM_UF_WRITEPROTECT;
+        memory_region_ref(bs->mr);
+
+        trace_ram_write_tracking_ramblock_start(bs->idstr, bs->page_size,
+                bs->host, bs->max_length);
+    }
+
+    return 0;
+
+fail:
+    error_report("ram_write_tracking_start() failed: restoring initial memory state");
+
+    RAMBLOCK_FOREACH_NOT_IGNORED(bs) {
+        if ((bs->flags & RAM_UF_WRITEPROTECT) == 0) {
+            continue;
+        }
+        /*
+         * In case some memory block failed to be write-protected
+         * remove protection and unregister all succeeded RAM blocks
+         */
+        uffd_change_protection(rs->uffdio_fd, bs->host, bs->max_length, false, false);
+        uffd_unregister_memory(rs->uffdio_fd, bs->host, bs->max_length);
+        /* Cleanup flags and remove reference */
+        bs->flags &= ~RAM_UF_WRITEPROTECT;
+        memory_region_unref(bs->mr);
+    }
+
+    uffd_close_fd(uffd_fd);
+#endif /* CONFIG_LINUX */
+    rs->uffdio_fd = -1;
+    return -1;
+}
+
+/**
+ * ram_write_tracking_stop: stop UFFD-WP memory tracking and remove protection
+ */
+void ram_write_tracking_stop(void)
+{
+#ifdef CONFIG_LINUX
+    RAMState *rs = ram_state;
+    RAMBlock *bs;
+
+    RCU_READ_LOCK_GUARD();
+
+    RAMBLOCK_FOREACH_NOT_IGNORED(bs) {
+        if ((bs->flags & RAM_UF_WRITEPROTECT) == 0) {
+            continue;
+        }
+        /* Remove protection and unregister all affected RAM blocks */
+        uffd_change_protection(rs->uffdio_fd, bs->host, bs->max_length, false, false);
+        uffd_unregister_memory(rs->uffdio_fd, bs->host, bs->max_length);
+
+        trace_ram_write_tracking_ramblock_stop(bs->idstr, bs->page_size,
+                bs->host, bs->max_length);
+
+        /* Cleanup flags and remove reference */
+        bs->flags &= ~RAM_UF_WRITEPROTECT;
+        memory_region_unref(bs->mr);
+    }
+
+    /* Finally close UFFD file descriptor */
+    uffd_close_fd(rs->uffdio_fd);
+    rs->uffdio_fd = -1;
+#endif /* CONFIG_LINUX */
 }
 
 static SaveVMHandlers savevm_ram_handlers = {
