@@ -337,6 +337,59 @@ int s390_pci_get_zpci_io_region(S390PCIBusDevice *pbdev)
     return ret;
 }
 
+int s390_pci_vfio_pcilg(S390PCIBusDevice *pbdev, uint64_t *data, uint8_t pcias,
+                        uint16_t len, uint64_t offset)
+{
+    struct vfio_region_zpci_io *region = pbdev->io_region;
+    VFIOPCIDevice *vfio_pci;
+    int ret;
+
+    if (region == NULL) {
+        return -EIO;
+    }
+
+    vfio_pci = container_of(pbdev->pdev, VFIOPCIDevice, pdev);
+
+    /* Perform Length/Alignment checks */
+    switch (pcias) {
+    case ZPCI_IO_BAR_MIN...ZPCI_IO_BAR_MAX:
+        if (!len || (len > (8 - (offset & 0x7)))) {
+            return -EINVAL;
+        }
+        region->req.gaddr = (uint64_t)data;
+        region->req.offset = offset;
+        region->req.len = len;
+        region->req.pcias = pcias;
+        region->req.flags = VFIO_ZPCI_IO_FLAG_READ;
+
+        ret = pwrite(vfio_pci->vbasedev.fd, &region->req,
+                     sizeof(struct vfio_zpci_io_req),
+                     pbdev->io_region_op_offset);
+        if (ret != sizeof(struct vfio_zpci_io_req)) {
+            ret = -EIO;
+        } else {
+            ret = 0;
+        }
+        break;
+    case ZPCI_CONFIG_BAR:
+        if (!len || (len > (4 - (offset & 0x3))) || len == 3) {
+            return -EINVAL;
+        }
+        *data = pci_host_config_read_common(
+                       pbdev->pdev, offset, pci_config_size(pbdev->pdev), len);
+
+        if (zpci_endian_swap(data, len)) {
+            ret = -EINVAL;
+        }
+        ret = 0;
+        break;
+    default:
+        return -EFAULT;
+    }
+
+    return ret;
+}
+
 int s390_pci_vfio_pcistb(S390PCIBusDevice *pbdev, S390CPU *cpu, uint64_t gaddr,
                          uint8_t ar, uint8_t pcias, uint16_t len,
                          uint64_t offset)
