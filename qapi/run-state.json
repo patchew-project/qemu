@@ -329,6 +329,94 @@
             'inject-nmi' ] }
 
 ##
+# @RunStateEventType:
+#
+# An enumeration of Run State event types
+#
+# @reboot: Guest reboot
+#
+# @shutdown: Guest shutdown
+#
+# @watchdog: A watchdog device's timer has expired
+#
+# Since: 6.0
+##
+{ 'enum': 'RunStateEventType',
+  'data': [ 'reboot', 'shutdown', 'watchdog' ] }
+
+##
+# @RunStateAction:
+#
+# Describes a guest event and the subsequent action that is taken
+# by QEMU when such event takes place.
+#
+# Since: 6.0
+##
+{ 'union': 'RunStateAction',
+  'base': { 'event': 'RunStateEventType' },
+  'discriminator': 'event',
+  'data': {
+    'reboot': 'RunStateRebootAction',
+    'shutdown': 'RunStateShutdownAction',
+    'watchdog': 'RunStateWatchdogAction' } }
+
+##
+# @RunStateRebootAction:
+#
+# @action: Action taken by QEMU when guest reboots
+#
+# Since: 6.0
+##
+{ 'struct': 'RunStateRebootAction',
+  'data': { 'action': 'RebootAction' } }
+
+##
+# @RebootAction:
+#
+# Possible QEMU actions upon guest reboot
+#
+# @none: Reset the VM
+#
+# @shutdown: Shutdown the VM and exit
+#
+# Since: 6.0
+##
+{ 'enum': 'RebootAction',
+  'data': [ 'none', 'shutdown' ] }
+
+##
+# @RunStateShutdownAction:
+#
+# @action: Action taken by QEMU when guest shuts down
+#
+# Since: 6.0
+##
+{ 'struct': 'RunStateShutdownAction',
+  'data': { 'action': 'ShutdownAction' } }
+
+##
+# @ShutdownAction:
+#
+# @pause: pause the VM
+#
+# @poweroff: Shutdown the VM and exit
+#
+# Since: 6.0
+##
+{ 'enum': 'ShutdownAction',
+  'data': [ 'pause', 'poweroff' ] }
+
+##
+# @RunStateWatchdogAction:
+#
+# @action: Action taken by QEMU when watchdog device timer expires
+#
+# Since: 6.0
+##
+{ 'struct': 'RunStateWatchdogAction',
+  'data': { 'action': 'WatchdogAction' } }
+
+##
 # @watchdog-set-action:
 #
 # Set watchdog action
