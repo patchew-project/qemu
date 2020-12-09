@@ -17,6 +17,7 @@
 #include "trace.h"
 #include "hw/s390x/s390-pci-bus.h"
 #include "hw/s390x/s390-pci-clp.h"
+#include "hw/s390x/s390-pci-inst.h"
 #include "hw/s390x/s390-pci-vfio.h"
 #include "hw/vfio/pci.h"
 #include "hw/vfio/vfio-common.h"
@@ -276,4 +277,111 @@ retry:
     s390_pci_read_pfip(pbdev, info);
 
     return;
+}
+
+/*
+ * This function will look for the VFIO_REGION_SUBTYPE_IBM_ZPCI_IO vfio
+ * device region, which is used for performing block I/O operations.
+ */
+int s390_pci_get_zpci_io_region(S390PCIBusDevice *pbdev)
+{
+    VFIOPCIDevice *vfio_pci;
+    VFIODevice *vdev;
+    struct vfio_region_info *info;
+    int ret;
+
+    vfio_pci = container_of(pbdev->pdev, VFIOPCIDevice, pdev);
+    vdev = &vfio_pci->vbasedev;
+
+    if (vdev->num_regions < VFIO_PCI_NUM_REGIONS + 1) {
+        return -ENOENT;
+    }
+
+    /* Get the I/O region if it's available */
+    if (vfio_get_dev_region_info(vdev,
+                                 PCI_VENDOR_ID_IBM |
+                                 VFIO_REGION_TYPE_PCI_VENDOR_TYPE,
+                                 VFIO_REGION_SUBTYPE_IBM_ZPCI_IO, &info)) {
+        return -ENOENT;
+    }
+
+    /* If the size is unexpectedly small, don't use the region */
+    if (sizeof(*pbdev->io_region) > info->size) {
+        return -EINVAL;
+    }
+
+    pbdev->io_region = g_malloc0(info->size);
+
+    /* Check the header for setup information */
+    ret = pread(vfio_pci->vbasedev.fd, &pbdev->io_region->hdr,
+                sizeof(struct vfio_zpci_io_hdr), info->offset);
+    if (ret != sizeof(struct vfio_zpci_io_hdr)) {
+        g_free(pbdev->io_region);
+        pbdev->io_region = 0;
+        ret = -EINVAL;
+    } else {
+        pbdev->io_region_op_offset = info->offset +
+                                     offsetof(struct vfio_region_zpci_io, req);
+        /* All devices in this group will use the I/O region for PCISTB */
+        pbdev->pci_group->zpci_group.maxstbl = MIN(PAGE_SIZE,
+                                               pbdev->io_region->hdr.max);
+        ret = 0;
+    }
+    g_free(info);
+
+    /* Register the new handlers for the device if region available */
+    if (pbdev->io_region) {
+        zpci_assign_ops_vfio_io_region(pbdev);
+    }
+
+    return ret;
+}
+
+int s390_pci_vfio_pcistb(S390PCIBusDevice *pbdev, S390CPU *cpu, uint64_t gaddr,
+                         uint8_t ar, uint8_t pcias, uint16_t len,
+                         uint64_t offset)
+{
+    struct vfio_region_zpci_io *region = pbdev->io_region;
+    VFIOPCIDevice *vfio_pci;
+    uint8_t *buffer;
+    int ret;
+
+    if (region == NULL) {
+        return -EIO;
+    }
+
+    vfio_pci = container_of(pbdev->pdev, VFIOPCIDevice, pdev);
+
+    /*
+     * We've already ensured the input can be no larger than a page.  PCISTB
+     * requires that the operation payload does not cross a page boundary,
+     * otherwise the operation will be rejected.  Therefore, just get a single
+     * page for the write.
+     */
+    buffer = qemu_memalign(PAGE_SIZE, PAGE_SIZE);
+
+    if (s390_cpu_virt_mem_read(cpu, gaddr, ar, buffer, len)) {
+        ret = -EACCES;
+        goto out;
+    }
+
+    region->req.gaddr = (uint64_t)buffer;
+    region->req.offset = offset;
+    region->req.len = len;
+    region->req.pcias = pcias;
+    region->req.flags = VFIO_ZPCI_IO_FLAG_BLOCKW;
+
+    ret = pwrite(vfio_pci->vbasedev.fd, &region->req,
+                 sizeof(struct vfio_zpci_io_req),
+                 pbdev->io_region_op_offset);
+    if (ret != sizeof(struct vfio_zpci_io_req)) {
+        ret = -EIO;
+    } else {
+        ret = 0;
+    }
+
+out:
+    qemu_vfree(buffer);
+
+    return ret;
 }

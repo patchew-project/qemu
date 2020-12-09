@@ -355,6 +355,8 @@ struct S390PCIBusDevice {
     uint32_t fh;
     uint32_t fid;
     bool fid_defined;
+    uint64_t io_region_op_offset;
+    struct vfio_region_zpci_io *io_region;
     uint64_t fmb_addr;
     ZpciFmb fmb;
     QEMUTimer *fmb_timer;

@@ -977,6 +977,7 @@ static void s390_pcihost_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     S390pciState *s = S390_PCI_HOST_BRIDGE(hotplug_dev);
     PCIDevice *pdev = NULL;
     S390PCIBusDevice *pbdev = NULL;
+    int ret;
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_BRIDGE)) {
         PCIBridge *pb = PCI_BRIDGE(dev);
@@ -1027,6 +1028,20 @@ static void s390_pcihost_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
             pbdev->iommu->dma_limit = s390_pci_start_dma_count(s, pbdev);
             /* Fill in CLP information passed via the vfio region */
             s390_pci_get_clp_info(pbdev);
+
+            /*
+             * For a relaxed-alignment device, setup the special I/O region
+             * if available.  Otherwise, the device cannot be passed through.
+             */
+            ret = 0;
+            if (pbdev->pci_group->zpci_group.fr & CLP_RSP_QPCIG_MASK_RELAXED) {
+                ret = s390_pci_get_zpci_io_region(pbdev);
+            }
+            if (ret) {
+                error_setg(errp, "vfio zPCI I/O region support is mandatory "
+                           "for %02x:%02x.%01x", pci_dev_bus_num(pdev),
+                           PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
+            }
         } else {
             pbdev->fh |= FH_SHM_EMUL;
 
