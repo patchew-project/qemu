@@ -11,9 +11,9 @@ for debugging, profiling, and observing execution.
 Quickstart
 ==========
 
-1. Build with the 'simple' trace backend::
+1. Build with the 'log' trace backend::
 
-    ./configure --enable-trace-backends=simple
+    ./configure --enable-trace-backends=log
     make
 
 2. Create a file with the events you want to trace::
@@ -23,10 +23,6 @@ Quickstart
 3. Run the virtual machine to produce a trace file::
 
     qemu --trace events=/tmp/events ... # your normal QEMU invocation
-
-4. Pretty-print the binary trace file::
-
-    ./scripts/simpletrace.py trace-events-all trace-* # Override * with QEMU <pid>
 
 Trace events
 ============
@@ -195,7 +191,7 @@ script.
 
 The trace backends are chosen at configure time::
 
-    ./configure --enable-trace-backends=simple
+    ./configure --enable-trace-backends=log
 
 For a list of supported trace backends, try ./configure --help or see below.
 If multiple backends are enabled, the trace is sent to them all.
@@ -227,10 +223,11 @@ uses DPRINTF().
 Simpletrace
 -----------
 
-The "simple" backend supports common use cases and comes as part of the QEMU
-source tree.  It may not be as powerful as platform-specific or third-party
-trace backends but it is portable.  This is the recommended trace backend
-unless you have specific needs for more advanced backends.
+The "simple" backend writes binary trace logs to a file from a thread, making
+it lower overhead than the "log" backend. A Python API is available for writing
+offline trace file analysis scripts. It may not be as powerful as
+platform-specific or third-party trace backends but it is portable and has no
+special library dependencies.
 
 Monitor commands
 ~~~~~~~~~~~~~~~~
