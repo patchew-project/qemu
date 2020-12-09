@@ -16,6 +16,7 @@
 
 #include "hw/core/cpu.h"
 #include "tests/qtest/libqos/libqtest.h"
+#include "tests/qtest/libqos/pci-pc.h"
 #include "fuzz.h"
 #include "fork_fuzz.h"
 #include "exec/address-spaces.h"
@@ -762,6 +763,22 @@ static int locate_fuzz_objects(Object *child, void *opaque)
     return 0;
 }
 
+
+static void pci_enum(gpointer pcidev, gpointer bus)
+{
+    PCIDevice *dev = pcidev;
+    QPCIDevice *qdev;
+
+    qdev = qpci_device_find(bus, dev->devfn);
+    g_assert(qdev != NULL);
+    for (int i = 0; i < 6; i++) {
+        if (dev->io_regions[i].size) {
+            qpci_iomap(qdev, i, NULL);
+        }
+    }
+    qpci_device_enable(qdev);
+}
+
 static void generic_pre_fuzz(QTestState *s)
 {
     GHashTableIter iter;
@@ -809,6 +826,12 @@ static void generic_pre_fuzz(QTestState *s)
         printf("No fuzzable memory regions found...\n");
         exit(1);
     }
+
+    QPCIBus *pcibus;
+
+    pcibus = qpci_new_pc(s, NULL);
+    g_ptr_array_foreach(fuzzable_pci_devices, pci_enum, pcibus);
+    qpci_free_pc(pcibus);
 
     counter_shm_init();
 }
