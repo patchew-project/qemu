@@ -156,6 +156,9 @@ static void s390_pci_read_group(S390PCIBusDevice *pbdev,
         if (cap->flags & VFIO_DEVICE_INFO_ZPCI_FLAG_REFRESH) {
             resgrp->fr = 1;
         }
+        if (cap->flags & VFIO_DEVICE_INFO_ZPCI_FLAG_RELAXED) {
+            resgrp->fr |= CLP_RSP_QPCIG_MASK_RELAXED;
+        }
         resgrp->dasm = cap->dasm;
         resgrp->msia = cap->msi_addr;
         resgrp->mui = cap->mui;

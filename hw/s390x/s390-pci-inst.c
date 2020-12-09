@@ -868,23 +868,29 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
         return 0;
     }
 
-    /* Verify the address, offset and length */
-    /* offset must be a multiple of 8 */
-    if (offset % 8) {
-        goto specification_error;
-    }
-    /* Length must be greater than 8, a multiple of 8 */
-    /* and not greater than maxstbl */
-    if ((len <= 8) || (len % 8) ||
-        (len > pbdev->pci_group->zpci_group.maxstbl)) {
-        goto specification_error;
+    /*
+     * If the specified device supports relaxed alignment, some checks can
+     * be skipped.
+     */
+    if (!(pbdev->pci_group->zpci_group.fr & CLP_RSP_QPCIG_MASK_RELAXED)) {
+        /* Verify the address, offset and length */
+        /* offset must be a multiple of 8 */
+        if (offset % 8) {
+            goto specification_error;
+        }
+        /* Length must be greater than 8, a multiple of 8 */
+        /* and not greater than maxstbl */
+        if ((len <= 8) || (len % 8) ||
+            (len > pbdev->pci_group->zpci_group.maxstbl)) {
+            goto specification_error;
+        }
+        /* Guest address must be double word aligned */
+        if (gaddr & 0x07UL) {
+            goto specification_error;
+        }
     }
     /* Do not cross a 4K-byte boundary */
     if (((offset & 0xfff) + len) > 0x1000) {
-        goto specification_error;
-    }
-    /* Guest address must be double word aligned */
-    if (gaddr & 0x07UL) {
         goto specification_error;
     }
 
