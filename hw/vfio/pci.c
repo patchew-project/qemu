@@ -568,6 +568,9 @@ static void vfio_msix_vector_release(PCIDevice *pdev, unsigned int nr)
 
 static void vfio_msix_enable(VFIOPCIDevice *vdev)
 {
+    int max_unmasked_vector = msix_get_max_unmasked_vector(&vdev->pdev);
+    unsigned int used_vector = MAX(max_unmasked_vector, 0);
+
     vfio_disable_interrupts(vdev);
 
     vdev->msi_vectors = g_new0(VFIOMSIVector, vdev->msix->entries);
@@ -586,9 +589,12 @@ static void vfio_msix_enable(VFIOPCIDevice *vdev)
      * triggering to userspace, then immediately release the vector, leaving
      * the physical device with no vectors enabled, but MSI-X enabled, just
      * like the guest view.
+     * If there are unmasked vectors (such as in migration) which will be
+     * enabled soon, we can allocate them here to avoid ineffectively disabling
+     * and enabling vectors repeatedly later.
      */
-    vfio_msix_vector_do_use(&vdev->pdev, 0, NULL, NULL);
-    vfio_msix_vector_release(&vdev->pdev, 0);
+    vfio_msix_vector_do_use(&vdev->pdev, used_vector, NULL, NULL);
+    vfio_msix_vector_release(&vdev->pdev, used_vector);
 
     if (msix_set_vector_notifiers(&vdev->pdev, vfio_msix_vector_use,
                                   vfio_msix_vector_release, NULL)) {

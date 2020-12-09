@@ -23,6 +23,8 @@ void msix_uninit_exclusive_bar(PCIDevice *dev);
 
 unsigned int msix_nr_vectors_allocated(const PCIDevice *dev);
 
+int msix_get_max_unmasked_vector(PCIDevice *dev);
+
 void msix_save(PCIDevice *dev, QEMUFile *f);
 void msix_load(PCIDevice *dev, QEMUFile *f);
 

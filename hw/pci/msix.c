@@ -557,6 +557,23 @@ unsigned int msix_nr_vectors_allocated(const PCIDevice *dev)
     return dev->msix_entries_nr;
 }
 
+int msix_get_max_unmasked_vector(PCIDevice *dev)
+{
+    int max_unmasked_vector = -1;
+    int vector;
+
+    if ((dev->config[dev->msix_cap + MSIX_CONTROL_OFFSET] &
+        (MSIX_ENABLE_MASK | MSIX_MASKALL_MASK)) == MSIX_ENABLE_MASK) {
+        for (vector = 0; vector < dev->msix_entries_nr; vector++) {
+            if (!msix_is_masked(dev, vector)) {
+                max_unmasked_vector = vector;
+            }
+        }
+    }
+
+    return max_unmasked_vector;
+}
+
 static int msix_set_notifier_for_vector(PCIDevice *dev, unsigned int vector)
 {
     MSIMessage msg;
