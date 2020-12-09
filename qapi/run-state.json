@@ -451,6 +451,28 @@
 { 'command': 'watchdog-set-action', 'data' : {'action': 'WatchdogAction'} }
 
 ##
+# @set-action:
+#
+# Set the action that will be taken by the emulator in response to a guest
+# event.
+#
+# @pair: a @RunStateAction type that describes an event|action pair.
+#
+# Returns: Nothing on success.
+#
+# Since: 6.0
+#
+# Example:
+#
+# -> { "execute": "set-action",
+#         "arguments": { "pair": {
+#             "event": "shutdown",
+#             "action": "pause" } } }
+# <- { "return": {} }
+##
+{ 'command': 'set-action', 'data' : {'pair': 'RunStateAction'} }
+
+##
 # @GUEST_PANICKED:
 #
 # Emitted when guest OS panic is detected

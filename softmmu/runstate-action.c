@@ -80,6 +80,35 @@ static void panic_set_action(PanicAction action, Error **errp)
 }
 
 /*
+ * Receives a RunStateAction type which represents an event|action pair
+ * and sets the internal state as requested.
+ */
+void qmp_set_action(RunStateAction *pair, Error **errp)
+{
+    switch (pair->event) {
+    case RUN_STATE_EVENT_TYPE_REBOOT:
+        reboot_set_action(pair->u.reboot.action, NULL);
+        break;
+    case RUN_STATE_EVENT_TYPE_SHUTDOWN:
+        shutdown_set_action(pair->u.shutdown.action, NULL);
+        break;
+    case RUN_STATE_EVENT_TYPE_PANIC:
+        panic_set_action(pair->u.panic.action, NULL);
+        break;
+    case RUN_STATE_EVENT_TYPE_WATCHDOG:
+        qmp_watchdog_set_action(pair->u.watchdog.action, NULL);
+        break;
+    default:
+        /*
+         * The fields in the RunStateAction argument are validated
+         * by the QMP marshalling code before this function is called.
+         * This case is unreachable unless new variants are added.
+         */
+        g_assert_not_reached();
+    }
+}
+
+/*
  * Process an event|action pair and set the appropriate internal
  * state if event and action are valid.
  */
