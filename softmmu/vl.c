@@ -2558,7 +2558,7 @@ static bool object_create_initial(const char *type, QemuOpts *opts)
     }
 
     /* Memory allocation by backends needs to be done
-     * after configure_accelerator() (due to the tcg_enabled()
+     * after do_configure_accelerator() (due to the tcg_enabled()
      * checks at memory_region_init_*()).
      *
      * Also, allocation of large amounts of memory may delay
@@ -4186,7 +4186,7 @@ void qemu_init(int argc, char **argv, char **envp)
      *
      * Machine compat properties: object_set_machine_compat_props().
      * Accelerator compat props: object_set_accelerator_compat_props(),
-     * called from configure_accelerator().
+     * called from do_configure_accelerator().
      */
 
     if (!qtest_enabled() && machine_class->deprecation_reason) {
@@ -4321,6 +4321,8 @@ void qemu_init(int argc, char **argv, char **envp)
     if (cpu_option) {
         current_machine->cpu_type = parse_cpu_option(cpu_option);
     }
+    /* NB: for machine none cpu_type could STILL be NULL here! */
+    accel_init_interfaces(ACCEL_GET_CLASS(current_machine->accelerator));
 
     if (current_machine->ram_memdev_id) {
         Object *backend;
