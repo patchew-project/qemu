@@ -3622,9 +3622,11 @@ void GCC_FMT_ATTR(2, 3) virtio_error(VirtIODevice *vdev, const char *fmt, ...)
 {
     va_list ap;
 
-    va_start(ap, fmt);
-    error_vreport(fmt, ap);
-    va_end(ap);
+    if (qemu_loglevel_mask(LOG_GUEST_ERROR)) {
+        va_start(ap, fmt);
+        error_vreport(fmt, ap);
+        va_end(ap);
+    }
 
     if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
         vdev->status = vdev->status | VIRTIO_CONFIG_S_NEEDS_RESET;
