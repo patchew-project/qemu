@@ -122,13 +122,7 @@ int audio_bug (const char *funcname, int cond)
 
 #if defined AUDIO_BREAKPOINT_ON_BUG
 #  if defined HOST_I386
-#    if defined __GNUC__
-        __asm__ ("int3");
-#    elif defined _MSC_VER
-        _asm _emit 0xcc;
-#    else
-        abort ();
-#    endif
+      __asm__ ("int3");
 #  else
         abort ();
 #  endif
