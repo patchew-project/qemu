@@ -11,6 +11,7 @@
 #define TCG_CPU_OPS_H
 
 #include "hw/core/cpu.h"
+#include "exec/memattrs.h"
 
 /**
  * struct TcgCpuOperations: TCG operations specific to a CPU class
@@ -40,6 +41,15 @@ typedef struct TcgCpuOperations {
     bool (*cpu_exec_interrupt)(CPUState *cpu, int interrupt_request);
     /** @do_interrupt: Callback for interrupt handling. */
     void (*do_interrupt)(CPUState *cpu);
+
+    /**
+     * @do_transaction_failed: Callback for handling failed memory transactions
+     * (ie bus faults or external aborts; not MMU faults)
+     */
+    void (*do_transaction_failed)(CPUState *cpu, hwaddr physaddr, vaddr addr,
+                                  unsigned size, MMUAccessType access_type,
+                                  int mmu_idx, MemTxAttrs attrs,
+                                  MemTxResult response, uintptr_t retaddr);
 
     /**
      * @tlb_fill: Handle a softmmu tlb miss or user-only address fault
