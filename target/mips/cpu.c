@@ -234,7 +234,6 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
 
     cc->class_by_name = mips_cpu_class_by_name;
     cc->has_work = mips_cpu_has_work;
-    cc->do_interrupt = mips_cpu_do_interrupt;
     cc->dump_state = mips_cpu_dump_state;
     cc->set_pc = mips_cpu_set_pc;
     cc->gdb_read_register = mips_cpu_gdb_read_register;
@@ -251,7 +250,10 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
     cc->tcg_ops.cpu_exec_interrupt = mips_cpu_exec_interrupt;
     cc->tcg_ops.synchronize_from_tb = mips_cpu_synchronize_from_tb;
     cc->tcg_ops.tlb_fill = mips_cpu_tlb_fill;
-#endif
+#ifndef CONFIG_USER_ONLY
+    cc->tcg_ops.do_interrupt = mips_cpu_do_interrupt;
+#endif /* CONFIG_USER_ONLY */
+#endif /* CONFIG_TCG */
 
     cc->gdb_num_core_regs = 73;
     cc->gdb_stop_before_watchpoint = true;
