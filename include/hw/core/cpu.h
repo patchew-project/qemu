@@ -76,6 +76,17 @@ typedef struct CPUWatchpoint CPUWatchpoint;
 
 struct TranslationBlock;
 
+/* see also accel-cpu.h */
+typedef struct AccelCPUClass {
+    /*< private >*/
+    ObjectClass parent_class;
+    /*< public >*/
+
+    void (*cpu_class_init)(CPUClass *cc);
+    void (*cpu_instance_init)(CPUState *cpu);
+    void (*cpu_realizefn)(CPUState *cpu, Error **errp);
+} AccelCPUClass;
+
 #ifdef CONFIG_TCG
 #include "tcg-cpu-ops.h"
 #endif /* CONFIG_TCG */
@@ -196,6 +207,8 @@ struct CPUClass {
 #ifdef CONFIG_TCG
     TcgCpuOperations tcg_ops;
 #endif /* CONFIG_TCG */
+
+    AccelCPUClass *accel_cpu_interface;
 };
 
 /*
