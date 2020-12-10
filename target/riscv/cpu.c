@@ -341,7 +341,7 @@ static void riscv_cpu_disas_set_info(CPUState *s, disassemble_info *info)
 #endif
 }
 
-static void riscv_cpu_realize(DeviceState *dev, Error **errp)
+static void riscv_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
     RISCVCPU *cpu = RISCV_CPU(dev);
@@ -486,10 +486,8 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
 
     riscv_cpu_register_gdb_regs_for_features(cs);
 
-    qemu_init_vcpu(cs);
-    cpu_reset(cs);
-
     mcc->parent_realize(dev, errp);
+    cpu_reset(cs);
 }
 
 static void riscv_cpu_init(Object *obj)
@@ -532,7 +530,7 @@ static void riscv_cpu_class_init(ObjectClass *c, void *data)
     CPUClass *cc = CPU_CLASS(c);
     DeviceClass *dc = DEVICE_CLASS(c);
 
-    device_class_set_parent_realize(dc, riscv_cpu_realize,
+    device_class_set_parent_realize(dc, riscv_cpu_realizefn,
                                     &mcc->parent_realize);
 
     device_class_set_parent_reset(dc, riscv_cpu_reset, &mcc->parent_reset);

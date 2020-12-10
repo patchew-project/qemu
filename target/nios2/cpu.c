@@ -92,10 +92,8 @@ static void nios2_cpu_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    qemu_init_vcpu(cs);
-    cpu_reset(cs);
-
     ncc->parent_realize(dev, errp);
+    cpu_reset(cs);
 }
 
 static bool nios2_cpu_exec_interrupt(CPUState *cs, int interrupt_request)

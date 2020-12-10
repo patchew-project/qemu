@@ -133,9 +133,6 @@ static void lm32_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 
     cpu_reset(cs);
-
-    qemu_init_vcpu(cs);
-
     lcc->parent_realize(dev, errp);
 }
 

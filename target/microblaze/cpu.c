@@ -145,15 +145,14 @@ static void mb_disas_set_info(CPUState *cpu, disassemble_info *info)
 
 static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    CPUState *cs = CPU(dev);
     MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_GET_CLASS(dev);
-    MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(dev);
     uint8_t version_code = 0;
     const char *version;
     int i = 0;
     Error *local_err = NULL;
 
-    cpu_exec_realizefn(cs, &local_err);
+    cpu_exec_realizefn(CPU(dev), &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         return;
@@ -165,7 +164,7 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    qemu_init_vcpu(cs);
+    mcc->parent_realize(dev, errp);
 
     version = cpu->cfg.version ? cpu->cfg.version : DEFAULT_CPU_VERSION;
     for (i = 0; mb_cpu_lookup[i].name && version; i++) {
@@ -231,8 +230,6 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
     cpu->cfg.mmu_tlb_access = 3;
     cpu->cfg.mmu_zones = 16;
     cpu->cfg.addr_mask = MAKE_64BIT_MASK(0, cpu->cfg.addr_size);
-
-    mcc->parent_realize(dev, errp);
 }
 
 static void mb_cpu_initfn(Object *obj)
