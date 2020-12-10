@@ -665,6 +665,12 @@ void cpu_list_remove(CPUState *cpu);
 void cpu_reset(CPUState *cpu);
 
 /**
+ * cpu_accel_instance_init:
+ * @cpu: The CPU that needs to do accel-specific object initializations.
+ */
+void cpu_accel_instance_init(CPUState *cpu);
+
+/**
  * cpu_class_by_name:
  * @typename: The CPU base type.
  * @cpu_model: The model string without any parameters.
