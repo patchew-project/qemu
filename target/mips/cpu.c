@@ -239,7 +239,6 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
     cc->gdb_read_register = mips_cpu_gdb_read_register;
     cc->gdb_write_register = mips_cpu_gdb_write_register;
 #ifndef CONFIG_USER_ONLY
-    cc->do_unaligned_access = mips_cpu_do_unaligned_access;
     cc->get_phys_page_debug = mips_cpu_get_phys_page_debug;
     cc->vmsd = &vmstate_mips_cpu;
 #endif
@@ -252,6 +251,8 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
 #ifndef CONFIG_USER_ONLY
     cc->tcg_ops.do_interrupt = mips_cpu_do_interrupt;
     cc->tcg_ops.do_transaction_failed = mips_cpu_do_transaction_failed;
+    cc->tcg_ops.do_unaligned_access = mips_cpu_do_unaligned_access;
+
 #endif /* CONFIG_USER_ONLY */
 #endif /* CONFIG_TCG */
 
