@@ -225,6 +225,35 @@ static void qemu_probe_lock_ops(void)
     }
 }
 
+bool qemu_has_file_lock(const char *filename)
+{
+#ifdef F_OFD_SETLK
+    int cmd = F_OFD_GETLK;
+#else
+    int cmd = F_GETLK;
+#endif
+        int fd;
+        int ret;
+        struct flock fl = {
+            .l_whence = SEEK_SET,
+            .l_start  = 0,
+            .l_len    = 0,
+            .l_type   = F_WRLCK,
+        };
+
+        fd = open(filename, O_RDWR);
+        if (fd < 0) {
+            fprintf(stderr,
+                    "Failed to open %s for OFD lock probing: %s\n",
+                    filename,
+                    strerror(errno));
+            return false;
+        }
+        ret = fcntl(fd, cmd, &fl);
+        close(fd);
+        return ret == 0;
+}
+
 bool qemu_has_ofd_lock(void)
 {
     qemu_probe_lock_ops();
