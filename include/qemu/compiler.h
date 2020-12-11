@@ -43,14 +43,11 @@
 #define tostring(s)	#s
 #endif
 
-#ifndef likely
-#if __GNUC__ < 3
-#define __builtin_expect(x, n) (x)
+#if defined(likely) || defined(unlikely)
+#error building with likely/unlikely is not supported
 #endif
-
 #define likely(x)   __builtin_expect(!!(x), 1)
 #define unlikely(x)   __builtin_expect(!!(x), 0)
-#endif
 
 #ifndef container_of
 #define container_of(ptr, type, member) ({                      \
