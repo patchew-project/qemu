@@ -633,4 +633,4 @@ void HELPER(monitor_call)(CPUS390XState *env, uint64_t monitor_code,
     }
 }
 
-#endif /* CONFIG_USER_ONLY */
+#endif /* !CONFIG_USER_ONLY */
