@@ -3401,7 +3401,7 @@ static void spapr_add_lmbs(DeviceState *dev, uint64_t addr_start, uint64_t size,
          * that doesn't overlap with any existing mapping at pre-plug. The
          * corresponding LMB DRCs are thus assumed to be all attachable.
          */
-        spapr_drc_attach(drc, dev, &error_abort);
+        spapr_drc_attach(drc, dev);
         if (!hotplugged) {
             spapr_drc_reset(drc);
         }
@@ -3769,7 +3769,7 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev)
          * core being plugged into a free slot. Nothing should already
          * be attached to the corresponding DRC.
          */
-        spapr_drc_attach(drc, dev, &error_abort);
+        spapr_drc_attach(drc, dev);
 
         if (hotplugged) {
             /*
@@ -3934,7 +3934,7 @@ static void spapr_phb_plug(HotplugHandler *hotplug_dev, DeviceState *dev)
     assert(drc);
 
     /* spapr_phb_pre_plug() already checked the DRC is attachable */
-    spapr_drc_attach(drc, dev, &error_abort);
+    spapr_drc_attach(drc, dev);
 
     if (hotplugged) {
         spapr_hotplug_req_add_by_index(drc);
