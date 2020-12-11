@@ -11,6 +11,7 @@
 #define TCG_CPU_OPS_H
 
 #include "hw/core/cpu.h"
+#include "exec/memattrs.h"
 
 /**
  * struct TcgCpuOperations: TCG operations specific to a CPU class
@@ -55,6 +56,19 @@ typedef struct TcgCpuOperations {
                      bool probe, uintptr_t retaddr);
     /** @debug_excp_handler: Callback for handling debug exceptions */
     void (*debug_excp_handler)(CPUState *cpu);
+
+#ifndef CONFIG_USER_ONLY
+    /**
+     * @do_transaction_failed: Callback for handling failed memory transactions
+     * (ie bus faults or external aborts; not MMU faults)
+     */
+    void (*do_transaction_failed)(CPUState *cpu, hwaddr physaddr, vaddr addr,
+                                  unsigned size, MMUAccessType access_type,
+                                  int mmu_idx, MemTxAttrs attrs,
+                                  MemTxResult response, uintptr_t retaddr);
+
+#endif /* !CONFIG_USER_ONLY */
+
 } TcgCpuOperations;
 
 #endif /* TCG_CPU_OPS_H */
