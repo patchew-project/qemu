@@ -898,17 +898,34 @@ static bool coroutine_fn bdrv_wait_serialising_requests(BdrvTrackedRequest *self
     return waited;
 }
 
-int bdrv_check_request(int64_t offset, int64_t bytes)
+int bdrv_check_request(int64_t offset, int64_t bytes, Error **errp)
 {
-    if (offset < 0 || bytes < 0) {
+    if (offset < 0) {
+        error_setg(errp, "offset is negative: %" PRIi64, offset);
+        return -EIO;
+    }
+
+    if (bytes < 0) {
+        error_setg(errp, "bytes is negative: %" PRIi64, bytes);
         return -EIO;
     }
 
     if (bytes > BDRV_MAX_LENGTH) {
+        error_setg(errp, "bytes(%" PRIi64 ") exceeds maximum(%" PRIi64 ")",
+                   bytes, BDRV_MAX_LENGTH);
+        return -EIO;
+    }
+
+    if (offset > BDRV_MAX_LENGTH) {
+        error_setg(errp, "offset(%" PRIi64 ") exceeds maximum(%" PRIi64 ")",
+                   offset, BDRV_MAX_LENGTH);
         return -EIO;
     }
 
     if (offset > BDRV_MAX_LENGTH - bytes) {
+        error_setg(errp, "sum of offset(%" PRIi64 ") and bytes(%" PRIi64 ") "
+                   "exceeds maximum(%" PRIi64 ")", offset, bytes,
+                   BDRV_MAX_LENGTH);
         return -EIO;
     }
 
@@ -917,7 +934,7 @@ int bdrv_check_request(int64_t offset, int64_t bytes)
 
 static int bdrv_check_request32(int64_t offset, int64_t bytes)
 {
-    int ret = bdrv_check_request(offset, bytes);
+    int ret = bdrv_check_request(offset, bytes, NULL);
     if (ret < 0) {
         return ret;
     }
@@ -2819,7 +2836,7 @@ int coroutine_fn bdrv_co_pdiscard(BdrvChild *child, int64_t offset,
         return -EPERM;
     }
 
-    ret = bdrv_check_request(offset, bytes);
+    ret = bdrv_check_request(offset, bytes, NULL);
     if (ret < 0) {
         return ret;
     }
@@ -3221,10 +3238,8 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
         return -EINVAL;
     }
 
-    ret = bdrv_check_request(offset, 0);
+    ret = bdrv_check_request(offset, 0, errp);
     if (ret < 0) {
-        error_setg(errp, "Required too big image size, it must be not greater "
-                   "than %" PRId64, BDRV_MAX_LENGTH);
         return ret;
     }
 
