@@ -269,6 +269,7 @@ typedef struct CPUARMState {
     uint32_t NF; /* N is bit 31. All other bits are undefined.  */
     uint32_t ZF; /* Z set if zero.  */
     uint32_t QF; /* 0 or 1 */
+    uint32_t DIT; /* 0 or 1 */
     uint32_t GE; /* cpsr[19:16] */
     uint32_t thumb; /* cpsr[5]. 0 = arm mode, 1 = thumb mode. */
     uint32_t condexec_bits; /* IT bits.  cpsr[15:10,26:25].  */
@@ -1233,6 +1234,7 @@ void pmu_init(ARMCPU *cpu);
 #define CPSR_IT_2_7 (0xfc00U)
 #define CPSR_GE (0xfU << 16)
 #define CPSR_IL (1U << 20)
+#define CPSR_DIT (1U << 21)
 #define CPSR_PAN (1U << 22)
 #define CPSR_J (1U << 24)
 #define CPSR_IT_0_1 (3U << 25)
@@ -1266,6 +1268,7 @@ void pmu_init(ARMCPU *cpu);
 #define XPSR_Z CPSR_Z
 #define XPSR_N CPSR_N
 #define XPSR_NZCV CPSR_NZCV
+#define XPSR_DIT CPSR_DIT
 #define XPSR_IT CPSR_IT
 
 #define TTBCR_N      (7U << 0) /* TTBCR.EAE==0 */
@@ -1300,6 +1303,7 @@ void pmu_init(ARMCPU *cpu);
 #define PSTATE_SS (1U << 21)
 #define PSTATE_PAN (1U << 22)
 #define PSTATE_UAO (1U << 23)
+#define PSTATE_DIT (1U << 24)
 #define PSTATE_TCO (1U << 25)
 #define PSTATE_V (1U << 28)
 #define PSTATE_C (1U << 29)
@@ -1374,7 +1378,8 @@ static inline uint32_t xpsr_read(CPUARMState *env)
     ZF = (env->ZF == 0);
     return (env->NF & 0x80000000) | (ZF << 30)
         | (env->CF << 29) | ((env->VF & 0x80000000) >> 3) | (env->QF << 27)
-        | (env->thumb << 24) | ((env->condexec_bits & 3) << 25)
+        | (env->thumb << 24) | (env->DIT << 21)
+        | ((env->condexec_bits & 3) << 25)
         | ((env->condexec_bits & 0xfc) << 8)
         | (env->GE << 16)
         | env->v7m.exception;
@@ -1388,6 +1393,9 @@ static inline void xpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
         env->NF = val;
         env->CF = (val >> 29) & 1;
         env->VF = (val << 3) & 0x80000000;
+    }
+    if (mask & XPSR_DIT) {
+        env->DIT = ((val & XPSR_DIT) != 0);
     }
     if (mask & XPSR_Q) {
         env->QF = ((val & XPSR_Q) != 0);
@@ -3756,6 +3764,11 @@ static inline bool isar_feature_aa32_tts2uxn(const ARMISARegisters *id)
     return FIELD_EX32(id->id_mmfr4, ID_MMFR4, XNX) != 0;
 }
 
+static inline bool isar_feature_aa32_dit(const ARMISARegisters *id)
+{
+    return FIELD_EX32(id->id_pfr0, ID_PFR0, DIT) != 0;
+}
+
 /*
  * 64-bit feature tests via id registers.
  */
@@ -3981,6 +3994,11 @@ static inline bool isar_feature_aa64_ccidx(const ARMISARegisters *id)
 static inline bool isar_feature_aa64_tts2uxn(const ARMISARegisters *id)
 {
     return FIELD_EX64(id->id_aa64mmfr1, ID_AA64MMFR1, XNX) != 0;
+}
+
+static inline bool isar_feature_aa64_dit(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->id_aa64pfr0, ID_AA64PFR0, DIT) != 0;
 }
 
 /*
