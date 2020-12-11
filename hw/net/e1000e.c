@@ -686,15 +686,15 @@ static void e1000e_class_init(ObjectClass *class, void *data)
     dc->reset = e1000e_qdev_reset;
     dc->vmsd = &e1000e_vmstate;
 
-    e1000e_prop_disable_vnet = qdev_prop_uint8;
+    e1000e_prop_disable_vnet = prop_info_uint8;
     e1000e_prop_disable_vnet.description = "Do not use virtio headers, "
                                            "perform SW offloads emulation "
                                            "instead";
 
-    e1000e_prop_subsys_ven = qdev_prop_uint16;
+    e1000e_prop_subsys_ven = prop_info_uint16;
     e1000e_prop_subsys_ven.description = "PCI device Subsystem Vendor ID";
 
-    e1000e_prop_subsys = qdev_prop_uint16;
+    e1000e_prop_subsys = prop_info_uint16;
     e1000e_prop_subsys.description = "PCI device Subsystem ID";
 
     device_class_set_props(dc, e1000e_properties);

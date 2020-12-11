@@ -363,9 +363,9 @@ static const VMStateDescription vmstate_rxicu = {
 
 static Property rxicu_properties[] = {
     DEFINE_PROP_ARRAY("ipr-map", RXICUState, nr_irqs, map,
-                      qdev_prop_uint8, uint8_t),
+                      prop_info_uint8, uint8_t),
     DEFINE_PROP_ARRAY("trigger-level", RXICUState, nr_sense, init_sense,
-                      qdev_prop_uint8, uint8_t),
+                      prop_info_uint8, uint8_t),
     DEFINE_PROP_END_OF_LIST(),
 };
 
