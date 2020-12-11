@@ -537,9 +537,9 @@ QEMU_BUILD_BUG_ON(sizeof(LostTickPolicy) != sizeof(int));
 const PropertyInfo qdev_prop_losttickpolicy = {
     .name  = "LostTickPolicy",
     .enum_table  = &LostTickPolicy_lookup,
-    .get   = qdev_propinfo_get_enum,
-    .set   = qdev_propinfo_set_enum,
-    .set_default_value = qdev_propinfo_set_default_value_enum,
+    .get   = field_prop_get_enum,
+    .set   = field_prop_set_enum,
+    .set_default_value = field_prop_set_default_value_enum,
 };
 
 /* --- blocksize --- */
@@ -568,9 +568,9 @@ const PropertyInfo qdev_prop_blocksize = {
     .name  = "size",
     .description = "A power of two between " MIN_BLOCK_SIZE_STR
                    " and " MAX_BLOCK_SIZE_STR,
-    .get   = qdev_propinfo_get_size32,
+    .get   = field_prop_get_size32,
     .set   = set_blocksize,
-    .set_default_value = qdev_propinfo_set_default_value_uint,
+    .set_default_value = field_prop_set_default_value_uint,
 };
 
 /* --- Block device error handling policy --- */
@@ -582,9 +582,9 @@ const PropertyInfo qdev_prop_blockdev_on_error = {
     .description = "Error handling policy, "
                    "report/ignore/enospc/stop/auto",
     .enum_table = &BlockdevOnError_lookup,
-    .get = qdev_propinfo_get_enum,
-    .set = qdev_propinfo_set_enum,
-    .set_default_value = qdev_propinfo_set_default_value_enum,
+    .get = field_prop_get_enum,
+    .set = field_prop_set_enum,
+    .set_default_value = field_prop_set_default_value_enum,
 };
 
 /* --- BIOS CHS translation */
@@ -596,9 +596,9 @@ const PropertyInfo qdev_prop_bios_chs_trans = {
     .description = "Logical CHS translation algorithm, "
                    "auto/none/lba/large/rechs",
     .enum_table = &BiosAtaTranslation_lookup,
-    .get = qdev_propinfo_get_enum,
-    .set = qdev_propinfo_set_enum,
-    .set_default_value = qdev_propinfo_set_default_value_enum,
+    .get = field_prop_get_enum,
+    .set = field_prop_set_enum,
+    .set_default_value = field_prop_set_default_value_enum,
 };
 
 /* --- FDC default drive types */
@@ -608,9 +608,9 @@ const PropertyInfo qdev_prop_fdc_drive_type = {
     .description = "FDC drive type, "
                    "144/288/120/none/auto",
     .enum_table = &FloppyDriveType_lookup,
-    .get = qdev_propinfo_get_enum,
-    .set = qdev_propinfo_set_enum,
-    .set_default_value = qdev_propinfo_set_default_value_enum,
+    .get = field_prop_get_enum,
+    .set = field_prop_set_enum,
+    .set_default_value = field_prop_set_default_value_enum,
 };
 
 /* --- MultiFDCompression --- */
@@ -620,9 +620,9 @@ const PropertyInfo qdev_prop_multifd_compression = {
     .description = "multifd_compression values, "
                    "none/zlib/zstd",
     .enum_table = &MultiFDCompression_lookup,
-    .get = qdev_propinfo_get_enum,
-    .set = qdev_propinfo_set_enum,
-    .set_default_value = qdev_propinfo_set_default_value_enum,
+    .get = field_prop_get_enum,
+    .set = field_prop_set_enum,
+    .set_default_value = field_prop_set_default_value_enum,
 };
 
 /* --- Reserved Region --- */
@@ -766,9 +766,9 @@ const PropertyInfo qdev_prop_pci_devfn = {
     .name  = "int32",
     .description = "Slot and optional function number, example: 06.0 or 06",
     .print = print_pci_devfn,
-    .get   = qdev_propinfo_get_int32,
+    .get   = field_prop_get_int32,
     .set   = set_pci_devfn,
-    .set_default_value = qdev_propinfo_set_default_value_int,
+    .set_default_value = field_prop_set_default_value_int,
 };
 
 /* --- pci host address --- */
@@ -882,9 +882,9 @@ const PropertyInfo qdev_prop_off_auto_pcibar = {
     .name = "OffAutoPCIBAR",
     .description = "off/auto/bar0/bar1/bar2/bar3/bar4/bar5",
     .enum_table = &OffAutoPCIBAR_lookup,
-    .get = qdev_propinfo_get_enum,
-    .set = qdev_propinfo_set_enum,
-    .set_default_value = qdev_propinfo_set_default_value_enum,
+    .get = field_prop_get_enum,
+    .set = field_prop_set_enum,
+    .set_default_value = field_prop_set_default_value_enum,
 };
 
 /* --- PCIELinkSpeed 2_5/5/8/16 -- */
@@ -954,7 +954,7 @@ const PropertyInfo qdev_prop_pcie_link_speed = {
     .enum_table = &PCIELinkSpeed_lookup,
     .get = get_prop_pcielinkspeed,
     .set = set_prop_pcielinkspeed,
-    .set_default_value = qdev_propinfo_set_default_value_enum,
+    .set_default_value = field_prop_set_default_value_enum,
 };
 
 /* --- PCIELinkWidth 1/2/4/8/12/16/32 -- */
@@ -1042,7 +1042,7 @@ const PropertyInfo qdev_prop_pcie_link_width = {
     .enum_table = &PCIELinkWidth_lookup,
     .get = get_prop_pcielinkwidth,
     .set = set_prop_pcielinkwidth,
-    .set_default_value = qdev_propinfo_set_default_value_enum,
+    .set_default_value = field_prop_set_default_value_enum,
 };
 
 /* --- UUID --- */
