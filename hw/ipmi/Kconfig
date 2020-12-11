@@ -6,6 +6,11 @@ config IPMI_LOCAL
     default y
     depends on IPMI
 
+config IPMI_HOST
+    bool
+    default y
+    depends on IPMI
+
 config IPMI_EXTERN
     bool
     default y
