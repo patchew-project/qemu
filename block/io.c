@@ -1537,8 +1537,12 @@ static bool bdrv_init_padding(BlockDriverState *bs,
                               int64_t offset, int64_t bytes,
                               BdrvRequestPadding *pad)
 {
-    uint64_t align = bs->bl.request_alignment;
-    size_t sum;
+    int64_t align = bs->bl.request_alignment;
+    int64_t sum;
+
+    bdrv_check_request(offset, bytes, &error_abort);
+    assert(align <= INT_MAX); /* documented in block/block_int.h */
+    assert(align * 2 <= SIZE_MAX); /* so we can allocate the buffer */
 
     memset(pad, 0, sizeof(*pad));
 
