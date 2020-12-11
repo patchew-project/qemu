@@ -898,8 +898,14 @@ static bool coroutine_fn bdrv_wait_serialising_requests(BdrvTrackedRequest *self
     return waited;
 }
 
-int bdrv_check_request(int64_t offset, int64_t bytes, Error **errp)
+static int bdrv_check_qiov_request(int64_t offset, int64_t bytes,
+                                   QEMUIOVector *qiov, size_t qiov_offset,
+                                   Error **errp)
 {
+    /*
+     * Check generic offset/bytes correctness
+     */
+
     if (offset < 0) {
         error_setg(errp, "offset is negative: %" PRIi64, offset);
         return -EIO;
@@ -929,12 +935,38 @@ int bdrv_check_request(int64_t offset, int64_t bytes, Error **errp)
         return -EIO;
     }
 
+    if (!qiov) {
+        return 0;
+    }
+
+    /*
+     * Check qiov and qiov_offset
+     */
+
+    if (qiov_offset > qiov->size) {
+        error_setg(errp, "qiov_offset(%zu) overflow io vector size(%zu)",
+                   qiov_offset, qiov->size);
+        return -EIO;
+    }
+
+    if (bytes > qiov->size - qiov_offset) {
+        error_setg(errp, "bytes(%" PRIi64 ") + qiov_offset(%zu) overflow io "
+                   "vector size(%zu)", bytes, qiov_offset, qiov->size);
+        return -EIO;
+    }
+
     return 0;
 }
 
-static int bdrv_check_request32(int64_t offset, int64_t bytes)
+int bdrv_check_request(int64_t offset, int64_t bytes, Error **errp)
 {
-    int ret = bdrv_check_request(offset, bytes, NULL);
+    return bdrv_check_qiov_request(offset, bytes, NULL, 0, errp);
+}
+
+static int bdrv_check_request32(int64_t offset, int64_t bytes,
+                                QEMUIOVector *qiov, size_t qiov_offset)
+{
+    int ret = bdrv_check_qiov_request(offset, bytes, qiov, qiov_offset, NULL);
     if (ret < 0) {
         return ret;
     }
@@ -1708,7 +1740,7 @@ int coroutine_fn bdrv_co_preadv_part(BdrvChild *child,
         return -ENOMEDIUM;
     }
 
-    ret = bdrv_check_request32(offset, bytes);
+    ret = bdrv_check_request32(offset, bytes, qiov, qiov_offset);
     if (ret < 0) {
         return ret;
     }
@@ -2129,7 +2161,7 @@ int coroutine_fn bdrv_co_pwritev_part(BdrvChild *child,
         return -ENOMEDIUM;
     }
 
-    ret = bdrv_check_request32(offset, bytes);
+    ret = bdrv_check_request32(offset, bytes, qiov, qiov_offset);
     if (ret < 0) {
         return ret;
     }
@@ -3135,7 +3167,7 @@ static int coroutine_fn bdrv_co_copy_range_internal(
     if (!dst || !dst->bs || !bdrv_is_inserted(dst->bs)) {
         return -ENOMEDIUM;
     }
-    ret = bdrv_check_request32(dst_offset, bytes);
+    ret = bdrv_check_request32(dst_offset, bytes, NULL, 0);
     if (ret) {
         return ret;
     }
@@ -3146,7 +3178,7 @@ static int coroutine_fn bdrv_co_copy_range_internal(
     if (!src || !src->bs || !bdrv_is_inserted(src->bs)) {
         return -ENOMEDIUM;
     }
-    ret = bdrv_check_request32(src_offset, bytes);
+    ret = bdrv_check_request32(src_offset, bytes, NULL, 0);
     if (ret) {
         return ret;
     }
