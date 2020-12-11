@@ -39,6 +39,13 @@
       ../configure --enable-werror $QEMU_CONFIGURE_OPTS --disable-system
     - make -j$(expr $(nproc) + 1) all check-build
 
+.cross_sanity_check_job:
+  stage: build
+  image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
+  timeout: 3m
+  script:
+    - /bin/true
+
 cross-armel-system:
   extends: .cross_system_build_job
   variables:
@@ -68,6 +75,14 @@ cross-arm64-user:
   extends: .cross_user_build_job
   variables:
     IMAGE: debian-arm64-cross
+
+cross-i386-sanity-check:
+  extends: .cross_sanity_check_job
+  variables:
+    JOB_MAINTAINER_NAME: "Philippe Mathieu-Daudé"
+    JOB_MAINTAINER_EMAIL: philmd@redhat.com
+    GIT_SUBMODULE_STRATEGY: none
+    IMAGE: fedora-i386-cross
 
 cross-mips-system:
   extends: .cross_system_build_job
