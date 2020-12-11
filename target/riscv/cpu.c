@@ -562,7 +562,7 @@ static void riscv_cpu_class_init(ObjectClass *c, void *data)
     cc->vmsd = &vmstate_riscv_cpu;
 #endif
 #ifdef CONFIG_TCG
-    cc->tcg_initialize = riscv_translate_init;
+    cc->tcg_ops.initialize = riscv_translate_init;
     cc->tlb_fill = riscv_cpu_tlb_fill;
 #endif
     device_class_set_props(dc, riscv_cpu_properties);
