@@ -43,6 +43,7 @@ Supported devices
  * GPIO controller
  * Analog to Digital Converter (ADC)
  * Pulse Width Modulation (PWM)
+ * Keyboard Controller Style (KCS) channels
 
 Missing devices
 ---------------
@@ -50,7 +51,6 @@ Missing devices
  * LPC/eSPI host-to-BMC interface, including
 
    * Keyboard and mouse controller interface (KBCI)
-   * Keyboard Controller Style (KCS) channels
    * BIOS POST code FIFO
    * System Wake-up Control (SWC)
    * Shared memory (SHM)

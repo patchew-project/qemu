@@ -46,6 +46,7 @@
 #define NPCM7XX_CLK_BA          (0xf0801000)
 #define NPCM7XX_MC_BA           (0xf0824000)
 #define NPCM7XX_RNG_BA          (0xf000b000)
+#define NPCM7XX_KCS_BA          (0xf0007000)
 
 /* USB Host modules */
 #define NPCM7XX_EHCI_BA         (0xf0806000)
@@ -82,6 +83,7 @@ enum NPCM7xxInterrupt {
     NPCM7XX_UART1_IRQ,
     NPCM7XX_UART2_IRQ,
     NPCM7XX_UART3_IRQ,
+    NPCM7XX_KCS_HIB_IRQ         = 9,
     NPCM7XX_TIMER0_IRQ          = 32,   /* Timer Module 0 */
     NPCM7XX_TIMER1_IRQ,
     NPCM7XX_TIMER2_IRQ,
@@ -353,6 +355,7 @@ static void npcm7xx_init(Object *obj)
         object_initialize_child(obj, "gpio[*]", &s->gpio[i], TYPE_NPCM7XX_GPIO);
     }
 
+    object_initialize_child(obj, "kcs", &s->kcs, TYPE_NPCM7XX_KCS);
     object_initialize_child(obj, "ehci", &s->ehci, TYPE_NPCM7XX_EHCI);
     object_initialize_child(obj, "ohci", &s->ohci, TYPE_SYSBUS_OHCI);
 
@@ -509,6 +512,12 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
                            npcm7xx_irq(s, NPCM7XX_GPIO0_IRQ + i));
     }
 
+    /* KCS modules. Cannot fail. */
+    sysbus_realize(SYS_BUS_DEVICE(&s->kcs), &error_abort);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->kcs), 0, NPCM7XX_KCS_BA);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->kcs), 0,
+                       npcm7xx_irq(s, NPCM7XX_KCS_HIB_IRQ));
+
     /* USB Host */
     object_property_set_bool(OBJECT(&s->ehci), "companion-enable", true,
                              &error_abort);
@@ -574,7 +583,6 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
     create_unimplemented_device("npcm7xx.shm",          0xc0001000,   4 * KiB);
     create_unimplemented_device("npcm7xx.vdmx",         0xe0800000,   4 * KiB);
     create_unimplemented_device("npcm7xx.pcierc",       0xe1000000,  64 * KiB);
-    create_unimplemented_device("npcm7xx.kcs",          0xf0007000,   4 * KiB);
     create_unimplemented_device("npcm7xx.gfxi",         0xf000e000,   4 * KiB);
     create_unimplemented_device("npcm7xx.gpio[0]",      0xf0010000,   4 * KiB);
     create_unimplemented_device("npcm7xx.gpio[1]",      0xf0011000,   4 * KiB);
