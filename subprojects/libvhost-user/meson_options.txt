@@ -1,0 +1,5 @@
+option('link-static',
+  type: 'boolean',
+  value: false,
+)
+

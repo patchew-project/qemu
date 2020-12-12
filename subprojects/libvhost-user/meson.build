@@ -2,7 +2,8 @@ project('libvhost-user', 'c',
         license: 'GPL-2.0-or-later',
         default_options: ['c_std=gnu99'])
 
-glib = dependency('glib-2.0')
+link_static = get_option('link-static')
+glib = dependency('glib-2.0', static: link_static)
 inc = include_directories('../../include', '../../linux-headers')
 
 vhost_user = static_library('vhost-user',
