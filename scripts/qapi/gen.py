@@ -130,11 +130,11 @@ class QAPIGenCCode(QAPIGen):
         self._start_if = (ifcond, self._body, self._preamble)
 
     def end_if(self) -> None:
-        assert self._start_if
         self._wrap_ifcond()
         self._start_if = None
 
     def _wrap_ifcond(self) -> None:
+        assert self._start_if
         self._body = _wrap_ifcond(self._start_if[0],
                                   self._start_if[1], self._body)
         self._preamble = _wrap_ifcond(self._start_if[0],
