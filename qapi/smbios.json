@@ -1,0 +1,11 @@
+##
+# @SmbiosEntryPointType:
+#
+# @2_1: SMBIOS version 2.1 (32-bit) Entry Point
+#
+# @3_0: SMBIOS version 3.0 (64-bit) Entry Point
+#
+# Since: 6.0
+##
+{ 'enum': 'SmbiosEntryPointType',
+  'data': [ '2_1', '3_0' ] }

@@ -42,6 +42,7 @@ qapi_all_modules = [
   'replay',
   'rocker',
   'run-state',
+  'smbios',
   'sockets',
   'tpm',
   'trace',

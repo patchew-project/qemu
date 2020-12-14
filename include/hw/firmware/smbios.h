@@ -1,6 +1,8 @@
 #ifndef QEMU_SMBIOS_H
 #define QEMU_SMBIOS_H
 
+#include "qapi/qapi-types-smbios.h"
+
 /*
  * SMBIOS Support
  *
@@ -22,14 +24,6 @@ struct smbios_phys_mem_area {
     uint64_t address;
     uint64_t length;
 };
-
-/*
- * SMBIOS spec defined tables
- */
-typedef enum SmbiosEntryPointType {
-    SMBIOS_ENTRY_POINT_TYPE_2_1,
-    SMBIOS_ENTRY_POINT_TYPE_3_0,
-} SmbiosEntryPointType;
 
 /* SMBIOS Entry Point
  * There are two types of entry points defined in the SMBIOS specification
