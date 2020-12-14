@@ -1,4 +1,4 @@
-module None
+module "None"
 object q_empty
 enum QType
     prefix QTYPE
@@ -9,6 +9,6 @@ enum QType
     member qdict
     member qlist
     member qbool
-module event-case.json
+module "event-case.json"
 event oops None
     boxed=False

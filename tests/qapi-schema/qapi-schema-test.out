@@ -1,4 +1,4 @@
-module None
+module "None"
 object q_empty
 enum QType
     prefix QTYPE
@@ -9,7 +9,7 @@ enum QType
     member qdict
     member qlist
     member qbool
-module qapi-schema-test.json
+module "qapi-schema-test.json"
 object TestStruct
     member integer: int optional=False
     member boolean: bool optional=False
@@ -443,11 +443,11 @@ command test-command-cond-features3 None -> None
 event TEST-EVENT-FEATURES1 None
     boxed=False
     feature deprecated
-module include/sub-module.json
+module "include/sub-module.json"
 include sub-sub-module.json
 object SecondArrayRef
     member s: StatusList optional=False
-module sub-sub-module.json
+module "sub-sub-module.json"
 array StatusList Status
 enum Status
     member good
