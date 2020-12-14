@@ -284,7 +284,7 @@ static bool blk_exp_has_type(BlockExportType type)
 }
 
 /* type == BLOCK_EXPORT_TYPE__MAX for all types */
-void blk_exp_close_all_type(BlockExportType type)
+void blk_exp_close_all_type(BlockExportType type, bool wait)
 {
     BlockExport *exp, *next;
 
@@ -297,12 +297,14 @@ void blk_exp_close_all_type(BlockExportType type)
         blk_exp_request_shutdown(exp);
     }
 
-    AIO_WAIT_WHILE(NULL, blk_exp_has_type(type));
+    if (wait) {
+        AIO_WAIT_WHILE(NULL, blk_exp_has_type(type));
+    }
 }
 
-void blk_exp_close_all(void)
+void blk_exp_close_all(bool wait)
 {
-    blk_exp_close_all_type(BLOCK_EXPORT_TYPE__MAX);
+    blk_exp_close_all_type(BLOCK_EXPORT_TYPE__MAX, wait);
 }
 
 void qmp_block_export_add(BlockExportOptions *export, Error **errp)

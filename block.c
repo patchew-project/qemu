@@ -4478,13 +4478,31 @@ static void bdrv_close(BlockDriverState *bs)
 void bdrv_close_all(void)
 {
     assert(job_next(NULL) == NULL);
-    blk_exp_close_all();
+
+    /*
+     * There's a cross-dependency between closing the block exports and
+     * draining the block layer. The latter needs that we close all export's
+     * client connections to ensure they won't queue more requests, but the
+     * exports may have coroutines yielding in the block layer, which implies
+     * they can't be fully closed until we drain it.
+     *
+     * Make a first call to close all export's client connections, without
+     * waiting for each export to be fully quiesced.
+     */
+    blk_exp_close_all(false);
 
     /* Drop references from requests still in flight, such as canceled block
      * jobs whose AIO context has not been polled yet */
     bdrv_drain_all();
 
     blk_remove_all_bs();
+
+    /*
+     * Make a second call to shut down the exports, this time waiting for them
+     * to be fully quiesced.
+     */
+    blk_exp_close_all(true);
+
     blockdev_close_all_bdrv_states();
 
     assert(QTAILQ_EMPTY(&all_bdrv_states));

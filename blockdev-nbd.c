@@ -266,7 +266,7 @@ void qmp_nbd_server_stop(Error **errp)
         return;
     }
 
-    blk_exp_close_all_type(BLOCK_EXPORT_TYPE_NBD);
+    blk_exp_close_all_type(BLOCK_EXPORT_TYPE_NBD, true);
 
     nbd_server_free(nbd_server);
     nbd_server = NULL;

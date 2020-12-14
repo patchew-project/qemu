@@ -83,7 +83,7 @@ BlockExport *blk_exp_find(const char *id);
 void blk_exp_ref(BlockExport *exp);
 void blk_exp_unref(BlockExport *exp);
 void blk_exp_request_shutdown(BlockExport *exp);
-void blk_exp_close_all(void);
-void blk_exp_close_all_type(BlockExportType type);
+void blk_exp_close_all(bool wait);
+void blk_exp_close_all_type(BlockExportType type, bool wait);
 
 #endif

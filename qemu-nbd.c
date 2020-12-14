@@ -1122,7 +1122,7 @@ int main(int argc, char **argv)
     do {
         main_loop_wait(false);
         if (state == TERMINATE) {
-            blk_exp_close_all();
+            blk_exp_close_all(true);
             state = TERMINATED;
         }
     } while (state != TERMINATED);
