@@ -707,7 +707,7 @@ The base test class has also support for tests with more than one
 QEMUMachine. The way to get machines is through the ``self.get_vm()``
 method which will return a QEMUMachine instance. The ``self.get_vm()``
 method accepts arguments that will be passed to the QEMUMachine creation
-and also an optional `name` attribute so you can identify a specific
+and also an optional ``name`` attribute so you can identify a specific
 machine and get it more than once through the tests methods. A simple
 and hypothetical example follows:
 
