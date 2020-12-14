@@ -3,6 +3,7 @@ config TCG
 
 config KVM
     bool
+    select MULTIPROCESS
 
 config XEN
     bool
