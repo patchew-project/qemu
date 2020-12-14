@@ -36,8 +36,7 @@ from .source import QAPISourceInfo
 
 
 class QAPIGen:
-    def __init__(self, fname: Optional[str]):
-        self.fname = fname
+    def __init__(self) -> None:
         self._preamble = ''
         self._body = ''
 
@@ -57,28 +56,6 @@ class QAPIGen:
     def _bottom(self) -> str:
         # pylint: disable=no-self-use
         return ''
-
-    def write(self, output_dir: str) -> None:
-        # Include paths starting with ../ are used to reuse modules of the main
-        # schema in specialised schemas. Don't overwrite the files that are
-        # already generated for the main schema.
-        if self.fname.startswith('../'):
-            return
-        pathname = os.path.join(output_dir, self.fname)
-        odir = os.path.dirname(pathname)
-
-        if odir:
-            os.makedirs(odir, exist_ok=True)
-
-        # use os.open for O_CREAT to create and read a non-existant file
-        fd = os.open(pathname, os.O_RDWR | os.O_CREAT, 0o666)
-        with os.fdopen(fd, 'r+', encoding='utf-8') as fp:
-            text = self.get_content()
-            oldtext = fp.read(len(text) + 1)
-            if text != oldtext:
-                fp.seek(0)
-                fp.truncate(0)
-                fp.write(text)
 
 
 def _wrap_ifcond(ifcond: List[str], before: str, after: str) -> str:
@@ -121,8 +98,8 @@ def build_params(arg_type: Optional[QAPISchemaObjectType],
 
 
 class QAPIGenCCode(QAPIGen):
-    def __init__(self, fname: Optional[str]):
-        super().__init__(fname)
+    def __init__(self) -> None:
+        super().__init__()
         self._start_if: Optional[Tuple[List[str], str, str]] = None
 
     def start_if(self, ifcond: List[str]) -> None:
@@ -147,10 +124,33 @@ class QAPIGenCCode(QAPIGen):
 
 class QAPIGenC(QAPIGenCCode):
     def __init__(self, fname: str, blurb: str, pydoc: str):
-        super().__init__(fname)
+        super().__init__()
+        self.fname = fname
         self._blurb = blurb
         self._copyright = '\n * '.join(re.findall(r'^Copyright .*', pydoc,
                                                   re.MULTILINE))
+
+    def write(self, output_dir: str) -> None:
+        # Include paths starting with ../ are used to reuse modules of the main
+        # schema in specialised schemas. Don't overwrite the files that are
+        # already generated for the main schema.
+        if self.fname.startswith('../'):
+            return
+        pathname = os.path.join(output_dir, self.fname)
+        odir = os.path.dirname(pathname)
+
+        if odir:
+            os.makedirs(odir, exist_ok=True)
+
+        # use os.open for O_CREAT to create and read a non-existant file
+        fd = os.open(pathname, os.O_RDWR | os.O_CREAT, 0o666)
+        with os.fdopen(fd, 'r+', encoding='utf-8') as fp:
+            text = self.get_content()
+            oldtext = fp.read(len(text) + 1)
+            if text != oldtext:
+                fp.seek(0)
+                fp.truncate(0)
+                fp.write(text)
 
     def _top(self) -> str:
         return mcgen('''
