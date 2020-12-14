@@ -27,8 +27,8 @@ struct smbios_phys_mem_area {
  * SMBIOS spec defined tables
  */
 typedef enum SmbiosEntryPointType {
-    SMBIOS_ENTRY_POINT_21,
-    SMBIOS_ENTRY_POINT_30,
+    SMBIOS_ENTRY_POINT_TYPE_2_1,
+    SMBIOS_ENTRY_POINT_TYPE_3_0,
 } SmbiosEntryPointType;
 
 /* SMBIOS Entry Point
