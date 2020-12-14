@@ -6481,12 +6481,17 @@ void bdrv_set_aio_context_ignore(BlockDriverState *bs,
     bdrv_drained_begin(bs);
 
     QLIST_FOREACH(child, &bs->children, next) {
-        if (g_slist_find(*ignore, child)) {
+        if (g_slist_find(*ignore, child) || g_slist_find(*ignore, child->bs)) {
             continue;
         }
         *ignore = g_slist_prepend(*ignore, child);
         bdrv_set_aio_context_ignore(child->bs, new_context, ignore);
     }
+    /*
+     * Add a reference to this BS to the ignore list, so its
+     * parents won't attempt to process it again.
+     */
+    *ignore = g_slist_prepend(*ignore, bs);
     QLIST_FOREACH(child, &bs->parents, next_parent) {
         if (g_slist_find(*ignore, child)) {
             continue;
