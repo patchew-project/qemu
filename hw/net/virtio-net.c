@@ -1869,7 +1869,6 @@ static void virtio_net_rsc_cleanup(VirtIONet *n)
             g_free(seg);
         }
 
-        timer_del(chain->drain_timer);
         timer_free(chain->drain_timer);
         QTAILQ_REMOVE(&n->rsc_chains, chain, next);
         g_free(chain);
@@ -2652,7 +2651,6 @@ static void virtio_net_del_queue(VirtIONet *n, int index)
 
     virtio_del_queue(vdev, index * 2);
     if (q->tx_timer) {
-        timer_del(q->tx_timer);
         timer_free(q->tx_timer);
         q->tx_timer = NULL;
     } else {
