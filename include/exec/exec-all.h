@@ -221,6 +221,35 @@ void tlb_flush_page_by_mmuidx_all_cpus(CPUState *cpu, target_ulong addr,
 void tlb_flush_page_by_mmuidx_all_cpus_synced(CPUState *cpu, target_ulong addr,
                                               uint16_t idxmap);
 /**
+ * tlb_flush_page_range_by_mmuidx:
+ * @cpu: CPU whose TLB should be flushed
+ * @addr: virtual address of start of page range to be flushed
+ * @num_pages: the number of pages to be flushed
+ * @idxmap: bitmap of MMU indexes to flush
+ *
+ * Flush a range of pages from the TLB of the specified CPU, for the specified
+ * MMU indexes.
+ */
+void tlb_flush_page_range_by_mmuidx(CPUState *cpu, target_ulong addr,
+                                    int num_pages, uint16_t idxmap);
+/**
+ * tlb_flush_page_range_by_mmuidx_all_cpus_synced:
+ * @cpu: Originating CPU of the flush
+ * @addr: virtual address of start of page range to be flushed
+ * @num_pages: the number of pages to be flushed
+ * @idxmap: bitmap of MMU indexes to flush
+ *
+ * Flush a range of pages from the TLB of all CPUs, for the specified MMU
+ * indexes like tlb_flush_page_by_mmuidx_all_cpus except the source
+ * vCPUs work is scheduled as safe work meaning all flushes will be
+ * complete once the source vCPUs safe work is complete. This will
+ * depend on when the guests translation ends the TB.
+ */
+void tlb_flush_page_range_by_mmuidx_all_cpus_synced(CPUState *cpu,
+                                                    target_ulong addr,
+                                                    int num_pages,
+                                                    uint16_t idxmap);
+/**
  * tlb_flush_by_mmuidx:
  * @cpu: CPU whose TLB should be flushed
  * @wait: If true ensure synchronisation by exiting the cpu_loop
@@ -319,6 +348,16 @@ static inline void tlb_flush_page_all_cpus(CPUState *src, target_ulong addr)
 }
 static inline void tlb_flush_page_all_cpus_synced(CPUState *src,
                                                   target_ulong addr)
+{
+}
+static void tlb_flush_page_range_by_mmuidx(CPUState *cpu, target_ulong addr,
+                                    int num_pages, int idxmap)
+{
+}
+static void tlb_flush_page_range_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
+                                                    target_ulong addr,
+                                                    int num_pages,
+                                                    uint16_t idxmap)
 {
 }
 static inline void tlb_flush(CPUState *cpu)

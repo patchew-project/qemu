@@ -603,6 +603,30 @@ void tlb_flush_page(CPUState *cpu, target_ulong addr)
     tlb_flush_page_by_mmuidx(cpu, addr, ALL_MMUIDX_BITS);
 }
 
+void tlb_flush_page_range_by_mmuidx(CPUState *cpu, target_ulong addr,
+                                    int num_pages, uint16_t idxmap)
+{
+    int i;
+
+    for (i = 0; i < num_pages; i++) {
+        tlb_flush_page_by_mmuidx(cpu, addr + (i * TARGET_PAGE_SIZE), idxmap);
+    }
+}
+
+void tlb_flush_page_range_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
+                                                    target_ulong addr,
+                                                    int num_pages,
+                                                    uint16_t idxmap)
+{
+    int i;
+
+    for (i = 0; i < num_pages; i++) {
+        tlb_flush_page_by_mmuidx_all_cpus_synced(src_cpu,
+                                                 addr + (i * TARGET_PAGE_SIZE),
+                                                 idxmap);
+    }
+}
+
 void tlb_flush_page_by_mmuidx_all_cpus(CPUState *src_cpu, target_ulong addr,
                                        uint16_t idxmap)
 {
