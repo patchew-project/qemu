@@ -1284,7 +1284,7 @@ static Property virtio_blk_properties[] = {
     DEFINE_BLOCK_CHS_PROPERTIES(VirtIOBlock, conf.conf),
     DEFINE_PROP_STRING("serial", VirtIOBlock, conf.serial),
     DEFINE_PROP_BIT64("config-wce", VirtIOBlock, host_features,
-                      VIRTIO_BLK_F_CONFIG_WCE, true),
+                      VIRTIO_BLK_F_CONFIG_WCE, false),
 #ifdef __linux__
     DEFINE_PROP_BIT64("scsi", VirtIOBlock, host_features,
                       VIRTIO_BLK_F_SCSI, false),
