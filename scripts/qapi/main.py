@@ -23,7 +23,8 @@ from .visit import gen_visit
 
 def invalid_prefix_char(prefix: str) -> Optional[str]:
     match = re.match(r'([A-Za-z_.-][A-Za-z0-9_.-]*)?', prefix)
-    if match.end() != len(prefix):
+    # match cannot be None, but mypy cannot infer that.
+    if match and match.end() != len(prefix):
         return prefix[match.end()]
     return None
 
