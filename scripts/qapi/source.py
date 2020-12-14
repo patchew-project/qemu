@@ -11,7 +11,12 @@
 
 import copy
 import sys
-from typing import List, Optional, TypeVar
+from typing import (
+    List,
+    Optional,
+    Type,
+    TypeVar,
+)
 
 
 class QAPISchemaPragma:
@@ -40,6 +45,17 @@ class QAPISourceInfo:
         )
         self.defn_meta: Optional[str] = None
         self.defn_name: Optional[str] = None
+
+    @classmethod
+    def builtin(cls: Type[T]) -> T:
+        """
+        Create a SourceInfo object corresponding to a builtin definition.
+        """
+        return cls('', -1, None)
+
+    def __bool__(self) -> bool:
+        # "if info: ..." is false if info is the builtin sentinel.
+        return bool(self.fname)
 
     def set_defn(self, meta: str, name: str) -> None:
         self.defn_meta = meta
@@ -73,4 +89,6 @@ class QAPISourceInfo:
         return ret
 
     def __str__(self) -> str:
+        if not bool(self):
+            return '[builtin]'
         return self.include_path() + self.in_defn() + self.loc()
