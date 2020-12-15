@@ -995,6 +995,14 @@ void blk_set_dev_ops(BlockBackend *blk, const BlockDevOps *ops,
     blk->dev_ops = ops;
     blk->dev_opaque = opaque;
 
+    if ((blk->on_read_error == BLOCKDEV_ON_ERROR_RETRY ||
+         blk->on_write_error == BLOCKDEV_ON_ERROR_RETRY) &&
+        ops->retry_request_cb) {
+        blk->retry_timer = aio_timer_new(blk->ctx, QEMU_CLOCK_REALTIME,
+                                         SCALE_MS, ops->retry_request_cb,
+                                         opaque);
+    }
+
     /* Are we currently quiesced? Should we enforce this right now? */
     if (blk->quiesce_counter && ops->drained_begin) {
         ops->drained_begin(opaque);
