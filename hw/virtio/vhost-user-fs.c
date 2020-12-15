@@ -72,6 +72,18 @@ static int vuf_start(VirtIODevice *vdev)
         }
     }
 
+    ret = vhost_dev_set_shm(&fs->vhost_dev);
+    if (ret < 0) {
+        error_report("Error set fs maps: %d", -ret);
+        goto err_guest_notifiers;
+    }
+
+    ret = vhost_dev_set_fd(&fs->vhost_dev);
+    if (ret < 0) {
+        error_report("Error set fs proc fds: %d", -ret);
+        goto err_guest_notifiers;
+    }
+
     ret = vhost_dev_set_inflight(&fs->vhost_dev, fs->inflight);
     if (ret < 0) {
         error_report("Error set inflight: %d", -ret);
@@ -220,6 +232,102 @@ static void vuf_reset(VirtIODevice *vdev)
     vhost_dev_free_inflight(fs->inflight);
 }
 
+static int vhost_user_fs_persist_map(struct vhost_dev *dev,
+                                     struct VhostUserShm *shm, int fd)
+{
+    VHostUserFS *fs = container_of(dev, VHostUserFS, vhost_dev);
+    VhostUserFSPersist *persist = &fs->persist;
+
+    if (persist->map_fds[shm->id] != -1) {
+        close(persist->map_fds[shm->id]);
+    }
+
+    persist->need_restore = true;
+    memcpy(&persist->maps[shm->id], shm, sizeof(VhostUserShm));
+    persist->map_fds[shm->id] = dup(fd);
+
+    return 0;
+}
+
+static int vhost_user_fs_map_info(struct vhost_dev *dev, int id,
+                                  uint64_t *size, uint64_t *offset,
+                                  int *memfd)
+{
+    if (!dev) {
+        return -1;
+    }
+
+    if (id >= MAP_TYPE_NUM) {
+        return -1;
+    }
+
+    VHostUserFS *fs = container_of(dev, VHostUserFS, vhost_dev);
+    VhostUserFSPersist *persist = &fs->persist;
+    if (!persist->need_restore || (persist->map_fds[id] == -1)) {
+        return -1;
+    }
+
+    *size = persist->maps[id].size;
+    *offset = persist->maps[id].offset;
+    *memfd = persist->map_fds[id];
+
+    return 0;
+}
+
+static int vhost_user_fs_persist_fd(struct vhost_dev *dev,
+                                    struct VhostUserFd *fdinfo, int fd)
+{
+    VHostUserFS *fs = container_of(dev, VHostUserFS, vhost_dev);
+    VhostUserFSPersist *persist = &fs->persist;
+
+    persist->need_restore = true;
+
+    if (fdinfo->flag == VU_FD_FLAG_ADD) {
+        assert(persist->fd_ht != NULL);
+        int newfd = dup(fd);
+        g_hash_table_insert(persist->fd_ht, GINT_TO_POINTER(fdinfo->key),
+                                                    GINT_TO_POINTER(newfd));
+    } else if (fdinfo->flag == VU_FD_FLAG_DEL) {
+        gpointer fd_p = g_hash_table_lookup(persist->fd_ht,
+                                            GINT_TO_POINTER(fdinfo->key));
+        if (fd_p != NULL) {
+            int fd = GPOINTER_TO_INT(fd_p);
+            close(fd);
+            g_hash_table_remove(persist->fd_ht,
+                                        GINT_TO_POINTER(fdinfo->key));
+        }
+    }
+
+    return 0;
+}
+
+static int vhost_user_fs_fd_info(struct vhost_dev *dev, GHashTable **fd_ht_p)
+{
+    if (!dev) {
+        return -1;
+    }
+
+    VHostUserFS *fs = container_of(dev, VHostUserFS, vhost_dev);
+    VhostUserFSPersist *persist = &fs->persist;
+    if (!persist->need_restore) {
+        return -1;
+    }
+
+    *fd_ht_p = persist->fd_ht;
+    return 0;
+}
+
+
+const VhostDevShmOps fs_shm_ops = {
+        .vhost_dev_slave_shm = vhost_user_fs_persist_map,
+        .vhost_dev_shm_info = vhost_user_fs_map_info,
+};
+
+const VhostDevFdOps fs_fd_ops = {
+        .vhost_dev_slave_fd = vhost_user_fs_persist_fd,
+        .vhost_dev_fd_info = vhost_user_fs_fd_info,
+};
+
 static int vuf_connect(DeviceState *dev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -241,6 +349,9 @@ static int vuf_connect(DeviceState *dev)
                      strerror(-ret));
         return ret;
     }
+
+    vhost_dev_set_shm_ops(&fs->vhost_dev, &fs_shm_ops);
+    vhost_dev_set_fd_ops(&fs->vhost_dev, &fs_fd_ops);
 
     /* restore vhost state */
     if (vdev->started) {
@@ -380,7 +491,11 @@ static void vuf_device_realize(DeviceState *dev, Error **errp)
     /* init reconnection related variables */
     fs->inflight = g_new0(struct vhost_inflight, 1);
     fs->connected = false;
-
+    fs->persist.need_restore = false;
+    for (i = 0; i < MAP_TYPE_NUM; i++) {
+        fs->persist.map_fds[i] = -1;
+    }
+    fs->persist.fd_ht = g_hash_table_new(NULL, NULL);
     qemu_chr_fe_set_handlers(&fs->conf.chardev,  NULL, NULL, vuf_event,
                                  NULL, (void *)dev, NULL, true);
 
@@ -440,6 +555,7 @@ static void vuf_device_unrealize(DeviceState *dev)
     fs->vhost_dev.vqs = NULL;
     g_free(fs->inflight);
     fs->inflight = NULL;
+    g_hash_table_destroy(fs->persist.fd_ht);
 }
 
 static const VMStateDescription vuf_vmstate = {

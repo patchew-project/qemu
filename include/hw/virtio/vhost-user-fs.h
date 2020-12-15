@@ -30,6 +30,18 @@ typedef struct {
     uint16_t queue_size;
 } VHostUserFSConf;
 
+#define MAP_TYPE_NUM 3
+typedef struct {
+    bool need_restore;
+
+    /* for persistent of lo_maps */
+    VhostUserShm maps[MAP_TYPE_NUM];
+    int map_fds[MAP_TYPE_NUM];
+
+    /* for persistent of fds */
+    GHashTable *fd_ht;
+} VhostUserFSPersist;
+
 struct VHostUserFS {
     /*< private >*/
     VirtIODevice parent;
@@ -41,7 +53,7 @@ struct VHostUserFS {
     VirtQueue *hiprio_vq;
     struct vhost_inflight *inflight;
     bool connected;
-
+    VhostUserFSPersist persist;
     /*< public >*/
 };
 
