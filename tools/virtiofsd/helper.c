@@ -166,6 +166,10 @@ void fuse_cmdline_help(void)
            "                               - chroot: chroot(2) into shared\n"
            "                                 directory (use in containers)\n"
            "                               default: namespace\n"
+           "    -o mount_ns|no_mount_ns    enable/disable mount namespace\n"
+           "                               default: mount_ns\n"
+           "                               note: if chroot sandbox mode is used,\n"
+           "                               mount_ns will not take effect.\n"
            "    -o timeout=<number>        I/O timeout (seconds)\n"
            "                               default: depends on cache= option.\n"
            "    -o writeback|no_writeback  enable/disable writeback cache\n"
@@ -183,6 +187,11 @@ void fuse_cmdline_help(void)
            "                               to virtiofsd from guest applications.\n"
            "                               default: no_allow_direct_io\n"
            "    -o announce_submounts      Announce sub-mount points to the guest\n"
+           "    -o reconnect|no_reconnect  enable/disable crash reconnection\n"
+           "                               to enable crash reconnection, the options\n"
+           "                               no_mount_ns, no_flock, no_posix_lock, and\n"
+           "                               no_xattr should also be set.\n"
+           "                               default: no_reconnect\n"
            );
 }
 

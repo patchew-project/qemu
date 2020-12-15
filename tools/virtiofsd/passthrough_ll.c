@@ -158,6 +158,8 @@ struct lo_data {
     pthread_mutex_t mutex;
     int sandbox;
     int debug;
+    int mount_ns;
+    int reconnect;
     int writeback;
     int flock;
     int posix_lock;
@@ -192,8 +194,12 @@ static const struct fuse_opt lo_opts[] = {
     { "sandbox=chroot",
       offsetof(struct lo_data, sandbox),
       SANDBOX_CHROOT },
+    { "reconnect", offsetof(struct lo_data, reconnect), 1 },
+    { "no_reconnect", offsetof(struct lo_data, reconnect), 0 },
     { "writeback", offsetof(struct lo_data, writeback), 1 },
     { "no_writeback", offsetof(struct lo_data, writeback), 0 },
+    { "mount_ns", offsetof(struct lo_data, mount_ns), 1 },
+    { "no_mount_ns", offsetof(struct lo_data, mount_ns), 0 },
     { "source=%s", offsetof(struct lo_data, source), 0 },
     { "flock", offsetof(struct lo_data, flock), 1 },
     { "no_flock", offsetof(struct lo_data, flock), 0 },
@@ -3035,8 +3041,14 @@ static void setup_namespaces(struct lo_data *lo, struct fuse_session *se)
      * an empty network namespace to prevent TCP/IP and other network
      * activity in case this process is compromised.
      */
-    if (unshare(CLONE_NEWPID | CLONE_NEWNS | CLONE_NEWNET) != 0) {
-        fuse_log(FUSE_LOG_ERR, "unshare(CLONE_NEWPID | CLONE_NEWNS): %m\n");
+    int unshare_flag;
+    if (lo->mount_ns) {
+        unshare_flag = CLONE_NEWPID | CLONE_NEWNS | CLONE_NEWNET;
+    } else {
+        unshare_flag = CLONE_NEWPID | CLONE_NEWNET;
+    }
+    if (unshare(unshare_flag) != 0) {
+        fuse_log(FUSE_LOG_ERR, "unshare(): %m\n");
         exit(1);
     }
 
@@ -3071,38 +3083,47 @@ static void setup_namespaces(struct lo_data *lo, struct fuse_session *se)
     /* Send us SIGTERM when the parent thread terminates, see prctl(2) */
     prctl(PR_SET_PDEATHSIG, SIGTERM);
 
-    /*
-     * If the mounts have shared propagation then we want to opt out so our
-     * mount changes don't affect the parent mount namespace.
-     */
-    if (mount(NULL, "/", NULL, MS_REC | MS_SLAVE, NULL) < 0) {
-        fuse_log(FUSE_LOG_ERR, "mount(/, MS_REC|MS_SLAVE): %m\n");
-        exit(1);
-    }
+    if (lo->mount_ns) {
+        /*
+         * If the mounts have shared propagation then we want to opt out so our
+         * mount changes don't affect the parent mount namespace.
+         */
+        if (mount(NULL, "/", NULL, MS_REC | MS_SLAVE, NULL) < 0) {
+            fuse_log(FUSE_LOG_ERR, "mount(/, MS_REC|MS_SLAVE): %m\n");
+            exit(1);
+        }
 
-    /* The child must remount /proc to use the new pid namespace */
-    if (mount("proc", "/proc", "proc",
-              MS_NODEV | MS_NOEXEC | MS_NOSUID | MS_RELATIME, NULL) < 0) {
-        fuse_log(FUSE_LOG_ERR, "mount(/proc): %m\n");
-        exit(1);
-    }
+        /* The child must remount /proc to use the new pid namespace */
+        if (mount("proc", "/proc", "proc",
+                  MS_NODEV | MS_NOEXEC | MS_NOSUID | MS_RELATIME, NULL) < 0) {
+            fuse_log(FUSE_LOG_ERR, "mount(/proc): %m\n");
+            exit(1);
+        }
 
-    /*
-     * We only need /proc/self/fd. Prevent ".." from accessing parent
-     * directories of /proc/self/fd by bind-mounting it over /proc. Since / was
-     * previously remounted with MS_REC | MS_SLAVE this mount change only
-     * affects our process.
-     */
-    if (mount("/proc/self/fd", "/proc", NULL, MS_BIND, NULL) < 0) {
-        fuse_log(FUSE_LOG_ERR, "mount(/proc/self/fd, MS_BIND): %m\n");
-        exit(1);
-    }
+        /*
+         * We only need /proc/self/fd. Prevent ".." from accessing parent
+         * directories of /proc/self/fd by bind-mounting it over /proc. Since
+         * / was previously remounted with MS_REC | MS_SLAVE this mount change
+         * only affects our process.
+         */
+        if (mount("/proc/self/fd", "/proc", NULL, MS_BIND, NULL) < 0) {
+            fuse_log(FUSE_LOG_ERR, "mount(/proc/self/fd, MS_BIND): %m\n");
+            exit(1);
+        }
 
-    /* Get the /proc (actually /proc/self/fd, see above) file descriptor */
-    lo->proc_self_fd = open("/proc", O_PATH);
-    if (lo->proc_self_fd == -1) {
-        fuse_log(FUSE_LOG_ERR, "open(/proc, O_PATH): %m\n");
-        exit(1);
+        /* Get the /proc (actually /proc/self/fd, see above) file descriptor */
+        lo->proc_self_fd = open("/proc", O_PATH);
+        if (lo->proc_self_fd == -1) {
+            fuse_log(FUSE_LOG_ERR, "open(/proc, O_PATH): %m\n");
+            exit(1);
+        }
+    } else {
+        /* Now we can get our /proc/self/fd directory file descriptor */
+        lo->proc_self_fd = open("/proc/self/fd", O_PATH);
+        if (lo->proc_self_fd == -1) {
+            fuse_log(FUSE_LOG_ERR, "open(/proc/self/fd, O_PATH): %m\n");
+            exit(1);
+        }
     }
 }
 
@@ -3335,7 +3356,9 @@ static void setup_sandbox(struct lo_data *lo, struct fuse_session *se,
 {
     if (lo->sandbox == SANDBOX_NAMESPACE) {
         setup_namespaces(lo, se);
-        setup_mounts(lo->source);
+        if (lo->mount_ns) {
+            setup_mounts(lo->source);
+        }
     } else {
         setup_chroot(lo);
     }
@@ -3426,7 +3449,11 @@ static void setup_root(struct lo_data *lo, struct lo_inode *root)
     struct stat stat;
     uint64_t mnt_id;
 
-    fd = open("/", O_PATH);
+    if (lo->mount_ns) {
+        fd = open("/", O_PATH);
+    } else {
+        fd = open(lo->source, O_PATH);
+    }
     if (fd == -1) {
         fuse_log(FUSE_LOG_ERR, "open(%s, O_PATH): %m\n", lo->source);
         exit(1);
@@ -3503,6 +3530,9 @@ int main(int argc, char *argv[])
     lo.allow_direct_io = 0,
     lo.proc_self_fd = -1;
 
+    lo.reconnect = 0;
+    lo.mount_ns = 1;
+
     /* Don't mask creation mode, kernel already did that */
     umask(0);
 
@@ -3563,6 +3593,22 @@ int main(int argc, char *argv[])
 
     if (fuse_opt_parse(&args, &lo, lo_opts, NULL) == -1) {
         goto err_out1;
+    }
+
+    /* For sandbox mode "chroot", set the mount_ns option to 0. */
+    if (lo.sandbox == SANDBOX_CHROOT) {
+        lo.mount_ns = 0;
+    }
+
+    if (lo.reconnect) {
+        if ((lo.sandbox == SANDBOX_NAMESPACE && lo.mount_ns) || lo.flock
+                                               || lo.posix_lock || lo.xattr) {
+            printf("Mount namespace, remote lock, and extended attributes"
+                   " are not supported by reconnection (-o reconnect). Please "
+                   "specify  -o no_mount_ns, -o no_flock (default), -o"
+                   "no_posix_lock (default), and -o no_xattr (default).\n");
+            exit(1);
+        }
     }
 
     if (opts.log_level != 0) {
