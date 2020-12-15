@@ -834,6 +834,7 @@ Protocol features
   #define VHOST_USER_PROTOCOL_F_INBAND_NOTIFICATIONS 14
   #define VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS  15
   #define VHOST_USER_PROTOCOL_F_STATUS               16
+  #define VHOST_USER_PROTOCOL_F_MAP_SHMFD            17
 
 Master message types
 --------------------
@@ -1347,6 +1348,26 @@ Master message types
   query the backend for its device status as defined in the Virtio
   specification.
 
+``VHOST_USER_SET_SHM``
+  :id: 41
+  :equivalent ioctl: N/A
+  :master payload: shared memory destription
+  :slave payload: N/A
+
+  When slave has ``VHOST_USER_PROTOCOL_F_MAP_SHMFD`` protocol feature, a
+  memfd is provided in the ancillary data of ``VHOST_USER_SET_SHM`` message,
+  the shared memory destription (ID, size and offset) is also provided in
+  the message.
+
+``VHOST_USER_SET_FD``
+  :id: 42
+  :equivalent ioctl: N/A
+  :master payload: fd destription
+  :slave payload: N/A
+
+  A fd is provided in the ancillary data of ``VHOST_USER_SET_FD`` message,
+  the fd destription (a unique key and an operation flag) is also provided
+  in the message.
 
 Slave message types
 -------------------
@@ -1431,6 +1452,26 @@ Slave message types
   set by the master via ``VHOST_USER_SET_VRING_ERR``.
 
   The state.num field is currently reserved and must be set to 0.
+
+``VHOST_USER_SLAVE_SHM``
+  :id: 6
+  :equivalent ioctl: N/A
+  :master payload: shared memory destription
+  :master payload: N/A
+
+  A memfd is provided in the ancillary data of ``VHOST_USER_SLAVE_SHM``
+  message, the shared memory destription (ID, size and offset) is also
+  provided in the message.
+
+``VHOST_USER_SLAVE_FD``
+  :id: 7
+  :equivalent ioctl: N/A
+  :master payload: fd destription
+  :slave payload: N/A
+
+  A fd is provided in the ancillary data of ``VHOST_USER_SLAVE_FD`` message,
+  the fd destription (a unique key and an operation flag) is also provided
+  in the message.
 
 .. _reply_ack:
 

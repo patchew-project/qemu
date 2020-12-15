@@ -1581,6 +1581,18 @@ void vhost_dev_set_config_notifier(struct vhost_dev *hdev,
     hdev->config_ops = ops;
 }
 
+void vhost_dev_set_shm_ops(struct vhost_dev *hdev,
+                           const VhostDevShmOps *ops)
+{
+    hdev->shm_ops = ops;
+}
+
+void vhost_dev_set_fd_ops(struct vhost_dev *hdev,
+                          const VhostDevFdOps *ops)
+{
+    hdev->fd_ops = ops;
+}
+
 void vhost_dev_free_inflight(struct vhost_inflight *inflight)
 {
     if (inflight && inflight->addr) {
@@ -1588,6 +1600,36 @@ void vhost_dev_free_inflight(struct vhost_inflight *inflight)
         inflight->addr = NULL;
         inflight->fd = -1;
     }
+}
+
+int vhost_dev_set_shm(struct vhost_dev *dev)
+{
+    int r;
+
+    if (dev->vhost_ops->vhost_set_shm) {
+        r = dev->vhost_ops->vhost_set_shm(dev);
+        if (r) {
+            VHOST_OPS_DEBUG("vhost_dev_set_shm failed");
+            return -errno;
+        }
+    }
+
+    return 0;
+}
+
+int vhost_dev_set_fd(struct vhost_dev *dev)
+{
+    int r;
+
+    if (dev->vhost_ops->vhost_set_fd) {
+        r = dev->vhost_ops->vhost_set_fd(dev);
+        if (r) {
+            VHOST_OPS_DEBUG("vhost_dev_set_fd failed");
+            return -errno;
+        }
+    }
+
+    return 0;
 }
 
 static int vhost_dev_resize_inflight(struct vhost_inflight *inflight,

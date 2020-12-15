@@ -79,6 +79,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_RESET_DEVICE = 13,
     /* Feature 14 reserved for VHOST_USER_PROTOCOL_F_INBAND_NOTIFICATIONS. */
     VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS = 15,
+    VHOST_USER_PROTOCOL_F_MAP_SHMFD = 17,
     VHOST_USER_PROTOCOL_F_MAX
 };
 
@@ -124,6 +125,8 @@ typedef enum VhostUserRequest {
     VHOST_USER_GET_MAX_MEM_SLOTS = 36,
     VHOST_USER_ADD_MEM_REG = 37,
     VHOST_USER_REM_MEM_REG = 38,
+    VHOST_USER_SET_SHM = 41,
+    VHOST_USER_SET_FD = 42,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -132,6 +135,10 @@ typedef enum VhostUserSlaveRequest {
     VHOST_USER_SLAVE_IOTLB_MSG = 1,
     VHOST_USER_SLAVE_CONFIG_CHANGE_MSG = 2,
     VHOST_USER_SLAVE_VRING_HOST_NOTIFIER_MSG = 3,
+    VHOST_USER_SLAVE_VRING_CALL = 4,
+    VHOST_USER_SLAVE_VRING_ERR = 5,
+    VHOST_USER_SLAVE_SHM = 6,
+    VHOST_USER_SLAVE_FD = 7,
     VHOST_USER_SLAVE_MAX
 }  VhostUserSlaveRequest;
 
@@ -218,6 +225,8 @@ typedef union {
         VhostUserCryptoSession session;
         VhostUserVringArea area;
         VhostUserInflight inflight;
+        VhostUserShm shm;
+        VhostUserFd fdinfo;
 } VhostUserPayload;
 
 typedef struct VhostUserMsg {
@@ -1392,6 +1401,36 @@ static int vhost_user_slave_handle_vring_host_notifier(struct vhost_dev *dev,
     return 0;
 }
 
+static int vhost_user_slave_handle_shm(struct vhost_dev *dev,
+                                       VhostUserShm *shm, int fd)
+{
+    int ret;
+
+    if (!dev->shm_ops) {
+        return -1;
+    }
+
+    if (dev->shm_ops->vhost_dev_slave_shm) {
+        ret = dev->shm_ops->vhost_dev_slave_shm(dev, shm, fd);
+    }
+    return ret;
+}
+
+static int vhost_user_slave_handle_fd(struct vhost_dev *dev,
+                                      VhostUserFd *fdinfo, int fd)
+{
+    int ret;
+    if (!dev->fd_ops) {
+        return -1;
+    }
+
+    if (dev->fd_ops->vhost_dev_slave_fd) {
+        ret = dev->fd_ops->vhost_dev_slave_fd(dev, fdinfo, fd);
+    }
+
+    return ret;
+}
+
 static void slave_read(void *opaque)
 {
     struct vhost_dev *dev = opaque;
@@ -1469,6 +1508,12 @@ static void slave_read(void *opaque)
     case VHOST_USER_SLAVE_VRING_HOST_NOTIFIER_MSG:
         ret = vhost_user_slave_handle_vring_host_notifier(dev, &payload.area,
                                                           fd[0]);
+        break;
+    case VHOST_USER_SLAVE_SHM:
+        ret = vhost_user_slave_handle_shm(dev, &payload.shm, fd[0]);
+        break;
+    case VHOST_USER_SLAVE_FD:
+        ret = vhost_user_slave_handle_fd(dev, &payload.fdinfo, fd[0]);
         break;
     default:
         error_report("Received unexpected msg type: %d.", hdr.request);
@@ -2324,6 +2369,82 @@ static int vhost_user_set_inflight_fd(struct vhost_dev *dev,
     return 0;
 }
 
+
+/* The maximum shm number of a vhost-user deviceis MAX_SHM_NUM */
+#define MAX_SHM_NUM 128
+
+static int vhost_user_set_shm(struct vhost_dev *dev)
+{
+    int i;
+    int ret;
+    int memfd;
+    if (!dev->fd_ops) {
+        return -1;
+    }
+
+    if (!virtio_has_feature(dev->protocol_features,
+                            VHOST_USER_PROTOCOL_F_MAP_SHMFD)) {
+        return 0;
+    }
+
+    if (dev->shm_ops->vhost_dev_shm_info) {
+        for (i = 0; i < MAX_SHM_NUM; i++) {
+            VhostUserMsg msg = {
+                .hdr.request = VHOST_USER_SET_SHM,
+                .hdr.flags = VHOST_USER_VERSION,
+                .hdr.size = sizeof(msg.payload.shm),
+                .payload.shm.id = i,
+            };
+            ret = dev->shm_ops->vhost_dev_shm_info(dev, i,
+                                                   &msg.payload.shm.size,
+                                                   &msg.payload.shm.offset,
+                                                   &memfd);
+            if (ret == -1) {
+                continue;
+            }
+            if (vhost_user_write(dev, &msg, &memfd, 1) < 0) {
+                return -1;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static void send_each_fd(gpointer key, gpointer value, gpointer opaque)
+{
+    int fd_key = GPOINTER_TO_INT(key);
+    int fd = GPOINTER_TO_INT(value);
+    struct vhost_dev *dev = opaque;
+    VhostUserMsg msg = {
+        .hdr.request = VHOST_USER_SET_FD,
+        .hdr.flags = VHOST_USER_VERSION,
+        .hdr.size = sizeof(msg.payload.fdinfo),
+    };
+    msg.payload.fdinfo.key = fd_key;
+    vhost_user_write(dev, &msg, &fd, 1);
+}
+
+static int vhost_user_set_fd(struct vhost_dev *dev)
+{
+    int ret;
+    GHashTable *fd_ht = NULL;
+
+    if (!dev->fd_ops || !dev->fd_ops->vhost_dev_fd_info) {
+        return -1;
+    }
+
+    ret = dev->fd_ops->vhost_dev_fd_info(dev, &fd_ht);
+    if (ret) {
+        return 0;
+    }
+
+    if (fd_ht != NULL) {
+        g_hash_table_foreach(fd_ht, send_each_fd, dev);
+    }
+    return 0;
+}
+
 bool vhost_user_init(VhostUserState *user, CharBackend *chr, Error **errp)
 {
     if (user->chr) {
@@ -2386,4 +2507,6 @@ const VhostOps user_ops = {
         .vhost_backend_mem_section_filter = vhost_user_mem_section_filter,
         .vhost_get_inflight_fd = vhost_user_get_inflight_fd,
         .vhost_set_inflight_fd = vhost_user_set_inflight_fd,
+        .vhost_set_shm = vhost_user_set_shm,
+        .vhost_set_fd = vhost_user_set_fd,
 };

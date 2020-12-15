@@ -60,6 +60,42 @@ typedef struct VhostDevConfigOps {
     int (*vhost_dev_config_notifier)(struct vhost_dev *dev);
 } VhostDevConfigOps;
 
+#ifndef VU_PERSIST_STRUCTS
+#define VU_PERSIST_STRUCTS
+
+typedef struct VhostUserShm {
+    int id;
+    uint64_t size;
+    uint64_t offset;
+} VhostUserShm;
+
+typedef enum VhostUserFdFlag {
+    VU_FD_FLAG_ADD = 0,
+    VU_FD_FLAG_DEL = 1,
+    VU_FD_FLAG_RESTORE = 2,
+    VU_FD_FLAG_MAX
+} VhostUserFdFlag;
+
+typedef struct VhostUserFd {
+    int key;
+    VhostUserFdFlag flag;
+} VhostUserFd;
+
+#endif
+
+typedef struct VhostDevShmOps {
+    int (*vhost_dev_slave_shm)(struct vhost_dev *dev,
+                               struct VhostUserShm *shm, int fd);
+    int (*vhost_dev_shm_info)(struct vhost_dev *dev, int shm_type,
+                              uint64_t *size, uint64_t *offset, int *memfd);
+} VhostDevShmOps;
+
+typedef struct VhostDevFdOps {
+    int (*vhost_dev_slave_fd)(struct vhost_dev *dev,
+                              struct VhostUserFd *fdinfo, int fd);
+    int (*vhost_dev_fd_info)(struct vhost_dev *dev, GHashTable **fd_ht_p);
+} VhostDevFdOps;
+
 struct vhost_memory;
 struct vhost_dev {
     VirtIODevice *vdev;
@@ -91,6 +127,8 @@ struct vhost_dev {
     QLIST_HEAD(, vhost_iommu) iommu_list;
     IOMMUNotifier n;
     const VhostDevConfigOps *config_ops;
+    const VhostDevShmOps *shm_ops;
+    const VhostDevFdOps *fd_ops;
 };
 
 struct vhost_net {
@@ -136,6 +174,8 @@ int vhost_dev_set_config(struct vhost_dev *dev, const uint8_t *data,
  */
 void vhost_dev_set_config_notifier(struct vhost_dev *dev,
                                    const VhostDevConfigOps *ops);
+void vhost_dev_set_shm_ops(struct vhost_dev *dev, const VhostDevShmOps *ops);
+void vhost_dev_set_fd_ops(struct vhost_dev *dev, const VhostDevFdOps *ops);
 
 void vhost_dev_reset_inflight(struct vhost_inflight *inflight);
 void vhost_dev_free_inflight(struct vhost_inflight *inflight);
@@ -146,4 +186,6 @@ int vhost_dev_set_inflight(struct vhost_dev *dev,
                            struct vhost_inflight *inflight);
 int vhost_dev_get_inflight(struct vhost_dev *dev, uint16_t queue_size,
                            struct vhost_inflight *inflight);
+int vhost_dev_set_shm(struct vhost_dev *dev);
+int vhost_dev_set_fd(struct vhost_dev *dev);
 #endif
