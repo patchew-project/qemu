@@ -1,5 +1,6 @@
 gen = [
   decodetree.process('mod-msa32.decode', extra_args: [ '--static-decode=decode_msa32' ]),
+  decodetree.process('mod-msa64.decode', extra_args: [ '--static-decode=decode_msa64' ]),
 ]
 
 mips_ss = ss.source_set()
@@ -19,6 +20,7 @@ mips_ss.add(when: 'CONFIG_TCG', if_true: files(
   'translate_addr_const.c',
   'mod-msa_translate.c',
 ))
+
 mips_ss.add(when: 'CONFIG_KVM', if_true: files('kvm.c'))
 
 mips_softmmu_ss = ss.source_set()
