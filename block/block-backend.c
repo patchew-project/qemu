@@ -1776,6 +1776,29 @@ void blk_drain_all(void)
     bdrv_drain_all_end();
 }
 
+static bool blk_error_retry_timeout(BlockBackend *blk)
+{
+    /* No timeout set, infinite retries. */
+    if (!blk->retry_timeout) {
+        return false;
+    }
+
+    /* The first time an error occurs. */
+    if (!blk->retry_start_time) {
+        blk->retry_start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+        return false;
+    }
+
+    return qemu_clock_get_ms(QEMU_CLOCK_REALTIME) > (blk->retry_start_time +
+                                                     blk->retry_timeout);
+}
+
+void blk_error_retry_reset_timeout(BlockBackend *blk)
+{
+    if (blk->retry_timer && blk->retry_start_time)
+        blk->retry_start_time = 0;
+}
+
 void blk_set_on_error(BlockBackend *blk, BlockdevOnError on_read_error,
                       BlockdevOnError on_write_error)
 {
@@ -1804,7 +1827,7 @@ BlockErrorAction blk_get_error_action(BlockBackend *blk, bool is_read,
     case BLOCKDEV_ON_ERROR_IGNORE:
         return BLOCK_ERROR_ACTION_IGNORE;
     case BLOCKDEV_ON_ERROR_RETRY:
-        return (blk->retry_timer) ?
+        return (blk->retry_timer && !blk_error_retry_timeout(blk)) ?
                BLOCK_ERROR_ACTION_RETRY : BLOCK_ERROR_ACTION_REPORT;
     case BLOCKDEV_ON_ERROR_AUTO:
     default:
