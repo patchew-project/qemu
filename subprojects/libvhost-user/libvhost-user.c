@@ -1169,20 +1169,6 @@ vu_check_queue_msg_file(VuDev *dev, VhostUserMsg *vmsg)
 }
 
 static int
-inflight_desc_compare(const void *a, const void *b)
-{
-    VuVirtqInflightDesc *desc0 = (VuVirtqInflightDesc *)a,
-                        *desc1 = (VuVirtqInflightDesc *)b;
-
-    if (desc1->counter > desc0->counter &&
-        (desc1->counter - desc0->counter) < VIRTQUEUE_MAX_SIZE * 2) {
-        return 1;
-    }
-
-    return -1;
-}
-
-static int
 vu_check_queue_inflights(VuDev *dev, VuVirtq *vq)
 {
     int i = 0;
@@ -1237,10 +1223,6 @@ vu_check_queue_inflights(VuDev *dev, VuVirtq *vq)
             }
         }
 
-        if (vq->resubmit_num > 1) {
-            qsort(vq->resubmit_list, vq->resubmit_num,
-                  sizeof(VuVirtqInflightDesc), inflight_desc_compare);
-        }
         vq->counter = vq->resubmit_list[0].counter + 1;
     }
 
