@@ -35,9 +35,6 @@
 
 static AioContext *blk_aiocb_get_aio_context(BlockAIOCB *acb);
 
-/* block backend default retry interval */
-#define BLOCK_BACKEND_DEFAULT_RETRY_INTERVAL   1000
-
 typedef struct BlockBackendAioNotifier {
     void (*attached_aio_context)(AioContext *new_context, void *opaque);
     void (*detach_aio_context)(void *opaque);
@@ -1774,6 +1771,16 @@ void blk_drain_all(void)
     }
 
     bdrv_drain_all_end();
+}
+
+void blk_set_on_error_retry_interval(BlockBackend *blk, int64_t interval)
+{
+    blk->retry_interval = interval;
+}
+
+void blk_set_on_error_retry_timeout(BlockBackend *blk, int64_t timeout)
+{
+    blk->retry_timeout = timeout;
 }
 
 static bool blk_error_retry_timeout(BlockBackend *blk)
