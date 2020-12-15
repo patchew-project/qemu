@@ -33,7 +33,7 @@ static int mknod_wrapper(int dirfd, const char *path, const char *link,
     int res;
 
     if (S_ISREG(mode)) {
-        res = openat(dirfd, path, O_CREAT | O_EXCL | O_WRONLY, mode);
+        res = openat(dirfd, path, O_CREAT | O_WRONLY, mode);
         if (res >= 0) {
             res = close(res);
         }

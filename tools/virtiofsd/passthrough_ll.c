@@ -57,6 +57,20 @@
 #include "passthrough_helpers.h"
 #include "passthrough_seccomp.h"
 #include "qemu/memfd.h"
+#include "contrib/libvhost-user/libvhost-user.h"
+
+static struct fuse_session *se;
+
+struct lo_data lo;
+
+typedef enum {
+    FD_MAP = 0,
+    INO_MAP = 1,
+    DIRP_MAP = 2,
+    MAP_TYPE_NUM = 3
+} map_t;
+/* We have 3 type of lo_maps, 2 bits is enough */
+#define MAP_TYPE_SHIFT 2
 
 /* Keep track of inode posix locks for each owner. */
 struct lo_inode_plock {
@@ -116,7 +130,7 @@ struct lo_map_elem {
 struct lo_map {
     size_t nelems;
     ssize_t freelist;
-    int map_type;
+    map_t map_type;
     int memfd;
     struct lo_map_elem elems[];
 } __attribute__((packed));
@@ -149,11 +163,6 @@ typedef struct xattr_map_entry {
     unsigned int flags;
 } XattrMapEntry;
 
-#define FD_MAP 0
-#define INO_MAP 1
-#define DIRP_MAP 2
-#define MAP_TYPE_NUM 3
-
 struct lo_data {
     pthread_mutex_t mutex;
     int sandbox;
@@ -175,6 +184,7 @@ struct lo_data {
     int allow_direct_io;
     int announce_submounts;
     bool use_statx;
+    int connected;
     struct lo_inode *root;
     GHashTable *inodes; /* protected by lo->mutex */
     struct lo_map *maps[MAP_TYPE_NUM]; /* protected by lo->mutex */
@@ -184,8 +194,6 @@ struct lo_data {
     /* An O_PATH file descriptor to /proc/self/fd/ */
     int proc_self_fd;
 };
-
-static struct lo_data lo;
 
 static const struct fuse_opt lo_opts[] = {
     { "sandbox=namespace",
@@ -225,6 +233,9 @@ static bool use_syslog = false;
 static int current_log_level;
 static void unref_inode_lolocked(struct lo_data *lo, struct lo_inode *inode,
                                  uint64_t n);
+static void try_reclaim_elems(void);
+static void restore_ino_map(void);
+static void restore_dirp_map(void);
 
 static struct {
     pthread_mutex_t mutex;
@@ -254,7 +265,7 @@ static int is_safe_path_component(const char *path)
 
 static struct lo_data *lo_data(fuse_req_t req)
 {
-    return &lo;
+    return (struct lo_data *)fuse_req_userdata(req);
 }
 
 /*
@@ -374,8 +385,7 @@ out:
     return ret;
 }
 
-
-static void lo_map_init(int map_type)
+static void lo_map_init(map_t map_type)
 {
     int memfd;
     int ret;
@@ -403,21 +413,15 @@ static void lo_map_init(int map_type)
     lo.maps[map_type]->freelist = -1;
     lo.maps[map_type]->map_type = map_type;
     lo.maps[map_type]->memfd = memfd;
-
-    printf("memfd: %d\n", lo.maps[map_type]->memfd);
-    ret = system("ls -lsh /proc/self/fd");
-    fuse_log(FUSE_LOG_DEBUG, "map %s init succeed!\n",
-                             MAP_NAME[lo.maps[map_type]->map_type]);
 }
 
-static void lo_map_destroy(int map_type)
+static void lo_map_destroy(map_t map_type)
 {
     munmap(lo.maps[map_type], sizeof(struct lo_map) +
            lo.maps[map_type]->nelems * sizeof(struct lo_map_elem));
-
 }
 
-static int lo_map_grow(int map_type, size_t new_nelems)
+static int lo_map_grow(map_t map_type, size_t new_nelems)
 {
     size_t i;
     size_t new_size;
@@ -448,10 +452,19 @@ static int lo_map_grow(int map_type, size_t new_nelems)
 
     lo.maps[map_type]->freelist = lo.maps[map_type]->nelems;
     lo.maps[map_type]->nelems = new_nelems;
+
+     if (lo.reconnect && lo.connected) {
+        /* sync the lo_map growing with QEMU */
+        uint64_t map_size = sizeof(struct lo_map) +
+                                sizeof(struct lo_map_elem) * new_nelems;
+        vu_slave_send_shm(virtio_get_dev(se), lo.maps[map_type]->memfd,
+                          map_size, map_type);
+    }
+
     return 1;
 }
 
-static struct lo_map_elem *lo_map_alloc_elem(int map_type)
+static struct lo_map_elem *lo_map_alloc_elem(map_t map_type)
 {
     struct lo_map_elem *elem;
     struct lo_map *map = lo.maps[map_type];
@@ -466,7 +479,7 @@ static struct lo_map_elem *lo_map_alloc_elem(int map_type)
     return elem;
 }
 
-static struct lo_map_elem *lo_map_reserve(int map_type, size_t key)
+static struct lo_map_elem *lo_map_reserve(map_t map_type, size_t key)
 {
     ssize_t *prev;
     struct lo_map *map = lo.maps[map_type];
@@ -519,6 +532,12 @@ static void lo_map_remove(struct lo_map *map, size_t key)
         closedir(elem->dirp.dp);
     }
 
+    if (lo.reconnect) {
+        /* remove the opened fd from QEMU */
+        int fd_key = key << MAP_TYPE_SHIFT | map->map_type;
+        vu_slave_send_fd_del(virtio_get_dev(se), fd_key);
+    }
+
     if (g_atomic_int_get(&elem->refcount) == -1) {
         return;
     }
@@ -527,6 +546,7 @@ static void lo_map_remove(struct lo_map *map, size_t key)
 
     elem->freelist = map->freelist;
     map->freelist = key;
+
 }
 
 /* Assumes lo->mutex is held */
@@ -542,6 +562,17 @@ static ssize_t lo_add_fd_mapping(fuse_req_t req, int fd)
     g_atomic_int_set(&elem->refcount, 1);
 
     elem->fd = fd;
+
+    ssize_t fh = ((unsigned long)elem -
+                 (unsigned long)lo_data(req)->maps[FD_MAP]->elems) /
+                 sizeof(struct lo_map_elem);
+
+    if (lo.reconnect) {
+        /* Send the newly opened fd to QEMU */
+        int key = fh << MAP_TYPE_SHIFT | FD_MAP;
+        vu_slave_send_fd_add(virtio_get_dev(se), fd, key);
+    }
+
     return ((unsigned long)elem -
             (unsigned long)lo_data(req)->maps[FD_MAP]->elems) /
             sizeof(struct lo_map_elem);
@@ -683,6 +714,13 @@ static void lo_init(void *userdata, struct fuse_conn_info *conn)
                  "does not support it\n");
         lo->announce_submounts = false;
     }
+    /* reinit the root inode when needed */
+    lo->connected = 1;
+
+    /* try to reclaim elems as many as possible */
+    try_reclaim_elems();
+    restore_ino_map();
+    restore_dirp_map();
 }
 
 static void lo_getattr(fuse_req_t req, fuse_ino_t ino,
@@ -1004,6 +1042,12 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
 
         g_hash_table_insert(lo->inodes, &inode->key, inode);
         pthread_mutex_unlock(&lo->mutex);
+
+        if (lo->reconnect) {
+            /* Send the newly opened fd to QEMU */
+            int key = inode->fuse_ino << MAP_TYPE_SHIFT | INO_MAP;
+            vu_slave_send_fd_add(virtio_get_dev(se), newfd, key);
+        }
     }
     e->ino = inode->fuse_ino;
     lo_inode_put(lo, inode);
@@ -1545,6 +1589,13 @@ static void lo_opendir(fuse_req_t req, fuse_ino_t ino,
     }
     g_atomic_int_set(&elem->refcount, 1); /* paired with lo_releasedir() */
     pthread_mutex_unlock(&lo->mutex);
+
+    if (lo->reconnect) {
+        /* Send the newly opened fd to QEMU */
+        int key = fh << MAP_TYPE_SHIFT | DIRP_MAP;
+        vu_slave_send_fd_add(virtio_get_dev(se), fd, key);
+    }
+
     fuse_reply_open(req, fi);
     return;
 
@@ -2960,6 +3011,8 @@ static void lo_destroy(void *userdata)
         unref_inode(lo, inode, inode->nlookup);
     }
     pthread_mutex_unlock(&lo->mutex);
+
+    lo->connected = 0;
 }
 
 static struct fuse_lowlevel_ops lo_oper = {
@@ -3011,6 +3064,113 @@ static void print_capabilities(void)
     printf("{\n");
     printf("  \"type\": \"fs\"\n");
     printf("}\n");
+}
+
+static void try_reclaim_elems(void)
+{
+    /*
+     * Crash consistency: Check if virtiofsd is crashed in an inconsistent
+     * status when removing, and try to fix it by removing again.
+     */
+    map_t map_type;
+    int i;
+    for (map_type = 0; map_type < MAP_TYPE_NUM; map_type++) {
+        if (map_type == INO_MAP || map_type == DIRP_MAP) {
+            for (i = 0; i < lo.maps[map_type]->nelems; i++) {
+                if (g_atomic_int_get(&lo.maps[map_type]->elems[i].refcount)
+                                                                     == 0) {
+                    pthread_mutex_lock(&lo.mutex);
+                    lo_map_remove(lo.maps[map_type], i);
+                    pthread_mutex_unlock(&lo.mutex);
+                }
+            }
+        }
+    }
+}
+
+static void restore_ino_map(void)
+{
+    int i ;
+
+    lo.root = &lo_map_get(lo.maps[INO_MAP], FUSE_ROOT_ID)->inode;
+    /* Restore the ino_map and lo.inodes hash table */
+    for (i = 0; i < lo.maps[INO_MAP]->nelems; i++) {
+        struct lo_map_elem *elem = &lo.maps[INO_MAP]->elems[i];
+        if (g_atomic_int_get(&elem->refcount) != -1) {
+            struct lo_inode *inode = &elem->inode;
+            pthread_mutex_init(&inode->plock_mutex, NULL);
+            elem->inode.posix_locks = g_hash_table_new_full(
+                g_direct_hash, g_direct_equal, NULL, posix_locks_value_destroy);
+            if (inode->nlookup > 0) {
+                g_hash_table_insert(lo.inodes, &inode->key, inode);
+            }
+            if (i > FUSE_ROOT_ID) {
+                g_atomic_int_set(&elem->refcount, 1);
+            } else {
+                g_atomic_int_set(&elem->refcount, 2);
+            }
+        }
+    }
+}
+
+static void restore_dirp_map(void)
+{
+    int i;
+
+    /* Restore the fields of lo_dirp. */
+    for (i = 0; i < lo.maps[DIRP_MAP]->nelems; i++) {
+        struct lo_map_elem *elem = &lo.maps[DIRP_MAP]->elems[i];
+        if (g_atomic_int_get(&elem->refcount) != -1) {
+            struct lo_dirp *d = &elem->dirp;
+            d->dp = fdopendir(d->fd);
+            d->fd = dirfd(d->dp);
+            d->entry = NULL;
+            g_atomic_int_set(&elem->refcount, 1);
+        }
+    }
+}
+
+static bool vu_set_fs_map(VuDev *dev, VhostUserMsg *vmsg)
+{
+    map_t map_type = vmsg->payload.shm.id;
+    int cur_map_memfd = lo.maps[map_type]->memfd;
+    int tmp_memfd = vmsg->fds[0];
+
+    lo.maps[map_type]->map_type = map_type;
+
+    uint64_t cur_map_size = sizeof(struct lo_map) +
+                    sizeof(struct lo_map_elem) * lo.maps[map_type]->nelems;
+    munmap(lo.maps[map_type], cur_map_size);
+    close(cur_map_memfd);
+    lo.maps[map_type] = mmap(lo.maps[map_type], vmsg->payload.shm.size,
+                        PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED,
+                                                        tmp_memfd, 0);
+    lo.maps[map_type]->memfd = tmp_memfd;
+
+    return false;
+}
+
+static bool vu_set_fs_proc_fd(VuDev *dev, VhostUserMsg *vmsg)
+{
+    int fd_num = vmsg->fd_num;
+    int fd, fd_key;
+
+    assert(fd_num == 1);
+    fd = vmsg->fds[0];
+    fd_key = vmsg->payload.fdinfo.key;
+
+    map_t map_type = fd_key & ((1 << MAP_TYPE_SHIFT) - 1);
+    int key = fd_key >> MAP_TYPE_SHIFT;
+
+    if (map_type == INO_MAP) {
+        lo.maps[INO_MAP]->elems[key].inode.fd = fd;
+    } else if (map_type == DIRP_MAP) {
+        lo.maps[DIRP_MAP]->elems[key].dirp.fd = fd;
+    } else if (map_type == FD_MAP) {
+        lo.maps[FD_MAP]->elems[key].fd = fd;
+    }
+
+    return false;
 }
 
 /*
@@ -3517,7 +3677,6 @@ static void fuse_lo_data_cleanup(struct lo_data *lo)
 int main(int argc, char *argv[])
 {
     struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
-    struct fuse_session *se;
     struct fuse_cmdline_opts opts;
     struct lo_map_elem *root_elem;
     struct lo_map_elem *reserve_elem;
@@ -3529,7 +3688,7 @@ int main(int argc, char *argv[])
     lo.posix_lock = 1;
     lo.allow_direct_io = 0,
     lo.proc_self_fd = -1;
-
+    lo.connected = 0;
     lo.reconnect = 0;
     lo.mount_ns = 1;
 
@@ -3609,6 +3768,9 @@ int main(int argc, char *argv[])
                    "no_posix_lock (default), and -o no_xattr (default).\n");
             exit(1);
         }
+
+        vu_set_shm_cb = vu_set_fs_map;
+        vu_set_fd_cb = vu_set_fs_proc_fd;
     }
 
     if (opts.log_level != 0) {
@@ -3693,6 +3855,11 @@ int main(int argc, char *argv[])
     setup_root(&lo, lo.root);
     /* Block until ctrl+c or fusermount -u */
     ret = virtio_loop(se);
+
+    /* If reconnection is enabled, we directly return without destroy status */
+    if (lo.reconnect) {
+        return 0;
+    }
 
     fuse_session_unmount(se);
     cleanup_capng();

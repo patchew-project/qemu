@@ -2126,6 +2126,22 @@ static void do_init(fuse_req_t req, fuse_ino_t nodeid,
     send_reply_ok(req, &outarg, outargsize);
 }
 
+static void do_init_reconn(fuse_req_t req, fuse_ino_t nodeid,
+                    struct fuse_mbuf_iter *iter)
+{
+    struct fuse_session *se = req->se;
+
+    (void)nodeid;
+
+    se->got_init = 1;
+    se->got_destroy = 0;
+    if (se->op.init) {
+        se->op.init(se->userdata, &se->conn);
+    }
+
+    fuse_log(FUSE_LOG_DEBUG, "   Virtiofsd reconnected");
+}
+
 static void do_destroy(fuse_req_t req, fuse_ino_t nodeid,
                        struct fuse_mbuf_iter *iter)
 {
@@ -2434,8 +2450,7 @@ void fuse_session_process_buf_int(struct fuse_session *se,
      * requests, FUSE_INIT and FUSE_INIT, FUSE_INIT and FUSE_DESTROY, and
      * FUSE_DESTROY and FUSE_DESTROY.
      */
-    if (in->opcode == FUSE_INIT || in->opcode == CUSE_INIT ||
-        in->opcode == FUSE_DESTROY) {
+    if (!se->got_init || in->opcode == FUSE_DESTROY) {
         pthread_rwlock_wrlock(&se->init_rwlock);
     } else {
         pthread_rwlock_rdlock(&se->init_rwlock);
@@ -2447,7 +2462,7 @@ void fuse_session_process_buf_int(struct fuse_session *se,
 
         expected = se->cuse_data ? CUSE_INIT : FUSE_INIT;
         if (in->opcode != expected) {
-            goto reply_err;
+            do_init_reconn(req, 0, &iter);
         }
     } else if (in->opcode == FUSE_INIT || in->opcode == CUSE_INIT) {
         if (fuse_lowlevel_is_virtio(se)) {

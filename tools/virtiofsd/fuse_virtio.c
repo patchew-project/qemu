@@ -99,6 +99,12 @@ static void fv_set_features(VuDev *dev, uint64_t features)
 {
 }
 
+static uint64_t fv_get_protocol_features(VuDev *dev)
+{
+    return 1ull << VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD |
+            1ull << VHOST_USER_PROTOCOL_F_MAP_SHMFD;
+}
+
 /*
  * Callback from libvhost-user if there's a new fd we're supposed to listen
  * to, typically a queue kick?
@@ -763,6 +769,7 @@ static bool fv_queue_order(VuDev *dev, int qidx)
 static const VuDevIface fv_iface = {
     .get_features = fv_get_features,
     .set_features = fv_set_features,
+    .get_protocol_features = fv_get_protocol_features,
 
     /* Don't need process message, we've not got any at vhost-user level */
     .queue_set_started = fv_queue_set_started,
@@ -1024,4 +1031,13 @@ void virtio_session_close(struct fuse_session *se)
     pthread_rwlock_destroy(&se->virtio_dev->vu_dispatch_rwlock);
     free(se->virtio_dev);
     se->virtio_dev = NULL;
+}
+
+struct VuDev *virtio_get_dev(struct fuse_session *se)
+{
+    if (se == NULL || se->virtio_dev == NULL) {
+        return NULL;
+    }
+
+    return &se->virtio_dev->dev;
 }
