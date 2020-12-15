@@ -1289,6 +1289,7 @@ int cpu_mips_signal_handler(int host_signum, void *pinfo, void *puc);
 bool cpu_type_supports_cps_smp(const char *cpu_type);
 bool cpu_supports_isa(const CPUMIPSState *env, uint64_t isa_mask);
 bool cpu_type_supports_isa(const char *cpu_type, uint64_t isa);
+bool isa_rel6_available(const CPUMIPSState *env);
 
 /* Check presence of multi-threading ASE implementation */
 static inline bool ase_mt_available(CPUMIPSState *env)

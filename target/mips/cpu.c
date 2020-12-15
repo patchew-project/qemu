@@ -789,6 +789,14 @@ bool cpu_supports_isa(const CPUMIPSState *env, uint64_t isa_mask)
     return (env->cpu_model->insn_flags & isa_mask) != 0;
 }
 
+bool isa_rel6_available(const CPUMIPSState *env)
+{
+    if (TARGET_LONG_BITS == 64) {
+        return cpu_supports_isa(env, ISA_MIPS64R6);
+    }
+    return cpu_supports_isa(env, ISA_MIPS32R6);
+}
+
 bool cpu_type_supports_isa(const char *cpu_type, uint64_t isa)
 {
     const MIPSCPUClass *mcc = MIPS_CPU_CLASS(object_class_by_name(cpu_type));
