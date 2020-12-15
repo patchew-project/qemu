@@ -193,6 +193,30 @@ static void copy_iov(struct iovec *src_iov, int src_count,
     }
 }
 
+static int virtio_no_msg(struct fuse_session *se, struct fuse_chan *ch)
+{
+    FVRequest *req = container_of(ch, FVRequest, ch);
+    struct fv_QueueInfo *qi = ch->qi;
+    VuDev *dev = &se->virtio_dev->dev;
+    VuVirtq *q = vu_get_queue(dev, qi->qidx);
+    VuVirtqElement *elem = &req->elem;
+    int ret = 0;
+
+    fuse_log(FUSE_LOG_DEBUG, "%s: elem %d no reply sent\n", __func__,
+             elem->index);
+
+    pthread_rwlock_rdlock(&qi->virtio_dev->vu_dispatch_rwlock);
+    pthread_mutex_lock(&qi->vq_lock);
+    vu_queue_push(dev, q, elem, 0);
+    vu_queue_notify(dev, q);
+    pthread_mutex_unlock(&qi->vq_lock);
+    pthread_rwlock_unlock(&qi->virtio_dev->vu_dispatch_rwlock);
+
+    req->reply_sent = true;
+
+    return ret;
+}
+
 /*
  * Called back by ll whenever it wants to send a reply/message back
  * The 1st element of the iov starts with the fuse_out_header
@@ -207,6 +231,10 @@ int virtio_send_msg(struct fuse_session *se, struct fuse_chan *ch,
     VuVirtq *q = vu_get_queue(dev, qi->qidx);
     VuVirtqElement *elem = &req->elem;
     int ret = 0;
+
+    if (iov == NULL && count == 0) {
+        return virtio_no_msg(se, ch);
+    }
 
     assert(count >= 1);
     assert(iov[0].iov_len >= sizeof(struct fuse_out_header));

@@ -2511,6 +2511,9 @@ void fuse_session_process_buf_int(struct fuse_session *se,
     if (in->opcode == FUSE_WRITE && se->op.write_buf) {
         do_write_buf(req, in->nodeid, &iter, bufv);
     } else {
+        if (in->opcode == FUSE_FORGET || in->opcode == FUSE_BATCH_FORGET) {
+            virtio_send_msg(req->se, req->ch, NULL, 0);
+        }
         fuse_ll_ops[in->opcode].func(req, in->nodeid, &iter);
     }
 

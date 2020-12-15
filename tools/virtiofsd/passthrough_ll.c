@@ -450,16 +450,21 @@ static int lo_map_grow(map_t map_type, size_t new_nelems)
     }
     lo.maps[map_type]->elems[new_nelems - 1].freelist = -1;
 
-    lo.maps[map_type]->freelist = lo.maps[map_type]->nelems;
-    lo.maps[map_type]->nelems = new_nelems;
-
      if (lo.reconnect && lo.connected) {
         /* sync the lo_map growing with QEMU */
         uint64_t map_size = sizeof(struct lo_map) +
                                 sizeof(struct lo_map_elem) * new_nelems;
         vu_slave_send_shm(virtio_get_dev(se), lo.maps[map_type]->memfd,
                           map_size, map_type);
+        /*
+         * A compiler barrier to ensure map_size is sent to QEMU
+         * before we update lo.maps[map_type]->nelems.
+         */
+        barrier();
     }
+
+    lo.maps[map_type]->freelist = lo.maps[map_type]->nelems;
+    lo.maps[map_type]->nelems = new_nelems;
 
     return 1;
 }
@@ -542,11 +547,15 @@ static void lo_map_remove(struct lo_map *map, size_t key)
         return;
     }
 
+    /*
+     * Crash consistency: we first set refcount to -1 (not in use),
+     * to invalidate the slot immediately, that may only cause a waste
+     * of space when crashing, instead of inconsistency.
+     */
     g_atomic_int_set(&elem->refcount, -1);
 
     elem->freelist = map->freelist;
     map->freelist = key;
-
 }
 
 /* Assumes lo->mutex is held */
@@ -559,10 +568,6 @@ static ssize_t lo_add_fd_mapping(fuse_req_t req, int fd)
         return -1;
     }
 
-    g_atomic_int_set(&elem->refcount, 1);
-
-    elem->fd = fd;
-
     ssize_t fh = ((unsigned long)elem -
                  (unsigned long)lo_data(req)->maps[FD_MAP]->elems) /
                  sizeof(struct lo_map_elem);
@@ -572,6 +577,9 @@ static ssize_t lo_add_fd_mapping(fuse_req_t req, int fd)
         int key = fh << MAP_TYPE_SHIFT | FD_MAP;
         vu_slave_send_fd_add(virtio_get_dev(se), fd, key);
     }
+
+    g_atomic_int_set(&elem->refcount, 1);
+    elem->fd = fd;
 
     return ((unsigned long)elem -
             (unsigned long)lo_data(req)->maps[FD_MAP]->elems) /
@@ -1027,6 +1035,18 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         struct lo_map_elem *elem;
         pthread_mutex_lock(&lo->mutex);
         elem = lo_add_inode_mapping(req, inode);
+        free(inode);
+        inode = &elem->inode;
+        inode->fuse_ino = ((unsigned long)elem -
+                        (unsigned long)lo_data(req)->maps[INO_MAP]->elems) /
+                                                sizeof(struct lo_map_elem);
+
+
+        if (lo->reconnect) {
+            /* Send the newly opened fd to QEMU */
+            int key = inode->fuse_ino << MAP_TYPE_SHIFT | INO_MAP;
+            vu_slave_send_fd_add(virtio_get_dev(se), newfd, key);
+        }
 
         /*
          * One for the caller and one for nlookup (released in
@@ -1034,20 +1054,8 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
          */
         g_atomic_int_set(&elem->refcount, 2);
 
-        free(inode);
-        inode = &elem->inode;
-        inode->fuse_ino = ((unsigned long)elem -
-                        (unsigned long)lo_data(req)->maps[INO_MAP]->elems) /
-                                                sizeof(struct lo_map_elem);
-
         g_hash_table_insert(lo->inodes, &inode->key, inode);
         pthread_mutex_unlock(&lo->mutex);
-
-        if (lo->reconnect) {
-            /* Send the newly opened fd to QEMU */
-            int key = inode->fuse_ino << MAP_TYPE_SHIFT | INO_MAP;
-            vu_slave_send_fd_add(virtio_get_dev(se), newfd, key);
-        }
     }
     e->ino = inode->fuse_ino;
     lo_inode_put(lo, inode);
@@ -1190,7 +1198,9 @@ static void lo_mknod_symlink(fuse_req_t req, fuse_ino_t parent,
     lo_restore_cred(&old);
 
     if (res == -1) {
-        goto out;
+        if (!(errno == EEXIST && lo->reconnect)) {
+            goto out;
+        }
     }
 
     saverr = lo_do_lookup(req, parent, name, &e);
@@ -1260,7 +1270,9 @@ static void lo_link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
                  AT_SYMLINK_FOLLOW);
 
     if (res == -1) {
-        goto out_err;
+        if (!(errno == EEXIST && lo->reconnect)) {
+            goto out_err;
+        }
     }
 
     res = fstatat(inode->fd, "", &e.attr, AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW);
@@ -1325,13 +1337,22 @@ static void lo_rmdir(fuse_req_t req, fuse_ino_t parent, const char *name)
 
     inode = lookup_name(req, parent, name);
     if (!inode) {
-        fuse_reply_err(req, EIO);
-        return;
+        if (lo->reconnect && errno == ENOENT) {
+            /*
+             * Because we crashed in this function, so do not perform unlink and
+             * reply 0 to complete this request.
+             */
+            fuse_reply_err(req, 0);
+        } else {
+            fuse_reply_err(req, EIO);
+        }
+        goto out;
     }
 
     res = unlinkat(lo_fd(req, parent), name, AT_REMOVEDIR);
 
     fuse_reply_err(req, res == -1 ? errno : 0);
+out:
     unref_inode_lolocked(lo, inode, 1);
     lo_inode_put(lo, inode);
 }
@@ -1359,11 +1380,19 @@ static void lo_rename(fuse_req_t req, fuse_ino_t parent, const char *name,
         goto out;
     }
 
-    oldinode = lookup_name(req, parent, name);
     newinode = lookup_name(req, newparent, newname);
+    oldinode = lookup_name(req, parent, name);
 
     if (!oldinode) {
-        fuse_reply_err(req, EIO);
+        if (lo->reconnect && errno == ENOENT) {
+            /*
+             * Because we crashed in this function, so do not perform unlink and
+             * reply 0 to complete this request.
+             */
+            fuse_reply_err(req, 0);
+        } else {
+            fuse_reply_err(req, EIO);
+        }
         goto out;
     }
 
@@ -1407,13 +1436,22 @@ static void lo_unlink(fuse_req_t req, fuse_ino_t parent, const char *name)
 
     inode = lookup_name(req, parent, name);
     if (!inode) {
-        fuse_reply_err(req, EIO);
-        return;
+        if (lo->reconnect && errno == ENOENT) {
+            /*
+             * Because we crashed in this function, so do not perform unlink and
+             * reply 0 to complete this request.
+             */
+            fuse_reply_err(req, 0);
+        } else {
+            fuse_reply_err(req, EIO);
+        }
+        goto out;
     }
 
     res = unlinkat(lo_fd(req, parent), name, 0);
 
     fuse_reply_err(req, res == -1 ? errno : 0);
+out:
     unref_inode_lolocked(lo, inode, 1);
     lo_inode_put(lo, inode);
 }
@@ -1587,8 +1625,6 @@ static void lo_opendir(fuse_req_t req, fuse_ino_t ino,
     if (lo->cache == CACHE_ALWAYS) {
         fi->cache_readdir = 1;
     }
-    g_atomic_int_set(&elem->refcount, 1); /* paired with lo_releasedir() */
-    pthread_mutex_unlock(&lo->mutex);
 
     if (lo->reconnect) {
         /* Send the newly opened fd to QEMU */
@@ -1596,7 +1632,10 @@ static void lo_opendir(fuse_req_t req, fuse_ino_t ino,
         vu_slave_send_fd_add(virtio_get_dev(se), fd, key);
     }
 
+    g_atomic_int_set(&elem->refcount, 1); /* paired with lo_releasedir() */
+    pthread_mutex_unlock(&lo->mutex);
     fuse_reply_open(req, fi);
+
     return;
 
 out_errno:
@@ -1756,9 +1795,15 @@ static void lo_releasedir(fuse_req_t req, fuse_ino_t ino,
     d = &elem->dirp;
     pthread_mutex_unlock(&lo->mutex);
 
-    lo_dirp_put(d, fi->fh); /* paired with lo_opendir() */
-
+    /*
+     * Reply the request before releasing the lo_map slot. Because the
+     * fi->fh slot may be re-allocated to a valid elem right after the slot
+     * is released, reply after releaseing may cause double-removing after
+     * reconnection, and the valid elem may be mistakenly removed.
+     */
     fuse_reply_err(req, 0);
+
+    lo_dirp_put(d, fi->fh); /* paired with lo_opendir() */
 }
 
 static void update_open_flags(int writeback, int allow_direct_io,
@@ -2072,11 +2117,14 @@ static void lo_release(fuse_req_t req, fuse_ino_t ino,
     pthread_mutex_lock(&lo->mutex);
     elem = lo_map_get(lo->maps[FD_MAP], fi->fh);
     if (elem) {
+        /*
+         * Reply the request before releasing the lo_map slot. Because similar
+         * with the lo_releasedir case, we want to avoid false double-removing.
+         */
+        fuse_reply_err(req, 0);
         lo_map_remove(lo->maps[FD_MAP], fi->fh);
     }
     pthread_mutex_unlock(&lo->mutex);
-
-    fuse_reply_err(req, 0);
 }
 
 static void lo_flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
@@ -3146,6 +3194,19 @@ static bool vu_set_fs_map(VuDev *dev, VhostUserMsg *vmsg)
                         PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED,
                                                         tmp_memfd, 0);
     lo.maps[map_type]->memfd = tmp_memfd;
+
+    /*
+     * Crash consistency: Check if virtiofsd is crashed in an inconsistent
+     * status when growing, and fix it when needed.
+     */
+    cur_map_size = sizeof(struct lo_map) +
+                        sizeof(struct lo_map_elem) * lo.maps[map_type]->nelems;
+    if (cur_map_size != vmsg->payload.shm.size) {
+        size_t new_nelems = (vmsg->payload.shm.size - cur_map_size) /
+                                                    sizeof(struct lo_map_elem);
+        lo_map_grow(map_type, lo.maps[map_type]->nelems + new_nelems);
+
+    }
 
     return false;
 }
