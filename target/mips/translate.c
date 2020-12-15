@@ -2190,7 +2190,6 @@ static TCGv cpu_lladdr, cpu_llval;
 static TCGv_i32 hflags;
 TCGv_i32 fpu_fcr0, fpu_fcr31;
 TCGv_i64 fpu_f64[32];
-static TCGv_i64 msa_wr_d[64];
 
 #if defined(TARGET_MIPS64)
 /* Upper halves of R5900's 128-bit registers: MMRs (multimedia registers) */
