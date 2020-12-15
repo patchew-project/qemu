@@ -35,6 +35,9 @@
 
 static AioContext *blk_aiocb_get_aio_context(BlockAIOCB *acb);
 
+/* block backend default retry interval */
+#define BLOCK_BACKEND_DEFAULT_RETRY_INTERVAL   1000
+
 typedef struct BlockBackendAioNotifier {
     void (*attached_aio_context)(AioContext *new_context, void *opaque);
     void (*detach_aio_context)(void *opaque);
@@ -95,6 +98,15 @@ struct BlockBackend {
      * Accessed with atomic ops.
      */
     unsigned int in_flight;
+
+    /* Timer for retry on errors. */
+    QEMUTimer *retry_timer;
+    /* Interval in ms to trigger next retry. */
+    int64_t retry_interval;
+    /* Start time of the first error. Used to check timeout. */
+    int64_t retry_start_time;
+    /* Retry timeout. 0 represents infinite retry. */
+    int64_t retry_timeout;
 };
 
 typedef struct BlockBackendAIOCB {
@@ -345,6 +357,11 @@ BlockBackend *blk_new(AioContext *ctx, uint64_t perm, uint64_t shared_perm)
     blk->on_read_error = BLOCKDEV_ON_ERROR_REPORT;
     blk->on_write_error = BLOCKDEV_ON_ERROR_ENOSPC;
 
+    blk->retry_timer = NULL;
+    blk->retry_interval = BLOCK_BACKEND_DEFAULT_RETRY_INTERVAL;
+    blk->retry_start_time = 0;
+    blk->retry_timeout = 0;
+
     block_acct_init(&blk->stats);
 
     qemu_co_queue_init(&blk->queued_requests);
@@ -456,6 +473,10 @@ static void blk_delete(BlockBackend *blk)
     QTAILQ_REMOVE(&block_backends, blk, link);
     drive_info_del(blk->legacy_dinfo);
     block_acct_cleanup(&blk->stats);
+    if (blk->retry_timer) {
+        timer_del(blk->retry_timer);
+        timer_free(blk->retry_timer);
+    }
     g_free(blk);
 }
 
