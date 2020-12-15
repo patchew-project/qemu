@@ -225,6 +225,20 @@ static void qemu_probe_lock_ops(void)
     }
 }
 
+bool qemu_has_file_lock(int fd)
+{
+    int ret;
+    struct flock fl = {
+        .l_whence = SEEK_SET,
+        .l_start  = 0,
+        .l_len    = 0,
+        .l_type   = F_WRLCK,
+    };
+
+    ret = fcntl(fd, F_GETLK, &fl);
+    return ret == 0;
+}
+
 bool qemu_has_ofd_lock(void)
 {
     qemu_probe_lock_ops();
