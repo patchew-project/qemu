@@ -112,6 +112,7 @@ static const int syscall_whitelist[] = {
     SCMP_SYS(utimensat),
     SCMP_SYS(write),
     SCMP_SYS(writev),
+    SCMP_SYS(memfd_create),
 };
 
 /* Syscalls used when --syslog is enabled */
