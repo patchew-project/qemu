@@ -584,6 +584,21 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     s->use_linux_io_uring = (aio == BLOCKDEV_AIO_OPTIONS_IO_URING);
 #endif
 
+    s->open_flags = open_flags;
+    raw_parse_flags(bdrv_flags, &s->open_flags, false);
+
+    s->fd = -1;
+    fd = qemu_open(filename, s->open_flags, errp);
+    ret = fd < 0 ? -errno : 0;
+
+    if (ret < 0) {
+        if (ret == -EROFS) {
+            ret = -EACCES;
+        }
+        goto fail;
+    }
+    s->fd = fd;
+
     locking = qapi_enum_parse(&OnOffAuto_lookup,
                               qemu_opt_get(opts, "locking"),
                               ON_OFF_AUTO_AUTO, &local_err);
@@ -607,6 +622,13 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
         break;
     case ON_OFF_AUTO_AUTO:
         s->use_lock = qemu_has_ofd_lock();
+        if (s->use_lock && !qemu_has_file_lock(s->fd)) {
+            /*
+             * When the os supports the OFD lock, but the filesystem doesn't
+             * support, just disable the file lock.
+             */
+            s->use_lock = false;
+        }
         break;
     default:
         abort();
@@ -625,22 +647,6 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     s->drop_cache = qemu_opt_get_bool(opts, "drop-cache", true);
     s->check_cache_dropped = qemu_opt_get_bool(opts, "x-check-cache-dropped",
                                                false);
-
-    s->open_flags = open_flags;
-    raw_parse_flags(bdrv_flags, &s->open_flags, false);
-
-    s->fd = -1;
-    fd = qemu_open(filename, s->open_flags, errp);
-    ret = fd < 0 ? -errno : 0;
-
-    if (ret < 0) {
-        if (ret == -EROFS) {
-            ret = -EACCES;
-        }
-        goto fail;
-    }
-    s->fd = fd;
-
     /* Check s->open_flags rather than bdrv_flags due to auto-read-only */
     if (s->open_flags & O_RDWR) {
         ret = check_hdev_writable(s->fd);
@@ -2388,6 +2394,7 @@ raw_co_create(BlockdevCreateOptions *options, Error **errp)
     int fd;
     uint64_t perm, shared;
     int result = 0;
+    bool use_lock;
 
     /* Validate options and set default values */
     assert(options->driver == BLOCKDEV_DRIVER_FILE);
@@ -2428,19 +2435,22 @@ raw_co_create(BlockdevCreateOptions *options, Error **errp)
     perm = BLK_PERM_WRITE | BLK_PERM_RESIZE;
     shared = BLK_PERM_ALL & ~BLK_PERM_RESIZE;
 
-    /* Step one: Take locks */
-    result = raw_apply_lock_bytes(NULL, fd, perm, ~shared, false, errp);
-    if (result < 0) {
-        goto out_close;
-    }
+    use_lock = qemu_has_file_lock(fd);
+    if (use_lock) {
+        /* Step one: Take locks */
+        result = raw_apply_lock_bytes(NULL, fd, perm, ~shared, false, errp);
+        if (result < 0) {
+            goto out_close;
+        }
 
-    /* Step two: Check that nobody else has taken conflicting locks */
-    result = raw_check_lock_bytes(fd, perm, shared, errp);
-    if (result < 0) {
-        error_append_hint(errp,
-                          "Is another process using the image [%s]?\n",
-                          file_opts->filename);
-        goto out_unlock;
+        /* Step two: Check that nobody else has taken conflicting locks */
+        result = raw_check_lock_bytes(fd, perm, shared, errp);
+        if (result < 0) {
+            error_append_hint(errp,
+                              "Is another process using the image [%s]?\n",
+                              file_opts->filename);
+            goto out_unlock;
+        }
     }
 
     /* Clear the file by truncating it to 0 */
