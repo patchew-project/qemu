@@ -64,6 +64,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD = 12,
     VHOST_USER_PROTOCOL_F_INBAND_NOTIFICATIONS = 14,
     VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS = 15,
+    VHOST_USER_PROTOCOL_F_MAP_SHMFD = 17,
 
     VHOST_USER_PROTOCOL_F_MAX
 };
@@ -109,6 +110,8 @@ typedef enum VhostUserRequest {
     VHOST_USER_GET_MAX_MEM_SLOTS = 36,
     VHOST_USER_ADD_MEM_REG = 37,
     VHOST_USER_REM_MEM_REG = 38,
+    VHOST_USER_SET_SHM = 41,
+    VHOST_USER_SET_FD = 42,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -119,6 +122,8 @@ typedef enum VhostUserSlaveRequest {
     VHOST_USER_SLAVE_VRING_HOST_NOTIFIER_MSG = 3,
     VHOST_USER_SLAVE_VRING_CALL = 4,
     VHOST_USER_SLAVE_VRING_ERR = 5,
+    VHOST_USER_SLAVE_SHM = 6,
+    VHOST_USER_SLAVE_FD = 7,
     VHOST_USER_SLAVE_MAX
 }  VhostUserSlaveRequest;
 
@@ -170,6 +175,29 @@ typedef struct VhostUserInflight {
     uint16_t queue_size;
 } VhostUserInflight;
 
+#ifndef VU_PERSIST_STRUCTS
+#define VU_PERSIST_STRUCTS
+
+typedef struct VhostUserShm {
+    int id;
+    uint64_t size;
+    uint64_t offset;
+} VhostUserShm;
+
+typedef enum VhostUserFdFlag {
+    VU_FD_FLAG_ADD = 0,
+    VU_FD_FLAG_DEL = 1,
+    VU_FD_FLAG_RESTORE = 2,
+    VU_FD_FLAG_MAX
+} VhostUserFdFlag;
+
+typedef struct VhostUserFd {
+    int key;
+    VhostUserFdFlag flag;
+} VhostUserFd;
+#endif
+
+
 #if defined(_WIN32) && (defined(__x86_64__) || defined(__i386__))
 # define VU_PACKED __attribute__((gcc_struct, packed))
 #else
@@ -197,6 +225,8 @@ typedef struct VhostUserMsg {
         VhostUserConfig config;
         VhostUserVringArea area;
         VhostUserInflight inflight;
+        VhostUserShm shm;
+        VhostUserFd fdinfo;
     } payload;
 
     int fds[VHOST_MEMORY_BASELINE_NREGIONS];
@@ -686,5 +716,45 @@ void vu_queue_get_avail_bytes(VuDev *vdev, VuVirtq *vq, unsigned int *in_bytes,
  */
 bool vu_queue_avail_bytes(VuDev *dev, VuVirtq *vq, unsigned int in_bytes,
                           unsigned int out_bytes);
+
+/**
+ * vu_slave_send_shm:
+ * @dev: a VuDev context
+ * @memfd: the shared memory fd to sync with QEMU
+ * @size: shared memory lenth
+ * @map_type: the lo_map type number
+ *
+ * Sync the map_type region that shared with QEMU when memfd or its size
+ * is changed.
+ *
+ * Returns: true on success.
+ */
+bool vu_slave_send_shm(VuDev *dev, int memfd, uint64_t size, int map_type);
+
+/**
+ * vu_slave_send_fd_add:
+ * @dev: a VuDev context
+ * @fd: the fd to send to QEMU
+ * @fd_key: the fingerprint of the fd
+ *
+ * Send a opened file fd to QEMU.
+ *
+ * Returns: true on success.
+ */
+bool vu_slave_send_fd_add(VuDev *dev, int fd, int fd_key);
+
+/**
+ * vu_slave_send_fd_del:
+ * @dev: a VuDev context
+ * @fd_key: the fingerprint of the fd
+ *
+ * Remove a file fd from QEMU.
+ *
+ * Returns: true on success.
+ */
+bool vu_slave_send_fd_del(VuDev *dev, int fd_key);
+
+extern bool (*vu_set_shm_cb)(VuDev *dev, VhostUserMsg *vmsg);
+extern bool (*vu_set_fd_cb)(VuDev *dev, VhostUserMsg *vmsg);
 
 #endif /* LIBVHOST_USER_H */

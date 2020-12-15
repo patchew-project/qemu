@@ -141,6 +141,8 @@ vu_request_to_string(unsigned int req)
         REQ(VHOST_USER_ADD_MEM_REG),
         REQ(VHOST_USER_REM_MEM_REG),
         REQ(VHOST_USER_MAX),
+        REQ(VHOST_USER_SET_SHM),
+        REQ(VHOST_USER_SET_FD),
     };
 #undef REQ
 
@@ -1757,6 +1759,77 @@ vu_set_inflight_fd(VuDev *dev, VhostUserMsg *vmsg)
     return false;
 }
 
+bool vu_slave_send_shm(VuDev *dev, int memfd, uint64_t size, int map_type)
+{
+    VhostUserMsg vmsg = {
+        .request = VHOST_USER_SLAVE_SHM,
+        .flags = VHOST_USER_VERSION,
+        .size = sizeof(VhostUserShm),
+        .payload.shm = {
+            .id = map_type,
+            .size = size,
+            .offset = 0,
+        },
+    };
+
+    vmsg.fd_num = 1;
+    vmsg.fds[0] = memfd;
+
+    if (!vu_has_protocol_feature(dev, VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD)) {
+        return false;
+    }
+
+    pthread_mutex_lock(&dev->slave_mutex);
+    if (!vu_message_write(dev, dev->slave_fd, &vmsg)) {
+        pthread_mutex_unlock(&dev->slave_mutex);
+        return false;
+    }
+
+    /* Also unlocks the slave_mutex */
+    return vu_process_message_reply(dev, &vmsg);
+}
+
+static bool vu_slave_send_fd(VuDev *dev, int fd, int fd_key, int flag)
+{
+    VhostUserMsg vmsg = {
+        .request = VHOST_USER_SLAVE_FD,
+        .flags = VHOST_USER_VERSION,
+        .size = sizeof(vmsg.payload.fdinfo),
+    };
+
+    vmsg.payload.fdinfo.key = fd_key;
+    vmsg.payload.fdinfo.flag = flag;
+    if (flag == VU_FD_FLAG_ADD) {
+        vmsg.fds[0] = fd;
+    }
+    vmsg.fd_num = 1;
+
+    if (!vu_has_protocol_feature(dev, VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD)) {
+        return false;
+    }
+
+    pthread_mutex_lock(&dev->slave_mutex);
+    if (!vu_message_write(dev, dev->slave_fd, &vmsg)) {
+        pthread_mutex_unlock(&dev->slave_mutex);
+        return false;
+    }
+
+    /* Also unlocks the slave_mutex */
+    bool ret =
+    vu_process_message_reply(dev, &vmsg);
+    return ret;
+}
+
+bool vu_slave_send_fd_add(VuDev *dev, int fd, int fd_key)
+{
+    return vu_slave_send_fd(dev, fd, fd_key, VU_FD_FLAG_ADD);
+}
+
+bool vu_slave_send_fd_del(VuDev *dev, int fd_key)
+{
+    return vu_slave_send_fd(dev, -1, fd_key, VU_FD_FLAG_DEL);
+}
+
 static bool
 vu_handle_vring_kick(VuDev *dev, VhostUserMsg *vmsg)
 {
@@ -1800,6 +1873,9 @@ static bool vu_handle_get_max_memslots(VuDev *dev, VhostUserMsg *vmsg)
 
     return false;
 }
+
+bool (*vu_set_shm_cb)(VuDev *dev, VhostUserMsg *vmsg);
+bool (*vu_set_fd_cb)(VuDev *dev, VhostUserMsg *vmsg);
 
 static bool
 vu_process_message(VuDev *dev, VhostUserMsg *vmsg)
@@ -1891,6 +1967,18 @@ vu_process_message(VuDev *dev, VhostUserMsg *vmsg)
         return vu_add_mem_reg(dev, vmsg);
     case VHOST_USER_REM_MEM_REG:
         return vu_rem_mem_reg(dev, vmsg);
+    case VHOST_USER_SET_SHM:
+        if (vu_set_shm_cb) {
+            return vu_set_shm_cb(dev, vmsg);
+        } else  {
+            return false;
+        }
+    case VHOST_USER_SET_FD:
+        if (vu_set_fd_cb) {
+            return vu_set_fd_cb(dev, vmsg);
+        } else  {
+            return false;
+        }
     default:
         vmsg_close_fds(vmsg);
         vu_panic(dev, "Unhandled request: %d", vmsg->request);
