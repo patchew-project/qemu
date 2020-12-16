@@ -29,6 +29,12 @@ static bool trans_ctz(DisasContext *ctx, arg_ctz *a)
     return gen_unary(ctx, a, &gen_ctz);
 }
 
+static bool trans_pcnt(DisasContext *ctx, arg_pcnt *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_unary(ctx, a, &tcg_gen_ctpop_tl);
+}
+
 /* RV64-only instructions */
 #ifdef TARGET_RISCV64
 
@@ -42,6 +48,12 @@ static bool trans_ctzw(DisasContext *ctx, arg_ctzw *a)
 {
     REQUIRE_EXT(ctx, RVB);
     return gen_unary(ctx, a, &gen_ctzw);
+}
+
+static bool trans_pcntw(DisasContext *ctx, arg_pcntw *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_unary(ctx, a, &gen_pcntw);
 }
 
 #endif
