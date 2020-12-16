@@ -1,0 +1,16 @@
+# -*- Mode: makefile -*-
+#
+# PPC - included from tests/tcg/Makefile
+#
+
+EXTRA_RUNS+=run-test-mmap
+
+VPATH += $(SRC_PATH)/tests/tcg/$(TARGET_NAME)/instruction-tests
+QEMU_OPTS += -cpu power10
+
+PPC_TESTS = test-prefixed-load-store
+
+TESTS += $(PPC_TESTS)
+
+test-prefixed-load-store: test-prefixed-load-store.c
+	gcc $< -o test-prefixed-load-store
