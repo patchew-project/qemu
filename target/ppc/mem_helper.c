@@ -533,6 +533,67 @@ STVE(stvewx, cpu_stl_data_ra, bswap32, u32)
 #undef LVE
 
 #ifdef TARGET_PPC64
+void helper_load_paired_vec(CPUPPCState *env, target_ulong addr,
+                            ppc_vsr_t *xt0, ppc_vsr_t *xt1)
+{
+    ppc_vsr_t t0, t1;
+    int i;
+
+    t0.s128 = int128_zero();
+    t1.s128 = int128_zero();
+
+    if (msr_le) {
+        for (i = 0; i < 16; i++) {
+            t1.VsrB(15 - i) = cpu_ldub_data_ra(env, addr, GETPC());
+            addr = addr_add(env, addr, 1);
+        }
+        for (i = 0; i < 16; i++) {
+            t0.VsrB(15 - i) = cpu_ldub_data_ra(env, addr, GETPC());
+            addr = addr_add(env, addr, 1);
+        }
+    } else { // TODO: check if it's correct for BE.
+        for (i = 0; i < 16; i++) {
+            t0.VsrB(i) = cpu_ldub_data_ra(env, addr, GETPC());
+            addr = addr_add(env, addr, 1);
+        }
+        for (i = 0; i < 16; i++) {
+            t1.VsrB(i) = cpu_ldub_data_ra(env, addr, GETPC());
+            addr = addr_add(env, addr, 1);
+        }
+    }
+
+    *xt0 = t0;
+    *xt1 = t1;
+}
+
+void helper_store_paired_vec(CPUPPCState *env, target_ulong addr,
+                             ppc_vsr_t *xt0, ppc_vsr_t *xt1)
+{
+    int i;
+
+    if (msr_le) {
+        for (i = 0; i < 16; i++) {
+            cpu_stb_data_ra(env, addr, xt1->VsrB(15 - i), GETPC());
+            addr = addr_add(env, addr, 1);
+        }
+        for (i = 0; i < 16; i++) {
+            cpu_stb_data_ra(env, addr, xt0->VsrB(15 - i), GETPC());
+            addr = addr_add(env, addr, 1);
+        }
+    } else { // TODO: check if it's correct for BE.
+        for (i = 0; i < 16; i++) {
+            cpu_stb_data_ra(env, addr, xt0->VsrB(i), GETPC());
+            addr = addr_add(env, addr, 1);
+        }
+        for (i = 0; i < 16; i++) {
+            cpu_stb_data_ra(env, addr, xt1->VsrB(i), GETPC());
+            addr = addr_add(env, addr, 1);
+        }
+    }
+}
+#endif /* TARGET_PPC64 */
+
+#ifdef TARGET_PPC64
 #define GET_NB(rb) ((rb >> 56) & 0xFF)
 
 #define VSX_LXVL(name, lj)                                              \

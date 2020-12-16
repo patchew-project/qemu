@@ -80,6 +80,12 @@ static inline int16_t name(uint32_t opcode)                                   \
         (((opcode >> (shift_op_d2)) & ((1 << (d2_bits)) - 1)) << (shift_d2));  \
 }
 
+#define EXTRACT_HELPER_SPLIT_SHIFTED(name, shift1, nb1, shift2, nb2, shift3)  \
+static inline uint32_t name(uint32_t opcode)                                  \
+{                                                                             \
+    return extract32(opcode, shift1, nb1) << (nb2 + shift3) |                 \
+               extract32(opcode, shift2, nb2) << shift3;                      \
+}
 
 /* Opcode part 1 */
 EXTRACT_HELPER(opc1, 26, 6);
@@ -226,6 +232,7 @@ EXTRACT_HELPER(SP, 19, 2);
 EXTRACT_HELPER(IMM8, 11, 8);
 EXTRACT_HELPER(DCMX, 16, 7);
 EXTRACT_HELPER_SPLIT_3(DCMX_XV, 5, 16, 0, 1, 2, 5, 1, 6, 6);
+EXTRACT_HELPER_SPLIT_SHIFTED(xTp, 21, 1, 22, 4, 1);
 
 void helper_compute_fprf_float16(CPUPPCState *env, float16 arg);
 void helper_compute_fprf_float32(CPUPPCState *env, float32 arg);

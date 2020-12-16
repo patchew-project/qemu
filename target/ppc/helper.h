@@ -279,6 +279,9 @@ DEF_HELPER_4(lxvl, void, env, tl, vsr, tl)
 DEF_HELPER_4(lxvll, void, env, tl, vsr, tl)
 DEF_HELPER_4(stxvl, void, env, tl, vsr, tl)
 DEF_HELPER_4(stxvll, void, env, tl, vsr, tl)
+/* lxvp/stxvp, plxvp/pstxvp, lxvpx/stxvpx */
+DEF_HELPER_4(store_paired_vec, void, env, tl, vsr, vsr)
+DEF_HELPER_4(load_paired_vec, void, env, tl, vsr, vsr)
 #endif
 DEF_HELPER_4(vsumsws, void, env, avr, avr, avr)
 DEF_HELPER_4(vsum2sws, void, env, avr, avr, avr)

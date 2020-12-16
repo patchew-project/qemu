@@ -406,6 +406,72 @@ VSX_VECTOR_LOAD_STORE_LENGTH(stxvl)
 VSX_VECTOR_LOAD_STORE_LENGTH(stxvll)
 #endif
 
+#ifdef TARGET_PPC64
+
+static void gen_dqform6(DisasContext *ctx)
+{
+    TCGv EA;
+    TCGv_ptr xt0, xt1;
+
+    EA = tcg_temp_new();
+    xt0 = gen_vsr_ptr(xTp(ctx->opcode));
+    xt1 = gen_vsr_ptr(xTp(ctx->opcode) + 1);
+    gen_set_access_type(ctx, ACCESS_INT);
+    gen_addr_imm_index(ctx, EA, 0x0F);
+
+    if (extract32(ctx->opcode, 0, 4) == 1) {
+        /* stxvp */
+        gen_helper_store_paired_vec(cpu_env, EA, xt0, xt1);
+    } else {
+        /* lxvp */
+        gen_helper_load_paired_vec(cpu_env, EA, xt0, xt1);
+    }
+
+    tcg_temp_free(EA);
+    tcg_temp_free_ptr(xt0);
+    tcg_temp_free_ptr(xt1);
+}
+
+#define VSX_VECTOR_LOAD_STORE_PAIRED(name, dform, op)              \
+static void gen_##name(DisasContext *ctx)                          \
+{                                                                  \
+    TCGv EA;                                                       \
+    TCGv_ptr xt0, xt1;                                             \
+                                                                   \
+    if (unlikely(!ctx->altivec_enabled)) {                         \
+        gen_exception(ctx, POWERPC_EXCP_VPU);                      \
+        return;                                                    \
+    }                                                              \
+                                                                   \
+    EA = tcg_temp_new();                                           \
+    xt0 = gen_vsr_ptr(xTp(ctx->opcode));                           \
+    xt1 = gen_vsr_ptr(xTp(ctx->opcode) + 1);                       \
+    gen_set_access_type(ctx, ACCESS_INT);                          \
+                                                                   \
+     if (dform) {                                                  \
+        /* pstxvp, plxvp, 8LS, D-form */                           \
+        if (gen_addr_imm34_index(ctx, EA)) {                       \
+            goto out;                                              \
+        }                                                          \
+    } else {                                                       \
+        /* lxvpx, stxvpx, X-form */                                \
+        gen_addr_reg_index(ctx, EA);                               \
+    }                                                              \
+                                                                   \
+    gen_helper_##op##_paired_vec(cpu_env, EA, xt0, xt1);           \
+out:                                                               \
+    tcg_temp_free(EA);                                             \
+    tcg_temp_free_ptr(xt0);                                        \
+    tcg_temp_free_ptr(xt1);                                        \
+}
+
+VSX_VECTOR_LOAD_STORE_PAIRED(plxvp, 1, load)
+VSX_VECTOR_LOAD_STORE_PAIRED(pstxvp, 1, store)
+VSX_VECTOR_LOAD_STORE_PAIRED(lxvpx, 0, load)
+VSX_VECTOR_LOAD_STORE_PAIRED(stxvpx, 0, store)
+
+#endif
+
 #define VSX_LOAD_SCALAR_DS(name, operation)                       \
 static void gen_##name(DisasContext *ctx)                         \
 {                                                                 \
