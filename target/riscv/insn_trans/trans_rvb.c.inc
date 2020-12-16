@@ -441,4 +441,26 @@ GEN_TRANS_SHADDU_W(1)
 GEN_TRANS_SHADDU_W(2)
 GEN_TRANS_SHADDU_W(3)
 
+static bool trans_addu_w(DisasContext *ctx, arg_addu_w *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_arith(ctx, a, &gen_addu_w);
+}
+
+static bool trans_slliu_w(DisasContext *ctx, arg_slliu_w *a)
+{
+    TCGv source1 = tcg_temp_new();
+    gen_get_gpr(source1, a->rs1);
+
+    if (a->shamt < 32) {
+        tcg_gen_deposit_z_i64(source1, source1, a->shamt, 32);
+    } else {
+        tcg_gen_shli_i64(source1, source1, a->shamt);
+    }
+
+    gen_set_gpr(a->rd, source1);
+    tcg_temp_free(source1);
+    return true;
+}
+
 #endif
