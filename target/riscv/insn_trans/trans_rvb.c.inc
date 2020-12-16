@@ -253,6 +253,17 @@ static bool trans_gorci(DisasContext *ctx, arg_gorci *a)
     return gen_shifti(ctx, a, &gen_helper_gorc);
 }
 
+#define GEN_TRANS_SHADD(SHAMT)                                             \
+static bool trans_sh##SHAMT##add(DisasContext *ctx, arg_sh##SHAMT##add *a) \
+{                                                                          \
+    REQUIRE_EXT(ctx, RVB);                                                 \
+    return gen_arith(ctx, a, &gen_sh##SHAMT##add);                         \
+}
+
+GEN_TRANS_SHADD(1)
+GEN_TRANS_SHADD(2)
+GEN_TRANS_SHADD(3)
+
 /* RV64-only instructions */
 #ifdef TARGET_RISCV64
 
@@ -417,5 +428,17 @@ static bool trans_gorciw(DisasContext *ctx, arg_gorciw *a)
 
     return gen_shiftiw(ctx, a, &gen_gorcw);
 }
+
+#define GEN_TRANS_SHADDU_W(SHAMT)                             \
+static bool trans_sh##SHAMT##addu_w(DisasContext *ctx,        \
+                                    arg_sh##SHAMT##addu_w *a) \
+{                                                             \
+    REQUIRE_EXT(ctx, RVB);                                    \
+    return gen_arith(ctx, a, &gen_sh##SHAMT##addu_w);         \
+}
+
+GEN_TRANS_SHADDU_W(1)
+GEN_TRANS_SHADDU_W(2)
+GEN_TRANS_SHADDU_W(3)
 
 #endif
