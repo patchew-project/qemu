@@ -711,6 +711,27 @@ static bool gen_arith_div_uw(DisasContext *ctx, arg_r *a,
 
 #endif
 
+static void gen_andn(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv t = tcg_temp_new();
+    tcg_gen_andc_tl(ret, arg1, arg2);
+    tcg_temp_free(t);
+}
+
+static void gen_orn(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv t = tcg_temp_new();
+    tcg_gen_orc_tl(ret, arg1, arg2);
+    tcg_temp_free(t);
+}
+
+static void gen_xnor(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv t = tcg_temp_new();
+    tcg_gen_eqv_tl(ret, arg1, arg2);
+    tcg_temp_free(t);
+}
+
 #ifdef TARGET_RISCV64
 
 static void gen_ctzw(TCGv ret, TCGv arg1)
