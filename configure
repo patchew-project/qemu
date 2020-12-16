@@ -6854,7 +6854,7 @@ done
   export $i
 done
 export target_list source_path use_containers
-$source_path/tests/tcg/configure.sh)
+$source_path/tests/tcg/configure.sh) || exit 1
 
 # temporary config to build submodules
 for rom in seabios; do

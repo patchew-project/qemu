@@ -212,8 +212,10 @@ for target in $target_list; do
 
     eval "target_compiler=\${cross_cc_$i}"
     if ! has $target_compiler; then
-      continue
+      echo "Specified cross-compiler '$target_compiler' not found!"
+      exit 1
     fi
+
     write_c_skeleton
     if ! do_compiler "$target_compiler" $target_compiler_cflags -o $TMPE $TMPC -static ; then
       # For host systems we might get away with building without -static
