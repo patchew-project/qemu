@@ -107,6 +107,54 @@ static bool trans_sext_h(DisasContext *ctx, arg_sext_h *a)
     return gen_unary(ctx, a, &tcg_gen_ext16s_tl);
 }
 
+static bool trans_sbset(DisasContext *ctx, arg_sbset *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_shift(ctx, a, &gen_sbset);
+}
+
+static bool trans_sbseti(DisasContext *ctx, arg_sbseti *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_shifti(ctx, a, &gen_sbset);
+}
+
+static bool trans_sbclr(DisasContext *ctx, arg_sbclr *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_shift(ctx, a, &gen_sbclr);
+}
+
+static bool trans_sbclri(DisasContext *ctx, arg_sbclri *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_shifti(ctx, a, &gen_sbclr);
+}
+
+static bool trans_sbinv(DisasContext *ctx, arg_sbinv *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_shift(ctx, a, &gen_sbinv);
+}
+
+static bool trans_sbinvi(DisasContext *ctx, arg_sbinvi *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_shifti(ctx, a, &gen_sbinv);
+}
+
+static bool trans_sbext(DisasContext *ctx, arg_sbext *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_shift(ctx, a, &gen_sbext);
+}
+
+static bool trans_sbexti(DisasContext *ctx, arg_sbexti *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_shifti(ctx, a, &gen_sbext);
+}
+
 {
 /* RV64-only instructions */
 #ifdef TARGET_RISCV64
@@ -139,6 +187,48 @@ static bool trans_packuw(DisasContext *ctx, arg_packuw *a)
 {
     REQUIRE_EXT(ctx, RVB);
     return gen_arith(ctx, a, &gen_packuw);
+}
+
+static bool trans_sbsetw(DisasContext *ctx, arg_sbsetw *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_shiftw(ctx, a, &gen_sbset);
+}
+
+static bool trans_sbsetiw(DisasContext *ctx, arg_sbsetiw *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_shiftiw(ctx, a, &gen_sbset);
+}
+
+static bool trans_sbclrw(DisasContext *ctx, arg_sbclrw *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_shiftw(ctx, a, &gen_sbclr);
+}
+
+static bool trans_sbclriw(DisasContext *ctx, arg_sbclriw *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_shiftiw(ctx, a, &gen_sbclr);
+}
+
+static bool trans_sbinvw(DisasContext *ctx, arg_sbinvw *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_shiftw(ctx, a, &gen_sbinv);
+}
+
+static bool trans_sbinviw(DisasContext *ctx, arg_sbinviw *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_shiftiw(ctx, a, &gen_sbinv);
+}
+
+static bool trans_sbextw(DisasContext *ctx, arg_sbextw *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_shiftw(ctx, a, &gen_sbext);
 }
 
 #endif
