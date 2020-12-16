@@ -9563,8 +9563,13 @@ static int insert_in_table(opc_handler_t **table, unsigned char idx,
 }
 
 static int register_direct_insn(opc_handler_t **ppc_opcodes,
-                                unsigned char idx, opc_handler_t *handler)
+                                unsigned char idx, opc_handler_t *handler,
+                                bool prefixed, bool modified)
 {
+    if (prefixed) {
+        idx = modified ? idx + PPC_CPU_PREFIXED_MODIFIED_OPCODE_OFFSET
+                       : idx + PPC_CPU_PREFIXED_OPCODE_OFFSET;
+    }
     if (insert_in_table(ppc_opcodes, idx, handler) < 0) {
         printf("*** ERROR: opcode %02x already assigned in main "
                "opcode table\n", idx);
@@ -9688,7 +9693,8 @@ static int register_insn(opc_handler_t **ppc_opcodes, opcode_t *insn)
             }
         }
     } else {
-        if (register_direct_insn(ppc_opcodes, insn->opc1, &insn->handler) < 0) {
+        if (register_direct_insn(ppc_opcodes, insn->opc1, &insn->handler,
+                                 insn->prefixed, insn->modified) < 0) {
             return -1;
         }
     }
@@ -9766,6 +9772,7 @@ static void dump_ppc_insns(CPUPPCState *env)
     for (opc1 = 0x00; opc1 < PPC_CPU_OPCODES_LEN; opc1++) {
         table = env->opcodes;
         handler = table[opc1];
+        /* TODO: need to update opcode dump to account for prefixed space */
         if (is_indirect_opcode(handler)) {
             /* opc2 is 5 bits long */
             for (opc2 = 0; opc2 < PPC_CPU_INDIRECT_OPCODES_LEN; opc2++) {

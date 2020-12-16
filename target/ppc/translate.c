@@ -180,6 +180,8 @@ struct DisasContext {
     uint32_t flags;
     uint64_t insns_flags;
     uint64_t insns_flags2;
+    uint32_t prefix;
+    uint32_t prefix_subtype;
 };
 
 /* Return true iff byteswap is needed in a scalar memop */
@@ -376,6 +378,12 @@ GEN_OPCODE(name, opc1, opc2, opc3, inval, type, PPC_NONE)
 #define GEN_HANDLER_E(name, opc1, opc2, opc3, inval, type, type2)             \
 GEN_OPCODE(name, opc1, opc2, opc3, inval, type, type2)
 
+#define GEN_HANDLER_E_PREFIXED(name, opc1, opc2, opc3, inval, type, type2)    \
+GEN_OPCODE_PREFIXED(name, opc1, opc2, opc3, inval, type, type2, false)
+
+#define GEN_HANDLER_E_PREFIXED_M(name, opc1, opc2, opc3, inval, type, type2)  \
+GEN_OPCODE_PREFIXED(name, opc1, opc2, opc3, inval, type, type2, true)
+
 #define GEN_HANDLER2(name, onam, opc1, opc2, opc3, inval, type)               \
 GEN_OPCODE2(name, onam, opc1, opc2, opc3, inval, type, PPC_NONE)
 
@@ -395,6 +403,8 @@ typedef struct opcode_t {
 #endif
     opc_handler_t handler;
     const char *oname;
+    bool prefixed;
+    bool modified;
 } opcode_t;
 
 /* Helpers for priv. check */
@@ -448,6 +458,23 @@ typedef struct opcode_t {
         .oname = stringify(name),                                             \
     },                                                                        \
     .oname = stringify(name),                                                 \
+}
+#define GEN_OPCODE_PREFIXED(name, op1, op2, op3, invl, _typ, _typ2, _modified)\
+{                                                                             \
+    .opc1 = op1,                                                              \
+    .opc2 = op2,                                                              \
+    .opc3 = op3,                                                              \
+    .opc4 = 0xff,                                                             \
+    .handler = {                                                              \
+        .inval1  = invl,                                                      \
+        .type = _typ,                                                         \
+        .type2 = _typ2,                                                       \
+        .handler = &gen_##name,                                               \
+        .oname = stringify(name),                                             \
+    },                                                                        \
+    .oname = stringify(name),                                                 \
+    .prefixed = true,                                                         \
+    .modified = _modified,                                                    \
 }
 #define GEN_OPCODE_DUAL(name, op1, op2, op3, invl1, invl2, _typ, _typ2)       \
 {                                                                             \
@@ -524,6 +551,22 @@ typedef struct opcode_t {
         .handler = &gen_##name,                                               \
     },                                                                        \
     .oname = stringify(name),                                                 \
+}
+#define GEN_OPCODE_PREFIXED(name, op1, op2, op3, invl, _typ, _typ2, _modified)\
+{                                                                             \
+    .opc1 = op1,                                                              \
+    .opc2 = op2,                                                              \
+    .opc3 = op3,                                                              \
+    .opc4 = 0xff,                                                             \
+    .handler = {                                                              \
+        .inval1  = invl,                                                      \
+        .type = _typ,                                                         \
+        .type2 = _typ2,                                                       \
+        .handler = &gen_##name,                                               \
+    },                                                                        \
+    .oname = stringify(name),                                                 \
+    .prefixed = true,                                                         \
+    .modified = _modified,                                                    \
 }
 #define GEN_OPCODE_DUAL(name, op1, op2, op3, invl1, invl2, _typ, _typ2)       \
 {                                                                             \
@@ -7991,6 +8034,101 @@ static bool ppc_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
     return true;
 }
 
+
+
+/*
+ * Prefixed instruction sub-types
+ *
+ * as per PowerISA 3.1 1.6.3
+ */
+enum {
+    /* prefixed instruction but subtype doesn't match any of below ones */
+    PREFIX_ST_INVALID   = -1,
+    /* non-prefixed instruction (normal instruction) */
+    PREFIX_ST_NONE      = 0,
+    /* Type 0b00 prefixed insn sub-types */
+    PREFIX_ST_8LS,      /* 8-byte load/store */
+    PREFIX_ST_8MLS,     /* 8-byte masked load/store */
+    /* Type 0b01 prefixed insn sub-types */
+    PREFIX_ST_8RR,      /* 8-byte reg-to-reg */
+    PREFIX_ST_8MRR,     /* 8-byte masked reg-to-reg */
+    /* Type 0b10 prefixed insn sub-types */
+    PREFIX_ST_MLS,      /* modified load/store */
+    PREFIX_ST_MMLS,     /* modified masked load/store */
+    /* Type 0b11 prefixed insn sub-types */
+    PREFIX_ST_MRR,      /* modified reg-to-reg */
+    PREFIX_ST_MMRR,     /* modified mask reg-to-reg */
+    PREFIX_ST_MMIRR,    /* modified masked immediate reg-to-reg */
+};
+
+static int32_t parse_prefix_subtype(uint32_t prefix)
+{
+    int32_t prefix_subtype = PREFIX_ST_INVALID;
+
+    /* primary opcode 1 is reserved for instruction prefixes */
+    if (opc1(prefix) != 1) {
+        return PREFIX_ST_NONE;
+    }
+
+    switch (PREFIX_TYPE(prefix)) {
+    case 0:
+        if (PREFIX_ST1(prefix) == 0) {
+            prefix_subtype = PREFIX_ST_8LS;
+        } else if (PREFIX_ST1(prefix) == 1) {
+            prefix_subtype = PREFIX_ST_8MLS;
+        }
+        break;
+    case 1:
+        if (PREFIX_ST4(prefix) == 0) {
+            prefix_subtype = PREFIX_ST_8RR;
+        } else if (PREFIX_ST4(prefix) == 8) {
+            prefix_subtype = PREFIX_ST_8MRR;
+        }
+        break;
+    case 2:
+        if (PREFIX_ST1(prefix) == 0) {
+            prefix_subtype = PREFIX_ST_MLS;
+        } else if (PREFIX_ST1(prefix) == 1) {
+            prefix_subtype = PREFIX_ST_MMLS;
+        }
+        break;
+    case 3:
+        if (PREFIX_ST4(prefix) == 0) {
+            prefix_subtype = PREFIX_ST_MRR;
+        } else if (PREFIX_ST4(prefix) == 8) {
+            prefix_subtype = PREFIX_ST_MMRR;
+        } else if (PREFIX_ST4(prefix) == 9) {
+            prefix_subtype = PREFIX_ST_MMIRR;
+        }
+        break;
+    }
+
+    return prefix_subtype;
+}
+
+static uint32_t opc1_idx(DisasContext *ctx)
+{
+    uint32_t table_offset = 0;
+
+    switch (ctx->prefix_subtype) {
+    case PREFIX_ST_8LS:
+    case PREFIX_ST_8MLS:
+    case PREFIX_ST_8RR:
+    case PREFIX_ST_8MRR:
+        table_offset = PPC_CPU_PREFIXED_OPCODE_OFFSET;
+        break;
+    case PREFIX_ST_MLS:
+    case PREFIX_ST_MMLS:
+    case PREFIX_ST_MRR:
+    case PREFIX_ST_MMRR:
+    case PREFIX_ST_MMIRR:
+        table_offset = PPC_CPU_PREFIXED_MODIFIED_OPCODE_OFFSET;
+        break;
+    }
+
+    return table_offset + opc1(ctx->opcode);
+}
+
 static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
@@ -8004,14 +8142,40 @@ static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 
     ctx->opcode = translator_ldl_swap(env, ctx->base.pc_next,
                                       need_byteswap(ctx));
+    /* check for prefix */
+    ctx->prefix_subtype = parse_prefix_subtype(ctx->opcode);
+    if (ctx->prefix_subtype == PREFIX_ST_INVALID) {
+        qemu_log_mask(LOG_GUEST_ERROR, "invalid/unsupported prefix: "
+                      "%08x " TARGET_FMT_lx "\n",
+                      ctx->prefix, ctx->base.pc_next);
+    } else if (ctx->prefix_subtype != PREFIX_ST_NONE) {
+        /*
+         * this is the 4-byte prefix of an instruction, read the
+         * next 4 and advance the PC
+         *
+         * TODO: we can optimize this to do a single load since we
+         * read in target_long anyways already
+         *
+         * double-check endianess cases.
+         *
+         * engineering note about endianess changing based on rfid
+         * or interrupt. does this need to be accounted for here?
+         */
+        ctx->prefix = ctx->opcode;
+        ctx->base.pc_next += 4;
+        ctx->opcode = translator_ldl_swap(env, ctx->base.pc_next,
+                                          need_byteswap(ctx));
+    } else {
+        ctx->prefix = 0;
+    }
 
-    LOG_DISAS("translate opcode %08x (%02x %02x %02x %02x) (%s)\n",
+    LOG_DISAS("translate opcode %08x (%02x %02x %02x %02x) prefix %08x (%s)\n",
               ctx->opcode, opc1(ctx->opcode), opc2(ctx->opcode),
-              opc3(ctx->opcode), opc4(ctx->opcode),
+              opc3(ctx->opcode), opc4(ctx->opcode), ctx->prefix,
               ctx->le_mode ? "little" : "big");
     ctx->base.pc_next += 4;
     table = cpu->opcodes;
-    handler = table[opc1(ctx->opcode)];
+    handler = table[opc1_idx(ctx)];
     if (is_indirect_opcode(handler)) {
         table = ind_table(handler);
         handler = table[opc2(ctx->opcode)];

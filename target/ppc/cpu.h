@@ -979,8 +979,34 @@ struct ppc_radix_page_info {
 #define PPC_TLB_EPID_LOAD 8
 #define PPC_TLB_EPID_STORE 9
 
-#define PPC_CPU_OPCODES_LEN          0x40
-#define PPC_CPU_INDIRECT_OPCODES_LEN 0x20
+/*
+ * The primary op-code field extracted from the instruction (PO) is used as the
+ * index in the top-level QEMU opcode table. That table is then further used to
+ * find the proper handler, or a pointer to another table (OPC1, OPC2 etc). For
+ * the normal opcodes (PO field of normal insns) the 64 first entries are used.
+ *
+ * Prefixed instructions can be divided into two major groups of instructions:
+ * the first group is formed by type 0 and 1, and the second group is by type 2
+ * and 3. Opcodes (PO) related to prefixed type 0/1 can have the same opcodes
+ * as the normal instructions but don't have any semantics related to them. But
+ * since it's an primary opcode anyway it was decided to simply extend the
+ * top-level table that handles the primary opcodes for the normal instructions.
+ * On the other handle, prefixed instructions type 2/3 work like modifiers for
+ * existing normal instructions. In that case it would be possible to reuse the
+ * handlers for the normal instructions, but that would require changing the
+ * normal instruction handler in a way it would have to check, for instance, on
+ * which ISA it has to take care of prefixes insns, and that is already done by
+ * GEN_HANDLER_* helpers when registering a new instruction, where there is a
+ * a field to inform on which ISA the instruction exists. Hence, it was decided
+ * to add another 64 entries for specific handler for the prefixed instructions
+ * of type 2/3. Thus the size of top-level PO lookup table is 3*64 = 192, hence
+ * representing three namespaces for decoding PO: for normal insns, for type 0/1
+ * and for type 2/3.
+ */
+#define PPC_CPU_OPCODES_LEN                     0xc0 /* 64 + 64 + 64 = 192 */
+#define PPC_CPU_INDIRECT_OPCODES_LEN            0x20
+#define PPC_CPU_PREFIXED_OPCODE_OFFSET          0x40 /* Prefixed type 0/1  */
+#define PPC_CPU_PREFIXED_MODIFIED_OPCODE_OFFSET 0x80 /* Prefixed type 2/3  */
 
 struct CPUPPCState {
     /* Most commonly used resources during translated code execution first */

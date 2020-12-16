@@ -129,6 +129,7 @@ EXTRACT_SHELPER(SIMM5, 16, 5);
 EXTRACT_HELPER(UIMM5, 16, 5);
 /* 4 bits unsigned immediate value */
 EXTRACT_HELPER(UIMM4, 16, 4);
+
 /* Bit count */
 EXTRACT_HELPER(NB, 11, 5);
 /* Shift count */
@@ -145,6 +146,19 @@ EXTRACT_HELPER(ME, 1, 5);
 EXTRACT_HELPER(TO, 21, 5);
 
 EXTRACT_HELPER(CRM, 12, 8);
+
+/*
+ * Instruction prefix fields
+ *
+ * as per PowerISA 3.1 1.6.3
+ */
+
+/* prefixed instruction type */
+EXTRACT_HELPER(PREFIX_TYPE, 24, 2);
+/* 1-bit sub-type */
+EXTRACT_HELPER(PREFIX_ST1, 23, 1);
+/* 4-bit sub-type */
+EXTRACT_HELPER(PREFIX_ST4, 20, 4);
 
 #ifndef CONFIG_USER_ONLY
 EXTRACT_HELPER(SR, 16, 4);
