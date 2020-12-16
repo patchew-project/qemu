@@ -874,6 +874,28 @@ static void glue(gen_, name)(DisasContext *ctx)                               \
     tcg_temp_free_i64(t0);                                                    \
 }
 
+#define GEN_PLDF(name, ldop, opc, type)                                       \
+static void glue(gen_, p##name)(DisasContext *ctx)                            \
+{                                                                             \
+    TCGv EA;                                                                  \
+    TCGv_i64 t0;                                                              \
+    if (unlikely(!ctx->fpu_enabled)) {                                        \
+        gen_exception(ctx, POWERPC_EXCP_FPU);                                 \
+        return;                                                               \
+    }                                                                         \
+    gen_set_access_type(ctx, ACCESS_FLOAT);                                   \
+    EA = tcg_temp_new();                                                      \
+    t0 = tcg_temp_new_i64();                                                  \
+    if (gen_addr_imm34_index(ctx, EA)) {                                      \
+        goto out;                                                             \
+    }                                                                         \
+    gen_qemu_##ldop(ctx, t0, EA);                                             \
+    set_fpr(rD(ctx->opcode), t0);                                             \
+out:                                                                          \
+    tcg_temp_free(EA);                                                        \
+    tcg_temp_free_i64(t0);                                                    \
+}
+
 #define GEN_LDUF(name, ldop, opc, type)                                       \
 static void glue(gen_, name##u)(DisasContext *ctx)                            \
 {                                                                             \
@@ -943,6 +965,7 @@ static void glue(gen_, name##x)(DisasContext *ctx)                            \
 
 #define GEN_LDFS(name, ldop, op, type)                                        \
 GEN_LDF(name, ldop, op | 0x20, type);                                         \
+GEN_PLDF(name, ldop, op | 0x20, type);                                        \
 GEN_LDUF(name, ldop, op | 0x21, type);                                        \
 GEN_LDUXF(name, ldop, op | 0x01, type);                                       \
 GEN_LDXF(name, ldop, 0x17, op | 0x00, type)
@@ -1109,6 +1132,28 @@ static void glue(gen_, name)(DisasContext *ctx)                               \
     tcg_temp_free_i64(t0);                                                    \
 }
 
+#define GEN_PSTF(name, stop, opc, type)                                       \
+static void glue(gen_, p##name)(DisasContext *ctx)                               \
+{                                                                             \
+    TCGv EA;                                                                  \
+    TCGv_i64 t0;                                                              \
+    if (unlikely(!ctx->fpu_enabled)) {                                        \
+        gen_exception(ctx, POWERPC_EXCP_FPU);                                 \
+        return;                                                               \
+    }                                                                         \
+    gen_set_access_type(ctx, ACCESS_FLOAT);                                   \
+    EA = tcg_temp_new();                                                      \
+    t0 = tcg_temp_new_i64();                                                  \
+    if (gen_addr_imm34_index(ctx, EA)) {                                      \
+        goto out;                                                             \
+    }                                                                         \
+    get_fpr(t0, rS(ctx->opcode));                                             \
+    gen_qemu_##stop(ctx, t0, EA);                                             \
+out:                                                                          \
+    tcg_temp_free(EA);                                                        \
+    tcg_temp_free_i64(t0);                                                    \
+}
+
 #define GEN_STUF(name, stop, opc, type)                                       \
 static void glue(gen_, name##u)(DisasContext *ctx)                            \
 {                                                                             \
@@ -1178,6 +1223,7 @@ static void glue(gen_, name##x)(DisasContext *ctx)                            \
 
 #define GEN_STFS(name, stop, op, type)                                        \
 GEN_STF(name, stop, op | 0x20, type);                                         \
+GEN_PSTF(name, stop, op | 0x20, type);                                        \
 GEN_STUF(name, stop, op | 0x21, type);                                        \
 GEN_STUXF(name, stop, op | 0x01, type);                                       \
 GEN_STXF(name, stop, 0x17, op | 0x00, type)
@@ -1483,12 +1529,14 @@ static void gen_stfqx(DisasContext *ctx)
 #undef GEN_FLOAT_BS
 
 #undef GEN_LDF
+#undef GEN_PLDF
 #undef GEN_LDUF
 #undef GEN_LDUXF
 #undef GEN_LDXF
 #undef GEN_LDFS
 
 #undef GEN_STF
+#undef GEN_PSTF
 #undef GEN_STUF
 #undef GEN_STUXF
 #undef GEN_STXF
