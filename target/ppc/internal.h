@@ -159,6 +159,12 @@ EXTRACT_HELPER(PREFIX_TYPE, 24, 2);
 EXTRACT_HELPER(PREFIX_ST1, 23, 1);
 /* 4-bit sub-type */
 EXTRACT_HELPER(PREFIX_ST4, 20, 4);
+/* 18 bits signed immediate value */
+EXTRACT_SHELPER(SIMM18, 0, 18);
+/* 18 bits unsigned immediate value */
+EXTRACT_HELPER(UIMM18, 0, 18);
+/* R bit controls if CIA should be added when computing the EA */
+EXTRACT_HELPER(R, 20, 1);
 
 #ifndef CONFIG_USER_ONLY
 EXTRACT_HELPER(SR, 16, 4);

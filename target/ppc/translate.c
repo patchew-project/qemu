@@ -2495,6 +2495,37 @@ static inline void gen_addr_add(DisasContext *ctx, TCGv ret, TCGv arg1,
     }
 }
 
+/* returns true if exception was generated */
+static inline int gen_addr_imm34_index(DisasContext *ctx, TCGv EA)
+{
+    uint64_t offset;
+
+    /* ISA says that if R=1 then RA must be 0, otherwise the form is invalid */
+    if (R(ctx->prefix) == 1) {
+        if (unlikely(rA(ctx->opcode) != 0)) {
+            gen_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
+            return true;
+        }
+        /*
+         * To find out the address of a prefixed instruction
+         * it's necessary to rewind 8 bytes because they are
+         * twice the size of non-prefixed instructions.
+         */
+        tcg_gen_movi_tl(EA, ctx->base.pc_next - 8);
+    } else {
+        gen_addr_register(ctx, EA);
+    }
+
+    offset = (uint64_t)UIMM18(ctx->prefix) << 16;
+    offset |= UIMM(ctx->opcode);
+    /* sign-extend 34 bit offset to 64-bits... */
+    if (extract64(offset, 33, 1) == 1) {
+        offset |= -1UL << 34;
+    }
+    tcg_gen_addi_tl(EA, EA, offset);
+    return false;
+}
+
 static inline void gen_align_no_le(DisasContext *ctx)
 {
     gen_exception_err(ctx, POWERPC_EXCP_ALIGN,
@@ -2714,6 +2745,35 @@ static void gen_ld(DisasContext *ctx)
     tcg_temp_free(EA);
 }
 
+static void gen_pld(DisasContext *ctx)
+{
+    TCGv EA;
+
+    gen_set_access_type(ctx, ACCESS_INT);
+    EA = tcg_temp_new();
+    if (gen_addr_imm34_index(ctx, EA)) {
+        goto out;
+    }
+    gen_qemu_ld64_i64(ctx, cpu_gpr[rD(ctx->opcode)], EA);
+out:
+    tcg_temp_free(EA);
+}
+
+/* paddi */
+static void gen_paddi(DisasContext *ctx)
+{
+    TCGv EA;
+
+    EA = tcg_temp_new();
+    if (gen_addr_imm34_index(ctx, EA)) {
+        goto out;
+    }
+    gen_qemu_ld64_i64(ctx, cpu_gpr[rD(ctx->opcode)], EA);
+
+out:
+    tcg_temp_free(EA);
+}
+
 /* lq */
 static void gen_lq(DisasContext *ctx)
 {
@@ -2776,6 +2836,195 @@ static void gen_lq(DisasContext *ctx)
     }
     tcg_temp_free(EA);
 }
+
+static void gen_plq(DisasContext *ctx)
+{
+    int ra, rd;
+    TCGv EA, rd0, rd1;
+
+    ra = rA(ctx->opcode);
+    rd = rD(ctx->opcode);
+    if (unlikely((rd & 1) || rd == ra)) {
+        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
+        return;
+    }
+
+    gen_set_access_type(ctx, ACCESS_INT);
+    EA = tcg_temp_new();
+    if (gen_addr_imm34_index(ctx, EA)) {
+        goto out;
+    }
+
+    rd0 = cpu_gpr[rd];
+    rd1 = cpu_gpr[rd + 1];
+
+    if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
+        /* Restart with exclusive lock.  */
+        gen_helper_exit_atomic(cpu_env);
+        ctx->base.is_jmp = DISAS_NORETURN;
+    } else {
+        tcg_gen_qemu_ld_i64(rd0, EA, ctx->mem_idx,
+                            ctx->le_mode ? MO_LEQ : MO_BEQ);
+        gen_addr_add(ctx, EA, EA, 8);
+        tcg_gen_qemu_ld_i64(rd1, EA, ctx->mem_idx,
+                            ctx->le_mode ? MO_LEQ : MO_BEQ);
+    }
+out:
+    tcg_temp_free(EA);
+}
+
+static void gen_plbz(DisasContext *ctx)
+{
+    TCGv EA;
+    gen_set_access_type(ctx, ACCESS_INT);
+    EA = tcg_temp_new();
+    if (gen_addr_imm34_index(ctx, EA)) {
+        goto out;
+    }
+    gen_qemu_ld8u(ctx, cpu_gpr[rD(ctx->opcode)], EA);
+out:
+    tcg_temp_free(EA);
+}
+
+static void gen_plhz(DisasContext *ctx)
+{
+    TCGv EA;
+    gen_set_access_type(ctx, ACCESS_INT);
+    EA = tcg_temp_new();
+    if (gen_addr_imm34_index(ctx, EA)) {
+        goto out;
+    }
+    gen_qemu_ld16u(ctx, cpu_gpr[rD(ctx->opcode)], EA);
+out:
+    tcg_temp_free(EA);
+}
+
+static void gen_plha(DisasContext *ctx)
+{
+    TCGv EA;
+    gen_set_access_type(ctx, ACCESS_INT);
+    EA = tcg_temp_new();
+    if (gen_addr_imm34_index(ctx, EA)) {
+        goto out;
+    }
+    gen_qemu_ld16s(ctx, cpu_gpr[rD(ctx->opcode)], EA);
+out:
+    tcg_temp_free(EA);
+}
+
+static void gen_plwz(DisasContext *ctx)
+{
+    TCGv EA;
+    gen_set_access_type(ctx, ACCESS_INT);
+    EA = tcg_temp_new();
+    if (gen_addr_imm34_index(ctx, EA)) {
+        goto out;
+    }
+    gen_qemu_ld32u(ctx, cpu_gpr[rD(ctx->opcode)], EA);
+out:
+    tcg_temp_free(EA);
+}
+
+static void gen_plwa(DisasContext *ctx)
+{
+    TCGv EA;
+    gen_set_access_type(ctx, ACCESS_INT);
+    EA = tcg_temp_new();
+    if (gen_addr_imm34_index(ctx, EA)) {
+        goto out;
+    }
+    gen_qemu_ld32s(ctx, cpu_gpr[rD(ctx->opcode)], EA);
+out:
+    tcg_temp_free(EA);
+}
+
+static void gen_pstb(DisasContext *ctx)
+{
+    TCGv EA;
+    gen_set_access_type(ctx, ACCESS_INT);
+    EA = tcg_temp_new();
+    if (gen_addr_imm34_index(ctx, EA)) {
+        goto out;
+    }
+    gen_qemu_st8(ctx, cpu_gpr[rS(ctx->opcode)], EA);
+out:
+    tcg_temp_free(EA);
+}
+
+static void gen_psth(DisasContext *ctx)
+{
+    TCGv EA;
+    gen_set_access_type(ctx, ACCESS_INT);
+    EA = tcg_temp_new();
+    if (gen_addr_imm34_index(ctx, EA)) {
+        goto out;
+    }
+    gen_qemu_st16(ctx, cpu_gpr[rS(ctx->opcode)], EA);
+out:
+    tcg_temp_free(EA);
+}
+
+static void gen_pstw(DisasContext *ctx)
+{
+    TCGv EA;
+    gen_set_access_type(ctx, ACCESS_INT);
+    EA = tcg_temp_new();
+    if (gen_addr_imm34_index(ctx, EA)) {
+        goto out;
+    }
+    gen_qemu_st32(ctx, cpu_gpr[rS(ctx->opcode)], EA);
+out:
+    tcg_temp_free(EA);
+}
+
+static void gen_pstd(DisasContext *ctx) {
+    TCGv EA;
+    gen_set_access_type(ctx, ACCESS_INT);
+    EA = tcg_temp_new();
+    if (gen_addr_imm34_index(ctx, EA)) {
+        goto out;
+    }
+    gen_qemu_st64_i64(ctx, cpu_gpr[rS(ctx->opcode)], EA);
+out:
+    tcg_temp_free(EA);
+}
+
+static void gen_pstq(DisasContext *ctx) {
+    int ra, rs;
+    TCGv EA, rs0, rs1;
+
+    ra = rA(ctx->opcode);
+    rs = rD(ctx->opcode);
+    if (unlikely((rs & 1) || rs == ra)) {
+        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
+        return;
+    }
+
+    gen_set_access_type(ctx, ACCESS_INT);
+    EA = tcg_temp_new();
+    if (gen_addr_imm34_index(ctx, EA)) {
+        goto out;
+    }
+
+    rs0 = cpu_gpr[rs];
+    rs1 = cpu_gpr[rs + 1];
+
+    if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
+        /* Restart with exclusive lock.  */
+        gen_helper_exit_atomic(cpu_env);
+        ctx->base.is_jmp = DISAS_NORETURN;
+    } else {
+        tcg_gen_qemu_st_i64(rs0, EA, ctx->mem_idx,
+                            ctx->le_mode ? MO_LEQ : MO_BEQ);
+        gen_addr_add(ctx, EA, EA, 8);
+        tcg_gen_qemu_st_i64(rs1, EA, ctx->mem_idx,
+                            ctx->le_mode ? MO_LEQ : MO_BEQ);
+    }
+out:
+    tcg_temp_free(EA);
+}
+
+
 #endif
 
 /***                              Integer store                            ***/
@@ -7067,6 +7316,9 @@ GEN_HANDLER_E(cmpb, 0x1F, 0x1C, 0x0F, 0x00000001, PPC_NONE, PPC2_ISA205),
 GEN_HANDLER_E(cmprb, 0x1F, 0x00, 0x06, 0x00400001, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER(isel, 0x1F, 0x0F, 0xFF, 0x00000001, PPC_ISEL),
 GEN_HANDLER(addi, 0x0E, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
+#if defined(TARGET_PPC64)
+GEN_HANDLER_E_PREFIXED_M(paddi, 0x0E, 0xFF, 0xFF, 0x00000000, PPC_64B, PPC2_ISA310),
+#endif
 GEN_HANDLER(addic, 0x0C, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER2(addic_, "addic.", 0x0D, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
 GEN_HANDLER(addis, 0x0F, 0xFF, 0xFF, 0x00000000, PPC_INTEGER),
@@ -7128,6 +7380,18 @@ GEN_HANDLER2_E(extswsli1, "extswsli", 0x1F, 0x1B, 0x1B, 0x00000000,
 GEN_HANDLER(ld, 0x3A, 0xFF, 0xFF, 0x00000000, PPC_64B),
 GEN_HANDLER(lq, 0x38, 0xFF, 0xFF, 0x00000000, PPC_64BX),
 GEN_HANDLER(std, 0x3E, 0xFF, 0xFF, 0x00000000, PPC_64B),
+GEN_HANDLER_E_PREFIXED_M(plbz, 0x22, 0xFF, 0xFF, 0x00000000, PPC_64B, PPC2_ISA310),
+GEN_HANDLER_E_PREFIXED_M(plhz, 0x28, 0xFF, 0xFF, 0x00000000, PPC_64B, PPC2_ISA310),
+GEN_HANDLER_E_PREFIXED_M(plha, 0x2a, 0xFF, 0xFF, 0x00000000, PPC_64B, PPC2_ISA310),
+GEN_HANDLER_E_PREFIXED_M(plwz, 0x20, 0xFF, 0xFF, 0x00000000, PPC_64B, PPC2_ISA310),
+GEN_HANDLER_E_PREFIXED(plwa, 0x29, 0xFF, 0xFF, 0x00000000, PPC_64B, PPC2_ISA310),
+GEN_HANDLER_E_PREFIXED(pld, 0x39, 0xFF, 0xFF, 0x00000000, PPC_64B, PPC2_ISA310),
+GEN_HANDLER_E_PREFIXED(plq, 0x38, 0xFF, 0xFF, 0x00000000, PPC_64B, PPC2_ISA310),
+GEN_HANDLER_E_PREFIXED_M(pstb, 0x26, 0xFF, 0xFF, 0x00000000, PPC_64B, PPC2_ISA310),
+GEN_HANDLER_E_PREFIXED_M(psth, 0x2c, 0xFF, 0xFF, 0x00000000, PPC_64B, PPC2_ISA310),
+GEN_HANDLER_E_PREFIXED_M(pstw, 0x24, 0xFF, 0xFF, 0x00000000, PPC_64B, PPC2_ISA310),
+GEN_HANDLER_E_PREFIXED(pstd, 0x3d, 0xFF, 0xFF, 0x00000000, PPC_64B, PPC2_ISA310),
+GEN_HANDLER_E_PREFIXED(pstq, 0x3c, 0xFF, 0xFF, 0x00000000, PPC_64B, PPC2_ISA310),
 #endif
 /* handles lfdp, lxsd, lxssp */
 GEN_HANDLER_E(dform39, 0x39, 0xFF, 0xFF, 0x00000000, PPC_NONE, PPC2_ISA205),
