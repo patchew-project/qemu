@@ -288,6 +288,26 @@ const MemoryRegionOps vfio_region_ops = {
     },
 };
 
+static void vfio_container_dma_reserve(VFIOContainer *container,
+                                       unsigned long dma_mappings)
+{
+    bool warned = container->dma_reserved > container->dma_max;
+
+    container->dma_reserved += dma_mappings;
+    if (!warned && container->dma_max &&
+        container->dma_reserved > container->dma_max) {
+        warn_report("%s: possibly running out of DMA mappings. "
+                    " Maximum number of DMA mappings: %d", __func__,
+                    container->dma_max);
+    }
+}
+
+static void vfio_container_dma_unreserve(VFIOContainer *container,
+                                         unsigned long dma_mappings)
+{
+    container->dma_reserved -= dma_mappings;
+}
+
 /*
  * Device state interfaces
  */
@@ -835,6 +855,9 @@ static void vfio_listener_region_add(MemoryListener *listener,
         }
     }
 
+    /* We'll need one DMA mapping. */
+    vfio_container_dma_reserve(container, 1);
+
     ret = vfio_dma_map(container, iova, int128_get64(llsize),
                        vaddr, section->readonly);
     if (ret) {
@@ -879,6 +902,7 @@ static void vfio_listener_region_del(MemoryListener *listener,
                                      MemoryRegionSection *section)
 {
     VFIOContainer *container = container_of(listener, VFIOContainer, listener);
+    bool unreserve_on_unmap = true;
     hwaddr iova, end;
     Int128 llend, llsize;
     int ret;
@@ -919,6 +943,7 @@ static void vfio_listener_region_del(MemoryListener *listener,
          * based IOMMU where a big unmap flattens a large range of IO-PTEs.
          * That may not be true for all IOMMU types.
          */
+        unreserve_on_unmap = false;
     }
 
     iova = TARGET_PAGE_ALIGN(section->offset_within_address_space);
@@ -969,6 +994,11 @@ static void vfio_listener_region_del(MemoryListener *listener,
             error_report("vfio_dma_unmap(%p, 0x%"HWADDR_PRIx", "
                          "0x%"HWADDR_PRIx") = %d (%m)",
                          container, iova, int128_get64(llsize), ret);
+        }
+
+        /* We previously reserved one DMA mapping. */
+        if (unreserve_on_unmap) {
+            vfio_container_dma_unreserve(container, 1);
         }
     }
 
@@ -1735,6 +1765,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     container->fd = fd;
     container->error = NULL;
     container->dirty_pages_supported = false;
+    container->dma_max = 0;
     QLIST_INIT(&container->giommu_list);
     QLIST_INIT(&container->hostwin_list);
 
@@ -1765,7 +1796,10 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
         vfio_host_win_add(container, 0, (hwaddr)-1, info->iova_pgsizes);
         container->pgsizes = info->iova_pgsizes;
 
+        /* The default in the kernel ("dma_entry_limit") is 65535. */
+        container->dma_max = 65535;
         if (!ret) {
+            vfio_get_info_dma_avail(info, &container->dma_max);
             vfio_get_iommu_info_migration(container, info);
         }
         g_free(info);
