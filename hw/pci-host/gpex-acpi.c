@@ -112,9 +112,18 @@ static void acpi_dsdt_add_pci_osc(Aml *dev)
     UUID = aml_touuid("E5C937D0-3553-4D7A-9117-EA4D19C3434D");
     ifctx = aml_if(aml_equal(aml_arg(0), UUID));
     ifctx1 = aml_if(aml_equal(aml_arg(2), aml_int(0)));
-    uint8_t byte_list[1] = {1};
+    uint8_t byte_list[1] = {0x21};
     buf = aml_buffer(1, byte_list);
     aml_append(ifctx1, aml_return(buf));
+    aml_append(ifctx, ifctx1);
+
+    /* PCI Firmware Specification 3.2
+     * 4.6.5. _DSM for Ignoring PCI Boot Configurations
+     * The UUID in _DSM in this context is
+     * {E5C937D0-3553-4D7A-9117-EA4D19C3434D}
+     */
+    ifctx1 = aml_if(aml_equal(aml_arg(2), aml_int(5)));
+    aml_append(ifctx1, aml_return(aml_int(0)));
     aml_append(ifctx, ifctx1);
     aml_append(method, ifctx);
 
