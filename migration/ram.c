@@ -1471,6 +1471,7 @@ static RAMBlock *poll_fault_page(RAMState *rs, ram_addr_t *offset)
     page_address = (void *) uffd_msg.arg.pagefault.address;
     bs = qemu_ram_block_from_host(page_address, false, offset);
     assert(bs && (bs->flags & RAM_UF_WRITEPROTECT) != 0);
+
     return bs;
 }
 #endif /* CONFIG_LINUX */
@@ -1836,6 +1837,7 @@ static void ram_save_host_page_post(RAMState *rs, PageSearchStatus *pss,
         /* Un-protect memory range. */
         res = uffd_change_protection(rs->uffdio_fd, page_address, run_length,
                 false, false);
+
         /* We don't want to override existing error from ram_save_host_page(). */
         if (res < 0 && *res_override >= 0) {
             *res_override = res;
