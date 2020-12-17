@@ -69,7 +69,7 @@ class QAPISchemaEntity:
 
     def _set_module(self, schema, info):
         assert self._checked
-        self._module = schema.module_by_fname(info.fname if info else None)
+        self._module = schema.module_by_fname(info.fname)
         self._module.add_entity(self)
 
     def set_module(self, schema):
@@ -826,7 +826,7 @@ class QAPISchema:
         self._entity_dict = {}
         self._module_dict = OrderedDict()
         self._schema_dir = os.path.dirname(fname)
-        self._make_module(None)  # built-ins
+        self._make_module(QAPISourceInfo.builtin().fname)  # built-ins
         self._make_module(fname)
         self._predefining = True
         self._def_predefineds()
@@ -871,10 +871,10 @@ class QAPISchema:
                 info, "%s uses unknown type '%s'" % (what, name))
         return typ
 
-    def _module_name(self, fname):
-        if fname is None:
-            return None
-        return os.path.relpath(fname, self._schema_dir)
+    def _module_name(self, fname: str) -> str:
+        if fname:
+            return os.path.relpath(fname, self._schema_dir)
+        return fname
 
     def _make_module(self, fname):
         name = self._module_name(fname)

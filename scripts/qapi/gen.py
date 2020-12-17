@@ -310,14 +310,14 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
             genc.write(output_dir)
             genh.write(output_dir)
 
-    def _begin_system_module(self, name: None) -> None:
+    def _begin_system_module(self, name: str) -> None:
         pass
 
     def _begin_user_module(self, name: str) -> None:
         pass
 
-    def visit_module(self, name: Optional[str]) -> None:
-        if name is None:
+    def visit_module(self, name: str) -> None:
+        if not name:
             if self._builtin_blurb:
                 self._add_system_module('builtin', self._builtin_blurb)
                 self._begin_system_module(name)
