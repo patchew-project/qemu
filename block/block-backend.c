@@ -1938,6 +1938,18 @@ uint32_t blk_get_max_transfer(BlockBackend *blk)
     return MIN_NON_ZERO(max, INT_MAX);
 }
 
+/* Returns the maximum transfer length, for SCSI passthrough */
+uint32_t blk_get_max_ioctl_transfer(BlockBackend *blk)
+{
+    BlockDriverState *bs = blk_bs(blk);
+    uint32_t max = 0;
+
+    if (bs) {
+        max = bs->bl.max_ioctl_transfer;
+    }
+    return MIN_NON_ZERO(max, INT_MAX);
+}
+
 int blk_get_max_iov(BlockBackend *blk)
 {
     return blk->root->bs->bl.max_iov;
