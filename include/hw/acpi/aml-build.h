@@ -1,6 +1,7 @@
 #ifndef HW_ACPI_AML_BUILD_H
 #define HW_ACPI_AML_BUILD_H
 
+#include "exec/hwaddr.h"
 #include "hw/acpi/acpi-defs.h"
 #include "hw/acpi/bios-linker-loader.h"
 
@@ -452,7 +453,8 @@ void crs_replace_with_free_ranges(GPtrArray *ranges,
 void crs_range_set_init(CrsRangeSet *range_set);
 void crs_range_set_free(CrsRangeSet *range_set);
 
-Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set);
+Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set,
+               hwaddr io_trans, hwaddr mmio32_trans, hwaddr mmio64_trans);
 
 void build_srat_memory(AcpiSratMemoryAffinity *numamem, uint64_t base,
                        uint64_t len, int node, MemoryAffinityFlags flags);
