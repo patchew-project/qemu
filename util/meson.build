@@ -79,4 +79,6 @@ if have_block
   util_ss.add(when: 'CONFIG_INOTIFY1', if_true: files('filemonitor-inotify.c'),
                                         if_false: files('filemonitor-stub.c'))
   util_ss.add(when: 'CONFIG_LINUX', if_true: files('vfio-helpers.c'))
+else
+  util_ss.add(files('main-loop-stub.c'))
 endif
