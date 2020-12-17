@@ -29,6 +29,14 @@ When any set of the Hyper-V enlightenments is enabled, QEMU changes hypervisor
 identification (CPUID 0x40000000..0x4000000A) to Hyper-V. KVM identification
 and features are kept in leaves 0x40000100..0x40000101.
 
+Hyper-V enlightenments can be enabled in bulk by specifying 'hyperv=on' to an
+x86 machine type:
+
+  qemu-system-x86_64 -machine q35,accel=kvm,kernel-irqchip=split,hyperv=on ...
+
+Note, new enlightenments are only added to the latest (in-develompent) machine
+type, older machine types keep the list of the supported features intact to
+safeguard migration.
 
 3. Existing enlightenments
 ===========================
