@@ -23,6 +23,7 @@ from .common import POINTER_SUFFIX, c_name
 from .error import QAPIError, QAPISemError
 from .expr import check_exprs
 from .parser import QAPISchemaParser
+from .source import QAPISourceInfo
 
 
 class QAPISchemaEntity:
@@ -36,10 +37,10 @@ class QAPISchemaEntity:
         self.name = name
         self._module = None
         # For explicitly defined entities, info points to the (explicit)
-        # definition.  For builtins (and their arrays), info is None.
-        # For implicitly defined entities, info points to a place that
-        # triggered the implicit definition (there may be more than one
-        # such place).
+        # definition. For built-in types (and their arrays), info is a
+        # special object that evaluates to False. For implicitly defined
+        # entities, info points to a place that triggered the implicit
+        # definition (there may be more than one such place).
         self.info = info
         self.doc = doc
         self._ifcond = ifcond or []
@@ -68,7 +69,7 @@ class QAPISchemaEntity:
 
     def _set_module(self, schema, info):
         assert self._checked
-        self._module = schema.module_by_fname(info and info.fname)
+        self._module = schema.module_by_fname(info.fname if info else None)
         self._module.add_entity(self)
 
     def set_module(self, schema):
@@ -209,7 +210,7 @@ class QAPISchemaBuiltinType(QAPISchemaType):
     meta = 'built-in'
 
     def __init__(self, name, json_type, c_type):
-        super().__init__(name, None, None)
+        super().__init__(name, QAPISourceInfo.builtin(), None)
         assert not c_type or isinstance(c_type, str)
         assert json_type in ('string', 'number', 'int', 'boolean', 'null',
                              'value')
@@ -897,7 +898,7 @@ class QAPISchema:
         # be nice, but we can't as long as their generated code
         # (qapi-builtin-types.[ch]) may be shared by some other
         # schema.
-        self._make_array_type(name, None)
+        self._make_array_type(name, QAPISourceInfo.builtin())
 
     def _def_predefineds(self):
         for t in [('str',    'string',  'char' + POINTER_SUFFIX),
@@ -917,16 +918,18 @@ class QAPISchema:
                   ('null',   'null',    'QNull' + POINTER_SUFFIX)]:
             self._def_builtin_type(*t)
         self.the_empty_object_type = QAPISchemaObjectType(
-            'q_empty', None, None, None, None, None, [], None)
+            'q_empty', QAPISourceInfo.builtin(),
+            None, None, None, None, [], None)
         self._def_entity(self.the_empty_object_type)
 
         qtypes = ['none', 'qnull', 'qnum', 'qstring', 'qdict', 'qlist',
                   'qbool']
         qtype_values = self._make_enum_members(
-            [{'name': n} for n in qtypes], None)
+            [{'name': n} for n in qtypes], QAPISourceInfo.builtin())
 
-        self._def_entity(QAPISchemaEnumType('QType', None, None, None, None,
-                                            qtype_values, 'QTYPE'))
+        self._def_entity(QAPISchemaEnumType(
+            'QType', QAPISourceInfo.builtin(), None,
+            None, None, qtype_values, 'QTYPE'))
 
     def _make_features(self, features, info):
         if features is None:
