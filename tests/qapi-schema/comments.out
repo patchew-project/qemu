@@ -1,4 +1,4 @@
-module None
+module "None"
 object q_empty
 enum QType
     prefix QTYPE
@@ -9,7 +9,7 @@ enum QType
     member qdict
     member qlist
     member qbool
-module comments.json
+module "comments.json"
 enum Status
     member good
     member bad

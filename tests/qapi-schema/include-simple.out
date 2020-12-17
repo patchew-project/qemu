@@ -1,4 +1,4 @@
-module None
+module "None"
 object q_empty
 enum QType
     prefix QTYPE
@@ -9,9 +9,9 @@ enum QType
     member qdict
     member qlist
     member qbool
-module include-simple.json
+module "include-simple.json"
 include include-simple-sub.json
-module include-simple-sub.json
+module "include-simple-sub.json"
 enum Status
     member good
     member bad
