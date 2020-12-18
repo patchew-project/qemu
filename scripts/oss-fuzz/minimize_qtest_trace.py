@@ -10,11 +10,16 @@ import os
 import subprocess
 import time
 import struct
+import re
 
 QEMU_ARGS = None
 QEMU_PATH = None
 TIMEOUT = 5
-CRASH_TOKEN = None
+
+crash_patterns = ("Assertion.+failed",
+                  "SUMMARY.+Sanitizer")
+crash_pattern = None
+crash_string = None
 
 write_suffix_lookup = {"b": (1, "B"),
                        "w": (2, "H"),
@@ -24,13 +29,12 @@ write_suffix_lookup = {"b": (1, "B"),
 def usage():
     sys.exit("""\
 Usage: QEMU_PATH="/path/to/qemu" QEMU_ARGS="args" {} input_trace output_trace
-By default, will try to use the second-to-last line in the output to identify
-whether the crash occred. Optionally, manually set a string that idenitifes the
-crash by setting CRASH_TOKEN=
+By default, we will try to search predefined crash patterns through the
+tracing output to see whether the crash occred. Optionally, manually set a
+string that idenitifes the crash by setting CRASH_PATTERN=
 """.format((sys.argv[0])))
 
 def check_if_trace_crashes(trace, path):
-    global CRASH_TOKEN
     with open(path, "w") as tracefile:
         tracefile.write("".join(trace))
 
@@ -42,17 +46,47 @@ def check_if_trace_crashes(trace, path):
                           shell=True,
                           stdin=subprocess.PIPE,
                           stdout=subprocess.PIPE)
-    stdo = rc.communicate()[0]
-    output = stdo.decode('unicode_escape')
     if rc.returncode == 137:    # Timed Out
         return False
-    if len(output.splitlines()) < 2:
+
+    stdo = rc.communicate()[0]
+    output = stdo.decode('unicode_escape')
+    output_lines = output.splitlines()
+    # Usually we care about the summary info in the last few lines, reverse.
+    output_lines.reverse()
+
+    global crash_pattern, crash_patterns, crash_string
+    if crash_pattern is None: # Initialization
+        for line in output_lines:
+            for c in crash_patterns:
+                if re.search(c, line) is not None:
+                    crash_pattern = c
+                    crash_string = line
+                    print("Identifying crash pattern by this string: ",\
+                          crash_string)
+                    print("Using regex pattern: ", crash_pattern)
+                    return True
+        print("Failed to initialize crash pattern: no match.")
         return False
 
-    if CRASH_TOKEN is None:
-        CRASH_TOKEN = output.splitlines()[-2]
+    # First, we search exactly the previous crash string.
+    for line in output_lines:
+        if crash_string == line:
+            return True
 
-    return CRASH_TOKEN in output
+    # Then we decide whether a similar (same pattern) crash happened.
+    # Slower now :(
+    for line in output_lines:
+        if re.search(crash_pattern, line) is not None:
+            print("\nINFO: The crash string changed during our minimization process.")
+            print("Before: ", crash_string)
+            print("After: ", line)
+            print("The original regex pattern can still match, updated the crash string.")
+            crash_string = line
+            return True
+
+    # The input did not trigger (the same type) bug.
+    return False
 
 
 def minimize_trace(inpath, outpath):
@@ -66,7 +100,7 @@ def minimize_trace(inpath, outpath):
     print("Crashed in {} seconds".format(end-start))
     TIMEOUT = (end-start)*5
     print("Setting the timeout for {} seconds".format(TIMEOUT))
-    print("Identifying Crashes by this string: {}".format(CRASH_TOKEN))
+    print("Identifying Crashes by this string: {}".format(crash_pattern))
 
     i = 0
     newtrace = trace[:]
@@ -152,6 +186,6 @@ if __name__ == '__main__':
         usage()
     # if "accel" not in QEMU_ARGS:
     #     QEMU_ARGS += " -accel qtest"
-    CRASH_TOKEN = os.getenv("CRASH_TOKEN")
+    crash_pattern = os.getenv("CRASH_PATTERN")
     QEMU_ARGS += " -qtest stdio -monitor none -serial none "
     minimize_trace(sys.argv[1], sys.argv[2])
