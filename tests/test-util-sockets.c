@@ -54,7 +54,7 @@ static int mon_fd = -1;
 static const char *mon_fdname;
 __thread Monitor *cur_mon;
 
-int monitor_get_fd(Monitor *mon, const char *fdname, Error **errp)
+int monitor_fd_param(Monitor *mon, const char *fdname, Error **errp)
 {
     g_assert(cur_mon);
     g_assert(mon == cur_mon);
