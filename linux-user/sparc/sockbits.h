@@ -48,8 +48,6 @@
 #define TARGET_SO_GET_FILTER           TARGET_SO_ATTACH_FILTER
 
 #define TARGET_SO_PEERNAME             0x001c
-#define TARGET_SO_TIMESTAMP            0x001d
-#define TARGET_SCM_TIMESTAMP           TARGET_SO_TIMESTAMP
 
 #define TARGET_SO_PEERSEC              0x001e
 #define TARGET_SO_PASSSEC              0x001f
@@ -103,6 +101,12 @@
 #define TARGET_SO_PEERGROUPS           0x003d
 
 #define TARGET_SO_ZEROCOPY             0x003e
+
+#define TARGET_SO_TIMESTAMP_OLD        0x001d
+#define TARGET_SCM_TIMESTAMP_OLD       TARGET_SO_TIMESTAMP_OLD
+
+#define TARGET_SO_TIMESTAMP_NEW        0x0046
+#define TARGET_SCM_TIMESTAMP_NEW       TARGET_SO_TIMESTAMP_NEW
 
 /* Security levels - as per NRL IPv6 - don't actually do anything */
 #define TARGET_SO_SECURITY_AUTHENTICATION              0x5001

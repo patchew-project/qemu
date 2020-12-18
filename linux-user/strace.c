@@ -2679,8 +2679,11 @@ print_optint:
         case TARGET_SO_PASSCRED:
             qemu_log("SO_PASSCRED,");
             goto print_optint;
-        case TARGET_SO_TIMESTAMP:
-            qemu_log("SO_TIMESTAMP,");
+        case TARGET_SO_TIMESTAMP_OLD:
+            qemu_log("SO_TIMESTAMP_OLD,");
+            goto print_optint;
+        case TARGET_SO_TIMESTAMP_NEW:
+            qemu_log("SO_TIMESTAMP_NEW,");
             goto print_optint;
         case TARGET_SO_RCVLOWAT:
             qemu_log("SO_RCVLOWAT,");
