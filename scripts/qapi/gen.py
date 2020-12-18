@@ -37,7 +37,7 @@ from .source import QAPISourceInfo
 
 
 class QAPIGen:
-    def __init__(self, fname: Optional[str]):
+    def __init__(self, fname: str):
         self.fname = fname
         self._preamble = ''
         self._body = ''
