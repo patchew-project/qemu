@@ -1970,7 +1970,26 @@ static void nvme_process_sq(void *opaque)
     }
 }
 
-static void nvme_clear_ctrl(NvmeCtrl *n)
+static void nvme_ctrl_shutdown(NvmeCtrl *n)
+{
+    NvmeNamespace *ns;
+    int i;
+
+    if (n->pmrdev) {
+        memory_region_msync(&n->pmrdev->mr, 0, n->pmrdev->size);
+    }
+
+    for (i = 1; i <= n->num_namespaces; i++) {
+        ns = nvme_ns(n, i);
+        if (!ns) {
+            continue;
+        }
+
+        nvme_ns_flush(ns);
+    }
+}
+
+static void nvme_ctrl_reset(NvmeCtrl *n)
 {
     NvmeNamespace *ns;
     int i;
@@ -2004,15 +2023,6 @@ static void nvme_clear_ctrl(NvmeCtrl *n)
     n->aer_queued = 0;
     n->outstanding_aers = 0;
     n->qs_created = false;
-
-    for (i = 1; i <= n->num_namespaces; i++) {
-        ns = nvme_ns(n, i);
-        if (!ns) {
-            continue;
-        }
-
-        nvme_ns_flush(ns);
-    }
 
     n->bar.cc = 0;
 }
@@ -2181,12 +2191,12 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
             }
         } else if (!NVME_CC_EN(data) && NVME_CC_EN(n->bar.cc)) {
             trace_pci_nvme_mmio_stopped();
-            nvme_clear_ctrl(n);
+            nvme_ctrl_reset(n);
             n->bar.csts &= ~NVME_CSTS_READY;
         }
         if (NVME_CC_SHN(data) && !(NVME_CC_SHN(n->bar.cc))) {
             trace_pci_nvme_mmio_shutdown_set();
-            nvme_clear_ctrl(n);
+            nvme_ctrl_shutdown(n);
             n->bar.cc = data;
             n->bar.csts |= NVME_CSTS_SHST_COMPLETE;
         } else if (!NVME_CC_SHN(data) && NVME_CC_SHN(n->bar.cc)) {
@@ -2818,7 +2828,8 @@ static void nvme_exit(PCIDevice *pci_dev)
 {
     NvmeCtrl *n = NVME(pci_dev);
 
-    nvme_clear_ctrl(n);
+    nvme_ctrl_reset(n);
+
     g_free(n->cq);
     g_free(n->sq);
     g_free(n->aer_reqs);
