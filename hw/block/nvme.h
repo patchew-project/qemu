@@ -16,6 +16,7 @@ typedef struct NvmeParams {
     uint32_t aer_max_queued;
     uint8_t  mdts;
     bool     use_intel_id;
+    bool     legacy_cmb;
 } NvmeParams;
 
 typedef struct NvmeAsyncEvent {
