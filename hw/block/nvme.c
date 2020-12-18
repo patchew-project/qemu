@@ -334,7 +334,6 @@ static uint16_t nvme_map_prp(NvmeCtrl *n, uint64_t prp1, uint64_t prp2,
     trans_len = MIN(len, trans_len);
     int num_prps = (len >> n->page_bits) + 1;
     uint16_t status;
-    bool prp_list_in_cmb = false;
     int ret;
 
     QEMUSGList *qsg = &req->qsg;
@@ -360,10 +359,6 @@ static uint16_t nvme_map_prp(NvmeCtrl *n, uint64_t prp1, uint64_t prp2,
             uint32_t nents, prp_trans;
             int i = 0;
 
-            if (nvme_addr_is_cmb(n, prp2)) {
-                prp_list_in_cmb = true;
-            }
-
             nents = (len + n->page_size - 1) >> n->page_bits;
             prp_trans = MIN(n->max_prp_ents, nents) * sizeof(uint64_t);
             ret = nvme_addr_read(n, prp2, (void *)prp_list, prp_trans);
@@ -378,10 +373,6 @@ static uint16_t nvme_map_prp(NvmeCtrl *n, uint64_t prp1, uint64_t prp2,
                     if (unlikely(prp_ent & (n->page_size - 1))) {
                         trace_pci_nvme_err_invalid_prplist_ent(prp_ent);
                         return NVME_INVALID_PRP_OFFSET | NVME_DNR;
-                    }
-
-                    if (prp_list_in_cmb != nvme_addr_is_cmb(n, prp_ent)) {
-                        return NVME_INVALID_USE_OF_CMB | NVME_DNR;
                     }
 
                     i = 0;
@@ -517,7 +508,6 @@ static uint16_t nvme_map_sgl(NvmeCtrl *n, QEMUSGList *qsg, QEMUIOVector *iov,
     uint64_t nsgld;
     uint32_t seg_len;
     uint16_t status;
-    bool sgl_in_cmb = false;
     hwaddr addr;
     int ret;
 
@@ -537,18 +527,6 @@ static uint16_t nvme_map_sgl(NvmeCtrl *n, QEMUSGList *qsg, QEMUIOVector *iov,
         }
 
         goto out;
-    }
-
-    /*
-     * If the segment is located in the CMB, the submission queue of the
-     * request must also reside there.
-     */
-    if (nvme_addr_is_cmb(n, addr)) {
-        if (!nvme_addr_is_cmb(n, req->sq->dma_addr)) {
-            return NVME_INVALID_USE_OF_CMB | NVME_DNR;
-        }
-
-        sgl_in_cmb = true;
     }
 
     for (;;) {
@@ -637,15 +615,6 @@ static uint16_t nvme_map_sgl(NvmeCtrl *n, QEMUSGList *qsg, QEMUIOVector *iov,
          */
         status = nvme_map_sgl_data(n, qsg, iov, segment, nsgld - 1, &len, req);
         if (status) {
-            goto unmap;
-        }
-
-        /*
-         * If the next segment is in the CMB, make sure that the sgl was
-         * already located there.
-         */
-        if (sgl_in_cmb != nvme_addr_is_cmb(n, addr)) {
-            status = NVME_INVALID_USE_OF_CMB | NVME_DNR;
             goto unmap;
         }
     }
@@ -2136,6 +2105,8 @@ static int nvme_start_ctrl(NvmeCtrl *n)
 
 static void nvme_cmb_enable_regs(NvmeCtrl *n)
 {
+    NVME_CMBLOC_SET_CDPCILS(n->bar.cmbloc, 1);
+    NVME_CMBLOC_SET_CDPMLS(n->bar.cmbloc, 1);
     NVME_CMBLOC_SET_BIR(n->bar.cmbloc, NVME_CMB_BIR);
 
     NVME_CMBSZ_SET_SQS(n->bar.cmbsz, 1);
