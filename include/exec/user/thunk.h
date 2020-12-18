@@ -39,11 +39,20 @@ typedef enum argtype {
     TYPE_ARRAY,
     TYPE_STRUCT,
     TYPE_OLDDEVT,
+    TYPE_FLEXIBLE_ARRAY,
 } argtype;
 
 #define MK_PTR(type) TYPE_PTR, type
 #define MK_ARRAY(type, size) TYPE_ARRAY, (int)(size), type
 #define MK_STRUCT(id) TYPE_STRUCT, id
+
+/*
+ * Should only appear as the last element of a TYPE_STRUCT. `len_field_idx` is
+ * the index into the fields in the enclosing struct that specify the length of
+ * the flexibly array. The length field MUST be a TYPE_INT field.
+ */
+#define MK_FLEXIBLE_ARRAY(type, len_field_idx) \
+    TYPE_FLEXIBLE_ARRAY, (len_field_idx), type
 
 #define THUNK_TARGET 0
 #define THUNK_HOST   1
@@ -56,6 +65,8 @@ typedef struct {
     /* special handling */
     void (*convert[2])(void *dst, const void *src);
     void (*print)(void *arg);
+    int (*thunk_size[2])(const void *src);
+
     int size[2];
     int align[2];
     const char *name;
@@ -75,6 +86,11 @@ void thunk_register_struct_direct(int id, const char *name,
 const argtype *thunk_convert(void *dst, const void *src,
                              const argtype *type_ptr, int to_host);
 const argtype *thunk_print(void *arg, const argtype *type_ptr);
+
+bool thunk_type_has_flexible_array(const argtype *type_ptr);
+/* thunk_type_size but can handle TYPE_FLEXIBLE_ARRAY */
+int thunk_type_size_with_src(const void *src, const argtype *type_ptr,
+                             int is_host);
 
 extern StructEntry *struct_entries;
 
@@ -138,6 +154,12 @@ static inline int thunk_type_size(const argtype *type_ptr, int is_host)
     case TYPE_STRUCT:
         se = struct_entries + type_ptr[1];
         return se->size[is_host];
+    case TYPE_FLEXIBLE_ARRAY:
+        /*
+         * Flexible arrays do not count toward sizeof(). Users of structures
+         * containing them need to calculate it themselves.
+         */
+        return 0;
     default:
         g_assert_not_reached();
     }
@@ -188,6 +210,8 @@ static inline int thunk_type_align(const argtype *type_ptr, int is_host)
     case TYPE_STRUCT:
         se = struct_entries + type_ptr[1];
         return se->align[is_host];
+    case TYPE_FLEXIBLE_ARRAY:
+        return thunk_type_align_array(type_ptr + 2, is_host);
     default:
         g_assert_not_reached();
     }

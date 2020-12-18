@@ -50,6 +50,8 @@ static inline const argtype *thunk_type_next(const argtype *type_ptr)
         return thunk_type_next_ptr(type_ptr + 1);
     case TYPE_STRUCT:
         return type_ptr + 1;
+    case TYPE_FLEXIBLE_ARRAY:
+        return thunk_type_next_ptr(type_ptr + 1);
     default:
         return NULL;
     }
@@ -122,6 +124,34 @@ void thunk_register_struct_direct(int id, const char *name,
     se->name = name;
 }
 
+static const argtype *
+thunk_convert_flexible_array(void *dst, const void *src,
+                             const uint8_t *dst_struct,
+                             const uint8_t *src_struct, const argtype *type_ptr,
+                             const StructEntry *se, int to_host) {
+    int len_field_idx, dst_size, src_size, i;
+    uint32_t array_length;
+    uint8_t *d;
+    const uint8_t *s;
+
+    assert(*type_ptr == TYPE_FLEXIBLE_ARRAY);
+    type_ptr++;
+    len_field_idx = *type_ptr++;
+    array_length =
+        *(const uint32_t *)(to_host ?
+                            dst_struct + se->field_offsets[1][len_field_idx] :
+                            src_struct + se->field_offsets[0][len_field_idx]);
+    dst_size = thunk_type_size(type_ptr, to_host);
+    src_size = thunk_type_size(type_ptr, to_host);
+    d = dst;
+    s = src;
+    for (i = 0; i < array_length; i++) {
+        thunk_convert(d, s, type_ptr, to_host);
+        d += dst_size;
+        s += src_size;
+    }
+    return thunk_type_next(type_ptr);
+}
 
 /* now we can define the main conversion functions */
 const argtype *thunk_convert(void *dst, const void *src,
@@ -246,7 +276,7 @@ const argtype *thunk_convert(void *dst, const void *src,
 
             assert(*type_ptr < max_struct_entries);
             se = struct_entries + *type_ptr++;
-            if (se->convert[0] != NULL) {
+            if (se->convert[to_host] != NULL) {
                 /* specific conversion is needed */
                 (*se->convert[to_host])(dst, src);
             } else {
@@ -256,7 +286,18 @@ const argtype *thunk_convert(void *dst, const void *src,
                 src_offsets = se->field_offsets[1 - to_host];
                 d = dst;
                 s = src;
-                for(i = 0;i < se->nb_fields; i++) {
+                for (i = 0; i < se->nb_fields; i++) {
+                    if (*field_types == TYPE_FLEXIBLE_ARRAY) {
+                        field_types = thunk_convert_flexible_array(
+                            d + dst_offsets[i],
+                            s + src_offsets[i],
+                            d,
+                            s,
+                            field_types,
+                            se,
+                            to_host);
+                        continue;
+                    }
                     field_types = thunk_convert(d + dst_offsets[i],
                                                 s + src_offsets[i],
                                                 field_types, to_host);
@@ -264,11 +305,55 @@ const argtype *thunk_convert(void *dst, const void *src,
             }
         }
         break;
+    case TYPE_FLEXIBLE_ARRAY:
+        fprintf(stderr,
+                "Invalid flexible array (type 0x%x) outside of a structure\n",
+                type);
+        break;
     default:
         fprintf(stderr, "Invalid type 0x%x\n", type);
         break;
     }
     return type_ptr;
+}
+
+static const argtype *
+thunk_print_flexible_array(void *arg, const uint8_t *arg_struct,
+                           const argtype *type_ptr, const StructEntry *se) {
+    int array_length, len_field_idx, arg_size, i;
+    uint8_t *a;
+    int is_string = 0;
+
+    assert(*type_ptr == TYPE_FLEXIBLE_ARRAY);
+    type_ptr++;
+    len_field_idx = *type_ptr++;
+
+    array_length = tswap32(
+        *(const uint32_t *)(arg_struct + se->field_offsets[0][len_field_idx]));
+    arg_size = thunk_type_size(type_ptr, 0);
+    a = arg;
+
+    if (*type_ptr == TYPE_CHAR) {
+        qemu_log("\"");
+        is_string = 1;
+    } else {
+        qemu_log("[");
+    }
+
+    for (i = 0; i < array_length; i++) {
+        if (i > 0 && !is_string) {
+            qemu_log(",");
+        }
+        thunk_print(a, type_ptr);
+        a += arg_size;
+    }
+
+    if (is_string) {
+        qemu_log("\"");
+    } else {
+        qemu_log("]");
+    }
+    return thunk_type_next(type_ptr);
 }
 
 const argtype *thunk_print(void *arg, const argtype *type_ptr)
@@ -418,16 +503,79 @@ const argtype *thunk_print(void *arg, const argtype *type_ptr)
                     if (i > 0) {
                         qemu_log(",");
                     }
+                    if (*field_types == TYPE_FLEXIBLE_ARRAY) {
+                        field_types = thunk_print_flexible_array(
+                            a + arg_offsets[i], a, field_types, se);
+                      continue;
+                    }
                     field_types = thunk_print(a + arg_offsets[i], field_types);
                 }
                 qemu_log("}");
             }
         }
         break;
+    case TYPE_FLEXIBLE_ARRAY:
+        fprintf(stderr,
+                "Invalid flexible array (type 0x%x) outside of a structure\n",
+                type);
+        break;
     default:
         g_assert_not_reached();
     }
     return type_ptr;
+}
+
+bool thunk_type_has_flexible_array(const argtype *type_ptr)
+{
+  int i;
+  const StructEntry *se;
+  const argtype *field_types;
+    if (*type_ptr != TYPE_STRUCT) {
+        return false;
+    }
+    se = struct_entries + type_ptr[1];
+    field_types = se->field_types;
+    for (i = 0; i < se->nb_fields; i++) {
+        if (*field_types == TYPE_FLEXIBLE_ARRAY) {
+            return true;
+        }
+        field_types = thunk_type_next(type_ptr);
+    }
+    return false;
+}
+
+int thunk_type_size_with_src(const void *src, const argtype *type_ptr,
+                             int is_host)
+{
+    switch (*type_ptr) {
+    case TYPE_STRUCT: {
+        int i;
+        const StructEntry *se = struct_entries + type_ptr[1];
+        const argtype *field_types;
+        if (se->thunk_size[is_host] != NULL) {
+            return (*se->thunk_size[is_host])(src);
+        }
+
+        field_types = se->field_types;
+        for (i = 0; i < se->nb_fields; i++) {
+            if (*field_types == TYPE_FLEXIBLE_ARRAY) {
+                uint32_t array_length = *(const uint32_t *)(
+                    (const uint8_t *)src +
+                    se->field_offsets[is_host][field_types[1]]);
+                if (!is_host) {
+                    array_length = tswap32(array_length);
+                }
+                return se->size[is_host] +
+                    array_length *
+                    thunk_type_size(field_types + 2, is_host);
+            }
+            field_types = thunk_type_next(type_ptr);
+        }
+        return se->size[is_host];
+    }
+    default:
+        return thunk_type_size(type_ptr, is_host);
+    }
 }
 
 /* from em86 */
