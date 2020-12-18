@@ -245,23 +245,23 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
         self._pydoc = pydoc
         self._genc: Optional[QAPIGenC] = None
         self._genh: Optional[QAPIGenH] = None
-        self._module: Dict[Optional[str], Tuple[QAPIGenC, QAPIGenH]] = {}
+        self._module: Dict[str, Tuple[QAPIGenC, QAPIGenH]] = {}
         self._main_module: Optional[str] = None
 
     @staticmethod
-    def _is_user_module(name: Optional[str]) -> bool:
-        return bool(name and not name.startswith('./'))
+    def _is_user_module(name: str) -> bool:
+        return not name.startswith('./')
 
     @staticmethod
-    def _is_builtin_module(name: Optional[str]) -> bool:
-        return not name
+    def _is_builtin_module(name: str) -> bool:
+        return name == './builtin'
 
-    def _module_dirname(self, name: Optional[str]) -> str:
+    def _module_dirname(self, name: str) -> str:
         if self._is_user_module(name):
             return os.path.dirname(name)
         return ''
 
-    def _module_basename(self, what: str, name: Optional[str]) -> str:
+    def _module_basename(self, what: str, name: str) -> str:
         ret = '' if self._is_builtin_module(name) else self._prefix
         if self._is_user_module(name):
             basename = os.path.basename(name)
@@ -269,15 +269,15 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
             if name != self._main_module:
                 ret += '-' + os.path.splitext(basename)[0]
         else:
-            name = name[2:] if name else 'builtin'
-            ret += re.sub(r'-', '-' + name + '-', what)
+            assert name.startswith('./')
+            ret += re.sub(r'-', '-' + name[2:] + '-', what)
         return ret
 
-    def _module_filename(self, what: str, name: Optional[str]) -> str:
+    def _module_filename(self, what: str, name: str) -> str:
         return os.path.join(self._module_dirname(name),
                             self._module_basename(what, name))
 
-    def _add_module(self, name: Optional[str], blurb: str) -> None:
+    def _add_module(self, name: str, blurb: str) -> None:
         basename = self._module_filename(self._what, name)
         genc = QAPIGenC(basename + '.c', blurb, self._pydoc)
         genh = QAPIGenH(basename + '.h', blurb, self._pydoc)
@@ -290,8 +290,8 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
             self._main_module = name
         self._add_module(name, blurb)
 
-    def _add_system_module(self, name: Optional[str], blurb: str) -> None:
-        self._add_module(name and './' + name, blurb)
+    def _add_system_module(self, name: str, blurb: str) -> None:
+        self._add_module('./' + name, blurb)
 
     def write(self, output_dir: str, opt_builtins: bool = False) -> None:
         for name in self._module:
@@ -310,7 +310,7 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
     def visit_module(self, name: Optional[str]) -> None:
         if name is None:
             if self._builtin_blurb:
-                self._add_system_module(None, self._builtin_blurb)
+                self._add_system_module('builtin', self._builtin_blurb)
                 self._begin_system_module(name)
             else:
                 # The built-in module has not been created.  No code may
