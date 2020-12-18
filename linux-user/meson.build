@@ -1,5 +1,6 @@
 linux_user_ss.add(files(
   'elfload.c',
+  'ethtool.c',
   'exit.c',
   'fd-trans.c',
   'linuxload.c',

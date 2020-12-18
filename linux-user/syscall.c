@@ -129,6 +129,7 @@
 #include "qapi/error.h"
 #include "fd-trans.h"
 #include "tcg/tcg.h"
+#include "ethtool.h"
 
 #ifndef CLONE_IO
 #define CLONE_IO                0x80000000      /* Clone io context */
@@ -646,7 +647,7 @@ static inline int target_to_host_errno(int err)
     return err;
 }
 
-static inline abi_long get_errno(abi_long ret)
+abi_long get_errno(abi_long ret)
 {
     if (ret == -1)
         return -host_to_target_errno(errno);
@@ -4778,16 +4779,6 @@ static abi_long do_ipc(CPUArchState *cpu_env,
 #endif
 
 /* kernel structure types definitions */
-
-#define STRUCT(name, ...) STRUCT_ ## name,
-#define STRUCT_SPECIAL(name) STRUCT_ ## name,
-enum {
-#include "syscall_types.h"
-STRUCT_MAX
-};
-#undef STRUCT
-#undef STRUCT_SPECIAL
-
 #define STRUCT(name, ...) static const argtype struct_ ## name ## _def[] = {  __VA_ARGS__, TYPE_NULL };
 #define STRUCT_SPECIAL(name)
 #include "syscall_types.h"
@@ -4884,6 +4875,29 @@ static abi_long do_ioctl_fs_ioc_fiemap(const IOCTLEntry *ie, uint8_t *buf_temp,
     return ret;
 }
 #endif
+
+static abi_long do_ioctl_ethtool(const IOCTLEntry *ie, uint8_t *buf_temp,
+                                int fd, int cmd, abi_long arg)
+{
+    const argtype *arg_type = ie->arg_type;
+    int target_size;
+    void *argptr;
+
+    assert(arg_type[0] == TYPE_PTR);
+    assert(ie->access == IOC_RW);
+
+    arg_type++;
+    target_size = thunk_type_size(arg_type, 0);
+
+    argptr = lock_user(VERIFY_READ, arg, target_size, 1);
+    if (!argptr) {
+        return -TARGET_EFAULT;
+    }
+    thunk_convert(buf_temp, argptr, arg_type, THUNK_HOST);
+    unlock_user(argptr, arg, target_size);
+
+    return dev_ethtool(fd, buf_temp);
+}
 
 static abi_long do_ioctl_ifconf(const IOCTLEntry *ie, uint8_t *buf_temp,
                                 int fd, int cmd, abi_long arg)

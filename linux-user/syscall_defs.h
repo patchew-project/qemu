@@ -904,6 +904,8 @@ struct target_rtc_pll_info {
 #define TARGET_SIOCGIFTXQLEN   0x8942          /* Get the tx queue length      */
 #define TARGET_SIOCSIFTXQLEN   0x8943          /* Set the tx queue length      */
 
+#define TARGET_SIOCETHTOOL     0x8946          /* Ethtool interface           */
+
 /* ARP cache control calls. */
 #define TARGET_OLD_SIOCDARP    0x8950          /* old delete ARP table entry   */
 #define TARGET_OLD_SIOCGARP    0x8951          /* old get ARP table entry      */
@@ -2862,5 +2864,15 @@ struct target_statx {
    uint64_t __spare2[14];  /* Spare space for future expansion */
    /* 0x100 */
 };
+
+/* kernel structure types definitions */
+#define STRUCT(name, ...) STRUCT_ ## name,
+#define STRUCT_SPECIAL(name) STRUCT_ ## name,
+enum {
+#include "syscall_types.h"
+STRUCT_MAX
+};
+#undef STRUCT
+#undef STRUCT_SPECIAL
 
 #endif
