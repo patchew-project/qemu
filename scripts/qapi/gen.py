@@ -15,6 +15,7 @@ from contextlib import contextmanager
 import os
 import re
 from typing import (
+    ContextManager,
     Dict,
     Iterator,
     List,
@@ -295,6 +296,13 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
         genh = QAPIGenH(basename + '.h', blurb, self._pydoc)
         self._module[name] = (genc, genh)
         self._current_module = name
+
+    @contextmanager
+    def _temp_module(self, name: str) -> ContextManager[None]:
+        old_module = self._current_module
+        self._current_module = name
+        yield
+        self._current_module = old_module
 
     def write(self, output_dir: str, opt_builtins: bool = False) -> None:
         for name in self._module:
