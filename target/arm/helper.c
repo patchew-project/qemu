@@ -10719,16 +10719,11 @@ do_fault:
  * Returns true if the suggested S2 translation parameters are OK and
  * false otherwise.
  */
-static bool check_s2_mmu_setup(ARMCPU *cpu, bool is_aa64, int level,
+static bool check_s2_mmu_setup(ARMCPU *cpu, bool is_aa64, uint32_t level,
                                int inputsize, int stride)
 {
     const int grainsize = stride + 3;
     int startsizecheck;
-
-    /* Negative levels are never allowed.  */
-    if (level < 0) {
-        return false;
-    }
 
     startsizecheck = inputsize - ((3 - level) * stride + grainsize);
     if (startsizecheck < 1 || startsizecheck > stride + 4) {
@@ -10754,6 +10749,9 @@ static bool check_s2_mmu_setup(ARMCPU *cpu, bool is_aa64, int level,
             if (level == 0 && pamax <= 42) {
                 return false;
             }
+            if (level == 3) {
+                return false;
+            }
             break;
         default:
             g_assert_not_reached();
@@ -10769,7 +10767,7 @@ static bool check_s2_mmu_setup(ARMCPU *cpu, bool is_aa64, int level,
         /* AArch32 only supports 4KB pages. Assert on that.  */
         assert(stride == 9);
 
-        if (level == 0) {
+        if (level == 0 || level >= 3) {
             return false;
         }
     }
@@ -11099,7 +11097,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, uint64_t address,
 
         if (!aarch64 || stride == 9) {
             /* AArch32 or 4KB pages */
-            startlevel = 2 - sl0;
+            startlevel = (2 - sl0) & 3;
         } else {
             /* 16KB or 64KB pages */
             startlevel = 3 - sl0;
