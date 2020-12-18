@@ -1826,7 +1826,13 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
         spapr_setup_hpt(spapr);
     }
 
-    fdt = spapr_build_fdt(spapr, false, fdt_bufsize);
+    if (spapr->vof.on && spapr->vof.initrd_base && spapr->vof.initrd_size) {
+        /* Update initramdisk location so the right area gets reserved below */
+        spapr->initrd_base = spapr->vof.initrd_base;
+        spapr->initrd_size = spapr->vof.initrd_size;
+    }
+
+    fdt = spapr_build_fdt(spapr, spapr->vof.on, fdt_bufsize);
 
     g_free(spapr->fdt_blob);
     spapr->fdt_size = fdt_totalsize(fdt);

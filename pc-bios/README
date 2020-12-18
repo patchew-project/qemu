@@ -16,6 +16,8 @@
   https://github.com/aik/SLOF, and the image currently in qemu is
   built from git tag qemu-slof-20200717.
 
+- vof is a minimalistic firmware to work with -machine pseries,x-vof=on.
+
 - sgabios (the Serial Graphics Adapter option ROM) provides a means for
   legacy x86 software to communicate with an attached serial console as
   if a video card were attached.  The master sources reside in a subversion
