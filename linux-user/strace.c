@@ -2682,8 +2682,20 @@ print_optint:
         case TARGET_SO_TIMESTAMP_OLD:
             qemu_log("SO_TIMESTAMP_OLD,");
             goto print_optint;
+        case TARGET_SO_TIMESTAMPNS_OLD:
+            qemu_log("SO_TIMESTAMPNS_OLD,");
+            goto print_optint;
+        case TARGET_SO_TIMESTAMPING_OLD:
+            qemu_log("SO_TIMESTAMPING_OLD,");
+            goto print_optint;
         case TARGET_SO_TIMESTAMP_NEW:
             qemu_log("SO_TIMESTAMP_NEW,");
+            goto print_optint;
+        case TARGET_SO_TIMESTAMPNS_NEW:
+            qemu_log("SO_TIMESTAMPNS_NEW,");
+            goto print_optint;
+        case TARGET_SO_TIMESTAMPING_NEW:
+            qemu_log("SO_TIMESTAMPING_NEW,");
             goto print_optint;
         case TARGET_SO_RCVLOWAT:
             qemu_log("SO_RCVLOWAT,");
