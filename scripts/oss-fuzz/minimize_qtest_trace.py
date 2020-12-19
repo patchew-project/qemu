@@ -214,6 +214,27 @@ def minimize_trace(inpath, outpath):
 
     assert(check_if_trace_crashes(newtrace, outpath))
 
+    # delay IO instructions until they can't trigger the crash
+    # Note: O(n^2) and many timeouts, kinda slow
+    i = len(newtrace) - 1
+    while i >= 0:
+        tmp_i = newtrace[i]
+        if len(tmp_i) < 2:
+            i -= 1
+            continue
+        print("Delaying ", newtrace[i])
+        for j in reversed(range(i+1, len(newtrace)+1)):
+            newtrace.insert(j, tmp_i)
+            del newtrace[i]
+            if check_if_trace_crashes(newtrace, outpath):
+                break
+            newtrace.insert(i, tmp_i)
+            del newtrace[j]
+        i -= 1
+
+    assert(check_if_trace_crashes(newtrace, outpath))
+    # maybe another removing round
+
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:
