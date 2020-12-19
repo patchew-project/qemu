@@ -140,7 +140,7 @@ def minimize_trace(inpath, outpath):
 
         # 3.) If it is a qtest write command: write addr len data, try to split
         # it into two separate write commands. If splitting the write down the
-        # middle does not work, try to move the pivot "left" and retry, until
+        # rightmost does not work, try to move the pivot "left" and retry, until
         # there is no space left. The idea is to prune unneccessary bytes from
         # long writes, while accommodating arbitrary MemoryRegion access sizes
         # and alignments.
@@ -149,7 +149,7 @@ def minimize_trace(inpath, outpath):
             length = int(newtrace[i].split()[2], 16)
             data = newtrace[i].split()[3][2:]
             if length > 1:
-                leftlength = int(length/2)
+                leftlength = length - 1
                 rightlength = length - leftlength
                 newtrace.insert(i+1, "")
                 while leftlength > 0:
