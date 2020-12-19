@@ -181,6 +181,7 @@ static void microchip_pfsoc_soc_instance_init(Object *obj)
 static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
+    MicrochipIcicleKitState *mks = MICROCHIP_ICICLE_KIT_MACHINE(ms);
     MicrochipPFSoCState *s = MICROCHIP_PFSOC(dev);
     const struct MemmapEntry *memmap = microchip_pfsoc_memmap;
     MemoryRegion *system_memory = get_system_memory();
@@ -415,10 +416,19 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
                     memmap[MICROCHIP_PFSOC_IOSCB].base);
 
     /* QSPI Flash */
-    memory_region_init_rom(qspi_xip_mem, OBJECT(dev),
-                           "microchip.pfsoc.qspi_xip",
-                           memmap[MICROCHIP_PFSOC_QSPI_XIP].size,
-                           &error_fatal);
+    if (mks->xip_image) {
+        memory_region_init_ram_from_file(qspi_xip_mem, OBJECT(dev),
+                                         "microchip.pfsoc.qspi_xip",
+                                         memmap[MICROCHIP_PFSOC_QSPI_XIP].size,
+                                         0x10000 /* align */, 0 /* ram_flags */,
+                                         mks->xip_image, &error_fatal);
+        qspi_xip_mem->readonly = true;
+    } else {
+        memory_region_init_rom(qspi_xip_mem, OBJECT(dev),
+                               "microchip.pfsoc.qspi_xip",
+                               memmap[MICROCHIP_PFSOC_QSPI_XIP].size,
+                               &error_fatal);
+    }
     memory_region_add_subregion(system_memory,
                                 memmap[MICROCHIP_PFSOC_QSPI_XIP].base,
                                 qspi_xip_mem);
@@ -517,6 +527,24 @@ static void microchip_icicle_kit_machine_init(MachineState *machine)
     }
 }
 
+static void microchip_pfsoc_prop_set_xipimage(Object *obj,
+                                              const char *value,
+                                              Error **errp)
+{
+    MicrochipIcicleKitState *s = MICROCHIP_ICICLE_KIT_MACHINE(obj);
+
+    g_free(s->xip_image);
+    s->xip_image = g_strdup(value);
+}
+
+static char *microchip_pfsoc_prop_get_xipimage(Object *obj,
+                                               Error **errp)
+{
+    MicrochipIcicleKitState *s = MICROCHIP_ICICLE_KIT_MACHINE(obj);
+
+    return g_strdup(s->xip_image);
+}
+
 static void microchip_icicle_kit_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -536,6 +564,12 @@ static void microchip_icicle_kit_machine_class_init(ObjectClass *oc, void *data)
      * See memory_tests() in mss_ddr.c in the HSS source code.
      */
     mc->default_ram_size = 1537 * MiB;
+
+    object_class_property_add_str(oc, "xipImage",
+                            microchip_pfsoc_prop_get_xipimage,
+                            microchip_pfsoc_prop_set_xipimage);
+    object_class_property_set_description(oc, "xipImage",
+                                    "Kernel XIP image to run from QSPI NOR");
 }
 
 static const TypeInfo microchip_icicle_kit_machine_typeinfo = {

@@ -65,6 +65,7 @@ typedef struct MicrochipIcicleKitState {
 
     /*< public >*/
     MicrochipPFSoCState soc;
+    char *xip_image;
 } MicrochipIcicleKitState;
 
 #define TYPE_MICROCHIP_ICICLE_KIT_MACHINE \
