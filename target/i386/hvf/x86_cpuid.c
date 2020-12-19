@@ -100,11 +100,16 @@ uint32_t hvf_get_supported_cpuid(uint32_t func, uint32_t idx,
         break;
     case 0xD:
         if (idx == 0) {
-            uint64_t host_xcr0 = xgetbv(0);
-            uint64_t supp_xcr0 = host_xcr0 & (XSTATE_FP_MASK | XSTATE_SSE_MASK |
+            uint64_t supp_xcr0 = XSTATE_FP_MASK | XSTATE_SSE_MASK |
                                   XSTATE_YMM_MASK | XSTATE_BNDREGS_MASK |
                                   XSTATE_BNDCSR_MASK | XSTATE_OPMASK_MASK |
-                                  XSTATE_ZMM_Hi256_MASK | XSTATE_Hi16_ZMM_MASK);
+                                  XSTATE_ZMM_Hi256_MASK | XSTATE_Hi16_ZMM_MASK;
+            if ((ecx & CPUID_EXT_AVX) &&
+                (ecx & CPUID_EXT_XSAVE) &&
+                (ecx & CPUID_EXT_OSXSAVE)) {
+                uint64_t host_xcr0 = xgetbv(0);
+                supp_xcr0 &= host_xcr0;
+            }
             eax &= supp_xcr0;
         } else if (idx == 1) {
             hv_vmx_read_capability(HV_VMX_CAP_PROCBASED2, &cap);
