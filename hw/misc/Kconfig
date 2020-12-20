@@ -164,4 +164,7 @@ config SIFIVE_U_OTP
 config SIFIVE_U_PRCI
     bool
 
+config M68K_VIRT_CTRL
+    bool
+
 source macio/Kconfig
