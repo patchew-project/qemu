@@ -26,7 +26,7 @@
 #include "qapi/error.h"
 #include "tap_int.h"
 
-void tap_set_sndbuf(int fd, const NetdevTapOptions *tap, Error **errp)
+int tap_set_sndbuf(int fd, const NetdevTapOptions *tap, Error **errp)
 {
 }
 
