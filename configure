@@ -429,7 +429,7 @@ auth_pam="$default_feature"
 vte="$default_feature"
 virglrenderer="$default_feature"
 tpm="$default_feature"
-libssh="$default_feature"
+libssh="auto"
 live_block_migration=${default_feature:-yes}
 numa="$default_feature"
 tcmalloc="no"
@@ -1423,9 +1423,9 @@ for opt do
   ;;
   --enable-tpm) tpm="yes"
   ;;
-  --disable-libssh) libssh="no"
+  --disable-libssh) libssh="disabled"
   ;;
-  --enable-libssh) libssh="yes"
+  --enable-libssh) libssh="enabled"
   ;;
   --disable-live-block-migration) live_block_migration="no"
   ;;
@@ -3625,38 +3625,6 @@ EOF
       feature_not_found "rados block device" "Install librbd/ceph devel"
     fi
     rbd=no
-  fi
-fi
-
-##########################################
-# libssh probe
-if test "$libssh" != "no" ; then
-  if $pkg_config --exists libssh; then
-    libssh_cflags=$($pkg_config libssh --cflags)
-    libssh_libs=$($pkg_config libssh --libs)
-    libssh=yes
-  else
-    if test "$libssh" = "yes" ; then
-      error_exit "libssh required for --enable-libssh"
-    fi
-    libssh=no
-  fi
-fi
-
-##########################################
-# Check for libssh 0.8
-# This is done like this instead of using the LIBSSH_VERSION_* and
-# SSH_VERSION_* macros because some distributions in the past shipped
-# snapshots of the future 0.8 from Git, and those snapshots did not
-# have updated version numbers (still referring to 0.7.0).
-
-if test "$libssh" = "yes"; then
-  cat > $TMPC <<EOF
-#include <libssh/libssh.h>
-int main(void) { return ssh_get_server_publickey(NULL, NULL); }
-EOF
-  if compile_prog "$libssh_cflags" "$libssh_libs"; then
-    libssh_cflags="-DHAVE_LIBSSH_0_8 $libssh_cflags"
   fi
 fi
 
@@ -6286,12 +6254,6 @@ if test "$getauxval" = "yes" ; then
   echo "CONFIG_GETAUXVAL=y" >> $config_host_mak
 fi
 
-if test "$libssh" = "yes" ; then
-  echo "CONFIG_LIBSSH=y" >> $config_host_mak
-  echo "LIBSSH_CFLAGS=$libssh_cflags" >> $config_host_mak
-  echo "LIBSSH_LIBS=$libssh_libs" >> $config_host_mak
-fi
-
 if test "$live_block_migration" = "yes" ; then
   echo "CONFIG_LIVE_BLOCK_MIGRATION=y" >> $config_host_mak
 fi
@@ -6762,6 +6724,7 @@ NINJA=$ninja $meson setup \
         -Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt -Dbrlapi=$brlapi \
         -Dcurl=$curl -Dglusterfs=$glusterfs -Dbzip2=$bzip2 -Dlibiscsi=$libiscsi \
         -Dlibnfs=$libnfs -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
+        -Dlibssh=$libssh \
         -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
         -Dvhost_user_blk_server=$vhost_user_blk_server \
         -Dfuse=$fuse -Dfuse_lseek=$fuse_lseek \
