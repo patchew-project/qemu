@@ -332,5 +332,11 @@ for fname in fnames:
 sys.stdout.write(result)'
 }
 
+# Convert multi-line input to a single line.
+_filter_collapse_lines()
+{
+    (tr -d '\n'; echo)
+}
+
 # make sure this script returns success
 true

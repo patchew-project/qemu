@@ -159,7 +159,7 @@ _send_qemu_cmd()
     # input back to output); decide based on leading '{'
     if [ -z "$silent" ] && [ -z "$mismatch_only" ] &&
             [ "$cmd" != "${cmd#\{}" ]; then
-        echo "${cmd}" | _filter_testdir | _filter_imgfmt
+        echo "${cmd}" | _filter_testdir | _filter_imgfmt | _filter_collapse_lines
     fi
     while [ ${count} -gt 0 ]
     do
