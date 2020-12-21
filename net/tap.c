@@ -711,7 +711,7 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
 
     ret = tap_set_sndbuf(s->fd, tap, errp);
     if (ret < 0) {
-        return;
+        goto fail;
     }
 
     if (tap->has_fd || tap->has_fds) {
@@ -739,13 +739,20 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
         if (ret < 0) {
             if (tap->has_vhostforce && tap->vhostforce) {
                 error_propagate(errp, err);
+                goto fail;
             } else {
                 warn_report_err(err);
             }
         }
     } else if (vhostfdname) {
         error_setg(errp, "vhostfd(s)= is not valid without vhost");
+        goto fail;
     }
+
+    return;
+
+fail:
+    qemu_del_net_client(&s->nc);
 }
 
 static int get_fds(char *str, char *fds[], int max)
