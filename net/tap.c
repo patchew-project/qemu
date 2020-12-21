@@ -652,15 +652,61 @@ static int net_tap_init(const NetdevTapOptions *tap, int *vnet_hdr,
 
 #define MAX_TAP_QUEUES 1024
 
+static int tap_init_vhost_net(TAPState *s, const NetdevTapOptions *tap,
+                              const char *vhostfdname, Error **errp)
+{
+    VhostNetOptions options;
+    int vhostfd;
+    int ret;
+
+    options.backend_type = VHOST_BACKEND_TYPE_KERNEL;
+    options.net_backend = &s->nc;
+    if (tap->has_poll_us) {
+        options.busyloop_timeout = tap->poll_us;
+    } else {
+        options.busyloop_timeout = 0;
+    }
+
+    if (vhostfdname) {
+        vhostfd = monitor_fd_param(monitor_cur(), vhostfdname, errp);
+        if (vhostfd < 0) {
+            return -1;
+        }
+
+        ret = qemu_try_set_nonblock(vhostfd);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret,
+                             "tap: Can't use vhost file descriptor %s(%d)",
+                             vhostfdname, vhostfd);
+            return -1;
+        }
+    } else {
+        vhostfd = open("/dev/vhost-net", O_RDWR);
+        if (vhostfd < 0) {
+            error_setg_errno(errp, errno, "tap: open vhost char device failed");
+            return -1;
+        }
+        qemu_set_nonblock(vhostfd);
+    }
+
+    options.opaque = (void *)(uintptr_t)vhostfd;
+
+    s->vhost_net = vhost_net_init(&options);
+    if (!s->vhost_net) {
+        error_setg(errp, "vhost-net requested but could not be initialized");
+        return -1;
+    }
+
+    return 0;
+}
+
 static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
                              const char *model, const char *name,
                              const char *ifname, const char *script,
                              const char *downscript, const char *vhostfdname,
                              int vnet_hdr, int fd, Error **errp)
 {
-    Error *err = NULL;
     TAPState *s = net_tap_fd_init(peer, model, name, fd, vnet_hdr);
-    int vhostfd;
     int ret;
 
     ret = tap_set_sndbuf(s->fd, tap, errp);
@@ -687,58 +733,15 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
 
     if (tap->has_vhost ? tap->vhost :
         vhostfdname || (tap->has_vhostforce && tap->vhostforce)) {
-        VhostNetOptions options;
+        Error *err = NULL;
 
-        options.backend_type = VHOST_BACKEND_TYPE_KERNEL;
-        options.net_backend = &s->nc;
-        if (tap->has_poll_us) {
-            options.busyloop_timeout = tap->poll_us;
-        } else {
-            options.busyloop_timeout = 0;
-        }
-
-        if (vhostfdname) {
-            int ret;
-
-            vhostfd = monitor_fd_param(monitor_cur(), vhostfdname, &err);
-            if (vhostfd == -1) {
-                if (tap->has_vhostforce && tap->vhostforce) {
-                    error_propagate(errp, err);
-                } else {
-                    warn_report_err(err);
-                }
-                return;
-            }
-            ret = qemu_try_set_nonblock(vhostfd);
-            if (ret < 0) {
-                error_setg_errno(errp, -ret, "%s: Can't use file descriptor %d",
-                                 name, fd);
-                return;
-            }
-        } else {
-            vhostfd = open("/dev/vhost-net", O_RDWR);
-            if (vhostfd < 0) {
-                if (tap->has_vhostforce && tap->vhostforce) {
-                    error_setg_errno(errp, errno,
-                                     "tap: open vhost char device failed");
-                } else {
-                    warn_report("tap: open vhost char device failed: %s",
-                                strerror(errno));
-                }
-                return;
-            }
-            qemu_set_nonblock(vhostfd);
-        }
-        options.opaque = (void *)(uintptr_t)vhostfd;
-
-        s->vhost_net = vhost_net_init(&options);
-        if (!s->vhost_net) {
+        ret = tap_init_vhost_net(s, tap, vhostfdname, &err);
+        if (ret < 0) {
             if (tap->has_vhostforce && tap->vhostforce) {
-                error_setg(errp, VHOST_NET_INIT_FAILED);
+                error_propagate(errp, err);
             } else {
-                warn_report(VHOST_NET_INIT_FAILED);
+                warn_report_err(err);
             }
-            return;
         }
     } else if (vhostfdname) {
         error_setg(errp, "vhostfd(s)= is not valid without vhost");
