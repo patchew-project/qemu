@@ -601,6 +601,23 @@ void cpus_register_accel(const CpusAccel *ca)
     cpus_accel = ca;
 }
 
+static void qemu_wait_vcpu_thread_init(CPUState *cpu)
+{
+    while (!cpu->created) {
+        qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
+    }
+}
+
+void qemu_wait_all_vcpu_threads_init(void)
+{
+    CPUState *cpu;
+
+    CPU_FOREACH(cpu) {
+        printf("***** cpuid: %d\n", cpu->cpu_index);
+        qemu_wait_vcpu_thread_init(cpu);
+    }
+}
+
 void qemu_init_vcpu(CPUState *cpu)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
@@ -622,8 +639,8 @@ void qemu_init_vcpu(CPUState *cpu)
     g_assert(cpus_accel != NULL && cpus_accel->create_vcpu_thread != NULL);
     cpus_accel->create_vcpu_thread(cpu);
 
-    while (!cpu->created) {
-        qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
+    if (!cpu->async_init) {
+        qemu_wait_vcpu_thread_init(cpu);
     }
 }
 

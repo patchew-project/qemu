@@ -467,6 +467,12 @@ struct CPUState {
 
     /* track IOMMUs whose translations we've cached in the TCG TLB */
     GArray *iommu_notifiers;
+
+    /*
+     * If true, qemu_init_vcpu() will not wait for the VCPU thread to be created
+     * before returning.
+     */
+    bool async_init;
 };
 
 typedef QTAILQ_HEAD(CPUTailQ, CPUState) CPUTailQ;
@@ -976,6 +982,13 @@ void start_exclusive(void);
  * Concludes an exclusive execution section started by start_exclusive.
  */
 void end_exclusive(void);
+
+/**
+ * qemu_wait_all_vcpu_threads_init:
+ *
+ * Wait for all VCPU threads to be created.
+ */
+void qemu_wait_all_vcpu_threads_init(void);
 
 /**
  * qemu_init_vcpu:

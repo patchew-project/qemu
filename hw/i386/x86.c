@@ -108,6 +108,8 @@ void x86_cpu_new(X86MachineState *x86ms, int64_t apic_id, Error **errp)
     if (!object_property_set_uint(cpu, "apic-id", apic_id, errp)) {
         goto out;
     }
+
+    CPU(cpu)->async_init = true;
     qdev_realize(DEVICE(cpu), NULL, errp);
 
 out:
@@ -137,6 +139,7 @@ void x86_cpus_init(X86MachineState *x86ms, int default_cpu_version)
     for (i = 0; i < ms->smp.cpus; i++) {
         x86_cpu_new(x86ms, possible_cpus->cpus[i].arch_id, &error_fatal);
     }
+    qemu_wait_all_vcpu_threads_init();
 }
 
 void x86_rtc_set_cpus_count(ISADevice *rtc, uint16_t cpus_count)
