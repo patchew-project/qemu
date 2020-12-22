@@ -1611,6 +1611,33 @@ static void pc_machine_set_max_fw_size(Object *obj, Visitor *v,
     pcms->max_fw_size = value;
 }
 
+static char *pc_machine_get_oem_id(Object *obj, Error **errp)
+{
+    return g_strdup(PC_MACHINE_GET_CLASS(PC_MACHINE(obj))->oem_id);
+}
+
+static void pc_machine_set_oem_id(Object *obj, const char *value, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+    size_t len = strnlen(value, 6);
+
+    memcpy(PC_MACHINE_GET_CLASS(pcms)->oem_id, value, len);
+}
+
+static char *pc_machine_get_oem_table_id(Object *obj, Error **errp)
+{
+    return g_strdup(PC_MACHINE_GET_CLASS(PC_MACHINE(obj))->oem_table_id);
+}
+
+static void pc_machine_set_oem_table_id(Object *obj, const char *value,
+                                        Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+    size_t len = strnlen(value, 4);
+
+    memcpy(PC_MACHINE_GET_CLASS(pcms)->oem_table_id, value, len);
+}
+
 static void pc_machine_initfn(Object *obj)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
@@ -1623,6 +1650,8 @@ static void pc_machine_initfn(Object *obj)
     pcms->max_ram_below_4g = 0; /* use default */
     /* acpi build is enabled by default if machine supports it */
     pcms->acpi_build_enabled = PC_MACHINE_GET_CLASS(pcms)->has_acpi_build;
+    memcpy(PC_MACHINE_GET_CLASS(pcms)->oem_id, ACPI_BUILD_APPNAME6, 6);
+    memcpy(PC_MACHINE_GET_CLASS(pcms)->oem_table_id, ACPI_BUILD_APPNAME4, 4);
     pcms->smbus_enabled = true;
     pcms->sata_enabled = true;
     pcms->pit_enabled = true;
@@ -1759,6 +1788,14 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
         NULL, NULL);
     object_class_property_set_description(oc, PC_MACHINE_MAX_FW_SIZE,
         "Maximum combined firmware size");
+
+    object_class_property_add_str(oc, PC_MACHINE_OEM_ID,
+                                  pc_machine_get_oem_id,
+                                  pc_machine_set_oem_id);
+
+    object_class_property_add_str(oc, PC_MACHINE_OEM_TABLE_ID,
+                                  pc_machine_get_oem_table_id,
+                                  pc_machine_set_oem_table_id);
 }
 
 static const TypeInfo pc_machine_info = {

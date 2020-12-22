@@ -62,7 +62,8 @@ typedef struct PCMachineState {
 #define PC_MACHINE_SATA             "sata"
 #define PC_MACHINE_PIT              "pit"
 #define PC_MACHINE_MAX_FW_SIZE      "max-fw-size"
-
+#define PC_MACHINE_OEM_ID           "oem_id"
+#define PC_MACHINE_OEM_TABLE_ID     "oem_table_id"
 /**
  * PCMachineClass:
  *
@@ -101,6 +102,8 @@ struct PCMachineClass {
     int legacy_acpi_table_size;
     unsigned acpi_data_size;
     bool do_not_add_smb_acpi;
+    char oem_id[6];
+    char oem_table_id[4];
 
     /* SMBIOS compat: */
     bool smbios_defaults;

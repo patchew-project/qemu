@@ -416,7 +416,7 @@ void build_append_int_noprefix(GArray *table, uint64_t value, int size);
 void
 build_header(BIOSLinker *linker, GArray *table_data,
              AcpiTableHeader *h, const char *sig, int len, uint8_t rev,
-             const char *oem_id, const char *oem_table_id);
+             const char *oem_id, const char *oem_table_id, bool use_sig_oem);
 void *acpi_data_push(GArray *table_data, unsigned size);
 unsigned acpi_data_len(GArray *table);
 void acpi_add_table(GArray *table_offsets, GArray *table_data);
@@ -426,7 +426,7 @@ void
 build_rsdp(GArray *tbl, BIOSLinker *linker, AcpiRsdpData *rsdp_data);
 void
 build_rsdt(GArray *table_data, BIOSLinker *linker, GArray *table_offsets,
-           const char *oem_id, const char *oem_table_id);
+           const char *oem_id, const char *oem_table_id, bool use_sig_oem);
 void
 build_xsdt(GArray *table_data, BIOSLinker *linker, GArray *table_offsets,
            const char *oem_id, const char *oem_table_id);
@@ -457,10 +457,12 @@ Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set);
 void build_srat_memory(AcpiSratMemoryAffinity *numamem, uint64_t base,
                        uint64_t len, int node, MemoryAffinityFlags flags);
 
-void build_slit(GArray *table_data, BIOSLinker *linker, MachineState *ms);
-
-void build_fadt(GArray *tbl, BIOSLinker *linker, const AcpiFadtData *f,
+void build_slit(GArray *table_data, BIOSLinker *linker, MachineState *ms,
                 const char *oem_id, const char *oem_table_id);
 
-void build_tpm2(GArray *table_data, BIOSLinker *linker, GArray *tcpalog);
+void build_fadt(GArray *tbl, BIOSLinker *linker, const AcpiFadtData *f,
+                const char *oem_id, const char *oem_table_id, bool use_sig_oem);
+
+void build_tpm2(GArray *table_data, BIOSLinker *linker, GArray *tcpalog,
+                const char *oem_id, const char *oem_table_id);
 #endif
