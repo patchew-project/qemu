@@ -808,7 +808,7 @@ static void slirp_smb_cleanup(SlirpState *s)
     }
 }
 
-static int slirp_smb(SlirpState* s, const char *exported_dir,
+static int slirp_smb(SlirpState *s, const char *exported_dir,
                      struct in_addr vserver_addr, Error **errp)
 {
     char *smb_conf;
