@@ -1860,7 +1860,7 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque)
         }
 
         /* get max memory regions if backend supports configurable RAM slots */
-        if (!virtio_has_feature(dev->protocol_features,
+        if (!virtio_has_feature(features,
                                 VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS)) {
             u->user->memory_slots = VHOST_MEMORY_BASELINE_NREGIONS;
         } else {
