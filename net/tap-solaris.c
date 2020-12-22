@@ -63,10 +63,10 @@ static int tap_alloc(char *dev, size_t dev_size, Error **errp)
     /* FIXME leaks like a sieve on error paths */
     /* FIXME suspicious: many errors are reported, then ignored */
     int tap_fd, if_fd, ppa = -1;
-    static int ip_fd = 0;
+    static int ip_fd;
     char *ptr;
 
-    static int arp_fd = 0;
+    static int arp_fd;
     int ip_muxid, arp_muxid;
     struct strioctl  strioc_if, strioc_ppa;
     int link_type = I_PLINK;
