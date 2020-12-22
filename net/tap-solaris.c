@@ -105,7 +105,8 @@ static int tap_alloc(char *dev, size_t dev_size, Error **errp)
     strioc_ppa.ic_timout = 0;
     strioc_ppa.ic_len = sizeof(ppa);
     strioc_ppa.ic_dp = (char *)&ppa;
-    if ((ppa = ioctl(tap_fd, I_STR, &strioc_ppa)) < 0) {
+    ppa = ioctl(tap_fd, I_STR, &strioc_ppa));
+    if (ppa < 0) {
         error_report("Can't assign new interface");
     }
 
@@ -162,12 +163,14 @@ static int tap_alloc(char *dev, size_t dev_size, Error **errp)
         error_report("Can't set ifname to arp");
     }
 
-    if ((ip_muxid = ioctl(ip_fd, I_LINK, if_fd)) < 0) {
+    ip_muxid = ioctl(ip_fd, I_LINK, if_fd);
+    if (ip_muxid < 0) {
         error_setg(errp, "Can't link TAP device to IP");
         return -1;
     }
 
-    if ((arp_muxid = ioctl(ip_fd, link_type, arp_fd)) < 0) {
+    arp_muxid = ioctl(ip_fd, link_type, arp_fd);
+    if (arp_muxid < 0) {
         error_report("Can't link TAP device to ARP");
     }
 

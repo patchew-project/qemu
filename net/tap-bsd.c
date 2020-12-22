@@ -176,7 +176,8 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
 
     if (fd < 0) {
         /* Tap device not specified or does not exist. */
-        if ((fd = tap_open_clone(ifname, ifname_size, errp)) < 0) {
+        fd = tap_open_clone(ifname, ifname_size, errp);
+        if (fd < 0) {
             return -1;
         }
     }
