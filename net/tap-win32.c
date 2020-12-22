@@ -158,24 +158,24 @@ static tun_buffer_t *get_buffer_from_output_queue(tap_win32_overlapped_t *const 
     result = WaitForSingleObject(overlapped->output_queue_semaphore, timeout);
 
     switch (result) {
-        /* The semaphore object was signaled. */
-        case WAIT_OBJECT_0:
-            EnterCriticalSection(&overlapped->output_queue_cs);
+    /* The semaphore object was signaled. */
+    case WAIT_OBJECT_0:
+        EnterCriticalSection(&overlapped->output_queue_cs);
 
-            buffer = overlapped->output_queue_front;
-            overlapped->output_queue_front = buffer->next;
+        buffer = overlapped->output_queue_front;
+        overlapped->output_queue_front = buffer->next;
 
-            if (overlapped->output_queue_front == NULL) {
-                overlapped->output_queue_back = NULL;
-            }
+        if (overlapped->output_queue_front == NULL) {
+            overlapped->output_queue_back = NULL;
+        }
 
-            LeaveCriticalSection(&overlapped->output_queue_cs);
-            break;
+        LeaveCriticalSection(&overlapped->output_queue_cs);
+        break;
 
-        /* Semaphore was nonsignaled, so a time-out occurred. */
-        case WAIT_TIMEOUT:
-            /* Cannot open another window. */
-            break;
+    /* Semaphore was nonsignaled, so a time-out occurred. */
+    case WAIT_TIMEOUT:
+        /* Cannot open another window. */
+        break;
     }
 
     return buffer;

@@ -76,16 +76,16 @@ static int tap_alloc(char *dev, size_t dev_size, Error **errp)
     memset(&ifr, 0x0, sizeof(ifr));
 
     if (*dev) {
-       ptr = dev;
-       while (*ptr && !qemu_isdigit((int)*ptr)) {
-           ptr++;
-       }
-       ppa = atoi(ptr);
+        ptr = dev;
+        while (*ptr && !qemu_isdigit((int)*ptr)) {
+            ptr++;
+        }
+        ppa = atoi(ptr);
     }
 
     /* Check if IP device was opened */
     if (ip_fd) {
-       close(ip_fd);
+        close(ip_fd);
     }
 
     TFR(ip_fd = open("/dev/udp", O_RDWR, 0));
@@ -182,9 +182,9 @@ static int tap_alloc(char *dev, size_t dev_size, Error **errp)
     ifr.lifr_arp_muxid = arp_muxid;
 
     if (ioctl(ip_fd, SIOCSLIFMUXID, &ifr) < 0) {
-      ioctl(ip_fd, I_PUNLINK , arp_muxid);
-      ioctl(ip_fd, I_PUNLINK, ip_muxid);
-      error_report("Can't set multiplexor id");
+        ioctl(ip_fd, I_PUNLINK , arp_muxid);
+        ioctl(ip_fd, I_PUNLINK, ip_muxid);
+        error_report("Can't set multiplexor id");
     }
 
     snprintf(dev, dev_size, "tap%d", ppa);

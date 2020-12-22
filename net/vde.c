@@ -55,7 +55,7 @@ static ssize_t vde_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     ssize_t ret;
 
     do {
-      ret = vde_send(s->vde, (const char *)buf, size, 0);
+        ret = vde_send(s->vde, (const char *)buf, size, 0);
     } while (ret < 0 && errno == EINTR);
 
     return ret;
