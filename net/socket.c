@@ -165,8 +165,9 @@ static void net_socket_send(void *opaque)
 
     size = qemu_recv(s->fd, buf1, sizeof(buf1), 0);
     if (size < 0) {
-        if (errno != EWOULDBLOCK)
+        if (errno != EWOULDBLOCK) {
             goto eoc;
+        }
     } else if (size == 0) {
         /* end of connection */
     eoc:
@@ -199,8 +200,9 @@ static void net_socket_send_dgram(void *opaque)
     int size;
 
     size = qemu_recv(s->fd, s->rs.buf, sizeof(s->rs.buf), 0);
-    if (size < 0)
+    if (size < 0) {
         return;
+    }
     if (size == 0) {
         /* end of connection */
         net_socket_read_poll(s, false);
@@ -301,8 +303,9 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr,
     qemu_set_nonblock(fd);
     return fd;
 fail:
-    if (fd >= 0)
+    if (fd >= 0) {
         closesocket(fd);
+    }
     return -1;
 }
 

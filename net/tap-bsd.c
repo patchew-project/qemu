@@ -68,8 +68,7 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
         TFR(fd = open(dname, O_RDWR));
         if (fd >= 0) {
             break;
-        }
-        else if (errno == ENXIO || errno == ENOENT) {
+        } else if (errno == ENXIO || errno == ENOENT) {
             break;
         }
         if (*ifname) {

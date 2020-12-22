@@ -70,7 +70,6 @@
 #define USERMODEDEVICEDIR "\\\\.\\Global\\"
 #define TAPSUFFIX         ".tap"
 
-
 //======================
 // Compile time configuration
 //======================
@@ -146,8 +145,7 @@ static tun_buffer_t* get_buffer_from_output_queue(tap_win32_overlapped_t* const 
     // Non-blocking call
     result = WaitForSingleObject(overlapped->output_queue_semaphore, timeout);
 
-    switch (result)
-    {
+    switch (result) {
         // The semaphore object was signaled.
         case WAIT_OBJECT_0:
             EnterCriticalSection(&overlapped->output_queue_cs);
@@ -233,9 +231,9 @@ static int is_tap_win32_dev(const char *guid)
             NULL,
             NULL);
 
-        if (status == ERROR_NO_MORE_ITEMS)
+        if (status == ERROR_NO_MORE_ITEMS) {
             break;
-        else if (status != ERROR_SUCCESS) {
+        } else if (status != ERROR_SUCCESS) {
             return FALSE;
         }
 
@@ -312,8 +310,7 @@ static int get_device_guid(
         return -1;
     }
 
-    while (!stop)
-    {
+    while (!stop) {
         char enum_name[256];
         char connection_string[256];
         HKEY connection_key;
@@ -332,9 +329,9 @@ static int get_device_guid(
             NULL,
             NULL);
 
-        if (status == ERROR_NO_MORE_ITEMS)
+        if (status == ERROR_NO_MORE_ITEMS) {
             break;
-        else if (status != ERROR_SUCCESS) {
+        } else if (status != ERROR_SUCCESS) {
             return -1;
         }
 
@@ -363,8 +360,7 @@ static int get_device_guid(
             if (status != ERROR_SUCCESS || name_type != REG_SZ) {
                 ++i;
                 continue;
-            }
-            else {
+            } else {
                 if (is_tap_win32_dev(enum_name)) {
                     snprintf(name, name_size, "%s", enum_name);
                     if (actual_name) {
@@ -374,8 +370,7 @@ static int get_device_guid(
                                 ++i;
                                 continue;
                             }
-                        }
-                        else {
+                        } else {
                             snprintf(actual_name, actual_name_size, "%s", name_data);
                         }
                     }
@@ -390,8 +385,9 @@ static int get_device_guid(
 
     RegCloseKey (control_net_key);
 
-    if (stop == 0)
+    if (stop == 0) {
         return -1;
+    }
 
     return 0;
 }
@@ -455,8 +451,9 @@ static void tap_win32_overlapped_init(tap_win32_overlapped_t* const overlapped, 
     }
     /* To count buffers, initially no-signal. */
     overlapped->tap_semaphore = CreateSemaphore(NULL, 0, TUN_MAX_BUFFER_COUNT, NULL);
-    if (!overlapped->tap_semaphore)
+    if (!overlapped->tap_semaphore) {
         fprintf(stderr, "error creating tap_semaphore.\n");
+    }
 }
 
 static int tap_win32_write(tap_win32_overlapped_t *overlapped,
@@ -470,8 +467,9 @@ static int tap_win32_write(tap_win32_overlapped_t *overlapped,
     result = GetOverlappedResult(overlapped->handle, &overlapped->write_overlapped,
                                   &write_size, FALSE);
 
-    if (!result && GetLastError() == ERROR_IO_INCOMPLETE)
+    if (!result && GetLastError() == ERROR_IO_INCOMPLETE) {
         WaitForSingleObject(overlapped->write_event, INFINITE);
+    }
 #endif
 
     result = WriteFile(overlapped->handle, buffer, size,
@@ -614,8 +612,9 @@ static int tap_win32_open(tap_win32_overlapped_t **phandle,
     }
 
     rc = get_device_guid(device_guid, sizeof(device_guid), name_buffer, sizeof(name_buffer));
-    if (rc)
+    if (rc) {
         return -1;
+    }
 
     snprintf(device_path, sizeof(device_path), "%s%s%s",
               USERMODEDEVICEDIR,

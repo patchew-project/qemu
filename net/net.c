@@ -794,8 +794,9 @@ NetClientState *qemu_find_netdev(const char *id)
     NetClientState *nc;
 
     QTAILQ_FOREACH(nc, &net_clients, next) {
-        if (nc->info->type == NET_CLIENT_DRIVER_NIC)
+        if (nc->info->type == NET_CLIENT_DRIVER_NIC) {
             continue;
+        }
         if (!strcmp(nc->name, id)) {
             return nc;
         }
@@ -829,9 +830,11 @@ static int nic_get_free_idx(void)
 {
     int index;
 
-    for (index = 0; index < MAX_NICS; index++)
-        if (!nd_table[index].used)
+    for (index = 0; index < MAX_NICS; index++) {
+        if (!nd_table[index].used) {
             return index;
+        }
+    }
     return -1;
 }
 
@@ -857,10 +860,12 @@ void qemu_check_nic_model(NICInfo *nd, const char *model)
     models[0] = model;
     models[1] = NULL;
 
-    if (qemu_show_nic_models(nd->model, models))
+    if (qemu_show_nic_models(nd->model, models)) {
         exit(0);
-    if (qemu_find_nic_model(nd, models, model) < 0)
+    }
+    if (qemu_find_nic_model(nd, models, model) < 0) {
         exit(1);
+    }
 }
 
 int qemu_find_nic_model(NICInfo *nd, const char * const *models,
@@ -868,12 +873,14 @@ int qemu_find_nic_model(NICInfo *nd, const char * const *models,
 {
     int i;
 
-    if (!nd->model)
+    if (!nd->model) {
         nd->model = g_strdup(default_model);
+    }
 
     for (i = 0 ; models[i]; i++) {
-        if (strcmp(nd->model, models[i]) == 0)
+        if (strcmp(nd->model, models[i]) == 0) {
             return i;
+        }
     }
 
     error_report("Unsupported NIC model: %s", nd->model);
@@ -1219,8 +1226,9 @@ RxFilterInfoList *qmp_query_rx_filter(bool has_name, const char *name,
         /* only query information on queue 0 since the info is per nic,
          * not per queue
          */
-        if (nc->queue_index != 0)
+        if (nc->queue_index != 0) {
             continue;
+        }
 
         if (nc->info->query_rx_filter) {
             info = nc->info->query_rx_filter(nc);

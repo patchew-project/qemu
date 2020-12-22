@@ -97,10 +97,11 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
         }
     }
 
-    if (ifname[0] != '\0')
+    if (ifname[0] != '\0') {
         pstrcpy(ifr.ifr_name, IFNAMSIZ, ifname);
-    else
+    } else {
         pstrcpy(ifr.ifr_name, IFNAMSIZ, "tap%d");
+    }
     ret = ioctl(fd, TUNSETIFF, (void *) &ifr);
     if (ret != 0) {
         if (ifname[0] != '\0') {
@@ -167,8 +168,9 @@ int tap_probe_has_ufo(int fd)
 
     offload = TUN_F_CSUM | TUN_F_UFO;
 
-    if (ioctl(fd, TUNSETOFFLOAD, offload) < 0)
+    if (ioctl(fd, TUNSETOFFLOAD, offload) < 0) {
         return 0;
+    }
 
     return 1;
 }
@@ -248,14 +250,18 @@ void tap_fd_set_offload(int fd, int csum, int tso4,
 
     if (csum) {
         offload |= TUN_F_CSUM;
-        if (tso4)
+        if (tso4) {
             offload |= TUN_F_TSO4;
-        if (tso6)
+        }
+        if (tso6) {
             offload |= TUN_F_TSO6;
-        if ((tso4 || tso6) && ecn)
+        }
+        if ((tso4 || tso6) && ecn) {
             offload |= TUN_F_TSO_ECN;
-        if (ufo)
+        }
+        if (ufo) {
             offload |= TUN_F_UFO;
+        }
     }
 
     if (ioctl(fd, TUNSETOFFLOAD, offload) != 0) {
