@@ -34,4 +34,5 @@ typedef struct AcpiMcfgInfo {
 } AcpiMcfgInfo;
 
 void build_mcfg(GArray *table_data, BIOSLinker *linker, AcpiMcfgInfo *info);
+Aml *aml_pci_device_dsm(void);
 #endif
