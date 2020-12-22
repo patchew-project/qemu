@@ -347,7 +347,8 @@ static uint64_t pci_read(void *opaque, hwaddr addr, unsigned int size)
         trace_acpi_pci_down_read(val);
         break;
     case PCI_EJ_BASE:
-        /* No feature defined yet */
+        val = s->acpi_index;
+        s->acpi_index = 0;
         trace_acpi_pci_features_read(val);
         break;
     case PCI_RMV_BASE:
@@ -367,8 +368,30 @@ static uint64_t pci_read(void *opaque, hwaddr addr, unsigned int size)
 static void pci_write(void *opaque, hwaddr addr, uint64_t data,
                       unsigned int size)
 {
+    int slot;
+    PCIBus *bus;
+    BusChild *kid, *next;
     AcpiPciHpState *s = opaque;
+
+    s->acpi_index = 0;
     switch (addr) {
+    case PCI_UP_BASE:
+        slot = ctz32(data);
+
+        if (s->hotplug_select >= ACPI_PCIHP_MAX_HOTPLUG_BUS) {
+            break;
+        }
+
+        bus = acpi_pcihp_find_hotplug_bus(s, s->hotplug_select);
+        QTAILQ_FOREACH_SAFE(kid, &bus->qbus.children, sibling, next) {
+            Object *o = OBJECT(kid->child);
+            PCIDevice *dev = PCI_DEVICE(o);
+            if (PCI_SLOT(dev->devfn) == slot) {
+                s->acpi_index = object_property_get_uint(o, "acpi-index", NULL);
+                break;
+            }
+        }
+        break;
     case PCI_EJ_BASE:
         if (s->hotplug_select >= ACPI_PCIHP_MAX_HOTPLUG_BUS) {
             break;

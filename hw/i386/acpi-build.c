@@ -1132,6 +1132,16 @@ static void build_piix4_pci_hotplug(Aml *table)
     aml_append(method, aml_return(aml_int(0)));
     aml_append(scope, method);
 
+    method = aml_method("AIDX", 2, AML_NOTSERIALIZED);
+    aml_append(method, aml_acquire(aml_name("BLCK"), 0xFFFF));
+    aml_append(method, aml_store(aml_arg(0), aml_name("BNUM")));
+    aml_append(method,
+        aml_store(aml_shiftleft(aml_int(1), aml_arg(1)), aml_name("PCIU")));
+    aml_append(method, aml_store(aml_name("B0EJ"), aml_local(0)));
+    aml_append(method, aml_release(aml_name("BLCK")));
+    aml_append(method, aml_return(aml_local(0)));
+    aml_append(scope, method);
+
     aml_append(table, scope);
 }
 

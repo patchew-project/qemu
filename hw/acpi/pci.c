@@ -27,6 +27,7 @@
 #include "hw/acpi/aml-build.h"
 #include "hw/acpi/pci.h"
 #include "hw/pci/pcie_host.h"
+#include "hw/acpi/pcihp.h"
 
 void build_mcfg(GArray *table_data, BIOSLinker *linker, AcpiMcfgInfo *info)
 {
@@ -59,3 +60,8 @@ void build_mcfg(GArray *table_data, BIOSLinker *linker, AcpiMcfgInfo *info)
                  "MCFG", table_data->len - mcfg_start, 1, NULL, NULL);
 }
 
+bool vmstate_acpi_pcihp_use_acpi_index(void *opaque, int version_id)
+{
+     AcpiPciHpState *s = opaque;
+     return s->acpi_index;
+}
