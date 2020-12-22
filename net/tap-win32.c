@@ -63,9 +63,11 @@
  * =================
  */
 
-#define ADAPTER_KEY "SYSTEM\\CurrentControlSet\\Control\\Class\\{4D36E972-E325-11CE-BFC1-08002BE10318}"
+#define ADAPTER_KEY \
+    "SYSTEM\\CurrentControlSet\\Control\\Class\\{4D36E972-E325-11CE-BFC1-08002BE10318}"
 
-#define NETWORK_CONNECTIONS_KEY "SYSTEM\\CurrentControlSet\\Control\\Network\\{4D36E972-E325-11CE-BFC1-08002BE10318}"
+#define NETWORK_CONNECTIONS_KEY \
+    "SYSTEM\\CurrentControlSet\\Control\\Network\\{4D36E972-E325-11CE-BFC1-08002BE10318}"
 
 /*
  * ======================
@@ -136,7 +138,8 @@ static tun_buffer_t *get_buffer_from_free_list(tap_win32_overlapped_t *const ove
     return buffer;
 }
 
-static void put_buffer_on_free_list(tap_win32_overlapped_t *const overlapped, tun_buffer_t *const buffer)
+static void put_buffer_on_free_list(tap_win32_overlapped_t *const overlapped,
+                                    tun_buffer_t *const buffer)
 {
     EnterCriticalSection(&overlapped->free_list_cs);
     buffer->next = overlapped->free_list;
@@ -145,7 +148,8 @@ static void put_buffer_on_free_list(tap_win32_overlapped_t *const overlapped, tu
     ReleaseSemaphore(overlapped->free_list_semaphore, 1, NULL);
 }
 
-static tun_buffer_t *get_buffer_from_output_queue(tap_win32_overlapped_t *const overlapped, const int block)
+static tun_buffer_t *get_buffer_from_output_queue(tap_win32_overlapped_t *const overlapped,
+                                                    const int block)
 {
     tun_buffer_t *buffer = NULL;
     DWORD result, timeout = block ? INFINITE : 0L;
@@ -182,7 +186,8 @@ static tun_buffer_t *get_buffer_from_output_queue_immediate(tap_win32_overlapped
     return get_buffer_from_output_queue(overlapped, 0);
 }
 
-static void put_buffer_on_output_queue(tap_win32_overlapped_t *const overlapped, tun_buffer_t *const buffer)
+static void put_buffer_on_output_queue(tap_win32_overlapped_t *const overlapped,
+                                        tun_buffer_t *const buffer)
 {
     EnterCriticalSection(&overlapped->output_queue_cs);
 
@@ -194,7 +199,7 @@ static void put_buffer_on_output_queue(tap_win32_overlapped_t *const overlapped,
         overlapped->output_queue_back = buffer;
     }
 
-    LeaveCriticalSection(&overlapped->output_queue_cs);
+    LeaveCriticalSection(&overlapped->ou412tput_queue_cs);
 
     ReleaseSemaphore(overlapped->output_queue_semaphore, 1, NULL);
 }
@@ -409,7 +414,8 @@ static int tap_win32_set_status(HANDLE handle, int status)
                 &status, sizeof(status), &len, NULL);
 }
 
-static void tap_win32_overlapped_init(tap_win32_overlapped_t *const overlapped, const HANDLE handle)
+static void tap_win32_overlapped_init(tap_win32_overlapped_t *const overlapped,
+                                        const HANDLE handle)
 {
     overlapped->handle = handle;
 
@@ -447,7 +453,9 @@ static void tap_win32_overlapped_init(tap_win32_overlapped_t *const overlapped, 
         fprintf(stderr, "error creating free list semaphore!\n");
     }
 
-    overlapped->free_list = overlapped->output_queue_front = overlapped->output_queue_back = NULL;
+    overlapped->free_list = overlapped->output_queue_front =
+                            overlapped->output_queue_back =
+                            NULL;
 
     {
         unsigned index;
@@ -537,16 +545,20 @@ static DWORD WINAPI tap_win32_thread_entry(LPVOID param)
             dwError = GetLastError();
             if (dwError == ERROR_IO_PENDING) {
                 WaitForSingleObject(overlapped->read_event, INFINITE);
-                result = GetOverlappedResult(overlapped->handle, &overlapped->read_overlapped,
+                result = GetOverlappedResult(overlapped->handle,
+                                              &overlapped->read_overlapped,
                                               &read_size, FALSE);
                 if (!result) {
 #ifdef DEBUG_TAP_WIN32
                     LPVOID lpBuffer;
                     dwError = GetLastError();
-                    FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
-                                   NULL, dwError, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                    FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                                   FORMAT_MESSAGE_FROM_SYSTEM,
+                                   NULL, dwError,
+                                   MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
                                    (LPTSTR) &lpBuffer, 0, NULL);
-                    fprintf(stderr, "Tap-Win32: Error GetOverlappedResult %d - %s\n", dwError, lpBuffer);
+                    fprintf(stderr, "Tap-Win32: Error GetOverlappedResult %d - %s\n",
+                            dwError, lpBuffer);
                     LocalFree(lpBuffer);
 #endif
                 }
@@ -619,7 +631,8 @@ static int tap_win32_open(tap_win32_overlapped_t **phandle,
         snprintf(name_buffer, sizeof(name_buffer), "%s", preferred_name);
     }
 
-    rc = get_device_guid(device_guid, sizeof(device_guid), name_buffer, sizeof(name_buffer));
+    rc = get_device_guid(device_guid, sizeof(device_guid),
+                         name_buffer, sizeof(name_buffer));
     if (rc) {
         return -1;
     }

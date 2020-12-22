@@ -113,7 +113,9 @@ static ssize_t net_socket_receive(NetClientState *nc, const uint8_t *buf, size_t
     return size;
 }
 
-static ssize_t net_socket_receive_dgram(NetClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t net_socket_receive_dgram(NetClientState *nc,
+                                        const uint8_t *buf,
+                                        size_t size)
 {
     NetSocketState *s = DO_UPCAST(NetSocketState, nc, nc);
     ssize_t ret;
@@ -353,9 +355,10 @@ static NetSocketState *net_socket_fd_init_dgram(NetClientState *peer,
     sa_type = sa->type;
     qapi_free_SocketAddress(sa);
 
-    /* fd passed: multicast: "learn" dgram_dst address from bound address and save it
-     * Because this may be "shared" socket from a "master" process, datagrams would be recv()
-     * by ONLY ONE process: we must "clone" this dgram socket --jjo
+    /* fd passed: multicast: "learn" dgram_dst address from bound address
+     * and save it. Because this may be "shared" socket from a "master" process,
+     * datagrams would be recv() by ONLY ONE process: we must "clone"
+     * this dgram socket --jjo
      */
 
     if (is_connected && mcast != NULL) {
