@@ -235,7 +235,7 @@ static void chr_closed_bh(void *opaque)
 
     s = DO_UPCAST(NetVhostUserState, nc, ncs[0]);
 
-    for (i = queues -1; i >= 0; i--) {
+    for (i = queues - 1; i >= 0; i--) {
         s = DO_UPCAST(NetVhostUserState, nc, ncs[i]);
 
         if (s->vhost_net) {

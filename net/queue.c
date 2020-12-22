@@ -57,7 +57,7 @@ struct NetQueue {
 
     QTAILQ_HEAD(, NetPacket) packets;
 
-    unsigned delivering : 1;
+    unsigned delivering:1;
 };
 
 NetQueue *qemu_new_net_queue(NetQueueDeliverFunc *deliver, void *opaque)

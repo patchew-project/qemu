@@ -455,15 +455,15 @@ static NetSocketState *net_socket_fd_init(NetClientState *peer,
                                           int fd, int is_connected,
                                           const char *mc, Error **errp)
 {
-    int so_type = -1, optlen=sizeof(so_type);
+    int so_type = -1, optlen = sizeof(so_type);
 
-    if(getsockopt(fd, SOL_SOCKET, SO_TYPE, (char *)&so_type,
-        (socklen_t *)&optlen)< 0) {
+    if (getsockopt(fd, SOL_SOCKET, SO_TYPE, (char *)&so_type,
+        (socklen_t *)&optlen) < 0) {
         error_setg(errp, "can't get socket option SO_TYPE");
         closesocket(fd);
         return NULL;
     }
-    switch(so_type) {
+    switch (so_type) {
     case SOCK_DGRAM:
         return net_socket_fd_init_dgram(peer, model, name, fd, is_connected,
                                         mc, errp);
@@ -484,7 +484,7 @@ static void net_socket_accept(void *opaque)
     socklen_t len;
     int fd;
 
-    for(;;) {
+    for (;;) {
         len = sizeof(saddr);
         fd = qemu_accept(s->listen_fd, (struct sockaddr *)&saddr, &len);
         if (fd < 0 && errno != EINTR) {
@@ -574,7 +574,7 @@ static int net_socket_connect_init(NetClientState *peer,
     qemu_set_nonblock(fd);
 
     connected = 0;
-    for(;;) {
+    for (;;) {
         ret = connect(fd, (struct sockaddr *)&saddr, sizeof(saddr));
         if (ret < 0) {
             if (errno == EINTR || errno == EWOULDBLOCK) {

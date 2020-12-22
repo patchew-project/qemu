@@ -179,7 +179,7 @@ static int qemu_macaddr_get_free(void)
 
 void qemu_macaddr_default_if_unset(MACAddr *macaddr)
 {
-    static const MACAddr zero = { .a = { 0,0,0,0,0,0 } };
+    static const MACAddr zero = { .a = { 0, 0, 0, 0, 0, 0 } };
     static const MACAddr base = { .a = { 0x52, 0x54, 0x00, 0x12, 0x34, 0 } };
 
     if (memcmp(macaddr, &zero, sizeof(zero)) != 0) {

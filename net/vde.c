@@ -92,7 +92,7 @@ static int net_vde_init(NetClientState *peer, const char *model,
     };
 
     vde = vde_open(init_sock, (char *)"QEMU", &args);
-    if (!vde){
+    if (!vde) {
         error_setg_errno(errp, errno, "Could not open vde");
         return -1;
     }
