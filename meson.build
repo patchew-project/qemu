@@ -925,6 +925,7 @@ kconfig_external_symbols = [
   'CONFIG_VIRTFS',
   'CONFIG_LINUX',
   'CONFIG_PVRDMA',
+  'CONFIG_MULTIPROCESS_ALLOWED',
 ]
 ignored = [ 'TARGET_XML_FILES', 'TARGET_ABI_DIR', 'TARGET_ARCH' ]
 
@@ -2240,6 +2241,7 @@ summary_info += {'rng-none':          config_host.has_key('CONFIG_RNG_NONE')}
 summary_info += {'Linux keyring':     config_host.has_key('CONFIG_SECRET_KEYRING')}
 summary_info += {'FUSE exports':      fuse.found()}
 summary_info += {'FUSE lseek':        fuse_lseek.found()}
+summary_info += {'Multiprocess QEMU': config_host.has_key('CONFIG_MULTIPROCESS_ALLOWED')}
 summary(summary_info, bool_yn: true)
 
 if not supported_cpus.contains(cpu)
