@@ -234,66 +234,6 @@ static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
 #define TCG_CT_CONST_NEG  0x400
 #define TCG_CT_CONST_ZERO 0x800
 
-/* parse target specific constraints */
-static const char *target_parse_constraint(TCGArgConstraint *ct,
-                                           const char *ct_str, TCGType type)
-{
-    switch (*ct_str++) {
-    case 'I':
-        ct->ct |= TCG_CT_CONST_ARM;
-        break;
-    case 'K':
-        ct->ct |= TCG_CT_CONST_INV;
-        break;
-    case 'N': /* The gcc constraint letter is L, already used here.  */
-        ct->ct |= TCG_CT_CONST_NEG;
-        break;
-    case 'Z':
-        ct->ct |= TCG_CT_CONST_ZERO;
-        break;
-
-    case 'r':
-        ct->regs = 0xffff;
-        break;
-
-    /* qemu_ld address */
-    case 'l':
-        ct->regs = 0xffff;
-#ifdef CONFIG_SOFTMMU
-        /* r0-r2,lr will be overwritten when reading the tlb entry,
-           so don't use these. */
-        tcg_regset_reset_reg(ct->regs, TCG_REG_R0);
-        tcg_regset_reset_reg(ct->regs, TCG_REG_R1);
-        tcg_regset_reset_reg(ct->regs, TCG_REG_R2);
-        tcg_regset_reset_reg(ct->regs, TCG_REG_R3);
-        tcg_regset_reset_reg(ct->regs, TCG_REG_R14);
-#endif
-        break;
-
-    /* qemu_st address & data */
-    case 's':
-        ct->regs = 0xffff;
-        /* r0-r2 will be overwritten when reading the tlb entry (softmmu only)
-           and r0-r1 doing the byte swapping, so don't use these. */
-        tcg_regset_reset_reg(ct->regs, TCG_REG_R0);
-        tcg_regset_reset_reg(ct->regs, TCG_REG_R1);
-#if defined(CONFIG_SOFTMMU)
-        /* Avoid clashes with registers being used for helper args */
-        tcg_regset_reset_reg(ct->regs, TCG_REG_R2);
-#if TARGET_LONG_BITS == 64
-        /* Avoid clashes with registers being used for helper args */
-        tcg_regset_reset_reg(ct->regs, TCG_REG_R3);
-#endif
-        tcg_regset_reset_reg(ct->regs, TCG_REG_R14);
-#endif
-        break;
-
-    default:
-        return NULL;
-    }
-    return ct_str;
-}
-
 static inline uint32_t rotl(uint32_t val, int n)
 {
   return (val << n) | (val >> (32 - n));
