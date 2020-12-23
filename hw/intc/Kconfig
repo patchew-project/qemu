@@ -19,6 +19,7 @@ config ARM_GIC
 config OPENPIC
     bool
     select MSI_NONBROKEN
+    select OPENPIC_KVM if KVM
 
 config APIC
     bool
@@ -32,21 +33,28 @@ config ARM_GIC_KVM
 
 config OPENPIC_KVM
     bool
-    default y
-    depends on OPENPIC && KVM
 
 config XICS
     bool
-    depends on POWERNV || PSERIES
+    select XICS_KVM if KVM
 
 config XICS_SPAPR
     bool
     select XICS
 
+config XIVE
+    bool
+    select XIVE_KVM if KVM
+
+config XIVE_SPAPR
+    bool
+    select XIVE
+
 config XICS_KVM
     bool
-    default y
-    depends on XICS && KVM
+
+config XIVE_KVM
+    bool
 
 config ALLWINNER_A10_PIC
     bool

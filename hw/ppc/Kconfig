@@ -31,6 +31,8 @@ config POWERNV
     select FDT_PPC
     select PCI_EXPRESS
     select MSI_NONBROKEN
+    select XIVE
+    select XICS
 
 config PPC405
     bool
@@ -127,21 +129,6 @@ config VIRTEX
     select XILINX
     select XILINX_ETHLITE
     select FDT_PPC
-
-config XIVE
-    bool
-    depends on POWERNV || PSERIES
-
-config XIVE_SPAPR
-    bool
-    default y
-    depends on PSERIES
-    select XIVE
-
-config XIVE_KVM
-    bool
-    default y
-    depends on XIVE_SPAPR && KVM
 
 # Only used by 64-bit targets
 config FW_CFG_PPC
