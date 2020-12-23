@@ -218,64 +218,6 @@ static bool reloc_pc14(tcg_insn_unit *pc, tcg_insn_unit *target)
     return false;
 }
 
-/* parse target specific constraints */
-static const char *target_parse_constraint(TCGArgConstraint *ct,
-                                           const char *ct_str, TCGType type)
-{
-    switch (*ct_str++) {
-    case 'A': case 'B': case 'C': case 'D':
-        tcg_regset_set_reg(ct->regs, 3 + ct_str[0] - 'A');
-        break;
-    case 'r':
-        ct->regs = 0xffffffff;
-        break;
-    case 'v':
-        ct->regs = 0xffffffff00000000ull;
-        break;
-    case 'L':                   /* qemu_ld constraint */
-        ct->regs = 0xffffffff;
-        tcg_regset_reset_reg(ct->regs, TCG_REG_R3);
-#ifdef CONFIG_SOFTMMU
-        tcg_regset_reset_reg(ct->regs, TCG_REG_R4);
-        tcg_regset_reset_reg(ct->regs, TCG_REG_R5);
-#endif
-        break;
-    case 'S':                   /* qemu_st constraint */
-        ct->regs = 0xffffffff;
-        tcg_regset_reset_reg(ct->regs, TCG_REG_R3);
-#ifdef CONFIG_SOFTMMU
-        tcg_regset_reset_reg(ct->regs, TCG_REG_R4);
-        tcg_regset_reset_reg(ct->regs, TCG_REG_R5);
-        tcg_regset_reset_reg(ct->regs, TCG_REG_R6);
-#endif
-        break;
-    case 'I':
-        ct->ct |= TCG_CT_CONST_S16;
-        break;
-    case 'J':
-        ct->ct |= TCG_CT_CONST_U16;
-        break;
-    case 'M':
-        ct->ct |= TCG_CT_CONST_MONE;
-        break;
-    case 'T':
-        ct->ct |= TCG_CT_CONST_S32;
-        break;
-    case 'U':
-        ct->ct |= TCG_CT_CONST_U32;
-        break;
-    case 'W':
-        ct->ct |= TCG_CT_CONST_WSZ;
-        break;
-    case 'Z':
-        ct->ct |= TCG_CT_CONST_ZERO;
-        break;
-    default:
-        return NULL;
-    }
-    return ct_str;
-}
-
 /* test if a constant matches the constraint */
 static int tcg_target_const_match(tcg_target_long val, TCGType type,
                                   const TCGArgConstraint *arg_ct)
