@@ -2857,7 +2857,7 @@ static ImageInfoList *collect_image_info_list(bool image_opts,
                                               bool chain, bool force_share)
 {
     ImageInfoList *head = NULL;
-    ImageInfoList **last = &head;
+    ImageInfoList **tail = &head;
     GHashTable *filenames;
     Error *err = NULL;
 
@@ -2867,7 +2867,6 @@ static ImageInfoList *collect_image_info_list(bool image_opts,
         BlockBackend *blk;
         BlockDriverState *bs;
         ImageInfo *info;
-        ImageInfoList *elem;
 
         if (g_hash_table_lookup_extended(filenames, filename, NULL, NULL)) {
             error_report("Backing file '%s' creates an infinite loop.",
@@ -2891,10 +2890,7 @@ static ImageInfoList *collect_image_info_list(bool image_opts,
             goto err;
         }
 
-        elem = g_new0(ImageInfoList, 1);
-        elem->value = info;
-        *last = elem;
-        last = &elem->next;
+        QAPI_LIST_APPEND(tail, info);
 
         blk_unref(blk);
 

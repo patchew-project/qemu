@@ -42,16 +42,12 @@ static ACPIOSTInfo *acpi_cpu_device_status(int idx, AcpiCpuStatus *cdev)
     return info;
 }
 
-void acpi_cpu_ospm_status(CPUHotplugState *cpu_st, ACPIOSTInfoList ***list)
+void acpi_cpu_ospm_status(CPUHotplugState *cpu_st, ACPIOSTInfoList ***tail)
 {
     int i;
 
     for (i = 0; i < cpu_st->dev_count; i++) {
-        ACPIOSTInfoList *elem = g_new0(ACPIOSTInfoList, 1);
-        elem->value = acpi_cpu_device_status(i, &cpu_st->devs[i]);
-        elem->next = NULL;
-        **list = elem;
-        *list = &elem->next;
+        QAPI_LIST_APPEND(*tail, acpi_cpu_device_status(i, &cpu_st->devs[i]));
     }
 }
 

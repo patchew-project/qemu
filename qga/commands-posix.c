@@ -2440,18 +2440,17 @@ static void transfer_vcpu(GuestLogicalProcessor *vcpu, bool sys2vcpu,
 GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
 {
     int64_t current;
-    GuestLogicalProcessorList *head, **link;
+    GuestLogicalProcessorList *head, **tail;
     long sc_max;
     Error *local_err = NULL;
 
     current = 0;
     head = NULL;
-    link = &head;
+    tail = &head;
     sc_max = SYSCONF_EXACT(_SC_NPROCESSORS_CONF, &local_err);
 
     while (local_err == NULL && current < sc_max) {
         GuestLogicalProcessor *vcpu;
-        GuestLogicalProcessorList *entry;
         int64_t id = current++;
         char *path = g_strdup_printf("/sys/devices/system/cpu/cpu%" PRId64 "/",
                                      id);
@@ -2461,10 +2460,7 @@ GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
             vcpu->logical_id = id;
             vcpu->has_can_offline = true; /* lolspeak ftw */
             transfer_vcpu(vcpu, true, path, &local_err);
-            entry = g_malloc0(sizeof *entry);
-            entry->value = vcpu;
-            *link = entry;
-            link = &entry->next;
+            QAPI_LIST_APPEND(tail, vcpu);
         }
         g_free(path);
     }
@@ -2797,13 +2793,13 @@ out1:
 
 GuestMemoryBlockList *qmp_guest_get_memory_blocks(Error **errp)
 {
-    GuestMemoryBlockList *head, **link;
+    GuestMemoryBlockList *head, **tail;
     Error *local_err = NULL;
     struct dirent *de;
     DIR *dp;
 
     head = NULL;
-    link = &head;
+    tail = &head;
 
     dp = opendir("/sys/devices/system/memory/");
     if (!dp) {
@@ -2825,7 +2821,6 @@ GuestMemoryBlockList *qmp_guest_get_memory_blocks(Error **errp)
      */
     while ((de = readdir(dp)) != NULL) {
         GuestMemoryBlock *mem_blk;
-        GuestMemoryBlockList *entry;
 
         if ((strncmp(de->d_name, "memory", 6) != 0) ||
             !(de->d_type & DT_DIR)) {
@@ -2841,11 +2836,7 @@ GuestMemoryBlockList *qmp_guest_get_memory_blocks(Error **errp)
             break;
         }
 
-        entry = g_malloc0(sizeof *entry);
-        entry->value = mem_blk;
-
-        *link = entry;
-        link = &entry->next;
+        QAPI_LIST_APPEND(tail, mem_blk);
     }
 
     closedir(dp);
@@ -2865,15 +2856,14 @@ GuestMemoryBlockList *qmp_guest_get_memory_blocks(Error **errp)
 GuestMemoryBlockResponseList *
 qmp_guest_set_memory_blocks(GuestMemoryBlockList *mem_blks, Error **errp)
 {
-    GuestMemoryBlockResponseList *head, **link;
+    GuestMemoryBlockResponseList *head, **tail;
     Error *local_err = NULL;
 
     head = NULL;
-    link = &head;
+    tail = &head;
 
     while (mem_blks != NULL) {
         GuestMemoryBlockResponse *result;
-        GuestMemoryBlockResponseList *entry;
         GuestMemoryBlock *current_mem_blk = mem_blks->value;
 
         result = g_malloc0(sizeof(*result));
@@ -2882,11 +2872,8 @@ qmp_guest_set_memory_blocks(GuestMemoryBlockList *mem_blks, Error **errp)
         if (local_err) { /* should never happen */
             goto err;
         }
-        entry = g_malloc0(sizeof *entry);
-        entry->value = result;
 
-        *link = entry;
-        link = &entry->next;
+        QAPI_LIST_APPEND(tail, result);
         mem_blks = mem_blks->next;
     }
 
