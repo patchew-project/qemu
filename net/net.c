@@ -55,6 +55,7 @@
 #include "sysemu/sysemu.h"
 #include "net/filter.h"
 #include "qapi/string-output-visitor.h"
+#include "net/colo-compare.h"
 
 /* Net bridge is currently not supported for W32. */
 #if !defined(_WIN32)
@@ -1155,12 +1156,38 @@ void qmp_colo_passthrough_add(const char *prot, const uint32_t port,
                               Error **errp)
 {
     /* Setup passthrough connection */
+    if (port > 65536) {
+        error_setg(errp, "COLO pass through get wrong port");
+        return;
+    }
+
+    if (!strcmp(prot, "tcp") || !strcmp(prot, "TCP")) {
+        colo_compare_passthrough_add(true, (uint16_t)port);
+    } else if (!strcmp(prot, "udp") || !strcmp(prot, "UDP")) {
+        colo_compare_passthrough_add(false, (uint16_t)port);
+    } else {
+        error_setg(errp, "COLO pass through just support tcp or udp protocol");
+        return;
+    }
 }
 
 void qmp_colo_passthrough_del(const char *prot, const uint32_t port,
                               Error **errp)
 {
     /* Delete passthrough connection */
+    if (port > 65536) {
+        error_setg(errp, "COLO pass through get wrong port");
+        return;
+    }
+
+    if (!strcmp(prot, "tcp") || !strcmp(prot, "TCP")) {
+        colo_compare_passthrough_del(true, (uint16_t)port);
+    } else if (!strcmp(prot, "udp") || !strcmp(prot, "UDP")) {
+        colo_compare_passthrough_del(false, (uint16_t)port);
+    } else {
+        error_setg(errp, "COLO pass through just support tcp or udp protocol");
+        return;
+    }
 }
 
 static void netfilter_print_info(Monitor *mon, NetFilterState *nf)

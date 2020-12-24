@@ -46,6 +46,9 @@ static QTAILQ_HEAD(, CompareState) net_compares =
 static NotifierList colo_compare_notifiers =
     NOTIFIER_LIST_INITIALIZER(colo_compare_notifiers);
 
+static QLIST_HEAD(, PassthroughEntry) passthroughlist =
+    QLIST_HEAD_INITIALIZER(passthroughlist);
+
 #define COMPARE_READ_LEN_MAX NET_BUFSIZE
 #define MAX_QUEUE_SIZE 1024
 
@@ -102,6 +105,12 @@ typedef struct SendEntry {
     uint32_t vnet_hdr_len;
     uint8_t *buf;
 } SendEntry;
+
+typedef struct PassthroughEntry {
+    bool is_tcp;
+    uint16_t port;
+    QLIST_ENTRY(PassthroughEntry) node;
+} PassthroughEntry;
 
 struct CompareState {
     Object parent;
@@ -247,6 +256,7 @@ static int packet_enqueue(CompareState *s, int mode, Connection **con)
     ConnectionKey key;
     Packet *pkt = NULL;
     Connection *conn;
+    PassthroughEntry *bypass, *next;
     int ret;
 
     if (mode == PRIMARY_IN) {
@@ -264,7 +274,22 @@ static int packet_enqueue(CompareState *s, int mode, Connection **con)
         pkt = NULL;
         return -1;
     }
+
     fill_connection_key(pkt, &key);
+
+    /* Check COLO passthrough connenction */
+    if (!QLIST_EMPTY(&passthroughlist)) {
+        QLIST_FOREACH_SAFE(bypass, &passthroughlist, node, next) {
+            if (((key.ip_proto == IPPROTO_TCP) && bypass->is_tcp) ||
+                ((key.ip_proto == IPPROTO_UDP) && !bypass->is_tcp)) {
+                if (bypass->port == key.src_port) {
+                    packet_destroy(pkt, NULL);
+                    pkt = NULL;
+                    return -1;
+                }
+            }
+        }
+    }
 
     conn = connection_get(s->connection_track_table,
                           &key,
@@ -1370,6 +1395,30 @@ static void colo_flush_packets(void *opaque, void *user_data)
     while (!g_queue_is_empty(&conn->secondary_list)) {
         pkt = g_queue_pop_head(&conn->secondary_list);
         packet_destroy(pkt, NULL);
+    }
+}
+
+void colo_compare_passthrough_add(bool is_tcp, const uint16_t port)
+{
+    PassthroughEntry *bypass = NULL;
+
+    bypass = g_new0(PassthroughEntry, 1);
+    bypass->is_tcp = is_tcp;
+    bypass->port = port;
+    QLIST_INSERT_HEAD(&passthroughlist, bypass, node);
+}
+
+void colo_compare_passthrough_del(bool is_tcp, const uint16_t port)
+{
+    PassthroughEntry *bypass = NULL, *next = NULL;
+
+    if (!QLIST_EMPTY(&passthroughlist)) {
+        QLIST_FOREACH_SAFE(bypass, &passthroughlist, node, next) {
+            if ((bypass->is_tcp == is_tcp) && (bypass->port == port)) {
+                QLIST_REMOVE(bypass, node);
+                g_free(bypass);
+            }
+        }
     }
 }
 
