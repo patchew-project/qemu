@@ -187,6 +187,10 @@ typedef enum {
     INSN_VORR      = 0xf2200110,
     INSN_VSUB      = 0xf3000800,
     INSN_VMUL      = 0xf2000910,
+    INSN_VQADD     = 0xf2000010,
+    INSN_VQADD_U   = 0xf3000010,
+    INSN_VQSUB     = 0xf2000210,
+    INSN_VQSUB_U   = 0xf3000210,
 
     INSN_VABS      = 0xf3b10300,
     INSN_VMVN      = 0xf3b00580,
@@ -2374,7 +2378,11 @@ static int tcg_target_op_def(TCGOpcode op)
     case INDEX_op_dup2_vec:
     case INDEX_op_add_vec:
     case INDEX_op_mul_vec:
+    case INDEX_op_ssadd_vec:
+    case INDEX_op_sssub_vec:
     case INDEX_op_sub_vec:
+    case INDEX_op_usadd_vec:
+    case INDEX_op_ussub_vec:
     case INDEX_op_xor_vec:
         return C_O1_I2(w, w, w);
     case INDEX_op_or_vec:
@@ -2744,6 +2752,18 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_sub_vec:
         tcg_out_vreg3(s, INSN_VSUB, q, vece, a0, a1, a2);
         return;
+    case INDEX_op_ssadd_vec:
+        tcg_out_vreg3(s, INSN_VQADD, q, vece, a0, a1, a2);
+        return;
+    case INDEX_op_sssub_vec:
+        tcg_out_vreg3(s, INSN_VQSUB, q, vece, a0, a1, a2);
+        return;
+    case INDEX_op_usadd_vec:
+        tcg_out_vreg3(s, INSN_VQADD_U, q, vece, a0, a1, a2);
+        return;
+    case INDEX_op_ussub_vec:
+        tcg_out_vreg3(s, INSN_VQSUB_U, q, vece, a0, a1, a2);
+        return;
     case INDEX_op_xor_vec:
         tcg_out_vreg3(s, INSN_VEOR, q, 0, a0, a1, a2);
         return;
@@ -2854,6 +2874,10 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_shli_vec:
     case INDEX_op_shri_vec:
     case INDEX_op_sari_vec:
+    case INDEX_op_ssadd_vec:
+    case INDEX_op_sssub_vec:
+    case INDEX_op_usadd_vec:
+    case INDEX_op_ussub_vec:
         return 1;
     case INDEX_op_abs_vec:
     case INDEX_op_cmp_vec:
