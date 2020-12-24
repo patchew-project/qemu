@@ -40,22 +40,10 @@ bool use_idiv_instructions;
 
 #ifdef CONFIG_DEBUG_TCG
 static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
-    "%r0",
-    "%r1",
-    "%r2",
-    "%r3",
-    "%r4",
-    "%r5",
-    "%r6",
-    "%r7",
-    "%r8",
-    "%r9",
-    "%r10",
-    "%r11",
-    "%r12",
-    "%r13",
-    "%r14",
-    "%pc",
+    "%r0",  "%r1",  "%r2",  "%r3",  "%r4",  "%r5",  "%r6",  "%r7",
+    "%r8",  "%r9",  "%r10", "%r11", "%r12", "%sp",  "%r14", "%pc",
+    "%q0",  "%q1",  "%q2",  "%q3",  "%q4",  "%q5",  "%q6",  "%q7",
+    "%q8",  "%q9",  "%q10", "%q11", "%q12", "%q13", "%q14", "%q15",
 };
 #endif
 
@@ -75,6 +63,23 @@ static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_R3,
     TCG_REG_R12,
     TCG_REG_R14,
+
+    TCG_REG_Q0,
+    TCG_REG_Q1,
+    TCG_REG_Q2,
+    TCG_REG_Q3,
+    TCG_REG_Q4,
+    TCG_REG_Q5,
+    TCG_REG_Q6,
+    TCG_REG_Q7,
+    TCG_REG_Q8,
+    TCG_REG_Q9,
+    TCG_REG_Q10,
+    TCG_REG_Q11,
+    TCG_REG_Q12,
+    TCG_REG_Q13,
+    TCG_REG_Q14,
+    TCG_REG_Q15,
 };
 
 static const int tcg_target_call_iarg_regs[4] = {
@@ -85,6 +90,7 @@ static const int tcg_target_call_oarg_regs[2] = {
 };
 
 #define TCG_REG_TMP  TCG_REG_R12
+#define TCG_VEC_TMP  TCG_REG_Q15
 
 enum arm_cond_code_e {
     COND_EQ = 0x0,
@@ -2096,6 +2102,22 @@ static int tcg_target_op_def(TCGOpcode op)
     case INDEX_op_qemu_st_i64:
         return TARGET_LONG_BITS == 32 ? C_O0_I3(s, s, s) : C_O0_I4(s, s, s, s);
 
+    case INDEX_op_st_vec:
+        return C_O0_I2(w, r);
+    case INDEX_op_ld_vec:
+    case INDEX_op_dupm_vec:
+        return C_O1_I1(w, r);
+    case INDEX_op_dup_vec:
+        return C_O1_I1(w, wr);
+    case INDEX_op_dup2_vec:
+    case INDEX_op_add_vec:
+    case INDEX_op_sub_vec:
+    case INDEX_op_xor_vec:
+    case INDEX_op_or_vec:
+    case INDEX_op_and_vec:
+    case INDEX_op_cmp_vec:
+        return C_O1_I2(w, w, w);
+
     default:
         g_assert_not_reached();
     }
@@ -2105,12 +2127,18 @@ static void tcg_target_init(TCGContext *s)
 {
     /* Only probe for the platform and capabilities if we havn't already
        determined maximum values at compile time.  */
-#ifndef use_idiv_instructions
+#if !defined(use_idiv_instructions) || !defined(use_neon_instructions)
     {
         unsigned long hwcap = qemu_getauxval(AT_HWCAP);
+#ifndef use_idiv_instructions
         use_idiv_instructions = (hwcap & HWCAP_ARM_IDIVA) != 0;
+#endif
+#ifndef use_neon_instructions
+        use_neon_instructions = (hwcap & HWCAP_ARM_NEON) != 0;
+#endif
     }
 #endif
+
     if (__ARM_ARCH < 7) {
         const char *pl = (const char *)qemu_getauxval(AT_PLATFORM);
         if (pl != NULL && pl[0] == 'v' && pl[1] >= '4' && pl[1] <= '9') {
@@ -2128,10 +2156,33 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R12);
     tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R14);
 
+    if (use_neon_instructions) {
+        tcg_target_available_regs[TCG_TYPE_V64]  = 0xffff0000u;
+        tcg_target_available_regs[TCG_TYPE_V128] = 0xffff0000u;
+
+        tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_Q0);
+        tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_Q1);
+        tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_Q2);
+        tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_Q3);
+        tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_Q4);
+        tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_Q5);
+        tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_Q6);
+        tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_Q7);
+        tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_Q8);
+        tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_Q9);
+        tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_Q10);
+        tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_Q11);
+        tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_Q12);
+        tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_Q13);
+        tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_Q14);
+        tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_Q15);
+    }
+
     s->reserved_regs = 0;
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_TMP);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_PC);
+    tcg_regset_set_reg(s->reserved_regs, TCG_VEC_TMP);
 }
 
 static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg arg,
@@ -2163,6 +2214,42 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
                                 TCGReg ret, tcg_target_long arg)
 {
     tcg_out_movi32(s, COND_AL, ret, arg);
+}
+
+static bool tcg_out_dup_vec(TCGContext *s, TCGType type, unsigned vece,
+                            TCGReg rd, TCGReg rs)
+{
+    g_assert_not_reached();
+}
+
+static bool tcg_out_dupm_vec(TCGContext *s, TCGType type, unsigned vece,
+                             TCGReg rd, TCGReg base, intptr_t offset)
+{
+    g_assert_not_reached();
+}
+
+static void tcg_out_dupi_vec(TCGContext *s, TCGType type, unsigned vece,
+                             TCGReg rd, int64_t v64)
+{
+    g_assert_not_reached();
+}
+
+static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
+                           unsigned vecl, unsigned vece,
+                           const TCGArg *args, const int *const_args)
+{
+    g_assert_not_reached();
+}
+
+int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
+{
+    return 0;
+}
+
+void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
+                       TCGArg a0, ...)
+{
+    g_assert_not_reached();
 }
 
 static void tcg_out_nop_fill(tcg_insn_unit *p, int count)
