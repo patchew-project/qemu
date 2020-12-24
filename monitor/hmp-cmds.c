@@ -1661,6 +1661,26 @@ void hmp_netdev_del(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
+void hmp_colo_passthrough_add(Monitor *mon, const QDict *qdict)
+{
+    const char *prot = qdict_get_str(qdict, "protocol");
+    uint32_t port = qdict_get_int(qdict, "port");
+    Error *err = NULL;
+
+    qmp_colo_passthrough_add(prot, port, &err);
+    hmp_handle_error(mon, err);
+}
+
+void hmp_colo_passthrough_del(Monitor *mon, const QDict *qdict)
+{
+    const char *prot = qdict_get_str(qdict, "protocol");
+    uint32_t port = qdict_get_int(qdict, "port");
+    Error *err = NULL;
+
+    qmp_colo_passthrough_del(prot, port, &err);
+    hmp_handle_error(mon, err);
+}
+
 void hmp_object_add(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
