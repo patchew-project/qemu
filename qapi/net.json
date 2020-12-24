@@ -714,3 +714,49 @@
 ##
 { 'event': 'FAILOVER_NEGOTIATED',
   'data': {'device-id': 'str'} }
+
+##
+# @colo-passthrough-add:
+#
+# Add passthrough entry according to customer's needs in COLO-compare.
+#
+# @protocol: COLO passthrough just support TCP and UDP.
+#
+# @port: TCP or UDP port number.
+#
+# Returns: Nothing on success
+#
+# Since: 5.3
+#
+# Example:
+#
+# -> { "execute": "colo-passthrough-add",
+#      "arguments": { "protocol": "tcp", "port": 3389 } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'colo-passthrough-add',
+     'data': {'protocol': 'str', 'port': 'uint32'} }
+
+##
+# @colo-passthrough-del:
+#
+# Delete passthrough entry according to customer's needs in COLO-compare.
+#
+# @protocol: COLO passthrough just support TCP and UDP.
+#
+# @port: TCP or UDP port number.
+#
+# Returns: Nothing on success
+#
+# Since: 5.3
+#
+# Example:
+#
+# -> { "execute": "colo-passthrough-del",
+#      "arguments": { "protocol": "tcp", "port": 3389 } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'colo-passthrough-del',
+     'data': {'protocol': 'str', 'port': 'uint32'} }
