@@ -117,8 +117,6 @@ if 'CONFIG_TCG_INTERPRETER' in config_host
   tcg_arch = 'tci'
 elif config_host['ARCH'] == 'sparc64'
   tcg_arch = 'sparc'
-elif config_host['ARCH'] == 's390x'
-  tcg_arch = 's390'
 elif config_host['ARCH'] in ['x86_64', 'x32']
   tcg_arch = 'i386'
 elif config_host['ARCH'] == 'ppc64'
