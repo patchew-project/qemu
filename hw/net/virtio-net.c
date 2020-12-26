@@ -2957,11 +2957,22 @@ static bool virtio_net_rss_needed(void *opaque)
     return VIRTIO_NET(opaque)->rss_data.enabled;
 }
 
+static int virtio_net_rss_pre_load(void *opaque)
+{
+    VirtIONet *n = VIRTIO_NET(opaque);
+
+    g_free(n->rss_data.indirections_table);
+    n->rss_data.indirections_table = NULL;
+    n->rss_data.indirections_len = 0;
+    return 0;
+}
+
 static const VMStateDescription vmstate_virtio_net_rss = {
     .name      = "virtio-net-device/rss",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = virtio_net_rss_needed,
+    .pre_load = virtio_net_rss_pre_load,
     .fields = (VMStateField[]) {
         VMSTATE_BOOL(rss_data.enabled, VirtIONet),
         VMSTATE_BOOL(rss_data.redirect, VirtIONet),
