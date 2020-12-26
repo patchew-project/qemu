@@ -1799,10 +1799,22 @@ static bool spapr_pending_events_needed(void *opaque)
     return !QTAILQ_EMPTY(&spapr->pending_events);
 }
 
+static int spapr_event_log_entry_pre_load(void *opaque)
+{
+    SpaprEventLogEntry *entry = opaque;
+
+    g_free(entry->extended_log);
+    entry->extended_log = NULL;
+    entry->extended_length = 0;
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_spapr_event_entry = {
     .name = "spapr_event_log_entry",
     .version_id = 1,
     .minimum_version_id = 1,
+    .pre_load = spapr_event_log_entry_pre_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(summary, SpaprEventLogEntry),
         VMSTATE_UINT32(extended_length, SpaprEventLogEntry),
