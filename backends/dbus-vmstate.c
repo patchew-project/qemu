@@ -366,10 +366,21 @@ static int dbus_vmstate_pre_save(void *opaque)
     return 0;
 }
 
+static int dbus_vmstate_pre_load(void *opaque)
+{
+    DBusVMState *self = DBUS_VMSTATE(opaque);
+
+    g_free(self->data);
+    self->data = NULL;
+    self->data_size = 0;
+    return 0;
+}
+
 static const VMStateDescription dbus_vmstate = {
     .name = TYPE_DBUS_VMSTATE,
     .version_id = 0,
     .pre_save = dbus_vmstate_pre_save,
+    .pre_load = dbus_vmstate_pre_load,
     .post_load = dbus_vmstate_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(data_size, DBusVMState),
