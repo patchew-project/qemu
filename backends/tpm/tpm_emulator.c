@@ -857,6 +857,18 @@ static int tpm_emulator_pre_save(void *opaque)
     return tpm_emulator_get_state_blobs(tpm_emu);
 }
 
+static int tpm_emulator_pre_load(void *opaque)
+{
+    TPMBackend *tb = opaque;
+    TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
+    TPMBlobBuffers *state_blobs = &tpm_emu->state_blobs;
+
+    tpm_sized_buffer_reset(&state_blobs->volatil);
+    tpm_sized_buffer_reset(&state_blobs->permanent);
+    tpm_sized_buffer_reset(&state_blobs->savestate);
+    return 0;
+}
+
 /*
  * Load the TPM state blobs into the TPM.
  *
@@ -883,6 +895,7 @@ static const VMStateDescription vmstate_tpm_emulator = {
     .name = "tpm-emulator",
     .version_id = 0,
     .pre_save = tpm_emulator_pre_save,
+    .pre_load = tpm_emulator_pre_load,
     .post_load = tpm_emulator_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(state_blobs.permanent_flags, TPMEmulator),
