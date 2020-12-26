@@ -519,10 +519,21 @@ void vmbus_unmap_sgl(VMBusChanReq *req, DMADirection dir, struct iovec *iov,
     }
 }
 
+static int vmbus_gpadl_pre_load(void *opaque)
+{
+    VMBusGpadl *gpadl = VMBusGpadl(opaque);
+
+    g_free(gpadl->gfns);
+    gpadl->gfns = NULL;
+    gpadl->num_gfns =0;
+    return 0;
+}
+
 static const VMStateDescription vmstate_gpadl = {
     .name = "vmbus/gpadl",
     .version_id = 0,
     .minimum_version_id = 0,
+    .pre_load = vmbus_gpadl_pre_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(id, VMBusGpadl),
         VMSTATE_UINT32(child_relid, VMBusGpadl),
