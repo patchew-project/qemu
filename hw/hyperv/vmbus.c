@@ -1303,10 +1303,21 @@ typedef struct VMBusChanReqSave {
     ScatterGatherEntry *sgl;
 } VMBusChanReqSave;
 
+static int vmbus_chan_req_pre_load(void *opaque)
+{
+    VMBusChanReqSave *req_save = VMBusChanReqSave(opaque);
+
+    g_free(req_save.msg);
+    req_save.msg = NULL;
+    req_save.msglen = 0;
+    return 0;
+}
+
 static const VMStateDescription vmstate_vmbus_chan_req = {
     .name = "vmbus/vmbus_chan_req",
     .version_id = 0,
     .minimum_version_id = 0,
+    .pre_load = vmbus_chan_req_pre_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT16(chan_idx, VMBusChanReqSave),
         VMSTATE_UINT16(pkt_type, VMBusChanReqSave),
