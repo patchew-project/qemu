@@ -36,10 +36,10 @@ struct VT82C686BState {
     SuperIOConfig superio_conf;
 };
 
-OBJECT_DECLARE_SIMPLE_TYPE(VT82C686BState, VT82C686B)
+OBJECT_DECLARE_SIMPLE_TYPE(VT82C686BState, VT82C686B_ISA)
 
-static void superio_ioport_writeb(void *opaque, hwaddr addr, uint64_t data,
-                                  unsigned size)
+static void vt82c686b_superio_writeb(void *opaque, hwaddr addr, uint64_t data,
+                                     unsigned size)
 {
     SuperIOConfig *superio_conf = opaque;
 
@@ -72,7 +72,8 @@ static void superio_ioport_writeb(void *opaque, hwaddr addr, uint64_t data,
     }
 }
 
-static uint64_t superio_ioport_readb(void *opaque, hwaddr addr, unsigned size)
+static uint64_t vt82c686b_superio_readb(void *opaque, hwaddr addr,
+                                        unsigned size)
 {
     SuperIOConfig *superio_conf = opaque;
     uint8_t val = superio_conf->config[superio_conf->index];
@@ -81,9 +82,9 @@ static uint64_t superio_ioport_readb(void *opaque, hwaddr addr, unsigned size)
     return val;
 }
 
-static const MemoryRegionOps superio_ops = {
-    .read = superio_ioport_readb,
-    .write = superio_ioport_writeb,
+static const MemoryRegionOps vt82c686b_superio_ops = {
+    .read = vt82c686b_superio_readb,
+    .write = vt82c686b_superio_writeb,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .impl = {
         .min_access_size = 1,
@@ -93,7 +94,7 @@ static const MemoryRegionOps superio_ops = {
 
 static void vt82c686b_isa_reset(DeviceState *dev)
 {
-    VT82C686BState *vt82c = VT82C686B(dev);
+    VT82C686BState *vt82c = VT82C686B_ISA(dev);
     uint8_t *pci_conf = vt82c->dev.config;
 
     pci_set_long(pci_conf + PCI_CAPABILITY_LIST, 0x000000c0);
@@ -118,11 +119,10 @@ static void vt82c686b_isa_reset(DeviceState *dev)
     vt82c->superio_conf.config[0xe8] = 0xbe;
 }
 
-/* write config pci function0 registers. PCI-ISA bridge */
-static void vt82c686b_write_config(PCIDevice *d, uint32_t addr,
+static void vt82c686b_isa_write_config(PCIDevice *d, uint32_t addr,
                                    uint32_t val, int len)
 {
-    VT82C686BState *vt686 = VT82C686B(d);
+    VT82C686BState *vt686 = VT82C686B_ISA(d);
 
     trace_via_isa_write(addr, val, len);
     pci_default_write_config(d, addr, val, len);
@@ -284,10 +284,9 @@ static const VMStateDescription vmstate_via = {
     }
 };
 
-/* init the PCI-to-ISA bridge */
-static void vt82c686b_realize(PCIDevice *d, Error **errp)
+static void vt82c686b_isa_realize(PCIDevice *d, Error **errp)
 {
-    VT82C686BState *vt82c = VT82C686B(d);
+    VT82C686BState *vt82c = VT82C686B_ISA(d);
     uint8_t *pci_conf;
     ISABus *isa_bus;
     uint8_t *wmask;
@@ -309,7 +308,7 @@ static void vt82c686b_realize(PCIDevice *d, Error **errp)
         }
     }
 
-    memory_region_init_io(&vt82c->superio, OBJECT(d), &superio_ops,
+    memory_region_init_io(&vt82c->superio, OBJECT(d), &vt82c686b_superio_ops,
                           &vt82c->superio_conf, "superio", 2);
     memory_region_set_enabled(&vt82c->superio, false);
     /*
@@ -320,13 +319,13 @@ static void vt82c686b_realize(PCIDevice *d, Error **errp)
                                 &vt82c->superio);
 }
 
-static void via_class_init(ObjectClass *klass, void *data)
+static void via_isa_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->realize = vt82c686b_realize;
-    k->config_write = vt82c686b_write_config;
+    k->realize = vt82c686b_isa_realize;
+    k->config_write = vt82c686b_isa_write_config;
     k->vendor_id = PCI_VENDOR_ID_VIA;
     k->device_id = PCI_DEVICE_ID_VIA_ISA_BRIDGE;
     k->class_id = PCI_CLASS_BRIDGE_ISA;
@@ -334,18 +333,15 @@ static void via_class_init(ObjectClass *klass, void *data)
     dc->reset = vt82c686b_isa_reset;
     dc->desc = "ISA bridge";
     dc->vmsd = &vmstate_via;
-    /*
-     * Reason: part of VIA VT82C686 southbridge, needs to be wired up,
-     * e.g. by mips_fuloong2e_init()
-     */
+    /* Reason: Part of VIA southbridge, needs to be wired up by board code */
     dc->user_creatable = false;
 }
 
-static const TypeInfo via_info = {
-    .name          = TYPE_VT82C686B,
+static const TypeInfo via_isa_info = {
+    .name          = TYPE_VT82C686B_ISA,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(VT82C686BState),
-    .class_init    = via_class_init,
+    .class_init    = via_isa_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
@@ -374,7 +370,7 @@ static void vt82c686b_register_types(void)
 {
     type_register_static(&via_pm_info);
     type_register_static(&via_superio_info);
-    type_register_static(&via_info);
+    type_register_static(&via_isa_info);
 }
 
 type_init(vt82c686b_register_types)
