@@ -91,6 +91,7 @@ typedef struct BDRVRBDState {
     char *namespace;
     uint64_t image_size;
     uint64_t object_size;
+    AioContext *aio_context;
 } BDRVRBDState;
 
 static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
@@ -749,6 +750,8 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
+    s->aio_context = bdrv_get_aio_context(bs);
+
     /* When extending regular files, we get zeros from the OS */
     bs->supported_truncate_flags = BDRV_REQ_ZERO_WRITE;
 
@@ -839,8 +842,7 @@ static void rbd_finish_aiocb(rbd_completion_t c, RADOSCB *rcb)
     rcb->ret = rbd_aio_get_return_value(c);
     rbd_aio_release(c);
 
-    replay_bh_schedule_oneshot_event(bdrv_get_aio_context(acb->common.bs),
-                                     rbd_finish_bh, rcb);
+    replay_bh_schedule_oneshot_event(acb->s->aio_context, rbd_finish_bh, rcb);
 }
 
 static BlockAIOCB *rbd_start_aio(BlockDriverState *bs,
@@ -1151,6 +1153,18 @@ static const char *const qemu_rbd_strong_runtime_opts[] = {
     NULL
 };
 
+static void qemu_rbd_attach_aio_context(BlockDriverState *bs,
+                                       AioContext *new_context)
+{
+    BDRVRBDState *s = bs->opaque;
+    s->aio_context = new_context;
+}
+
+static void qemu_rbd_detach_aio_context(BlockDriverState *bs)
+{
+
+}
+
 static BlockDriver bdrv_rbd = {
     .format_name            = "rbd",
     .instance_size          = sizeof(BDRVRBDState),
@@ -1179,6 +1193,9 @@ static BlockDriver bdrv_rbd = {
     .bdrv_snapshot_list     = qemu_rbd_snap_list,
     .bdrv_snapshot_goto     = qemu_rbd_snap_rollback,
     .bdrv_co_invalidate_cache = qemu_rbd_co_invalidate_cache,
+
+    .bdrv_attach_aio_context  = qemu_rbd_attach_aio_context,
+    .bdrv_detach_aio_context  = qemu_rbd_detach_aio_context,
 
     .strong_runtime_opts    = qemu_rbd_strong_runtime_opts,
 };
