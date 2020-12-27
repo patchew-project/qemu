@@ -348,14 +348,19 @@ static const TypeInfo via_isa_info = {
     },
 };
 
+static bool vt82c686b_superio_floppy_is_enabled(ISASuperIODevice *sio, uint8_t index)
+{
+        return false; /* Disabled due to clash with SuperIO Config reg ports */
+}
+
 static void vt82c686b_superio_class_init(ObjectClass *klass, void *data)
 {
     ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
 
     sc->serial.count = 2;
     sc->parallel.count = 1;
-    sc->ide.count = 0;
-    sc->floppy.count = 1;
+    sc->ide.count = 0; /* Emulated by via-ide */
+    sc->floppy.is_enabled = vt82c686b_superio_floppy_is_enabled;
 }
 
 static const TypeInfo via_superio_info = {
