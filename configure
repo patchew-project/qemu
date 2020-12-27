@@ -3663,8 +3663,9 @@ if test "$rbd" != "no" ; then
 #include <stdio.h>
 #include <rbd/librbd.h>
 int main(void) {
-    rados_t cluster;
-    rados_create(&cluster, NULL);
+#if LIBRBD_VERSION_CODE < LIBRBD_VERSION(1, 12, 0)
+#error
+#endif
     return 0;
 }
 EOF
@@ -3673,7 +3674,7 @@ EOF
     rbd=yes
   else
     if test "$rbd" = "yes" ; then
-      feature_not_found "rados block device" "Install librbd/ceph devel"
+      feature_not_found "rados block device" "Install librbd/ceph devel (>= 12.0.0)"
     fi
     rbd=no
   fi
