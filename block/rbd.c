@@ -223,8 +223,6 @@ done:
 static void qemu_rbd_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     BDRVRBDState *s = bs->opaque;
-    /* XXX Does RBD support AIO on less than 512-byte alignment? */
-    bs->bl.request_alignment = 512;
 #ifdef LIBRBD_SUPPORTS_WRITE_ZEROES
     bs->bl.pwrite_zeroes_alignment = s->object_size;
 #endif
