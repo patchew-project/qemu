@@ -674,7 +674,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     }
 
     pci_dev = pci_new(PCI_DEVFN(3, 0), "cmd646-ide");
-    qdev_prop_set_uint32(&pci_dev->qdev, "secondary", 1);
+    qdev_prop_set_bit(&pci_dev->qdev, "secondary", true);
     pci_realize_and_unref(pci_dev, pci_busA, &error_fatal);
     pci_ide_create_devs(pci_dev);
 
