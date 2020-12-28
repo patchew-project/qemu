@@ -22,8 +22,7 @@
 #include "qapi/qmp/qstring.h"
 #include "qemu/unicode.h"
 
-typedef struct JSONParsingState
-{
+typedef struct JSONParsingState {
     JSONMessageParser parser;
     QObject *result;
     Error *err;
