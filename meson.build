@@ -2082,7 +2082,7 @@ summary_info += {'strip binaries':    get_option('strip')}
 summary_info += {'profiler':          config_host.has_key('CONFIG_PROFILER')}
 summary_info += {'static build':      config_host.has_key('CONFIG_STATIC')}
 if targetos == 'darwin'
-  summary_info += {'Cocoa support': config_host.has_key('CONFIG_COCOA')}
+  summary_info += {'Cocoa support': config_host_data.get('CONFIG_COCOA', false)}
 endif
 # TODO: add back version
 summary_info += {'SDL support':       sdl.found()}
