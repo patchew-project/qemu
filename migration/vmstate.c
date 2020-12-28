@@ -70,6 +70,7 @@ static void vmstate_handle_alloc(void *ptr, const VMStateField *field,
         gsize size = vmstate_size(opaque, field);
         size *= vmstate_n_elems(opaque, field);
         if (size) {
+            g_free(*(void **)ptr);
             *(void **)ptr = g_malloc(size);
         }
     }
