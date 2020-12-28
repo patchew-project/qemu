@@ -501,7 +501,7 @@ if have_system and not get_option('curses').disabled()
   endforeach
   msg = get_option('curses').enabled() ? 'curses library not found' : ''
   if curses.found()
-    if cc.links(curses_test, dependencies: [curses])
+    if cc.links(curses_test, args: '-DNCURSES_WIDECHAR', dependencies: [curses])
       curses = declare_dependency(compile_args: '-DNCURSES_WIDECHAR', dependencies: [curses])
     else
       msg = 'curses package not usable'
