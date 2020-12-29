@@ -243,6 +243,10 @@ def minimize_trace(inpath, outpath):
         set_zero_minimizer(newtrace, outpath)
     assert(check_if_trace_crashes(newtrace, outpath))
 
+    # set zero minimizer
+    set_zero_minimizer(newtrace, outpath)
+    assert(check_if_trace_crashes(newtrace, outpath))
+
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:
