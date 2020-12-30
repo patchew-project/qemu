@@ -933,6 +933,12 @@ static void sysbus_esp_pdma_write(void *opaque, hwaddr addr,
         esp_pdma_write(s, val >> 8);
         esp_pdma_write(s, val);
         break;
+    case 4:
+        esp_pdma_write(s, val >> 24);
+        esp_pdma_write(s, val >> 16);
+        esp_pdma_write(s, val >> 8);
+        esp_pdma_write(s, val);
+        break;
     }
     dmalen = esp_get_tc(s);
     if (dmalen == 0 || (s->ti_wptr == TI_BUFSZ)) {
@@ -957,6 +963,12 @@ static uint64_t sysbus_esp_pdma_read(void *opaque, hwaddr addr,
         val = esp_pdma_read(s);
         val = (val << 8) | esp_pdma_read(s);
         break;
+    case 4:
+        val = esp_pdma_read(s);
+        val = (val << 8) | esp_pdma_read(s);
+        val = (val << 8) | esp_pdma_read(s);
+        val = (val << 8) | esp_pdma_read(s);
+        break;
     }
     if (s->ti_rptr == s->ti_wptr) {
         s->ti_wptr = 0;
@@ -971,7 +983,7 @@ static const MemoryRegionOps sysbus_esp_pdma_ops = {
     .write = sysbus_esp_pdma_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid.min_access_size = 1,
-    .valid.max_access_size = 2,
+    .valid.max_access_size = 4,
 };
 
 static const struct SCSIBusInfo esp_scsi_info = {
@@ -1014,7 +1026,7 @@ static void sysbus_esp_realize(DeviceState *dev, Error **errp)
                           sysbus, "esp-regs", ESP_REGS << sysbus->it_shift);
     sysbus_init_mmio(sbd, &sysbus->iomem);
     memory_region_init_io(&sysbus->pdma, OBJECT(sysbus), &sysbus_esp_pdma_ops,
-                          sysbus, "esp-pdma", 2);
+                          sysbus, "esp-pdma", 4);
     sysbus_init_mmio(sbd, &sysbus->pdma);
 
     qdev_init_gpio_in(dev, sysbus_esp_gpio_demux, 2);
