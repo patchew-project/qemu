@@ -53,7 +53,6 @@ struct ESPState {
     void (*dma_cb)(ESPState *s);
     int pdma_origin;
     uint32_t pdma_len;
-    uint32_t pdma_cur;
     void (*pdma_cb)(ESPState *s);
 
     /* Legacy field for vmstate_sysbus_esp_scsi version < 2 */
