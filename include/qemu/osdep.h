@@ -370,11 +370,15 @@ void qemu_anon_ram_free(void *ptr, size_t size);
 #endif
 #ifdef MADV_DODUMP
 #define QEMU_MADV_DODUMP MADV_DODUMP
+#elif defined(MADV_CORE)
+#define QEMU_MADV_DODUMP MADV_CORE
 #else
 #define QEMU_MADV_DODUMP QEMU_MADV_INVALID
 #endif
 #ifdef MADV_DONTDUMP
 #define QEMU_MADV_DONTDUMP MADV_DONTDUMP
+#elif defined(MADV_NOCORE)
+#define QEMU_MADV_DONTDUMP MADV_NOCORE
 #else
 #define QEMU_MADV_DONTDUMP QEMU_MADV_INVALID
 #endif
