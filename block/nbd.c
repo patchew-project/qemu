@@ -232,9 +232,11 @@ static void nbd_client_detach_aio_context(BlockDriverState *bs)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
 
-    /* Timer is deleted in nbd_client_co_drain_begin() */
-    assert(!s->reconnect_delay_timer);
-    qio_channel_detach_aio_context(QIO_CHANNEL(s->ioc));
+    if (s->state == NBD_CLIENT_CONNECTED) {
+        /* Timer is deleted in nbd_client_co_drain_begin() */
+        assert(!s->reconnect_delay_timer);
+        qio_channel_detach_aio_context(QIO_CHANNEL(s->ioc));
+    }
 }
 
 static void nbd_client_attach_aio_context_bh(void *opaque)
