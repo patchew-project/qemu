@@ -1663,6 +1663,16 @@ Aml *aml_object_type(Aml *object)
     return var;
 }
 
+static void copy_pad_field(void *dst, const char *src, size_t dst_size)
+{
+    size_t copy_size;
+
+    g_assert(src);
+    copy_size = MIN(strlen(src), dst_size);
+    memset(dst, 0x20, dst_size);
+    memcpy(dst, src, copy_size);
+}
+
 void
 build_header(BIOSLinker *linker, GArray *table_data,
              AcpiTableHeader *h, const char *sig, int len, uint8_t rev,
@@ -1670,25 +1680,19 @@ build_header(BIOSLinker *linker, GArray *table_data,
 {
     unsigned tbl_offset = (char *)h - table_data->data;
     unsigned checksum_offset = (char *)&h->checksum - table_data->data;
-    memcpy(&h->signature, sig, 4);
+
+    copy_pad_field(&h->signature, sig, sizeof h->signature);
+
     h->length = cpu_to_le32(len);
     h->revision = rev;
 
-    if (oem_id) {
-        strncpy((char *)h->oem_id, oem_id, sizeof h->oem_id);
-    } else {
-        memcpy(h->oem_id, ACPI_BUILD_APPNAME6, 6);
-    }
-
-    if (oem_table_id) {
-        strncpy((char *)h->oem_table_id, oem_table_id, sizeof(h->oem_table_id));
-    } else {
-        memcpy(h->oem_table_id, ACPI_BUILD_APPNAME4, 4);
-        memcpy(h->oem_table_id + 4, sig, 4);
-    }
+    copy_pad_field(h->oem_id, oem_id, sizeof h->oem_id);
+    copy_pad_field(h->oem_table_id, oem_table_id, sizeof h->oem_table_id);
 
     h->oem_revision = cpu_to_le32(1);
-    memcpy(h->asl_compiler_id, ACPI_BUILD_APPNAME4, 4);
+
+    copy_pad_field(h->asl_compiler_id, oem_table_id, sizeof h->asl_compiler_id);
+
     h->asl_compiler_revision = cpu_to_le32(1);
     /* Checksum to be filled in by Guest linker */
     bios_linker_loader_add_checksum(linker, ACPI_BUILD_TABLE_FILE,
@@ -1871,7 +1875,8 @@ void build_srat_memory(AcpiSratMemoryAffinity *numamem, uint64_t base,
  * ACPI spec 5.2.17 System Locality Distance Information Table
  * (Revision 2.0 or later)
  */
-void build_slit(GArray *table_data, BIOSLinker *linker, MachineState *ms)
+void build_slit(GArray *table_data, BIOSLinker *linker, MachineState *ms,
+                const char *oem_id, const char *oem_table_id)
 {
     int slit_start, i, j;
     slit_start = table_data->len;
@@ -1892,7 +1897,7 @@ void build_slit(GArray *table_data, BIOSLinker *linker, MachineState *ms)
     build_header(linker, table_data,
                  (void *)(table_data->data + slit_start),
                  "SLIT",
-                 table_data->len - slit_start, 1, NULL, NULL);
+                 table_data->len - slit_start, 1, oem_id, oem_table_id);
 }
 
 /* build rev1/rev3/rev5.1 FADT */
@@ -2024,7 +2029,8 @@ build_hdr:
  * table 7: TCG Hardware Interface Description Table Format for TPM 2.0
  * of TCG ACPI Specification, Family “1.2” and “2.0”, Version 1.2, Rev 8
  */
-void build_tpm2(GArray *table_data, BIOSLinker *linker, GArray *tcpalog)
+void build_tpm2(GArray *table_data, BIOSLinker *linker, GArray *tcpalog,
+                const char *oem_id, const char *oem_table_id)
 {
     uint8_t start_method_params[12] = {};
     unsigned log_addr_offset, tpm2_start;
@@ -2073,7 +2079,8 @@ void build_tpm2(GArray *table_data, BIOSLinker *linker, GArray *tcpalog)
                                    log_addr_offset, 8,
                                    ACPI_BUILD_TPMLOG_FILE, 0);
     build_header(linker, table_data,
-                 tpm2_ptr, "TPM2", table_data->len - tpm2_start, 4, NULL, NULL);
+                 tpm2_ptr, "TPM2", table_data->len - tpm2_start, 4, oem_id,
+                 oem_table_id);
 }
 
 Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set)
