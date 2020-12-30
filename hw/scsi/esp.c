@@ -228,7 +228,7 @@ static void do_busid_cmd(ESPState *s, uint8_t *buf, uint8_t busid)
     s->ti_size = datalen;
     if (datalen != 0) {
         s->rregs[ESP_RSTAT] = STAT_TC;
-        s->dma_left = 0;
+        esp_set_tc(s, 0);
         if (datalen > 0) {
             s->rregs[ESP_RSTAT] |= STAT_DI;
         } else {
@@ -384,6 +384,7 @@ static void do_dma_pdma_cb(ESPState *s)
 {
     int to_device = ((s->rregs[ESP_RSTAT] & 7) == STAT_DO);
     int len = s->pdma_cur - s->pdma_start;
+
     if (s->do_cmd) {
         s->ti_size = 0;
         s->cmdlen = 0;
@@ -391,7 +392,6 @@ static void do_dma_pdma_cb(ESPState *s)
         do_cmd(s, s->cmdbuf);
         return;
     }
-    s->dma_left -= len;
     s->async_buf += len;
     s->async_len -= len;
     if (to_device) {
@@ -406,7 +406,7 @@ static void do_dma_pdma_cb(ESPState *s)
          * complete the DMA operation immediately.  Otherwise defer
          * until the scsi layer has completed.
          */
-        if (to_device || s->dma_left != 0 || s->ti_size == 0) {
+        if (to_device || esp_get_tc(s) != 0 || s->ti_size == 0) {
             return;
         }
     }
@@ -420,7 +420,7 @@ static void esp_do_dma(ESPState *s)
     uint32_t len;
     int to_device = ((s->rregs[ESP_RSTAT] & 7) == STAT_DO);
 
-    len = s->dma_left;
+    len = esp_get_tc(s);
     if (s->do_cmd) {
         /*
          * handle_ti_cmd() case: esp_do_dma() is called only from
@@ -470,7 +470,7 @@ static void esp_do_dma(ESPState *s)
             return;
         }
     }
-    s->dma_left -= len;
+    esp_set_tc(s, esp_get_tc(s) - len);
     s->async_buf += len;
     s->async_len -= len;
     if (to_device) {
@@ -485,7 +485,7 @@ static void esp_do_dma(ESPState *s)
          * complete the DMA operation immediately.  Otherwise defer
          * until the scsi layer has completed.
          */
-        if (to_device || s->dma_left != 0 || s->ti_size == 0) {
+        if (to_device || esp_get_tc(s) != 0 || s->ti_size == 0) {
             return;
         }
     }
@@ -501,7 +501,6 @@ static void esp_report_command_complete(ESPState *s, uint32_t status)
         trace_esp_command_complete_unexpected();
     }
     s->ti_size = 0;
-    s->dma_left = 0;
     s->async_len = 0;
     if (status) {
         trace_esp_command_complete_fail();
@@ -538,12 +537,13 @@ void esp_transfer_data(SCSIRequest *req, uint32_t len)
 {
     ESPState *s = req->hba_private;
     int to_device = ((s->rregs[ESP_RSTAT] & 7) == STAT_DO);
+    uint32_t dmalen = esp_get_tc(s);
 
     assert(!s->do_cmd);
-    trace_esp_transfer_data(s->dma_left, s->ti_size);
+    trace_esp_transfer_data(dmalen, s->ti_size);
     s->async_len = len;
     s->async_buf = scsi_req_get_buf(req);
-    if (s->dma_left) {
+    if (dmalen) {
         esp_do_dma(s);
     } else if (to_device) {
         /*
@@ -574,7 +574,6 @@ static void handle_ti(ESPState *s)
     }
     trace_esp_handle_ti(minlen);
     if (s->dma) {
-        s->dma_left = minlen;
         s->rregs[ESP_RSTAT] &= ~STAT_TC;
         esp_do_dma(s);
     } else if (s->do_cmd) {
@@ -846,7 +845,7 @@ const VMStateDescription vmstate_esp = {
         VMSTATE_BUFFER_START_MIDDLE_V(cmdbuf, ESPState, 16, 4),
         VMSTATE_UINT32(cmdlen, ESPState),
         VMSTATE_UINT32(do_cmd, ESPState),
-        VMSTATE_UINT32(dma_left, ESPState),
+        VMSTATE_UINT32(mig_dma_left, ESPState),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription * []) {
@@ -887,12 +886,11 @@ static void sysbus_esp_pdma_write(void *opaque, hwaddr addr,
 {
     SysBusESPState *sysbus = opaque;
     ESPState *s = &sysbus->esp;
-    uint32_t dmalen;
+    uint32_t dmalen = esp_get_tc(s);
     uint8_t *buf = get_pdma_buf(s);
 
     trace_esp_pdma_write(size);
 
-    dmalen = esp_get_tc(s);
     if (dmalen == 0 || s->pdma_len == 0) {
         return;
     }
@@ -922,27 +920,30 @@ static uint64_t sysbus_esp_pdma_read(void *opaque, hwaddr addr,
 {
     SysBusESPState *sysbus = opaque;
     ESPState *s = &sysbus->esp;
+    uint32_t dmalen = esp_get_tc(s);
     uint8_t *buf = get_pdma_buf(s);
     uint64_t val = 0;
 
     trace_esp_pdma_read(size);
 
-    if (s->pdma_len == 0) {
+    if (dmalen == 0 || s->pdma_len == 0) {
         return 0;
     }
     switch (size) {
     case 1:
         val = buf[s->pdma_cur++];
         s->pdma_len--;
+        dmalen--;
         break;
     case 2:
         val = buf[s->pdma_cur++];
         val = (val << 8) | buf[s->pdma_cur++];
         s->pdma_len -= 2;
+        dmalen -= 2;
         break;
     }
-
-    if (s->pdma_len == 0 && s->pdma_cb) {
+    esp_set_tc(s, dmalen);
+    if (dmalen == 0 || (s->pdma_len == 0 && s->pdma_cb)) {
         esp_lower_drq(s);
         s->pdma_cb(s);
         s->pdma_cb = NULL;
@@ -1012,10 +1013,22 @@ static void sysbus_esp_hard_reset(DeviceState *dev)
     esp_hard_reset(&sysbus->esp);
 }
 
+static int sysbus_esp_scsi_post_load(void *opaque, int version_id)
+{
+    ESPState *s = opaque;
+
+    if (version_id < 2) {
+        esp_set_tc(s, s->mig_dma_left);
+    }
+
+    return 1;
+}
+
 static const VMStateDescription vmstate_sysbus_esp_scsi = {
     .name = "sysbusespscsi",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
+    .post_load = sysbus_esp_scsi_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_STRUCT(esp, SysBusESPState, 0, vmstate_esp, ESPState),
         VMSTATE_END_OF_LIST()
