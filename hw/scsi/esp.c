@@ -199,7 +199,7 @@ static void esp_pdma_write(ESPState *s, uint8_t val)
     esp_set_tc(s, dmalen);
 }
 
-static int get_cmd_cb(ESPState *s)
+static int esp_select(ESPState *s)
 {
     int target;
 
@@ -255,7 +255,7 @@ static uint32_t get_cmd(ESPState *s, uint8_t *buf, uint8_t buflen)
     }
     trace_esp_get_cmd(dmalen, target);
 
-    if (get_cmd_cb(s) < 0) {
+    if (esp_select(s) < 0) {
         return 0;
     }
     return dmalen;
@@ -297,7 +297,7 @@ static void do_cmd(ESPState *s, uint8_t *buf)
 
 static void satn_pdma_cb(ESPState *s)
 {
-    if (get_cmd_cb(s) < 0) {
+    if (esp_select(s) < 0) {
         return;
     }
     s->do_cmd = 0;
@@ -323,7 +323,7 @@ static void handle_satn(ESPState *s)
 
 static void s_without_satn_pdma_cb(ESPState *s)
 {
-    if (get_cmd_cb(s) < 0) {
+    if (esp_select(s) < 0) {
         return;
     }
     s->do_cmd = 0;
@@ -349,7 +349,7 @@ static void handle_s_without_atn(ESPState *s)
 
 static void satn_stop_pdma_cb(ESPState *s)
 {
-    if (get_cmd_cb(s) < 0) {
+    if (esp_select(s) < 0) {
         return;
     }
     s->do_cmd = 0;
