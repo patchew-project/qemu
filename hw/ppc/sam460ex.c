@@ -33,6 +33,7 @@
 #include "sysemu/qtest.h"
 #include "sysemu/reset.h"
 #include "hw/sysbus.h"
+#include "hw/or-irq.h"
 #include "hw/char/serial.h"
 #include "hw/i2c/ppc4xx_i2c.h"
 #include "hw/i2c/smbus_eeprom.h"
@@ -292,7 +293,7 @@ static void sam460ex_init(MachineState *machine)
     SysBusDevice *sbdev;
     struct boot_info *boot_info;
     uint8_t *spd_data;
-    int success;
+    int i, success;
 
     cpu = POWERPC_CPU(cpu_create(machine->cpu_type));
     env = &cpu->env;
@@ -382,13 +383,22 @@ static void sam460ex_init(MachineState *machine)
 
     /* PCI bus */
     ppc460ex_pcie_init(env);
-    /* All PCI irqs are connected to the same UIC pin (cf. UBoot source) */
-    dev = sysbus_create_simple("ppc440-pcix-host", 0xc0ec00000, uic[1][0]);
+    dev = sysbus_create_simple("ppc440-pcix-host", 0xc0ec00000, NULL);
     pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci.0");
     if (!pci_bus) {
         error_report("couldn't create PCI controller!");
         exit(1);
     }
+    /* All PCI irqs are connected to the same UIC pin (cf. UBoot source) */
+    sbdev = SYS_BUS_DEVICE(dev);
+    dev = qdev_new(TYPE_OR_IRQ);
+    object_property_set_int(OBJECT(dev), "num-lines", PCI_NUM_PINS,
+                            &error_fatal);
+    qdev_realize_and_unref(dev, NULL, &error_fatal);
+    for (i = 0; i < PCI_NUM_PINS; i++) {
+        sysbus_connect_irq(sbdev, i, qdev_get_gpio_in(dev, i));
+    }
+    qdev_connect_gpio_out(dev, 0, uic[1][0]);
     memory_region_init_alias(isa, NULL, "isa_mmio", get_system_io(),
                              0, 0x10000);
     memory_region_add_subregion(get_system_memory(), 0xc08000000, isa);

@@ -59,6 +59,7 @@ config SAM460EX
     select PFLASH_CFI01
     select IDE_SII3112
     select M41T80
+    select OR_IRQ
     select PPC440
     select SM501
     select SMBUS_EEPROM
