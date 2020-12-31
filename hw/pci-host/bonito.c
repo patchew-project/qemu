@@ -270,7 +270,7 @@ static void bonito_remap(PCIBonitoState *s)
     }
 }
 
-static void bonito_writel(void *opaque, hwaddr addr,
+static void bonito_northbridge_write(void *opaque, hwaddr addr,
                           uint64_t val, unsigned size)
 {
     PCIBonitoState *s = opaque;
@@ -335,7 +335,7 @@ static void bonito_writel(void *opaque, hwaddr addr,
     }
 }
 
-static uint64_t bonito_readl(void *opaque, hwaddr addr,
+static uint64_t bonito_northbridge_read(void *opaque, hwaddr addr,
                              unsigned size)
 {
     PCIBonitoState *s = opaque;
@@ -352,9 +352,9 @@ static uint64_t bonito_readl(void *opaque, hwaddr addr,
     }
 }
 
-static const MemoryRegionOps bonito_ops = {
-    .read = bonito_readl,
-    .write = bonito_writel,
+static const MemoryRegionOps bonito_northbridge_ops = {
+    .read = bonito_northbridge_read,
+    .write = bonito_northbridge_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -681,7 +681,7 @@ static void bonito_realize(PCIDevice *dev, Error **errp)
     pci_config_set_prog_interface(dev->config, 0x00);
 
     /* set the north bridge register mapping */
-    memory_region_init_io(&s->iomem, OBJECT(s), &bonito_ops, s,
+    memory_region_init_io(&s->iomem, OBJECT(s), &bonito_northbridge_ops, s,
                           "north-bridge-register", BONITO_INTERNAL_REG_SIZE);
     sysbus_init_mmio(sysbus, &s->iomem);
     sysbus_mmio_map(sysbus, 0, BONITO_INTERNAL_REG_BASE);
