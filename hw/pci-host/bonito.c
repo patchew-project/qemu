@@ -622,6 +622,7 @@ static void bonito_host_realize(DeviceState *dev, Error **errp)
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
     BonitoState *bs = BONITO_PCI_HOST_BRIDGE(dev);
     MemoryRegion *pcimem_alias = g_new(MemoryRegion, 1);
+    PCIDevice *pci_dev;
 
     memory_region_init(&bs->pci_mem, OBJECT(dev), "pci.mem", BONITO_PCIHI_SIZE);
     phb->bus = pci_register_root_bus(dev, "pci",
@@ -645,6 +646,11 @@ static void bonito_host_realize(DeviceState *dev, Error **errp)
                           "north-bridge-pci-config", BONITO_PCICONFIG_SIZE);
     memory_region_add_subregion(get_system_memory(), BONITO_PCICONFIG_BASE,
                                 &phb->conf_mem);
+
+    pci_dev = pci_new(PCI_DEVFN(0, 0), TYPE_PCI_BONITO);
+    PCI_BONITO(pci_dev)->pcihost = bs;
+    bs->pci_dev = PCI_BONITO(pci_dev);
+    pci_realize_and_unref(pci_dev, phb->bus, &error_fatal);
 }
 
 static void bonito_pci_realize(PCIDevice *dev, Error **errp)
@@ -727,20 +733,12 @@ PCIBus *bonito_init(qemu_irq *pic)
     DeviceState *dev;
     BonitoState *pcihost;
     PCIHostState *phb;
-    BonitoPciState *s;
-    PCIDevice *d;
 
     dev = qdev_new(TYPE_BONITO_PCI_HOST_BRIDGE);
     phb = PCI_HOST_BRIDGE(dev);
     pcihost = BONITO_PCI_HOST_BRIDGE(dev);
     pcihost->pic = pic;
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-
-    d = pci_new(PCI_DEVFN(0, 0), TYPE_PCI_BONITO);
-    s = PCI_BONITO(d);
-    s->pcihost = pcihost;
-    pcihost->pci_dev = s;
-    pci_realize_and_unref(d, phb->bus, &error_fatal);
 
     return phb->bus;
 }
