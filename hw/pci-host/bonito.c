@@ -654,6 +654,7 @@ static void bonito_host_realize(DeviceState *dev, Error **errp)
 {
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
     BonitoState *bs = BONITO_PCI_HOST_BRIDGE(dev);
+    MemoryRegion *pcimem_alias = g_new(MemoryRegion, 1);
 
     memory_region_init(&bs->pci_mem, OBJECT(dev), "pci.mem", BONITO_PCIHI_SIZE);
     phb->bus = pci_register_root_bus(dev, "pci",
@@ -662,6 +663,14 @@ static void bonito_host_realize(DeviceState *dev, Error **errp)
                                      PCI_DEVFN(5, 0), 32, TYPE_PCI_BUS);
 
     create_unimplemented_device("pci.io", BONITO_PCIIO_BASE, 1 * MiB);
+
+    memory_region_init_alias(pcimem_alias, NULL, "pci.mem.alias",
+                             &bs->pci_mem, 0, BONITO_PCIHI_SIZE);
+    memory_region_add_subregion(get_system_memory(),
+                                BONITO_PCIHI_BASE, pcimem_alias);
+    create_unimplemented_device("PCI_2",
+                                (hwaddr)BONITO_PCIHI_BASE + BONITO_PCIHI_SIZE,
+                                2 * GiB);
 }
 
 static void bonito_pci_realize(PCIDevice *dev, Error **errp)
@@ -669,8 +678,6 @@ static void bonito_pci_realize(PCIDevice *dev, Error **errp)
     BonitoPciState *s = PCI_BONITO(dev);
     SysBusDevice *sysbus = SYS_BUS_DEVICE(s->pcihost);
     PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
-    BonitoState *bs = BONITO_PCI_HOST_BRIDGE(s->pcihost);
-    MemoryRegion *pcimem_alias = g_new(MemoryRegion, 1);
 
     assert(!target_words_bigendian()); /* FIXME not supported */
 
@@ -731,14 +738,6 @@ static void bonito_pci_realize(PCIDevice *dev, Error **errp)
                                 256 * KiB);
     create_unimplemented_device("IOCS[3]", BONITO_DEV_BASE + 3 * 256 * KiB,
                                 256 * KiB);
-
-    memory_region_init_alias(pcimem_alias, NULL, "pci.mem.alias",
-                             &bs->pci_mem, 0, BONITO_PCIHI_SIZE);
-    memory_region_add_subregion(get_system_memory(),
-                                BONITO_PCIHI_BASE, pcimem_alias);
-    create_unimplemented_device("PCI_2",
-                                (hwaddr)BONITO_PCIHI_BASE + BONITO_PCIHI_SIZE,
-                                2 * GiB);
 
     /* set the default value of north bridge pci config */
     pci_set_word(dev->config + PCI_COMMAND, 0x0000);
