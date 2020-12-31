@@ -714,21 +714,6 @@ static void bonito_pci_realize(PCIDevice *dev, Error **errp)
     qemu_register_reset(bonito_reset, s);
 }
 
-PCIBus *bonito_init(qemu_irq *pic)
-{
-    DeviceState *dev;
-    BonitoState *pcihost;
-    PCIHostState *phb;
-
-    dev = qdev_new(TYPE_BONITO_PCI_HOST_BRIDGE);
-    phb = PCI_HOST_BRIDGE(dev);
-    pcihost = BONITO_PCI_HOST_BRIDGE(dev);
-    pcihost->pic = pic;
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-
-    return phb->bus;
-}
-
 static void bonito_pci_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);

@@ -25,6 +25,7 @@
 #include "qapi/error.h"
 #include "cpu.h"
 #include "hw/clock.h"
+#include "hw/pci-host/bonito.h"
 #include "hw/intc/i8259.h"
 #include "hw/dma/i8257.h"
 #include "hw/isa/superio.h"
@@ -303,6 +304,7 @@ static void mips_fuloong2e_init(MachineState *machine)
     MIPSCPU *cpu;
     CPUMIPSState *env;
     DeviceState *dev;
+    BonitoState *bonito;
 
     cpuclk = clock_new(OBJECT(machine), "cpu-refclk");
     clock_set_hz(cpuclk, 533080000); /* ~533 MHz */
@@ -360,7 +362,10 @@ static void mips_fuloong2e_init(MachineState *machine)
     cpu_mips_clock_init(cpu);
 
     /* North bridge, Bonito --> IP2 */
-    pci_bus = bonito_init((qemu_irq *)&(env->irq[2]));
+    bonito = BONITO_PCI_HOST_BRIDGE(qdev_new(TYPE_BONITO_PCI_HOST_BRIDGE));
+    bonito->pic = (qemu_irq *)&(env->irq[2]); /* TODO link/property */
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(bonito), &error_fatal);
+    pci_bus = PCI_HOST_BRIDGE(bonito)->bus;
 
     /* South bridge -> IP5 */
     vt82c686b_southbridge_init(pci_bus, FULOONG2E_VIA_SLOT, env->irq[5],

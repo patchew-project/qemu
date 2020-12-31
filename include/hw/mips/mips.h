@@ -12,9 +12,6 @@
 /* gt64xxx.c */
 PCIBus *gt64120_register(qemu_irq *pic);
 
-/* bonito.c */
-PCIBus *bonito_init(qemu_irq *pic);
-
 /* rc4030.c */
 typedef struct rc4030DMAState *rc4030_dma;
 void rc4030_dma_read(void *dma, uint8_t *buf, int len);
