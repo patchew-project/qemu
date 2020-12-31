@@ -638,6 +638,13 @@ static void bonito_host_realize(DeviceState *dev, Error **errp)
     create_unimplemented_device("PCI_2",
                                 (hwaddr)BONITO_PCIHI_BASE + BONITO_PCIHI_SIZE,
                                 2 * GiB);
+
+    /* set the north bridge pci configure mapping */
+    /* north bridge PCI configure space. 0x1fe0 0000 - 0x1fe0 00ff */
+    memory_region_init_io(&phb->conf_mem, OBJECT(phb), &pci_host_conf_le_ops, bs,
+                          "north-bridge-pci-config", BONITO_PCICONFIG_SIZE);
+    memory_region_add_subregion(get_system_memory(), BONITO_PCICONFIG_BASE,
+                                &phb->conf_mem);
 }
 
 static void bonito_pci_realize(PCIDevice *dev, Error **errp)
@@ -660,30 +667,24 @@ static void bonito_pci_realize(PCIDevice *dev, Error **errp)
     sysbus_init_mmio(sysbus, &s->iomem);
     sysbus_mmio_map(sysbus, 0, BONITO_INTERNAL_REG_BASE);
 
-    /* set the north bridge pci configure  mapping */
-    memory_region_init_io(&phb->conf_mem, OBJECT(s), &pci_host_conf_le_ops, s,
-                          "north-bridge-pci-config", BONITO_PCICONFIG_SIZE);
-    sysbus_init_mmio(sysbus, &phb->conf_mem);
-    sysbus_mmio_map(sysbus, 1, BONITO_PCICONFIG_BASE);
-
     /* set the south bridge pci configure  mapping */
     memory_region_init_io(&phb->data_mem, OBJECT(s), &bonito_spciconf_ops, s,
                           "south-bridge-pci-config", BONITO_SPCICONFIG_SIZE);
     sysbus_init_mmio(sysbus, &phb->data_mem);
-    sysbus_mmio_map(sysbus, 2, BONITO_SPCICONFIG_BASE);
+    sysbus_mmio_map(sysbus, 1, BONITO_SPCICONFIG_BASE);
 
     create_unimplemented_device("bonito", BONITO_REG_BASE, BONITO_REG_SIZE);
 
     memory_region_init_io(&s->iomem_ldma, OBJECT(s), &bonito_ldma_ops, s,
                           "ldma", 0x100);
     sysbus_init_mmio(sysbus, &s->iomem_ldma);
-    sysbus_mmio_map(sysbus, 3, 0x1fe00200);
+    sysbus_mmio_map(sysbus, 2, 0x1fe00200);
 
     /* PCI copier */
     memory_region_init_io(&s->iomem_cop, OBJECT(s), &bonito_cop_ops, s,
                           "cop", 0x100);
     sysbus_init_mmio(sysbus, &s->iomem_cop);
-    sysbus_mmio_map(sysbus, 4, 0x1fe00300);
+    sysbus_mmio_map(sysbus, 3, 0x1fe00300);
 
     create_unimplemented_device("ROMCS", BONITO_FLASH_BASE, 60 * MiB);
 
@@ -691,14 +692,14 @@ static void bonito_pci_realize(PCIDevice *dev, Error **errp)
     memory_region_init_alias(&s->bonito_pciio, OBJECT(s), "isa_mmio",
                              get_system_io(), 0, BONITO_PCIIO_SIZE);
     sysbus_init_mmio(sysbus, &s->bonito_pciio);
-    sysbus_mmio_map(sysbus, 5, BONITO_PCIIO_BASE);
+    sysbus_mmio_map(sysbus, 4, BONITO_PCIIO_BASE);
 
     /* add pci local io mapping */
 
     memory_region_init_alias(&s->bonito_localio, OBJECT(s), "IOCS[0]",
                              get_system_io(), 0, 256 * KiB);
     sysbus_init_mmio(sysbus, &s->bonito_localio);
-    sysbus_mmio_map(sysbus, 6, BONITO_DEV_BASE);
+    sysbus_mmio_map(sysbus, 5, BONITO_DEV_BASE);
     create_unimplemented_device("IOCS[1]", BONITO_DEV_BASE + 1 * 256 * KiB,
                                 256 * KiB);
     create_unimplemented_device("IOCS[2]", BONITO_DEV_BASE + 2 * 256 * KiB,
