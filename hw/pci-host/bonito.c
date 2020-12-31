@@ -138,6 +138,10 @@ FIELD(BONGENCFG, PCIQUEUE,      12, 1)
 
 /* 4. PCI address map control */
 #define BONITO_PCIMAP           (0x10 >> 2)      /* 0x110 */
+FIELD(PCIMAP, LO0,               0, 6)
+FIELD(PCIMAP, LO1,               6, 6)
+FIELD(PCIMAP, LO2,              12, 6)
+FIELD(PCIMAP, 2G,               18, 1)
 #define BONITO_PCIMEMBASECFG    (0x14 >> 2)      /* 0x114 */
 #define BONITO_PCIMAP_CFG       (0x18 >> 2)      /* 0x118 */
 
@@ -232,6 +236,7 @@ struct BonitoState {
     qemu_irq *pic;
     PCIBonitoState *pci_dev;
     MemoryRegion pci_mem;
+    MemoryRegion pcimem_lo_alias[3];
 };
 
 #define TYPE_BONITO_PCI_HOST_BRIDGE "Bonito-pcihost"
@@ -239,6 +244,31 @@ OBJECT_DECLARE_SIMPLE_TYPE(BonitoState, BONITO_PCI_HOST_BRIDGE)
 
 #define TYPE_PCI_BONITO "Bonito"
 OBJECT_DECLARE_SIMPLE_TYPE(PCIBonitoState, PCI_BONITO)
+
+static void bonito_remap(PCIBonitoState *s)
+{
+    static const char *const region_name[3] = {
+        "pci.lomem0", "pci.lomem1", "pci.lomem2"
+    };
+    BonitoState *bs = BONITO_PCI_HOST_BRIDGE(s->pcihost);
+
+    for (size_t i = 0; i < 3; i++) {
+        uint32_t offset = extract32(s->regs[BONITO_PCIMAP], 6 * i, 6) << 26;
+
+        if (memory_region_is_mapped(&bs->pcimem_lo_alias[i])) {
+            memory_region_del_subregion(get_system_memory(),
+                                        &bs->pcimem_lo_alias[i]);
+            object_unparent(OBJECT(&bs->pcimem_lo_alias[i]));
+        }
+
+        memory_region_init_alias(&bs->pcimem_lo_alias[i], OBJECT(s),
+                                 region_name[i], &bs->pci_mem,
+                                 offset, 64 * MiB);
+        memory_region_add_subregion(get_system_memory(),
+                                    BONITO_PCILO_BASE + i * 64 * MiB,
+                                    &bs->pcimem_lo_alias[i]);
+    }
+}
 
 static void bonito_writel(void *opaque, hwaddr addr,
                           uint64_t val, unsigned size)
@@ -253,7 +283,6 @@ static void bonito_writel(void *opaque, hwaddr addr,
     switch (saddr) {
     case BONITO_IODEVCFG:
     case BONITO_SDCFG:
-    case BONITO_PCIMAP:
     case BONITO_PCIMEMBASECFG:
     case BONITO_PCIMAP_CFG:
     case BONITO_GPIODATA:
@@ -274,6 +303,10 @@ static void bonito_writel(void *opaque, hwaddr addr,
     case BONITO_DQCFG:
     case BONITO_MEMSIZE:
         s->regs[saddr] = val;
+        break;
+    case BONITO_PCIMAP:
+        s->regs[saddr] = val;
+        bonito_remap(s);
         break;
     case BONITO_BONGENCFG:
         if (!FIELD_EX32(s->regs[saddr], BONGENCFG, CPUSELFRESET)
@@ -603,6 +636,8 @@ static void bonito_reset(void *opaque)
     s->regs[BONITO_DQCFG] = 0x8;
     s->regs[BONITO_MEMSIZE] = 0x10000000;
     s->regs[BONITO_PCIMAP] = 0x6140;
+
+    bonito_remap(s);
 }
 
 static const VMStateDescription vmstate_bonito = {
@@ -619,24 +654,12 @@ static void bonito_pcihost_realize(DeviceState *dev, Error **errp)
 {
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
     BonitoState *bs = BONITO_PCI_HOST_BRIDGE(dev);
-    MemoryRegion *pcimem_lo_alias = g_new(MemoryRegion, 3);
 
     memory_region_init(&bs->pci_mem, OBJECT(dev), "pci.mem", BONITO_PCIHI_SIZE);
     phb->bus = pci_register_root_bus(dev, "pci",
                                      pci_bonito_set_irq, pci_bonito_map_irq,
                                      dev, &bs->pci_mem, get_system_io(),
                                      PCI_DEVFN(5, 0), 32, TYPE_PCI_BUS);
-
-    for (size_t i = 0; i < 3; i++) {
-        char *name = g_strdup_printf("pci.lomem%zu", i);
-
-        memory_region_init_alias(&pcimem_lo_alias[i], NULL, name,
-                                 &bs->pci_mem, i * 64 * MiB, 64 * MiB);
-        memory_region_add_subregion(get_system_memory(),
-                                    BONITO_PCILO_BASE + i * 64 * MiB,
-                                    &pcimem_lo_alias[i]);
-        g_free(name);
-    }
 
     create_unimplemented_device("pci.io", BONITO_PCIIO_BASE, 1 * MiB);
 }
