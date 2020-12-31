@@ -244,7 +244,6 @@ static void bonito_writel(void *opaque, hwaddr addr,
 {
     PCIBonitoState *s = opaque;
     uint32_t saddr;
-    int reset = 0;
 
     saddr = addr >> 2;
 
@@ -277,13 +276,12 @@ static void bonito_writel(void *opaque, hwaddr addr,
         s->regs[saddr] = val;
         break;
     case BONITO_BONGENCFG:
-        if (!(s->regs[saddr] & 0x04) && (val & 0x04)) {
-            reset = 1; /* bit 2 jump from 0 to 1 cause reset */
-        }
-        s->regs[saddr] = val;
-        if (reset) {
+        if (!FIELD_EX32(s->regs[saddr], BONGENCFG, CPUSELFRESET)
+                && FIELD_EX32(val, BONGENCFG, CPUSELFRESET)) {
+            /* bit 2 jump from 0 to 1 cause reset */
             qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
         }
+        s->regs[saddr] = val;
         break;
     case BONITO_INTENSET:
         s->regs[BONITO_INTENSET] = val;
