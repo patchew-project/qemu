@@ -53,6 +53,7 @@
 #include "hw/misc/unimp.h"
 #include "hw/registerfields.h"
 #include "qom/object.h"
+#include "hw/core/cpu.h"
 
 /* #define DEBUG_BONITO */
 
@@ -354,7 +355,7 @@ static uint64_t bonito_pciconf_readl(void *opaque, hwaddr addr,
 static const MemoryRegionOps bonito_pciconf_ops = {
     .read = bonito_pciconf_readl,
     .write = bonito_pciconf_writel,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
@@ -647,6 +648,8 @@ static void bonito_realize(PCIDevice *dev, Error **errp)
     PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
     BonitoState *bs = BONITO_PCI_HOST_BRIDGE(s->pcihost);
     MemoryRegion *pcimem_alias = g_new(MemoryRegion, 1);
+
+    assert(!target_words_bigendian()); /* FIXME not supported */
 
     /*
      * Bonito North Bridge, built on FPGA,
