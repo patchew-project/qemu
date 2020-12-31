@@ -362,39 +362,6 @@ static const MemoryRegionOps bonito_northbridge_ops = {
     },
 };
 
-static void bonito_pciconf_writel(void *opaque, hwaddr addr,
-                                  uint64_t val, unsigned size)
-{
-    BonitoPciState *s = opaque;
-    PCIDevice *d = PCI_DEVICE(s);
-
-    DPRINTF("bonito_pciconf_writel "TARGET_FMT_plx" val %lx\n", addr, val);
-    d->config_write(d, addr, val, 4);
-}
-
-static uint64_t bonito_pciconf_readl(void *opaque, hwaddr addr,
-                                     unsigned size)
-{
-
-    BonitoPciState *s = opaque;
-    PCIDevice *d = PCI_DEVICE(s);
-
-    DPRINTF("bonito_pciconf_readl "TARGET_FMT_plx"\n", addr);
-    return d->config_read(d, addr, 4);
-}
-
-/* north bridge PCI configure space. 0x1fe0 0000 - 0x1fe0 00ff */
-
-static const MemoryRegionOps bonito_pciconf_ops = {
-    .read = bonito_pciconf_readl,
-    .write = bonito_pciconf_writel,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
-};
-
 static uint64_t bonito_ldma_readl(void *opaque, hwaddr addr,
                                   unsigned size)
 {
@@ -694,7 +661,7 @@ static void bonito_pci_realize(PCIDevice *dev, Error **errp)
     sysbus_mmio_map(sysbus, 0, BONITO_INTERNAL_REG_BASE);
 
     /* set the north bridge pci configure  mapping */
-    memory_region_init_io(&phb->conf_mem, OBJECT(s), &bonito_pciconf_ops, s,
+    memory_region_init_io(&phb->conf_mem, OBJECT(s), &pci_host_conf_le_ops, s,
                           "north-bridge-pci-config", BONITO_PCICONFIG_SIZE);
     sysbus_init_mmio(sysbus, &phb->conf_mem);
     sysbus_mmio_map(sysbus, 1, BONITO_PCICONFIG_BASE);
