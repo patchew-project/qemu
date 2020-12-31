@@ -574,7 +574,7 @@ static const MemoryRegionOps bonito_spciconf_ops = {
 
 #define BONITO_IRQ_BASE 32
 
-static void pci_bonito_set_irq(void *opaque, int irq_num, int level)
+static void bonito_host_set_irq(void *opaque, int irq_num, int level)
 {
     BonitoState *s = opaque;
     qemu_irq *pic = s->pic;
@@ -593,7 +593,7 @@ static void pci_bonito_set_irq(void *opaque, int irq_num, int level)
 }
 
 /* map the original irq (0~3) to bonito irq (16~47, but 16~31 are unused) */
-static int pci_bonito_map_irq(PCIDevice *pci_dev, int irq_num)
+static int bonito_host_map_irq(PCIDevice *pci_dev, int irq_num)
 {
     int slot;
 
@@ -650,14 +650,14 @@ static const VMStateDescription vmstate_bonito = {
     }
 };
 
-static void bonito_pcihost_realize(DeviceState *dev, Error **errp)
+static void bonito_host_realize(DeviceState *dev, Error **errp)
 {
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
     BonitoState *bs = BONITO_PCI_HOST_BRIDGE(dev);
 
     memory_region_init(&bs->pci_mem, OBJECT(dev), "pci.mem", BONITO_PCIHI_SIZE);
     phb->bus = pci_register_root_bus(dev, "pci",
-                                     pci_bonito_set_irq, pci_bonito_map_irq,
+                                     bonito_host_set_irq, bonito_host_map_irq,
                                      dev, &bs->pci_mem, get_system_io(),
                                      PCI_DEVFN(5, 0), 32, TYPE_PCI_BUS);
 
@@ -808,23 +808,23 @@ static const TypeInfo bonito_info = {
     },
 };
 
-static void bonito_pcihost_class_init(ObjectClass *klass, void *data)
+static void bonito_host_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = bonito_pcihost_realize;
+    dc->realize = bonito_host_realize;
 }
 
-static const TypeInfo bonito_pcihost_info = {
+static const TypeInfo bonito_host_info = {
     .name          = TYPE_BONITO_PCI_HOST_BRIDGE,
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(BonitoState),
-    .class_init    = bonito_pcihost_class_init,
+    .class_init    = bonito_host_class_init,
 };
 
 static void bonito_register_types(void)
 {
-    type_register_static(&bonito_pcihost_info);
+    type_register_static(&bonito_host_info);
     type_register_static(&bonito_info);
 }
 
