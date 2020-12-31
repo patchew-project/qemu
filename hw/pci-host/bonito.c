@@ -189,12 +189,6 @@ FIELD(BONGENCFG, PCIQUEUE,      12, 1)
 #define BONITO_PCICONF_REG_MASK        0xFC
 #define BONITO_PCICONF_REG_OFFSET      0
 
-
-/* idsel BIT = pci slot number +12 */
-#define PCI_SLOT_BASE              12
-#define PCI_IDSEL_VIA686B_BIT      (17)
-#define PCI_IDSEL_VIA686B          (1 << PCI_IDSEL_VIA686B_BIT)
-
 #define PCI_ADDR(busno , devno , funno , regno)  \
     ((((busno) << 16) & 0xff0000) + (((devno) << 11) & 0xf800) + \
     (((funno) << 8) & 0x700) + (regno))
