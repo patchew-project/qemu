@@ -251,7 +251,6 @@ static void bonito_writel(void *opaque, hwaddr addr,
     DPRINTF("bonito_writel "TARGET_FMT_plx" val %lx saddr %x\n",
             addr, val, saddr);
     switch (saddr) {
-    case BONITO_BONPONCFG:
     case BONITO_IODEVCFG:
     case BONITO_SDCFG:
     case BONITO_PCIMAP:
@@ -292,6 +291,7 @@ static void bonito_writel(void *opaque, hwaddr addr,
         s->regs[BONITO_INTENCLR] = val;
         s->regs[BONITO_INTEN] &= ~val;
         break;
+    case BONITO_BONPONCFG:
     case BONITO_INTEN:
     case BONITO_INTISR:
         DPRINTF("write to readonly bonito register %x\n", saddr);
