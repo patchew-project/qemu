@@ -204,13 +204,39 @@ class BootLinuxConsole(LinuxKernelTest):
         kernel_path = self.extract_from_deb(deb_path,
                                             '/boot/vmlinux-3.16.0-6-loongson-2e')
 
+        rootfs_url = ('https://github.com/groeck/linux-build-test/'
+                      'raw/8584a59ed9e5eb5ee7ca91f6d74bbb06619205b8/'
+                      'rootfs/mipsel64/rootfs.mipsel.ext3.gz')
+        rootfs_hash = '4316abb84b3b8384e124ada7fc72ef8cd5577dac'
+        rootfs_path_gz = self.fetch_asset(rootfs_url, asset_hash=rootfs_hash)
+        rootfs_path = os.path.join(self.workdir, 'rootfs.mipsel.ext3')
+        archive.gzip_uncompress(rootfs_path_gz, rootfs_path)
+
         self.vm.set_console()
-        kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'console=ttyS0'
+        kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE
+                               + 'console=ttyS0 '
+                               + 'root=/dev/sda ro '
+                               + 'panic=-1 noreboot')
         self.vm.add_args('-kernel', kernel_path,
-                         '-append', kernel_command_line)
+                         '-drive', 'if=none,format=raw,id=disk0,file='
+                                   + rootfs_path,
+                         '-device', 'ide-hd,bus=ide.0,drive=disk0',
+                         '-append', kernel_command_line,
+                         '-no-reboot')
         self.vm.launch()
+
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.wait_for_console_pattern(console_pattern)
+        self.wait_for_console_pattern('Boot successful.')
+
+        exec_command_and_wait_for_pattern(self, 'cat /proc/cpuinfo',
+                                                'BogoMIPS')
+        exec_command_and_wait_for_pattern(self, 'uname -a',
+                                                'Debian')
+        exec_command_and_wait_for_pattern(self, 'reboot',
+                                                'reboot: Restarting system')
+        # Wait for VM to shut down gracefully
+        self.vm.wait()
 
     def test_mips_malta_cpio(self):
         """
