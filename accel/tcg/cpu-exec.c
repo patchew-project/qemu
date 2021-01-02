@@ -175,7 +175,9 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, TranslationBlock *itb)
     }
 #endif /* DEBUG_DISAS */
 
+    tb_write_lock();
     ret = tcg_qemu_tb_exec(env, tb_ptr);
+    tb_write_unlock();
     cpu->can_do_io = 1;
     last_tb = (TranslationBlock *)(ret & ~TB_EXIT_MASK);
     tb_exit = ret & TB_EXIT_MASK;
@@ -220,9 +222,11 @@ static void cpu_exec_nocache(CPUState *cpu, int max_cycles,
     cflags |= MIN(max_cycles, CF_COUNT_MASK);
 
     mmap_lock();
+    tb_write_unlock();
     tb = tb_gen_code(cpu, orig_tb->pc, orig_tb->cs_base,
                      orig_tb->flags, cflags);
     tb->orig_tb = orig_tb;
+    tb_write_lock();
     mmap_unlock();
 
     /* execute the generated code */
@@ -268,7 +272,9 @@ void cpu_exec_step_atomic(CPUState *cpu)
         tb = tb_lookup__cpu_state(cpu, &pc, &cs_base, &flags, cf_mask);
         if (tb == NULL) {
             mmap_lock();
+            tb_write_unlock();
             tb = tb_gen_code(cpu, pc, cs_base, flags, cflags);
+            tb_write_lock();
             mmap_unlock();
         }
 
@@ -428,7 +434,9 @@ static inline TranslationBlock *tb_find(CPUState *cpu,
     tb = tb_lookup__cpu_state(cpu, &pc, &cs_base, &flags, cf_mask);
     if (tb == NULL) {
         mmap_lock();
+        tb_write_unlock();
         tb = tb_gen_code(cpu, pc, cs_base, flags, cf_mask);
+        tb_write_lock();
         mmap_unlock();
         /* We add the TB in the virtual pc hash table for the fast lookup */
         qatomic_set(&cpu->tb_jmp_cache[tb_jmp_cache_hash_func(pc)], tb);
@@ -444,7 +452,9 @@ static inline TranslationBlock *tb_find(CPUState *cpu,
 #endif
     /* See if we can patch the calling TB. */
     if (last_tb) {
+        tb_write_unlock();
         tb_add_jump(last_tb, tb_exit, tb);
+        tb_write_lock();
     }
     return tb;
 }

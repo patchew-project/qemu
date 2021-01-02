@@ -1072,6 +1072,9 @@ static inline void *alloc_code_gen_buffer(void)
     size_t size = tcg_ctx->code_gen_buffer_size;
     void *buf;
 
+#if defined(__APPLE__) && defined(__aarch64__)
+    flags |= MAP_JIT;
+#endif
     buf = mmap(NULL, size, prot, flags, -1, 0);
     if (buf == MAP_FAILED) {
         return NULL;
@@ -1485,7 +1488,9 @@ static void do_tb_phys_invalidate(TranslationBlock *tb, bool rm_from_page_list)
 
 static void tb_phys_invalidate__locked(TranslationBlock *tb)
 {
+    tb_write_unlock();
     do_tb_phys_invalidate(tb, true);
+    tb_write_lock();
 }
 
 /* invalidate one TB
@@ -2721,4 +2726,25 @@ void tcg_flush_softmmu_tlb(CPUState *cs)
 #ifdef CONFIG_SOFTMMU
     tlb_flush(cs);
 #endif
+}
+
+#if defined(__APPLE__) && defined(__aarch64__)
+static void tb_write_protect(bool locked)
+{
+    if (pthread_jit_write_protect_supported_np()){
+        pthread_jit_write_protect_np(locked);
+    }
+}
+#else
+static void tb_write_protect(bool locked) {}
+#endif
+
+void tb_write_lock(void)
+{
+    tb_write_protect(true);
+}
+
+void tb_write_unlock(void)
+{
+    tb_write_protect(false);
 }
