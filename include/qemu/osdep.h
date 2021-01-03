@@ -686,4 +686,7 @@ char *qemu_get_host_name(Error **errp);
  */
 size_t qemu_get_host_physmem(void);
 
+void qemu_thread_jit_write(void);
+void qemu_thread_jit_execute(void);
+
 #endif
