@@ -582,6 +582,26 @@ VncInfo2List *qmp_query_vnc_servers(Error **errp)
     return prev;
 }
 
+int vnc_display_reload_cert(const char *id, Error **errp)
+{
+    VncDisplay *vd = vnc_display_find(id);
+
+    if (!vd) {
+        return -EINVAL;
+    }
+
+    if (!vd->tlscreds) {
+        error_printf_unless_qmp("If you want use vnc tls  please enable "
+                                "vnc tls using '-vnc tls-creds=${tls-obj-id}'.\n");
+        return -EPERM;
+    }
+
+    object_property_set_bool(OBJECT(vd->tlscreds), "loaded", false, NULL);
+    object_property_set_bool(OBJECT(vd->tlscreds), "loaded", true, NULL);
+
+    return 0;
+}
+
 /* TODO
    1) Get the queue working for IO.
    2) there is some weirdness when using the -S option (the screen is grey

@@ -287,6 +287,13 @@ static void qmp_change_vnc(const char *target, bool has_arg, const char *arg,
         qmp_change_vnc_listen(target, errp);
     }
 }
+
+void qmp_reload_vnc_cert(Error **errp)
+{
+    if (vnc_display_reload_cert(NULL, errp) < 0) {
+        error_setg(errp, "Reload vnc tls cert failed");
+    }
+}
 #endif /* !CONFIG_VNC */
 
 void qmp_change(const char *device, const char *target,
