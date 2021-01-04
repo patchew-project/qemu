@@ -47,6 +47,8 @@ static void vhost_user_fs_ccw_instance_init(Object *obj)
     ccw_dev->force_revision_1 = true;
     virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
                                 TYPE_VHOST_USER_FS);
+    object_property_add_alias(obj, "bootindex", OBJECT(&dev->vdev),
+                              "bootindex");
 }
 
 static void vhost_user_fs_ccw_class_init(ObjectClass *klass, void *data)
