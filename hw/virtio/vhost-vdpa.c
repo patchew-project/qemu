@@ -493,8 +493,8 @@ static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
 static int vhost_vdpa_set_log_base(struct vhost_dev *dev, uint64_t base,
                                      struct vhost_log *log)
 {
-    trace_vhost_vdpa_set_log_base(dev, base, log->size, log->refcnt, log->fd,
-                                  log->log);
+    trace_vhost_vdpa_set_log_base(dev, base, (uint64_t)log->size, log->refcnt,
+                                  log->fd, log->log);
     return vhost_vdpa_call(dev, VHOST_SET_LOG_BASE, &base);
 }
 
