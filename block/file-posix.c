@@ -1390,17 +1390,50 @@ static int handle_aiocb_flush(void *opaque)
 #ifdef CONFIG_PREADV
 
 static bool preadv_present = true;
+static bool preadv_checked;
 
 static ssize_t
 qemu_preadv(int fd, const struct iovec *iov, int nr_iov, off_t offset)
 {
+#ifdef CONFIG_DARWIN /* preadv introduced in macOS 11 */
+    if (unlikely(!preadv_checked)) {
+        if (__builtin_available(macOS 11, iOS 14, watchOS 7, tvOS 14, *)) {
+            preadv_checked = true;
+        } else {
+            preadv_present = false;
+            return -ENOSYS;
+        }
+    }
+    /* Now we suppress the availability warning since we use the cached check */
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunguarded-availability-new"
     return preadv(fd, iov, nr_iov, offset);
+#pragma clang diagnostic pop
+#else /* CONFIG_DARWIN */
+    return preadv(fd, iov, nr_iov, offset);
+#endif
 }
 
 static ssize_t
 qemu_pwritev(int fd, const struct iovec *iov, int nr_iov, off_t offset)
 {
+#ifdef CONFIG_DARWIN /* preadv introduced in macOS 11 */
+    if (unlikely(!preadv_checked)) {
+        if (__builtin_available(macOS 11, iOS 14, watchOS 7, tvOS 14, *)) {
+            preadv_checked = true;
+        } else {
+            preadv_present = false;
+            return -ENOSYS;
+        }
+    }
+    /* Now we suppress the availability warning since we use the cached check */
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunguarded-availability-new"
     return pwritev(fd, iov, nr_iov, offset);
+#pragma clang diagnostic pop
+#else /* CONFIG_DARWIN */
+    return pwritev(fd, iov, nr_iov, offset);
+#endif
 }
 
 #else
