@@ -686,4 +686,15 @@ char *qemu_get_host_name(Error **errp);
  */
 size_t qemu_get_host_physmem(void);
 
+/**
+ * iOS does not support system() so we replace it with an assertion failure.
+ */
+#ifdef CONFIG_IOS
+#define system ios_does_not_support_system
+static inline int ios_does_not_support_system(const char *command)
+{
+    assert(0);
+}
+#endif /* CONFIG_IOS */
+
 #endif
