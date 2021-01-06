@@ -252,7 +252,23 @@ static const TypeInfo vt8231_pm_info = {
 typedef struct SuperIOConfig {
     uint8_t regs[0x100];
     MemoryRegion io;
+    ISASuperIODevice *superio;
+    MemoryRegion *serial_io[SUPERIO_MAX_SERIAL_PORTS];
 } SuperIOConfig;
+
+static MemoryRegion *find_subregion(ISADevice *d, MemoryRegion *parent,
+                                    int offs)
+{
+    MemoryRegion *subregion, *mr = NULL;
+
+    QTAILQ_FOREACH(subregion, &parent->subregions, subregions_link) {
+        if (subregion->addr == offs) {
+            mr = subregion;
+            break;
+        }
+    }
+    return mr;
+}
 
 static void superio_cfg_write(void *opaque, hwaddr addr, uint64_t data,
                               unsigned size)
@@ -279,7 +295,53 @@ static void superio_cfg_write(void *opaque, hwaddr addr, uint64_t data,
     case 0xfd ... 0xff:
         /* ignore write to read only registers */
         return;
-    /* case 0xe6 ... 0xe8: Should set base port of parallel and serial */
+    case 0xe2:
+    {
+        data &= 0x1f;
+        if (data & BIT(2)) { /* Serial port 1 enable */
+            ISADevice *dev = sc->superio->serial[0];
+            if (!memory_region_is_mapped(sc->serial_io[0])) {
+                memory_region_add_subregion(isa_address_space_io(dev),
+                                            dev->ioport_id, sc->serial_io[0]);
+            }
+        } else {
+            MemoryRegion *io = isa_address_space_io(sc->superio->serial[0]);
+            if (memory_region_is_mapped(sc->serial_io[0])) {
+                memory_region_del_subregion(io, sc->serial_io[0]);
+            }
+        }
+        if (data & BIT(3)) { /* Serial port 2 enable */
+            ISADevice *dev = sc->superio->serial[1];
+            if (!memory_region_is_mapped(sc->serial_io[1])) {
+                memory_region_add_subregion(isa_address_space_io(dev),
+                                            dev->ioport_id, sc->serial_io[1]);
+            }
+        } else {
+            MemoryRegion *io = isa_address_space_io(sc->superio->serial[1]);
+            if (memory_region_is_mapped(sc->serial_io[1])) {
+                memory_region_del_subregion(io, sc->serial_io[1]);
+            }
+        }
+        break;
+    }
+    case 0xe7: /* Serial port 1 io base address */
+    {
+        data &= 0xfe;
+        sc->superio->serial[0]->ioport_id = data << 2;
+        if (memory_region_is_mapped(sc->serial_io[0])) {
+            memory_region_set_address(sc->serial_io[0], data << 2);
+        }
+        break;
+    }
+    case 0xe8: /* Serial port 2 io base address */
+    {
+        data &= 0xfe;
+        sc->superio->serial[1]->ioport_id = data << 2;
+        if (memory_region_is_mapped(sc->serial_io[1])) {
+            memory_region_set_address(sc->serial_io[1], data << 2);
+        }
+        break;
+    }
     default:
         qemu_log_mask(LOG_UNIMP,
                       "via_superio_cfg: unimplemented register 0x%x\n", idx);
@@ -385,6 +447,7 @@ static void vt82c686b_realize(PCIDevice *d, Error **errp)
     DeviceState *dev = DEVICE(d);
     ISABus *isa_bus;
     qemu_irq *isa_irq;
+    ISASuperIOClass *ic;
     int i;
 
     qdev_init_gpio_out(dev, &s->cpu_intr, 1);
@@ -394,7 +457,9 @@ static void vt82c686b_realize(PCIDevice *d, Error **errp)
     isa_bus_irqs(isa_bus, i8259_init(isa_bus, *isa_irq));
     i8254_pit_init(isa_bus, 0x40, 0, NULL);
     i8257_dma_init(isa_bus, 0);
-    isa_create_simple(isa_bus, TYPE_VT82C686B_SUPERIO);
+    s->superio_cfg.superio = ISA_SUPERIO(isa_create_simple(isa_bus,
+                                                      TYPE_VT82C686B_SUPERIO));
+    ic = ISA_SUPERIO_GET_CLASS(s->superio_cfg.superio);
     mc146818_rtc_init(isa_bus, 2000, NULL);
 
     for (i = 0; i < PCI_CONFIG_HEADER_SIZE; i++) {
@@ -412,6 +477,21 @@ static void vt82c686b_realize(PCIDevice *d, Error **errp)
      */
     memory_region_add_subregion(isa_bus->address_space_io, 0x3f0,
                                 &s->superio_cfg.io);
+
+    /* Grab io regions of serial devices so we can control them */
+    for (i = 0; i < ic->serial.count; i++) {
+        ISADevice *sd = s->superio_cfg.superio->serial[i];
+        MemoryRegion *io = isa_address_space_io(sd);
+        MemoryRegion *mr = find_subregion(sd, io, sd->ioport_id);
+        if (!mr) {
+            error_setg(errp, "Could not get io region for serial %d", i);
+            return;
+        }
+        s->superio_cfg.serial_io[i] = mr;
+        if (memory_region_is_mapped(mr)) {
+            memory_region_del_subregion(io, mr);
+        }
+    }
 }
 
 static void via_class_init(ObjectClass *klass, void *data)
