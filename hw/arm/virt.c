@@ -147,6 +147,7 @@ static const MemMapEntry base_memmap[] = {
     [VIRT_RTC] =                { 0x09010000, 0x00001000 },
     [VIRT_FW_CFG] =             { 0x09020000, 0x00000018 },
     [VIRT_GPIO] =               { 0x09030000, 0x00001000 },
+    [VIRT_SECURE_GPIO] =        { 0x09031000, 0x00001000 },
     [VIRT_SECURE_UART] =        { 0x09040000, 0x00001000 },
     [VIRT_SMMU] =               { 0x09050000, 0x00020000 },
     [VIRT_PCDIMM_ACPI] =        { 0x09070000, MEMORY_HOTPLUG_IO_LEN },
@@ -189,6 +190,7 @@ static const int a15irqmap[] = {
     [VIRT_GPIO] = 7,
     [VIRT_SECURE_UART] = 8,
     [VIRT_ACPI_GED] = 9,
+    [VIRT_SECURE_GPIO] = 10,
     [VIRT_MMIO] = 16, /* ...to 16 + NUM_VIRTIO_TRANSPORTS - 1 */
     [VIRT_GIC_V2M] = 48, /* ...to 48 + NUM_GICV2M_SPIS - 1 */
     [VIRT_SMMU] = 74,    /* ...to 74 + NUM_SMMU_IRQS - 1 */
@@ -862,6 +864,24 @@ static void create_gpio(const VirtMachineState *vms)
     qemu_fdt_setprop_cells(vms->fdt, "/gpio-keys/poweroff",
                            "gpios", phandle, 3, 0);
     g_free(nodename);
+}
+
+static void create_gpio_secure(const VirtMachineState *vms)
+{
+    DeviceState *pl061_dev;
+    static DeviceState *gpio_pwr_dev;
+
+    hwaddr base = vms->memmap[VIRT_SECURE_GPIO].base;
+    int irq = vms->irqmap[VIRT_SECURE_GPIO];
+
+    pl061_dev = sysbus_create_simple("pl061", base,
+                                     qdev_get_gpio_in(vms->gic, irq));
+
+    gpio_pwr_dev = sysbus_create_simple("gpio-pwr", -1,
+                                        qdev_get_gpio_in(pl061_dev, 3));
+
+    qdev_connect_gpio_out(pl061_dev, 3, qdev_get_gpio_in(gpio_pwr_dev, 3));
+    qdev_connect_gpio_out(pl061_dev, 4, qdev_get_gpio_in(gpio_pwr_dev, 4));
 }
 
 static void create_virtio_devices(const VirtMachineState *vms)
@@ -1992,6 +2012,10 @@ static void machvirt_init(MachineState *machine)
         vms->acpi_dev = create_acpi_ged(vms);
     } else {
         create_gpio(vms);
+    }
+
+    if (vms->secure) {
+        create_gpio_secure(vms);
     }
 
      /* connect powerdown request */
