@@ -476,7 +476,9 @@ static inline void gdb_continue(void)
 #else
     if (!runstate_needs_reset()) {
         trace_gdbstub_op_continue();
-        vm_start();
+        if (!runstate_check(RUN_STATE_SUSPENDED)) {
+            vm_start();
+        }
     }
 #endif
 }
@@ -505,7 +507,7 @@ static int gdb_continue_partial(char *newstates)
     int flag = 0;
 
     if (!runstate_needs_reset()) {
-        if (vm_prepare_start()) {
+        if (!runstate_check(RUN_STATE_SUSPENDED) && vm_prepare_start()) {
             return 0;
         }
 
@@ -2894,6 +2896,9 @@ static void gdb_read_byte(uint8_t ch)
         /* when the CPU is running, we cannot do anything except stop
            it when receiving a char */
         vm_stop(RUN_STATE_PAUSED);
+    } else if (runstate_check(RUN_STATE_SUSPENDED) && ch == 3) {
+        /* Received ctrl-c from gdb */
+        gdb_vm_state_change(0, 0, RUN_STATE_PAUSED);
     } else
 #endif
     {
@@ -3342,6 +3347,8 @@ static void gdb_sigterm_handler(int signal)
 {
     if (runstate_is_running()) {
         vm_stop(RUN_STATE_PAUSED);
+    } else if (runstate_check(RUN_STATE_SUSPENDED)) {
+        gdb_vm_state_change(0, 0, RUN_STATE_PAUSED);
     }
 }
 #endif
