@@ -49,6 +49,12 @@ def c_fmt_to_stap(fmt):
         elif fmt[i] == '"' and not escape:
             if state == STATE_LITERAL:
                 state = STATE_SKIP
+                # All variables in systemtap are 64-bit in size
+                # The "%l" integer size qualifiers is thus redundant
+                # and "%ll" is not valid at all. Simply strip all
+                # size qualifiers for sanity
+                literal = literal.replace("%ll", "%")
+                literal = literal.replace("%l", "%")
                 bits.append(literal)
                 literal = ""
             else:
