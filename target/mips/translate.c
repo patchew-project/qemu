@@ -28122,8 +28122,6 @@ static void decode_opc_special3(CPUMIPSState *env, DisasContext *ctx)
         switch (op1) {
         case OPC_LWLE:
         case OPC_LWRE:
-            check_insn_opc_removed(ctx, ISA_MIPS_R6);
-            /* fall through */
         case OPC_LBUE:
         case OPC_LHUE:
         case OPC_LBE:
@@ -28135,8 +28133,6 @@ static void decode_opc_special3(CPUMIPSState *env, DisasContext *ctx)
             return;
         case OPC_SWLE:
         case OPC_SWRE:
-            check_insn_opc_removed(ctx, ISA_MIPS_R6);
-            /* fall through */
         case OPC_SBE:
         case OPC_SHE:
         case OPC_SWE:
