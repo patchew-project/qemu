@@ -358,6 +358,7 @@ strip_opt="yes"
 tcg_interpreter="no"
 bigendian="no"
 mingw32="no"
+mingw32_standalone="yes"
 gcov="no"
 EXESUF="$default_feature"
 HOST_DSOSUF=".so"
@@ -1558,6 +1559,10 @@ for opt do
   ;;
   --disable-fuse-lseek) fuse_lseek="disabled"
   ;;
+  --enable-standalone-mingw) mingw32_standalone="yes"
+  ;;
+  --disable-standalone-mingw) mingw32_standalone="no"
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1570,7 +1575,7 @@ libdir="${libdir:-$prefix/lib}"
 libexecdir="${libexecdir:-$prefix/libexec}"
 includedir="${includedir:-$prefix/include}"
 
-if test "$mingw32" = "yes" ; then
+if test "$mingw32" = "yes" && test "$mingw32_standalone" = "yes"; then
     mandir="$prefix"
     datadir="$prefix"
     docdir="$prefix"
@@ -1897,6 +1902,7 @@ disabled with --disable-FEATURE, default is enabled if available
   libdaxctl       libdaxctl support
   fuse            FUSE block device export
   fuse-lseek      SEEK_HOLE/SEEK_DATA support for FUSE exports
+  standalone-mingw  Build for standalone distribution on MinGW
 
 NOTE: The object files are built at the place where configure is launched
 EOF
