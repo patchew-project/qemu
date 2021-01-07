@@ -1179,3 +1179,21 @@
 ##
 { 'command': 'query-display-options',
   'returns': 'DisplayOptions' }
+
+##
+# @reload-vnc-cert:
+#
+# Reload certificates for vnc.
+#
+# Returns: nothing
+#
+# Since: 5.2
+#
+# Example:
+#
+# -> { "execute": "reload-vnc-cert" }
+# <- { "return": {} }
+#
+##
+{ 'command': 'reload-vnc-cert',
+  'if': 'defined(CONFIG_VNC)' }
