@@ -23,8 +23,10 @@
 #include "tlscredspriv.h"
 #include "crypto/secret.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qstring.h"
 #include "qemu/module.h"
 #include "qom/object_interfaces.h"
+#include "qom/qom-qobject.h"
 #include "trace.h"
 
 
@@ -771,6 +773,78 @@ qcrypto_tls_creds_x509_prop_get_sanity(Object *obj,
 }
 
 
+#ifdef CONFIG_GNUTLS
+
+
+static void
+qcrypto_tls_creds_x509_reload(QCryptoTLSCreds *creds, Error **errp)
+{
+    Object *old = OBJECT(creds);
+    QCryptoTLSCredsX509 *old_x509 = QCRYPTO_TLS_CREDS_X509(creds);
+    Object *new = object_new(TYPE_QCRYPTO_TLS_CREDS_X509);
+    QCryptoTLSCredsX509 *new_x509 = QCRYPTO_TLS_CREDS_X509(new);
+    ObjectProperty *prop;
+    ObjectPropertyIterator iter;
+    Error *local_err = NULL;
+
+    object_property_iter_init(&iter, old);
+    while ((prop = object_property_iter_next(&iter))) {
+        QObject *value;
+        /* loaded depends on other props, copy it finally */
+        if (g_strcmp0(prop->name, "loaded") == 0) {
+            continue;
+        }
+
+        value = object_property_get_qobject(old, prop->name, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            goto out;
+        }
+
+        if ((!prop->set) ||
+            (qobject_type(value) == QTYPE_QSTRING &&
+             strlen(qstring_get_str(qobject_to(QString, value))) == 0)) {
+            continue;
+        }
+
+        object_property_set_qobject(new, prop->name, value, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            goto out;
+        }
+    }
+
+    qcrypto_tls_creds_x509_load(new_x509, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        goto out;
+    }
+
+    /* load new cert successfully, free the old and update */
+    qcrypto_tls_creds_x509_unload(old_x509);
+    old_x509->data = new_x509->data;
+    old_x509->parent_obj.dh_params = new_x509->parent_obj.dh_params;
+    new_x509->data = NULL;
+    new_x509->parent_obj.dh_params = NULL;
+
+out:
+    object_unref(new);
+}
+
+
+#else /* ! CONFIG_GNUTLS */
+
+
+static void
+qcrypto_tls_creds_x509_reload(QCryptoTLSCreds *creds, Error **errp)
+{
+    /* nada */
+}
+
+
+#endif /* ! CONFIG_GNUTLS */
+
+
 static void
 qcrypto_tls_creds_x509_complete(UserCreatable *uc, Error **errp)
 {
@@ -801,6 +875,9 @@ static void
 qcrypto_tls_creds_x509_class_init(ObjectClass *oc, void *data)
 {
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
+    QCryptoTLSCredsClass *ctcc = QCRYPTO_TLS_CREDS_CLASS(oc);
+
+    ctcc->reload = qcrypto_tls_creds_x509_reload;
 
     ucc->complete = qcrypto_tls_creds_x509_complete;
 
