@@ -39,3 +39,8 @@ bool kvm_hv_vpindex_settable(void)
 {
     return false;
 }
+
+bool kvm_hv_evmcs_available(void)
+{
+    return false;
+}
