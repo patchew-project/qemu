@@ -3276,6 +3276,38 @@ int vnc_display_password(const char *id, const char *password)
     return 0;
 }
 
+#ifdef CONFIG_VNC_SASL
+int vnc_change_authz(const char *id, const char *type, const char *index)
+{
+    VncDisplay *vd = vnc_display_find(id);
+
+    if (!vd) {
+        return -EINVAL;
+    }
+
+    if (strcmp(type, "sasl") == 0) {
+        g_free(vd->sasl.authzid);
+        vd->sasl.authzid = NULL;
+
+        if (strcmp(index, "") != 0) {
+            vd->sasl.authzid = g_strdup(index);
+        }
+    } else if (strcmp(type, "tls") == 0) {
+        g_free(vd->tlsauthzid);
+        vd->tlsauthzid = NULL;
+
+        if (strcmp(index, "") != 0) {
+            vd->tlsauthzid = g_strdup(index);
+        }
+    } else {
+        error_printf_unless_qmp("unsupport authz type: %s", type);
+        return -EOPNOTSUPP;
+    }
+
+    return 0;
+}
+#endif
+
 int vnc_display_pw_expire(const char *id, time_t expires)
 {
     VncDisplay *vd = vnc_display_find(id);

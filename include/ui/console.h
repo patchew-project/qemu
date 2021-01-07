@@ -441,6 +441,9 @@ int vnc_display_password(const char *id, const char *password);
 int vnc_display_pw_expire(const char *id, time_t expires);
 QemuOpts *vnc_parse(const char *str, Error **errp);
 int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp);
+#ifdef CONFIG_VNC_SASL
+int vnc_change_authz(const char *id, const char *type, const char *index);
+#endif
 
 /* input.c */
 int index_from_key(const char *key, size_t key_length);

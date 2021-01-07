@@ -289,6 +289,16 @@ static void qmp_change_vnc(const char *target, bool has_arg, const char *arg,
 }
 #endif /* !CONFIG_VNC */
 
+#ifdef CONFIG_VNC_SASL
+void qmp_change_vnc_authz(const char *type, const char *index, Error **errp)
+{
+    if (vnc_change_authz(NULL, type, index) < 0) {
+        error_setg(errp, "Could not set authz, type:%s, index:%s",
+                   type, index);
+    }
+}
+#endif
+
 void qmp_change(const char *device, const char *target,
                 bool has_arg, const char *arg, Error **errp)
 {

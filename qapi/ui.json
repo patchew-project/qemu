@@ -1179,3 +1179,19 @@
 ##
 { 'command': 'query-display-options',
   'returns': 'DisplayOptions' }
+
+##
+# @change-vnc-authz:
+#
+# Change the VNC server authz.
+#
+# @type:  the new authz type to use with VNC authentication
+# @index:  the new authz object index to use with VNC authentication
+#
+# Since: 5.2
+#
+##
+{ 'command': 'change-vnc-authz',
+  'data': { 'type' : 'str',
+            'index': 'str'},
+  'if': 'defined(CONFIG_VNC_SASL)' }
