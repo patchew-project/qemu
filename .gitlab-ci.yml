@@ -7,6 +7,9 @@ stages:
   - build
   - test
 
+variables:
+  GIT_DEPTH: 3
+
 include:
   - local: '/.gitlab-ci.d/edk2.yml'
   - local: '/.gitlab-ci.d/opensbi.yml'

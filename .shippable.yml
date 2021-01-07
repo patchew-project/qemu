@@ -1,9 +1,11 @@
 language: c
+depth: 3
 git:
    submodules: false
 env:
   global:
     - LC_ALL=C
+    - GIT_DEPTH=3
   matrix:
     - IMAGE=debian-amd64
       TARGET_LIST=x86_64-softmmu,x86_64-linux-user

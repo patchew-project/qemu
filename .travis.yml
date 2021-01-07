@@ -80,9 +80,11 @@ env:
     - CCACHE_SLOPPINESS="include_file_ctime,include_file_mtime"
     - CCACHE_MAXSIZE=1G
     - G_MESSAGES_DEBUG=error
+    - GIT_DEPTH=3
 
 
 git:
+  depth: 3
   # we want to do this ourselves
   submodules: false
 

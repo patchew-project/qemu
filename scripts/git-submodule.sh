@@ -75,7 +75,7 @@ update)
         exit 0
     fi
 
-    $GIT submodule update --init $modules 1>/dev/null
+    $GIT submodule update ${GIT_DEPTH:+--depth "$GIT_DEPTH"} --init $modules 1>/dev/null
     test $? -ne 0 && error "failed to update modules"
 
     $GIT submodule status $modules > "${substat}"
