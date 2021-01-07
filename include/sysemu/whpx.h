@@ -15,7 +15,7 @@
 
 #ifdef CONFIG_WHPX
 
-#include "whp-dispatch.h"
+#include <WinHvPlatformDefs.h>
 
 struct whpx_state {
     uint64_t mem_quota;
