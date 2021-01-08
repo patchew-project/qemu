@@ -234,6 +234,10 @@ static QemuOptsList machine_opts = {
             .help = "Up to 8 chars in set of [A-Za-z0-9. ](lower case chars"
                     " converted to upper case) to pass to machine"
                     " loader, boot manager, and guest kernel",
+        },{
+            .name = "dirty_gfn_count",
+            .type = QEMU_OPT_NUMBER,
+            .help = "KVM dirty ring GFN count",
         },
         { /* End of list */ }
     }
