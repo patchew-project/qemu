@@ -187,6 +187,14 @@ F: include/hw/cris/
 F: tests/tcg/cris/
 F: disas/cris.c
 
+Hexagon TCG CPUs
+M: Taylor Simpson <tsimpson@quicinc.com>
+S: Supported
+F: target/hexagon/
+F: linux-user/hexagon/
+F: disas/hexagon.c
+F: default-configs/hexagon-linux-user.mak
+
 HPPA (PA-RISC) TCG CPUs
 M: Richard Henderson <richard.henderson@linaro.org>
 S: Maintained
