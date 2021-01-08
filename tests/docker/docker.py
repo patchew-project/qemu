@@ -28,6 +28,7 @@ from io import StringIO, BytesIO
 from shutil import copy, rmtree
 from pwd import getpwuid
 from datetime import datetime, timedelta
+from glob import glob
 
 
 FILTERED_ENV_NAMES = ['ftp_proxy', 'http_proxy', 'https_proxy']
@@ -466,7 +467,8 @@ class BuildCommand(SubCommand):
                     return 1
 
             # Is there a .pre file to run in the build context?
-            docker_pre = os.path.splitext(args.dockerfile)[0]+".pre"
+            basename = os.path.splitext(args.dockerfile)[0]
+            docker_pre = basename + ".pre"
             if os.path.exists(docker_pre):
                 stdout = DEVNULL if args.quiet else None
                 rc = subprocess.call(os.path.realpath(docker_pre),
@@ -488,7 +490,9 @@ class BuildCommand(SubCommand):
                 _copy_binary_with_libs(args.include_executable,
                                        qpath, docker_dir)
 
-            for filename in args.extra_files or []:
+            extra_files = args.extra_files or []
+            extra_files += glob(basename + ".*")
+            for filename in extra_files:
                 _copy_with_mkdir(filename, docker_dir)
                 cksum += [(filename, _file_checksum(filename))]
 
