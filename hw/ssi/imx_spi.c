@@ -241,9 +241,20 @@ static void imx_spi_reset(DeviceState *dev)
     imx_spi_rxfifo_reset(s);
     imx_spi_txfifo_reset(s);
 
+    s->burst_length = 0;
+}
+
+static void imx_spi_soft_reset(IMXSPIState *s)
+{
+    int i;
+
+    imx_spi_reset(DEVICE(s));
+
     imx_spi_update_irq(s);
 
-    s->burst_length = 0;
+    for (i = 0; i < ECSPI_NUM_CS; i++) {
+        qemu_set_irq(s->cs_lines[i], 1);
+    }
 }
 
 static uint64_t imx_spi_read(void *opaque, hwaddr offset, unsigned size)
@@ -351,12 +362,8 @@ static void imx_spi_write(void *opaque, hwaddr offset, uint64_t value,
         s->regs[ECSPI_CONREG] = value;
 
         if (!imx_spi_is_enabled(s)) {
-            /* device is disabled, so this is a reset */
-            imx_spi_reset(DEVICE(s));
-
-            for (int i = 0; i < ECSPI_NUM_CS; i++) {
-                qemu_set_irq(s->cs_lines[i], 1);
-            }
+            /* device is disabled, so this is a soft reset */
+            imx_spi_soft_reset(s);
 
             return;
         }
