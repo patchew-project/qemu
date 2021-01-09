@@ -26,6 +26,7 @@
 #include "hw/acpi/acpi.h"
 #include "hw/i2c/pm_smbus.h"
 #include "qapi/error.h"
+#include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/range.h"
 #include "qemu/timer.h"
@@ -250,7 +251,6 @@ static const TypeInfo vt8231_pm_info = {
 
 typedef struct SuperIOConfig {
     uint8_t regs[0x100];
-    uint8_t index;
     MemoryRegion io;
 } SuperIOConfig;
 
@@ -258,42 +258,49 @@ static void superio_cfg_write(void *opaque, hwaddr addr, uint64_t data,
                               unsigned size)
 {
     SuperIOConfig *sc = opaque;
+    uint8_t idx = sc->regs[0];
 
-    if (addr == 0x3f0) { /* config index register */
-        sc->index = data & 0xff;
-    } else {
-        bool can_write = true;
-        /* 0x3f1, config data register */
-        trace_via_superio_write(sc->index, data & 0xff);
-        switch (sc->index) {
-        case 0x00 ... 0xdf:
-        case 0xe4:
-        case 0xe5:
-        case 0xe9 ... 0xed:
-        case 0xf3:
-        case 0xf5:
-        case 0xf7:
-        case 0xf9 ... 0xfb:
-        case 0xfd ... 0xff:
-            can_write = false;
-            break;
-        /* case 0xe6 ... 0xe8: Should set base port of parallel and serial */
-        default:
-            break;
-
-        }
-        if (can_write) {
-            sc->regs[sc->index] = data & 0xff;
-        }
+    if (addr == 0) { /* config index register */
+        sc->regs[0] = data;
+        return;
     }
+
+    /* config data register */
+    trace_via_superio_write(idx, data);
+    switch (idx) {
+    case 0x00 ... 0xdf:
+    case 0xe4:
+    case 0xe5:
+    case 0xe9 ... 0xed:
+    case 0xf3:
+    case 0xf5:
+    case 0xf7:
+    case 0xf9 ... 0xfb:
+    case 0xfd ... 0xff:
+        /* ignore write to read only registers */
+        return;
+    /* case 0xe6 ... 0xe8: Should set base port of parallel and serial */
+    default:
+        qemu_log_mask(LOG_UNIMP,
+                      "via_superio_cfg: unimplemented register 0x%x\n", idx);
+        break;
+    }
+    sc->regs[idx] = data;
 }
 
 static uint64_t superio_cfg_read(void *opaque, hwaddr addr, unsigned size)
 {
     SuperIOConfig *sc = opaque;
-    uint8_t val = sc->regs[sc->index];
+    uint8_t idx = sc->regs[0];
+    uint8_t val = sc->regs[idx];
 
-    trace_via_superio_read(sc->index, val);
+    if (addr == 0) {
+        return idx;
+    }
+    if (addr == 1 && idx == 0) {
+        val = 0; /* reading reg 0 where we store index value */
+    }
+    trace_via_superio_read(idx, val);
     return val;
 }
 
