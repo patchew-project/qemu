@@ -39,14 +39,11 @@ struct VT686PMState {
 
 static void pm_io_space_update(VT686PMState *s)
 {
-    uint32_t pm_io_base;
-
-    pm_io_base = pci_get_long(s->dev.config + 0x40);
-    pm_io_base &= 0xffc0;
+    uint32_t pmbase = pci_get_long(s->dev.config + 0x48) & 0xff80UL;
 
     memory_region_transaction_begin();
-    memory_region_set_enabled(&s->io, s->dev.config[0x80] & 1);
-    memory_region_set_address(&s->io, pm_io_base);
+    memory_region_set_address(&s->io, pmbase);
+    memory_region_set_enabled(&s->io, s->dev.config[0x41] & BIT(7));
     memory_region_transaction_commit();
 }
 
@@ -92,6 +89,13 @@ static void pm_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int len)
 
     trace_via_pm_write(addr, val, len);
     pci_default_write_config(d, addr, val, len);
+    if (ranges_overlap(addr, len, 0x48, 4)) {
+        uint32_t v = pci_get_long(s->dev.config + 0x48);
+        pci_set_long(s->dev.config + 0x48, (v & 0xff80UL) | 1);
+    }
+    if (range_covers_byte(addr, len, 0x41)) {
+        pm_io_space_update(s);
+    }
     if (ranges_overlap(addr, len, 0x90, 4)) {
         uint32_t v = pci_get_long(s->dev.config + 0x90);
         pci_set_long(s->dev.config + 0x90, (v & 0xfff0UL) | 1);
@@ -101,6 +105,27 @@ static void pm_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int len)
         smb_io_space_update(s);
     }
 }
+
+static void pm_io_write(void *op, hwaddr addr, uint64_t data, unsigned size)
+{
+    trace_via_pm_io_write(addr, data, size);
+}
+
+static uint64_t pm_io_read(void *op, hwaddr addr, unsigned size)
+{
+    trace_via_pm_io_read(addr, 0, size);
+    return 0;
+}
+
+static const MemoryRegionOps pm_io_ops = {
+    .read = pm_io_read,
+    .write = pm_io_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+};
 
 static void pm_update_sci(VT686PMState *s)
 {
@@ -128,25 +153,23 @@ static void vt82c686b_pm_reset(DeviceState *d)
 {
     VT686PMState *s = VT82C686B_PM(d);
 
+    memset(s->dev.config + PCI_CONFIG_HEADER_SIZE, 0,
+           PCI_CONFIG_SPACE_SIZE - PCI_CONFIG_HEADER_SIZE);
+    /* Power Management IO base */
+    pci_set_long(s->dev.config + 0x48, 1);
     /* SMBus IO base */
     pci_set_long(s->dev.config + 0x90, 1);
-    s->dev.config[0xd2] = 0;
 
+    pm_io_space_update(s);
     smb_io_space_update(s);
 }
 
 static void vt82c686b_pm_realize(PCIDevice *dev, Error **errp)
 {
     VT686PMState *s = VT82C686B_PM(dev);
-    uint8_t *pci_conf;
 
-    pci_conf = s->dev.config;
-    pci_set_word(pci_conf + PCI_COMMAND, 0);
-    pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_FAST_BACK |
+    pci_set_word(dev->config + PCI_STATUS, PCI_STATUS_FAST_BACK |
                  PCI_STATUS_DEVSEL_MEDIUM);
-
-    /* 0x48-0x4B is Power Management I/O Base */
-    pci_set_long(pci_conf + 0x48, 0x00000001);
 
     pm_smbus_init(DEVICE(s), &s->smb, false);
     memory_region_add_subregion(pci_address_space_io(dev), 0, &s->smb.io);
@@ -154,9 +177,10 @@ static void vt82c686b_pm_realize(PCIDevice *dev, Error **errp)
 
     apm_init(dev, &s->apm, NULL, s);
 
-    memory_region_init(&s->io, OBJECT(dev), "vt82c686-pm", 64);
+    memory_region_init_io(&s->io, OBJECT(dev), &pm_io_ops, s,
+                          "vt82c686-pm", 0x100);
+    memory_region_add_subregion(pci_address_space_io(dev), 0, &s->io);
     memory_region_set_enabled(&s->io, false);
-    memory_region_add_subregion(get_system_io(), 0, &s->io);
 
     acpi_pm_tmr_init(&s->ar, pm_tmr_timer, &s->io);
     acpi_pm1_evt_init(&s->ar, pm_tmr_timer, &s->io);
