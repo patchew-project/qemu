@@ -353,6 +353,11 @@ static void imx_spi_write(void *opaque, hwaddr offset, uint64_t value,
         if (!imx_spi_is_enabled(s)) {
             /* device is disabled, so this is a reset */
             imx_spi_reset(DEVICE(s));
+
+            for (int i = 0; i < ECSPI_NUM_CS; i++) {
+                qemu_set_irq(s->cs_lines[i], 1);
+            }
+
             return;
         }
 
