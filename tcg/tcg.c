@@ -123,24 +123,36 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc, unsigned vecl,
                            unsigned vece, const TCGArg *args,
                            const int *const_args);
 #else
-static inline bool tcg_out_dup_vec(TCGContext *s, TCGType type, unsigned vece,
-                                   TCGReg dst, TCGReg src)
+static __attribute__((unused)) inline bool tcg_out_dup_vec(TCGContext *s,
+                                                           TCGType type,
+                                                           unsigned vece,
+                                                           TCGReg dst,
+                                                           TCGReg src)
 {
     g_assert_not_reached();
 }
-static inline bool tcg_out_dupm_vec(TCGContext *s, TCGType type, unsigned vece,
-                                    TCGReg dst, TCGReg base, intptr_t offset)
+static __attribute__((unused)) inline bool tcg_out_dupm_vec(TCGContext *s,
+                                                            TCGType type,
+                                                            unsigned vece,
+                                                            TCGReg dst,
+                                                            TCGReg base,
+                                                            intptr_t offset)
 {
     g_assert_not_reached();
 }
-static inline void tcg_out_dupi_vec(TCGContext *s, TCGType type,
-                                    TCGReg dst, tcg_target_long arg)
+static __attribute__((unused)) inline void tcg_out_dupi_vec(TCGContext *s,
+                                                            TCGType type,
+                                                            TCGReg dst,
+                                                            tcg_target_long arg)
 {
     g_assert_not_reached();
 }
-static inline void tcg_out_vec_op(TCGContext *s, TCGOpcode opc, unsigned vecl,
-                                  unsigned vece, const TCGArg *args,
-                                  const int *const_args)
+static __attribute__((unused)) inline void tcg_out_vec_op(TCGContext *s,
+                                                          TCGOpcode opc,
+                                                          unsigned vecl,
+                                                          unsigned vece,
+                                                          const TCGArg *args,
+                                                          const int *const_args)
 {
     g_assert_not_reached();
 }
