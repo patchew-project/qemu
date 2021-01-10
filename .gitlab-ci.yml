@@ -397,12 +397,12 @@ build-oss-fuzz:
     # Unrelated to fuzzer: run some tests with -fsanitize=address
     - cd build-oss-fuzz && make check-qtest-i386 check-unit
 
-build-tci:
+build-tci-gcc:
   <<: *native_build_job_definition
   variables:
     IMAGE: fedora
   script:
-    - TARGETS="aarch64 alpha arm hppa m68k microblaze moxie ppc64 s390x x86_64"
+    - TARGETS="aarch64 alpha arm hppa x86_64"
     - mkdir build
     - cd build
     - ../configure --enable-tcg-interpreter
@@ -416,6 +416,24 @@ build-tci:
         ./tests/qtest/cdrom-test || exit 1 ;
       done
     - QTEST_QEMU_BINARY="./qemu-system-x86_64" ./tests/qtest/pxe-test
+
+build-tci-clang:
+  <<: *native_build_job_definition
+  variables:
+    IMAGE: fedora
+  script:
+    - TARGETS="m68k microblaze moxie ppc64 s390x"
+    - mkdir build
+    - cd build
+    - ../configure --enable-tcg-interpreter --cc=clang --cxx=clang++
+        --target-list="$(for tg in $TARGETS; do echo -n ${tg}'-softmmu '; done)" || { cat config.log meson-logs/meson-log.txt && exit 1; }
+    - make -j"$JOBS"
+    - make tests/qtest/boot-serial-test tests/qtest/cdrom-test tests/qtest/pxe-test
+    - for tg in $TARGETS ; do
+        export QTEST_QEMU_BINARY="./qemu-system-${tg}" ;
+        ./tests/qtest/boot-serial-test || exit 1 ;
+        ./tests/qtest/cdrom-test || exit 1 ;
+      done
     - QTEST_QEMU_BINARY="./qemu-system-s390x" ./tests/qtest/pxe-test -m slow
 
 # Alternate coroutines implementations are only really of interest to KVM users
