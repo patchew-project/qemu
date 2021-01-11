@@ -16,6 +16,7 @@ typedef struct NvmeParams {
     uint32_t aer_max_queued;
     uint8_t  mdts;
     bool     use_intel_id;
+    uint8_t  smart_critical_warning;
 } NvmeParams;
 
 typedef struct NvmeAsyncEvent {

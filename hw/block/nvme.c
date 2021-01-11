@@ -1215,6 +1215,8 @@ static uint16_t nvme_smart_info(NvmeCtrl *n, uint8_t rae, uint32_t buf_len,
 
     trans_len = MIN(sizeof(smart) - off, buf_len);
 
+    smart.critical_warning = n->params.smart_critical_warning;
+
     smart.data_units_read[0] = cpu_to_le64(DIV_ROUND_UP(stats.units_read,
                                                         1000));
     smart.data_units_written[0] = cpu_to_le64(DIV_ROUND_UP(stats.units_written,
@@ -2824,6 +2826,8 @@ static Property nvme_props[] = {
     DEFINE_PROP_UINT32("aer_max_queued", NvmeCtrl, params.aer_max_queued, 64),
     DEFINE_PROP_UINT8("mdts", NvmeCtrl, params.mdts, 7),
     DEFINE_PROP_BOOL("use-intel-id", NvmeCtrl, params.use_intel_id, false),
+    DEFINE_PROP_UINT8("smart_critical_warning", NvmeCtrl,
+                      params.smart_critical_warning, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
