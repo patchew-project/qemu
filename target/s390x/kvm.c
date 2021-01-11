@@ -1918,7 +1918,7 @@ static void insert_stsi_3_2_2(S390CPU *cpu, __u64 addr, uint8_t ar)
      */
     if (qemu_name) {
         strncpy((char *)sysib.ext_names[0], qemu_name,
-                sizeof(sysib.ext_names[0]));
+                sizeof(sysib.ext_names[0]) - 1);
     } else {
         strcpy((char *)sysib.ext_names[0], "KVMguest");
     }
