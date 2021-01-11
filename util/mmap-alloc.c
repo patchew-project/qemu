@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "qemu/mmap-alloc.h"
 #include "qemu/host-utils.h"
+#include "qemu/error-report.h"
 
 #define HUGETLBFS_MAGIC       0x958458f6
 
@@ -166,6 +167,8 @@ void *qemu_ram_mmap(int fd,
                     "crash.\n", file_name);
             g_free(proc_link);
             g_free(file_name);
+            warn_report("Using non DAX backing file with 'pmem=on' option"
+                        " is deprecated");
         }
         /*
          * if map failed with MAP_SHARED_VALIDATE | MAP_SYNC,

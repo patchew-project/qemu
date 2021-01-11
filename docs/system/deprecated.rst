@@ -327,6 +327,23 @@ The Raspberry Pi machines come in various models (A, A+, B, B+). To be able
 to distinguish which model QEMU is implementing, the ``raspi2`` and ``raspi3``
 machines have been renamed ``raspi2b`` and ``raspi3b``.
 
+Backend options
+---------------
+
+Using non-persistent backing file with pmem=on (since 6.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+This option is used when ``memory-backend-file`` is consumed by emulated NVDIMM
+device. However enabling ``memory-backend-file.pmem`` option, when backing file
+is (a) not DAX capable or (b) not on a filesystem that support direct mapping
+of persistent memory, is not safe and may lead to data loss or corruption in case
+of host crash.
+Options are:
+    - modify VM configuration to set ``pmem=off`` to continue using fake NVDIMM
+      (without persistence guaranties) with backing file on non DAX storage
+    - move backing file to NVDIMM storage and keep ``pmem=on``
+      (to have NVDIMM with persistence guaranties).
+
 Device options
 --------------
 
