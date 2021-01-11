@@ -1857,8 +1857,7 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
 static const tcg_insn_unit *tb_ret_addr;
 
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,
-                       const TCGArg args[TCG_MAX_OP_ARGS],
-                       const int const_args[TCG_MAX_OP_ARGS])
+                       const TCGArg *args, const int *const_args)
 {
     /* 99% of the time, we can signal the use of extension registers
        by looking to see if the opcode handles 64-bit data.  */

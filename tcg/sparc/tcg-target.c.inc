@@ -1295,8 +1295,7 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
 }
 
 static void tcg_out_op(TCGContext *s, TCGOpcode opc,
-                       const TCGArg args[TCG_MAX_OP_ARGS],
-                       const int const_args[TCG_MAX_OP_ARGS])
+                       const TCGArg *args, const int *const_args)
 {
     TCGArg a0, a1, a2;
     int c, c2;
