@@ -198,6 +198,7 @@ static void bamboo_init(MachineState *machine)
     uicdev = qdev_new(TYPE_PPC_UIC);
     uicsbd = SYS_BUS_DEVICE(uicdev);
 
+    qdev_prop_set_uint32(uicdev, "dcr-base", 0xc0);
     object_property_set_link(OBJECT(uicdev), "cpu", OBJECT(cpu),
                              &error_fatal);
     sysbus_realize_and_unref(uicsbd, &error_fatal);
