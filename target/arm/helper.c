@@ -13030,7 +13030,6 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
     CPUARMTBFlags flags;
     uint32_t pstate_for_ss;
 
-    *cs_base = 0;
     assert_hflags_rebuild_correctly(env);
     flags = env->hflags;
 
@@ -13101,6 +13100,7 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
     }
 
     *pflags = flags.flags;
+    *cs_base = flags.flags2;
 }
 
 #ifdef TARGET_AARCH64
