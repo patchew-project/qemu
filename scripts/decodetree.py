@@ -49,7 +49,7 @@ re_C_ident = '[a-zA-Z][a-zA-Z0-9_]*'
 re_arg_ident = '&[a-zA-Z0-9_]*'
 re_fld_ident = '%[a-zA-Z0-9_]*'
 re_fmt_ident = '@[a-zA-Z0-9_]*'
-re_pat_ident = '[a-zA-Z0-9_]*'
+re_pat_ident = '[a-zA-Z0-9_.]*'
 
 def error_with_file(file, lineno, *args):
     """Print an error message from file:line and args and exit."""
@@ -1082,6 +1082,7 @@ def parse_file(f, parent_pat):
         elif re.fullmatch(re_fmt_ident, name):
             parse_generic(start_lineno, None, name[1:], toks)
         elif re.fullmatch(re_pat_ident, name):
+            name = name.replace('.', '_')
             parse_generic(start_lineno, parent_pat, name, toks)
         else:
             error(lineno, 'invalid token "{0}"'.format(name))
