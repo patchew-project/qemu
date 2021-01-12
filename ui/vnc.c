@@ -792,9 +792,7 @@ static void vnc_dpy_switch(DisplayChangeListener *dcl,
     QTAILQ_FOREACH(vs, &vd->clients, next) {
         vnc_colordepth(vs);
         vnc_desktop_resize(vs);
-        if (vs->vd->cursor) {
-            vnc_cursor_define(vs);
-        }
+        vnc_cursor_define(vs);
         memset(vs->dirty, 0x00, sizeof(vs->dirty));
         vnc_set_area_dirty(vs->dirty, vd, 0, 0,
                            vnc_width(vd),
@@ -927,6 +925,10 @@ static int vnc_cursor_define(VncState *vs)
 {
     QEMUCursor *c = vs->vd->cursor;
     int isize;
+
+    if (!vs->vd->cursor) {
+        return -1;
+    }
 
     if (vnc_has_feature(vs, VNC_FEATURE_ALPHA_CURSOR)) {
         vnc_lock_output(vs);
@@ -2137,9 +2139,7 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
     vnc_desktop_resize(vs);
     check_pointer_type_change(&vs->mouse_mode_notifier, NULL);
     vnc_led_state_change(vs);
-    if (vs->vd->cursor) {
-        vnc_cursor_define(vs);
-    }
+    vnc_cursor_define(vs);
 }
 
 static void set_pixel_conversion(VncState *vs)
