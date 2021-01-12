@@ -248,4 +248,11 @@
   <reg name="mucounteren" bitsize="64"/>
   <reg name="mscounteren" bitsize="64"/>
   <reg name="mhcounteren" bitsize="64"/>
+  <reg name="vstart" bitsize="64"/>
+  <reg name="vxsat" bitsize="64"/>
+  <reg name="vxrm" bitsize="64"/>
+  <reg name="vcsr" bitsize="64"/>
+  <reg name="vl" bitsize="64"/>
+  <reg name="vtype" bitsize="64"/>
+  <reg name="vlenb" bitsize="64"/>
 </feature>
