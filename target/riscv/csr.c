@@ -301,7 +301,7 @@ static int write_vxrm(CPURISCVState *env, int csrno, target_ulong val)
     if (!env->debugger && !riscv_cpu_vector_enabled(env)) {
         return -1;
     }
-    env->mstatus |= MSTATUS_VS;
+    env->mstatus |= MSTATUS_VS | MSTATUS_SD;
 #endif
 
     env->vxrm = val;
@@ -320,7 +320,7 @@ static int write_vxsat(CPURISCVState *env, int csrno, target_ulong val)
     if (!env->debugger && !riscv_cpu_vector_enabled(env)) {
         return -1;
     }
-    env->mstatus |= MSTATUS_VS;
+    env->mstatus |= MSTATUS_VS | MSTATUS_SD;
 #endif
 
     env->vxsat = val;
@@ -339,7 +339,7 @@ static int write_vstart(CPURISCVState *env, int csrno, target_ulong val)
     if (!env->debugger && !riscv_cpu_vector_enabled(env)) {
         return -1;
     }
-    env->mstatus |= MSTATUS_VS;
+    env->mstatus |= MSTATUS_VS | MSTATUS_SD;
 #endif
 
     /*
@@ -362,7 +362,7 @@ static int write_vcsr(CPURISCVState *env, int csrno, target_ulong val)
     if (!env->debugger && !riscv_cpu_vector_enabled(env)) {
         return -1;
     }
-    env->mstatus |= MSTATUS_VS;
+    env->mstatus |= MSTATUS_VS | MSTATUS_SD;
 #endif
 
     env->vxrm = (val & VCSR_VXRM) >> VCSR_VXRM_SHIFT;
