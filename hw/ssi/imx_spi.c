@@ -14,6 +14,7 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "trace.h"
 
 #ifndef DEBUG_IMX_SPI
 #define DEBUG_IMX_SPI 0
@@ -232,7 +233,7 @@ static void imx_spi_reset(DeviceState *dev)
 {
     IMXSPIState *s = IMX_SPI(dev);
 
-    DPRINTF("\n");
+    trace_imx_spi_reset();
 
     memset(s->regs, 0, sizeof(s->regs));
 
@@ -290,7 +291,7 @@ static uint64_t imx_spi_read(void *opaque, hwaddr offset, unsigned size)
         break;
     }
 
-    DPRINTF("reg[%s] => 0x%" PRIx32 "\n", imx_spi_reg_name(index), value);
+    trace_imx_spi_read(index, imx_spi_reg_name(index), value);
 
     imx_spi_update_irq(s);
 
@@ -310,8 +311,7 @@ static void imx_spi_write(void *opaque, hwaddr offset, uint64_t value,
         return;
     }
 
-    DPRINTF("reg[%s] <= 0x%" PRIx32 "\n", imx_spi_reg_name(index),
-            (uint32_t)value);
+    trace_imx_spi_write(index, imx_spi_reg_name(index), value);
 
     change_mask = s->regs[index] ^ value;
 
