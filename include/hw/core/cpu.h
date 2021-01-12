@@ -76,84 +76,11 @@ typedef struct CPUWatchpoint CPUWatchpoint;
 
 struct TranslationBlock;
 
-#ifdef CONFIG_TCG
-/**
- * struct TcgCpuOperations: TCG operations specific to a CPU class
- */
-typedef struct TcgCpuOperations {
-    /**
-     * @initialize: Initalize TCG state
-     *
-     * Called when the first CPU is realized.
-     */
-    void (*initialize)(void);
-    /**
-     * @synchronize_from_tb: Synchronize state from a TCG #TranslationBlock
-     *
-     * This is called when we abandon execution of a TB before
-     * starting it, and must set all parts of the CPU state which
-     * the previous TB in the chain may not have updated. This
-     * will need to do more. If this hook is not implemented then
-     * the default is to call @set_pc(tb->pc).
-     */
-    void (*synchronize_from_tb)(CPUState *cpu,
-                                const struct TranslationBlock *tb);
-    /** @cpu_exec_enter: Callback for cpu_exec preparation */
-    void (*cpu_exec_enter)(CPUState *cpu);
-    /** @cpu_exec_exit: Callback for cpu_exec cleanup */
-    void (*cpu_exec_exit)(CPUState *cpu);
-    /** @cpu_exec_interrupt: Callback for processing interrupts in cpu_exec */
-    bool (*cpu_exec_interrupt)(CPUState *cpu, int interrupt_request);
-    /** @do_interrupt: Callback for interrupt handling. */
-    void (*do_interrupt)(CPUState *cpu);
-    /**
-     * @tlb_fill: Handle a softmmu tlb miss or user-only address fault
-     *
-     * For system mode, if the access is valid, call tlb_set_page
-     * and return true; if the access is invalid, and probe is
-     * true, return false; otherwise raise an exception and do
-     * not return.  For user-only mode, always raise an exception
-     * and do not return.
-     */
-    bool (*tlb_fill)(CPUState *cpu, vaddr address, int size,
-                     MMUAccessType access_type, int mmu_idx,
-                     bool probe, uintptr_t retaddr);
-    /** @debug_excp_handler: Callback for handling debug exceptions */
-    void (*debug_excp_handler)(CPUState *cpu);
+/* see accel-cpu.h */
+struct AccelCPUClass;
 
-#ifdef NEED_CPU_H
-#ifdef CONFIG_SOFTMMU
-    /**
-     * @do_transaction_failed: Callback for handling failed memory transactions
-     * (ie bus faults or external aborts; not MMU faults)
-     */
-    void (*do_transaction_failed)(CPUState *cpu, hwaddr physaddr, vaddr addr,
-                                  unsigned size, MMUAccessType access_type,
-                                  int mmu_idx, MemTxAttrs attrs,
-                                  MemTxResult response, uintptr_t retaddr);
-    /**
-     * @do_unaligned_access: Callback for unaligned access handling
-     */
-    void (*do_unaligned_access)(CPUState *cpu, vaddr addr,
-                                MMUAccessType access_type,
-                                int mmu_idx, uintptr_t retaddr);
-
-    /**
-     * @adjust_watchpoint_address: hack for cpu_check_watchpoint used by ARM
-     */
-    vaddr (*adjust_watchpoint_address)(CPUState *cpu, vaddr addr, int len);
-
-    /**
-     * @debug_check_watchpoint: return true if the architectural
-     * watchpoint whose address has matched should really fire, used by ARM
-     */
-    bool (*debug_check_watchpoint)(CPUState *cpu, CPUWatchpoint *wp);
-
-#endif /* CONFIG_SOFTMMU */
-#endif /* NEED_CPU_H */
-
-} TcgCpuOperations;
-#endif /* CONFIG_TCG */
+/* see tcg-cpu-ops.h */
+struct TCGCPUOps;
 
 /**
  * CPUClass:
@@ -264,9 +191,14 @@ struct CPUClass {
     int gdb_num_core_regs;
     bool gdb_stop_before_watchpoint;
 
-#ifdef CONFIG_TCG
-    TcgCpuOperations tcg_ops;
-#endif /* CONFIG_TCG */
+    /*
+     * NB: this should be covered by CONFIG_TCG, but it is unsafe to do it here,
+     * as this header is included by both ss_specific and ss_common code,
+     * leading to potential differences in the data structure between modules.
+     * We could always keep it last, but it seems safer to just leave this
+     * pointer NULL for non-TCG.
+     */
+    struct TCGCPUOps *tcg_ops;
 };
 
 /*
@@ -896,36 +828,6 @@ CPUState *cpu_by_arch_id(int64_t id);
  */
 
 void cpu_interrupt(CPUState *cpu, int mask);
-
-#ifdef NEED_CPU_H
-#if defined(CONFIG_SOFTMMU) && defined(CONFIG_TCG)
-static inline void cpu_unaligned_access(CPUState *cpu, vaddr addr,
-                                        MMUAccessType access_type,
-                                        int mmu_idx, uintptr_t retaddr)
-{
-    CPUClass *cc = CPU_GET_CLASS(cpu);
-
-    cc->tcg_ops.do_unaligned_access(cpu, addr, access_type, mmu_idx, retaddr);
-}
-
-static inline void cpu_transaction_failed(CPUState *cpu, hwaddr physaddr,
-                                          vaddr addr, unsigned size,
-                                          MMUAccessType access_type,
-                                          int mmu_idx, MemTxAttrs attrs,
-                                          MemTxResult response,
-                                          uintptr_t retaddr)
-{
-    CPUClass *cc = CPU_GET_CLASS(cpu);
-
-    if (!cpu->ignore_memory_transaction_failures &&
-        cc->tcg_ops.do_transaction_failed) {
-        cc->tcg_ops.do_transaction_failed(cpu, physaddr, addr, size,
-                                          access_type, mmu_idx, attrs,
-                                          response, retaddr);
-    }
-}
-#endif /* CONFIG_SOFTMMU && CONFIG_TCG */
-#endif /* NEED_CPU_H */
 
 /**
  * cpu_set_pc:
