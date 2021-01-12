@@ -886,6 +886,10 @@ DEF_HELPER_5(vfrsqrte7_v_h, void, ptr, ptr, ptr, env, i32)
 DEF_HELPER_5(vfrsqrte7_v_w, void, ptr, ptr, ptr, env, i32)
 DEF_HELPER_5(vfrsqrte7_v_d, void, ptr, ptr, ptr, env, i32)
 
+DEF_HELPER_5(vfrece7_v_h, void, ptr, ptr, ptr, env, i32)
+DEF_HELPER_5(vfrece7_v_w, void, ptr, ptr, ptr, env, i32)
+DEF_HELPER_5(vfrece7_v_d, void, ptr, ptr, ptr, env, i32)
+
 DEF_HELPER_6(vfmin_vv_h, void, ptr, ptr, ptr, ptr, env, i32)
 DEF_HELPER_6(vfmin_vv_w, void, ptr, ptr, ptr, ptr, env, i32)
 DEF_HELPER_6(vfmin_vv_d, void, ptr, ptr, ptr, ptr, env, i32)
