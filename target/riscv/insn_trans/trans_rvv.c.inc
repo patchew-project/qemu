@@ -290,6 +290,52 @@ static bool vext_check_ld_index(DisasContext *s, int vd, int vs2,
     return ret;
 }
 
+/*
+ * Vector AMO check function.
+ *
+ * Rules to be checked here:
+ *   1. RVA must supported.
+ *   2. AMO can either operations on 64-bit (RV64 only) or 32-bit words
+ *      in memory:
+ *      For RV32: 32 <= SEW <= 32, EEW <= 32.
+ *      For RV64: 32 <= SEW <= 64, EEW <= 64.
+ *   3. Destination vector register number is multiples of LMUL.
+ *      (Section 3.3.2, 8)
+ *   4. Address vector register number is multiples of EMUL.
+ *      (Section 3.3.2, 8)
+ *   5. EMUL must within the range: 1/8 <= EMUL <= 8. (Section 7.3)
+ *   6. If wd = 1:
+ *      6.1. Destination vector register group for a masked vector
+ *           instruction cannot overlap the source mask register (v0).
+ *           (Section 5.3)
+ *      6.2. Destination vector register cannot overlap a source vector
+ *           register (vs2) group.
+ *           (Section 5.2)
+ */
+static bool vext_check_amo(DisasContext *s, int vd, int vs2,
+                           int wd, int vm, uint8_t eew)
+{
+    int8_t emul = eew - s->sew + s->lmul;
+    bool ret = has_ext(s, RVA) &&
+               (1 << s->sew >= 4) &&
+               (1 << s->sew <= sizeof(target_ulong)) &&
+               (eew <= (sizeof(target_ulong) << 3))  &&
+               require_align(vd, s->lmul) &&
+               require_align(vs2, emul) &&
+               (emul >= -3 && emul <= 3);
+    if (wd) {
+        ret &= require_vm(vm, vd);
+        if (eew > s->sew) {
+            if (vd != vs2) {
+                ret &= require_noover(vd, s->lmul, vs2, emul);
+            }
+        } else if (eew < s->sew) {
+            ret &= require_noover(vd, s->lmul, vs2, emul);
+        }
+    }
+    return ret;
+}
+
 static bool vext_check_ss(DisasContext *s, int vd, int vs, int vm)
 {
     return require_vm(vm, vd) &&
@@ -1007,104 +1053,129 @@ static bool amo_trans(uint32_t vd, uint32_t rs1, uint32_t vs2,
     return true;
 }
 
-static bool amo_op(DisasContext *s, arg_rwdvm *a, uint8_t seq)
+static bool amo_op(DisasContext *s, arg_rwdvm *a, uint8_t eew, uint8_t seq)
 {
     uint32_t data = 0;
     gen_helper_amo *fn;
-    static gen_helper_amo *const fnsw[9] = {
-        /* no atomic operation */
-        gen_helper_vamoswapw_v_w,
-        gen_helper_vamoaddw_v_w,
-        gen_helper_vamoxorw_v_w,
-        gen_helper_vamoandw_v_w,
-        gen_helper_vamoorw_v_w,
-        gen_helper_vamominw_v_w,
-        gen_helper_vamomaxw_v_w,
-        gen_helper_vamominuw_v_w,
-        gen_helper_vamomaxuw_v_w
-    };
+    static gen_helper_amo *const fns[36][2] = {
+        { gen_helper_vamoswapei8_32_v, gen_helper_vamoswapei8_64_v },
+        { gen_helper_vamoswapei16_32_v, gen_helper_vamoswapei16_64_v },
+        { gen_helper_vamoswapei32_32_v, gen_helper_vamoswapei32_64_v },
+        { gen_helper_vamoaddei8_32_v, gen_helper_vamoaddei8_64_v },
+        { gen_helper_vamoaddei16_32_v, gen_helper_vamoaddei16_64_v },
+        { gen_helper_vamoaddei32_32_v, gen_helper_vamoaddei32_64_v },
+        { gen_helper_vamoxorei8_32_v, gen_helper_vamoxorei8_64_v },
+        { gen_helper_vamoxorei16_32_v, gen_helper_vamoxorei16_64_v },
+        { gen_helper_vamoxorei32_32_v, gen_helper_vamoxorei32_64_v },
+        { gen_helper_vamoandei8_32_v, gen_helper_vamoandei8_64_v },
+        { gen_helper_vamoandei16_32_v, gen_helper_vamoandei16_64_v },
+        { gen_helper_vamoandei32_32_v, gen_helper_vamoandei32_64_v },
+        { gen_helper_vamoorei8_32_v, gen_helper_vamoorei8_64_v },
+        { gen_helper_vamoorei16_32_v, gen_helper_vamoorei16_64_v },
+        { gen_helper_vamoorei32_32_v, gen_helper_vamoorei32_64_v },
+        { gen_helper_vamominei8_32_v, gen_helper_vamominei8_64_v },
+        { gen_helper_vamominei16_32_v, gen_helper_vamominei16_64_v },
+        { gen_helper_vamominei32_32_v, gen_helper_vamominei32_64_v },
+        { gen_helper_vamomaxei8_32_v, gen_helper_vamomaxei8_64_v },
+        { gen_helper_vamomaxei16_32_v, gen_helper_vamomaxei16_64_v },
+        { gen_helper_vamomaxei32_32_v, gen_helper_vamomaxei32_64_v },
+        { gen_helper_vamominuei8_32_v, gen_helper_vamominuei8_64_v },
+        { gen_helper_vamominuei16_32_v, gen_helper_vamominuei16_64_v },
+        { gen_helper_vamominuei32_32_v, gen_helper_vamominuei32_64_v },
+        { gen_helper_vamomaxuei8_32_v, gen_helper_vamomaxuei8_64_v },
+        { gen_helper_vamomaxuei16_32_v, gen_helper_vamomaxuei16_64_v },
+        { gen_helper_vamomaxuei32_32_v, gen_helper_vamomaxuei32_64_v },
 #ifdef TARGET_RISCV64
-    static gen_helper_amo *const fnsd[18] = {
-        gen_helper_vamoswapw_v_d,
-        gen_helper_vamoaddw_v_d,
-        gen_helper_vamoxorw_v_d,
-        gen_helper_vamoandw_v_d,
-        gen_helper_vamoorw_v_d,
-        gen_helper_vamominw_v_d,
-        gen_helper_vamomaxw_v_d,
-        gen_helper_vamominuw_v_d,
-        gen_helper_vamomaxuw_v_d,
-        gen_helper_vamoswapd_v_d,
-        gen_helper_vamoaddd_v_d,
-        gen_helper_vamoxord_v_d,
-        gen_helper_vamoandd_v_d,
-        gen_helper_vamoord_v_d,
-        gen_helper_vamomind_v_d,
-        gen_helper_vamomaxd_v_d,
-        gen_helper_vamominud_v_d,
-        gen_helper_vamomaxud_v_d
-    };
+        { gen_helper_vamoswapei64_32_v, gen_helper_vamoswapei64_64_v },
+        { gen_helper_vamoaddei64_32_v, gen_helper_vamoaddei64_64_v },
+        { gen_helper_vamoxorei64_32_v, gen_helper_vamoxorei64_64_v },
+        { gen_helper_vamoandei64_32_v, gen_helper_vamoandei64_64_v },
+        { gen_helper_vamoorei64_32_v, gen_helper_vamoorei64_64_v },
+        { gen_helper_vamominei64_32_v, gen_helper_vamominei64_64_v },
+        { gen_helper_vamomaxei64_32_v, gen_helper_vamomaxei64_64_v },
+        { gen_helper_vamominuei64_32_v, gen_helper_vamominuei64_64_v },
+        { gen_helper_vamomaxuei64_32_v, gen_helper_vamomaxuei64_64_v }
+#else
+        { NULL, NULL }, { NULL, NULL }, { NULL, NULL }, { NULL, NULL },
+        { NULL, NULL }, { NULL, NULL }, { NULL, NULL }, { NULL, NULL },
+        { NULL, NULL }
 #endif
+    };
 
     if (tb_cflags(s->base.tb) & CF_PARALLEL) {
         gen_helper_exit_atomic(cpu_env);
         s->base.is_jmp = DISAS_NORETURN;
         return true;
-    } else {
-        if (s->sew == 3) {
-#ifdef TARGET_RISCV64
-            fn = fnsd[seq];
-#else
-            /* Check done in amo_check(). */
-            g_assert_not_reached();
-#endif
-        } else {
-            assert(seq < ARRAY_SIZE(fnsw));
-            fn = fnsw[seq];
-        }
+    }
+
+    fn = fns[seq][s->sew - 2];
+    if (fn == NULL) {
+        return false;
     }
 
     data = FIELD_DP32(data, VDATA, VM, a->vm);
-    data = FIELD_DP32(data, VDATA, LMUL, s->lmul);
     data = FIELD_DP32(data, VDATA, WD, a->wd);
     return amo_trans(a->rd, a->rs1, a->rs2, data, fn, s);
 }
-/*
- * There are two rules check here.
- *
- * 1. SEW must be at least as wide as the AMO memory element size.
- *
- * 2. If SEW is greater than XLEN, an illegal instruction exception is raised.
- */
-static bool amo_check(DisasContext *s, arg_rwdvm* a)
+
+static bool amo_check(DisasContext *s, arg_rwdvm* a, uint8_t eew)
 {
-    return (!s->vill && has_ext(s, RVA) &&
-            (!a->wd || vext_check_overlap_mask(s, a->rd, a->vm, false)) &&
-            vext_check_reg(s, a->rd, false) &&
-            vext_check_reg(s, a->rs2, false) &&
-            ((1 << s->sew) <= sizeof(target_ulong)) &&
-            ((1 << s->sew) >= 4));
+    return require_rvv(s) &&
+           vext_check_isa_ill(s) &&
+           vext_check_amo(s, a->rd, a->rs2, a->wd, a->vm, eew);
 }
 
-GEN_VEXT_TRANS(vamoswapw_v, 0, rwdvm, amo_op, amo_check)
-GEN_VEXT_TRANS(vamoaddw_v, 1, rwdvm, amo_op, amo_check)
-GEN_VEXT_TRANS(vamoxorw_v, 2, rwdvm, amo_op, amo_check)
-GEN_VEXT_TRANS(vamoandw_v, 3, rwdvm, amo_op, amo_check)
-GEN_VEXT_TRANS(vamoorw_v, 4, rwdvm, amo_op, amo_check)
-GEN_VEXT_TRANS(vamominw_v, 5, rwdvm, amo_op, amo_check)
-GEN_VEXT_TRANS(vamomaxw_v, 6, rwdvm, amo_op, amo_check)
-GEN_VEXT_TRANS(vamominuw_v, 7, rwdvm, amo_op, amo_check)
-GEN_VEXT_TRANS(vamomaxuw_v, 8, rwdvm, amo_op, amo_check)
+#define GEN_VEXT_AMO_TRANS(NAME, EEW, SEQ, ARGTYPE, OP, CHECK) \
+static bool trans_##NAME(DisasContext *s, arg_##ARGTYPE * a)   \
+{                                                              \
+    if (CHECK(s, a, EEW)) {                                    \
+        return OP(s, a, EEW, SEQ);                             \
+    }                                                          \
+    return false;                                              \
+}
+
+GEN_VEXT_AMO_TRANS(vamoswapei8_v,  MO_8,  0,  rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamoswapei16_v, MO_16, 1,  rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamoswapei32_v, MO_32, 2,  rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamoaddei8_v,   MO_8,  3,  rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamoaddei16_v,  MO_16, 4,  rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamoaddei32_v,  MO_32, 5,  rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamoxorei8_v,   MO_8,  6,  rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamoxorei16_v,  MO_16, 7,  rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamoxorei32_v,  MO_32, 8,  rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamoandei8_v,   MO_8,  9,  rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamoandei16_v,  MO_16, 10, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamoandei32_v,  MO_32, 11, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamoorei8_v,    MO_8,  12, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamoorei16_v,   MO_16, 13, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamoorei32_v,   MO_32, 14, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamominei8_v,   MO_8,  15, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamominei16_v,  MO_16, 16, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamominei32_v,  MO_32, 17, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamomaxei8_v,   MO_8,  18, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamomaxei16_v,  MO_16, 19, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamomaxei32_v,  MO_32, 20, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamominuei8_v,  MO_8,  21, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamominuei16_v, MO_16, 22, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamominuei32_v, MO_32, 23, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamomaxuei8_v,  MO_8,  24, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamomaxuei16_v, MO_16, 25, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamomaxuei32_v, MO_32, 26, rwdvm, amo_op, amo_check)
+
+/*
+ * Index EEW cannot be greater than XLEN,
+ * else an illegal instruction is raised (Section 8)
+ */
 #ifdef TARGET_RISCV64
-GEN_VEXT_TRANS(vamoswapd_v, 9, rwdvm, amo_op, amo_check)
-GEN_VEXT_TRANS(vamoaddd_v, 10, rwdvm, amo_op, amo_check)
-GEN_VEXT_TRANS(vamoxord_v, 11, rwdvm, amo_op, amo_check)
-GEN_VEXT_TRANS(vamoandd_v, 12, rwdvm, amo_op, amo_check)
-GEN_VEXT_TRANS(vamoord_v, 13, rwdvm, amo_op, amo_check)
-GEN_VEXT_TRANS(vamomind_v, 14, rwdvm, amo_op, amo_check)
-GEN_VEXT_TRANS(vamomaxd_v, 15, rwdvm, amo_op, amo_check)
-GEN_VEXT_TRANS(vamominud_v, 16, rwdvm, amo_op, amo_check)
-GEN_VEXT_TRANS(vamomaxud_v, 17, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamoswapei64_v, MO_64, 27, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamoaddei64_v,  MO_64, 28, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamoxorei64_v,  MO_64, 29, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamoandei64_v,  MO_64, 30, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamoorei64_v,   MO_64, 31, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamominei64_v,  MO_64, 32, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamomaxei64_v,  MO_64, 33, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamominuei64_v, MO_64, 34, rwdvm, amo_op, amo_check)
+GEN_VEXT_AMO_TRANS(vamomaxuei64_v, MO_64, 35, rwdvm, amo_op, amo_check)
 #endif
 
 /*
