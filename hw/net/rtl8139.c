@@ -2567,6 +2567,18 @@ static void rtl8139_RxBuf_write(RTL8139State *s, uint32_t val)
 {
     DPRINTF("RxBuf write val=0x%08x\n", val);
 
+    PCIDevice *d = PCI_DEVICE(s);
+    uint64_t mmio_addr = d->io_regions[1].addr;
+    uint64_t mmio_size = d->io_regions[1].size;
+
+    #define MAX_Rx_BUFFER_LENGTH (64 * 1024 + 16) /* RxConfig 12-11 = 0b11 */
+
+    if (val < mmio_addr + mmio_size && val + MAX_Rx_BUFFER_LENGTH > mmio_addr) {
+        DPRINTF("The receive buffer may overlap with the MMIO region.\n");
+        DPRINTF("mmio_addr: 0x%lx, mmio_size: 0x%lx\n", mmio_addr, mmio_size);
+        return;
+    }
+
     s->RxBuf = val;
 
     /* may need to reset rxring here */
