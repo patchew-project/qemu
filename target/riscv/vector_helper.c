@@ -4466,7 +4466,6 @@ enum set_mask_type {
 static void vmsetm(void *vd, void *v0, void *vs2, CPURISCVState *env,
                    uint32_t desc, enum set_mask_type type)
 {
-    uint32_t vlmax = env_archcpu(env)->cfg.vlen;
     uint32_t vm = vext_vm(desc);
     uint32_t vl = env->vl;
     int i;
@@ -4495,9 +4494,6 @@ static void vmsetm(void *vd, void *v0, void *vs2, CPURISCVState *env,
                 vext_set_elem_mask(vd, i, 1);
             }
         }
-    }
-    for (; i < vlmax; i++) {
-        vext_set_elem_mask(vd, i, 0);
     }
 }
 
