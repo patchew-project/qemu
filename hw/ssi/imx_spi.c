@@ -303,7 +303,6 @@ static void imx_spi_write(void *opaque, hwaddr offset, uint64_t value,
 {
     IMXSPIState *s = opaque;
     uint32_t index = offset >> 2;
-    uint32_t change_mask;
 
     if (index >=  ECSPI_MAX) {
         qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Bad register at offset 0x%"
@@ -313,7 +312,6 @@ static void imx_spi_write(void *opaque, hwaddr offset, uint64_t value,
 
     trace_imx_spi_write(index, imx_spi_reg_name(index), value);
 
-    change_mask = s->regs[index] ^ value;
 
     switch (index) {
     case ECSPI_RXDATA:
@@ -357,6 +355,7 @@ static void imx_spi_write(void *opaque, hwaddr offset, uint64_t value,
         }
 
         if (imx_spi_channel_is_master(s)) {
+            uint32_t change_mask = s->regs[index] ^ value;
             int i;
 
             /* We are in master mode */
