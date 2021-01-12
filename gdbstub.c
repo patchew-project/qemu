@@ -413,7 +413,27 @@ static void reset_gdbserver_state(void)
 
 bool gdb_has_xml;
 
+/* Check whether GDB is currently connected */
+static int gdb_is_connected(void)
+{
+    /*
+     * XXX c_cpu is NULL until gdb_accept_init has been called, so use
+     * this as a proxy for whether the gdb connection is active
+     */
+    return gdbserver_state.c_cpu != NULL;
+}
+
 #ifdef CONFIG_USER_ONLY
+
+/* Close GDB connection */
+static void gdb_disconnect(void)
+{
+    if (gdb_is_connected()) {
+        close(gdbserver_state.fd);
+        gdbserver_state.fd = -1;
+        gdbserver_state.c_cpu = NULL;
+    }
+}
 
 static int get_char(void)
 {
@@ -424,12 +444,11 @@ static int get_char(void)
         ret = qemu_recv(gdbserver_state.fd, &ch, 1, 0);
         if (ret < 0) {
             if (errno == ECONNRESET)
-                gdbserver_state.fd = -1;
+                gdb_disconnect();
             if (errno != EINTR)
                 return -1;
         } else if (ret == 0) {
-            close(gdbserver_state.fd);
-            gdbserver_state.fd = -1;
+            gdb_disconnect();
             return -1;
         } else {
             break;
@@ -2796,7 +2815,7 @@ void gdb_do_syscallv(gdb_syscall_complete_cb cb, const char *fmt, va_list va)
     target_ulong addr;
     uint64_t i64;
 
-    if (!gdbserver_state.init) {
+    if (!gdb_is_connected()) {
         return;
     }
 
@@ -3025,9 +3044,9 @@ void gdb_exit(CPUArchState *env, int code)
   if (gdbserver_state.socket_path) {
       unlink(gdbserver_state.socket_path);
   }
-  if (gdbserver_state.fd < 0) {
-      return;
-  }
+    if (!gdb_is_connected()) {
+        return;
+    }
 #endif
 
   trace_gdbstub_op_exiting((uint8_t)code);
@@ -3072,7 +3091,7 @@ gdb_handlesig(CPUState *cpu, int sig)
     char buf[256];
     int n;
 
-    if (!gdbserver_state.init || gdbserver_state.fd < 0) {
+    if (!gdb_is_connected()) {
         return sig;
     }
 
@@ -3086,14 +3105,14 @@ gdb_handlesig(CPUState *cpu, int sig)
     }
     /* put_packet() might have detected that the peer terminated the
        connection.  */
-    if (gdbserver_state.fd < 0) {
+    if (!gdb_is_connected()) {
         return sig;
     }
 
     sig = 0;
     gdbserver_state.state = RS_IDLE;
     gdbserver_state.running_state = 0;
-    while (gdbserver_state.running_state == 0) {
+    while (gdbserver_state.running_state == 0 && gdb_is_connected()) {
         n = read(gdbserver_state.fd, buf, 256);
         if (n > 0) {
             int i;
@@ -3104,10 +3123,7 @@ gdb_handlesig(CPUState *cpu, int sig)
         } else {
             /* XXX: Connection closed.  Should probably wait for another
                connection before continuing.  */
-            if (n == 0) {
-                close(gdbserver_state.fd);
-            }
-            gdbserver_state.fd = -1;
+            gdb_disconnect();
             return sig;
         }
     }
@@ -3121,7 +3137,7 @@ void gdb_signalled(CPUArchState *env, int sig)
 {
     char buf[4];
 
-    if (!gdbserver_state.init || gdbserver_state.fd < 0) {
+    if (!gdb_is_connected()) {
         return;
     }
 
@@ -3280,11 +3296,10 @@ int gdbserver_start(const char *port_or_path)
 /* Disable gdb stub for child processes.  */
 void gdbserver_fork(CPUState *cpu)
 {
-    if (!gdbserver_state.init || gdbserver_state.fd < 0) {
+    if (!gdb_is_connected()) {
         return;
     }
-    close(gdbserver_state.fd);
-    gdbserver_state.fd = -1;
+    gdb_disconnect();
     cpu_breakpoint_remove_all(cpu, BP_GDB);
     cpu_watchpoint_remove_all(cpu, BP_GDB);
 }
