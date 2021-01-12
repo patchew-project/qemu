@@ -42,4 +42,7 @@ AMD Secure Encrypted Virtualization (SEV)
 
 POWER Protected Execution Facility (PEF)
 
+s390x Protected Virtualization (PV)
+    docs/system/s390x/protvirt.rst
+
 Other mechanisms may be supported in future.
