@@ -50,8 +50,30 @@ void test_pthread(void)
     printf("End of pthread test.\n");
 }
 
+void *thread3_func(void *arg)
+{
+    usleep(3 * 1000);
+    return 0;
+}
+
+void test_cancel(void)
+{
+    pthread_t thread;
+    void *res;
+
+    pthread_create(&thread, 0, thread3_func, NULL);
+    pthread_cancel(thread);
+    pthread_join(thread, &res);
+    if (res != PTHREAD_CANCELED) {
+        puts("ERROR: thread not cancelled");
+        exit(EXIT_FAILURE);
+    }
+    printf("End of pthread_cancel test.\n");
+}
+
 int main(int argc, char **argv)
 {
     test_pthread();
+    test_cancel();
     return 0;
 }
