@@ -29,7 +29,7 @@
 #include "whp-dispatch.h"
 #include <winerror.h>
 
-#include "whpx-cpus.h"
+#include "whpx-accel-ops.h"
 
 #include <WinHvPlatform.h>
 #include <WinHvEmulation.h>
@@ -1848,8 +1848,6 @@ static int whpx_accel_init(MachineState *ms)
     }
 
     whpx_memory_init();
-
-    cpus_register_accel(&whpx_cpus);
 
     printf("Windows Hypervisor Platform accelerator is operational\n");
     return 0;

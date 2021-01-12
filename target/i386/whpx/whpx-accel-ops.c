@@ -15,7 +15,7 @@
 #include "qemu/guest-random.h"
 
 #include "sysemu/whpx.h"
-#include "whpx-cpus.h"
+#include "whpx-accel-ops.h"
 
 #include <WinHvPlatform.h>
 #include <WinHvEmulation.h>
@@ -85,12 +85,27 @@ static void whpx_kick_vcpu_thread(CPUState *cpu)
     }
 }
 
-const CpusAccel whpx_cpus = {
-    .create_vcpu_thread = whpx_start_vcpu_thread,
-    .kick_vcpu_thread = whpx_kick_vcpu_thread,
+static void whpx_accel_ops_class_init(ObjectClass *oc, void *data)
+{
+    AccelOpsClass *ops = ACCEL_OPS_CLASS(oc);
 
-    .synchronize_post_reset = whpx_cpu_synchronize_post_reset,
-    .synchronize_post_init = whpx_cpu_synchronize_post_init,
-    .synchronize_state = whpx_cpu_synchronize_state,
-    .synchronize_pre_loadvm = whpx_cpu_synchronize_pre_loadvm,
+    ops->create_vcpu_thread = whpx_start_vcpu_thread;
+    ops->kick_vcpu_thread = whpx_kick_vcpu_thread;
+
+    ops->synchronize_post_reset = whpx_cpu_synchronize_post_reset;
+    ops->synchronize_post_init = whpx_cpu_synchronize_post_init;
+    ops->synchronize_state = whpx_cpu_synchronize_state;
+    ops->synchronize_pre_loadvm = whpx_cpu_synchronize_pre_loadvm;
 };
+static const TypeInfo whpx_accel_ops_type = {
+    .name = ACCEL_OPS_NAME("whpx"),
+
+    .parent = TYPE_ACCEL_OPS,
+    .class_init = whpx_accel_ops_class_init,
+    .abstract = true,
+};
+static void whpx_accel_ops_register_types(void)
+{
+    type_register_static(&whpx_accel_ops_type);
+}
+type_init(whpx_accel_ops_register_types);
