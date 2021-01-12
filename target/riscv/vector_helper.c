@@ -232,14 +232,14 @@ vext_ldst_stride(void *vd, void *v0, target_ulong base,
     uint32_t max_elems = vext_max_elems(desc, esz);
 
     /* probe every access*/
-    for (i = 0; i < env->vl; i++) {
+    for (i = env->vstart; i < env->vl; i++) {
         if (!vm && !vext_elem_mask(v0, i)) {
             continue;
         }
         probe_pages(env, base + stride * i, nf << esz, ra, access_type);
     }
     /* do real access */
-    for (i = 0; i < env->vl; i++) {
+    for (i = env->vstart; i < env->vl; i++) {
         k = 0;
         if (!vm && !vext_elem_mask(v0, i)) {
             continue;
@@ -249,7 +249,9 @@ vext_ldst_stride(void *vd, void *v0, target_ulong base,
             ldst_elem(env, addr, i + k * max_elems, vd, ra);
             k++;
         }
+        env->vstart = i;
     }
+    env->vstart = 0;
 }
 
 #define GEN_VEXT_LD_STRIDE(NAME, ETYPE, LOAD_FN)                        \
@@ -299,14 +301,16 @@ vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
     /* probe every access */
     probe_pages(env, base, env->vl * (nf << esz), ra, access_type);
     /* load bytes from guest memory */
-    for (i = 0; i < env->vl; i++) {
+    for (i = env->vstart; i < env->vl; i++) {
         k = 0;
         while (k < nf) {
             target_ulong addr = base + ((i * nf + k) << esz);
             ldst_elem(env, addr, i + k * max_elems, vd, ra);
             k++;
         }
+        env->vstart = i;
     }
+    env->vstart = 0;
 }
 
 /*
@@ -387,7 +391,7 @@ vext_ldst_index(void *vd, void *v0, target_ulong base,
     uint32_t max_elems = vext_max_elems(desc, esz);
 
     /* probe every access*/
-    for (i = 0; i < env->vl; i++) {
+    for (i = env->vstart; i < env->vl; i++) {
         if (!vm && !vext_elem_mask(v0, i)) {
             continue;
         }
@@ -395,7 +399,7 @@ vext_ldst_index(void *vd, void *v0, target_ulong base,
                     access_type);
     }
     /* load bytes from guest memory */
-    for (i = 0; i < env->vl; i++) {
+    for (i = env->vstart; i < env->vl; i++) {
         k = 0;
         if (!vm && !vext_elem_mask(v0, i)) {
             continue;
@@ -405,7 +409,9 @@ vext_ldst_index(void *vd, void *v0, target_ulong base,
             ldst_elem(env, addr, i + k * max_elems, vd, ra);
             k++;
         }
+        env->vstart = i;
     }
+    env->vstart = 0;
 }
 
 #define GEN_VEXT_LD_INDEX(NAME, ETYPE, INDEX_FN, LOAD_FN)                  \
@@ -476,7 +482,7 @@ vext_ldff(void *vd, void *v0, target_ulong base,
     target_ulong addr, offset, remain;
 
     /* probe every access*/
-    for (i = 0; i < env->vl; i++) {
+    for (i = env->vstart; i < env->vl; i++) {
         if (!vm && !vext_elem_mask(v0, i)) {
             continue;
         }
@@ -516,7 +522,7 @@ ProbeSuccess:
     if (vl != 0) {
         env->vl = vl;
     }
-    for (i = 0; i < env->vl; i++) {
+    for (i = env->vstart; i < env->vl; i++) {
         k = 0;
         if (!vm && !vext_elem_mask(v0, i)) {
             continue;
@@ -527,6 +533,7 @@ ProbeSuccess:
             k++;
         }
     }
+    env->vstart = 0;
 }
 
 #define GEN_VEXT_LDFF(NAME, ETYPE, LOAD_FN)               \
@@ -550,21 +557,37 @@ vext_ldst_whole(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
                 vext_ldst_elem_fn *ldst_elem, uint32_t esz, uintptr_t ra,
                 MMUAccessType access_type)
 {
-    uint32_t i, k;
+    uint32_t i, k, off, pos;
     uint32_t nf = vext_nf(desc);
     uint32_t vlenb = env_archcpu(env)->cfg.vlen >> 3;
     uint32_t max_elems = vlenb >> esz;
 
     /* probe every access */
-    probe_pages(env, base, vlenb * nf, ra, access_type);
+    probe_pages(env, base, max_elems * nf, ra, access_type);
 
-    /* load bytes from guest memory */
-    for (k = 0; k < nf; k++) {
+    k = env->vstart / max_elems;
+    off = env->vstart % max_elems;
+
+    if (off) {
+        /* load/store rest of elements of current segment pointed by vstart */
+        for (pos = off; pos < max_elems; pos++) {
+            target_ulong addr = base + ((pos + k * max_elems) << esz);
+            ldst_elem(env, addr, pos + k * max_elems, vd, ra);
+            env->vstart++;
+        }
+        k++;
+    }
+
+    /* load/store elements for rest of segments */
+    for (; k < nf; k++) {
         for (i = 0; i < max_elems; i++) {
             target_ulong addr = base + ((i + k * max_elems) << esz);
             ldst_elem(env, addr, i + k * max_elems, vd, ra);
+            env->vstart++;
         }
     }
+
+    env->vstart = 0;
 }
 
 #define GEN_VEXT_LD_WHOLE(NAME, ETYPE, LOAD_FN)      \
@@ -725,20 +748,21 @@ vext_amo_noatomic(void *vs3, void *v0, target_ulong base,
     uint32_t wd = vext_wd(desc);
     uint32_t vm = vext_vm(desc);
 
-    for (i = 0; i < env->vl; i++) {
+    for (i = env->vstart; i < env->vl; i++) {
         if (!vm && !vext_elem_mask(v0, i)) {
             continue;
         }
         probe_pages(env, get_index_addr(base, i, vs2), esz, ra, MMU_DATA_LOAD);
         probe_pages(env, get_index_addr(base, i, vs2), esz, ra, MMU_DATA_STORE);
     }
-    for (i = 0; i < env->vl; i++) {
+    for (i = env->vstart; i < env->vl; i++) {
         if (!vm && !vext_elem_mask(v0, i)) {
             continue;
         }
         addr = get_index_addr(base, i, vs2);
         noatomic_op(vs3, addr, wd, i, env, ra);
     }
+    env->vstart = 0;
 }
 
 #define GEN_VEXT_AMO(NAME, ETYPE, INDEX_FN)                     \
@@ -895,12 +919,13 @@ static void do_vext_vv(void *vd, void *v0, void *vs1, void *vs2,
     uint32_t vl = env->vl;
     uint32_t i;
 
-    for (i = 0; i < vl; i++) {
+    for (i = env->vstart; i < vl; i++) {
         if (!vm && !vext_elem_mask(v0, i)) {
             continue;
         }
         fn(vd, vs1, vs2, i);
     }
+    env->vstart = 0;
 }
 
 /* generate the helpers for OPIVV */
@@ -957,12 +982,13 @@ static void do_vext_vx(void *vd, void *v0, target_long s1, void *vs2,
     uint32_t vl = env->vl;
     uint32_t i;
 
-    for (i = 0; i < vl; i++) {
+    for (i = env->vstart; i < vl; i++) {
         if (!vm && !vext_elem_mask(v0, i)) {
             continue;
         }
         fn(vd, s1, vs2, i);
     }
+    env->vstart = 0;
 }
 
 /* generate the helpers for OPIVX */
@@ -1150,13 +1176,14 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,   \
     uint32_t vl = env->vl;                                    \
     uint32_t i;                                               \
                                                               \
-    for (i = 0; i < vl; i++) {                                \
+    for (i = env->vstart; i < vl; i++) {                      \
         ETYPE s1 = *((ETYPE *)vs1 + H(i));                    \
         ETYPE s2 = *((ETYPE *)vs2 + H(i));                    \
         ETYPE carry = vext_elem_mask(v0, i);                  \
                                                               \
         *((ETYPE *)vd + H(i)) = DO_OP(s2, s1, carry);         \
     }                                                         \
+    env->vstart = 0;                                          \
 }
 
 GEN_VEXT_VADC_VVM(vadc_vvm_b, uint8_t,  H1, DO_VADC)
@@ -1176,12 +1203,13 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,        \
     uint32_t vl = env->vl;                                               \
     uint32_t i;                                                          \
                                                                          \
-    for (i = 0; i < vl; i++) {                                           \
+    for (i = env->vstart; i < vl; i++) {                                 \
         ETYPE s2 = *((ETYPE *)vs2 + H(i));                               \
         ETYPE carry = vext_elem_mask(v0, i);                             \
                                                                          \
         *((ETYPE *)vd + H(i)) = DO_OP(s2, (ETYPE)(target_long)s1, carry);\
     }                                                                    \
+    env->vstart = 0;                                          \
 }
 
 GEN_VEXT_VADC_VXM(vadc_vxm_b, uint8_t,  H1, DO_VADC)
@@ -1206,12 +1234,13 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,   \
     uint32_t vm = vext_vm(desc);                              \
     uint32_t i;                                               \
                                                               \
-    for (i = 0; i < vl; i++) {                                \
+    for (i = env->vstart; i < vl; i++) {                      \
         ETYPE s1 = *((ETYPE *)vs1 + H(i));                    \
         ETYPE s2 = *((ETYPE *)vs2 + H(i));                    \
         ETYPE carry = !vm && vext_elem_mask(v0, i);           \
         vext_set_elem_mask(vd, i, DO_OP(s2, s1, carry));      \
     }                                                         \
+    env->vstart = 0;                                          \
 }
 
 GEN_VEXT_VMADC_VVM(vmadc_vvm_b, uint8_t,  H1, DO_MADC)
@@ -1232,12 +1261,13 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1,          \
     uint32_t vm = vext_vm(desc);                                \
     uint32_t i;                                                 \
                                                                 \
-    for (i = 0; i < vl; i++) {                                  \
+    for (i = env->vstart; i < vl; i++) {                        \
         ETYPE s2 = *((ETYPE *)vs2 + H(i));                      \
         ETYPE carry = !vm && vext_elem_mask(v0, i);             \
         vext_set_elem_mask(vd, i,                               \
                 DO_OP(s2, (ETYPE)(target_long)s1, carry));      \
     }                                                           \
+    env->vstart = 0;                                            \
 }
 
 GEN_VEXT_VMADC_VXM(vmadc_vxm_b, uint8_t,  H1, DO_MADC)
@@ -1314,7 +1344,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,                          \
     uint32_t vl = env->vl;                                                \
     uint32_t i;                                                           \
                                                                           \
-    for (i = 0; i < vl; i++) {                                            \
+    for (i = env->vstart; i < vl; i++) {                                  \
         if (!vm && !vext_elem_mask(v0, i)) {                              \
             continue;                                                     \
         }                                                                 \
@@ -1322,6 +1352,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,                          \
         TS2 s2 = *((TS2 *)vs2 + HS2(i));                                  \
         *((TS1 *)vd + HS1(i)) = OP(s2, s1 & MASK);                        \
     }                                                                     \
+    env->vstart = 0;                                                      \
 }
 
 GEN_VEXT_SHIFT_VV(vsll_vv_b, uint8_t,  uint8_t, H1, H1, DO_SLL, 0x7)
@@ -1348,13 +1379,14 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1,      \
     uint32_t vl = env->vl;                                  \
     uint32_t i;                                             \
                                                             \
-    for (i = 0; i < vl; i++) {                              \
+    for (i = env->vstart; i < vl; i++) {                    \
         if (!vm && !vext_elem_mask(v0, i)) {                \
             continue;                                       \
         }                                                   \
         TS2 s2 = *((TS2 *)vs2 + HS2(i));                    \
         *((TD *)vd + HD(i)) = OP(s2, s1 & MASK);            \
     }                                                       \
+    env->vstart = 0;                                        \
 }
 
 GEN_VEXT_SHIFT_VX(vsll_vx_b, uint8_t, int8_t, H1, H1, DO_SLL, 0x7)
@@ -1401,7 +1433,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,   \
     uint32_t vl = env->vl;                                    \
     uint32_t i;                                               \
                                                               \
-    for (i = 0; i < vl; i++) {                                \
+    for (i = env->vstart; i < vl; i++) {                      \
         ETYPE s1 = *((ETYPE *)vs1 + H(i));                    \
         ETYPE s2 = *((ETYPE *)vs2 + H(i));                    \
         if (!vm && !vext_elem_mask(v0, i)) {                  \
@@ -1409,6 +1441,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,   \
         }                                                     \
         vext_set_elem_mask(vd, i, DO_OP(s2, s1));             \
     }                                                         \
+    env->vstart = 0;                                          \
 }
 
 GEN_VEXT_CMP_VV(vmseq_vv_b, uint8_t,  H1, DO_MSEQ)
@@ -1449,7 +1482,7 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,   \
     uint32_t vl = env->vl;                                          \
     uint32_t i;                                                     \
                                                                     \
-    for (i = 0; i < vl; i++) {                                      \
+    for (i = env->vstart; i < vl; i++) {                            \
         ETYPE s2 = *((ETYPE *)vs2 + H(i));                          \
         if (!vm && !vext_elem_mask(v0, i)) {                        \
             continue;                                               \
@@ -1457,6 +1490,7 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,   \
         vext_set_elem_mask(vd, i,                                   \
                 DO_OP(s2, (ETYPE)(target_long)s1));                 \
     }                                                               \
+    env->vstart = 0;                                                \
 }
 
 GEN_VEXT_CMP_VX(vmseq_vx_b, uint8_t,  H1, DO_MSEQ)
@@ -1979,10 +2013,11 @@ void HELPER(NAME)(void *vd, void *vs1, CPURISCVState *env,           \
     uint32_t vl = env->vl;                                           \
     uint32_t i;                                                      \
                                                                      \
-    for (i = 0; i < vl; i++) {                                       \
+    for (i = env->vstart; i < vl; i++) {                             \
         ETYPE s1 = *((ETYPE *)vs1 + H(i));                           \
         *((ETYPE *)vd + H(i)) = s1;                                  \
     }                                                                \
+    env->vstart = 0;                                                 \
 }
 
 GEN_VEXT_VMV_VV(vmv_v_v_b, int8_t,  H1)
@@ -1997,9 +2032,10 @@ void HELPER(NAME)(void *vd, uint64_t s1, CPURISCVState *env,         \
     uint32_t vl = env->vl;                                           \
     uint32_t i;                                                      \
                                                                      \
-    for (i = 0; i < vl; i++) {                                       \
+    for (i = env->vstart; i < vl; i++) {                             \
         *((ETYPE *)vd + H(i)) = (ETYPE)s1;                           \
     }                                                                \
+    env->vstart = 0;                                                 \
 }
 
 GEN_VEXT_VMV_VX(vmv_v_x_b, int8_t,  H1)
@@ -2014,10 +2050,11 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,          \
     uint32_t vl = env->vl;                                           \
     uint32_t i;                                                      \
                                                                      \
-    for (i = 0; i < vl; i++) {                                       \
+    for (i = env->vstart; i < vl; i++) {                             \
         ETYPE *vt = (!vext_elem_mask(v0, i) ? vs2 : vs1);            \
         *((ETYPE *)vd + H(i)) = *(vt + H(i));                        \
     }                                                                \
+    env->vstart = 0;                                                 \
 }
 
 GEN_VEXT_VMERGE_VV(vmerge_vvm_b, int8_t,  H1)
@@ -2032,12 +2069,13 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1,               \
     uint32_t vl = env->vl;                                           \
     uint32_t i;                                                      \
                                                                      \
-    for (i = 0; i < vl; i++) {                                       \
+    for (i = env->vstart; i < vl; i++) {                             \
         ETYPE s2 = *((ETYPE *)vs2 + H(i));                           \
         ETYPE d = (!vext_elem_mask(v0, i) ? s2 :                     \
                    (ETYPE)(target_long)s1);                          \
         *((ETYPE *)vd + H(i)) = d;                                   \
     }                                                                \
+    env->vstart = 0;                                                 \
 }
 
 GEN_VEXT_VMERGE_VX(vmerge_vxm_b, int8_t,  H1)
@@ -2074,12 +2112,13 @@ vext_vv_rm_1(void *vd, void *v0, void *vs1, void *vs2,
              uint32_t vl, uint32_t vm, int vxrm,
              opivv2_rm_fn *fn)
 {
-    for (uint32_t i = 0; i < vl; i++) {
+    for (uint32_t i = env->vstart; i < vl; i++) {
         if (!vm && !vext_elem_mask(v0, i)) {
             continue;
         }
         fn(vd, vs1, vs2, i, env, vxrm);
     }
+    env->vstart = 0;
 }
 
 static inline void
@@ -2190,12 +2229,13 @@ vext_vx_rm_1(void *vd, void *v0, target_long s1, void *vs2,
              uint32_t vl, uint32_t vm, int vxrm,
              opivx2_rm_fn *fn)
 {
-    for (uint32_t i = 0; i < vl; i++) {
+    for (uint32_t i = env->vstart; i < vl; i++) {
         if (!vm && !vext_elem_mask(v0, i)) {
             continue;
         }
         fn(vd, s1, vs2, i, env, vxrm);
     }
+    env->vstart = 0;
 }
 
 static inline void
@@ -2977,12 +3017,13 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,          \
     uint32_t vl = env->vl;                                \
     uint32_t i;                                           \
                                                           \
-    for (i = 0; i < vl; i++) {                            \
+    for (i = env->vstart; i < vl; i++) {                  \
         if (!vm && !vext_elem_mask(v0, i)) {              \
             continue;                                     \
         }                                                 \
         do_##NAME(vd, vs1, vs2, i, env);                  \
     }                                                     \
+    env->vstart = 0;                                      \
 }
 
 RVVCALL(OPFVV2, vfadd_vv_h, OP_UUU_H, H2, H2, H2, float16_add)
@@ -3009,12 +3050,13 @@ void HELPER(NAME)(void *vd, void *v0, uint64_t s1,        \
     uint32_t vl = env->vl;                                \
     uint32_t i;                                           \
                                                           \
-    for (i = 0; i < vl; i++) {                            \
+    for (i = env->vstart; i < vl; i++) {                  \
         if (!vm && !vext_elem_mask(v0, i)) {              \
             continue;                                     \
         }                                                 \
         do_##NAME(vd, s1, vs2, i, env);                   \
     }                                                     \
+    env->vstart = 0;                                      \
 }
 
 RVVCALL(OPFVF2, vfadd_vf_h, OP_UUU_H, H2, H2, float16_add)
@@ -3580,12 +3622,13 @@ void HELPER(NAME)(void *vd, void *v0, void *vs2,       \
     if (vl == 0) {                                     \
         return;                                        \
     }                                                  \
-    for (i = 0; i < vl; i++) {                         \
+    for (i = env->vstart; i < vl; i++) {               \
         if (!vm && !vext_elem_mask(v0, i)) {           \
             continue;                                  \
         }                                              \
         do_##NAME(vd, vs2, i, env);                    \
     }                                                  \
+    env->vstart = 0;                                   \
 }
 
 RVVCALL(OPFVV1, vfsqrt_v_h, OP_UU_H, H2, H2, float16_sqrt)
@@ -3716,7 +3759,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,   \
     uint32_t vl = env->vl;                                    \
     uint32_t i;                                               \
                                                               \
-    for (i = 0; i < vl; i++) {                                \
+    for (i = env->vstart; i < vl; i++) {                      \
         ETYPE s1 = *((ETYPE *)vs1 + H(i));                    \
         ETYPE s2 = *((ETYPE *)vs2 + H(i));                    \
         if (!vm && !vext_elem_mask(v0, i)) {                  \
@@ -3725,6 +3768,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,   \
         vext_set_elem_mask(vd, i,                             \
                            DO_OP(s2, s1, &env->fp_status));   \
     }                                                         \
+    env->vstart = 0;                                          \
 }
 
 GEN_VEXT_CMP_VV_ENV(vmfeq_vv_h, uint16_t, H2, float16_eq_quiet)
@@ -3739,7 +3783,7 @@ void HELPER(NAME)(void *vd, void *v0, uint64_t s1, void *vs2,       \
     uint32_t vl = env->vl;                                          \
     uint32_t i;                                                     \
                                                                     \
-    for (i = 0; i < vl; i++) {                                      \
+    for (i = env->vstart; i < vl; i++) {                            \
         ETYPE s2 = *((ETYPE *)vs2 + H(i));                          \
         if (!vm && !vext_elem_mask(v0, i)) {                        \
             continue;                                               \
@@ -3747,6 +3791,7 @@ void HELPER(NAME)(void *vd, void *v0, uint64_t s1, void *vs2,       \
         vext_set_elem_mask(vd, i,                                   \
                            DO_OP(s2, (ETYPE)s1, &env->fp_status));  \
     }                                                               \
+    env->vstart = 0;                                                \
 }
 
 GEN_VEXT_CMP_VF(vmfeq_vf_h, uint16_t, H2, float16_eq_quiet)
@@ -3855,12 +3900,13 @@ void HELPER(NAME)(void *vd, void *v0, void *vs2,       \
     uint32_t vl = env->vl;                             \
     uint32_t i;                                        \
                                                        \
-    for (i = 0; i < vl; i++) {                         \
+    for (i = env->vstart; i < vl; i++) {               \
         if (!vm && !vext_elem_mask(v0, i)) {           \
             continue;                                  \
         }                                              \
         do_##NAME(vd, vs2, i);                         \
     }                                                  \
+    env->vstart = 0;                                   \
 }
 
 target_ulong fclass_h(uint64_t frs1)
@@ -3936,11 +3982,12 @@ void HELPER(NAME)(void *vd, void *v0, uint64_t s1, void *vs2, \
     uint32_t vl = env->vl;                                    \
     uint32_t i;                                               \
                                                               \
-    for (i = 0; i < vl; i++) {                                \
+    for (i = env->vstart; i < vl; i++) {                      \
         ETYPE s2 = *((ETYPE *)vs2 + H(i));                    \
         *((ETYPE *)vd + H(i))                                 \
           = (!vm && !vext_elem_mask(v0, i) ? s2 : s1);        \
     }                                                         \
+    env->vstart = 0;                                          \
 }
 
 GEN_VFMERGE_VF(vfmerge_vfm_h, int16_t, H2)
@@ -4084,7 +4131,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,          \
     uint32_t i;                                           \
     TD s1 =  *((TD *)vs1 + HD(0));                        \
                                                           \
-    for (i = 0; i < vl; i++) {                            \
+    for (i = env->vstart; i < vl; i++) {                  \
         TS2 s2 = *((TS2 *)vs2 + HS2(i));                  \
         if (!vm && !vext_elem_mask(v0, i)) {              \
             continue;                                     \
@@ -4092,6 +4139,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,          \
         s1 = OP(s1, (TD)s2);                              \
     }                                                     \
     *((TD *)vd + HD(0)) = s1;                             \
+    env->vstart = 0;                                      \
 }
 
 /* vd[0] = sum(vs1[0], vs2[*]) */
@@ -4164,7 +4212,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,           \
     uint32_t i;                                            \
     TD s1 =  *((TD *)vs1 + HD(0));                         \
                                                            \
-    for (i = 0; i < vl; i++) {                             \
+    for (i = env->vstart; i < vl; i++) {                   \
         TS2 s2 = *((TS2 *)vs2 + HS2(i));                   \
         if (!vm && !vext_elem_mask(v0, i)) {               \
             continue;                                      \
@@ -4172,6 +4220,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,           \
         s1 = OP(s1, (TD)s2, &env->fp_status);              \
     }                                                      \
     *((TD *)vd + HD(0)) = s1;                              \
+    env->vstart = 0;                                       \
 }
 
 /* Unordered sum */
@@ -4199,7 +4248,7 @@ void HELPER(vfwredsum_vs_h)(void *vd, void *v0, void *vs1,
     uint32_t i;
     uint32_t s1 =  *((uint32_t *)vs1 + H4(0));
 
-    for (i = 0; i < vl; i++) {
+    for (i = env->vstart; i < vl; i++) {
         uint16_t s2 = *((uint16_t *)vs2 + H2(i));
         if (!vm && !vext_elem_mask(v0, i)) {
             continue;
@@ -4208,6 +4257,7 @@ void HELPER(vfwredsum_vs_h)(void *vd, void *v0, void *vs1,
                          &env->fp_status);
     }
     *((uint32_t *)vd + H4(0)) = s1;
+    env->vstart = 0;
 }
 
 void HELPER(vfwredsum_vs_w)(void *vd, void *v0, void *vs1,
@@ -4218,7 +4268,7 @@ void HELPER(vfwredsum_vs_w)(void *vd, void *v0, void *vs1,
     uint32_t i;
     uint64_t s1 =  *((uint64_t *)vs1);
 
-    for (i = 0; i < vl; i++) {
+    for (i = env->vstart; i < vl; i++) {
         uint32_t s2 = *((uint32_t *)vs2 + H4(i));
         if (!vm && !vext_elem_mask(v0, i)) {
             continue;
@@ -4227,6 +4277,7 @@ void HELPER(vfwredsum_vs_w)(void *vd, void *v0, void *vs1,
                          &env->fp_status);
     }
     *((uint64_t *)vd) = s1;
+    env->vstart = 0;
 }
 
 /*
@@ -4242,11 +4293,12 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1,          \
     uint32_t i;                                           \
     int a, b;                                             \
                                                           \
-    for (i = 0; i < vl; i++) {                            \
+    for (i = env->vstart; i < vl; i++) {                  \
         a = vext_elem_mask(vs1, i);                       \
         b = vext_elem_mask(vs2, i);                       \
         vext_set_elem_mask(vd, i, OP(b, a));              \
     }                                                     \
+    env->vstart = 0;                                      \
 }
 
 #define DO_NAND(N, M)  (!(N & M))
@@ -4273,13 +4325,14 @@ target_ulong HELPER(vpopc_m)(void *v0, void *vs2, CPURISCVState *env,
     uint32_t vl = env->vl;
     int i;
 
-    for (i = 0; i < vl; i++) {
+    for (i = env->vstart; i < vl; i++) {
         if (vm || vext_elem_mask(v0, i)) {
             if (vext_elem_mask(vs2, i)) {
                 cnt++;
             }
         }
     }
+    env->vstart = 0;
     return cnt;
 }
 
@@ -4291,13 +4344,14 @@ target_ulong HELPER(vfirst_m)(void *v0, void *vs2, CPURISCVState *env,
     uint32_t vl = env->vl;
     int i;
 
-    for (i = 0; i < vl; i++) {
+    for (i = env->vstart; i < vl; i++) {
         if (vm || vext_elem_mask(v0, i)) {
             if (vext_elem_mask(vs2, i)) {
                 return i;
             }
         }
     }
+    env->vstart = 0;
     return -1LL;
 }
 
@@ -4315,7 +4369,7 @@ static void vmsetm(void *vd, void *v0, void *vs2, CPURISCVState *env,
     int i;
     bool first_mask_bit = false;
 
-    for (i = 0; i < vl; i++) {
+    for (i = env->vstart; i < vl; i++) {
         if (!vm && !vext_elem_mask(v0, i)) {
             continue;
         }
@@ -4339,6 +4393,7 @@ static void vmsetm(void *vd, void *v0, void *vs2, CPURISCVState *env,
             }
         }
     }
+    env->vstart = 0;
 }
 
 void HELPER(vmsbf_m)(void *vd, void *v0, void *vs2, CPURISCVState *env,
@@ -4369,7 +4424,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs2, CPURISCVState *env,      \
     uint32_t sum = 0;                                                     \
     int i;                                                                \
                                                                           \
-    for (i = 0; i < vl; i++) {                                            \
+    for (i = env->vstart; i < vl; i++) {                                  \
         if (!vm && !vext_elem_mask(v0, i)) {                              \
             continue;                                                     \
         }                                                                 \
@@ -4378,6 +4433,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs2, CPURISCVState *env,      \
             sum++;                                                        \
         }                                                                 \
     }                                                                     \
+    env->vstart = 0;                                                      \
 }
 
 GEN_VEXT_VIOTA_M(viota_m_b, uint8_t,  H1)
@@ -4393,12 +4449,13 @@ void HELPER(NAME)(void *vd, void *v0, CPURISCVState *env, uint32_t desc)  \
     uint32_t vl = env->vl;                                                \
     int i;                                                                \
                                                                           \
-    for (i = 0; i < vl; i++) {                                            \
+    for (i = env->vstart; i < vl; i++) {                                  \
         if (!vm && !vext_elem_mask(v0, i)) {                              \
             continue;                                                     \
         }                                                                 \
         *((ETYPE *)vd + H(i)) = i;                                        \
     }                                                                     \
+    env->vstart = 0;                                                      \
 }
 
 GEN_VEXT_VID_V(vid_v_b, uint8_t,  H1)
@@ -4417,9 +4474,10 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
 {                                                                         \
     uint32_t vm = vext_vm(desc);                                          \
     uint32_t vl = env->vl;                                                \
-    target_ulong offset = s1, i;                                          \
+    target_ulong offset = s1, i_min, i;                                   \
                                                                           \
-    for (i = offset; i < vl; i++) {                                       \
+    i_min = MAX(env->vstart, offset);                                     \
+    for (i = i_min; i < vl; i++) {                                        \
         if (!vm && !vext_elem_mask(v0, i)) {                              \
             continue;                                                     \
         }                                                                 \
@@ -4442,8 +4500,8 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
     uint32_t vl = env->vl;                                                \
     target_ulong i_max, i;                                                \
                                                                           \
-    i_max = MIN(s1 < vlmax ? vlmax - s1 : 0, vl);                         \
-    for (i = 0; i < i_max; ++i) {                                         \
+    i_max = MAX(MIN(s1 < vlmax ? vlmax - s1 : 0, vl), env->vstart);       \
+    for (i = env->vstart; i < i_max; ++i) {                               \
         if (vm || vext_elem_mask(v0, i)) {                                \
             *((ETYPE *)vd + H(i)) = *((ETYPE *)vs2 + H(i + s1));          \
         }                                                                 \
@@ -4454,6 +4512,8 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
             *((ETYPE *)vd + H(i)) = 0;                                    \
         }                                                                 \
     }                                                                     \
+                                                                          \
+    env->vstart = 0;                                                      \
 }
 
 /* vslidedown.vx vd, vs2, rs1, vm # vd[i] = vs2[i+rs1] */
@@ -4471,7 +4531,7 @@ static void vslide1up_##ESZ(void *vd, void *v0, target_ulong s1, void *vs2, \
     uint32_t vl = env->vl;                                                  \
     uint32_t i;                                                             \
                                                                             \
-    for (i = 0; i < vl; i++) {                                              \
+    for (i = env->vstart; i < vl; i++) {                                    \
         if (!vm && !vext_elem_mask(v0, i)) {                                \
             continue;                                                       \
         }                                                                   \
@@ -4481,6 +4541,7 @@ static void vslide1up_##ESZ(void *vd, void *v0, target_ulong s1, void *vs2, \
             *((ETYPE *)vd + H(i)) = *((ETYPE *)vs2 + H(i - 1));             \
         }                                                                   \
     }                                                                       \
+    env->vstart = 0;                                                        \
 }
 
 GEN_VEXT_VSLIE1UP(8,  H1)
@@ -4510,7 +4571,7 @@ static void vslide1down_##ESZ(void *vd, void *v0, target_ulong s1, void *vs2, \
     uint32_t vl = env->vl;                                                    \
     uint32_t i;                                                               \
                                                                               \
-    for (i = 0; i < vl; i++) {                                                \
+    for (i = env->vstart; i < vl; i++) {                                      \
         if (!vm && !vext_elem_mask(v0, i)) {                                  \
             continue;                                                         \
         }                                                                     \
@@ -4520,6 +4581,7 @@ static void vslide1down_##ESZ(void *vd, void *v0, target_ulong s1, void *vs2, \
             *((ETYPE *)vd + H(i)) = *((ETYPE *)vs2 + H(i + 1));               \
         }                                                                     \
     }                                                                         \
+    env->vstart = 0;                                                          \
 }
 
 GEN_VEXT_VSLIDE1DOWN(8,  H1)
@@ -4570,12 +4632,12 @@ GEN_VEXT_VFSLIDE1DOWN_VF(vfslide1down_vf_d, 64)
 void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,               \
                   CPURISCVState *env, uint32_t desc)                      \
 {                                                                         \
-    uint32_t vlmax = vext_max_elems(desc, ctzl(sizeof(TS1)));             \
+    uint32_t vlmax = vext_max_elems(desc, ctzl(sizeof(TS2)));             \
     uint32_t vm = vext_vm(desc);                                          \
     uint32_t vl = env->vl;                                                \
     uint32_t index, i;                                                    \
                                                                           \
-    for (i = 0; i < vl; i++) {                                            \
+    for (i = env->vstart; i < vl; i++) {                                  \
         if (!vm && !vext_elem_mask(v0, i)) {                              \
             continue;                                                     \
         }                                                                 \
@@ -4586,6 +4648,7 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,               \
             *((TS2 *)vd + HS2(i)) = *((TS2 *)vs2 + HS2(index));           \
         }                                                                 \
     }                                                                     \
+    env->vstart = 0;                                                      \
 }
 
 /* vd[i] = (vs1[i] >= VLMAX) ? 0 : vs2[vs1[i]]; */
@@ -4608,7 +4671,7 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
     uint32_t vl = env->vl;                                                \
     uint32_t index = s1, i;                                               \
                                                                           \
-    for (i = 0; i < vl; i++) {                                            \
+    for (i = env->vstart; i < vl; i++) {                                  \
         if (!vm && !vext_elem_mask(v0, i)) {                              \
             continue;                                                     \
         }                                                                 \
@@ -4618,6 +4681,7 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
             *((ETYPE *)vd + H(i)) = *((ETYPE *)vs2 + H(index));           \
         }                                                                 \
     }                                                                     \
+    env->vstart = 0;                                                      \
 }
 
 /* vd[i] = (x[rs1] >= VLMAX) ? 0 : vs2[rs1] */
@@ -4634,13 +4698,14 @@ void HELPER(NAME)(void *vd, void *v0, void *vs1, void *vs2,               \
     uint32_t vl = env->vl;                                                \
     uint32_t num = 0, i;                                                  \
                                                                           \
-    for (i = 0; i < vl; i++) {                                            \
+    for (i = env->vstart; i < vl; i++) {                                  \
         if (!vext_elem_mask(vs1, i)) {                                    \
             continue;                                                     \
         }                                                                 \
         *((ETYPE *)vd + H(num)) = *((ETYPE *)vs2 + H(i));                 \
         num++;                                                            \
     }                                                                     \
+    env->vstart = 0;                                                      \
 }
 
 /* Compress into vd elements of vs2 where vs1 is enabled */
@@ -4648,6 +4713,27 @@ GEN_VEXT_VCOMPRESS_VM(vcompress_vm_b, uint8_t,  H1)
 GEN_VEXT_VCOMPRESS_VM(vcompress_vm_h, uint16_t, H2)
 GEN_VEXT_VCOMPRESS_VM(vcompress_vm_w, uint32_t, H4)
 GEN_VEXT_VCOMPRESS_VM(vcompress_vm_d, uint64_t, H8)
+
+/* Vector Whole Register Move */
+#define GEN_VEXT_VMV_WHOLE(NAME, LEN)                      \
+void HELPER(NAME)(void *vd, void *vs2, CPURISCVState *env, \
+                  uint32_t desc)                           \
+{                                                          \
+    /* EEW = 8 */                                          \
+    uint32_t maxsz = simd_maxsz(desc);                     \
+    uint32_t i = env->vstart;                              \
+                                                           \
+    memcpy((uint8_t *)vd + H1(i),                          \
+           (uint8_t *)vs2 + H1(i),                         \
+           maxsz - env->vstart);                           \
+                                                           \
+    env->vstart = 0;                                       \
+}
+
+GEN_VEXT_VMV_WHOLE(vmv1r_v, 1)
+GEN_VEXT_VMV_WHOLE(vmv2r_v, 2)
+GEN_VEXT_VMV_WHOLE(vmv4r_v, 4)
+GEN_VEXT_VMV_WHOLE(vmv8r_v, 8)
 
 /* Vector Integer Extension */
 #define GEN_VEXT_INT_EXT(NAME, ETYPE, DTYPE, HD, HS1)            \
@@ -4658,12 +4744,13 @@ void HELPER(NAME)(void *vd, void *v0, void *vs2,                 \
     uint32_t vm = vext_vm(desc);                                 \
     uint32_t i;                                                  \
                                                                  \
-    for (i = 0; i < vl; i++) {                                   \
+    for (i = env->vstart; i < vl; i++) {                         \
         if (!vm && !vext_elem_mask(v0, i)) {                     \
             continue;                                            \
         }                                                        \
         *((ETYPE *)vd + HD(i)) = *((DTYPE *)vs2 + HS1(i));       \
     }                                                            \
+    env->vstart = 0;                                             \
 }
 
 GEN_VEXT_INT_EXT(vzext_vf2_h, uint16_t, uint8_t,  H2, H1)
