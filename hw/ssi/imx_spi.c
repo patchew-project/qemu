@@ -321,6 +321,20 @@ static void imx_spi_write(void *opaque, hwaddr offset, uint64_t value,
 
     trace_imx_spi_write(index, imx_spi_reg_name(index), value);
 
+    if (!imx_spi_is_enabled(s)) {
+        /* Block is disabled */
+        if (index != ECSPI_CONREG) {
+            /* Ignore access */
+            return;
+        }
+        s->regs[ECSPI_CONREG] = value;
+        if (value & ECSPI_CONREG_EN) {
+            /* Keep disabled */
+            return;
+        }
+        /* Enable the block */
+        imx_spi_reset(DEVICE(s));
+    }
 
     switch (index) {
     case ECSPI_RXDATA:
@@ -328,10 +342,7 @@ static void imx_spi_write(void *opaque, hwaddr offset, uint64_t value,
                       TYPE_IMX_SPI, __func__);
         break;
     case ECSPI_TXDATA:
-        if (!imx_spi_is_enabled(s)) {
-            /* Ignore writes if device is disabled */
-            break;
-        } else if (fifo32_is_full(&s->tx_fifo)) {
+        if (fifo32_is_full(&s->tx_fifo)) {
             /* Ignore writes if queue is full */
             break;
         }
@@ -356,12 +367,6 @@ static void imx_spi_write(void *opaque, hwaddr offset, uint64_t value,
         break;
     case ECSPI_CONREG:
         s->regs[ECSPI_CONREG] = value;
-
-        if (!imx_spi_is_enabled(s)) {
-            /* device is disabled, so this is a reset */
-            imx_spi_reset(DEVICE(s));
-            return;
-        }
 
         if (imx_spi_channel_is_master(s)) {
             uint32_t change_mask = s->regs[index] ^ value;
