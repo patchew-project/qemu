@@ -20,7 +20,7 @@ abi_long memcpy_to_target(abi_ulong dest, const void *src,
     return 0;
 }
 
-static int count(char ** vec)
+static int count(char **vec)
 {
     int         i;
 
@@ -125,8 +125,8 @@ abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
     return sp;
 }
 
-int loader_exec(const char * filename, char ** argv, char ** envp,
-             struct target_pt_regs * regs, struct image_info *infop)
+int loader_exec(const char *filename, char **argv, char **envp,
+             struct target_pt_regs *regs, struct image_info *infop)
 {
     struct linux_binprm bprm;
     int retval;
