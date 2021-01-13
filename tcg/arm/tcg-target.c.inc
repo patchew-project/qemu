@@ -1947,10 +1947,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_ctz_i32:
         tcg_out_dat_reg(s, COND_AL, INSN_RBIT, TCG_REG_TMP, 0, a1, 0);
         a1 = TCG_REG_TMP;
-        goto do_clz;
-
+        /* Fall through.  */
     case INDEX_op_clz_i32:
-    do_clz:
         c = c2;
         if (c && a2 == 32) {
             tcg_out_dat_reg(s, COND_AL, INSN_CLZ, a0, 0, a1, 0);
