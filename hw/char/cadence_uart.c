@@ -93,7 +93,7 @@
 #define UART_DATA_BITS_7       (0x2 << UART_MR_CHRL_SH)
 #define UART_PARITY_ODD        (0x1 << UART_MR_PAR_SH)
 #define UART_PARITY_EVEN       (0x0 << UART_MR_PAR_SH)
-#define UART_STOP_BITS_1       (0x3 << UART_MR_NBSTOP_SH)
+#define UART_STOP_BITS_1       (0x0 << UART_MR_NBSTOP_SH)
 #define UART_STOP_BITS_2       (0x2 << UART_MR_NBSTOP_SH)
 #define NORMAL_MODE            (0x0 << UART_MR_CHMODE_SH)
 #define ECHO_MODE              (0x1 << UART_MR_CHMODE_SH)
