@@ -30,13 +30,67 @@ if ! type -p "mypy" > /dev/null; then
     _notrun "mypy not found"
 fi
 
-pylint-3 --score=n iotests.py
+# TODO: Empty this list!
+skip_files=(
+    030 040 041 044 045 055 056 057 065 093 096 118 124 129 132 136 139 147 148
+    149 151 152 155 163 165 169 194 196 199 202 203 205 206 207 208 210 211 212
+    213 216 218 219 222 224 228 234 235 236 237 238 240 242 245 246 248 255 256
+    257 258 260 262 264 266 274 277 280 281 295 296 298 299 300 302 303 304 307
+    nbd-fault-injector.py qcow2.py qcow2_format.py qed.py
+)
 
-MYPYPATH=../../python/ mypy --warn-unused-configs --disallow-subclassing-any \
-    --disallow-any-generics --disallow-incomplete-defs \
-    --disallow-untyped-decorators --no-implicit-optional \
-    --warn-redundant-casts --warn-unused-ignores \
-    --no-implicit-reexport iotests.py
+file_list=()
+for file in *; do
+    # Check files with a .py extension or a Python shebang
+    # (Unless they are in the skip_files list)
+    if [ -f "$file" ] && ((echo "$file" | grep -q '\.py$') ||
+                          (head -n 1 "$file" | grep -q '^#!.*python'))
+    then
+        skip_file=false
+        for skip in "${skip_files[@]}"; do
+            if [ "$skip" = "$file" ]; then
+                skip_file=true
+                break
+            fi
+        done
+
+        if ! $skip_file; then
+            file_list+=("$file")
+        fi
+    fi
+done
+
+# Emit list of all files that are checked so we will not accidentally
+# lose coverage
+echo 'Files to be checked:'
+
+file_list_str=''
+for file in "${file_list[@]}"; do
+    echo "  $file"
+done | sort
+
+# We can pass all files to pylint at once...
+pylint-3 --score=n "${file_list[@]}"
+
+# ...but mypy needs to be called once per file.  Otherwise, it will
+# interpret all given files as belonging together (i.e., they may not
+# both define the same classes, etc.; most notably, they must not both
+# define the __main__ module).
+for file in "${file_list[@]}"; do
+    mypy_output=$(
+        MYPYPATH=../../python/ mypy --warn-unused-configs \
+            --disallow-subclassing-any \
+            --disallow-any-generics --disallow-incomplete-defs \
+            --disallow-untyped-decorators --no-implicit-optional \
+            --warn-redundant-casts --warn-unused-ignores \
+            --no-implicit-reexport "$file" \
+            2>&1
+    )
+
+    if [ $? != 0 ]; then
+        echo "$mypy_output"
+    fi
+done
 
 # success, all done
 echo "*** done"
