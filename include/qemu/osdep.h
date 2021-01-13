@@ -123,6 +123,10 @@ extern int daemon(int, int);
 #include "sysemu/os-posix.h"
 #endif
 
+#ifdef __APPLE__
+#include <AvailabilityMacros.h>
+#endif
+
 #include "glib-compat.h"
 #include "qemu/typedefs.h"
 
@@ -685,5 +689,8 @@ char *qemu_get_host_name(Error **errp);
  * much memory.
  */
 size_t qemu_get_host_physmem(void);
+
+void qemu_thread_jit_write(void);
+void qemu_thread_jit_execute(void);
 
 #endif
