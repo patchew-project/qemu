@@ -184,7 +184,7 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
     memset(regs, 0, sizeof(*regs));
     regs->ARM_cpsr = 0x10;
     if (infop->entry & 1)
-      regs->ARM_cpsr |= CPSR_T;
+        regs->ARM_cpsr |= CPSR_T;
     regs->ARM_pc = infop->entry & 0xfffffffe;
     regs->ARM_sp = infop->start_stack;
     /* FIXME - what to for failure of get_user()? */
@@ -784,7 +784,7 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
         sp = sp &~ (abi_ulong)15;
         size = (DLINFO_ITEMS + 1) * 2;
         if (k_platform)
-          size += 2;
+            size += 2;
 #ifdef DLINFO_ARCH_ITEMS
         size += DLINFO_ARCH_ITEMS * 2;
 #endif
@@ -871,7 +871,7 @@ static abi_ulong load_elf_interp(struct elfhdr *interp_elf_ex,
                 malloc(sizeof(struct elf_phdr) * interp_elf_ex->e_phnum);
 
         if (!elf_phdata)
-          return ~((abi_ulong)0UL);
+            return ~((abi_ulong)0UL);
 
         /*
          * If the size of this structure has changed, then punt, since
@@ -1267,7 +1267,7 @@ int load_elf_binary(struct linux_binprm *bprm, struct target_pt_regs *regs,
 
             if (strcmp(elf_interpreter,"/usr/lib/libc.so.1") == 0 ||
                 strcmp(elf_interpreter,"/usr/lib/ld.so.1") == 0) {
-              ibcs2_interpreter = 1;
+                ibcs2_interpreter = 1;
             }
 
 #if 0
@@ -1314,7 +1314,7 @@ int load_elf_binary(struct linux_binprm *bprm, struct target_pt_regs *regs,
         /* Now figure out which format our binary is */
         if ((N_MAGIC(interp_ex) != OMAGIC) && (N_MAGIC(interp_ex) != ZMAGIC) &&
                 (N_MAGIC(interp_ex) != QMAGIC)) {
-          interpreter_type = INTERPRETER_ELF;
+            interpreter_type = INTERPRETER_ELF;
         }
 
         if (interp_elf_ex.e_ident[0] != 0x7f ||
