@@ -247,14 +247,17 @@ static int packet_enqueue(CompareState *s, int mode, Connection **con)
     ConnectionKey key;
     Packet *pkt = NULL;
     Connection *conn;
+    char *data = NULL;
     int ret;
 
     if (mode == PRIMARY_IN) {
-        pkt = packet_new(s->pri_rs.buf,
+        data = g_memdup(s->pri_rs.buf, s->pri_rs.packet_len);
+        pkt = packet_new(data,
                          s->pri_rs.packet_len,
                          s->pri_rs.vnet_hdr_len);
     } else {
-        pkt = packet_new(s->sec_rs.buf,
+        data = g_memdup(s->sec_rs.buf, s->sec_rs.packet_len);
+        pkt = packet_new(data,
                          s->sec_rs.packet_len,
                          s->sec_rs.vnet_hdr_len);
     }
