@@ -1786,6 +1786,20 @@ void migrate_set_block_enabled(bool value, Error **errp)
     qapi_free_MigrationCapabilityStatusList(cap);
 }
 
+static void colo_auto_converge_enabled(bool value, Error **errp)
+{
+    MigrationCapabilityStatusList *cap = NULL;
+
+    if (migrate_colo_enabled() && migrate_auto_converge()) {
+        QAPI_LIST_PREPEND(cap,
+                          migrate_cap_add(MIGRATION_CAPABILITY_AUTO_CONVERGE,
+                                          value));
+        qmp_migrate_set_capabilities(cap, errp);
+        qapi_free_MigrationCapabilityStatusList(cap);
+    }
+    cpu_throttle_stop();
+}
+
 static void migrate_set_block_incremental(MigrationState *s, bool value)
 {
     s->parameters.block_incremental = value;
@@ -3580,7 +3594,7 @@ static MigIterateState migration_iteration_run(MigrationState *s)
 static void migration_iteration_finish(MigrationState *s)
 {
     /* If we enabled cpu throttling for auto-converge, turn it off. */
-    cpu_throttle_stop();
+    colo_auto_converge_enabled(false, &error_abort);
 
     qemu_mutex_lock_iothread();
     switch (s->state) {
