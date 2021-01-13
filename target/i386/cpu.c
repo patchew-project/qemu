@@ -6674,7 +6674,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
                 warned = true;
             }
 
-            if (cpu->host_phys_bits) {
+            if (cpu->host_phys_bits || cpu->max_features) {
                 /* The user asked for us to use the host physical bits */
                 cpu->phys_bits = host_phys_bits;
                 if (cpu->host_phys_bits_limit &&
