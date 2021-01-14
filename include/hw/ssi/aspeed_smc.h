@@ -111,9 +111,6 @@ struct AspeedSMCState {
     AddressSpace dram_as;
 
     AspeedSMCFlash *flashes;
-
-    uint8_t snoop_index;
-    uint8_t snoop_dummies;
 };
 
 #endif /* ASPEED_SMC_H */
