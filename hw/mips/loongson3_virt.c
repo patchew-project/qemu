@@ -35,6 +35,7 @@
 #include "hw/boards.h"
 #include "hw/char/serial.h"
 #include "hw/intc/loongson_liointc.h"
+#include "hw/intc/loongson_ipi.h"
 #include "hw/mips/mips.h"
 #include "hw/mips/cpudevs.h"
 #include "hw/mips/fw_cfg.h"
@@ -59,6 +60,7 @@
 
 #define PM_CNTL_MODE          0x10
 
+#define LOONGSON_TCG_MAX_VCPUS  4
 #define LOONGSON_MAX_VCPUS      16
 
 /*
@@ -71,6 +73,7 @@
 #define UART_IRQ            0
 #define RTC_IRQ             1
 #define PCIE_IRQ_BASE       2
+#define IPI_REG_SPACE       0x100
 
 const struct MemmapEntry virt_memmap[] = {
     [VIRT_LOWMEM] =      { 0x00000000,    0x10000000 },
@@ -81,6 +84,7 @@ const struct MemmapEntry virt_memmap[] = {
     [VIRT_PCIE_ECAM] =   { 0x1a000000,     0x2000000 },
     [VIRT_BIOS_ROM] =    { 0x1fc00000,      0x200000 },
     [VIRT_UART] =        { 0x1fe001e0,           0x8 },
+    [VIRT_IPIS] =        { 0x3ff01000,         0x400 },
     [VIRT_LIOINTC] =     { 0x3ff01400,          0x64 },
     [VIRT_PCIE_MMIO] =   { 0x40000000,    0x40000000 },
     [VIRT_HIGHMEM] =     { 0x80000000,           0x0 }, /* Variable */
@@ -495,6 +499,10 @@ static void mips_loongson3_virt_init(MachineState *machine)
             error_report("Loongson-3/TCG needs cpu type Loongson-3A1000");
             exit(1);
         }
+        if (machine->smp.cpus > LOONGSON_TCG_MAX_VCPUS) {
+            error_report("Loongson-3/TCG supports up to 4 CPUs");
+            exit(1);
+        }
     } else {
         if (!machine->cpu_type) {
             machine->cpu_type = MIPS_CPU_TYPE_NAME("Loongson-3A4000");
@@ -545,7 +553,17 @@ static void mips_loongson3_virt_init(MachineState *machine)
         qemu_register_reset(main_cpu_reset, cpu);
 
         if (i >= 4) {
-            continue; /* Only node-0 can be connected to LIOINTC */
+            continue; /* Only node-0 can be connected to LIOINTC and IPI */
+        }
+
+        if (!kvm_enabled()) {
+            /* IPI is handled by kernel for KVM */
+            DeviceState *ipi;
+            ipi = qdev_new(TYPE_LOONGSON_IPI);
+            sysbus_realize_and_unref(SYS_BUS_DEVICE(ipi), &error_fatal);
+            sysbus_mmio_map(SYS_BUS_DEVICE(ipi), 0,
+                            virt_memmap[VIRT_IPIS].base + IPI_REG_SPACE * i);
+            sysbus_connect_irq(SYS_BUS_DEVICE(ipi), 0, cpu->env.irq[6]);
         }
 
         for (ip = 0; ip < 4 ; ip++) {
