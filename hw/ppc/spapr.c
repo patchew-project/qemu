@@ -3706,22 +3706,35 @@ static void spapr_core_unplug(HotplugHandler *hotplug_dev, DeviceState *dev)
     qdev_unrealize(dev);
 }
 
-static
-void spapr_core_unplug_request(HotplugHandler *hotplug_dev, DeviceState *dev,
-                               Error **errp)
+static int spapr_core_unplug_possible(HotplugHandler *hotplug_dev, CPUCore *cc,
+                                      Error **errp)
 {
-    SpaprMachineState *spapr = SPAPR_MACHINE(OBJECT(hotplug_dev));
     int index;
-    SpaprDrc *drc;
-    CPUCore *cc = CPU_CORE(dev);
 
     if (!spapr_find_cpu_slot(MACHINE(hotplug_dev), cc->core_id, &index)) {
         error_setg(errp, "Unable to find CPU core with core-id: %d",
                    cc->core_id);
-        return;
+        return -1;
     }
+
     if (index == 0) {
         error_setg(errp, "Boot CPU core may not be unplugged");
+        return -1;
+    }
+
+    return 0;
+}
+
+static
+void spapr_core_unplug_request(HotplugHandler *hotplug_dev, DeviceState *dev,
+                               Error **errp)
+{
+    ERRP_GUARD();
+    SpaprMachineState *spapr = SPAPR_MACHINE(OBJECT(hotplug_dev));
+    SpaprDrc *drc;
+    CPUCore *cc = CPU_CORE(dev);
+
+    if (spapr_core_unplug_possible(hotplug_dev, cc, errp) < 0) {
         return;
     }
 
