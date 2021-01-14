@@ -45,9 +45,9 @@ ENV PACKAGES \
     libxen-dev \
     libzstd-dev \
     make \
-    python3-yaml \
-    python3-sphinx \
     ninja-build \
+    python3-sphinx \
+    python3-yaml \
     sparse \
     xfslibs-dev
 RUN apt-get update && \
