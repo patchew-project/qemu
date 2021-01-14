@@ -3709,9 +3709,16 @@ static void spapr_core_unplug(HotplugHandler *hotplug_dev, DeviceState *dev)
 static int spapr_core_unplug_possible(HotplugHandler *hotplug_dev, CPUCore *cc,
                                       Error **errp)
 {
+    CPUArchId *core_slot;
+    SpaprCpuCore *core;
+    PowerPCCPU *cpu;
+    CPUState *cs;
+    bool last_cpu_online = true;
     int index;
 
-    if (!spapr_find_cpu_slot(MACHINE(hotplug_dev), cc->core_id, &index)) {
+    core_slot = spapr_find_cpu_slot(MACHINE(hotplug_dev), cc->core_id,
+                                    &index);
+    if (!core_slot) {
         error_setg(errp, "Unable to find CPU core with core-id: %d",
                    cc->core_id);
         return -1;
@@ -3719,6 +3726,36 @@ static int spapr_core_unplug_possible(HotplugHandler *hotplug_dev, CPUCore *cc,
 
     if (index == 0) {
         error_setg(errp, "Boot CPU core may not be unplugged");
+        return -1;
+    }
+
+    /* Allow for any non-boot CPU core to be unplugged if already offline */
+    core = SPAPR_CPU_CORE(core_slot->cpu);
+    cs = CPU(core->threads[0]);
+    if (cs->halted) {
+        return 0;
+    }
+
+    /*
+     * Do not allow core unplug if it's the last core online.
+     */
+    cpu = POWERPC_CPU(cs);
+    CPU_FOREACH(cs) {
+        PowerPCCPU *c = POWERPC_CPU(cs);
+
+        if (c == cpu) {
+            continue;
+        }
+
+        if (!cs->halted) {
+            last_cpu_online = false;
+            break;
+        }
+    }
+
+    if (last_cpu_online) {
+        error_setg(errp, "Unable to unplug CPU core with core-id %d: it is "
+                   "the only CPU core online in the guest", cc->core_id);
         return -1;
     }
 
