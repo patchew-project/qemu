@@ -401,26 +401,23 @@ eth_is_ip6_extension_header_type(uint8_t hdr_type)
 
 static bool
 _eth_get_rss_ex_dst_addr(const struct iovec *pkt, int pkt_frags,
-                        size_t rthdr_offset,
+                        size_t ext_hdr_offset,
                         struct ip6_ext_hdr *ext_hdr,
                         struct in6_address *dst_addr)
 {
-    struct ip6_ext_hdr_routing *rthdr = (struct ip6_ext_hdr_routing *) ext_hdr;
+    struct ip6_ext_hdr_routing rt_hdr;
+    size_t input_size = iov_size(pkt, pkt_frags);
+    size_t bytes_read;
 
-    if ((rthdr->rtype == 2) && (rthdr->segleft == 1)) {
+    if (input_size < ext_hdr_offset + sizeof(rt_hdr)) {
+        return false;
+    }
 
-        size_t input_size = iov_size(pkt, pkt_frags);
-        size_t bytes_read;
+    bytes_read = iov_to_buf(pkt, pkt_frags, ext_hdr_offset,
+                            &rt_hdr, sizeof(rt_hdr));
 
-        if (input_size < rthdr_offset + sizeof(*ext_hdr)) {
-            return false;
-        }
-
-        bytes_read = iov_to_buf(pkt, pkt_frags,
-                                rthdr_offset + sizeof(*ext_hdr),
-                                dst_addr, sizeof(*dst_addr));
-
-        return bytes_read == sizeof(*dst_addr);
+    if ((rt_hdr.rtype == 2) && (rt_hdr.segleft == 1)) {
+        return bytes_read == sizeof(*ext_hdr) + sizeof(*dst_addr);
     }
 
     return false;
