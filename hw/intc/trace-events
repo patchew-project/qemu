@@ -60,6 +60,10 @@ lm32_pic_set_ip(uint32_t ip) "ip 0x%08x"
 lm32_pic_get_im(uint32_t im) "im 0x%08x"
 lm32_pic_get_ip(uint32_t ip) "ip 0x%08x"
 
+# loongson_ipi.c
+loongson_ipi_read(uint64_t addr, uint64_t value) "addr 0x%02" PRIx64 " value 0x%08" PRIx64
+loongson_ipi_write(uint64_t addr, uint64_t value) "addr 0x%02" PRIx64 " value 0x%08" PRIx64
+
 # xics.c
 xics_icp_check_ipi(int server, uint8_t mfrr) "CPU %d can take IPI mfrr=0x%x"
 xics_icp_accept(uint32_t old_xirr, uint32_t new_xirr) "icp_accept: XIRR 0x%"PRIx32"->0x%"PRIx32

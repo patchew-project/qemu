@@ -59,6 +59,9 @@ config RX_ICU
 config LOONGSON_LIOINTC
     bool
 
+config LOONGSON_IPI
+    bool
+
 config SIFIVE_CLINT
     bool
 
