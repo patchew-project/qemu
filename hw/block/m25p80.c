@@ -940,10 +940,10 @@ static void decode_fast_read_cmd(Flash *s)
         break;
     case MAN_MACRONIX:
         if (extract32(s->volatile_cfg, 6, 2) == 1) {
-            s->needed_bytes += 6;
-        } else {
-            s->needed_bytes += 8;
+            qemu_log_mask(LOG_UNIMP,
+                          "M25P80: the number of dummy bits is not multiple of 8");
         }
+        s->needed_bytes += 1;
         break;
     case MAN_SPANSION:
         s->needed_bytes += extract32(s->spansion_cr2v,
@@ -980,13 +980,14 @@ static void decode_dio_read_cmd(Flash *s)
     case MAN_MACRONIX:
         switch (extract32(s->volatile_cfg, 6, 2)) {
         case 1:
-            s->needed_bytes += 6;
-            break;
+            qemu_log_mask(LOG_UNIMP,
+                          "M25P80: the number of dummy bits is not multiple of 8");
+        /* fall-through */
         case 2:
-            s->needed_bytes += 8;
+            s->needed_bytes += 2;
             break;
         default:
-            s->needed_bytes += 4;
+            s->needed_bytes += 1;
             break;
         }
         break;
@@ -1019,13 +1020,13 @@ static void decode_qio_read_cmd(Flash *s)
     case MAN_MACRONIX:
         switch (extract32(s->volatile_cfg, 6, 2)) {
         case 1:
-            s->needed_bytes += 4;
+            s->needed_bytes += 2;
             break;
         case 2:
-            s->needed_bytes += 8;
+            s->needed_bytes += 4;
             break;
         default:
-            s->needed_bytes += 6;
+            s->needed_bytes += 3;
             break;
         }
         break;
