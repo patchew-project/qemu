@@ -946,10 +946,25 @@ static void decode_fast_read_cmd(Flash *s)
         s->needed_bytes += 1;
         break;
     case MAN_SPANSION:
-        s->needed_bytes += extract32(s->spansion_cr2v,
-                                    SPANSION_DUMMY_CLK_POS,
-                                    SPANSION_DUMMY_CLK_LEN
-                                    );
+        if (extract32(s->spansion_cr2v, SPANSION_DUMMY_CLK_POS,
+                      SPANSION_DUMMY_CLK_LEN) != 8) {
+            qemu_log_mask(LOG_UNIMP,
+                          "M25P80: the number of dummy bits is not multiple of 8");
+        }
+        switch (s->cmd_in_progress) {
+        case FAST_READ:
+        case FAST_READ4:
+            s->needed_bytes += 1;
+            break;
+        case DOR:
+        case DOR4:
+            s->needed_bytes += 2;
+            break;
+        case QOR:
+        case QOR4:
+            s->needed_bytes += 4;
+            break;
+        }
         break;
     default:
         break;
@@ -969,10 +984,12 @@ static void decode_dio_read_cmd(Flash *s)
         break;
     case MAN_SPANSION:
         s->needed_bytes += SPANSION_CONTINUOUS_READ_MODE_CMD_LEN;
-        s->needed_bytes += extract32(s->spansion_cr2v,
-                                    SPANSION_DUMMY_CLK_POS,
-                                    SPANSION_DUMMY_CLK_LEN
-                                    );
+        if (extract32(s->spansion_cr2v, SPANSION_DUMMY_CLK_POS,
+                      SPANSION_DUMMY_CLK_LEN) != 8) {
+            qemu_log_mask(LOG_UNIMP,
+                          "M25P80: the number of dummy bits is not multiple of 8");
+        }
+        s->needed_bytes += 2;
         break;
     case MAN_NUMONYX:
         s->needed_bytes += numonyx_extract_cfg_num_dummies(s);
@@ -1009,10 +1026,12 @@ static void decode_qio_read_cmd(Flash *s)
         break;
     case MAN_SPANSION:
         s->needed_bytes += SPANSION_CONTINUOUS_READ_MODE_CMD_LEN;
-        s->needed_bytes += extract32(s->spansion_cr2v,
-                                    SPANSION_DUMMY_CLK_POS,
-                                    SPANSION_DUMMY_CLK_LEN
-                                    );
+        if (extract32(s->spansion_cr2v, SPANSION_DUMMY_CLK_POS,
+                      SPANSION_DUMMY_CLK_LEN) != 8) {
+            qemu_log_mask(LOG_UNIMP,
+                          "M25P80: the number of dummy bits is not multiple of 8");
+        }
+        s->needed_bytes += 4;
         break;
     case MAN_NUMONYX:
         s->needed_bytes += numonyx_extract_cfg_num_dummies(s);
