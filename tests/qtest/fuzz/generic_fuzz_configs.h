@@ -60,6 +60,18 @@ const generic_fuzz_config predefined_configs[] = {
         .args = "-machine q35 -nodefaults -device virtio-mouse",
         .objects = "virtio*",
     },{
+        .name = "virtio-9p",
+        .args = "-machine q35 -nodefaults "
+        "-device virtio-9p,fsdev=hshare,mount_tag=hshare "
+        "-fsdev local,id=hshare,path=/tmp/,security_model=none",
+        .objects = "virtio*",
+    },{
+        .name = "virtio-9p-synth",
+        .args = "-machine q35 -nodefaults "
+        "-device virtio-9p,fsdev=hshare,mount_tag=hshare "
+        "-fsdev synth,id=hshare",
+        .objects = "virtio*",
+    },{
         .name = "e1000",
         .args = "-M q35 -nodefaults "
         "-device e1000,netdev=net0 -netdev user,id=net0",
