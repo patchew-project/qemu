@@ -847,19 +847,71 @@ static uint8_t numonyx_extract_cfg_num_dummies(Flash *s)
     mode = numonyx_mode(s);
     num_dummies = extract32(s->volatile_cfg, 4, 4);
 
+    /*
+     * The default nubmer of dummy cycles is only related to the SPI
+     * protocol mode. For QSPI it is 10, otherwise it is 8.
+     */
     if (num_dummies == 0x0 || num_dummies == 0xf) {
-        switch (s->cmd_in_progress) {
-        case QIOR:
-        case QIOR4:
-            num_dummies = 10;
-            break;
-        default:
-            num_dummies = (mode == MODE_QIO) ? 10 : 8;
-            break;
-        }
+        num_dummies = (mode == MODE_QIO) ? 10 : 8;
     }
 
-    return num_dummies;
+    /*
+     * Convert the number of dummy cycles to bytes
+     *
+     * Per the datasheet, it's clear that in Quad I/O or Dual I/O mode,
+     * the dummy bits show up on 4 or 2 lines.
+     *
+     * The tricky part is the standard mode (extended mode). For such
+     * mode, the dummy bits are not like other flashes that they show up
+     * on the same lines as the address bits, but on the same lines as
+     * the data bits, so for a Quad Output Fast Read command (6Bh), the
+     * dummy bits must be sent on all the 4 IO lines. IOW, the total
+     * number of dummy bits depend on the command.
+     *
+     * The datasheet does not state crystal clearly how many lines are
+     * used for 6Bh in the standard mode. We may only tell from figure 19
+     * that is showing the command sequence and interpret that dummy cycles
+     * need to be on 4 lines for 6Bh.
+     *
+     * Note as of today, both spi-nor drivers in U-Boot v2021.01 and Linux
+     * v5.10 has the wrong assumption for all flashes that dummy cycle bus
+     * width is the same as the address bits bus width, which is not true
+     * for the Numonyx/Micron flash in the standard mode.
+     */
+
+    if (mode == MODE_QIO) {
+        num_dummies *= 4;
+    } else if (mode == MODE_DIO) {
+        num_dummies *= 2;
+    } else {
+        switch (s->cmd_in_progress) {
+        case QOR:
+        case QOR4:
+        case QIOR:
+        case QIOR4:
+            num_dummies *= 4;
+            break;
+        case DOR:
+        case DOR4:
+        case DIOR:
+        case DIOR4:
+            num_dummies *= 2;
+            break;
+         }
+    }
+
+    /*
+     * If the total number of dummy bits is not multiple of 8, log an
+     * unimplemented message to notify user, and round it up.
+     */
+    if (num_dummies % 8) {
+        qemu_log_mask(LOG_UNIMP,
+                      "M25P80: the number of dummy bits is not multiple of 8");
+        num_dummies = ROUND_UP(num_dummies, 8);
+    }
+
+    /* return the number of dummy bytes */
+    return num_dummies / 8;
 }
 
 static void decode_fast_read_cmd(Flash *s)
