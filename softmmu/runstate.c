@@ -490,8 +490,8 @@ void qemu_system_guest_panicked(GuestPanicInformation *info)
 
     if (info) {
         if (info->type == GUEST_PANIC_INFORMATION_TYPE_HYPER_V) {
-            qemu_log_mask(LOG_GUEST_ERROR, "\nHV crash parameters: (%#"PRIx64
-                          " %#"PRIx64" %#"PRIx64" %#"PRIx64" %#"PRIx64")\n",
+            qemu_log_mask(LOG_GUEST_ERROR, "\nHV crash parameters: (0x%"PRIx64
+                          " 0x%"PRIx64" 0x%"PRIx64" 0x%"PRIx64" 0x%"PRIx64")\n",
                           info->u.hyper_v.arg1,
                           info->u.hyper_v.arg2,
                           info->u.hyper_v.arg3,
