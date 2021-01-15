@@ -69,9 +69,6 @@
 /* Forward declarations for functions declared in tcg-target.c.inc and
    used here. */
 static void tcg_target_init(TCGContext *s);
-#ifndef TCG_TARGET_CON_SET_H
-static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode);
-#endif
 static void tcg_target_qemu_prologue(TCGContext *s);
 static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
                         intptr_t value, intptr_t addend);
@@ -349,7 +346,6 @@ static void set_jmp_reset_offset(TCGContext *s, int which)
     s->tb_jmp_reset_offset[which] = tcg_current_code_size(s);
 }
 
-#ifdef TCG_TARGET_CON_SET_H
 #define C_PFX1(P, A)                    P##A
 #define C_PFX2(P, A, B)                 P##A##_##B
 #define C_PFX3(P, A, B, C)              P##A##_##B##_##C
@@ -462,8 +458,6 @@ static const TCGTargetOpDef constraint_sets[] = {
 #define C_O2_I3(O1, O2, I1, I2, I3)     C_PFX5(c_o2_i3_, O1, O2, I1, I2, I3)
 #define C_O2_I4(O1, O2, I1, I2, I3, I4) \
     C_PFX6(c_o2_i4_, O1, O2, I1, I2, I3, I4)
-
-#endif /* TCG_TARGET_CON_SET_H */
 
 #include "tcg-target.c.inc"
 
@@ -2536,13 +2530,7 @@ static void process_op_defs(TCGContext *s)
             continue;
         }
 
-#ifdef TCG_TARGET_CON_SET_H
         tdefs = &constraint_sets[tcg_target_op_def(op)];
-#else
-        tdefs = tcg_target_op_def(op);
-        /* Missing TCGTargetOpDef entry. */
-        tcg_debug_assert(tdefs != NULL);
-#endif
 
         for (i = 0; i < nb_args; i++) {
             const char *ct_str = tdefs->args_ct_str[i];
