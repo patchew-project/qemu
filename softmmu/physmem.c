@@ -797,8 +797,9 @@ int cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
         tlb_flush(cpu);
     }
 
-    if (watchpoint)
+    if (watchpoint) {
         *watchpoint = wp;
+    }
     return 0;
 }
 
@@ -1210,8 +1211,9 @@ void flatview_add_to_dispatch(FlatView *fv, MemoryRegionSection *section)
 
 void qemu_flush_coalesced_mmio_buffer(void)
 {
-    if (kvm_enabled())
+    if (kvm_enabled()) {
         kvm_flush_coalesced_mmio_buffer();
+    }
 }
 
 void qemu_mutex_lock_ramlist(void)
@@ -2495,8 +2497,9 @@ static int subpage_register(subpage_t *mmio, uint32_t start, uint32_t end,
 {
     int idx, eidx;
 
-    if (start >= TARGET_PAGE_SIZE || end >= TARGET_PAGE_SIZE)
+    if (start >= TARGET_PAGE_SIZE || end >= TARGET_PAGE_SIZE) {
         return -1;
+    }
     idx = SUBPAGE_IDX(start);
     eidx = SUBPAGE_IDX(end);
 #if defined(DEBUG_SUBPAGE)
@@ -3410,11 +3413,13 @@ int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
         phys_addr = cpu_get_phys_page_attrs_debug(cpu, page, &attrs);
         asidx = cpu_asidx_from_attrs(cpu, attrs);
         /* if no physical page mapped, return an error */
-        if (phys_addr == -1)
+        if (phys_addr == -1) {
             return -1;
+        }
         l = (page + TARGET_PAGE_SIZE) - addr;
-        if (l > len)
+        if (l > len) {
             l = len;
+        }
         phys_addr += (addr & ~TARGET_PAGE_MASK);
         if (is_write) {
             res = address_space_write_rom(cpu->cpu_ases[asidx].as, phys_addr,

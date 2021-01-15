@@ -182,10 +182,12 @@ static int set_property(void *opaque, const char *name, const char *value,
 {
     Object *obj = opaque;
 
-    if (strcmp(name, "driver") == 0)
+    if (strcmp(name, "driver") == 0) {
         return 0;
-    if (strcmp(name, "bus") == 0)
+    }
+    if (strcmp(name, "bus") == 0) {
         return 0;
+    }
 
     if (!object_property_parse(obj, name, value, errp)) {
         return -1;
@@ -683,8 +685,9 @@ static void qbus_print(Monitor *mon, BusState *bus, int indent);
 static void qdev_print_props(Monitor *mon, DeviceState *dev, Property *props,
                              int indent)
 {
-    if (!props)
+    if (!props) {
         return;
+    }
     for (; props->name; props++) {
         char *value;
         char *legacy_name = g_strdup_printf("legacy-%s", props->name);
@@ -769,8 +772,9 @@ static void qbus_print(Monitor *mon, BusState *bus, int indent)
 
 void hmp_info_qtree(Monitor *mon, const QDict *qdict)
 {
-    if (sysbus_get_default())
+    if (sysbus_get_default()) {
         qbus_print(mon, sysbus_get_default(), 0);
+    }
 }
 
 void hmp_info_qdm(Monitor *mon, const QDict *qdict)

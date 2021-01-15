@@ -165,8 +165,9 @@ static void dma_blk_cb(void *opaque, int ret)
                 }
             }
         }
-        if (!mem)
+        if (!mem) {
             break;
+        }
         qemu_iovec_add(&dbs->iov, mem, cur_len);
         dbs->sg_cur_byte += cur_len;
         if (dbs->sg_cur_byte == dbs->sg->sg[dbs->sg_cur_index].len) {
