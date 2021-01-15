@@ -35,7 +35,7 @@
 
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 int display_opengl;
-const char* keyboard_layout;
+const char *keyboard_layout;
 bool enable_mlock;
 bool enable_cpu_pm;
 int nb_nics;
