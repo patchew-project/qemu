@@ -49,8 +49,9 @@ def is_python_file(filename):
         try:
             first_line = f.readline()
             return re.match('^#!.*python', first_line) is not None
-        except UnicodeDecodeError: # Ignore binary files
+        except UnicodeDecodeError:  # Ignore binary files
             return False
+
 
 def run_linters():
     files = [filename for filename in (set(os.listdir('.')) - set(SKIP_FILES))
@@ -59,16 +60,22 @@ def run_linters():
     iotests.logger.debug('Files to be checked:')
     iotests.logger.debug(', '.join(sorted(files)))
 
-    print('=== pylint ===')
-    sys.stdout.flush()
-
-    # Todo notes are fine, but fixme's or xxx's should probably just be
-    # fixed (in tests, at least)
     env = os.environ
     try:
         env['PYTHONPATH'] += ':../../python/'
     except KeyError:
         env['PYTHONPATH'] = '../../python/'
+
+    print('=== flake8 ===')
+    sys.stdout.flush()
+
+    subprocess.run(('flake8', *files), env=env, check=False)
+
+    print('=== pylint ===')
+    sys.stdout.flush()
+
+    # Todo notes are fine, but fixme's or xxx's should probably just be
+    # fixed (in tests, at least)
     subprocess.run(('pylint-3', '--score=n', '--notes=FIXME,XXX', *files),
                    env=env, check=False)
 
@@ -102,7 +109,7 @@ def run_linters():
             print(p.stdout)
 
 
-for linter in ('pylint-3', 'mypy'):
+for linter in ('flake8', 'pylint-3', 'mypy'):
     if shutil.which(linter) is None:
         iotests.notrun(f'{linter} not found')
 

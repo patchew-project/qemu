@@ -74,7 +74,7 @@ log("query-block: device = {}, node-name = {}, dirty-bitmaps:".format(
     result['device'], result['inserted']['node-name']))
 log(result['dirty-bitmaps'], indent=2)
 log("\nbitmaps in backing image:")
-log(result['inserted']['image']['backing-image']['format-specific'] \
+log(result['inserted']['image']['backing-image']['format-specific']
     ['data']['bitmaps'], indent=2)
 
 vm.shutdown()

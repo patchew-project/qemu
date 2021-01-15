@@ -21,6 +21,7 @@
 import os
 import iotests
 
+
 class TestStopWithBlockJob(iotests.QMPTestCase):
     test_img = os.path.join(iotests.test_dir, 'test.img')
     target_img = os.path.join(iotests.test_dir, 'target.img')
@@ -39,8 +40,8 @@ class TestStopWithBlockJob(iotests.QMPTestCase):
         source_drive = 'driver=throttle,' \
                        'node-name=source,' \
                        'throttle-group=tg0,' \
-                      f'file.driver={iotests.imgfmt},' \
-                      f'file.file.filename={self.test_img}'
+                       f'file.driver={iotests.imgfmt},' \
+                       f'file.file.filename={self.test_img}'
 
         self.vm.add_drive(None, source_drive)
         self.vm.launch()
@@ -96,6 +97,7 @@ class TestStopWithBlockJob(iotests.QMPTestCase):
         self.assert_qmp(result, 'return', {})
 
         self.do_test_stop('block-commit', device='drive0', top_node='source')
+
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=["qcow2"],

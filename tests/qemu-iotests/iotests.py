@@ -37,8 +37,8 @@ from contextlib import contextmanager
 
 # pylint: disable=import-error, wrong-import-position
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
-from qemu import qtest
-from qemu.qmp import QMPMessage
+from qemu import qtest  # noqa: E402
+from qemu.qmp import QMPMessage  # noqa: E402
 
 # Use this logger for logging messages directly from the iotests module
 logger = logging.getLogger('qemu.iotests')
@@ -114,6 +114,7 @@ def qemu_tool_pipe_and_status(tool: str, args: Sequence[str],
                             ' '.join(qemu_img_args + list(args))))
     return (output, subp.returncode)
 
+
 def qemu_img_pipe_and_status(*args: str) -> Tuple[str, int]:
     """
     Run qemu-img and return both its output and its exit code
@@ -121,9 +122,11 @@ def qemu_img_pipe_and_status(*args: str) -> Tuple[str, int]:
     full_args = qemu_img_args + list(args)
     return qemu_tool_pipe_and_status('qemu-img', full_args)
 
+
 def qemu_img(*args: str) -> int:
     '''Run qemu-img and return the exit code'''
     return qemu_img_pipe_and_status(*args)[1]
+
 
 def ordered_qmp(qmsg, conv_keys=True):
     # Dictionaries are not ordered prior to 3.6, therefore:
@@ -137,6 +140,7 @@ def ordered_qmp(qmsg, conv_keys=True):
             od[k] = ordered_qmp(v, conv_keys=False)
         return od
     return qmsg
+
 
 def qemu_img_create(*args):
     args = list(args)
@@ -157,11 +161,14 @@ def qemu_img_create(*args):
 
     return qemu_img(*args)
 
+
 def qemu_img_measure(*args):
     return json.loads(qemu_img_pipe("measure", "--output", "json", *args))
 
+
 def qemu_img_check(*args):
     return json.loads(qemu_img_pipe("check", "--output", "json", *args))
+
 
 def qemu_img_verbose(*args):
     '''Run qemu-img without suppressing its output and return the exit code'''
@@ -171,14 +178,17 @@ def qemu_img_verbose(*args):
                          % (-exitcode, ' '.join(qemu_img_args + list(args))))
     return exitcode
 
+
 def qemu_img_pipe(*args: str) -> str:
     '''Run qemu-img and return its output'''
     return qemu_img_pipe_and_status(*args)[0]
+
 
 def qemu_img_log(*args):
     result = qemu_img_pipe(*args)
     log(result, filters=[filter_testfiles])
     return result
+
 
 def img_info_log(filename, filter_path=None, imgopts=False, extra_args=()):
     args = ['info']
@@ -194,6 +204,7 @@ def img_info_log(filename, filter_path=None, imgopts=False, extra_args=()):
         filter_path = filename
     log(filter_img_info(output, filter_path))
 
+
 def qemu_io(*args):
     '''Run qemu-io and return the stdout data'''
     args = qemu_io_args + list(args)
@@ -206,10 +217,12 @@ def qemu_io(*args):
                          % (-subp.returncode, ' '.join(args)))
     return output
 
+
 def qemu_io_log(*args):
     result = qemu_io(*args)
     log(result, filters=[filter_testfiles, filter_qemu_io])
     return result
+
 
 def qemu_io_silent(*args):
     '''Run qemu-io and return the exit code, suppressing stdout'''
@@ -225,6 +238,7 @@ def qemu_io_silent(*args):
                          (-exitcode, ' '.join(args)))
     return exitcode
 
+
 def qemu_io_silent_check(*args):
     '''Run qemu-io and return the true if subprocess returned 0'''
     args = qemu_io_args + list(args)
@@ -232,10 +246,12 @@ def qemu_io_silent_check(*args):
                                stderr=subprocess.STDOUT)
     return exitcode == 0
 
+
 def get_virtio_scsi_device():
     if qemu_default_machine == 's390-ccw-virtio':
         return 'virtio-scsi-ccw'
     return 'virtio-scsi-pci'
+
 
 class QemuIoInteractive:
     def __init__(self, *args):
@@ -286,6 +302,7 @@ def qemu_nbd(*args):
     '''Run qemu-nbd in daemon mode and return the parent's exit code'''
     return subprocess.call(qemu_nbd_args + ['--fork'] + list(args))
 
+
 def qemu_nbd_early_pipe(*args: str) -> Tuple[int, str]:
     '''Run qemu-nbd in daemon mode and return both the parent's exit code
        and its output in case of an error'''
@@ -294,12 +311,14 @@ def qemu_nbd_early_pipe(*args: str) -> Tuple[int, str]:
                                                    connect_stderr=False)
     return returncode, output if returncode else ''
 
+
 def qemu_nbd_list_log(*args: str) -> str:
     '''Run qemu-nbd to list remote exports'''
     full_args = [qemu_nbd_prog, '-L'] + list(args)
     output, _ = qemu_tool_pipe_and_status('qemu-nbd', full_args)
     log(output, filters=[filter_testfiles, filter_nbd_exports])
     return output
+
 
 @contextmanager
 def qemu_nbd_popen(*args):
@@ -326,10 +345,12 @@ def qemu_nbd_popen(*args):
         p.kill()
         p.wait()
 
+
 def compare_images(img1, img2, fmt1=imgfmt, fmt2=imgfmt):
     '''Return True if two image files are identical'''
     return qemu_img('compare', '-f', fmt1,
                     '-F', fmt2, img1, img2) == 0
+
 
 def create_image(name, size):
     '''Create a fully-allocated raw image with sector markers'''
@@ -341,33 +362,48 @@ def create_image(name, size):
         i = i + 512
     file.close()
 
+
 def image_size(img):
     '''Return image's virtual size'''
     r = qemu_img_pipe('info', '--output=json', '-f', imgfmt, img)
     return json.loads(r)['virtual-size']
 
+
 def is_str(val):
     return isinstance(val, str)
 
+
 test_dir_re = re.compile(r"%s" % test_dir)
+
+
 def filter_test_dir(msg):
     return test_dir_re.sub("TEST_DIR", msg)
 
+
 win32_re = re.compile(r"\r")
+
+
 def filter_win32(msg):
     return win32_re.sub("", msg)
+
 
 qemu_io_re = re.compile(r"[0-9]* ops; [0-9\/:. sec]* "
                         r"\([0-9\/.inf]* [EPTGMKiBbytes]*\/sec "
                         r"and [0-9\/.inf]* ops\/sec\)")
+
+
 def filter_qemu_io(msg):
     msg = filter_win32(msg)
     return qemu_io_re.sub("X ops; XX:XX:XX.X "
                           "(XXX YYY/sec and XXX ops/sec)", msg)
 
+
 chown_re = re.compile(r"chown [0-9]+:[0-9]+")
+
+
 def filter_chown(msg):
     return chown_re.sub("chown UID:GID", msg)
+
 
 def filter_qmp_event(event):
     '''Filter a QMP event dict'''
@@ -376,6 +412,7 @@ def filter_qmp_event(event):
         event['timestamp']['seconds'] = 'SECS'
         event['timestamp']['microseconds'] = 'USECS'
     return event
+
 
 def filter_qmp(qmsg, filter_fn):
     '''Given a string filter, filter a QMP object's values.
@@ -393,10 +430,12 @@ def filter_qmp(qmsg, filter_fn):
             qmsg[k] = filter_fn(k, v)
     return qmsg
 
+
 def filter_testfiles(msg):
     pref1 = os.path.join(test_dir, "%s-" % (os.getpid()))
     pref2 = os.path.join(sock_dir, "%s-" % (os.getpid()))
     return msg.replace(pref1, 'TEST_DIR/PID-').replace(pref2, 'SOCK_DIR/PID-')
+
 
 def filter_qmp_testfiles(qmsg):
     def _filter(_key, value):
@@ -405,8 +444,10 @@ def filter_qmp_testfiles(qmsg):
         return value
     return filter_qmp(qmsg, _filter)
 
+
 def filter_virtio_scsi(output: str) -> str:
     return re.sub(r'(virtio-scsi)-(ccw|pci)', r'\1', output)
+
 
 def filter_qmp_virtio_scsi(qmsg):
     def _filter(_key, value):
@@ -415,8 +456,10 @@ def filter_qmp_virtio_scsi(qmsg):
         return value
     return filter_qmp(qmsg, _filter)
 
+
 def filter_generated_node_ids(msg):
     return re.sub("#block[0-9]+", "NODE_NAME", msg)
+
 
 def filter_img_info(output, filename):
     lines = []
@@ -434,8 +477,10 @@ def filter_img_info(output, filename):
         lines.append(line)
     return '\n'.join(lines)
 
+
 def filter_imgfmt(msg):
     return msg.replace(imgfmt, 'IMGFMT')
+
 
 def filter_qmp_imgfmt(qmsg):
     def _filter(_key, value):
@@ -444,11 +489,13 @@ def filter_qmp_imgfmt(qmsg):
         return value
     return filter_qmp(qmsg, _filter)
 
+
 def filter_nbd_exports(output: str) -> str:
     return re.sub(r'((min|opt|max) block): [0-9]+', r'\1: XXX', output)
 
 
 Msg = TypeVar('Msg', Dict[str, Any], List[Any], str)
+
 
 def log(msg: Msg,
         filters: Iterable[Callable[[Msg], Msg]] = (),
@@ -466,22 +513,28 @@ def log(msg: Msg,
     else:
         test_logger.info(msg)
 
+
 class Timeout:
     def __init__(self, seconds, errmsg="Timeout"):
         self.seconds = seconds
         self.errmsg = errmsg
+
     def __enter__(self):
         signal.signal(signal.SIGALRM, self.timeout)
         signal.setitimer(signal.ITIMER_REAL, self.seconds)
         return self
+
     def __exit__(self, exc_type, value, traceback):
         signal.setitimer(signal.ITIMER_REAL, 0)
         return False
+
     def timeout(self, signum, frame):
         raise Exception(self.errmsg)
 
+
 def file_pattern(name):
     return "{0}-{1}".format(os.getpid(), name)
+
 
 class FilePath:
     """
@@ -529,6 +582,7 @@ def try_remove(img):
     except OSError:
         pass
 
+
 def file_path_remover():
     for path in reversed(file_path_remover.paths):
         try_remove(path)
@@ -556,6 +610,7 @@ def file_path(*names, base_dir=test_dir):
 
     return paths[0] if len(paths) == 1 else paths
 
+
 def remote_filename(path):
     if imgproto == 'file':
         return path
@@ -563,6 +618,7 @@ def remote_filename(path):
         return "ssh://%s@127.0.0.1:22%s" % (os.environ.get('USER'), path)
     else:
         raise Exception("Protocol %s not supported" % (imgproto))
+
 
 class VM(qtest.QEMUQtestMachine):
     '''A QEMU VM'''
@@ -664,7 +720,7 @@ class VM(qtest.QEMUQtestMachine):
             for key in obj:
                 self.flatten_qmp_object(obj[key], output, basestr + key + '.')
         else:
-            output[basestr[:-1]] = obj # Strip trailing '.'
+            output[basestr[:-1]] = obj  # Strip trailing '.'
         return output
 
     def qmp_to_opts(self, obj):
@@ -884,7 +940,9 @@ class VM(qtest.QEMUQtestMachine):
                    'Found node %s under %s (but expected %s)' % \
                    (node['name'], path, expected_node)
 
+
 index_re = re.compile(r'([^\[]+)\[([^\]]+)\]')
+
 
 class QMPTestCase(unittest.TestCase):
     '''Abstract base class for QMP test cases'''
@@ -992,7 +1050,6 @@ class QMPTestCase(unittest.TestCase):
                 elif event['event'] == 'JOB_STATUS_CHANGE':
                     self.assert_qmp(event, 'data/id', drive)
 
-
         self.assert_no_active_block_jobs()
         return result
 
@@ -1078,6 +1135,7 @@ def notrun(reason):
     logger.warning("%s not run: %s", seq, reason)
     sys.exit(0)
 
+
 def case_notrun(reason):
     '''Mark this test case as not having been run (without actually
     skipping it, that is left to the caller).  See
@@ -1089,6 +1147,7 @@ def case_notrun(reason):
 
     open('%s/%s.casenotrun' % (output_dir, seq), 'a').write(
         '    [case not run] ' + reason + '\n')
+
 
 def _verify_image_format(supported_fmts: Sequence[str] = (),
                          unsupported_fmts: Sequence[str] = ()) -> None:
@@ -1106,6 +1165,7 @@ def _verify_image_format(supported_fmts: Sequence[str] = (),
     if imgfmt == 'luks':
         verify_working_luks()
 
+
 def _verify_protocol(supported: Sequence[str] = (),
                      unsupported: Sequence[str] = ()) -> None:
     assert not (supported and unsupported)
@@ -1117,6 +1177,7 @@ def _verify_protocol(supported: Sequence[str] = (),
     if not_sup or (imgproto in unsupported):
         notrun('not suitable for this protocol: %s' % imgproto)
 
+
 def _verify_platform(supported: Sequence[str] = (),
                      unsupported: Sequence[str] = ()) -> None:
     if any((sys.platform.startswith(x) for x in unsupported)):
@@ -1126,26 +1187,32 @@ def _verify_platform(supported: Sequence[str] = (),
         if not any((sys.platform.startswith(x) for x in supported)):
             notrun('not suitable for this OS: %s' % sys.platform)
 
+
 def _verify_cache_mode(supported_cache_modes: Sequence[str] = ()) -> None:
     if supported_cache_modes and (cachemode not in supported_cache_modes):
         notrun('not suitable for this cache mode: %s' % cachemode)
 
+
 def _verify_aio_mode(supported_aio_modes: Sequence[str] = ()) -> None:
     if supported_aio_modes and (aiomode not in supported_aio_modes):
         notrun('not suitable for this aio mode: %s' % aiomode)
+
 
 def _verify_formats(required_formats: Sequence[str] = ()) -> None:
     usf_list = list(set(required_formats) - set(supported_formats()))
     if usf_list:
         notrun(f'formats {usf_list} are not whitelisted')
 
+
 def supports_quorum():
     return 'quorum' in qemu_img_pipe('--help')
+
 
 def verify_quorum():
     '''Skip test suite if quorum support is not available'''
     if not supports_quorum():
         notrun('quorum support missing')
+
 
 def has_working_luks() -> Tuple[bool, str]:
     """
@@ -1178,6 +1245,7 @@ def has_working_luks() -> Tuple[bool, str]:
     else:
         return (True, '')
 
+
 def verify_working_luks():
     """
     Skip test suite if LUKS does not work
@@ -1185,6 +1253,7 @@ def verify_working_luks():
     (working, reason) = has_working_luks()
     if not working:
         notrun(reason)
+
 
 def qemu_pipe(*args: str) -> str:
     """
@@ -1195,6 +1264,7 @@ def qemu_pipe(*args: str) -> str:
     full_args = [qemu_prog] + qemu_opts + list(args)
     output, _ = qemu_tool_pipe_and_status('qemu', full_args)
     return output
+
 
 def supported_formats(read_only=False):
     '''Set 'read_only' to True to check ro-whitelist
@@ -1210,6 +1280,7 @@ def supported_formats(read_only=False):
             format_message.splitlines()[line].split(":")[1].split()
 
     return supported_formats.formats[read_only]
+
 
 def skip_if_unsupported(required_formats=(), read_only=False):
     '''Skip Test Decorator
@@ -1231,6 +1302,7 @@ def skip_if_unsupported(required_formats=(), read_only=False):
         return func_wrapper
     return skip_test_decorator
 
+
 def skip_for_formats(formats: Sequence[str] = ()) \
     -> Callable[[Callable[[QMPTestCase, List[Any], Dict[str, Any]], None]],
                 Callable[[QMPTestCase, List[Any], Dict[str, Any]], None]]:
@@ -1247,6 +1319,7 @@ def skip_for_formats(formats: Sequence[str] = ()) \
         return func_wrapper
     return skip_test_decorator
 
+
 def skip_if_user_is_root(func):
     '''Skip Test Decorator
        Runs the test only without root permissions'''
@@ -1257,6 +1330,7 @@ def skip_if_user_is_root(func):
         else:
             return func(*args, **kwargs)
     return func_wrapper
+
 
 def execute_unittest(debug=False):
     """Executes unittests within the calling module."""
@@ -1290,6 +1364,7 @@ def execute_unittest(debug=False):
 
             sys.stderr.write(out)
 
+
 def execute_setup_common(supported_fmts: Sequence[str] = (),
                          supported_platforms: Sequence[str] = (),
                          supported_cache_modes: Sequence[str] = (),
@@ -1319,6 +1394,7 @@ def execute_setup_common(supported_fmts: Sequence[str] = (),
 
     return debug
 
+
 def execute_test(*args, test_function=None, **kwargs):
     """Run either unittest or script-style tests."""
 
@@ -1327,6 +1403,7 @@ def execute_test(*args, test_function=None, **kwargs):
         execute_unittest(debug)
     else:
         test_function()
+
 
 def activate_logging():
     """Activate iotests.log() output to stdout for script-style tests."""
@@ -1337,17 +1414,20 @@ def activate_logging():
     test_logger.setLevel(logging.INFO)
     test_logger.propagate = False
 
+
 # This is called from script-style iotests without a single point of entry
 def script_initialize(*args, **kwargs):
     """Initialize script-style tests without running any tests."""
     activate_logging()
     execute_setup_common(*args, **kwargs)
 
+
 # This is called from script-style iotests with a single point of entry
 def script_main(test_function, *args, **kwargs):
     """Run script-style tests outside of the unittest framework"""
     activate_logging()
     execute_test(*args, test_function=test_function, **kwargs)
+
 
 # This is called from unittest style iotests
 def main(*args, **kwargs):

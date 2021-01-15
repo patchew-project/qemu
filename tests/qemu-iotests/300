@@ -116,7 +116,7 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
         self.vm_b.shutdown()
 
         log = self.vm_b.get_log()
-        assert log is not None # Loaded after shutdown
+        assert log is not None  # Loaded after shutdown
 
         if msg is None:
             self.assertNotIn('qemu-system-', log)
@@ -455,7 +455,7 @@ class TestBlockBitmapMappingErrors(TestDirtyBitmapMigration):
         self.vm_a.shutdown()
 
         log = self.vm_a.get_log()
-        assert log is not None # Loaded after shutdown
+        assert log is not None  # Loaded after shutdown
 
         self.assertIn(f"Cannot migrate bitmap '{name}' on node "
                       f"'{self.src_node_name}': Name is longer than 255 bytes",
