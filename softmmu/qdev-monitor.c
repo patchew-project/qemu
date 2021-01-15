@@ -501,7 +501,7 @@ static BusState *qbus_find(const char *path, Error **errp)
         }
 
         /* find device */
-        if (sscanf(path+pos, "%127[^/]%n", elem, &len) != 1) {
+        if (sscanf(path + pos, "%127[^/]%n", elem, &len) != 1) {
             g_assert_not_reached();
             elem[0] = len = 0;
         }
@@ -536,7 +536,7 @@ static BusState *qbus_find(const char *path, Error **errp)
         }
 
         /* find bus */
-        if (sscanf(path+pos, "%127[^/]%n", elem, &len) != 1) {
+        if (sscanf(path + pos, "%127[^/]%n", elem, &len) != 1) {
             g_assert_not_reached();
             elem[0] = len = 0;
         }

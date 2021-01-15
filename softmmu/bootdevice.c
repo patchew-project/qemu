@@ -257,7 +257,7 @@ char *get_boot_devices_list(size_t *size)
         bootpath = get_boot_device_path(i->dev, ignore_suffixes, i->suffix);
 
         if (total) {
-            list[total-1] = '\n';
+            list[total - 1] = '\n';
         }
         len = strlen(bootpath) + 1;
         list = g_realloc(list, total + len);
@@ -269,7 +269,7 @@ char *get_boot_devices_list(size_t *size)
     *size = total;
 
     if (boot_strict && *size > 0) {
-        list[total-1] = '\n';
+        list[total - 1] = '\n';
         list = g_realloc(list, total + 5);
         memcpy(&list[total], "HALT", 5);
         *size = total + 5;

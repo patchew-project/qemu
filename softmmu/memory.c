@@ -336,7 +336,7 @@ static void flatview_simplify(FlatView *view)
     while (i < view->nr) {
         j = i + 1;
         while (j < view->nr
-               && can_merge(&view->ranges[j-1], &view->ranges[j])) {
+               && can_merge(&view->ranges[j - 1], &view->ranges[j])) {
             int128_addto(&view->ranges[i].addr.size, view->ranges[j].addr.size);
             ++j;
         }
@@ -841,8 +841,8 @@ static void address_space_update_ioeventfds(AddressSpace *as)
                     ioeventfds = g_realloc(ioeventfds,
                             ioeventfd_max * sizeof(*ioeventfds));
                 }
-                ioeventfds[ioeventfd_nb-1] = fr->mr->ioeventfds[i];
-                ioeventfds[ioeventfd_nb-1].addr = tmp;
+                ioeventfds[ioeventfd_nb - 1] = fr->mr->ioeventfds[i];
+                ioeventfds[ioeventfd_nb - 1].addr = tmp;
             }
         }
     }
@@ -2371,8 +2371,8 @@ void memory_region_add_eventfd(MemoryRegion *mr,
     ++mr->ioeventfd_nb;
     mr->ioeventfds = g_realloc(mr->ioeventfds,
                                   sizeof(*mr->ioeventfds) * mr->ioeventfd_nb);
-    memmove(&mr->ioeventfds[i+1], &mr->ioeventfds[i],
-            sizeof(*mr->ioeventfds) * (mr->ioeventfd_nb-1 - i));
+    memmove(&mr->ioeventfds[i + 1], &mr->ioeventfds[i],
+            sizeof(*mr->ioeventfds) * (mr->ioeventfd_nb - 1 - i));
     mr->ioeventfds[i] = mrfd;
     ioeventfd_update_pending |= mr->enabled;
     memory_region_transaction_commit();
@@ -2404,11 +2404,11 @@ void memory_region_del_eventfd(MemoryRegion *mr,
         }
     }
     assert(i != mr->ioeventfd_nb);
-    memmove(&mr->ioeventfds[i], &mr->ioeventfds[i+1],
-            sizeof(*mr->ioeventfds) * (mr->ioeventfd_nb - (i+1)));
+    memmove(&mr->ioeventfds[i], &mr->ioeventfds[i + 1],
+            sizeof(*mr->ioeventfds) * (mr->ioeventfd_nb - (i + 1)));
     --mr->ioeventfd_nb;
     mr->ioeventfds = g_realloc(mr->ioeventfds,
-                                  sizeof(*mr->ioeventfds)*mr->ioeventfd_nb + 1);
+                                  sizeof(*mr->ioeventfds) * mr->ioeventfd_nb + 1);
     ioeventfd_update_pending |= mr->enabled;
     memory_region_transaction_commit();
 }
