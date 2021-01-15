@@ -72,6 +72,21 @@
         put_user_u16(__x, (gaddr));                     \
     })
 
+static bool check_mte_async_fault(CPUARMState *env, target_siginfo_t *info)
+{
+    if (likely(env->cp15.tfsr_el[0] == 0)) {
+        return false;
+    }
+
+    env->cp15.tfsr_el[0] = 0;
+    info->si_signo = TARGET_SIGSEGV;
+    info->si_errno = 0;
+    info->_sifields._sigfault._addr = 0;
+    info->si_code = TARGET_SEGV_MTEAERR;
+    queue_signal(env, info->si_signo, QEMU_SI_FAULT, info);
+    return true;
+}
+
 /* AArch64 main loop */
 void cpu_loop(CPUARMState *env)
 {
@@ -88,15 +103,13 @@ void cpu_loop(CPUARMState *env)
 
         switch (trapnr) {
         case EXCP_SWI:
-            ret = do_syscall(env,
-                             env->xregs[8],
-                             env->xregs[0],
-                             env->xregs[1],
-                             env->xregs[2],
-                             env->xregs[3],
-                             env->xregs[4],
-                             env->xregs[5],
-                             0, 0);
+            if (check_mte_async_fault(env, &info)) {
+                ret = -TARGET_ERESTARTSYS;
+            } else {
+                ret = do_syscall(env, env->xregs[8], env->xregs[0],
+                                 env->xregs[1], env->xregs[2], env->xregs[3],
+                                 env->xregs[4], env->xregs[5], 0, 0);
+            }
             if (ret == -TARGET_ERESTARTSYS) {
                 env->pc -= 4;
             } else if (ret != -TARGET_QEMU_ESIGRETURN) {
@@ -104,7 +117,8 @@ void cpu_loop(CPUARMState *env)
             }
             break;
         case EXCP_INTERRUPT:
-            /* just indicate that signals should be handled asap */
+            /* Just indicate that signals should be handled asap. */
+            check_mte_async_fault(env, &info);
             break;
         case EXCP_UDEF:
             info.si_signo = TARGET_SIGILL;
