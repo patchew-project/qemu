@@ -62,12 +62,22 @@ static void vhost_scsi_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     qdev_realize(vdev, BUS(&vpci_dev->bus), errp);
 }
 
+static void vhost_scsi_pci_event(DeviceState *dev, int event, int queue,
+                                 Error **errp)
+{
+    VHostSCSIPCI *vscsi = VHOST_SCSI_PCI(dev);
+    DeviceState *vdev = DEVICE(&vscsi->vdev);
+
+    virtio_device_event_eventfd(vdev, event, queue, errp);
+}
+
 static void vhost_scsi_pci_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);
     PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);
     k->realize = vhost_scsi_pci_realize;
+    dc->event = vhost_scsi_pci_event;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     device_class_set_props(dc, vhost_scsi_pci_properties);
     pcidev_k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;

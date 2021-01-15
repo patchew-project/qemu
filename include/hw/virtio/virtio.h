@@ -397,4 +397,7 @@ static inline bool virtio_device_disabled(VirtIODevice *vdev)
 bool virtio_legacy_allowed(VirtIODevice *vdev);
 bool virtio_legacy_check_disabled(VirtIODevice *vdev);
 
+void virtio_device_event_eventfd(DeviceState *dev, int event, int queue,
+                                 Error **errp);
+
 #endif

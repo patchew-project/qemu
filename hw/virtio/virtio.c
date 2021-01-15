@@ -3690,6 +3690,25 @@ static void virtio_device_unrealize(DeviceState *dev)
     vdev->bus_name = NULL;
 }
 
+void virtio_device_event_eventfd(DeviceState *dev, int event, int queue,
+                         Error **errp)
+{
+    struct VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    int num = virtio_get_num_queues(vdev);
+
+    if (queue < 0 || queue >= num) {
+        error_setg(errp, "Invalid queue %d", queue);
+        return;
+    }
+
+    VirtQueue *vq = &vdev->vq[queue];
+
+    if (event == DEVICE_EVENT_CALL)
+        event_notifier_set(&vq->guest_notifier);
+    else if (event == DEVICE_EVENT_KICK)
+        event_notifier_set(&vq->host_notifier);
+}
+
 static void virtio_device_free_virtqueues(VirtIODevice *vdev)
 {
     int i;
