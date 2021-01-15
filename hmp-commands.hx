@@ -1867,3 +1867,17 @@ ERST
         .flags      = "p",
     },
 
+    {
+        .name       = "x-debug-device-event",
+        .args_type  = "dev:s,event:s,queue:l",
+        .params     = "dev event queue",
+        .help       = "generate device event for a specific device queue",
+        .cmd        = hmp_x_debug_device_event,
+        .flags      = "p",
+    },
+
+SRST
+``x-debug-device-event`` *dev* *event* *queue*
+  Generate device event *event* for specific *queue* of *dev*
+ERST
+

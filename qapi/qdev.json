@@ -124,3 +124,33 @@
 ##
 { 'event': 'DEVICE_DELETED',
   'data': { '*device': 'str', 'path': 'str' } }
+
+##
+# @x-debug-device-event:
+#
+# Generate device event for a specific device queue
+#
+# @dev: device path
+#
+# @event: event (e.g., kick or call) to trigger
+#
+# @queue: queue id
+#
+# Returns: Nothing on success
+#
+# Since: 5.3
+#
+# Notes: This is used to debug VM driver hang issue. The 'kick' event is to
+#        send notification to QEMU/vhost while the 'call' event is to
+#        interrupt VM on purpose.
+#
+# Example:
+#
+# -> { "execute": "x-debug-device_event",
+#      "arguments": { "dev": "/machine/peripheral/vscsi0", "event": "kick",
+#                     "queue": "1" } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'x-debug-device-event',
+  'data': {'dev': 'str', 'event': 'str', 'queue': 'int'} }
