@@ -309,7 +309,7 @@ uint64_t qemu_plugin_hwaddr_device_offset(const struct qemu_plugin_hwaddr *haddr
  */
 
 #ifndef CONFIG_USER_ONLY
-static MachineState * get_ms(void)
+static MachineState *get_ms(void)
 {
     return MACHINE(qdev_get_machine());
 }
