@@ -21,7 +21,7 @@
 #include "cpu.h"
 #include "internal.h"
 #include "exec/exec-all.h"
-#include "exec/cpu_ldst.h"
+#include "exec/translator.h"
 #include "exec/log.h"
 #include "hw/mips/cpudevs.h"
 
@@ -526,9 +526,9 @@ static bool get_pte(CPUMIPSState *env, uint64_t vaddr, int entry_size,
         return false;
     }
     if (entry_size == 64) {
-        *pte = cpu_ldq_code(env, vaddr);
+        *pte = translator_ldq(env, vaddr);
     } else {
-        *pte = cpu_ldl_code(env, vaddr);
+        *pte = translator_ldl(env, vaddr);
     }
     return true;
 }
@@ -941,14 +941,14 @@ static inline void set_badinstr_registers(CPUMIPSState *env)
 {
     if (env->insn_flags & ISA_NANOMIPS32) {
         if (env->CP0_Config3 & (1 << CP0C3_BI)) {
-            uint32_t instr = (cpu_lduw_code(env, env->active_tc.PC)) << 16;
+            uint32_t instr = (translator_lduw(env, env->active_tc.PC)) << 16;
             if ((instr & 0x10000000) == 0) {
-                instr |= cpu_lduw_code(env, env->active_tc.PC + 2);
+                instr |= translator_lduw(env, env->active_tc.PC + 2);
             }
             env->CP0_BadInstr = instr;
 
             if ((instr & 0xFC000000) == 0x60000000) {
-                instr = cpu_lduw_code(env, env->active_tc.PC + 4) << 16;
+                instr = translator_lduw(env, env->active_tc.PC + 4) << 16;
                 env->CP0_BadInstrX = instr;
             }
         }
@@ -960,11 +960,11 @@ static inline void set_badinstr_registers(CPUMIPSState *env)
         return;
     }
     if (env->CP0_Config3 & (1 << CP0C3_BI)) {
-        env->CP0_BadInstr = cpu_ldl_code(env, env->active_tc.PC);
+        env->CP0_BadInstr = translator_ldl(env, env->active_tc.PC);
     }
     if ((env->CP0_Config3 & (1 << CP0C3_BP)) &&
         (env->hflags & MIPS_HFLAG_BMASK)) {
-        env->CP0_BadInstrP = cpu_ldl_code(env, env->active_tc.PC - 4);
+        env->CP0_BadInstrP = translator_ldl(env, env->active_tc.PC - 4);
     }
 }
 
