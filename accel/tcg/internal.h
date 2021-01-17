@@ -11,6 +11,11 @@
 
 #include "exec/exec-all.h"
 
+TranslationBlock *tb_gen_code(CPUState *cpu,
+                              target_ulong pc, target_ulong cs_base,
+                              uint32_t flags,
+                              int cflags);
+
 void tb_flush_jmp_cache(CPUState *cpu, target_ulong addr);
 
 #endif

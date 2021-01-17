@@ -28,6 +28,7 @@
 #include "qemu/atomic128.h"
 #include "trace/trace-root.h"
 #include "trace/mem.h"
+#include "internal.h"
 
 #undef EAX
 #undef ECX
