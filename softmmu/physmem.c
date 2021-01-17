@@ -605,7 +605,7 @@ static void tcg_register_iommu_notifier(CPUState *cpu,
      * when the IOMMU tells us the mappings we've cached have changed.
      */
     MemoryRegion *mr = MEMORY_REGION(iommu_mr);
-    TCGIOMMUNotifier *notifier;
+    TCGIOMMUNotifier *notifier = NULL;
     int i;
 
     for (i = 0; i < cpu->iommu_notifiers->len; i++) {
@@ -638,6 +638,7 @@ static void tcg_register_iommu_notifier(CPUState *cpu,
         memory_region_register_iommu_notifier(notifier->mr, &notifier->n,
                                               &error_fatal);
     }
+    assert(notifier != NULL);
 
     if (!notifier->active) {
         notifier->active = true;
