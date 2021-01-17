@@ -52,6 +52,12 @@ struct MSF2State {
 
     ARMv7MState armv7m;
 
+    MSF2SysregState sysreg;
+    MSSTimerState timer;
+    MSSSpiState spi[MSF2_NUM_SPIS];
+    MSF2EmacState emac;
+
+    /* Properties */
     char *cpu_type;
     char *part_name;
     uint64_t envm_size;
@@ -60,11 +66,6 @@ struct MSF2State {
     uint32_t m3clk;
     uint8_t apb0div;
     uint8_t apb1div;
-
-    MSF2SysregState sysreg;
-    MSSTimerState timer;
-    MSSSpiState spi[MSF2_NUM_SPIS];
-    MSF2EmacState emac;
 };
 
 #endif
