@@ -25,10 +25,11 @@ struct A9MPPrivState {
     SysBusDevice parent_obj;
     /*< public >*/
 
+    /* Properties */
     uint32_t num_cpu;
-    MemoryRegion container;
     uint32_t num_irq;
 
+    MemoryRegion container;
     A9SCUState scu;
     GICState gic;
     A9GTimerState gtimer;
