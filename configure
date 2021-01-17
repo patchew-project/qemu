@@ -383,6 +383,7 @@ blobs="true"
 pkgversion=""
 pie=""
 qom_cast_debug="yes"
+qdev_debug="no"
 trace_backends="log"
 trace_file="trace"
 spice="$default_feature"
@@ -1005,6 +1006,10 @@ for opt do
   ;;
   --enable-qom-cast-debug) qom_cast_debug="yes"
   ;;
+  --disable-qdev-debug) qdev_debug="no"
+  ;;
+  --enable-qdev-debug) qdev_debug="yes"
+  ;;
   --disable-virtfs) virtfs="disabled"
   ;;
   --enable-virtfs) virtfs="enabled"
@@ -1048,6 +1053,7 @@ for opt do
       debug="yes"
       strip_opt="no"
       fortify_source="no"
+      qdev_debug="yes"
   ;;
   --enable-sanitizers) sanitizers="yes"
   ;;
@@ -5910,6 +5916,10 @@ fi
 
 if test "$qom_cast_debug" = "yes" ; then
   echo "CONFIG_QOM_CAST_DEBUG=y" >> $config_host_mak
+fi
+
+if test "$qdev_debug" = "yes" ; then
+  echo "CONFIG_QDEV_DEBUG=y" >> $config_host_mak
 fi
 
 echo "CONFIG_COROUTINE_BACKEND=$coroutine" >> $config_host_mak

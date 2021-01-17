@@ -792,6 +792,11 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
                                                &local_err) < 0) {
                 goto post_realize_fail;
             }
+        } else {
+#ifdef CONFIG_QDEV_DEBUG
+            warn_report("missing migration state for type: '%s'",
+                        object_get_typename(OBJECT(dev)));
+#endif
         }
 
         /*
