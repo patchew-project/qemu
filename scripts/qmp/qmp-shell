@@ -288,6 +288,8 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         self.__completer_setup()
 
     def show_banner(self, msg='Welcome to the QMP low-level shell!'):
+        if not self._interactive:
+            return
         print(msg)
         if not self._greeting:
             print('Connected')
@@ -300,6 +302,15 @@ class QMPShell(qmp.QEMUMonitorProtocol):
             return "TRANS> "
         return "(QEMU) "
 
+    def read_command(self, prompt):
+        if self._interactive:
+            return input(prompt)
+        else:
+            line = sys.stdin.readline()
+            if not line:
+                raise EOFError
+            return line
+
     def read_exec_command(self, prompt):
         """
         Read and execute a command.
@@ -307,7 +318,7 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         @return True if execution was ok, return False if disconnected.
         """
         try:
-            cmdline = input(prompt)
+            cmdline = self.read_command(prompt)
         except EOFError:
             print()
             return False
@@ -321,6 +332,9 @@ class QMPShell(qmp.QEMUMonitorProtocol):
 
     def set_verbosity(self, verbose):
         self._verbose = verbose
+
+    def set_interactive(self, interactive):
+        self._interactive = interactive
 
 class HMPShell(QMPShell):
     def __init__(self, address):
@@ -449,8 +463,9 @@ def main():
     except qemu.error:
         die('Could not connect to %s' % addr)
 
-    qemu.show_banner()
     qemu.set_verbosity(verbose)
+    qemu.set_interactive(sys.stdin.isatty())
+    qemu.show_banner()
     while qemu.read_exec_command(qemu.get_prompt()):
         pass
     qemu.close()
