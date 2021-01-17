@@ -194,9 +194,6 @@ struct VMStateDescription {
     const VMStateDescription **subsections;
 };
 
-#if defined(CONFIG_USER_ONLY)
-extern const VMStateDescription vmstate_user_mode_cpu_dummy;
-#endif
 extern const VMStateDescription vmstate_no_state_to_migrate;
 
 extern const VMStateInfo vmstate_info_bool;
