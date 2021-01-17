@@ -71,6 +71,7 @@ static void split_irq_class_init(ObjectClass *klass, void *data)
     /* No state to reset or migrate */
     device_class_set_props(dc, split_irq_properties);
     dc->realize = split_irq_realize;
+    dc->vmsd = vmstate_qdev_no_state_to_migrate;
 
     /* Reason: Needs to be wired up to work */
     dc->user_creatable = false;
