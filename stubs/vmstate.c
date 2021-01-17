@@ -2,7 +2,12 @@
 #include "migration/vmstate.h"
 
 #if defined(CONFIG_USER_ONLY)
-const VMStateDescription vmstate_user_mode_cpu_dummy = {};
+const VMStateDescription vmstate_user_mode_cpu_dummy = {
+    .name = "cpu_common_user",
+    .fields = (VMStateField[]) {
+        VMSTATE_END_OF_LIST()
+    },
+};
 #endif
 
 const VMStateDescription vmstate_no_state_to_migrate = {
