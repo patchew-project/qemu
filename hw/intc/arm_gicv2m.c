@@ -55,6 +55,7 @@ struct ARMGICv2mState {
     MemoryRegion iomem;
     qemu_irq spi[GICV2M_NUM_SPI_MAX];
 
+    /* Properties */
     uint32_t base_spi;
     uint32_t num_spi;
 };
@@ -182,6 +183,7 @@ static void gicv2m_class_init(ObjectClass *klass, void *data)
 
     device_class_set_props(dc, gicv2m_properties);
     dc->realize = gicv2m_realize;
+    dc->vmsd = vmstate_qdev_no_state_to_migrate;
 }
 
 static const TypeInfo gicv2m_info = {
