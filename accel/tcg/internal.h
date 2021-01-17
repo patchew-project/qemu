@@ -18,4 +18,6 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 
 void tb_flush_jmp_cache(CPUState *cpu, target_ulong addr);
 
+void QEMU_NORETURN cpu_io_recompile(CPUState *cpu, uintptr_t retaddr);
+
 #endif
