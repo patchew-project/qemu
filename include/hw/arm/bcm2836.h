@@ -35,13 +35,14 @@ struct BCM283XState {
     DeviceState parent_obj;
     /*< public >*/
 
-    uint32_t enabled_cpus;
-
     struct {
         ARMCPU core;
     } cpu[BCM283X_NCPUS];
     BCM2836ControlState control;
     BCM2835PeripheralState peripherals;
+
+    /* Properties */
+    uint32_t enabled_cpus;
 };
 
 #endif /* BCM2836_H */

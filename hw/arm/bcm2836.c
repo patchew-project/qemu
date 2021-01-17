@@ -176,6 +176,7 @@ static void bcm283x_class_init(ObjectClass *oc, void *data)
 
     /* Reason: Must be wired up in code (see raspi_init() function) */
     dc->user_creatable = false;
+    dc->vmsd = vmstate_qdev_no_state_to_migrate;
 }
 
 static void bcm2835_class_init(ObjectClass *oc, void *data)
