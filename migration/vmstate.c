@@ -20,6 +20,13 @@
 #include "qemu/error-report.h"
 #include "trace.h"
 
+const VMStateDescription vmstate_no_state_to_migrate = {
+    .name = "empty-state",
+    .fields = (VMStateField[]) {
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static int vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
                                    void *opaque, JSONWriter *vmdesc);
 static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
