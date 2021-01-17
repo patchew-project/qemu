@@ -1132,7 +1132,7 @@ bool target_words_bigendian(void);
 #ifdef CONFIG_SOFTMMU
 extern const VMStateDescription vmstate_cpu_common;
 #else
-#define vmstate_cpu_common vmstate_dummy
+#define vmstate_cpu_common vmstate_user_mode_cpu_dummy
 #endif
 
 #define VMSTATE_CPU() {                                                     \

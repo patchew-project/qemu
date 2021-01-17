@@ -1,7 +1,9 @@
 #include "qemu/osdep.h"
 #include "migration/vmstate.h"
 
-const VMStateDescription vmstate_dummy = {};
+#if defined(CONFIG_USER_ONLY)
+const VMStateDescription vmstate_user_mode_cpu_dummy = {};
+#endif
 
 int vmstate_register_with_alias_id(VMStateIf *obj,
                                    uint32_t instance_id,
