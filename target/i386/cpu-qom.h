@@ -37,7 +37,7 @@ typedef struct X86CPUModel X86CPUModel;
 
 /**
  * X86CPUClass:
- * @cpu_def: CPU model definition
+ * @model: CPU model definition
  * @host_cpuid_required: Whether CPU model requires cpuid from host.
  * @ordering: Ordering on the "-cpu help" CPU model list.
  * @migration_safe: See CpuDefinitionInfo::migration_safe
