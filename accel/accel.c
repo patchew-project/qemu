@@ -46,6 +46,12 @@ AccelClass *accel_find(const char *opt_name)
     return ac;
 }
 
+bool accel_print_class_properties(const char *opt_name)
+{
+    g_autofree char *class_name = g_strdup_printf(ACCEL_CLASS_NAME("%s"), opt_name);
+    return type_print_class_properties(class_name);
+}
+
 int accel_init_machine(AccelState *accel, MachineState *ms)
 {
     AccelClass *acc = ACCEL_GET_CLASS(accel);
