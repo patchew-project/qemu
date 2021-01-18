@@ -584,7 +584,7 @@ static void sd_reset(DeviceState *dev)
     sd_set_sdstatus(sd);
 
     g_free(sd->wp_groups);
-    sd->wp_switch = sd->blk ? blk_is_read_only(sd->blk) : false;
+    sd->wp_switch = sd->blk ? !blk_is_writable(sd->blk) : false;
     sd->wpgrps_size = sect;
     sd->wp_groups = bitmap_new(sd->wpgrps_size);
     memset(sd->function_group, 0, sizeof(sd->function_group));
@@ -752,7 +752,7 @@ void sd_set_cb(SDState *sd, qemu_irq readonly, qemu_irq insert)
 {
     sd->readonly_cb = readonly;
     sd->inserted_cb = insert;
-    qemu_set_irq(readonly, sd->blk ? blk_is_read_only(sd->blk) : 0);
+    qemu_set_irq(readonly, sd->blk ? !blk_is_writable(sd->blk) : 0);
     qemu_set_irq(insert, sd->blk ? blk_is_inserted(sd->blk) : 0);
 }
 
@@ -2155,7 +2155,7 @@ static void sd_realize(DeviceState *dev, Error **errp)
     if (sd->blk) {
         int64_t blk_size;
 
-        if (blk_is_read_only(sd->blk)) {
+        if (!blk_supports_write_perm(sd->blk)) {
             error_setg(errp, "Cannot use read-only drive as SD card");
             return;
         }
