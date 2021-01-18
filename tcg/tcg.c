@@ -1207,7 +1207,7 @@ void tcg_func_start(TCGContext *s)
 static inline TCGTemp *tcg_temp_alloc(TCGContext *s)
 {
     int n = s->nb_temps++;
-    tcg_debug_assert(n < TCG_MAX_TEMPS);
+    g_assert(n < TCG_MAX_TEMPS);
     return memset(&s->temps[n], 0, sizeof(TCGTemp));
 }
 
