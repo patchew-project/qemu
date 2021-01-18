@@ -39,6 +39,7 @@ config LOONGSON3V
     select SERIAL
     select GOLDFISH_RTC
     select LOONGSON_LIOINTC
+    select LOONGSON_IPI if TCG
     select PCI_DEVICES
     select PCI_EXPRESS_GENERIC_BRIDGE
     select MSI_NONBROKEN
