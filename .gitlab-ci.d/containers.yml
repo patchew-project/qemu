@@ -204,6 +204,8 @@ tricore-debian-cross-container:
 
 xtensa-debian-cross-container:
   <<: *container_job_definition
+  stage: containers-layer2
+  needs: ['amd64-debian10-container']
   variables:
     NAME: debian-xtensa-cross
 
