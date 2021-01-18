@@ -136,6 +136,7 @@ static const char *cpu_option;
 static const char *mem_path;
 static const char *incoming;
 static const char *loadvm;
+static GSList *object_opts_list = NULL;
 static ram_addr_t maxram_size;
 static uint64_t ram_slots;
 static int display_remote;
@@ -305,15 +306,6 @@ static QemuOptsList qemu_add_fd_opts = {
             .help = "free-form string used to describe fd",
         },
         { /* end of list */ }
-    },
-};
-
-static QemuOptsList qemu_object_opts = {
-    .name = "object",
-    .implied_opt_name = "qom-type",
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_object_opts.head),
-    .desc = {
-        { }
     },
 };
 
@@ -1687,12 +1679,8 @@ static int machine_set_property(void *opaque,
  * cannot be created here, as it depends on the chardev
  * already existing.
  */
-static bool object_create_early(const char *type, QemuOpts *opts)
+static bool object_create_early(const char *type)
 {
-    if (user_creatable_print_help(type, opts)) {
-        exit(0);
-    }
-
     /*
      * Objects should not be made "delayed" without a reason.  If you
      * add one, state the reason in a comment!
@@ -1784,6 +1772,22 @@ static void qemu_apply_machine_options(void)
     }
 }
 
+static void user_creatable_add_dict_foreach(void *data, void *opaque)
+{
+    bool (*type_opt_predicate)(const char *) = opaque;
+    const QDict *dict = data;
+    const char *type = qdict_get_try_str(dict, "qom-type");
+
+    if (!type) {
+        error_report("Parameter 'qom-type' is missing");
+    }
+    if (type_opt_predicate && !type_opt_predicate(type)) {
+        return;
+    }
+
+    user_creatable_add_dict(dict, true, &error_fatal);
+}
+
 static void qemu_create_early_backends(void)
 {
     MachineClass *machine_class = MACHINE_GET_CLASS(current_machine);
@@ -1810,9 +1814,9 @@ static void qemu_create_early_backends(void)
         exit(1);
     }
 
-    qemu_opts_foreach(qemu_find_opts("object"),
-                      user_creatable_add_opts_foreach,
-                      object_create_early, &error_fatal);
+    g_slist_foreach(object_opts_list,
+                    user_creatable_add_dict_foreach,
+                    object_create_early);
 
     /* spice needs the timers to be initialized by this point */
     /* spice must initialize before audio as it changes the default auiodev */
@@ -1841,9 +1845,9 @@ static void qemu_create_early_backends(void)
  * The remainder of object creation happens after the
  * creation of chardev, fsdev, net clients and device data types.
  */
-static bool object_create_late(const char *type, QemuOpts *opts)
+static bool object_create_late(const char *type)
 {
-    return !object_create_early(type, opts);
+    return !object_create_early(type);
 }
 
 static void qemu_create_late_backends(void)
@@ -1854,9 +1858,9 @@ static void qemu_create_late_backends(void)
 
     net_init_clients(&error_fatal);
 
-    qemu_opts_foreach(qemu_find_opts("object"),
-                      user_creatable_add_opts_foreach,
-                      object_create_late, &error_fatal);
+    g_slist_foreach(object_opts_list,
+                    user_creatable_add_dict_foreach,
+                    object_create_late);
 
     if (tpm_init() < 0) {
         exit(1);
@@ -2063,6 +2067,9 @@ static int global_init_func(void *opaque, QemuOpts *opts, Error **errp)
  */
 static bool is_qemuopts_group(const char *group)
 {
+    if (g_str_equal(group, "object")) {
+        return false;
+    }
     return true;
 }
 
@@ -2072,6 +2079,9 @@ static bool is_qemuopts_group(const char *group)
  */
 static GSList **qemu_config_list(const char *group)
 {
+    if (g_str_equal(group, "object")) {
+        return &object_opts_list;
+    }
     return NULL;
 }
 
@@ -2679,7 +2689,6 @@ void qemu_init(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_smp_opts);
     qemu_add_opts(&qemu_boot_opts);
     qemu_add_opts(&qemu_add_fd_opts);
-    qemu_add_opts(&qemu_object_opts);
     qemu_add_opts(&qemu_tpmdev_opts);
     qemu_add_opts(&qemu_overcommit_opts);
     qemu_add_opts(&qemu_msg_opts);
@@ -3455,12 +3464,18 @@ void qemu_init(int argc, char **argv, char **envp)
 #endif
                 break;
             case QEMU_OPTION_object:
-                opts = qemu_opts_parse_noisily(qemu_find_opts("object"),
-                                               optarg, true);
-                if (!opts) {
-                    exit(1);
+                {
+                    QDict *args;
+                    bool help;
+
+                    args = keyval_parse(optarg, "qom-type", &help, &error_fatal);
+                    if (help) {
+                        user_creatable_print_help_from_qdict(args);
+                        exit(EXIT_SUCCESS);
+                    }
+                    qemu_record_config_group("object", args, &error_abort);
+                    break;
                 }
-                break;
             case QEMU_OPTION_overcommit:
                 opts = qemu_opts_parse_noisily(qemu_find_opts("overcommit"),
                                                optarg, false);
@@ -3504,6 +3519,10 @@ void qemu_init(int argc, char **argv, char **envp)
             }
         }
     }
+
+    /* Cleanup after option parsing loop.  */
+    object_opts_list = g_slist_reverse(object_opts_list);
+
     /*
      * Clear error location left behind by the loop.
      * Best done right after the loop.  Do not insert code here!
