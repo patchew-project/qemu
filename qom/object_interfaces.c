@@ -105,24 +105,25 @@ out:
     return obj;
 }
 
-bool user_creatable_add_dict(QDict *qdict, bool keyval, Error **errp)
+bool user_creatable_add_dict(const QDict *dict, bool keyval, Error **errp)
 {
     Visitor *v;
-    Object *obj;
+    Object *obj = NULL;
+    QDict *qdict = qdict_clone_shallow(dict);
     g_autofree char *type = NULL;
     g_autofree char *id = NULL;
 
     type = g_strdup(qdict_get_try_str(qdict, "qom-type"));
     if (!type) {
         error_setg(errp, QERR_MISSING_PARAMETER, "qom-type");
-        return false;
+        goto out;
     }
     qdict_del(qdict, "qom-type");
 
     id = g_strdup(qdict_get_try_str(qdict, "id"));
     if (!id) {
         error_setg(errp, QERR_MISSING_PARAMETER, "id");
-        return false;
+        goto out;
     }
     qdict_del(qdict, "id");
 
@@ -134,6 +135,8 @@ bool user_creatable_add_dict(QDict *qdict, bool keyval, Error **errp)
     obj = user_creatable_add_type(type, id, qdict, v, errp);
     visit_free(v);
     object_unref(obj);
+out:
+    qobject_unref(qdict);
     return !!obj;
 }
 

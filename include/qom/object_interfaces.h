@@ -102,7 +102,7 @@ Object *user_creatable_add_type(const char *type, const char *id,
  *
  * Returns: %true on success, %false on failure.
  */
-bool user_creatable_add_dict(QDict *qdict, bool keyval, Error **errp);
+bool user_creatable_add_dict(const QDict *qdict, bool keyval, Error **errp);
 
 /**
  * user_creatable_add_opts:
