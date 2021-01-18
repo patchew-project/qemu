@@ -226,21 +226,27 @@ static void QEMU_NORETURN help(void)
     exit(EXIT_SUCCESS);
 }
 
-static QemuOptsList qemu_object_opts = {
-    .name = "object",
-    .implied_opt_name = "qom-type",
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_object_opts.head),
-    .desc = {
-        { }
-    },
-};
-
-static bool qemu_img_object_print_help(const char *type, QemuOpts *opts)
+static void qemu_img_object_parse(const char *optarg, int exit_code)
 {
-    if (user_creatable_print_help(type, opts)) {
-        exit(0);
+    QDict *args;
+    bool help;
+    Error *local_error = NULL;
+
+    args = keyval_parse(optarg, "qom-type", &help, &local_error);
+    if (local_error) {
+        error_report_err(local_error);
+        exit(exit_code);
     }
-    return true;
+    if (help) {
+        user_creatable_print_help_from_qdict(args);
+        exit(EXIT_SUCCESS);
+    }
+    user_creatable_add_dict(args, true, &local_error);
+    if (local_error) {
+        error_report_err(local_error);
+        exit(exit_code);
+    }
+    qobject_unref(args);
 }
 
 /*
@@ -566,14 +572,9 @@ static int img_create(int argc, char **argv)
         case 'u':
             flags |= BDRV_O_NO_BACKING;
             break;
-        case OPTION_OBJECT: {
-            QemuOpts *opts;
-            opts = qemu_opts_parse_noisily(&qemu_object_opts,
-                                           optarg, true);
-            if (!opts) {
-                goto fail;
-            }
-        }   break;
+        case OPTION_OBJECT:
+            qemu_img_object_parse(optarg, 1);
+            break;
         }
     }
 
@@ -588,12 +589,6 @@ static int img_create(int argc, char **argv)
         error_exit("Expecting image file name");
     }
     optind++;
-
-    if (qemu_opts_foreach(&qemu_object_opts,
-                          user_creatable_add_opts_foreach,
-                          qemu_img_object_print_help, &error_fatal)) {
-        goto fail;
-    }
 
     /* Get image size, if specified */
     if (optind < argc) {
@@ -804,14 +799,9 @@ static int img_check(int argc, char **argv)
         case 'U':
             force_share = true;
             break;
-        case OPTION_OBJECT: {
-            QemuOpts *opts;
-            opts = qemu_opts_parse_noisily(&qemu_object_opts,
-                                           optarg, true);
-            if (!opts) {
-                return 1;
-            }
-        }   break;
+        case OPTION_OBJECT:
+            qemu_img_object_parse(optarg, 1);
+            break;
         case OPTION_IMAGE_OPTS:
             image_opts = true;
             break;
@@ -828,12 +818,6 @@ static int img_check(int argc, char **argv)
         output_format = OFORMAT_HUMAN;
     } else if (output) {
         error_report("--output must be used with human or json as argument.");
-        return 1;
-    }
-
-    if (qemu_opts_foreach(&qemu_object_opts,
-                          user_creatable_add_opts_foreach,
-                          qemu_img_object_print_help, &error_fatal)) {
         return 1;
     }
 
@@ -1034,14 +1018,9 @@ static int img_commit(int argc, char **argv)
                 return 1;
             }
             break;
-        case OPTION_OBJECT: {
-            QemuOpts *opts;
-            opts = qemu_opts_parse_noisily(&qemu_object_opts,
-                                           optarg, true);
-            if (!opts) {
-                return 1;
-            }
-        }   break;
+        case OPTION_OBJECT:
+            qemu_img_object_parse(optarg, 1);
+            break;
         case OPTION_IMAGE_OPTS:
             image_opts = true;
             break;
@@ -1057,12 +1036,6 @@ static int img_commit(int argc, char **argv)
         error_exit("Expecting one image file name");
     }
     filename = argv[optind++];
-
-    if (qemu_opts_foreach(&qemu_object_opts,
-                          user_creatable_add_opts_foreach,
-                          qemu_img_object_print_help, &error_fatal)) {
-        return 1;
-    }
 
     flags = BDRV_O_RDWR | BDRV_O_UNMAP;
     ret = bdrv_parse_cache_mode(cache, &flags, &writethrough);
@@ -1423,15 +1396,9 @@ static int img_compare(int argc, char **argv)
         case 'U':
             force_share = true;
             break;
-        case OPTION_OBJECT: {
-            QemuOpts *opts;
-            opts = qemu_opts_parse_noisily(&qemu_object_opts,
-                                           optarg, true);
-            if (!opts) {
-                ret = 2;
-                goto out4;
-            }
-        }   break;
+        case OPTION_OBJECT:
+            qemu_img_object_parse(optarg, 2);
+            break;
         case OPTION_IMAGE_OPTS:
             image_opts = true;
             break;
@@ -1449,13 +1416,6 @@ static int img_compare(int argc, char **argv)
     }
     filename1 = argv[optind++];
     filename2 = argv[optind++];
-
-    if (qemu_opts_foreach(&qemu_object_opts,
-                          user_creatable_add_opts_foreach,
-                          qemu_img_object_print_help, &error_fatal)) {
-        ret = 2;
-        goto out4;
-    }
 
     /* Initialize before goto out */
     qemu_progress_init(progress, 2.0);
@@ -1641,7 +1601,6 @@ out2:
     blk_unref(blk1);
 out3:
     qemu_progress_end();
-out4:
     return ret;
 }
 
@@ -2342,15 +2301,9 @@ static int img_convert(int argc, char **argv)
                 goto fail_getopt;
             }
             break;
-        case OPTION_OBJECT: {
-            QemuOpts *object_opts;
-            object_opts = qemu_opts_parse_noisily(&qemu_object_opts,
-                                                  optarg, true);
-            if (!object_opts) {
-                goto fail_getopt;
-            }
+        case OPTION_OBJECT:
+            qemu_img_object_parse(optarg, 1);
             break;
-        }
         case OPTION_IMAGE_OPTS:
             image_opts = true;
             break;
@@ -2376,12 +2329,6 @@ static int img_convert(int argc, char **argv)
 
     if (!out_fmt && !tgt_image_opts) {
         out_fmt = "raw";
-    }
-
-    if (qemu_opts_foreach(&qemu_object_opts,
-                          user_creatable_add_opts_foreach,
-                          qemu_img_object_print_help, &error_fatal)) {
-        goto fail_getopt;
     }
 
     if (s.compressed && s.copy_range) {
@@ -2975,14 +2922,9 @@ static int img_info(int argc, char **argv)
         case OPTION_BACKING_CHAIN:
             chain = true;
             break;
-        case OPTION_OBJECT: {
-            QemuOpts *opts;
-            opts = qemu_opts_parse_noisily(&qemu_object_opts,
-                                           optarg, true);
-            if (!opts) {
-                return 1;
-            }
-        }   break;
+        case OPTION_OBJECT:
+            qemu_img_object_parse(optarg, 1);
+            break;
         case OPTION_IMAGE_OPTS:
             image_opts = true;
             break;
@@ -2999,12 +2941,6 @@ static int img_info(int argc, char **argv)
         output_format = OFORMAT_HUMAN;
     } else if (output) {
         error_report("--output must be used with human or json as argument.");
-        return 1;
-    }
-
-    if (qemu_opts_foreach(&qemu_object_opts,
-                          user_creatable_add_opts_foreach,
-                          qemu_img_object_print_help, &error_fatal)) {
         return 1;
     }
 
@@ -3217,14 +3153,9 @@ static int img_map(int argc, char **argv)
                 return 1;
             }
             break;
-        case OPTION_OBJECT: {
-            QemuOpts *opts;
-            opts = qemu_opts_parse_noisily(&qemu_object_opts,
-                                           optarg, true);
-            if (!opts) {
-                return 1;
-            }
-        }   break;
+        case OPTION_OBJECT:
+            qemu_img_object_parse(optarg, 1);
+            break;
         case OPTION_IMAGE_OPTS:
             image_opts = true;
             break;
@@ -3241,12 +3172,6 @@ static int img_map(int argc, char **argv)
         output_format = OFORMAT_HUMAN;
     } else if (output) {
         error_report("--output must be used with human or json as argument.");
-        return 1;
-    }
-
-    if (qemu_opts_foreach(&qemu_object_opts,
-                          user_creatable_add_opts_foreach,
-                          qemu_img_object_print_help, &error_fatal)) {
         return 1;
     }
 
@@ -3388,14 +3313,9 @@ static int img_snapshot(int argc, char **argv)
         case 'U':
             force_share = true;
             break;
-        case OPTION_OBJECT: {
-            QemuOpts *opts;
-            opts = qemu_opts_parse_noisily(&qemu_object_opts,
-                                           optarg, true);
-            if (!opts) {
-                return 1;
-            }
-        }   break;
+        case OPTION_OBJECT:
+            qemu_img_object_parse(optarg, 1);
+            break;
         case OPTION_IMAGE_OPTS:
             image_opts = true;
             break;
@@ -3406,12 +3326,6 @@ static int img_snapshot(int argc, char **argv)
         error_exit("Expecting one image file name");
     }
     filename = argv[optind++];
-
-    if (qemu_opts_foreach(&qemu_object_opts,
-                          user_creatable_add_opts_foreach,
-                          qemu_img_object_print_help, &error_fatal)) {
-        return 1;
-    }
 
     /* Open the image */
     blk = img_open(image_opts, filename, NULL, bdrv_oflags, false, quiet,
@@ -3546,14 +3460,9 @@ static int img_rebase(int argc, char **argv)
         case 'q':
             quiet = true;
             break;
-        case OPTION_OBJECT: {
-            QemuOpts *opts;
-            opts = qemu_opts_parse_noisily(&qemu_object_opts,
-                                           optarg, true);
-            if (!opts) {
-                return 1;
-            }
-        }   break;
+        case OPTION_OBJECT:
+            qemu_img_object_parse(optarg, 1);
+            break;
         case OPTION_IMAGE_OPTS:
             image_opts = true;
             break;
@@ -3574,12 +3483,6 @@ static int img_rebase(int argc, char **argv)
         error_exit("Must specify backing file (-b) or use unsafe mode (-u)");
     }
     filename = argv[optind++];
-
-    if (qemu_opts_foreach(&qemu_object_opts,
-                          user_creatable_add_opts_foreach,
-                          qemu_img_object_print_help, &error_fatal)) {
-        return 1;
-    }
 
     qemu_progress_init(progress, 2.0);
     qemu_progress_print(0, 100);
@@ -3971,14 +3874,9 @@ static int img_resize(int argc, char **argv)
         case 'q':
             quiet = true;
             break;
-        case OPTION_OBJECT: {
-            QemuOpts *opts;
-            opts = qemu_opts_parse_noisily(&qemu_object_opts,
-                                           optarg, true);
-            if (!opts) {
-                return 1;
-            }
-        }   break;
+        case OPTION_OBJECT:
+            qemu_img_object_parse(optarg, 1);
+            break;
         case OPTION_IMAGE_OPTS:
             image_opts = true;
             break;
@@ -3999,12 +3897,6 @@ static int img_resize(int argc, char **argv)
         error_exit("Expecting image file name and size");
     }
     filename = argv[optind++];
-
-    if (qemu_opts_foreach(&qemu_object_opts,
-                          user_creatable_add_opts_foreach,
-                          qemu_img_object_print_help, &error_fatal)) {
-        return 1;
-    }
 
     /* Choose grow, shrink, or absolute resize mode */
     switch (size[0]) {
@@ -4185,12 +4077,7 @@ static int img_amend(int argc, char **argv)
             quiet = true;
             break;
         case OPTION_OBJECT:
-            opts = qemu_opts_parse_noisily(&qemu_object_opts,
-                                           optarg, true);
-            if (!opts) {
-                ret = -1;
-                goto out_no_progress;
-            }
+            qemu_img_object_parse(optarg, 1);
             break;
         case OPTION_IMAGE_OPTS:
             image_opts = true;
@@ -4203,13 +4090,6 @@ static int img_amend(int argc, char **argv)
 
     if (!options) {
         error_exit("Must specify options (-o)");
-    }
-
-    if (qemu_opts_foreach(&qemu_object_opts,
-                          user_creatable_add_opts_foreach,
-                          qemu_img_object_print_help, &error_fatal)) {
-        ret = -1;
-        goto out_no_progress;
     }
 
     if (quiet) {
@@ -4670,7 +4550,6 @@ static int img_bitmap(int argc, char **argv)
 {
     Error *err = NULL;
     int c, ret = 1;
-    QemuOpts *opts = NULL;
     const char *fmt = NULL, *src_fmt = NULL, *src_filename = NULL;
     const char *filename, *bitmap;
     BlockBackend *blk = NULL, *src = NULL;
@@ -4764,21 +4643,12 @@ static int img_bitmap(int argc, char **argv)
             merge = true;
             break;
         case OPTION_OBJECT:
-            opts = qemu_opts_parse_noisily(&qemu_object_opts, optarg, true);
-            if (!opts) {
-                goto out;
-            }
+            qemu_img_object_parse(optarg, 1);
             break;
         case OPTION_IMAGE_OPTS:
             image_opts = true;
             break;
         }
-    }
-
-    if (qemu_opts_foreach(&qemu_object_opts,
-                          user_creatable_add_opts_foreach,
-                          qemu_img_object_print_help, &error_fatal)) {
-        goto out;
     }
 
     if (QSIMPLEQ_EMPTY(&actions)) {
@@ -4876,7 +4746,6 @@ static int img_bitmap(int argc, char **argv)
  out:
     blk_unref(src);
     blk_unref(blk);
-    qemu_opts_del(opts);
     return ret;
 }
 
@@ -5038,10 +4907,7 @@ static int img_dd(int argc, char **argv)
             force_share = true;
             break;
         case OPTION_OBJECT:
-            if (!qemu_opts_parse_noisily(&qemu_object_opts, optarg, true)) {
-                ret = -1;
-                goto out;
-            }
+            qemu_img_object_parse(optarg, 1);
             break;
         case OPTION_IMAGE_OPTS:
             image_opts = true;
@@ -5084,13 +4950,6 @@ static int img_dd(int argc, char **argv)
 
     if (!(dd.flags & C_IF && dd.flags & C_OF)) {
         error_report("Must specify both input and output files");
-        ret = -1;
-        goto out;
-    }
-
-    if (qemu_opts_foreach(&qemu_object_opts,
-                          user_creatable_add_opts_foreach,
-                          qemu_img_object_print_help, &error_fatal)) {
         ret = -1;
         goto out;
     }
@@ -5270,7 +5129,6 @@ static int img_measure(int argc, char **argv)
     char *snapshot_name = NULL;
     bool force_share = false;
     QemuOpts *opts = NULL;
-    QemuOpts *object_opts = NULL;
     QemuOpts *sn_opts = NULL;
     QemuOptsList *create_opts = NULL;
     bool image_opts = false;
@@ -5315,11 +5173,7 @@ static int img_measure(int argc, char **argv)
             force_share = true;
             break;
         case OPTION_OBJECT:
-            object_opts = qemu_opts_parse_noisily(&qemu_object_opts,
-                                                  optarg, true);
-            if (!object_opts) {
-                goto out;
-            }
+            qemu_img_object_parse(optarg, 1);
             break;
         case OPTION_IMAGE_OPTS:
             image_opts = true;
@@ -5347,12 +5201,6 @@ static int img_measure(int argc, char **argv)
         }
         break;
         }
-    }
-
-    if (qemu_opts_foreach(&qemu_object_opts,
-                          user_creatable_add_opts_foreach,
-                          qemu_img_object_print_help, &error_fatal)) {
-        goto out;
     }
 
     if (argc - optind > 1) {
@@ -5442,7 +5290,6 @@ static int img_measure(int argc, char **argv)
 
 out:
     qapi_free_BlockMeasureInfo(info);
-    qemu_opts_del(object_opts);
     qemu_opts_del(opts);
     qemu_opts_del(sn_opts);
     qemu_opts_free(create_opts);
@@ -5494,7 +5341,6 @@ int main(int argc, char **argv)
         error_exit("Not enough arguments");
     }
 
-    qemu_add_opts(&qemu_object_opts);
     qemu_add_opts(&qemu_source_opts);
     qemu_add_opts(&qemu_trace_opts);
 
