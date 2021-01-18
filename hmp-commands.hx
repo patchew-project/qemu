@@ -669,7 +669,7 @@ ERST
 
     {
         .name       = "device_add",
-        .args_type  = "device:O",
+        .args_type  = "driver:O",
         .params     = "driver[,prop=value][,...]",
         .help       = "add device, like -device on the command line",
         .cmd        = hmp_device_add,
@@ -1315,7 +1315,7 @@ ERST
 
     {
         .name       = "netdev_add",
-        .args_type  = "netdev:O",
+        .args_type  = "type:O",
         .params     = "[user|tap|socket|vde|bridge|hubport|netmap|vhost-user],id=str[,prop=value][,...]",
         .help       = "add host network device",
         .cmd        = hmp_netdev_add,
@@ -1343,7 +1343,7 @@ ERST
 
     {
         .name       = "object_add",
-        .args_type  = "object:O",
+        .args_type  = "qom-type:O",
         .params     = "[qom-type=]type,id=str[,prop=value][,...]",
         .help       = "create QOM object",
         .cmd        = hmp_object_add,

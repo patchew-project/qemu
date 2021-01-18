@@ -744,13 +744,9 @@ static QDict *monitor_parse_arguments(Monitor *mon,
             break;
         case 'O':
             {
-                QemuOptsList *opts_list;
-                QemuOpts *opts;
+                Error *errp;
+                bool help;
 
-                opts_list = qemu_find_opts(key);
-                if (!opts_list || opts_list->desc->name) {
-                    goto bad_type;
-                }
                 while (qemu_isspace(*p)) {
                     p++;
                 }
@@ -760,12 +756,14 @@ static QDict *monitor_parse_arguments(Monitor *mon,
                 if (get_str(buf, sizeof(buf), &p) < 0) {
                     goto fail;
                 }
-                opts = qemu_opts_parse_noisily(opts_list, buf, true);
-                if (!opts) {
-                    goto fail;
+                keyval_parse_into(qdict, buf, key, &help, &errp);
+                if (help) {
+                    if (qdict_haskey(qdict, key)) {
+                        qdict_put_bool(qdict, "help", true);
+                    } else {
+                        qdict_put_str(qdict, key, "help");
+                    }
                 }
-                qemu_opts_to_qdict(opts, qdict);
-                qemu_opts_del(opts);
             }
             break;
         case '/':
