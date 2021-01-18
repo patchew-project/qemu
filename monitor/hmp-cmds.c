@@ -1663,23 +1663,17 @@ void hmp_netdev_del(Monitor *mon, const QDict *qdict)
 void hmp_object_add(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
-    QemuOpts *opts;
-    Object *obj = NULL;
 
-    opts = qemu_opts_from_qdict(qemu_find_opts("object"), qdict, &err);
-    if (err) {
-        goto end;
+    if (is_help_option(qdict_get_str(qdict, "qom-type"))) {
+        user_creatable_print_types();
+        return;
     }
-
-    obj = user_creatable_add_opts(opts, &err);
-    qemu_opts_del(opts);
-
-end:
+    if (qdict_haskey(qdict, "help")) {
+        user_creatable_print_help_from_qdict(qdict);
+        return;
+    }
+    user_creatable_add_dict((QDict *)qdict, true, &err);
     hmp_handle_error(mon, err);
-
-    if (obj) {
-        object_unref(obj);
-    }
 }
 
 void hmp_getfd(Monitor *mon, const QDict *qdict)

@@ -150,6 +150,13 @@ int user_creatable_add_opts_foreach(void *opaque,
                                     QemuOpts *opts, Error **errp);
 
 /**
+ * user_creatable_print_types:
+ *
+ * Prints a list of user-creatable objects to stdout or the monitor.
+ */
+void user_creatable_print_types(void);
+
+/**
  * user_creatable_print_help:
  * @type: the QOM type to be added
  * @opts: options to create
@@ -174,7 +181,7 @@ bool user_creatable_print_help(const char *type, QemuOpts *opts);
  * no help was requested. It should only be called if we know that help is
  * requested and it will always print some help.
  */
-void user_creatable_print_help_from_qdict(QDict *args);
+void user_creatable_print_help_from_qdict(const QDict *args);
 
 /**
  * user_creatable_del:
