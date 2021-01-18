@@ -16,8 +16,8 @@
  *   key-vals     = [ key-val { ',' key-val } [ ',' ] ]
  *   key-val      = key '=' val | help
  *   key          = key-fragment { '.' key-fragment }
- *   key-fragment = / [^=,.]+ /
- *   val          = { / [^,]+ / | ',,' }
+ *   key-fragment = { / [^=,.] / | ',,' }
+ *   val          = { / [^,] / | ',,' }
  *   help         = 'help' | '?'
  *
  * Semantics defined by reduction to JSON:
@@ -78,13 +78,13 @@
  * Alternative syntax for use with an implied key:
  *
  *   key-vals     = [ key-val-1st { ',' key-val } [ ',' ] ]
- *   key-val-1st  = val-no-key | key-val
- *   val-no-key   = / [^=,]+ / - help
+ *   key-val-1st  = (val-no-key - help) | key-val
+ *   val-no-key   = { / [^=,] / | ',,' }
  *
  * where val-no-key is syntactic sugar for implied-key=val-no-key.
  *
- * Note that you can't use the sugared form when the value contains
- * '=' or ','.
+ * Note that you can't use the sugared form when the value is empty
+ * or contains '='.
  */
 
 #include "qemu/osdep.h"
@@ -141,7 +141,7 @@ static int key_to_index(const char *key, const char **end)
  * On failure, store an error through @errp and return NULL.
  */
 static QObject *keyval_parse_put(QDict *cur,
-                                 const char *key_in_cur, QString *value,
+                                 const char *key_in_cur, const char *value,
                                  const char *key, const char *key_cursor,
                                  Error **errp)
 {
@@ -152,18 +152,54 @@ static QObject *keyval_parse_put(QDict *cur,
         if (qobject_type(old) != (value ? QTYPE_QSTRING : QTYPE_QDICT)) {
             error_setg(errp, "Parameters '%.*s.*' used inconsistently",
                        (int)(key_cursor - key), key);
-            qobject_unref(value);
             return NULL;
         }
         if (!value) {
             return old;         /* already QDict, do nothing */
         }
-        new = QOBJECT(value);   /* replacement */
-    } else {
-        new = value ? QOBJECT(value) : QOBJECT(qdict_new());
     }
+    new = value ? QOBJECT(qstring_from_str(value)) : QOBJECT(qdict_new());
     qdict_put_obj(cur, key_in_cur, new);
     return new;
+}
+
+/*
+ * Parse and unescape the string (key or value) pointed to by @start,
+ * stopping at a single comma or if @key is true an equal sign.
+ * The string is unescaped and NUL-terminated in place.
+ *
+ * On return:
+ * - either NUL or the separator (comma or equal sign) is returned.
+ * - the length of the string is stored in @len.
+ * - @start is advanced to either the NUL or the first character past the
+ *   separator.
+ */
+static char keyval_fetch_string(char **start, size_t *len, bool key)
+{
+    char sep;
+    char *p, *unescaped;
+    p = unescaped = *start;
+    for (;;) {
+        sep = *p;
+        if (!sep) {
+            break;
+        }
+        if (key && sep == '=') {
+            ++p;
+            break;
+        }
+        if (sep == ',') {
+            if (*++p != ',') {
+                break;
+            }
+        }
+        *unescaped++ = *p++;
+    }
+
+    *unescaped = 0;
+    *len = unescaped - *start;
+    *start = p;
+    return sep;
 }
 
 /*
@@ -179,35 +215,42 @@ static QObject *keyval_parse_put(QDict *cur,
  * On success, return a pointer to the next parameter, or else to '\0'.
  * On failure, return NULL.
  */
-static const char *keyval_parse_one(QDict *qdict, const char *params,
-                                    const char *implied_key, bool *help,
-                                    Error **errp)
+static char *keyval_parse_one(QDict *qdict, char *params,
+                              const char *implied_key, bool *help,
+                              Error **errp)
 {
-    const char *key, *key_end, *val_end, *s, *end;
+    const char *key, *key_end, *s, *end;
+    const char *val = NULL;
+    char sep;
     size_t len;
     char key_in_cur[128];
     QDict *cur;
     int ret;
     QObject *next;
-    GString *val;
 
     key = params;
-    val_end = NULL;
-    len = strcspn(params, "=,");
-    if (len && key[len] != '=') {
-        if (starts_with_help_option(key) == len) {
+    sep = keyval_fetch_string(&params, &len, true);
+    if (!len) {
+        if (sep) {
+            error_setg(errp, "Expected parameter before '%c%s'", sep, params);
+        } else {
+            error_setg(errp, "Expected parameter at end of string");
+        }
+        return NULL;
+    }
+    if (sep != '=') {
+        if (is_help_option(key)) {
             *help = true;
-            s = key + len;
-            if (*s == ',') {
-                s++;
-            }
-            return s;
+            return params;
         }
         if (implied_key) {
             /* Desugar implied key */
+            val = key;
             key = implied_key;
-            val_end = params + len;
             len = strlen(implied_key);
+        } else {
+            error_setg(errp, "No implicit parameter name for value '%s'", key);
+            return NULL;
         }
     }
     key_end = key + len;
@@ -218,7 +261,7 @@ static const char *keyval_parse_one(QDict *qdict, const char *params,
      */
     cur = qdict;
     s = key;
-    for (;;) {
+    do {
         /* Want a key index (unless it's first) or a QAPI name */
         if (s != key && key_to_index(s, &end) >= 0) {
             len = end - s;
@@ -254,47 +297,16 @@ static const char *keyval_parse_one(QDict *qdict, const char *params,
         memcpy(key_in_cur, s, len);
         key_in_cur[len] = 0;
         s += len;
+    } while (*s++ == '.');
 
-        if (*s != '.') {
-            break;
-        }
-        s++;
+    if (key != implied_key) {
+        val = params;
+        keyval_fetch_string(&params, &len, false);
     }
-
-    if (key == implied_key) {
-        assert(!*s);
-        val = g_string_new_len(params, val_end - params);
-        s = val_end;
-        if (*s == ',') {
-            s++;
-        }
-    } else {
-        if (*s != '=') {
-            error_setg(errp, "Expected '=' after parameter '%.*s'",
-                       (int)(s - key), key);
-            return NULL;
-        }
-        s++;
-
-        val = g_string_new(NULL);
-        for (;;) {
-            if (!*s) {
-                break;
-            } else if (*s == ',') {
-                s++;
-                if (*s != ',') {
-                    break;
-                }
-            }
-            g_string_append_c(val, *s++);
-        }
-    }
-
-    if (!keyval_parse_put(cur, key_in_cur, qstring_from_gstring(val),
-                          key, key_end, errp)) {
+    if (!keyval_parse_put(cur, key_in_cur, val, key, key_end, errp)) {
         return NULL;
     }
-    return s;
+    return params;
 }
 
 static char *reassemble_key(GSList *key)
@@ -439,10 +451,11 @@ QDict *keyval_parse(const char *params, const char *implied_key,
 {
     QDict *qdict = qdict_new();
     QObject *listified;
-    const char *s;
+    g_autofree char *dup;
+    char *s;
     bool help = false;
 
-    s = params;
+    s = dup = g_strdup(params);
     while (*s) {
         s = keyval_parse_one(qdict, s, implied_key, &help, errp);
         if (!s) {

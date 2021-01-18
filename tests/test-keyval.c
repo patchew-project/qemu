@@ -89,6 +89,11 @@ static void test_keyval_parse(void)
     error_free_or_abort(&err);
     g_assert(!qdict);
 
+    /* Keys must be QAPI identifiers */
+    qdict = keyval_parse("weird,,=key", NULL, NULL, &err);
+    error_free_or_abort(&err);
+    g_assert(!qdict);
+
     /* Multiple keys, last one wins */
     qdict = keyval_parse("a=1,b=2,,x,a=3", NULL, NULL, &error_abort);
     g_assert_cmpuint(qdict_size(qdict), ==, 2);
@@ -178,15 +183,15 @@ static void test_keyval_parse(void)
     error_free_or_abort(&err);
     g_assert(!qdict);
 
-    /* Likewise (qemu_opts_parse(): implied key with comma value) */
-    qdict = keyval_parse(",,,a=1", "implied", NULL, &err);
-    error_free_or_abort(&err);
-    g_assert(!qdict);
+    /* Implied key's value can have a comma */
+    qdict = keyval_parse(",,,a=1", "implied", NULL, &error_abort);
+    g_assert_cmpstr(qdict_get_try_str(qdict, "implied"), ==, ",");
+    g_assert_cmpstr(qdict_get_try_str(qdict, "a"), ==, "1");
+    qobject_unref(qdict);
 
-    /* Implied key's value can't have comma (qemu_opts_parse(): it can) */
-    qdict = keyval_parse("val,,ue", "implied", NULL, &err);
-    error_free_or_abort(&err);
-    g_assert(!qdict);
+    qdict = keyval_parse("val,,ue", "implied", NULL, &error_abort);
+    g_assert_cmpstr(qdict_get_try_str(qdict, "implied"), ==, "val,ue");
+    qobject_unref(qdict);
 
     /* Empty key is not an implied key */
     qdict = keyval_parse("=val", "implied", NULL, &err);
