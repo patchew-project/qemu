@@ -170,11 +170,10 @@ static QObject *keyval_parse_put(QDict *cur,
  *
  * On return:
  * - either NUL or the separator (comma or equal sign) is returned.
- * - the length of the string is stored in @len.
  * - @start is advanced to either the NUL or the first character past the
  *   separator.
  */
-static char keyval_fetch_string(char **start, size_t *len, bool key)
+static char keyval_fetch_string(char **start, bool key)
 {
     char sep;
     char *p, *unescaped;
@@ -197,7 +196,6 @@ static char keyval_fetch_string(char **start, size_t *len, bool key)
     }
 
     *unescaped = 0;
-    *len = unescaped - *start;
     *start = p;
     return sep;
 }
@@ -219,7 +217,7 @@ static char *keyval_parse_one(QDict *qdict, char *params,
                               const char *implied_key, bool *help,
                               Error **errp)
 {
-    const char *key, *key_end, *s, *end;
+    const char *key, *s, *end;
     const char *val = NULL;
     char sep;
     size_t len;
@@ -229,8 +227,8 @@ static char *keyval_parse_one(QDict *qdict, char *params,
     QObject *next;
 
     key = params;
-    sep = keyval_fetch_string(&params, &len, true);
-    if (!len) {
+    sep = keyval_fetch_string(&params, true);
+    if (!*key) {
         if (sep) {
             error_setg(errp, "Expected parameter before '%c%s'", sep, params);
         } else {
@@ -247,13 +245,11 @@ static char *keyval_parse_one(QDict *qdict, char *params,
             /* Desugar implied key */
             val = key;
             key = implied_key;
-            len = strlen(implied_key);
         } else {
             error_setg(errp, "No implicit parameter name for value '%s'", key);
             return NULL;
         }
     }
-    key_end = key + len;
 
     /*
      * Loop over key fragments: @s points to current fragment, it
@@ -269,24 +265,21 @@ static char *keyval_parse_one(QDict *qdict, char *params,
             ret = parse_qapi_name(s, false);
             len = ret < 0 ? 0 : ret;
         }
-        assert(s + len <= key_end);
-        if (!len || (s + len < key_end && s[len] != '.')) {
+        if (!len || (s[len] != '\0' && s[len] != '.')) {
             assert(key != implied_key);
-            error_setg(errp, "Invalid parameter '%.*s'",
-                       (int)(key_end - key), key);
+            error_setg(errp, "Invalid parameter '%s'", key);
             return NULL;
         }
         if (len >= sizeof(key_in_cur)) {
             assert(key != implied_key);
             error_setg(errp, "Parameter%s '%.*s' is too long",
-                       s != key || s + len != key_end ? " fragment" : "",
+                       s != key || s[len] == '.' ? " fragment" : "",
                        (int)len, s);
             return NULL;
         }
 
         if (s != key) {
-            next = keyval_parse_put(cur, key_in_cur, NULL,
-                                    key, s - 1, errp);
+            next = keyval_parse_put(cur, key_in_cur, NULL, key, s - 1, errp);
             if (!next) {
                 return NULL;
             }
@@ -301,9 +294,9 @@ static char *keyval_parse_one(QDict *qdict, char *params,
 
     if (key != implied_key) {
         val = params;
-        keyval_fetch_string(&params, &len, false);
+        keyval_fetch_string(&params, false);
     }
-    if (!keyval_parse_put(cur, key_in_cur, val, key, key_end, errp)) {
+    if (!keyval_parse_put(cur, key_in_cur, val, key, s - 1, errp)) {
         return NULL;
     }
     return params;
