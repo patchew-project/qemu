@@ -816,19 +816,24 @@ void tcg_register_thread(void)
 void tcg_register_thread(void)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
-    TCGContext *s = g_malloc(sizeof(*s));
-    unsigned int i, n;
+    TCGContext *s = g_memdup(&tcg_init_ctx, sizeof(*s));
+    unsigned int i, n = tcg_init_ctx.nb_globals;
+    TCGTemp *glob;
     bool err;
 
-    *s = tcg_init_ctx;
-
-    /* Relink mem_base.  */
-    for (i = 0, n = tcg_init_ctx.nb_globals; i < n; ++i) {
+    /* Copy the globals. */
+    s->temps = g_ptr_array_sized_new(TCG_INIT_TEMPS);
+    glob = g_new(TCGTemp, n);
+    for (i = 0; i < n; ++i) {
         TCGTemp *its = tcg_temp(&tcg_init_ctx, i);
+        TCGTemp *ots = glob + i;
+
+        *ots = *its;
         if (its->mem_base) {
-            TCGTemp *ots = tcg_temp(s, i);
-            ots->mem_base = tcg_temp(s, temp_idx(its->mem_base));
+            /* Relink mem_base. */
+            ots->mem_base = glob + temp_idx(its->mem_base);
         }
+        g_ptr_array_add(s->temps, ots);
     }
 
     /* Claim an entry in tcg_ctxs */
@@ -986,11 +991,11 @@ void tcg_context_init(TCGContext *s)
 
     memset(s, 0, sizeof(*s));
     s->nb_globals = 0;
+    s->temps = g_ptr_array_sized_new(TCG_INIT_TEMPS);
 
-    /* Count total number of arguments and allocate the corresponding
-       space */
+    /* Count total number of arguments and allocate the corresponding space */
     total_args = 0;
-    for(op = 0; op < NB_OPS; op++) {
+    for (op = 0; op < NB_OPS; op++) {
         def = &tcg_op_defs[op];
         n = def->nb_iargs + def->nb_oargs;
         total_args += n;
@@ -998,7 +1003,7 @@ void tcg_context_init(TCGContext *s)
 
     args_ct = g_new0(TCGArgConstraint, total_args);
 
-    for(op = 0; op < NB_OPS; op++) {
+    for (op = 0; op < NB_OPS; op++) {
         def = &tcg_op_defs[op];
         def->args_ct = args_ct;
         n = def->nb_iargs + def->nb_oargs;
@@ -1179,11 +1184,13 @@ void tcg_prologue_init(TCGContext *s)
 void tcg_func_start(TCGContext *s)
 {
     tcg_pool_reset(s);
+
     s->nb_temps = s->nb_globals;
+    g_ptr_array_set_size(s->temps, s->nb_globals);
 
     /* No temps have been previously allocated for size or locality.  */
     for (int i = 0; i < ARRAY_SIZE(s->free_temps); ++i) {
-        tempset_init(&s->free_temps[i], TCG_MAX_TEMPS);
+        tempset_init(&s->free_temps[i], TCG_INIT_TEMPS);
     }
 
     /* No constant temps have been previously allocated. */
@@ -1208,27 +1215,40 @@ void tcg_func_start(TCGContext *s)
 
 static TCGTemp *tcg_temp_alloc(TCGContext *s)
 {
-    int n = s->nb_temps++;
     TCGTemp *ret;
+    int n = s->nb_temps;
 
-    tcg_debug_assert(n < TCG_MAX_TEMPS);
-    ret = &s->temps[n];
+    /* Note that TCGTemp.index is 16 bits. */
+    tcg_debug_assert(n <= UINT16_MAX);
+    s->nb_temps = n + 1;
+
+    /* Non-global temps are allocated from the pool. */
+    ret = tcg_malloc(sizeof(TCGTemp));
     memset(ret, 0, sizeof(TCGTemp));
     ret->index = n;
 
+    g_ptr_array_add(s->temps, ret);
     return ret;
 }
 
-static inline TCGTemp *tcg_global_alloc(TCGContext *s)
+static TCGTemp *tcg_global_alloc(TCGContext *s)
 {
-    TCGTemp *ts;
+    TCGTemp *ret;
+    int n = s->nb_globals;
 
+    /* Note that TCGTemp.index is 16 bits. */
+    tcg_debug_assert(n <= UINT16_MAX);
     tcg_debug_assert(s->nb_globals == s->nb_temps);
-    s->nb_globals++;
-    ts = tcg_temp_alloc(s);
-    ts->kind = TEMP_GLOBAL;
+    s->nb_globals = n + 1;
+    s->nb_temps = n + 1;
 
-    return ts;
+    /* Global temps are allocated from the main heap and live forever. */
+    ret = g_new0(TCGTemp, 1);
+    ret->index = n;
+    ret->kind = TEMP_GLOBAL;
+
+    g_ptr_array_add(s->temps, ret);
+    return ret;
 }
 
 static TCGTemp *tcg_global_reg_new_internal(TCGContext *s, TCGType type,
@@ -1236,9 +1256,7 @@ static TCGTemp *tcg_global_reg_new_internal(TCGContext *s, TCGType type,
 {
     TCGTemp *ts;
 
-    if (TCG_TARGET_REG_BITS == 32 && type != TCG_TYPE_I32) {
-        tcg_abort();
-    }
+    tcg_debug_assert(TCG_TARGET_REG_BITS != 32 || type == TCG_TYPE_I32);
 
     ts = tcg_global_alloc(s);
     ts->base_type = type;
@@ -1299,7 +1317,7 @@ TCGTemp *tcg_global_mem_new_internal(TCGType type, TCGv_ptr base,
         pstrcat(buf, sizeof(buf), "_0");
         ts->name = strdup(buf);
 
-        tcg_debug_assert(ts2 == ts + 1);
+        tcg_debug_assert(temp_idx(ts2) == temp_idx(ts) + 1);
         ts2->base_type = TCG_TYPE_I64;
         ts2->type = TCG_TYPE_I32;
         ts2->indirect_reg = indirect_reg;
@@ -1347,7 +1365,7 @@ TCGTemp *tcg_temp_new_internal(TCGType type, bool temp_local)
             ts->temp_allocated = 1;
             ts->kind = kind;
 
-            tcg_debug_assert(ts2 == ts + 1);
+            tcg_debug_assert(temp_idx(ts2) == temp_idx(ts) + 1);
             ts2->base_type = TCG_TYPE_I64;
             ts2->type = TCG_TYPE_I32;
             ts2->temp_allocated = 1;
@@ -1456,7 +1474,7 @@ TCGTemp *tcg_constant_internal(TCGType type, int64_t val)
              */
             ts->val = val;
 
-            tcg_debug_assert(ts2 == ts + 1);
+            tcg_debug_assert(temp_idx(ts2) == temp_idx(ts) + 1);
             ts2->base_type = TCG_TYPE_I64;
             ts2->type = TCG_TYPE_I32;
             ts2->kind = TEMP_CONST;

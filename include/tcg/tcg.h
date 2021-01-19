@@ -275,7 +275,7 @@ typedef struct TCGPool {
 
 #define TCG_POOL_CHUNK_SIZE 32768
 
-#define TCG_MAX_TEMPS 512
+#define TCG_INIT_TEMPS 512
 #define TCG_MAX_INSNS 512
 
 /* when the size of the arguments of a called function is smaller than
@@ -696,7 +696,7 @@ struct TCGContext {
 
     GHashTable *const_table[TCG_TYPE_COUNT];
     TCGTempSet free_temps[TCG_TYPE_COUNT * 2];
-    TCGTemp temps[TCG_MAX_TEMPS]; /* globals first, temps after */
+    GPtrArray *temps; /* globals first, temps after */
 
     QTAILQ_HEAD(, TCGOp) ops, free_ops;
     QSIMPLEQ_HEAD(, TCGLabel) labels;
@@ -749,7 +749,7 @@ static inline void *tcg_splitwx_to_rw(const void *rx)
 static inline TCGTemp *tcg_temp(TCGContext *s, size_t idx)
 {
     tcg_debug_assert(idx < s->nb_temps);
-    return &s->temps[idx];
+    return g_ptr_array_index(s->temps, idx);
 }
 
 static inline size_t temp_idx(TCGTemp *ts)
