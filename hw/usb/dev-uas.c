@@ -70,7 +70,7 @@ typedef struct {
     uint8_t    reserved_2;
     uint64_t   lun;
     uint8_t    cdb[16];
-    uint8_t    add_cdb[];
+    uint8_t    add_cdb[1];
 } QEMU_PACKED  uas_iu_command;
 
 typedef struct {
