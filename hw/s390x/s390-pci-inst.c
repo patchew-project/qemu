@@ -19,6 +19,7 @@
 #include "sysemu/hw_accel.h"
 #include "hw/s390x/s390-pci-inst.h"
 #include "hw/s390x/s390-pci-bus.h"
+#include "hw/s390x/s390-pci-vfio.h"
 #include "hw/s390x/tod.h"
 
 #ifndef DEBUG_S390PCI_INST
@@ -1000,6 +1001,8 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
     ret = pbdev->ops.pcistb(pbdev, cpu, gaddr, ar, pcias, len, offset);
 
     switch (ret) {
+    case -EIO:
+        /* fall through */
     case -EINVAL:
         s390_program_interrupt(env, PGM_OPERAND, ra);
         return 0;
@@ -1487,4 +1490,9 @@ void zpci_assign_default_ops(S390PCIBusDevice *pbdev)
     pbdev->ops.pcistg = pcistg_default;
     pbdev->ops.pcilg = pcilg_default;
     pbdev->ops.pcistb = pcistb_default;
+}
+
+void zpci_assign_ops_vfio_io_region(S390PCIBusDevice *pbdev)
+{
+    pbdev->ops.pcistb = s390_pci_vfio_pcistb;
 }

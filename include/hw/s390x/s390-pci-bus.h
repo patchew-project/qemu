@@ -43,6 +43,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(S390PCIBus, S390_PCI_BUS)
 OBJECT_DECLARE_SIMPLE_TYPE(S390PCIBusDevice, S390_PCI_DEVICE)
 OBJECT_DECLARE_SIMPLE_TYPE(S390PCIIOMMU, S390_PCI_IOMMU)
 
+/* PCI Function Types */
+#define ZPCI_PFT_ISM 5
+
 #define HP_EVENT_TO_CONFIGURED        0x0301
 #define HP_EVENT_RESERVED_TO_STANDBY  0x0302
 #define HP_EVENT_DECONFIGURE_REQUEST  0x0303
@@ -355,6 +358,8 @@ struct S390PCIBusDevice {
     uint32_t fh;
     uint32_t fid;
     bool fid_defined;
+    uint64_t io_region_op_offset;
+    struct vfio_region_zpci_io *io_region;
     uint64_t fmb_addr;
     ZpciFmb fmb;
     QEMUTimer *fmb_timer;
