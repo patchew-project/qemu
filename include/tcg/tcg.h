@@ -524,8 +524,34 @@ typedef struct TCGTemp {
 typedef struct TCGContext TCGContext;
 
 typedef struct TCGTempSet {
-    unsigned long l[BITS_TO_LONGS(TCG_MAX_TEMPS)];
+    unsigned long *data;
+    size_t word_len;
 } TCGTempSet;
+
+void tempset_init(TCGTempSet *set, size_t len);
+bool tempset_find_first(const TCGTempSet *set, size_t *i);
+void tempset_set(TCGTempSet *set, size_t i);
+
+static inline void tempset_clear_all(TCGTempSet *set)
+{
+    memset(set->data, 0, set->word_len * sizeof(unsigned long));
+}
+
+static inline void tempset_clear(TCGTempSet *set, size_t i)
+{
+    size_t l = i / BITS_PER_LONG;
+    size_t b = i % BITS_PER_LONG;
+    if (likely(l < set->word_len)) {
+        set->data[l] &= ~BIT(b);
+    }
+}
+
+static inline bool tempset_test(const TCGTempSet *set, size_t i)
+{
+    size_t l = i / BITS_PER_LONG;
+    size_t b = i % BITS_PER_LONG;
+    return l < set->word_len && (set->data[l] & BIT(b));
+}
 
 /* While we limit helpers to 6 arguments, for 32-bit hosts, with padding,
    this imples a max of 6*2 (64-bit in) + 2 (64-bit out) = 14 operands.

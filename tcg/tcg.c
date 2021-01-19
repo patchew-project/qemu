@@ -1182,7 +1182,9 @@ void tcg_func_start(TCGContext *s)
     s->nb_temps = s->nb_globals;
 
     /* No temps have been previously allocated for size or locality.  */
-    memset(s->free_temps, 0, sizeof(s->free_temps));
+    for (int i = 0; i < ARRAY_SIZE(s->free_temps); ++i) {
+        tempset_init(&s->free_temps[i], TCG_MAX_TEMPS);
+    }
 
     /* No constant temps have been previously allocated. */
     for (int i = 0; i < TCG_TYPE_COUNT; ++i) {
@@ -1324,13 +1326,12 @@ TCGTemp *tcg_temp_new_internal(TCGType type, bool temp_local)
     TCGContext *s = tcg_ctx;
     TCGTempKind kind = temp_local ? TEMP_LOCAL : TEMP_NORMAL;
     TCGTemp *ts;
-    int idx, k;
+    size_t idx, k;
 
     k = type + (temp_local ? TCG_TYPE_COUNT : 0);
-    idx = find_first_bit(s->free_temps[k].l, TCG_MAX_TEMPS);
-    if (idx < TCG_MAX_TEMPS) {
+    if (tempset_find_first(&s->free_temps[k], &idx)) {
         /* There is already an available temp with the right type.  */
-        clear_bit(idx, s->free_temps[k].l);
+        tempset_clear(&s->free_temps[k], idx);
 
         ts = tcg_temp(s, idx);
         ts->temp_allocated = 1;
@@ -1403,7 +1404,7 @@ TCGv_vec tcg_temp_new_vec_matching(TCGv_vec match)
 void tcg_temp_free_internal(TCGTemp *ts)
 {
     TCGContext *s = tcg_ctx;
-    int k, idx;
+    size_t k, idx;
 
     /* In order to simplify users of tcg_constant_*, silently ignore free. */
     if (ts->kind == TEMP_CONST) {
@@ -1423,7 +1424,7 @@ void tcg_temp_free_internal(TCGTemp *ts)
 
     idx = temp_idx(ts);
     k = ts->base_type + (ts->kind == TEMP_NORMAL ? 0 : TCG_TYPE_COUNT);
-    set_bit(idx, s->free_temps[k].l);
+    tempset_set(&s->free_temps[k], idx);
 }
 
 TCGTemp *tcg_constant_internal(TCGType type, int64_t val)
@@ -4663,6 +4664,42 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
 #endif
 
     return tcg_current_code_size(s);
+}
+
+void tempset_init(TCGTempSet *set, size_t len)
+{
+    size_t word_len = BITS_TO_LONGS(len);
+
+    set->word_len = word_len;
+    set->data = tcg_malloc(word_len * sizeof(unsigned long));
+    memset(set->data, 0, word_len * sizeof(unsigned long));
+}
+
+void tempset_set(TCGTempSet *set, size_t i)
+{
+    size_t l = i / BITS_PER_LONG;
+    size_t b = i % BITS_PER_LONG;
+
+    if (l >= set->word_len) {
+        size_t old_blen = set->word_len * sizeof(unsigned long);
+        size_t new_wlen = set->word_len * 2;
+        unsigned long *new_data = tcg_malloc(old_blen * 2);
+
+        memcpy(new_data, set->data, old_blen);
+        memset((char *)new_data + old_blen, 0, old_blen);
+
+        set->data = new_data;
+        set->word_len = new_wlen;
+    }
+    set->data[l] |= BIT(b);
+}
+
+bool tempset_find_first(const TCGTempSet *set, size_t *i)
+{
+    size_t max = set->word_len * BITS_PER_LONG;
+    size_t ret = find_first_bit(set->data, max);
+    *i = ret;
+    return ret < max;
 }
 
 #ifdef CONFIG_PROFILER

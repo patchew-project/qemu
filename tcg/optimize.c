@@ -94,10 +94,10 @@ static void init_ts_info(TCGTempSet *temps_used, TCGTemp *ts)
     size_t idx = temp_idx(ts);
     TempOptInfo *ti;
 
-    if (test_bit(idx, temps_used->l)) {
+    if (tempset_test(temps_used, idx)) {
         return;
     }
-    set_bit(idx, temps_used->l);
+    tempset_set(temps_used, idx);
 
     ti = ts->state_ptr;
     if (ti == NULL) {
@@ -612,7 +612,7 @@ void tcg_optimize(TCGContext *s)
     nb_temps = s->nb_temps;
     nb_globals = s->nb_globals;
 
-    memset(&temps_used, 0, sizeof(temps_used));
+    tempset_init(&temps_used, nb_temps);
     for (i = 0; i < nb_temps; ++i) {
         TCGTemp *ts = tcg_temp(s, i);
         ts->state_ptr = NULL;
@@ -1254,7 +1254,7 @@ void tcg_optimize(TCGContext *s)
                                            op->args[1], op->args[2]);
             if (tmp != 2) {
                 if (tmp) {
-                    memset(&temps_used, 0, sizeof(temps_used));
+                    tempset_clear_all(&temps_used);
                     op->opc = INDEX_op_br;
                     op->args[0] = op->args[3];
                 } else {
@@ -1338,7 +1338,7 @@ void tcg_optimize(TCGContext *s)
             if (tmp != 2) {
                 if (tmp) {
             do_brcond_true:
-                    memset(&temps_used, 0, sizeof(temps_used));
+                    tempset_clear_all(&temps_used);
                     op->opc = INDEX_op_br;
                     op->args[0] = op->args[5];
                 } else {
@@ -1354,7 +1354,7 @@ void tcg_optimize(TCGContext *s)
                 /* Simplify LT/GE comparisons vs zero to a single compare
                    vs the high word of the input.  */
             do_brcond_high:
-                memset(&temps_used, 0, sizeof(temps_used));
+                tempset_clear_all(&temps_used);
                 op->opc = INDEX_op_brcond_i32;
                 op->args[0] = op->args[1];
                 op->args[1] = op->args[3];
@@ -1380,7 +1380,7 @@ void tcg_optimize(TCGContext *s)
                     goto do_default;
                 }
             do_brcond_low:
-                memset(&temps_used, 0, sizeof(temps_used));
+                tempset_clear_all(&temps_used);
                 op->opc = INDEX_op_brcond_i32;
                 op->args[1] = op->args[2];
                 op->args[2] = op->args[4];
@@ -1485,7 +1485,7 @@ void tcg_optimize(TCGContext *s)
             if (!(op->args[nb_oargs + nb_iargs + 1]
                   & (TCG_CALL_NO_READ_GLOBALS | TCG_CALL_NO_WRITE_GLOBALS))) {
                 for (i = 0; i < nb_globals; i++) {
-                    if (test_bit(i, temps_used.l)) {
+                    if (tempset_test(&temps_used, i)) {
                         reset_ts(tcg_temp(s, i));
                     }
                 }
@@ -1500,7 +1500,7 @@ void tcg_optimize(TCGContext *s)
                block, otherwise we only trash the output args.  "mask" is
                the non-zero bits mask for the first output arg.  */
             if (def->flags & TCG_OPF_BB_END) {
-                memset(&temps_used, 0, sizeof(temps_used));
+                tempset_clear_all(&temps_used);
             } else {
         do_reset_output:
                 for (i = 0; i < nb_oargs; i++) {
