@@ -171,18 +171,18 @@ static void test_plus_minus_subprocess(void)
     char *path;
 
     /* Rules:
-     * 1)"-foo" overrides "+foo"
+     * 1) The later of "+foo" or "-foo" wins
      * 2) "[+-]foo" overrides "foo=..."
      * 3) Old feature names with underscores (e.g. "sse4_2")
      *    should keep working
      *
-     * Note: rules 1 and 2 are planned to be removed soon, and
-     * should generate a warning.
+     * Note: rule 2 is planned to be removed soon, and should generate
+     * a warning.
      */
     qtest_start("-cpu pentium,-fpu,+fpu,-mce,mce=on,+cx8,cx8=off,+sse4_1,sse4_2=on");
     path = get_cpu0_qom_path();
 
-    g_assert_false(qom_get_bool(path, "fpu"));
+    g_assert_true(qom_get_bool(path, "fpu"));
     g_assert_false(qom_get_bool(path, "mce"));
     g_assert_true(qom_get_bool(path, "cx8"));
 
