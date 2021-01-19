@@ -1744,6 +1744,9 @@ struct X86CPU {
     /* if set, limit maximum value for phys_bits when host_phys_bits is true */
     uint8_t host_phys_bits_limit;
 
+    /* Don't automatically enable all of the discovered KVM features. */
+    bool kvm_no_defaults;
+
     /* Stop SMI delivery for migration compatibility with old machines */
     bool kvm_no_smi_migration;
 

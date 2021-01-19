@@ -6398,6 +6398,10 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
     int i;
     GList *l;
 
+    if (kvm_enabled() && cpu->kvm_no_defaults) {
+        env->features[FEAT_KVM] = 0;
+    }
+
     for (l = plus_features; l; l = l->next) {
         const char *prop = l->data;
         if (!object_property_set_bool(OBJECT(cpu), prop, true, errp)) {
@@ -7269,6 +7273,7 @@ static Property x86_cpu_properties[] = {
     DEFINE_PROP_BOOL("cpuid-0xb", X86CPU, enable_cpuid_0xb, true),
     DEFINE_PROP_BOOL("lmce", X86CPU, enable_lmce, false),
     DEFINE_PROP_BOOL("l3-cache", X86CPU, enable_l3_cache, true),
+    DEFINE_PROP_BOOL("kvm-no-defaults", X86CPU, kvm_no_defaults, false),
     DEFINE_PROP_BOOL("kvm-no-smi-migration", X86CPU, kvm_no_smi_migration,
                      false),
     DEFINE_PROP_BOOL("vmware-cpuid-freq", X86CPU, vmware_cpuid_freq, true),
