@@ -68,7 +68,7 @@ class QAPISchemaEntity:
 
     def _set_module(self, schema, info):
         assert self._checked
-        fname = info.fname if info else './builtin'
+        fname = info.fname if info else QAPISchemaModule.BUILTIN_MODULE_NAME
         self._module = schema.module_by_fname(fname)
         self._module.add_entity(self)
 
@@ -138,6 +138,9 @@ class QAPISchemaVisitor:
 
 
 class QAPISchemaModule:
+
+    BUILTIN_MODULE_NAME = './builtin'
+
     def __init__(self, name):
         self.name = name
         self._entity_list = []
@@ -152,7 +155,7 @@ class QAPISchemaModule:
 
     @classmethod
     def is_builtin_module(cls, name: str) -> bool:
-        return name == './builtin'
+        return name == cls.BUILTIN_MODULE_NAME
 
     @property
     def system_module(self) -> bool:
@@ -850,7 +853,7 @@ class QAPISchema:
         self._entity_dict = {}
         self._module_dict = OrderedDict()
         self._schema_dir = os.path.dirname(fname)
-        self._make_module('./builtin')  # built-ins
+        self._make_module(QAPISchemaModule.BUILTIN_MODULE_NAME)  # built-ins
         self._make_module(fname)
         self._predefining = True
         self._def_predefineds()
