@@ -614,7 +614,8 @@ void tcg_optimize(TCGContext *s)
 
     memset(&temps_used, 0, sizeof(temps_used));
     for (i = 0; i < nb_temps; ++i) {
-        s->temps[i].state_ptr = NULL;
+        TCGTemp *ts = tcg_temp(s, i);
+        ts->state_ptr = NULL;
     }
 
     QTAILQ_FOREACH_SAFE(op, &s->ops, link, op_next) {
@@ -1485,7 +1486,7 @@ void tcg_optimize(TCGContext *s)
                   & (TCG_CALL_NO_READ_GLOBALS | TCG_CALL_NO_WRITE_GLOBALS))) {
                 for (i = 0; i < nb_globals; i++) {
                     if (test_bit(i, temps_used.l)) {
-                        reset_ts(&s->temps[i]);
+                        reset_ts(tcg_temp(s, i));
                     }
                 }
             }

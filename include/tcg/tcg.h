@@ -720,6 +720,12 @@ static inline void *tcg_splitwx_to_rw(const void *rx)
 }
 #endif
 
+static inline TCGTemp *tcg_temp(TCGContext *s, size_t idx)
+{
+    tcg_debug_assert(idx < s->nb_temps);
+    return &s->temps[idx];
+}
+
 static inline size_t temp_idx(TCGTemp *ts)
 {
     return ts->index;
