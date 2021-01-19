@@ -127,6 +127,28 @@ uint32_t ssi_transfer(SSIBus *bus, uint32_t val)
     return r;
 }
 
+uint32_t ssi_txfifo_transfer(SSIBus *bus, uint32_t val)
+{
+    BusState *b = BUS(bus);
+    BusChild *kid;
+    SSIPeripheralClass *ssc;
+    uint32_t r = 0;
+
+    QTAILQ_FOREACH(kid, &b->children, sibling) {
+        SSIPeripheral *peripheral = SSI_PERIPHERAL(kid->child);
+        ssc = SSI_PERIPHERAL_GET_CLASS(peripheral);
+        if (ssc->set_dummy_byte_accuracy) {
+            ssc->set_dummy_byte_accuracy(peripheral, true);
+        }
+        r |= ssc->transfer_raw(peripheral, val);
+        if (ssc->set_dummy_byte_accuracy) {
+            ssc->set_dummy_byte_accuracy(peripheral, false);
+        }
+    }
+
+    return r;
+}
+
 const VMStateDescription vmstate_ssi_peripheral = {
     .name = "SSISlave",
     .version_id = 1,

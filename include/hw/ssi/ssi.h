@@ -54,6 +54,8 @@ struct SSIPeripheralClass {
      * always be called for the device for every txrx access to the parent bus
      */
     uint32_t (*transfer_raw)(SSIPeripheral *dev, uint32_t val);
+
+    void (*set_dummy_byte_accuracy)(SSIPeripheral *dev, bool val);
 };
 
 struct SSIPeripheral {
@@ -105,5 +107,6 @@ bool ssi_realize_and_unref(DeviceState *dev, SSIBus *bus, Error **errp);
 SSIBus *ssi_create_bus(DeviceState *parent, const char *name);
 
 uint32_t ssi_transfer(SSIBus *bus, uint32_t val);
+uint32_t ssi_txfifo_transfer(SSIBus *bus, uint32_t val);
 
 #endif
