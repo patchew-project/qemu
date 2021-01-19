@@ -31,7 +31,11 @@ from .common import (
     guardstart,
     mcgen,
 )
-from .schema import QAPISchemaObjectType, QAPISchemaVisitor
+from .schema import (
+    QAPISchemaModule,
+    QAPISchemaObjectType,
+    QAPISchemaVisitor,
+)
 from .source import QAPISourceInfo
 
 
@@ -304,19 +308,19 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
     def _begin_user_module(self, name: str) -> None:
         pass
 
-    def visit_module(self, name: Optional[str]) -> None:
-        if name is None:
+    def visit_module(self, module: QAPISchemaModule) -> None:
+        if module.name is None:
             if self._builtin_blurb:
                 self._add_system_module(None, self._builtin_blurb)
-                self._begin_system_module(name)
+                self._begin_system_module(module.name)
             else:
                 # The built-in module has not been created.  No code may
                 # be generated.
                 self._genc = None
                 self._genh = None
         else:
-            self._add_user_module(name, self._user_blurb)
-            self._begin_user_module(name)
+            self._add_user_module(module.name, self._user_blurb)
+            self._begin_user_module(module.name)
 
     def visit_include(self, name: str, info: QAPISourceInfo) -> None:
         relname = os.path.relpath(self._module_filename(self._what, name),

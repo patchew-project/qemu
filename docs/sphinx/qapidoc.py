@@ -463,11 +463,11 @@ class QAPISchemaGenDepVisitor(QAPISchemaVisitor):
         self._env = env
         self._qapidir = qapidir
 
-    def visit_module(self, name):
-        if name is not None:
-            qapifile = self._qapidir + '/' + name
+    def visit_module(self, module):
+        if module.name:
+            qapifile = self._qapidir + '/' + module.name
             self._env.note_dependency(os.path.abspath(qapifile))
-        super().visit_module(name)
+        super().visit_module(module)
 
 
 class QAPIDocDirective(Directive):

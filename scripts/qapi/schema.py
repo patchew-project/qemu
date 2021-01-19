@@ -97,7 +97,7 @@ class QAPISchemaVisitor:
     def visit_end(self):
         pass
 
-    def visit_module(self, name):
+    def visit_module(self, module):
         pass
 
     def visit_needed(self, entity):
@@ -145,7 +145,7 @@ class QAPISchemaModule:
         self._entity_list.append(ent)
 
     def visit(self, visitor):
-        visitor.visit_module(self.name)
+        visitor.visit_module(self)
         for entity in self._entity_list:
             if visitor.visit_needed(entity):
                 entity.visit(visitor)

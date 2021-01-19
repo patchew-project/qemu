@@ -24,8 +24,8 @@ from qapi.schema import QAPISchema, QAPISchemaVisitor
 
 class QAPISchemaTestVisitor(QAPISchemaVisitor):
 
-    def visit_module(self, name):
-        print('module %s' % name)
+    def visit_module(self, module):
+        print('module %s' % module.name)
 
     def visit_include(self, name, info):
         print('include %s' % name)
