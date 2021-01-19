@@ -295,7 +295,7 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
             genc.write(output_dir)
             genh.write(output_dir)
 
-    def _begin_system_module(self, name: None) -> None:
+    def _begin_builtin_module(self) -> None:
         pass
 
     def _begin_user_module(self, name: str) -> None:
@@ -305,7 +305,7 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
         if module.system_module:
             if self._builtin_blurb:
                 self._add_system_module(None, self._builtin_blurb)
-                self._begin_system_module(module.name)
+                self._begin_builtin_module()
             else:
                 # The built-in module has not been created.  No code may
                 # be generated.
