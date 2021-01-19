@@ -50,6 +50,7 @@ ENV PACKAGES flex bison \
     make \
     netcat-openbsd \
     ninja-build \
+    openssh-client \
     python3-numpy \
     python3-opencv \
     python3-pil \
@@ -58,6 +59,7 @@ ENV PACKAGES flex bison \
     python3-venv \
     python3-yaml \
     rpm2cpio \
+    rsync \
     sparse \
     tesseract-ocr \
     tesseract-ocr-eng \

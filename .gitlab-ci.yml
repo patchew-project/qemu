@@ -6,6 +6,7 @@ stages:
   - containers-layer2
   - build
   - test
+  - update
 
 include:
   - local: '/.gitlab-ci.d/edk2.yml'
@@ -627,3 +628,25 @@ pages:
   artifacts:
     paths:
       - public
+
+deploy:
+  image: $CI_REGISTRY_IMAGE/qemu/ubuntu2004:latest
+  stage: update
+  needs:
+    - job: pages
+      artifacts: true
+  before_script:
+    - eval $(ssh-agent -s)
+    - cat "$SSH_PRIVATE_KEY_FILE" | tr -d '\r' | ssh-add -
+    - mkdir -m700 -p ~/.ssh
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" >> ~/.ssh/config'
+  script:
+    - ssh $SSH_DEPLOY_DESTINATION "cd /var/www/qemu-project.org && mkdir new-docs && rsync -az docs/ new-docs"
+    - rsync -avz --delete public/ $SSH_DEPLOY_DESTINATION:/var/www/qemu-project.org/new-docs
+    - ssh $SSH_DEPLOY_DESTINATION "cd /var/www/qemu-project.org && rm -rf old-docs && mv docs old-docs && mv new-docs docs"
+  only:
+    refs:
+      - master
+    variables:
+      - $SSH_PRIVATE_KEY_FILE
+      - $SSH_DEPLOY_DESTINATION
