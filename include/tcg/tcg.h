@@ -757,6 +757,11 @@ static inline size_t temp_idx(TCGTemp *ts)
     return ts->index;
 }
 
+/*
+ * TCGArg is a convenience for TCGOps, and never exist outside of
+ * code generation with a specific TCGContext.  Simply store the
+ * pointer value within the TCGArg.
+ */
 static inline TCGArg temp_arg(TCGTemp *ts)
 {
     return (uintptr_t)ts;
@@ -767,15 +772,15 @@ static inline TCGTemp *arg_temp(TCGArg a)
     return (TCGTemp *)(uintptr_t)a;
 }
 
-/* Using the offset of a temporary, relative to TCGContext, rather than
-   its index means that we don't use 0.  That leaves offset 0 free for
-   a NULL representation without having to leave index 0 unused.  */
+/*
+ * TCGv_{i32,i64,ptr,vec} must be independent of TCGContext,
+ * so that the globals that we allocate at startup are valid for
+ * the thread-specfic TCGContext when we generate code.
+ * Reserve 0 for NULL, and use the temp index + 1 otherwise.
+ */
 static inline TCGTemp *tcgv_i32_temp(TCGv_i32 v)
 {
-    uintptr_t o = (uintptr_t)v;
-    TCGTemp *t = (void *)tcg_ctx + o;
-    tcg_debug_assert(offsetof(TCGContext, temps[temp_idx(t)]) == o);
-    return t;
+    return v ? tcg_temp(tcg_ctx, (uintptr_t)v - 1) : NULL;
 }
 
 static inline TCGTemp *tcgv_i64_temp(TCGv_i64 v)
@@ -815,8 +820,7 @@ static inline TCGArg tcgv_vec_arg(TCGv_vec v)
 
 static inline TCGv_i32 temp_tcgv_i32(TCGTemp *t)
 {
-    (void)temp_idx(t); /* trigger embedded assert */
-    return (TCGv_i32)((void *)t - (void *)tcg_ctx);
+    return (TCGv_i32)(t ? (uintptr_t)temp_idx(t) + 1 : 0);
 }
 
 static inline TCGv_i64 temp_tcgv_i64(TCGTemp *t)
@@ -837,12 +841,20 @@ static inline TCGv_vec temp_tcgv_vec(TCGTemp *t)
 #if TCG_TARGET_REG_BITS == 32
 static inline TCGv_i32 TCGV_LOW(TCGv_i64 t)
 {
-    return temp_tcgv_i32(tcgv_i64_temp(t));
+    /*
+     * The 64-bit value is a pair of TCGv_i32, with the low part at index 0.
+     * Since we're encoding the index in @t, pass it through unchanged.
+     */
+    return (TCGv_i32)t;
 }
 
 static inline TCGv_i32 TCGV_HIGH(TCGv_i64 t)
 {
-    return temp_tcgv_i32(tcgv_i64_temp(t) + 1);
+    /*
+     * The 64-bit value is a pair of TCGv_i32, with the high part at index 1.
+     * Since we're encoding the index in @t, add one.
+     */
+    return (TCGv_i32)((uintptr_t)t + 1);
 }
 #endif
 
