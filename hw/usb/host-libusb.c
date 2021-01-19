@@ -186,6 +186,7 @@ static const char *speed_name[] = {
     [LIBUSB_SPEED_FULL]    = "12",
     [LIBUSB_SPEED_HIGH]    = "480",
     [LIBUSB_SPEED_SUPER]   = "5000",
+    [LIBUSB_SPEED_SUPER_PLUS] = "5000+",
 };
 
 static const unsigned int speed_map[] = {
@@ -193,6 +194,7 @@ static const unsigned int speed_map[] = {
     [LIBUSB_SPEED_FULL]    = USB_SPEED_FULL,
     [LIBUSB_SPEED_HIGH]    = USB_SPEED_HIGH,
     [LIBUSB_SPEED_SUPER]   = USB_SPEED_SUPER,
+    [LIBUSB_SPEED_SUPER_PLUS] = USB_SPEED_SUPER,
 };
 
 static const unsigned int status_map[] = {
