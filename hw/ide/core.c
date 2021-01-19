@@ -1161,15 +1161,21 @@ static void ide_cfata_metadata_write(IDEState *s)
                                     s->nsector << 9), 0x200 - 2));
 }
 
+static void ide_set_nb_sectors(IDEState *s)
+{
+    uint64_t nb_sectors;
+
+    blk_get_geometry(s->blk, &nb_sectors);
+    s->nb_sectors = MIN(nb_sectors, (uint64_t)INT_MAX << 2);
+}
+
 /* called when the inserted state of the media has changed */
 static void ide_cd_change_cb(void *opaque, bool load, Error **errp)
 {
     IDEState *s = opaque;
-    uint64_t nb_sectors;
 
     s->tray_open = !load;
-    blk_get_geometry(s->blk, &nb_sectors);
-    s->nb_sectors = nb_sectors;
+    ide_set_nb_sectors(s);
 
     /*
      * First indicate to the guest that a CD has been removed.  That's
@@ -2475,14 +2481,12 @@ static bool ide_cd_is_medium_locked(void *opaque)
 static void ide_resize_cb(void *opaque)
 {
     IDEState *s = opaque;
-    uint64_t nb_sectors;
 
     if (!s->identify_set) {
         return;
     }
 
-    blk_get_geometry(s->blk, &nb_sectors);
-    s->nb_sectors = nb_sectors;
+    ide_set_nb_sectors(s);
 
     /* Update the identify data buffer. */
     if (s->drive_kind == IDE_CFATA) {
@@ -2511,17 +2515,14 @@ int ide_init_drive(IDEState *s, BlockBackend *blk, IDEDriveKind kind,
                    uint32_t cylinders, uint32_t heads, uint32_t secs,
                    int chs_trans, Error **errp)
 {
-    uint64_t nb_sectors;
-
     s->blk = blk;
     s->drive_kind = kind;
-
-    blk_get_geometry(blk, &nb_sectors);
     s->cylinders = cylinders;
     s->heads = heads;
     s->sectors = secs;
     s->chs_trans = chs_trans;
-    s->nb_sectors = nb_sectors;
+    ide_set_nb_sectors(s);
+
     s->wwn = wwn;
     /* The SMART values should be preserved across power cycles
        but they aren't.  */
