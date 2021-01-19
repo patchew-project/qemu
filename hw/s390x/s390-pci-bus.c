@@ -1028,12 +1028,12 @@ static void s390_pcihost_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
             s390_pci_get_clp_info(pbdev);
         } else {
             pbdev->fh |= FH_SHM_EMUL;
-        }
 
-        if (s390_pci_msix_init(pbdev)) {
-            error_setg(errp, "MSI-X support is mandatory "
-                       "in the S390 architecture");
-            return;
+            if (s390_pci_msix_init(pbdev)) {
+                error_setg(errp, "MSI-X support is mandatory "
+                           "in the S390 architecture");
+                return;
+            }
         }
 
         if (dev->hotplugged) {
@@ -1073,7 +1073,9 @@ static void s390_pcihost_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
         devfn = pci_dev->devfn;
         qdev_unrealize(dev);
 
-        s390_pci_msix_free(pbdev);
+        if (pbdev->fh & FH_SHM_EMUL) {
+            s390_pci_msix_free(pbdev);
+        }
         s390_pci_iommu_free(s, bus, devfn);
         pbdev->pdev = NULL;
         pbdev->state = ZPCI_FS_RESERVED;
