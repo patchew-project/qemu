@@ -125,6 +125,7 @@ static void s390_pci_read_base(S390PCIBusDevice *pbdev,
     /* The following values remain 0 until we support other FMB formats */
     pbdev->zpci_fn.fmbl = 0;
     pbdev->zpci_fn.pft = 0;
+    pbdev->pft = cap->pft;
 }
 
 static void s390_pci_read_group(S390PCIBusDevice *pbdev,
