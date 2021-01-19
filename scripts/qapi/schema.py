@@ -141,6 +141,30 @@ class QAPISchemaModule:
         self.name = name
         self._entity_list = []
 
+    @classmethod
+    def is_system_module(cls, name: Optional[str]) -> bool:
+        return name is None or name.startswith('./')
+
+    @classmethod
+    def is_user_module(cls, name: Optional[str]) -> bool:
+        return not cls.is_system_module(name)
+
+    @classmethod
+    def is_builtin_module(cls, name: str) -> bool:
+        return name == './builtin'
+
+    @property
+    def system_module(self) -> bool:
+        return self.is_system_module(self.name)
+
+    @property
+    def user_module(self) -> bool:
+        return self.is_user_module(self.name)
+
+    @property
+    def builtin_module(self) -> bool:
+        return self.is_builtin_module(self.name)
+
     def add_entity(self, ent):
         self._entity_list.append(ent)
 
@@ -871,8 +895,8 @@ class QAPISchema:
         return typ
 
     def _module_name(self, fname):
-        if fname is None:
-            return None
+        if QAPISchemaModule.is_system_module(fname):
+            return fname
         return os.path.relpath(fname, self._schema_dir)
 
     def _make_module(self, fname):
