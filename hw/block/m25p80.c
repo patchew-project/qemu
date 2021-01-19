@@ -464,6 +464,7 @@ struct Flash {
 
     const FlashPartInfo *pi;
 
+    bool dummy_byte_accuracy;
 };
 
 struct M25P80Class {
@@ -871,26 +872,59 @@ static uint8_t numonyx_extract_cfg_num_dummies(Flash *s)
     return num_dummies;
 }
 
+static uint8_t to_dummy_bytes(Flash *s, uint8_t dummy_clk_cycles)
+{
+    uint8_t lines = 1;
+
+    switch (s->cmd_in_progress) {
+    case DOR:
+    case DOR4:
+    case DIOR:
+    case DIOR4:
+        lines = 2;
+        break;
+    case QOR:
+    case QOR4:
+    case QIOR:
+    case QIOR4:
+        lines = 4;
+        break;
+    default:
+        break;
+    }
+
+    if ((dummy_clk_cycles * lines) % 8) {
+        qemu_log_mask(LOG_UNIMP, "M25P80: Non multiple of 8 number of dummy"
+                     " clock cycles while operating with dummy byte"
+                     " accuracy\n");
+    }
+
+    return (dummy_clk_cycles * lines) / 8;
+}
+
 static void decode_fast_read_cmd(Flash *s)
 {
+    uint8_t dummy_clk_cycles = 0;
+    uint8_t extra_bytes;
+
     s->needed_bytes = get_addr_length(s);
     switch (get_man(s)) {
     /* Dummy cycles - modeled with bytes writes instead of bits */
     case MAN_WINBOND:
-        s->needed_bytes += 8;
+        dummy_clk_cycles = 8;
         break;
     case MAN_NUMONYX:
-        s->needed_bytes += numonyx_extract_cfg_num_dummies(s);
+        dummy_clk_cycles = numonyx_extract_cfg_num_dummies(s);
         break;
     case MAN_MACRONIX:
         if (extract32(s->volatile_cfg, 6, 2) == 1) {
-            s->needed_bytes += 6;
+            dummy_clk_cycles = 6;
         } else {
-            s->needed_bytes += 8;
+            dummy_clk_cycles = 8;
         }
         break;
     case MAN_SPANSION:
-        s->needed_bytes += extract32(s->spansion_cr2v,
+        dummy_clk_cycles = extract32(s->spansion_cr2v,
                                     SPANSION_DUMMY_CLK_POS,
                                     SPANSION_DUMMY_CLK_LEN
                                     );
@@ -898,6 +932,14 @@ static void decode_fast_read_cmd(Flash *s)
     default:
         break;
     }
+
+    if (s->dummy_byte_accuracy) {
+        extra_bytes = to_dummy_bytes(s, dummy_clk_cycles);
+    } else {
+        extra_bytes = dummy_clk_cycles;
+    }
+
+    s->needed_bytes += extra_bytes;
     s->pos = 0;
     s->len = 0;
     s->state = STATE_COLLECTING_DATA;
@@ -905,38 +947,49 @@ static void decode_fast_read_cmd(Flash *s)
 
 static void decode_dio_read_cmd(Flash *s)
 {
+    uint8_t dummy_clk_cycles = 0;
+    uint8_t extra_bytes;
+
     s->needed_bytes = get_addr_length(s);
     /* Dummy cycles modeled with bytes writes instead of bits */
     switch (get_man(s)) {
     case MAN_WINBOND:
-        s->needed_bytes += WINBOND_CONTINUOUS_READ_MODE_CMD_LEN;
+        dummy_clk_cycles = WINBOND_CONTINUOUS_READ_MODE_CMD_LEN;
         break;
     case MAN_SPANSION:
-        s->needed_bytes += SPANSION_CONTINUOUS_READ_MODE_CMD_LEN;
-        s->needed_bytes += extract32(s->spansion_cr2v,
+        dummy_clk_cycles = SPANSION_CONTINUOUS_READ_MODE_CMD_LEN;
+        dummy_clk_cycles = extract32(s->spansion_cr2v,
                                     SPANSION_DUMMY_CLK_POS,
                                     SPANSION_DUMMY_CLK_LEN
                                     );
         break;
     case MAN_NUMONYX:
-        s->needed_bytes += numonyx_extract_cfg_num_dummies(s);
+        dummy_clk_cycles = numonyx_extract_cfg_num_dummies(s);
         break;
     case MAN_MACRONIX:
         switch (extract32(s->volatile_cfg, 6, 2)) {
         case 1:
-            s->needed_bytes += 6;
+            dummy_clk_cycles = 6;
             break;
         case 2:
-            s->needed_bytes += 8;
+            dummy_clk_cycles = 8;
             break;
         default:
-            s->needed_bytes += 4;
+            dummy_clk_cycles = 4;
             break;
         }
         break;
     default:
         break;
     }
+
+    if (s->dummy_byte_accuracy) {
+        extra_bytes = to_dummy_bytes(s, dummy_clk_cycles);
+    } else {
+        extra_bytes = dummy_clk_cycles;
+    }
+
+    s->needed_bytes += extra_bytes;
     s->pos = 0;
     s->len = 0;
     s->state = STATE_COLLECTING_DATA;
@@ -944,39 +997,50 @@ static void decode_dio_read_cmd(Flash *s)
 
 static void decode_qio_read_cmd(Flash *s)
 {
+    uint8_t dummy_clk_cycles = 0;
+    uint8_t extra_bytes;
+
     s->needed_bytes = get_addr_length(s);
     /* Dummy cycles modeled with bytes writes instead of bits */
     switch (get_man(s)) {
     case MAN_WINBOND:
-        s->needed_bytes += WINBOND_CONTINUOUS_READ_MODE_CMD_LEN;
-        s->needed_bytes += 4;
+        dummy_clk_cycles = WINBOND_CONTINUOUS_READ_MODE_CMD_LEN;
+        dummy_clk_cycles += 4;
         break;
     case MAN_SPANSION:
-        s->needed_bytes += SPANSION_CONTINUOUS_READ_MODE_CMD_LEN;
-        s->needed_bytes += extract32(s->spansion_cr2v,
+        dummy_clk_cycles = SPANSION_CONTINUOUS_READ_MODE_CMD_LEN;
+        dummy_clk_cycles += extract32(s->spansion_cr2v,
                                     SPANSION_DUMMY_CLK_POS,
                                     SPANSION_DUMMY_CLK_LEN
                                     );
         break;
     case MAN_NUMONYX:
-        s->needed_bytes += numonyx_extract_cfg_num_dummies(s);
+        dummy_clk_cycles = numonyx_extract_cfg_num_dummies(s);
         break;
     case MAN_MACRONIX:
         switch (extract32(s->volatile_cfg, 6, 2)) {
         case 1:
-            s->needed_bytes += 4;
+            dummy_clk_cycles = 4;
             break;
         case 2:
-            s->needed_bytes += 8;
+            dummy_clk_cycles = 8;
             break;
         default:
-            s->needed_bytes += 6;
+            dummy_clk_cycles = 6;
             break;
         }
         break;
     default:
         break;
     }
+
+    if (s->dummy_byte_accuracy) {
+        extra_bytes = to_dummy_bytes(s, dummy_clk_cycles);
+    } else {
+        extra_bytes = dummy_clk_cycles;
+    }
+
+    s->needed_bytes += extra_bytes;
     s->pos = 0;
     s->len = 0;
     s->state = STATE_COLLECTING_DATA;
@@ -1335,6 +1399,13 @@ static int m25p80_cs(SSIPeripheral *ss, bool select)
     return 0;
 }
 
+static void m25p80_dummy_byte_accuracy(SSIPeripheral *ss, bool val)
+{
+    Flash *s = M25P80(ss);
+
+    s->dummy_byte_accuracy = val;
+}
+
 static uint32_t m25p80_transfer8(SSIPeripheral *ss, uint32_t tx)
 {
     Flash *s = M25P80(ss);
@@ -1568,6 +1639,7 @@ static void m25p80_class_init(ObjectClass *klass, void *data)
     k->transfer = m25p80_transfer8;
     k->set_cs = m25p80_cs;
     k->cs_polarity = SSI_CS_LOW;
+    k->set_dummy_byte_accuracy = m25p80_dummy_byte_accuracy;
     dc->vmsd = &vmstate_m25p80;
     device_class_set_props(dc, m25p80_properties);
     dc->reset = m25p80_reset;
