@@ -1037,6 +1037,19 @@ static void s390_pcihost_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
             if (pbdev->pft == ZPCI_PFT_ISM) {
                 ret = s390_pci_get_zpci_io_region(pbdev);
             }
+            /*
+             * If the device type is unclassified, it may be due to the fact
+             * that CLP info was not provided by vfio -- Which means we cannot
+             * tell if this is actually an ISM device, which will not be able
+             * to function properly without proper identification and the I/O
+             * region.  Therefore, attempt to identify the ISM device via the
+             * lack of MSI-X and only in this case prevent the device from
+             * being passed through.
+             */
+            else if (pbdev->pft == ZPCI_PFT_UNCLASSIFIED &&
+                     !pci_find_capability(pbdev->pdev, PCI_CAP_ID_MSIX)) {
+                ret = -EINVAL;
+            }
             if (ret) {
                 error_setg(errp, "vfio zPCI I/O region support is mandatory "
                            "for %02x:%02x.%01x", pci_dev_bus_num(pdev),
