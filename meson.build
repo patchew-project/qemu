@@ -2371,6 +2371,7 @@ if slirp_opt != 'disabled'
 endif
 
 summary_info += {'system-mode emulation': have_system}
+summary_info += {'user-mode emulation': have_user}
 summary_info += {'module support':    config_host.has_key('CONFIG_MODULES')}
 if config_host.has_key('CONFIG_MODULES')
   summary_info += {'alternative module path': config_host.has_key('CONFIG_MODULE_UPGRADES')}
