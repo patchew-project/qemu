@@ -179,7 +179,7 @@ static void spi_flush_txfifo(XilinxSPI *s)
     while (!fifo8_is_empty(&s->tx_fifo)) {
         tx = (uint32_t)fifo8_pop(&s->tx_fifo);
         DB_PRINT("data tx:%x\n", tx);
-        rx = ssi_transfer(s->spi, tx);
+        rx = ssi_txfifo_transfer(s->spi, tx);
         DB_PRINT("data rx:%x\n", rx);
         if (fifo8_is_full(&s->rx_fifo)) {
             s->regs[R_IPISR] |= IRQ_DRR_OVERRUN;
