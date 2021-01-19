@@ -22,6 +22,8 @@ S390PCIDMACount *s390_pci_start_dma_count(S390pciState *s,
 void s390_pci_end_dma_count(S390pciState *s, S390PCIDMACount *cnt);
 void s390_pci_get_clp_info(S390PCIBusDevice *pbdev);
 int s390_pci_get_zpci_io_region(S390PCIBusDevice *pbdev);
+int s390_pci_vfio_pcilg(S390PCIBusDevice *pbdev, uint64_t *data, uint8_t pcias,
+                        uint16_t len, uint64_t offset);
 int s390_pci_vfio_pcistb(S390PCIBusDevice *pbdev, S390CPU *cpu, uint64_t gaddr,
                          uint8_t ar, uint8_t pcias, uint16_t len,
                          uint64_t offset);
@@ -41,6 +43,12 @@ static inline void s390_pci_get_clp_info(S390PCIBusDevice *pbdev) { }
 static inline int s390_pci_get_zpci_io_region(S390PCIBusDevice *pbdev)
 {
     return -EINVAL;
+}
+static inline int s390_pci_vfio_pcilg(S390PCIBusDevice *pbdev, uint64_t *data,
+                                      uint8_t pcias, uint16_t len,
+                                      uint64_t offset)
+{
+    return -EIO;
 }
 static inline int s390_pci_vfio_pcistb(S390PCIBusDevice *pbdev, S390CPU *cpu,
                                        uint64_t gaddr, uint8_t ar,

@@ -352,7 +352,7 @@ out:
  * @ptr: a pointer to a uint64_t data field
  * @len: the length of the valid data, must be 1,2,4 or 8
  */
-static int zpci_endian_swap(uint64_t *ptr, uint8_t len)
+int zpci_endian_swap(uint64_t *ptr, uint8_t len)
 {
     uint64_t data = *ptr;
 
@@ -1494,5 +1494,6 @@ void zpci_assign_default_ops(S390PCIBusDevice *pbdev)
 
 void zpci_assign_ops_vfio_io_region(S390PCIBusDevice *pbdev)
 {
+    pbdev->ops.pcilg = s390_pci_vfio_pcilg;
     pbdev->ops.pcistb = s390_pci_vfio_pcistb;
 }
