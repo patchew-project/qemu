@@ -404,16 +404,49 @@ static MemTxResult zpci_read_bar(S390PCIBusDevice *pbdev, uint8_t pcias,
                                        MEMTXATTRS_UNSPECIFIED);
 }
 
+static int pcilg_default(S390PCIBusDevice *pbdev, uint64_t *data, uint8_t pcias,
+                         uint16_t len, uint64_t offset)
+{
+    MemTxResult result;
+
+    switch (pcias) {
+    case ZPCI_IO_BAR_MIN...ZPCI_IO_BAR_MAX:
+        if (!len || (len > (8 - (offset & 0x7)))) {
+            return -EINVAL;
+        }
+        result = zpci_read_bar(pbdev, pcias, offset, data, len);
+        if (result != MEMTX_OK) {
+            return -EINVAL;
+        }
+        break;
+    case ZPCI_CONFIG_BAR:
+        if (!len || (len > (4 - (offset & 0x3))) || len == 3) {
+            return -EINVAL;
+        }
+        *data =  pci_host_config_read_common(
+                   pbdev->pdev, offset, pci_config_size(pbdev->pdev), len);
+
+        if (zpci_endian_swap(data, len)) {
+            return -EINVAL;
+        }
+        break;
+    default:
+        return -EFAULT;
+    }
+
+    return 0;
+}
+
 int pcilg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
 {
     CPUS390XState *env = &cpu->env;
     S390PCIBusDevice *pbdev;
     uint64_t offset;
     uint64_t data;
-    MemTxResult result;
     uint8_t len;
     uint32_t fh;
     uint8_t pcias;
+    int ret;
 
     if (env->psw.mask & PSW_MASK_PSTATE) {
         s390_program_interrupt(env, PGM_PRIVILEGED, ra);
@@ -452,35 +485,21 @@ int pcilg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
         break;
     }
 
-    switch (pcias) {
-    case ZPCI_IO_BAR_MIN...ZPCI_IO_BAR_MAX:
-        if (!len || (len > (8 - (offset & 0x7)))) {
-            s390_program_interrupt(env, PGM_OPERAND, ra);
-            return 0;
-        }
-        result = zpci_read_bar(pbdev, pcias, offset, &data, len);
-        if (result != MEMTX_OK) {
-            s390_program_interrupt(env, PGM_OPERAND, ra);
-            return 0;
-        }
-        break;
-    case ZPCI_CONFIG_BAR:
-        if (!len || (len > (4 - (offset & 0x3))) || len == 3) {
-            s390_program_interrupt(env, PGM_OPERAND, ra);
-            return 0;
-        }
-        data =  pci_host_config_read_common(
-                   pbdev->pdev, offset, pci_config_size(pbdev->pdev), len);
+    ret = pbdev->ops.pcilg(pbdev, &data, pcias, len, offset);
 
-        if (zpci_endian_swap(&data, len)) {
-            s390_program_interrupt(env, PGM_OPERAND, ra);
-            return 0;
-        }
-        break;
-    default:
+    switch (ret) {
+    case -EINVAL:
+        s390_program_interrupt(env, PGM_OPERAND, ra);
+        return 0;
+    case -EFAULT:
         DPRINTF("pcilg invalid space\n");
         setcc(cpu, ZPCI_PCI_LS_ERR);
         s390_set_status_code(env, r2, ZPCI_PCI_ST_INVAL_AS);
+    case 0:
+        break;
+    default:
+        DPRINTF("pcilg unexpected return %d from op\n", ret);
+        s390_program_interrupt(env, PGM_OPERAND, ra);
         return 0;
     }
 
@@ -504,15 +523,55 @@ static MemTxResult zpci_write_bar(S390PCIBusDevice *pbdev, uint8_t pcias,
                                         MEMTXATTRS_UNSPECIFIED);
 }
 
+static int pcistg_default(S390PCIBusDevice *pbdev, uint64_t data, uint8_t pcias,
+                          uint16_t len, uint64_t offset)
+{
+    MemTxResult result;
+
+    switch (pcias) {
+        /* A ZPCI PCI card may use any BAR from BAR 0 to BAR 5 */
+    case ZPCI_IO_BAR_MIN...ZPCI_IO_BAR_MAX:
+        /*
+         * Check length:
+         * A length of 0 is invalid and length should not cross a double word
+         */
+        if (!len || (len > (8 - (offset & 0x7)))) {
+            return -EINVAL;
+        }
+
+        result = zpci_write_bar(pbdev, pcias, offset, data, len);
+        if (result != MEMTX_OK) {
+            return -EINVAL;
+        }
+        break;
+    case ZPCI_CONFIG_BAR:
+        /* ZPCI uses the pseudo BAR number 15 as configuration space */
+        /* possible access lengths are 1,2,4 and must not cross a word */
+        if (!len || (len > (4 - (offset & 0x3))) || len == 3) {
+            return -EINVAL;
+        }
+        /* len = 1,2,4 so we do not need to test */
+        zpci_endian_swap(&data, len);
+        pci_host_config_write_common(pbdev->pdev, offset,
+                                     pci_config_size(pbdev->pdev),
+                                     data, len);
+        break;
+    default:
+        return -EFAULT;
+    }
+
+    return 0;
+}
+
 int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
 {
     CPUS390XState *env = &cpu->env;
     uint64_t offset, data;
     S390PCIBusDevice *pbdev;
-    MemTxResult result;
     uint8_t len;
     uint32_t fh;
     uint8_t pcias;
+    int ret;
 
     if (env->psw.mask & PSW_MASK_PSTATE) {
         s390_program_interrupt(env, PGM_PRIVILEGED, ra);
@@ -555,40 +614,21 @@ int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
         break;
     }
 
-    switch (pcias) {
-        /* A ZPCI PCI card may use any BAR from BAR 0 to BAR 5 */
-    case ZPCI_IO_BAR_MIN...ZPCI_IO_BAR_MAX:
-        /* Check length:
-         * A length of 0 is invalid and length should not cross a double word
-         */
-        if (!len || (len > (8 - (offset & 0x7)))) {
-            s390_program_interrupt(env, PGM_OPERAND, ra);
-            return 0;
-        }
+    ret = pbdev->ops.pcistg(pbdev, data, pcias, len, offset);
 
-        result = zpci_write_bar(pbdev, pcias, offset, data, len);
-        if (result != MEMTX_OK) {
-            s390_program_interrupt(env, PGM_OPERAND, ra);
-            return 0;
-        }
-        break;
-    case ZPCI_CONFIG_BAR:
-        /* ZPCI uses the pseudo BAR number 15 as configuration space */
-        /* possible access lengths are 1,2,4 and must not cross a word */
-        if (!len || (len > (4 - (offset & 0x3))) || len == 3) {
-            s390_program_interrupt(env, PGM_OPERAND, ra);
-            return 0;
-        }
-        /* len = 1,2,4 so we do not need to test */
-        zpci_endian_swap(&data, len);
-        pci_host_config_write_common(pbdev->pdev, offset,
-                                     pci_config_size(pbdev->pdev),
-                                     data, len);
-        break;
-    default:
+    switch (ret) {
+    case -EINVAL:
+        s390_program_interrupt(env, PGM_OPERAND, ra);
+        return 0;
+    case -EFAULT:
         DPRINTF("pcistg invalid space\n");
         setcc(cpu, ZPCI_PCI_LS_ERR);
         s390_set_status_code(env, r2, ZPCI_PCI_ST_INVAL_AS);
+    case 0:
+        break;
+    default:
+        DPRINTF("pcistg unexpected return %d from op\n", ret);
+        s390_program_interrupt(env, PGM_OPERAND, ra);
         return 0;
     }
 
@@ -744,19 +784,55 @@ err:
     return 0;
 }
 
+/*
+ * The default PCISTB handler will break PCISTB instructions into a series of
+ * 8B memory operations.
+ */
+static int pcistb_default(S390PCIBusDevice *pbdev, S390CPU *cpu,
+                           uint64_t gaddr, uint8_t ar, uint8_t pcias,
+                           uint16_t len, uint64_t offset)
+{
+    MemTxResult result;
+    MemoryRegion *mr;
+    int i;
+
+    mr = pbdev->pdev->io_regions[pcias].memory;
+    mr = s390_get_subregion(mr, offset, len);
+    offset -= mr->addr;
+
+    for (i = 0; i < len; i += 8) {
+        if (!memory_region_access_valid(mr, offset + i, 8, true,
+                                        MEMTXATTRS_UNSPECIFIED)) {
+            return -EINVAL;
+        }
+    }
+
+    if (s390_cpu_virt_mem_read(cpu, gaddr, ar, pbdev->pcistb_buf, len)) {
+        return -EACCES;
+    }
+
+    for (i = 0; i < len; i += 8) {
+        result = memory_region_dispatch_write(mr, offset + i,
+                                              ldq_p(pbdev->pcistb_buf + i),
+                                              MO_64, MEMTXATTRS_UNSPECIFIED);
+        if (result != MEMTX_OK) {
+            return -EINVAL;
+        }
+    }
+
+    return 0;
+}
+
 int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
                         uint8_t ar, uintptr_t ra)
 {
     CPUS390XState *env = &cpu->env;
     S390PCIBusDevice *pbdev;
-    MemoryRegion *mr;
-    MemTxResult result;
     uint64_t offset;
-    int i;
     uint32_t fh;
     uint8_t pcias;
     uint16_t len;
-    uint8_t buffer[128];
+    int ret;
 
     if (env->psw.mask & PSW_MASK_PSTATE) {
         s390_program_interrupt(env, PGM_PRIVILEGED, ra);
@@ -817,31 +893,21 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
         goto specification_error;
     }
 
-    mr = pbdev->pdev->io_regions[pcias].memory;
-    mr = s390_get_subregion(mr, offset, len);
-    offset -= mr->addr;
+    ret = pbdev->ops.pcistb(pbdev, cpu, gaddr, ar, pcias, len, offset);
 
-    for (i = 0; i < len; i += 8) {
-        if (!memory_region_access_valid(mr, offset + i, 8, true,
-                                        MEMTXATTRS_UNSPECIFIED)) {
-            s390_program_interrupt(env, PGM_OPERAND, ra);
-            return 0;
-        }
-    }
-
-    if (s390_cpu_virt_mem_read(cpu, gaddr, ar, buffer, len)) {
+    switch (ret) {
+    case -EINVAL:
+        s390_program_interrupt(env, PGM_OPERAND, ra);
+        return 0;
+    case -EACCES:
         s390_cpu_virt_mem_handle_exc(cpu, ra);
         return 0;
-    }
-
-    for (i = 0; i < len / 8; i++) {
-        result = memory_region_dispatch_write(mr, offset + i * 8,
-                                              ldq_p(buffer + i * 8),
-                                              MO_64, MEMTXATTRS_UNSPECIFIED);
-        if (result != MEMTX_OK) {
-            s390_program_interrupt(env, PGM_OPERAND, ra);
-            return 0;
-        }
+    case 0:
+        break;
+    default:
+        DPRINTF("pcistb unexpected return %d from op\n", ret);
+        s390_program_interrupt(env, PGM_OPERAND, ra);
+        return 0;
     }
 
     pbdev->fmb.counter[ZPCI_FMB_CNT_STB]++;
@@ -1303,4 +1369,18 @@ out:
 
     setcc(cpu, cc);
     return 0;
+}
+
+void zpci_assign_default_ops(S390PCIBusDevice *pbdev)
+{
+    /*
+     * As PCISTB operations are not allowed to cross a page boundary, use
+     * qemu_memalign to get a single page for all subseqent PCISTB
+     * operations.
+     */
+    pbdev->pcistb_buf = qemu_memalign(PAGE_SIZE, PAGE_SIZE);
+
+    pbdev->ops.pcistg = pcistg_default;
+    pbdev->ops.pcilg = pcilg_default;
+    pbdev->ops.pcistb = pcistb_default;
 }

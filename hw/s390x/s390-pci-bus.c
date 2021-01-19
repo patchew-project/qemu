@@ -1020,6 +1020,7 @@ static void s390_pcihost_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
         pbdev->iommu->pbdev = pbdev;
         pbdev->state = ZPCI_FS_DISABLED;
         set_pbdev_info(pbdev);
+        zpci_assign_default_ops(pbdev);
 
         if (object_dynamic_cast(OBJECT(dev), "vfio-pci")) {
             pbdev->fh |= FH_SHM_VFIO;
@@ -1079,6 +1080,8 @@ static void s390_pcihost_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
         s390_pci_iommu_free(s, bus, devfn);
         pbdev->pdev = NULL;
         pbdev->state = ZPCI_FS_RESERVED;
+        if (pbdev->pcistb_buf)
+            qemu_vfree(pbdev->pcistb_buf);
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_S390_PCI_DEVICE)) {
         pbdev = S390_PCI_DEVICE(dev);
         pbdev->fid = 0;
