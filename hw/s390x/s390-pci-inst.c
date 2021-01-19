@@ -784,6 +784,92 @@ err:
     return 0;
 }
 
+static int pcistb_write_validate(MemoryRegion *mr, uint64_t offset,
+                                 uint16_t len)
+{
+    uint8_t size;
+
+    switch (offset & 0x07UL) {
+    case 0:
+        size = 8;
+        if (size <= len) {
+            break;
+        }
+        /* fall through */
+    case 4:
+        size = 4;
+        if (size <= len) {
+            break;
+        }
+        /* fall through */
+    case 6:
+    case 2:
+        size = 2;
+        if (size <= len) {
+            break;
+        }
+        /* fall through */
+    default:
+        size = 1;
+    }
+
+    if (!memory_region_access_valid(mr, offset, size, true,
+                                    MEMTXATTRS_UNSPECIFIED)) {
+        return -EINVAL;
+    }
+
+    return size;
+}
+
+static int pcistb_write(MemoryRegion *mr, uint8_t *buffer, uint64_t offset,
+                        uint16_t len)
+{
+    MemTxResult result;
+    uint64_t size;
+    uint64_t data;
+    MemOp opsize;
+
+    switch (offset & 0x07UL) {
+    case 0:
+        size = 8;
+        if (size <= len) {
+            opsize = MO_64;
+            data = ldq_p(buffer);
+            break;
+        }
+        /* fall through */
+    case 4:
+        size = 4;
+        if (size <= len) {
+            opsize = MO_32;
+            data = ldl_p(buffer);
+            break;
+        }
+        /* fall through */
+    case 6:
+    case 2:
+        size = 2;
+        if (size <= len) {
+            opsize = MO_16;
+            data = lduw_p(buffer);
+            break;
+        }
+        /* fall through */
+    default:
+        size = 1;
+        opsize = MO_8;
+        data = ldub_p(buffer);
+    }
+
+    result = memory_region_dispatch_write(mr, offset, data, opsize,
+                                          MEMTXATTRS_UNSPECIFIED);
+    if (result != MEMTX_OK) {
+        return -EINVAL;
+    }
+
+    return size;
+}
+
 /*
  * The default PCISTB handler will break PCISTB instructions into a series of
  * 8B memory operations.
@@ -792,32 +878,44 @@ static int pcistb_default(S390PCIBusDevice *pbdev, S390CPU *cpu,
                            uint64_t gaddr, uint8_t ar, uint8_t pcias,
                            uint16_t len, uint64_t offset)
 {
-    MemTxResult result;
     MemoryRegion *mr;
-    int i;
+    uint64_t curroff;
+    uint16_t currlen;
+    uint8_t *currbuff;
+    int size;
 
     mr = pbdev->pdev->io_regions[pcias].memory;
     mr = s390_get_subregion(mr, offset, len);
     offset -= mr->addr;
 
-    for (i = 0; i < len; i += 8) {
-        if (!memory_region_access_valid(mr, offset + i, 8, true,
-                                        MEMTXATTRS_UNSPECIFIED)) {
+    /* Loop over the proposed area and validate that writes will work. */
+    curroff = offset;
+    currlen = len;
+    while (currlen > 0) {
+        size = pcistb_write_validate(mr, curroff, currlen);
+        if (size <= 0) {
             return -EINVAL;
         }
+        curroff += size;
+        currlen -= size;
     }
 
     if (s390_cpu_virt_mem_read(cpu, gaddr, ar, pbdev->pcistb_buf, len)) {
         return -EACCES;
     }
 
-    for (i = 0; i < len; i += 8) {
-        result = memory_region_dispatch_write(mr, offset + i,
-                                              ldq_p(pbdev->pcistb_buf + i),
-                                              MO_64, MEMTXATTRS_UNSPECIFIED);
-        if (result != MEMTX_OK) {
+    /* Perform the chain of previously-validated writes */
+    currbuff = pbdev->pcistb_buf;
+    curroff = offset;
+    currlen = len;
+    while (currlen > 0) {
+        size = pcistb_write(mr, currbuff, curroff, currlen);
+        if (size < 0) {
             return -EINVAL;
         }
+        currbuff += size;
+        curroff += size;
+        currlen -= size;
     }
 
     return 0;
@@ -873,23 +971,29 @@ int pcistb_service_call(S390CPU *cpu, uint8_t r1, uint8_t r3, uint64_t gaddr,
         return 0;
     }
 
-    /* Verify the address, offset and length */
-    /* offset must be a multiple of 8 */
-    if (offset % 8) {
-        goto specification_error;
-    }
-    /* Length must be greater than 8, a multiple of 8 */
-    /* and not greater than maxstbl */
-    if ((len <= 8) || (len % 8) ||
-        (len > pbdev->pci_group->zpci_group.maxstbl)) {
-        goto specification_error;
+    /*
+     * If the specified device supports relaxed alignment, some checks can
+     * be skipped.
+     */
+    if (!(pbdev->pci_group->zpci_group.fr & CLP_RSP_QPCIG_MASK_RELAXED)) {
+        /* Verify the address, offset and length */
+        /* offset must be a multiple of 8 */
+        if (offset % 8) {
+            goto specification_error;
+        }
+        /* Length must be greater than 8, a multiple of 8 */
+        /* and not greater than maxstbl */
+        if ((len <= 8) || (len % 8) ||
+            (len > pbdev->pci_group->zpci_group.maxstbl)) {
+            goto specification_error;
+        }
+        /* Guest address must be double word aligned */
+        if (gaddr & 0x07UL) {
+            goto specification_error;
+        }
     }
     /* Do not cross a 4K-byte boundary */
     if (((offset & 0xfff) + len) > 0x1000) {
-        goto specification_error;
-    }
-    /* Guest address must be double word aligned */
-    if (gaddr & 0x07UL) {
         goto specification_error;
     }
 
