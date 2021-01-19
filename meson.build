@@ -2377,13 +2377,15 @@ if config_host.has_key('CONFIG_MODULES')
 endif
 summary_info += {'target list':       ' '.join(target_dirs)}
 
-summary_info += {'KVM support':       config_all.has_key('CONFIG_KVM')}
-summary_info += {'HAX support':       config_all.has_key('CONFIG_HAX')}
-summary_info += {'HVF support':       config_all.has_key('CONFIG_HVF')}
-summary_info += {'WHPX support':      config_all.has_key('CONFIG_WHPX')}
-summary_info += {'Xen support':       config_host.has_key('CONFIG_XEN_BACKEND')}
-if config_host.has_key('CONFIG_XEN_BACKEND')
-  summary_info += {'xen ctrl version':  config_host['CONFIG_XEN_CTRL_INTERFACE_VERSION']}
+if have_system
+  summary_info += {'KVM support':       config_all.has_key('CONFIG_KVM')}
+  summary_info += {'HAX support':       config_all.has_key('CONFIG_HAX')}
+  summary_info += {'HVF support':       config_all.has_key('CONFIG_HVF')}
+  summary_info += {'WHPX support':      config_all.has_key('CONFIG_WHPX')}
+  summary_info += {'Xen support':       config_host.has_key('CONFIG_XEN_BACKEND')}
+  if config_host.has_key('CONFIG_XEN_BACKEND')
+    summary_info += {'xen ctrl version':  config_host['CONFIG_XEN_CTRL_INTERFACE_VERSION']}
+  endif
 endif
 summary_info += {'TCG support':       config_all.has_key('CONFIG_TCG')}
 if config_all.has_key('CONFIG_TCG')
