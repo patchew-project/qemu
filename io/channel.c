@@ -92,19 +92,47 @@ int qio_channel_readv_all_eof(QIOChannel *ioc,
                               size_t niov,
                               Error **errp)
 {
+    return qio_channel_readv_full_all_eof(ioc, iov, niov, NULL, NULL, errp);
+}
+
+int qio_channel_readv_all(QIOChannel *ioc,
+                          const struct iovec *iov,
+                          size_t niov,
+                          Error **errp)
+{
+    return qio_channel_readv_full_all(ioc, iov, niov, NULL, NULL, errp);
+}
+
+int qio_channel_readv_full_all_eof(QIOChannel *ioc,
+                                   const struct iovec *iov,
+                                   size_t niov,
+                                   int **fds, size_t *nfds,
+                                   Error **errp)
+{
     int ret = -1;
     struct iovec *local_iov = g_new(struct iovec, niov);
     struct iovec *local_iov_head = local_iov;
     unsigned int nlocal_iov = niov;
+    int **local_fds = fds;
+    size_t *local_nfds = nfds;
     bool partial = false;
+
+    if (nfds) {
+        *nfds = 0;
+    }
+
+    if (fds) {
+        *fds = NULL;
+    }
 
     nlocal_iov = iov_copy(local_iov, nlocal_iov,
                           iov, niov,
                           0, iov_size(iov, niov));
 
-    while (nlocal_iov > 0) {
+    while ((nlocal_iov > 0) || local_fds) {
         ssize_t len;
-        len = qio_channel_readv(ioc, local_iov, nlocal_iov, errp);
+        len = qio_channel_readv_full(ioc, local_iov, nlocal_iov, local_fds,
+                                     local_nfds, errp);
         if (len == QIO_CHANNEL_ERR_BLOCK) {
             if (qemu_in_coroutine()) {
                 qio_channel_yield(ioc, G_IO_IN);
@@ -112,20 +140,53 @@ int qio_channel_readv_all_eof(QIOChannel *ioc,
                 qio_channel_wait(ioc, G_IO_IN);
             }
             continue;
-        } else if (len < 0) {
-            goto cleanup;
-        } else if (len == 0) {
-            if (partial) {
-                error_setg(errp,
-                           "Unexpected end-of-file before all bytes were read");
-            } else {
-                ret = 0;
+        }
+
+        if (len <= 0) {
+            size_t fd_idx;
+
+            if (!len && !niov && (nfds && *nfds)) {
+                break;
             }
+
+            if (!partial && (!nfds || !(*nfds))) {
+                ret = len;
+                goto cleanup;
+            }
+
+            error_prepend(errp,
+                          "Unexpected end-of-file before all data were read.");
+
+            if (!nfds || !(*nfds)) {
+                goto cleanup;
+            }
+
+            /*
+             * If (len < 0) and fds are returned, it's not clear if the
+             * returned fds are valid to be closed. Just free'ing the
+             * allocated memory for fds in this case
+             */
+            fd_idx = *nfds;
+            while (fd_idx && !len) {
+                close((*fds)[fd_idx - 1]);
+                fd_idx--;
+            }
+
+            g_free(*fds);
+            *fds = NULL;
+            *nfds = 0;
+
             goto cleanup;
         }
 
         partial = true;
-        iov_discard_front(&local_iov, &nlocal_iov, len);
+
+        if (nlocal_iov) {
+            iov_discard_front(&local_iov, &nlocal_iov, len);
+        }
+
+        local_fds = NULL;
+        local_nfds = NULL;
     }
 
     ret = 1;
@@ -135,20 +196,23 @@ int qio_channel_readv_all_eof(QIOChannel *ioc,
     return ret;
 }
 
-int qio_channel_readv_all(QIOChannel *ioc,
-                          const struct iovec *iov,
-                          size_t niov,
-                          Error **errp)
+int qio_channel_readv_full_all(QIOChannel *ioc,
+                               const struct iovec *iov,
+                               size_t niov,
+                               int **fds, size_t *nfds,
+                               Error **errp)
 {
-    int ret = qio_channel_readv_all_eof(ioc, iov, niov, errp);
+    int ret = qio_channel_readv_full_all_eof(ioc, iov, niov, fds, nfds, errp);
 
     if (ret == 0) {
-        ret = -1;
-        error_setg(errp,
-                   "Unexpected end-of-file before all bytes were read");
-    } else if (ret == 1) {
-        ret = 0;
+        error_prepend(errp,
+                      "Unexpected end-of-file before all data were read.");
+        return -1;
     }
+    if (ret == 1) {
+        return 0;
+    }
+
     return ret;
 }
 
