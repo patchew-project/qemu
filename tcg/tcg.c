@@ -1204,11 +1204,17 @@ void tcg_func_start(TCGContext *s)
     QSIMPLEQ_INIT(&s->labels);
 }
 
-static inline TCGTemp *tcg_temp_alloc(TCGContext *s)
+static TCGTemp *tcg_temp_alloc(TCGContext *s)
 {
     int n = s->nb_temps++;
+    TCGTemp *ret;
+
     tcg_debug_assert(n < TCG_MAX_TEMPS);
-    return memset(&s->temps[n], 0, sizeof(TCGTemp));
+    ret = &s->temps[n];
+    memset(ret, 0, sizeof(TCGTemp));
+    ret->index = n;
+
+    return ret;
 }
 
 static inline TCGTemp *tcg_global_alloc(TCGContext *s)

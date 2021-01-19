@@ -497,6 +497,7 @@ typedef enum TCGTempKind {
 } TCGTempKind;
 
 typedef struct TCGTemp {
+    unsigned int index:16;
     TCGReg reg:8;
     TCGTempVal val_type:8;
     TCGType base_type:8;
@@ -721,9 +722,7 @@ static inline void *tcg_splitwx_to_rw(const void *rx)
 
 static inline size_t temp_idx(TCGTemp *ts)
 {
-    ptrdiff_t n = ts - tcg_ctx->temps;
-    tcg_debug_assert(n >= 0 && n < tcg_ctx->nb_temps);
-    return n;
+    return ts->index;
 }
 
 static inline TCGArg temp_arg(TCGTemp *ts)
