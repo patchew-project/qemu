@@ -68,7 +68,8 @@ class QAPISchemaEntity:
 
     def _set_module(self, schema, info):
         assert self._checked
-        self._module = schema.module_by_fname(info and info.fname)
+        fname = info.fname if info else './builtin'
+        self._module = schema.module_by_fname(fname)
         self._module.add_entity(self)
 
     def set_module(self, schema):
@@ -142,11 +143,11 @@ class QAPISchemaModule:
         self._entity_list = []
 
     @classmethod
-    def is_system_module(cls, name: Optional[str]) -> bool:
-        return name is None or name.startswith('./')
+    def is_system_module(cls, name: str) -> bool:
+        return name.startswith('./')
 
     @classmethod
-    def is_user_module(cls, name: Optional[str]) -> bool:
+    def is_user_module(cls, name: str) -> bool:
         return not cls.is_system_module(name)
 
     @classmethod
@@ -849,7 +850,7 @@ class QAPISchema:
         self._entity_dict = {}
         self._module_dict = OrderedDict()
         self._schema_dir = os.path.dirname(fname)
-        self._make_module(None)  # built-ins
+        self._make_module('./builtin')  # built-ins
         self._make_module(fname)
         self._predefining = True
         self._def_predefineds()
@@ -894,7 +895,7 @@ class QAPISchema:
                 info, "%s uses unknown type '%s'" % (what, name))
         return typ
 
-    def _module_name(self, fname):
+    def _module_name(self, fname: str) -> str:
         if QAPISchemaModule.is_system_module(fname):
             return fname
         return os.path.relpath(fname, self._schema_dir)
@@ -907,7 +908,6 @@ class QAPISchema:
 
     def module_by_fname(self, fname):
         name = self._module_name(fname)
-        assert name in self._module_dict
         return self._module_dict[name]
 
     def _def_include(self, expr, info, doc):
