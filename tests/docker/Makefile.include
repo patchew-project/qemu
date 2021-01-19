@@ -63,6 +63,7 @@ docker-image-%: $(DOCKER_FILES_DIR)/%.docker
 		$(if $V,,--quiet) \
 		$(if $(NOCACHE),--no-cache, \
 			$(if $(DOCKER_REGISTRY),--registry $(DOCKER_REGISTRY))) \
+		$(if $(NETWORK),$(if $(subst $(NETWORK),,1),--network=$(NETWORK))) \
 		$(if $(NOUSER),,--add-current-user) \
 		$(if $(EXTRA_FILES),--extra-files $(EXTRA_FILES))\
 		$(if $(EXECUTABLE),--include-executable=$(EXECUTABLE)),\
