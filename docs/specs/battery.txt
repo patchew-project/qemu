@@ -1,0 +1,23 @@
+BATTERY DEVICE
+==============
+
+The battery device communicates the host's battery state to the guest.
+The probing of the host's battery state occurs on guest ACPI requests,
+as well as on timed intervals. If a change of the host's battery state is
+detected on one of the timed probes (charging/discharging, rate, charge)
+an ACPI notification is sent to the guest, so it will be able to
+update its battery status accordingly.
+
+The time interval between periodic probes is 2 s by default. A property
+'probe_interval' allows to modify this value. The value should be
+provided in milliseconds. A zero value disables the periodic probes,
+and makes the battery state updates occur on guest requests only.
+
+The host's battery information is taken from the sysfs battery data,
+located in:
+
+/sys/class/power_supply/[device of type "Battery"]
+
+If the sysfs path differs, a different battery needs to be probed,
+or even if a "fake" host battery is to be provided, a 'sysfs_path'
+property allows to override the default one.

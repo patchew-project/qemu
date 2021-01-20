@@ -35,6 +35,7 @@
 #include "hw/acpi/acpi-defs.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/cpu.h"
+#include "hw/acpi/battery.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/acpi/bios-linker-loader.h"
 #include "hw/isa/isa.h"
@@ -112,6 +113,7 @@ typedef struct AcpiMiscInfo {
     const unsigned char *dsdt_code;
     unsigned dsdt_size;
     uint16_t pvpanic_port;
+    uint16_t battery_port;
     uint16_t applesmc_io_base;
 } AcpiMiscInfo;
 
@@ -277,6 +279,7 @@ static void acpi_get_misc_info(AcpiMiscInfo *info)
     info->has_hpet = hpet_find();
     info->tpm_version = tpm_get_version(tpm_find());
     info->pvpanic_port = pvpanic_port();
+    info->battery_port = battery_port();
     info->applesmc_io_base = applesmc_port();
 }
 
@@ -1629,6 +1632,100 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         tpm_build_ppi_acpi(tpm, dev);
 
         aml_append(sb_scope, dev);
+    }
+
+    if (misc->battery_port) {
+        Aml *bat_state  = aml_local(0);
+        Aml *bat_rate   = aml_local(1);
+        Aml *bat_charge = aml_local(2);
+
+        dev = aml_device("BAT0");
+        aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0C0A")));
+
+        method = aml_method("_STA", 0, AML_NOTSERIALIZED);
+        aml_append(method, aml_return(aml_int(0x1F)));
+        aml_append(dev, method);
+
+        aml_append(dev, aml_operation_region("DBST", AML_SYSTEM_IO,
+                                             aml_int(misc->battery_port),
+                                             BATTERY_LEN));
+        field = aml_field("DBST", AML_DWORD_ACC, AML_NOLOCK, AML_PRESERVE);
+        aml_append(field, aml_named_field("BSTA", 32));
+        aml_append(field, aml_named_field("BRTE", 32));
+        aml_append(field, aml_named_field("BCRG", 32));
+        aml_append(dev, field);
+
+        method = aml_method("_BIF", 0, AML_NOTSERIALIZED);
+        pkg = aml_package(13);
+        /* Power Unit */
+        aml_append(pkg, aml_int(0));             /* mW */
+        /* Design Capacity */
+        aml_append(pkg, aml_int(BATTERY_FULL_CAP));
+        /* Last Full Charge Capacity */
+        aml_append(pkg, aml_int(BATTERY_FULL_CAP));
+        /* Battery Technology */
+        aml_append(pkg, aml_int(1));             /* Secondary */
+        /* Design Voltage */
+        aml_append(pkg, aml_int(BATTERY_VAL_UNKNOWN));
+        /* Design Capacity of Warning */
+        aml_append(pkg, aml_int(BATTERY_CAPACITY_OF_WARNING));
+        /* Design Capacity of Low */
+        aml_append(pkg, aml_int(BATTERY_CAPACITY_OF_LOW));
+        /* Battery Capacity Granularity 1 */
+        aml_append(pkg, aml_int(BATTERY_CAPACITY_GRANULARITY));
+        /* Battery Capacity Granularity 2 */
+        aml_append(pkg, aml_int(BATTERY_CAPACITY_GRANULARITY));
+        /* Model Number */
+        aml_append(pkg, aml_string("QBAT001"));  /* Model Number */
+        /* Serial Number */
+        aml_append(pkg, aml_string("SN00000"));  /* Serial Number */
+        /* Battery Type */
+        aml_append(pkg, aml_string("Virtual"));  /* Battery Type */
+        /* OEM Information */
+        aml_append(pkg, aml_string("QEMU"));     /* OEM Information */
+        aml_append(method, aml_return(pkg));
+        aml_append(dev, method);
+
+        pkg = aml_package(4);
+        /* Battery State */
+        aml_append(pkg, aml_int(0));
+        /* Battery Present Rate */
+        aml_append(pkg, aml_int(BATTERY_VAL_UNKNOWN));
+        /* Battery Remaining Capacity */
+        aml_append(pkg, aml_int(BATTERY_VAL_UNKNOWN));
+        /* Battery Present Voltage */
+        aml_append(pkg, aml_int(BATTERY_VAL_UNKNOWN));
+        aml_append(dev, aml_name_decl("DBPR", pkg));
+
+        method = aml_method("_BST", 0, AML_NOTSERIALIZED);
+        aml_append(method, aml_store(aml_name("BSTA"), bat_state));
+        aml_append(method, aml_store(aml_name("BRTE"), bat_rate));
+        aml_append(method, aml_store(aml_name("BCRG"), bat_charge));
+        aml_append(method, aml_store(bat_state,
+                                     aml_index(aml_name("DBPR"), aml_int(0))));
+        aml_append(method, aml_store(bat_rate,
+                                     aml_index(aml_name("DBPR"), aml_int(1))));
+        aml_append(method, aml_store(bat_charge,
+                                     aml_index(aml_name("DBPR"), aml_int(2))));
+        aml_append(method, aml_return(aml_name("DBPR")));
+        aml_append(dev, method);
+
+        aml_append(sb_scope, dev);
+
+        /* Device Check */
+        method = aml_method("\\_GPE._E07", 0, AML_NOTSERIALIZED);
+        aml_append(method, aml_notify(aml_name("\\_SB.BAT0"), aml_int(0x01)));
+        aml_append(dsdt, method);
+
+        /* Status Change */
+        method = aml_method("\\_GPE._E08", 0, AML_NOTSERIALIZED);
+        aml_append(method, aml_notify(aml_name("\\_SB.BAT0"), aml_int(0x80)));
+        aml_append(dsdt, method);
+
+        /* Information Change */
+        method = aml_method("\\_GPE._E09", 0, AML_NOTSERIALIZED);
+        aml_append(method, aml_notify(aml_name("\\_SB.BAT0"), aml_int(0x81)));
+        aml_append(dsdt, method);
     }
 
     aml_append(dsdt, sb_scope);
