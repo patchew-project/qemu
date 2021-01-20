@@ -337,7 +337,7 @@ linux_io_uring="$default_feature"
 cap_ng="auto"
 attr="auto"
 xfs="$default_feature"
-tcg="enabled"
+tcg="auto"
 membarrier="$default_feature"
 vhost_net="$default_feature"
 vhost_crypto="$default_feature"
@@ -2281,6 +2281,15 @@ case " $target_list " in
   *) softmmu=no
   ;;
 esac
+
+if [ "$tcg" = "auto" ]; then
+    # if neither system nor user emulation requested, no need to build TCG
+    if [ "$softmmu" = "no" ] && [ "$linux_user" = "no" ] && [ "$bsd_user" = "no" ]; then
+        tcg="disabled"
+    else
+        tcg="enabled"
+    fi
+fi
 
 feature_not_found() {
   feature=$1
