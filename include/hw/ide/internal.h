@@ -219,6 +219,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(IDEBus, IDE_BUS)
 /* set to 1 set disable mult support */
 #define MAX_MULT_SECTORS 16
 
+#define IDE_MAX_NB_SECTORS  ((uint64_t)INT_MAX << 2)
 #define IDE_DMA_BUF_SECTORS 256
 
 /* feature values for Data Set Management */
