@@ -1,0 +1,18 @@
+FROM debian:10
+
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive \
+    apt install -y --no-install-recommends \
+        ca-certificates build-essential cmake clang lld ninja-build \
+	flex bison pkg-config wget python3 rsync
+
+ENV TOOLCHAIN_INSTALL /usr
+ENV ROOTFS /usr
+
+ENV LLVM_URL https://github.com/llvm/llvm-project/archive/3d8149c2a1228609fd7d7c91a04681304a2f0ca9.tar.gz
+ENV MUSL_URL https://github.com/quic/musl/archive/aff74b395fbf59cd7e93b3691905aa1af6c0778c.tar.gz
+ENV LINUX_URL https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.6.18.tar.xz
+
+COPY debian-hexagon-cross.build-toolchain.sh /root/hexagon-toolchain/
+
+RUN cd /root/hexagon-toolchain/ && ./debian-hexagon-cross.build-toolchain.sh && cd / && rm -rf /root/hexagon-toolchain/
