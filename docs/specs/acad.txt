@@ -1,0 +1,24 @@
+AC ADAPTER DEVICE
+=================
+
+The AC adapter device communicates the host's AC adapter state to the
+guest. The probing of the host's AC adapter state occurs on guest ACPI
+requests, as well as on timed intervals. If a change of the host's AC
+adapter state is detected on one of the timed probes (connected/disconnected)
+an ACPI notification is sent to the guest, so it will be able to
+update its AC adapter status accordingly.
+
+The time interval between the periodic probes is 2 s by default.
+A property 'probe_interval' allows to modify this value. The value
+should be provided in milliseconds. A zero value disables the periodic
+probes, and makes the AC adapter state updates occur on guest requests
+only.
+
+The host's AC adapter information is taken from the sysfs AC adapter
+data, located in:
+
+/sys/class/power_supply/[device of type "Mains"]
+
+If the sysfs path differs, a different AC adapter needs to be probed,
+or even if a "fake" host AC adapter is to be provided, a 'sysfs_path'
+property allows to override the default one.

@@ -36,6 +36,7 @@
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/cpu.h"
 #include "hw/acpi/battery.h"
+#include "hw/acpi/acad.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/acpi/bios-linker-loader.h"
 #include "hw/isa/isa.h"
@@ -114,6 +115,7 @@ typedef struct AcpiMiscInfo {
     unsigned dsdt_size;
     uint16_t pvpanic_port;
     uint16_t battery_port;
+    uint16_t acad_port;
     uint16_t applesmc_io_base;
 } AcpiMiscInfo;
 
@@ -280,6 +282,7 @@ static void acpi_get_misc_info(AcpiMiscInfo *info)
     info->tpm_version = tpm_get_version(tpm_find());
     info->pvpanic_port = pvpanic_port();
     info->battery_port = battery_port();
+    info->acad_port = acad_port();
     info->applesmc_io_base = applesmc_port();
 }
 
@@ -1725,6 +1728,55 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         /* Information Change */
         method = aml_method("\\_GPE._E09", 0, AML_NOTSERIALIZED);
         aml_append(method, aml_notify(aml_name("\\_SB.BAT0"), aml_int(0x81)));
+        aml_append(dsdt, method);
+    }
+
+    if (misc->acad_port) {
+        Aml *acad_state  = aml_local(0);
+
+        dev = aml_device("ADP0");
+        aml_append(dev, aml_name_decl("_HID", aml_string("ACPI0003")));
+
+        aml_append(dev, aml_operation_region("ACST", AML_SYSTEM_IO,
+                                             aml_int(misc->acad_port),
+                                             AC_ADAPTER_LEN));
+        field = aml_field("ACST", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
+        aml_append(field, aml_named_field("PWRS", 8));
+        aml_append(dev, field);
+
+        method = aml_method("_PSR", 0, AML_NOTSERIALIZED);
+        aml_append(method, aml_store(aml_name("PWRS"), acad_state));
+        aml_append(method, aml_return(acad_state));
+        aml_append(dev, method);
+
+        method = aml_method("_PCL", 0, AML_NOTSERIALIZED);
+        pkg = aml_package(1);
+        aml_append(pkg, aml_name("_SB"));
+        aml_append(method, aml_return(pkg));
+        aml_append(dev, method);
+
+        method = aml_method("_PIF", 0, AML_NOTSERIALIZED);
+        pkg = aml_package(6);
+        /* Power Source State */
+        aml_append(pkg, aml_int(0));  /* Non-redundant, non-shared */
+        /* Maximum Output Power */
+        aml_append(pkg, aml_int(AC_ADAPTER_VAL_UNKNOWN));
+        /* Maximum Input Power */
+        aml_append(pkg, aml_int(AC_ADAPTER_VAL_UNKNOWN));
+        /* Model Number */
+        aml_append(pkg, aml_string("QADP001"));
+        /* Serial Number */
+        aml_append(pkg, aml_string("SN00000"));
+        /* OEM Information */
+        aml_append(pkg, aml_string("QEMU"));
+        aml_append(method, aml_return(pkg));
+        aml_append(dev, method);
+
+        aml_append(sb_scope, dev);
+
+        /* Status Change */
+        method = aml_method("\\_GPE._E0A", 0, AML_NOTSERIALIZED);
+        aml_append(method, aml_notify(aml_name("\\_SB.ADP0"), aml_int(0x80)));
         aml_append(dsdt, method);
     }
 

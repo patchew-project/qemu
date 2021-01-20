@@ -45,4 +45,8 @@ config BATTERY
     bool
     depends on ACPI
 
+config AC_ADAPTER
+    bool
+    depends on ACPI
+
 config ACPI_HW_REDUCED
