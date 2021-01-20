@@ -244,9 +244,15 @@ static void cap_safe_cache_apply(SpaprMachineState *spapr, uint8_t val,
     uint8_t kvm_val =  kvmppc_get_cap_safe_cache();
 
     if (tcg_enabled() && val) {
-        /* TCG only supports broken, allow other values and print a warning */
-        warn_report("TCG doesn't support requested feature, cap-cfpc=%s",
-                    cap_cfpc_possible.vals[val]);
+        /*
+         * TCG only supports broken, allow other values and print a warning
+         * in case the user attempted to set a different value in the command
+         * line.
+         */
+        if (spapr->cmd_line_caps[SPAPR_CAP_CFPC] != SPAPR_CAP_BROKEN) {
+            warn_report("TCG doesn't support requested feature, cap-cfpc=%s",
+                        cap_cfpc_possible.vals[val]);
+        }
     } else if (kvm_enabled() && (val > kvm_val)) {
         error_setg(errp,
                    "Requested safe cache capability level not supported by KVM");
@@ -269,9 +275,15 @@ static void cap_safe_bounds_check_apply(SpaprMachineState *spapr, uint8_t val,
     uint8_t kvm_val =  kvmppc_get_cap_safe_bounds_check();
 
     if (tcg_enabled() && val) {
-        /* TCG only supports broken, allow other values and print a warning */
-        warn_report("TCG doesn't support requested feature, cap-sbbc=%s",
-                    cap_sbbc_possible.vals[val]);
+        /*
+         * TCG only supports broken, allow other values and print a warning
+         * in case the user attempted to set a different value in the command
+         * line.
+         */
+        if (spapr->cmd_line_caps[SPAPR_CAP_SBBC] != SPAPR_CAP_BROKEN) {
+            warn_report("TCG doesn't support requested feature, cap-sbbc=%s",
+                        cap_sbbc_possible.vals[val]);
+        }
     } else if (kvm_enabled() && (val > kvm_val)) {
         error_setg(errp,
 "Requested safe bounds check capability level not supported by KVM");
@@ -297,9 +309,15 @@ static void cap_safe_indirect_branch_apply(SpaprMachineState *spapr,
     uint8_t kvm_val = kvmppc_get_cap_safe_indirect_branch();
 
     if (tcg_enabled() && val) {
-        /* TCG only supports broken, allow other values and print a warning */
-        warn_report("TCG doesn't support requested feature, cap-ibs=%s",
-                    cap_ibs_possible.vals[val]);
+        /*
+         * TCG only supports broken, allow other values and print a warning
+         * in case the user attempted to set a different value in the command
+         * line.
+         */
+        if (spapr->cmd_line_caps[SPAPR_CAP_IBS] != SPAPR_CAP_BROKEN) {
+            warn_report("TCG doesn't support requested feature, cap-ibs=%s",
+                        cap_ibs_possible.vals[val]);
+        }
     } else if (kvm_enabled() && (val > kvm_val)) {
         error_setg(errp,
 "Requested safe indirect branch capability level not supported by KVM");
@@ -483,8 +501,15 @@ static void cap_ccf_assist_apply(SpaprMachineState *spapr, uint8_t val,
     uint8_t kvm_val = kvmppc_get_cap_count_cache_flush_assist();
 
     if (tcg_enabled() && val) {
-        /* TCG doesn't implement anything here, but allow with a warning */
-        warn_report("TCG doesn't support requested feature, cap-ccf-assist=on");
+        /*
+         * TCG doesn't implement anything here, but allow with a warning
+         * in case the user attempted to set a different value in the command
+         * line.
+         */
+        if (spapr->cmd_line_caps[SPAPR_CAP_CCF_ASSIST] != SPAPR_CAP_OFF) {
+            warn_report("TCG doesn't support requested feature, "
+                        "cap-ccf-assist=on");
+        }
     } else if (kvm_enabled() && (val > kvm_val)) {
         uint8_t kvm_ibs = kvmppc_get_cap_safe_indirect_branch();
 
