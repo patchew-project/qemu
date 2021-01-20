@@ -2291,6 +2291,11 @@ if [ "$tcg" = "auto" ]; then
     fi
 fi
 
+# if neither system nor user emulation requested, capstone is not needed
+if [ "$softmmu" = "no" ] && [ "$linux_user" = "no" ] && [ "$bsd_user" = "no" ]; then
+    capstone="disabled"
+fi
+
 feature_not_found() {
   feature=$1
   remedy=$2
