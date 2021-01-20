@@ -43,6 +43,10 @@ struct HVFState {
 };
 extern HVFState *hvf_state;
 
+struct hvf_vcpu_state {
+    int fd;
+};
+
 void assert_hvf_ok(hv_return_t ret);
 int hvf_get_registers(CPUState *cpu);
 int hvf_put_registers(CPUState *cpu);
