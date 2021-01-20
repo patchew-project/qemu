@@ -57,6 +57,8 @@ extern const struct SCSISense sense_code_LBA_OUT_OF_RANGE;
 extern const struct SCSISense sense_code_INVALID_FIELD;
 /* Invalid request, Invalid field in parameter list */
 extern const struct SCSISense sense_code_INVALID_PARAM;
+/* Invalid request, Invalid value in parameter list */
+extern const struct SCSISense sense_code_INVALID_PARAM_VALUE;
 /* Invalid request, Parameter list length error */
 extern const struct SCSISense sense_code_INVALID_PARAM_LEN;
 /* Invalid request, LUN not supported */
