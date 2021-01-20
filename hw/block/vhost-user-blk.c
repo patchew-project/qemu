@@ -507,6 +507,8 @@ virtio_err:
     }
     g_free(s->virtqs);
     virtio_cleanup(vdev);
+    qemu_chr_fe_set_handlers(&s->chardev, NULL, NULL, NULL,
+                             NULL, NULL, NULL, false);
     vhost_user_cleanup(&s->vhost_user);
 }
 
