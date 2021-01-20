@@ -177,52 +177,52 @@ const struct SCSISense sense_code_TARGET_FAILURE = {
     .key = HARDWARE_ERROR, .asc = 0x44, .ascq = 0x00
 };
 
-/* Illegal request, invalid command operation code */
+/* Invalid request, invalid command operation code */
 const struct SCSISense sense_code_INVALID_OPCODE = {
     .key = ILLEGAL_REQUEST, .asc = 0x20, .ascq = 0x00
 };
 
-/* Illegal request, LBA out of range */
+/* Invalid request, LBA out of range */
 const struct SCSISense sense_code_LBA_OUT_OF_RANGE = {
     .key = ILLEGAL_REQUEST, .asc = 0x21, .ascq = 0x00
 };
 
-/* Illegal request, Invalid field in CDB */
+/* Invalid request, Invalid field in CDB */
 const struct SCSISense sense_code_INVALID_FIELD = {
     .key = ILLEGAL_REQUEST, .asc = 0x24, .ascq = 0x00
 };
 
-/* Illegal request, Invalid field in parameter list */
+/* Invalid request, Invalid field in parameter list */
 const struct SCSISense sense_code_INVALID_PARAM = {
     .key = ILLEGAL_REQUEST, .asc = 0x26, .ascq = 0x00
 };
 
-/* Illegal request, Parameter list length error */
+/* Invalid request, Parameter list length error */
 const struct SCSISense sense_code_INVALID_PARAM_LEN = {
     .key = ILLEGAL_REQUEST, .asc = 0x1a, .ascq = 0x00
 };
 
-/* Illegal request, LUN not supported */
+/* Invalid request, LUN not supported */
 const struct SCSISense sense_code_LUN_NOT_SUPPORTED = {
     .key = ILLEGAL_REQUEST, .asc = 0x25, .ascq = 0x00
 };
 
-/* Illegal request, Saving parameters not supported */
+/* Invalid request, Saving parameters not supported */
 const struct SCSISense sense_code_SAVING_PARAMS_NOT_SUPPORTED = {
     .key = ILLEGAL_REQUEST, .asc = 0x39, .ascq = 0x00
 };
 
-/* Illegal request, Incompatible medium installed */
+/* Invalid request, Incompatible medium installed */
 const struct SCSISense sense_code_INCOMPATIBLE_FORMAT = {
     .key = ILLEGAL_REQUEST, .asc = 0x30, .ascq = 0x00
 };
 
-/* Illegal request, medium removal prevented */
+/* Invalid request, medium removal prevented */
 const struct SCSISense sense_code_ILLEGAL_REQ_REMOVAL_PREVENTED = {
     .key = ILLEGAL_REQUEST, .asc = 0x53, .ascq = 0x02
 };
 
-/* Illegal request, Invalid Transfer Tag */
+/* Invalid request, Invalid Transfer Tag */
 const struct SCSISense sense_code_INVALID_TAG = {
     .key = ILLEGAL_REQUEST, .asc = 0x4b, .ascq = 0x01
 };

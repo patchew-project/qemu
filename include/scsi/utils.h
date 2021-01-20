@@ -49,25 +49,25 @@ extern const struct SCSISense sense_code_NO_MEDIUM;
 extern const struct SCSISense sense_code_NOT_READY_REMOVAL_PREVENTED;
 /* Hardware error, internal target failure */
 extern const struct SCSISense sense_code_TARGET_FAILURE;
-/* Illegal request, invalid command operation code */
+/* Invalid request, invalid command operation code */
 extern const struct SCSISense sense_code_INVALID_OPCODE;
-/* Illegal request, LBA out of range */
+/* Invalid request, LBA out of range */
 extern const struct SCSISense sense_code_LBA_OUT_OF_RANGE;
-/* Illegal request, Invalid field in CDB */
+/* Invalid request, Invalid field in CDB */
 extern const struct SCSISense sense_code_INVALID_FIELD;
-/* Illegal request, Invalid field in parameter list */
+/* Invalid request, Invalid field in parameter list */
 extern const struct SCSISense sense_code_INVALID_PARAM;
-/* Illegal request, Parameter list length error */
+/* Invalid request, Parameter list length error */
 extern const struct SCSISense sense_code_INVALID_PARAM_LEN;
-/* Illegal request, LUN not supported */
+/* Invalid request, LUN not supported */
 extern const struct SCSISense sense_code_LUN_NOT_SUPPORTED;
-/* Illegal request, Saving parameters not supported */
+/* Invalid request, Saving parameters not supported */
 extern const struct SCSISense sense_code_SAVING_PARAMS_NOT_SUPPORTED;
-/* Illegal request, Incompatible format */
+/* Invalid request, Incompatible format */
 extern const struct SCSISense sense_code_INCOMPATIBLE_FORMAT;
-/* Illegal request, medium removal prevented */
+/* Invalid request, medium removal prevented */
 extern const struct SCSISense sense_code_ILLEGAL_REQ_REMOVAL_PREVENTED;
-/* Illegal request, Invalid Transfer Tag */
+/* Invalid request, Invalid Transfer Tag */
 extern const struct SCSISense sense_code_INVALID_TAG;
 /* Command aborted, I/O process terminated */
 extern const struct SCSISense sense_code_IO_ERROR;
