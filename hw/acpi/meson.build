@@ -21,6 +21,7 @@ acpi_ss.add(when: 'CONFIG_PC', if_false: files('acpi-x86-stub.c'))
 acpi_ss.add(when: 'CONFIG_TPM', if_true: files('tpm.c'))
 acpi_ss.add(when: 'CONFIG_BATTERY', if_true: files('battery.c'))
 acpi_ss.add(when: 'CONFIG_AC_ADAPTER', if_true: files('acad.c'))
+acpi_ss.add(when: 'CONFIG_BUTTON', if_true: files('button.c'))
 softmmu_ss.add(when: 'CONFIG_ACPI', if_false: files('acpi-stub.c', 'aml-build-stub.c'))
 softmmu_ss.add_all(when: 'CONFIG_ACPI', if_true: acpi_ss)
 softmmu_ss.add(when: 'CONFIG_ALL', if_true: files('acpi-stub.c', 'aml-build-stub.c',

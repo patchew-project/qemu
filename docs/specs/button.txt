@@ -1,0 +1,35 @@
+BUTTON DEVICE
+=================
+
+The button device communicates the host's "lid button" state to the guest.
+The probing of the host's lid button state occurs on timed intervals.
+If a change of the host's lid button state is detected (open/closed)
+an ACPI notification is sent to the guest, so it will be able to act
+accordingly.
+
+The time interval between the periodic probes is 2 s by default.
+A property 'probe_interval' allows to modify this value. The value
+is provided in milliseconds.
+
+The host's lid button information is taken from:
+
+/proc/acpi/button/lid/*/state
+
+And this file is expected to be formatted as:
+'state:      open' (if the lid is open)
+or:
+'state:      closed' (if the lid is closed)
+
+These are based on the Linux 'button' driver.
+
+If the above procfs path differs, or even if a "fake" host lid button
+is to be provided, a 'procfs_path' property allows to override the
+default path.
+
+Usage example (default values):
+
+'-device button'
+
+Is the same as:
+
+'-device button,procfs_path=/proc/acpi/button,probe_interval=2000'

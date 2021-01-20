@@ -25,6 +25,7 @@ config PC
     imply VIRTIO_VGA
     imply BATTERY
     imply AC_ADAPTER
+    imply BUTTON
     select FDC
     select I8259
     select I8254

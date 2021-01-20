@@ -37,6 +37,7 @@
 #include "hw/acpi/cpu.h"
 #include "hw/acpi/battery.h"
 #include "hw/acpi/acad.h"
+#include "hw/acpi/button.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/acpi/bios-linker-loader.h"
 #include "hw/isa/isa.h"
@@ -116,6 +117,7 @@ typedef struct AcpiMiscInfo {
     uint16_t pvpanic_port;
     uint16_t battery_port;
     uint16_t acad_port;
+    uint16_t button_port;
     uint16_t applesmc_io_base;
 } AcpiMiscInfo;
 
@@ -283,6 +285,7 @@ static void acpi_get_misc_info(AcpiMiscInfo *info)
     info->pvpanic_port = pvpanic_port();
     info->battery_port = battery_port();
     info->acad_port = acad_port();
+    info->button_port = button_port();
     info->applesmc_io_base = applesmc_port();
 }
 
@@ -1777,6 +1780,32 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         /* Status Change */
         method = aml_method("\\_GPE._E0A", 0, AML_NOTSERIALIZED);
         aml_append(method, aml_notify(aml_name("\\_SB.ADP0"), aml_int(0x80)));
+        aml_append(dsdt, method);
+    }
+
+    if (misc->button_port) {
+        Aml *button_state  = aml_local(0);
+
+        dev = aml_device("LID0");
+        aml_append(dev, aml_name_decl("_HID", aml_string("PNP0C0D")));
+
+        aml_append(dev, aml_operation_region("LSTA", AML_SYSTEM_IO,
+                                             aml_int(misc->button_port),
+                                             BUTTON_LEN));
+        field = aml_field("LSTA", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
+        aml_append(field, aml_named_field("LIDS", 8));
+        aml_append(dev, field);
+
+        method = aml_method("_LID", 0, AML_NOTSERIALIZED);
+        aml_append(method, aml_store(aml_name("LIDS"), button_state));
+        aml_append(method, aml_return(button_state));
+        aml_append(dev, method);
+
+        aml_append(sb_scope, dev);
+
+        /* Status Change */
+        method = aml_method("\\_GPE._E0B", 0, AML_NOTSERIALIZED);
+        aml_append(method, aml_notify(aml_name("\\_SB.LID0"), aml_int(0x80)));
         aml_append(dsdt, method);
     }
 
