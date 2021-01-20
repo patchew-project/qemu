@@ -127,6 +127,20 @@ Drives with interface types other than ``if=none`` are for onboard
 devices.  It is possible to use drives the board doesn't pick up with
 -device.  This usage is now deprecated.  Use ``if=none`` instead.
 
+``-cpu`` ``+feature`` and ``-feature`` syntax (since 6.0.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``-cpu ...,+feature`` and ``-cpu ...,-feature`` syntax for
+enabling and disabling CPU features is deprecated.  The ``-cpu
+...,feature=on`` or ``-cpu ...,feature=off`` should be used
+instead.
+
+Note that the ordering semantics of ``-cpu ...,-feature,+feature``
+is different from ``-cpu ...,feature=off,feature=on``.  With the
+former, the feature got disabled because ``-feature`` had
+precedence, but with the latter the feature will be enabled
+because options are applied in the order they appear.
+
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
