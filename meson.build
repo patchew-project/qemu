@@ -2450,19 +2450,8 @@ if have_block
 endif
 summary(summary_info, bool_yn: true, section: 'Block layer support')
 
+# Crypto
 summary_info = {}
-summary_info += {'sparse enabled':    sparse.found()}
-if targetos == 'darwin'
-  summary_info += {'Cocoa support':   cocoa.found()}
-endif
-# TODO: add back version
-summary_info += {'SDL support':       sdl.found()}
-summary_info += {'SDL image support': sdl_image.found()}
-# TODO: add back version
-summary_info += {'GTK support':       gtk.found()}
-summary_info += {'pixman':            pixman.found()}
-# TODO: add back version
-summary_info += {'VTE support':       config_host.has_key('CONFIG_VTE')}
 summary_info += {'TLS priority':      config_host['CONFIG_TLS_PRIORITY']}
 summary_info += {'GNUTLS support':    config_host.has_key('CONFIG_GNUTLS')}
 # TODO: add back version
@@ -2476,6 +2465,24 @@ summary_info += {'nettle':            config_host.has_key('CONFIG_NETTLE')}
 if config_host.has_key('CONFIG_NETTLE')
    summary_info += {'  XTS':             not config_host.has_key('CONFIG_QEMU_PRIVATE_XTS')}
 endif
+summary_info += {'crypto afalg':      config_host.has_key('CONFIG_AF_ALG')}
+summary_info += {'rng-none':          config_host.has_key('CONFIG_RNG_NONE')}
+summary_info += {'Linux keyring':     config_host.has_key('CONFIG_SECRET_KEYRING')}
+summary(summary_info, bool_yn: true, section: 'Crypto')
+
+summary_info = {}
+summary_info += {'sparse enabled':    sparse.found()}
+if targetos == 'darwin'
+  summary_info += {'Cocoa support':   cocoa.found()}
+endif
+# TODO: add back version
+summary_info += {'SDL support':       sdl.found()}
+summary_info += {'SDL image support': sdl_image.found()}
+# TODO: add back version
+summary_info += {'GTK support':       gtk.found()}
+summary_info += {'pixman':            pixman.found()}
+# TODO: add back version
+summary_info += {'VTE support':       config_host.has_key('CONFIG_VTE')}
 summary_info += {'libtasn1':          config_host.has_key('CONFIG_TASN1')}
 summary_info += {'PAM':               config_host.has_key('CONFIG_AUTH_PAM')}
 summary_info += {'iconv support':     iconv.found()}
@@ -2528,7 +2535,6 @@ if targetos == 'windows'
   summary_info += {'QGA MSI support':   config_host.has_key('CONFIG_QGA_MSI')}
 endif
 summary_info += {'seccomp support':   seccomp.found()}
-summary_info += {'crypto afalg':      config_host.has_key('CONFIG_AF_ALG')}
 summary_info += {'GlusterFS support': glusterfs.found()}
 summary_info += {'TPM support':       config_host.has_key('CONFIG_TPM')}
 summary_info += {'libssh support':    config_host.has_key('CONFIG_LIBSSH')}
@@ -2544,8 +2550,6 @@ summary_info += {'capstone':          capstone_opt == 'disabled' ? false : capst
 summary_info += {'libpmem support':   config_host.has_key('CONFIG_LIBPMEM')}
 summary_info += {'libdaxctl support': config_host.has_key('CONFIG_LIBDAXCTL')}
 summary_info += {'libudev':           libudev.found()}
-summary_info += {'rng-none':          config_host.has_key('CONFIG_RNG_NONE')}
-summary_info += {'Linux keyring':     config_host.has_key('CONFIG_SECRET_KEYRING')}
 summary(summary_info, bool_yn: true, section: 'Misc')
 
 if not supported_cpus.contains(cpu)
