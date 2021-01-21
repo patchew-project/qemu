@@ -1793,6 +1793,8 @@ if 'CONFIG_VHOST_USER' in config_host
   vhost_user = libvhost_user.get_variable('vhost_user_dep')
 endif
 
+subdir('hw')
+
 subdir('qapi')
 subdir('qobject')
 subdir('stubs')
@@ -1879,7 +1881,6 @@ subdir('migration')
 subdir('monitor')
 subdir('net')
 subdir('replay')
-subdir('hw')
 subdir('accel')
 subdir('plugins')
 subdir('bsd-user')
