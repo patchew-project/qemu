@@ -216,6 +216,19 @@ static char *SocketAddress_to_str(SocketAddress *addr)
     }
 }
 
+void hmp_info_migratable(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    /* It's migratable if this succeeds */
+    qmp_query_migratable(&err);
+    if (err) {
+        hmp_handle_error(mon, err);
+        return;
+    }
+
+    monitor_printf(mon, "Migratable\n");
+}
+
 void hmp_info_migrate(Monitor *mon, const QDict *qdict)
 {
     MigrationInfo *info;

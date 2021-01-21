@@ -367,6 +367,20 @@
 { 'command': 'query-migrate', 'returns': 'MigrationInfo' }
 
 ##
+# @query-migratable:
+# Tests whether it will be possible to migrate the VM in the current state.
+#
+# Returns: nothing on success (i.e. if the VM is migratable)
+#
+# Since: 6.0
+# Example:
+#
+# -> { "execute": "query-migratable" }
+# <- { "return": {} }
+##
+{ 'command': 'query-migratable' }
+
+##
 # @MigrationCapability:
 #
 # Migration capabilities enumeration

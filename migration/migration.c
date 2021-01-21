@@ -2229,6 +2229,11 @@ int64_t qmp_query_migrate_cache_size(Error **errp)
     return migrate_xbzrle_cache_size();
 }
 
+void qmp_query_migratable(Error **errp)
+{
+    migration_is_blocked(errp);
+}
+
 void qmp_migrate_set_speed(int64_t value, Error **errp)
 {
     MigrateSetParameters p = {

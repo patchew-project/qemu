@@ -542,6 +542,20 @@ SRST
 ERST
 
     {
+        .name       = "migratable",
+        .args_type  = "",
+        .params     = "",
+        .help       = "tests if VM is migratable",
+        .cmd        = hmp_info_migratable,
+    },
+
+SRST
+  ''info migratable''
+    Tests whether the VM is currently migratable.
+ERST
+
+
+    {
         .name       = "migrate_capabilities",
         .args_type  = "",
         .params     = "",
