@@ -26,6 +26,7 @@
 #include "trace/control.h"
 #include "qemu/thread.h"
 #include "qemu/lockable.h"
+#include "sysemu/tcg.h"
 
 static char *logfilename;
 static QemuMutex qemu_logfile_mutex;
@@ -84,6 +85,8 @@ void qemu_set_log(int log_flags)
 #ifdef CONFIG_TRACE_LOG
     qemu_loglevel |= LOG_TRACE;
 #endif
+    tb_flush_all();
+
     /*
      * In all cases we only log if qemu_loglevel is set.
      * Also:

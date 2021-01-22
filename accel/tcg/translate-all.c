@@ -1461,6 +1461,14 @@ void tb_flush(CPUState *cpu)
     }
 }
 
+void tb_flush_all(void)
+{
+    CPUState *cpu;
+    CPU_FOREACH(cpu) {
+        tb_flush(cpu);
+    }
+}
+
 /*
  * Formerly ifdef DEBUG_TB_CHECK. These debug functions are user-mode-only,
  * so in order to prevent bit rot we compile them unconditionally in user-mode,

@@ -9,6 +9,7 @@
 #define SYSEMU_TCG_H
 
 void tcg_exec_init(unsigned long tb_size, int splitwx);
+void tb_flush_all(void);
 
 #ifdef CONFIG_TCG
 extern bool tcg_allowed;
