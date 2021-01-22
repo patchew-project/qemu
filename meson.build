@@ -229,7 +229,7 @@ endif
 if not get_option('tcg').disabled()
   if cpu not in supported_cpus
     if 'CONFIG_TCG_INTERPRETER' in config_host
-      warning('Unsupported CPU @0@, will use TCG with TCI (experimental)'.format(cpu))
+      warning('Unsupported CPU @0@, will use TCG with TCI (experimental and slow)'.format(cpu))
     else
       error('Unsupported CPU @0@, try --enable-tcg-interpreter'.format(cpu))
     endif
@@ -2416,8 +2416,12 @@ if have_system
 endif
 summary_info += {'TCG support':       config_all.has_key('CONFIG_TCG')}
 if config_all.has_key('CONFIG_TCG')
+  if config_host.has_key('CONFIG_TCG_INTERPRETER')
+    summary_info += {'TCG backend':   'TCG interpreter (experimental)'}
+  else
+    summary_info += {'TCG backend':   'native (@0@)'.format(cpu)}
+  endif
   summary_info += {'TCG debug enabled': config_host.has_key('CONFIG_DEBUG_TCG')}
-  summary_info += {'TCG interpreter':   config_host.has_key('CONFIG_TCG_INTERPRETER')}
 endif
 summary_info += {'target list':       ' '.join(target_dirs)}
 if have_system
