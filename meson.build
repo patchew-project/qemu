@@ -1843,7 +1843,9 @@ block_ss.add(when: 'CONFIG_REPLICATION', if_true: files('replication.c'))
 
 subdir('nbd')
 subdir('scsi')
-subdir('block')
+if have_block
+  subdir('block')
+endif
 
 blockdev_ss.add(files(
   'blockdev.c',
