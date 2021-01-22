@@ -1697,22 +1697,10 @@ target_softmmu_arch = {}
 # TODO: add each directory to the subdirs from its own meson.build, once
 # we have those
 trace_events_subdirs = [
-  'accel/kvm',
-  'accel/tcg',
   'crypto',
-  'hw/core',
   'qapi',
   'qom',
   'monitor',
-  'target/arm',
-  'target/hppa',
-  'target/i386',
-  'target/i386/kvm',
-  'target/mips',
-  'target/ppc',
-  'target/riscv',
-  'target/s390x',
-  'target/sparc',
   'util',
 ]
 if have_user
@@ -1729,6 +1717,7 @@ if have_block
 endif
 if have_system
   trace_events_subdirs += [
+    'accel/kvm',
     'audio',
     'backends',
     'backends/tpm',
@@ -1784,6 +1773,21 @@ if have_system
     'net',
     'softmmu',
     'ui',
+  ]
+endif
+if have_system or have_user
+  trace_events_subdirs += [
+    'accel/tcg',
+    'hw/core',
+    'target/arm',
+    'target/hppa',
+    'target/i386',
+    'target/i386/kvm',
+    'target/mips',
+    'target/ppc',
+    'target/riscv',
+    'target/s390x',
+    'target/sparc',
   ]
 endif
 
