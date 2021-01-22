@@ -1000,9 +1000,7 @@ void HELPER(exception_return)(CPUARMState *env, uint64_t new_pc)
          */
         mask = aarch32_cpsr_valid_mask(env->features, &env_archcpu(env)->isar);
         cpsr_write(env, spsr, mask, CPSRWriteRaw);
-        if (!arm_singlestep_active(env)) {
-            env->uncached_cpsr &= ~PSTATE_SS;
-        }
+        env->pstate &= ~PSTATE_SS;
         aarch64_sync_64_to_32(env);
 
         if (spsr & CPSR_T) {
