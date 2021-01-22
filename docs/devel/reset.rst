@@ -210,9 +210,9 @@ Polling the reset state
 Resettable interface provides the ``resettable_is_in_reset()`` function.
 This function returns true if the object parameter is currently under reset.
 
-An object is under reset from the beginning of the *init* phase to the end of
-the *exit* phase. During all three phases, the function will return that the
-object is in reset.
+An object is under reset from the beginning of the *init* phase to the *exit*
+phase. During *init* and *hold* phase only, the function will return that the
+object is in reset. The state is changed just before calling the *exit* method.
 
 This function may be used if the object behavior has to be adapted
 while in reset state. For example if a device has an irq input,
