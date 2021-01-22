@@ -5319,6 +5319,21 @@ else
 fi
 
 ##########################################
+# check for system()
+
+have_system_function=no
+cat > $TMPC << EOF
+#include <stdlib.h>
+int main(void) {
+    return system("");
+}
+EOF
+if compile_prog "" "" ; then
+    have_system_function=yes
+fi
+
+
+##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
 
@@ -6220,6 +6235,10 @@ fi
 
 if test "$secret_keyring" = "yes" ; then
   echo "CONFIG_SECRET_KEYRING=y" >> $config_host_mak
+fi
+
+if test "$have_system_function" = "yes" ; then
+  echo "HAVE_SYSTEM_FUNCTION=y" >> $config_host_mak
 fi
 
 echo "ROMS=$roms" >> $config_host_mak
