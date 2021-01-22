@@ -39,7 +39,6 @@ include:
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
   script:
     - cd build
-    - find . -type f -exec touch {} +
     - make $MAKE_CHECK_ARGS
 
 .acceptance_template: &acceptance_definition
@@ -83,8 +82,7 @@ build-system-alpine:
   artifacts:
     expire_in: 2 days
     paths:
-      - .git-submodule-status
-      - build
+      - "*"
 
 check-system-alpine:
   <<: *native_test_job_definition
@@ -92,6 +90,7 @@ check-system-alpine:
     - job: build-system-alpine
       artifacts: true
   variables:
+    GIT_CHECKOUT: "false"
     IMAGE: alpine
     MAKE_CHECK_ARGS: check
 
@@ -101,6 +100,7 @@ acceptance-system-alpine:
     - job: build-system-alpine
       artifacts: true
   variables:
+    GIT_CHECKOUT: "false"
     IMAGE: alpine
     MAKE_CHECK_ARGS: check-acceptance
   <<: *acceptance_definition
@@ -115,7 +115,7 @@ build-system-ubuntu:
   artifacts:
     expire_in: 2 days
     paths:
-      - build
+      - "*"
 
 check-system-ubuntu:
   <<: *native_test_job_definition
@@ -123,6 +123,7 @@ check-system-ubuntu:
     - job: build-system-ubuntu
       artifacts: true
   variables:
+    GIT_CHECKOUT: "false"
     IMAGE: ubuntu2004
     MAKE_CHECK_ARGS: check
 
@@ -132,6 +133,7 @@ acceptance-system-ubuntu:
     - job: build-system-ubuntu
       artifacts: true
   variables:
+    GIT_CHECKOUT: "false"
     IMAGE: ubuntu2004
     MAKE_CHECK_ARGS: check-acceptance
   <<: *acceptance_definition
@@ -146,7 +148,7 @@ build-system-debian:
   artifacts:
     expire_in: 2 days
     paths:
-      - build
+      - "*"
 
 check-system-debian:
   <<: *native_test_job_definition
@@ -154,6 +156,7 @@ check-system-debian:
     - job: build-system-debian
       artifacts: true
   variables:
+    GIT_CHECKOUT: "false"
     IMAGE: debian-amd64
     MAKE_CHECK_ARGS: check
 
@@ -168,7 +171,7 @@ build-tools-and-docs-debian:
   artifacts:
     expire_in: 2 days
     paths:
-      - build
+      - "*"
 
 acceptance-system-debian:
   <<: *native_test_job_definition
@@ -176,6 +179,7 @@ acceptance-system-debian:
     - job: build-system-debian
       artifacts: true
   variables:
+    GIT_CHECKOUT: "false"
     IMAGE: debian-amd64
     MAKE_CHECK_ARGS: check-acceptance
   <<: *acceptance_definition
@@ -191,7 +195,7 @@ build-system-fedora:
   artifacts:
     expire_in: 2 days
     paths:
-      - build
+      - "*"
 
 check-system-fedora:
   <<: *native_test_job_definition
@@ -199,6 +203,7 @@ check-system-fedora:
     - job: build-system-fedora
       artifacts: true
   variables:
+    GIT_CHECKOUT: "false"
     IMAGE: fedora
     MAKE_CHECK_ARGS: check
 
@@ -208,6 +213,7 @@ acceptance-system-fedora:
     - job: build-system-fedora
       artifacts: true
   variables:
+    GIT_CHECKOUT: "false"
     IMAGE: fedora
     MAKE_CHECK_ARGS: check-acceptance
   <<: *acceptance_definition
@@ -223,7 +229,7 @@ build-system-centos:
   artifacts:
     expire_in: 2 days
     paths:
-      - build
+      - "*"
 
 check-system-centos:
   <<: *native_test_job_definition
@@ -231,6 +237,7 @@ check-system-centos:
     - job: build-system-centos
       artifacts: true
   variables:
+    GIT_CHECKOUT: "false"
     IMAGE: centos8
     MAKE_CHECK_ARGS: check
 
@@ -240,6 +247,7 @@ acceptance-system-centos:
     - job: build-system-centos
       artifacts: true
   variables:
+    GIT_CHECKOUT: "false"
     IMAGE: centos8
     MAKE_CHECK_ARGS: check-acceptance
   <<: *acceptance_definition
@@ -253,7 +261,7 @@ build-system-opensuse:
   artifacts:
     expire_in: 2 days
     paths:
-      - build
+      - "*"
 
 check-system-opensuse:
   <<: *native_test_job_definition
@@ -261,6 +269,7 @@ check-system-opensuse:
     - job: build-system-opensuse
       artifacts: true
   variables:
+    GIT_CHECKOUT: "false"
     IMAGE: opensuse-leap
     MAKE_CHECK_ARGS: check
 
@@ -270,6 +279,7 @@ acceptance-system-opensuse:
      - job: build-system-opensuse
        artifacts: true
    variables:
+     GIT_CHECKOUT: "false"
      IMAGE: opensuse-leap
      MAKE_CHECK_ARGS: check-acceptance
    <<: *acceptance_definition
@@ -440,7 +450,7 @@ build-deprecated:
   artifacts:
     expire_in: 2 days
     paths:
-      - build
+      - "*"
 
 # We split the check-tcg step as test failures are expected but we still
 # want to catch the build breaking.
@@ -450,6 +460,7 @@ check-deprecated:
     - job: build-deprecated
       artifacts: true
   variables:
+    GIT_CHECKOUT: "false"
     IMAGE: debian-all-test-cross
     MAKE_CHECK_ARGS: check-tcg
   allow_failure: true
@@ -522,7 +533,7 @@ build-crypto-old-nettle:
     MAKE_CHECK_ARGS: check-build
   artifacts:
     paths:
-      - build
+      - "*"
 
 check-crypto-old-nettle:
   <<: *native_test_job_definition
@@ -530,6 +541,7 @@ check-crypto-old-nettle:
     - job: build-crypto-old-nettle
       artifacts: true
   variables:
+    GIT_CHECKOUT: "false"
     IMAGE: centos7
     MAKE_CHECK_ARGS: check
 
@@ -543,7 +555,7 @@ build-crypto-old-gcrypt:
     MAKE_CHECK_ARGS: check-build
   artifacts:
     paths:
-      - build
+      - "*"
 
 check-crypto-old-gcrypt:
   <<: *native_test_job_definition
@@ -551,6 +563,7 @@ check-crypto-old-gcrypt:
     - job: build-crypto-old-gcrypt
       artifacts: true
   variables:
+    GIT_CHECKOUT: "false"
     IMAGE: centos7
     MAKE_CHECK_ARGS: check
 
@@ -564,7 +577,7 @@ build-crypto-only-gnutls:
     MAKE_CHECK_ARGS: check-build
   artifacts:
     paths:
-      - build
+      - "*"
 
 check-crypto-only-gnutls:
   <<: *native_test_job_definition
@@ -572,6 +585,7 @@ check-crypto-only-gnutls:
     - job: build-crypto-only-gnutls
       artifacts: true
   variables:
+    GIT_CHECKOUT: "false"
     IMAGE: centos7
     MAKE_CHECK_ARGS: check
 
