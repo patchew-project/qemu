@@ -5295,6 +5295,12 @@ else
   have_host_block_device=no
 fi
 
+if check_include "sys/disk.h" ; then
+  sys_disk_h=yes
+else
+  sys_disk_h=no
+fi
+
 ##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
@@ -5527,6 +5533,9 @@ echo "ARCH=$ARCH" >> $config_host_mak
 
 if test "$have_host_block_device" = "yes" ; then
   echo "HAVE_HOST_BLOCK_DEVICE=y" >> $config_host_mak
+fi
+if test "$sys_disk_h" = "yes" ; then
+  echo "HAVE_SYS_DISK_H=y" >> $config_host_mak
 fi
 if test "$debug_tcg" = "yes" ; then
   echo "CONFIG_DEBUG_TCG=y" >> $config_host_mak
