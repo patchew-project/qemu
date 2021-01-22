@@ -1823,16 +1823,18 @@ libqemuutil = static_library('qemuutil',
 qemuutil = declare_dependency(link_with: libqemuutil,
                               sources: genh + version_res)
 
-decodetree = generator(find_program('scripts/decodetree.py'),
-                       output: 'decode-@BASENAME@.c.inc',
-                       arguments: ['@INPUT@', '@EXTRA_ARGS@', '-o', '@OUTPUT@'])
+if have_system or have_user
+  decodetree = generator(find_program('scripts/decodetree.py'),
+                         output: 'decode-@BASENAME@.c.inc',
+                         arguments: ['@INPUT@', '@EXTRA_ARGS@', '-o', '@OUTPUT@'])
+  subdir('libdecnumber')
+  subdir('target')
+endif
 
 subdir('audio')
 subdir('io')
 subdir('chardev')
 subdir('fsdev')
-subdir('libdecnumber')
-subdir('target')
 subdir('dump')
 
 block_ss.add(files(
