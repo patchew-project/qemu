@@ -590,6 +590,19 @@ static void virt_machine_init(MachineState *machine)
         }
     }
 
+    /* limit RAM size in a 32-bit system */
+    if (riscv_is_32bit(&s->soc[0])) {
+        /*
+         * Cast machine->ram_size to 64-bit for 32-bit host,
+         * to make the build on 32-bit host happy.
+         */
+        if ((uint64_t)(machine->ram_size) > 10 * GiB) {
+            /* 32-bit host won't have a chance to execute here */
+            machine->ram_size = 10 * GiB;
+            error_report("Limitting RAM size to 10 GiB");
+        }
+    }
+
     /* register system main memory (actual RAM) */
     memory_region_init_ram(main_mem, NULL, "riscv_virt_board.ram",
                            machine->ram_size, &error_fatal);
