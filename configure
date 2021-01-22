@@ -5284,6 +5284,16 @@ but not implemented on your system"
 fi
 
 ##########################################
+# check for host block device
+# assume always true for non-Darwin hosts
+
+if ! test "$darwin" == "yes" || check_include "IOKit/storage/IOMedia.h" ; then
+  have_host_block_device=yes
+else
+  have_host_block_device=no
+fi
+
+##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
 
@@ -5513,6 +5523,9 @@ echo "GIT_UPDATE=$git_update" >> $config_host_mak
 
 echo "ARCH=$ARCH" >> $config_host_mak
 
+if test "$have_host_block_device" = "yes" ; then
+  echo "HAVE_HOST_BLOCK_DEVICE=y" >> $config_host_mak
+fi
 if test "$debug_tcg" = "yes" ; then
   echo "CONFIG_DEBUG_TCG=y" >> $config_host_mak
 fi
