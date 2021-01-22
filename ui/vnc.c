@@ -2041,7 +2041,6 @@ static void framebuffer_update_request(VncState *vs, int incremental,
     } else {
         vs->update = VNC_STATE_UPDATE_FORCE;
         vnc_set_area_dirty(vs->dirty, vs->vd, x, y, w, h);
-        vnc_colordepth(vs);
         vnc_desktop_resize(vs);
         vnc_led_state_change(vs);
         vnc_cursor_define(vs);
