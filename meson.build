@@ -234,6 +234,9 @@ if not get_option('tcg').disabled()
       error('Unsupported CPU @0@, try --enable-tcg-interpreter'.format(cpu))
     endif
   endif
+  if 'CONFIG_TCG_INTERPRETER' in config_host and cpu in supported_cpus
+    warning('Experimental TCI requested while native TCG is available on @0@, suboptimal performance expected'.format(cpu))
+  endif
   accelerators += 'CONFIG_TCG'
   config_host += { 'CONFIG_TCG': 'y' }
 endif
