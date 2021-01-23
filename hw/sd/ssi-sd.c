@@ -4,6 +4,11 @@
  * Copyright (c) 2007-2009 CodeSourcery.
  * Written by Paul Brook
  *
+ * Copyright (c) 2021 Wind River Systems, Inc.
+ * Improved by Bin Meng <bin.meng@windriver.com>
+ *
+ * Validated with U-Boot v2021.01 and Linux v5.10 mmc_spi driver
+ *
  * This code is licensed under the GNU GPL v2.
  *
  * Contributions after 2012-01-13 are licensed under the terms of the
@@ -319,7 +324,7 @@ static int ssi_sd_post_load(void *opaque, int version_id)
 {
     ssi_sd_state *s = (ssi_sd_state *)opaque;
 
-    if (s->mode > SSI_SD_DATA_READ) {
+    if (s->mode > SSI_SD_SKIP_CRC16) {
         return -EINVAL;
     }
     if (s->mode == SSI_SD_CMDARG &&
@@ -337,8 +342,8 @@ static int ssi_sd_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_ssi_sd = {
     .name = "ssi_sd",
-    .version_id = 2,
-    .minimum_version_id = 2,
+    .version_id = 3,
+    .minimum_version_id = 3,
     .post_load = ssi_sd_post_load,
     .fields = (VMStateField []) {
         VMSTATE_UINT32(mode, ssi_sd_state),
