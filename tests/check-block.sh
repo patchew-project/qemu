@@ -76,7 +76,7 @@ export QEMU_CHECK_BLOCK_AUTO=1
 
 ret=0
 for fmt in $format_list ; do
-    ./check -makecheck -$fmt $group || ret=1
+    ${PYTHON} ./check -makecheck -$fmt $group || ret=1
 done
 
 exit $ret
