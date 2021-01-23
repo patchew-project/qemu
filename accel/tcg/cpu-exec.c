@@ -21,6 +21,7 @@
 #include "qemu-common.h"
 #include "qemu/qemu-print.h"
 #include "cpu.h"
+#include "hw/core/tcg-cpu-ops.h"
 #include "trace.h"
 #include "disas/disas.h"
 #include "exec/exec-all.h"
@@ -211,8 +212,8 @@ cpu_tb_exec(CPUState *cpu, TranslationBlock *itb, int *tb_exit)
                                TARGET_FMT_lx "] %s\n",
                                last_tb->tc.ptr, last_tb->pc,
                                lookup_symbol(last_tb->pc));
-        if (cc->tcg_ops.synchronize_from_tb) {
-            cc->tcg_ops.synchronize_from_tb(cpu, last_tb);
+        if (cc->tcg_ops->synchronize_from_tb) {
+            cc->tcg_ops->synchronize_from_tb(cpu, last_tb);
         } else {
             assert(cc->set_pc);
             cc->set_pc(cpu, last_tb->pc);
@@ -260,8 +261,8 @@ static void cpu_exec_enter(CPUState *cpu)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
-    if (cc->tcg_ops.cpu_exec_enter) {
-        cc->tcg_ops.cpu_exec_enter(cpu);
+    if (cc->tcg_ops->cpu_exec_enter) {
+        cc->tcg_ops->cpu_exec_enter(cpu);
     }
 }
 
@@ -269,8 +270,8 @@ static void cpu_exec_exit(CPUState *cpu)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
-    if (cc->tcg_ops.cpu_exec_exit) {
-        cc->tcg_ops.cpu_exec_exit(cpu);
+    if (cc->tcg_ops->cpu_exec_exit) {
+        cc->tcg_ops->cpu_exec_exit(cpu);
     }
 }
 
@@ -505,8 +506,8 @@ static inline void cpu_handle_debug_exception(CPUState *cpu)
         }
     }
 
-    if (cc->tcg_ops.debug_excp_handler) {
-        cc->tcg_ops.debug_excp_handler(cpu);
+    if (cc->tcg_ops->debug_excp_handler) {
+        cc->tcg_ops->debug_excp_handler(cpu);
     }
 }
 
@@ -540,7 +541,7 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
            loop */
 #if defined(TARGET_I386)
         CPUClass *cc = CPU_GET_CLASS(cpu);
-        cc->tcg_ops.do_interrupt(cpu);
+        cc->tcg_ops->do_interrupt(cpu);
 #endif
         *ret = cpu->exception_index;
         cpu->exception_index = -1;
@@ -549,7 +550,7 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
         if (replay_exception()) {
             CPUClass *cc = CPU_GET_CLASS(cpu);
             qemu_mutex_lock_iothread();
-            cc->tcg_ops.do_interrupt(cpu);
+            cc->tcg_ops->do_interrupt(cpu);
             qemu_mutex_unlock_iothread();
             cpu->exception_index = -1;
 
@@ -648,8 +649,8 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
            True when it is, and we should restart on a new TB,
            and via longjmp via cpu_loop_exit.  */
         else {
-            if (cc->tcg_ops.cpu_exec_interrupt &&
-                cc->tcg_ops.cpu_exec_interrupt(cpu, interrupt_request)) {
+            if (cc->tcg_ops->cpu_exec_interrupt &&
+                cc->tcg_ops->cpu_exec_interrupt(cpu, interrupt_request)) {
                 if (need_replay_interrupt(interrupt_request)) {
                     replay_interrupt();
                 }
@@ -827,7 +828,7 @@ void tcg_exec_realizefn(CPUState *cpu, Error **errp)
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
     if (!tcg_target_initialized) {
-        cc->tcg_ops.initialize();
+        cc->tcg_ops->initialize();
         tcg_target_initialized = true;
     }
     tlb_init(cpu);
