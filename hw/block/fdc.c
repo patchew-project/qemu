@@ -1429,7 +1429,9 @@ static void fdctrl_write_dor(FDCtrl *fdctrl, uint32_t value)
         }
     }
     /* Selected drive */
-    fdctrl->cur_drv = value & FD_DOR_SELMASK;
+    if (fdctrl->drives[value & FD_DOR_SELMASK].blk) {
+        fdctrl->cur_drv = value & FD_DOR_SELMASK;
+    }
 
     fdctrl->dor = value;
 }
@@ -1894,6 +1896,10 @@ static uint32_t fdctrl_read_data(FDCtrl *fdctrl)
     uint32_t pos;
 
     cur_drv = get_cur_drv(fdctrl);
+    if (!cur_drv->blk) {
+        FLOPPY_DPRINTF("No drive connected\n");
+        return 0;
+    }
     fdctrl->dsr &= ~FD_DSR_PWRDOWN;
     if (!(fdctrl->msr & FD_MSR_RQM) || !(fdctrl->msr & FD_MSR_DIO)) {
         FLOPPY_DPRINTF("error: controller not ready for reading\n");
@@ -2420,7 +2426,8 @@ static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
         if (pos == FD_SECTOR_LEN - 1 ||
             fdctrl->data_pos == fdctrl->data_len) {
             cur_drv = get_cur_drv(fdctrl);
-            if (blk_pwrite(cur_drv->blk, fd_offset(cur_drv), fdctrl->fifo,
+            if (cur_drv->blk == NULL
+                || blk_pwrite(cur_drv->blk, fd_offset(cur_drv), fdctrl->fifo,
                            BDRV_SECTOR_SIZE, 0) < 0) {
                 FLOPPY_DPRINTF("error writing sector %d\n",
                                fd_sector(cur_drv));
