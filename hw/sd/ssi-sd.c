@@ -39,6 +39,7 @@ typedef enum {
     SSI_SD_CMDARG,
     SSI_SD_PREP_RESP,
     SSI_SD_RESPONSE,
+    SSI_SD_PREP_DATA,
     SSI_SD_DATA_START,
     SSI_SD_DATA_READ,
     SSI_SD_DATA_CRC16,
@@ -193,6 +194,10 @@ static uint32_t ssi_sd_transfer(SSIPeripheral *dev, uint32_t val)
             DPRINTF("End of command\n");
             s->mode = SSI_SD_CMD;
         }
+        return 0xff;
+    case SSI_SD_PREP_DATA:
+        DPRINTF("Prepare data block (Nac)\n");
+        s->mode = SSI_SD_DATA_START;
         return 0xff;
     case SSI_SD_DATA_START:
         DPRINTF("Start read block\n");
