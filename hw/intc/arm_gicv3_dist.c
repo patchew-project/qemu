@@ -387,6 +387,9 @@ static MemTxResult gicd_readl(GICv3State *s, hwaddr offset,
 
         *data = (1 << 25) | (1 << 24) | (sec_extn << 10) |
             (0xf << 19) | itlinesnumber;
+        if (s->revision == 4) {
+            *data |= (1 << 18);;
+        }
         return MEMTX_OK;
     }
     case GICD_IIDR:
