@@ -321,7 +321,7 @@ static inline uint32_t gicv3_iidr(void)
     return 0x43b;
 }
 
-static inline uint32_t gicv3_idreg(int regoffset)
+static inline uint32_t gicv3_idreg(int regoffset, int revision)
 {
     /* Return the value of the CoreSight ID register at the specified
      * offset from the first ID register (as found in the distributor
@@ -331,7 +331,15 @@ static inline uint32_t gicv3_idreg(int regoffset)
     static const uint8_t gicd_ids[] = {
         0x44, 0x00, 0x00, 0x00, 0x92, 0xB4, 0x3B, 0x00, 0x0D, 0xF0, 0x05, 0xB1
     };
-    return gicd_ids[regoffset / 4];
+    static const uint8_t gicdv4_ids[] = {
+        0x44, 0x00, 0x00, 0x00, 0x92, 0xB4, 0x4B, 0x00, 0x0D, 0xF0, 0x05, 0xB1
+    };
+
+    if (revision == 3) {
+        return gicd_ids[regoffset / 4];
+    } else {
+        return gicdv4_ids[regoffset / 4];
+    }
 }
 
 /**

@@ -544,7 +544,7 @@ static MemTxResult gicd_readl(GICv3State *s, hwaddr offset,
     }
     case GICD_IDREGS ... GICD_IDREGS + 0x2f:
         /* ID registers */
-        *data = gicv3_idreg(offset - GICD_IDREGS);
+        *data = gicv3_idreg(offset - GICD_IDREGS, s->revision);
         return MEMTX_OK;
     case GICD_SGIR:
         /* WO registers, return unknown value */

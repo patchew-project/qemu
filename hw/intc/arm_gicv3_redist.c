@@ -239,7 +239,7 @@ static MemTxResult gicr_readl(GICv3CPUState *cs, hwaddr offset,
         *data = cs->gicr_nsacr;
         return MEMTX_OK;
     case GICR_IDREGS ... GICR_IDREGS + 0x2f:
-        *data = gicv3_idreg(offset - GICR_IDREGS);
+        *data = gicv3_idreg(offset - GICR_IDREGS, cs->gic->revision);
         return MEMTX_OK;
     default:
         return MEMTX_ERROR;
