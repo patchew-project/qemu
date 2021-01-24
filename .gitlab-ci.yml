@@ -34,6 +34,19 @@ include:
         make -j"$JOBS" $MAKE_CHECK_ARGS ;
       fi
 
+.native_meson_test_job:
+  stage: test
+  image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
+  script:
+    - cd build
+    - touch *
+    - make git-submodule-update
+    - if [ -x ../meson/meson.py ]; then
+          ../meson/meson.py test --no-rebuild -t 5 $MESON_TEST_ARGS ;
+      else
+          meson test --no-rebuild -t 5 $MESON_TEST_ARGS ;
+      fi
+
 .native_test_job_template: &native_test_job_definition
   stage: test
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
@@ -83,17 +96,15 @@ build-system-alpine:
   artifacts:
     expire_in: 2 days
     paths:
-      - .git-submodule-status
       - build
 
 check-system-alpine:
-  <<: *native_test_job_definition
+  extends: .native_meson_test_job
   needs:
     - job: build-system-alpine
       artifacts: true
   variables:
     IMAGE: alpine
-    MAKE_CHECK_ARGS: check
 
 acceptance-system-alpine:
   <<: *native_test_job_definition
@@ -118,13 +129,12 @@ build-system-ubuntu:
       - build
 
 check-system-ubuntu:
-  <<: *native_test_job_definition
+  extends: .native_meson_test_job
   needs:
     - job: build-system-ubuntu
       artifacts: true
   variables:
     IMAGE: ubuntu2004
-    MAKE_CHECK_ARGS: check
 
 acceptance-system-ubuntu:
   <<: *native_test_job_definition
@@ -149,13 +159,12 @@ build-system-debian:
       - build
 
 check-system-debian:
-  <<: *native_test_job_definition
+  extends: .native_meson_test_job
   needs:
     - job: build-system-debian
       artifacts: true
   variables:
     IMAGE: debian-amd64
-    MAKE_CHECK_ARGS: check
 
 # No targets are built here, just tools, docs, and unit tests. This
 # also feeds into the eventual documentation deployment steps later
@@ -194,13 +203,12 @@ build-system-fedora:
       - build
 
 check-system-fedora:
-  <<: *native_test_job_definition
+  extends: .native_meson_test_job
   needs:
     - job: build-system-fedora
       artifacts: true
   variables:
     IMAGE: fedora
-    MAKE_CHECK_ARGS: check
 
 acceptance-system-fedora:
   <<: *native_test_job_definition
@@ -226,13 +234,12 @@ build-system-centos:
       - build
 
 check-system-centos:
-  <<: *native_test_job_definition
+  extends: .native_meson_test_job
   needs:
     - job: build-system-centos
       artifacts: true
   variables:
     IMAGE: centos8
-    MAKE_CHECK_ARGS: check
 
 acceptance-system-centos:
   <<: *native_test_job_definition
@@ -256,13 +263,12 @@ build-system-opensuse:
       - build
 
 check-system-opensuse:
-  <<: *native_test_job_definition
+  extends: .native_meson_test_job
   needs:
     - job: build-system-opensuse
       artifacts: true
   variables:
     IMAGE: opensuse-leap
-    MAKE_CHECK_ARGS: check
 
 acceptance-system-opensuse:
    <<: *native_test_job_definition
@@ -525,13 +531,12 @@ build-crypto-old-nettle:
       - build
 
 check-crypto-old-nettle:
-  <<: *native_test_job_definition
+  extends: .native_meson_test_job
   needs:
     - job: build-crypto-old-nettle
       artifacts: true
   variables:
     IMAGE: centos7
-    MAKE_CHECK_ARGS: check
 
 
 build-crypto-old-gcrypt:
@@ -546,13 +551,12 @@ build-crypto-old-gcrypt:
       - build
 
 check-crypto-old-gcrypt:
-  <<: *native_test_job_definition
+  extends: .native_meson_test_job
   needs:
     - job: build-crypto-old-gcrypt
       artifacts: true
   variables:
     IMAGE: centos7
-    MAKE_CHECK_ARGS: check
 
 
 build-crypto-only-gnutls:
@@ -567,13 +571,12 @@ build-crypto-only-gnutls:
       - build
 
 check-crypto-only-gnutls:
-  <<: *native_test_job_definition
+  extends: .native_meson_test_job
   needs:
     - job: build-crypto-only-gnutls
       artifacts: true
   variables:
     IMAGE: centos7
-    MAKE_CHECK_ARGS: check
 
 # We don't need to exercise every backend with every front-end
 build-trace-multi-user:
