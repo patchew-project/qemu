@@ -14,6 +14,11 @@
 #include "trace.h"
 #include "gicv3_internal.h"
 
+int gicv3_redist_size(GICv3State *s)
+{
+    return (s->revision == 3 ? GICV3_REDIST_SIZE : GICV4_REDIST_SIZE);
+}
+
 static uint32_t mask_group(GICv3CPUState *cs, MemTxAttrs attrs)
 {
     /* Return a 32-bit mask which should be applied for this set of 32
@@ -429,8 +434,8 @@ MemTxResult gicv3_redist_read(void *opaque, hwaddr offset, uint64_t *data,
      * want to allow splitting of redistributor pages into several
      * blocks so we can support more CPUs.
      */
-    cpuidx = offset / 0x20000;
-    offset %= 0x20000;
+    cpuidx = offset / gicv3_redist_size(s);
+    offset %= gicv3_redist_size(s);
     assert(cpuidx < s->num_cpu);
 
     cs = &s->cpu[cpuidx];
@@ -486,8 +491,8 @@ MemTxResult gicv3_redist_write(void *opaque, hwaddr offset, uint64_t data,
      * want to allow splitting of redistributor pages into several
      * blocks so we can support more CPUs.
      */
-    cpuidx = offset / 0x20000;
-    offset %= 0x20000;
+    cpuidx = offset / gicv3_redist_size(s);
+    offset %= gicv3_redist_size(s);
     assert(cpuidx < s->num_cpu);
 
     cs = &s->cpu[cpuidx];

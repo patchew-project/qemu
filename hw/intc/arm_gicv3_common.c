@@ -299,7 +299,7 @@ void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
 
         memory_region_init_io(&s->iomem_redist[i], OBJECT(s),
                               ops ? &ops[1] : NULL, s, name,
-                              s->redist_region_count[i] * GICV3_REDIST_SIZE);
+                              s->redist_region_count[i] * gicv3_redist_size(s));
         sysbus_init_mmio(sbd, &s->iomem_redist[i]);
         g_free(name);
     }

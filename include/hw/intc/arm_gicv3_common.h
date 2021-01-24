@@ -37,6 +37,7 @@
 #define GICV3_MAXSPI (GICV3_MAXIRQ - GIC_INTERNAL)
 
 #define GICV3_REDIST_SIZE 0x20000
+#define GICV4_REDIST_SIZE (GICV3_REDIST_SIZE + 0x20000)
 
 /* Number of SGI target-list bits */
 #define GICV3_TARGETLIST_BITS 16
@@ -294,5 +295,7 @@ struct ARMGICv3CommonClass {
 
 void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
                               const MemoryRegionOps *ops, Error **errp);
+
+int gicv3_redist_size(GICv3State *s);
 
 #endif
