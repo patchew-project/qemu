@@ -102,9 +102,9 @@ static uint32_t npcm7xx_pwm_calculate_duty(NPCM7xxPWM *p)
         if (p->cnr == 0) {
             duty = 0;
         } else if (p->cmr >= p->cnr) {
-            duty = NPCM7XX_PWM_MAX_DUTY;
+            duty = (uint64_t)NPCM7XX_PWM_MAX_DUTY;
         } else {
-            duty = NPCM7XX_PWM_MAX_DUTY * (p->cmr + 1) / (p->cnr + 1);
+            duty = (uint64_t)NPCM7XX_PWM_MAX_DUTY * (p->cmr + 1) / (p->cnr + 1);
         }
     } else {
         duty = 0;
