@@ -5372,8 +5372,14 @@ if { test "$cpu" = "i386" || test "$cpu" = "x86_64"; } && \
     done
 fi
 
+s390_ccw_bios=no
+# Only build s390-ccw bios if we're targetting s390x system emulation
+case $target_list in
+  *"s390x-softmmu"*) s390_ccw_bios=yes
+  ;;
+esac
 # Only build s390-ccw bios if we're on s390x and the compiler has -march=z900
-if test "$cpu" = "s390x" ; then
+if test "$cpu" = "s390x" && test "$s390_ccw_bios" = yes; then
   write_c_skeleton
   if compile_prog "-march=z900" ""; then
     roms="$roms s390-ccw"
