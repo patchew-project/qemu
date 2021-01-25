@@ -94,32 +94,6 @@ QEMU 5.1 has three options:
       to the user to load all the images they need.
  3. ``-bios <file>`` - Tells QEMU to load the specified file as the firmwrae.
 
-``Configuring floppies with ``-global``
-'''''''''''''''''''''''''''''''''''''''
-
-Use ``-device floppy,...`` instead:
-::
-
-    -global isa-fdc.driveA=...
-    -global sysbus-fdc.driveA=...
-    -global SUNW,fdtwo.drive=...
-
-become
-::
-
-    -device floppy,unit=0,drive=...
-
-and
-::
-
-    -global isa-fdc.driveB=...
-    -global sysbus-fdc.driveB=...
-
-become
-::
-
-    -device floppy,unit=1,drive=...
-
 ``-drive`` with bogus interface type
 ''''''''''''''''''''''''''''''''''''
 
