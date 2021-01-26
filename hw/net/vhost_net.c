@@ -345,6 +345,15 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
         error_report("Error binding guest notifier: %d", -r);
         goto err;
     }
+    if (ncs->peer && ncs->peer->info->type == NET_CLIENT_DRIVER_VHOST_VDPA) {
+        if (k->set_config_notifiers) {
+            r = k->set_config_notifiers(qbus->parent, true);
+            if (r < 0) {
+                error_report("Error binding config notifier: %d", -r);
+                goto err;
+            }
+       }
+    }
 
     for (i = 0; i < total_queues; i++) {
         peer = qemu_get_peer(ncs, i);
@@ -391,7 +400,15 @@ void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs,
     for (i = 0; i < total_queues; i++) {
         vhost_net_stop_one(get_vhost_net(ncs[i].peer), dev);
     }
-
+   if (ncs->peer && ncs->peer->info->type == NET_CLIENT_DRIVER_VHOST_VDPA) {
+        if (k->set_config_notifiers) {
+            r = k->set_config_notifiers(qbus->parent, false);
+            if (r < 0) {
+                error_report("Error unbinding config notifier: %d", -r);
+            }
+           assert(r >= 0);
+        }
+    }
     r = k->set_guest_notifiers(qbus->parent, total_queues * 2, false);
     if (r < 0) {
         fprintf(stderr, "vhost guest notifier cleanup failed: %d\n", r);
