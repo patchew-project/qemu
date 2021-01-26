@@ -4,7 +4,9 @@ if not config_host.has_key('CONFIG_POSIX')
   subdir_done()
 endif
 
-qtests_generic = [
+qtests_generic = \
+  (config_all_devices.has_key('CONFIG_MEGASAS_SCSI_PCI') ? ['fuzz-megasas-test'] : []) + \
+  [
   'cdrom-test',
   'device-introspect-test',
   'machine-none-test',
