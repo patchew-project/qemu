@@ -493,6 +493,13 @@ build-tci:
     - QTEST_QEMU_BINARY="./qemu-system-x86_64" ./tests/qtest/pxe-test
     - QTEST_QEMU_BINARY="./qemu-system-s390x" ./tests/qtest/pxe-test -m slow
 
+build-capstone-distrib:
+  <<: *native_build_job_definition
+  variables:
+    IMAGE: fedora
+    CONFIGURE_ARGS: --enable-capstone=system --disable-tools --disable-docs
+    TARGETS: arm-softmmu ppc-softmmu x86_64-linux-user s390x-linux-user
+
 # Alternate coroutines implementations are only really of interest to KVM users
 # However we can't test against KVM on Gitlab-CI so we can only run unit tests
 build-coroutine-ucontext:
