@@ -467,20 +467,47 @@ static int vhost_vdpa_get_config(struct vhost_dev *dev, uint8_t *config,
     }
     return ret;
  }
+static void vhost_vdpa_config_notify_start(struct vhost_dev *dev,
+                                struct VirtIODevice *vdev, bool start)
+{
+    int fd, r;
+    if (start) {
+        fd = event_notifier_get_fd(&vdev->config_notifier);
+        vdev->use_config_notifier = true;
+     } else {
+        fd = -1;
+        vdev->use_config_notifier = false;
+     }
+     /*set the fd call back to vdpa driver*/
+    r = dev->vhost_ops->vhost_set_config_call(dev, &fd);
+    if (r) {
+        vdev->use_config_notifier = false;
+        info_report("vhost_vdpa_config_notify not started!");
+    }
+    /*active the config_notifier when vdev->use_config_notifier is true*/
+    if ((vdev->use_config_notifier) && (start)) {
+        event_notifier_set(&vdev->config_notifier);
+    }
+    return;
 
+}
 static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
 {
     struct vhost_vdpa *v = dev->opaque;
     trace_vhost_vdpa_dev_start(dev, started);
+    VirtIODevice *vdev = dev->vdev;
+
     if (started) {
         uint8_t status = 0;
         memory_listener_register(&v->listener, &address_space_memory);
         vhost_vdpa_set_vring_ready(dev);
         vhost_vdpa_add_status(dev, VIRTIO_CONFIG_S_DRIVER_OK);
         vhost_vdpa_call(dev, VHOST_VDPA_GET_STATUS, &status);
-
+        /*set the configure interrupt call back*/
+        vhost_vdpa_config_notify_start(dev, vdev, true);
         return !(status & VIRTIO_CONFIG_S_DRIVER_OK);
     } else {
+        vhost_vdpa_config_notify_start(dev, vdev, false);
         vhost_vdpa_reset_device(dev);
         vhost_vdpa_add_status(dev, VIRTIO_CONFIG_S_ACKNOWLEDGE |
                                    VIRTIO_CONFIG_S_DRIVER);
@@ -544,6 +571,13 @@ static int vhost_vdpa_set_vring_call(struct vhost_dev *dev,
 {
     trace_vhost_vdpa_set_vring_call(dev, file->index, file->fd);
     return vhost_vdpa_call(dev, VHOST_SET_VRING_CALL, file);
+}
+
+static int vhost_vdpa_set_config_call(struct vhost_dev *dev,
+                                       int *fd)
+{
+    trace_vhost_vdpa_set_config_call(dev, fd);
+    return vhost_vdpa_call(dev, VHOST_VDPA_SET_CONFIG_CALL, fd);
 }
 
 static int vhost_vdpa_get_features(struct vhost_dev *dev,
@@ -611,4 +645,5 @@ const VhostOps vdpa_ops = {
         .vhost_get_device_id = vhost_vdpa_get_device_id,
         .vhost_vq_get_addr = vhost_vdpa_vq_get_addr,
         .vhost_force_iommu = vhost_vdpa_force_iommu,
+        .vhost_set_config_call = vhost_vdpa_set_config_call,
 };
