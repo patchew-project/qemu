@@ -27,7 +27,7 @@
 #include "trace.h"
 
 #define NPCM7XX_SMBUS_VERSION 1
-#define NPCM7XX_SMBUS_FIFO_EN 0
+#define NPCM7XX_SMBUS_FIFO_EN 1
 
 enum NPCM7xxSMBusCommonRegister {
     NPCM7XX_SMB_SDA     = 0x0,
@@ -132,10 +132,41 @@ enum NPCM7xxSMBusBank1Register {
 #define NPCM7XX_ADDR_EN             BIT(7)
 #define NPCM7XX_ADDR_A(rv)          extract8((rv), 0, 6)
 
+/* FIFO Mode Register Fields */
+/* FIF_CTL fields */
+#define NPCM7XX_SMBFIF_CTL_FIFO_EN          BIT(4)
+#define NPCM7XX_SMBFIF_CTL_FAIR_RDY_IE      BIT(2)
+#define NPCM7XX_SMBFIF_CTL_FAIR_RDY         BIT(1)
+#define NPCM7XX_SMBFIF_CTL_FAIR_BUSY        BIT(0)
+/* FIF_CTS fields */
+#define NPCM7XX_SMBFIF_CTS_STR              BIT(7)
+#define NPCM7XX_SMBFIF_CTS_CLR_FIFO         BIT(6)
+#define NPCM7XX_SMBFIF_CTS_RFTE_IE          BIT(3)
+#define NPCM7XX_SMBFIF_CTS_RXF_TXE          BIT(1)
+/* TXF_CTL fields */
+#define NPCM7XX_SMBTXF_CTL_THR_TXIE         BIT(6)
+#define NPCM7XX_SMBTXF_CTL_TX_THR(rv)       extract8((rv), 0, 5)
+/* T_OUT fields */
+#define NPCM7XX_SMBT_OUT_ST                 BIT(7)
+#define NPCM7XX_SMBT_OUT_IE                 BIT(6)
+#define NPCM7XX_SMBT_OUT_CLKDIV(rv)         extract8((rv), 0, 6)
+/* TXF_STS fields */
+#define NPCM7XX_SMBTXF_STS_TX_THST          BIT(6)
+#define NPCM7XX_SMBTXF_STS_TX_BYTES(rv)     extract8((rv), 0, 5)
+/* RXF_STS fields */
+#define NPCM7XX_SMBRXF_STS_RX_THST          BIT(6)
+#define NPCM7XX_SMBRXF_STS_RX_BYTES(rv)     extract8((rv), 0, 5)
+/* RXF_CTL fields */
+#define NPCM7XX_SMBRXF_CTL_THR_RXIE         BIT(6)
+#define NPCM7XX_SMBRXF_CTL_LAST             BIT(5)
+#define NPCM7XX_SMBRXF_CTL_RX_THR(rv)       extract8((rv), 0, 5)
+
 #define KEEP_OLD_BIT(o, n, b)       (((n) & (~(b))) | ((o) & (b)))
 #define WRITE_ONE_CLEAR(o, n, b)    ((n) & (b) ? (o) & (~(b)) : (o))
 
 #define NPCM7XX_SMBUS_ENABLED(s)    ((s)->ctl2 & NPCM7XX_SMBCTL2_ENABLE)
+#define NPCM7XX_SMBUS_FIFO_ENABLED(s) (NPCM7XX_SMBUS_FIFO_EN && \
+        (s)->fif_ctl & NPCM7XX_SMBFIF_CTL_FIFO_EN)
 
 /* Reset values */
 #define NPCM7XX_SMB_ST_INIT_VAL     0x00
@@ -150,6 +181,14 @@ enum NPCM7xxSMBusBank1Register {
 #define NPCM7XX_SMB_ADDR_INIT_VAL   0x00
 #define NPCM7XX_SMB_SCLLT_INIT_VAL  0x00
 #define NPCM7XX_SMB_SCLHT_INIT_VAL  0x00
+#define NPCM7XX_SMB_FIF_CTL_INIT_VAL 0x00
+#define NPCM7XX_SMB_FIF_CTS_INIT_VAL 0x00
+#define NPCM7XX_SMB_FAIR_PER_INIT_VAL 0x00
+#define NPCM7XX_SMB_TXF_CTL_INIT_VAL 0x00
+#define NPCM7XX_SMB_T_OUT_INIT_VAL 0x3f
+#define NPCM7XX_SMB_TXF_STS_INIT_VAL 0x00
+#define NPCM7XX_SMB_RXF_STS_INIT_VAL 0x00
+#define NPCM7XX_SMB_RXF_CTL_INIT_VAL 0x01
 
 static uint8_t npcm7xx_smbus_get_version(void)
 {
@@ -169,7 +208,13 @@ static void npcm7xx_smbus_update_irq(NPCM7xxSMBusState *s)
                    (s->ctl1 & NPCM7XX_SMBCTL1_STASTRE &&
                     s->st & NPCM7XX_SMBST_SDAST) ||
                    (s->ctl1 & NPCM7XX_SMBCTL1_EOBINTE &&
-                    s->cst3 & NPCM7XX_SMBCST3_EO_BUSY));
+                    s->cst3 & NPCM7XX_SMBCST3_EO_BUSY) ||
+                   (s->rxf_ctl & NPCM7XX_SMBRXF_CTL_THR_RXIE &&
+                    s->rxf_sts & NPCM7XX_SMBRXF_STS_RX_THST) ||
+                   (s->txf_ctl & NPCM7XX_SMBTXF_CTL_THR_TXIE &&
+                    s->txf_sts & NPCM7XX_SMBTXF_STS_TX_THST) ||
+                   (s->fif_cts & NPCM7XX_SMBFIF_CTS_RFTE_IE &&
+                    s->fif_cts & NPCM7XX_SMBFIF_CTS_RXF_TXE));
 
         if (level) {
             s->cst2 |= NPCM7XX_SMBCST2_INTSTS;
@@ -187,6 +232,13 @@ static void npcm7xx_smbus_nack(NPCM7xxSMBusState *s)
     s->status = NPCM7XX_SMBUS_STATUS_NEGACK;
 }
 
+static void npcm7xx_smbus_clear_buffer(NPCM7xxSMBusState *s)
+{
+    s->fif_cts &= ~NPCM7XX_SMBFIF_CTS_RXF_TXE;
+    s->txf_sts = 0;
+    s->rxf_sts = 0;
+}
+
 static void npcm7xx_smbus_send_byte(NPCM7xxSMBusState *s, uint8_t value)
 {
     int rv = i2c_send(s->bus, value);
@@ -195,6 +247,15 @@ static void npcm7xx_smbus_send_byte(NPCM7xxSMBusState *s, uint8_t value)
         npcm7xx_smbus_nack(s);
     } else {
         s->st |= NPCM7XX_SMBST_SDAST;
+        if (NPCM7XX_SMBUS_FIFO_ENABLED(s)) {
+            s->fif_cts |= NPCM7XX_SMBFIF_CTS_RXF_TXE;
+            if (NPCM7XX_SMBTXF_STS_TX_BYTES(s->txf_sts) ==
+                NPCM7XX_SMBTXF_CTL_TX_THR(s->txf_ctl)) {
+                s->txf_sts = NPCM7XX_SMBTXF_STS_TX_THST;
+            } else {
+                s->txf_sts = 0;
+            }
+        }
     }
     trace_npcm7xx_smbus_send_byte((DEVICE(s)->canonical_path), value, !rv);
     npcm7xx_smbus_update_irq(s);
@@ -213,6 +274,67 @@ static void npcm7xx_smbus_recv_byte(NPCM7xxSMBusState *s)
     npcm7xx_smbus_update_irq(s);
 }
 
+static void npcm7xx_smbus_recv_fifo(NPCM7xxSMBusState *s)
+{
+    uint8_t expected_bytes = NPCM7XX_SMBRXF_CTL_RX_THR(s->rxf_ctl);
+    uint8_t received_bytes = NPCM7XX_SMBRXF_STS_RX_BYTES(s->rxf_sts);
+    uint8_t pos;
+
+    if (received_bytes == expected_bytes) {
+        return;
+    }
+
+    while (received_bytes < expected_bytes &&
+           received_bytes < NPCM7XX_SMBUS_FIFO_SIZE) {
+        pos = (s->rx_cur + received_bytes) % NPCM7XX_SMBUS_FIFO_SIZE;
+        s->rx_fifo[pos] = i2c_recv(s->bus);
+        trace_npcm7xx_smbus_recv_byte((DEVICE(s)->canonical_path),
+                                      s->rx_fifo[pos]);
+        ++received_bytes;
+    }
+
+    trace_npcm7xx_smbus_recv_fifo((DEVICE(s)->canonical_path),
+                                  received_bytes, expected_bytes);
+    s->rxf_sts = received_bytes;
+    if (unlikely(received_bytes < expected_bytes)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: invalid rx_thr value: 0x%02x\n",
+                      DEVICE(s)->canonical_path, expected_bytes);
+        return;
+    }
+
+    s->rxf_sts |= NPCM7XX_SMBRXF_STS_RX_THST;
+    if (s->rxf_ctl & NPCM7XX_SMBRXF_CTL_LAST) {
+        trace_npcm7xx_smbus_nack(DEVICE(s)->canonical_path);
+        i2c_nack(s->bus);
+        s->rxf_ctl &= ~NPCM7XX_SMBRXF_CTL_LAST;
+    }
+    if (received_bytes == NPCM7XX_SMBUS_FIFO_SIZE) {
+        s->st |= NPCM7XX_SMBST_SDAST;
+        s->fif_cts |= NPCM7XX_SMBFIF_CTS_RXF_TXE;
+    } else if (!(s->rxf_ctl & NPCM7XX_SMBRXF_CTL_THR_RXIE)) {
+        s->st |= NPCM7XX_SMBST_SDAST;
+    } else {
+        s->st &= ~NPCM7XX_SMBST_SDAST;
+    }
+    npcm7xx_smbus_update_irq(s);
+}
+
+static void npcm7xx_smbus_read_byte_fifo(NPCM7xxSMBusState *s)
+{
+    uint8_t received_bytes = NPCM7XX_SMBRXF_STS_RX_BYTES(s->rxf_sts);
+
+    if (received_bytes == 0) {
+        npcm7xx_smbus_recv_fifo(s);
+        return;
+    }
+
+    s->sda = s->rx_fifo[s->rx_cur];
+    s->rx_cur = (s->rx_cur + 1u) % NPCM7XX_SMBUS_FIFO_SIZE;
+    --s->rxf_sts;
+    npcm7xx_smbus_update_irq(s);
+}
+
 static void npcm7xx_smbus_start(NPCM7xxSMBusState *s)
 {
     /*
@@ -226,6 +348,9 @@ static void npcm7xx_smbus_start(NPCM7xxSMBusState *s)
     if (available) {
         s->st |= NPCM7XX_SMBST_MODE | NPCM7XX_SMBST_XMIT | NPCM7XX_SMBST_SDAST;
         s->cst |= NPCM7XX_SMBCST_BUSY;
+        if (NPCM7XX_SMBUS_FIFO_ENABLED(s)) {
+            s->fif_cts |= NPCM7XX_SMBFIF_CTS_RXF_TXE;
+        }
     } else {
         s->st &= ~NPCM7XX_SMBST_MODE;
         s->cst &= ~NPCM7XX_SMBCST_BUSY;
@@ -277,7 +402,15 @@ static void npcm7xx_smbus_send_address(NPCM7xxSMBusState *s, uint8_t value)
             s->st |= NPCM7XX_SMBST_SDAST;
         }
     } else if (recv) {
-        npcm7xx_smbus_recv_byte(s);
+        s->st |= NPCM7XX_SMBST_SDAST;
+        if (NPCM7XX_SMBUS_FIFO_ENABLED(s)) {
+            npcm7xx_smbus_recv_fifo(s);
+        } else {
+            npcm7xx_smbus_recv_byte(s);
+        }
+    } else if (NPCM7XX_SMBUS_FIFO_ENABLED(s)) {
+        s->st |= NPCM7XX_SMBST_SDAST;
+        s->fif_cts |= NPCM7XX_SMBFIF_CTS_RXF_TXE;
     }
     npcm7xx_smbus_update_irq(s);
 }
@@ -320,11 +453,31 @@ static uint8_t npcm7xx_smbus_read_sda(NPCM7xxSMBusState *s)
 
     switch (s->status) {
     case NPCM7XX_SMBUS_STATUS_STOPPING_LAST_RECEIVE:
-        npcm7xx_smbus_execute_stop(s);
+        if (NPCM7XX_SMBUS_FIFO_ENABLED(s)) {
+            if (NPCM7XX_SMBRXF_STS_RX_BYTES(s->rxf_sts) <= 1) {
+                npcm7xx_smbus_execute_stop(s);
+            }
+            if (NPCM7XX_SMBRXF_STS_RX_BYTES(s->rxf_sts) == 0) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "%s: read to SDA with an empty rx-fifo buffer, "
+                              "result undefined: %u\n",
+                              DEVICE(s)->canonical_path, s->sda);
+                break;
+            }
+            npcm7xx_smbus_read_byte_fifo(s);
+            value = s->sda;
+        } else {
+            npcm7xx_smbus_execute_stop(s);
+        }
         break;
 
     case NPCM7XX_SMBUS_STATUS_RECEIVING:
-        npcm7xx_smbus_recv_byte(s);
+        if (NPCM7XX_SMBUS_FIFO_ENABLED(s)) {
+            npcm7xx_smbus_read_byte_fifo(s);
+            value = s->sda;
+        } else {
+            npcm7xx_smbus_recv_byte(s);
+        }
         break;
 
     default:
@@ -370,8 +523,12 @@ static void npcm7xx_smbus_write_st(NPCM7xxSMBusState *s, uint8_t value)
     }
 
     if (value & NPCM7XX_SMBST_STASTR &&
-            s->status == NPCM7XX_SMBUS_STATUS_RECEIVING) {
-        npcm7xx_smbus_recv_byte(s);
+        s->status == NPCM7XX_SMBUS_STATUS_RECEIVING) {
+        if (NPCM7XX_SMBUS_FIFO_ENABLED(s)) {
+            npcm7xx_smbus_recv_fifo(s);
+        } else {
+            npcm7xx_smbus_recv_byte(s);
+        }
     }
 
     npcm7xx_smbus_update_irq(s);
@@ -417,6 +574,7 @@ static void npcm7xx_smbus_write_ctl2(NPCM7xxSMBusState *s, uint8_t value)
         s->st = 0;
         s->cst3 = s->cst3 & (~NPCM7XX_SMBCST3_EO_BUSY);
         s->cst = 0;
+        npcm7xx_smbus_clear_buffer(s);
     }
 }
 
@@ -427,6 +585,70 @@ static void npcm7xx_smbus_write_ctl3(NPCM7xxSMBusState *s, uint8_t value)
     /* Write to SDA and SCL bits are ignored. */
     s->ctl3 =  KEEP_OLD_BIT(old_ctl3, value,
                             NPCM7XX_SMBCTL3_SCL_LVL | NPCM7XX_SMBCTL3_SDA_LVL);
+}
+
+static void npcm7xx_smbus_write_fif_ctl(NPCM7xxSMBusState *s, uint8_t value)
+{
+    uint8_t new_ctl = value;
+
+    new_ctl = KEEP_OLD_BIT(s->fif_ctl, new_ctl, NPCM7XX_SMBFIF_CTL_FAIR_RDY);
+    new_ctl = WRITE_ONE_CLEAR(new_ctl, value, NPCM7XX_SMBFIF_CTL_FAIR_RDY);
+    new_ctl = KEEP_OLD_BIT(s->fif_ctl, new_ctl, NPCM7XX_SMBFIF_CTL_FAIR_BUSY);
+    s->fif_ctl = new_ctl;
+}
+
+static void npcm7xx_smbus_write_fif_cts(NPCM7xxSMBusState *s, uint8_t value)
+{
+    s->fif_cts = WRITE_ONE_CLEAR(s->fif_cts, value, NPCM7XX_SMBFIF_CTS_STR);
+    s->fif_cts = WRITE_ONE_CLEAR(s->fif_cts, value, NPCM7XX_SMBFIF_CTS_RXF_TXE);
+    s->fif_cts = KEEP_OLD_BIT(value, s->fif_cts, NPCM7XX_SMBFIF_CTS_RFTE_IE);
+
+    if (value & NPCM7XX_SMBFIF_CTS_CLR_FIFO) {
+        npcm7xx_smbus_clear_buffer(s);
+    }
+}
+
+static void npcm7xx_smbus_write_txf_ctl(NPCM7xxSMBusState *s, uint8_t value)
+{
+    s->txf_ctl = value;
+}
+
+static void npcm7xx_smbus_write_t_out(NPCM7xxSMBusState *s, uint8_t value)
+{
+    uint8_t new_t_out = value;
+
+    if ((value & NPCM7XX_SMBT_OUT_ST) || (!(s->t_out & NPCM7XX_SMBT_OUT_ST))) {
+        new_t_out &= ~NPCM7XX_SMBT_OUT_ST;
+    } else {
+        new_t_out |= NPCM7XX_SMBT_OUT_ST;
+    }
+
+    s->t_out = new_t_out;
+}
+
+static void npcm7xx_smbus_write_txf_sts(NPCM7xxSMBusState *s, uint8_t value)
+{
+    s->txf_sts = WRITE_ONE_CLEAR(s->txf_sts, value, NPCM7XX_SMBTXF_STS_TX_THST);
+}
+
+static void npcm7xx_smbus_write_rxf_sts(NPCM7xxSMBusState *s, uint8_t value)
+{
+    if (value & NPCM7XX_SMBRXF_STS_RX_THST) {
+        s->rxf_sts &= ~NPCM7XX_SMBRXF_STS_RX_THST;
+        if (s->status == NPCM7XX_SMBUS_STATUS_RECEIVING) {
+            npcm7xx_smbus_recv_fifo(s);
+        }
+    }
+}
+
+static void npcm7xx_smbus_write_rxf_ctl(NPCM7xxSMBusState *s, uint8_t value)
+{
+    uint8_t new_ctl = value;
+
+    if (!(value & NPCM7XX_SMBRXF_CTL_LAST)) {
+        new_ctl = KEEP_OLD_BIT(s->rxf_ctl, new_ctl, NPCM7XX_SMBRXF_CTL_LAST);
+    }
+    s->rxf_ctl = new_ctl;
 }
 
 static uint64_t npcm7xx_smbus_read(void *opaque, hwaddr offset, unsigned size)
@@ -484,9 +706,41 @@ static uint64_t npcm7xx_smbus_read(void *opaque, hwaddr offset, unsigned size)
     default:
         if (bank) {
             /* Bank 1 */
-            qemu_log_mask(LOG_GUEST_ERROR,
-                    "%s: read from invalid offset 0x%" HWADDR_PRIx "\n",
-                    DEVICE(s)->canonical_path, offset);
+            switch (offset) {
+            case NPCM7XX_SMB_FIF_CTS:
+                value = s->fif_cts;
+                break;
+
+            case NPCM7XX_SMB_FAIR_PER:
+                value = s->fair_per;
+                break;
+
+            case NPCM7XX_SMB_TXF_CTL:
+                value = s->txf_ctl;
+                break;
+
+            case NPCM7XX_SMB_T_OUT:
+                value = s->t_out;
+                break;
+
+            case NPCM7XX_SMB_TXF_STS:
+                value = s->txf_sts;
+                break;
+
+            case NPCM7XX_SMB_RXF_STS:
+                value = s->rxf_sts;
+                break;
+
+            case NPCM7XX_SMB_RXF_CTL:
+                value = s->rxf_ctl;
+                break;
+
+            default:
+                qemu_log_mask(LOG_GUEST_ERROR,
+                        "%s: read from invalid offset 0x%" HWADDR_PRIx "\n",
+                        DEVICE(s)->canonical_path, offset);
+                break;
+            }
         } else {
             /* Bank 0 */
             switch (offset) {
@@ -532,6 +786,10 @@ static uint64_t npcm7xx_smbus_read(void *opaque, hwaddr offset, unsigned size)
 
             case NPCM7XX_SMB_SCLLT:
                 value = s->scllt;
+                break;
+
+            case NPCM7XX_SMB_FIF_CTL:
+                value = s->fif_ctl;
                 break;
 
             case NPCM7XX_SMB_SCLHT:
@@ -614,9 +872,41 @@ static void npcm7xx_smbus_write(void *opaque, hwaddr offset, uint64_t value,
     default:
         if (bank) {
             /* Bank 1 */
-            qemu_log_mask(LOG_GUEST_ERROR,
-                    "%s: write to invalid offset 0x%" HWADDR_PRIx "\n",
-                    DEVICE(s)->canonical_path, offset);
+            switch (offset) {
+            case NPCM7XX_SMB_FIF_CTS:
+                npcm7xx_smbus_write_fif_cts(s, value);
+                break;
+
+            case NPCM7XX_SMB_FAIR_PER:
+                s->fair_per = value;
+                break;
+
+            case NPCM7XX_SMB_TXF_CTL:
+                npcm7xx_smbus_write_txf_ctl(s, value);
+                break;
+
+            case NPCM7XX_SMB_T_OUT:
+                npcm7xx_smbus_write_t_out(s, value);
+                break;
+
+            case NPCM7XX_SMB_TXF_STS:
+                npcm7xx_smbus_write_txf_sts(s, value);
+                break;
+
+            case NPCM7XX_SMB_RXF_STS:
+                npcm7xx_smbus_write_rxf_sts(s, value);
+                break;
+
+            case NPCM7XX_SMB_RXF_CTL:
+                npcm7xx_smbus_write_rxf_ctl(s, value);
+                break;
+
+            default:
+                qemu_log_mask(LOG_GUEST_ERROR,
+                        "%s: write to invalid offset 0x%" HWADDR_PRIx "\n",
+                        DEVICE(s)->canonical_path, offset);
+                break;
+            }
         } else {
             /* Bank 0 */
             switch (offset) {
@@ -662,6 +952,10 @@ static void npcm7xx_smbus_write(void *opaque, hwaddr offset, uint64_t value,
 
             case NPCM7XX_SMB_SCLLT:
                 s->scllt = value;
+                break;
+
+            case NPCM7XX_SMB_FIF_CTL:
+                npcm7xx_smbus_write_fif_ctl(s, value);
                 break;
 
             case NPCM7XX_SMB_SCLHT:
@@ -710,7 +1004,18 @@ static void npcm7xx_smbus_enter_reset(Object *obj, ResetType type)
     s->scllt = NPCM7XX_SMB_SCLLT_INIT_VAL;
     s->sclht = NPCM7XX_SMB_SCLHT_INIT_VAL;
 
+    s->fif_ctl = NPCM7XX_SMB_FIF_CTL_INIT_VAL;
+    s->fif_cts = NPCM7XX_SMB_FIF_CTS_INIT_VAL;
+    s->fair_per = NPCM7XX_SMB_FAIR_PER_INIT_VAL;
+    s->txf_ctl = NPCM7XX_SMB_TXF_CTL_INIT_VAL;
+    s->t_out = NPCM7XX_SMB_T_OUT_INIT_VAL;
+    s->txf_sts = NPCM7XX_SMB_TXF_STS_INIT_VAL;
+    s->rxf_sts = NPCM7XX_SMB_RXF_STS_INIT_VAL;
+    s->rxf_ctl = NPCM7XX_SMB_RXF_CTL_INIT_VAL;
+
+    npcm7xx_smbus_clear_buffer(s);
     s->status = NPCM7XX_SMBUS_STATUS_IDLE;
+    s->rx_cur = 0;
 }
 
 static void npcm7xx_smbus_hold_reset(Object *obj)
