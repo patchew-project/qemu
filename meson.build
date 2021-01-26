@@ -369,7 +369,10 @@ if not get_option('attr').disabled()
   endif
 endif
 
-cocoa = dependency('appleframeworks', modules: 'Cocoa', required: get_option('cocoa'))
+cocoa = not_found
+if targetos == 'darwin'
+  cocoa = dependency('appleframeworks', modules: 'Cocoa', required: get_option('cocoa'))
+endif
 if cocoa.found() and get_option('sdl').enabled()
   error('Cocoa and SDL cannot be enabled at the same time')
 endif
