@@ -12,6 +12,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
+#include "qemu/osdep.h"
 #include "hw/qdev-properties.h"
 #include "hw/virtio/vhost-user-fs.h"
 #include "virtio-pci.h"
@@ -43,6 +45,11 @@ static void vhost_user_fs_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     if (vpci_dev->nvectors == DEV_NVECTORS_UNSPECIFIED) {
         /* Also reserve config change and hiprio queue vectors */
         vpci_dev->nvectors = dev->vdev.conf.num_request_queues + 2;
+    }
+
+    if (vpci_dev->flags & VIRTIO_PCI_FLAG_ATS) {
+        error_setg(errp, "ATS is currently not supported with vhost-user-fs-pci");
+        return;
     }
 
     qdev_realize(vdev, BUS(&vpci_dev->bus), errp);

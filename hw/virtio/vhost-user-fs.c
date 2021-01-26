@@ -203,6 +203,11 @@ static void vuf_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (virtio_host_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM)) {
+        error_setg(errp, "IOMMU is currently not supported with vhost-user-fs");
+        return;
+    }
+
     if (!vhost_user_init(&fs->vhost_user, &fs->conf.chardev, errp)) {
         return;
     }
