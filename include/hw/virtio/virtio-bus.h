@@ -93,6 +93,8 @@ struct VirtioBusClass {
      */
     bool has_variable_vring_alignment;
     AddressSpace *(*get_dma_as)(DeviceState *d);
+    int (*set_config_notifiers)(DeviceState *d, bool assign);
+
 };
 
 struct VirtioBusState {
