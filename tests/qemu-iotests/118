@@ -74,23 +74,6 @@ class ChangeBaseClass(iotests.QMPTestCase):
 
 class GeneralChangeTestsBaseClass(ChangeBaseClass):
 
-    def test_change(self):
-        # 'change' requires a drive name, so skip the test for blockdev
-        if not self.use_drive:
-            return
-
-        result = self.vm.qmp('change', device='drive0', target=new_img,
-                                       arg=iotests.imgfmt)
-        self.assert_qmp(result, 'return', {})
-
-        self.wait_for_open()
-        self.wait_for_close()
-
-        result = self.vm.qmp('query-block')
-        if self.has_real_tray:
-            self.assert_qmp(result, 'return[0]/tray_open', False)
-        self.assert_qmp(result, 'return[0]/inserted/image/filename', new_img)
-
     def test_blockdev_change_medium(self):
         result = self.vm.qmp('blockdev-change-medium',
                              id=self.device_name, filename=new_img,
