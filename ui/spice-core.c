@@ -830,6 +830,8 @@ static void qemu_spice_init(void)
 
 static int qemu_spice_add_interface(SpiceBaseInstance *sin)
 {
+    int ret;
+
     if (!spice_server) {
         if (QTAILQ_FIRST(&qemu_spice_opts.head) != NULL) {
             error_report("Oops: spice configured but not active");
@@ -848,7 +850,13 @@ static int qemu_spice_add_interface(SpiceBaseInstance *sin)
         qemu_add_vm_change_state_handler(vm_change_state_handler, NULL);
     }
 
-    return spice_server_add_interface(spice_server, sin);
+    ret = spice_server_add_interface(spice_server, sin);
+    /* make sure the newly added interface is started */
+    if (ret == 0 && spice_display_is_running) {
+        spice_server_vm_start(spice_server);
+    }
+
+    return ret;
 }
 
 static GSList *spice_consoles;
