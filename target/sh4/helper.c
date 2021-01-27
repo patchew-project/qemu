@@ -331,7 +331,7 @@ static int find_utlb_entry(CPUSH4State * env, target_ulong address, int use_asid
 */
 static int get_mmu_address(CPUSH4State * env, target_ulong * physical,
                            int *prot, target_ulong address,
-                           int rw, int access_type)
+                           int rw, int mmu_idx)
 {
     int use_asid, n;
     tlb_t *matching = NULL;
@@ -398,7 +398,7 @@ static int get_mmu_address(CPUSH4State * env, target_ulong * physical,
 
 static int get_physical_address(CPUSH4State * env, target_ulong * physical,
                                 int *prot, target_ulong address,
-                                int rw, int access_type)
+                                int rw, int mmu_idx)
 {
     /* P1, P2 and P4 areas do not use translation */
     if ((address >= 0x80000000 && address < 0xc0000000) || address >= 0xe0000000) {
@@ -432,7 +432,7 @@ static int get_physical_address(CPUSH4State * env, target_ulong * physical,
     }
 
     /* We need to resort to the MMU */
-    return get_mmu_address(env, physical, prot, address, rw, access_type);
+    return get_mmu_address(env, physical, prot, address, rw, mmu_idx);
 }
 
 hwaddr superh_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
@@ -813,11 +813,10 @@ bool superh_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
            MMU_DTLB_VIOLATION_READ);
 #else
     target_ulong physical;
-    int prot, sh_access_type;
+    int prot;
 
-    sh_access_type = ACCESS_INT;
     ret = get_physical_address(env, &physical, &prot, address,
-                               access_type, sh_access_type);
+                               access_type, mmu_idx);
 
     if (ret == MMU_OK) {
         address &= TARGET_PAGE_MASK;
