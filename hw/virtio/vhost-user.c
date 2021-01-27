@@ -238,6 +238,7 @@ struct vhost_user {
     /* Shared between vhost devs of the same virtio device */
     VhostUserState *user;
     int slave_fd;
+    bool iotlb_enabled;
     NotifierWithReturn postcopy_notifier;
     struct PostCopyFD  postcopy_fd;
     uint64_t           postcopy_client_bases[VHOST_USER_MAX_RAM_SLOTS];
@@ -1461,7 +1462,11 @@ static void slave_read(void *opaque)
 
     switch (hdr.request) {
     case VHOST_USER_SLAVE_IOTLB_MSG:
-        ret = vhost_backend_handle_iotlb_msg(dev, &payload.iotlb);
+        if (likely(u->iotlb_enabled)) {
+            ret = vhost_backend_handle_iotlb_msg(dev, &payload.iotlb);
+        } else {
+            ret = -EFAULT;
+        }
         break;
     case VHOST_USER_SLAVE_CONFIG_CHANGE_MSG :
         ret = vhost_user_slave_handle_config_change(dev);
@@ -2044,7 +2049,8 @@ static int vhost_user_send_device_iotlb_msg(struct vhost_dev *dev,
 
 static void vhost_user_set_iotlb_callback(struct vhost_dev *dev, int enabled)
 {
-    /* No-op as the receive channel is not dedicated to IOTLB messages. */
+    struct vhost_user *u = dev->opaque;
+    u->iotlb_enabled = enabled;
 }
 
 static int vhost_user_get_config(struct vhost_dev *dev, uint8_t *config,
