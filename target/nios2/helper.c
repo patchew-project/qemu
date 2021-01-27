@@ -209,7 +209,7 @@ hwaddr nios2_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     unsigned int hit;
 
     if (cpu->mmu_present && (addr < 0xC0000000)) {
-        hit = mmu_translate(env, &lu, addr, 0, 0);
+        hit = mmu_translate(env, &lu, addr, MMU_DATA_LOAD, MMU_SUPERVISOR_IDX);
         if (hit) {
             vaddr = addr & TARGET_PAGE_MASK;
             paddr = lu.paddr + vaddr - lu.vaddr;
