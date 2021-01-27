@@ -55,10 +55,10 @@ void mmu_read_debug(CPUNios2State *env, uint32_t rn)
     }
 }
 
-/* rw - 0 = read, 1 = write, 2 = fetch.  */
 unsigned int mmu_translate(CPUNios2State *env,
                            Nios2MMULookup *lu,
-                           target_ulong vaddr, int rw, int mmu_idx)
+                           target_ulong vaddr,
+                           MMUAccessType access_type, int mmu_idx)
 {
     Nios2CPU *cpu = env_archcpu(env);
     int pid = (env->mmu.tlbmisc_wr & CR_TLBMISC_PID_MASK) >> 4;

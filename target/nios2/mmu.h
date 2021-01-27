@@ -43,7 +43,8 @@ typedef struct Nios2MMULookup {
 void mmu_flip_um(CPUNios2State *env, unsigned int um);
 unsigned int mmu_translate(CPUNios2State *env,
                            Nios2MMULookup *lu,
-                           target_ulong vaddr, int rw, int mmu_idx);
+                           target_ulong vaddr,
+                           MMUAccessType access_type, int mmu_idx);
 void mmu_read_debug(CPUNios2State *env, uint32_t rn);
 void mmu_write(CPUNios2State *env, uint32_t rn, uint32_t v);
 void mmu_init(CPUNios2State *env);
