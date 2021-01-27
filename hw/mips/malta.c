@@ -875,55 +875,31 @@ static void write_bootloader(uint8_t *base, uint64_t run_addr,
     p = (uint32_t *) (base + 0x580);
 
     /* Load BAR registers as done by YAMON */
-    stl_p(p++, 0x3c09b400);                  /* lui t1, 0xb400 */
-
+    /* Bus endianess is always reversed */
 #ifdef TARGET_WORDS_BIGENDIAN
-    stl_p(p++, 0x3c08df00);                  /* lui t0, 0xdf00 */
+#define cpu_to_gt32 cpu_to_le32
 #else
-    stl_p(p++, 0x340800df);                  /* ori t0, r0, 0x00df */
+#define cpu_to_gt32 cpu_to_be32
 #endif
-    stl_p(p++, 0xad280068);                  /* sw t0, 0x0068(t1) */
-
-    stl_p(p++, 0x3c09bbe0);                  /* lui t1, 0xbbe0 */
-
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_p(p++, 0x3c08c000);                  /* lui t0, 0xc000 */
-#else
-    stl_p(p++, 0x340800c0);                  /* ori t0, r0, 0x00c0 */
-#endif
-    stl_p(p++, 0xad280048);                  /* sw t0, 0x0048(t1) */
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_p(p++, 0x3c084000);                  /* lui t0, 0x4000 */
-#else
-    stl_p(p++, 0x34080040);                  /* ori t0, r0, 0x0040 */
-#endif
-    stl_p(p++, 0xad280050);                  /* sw t0, 0x0050(t1) */
-
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_p(p++, 0x3c088000);                  /* lui t0, 0x8000 */
-#else
-    stl_p(p++, 0x34080080);                  /* ori t0, r0, 0x0080 */
-#endif
-    stl_p(p++, 0xad280058);                  /* sw t0, 0x0058(t1) */
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_p(p++, 0x3c083f00);                  /* lui t0, 0x3f00 */
-#else
-    stl_p(p++, 0x3408003f);                  /* ori t0, r0, 0x003f */
-#endif
-    stl_p(p++, 0xad280060);                  /* sw t0, 0x0060(t1) */
-
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_p(p++, 0x3c08c100);                  /* lui t0, 0xc100 */
-#else
-    stl_p(p++, 0x340800c1);                  /* ori t0, r0, 0x00c1 */
-#endif
-    stl_p(p++, 0xad280080);                  /* sw t0, 0x0080(t1) */
-#ifdef TARGET_WORDS_BIGENDIAN
-    stl_p(p++, 0x3c085e00);                  /* lui t0, 0x5e00 */
-#else
-    stl_p(p++, 0x3408005e);                  /* ori t0, r0, 0x005e */
-#endif
-    stl_p(p++, 0xad280088);                  /* sw t0, 0x0088(t1) */
+    /* move GT64120 registers from 0x14000000 to 0x1be00000 */
+    bl_gen_write_u32(&p, cpu_to_gt32(0xdf000000),
+                        cpu_mips_phys_to_kseg1(NULL, 0x14000068));
+    /* setup MEM-to-PCI0 mapping */
+    /* setup PCI0 io window to 0x18000000-0x181fffff */
+    bl_gen_write_u32(&p, cpu_to_gt32(0xc0000000),
+                        cpu_mips_phys_to_kseg1(NULL, 0x1be00048));
+    bl_gen_write_u32(&p, cpu_to_gt32(0x40000000),
+                        cpu_mips_phys_to_kseg1(NULL, 0x1be00050));
+    /* setup PCI0 mem windows */
+    bl_gen_write_u32(&p, cpu_to_gt32(0x80000000),
+                        cpu_mips_phys_to_kseg1(NULL, 0x1be00058));
+    bl_gen_write_u32(&p, cpu_to_gt32(0x3f000000),
+                        cpu_mips_phys_to_kseg1(NULL, 0x1be00060));
+    bl_gen_write_u32(&p, cpu_to_gt32(0xc1000000),
+                        cpu_mips_phys_to_kseg1(NULL, 0x1be00080));
+    bl_gen_write_u32(&p, cpu_to_gt32(0x5e000000),
+                        cpu_mips_phys_to_kseg1(NULL, 0x1be00088));
+#undef cpu_to_gt32
 
     if (semihosting_get_argc()) {
         a0 = 0;
