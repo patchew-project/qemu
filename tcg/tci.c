@@ -166,7 +166,11 @@ static uint64_t tci_uint64(uint32_t high, uint32_t low)
 /* Read constant (native size) from bytecode. */
 static tcg_target_ulong tci_read_i(const uint8_t **tb_ptr)
 {
-    tcg_target_ulong value = *(const tcg_target_ulong *)(*tb_ptr);
+#if TCG_TARGET_REG_BITS == 32
+    tcg_target_ulong value = ldl_he_p(*tb_ptr);
+#elif TCG_TARGET_REG_BITS == 64
+    tcg_target_ulong value = ldq_he_p(*tb_ptr);
+#endif
     *tb_ptr += sizeof(value);
     return value;
 }
@@ -174,7 +178,7 @@ static tcg_target_ulong tci_read_i(const uint8_t **tb_ptr)
 /* Read unsigned constant (32 bit) from bytecode. */
 static uint32_t tci_read_i32(const uint8_t **tb_ptr)
 {
-    uint32_t value = *(const uint32_t *)(*tb_ptr);
+    uint32_t value = ldl_he_p(*tb_ptr);
     *tb_ptr += sizeof(value);
     return value;
 }
@@ -182,7 +186,7 @@ static uint32_t tci_read_i32(const uint8_t **tb_ptr)
 /* Read signed constant (32 bit) from bytecode. */
 static int32_t tci_read_s32(const uint8_t **tb_ptr)
 {
-    int32_t value = *(const int32_t *)(*tb_ptr);
+    int32_t value = ldl_he_p(*tb_ptr);
     *tb_ptr += sizeof(value);
     return value;
 }
@@ -191,7 +195,7 @@ static int32_t tci_read_s32(const uint8_t **tb_ptr)
 /* Read constant (64 bit) from bytecode. */
 static uint64_t tci_read_i64(const uint8_t **tb_ptr)
 {
-    uint64_t value = *(const uint64_t *)(*tb_ptr);
+    uint64_t value = ldq_he_p(*tb_ptr);
     *tb_ptr += sizeof(value);
     return value;
 }
@@ -1126,7 +1130,7 @@ uintptr_t QEMU_DISABLE_CFI tcg_qemu_tb_exec(CPUArchState *env,
             /* QEMU specific operations. */
 
         case INDEX_op_exit_tb:
-            ret = *(uint64_t *)tb_ptr;
+            ret = ldq_he_p(tb_ptr);
             goto exit;
             break;
         case INDEX_op_goto_tb:
