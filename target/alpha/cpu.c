@@ -56,17 +56,14 @@ static void alpha_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
 
 static void alpha_cpu_realizefn(DeviceState *dev, Error **errp)
 {
-    CPUState *cs = CPU(dev);
     AlphaCPUClass *acc = ALPHA_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
 
-    cpu_exec_realizefn(cs, &local_err);
+    cpu_exec_realizefn(CPU(dev), &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         return;
     }
-
-    qemu_init_vcpu(cs);
 
     acc->parent_realize(dev, errp);
 }
