@@ -765,6 +765,8 @@ static void sd_erase(SDState *sd)
     int i;
     uint64_t erase_start = sd->erase_start;
     uint64_t erase_end = sd->erase_end;
+    uint64_t erase_addr;
+    int erase_len = 1 << HWBLOCK_SHIFT;
 
     trace_sdcard_erase(sd->erase_start, sd->erase_end);
     if (sd->erase_start == INVALID_ADDRESS
@@ -786,6 +788,13 @@ static void sd_erase(SDState *sd)
         sd->erase_start = INVALID_ADDRESS;
         sd->erase_end = INVALID_ADDRESS;
         return;
+    }
+
+    memset(sd->data, 0xff, erase_len);
+    erase_addr = erase_start;
+    for (i = 0; i < (erase_end - erase_start) / erase_len + 1; i++) {
+        BLK_WRITE_BLOCK(erase_addr, erase_len);
+        erase_addr += erase_len;
     }
 
     erase_start = sd_addr_to_wpnum(erase_start);
