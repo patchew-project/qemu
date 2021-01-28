@@ -14,6 +14,6 @@ typedef struct {
 
 int moxie_mmu_translate(MoxieMMUResult *res,
                         CPUMoxieState *env, uint32_t vaddr,
-                        int rw, int mmu_idx);
+                        MMUAccessType access_type, int mmu_idx);
 
 #endif

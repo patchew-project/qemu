@@ -24,7 +24,7 @@
 
 int moxie_mmu_translate(MoxieMMUResult *res,
                        CPUMoxieState *env, uint32_t vaddr,
-                       int rw, int mmu_idx)
+                       MMUAccessType access_type, int mmu_idx)
 {
     /* Perform no translation yet.  */
     res->phy = vaddr;

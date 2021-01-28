@@ -112,7 +112,7 @@ hwaddr moxie_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     MoxieMMUResult res;
     int miss;
 
-    miss = moxie_mmu_translate(&res, &cpu->env, addr, 0, 0);
+    miss = moxie_mmu_translate(&res, &cpu->env, addr, MMU_DATA_LOAD, 0);
     if (!miss) {
         phy = res.phy;
     }
