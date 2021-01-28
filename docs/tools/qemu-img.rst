@@ -209,6 +209,10 @@ Parameters to dd subcommand:
 
 .. program:: qemu-img-dd
 
+.. option:: -n
+
+  Skip the creation of the output file
+
 .. option:: bs=BLOCK_SIZE
 
   Defines the block size
@@ -228,6 +232,10 @@ Parameters to dd subcommand:
 .. option:: skip=BLOCKS
 
   Sets the number of input blocks to skip
+
+.. option:: sseek=BLOCKS
+
+  Sets the number of blocks to seek into the output
 
 Parameters to snapshot subcommand:
 

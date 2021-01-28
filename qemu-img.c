@@ -213,12 +213,17 @@ static void QEMU_NORETURN help(void)
            "  '-s' run in Strict mode - fail on different image size or sector allocation\n"
            "\n"
            "Parameters to dd subcommand:\n"
+           "  '-n' skips the target volume creation (useful if the volume is created\n"
+           "       prior to running qemu-img). Note that he behaviour is not identical to\n"
+           "       original dd option conv=nocreat. The output is neither truncated nor\n"
+           "       is it possible to write past the end of an existing file.\n"
            "  'bs=BYTES' read and write up to BYTES bytes at a time "
            "(default: 512)\n"
            "  'count=N' copy only N input blocks\n"
            "  'if=FILE' read from FILE\n"
            "  'of=FILE' write to FILE\n"
-           "  'skip=N' skip N bs-sized blocks at the start of input\n";
+           "  'skip=N' skip N bs-sized blocks at the start of input\n"
+           "  'seek=N' seek N bs-sized blocks into the output\n";
 
     printf("%s\nSupported formats:", help_msg);
     bdrv_iterate_format(format_print, NULL, false);
@@ -4885,6 +4890,7 @@ static int img_bitmap(int argc, char **argv)
 #define C_IF      04
 #define C_OF      010
 #define C_SKIP    020
+#define C_SEEK    040
 
 struct DdInfo {
     unsigned int flags;
@@ -4964,6 +4970,19 @@ static int img_dd_skip(const char *arg,
     return 0;
 }
 
+static int img_dd_seek(const char *arg,
+                       struct DdIo *in, struct DdIo *out,
+                       struct DdInfo *dd)
+{
+    out->offset = cvtnum("seek", arg);
+
+    if (in->offset < 0) {
+        return 1;
+    }
+
+    return 0;
+}
+
 static int img_dd(int argc, char **argv)
 {
     int ret = 0;
@@ -4980,7 +4999,7 @@ static int img_dd(int argc, char **argv)
     const char *fmt = NULL;
     int64_t size = 0;
     int64_t block_count = 0, out_pos, in_pos;
-    bool force_share = false;
+    bool force_share = false, skip_create = false;
     struct DdInfo dd = {
         .flags = 0,
         .count = 0,
@@ -5004,6 +5023,7 @@ static int img_dd(int argc, char **argv)
         { "if", img_dd_if, C_IF },
         { "of", img_dd_of, C_OF },
         { "skip", img_dd_skip, C_SKIP },
+        { "seek", img_dd_seek, C_SEEK },
         { NULL, NULL, 0 }
     };
     const struct option long_options[] = {
@@ -5014,7 +5034,7 @@ static int img_dd(int argc, char **argv)
         { 0, 0, 0, 0 }
     };
 
-    while ((c = getopt_long(argc, argv, ":hf:O:U", long_options, NULL))) {
+    while ((c = getopt_long(argc, argv, ":hf:O:Un", long_options, NULL))) {
         if (c == EOF) {
             break;
         }
@@ -5036,6 +5056,9 @@ static int img_dd(int argc, char **argv)
             break;
         case 'U':
             force_share = true;
+            break;
+        case 'n':
+            skip_create = true;
             break;
         case OPTION_OBJECT:
             if (!qemu_opts_parse_noisily(&qemu_object_opts, optarg, true)) {
@@ -5116,22 +5139,25 @@ static int img_dd(int argc, char **argv)
         ret = -1;
         goto out;
     }
-    if (!drv->create_opts) {
-        error_report("Format driver '%s' does not support image creation",
-                     drv->format_name);
-        ret = -1;
-        goto out;
-    }
-    if (!proto_drv->create_opts) {
-        error_report("Protocol driver '%s' does not support image creation",
-                     proto_drv->format_name);
-        ret = -1;
-        goto out;
-    }
-    create_opts = qemu_opts_append(create_opts, drv->create_opts);
-    create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
 
-    opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
+    if (!skip_create) {
+        if (!drv->create_opts) {
+            error_report("Format driver '%s' does not support image creation",
+                         drv->format_name);
+            ret = -1;
+            goto out;
+        }
+        if (!proto_drv->create_opts) {
+            error_report("Protocol driver '%s' does not support image creation",
+                         proto_drv->format_name);
+            ret = -1;
+            goto out;
+        }
+        create_opts = qemu_opts_append(create_opts, drv->create_opts);
+        create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
+
+        opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
+    }
 
     size = blk_getlength(blk1);
     if (size < 0) {
@@ -5145,22 +5171,25 @@ static int img_dd(int argc, char **argv)
         size = dd.count * in.bsz;
     }
 
-    /* Overflow means the specified offset is beyond input image's size */
-    if (dd.flags & C_SKIP && (in.offset > INT64_MAX / in.bsz ||
-                              size < in.bsz * in.offset)) {
-        qemu_opt_set_number(opts, BLOCK_OPT_SIZE, 0, &error_abort);
-    } else {
-        qemu_opt_set_number(opts, BLOCK_OPT_SIZE,
-                            size - in.bsz * in.offset, &error_abort);
-    }
+    if (!skip_create) {
+        /* Overflow means the specified offset is beyond input image's size */
+        if (dd.flags & C_SKIP && (in.offset > INT64_MAX / in.bsz ||
+                                  size < in.bsz * in.offset)) {
+            qemu_opt_set_number(opts, BLOCK_OPT_SIZE, 0, &error_abort);
+        } else {
+            qemu_opt_set_number(opts, BLOCK_OPT_SIZE,
+                                out.bsz * out.offset + size -
+                                in.bsz * in.offset, &error_abort);
+        }
 
-    ret = bdrv_create(drv, out.filename, opts, &local_err);
-    if (ret < 0) {
-        error_reportf_err(local_err,
-                          "%s: error while creating output image: ",
-                          out.filename);
-        ret = -1;
-        goto out;
+        ret = bdrv_create(drv, out.filename, opts, &local_err);
+        if (ret < 0) {
+            error_reportf_err(local_err,
+                              "%s: error while creating output image: ",
+                              out.filename);
+            ret = -1;
+            goto out;
+        }
     }
 
     /* TODO, we can't honour --image-opts for the target,
@@ -5189,7 +5218,7 @@ static int img_dd(int argc, char **argv)
 
     in.buf = g_new(uint8_t, in.bsz);
 
-    for (out_pos = 0; in_pos < size; block_count++) {
+    for (out_pos = out.offset * out.bsz; in_pos < size; block_count++) {
         int in_ret, out_ret;
 
         if (in_pos + in.bsz > size) {
