@@ -73,7 +73,9 @@ def run_linters():
         env['PYTHONPATH'] += os.pathsep + qemu_module_path
     except KeyError:
         env['PYTHONPATH'] = qemu_module_path
-    subprocess.run(('pylint-3', '--score=n', '--notes=FIXME,XXX', *files),
+    subprocess.run(('pylint-3', '--score=n', '--notes=FIXME,XXX',
+                    '--disable=too-many-return-statements',
+                    '--disable=too-many-statements', *files),
                    env=env, check=False)
 
     print('=== mypy ===')
