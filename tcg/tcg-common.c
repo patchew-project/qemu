@@ -26,7 +26,7 @@
 #include "tcg/tcg.h"
 
 #if defined(CONFIG_TCG_INTERPRETER)
-uintptr_t tci_tb_ptr;
+__thread uintptr_t tci_tb_ptr;
 #endif
 
 TCGOpDef tcg_op_defs[] = {
