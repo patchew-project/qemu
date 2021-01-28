@@ -61,6 +61,19 @@ unsigned int spapr_numa_initial_nvgpu_NUMA_id(MachineState *machine)
 }
 
 /*
+ * Note: if called before spapr_phb_pci_collect_nvgpu() finishes collecting
+ * all NVGPUs, this function will not give the right number of NVGPUs NUMA
+ * nodes.
+ */
+static
+unsigned int spapr_numa_get_number_nvgpus_nodes(SpaprMachineState *spapr)
+{
+    MachineState *ms = MACHINE(spapr);
+
+    return spapr->gpu_numa_id - spapr_numa_initial_nvgpu_NUMA_id(ms);
+}
+
+/*
  * This function will translate the user distances into
  * what the kernel understand as possible values: 10
  * (local distance), 20, 40, 80 and 160, and return the equivalent
@@ -311,6 +324,7 @@ void spapr_numa_write_rtas_dt(SpaprMachineState *spapr, void *fdt, int rtas)
 {
     MachineState *ms = MACHINE(spapr);
     SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
+    uint32_t number_nvgpus_nodes = spapr_numa_get_number_nvgpus_nodes(spapr);
     uint32_t refpoints[] = {
         cpu_to_be32(0x4),
         cpu_to_be32(0x3),
@@ -318,7 +332,7 @@ void spapr_numa_write_rtas_dt(SpaprMachineState *spapr, void *fdt, int rtas)
         cpu_to_be32(0x1),
     };
     uint32_t nr_refpoints = ARRAY_SIZE(refpoints);
-    uint32_t maxdomain = ms->numa_state->num_nodes + spapr->gpu_numa_id;
+    uint32_t maxdomain = ms->numa_state->num_nodes + number_nvgpus_nodes;
     uint32_t maxdomains[] = {
         cpu_to_be32(4),
         cpu_to_be32(maxdomain),
