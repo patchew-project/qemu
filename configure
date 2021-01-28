@@ -622,13 +622,40 @@ fi
 # the correct CPU with the --cpu option.
 case $targetos in
 Darwin)
-  # on Leopard most of the system is 32-bit, so we have to ask the kernel if we can
-  # run 64-bit userspace code.
-  # If the user didn't specify a CPU explicitly and the kernel says this is
-  # 64 bit hw, then assume x86_64. Otherwise fall through to the usual detection code.
-  if test -z "$cpu" && test "$(sysctl -n hw.optional.x86_64)" = "1"; then
-    cpu="x86_64"
-  fi
+    # user specified the target cpu with --cpu
+    if test ! -z "$cpu"; then
+        echo "Using user-specified cpu target $cpu"
+
+    # detect the host cpu
+    else
+        raw_value=`sysctl -n hw.cputype`
+        cpu_arch=$((raw_value & 0xff))
+
+        if [[ $"cpu_arch" -eq 12 ]]; then    # if ARM
+            is_64bit=$((raw_value & 0x01000000))
+            if [[ "$is_64bit" -gt 1 ]]; then # if 64-bit
+                cpu="aarch64"
+            else
+                cpu="arm"
+            fi
+
+        elif [[ $"cpu_arch" -eq 7 ]]; then   # if x86
+            is_64bit=`sysctl -n hw.cpu64bit_capable`
+            if [[ "$is_64bit" -eq 1 ]]; then # if 64-bit
+                cpu="x86_64"
+            else
+                cpu="x86"
+            fi
+
+        elif [[ $"cpu_arch" -eq 18 ]]; then  # if PowerPC
+                # Not sure know how to detect 64-bit PowerPC a.k.a. G5
+                cpu="ppc"
+
+        else
+            echo "Unknown target cpu error"
+        fi
+    fi
+
   HOST_DSOSUF=".dylib"
   ;;
 SunOS)
@@ -772,10 +799,12 @@ OpenBSD)
 Darwin)
   bsd="yes"
   darwin="yes"
-  if [ "$cpu" = "x86_64" ] ; then
-    QEMU_CFLAGS="-arch x86_64 $QEMU_CFLAGS"
-    QEMU_LDFLAGS="-arch x86_64 $QEMU_LDFLAGS"
+  cpu_arch="$cpu"
+  if [ $cpu == "aarch64" ]; then   # Apple's clang prefers arm64
+    cpu_arch="arm64"
   fi
+  QEMU_CFLAGS="-arch $cpu_arch $QEMU_CFLAGS"
+  QEMU_LDFLAGS="-arch $cpu_arch $QEMU_LDFLAGS"
   audio_drv_list="coreaudio try-sdl"
   audio_possible_drivers="coreaudio sdl"
   QEMU_LDFLAGS="-framework CoreFoundation -framework IOKit $QEMU_LDFLAGS"
