@@ -69,17 +69,31 @@ typedef uint64_t abi_ptr;
 #define TARGET_ABI_FMT_ptr "%"PRIx64
 #endif
 
+static inline abi_ptr untagged_addr(abi_ptr x)
+{
+#ifdef TARGET_TAGGED_ADDRESSES
+    if (current_cpu) {
+        return cpu_untagged_addr(current_cpu, x);
+    }
+#endif
+    return x;
+}
+
 /* All direct uses of g2h and h2g need to go away for usermode softmmu.  */
-#define g2h(x) ((void *)((uintptr_t)(abi_ptr)(x) + guest_base))
+static inline void *g2h(abi_ulong x)
+{
+    return (void *)((uintptr_t)untagged_addr(x) + guest_base);
+}
 
 static inline bool guest_addr_valid(abi_ulong x)
 {
-    return x <= GUEST_ADDR_MAX;
+    return untagged_addr(x) <= GUEST_ADDR_MAX;
 }
 
 static inline bool guest_range_valid(abi_ulong start, abi_ulong len)
 {
-    return len - 1 <= GUEST_ADDR_MAX && start <= GUEST_ADDR_MAX - len + 1;
+    return len - 1 <= GUEST_ADDR_MAX &&
+           untagged_addr(start) <= GUEST_ADDR_MAX - len + 1;
 }
 
 #define h2g_valid(x) \
