@@ -195,6 +195,11 @@ static void runstate_init(void)
     qemu_mutex_init(&vmstop_lock);
 }
 
+RunState runstate_get(void)
+{
+    return current_run_state;
+}
+
 /* This function will abort() on invalid state transitions */
 void runstate_set(RunState new_state)
 {

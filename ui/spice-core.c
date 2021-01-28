@@ -46,6 +46,7 @@ static const char *auth = "spice";
 static char *auth_passwd;
 static time_t auth_expires = TIME_MAX;
 static int spice_migration_completed;
+static int spice_display_init_done;
 static int spice_display_is_running;
 static int spice_have_target_host;
 
@@ -625,11 +626,17 @@ static int add_channel(void *opaque, const char *name, const char *value,
 static void vm_change_state_handler(void *opaque, int running,
                                     RunState state)
 {
-    if (running) {
+    if (running && spice_display_init_done) {
         qemu_spice_display_start();
     } else if (state != RUN_STATE_PAUSED) {
         qemu_spice_display_stop();
     }
+}
+
+void qemu_spice_display_init_done(void)
+{
+    spice_display_init_done = true;
+    vm_change_state_handler(NULL, runstate_is_running(), runstate_get());
 }
 
 static void qemu_spice_init(void)
