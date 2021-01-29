@@ -47,6 +47,8 @@ size_t virtio_feature_get_config_size(VirtIOFeature *features,
                                       uint64_t host_features);
 
 typedef struct VirtQueue VirtQueue;
+typedef void (*VirtIOHandleOutput)(VirtIODevice *, VirtQueue *);
+typedef bool (*VirtIOHandleAIOOutput)(VirtIODevice *, VirtQueue *);
 
 #define VIRTQUEUE_MAX_SIZE 1024
 
@@ -174,9 +176,6 @@ void virtio_error(VirtIODevice *vdev, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
 /* Set the child bus name. */
 void virtio_device_set_child_bus_name(VirtIODevice *vdev, char *bus_name);
 
-typedef void (*VirtIOHandleOutput)(VirtIODevice *, VirtQueue *);
-typedef bool (*VirtIOHandleAIOOutput)(VirtIODevice *, VirtQueue *);
-
 VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
                             VirtIOHandleOutput handle_output);
 
@@ -184,6 +183,7 @@ void virtio_del_queue(VirtIODevice *vdev, int n);
 
 void virtio_delete_queue(VirtQueue *vq);
 
+void virtqueue_set_handler(VirtQueue *vq, VirtIOHandleOutput handler);
 void virtqueue_push(VirtQueue *vq, const VirtQueueElement *elem,
                     unsigned int len);
 void virtqueue_flush(VirtQueue *vq, unsigned int count);

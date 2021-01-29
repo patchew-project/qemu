@@ -1796,6 +1796,20 @@ unsigned int virtqueue_drop_all(VirtQueue *vq)
     }
 }
 
+/*
+ * virtqueue_set_handler:
+ * @vq The #VirtQueue
+ * @handler The handler to call on vq event
+ * Replaces vq handler.
+ *
+ * Note: It takes no protection, so make sure no other calls to the handler
+ * are happening.
+ */
+void virtqueue_set_handler(VirtQueue *vq, VirtIOHandleOutput handler)
+{
+    vq->handle_output = handler;
+}
+
 /* Reading and writing a structure directly to QEMUFile is *awful*, but
  * it is what QEMU has always done by mistake.  We can change it sooner
  * or later by bumping the version number of the affected vm states.
