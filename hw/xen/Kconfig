@@ -1,0 +1,6 @@
+config XEN_PV
+    bool
+    depends on XEN
+    select PCI
+    select USB
+    select IDE_PIIX
