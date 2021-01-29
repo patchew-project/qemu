@@ -17,6 +17,7 @@ config IDE_ISA
 
 config IDE_PIIX
     bool
+    select IDE_ISA
     select IDE_PCI
     select IDE_QDEV
 
