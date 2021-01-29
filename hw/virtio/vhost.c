@@ -25,6 +25,7 @@
 #include "exec/address-spaces.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
+#include "hw/virtio/vhost-shadow-virtqueue.h"
 #include "migration/blocker.h"
 #include "migration/qemu-file-types.h"
 #include "sysemu/dma.h"
@@ -945,6 +946,82 @@ static void vhost_log_global_stop(MemoryListener *listener)
     }
 }
 
+static int vhost_sw_live_migration_stop(struct vhost_dev *dev)
+{
+    int idx;
+
+    WITH_RCU_READ_LOCK_GUARD() {
+        dev->sw_lm_enabled = false;
+
+        for (idx = 0; idx < dev->nvqs; ++idx) {
+            vhost_shadow_vq_stop_rcu(dev, dev->shadow_vqs[idx]);
+        }
+    }
+
+    for (idx = 0; idx < dev->nvqs; ++idx) {
+        vhost_shadow_vq_free(dev->shadow_vqs[idx]);
+    }
+
+    g_free(dev->shadow_vqs);
+    dev->shadow_vqs = NULL;
+    return 0;
+}
+
+static int vhost_sw_live_migration_start(struct vhost_dev *dev)
+{
+    int idx;
+
+    dev->shadow_vqs = g_new0(VhostShadowVirtqueue *, dev->nvqs);
+    for (idx = 0; idx < dev->nvqs; ++idx) {
+        dev->shadow_vqs[idx] = vhost_shadow_vq_new(dev, idx);
+        if (unlikely(dev->shadow_vqs[idx] == NULL)) {
+            goto err;
+        }
+    }
+
+    WITH_RCU_READ_LOCK_GUARD() {
+        for (idx = 0; idx < dev->nvqs; ++idx) {
+            int stop_idx = idx;
+            bool ok = vhost_shadow_vq_start_rcu(dev,
+                                                dev->shadow_vqs[idx]);
+
+            if (!ok) {
+                while (--stop_idx >= 0) {
+                    vhost_shadow_vq_stop_rcu(dev, dev->shadow_vqs[stop_idx]);
+                }
+
+                goto err;
+            }
+        }
+    }
+
+    dev->sw_lm_enabled = true;
+    return 0;
+
+err:
+    for (; idx >= 0; --idx) {
+        vhost_shadow_vq_free(dev->shadow_vqs[idx]);
+    }
+    g_free(dev->shadow_vqs[idx]);
+
+    return -1;
+}
+
+static int vhost_sw_live_migration_enable(struct vhost_dev *dev,
+                                          bool enable_lm)
+{
+    int r;
+
+    if (enable_lm == dev->sw_lm_enabled) {
+        return 0;
+    }
+
+    r = enable_lm ? vhost_sw_live_migration_start(dev)
+                  : vhost_sw_live_migration_stop(dev);
+
+    return r;
+}
+
 static void vhost_log_start(MemoryListener *listener,
                             MemoryRegionSection *section,
                             int old, int new)
@@ -1389,6 +1466,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     hdev->log = NULL;
     hdev->log_size = 0;
     hdev->log_enabled = false;
+    hdev->sw_lm_enabled = false;
     hdev->started = false;
     memory_listener_register(&hdev->memory_listener, &address_space_memory);
     QLIST_INSERT_HEAD(&vhost_devices, hdev, entry);
@@ -1816,6 +1894,11 @@ void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev)
         hdev->vhost_ops->vhost_dev_start(hdev, false);
     }
     for (i = 0; i < hdev->nvqs; ++i) {
+        if (hdev->sw_lm_enabled) {
+            vhost_shadow_vq_stop_rcu(hdev, hdev->shadow_vqs[i]);
+            vhost_shadow_vq_free(hdev->shadow_vqs[i]);
+        }
+
         vhost_virtqueue_stop(hdev,
                              vdev,
                              hdev->vqs + i,
@@ -1829,6 +1912,8 @@ void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev)
         memory_listener_unregister(&hdev->iommu_listener);
     }
     vhost_log_put(hdev, true);
+    g_free(hdev->shadow_vqs);
+    hdev->sw_lm_enabled = false;
     hdev->started = false;
     hdev->vdev = NULL;
 }
@@ -1845,5 +1930,53 @@ int vhost_net_set_backend(struct vhost_dev *hdev,
 
 void qmp_x_vhost_enable_shadow_vq(const char *name, bool enable, Error **errp)
 {
-    error_setg(errp, "Shadow virtqueue still not implemented.");
+    struct vhost_dev *hdev;
+    const char *err_cause = NULL;
+    const VirtioDeviceClass *k;
+    int r;
+    ErrorClass err_class = ERROR_CLASS_GENERIC_ERROR;
+
+    QLIST_FOREACH(hdev, &vhost_devices, entry) {
+        if (hdev->vdev && 0 == strcmp(hdev->vdev->name, name)) {
+            break;
+        }
+    }
+
+    if (!hdev) {
+        err_class = ERROR_CLASS_DEVICE_NOT_FOUND;
+        err_cause = "Device not found";
+        goto err;
+    }
+
+    if (!hdev->started) {
+        err_cause = "Device is not started";
+        goto err;
+    }
+
+    if (hdev->acked_features & BIT_ULL(VIRTIO_F_RING_PACKED)) {
+        err_cause = "Use packed vq";
+        goto err;
+    }
+
+    if (vhost_dev_has_iommu(hdev)) {
+        err_cause = "Device use IOMMU";
+        goto err;
+    }
+
+    k = VIRTIO_DEVICE_GET_CLASS(hdev->vdev);
+    if (!k->set_vq_handler) {
+        err_cause = "Virtio device type does not support reset of vq handler";
+        goto err;
+    }
+
+    r = vhost_sw_live_migration_enable(hdev, enable);
+    if (unlikely(r)) {
+        err_cause = "Error enabling (see monitor)";
+    }
+
+err:
+    if (err_cause) {
+        error_set(errp, err_class,
+                  "Can't enable shadow vq on %s: %s", name, err_cause);
+    }
 }
