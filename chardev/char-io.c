@@ -50,16 +50,14 @@ static gboolean io_watch_poll_prepare(GSource *source,
         return FALSE;
     }
 
-    if (now_active) {
+    if (now_active && !was_active) {
         iwp->src = qio_channel_create_watch(
             iwp->ioc, G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL);
         g_source_set_callback(iwp->src, iwp->fd_read, iwp->opaque, NULL);
         g_source_add_child_source(source, iwp->src);
         g_source_unref(iwp->src);
-    } else {
-        g_source_remove_child_source(source, iwp->src);
-        iwp->src = NULL;
     }
+
     return FALSE;
 }
 
