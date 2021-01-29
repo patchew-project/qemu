@@ -322,6 +322,8 @@ typedef struct Qcow2BitmapHeaderExt {
     uint64_t bitmap_directory_offset;
 } QEMU_PACKED Qcow2BitmapHeaderExt;
 
+typedef struct Qcow2CompressedWriteCache Qcow2CompressedWriteCache;
+
 #define QCOW2_MAX_THREADS 4
 
 typedef struct BDRVQcow2State {
@@ -1009,5 +1011,32 @@ qcow2_co_encrypt(BlockDriverState *bs, uint64_t host_offset,
 int coroutine_fn
 qcow2_co_decrypt(BlockDriverState *bs, uint64_t host_offset,
                  uint64_t guest_offset, void *buf, size_t len);
+
+Qcow2CompressedWriteCache *qcow2_compressed_cache_new(BdrvChild *data_file,
+                                                      int64_t cluster_size,
+                                                      int64_t cache_size);
+void qcow2_compressed_cache_free(Qcow2CompressedWriteCache *s);
+int coroutine_fn
+qcow2_compressed_cache_co_read(Qcow2CompressedWriteCache *s, int64_t offset,
+                               int64_t bytes, void *buf);
+int coroutine_fn
+qcow2_compressed_cache_co_write(Qcow2CompressedWriteCache *s, int64_t offset,
+                                int64_t bytes, void *buf);
+void coroutine_fn
+qcow2_compressed_cache_co_set_cluster_end(Qcow2CompressedWriteCache *s,
+                                          int64_t cluster_data_end);
+int coroutine_fn
+qcow2_compressed_cache_co_flush(Qcow2CompressedWriteCache *s);
+int qcow2_compressed_cache_flush(BlockDriverState *bs,
+                                 Qcow2CompressedWriteCache *state);
+int coroutine_fn
+qcow2_compressed_cache_co_stop_flush(Qcow2CompressedWriteCache *s);
+int qcow2_compressed_cache_stop_flush(BlockDriverState *bs,
+                                      Qcow2CompressedWriteCache *s);
+void qcow2_compressed_cache_set_size(Qcow2CompressedWriteCache *s,
+                                     int64_t size);
+void coroutine_fn
+qcow2_compressed_cache_co_discard(Qcow2CompressedWriteCache *s,
+                                  int64_t cluster_offset);
 
 #endif
