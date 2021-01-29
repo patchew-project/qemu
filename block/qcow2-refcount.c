@@ -899,6 +899,11 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
                 qcow2_cache_discard(s->l2_table_cache, table);
             }
 
+            if (s->compressed_cache) {
+                qcow2_compressed_cache_co_discard(s->compressed_cache,
+                                                  cluster_offset);
+            }
+
             if (s->discard_passthrough[type]) {
                 update_refcount_discard(bs, cluster_offset, s->cluster_size);
             }
@@ -1110,6 +1115,14 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
             }
 
             if (!offset || ROUND_UP(offset, s->cluster_size) != new_cluster) {
+                if (offset && s->compressed_cache) {
+                    /*
+                     * Previous cluster is unfinished, but we'll not write more
+                     * data to it. We should inform compressed cache.
+                     */
+                    qcow2_compressed_cache_co_set_cluster_end(
+                            s->compressed_cache, offset);
+                }
                 offset = new_cluster;
                 free_in_cluster = s->cluster_size;
             } else {

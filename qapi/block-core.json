@@ -3202,6 +3202,11 @@
 #             an image, the data file name is loaded from the image
 #             file. (since 4.0)
 #
+# @compressed-cache-size: The maximum size of compressed write cache in
+#                         bytes. If positive must be not less than
+#                         cluster size. 0 disables the feature. Default
+#                         is 64 * cluster_size. (since 6.0)
+#
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsQcow2',
@@ -3217,7 +3222,8 @@
             '*refcount-cache-size': 'int',
             '*cache-clean-interval': 'int',
             '*encrypt': 'BlockdevQcow2Encryption',
-            '*data-file': 'BlockdevRef' } }
+            '*data-file': 'BlockdevRef',
+            '*compressed-cache-size': 'int' } }
 
 ##
 # @SshHostKeyCheckMode:

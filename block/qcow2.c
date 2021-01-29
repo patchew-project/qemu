@@ -808,6 +808,13 @@ static QemuOptsList qcow2_runtime_opts = {
             .type = QEMU_OPT_NUMBER,
             .help = "Clean unused cache entries after this time (in seconds)",
         },
+        {
+            .name = QCOW2_OPT_COMPRESSED_CACHE_SIZE,
+            .type = QEMU_OPT_NUMBER,
+            .help = "The maximum size of compressed write cache in bytes. If "
+                    "positive must be not less than cluster size. 0 disables "
+                    "the feature. Default is 64 * cluster_size",
+        },
         BLOCK_CRYPTO_OPT_DEF_KEY_SECRET("encrypt.",
             "ID of secret providing qcow2 AES key or LUKS passphrase"),
         { /* end of list */ }
@@ -969,6 +976,38 @@ typedef struct Qcow2ReopenState {
     QCryptoBlockOpenOptions *crypto_opts; /* Disk encryption runtime options */
 } Qcow2ReopenState;
 
+static int qcow2_update_compressed_cache_option(BlockDriverState *bs,
+                                                QemuOpts *opts, Error **errp)
+{
+    BDRVQcow2State *s = bs->opaque;
+    uint64_t new_size;
+    int ret;
+
+    new_size = qemu_opt_get_size(opts, QCOW2_OPT_COMPRESSED_CACHE_SIZE,
+                                 64 * s->cluster_size);
+    if (new_size > 0 && new_size < s->cluster_size) {
+        error_setg(errp, "compressed cache size is too small");
+        return -EINVAL;
+    }
+
+    if (s->compressed_cache && !new_size) {
+        ret = qcow2_compressed_cache_stop_flush(bs, s->compressed_cache);
+        if (ret < 0) {
+            error_report("Failed to flush the compressed write cache: %s",
+                         strerror(-ret));
+            return ret;
+        }
+        qcow2_compressed_cache_free(s->compressed_cache);
+        s->compressed_cache = NULL;
+    } else if (s->compressed_cache) {
+        qcow2_compressed_cache_set_size(s->compressed_cache, new_size);
+    }
+
+    s->compressed_cache_size = new_size;
+
+    return 0;
+}
+
 static int qcow2_update_options_prepare(BlockDriverState *bs,
                                         Qcow2ReopenState *r,
                                         QDict *options, int flags,
@@ -991,6 +1030,11 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
     opts = qemu_opts_create(&qcow2_runtime_opts, NULL, 0, &error_abort);
     if (!qemu_opts_absorb_qdict(opts, options, errp)) {
         ret = -EINVAL;
+        goto fail;
+    }
+
+    ret = qcow2_update_compressed_cache_option(bs, opts, errp);
+    if (ret < 0) {
         goto fail;
     }
 
@@ -2660,6 +2704,17 @@ static int qcow2_inactivate(BlockDriverState *bs)
                           bdrv_get_device_or_node_name(bs));
     }
 
+    if (s->compressed_cache) {
+        ret = qcow2_compressed_cache_stop_flush(bs, s->compressed_cache);
+        if (ret < 0) {
+            result = ret;
+            error_report("Failed to flush the compressed write cache: %s",
+                         strerror(-ret));
+        }
+        qcow2_compressed_cache_free(s->compressed_cache);
+        s->compressed_cache = NULL;
+    }
+
     ret = qcow2_cache_flush(bs, s->l2_table_cache);
     if (ret) {
         result = ret;
@@ -2691,6 +2746,8 @@ static void qcow2_close(BlockDriverState *bs)
     if (!(s->flags & BDRV_O_INACTIVE)) {
         qcow2_inactivate(bs);
     }
+
+    assert(!s->compressed_cache);
 
     cache_clean_timer_del(bs);
     qcow2_cache_destroy(s->l2_table_cache);
@@ -4539,8 +4596,14 @@ qcow2_co_pwritev_compressed_task(BlockDriverState *bs,
         goto fail;
     }
 
-    BLKDBG_EVENT(s->data_file, BLKDBG_WRITE_COMPRESSED);
-    ret = bdrv_co_pwrite(s->data_file, cluster_offset, out_len, out_buf, 0);
+    if (s->compressed_cache) {
+        ret = qcow2_compressed_cache_co_write(s->compressed_cache,
+                                              cluster_offset, out_len, out_buf);
+        out_buf = NULL;
+    } else {
+        BLKDBG_EVENT(s->data_file, BLKDBG_WRITE_COMPRESSED);
+        ret = bdrv_co_pwrite(s->data_file, cluster_offset, out_len, out_buf, 0);
+    }
     if (ret < 0) {
         goto fail;
     }
@@ -4601,6 +4664,12 @@ qcow2_co_pwritev_compressed_part(BlockDriverState *bs,
         return -EINVAL;
     }
 
+    if (!s->compressed_cache && s->compressed_cache_size) {
+        s->compressed_cache =
+            qcow2_compressed_cache_new(s->data_file, s->cluster_size,
+                                       s->compressed_cache_size);
+    }
+
     while (bytes && aio_task_pool_status(aio) == 0) {
         uint64_t chunk_size = MIN(bytes, s->cluster_size);
 
@@ -4656,7 +4725,12 @@ qcow2_co_preadv_compressed(BlockDriverState *bs,
     out_buf = qemu_blockalign(bs, s->cluster_size);
 
     BLKDBG_EVENT(bs->file, BLKDBG_READ_COMPRESSED);
-    ret = bdrv_co_pread(bs->file, coffset, csize, buf, 0);
+    if (s->compressed_cache) {
+        ret = qcow2_compressed_cache_co_read(s->compressed_cache,
+                                             coffset, csize, buf);
+    } else {
+        ret = bdrv_co_pread(bs->file, coffset, csize, buf, 0);
+    }
     if (ret < 0) {
         goto fail;
     }
@@ -4874,6 +4948,13 @@ static coroutine_fn int qcow2_co_flush_to_os(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
     int ret;
+
+    if (s->compressed_cache) {
+        ret = qcow2_compressed_cache_flush(bs, s->compressed_cache);
+        if (ret < 0) {
+            return ret;
+        }
+    }
 
     qemu_co_mutex_lock(&s->lock);
     ret = qcow2_write_caches(bs);

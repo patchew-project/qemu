@@ -150,6 +150,7 @@
 #define QCOW2_OPT_L2_CACHE_ENTRY_SIZE "l2-cache-entry-size"
 #define QCOW2_OPT_REFCOUNT_CACHE_SIZE "refcount-cache-size"
 #define QCOW2_OPT_CACHE_CLEAN_INTERVAL "cache-clean-interval"
+#define QCOW2_OPT_COMPRESSED_CACHE_SIZE "compressed-cache-size"
 
 typedef struct QCowHeader {
     uint32_t magic;
@@ -422,6 +423,9 @@ typedef struct BDRVQcow2State {
      * is to convert the image with the desired compression type set.
      */
     Qcow2CompressionType compression_type;
+
+    uint64_t compressed_cache_size;
+    Qcow2CompressedWriteCache *compressed_cache;
 } BDRVQcow2State;
 
 typedef struct Qcow2COWRegion {
