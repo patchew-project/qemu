@@ -399,6 +399,8 @@ static inline bool virtio_device_disabled(VirtIODevice *vdev)
     return unlikely(vdev->disabled || vdev->broken);
 }
 
+unsigned virtio_queue_get_idx(const VirtIODevice *vdev, const VirtQueue *vq);
+
 bool virtio_legacy_allowed(VirtIODevice *vdev);
 bool virtio_legacy_check_disabled(VirtIODevice *vdev);
 

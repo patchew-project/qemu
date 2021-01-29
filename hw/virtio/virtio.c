@@ -500,6 +500,11 @@ void virtio_queue_set_notification(VirtQueue *vq, int enable)
     }
 }
 
+unsigned virtio_queue_get_idx(const VirtIODevice *vdev, const VirtQueue *vq)
+{
+    return vq - vdev->vq;
+}
+
 int virtio_queue_ready(VirtQueue *vq)
 {
     return vq->vring.avail != 0;
