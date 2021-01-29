@@ -19,9 +19,11 @@
 #
 
 import statistics
+import time
 
 
-def bench_one(test_func, test_env, test_case, count=5, initial_run=True):
+def bench_one(test_func, test_env, test_case, count=5, initial_run=True,
+              slow_limit=100):
     """Benchmark one test-case
 
     test_func   -- benchmarking function with prototype
@@ -36,6 +38,8 @@ def bench_one(test_func, test_env, test_case, count=5, initial_run=True):
     test_case   -- test case - opaque second argument for test_func
     count       -- how many times to call test_func, to calculate average
     initial_run -- do initial run of test_func, which don't get into result
+    slow_limit  -- reduce test runs to 2, if current run exceedes the limit
+                   (in seconds)
 
     Returns dict with the following fields:
         'runs':     list of test_func results
@@ -47,16 +51,33 @@ def bench_one(test_func, test_env, test_case, count=5, initial_run=True):
         'n-failed': number of failed runs (exists only if at least one run
                     failed)
     """
-    if initial_run:
-        print('  #initial run:')
-        print('   ', test_func(test_env, test_case))
-
     runs = []
-    for i in range(count):
+    i = 0
+    if initial_run:
+        t = time.time()
+
+        print('  #initial run:')
+        res = test_func(test_env, test_case)
+        print('   ', res)
+
+        if time.time() - t > 50:
+            print('    - initial run is too slow, so it counts')
+            runs.append(res)
+            i = 1
+
+    for i in range(i, count):
+        t = time.time()
+
         print('  #run {}'.format(i+1))
         res = test_func(test_env, test_case)
         print('   ', res)
         runs.append(res)
+
+        if time.time() - t > 50 and len(runs) >= 2:
+            print('    - run is too slow, and we have enough runs, stop here')
+            break
+
+    count = len(runs)
 
     result = {'runs': runs}
 
