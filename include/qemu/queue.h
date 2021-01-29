@@ -173,6 +173,13 @@ struct {                                                                \
                 (var) && ((next_var) = ((var)->field.le_next), 1);      \
                 (var) = (next_var))
 
+#define QLIST_FOREACH_FUNC_SAFE(head, field, func) do {                 \
+    typeof(*QLIST_FIRST(head)) *qffs_var, *qffs_next_var;               \
+    QLIST_FOREACH_SAFE(qffs_var, (head), field, qffs_next_var) {        \
+        (func)(qffs_var);                                               \
+    }                                                                   \
+} while (/*CONSTCOND*/0)
+
 /*
  * List access methods.
  */
@@ -489,6 +496,13 @@ union {                                                                 \
         for ((var) = QTAILQ_LAST(head);                                 \
              (var) && ((prev_var) = QTAILQ_PREV(var, field), 1);        \
              (var) = (prev_var))
+
+#define QTAILQ_FOREACH_FUNC_SAFE(head, field, func) do {                \
+    typeof(*QTAILQ_FIRST(head)) *qffs_var, *qffs_next_var;              \
+    QTAILQ_FOREACH_SAFE(qffs_var, (head), field, qffs_next_var) {       \
+        (func)(qffs_var);                                               \
+    }                                                                   \
+} while (/*CONSTCOND*/0)
 
 /*
  * Tail queue access methods.
