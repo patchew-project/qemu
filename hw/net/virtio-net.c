@@ -2699,6 +2699,31 @@ static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue)
     virtio_net_set_queues(n);
 }
 
+static bool virtio_net_set_vq_handler(VirtIODevice *vdev, unsigned int i,
+                                      VirtIOHandleOutput handle_output)
+{
+    const VirtIONet *n = VIRTIO_NET(vdev);
+    const unsigned max_queues = n->multiqueue ? n->max_queues : 1;
+    VirtQueue *vq;
+
+    /* Reset control queue also not supported */
+    assert(i < max_queues * 2);
+
+    vq = virtio_get_queue(vdev, i);
+    if (handle_output == NULL) {
+        if (i % 2) {
+            handle_output = virtio_net_handle_rx;
+        } else {
+            const VirtIONetQueue *q = &n->vqs[i / 2];
+            handle_output = q->tx_timer ? virtio_net_handle_tx_timer
+                                        : virtio_net_handle_tx_bh;
+        }
+    }
+
+    virtqueue_set_handler(vq, handle_output);
+    return true;
+}
+
 static int virtio_net_post_load_device(void *opaque, int version_id)
 {
     VirtIONet *n = opaque;
@@ -3519,6 +3544,7 @@ static void virtio_net_class_init(ObjectClass *klass, void *data)
     vdc->set_status = virtio_net_set_status;
     vdc->guest_notifier_mask = virtio_net_guest_notifier_mask;
     vdc->guest_notifier_pending = virtio_net_guest_notifier_pending;
+    vdc->set_vq_handler = virtio_net_set_vq_handler;
     vdc->legacy_features |= (0x1 << VIRTIO_NET_F_GSO);
     vdc->post_load = virtio_net_post_load_virtio;
     vdc->vmsd = &vmstate_virtio_net_device;

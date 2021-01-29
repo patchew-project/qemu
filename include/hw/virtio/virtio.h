@@ -149,6 +149,11 @@ struct VirtioDeviceClass {
     void (*guest_notifier_mask)(VirtIODevice *vdev, int n, bool mask);
     int (*start_ioeventfd)(VirtIODevice *vdev);
     void (*stop_ioeventfd)(VirtIODevice *vdev);
+    /*
+     * Set handler for a vq. NULL handler for reset to default.
+     */
+    bool (*set_vq_handler)(VirtIODevice *vdev, unsigned int n,
+                           VirtIOHandleOutput handle_output);
     /* Saving and loading of a device; trying to deprecate save/load
      * use vmsd for new devices.
      */
