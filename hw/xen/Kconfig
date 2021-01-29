@@ -4,3 +4,4 @@ config XEN_PV
     select PCI
     select USB
     select IDE_PIIX
+    select FSDEV_9P if VIRTFS
