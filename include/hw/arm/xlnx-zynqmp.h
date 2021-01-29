@@ -36,7 +36,7 @@
 #include "qom/object.h"
 #include "net/can_emu.h"
 
-#define TYPE_XLNX_ZYNQMP "xlnx,zynqmp"
+#define TYPE_XLNX_ZYNQMP "xlnx-zynqmp"
 OBJECT_DECLARE_SIMPLE_TYPE(XlnxZynqMPState, XLNX_ZYNQMP)
 
 #define XLNX_ZYNQMP_NUM_APU_CPUS 4
