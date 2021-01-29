@@ -78,6 +78,29 @@
 { 'command': 'netdev_del', 'data': {'id': 'str'} }
 
 ##
+# @x-vhost-enable-shadow-vq:
+#
+# Use vhost shadow virtqueue.
+#
+# @name: the device name of the virtual network adapter
+#
+# @enable: true to use he alternate shadow VQ notification path
+#
+# Returns: Error if failure, or 'no error' for success
+#
+# Since: 5.3
+#
+# Example:
+#
+# -> { "execute": "x-vhost_enable_shadow_vq", "arguments": {"enable": true} }
+# <- { "return": { "enabled" : true } }
+#
+##
+{ 'command': 'x-vhost-enable-shadow-vq',
+  'data': {'name': 'str', 'enable': 'bool'},
+  'if': 'defined(CONFIG_VHOST_KERNEL)' }
+
+##
 # @NetLegacyNicOptions:
 #
 # Create a new Network Interface Card.
