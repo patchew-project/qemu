@@ -11,6 +11,11 @@ config ARM_V6
     depends on TCG
     select ARM_COMPATIBLE_SEMIHOSTING
 
+config ARM_V7R
+    bool
+    depends on TCG
+    select ARM_COMPATIBLE_SEMIHOSTING
+
 config ARM_VIRT
     bool
     imply PCI_DEVICES
@@ -375,8 +380,10 @@ config STM32F405_SOC
 
 config XLNX_ZYNQMP_ARM
     bool
+    default y if TCG
     select AHCI
     select ARM_GIC
+    select ARM_V7R
     select CADENCE
     select DDC
     select DPCD
