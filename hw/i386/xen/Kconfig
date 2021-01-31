@@ -1,0 +1,5 @@
+config XEN_FV
+    bool
+    default y if XEN
+    depends on XEN
+    select I440FX
