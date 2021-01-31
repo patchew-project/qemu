@@ -224,8 +224,8 @@ int main(int argc, char **argv)
         const char *armmachines[] = {
 #ifdef CONFIG_TCG
             "realview-eb",
-#endif /* CONFIG_TCG */
             "realview-eb-mpcore",
+#endif /* CONFIG_TCG */
             "realview-pb-a8",
             "realview-pbx-a9", "versatileab", "versatilepb", "vexpress-a15",
             "vexpress-a9", "virt", NULL
