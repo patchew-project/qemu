@@ -13,8 +13,10 @@ void tcg_exec_init(unsigned long tb_size, int splitwx);
 #ifdef CONFIG_TCG
 extern bool tcg_allowed;
 #define tcg_enabled() (tcg_allowed)
+#define tcg_builtin() 1
 #else
 #define tcg_enabled() 0
+#define tcg_builtin() 0
 #endif
 
 #endif
