@@ -6,6 +6,10 @@ config AARCH64
     bool
     select ARM
 
+config ARM_V4
+    bool
+    depends on TCG && ARM
+
 config ARM_V7M
     bool
     select PTIMER
