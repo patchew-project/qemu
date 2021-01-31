@@ -60,6 +60,7 @@ config EXYNOS4
 
 config HIGHBANK
     bool
+    default y if TCG && ARM
     select A9MPCORE
     select A15MPCORE
     select AHCI
@@ -95,6 +96,7 @@ config MAINSTONE
 
 config MUSCA
     bool
+    default y if TCG && ARM
     select ARMSSE
     select PL011
     select PL031
@@ -115,10 +117,12 @@ config MUSICPAL
 
 config NETDUINO2
     bool
+    default y if TCG && ARM
     select STM32F205_SOC
 
 config NETDUINOPLUS2
     bool
+    default y if TCG && ARM
     select STM32F405_SOC
 
 config NSERIES
@@ -240,6 +244,7 @@ config SABRELITE
 
 config STELLARIS
     bool
+    default y if TCG && ARM
     select ARM_V7M
     select CMSDK_APB_WATCHDOG
     select I2C
@@ -443,6 +448,7 @@ config ASPEED_SOC
 
 config MPS2
     bool
+    default y if TCG && ARM
     select ARMSSE
     select LAN9118
     select MPS2_FPGAIO
@@ -496,6 +502,7 @@ config NRF51_SOC
 
 config EMCRAFT_SF2
     bool
+    default y if TCG && ARM
     select MSF2
     select SSI_M25P80
 

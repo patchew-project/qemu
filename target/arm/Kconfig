@@ -24,4 +24,5 @@ config ARM_V7R
 
 config ARM_V7M
     bool
+    depends on TCG && ARM
     select PTIMER
