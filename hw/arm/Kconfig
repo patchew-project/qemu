@@ -39,6 +39,7 @@ config CHEETAH
 
 config CUBIEBOARD
     bool
+    default y if TCG && ARM
     select ALLWINNER_A10
 
 config DIGIC
@@ -50,6 +51,7 @@ config DIGIC
 
 config EXYNOS4
     bool
+    default y if TCG && ARM
     select A9MPCORE
     select I2C
     select LAN9118
@@ -198,6 +200,7 @@ config Z2
 
 config REALVIEW
     bool
+    default y if TCG && ARM
     imply PCI_DEVICES
     imply PCI_TESTDEV
     select SMC91C111
@@ -241,6 +244,7 @@ config SBSA_REF
 
 config SABRELITE
     bool
+    default y if TCG && ARM
     select FSL_IMX6
     select SSI_M25P80
 
@@ -292,6 +296,7 @@ config VERSATILE
 
 config VEXPRESS
     bool
+    default y if TCG && ARM
     select A9MPCORE
     select A15MPCORE
     select ARM_MPTIMER
@@ -307,6 +312,7 @@ config VEXPRESS
 
 config ZYNQ
     bool
+    default y if TCG && ARM
     select A9MPCORE
     select CADENCE # UART
     select PFLASH_CFI02
@@ -331,6 +337,7 @@ config ALLWINNER_A10
 
 config ALLWINNER_H3
     bool
+    default y if TCG && ARM
     select ALLWINNER_A10_PIT
     select ALLWINNER_SUN8I_EMAC
     select SERIAL
@@ -395,6 +402,7 @@ config XLNX_VERSAL
 
 config NPCM7XX
     bool
+    default y if TCG && ARM
     select A9MPCORE
     select ARM_GIC
     select PL310  # cache controller
@@ -424,6 +432,7 @@ config FSL_IMX31
 
 config FSL_IMX6
     bool
+    default y if TCG && ARM
     select A9MPCORE
     select IMX
     select IMX_FEC
@@ -467,6 +476,7 @@ config MPS2
 
 config FSL_IMX7
     bool
+    default y if TCG && ARM
     imply PCI_DEVICES
     imply TEST_DEVICES
     select A15MPCORE
@@ -484,6 +494,7 @@ config ARM_SMMUV3
 
 config FSL_IMX6UL
     bool
+    default y if TCG && ARM
     select A15MPCORE
     select IMX
     select IMX_FEC
