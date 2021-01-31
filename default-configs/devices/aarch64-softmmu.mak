@@ -2,6 +2,3 @@
 
 # We support all the 32 bit boards so need all their config
 include arm-softmmu.mak
-
-CONFIG_XLNX_VERSAL=y
-CONFIG_SBSA_REF=y

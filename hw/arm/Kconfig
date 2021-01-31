@@ -1,5 +1,6 @@
 config ARM_VIRT
     bool
+    default y if ARM
     imply PCI_DEVICES
     imply TEST_DEVICES
     imply VFIO_AMD_XGBE
@@ -224,6 +225,7 @@ config REALVIEW
 
 config SBSA_REF
     bool
+    default y if AARCH64
     imply PCI_DEVICES
     select AHCI
     select ARM_SMMUV3
@@ -341,6 +343,7 @@ config ALLWINNER_H3
 
 config RASPI
     bool
+    default y if ARM
     select FRAMEBUFFER
     select PL011 # UART
     select SDHCI
@@ -382,6 +385,7 @@ config XLNX_ZYNQMP_ARM
 
 config XLNX_VERSAL
     bool
+    default y if AARCH64
     select ARM_GIC
     select PL011
     select CADENCE
