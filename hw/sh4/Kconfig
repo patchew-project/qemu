@@ -9,16 +9,16 @@ config R2D
     select USB_OHCI_PCI
     select PCI
     select SM501
-    select SH4
+    select SH4_PERIPHERALS
 
 config SHIX
     bool
     select SH7750
-    select SH4
+    select SH4_PERIPHERALS
 
 config SH7750
     bool
 
-config SH4
+config SH4_PERIPHERALS
     bool
     select PTIMER
