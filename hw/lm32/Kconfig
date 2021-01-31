@@ -1,4 +1,4 @@
-config LM32
+config LM32_PERIPHERALS
     bool
     select PTIMER
 
@@ -14,5 +14,5 @@ config MILKYMIST
 
 config LM32_EVR
     bool
-    select LM32
+    select LM32_PERIPHERALS
     select PFLASH_CFI02
