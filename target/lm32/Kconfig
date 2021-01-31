@@ -1,2 +1,3 @@
 config LM32
     bool
+    select SEMIHOSTING

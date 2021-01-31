@@ -1,2 +1,3 @@
 config UNICORE32
     bool
+    select SEMIHOSTING
