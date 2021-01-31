@@ -222,7 +222,11 @@ int main(int argc, char **argv)
         add_cdrom_param_tests(mips64machines);
     } else if (g_str_equal(arch, "arm") || g_str_equal(arch, "aarch64")) {
         const char *armmachines[] = {
-            "realview-eb", "realview-eb-mpcore", "realview-pb-a8",
+#ifdef CONFIG_TCG
+            "realview-eb",
+#endif /* CONFIG_TCG */
+            "realview-eb-mpcore",
+            "realview-pb-a8",
             "realview-pbx-a9", "versatileab", "versatilepb", "vexpress-a15",
             "vexpress-a9", "virt", NULL
         };
