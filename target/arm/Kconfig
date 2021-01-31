@@ -18,6 +18,10 @@ config ARM_V6
     bool
     depends on TCG && ARM
 
+config ARM_V7R
+    bool
+    depends on TCG && ARM
+
 config ARM_V7M
     bool
     select PTIMER
