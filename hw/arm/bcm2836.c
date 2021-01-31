@@ -219,20 +219,6 @@ static void bcm2837_class_init(ObjectClass *oc, void *data)
 
 static const TypeInfo bcm283x_types[] = {
     {
-        .name           = TYPE_BCM2835,
-        .parent         = TYPE_BCM283X,
-        .class_init     = bcm2835_class_init,
-    }, {
-        .name           = TYPE_BCM2836,
-        .parent         = TYPE_BCM283X,
-        .class_init     = bcm2836_class_init,
-#ifdef TARGET_AARCH64
-    }, {
-        .name           = TYPE_BCM2837,
-        .parent         = TYPE_BCM283X,
-        .class_init     = bcm2837_class_init,
-#endif
-    }, {
         .name           = TYPE_BCM283X,
         .parent         = TYPE_DEVICE,
         .instance_size  = sizeof(BCM283XState),
@@ -240,7 +226,23 @@ static const TypeInfo bcm283x_types[] = {
         .class_size     = sizeof(BCM283XClass),
         .class_init     = bcm283x_class_init,
         .abstract       = true,
-    }
+    },
+    {
+        .name           = TYPE_BCM2835,
+        .parent         = TYPE_BCM283X,
+        .class_init     = bcm2835_class_init,
+    }, {
+        .name           = TYPE_BCM2836,
+        .parent         = TYPE_BCM283X,
+        .class_init     = bcm2836_class_init,
+    },
+#ifdef TARGET_AARCH64
+    {
+        .name           = TYPE_BCM2837,
+        .parent         = TYPE_BCM283X,
+        .class_init     = bcm2837_class_init,
+    },
+#endif
 };
 
 DEFINE_TYPES(bcm283x_types)
