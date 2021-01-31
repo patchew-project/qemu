@@ -1,7 +1,3 @@
-config SEV
-    bool
-    depends on KVM
-
 config PC
     bool
     imply APPLESMC

@@ -3,3 +3,7 @@ config I386
 
 config X86_64
     bool
+
+config SEV
+    bool
+    depends on KVM && I386
