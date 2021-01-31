@@ -1,5 +1,6 @@
 config ARM
     bool
+    select ARM_COMPATIBLE_SEMIHOSTING
 
 config AARCH64
     bool
