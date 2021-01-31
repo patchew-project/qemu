@@ -319,6 +319,7 @@ static void raspi_machine_class_common_init(MachineClass *mc,
     mc->default_ram_id = "ram";
 };
 
+#ifdef CONFIG_TCG
 static void raspi0_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -346,6 +347,7 @@ static void raspi2b_machine_class_init(ObjectClass *oc, void *data)
     rmc->board_rev = 0xa21041;
     raspi_machine_class_common_init(mc, rmc->board_rev);
 };
+#endif /* CONFIG_TCG */
 
 #ifdef TARGET_AARCH64
 static void raspi3ap_machine_class_init(ObjectClass *oc, void *data)
@@ -376,6 +378,7 @@ static const TypeInfo raspi_machine_types[] = {
         .class_size     = sizeof(RaspiMachineClass),
         .abstract       = true,
     },
+#ifdef CONFIG_TCG
     {
         .name           = MACHINE_TYPE_NAME("raspi0"),
         .parent         = TYPE_RASPI_MACHINE,
@@ -389,6 +392,7 @@ static const TypeInfo raspi_machine_types[] = {
         .parent         = TYPE_RASPI_MACHINE,
         .class_init     = raspi2b_machine_class_init,
     },
+#endif /* CONFIG_TCG */
 #ifdef TARGET_AARCH64
     {
         .name           = MACHINE_TYPE_NAME("raspi3ap"),

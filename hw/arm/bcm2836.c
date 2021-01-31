@@ -89,6 +89,7 @@ static bool bcm283x_common_realize(DeviceState *dev, Error **errp)
     return true;
 }
 
+#ifdef CONFIG_TCG
 static void bcm2835_realize(DeviceState *dev, Error **errp)
 {
     BCM283XState *s = BCM283X(dev);
@@ -107,6 +108,7 @@ static void bcm2835_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->peripherals), 1,
             qdev_get_gpio_in(DEVICE(&s->cpu[0].core), ARM_CPU_FIQ));
 }
+#endif /* CONFIG_TCG */
 
 static void bcm2836_realize(DeviceState *dev, Error **errp)
 {
@@ -178,6 +180,7 @@ static void bcm283x_class_init(ObjectClass *oc, void *data)
     dc->user_creatable = false;
 }
 
+#ifdef CONFIG_TCG
 static void bcm2835_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -201,6 +204,7 @@ static void bcm2836_class_init(ObjectClass *oc, void *data)
     bc->clusterid = 0xf;
     dc->realize = bcm2836_realize;
 };
+#endif /* CONFIG_TCG */
 
 #ifdef TARGET_AARCH64
 static void bcm2837_class_init(ObjectClass *oc, void *data)
@@ -227,6 +231,7 @@ static const TypeInfo bcm283x_types[] = {
         .class_init     = bcm283x_class_init,
         .abstract       = true,
     },
+#ifdef CONFIG_TCG
     {
         .name           = TYPE_BCM2835,
         .parent         = TYPE_BCM283X,
@@ -236,6 +241,7 @@ static const TypeInfo bcm283x_types[] = {
         .parent         = TYPE_BCM283X,
         .class_init     = bcm2836_class_init,
     },
+#endif /* CONFIG_TCG */
 #ifdef TARGET_AARCH64
     {
         .name           = TYPE_BCM2837,
