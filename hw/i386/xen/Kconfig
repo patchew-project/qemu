@@ -3,3 +3,4 @@ config XEN_FV
     default y if XEN
     depends on XEN
     select I440FX
+    select FSDEV_9P if VIRTFS
