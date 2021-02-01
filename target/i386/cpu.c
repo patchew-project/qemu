@@ -5431,17 +5431,25 @@ static void x86_register_cpu_model_type(const char *name, X86CPUModel *model)
     type_register(&ti);
 }
 
-static void x86_register_cpudef_types(X86CPUDefinition *def)
+/* Sanity check CPU model definition before registering it */
+static void x86_cpudef_validate(X86CPUDefinition *def)
 {
-    X86CPUModel *m;
-    const X86CPUVersionDefinition *vdef;
-
+#ifndef NDEBUG
     /* AMD aliases are handled at runtime based on CPUID vendor, so
      * they shouldn't be set on the CPU model table.
      */
     assert(!(def->features[FEAT_8000_0001_EDX] & CPUID_EXT2_AMD_ALIASES));
     /* catch mistakes instead of silently truncating model_id when too long */
     assert(def->model_id && strlen(def->model_id) <= 48);
+#endif
+}
+
+static void x86_register_cpudef_types(X86CPUDefinition *def)
+{
+    X86CPUModel *m;
+    const X86CPUVersionDefinition *vdef;
+
+    x86_cpudef_validate(def);
 
     /* Unversioned model: */
     m = g_new0(X86CPUModel, 1);
