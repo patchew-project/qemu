@@ -624,8 +624,6 @@ static void mips_cpu_realizefn(DeviceState *dev, Error **errp)
     mvp_init(env);
 
     cpu_reset(cs);
-    qemu_init_vcpu(cs);
-
     mcc->parent_realize(dev, errp);
 }
 
