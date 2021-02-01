@@ -5435,12 +5435,27 @@ static void x86_register_cpu_model_type(const char *name, X86CPUModel *model)
 static void x86_cpudef_validate(X86CPUDefinition *def)
 {
 #ifndef NDEBUG
+    FeatureWord w;
+    int bitnr;
+
     /* AMD aliases are handled at runtime based on CPUID vendor, so
      * they shouldn't be set on the CPU model table.
      */
     assert(!(def->features[FEAT_8000_0001_EDX] & CPUID_EXT2_AMD_ALIASES));
     /* catch mistakes instead of silently truncating model_id when too long */
     assert(def->model_id && strlen(def->model_id) <= 48);
+
+    /*
+     * CPU models must enable only features with valid names, otherwise
+     * error reporting and query-cpu-model-expansion can't work correctly.
+     */
+    for (w = 0; w < FEATURE_WORDS; w++) {
+        for (bitnr = 0; bitnr < 64; bitnr++) {
+            uint64_t mask = (1ULL << bitnr);
+            assert(!(def->features[w] & mask) ||
+                   feature_word_info[w].feat_names[bitnr]);
+        }
+    }
 #endif
 }
 
