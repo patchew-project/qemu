@@ -1,5 +1,6 @@
 /*
  * Accelerator interface, specializes CPUClass
+ * This header is used only by target-specific code.
  *
  * Copyright 2021 SUSE LLC
  *
@@ -11,10 +12,12 @@
 #define ACCEL_CPU_H
 
 /*
- * these defines cannot be in cpu.h, because we are using
- * CPU_RESOLVING_TYPE here.
- * Use this header to define your accelerator-specific
- * cpu-specific accelerator interfaces.
+ * This header is used to define new accelerator-specific target-specific
+ * accelerator cpu subclasses.
+ * It uses CPU_RESOLVING_TYPE, so this is clearly target-specific.
+ *
+ * Do not try to use for any other purpose than the implementation of new
+ * subclasses in target/, or the accel implementation itself in accel/
  */
 
 #define TYPE_ACCEL_CPU "accel-" CPU_RESOLVING_TYPE
