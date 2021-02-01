@@ -1,0 +1,7 @@
+config XEN_PV
+    bool
+    default y if XEN
+    depends on XEN
+    select PCI
+    select USB
+    select IDE_PIIX
