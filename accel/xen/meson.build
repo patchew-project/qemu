@@ -1,1 +1,4 @@
-specific_ss.add(when: 'CONFIG_XEN', if_true: files('xen-all.c'))
+specific_ss.add(when: 'CONFIG_XEN', if_true: files(
+  'xen-all.c',
+  'xen-mapcache.c',
+))

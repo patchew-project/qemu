@@ -1706,6 +1706,9 @@ trace_events_subdirs = [
   'crypto',
   'monitor',
 ]
+if 'CONFIG_XEN' in accelerators
+  trace_events_subdirs += [ 'accel/xen' ]
+endif
 if have_user
   trace_events_subdirs += [ 'linux-user' ]
 endif
