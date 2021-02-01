@@ -28,7 +28,6 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qemu/range.h"
-#include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/xen.h"
 #include "trace.h"
@@ -1568,18 +1567,6 @@ void destroy_hvm_domain(bool reboot)
 void xen_register_framebuffer(MemoryRegion *mr)
 {
     framebuffer = mr;
-}
-
-void xen_shutdown_fatal_error(const char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    va_end(ap);
-    fprintf(stderr, "Will destroy the domain.\n");
-    /* destroy the domain */
-    qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_ERROR);
 }
 
 void xen_hvm_modified_memory(ram_addr_t start, ram_addr_t length)
