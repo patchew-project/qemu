@@ -190,6 +190,7 @@ struct CPUClass {
     /* Keep non-pointer data at the end to minimize holes.  */
     int gdb_num_core_regs;
     bool gdb_stop_before_watchpoint;
+    struct AccelCPUClass *accel_cpu;
 
     /*
      * NB: this should be wrapped by CONFIG_TCG, but it is unsafe to do it here,
