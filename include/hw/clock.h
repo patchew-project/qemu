@@ -27,6 +27,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(Clock, CLOCK)
  * has been called.
  */
 typedef enum ClockEvent {
+    ClockPreUpdate, /* Clock period is about to update */
     ClockUpdate, /* Clock period has just updated */
 } ClockEvent;
 
