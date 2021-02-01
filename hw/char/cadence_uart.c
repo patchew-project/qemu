@@ -519,10 +519,13 @@ static void cadence_uart_realize(DeviceState *dev, Error **errp)
                              uart_event, NULL, s, NULL, true);
 }
 
-static void cadence_uart_refclk_update(void *opaque)
+static void cadence_uart_refclk_update(void *opaque, ClockEvent event)
 {
     CadenceUARTState *s = opaque;
 
+    if (event != ClockUpdate) {
+        return;
+    }
     /* recompute uart's speed on clock change */
     uart_parameters_setup(s);
 }

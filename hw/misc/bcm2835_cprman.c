@@ -107,8 +107,11 @@ static void pll_update(CprmanPllState *pll)
     clock_update_hz(pll->out, freq);
 }
 
-static void pll_xosc_update(void *opaque)
+static void pll_xosc_update(void *opaque, ClockEvent event)
 {
+    if (event != ClockUpdate) {
+        return;
+    }
     pll_update(CPRMAN_PLL(opaque));
 }
 
@@ -209,8 +212,11 @@ static void pll_update_all_channels(BCM2835CprmanState *s,
     }
 }
 
-static void pll_channel_pll_in_update(void *opaque)
+static void pll_channel_pll_in_update(void *opaque, ClockEvent event)
 {
+    if (event != ClockUpdate) {
+        return;
+    }
     pll_channel_update(CPRMAN_PLL_CHANNEL(opaque));
 }
 
@@ -303,12 +309,15 @@ static void clock_mux_update(CprmanClockMuxState *mux)
     clock_update_hz(mux->out, freq);
 }
 
-static void clock_mux_src_update(void *opaque)
+static void clock_mux_src_update(void *opaque, ClockEvent event)
 {
     CprmanClockMuxState **backref = opaque;
     CprmanClockMuxState *s = *backref;
     CprmanClockMuxSource src = backref - s->backref;
 
+    if (event != ClockUpdate) {
+        return;
+    }
     if (FIELD_EX32(*s->reg_ctl, CM_CLOCKx_CTL, SRC) != src) {
         return;
     }
@@ -380,8 +389,11 @@ static void dsi0hsck_mux_update(CprmanDsi0HsckMuxState *s)
     clock_update(s->out, clock_get(src));
 }
 
-static void dsi0hsck_mux_in_update(void *opaque)
+static void dsi0hsck_mux_in_update(void *opaque, ClockEvent event)
 {
+    if (event != ClockUpdate) {
+        return;
+    }
     dsi0hsck_mux_update(CPRMAN_DSI0HSCK_MUX(opaque));
 }
 

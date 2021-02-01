@@ -73,7 +73,7 @@ static void clock_propagate_period(Clock *clk, bool call_callbacks)
                                CLOCK_PERIOD_TO_HZ(clk->period),
                                call_callbacks);
             if (call_callbacks && child->callback) {
-                child->callback(child->callback_opaque);
+                child->callback(child->callback_opaque, ClockUpdate);
             }
             clock_propagate_period(child, call_callbacks);
         }

@@ -307,9 +307,13 @@ static void zynq_slcr_propagate_clocks(ZynqSLCRState *s)
     clock_propagate(s->uart1_ref_clk);
 }
 
-static void zynq_slcr_ps_clk_callback(void *opaque)
+static void zynq_slcr_ps_clk_callback(void *opaque, ClockEvent event)
 {
     ZynqSLCRState *s = (ZynqSLCRState *) opaque;
+
+    if (event != ClockUpdate) {
+        return;
+    }
     zynq_slcr_compute_clocks(s);
     zynq_slcr_propagate_clocks(s);
 }

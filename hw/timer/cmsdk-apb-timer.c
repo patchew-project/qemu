@@ -204,10 +204,13 @@ static void cmsdk_apb_timer_reset(DeviceState *dev)
     ptimer_transaction_commit(s->timer);
 }
 
-static void cmsdk_apb_timer_clk_update(void *opaque)
+static void cmsdk_apb_timer_clk_update(void *opaque, ClockEvent event)
 {
     CMSDKAPBTimer *s = CMSDK_APB_TIMER(opaque);
 
+    if (event != ClockUpdate) {
+        return;
+    }
     ptimer_transaction_begin(s->timer);
     ptimer_set_period_from_clock(s->timer, s->pclk, 1);
     ptimer_transaction_commit(s->timer);

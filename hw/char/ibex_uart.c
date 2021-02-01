@@ -396,10 +396,13 @@ static void ibex_uart_write(void *opaque, hwaddr addr,
     }
 }
 
-static void ibex_uart_clk_update(void *opaque)
+static void ibex_uart_clk_update(void *opaque, ClockEvent event)
 {
     IbexUartState *s = opaque;
 
+    if (event != ClockUpdate) {
+        return;
+    }
     /* recompute uart's speed on clock change */
     uint64_t baud = ibex_uart_get_baud(s);
 

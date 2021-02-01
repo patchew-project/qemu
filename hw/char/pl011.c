@@ -309,10 +309,13 @@ static void pl011_event(void *opaque, QEMUChrEvent event)
         pl011_put_fifo(opaque, 0x400);
 }
 
-static void pl011_clock_update(void *opaque)
+static void pl011_clock_update(void *opaque, ClockEvent event)
 {
     PL011State *s = PL011(opaque);
 
+    if (event != ClockUpdate) {
+        return;
+    }
     pl011_trace_baudrate_change(s);
 }
 

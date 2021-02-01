@@ -449,11 +449,14 @@ static void cmsdk_apb_dualtimer_reset(DeviceState *dev)
     s->timeritop = 0;
 }
 
-static void cmsdk_apb_dualtimer_clk_update(void *opaque)
+static void cmsdk_apb_dualtimer_clk_update(void *opaque, ClockEvent event)
 {
     CMSDKAPBDualTimer *s = CMSDK_APB_DUALTIMER(opaque);
     int i;
 
+    if (event != ClockUpdate) {
+        return;
+    }
     for (i = 0; i < ARRAY_SIZE(s->timermod); i++) {
         CMSDKAPBDualTimerModule *m = &s->timermod[i];
         ptimer_transaction_begin(m->timer);

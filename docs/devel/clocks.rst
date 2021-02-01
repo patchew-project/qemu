@@ -113,7 +113,7 @@ output.
      * callback for the input clock (see "Callback on input clock
      * change" section below for more information).
      */
-    static void clk_in_callback(void *opaque);
+    static void clk_in_callback(void *opaque, ClockEvent event);
 
     /*
      * static array describing clocks:
@@ -152,6 +152,34 @@ change (for example the main clock source of a board), then you'll have
 nothing else to do. This value will be propagated to other clocks when
 connecting the clocks together and devices will fetch the right value during
 the first reset.
+
+Clock callbacks
+---------------
+
+You can give a clock a callback function in several ways:
+
+ * by passing it as an argument to ``qdev_init_clock_in()``
+ * as an argument to the ``QDEV_CLOCK_IN()`` macro initializing an
+   array to be passed to ``qdev_init_clocks()``
+ * by directly calling the ``clock_set_callback()`` function
+
+The callback function must be of this type:
+
+.. code-block:: c
+
+   typedef void ClockCallback(void *opaque, ClockEvent event);
+
+The ``opaque`` argument is the pointer passed to ``qdev_init_clock_in()``
+or ``clock_set_callback()``; for ``qdev_init_clocks()`` it is the
+``dev`` device pointer.
+
+The ``event`` argument specifies why the callback has been called.
+Callback functions should check this and only do something for
+specific events they need to handle, so that if in future different
+events are added the callback code doesn't need to be updated.
+The events currently supported are:
+
+ * ``ClockUpdate`` : called after the input clock's period has changed
 
 Retrieving clocks from a device
 -------------------------------
@@ -271,12 +299,15 @@ Here is an example:
 
 .. code-block:: c
 
-    void clock_callback(void *opaque) {
+    void clock_callback(void *opaque, ClockEvent event) {
         MyDeviceState *s = (MyDeviceState *) opaque;
         /*
          * 'opaque' is the argument passed to qdev_init_clock_in();
          * usually this will be the device state pointer.
          */
+        if (event != ClockUpdate) {
+            return;
+        }
 
         /* do something with the new period */
         fprintf(stdout, "device new period is %" PRIu64 "* 2^-32 ns\n",

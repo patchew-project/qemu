@@ -310,10 +310,13 @@ static void cmsdk_apb_watchdog_reset(DeviceState *dev)
     ptimer_transaction_commit(s->timer);
 }
 
-static void cmsdk_apb_watchdog_clk_update(void *opaque)
+static void cmsdk_apb_watchdog_clk_update(void *opaque, ClockEvent event)
 {
     CMSDKAPBWatchdog *s = CMSDK_APB_WATCHDOG(opaque);
 
+    if (event != ClockUpdate) {
+        return;
+    }
     ptimer_transaction_begin(s->timer);
     ptimer_set_period_from_clock(s->timer, s->wdogclk, 1);
     ptimer_transaction_commit(s->timer);

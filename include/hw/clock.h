@@ -22,7 +22,15 @@
 #define TYPE_CLOCK "clock"
 OBJECT_DECLARE_SIMPLE_TYPE(Clock, CLOCK)
 
-typedef void ClockCallback(void *opaque);
+/*
+ * Argument to ClockCallback functions indicating why the callback
+ * has been called.
+ */
+typedef enum ClockEvent {
+    ClockUpdate, /* Clock period has just updated */
+} ClockEvent;
+
+typedef void ClockCallback(void *opaque, ClockEvent event);
 
 /*
  * clock store a value representing the clock's period in 2^-32ns unit.
