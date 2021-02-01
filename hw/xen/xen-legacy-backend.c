@@ -33,6 +33,7 @@
 #include "hw/xen/xen-legacy-backend.h"
 #include "hw/xen/xen_pvdev.h"
 #include "monitor/qdev.h"
+#include CONFIG_DEVICES
 
 DeviceState *xen_sysdev;
 BusState *xen_sysbus;
@@ -750,7 +751,7 @@ void xen_be_register_common(void)
 
     xen_be_register("console", &xen_console_ops);
     xen_be_register("vkbd", &xen_kbdmouse_ops);
-#ifdef CONFIG_VIRTFS
+#ifdef CONFIG_FSDEV_9P
     xen_be_register("9pfs", &xen_9pfs_ops);
 #endif
 #ifdef CONFIG_USB_LIBUSB
