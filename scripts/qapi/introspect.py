@@ -97,6 +97,13 @@ class Annotated(Generic[_NodeT]):
 def _tree_to_qlit(obj: TreeValue,
                   level: int = 0,
                   suppress_first_indent: bool = False) -> str:
+    """
+    Convert the type tree into a QLIT C string, recursively.
+
+    :param obj: The value to convert.
+    :param level: The indentation level for this particular value.
+    :param suppress_first_indent: True for dict value children.
+    """
 
     def indent(level: int) -> str:
         return level * 4 * ' '
