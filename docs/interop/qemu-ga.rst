@@ -79,7 +79,7 @@ Options
 
   Daemonize after startup (detach from terminal).
 
-.. option:: -b, --blacklist=LIST
+.. option:: -b, --denylist=LIST
 
   Comma-separated list of RPCs to disable (no spaces, ``?`` to list
   available RPCs).

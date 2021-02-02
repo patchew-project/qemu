@@ -257,7 +257,8 @@ QEMU_COPYRIGHT "\n"
 #ifdef _WIN32
 "  -s, --service     service commands: install, uninstall, vss-install, vss-uninstall\n"
 #endif
-"  -b, --blacklist   comma-separated list of RPCs to disable (no spaces, \"?\"\n"
+"  --blacklist       backward compatible alias for --denylist (deprecated)\n"
+"  -b, --denylist    comma-separated list of RPCs to disable (no spaces, \"?\"\n"
 "                    to list available RPCs)\n"
 "  -D, --dump-conf   dump a qemu-ga config file based on current config\n"
 "                    options / command-line parameters to stdout\n"
@@ -1111,7 +1112,8 @@ static void config_parse(GAConfig *config, int argc, char **argv)
         { "method", 1, NULL, 'm' },
         { "path", 1, NULL, 'p' },
         { "daemonize", 0, NULL, 'd' },
-        { "blacklist", 1, NULL, 'b' },
+        { "denylist", 1, NULL, 'b' },
+        { "blacklist", 1, NULL, 'b' }, /* deprecated alias for 'denylist' */
 #ifdef _WIN32
         { "service", 1, NULL, 's' },
 #endif
