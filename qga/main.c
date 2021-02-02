@@ -962,6 +962,7 @@ static void config_load(GAConfig *config)
     GError *gerr = NULL;
     GKeyFile *keyfile;
     g_autofree char *conf = g_strdup(g_getenv("QGA_CONF")) ?: get_relocated_path(QGA_CONF_DEFAULT);
+    const gchar *denylist_key = "denylist";
 
     /* read system config */
     keyfile = g_key_file_new();
@@ -1008,10 +1009,16 @@ static void config_load(GAConfig *config)
         config->retry_path =
             g_key_file_get_boolean(keyfile, "general", "retry-path", &gerr);
     }
+
     if (g_key_file_has_key(keyfile, "general", "blacklist", NULL)) {
+        g_warning("config using deprecated 'blacklist' key, now replaced"
+                  " by the 'denylist' key.");
+        denylist_key = "blacklist";
+    }
+    if (g_key_file_has_key(keyfile, "general", denylist_key, NULL)) {
         config->bliststr =
-            g_key_file_get_string(keyfile, "general", "blacklist", &gerr);
-        config->blacklist = g_list_concat(config->blacklist,
+            g_key_file_get_string(keyfile, "general", denylist_key, &gerr);
+        config->denylist = g_list_concat(config->denylist,
                                           split_list(config->bliststr, ","));
     }
 
@@ -1071,8 +1078,8 @@ static void config_dump(GAConfig *config)
                            config->log_level == G_LOG_LEVEL_MASK);
     g_key_file_set_boolean(keyfile, "general", "retry-path",
                            config->retry_path);
-    tmp = list_join(config->blacklist, ',');
-    g_key_file_set_string(keyfile, "general", "blacklist", tmp);
+    tmp = list_join(config->denylist, ',');
+    g_key_file_set_string(keyfile, "general", "denylist", tmp);
     g_free(tmp);
 
     tmp = g_key_file_to_data(keyfile, NULL, &error);
