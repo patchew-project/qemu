@@ -57,26 +57,6 @@ DECLARE_INSTANCE_CHECKER(PXBDev, PXB_DEV,
 DECLARE_INSTANCE_CHECKER(PXBDev, PXB_PCIE_DEV,
                          TYPE_PXB_PCIE_DEVICE)
 
-#define TYPE_PXB_CXL_DEVICE "pxb-cxl"
-DECLARE_INSTANCE_CHECKER(PXBDev, PXB_CXL_DEV,
-                         TYPE_PXB_CXL_DEVICE)
-
-struct PXBDev {
-    /*< private >*/
-    PCIDevice parent_obj;
-    /*< public >*/
-
-    uint8_t bus_nr;
-    uint16_t numa_node;
-    int32_t uid;
-    struct cxl_dev {
-        HostMemoryBackend *memory_window[CXL_WINDOW_MAX];
-
-        uint32_t num_windows;
-        hwaddr *window_base[CXL_WINDOW_MAX];
-    } cxl;
-};
-
 typedef struct CXLHost {
     PCIHostState parent_obj;
 
@@ -351,6 +331,7 @@ static void pxb_dev_realize_common(PCIDevice *dev, enum BusType type,
         bus = pci_root_bus_new(ds, dev_name, NULL, NULL, 0, TYPE_PXB_CXL_BUS);
         bus->flags |= PCI_BUS_CXL;
         PXB_CXL_HOST(ds)->dev = PXB_CXL_DEV(dev);
+        PXB_CXL_DEV(dev)->cxl.cxl_host_bridge = ds;
     } else {
         bus = pci_root_bus_new(ds, "pxb-internal", NULL, NULL, 0, TYPE_PXB_BUS);
         bds = qdev_new("pci-bridge");
