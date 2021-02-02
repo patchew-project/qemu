@@ -770,6 +770,9 @@ static void numa_stat_memory_devices(NumaNodeMem node_mem[])
                 node_mem[pcdimm_info->node].node_plugged_mem +=
                     pcdimm_info->size;
                 break;
+            case MEMORY_DEVICE_INFO_KIND_CXL:
+                /* FINISHME */
+                break;
             case MEMORY_DEVICE_INFO_KIND_VIRTIO_PMEM:
                 vpi = value->u.virtio_pmem.data;
                 /* TODO: once we support numa, assign to right node */

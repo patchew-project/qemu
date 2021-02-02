@@ -1394,6 +1394,7 @@
 { 'union': 'MemoryDeviceInfo',
   'data': { 'dimm': 'PCDIMMDeviceInfo',
             'nvdimm': 'PCDIMMDeviceInfo',
+            'cxl': 'PCDIMMDeviceInfo',
             'virtio-pmem': 'VirtioPMEMDeviceInfo',
             'virtio-mem': 'VirtioMEMDeviceInfo'
           }
