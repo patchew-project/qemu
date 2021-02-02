@@ -66,8 +66,15 @@ _nonscalar = Union[Dict[str, _stub], List[_stub]]
 _value = Union[_scalar, _nonscalar]
 TreeValue = Union[_value, 'Annotated[_value]']
 
-# This is a (strict) alias for an arbitrary object non-scalar, as above:
-_DObject = Dict[str, object]
+# These types are based on structures defined in QEMU's schema, so we lack
+# precise types for them here. Python 3.6 does not offer TypedDict constructs,
+# so they are loosely typed here as simple python Dicts.
+SchemaInfo = Dict[str, object]
+SchemaInfoObject = Dict[str, object]
+SchemaInfoObjectVariant = Dict[str, object]
+SchemaInfoObjectMember = Dict[str, object]
+SchemaInfoCommand = Dict[str, object]
+
 
 _NodeT = TypeVar('_NodeT', bound=TreeValue)
 
@@ -160,7 +167,7 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
             ' * QAPI/QMP schema introspection', __doc__)
         self._unmask = unmask
         self._schema: Optional[QAPISchema] = None
-        self._trees: List[Annotated[_DObject]] = []
+        self._trees: List[Annotated[SchemaInfo]] = []
         self._used_types: List[QAPISchemaType] = []
         self._name_map: Dict[str, str] = {}
         self._genc.add(mcgen('''
@@ -232,9 +239,18 @@ const QLitObject %(c_name)s = %(c_string)s;
                       ) -> List[Annotated[str]]:
         return [Annotated(f.name, f.ifcond) for f in features]
 
-    def _gen_tree(self, name: str, mtype: str, obj: _DObject,
+    def _gen_tree(self, name: str, mtype: str, obj: Dict[str, object],
                   ifcond: List[str],
                   features: Optional[List[QAPISchemaFeature]]) -> None:
+        """
+        Build and append a SchemaInfo object to self._trees.
+
+        :param name: The entity's name.
+        :param mtype: The entity's meta-type.
+        :param obj: Additional entity fields, as appropriate for the meta-type.
+        :param ifcond: List of conditionals that apply to this entire entity.
+        :param features: Optional features field for SchemaInfo.
+        """
         comment: Optional[str] = None
         if mtype not in ('command', 'event', 'builtin', 'array'):
             if not self._unmask:
@@ -249,8 +265,8 @@ const QLitObject %(c_name)s = %(c_string)s;
         self._trees.append(Annotated(obj, ifcond, comment))
 
     def _gen_member(self, member: QAPISchemaObjectTypeMember
-                    ) -> Annotated[_DObject]:
-        obj: _DObject = {
+                    ) -> Annotated[SchemaInfoObjectMember]:
+        obj: SchemaInfoObjectMember = {
             'name': member.name,
             'type': self._use_type(member.type)
         }
@@ -260,13 +276,9 @@ const QLitObject %(c_name)s = %(c_string)s;
             obj['features'] = self._gen_features(member.features)
         return Annotated(obj, member.ifcond)
 
-    def _gen_variants(self, tag_name: str,
-                      variants: List[QAPISchemaVariant]) -> _DObject:
-        return {'tag': tag_name,
-                'variants': [self._gen_variant(v) for v in variants]}
-
-    def _gen_variant(self, variant: QAPISchemaVariant) -> Annotated[_DObject]:
-        obj: _DObject = {
+    def _gen_variant(self, variant: QAPISchemaVariant
+                     ) -> Annotated[SchemaInfoObjectVariant]:
+        obj: SchemaInfoObjectVariant = {
             'case': variant.name,
             'type': self._use_type(variant.type)
         }
@@ -298,11 +310,12 @@ const QLitObject %(c_name)s = %(c_string)s;
                                features: List[QAPISchemaFeature],
                                members: List[QAPISchemaObjectTypeMember],
                                variants: Optional[QAPISchemaVariants]) -> None:
-        obj: _DObject = {'members': [self._gen_member(m) for m in members]}
+        obj: SchemaInfoObject = {
+            'members': [self._gen_member(m) for m in members]
+        }
         if variants:
-            obj.update(self._gen_variants(variants.tag_member.name,
-                                          variants.variants))
-
+            obj['tag'] = variants.tag_member.name
+            obj['variants'] = [self._gen_variant(v) for v in variants.variants]
         self._gen_tree(name, 'object', obj, ifcond, features)
 
     def visit_alternate_type(self, name: str, info: Optional[QAPISourceInfo],
@@ -327,7 +340,7 @@ const QLitObject %(c_name)s = %(c_string)s;
 
         arg_type = arg_type or self._schema.the_empty_object_type
         ret_type = ret_type or self._schema.the_empty_object_type
-        obj: _DObject = {
+        obj: SchemaInfoCommand = {
             'arg-type': self._use_type(arg_type),
             'ret-type': self._use_type(ret_type)
         }
