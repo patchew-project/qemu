@@ -3071,8 +3071,8 @@ qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
 }
 #endif
 
-/* add unsupported commands to the blacklist */
-GList *ga_command_blacklist_init(GList *blacklist)
+/* add unsupported commands to the denylist */
+GList *ga_command_denylist_init(GList *denylist)
 {
 #if !defined(__linux__)
     {
@@ -3086,7 +3086,7 @@ GList *ga_command_blacklist_init(GList *blacklist)
         char **p = (char **)list;
 
         while (*p) {
-            blacklist = g_list_append(blacklist, g_strdup(*p++));
+            denylist = g_list_append(denylist, g_strdup(*p++));
         }
     }
 #endif
@@ -3101,18 +3101,18 @@ GList *ga_command_blacklist_init(GList *blacklist)
         char **p = (char **)list;
 
         while (*p) {
-            blacklist = g_list_append(blacklist, g_strdup(*p++));
+            denylist = g_list_append(denylist, g_strdup(*p++));
         }
     }
 #endif
 
 #if !defined(CONFIG_FSTRIM)
-    blacklist = g_list_append(blacklist, g_strdup("guest-fstrim"));
+    denylist = g_list_append(denylist, g_strdup("guest-fstrim"));
 #endif
 
-    blacklist = g_list_append(blacklist, g_strdup("guest-get-devices"));
+    denylist = g_list_append(denylist, g_strdup("guest-get-devices"));
 
-    return blacklist;
+    return denylist;
 }
 
 /* register init/cleanup routines for stateful command groups */

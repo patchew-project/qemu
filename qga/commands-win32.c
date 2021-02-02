@@ -2004,8 +2004,8 @@ GuestMemoryBlockInfo *qmp_guest_get_memory_block_info(Error **errp)
     return NULL;
 }
 
-/* add unsupported commands to the blacklist */
-GList *ga_command_blacklist_init(GList *blacklist)
+/* add unsupported commands to the denylist */
+GList *ga_command_denylist_init(GList *denylist)
 {
     const char *list_unsupported[] = {
         "guest-suspend-hybrid",
@@ -2016,7 +2016,7 @@ GList *ga_command_blacklist_init(GList *blacklist)
     char **p = (char **)list_unsupported;
 
     while (*p) {
-        blacklist = g_list_append(blacklist, g_strdup(*p++));
+        denylist = g_list_append(denylist, g_strdup(*p++));
     }
 
     if (!vss_init(true)) {
@@ -2027,11 +2027,11 @@ GList *ga_command_blacklist_init(GList *blacklist)
         p = (char **)list;
 
         while (*p) {
-            blacklist = g_list_append(blacklist, g_strdup(*p++));
+            denylist = g_list_append(denylist, g_strdup(*p++));
         }
     }
 
-    return blacklist;
+    return denylist;
 }
 
 /* register init/cleanup routines for stateful command groups */
