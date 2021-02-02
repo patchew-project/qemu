@@ -37,6 +37,14 @@
  *  a register interface that already deals with it.
  */
 
+enum {
+    EVENTS      = 0x01,
+        #define GET_RECORDS   0x0
+        #define CLEAR_RECORDS   0x1
+        #define GET_INTERRUPT_POLICY   0x2
+        #define SET_INTERRUPT_POLICY   0x3
+};
+
 /* 8.2.8.4.5.1 Command Return Codes */
 typedef enum {
     CXL_MBOX_SUCCESS = 0x0,
@@ -105,10 +113,23 @@ struct cxl_cmd {
         return CXL_MBOX_SUCCESS;                                          \
     }
 
+define_mailbox_handler_zeroed(EVENTS_GET_RECORDS, 0x20);
+define_mailbox_handler_nop(EVENTS_CLEAR_RECORDS);
+define_mailbox_handler_zeroed(EVENTS_GET_INTERRUPT_POLICY, 4);
+define_mailbox_handler_nop(EVENTS_SET_INTERRUPT_POLICY);
+
+#define IMMEDIATE_CONFIG_CHANGE (1 << 1)
+#define IMMEDIATE_LOG_CHANGE (1 << 4)
+
 #define CXL_CMD(s, c, in, cel_effect) \
     [s][c] = { stringify(s##_##c), cmd_##s##_##c, in, cel_effect }
 
-static struct cxl_cmd cxl_cmd_set[256][256] = {};
+static struct cxl_cmd cxl_cmd_set[256][256] = {
+    CXL_CMD(EVENTS, GET_RECORDS, 1, 0),
+    CXL_CMD(EVENTS, CLEAR_RECORDS, ~0, IMMEDIATE_LOG_CHANGE),
+    CXL_CMD(EVENTS, GET_INTERRUPT_POLICY, 0, 0),
+    CXL_CMD(EVENTS, SET_INTERRUPT_POLICY, 4, IMMEDIATE_CONFIG_CHANGE),
+};
 
 #undef CXL_CMD
 
