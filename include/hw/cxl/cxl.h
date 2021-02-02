@@ -23,4 +23,3 @@
 #define CXL_WINDOW_MAX 10
 
 #endif
-

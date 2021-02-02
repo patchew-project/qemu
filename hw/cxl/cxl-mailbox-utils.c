@@ -321,6 +321,9 @@ define_mailbox_handler(IDENTIFY_MEMORY_DEVICE)
     } __attribute__((packed)) *id;
     _Static_assert(sizeof(*id) == 0x43, "Bad identify size");
 
+    CXLType3Dev *ct3d = container_of(cxl_dstate, CXLType3Dev, cxl_dstate);
+    CXLType3Class *cvc = CXL_TYPE3_DEV_GET_CLASS(ct3d);
+
     if (memory_region_size(cxl_dstate->pmem) < (256 << 20)) {
         return CXL_MBOX_INTERNAL_ERROR;
     }
@@ -332,6 +335,7 @@ define_mailbox_handler(IDENTIFY_MEMORY_DEVICE)
     snprintf(id->fw_revision, 0x10, "BWFW VERSION %02d", 0);
     id->total_capacity = memory_region_size(cxl_dstate->pmem);
     id->persistent_capacity = memory_region_size(cxl_dstate->pmem);
+    id->lsa_size = cvc->get_lsa_size(ct3d);
 
     *len = sizeof(*id);
     return CXL_MBOX_SUCCESS;
