@@ -533,12 +533,17 @@
 # @alias: An alias name for migration (for example the bitmap name on
 #         the opposite site).
 #
+# @dest-persistent: If populated set the bitmap will be turned persistent
+#                   or transient depending on this parameter.
+#                   (since 6.0)
+#
 # Since: 5.2
 ##
 { 'struct': 'BitmapMigrationBitmapAlias',
   'data': {
       'name': 'str',
-      'alias': 'str'
+      'alias': 'str',
+      '*dest-persistent': 'bool'
   } }
 
 ##

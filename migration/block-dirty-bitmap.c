@@ -149,6 +149,9 @@ typedef struct DBMLoadState {
 
     bool before_vm_start_handled; /* set in dirty_bitmap_mig_before_vm_start */
 
+    bool has_dest_persistent;
+    bool dest_persistent;
+
     /*
      * cancelled
      * Incoming migration is cancelled for some reason. That means that we
@@ -171,6 +174,10 @@ static DBMState dbm_state;
 
 typedef struct AliasMapInnerBitmap {
     char *string;
+
+    /* for destination's properties setting bitmap state */
+    bool has_dest_persistent;
+    bool dest_persistent;
 } AliasMapInnerBitmap;
 
 static void free_alias_map_inner_bitmap(void *amin_ptr)
@@ -289,6 +296,8 @@ static GHashTable *construct_alias_map(const BitmapMigrationNodeAliasList *bbm,
         for (bmbal = bmna->bitmaps; bmbal; bmbal = bmbal->next) {
             const BitmapMigrationBitmapAlias *bmba = bmbal->value;
             const char *bmap_map_from, *bmap_map_to;
+            bool bmap_has_dest_persistent = false;
+            bool bmap_dest_persistent = false;
             AliasMapInnerBitmap *bmap_inner;
 
             if (strlen(bmba->alias) > UINT8_MAX) {
@@ -317,6 +326,9 @@ static GHashTable *construct_alias_map(const BitmapMigrationNodeAliasList *bbm,
                 bmap_map_from = bmba->alias;
                 bmap_map_to = bmba->name;
 
+                bmap_has_dest_persistent = bmba->has_dest_persistent;
+                bmap_dest_persistent = bmba->dest_persistent;
+
                 if (g_hash_table_contains(bitmaps_map, bmba->alias)) {
                     error_setg(errp, "The bitmap alias '%s'/'%s' is used twice",
                                bmna->alias, bmba->alias);
@@ -326,6 +338,8 @@ static GHashTable *construct_alias_map(const BitmapMigrationNodeAliasList *bbm,
 
             bmap_inner = g_new0(AliasMapInnerBitmap, 1);
             bmap_inner->string = g_strdup(bmap_map_to);
+            bmap_inner->has_dest_persistent = bmap_has_dest_persistent;
+            bmap_inner->dest_persistent = bmap_dest_persistent;
 
             g_hash_table_insert(bitmaps_map,
                                 g_strdup(bmap_map_from), bmap_inner);
@@ -798,6 +812,7 @@ static int dirty_bitmap_load_start(QEMUFile *f, DBMLoadState *s)
     uint32_t granularity = qemu_get_be32(f);
     uint8_t flags = qemu_get_byte(f);
     LoadBitmapState *b;
+    bool persistent;
 
     if (s->cancelled) {
         return 0;
@@ -822,7 +837,13 @@ static int dirty_bitmap_load_start(QEMUFile *f, DBMLoadState *s)
         return -EINVAL;
     }
 
-    if (flags & DIRTY_BITMAP_MIG_START_FLAG_PERSISTENT) {
+    if (s->has_dest_persistent) {
+        persistent = s->dest_persistent;
+    } else {
+        persistent = flags & DIRTY_BITMAP_MIG_START_FLAG_PERSISTENT;
+    }
+
+    if (persistent) {
         bdrv_dirty_bitmap_set_persistence(s->bitmap, true);
     }
 
@@ -1087,6 +1108,8 @@ static int dirty_bitmap_load_header(QEMUFile *f, DBMLoadState *s,
 
     if (s->flags & DIRTY_BITMAP_MIG_FLAG_BITMAP_NAME) {
         const char *bitmap_name;
+        bool bitmap_has_dest_persistent = false;
+        bool bitmap_dest_persistent = false;
 
         if (!qemu_get_counted_string(f, s->bitmap_alias)) {
             error_report("Unable to read bitmap alias string");
@@ -1107,11 +1130,16 @@ static int dirty_bitmap_load_header(QEMUFile *f, DBMLoadState *s,
             }
 
             bitmap_name = bmap_inner->string;
+            bitmap_has_dest_persistent = bmap_inner->has_dest_persistent;
+            bitmap_dest_persistent = bmap_inner->dest_persistent;
         }
 
         if (!s->cancelled) {
             g_strlcpy(s->bitmap_name, bitmap_name, sizeof(s->bitmap_name));
             s->bitmap = bdrv_find_dirty_bitmap(s->bs, s->bitmap_name);
+
+            s->has_dest_persistent = bitmap_has_dest_persistent;
+            s->dest_persistent = bitmap_dest_persistent;
 
             /*
              * bitmap may be NULL here, it wouldn't be an error if it is the
