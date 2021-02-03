@@ -1925,6 +1925,7 @@ void migrate_init(MigrationState *s)
     s->postcopy_after_devices = false;
     s->migration_thread_running = false;
     s->enabled_rdma_migration = false;
+    s->host_port = NULL;
     error_free(s->error);
     s->error = NULL;
     s->hostname = NULL;
