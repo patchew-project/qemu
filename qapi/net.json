@@ -161,6 +161,9 @@
 # @hostfwd: redirect incoming TCP or UDP host connections to guest
 #           endpoints
 #
+# @ipv6-hostfwd: redirect incoming IPV6 TCP or UDP host connections to
+#                guest endpoints (since 6.0)
+#
 # @guestfwd: forward guest TCP connections
 #
 # @tftp-server-name: RFC2132 "TFTP server name" string (Since 3.1)
@@ -189,6 +192,7 @@
     '*smb':       'str',
     '*smbserver': 'str',
     '*hostfwd':   ['String'],
+    '*ipv6-hostfwd': ['String'],
     '*guestfwd':  ['String'],
     '*tftp-server-name': 'str' } }
 

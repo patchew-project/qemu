@@ -1392,6 +1392,34 @@ SRST
   Remove host-to-guest TCP or UDP redirection.
 ERST
 
+#ifdef CONFIG_SLIRP
+    {
+        .name       = "ipv6_hostfwd_add",
+        .args_type  = "arg1:s,arg2:s?",
+        .params     = "[netdev_id] [tcp|udp]:[hostaddr6]:hostport-[guestaddr6]:guestport",
+        .help       = "redirect TCP6 or UDP6 connections from host to guest (requires -net user)",
+        .cmd        = hmp_ipv6_hostfwd_add,
+    },
+#endif
+SRST
+``ipv6_hostfwd_add``
+  Redirect TCP6 or UDP6 connections from host to guest (requires -net user).
+ERST
+
+#ifdef CONFIG_SLIRP
+    {
+        .name       = "ipv6_hostfwd_remove",
+        .args_type  = "arg1:s,arg2:s?",
+        .params     = "[netdev_id] [tcp|udp]:[hostaddr6]:hostport",
+        .help       = "remove host-to-guest TCP6 or UDP6 redirection",
+        .cmd        = hmp_ipv6_hostfwd_remove,
+    },
+#endif
+SRST
+``ipv6_hostfwd_remove``
+  Remove host-to-guest TCP6 or UDP6 redirection.
+ERST
+
     {
         .name       = "balloon",
         .args_type  = "value:M",
