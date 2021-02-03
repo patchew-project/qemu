@@ -19,6 +19,7 @@
 #include "qemu/cutils.h"
 #include "rdma.h"
 #include "migration.h"
+#include "multifd.h"
 #include "qemu-file.h"
 #include "ram.h"
 #include "qemu-file-channel.h"
@@ -4139,3 +4140,73 @@ err:
     g_free(rdma);
     g_free(rdma_return_path);
 }
+
+static void *multifd_rdma_send_thread(void *opaque)
+{
+    MultiFDSendParams *p = opaque;
+
+    while (true) {
+        WITH_QEMU_LOCK_GUARD(&p->mutex) {
+            if (p->quit) {
+                break;
+            }
+        }
+        qemu_sem_wait(&p->sem);
+    }
+
+    WITH_QEMU_LOCK_GUARD(&p->mutex) {
+        p->running = false;
+    }
+
+    return NULL;
+}
+
+static void multifd_rdma_send_channel_setup(MultiFDSendParams *p)
+{
+    Error *local_err = NULL;
+
+    if (p->quit) {
+        error_setg(&local_err, "multifd: send id %d already quit", p->id);
+        return ;
+    }
+    p->running = true;
+
+    qemu_thread_create(&p->thread, p->name, multifd_rdma_send_thread, p,
+                       QEMU_THREAD_JOINABLE);
+}
+
+static void *multifd_rdma_recv_thread(void *opaque)
+{
+    MultiFDRecvParams *p = opaque;
+
+    while (true) {
+        WITH_QEMU_LOCK_GUARD(&p->mutex) {
+            if (p->quit) {
+                break;
+            }
+        }
+        qemu_sem_wait(&p->sem_sync);
+    }
+
+    WITH_QEMU_LOCK_GUARD(&p->mutex) {
+        p->running = false;
+    }
+
+    return NULL;
+}
+
+static void multifd_rdma_recv_channel_setup(QIOChannel *ioc,
+                                            MultiFDRecvParams *p)
+{
+    QIOChannelRDMA *rioc = QIO_CHANNEL_RDMA(ioc);
+
+    p->file = rioc->file;
+    return;
+}
+
+MultiFDSetup multifd_rdma_ops = {
+    .send_thread = multifd_rdma_send_thread,
+    .recv_thread = multifd_rdma_recv_thread,
+    .send_channel_setup = multifd_rdma_send_channel_setup,
+    .recv_channel_setup = multifd_rdma_recv_channel_setup
+};
