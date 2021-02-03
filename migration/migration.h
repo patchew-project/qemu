@@ -280,6 +280,11 @@ struct MigrationState {
      * This save hostname when out-going migration starts
      */
     char *hostname;
+
+    /*
+     * Enable RDMA migration
+     */
+    bool enabled_rdma_migration;
 };
 
 void migrate_set_state(int *state, int old_state, int new_state);
@@ -317,6 +322,7 @@ bool migrate_validate_uuid(void);
 
 bool migrate_auto_converge(void);
 bool migrate_rdma_pin_all(void);
+bool migrate_use_rdma(void);
 bool migrate_use_multifd(void);
 bool migrate_pause_before_switchover(void);
 int migrate_multifd_channels(void);

@@ -418,11 +418,13 @@ void migrate_add_address(SocketAddress *address)
 static void qemu_start_incoming_migration(const char *uri, Error **errp)
 {
     const char *p = NULL;
+    MigrationState *s = migrate_get_current();
 
     if (!yank_register_instance(MIGRATION_YANK_INSTANCE, errp)) {
         return;
     }
 
+    s->enabled_rdma_migration = false;
     qapi_event_send_migration(MIGRATION_STATUS_SETUP);
     if (strstart(uri, "tcp:", &p) ||
         strstart(uri, "unix:", NULL) ||
@@ -430,6 +432,7 @@ static void qemu_start_incoming_migration(const char *uri, Error **errp)
         socket_start_incoming_migration(p ? p : uri, errp);
 #ifdef CONFIG_RDMA
     } else if (strstart(uri, "rdma:", &p)) {
+        s->enabled_rdma_migration = true;
         rdma_start_incoming_migration(p, errp);
 #endif
     } else if (strstart(uri, "exec:", &p)) {
@@ -1921,6 +1924,7 @@ void migrate_init(MigrationState *s)
     s->start_postcopy = false;
     s->postcopy_after_devices = false;
     s->migration_thread_running = false;
+    s->enabled_rdma_migration = false;
     error_free(s->error);
     s->error = NULL;
     s->hostname = NULL;
@@ -2162,6 +2166,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         socket_start_outgoing_migration(s, p ? p : uri, &local_err);
 #ifdef CONFIG_RDMA
     } else if (strstart(uri, "rdma:", &p)) {
+        s->enabled_rdma_migration = true;
         rdma_start_outgoing_migration(s, p, &local_err);
 #endif
     } else if (strstart(uri, "exec:", &p)) {
@@ -2389,6 +2394,14 @@ bool migrate_rdma_pin_all(void)
     s = migrate_get_current();
 
     return s->enabled_capabilities[MIGRATION_CAPABILITY_RDMA_PIN_ALL];
+}
+
+bool migrate_use_rdma(void)
+{
+    MigrationState *s;
+    s = migrate_get_current();
+
+    return s->enabled_rdma_migration;
 }
 
 bool migrate_use_multifd(void)
