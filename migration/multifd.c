@@ -577,6 +577,9 @@ void multifd_save_cleanup(void)
         p->packet_len = 0;
         g_free(p->packet);
         p->packet = NULL;
+#ifdef CONFIG_RDMA
+        multifd_rdma_cleanup(p->rdma);
+#endif
         multifd_send_state->ops->send_cleanup(p, &local_err);
         if (local_err) {
             migrate_set_error(migrate_get_current(), local_err);
@@ -1039,6 +1042,9 @@ int multifd_load_cleanup(Error **errp)
         p->packet_len = 0;
         g_free(p->packet);
         p->packet = NULL;
+#ifdef CONFIG_RDMA
+        multifd_rdma_cleanup(p->rdma);
+#endif
         multifd_recv_state->ops->recv_cleanup(p);
     }
     qemu_sem_destroy(&multifd_recv_state->sem_sync);
