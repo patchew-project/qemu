@@ -166,6 +166,13 @@ typedef struct {
     int (*recv_pages)(MultiFDRecvParams *p, uint32_t used, Error **errp);
 } MultiFDMethods;
 
+typedef struct {
+    void *(*send_thread)(void *opaque);
+    void *(*recv_thread)(void *opaque);
+    void (*send_channel_setup)(MultiFDSendParams *p);
+    void (*recv_channel_setup)(QIOChannel *ioc, MultiFDRecvParams *p);
+} MultiFDSetup;
+
 void multifd_register_ops(int method, MultiFDMethods *ops);
 
 #endif
