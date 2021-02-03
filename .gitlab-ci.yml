@@ -433,13 +433,22 @@ build-some-softmmu-plugins:
     TARGETS: xtensa-softmmu arm-softmmu aarch64-softmmu alpha-softmmu
     MAKE_CHECK_ARGS: check-tcg
 
-build-clang:
+clang-system:
   <<: *native_build_job_definition
   variables:
     IMAGE: fedora
     CONFIGURE_ARGS: --cc=clang --cxx=clang++
+      --extra-cflags=-fno-sanitize-recover=undefined
     TARGETS: alpha-softmmu arm-softmmu m68k-softmmu mips64-softmmu
-      ppc-softmmu s390x-softmmu arm-linux-user
+      ppc-softmmu s390x-softmmu
+    MAKE_CHECK_ARGS: check-qtest check-block check-tcg
+
+clang-user:
+  <<: *native_build_job_definition
+  variables:
+    IMAGE: fedora
+    CONFIGURE_ARGS: --cc=clang --cxx=clang++ --disable-system
+      --extra-cflags=-fno-sanitize-recover=undefined
     MAKE_CHECK_ARGS: check
 
 # These targets are on the way out
