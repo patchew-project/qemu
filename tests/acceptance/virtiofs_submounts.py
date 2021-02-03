@@ -75,6 +75,7 @@ def has_cmds(*cmds):
 class VirtiofsSubmountsTest(BootLinux):
     """
     :avocado: tags=arch:x86_64
+    :avocado: tags=accel:kvm
     """
 
     def ssh_connect(self, username, keyfile):
