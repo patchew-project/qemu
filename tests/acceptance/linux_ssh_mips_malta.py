@@ -79,8 +79,8 @@ class LinuxSSH(Test):
         port = get_info_usernet_hostfwd_port(res)
         if not port:
             self.cancel("Failed to retrieve SSH port")
-        self.log.debug("sshd listening on port:" + port)
-        self.ssh_session = ssh.Session(self.VM_IP, port=int(port),
+        self.log.debug("sshd listening on port: %d", port)
+        self.ssh_session = ssh.Session(self.VM_IP, port=port,
                                        user=username, password=password)
         for i in range(10):
             try:
