@@ -183,6 +183,20 @@ typedef struct {
 } RDMAWorkRequestData;
 
 /*
+ * Get the multifd RDMA channel used to send data.
+ */
+static int get_multifd_RDMA_channel(void)
+{
+    int thread_count = migrate_multifd_channels();
+    MigrationState *s = migrate_get_current();
+
+    s->rdma_channel++;
+    s->rdma_channel %= thread_count;
+
+    return s->rdma_channel;
+}
+
+/*
  * Negotiate RDMA capabilities during connection-setup time.
  */
 typedef struct {
