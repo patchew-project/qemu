@@ -111,6 +111,12 @@ void qmp_send_response(MonitorQMP *mon, const QDict *rsp)
     const QObject *data = QOBJECT(rsp);
     GString *json;
 
+    if (trace_event_get_state_backends(TRACE_QMP_SEND_RESPONSE)) {
+        json = qobject_to_json(data);
+        trace_qmp_send_response(mon, json->str);
+        g_string_free(json, true);
+    }
+
     json = qobject_to_json_pretty(data, mon->pretty);
     assert(json != NULL);
     trace_monitor_qmp_respond(mon, json->str);
