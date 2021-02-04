@@ -1059,7 +1059,7 @@ int unix_listen(const char *str, Error **errp)
 
     saddr = g_new0(UnixSocketAddress, 1);
     saddr->path = g_strdup(str);
-    sock = unix_listen_saddr(saddr, 1, errp);
+    sock = unix_listen_saddr(saddr, SOMAXCONN, errp);
     qapi_free_UnixSocketAddress(saddr);
     return sock;
 }
