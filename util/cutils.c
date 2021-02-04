@@ -327,6 +327,10 @@ static int do_strtosz(const char *nptr, const char **end,
         retval = -ERANGE;
         goto out;
     }
+    if (mul_required && fraction * mul != (uint64_t) (fraction * mul)) {
+        fprintf(stderr, "Using a fractional size that is not an exact byte "
+                "multiple is deprecated: %s\n", nptr);
+    }
     *result = val * mul + (uint64_t) (fraction * mul);
     retval = 0;
 

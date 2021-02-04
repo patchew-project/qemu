@@ -2095,14 +2095,14 @@ static void test_qemu_strtosz_units(void)
 
 static void test_qemu_strtosz_float(void)
 {
-    const char *str = "12.345M";
+    const char *str = "12.125M";
     int err;
     const char *endptr;
     uint64_t res = 0xbaadf00d;
 
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 12.345 * MiB);
+    g_assert_cmpint(res, ==, 12.125 * MiB);
     g_assert(endptr == str + 7);
 }
 
