@@ -445,9 +445,9 @@ static void test_keyval_visit_size(void)
     visit_end_struct(v, NULL);
     visit_free(v);
 
-    /* Note: precision is 53 bits since we're parsing with strtod() */
+    /* Note: full 64 bits of precision */
 
-    /* Around limit of precision: 2^53-1, 2^53, 2^53+1 */
+    /* Around double limit of precision: 2^53-1, 2^53, 2^53+1 */
     qdict = keyval_parse("sz1=9007199254740991,"
                          "sz2=9007199254740992,"
                          "sz3=9007199254740993",
@@ -460,7 +460,7 @@ static void test_keyval_visit_size(void)
     visit_type_size(v, "sz2", &sz, &error_abort);
     g_assert_cmphex(sz, ==, 0x20000000000000);
     visit_type_size(v, "sz3", &sz, &error_abort);
-    g_assert_cmphex(sz, ==, 0x20000000000000);
+    g_assert_cmphex(sz, ==, 0x20000000000001);
     visit_check_struct(v, &error_abort);
     visit_end_struct(v, NULL);
     visit_free(v);
@@ -475,7 +475,7 @@ static void test_keyval_visit_size(void)
     visit_type_size(v, "sz1", &sz, &error_abort);
     g_assert_cmphex(sz, ==, 0x7ffffffffffffc00);
     visit_type_size(v, "sz2", &sz, &error_abort);
-    g_assert_cmphex(sz, ==, 0x7ffffffffffffc00);
+    g_assert_cmphex(sz, ==, 0x7ffffffffffffdff);
     visit_check_struct(v, &error_abort);
     visit_end_struct(v, NULL);
     visit_free(v);
@@ -490,14 +490,26 @@ static void test_keyval_visit_size(void)
     visit_type_size(v, "sz1", &sz, &error_abort);
     g_assert_cmphex(sz, ==, 0xfffffffffffff800);
     visit_type_size(v, "sz2", &sz, &error_abort);
-    g_assert_cmphex(sz, ==, 0xfffffffffffff800);
+    g_assert_cmphex(sz, ==, 0xfffffffffffffbff);
+    visit_check_struct(v, &error_abort);
+    visit_end_struct(v, NULL);
+    visit_free(v);
+
+    /* Actual limit */
+    qdict = keyval_parse("sz1=18446744073709551615", /* ffffffffffffffff */
+                         NULL, NULL, &error_abort);
+    v = qobject_input_visitor_new_keyval(QOBJECT(qdict));
+    qobject_unref(qdict);
+    visit_start_struct(v, NULL, NULL, 0, &error_abort);
+    visit_type_size(v, "sz1", &sz, &error_abort);
+    g_assert_cmphex(sz, ==, 0xffffffffffffffff);
     visit_check_struct(v, &error_abort);
     visit_end_struct(v, NULL);
     visit_free(v);
 
     /* Beyond limits */
     qdict = keyval_parse("sz1=-1,"
-                         "sz2=18446744073709550592", /* fffffffffffffc00 */
+                         "sz2=18446744073709551616", /* 2^64 */
                          NULL, NULL, &error_abort);
     v = qobject_input_visitor_new_keyval(QOBJECT(qdict));
     qobject_unref(qdict);
