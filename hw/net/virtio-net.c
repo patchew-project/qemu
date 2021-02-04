@@ -515,6 +515,15 @@ static RxFilterInfo *virtio_net_query_rxfilter(NetClientState *nc)
     return info;
 }
 
+static void virtio_net_allow_vhost(VirtIONet *n, bool allow)
+{
+    int i;
+    for (i = 0; i < n->max_queues; i++) {
+        NetClientState *nc = qemu_get_subqueue(n->nic, i)->peer;
+        nc->vhost_net_disabled = !allow;
+    }
+}
+
 static void virtio_net_reset(VirtIODevice *vdev)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
@@ -552,6 +561,7 @@ static void virtio_net_reset(VirtIODevice *vdev)
             assert(!virtio_net_get_subqueue(nc)->async_tx.elem);
         }
     }
+    virtio_net_allow_vhost(n, true);
 }
 
 static void peer_test_vnet_hdr(VirtIONet *n)
@@ -689,6 +699,15 @@ static void virtio_net_set_queues(VirtIONet *n)
     }
 }
 
+static bool can_disable_vhost(VirtIONet *n)
+{
+    NetClientState *peer = qemu_get_queue(n->nic)->peer;
+    if (!get_vhost_net(peer)) {
+        return false;
+    }
+    return !peer || peer->info->type == NET_CLIENT_DRIVER_TAP;
+}
+
 static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue);
 
 static uint64_t virtio_net_get_features(VirtIODevice *vdev, uint64_t features,
@@ -725,14 +744,14 @@ static uint64_t virtio_net_get_features(VirtIODevice *vdev, uint64_t features,
         return features;
     }
 
-    virtio_clear_feature(&features, VIRTIO_NET_F_RSS);
-    virtio_clear_feature(&features, VIRTIO_NET_F_HASH_REPORT);
-    features = vhost_net_get_features(get_vhost_net(nc->peer), features);
-    vdev->backend_features = features;
+    vdev->backend_features = vhost_net_get_features(get_vhost_net(nc->peer), features);
 
-    if (n->mtu_bypass_backend &&
-            (n->host_features & 1ULL << VIRTIO_NET_F_MTU)) {
-        features |= (1ULL << VIRTIO_NET_F_MTU);
+    if (!can_disable_vhost(n)) {
+        features = vdev->backend_features;
+        if (n->mtu_bypass_backend &&
+                (n->host_features & 1ULL << VIRTIO_NET_F_MTU)) {
+            features |= (1ULL << VIRTIO_NET_F_MTU);
+        }
     }
 
     return features;
@@ -872,10 +891,25 @@ static void failover_add_primary(VirtIONet *n, Error **errp)
     error_propagate(errp, err);
 }
 
+static bool check_vhost_features(VirtIONet *n, uint64_t features)
+{
+    NetClientState *nc = qemu_get_queue(n->nic);
+    uint64_t filtered;
+    if (n->rss_data.redirect) {
+        return false;
+    }
+    filtered = vhost_net_get_features(get_vhost_net(nc->peer), features);
+    if (filtered != features) {
+        return false;
+    }
+    return true;
+}
+
 static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
     Error *err = NULL;
+    bool disable_vhost = false;
     int i;
 
     if (n->mtu_bypass_backend &&
@@ -894,12 +928,20 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
                                                   VIRTIO_F_VERSION_1),
                                virtio_has_feature(features,
                                                   VIRTIO_NET_F_HASH_REPORT));
-
     n->rsc4_enabled = virtio_has_feature(features, VIRTIO_NET_F_RSC_EXT) &&
         virtio_has_feature(features, VIRTIO_NET_F_GUEST_TSO4);
     n->rsc6_enabled = virtio_has_feature(features, VIRTIO_NET_F_RSC_EXT) &&
         virtio_has_feature(features, VIRTIO_NET_F_GUEST_TSO6);
     n->rss_data.redirect = virtio_has_feature(features, VIRTIO_NET_F_RSS);
+
+    if (can_disable_vhost(n)) {
+        disable_vhost = !check_vhost_features(n, features);
+    }
+    if (disable_vhost) {
+        warn_report("Some of requested features aren't supported by vhost, "
+                    "vhost is turned off till next reset");
+        virtio_net_allow_vhost(n, false);
+    }
 
     if (n->has_vnet_hdr) {
         n->curr_guest_offloads =
