@@ -295,10 +295,9 @@ static void tcg_out_r(TCGContext *s, TCGArg t0)
 }
 
 /* Write register or constant (native size). */
-static void tcg_out_ri(TCGContext *s, int const_arg, TCGArg arg)
+static void tcg_out_ri(TCGContext *s, bool const_arg, TCGArg arg)
 {
     if (const_arg) {
-        tcg_debug_assert(const_arg == 1);
         tcg_out8(s, TCG_CONST);
         tcg_out_i(s, arg);
     } else {
@@ -307,10 +306,9 @@ static void tcg_out_ri(TCGContext *s, int const_arg, TCGArg arg)
 }
 
 /* Write register or constant (32 bit). */
-static void tcg_out_ri32(TCGContext *s, int const_arg, TCGArg arg)
+static void tcg_out_ri32(TCGContext *s, bool const_arg, TCGArg arg)
 {
     if (const_arg) {
-        tcg_debug_assert(const_arg == 1);
         tcg_out8(s, TCG_CONST);
         tcg_out32(s, arg);
     } else {
@@ -320,10 +318,9 @@ static void tcg_out_ri32(TCGContext *s, int const_arg, TCGArg arg)
 
 #if TCG_TARGET_REG_BITS == 64
 /* Write register or constant (64 bit). */
-static void tcg_out_ri64(TCGContext *s, int const_arg, TCGArg arg)
+static void tcg_out_ri64(TCGContext *s, bool const_arg, TCGArg arg)
 {
     if (const_arg) {
-        tcg_debug_assert(const_arg == 1);
         tcg_out8(s, TCG_CONST);
         tcg_out64(s, arg);
     } else {
