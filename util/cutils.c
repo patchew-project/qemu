@@ -264,7 +264,7 @@ static int do_strtosz(const char *nptr, const char **end,
     int retval;
     const char *endptr;
     unsigned char c;
-    bool mul_required = false;
+    bool mul_required = false, hex = false;
     uint64_t val;
     int64_t mul;
     double fraction = 0.0;
@@ -309,6 +309,10 @@ static int do_strtosz(const char *nptr, const char **end,
     c = *endptr;
     mul = suffix_mul(c, unit);
     if (mul > 0) {
+        if (hex) {
+            fprintf(stderr, "Using a multiplier suffix on hex numbers "
+                    "is deprecated: %s\n", nptr);
+        }
         endptr++;
     } else {
         mul = suffix_mul(default_suffix, unit);
