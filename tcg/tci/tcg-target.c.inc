@@ -312,6 +312,18 @@ static void tcg_out_op_v(TCGContext *s, TCGOpcode op)
     old_code_ptr[1] = s->code_ptr - old_code_ptr;
 }
 
+static void tcg_out_op_np(TCGContext *s, TCGOpcode op,
+                          uint8_t n0, const void *p1)
+{
+    uint8_t *old_code_ptr = s->code_ptr;
+
+    tcg_out_op_t(s, op);
+    tcg_out8(s, n0);
+    tcg_out_i(s, (uintptr_t)p1);
+
+    old_code_ptr[1] = s->code_ptr - old_code_ptr;
+}
+
 static void tcg_out_op_rr(TCGContext *s, TCGOpcode op, TCGReg r0, TCGReg r1)
 {
     uint8_t *old_code_ptr = s->code_ptr;
@@ -561,7 +573,6 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
 
 static void tcg_out_call(TCGContext *s, const tcg_insn_unit *arg)
 {
-    uint8_t *old_code_ptr = s->code_ptr;
     const TCGHelperInfo *info;
     uint8_t which;
 
@@ -574,11 +585,8 @@ static void tcg_out_call(TCGContext *s, const tcg_insn_unit *arg)
         tcg_debug_assert(info->cif->rtype->size == 8);
         which = 2;
     }
-    tcg_out_op_t(s, INDEX_op_call);
-    tcg_out8(s, which);
-    tcg_out_i(s, (uintptr_t)info);
 
-    old_code_ptr[1] = s->code_ptr - old_code_ptr;
+    tcg_out_op_np(s, INDEX_op_call, which, info);
 }
 
 #if TCG_TARGET_REG_BITS == 64
