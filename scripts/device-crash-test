@@ -41,18 +41,18 @@ logger = logging.getLogger('device-crash-test')
 dbg = logger.debug
 
 
-# Purposes of the following whitelist:
+# Purposes of the following allowlist:
 # * Avoiding verbose log messages when we find known non-fatal
 #   (exitcode=1) errors
 # * Avoiding fatal errors when we find known crashes
 # * Skipping machines/devices that are known not to work out of
 #   the box, when running in --quick mode
 #
-# Keeping the whitelist updated is desirable, but not required,
+# Keeping the allowlist updated is desirable, but not required,
 # because unexpected cases where QEMU exits with exitcode=1 will
 # just trigger a INFO message.
 
-# Valid whitelist entry keys:
+# Valid allowlist entry keys:
 # * accel: regexp, full match only
 # * machine: regexp, full match only
 # * device: regexp, full match only
@@ -62,7 +62,7 @@ dbg = logger.debug
 # * expected: if True, QEMU is expected to always fail every time
 #   when testing the corresponding test case
 # * loglevel: log level of log output when there's a match.
-ERROR_WHITELIST = [
+ERROR_ALLOWLIST = [
     # Machines that won't work out of the box:
     #             MACHINE                         | ERROR MESSAGE
     {'machine':'niagara', 'expected':True},       # Unable to load a firmware for -M niagara
@@ -187,9 +187,9 @@ ERROR_WHITELIST = [
 
 
 def whitelistTestCaseMatch(wl, t):
-    """Check if a test case specification can match a whitelist entry
+    """Check if a test case specification can match a allowlist entry
 
-    This only checks if a whitelist entry is a candidate match
+    This only checks if a allowlist entry is a candidate match
     for a given test case, it won't check if the test case
     results/output match the entry.  See whitelistResultMatch().
     """
@@ -206,16 +206,16 @@ def whitelistTestCaseMatch(wl, t):
 
 def whitelistCandidates(t):
     """Generate the list of candidates that can match a test case"""
-    for i, wl in enumerate(ERROR_WHITELIST):
+    for i, wl in enumerate(ERROR_ALLOWLIST):
         if whitelistTestCaseMatch(wl, t):
             yield (i, wl)
 
 
 def findExpectedResult(t):
-    """Check if there's an expected=True whitelist entry for a test case
+    """Check if there's an expected=True allowlist entry for a test case
 
     Returns (i, wl) tuple, where i is the index in
-    ERROR_WHITELIST and wl is the whitelist entry itself.
+    ERROR_ALLOWLIST and wl is the allowlist entry itself.
     """
     for i, wl in whitelistCandidates(t):
         if wl.get('expected'):
@@ -223,7 +223,7 @@ def findExpectedResult(t):
 
 
 def whitelistResultMatch(wl, r):
-    """Check if test case results/output match a whitelist entry
+    """Check if test case results/output match a allowlist entry
 
     It is valid to call this function only if
     whitelistTestCaseMatch() is True for the entry (e.g. on
@@ -237,10 +237,10 @@ def whitelistResultMatch(wl, r):
 
 
 def checkResultWhitelist(r):
-    """Look up whitelist entry for a given test case result
+    """Look up allowlist entry for a given test case result
 
     Returns (i, wl) tuple, where i is the index in
-    ERROR_WHITELIST and wl is the whitelist entry itself.
+    ERROR_ALLOWLIST and wl is the allowlist entry itself.
     """
     for i, wl in whitelistCandidates(r['testcase']):
         if whitelistResultMatch(wl, r):
@@ -544,7 +544,7 @@ def main():
 
         if f:
             i, wl = checkResultWhitelist(f)
-            dbg("testcase: %r, whitelist match: %r", t, wl)
+            dbg("testcase: %r, allowlist match: %r", t, wl)
             wl_stats.setdefault(i, []).append(f)
             level = wl.get('loglevel', logging.DEBUG)
             logFailure(f, level)
@@ -561,9 +561,9 @@ def main():
 
     if args.debug:
         stats = sorted([(len(wl_stats.get(i, [])), wl) for i, wl in
-                         enumerate(ERROR_WHITELIST)], key=lambda x: x[0])
+                         enumerate(ERROR_ALLOWLIST)], key=lambda x: x[0])
         for count, wl in stats:
-            dbg("whitelist entry stats: %d: %r", count, wl)
+            dbg("allowlist entry stats: %d: %r", count, wl)
 
     if fatal_failures:
         for f in fatal_failures:
