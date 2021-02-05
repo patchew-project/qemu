@@ -184,6 +184,8 @@ static void scsi_disk_load_request(QEMUFile *f, SCSIRequest *req)
 
 static bool scsi_disk_req_check_error(SCSIDiskReq *r, int ret, bool acct_failed)
 {
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
+
     if (r->req.io_canceled) {
         scsi_req_cancel_complete(&r->req);
         return true;
@@ -193,6 +195,7 @@ static bool scsi_disk_req_check_error(SCSIDiskReq *r, int ret, bool acct_failed)
         return scsi_handle_rw_error(r, -ret, acct_failed);
     }
 
+    blk_error_retry_reset_timeout(s->qdev.conf.blk);
     return false;
 }
 
@@ -497,6 +500,10 @@ static bool scsi_handle_rw_error(SCSIDiskReq *r, int error, bool acct_failed)
             scsi_check_condition(r, SENSE_CODE(IO_ERROR));
             break;
         }
+    }
+
+    if (action == BLOCK_ERROR_ACTION_RETRY) {
+        scsi_req_retry(&r->req);
     }
 
     blk_error_action(s->qdev.conf.blk, action, is_read, error);
@@ -2284,6 +2291,13 @@ static void scsi_disk_resize_cb(void *opaque)
     }
 }
 
+static void scsi_disk_retry_request(void *opaque)
+{
+    SCSIDiskState *s = opaque;
+
+    scsi_retry_requests(&s->qdev);
+}
+
 static void scsi_cd_change_media_cb(void *opaque, bool load, Error **errp)
 {
     SCSIDiskState *s = opaque;
@@ -2332,10 +2346,12 @@ static const BlockDevOps scsi_disk_removable_block_ops = {
     .is_medium_locked = scsi_cd_is_medium_locked,
 
     .resize_cb = scsi_disk_resize_cb,
+    .retry_request_cb = scsi_disk_retry_request,
 };
 
 static const BlockDevOps scsi_disk_block_ops = {
     .resize_cb = scsi_disk_resize_cb,
+    .retry_request_cb = scsi_disk_retry_request,
 };
 
 static void scsi_disk_unit_attention_reported(SCSIDevice *dev)
