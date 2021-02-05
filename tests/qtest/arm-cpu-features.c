@@ -20,7 +20,7 @@
  */
 #define SVE_MAX_VQ 16
 
-#define MACHINE     "-machine virt,gic-version=max -accel tcg "
+#define MACHINE_TCG "-machine virt,gic-version=max -accel tcg "
 #define MACHINE_KVM "-machine virt,gic-version=max -accel kvm -accel tcg "
 #define QUERY_HEAD  "{ 'execute': 'query-cpu-model-expansion', " \
                     "  'arguments': { 'type': 'full', "
@@ -39,6 +39,16 @@ static bool kvm_enabled(QTestState *qts)
     qobject_unref(resp);
 
     return enabled;
+}
+
+static bool tcg_enabled(QTestState *qts)
+{
+    /* TODO: Implement QMP query-accel? */
+#ifdef CONFIG_TCG
+    return true;
+#else
+    return false;
+#endif /* CONFIG_TCG */
 }
 
 static QDict *do_query_no_props(QTestState *qts, const char *cpu_type)
@@ -352,7 +362,12 @@ static void sve_tests_sve_max_vq_8(const void *data)
 {
     QTestState *qts;
 
-    qts = qtest_init(MACHINE "-cpu max,sve-max-vq=8");
+    qts = qtest_init(MACHINE_TCG "-cpu max,sve-max-vq=8");
+
+    if (!tcg_enabled(qts)) {
+        qtest_quit(qts);
+        return;
+    }
 
     assert_sve_vls(qts, "max", BIT_ULL(8) - 1, NULL);
 
@@ -387,7 +402,12 @@ static void sve_tests_sve_off(const void *data)
 {
     QTestState *qts;
 
-    qts = qtest_init(MACHINE "-cpu max,sve=off");
+    qts = qtest_init(MACHINE_TCG "-cpu max,sve=off");
+
+    if (!tcg_enabled(qts)) {
+        qtest_quit(qts);
+        return;
+    }
 
     /* SVE is off, so the map should be empty. */
     assert_sve_vls(qts, "max", 0, NULL);
@@ -443,7 +463,12 @@ static void test_query_cpu_model_expansion(const void *data)
 {
     QTestState *qts;
 
-    qts = qtest_init(MACHINE "-cpu max");
+    qts = qtest_init(MACHINE_TCG "-cpu max");
+
+    if (!tcg_enabled(qts)) {
+        qtest_quit(qts);
+        return;
+    }
 
     /* Test common query-cpu-model-expansion input validation */
     assert_type_full(qts);
