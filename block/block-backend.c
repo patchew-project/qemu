@@ -1803,6 +1803,9 @@ BlockErrorAction blk_get_error_action(BlockBackend *blk, bool is_read,
         return BLOCK_ERROR_ACTION_REPORT;
     case BLOCKDEV_ON_ERROR_IGNORE:
         return BLOCK_ERROR_ACTION_IGNORE;
+    case BLOCKDEV_ON_ERROR_RETRY:
+        return (blk->retry_timer) ?
+               BLOCK_ERROR_ACTION_RETRY : BLOCK_ERROR_ACTION_REPORT;
     case BLOCKDEV_ON_ERROR_AUTO:
     default:
         abort();
@@ -1850,6 +1853,12 @@ void blk_error_action(BlockBackend *blk, BlockErrorAction action,
         qemu_system_vmstop_request_prepare();
         send_qmp_error_event(blk, action, is_read, error);
         qemu_system_vmstop_request(RUN_STATE_IO_ERROR);
+    } else if (action == BLOCK_ERROR_ACTION_RETRY) {
+        if (!blk->quiesce_counter) {
+            timer_mod(blk->retry_timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) +
+                                        blk->retry_interval);
+            send_qmp_error_event(blk, action, is_read, error);
+        }
     } else {
         send_qmp_error_event(blk, action, is_read, error);
     }
