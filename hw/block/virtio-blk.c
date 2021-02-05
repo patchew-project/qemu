@@ -108,6 +108,10 @@ static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
             block_acct_failed(blk_get_stats(s->blk), &req->acct);
         }
         virtio_blk_free_request(req);
+    } else if (action == BLOCK_ERROR_ACTION_RETRY) {
+        req->mr_next = NULL;
+        req->next = s->rq;
+        s->rq = req;
     }
 
     blk_error_action(s->blk, action, is_read, error);
@@ -149,6 +153,7 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
             }
         }
 
+        blk_error_retry_reset_timeout(s->blk);
         virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
         block_acct_done(blk_get_stats(s->blk), &req->acct);
         virtio_blk_free_request(req);
@@ -168,6 +173,7 @@ static void virtio_blk_flush_complete(void *opaque, int ret)
         }
     }
 
+    blk_error_retry_reset_timeout(s->blk);
     virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
     block_acct_done(blk_get_stats(s->blk), &req->acct);
     virtio_blk_free_request(req);
@@ -190,6 +196,7 @@ static void virtio_blk_discard_write_zeroes_complete(void *opaque, int ret)
         }
     }
 
+    blk_error_retry_reset_timeout(s->blk);
     virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
     if (is_write_zeroes) {
         block_acct_done(blk_get_stats(s->blk), &req->acct);
@@ -828,12 +835,12 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 
 void virtio_blk_process_queued_requests(VirtIOBlock *s, bool is_bh)
 {
-    VirtIOBlockReq *req = s->rq;
+    VirtIOBlockReq *req;
     MultiReqBuffer mrb = {};
 
-    s->rq = NULL;
-
     aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
+    req = s->rq;
+    s->rq = NULL;
     while (req) {
         VirtIOBlockReq *next = req->next;
         if (virtio_blk_handle_request(req, &mrb)) {
@@ -1134,8 +1141,16 @@ static void virtio_blk_resize(void *opaque)
     aio_bh_schedule_oneshot(qemu_get_aio_context(), virtio_resize_cb, vdev);
 }
 
+static void virtio_blk_retry_request(void *opaque)
+{
+    VirtIOBlock *s = VIRTIO_BLK(opaque);
+
+    virtio_blk_process_queued_requests(s, false);
+}
+
 static const BlockDevOps virtio_block_ops = {
     .resize_cb = virtio_blk_resize,
+    .retry_request_cb = virtio_blk_retry_request,
 };
 
 static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
