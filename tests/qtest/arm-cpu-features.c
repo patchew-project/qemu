@@ -515,10 +515,6 @@ static void test_query_cpu_model_expansion_kvm(const void *data)
         QDict *resp;
         char *error;
 
-        assert_error(qts, "cortex-a15",
-            "We cannot guarantee the CPU type 'cortex-a15' works "
-            "with KVM on this host", NULL);
-
         assert_has_feature_enabled(qts, "host", "aarch64");
 
         /* Enabling and disabling pmu should always work. */
