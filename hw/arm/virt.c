@@ -1830,9 +1830,20 @@ static void machvirt_init(MachineState *machine)
 
     if (!cpu_type_valid(machine->cpu_type)) {
         int len = strlen(machine->cpu_type) - strlen(ARM_CPU_TYPE_SUFFIX);
+        g_autoptr(GString) s = g_string_new(NULL);
 
         error_report("mach-virt: CPU type %.*s not supported",
                      len, machine->cpu_type);
+
+        for (n = 0; n < ARRAY_SIZE(valid_cpus); n++) {
+            len = strlen(valid_cpus[n]) - strlen(ARM_CPU_TYPE_SUFFIX);
+            g_string_append_printf(s, " %.*s", len, valid_cpus[n]);
+            if (n + 1 < ARRAY_SIZE(valid_cpus)) {
+                g_string_append_c(s, ',');
+            }
+        }
+        error_report("mach-virt: Please select one of the following CPU types: %s",
+                     g_string_free(s, FALSE));
         exit(1);
     }
 
