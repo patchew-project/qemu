@@ -1829,7 +1829,10 @@ static void machvirt_init(MachineState *machine)
     finalize_gic_version(vms);
 
     if (!cpu_type_valid(machine->cpu_type)) {
-        error_report("mach-virt: CPU type %s not supported", machine->cpu_type);
+        int len = strlen(machine->cpu_type) - strlen(ARM_CPU_TYPE_SUFFIX);
+
+        error_report("mach-virt: CPU type %.*s not supported",
+                     len, machine->cpu_type);
         exit(1);
     }
 
