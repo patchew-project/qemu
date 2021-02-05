@@ -342,6 +342,8 @@ static int parse_block_error_action(const char *buf, bool is_read, Error **errp)
         return BLOCKDEV_ON_ERROR_STOP;
     } else if (!strcmp(buf, "report")) {
         return BLOCKDEV_ON_ERROR_REPORT;
+    } else if (!strcmp(buf, "retry")) {
+        return BLOCKDEV_ON_ERROR_RETRY;
     } else {
         error_setg(errp, "'%s' invalid %s error action",
                    buf, is_read ? "read" : "write");
