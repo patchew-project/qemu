@@ -893,3 +893,18 @@ SRST
   ``info replay``
     Display the record/replay information: mode and the current icount.
 ERST
+
+#if defined(TARGET_I386)
+    {
+        .name       = "msr-registers",
+        .args_type  = "cpustate_all:-a",
+        .params     = "[-a]",
+        .help       = "show the cpu msr registers (-a: all - show msr register info for all cpus)",
+        .cmd        = hmp_info_msr_registers,
+    },
+#endif
+
+SRST
+  ``info msr-registers``
+    Show the cpu msr registers.
+ERST

@@ -736,3 +736,58 @@ void qmp_sev_inject_launch_secret(const char *packet_hdr,
 {
     sev_inject_launch_secret(packet_hdr, secret, gpa, errp);
 }
+
+static void x86_print_msr_registers(Monitor *mon, CPUState *cs)
+{
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
+
+    monitor_printf(mon,
+                "MSR_IA32_SYSENTER_CS=%08x\n"
+                "MSR_IA32_SYSENTER_ESP=%016lx\n"
+                "MSR_IA32_SYSENTER_EIP=%016lx\n"
+                "MSR_STAR=%016lx\n",
+                env->sysenter_cs,
+                env->sysenter_esp,
+                env->sysenter_eip,
+                env->star);
+
+#ifdef TARGET_X86_64
+    monitor_printf(mon,
+                "MSR_LSTAR=%016lx\n"
+                "MSR_CSTAR=%016lx\n"
+                "MSR_FMASK=%016lx\n"
+                "MSR_FSBASE=%016lx\n"
+                "MSR_GSBASE=%016lx\n"
+                "MSR_KERNELGSBASE=%016lx\n",
+                env->lstar,
+                env->cstar,
+                env->fmask,
+                env->segs[R_FS].base,
+                env->segs[R_GS].base,
+                env->kernelgsbase);
+#endif
+
+}
+
+void hmp_info_msr_registers(Monitor *mon, const QDict *qdict)
+{
+    bool all_cpus = qdict_get_try_bool(qdict, "cpustate_all", false);
+    CPUState *cs;
+
+    if (all_cpus) {
+        CPU_FOREACH(cs) {
+            monitor_printf(mon, "\nCPU#%d\n", cs->cpu_index);
+            x86_print_msr_registers(mon, cs);
+        }
+    } else {
+        cs = mon_get_cpu(mon);
+
+        if (!cs) {
+            monitor_printf(mon, "No CPU available\n");
+            return;
+        }
+
+        x86_print_msr_registers(mon, cs);
+    }
+}
