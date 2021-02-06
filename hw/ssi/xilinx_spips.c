@@ -195,12 +195,72 @@
 #define R_GQSPI_MOD_ID        (0x1fc / 4)
 #define R_GQSPI_MOD_ID_RESET  (0x10a0000)
 
-#define R_QSPIDMA_DST_CTRL         (0x80c / 4)
-#define R_QSPIDMA_DST_CTRL_RESET   (0x803ffa00)
-#define R_QSPIDMA_DST_I_MASK       (0x820 / 4)
-#define R_QSPIDMA_DST_I_MASK_RESET (0xfe)
-#define R_QSPIDMA_DST_CTRL2        (0x824 / 4)
-#define R_QSPIDMA_DST_CTRL2_RESET  (0x081bfff8)
+#define GQSPI_CNFG_MODE_EN_IO  (0)
+#define GQSPI_CNFG_MODE_EN_DMA (2)
+
+/*
+ * Ref: UG1087 (v1.7) February 8, 2019
+ * https://www.xilinx.com/html_docs/registers/ug1087/ug1087-zynq-ultrascale-registers.html
+ */
+REG32(GQSPI_DMA_ADDR, 0x800)
+    FIELD(GQSPI_DMA_ADDR,   ADDR, 2, 30)
+REG32(GQSPI_DMA_SIZE, 0x804)
+    FIELD(GQSPI_DMA_SIZE,   SIZE, 2, 27)
+REG32(GQSPI_DMA_STS, 0x808)
+    FIELD(GQSPI_DMA_STS, DONE_CNT, 13, 3)
+    FIELD(GQSPI_DMA_STS, BUSY, 0, 1)
+REG32(GQSPI_DMA_CTRL, 0x80c)
+    FIELD(GQSPI_DMA_CTRL,   FIFO_LVL_HIT_THRESH, 25, 7)
+    FIELD(GQSPI_DMA_CTRL,   APB_ERR_RESP, 24, 1)
+    FIELD(GQSPI_DMA_CTRL,   ENDIANNESS, 23, 1)
+    FIELD(GQSPI_DMA_CTRL,   AXI_BRST_TYPE, 22, 1)
+    FIELD(GQSPI_DMA_CTRL,   TIMEOUT_VAL, 10, 12)
+    FIELD(GQSPI_DMA_CTRL,   FIFO_THRESH, 2, 8)
+    FIELD(GQSPI_DMA_CTRL,   PAUSE_STRM, 1, 1)
+    FIELD(GQSPI_DMA_CTRL,   PAUSE_MEM, 0, 1)
+REG32(GQSPI_DMA_I_STS, 0x814)
+    FIELD(GQSPI_DMA_I_STS, FIFO_OVERFLOW, 7, 1)
+    FIELD(GQSPI_DMA_I_STS, INVALID_APB, 6, 1)
+    FIELD(GQSPI_DMA_I_STS, THRESH_HIT, 5, 1)
+    FIELD(GQSPI_DMA_I_STS, TIMEOUT_MEM, 4, 1)
+    FIELD(GQSPI_DMA_I_STS, TIMEOUT_STRM, 3, 1)
+    FIELD(GQSPI_DMA_I_STS, AXI_BRESP_ERR, 2, 1)
+    FIELD(GQSPI_DMA_I_STS, DONE, 1, 1)
+REG32(GQSPI_DMA_I_EN, 0x818)
+    FIELD(GQSPI_DMA_I_EN, FIFO_OVERFLOW, 7, 1)
+    FIELD(GQSPI_DMA_I_EN, INVALID_APB, 6, 1)
+    FIELD(GQSPI_DMA_I_EN, THRESH_HIT, 5, 1)
+    FIELD(GQSPI_DMA_I_EN, TIMEOUT_MEM, 4, 1)
+    FIELD(GQSPI_DMA_I_EN, TIMEOUT_STRM, 3, 1)
+    FIELD(GQSPI_DMA_I_EN, AXI_BRESP_ERR, 2, 1)
+    FIELD(GQSPI_DMA_I_EN, DONE, 1, 1)
+REG32(GQSPI_DMA_I_DIS, 0x81c)
+    FIELD(GQSPI_DMA_I_DIS, FIFO_OVERFLOW, 7, 1)
+    FIELD(GQSPI_DMA_I_DIS, INVALID_APB, 6, 1)
+    FIELD(GQSPI_DMA_I_DIS, THRESH_HIT, 5, 1)
+    FIELD(GQSPI_DMA_I_DIS, TIMEOUT_MEM, 4, 1)
+    FIELD(GQSPI_DMA_I_DIS, TIMEOUT_STRM, 3, 1)
+    FIELD(GQSPI_DMA_I_DIS, AXI_BRESP_ERR, 2, 1)
+    FIELD(GQSPI_DMA_I_DIS, DONE, 1, 1)
+REG32(GQSPI_DMA_I_MASK, 0x820)
+    FIELD(GQSPI_DMA_I_MASK, FIFO_OVERFLOW, 7, 1)
+    FIELD(GQSPI_DMA_I_MASK, INVALID_APB, 6, 1)
+    FIELD(GQSPI_DMA_I_MASK, THRESH_HIT, 5, 1)
+    FIELD(GQSPI_DMA_I_MASK, TIMEOUT_MEM, 4, 1)
+    FIELD(GQSPI_DMA_I_MASK, TIMEOUT_STRM, 3, 1)
+    FIELD(GQSPI_DMA_I_MASK, AXI_BRESP_ERR, 2, 1)
+    FIELD(GQSPI_DMA_I_MASK, DONE, 1, 1)
+REG32(GQSPI_DMA_CTRL2, 0x824)
+    FIELD(GQSPI_DMA_CTRL2, ARCACHE, 24, 3)
+    FIELD(GQSPI_DMA_CTRL2, TIMEOUT_EN, 22, 1)
+    FIELD(GQSPI_DMA_CTRL2, TIMEOUT_PRE, 4, 12)
+    FIELD(GQSPI_DMA_CTRL2, MAX_OUTS_CMDS, 0, 4)
+REG32(GQSPI_DMA_ADDR_MSB, 0x828)
+    FIELD(GQSPI_DMA_ADDR_MSB, ADDR_MSB, 0, 12)
+
+#define R_GQSPI_DMA_CTRL_RESET    (0x803ffa00)
+#define R_GQSPI_DMA_INT_MASK      (0xfe)
+#define R_GQSPI_DMA_CTRL2_RESET   (0x081bfff8)
 
 /* size of TXRX FIFOs */
 #define RXFF_A          (128)
@@ -341,6 +401,7 @@ static void xilinx_spips_update_ixr(XilinxSPIPS *s)
 static void xlnx_zynqmp_qspips_update_ixr(XlnxZynqMPQSPIPS *s)
 {
     uint32_t gqspi_int;
+    uint32_t mode;
     int new_irqline;
 
     s->regs[R_GQSPI_ISR] &= ~IXR_SELF_CLEAR;
@@ -359,13 +420,20 @@ static void xlnx_zynqmp_qspips_update_ixr(XlnxZynqMPQSPIPS *s)
                                     IXR_TX_FIFO_NOT_FULL : 0);
 
     /* GQSPI Interrupt Trigger Status */
-    gqspi_int = (~s->regs[R_GQSPI_IMR]) & s->regs[R_GQSPI_ISR] & GQSPI_IXR_MASK;
-    new_irqline = !!(gqspi_int & IXR_ALL);
+    mode = ARRAY_FIELD_EX32(s->regs, GQSPI_CNFG, MODE_EN);
+    if (mode == GQSPI_CNFG_MODE_EN_IO) {
+        gqspi_int = (~s->regs[R_GQSPI_IMR]) & s->regs[R_GQSPI_ISR] \
+                                            & GQSPI_IXR_MASK;
+        new_irqline = !!(gqspi_int & IXR_ALL);
 
-    /* drive external interrupt pin */
-    if (new_irqline != s->gqspi_irqline) {
-        s->gqspi_irqline = new_irqline;
-        qemu_set_irq(XILINX_SPIPS(s)->irq, s->gqspi_irqline);
+        /* drive external interrupt pin */
+        if (new_irqline != s->gqspi_irqline) {
+            s->gqspi_irqline = new_irqline;
+            qemu_set_irq(XILINX_SPIPS(s)->irq, s->gqspi_irqline);
+        }
+    } else if (mode == GQSPI_CNFG_MODE_EN_DMA) {
+        new_irqline = s->regs[R_GQSPI_DMA_I_STS] & ~s->regs[R_GQSPI_DMA_I_MASK];
+        qemu_set_irq(XILINX_SPIPS(s)->irq, !!new_irqline);
     }
 }
 
@@ -417,9 +485,9 @@ static void xlnx_zynqmp_qspips_reset(DeviceState *d)
     s->regs[R_GQSPI_GPIO] = 1;
     s->regs[R_GQSPI_LPBK_DLY_ADJ] = R_GQSPI_LPBK_DLY_ADJ_RESET;
     s->regs[R_GQSPI_MOD_ID] = R_GQSPI_MOD_ID_RESET;
-    s->regs[R_QSPIDMA_DST_CTRL] = R_QSPIDMA_DST_CTRL_RESET;
-    s->regs[R_QSPIDMA_DST_I_MASK] = R_QSPIDMA_DST_I_MASK_RESET;
-    s->regs[R_QSPIDMA_DST_CTRL2] = R_QSPIDMA_DST_CTRL2_RESET;
+    s->regs[R_GQSPI_DMA_CTRL] = R_GQSPI_DMA_CTRL_RESET;
+    s->regs[R_GQSPI_DMA_I_MASK] = R_GQSPI_DMA_INT_MASK;
+    s->regs[R_GQSPI_DMA_CTRL2] = R_GQSPI_DMA_CTRL2_RESET;
     s->man_start_com_g = false;
     s->gqspi_irqline = 0;
     xlnx_zynqmp_qspips_update_ixr(s);
@@ -843,6 +911,62 @@ static const void *pop_buf(Fifo8 *fifo, uint32_t max, uint32_t *num)
     return ret;
 }
 
+static void xlnx_zynqmp_gspips_dma_done(XlnxZynqMPQSPIPS *s)
+{
+    int cnt;
+
+    s->regs[R_GQSPI_DMA_STS] &= ~R_GQSPI_DMA_STS_BUSY_MASK;
+    s->regs[R_GQSPI_DMA_I_STS] |= R_GQSPI_DMA_I_STS_DONE_MASK;
+
+    cnt = ARRAY_FIELD_EX32(s->regs, GQSPI_DMA_STS, DONE_CNT) + 1;
+    ARRAY_FIELD_DP32(s->regs, GQSPI_DMA_STS, DONE_CNT, cnt);
+
+}
+
+static uint32_t xlnx_zynqmp_gspips_dma_advance(XlnxZynqMPQSPIPS *s,
+                                               uint32_t len, hwaddr dst)
+{
+    uint32_t size = s->regs[R_GQSPI_DMA_SIZE];
+
+    size -= len;
+    size &= R_GQSPI_DMA_SIZE_SIZE_MASK;
+    dst += len;
+
+    s->regs[R_GQSPI_DMA_SIZE] = size;
+    s->regs[R_GQSPI_DMA_ADDR] = (uint32_t) dst;
+    s->regs[R_GQSPI_DMA_ADDR_MSB] = dst >> 32;
+
+    return size;
+}
+
+static size_t xlnx_zynqmp_gspips_dma_push(XlnxZynqMPQSPIPS *s,
+                                          uint8_t *buf, size_t len, bool eop)
+{
+    hwaddr dst = (hwaddr)s->regs[R_GQSPI_DMA_ADDR_MSB] << 32
+                 | s->regs[R_GQSPI_DMA_ADDR];
+    uint32_t size = s->regs[R_GQSPI_DMA_SIZE];
+    uint32_t mlen = MIN(size, len) & (~3); /* Size is word aligned */
+
+    if (size == 0 || len <= 0) {
+        return 0;
+    }
+
+    cpu_physical_memory_write(dst, buf, mlen);
+    size = xlnx_zynqmp_gspips_dma_advance(s, mlen, dst);
+
+    if (size == 0) {
+        xlnx_zynqmp_gspips_dma_done(s);
+        xlnx_zynqmp_qspips_update_ixr(s);
+    }
+
+   return mlen;
+}
+
+static bool xlnx_zynqmp_gspips_dma_can_push(XlnxZynqMPQSPIPS *s)
+{
+    return s->regs[R_GQSPI_DMA_SIZE] ? true : false;
+}
+
 static void xlnx_zynqmp_qspips_notify(void *opaque)
 {
     XlnxZynqMPQSPIPS *rq = XLNX_ZYNQMP_QSPIPS(opaque);
@@ -850,7 +974,8 @@ static void xlnx_zynqmp_qspips_notify(void *opaque)
     Fifo8 *recv_fifo;
 
     if (ARRAY_FIELD_EX32(rq->regs, GQSPI_SELECT, GENERIC_QSPI_EN)) {
-        if (!(ARRAY_FIELD_EX32(rq->regs, GQSPI_CNFG, MODE_EN) == 2)) {
+        if (ARRAY_FIELD_EX32(rq->regs, GQSPI_CNFG, MODE_EN)
+            != GQSPI_CNFG_MODE_EN_DMA) {
             return;
         }
         recv_fifo = &rq->rx_fifo_g;
@@ -861,7 +986,7 @@ static void xlnx_zynqmp_qspips_notify(void *opaque)
         recv_fifo = &s->rx_fifo;
     }
     while (recv_fifo->num >= 4
-           && stream_can_push(rq->dma, xlnx_zynqmp_qspips_notify, rq))
+           && xlnx_zynqmp_gspips_dma_can_push(rq))
     {
         size_t ret;
         uint32_t num;
@@ -874,7 +999,7 @@ static void xlnx_zynqmp_qspips_notify(void *opaque)
 
         memcpy(rq->dma_buf, rxd, num);
 
-        ret = stream_push(rq->dma, rq->dma_buf, num, false);
+        ret = xlnx_zynqmp_gspips_dma_push(rq, rq->dma_buf, num, false);
         assert(ret == num);
         xlnx_zynqmp_qspips_check_flush(rq);
     }
@@ -1126,6 +1251,31 @@ static void xlnx_zynqmp_qspips_write(void *opaque, hwaddr addr,
         case R_GQSPI_RXD:
         case R_GQSPI_GF_SNAPSHOT:
         case R_GQSPI_MOD_ID:
+            break;
+        case R_GQSPI_DMA_ADDR:
+            s->regs[R_GQSPI_DMA_ADDR] = value & R_GQSPI_DMA_ADDR_ADDR_MASK;
+            break;
+        case R_GQSPI_DMA_SIZE:
+            s->regs[R_GQSPI_DMA_SIZE] = value & R_GQSPI_DMA_SIZE_SIZE_MASK;
+            break;
+        case R_GQSPI_DMA_STS:
+            s->regs[R_GQSPI_DMA_STS] &= ~(value &
+                                          R_GQSPI_DMA_STS_DONE_CNT_MASK);
+            break;
+        case R_GQSPI_DMA_I_EN:
+            s->regs[R_GQSPI_DMA_I_EN]    = value & R_GQSPI_DMA_INT_MASK;
+            s->regs[R_GQSPI_DMA_I_MASK] &= ~s->regs[R_GQSPI_DMA_I_EN];
+            s->regs[R_GQSPI_DMA_I_DIS]  &= ~s->regs[R_GQSPI_DMA_I_EN];
+            break;
+        case R_GQSPI_DMA_I_DIS:
+            s->regs[R_GQSPI_DMA_I_DIS]  |= value & R_GQSPI_DMA_INT_MASK;
+            s->regs[R_GQSPI_DMA_I_MASK] |= s->regs[R_GQSPI_DMA_I_DIS];
+            s->regs[R_GQSPI_DMA_I_EN]   &= ~s->regs[R_GQSPI_DMA_I_DIS];
+            s->regs[R_GQSPI_DMA_STS] &= 0;
+            break;
+        case R_GQSPI_DMA_ADDR_MSB:
+            s->regs[R_GQSPI_DMA_ADDR_MSB] = value &
+                                            R_GQSPI_DMA_ADDR_MSB_ADDR_MSB_MASK;
             break;
         default:
             s->regs[reg] = value;
