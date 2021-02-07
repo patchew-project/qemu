@@ -46,7 +46,8 @@ static const int gpr_map32[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
  */
 #define IDX_NB_IP       1
 #define IDX_NB_FLAGS    1
-#define IDX_NB_SEG      (6 + 3)
+#define IDX_NB_SEG      6
+#define IDX_NB_MSR      10
 #define IDX_NB_CTL      6
 #define IDX_NB_FP       16
 /*
@@ -54,13 +55,14 @@ static const int gpr_map32[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
  */
 #define IDX_NB_MXCSR    1
 /*
- *          total ----> 8+1+1+9+6+16+8+1=50 or 16+1+1+9+6+16+16+1=66
+ *          total ----> 8+1+1+6+10+6+16+8+1=57 or 16+1+1+6+10+6+16+16+1=73
  */
 
 #define IDX_IP_REG      CPU_NB_REGS
 #define IDX_FLAGS_REG   (IDX_IP_REG + IDX_NB_IP)
 #define IDX_SEG_REGS    (IDX_FLAGS_REG + IDX_NB_FLAGS)
-#define IDX_CTL_REGS    (IDX_SEG_REGS + IDX_NB_SEG)
+#define IDX_MSR_REGS    (IDX_SEG_REGS + IDX_NB_SEG)
+#define IDX_CTL_REGS    (IDX_MSR_REGS + IDX_NB_MSR)
 #define IDX_FP_REGS     (IDX_CTL_REGS + IDX_NB_CTL)
 #define IDX_XMM_REGS    (IDX_FP_REGS + IDX_NB_FP)
 #define IDX_MXCSR_REG   (IDX_XMM_REGS + CPU_NB_REGS)
@@ -143,25 +145,56 @@ int x86_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
         case IDX_SEG_REGS + 5:
             return gdb_get_reg32(mem_buf, env->segs[R_GS].selector);
 
-        case IDX_SEG_REGS + 6:
+        case IDX_MSR_REGS:
             if ((env->hflags & HF_CS64_MASK) || GDB_FORCE_64) {
                 return gdb_get_reg64(mem_buf, env->segs[R_FS].base);
             }
             return gdb_get_reg32(mem_buf, env->segs[R_FS].base);
 
-        case IDX_SEG_REGS + 7:
+        case IDX_MSR_REGS + 1:
             if ((env->hflags & HF_CS64_MASK) || GDB_FORCE_64) {
                 return gdb_get_reg64(mem_buf, env->segs[R_GS].base);
             }
             return gdb_get_reg32(mem_buf, env->segs[R_GS].base);
 
-        case IDX_SEG_REGS + 8:
-#ifdef TARGET_X86_64
+        case IDX_MSR_REGS + 2:
             if ((env->hflags & HF_CS64_MASK) || GDB_FORCE_64) {
-                return gdb_get_reg64(mem_buf, env->kernelgsbase);
+                return gdb_get_reg64(mem_buf, env->sysenter_cs);
             }
-            return gdb_get_reg32(mem_buf, env->kernelgsbase);
+            return gdb_get_reg32(mem_buf, env->sysenter_cs);
+
+        case IDX_MSR_REGS + 3:
+            if ((env->hflags & HF_CS64_MASK) || GDB_FORCE_64) {
+                return gdb_get_reg64(mem_buf, env->sysenter_esp);
+            }
+            return gdb_get_reg32(mem_buf, env->sysenter_esp);
+
+        case IDX_MSR_REGS + 4:
+            if ((env->hflags & HF_CS64_MASK) || GDB_FORCE_64) {
+                return gdb_get_reg64(mem_buf, env->sysenter_eip);
+            }
+            return gdb_get_reg32(mem_buf, env->sysenter_eip);
+
+        case IDX_MSR_REGS + 5:
+            if ((env->hflags & HF_CS64_MASK) || GDB_FORCE_64) {
+                return gdb_get_reg64(mem_buf, env->star);
+            }
+            return gdb_get_reg32(mem_buf, env->star);
+
+#ifdef TARGET_X86_64
+        case IDX_MSR_REGS + 6:
+            return gdb_get_reg64(mem_buf, env->fmask);
+        case IDX_MSR_REGS + 7:
+            return gdb_get_reg64(mem_buf, env->lstar);
+        case IDX_MSR_REGS + 8:
+            return gdb_get_reg64(mem_buf, env->cstar);
+        case IDX_MSR_REGS + 9:
+            return gdb_get_reg64(mem_buf, env->kernelgsbase);
 #else
+        case IDX_MSR_REGS + 6:
+        case IDX_MSR_REGS + 7:
+        case IDX_MSR_REGS + 8:
+        case IDX_MSR_REGS + 9:
             return gdb_get_reg32(mem_buf, 0);
 #endif
 
@@ -330,7 +363,7 @@ int x86_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         case IDX_SEG_REGS + 5:
             return x86_cpu_gdb_load_seg(cpu, R_GS, mem_buf);
 
-        case IDX_SEG_REGS + 6:
+        case IDX_MSR_REGS:
             if (env->hflags & HF_CS64_MASK) {
                 env->segs[R_FS].base = ldq_p(mem_buf);
                 return 8;
@@ -338,7 +371,7 @@ int x86_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
             env->segs[R_FS].base = ldl_p(mem_buf);
             return 4;
 
-        case IDX_SEG_REGS + 7:
+        case IDX_MSR_REGS + 1:
             if (env->hflags & HF_CS64_MASK) {
                 env->segs[R_GS].base = ldq_p(mem_buf);
                 return 8;
@@ -346,16 +379,79 @@ int x86_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
             env->segs[R_GS].base = ldl_p(mem_buf);
             return 4;
 
-        case IDX_SEG_REGS + 8:
+        case IDX_MSR_REGS + 2:
+            if (env->hflags & HF_CS64_MASK) {
+                env->sysenter_cs = ldq_p(mem_buf);
+                return 8;
+            }
+            env->sysenter_cs = ldl_p(mem_buf);
+            return 4;
+
+        case IDX_MSR_REGS + 3:
+            if (env->hflags & HF_CS64_MASK) {
+                env->sysenter_esp = ldq_p(mem_buf);
+                return 8;
+            }
+            env->sysenter_esp = ldl_p(mem_buf);
+            return 4;
+
+        case IDX_MSR_REGS + 4:
+            if (env->hflags & HF_CS64_MASK) {
+                env->sysenter_eip = ldq_p(mem_buf);
+                return 8;
+            }
+            env->sysenter_eip = ldl_p(mem_buf);
+            return 4;
+
+        case IDX_MSR_REGS + 5:
+            if (env->hflags & HF_CS64_MASK) {
+                env->star = ldq_p(mem_buf);
+                return 8;
+            }
+            env->star = ldl_p(mem_buf);
+            return 4;
+
 #ifdef TARGET_X86_64
+        case IDX_MSR_REGS + 6:
+            if (env->hflags & HF_CS64_MASK) {
+                env->lstar = ldq_p(mem_buf);
+                return 8;
+            }
+            env->lstar = ldl_p(mem_buf);
+            return 4;
+
+        case IDX_MSR_REGS + 7:
+            if (env->hflags & HF_CS64_MASK) {
+                env->cstar = ldq_p(mem_buf);
+                return 8;
+            }
+            env->cstar = ldl_p(mem_buf);
+            return 4;
+
+        case IDX_MSR_REGS + 8:
+            if (env->hflags & HF_CS64_MASK) {
+                env->fmask = ldq_p(mem_buf);
+                return 8;
+            }
+            env->fmask = ldl_p(mem_buf);
+            return 4;
+
+        case IDX_MSR_REGS + 9:
             if (env->hflags & HF_CS64_MASK) {
                 env->kernelgsbase = ldq_p(mem_buf);
                 return 8;
             }
             env->kernelgsbase = ldl_p(mem_buf);
-#endif
             return 4;
+#else
+        case IDX_MSR_REGS + 6:
+        case IDX_MSR_REGS + 7:
+        case IDX_MSR_REGS + 8:
+        case IDX_MSR_REGS + 9:
+            return 4;
+#endif
 
+        /* The first 8 registers have been addressed in an if block above */
         case IDX_FP_REGS + 8:
             cpu_set_fpuc(env, ldl_p(mem_buf));
             return 4;

@@ -61,6 +61,13 @@
   <reg name="es_base" bitsize="32" type="int32"/-->
   <reg name="fs_base" bitsize="32" type="int32"/>
   <reg name="gs_base" bitsize="32" type="int32"/>
+  <reg name="sysenter_cs" bitsize="32" type="int32"/>
+  <reg name="sysenter_esp" bitsize="32" type="int32"/>
+  <reg name="sysenter_eip" bitsize="32" type="int32"/>
+  <reg name="star" bitsize="32" type="int32"/>
+  <reg name="lstar" bitsize="32" type="int32"/>
+  <reg name="cstar" bitsize="32" type="int32"/>
+  <reg name="fmask" bitsize="32" type="int32"/>
   <reg name="k_gs_base" bitsize="32" type="int32"/>
 
   <flags id="i386_cr0" size="4">

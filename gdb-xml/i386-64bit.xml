@@ -74,6 +74,13 @@
   <reg name="es_base" bitsize="64" type="int64"/-->
   <reg name="fs_base" bitsize="64" type="int64"/>
   <reg name="gs_base" bitsize="64" type="int64"/>
+  <reg name="sysenter_cs" bitsize="64" type="int64"/>
+  <reg name="sysenter_esp" bitsize="64" type="int64"/>
+  <reg name="sysenter_eip" bitsize="64" type="int64"/>
+  <reg name="star" bitsize="64" type="int64"/>
+  <reg name="lstar" bitsize="64" type="int64"/>
+  <reg name="cstar" bitsize="64" type="int64"/>
+  <reg name="fmask" bitsize="64" type="int64"/>
   <reg name="k_gs_base" bitsize="64" type="int64"/>
 
   <!-- Control registers -->
