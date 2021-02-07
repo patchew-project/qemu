@@ -382,6 +382,7 @@ softmmu="yes"
 linux_user="no"
 bsd_user="no"
 blobs="true"
+install_colo_ra="false"
 pkgversion=""
 pie=""
 qom_cast_debug="yes"
@@ -1229,6 +1230,10 @@ for opt do
   ;;
   --disable-blobs) blobs="false"
   ;;
+  --disable-colo-ra) install_colo_ra="false"
+  ;;
+  --enable-colo-ra) install_colo_ra="true"
+  ;;
   --with-pkgversion=*) pkgversion="$optarg"
   ;;
   --with-coroutine=*) coroutine="$optarg"
@@ -1772,6 +1777,7 @@ Advanced options (experts only):
                            ucontext, sigaltstack, windows
   --enable-gcov            enable test coverage analysis with gcov
   --disable-blobs          disable installing provided firmware blobs
+  --enable-colo-ra         enable installing the COLO resource agent for pacemaker
   --with-vss-sdk=SDK-path  enable Windows VSS support in QEMU Guest Agent
   --with-win-sdk=SDK-path  path to Windows Platform SDK (to build VSS .tlb)
   --tls-priority           default TLS protocol/cipher priority string
@@ -6414,6 +6420,7 @@ NINJA=$ninja $meson setup \
         -Dzstd=$zstd -Dseccomp=$seccomp -Dvirtfs=$virtfs -Dcap_ng=$cap_ng \
         -Dattr=$attr -Ddefault_devices=$default_devices \
         -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
+        -Dinstall_colo_ra=$install_colo_ra \
         -Dvhost_user_blk_server=$vhost_user_blk_server \
         -Dfuse=$fuse -Dfuse_lseek=$fuse_lseek -Dguest_agent_msi=$guest_agent_msi \
         $(if test "$default_features" = no; then echo "-Dauto_features=disabled"; fi) \

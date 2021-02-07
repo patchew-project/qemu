@@ -15,6 +15,8 @@ option('gettext', type : 'feature', value : 'auto',
        description: 'Localization of the GTK+ user interface')
 option('install_blobs', type : 'boolean', value : true,
        description: 'install provided firmware blobs')
+option('install_colo_ra', type : 'boolean', value : false,
+       description: 'install the COLO resource agent for pacemaker')
 option('sparse', type : 'feature', value : 'auto',
        description: 'sparse checker')
 option('guest_agent_msi', type : 'feature', value : 'auto',

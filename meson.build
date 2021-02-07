@@ -2263,6 +2263,10 @@ elif get_option('guest_agent_msi').enabled()
   error('Guest agent MSI requested, but the guest agent is not being built')
 endif
 
+if get_option('install_colo_ra')
+  install_data('scripts/colo-resource-agent/colo', install_dir: get_option('libdir') / 'ocf/resource.d/qemu')
+endif
+
 # Don't build qemu-keymap if xkbcommon is not explicitly enabled
 # when we don't build tools or system
 if xkbcommon.found()
@@ -2398,6 +2402,7 @@ summary_info += {'system-mode emulation': have_system}
 summary_info += {'user-mode emulation': have_user}
 summary_info += {'block layer':       have_block}
 summary_info += {'Install blobs':     get_option('install_blobs')}
+summary_info += {'Install COLO resource agent': get_option('install_colo_ra')}
 summary_info += {'module support':    config_host.has_key('CONFIG_MODULES')}
 if config_host.has_key('CONFIG_MODULES')
   summary_info += {'alternative module path': config_host.has_key('CONFIG_MODULE_UPGRADES')}
