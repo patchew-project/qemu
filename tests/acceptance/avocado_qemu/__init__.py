@@ -15,6 +15,7 @@ import uuid
 import tempfile
 
 import avocado
+from avocado.utils.path import find_command
 
 #: The QEMU build root directory.  It may also be the source directory
 #: if building from the source dir, but it's safer to use BUILD_DIR for
@@ -146,6 +147,20 @@ def exec_command_and_wait_for_pattern(test, command,
     _console_interaction(test, success_message, failure_message, command + '\r')
 
 class Test(avocado.Test):
+    def pick_qemu_util(self, util):
+        default = os.path.join(BUILD_DIR, util)
+        if not os.path.exists(default):
+            default = find_command(default, False)
+            if not default:
+                default = None
+
+        ret = self.params.get(util, default=default)
+
+        if ret is None:
+            self.cancel("Could not find \"%s\"" % util)
+
+        return ret
+
     def _get_unique_tag_val(self, tag_name):
         """
         Gets a tag value, if unique for a key
