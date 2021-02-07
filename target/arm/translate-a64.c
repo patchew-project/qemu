@@ -144,7 +144,7 @@ static void set_btype(DisasContext *s, int val)
     TCGv_i32 tcg_val;
 
     /* BTYPE is a 2-bit field, and 0 should be done with reset_btype.  */
-    tcg_debug_assert(val >= 1 && val <= 3);
+    assert(val >= 1 && val <= 3);
 
     tcg_val = tcg_const_i32(val);
     tcg_gen_st_i32(tcg_val, cpu_env, offsetof(CPUARMState, btype));
@@ -10659,7 +10659,7 @@ static void handle_vec_simd_shri(DisasContext *s, bool is_q, bool is_u,
         unallocated_encoding(s);
         return;
     }
-    tcg_debug_assert(size <= 3);
+    assert(size <= 3);
 
     if (!fp_access_check(s)) {
         return;
@@ -12812,7 +12812,7 @@ static void disas_simd_two_reg_misc(DisasContext *s, uint32_t insn)
         /* Coverity claims (size == 3 && !is_q) has been eliminated
          * from all paths leading to here.
          */
-        tcg_debug_assert(is_q);
+        assert(is_q);
         for (pass = 0; pass < 2; pass++) {
             TCGv_i64 tcg_op = tcg_temp_new_i64();
             TCGv_i64 tcg_res = tcg_temp_new_i64();
@@ -14615,7 +14615,7 @@ static void disas_a64_insn(CPUARMState *env, DisasContext *s)
             s->guarded_page = is_guarded_page(env, s);
 
             /* First insn can have btype set to non-zero.  */
-            tcg_debug_assert(s->btype >= 0);
+            assert(s->btype >= 0);
 
             /*
              * Note that the Branch Target Exception has fairly high
@@ -14633,7 +14633,7 @@ static void disas_a64_insn(CPUARMState *env, DisasContext *s)
             }
         } else {
             /* Not the first insn: btype must be 0.  */
-            tcg_debug_assert(s->btype == 0);
+            assert(s->btype == 0);
         }
     }
 
@@ -14733,7 +14733,7 @@ static void aarch64_tr_init_disas_context(DisasContextBase *dcbase,
 
 #ifdef CONFIG_USER_ONLY
     /* In sve_probe_page, we assume TBI is enabled. */
-    tcg_debug_assert(dc->tbid & 1);
+    assert(dc->tbid & 1);
 #endif
 
     /* Single step state. The code-generation logic here is:

@@ -166,8 +166,8 @@ static uint8_t *allocation_tag_mem(CPUARMState *env, int ptr_mmu_idx,
      * not set in the cputlb lookup above.
      */
     mr = memory_region_from_host(host, &ptr_ra);
-    tcg_debug_assert(mr != NULL);
-    tcg_debug_assert(memory_region_is_ram(mr));
+    assert(mr != NULL);
+    assert(memory_region_is_ram(mr));
     ptr_paddr = ptr_ra;
     do {
         ptr_paddr += mr->addr;

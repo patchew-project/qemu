@@ -2972,7 +2972,7 @@ void gen_gvec_sqrdmlah_qc(unsigned vece, uint32_t rd_ofs, uint32_t rn_ofs,
     static gen_helper_gvec_3_ptr * const fns[2] = {
         gen_helper_gvec_qrdmlah_s16, gen_helper_gvec_qrdmlah_s32
     };
-    tcg_debug_assert(vece >= 1 && vece <= 2);
+    assert(vece >= 1 && vece <= 2);
     gen_gvec_fn3_qc(rd_ofs, rn_ofs, rm_ofs, opr_sz, max_sz, fns[vece - 1]);
 }
 
@@ -2982,7 +2982,7 @@ void gen_gvec_sqrdmlsh_qc(unsigned vece, uint32_t rd_ofs, uint32_t rn_ofs,
     static gen_helper_gvec_3_ptr * const fns[2] = {
         gen_helper_gvec_qrdmlsh_s16, gen_helper_gvec_qrdmlsh_s32
     };
-    tcg_debug_assert(vece >= 1 && vece <= 2);
+    assert(vece >= 1 && vece <= 2);
     gen_gvec_fn3_qc(rd_ofs, rn_ofs, rm_ofs, opr_sz, max_sz, fns[vece - 1]);
 }
 
@@ -3105,8 +3105,8 @@ void gen_gvec_ssra(unsigned vece, uint32_t rd_ofs, uint32_t rm_ofs,
     };
 
     /* tszimm encoding produces immediates in the range [1..esize]. */
-    tcg_debug_assert(shift > 0);
-    tcg_debug_assert(shift <= (8 << vece));
+    assert(shift > 0);
+    assert(shift <= (8 << vece));
 
     /*
      * Shifts larger than the element size are architecturally valid.
@@ -3181,8 +3181,8 @@ void gen_gvec_usra(unsigned vece, uint32_t rd_ofs, uint32_t rm_ofs,
     };
 
     /* tszimm encoding produces immediates in the range [1..esize]. */
-    tcg_debug_assert(shift > 0);
-    tcg_debug_assert(shift <= (8 << vece));
+    assert(shift > 0);
+    assert(shift <= (8 << vece));
 
     /*
      * Shifts larger than the element size are architecturally valid.
@@ -3290,8 +3290,8 @@ void gen_gvec_srshr(unsigned vece, uint32_t rd_ofs, uint32_t rm_ofs,
     };
 
     /* tszimm encoding produces immediates in the range [1..esize] */
-    tcg_debug_assert(shift > 0);
-    tcg_debug_assert(shift <= (8 << vece));
+    assert(shift > 0);
+    assert(shift <= (8 << vece));
 
     if (shift == (8 << vece)) {
         /*
@@ -3386,8 +3386,8 @@ void gen_gvec_srsra(unsigned vece, uint32_t rd_ofs, uint32_t rm_ofs,
     };
 
     /* tszimm encoding produces immediates in the range [1..esize] */
-    tcg_debug_assert(shift > 0);
-    tcg_debug_assert(shift <= (8 << vece));
+    assert(shift > 0);
+    assert(shift <= (8 << vece));
 
     /*
      * Shifts larger than the element size are architecturally valid.
@@ -3491,8 +3491,8 @@ void gen_gvec_urshr(unsigned vece, uint32_t rd_ofs, uint32_t rm_ofs,
     };
 
     /* tszimm encoding produces immediates in the range [1..esize] */
-    tcg_debug_assert(shift > 0);
-    tcg_debug_assert(shift <= (8 << vece));
+    assert(shift > 0);
+    assert(shift <= (8 << vece));
 
     if (shift == (8 << vece)) {
         /*
@@ -3606,8 +3606,8 @@ void gen_gvec_ursra(unsigned vece, uint32_t rd_ofs, uint32_t rm_ofs,
     };
 
     /* tszimm encoding produces immediates in the range [1..esize] */
-    tcg_debug_assert(shift > 0);
-    tcg_debug_assert(shift <= (8 << vece));
+    assert(shift > 0);
+    assert(shift <= (8 << vece));
 
     tcg_gen_gvec_2i(rd_ofs, rm_ofs, opr_sz, max_sz, shift, &ops[vece]);
 }
@@ -3695,8 +3695,8 @@ void gen_gvec_sri(unsigned vece, uint32_t rd_ofs, uint32_t rm_ofs,
     };
 
     /* tszimm encoding produces immediates in the range [1..esize]. */
-    tcg_debug_assert(shift > 0);
-    tcg_debug_assert(shift <= (8 << vece));
+    assert(shift > 0);
+    assert(shift <= (8 << vece));
 
     /* Shift of esize leaves destination unchanged. */
     if (shift < (8 << vece)) {
@@ -3788,8 +3788,8 @@ void gen_gvec_sli(unsigned vece, uint32_t rd_ofs, uint32_t rm_ofs,
     };
 
     /* tszimm encoding produces immediates in the range [0..esize-1]. */
-    tcg_debug_assert(shift >= 0);
-    tcg_debug_assert(shift < (8 << vece));
+    assert(shift >= 0);
+    assert(shift < (8 << vece));
 
     if (shift == 0) {
         tcg_gen_gvec_mov(vece, rd_ofs, rm_ofs, opr_sz, max_sz);

@@ -87,7 +87,7 @@ static uint32_t li(DisasContext *ctx, int sz)
     CPURXState *env = ctx->env;
     addr = ctx->base.pc_next;
 
-    tcg_debug_assert(sz < 4);
+    assert(sz < 4);
     switch (sz) {
     case 1:
         ctx->base.pc_next += 1;
@@ -201,7 +201,7 @@ static inline TCGv rx_index_addr(DisasContext *ctx, TCGv mem,
 {
     uint32_t dsp;
 
-    tcg_debug_assert(ld < 3);
+    assert(ld < 3);
     switch (ld) {
     case 0:
         return cpu_regs[reg];
@@ -222,7 +222,7 @@ static inline TCGv rx_index_addr(DisasContext *ctx, TCGv mem,
 static inline MemOp mi_to_mop(unsigned mi)
 {
     static const MemOp mop[5] = { MO_SB, MO_SW, MO_UL, MO_UW, MO_UB };
-    tcg_debug_assert(mi < 5);
+    assert(mi < 5);
     return mop[mi];
 }
 
@@ -258,7 +258,7 @@ static int is_privileged(DisasContext *ctx, int is_exception)
 /* generate QEMU condition */
 static void psw_cond(DisasCompare *dc, uint32_t cond)
 {
-    tcg_debug_assert(cond < 16);
+    assert(cond < 16);
     switch (cond) {
     case 0: /* z */
         dc->cond = TCG_COND_EQ;
@@ -1401,7 +1401,7 @@ static inline void shiftr_imm(uint32_t rd, uint32_t rs, uint32_t imm,
     static void (* const gen_sXri[])(TCGv ret, TCGv arg1, int arg2) = {
         tcg_gen_shri_i32, tcg_gen_sari_i32,
     };
-    tcg_debug_assert(alith < 2);
+    assert(alith < 2);
     if (imm) {
         gen_sXri[alith](cpu_regs[rd], cpu_regs[rs], imm - 1);
         tcg_gen_andi_i32(cpu_psw_c, cpu_regs[rd], 0x00000001);
@@ -1425,7 +1425,7 @@ static inline void shiftr_reg(uint32_t rd, uint32_t rs, unsigned int alith)
     static void (* const gen_sXr[])(TCGv ret, TCGv arg1, TCGv arg2) = {
         tcg_gen_shr_i32, tcg_gen_sar_i32,
     };
-    tcg_debug_assert(alith < 2);
+    assert(alith < 2);
     noshift = gen_new_label();
     done = gen_new_label();
     count = tcg_temp_new();
@@ -2282,7 +2282,7 @@ static bool trans_INT(DisasContext *ctx, arg_INT *a)
 {
     TCGv vec;
 
-    tcg_debug_assert(a->imm < 0x100);
+    assert(a->imm < 0x100);
     vec = tcg_const_i32(a->imm);
     tcg_gen_movi_i32(cpu_pc, ctx->base.pc_next);
     gen_helper_rxint(cpu_env, vec);
