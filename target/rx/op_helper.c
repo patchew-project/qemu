@@ -234,7 +234,7 @@ static void (* const cpu_stfn[])(CPUArchState *env,
 
 void helper_sstr(CPURXState *env, uint32_t sz)
 {
-    tcg_debug_assert(sz < 3);
+    assert(sz < 3);
     while (env->regs[3] != 0) {
         cpu_stfn[sz](env, env->regs[1], env->regs[2], GETPC());
         env->regs[1] += 1 << sz;
@@ -283,7 +283,7 @@ void helper_smovb(CPURXState *env)
 void helper_suntil(CPURXState *env, uint32_t sz)
 {
     uint32_t tmp;
-    tcg_debug_assert(sz < 3);
+    assert(sz < 3);
     if (env->regs[3] == 0) {
         return ;
     }
@@ -302,7 +302,7 @@ void helper_suntil(CPURXState *env, uint32_t sz)
 void helper_swhile(CPURXState *env, uint32_t sz)
 {
     uint32_t tmp;
-    tcg_debug_assert(sz < 3);
+    assert(sz < 3);
     if (env->regs[3] == 0) {
         return ;
     }

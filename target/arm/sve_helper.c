@@ -4030,7 +4030,7 @@ static intptr_t find_next_active(uint64_t *vg, intptr_t reg_off,
     reg_off += ctz64(pg);
 
     /* We should never see an out of range predicate bit set.  */
-    tcg_debug_assert(reg_off < reg_max);
+    assert(reg_off < reg_max);
     return reg_off;
 }
 
@@ -4186,7 +4186,7 @@ static bool sve_cont_ldst_elements(SVEContLdSt *info, target_ulong addr,
         /* No active elements, no pages touched. */
         return false;
     }
-    tcg_debug_assert(reg_off_last >= 0 && reg_off_last < reg_max);
+    assert(reg_off_last >= 0 && reg_off_last < reg_max);
 
     info->reg_off_first[0] = reg_off_first;
     info->mem_off_first[0] = (reg_off_first >> esz) * msize;
@@ -4235,7 +4235,7 @@ static bool sve_cont_ldst_elements(SVEContLdSt *info, target_ulong addr,
      * this may affect the address reported in an exception.
      */
     reg_off_split = find_next_active(vg, reg_off_split, reg_max, esz);
-    tcg_debug_assert(reg_off_split <= reg_off_last);
+    assert(reg_off_split <= reg_off_last);
     info->reg_off_first[1] = reg_off_split;
     info->mem_off_first[1] = (reg_off_split >> esz) * msize;
     info->reg_off_last[1] = reg_off_last;
@@ -4794,7 +4794,7 @@ void sve_ldnfff1_r(CPUARMState *env, void *vg, const target_ulong addr,
     /* Probe the page(s). */
     if (!sve_cont_ldst_pages(&info, fault, env, addr, MMU_DATA_LOAD, retaddr)) {
         /* Fault on first element. */
-        tcg_debug_assert(fault == FAULT_NO);
+        assert(fault == FAULT_NO);
         memset(vd, 0, reg_max);
         goto do_fault;
     }

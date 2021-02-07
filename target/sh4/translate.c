@@ -339,7 +339,7 @@ static void gen_delayed_conditional_jump(DisasContext * ctx)
 static inline void gen_load_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
 {
     /* We have already signaled illegal instruction for odd Dr.  */
-    tcg_debug_assert((reg & 1) == 0);
+    assert((reg & 1) == 0);
     reg ^= ctx->fbank;
     tcg_gen_concat_i32_i64(t, cpu_fregs[reg + 1], cpu_fregs[reg]);
 }
@@ -347,7 +347,7 @@ static inline void gen_load_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
 static inline void gen_store_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
 {
     /* We have already signaled illegal instruction for odd Dr.  */
-    tcg_debug_assert((reg & 1) == 0);
+    assert((reg & 1) == 0);
     reg ^= ctx->fbank;
     tcg_gen_extr_i64_i32(cpu_fregs[reg + 1], cpu_fregs[reg], t);
 }

@@ -992,7 +992,7 @@ static void tcg_gen_gvec_rsubs(unsigned vece, uint32_t dofs, uint32_t aofs,
           .vece = MO_64 },
     };
 
-    tcg_debug_assert(vece <= MO_64);
+    assert(vece <= MO_64);
     tcg_gen_gvec_2s(dofs, aofs, oprsz, maxsz, c, &rsub_op[vece]);
 }
 

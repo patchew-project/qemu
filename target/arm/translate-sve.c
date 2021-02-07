@@ -3938,8 +3938,8 @@ static bool trans_FCMLA_zzxz(DisasContext *s, arg_FCMLA_zzxz *a)
         gen_helper_gvec_fcmlas_idx,
     };
 
-    tcg_debug_assert(a->esz == 1 || a->esz == 2);
-    tcg_debug_assert(a->rd == a->ra);
+    assert(a->esz == 1 || a->esz == 2);
+    assert(a->rd == a->ra);
     if (sve_access_check(s)) {
         unsigned vsz = vec_full_reg_size(s);
         TCGv_ptr status = fpstatus_ptr(a->esz == MO_16 ? FPST_FPCR_F16 : FPST_FPCR);

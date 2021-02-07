@@ -1945,8 +1945,8 @@ static bool do_ibranch(DisasContext *ctx, TCGv_reg dest,
            for the indirect branch consumes no special resources, we
            can (conditionally) skip B and continue execution.  */
         /* The use_nullify_skip test implies we have a known control path.  */
-        tcg_debug_assert(ctx->iaoq_b != -1);
-        tcg_debug_assert(ctx->iaoq_n != -1);
+        assert(ctx->iaoq_b != -1);
+        assert(ctx->iaoq_n != -1);
 
         /* We do have to handle the non-local temporary, DEST, before
            branching.  Since IOAQ_F is not really live at this point, we
