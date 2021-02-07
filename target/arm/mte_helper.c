@@ -111,15 +111,8 @@ static uint8_t *allocation_tag_mem(CPUARMState *env, int ptr_mmu_idx,
      * matching tlb entry + iotlb entry.
      */
     index = tlb_index(env, ptr_mmu_idx, ptr);
-# ifdef CONFIG_DEBUG_TCG
-    {
-        CPUTLBEntry *entry = tlb_entry(env, ptr_mmu_idx, ptr);
-        target_ulong comparator = (ptr_access == MMU_DATA_LOAD
-                                   ? entry->addr_read
-                                   : tlb_addr_write(entry));
-        g_assert(tlb_hit(comparator, ptr));
-    }
-# endif
+    tlb_assert_iotlb_entry_for_ptr_present(env, ptr_mmu_idx, ptr,
+                                           ptr_access, index);
     iotlbentry = &env_tlb(env)->d[ptr_mmu_idx].iotlb[index];
 
     /* If the virtual page MemAttr != Tagged, access unchecked. */

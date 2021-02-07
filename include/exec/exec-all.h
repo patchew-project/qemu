@@ -296,6 +296,15 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
 void tlb_set_page(CPUState *cpu, target_ulong vaddr,
                   hwaddr paddr, int prot,
                   int mmu_idx, target_ulong size);
+
+/*
+ * Find the iotlbentry for ptr.  This *must* be present in the TLB
+ * because we just found the mapping.
+ */
+void tlb_assert_iotlb_entry_for_ptr_present(CPUArchState *env, int ptr_mmu_idx,
+                                            uint64_t ptr,
+                                            MMUAccessType ptr_access,
+                                            uintptr_t index);
 #else
 static inline void tlb_init(CPUState *cpu)
 {
