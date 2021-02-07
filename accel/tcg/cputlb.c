@@ -429,6 +429,20 @@ void tlb_flush_all_cpus_synced(CPUState *src_cpu)
     tlb_flush_by_mmuidx_all_cpus_synced(src_cpu, ALL_MMUIDX_BITS);
 }
 
+void tlb_assert_iotlb_entry_for_ptr_present(CPUArchState *env, int ptr_mmu_idx,
+                                            uint64_t ptr,
+                                            MMUAccessType ptr_access,
+                                            uintptr_t index)
+{
+#ifdef CONFIG_DEBUG_TCG
+    CPUTLBEntry *entry = tlb_entry(env, ptr_mmu_idx, ptr);
+    target_ulong comparator = (ptr_access == MMU_DATA_LOAD
+                               ? entry->addr_read
+                               : tlb_addr_write(entry));
+    g_assert(tlb_hit(comparator, ptr));
+#endif
+}
+
 static bool tlb_hit_page_mask_anyprot(CPUTLBEntry *tlb_entry,
                                       target_ulong page, target_ulong mask)
 {

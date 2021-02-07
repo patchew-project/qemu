@@ -4089,14 +4089,8 @@ static bool sve_probe_page(SVEHostPage *info, bool nofault,
     {
         uintptr_t index = tlb_index(env, mmu_idx, addr);
 
-# ifdef CONFIG_DEBUG_TCG
-        CPUTLBEntry *entry = tlb_entry(env, mmu_idx, addr);
-        target_ulong comparator = (access_type == MMU_DATA_LOAD
-                                   ? entry->addr_read
-                                   : tlb_addr_write(entry));
-        g_assert(tlb_hit(comparator, addr));
-# endif
-
+        tlb_assert_iotlb_entry_for_ptr_present(env, mmu_idx, addr,
+                                               access_type, index);
         CPUIOTLBEntry *iotlbentry = &env_tlb(env)->d[mmu_idx].iotlb[index];
         info->attrs = iotlbentry->attrs;
     }
