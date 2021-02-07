@@ -48,6 +48,7 @@
 #include "crypto/secret.h"
 #include "scsi/utils.h"
 #include "trace.h"
+#include "qemu/lockable.h"
 
 /* Conflict between scsi/utils.h and libiscsi! :( */
 #define SCSI_XFER_NONE ISCSI_XFER_NONE
@@ -399,10 +400,9 @@ iscsi_process_read(void *arg)
     IscsiLun *iscsilun = arg;
     struct iscsi_context *iscsi = iscsilun->iscsi;
 
-    qemu_mutex_lock(&iscsilun->mutex);
+    QEMU_LOCK_GUARD(&iscsilun->mutex);
     iscsi_service(iscsi, POLLIN);
     iscsi_set_events(iscsilun);
-    qemu_mutex_unlock(&iscsilun->mutex);
 }
 
 static void
@@ -411,10 +411,9 @@ iscsi_process_write(void *arg)
     IscsiLun *iscsilun = arg;
     struct iscsi_context *iscsi = iscsilun->iscsi;
 
-    qemu_mutex_lock(&iscsilun->mutex);
+    QEMU_LOCK_GUARD(&iscsilun->mutex);
     iscsi_service(iscsi, POLLOUT);
     iscsi_set_events(iscsilun);
-    qemu_mutex_unlock(&iscsilun->mutex);
 }
 
 static int64_t sector_lun2qemu(int64_t sector, IscsiLun *iscsilun)
@@ -623,7 +622,7 @@ iscsi_co_writev(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
     lba = sector_qemu2lun(sector_num, iscsilun);
     num_sectors = sector_qemu2lun(nb_sectors, iscsilun);
     iscsi_co_init_iscsitask(iscsilun, &iTask);
-    qemu_mutex_lock(&iscsilun->mutex);
+    QEMU_LOCK_GUARD(&iscsilun->mutex);
 retry:
     if (iscsilun->use_16_for_rw) {
 #if LIBISCSI_API_VERSION >= (20160603)
@@ -652,7 +651,6 @@ retry:
     }
 #endif
     if (iTask.task == NULL) {
-        qemu_mutex_unlock(&iscsilun->mutex);
         return -ENOMEM;
     }
 #if LIBISCSI_API_VERSION < (20160603)
@@ -684,7 +682,6 @@ retry:
                                  nb_sectors * BDRV_SECTOR_SIZE);
 
 out_unlock:
-    qemu_mutex_unlock(&iscsilun->mutex);
     g_free(iTask.err_str);
     return r;
 }
@@ -723,7 +720,7 @@ static int coroutine_fn iscsi_co_block_status(BlockDriverState *bs,
     lba = offset / iscsilun->block_size;
     max_bytes = (iscsilun->num_blocks - lba) * iscsilun->block_size;
 
-    qemu_mutex_lock(&iscsilun->mutex);
+    QEMU_LOCK_GUARD(&iscsilun->mutex);
 retry:
     if (iscsi_get_lba_status_task(iscsilun->iscsi, iscsilun->lun,
                                   lba, 8 + 16, iscsi_co_generic_cb,
@@ -785,7 +782,6 @@ retry:
         *pnum = bytes;
     }
 out_unlock:
-    qemu_mutex_unlock(&iscsilun->mutex);
     g_free(iTask.err_str);
 out:
     if (iTask.task != NULL) {
@@ -858,7 +854,7 @@ static int coroutine_fn iscsi_co_readv(BlockDriverState *bs,
     num_sectors = sector_qemu2lun(nb_sectors, iscsilun);
 
     iscsi_co_init_iscsitask(iscsilun, &iTask);
-    qemu_mutex_lock(&iscsilun->mutex);
+    QEMU_LOCK_GUARD(&iscsilun->mutex);
 retry:
     if (iscsilun->use_16_for_rw) {
 #if LIBISCSI_API_VERSION >= (20160603)
@@ -889,7 +885,6 @@ retry:
     }
 #endif
     if (iTask.task == NULL) {
-        qemu_mutex_unlock(&iscsilun->mutex);
         return -ENOMEM;
     }
 #if LIBISCSI_API_VERSION < (20160603)
@@ -913,7 +908,6 @@ retry:
         r = iTask.err_code;
     }
 
-    qemu_mutex_unlock(&iscsilun->mutex);
     g_free(iTask.err_str);
     return r;
 }
@@ -925,11 +919,10 @@ static int coroutine_fn iscsi_co_flush(BlockDriverState *bs)
     int r = 0;
 
     iscsi_co_init_iscsitask(iscsilun, &iTask);
-    qemu_mutex_lock(&iscsilun->mutex);
+    QEMU_LOCK_GUARD(&iscsilun->mutex);
 retry:
     if (iscsi_synchronizecache10_task(iscsilun->iscsi, iscsilun->lun, 0, 0, 0,
                                       0, iscsi_co_generic_cb, &iTask) == NULL) {
-        qemu_mutex_unlock(&iscsilun->mutex);
         return -ENOMEM;
     }
 
@@ -950,7 +943,6 @@ retry:
         r = iTask.err_code;
     }
 
-    qemu_mutex_unlock(&iscsilun->mutex);
     g_free(iTask.err_str);
     return r;
 }
@@ -1085,7 +1077,8 @@ static BlockAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
     acb->task->expxferlen = acb->ioh->dxfer_len;
 
     data.size = 0;
-    qemu_mutex_lock(&iscsilun->mutex);
+
+    QEMU_LOCK_GUARD(&iscsilun->mutex);
     if (acb->task->xfer_dir == SCSI_XFER_WRITE) {
         if (acb->ioh->iovec_count == 0) {
             data.data = acb->ioh->dxferp;
@@ -1101,7 +1094,6 @@ static BlockAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
                                  iscsi_aio_ioctl_cb,
                                  (data.size > 0) ? &data : NULL,
                                  acb) != 0) {
-        qemu_mutex_unlock(&iscsilun->mutex);
         scsi_free_scsi_task(acb->task);
         qemu_aio_unref(acb);
         return NULL;
@@ -1121,7 +1113,6 @@ static BlockAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
     }
 
     iscsi_set_events(iscsilun);
-    qemu_mutex_unlock(&iscsilun->mutex);
 
     return &acb->common;
 }
@@ -1161,7 +1152,7 @@ coroutine_fn iscsi_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
     list.num = bytes / iscsilun->block_size;
 
     iscsi_co_init_iscsitask(iscsilun, &iTask);
-    qemu_mutex_lock(&iscsilun->mutex);
+    QEMU_LOCK_GUARD(&iscsilun->mutex);
 retry:
     if (iscsi_unmap_task(iscsilun->iscsi, iscsilun->lun, 0, 0, &list, 1,
                          iscsi_co_generic_cb, &iTask) == NULL) {
@@ -1198,7 +1189,6 @@ retry:
     }
 
 out_unlock:
-    qemu_mutex_unlock(&iscsilun->mutex);
     g_free(iTask.err_str);
     return r;
 }
@@ -1246,7 +1236,7 @@ coroutine_fn iscsi_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
         }
     }
 
-    qemu_mutex_lock(&iscsilun->mutex);
+    QEMU_LOCK_GUARD(&iscsilun->mutex);
     iscsi_co_init_iscsitask(iscsilun, &iTask);
 retry:
     if (use_16_for_ws) {
@@ -1261,7 +1251,6 @@ retry:
                                             0, 0, iscsi_co_generic_cb, &iTask);
     }
     if (iTask.task == NULL) {
-        qemu_mutex_unlock(&iscsilun->mutex);
         return -ENOMEM;
     }
 
@@ -1303,7 +1292,6 @@ retry:
     }
 
 out_unlock:
-    qemu_mutex_unlock(&iscsilun->mutex);
     g_free(iTask.err_str);
     return r;
 }
@@ -2358,7 +2346,7 @@ static int coroutine_fn iscsi_co_copy_range_to(BlockDriverState *bs,
 
     iscsi_co_init_iscsitask(dst_lun, &iscsi_task);
 
-    qemu_mutex_lock(&dst_lun->mutex);
+    QEMU_LOCK_GUARD(&dst_lun->mutex);
     iscsi_task.task = iscsi_xcopy_task(data.size);
 retry:
     if (iscsi_scsi_command_async(dst_lun->iscsi, dst_lun->lun,
@@ -2385,7 +2373,6 @@ out_unlock:
 
     trace_iscsi_xcopy(src_lun, src_offset, dst_lun, dst_offset, bytes, r);
     g_free(iscsi_task.task);
-    qemu_mutex_unlock(&dst_lun->mutex);
     g_free(iscsi_task.err_str);
     return r;
 }
