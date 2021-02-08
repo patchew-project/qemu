@@ -110,6 +110,8 @@ acceptance-system-alpine:
 
 build-system-ubuntu:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-ubuntu2004-container
   variables:
     IMAGE: ubuntu2004
     CONFIGURE_ARGS: --enable-fdt=system --enable-slirp=system
@@ -142,6 +144,8 @@ acceptance-system-ubuntu:
 
 build-system-debian:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-debian-container
   variables:
     IMAGE: debian-amd64
     CONFIGURE_ARGS: --enable-fdt=system
@@ -187,6 +191,8 @@ acceptance-system-debian:
 
 build-system-fedora:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-fedora-container
   variables:
     IMAGE: fedora
     CONFIGURE_ARGS: --disable-gcrypt --enable-nettle --enable-docs
@@ -220,6 +226,8 @@ acceptance-system-fedora:
 
 build-system-centos:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-centos8-container
   variables:
     IMAGE: centos8
     CONFIGURE_ARGS: --disable-nettle --enable-gcrypt --enable-fdt=system
@@ -252,6 +260,8 @@ acceptance-system-centos:
 
 build-system-opensuse:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-opensuse-leap-container
   variables:
     IMAGE: opensuse-leap
     CONFIGURE_ARGS: --enable-fdt=system
@@ -284,6 +294,8 @@ acceptance-system-opensuse:
 
 build-disabled:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-fedora-container
   variables:
     IMAGE: fedora
     CONFIGURE_ARGS:
@@ -366,6 +378,8 @@ build-disabled:
 # available.
 build-tcg-disabled:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-centos8-container
   variables:
     IMAGE: centos8
   script:
@@ -386,6 +400,8 @@ build-tcg-disabled:
 
 build-user:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-debian-user-cross-container
   variables:
     IMAGE: debian-all-test-cross
     CONFIGURE_ARGS: --disable-tools --disable-system
@@ -393,6 +409,8 @@ build-user:
 
 build-user-static:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-debian-user-cross-container
   variables:
     IMAGE: debian-all-test-cross
     CONFIGURE_ARGS: --disable-tools --disable-system --static
@@ -401,6 +419,8 @@ build-user-static:
 # Only build the softmmu targets we have check-tcg tests for
 build-some-softmmu:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-debian-user-cross-container
   variables:
     IMAGE: debian-all-test-cross
     CONFIGURE_ARGS: --disable-tools --enable-debug-tcg
@@ -412,6 +432,8 @@ build-some-softmmu:
 # we skip cris-linux-user as it doesn't use the common run loop
 build-user-plugins:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-debian-user-cross-container
   variables:
     IMAGE: debian-all-test-cross
     CONFIGURE_ARGS: --disable-tools --disable-system --enable-plugins --enable-debug-tcg --target-list-exclude=sparc64-linux-user,cris-linux-user
@@ -427,6 +449,8 @@ build-user-centos7:
 
 build-some-softmmu-plugins:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-debian-user-cross-container
   variables:
     IMAGE: debian-all-test-cross
     CONFIGURE_ARGS: --disable-tools --disable-user --enable-plugins --enable-debug-tcg
@@ -435,6 +459,8 @@ build-some-softmmu-plugins:
 
 build-clang:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-fedora-container
   variables:
     IMAGE: fedora
     CONFIGURE_ARGS: --cc=clang --cxx=clang++
@@ -445,6 +471,8 @@ build-clang:
 # These targets are on the way out
 build-deprecated:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-debian-user-cross-container
   variables:
     IMAGE: debian-all-test-cross
     CONFIGURE_ARGS: --disable-docs --disable-tools
@@ -470,6 +498,8 @@ check-deprecated:
 
 build-oss-fuzz:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-fedora-container
   variables:
     IMAGE: fedora
   script:
@@ -488,6 +518,8 @@ build-oss-fuzz:
 
 build-tci:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-fedora-container
   variables:
     IMAGE: fedora
   script:
@@ -511,6 +543,8 @@ build-tci:
 # However we can't test against KVM on Gitlab-CI so we can only run unit tests
 build-coroutine-ucontext:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-ubuntu2004-container
   variables:
     IMAGE: ubuntu2004
     CONFIGURE_ARGS: --with-coroutine=ucontext --disable-tcg
@@ -518,6 +552,8 @@ build-coroutine-ucontext:
 
 build-coroutine-sigaltstack:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-ubuntu2004-container
   variables:
     IMAGE: ubuntu2004
     CONFIGURE_ARGS: --with-coroutine=sigaltstack --disable-tcg
@@ -529,6 +565,8 @@ build-coroutine-sigaltstack:
 # which had some API differences.
 build-crypto-old-nettle:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-centos7-container
   variables:
     IMAGE: centos7
     TARGETS: x86_64-softmmu x86_64-linux-user
@@ -550,6 +588,8 @@ check-crypto-old-nettle:
 
 build-crypto-old-gcrypt:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-centos7-container
   variables:
     IMAGE: centos7
     TARGETS: x86_64-softmmu x86_64-linux-user
@@ -571,6 +611,8 @@ check-crypto-old-gcrypt:
 
 build-crypto-only-gnutls:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-centos7-container
   variables:
     IMAGE: centos7
     TARGETS: x86_64-softmmu x86_64-linux-user
@@ -592,18 +634,24 @@ check-crypto-only-gnutls:
 # We don't need to exercise every backend with every front-end
 build-trace-multi-user:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-ubuntu2004-container
   variables:
     IMAGE: ubuntu2004
     CONFIGURE_ARGS: --enable-trace-backends=log,simple,syslog --disable-system
 
 build-trace-ftrace-system:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-ubuntu2004-container
   variables:
     IMAGE: ubuntu2004
     CONFIGURE_ARGS: --enable-trace-backends=ftrace --target-list=x86_64-softmmu
 
 build-trace-ust-system:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-ubuntu2004-container
   variables:
     IMAGE: ubuntu2004
     CONFIGURE_ARGS: --enable-trace-backends=ust --target-list=x86_64-softmmu
@@ -611,12 +659,16 @@ build-trace-ust-system:
 # Check our reduced build configurations
 build-without-default-devices:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-centos8-container
   variables:
     IMAGE: centos8
     CONFIGURE_ARGS: --without-default-devices --disable-user
 
 build-without-default-features:
   <<: *native_build_job_definition
+  needs:
+    job: amd64-debian-container
   variables:
     IMAGE: debian-amd64
     CONFIGURE_ARGS: --without-default-features --disable-user
@@ -626,6 +678,8 @@ build-without-default-features:
 check-patch:
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/centos8:latest
+  needs:
+    job: amd64-centos8-container
   script: .gitlab-ci.d/check-patch.py
   except:
     variables:
@@ -637,6 +691,8 @@ check-patch:
 check-dco:
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/centos8:latest
+  needs:
+    job: amd64-centos8-container
   script: .gitlab-ci.d/check-dco.py
   except:
     variables:
@@ -647,6 +703,8 @@ check-dco:
 build-libvhost-user:
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/fedora:latest
+  needs:
+    job: amd64-fedora-container
   before_script:
     - dnf install -y meson ninja-build
   script:
