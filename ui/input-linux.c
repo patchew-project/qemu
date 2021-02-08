@@ -44,6 +44,7 @@ struct InputLinux {
     bool        grab_request;
     bool        grab_active;
     bool        grab_all;
+    bool        grab_on_start;
     bool        keydown[KEY_CNT];
     int         keycount;
     int         wheel;
@@ -394,11 +395,13 @@ static void input_linux_complete(UserCreatable *uc, Error **errp)
     }
 
     qemu_set_fd_handler(il->fd, input_linux_event, NULL, il);
-    if (il->keycount) {
-        /* delay grab until all keys are released */
-        il->grab_request = true;
-    } else {
-        input_linux_toggle_grab(il);
+    if (il->grab_on_start) {
+        if (il->keycount) {
+            /* delay grab until all keys are released */
+            il->grab_request = true;
+        } else {
+            input_linux_toggle_grab(il);
+        }
     }
     QTAILQ_INSERT_TAIL(&inputs, il, next);
     il->initialized = true;
@@ -450,6 +453,21 @@ static bool input_linux_get_grab_all(Object *obj, Error **errp)
     return il->grab_all;
 }
 
+static void input_linux_set_grab_on_start(Object *obj, bool value,
+                                          Error **errp)
+{
+    InputLinux *il = INPUT_LINUX(obj);
+
+    il->grab_on_start = value;
+}
+
+static bool input_linux_get_grab_on_start(Object *obj, Error **errp)
+{
+    InputLinux *il = INPUT_LINUX(obj);
+
+    return il->grab_on_start;
+}
+
 static void input_linux_set_grab_all(Object *obj, bool value,
                                    Error **errp)
 {
@@ -490,6 +508,9 @@ static void input_linux_set_grab_toggle(Object *obj, int value,
 
 static void input_linux_instance_init(Object *obj)
 {
+    InputLinux *il = INPUT_LINUX(obj);
+
+    il->grab_on_start = true;
 }
 
 static void input_linux_class_init(ObjectClass *oc, void *data)
@@ -504,6 +525,9 @@ static void input_linux_class_init(ObjectClass *oc, void *data)
     object_class_property_add_bool(oc, "grab_all",
                                    input_linux_get_grab_all,
                                    input_linux_set_grab_all);
+    object_class_property_add_bool(oc, "grab_on_start",
+                                   input_linux_get_grab_on_start,
+                                   input_linux_set_grab_on_start);
     object_class_property_add_bool(oc, "repeat",
                                    input_linux_get_repeat,
                                    input_linux_set_repeat);
