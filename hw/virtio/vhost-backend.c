@@ -214,6 +214,13 @@ static int vhost_kernel_vsock_set_running(struct vhost_dev *dev, int start)
 }
 #endif /* CONFIG_VHOST_VSOCK */
 
+#ifdef CONFIG_VHOST_VDMABUF
+static int vhost_kernel_vdmabuf_set_running(struct vhost_dev *dev, int start)
+{
+    return vhost_kernel_call(dev, VHOST_VDMABUF_SET_RUNNING, &start);
+}
+#endif /* CONFIG_VHOST_VDMABUF */
+
 static void vhost_kernel_iotlb_read(void *opaque)
 {
     struct vhost_dev *dev = opaque;
@@ -321,6 +328,9 @@ static const VhostOps kernel_ops = {
         .vhost_vsock_set_guest_cid = vhost_kernel_vsock_set_guest_cid,
         .vhost_vsock_set_running = vhost_kernel_vsock_set_running,
 #endif /* CONFIG_VHOST_VSOCK */
+#ifdef CONFIG_VHOST_VDMABUF
+        .vhost_vdmabuf_set_running = vhost_kernel_vdmabuf_set_running,
+#endif /* CONFIG_VHOST_VDMABUF */
         .vhost_set_iotlb_callback = vhost_kernel_set_iotlb_callback,
         .vhost_send_device_iotlb_msg = vhost_kernel_send_device_iotlb_msg,
 };

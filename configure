@@ -345,6 +345,7 @@ vhost_net="$default_feature"
 vhost_crypto="$default_feature"
 vhost_scsi="$default_feature"
 vhost_vsock="$default_feature"
+vhost_vdmabuf="$default_feature"
 vhost_user="no"
 vhost_user_blk_server="auto"
 vhost_user_fs="$default_feature"
@@ -1262,6 +1263,10 @@ for opt do
   --disable-vhost-vsock) vhost_vsock="no"
   ;;
   --enable-vhost-vsock) vhost_vsock="yes"
+  ;;
+  --disable-vhost-vdmabuf) vhost_vdmabuf="no"
+  ;;
+  --enable-vhost-vdmabuf) vhost_vdmabuf="yes"
   ;;
   --disable-vhost-user-blk-server) vhost_user_blk_server="disabled"
   ;;
@@ -5765,6 +5770,9 @@ if test "$vhost_vsock" = "yes" ; then
   if test "$vhost_user" = "yes" ; then
     echo "CONFIG_VHOST_USER_VSOCK=y" >> $config_host_mak
   fi
+fi
+if test "$vhost_vdmabuf" = "yes" ; then
+  echo "CONFIG_VHOST_VDMABUF=y" >> $config_host_mak
 fi
 if test "$vhost_kernel" = "yes" ; then
   echo "CONFIG_VHOST_KERNEL=y" >> $config_host_mak

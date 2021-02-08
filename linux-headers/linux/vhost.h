@@ -150,4 +150,7 @@
 /* Get the valid iova range */
 #define VHOST_VDPA_GET_IOVA_RANGE	_IOR(VHOST_VIRTIO, 0x78, \
 					     struct vhost_vdpa_iova_range)
+/* VHOST_VDMABUF specific defines */
+#define VHOST_VDMABUF_SET_RUNNING	_IOW(VHOST_VIRTIO, 0x79, int)
+
 #endif

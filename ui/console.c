@@ -284,6 +284,13 @@ void graphic_hw_update(QemuConsole *con)
     }
 }
 
+void graphic_hw_dpy_refresh(QemuConsole *con)
+{
+    DisplayState *ds = con ? con->ds : active_console->ds;
+
+    dpy_refresh(ds);
+}
+
 void graphic_hw_gl_block(QemuConsole *con, bool block)
 {
     assert(con != NULL);
