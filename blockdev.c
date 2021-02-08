@@ -3534,38 +3534,16 @@ fail:
     visit_free(v);
 }
 
-void qmp_x_blockdev_reopen(BlockdevOptions *options, Error **errp)
+void qmp_x_blockdev_reopen(BlockdevOptionsList *reopen_list, Error **errp)
 {
-    BlockDriverState *bs;
-    QObject *obj;
-    Visitor *v = qobject_output_visitor_new(&obj);
-    BlockReopenQueue *queue;
-    QDict *qdict;
-
-    /* Check for the selected node name */
-    if (!options->has_node_name) {
-        error_setg(errp, "Node name not specified");
-        goto fail;
-    }
-
-    bs = bdrv_find_node(options->node_name);
-    if (!bs) {
-        error_setg(errp, "Cannot find node named '%s'", options->node_name);
-        goto fail;
-    }
-
-    /* Put all options in a QDict and flatten it */
-    visit_type_BlockdevOptions(v, NULL, &options, &error_abort);
-    visit_complete(v, &obj);
-    qdict = qobject_to(QDict, obj);
-
-    qdict_flatten(qdict);
-
-    /* Perform the reopen operation */
+    BlockReopenQueue *queue = NULL;
+    GSList *aio_ctxs = NULL;
+    GSList *visitors = NULL;
+    GSList *drained = NULL;
     BdrvNextIterator it;
-    GSList *aio_ctxs = NULL, *ctx;
     BlockDriverState *it_bs;
 
+    /* Acquire all AIO contexts */
     for (it_bs = bdrv_first(&it); it_bs; it_bs = bdrv_next(&it)) {
         AioContext *aio_context = bdrv_get_aio_context(it_bs);
 
@@ -3575,19 +3553,50 @@ void qmp_x_blockdev_reopen(BlockdevOptions *options, Error **errp)
         }
     }
 
-    bdrv_subtree_drained_begin(bs);
-    queue = bdrv_reopen_queue(NULL, bs, qdict, false);
-    bdrv_reopen_multiple(queue, errp);
-    bdrv_subtree_drained_end(bs);
+    /* Add each one of the BDS that we want to reopen to the queue */
+    for (; reopen_list != NULL; reopen_list = reopen_list->next) {
+        BlockdevOptions *options = reopen_list->value;
+        QDict *qdict;
+        Visitor *v;
+        BlockDriverState *bs;
+        QObject *obj;
 
-    for (ctx = aio_ctxs; ctx != NULL; ctx = ctx->next) {
-        AioContext *aio_context = ctx->data;
-        aio_context_release(aio_context);
+        /* Check for the selected node name */
+        if (!options->has_node_name) {
+            error_setg(errp, "Node name not specified");
+            goto fail;
+        }
+
+        bs = bdrv_find_node(options->node_name);
+        if (!bs) {
+            error_setg(errp, "Cannot find node named '%s'", options->node_name);
+            goto fail;
+        }
+
+        v = qobject_output_visitor_new(&obj);
+        visitors = g_slist_prepend(visitors, v);
+
+        /* Put all options in a QDict and flatten it */
+        visit_type_BlockdevOptions(v, NULL, &options, &error_abort);
+        visit_complete(v, &obj);
+        qdict = qobject_to(QDict, obj);
+
+        qdict_flatten(qdict);
+
+        bdrv_subtree_drained_begin(bs);
+        queue = bdrv_reopen_queue(queue, bs, qdict, false);
+        drained = g_slist_prepend(drained, bs);
     }
-    g_slist_free(aio_ctxs);
+
+    /* Perform the reopen operation */
+    bdrv_reopen_multiple(queue, errp);
+    queue = NULL;
 
 fail:
-    visit_free(v);
+    bdrv_reopen_queue_free(queue);
+    g_slist_free_full(drained, (GDestroyNotify) bdrv_subtree_drained_end);
+    g_slist_free_full(aio_ctxs, (GDestroyNotify) aio_context_release);
+    g_slist_free_full(visitors, (GDestroyNotify) visit_free);
 }
 
 void qmp_blockdev_del(const char *node_name, Error **errp)
