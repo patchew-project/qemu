@@ -99,7 +99,8 @@ typedef struct XilinxQSPIPS XilinxQSPIPS;
 struct XlnxZynqMPQSPIPS {
     XilinxQSPIPS parent_obj;
 
-    StreamSink *dma;
+    MemoryRegion *dma_mr;
+    AddressSpace *dma_as;
     int gqspi_irqline;
 
     uint32_t regs[XLNX_ZYNQMP_SPIPS_R_MAX];
