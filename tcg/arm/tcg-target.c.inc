@@ -215,6 +215,7 @@ typedef enum {
     INSN_VSHLI     = 0xf2800510,  /* VSHL (immediate) */
     INSN_VSARI     = 0xf2800010,  /* VSHR.S */
     INSN_VSHRI     = 0xf3800010,  /* VSHR.U */
+    INSN_VSLI      = 0xf3800510,
     INSN_VSHL_S    = 0xf2000400,  /* VSHL.S (register) */
     INSN_VSHL_U    = 0xf3000400,  /* VSHL.U (register) */
 
@@ -2427,6 +2428,8 @@ static TCGConstraintSetIndex tcg_target_op_def(TCGOpcode op)
     case INDEX_op_arm_sshl_vec:
     case INDEX_op_arm_ushl_vec:
         return C_O1_I2(w, w, w);
+    case INDEX_op_arm_sli_vec:
+        return C_O1_I2(w, 0, w);
     case INDEX_op_or_vec:
     case INDEX_op_andc_vec:
         return C_O1_I2(w, w, wO);
@@ -2842,6 +2845,9 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_sari_vec:
         tcg_out_vshifti(s, INSN_VSARI, q, a0, a1, (16 << vece) - a2);
         return;
+    case INDEX_op_arm_sli_vec:
+        tcg_out_vshifti(s, INSN_VSLI, q, a0, a2, args[3] + (8 << vece));
+        return;
 
     case INDEX_op_andc_vec:
         if (!const_args[2]) {
@@ -2970,6 +2976,7 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_shlv_vec:
     case INDEX_op_shrv_vec:
     case INDEX_op_sarv_vec:
+    case INDEX_op_rotli_vec:
         return -1;
     default:
         return 0;
@@ -3014,6 +3021,14 @@ void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
         }
         vec_gen_3(opc, type, vece, tcgv_vec_arg(v0),
                   tcgv_vec_arg(v1), tcgv_vec_arg(t1));
+        tcg_temp_free_vec(t1);
+        break;
+
+    case INDEX_op_rotli_vec:
+        t1 = tcg_temp_new_vec(type);
+        tcg_gen_shri_vec(vece, t1, v1, -a2 & ((8 << vece) - 1));
+        vec_gen_4(INDEX_op_arm_sli_vec, type, vece,
+                  tcgv_vec_arg(v0), tcgv_vec_arg(t1), tcgv_vec_arg(v1), a2);
         tcg_temp_free_vec(t1);
         break;
 
