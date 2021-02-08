@@ -3985,6 +3985,10 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
             refresh_list = bdrv_topological_dfs(refresh_list, found,
                                                 state->old_backing_bs);
         }
+        if (state->old_file_bs) {
+            refresh_list = bdrv_topological_dfs(refresh_list, found,
+                                                state->old_file_bs);
+        }
     }
 
     ret = bdrv_list_refresh_perms(refresh_list, bs_queue, &tran, errp);
@@ -4203,6 +4207,61 @@ static int bdrv_reopen_parse_backing(BDRVReopenState *reopen_state,
     return 0;
 }
 
+static int bdrv_reopen_parse_file(BDRVReopenState *reopen_state,
+                                  GSList **tran,
+                                  Error **errp)
+{
+    BlockDriverState *bs = reopen_state->bs;
+    BlockDriverState *new_file_bs;
+    QObject *value;
+    const char *str;
+
+    value = qdict_get(reopen_state->options, "file");
+    if (value == NULL) {
+        return 0;
+    }
+
+    /* The 'file' option only allows strings */
+    assert(qobject_type(value) == QTYPE_QSTRING);
+
+    str = qobject_get_try_str(value);
+    new_file_bs = bdrv_lookup_bs(NULL, str, errp);
+    if (new_file_bs == NULL) {
+        return -EINVAL;
+    } else if (bdrv_recurse_has_child(new_file_bs, bs)) {
+        error_setg(errp, "Making '%s' a file of '%s' "
+                   "would create a cycle", str, bs->node_name);
+        return -EINVAL;
+    }
+
+    assert(bs->file && bs->file->bs);
+
+    /* If 'file' points to the current child then there's nothing to do */
+    if (bs->file->bs == new_file_bs) {
+        return 0;
+    }
+
+    if (bs->file->frozen) {
+        error_setg(errp, "Cannot change the 'file' link of '%s' "
+                   "from '%s' to '%s'", bs->node_name,
+                   bs->file->bs->node_name, new_file_bs->node_name);
+        return -EPERM;
+    }
+
+    /* Check AioContext compatibility */
+    if (!bdrv_reopen_can_attach(bs, bs->file, new_file_bs, errp)) {
+        return -EINVAL;
+    }
+
+    /* Store the old file bs because we'll need to refresh its permissions */
+    reopen_state->old_file_bs = bs->file->bs;
+
+    /* And finally replace the child */
+    bdrv_replace_child(bs->file, new_file_bs, tran);
+
+    return 0;
+}
+
 /*
  * Prepares a BlockDriverState for reopen. All changes are staged in the
  * 'opaque' field of the BDRVReopenState, which is used and allocated by
@@ -4353,6 +4412,12 @@ static int bdrv_reopen_prepare(BDRVReopenState *reopen_state,
         goto error;
     }
     qdict_del(reopen_state->options, "backing");
+
+    ret = bdrv_reopen_parse_file(reopen_state, set_backings_tran, errp);
+    if (ret < 0) {
+        goto error;
+    }
+    qdict_del(reopen_state->options, "file");
 
     /* Options that are not handled are only okay if they are unchanged
      * compared to the old state. It is expected that some options are only
