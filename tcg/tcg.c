@@ -66,6 +66,10 @@
 #include "exec/log.h"
 #include "sysemu/sysemu.h"
 
+#ifdef CONFIG_TCG_INTERPRETER
+#include <ffi.h>
+#endif
+
 /* Forward declarations for functions declared in tcg-target.c.inc and
    used here. */
 static void tcg_target_init(TCGContext *s);
@@ -1082,12 +1086,19 @@ void tcg_pool_reset(TCGContext *s)
 
 typedef struct TCGHelperInfo {
     void *func;
+#ifdef CONFIG_TCG_INTERPRETER
+    ffi_cif *cif;
+#endif
     const char *name;
     unsigned flags;
     unsigned sizemask;
 } TCGHelperInfo;
 
 #include "exec/helper-proto.h"
+
+#ifdef CONFIG_TCG_INTERPRETER
+#include "exec/helper-ffi.h"
+#endif
 
 static const TCGHelperInfo all_helpers[] = {
 #include "exec/helper-tcg.h"
@@ -1135,6 +1146,15 @@ void tcg_context_init(TCGContext *s)
         g_hash_table_insert(helper_table, (gpointer)all_helpers[i].func,
                             (gpointer)&all_helpers[i]);
     }
+
+#ifdef CONFIG_TCG_INTERPRETER
+    for (i = 0; i < ARRAY_SIZE(all_helpers); ++i) {
+        ffi_cif *cif = all_helpers[i].cif;
+        ffi_status ok = ffi_prep_cif(cif, FFI_DEFAULT_ABI, cif->nargs,
+                                     cif->rtype, cif->arg_types);
+        tcg_debug_assert(ok == FFI_OK);
+    }
+#endif
 
     tcg_target_init(s);
     process_op_defs(s);
