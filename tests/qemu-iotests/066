@@ -43,7 +43,7 @@ _supported_proto generic
 # We need zero clusters and snapshots
 # (TODO: Consider splitting the snapshot part into a separate test
 #        file, so this one runs with refcount_bits=1 and data_file)
-_unsupported_imgopts 'compat=0.10' 'refcount_bits=1[^0-9]' data_file
+_unsupported_imgopts 'compat=0.10' 'refcount_bits=1\b' data_file
 
 # Intentionally create an unaligned image
 IMG_SIZE=$((64 * 1024 * 1024 + 512))

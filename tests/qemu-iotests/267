@@ -45,7 +45,7 @@ _require_drivers copy-on-read
 
 # Internal snapshots are (currently) impossible with refcount_bits=1,
 # and generally impossible with external data files
-_unsupported_imgopts 'refcount_bits=1[^0-9]' data_file
+_unsupported_imgopts 'refcount_bits=1\b' data_file
 
 _require_devices virtio-blk
 

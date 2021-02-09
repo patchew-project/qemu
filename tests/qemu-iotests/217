@@ -42,7 +42,7 @@ _supported_proto file fuse
 # This test needs clusters with at least a refcount of 2 so that
 # OFLAG_COPIED is not set.  refcount_bits=1 is therefore unsupported.
 # (As are external data files.)
-_unsupported_imgopts 'refcount_bits=1[^0-9]' data_file
+_unsupported_imgopts 'refcount_bits=1\b' data_file
 
 echo
 echo '=== Simulating an I/O error during snapshot deletion ==='
