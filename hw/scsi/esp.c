@@ -939,7 +939,7 @@ static const struct SCSIBusInfo esp_scsi_info = {
 
 static void sysbus_esp_gpio_demux(void *opaque, int irq, int level)
 {
-    SysBusESPState *sysbus = ESP(opaque);
+    SysBusESPState *sysbus = SYSBUS_ESP(opaque);
     ESPState *s = &sysbus->esp;
 
     switch (irq) {
@@ -955,7 +955,7 @@ static void sysbus_esp_gpio_demux(void *opaque, int irq, int level)
 static void sysbus_esp_realize(DeviceState *dev, Error **errp)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    SysBusESPState *sysbus = ESP(dev);
+    SysBusESPState *sysbus = SYSBUS_ESP(dev);
     ESPState *s = &sysbus->esp;
 
     sysbus_init_irq(sbd, &s->irq);
@@ -977,7 +977,7 @@ static void sysbus_esp_realize(DeviceState *dev, Error **errp)
 
 static void sysbus_esp_hard_reset(DeviceState *dev)
 {
-    SysBusESPState *sysbus = ESP(dev);
+    SysBusESPState *sysbus = SYSBUS_ESP(dev);
     esp_hard_reset(&sysbus->esp);
 }
 
@@ -1002,7 +1002,7 @@ static void sysbus_esp_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo sysbus_esp_info = {
-    .name          = TYPE_ESP,
+    .name          = TYPE_SYSBUS_ESP,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysBusESPState),
     .class_init    = sysbus_esp_class_init,
