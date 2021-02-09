@@ -3594,6 +3594,11 @@ EventNotifier *virtio_queue_get_host_notifier(VirtQueue *vq)
     return &vq->host_notifier;
 }
 
+bool virtio_queue_host_notifier_status(const VirtQueue *vq)
+{
+    return vq->host_notifier_enabled;
+}
+
 void virtio_queue_set_host_notifier_enabled(VirtQueue *vq, bool enabled)
 {
     vq->host_notifier_enabled = enabled;
