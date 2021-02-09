@@ -13,6 +13,8 @@
 
 #include "qemu/osdep.h"
 #include <sys/ioctl.h>
+#include <cap-ng.h>
+#include <sys/syscall.h>
 #include "standard-headers/linux/virtio_fs.h"
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"
@@ -35,6 +37,84 @@
 #else
 #define DAX_WINDOW_PROT PROT_NONE
 #endif
+
+/*
+ * Helpers for dropping and regaining effective capabilities. Returns 0
+ * on success, error otherwise
+ */
+static int drop_effective_cap(const char *cap_name, bool *cap_dropped)
+{
+    int cap, ret;
+
+    cap = capng_name_to_capability(cap_name);
+    if (cap < 0) {
+        ret = -errno;
+        error_report("capng_name_to_capability(%s) failed:%s", cap_name,
+                     strerror(errno));
+        goto out;
+    }
+
+    if (capng_get_caps_process()) {
+        ret = -errno;
+        error_report("capng_get_caps_process() failed:%s", strerror(errno));
+        goto out;
+    }
+
+    /* We dont have this capability in effective set already. */
+    if (!capng_have_capability(CAPNG_EFFECTIVE, cap)) {
+        ret = 0;
+        goto out;
+    }
+
+    if (capng_update(CAPNG_DROP, CAPNG_EFFECTIVE, cap)) {
+        ret = -errno;
+        error_report("capng_update(DROP,) failed");
+        goto out;
+    }
+    if (capng_apply(CAPNG_SELECT_CAPS)) {
+        ret = -errno;
+        error_report("drop:capng_apply() failed");
+        goto out;
+    }
+
+    ret = 0;
+    if (cap_dropped) {
+        *cap_dropped = true;
+    }
+
+out:
+    return ret;
+}
+
+static int gain_effective_cap(const char *cap_name)
+{
+    int cap;
+    int ret = 0;
+
+    cap = capng_name_to_capability(cap_name);
+    if (cap < 0) {
+        ret = -errno;
+        error_report("capng_name_to_capability(%s) failed:%s", cap_name,
+                     strerror(errno));
+        goto out;
+    }
+
+    if (capng_update(CAPNG_ADD, CAPNG_EFFECTIVE, cap)) {
+        ret = -errno;
+        error_report("capng_update(ADD,) failed");
+        goto out;
+    }
+
+    if (capng_apply(CAPNG_SELECT_CAPS)) {
+        ret = -errno;
+        error_report("gain:capng_apply() failed");
+        goto out;
+    }
+    ret = 0;
+
+out:
+    return ret;
+}
 
 uint64_t vhost_user_fs_slave_map(struct vhost_dev *dev, VhostUserFSSlaveMsg *sm,
                                  int fd)
@@ -170,6 +250,7 @@ uint64_t vhost_user_fs_slave_io(struct vhost_dev *dev, VhostUserFSSlaveMsg *sm,
     unsigned int i;
     int res = 0;
     size_t done = 0;
+    bool cap_fsetid_dropped = false;
 
     if (fd < 0) {
         error_report("Bad fd for map");
@@ -177,8 +258,10 @@ uint64_t vhost_user_fs_slave_io(struct vhost_dev *dev, VhostUserFSSlaveMsg *sm,
     }
 
     if (sm->gen_flags & VHOST_USER_FS_GENFLAG_DROP_FSETID) {
-        error_report("Dropping CAP_FSETID is not supported");
-        return (uint64_t)-ENOTSUP;
+        res = drop_effective_cap("FSETID", &cap_fsetid_dropped);
+        if (res != 0) {
+            return (uint64_t)res;
+        }
     }
 
     for (i = 0; i < VHOST_USER_FS_SLAVE_ENTRIES && !res; i++) {
@@ -237,6 +320,11 @@ uint64_t vhost_user_fs_slave_io(struct vhost_dev *dev, VhostUserFSSlaveMsg *sm,
     }
     close(fd);
 
+    if (cap_fsetid_dropped) {
+        if (gain_effective_cap("FSETID")) {
+            error_report("Failed to gain CAP_FSETID");
+        }
+    }
     trace_vhost_user_fs_slave_io_exit(res, done);
     if (res < 0) {
         return (uint64_t)res;
