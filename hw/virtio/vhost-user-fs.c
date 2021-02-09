@@ -176,6 +176,11 @@ uint64_t vhost_user_fs_slave_io(struct vhost_dev *dev, VhostUserFSSlaveMsg *sm,
         return (uint64_t)-1;
     }
 
+    if (sm->gen_flags & VHOST_USER_FS_GENFLAG_DROP_FSETID) {
+        error_report("Dropping CAP_FSETID is not supported");
+        return (uint64_t)-ENOTSUP;
+    }
+
     for (i = 0; i < VHOST_USER_FS_SLAVE_ENTRIES && !res; i++) {
         if (sm->len[i] == 0) {
             continue;
