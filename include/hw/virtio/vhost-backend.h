@@ -186,7 +186,7 @@ int vhost_backend_update_device_iotlb(struct vhost_dev *dev,
 int vhost_backend_invalidate_device_iotlb(struct vhost_dev *dev,
                                                  uint64_t iova, uint64_t len);
 
-int vhost_backend_handle_iotlb_msg(struct vhost_dev *dev,
+uint64_t vhost_backend_handle_iotlb_msg(struct vhost_dev *dev,
                                           struct vhost_iotlb_msg *imsg);
 
 int vhost_user_gpu_set_socket(struct vhost_dev *dev, int fd);

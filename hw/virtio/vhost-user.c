@@ -1317,24 +1317,25 @@ static int vhost_user_reset_device(struct vhost_dev *dev)
     return 0;
 }
 
-static int vhost_user_slave_handle_config_change(struct vhost_dev *dev)
+static uint64_t vhost_user_slave_handle_config_change(struct vhost_dev *dev)
 {
     int ret = -1;
 
     if (!dev->config_ops) {
-        return -1;
+        return true;
     }
 
     if (dev->config_ops->vhost_dev_config_notifier) {
         ret = dev->config_ops->vhost_dev_config_notifier(dev);
     }
 
-    return ret;
+    return !!ret;
 }
 
-static int vhost_user_slave_handle_vring_host_notifier(struct vhost_dev *dev,
-                                                       VhostUserVringArea *area,
-                                                       int fd)
+static uint64_t vhost_user_slave_handle_vring_host_notifier(
+                struct vhost_dev *dev,
+               VhostUserVringArea *area,
+               int fd)
 {
     int queue_idx = area->u64 & VHOST_USER_VRING_IDX_MASK;
     size_t page_size = qemu_real_host_page_size;
@@ -1348,7 +1349,7 @@ static int vhost_user_slave_handle_vring_host_notifier(struct vhost_dev *dev,
     if (!virtio_has_feature(dev->protocol_features,
                             VHOST_USER_PROTOCOL_F_HOST_NOTIFIER) ||
         vdev == NULL || queue_idx >= virtio_get_num_queues(vdev)) {
-        return -1;
+        return true;
     }
 
     n = &user->notifier[queue_idx];
@@ -1361,18 +1362,18 @@ static int vhost_user_slave_handle_vring_host_notifier(struct vhost_dev *dev,
     }
 
     if (area->u64 & VHOST_USER_VRING_NOFD_MASK) {
-        return 0;
+        return false;
     }
 
     /* Sanity check. */
     if (area->size != page_size) {
-        return -1;
+        return true;
     }
 
     addr = mmap(NULL, page_size, PROT_READ | PROT_WRITE, MAP_SHARED,
                 fd, area->offset);
     if (addr == MAP_FAILED) {
-        return -1;
+        return true;
     }
 
     name = g_strdup_printf("vhost-user/host-notifier@%p mmaps[%d]",
@@ -1383,13 +1384,13 @@ static int vhost_user_slave_handle_vring_host_notifier(struct vhost_dev *dev,
 
     if (virtio_queue_set_host_notifier_mr(vdev, queue_idx, &n->mr, true)) {
         munmap(addr, page_size);
-        return -1;
+        return true;
     }
 
     n->addr = addr;
     n->set = true;
 
-    return 0;
+    return false;
 }
 
 static void slave_read(void *opaque)
@@ -1398,7 +1399,8 @@ static void slave_read(void *opaque)
     struct vhost_user *u = dev->opaque;
     VhostUserHeader hdr = { 0, };
     VhostUserPayload payload = { 0, };
-    int size, ret = 0;
+    int size;
+    uint64_t ret = 0;
     struct iovec iov;
     struct msghdr msgh;
     int fd[VHOST_USER_SLAVE_MAX_FDS];
@@ -1472,7 +1474,7 @@ static void slave_read(void *opaque)
         break;
     default:
         error_report("Received unexpected msg type: %d.", hdr.request);
-        ret = -EINVAL;
+        ret = (uint64_t)-EINVAL;
     }
 
     /* Close the remaining file descriptors. */
@@ -1493,7 +1495,7 @@ static void slave_read(void *opaque)
         hdr.flags &= ~VHOST_USER_NEED_REPLY_MASK;
         hdr.flags |= VHOST_USER_REPLY_MASK;
 
-        payload.u64 = !!ret;
+        payload.u64 = ret;
         hdr.size = sizeof(payload.u64);
 
         iovec[0].iov_base = &hdr;
