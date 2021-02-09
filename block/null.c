@@ -93,7 +93,7 @@ static int null_file_open(BlockDriverState *bs, QDict *options, int flags,
         error_setg(errp, "latency-ns is invalid");
         ret = -EINVAL;
     }
-    s->read_zeroes = qemu_opt_get_bool(opts, NULL_OPT_ZEROES, false);
+    s->read_zeroes = qemu_opt_get_bool(opts, NULL_OPT_ZEROES, true);
     qemu_opts_del(opts);
     bs->supported_write_flags = BDRV_REQ_FUA;
     return ret;
