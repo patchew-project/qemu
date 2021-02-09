@@ -397,6 +397,37 @@ int virtio_send_data_iov(struct fuse_session *se, struct fuse_chan *ch,
         in_sg_left -= ret;
         len -= ret;
     } while (in_sg_left);
+
+    if (bad_in_num) {
+        while (len && bad_in_num) {
+            VhostUserFSSlaveMsg msg = { 0 };
+            msg.flags[0] = VHOST_USER_FS_FLAG_MAP_R;
+            msg.fd_offset[0] = buf->buf[0].pos;
+            msg.c_offset[0] = (uint64_t)(uintptr_t)in_sg_ptr[0].iov_base;
+            msg.len[0] = in_sg_ptr[0].iov_len;
+            if (len < msg.len[0]) {
+                msg.len[0] = len;
+            }
+            int64_t req_res = fuse_virtio_io(se, &msg, buf->buf[0].fd);
+            fuse_log(FUSE_LOG_DEBUG,
+                     "%s: bad loop; len=%zd bad_in_num=%d fd_offset=%zd "
+                     "c_offset=%p req_res=%ld\n",
+                     __func__, len, bad_in_num, buf->buf[0].pos,
+                     in_sg_ptr[0].iov_base, req_res);
+            if (req_res > 0) {
+                len -= msg.len[0];
+                buf->buf[0].pos += msg.len[0];
+                in_sg_ptr++;
+                bad_in_num--;
+            } else if (req_res == 0) {
+                break;
+            } else {
+                ret = req_res;
+                free(in_sg_cpy);
+                goto err;
+            }
+        }
+    }
     free(in_sg_cpy);
 
     /* Need to fix out->len on EOF */
