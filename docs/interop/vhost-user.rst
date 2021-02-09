@@ -1432,6 +1432,26 @@ Slave message types
 
   The state.num field is currently reserved and must be set to 0.
 
+``VHOST_USER_SLAVE_FS_MAP``
+  :id: 6
+  :equivalent ioctl: N/A
+  :slave payload: fd + n * (offset + address + len)
+  :master payload: N/A
+
+  Requests that the QEMU mmap the given fd into the virtio-fs cache;
+  multiple chunks can be mapped in one command.
+  A reply is generated indicating whether mapping succeeded.
+
+``VHOST_USER_SLAVE_FS_UNMAP``
+  :id: 7
+  :equivalent ioctl: N/A
+  :slave payload: n * (address + len)
+  :master payload: N/A
+
+  Requests that the QEMU un-mmap the given range in the virtio-fs cache;
+  multiple chunks can be unmapped in one command.
+  A reply is generated indicating whether unmapping succeeded.
+
 .. _reply_ack:
 
 VHOST_USER_PROTOCOL_F_REPLY_ACK

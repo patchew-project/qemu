@@ -34,6 +34,20 @@
 #define DAX_WINDOW_PROT PROT_NONE
 #endif
 
+uint64_t vhost_user_fs_slave_map(struct vhost_dev *dev, VhostUserFSSlaveMsg *sm,
+                                 int fd)
+{
+    /* TODO */
+    return (uint64_t)-1;
+}
+
+uint64_t vhost_user_fs_slave_unmap(struct vhost_dev *dev,
+                                   VhostUserFSSlaveMsg *sm)
+{
+    /* TODO */
+    return (uint64_t)-1;
+}
+
 static void vuf_get_config(VirtIODevice *vdev, uint8_t *config)
 {
     VHostUserFS *fs = VHOST_USER_FS(vdev);
