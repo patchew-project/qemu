@@ -17,6 +17,13 @@
 
 typedef struct VhostShadowVirtqueue VhostShadowVirtqueue;
 
+bool vhost_shadow_vq_start_rcu(struct vhost_dev *dev,
+                               unsigned idx,
+                               VhostShadowVirtqueue *svq);
+void vhost_shadow_vq_stop_rcu(struct vhost_dev *dev,
+                              unsigned idx,
+                              VhostShadowVirtqueue *svq);
+
 VhostShadowVirtqueue *vhost_shadow_vq_new(struct vhost_dev *dev, int idx);
 
 void vhost_shadow_vq_free(VhostShadowVirtqueue *vq);
