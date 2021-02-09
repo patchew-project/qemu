@@ -502,10 +502,17 @@ ssize_t etsec_rx_ring_write(eTSEC *etsec, const uint8_t *buf, size_t size)
         return -1;
     }
 
-    if ((etsec->regs[RCTRL].value & RCTRL_RSF) && (size < 60)) {
+    /*
+     * Both slirp and tap networking do not pad short frames
+     * (e.g.: an ARP packet) to the minimum frame size of 60 bytes.
+     *
+     * If eTSEC is programmed to reject short frames, ARP requests
+     * will be dropped, preventing the guest from becoming visible
+     * on the network.
+     */
+    if (!(etsec->regs[RCTRL].value & RCTRL_RSF) && (size < 60)) {
         /* CRC is not in the packet yet, so short frame is below 60 bytes */
-        RING_DEBUG("%s: Drop short frame\n", __func__);
-        return -1;
+        RING_DEBUG("%s: Drop short frame not implemented\n", __func__);
     }
 
     rx_init_frame(etsec, buf, size);
