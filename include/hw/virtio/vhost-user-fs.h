@@ -69,5 +69,7 @@ uint64_t vhost_user_fs_slave_map(struct vhost_dev *dev, VhostUserFSSlaveMsg *sm,
                                  int fd);
 uint64_t vhost_user_fs_slave_unmap(struct vhost_dev *dev,
                                    VhostUserFSSlaveMsg *sm);
+uint64_t vhost_user_fs_slave_io(struct vhost_dev *dev, VhostUserFSSlaveMsg *sm,
+                                int fd);
 
 #endif /* _QEMU_VHOST_USER_FS_H */
