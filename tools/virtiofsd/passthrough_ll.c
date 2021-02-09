@@ -2947,6 +2947,17 @@ static void lo_destroy(void *userdata, struct fuse_session *se)
 {
     struct lo_data *lo = (struct lo_data *)userdata;
 
+    if (fuse_lowlevel_is_virtio(se)) {
+        VhostUserFSSlaveMsg msg = { 0 };
+
+        msg.len[0] = ~(uint64_t)0; /* Special: means 'all' */
+        msg.c_offset[0] = 0;
+        if (fuse_virtio_unmap(se, &msg)) {
+            fuse_log(FUSE_LOG_ERR, "%s: unmap during destroy failed\n",
+                     __func__);
+        }
+    }
+
     pthread_mutex_lock(&lo->mutex);
     while (true) {
         GHashTableIter iter;
