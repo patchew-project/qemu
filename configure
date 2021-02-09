@@ -4879,7 +4879,6 @@ fi
 ########################################
 # See if __attribute__((alias)) is supported.
 # This false for Xcode 9, but has been remedied for Xcode 10.
-# Unfortunately, travis uses Xcode 9 by default.
 
 attralias=no
 cat > $TMPC << EOF

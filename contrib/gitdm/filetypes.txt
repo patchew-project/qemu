@@ -81,7 +81,7 @@ filetype tests \.out\.nocache$
 filetype tests \.err$
 filetype tests \.exit$      # bad-if-FOO.exit etc
 filetype tests \.decode$
-filetype tests \.yml$        # travis/shippable config
+filetype tests \.yml$        # gitlab/shippable config
 
 #
 # Development documentation files (for hacking generally)
