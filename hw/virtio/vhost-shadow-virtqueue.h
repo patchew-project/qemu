@@ -17,6 +17,8 @@
 
 typedef struct VhostShadowVirtqueue VhostShadowVirtqueue;
 
+EventNotifier *vhost_shadow_vq_get_call_notifier(VhostShadowVirtqueue *vq);
+
 bool vhost_shadow_vq_start_rcu(struct vhost_dev *dev,
                                unsigned idx,
                                VhostShadowVirtqueue *svq);

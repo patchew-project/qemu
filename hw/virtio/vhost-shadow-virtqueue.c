@@ -24,6 +24,8 @@ typedef struct VhostShadowVirtqueue {
 
     /* Borrowed virtqueue's guest to host notifier. */
     EventNotifier host_notifier;
+    /* Host to guest notifier */
+    EventNotifier *guest_notifier;
 
     /* Virtio queue shadowing */
     VirtQueue *vq;
@@ -38,6 +40,26 @@ static void vhost_handle_guest_kick(EventNotifier *n)
     if (event_notifier_test_and_clear(n)) {
         event_notifier_set(&svq->kick_notifier);
     }
+}
+
+/* Forward vhost notifications */
+static void vhost_handle_call(EventNotifier *n)
+{
+    VhostShadowVirtqueue *svq = container_of(n, VhostShadowVirtqueue,
+                                             call_notifier);
+
+    if (event_notifier_test_and_clear(n)) {
+        event_notifier_set(svq->guest_notifier);
+    }
+}
+
+/*
+ * Get the vhost call notifier of the shadow vq
+ * @vq Shadow virtqueue
+ */
+EventNotifier *vhost_shadow_vq_get_call_notifier(VhostShadowVirtqueue *vq)
+{
+    return &vq->call_notifier;
 }
 
 /*
@@ -57,6 +79,10 @@ bool vhost_shadow_vq_start_rcu(struct vhost_dev *dev,
         .index = idx,
         .fd = event_notifier_get_fd(&svq->kick_notifier),
     };
+    struct vhost_vring_file call_file = {
+        .index = idx,
+        .fd = event_notifier_get_fd(&svq->call_notifier),
+    };
     int r;
 
     /* Check that notifications are still going directly to vhost dev */
@@ -66,6 +92,7 @@ bool vhost_shadow_vq_start_rcu(struct vhost_dev *dev,
                            event_notifier_get_fd(vq_host_notifier));
     event_notifier_set_handler(&svq->host_notifier, vhost_handle_guest_kick);
 
+    svq->guest_notifier = virtio_queue_get_guest_notifier(svq->vq);
     r = dev->vhost_ops->vhost_set_vring_kick(dev, &kick_file);
     if (unlikely(r != 0)) {
         error_report("Couldn't set kick fd: %s", strerror(errno));
@@ -75,7 +102,18 @@ bool vhost_shadow_vq_start_rcu(struct vhost_dev *dev,
     /* Check for pending notifications from the guest */
     vhost_handle_guest_kick(&svq->host_notifier);
 
+    r = dev->vhost_ops->vhost_set_vring_call(dev, &call_file);
+    if (r != 0) {
+        error_report("Couldn't set call fd: %s", strerror(errno));
+        goto err_set_vring_call;
+    }
+
     return true;
+
+err_set_vring_call:
+    kick_file.fd = event_notifier_get_fd(vq_host_notifier);
+    r = dev->vhost_ops->vhost_set_vring_kick(dev, &kick_file);
+    assert(r == 0);
 
 err_set_vring_kick:
     event_notifier_set_handler(&svq->host_notifier, NULL);
@@ -108,6 +146,16 @@ void vhost_shadow_vq_stop_rcu(struct vhost_dev *dev,
     assert(r == 0);
 
     event_notifier_set_handler(&svq->host_notifier, NULL);
+
+    if (!dev->vqs[idx].notifier_is_masked) {
+        EventNotifier *e = vhost_shadow_vq_get_call_notifier(svq);
+
+        /* Restore vhost call */
+        vhost_virtqueue_mask(dev, dev->vdev, dev->vq_index + idx, false);
+
+        /* Check for pending calls */
+        vhost_handle_call(e);
+    }
 }
 
 /*
@@ -136,6 +184,7 @@ VhostShadowVirtqueue *vhost_shadow_vq_new(struct vhost_dev *dev, int idx)
         goto err_init_call_notifier;
     }
 
+    event_notifier_set_handler(&svq->call_notifier, vhost_handle_call);
     return g_steal_pointer(&svq);
 
 err_init_call_notifier:

@@ -975,7 +975,6 @@ static int vhost_sw_live_migration_start(struct vhost_dev *dev)
         for (idx = 0; idx < dev->nvqs; ++idx) {
             bool ok = vhost_shadow_vq_start_rcu(dev, idx,
                                                 dev->shadow_vqs[idx]);
-
             if (!ok) {
                 int stop_idx = idx;
 
@@ -1608,6 +1607,10 @@ void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
     if (mask) {
         assert(vdev->use_guest_notifier_mask);
         file.fd = event_notifier_get_fd(&hdev->vqs[index].masked_notifier);
+    } else if (hdev->sw_lm_enabled) {
+        VhostShadowVirtqueue *svq = hdev->shadow_vqs[n];
+        EventNotifier *e = vhost_shadow_vq_get_call_notifier(svq);
+        file.fd = event_notifier_get_fd(e);
     } else {
         file.fd = event_notifier_get_fd(virtio_queue_get_guest_notifier(vvq));
     }
