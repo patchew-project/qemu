@@ -183,6 +183,14 @@ static int esp_select(ESPState *s)
         esp_raise_irq(s);
         return -1;
     }
+
+    /*
+     * Note that we deliberately don't raise the IRQ here: this will be done
+     * either in do_busid_cmd() for DATA OUT transfers or by the deferred
+     * IRQ mechanism in esp_transfer_data() for DATA IN transfers
+     */
+    s->rregs[ESP_RINTR] |= INTR_FC;
+    s->rregs[ESP_RSEQ] = SEQ_CD;
     return 0;
 }
 
@@ -237,18 +245,24 @@ static void do_busid_cmd(ESPState *s, uint8_t *buf, uint8_t busid)
     s->ti_size = datalen;
     if (datalen != 0) {
         s->rregs[ESP_RSTAT] = STAT_TC;
+        s->rregs[ESP_RSEQ] = SEQ_CD;
         esp_set_tc(s, 0);
         if (datalen > 0) {
+            /*
+             * Switch to DATA IN phase but wait until initial data xfer is
+             * complete before raising the command completion interrupt
+             */
+            s->data_in_ready = false;
             s->rregs[ESP_RSTAT] |= STAT_DI;
         } else {
             s->rregs[ESP_RSTAT] |= STAT_DO;
+            s->rregs[ESP_RINTR] |= INTR_BS | INTR_FC;
+            esp_raise_irq(s);
+            esp_lower_drq(s);
         }
         scsi_req_continue(s->current_req);
+        return;
     }
-    s->rregs[ESP_RINTR] |= INTR_BS | INTR_FC;
-    s->rregs[ESP_RSEQ] = SEQ_CD;
-    esp_raise_irq(s);
-    esp_lower_drq(s);
 }
 
 static void do_cmd(ESPState *s)
@@ -603,12 +617,35 @@ void esp_command_complete(SCSIRequest *req, uint32_t status,
 void esp_transfer_data(SCSIRequest *req, uint32_t len)
 {
     ESPState *s = req->hba_private;
+    int to_device = ((s->rregs[ESP_RSTAT] & 7) == STAT_DO);
     uint32_t dmalen = esp_get_tc(s);
 
     assert(!s->do_cmd);
     trace_esp_transfer_data(dmalen, s->ti_size);
     s->async_len = len;
     s->async_buf = scsi_req_get_buf(req);
+
+    if (!to_device && !s->data_in_ready) {
+        /*
+         * Initial incoming data xfer is complete so raise command
+         * completion interrupt
+         */
+        s->data_in_ready = true;
+        s->rregs[ESP_RSTAT] |= STAT_TC;
+        s->rregs[ESP_RINTR] |= INTR_BS;
+        esp_raise_irq(s);
+
+        /*
+         * If data is ready to transfer and the TI command has already
+         * been executed, start DMA immediately. Otherwise DMA will start
+         * when host sends the TI command
+         */
+        if (s->ti_size && (s->rregs[ESP_CMD] == (CMD_TI | CMD_DMA))) {
+            esp_do_dma(s);
+        }
+        return;
+    }
+
     if (dmalen) {
         esp_do_dma(s);
     } else if (s->ti_size <= 0) {
@@ -870,6 +907,14 @@ static bool esp_is_before_version_5(void *opaque, int version_id)
     return version_id < 5;
 }
 
+static bool esp_is_version_5(void *opaque, int version_id)
+{
+    ESPState *s = ESP(opaque);
+
+    version_id = MIN(version_id, s->mig_version_id);
+    return version_id == 5;
+}
+
 static int esp_pre_save(void *opaque)
 {
     ESPState *s = ESP(opaque);
@@ -914,6 +959,7 @@ const VMStateDescription vmstate_esp = {
         VMSTATE_UINT32(cmdlen, ESPState),
         VMSTATE_UINT32(do_cmd, ESPState),
         VMSTATE_UINT32_TEST(mig_dma_left, ESPState, esp_is_before_version_5),
+        VMSTATE_BOOL_TEST(data_in_ready, ESPState, esp_is_version_5),
         VMSTATE_END_OF_LIST()
     },
 };
