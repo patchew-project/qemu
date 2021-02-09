@@ -2967,8 +2967,56 @@ static void lo_setupmapping(fuse_req_t req, fuse_ino_t ino, uint64_t foffset,
                             uint64_t len, uint64_t moffset, uint64_t flags,
                             struct fuse_file_info *fi)
 {
-    /* TODO */
-    fuse_reply_err(req, ENOSYS);
+    struct lo_data *lo = lo_data(req);
+    int ret = 0, fd;
+    VhostUserFSSlaveMsg msg = { 0 };
+    uint64_t vhu_flags;
+    char *buf;
+    bool writable = flags & O_RDWR;
+
+    fuse_log(FUSE_LOG_DEBUG,
+             "lo_setupmapping(ino=%" PRIu64 ", fi=0x%p,"
+             " foffset=%" PRIu64 ", len=%" PRIu64 ", moffset=%" PRIu64
+             ", flags=%" PRIu64 ")\n",
+             ino, (void *)fi, foffset, len, moffset, flags);
+
+    vhu_flags = VHOST_USER_FS_FLAG_MAP_R;
+    if (writable) {
+        vhu_flags |= VHOST_USER_FS_FLAG_MAP_W;
+    }
+
+    msg.fd_offset[0] = foffset;
+    msg.len[0] = len;
+    msg.c_offset[0] = moffset;
+    msg.flags[0] = vhu_flags;
+
+    if (fi) {
+        fd = lo_fi_fd(req, fi);
+    } else {
+        ret = asprintf(&buf, "%i", lo_fd(req, ino));
+        if (ret == -1) {
+            return (void)fuse_reply_err(req, errno);
+        }
+
+        fd = openat(lo->proc_self_fd, buf, flags);
+        free(buf);
+        if (fd == -1) {
+            return (void)fuse_reply_err(req, errno);
+        }
+    }
+
+    ret = fuse_virtio_map(req, &msg, fd);
+    if (ret < 0) {
+        fuse_log(FUSE_LOG_ERR,
+                 "%s: map over virtio failed (ino=%" PRId64
+                 "fd=%d moffset=0x%" PRIx64 "). err = %d\n",
+                 __func__, ino, fd, moffset, ret);
+    }
+
+    if (!fi) {
+        close(fd);
+    }
+    fuse_reply_err(req, -ret);
 }
 
 static void lo_removemapping(fuse_req_t req, struct fuse_session *se,
