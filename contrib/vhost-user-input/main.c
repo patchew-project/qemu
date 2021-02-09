@@ -57,7 +57,7 @@ static void vi_input_send(VuInput *vi, struct virtio_input_event *event)
 
     /* ... then check available space ... */
     for (i = 0; i < vi->qindex; i++) {
-        elem = vu_queue_pop(dev, vq, sizeof(VuVirtqElement));
+        elem = vu_queue_pop(dev, vq, sizeof(VuVirtqElement), NULL, NULL);
         if (!elem) {
             while (--i >= 0) {
                 vu_queue_unpop(dev, vq, vi->queue[i].elem, 0);
@@ -141,7 +141,7 @@ static void vi_handle_sts(VuDev *dev, int qidx)
     g_debug("%s", G_STRFUNC);
 
     for (;;) {
-        elem = vu_queue_pop(dev, vq, sizeof(VuVirtqElement));
+        elem = vu_queue_pop(dev, vq, sizeof(VuVirtqElement), NULL, NULL);
         if (!elem) {
             break;
         }

@@ -235,7 +235,8 @@ static int vub_virtio_process_req(VubDev *vdev_blk,
     unsigned out_num;
     VubReq *req;
 
-    elem = vu_queue_pop(vu_dev, vq, sizeof(VuVirtqElement) + sizeof(VubReq));
+    elem = vu_queue_pop(vu_dev, vq, sizeof(VuVirtqElement) + sizeof(VubReq),
+                        NULL, NULL);
     if (!elem) {
         return -1;
     }

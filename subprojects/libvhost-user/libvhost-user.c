@@ -2469,7 +2469,8 @@ vu_queue_set_notification(VuDev *dev, VuVirtq *vq, int enable)
 
 static bool
 virtqueue_map_desc(VuDev *dev,
-                   unsigned int *p_num_sg, struct iovec *iov,
+                   unsigned int *p_num_sg, unsigned int *p_bad_sg,
+                   struct iovec *iov,
                    unsigned int max_num_sg, bool is_write,
                    uint64_t pa, size_t sz)
 {
@@ -2490,10 +2491,35 @@ virtqueue_map_desc(VuDev *dev,
             return false;
         }
 
-        iov[num_sg].iov_base = vu_gpa_to_va(dev, &len, pa);
-        if (iov[num_sg].iov_base == NULL) {
-            vu_panic(dev, "virtio: invalid address for buffers");
-            return false;
+        if (p_bad_sg && *p_bad_sg) {
+            /* A previous mapping was bad, we won't try and map this either */
+            *p_bad_sg = *p_bad_sg + 1;
+        }
+        if (!p_bad_sg || !*p_bad_sg) {
+            /* No bad mappings so far, lets try mapping this one */
+            iov[num_sg].iov_base = vu_gpa_to_va(dev, &len, pa);
+            if (iov[num_sg].iov_base == NULL) {
+                /*
+                 * OK, it won't map, either panic or if the caller can handle
+                 * it, then count it.
+                 */
+                if (!p_bad_sg) {
+                    vu_panic(dev, "virtio: invalid address for buffers");
+                    return false;
+                } else {
+                    *p_bad_sg = *p_bad_sg + 1;
+                }
+            }
+        }
+        if (p_bad_sg && *p_bad_sg) {
+            /*
+             * There was a bad mapping, either now or previously, since
+             * the caller set p_bad_sg it means it's prepared to deal with
+             * it, so give it the pa in the iov
+             * Note: In this case len will be the whole sz, so we won't
+             * go around again for this descriptor
+             */
+            iov[num_sg].iov_base = (void *)(uintptr_t)pa;
         }
         iov[num_sg].iov_len = len;
         num_sg++;
@@ -2524,7 +2550,8 @@ virtqueue_alloc_element(size_t sz,
 }
 
 static void *
-vu_queue_map_desc(VuDev *dev, VuVirtq *vq, unsigned int idx, size_t sz)
+vu_queue_map_desc(VuDev *dev, VuVirtq *vq, unsigned int idx, size_t sz,
+                  unsigned int *p_bad_in, unsigned int *p_bad_out)
 {
     struct vring_desc *desc = vq->vring.desc;
     uint64_t desc_addr, read_len;
@@ -2568,7 +2595,7 @@ vu_queue_map_desc(VuDev *dev, VuVirtq *vq, unsigned int idx, size_t sz)
     /* Collect all the descriptors */
     do {
         if (le16toh(desc[i].flags) & VRING_DESC_F_WRITE) {
-            if (!virtqueue_map_desc(dev, &in_num, iov + out_num,
+            if (!virtqueue_map_desc(dev, &in_num, p_bad_in, iov + out_num,
                                VIRTQUEUE_MAX_SIZE - out_num, true,
                                le64toh(desc[i].addr),
                                le32toh(desc[i].len))) {
@@ -2579,7 +2606,7 @@ vu_queue_map_desc(VuDev *dev, VuVirtq *vq, unsigned int idx, size_t sz)
                 vu_panic(dev, "Incorrect order for descriptors");
                 return NULL;
             }
-            if (!virtqueue_map_desc(dev, &out_num, iov,
+            if (!virtqueue_map_desc(dev, &out_num, p_bad_out, iov,
                                VIRTQUEUE_MAX_SIZE, false,
                                le64toh(desc[i].addr),
                                le32toh(desc[i].len))) {
@@ -2669,7 +2696,8 @@ vu_queue_inflight_post_put(VuDev *dev, VuVirtq *vq, int desc_idx)
 }
 
 void *
-vu_queue_pop(VuDev *dev, VuVirtq *vq, size_t sz)
+vu_queue_pop(VuDev *dev, VuVirtq *vq, size_t sz,
+             unsigned int *p_bad_in, unsigned int *p_bad_out)
 {
     int i;
     unsigned int head;
@@ -2682,7 +2710,8 @@ vu_queue_pop(VuDev *dev, VuVirtq *vq, size_t sz)
 
     if (unlikely(vq->resubmit_list && vq->resubmit_num > 0)) {
         i = (--vq->resubmit_num);
-        elem = vu_queue_map_desc(dev, vq, vq->resubmit_list[i].index, sz);
+        elem = vu_queue_map_desc(dev, vq, vq->resubmit_list[i].index, sz,
+                                 p_bad_in, p_bad_out);
 
         if (!vq->resubmit_num) {
             free(vq->resubmit_list);
@@ -2714,7 +2743,7 @@ vu_queue_pop(VuDev *dev, VuVirtq *vq, size_t sz)
         vring_set_avail_event(vq, vq->last_avail_idx);
     }
 
-    elem = vu_queue_map_desc(dev, vq, head, sz);
+    elem = vu_queue_map_desc(dev, vq, head, sz, p_bad_in, p_bad_out);
 
     if (!elem) {
         return NULL;

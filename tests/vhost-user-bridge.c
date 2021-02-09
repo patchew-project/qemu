@@ -184,7 +184,7 @@ vubr_handle_tx(VuDev *dev, int qidx)
         unsigned int out_num;
         struct iovec sg[VIRTQUEUE_MAX_SIZE], *out_sg;
 
-        elem = vu_queue_pop(dev, vq, sizeof(VuVirtqElement));
+        elem = vu_queue_pop(dev, vq, sizeof(VuVirtqElement), NULL, NULL);
         if (!elem) {
             break;
         }
@@ -299,7 +299,7 @@ vubr_backend_recv_cb(int sock, void *ctx)
         ssize_t ret, total = 0;
         unsigned int num;
 
-        elem = vu_queue_pop(dev, vq, sizeof(VuVirtqElement));
+        elem = vu_queue_pop(dev, vq, sizeof(VuVirtqElement), NULL, NULL);
         if (!elem) {
             break;
         }
