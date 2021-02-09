@@ -2367,7 +2367,9 @@ static void qemu_process_early_options(void)
     trace_init_file();
 
     /* Open the logfile at this point and set the log mask if necessary.  */
-    qemu_set_log_filename(log_file, &error_fatal);
+    if (log_file) {
+        qemu_set_log_filename(log_file, &error_fatal);
+    }
     if (log_mask) {
         int mask;
         mask = qemu_str_to_log_mask(log_mask);
