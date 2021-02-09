@@ -4,6 +4,20 @@ if not config_host.has_key('CONFIG_POSIX')
   subdir_done()
 endif
 
+slow_qtests = {
+  'ahci-test' : 2,
+  'bios-tables-test' : 3,
+  'boot-serial-test' : 3,
+  'ide-test' : 2,
+  'migration-test' : 5,
+  'npcm7xx_pwm-test': 4,
+  'npcm7xx_watchdog_timer-test': 2,
+  'prom-env-test' : 3,
+  'pxe-test' : 3,
+  'qos-test : 2,
+  'qom-test' : 6,
+  'test-hmp' : 3,
+]
 qtests_generic = [
   'cdrom-test',
   'device-introspect-test',
@@ -272,6 +286,7 @@ foreach dir : target_dirs
          env: qtest_env,
          args: ['--tap', '-k'],
          protocol: 'tap',
+         timeout: 30 * slow_qtests.get(test_name, 1),
          suite: ['qtest', 'qtest-' + target_base])
   endforeach
 endforeach
