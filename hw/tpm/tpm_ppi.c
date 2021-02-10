@@ -30,11 +30,13 @@ void tpm_ppi_reset(TPMPPI *tpmppi)
         guest_phys_blocks_init(&guest_phys_blocks);
         guest_phys_blocks_append(&guest_phys_blocks);
         QTAILQ_FOREACH(block, &guest_phys_blocks.head, next) {
+            ram_addr_t mr_start = memory_region_get_ram_addr(block->mr);
+
             trace_tpm_ppi_memset(block->host_addr,
                                  block->target_end - block->target_start);
             memset(block->host_addr, 0,
                    block->target_end - block->target_start);
-            memory_region_set_dirty(block->mr, 0,
+            memory_region_set_dirty(block->mr, block->target_start - mr_start,
                                     block->target_end - block->target_start);
         }
         guest_phys_blocks_free(&guest_phys_blocks);
