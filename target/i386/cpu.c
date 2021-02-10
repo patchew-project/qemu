@@ -4725,6 +4725,29 @@ static void x86_hv_stimer_direct_set(Object *obj, bool value, Error **errp)
     x86_hv_feature_set(obj, value, HYPERV_FEAT_STIMER_DIRECT);
 }
 
+static bool x86_hv_passthrough_get(Object *obj, Error **errp)
+{
+    X86CPU *cpu = X86_CPU(obj);
+
+    return cpu->hyperv_passthrough;
+}
+
+static void x86_hv_passthrough_set(Object *obj, bool value, Error **errp)
+{
+    X86CPU *cpu = X86_CPU(obj);
+
+    cpu->hyperv_passthrough = value;
+
+    /* hv-passthrough overrides everything with what's supported by the host */
+    if (value) {
+        cpu->hyperv_features = 0;
+        cpu->hyperv_features_on = 0;
+        cpu->hyperv_features_off = 0;
+    }
+
+    return;
+}
+
 /* Generic getter for "feature-words" and "filtered-features" properties */
 static void x86_cpu_get_feature_words(Object *obj, Visitor *v,
                                       const char *name, void *opaque,
@@ -7281,7 +7304,6 @@ static Property x86_cpu_properties[] = {
                        HYPERV_SPINLOCK_NEVER_NOTIFY),
     DEFINE_PROP_ON_OFF_AUTO("hv-no-nonarch-coresharing", X86CPU,
                             hyperv_no_nonarch_cs, ON_OFF_AUTO_OFF),
-    DEFINE_PROP_BOOL("hv-passthrough", X86CPU, hyperv_passthrough, false),
 
     DEFINE_PROP_BOOL("check", X86CPU, check_cpuid, true),
     DEFINE_PROP_BOOL("enforce", X86CPU, enforce_cpuid, false),
@@ -7459,6 +7481,10 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     object_class_property_add_bool(oc, "hv-stimer-direct",
                                    x86_hv_stimer_direct_get,
                                    x86_hv_stimer_direct_set);
+
+    object_class_property_add_bool(oc, "hv-passthrough",
+                                   x86_hv_passthrough_get,
+                                   x86_hv_passthrough_set);
 
     for (w = 0; w < FEATURE_WORDS; w++) {
         int bitnr;

@@ -1153,6 +1153,10 @@ static int hv_cpuid_check_and_set(CPUState *cs, int feature, Error **errp)
         return 0;
     }
 
+    if (cpu->hyperv_passthrough && (cpu->hyperv_features_off & BIT(feature))) {
+        return 0;
+    }
+
     deps = kvm_hyperv_properties[feature].dependencies;
     while (deps) {
         dep_feat = ctz64(deps);
