@@ -1315,8 +1315,17 @@ void kvm_hyperv_expand_features(X86CPU *cpu, Error **errp)
     if (hv_cpuid_check_and_set(cs, HYPERV_FEAT_TLBFLUSH, errp)) {
         return;
     }
-    if (hv_cpuid_check_and_set(cs, HYPERV_FEAT_EVMCS, errp)) {
-        return;
+    /*
+     * 'hv-evmcs' is not enabled when it wasn't explicitly requested and guest
+     * CPU lacks VMX.
+     */
+    if (cpu_has_vmx(&cpu->env) ||
+        (cpu->hyperv_features_on & BIT(HYPERV_FEAT_EVMCS))) {
+        if (hv_cpuid_check_and_set(cs, HYPERV_FEAT_EVMCS, errp)) {
+            return;
+        }
+    } else {
+        cpu->hyperv_features &= ~BIT(HYPERV_FEAT_EVMCS);
     }
     if (hv_cpuid_check_and_set(cs, HYPERV_FEAT_IPI, errp)) {
         return;
