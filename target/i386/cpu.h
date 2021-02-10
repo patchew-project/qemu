@@ -1667,6 +1667,8 @@ struct X86CPU {
     char *hyperv_vendor;
     bool hyperv_synic_kvm_only;
     uint64_t hyperv_features;
+    uint64_t hyperv_features_on;
+    uint64_t hyperv_features_off;
     bool hyperv_passthrough;
     OnOffAuto hyperv_no_nonarch_cs;
     uint32_t hyperv_vendor_id[3];

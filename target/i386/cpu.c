@@ -4553,6 +4553,178 @@ static void x86_cpuid_set_tsc_freq(Object *obj, Visitor *v, const char *name,
     cpu->env.tsc_khz = cpu->env.user_tsc_khz = value / 1000;
 }
 
+static bool x86_hv_feature_get(Object *obj, int feature)
+{
+    X86CPU *cpu = X86_CPU(obj);
+
+    return cpu->hyperv_features & BIT(feature);
+}
+
+static void x86_hv_feature_set(Object *obj, bool value, int feature)
+{
+    X86CPU *cpu = X86_CPU(obj);
+
+    if (value) {
+        cpu->hyperv_features |= BIT(feature);
+        cpu->hyperv_features_on |= BIT(feature);
+        cpu->hyperv_features_off &= ~BIT(feature);
+    } else {
+        cpu->hyperv_features &= ~BIT(feature);
+        cpu->hyperv_features_on &= ~BIT(feature);
+        cpu->hyperv_features_off |= BIT(feature);
+    }
+}
+
+static bool x86_hv_relaxed_get(Object *obj, Error **errp)
+{
+    return x86_hv_feature_get(obj, HYPERV_FEAT_RELAXED);
+}
+
+static void x86_hv_relaxed_set(Object *obj, bool value, Error **errp)
+{
+    x86_hv_feature_set(obj, value, HYPERV_FEAT_RELAXED);
+}
+
+static bool x86_hv_vapic_get(Object *obj, Error **errp)
+{
+    return x86_hv_feature_get(obj, HYPERV_FEAT_VAPIC);
+}
+
+static void x86_hv_vapic_set(Object *obj, bool value, Error **errp)
+{
+    x86_hv_feature_set(obj, value, HYPERV_FEAT_VAPIC);
+}
+
+static bool x86_hv_time_get(Object *obj, Error **errp)
+{
+    return x86_hv_feature_get(obj, HYPERV_FEAT_TIME);
+}
+
+static void x86_hv_time_set(Object *obj, bool value, Error **errp)
+{
+    x86_hv_feature_set(obj, value, HYPERV_FEAT_TIME);
+}
+
+static bool x86_hv_crash_get(Object *obj, Error **errp)
+{
+    return x86_hv_feature_get(obj, HYPERV_FEAT_CRASH);
+}
+
+static void x86_hv_crash_set(Object *obj, bool value, Error **errp)
+{
+    x86_hv_feature_set(obj, value, HYPERV_FEAT_CRASH);
+}
+
+static bool x86_hv_reset_get(Object *obj, Error **errp)
+{
+    return x86_hv_feature_get(obj, HYPERV_FEAT_RESET);
+}
+
+static void x86_hv_reset_set(Object *obj, bool value, Error **errp)
+{
+    x86_hv_feature_set(obj, value, HYPERV_FEAT_RESET);
+}
+
+static bool x86_hv_vpindex_get(Object *obj, Error **errp)
+{
+    return x86_hv_feature_get(obj, HYPERV_FEAT_VPINDEX);
+}
+
+static void x86_hv_vpindex_set(Object *obj, bool value, Error **errp)
+{
+    x86_hv_feature_set(obj, value, HYPERV_FEAT_VPINDEX);
+}
+
+static bool x86_hv_runtime_get(Object *obj, Error **errp)
+{
+    return x86_hv_feature_get(obj, HYPERV_FEAT_RUNTIME);
+}
+
+static void x86_hv_runtime_set(Object *obj, bool value, Error **errp)
+{
+    x86_hv_feature_set(obj, value, HYPERV_FEAT_RUNTIME);
+}
+
+static bool x86_hv_synic_get(Object *obj, Error **errp)
+{
+    return x86_hv_feature_get(obj, HYPERV_FEAT_SYNIC);
+}
+
+static void x86_hv_synic_set(Object *obj, bool value, Error **errp)
+{
+    x86_hv_feature_set(obj, value, HYPERV_FEAT_SYNIC);
+}
+
+static bool x86_hv_stimer_get(Object *obj, Error **errp)
+{
+    return x86_hv_feature_get(obj, HYPERV_FEAT_STIMER);
+}
+
+static void x86_hv_stimer_set(Object *obj, bool value, Error **errp)
+{
+    x86_hv_feature_set(obj, value, HYPERV_FEAT_STIMER);
+}
+
+static bool x86_hv_frequencies_get(Object *obj, Error **errp)
+{
+    return x86_hv_feature_get(obj, HYPERV_FEAT_FREQUENCIES);
+}
+
+static void x86_hv_frequencies_set(Object *obj, bool value, Error **errp)
+{
+    x86_hv_feature_set(obj, value, HYPERV_FEAT_FREQUENCIES);
+}
+
+static bool x86_hv_reenlightenment_get(Object *obj, Error **errp)
+{
+    return x86_hv_feature_get(obj, HYPERV_FEAT_REENLIGHTENMENT);
+}
+
+static void x86_hv_reenlightenment_set(Object *obj, bool value, Error **errp)
+{
+    x86_hv_feature_set(obj, value, HYPERV_FEAT_REENLIGHTENMENT);
+}
+
+static bool x86_hv_tlbflush_get(Object *obj, Error **errp)
+{
+    return x86_hv_feature_get(obj, HYPERV_FEAT_TLBFLUSH);
+}
+
+static void x86_hv_tlbflush_set(Object *obj, bool value, Error **errp)
+{
+    x86_hv_feature_set(obj, value, HYPERV_FEAT_TLBFLUSH);
+}
+
+static bool x86_hv_evmcs_get(Object *obj, Error **errp)
+{
+    return x86_hv_feature_get(obj, HYPERV_FEAT_EVMCS);
+}
+
+static void x86_hv_evmcs_set(Object *obj, bool value, Error **errp)
+{
+    x86_hv_feature_set(obj, value, HYPERV_FEAT_EVMCS);
+}
+
+static bool x86_hv_ipi_get(Object *obj, Error **errp)
+{
+    return x86_hv_feature_get(obj, HYPERV_FEAT_IPI);
+}
+
+static void x86_hv_ipi_set(Object *obj, bool value, Error **errp)
+{
+    x86_hv_feature_set(obj, value, HYPERV_FEAT_IPI);
+}
+
+static bool x86_hv_stimer_direct_get(Object *obj, Error **errp)
+{
+    return x86_hv_feature_get(obj, HYPERV_FEAT_STIMER_DIRECT);
+}
+
+static void x86_hv_stimer_direct_set(Object *obj, bool value, Error **errp)
+{
+    x86_hv_feature_set(obj, value, HYPERV_FEAT_STIMER_DIRECT);
+}
+
 /* Generic getter for "feature-words" and "filtered-features" properties */
 static void x86_cpu_get_feature_words(Object *obj, Visitor *v,
                                       const char *name, void *opaque,
@@ -7107,36 +7279,6 @@ static Property x86_cpu_properties[] = {
 
     DEFINE_PROP_UINT32("hv-spinlocks", X86CPU, hyperv_spinlock_attempts,
                        HYPERV_SPINLOCK_NEVER_NOTIFY),
-    DEFINE_PROP_BIT64("hv-relaxed", X86CPU, hyperv_features,
-                      HYPERV_FEAT_RELAXED, 0),
-    DEFINE_PROP_BIT64("hv-vapic", X86CPU, hyperv_features,
-                      HYPERV_FEAT_VAPIC, 0),
-    DEFINE_PROP_BIT64("hv-time", X86CPU, hyperv_features,
-                      HYPERV_FEAT_TIME, 0),
-    DEFINE_PROP_BIT64("hv-crash", X86CPU, hyperv_features,
-                      HYPERV_FEAT_CRASH, 0),
-    DEFINE_PROP_BIT64("hv-reset", X86CPU, hyperv_features,
-                      HYPERV_FEAT_RESET, 0),
-    DEFINE_PROP_BIT64("hv-vpindex", X86CPU, hyperv_features,
-                      HYPERV_FEAT_VPINDEX, 0),
-    DEFINE_PROP_BIT64("hv-runtime", X86CPU, hyperv_features,
-                      HYPERV_FEAT_RUNTIME, 0),
-    DEFINE_PROP_BIT64("hv-synic", X86CPU, hyperv_features,
-                      HYPERV_FEAT_SYNIC, 0),
-    DEFINE_PROP_BIT64("hv-stimer", X86CPU, hyperv_features,
-                      HYPERV_FEAT_STIMER, 0),
-    DEFINE_PROP_BIT64("hv-frequencies", X86CPU, hyperv_features,
-                      HYPERV_FEAT_FREQUENCIES, 0),
-    DEFINE_PROP_BIT64("hv-reenlightenment", X86CPU, hyperv_features,
-                      HYPERV_FEAT_REENLIGHTENMENT, 0),
-    DEFINE_PROP_BIT64("hv-tlbflush", X86CPU, hyperv_features,
-                      HYPERV_FEAT_TLBFLUSH, 0),
-    DEFINE_PROP_BIT64("hv-evmcs", X86CPU, hyperv_features,
-                      HYPERV_FEAT_EVMCS, 0),
-    DEFINE_PROP_BIT64("hv-ipi", X86CPU, hyperv_features,
-                      HYPERV_FEAT_IPI, 0),
-    DEFINE_PROP_BIT64("hv-stimer-direct", X86CPU, hyperv_features,
-                      HYPERV_FEAT_STIMER_DIRECT, 0),
     DEFINE_PROP_ON_OFF_AUTO("hv-no-nonarch-coresharing", X86CPU,
                             hyperv_no_nonarch_cs, ON_OFF_AUTO_OFF),
     DEFINE_PROP_BOOL("hv-passthrough", X86CPU, hyperv_passthrough, false),
@@ -7282,6 +7424,41 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     object_class_property_add(oc, "crash-information", "GuestPanicInformation",
                               x86_cpu_get_crash_info_qom, NULL, NULL, NULL);
 #endif
+
+    object_class_property_add_bool(oc, "hv-relaxed",
+                                   x86_hv_relaxed_get, x86_hv_relaxed_set);
+    object_class_property_add_bool(oc, "hv-vapic",
+                                   x86_hv_vapic_get, x86_hv_vapic_set);
+    object_class_property_add_bool(oc, "hv-time",
+                                   x86_hv_time_get, x86_hv_time_set);
+    object_class_property_add_bool(oc, "hv-crash",
+                                   x86_hv_crash_get, x86_hv_crash_set);
+    object_class_property_add_bool(oc, "hv-reset",
+                                   x86_hv_reset_get, x86_hv_reset_set);
+    object_class_property_add_bool(oc, "hv-vpindex",
+                                   x86_hv_vpindex_get, x86_hv_vpindex_set);
+    object_class_property_add_bool(oc, "hv-runtime",
+                                   x86_hv_runtime_get, x86_hv_runtime_set);
+    object_class_property_add_bool(oc, "hv-synic",
+                                   x86_hv_synic_get, x86_hv_synic_set);
+    object_class_property_add_bool(oc, "hv-stimer",
+                                   x86_hv_stimer_get, x86_hv_stimer_set);
+    object_class_property_add_bool(oc, "hv-frequencies",
+                                   x86_hv_frequencies_get,
+                                   x86_hv_frequencies_set);
+    object_class_property_add_bool(oc, "hv-reenlightenment",
+                                   x86_hv_reenlightenment_get,
+                                   x86_hv_reenlightenment_set);
+    object_class_property_add_bool(oc, "hv-tlbflush",
+                                   x86_hv_tlbflush_get, x86_hv_tlbflush_set);
+    object_class_property_add_bool(oc, "hv-evmcs",
+                              x86_hv_evmcs_get,
+                              x86_hv_evmcs_set);
+    object_class_property_add_bool(oc, "hv-ipi",
+                                   x86_hv_ipi_get, x86_hv_ipi_set);
+    object_class_property_add_bool(oc, "hv-stimer-direct",
+                                   x86_hv_stimer_direct_get,
+                                   x86_hv_stimer_direct_set);
 
     for (w = 0; w < FEATURE_WORDS; w++) {
         int bitnr;
