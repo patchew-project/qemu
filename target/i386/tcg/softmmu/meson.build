@@ -6,4 +6,5 @@ i386_softmmu_ss.add(when: ['CONFIG_TCG', 'CONFIG_SOFTMMU'], if_true: files(
   'misc_helper_softmmu.c',
   'fpu_helper_softmmu.c',
   'svm_helper.c',
+  'seg_helper_softmmu.c',
 ))
