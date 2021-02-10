@@ -138,6 +138,13 @@ typedef struct LoadBitmapState {
     bool enabled;
 } LoadBitmapState;
 
+typedef struct AliasMapInnerBitmap {
+    char *string;
+
+    /* 'transform' properties borrowed from QAPI */
+    BitmapMigrationBitmapAliasTransform *transform;
+} AliasMapInnerBitmap;
+
 /* State of the dirty bitmap migration (DBM) during load process */
 typedef struct DBMLoadState {
     uint32_t flags;
@@ -148,6 +155,7 @@ typedef struct DBMLoadState {
     BdrvDirtyBitmap *bitmap;
 
     bool before_vm_start_handled; /* set in dirty_bitmap_mig_before_vm_start */
+    AliasMapInnerBitmap *bmap_inner;
 
     /*
      * cancelled
@@ -168,10 +176,6 @@ typedef struct DBMState {
 } DBMState;
 
 static DBMState dbm_state;
-
-typedef struct AliasMapInnerBitmap {
-    char *string;
-} AliasMapInnerBitmap;
 
 static void free_alias_map_inner_bitmap(void *amin_ptr)
 {
@@ -330,6 +334,7 @@ static GHashTable *construct_alias_map(const BitmapMigrationNodeAliasList *bbm,
 
             bmap_inner = g_new0(AliasMapInnerBitmap, 1);
             bmap_inner->string = g_strdup(bmap_map_to);
+            bmap_inner->transform = bmba->transform;
 
             g_hash_table_insert(bitmaps_map,
                                 g_strdup(bmap_map_from), bmap_inner);
@@ -547,6 +552,7 @@ static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
     }
 
     FOR_EACH_DIRTY_BITMAP(bs, bitmap) {
+        BitmapMigrationBitmapAliasTransform *bitmap_transform = NULL;
         bitmap_name = bdrv_dirty_bitmap_name(bitmap);
         if (!bitmap_name) {
             continue;
@@ -567,6 +573,7 @@ static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
             }
 
             bitmap_alias = bmap_inner->string;
+            bitmap_transform = bmap_inner->transform;
         } else {
             if (strlen(bitmap_name) > UINT8_MAX) {
                 error_report("Cannot migrate bitmap '%s' on node '%s': "
@@ -592,8 +599,15 @@ static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
         if (bdrv_dirty_bitmap_enabled(bitmap)) {
             dbms->flags |= DIRTY_BITMAP_MIG_START_FLAG_ENABLED;
         }
-        if (bdrv_dirty_bitmap_get_persistence(bitmap)) {
-            dbms->flags |= DIRTY_BITMAP_MIG_START_FLAG_PERSISTENT;
+        if (bitmap_transform &&
+            bitmap_transform->has_persistent) {
+            if (bitmap_transform->persistent) {
+                dbms->flags |= DIRTY_BITMAP_MIG_START_FLAG_PERSISTENT;
+            }
+        } else {
+            if (bdrv_dirty_bitmap_get_persistence(bitmap)) {
+                dbms->flags |= DIRTY_BITMAP_MIG_START_FLAG_PERSISTENT;
+            }
         }
 
         QSIMPLEQ_INSERT_TAIL(&s->dbms_list, dbms, entry);
@@ -801,6 +815,7 @@ static int dirty_bitmap_load_start(QEMUFile *f, DBMLoadState *s)
     uint32_t granularity = qemu_get_be32(f);
     uint8_t flags = qemu_get_byte(f);
     LoadBitmapState *b;
+    bool persistent;
 
     if (s->cancelled) {
         return 0;
@@ -825,7 +840,15 @@ static int dirty_bitmap_load_start(QEMUFile *f, DBMLoadState *s)
         return -EINVAL;
     }
 
-    if (flags & DIRTY_BITMAP_MIG_START_FLAG_PERSISTENT) {
+    if (s->bmap_inner &&
+        s->bmap_inner->transform &&
+        s->bmap_inner->transform->has_persistent) {
+        persistent = s->bmap_inner->transform->persistent;
+    } else {
+        persistent = flags & DIRTY_BITMAP_MIG_START_FLAG_PERSISTENT;
+    }
+
+    if (persistent) {
         bdrv_dirty_bitmap_set_persistence(s->bitmap, true);
     }
 
@@ -1109,6 +1132,7 @@ static int dirty_bitmap_load_header(QEMUFile *f, DBMLoadState *s,
             }
 
             bitmap_name = bmap_inner->string;
+            s->bmap_inner = bmap_inner;
         }
 
         if (!s->cancelled) {
