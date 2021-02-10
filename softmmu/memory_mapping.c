@@ -244,6 +244,35 @@ static void guest_phys_block_add(GuestPhysBlockList *list, MemoryRegion *mr,
 #endif
 }
 
+typedef struct GuestPhysRDL {
+    GuestPhysBlockList *list;
+    RamDiscardListener listener;
+    MemoryRegionSection *section;
+} GuestPhysRDL;
+
+static int guest_phys_ram_discard_notify_populate(RamDiscardListener *listener,
+                                                  const MemoryRegion *const_mr,
+                                                  ram_addr_t offset,
+                                                  ram_addr_t size)
+{
+    GuestPhysRDL *rdl = container_of(listener, GuestPhysRDL, listener);
+    MemoryRegionSection *s = rdl->section;
+    const hwaddr mr_start = MAX(offset, s->offset_within_region);
+    const hwaddr mr_end = MIN(offset + size,
+                              s->offset_within_region + int128_get64(s->size));
+    uint8_t *host_addr;
+
+    if (mr_start >= mr_end) {
+        return 0;
+    }
+
+    host_addr = memory_region_get_ram_ptr(s->mr) + mr_start;
+    guest_phys_block_add(rdl->list, s->mr,
+                         mr_start + s->offset_within_address_space,
+                         mr_end + s->offset_within_address_space, host_addr);
+    return 0;
+}
+
 static void guest_phys_blocks_region_add(MemoryListener *listener,
                                          MemoryRegionSection *section)
 {
@@ -255,6 +284,22 @@ static void guest_phys_blocks_region_add(MemoryListener *listener,
     if (!memory_region_is_ram(section->mr) ||
         memory_region_is_ram_device(section->mr) ||
         memory_region_is_nonvolatile(section->mr)) {
+        return;
+    }
+
+    /* for special sparse regions, only add populated parts */
+    if (memory_region_has_ram_discard_mgr(section->mr)) {
+        RamDiscardMgr *rdm = memory_region_get_ram_discard_mgr(section->mr);
+        RamDiscardMgrClass *rdmc = RAM_DISCARD_MGR_GET_CLASS(rdm);
+        GuestPhysRDL rdl = {
+            .list = g->list,
+            .section = section,
+        };
+
+        ram_discard_listener_init(&rdl.listener,
+                                  guest_phys_ram_discard_notify_populate, NULL,
+                                  NULL);
+        rdmc->replay_populated(rdm, section->mr, &rdl.listener);
         return;
     }
 
