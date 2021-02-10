@@ -578,15 +578,6 @@ static void mips_cpu_disas_set_info(CPUState *s, disassemble_info *info)
 #define CPU_FREQ_HZ_DEFAULT     200000000
 #define CP0_COUNT_RATE_DEFAULT  2
 
-static void mips_cp0_period_set(MIPSCPU *cpu)
-{
-    CPUMIPSState *env = &cpu->env;
-
-    env->cp0_count_ns = clock_ticks_to_ns(MIPS_CPU(cpu)->clock,
-                                          cpu->cp0_count_rate);
-    assert(env->cp0_count_ns);
-}
-
 static void mips_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -607,7 +598,6 @@ static void mips_cpu_realizefn(DeviceState *dev, Error **errp)
         /* Initialize the frequency in case the clock remains unconnected. */
         clock_set_hz(cpu->clock, CPU_FREQ_HZ_DEFAULT);
     }
-    mips_cp0_period_set(cpu);
 
     cpu_exec_realizefn(cs, &local_err);
     if (local_err != NULL) {
