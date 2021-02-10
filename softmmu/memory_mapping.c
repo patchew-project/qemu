@@ -194,35 +194,17 @@ typedef struct GuestPhysListener {
     MemoryListener listener;
 } GuestPhysListener;
 
-static void guest_phys_blocks_region_add(MemoryListener *listener,
-                                         MemoryRegionSection *section)
+static void guest_phys_block_add(GuestPhysBlockList *list, MemoryRegion *mr,
+                                 hwaddr target_start, hwaddr target_end,
+                                 uint8_t *host_addr)
 {
-    GuestPhysListener *g;
-    uint64_t section_size;
-    hwaddr target_start, target_end;
-    uint8_t *host_addr;
-    GuestPhysBlock *predecessor;
-
-    /* we only care about RAM */
-    if (!memory_region_is_ram(section->mr) ||
-        memory_region_is_ram_device(section->mr) ||
-        memory_region_is_nonvolatile(section->mr)) {
-        return;
-    }
-
-    g            = container_of(listener, GuestPhysListener, listener);
-    section_size = int128_get64(section->size);
-    target_start = section->offset_within_address_space;
-    target_end   = target_start + section_size;
-    host_addr    = memory_region_get_ram_ptr(section->mr) +
-                   section->offset_within_region;
-    predecessor  = NULL;
+    GuestPhysBlock *predecessor = NULL;
 
     /* find continuity in guest physical address space */
-    if (!QTAILQ_EMPTY(&g->list->head)) {
+    if (!QTAILQ_EMPTY(&list->head)) {
         hwaddr predecessor_size;
 
-        predecessor = QTAILQ_LAST(&g->list->head);
+        predecessor = QTAILQ_LAST(&list->head);
         predecessor_size = predecessor->target_end - predecessor->target_start;
 
         /* the memory API guarantees monotonically increasing traversal */
@@ -231,7 +213,7 @@ static void guest_phys_blocks_region_add(MemoryListener *listener,
         /* we want continuity in both guest-physical and host-virtual memory */
         if (predecessor->target_end < target_start ||
             predecessor->host_addr + predecessor_size != host_addr ||
-            predecessor->mr != section->mr) {
+            predecessor->mr != mr) {
             predecessor = NULL;
         }
     }
@@ -243,11 +225,11 @@ static void guest_phys_blocks_region_add(MemoryListener *listener,
         block->target_start = target_start;
         block->target_end   = target_end;
         block->host_addr    = host_addr;
-        block->mr           = section->mr;
-        memory_region_ref(section->mr);
+        block->mr           = mr;
+        memory_region_ref(mr);
 
-        QTAILQ_INSERT_TAIL(&g->list->head, block, next);
-        ++g->list->num;
+        QTAILQ_INSERT_TAIL(&list->head, block, next);
+        ++list->num;
     } else {
         /* expand predecessor until @target_end; predecessor's start doesn't
          * change
@@ -258,8 +240,30 @@ static void guest_phys_blocks_region_add(MemoryListener *listener,
 #ifdef DEBUG_GUEST_PHYS_REGION_ADD
     fprintf(stderr, "%s: target_start=" TARGET_FMT_plx " target_end="
             TARGET_FMT_plx ": %s (count: %u)\n", __func__, target_start,
-            target_end, predecessor ? "joined" : "added", g->list->num);
+            target_end, predecessor ? "joined" : "added", list->num);
 #endif
+}
+
+static void guest_phys_blocks_region_add(MemoryListener *listener,
+                                         MemoryRegionSection *section)
+{
+    GuestPhysListener *g = container_of(listener, GuestPhysListener, listener);
+    hwaddr target_start, target_end;
+    uint8_t *host_addr;
+
+    /* we only care about RAM */
+    if (!memory_region_is_ram(section->mr) ||
+        memory_region_is_ram_device(section->mr) ||
+        memory_region_is_nonvolatile(section->mr)) {
+        return;
+    }
+
+    target_start = section->offset_within_address_space;
+    target_end = target_start + int128_get64(section->size);
+    host_addr = memory_region_get_ram_ptr(section->mr) +
+                section->offset_within_region;
+    guest_phys_block_add(g->list, section->mr, target_start, target_end,
+                         host_addr);
 }
 
 void guest_phys_blocks_append(GuestPhysBlockList *list)
