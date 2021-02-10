@@ -667,9 +667,11 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
 
     addr = le64_to_cpu(dp->buffer_addr);
     if (tp->cptse) {
+        assert(tp->tso_props.hdr_len);
         msh = tp->tso_props.hdr_len + tp->tso_props.mss;
         do {
             bytes = split_size;
+            assert(msh > tp->size);
             if (tp->size + bytes > msh)
                 bytes = msh - tp->size;
 
@@ -681,22 +683,26 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
                 memmove(tp->header, tp->data, tp->tso_props.hdr_len);
             }
             tp->size = sz;
+            assert(tp->size);   /* sz may get truncated */
             addr += bytes;
             if (sz == msh) {
                 xmit_seg(s);
                 memmove(tp->data, tp->header, tp->tso_props.hdr_len);
                 tp->size = tp->tso_props.hdr_len;
             }
+            assert(split_size >= bytes);
             split_size -= bytes;
         } while (bytes && split_size);
     } else {
         split_size = MIN(sizeof(tp->data) - tp->size, split_size);
+        assert(tp->size && split_size);
         pci_dma_read(d, addr, tp->data + tp->size, split_size);
         tp->size += split_size;
     }
 
     if (!(txd_lower & E1000_TXD_CMD_EOP))
         return;
+    assert(tp->size && tp->tso_props.hdr_len);
     if (!(tp->cptse && tp->size < tp->tso_props.hdr_len)) {
         xmit_seg(s);
     }
