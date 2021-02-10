@@ -169,6 +169,22 @@ typedef struct DBMState {
 
 static DBMState dbm_state;
 
+typedef struct AliasMapInnerBitmap {
+    char *string;
+} AliasMapInnerBitmap;
+
+static void free_alias_map_inner_bitmap(void *amin_ptr)
+{
+    AliasMapInnerBitmap *amin = amin_ptr;
+
+    if (!amin_ptr) {
+        return;
+    }
+
+    g_free(amin->string);
+    g_free(amin);
+}
+
 /* For hash tables that map node/bitmap names to aliases */
 typedef struct AliasMapInnerNode {
     char *string;
@@ -263,8 +279,8 @@ static GHashTable *construct_alias_map(const BitmapMigrationNodeAliasList *bbm,
             node_map_to = bmna->node_name;
         }
 
-        bitmaps_map = g_hash_table_new_full(g_str_hash, g_str_equal,
-                                            g_free, g_free);
+        bitmaps_map = g_hash_table_new_full(g_str_hash, g_str_equal, g_free,
+                                            free_alias_map_inner_bitmap);
 
         amin = g_new(AliasMapInnerNode, 1);
         *amin = (AliasMapInnerNode){
@@ -277,6 +293,7 @@ static GHashTable *construct_alias_map(const BitmapMigrationNodeAliasList *bbm,
         for (bmbal = bmna->bitmaps; bmbal; bmbal = bmbal->next) {
             const BitmapMigrationBitmapAlias *bmba = bmbal->value;
             const char *bmap_map_from, *bmap_map_to;
+            AliasMapInnerBitmap *bmap_inner;
 
             if (strlen(bmba->alias) > UINT8_MAX) {
                 error_setg(errp,
@@ -311,8 +328,11 @@ static GHashTable *construct_alias_map(const BitmapMigrationNodeAliasList *bbm,
                 }
             }
 
+            bmap_inner = g_new0(AliasMapInnerBitmap, 1);
+            bmap_inner->string = g_strdup(bmap_map_to);
+
             g_hash_table_insert(bitmaps_map,
-                                g_strdup(bmap_map_from), g_strdup(bmap_map_to));
+                                g_strdup(bmap_map_from), bmap_inner);
         }
     }
 
@@ -538,11 +558,15 @@ static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
         }
 
         if (bitmap_aliases) {
-            bitmap_alias = g_hash_table_lookup(bitmap_aliases, bitmap_name);
-            if (!bitmap_alias) {
+            AliasMapInnerBitmap *bmap_inner;
+
+            bmap_inner = g_hash_table_lookup(bitmap_aliases, bitmap_name);
+            if (!bmap_inner) {
                 /* Skip bitmaps with no alias */
                 continue;
             }
+
+            bitmap_alias = bmap_inner->string;
         } else {
             if (strlen(bitmap_name) > UINT8_MAX) {
                 error_report("Cannot migrate bitmap '%s' on node '%s': "
@@ -1074,14 +1098,17 @@ static int dirty_bitmap_load_header(QEMUFile *f, DBMLoadState *s,
 
         bitmap_name = s->bitmap_alias;
         if (!s->cancelled && bitmap_alias_map) {
-            bitmap_name = g_hash_table_lookup(bitmap_alias_map,
-                                              s->bitmap_alias);
-            if (!bitmap_name) {
+            AliasMapInnerBitmap *bmap_inner;
+
+            bmap_inner = g_hash_table_lookup(bitmap_alias_map, s->bitmap_alias);
+            if (!bmap_inner) {
                 error_report("Error: Unknown bitmap alias '%s' on node "
                              "'%s' (alias '%s')", s->bitmap_alias,
                              s->bs->node_name, s->node_alias);
                 cancel_incoming_locked(s);
             }
+
+            bitmap_name = bmap_inner->string;
         }
 
         if (!s->cancelled) {
