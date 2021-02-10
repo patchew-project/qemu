@@ -44,3 +44,8 @@ void kvm_hyperv_expand_features(X86CPU *cpu, Error **errp)
 {
     return;
 }
+
+bool kvm_hv_evmcs_available(void)
+{
+    return false;
+}

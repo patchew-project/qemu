@@ -96,6 +96,7 @@ static bool has_msr_hv_crash;
 static bool has_msr_hv_reset;
 static bool has_msr_hv_vpindex;
 static bool hv_vpindex_settable;
+static bool hv_evmcs_available;
 static bool has_msr_hv_runtime;
 static bool has_msr_hv_synic;
 static bool has_msr_hv_stimer;
@@ -193,6 +194,11 @@ bool kvm_enable_x2apic(void)
 bool kvm_hv_vpindex_settable(void)
 {
     return hv_vpindex_settable;
+}
+
+bool kvm_hv_evmcs_available(void)
+{
+    return hv_evmcs_available;
 }
 
 static int kvm_get_tsc(CPUState *cs)
@@ -2235,6 +2241,8 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     has_pit_state2 = kvm_check_extension(s, KVM_CAP_PIT_STATE2);
 
     hv_vpindex_settable = kvm_check_extension(s, KVM_CAP_HYPERV_VP_INDEX);
+    hv_evmcs_available =
+        kvm_check_extension(s, KVM_CAP_HYPERV_ENLIGHTENED_VMCS);
 
     has_exception_payload = kvm_check_extension(s, KVM_CAP_EXCEPTION_PAYLOAD);
     if (has_exception_payload) {
