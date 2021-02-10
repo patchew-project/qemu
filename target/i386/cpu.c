@@ -4736,6 +4736,12 @@ static void x86_hv_passthrough_set(Object *obj, bool value, Error **errp)
 {
     X86CPU *cpu = X86_CPU(obj);
 
+    if (cpu->hyperv_default) {
+        error_setg(errp,
+                   "'hv-default' and 'hv-paththrough' are mutually exclusive");
+        return;
+    }
+
     cpu->hyperv_passthrough = value;
 
     /* hv-passthrough overrides everything with what's supported by the host */
@@ -4746,6 +4752,33 @@ static void x86_hv_passthrough_set(Object *obj, bool value, Error **errp)
     }
 
     return;
+}
+
+static bool x86_hv_default_get(Object *obj, Error **errp)
+{
+    X86CPU *cpu = X86_CPU(obj);
+
+    return cpu->hyperv_default;
+}
+
+static void x86_hv_default_set(Object *obj, bool value, Error **errp)
+{
+    X86CPU *cpu = X86_CPU(obj);
+
+    if (cpu->hyperv_passthrough) {
+        error_setg(errp,
+                   "'hv-default' and 'hv-paththrough' are mutually exclusive");
+        return;
+    }
+
+    cpu->hyperv_default = value;
+
+    /* hv-default overrides everything with the default set */
+    if (value) {
+        cpu->hyperv_features = cpu->hyperv_default_features;
+        cpu->hyperv_features_on = 0;
+        cpu->hyperv_features_off = 0;
+    }
 }
 
 /* Generic getter for "feature-words" and "filtered-features" properties */
@@ -7152,6 +7185,21 @@ static void x86_cpu_initfn(Object *obj)
     if (xcc->model) {
         x86_cpu_load_model(cpu, xcc->model);
     }
+
+    /* Hyper-V features enabled with 'hv-default=on' */
+    cpu->hyperv_default_features = BIT(HYPERV_FEAT_RELAXED) |
+        BIT(HYPERV_FEAT_VAPIC) | BIT(HYPERV_FEAT_TIME) |
+        BIT(HYPERV_FEAT_CRASH) | BIT(HYPERV_FEAT_RESET) |
+        BIT(HYPERV_FEAT_VPINDEX) | BIT(HYPERV_FEAT_RUNTIME) |
+        BIT(HYPERV_FEAT_SYNIC) | BIT(HYPERV_FEAT_STIMER) |
+        BIT(HYPERV_FEAT_FREQUENCIES) | BIT(HYPERV_FEAT_REENLIGHTENMENT) |
+        BIT(HYPERV_FEAT_TLBFLUSH) | BIT(HYPERV_FEAT_IPI) |
+        BIT(HYPERV_FEAT_STIMER_DIRECT);
+
+    /* Enlightened VMCS is only available on Intel/VMX */
+    if (kvm_hv_evmcs_available()) {
+        cpu->hyperv_default_features |= BIT(HYPERV_FEAT_EVMCS);
+    }
 }
 
 static int64_t x86_cpu_get_arch_id(CPUState *cs)
@@ -7485,6 +7533,10 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     object_class_property_add_bool(oc, "hv-passthrough",
                                    x86_hv_passthrough_get,
                                    x86_hv_passthrough_set);
+
+    object_class_property_add_bool(oc, "hv-default",
+                              x86_hv_default_get,
+                              x86_hv_default_set);
 
     for (w = 0; w < FEATURE_WORDS; w++) {
         int bitnr;

@@ -1670,6 +1670,9 @@ struct X86CPU {
     uint64_t hyperv_features_on;
     uint64_t hyperv_features_off;
     bool hyperv_passthrough;
+    /* 'hv-default' enablement */
+    uint64_t hyperv_default_features;
+    bool hyperv_default;
     OnOffAuto hyperv_no_nonarch_cs;
     uint32_t hyperv_vendor_id[3];
     uint32_t hyperv_interface_id[4];
