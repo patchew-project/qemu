@@ -1,4 +1,5 @@
 i386_user_ss.add(when: ['CONFIG_TCG', 'CONFIG_USER_ONLY'], if_true: files(
   'tcg-cpu-user.c',
   'smm_helper_user.c',
+  'excp_helper_user.c',
 ))
