@@ -154,6 +154,15 @@ Input parameters that take a size value should only use a size suffix
 the value is hexadecimal.  That is, '0x20M' is deprecated, and should
 be written either as '32M' or as '0x2000000'.
 
+inexact sizes via scaled fractions (since 6.0)
+''''''''''''''''''''''''''''''''''''''''''''''
+
+Input parameters that take a size value should only use a fractional
+size (such as '1.5M') that will result in an exact byte value.  The
+use of inexact values (such as '1.1M') that require truncation or
+rounding is deprecated, and you should instead consider writing your
+unusual size in bytes (here, '1153433' or '1153434' as desired).
+
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 

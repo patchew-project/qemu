@@ -525,7 +525,7 @@ static void test_keyval_visit_size(void)
     visit_free(v);
 
     /* Suffixes */
-    qdict = keyval_parse("sz1=8b,sz2=1.5k,sz3=2M,sz4=0.1G,sz5=16777215T",
+    qdict = keyval_parse("sz1=8b,sz2=1.5k,sz3=2M,sz4=0.125G,sz5=16777215T",
                          NULL, NULL, &error_abort);
     v = qobject_input_visitor_new_keyval(QOBJECT(qdict));
     qobject_unref(qdict);
@@ -537,7 +537,7 @@ static void test_keyval_visit_size(void)
     visit_type_size(v, "sz3", &sz, &error_abort);
     g_assert_cmphex(sz, ==, 2 * MiB);
     visit_type_size(v, "sz4", &sz, &error_abort);
-    g_assert_cmphex(sz, ==, GiB / 10);
+    g_assert_cmphex(sz, ==, GiB / 8);
     visit_type_size(v, "sz5", &sz, &error_abort);
     g_assert_cmphex(sz, ==, 16777215ULL * TiB);
     visit_check_struct(v, &error_abort);

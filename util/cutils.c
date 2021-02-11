@@ -246,12 +246,13 @@ static int64_t suffix_mul(char suffix, int64_t unit)
  * The size parsing supports the following syntaxes
  * - 12345 - decimal, scale determined by @default_suffix and @unit
  * - 12345{bBkKmMgGtTpPeE} - decimal, scale determined by suffix and @unit
- * - 12345.678{kKmMgGtTpPeE} - decimal, scale determined by suffix, and
- *   fractional portion is truncated to byte
+ * - 12345.678{kKmMgGtTpPeE} - decimal, scale determined by suffix, if
+ *   fractional portion is exact
  * - 0x7fEE - hexadecimal, unit determined by @default_suffix
  *
  * The following cause a deprecation warning, and may be removed in the future
  * - 0xabc{kKmMgGtTpP} - hex with scaling suffix
+ * - 12345.678{kKmMgGtTpPeE} - decimal with inexact fraction that caused truncation
  *
  * The following are intentionally not supported
  * - octal, such as 08
@@ -341,6 +342,10 @@ static int do_strtosz(const char *nptr, const char **end,
     if (val > (UINT64_MAX - ((uint64_t) (fraction * mul))) / mul) {
         retval = -ERANGE;
         goto out;
+    }
+    if (mul_required && fraction * mul != (uint64_t) (fraction * mul)) {
+        warn_report("Using a fractional size that is not an exact byte "
+                    "multiple is deprecated: %s", nptr);
     }
     *result = val * mul + (uint64_t) (fraction * mul);
     retval = 0;

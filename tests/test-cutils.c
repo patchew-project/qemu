@@ -2124,11 +2124,11 @@ static void test_qemu_strtosz_float(void)
     g_assert_cmpint(res, ==, 1024);
     g_assert(endptr == str + 3);
 
-    /* For convenience, we permit values that are not byte-exact */
-    str = "12.345M";
+    /* Fractional values should still be byte-exact */
+    str = "12.125M";
     err = qemu_strtosz(str, &endptr, &res);
     g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, (uint64_t) (12.345 * MiB));
+    g_assert_cmpint(res, ==, (uint64_t) (12.125 * MiB));
     g_assert(endptr == str + 7);
 }
 
