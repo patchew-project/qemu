@@ -9,7 +9,7 @@ from avocado_qemu import Test, BUILD_DIR
 from avocado_qemu import wait_for_console_pattern
 from avocado.utils import ssh
 
-from qemu.accel import kvm_available
+from qemu.utils import kvm_available
 
 from boot_linux import BootLinux
 

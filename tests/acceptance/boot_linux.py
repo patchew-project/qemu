@@ -12,7 +12,7 @@ import os
 
 from avocado_qemu import Test, BUILD_DIR
 
-from qemu.machine import kvm_available, tcg_available
+from qemu.utils import kvm_available, tcg_available
 
 from avocado.utils import cloudinit
 from avocado.utils import network
