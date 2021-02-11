@@ -658,6 +658,11 @@ static void sd_reset(DeviceState *dev)
     }
     size = sect << 9;
 
+    if (sd->emmc) {
+        unsigned int boot_capacity = sd->ext_csd[EXT_CSD_BOOT_MULT] << 17;
+        size -= boot_capacity * 2;
+    }
+
     sect = sd_addr_to_wpnum(size) + 1;
 
     sd->state = sd_idle_state;
