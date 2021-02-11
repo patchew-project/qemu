@@ -460,6 +460,50 @@ void visit_end_alternate(Visitor *v, void **obj);
 bool visit_optional(Visitor *v, const char *name, bool *present);
 
 /*
+ * Defines a new alias rule.
+ *
+ * If @name is non-NULL, the member called @name in the external
+ * representation of the currently visited object is defined as an
+ * alias for the member described by @source.  It is not allowed to
+ * call this function when the currently visited type is not an
+ * object.
+ *
+ * If @name is NULL, all members of the object described by @source
+ * are considered to have alias members with the same key in the
+ * currently visited object.
+ *
+ * @source is a NULL-terminated non-empty array of names that describe
+ * the path to a member, starting from the currently visited object.
+ * All elements in @source except the last one should describe
+ * objects.  If an intermediate element refers to a member with a
+ * non-object type, the alias won't work (this case can legitimately
+ * happen in unions where an alias only makes sense for one branch,
+ * but not for another).
+ *
+ * The alias stays valid until the current alias scope ends.
+ * visit_start/end_struct() implicitly start/end an alias scope.
+ * Additionally, visit_start/end_alias_scope() can be used to explicitly
+ * create a nested alias scope.
+ */
+void visit_define_alias(Visitor *v, const char *name, const char **source);
+
+/*
+ * Begins an explicit alias scope.
+ *
+ * Alias definitions after here will only stay valid until the
+ * corresponding visit_end_alias_scope() is called.
+ */
+void visit_start_alias_scope(Visitor *v);
+
+/*
+ * Ends an explicit alias scope.
+ *
+ * Alias definitions between the correspoding visit_start_alias_scope()
+ * call and here go out of scope and won't apply in later code any more.
+ */
+void visit_end_alias_scope(Visitor *v);
+
+/*
  * Visit an enum value.
  *
  * @name expresses the relationship of this enum to its parent
