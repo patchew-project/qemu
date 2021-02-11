@@ -1,0 +1,2 @@
+aliases-bad-type.json: In struct 'AliasStruct0':
+aliases-bad-type.json:1: 'aliases' must be an array
