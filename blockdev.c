@@ -83,6 +83,7 @@ static const char *const if_name[IF_COUNT] = {
     [IF_SD] = "sd",
     [IF_VIRTIO] = "virtio",
     [IF_XEN] = "xen",
+    [IF_EMMC] = "emmc",
 };
 
 static int if_max_devs[IF_COUNT] = {
