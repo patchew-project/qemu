@@ -10491,20 +10491,22 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
                 return -TARGET_EFAULT;
             ret = get_errno(sys_getdents64(arg1, dirp, count));
             if (!is_error(ret)) {
-                struct linux_dirent64 *de;
+                char *de;
                 int len = ret;
                 int reclen;
-                de = dirp;
+                de = (char *)dirp;
+                #define de64(x) offsetof(struct linux_dirent64, x)
                 while (len > 0) {
-                    reclen = de->d_reclen;
+                    reclen = lduw_he_p(de + de64(d_reclen));
                     if (reclen > len)
                         break;
-                    de->d_reclen = tswap16(reclen);
-                    tswap64s((uint64_t *)&de->d_ino);
-                    tswap64s((uint64_t *)&de->d_off);
-                    de = (struct linux_dirent64 *)((char *)de + reclen);
+                    stw_p(de + de64(d_reclen), reclen);
+                    stq_p(de + de64(d_ino), ldq_he_p(de + de64(d_ino)));
+                    stq_p(de + de64(d_off), ldq_he_p(de + de64(d_off)));
+                    de += reclen;
                     len -= reclen;
                 }
+                #undef de64
             }
             unlock_user(dirp, arg2, ret);
         }
