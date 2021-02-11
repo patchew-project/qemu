@@ -57,6 +57,8 @@ static void spapr_drc_release(SpaprDrc *drc)
     drck->release(drc->dev);
 
     drc->unplug_requested = false;
+    timer_del(drc->unplug_timeout_timer);
+
     g_free(drc->fdt);
     drc->fdt = NULL;
     drc->fdt_start_offset = 0;
@@ -453,6 +455,24 @@ static const VMStateDescription vmstate_spapr_drc_unplug_requested = {
     }
 };
 
+static bool spapr_drc_unplug_timeout_timer_needed(void *opaque)
+{
+    SpaprDrc *drc = opaque;
+
+    return timer_pending(drc->unplug_timeout_timer);
+}
+
+static const VMStateDescription vmstate_spapr_drc_unplug_timeout_timer = {
+    .name = "DRC unplug timeout timer",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = spapr_drc_unplug_timeout_timer_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_TIMER_PTR(unplug_timeout_timer, SpaprDrc),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static bool spapr_drc_needed(void *opaque)
 {
     SpaprDrc *drc = opaque;
@@ -486,9 +506,19 @@ static const VMStateDescription vmstate_spapr_drc = {
     },
     .subsections = (const VMStateDescription * []) {
         &vmstate_spapr_drc_unplug_requested,
+        &vmstate_spapr_drc_unplug_timeout_timer,
         NULL
     }
 };
+
+static void drc_unplug_timeout_cb(void *opaque)
+{
+    SpaprDrc *drc = opaque;
+
+    if (drc->unplug_requested) {
+        drc->unplug_requested = false;
+    }
+}
 
 static void drc_realize(DeviceState *d, Error **errp)
 {
@@ -512,6 +542,11 @@ static void drc_realize(DeviceState *d, Error **errp)
     object_property_add_alias(root_container, link_name,
                               drc->owner, child_name);
     g_free(link_name);
+
+    drc->unplug_timeout_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
+                                             drc_unplug_timeout_cb,
+                                             drc);
+
     vmstate_register(VMSTATE_IF(drc), spapr_drc_index(drc), &vmstate_spapr_drc,
                      drc);
     trace_spapr_drc_realize_complete(spapr_drc_index(drc));
@@ -529,6 +564,7 @@ static void drc_unrealize(DeviceState *d)
     name = g_strdup_printf("%x", spapr_drc_index(drc));
     object_property_del(root_container, name);
     g_free(name);
+    timer_free(drc->unplug_timeout_timer);
 }
 
 SpaprDrc *spapr_dr_connector_new(Object *owner, const char *type,
