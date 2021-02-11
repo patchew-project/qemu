@@ -1726,7 +1726,7 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
             if (state == SPAPR_DR_ENTITY_SENSE_PRESENT) {
                 /* Mark the DRC as requested unplug if needed. */
                 if (!spapr_drc_unplug_requested(func_drc)) {
-                    spapr_drc_detach(func_drc);
+                    spapr_drc_unplug_request(func_drc);
                 }
                 spapr_hotplug_req_remove_by_index(func_drc);
             }
