@@ -108,20 +108,20 @@ static QObjectInputVisitor *to_qiv(Visitor *v)
 }
 
 /*
- * Find the full name of something @qiv is currently visiting.
- * @qiv is visiting something named @name in the stack of containers
- * @qiv->stack.
- * If @n is zero, return its full name.
- * If @n is positive, return the full name of the @n-th container
- * counting from the top.  The stack of containers must have at least
- * @n elements.
- * The returned string is valid until the next full_name_nth(@v) or
- * destruction of @v.
+ * Find the full name of a member in @so which @qiv is currently
+ * visiting.  If the currently visited thing is an object, @name is
+ * the (local) name of the member to describe.  If it is a list, @name
+ * is ignored and the current index (so->index) is included.
+ *
+ * If @skip_member is true, find the full name of @so itself instead.
+ * @name must be NULL then.
+ *
+ * The returned string is valid until the next full_name_so(@qiv) or
+ * destruction of @qiv.
  */
-static const char *full_name_nth(QObjectInputVisitor *qiv, const char *name,
-                                 int n)
+static const char *full_name_so(QObjectInputVisitor *qiv, const char *name,
+                                bool skip_member, StackObject *so)
 {
-    StackObject *so;
     char buf[32];
 
     if (qiv->errname) {
@@ -130,10 +130,14 @@ static const char *full_name_nth(QObjectInputVisitor *qiv, const char *name,
         qiv->errname = g_string_new("");
     }
 
-    QSLIST_FOREACH(so , &qiv->stack, node) {
-        if (n) {
-            n--;
-        } else if (qobject_type(so->obj) == QTYPE_QDICT) {
+    if (skip_member && so) {
+        assert(name == NULL);
+        name = so->name;
+        so = QSLIST_NEXT(so, node);
+    }
+
+    for (; so; so = QSLIST_NEXT(so, node)) {
+        if (qobject_type(so->obj) == QTYPE_QDICT) {
             g_string_prepend(qiv->errname, name ?: "<anonymous>");
             g_string_prepend_c(qiv->errname, '.');
         } else {
@@ -144,7 +148,6 @@ static const char *full_name_nth(QObjectInputVisitor *qiv, const char *name,
         }
         name = so->name;
     }
-    assert(!n);
 
     if (name) {
         g_string_prepend(qiv->errname, name);
@@ -159,7 +162,9 @@ static const char *full_name_nth(QObjectInputVisitor *qiv, const char *name,
 
 static const char *full_name(QObjectInputVisitor *qiv, const char *name)
 {
-    return full_name_nth(qiv, name, 0);
+    StackObject *tos = QSLIST_FIRST(&qiv->stack);
+
+    return full_name_so(qiv, name, false, tos);
 }
 
 static QObject *qobject_input_try_get_object(QObjectInputVisitor *qiv,
@@ -503,7 +508,7 @@ static bool qobject_input_check_list(Visitor *v, Error **errp)
 
     if (tos->entry) {
         error_setg(errp, "Only %u list elements expected in %s",
-                   tos->index + 1, full_name_nth(qiv, NULL, 1));
+                   tos->index + 1, full_name_so(qiv, NULL, true, tos));
         return false;
     }
     return true;
