@@ -1230,6 +1230,20 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
 
     drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
+    /*
+     * This indicates that the kernel is reconfiguring a LMB due to
+     * a failed hotunplug. Clear the pending unplug state for the whole
+     * DIMM.
+     */
+    if (spapr_drc_type(drc) == SPAPR_DR_CONNECTOR_TYPE_LMB &&
+        drc->unplug_requested) {
+
+        /* This really shouldn't happen in this point, but ... */
+        g_assert(drc->dev);
+
+        spapr_clear_pending_dimm_unplug_state(spapr, PC_DIMM(drc->dev));
+    }
+
     if (!drc->fdt) {
         void *fdt;
         int fdt_size;
