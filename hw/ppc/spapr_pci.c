@@ -1709,38 +1709,26 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
             return;
         }
 
-        /* ensure any other present functions are pending unplug */
-        if (PCI_FUNC(pdev->devfn) == 0) {
-            for (i = 1; i < 8; i++) {
-                func_drc = drc_from_devfn(phb, chassis, PCI_DEVFN(slotnr, i));
-                func_drck = SPAPR_DR_CONNECTOR_GET_CLASS(func_drc);
-                state = func_drck->dr_entity_sense(func_drc);
-                if (state == SPAPR_DR_ENTITY_SENSE_PRESENT
-                    && !spapr_drc_unplug_requested(func_drc)) {
-                    /*
-                     * Attempting to remove function 0 of a multifunction
-                     * device will will cascade into removing all child
-                     * functions, even if their unplug weren't requested
-                     * beforehand.
-                     */
-                    spapr_drc_detach(func_drc);
-                }
-            }
+        /*
+         * The hotunplug itself will occur when unplugging function 0,
+         * regardless of marking any other functions DRCs as pending
+         * unplug beforehand (since 02a1536eee33).
+         */
+        if (PCI_FUNC(pdev->devfn) != 0) {
+            return;
         }
 
-        spapr_drc_detach(drc);
+        for (i = 7; i >= 0; i--) {
+            func_drc = drc_from_devfn(phb, chassis, PCI_DEVFN(slotnr, i));
+            func_drck = SPAPR_DR_CONNECTOR_GET_CLASS(func_drc);
+            state = func_drck->dr_entity_sense(func_drc);
 
-        /* if this isn't func 0, defer unplug event. otherwise signal removal
-         * for all present functions
-         */
-        if (PCI_FUNC(pdev->devfn) == 0) {
-            for (i = 7; i >= 0; i--) {
-                func_drc = drc_from_devfn(phb, chassis, PCI_DEVFN(slotnr, i));
-                func_drck = SPAPR_DR_CONNECTOR_GET_CLASS(func_drc);
-                state = func_drck->dr_entity_sense(func_drc);
-                if (state == SPAPR_DR_ENTITY_SENSE_PRESENT) {
-                    spapr_hotplug_req_remove_by_index(func_drc);
+            if (state == SPAPR_DR_ENTITY_SENSE_PRESENT) {
+                /* Mark the DRC as requested unplug if needed. */
+                if (!spapr_drc_unplug_requested(func_drc)) {
+                    spapr_drc_detach(func_drc);
                 }
+                spapr_hotplug_req_remove_by_index(func_drc);
             }
         }
     }
