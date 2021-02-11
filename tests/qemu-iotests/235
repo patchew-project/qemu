@@ -65,6 +65,7 @@ log(vm.qmp('blockdev-add',
                'throttle-group': 'tg0',
                'file': {
                    'driver': 'null-co',
+                   'read-zeroes': False,
                    'size': size
                 } }))
 

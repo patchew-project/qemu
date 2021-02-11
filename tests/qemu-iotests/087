@@ -89,7 +89,8 @@ run_qemu -drive driver=$IMGFMT,id=disk,node-name=test-node,file="$TEST_IMG" <<EO
       "driver": "$IMGFMT",
       "node-name": "disk",
       "file": {
-          "driver": "null-co"
+          "driver": "null-co",
+          "read-zeroes": "off"
       }
     }
   }
@@ -98,7 +99,8 @@ run_qemu -drive driver=$IMGFMT,id=disk,node-name=test-node,file="$TEST_IMG" <<EO
       "driver": "$IMGFMT",
       "node-name": "test-node",
       "file": {
-          "driver": "null-co"
+          "driver": "null-co",
+          "read-zeroes": "off"
       }
     }
   }

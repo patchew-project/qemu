@@ -76,7 +76,7 @@ overlay_opts=$(make_opts overlay "$TEST_IMG" backing)
 base_opts=$(make_opts backing "$TEST_IMG.base")
 not_base_opts=$(make_opts backing "$TEST_IMG.not_base")
 
-not_vmdk_opts="{ 'node-name': 'backing', 'driver': 'null-co' }"
+not_vmdk_opts="{ 'node-name': 'backing', 'driver': 'null-co', 'read-zeroes': false }"
 
 echo
 echo '=== Testing fitting VMDK backing image ==='

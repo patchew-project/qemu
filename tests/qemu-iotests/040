@@ -220,7 +220,7 @@ class TestSingleDrive(ImageCommitTestCase):
     def test_top_node_in_wrong_chain(self):
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp('blockdev-add', driver='null-co', node_name='null')
+        result = self.vm.qmp('blockdev-add', driver='null-co', read_zeroes=False, node_name='null')
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('block-commit', device='drive0', top_node='null', base_node='base')

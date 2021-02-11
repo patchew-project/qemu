@@ -60,7 +60,7 @@ _make_test_img -o cluster_size=2M,data_file="$TEST_IMG.orig" \
 # "write" 2G of data without using any space.
 # (qemu-img create does not like it, though, because null-co does not
 # support image creation.)
-$QEMU_IMG amend -o data_file="json:{'driver':'null-co',,'size':'4294967296'}" \
+$QEMU_IMG amend -o data_file="json:{'driver':'null-co',,'read-zeroes':false,,'size':'4294967296'}" \
     "$TEST_IMG"
 
 # This gives us a range of:

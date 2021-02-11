@@ -68,7 +68,7 @@ echo
 echo '=== blockstats with -drive if=none ==='
 echo
 
-run_qemu -drive driver=null-co,if=none <<EOF
+run_qemu -drive driver=null-co,read-zeroes=off,if=none <<EOF
 { "execute": "qmp_capabilities" }
 { "execute": "query-blockstats"}
 { "execute": "quit" }
@@ -78,7 +78,7 @@ echo
 echo '=== blockstats with -blockdev ==='
 echo
 
-run_qemu -blockdev driver=null-co,node-name=null <<EOF
+run_qemu -blockdev driver=null-co,read-zeroes=off,node-name=null <<EOF
 { "execute": "qmp_capabilities" }
 { "execute": "query-blockstats"}
 { "execute": "quit" }

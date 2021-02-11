@@ -1159,13 +1159,16 @@ class TestRepairQuorum(iotests.QMPTestCase):
 class TestOrphanedSource(iotests.QMPTestCase):
     def setUp(self):
         blk0 = { 'node-name': 'src',
-                 'driver': 'null-co' }
+                 'driver': 'null-co',
+                 'read-zeroes': 'off' }
 
         blk1 = { 'node-name': 'dest',
-                 'driver': 'null-co' }
+                 'driver': 'null-co',
+                 'read-zeroes': 'off' }
 
         blk2 = { 'node-name': 'dest-ro',
                  'driver': 'null-co',
+                 'read-zeroes': 'off',
                  'read-only': 'on' }
 
         self.vm = iotests.VM()
@@ -1272,14 +1275,15 @@ class TestReplaces(iotests.QMPTestCase):
                                      'driver': 'copy-on-read',
                                      'node-name': 'filter1',
                                      'file': {
-                                         'driver': 'null-co'
+                                         'driver': 'null-co',
+                                         'read-zeroes': False,
                                      }
                                  }
                              })
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('blockdev-add',
-                             node_name='target', driver='null-co')
+                             node_name='target', driver='null-co', read_zeroes=False)
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('blockdev-mirror', job_id='mirror', device='filter0',

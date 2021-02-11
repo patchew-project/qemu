@@ -44,12 +44,12 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
     def setUp(self) -> None:
         self.vm_a = iotests.VM(path_suffix='-a')
         self.vm_a.add_blockdev(f'node-name={self.src_node_name},'
-                               'driver=null-co')
+                               'driver=null-co,read-zeroes=off')
         self.vm_a.launch()
 
         self.vm_b = iotests.VM(path_suffix='-b')
         self.vm_b.add_blockdev(f'node-name={self.dst_node_name},'
-                               'driver=null-co')
+                               'driver=null-co,read-zeroes=off')
         self.vm_b.add_incoming(f'unix:{mig_sock}')
         self.vm_b.launch()
 

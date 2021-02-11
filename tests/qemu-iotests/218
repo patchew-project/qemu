@@ -44,12 +44,14 @@ def start_mirror(vm, speed=None, buf_size=None):
     ret = vm.qmp('blockdev-add',
                      node_name='source',
                      driver='null-co',
+                     read_zeroes=False,
                      size=1048576)
     assert ret['return'] == {}
 
     ret = vm.qmp('blockdev-add',
                      node_name='target',
                      driver='null-co',
+                     read_zeroes=False,
                      size=1048576)
     assert ret['return'] == {}
 
@@ -174,6 +176,7 @@ with iotests.VM() as vm, \
     ret = vm.qmp('blockdev-add',
                  node_name='target',
                  driver='null-co',
+                 read_zeroes=False,
                  size=(64 * 1048576))
     assert ret['return'] == {}
 

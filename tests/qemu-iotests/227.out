@@ -67,7 +67,7 @@ Testing: -drive driver=null-co,read-zeroes=on,if=virtio
 
 === blockstats with -drive if=none ===
 
-Testing: -drive driver=null-co,if=none
+Testing: -drive driver=null-co,read-zeroes=off,if=none
 {
     QMP_VERSION
 }
@@ -131,7 +131,7 @@ Testing: -drive driver=null-co,if=none
 
 === blockstats with -blockdev ===
 
-Testing: -blockdev driver=null-co,node-name=null
+Testing: -blockdev driver=null-co,read-zeroes=off,node-name=null
 {
     QMP_VERSION
 }

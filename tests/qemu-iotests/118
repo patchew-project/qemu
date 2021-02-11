@@ -629,7 +629,7 @@ class TestBlockJobsAfterCycle(ChangeBaseClass):
         qemu_img('create', '-f', iotests.imgfmt, old_img, '1440K')
 
         self.vm = iotests.VM()
-        self.vm.add_drive_raw("id=drive0,driver=null-co,if=none")
+        self.vm.add_drive_raw("id=drive0,driver=null-co,read-zeroes=off,if=none")
         self.vm.add_device('floppy,drive=drive0,id=%s' % self.device_name)
         self.vm.launch()
 

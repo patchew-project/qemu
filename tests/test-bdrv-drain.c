@@ -27,6 +27,7 @@
 #include "block/blockjob_int.h"
 #include "sysemu/block-backend.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qdict.h"
 #include "qemu/main-loop.h"
 #include "iothread.h"
 
@@ -1177,13 +1178,16 @@ static void do_test_delete_by_drain(bool detach_instead_of_delete,
     BDRVTestTopState *tts;
     TestCoDeleteByDrainData dbdd;
     Coroutine *co;
+    QDict *opt;
 
     bs = bdrv_new_open_driver(&bdrv_test_top_driver, "top", BDRV_O_RDWR,
                               &error_abort);
     bs->total_sectors = 65536 >> BDRV_SECTOR_BITS;
     tts = bs->opaque;
 
-    null_bs = bdrv_open("null-co://", NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
+    opt = qdict_new();
+    qdict_put_str(opt, "read-zeroes", "off");
+    null_bs = bdrv_open("null-co://", NULL, opt, BDRV_O_RDWR | BDRV_O_PROTOCOL,
                         &error_abort);
     bdrv_attach_child(bs, null_bs, "null-child", &child_of_bds,
                       BDRV_CHILD_DATA, &error_abort);
@@ -1201,7 +1205,9 @@ static void do_test_delete_by_drain(bool detach_instead_of_delete,
 
     /* This child is just there to be deleted
      * (for detach_instead_of_delete == true) */
-    null_bs = bdrv_open("null-co://", NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
+    opt = qdict_new();
+    qdict_put_str(opt, "read-zeroes", "off");
+    null_bs = bdrv_open("null-co://", NULL, opt, BDRV_O_RDWR | BDRV_O_PROTOCOL,
                         &error_abort);
     bdrv_attach_child(bs, null_bs, "null-child", &child_of_bds, BDRV_CHILD_DATA,
                       &error_abort);

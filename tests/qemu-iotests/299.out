@@ -1,4 +1,4 @@
-{"execute": "blockdev-add", "arguments": {"driver": "null-co", "node-name": "disk", "size": 1048576}}
+{"execute": "blockdev-add", "arguments": {"driver": "null-co", "node-name": "disk", "read-zeroes": false, "size": 1048576}}
 {"return": {}}
 {"execute": "block-dirty-bitmap-add", "arguments": {"name": "bitmap0", "node": "disk"}}
 {"return": {}}

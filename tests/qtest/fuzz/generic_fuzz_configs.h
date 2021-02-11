@@ -38,13 +38,13 @@ const generic_fuzz_config predefined_configs[] = {
     },{
         .name = "virtio-blk",
         .args = "-machine q35 -device virtio-blk,drive=disk0 "
-        "-drive file=null-co://,id=disk0,if=none,format=raw",
+        "-drive file=null-co://,file.read-zeroes=off,id=disk0,if=none,format=raw",
         .objects = "virtio*",
     },{
         .name = "virtio-scsi",
         .args = "-machine q35 -device virtio-scsi,num_queues=8 "
         "-device scsi-hd,drive=disk0 "
-        "-drive file=null-co://,id=disk0,if=none,format=raw",
+        "-drive file=null-co://,file.read-zeroes=off,id=disk0,if=none,format=raw",
         .objects = "scsi* virtio*",
     },{
         .name = "virtio-gpu",
@@ -119,7 +119,7 @@ const generic_fuzz_config predefined_configs[] = {
     },{
         .name = "ahci-hd",
         .args = "-machine q35 -nodefaults "
-        "-drive file=null-co://,if=none,format=raw,id=disk0 "
+        "-drive file=null-co://,file.read-zeroes=off,if=none,format=raw,id=disk0 "
         "-device ide-hd,drive=disk0",
         .objects = "*ahci*",
     },{
@@ -137,7 +137,7 @@ const generic_fuzz_config predefined_configs[] = {
     },{
         .name = "xhci",
         .args = "-machine q35 -nodefaults "
-        "-drive file=null-co://,if=none,format=raw,id=disk0 "
+        "-drive file=null-co://,file.read-zeroes=off,if=none,format=raw,id=disk0 "
         "-device qemu-xhci,id=xhci -device usb-tablet,bus=xhci.0 "
         "-device usb-bot -device usb-storage,drive=disk0 "
         "-chardev null,id=cd0 -chardev null,id=cd1 "
@@ -182,7 +182,8 @@ const generic_fuzz_config predefined_configs[] = {
         .name = "sdhci-v3",
         .args = "-nodefaults -device sdhci-pci,sd-spec-version=3 "
         "-device sd-card,drive=mydrive "
-        "-drive if=sd,index=0,file=null-co://,format=raw,id=mydrive -nographic",
+        "-drive if=sd,index=0,file=null-co://,file.read-zeroes=off,"
+        "format=raw,id=mydrive -nographic",
         .objects = "sd*"
     },{
         .name = "ehci",

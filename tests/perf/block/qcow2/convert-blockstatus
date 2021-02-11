@@ -46,7 +46,7 @@ done | $QEMU_IO "$src"
 ) > /dev/null
 
 echo -n "plain: "
-/usr/bin/time -f %e $QEMU_IMG convert -n "$src" null-co://
+/usr/bin/time -f %e $QEMU_IMG convert -n "$src" null-co://,read-zeroes=off
 
 # test-case forward
 
@@ -61,11 +61,11 @@ done | $QEMU_IO "$src"
 ) > /dev/null
 
 echo -n "forward: "
-/usr/bin/time -f %e $QEMU_IMG convert -n "$src" null-co://
+/usr/bin/time -f %e $QEMU_IMG convert -n "$src" null-co://,read-zeroes=off
 
 # test-case prealloc
 
 $QEMU_IMG create -f qcow2 -o preallocation=metadata "$src" $size > /dev/null
 
 echo -n "prealloc: "
-/usr/bin/time -f %e $QEMU_IMG convert -n "$src" null-co://
+/usr/bin/time -f %e $QEMU_IMG convert -n "$src" null-co://,read-zeroes=off

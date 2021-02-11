@@ -177,7 +177,7 @@ with iotests.FilePath('base.img') as base_img_path, \
 
     # You can only reliably override backing options by using a node
     # reference (or by specifying file.filename, but, well...)
-    vm.qmp_log('blockdev-add', node_name='null', driver='null-co')
+    vm.qmp_log('blockdev-add', node_name='null', driver='null-co', read_zeroes=False)
 
     vm.qmp_log('blockdev-add',
                node_name='node0',

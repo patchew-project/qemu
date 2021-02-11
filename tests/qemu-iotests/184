@@ -60,6 +60,7 @@ run_qemu <<EOF
 { "execute": "blockdev-add",
   "arguments": {
     "driver": "null-co",
+    "read-zeroes": false,
     "node-name": "disk0"
   }
 }
@@ -171,6 +172,7 @@ run_qemu <<EOF
 { "execute": "blockdev-add",
   "arguments": {
     "driver": "null-co",
+    "read-zeroes": false,
     "node-name": "disk0"
   }
 }

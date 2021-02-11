@@ -83,7 +83,8 @@ for filter_node_name in False, True:
                                 'filename': base_img_path
                             },
                             'backing': {
-                                'driver': 'null-co'
+                                'driver': 'null-co',
+                                'read-zeroes': False
                             }
                         }
                     },

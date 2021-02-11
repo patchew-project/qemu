@@ -38,7 +38,7 @@ VM_DEV_PARAMS = {'virtio-scsi-pci': ['-device', 'virtio-scsi-pci,id=scsi0'],
                  'virtio-blk-pci': ['-device',
                                     'virtio-blk-pci,id=scsi0,drive=drive0',
                                     '-drive',
-                                    'driver=null-co,id=drive0,if=none']}
+                                    'driver=null-co,read-zeroes=off,id=drive0,if=none']}
 
 
 class VirtioMaxSegSettingsCheck(Test):

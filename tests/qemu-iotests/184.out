@@ -29,12 +29,12 @@ Testing:
             "image": {
                 "backing-image": {
                     "virtual-size": 1073741824,
-                    "filename": "null-co://",
+                    "filename": "json:{\"read-zeroes\": false, \"driver\": \"null-co\"}",
                     "format": "null-co",
                     "actual-size": 0
                 },
                 "virtual-size": 1073741824,
-                "filename": "json:{\"throttle-group\": \"group0\", \"driver\": \"throttle\", \"file\": {\"driver\": \"null-co\"}}",
+                "filename": "json:{\"throttle-group\": \"group0\", \"driver\": \"throttle\", \"file\": {\"read-zeroes\": false, \"driver\": \"null-co\"}}",
                 "format": "throttle",
                 "actual-size": 0
             },
@@ -54,7 +54,7 @@ Testing:
                 "direct": false,
                 "writeback": true
             },
-            "file": "json:{\"throttle-group\": \"group0\", \"driver\": \"throttle\", \"file\": {\"driver\": \"null-co\"}}",
+            "file": "json:{\"throttle-group\": \"group0\", \"driver\": \"throttle\", \"file\": {\"read-zeroes\": false, \"driver\": \"null-co\"}}",
             "encryption_key_missing": false
         },
         {
@@ -62,7 +62,7 @@ Testing:
             "detect_zeroes": "off",
             "image": {
                 "virtual-size": 1073741824,
-                "filename": "null-co://",
+                "filename": "json:{\"read-zeroes\": false, \"driver\": \"null-co\"}",
                 "format": "null-co",
                 "actual-size": 0
             },
@@ -82,7 +82,7 @@ Testing:
                 "direct": false,
                 "writeback": true
             },
-            "file": "null-co://",
+            "file": "json:{\"read-zeroes\": false, \"driver\": \"null-co\"}",
             "encryption_key_missing": false
         }
     ]

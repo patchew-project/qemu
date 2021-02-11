@@ -89,7 +89,7 @@ echo
 # Using the json: pseudo-protocol we can create non-string options
 # (Invoke 'info' just so we get some output afterwards)
 IMGOPTSSYNTAX=false $QEMU_IO -f null-co -c 'reopen' -c 'info' \
-    "json:{'driver': 'null-co', 'size': 65536}"
+    "json:{'driver': 'null-co', 'read-zeroes': false, 'size': 65536}"
 
 echo
 echo "=== Check that mixing -c/-r/-w and their corresponding options is forbidden ==="

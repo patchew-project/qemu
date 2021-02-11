@@ -1,6 +1,6 @@
-{"execute": "blockdev-add", "arguments": {"driver": "null-co", "node-name": "target", "size": 1048576}}
+{"execute": "blockdev-add", "arguments": {"driver": "null-co", "node-name": "target", "read-zeroes": false, "size": 1048576}}
 {"return": {}}
-{"execute": "blockdev-add", "arguments": {"driver": "blkdebug", "image": {"driver": "null-co", "node-name": "base", "size": 1048576}, "node-name": "source"}}
+{"execute": "blockdev-add", "arguments": {"driver": "blkdebug", "image": {"driver": "null-co", "node-name": "base", "read-zeroes": false, "size": 1048576}, "node-name": "source"}}
 {"return": {}}
 {"execute": "blockdev-add", "arguments": {"driver": "blkdebug", "image": "base", "node-name": "other", "take-child-perms": ["write"]}}
 {"return": {}}
