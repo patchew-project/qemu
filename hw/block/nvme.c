@@ -4507,6 +4507,12 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
         if (nvme_ns_setup(ns, errp)) {
             return;
         }
+
+        if (nvme_register_namespace(n, ns, errp)) {
+            error_propagate_prepend(errp, local_err,
+                                    "could not register namespace: ");
+            return;
+        }
     }
 }
 
