@@ -198,6 +198,34 @@ def check_features(features, info):
         check_if(f, info, source)
 
 
+def check_aliases(aliases, info):
+    if aliases is None:
+        return
+    if not isinstance(aliases, list):
+        raise QAPISemError(info, "'aliases' must be an array")
+    for a in aliases:
+        if not isinstance(a, dict):
+            raise QAPISemError(info, "'aliases' members must be objects")
+        check_keys(a, info, "'aliases' member", ['source'], ['name'])
+
+        if 'name' in a:
+            source = "alias member 'name'"
+            check_name_is_str(a['name'], info, source)
+            check_name_str(a['name'], info, source)
+
+        if not isinstance(a['source'], list):
+            raise QAPISemError(info,
+                "alias member 'source' must be an array")
+        if not a['source']:
+            raise QAPISemError(info,
+                "alias member 'source' must not be empty")
+
+        source = "member of alias member 'source'"
+        for s in a['source']:
+            check_name_is_str(s, info, source)
+            check_name_str(s, info, source)
+
+
 def check_enum(expr, info):
     name = expr['enum']
     members = expr['data']
@@ -228,6 +256,7 @@ def check_struct(expr, info):
 
     check_type(members, info, "'data'", allow_dict=name)
     check_type(expr.get('base'), info, "'base'")
+    check_aliases(expr.get('aliases'), info)
 
 
 def check_union(expr, info):
@@ -244,6 +273,8 @@ def check_union(expr, info):
         if not base:
             raise QAPISemError(info, "'discriminator' requires 'base'")
         check_name_is_str(discriminator, info, "'discriminator'")
+
+    check_aliases(expr.get('aliases'), info)
 
     for (key, value) in members.items():
         source = "'data' member '%s'" % key
@@ -331,7 +362,7 @@ def check_exprs(exprs):
         elif meta == 'union':
             check_keys(expr, info, meta,
                        ['union', 'data'],
-                       ['base', 'discriminator', 'if', 'features'])
+                       ['base', 'discriminator', 'if', 'features', 'aliases'])
             normalize_members(expr.get('base'))
             normalize_members(expr['data'])
             check_union(expr, info)
@@ -342,7 +373,8 @@ def check_exprs(exprs):
             check_alternate(expr, info)
         elif meta == 'struct':
             check_keys(expr, info, meta,
-                       ['struct', 'data'], ['base', 'if', 'features'])
+                       ['struct', 'data'],
+                       ['base', 'if', 'features', 'aliases'])
             normalize_members(expr['data'])
             check_struct(expr, info)
         elif meta == 'command':
