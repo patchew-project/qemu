@@ -172,6 +172,11 @@ typedef struct BDRVRawState {
     } stats;
 
     PRManager *pr_mgr;
+
+    bool can_cache_next_zero_offset;
+    bool next_zero_offset_valid;
+    uint64_t next_zero_offset_from;
+    uint64_t next_zero_offset;
 } BDRVRawState;
 
 typedef struct BDRVRawReopenState {
@@ -2049,7 +2054,25 @@ static int coroutine_fn raw_co_pwritev(BlockDriverState *bs, uint64_t offset,
                                        uint64_t bytes, QEMUIOVector *qiov,
                                        int flags)
 {
+    BDRVRawState *s = bs->opaque;
+
     assert(flags == 0);
+
+    /*
+     * If offset is just above s->next_zero_offset, the hole that was
+     * reportedly there might be removed from the file (because only
+     * whole filesystem clusters can be zeroed).  But that does not
+     * matter, because block-status does not care about whether there
+     * actually is a hole, but just about whether there are zeroes
+     * there - and this write will not make those zeroes non-zero.
+     */
+    if (s->next_zero_offset_valid &&
+        offset <= s->next_zero_offset &&
+        offset + bytes > s->next_zero_offset)
+    {
+        s->next_zero_offset_valid = false;
+    }
+
     return raw_co_prw(bs, offset, bytes, qiov, QEMU_AIO_WRITE);
 }
 
@@ -2182,6 +2205,10 @@ static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
     BDRVRawState *s = bs->opaque;
     struct stat st;
     int ret;
+
+    if (s->next_zero_offset_valid && offset < s->next_zero_offset) {
+        s->next_zero_offset_valid = false;
+    }
 
     if (fstat(s->fd, &st)) {
         ret = -errno;
@@ -2616,8 +2643,17 @@ static int coroutine_fn raw_co_delete_file(BlockDriverState *bs,
 static int find_allocation(BlockDriverState *bs, off_t start,
                            off_t *data, off_t *hole)
 {
-#if defined SEEK_HOLE && defined SEEK_DATA
     BDRVRawState *s = bs->opaque;
+
+    if (s->next_zero_offset_valid) {
+        if (start >= s->next_zero_offset_from && start < s->next_zero_offset) {
+            *data = start;
+            *hole = s->next_zero_offset;
+            return 0;
+        }
+    }
+
+#if defined SEEK_HOLE && defined SEEK_DATA
     off_t offs;
 
     /*
@@ -2716,6 +2752,7 @@ static int coroutine_fn raw_co_block_status(BlockDriverState *bs,
                                             int64_t *map,
                                             BlockDriverState **file)
 {
+    BDRVRawState *s = bs->opaque;
     off_t data = 0, hole = 0;
     int ret;
 
@@ -2734,6 +2771,7 @@ static int coroutine_fn raw_co_block_status(BlockDriverState *bs,
     }
 
     ret = find_allocation(bs, offset, &data, &hole);
+    s->next_zero_offset_valid = false;
     if (ret == -ENXIO) {
         /* Trailing hole */
         *pnum = bytes;
@@ -2761,6 +2799,12 @@ static int coroutine_fn raw_co_block_status(BlockDriverState *bs,
         }
 
         ret = BDRV_BLOCK_DATA;
+
+        if (s->can_cache_next_zero_offset) {
+            s->next_zero_offset_valid = true;
+            s->next_zero_offset_from = offset;
+            s->next_zero_offset = hole;
+        }
     } else {
         /* On a hole, compute bytes to the beginning of the next extent.  */
         assert(hole == offset);
@@ -2910,6 +2954,13 @@ raw_do_pdiscard(BlockDriverState *bs, int64_t offset, int bytes, bool blkdev)
     RawPosixAIOData acb;
     int ret;
 
+    if (s->next_zero_offset_valid &&
+        offset <= s->next_zero_offset &&
+        offset + bytes > s->next_zero_offset_from)
+    {
+        s->next_zero_offset_valid = false;
+    }
+
     acb = (RawPosixAIOData) {
         .bs             = bs,
         .aio_fildes     = s->fd,
@@ -2940,6 +2991,17 @@ raw_do_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int bytes,
     BDRVRawState *s = bs->opaque;
     RawPosixAIOData acb;
     ThreadPoolFunc *handler;
+
+    if (s->next_zero_offset_valid &&
+        offset < s->next_zero_offset &&
+        offset + bytes > s->next_zero_offset_from)
+    {
+        if (offset > s->next_zero_offset_from) {
+            s->next_zero_offset = offset;
+        } else {
+            s->next_zero_offset_valid = false;
+        }
+    }
 
 #ifdef CONFIG_FALLOCATE
     if (offset + bytes > bs->total_sectors * BDRV_SECTOR_SIZE) {
@@ -3155,6 +3217,15 @@ static void raw_set_perm(BlockDriverState *bs, uint64_t perm, uint64_t shared)
     raw_handle_perm_lock(bs, RAW_PL_COMMIT, perm, shared, NULL);
     s->perm = perm;
     s->shared_perm = shared;
+
+    /*
+     * We can only cache anything if there are no external writers on
+     * the image.
+     */
+    s->can_cache_next_zero_offset = !(shared & BLK_PERM_WRITE);
+    if (!s->can_cache_next_zero_offset) {
+        s->next_zero_offset_valid = false;
+    }
 }
 
 static void raw_abort_perm_update(BlockDriverState *bs)
@@ -3201,6 +3272,14 @@ static int coroutine_fn raw_co_copy_range_to(BlockDriverState *bs,
     src_s = src->bs->opaque;
     if (fd_open(src->bs) < 0 || fd_open(dst->bs) < 0) {
         return -EIO;
+    }
+
+    /* Same as in raw_co_pwritev() */
+    if (s->next_zero_offset_valid &&
+        dst_offset <= s->next_zero_offset &&
+        dst_offset + bytes > s->next_zero_offset_from)
+    {
+        s->next_zero_offset_valid = false;
     }
 
     acb = (RawPosixAIOData) {
