@@ -230,9 +230,14 @@ static void versal_create_admas(Versal *s, qemu_irq *pic)
 }
 
 #define SDHCI_CAPABILITIES  0x280737ec6481 /* Same as on ZynqMP.  */
+#define SDHCI0_CAPS ((SDHCI_CAPABILITIES & ~(3 << 30)) | \
+                     (1 << 30))
+#define SDHCI1_CAPS SDHCI_CAPABILITIES
+
 static void versal_create_sds(Versal *s, qemu_irq *pic)
 {
     int i;
+    uint64_t caps[] = {SDHCI0_CAPS, SDHCI1_CAPS};
 
     for (i = 0; i < ARRAY_SIZE(s->pmc.iou.sd); i++) {
         DeviceState *dev;
@@ -244,9 +249,14 @@ static void versal_create_sds(Versal *s, qemu_irq *pic)
 
         object_property_set_uint(OBJECT(dev), "sd-spec-version", 3,
                                  &error_fatal);
-        object_property_set_uint(OBJECT(dev), "capareg", SDHCI_CAPABILITIES,
+        object_property_set_uint(OBJECT(dev), "capareg", caps[i],
                                  &error_fatal);
-        object_property_set_uint(OBJECT(dev), "uhs", UHS_I, &error_fatal);
+        /*
+         * UHS is not applicable for eMMC
+         */
+        if (i == 1) {
+            object_property_set_uint(OBJECT(dev), "uhs", UHS_I, &error_fatal);
+        }
         sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
 
         mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);

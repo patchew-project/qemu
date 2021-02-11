@@ -333,6 +333,13 @@ static void fdt_add_sd_nodes(VersalVirt *s)
         qemu_fdt_setprop_sized_cells(s->fdt, name, "reg",
                                      2, addr, 2, MM_PMC_SD0_SIZE);
         qemu_fdt_setprop(s->fdt, name, "compatible", compat, sizeof(compat));
+        /*
+         * eMMC specific properties
+         */
+        if (i == 0) {
+            qemu_fdt_setprop(s->fdt, name, "non-removable", NULL, 0);
+            qemu_fdt_setprop_sized_cells(s->fdt, name, "bus-width", 1, 8);
+        }
         g_free(name);
     }
 }
@@ -512,7 +519,7 @@ static void create_virtio_regions(VersalVirt *s)
     }
 }
 
-static void sd_plugin_card(SDHCIState *sd, DriveInfo *di)
+static void sd_plugin_card(SDHCIState *sd, DriveInfo *di, bool emmc)
 {
     BlockBackend *blk = di ? blk_by_legacy_dinfo(di) : NULL;
     DeviceState *card;
@@ -520,6 +527,7 @@ static void sd_plugin_card(SDHCIState *sd, DriveInfo *di)
     card = qdev_new(TYPE_SD_CARD);
     object_property_add_child(OBJECT(sd), "card[*]", OBJECT(card));
     qdev_prop_set_drive_err(card, "drive", blk, &error_fatal);
+    object_property_set_bool(OBJECT(card), "emmc", emmc, &error_fatal);
     qdev_realize_and_unref(card, qdev_get_child_bus(DEVICE(sd), "sd-bus"),
                            &error_fatal);
 }
@@ -528,7 +536,6 @@ static void versal_virt_init(MachineState *machine)
 {
     VersalVirt *s = XLNX_VERSAL_VIRT_MACHINE(machine);
     int psci_conduit = QEMU_PSCI_CONDUIT_DISABLED;
-    int i;
 
     /*
      * If the user provides an Operating System to be loaded, we expect them
@@ -581,10 +588,9 @@ static void versal_virt_init(MachineState *machine)
     memory_region_add_subregion_overlap(get_system_memory(),
                                         0, &s->soc.fpd.apu.mr, 0);
 
+    sd_plugin_card(&s->soc.pmc.iou.sd[0], drive_get_next(IF_EMMC), true);
     /* Plugin SD cards.  */
-    for (i = 0; i < ARRAY_SIZE(s->soc.pmc.iou.sd); i++) {
-        sd_plugin_card(&s->soc.pmc.iou.sd[i], drive_get_next(IF_SD));
-    }
+    sd_plugin_card(&s->soc.pmc.iou.sd[1], drive_get_next(IF_SD), false);
 
     s->binfo.ram_size = machine->ram_size;
     s->binfo.loader_start = 0x0;
