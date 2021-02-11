@@ -398,41 +398,45 @@ static void mmc_set_ext_csd(SDState *sd, uint64_t size)
     uint32_t sectcount = size >> HWBLOCK_SHIFT;
 
     memset(sd->ext_csd, 0, 512);
-    sd->ext_csd[504] = 0x1; /* supported command sets */
-    sd->ext_csd[503] = 0x1; /* HPI features  */
-    sd->ext_csd[502] = 0x1; /* Background operations support */
+    sd->ext_csd[EXT_CSD_S_CMD_SET] = 0x1; /* supported command sets */
+    sd->ext_csd[EXT_CSD_HPI_FEATURES] = 0x3; /* HPI features  */
+    sd->ext_csd[EXT_CSD_BKOPS_SUPPORT] = 0x1; /* Background operations
+                                                 support */
     sd->ext_csd[241] = 0xA; /* 1st initialization time after partitioning */
-    sd->ext_csd[232] = 0x1; /* Trim multiplier */
-    sd->ext_csd[231] = 0x15; /* Secure feature support */
-    sd->ext_csd[230] = 0x96; /* Secure erase support */
-    sd->ext_csd[229] = 0x96; /* Secure TRIM multiplier */
-    sd->ext_csd[228] = 0x7; /* Boot information */
-    sd->ext_csd[226] = 0x8; /* Boot partition size */
-    sd->ext_csd[225] = 0x6; /* Access size */
-    sd->ext_csd[224] = 0x4; /* HC Erase unit size */
-    sd->ext_csd[223] = 0x1; /* HC erase timeout */
-    sd->ext_csd[222] = 0x1; /* Reliable write sector count */
-    sd->ext_csd[221] = 0x4; /* HC write protect group size */
-    sd->ext_csd[220] = 0x8; /* Sleep current VCC  */
-    sd->ext_csd[219] = 0x7; /* Sleep current VCCQ */
-    sd->ext_csd[217] = 0x11; /* Sleep/Awake timeout */
+    sd->ext_csd[EXT_CSD_TRIM_MULT] = 0x1; /* Trim multiplier */
+    sd->ext_csd[EXT_CSD_SEC_FEATURE_SUPPORT] = 0x15; /* Secure feature
+                                                        support */
+    sd->ext_csd[EXT_CSD_SEC_ERASE_MULT] = 0x96; /* Secure erase support */
+    sd->ext_csd[EXT_CSD_SEC_TRIM_MULT] = 0x96; /* Secure TRIM multiplier */
+    sd->ext_csd[EXT_CSD_BOOT_INFO] = 0x7; /* Boot information */
+    sd->ext_csd[EXT_CSD_BOOT_MULT] = 0x8; /* Boot partition size. 128KB unit */
+    sd->ext_csd[EXT_CSD_ACC_SIZE] = 0x6; /* Access size */
+    sd->ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE] = 0x4; /* HC Erase unit size */
+    sd->ext_csd[EXT_CSD_ERASE_TIMEOUT_MULT] = 0x1; /* HC erase timeout */
+    sd->ext_csd[EXT_CSD_REL_WR_SEC_C] = 0x1; /* Reliable write sector count */
+    sd->ext_csd[EXT_CSD_HC_WP_GRP_SIZE] = 0x4; /* HC write protect group size */
+    sd->ext_csd[EXT_CSD_S_C_VCC] = 0x8; /* Sleep current VCC  */
+    sd->ext_csd[EXT_CSD_S_C_VCCQ] = 0x7; /* Sleep current VCCQ */
+    sd->ext_csd[EXT_CSD_S_A_TIMEOUT] = 0x11; /* Sleep/Awake timeout */
     sd->ext_csd[215] = (sectcount >> 24) & 0xff; /* Sector count */
     sd->ext_csd[214] = (sectcount >> 16) & 0xff; /* ... */
     sd->ext_csd[213] = (sectcount >> 8) & 0xff;  /* ... */
-    sd->ext_csd[212] = (sectcount & 0xff);       /* ... */
+    sd->ext_csd[EXT_CSD_SEC_CNT] = (sectcount & 0xff);       /* ... */
     sd->ext_csd[210] = 0xa; /* Min write perf for 8bit@52Mhz */
     sd->ext_csd[209] = 0xa; /* Min read perf for 8bit@52Mhz  */
     sd->ext_csd[208] = 0xa; /* Min write perf for 4bit@52Mhz */
     sd->ext_csd[207] = 0xa; /* Min read perf for 4bit@52Mhz */
     sd->ext_csd[206] = 0xa; /* Min write perf for 4bit@26Mhz */
     sd->ext_csd[205] = 0xa; /* Min read perf for 4bit@26Mhz */
-    sd->ext_csd[199] = 0x1; /* Partition switching timing */
-    sd->ext_csd[198] = 0x1; /* Out-of-interrupt busy timing */
-    sd->ext_csd[196] = 0xFF; /* Card type */
-    sd->ext_csd[194] = 0x2; /* CSD Structure version */
-    sd->ext_csd[192] = 0x5; /* Extended CSD revision */
-    sd->ext_csd[168] = 0x1; /* RPMB size */
-    sd->ext_csd[160] = 0x3; /* Partinioning support */
+    sd->ext_csd[EXT_CSD_PART_SWITCH_TIME] = 0x1; /* Partition switching
+                                                    timing */
+    sd->ext_csd[EXT_CSD_OUT_OF_INTERRUPT_TIME] = 0x1; /* Out-of-interrupt busy
+                                                         timing */
+    sd->ext_csd[EXT_CSD_CARD_TYPE] = 0xFF; /* Card type */
+    sd->ext_csd[EXT_CSD_STRUCTURE] = 0x2; /* CSD Structure version */
+    sd->ext_csd[EXT_CSD_REV] = 0x5; /* Extended CSD revision */
+    sd->ext_csd[EXT_CSD_RPMB_MULT] = 0x1; /* RPMB size */
+    sd->ext_csd[EXT_CSD_PARTITION_SUPPORT] = 0x3; /* Partinioning support */
     sd->ext_csd[159] = 0x00; /* Max enhanced area size */
     sd->ext_csd[158] = 0x00; /* ... */
     sd->ext_csd[157] = 0xEC; /* ... */
