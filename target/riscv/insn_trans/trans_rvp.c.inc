@@ -1156,4 +1156,20 @@ GEN_RVP_R_OOL(rstsa32);
 GEN_RVP_R_OOL(urstsa32);
 GEN_RVP_R_OOL(kstsa32);
 GEN_RVP_R_OOL(ukstsa32);
+
+/* (RV64 Only) SIMD 32-bit Shift Instructions */
+GEN_RVP_SHIFT(sra32, tcg_gen_gvec_sars, 2);
+GEN_RVP_SHIFTI(srai32, sra32, NULL);
+GEN_RVP_R_OOL(sra32_u);
+GEN_RVP_SHIFTI(srai32_u, sra32_u, NULL);
+GEN_RVP_SHIFT(srl32, tcg_gen_gvec_shrs, 2);
+GEN_RVP_SHIFTI(srli32, srl32, NULL);
+GEN_RVP_R_OOL(srl32_u);
+GEN_RVP_SHIFTI(srli32_u, srl32_u, NULL);
+GEN_RVP_SHIFT(sll32, tcg_gen_gvec_shls, 2);
+GEN_RVP_SHIFTI(slli32, sll32, NULL);
+GEN_RVP_R_OOL(ksll32);
+GEN_RVP_SHIFTI(kslli32, ksll32, NULL);
+GEN_RVP_R_OOL(kslra32);
+GEN_RVP_R_OOL(kslra32_u);
 #endif

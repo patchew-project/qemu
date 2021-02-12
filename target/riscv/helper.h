@@ -1425,4 +1425,13 @@ DEF_HELPER_3(rstsa32, tl, env, tl, tl)
 DEF_HELPER_3(urstsa32, tl, env, tl, tl)
 DEF_HELPER_3(kstsa32, tl, env, tl, tl)
 DEF_HELPER_3(ukstsa32, tl, env, tl, tl)
+
+DEF_HELPER_3(sra32, tl, env, tl, tl)
+DEF_HELPER_3(sra32_u, tl, env, tl, tl)
+DEF_HELPER_3(srl32, tl, env, tl, tl)
+DEF_HELPER_3(srl32_u, tl, env, tl, tl)
+DEF_HELPER_3(sll32, tl, env, tl, tl)
+DEF_HELPER_3(ksll32, tl, env, tl, tl)
+DEF_HELPER_3(kslra32, tl, env, tl, tl)
+DEF_HELPER_3(kslra32_u, tl, env, tl, tl)
 #endif
