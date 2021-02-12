@@ -1172,4 +1172,11 @@ GEN_RVP_R_OOL(ksll32);
 GEN_RVP_SHIFTI(kslli32, ksll32, NULL);
 GEN_RVP_R_OOL(kslra32);
 GEN_RVP_R_OOL(kslra32_u);
+
+/* (RV64 Only) SIMD 32-bit Miscellaneous Instructions */
+GEN_RVP_R_OOL(smin32);
+GEN_RVP_R_OOL(umin32);
+GEN_RVP_R_OOL(smax32);
+GEN_RVP_R_OOL(umax32);
+GEN_RVP_R2_OOL(kabs32);
 #endif
