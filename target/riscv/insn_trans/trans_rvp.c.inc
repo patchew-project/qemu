@@ -602,3 +602,57 @@ GEN_RVP_R_ACC_OOL(kmadrs);
 GEN_RVP_R_ACC_OOL(kmaxds);
 GEN_RVP_R_ACC_OOL(kmsda);
 GEN_RVP_R_ACC_OOL(kmsxda);
+
+/* Signed 16-bit Multiply with 64-bit Add/Subtract Instructions */
+static bool
+r_d64_s64_ool(DisasContext *ctx, arg_r *a,
+              void (* fn)(TCGv_i64, TCGv_ptr, TCGv_i64, TCGv))
+{
+#ifdef TARGET_RISCV64
+    return r_ool(ctx, a, fn);
+#else
+    TCGv_i32 src2, a0, a1, d0, d1;
+    TCGv_i64 src1, dst;
+
+    if (!has_ext(ctx, RVP) || !ctx->ext_p64) {
+        return false;
+    }
+
+    src1 = tcg_temp_new_i64();
+    src2 = tcg_temp_new_i32();
+    dst = tcg_temp_new_i64();
+    a0 = tcg_temp_new_i32();
+    a1 = tcg_temp_new_i32();
+
+    gen_get_gpr(a0, a->rs1);
+    gen_get_gpr(a1, a->rs1 + 1);
+    tcg_gen_concat_i32_i64(src1, a0, a1);
+    gen_get_gpr(src2, a->rs2);
+
+    fn(dst, cpu_env, src1, src2);
+
+    d0 = tcg_temp_new_i32();
+    d1 = tcg_temp_new_i32();
+    tcg_gen_extrl_i64_i32(d0, dst);
+    tcg_gen_extrh_i64_i32(d1, dst);
+    gen_set_gpr(a->rd, d0);
+    gen_set_gpr(a->rd + 1, d1);
+    tcg_temp_free_i32(d0);
+    tcg_temp_free_i32(d1);
+
+    tcg_temp_free_i64(src1);
+    tcg_temp_free_i32(src2);
+    tcg_temp_free_i64(dst);
+    tcg_temp_free_i32(a0);
+    tcg_temp_free_i32(a1);
+    return true;
+#endif
+}
+
+#define GEN_RVP_R_D64_S64_OOL(NAME)                    \
+static bool trans_##NAME(DisasContext *s, arg_r *a)    \
+{                                                      \
+    return r_d64_s64_ool(s, a, gen_helper_##NAME);     \
+}
+
+GEN_RVP_R_D64_S64_OOL(smal);
