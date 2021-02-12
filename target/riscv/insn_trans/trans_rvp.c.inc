@@ -383,3 +383,56 @@ GEN_RVP_R_OOL(scmplt8);
 GEN_RVP_R_OOL(scmple8);
 GEN_RVP_R_OOL(ucmplt8);
 GEN_RVP_R_OOL(ucmple8);
+
+/* SIMD 16-bit Multiply Instructions */
+static inline bool
+r_d64_ool(DisasContext *ctx, arg_r *a,
+          void (* fn)(TCGv_i64, TCGv_ptr, TCGv, TCGv))
+{
+#ifdef TARGET_RISCV64
+    return r_ool(ctx, a, fn);
+#else
+    TCGv src1, src2;
+    TCGv_i64 dst;
+    TCGv_i32 low, high;
+
+    if (!has_ext(ctx, RVP) || !ctx->ext_p64) {
+        return false;
+    }
+
+    src1 = tcg_temp_new();
+    src2 = tcg_temp_new();
+    dst = tcg_temp_new_i64();
+
+    gen_get_gpr(src1, a->rs1);
+    gen_get_gpr(src2, a->rs2);
+    fn(dst, cpu_env, src1, src2);
+
+    low = tcg_temp_new_i32();
+    high = tcg_temp_new_i32();
+    tcg_gen_extrl_i64_i32(low, dst);
+    tcg_gen_extrh_i64_i32(high, dst);
+    gen_set_gpr(a->rd, low);
+    gen_set_gpr(a->rd + 1, high);
+    tcg_temp_free_i32(low);
+    tcg_temp_free_i32(high);
+
+    tcg_temp_free(src1);
+    tcg_temp_free(src2);
+    tcg_temp_free_i64(dst);
+    return true;
+#endif
+}
+
+#define GEN_RVP_R_D64_OOL(NAME)                        \
+static bool trans_##NAME(DisasContext *s, arg_r *a)    \
+{                                                      \
+    return r_d64_ool(s, a, gen_helper_##NAME);         \
+}
+
+GEN_RVP_R_D64_OOL(smul16);
+GEN_RVP_R_D64_OOL(smulx16);
+GEN_RVP_R_D64_OOL(umul16);
+GEN_RVP_R_D64_OOL(umulx16);
+GEN_RVP_R_OOL(khm16);
+GEN_RVP_R_OOL(khmx16);
