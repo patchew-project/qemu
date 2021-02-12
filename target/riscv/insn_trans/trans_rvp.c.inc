@@ -1212,4 +1212,7 @@ GEN_RVP_R_ACC_OOL(kmsxda32);
 GEN_RVP_R_OOL(smds32);
 GEN_RVP_R_OOL(smdrs32);
 GEN_RVP_R_OOL(smxds32);
+
+/* (RV64 Only) Non-SIMD 32-bit Shift Instructions */
+GEN_RVP_SHIFTI(sraiw_u, sraiw_u, NULL);
 #endif

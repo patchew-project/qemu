@@ -1469,4 +1469,6 @@ DEF_HELPER_4(kmsxda32, tl, env, tl, tl, tl)
 DEF_HELPER_3(smds32, tl, env, tl, tl)
 DEF_HELPER_3(smdrs32, tl, env, tl, tl)
 DEF_HELPER_3(smxds32, tl, env, tl, tl)
+
+DEF_HELPER_3(sraiw_u, tl, env, tl, tl)
 #endif
