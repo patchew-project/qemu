@@ -486,3 +486,16 @@ GEN_RVP_R2_OOL(clrs16);
 GEN_RVP_R2_OOL(clz16);
 GEN_RVP_R2_OOL(clo16);
 GEN_RVP_R2_OOL(swap16);
+
+/* SIMD 8-bit Miscellaneous Instructions */
+GEN_RVP_R_OOL(smin8);
+GEN_RVP_R_OOL(umin8);
+GEN_RVP_R_OOL(smax8);
+GEN_RVP_R_OOL(umax8);
+GEN_RVP_SHIFTI(sclip8, sclip8, NULL);
+GEN_RVP_SHIFTI(uclip8, uclip8, NULL);
+GEN_RVP_R2_OOL(kabs8);
+GEN_RVP_R2_OOL(clrs8);
+GEN_RVP_R2_OOL(clz8);
+GEN_RVP_R2_OOL(clo8);
+GEN_RVP_R2_OOL(swap8);
