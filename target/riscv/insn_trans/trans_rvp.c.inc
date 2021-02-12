@@ -159,3 +159,82 @@ GEN_RVP_R_OOL(rstsa16);
 GEN_RVP_R_OOL(urstsa16);
 GEN_RVP_R_OOL(kstsa16);
 GEN_RVP_R_OOL(ukstsa16);
+
+/* 8-bit Addition & Subtraction Instructions */
+/*
+ *  Copied from tcg-op-gvec.c.
+ *
+ *  Perform a vector addition using normal addition and a mask.  The mask
+ *  should be the sign bit of each lane.  This 6-operation form is more
+ *  efficient than separate additions when there are 4 or more lanes in
+ *  the 64-bit operation.
+ */
+
+static void gen_simd_add_mask(TCGv d, TCGv a, TCGv b, TCGv m)
+{
+    TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
+    TCGv t3 = tcg_temp_new();
+
+    tcg_gen_andc_tl(t1, a, m);
+    tcg_gen_andc_tl(t2, b, m);
+    tcg_gen_xor_tl(t3, a, b);
+    tcg_gen_add_tl(d, t1, t2);
+    tcg_gen_and_tl(t3, t3, m);
+    tcg_gen_xor_tl(d, d, t3);
+
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
+    tcg_temp_free(t3);
+}
+
+static void tcg_gen_simd_add8(TCGv d, TCGv a, TCGv b)
+{
+    TCGv m = tcg_const_tl((target_ulong)dup_const(MO_8, 0x80));
+    gen_simd_add_mask(d, a, b, m);
+    tcg_temp_free(m);
+}
+
+GEN_RVP_R_INLINE(add8, add, 0, trans_add);
+
+/*
+ *  Copied from tcg-op-gvec.c.
+ *
+ *  Perform a vector subtraction using normal subtraction and a mask.
+ *  Compare gen_addv_mask above.
+ */
+static void gen_simd_sub_mask(TCGv d, TCGv a, TCGv b, TCGv m)
+{
+    TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
+    TCGv t3 = tcg_temp_new();
+
+    tcg_gen_or_tl(t1, a, m);
+    tcg_gen_andc_tl(t2, b, m);
+    tcg_gen_eqv_tl(t3, a, b);
+    tcg_gen_sub_tl(d, t1, t2);
+    tcg_gen_and_tl(t3, t3, m);
+    tcg_gen_xor_tl(d, d, t3);
+
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
+    tcg_temp_free(t3);
+}
+
+static void tcg_gen_simd_sub8(TCGv d, TCGv a, TCGv b)
+{
+    TCGv m = tcg_const_tl((target_ulong)dup_const(MO_8, 0x80));
+    gen_simd_sub_mask(d, a, b, m);
+    tcg_temp_free(m);
+}
+
+GEN_RVP_R_INLINE(sub8, sub, 0, trans_sub);
+
+GEN_RVP_R_OOL(radd8);
+GEN_RVP_R_OOL(uradd8);
+GEN_RVP_R_OOL(kadd8);
+GEN_RVP_R_OOL(ukadd8);
+GEN_RVP_R_OOL(rsub8);
+GEN_RVP_R_OOL(ursub8);
+GEN_RVP_R_OOL(ksub8);
+GEN_RVP_R_OOL(uksub8);
