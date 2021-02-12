@@ -1179,4 +1179,15 @@ GEN_RVP_R_OOL(umin32);
 GEN_RVP_R_OOL(smax32);
 GEN_RVP_R_OOL(umax32);
 GEN_RVP_R2_OOL(kabs32);
+
+/* (RV64 Only) SIMD Q15 saturating Multiply Instructions */
+GEN_RVP_R_OOL(khmbb16);
+GEN_RVP_R_OOL(khmbt16);
+GEN_RVP_R_OOL(khmtt16);
+GEN_RVP_R_OOL(kdmbb16);
+GEN_RVP_R_OOL(kdmbt16);
+GEN_RVP_R_OOL(kdmtt16);
+GEN_RVP_R_ACC_OOL(kdmabb16);
+GEN_RVP_R_ACC_OOL(kdmabt16);
+GEN_RVP_R_ACC_OOL(kdmatt16);
 #endif
