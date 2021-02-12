@@ -19,10 +19,6 @@
 # This is concatenated with insn32.decode for risc64 targets.
 # Most of the fields and formats are there.
 
-%sh5    20:5
-
-@sh5     .......  ..... .....  ... ..... ....... &shift  shamt=%sh5      %rs1 %rd
-
 # *** RV64I Base Instruction Set (in addition to RV32I) ***
 lwu      ............   ..... 110 ..... 0000011 @i
 ld       ............   ..... 011 ..... 0000011 @i
