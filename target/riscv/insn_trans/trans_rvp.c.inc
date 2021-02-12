@@ -1090,3 +1090,70 @@ static bool trans_msubr32(DisasContext *ctx, arg_r *a)
     tcg_temp_free_i32(w3);
     return true;
 }
+
+#ifdef TARGET_RISCV64
+/*
+ *** RV64 Only Instructions
+ */
+/* RV64 Only) SIMD 32-bit Add/Subtract Instructions */
+static void tcg_gen_simd_add32(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
+{
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    TCGv_i64 t2 = tcg_temp_new_i64();
+
+    tcg_gen_andi_i64(t1, a, ~0xffffffff);
+    tcg_gen_add_i64(t2, a, b);
+    tcg_gen_add_i64(t1, t1, b);
+    tcg_gen_deposit_i64(d, t1, t2, 0, 32);
+
+    tcg_temp_free_i64(t1);
+    tcg_temp_free_i64(t2);
+}
+
+GEN_RVP_R_INLINE(add32, add, 2, trans_add);
+
+static void tcg_gen_simd_sub32(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
+{
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    TCGv_i64 t2 = tcg_temp_new_i64();
+
+    tcg_gen_andi_i64(t1, b, ~0xffffffff);
+    tcg_gen_sub_i64(t2, a, b);
+    tcg_gen_sub_i64(t1, a, t1);
+    tcg_gen_deposit_i64(d, t1, t2, 0, 32);
+
+    tcg_temp_free_i64(t1);
+    tcg_temp_free_i64(t2);
+}
+
+GEN_RVP_R_INLINE(sub32, sub, 2, trans_sub);
+
+GEN_RVP_R_OOL(radd32);
+GEN_RVP_R_OOL(uradd32);
+GEN_RVP_R_OOL(kadd32);
+GEN_RVP_R_OOL(ukadd32);
+GEN_RVP_R_OOL(rsub32);
+GEN_RVP_R_OOL(ursub32);
+GEN_RVP_R_OOL(ksub32);
+GEN_RVP_R_OOL(uksub32);
+GEN_RVP_R_OOL(cras32);
+GEN_RVP_R_OOL(rcras32);
+GEN_RVP_R_OOL(urcras32);
+GEN_RVP_R_OOL(kcras32);
+GEN_RVP_R_OOL(ukcras32);
+GEN_RVP_R_OOL(crsa32);
+GEN_RVP_R_OOL(rcrsa32);
+GEN_RVP_R_OOL(urcrsa32);
+GEN_RVP_R_OOL(kcrsa32);
+GEN_RVP_R_OOL(ukcrsa32);
+GEN_RVP_R_OOL(stas32);
+GEN_RVP_R_OOL(rstas32);
+GEN_RVP_R_OOL(urstas32);
+GEN_RVP_R_OOL(kstas32);
+GEN_RVP_R_OOL(ukstas32);
+GEN_RVP_R_OOL(stsa32);
+GEN_RVP_R_OOL(rstsa32);
+GEN_RVP_R_OOL(urstsa32);
+GEN_RVP_R_OOL(kstsa32);
+GEN_RVP_R_OOL(ukstsa32);
+#endif

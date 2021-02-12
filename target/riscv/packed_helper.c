@@ -2996,3 +2996,281 @@ static inline void do_bpick(CPURISCVState *env, void *vd, void *va,
 }
 
 RVPR_ACC(bpick, 1, sizeof(target_ulong));
+
+/*
+ *** RV64 Only Instructions
+ */
+/* (RV64 Only) SIMD 32-bit Add/Subtract Instructions */
+#ifdef TARGET_RISCV64
+static inline void do_radd32(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint16_t i)
+{
+    int32_t *d = vd, *a = va, *b = vb;
+    d[i] = hadd32(a[i], b[i]);
+}
+
+RVPR(radd32, 1, 4);
+
+static inline void do_uradd32(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint16_t i)
+{
+    uint32_t *d = vd, *a = va, *b = vb;
+    d[i] = haddu32(a[i], b[i]);
+}
+
+RVPR(uradd32, 1, 4);
+
+static inline void do_kadd32(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint16_t i)
+{
+    int32_t *d = vd, *a = va, *b = vb;
+    d[i] = sadd32(env, 0, a[i], b[i]);
+}
+
+RVPR(kadd32, 1, 4);
+
+static inline void do_ukadd32(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint16_t i)
+{
+    uint32_t *d = vd, *a = va, *b = vb;
+    d[i] = saddu32(env, 0, a[i], b[i]);
+}
+
+RVPR(ukadd32, 1, 4);
+
+static inline void do_rsub32(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint16_t i)
+{
+    int32_t *d = vd, *a = va, *b = vb;
+    d[i] = hsub32(a[i], b[i]);
+}
+
+RVPR(rsub32, 1, 4);
+
+static inline void do_ursub32(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint16_t i)
+{
+    uint32_t *d = vd, *a = va, *b = vb;
+    d[i] = hsubu64(a[i], b[i]);
+}
+
+RVPR(ursub32, 1, 4);
+
+static inline void do_ksub32(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint16_t i)
+{
+    int32_t *d = vd, *a = va, *b = vb;
+    d[i] = ssub32(env, 0, a[i], b[i]);
+}
+
+RVPR(ksub32, 1, 4);
+
+static inline void do_uksub32(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint16_t i)
+{
+    uint32_t *d = vd, *a = va, *b = vb;
+    d[i] = ssubu32(env, 0, a[i], b[i]);
+}
+
+RVPR(uksub32, 1, 4);
+
+static inline void do_cras32(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    uint32_t *d = vd, *a = va, *b = vb;
+    d[H4(i)] = a[H4(i)] - b[H4(i + 1)];
+    d[H4(i + 1)] = a[H4(i + 1)] + b[H4(i)];
+}
+
+RVPR(cras32, 2, 4);
+
+static inline void do_rcras32(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    int32_t *d = vd, *a = va, *b = vb;
+    d[H4(i)] = hsub32(a[H4(i)], b[H4(i + 1)]);
+    d[H4(i + 1)] = hadd32(a[H4(i + 1)], b[H4(i)]);
+}
+
+RVPR(rcras32, 2, 4);
+
+static inline void do_urcras32(CPURISCVState *env, void *vd, void *va,
+                               void *vb, uint8_t i)
+{
+    uint32_t *d = vd, *a = va, *b = vb;
+    d[H4(i)] = hsubu64(a[H4(i)], b[H4(i + 1)]);
+    d[H4(i + 1)] = haddu32(a[H4(i + 1)], b[H4(i)]);
+}
+
+RVPR(urcras32, 2, 4);
+
+static inline void do_kcras32(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    int32_t *d = vd, *a = va, *b = vb;
+    d[H4(i)] = ssub32(env, 0, a[H4(i)], b[H4(i + 1)]);
+    d[H4(i + 1)] = sadd32(env, 0, a[H4(i + 1)], b[H4(i)]);
+}
+
+RVPR(kcras32, 2, 4);
+
+static inline void do_ukcras32(CPURISCVState *env, void *vd, void *va,
+                               void *vb, uint8_t i)
+{
+    uint32_t *d = vd, *a = va, *b = vb;
+    d[H4(i)] = ssubu32(env, 0, a[H4(i)], b[H4(i + 1)]);
+    d[H4(i + 1)] = saddu32(env, 0, a[H4(i + 1)], b[H4(i)]);
+}
+
+RVPR(ukcras32, 2, 4);
+
+static inline void do_crsa32(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    uint32_t *d = vd, *a = va, *b = vb;
+    d[H4(i)] = a[H4(i)] + b[H4(i + 1)];
+    d[H4(i + 1)] = a[H4(i + 1)] - b[H4(i)];
+}
+
+RVPR(crsa32, 2, 4);
+
+static inline void do_rcrsa32(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    int32_t *d = vd, *a = va, *b = vb;
+    d[H4(i)] = hadd32(a[H4(i)], b[H4(i + 1)]);
+    d[H4(i + 1)] = hsub32(a[H4(i + 1)], b[H4(i)]);
+}
+
+RVPR(rcrsa32, 2, 4);
+
+static inline void do_urcrsa32(CPURISCVState *env, void *vd, void *va,
+                               void *vb, uint8_t i)
+{
+    uint32_t *d = vd, *a = va, *b = vb;
+    d[H4(i)] = haddu32(a[H4(i)], b[H4(i + 1)]);
+    d[H4(i + 1)] = hsubu64(a[H4(i + 1)], b[H4(i)]);
+}
+
+RVPR(urcrsa32, 2, 4);
+
+static inline void do_kcrsa32(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    int32_t *d = vd, *a = va, *b = vb;
+    d[H4(i)] = sadd32(env, 0, a[H4(i)], b[H4(i + 1)]);
+    d[H4(i + 1)] = ssub32(env, 0, a[H4(i + 1)], b[H4(i)]);
+}
+
+RVPR(kcrsa32, 2, 4);
+
+static inline void do_ukcrsa32(CPURISCVState *env, void *vd, void *va,
+                               void *vb, uint8_t i)
+{
+    uint32_t *d = vd, *a = va, *b = vb;
+    d[H4(i)] = saddu32(env, 0, a[H4(i)], b[H4(i + 1)]);
+    d[H4(i + 1)] = ssubu32(env, 0, a[H4(i + 1)], b[H4(i)]);
+}
+
+RVPR(ukcrsa32, 2, 4);
+
+static inline void do_stas32(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    int32_t *d = vd, *a = va, *b = vb;
+    d[H4(i)] = a[H4(i)] - b[H4(i)];
+    d[H4(i + 1)] = a[H4(i + 1)] + b[H4(i + 1)];
+}
+
+RVPR(stas32, 2, 4);
+
+static inline void do_rstas32(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    int32_t *d = vd, *a = va, *b = vb;
+    d[H4(i)] = hsub32(a[H4(i)], b[H4(i)]);
+    d[H4(i + 1)] = hadd32(a[H4(i + 1)], b[H4(i + 1)]);
+}
+
+RVPR(rstas32, 2, 4);
+
+static inline void do_urstas32(CPURISCVState *env, void *vd, void *va,
+                               void *vb, uint8_t i)
+{
+    uint32_t *d = vd, *a = va, *b = vb;
+    d[H4(i)] = hsubu64(a[H4(i)], b[H4(i)]);
+    d[H4(i + 1)] = haddu32(a[H4(i + 1)], b[H4(i + 1)]);
+}
+
+RVPR(urstas32, 2, 4);
+
+static inline void do_kstas32(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    int32_t *d = vd, *a = va, *b = vb;
+    d[H4(i)] = ssub32(env, 0, a[H4(i)], b[H4(i)]);
+    d[H4(i + 1)] = sadd32(env, 0, a[H4(i + 1)], b[H4(i + 1)]);
+}
+
+RVPR(kstas32, 2, 4);
+
+static inline void do_ukstas32(CPURISCVState *env, void *vd, void *va,
+                               void *vb, uint8_t i)
+{
+    uint32_t *d = vd, *a = va, *b = vb;
+    d[H4(i)] = ssubu32(env, 0, a[H4(i)], b[H4(i)]);
+    d[H4(i + 1)] = saddu32(env, 0, a[H4(i + 1)], b[H4(i + 1)]);
+}
+
+RVPR(ukstas32, 2, 4);
+
+static inline void do_stsa32(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    uint32_t *d = vd, *a = va, *b = vb;
+    d[H4(i)] = a[H4(i)] + b[H4(i)];
+    d[H4(i + 1)] = a[H4(i + 1)] - b[H4(i + 1)];
+}
+
+RVPR(stsa32, 2, 4);
+
+static inline void do_rstsa32(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    int32_t *d = vd, *a = va, *b = vb;
+    d[H4(i)] = hadd32(a[H4(i)], b[H4(i)]);
+    d[H4(i + 1)] = hsub32(a[H4(i + 1)], b[H4(i + 1)]);
+}
+
+RVPR(rstsa32, 2, 4);
+
+static inline void do_urstsa32(CPURISCVState *env, void *vd, void *va,
+                               void *vb, uint8_t i)
+{
+    uint32_t *d = vd, *a = va, *b = vb;
+    d[H4(i)] = haddu32(a[H4(i)], b[H4(i)]);
+    d[H4(i + 1)] = hsubu64(a[H4(i + 1)], b[H4(i + 1)]);
+}
+
+RVPR(urstsa32, 2, 4);
+
+static inline void do_kstsa32(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    int32_t *d = vd, *a = va, *b = vb;
+    d[H4(i)] = sadd32(env, 0, a[H4(i)], b[H4(i)]);
+    d[H4(i + 1)] = ssub32(env, 0, a[H4(i + 1)], b[H4(i + 1)]);
+}
+
+RVPR(kstsa32, 2, 4);
+
+static inline void do_ukstsa32(CPURISCVState *env, void *vd, void *va,
+                               void *vb, uint8_t i)
+{
+    uint32_t *d = vd, *a = va, *b = vb;
+    d[H4(i)] = saddu32(env, 0, a[H4(i)], b[H4(i)]);
+    d[H4(i + 1)] = ssubu32(env, 0, a[H4(i + 1)], b[H4(i + 1)]);
+}
+
+RVPR(ukstsa32, 2, 4);
+#endif
