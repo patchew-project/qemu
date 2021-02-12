@@ -238,3 +238,118 @@ GEN_RVP_R_OOL(rsub8);
 GEN_RVP_R_OOL(ursub8);
 GEN_RVP_R_OOL(ksub8);
 GEN_RVP_R_OOL(uksub8);
+
+/* 16-bit Shift Instructions */
+static bool rvp_shift_ool(DisasContext *ctx, arg_r *a,
+                          gen_helper_rvp_r *fn, target_ulong mask)
+{
+    TCGv src1, src2, dst;
+
+    src1 = tcg_temp_new();
+    src2 = tcg_temp_new();
+    dst = tcg_temp_new();
+
+    gen_get_gpr(src1, a->rs1);
+    gen_get_gpr(src2, a->rs2);
+    tcg_gen_andi_tl(src2, src2, mask);
+
+    fn(dst, cpu_env, src1, src2);
+    gen_set_gpr(a->rd, dst);
+
+    tcg_temp_free(src1);
+    tcg_temp_free(src2);
+    tcg_temp_free(dst);
+    return true;
+}
+
+typedef void GenGvecShift(unsigned, uint32_t, uint32_t, TCGv_i32,
+                          uint32_t, uint32_t);
+static inline bool
+rvp_shift(DisasContext *ctx, arg_r *a, uint8_t vece,
+          GenGvecShift *f64, gen_helper_rvp_r *fn,
+          uint8_t mask)
+{
+    if (!has_ext(ctx, RVP)) {
+        return false;
+    }
+
+#ifdef TARGET_RISCV64
+    if (a->rd && a->rs1 && a->rs2) {
+        TCGv_i32 shift = tcg_temp_new_i32();
+        tcg_gen_extrl_i64_i32(shift, cpu_gpr[a->rs2]);
+        tcg_gen_andi_i32(shift, shift, mask);
+        f64(vece, offsetof(CPURISCVState, gpr[a->rd]),
+            offsetof(CPURISCVState, gpr[a->rs1]),
+            shift, 8, 8);
+        tcg_temp_free_i32(shift);
+        return true;
+    }
+#endif
+    return rvp_shift_ool(ctx, a, fn, mask);
+}
+
+#define GEN_RVP_SHIFT(NAME, GVEC, VECE)                     \
+static bool trans_##NAME(DisasContext *s, arg_r *a)         \
+{                                                           \
+    return rvp_shift(s, a, VECE, GVEC, gen_helper_##NAME,   \
+                     (8 << VECE) - 1);                      \
+}
+
+GEN_RVP_SHIFT(sra16, tcg_gen_gvec_sars, 1);
+GEN_RVP_SHIFT(srl16, tcg_gen_gvec_shrs, 1);
+GEN_RVP_SHIFT(sll16, tcg_gen_gvec_shls, 1);
+GEN_RVP_R_OOL(sra16_u);
+GEN_RVP_R_OOL(srl16_u);
+GEN_RVP_R_OOL(ksll16);
+GEN_RVP_R_OOL(kslra16);
+GEN_RVP_R_OOL(kslra16_u);
+
+static bool rvp_shifti_ool(DisasContext *ctx, arg_shift *a,
+                           gen_helper_rvp_r *fn)
+{
+    TCGv src1, dst, shift;
+
+    src1 = tcg_temp_new();
+    dst = tcg_temp_new();
+
+    gen_get_gpr(src1, a->rs1);
+    shift = tcg_const_tl(a->shamt);
+    fn(dst, cpu_env, src1, shift);
+    gen_set_gpr(a->rd, dst);
+
+    tcg_temp_free(src1);
+    tcg_temp_free(dst);
+    tcg_temp_free(shift);
+    return true;
+}
+
+static inline bool
+rvp_shifti(DisasContext *ctx, arg_shift *a,
+           void (* f64)(TCGv_i64, TCGv_i64, int64_t),
+           gen_helper_rvp_r *fn)
+{
+    if (!has_ext(ctx, RVP)) {
+        return false;
+    }
+
+#ifdef TARGET_RISCV64
+    if (a->rd && a->rs1 && f64) {
+        f64(cpu_gpr[a->rd], cpu_gpr[a->rs1], a->shamt);
+        return true;
+    }
+#endif
+    return rvp_shifti_ool(ctx, a, fn);
+}
+
+#define GEN_RVP_SHIFTI(NAME, OP, GVEC)                   \
+static bool trans_##NAME(DisasContext *s, arg_shift *a)  \
+{                                                        \
+    return rvp_shifti(s, a, GVEC, gen_helper_##OP);      \
+}
+
+GEN_RVP_SHIFTI(srai16, sra16, tcg_gen_vec_sar16i_i64);
+GEN_RVP_SHIFTI(srli16, srl16, tcg_gen_vec_shr16i_i64);
+GEN_RVP_SHIFTI(slli16, sll16, tcg_gen_vec_shl16i_i64);
+GEN_RVP_SHIFTI(srai16_u, sra16_u, NULL);
+GEN_RVP_SHIFTI(srli16_u, srl16_u, NULL);
+GEN_RVP_SHIFTI(kslli16, ksll16, NULL);
