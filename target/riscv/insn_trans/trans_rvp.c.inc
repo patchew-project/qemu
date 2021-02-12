@@ -369,3 +369,10 @@ GEN_RVP_SHIFTI(slli8, sll8, tcg_gen_vec_shl8i_i64);
 GEN_RVP_SHIFTI(srai8_u, sra8_u, NULL);
 GEN_RVP_SHIFTI(srli8_u, srl8_u, NULL);
 GEN_RVP_SHIFTI(kslli8, ksll8, NULL);
+
+/* SIMD 16-bit Compare Instructions */
+GEN_RVP_R_OOL(cmpeq16);
+GEN_RVP_R_OOL(scmplt16);
+GEN_RVP_R_OOL(scmple16);
+GEN_RVP_R_OOL(ucmplt16);
+GEN_RVP_R_OOL(ucmple16);
