@@ -3592,4 +3592,35 @@ static inline void do_smtt32(CPURISCVState *env, void *vd, void *va,
 }
 
 RVPR(smtt32, 1, sizeof(target_ulong));
+
+/* (RV64 Only) 32-bit Multiply & Add Instructions */
+static inline void do_kmabb32(CPURISCVState *env, void *vd, void *va,
+                              void *vb, void *vc, uint8_t i)
+{
+    int64_t *d = vd, *c = vc;
+    int32_t *a = va, *b = vb;
+    *d = sadd64(env, 0, (int64_t)a[H4(2 * i)] * b[H4(2 * i)], *c);
+}
+
+RVPR_ACC(kmabb32, 1, sizeof(target_ulong));
+
+static inline void do_kmabt32(CPURISCVState *env, void *vd, void *va,
+                              void *vb, void *vc, uint8_t i)
+{
+    int64_t *d = vd, *c = vc;
+    int32_t *a = va, *b = vb;
+    *d = sadd64(env, 0, (int64_t)a[H4(2 * i)] * b[H4(2 * i + 1)], *c);
+}
+
+RVPR_ACC(kmabt32, 1, sizeof(target_ulong));
+
+static inline void do_kmatt32(CPURISCVState *env, void *vd, void *va,
+                              void *vb, void *vc, uint8_t i)
+{
+    int64_t *d = vd, *c = vc;
+    int32_t *a = va, *b = vb;
+    *d = sadd64(env, 0, (int64_t)a[H4(2 * i + 1)] * b[H4(2 * i + 1)], *c);
+}
+
+RVPR_ACC(kmatt32, 1, sizeof(target_ulong));
 #endif
