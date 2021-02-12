@@ -1190,4 +1190,8 @@ GEN_RVP_R_OOL(kdmtt16);
 GEN_RVP_R_ACC_OOL(kdmabb16);
 GEN_RVP_R_ACC_OOL(kdmabt16);
 GEN_RVP_R_ACC_OOL(kdmatt16);
+
+/* (RV64 Only) 32-bit Multiply Instructions */
+GEN_RVP_R_OOL(smbt32);
+GEN_RVP_R_OOL(smtt32);
 #endif
