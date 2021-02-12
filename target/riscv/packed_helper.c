@@ -3818,4 +3818,45 @@ static inline void do_sraiw_u(CPURISCVState *env, void *vd, void *va,
 }
 
 RVPR(sraiw_u, 1, sizeof(target_ulong));
+
+/* (RV64 Only)  32-bit packing instructions here */
+static inline void do_pkbb32(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    uint32_t *d = vd, *a = va, *b = vb;
+    d[H4(i)] = b[H4(i)];
+    d[H4(i + 1)] = a[H4(i)];
+}
+
+RVPR(pkbb32, 2, 4);
+
+static inline void do_pkbt32(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    uint32_t *d = vd, *a = va, *b = vb;
+    d[H4(i)] = b[H4(i + 1)];
+    d[H4(i + 1)] = a[H4(i)];
+}
+
+RVPR(pkbt32, 2, 4);
+
+static inline void do_pktb32(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    uint32_t *d = vd, *a = va, *b = vb;
+    d[H4(i)] = b[H4(i)];
+    d[H4(i + 1)] = a[H4(i + 1)];
+}
+
+RVPR(pktb32, 2, 4);
+
+static inline void do_pktt32(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    uint32_t *d = vd, *a = va, *b = vb;
+    d[H4(i)] = b[H4(i + 1)];
+    d[H4(i + 1)] = a[H4(i + 1)];
+}
+
+RVPR(pktt32, 2, 4);
 #endif

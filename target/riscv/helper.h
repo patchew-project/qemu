@@ -1471,4 +1471,9 @@ DEF_HELPER_3(smdrs32, tl, env, tl, tl)
 DEF_HELPER_3(smxds32, tl, env, tl, tl)
 
 DEF_HELPER_3(sraiw_u, tl, env, tl, tl)
+
+DEF_HELPER_3(pkbb32, tl, env, tl, tl)
+DEF_HELPER_3(pkbt32, tl, env, tl, tl)
+DEF_HELPER_3(pktt32, tl, env, tl, tl)
+DEF_HELPER_3(pktb32, tl, env, tl, tl)
 #endif
