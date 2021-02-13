@@ -11,6 +11,7 @@
 #include "hw/acpi/acpi_dev_interface.h"
 #include "hw/hotplug.h"
 #include "qom/object.h"
+#include "hw/acpi/acpi-build-oem.h"
 
 #define HPET_INTCAP "hpet-intcap"
 
@@ -45,9 +46,7 @@ typedef struct PCMachineState {
     bool pit_enabled;
     bool hpet_enabled;
     uint64_t max_fw_size;
-    char *oem_id;
-    char *oem_table_id;
-
+    struct AcpiBuildOem bld_oem;
     /* NUMA information: */
     uint64_t numa_nodes;
     uint64_t *node_mem;

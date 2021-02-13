@@ -652,7 +652,7 @@ static char *microvm_machine_get_oem_id(Object *obj, Error **errp)
 {
     MicrovmMachineState *mms = MICROVM_MACHINE(obj);
 
-    return g_strdup(mms->oem_id);
+    return g_strdup(mms->bld_oem.oem_id);
 }
 
 static void microvm_machine_set_oem_id(Object *obj, const char *value,
@@ -661,21 +661,20 @@ static void microvm_machine_set_oem_id(Object *obj, const char *value,
     MicrovmMachineState *mms = MICROVM_MACHINE(obj);
     size_t len = strlen(value);
 
-    if (len > 6) {
+    if (len > ACPI_BUILD_OEM_ID_SIZE) {
         error_setg(errp,
           "User specified "MICROVM_MACHINE_OEM_ID" value is bigger than "
           "6 bytes in size");
         return;
     }
-
-    strncpy(mms->oem_id, value, 6);
+    ACPI_INIT_BUILD_OEM_ID(mms->bld_oem, value);
 }
 
 static char *microvm_machine_get_oem_table_id(Object *obj, Error **errp)
 {
     MicrovmMachineState *mms = MICROVM_MACHINE(obj);
 
-    return g_strdup(mms->oem_table_id);
+    return g_strdup(mms->bld_oem.oem_table_id);
 }
 
 static void microvm_machine_set_oem_table_id(Object *obj, const char *value,
@@ -684,13 +683,13 @@ static void microvm_machine_set_oem_table_id(Object *obj, const char *value,
     MicrovmMachineState *mms = MICROVM_MACHINE(obj);
     size_t len = strlen(value);
 
-    if (len > 8) {
+    if (len > ACPI_BUILD_OEM_TABLE_ID_SIZE) {
         error_setg(errp,
           "User specified "MICROVM_MACHINE_OEM_TABLE_ID" value is bigger than "
           "8 bytes in size");
         return;
     }
-    strncpy(mms->oem_table_id, value, 8);
+    ACPI_INIT_BUILD_OEM_TABLE_ID(mms->bld_oem, value);
 }
 
 static void microvm_machine_initfn(Object *obj)
@@ -715,8 +714,7 @@ static void microvm_machine_initfn(Object *obj)
     mms->powerdown_req.notify = microvm_powerdown_req;
     qemu_register_powerdown_notifier(&mms->powerdown_req);
 
-    mms->oem_id = g_strndup(ACPI_BUILD_APPNAME6, 6);
-    mms->oem_table_id = g_strndup(ACPI_BUILD_APPNAME8, 8);
+    ACPI_INIT_DEFAULT_BUILD_OEM(mms->bld_oem);
 }
 
 static void microvm_class_init(ObjectClass *oc, void *data)

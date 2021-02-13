@@ -25,6 +25,7 @@
 #include "hw/boards.h"
 #include "hw/i386/x86.h"
 #include "hw/acpi/acpi_dev_interface.h"
+#include "hw/acpi/acpi-build-oem.h"
 #include "hw/pci-host/gpex.h"
 #include "qom/object.h"
 
@@ -106,8 +107,7 @@ struct MicrovmMachineState {
     Notifier machine_done;
     Notifier powerdown_req;
     struct GPEXConfig gpex;
-    char *oem_id;
-    char *oem_table_id;
+    struct AcpiBuildOem bld_oem;
 };
 
 #define TYPE_MICROVM_MACHINE   MACHINE_TYPE_NAME("microvm")

@@ -1615,7 +1615,7 @@ static char *pc_machine_get_oem_id(Object *obj, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
 
-    return g_strdup(pcms->oem_id);
+    return g_strdup(pcms->bld_oem.oem_id);
 }
 
 static void pc_machine_set_oem_id(Object *obj, const char *value, Error **errp)
@@ -1623,21 +1623,20 @@ static void pc_machine_set_oem_id(Object *obj, const char *value, Error **errp)
     PCMachineState *pcms = PC_MACHINE(obj);
     size_t len = strlen(value);
 
-    if (len > 6) {
+    if (len > ACPI_BUILD_OEM_ID_SIZE) {
         error_setg(errp,
           "User specified "PC_MACHINE_OEM_ID" value is bigger than "
           "6 bytes in size");
         return;
     }
-
-    strncpy(pcms->oem_id, value, 6);
+    ACPI_INIT_BUILD_OEM_ID(pcms->bld_oem, value);
 }
 
 static char *pc_machine_get_oem_table_id(Object *obj, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
 
-    return g_strdup(pcms->oem_table_id);
+    return g_strdup(pcms->bld_oem.oem_table_id);
 }
 
 static void pc_machine_set_oem_table_id(Object *obj, const char *value,
@@ -1646,13 +1645,13 @@ static void pc_machine_set_oem_table_id(Object *obj, const char *value,
     PCMachineState *pcms = PC_MACHINE(obj);
     size_t len = strlen(value);
 
-    if (len > 8) {
+    if (len > ACPI_BUILD_OEM_TABLE_ID_SIZE) {
         error_setg(errp,
           "User specified "PC_MACHINE_OEM_TABLE_ID" value is bigger than "
           "8 bytes in size");
         return;
     }
-    strncpy(pcms->oem_table_id, value, 8);
+    ACPI_INIT_BUILD_OEM_TABLE_ID(pcms->bld_oem, value);
 }
 
 static void pc_machine_initfn(Object *obj)
@@ -1667,8 +1666,7 @@ static void pc_machine_initfn(Object *obj)
     pcms->max_ram_below_4g = 0; /* use default */
     /* acpi build is enabled by default if machine supports it */
     pcms->acpi_build_enabled = PC_MACHINE_GET_CLASS(pcms)->has_acpi_build;
-    pcms->oem_id = g_strndup(ACPI_BUILD_APPNAME6, 6);
-    pcms->oem_table_id = g_strndup(ACPI_BUILD_APPNAME8, 8);
+    ACPI_INIT_DEFAULT_BUILD_OEM(pcms->bld_oem);
     pcms->smbus_enabled = true;
     pcms->sata_enabled = true;
     pcms->pit_enabled = true;
