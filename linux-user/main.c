@@ -561,6 +561,27 @@ static int parse_args(int argc, char **argv)
         }
     }
 
+    /* HACK alert.
+     * when run as an interpreter using kernel's binfmt-misc mechanism,
+     * we have to know where are we (our own binary), where's the binary being run,
+     * and what it's argv[0] element.
+     * Only with the P interpreter flag kernel passes all 3 elements as first 3 argv[],
+     * but we can't distinguish if we were run with or without this P flag.
+     * So we register a special name with binfmt-misc system, a name which ends up
+     * in "-binfmt-P", and if our argv[0] ends up with that, we assume we were run
+     * from kernel's binfmt with P flag and our first 3 args are from kernel.
+     */
+    if (strlen(argv[0]) > sizeof("binfmt-P") &&
+        strcmp(argv[0] + strlen(argv[0]) - sizeof("binfmt-P"), "-binfmt-P") == 0) {
+        if (argc < 3) {
+            (void) fprintf(stderr, "qemu: %s has to be run using kernel binfmt-misc subsystem\n", argv[0]);
+            exit(EXIT_FAILURE);
+        }
+        handle_arg_argv0(argv[1]);
+        exec_path = argv[2];
+        return 2;
+    }
+
     optind = 1;
     for (;;) {
         if (optind >= argc) {
