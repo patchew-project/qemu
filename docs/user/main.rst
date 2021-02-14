@@ -221,6 +221,9 @@ Other binaries
    * ``qemu-mipsn32el`` executes 32-bit little endian MIPS binaries (MIPS N32
      ABI).
 
+   * ``qemu-r5900o32el`` executes 64-bit little endian MIPS R5900 binaries (MIPS
+     O32 ABI).
+
 -  user mode (NiosII)
 
    * ``qemu-nios2`` TODO.
