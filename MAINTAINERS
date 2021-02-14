@@ -242,6 +242,7 @@ F: include/hw/mips/
 F: include/hw/misc/mips_*
 F: include/hw/timer/mips_gictimer.h
 F: tests/tcg/mips/
+F: tests/acceptance/mips_r5900_ps2.py
 K: ^Subject:.*(?i)mips
 
 MIPS TCG CPUs (nanoMIPS ISA)
