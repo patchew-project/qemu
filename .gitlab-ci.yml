@@ -622,6 +622,18 @@ build-without-default-features:
         --target-list-exclude=arm-softmmu,i386-softmmu,mipsel-softmmu,mips64-softmmu,ppc-softmmu
     MAKE_CHECK_ARGS: check-unit
 
+build-r5900-user:
+  <<: *native_build_job_definition
+  variables:
+    IMAGE: fedora
+    CONFIGURE_ARGS: --disable-tools --disable-docs --disable-blobs --enable-debug-tcg
+    TARGETS: r5900o32el-linux-user
+    MAKE_CHECK_ARGS: run-tcg-tests-r5900o32el-linux-user
+  artifacts:
+    expire_in: 2 days
+    paths:
+      - build
+
 check-patch:
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/centos8:latest
