@@ -411,7 +411,7 @@ static bool trans_LQ(DisasContext *ctx, arg_itype *a)
     return true;
 }
 
-static bool trans_SQ(DisasContext *ctx, arg_itype *a)
+static bool trans_SQ_real(DisasContext *ctx, arg_itype *a)
 {
     TCGv_i64 t0 = tcg_temp_new_i64();
     TCGv addr = tcg_temp_new();
@@ -436,6 +436,38 @@ static bool trans_SQ(DisasContext *ctx, arg_itype *a)
     tcg_temp_free(t0);
 
     return true;
+}
+
+static bool trans_SQ(DisasContext *ctx, arg_itype *a)
+{
+    /*
+     * The TX79-specific instruction Store Quadword
+     *
+     * +--------+-------+-------+------------------------+
+     * | 011111 |  base |   rt  |           offset       | SQ
+     * +--------+-------+-------+------------------------+
+     *      6       5       5                 16
+     *
+     * has the same opcode as the Read Hardware Register instruction
+     *
+     * +--------+-------+-------+-------+-------+--------+
+     * | 011111 | 00000 |   rt  |   rd  | 00000 | 111011 | RDHWR
+     * +--------+-------+-------+-------+-------+--------+
+     *      6       5       5       5       5        6
+     *
+     * that is required, trapped and emulated by the Linux kernel. However, all
+     * RDHWR encodings yield address error exceptions on the TX79 since the SQ
+     * offset is odd. Therefore all valid SQ instructions can execute normally.
+     * In user mode, QEMU must verify the upper and lower 13 bits to distinguish
+     * between SQ and RDHWR, as the Linux kernel does.
+     */
+#if defined(CONFIG_USER_ONLY)
+    if (!a->base && extract32(a->offset, 0, 11) == 0b00000111011) {
+        gen_rdhwr(ctx, a->rt, extract32(ctx->opcode, 11, 5), 0);
+        return true;
+    }
+#endif
+    return trans_SQ_real(ctx, a);
 }
 
 /*
