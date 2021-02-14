@@ -115,6 +115,67 @@ static bool trans_MTLO1(DisasContext *ctx, arg_rtype *a)
  * PSUBUW  rd, rs, rt        Parallel Subtract with Unsigned saturation Word
  */
 
+static bool trans_parallel_substract(DisasContext *ctx, arg_rtype *a, unsigned wlen)
+{
+    TCGv_i64 ax, bx, t0, t1, t2;
+
+    if (a->rd == 0) {
+        /* nop */
+        return true;
+    }
+
+    ax = tcg_temp_new_i64();
+    bx = tcg_temp_new_i64();
+    t0 = tcg_temp_new_i64();
+    t1 = tcg_temp_new_i64();
+    t2 = tcg_temp_new_i64();
+
+    /* Lower halve */
+    gen_load_gpr(ax, a->rs);
+    gen_load_gpr(bx, a->rt);
+    for (int i = 0; i < (64 / wlen); i++) {
+        tcg_gen_sextract_i64(t0, ax, wlen * i, wlen);
+        tcg_gen_sextract_i64(t1, bx, wlen * i, wlen);
+        tcg_gen_sub_i64(t2, t0, t1);
+        tcg_gen_deposit_i64(cpu_gpr[a->rd], cpu_gpr[a->rd], t2, wlen * i, wlen);
+    }
+    /* Upper halve */
+    gen_load_gpr_hi(ax, a->rs);
+    gen_load_gpr_hi(bx, a->rt);
+    for (int i = 0; i < (64 / wlen); i++) {
+        tcg_gen_sextract_i64(t0, ax, wlen * i, wlen);
+        tcg_gen_sextract_i64(t1, bx, wlen * i, wlen);
+        tcg_gen_sub_i64(t2, t0, t1);
+        tcg_gen_deposit_i64(cpu_gpr_hi[a->rd], cpu_gpr_hi[a->rd], t2, wlen * i, wlen);
+    }
+
+    tcg_temp_free(t2);
+    tcg_temp_free(t1);
+    tcg_temp_free(t0);
+    tcg_temp_free(bx);
+    tcg_temp_free(ax);
+
+    return true;
+}
+
+/* Parallel Subtract Byte */
+static bool trans_PSUBB(DisasContext *ctx, arg_rtype *a)
+{
+    return trans_parallel_substract(ctx, a, 8);
+}
+
+/* Parallel Subtract Halfword */
+static bool trans_PSUBH(DisasContext *ctx, arg_rtype *a)
+{
+    return trans_parallel_substract(ctx, a, 16);
+}
+
+/* Parallel Subtract Word */
+static bool trans_PSUBW(DisasContext *ctx, arg_rtype *a)
+{
+    return trans_parallel_substract(ctx, a, 32);
+}
+
 /*
  *     Min/Max (4 instructions)
  *     ------------------------
