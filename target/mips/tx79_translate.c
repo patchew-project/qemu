@@ -332,6 +332,84 @@ static bool trans_PNOR(DisasContext *ctx, arg_rtype *a)
  * PEXTLW  rd, rs, rt        Parallel Extend Lower from Word
  */
 
+static bool trans_PEXTLx(DisasContext *ctx, arg_rtype *a, unsigned wlen)
+{
+    TCGv_i64 ax, bx;
+
+    if (a->rd == 0) {
+        /* nop */
+        return true;
+    }
+
+    ax = tcg_temp_new_i64();
+    bx = tcg_temp_new_i64();
+
+    gen_load_gpr(ax, a->rs);
+    gen_load_gpr(bx, a->rt);
+
+    /* Lower halve */
+    for (int i = 0; i < 64 / (2 * wlen); i++) {
+        tcg_gen_deposit_i64(cpu_gpr[a->rd],
+                            cpu_gpr[a->rd], bx, 2 * wlen * i, wlen);
+        tcg_gen_deposit_i64(cpu_gpr[a->rd],
+                            cpu_gpr[a->rd], ax, 2 * wlen * i + wlen, wlen);
+        tcg_gen_shri_i64(bx, bx, wlen);
+        tcg_gen_shri_i64(ax, ax, wlen);
+    }
+    /* Upper halve */
+    for (int i = 0; i < 64 / (2 * wlen); i++) {
+        tcg_gen_deposit_i64(cpu_gpr_hi[a->rd],
+                            cpu_gpr_hi[a->rd], bx, 2 * wlen * i, wlen);
+        tcg_gen_deposit_i64(cpu_gpr_hi[a->rd],
+                            cpu_gpr_hi[a->rd], ax, 2 * wlen * i + wlen, wlen);
+        tcg_gen_shri_i64(bx, bx, wlen);
+        tcg_gen_shri_i64(ax, ax, wlen);
+    }
+
+    tcg_temp_free(bx);
+    tcg_temp_free(ax);
+
+    return true;
+}
+
+/* Parallel Extend Lower from Byte */
+static bool trans_PEXTLB(DisasContext *ctx, arg_rtype *a)
+{
+    return trans_PEXTLx(ctx, a, 8);
+}
+
+/* Parallel Extend Lower from Halfword */
+static bool trans_PEXTLH(DisasContext *ctx, arg_rtype *a)
+{
+    return trans_PEXTLx(ctx, a, 16);
+}
+
+/* Parallel Extend Lower from Word */
+static bool trans_PEXTLW(DisasContext *ctx, arg_rtype *a)
+{
+    TCGv_i64 ax, bx;
+
+    if (a->rd == 0) {
+        /* nop */
+        return true;
+    }
+
+    ax = tcg_temp_new_i64();
+    bx = tcg_temp_new_i64();
+
+    gen_load_gpr(ax, a->rs);
+    gen_load_gpr(bx, a->rt);
+
+    tcg_gen_deposit_i64(cpu_gpr[a->rd], bx, ax, 32, 32);
+    tcg_gen_shri_i64(bx, bx, 32);
+    tcg_gen_deposit_i64(cpu_gpr_hi[a->rd], ax, bx, 0, 32);
+
+    tcg_temp_free(bx);
+    tcg_temp_free(ax);
+
+    return true;
+}
+
 /* Parallel Extend Upper from Word */
 static bool trans_PEXTUW(DisasContext *ctx, arg_rtype *a)
 {
