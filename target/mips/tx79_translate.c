@@ -332,6 +332,32 @@ static bool trans_PNOR(DisasContext *ctx, arg_rtype *a)
  * PEXTLW  rd, rs, rt        Parallel Extend Lower from Word
  */
 
+/* Parallel Extend Upper from Word */
+static bool trans_PEXTUW(DisasContext *ctx, arg_rtype *a)
+{
+    TCGv_i64 ax, bx;
+
+    if (a->rd == 0) {
+        /* nop */
+        return true;
+    }
+
+    ax = tcg_temp_new_i64();
+    bx = tcg_temp_new_i64();
+
+    gen_load_gpr_hi(ax, a->rs);
+    gen_load_gpr_hi(bx, a->rt);
+
+    tcg_gen_deposit_i64(cpu_gpr[a->rd], bx, ax, 32, 32);
+    tcg_gen_shri_i64(bx, bx, 32);
+    tcg_gen_deposit_i64(cpu_gpr_hi[a->rd], ax, bx, 0, 32);
+
+    tcg_temp_free(bx);
+    tcg_temp_free(ax);
+
+    return true;
+}
+
 /*
  *     Others (16 instructions)
  *     ------------------------
