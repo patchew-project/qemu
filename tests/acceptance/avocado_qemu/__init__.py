@@ -15,6 +15,7 @@ import uuid
 import tempfile
 
 import avocado
+from avocado.utils import process
 
 #: The QEMU build root directory.  It may also be the source directory
 #: if building from the source dir, but it's safer to use BUILD_DIR for
@@ -211,3 +212,17 @@ class Test(QemuBaseTest):
         for vm in self._vms.values():
             vm.shutdown()
         self._sd = None
+
+class QemuUserTest(QemuBaseTest):
+    def setUp(self):
+        self._ldpath = []
+        super(QemuUserTest, self).setUp("qemu-%s")
+
+    def add_ldpath(self, ldpath):
+        self._ldpath += [os.path.abspath(ldpath)]
+
+    def run(self, bin_path, args=[]):
+        qemu_args = " ".join(["-L %s" % ldpath for ldpath in self._ldpath])
+        bin_args = " ".join(args)
+        return process.run("%s %s %s %s" % (self.qemu_bin, qemu_args,
+                                            bin_path, bin_args))
