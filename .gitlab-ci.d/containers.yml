@@ -152,6 +152,13 @@ mipsel-debian-cross-container:
   variables:
     NAME: debian-mipsel-cross
 
+mipsr5900el-gentoo-cross-container:
+  <<: *container_job_definition
+  variables:
+    NAME: gentoo-mipsr5900el-cross
+    EXTRA_FILES: tests/docker/dockerfiles/gentoo-mipsr5900el-cross.docker.d/crossdev.conf
+  timeout: 1h 30m
+
 powerpc-debian-cross-container:
   <<: *container_job_definition
   stage: containers-layer2
