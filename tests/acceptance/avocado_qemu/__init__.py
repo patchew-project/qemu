@@ -145,7 +145,7 @@ def exec_command_and_wait_for_pattern(test, command,
     """
     _console_interaction(test, success_message, failure_message, command + '\r')
 
-class Test(avocado.Test):
+class QemuBaseTest(avocado.Test):
     def _get_unique_tag_val(self, tag_name):
         """
         Gets a tag value, if unique for a key
@@ -156,8 +156,6 @@ class Test(avocado.Test):
         return None
 
     def setUp(self):
-        self._vms = {}
-
         self.arch = self.params.get('arch',
                                     default=self._get_unique_tag_val('arch'))
 
@@ -169,6 +167,25 @@ class Test(avocado.Test):
                                         default=default_qemu_bin)
         if self.qemu_bin is None:
             self.cancel("No QEMU binary defined or found in the build tree")
+
+
+    def fetch_asset(self, name,
+                    asset_hash=None, algorithm=None,
+                    locations=None, expire=None,
+                    find_only=False, cancel_on_missing=True):
+        return super(QemuBaseTest, self).fetch_asset(name,
+                        asset_hash=asset_hash,
+                        algorithm=algorithm,
+                        locations=locations,
+                        expire=expire,
+                        find_only=find_only,
+                        cancel_on_missing=cancel_on_missing)
+
+# a.k.a. QemuSystemTest for system emulation...
+class Test(QemuBaseTest):
+    def setUp(self):
+        self._vms = {}
+        super(Test, self).setUp()
 
     def _new_vm(self, *args):
         self._sd = tempfile.TemporaryDirectory(prefix="avo_qemu_sock_")
@@ -194,15 +211,3 @@ class Test(avocado.Test):
         for vm in self._vms.values():
             vm.shutdown()
         self._sd = None
-
-    def fetch_asset(self, name,
-                    asset_hash=None, algorithm=None,
-                    locations=None, expire=None,
-                    find_only=False, cancel_on_missing=True):
-        return super(Test, self).fetch_asset(name,
-                        asset_hash=asset_hash,
-                        algorithm=algorithm,
-                        locations=locations,
-                        expire=expire,
-                        find_only=find_only,
-                        cancel_on_missing=cancel_on_missing)
