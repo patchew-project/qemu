@@ -146,6 +146,9 @@ docker-image-debian-riscv64-cross: docker-image-debian10
 docker-image-debian-s390x-cross: docker-image-debian10
 docker-image-debian-sh4-cross: docker-image-debian10
 docker-image-debian-sparc64-cross: docker-image-debian10
+docker-image-gentoo-mipsr5900el-cross: EXTRA_FILES:=$(addprefix \
+			$(SRC_PATH)/tests/docker/dockerfiles/gentoo-mipsr5900el-cross.docker.d/,\
+				crossdev.conf)
 
 docker-image-travis: NOUSER=1
 
