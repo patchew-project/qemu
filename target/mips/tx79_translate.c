@@ -683,3 +683,73 @@ static bool trans_PINTEH(DisasContext *ctx, arg_rtype *a)
 
     return true;
 }
+
+/* Parallel Exchange Even Halfword */
+static bool trans_PEXEH(DisasContext *ctx, arg_rtype *a)
+{
+    TCGv_i64 ax;
+
+    if (a->rd == 0) {
+        /* nop */
+        return true;
+    }
+    if (a->rt == 0) {
+        tcg_gen_movi_i64(cpu_gpr[a->rd], 0);
+        tcg_gen_movi_i64(cpu_gpr_hi[a->rd], 0);
+        return true;
+    }
+
+    ax = tcg_temp_new_i64();
+
+    /* Lower halve */
+    tcg_gen_mov_i64(ax, cpu_gpr[a->rt]);
+    if (a->rd != a->rt) {
+        tcg_gen_mov_i64(cpu_gpr[a->rd], cpu_gpr[a->rt]);
+    }
+    tcg_gen_deposit_i64(cpu_gpr[a->rd], cpu_gpr[a->rd], ax, 32, 16);
+    tcg_gen_shri_i64(ax, ax, 32);
+    tcg_gen_deposit_i64(cpu_gpr[a->rd], cpu_gpr[a->rd], ax, 0, 16);
+
+    /* Upper halve */
+    tcg_gen_mov_i64(ax, cpu_gpr_hi[a->rt]);
+    if (a->rd != a->rt) {
+        tcg_gen_mov_i64(cpu_gpr_hi[a->rd], cpu_gpr_hi[a->rt]);
+    }
+    tcg_gen_deposit_i64(cpu_gpr_hi[a->rd], cpu_gpr_hi[a->rd], ax, 32, 16);
+    tcg_gen_shri_i64(ax, ax, 32);
+    tcg_gen_deposit_i64(cpu_gpr_hi[a->rd], cpu_gpr_hi[a->rd], ax, 0, 16);
+
+    tcg_temp_free(ax);
+
+    return true;
+}
+
+/* Parallel Exchange Even Word */
+static bool trans_PEXEW(DisasContext *ctx, arg_rtype *a)
+{
+    TCGv_i64 ah, al;
+
+    if (a->rd == 0) {
+        /* nop */
+        return true;
+    }
+    if (a->rt == 0) {
+        tcg_gen_movi_i64(cpu_gpr[a->rd], 0);
+        tcg_gen_movi_i64(cpu_gpr_hi[a->rd], 0);
+        return true;
+    }
+
+    ah = tcg_temp_new_i64();
+    al = tcg_temp_new_i64();
+
+    gen_load_gpr(ah, a->rt);
+    gen_load_gpr_hi(al, a->rt);
+
+    tcg_gen_deposit_i64(cpu_gpr[a->rd], ah, al, 0, 32);
+    tcg_gen_deposit_i64(cpu_gpr_hi[a->rd], al, ah, 0, 32);
+
+    tcg_temp_free(al);
+    tcg_temp_free(ah);
+
+    return true;
+}
