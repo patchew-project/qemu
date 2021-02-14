@@ -3,6 +3,7 @@ gen = [
   decodetree.process('mips64r6.decode', extra_args: '--static-decode=decode_mips64r6'),
   decodetree.process('msa32.decode', extra_args: '--static-decode=decode_msa32'),
   decodetree.process('msa64.decode', extra_args: '--static-decode=decode_msa64'),
+  decodetree.process('tx79.decode', extra_args: '--static-decode=decode_tx79'),
 ]
 
 mips_ss = ss.source_set()
@@ -22,6 +23,10 @@ mips_ss.add(when: 'CONFIG_TCG', if_true: files(
   'tlb_helper.c',
   'translate.c',
   'translate_addr_const.c',
+  'txx9_translate.c',
+))
+mips_ss.add(when: ['CONFIG_TCG', 'TARGET_MIPS64'], if_true: files(
+  'tx79_translate.c',
 ))
 mips_ss.add(when: 'CONFIG_KVM', if_true: files('kvm.c'))
 
