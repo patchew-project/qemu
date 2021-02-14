@@ -634,6 +634,16 @@ build-r5900-user:
     paths:
       - build
 
+acceptance-r5900-user:
+  <<: *native_test_job_definition
+  needs:
+    - job: build-r5900-user
+      artifacts: true
+  variables:
+    IMAGE: fedora
+    MAKE_CHECK_ARGS: check-acceptance
+  <<: *acceptance_definition
+
 check-patch:
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/centos8:latest
