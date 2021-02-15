@@ -17,7 +17,7 @@
           -t "qemu/$NAME" -f "tests/docker/dockerfiles/$NAME.docker"
           -r $CI_REGISTRY_IMAGE
     - docker tag "qemu/$NAME" "$TAG"
-    - docker push "$TAG"
+    - test "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" && docker push "$TAG"
   after_script:
     - docker logout
   rules:
