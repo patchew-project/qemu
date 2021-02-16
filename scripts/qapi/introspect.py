@@ -11,6 +11,7 @@ This work is licensed under the terms of the GNU GPL, version 2.
 See the COPYING file in the top-level directory.
 """
 
+from enum import Enum
 from typing import (
     Any,
     Dict,
@@ -77,6 +78,23 @@ SchemaInfoObject = Dict[str, object]
 SchemaInfoObjectVariant = Dict[str, object]
 SchemaInfoObjectMember = Dict[str, object]
 SchemaInfoCommand = Dict[str, object]
+
+
+class SchemaMetaType(str, Enum):
+    """
+    Mimics the SchemaMetaType enum from qapi/introspect.json.
+    """
+    BUILTIN = 'builtin'
+    ENUM = 'enum'
+    ARRAY = 'array'
+    OBJECT = 'object'
+    ALTERNATE = 'alternate'
+    COMMAND = 'command'
+    EVENT = 'event'
+
+    def __str__(self) -> str:
+        # Needed for intuitive behavior with old-style format strings.
+        return str(self.value)
 
 
 _ValueT = TypeVar('_ValueT', bound=_Value)
@@ -251,7 +269,8 @@ const QLitObject %(c_name)s = %(c_string)s;
                       ) -> List[Annotated[str]]:
         return [Annotated(f.name, f.ifcond) for f in features]
 
-    def _gen_tree(self, name: str, mtype: str, obj: Dict[str, object],
+    def _gen_tree(self, name: str, mtype: SchemaMetaType,
+                  obj: Dict[str, object],
                   ifcond: Sequence[str] = (),
                   features: Sequence[QAPISchemaFeature] = ()) -> None:
         """
@@ -299,7 +318,7 @@ const QLitObject %(c_name)s = %(c_string)s;
 
     def visit_builtin_type(self, name: str, info: Optional[QAPISourceInfo],
                            json_type: str) -> None:
-        self._gen_tree(name, 'builtin', {'json-type': json_type})
+        self._gen_tree(name, SchemaMetaType.BUILTIN, {'json-type': json_type})
 
     def visit_enum_type(self, name: str, info: Optional[QAPISourceInfo],
                         ifcond: Sequence[str],
@@ -307,7 +326,7 @@ const QLitObject %(c_name)s = %(c_string)s;
                         members: List[QAPISchemaEnumMember],
                         prefix: Optional[str]) -> None:
         self._gen_tree(
-            name, 'enum',
+            name, SchemaMetaType.ENUM,
             {'values': [Annotated(m.name, m.ifcond) for m in members]},
             ifcond, features
         )
@@ -316,8 +335,8 @@ const QLitObject %(c_name)s = %(c_string)s;
                          ifcond: Sequence[str],
                          element_type: QAPISchemaType) -> None:
         element = self._use_type(element_type)
-        self._gen_tree('[' + element + ']', 'array', {'element-type': element},
-                       ifcond)
+        self._gen_tree('[' + element + ']', SchemaMetaType.ARRAY,
+                       {'element-type': element}, ifcond)
 
     def visit_object_type_flat(self, name: str, info: Optional[QAPISourceInfo],
                                ifcond: Sequence[str],
@@ -330,14 +349,14 @@ const QLitObject %(c_name)s = %(c_string)s;
         if variants:
             obj['tag'] = variants.tag_member.name
             obj['variants'] = [self._gen_variant(v) for v in variants.variants]
-        self._gen_tree(name, 'object', obj, ifcond, features)
+        self._gen_tree(name, SchemaMetaType.OBJECT, obj, ifcond, features)
 
     def visit_alternate_type(self, name: str, info: Optional[QAPISourceInfo],
                              ifcond: Sequence[str],
                              features: List[QAPISchemaFeature],
                              variants: QAPISchemaVariants) -> None:
         self._gen_tree(
-            name, 'alternate',
+            name, SchemaMetaType.ALTERNATE,
             {'members': [Annotated({'type': self._use_type(m.type)},
                                    m.ifcond)
                          for m in variants.variants]},
@@ -361,7 +380,7 @@ const QLitObject %(c_name)s = %(c_string)s;
         }
         if allow_oob:
             obj['allow-oob'] = allow_oob
-        self._gen_tree(name, 'command', obj, ifcond, features)
+        self._gen_tree(name, SchemaMetaType.COMMAND, obj, ifcond, features)
 
     def visit_event(self, name: str, info: Optional[QAPISourceInfo],
                     ifcond: Sequence[str], features: List[QAPISchemaFeature],
@@ -370,7 +389,8 @@ const QLitObject %(c_name)s = %(c_string)s;
         assert self._schema is not None
 
         arg_type = arg_type or self._schema.the_empty_object_type
-        self._gen_tree(name, 'event', {'arg-type': self._use_type(arg_type)},
+        self._gen_tree(name, SchemaMetaType.EVENT,
+                       {'arg-type': self._use_type(arg_type)},
                        ifcond, features)
 
 
