@@ -154,6 +154,7 @@ void vring_send_buf(VRing *vr, void *p, int len, int flags)
 
     /* Chains only have a single ID */
     if (!(flags & VRING_DESC_F_NEXT)) {
+        virtio_mb();
         vr->avail->idx++;
     }
 }

@@ -127,6 +127,7 @@ int recv(int fd, void *buf, int maxlen, int flags)
 
     /* Mark buffer as available to the host again */
     rxvq->avail->ring[rxvq->avail->idx % rxvq->num] = id;
+    virtio_mb();
     rxvq->avail->idx = rxvq->avail->idx + 1;
     vring_notify(rxvq);
 

@@ -271,6 +271,8 @@ struct VirtioCmd {
 };
 typedef struct VirtioCmd VirtioCmd;
 
+#define virtio_mb()  asm volatile("bcr 14,0" : : : "memory")
+
 bool vring_notify(VRing *vr);
 int drain_irqs(SubChannelId schid);
 void vring_send_buf(VRing *vr, void *p, int len, int flags);
