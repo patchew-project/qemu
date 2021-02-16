@@ -43,26 +43,27 @@ const QmpCommand *qmp_find_command(const QmpCommandList *cmds, const char *name)
 }
 
 static void qmp_toggle_command(QmpCommandList *cmds, const char *name,
-                               bool enabled)
+                               bool enabled, const char *err_msg)
 {
     QmpCommand *cmd;
 
     QTAILQ_FOREACH(cmd, cmds, node) {
         if (strcmp(cmd->name, name) == 0) {
             cmd->enabled = enabled;
+            cmd->err_msg = err_msg;
             return;
         }
     }
 }
 
-void qmp_disable_command(QmpCommandList *cmds, const char *name)
+void qmp_disable_command(QmpCommandList *cmds, const char *name, const char *err_msg)
 {
-    qmp_toggle_command(cmds, name, false);
+    qmp_toggle_command(cmds, name, false, err_msg);
 }
 
 void qmp_enable_command(QmpCommandList *cmds, const char *name)
 {
-    qmp_toggle_command(cmds, name, true);
+    qmp_toggle_command(cmds, name, true, NULL);
 }
 
 bool qmp_command_is_enabled(const QmpCommand *cmd)

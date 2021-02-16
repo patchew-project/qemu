@@ -157,7 +157,7 @@ QDict *qmp_dispatch(const QmpCommandList *cmds, QObject *request,
     }
     if (!cmd->enabled) {
         error_set(&err, ERROR_CLASS_COMMAND_NOT_FOUND,
-                  "The command %s has been disabled for this instance",
+                  cmd->err_msg ?: "The command %s has been disabled for this instance",
                   command);
         goto out;
     }
