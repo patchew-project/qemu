@@ -53,6 +53,8 @@ arm_softmmu_ss.add(files(
   'monitor.c',
   'psci.c',
 ))
+arm_user_ss = ss.source_set()
 
 target_arch += {'arm': arm_ss}
 target_softmmu_arch += {'arm': arm_softmmu_ss}
+target_user_arch += {'arm': arm_user_ss}
