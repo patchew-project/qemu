@@ -1293,7 +1293,6 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     int i, r, n_initialized_vqs = 0;
     Error *local_err = NULL;
 
-    hdev->vdev = NULL;
     hdev->migration_blocker = NULL;
 
     r = vhost_set_backend_type(hdev, backend_type);

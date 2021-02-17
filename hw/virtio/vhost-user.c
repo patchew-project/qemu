@@ -1849,6 +1849,13 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque)
             }
         }
 
+        if ((dev->vdev != NULL) &&
+            virtio_host_has_feature(dev->vdev, VIRTIO_F_IOMMU_PLATFORM) &&
+            !(features & (1ULL << VIRTIO_F_IOMMU_PLATFORM))) {
+            error_report("IOMMU is currently not supported with vhost-user");
+            return -1;
+        }
+
         if (virtio_has_feature(features, VIRTIO_F_IOMMU_PLATFORM) &&
                 !(virtio_has_feature(dev->protocol_features,
                     VHOST_USER_PROTOCOL_F_SLAVE_REQ) &&
