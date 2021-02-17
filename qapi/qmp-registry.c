@@ -25,7 +25,7 @@ void qmp_register_command(QmpCommandList *cmds, const char *name,
 
     cmd->name = name;
     cmd->fn = fn;
-    cmd->enabled = true;
+    cmd->disabled = QMP_DISABLED_NONE;
     cmd->options = options;
     QTAILQ_INSERT_TAIL(cmds, cmd, node);
 }
@@ -43,31 +43,33 @@ const QmpCommand *qmp_find_command(const QmpCommandList *cmds, const char *name)
 }
 
 static void qmp_toggle_command(QmpCommandList *cmds, const char *name,
-                               bool enabled)
+                               QmpDisabled disabled)
 {
     QmpCommand *cmd;
 
     QTAILQ_FOREACH(cmd, cmds, node) {
         if (strcmp(cmd->name, name) == 0) {
-            cmd->enabled = enabled;
+            cmd->disabled = disabled;
             return;
         }
     }
 }
 
-void qmp_disable_command(QmpCommandList *cmds, const char *name)
+void qmp_disable_command(QmpCommandList *cmds, const char *name,
+                         QmpDisabled disabled)
 {
-    qmp_toggle_command(cmds, name, false);
+    assert(disabled != QMP_DISABLED_NONE);
+    qmp_toggle_command(cmds, name, disabled);
 }
 
 void qmp_enable_command(QmpCommandList *cmds, const char *name)
 {
-    qmp_toggle_command(cmds, name, true);
+    qmp_toggle_command(cmds, name, QMP_DISABLED_NONE);
 }
 
 bool qmp_command_is_enabled(const QmpCommand *cmd)
 {
-    return cmd->enabled;
+    return cmd->disabled != QMP_DISABLED_NONE;
 }
 
 const char *qmp_command_name(const QmpCommand *cmd)

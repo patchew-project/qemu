@@ -28,6 +28,13 @@ typedef enum QmpCommandOptions
     QCO_COROUTINE             =  (1U << 3),
 } QmpCommandOptions;
 
+typedef enum QmpDisabled
+{
+    QMP_DISABLED_NONE,
+    QMP_DISABLED_GENERIC,
+    QMP_DISABLED_FROZEN,
+} QmpDisabled;
+
 typedef struct QmpCommand
 {
     const char *name;
@@ -35,7 +42,7 @@ typedef struct QmpCommand
     QmpCommandFunc *fn;
     QmpCommandOptions options;
     QTAILQ_ENTRY(QmpCommand) node;
-    bool enabled;
+    QmpDisabled disabled;
 } QmpCommand;
 
 typedef QTAILQ_HEAD(QmpCommandList, QmpCommand) QmpCommandList;
@@ -44,7 +51,8 @@ void qmp_register_command(QmpCommandList *cmds, const char *name,
                           QmpCommandFunc *fn, QmpCommandOptions options);
 const QmpCommand *qmp_find_command(const QmpCommandList *cmds,
                                    const char *name);
-void qmp_disable_command(QmpCommandList *cmds, const char *name);
+void qmp_disable_command(QmpCommandList *cmds, const char *name,
+                         QmpDisabled disabled);
 void qmp_enable_command(QmpCommandList *cmds, const char *name);
 
 bool qmp_command_is_enabled(const QmpCommand *cmd);

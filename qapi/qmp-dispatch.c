@@ -155,11 +155,19 @@ QDict *qmp_dispatch(const QmpCommandList *cmds, QObject *request,
                   "The command %s has not been found", command);
         goto out;
     }
-    if (!cmd->enabled) {
+    switch (cmd->disabled) {
+    case QMP_DISABLED_FROZEN:
+        error_set(&err, ERROR_CLASS_COMMAND_NOT_FOUND,
+                  "The command %s has been disabled after fsfreeze",
+                  command);
+        goto out;
+    case QMP_DISABLED_GENERIC:
         error_set(&err, ERROR_CLASS_COMMAND_NOT_FOUND,
                   "The command %s has been disabled for this instance",
                   command);
         goto out;
+    case QMP_DISABLED_NONE:
+        break;
     }
     if (oob && !(cmd->options & QCO_ALLOW_OOB)) {
         error_setg(&err, "The command %s does not support OOB",

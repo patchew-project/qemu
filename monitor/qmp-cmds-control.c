@@ -107,7 +107,7 @@ static void query_commands_cb(const QmpCommand *cmd, void *opaque)
     CommandInfo *info;
     CommandInfoList **list = opaque;
 
-    if (!cmd->enabled) {
+    if (!qmp_command_is_enabled(cmd)) {
         return;
     }
 
