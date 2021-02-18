@@ -1117,15 +1117,19 @@ static inline void gen_cmps(DisasContext *s, MemOp ot)
 static void gen_bpt_io(DisasContext *s, TCGv_i32 t_port, int ot)
 {
     if (s->flags & HF_IOBPT_MASK) {
+#ifdef CONFIG_USER_ONLY
+        /* user-mode cpu should not be in IOBPT mode */
+        g_assert_not_reached();
+#else
         TCGv_i32 t_size = tcg_const_i32(1 << ot);
         TCGv t_next = tcg_const_tl(s->pc - s->cs_base);
 
         gen_helper_bpt_io(cpu_env, t_port, t_size, t_next);
         tcg_temp_free_i32(t_size);
         tcg_temp_free(t_next);
+#endif /* CONFIG_USER_ONLY */
     }
 }
-
 
 static inline void gen_ins(DisasContext *s, MemOp ot)
 {
@@ -8074,7 +8078,9 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
                 gen_svm_check_intercept(s, pc_start, SVM_EXIT_WRITE_DR0 + reg);
                 gen_op_mov_v_reg(s, ot, s->T0, rm);
                 tcg_gen_movi_i32(s->tmp2_i32, reg);
+#ifndef CONFIG_USER_ONLY
                 gen_helper_set_dr(cpu_env, s->tmp2_i32, s->T0);
+#endif /* CONFIG_USER_ONLY */
                 gen_jmp_im(s, s->pc - s->cs_base);
                 gen_eob(s);
             } else {
