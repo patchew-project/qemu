@@ -43,6 +43,6 @@ wrote 512/512 bytes at offset 512
 Formatting 'TEST_DIR/t.IMGFMT.qcow2', fmt=qcow2 size=4096 backing_file=TEST_DIR/t.IMGFMT.mid backing_fmt=qcow2
   size:  4096
   min block: 4096
-[{ "start": 0, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": OFFSET}]
+[{ "start": 0, "length": 4096, "depth": 0, "zero": false, "data": false}]
 [{ "start": 0, "length": 4096, "depth": 0, "zero": true, "data": true, "offset": OFFSET}]
 *** done

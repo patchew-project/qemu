@@ -124,9 +124,8 @@ nbd_server_start_unix_socket -B b0 -A --image-opts \
 
 TEST_IMG="driver=nbd,server.type=unix,server.path=$nbd_unix_socket"
 $QEMU_NBD_PROG --list -k $nbd_unix_socket | grep '\(size\|min\)'
-# FIXME: this should report a single 4k block of "data":false which translates
-# to the dirty bitmap being set for at least part of the region; "data":true
-# is wrong unless the entire 4k is clean.
+# Reports a single 4k block of "data":false, meaning dirty.  Reporting
+# "data":true would be wrong (the entire region is not clean).
 $QEMU_IMG map --output=json --image-opts \
 	  "$TEST_IMG",x-dirty-bitmap=qemu:dirty-bitmap:b0 | _filter_qemu_img_map
 # Reports a single 4k block of "zero":true,"data":true, meaning allocated
