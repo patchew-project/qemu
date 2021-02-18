@@ -689,6 +689,25 @@ static void virtio_iommu_report_fault(VirtIOIOMMU *viommu, uint8_t reason,
 
 }
 
+static bool virtio_iommu_bypass_is_allowed(VirtIOIOMMU *s)
+{
+    VirtIODevice *vdev = &s->parent_obj;
+
+    /*
+     * Allow bypass if:
+     * - boot_bypass is enabled and the BYPASS feature hasn't yet been
+     *   acknowledged.
+     * - the BYPASS feature has been negotiated.
+     */
+    if (s->boot_bypass && !(vdev->status & VIRTIO_CONFIG_S_FEATURES_OK)) {
+        return true;
+    }
+    if (virtio_vdev_has_feature(vdev, VIRTIO_IOMMU_F_BYPASS)) {
+        return true;
+    }
+    return false;
+}
+
 static IOMMUTLBEntry virtio_iommu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
                                             IOMMUAccessFlags flag,
                                             int iommu_idx)
@@ -715,8 +734,7 @@ static IOMMUTLBEntry virtio_iommu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
         .perm = IOMMU_NONE,
     };
 
-    bypass_allowed = virtio_vdev_has_feature(&s->parent_obj,
-                                             VIRTIO_IOMMU_F_BYPASS);
+    bypass_allowed = virtio_iommu_bypass_is_allowed(s);
 
     sid = virtio_iommu_get_bdf(sdev);
 
@@ -1156,6 +1174,7 @@ static const VMStateDescription vmstate_virtio_iommu = {
 
 static Property virtio_iommu_properties[] = {
     DEFINE_PROP_LINK("primary-bus", VirtIOIOMMU, primary_bus, "PCI", PCIBus *),
+    DEFINE_PROP_BOOL("boot-bypass", VirtIOIOMMU, boot_bypass, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
