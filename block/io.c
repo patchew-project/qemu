@@ -2325,6 +2325,132 @@ int bdrv_flush_all(void)
     return result;
 }
 
+static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
+                                             bool want_zero,
+                                             int64_t offset, int64_t bytes,
+                                             int64_t *pnum, int64_t *map,
+                                             BlockDriverState **file);
+
+/*
+ * Returns an aligned allocation status of the specified disk region.
+ *
+ * Wrapper around bdrv_co_block_status() which requires the initial
+ * @offset and @count to be aligned to @align (must be power of 2),
+ * and guarantees the resulting @pnum will also be aligned; this may
+ * require piecing together multiple sub-aligned queries into an
+ * appropriate coalesced answer, as follows:
+ *
+ * - BDRV_BLOCK_DATA is set if the flag is set for at least one subregion
+ * - BDRV_BLOCK_ZERO is set only if the flag is set for all subregions
+ * - BDRV_BLOCK_OFFSET_VALID is set only if all subregions are contiguous
+ *   from the same file (@map and @file are then from the first subregion)
+ * - BDRV_BLOCK_ALLOCATED is set if the flag is set for at least one subregion
+ * - BDRV_BLOCK_EOF is set if the last subregion queried set it (any
+ *   remaining bytes to reach alignment are treated as an implicit hole)
+ * - BDRV_BLOCK_RAW is never set
+ */
+static int coroutine_fn bdrv_co_block_status_aligned(BlockDriverState *bs,
+                                                     uint32_t align,
+                                                     bool want_zero,
+                                                     int64_t offset,
+                                                     int64_t bytes,
+                                                     int64_t *pnum,
+                                                     int64_t *map,
+                                                     BlockDriverState **file)
+{
+    int ret;
+
+    assert(is_power_of_2(align) && QEMU_IS_ALIGNED(offset | bytes, align));
+    ret = bdrv_co_block_status(bs, want_zero, offset, bytes, pnum, map, file);
+    if (ret < 0) {
+        return ret;
+    }
+    /* 0-length return only possible for 0-length query or beyond EOF */
+    if (!*pnum) {
+        assert(!bytes || ret & BDRV_BLOCK_EOF);
+        return ret;
+    }
+    assert(!(ret & BDRV_BLOCK_RAW));
+
+    /*
+     * If initial query ended at EOF, round up to align: the post-EOF
+     * tail is an implicit hole, but our rules say we can treat that
+     * like the initial subregion.
+     */
+    if (ret & BDRV_BLOCK_EOF) {
+        *pnum = QEMU_ALIGN_UP(*pnum, align);
+        assert(*pnum <= bytes);
+        return ret;
+    }
+
+    /*
+     * If result is unaligned but not at EOF, it's easier to return
+     * the aligned subset and then compute the coalesced version over
+     * just align bytes.
+     */
+    if (*pnum >= align) {
+        *pnum = QEMU_ALIGN_DOWN(*pnum, align);
+        return ret;
+    }
+
+    /*
+     * If we got here, we have to merge status for multiple
+     * subregions. We can't detect if offsets are contiguous unless
+     * map and file are non-NULL.
+     */
+    if (!map || !file) {
+        ret &= ~BDRV_BLOCK_OFFSET_VALID;
+    }
+    while (*pnum < align) {
+        int ret2;
+        int64_t pnum2;
+        int64_t map2;
+        BlockDriverState *file2;
+
+        ret2 = bdrv_co_block_status(bs, want_zero, offset + *pnum,
+                                    align - *pnum, &pnum2, &map2, &file2);
+        if (ret2 < 0) {
+            return ret2;
+        }
+        assert(!(ret2 & BDRV_BLOCK_RAW));
+        /*
+         * A 0-length answer here is a bug - we should not be querying
+         * beyond EOF. Our rules allow any further bytes in implicit
+         * hole past EOF to have same treatment as the subregion just
+         * before EOF.
+         */
+        assert(pnum2 && pnum2 <= align - *pnum);
+        if (ret2 & BDRV_BLOCK_EOF) {
+            ret |= BDRV_BLOCK_EOF;
+            pnum2 = align - *pnum;
+        }
+
+        /* Now merge the status */
+        if (ret2 & BDRV_BLOCK_DATA) {
+            ret |= BDRV_BLOCK_DATA;
+        }
+        if (!(ret2 & BDRV_BLOCK_ZERO)) {
+            ret &= ~BDRV_BLOCK_ZERO;
+        }
+        if ((ret & BDRV_BLOCK_OFFSET_VALID) &&
+            (!(ret2 & BDRV_BLOCK_OFFSET_VALID) ||
+             *map + *pnum != map2 || *file != file2)) {
+            ret &= ~BDRV_BLOCK_OFFSET_VALID;
+            if (map) {
+                *map = 0;
+            }
+            if (file) {
+                *file = NULL;
+            }
+        }
+        if (ret2 & BDRV_BLOCK_ALLOCATED) {
+            ret |= BDRV_BLOCK_ALLOCATED;
+        }
+        *pnum += pnum2;
+    }
+    return ret;
+}
+
 /*
  * Returns the allocation status of the specified sectors.
  * Drivers not implementing the functionality are assumed to not support
@@ -2438,7 +2564,17 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
      */
     assert(*pnum && QEMU_IS_ALIGNED(*pnum, align) &&
            align > offset - aligned_offset);
-    if (ret & BDRV_BLOCK_RECURSE) {
+    if (ret & BDRV_BLOCK_RAW) {
+        assert(local_file);
+        ret = bdrv_co_block_status_aligned(local_file, align, want_zero,
+                                           local_map, *pnum, pnum, &local_map,
+                                           &local_file);
+        if (ret < 0) {
+            goto out;
+        }
+        assert(!(ret & BDRV_BLOCK_RAW));
+        ret |= BDRV_BLOCK_RAW;
+    } else if (ret & BDRV_BLOCK_RECURSE) {
         assert(ret & BDRV_BLOCK_DATA);
         assert(ret & BDRV_BLOCK_OFFSET_VALID);
         assert(!(ret & BDRV_BLOCK_ZERO));
@@ -2453,9 +2589,7 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
     }
 
     if (ret & BDRV_BLOCK_RAW) {
-        assert(ret & BDRV_BLOCK_OFFSET_VALID && local_file);
-        ret = bdrv_co_block_status(local_file, want_zero, local_map,
-                                   *pnum, pnum, &local_map, &local_file);
+        ret &= ~BDRV_BLOCK_RAW;
         goto out;
     }
 

@@ -46,6 +46,12 @@ echo
 echo "=== Check mapping of unaligned raw image ==="
 echo
 
+# Note that when we enable format probing by omitting -f, the raw
+# layer forces 512-byte alignment and the bytes past EOF take on the
+# same status as the rest of the sector; otherwise, we can see the
+# implicit hole visible past EOF thanks to the block layer rounding
+# sizes up.
+
 _make_test_img 65537 # qemu-img create rounds size up
 
 # file-posix allocates the first block of any images when it is created;
@@ -55,15 +61,22 @@ _make_test_img 65537 # qemu-img create rounds size up
 $QEMU_IO -c 'discard 0 65537' "$TEST_IMG" | _filter_qemu_io
 
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+$QEMU_IMG map -f $IMGFMT --output=json "$TEST_IMG" | _filter_qemu_img_map
+echo
 
 truncate --size=65537 "$TEST_IMG" # so we resize it and check again
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+$QEMU_IMG map -f $IMGFMT --output=json "$TEST_IMG" | _filter_qemu_img_map
+echo
 
 $QEMU_IO -c 'w 65536 1' "$TEST_IMG" | _filter_qemu_io # writing also rounds up
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+$QEMU_IMG map -f $IMGFMT --output=json "$TEST_IMG" | _filter_qemu_img_map
+echo
 
 truncate --size=65537 "$TEST_IMG" # so we resize it and check again
 $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+$QEMU_IMG map -f $IMGFMT --output=json "$TEST_IMG" | _filter_qemu_img_map
 
 # success, all done
 echo '*** done'
