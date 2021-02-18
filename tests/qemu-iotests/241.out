@@ -25,4 +25,25 @@ WARNING: Image format was not specified for 'TEST_DIR/t.raw' and probing guessed
 [{ "start": 0, "length": 1000, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
 { "start": 1000, "length": 24, "depth": 0, "zero": true, "data": true, "offset": OFFSET}]
 1 KiB (0x400) bytes     allocated at offset 0 bytes (0x0)
+
+=== Encrypted qcow2 file backed by unaligned raw image ===
+
+Formatting 'TEST_DIR/t.IMGFMT.qcow2', fmt=qcow2 size=2048 backing_file=TEST_DIR/t.IMGFMT backing_fmt=IMGFMT
+  size:  2048
+  min block: 512
+[{ "start": 0, "length": 1024, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 1024, "length": 1024, "depth": 0, "zero": true, "data": true, "offset": OFFSET}]
+2 KiB (0x800) bytes     allocated at offset 0 bytes (0x0)
+
+=== Use blkdebug for larger alignment than backing layer ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=qcow2 size=2048
+Formatting 'TEST_DIR/t.IMGFMT.mid', fmt=qcow2 size=2048 backing_file=TEST_DIR/t.IMGFMT backing_fmt=qcow2
+wrote 512/512 bytes at offset 512
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Formatting 'TEST_DIR/t.IMGFMT.qcow2', fmt=qcow2 size=4096 backing_file=TEST_DIR/t.IMGFMT.mid backing_fmt=qcow2
+  size:  4096
+  min block: 4096
+[{ "start": 0, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": OFFSET}]
+[{ "start": 0, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": OFFSET}]
 *** done

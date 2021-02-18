@@ -3,7 +3,7 @@
 #
 # Test qemu-nbd vs. unaligned images
 #
-# Copyright (C) 2018-2019 Red Hat, Inc.
+# Copyright (C) 2018-2021 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ status=1 # failure is the default!
 _cleanup()
 {
     _cleanup_test_img
-    rm -f "$TEST_DIR/server.log"
+    rm -f "$TEST_DIR/server.log" "$TEST_IMG_FILE.mid" "$TEST_IMG_FILE.qcow2"
     nbd_server_stop
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
@@ -37,7 +37,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 . ./common.filter
 . ./common.nbd
 
-_supported_fmt raw
+_supported_fmt raw # although the test also requires use of qcow2
 _supported_proto nbd
 _supported_os Linux
 _require_command QEMU_NBD
@@ -89,11 +89,61 @@ $QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
 $QEMU_IO -c map "$TEST_IMG"
 nbd_server_stop
 
-# Not tested yet: we also want to ensure that qemu as NBD client does
+echo
+echo "=== Encrypted qcow2 file backed by unaligned raw image ==="
+echo
+
+# Enabling encryption in qcow2 forces 512-alignment
+SECRET=secret,id=sec0,data=12345
+$QEMU_IMG create -f qcow2 -b "$TEST_IMG_FILE" -F raw --object "$SECRET" \
+  -o encrypt.format=luks,encrypt.key-secret=sec0,encrypt.iter-time=10 \
+  "$TEST_IMG_FILE.qcow2" 2k | _filter_img_create
+nbd_server_start_unix_socket --object "$SECRET" --image-opts \
+  driver=qcow2,file.filename="$TEST_IMG_FILE.qcow2",encrypt.key-secret=sec0
+
+$QEMU_NBD_PROG --list -k $nbd_unix_socket | grep '\(size\|min\)'
+$QEMU_IMG map --output=json "$TEST_IMG" | _filter_qemu_img_map
+$QEMU_IO -c map "$TEST_IMG"
+nbd_server_stop
+
+echo
+echo "=== Use blkdebug for larger alignment than backing layer ==="
+echo
+
+$QEMU_IMG create -f qcow2 -o cluster_size=1024 \
+  "$TEST_IMG_FILE" 2k | _filter_img_create
+$QEMU_IMG create -f qcow2 -b "$TEST_IMG_FILE" -F qcow2 -o cluster_size=512 \
+  "$TEST_IMG_FILE.mid" | _filter_img_create
+$QEMU_IMG bitmap --add -g 512 --enable "$TEST_IMG_FILE.mid" b0
+$QEMU_IO -f qcow2 -c 'w 512 512' "$TEST_IMG_FILE.mid" | _filter_qemu_io
+$QEMU_IMG create -f qcow2 -b "$TEST_IMG_FILE.mid" -F qcow2 \
+  "$TEST_IMG_FILE.qcow2" 4k | _filter_img_create
+FILE=image.file.filename="$TEST_IMG_FILE.qcow2"
+nbd_server_start_unix_socket -B b0 -A --image-opts \
+  driver=blkdebug,align=4096,image.driver=qcow2,image.file.driver=file,"$FILE"
+
+TEST_IMG="driver=nbd,server.type=unix,server.path=$nbd_unix_socket"
+$QEMU_NBD_PROG --list -k $nbd_unix_socket | grep '\(size\|min\)'
+# FIXME: this should report a single 4k block of "data":false which translates
+# to the dirty bitmap being set for at least part of the region; "data":true
+# is wrong unless the entire 4k is clean.
+$QEMU_IMG map --output=json --image-opts \
+	  "$TEST_IMG",x-dirty-bitmap=qemu:dirty-bitmap:b0 | _filter_qemu_img_map
+
+# FIXME: this should report a single 4k block of "zero":true,"data":true,
+# meaning allocated from the backing chain.  Using "zero":false,"data":false
+# (allocated in active layer) or "zero":false,"data":true (entire region
+# unallocated) is wrong.
+$QEMU_IMG map --output=json --image-opts \
+  "$TEST_IMG",x-dirty-bitmap=qemu:allocation-depth | _filter_qemu_img_map
+nbd_server_stop
+
+# Not tested here: we also want to ensure that qemu as NBD client does
 # not access beyond the end of a server's advertised unaligned size:
 #  nbdkit -U - memory size=513 --run 'qemu-io -f raw -c "r 512 512" $nbd'
 # However, since qemu as server always rounds up to a sector alignment,
-# we would have to use nbdkit to provoke the current client failures.
+# we would have to use nbdkit to demonstrate this scenario (see
+# commit 9cf638508c for more information).
 
 # success, all done
 echo '*** done'
