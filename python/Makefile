@@ -1,4 +1,4 @@
-.PHONY: help venv venv-check check clean distclean
+.PHONY: help venv venv-check check clean distclean develop
 
 help:
 	@echo "python packaging help:"
@@ -11,8 +11,10 @@ help:
 	@echo "make venv-check: run linters using pipenv's virtual environment."
 	@echo "    Hint: If you don't know which test to run, run this one!"
 	@echo ""
+	@echo "make develop:    Install deps for 'make check', and"
+	@echo "                 the qemu libs in editable/development mode."
+	@echo ""
 	@echo "make check:      run linters using the current environment."
-	@echo "    Hint: Install deps with: 'pip install \".[devel]\"'"
 	@echo ""
 	@echo "make clean:      remove build output."
 	@echo ""
@@ -26,6 +28,9 @@ venv: .venv
 
 venv-check: venv
 	@pipenv run make check
+
+develop:
+	pip3 install -e .[devel]
 
 check:
 	@pytest
