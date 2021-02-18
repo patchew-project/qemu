@@ -1136,6 +1136,10 @@ sdhci_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
                     sdhci_sdma_transfer_single_block(s);
                 }
             }
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Transfer already in progress,"
+                          " can not update SYSAD", __func__);
         }
         break;
     case SDHC_BLKSIZE:
@@ -1163,8 +1167,11 @@ sdhci_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
             if (blksize != s->blksize) {
                 s->data_count = 0;
             }
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Transfer already in progress,"
+                          " can not update BLKSIZE", __func__);
         }
-
         break;
     case SDHC_ARGUMENT:
         MASKED_WRITE(s->argument, mask, value);
