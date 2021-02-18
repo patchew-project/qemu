@@ -631,15 +631,90 @@ static SlirpState *slirp_lookup(Monitor *mon, const char *id)
     }
 }
 
+/*
+ * Parse a protocol name of the form "name<sep>".
+ * Valid protocols are "tcp" and "udp". An empty string means "tcp".
+ * Returns a pointer to the end of the parsed string on success, and stores
+ * the result in *is_udp.
+ * Otherwise returns NULL and stores the error in *errp.
+ */
+static const char *parse_protocol(const char *str, int sep, bool *is_udp,
+                                  Error **errp)
+{
+    char buf[10];
+    const char *p = str;
+
+    if (get_str_sep(buf, sizeof(buf), &p, sep) < 0) {
+        error_setg(errp, "Missing protocol name separator");
+        return NULL;
+    }
+
+    if (!strcmp(buf, "tcp") || buf[0] == '\0') {
+        *is_udp = false;
+    } else if (!strcmp(buf, "udp")) {
+        *is_udp = true;
+    } else {
+        error_setg(errp, "Bad protocol name");
+        return NULL;
+    }
+
+    return p;
+}
+
+/*
+ * Parse an ip address/port of the form "address:port<terminator>".
+ * An empty address means INADDR_ANY.
+ * Returns a pointer to the end of the parsed string on success, and stores
+ * the results in *addr, *port.
+ * Otherwise returns NULL and stores the error in *errp.
+ */
+static const char *parse_ip_addr_and_port(const char *str, int terminator,
+                                          struct in_addr *addr, int *port,
+                                          Error **errp)
+{
+    g_autofree char *addr_str = NULL;
+    g_autofree char *port_str = NULL;
+    bool is_v6;
+    const char *p = inet_parse_host_and_port(str, terminator, &addr_str,
+                                             &port_str, &is_v6, errp);
+
+    if (p == NULL) {
+        return NULL;
+    }
+
+    /* Ignore is_v6 for the moment, if inet_aton fails let it. */
+    if (addr_str[0] == '\0') {
+        addr->s_addr = INADDR_ANY;
+    } else if (!inet_aton(addr_str, addr)) {
+        error_setg(errp, "Bad address");
+        return NULL;
+    }
+
+    if (qemu_strtoi(port_str, NULL, 10, port) < 0 ||
+        *port < 0 || *port > 65535) {
+        error_setg(errp, "Bad port");
+        return NULL;
+    }
+
+    /*
+     * At this point "p" points to the terminator or trailing NUL if the
+     * terminator is not present.
+     */
+    if (*p) {
+        ++p;
+    }
+    return p;
+}
+
 void hmp_hostfwd_remove(Monitor *mon, const QDict *qdict)
 {
-    struct in_addr host_addr = { .s_addr = INADDR_ANY };
+    struct in_addr host_addr;
     int host_port;
-    char buf[256];
     const char *src_str, *p;
     SlirpState *s;
-    int is_udp = 0;
+    bool is_udp;
     int err;
+    Error *error = NULL;
     const char *arg1 = qdict_get_str(qdict, "arg1");
     const char *arg2 = qdict_get_try_str(qdict, "arg2");
 
@@ -654,30 +729,18 @@ void hmp_hostfwd_remove(Monitor *mon, const QDict *qdict)
         return;
     }
 
+    g_assert(src_str != NULL);
     p = src_str;
-    if (!p || get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
+
+    p = parse_protocol(p, ':', &is_udp, &error);
+    if (p == NULL) {
         goto fail_syntax;
     }
 
-    if (!strcmp(buf, "tcp") || buf[0] == '\0') {
-        is_udp = 0;
-    } else if (!strcmp(buf, "udp")) {
-        is_udp = 1;
-    } else {
+    if (parse_ip_addr_and_port(p, '\0', &host_addr, &host_port,
+                               &error) == NULL) {
         goto fail_syntax;
     }
-
-    if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
-        goto fail_syntax;
-    }
-    if (buf[0] != '\0' && !inet_aton(buf, &host_addr)) {
-        goto fail_syntax;
-    }
-
-    if (qemu_strtoi(p, NULL, 10, &host_port)) {
-        goto fail_syntax;
-    }
-
     err = slirp_remove_hostfwd(s->slirp, is_udp, host_addr, host_port);
 
     monitor_printf(mon, "host forwarding rule for %s %s\n", src_str,
@@ -685,65 +748,39 @@ void hmp_hostfwd_remove(Monitor *mon, const QDict *qdict)
     return;
 
  fail_syntax:
-    monitor_printf(mon, "invalid format\n");
+    monitor_printf(mon, "Invalid format: %s\n", error_get_pretty(error));
+    error_free(error);
 }
 
 static int slirp_hostfwd(SlirpState *s, const char *redir_str, Error **errp)
 {
-    struct in_addr host_addr = { .s_addr = INADDR_ANY };
-    struct in_addr guest_addr = { .s_addr = 0 };
+    struct in_addr host_addr, guest_addr;
     int host_port, guest_port;
     const char *p;
-    char buf[256];
-    int is_udp;
-    char *end;
-    const char *fail_reason = "Unknown reason";
+    bool is_udp;
+    Error *error = NULL;
 
+    g_assert(redir_str != NULL);
     p = redir_str;
-    if (!p || get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
-        fail_reason = "No : separators";
-        goto fail_syntax;
-    }
-    if (!strcmp(buf, "tcp") || buf[0] == '\0') {
-        is_udp = 0;
-    } else if (!strcmp(buf, "udp")) {
-        is_udp = 1;
-    } else {
-        fail_reason = "Bad protocol name";
+
+    p = parse_protocol(p, ':', &is_udp, &error);
+    if (p == NULL) {
         goto fail_syntax;
     }
 
-    if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
-        fail_reason = "Missing : separator";
-        goto fail_syntax;
-    }
-    if (buf[0] != '\0' && !inet_aton(buf, &host_addr)) {
-        fail_reason = "Bad host address";
+    p = parse_ip_addr_and_port(p, '-', &host_addr, &host_port, &error);
+    if (p == NULL) {
+        error_prepend(&error, "For host address: ");
         goto fail_syntax;
     }
 
-    if (get_str_sep(buf, sizeof(buf), &p, '-') < 0) {
-        fail_reason = "Bad host port separator";
+    if (parse_ip_addr_and_port(p, '\0', &guest_addr, &guest_port,
+                               &error) == NULL) {
+        error_prepend(&error, "For guest address: ");
         goto fail_syntax;
     }
-    host_port = strtol(buf, &end, 0);
-    if (*end != '\0' || host_port < 0 || host_port > 65535) {
-        fail_reason = "Bad host port";
-        goto fail_syntax;
-    }
-
-    if (get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
-        fail_reason = "Missing guest address";
-        goto fail_syntax;
-    }
-    if (buf[0] != '\0' && !inet_aton(buf, &guest_addr)) {
-        fail_reason = "Bad guest address";
-        goto fail_syntax;
-    }
-
-    guest_port = strtol(p, &end, 0);
-    if (*end != '\0' || guest_port < 1 || guest_port > 65535) {
-        fail_reason = "Bad guest port";
+    if (guest_port == 0) {
+        error_setg(&error, "For guest address: Bad port");
         goto fail_syntax;
     }
 
@@ -757,7 +794,8 @@ static int slirp_hostfwd(SlirpState *s, const char *redir_str, Error **errp)
 
  fail_syntax:
     error_setg(errp, "Invalid host forwarding rule '%s' (%s)", redir_str,
-               fail_reason);
+               error_get_pretty(error));
+    error_free(error);
     return -1;
 }
 
