@@ -56,6 +56,8 @@ qtests_i386 = \
    'rtc-test',
    'i440fx-test',
    'fuzz-test',
+   'fuzz-sdhci',
+   'sdhci-test',
    'fw_cfg-test',
    'device-plug-test',
    'drive_del-test',
