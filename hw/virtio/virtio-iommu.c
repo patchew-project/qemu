@@ -155,6 +155,8 @@ static void virtio_iommu_notify_unmap(IOMMUMemoryRegion *mr, hwaddr virt_start,
                                       hwaddr virt_end)
 {
     IOMMUTLBEvent event;
+    uint64_t mask = virt_end - virt_start;
+    uint64_t size;
 
     if (!(mr->iommu_notify_flags & IOMMU_NOTIFIER_UNMAP)) {
         return;
@@ -164,12 +166,27 @@ static void virtio_iommu_notify_unmap(IOMMUMemoryRegion *mr, hwaddr virt_start,
 
     event.type = IOMMU_NOTIFIER_UNMAP;
     event.entry.target_as = &address_space_memory;
-    event.entry.addr_mask = virt_end - virt_start;
-    event.entry.iova = virt_start;
     event.entry.perm = IOMMU_NONE;
     event.entry.translated_addr = 0;
+    event.entry.addr_mask = mask;
+    event.entry.iova = virt_start;
 
-    memory_region_notify_iommu(mr, 0, event);
+    if (mask == UINT64_MAX) {
+        memory_region_notify_iommu(mr, 0, event);
+    }
+
+    size = mask + 1;
+
+    while (size) {
+        uint8_t highest_bit = 64 - clz64(size) - 1;
+        uint64_t pow2size = BIT_ULL(highest_bit);
+
+        event.entry.addr_mask = pow2size - 1;
+        event.entry.iova = virt_start;
+        memory_region_notify_iommu(mr, 0, event);
+        size &= ~pow2size;
+        virt_start += pow2size;
+    }
 }
 
 static gboolean virtio_iommu_notify_unmap_cb(gpointer key, gpointer value,
