@@ -1230,9 +1230,10 @@ static int coroutine_fn quorum_co_block_status(BlockDriverState *bs,
 
     for (i = 0; i < s->num_children; i++) {
         int64_t bytes;
-        ret = bdrv_co_common_block_status_above(s->children[i]->bs, NULL, false,
-                                                want_zero, offset, count,
-                                                &bytes, NULL, NULL, NULL);
+        ret = bdrv_co_common_block_status_above(s->children[i]->bs, NULL, 1,
+                                                false, want_zero, offset,
+                                                count, &bytes, NULL, NULL,
+                                                NULL);
         if (ret < 0) {
             quorum_report_bad(QUORUM_OP_TYPE_READ, offset, count,
                               s->children[i]->bs->node_name, ret);

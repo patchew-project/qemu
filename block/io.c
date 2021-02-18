@@ -2656,6 +2656,7 @@ early_out:
 int coroutine_fn
 bdrv_co_common_block_status_above(BlockDriverState *bs,
                                   BlockDriverState *base,
+                                  uint32_t align,
                                   bool include_base,
                                   bool want_zero,
                                   int64_t offset,
@@ -2698,8 +2699,8 @@ bdrv_co_common_block_status_above(BlockDriverState *bs,
     for (p = bdrv_filter_or_cow_bs(bs); include_base || p != base;
          p = bdrv_filter_or_cow_bs(p))
     {
-        ret = bdrv_co_block_status(p, want_zero, offset, bytes, pnum, map,
-                                   file);
+        ret = bdrv_co_block_status_aligned(p, align, want_zero, offset, bytes,
+                                           pnum, map, file);
         ++*depth;
         if (ret < 0) {
             return ret;
@@ -2758,8 +2759,8 @@ int bdrv_block_status_above(BlockDriverState *bs, BlockDriverState *base,
                             int64_t offset, int64_t bytes, int64_t *pnum,
                             int64_t *map, BlockDriverState **file)
 {
-    return bdrv_common_block_status_above(bs, base, false, true, offset, bytes,
-                                          pnum, map, file, NULL);
+    return bdrv_common_block_status_above(bs, base, 1, false, true, offset,
+                                          bytes, pnum, map, file, NULL);
 }
 
 int bdrv_block_status(BlockDriverState *bs, int64_t offset, int64_t bytes,
@@ -2786,7 +2787,7 @@ int coroutine_fn bdrv_co_is_zero_fast(BlockDriverState *bs, int64_t offset,
         return 1;
     }
 
-    ret = bdrv_common_block_status_above(bs, NULL, false, false, offset,
+    ret = bdrv_common_block_status_above(bs, NULL, 1, false, false, offset,
                                          bytes, &pnum, NULL, NULL, NULL);
 
     if (ret < 0) {
@@ -2796,13 +2797,47 @@ int coroutine_fn bdrv_co_is_zero_fast(BlockDriverState *bs, int64_t offset,
     return (pnum == bytes) && (ret & BDRV_BLOCK_ZERO);
 }
 
+/*
+ * Similar to bdrv_block_status_above(bs, NULL, ...), but ensures that
+ * the answer matches the minimum alignment of bs (smaller alignments
+ * in layers above will not leak through to the active layer). It is
+ * assumed that callers do not care about the resulting mapping of
+ * offsets to an underlying BDS.
+ */
+int bdrv_block_status_aligned(BlockDriverState *bs, int64_t offset,
+                              int64_t bytes, int64_t *pnum)
+{
+    /* Widen the request to aligned boundaries */
+    int64_t aligned_offset, aligned_bytes;
+    uint32_t align = bs->bl.request_alignment;
+    int ret;
+
+    assert(pnum);
+    aligned_offset = QEMU_ALIGN_DOWN(offset, align);
+    aligned_bytes = ROUND_UP(offset + bytes, align) - aligned_offset;
+    ret = bdrv_common_block_status_above(bs, NULL, align, false, true,
+                                         aligned_offset, aligned_bytes,
+                                         pnum, NULL, NULL, NULL);
+    if (ret < 0) {
+        *pnum = 0;
+        return ret;
+    }
+    assert(*pnum && QEMU_IS_ALIGNED(*pnum, align) &&
+           align > offset - aligned_offset);
+    *pnum -= offset - aligned_offset;
+    if (*pnum > bytes) {
+        *pnum = bytes;
+    }
+    return ret;
+}
+
 int coroutine_fn bdrv_is_allocated(BlockDriverState *bs, int64_t offset,
                                    int64_t bytes, int64_t *pnum)
 {
     int ret;
     int64_t dummy;
 
-    ret = bdrv_common_block_status_above(bs, bs, true, false, offset,
+    ret = bdrv_common_block_status_above(bs, bs, 1, true, false, offset,
                                          bytes, pnum ? pnum : &dummy, NULL,
                                          NULL, NULL);
     if (ret < 0) {
@@ -2833,12 +2868,27 @@ int bdrv_is_allocated_above(BlockDriverState *top,
                             bool include_base, int64_t offset,
                             int64_t bytes, int64_t *pnum)
 {
+    /* Widen the request to aligned boundaries */
+    int64_t aligned_offset, aligned_bytes;
+    uint32_t align = top->bl.request_alignment;
     int depth;
-    int ret = bdrv_common_block_status_above(top, base, include_base, false,
-                                             offset, bytes, pnum, NULL, NULL,
-                                             &depth);
+    int ret;
+
+    assert(pnum);
+    aligned_offset = QEMU_ALIGN_DOWN(offset, align);
+    aligned_bytes = ROUND_UP(offset + bytes, align) - aligned_offset;
+    ret = bdrv_common_block_status_above(top, base, align, include_base, false,
+                                         aligned_offset, aligned_bytes, pnum,
+                                         NULL, NULL, &depth);
     if (ret < 0) {
+        *pnum = 0;
         return ret;
+    }
+    assert(*pnum && QEMU_IS_ALIGNED(*pnum, align) &&
+           align > offset - aligned_offset);
+    *pnum -= offset - aligned_offset;
+    if (*pnum > bytes) {
+        *pnum = bytes;
     }
 
     if (ret & BDRV_BLOCK_ALLOCATED) {

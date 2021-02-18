@@ -1923,7 +1923,7 @@ static int coroutine_fn nbd_co_send_structured_error(NBDClient *client,
 }
 
 /* Do a sparse read and send the structured reply to the client.
- * Returns -errno if sending fails. bdrv_block_status_above() failure is
+ * Returns -errno if sending fails. bdrv_block_status_aligned() failure is
  * reported to the client, at which point this function succeeds.
  */
 static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
@@ -1939,10 +1939,9 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
 
     while (progress < size) {
         int64_t pnum;
-        int status = bdrv_block_status_above(blk_bs(exp->common.blk), NULL,
-                                             offset + progress,
-                                             size - progress, &pnum, NULL,
-                                             NULL);
+        int status = bdrv_block_status_aligned(blk_bs(exp->common.blk),
+                                               offset + progress,
+                                               size - progress, &pnum);
         bool final;
 
         if (status < 0) {
@@ -2080,8 +2079,7 @@ static int blockstatus_to_extents(BlockDriverState *bs, uint64_t offset,
     while (bytes) {
         uint32_t flags;
         int64_t num;
-        int ret = bdrv_block_status_above(bs, NULL, offset, bytes, &num,
-                                          NULL, NULL);
+        int ret = bdrv_block_status_aligned(bs, offset, bytes, &num);
 
         if (ret < 0) {
             return ret;

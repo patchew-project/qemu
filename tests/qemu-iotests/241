@@ -129,11 +129,10 @@ $QEMU_NBD_PROG --list -k $nbd_unix_socket | grep '\(size\|min\)'
 # is wrong unless the entire 4k is clean.
 $QEMU_IMG map --output=json --image-opts \
 	  "$TEST_IMG",x-dirty-bitmap=qemu:dirty-bitmap:b0 | _filter_qemu_img_map
-
-# FIXME: this should report a single 4k block of "zero":true,"data":true,
-# meaning allocated from the backing chain.  Using "zero":false,"data":false
-# (allocated in active layer) or "zero":false,"data":true (entire region
-# unallocated) is wrong.
+# Reports a single 4k block of "zero":true,"data":true, meaning allocated
+# from the backing chain.  Reporting "zero":false,"data":false would be wrong
+# (nothing is allocated in the active layer), and as would reporting
+# "zero":false,"data":true (the entire region is not unallocated).
 $QEMU_IMG map --output=json --image-opts \
   "$TEST_IMG",x-dirty-bitmap=qemu:allocation-depth | _filter_qemu_img_map
 nbd_server_stop
