@@ -843,7 +843,8 @@ static void action_command(EEPRO100State *s)
         bool bit_i;
         bool bit_nc;
         uint16_t ok_status = STATUS_OK;
-        s->cb_address = s->cu_base + s->cu_offset;
+        s->cb_address = s->cu_base + s->cu_offset;  /* uint32_t overflow */
+        assert (s->cb_address >= s->cu_base);
         read_cb(s);
         bit_el = ((s->tx.command & COMMAND_EL) != 0);
         bit_s = ((s->tx.command & COMMAND_S) != 0);
@@ -860,6 +861,7 @@ static void action_command(EEPRO100State *s)
         }
 
         s->cu_offset = s->tx.link;
+        assert(s->cu_offset > 0);
         TRACE(OTHER,
               logout("val=(cu start), status=0x%04x, command=0x%04x, link=0x%08x\n",
                      s->tx.status, s->tx.command, s->tx.link));
@@ -990,8 +992,10 @@ static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
         break;
     case CU_CMD_BASE:
         /* Load CU base. */
+        assert(get_cu_state(s) == cu_idle);
         TRACE(OTHER, logout("val=0x%02x (CU base address)\n", val));
         s->cu_base = e100_read_reg4(s, SCBPointer);
+        assert(!s->cu_base);
         break;
     case CU_DUMPSTATS:
         /* Dump and reset statistical counters. */
@@ -1048,8 +1052,10 @@ static void eepro100_ru_command(EEPRO100State * s, uint8_t val)
         break;
     case RX_ADDR_LOAD:
         /* Load RU base. */
+        assert(get_ru_state(s) == ru_idle);
         TRACE(OTHER, logout("val=0x%02x (RU base address)\n", val));
         s->ru_base = e100_read_reg4(s, SCBPointer);
+        assert(!s->ru_base);
         break;
     default:
         logout("val=0x%02x (undefined RU command)\n", val);
