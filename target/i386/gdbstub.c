@@ -383,26 +383,38 @@ int x86_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 
         case IDX_CTL_CR0_REG:
             if (env->hflags & HF_CS64_MASK) {
+#ifdef CONFIG_SOFTMMU
                 cpu_x86_update_cr0(env, ldq_p(mem_buf));
+#endif
                 return 8;
             }
+#ifdef CONFIG_SOFTMMU
             cpu_x86_update_cr0(env, ldl_p(mem_buf));
+#endif
             return 4;
 
         case IDX_CTL_CR2_REG:
             if (env->hflags & HF_CS64_MASK) {
+#ifdef CONFIG_SOFTMMU
                 env->cr[2] = ldq_p(mem_buf);
+#endif
                 return 8;
             }
+#ifdef CONFIG_SOFTMMU
             env->cr[2] = ldl_p(mem_buf);
+#endif
             return 4;
 
         case IDX_CTL_CR3_REG:
             if (env->hflags & HF_CS64_MASK) {
+#ifdef CONFIG_SOFTMMU
                 cpu_x86_update_cr3(env, ldq_p(mem_buf));
+#endif
                 return 8;
             }
+#ifdef CONFIG_SOFTMMU
             cpu_x86_update_cr3(env, ldl_p(mem_buf));
+#endif
             return 4;
 
         case IDX_CTL_CR4_REG:
@@ -427,10 +439,14 @@ int x86_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 
         case IDX_CTL_EFER_REG:
             if (env->hflags & HF_CS64_MASK) {
+#ifdef CONFIG_SOFTMMU
                 cpu_load_efer(env, ldq_p(mem_buf));
+#endif
                 return 8;
             }
+#ifdef CONFIG_SOFTMMU
             cpu_load_efer(env, ldl_p(mem_buf));
+#endif
             return 4;
 
         }
