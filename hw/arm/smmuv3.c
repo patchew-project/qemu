@@ -861,7 +861,7 @@ static void smmuv3_s1_range_inval(SMMUState *s, Cmd *cmd)
     uint16_t vmid = CMD_VMID(cmd);
     bool leaf = CMD_LEAF(cmd);
     uint8_t tg = CMD_TG(cmd);
-    hwaddr num_pages = 1;
+    uint64_t num_pages = 1;
     int asid = -1;
 
     if (tg) {
@@ -874,9 +874,23 @@ static void smmuv3_s1_range_inval(SMMUState *s, Cmd *cmd)
     if (type == SMMU_CMD_TLBI_NH_VA) {
         asid = CMD_ASID(cmd);
     }
-    trace_smmuv3_s1_range_inval(vmid, asid, addr, tg, num_pages, ttl, leaf);
-    smmuv3_inv_notifiers_iova(s, asid, addr, tg, num_pages);
-    smmu_iotlb_inv_iova(s, asid, addr, tg, num_pages, ttl);
+
+    /* Split invalidations into ^2 range invalidations */
+    while (num_pages) {
+        uint8_t granule = tg * 2 + 10;
+        uint8_t highest_bit;
+        uint64_t pow2pages;
+
+        highest_bit = 64 - clz64(num_pages) - 1;
+        pow2pages =  BIT_ULL(highest_bit);
+
+        trace_smmuv3_s1_range_inval(vmid, asid, addr, tg, pow2pages, ttl, leaf);
+        smmuv3_inv_notifiers_iova(s, asid, addr, tg, pow2pages);
+        smmu_iotlb_inv_iova(s, asid, addr, tg, pow2pages, ttl);
+
+        num_pages &= ~pow2pages;
+        addr += pow2pages * BIT_ULL(granule);
+    }
 }
 
 static int smmuv3_cmdq_consume(SMMUv3State *s)
