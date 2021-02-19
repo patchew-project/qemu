@@ -437,7 +437,7 @@ QemuCocoaView *cocoaView;
             screen.bitsPerPixel, //bitsPerPixel
             (screen.width * (screen.bitsPerComponent/2)), //bytesPerRow
 #ifdef __LITTLE_ENDIAN__
-            CGColorSpaceCreateWithName(kCGColorSpaceGenericRGB), //colorspace for OS X >= 10.4
+            CGColorSpaceCreateWithName(kCGColorSpaceSRGB), //colorspace for OS X >= 10.5
             kCGBitmapByteOrder32Little | kCGImageAlphaNoneSkipFirst,
 #else
             CGColorSpaceCreateDeviceRGB(), //colorspace for OS X < 10.4 (actually ppc)
