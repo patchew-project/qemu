@@ -1456,6 +1456,7 @@ static void mips_malta_machine_init(MachineClass *mc)
     mc->default_cpu_type = MIPS_CPU_TYPE_NAME("24Kf");
 #endif
     mc->default_ram_id = "mips_malta.ram";
+    mc->kvm_supported = true;
 }
 
 DEFINE_MACHINE("malta", mips_malta_machine_init)
