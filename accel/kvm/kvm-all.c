@@ -2001,6 +2001,12 @@ static int kvm_init(MachineState *ms)
 
     s = KVM_STATE(ms->accelerator);
 
+    if (!mc->kvm_supported) {
+        ret = -EINVAL;
+        fprintf(stderr, "Machine '%s' does not support KVM\n", mc->name);
+        exit(1);
+    }
+
     /*
      * On systems where the kernel can support different base page
      * sizes, host page size may be different from TARGET_PAGE_SIZE,
