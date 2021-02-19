@@ -2133,6 +2133,7 @@ static int do_configure_accelerator(void *opaque, QemuOpts *opts, Error **errp)
     const char *acc = qemu_opt_get(opts, "accel");
     AccelClass *ac = accel_find(acc);
     AccelState *accel;
+    MachineClass *mc;
     int ret;
     bool qtest_with_kvm;
 
@@ -2143,6 +2144,12 @@ static int do_configure_accelerator(void *opaque, QemuOpts *opts, Error **errp)
         if (!qtest_with_kvm) {
             error_report("invalid accelerator %s", acc);
         }
+        return 0;
+    }
+    mc = MACHINE_GET_CLASS(current_machine);
+    if (!qtest_chrdev && !machine_class_valid_for_accelerator(mc, ac->name)) {
+        *p_init_failed = true;
+        error_report("invalid accelerator '%s' for machine %s", acc, mc->name);
         return 0;
     }
     accel = ACCEL(object_new_with_class(OBJECT_CLASS(ac)));
