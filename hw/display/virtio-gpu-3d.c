@@ -179,10 +179,6 @@ static void virgl_cmd_set_scanout(VirtIOGPU *g,
             info.width, info.height,
             ss.r.x, ss.r.y, ss.r.width, ss.r.height);
     } else {
-        if (ss.scanout_id != 0) {
-            dpy_gfx_replace_surface(
-                g->parent_obj.scanout[ss.scanout_id].con, NULL);
-        }
         dpy_gl_scanout_disable(g->parent_obj.scanout[ss.scanout_id].con);
     }
     g->parent_obj.scanout[ss.scanout_id].resource_id = ss.resource_id;
@@ -596,7 +592,12 @@ void virtio_gpu_virgl_reset(VirtIOGPU *g)
     virgl_renderer_reset();
     for (i = 0; i < g->parent_obj.conf.max_outputs; i++) {
         if (i != 0) {
-            dpy_gfx_replace_surface(g->parent_obj.scanout[i].con, NULL);
+            DisplaySurface *surface =
+                qemu_create_message_surface(g->parent_obj.conf.xres,
+                                            g->parent_obj.conf.yres,
+                                            "Guest reset display.");
+
+            dpy_gfx_replace_surface(g->parent_obj.scanout[i].con, surface);
         }
         dpy_gl_scanout_disable(g->parent_obj.scanout[i].con);
     }
