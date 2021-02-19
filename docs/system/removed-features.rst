@@ -38,6 +38,12 @@ or ``-display default,show-cursor=on`` instead.
 QEMU 5.0 introduced an alternative syntax to specify the size of the translation
 block cache, ``-accel tcg,tb-size=``.
 
+``-vnc acl`` (removed in 6.0)
+'''''''''''''''''''''''''''''
+
+The ``acl`` option to the ``-vnc`` argument has been replaced
+by the ``tls-authz`` and ``sasl-authz`` options.
+
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 
@@ -78,6 +84,13 @@ documentation of ``query-hotpluggable-cpus`` for additional details.
 
 No replacement.  The ``change vnc password`` and ``change DEVICE MEDIUM``
 commands are not affected.
+
+``acl_show``, ``acl_reset``, ``acl_policy``, ``acl_add``, ``acl_remove`` (removed in 6.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The ``acl_show``, ``acl_reset``, ``acl_policy``, ``acl_add``, and
+``acl_remove`` commands were removed with no replacement. Authorization
+for VNC should be performed using the pluggable QAuthZ objects.
 
 Guest Emulator ISAs
 -------------------
