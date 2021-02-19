@@ -304,6 +304,7 @@ static void bamboo_machine_init(MachineClass *mc)
     mc->init = bamboo_init;
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("440epb");
     mc->default_ram_id = "ppc4xx.sdram";
+    mc->kvm_supported = true;
 }
 
 DEFINE_MACHINE("bamboo", bamboo_machine_init)
