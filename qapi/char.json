@@ -391,6 +391,17 @@
   'base': 'ChardevCommon' }
 
 ##
+# @ChardevVDAgent:
+#
+# Configuration info for vdagent.
+#
+# Since: 6.0
+##
+{ 'struct': 'ChardevVDAgent',
+  'data': { },
+  'base': 'ChardevCommon' }
+
+##
 # @ChardevBackend:
 #
 # Configuration info for the new chardev backend.
@@ -417,6 +428,8 @@
                           'if': 'defined(CONFIG_SPICE)' },
             'spiceport': { 'type': 'ChardevSpicePort',
                            'if': 'defined(CONFIG_SPICE)' },
+            'vdagent': { 'type': 'ChardevVDAgent',
+                         'if': 'defined(CONFIG_SPICE)' },
             'vc': 'ChardevVC',
             'ringbuf': 'ChardevRingbuf',
             # next one is just for compatibility
