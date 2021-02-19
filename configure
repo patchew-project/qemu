@@ -3607,14 +3607,13 @@ if $pkg_config gbm; then
 fi
 
 if test "$opengl" != "no" ; then
-  opengl_pkgs="epoxy gbm"
-  if $pkg_config $opengl_pkgs; then
-    opengl_cflags="$($pkg_config --cflags $opengl_pkgs)"
-    opengl_libs="$($pkg_config --libs $opengl_pkgs)"
+  if $pkg_config epoxy; then
+    opengl_cflags="$($pkg_config --cflags epoxy)"
+    opengl_libs="$($pkg_config --libs epoxy)"
     opengl=yes
   else
     if test "$opengl" = "yes" ; then
-      feature_not_found "opengl" "Please install opengl (mesa) devel pkgs: $opengl_pkgs"
+      feature_not_found "opengl" "Please install epoxy"
     fi
     opengl_cflags=""
     opengl_libs=""
@@ -3622,7 +3621,7 @@ if test "$opengl" != "no" ; then
   fi
 fi
 
-if test "$opengl" = "yes"; then
+if test "$gbm" = "yes" && test "$opengl" = "yes"; then
   cat > $TMPC << EOF
 #include <epoxy/egl.h>
 #ifndef EGL_MESA_image_dma_buf_export

@@ -3,7 +3,9 @@
 
 #include <epoxy/gl.h>
 #include <epoxy/egl.h>
+#ifdef CONFIG_OPENGL_DMABUF
 #include <gbm.h>
+#endif
 #include "ui/console.h"
 #include "ui/shader.h"
 
