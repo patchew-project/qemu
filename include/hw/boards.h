@@ -146,8 +146,8 @@ typedef struct {
  * @valid_accelerators:
  *    If this machine supports a specific set of virtualization accelerators,
  *    this contains a NULL-terminated list of the accelerators that can be
- *    used. If this field is not set, any accelerator is valid. The QTest
- *    accelerator is always valid.
+ *    used. If this field is not set, a default list containing only the TCG
+ *    accelerator is used. The QTest accelerator is always valid.
  * @kvm_type:
  *    Return the type of KVM corresponding to the kvm-type string option or
  *    computed based on other criteria such as the host kernel capabilities

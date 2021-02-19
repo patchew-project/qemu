@@ -520,11 +520,11 @@ static void machine_set_nvdimm_persistence(Object *obj, const char *value,
 
 bool machine_class_valid_for_accelerator(MachineClass *mc, const char *acc_name)
 {
-    const char *const *name = mc->valid_accelerators;
+    static const char *const default_accels[] = {
+        "tcg", NULL
+    };
+    const char *const *name = mc->valid_accelerators ? : default_accels;
 
-    if (!name) {
-        return true;
-    }
     if (strcmp(acc_name, "qtest") == 0) {
         return true;
     }
