@@ -3,6 +3,7 @@
 #include "chardev/char.h"
 #include "hw/qdev-core.h"
 #include "qemu/option.h"
+#include "ui/clipboard.h"
 #include "ui/console.h"
 #include "ui/input.h"
 #include "trace.h"
@@ -17,12 +18,14 @@
                      VD_AGENT_MAX_DATA_SIZE)
 
 #define VDAGENT_MOUSE_DEFAULT true
+#define VDAGENT_CLIPBOARD_DEFAULT false
 
 struct VDAgentChardev {
     Chardev parent;
 
     /* config */
     bool mouse;
+    bool clipboard;
 
     /* guest vdagent */
     uint32_t caps;
@@ -35,6 +38,11 @@ struct VDAgentChardev {
     uint32_t mouse_y;
     uint32_t mouse_btn;
     QemuInputHandlerState *mouse_hs;
+
+    /* clipboard */
+    QemuClipboardPeer cbpeer;
+    QemuClipboardInfo *cbinfo[QEMU_CLIPBOARD_SELECTION__COUNT];
+    uint32_t cbpending[QEMU_CLIPBOARD_SELECTION__COUNT];
 };
 typedef struct VDAgentChardev VDAgentChardev;
 
@@ -90,6 +98,24 @@ static const char *msg_name[] = {
 #endif
 };
 
+static const char *sel_name[] = {
+    [VD_AGENT_CLIPBOARD_SELECTION_CLIPBOARD] = "clipboard",
+    [VD_AGENT_CLIPBOARD_SELECTION_PRIMARY]   = "primary",
+    [VD_AGENT_CLIPBOARD_SELECTION_SECONDARY] = "secondary",
+};
+
+static const char *type_name[] = {
+    [VD_AGENT_CLIPBOARD_NONE]       = "none",
+    [VD_AGENT_CLIPBOARD_UTF8_TEXT]  = "text",
+    [VD_AGENT_CLIPBOARD_IMAGE_PNG]  = "png",
+    [VD_AGENT_CLIPBOARD_IMAGE_BMP]  = "bmp",
+    [VD_AGENT_CLIPBOARD_IMAGE_TIFF] = "tiff",
+    [VD_AGENT_CLIPBOARD_IMAGE_JPG]  = "jpg",
+#if 0
+    [VD_AGENT_CLIPBOARD_FILE_LIST]  = "files",
+#endif
+};
+
 #define GET_NAME(_m, _v) \
     (((_v) < ARRAY_SIZE(_m) && (_m[_v])) ? (_m[_v]) : "???")
 
@@ -139,6 +165,10 @@ static void vdagent_send_caps(VDAgentChardev *vd)
     msg->size = sizeof(VDAgentAnnounceCapabilities) + sizeof(uint32_t);
     if (vd->mouse) {
         caps->caps[0] |= (1 << VD_AGENT_CAP_MOUSE_STATE);
+    }
+    if (vd->clipboard) {
+        caps->caps[0] |= (1 << VD_AGENT_CAP_CLIPBOARD_BY_DEMAND);
+        caps->caps[0] |= (1 << VD_AGENT_CAP_CLIPBOARD_SELECTION);
     }
 
     vdagent_send_msg(vd, msg);
@@ -233,6 +263,193 @@ static QemuInputHandler vdagent_mouse_handler = {
 };
 
 /* ------------------------------------------------------------------ */
+/* clipboard                                                          */
+
+static uint32_t type_qemu_to_vdagent(enum QemuClipboardType type)
+{
+    switch (type) {
+    case QEMU_CLIPBOARD_TYPE_TEXT:
+        return VD_AGENT_CLIPBOARD_UTF8_TEXT;
+    default:
+        return VD_AGENT_CLIPBOARD_NONE;
+    }
+}
+
+static void vdagent_send_clipboard_grab(VDAgentChardev *vd,
+                                        QemuClipboardInfo *info)
+{
+    VDAgentMessage *msg = g_malloc0(sizeof(VDAgentMessage) +
+                                    sizeof(uint32_t) * (QEMU_CLIPBOARD_TYPE__COUNT + 1));
+    uint8_t *s = msg->data;
+    uint32_t *data = (uint32_t *)(msg->data + 4);
+    uint32_t q, v, type;
+
+    for (q = 0, v = 0; q < QEMU_CLIPBOARD_TYPE__COUNT; q++) {
+        type = type_qemu_to_vdagent(q);
+        if (type != VD_AGENT_CLIPBOARD_NONE && info->types[q].available) {
+            data[v++] = type;
+        }
+    }
+
+    *s = info->selection;
+    msg->type = VD_AGENT_CLIPBOARD_GRAB;
+    msg->size = sizeof(uint32_t) * (v + 1);
+
+    vdagent_send_msg(vd, msg);
+}
+
+static void vdagent_send_clipboard_data(VDAgentChardev *vd,
+                                        QemuClipboardInfo *info,
+                                        QemuClipboardType type)
+{
+    VDAgentMessage *msg = g_malloc0(sizeof(VDAgentMessage) +
+                                    sizeof(uint32_t) * 2 +
+                                    info->types[type].size);
+
+    uint8_t *s = msg->data;
+    uint32_t *t = (uint32_t *)(msg->data + 4);
+    uint8_t *d = msg->data + 8;
+
+    *s = info->selection;
+    *t = type_qemu_to_vdagent(type);
+    memcpy(d, info->types[type].data, info->types[type].size);
+
+    msg->type = VD_AGENT_CLIPBOARD;
+    msg->size = sizeof(uint32_t) * 2 + info->types[type].size;
+
+    vdagent_send_msg(vd, msg);
+}
+
+static void vdagent_clipboard_notify(Notifier *notifier, void *data)
+{
+    VDAgentChardev *vd = container_of(notifier, VDAgentChardev, cbpeer.update);
+    QemuClipboardInfo *info = data;
+    QemuClipboardSelection s = info->selection;
+    QemuClipboardType type;
+    bool self_update = info->owner == &vd->cbpeer;
+
+    if (info != vd->cbinfo[s]) {
+        qemu_clipboard_info_put(vd->cbinfo[s]);
+        vd->cbinfo[s] = qemu_clipboard_info_get(info);
+        vd->cbpending[s] = 0;
+        if (!self_update) {
+            vdagent_send_clipboard_grab(vd, info);
+        }
+        return;
+    }
+
+    if (self_update) {
+        return;
+    }
+
+    for (type = 0; type < QEMU_CLIPBOARD_TYPE__COUNT; type++) {
+        if (vd->cbpending[s] & (1 << type)) {
+            vd->cbpending[s] &= ~(1 << type);
+            vdagent_send_clipboard_data(vd, info, type);
+        }
+    }
+}
+
+static void vdagent_clipboard_request(QemuClipboardInfo *info,
+                                      QemuClipboardType qtype)
+{
+    VDAgentChardev *vd = container_of(info->owner, VDAgentChardev, cbpeer);
+    VDAgentMessage *msg = g_malloc0(sizeof(VDAgentMessage) +
+                                    sizeof(uint32_t) * 2);
+    uint32_t type = type_qemu_to_vdagent(qtype);
+    uint8_t *s = msg->data;
+    uint32_t *data = (uint32_t *)(msg->data + 4);
+
+    if (type == VD_AGENT_CLIPBOARD_NONE) {
+        return;
+    }
+
+    *s = info->selection;
+    *data = type;
+    msg->type = VD_AGENT_CLIPBOARD_REQUEST;
+    msg->size = sizeof(uint32_t) * 2;
+
+    vdagent_send_msg(vd, msg);
+}
+
+static void vdagent_chr_recv_clipboard(VDAgentChardev *vd, VDAgentMessage *msg)
+{
+    uint8_t s = VD_AGENT_CLIPBOARD_SELECTION_CLIPBOARD;
+    uint32_t size = msg->size;
+    void *data = msg->data;
+    QemuClipboardInfo *info;
+    QemuClipboardType type;
+
+    if (vd->caps & (1 << VD_AGENT_CAP_CLIPBOARD_SELECTION)) {
+        s = *(uint8_t *)data;
+        data += 4;
+        size -= 4;
+    }
+
+    switch (msg->type) {
+    case VD_AGENT_CLIPBOARD_GRAB:
+        trace_vdagent_cb_grab_selection(GET_NAME(sel_name, s));
+        info = qemu_clipboard_info_new(&vd->cbpeer, s);
+        while (size) {
+            trace_vdagent_cb_grab_type(GET_NAME(type_name, *(uint32_t *)data));
+            switch (*(uint32_t *)data) {
+            case VD_AGENT_CLIPBOARD_UTF8_TEXT:
+                info->types[QEMU_CLIPBOARD_TYPE_TEXT].available = true;
+                break;
+            default:
+                break;
+            }
+            data += 4;
+            size -= 4;
+        }
+        qemu_clipboard_update(info);
+        qemu_clipboard_info_put(info);
+        break;
+    case VD_AGENT_CLIPBOARD_REQUEST:
+        switch (*(uint32_t *)data) {
+        case VD_AGENT_CLIPBOARD_UTF8_TEXT:
+            type = QEMU_CLIPBOARD_TYPE_TEXT;
+            break;
+        default:
+            return;
+        }
+        if (vd->cbinfo[s] &&
+            vd->cbinfo[s]->types[type].available &&
+            vd->cbinfo[s]->owner != &vd->cbpeer) {
+            if (vd->cbinfo[s]->types[type].data) {
+                vdagent_send_clipboard_data(vd, vd->cbinfo[s], type);
+            } else {
+                vd->cbpending[s] |= (1 << type);
+                qemu_clipboard_request(vd->cbinfo[s], type);
+            }
+        }
+        break;
+    case VD_AGENT_CLIPBOARD: /* data */
+        switch (*(uint32_t *)data) {
+        case VD_AGENT_CLIPBOARD_UTF8_TEXT:
+            type = QEMU_CLIPBOARD_TYPE_TEXT;
+            break;
+        default:
+            return;
+        }
+        data += 4;
+        size -= 4;
+        qemu_clipboard_set_data(&vd->cbpeer, vd->cbinfo[s], type,
+                                size, data, true);
+        break;
+    case VD_AGENT_CLIPBOARD_RELEASE: /* data */
+        if (vd->cbinfo[s] &&
+            vd->cbinfo[s]->owner == &vd->cbpeer) {
+            /* set empty clipboard info */
+            info = qemu_clipboard_info_new(NULL, s);
+            qemu_clipboard_update(info);
+            qemu_clipboard_info_put(info);
+        }
+        break;
+    }
+}
+
+/* ------------------------------------------------------------------ */
 /* chardev backend                                                    */
 
 static void vdagent_chr_open(Chardev *chr,
@@ -246,6 +463,11 @@ static void vdagent_chr_open(Chardev *chr,
     vd->mouse = VDAGENT_MOUSE_DEFAULT;
     if (cfg->has_mouse) {
         vd->mouse = cfg->mouse;
+    }
+
+    vd->clipboard = VDAGENT_CLIPBOARD_DEFAULT;
+    if (cfg->has_clipboard) {
+        vd->clipboard = cfg->clipboard;
     }
 
     if (vd->mouse) {
@@ -274,6 +496,15 @@ static void vdagent_chr_recv_caps(VDAgentChardev *vd, VDAgentMessage *msg)
     if (vd->caps & (1 << VD_AGENT_CAP_MOUSE_STATE) && vd->mouse_hs) {
         qemu_input_handler_activate(vd->mouse_hs);
     }
+    if (vd->caps & (1 << VD_AGENT_CAP_CLIPBOARD_BY_DEMAND) &&
+        vd->caps & (1 << VD_AGENT_CAP_CLIPBOARD_SELECTION) &&
+        vd->clipboard &&
+        vd->cbpeer.update.notify == NULL) {
+        vd->cbpeer.name = "vdagent";
+        vd->cbpeer.update.notify = vdagent_clipboard_notify;
+        vd->cbpeer.request = vdagent_clipboard_request;
+        qemu_clipboard_peer_register(&vd->cbpeer);
+    }
 }
 
 static uint32_t vdagent_chr_recv(VDAgentChardev *vd)
@@ -290,6 +521,12 @@ static uint32_t vdagent_chr_recv(VDAgentChardev *vd)
     switch (msg->type) {
     case VD_AGENT_ANNOUNCE_CAPABILITIES:
         vdagent_chr_recv_caps(vd, msg);
+        break;
+    case VD_AGENT_CLIPBOARD:
+    case VD_AGENT_CLIPBOARD_GRAB:
+    case VD_AGENT_CLIPBOARD_REQUEST:
+    case VD_AGENT_CLIPBOARD_RELEASE:
+        vdagent_chr_recv_clipboard(vd, msg);
         break;
     default:
         break;
@@ -336,6 +573,10 @@ static void vdagent_chr_set_fe_open(struct Chardev *chr, int fe_open)
         if (vd->mouse_hs) {
             qemu_input_handler_deactivate(vd->mouse_hs);
         }
+        if (vd->cbpeer.update.notify) {
+            qemu_clipboard_peer_unregister(&vd->cbpeer);
+            memset(&vd->cbpeer, 0, sizeof(vd->cbpeer));
+        }
         return;
     }
 
@@ -352,6 +593,8 @@ static void vdagent_chr_parse(QemuOpts *opts, ChardevBackend *backend,
     qemu_chr_parse_common(opts, qapi_ChardevVDAgent_base(cfg));
     cfg->has_mouse = true;
     cfg->mouse = qemu_opt_get_bool(opts, "mouse", VDAGENT_MOUSE_DEFAULT);
+    cfg->has_clipboard = true;
+    cfg->clipboard = qemu_opt_get_bool(opts, "clipboard", VDAGENT_CLIPBOARD_DEFAULT);
 }
 
 /* ------------------------------------------------------------------ */
