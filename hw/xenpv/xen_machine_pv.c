@@ -86,12 +86,17 @@ static void xen_init_pv(MachineState *machine)
     atexit(xen_config_cleanup);
 }
 
+static const char *valid_accels[] = {
+    "xen", NULL
+};
+
 static void xenpv_machine_init(MachineClass *mc)
 {
     mc->desc = "Xen Para-virtualized PC";
     mc->init = xen_init_pv;
     mc->max_cpus = 1;
     mc->default_machine_opts = "accel=xen";
+    mc->valid_accelerators = valid_accels;
 }
 
 DEFINE_MACHINE("xenpv", xenpv_machine_init)
