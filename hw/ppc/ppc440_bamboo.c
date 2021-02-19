@@ -298,12 +298,17 @@ static void bamboo_init(MachineState *machine)
     }
 }
 
+static const char *const valid_accels[] = {
+    "tcg", "kvm", NULL
+};
+
 static void bamboo_machine_init(MachineClass *mc)
 {
     mc->desc = "bamboo";
     mc->init = bamboo_init;
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("440epb");
     mc->default_ram_id = "ppc4xx.sdram";
+    mc->valid_accelerators = valid_accels;
 }
 
 DEFINE_MACHINE("bamboo", bamboo_machine_init)

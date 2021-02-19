@@ -578,6 +578,11 @@ static char *core99_fw_dev_path(FWPathProvider *p, BusState *bus,
 
     return NULL;
 }
+
+static const char *const valid_accels[] = {
+    "tcg", "kvm", NULL
+};
+
 static int core99_kvm_type(MachineState *machine, const char *arg)
 {
     /* Always force PR KVM */
@@ -595,6 +600,7 @@ static void core99_machine_class_init(ObjectClass *oc, void *data)
     mc->max_cpus = MAX_CPUS;
     mc->default_boot_order = "cd";
     mc->default_display = "std";
+    mc->valid_accelerators = valid_accels;
     mc->kvm_type = core99_kvm_type;
 #ifdef TARGET_PPC64
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("970fx_v3.1");

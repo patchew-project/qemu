@@ -431,6 +431,10 @@ static void ibm_40p_init(MachineState *machine)
     }
 }
 
+static const char *const valid_accels[] = {
+    "tcg", "kvm", NULL
+};
+
 static void ibm_40p_machine_init(MachineClass *mc)
 {
     mc->desc = "IBM RS/6000 7020 (40p)",
@@ -441,6 +445,7 @@ static void ibm_40p_machine_init(MachineClass *mc)
     mc->default_boot_order = "c";
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("604");
     mc->default_display = "std";
+    mc->valid_accelerators = valid_accels;
 }
 
 DEFINE_MACHINE("40p", ibm_40p_machine_init)
