@@ -53,13 +53,6 @@ amd64-debian11-container:
   variables:
     NAME: debian11
 
-alpha-debian-cross-container:
-  <<: *container_job_definition
-  stage: containers-layer2
-  needs: ['amd64-debian10-container']
-  variables:
-    NAME: debian-alpha-cross
-
 amd64-debian-cross-container:
   <<: *container_job_definition
   stage: containers-layer2
@@ -88,13 +81,6 @@ arm64-debian-cross-container:
   variables:
     NAME: debian-arm64-cross
 
-arm64-test-debian-cross-container:
-  <<: *container_job_definition
-  stage: containers-layer2
-  needs: ['amd64-debian11-container']
-  variables:
-    NAME: debian-arm64-test-cross
-
 armel-debian-cross-container:
   <<: *container_job_definition
   stage: containers-layer2
@@ -108,27 +94,6 @@ armhf-debian-cross-container:
   needs: ['amd64-debian10-container']
   variables:
     NAME: debian-armhf-cross
-
-hppa-debian-cross-container:
-  <<: *container_job_definition
-  stage: containers-layer2
-  needs: ['amd64-debian10-container']
-  variables:
-    NAME: debian-hppa-cross
-
-m68k-debian-cross-container:
-  <<: *container_job_definition
-  stage: containers-layer2
-  needs: ['amd64-debian10-container']
-  variables:
-    NAME: debian-m68k-cross
-
-mips64-debian-cross-container:
-  <<: *container_job_definition
-  stage: containers-layer2
-  needs: ['amd64-debian10-container']
-  variables:
-    NAME: debian-mips64-cross
 
 mips64el-debian-cross-container:
   <<: *container_job_definition
@@ -151,20 +116,6 @@ mipsel-debian-cross-container:
   variables:
     NAME: debian-mipsel-cross
 
-powerpc-debian-cross-container:
-  <<: *container_job_definition
-  stage: containers-layer2
-  needs: ['amd64-debian10-container']
-  variables:
-    NAME: debian-powerpc-cross
-
-ppc64-debian-cross-container:
-  <<: *container_job_definition
-  stage: containers-layer2
-  needs: ['amd64-debian10-container']
-  variables:
-    NAME: debian-ppc64-cross
-
 ppc64el-debian-cross-container:
   <<: *container_job_definition
   stage: containers-layer2
@@ -172,50 +123,12 @@ ppc64el-debian-cross-container:
   variables:
     NAME: debian-ppc64el-cross
 
-riscv64-debian-cross-container:
-  <<: *container_job_definition
-  stage: containers-layer2
-  needs: ['amd64-debian10-container']
-  variables:
-    NAME: debian-riscv64-cross
-
 s390x-debian-cross-container:
   <<: *container_job_definition
   stage: containers-layer2
   needs: ['amd64-debian10-container']
   variables:
     NAME: debian-s390x-cross
-
-sh4-debian-cross-container:
-  <<: *container_job_definition
-  stage: containers-layer2
-  needs: ['amd64-debian10-container']
-  variables:
-    NAME: debian-sh4-cross
-
-sparc64-debian-cross-container:
-  <<: *container_job_definition
-  stage: containers-layer2
-  needs: ['amd64-debian10-container']
-  variables:
-    NAME: debian-sparc64-cross
-
-tricore-debian-cross-container:
-  <<: *container_job_definition
-  stage: containers-layer2
-  needs: ['amd64-debian10-container']
-  variables:
-    NAME: debian-tricore-cross
-
-xtensa-debian-cross-container:
-  <<: *container_job_definition
-  variables:
-    NAME: debian-xtensa-cross
-
-cris-fedora-cross-container:
-  <<: *container_job_definition
-  variables:
-    NAME: fedora-cris-cross
 
 amd64-fedora-container:
   <<: *container_job_definition
@@ -236,11 +149,6 @@ win64-fedora-cross-container:
   <<: *container_job_definition
   variables:
     NAME: fedora-win64-cross
-
-amd64-ubuntu1804-container:
-  <<: *container_job_definition
-  variables:
-    NAME: ubuntu1804
 
 amd64-ubuntu2004-container:
   <<: *container_job_definition
