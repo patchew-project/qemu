@@ -1443,6 +1443,10 @@ static const TypeInfo mips_malta_device = {
     .instance_init = mips_malta_instance_init,
 };
 
+static const char *const valid_accels[] = {
+    "tcg", "kvm", NULL
+};
+
 static void mips_malta_machine_init(MachineClass *mc)
 {
     mc->desc = "MIPS Malta Core LV";
@@ -1456,6 +1460,7 @@ static void mips_malta_machine_init(MachineClass *mc)
     mc->default_cpu_type = MIPS_CPU_TYPE_NAME("24Kf");
 #endif
     mc->default_ram_id = "mips_malta.ram";
+    mc->valid_accelerators = valid_accels;
 }
 
 DEFINE_MACHINE("malta", mips_malta_machine_init)
