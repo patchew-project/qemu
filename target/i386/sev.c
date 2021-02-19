@@ -87,7 +87,7 @@ typedef struct __attribute__((__packed__)) SevInfoBlock {
 static SevGuestState *sev_guest;
 static Error *sev_mig_blocker;
 
-static const char *const sev_fw_errlist[] = {
+static const char *const sev_fw_errlist[SEV_RET_MAX] = {
     [SEV_RET_SUCCESS]                = "",
     [SEV_RET_INVALID_PLATFORM_STATE] = "Platform state is invalid",
     [SEV_RET_INVALID_GUEST_STATE]    = "Guest state is invalid",
@@ -114,6 +114,8 @@ static const char *const sev_fw_errlist[] = {
     [SEV_RET_RESOURCE_LIMIT]         = "Required firmware resource depleted",
     [SEV_RET_SECURE_DATA_INVALID]    = "Part-specific integrity check failure",
 };
+/* Ensure sev_fw_errlist[] is updated after running update-linux-headers.sh */
+QEMU_BUILD_BUG_ON(SEV_RET_SECURE_DATA_INVALID + 1 != SEV_RET_MAX);
 
 #define SEV_FW_MAX_ERROR      ARRAY_SIZE(sev_fw_errlist)
 
@@ -160,6 +162,7 @@ fw_error_to_str(int code)
     if (code < 0 || code >= SEV_FW_MAX_ERROR) {
         return "unknown error";
     }
+    assert(sev_fw_errlist[code]);
 
     return sev_fw_errlist[code];
 }
