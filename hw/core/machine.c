@@ -518,6 +518,32 @@ static void machine_set_nvdimm_persistence(Object *obj, const char *value,
     nvdimms_state->persistence_string = g_strdup(value);
 }
 
+bool machine_class_valid_for_accelerator(MachineClass *mc, const char *acc_name)
+{
+    const char *const *name = mc->valid_accelerators;
+
+    if (!name) {
+        return true;
+    }
+    if (strcmp(acc_name, "qtest") == 0) {
+        return true;
+    }
+
+    for (unsigned i = 0; name[i]; i++) {
+        if (strcasecmp(acc_name, name[i]) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool machine_class_valid_for_current_accelerator(MachineClass *mc)
+{
+    AccelClass *ac = ACCEL_GET_CLASS(current_accel());
+
+    return machine_class_valid_for_accelerator(mc, ac->name);
+}
+
 void machine_class_allow_dynamic_sysbus_dev(MachineClass *mc, const char *type)
 {
     QAPI_LIST_PREPEND(mc->allowed_dynamic_sysbus_devices, g_strdup(type));

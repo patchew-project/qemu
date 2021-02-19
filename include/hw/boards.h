@@ -36,6 +36,24 @@ void machine_set_cpu_numa_node(MachineState *machine,
                                const CpuInstanceProperties *props,
                                Error **errp);
 
+/**
+ * machine_class_valid_for_accelerator:
+ * @mc: the machine class
+ * @acc_name: accelerator name
+ *
+ * Returns %true if the accelerator is valid for the machine, %false
+ * otherwise. See #MachineClass.valid_accelerators.
+ */
+bool machine_class_valid_for_accelerator(MachineClass *mc, const char *acc_name);
+/**
+ * machine_class_valid_for_current_accelerator:
+ * @mc: the machine class
+ *
+ * Returns %true if the accelerator is valid for the current machine,
+ * %false otherwise. See #MachineClass.valid_accelerators.
+ */
+bool machine_class_valid_for_current_accelerator(MachineClass *mc);
+
 void machine_class_allow_dynamic_sysbus_dev(MachineClass *mc, const char *type);
 /*
  * Checks that backend isn't used, preps it for exclusive usage and
@@ -125,6 +143,11 @@ typedef struct {
  *    should instead use "unimplemented-device" for all memory ranges where
  *    the guest will attempt to probe for a device that QEMU doesn't
  *    implement and a stub device is required.
+ * @valid_accelerators:
+ *    If this machine supports a specific set of virtualization accelerators,
+ *    this contains a NULL-terminated list of the accelerators that can be
+ *    used. If this field is not set, any accelerator is valid. The QTest
+ *    accelerator is always valid.
  * @kvm_type:
  *    Return the type of KVM corresponding to the kvm-type string option or
  *    computed based on other criteria such as the host kernel capabilities
@@ -166,6 +189,7 @@ struct MachineClass {
     const char *alias;
     const char *desc;
     const char *deprecation_reason;
+    const char *const *valid_accelerators;
 
     void (*init)(MachineState *state);
     void (*reset)(MachineState *state);
