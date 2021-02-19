@@ -55,10 +55,11 @@ REG32(PWRCTRL, 0x1fc)
     FIELD(PWRCTRL, PPU_ACCESS_UNLOCK, 0, 1)
     FIELD(PWRCTRL, PPU_ACCESS_FILTER, 1, 1)
 REG32(PDCM_PD_SYS_SENSE, 0x200)
+REG32(PDCM_PD_CPU0_SENSE, 0x204)
 REG32(PDCM_PD_SRAM0_SENSE, 0x20c)
 REG32(PDCM_PD_SRAM1_SENSE, 0x210)
-REG32(PDCM_PD_SRAM2_SENSE, 0x214)
-REG32(PDCM_PD_SRAM3_SENSE, 0x218)
+REG32(PDCM_PD_SRAM2_SENSE, 0x214) /* PDCM_PD_VMR0_SENSE on SSE300 */
+REG32(PDCM_PD_SRAM3_SENSE, 0x218) /* PDCM_PD_VMR1_SENSE on SSE300 */
 REG32(PID4, 0xfd0)
 REG32(PID5, 0xfd4)
 REG32(PID6, 0xfd8)
@@ -259,6 +260,18 @@ static uint64_t iotkit_sysctl_read(void *opaque, hwaddr offset,
             g_assert_not_reached();
         }
         break;
+    case A_PDCM_PD_CPU0_SENSE:
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
+        case ARMSSE_SSE200:
+            goto bad_offset;
+        case ARMSSE_SSE300:
+            r = s->pdcm_pd_cpu0_sense;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        break;
     case A_PDCM_PD_SRAM0_SENSE:
         switch (s->sse_version) {
         case ARMSSE_IOTKIT:
@@ -266,6 +279,8 @@ static uint64_t iotkit_sysctl_read(void *opaque, hwaddr offset,
         case ARMSSE_SSE200:
             r = s->pdcm_pd_sram0_sense;
             break;
+        case ARMSSE_SSE300:
+            goto bad_offset;
         default:
             g_assert_not_reached();
         }
@@ -277,6 +292,8 @@ static uint64_t iotkit_sysctl_read(void *opaque, hwaddr offset,
         case ARMSSE_SSE200:
             r = s->pdcm_pd_sram1_sense;
             break;
+        case ARMSSE_SSE300:
+            goto bad_offset;
         default:
             g_assert_not_reached();
         }
@@ -288,6 +305,9 @@ static uint64_t iotkit_sysctl_read(void *opaque, hwaddr offset,
         case ARMSSE_SSE200:
             r = s->pdcm_pd_sram2_sense;
             break;
+        case ARMSSE_SSE300:
+            r = s->pdcm_pd_vmr0_sense;
+            break;
         default:
             g_assert_not_reached();
         }
@@ -298,6 +318,9 @@ static uint64_t iotkit_sysctl_read(void *opaque, hwaddr offset,
             goto bad_offset;
         case ARMSSE_SSE200:
             r = s->pdcm_pd_sram3_sense;
+            break;
+        case ARMSSE_SSE300:
+            r = s->pdcm_pd_vmr1_sense;
             break;
         default:
             g_assert_not_reached();
@@ -553,6 +576,20 @@ static void iotkit_sysctl_write(void *opaque, hwaddr offset,
             g_assert_not_reached();
         }
         break;
+    case A_PDCM_PD_CPU0_SENSE:
+        switch (s->sse_version) {
+        case ARMSSE_IOTKIT:
+        case ARMSSE_SSE200:
+            goto bad_offset;
+        case ARMSSE_SSE300:
+            qemu_log_mask(LOG_UNIMP,
+                          "IoTKit SysCtl PDCM_PD_CPU0_SENSE unimplemented\n");
+            s->pdcm_pd_cpu0_sense = value;
+            break;
+        default:
+            g_assert_not_reached();
+        }
+        break;
     case A_PDCM_PD_SRAM0_SENSE:
         switch (s->sse_version) {
         case ARMSSE_IOTKIT:
@@ -562,6 +599,8 @@ static void iotkit_sysctl_write(void *opaque, hwaddr offset,
                           "IoTKit SysCtl PDCM_PD_SRAM0_SENSE unimplemented\n");
             s->pdcm_pd_sram0_sense = value;
             break;
+        case ARMSSE_SSE300:
+            goto bad_offset;
         default:
             g_assert_not_reached();
         }
@@ -575,6 +614,8 @@ static void iotkit_sysctl_write(void *opaque, hwaddr offset,
                           "IoTKit SysCtl PDCM_PD_SRAM1_SENSE unimplemented\n");
             s->pdcm_pd_sram1_sense = value;
             break;
+        case ARMSSE_SSE300:
+            goto bad_offset;
         default:
             g_assert_not_reached();
         }
@@ -588,6 +629,11 @@ static void iotkit_sysctl_write(void *opaque, hwaddr offset,
                           "IoTKit SysCtl PDCM_PD_SRAM2_SENSE unimplemented\n");
             s->pdcm_pd_sram2_sense = value;
             break;
+        case ARMSSE_SSE300:
+            qemu_log_mask(LOG_UNIMP,
+                          "IoTKit SysCtl PDCM_PD_VMR0_SENSE unimplemented\n");
+            s->pdcm_pd_vmr0_sense = value;
+            break;
         default:
             g_assert_not_reached();
         }
@@ -600,6 +646,11 @@ static void iotkit_sysctl_write(void *opaque, hwaddr offset,
             qemu_log_mask(LOG_UNIMP,
                           "IoTKit SysCtl PDCM_PD_SRAM3_SENSE unimplemented\n");
             s->pdcm_pd_sram3_sense = value;
+            break;
+        case ARMSSE_SSE300:
+            qemu_log_mask(LOG_UNIMP,
+                          "IoTKit SysCtl PDCM_PD_VMR1_SENSE unimplemented\n");
+            s->pdcm_pd_vmr1_sense = value;
             break;
         default:
             g_assert_not_reached();
@@ -672,6 +723,9 @@ static void iotkit_sysctl_reset(DeviceState *dev)
     s->pdcm_pd_sram1_sense = 0;
     s->pdcm_pd_sram2_sense = 0;
     s->pdcm_pd_sram3_sense = 0;
+    s->pdcm_pd_cpu0_sense = 0;
+    s->pdcm_pd_vmr0_sense = 0;
+    s->pdcm_pd_vmr1_sense = 0;
 }
 
 static void iotkit_sysctl_init(Object *obj)
@@ -708,6 +762,9 @@ static const VMStateDescription iotkit_sysctl_sse300_vmstate = {
     .needed = sse300_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(pwrctrl, IoTKitSysCtl),
+        VMSTATE_UINT32(pdcm_pd_cpu0_sense, IoTKitSysCtl),
+        VMSTATE_UINT32(pdcm_pd_vmr0_sense, IoTKitSysCtl),
+        VMSTATE_UINT32(pdcm_pd_vmr1_sense, IoTKitSysCtl),
         VMSTATE_END_OF_LIST()
     }
 };
