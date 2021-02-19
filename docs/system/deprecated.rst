@@ -146,6 +146,14 @@ library enabled as a cryptography provider.
 Neither the ``nettle`` library, or the built-in cryptography provider are
 supported on FIPS enabled hosts.
 
+``-spice password=string`` (since 6.0)
+''''''''''''''''''''''''''''''''''''''
+
+This option is insecure because the SPICE password remains visible in
+the process listing. This is replaced by the new ``password-secret``
+option which lets the password be securely provided on the command
+line using a ``secret`` object instance.
+
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 
