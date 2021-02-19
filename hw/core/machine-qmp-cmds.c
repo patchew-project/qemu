@@ -204,6 +204,10 @@ MachineInfoList *qmp_query_machines(Error **errp)
         MachineClass *mc = el->data;
         MachineInfo *info;
 
+        if (!machine_class_valid_for_current_accelerator(mc)) {
+            continue;
+        }
+
         info = g_malloc0(sizeof(*info));
         if (mc->is_default) {
             info->has_is_default = true;
