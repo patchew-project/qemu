@@ -70,17 +70,25 @@ bool blkconf_blocksizes(BlockConf *conf, Error **errp)
     backend_ret = blk_probe_blocksizes(blk, &blocksizes);
     /* fill in detected values if they are not defined via qemu command line */
     if (!conf->physical_block_size) {
-        if (!backend_ret) {
+        if (!backend_ret && blocksizes.phys) {
            conf->physical_block_size = blocksizes.phys;
         } else {
             conf->physical_block_size = BDRV_SECTOR_SIZE;
         }
     }
     if (!conf->logical_block_size) {
-        if (!backend_ret) {
+        if (!backend_ret && blocksizes.log) {
             conf->logical_block_size = blocksizes.log;
         } else {
             conf->logical_block_size = BDRV_SECTOR_SIZE;
+        }
+    }
+    if (!backend_ret) {
+        if (!conf->opt_io_size) {
+            conf->opt_io_size = blocksizes.opt_io;
+        }
+        if (conf->discard_granularity == -1) {
+            conf->discard_granularity = blocksizes.discard_granularity;
         }
     }
 

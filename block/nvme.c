@@ -989,6 +989,8 @@ static int nvme_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz)
     uint32_t blocksize = nvme_get_blocksize(bs);
     bsz->phys = blocksize;
     bsz->log = blocksize;
+    bsz->opt_io = 0;
+    bsz->discard_granularity = -1;
     return 0;
 }
 
