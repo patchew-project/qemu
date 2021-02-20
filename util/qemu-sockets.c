@@ -620,7 +620,8 @@ static int inet_parse_flag(const char *flagname, const char *optstr, bool *val,
  * Terminator may be '\0'.
  * The syntax for IPv4 addresses is: address:port. "address" is optional,
  * and may be empty (i.e., str is ":port").
- * The syntax for IPv6 addresses is: [address]:port. Upon return the wrapping
+ * The syntax for IPv6 addresses is: [address]:port. "address" is optional,
+ * and may be empty (i.e., str is "[]:port"). Upon return the wrapping
  * [] brackets are removed.
  * Host names are also supported as hostname:port. It is up to the caller to
  * distinguish host names from numeric IPv4 addresses.
@@ -654,7 +655,10 @@ const char *inet_parse_host_and_port(const char *str, int terminator,
         }
     } else if (buf[0] == '[') {
         /* IPv6 addr */
-        if (sscanf(buf, "[%64[^]]]:%32s", host, port) != 2) {
+        /* Note: sscanf %[ doesn't recognize empty contents. */
+        if (sscanf(buf, "[]:%32s", port) == 1) {
+            host[0] = '\0';
+        } else if (sscanf(buf, "[%64[^]]]:%32s", host, port) != 2) {
             error_setg(errp, "error parsing IPv6 address '%s'", buf);
             return NULL;
         }
