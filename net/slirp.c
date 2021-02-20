@@ -96,6 +96,11 @@ typedef struct SlirpState {
     GSList *fwd;
 } SlirpState;
 
+union in4or6_addr {
+    struct in_addr addr4;
+    struct in6_addr addr6;
+};
+
 static struct slirp_config_str *slirp_configs;
 static QTAILQ_HEAD(, SlirpState) slirp_stacks =
     QTAILQ_HEAD_INITIALIZER(slirp_stacks);
@@ -663,32 +668,40 @@ static const char *parse_protocol(const char *str, int sep, bool *is_udp,
 
 /*
  * Parse an ip address/port of the form "address:port<terminator>".
- * An empty address means INADDR_ANY.
+ * IPv6 addresses are wrapped in [] brackets.
+ * An empty address means INADDR_ANY/in6addr_any.
  * Returns a pointer to after the terminator, unless it was '\0' in which case
  * the result points to the '\0'.
- * The parsed results are stored in *addr, *port.
+ * The parsed results are stored in *addr, *port, *is_v6.
  * On error NULL is returned and stores the error in *errp.
  */
 static const char *parse_ip_addr_and_port(const char *str, int terminator,
-                                          struct in_addr *addr, int *port,
-                                          Error **errp)
+                                          union in4or6_addr *addr, int *port,
+                                          bool *is_v6, Error **errp)
 {
     g_autofree char *addr_str = NULL;
     g_autofree char *port_str = NULL;
-    bool is_v6;
     const char *p = inet_parse_host_and_port(str, terminator, &addr_str,
-                                             &port_str, &is_v6, errp);
+                                             &port_str, is_v6, errp);
 
     if (p == NULL) {
         return NULL;
     }
 
-    /* Ignore is_v6 for the moment, if inet_aton fails let it. */
-    if (addr_str[0] == '\0') {
-        addr->s_addr = INADDR_ANY;
-    } else if (!inet_aton(addr_str, addr)) {
-        error_setg(errp, "Bad address");
-        return NULL;
+    if (*is_v6) {
+        if (addr_str[0] == '\0') {
+            addr->addr6 = in6addr_any;
+        } else if (!inet_pton(AF_INET6, addr_str, &addr->addr6)) {
+            error_setg(errp, "Bad address");
+            return NULL;
+        }
+    } else {
+        if (addr_str[0] == '\0') {
+            addr->addr4.s_addr = INADDR_ANY;
+        } else if (!inet_pton(AF_INET, addr_str, &addr->addr4)) {
+            error_setg(errp, "Bad address");
+            return NULL;
+        }
     }
 
     if (qemu_strtoi(port_str, NULL, 10, port) < 0 ||
@@ -709,11 +722,11 @@ static const char *parse_ip_addr_and_port(const char *str, int terminator,
 
 void hmp_hostfwd_remove(Monitor *mon, const QDict *qdict)
 {
-    struct in_addr host_addr;
+    union in4or6_addr host_addr;
     int host_port;
     const char *src_str, *p;
     SlirpState *s;
-    bool is_udp;
+    bool is_udp, is_v6;
     int err;
     Error *error = NULL;
     const char *arg1 = qdict_get_str(qdict, "arg1");
@@ -738,11 +751,18 @@ void hmp_hostfwd_remove(Monitor *mon, const QDict *qdict)
         goto fail_syntax;
     }
 
-    if (parse_ip_addr_and_port(p, '\0', &host_addr, &host_port,
+    if (parse_ip_addr_and_port(p, '\0', &host_addr, &host_port, &is_v6,
                                &error) == NULL) {
         goto fail_syntax;
     }
-    err = slirp_remove_hostfwd(s->slirp, is_udp, host_addr, host_port);
+
+    if (is_v6) {
+        err = slirp_remove_ipv6_hostfwd(s->slirp, is_udp, host_addr.addr6,
+                                        host_port);
+    } else {
+        err = slirp_remove_hostfwd(s->slirp, is_udp, host_addr.addr4,
+                                   host_port);
+    }
 
     monitor_printf(mon, "host forwarding rule for %s %s\n", src_str,
                    err ? "not found" : "removed");
@@ -755,11 +775,12 @@ void hmp_hostfwd_remove(Monitor *mon, const QDict *qdict)
 
 static int slirp_hostfwd(SlirpState *s, const char *redir_str, Error **errp)
 {
-    struct in_addr host_addr, guest_addr;
+    union in4or6_addr host_addr, guest_addr;
     int host_port, guest_port;
     const char *p;
-    bool is_udp;
+    bool is_udp, host_is_v6, guest_is_v6;
     Error *error = NULL;
+    int err;
 
     g_assert(redir_str != NULL);
     p = redir_str;
@@ -769,15 +790,21 @@ static int slirp_hostfwd(SlirpState *s, const char *redir_str, Error **errp)
         goto fail_syntax;
     }
 
-    p = parse_ip_addr_and_port(p, '-', &host_addr, &host_port, &error);
+    p = parse_ip_addr_and_port(p, '-', &host_addr, &host_port, &host_is_v6,
+                               &error);
     if (p == NULL) {
         error_prepend(&error, "For host address: ");
         goto fail_syntax;
     }
 
-    if (parse_ip_addr_and_port(p, '\0', &guest_addr, &guest_port,
+    if (parse_ip_addr_and_port(p, '\0', &guest_addr, &guest_port, &guest_is_v6,
                                &error) == NULL) {
         error_prepend(&error, "For guest address: ");
+        goto fail_syntax;
+    }
+    if (host_is_v6 != guest_is_v6) {
+        /* TODO: Can libslirp support this? */
+        error_setg(&error, "Both host,guest must be one of ipv4 or ipv6");
         goto fail_syntax;
     }
     if (guest_port == 0) {
@@ -785,8 +812,14 @@ static int slirp_hostfwd(SlirpState *s, const char *redir_str, Error **errp)
         goto fail_syntax;
     }
 
-    if (slirp_add_hostfwd(s->slirp, is_udp, host_addr, host_port, guest_addr,
-                          guest_port) < 0) {
+    if (host_is_v6) {
+        err = slirp_add_ipv6_hostfwd(s->slirp, is_udp, host_addr.addr6,
+                                     host_port, guest_addr.addr6, guest_port);
+    } else {
+        err = slirp_add_hostfwd(s->slirp, is_udp, host_addr.addr4, host_port,
+                                guest_addr.addr4, guest_port);
+    }
+    if (err < 0) {
         error_setg(errp, "Could not set up host forwarding rule '%s'",
                    redir_str);
         return -1;

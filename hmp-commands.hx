@@ -1375,6 +1375,16 @@ ERST
 SRST
 ``hostfwd_add``
   Redirect TCP or UDP connections from host to guest (requires -net user).
+  IPV6 addresses are wrapped in square brackes, IPV4 addresses are not.
+
+  Examples:
+  hostfwd_add net0 tcp:127.0.0.1:10022-:22
+  hostfwd_add net0 tcp:[::1]:10022-[fe80::1:2:3:4]:22
+
+  Note that Libslirp currently only provides a "stateless" DHCPv6 server, a
+  consequence of which is that it cannot do the "addr-any" translation to the
+  guest address that is done for IPv4. In other words, the following is
+  currently not supported: hostfwd_add net0 tcp:[::1]:10022-:22
 ERST
 
 #ifdef CONFIG_SLIRP
@@ -1390,6 +1400,11 @@ ERST
 SRST
 ``hostfwd_remove``
   Remove host-to-guest TCP or UDP redirection.
+  IPV6 addresses are wrapped in square brackes, IPV4 addresses are not.
+
+  Examples:
+  hostfwd_remove net0 tcp:127.0.0.1:10022
+  hostfwd_remove net0 tcp:[::1]:10022
 ERST
 
     {
