@@ -31,6 +31,9 @@ int socket_set_fast_reuse(int fd);
 
 int inet_ai_family_from_address(InetSocketAddress *addr,
                                 Error **errp);
+const char *inet_parse_host_and_port(const char *str, int terminator,
+                                     char **hostp, char **portp, bool *is_v6,
+                                     Error **errp);
 int inet_parse(InetSocketAddress *addr, const char *str, Error **errp);
 int inet_connect(const char *str, Error **errp);
 int inet_connect_saddr(InetSocketAddress *saddr, Error **errp);

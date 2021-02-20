@@ -615,44 +615,82 @@ static int inet_parse_flag(const char *flagname, const char *optstr, bool *val,
     return 0;
 }
 
+/*
+ * Parse an inet host and port as "host:port<terminator>".
+ * Terminator may be '\0'.
+ * The syntax for IPv4 addresses is: address:port. "address" is optional,
+ * and may be empty (i.e., str is ":port").
+ * The syntax for IPv6 addresses is: [address]:port. Upon return the wrapping
+ * [] brackets are removed.
+ * Host names are also supported as hostname:port. It is up to the caller to
+ * distinguish host names from numeric IPv4 addresses.
+ * On success, returns a pointer to the terminator. Space for the address and
+ * port is malloced and stored in *host, *port, the caller must free.
+ * If is_v6 is non-NULL, then it is set to true if the address is an IPv6
+ * address (i.e., [address]), otherwise it is set to false.
+ * On failure NULL is returned with the error stored in *errp.
+ */
+const char *inet_parse_host_and_port(const char *str, int terminator,
+                                     char **hostp, char **portp, bool *is_v6,
+                                     Error **errp)
+{
+    const char *terminator_ptr = strchr(str, terminator);
+    g_autofree char *buf = NULL;
+    char host[65];
+    char port[33];
+
+    if (terminator_ptr == NULL) {
+        /* If the terminator isn't found then use the entire string. */
+        terminator_ptr = str + strlen(str);
+    }
+    buf = g_strndup(str, terminator_ptr - str);
+
+    if (buf[0] == ':') {
+        /* no host given */
+        host[0] = '\0';
+        if (sscanf(buf, ":%32s", port) != 1) {
+            error_setg(errp, "error parsing port in address '%s'", buf);
+            return NULL;
+        }
+    } else if (buf[0] == '[') {
+        /* IPv6 addr */
+        if (sscanf(buf, "[%64[^]]]:%32s", host, port) != 2) {
+            error_setg(errp, "error parsing IPv6 address '%s'", buf);
+            return NULL;
+        }
+    } else {
+        /* hostname or IPv4 addr */
+        if (sscanf(buf, "%64[^:]:%32s", host, port) != 2) {
+            error_setg(errp, "error parsing address '%s'", buf);
+            return NULL;
+        }
+    }
+
+    *hostp = g_strdup(host);
+    *portp = g_strdup(port);
+    if (is_v6 != NULL) {
+        *is_v6 = buf[0] == '[';
+    }
+
+    return terminator_ptr;
+}
+
 int inet_parse(InetSocketAddress *addr, const char *str, Error **errp)
 {
     const char *optstr, *h;
-    char host[65];
-    char port[33];
     int to;
     int pos;
     char *begin;
 
     memset(addr, 0, sizeof(*addr));
 
-    /* parse address */
-    if (str[0] == ':') {
-        /* no host given */
-        host[0] = '\0';
-        if (sscanf(str, ":%32[^,]%n", port, &pos) != 1) {
-            error_setg(errp, "error parsing port in address '%s'", str);
-            return -1;
-        }
-    } else if (str[0] == '[') {
-        /* IPv6 addr */
-        if (sscanf(str, "[%64[^]]]:%32[^,]%n", host, port, &pos) != 2) {
-            error_setg(errp, "error parsing IPv6 address '%s'", str);
-            return -1;
-        }
-    } else {
-        /* hostname or IPv4 addr */
-        if (sscanf(str, "%64[^:]:%32[^,]%n", host, port, &pos) != 2) {
-            error_setg(errp, "error parsing address '%s'", str);
-            return -1;
-        }
+    optstr = inet_parse_host_and_port(str, ',', &addr->host, &addr->port,
+                                      NULL, errp);
+    if (optstr == NULL) {
+        return -1;
     }
 
-    addr->host = g_strdup(host);
-    addr->port = g_strdup(port);
-
     /* parse options */
-    optstr = str + pos;
     h = strstr(optstr, ",to=");
     if (h) {
         h += 4;
