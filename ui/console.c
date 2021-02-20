@@ -1088,6 +1088,30 @@ static void console_putchar(QemuConsole *s, int ch)
     }
 }
 
+static void dpy_gfx_switch(DisplayChangeListener *dcl, DisplaySurface *surface)
+{
+    static DisplaySurface *placeholder;
+    static const char placeholder_msg[] = "Display output is not active.";
+    DisplaySurface *broadcast;
+
+    if (!dcl->ops->dpy_gfx_switch) {
+        return;
+    }
+
+    if (surface) {
+        broadcast = surface;
+    } else {
+        if (!placeholder) {
+            placeholder = qemu_create_message_surface(640, 480, placeholder_msg);
+            placeholder->flags |= QEMU_PLACEHOLDER_FLAG;
+        }
+
+        broadcast = placeholder;
+    }
+
+    dcl->ops->dpy_gfx_switch(dcl, broadcast);
+}
+
 void console_select(unsigned int index)
 {
     DisplayChangeListener *dcl;
@@ -1104,9 +1128,7 @@ void console_select(unsigned int index)
                 if (dcl->con != NULL) {
                     continue;
                 }
-                if (dcl->ops->dpy_gfx_switch) {
-                    dcl->ops->dpy_gfx_switch(dcl, s->surface);
-                }
+                dpy_gfx_switch(dcl, s->surface);
             }
             if (s->surface) {
                 dpy_gfx_update(s, 0, 0, surface_width(s->surface),
@@ -1545,15 +1567,13 @@ void register_displaychangelistener(DisplayChangeListener *dcl)
     } else {
         con = active_console;
     }
-    if (dcl->ops->dpy_gfx_switch) {
-        if (con) {
-            dcl->ops->dpy_gfx_switch(dcl, con->surface);
-        } else {
-            if (!dummy) {
-                dummy = qemu_create_message_surface(640, 480, nodev);
-            }
-            dcl->ops->dpy_gfx_switch(dcl, dummy);
+    if (con) {
+        dpy_gfx_switch(dcl, con->surface);
+    } else {
+        if (!dummy) {
+            dummy = qemu_create_message_surface(640, 480, nodev);
         }
+        dpy_gfx_switch(dcl, dummy);
     }
     text_console_update_cursor(NULL);
 }
@@ -1685,9 +1705,7 @@ void dpy_gfx_replace_surface(QemuConsole *con,
         if (con != (dcl->con ? dcl->con : active_console)) {
             continue;
         }
-        if (dcl->ops->dpy_gfx_switch) {
-            dcl->ops->dpy_gfx_switch(dcl, surface);
-        }
+        dpy_gfx_switch(dcl, surface);
     }
     qemu_free_displaysurface(old_surface);
 }
