@@ -1,3 +1,10 @@
+/*
+ * TC58128 NAND EEPROM emulation
+ *
+ * Copyright (c) 2005 Samuel Tardieu
+ *
+ * SPDX-License-Identifier: MIT
+ */
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "hw/sh4/sh.h"
