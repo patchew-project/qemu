@@ -1,6 +1,12 @@
-#ifndef QEMU_SH_H
-#define QEMU_SH_H
-/* Definitions for SH board emulation.  */
+/*
+ * Definitions for SH board emulation
+ *
+ * Copyright (c) 2005 Samuel Tardieu
+ *
+ * SPDX-License-Identifier: MIT
+ */
+#ifndef QEMU_HW_SH_H
+#define QEMU_HW_SH_H
 
 #include "hw/sh4/sh_intc.h"
 #include "target/sh4/cpu-qom.h"
