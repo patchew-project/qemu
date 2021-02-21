@@ -1667,7 +1667,7 @@ Aml *aml_object_type(Aml *object)
 void
 build_header(BIOSLinker *linker, GArray *table_data,
              AcpiTableHeader *h, const char *sig, int len, uint8_t rev,
-             const char *oem_id, const char *oem_table_id)
+             struct AcpiBuildOem *bld_oem)
 {
     unsigned tbl_offset = (char *)h - table_data->data;
     unsigned checksum_offset = (char *)&h->checksum - table_data->data;
@@ -1675,9 +1675,9 @@ build_header(BIOSLinker *linker, GArray *table_data,
     h->length = cpu_to_le32(len);
     h->revision = rev;
 
-    strpadcpy((char *)h->oem_id, sizeof h->oem_id, oem_id, ' ');
+    strpadcpy((char *)h->oem_id, sizeof h->oem_id, bld_oem->oem_id, ' ');
     strpadcpy((char *)h->oem_table_id, sizeof h->oem_table_id,
-              oem_table_id, ' ');
+              bld_oem->oem_table_id, ' ');
 
     h->oem_revision = cpu_to_le32(1);
     memcpy(h->asl_compiler_id, ACPI_BUILD_APPNAME8, 4);
@@ -1797,7 +1797,7 @@ build_rsdp(GArray *tbl, BIOSLinker *linker, AcpiRsdpData *rsdp_data)
 /* Build rsdt table */
 void
 build_rsdt(GArray *table_data, BIOSLinker *linker, GArray *table_offsets,
-           const char *oem_id, const char *oem_table_id)
+           struct AcpiBuildOem *bld_oem)
 {
     int i;
     unsigned rsdt_entries_offset;
@@ -1818,13 +1818,13 @@ build_rsdt(GArray *table_data, BIOSLinker *linker, GArray *table_offsets,
             ACPI_BUILD_TABLE_FILE, ref_tbl_offset);
     }
     build_header(linker, table_data,
-                 (void *)rsdt, "RSDT", rsdt_len, 1, oem_id, oem_table_id);
+                 (void *)rsdt, "RSDT", rsdt_len, 1, bld_oem);
 }
 
 /* Build xsdt table */
 void
 build_xsdt(GArray *table_data, BIOSLinker *linker, GArray *table_offsets,
-           const char *oem_id, const char *oem_table_id)
+           struct AcpiBuildOem *bld_oem)
 {
     int i;
     unsigned xsdt_entries_offset;
@@ -1845,7 +1845,7 @@ build_xsdt(GArray *table_data, BIOSLinker *linker, GArray *table_offsets,
             ACPI_BUILD_TABLE_FILE, ref_tbl_offset);
     }
     build_header(linker, table_data,
-                 (void *)xsdt, "XSDT", xsdt_len, 1, oem_id, oem_table_id);
+                 (void *)xsdt, "XSDT", xsdt_len, 1, bld_oem);
 }
 
 void build_srat_memory(AcpiSratMemoryAffinity *numamem, uint64_t base,
@@ -1864,7 +1864,7 @@ void build_srat_memory(AcpiSratMemoryAffinity *numamem, uint64_t base,
  * (Revision 2.0 or later)
  */
 void build_slit(GArray *table_data, BIOSLinker *linker, MachineState *ms,
-                const char *oem_id, const char *oem_table_id)
+                struct AcpiBuildOem *bld_oem)
 {
     int slit_start, i, j;
     slit_start = table_data->len;
@@ -1885,12 +1885,12 @@ void build_slit(GArray *table_data, BIOSLinker *linker, MachineState *ms,
     build_header(linker, table_data,
                  (void *)(table_data->data + slit_start),
                  "SLIT",
-                 table_data->len - slit_start, 1, oem_id, oem_table_id);
+                 table_data->len - slit_start, 1, bld_oem);
 }
 
 /* build rev1/rev3/rev5.1 FADT */
 void build_fadt(GArray *tbl, BIOSLinker *linker, const AcpiFadtData *f,
-                const char *oem_id, const char *oem_table_id)
+                struct AcpiBuildOem *bld_oem)
 {
     int off;
     int fadt_start = tbl->len;
@@ -2009,7 +2009,7 @@ void build_fadt(GArray *tbl, BIOSLinker *linker, const AcpiFadtData *f,
 
 build_hdr:
     build_header(linker, tbl, (void *)(tbl->data + fadt_start),
-                 "FACP", tbl->len - fadt_start, f->rev, oem_id, oem_table_id);
+                 "FACP", tbl->len - fadt_start, f->rev, bld_oem);
 }
 
 /*
@@ -2018,7 +2018,7 @@ build_hdr:
  * of TCG ACPI Specification, Family “1.2” and “2.0”, Version 1.2, Rev 8
  */
 void build_tpm2(GArray *table_data, BIOSLinker *linker, GArray *tcpalog,
-                const char *oem_id, const char *oem_table_id)
+                struct AcpiBuildOem *bld_oem)
 {
     uint8_t start_method_params[12] = {};
     unsigned log_addr_offset, tpm2_start;
@@ -2067,8 +2067,7 @@ void build_tpm2(GArray *table_data, BIOSLinker *linker, GArray *tcpalog,
                                    log_addr_offset, 8,
                                    ACPI_BUILD_TPMLOG_FILE, 0);
     build_header(linker, table_data,
-                 tpm2_ptr, "TPM2", table_data->len - tpm2_start, 4, oem_id,
-                 oem_table_id);
+                 tpm2_ptr, "TPM2", table_data->len - tpm2_start, 4, bld_oem);
 }
 
 Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set, uint32_t io_offset,
