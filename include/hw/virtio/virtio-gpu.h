@@ -116,6 +116,8 @@ struct VirtIOGPUBase {
 
     int enabled_output_bitmask;
     struct virtio_gpu_requested_state req_state[VIRTIO_GPU_MAX_SCANOUTS];
+
+    uint32_t refresh_rate;
 };
 
 struct VirtIOGPUBaseClass {

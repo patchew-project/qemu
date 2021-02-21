@@ -96,6 +96,16 @@ static int virtio_gpu_ui_info(void *opaque, uint32_t idx, QemuUIInfo *info)
     return 0;
 }
 
+static void virtio_gpu_update_display_interval(void *opaque, uint64_t interval)
+{
+    VirtIOGPUBase *g = opaque;
+
+    g->refresh_rate = 1000 / interval;
+
+    /* send event to guest */
+    virtio_gpu_notify_event(g, VIRTIO_GPU_EVENT_DISPLAY);
+}
+
 static void
 virtio_gpu_gl_flushed(void *opaque)
 {
@@ -142,6 +152,7 @@ static const GraphicHwOps virtio_gpu_ops = {
     .invalidate = virtio_gpu_invalidate_display,
     .gfx_update = virtio_gpu_update_display,
     .text_update = virtio_gpu_text_update,
+    .gfx_update_interval = virtio_gpu_update_display_interval,
     .ui_info = virtio_gpu_ui_info,
     .gl_block = virtio_gpu_gl_block,
     .gl_flushed = virtio_gpu_gl_flushed,

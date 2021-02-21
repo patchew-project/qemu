@@ -176,6 +176,7 @@ struct QemuConsole {
 struct DisplayState {
     QEMUTimer *gui_timer;
     uint64_t last_update;
+    uint64_t gfx_update_interval;
     uint64_t update_interval;
     bool refreshing;
     bool have_gfx;
@@ -200,6 +201,7 @@ static void text_console_update_cursor(void *opaque);
 static void gui_update(void *opaque)
 {
     uint64_t interval = GUI_REFRESH_INTERVAL_IDLE;
+    uint64_t gfx_interval = GUI_REFRESH_INTERVAL_DEFAULT;
     uint64_t dcl_interval;
     DisplayState *ds = opaque;
     DisplayChangeListener *dcl;
@@ -210,19 +212,28 @@ static void gui_update(void *opaque)
     ds->refreshing = false;
 
     QLIST_FOREACH(dcl, &ds->listeners, next) {
+        if (dcl->gfx_update_interval &&
+            gfx_interval > dcl->gfx_update_interval) {
+            gfx_interval = dcl->gfx_update_interval;
+        }
+    }
+    QLIST_FOREACH(dcl, &ds->listeners, next) {
         dcl_interval = dcl->update_interval ?
-            dcl->update_interval : GUI_REFRESH_INTERVAL_DEFAULT;
+            dcl->update_interval : gfx_interval;
         if (interval > dcl_interval) {
             interval = dcl_interval;
         }
     }
-    if (ds->update_interval != interval) {
-        ds->update_interval = interval;
+    if (ds->gfx_update_interval != gfx_interval) {
+        ds->gfx_update_interval = gfx_interval;
         QTAILQ_FOREACH(con, &consoles, next) {
-            if (con->hw_ops->update_interval) {
-                con->hw_ops->update_interval(con->hw, interval);
+            if (con->hw_ops->gfx_update_interval) {
+                con->hw_ops->gfx_update_interval(con->hw, gfx_interval);
             }
         }
+    }
+    if (ds->update_interval != interval) {
+        ds->update_interval = interval;
         trace_console_refresh(interval);
     }
     ds->last_update = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
