@@ -6097,6 +6097,7 @@ if test "$fuzzing" = "yes" ; then
   # needed CFLAGS have already been provided
   if test -z "${LIB_FUZZING_ENGINE+xxx}" ; then
     QEMU_CFLAGS="$QEMU_CFLAGS -fsanitize=fuzzer-no-link"
+    QEMU_LDFLAGS="$QEMU_CFLAGS -fsanitize=fuzzer-no-link"
     FUZZ_EXE_LDFLAGS="-fsanitize=fuzzer"
   else
     FUZZ_EXE_LDFLAGS="$LIB_FUZZING_ENGINE"
