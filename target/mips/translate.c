@@ -1464,7 +1464,6 @@ enum {
  */
 
 enum {
-    OPC__MXU_MUL     = 0x02,
     OPC_MXU__POOL00  = 0x03,
     OPC_MXU_D16MUL   = 0x08,
     OPC_MXU_D16MAC   = 0x0A,
@@ -25838,7 +25837,7 @@ static bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
  */
 static void decode_opc_mxu(DisasContext *ctx, uint32_t insn)
 {
-    if (extract32(insn, 0, 6) == OPC__MXU_MUL) {
+    if (MASK_SPECIAL2(insn) == OPC_MUL) {
         uint32_t  rs, rt, rd, op1;
 
         rs = extract32(insn, 21, 5);
