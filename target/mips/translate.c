@@ -25777,34 +25777,18 @@ static void decode_opc_mxu__pool19(DisasContext *ctx)
     }
 }
 
-/*
- * Main MXU decoding function
- */
-static void decode_opc_mxu(DisasContext *ctx, uint32_t insn)
+static bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
 {
     uint32_t opcode = extract32(insn, 0, 6);
 
-    if (opcode == OPC__MXU_MUL) {
-        uint32_t  rs, rt, rd, op1;
-
-        rs = extract32(insn, 21, 5);
-        rt = extract32(insn, 16, 5);
-        rd = extract32(insn, 11, 5);
-        op1 = MASK_SPECIAL2(insn);
-
-        gen_arith(ctx, op1, rd, rs, rt);
-
-        return;
-    }
-
     if (opcode == OPC_MXU_S32M2I) {
         gen_mxu_s32m2i(ctx);
-        return;
+        return true;
     }
 
     if (opcode == OPC_MXU_S32I2M) {
         gen_mxu_s32i2m(ctx);
-        return;
+        return true;
     }
 
     {
@@ -25845,6 +25829,29 @@ static void decode_opc_mxu(DisasContext *ctx, uint32_t insn)
         gen_set_label(l_exit);
         tcg_temp_free(t_mxu_cr);
     }
+
+    return true;
+}
+
+/*
+ * Main MXU decoding function
+ */
+static void decode_opc_mxu(DisasContext *ctx, uint32_t insn)
+{
+    if (extract32(insn, 0, 6) == OPC__MXU_MUL) {
+        uint32_t  rs, rt, rd, op1;
+
+        rs = extract32(insn, 21, 5);
+        rt = extract32(insn, 16, 5);
+        rd = extract32(insn, 11, 5);
+        op1 = MASK_SPECIAL2(insn);
+
+        gen_arith(ctx, op1, rd, rs, rt);
+
+        return;
+    }
+
+    decode_ase_mxu(ctx, insn);
 }
 
 #endif /* !defined(TARGET_MIPS64) */
