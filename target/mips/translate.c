@@ -2046,7 +2046,7 @@ static const char * const mxuregnames[] = {
     "XR9",  "XR10", "XR11", "XR12", "XR13", "XR14", "XR15", "MXU_CR",
 };
 
-static void mxu_translate_init(void)
+void mxu_translate_init(void)
 {
     for (unsigned i = 0; i < NUMBER_OF_MXU_REGISTERS - 1; i++) {
         mxu_gpr[i] = tcg_global_mem_new(cpu_env,
@@ -2057,6 +2057,11 @@ static void mxu_translate_init(void)
     mxu_CR = tcg_global_mem_new(cpu_env,
                                 offsetof(CPUMIPSState, active_tc.mxu_cr),
                                 mxuregnames[NUMBER_OF_MXU_REGISTERS - 1]);
+}
+#else /* !defined(TARGET_MIPS64) */
+void mxu_translate_init(void)
+{
+    g_assert_not_reached();
 }
 #endif /* defined(TARGET_MIPS64) */
 
@@ -25789,7 +25794,7 @@ static void decode_opc_mxu__pool19(DisasContext *ctx)
     }
 }
 
-static bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
+bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
 {
     uint32_t opcode = extract32(insn, 0, 6);
 
