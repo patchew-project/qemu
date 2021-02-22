@@ -479,6 +479,98 @@ clang-user:
       --extra-cflags=-fsanitize=undefined --extra-cflags=-fno-sanitize-recover=undefined
     MAKE_CHECK_ARGS: check-unit check-tcg
 
+# Set JOBS=1 because this requires LTO and ld consumes a large amount of memory.
+# On gitlab runners, default JOBS of 2 sometimes end up calling 2 lds concurrently
+# and triggers an Out-Of-Memory error
+#
+# Because of how slirp is used in QEMU, we need to have CFI also on libslirp.
+# System-wide version in fedora is not compiled with CFI so we recompile it using
+# -enable-slirp=git
+#
+# Split in two sets of build/check/acceptance because a single build job for every
+# target creates an artifact archive too big to be uploaded
+build-cfi-set1:
+  <<: *native_build_job_definition
+  needs:
+  - job: amd64-fedora-container
+  variables:
+    JOBS: 1
+    AR: llvm-ar
+    IMAGE: fedora
+    CONFIGURE_ARGS: --cc=clang --cxx=clang++ --enable-cfi --enable-cfi-debug
+      --enable-safe-stack --enable-slirp=git
+    TARGETS: aarch64-softmmu arm-softmmu alpha-softmmu i386-softmmu ppc-softmmu
+      ppc64-softmmu riscv32-softmmu riscv64-softmmu s390x-softmmu sparc-softmmu
+      sparc64-softmmu x86_64-softmmu
+      aarch64-linux-user aarch64_be-linux-user arm-linux-user i386-linux-user
+      ppc64-linux-user ppc64le-linux-user s390x-linux-user x86_64-linux-user
+    MAKE_CHECK_ARGS: check-build
+  timeout: 3h
+  artifacts:
+    expire_in: 2 days
+    paths:
+      - build
+
+check-cfi-set1:
+  <<: *native_test_job_definition
+  needs:
+    - job: build-cfi-set1
+      artifacts: true
+  variables:
+    IMAGE: fedora
+    MAKE_CHECK_ARGS: check
+
+acceptance-cfi-set1:
+  <<: *native_test_job_definition
+  needs:
+    - job: build-cfi-set1
+      artifacts: true
+  variables:
+    IMAGE: fedora
+    MAKE_CHECK_ARGS: check-acceptance
+  <<: *acceptance_definition
+
+build-cfi-set2:
+  <<: *native_build_job_definition
+  needs:
+  - job: amd64-fedora-container
+  variables:
+    JOBS: 1
+    AR: llvm-ar
+    IMAGE: fedora
+    CONFIGURE_ARGS: --cc=clang --cxx=clang++ --enable-cfi --enable-cfi-debug
+      --enable-safe-stack --enable-slirp=git
+    TARGETS: avr-softmmu cris-softmmu hppa-softmmu m68k-softmmu
+      microblaze-softmmu microblazeel-softmmu mips-softmmu mips64-softmmu
+      mips64el-softmmu mipsel-softmmu moxie-softmmu nios2-softmmu or1k-softmmu
+      rx-softmmu sh4-softmmu sh4eb-softmmu tricore-softmmu xtensa-softmmu
+      xtensaeb-softmmu
+    MAKE_CHECK_ARGS: check-build
+  timeout: 3h
+  artifacts:
+    expire_in: 2 days
+    paths:
+      - build
+
+check-cfi-set2:
+  <<: *native_test_job_definition
+  needs:
+    - job: build-cfi-set2
+      artifacts: true
+  variables:
+    IMAGE: fedora
+    MAKE_CHECK_ARGS: check
+
+acceptance-cfi-set2:
+  <<: *native_test_job_definition
+  needs:
+    - job: build-cfi-set2
+      artifacts: true
+  variables:
+    IMAGE: fedora
+    MAKE_CHECK_ARGS: check-acceptance
+  <<: *acceptance_definition
+
 tsan-build:
   <<: *native_build_job_definition
   variables:
