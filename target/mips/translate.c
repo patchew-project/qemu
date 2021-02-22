@@ -25850,6 +25850,15 @@ bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
     return true;
 }
 
+#else /* !defined(TARGET_MIPS64) */
+
+bool decode_ase_mxu(DisasContext *ctx, uint32_t insn)
+{
+    return false;
+}
+
+#endif /* defined(TARGET_MIPS64) */
+
 /*
  * Main MXU decoding function
  */
@@ -25870,9 +25879,6 @@ static void decode_opc_mxu(DisasContext *ctx, uint32_t insn)
 
     decode_ase_mxu(ctx, insn);
 }
-
-#endif /* !defined(TARGET_MIPS64) */
-
 
 static void decode_opc_special2_legacy(CPUMIPSState *env, DisasContext *ctx)
 {
@@ -27017,12 +27023,10 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
             break;
         }
 #endif
-#if !defined(TARGET_MIPS64)
-        if (ctx->insn_flags & ASE_MXU) {
+        if ((TARGET_LONG_BITS == 32) && (ctx->insn_flags & ASE_MXU)) {
             decode_opc_mxu(ctx, ctx->opcode);
             break;
         }
-#endif
         decode_opc_special2_legacy(env, ctx);
         break;
     case OPC_SPECIAL3:
@@ -28081,9 +28085,7 @@ void mips_tcg_init(void)
     cpu_llval = tcg_global_mem_new(cpu_env, offsetof(CPUMIPSState, llval),
                                    "llval");
 
-#if !defined(TARGET_MIPS64)
     mxu_translate_init();
-#endif /* !TARGET_MIPS64 */
 }
 
 void restore_state_to_opc(CPUMIPSState *env, TranslationBlock *tb,

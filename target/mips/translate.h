@@ -179,10 +179,8 @@ extern TCGv bcond;
 void msa_translate_init(void);
 
 /* MXU */
-#if !defined(TARGET_MIPS64)
 void mxu_translate_init(void);
 bool decode_ase_mxu(DisasContext *ctx, uint32_t insn);
-#endif /* !TARGET_MIPS64 */
 
 /* decodetree generated */
 bool decode_isa_rel6(DisasContext *ctx, uint32_t insn);
