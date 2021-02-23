@@ -36,7 +36,9 @@
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-pci.h"
 
-GlobalProperty hw_compat_5_2[] = {};
+GlobalProperty hw_compat_5_2[] = {
+    { "virtio-blk-device", "report-discard-granularity", "off" },
+};
 const size_t hw_compat_5_2_len = G_N_ELEMENTS(hw_compat_5_2);
 
 GlobalProperty hw_compat_5_1[] = {
@@ -44,6 +46,7 @@ GlobalProperty hw_compat_5_1[] = {
     { "vhost-user-blk", "num-queues", "1"},
     { "vhost-user-scsi", "num_queues", "1"},
     { "virtio-blk-device", "num-queues", "1"},
+    { "virtio-blk-device", "report-discard-granularity", "off" },
     { "virtio-scsi-device", "num_queues", "1"},
     { "nvme", "use-intel-id", "on"},
     { "pvpanic", "events", "1"}, /* PVPANIC_PANICKED */
@@ -53,6 +56,7 @@ const size_t hw_compat_5_1_len = G_N_ELEMENTS(hw_compat_5_1);
 GlobalProperty hw_compat_5_0[] = {
     { "pci-host-bridge", "x-config-reg-migration-enabled", "off" },
     { "virtio-balloon-device", "page-poison", "false" },
+    { "virtio-blk-device", "report-discard-granularity", "off" },
     { "vmport", "x-read-set-eax", "off" },
     { "vmport", "x-signal-unsupported-cmd", "off" },
     { "vmport", "x-report-vmx-type", "off" },
@@ -62,6 +66,7 @@ GlobalProperty hw_compat_5_0[] = {
 const size_t hw_compat_5_0_len = G_N_ELEMENTS(hw_compat_5_0);
 
 GlobalProperty hw_compat_4_2[] = {
+    { "virtio-blk-device", "report-discard-granularity", "off" },
     { "virtio-blk-device", "queue-size", "128"},
     { "virtio-scsi-device", "virtqueue_size", "128"},
     { "virtio-blk-device", "x-enable-wce-if-config-wce", "off" },
@@ -78,6 +83,7 @@ GlobalProperty hw_compat_4_2[] = {
 const size_t hw_compat_4_2_len = G_N_ELEMENTS(hw_compat_4_2);
 
 GlobalProperty hw_compat_4_1[] = {
+    { "virtio-blk-device", "report-discard-granularity", "off" },
     { "virtio-pci", "x-pcie-flr-init", "off" },
 };
 const size_t hw_compat_4_1_len = G_N_ELEMENTS(hw_compat_4_1);
@@ -86,6 +92,7 @@ GlobalProperty hw_compat_4_0[] = {
     { "VGA",            "edid", "false" },
     { "secondary-vga",  "edid", "false" },
     { "bochs-display",  "edid", "false" },
+    { "virtio-blk-device", "report-discard-granularity", "off" },
     { "virtio-vga",     "edid", "false" },
     { "virtio-gpu-device", "edid", "false" },
     { "virtio-device", "use-started", "false" },
