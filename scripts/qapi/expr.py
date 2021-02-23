@@ -33,6 +33,7 @@ structures and contextual semantic validation.
 
 import re
 from typing import (
+    Collection,
     Iterable,
     List,
     MutableMapping,
@@ -133,8 +134,8 @@ def check_defn_name_str(name: str, info: QAPISourceInfo, meta: str) -> None:
 def check_keys(value: _JSObject,
                info: QAPISourceInfo,
                source: str,
-               required: List[str],
-               optional: List[str]) -> None:
+               required: Collection[str] = (),
+               optional: Collection[str] = ()) -> None:
     """
     Ensures an object has a specific set of keys. [Const]
 
@@ -155,7 +156,7 @@ def check_keys(value: _JSObject,
             "%s misses key%s %s"
             % (source, 's' if len(missing) > 1 else '',
                pprint(missing)))
-    allowed = set(required + optional)
+    allowed = set(required) | set(optional)
     unknown = set(value) - allowed
     if unknown:
         raise QAPISemError(
