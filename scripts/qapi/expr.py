@@ -173,7 +173,9 @@ def check_type(value, info, source,
         raise QAPISemError(info,
                            "%s should be an object or type name" % source)
 
-    permit_upper = allow_dict in info.pragma.name_case_whitelist
+    permit_upper = False
+    if isinstance(allow_dict, str):
+        permit_upper = allow_dict in info.pragma.name_case_whitelist
 
     # value is a dictionary, check that each member is okay
     for (key, arg) in value.items():
