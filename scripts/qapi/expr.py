@@ -15,9 +15,17 @@
 # See the COPYING file in the top-level directory.
 
 import re
+from typing import MutableMapping, Optional
 
 from .common import c_name
 from .error import QAPISemError
+from .parser import QAPIDoc
+from .source import QAPISourceInfo
+
+
+# Expressions in their raw form are JSON-like structures with arbitrary forms.
+# Minimally, their top-level form must be a mapping of strings to values.
+Expression = MutableMapping[str, object]
 
 
 # Names must be letters, numbers, -, and _.  They must start with letter,
@@ -287,9 +295,20 @@ def check_event(expr, info):
 
 def check_exprs(exprs):
     for expr_elem in exprs:
-        expr = expr_elem['expr']
-        info = expr_elem['info']
-        doc = expr_elem.get('doc')
+        # Expression
+        assert isinstance(expr_elem['expr'], dict)
+        for key in expr_elem['expr'].keys():
+            assert isinstance(key, str)
+        expr: Expression = expr_elem['expr']
+
+        # QAPISourceInfo
+        assert isinstance(expr_elem['info'], QAPISourceInfo)
+        info: QAPISourceInfo = expr_elem['info']
+
+        # Optional[QAPIDoc]
+        tmp = expr_elem.get('doc')
+        assert tmp is None or isinstance(tmp, QAPIDoc)
+        doc: Optional[QAPIDoc] = tmp
 
         if 'include' in expr:
             continue
