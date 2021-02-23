@@ -344,6 +344,10 @@ def check_enum(expr: Expression, info: QAPISourceInfo) -> None:
     :param expr: `Expression` to validate.
     :param info: QAPI source file information.
     """
+    check_keys(expr, info, 'enum',
+               required=('enum', 'data'),
+               optional=('if', 'features', 'prefix'))
+
     name = expr['enum']
     members = expr['data']
     prefix = expr.get('prefix')
@@ -374,6 +378,11 @@ def check_struct(expr: Expression, info: QAPISourceInfo) -> None:
     :param expr: `Expression` to validate.
     :param info: QAPI source file information.
     """
+    check_keys(expr, info, 'struct',
+               required=('struct', 'data'),
+               optional=('base', 'if', 'features'))
+    normalize_members(expr['data'])
+
     name = cast(str, expr['struct'])  # Asserted in check_exprs
     members = expr['data']
 
@@ -388,6 +397,13 @@ def check_union(expr: Expression, info: QAPISourceInfo) -> None:
     :param expr: `Expression` to validate.
     :param info: QAPI source file information.
     """
+    check_keys(expr, info, 'union',
+               required=('union', 'data'),
+               optional=('base', 'discriminator', 'if', 'features'))
+
+    normalize_members(expr.get('base'))
+    normalize_members(expr['data'])
+
     name = cast(str, expr['union'])  # Asserted in check_exprs
     base = expr.get('base')
     discriminator = expr.get('discriminator')
@@ -420,6 +436,11 @@ def check_alternate(expr: Expression, info: QAPISourceInfo) -> None:
     :param expr: Expression to validate.
     :param info: QAPI source file information.
     """
+    check_keys(expr, info, 'alternate',
+               required=('alternate', 'data'),
+               optional=('if', 'features'))
+    normalize_members(expr['data'])
+
     members = expr['data']
 
     if not members:
@@ -443,6 +464,13 @@ def check_command(expr: Expression, info: QAPISourceInfo) -> None:
     :param expr: `Expression` to validate.
     :param info: QAPI source file information.
     """
+    check_keys(expr, info, 'command',
+               required=('command',),
+               optional=('data', 'returns', 'boxed', 'if', 'features',
+                         'gen', 'success-response', 'allow-oob',
+                         'allow-preconfig', 'coroutine'))
+    normalize_members(expr.get('data'))
+
     args = expr.get('data')
     rets = expr.get('returns')
     boxed = expr.get('boxed', False)
@@ -464,6 +492,11 @@ def check_event(expr: Expression, info: QAPISourceInfo) -> None:
       :if: ``Optional[Ifcond]`` (see: `check_if`)
       :features: ``Optional[Features]`` (see: `check_features`)
     """
+    check_keys(expr, info, 'event',
+               required=('event',),
+               optional=('data', 'boxed', 'if', 'features'))
+    normalize_members(expr.get('data'))
+
     args = expr.get('data')
     boxed = expr.get('boxed', False)
 
@@ -531,38 +564,16 @@ def check_exprs(exprs: List[_JSObject]) -> List[_JSObject]:
                                "documentation comment required")
 
         if meta == 'enum':
-            check_keys(expr, info, meta,
-                       ['enum', 'data'], ['if', 'features', 'prefix'])
             check_enum(expr, info)
         elif meta == 'union':
-            check_keys(expr, info, meta,
-                       ['union', 'data'],
-                       ['base', 'discriminator', 'if', 'features'])
-            normalize_members(expr.get('base'))
-            normalize_members(expr['data'])
             check_union(expr, info)
         elif meta == 'alternate':
-            check_keys(expr, info, meta,
-                       ['alternate', 'data'], ['if', 'features'])
-            normalize_members(expr['data'])
             check_alternate(expr, info)
         elif meta == 'struct':
-            check_keys(expr, info, meta,
-                       ['struct', 'data'], ['base', 'if', 'features'])
-            normalize_members(expr['data'])
             check_struct(expr, info)
         elif meta == 'command':
-            check_keys(expr, info, meta,
-                       ['command'],
-                       ['data', 'returns', 'boxed', 'if', 'features',
-                        'gen', 'success-response', 'allow-oob',
-                        'allow-preconfig', 'coroutine'])
-            normalize_members(expr.get('data'))
             check_command(expr, info)
         elif meta == 'event':
-            check_keys(expr, info, meta,
-                       ['event'], ['data', 'boxed', 'if', 'features'])
-            normalize_members(expr.get('data'))
             check_event(expr, info)
         else:
             assert False, 'unexpected meta type'
