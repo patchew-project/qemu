@@ -507,15 +507,13 @@ class BootLinuxConsole(LinuxKernelTest):
         self.wait_for_console_pattern('Boot successful.')
         # TODO user command, for now the uart is stuck
 
-    @skipUnless(os.getenv('ARMBIAN_ARTIFACTS_CACHED'),
-                'Test artifacts fetched from unreliable apt.armbian.com')
     def test_arm_cubieboard_initrd(self):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:cubieboard
         """
-        deb_url = ('https://apt.armbian.com/pool/main/l/'
-                   'linux-4.20.7-sunxi/linux-image-dev-sunxi_5.75_armhf.deb')
+        deb_url = ('https://github.com/nieklinnenbank/QemuArtifacts/raw/'
+                   'master/cubieboard/linux-image-dev-sunxi_5.75_armhf.deb')
         deb_hash = '1334c29c44d984ffa05ed10de8c3361f33d78315'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
         kernel_path = self.extract_from_deb(deb_path,
@@ -549,15 +547,13 @@ class BootLinuxConsole(LinuxKernelTest):
                                                 'system-control@1c00000')
         # cubieboard's reboot is not functioning; omit reboot test.
 
-    @skipUnless(os.getenv('ARMBIAN_ARTIFACTS_CACHED'),
-                'Test artifacts fetched from unreliable apt.armbian.com')
     def test_arm_cubieboard_sata(self):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:cubieboard
         """
-        deb_url = ('https://apt.armbian.com/pool/main/l/'
-                   'linux-4.20.7-sunxi/linux-image-dev-sunxi_5.75_armhf.deb')
+        deb_url = ('https://github.com/nieklinnenbank/QemuArtifacts/raw/'
+                   'master/cubieboard/linux-image-dev-sunxi_5.75_armhf.deb')
         deb_hash = '1334c29c44d984ffa05ed10de8c3361f33d78315'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
         kernel_path = self.extract_from_deb(deb_path,
@@ -678,15 +674,13 @@ class BootLinuxConsole(LinuxKernelTest):
         self.wait_for_console_pattern(
                 'Give root password for system maintenance')
 
-    @skipUnless(os.getenv('ARMBIAN_ARTIFACTS_CACHED'),
-                'Test artifacts fetched from unreliable apt.armbian.com')
     def test_arm_orangepi(self):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:orangepi-pc
         """
-        deb_url = ('https://apt.armbian.com/pool/main/l/'
-                   'linux-4.20.7-sunxi/linux-image-dev-sunxi_5.75_armhf.deb')
+        deb_url = ('https://github.com/nieklinnenbank/QemuArtifacts/raw/'
+                   'master/orangepi-pc/linux-image-dev-sunxi_5.75_armhf.deb')
         deb_hash = '1334c29c44d984ffa05ed10de8c3361f33d78315'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
         kernel_path = self.extract_from_deb(deb_path,
@@ -705,15 +699,13 @@ class BootLinuxConsole(LinuxKernelTest):
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.wait_for_console_pattern(console_pattern)
 
-    @skipUnless(os.getenv('ARMBIAN_ARTIFACTS_CACHED'),
-                'Test artifacts fetched from unreliable apt.armbian.com')
     def test_arm_orangepi_initrd(self):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:orangepi-pc
         """
-        deb_url = ('https://apt.armbian.com/pool/main/l/'
-                   'linux-4.20.7-sunxi/linux-image-dev-sunxi_5.75_armhf.deb')
+        deb_url = ('https://github.com/nieklinnenbank/QemuArtifacts/raw/'
+                   'master/orangepi-pc/linux-image-dev-sunxi_5.75_armhf.deb')
         deb_hash = '1334c29c44d984ffa05ed10de8c3361f33d78315'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
         kernel_path = self.extract_from_deb(deb_path,
@@ -749,24 +741,23 @@ class BootLinuxConsole(LinuxKernelTest):
         # Wait for VM to shut down gracefully
         self.vm.wait()
 
-    @skipUnless(os.getenv('ARMBIAN_ARTIFACTS_CACHED'),
-                'Test artifacts fetched from unreliable apt.armbian.com')
     def test_arm_orangepi_sd(self):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:orangepi-pc
         :avocado: tags=device:sd
         """
-        deb_url = ('https://apt.armbian.com/pool/main/l/'
-                   'linux-4.20.7-sunxi/linux-image-dev-sunxi_5.75_armhf.deb')
+        deb_url = ('https://github.com/nieklinnenbank/QemuArtifacts/raw/'
+                   'master/orangepi-pc/linux-image-dev-sunxi_5.75_armhf.deb')
         deb_hash = '1334c29c44d984ffa05ed10de8c3361f33d78315'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
         kernel_path = self.extract_from_deb(deb_path,
                                             '/boot/vmlinuz-4.20.7-sunxi')
         dtb_path = '/usr/lib/linux-image-dev-sunxi/sun8i-h3-orangepi-pc.dtb'
         dtb_path = self.extract_from_deb(deb_path, dtb_path)
-        rootfs_url = ('http://storage.kernelci.org/images/rootfs/buildroot/'
-                      'kci-2019.02/armel/base/rootfs.ext2.xz')
+        # Rootfs is based on buildroot 2019.02 from kernelci.org
+        rootfs_url = ('https://github.com/nieklinnenbank/QemuArtifacts/raw/'
+                      'master/orangepi-pc/rootfs.ext2.xz')
         rootfs_hash = '692510cb625efda31640d1de0a8d60e26040f061'
         rootfs_path_xz = self.fetch_asset(rootfs_url, asset_hash=rootfs_hash)
         rootfs_path = os.path.join(self.workdir, 'rootfs.cpio')
@@ -828,8 +819,6 @@ class BootLinuxConsole(LinuxKernelTest):
                                       'to <orangepipc>')
         self.wait_for_console_pattern('Starting Load Kernel Modules...')
 
-    @skipUnless(os.getenv('ARMBIAN_ARTIFACTS_CACHED'),
-                'Test artifacts fetched from unreliable apt.armbian.com')
     @skipUnless(os.getenv('AVOCADO_ALLOW_LARGE_STORAGE'), 'storage limited')
     @skipUnless(P7ZIP_AVAILABLE, '7z not installed')
     def test_arm_orangepi_bionic_19_11(self):
@@ -840,7 +829,8 @@ class BootLinuxConsole(LinuxKernelTest):
         """
 
         # This test download a 196MB compressed image and expand it to 1GB
-        image_url = ('https://dl.armbian.com/orangepipc/archive/'
+        image_url = ('https://github.com/nieklinnenbank/QemuArtifacts/raw/'
+                     'master/orangepi-pc/'
                      'Armbian_19.11.3_Orangepipc_bionic_current_5.3.9.7z')
         image_hash = '196a8ffb72b0123d92cea4a070894813d305c71e'
         image_path_7z = self.fetch_asset(image_url, asset_hash=image_hash)
@@ -851,8 +841,6 @@ class BootLinuxConsole(LinuxKernelTest):
 
         self.do_test_arm_orangepi_uboot_armbian(image_path)
 
-    @skipUnless(os.getenv('ARMBIAN_ARTIFACTS_CACHED'),
-                'Test artifacts fetched from unreliable apt.armbian.com')
     @skipUnless(os.getenv('AVOCADO_ALLOW_LARGE_STORAGE'), 'storage limited')
     def test_arm_orangepi_bionic_20_08(self):
         """
@@ -865,7 +853,8 @@ class BootLinuxConsole(LinuxKernelTest):
         # to 1036 MiB, but the underlying filesystem is 1552 MiB...
         # As we expand it to 2 GiB we are safe.
 
-        image_url = ('https://dl.armbian.com/orangepipc/archive/'
+        image_url = ('https://github.com/nieklinnenbank/QemuArtifacts/raw/'
+                     'master/orangepi-pc/'
                      'Armbian_20.08.1_Orangepipc_bionic_current_5.8.5.img.xz')
         image_hash = ('b4d6775f5673486329e45a0586bf06b6'
                       'dbe792199fd182ac6b9c7bb6c7d3e6dd')
@@ -884,8 +873,8 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=device:sd
         """
         # This test download a 304MB compressed image and expand it to 2GB
-        deb_url = ('http://snapshot.debian.org/archive/debian/'
-                   '20200108T145233Z/pool/main/u/u-boot/'
+        deb_url = ('https://github.com/nieklinnenbank/QemuArtifacts/raw/'
+                   'master/orangepi-pc/'
                    'u-boot-sunxi_2020.01%2Bdfsg-1_armhf.deb')
         deb_hash = 'f67f404a80753ca3d1258f13e38f2b060e13db99'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
