@@ -11,7 +11,7 @@ FROM qemu/debian10
 # What we need to build QEMU itself
 RUN apt update && \
     DEBIAN_FRONTEND=noninteractive eatmydata \
-    apt build-dep -yy qemu
+    apt build-dep --arch-only -yy qemu
 
 # Add the foreign architecture we want and install dependencies
 RUN DEBIAN_FRONTEND=noninteractive eatmydata \
