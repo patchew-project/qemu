@@ -214,14 +214,14 @@ def check_features(features: Optional[object],
         raise QAPISemError(info, "'features' must be an array")
     features[:] = [f if isinstance(f, dict) else {'name': f}
                    for f in features]
-    for f in features:
+    for feature in features:
         source = "'features' member"
-        assert isinstance(f, dict)
-        check_keys(f, info, source, ['name'], ['if'])
-        check_name_is_str(f['name'], info, source)
-        source = "%s '%s'" % (source, f['name'])
-        check_name_str(f['name'], info, source)
-        check_if(f, info, source)
+        assert isinstance(feature, dict)
+        check_keys(feature, info, source, ['name'], ['if'])
+        check_name_is_str(feature['name'], info, source)
+        source = "%s '%s'" % (source, feature['name'])
+        check_name_str(feature['name'], info, source)
+        check_if(feature, info, source)
 
 
 def check_enum(expr: Expression, info: QAPISourceInfo) -> None:
