@@ -1,6 +1,6 @@
-===============
-Testing in QEMU
-===============
+=======
+Testing
+=======
 
 This document describes the testing infrastructure in QEMU.
 

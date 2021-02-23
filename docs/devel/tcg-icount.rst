@@ -3,9 +3,9 @@
    Written by Alex Bennée
 
 
-========================
-TCG Instruction Counting
-========================
+=================================
+TCG Instruction Counting (icount)
+=================================
 
 TCG has long supported a feature known as icount which allows for
 instruction counting during execution. This should not be confused
