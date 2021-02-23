@@ -31,9 +31,12 @@ See `schema.QAPISchema` for processing into native Python data
 structures and contextual semantic validation.
 """
 
+from enum import Enum
 import re
 from typing import (
+    Callable,
     Collection,
+    Dict,
     Iterable,
     List,
     MutableMapping,
@@ -505,6 +508,29 @@ def check_event(expr: Expression, info: QAPISourceInfo) -> None:
     check_type(args, info, "'data'", allow_dict=not boxed)
 
 
+class ExpressionType(str, Enum):
+    INCLUDE = 'include'
+    ENUM = 'enum'
+    UNION = 'union'
+    ALTERNATE = 'alternate'
+    STRUCT = 'struct'
+    COMMAND = 'command'
+    EVENT = 'event'
+
+    def __str__(self) -> str:
+        return str(self.value)
+
+
+_CHECK_FN: Dict[str, Callable[[Expression, QAPISourceInfo], None]] = {
+    'enum': check_enum,
+    'union': check_union,
+    'alternate': check_alternate,
+    'struct': check_struct,
+    'command': check_command,
+    'event': check_event,
+}
+
+
 def check_exprs(exprs: List[_JSObject]) -> List[_JSObject]:
     """
     Validate and normalize a list of parsed QAPI schema expressions. [RW]
@@ -531,23 +557,15 @@ def check_exprs(exprs: List[_JSObject]) -> List[_JSObject]:
         assert tmp is None or isinstance(tmp, QAPIDoc)
         doc: Optional[QAPIDoc] = tmp
 
-        if 'include' in expr:
-            continue
-
-        if 'enum' in expr:
-            meta = 'enum'
-        elif 'union' in expr:
-            meta = 'union'
-        elif 'alternate' in expr:
-            meta = 'alternate'
-        elif 'struct' in expr:
-            meta = 'struct'
-        elif 'command' in expr:
-            meta = 'command'
-        elif 'event' in expr:
-            meta = 'event'
+        for kind in ExpressionType:
+            if kind in expr:
+                meta = kind
+                break
         else:
             raise QAPISemError(info, "expression is missing metatype")
+
+        if meta == ExpressionType.INCLUDE:
+            continue
 
         name = cast(str, expr[meta])  # Asserted right below:
         check_name_is_str(name, info, "'%s'" % meta)
@@ -563,21 +581,7 @@ def check_exprs(exprs: List[_JSObject]) -> List[_JSObject]:
             raise QAPISemError(info,
                                "documentation comment required")
 
-        if meta == 'enum':
-            check_enum(expr, info)
-        elif meta == 'union':
-            check_union(expr, info)
-        elif meta == 'alternate':
-            check_alternate(expr, info)
-        elif meta == 'struct':
-            check_struct(expr, info)
-        elif meta == 'command':
-            check_command(expr, info)
-        elif meta == 'event':
-            check_event(expr, info)
-        else:
-            assert False, 'unexpected meta type'
-
+        _CHECK_FN[meta](expr, info)
         check_if(expr, info, meta)
         check_features(expr.get('features'), info)
         check_flags(expr, info)
