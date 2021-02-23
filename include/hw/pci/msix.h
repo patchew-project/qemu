@@ -28,6 +28,7 @@ void msix_load(PCIDevice *dev, QEMUFile *f);
 
 int msix_enabled(PCIDevice *dev);
 int msix_present(PCIDevice *dev);
+bool msix_masked(PCIDevice *dev);
 
 bool msix_is_masked(PCIDevice *dev, unsigned vector);
 void msix_set_pending(PCIDevice *dev, unsigned vector);

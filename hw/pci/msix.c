@@ -131,7 +131,7 @@ static void msix_handle_mask_update(PCIDevice *dev, int vector, bool was_masked)
     }
 }
 
-static bool msix_masked(PCIDevice *dev)
+bool msix_masked(PCIDevice *dev)
 {
     return dev->config[dev->msix_cap + MSIX_CONTROL_OFFSET] & MSIX_MASKALL_MASK;
 }
