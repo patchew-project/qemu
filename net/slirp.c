@@ -850,6 +850,11 @@ static int slirp_smb(SlirpState* s, const char *exported_dir,
     }
     fprintf(f,
             "[global]\n"
+            "# In Samba 2.0.5 and above the 'force user' parameter\n"
+            "# also causes the primary group of the forced user to be used\n"
+            "# as the primary group for all file activity.\n"
+            "# This includes the various directories set below.\n"
+            "force user=%s\n"
             "private dir=%s\n"
             "interfaces=127.0.0.1\n"
             "bind interfaces only=yes\n"
@@ -871,6 +876,7 @@ static int slirp_smb(SlirpState* s, const char *exported_dir,
             "read only=no\n"
             "guest ok=yes\n"
             "force user=%s\n",
+            passwd->pw_name,
             s->smb_dir,
             s->smb_dir,
             s->smb_dir,
