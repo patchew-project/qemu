@@ -30,13 +30,15 @@ static inline TranslationBlock * tb_lookup(CPUState *cpu,
     hash = tb_jmp_cache_hash_func(pc);
     tb = qatomic_rcu_read(&cpu->tb_jmp_cache[hash]);
 
-    if (likely(tb &&
-               tb->pc == pc &&
-               tb->cs_base == cs_base &&
-               tb->flags == flags &&
-               tb->trace_vcpu_dstate == *cpu->trace_dstate &&
-               tb_cflags(tb) == cflags)) {
-        return tb;
+    if (likely(tb)) {
+        uint64_t bits = tb->pc ^ pc;
+        bits |= tb->cs_base ^ cs_base;
+        bits |= tb->flags ^ flags;
+        bits |= tb->trace_vcpu_dstate ^ *cpu->trace_dstate;
+        bits |= tb_cflags(tb) ^ cflags;
+        if (!bits) {
+            return tb;
+        }
     }
     tb = tb_htable_lookup(cpu, pc, cs_base, flags, cflags);
     if (tb == NULL) {
