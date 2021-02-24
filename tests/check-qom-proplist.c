@@ -21,6 +21,8 @@
 #include "qemu/osdep.h"
 
 #include "qapi/error.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qom/object.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
@@ -400,20 +402,30 @@ static void test_dummy_createlist(void)
 
 static void test_dummy_createcmdl(void)
 {
-    QemuOpts *opts;
     DummyObject *dobj;
-    Error *err = NULL;
+    QDict *args;
+    Visitor *v;
+    g_autofree const char *qom_type = NULL;
+    g_autofree const char *id = NULL;
     const char *params = TYPE_DUMMY \
                          ",id=dev0," \
                          "bv=yes,sv=Hiss hiss hiss,av=platypus";
 
-    qemu_add_opts(&qemu_object_opts);
-    opts = qemu_opts_parse(&qemu_object_opts, params, true, &err);
-    g_assert(err == NULL);
-    g_assert(opts);
+    args = keyval_parse(params, "qom-type", NULL, &error_abort);
 
-    dobj = DUMMY_OBJECT(user_creatable_add_opts(opts, &err));
-    g_assert(err == NULL);
+    qom_type = g_strdup(qdict_get_str(args, "qom-type"));
+    qdict_del(args, "qom-type");
+    g_assert(!strcmp(qom_type, TYPE_DUMMY));
+
+    id = g_strdup(qdict_get_str(args, "id"));
+    qdict_del(args, "id");
+    g_assert(!strcmp(id, "dev0"));
+
+    v = qobject_input_visitor_new_keyval(QOBJECT(args));
+    dobj = DUMMY_OBJECT(user_creatable_add_type(TYPE_DUMMY, id, args, v,
+                                                &error_abort));
+    visit_free(v);
+
     g_assert(dobj);
     g_assert_cmpstr(dobj->sv, ==, "Hiss hiss hiss");
     g_assert(dobj->bv == true);
@@ -422,20 +434,6 @@ static void test_dummy_createcmdl(void)
     user_creatable_del("dev0", &error_abort);
 
     object_unref(OBJECT(dobj));
-
-    /*
-     * cmdline-parsing via qemu_opts_parse() results in a QemuOpts entry
-     * corresponding to the Object's ID to be added to the QemuOptsList
-     * for objects. To avoid having this entry conflict with future
-     * Objects using the same ID (which can happen in cases where
-     * qemu_opts_parse() is used to parse the object params, such as
-     * with hmp_object_add() at the time of this comment), we need to
-     * check for this in user_creatable_del() and remove the QemuOpts if
-     * it is present.
-     *
-     * The below check ensures this works as expected.
-     */
-    g_assert_null(qemu_opts_find(&qemu_object_opts, "dev0"));
 }
 
 static void test_dummy_badenum(void)

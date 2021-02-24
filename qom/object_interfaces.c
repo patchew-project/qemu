@@ -10,12 +10,9 @@
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qom/object_interfaces.h"
-#include "qemu/help_option.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/qemu-print.h"
-#include "qapi/opts-visitor.h"
-#include "qemu/config-file.h"
 
 bool user_creatable_complete(UserCreatable *uc, Error **errp)
 {
@@ -131,60 +128,6 @@ void user_creatable_add_qapi(ObjectOptions *options, Error **errp)
     visit_free(v);
 }
 
-Object *user_creatable_add_opts(QemuOpts *opts, Error **errp)
-{
-    Visitor *v;
-    QDict *pdict;
-    Object *obj;
-    const char *id = qemu_opts_id(opts);
-    char *type = qemu_opt_get_del(opts, "qom-type");
-
-    if (!type) {
-        error_setg(errp, QERR_MISSING_PARAMETER, "qom-type");
-        return NULL;
-    }
-    if (!id) {
-        error_setg(errp, QERR_MISSING_PARAMETER, "id");
-        qemu_opt_set(opts, "qom-type", type, &error_abort);
-        g_free(type);
-        return NULL;
-    }
-
-    qemu_opts_set_id(opts, NULL);
-    pdict = qemu_opts_to_qdict(opts, NULL);
-
-    v = opts_visitor_new(opts);
-    obj = user_creatable_add_type(type, id, pdict, v, errp);
-    visit_free(v);
-
-    qemu_opts_set_id(opts, (char *) id);
-    qemu_opt_set(opts, "qom-type", type, &error_abort);
-    g_free(type);
-    qobject_unref(pdict);
-    return obj;
-}
-
-
-int user_creatable_add_opts_foreach(void *opaque, QemuOpts *opts, Error **errp)
-{
-    bool (*type_opt_predicate)(const char *, QemuOpts *) = opaque;
-    Object *obj = NULL;
-    const char *type;
-
-    type = qemu_opt_get(opts, "qom-type");
-    if (type && type_opt_predicate &&
-        !type_opt_predicate(type, opts)) {
-        return 0;
-    }
-
-    obj = user_creatable_add_opts(opts, errp);
-    if (!obj) {
-        return -1;
-    }
-    object_unref(obj);
-    return 0;
-}
-
 char *object_property_help(const char *name, const char *type,
                            QObject *defval, const char *description)
 {
@@ -260,20 +203,6 @@ static bool user_creatable_print_type_properites(const char *type)
     return true;
 }
 
-bool user_creatable_print_help(const char *type, QemuOpts *opts)
-{
-    if (is_help_option(type)) {
-        user_creatable_print_types();
-        return true;
-    }
-
-    if (qemu_opt_has_help_opt(opts)) {
-        return user_creatable_print_type_properites(type);
-    }
-
-    return false;
-}
-
 static void user_creatable_print_help_from_qdict(QDict *args)
 {
     const char *type = qdict_get_try_str(args, "qom-type");
@@ -334,7 +263,6 @@ void user_creatable_process_cmdline(const char *optarg)
 
 bool user_creatable_del(const char *id, Error **errp)
 {
-    QemuOptsList *opts_list;
     Object *container;
     Object *obj;
 
@@ -348,15 +276,6 @@ bool user_creatable_del(const char *id, Error **errp)
     if (!user_creatable_can_be_deleted(USER_CREATABLE(obj))) {
         error_setg(errp, "object '%s' is in use, can not be deleted", id);
         return false;
-    }
-
-    /*
-     * if object was defined on the command-line, remove its corresponding
-     * option group entry
-     */
-    opts_list = qemu_find_opts_err("object", NULL);
-    if (opts_list) {
-        qemu_opts_del(qemu_opts_find(opts_list, id));
     }
 
     object_unparent(obj);
