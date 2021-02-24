@@ -1345,6 +1345,17 @@ F: pc-bios/canyonlands.dt[sb]
 F: pc-bios/u-boot-sam460ex-20100605.bin
 F: roms/u-boot-sam460ex
 
+VOF
+M: Alexey Kardashevskiy <aik@ozlabs.ru>
+M: David Gibson <david@gibson.dropbear.id.au>
+M: Greg Kurz <groug@kaod.org>
+L: qemu-ppc@nongnu.org
+S: Maintained
+F: hw/ppc/spapr_vof*
+F: hw/ppc/vof*
+F: pc-bios/vof/*
+F: pc-bios/vof*
+
 RISC-V Machines
 ---------------
 OpenTitan
