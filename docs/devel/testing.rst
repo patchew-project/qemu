@@ -844,6 +844,14 @@ name.  If one is not given explicitly, it will either be set to
 ``None``, or, if the test is tagged with one (and only one)
 ``:avocado: tags=arch:VALUE`` tag, it will be set to ``VALUE``.
 
+cpu
+~~~
+
+If the test is tagged with one (and only one) ``:avocado: tags=cpu:VALUE`` tag
+then the ``cpu`` attribute will be set to ``VALUE``, and the ``-cpu`` argument
+will be set to all QEMUMachine instances created by the test. Otherwise the
+attribute will be set to ``None``.
+
 machine
 ~~~~~~~
 
