@@ -199,11 +199,6 @@ Use ``migrate-set-parameters`` and ``query-migrate-parameters`` instead.
 
 Use arguments ``base-node`` and ``top-node`` instead.
 
-``object-add`` option ``props`` (since 5.0)
-'''''''''''''''''''''''''''''''''''''''''''
-
-Specify the properties for the object as top-level arguments instead.
-
 ``query-named-block-nodes`` and ``query-block`` result dirty-bitmaps[i].status (since 4.0)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 

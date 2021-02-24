@@ -58,6 +58,11 @@ documentation of ``query-hotpluggable-cpus`` for additional details.
 
 Use ``blockdev-change-medium`` or ``change-vnc-password`` instead.
 
+``object-add`` option ``props`` (removed in 6.0)
+''''''''''''''''''''''''''''''''''''''''''''''''
+
+Specify the properties for the object as top-level arguments instead.
+
 Human Monitor Protocol (HMP) commands
 -------------------------------------
 
