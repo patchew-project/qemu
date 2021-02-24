@@ -1826,15 +1826,6 @@ if have_system or have_user
   trace_events_subdirs += [
     'accel/tcg',
     'hw/core',
-    'target/arm',
-    'target/hppa',
-    'target/i386',
-    'target/i386/kvm',
-    'target/mips',
-    'target/ppc',
-    'target/riscv',
-    'target/s390x',
-    'target/sparc',
   ]
 endif
 
@@ -2166,6 +2157,7 @@ foreach target : target_dirs
   t = target_arch[arch].apply(config_target, strict: false)
   arch_srcs += t.sources()
   arch_deps += t.dependencies()
+  trace_events_subdirs += ['target' / arch]
 
   target_common = common_ss.apply(config_target, strict: false)
   objects = common_all.extract_objects(target_common.sources())
