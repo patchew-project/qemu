@@ -1826,16 +1826,16 @@ if have_system or have_user
   trace_events_subdirs += [
     'accel/tcg',
     'hw/core',
-    'target/arm',
-    'target/hppa',
-    'target/i386',
     'target/i386/kvm',
-    'target/mips',
-    'target/ppc',
-    'target/riscv',
-    'target/s390x',
-    'target/sparc',
   ]
+  foreach target : target_dirs
+    arch = config_target_mak[target]['TARGET_BASE_ARCH']
+    target_trace_events_subdir = 'target' / arch
+    if fs.exists(meson.current_source_dir() / target_trace_events_subdir / 'trace-events') and \
+        target_trace_events_subdir not in trace_events_subdirs
+      trace_events_subdirs += [target_trace_events_subdir]
+    endif
+  endforeach
 endif
 
 vhost_user = not_found
