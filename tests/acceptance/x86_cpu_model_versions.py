@@ -252,6 +252,7 @@ class CascadelakeArchCapabilities(avocado_qemu.Test):
     def test_4_1(self):
         """
         :avocado: tags=machine:pc-i440fx-4.1
+        :avocado: tags=cpu:Cascadelake-Server
         """
         # machine-type only:
         self.vm.add_args('-S')
@@ -263,6 +264,7 @@ class CascadelakeArchCapabilities(avocado_qemu.Test):
     def test_4_0(self):
         """
         :avocado: tags=machine:pc-i440fx-4.0
+        :avocado: tags=cpu:Cascadelake-Server
         """
         self.vm.add_args('-S')
         self.vm.add_args('-cpu', 'Cascadelake-Server,x-force-features=on,check=off,enforce=off')
@@ -273,6 +275,7 @@ class CascadelakeArchCapabilities(avocado_qemu.Test):
     def test_set_4_0(self):
         """
         :avocado: tags=machine:pc-i440fx-4.0
+        :avocado: tags=cpu:Cascadelake-Server
         """
         # command line must override machine-type if CPU model is not versioned:
         self.vm.add_args('-S')
@@ -284,6 +287,7 @@ class CascadelakeArchCapabilities(avocado_qemu.Test):
     def test_unset_4_1(self):
         """
         :avocado: tags=machine:pc-i440fx-4.1
+        :avocado: tags=cpu:Cascadelake-Server
         """
         self.vm.add_args('-S')
         self.vm.add_args('-cpu', 'Cascadelake-Server,x-force-features=on,check=off,enforce=off,-arch-capabilities')
@@ -294,6 +298,7 @@ class CascadelakeArchCapabilities(avocado_qemu.Test):
     def test_v1_4_0(self):
         """
         :avocado: tags=machine:pc-i440fx-4.0
+        :avocado: tags=cpu:Cascadelake-Server
         """
         # versioned CPU model overrides machine-type:
         self.vm.add_args('-S')
@@ -305,6 +310,7 @@ class CascadelakeArchCapabilities(avocado_qemu.Test):
     def test_v2_4_0(self):
         """
         :avocado: tags=machine:pc-i440fx-4.0
+        :avocado: tags=cpu:Cascadelake-Server
         """
         self.vm.add_args('-S')
         self.vm.add_args('-cpu', 'Cascadelake-Server-v2,x-force-features=on,check=off,enforce=off')
@@ -315,6 +321,7 @@ class CascadelakeArchCapabilities(avocado_qemu.Test):
     def test_v1_set_4_0(self):
         """
         :avocado: tags=machine:pc-i440fx-4.0
+        :avocado: tags=cpu:Cascadelake-Server
         """
         # command line must override machine-type and versioned CPU model:
         self.vm.add_args('-S')
@@ -326,6 +333,7 @@ class CascadelakeArchCapabilities(avocado_qemu.Test):
     def test_v2_unset_4_1(self):
         """
         :avocado: tags=machine:pc-i440fx-4.1
+        :avocado: tags=cpu:Cascadelake-Server
         """
         self.vm.add_args('-S')
         self.vm.add_args('-cpu', 'Cascadelake-Server-v2,x-force-features=on,check=off,enforce=off,-arch-capabilities')
