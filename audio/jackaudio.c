@@ -369,7 +369,7 @@ static size_t qjack_read(HWVoiceIn *hw, void *buf, size_t len)
 
 static void qjack_client_connect_ports(QJackClient *c)
 {
-    if (!c->connect_ports || !c->opt->connect_ports) {
+   if (!c->connect_ports) {
         return;
     }
 
