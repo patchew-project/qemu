@@ -59,6 +59,13 @@ would automatically enable USB support on the machine type.
 When using the new syntax, USB support must be explicitly
 enabled via the ``-machine usb=on`` argument.
 
+``-drive file=json:{...{'driver':'file'}}`` (removed 6.0)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The 'file' driver for drives is no longer appropriate for character or host
+devices and will only accept regular files (S_IFREG). The correct driver
+for these file types is 'host_cdrom' or 'host_device' as appropriate.
+
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 
