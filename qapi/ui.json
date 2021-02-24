@@ -1179,3 +1179,35 @@
 ##
 { 'command': 'query-display-options',
   'returns': 'DisplayOptions' }
+
+##
+# @DisplayReloadInfo:
+#
+# The basic information for reload Display configuration
+#
+# @vnc-tls-certs: whether to reload tls certs
+#
+# Since: 6.0
+##
+{ 'struct': 'DisplayReloadInfo',
+  'data': { '*vnc-tls-certs': 'bool' } }
+
+##
+# @display-reload:
+#
+# Reload display configuration
+#
+# Returns: Nothing on success
+#
+# Since: 6.0
+#
+# Example:
+#
+# -> { "execute": "display-reload",
+#      "arguments": { "vnc-tls-certs": true } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'display-reload',
+  'data': 'DisplayReloadInfo',
+  'boxed' : true }
