@@ -749,7 +749,6 @@ static char *sun4u_fw_dev_path(FWPathProvider *p, BusState *bus,
                                DeviceState *dev)
 {
     PCIDevice *pci;
-    int bus_id;
 
     if (!strcmp(object_get_typename(OBJECT(dev)), "pbm-bridge")) {
         pci = PCI_DEVICE(dev);
