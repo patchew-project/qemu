@@ -24,6 +24,7 @@ Contents:
    atomics
    stable-process
    qtest
+   qgraph
    decodetree
    secure-coding-practices
    tcg
