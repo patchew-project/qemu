@@ -20,6 +20,8 @@
 #ifndef I386_CPU_INTERNAL_H
 #define I386_CPU_INTERNAL_H
 
+#include "qapi/qapi-types-machine.h"
+
 typedef enum FeatureWordType {
    CPUID_FEATURE_WORD,
    MSR_FEATURE_WORD,
@@ -54,6 +56,8 @@ typedef struct FeatureWordInfo {
 } FeatureWordInfo;
 
 extern FeatureWordInfo feature_word_info[];
+
+X86CPURegister32 get_register_enum_32(FeatureWord w);
 
 void x86_cpu_expand_features(X86CPU *cpu, Error **errp);
 

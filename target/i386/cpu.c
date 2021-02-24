@@ -1476,6 +1476,11 @@ static const char *get_register_name_32(unsigned int reg)
     return x86_reg_info_32[reg].name;
 }
 
+X86CPURegister32 get_register_enum_32(FeatureWord w)
+{
+    return x86_reg_info_32[feature_word_info[w].cpuid.reg].qapi_enum;
+}
+
 /*
  * Returns the set of feature flags that are supported and migratable by
  * QEMU, for a given FeatureWord.
@@ -4548,7 +4553,7 @@ static void x86_cpu_get_feature_words(Object *obj, Visitor *v,
         qwi->cpuid_input_eax = wi->cpuid.eax;
         qwi->has_cpuid_input_ecx = wi->cpuid.needs_ecx;
         qwi->cpuid_input_ecx = wi->cpuid.ecx;
-        qwi->cpuid_register = x86_reg_info_32[wi->cpuid.reg].qapi_enum;
+        qwi->cpuid_register = get_register_enum_32(w);
         qwi->features = array[w];
 
         /* List will be in reverse order, but order shouldn't matter */
