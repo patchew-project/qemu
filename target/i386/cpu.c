@@ -27,7 +27,7 @@
 #include "sysemu/hvf.h"
 #include "kvm/kvm_i386.h"
 #include "sev_i386.h"
-#include "qapi/qapi-visit-machine.h"
+#include "qapi/qapi-builtin-visit.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qapi-commands-machine-target.h"
 #include "standard-headers/asm-x86/kvm_para.h"
@@ -4529,42 +4529,6 @@ static void x86_cpuid_set_tsc_freq(Object *obj, Visitor *v, const char *name,
     cpu->env.tsc_khz = cpu->env.user_tsc_khz = value / 1000;
 }
 
-/* Generic getter for "feature-words" and "filtered-features" properties */
-static void x86_cpu_get_feature_words(Object *obj, Visitor *v,
-                                      const char *name, void *opaque,
-                                      Error **errp)
-{
-    uint64_t *array = (uint64_t *)opaque;
-    FeatureWord w;
-    X86CPUFeatureWordInfo word_infos[FEATURE_WORDS] = { };
-    X86CPUFeatureWordInfoList list_entries[FEATURE_WORDS] = { };
-    X86CPUFeatureWordInfoList *list = NULL;
-
-    for (w = 0; w < FEATURE_WORDS; w++) {
-        FeatureWordInfo *wi = &feature_word_info[w];
-        /*
-                * We didn't have MSR features when "feature-words" was
-                *  introduced. Therefore skipped other type entries.
-                */
-        if (wi->type != CPUID_FEATURE_WORD) {
-            continue;
-        }
-        X86CPUFeatureWordInfo *qwi = &word_infos[w];
-        qwi->cpuid_input_eax = wi->cpuid.eax;
-        qwi->has_cpuid_input_ecx = wi->cpuid.needs_ecx;
-        qwi->cpuid_input_ecx = wi->cpuid.ecx;
-        qwi->cpuid_register = get_register_enum_32(w);
-        qwi->features = array[w];
-
-        /* List will be in reverse order, but order shouldn't matter */
-        list_entries[w].next = list;
-        list_entries[w].value = &word_infos[w];
-        list = &list_entries[w];
-    }
-
-    visit_type_X86CPUFeatureWordInfoList(v, "feature-words", &list, errp);
-}
-
 /* Convert all '_' in a feature string option name to '-', to make feature
  * name conform to QOM property naming rule, which uses '-' instead of '_'.
  */
@@ -6422,12 +6386,14 @@ static void x86_cpu_initfn(Object *obj)
     env->nr_dies = 1;
     cpu_set_cpustate_pointers(cpu);
 
+#if !defined(CONFIG_USER_ONLY)
     object_property_add(obj, "feature-words", "X86CPUFeatureWordInfo",
                         x86_cpu_get_feature_words,
                         NULL, NULL, (void *)env->features);
     object_property_add(obj, "filtered-features", "X86CPUFeatureWordInfo",
                         x86_cpu_get_feature_words,
                         NULL, NULL, (void *)cpu->filtered_features);
+#endif  /* !CONFIG_USER_ONLY */
 
     object_property_add_alias(obj, "sse3", obj, "pni");
     object_property_add_alias(obj, "pclmuldq", obj, "pclmulqdq");
