@@ -50,6 +50,15 @@ by the ``tls-authz`` and ``sasl-authz`` options.
 The ``pretty=on|off`` switch has no effect for HMP monitors and
 its use is rejected.
 
+``-usbdevice`` (removed in 6.0)
+'''''''''''''''''''''''''''''''
+
+The ``-usbdevice DEV`` argument was now a synonym for setting
+the ``-device usb-DEV`` argument instead. The removed syntax
+would automatically enable USB support on the machine type.
+When using the new syntax, USB support must be explicitly
+enabled via the ``-machine usb=on`` argument.
+
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 
