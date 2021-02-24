@@ -369,14 +369,23 @@ static size_t qjack_read(HWVoiceIn *hw, void *buf, size_t len)
 
 static void qjack_client_connect_ports(QJackClient *c)
 {
-    if (!c->connect_ports || !c->opt->connect_ports) {
+    if (!c->connect_ports) {
         return;
     }
 
     c->connect_ports = false;
     const char **ports;
-    ports = jack_get_ports(c->client, c->opt->connect_ports, NULL,
-        c->out ? JackPortIsInput : JackPortIsOutput);
+    if (c->out) {
+        ports = jack_get_ports(c->client,
+            c->opt->connect_ports ? c->opt->connect_ports
+                : "system:playback_.*",
+            NULL, JackPortIsInput);
+    } else {
+        ports = jack_get_ports(c->client,
+            c->opt->connect_ports ? c->opt->connect_ports
+                : "system:capture_.*",
+            NULL, JackPortIsOutput);
+    }
 
     if (!ports) {
         return;
