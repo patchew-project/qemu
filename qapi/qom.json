@@ -576,6 +576,18 @@
             '*seal': 'bool' } }
 
 ##
+# @PrManagerHelperProperties:
+#
+# Properties for pr-manager-helper objects.
+#
+# @path: the path to a Unix domain socket for connecting to the external helper
+#
+# Since: 2.11
+##
+{ 'struct': 'PrManagerHelperProperties',
+  'data': { 'path': 'str' } }
+
+##
 # @RngProperties:
 #
 # Properties for objects of classes derived from rng.
@@ -649,6 +661,7 @@
     'memory-backend-file',
     'memory-backend-memfd',
     'memory-backend-ram',
+    'pr-manager-helper',
     'rng-builtin',
     'rng-egd',
     'rng-random',
@@ -697,6 +710,7 @@
       'memory-backend-file':        'MemoryBackendFileProperties',
       'memory-backend-memfd':       'MemoryBackendMemfdProperties',
       'memory-backend-ram':         'MemoryBackendProperties',
+      'pr-manager-helper':          'PrManagerHelperProperties',
       'rng-builtin':                'RngProperties',
       'rng-egd':                    'RngEgdProperties',
       'rng-random':                 'RngRandomProperties',
