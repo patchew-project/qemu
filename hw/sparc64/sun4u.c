@@ -749,8 +749,6 @@ static char *sun4u_fw_dev_path(FWPathProvider *p, BusState *bus,
                                DeviceState *dev)
 {
     PCIDevice *pci;
-    IDEBus *ide_bus;
-    IDEState *ide_s;
     int bus_id;
 
     if (!strcmp(object_get_typename(OBJECT(dev)), "pbm-bridge")) {
@@ -762,18 +760,6 @@ static char *sun4u_fw_dev_path(FWPathProvider *p, BusState *bus,
         } else {
             return g_strdup_printf("pci@%x", PCI_SLOT(pci->devfn));
         }
-    }
-
-    if (!strcmp(object_get_typename(OBJECT(dev)), "ide-drive")) {
-         ide_bus = IDE_BUS(qdev_get_parent_bus(dev));
-         ide_s = idebus_active_if(ide_bus);
-         bus_id = ide_bus->bus_id;
-
-         if (ide_s->drive_kind == IDE_CD) {
-             return g_strdup_printf("ide@%x/cdrom", bus_id);
-         }
-
-         return g_strdup_printf("ide@%x/disk", bus_id);
     }
 
     if (!strcmp(object_get_typename(OBJECT(dev)), "ide-hd")) {

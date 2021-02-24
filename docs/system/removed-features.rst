@@ -213,6 +213,15 @@ This machine has been renamed ``fuloong2e``.
 These machine types were very old and likely could not be used for live
 migration from old QEMU versions anymore. Use a newer machine type instead.
 
+System emulator devices
+-----------------------
+
+``ide-drive`` (removed in 6.0)
+''''''''''''''''''''''''''''''
+
+The 'ide-drive' device has been removed. Users should use 'ide-hd' or
+'ide-cd' as appropriate to get an IDE hard disk or CD-ROM as needed.
+
 Related binaries
 ----------------
 
