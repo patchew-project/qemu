@@ -113,6 +113,7 @@
 #include "sysemu/replay.h"
 #include "qapi/qapi-events-run-state.h"
 #include "qapi/qapi-visit-block-core.h"
+#include "qapi/qapi-visit-qom.h"
 #include "qapi/qapi-visit-ui.h"
 #include "qapi/qapi-commands-block-core.h"
 #include "qapi/qapi-commands-migration.h"
@@ -132,6 +133,14 @@ typedef struct BlockdevOptionsQueueEntry {
 
 typedef QSIMPLEQ_HEAD(, BlockdevOptionsQueueEntry) BlockdevOptionsQueue;
 
+typedef struct ObjectOptionsQueueEntry {
+    ObjectOptions *options;
+    Location loc;
+    QTAILQ_ENTRY(ObjectOptionsQueueEntry) next;
+} ObjectOptionsQueueEntry;
+
+typedef QTAILQ_HEAD(, ObjectOptionsQueueEntry) ObjectOptionsQueue;
+
 static const char *cpu_option;
 static const char *mem_path;
 static const char *incoming;
@@ -143,6 +152,7 @@ static int snapshot;
 static bool preconfig_requested;
 static QemuPluginList plugin_list = QTAILQ_HEAD_INITIALIZER(plugin_list);
 static BlockdevOptionsQueue bdo_queue = QSIMPLEQ_HEAD_INITIALIZER(bdo_queue);
+static ObjectOptionsQueue obj_queue = QTAILQ_HEAD_INITIALIZER(obj_queue);
 static bool nographic = false;
 static int mem_prealloc; /* force preallocation of physical target memory */
 static ram_addr_t ram_size;
@@ -1691,12 +1701,9 @@ static int machine_set_property(void *opaque,
  * cannot be created here, as it depends on the chardev
  * already existing.
  */
-static bool object_create_early(const char *type, QemuOpts *opts)
+static bool object_create_early(ObjectOptions *options)
 {
-    if (user_creatable_print_help(type, opts)) {
-        exit(0);
-    }
-
+    const char *type = ObjectType_str(options->qom_type);
     /*
      * Objects should not be made "delayed" without a reason.  If you
      * add one, state the reason in a comment!
@@ -1742,6 +1749,56 @@ static bool object_create_early(const char *type, QemuOpts *opts)
     }
 
     return true;
+}
+
+static void object_queue_create(bool early)
+{
+    ObjectOptionsQueueEntry *entry, *next;
+
+    QTAILQ_FOREACH_SAFE(entry, &obj_queue, next, next) {
+        if (early != object_create_early(entry->options)) {
+            continue;
+        }
+        QTAILQ_REMOVE(&obj_queue, entry, next);
+        loc_push_restore(&entry->loc);
+        user_creatable_add_qapi(entry->options, &error_fatal);
+        loc_pop(&entry->loc);
+        qapi_free_ObjectOptions(entry->options);
+        g_free(entry);
+    }
+}
+
+/*
+ * -readconfig still parses things into QemuOpts. Convert any such
+ *  configurations to an ObjectOptionsQueueEntry.
+ *
+ *  This is more restricted than the normal -object parser because QemuOpts
+ *  parsed things, so no support for non-scalar properties. Help is also not
+ *  supported (but this shouldn't be requested in a config file anyway).
+ */
+static int object_readconfig_to_qapi(void *opaque, QemuOpts *opts, Error **errp)
+{
+    ERRP_GUARD();
+    ObjectOptionsQueueEntry *entry;
+    ObjectOptions *options;
+    QDict *args = qemu_opts_to_qdict(opts, NULL);
+    Visitor *v;
+
+    v = qobject_input_visitor_new_keyval(QOBJECT(args));
+    visit_type_ObjectOptions(v, NULL, &options, errp);
+    visit_free(v);
+    qobject_unref(args);
+
+    if (*errp) {
+        return -1;
+    }
+
+    entry = g_new0(ObjectOptionsQueueEntry, 1);
+    entry->options = options;
+    loc_save(&entry->loc);
+    QTAILQ_INSERT_TAIL(&obj_queue, entry, next);
+
+    return 0;
 }
 
 static void qemu_apply_machine_options(void)
@@ -1816,8 +1873,8 @@ static void qemu_create_early_backends(void)
     }
 
     qemu_opts_foreach(qemu_find_opts("object"),
-                      user_creatable_add_opts_foreach,
-                      object_create_early, &error_fatal);
+                      object_readconfig_to_qapi, NULL, &error_fatal);
+    object_queue_create(true);
 
     /* spice needs the timers to be initialized by this point */
     /* spice must initialize before audio as it changes the default auiodev */
@@ -1841,16 +1898,6 @@ static void qemu_create_early_backends(void)
     audio_init_audiodevs();
 }
 
-
-/*
- * The remainder of object creation happens after the
- * creation of chardev, fsdev, net clients and device data types.
- */
-static bool object_create_late(const char *type, QemuOpts *opts)
-{
-    return !object_create_early(type, opts);
-}
-
 static void qemu_create_late_backends(void)
 {
     if (qtest_chrdev) {
@@ -1859,9 +1906,11 @@ static void qemu_create_late_backends(void)
 
     net_init_clients(&error_fatal);
 
-    qemu_opts_foreach(qemu_find_opts("object"),
-                      user_creatable_add_opts_foreach,
-                      object_create_late, &error_fatal);
+    /*
+     * The remainder of object creation happens after the
+     * creation of chardev, fsdev, net clients and device data types.
+     */
+    object_queue_create(false);
 
     if (tpm_init() < 0) {
         exit(1);
@@ -3407,12 +3456,22 @@ void qemu_init(int argc, char **argv, char **envp)
 #endif
                 break;
             case QEMU_OPTION_object:
-                opts = qemu_opts_parse_noisily(qemu_find_opts("object"),
-                                               optarg, true);
-                if (!opts) {
-                    exit(1);
+                {
+                    ObjectOptionsQueueEntry *entry;
+                    ObjectOptions *options;
+
+                    options = user_creatable_parse_str(optarg, &error_fatal);
+                    if (!options)  {
+                        /* Help was printed */
+                        exit(EXIT_SUCCESS);
+                    }
+
+                    entry = g_new0(ObjectOptionsQueueEntry, 1);
+                    entry->options = options;
+                    loc_save(&entry->loc);
+                    QTAILQ_INSERT_TAIL(&obj_queue, entry, next);
+                    break;
                 }
-                break;
             case QEMU_OPTION_overcommit:
                 opts = qemu_opts_parse_noisily(qemu_find_opts("overcommit"),
                                                optarg, false);
