@@ -23,7 +23,7 @@
 #include "sysemu/whpx.h"
 #include "kvm/kvm_i386.h"
 #include "qapi/error.h"
-#include "qapi/qapi-visit-machine.h"
+#include "qapi/qapi-visit-machine-target.h"
 #include "qapi/qapi-visit-run-state.h"
 #include "qapi/qmp/qdict.h"
 #include "qom/qom-qobject.h"
