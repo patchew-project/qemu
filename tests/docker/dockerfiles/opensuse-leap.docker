@@ -6,6 +6,7 @@ ENV PACKAGES \
     brlapi-devel \
     bzip2 \
     cyrus-sasl-devel \
+    flex \
     gcc \
     gcc-c++ \
     mkisofs \

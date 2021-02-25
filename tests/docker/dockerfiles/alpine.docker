@@ -11,6 +11,7 @@ ENV PACKAGES \
 	binutils \
 	coreutils \
 	curl-dev \
+	flex \
 	g++ \
 	gcc \
 	git \

@@ -3,6 +3,7 @@ ENV PACKAGES \
     bzip2 \
     diffutils \
     findutils \
+    flex \
     gcc \
     git \
     libtasn1-devel.i686 \

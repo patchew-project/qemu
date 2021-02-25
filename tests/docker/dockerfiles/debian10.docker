@@ -23,6 +23,7 @@ RUN apt update && \
         ccache \
         clang \
         dbus \
+        flex \
         gdb-multiarch \
         gettext \
         git \

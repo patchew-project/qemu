@@ -10,6 +10,7 @@ ENV PACKAGES \
     ccache \
     csnappy-devel \
     dbus-daemon \
+    flex \
     gcc-c++ \
     gcc \
     gettext \
