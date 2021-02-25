@@ -20,6 +20,7 @@ hexagon_ss = ss.source_set()
 hex_common_py = 'hex_common.py'
 attribs_def = meson.current_source_dir() / 'attribs_def.h.inc'
 gen_tcg_h = meson.current_source_dir() / 'gen_tcg.h'
+idef_parser_dir = meson.current_source_dir() / 'idef-parser'
 
 #
 #  Step 1
@@ -187,5 +188,22 @@ hexagon_ss.add(files(
     'fma_emu.c',
     'conv_emu.c',
 ))
+
+idef_parser_input_generated = custom_target(
+    'idef_parser_input.h.inc',
+    output: 'idef_parser_input.h.inc',
+    input: 'gen_idef_parser_funcs.py',
+    depend_files: [hex_common_py],
+    command: [python, '@INPUT@', semantics_generated, attribs_def, gen_tcg_h, '@OUTPUT@'],
+)
+
+idef_parser_input_generated_prep = custom_target(
+    'idef_parser_input.preprocessed.h.inc',
+    output: 'idef_parser_input.preprocessed.h.inc',
+    input: idef_parser_input_generated,
+    capture: true,
+    depend_files: [hex_common_py],
+    command: [idef_parser_dir / 'prepare', '@INPUT@', '-I' + idef_parser_dir],
+)
 
 target_arch += {'hexagon': hexagon_ss}
