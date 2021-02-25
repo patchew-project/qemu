@@ -618,4 +618,17 @@ struct AcpiIortRC {
 } QEMU_PACKED;
 typedef struct AcpiIortRC AcpiIortRC;
 
+enum {
+    ACPI_PPTT_TYPE_PROCESSOR = 0,
+    ACPI_PPTT_TYPE_CACHE,
+    ACPI_PPTT_TYPE_ID,
+    ACPI_PPTT_TYPE_RESERVED
+};
+
+#define ACPI_PPTT_PHYSICAL_PACKAGE          (1)
+#define ACPI_PPTT_ACPI_PROCESSOR_ID_VALID   (1 << 1)
+#define ACPI_PPTT_ACPI_PROCESSOR_IS_THREAD  (1 << 2)      /* ACPI 6.3 */
+#define ACPI_PPTT_ACPI_LEAF_NODE            (1 << 3)      /* ACPI 6.3 */
+#define ACPI_PPTT_ACPI_IDENTICAL            (1 << 4)      /* ACPI 6.3 */
+
 #endif
