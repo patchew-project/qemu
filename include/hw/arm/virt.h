@@ -129,6 +129,7 @@ struct VirtMachineClass {
     bool no_kvm_steal_time;
     bool acpi_expose_flash;
     bool no_secure_gpio;
+    bool no_cpu_topology;
 };
 
 struct VirtMachineState {
