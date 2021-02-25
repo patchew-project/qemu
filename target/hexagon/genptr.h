@@ -28,5 +28,24 @@ TCGv gen_read_reg(TCGv result, int num);
 TCGv gen_read_preg(TCGv pred, uint8_t num);
 void gen_log_reg_write(int rnum, TCGv val);
 void gen_log_pred_write(int pnum, TCGv val);
+void gen_fbrev(TCGv result, TCGv src);
+void gen_cancel(tcg_target_ulong slot);
+TCGv gen_set_bit(tcg_target_long i, TCGv result, TCGv src);
+void gen_store32(TCGv vaddr, TCGv src, tcg_target_long width, unsigned slot);
+void gen_store1(TCGv_env cpu_env, TCGv vaddr, TCGv src, DisasContext *ctx,
+                unsigned slot);
+void gen_store2(TCGv_env cpu_env, TCGv vaddr, TCGv src, DisasContext *ctx,
+                unsigned slot);
+void gen_store4(TCGv_env cpu_env, TCGv vaddr, TCGv src, DisasContext *ctx,
+                unsigned slot);
+void gen_store8(TCGv_env cpu_env, TCGv vaddr, TCGv_i64 src, DisasContext *ctx,
+                unsigned slot);
+void gen_set_usr_field(int field, TCGv val);
+void gen_set_usr_fieldi(int field, int x);
+void gen_write_new_pc(TCGv addr);
+void gen_sat_i32(TCGv dest, TCGv source, int width, bool set_overflow);
+void gen_satu_i32(TCGv dest, TCGv source, int width, bool set_overflow);
+void gen_sat_i64(TCGv_i64 dest, TCGv_i64 source, int width, bool set_overflow);
+void gen_satu_i64(TCGv_i64 dest, TCGv_i64 source, int width, bool set_overflow);
 
 #endif
