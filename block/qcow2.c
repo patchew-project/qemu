@@ -1897,6 +1897,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
 
     /* Initialise locks */
     qemu_co_mutex_init(&s->lock);
+    qemu_co_rwlock_init(&s->discard_rw_lock);
 
     if (qemu_in_coroutine()) {
         /* From bdrv_co_create.  */
@@ -2536,12 +2537,14 @@ static coroutine_fn int qcow2_co_pwritev_task(BlockDriverState *bs,
         }
     }
 
+    qemu_co_rwlock_unlock(&s->discard_rw_lock);
     qemu_co_mutex_lock(&s->lock);
 
     ret = qcow2_handle_l2meta(bs, &l2meta, true);
     goto out_locked;
 
 out_unlocked:
+    qemu_co_rwlock_unlock(&s->discard_rw_lock);
     qemu_co_mutex_lock(&s->lock);
 
 out_locked:
@@ -2604,6 +2607,8 @@ static coroutine_fn int qcow2_co_pwritev_part(
         if (ret < 0) {
             goto out_locked;
         }
+
+        qemu_co_rwlock_rdlock(&s->discard_rw_lock);
 
         qemu_co_mutex_unlock(&s->lock);
 
@@ -4097,10 +4102,15 @@ qcow2_co_copy_range_to(BlockDriverState *bs,
             goto fail;
         }
 
+        qemu_co_rwlock_rdlock(&s->discard_rw_lock);
         qemu_co_mutex_unlock(&s->lock);
+
         ret = bdrv_co_copy_range_to(src, src_offset, s->data_file, host_offset,
                                     cur_bytes, read_flags, write_flags);
+
+        qemu_co_rwlock_unlock(&s->discard_rw_lock);
         qemu_co_mutex_lock(&s->lock);
+
         if (ret < 0) {
             goto fail;
         }
@@ -4536,13 +4546,19 @@ qcow2_co_pwritev_compressed_task(BlockDriverState *bs,
     }
 
     ret = qcow2_pre_write_overlap_check(bs, 0, cluster_offset, out_len, true);
-    qemu_co_mutex_unlock(&s->lock);
     if (ret < 0) {
+        qemu_co_mutex_unlock(&s->lock);
         goto fail;
     }
 
+    qemu_co_rwlock_rdlock(&s->discard_rw_lock);
+    qemu_co_mutex_unlock(&s->lock);
+
     BLKDBG_EVENT(s->data_file, BLKDBG_WRITE_COMPRESSED);
     ret = bdrv_co_pwrite(s->data_file, cluster_offset, out_len, out_buf, 0);
+
+    qemu_co_rwlock_unlock(&s->discard_rw_lock);
+
     if (ret < 0) {
         goto fail;
     }

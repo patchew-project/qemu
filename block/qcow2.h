@@ -420,6 +420,8 @@ typedef struct BDRVQcow2State {
      * is to convert the image with the desired compression type set.
      */
     Qcow2CompressionType compression_type;
+
+    CoRwlock discard_rw_lock;
 } BDRVQcow2State;
 
 typedef struct Qcow2COWRegion {

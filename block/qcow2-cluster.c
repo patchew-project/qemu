@@ -1938,6 +1938,8 @@ int qcow2_cluster_discard(BlockDriverState *bs, uint64_t offset,
     int64_t cleared;
     int ret;
 
+    qemu_co_rwlock_wrlock(&s->discard_rw_lock);
+
     /* Caller must pass aligned values, except at image end */
     assert(QEMU_IS_ALIGNED(offset, s->cluster_size));
     assert(QEMU_IS_ALIGNED(end_offset, s->cluster_size) ||
@@ -1964,6 +1966,8 @@ int qcow2_cluster_discard(BlockDriverState *bs, uint64_t offset,
 fail:
     s->cache_discards = false;
     qcow2_process_discards(bs, ret);
+
+    qemu_co_rwlock_unlock(&s->discard_rw_lock);
 
     return ret;
 }
