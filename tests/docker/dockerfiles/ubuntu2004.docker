@@ -1,5 +1,6 @@
 FROM ubuntu:20.04
-ENV PACKAGES bison \
+ENV PACKAGES \
+    bison \
     bsdmainutils \
     ccache \
     clang-10\

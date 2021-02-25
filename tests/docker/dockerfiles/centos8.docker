@@ -3,6 +3,7 @@ FROM centos:8.3.2011
 RUN dnf -y update
 ENV PACKAGES \
     SDL2-devel \
+    bison \
     bzip2 \
     bzip2-devel \
     dbus-daemon \

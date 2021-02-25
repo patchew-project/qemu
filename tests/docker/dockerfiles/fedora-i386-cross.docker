@@ -1,5 +1,6 @@
 FROM fedora:31
 ENV PACKAGES \
+    bison \
     bzip2 \
     diffutils \
     findutils \
