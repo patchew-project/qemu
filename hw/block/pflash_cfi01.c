@@ -743,11 +743,19 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
         pfl->ro = 0;
     }
 
-    memory_region_init_rom_device(
-        &pfl->mem, OBJECT(dev),
-        &pflash_cfi01_ops,
-        pfl,
-        pfl->name, total_len, errp);
+    if (pfl->blk && pfl->ro) {
+        memory_region_init_rom_device_from_file(&pfl->mem, OBJECT(dev),
+                                                &pflash_cfi01_ops, pfl,
+                                                pfl->name, total_len,
+                                                qemu_real_host_page_size,
+                                                RAM_SHARED,
+                                                blk_bs(pfl->blk)->filename,
+                                                true, errp);
+    } else {
+        memory_region_init_rom_device(&pfl->mem, OBJECT(dev),
+                                      &pflash_cfi01_ops, pfl,
+                                      pfl->name, total_len, errp);
+    }
     if (*errp) {
         return;
     }
@@ -755,7 +763,7 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     pfl->storage = memory_region_get_ram_ptr(&pfl->mem);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->mem);
 
-    if (pfl->blk) {
+    if (pfl->blk && !pfl->ro) {
         if (!blk_check_size_and_read_all(pfl->blk, pfl->storage, total_len,
                                          errp)) {
             vmstate_unregister_ram(&pfl->mem, DEVICE(pfl));
