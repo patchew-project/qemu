@@ -28,5 +28,8 @@ xtensa_softmmu_ss.add(files(
   'xtensa-semi.c',
 ))
 
+xtensa_user_ss = ss.source_set()
+
 target_arch += {'xtensa': xtensa_ss}
 target_softmmu_arch += {'xtensa': xtensa_softmmu_ss}
+target_user_arch += {'xtensa': xtensa_user_ss}
