@@ -21,24 +21,24 @@
 
 #define FD_STDOUT                1
 
-	.type	str,@object
-	.section	.rodata
+    .type	str,@object
+    .section	.rodata
 str:
-	.string	"Hello!\n"
-	.size	str, 8
+    .string	"Hello!\n"
+    .size	str, 8
 
 .text
 .global _start
 _start:
-	r6 = #SYS_write
-	r0 = #FD_STDOUT
-	r1 = ##str
-	r2 = #7
-	trap0(#1)
+    r6 = #SYS_write
+    r0 = #FD_STDOUT
+    r1 = ##str
+    r2 = #7
+    trap0(#1)
 
-	r0 = #0
-	r6 = #SYS_exit_group
-	trap0(#1)
+    r0 = #0
+    r6 = #SYS_exit_group
+    trap0(#1)
 
 .section ".note.ABI-tag", "a"
 .align 4
