@@ -1831,6 +1831,8 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
 #endif
 
     qemu_co_queue_init(&s->thread_task_queue);
+    s->inflight_writes_counters =
+        g_hash_table_new_full(g_int64_hash, g_int64_equal, g_free, g_free);
 
     return ret;
 
@@ -2546,6 +2548,9 @@ out_unlocked:
 
 out_locked:
     qcow2_handle_l2meta(bs, &l2meta, false);
+
+    qcow2_inflight_writes_dec_locked(bs, host_offset, bytes);
+
     qemu_co_mutex_unlock(&s->lock);
 
     qemu_vfree(crypt_buf);
@@ -2604,6 +2609,8 @@ static coroutine_fn int qcow2_co_pwritev_part(
         if (ret < 0) {
             goto out_locked;
         }
+
+        qcow2_inflight_writes_inc_locked(bs, host_offset, cur_bytes);
 
         qemu_co_mutex_unlock(&s->lock);
 
@@ -2706,6 +2713,9 @@ static void qcow2_close(BlockDriverState *bs)
     g_free(s->image_data_file);
     g_free(s->image_backing_file);
     g_free(s->image_backing_format);
+
+    assert(g_hash_table_size(s->inflight_writes_counters) == 0);
+    g_hash_table_unref(s->inflight_writes_counters);
 
     if (has_data_file(bs)) {
         bdrv_unref_child(bs, s->data_file);
@@ -4097,10 +4107,17 @@ qcow2_co_copy_range_to(BlockDriverState *bs,
             goto fail;
         }
 
+        qcow2_inflight_writes_inc_locked(bs, host_offset, cur_bytes);
+
         qemu_co_mutex_unlock(&s->lock);
+
         ret = bdrv_co_copy_range_to(src, src_offset, s->data_file, host_offset,
                                     cur_bytes, read_flags, write_flags);
+
         qemu_co_mutex_lock(&s->lock);
+
+        qcow2_inflight_writes_dec_locked(bs, host_offset, cur_bytes);
+
         if (ret < 0) {
             goto fail;
         }
@@ -4536,13 +4553,20 @@ qcow2_co_pwritev_compressed_task(BlockDriverState *bs,
     }
 
     ret = qcow2_pre_write_overlap_check(bs, 0, cluster_offset, out_len, true);
-    qemu_co_mutex_unlock(&s->lock);
     if (ret < 0) {
+        qemu_co_mutex_unlock(&s->lock);
         goto fail;
     }
 
+    qcow2_inflight_writes_inc_locked(bs, cluster_offset, out_len);
+
+    qemu_co_mutex_unlock(&s->lock);
+
     BLKDBG_EVENT(s->data_file, BLKDBG_WRITE_COMPRESSED);
     ret = bdrv_co_pwrite(s->data_file, cluster_offset, out_len, out_buf, 0);
+
+    qcow2_inflight_writes_dec(bs, cluster_offset, out_len);
+
     if (ret < 0) {
         goto fail;
     }

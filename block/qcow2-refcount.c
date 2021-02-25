@@ -799,6 +799,145 @@ found:
     }
 }
 
+/*
+ * Qcow2InFlightRefcount is a type for values of s->inflight_writes_counters
+ * hasm map. And it's keys are cluster indices.
+ */
+typedef struct Qcow2InFlightRefcount {
+    /*
+     * Number of in-flight writes to the cluster, always > 0, as when becomes
+     * 0 the entry is removed from s->inflight_writes_counters.
+     */
+    uint64_t inflight_writes_cnt;
+
+    /* Cluster refcount is known to be zero */
+    bool refcount_zero;
+
+    /* Cluster refcount was made zero with this discard-type */
+    enum qcow2_discard_type type;
+} Qcow2InFlightRefcount;
+
+static Qcow2InFlightRefcount *find_infl_wr(BDRVQcow2State *s,
+                                           int64_t cluster_index)
+{
+    Qcow2InFlightRefcount *infl;
+
+    if (!s->inflight_writes_counters) {
+        return NULL;
+    }
+
+    infl = g_hash_table_lookup(s->inflight_writes_counters, &cluster_index);
+
+    if (infl) {
+        assert(infl->inflight_writes_cnt > 0);
+    }
+
+    return infl;
+}
+
+/*
+ * Returns true if there are any in-flight writes to the cluster blocking
+ * its reallocation.
+ */
+static bool has_infl_wr(BDRVQcow2State *s, int64_t cluster_index)
+{
+    return !!find_infl_wr(s, cluster_index);
+}
+
+static int update_inflight_write_cnt(BlockDriverState *bs,
+                                     int64_t offset, int64_t length,
+                                     bool decrease, bool locked)
+{
+    BDRVQcow2State *s = bs->opaque;
+    int64_t start, last, cluster_offset;
+
+    if (locked) {
+        qemu_co_mutex_assert_locked(&s->lock);
+    }
+
+    start = start_of_cluster(s, offset);
+    last = start_of_cluster(s, offset + length - 1);
+    for (cluster_offset = start; cluster_offset <= last;
+         cluster_offset += s->cluster_size)
+    {
+        int64_t cluster_index = cluster_offset >> s->cluster_bits;
+        Qcow2InFlightRefcount *infl = find_infl_wr(s, cluster_index);
+
+        if (!infl) {
+            infl = g_new0(Qcow2InFlightRefcount, 1);
+            g_hash_table_insert(s->inflight_writes_counters,
+                                g_memdup(&cluster_index, sizeof(cluster_index)),
+                                infl);
+        }
+
+        if (decrease) {
+            assert(infl->inflight_writes_cnt >= 1);
+            infl->inflight_writes_cnt--;
+        } else {
+            infl->inflight_writes_cnt++;
+        }
+
+        if (infl->inflight_writes_cnt == 0) {
+            bool refcount_zero = infl->refcount_zero;
+            enum qcow2_discard_type type = infl->type;
+
+            g_hash_table_remove(s->inflight_writes_counters, &cluster_index);
+
+            if (refcount_zero) {
+                /*
+                 * Slow path. We must reset normal refcount to actually release
+                 * the cluster.
+                 */
+                int ret;
+
+                if (!locked) {
+                    qemu_co_mutex_lock(&s->lock);
+                }
+                ret = qcow2_update_cluster_refcount(bs, cluster_index, 0,
+                                                    true, type);
+                if (!locked) {
+                    qemu_co_mutex_unlock(&s->lock);
+                }
+
+                if (ret < 0) {
+                    return ret;
+                }
+            }
+        }
+
+    }
+
+    return 0;
+}
+
+/*
+ * It makes sense to call qcow2_inflight_writes_inc() only in same s->lock
+ * critical section where corresponding region was allocated (or taken from L2
+ * table).
+ */
+int qcow2_inflight_writes_inc_locked(BlockDriverState *bs, int64_t offset,
+                                     int64_t length)
+{
+    return update_inflight_write_cnt(bs, offset, length, false, true);
+}
+
+/*
+ * Called with s->lock not locked by caller. Will take s->lock only if need to
+ * release the cluster (refcount is 0 and inflight-write-cnt becomes zero).
+ */
+int qcow2_inflight_writes_dec(BlockDriverState *bs, int64_t offset,
+                              int64_t length)
+{
+    return update_inflight_write_cnt(bs, offset, length, true, false);
+}
+
+/* Called with s->lock locked. */
+int qcow2_inflight_writes_dec_locked(BlockDriverState *bs, int64_t offset,
+                                     int64_t length)
+{
+    return update_inflight_write_cnt(bs, offset, length, true, true);
+}
+
 /* XXX: cache several refcount block clusters ? */
 /* @addend is the absolute value of the addend; if @decrease is set, @addend
  * will be subtracted from the current refcount, otherwise it will be added */
@@ -885,6 +1024,13 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
 
         if (refcount == 0) {
             void *table;
+            Qcow2InFlightRefcount *infl = find_infl_wr(s, cluster_index);
+
+            if (infl) {
+                infl->refcount_zero = true;
+                infl->type = type;
+                continue;
+            }
 
             table = qcow2_cache_is_table_offset(s->refcount_block_cache,
                                                 offset);
@@ -983,7 +1129,7 @@ retry:
 
         if (ret < 0) {
             return ret;
-        } else if (refcount != 0) {
+        } else if (refcount != 0 || has_infl_wr(s, next_cluster_index)) {
             goto retry;
         }
     }
@@ -1046,7 +1192,7 @@ int64_t qcow2_alloc_clusters_at(BlockDriverState *bs, uint64_t offset,
             ret = qcow2_get_refcount(bs, cluster_index++, &refcount);
             if (ret < 0) {
                 return ret;
-            } else if (refcount != 0) {
+            } else if (refcount != 0 || has_infl_wr(s, cluster_index)) {
                 break;
             }
         }
@@ -2294,7 +2440,9 @@ static int64_t alloc_clusters_imrt(BlockDriverState *bs,
          contiguous_free_clusters < cluster_count;
          cluster++)
     {
-        if (!s->get_refcount(*refcount_table, cluster)) {
+        if (!s->get_refcount(*refcount_table, cluster) &&
+            !has_infl_wr(s, cluster))
+        {
             contiguous_free_clusters++;
             if (first_gap) {
                 /* If this is the first free cluster found, update

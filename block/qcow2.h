@@ -420,6 +420,8 @@ typedef struct BDRVQcow2State {
      * is to convert the image with the desired compression type set.
      */
     Qcow2CompressionType compression_type;
+
+    GHashTable *inflight_writes_counters;
 } BDRVQcow2State;
 
 typedef struct Qcow2COWRegion {
@@ -895,6 +897,13 @@ int qcow2_change_refcount_order(BlockDriverState *bs, int refcount_order,
 int qcow2_shrink_reftable(BlockDriverState *bs);
 int64_t qcow2_get_last_cluster(BlockDriverState *bs, int64_t size);
 int qcow2_detect_metadata_preallocation(BlockDriverState *bs);
+
+int qcow2_inflight_writes_inc_locked(BlockDriverState *bs, int64_t offset,
+                                     int64_t length);
+int qcow2_inflight_writes_dec(BlockDriverState *bs, int64_t offset,
+                              int64_t length);
+int qcow2_inflight_writes_dec_locked(BlockDriverState *bs, int64_t offset,
+                                     int64_t length);
 
 /* qcow2-cluster.c functions */
 int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
