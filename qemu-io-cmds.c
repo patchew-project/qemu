@@ -1332,6 +1332,7 @@ struct aio_ctx {
     BlockBackend *blk;
     QEMUIOVector qiov;
     int64_t offset;
+    int64_t discard_bytes;
     char *buf;
     bool qflag;
     bool vflag;
@@ -1342,6 +1343,34 @@ struct aio_ctx {
     int pattern;
     struct timespec t1;
 };
+
+static void aio_discard_done(void *opaque, int ret)
+{
+    struct aio_ctx *ctx = opaque;
+    struct timespec t2;
+
+    clock_gettime(CLOCK_MONOTONIC, &t2);
+
+
+    if (ret < 0) {
+        printf("aio_discard failed: %s\n", strerror(-ret));
+        block_acct_failed(blk_get_stats(ctx->blk), &ctx->acct);
+        goto out;
+    }
+
+    block_acct_done(blk_get_stats(ctx->blk), &ctx->acct);
+
+    if (ctx->qflag) {
+        goto out;
+    }
+
+    /* Finally, report back -- -C gives a parsable format */
+    t2 = tsub(t2, ctx->t1);
+    print_report("discarded", &t2, ctx->offset, ctx->discard_bytes,
+                 ctx->discard_bytes, 1, ctx->Cflag);
+out:
+    g_free(ctx);
+}
 
 static void aio_write_done(void *opaque, int ret)
 {
@@ -1667,6 +1696,93 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
         blk_aio_pwritev(blk, ctx->offset, &ctx->qiov, flags, aio_write_done,
                         ctx);
     }
+
+    return 0;
+}
+
+static void aio_discard_help(void)
+{
+    printf(
+"\n"
+" asynchronously discards a range of bytes from the given offset\n"
+"\n"
+" Example:\n"
+" 'aio_discard 0 64k' - discards 64K at start of a disk\n"
+"\n"
+" Note that due to its asynchronous nature, this command will be\n"
+" considered successful once the request is submitted, independently\n"
+" of potential I/O errors or pattern mismatches.\n"
+" -C, -- report statistics in a machine parsable format\n"
+" -i, -- treat request as invalid, for exercising stats\n"
+" -q, -- quiet mode, do not show I/O statistics\n"
+"\n");
+}
+
+static int aio_discard_f(BlockBackend *blk, int argc, char **argv);
+
+static const cmdinfo_t aio_discard_cmd = {
+    .name       = "aio_discard",
+    .cfunc      = aio_discard_f,
+    .perm       = BLK_PERM_WRITE,
+    .argmin     = 2,
+    .argmax     = -1,
+    .args       = "[-Ciq] off len",
+    .oneline    = "asynchronously discards a number of bytes",
+    .help       = aio_discard_help,
+};
+
+static int aio_discard_f(BlockBackend *blk, int argc, char **argv)
+{
+    int ret;
+    int c;
+    struct aio_ctx *ctx = g_new0(struct aio_ctx, 1);
+
+    ctx->blk = blk;
+    while ((c = getopt(argc, argv, "Ciq")) != -1) {
+        switch (c) {
+        case 'C':
+            ctx->Cflag = true;
+            break;
+        case 'q':
+            ctx->qflag = true;
+            break;
+        case 'i':
+            printf("injecting invalid discard request\n");
+            block_acct_invalid(blk_get_stats(blk), BLOCK_ACCT_UNMAP);
+            g_free(ctx);
+            return 0;
+        default:
+            g_free(ctx);
+            qemuio_command_usage(&aio_write_cmd);
+            return -EINVAL;
+        }
+    }
+
+    if (optind != argc - 2) {
+        g_free(ctx);
+        qemuio_command_usage(&aio_write_cmd);
+        return -EINVAL;
+    }
+
+    ctx->offset = cvtnum(argv[optind]);
+    if (ctx->offset < 0) {
+        ret = ctx->offset;
+        print_cvtnum_err(ret, argv[optind]);
+        g_free(ctx);
+        return ret;
+    }
+    optind++;
+
+    ctx->discard_bytes = cvtnum(argv[optind]);
+    if (ctx->discard_bytes < 0) {
+        ret = ctx->discard_bytes;
+        print_cvtnum_err(ret, argv[optind]);
+        g_free(ctx);
+        return ret;
+    }
+
+    blk_aio_pdiscard(blk, ctx->offset, ctx->discard_bytes,
+                     aio_discard_done, ctx);
 
     return 0;
 }
@@ -2494,6 +2610,7 @@ static void __attribute((constructor)) init_qemuio_commands(void)
     qemuio_add_command(&readv_cmd);
     qemuio_add_command(&write_cmd);
     qemuio_add_command(&writev_cmd);
+    qemuio_add_command(&aio_discard_cmd);
     qemuio_add_command(&aio_read_cmd);
     qemuio_add_command(&aio_write_cmd);
     qemuio_add_command(&aio_flush_cmd);
