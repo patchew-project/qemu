@@ -296,4 +296,7 @@ uint64_t dma_buf_write(uint8_t *ptr, int32_t len, QEMUSGList *sg);
 void dma_acct_start(BlockBackend *blk, BlockAcctCookie *cookie,
                     QEMUSGList *sg, enum BlockAcctType type);
 
+uint64_t dma_aligned_pow2_mask(uint64_t start, uint64_t end,
+                               int max_addr_bits);
+
 #endif
