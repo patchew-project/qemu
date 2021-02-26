@@ -38,6 +38,7 @@
 #include "hw/boards.h"
 #include "hw/sysbus.h"
 #include "hw/qdev-clock.h"
+#include "hw/core/cpu-system-ops.h"
 #include "migration/vmstate.h"
 #include "trace.h"
 

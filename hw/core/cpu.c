@@ -21,6 +21,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/core/cpu.h"
+#include "hw/core/cpu-system-ops.h"
 #include "sysemu/hw_accel.h"
 #include "qemu/notify.h"
 #include "qemu/log.h"
@@ -71,8 +72,8 @@ bool cpu_paging_enabled(const CPUState *cpu)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
-    if (cc->system_ops.get_paging_enabled) {
-        return cc->system_ops.get_paging_enabled(cpu);
+    if (cc->system_ops->get_paging_enabled) {
+        return cc->system_ops->get_paging_enabled(cpu);
     }
 
     return false;
@@ -83,8 +84,8 @@ void cpu_get_memory_mapping(CPUState *cpu, MemoryMappingList *list,
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
-    if (cc->system_ops.get_memory_mapping) {
-        cc->system_ops.get_memory_mapping(cpu, list, errp);
+    if (cc->system_ops->get_memory_mapping) {
+        cc->system_ops->get_memory_mapping(cpu, list, errp);
         return;
     }
 
@@ -96,12 +97,12 @@ hwaddr cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
-    if (cc->system_ops.get_phys_page_attrs_debug) {
-        return cc->system_ops.get_phys_page_attrs_debug(cpu, addr, attrs);
+    if (cc->system_ops->get_phys_page_attrs_debug) {
+        return cc->system_ops->get_phys_page_attrs_debug(cpu, addr, attrs);
     }
     /* Fallback for CPUs which don't implement the _attrs_ hook */
     *attrs = MEMTXATTRS_UNSPECIFIED;
-    return cc->system_ops.get_phys_page_debug(cpu, addr);
+    return cc->system_ops->get_phys_page_debug(cpu, addr);
 }
 
 hwaddr cpu_get_phys_page_debug(CPUState *cpu, vaddr addr)
@@ -116,8 +117,8 @@ int cpu_asidx_from_attrs(CPUState *cpu, MemTxAttrs attrs)
     CPUClass *cc = CPU_GET_CLASS(cpu);
     int ret = 0;
 
-    if (cc->system_ops.asidx_from_attrs) {
-        ret = cc->system_ops.asidx_from_attrs(cpu, attrs);
+    if (cc->system_ops->asidx_from_attrs) {
+        ret = cc->system_ops->asidx_from_attrs(cpu, attrs);
         assert(ret < cpu->num_ases && ret >= 0);
     }
     return ret;
@@ -151,10 +152,10 @@ int cpu_write_elf32_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
-    if (!cc->system_ops.write_elf32_qemunote) {
+    if (!cc->system_ops->write_elf32_qemunote) {
         return 0;
     }
-    return (*cc->system_ops.write_elf32_qemunote)(f, cpu, opaque);
+    return (*cc->system_ops->write_elf32_qemunote)(f, cpu, opaque);
 }
 
 int cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cpu,
@@ -162,10 +163,10 @@ int cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cpu,
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
-    if (!cc->system_ops.write_elf32_note) {
+    if (!cc->system_ops->write_elf32_note) {
         return -1;
     }
-    return (*cc->system_ops.write_elf32_note)(f, cpu, cpuid, opaque);
+    return (*cc->system_ops->write_elf32_note)(f, cpu, cpuid, opaque);
 }
 
 int cpu_write_elf64_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
@@ -173,10 +174,10 @@ int cpu_write_elf64_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
-    if (!cc->system_ops.write_elf64_qemunote) {
+    if (!cc->system_ops->write_elf64_qemunote) {
         return 0;
     }
-    return (*cc->system_ops.write_elf64_qemunote)(f, cpu, opaque);
+    return (*cc->system_ops->write_elf64_qemunote)(f, cpu, opaque);
 }
 
 int cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cpu,
@@ -184,10 +185,10 @@ int cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cpu,
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
-    if (!cc->system_ops.write_elf64_note) {
+    if (!cc->system_ops->write_elf64_note) {
         return -1;
     }
-    return (*cc->system_ops.write_elf64_note)(f, cpu, cpuid, opaque);
+    return (*cc->system_ops->write_elf64_note)(f, cpu, cpuid, opaque);
 }
 
 static int cpu_common_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg)
@@ -204,8 +205,8 @@ bool cpu_virtio_is_big_endian(CPUState *cpu)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
-    if (cc->system_ops.virtio_is_big_endian) {
-        return cc->system_ops.virtio_is_big_endian(cpu);
+    if (cc->system_ops->virtio_is_big_endian) {
+        return cc->system_ops->virtio_is_big_endian(cpu);
     }
     return target_words_bigendian();
 }
@@ -220,8 +221,8 @@ GuestPanicInformation *cpu_get_crash_info(CPUState *cpu)
     CPUClass *cc = CPU_GET_CLASS(cpu);
     GuestPanicInformation *res = NULL;
 
-    if (cc->system_ops.get_crash_info) {
-        res = cc->system_ops.get_crash_info(cpu);
+    if (cc->system_ops->get_crash_info) {
+        res = cc->system_ops->get_crash_info(cpu);
     }
     return res;
 }

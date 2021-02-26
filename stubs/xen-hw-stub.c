@@ -7,6 +7,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/core/cpu-system-ops.h"
 #include "hw/xen/xen.h"
 #include "hw/xen/xen-x86.h"
 

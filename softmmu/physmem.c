@@ -28,6 +28,7 @@
 #ifdef CONFIG_TCG
 #include "hw/core/tcg-cpu-ops.h"
 #endif /* CONFIG_TCG */
+#include "hw/core/cpu-system-ops.h"
 
 #include "exec/exec-all.h"
 #include "exec/target_page.h"

@@ -2278,6 +2278,19 @@ static struct TCGCPUOps arm_tcg_ops = {
 };
 #endif /* CONFIG_TCG */
 
+#ifndef CONFIG_USER_ONLY
+#include "hw/core/cpu-system-ops.h"
+
+static struct CPUSystemOperations arm_sysemu_ops = {
+    .vmsd = &vmstate_arm_cpu,
+    .get_phys_page_attrs_debug = arm_cpu_get_phys_page_attrs_debug,
+    .asidx_from_attrs = arm_asidx_from_attrs,
+    .virtio_is_big_endian = arm_cpu_virtio_is_big_endian,
+    .write_elf64_note = arm_cpu_write_elf64_note,
+    .write_elf32_note = arm_cpu_write_elf32_note,
+};
+#endif
+
 static void arm_cpu_class_init(ObjectClass *oc, void *data)
 {
     ARMCPUClass *acc = ARM_CPU_CLASS(oc);
@@ -2296,14 +2309,6 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
     cc->set_pc = arm_cpu_set_pc;
     cc->gdb_read_register = arm_cpu_gdb_read_register;
     cc->gdb_write_register = arm_cpu_gdb_write_register;
-#ifndef CONFIG_USER_ONLY
-    cc->system_ops.get_phys_page_attrs_debug = arm_cpu_get_phys_page_attrs_debug;
-    cc->system_ops.asidx_from_attrs = arm_asidx_from_attrs;
-    cc->system_ops.vmsd = &vmstate_arm_cpu;
-    cc->system_ops.virtio_is_big_endian = arm_cpu_virtio_is_big_endian;
-    cc->system_ops.write_elf64_note = arm_cpu_write_elf64_note;
-    cc->system_ops.write_elf32_note = arm_cpu_write_elf32_note;
-#endif
     cc->gdb_num_core_regs = 26;
     cc->gdb_core_xml_file = "arm-core.xml";
     cc->gdb_arch_name = arm_gdb_arch_name;
@@ -2314,6 +2319,9 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
 #ifdef CONFIG_TCG
     cc->tcg_ops = &arm_tcg_ops;
 #endif /* CONFIG_TCG */
+#ifndef CONFIG_USER_ONLY
+    cc->system_ops = &arm_sysemu_ops;
+#endif
 }
 
 #ifdef CONFIG_KVM
