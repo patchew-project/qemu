@@ -519,7 +519,7 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     cc->get_phys_page_debug = s390_cpu_get_phys_page_debug;
     cc->system_ops.vmsd = &vmstate_s390_cpu;
     cc->system_ops.get_crash_info = s390_cpu_get_crash_info;
-    cc->write_elf64_note = s390_cpu_write_elf64_note;
+    cc->system_ops.write_elf64_note = s390_cpu_write_elf64_note;
 #endif
     cc->disas_set_info = s390_cpu_disas_set_info;
     cc->gdb_num_core_regs = S390_NUM_CORE_REGS;

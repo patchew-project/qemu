@@ -10888,8 +10888,8 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
     cc->system_ops.vmsd = &vmstate_ppc_cpu;
 #endif
 #if defined(CONFIG_SOFTMMU)
-    cc->write_elf64_note = ppc64_cpu_write_elf64_note;
-    cc->write_elf32_note = ppc32_cpu_write_elf32_note;
+    cc->system_ops.write_elf64_note = ppc64_cpu_write_elf64_note;
+    cc->system_ops.write_elf32_note = ppc32_cpu_write_elf32_note;
 #endif
 
     cc->gdb_num_core_regs = 71;
