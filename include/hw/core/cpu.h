@@ -80,6 +80,12 @@ struct TCGCPUOps;
 /* see accel-cpu.h */
 struct AccelCPUClass;
 
+/*
+ * struct CPUSystemOperations: System operations specific to a CPU class
+ */
+typedef struct CPUSystemOperations {
+} CPUSystemOperations;
+
 /**
  * CPUClass:
  * @class_by_name: Callback to map -cpu command line model name to an
@@ -189,6 +195,9 @@ struct CPUClass {
     int gdb_num_core_regs;
     bool gdb_stop_before_watchpoint;
     struct AccelCPUClass *accel_cpu;
+
+    /* when system emulation is not available, this pointer is NULL */
+    struct CPUSystemOperations system_ops;
 
     /* when TCG is not available, this pointer is NULL */
     struct TCGCPUOps *tcg_ops;
