@@ -301,12 +301,22 @@ If *slave* detects some error such as incompatible features, it may also
 close the connection. This should only happen in exceptional circumstances.
 
 Any protocol extensions are gated by protocol feature bits, which
-allows full backwards compatibility on both master and slave.  As
-older slaves don't support negotiating protocol features, a feature
+allows full backwards compatibility on both master and slave. As older
+slaves don't support negotiating protocol features, a device feature
 bit was dedicated for this purpose::
 
   #define VHOST_USER_F_PROTOCOL_FEATURES 30
 
+However as the protocol negotiation something that only occurs between
+parts of the backend implementation it is permissible to for the master
+to mask the feature bit from the guest. As noted for the
+``VHOST_USER_GET_PROTOCOL_FEATURES`` and
+``VHOST_USER_SET_PROTOCOL_FEATURES`` messages this occurs before a
+final ``VHOST_USER_SET_FEATURES`` comes from the guest. So the
+enabling of protocol features need only require the advertising of the
+feature by the slave and the successful get/set protocol features
+sequence.
+  
 Starting and stopping rings
 ---------------------------
 
