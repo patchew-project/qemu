@@ -215,7 +215,7 @@ static void xtensa_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_write_register = xtensa_cpu_gdb_write_register;
     cc->gdb_stop_before_watchpoint = true;
 #ifndef CONFIG_USER_ONLY
-    cc->get_phys_page_debug = xtensa_cpu_get_phys_page_debug;
+    cc->system_ops.get_phys_page_debug = xtensa_cpu_get_phys_page_debug;
 #endif
     cc->disas_set_info = xtensa_cpu_disas_set_info;
     cc->system_ops.vmsd = &vmstate_xtensa_cpu;

@@ -170,7 +170,7 @@ static void tricore_cpu_class_init(ObjectClass *c, void *data)
 
     cc->dump_state = tricore_cpu_dump_state;
     cc->set_pc = tricore_cpu_set_pc;
-    cc->get_phys_page_debug = tricore_cpu_get_phys_page_debug;
+    cc->system_ops.get_phys_page_debug = tricore_cpu_get_phys_page_debug;
     cc->tcg_ops = &tricore_tcg_ops;
 }
 

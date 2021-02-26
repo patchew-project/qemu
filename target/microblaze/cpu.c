@@ -386,7 +386,7 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_write_register = mb_cpu_gdb_write_register;
 
 #ifndef CONFIG_USER_ONLY
-    cc->get_phys_page_attrs_debug = mb_cpu_get_phys_page_attrs_debug;
+    cc->system_ops.get_phys_page_attrs_debug = mb_cpu_get_phys_page_attrs_debug;
     cc->system_ops.vmsd = &vmstate_mb_cpu;
 #endif
     device_class_set_props(dc, mb_properties);
