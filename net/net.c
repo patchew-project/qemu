@@ -637,6 +637,7 @@ static ssize_t qemu_send_packet_async_with_flags(NetClientState *sender,
                                                  NetPacketSent *sent_cb)
 {
     NetQueue *queue;
+    uint8_t min_buf[60];
     int ret;
 
 #ifdef DEBUG_NET
@@ -646,6 +647,14 @@ static ssize_t qemu_send_packet_async_with_flags(NetClientState *sender,
 
     if (sender->link_down || !sender->peer) {
         return size;
+    }
+
+    /* Pad to minimum Ethernet frame length */
+    if (size < sizeof(min_buf)) {
+        memcpy(min_buf, buf, size);
+        memset(&min_buf[size], 0, sizeof(min_buf) - size);
+        buf = min_buf;
+        size = sizeof(min_buf);
     }
 
     /* Let filters handle the packet first */
