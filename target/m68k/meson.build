@@ -13,5 +13,8 @@ m68k_ss.add(files(
 m68k_softmmu_ss = ss.source_set()
 m68k_softmmu_ss.add(files('monitor.c'))
 
+m68k_user_ss = ss.source_set()
+
 target_arch += {'m68k': m68k_ss}
 target_softmmu_arch += {'m68k': m68k_softmmu_ss}
+target_user_arch += {'m68k': m68k_user_ss}
