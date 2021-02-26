@@ -24,6 +24,8 @@ enum PCIBusFlags {
     PCI_BUS_IS_ROOT                                         = 0x0001,
     /* PCIe extended configuration space is accessible on this bus */
     PCI_BUS_EXTENDED_CONFIG_SPACE                           = 0x0002,
+    /* Iommu is enabled on this bus */
+    PCI_BUS_IOMMU                                           = 0x0004,
 };
 
 struct PCIBus {
@@ -61,6 +63,17 @@ static inline bool pci_bus_is_root(PCIBus *bus)
 static inline bool pci_bus_allows_extended_config_space(PCIBus *bus)
 {
     return !!(bus->flags & PCI_BUS_EXTENDED_CONFIG_SPACE);
+}
+
+static inline bool pci_bus_has_iommu(PCIBus *bus)
+{
+    PCIBus *root_bus = bus;
+
+    while (root_bus && !pci_bus_is_root(root_bus)) {
+        root_bus = pci_get_bus(root_bus->parent_dev);
+    }
+
+    return !!(root_bus->flags & PCI_BUS_IOMMU);
 }
 
 #endif /* QEMU_PCI_BUS_H */
