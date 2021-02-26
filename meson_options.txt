@@ -114,6 +114,9 @@ option('virtfs', type: 'feature', value: 'auto',
 option('virtiofsd', type: 'feature', value: 'auto',
        description: 'build virtiofs daemon (virtiofsd)')
 
+option('tests', type : 'feature', value : 'auto',
+       description: 'Tests build support')
+
 option('capstone', type: 'combo', value: 'auto',
        choices: ['disabled', 'enabled', 'auto', 'system', 'internal'],
        description: 'Whether and how to find the capstone library')
