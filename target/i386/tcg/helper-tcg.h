@@ -95,4 +95,11 @@ void do_smm_enter(X86CPU *cpu);
 /* bpt_helper.c */
 bool check_hw_breakpoints(CPUX86State *env, bool force_dr6_update);
 
+/* fpu_helper.c */
+
+void do_fsave(CPUX86State *env, target_ulong ptr, int data32, uintptr_t ra);
+void do_frstor(CPUX86State *env, target_ulong ptr, int data32, uintptr_t ra);
+void do_fxsave(CPUX86State *env, target_ulong ptr, uintptr_t ra);
+void do_fxrstor(CPUX86State *env, target_ulong ptr, uintptr_t ra);
+
 #endif /* I386_HELPER_TCG_H */
