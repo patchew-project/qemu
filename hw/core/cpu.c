@@ -71,8 +71,8 @@ bool cpu_paging_enabled(const CPUState *cpu)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
-    if (cc->get_paging_enabled) {
-        return cc->get_paging_enabled(cpu);
+    if (cc->system_ops.get_paging_enabled) {
+        return cc->system_ops.get_paging_enabled(cpu);
     }
 
     return false;
