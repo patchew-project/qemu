@@ -146,7 +146,13 @@ static void qemu_announce_self_iter(NICState *nic, void *opaque)
 
     trace_qemu_announce_self_iter(timer->params.has_id ? timer->params.id : "_",
                                   nic->ncs->name,
-                                  qemu_ether_ntoa(&nic->conf->macaddr), skip);
+                                  nic->conf->macaddr.a[0],
+                                  nic->conf->macaddr.a[1],
+                                  nic->conf->macaddr.a[2],
+                                  nic->conf->macaddr.a[3],
+                                  nic->conf->macaddr.a[4],
+                                  nic->conf->macaddr.a[5],
+                                  skip);
 
     if (!skip) {
         len = announce_self_create(buf, nic->conf->macaddr.a);
