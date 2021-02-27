@@ -191,7 +191,7 @@ struct CPUClass {
     struct AccelCPUClass *accel_cpu;
 
     /* when TCG is not available, this pointer is NULL */
-    struct TCGCPUOps *tcg_ops;
+    const struct TCGCPUOps *tcg_ops;
 };
 
 /*

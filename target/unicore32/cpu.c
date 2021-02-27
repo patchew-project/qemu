@@ -122,7 +122,7 @@ static const VMStateDescription vmstate_uc32_cpu = {
 
 #include "hw/core/tcg-cpu-ops.h"
 
-static struct TCGCPUOps uc32_tcg_ops = {
+static const struct TCGCPUOps uc32_tcg_ops = {
     .initialize = uc32_translate_init,
     .cpu_exec_interrupt = uc32_cpu_exec_interrupt,
     .tlb_fill = uc32_cpu_tlb_fill,

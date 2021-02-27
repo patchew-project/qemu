@@ -212,7 +212,7 @@ static ObjectClass *lm32_cpu_class_by_name(const char *cpu_model)
 
 #include "hw/core/tcg-cpu-ops.h"
 
-static struct TCGCPUOps lm32_tcg_ops = {
+static const struct TCGCPUOps lm32_tcg_ops = {
     .initialize = lm32_translate_init,
     .cpu_exec_interrupt = lm32_cpu_exec_interrupt,
     .tlb_fill = lm32_cpu_tlb_fill,

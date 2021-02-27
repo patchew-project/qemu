@@ -144,7 +144,7 @@ static void tc27x_initfn(Object *obj)
 
 #include "hw/core/tcg-cpu-ops.h"
 
-static struct TCGCPUOps tricore_tcg_ops = {
+static const struct TCGCPUOps tricore_tcg_ops = {
     .initialize = tricore_tcg_init,
     .synchronize_from_tb = tricore_cpu_synchronize_from_tb,
     .tlb_fill = tricore_cpu_tlb_fill,

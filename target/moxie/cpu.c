@@ -96,7 +96,7 @@ static ObjectClass *moxie_cpu_class_by_name(const char *cpu_model)
 
 #include "hw/core/tcg-cpu-ops.h"
 
-static struct TCGCPUOps moxie_tcg_ops = {
+static const struct TCGCPUOps moxie_tcg_ops = {
     .initialize = moxie_translate_init,
     .tlb_fill = moxie_cpu_tlb_fill,
 

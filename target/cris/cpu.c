@@ -195,7 +195,7 @@ static void cris_cpu_initfn(Object *obj)
 
 #include "hw/core/tcg-cpu-ops.h"
 
-static struct TCGCPUOps crisv10_tcg_ops = {
+static const struct TCGCPUOps crisv10_tcg_ops = {
     .initialize = cris_initialize_crisv10_tcg,
     .cpu_exec_interrupt = cris_cpu_exec_interrupt,
     .tlb_fill = cris_cpu_tlb_fill,
@@ -205,7 +205,7 @@ static struct TCGCPUOps crisv10_tcg_ops = {
 #endif /* !CONFIG_USER_ONLY */
 };
 
-static struct TCGCPUOps crisv32_tcg_ops = {
+static const struct TCGCPUOps crisv32_tcg_ops = {
     .initialize = cris_initialize_tcg,
     .cpu_exec_interrupt = cris_cpu_exec_interrupt,
     .tlb_fill = cris_cpu_tlb_fill,

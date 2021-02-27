@@ -136,7 +136,7 @@ static bool tilegx_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 
 #include "hw/core/tcg-cpu-ops.h"
 
-static struct TCGCPUOps tilegx_tcg_ops = {
+static const struct TCGCPUOps tilegx_tcg_ops = {
     .initialize = tilegx_tcg_init,
     .cpu_exec_interrupt = tilegx_cpu_exec_interrupt,
     .tlb_fill = tilegx_cpu_tlb_fill,

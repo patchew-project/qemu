@@ -209,7 +209,7 @@ static Property nios2_properties[] = {
 
 #include "hw/core/tcg-cpu-ops.h"
 
-static struct TCGCPUOps nios2_tcg_ops = {
+static const struct TCGCPUOps nios2_tcg_ops = {
     .initialize = nios2_tcg_init,
     .cpu_exec_interrupt = nios2_cpu_exec_interrupt,
     .tlb_fill = nios2_cpu_tlb_fill,
