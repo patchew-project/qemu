@@ -1282,6 +1282,16 @@ static void gen_exception_gpf(DisasContext *s)
     gen_exception(s, EXCP0D_GPF, s->pc_start - s->cs_base);
 }
 
+/* Check for cpl == 0; if not, raise #GP and return false. */
+static bool check_cpl0(DisasContext *s)
+{
+    if (s->cpl == 0) {
+        return true;
+    }
+    gen_exception_gpf(s);
+    return false;
+}
+
 /* if d == OR_TMP0, it means memory operand (address in A0) */
 static void gen_op(DisasContext *s1, int op, MemOp ot, int d)
 {
@@ -7193,9 +7203,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         break;
     case 0x130: /* wrmsr */
     case 0x132: /* rdmsr */
-        if (s->cpl != 0) {
-            gen_exception_gpf(s);
-        } else {
+        if (check_cpl0(s)) {
             gen_update_cc_op(s);
             gen_jmp_im(s, pc_start - s->cs_base);
             if (b & 2) {
@@ -7277,9 +7285,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         gen_helper_cpuid(cpu_env);
         break;
     case 0xf4: /* hlt */
-        if (s->cpl != 0) {
-            gen_exception_gpf(s);
-        } else {
+        if (check_cpl0(s)) {
             gen_update_cc_op(s);
             gen_jmp_im(s, pc_start - s->cs_base);
             gen_helper_hlt(cpu_env, tcg_const_i32(s->pc - pc_start));
@@ -7303,9 +7309,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         case 2: /* lldt */
             if (!s->pe || s->vm86)
                 goto illegal_op;
-            if (s->cpl != 0) {
-                gen_exception_gpf(s);
-            } else {
+            if (check_cpl0(s)) {
                 gen_svm_check_intercept(s, pc_start, SVM_EXIT_LDTR_WRITE);
                 gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 0);
                 tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
@@ -7324,9 +7328,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         case 3: /* ltr */
             if (!s->pe || s->vm86)
                 goto illegal_op;
-            if (s->cpl != 0) {
-                gen_exception_gpf(s);
-            } else {
+            if (check_cpl0(s)) {
                 gen_svm_check_intercept(s, pc_start, SVM_EXIT_TR_WRITE);
                 gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 0);
                 tcg_gen_trunc_tl_i32(s->tmp2_i32, s->T0);
@@ -7440,8 +7442,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
                                  | PREFIX_REPZ | PREFIX_REPNZ))) {
                 goto illegal_op;
             }
-            if (s->cpl != 0) {
-                gen_exception_gpf(s);
+            if (!check_cpl0(s)) {
                 break;
             }
             tcg_gen_concat_tl_i64(s->tmp1_i64, cpu_regs[R_EAX],
@@ -7457,8 +7458,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             if (!(s->flags & HF_SVME_MASK) || !s->pe) {
                 goto illegal_op;
             }
-            if (s->cpl != 0) {
-                gen_exception_gpf(s);
+            if (!check_cpl0(s)) {
                 break;
             }
             gen_update_cc_op(s);
@@ -7482,8 +7482,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             if (!(s->flags & HF_SVME_MASK) || !s->pe) {
                 goto illegal_op;
             }
-            if (s->cpl != 0) {
-                gen_exception_gpf(s);
+            if (!check_cpl0(s)) {
                 break;
             }
             gen_update_cc_op(s);
@@ -7495,8 +7494,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             if (!(s->flags & HF_SVME_MASK) || !s->pe) {
                 goto illegal_op;
             }
-            if (s->cpl != 0) {
-                gen_exception_gpf(s);
+            if (!check_cpl0(s)) {
                 break;
             }
             gen_update_cc_op(s);
@@ -7510,8 +7508,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
                 || !s->pe) {
                 goto illegal_op;
             }
-            if (s->cpl != 0) {
-                gen_exception_gpf(s);
+            if (!check_cpl0(s)) {
                 break;
             }
             gen_update_cc_op(s);
@@ -7524,8 +7521,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             if (!(s->flags & HF_SVME_MASK) || !s->pe) {
                 goto illegal_op;
             }
-            if (s->cpl != 0) {
-                gen_exception_gpf(s);
+            if (!check_cpl0(s)) {
                 break;
             }
             gen_update_cc_op(s);
@@ -7548,8 +7544,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             if (!(s->flags & HF_SVME_MASK) || !s->pe) {
                 goto illegal_op;
             }
-            if (s->cpl != 0) {
-                gen_exception_gpf(s);
+            if (!check_cpl0(s)) {
                 break;
             }
             gen_update_cc_op(s);
@@ -7558,8 +7553,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             break;
 
         CASE_MODRM_MEM_OP(2): /* lgdt */
-            if (s->cpl != 0) {
-                gen_exception_gpf(s);
+            if (!check_cpl0(s)) {
                 break;
             }
             gen_svm_check_intercept(s, pc_start, SVM_EXIT_GDTR_WRITE);
@@ -7575,8 +7569,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             break;
 
         CASE_MODRM_MEM_OP(3): /* lidt */
-            if (s->cpl != 0) {
-                gen_exception_gpf(s);
+            if (!check_cpl0(s)) {
                 break;
             }
             gen_svm_check_intercept(s, pc_start, SVM_EXIT_IDTR_WRITE);
@@ -7621,8 +7614,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             gen_helper_wrpkru(cpu_env, s->tmp2_i32, s->tmp1_i64);
             break;
         CASE_MODRM_OP(6): /* lmsw */
-            if (s->cpl != 0) {
-                gen_exception_gpf(s);
+            if (!check_cpl0(s)) {
                 break;
             }
             gen_svm_check_intercept(s, pc_start, SVM_EXIT_WRITE_CR0);
@@ -7633,8 +7625,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             break;
 
         CASE_MODRM_MEM_OP(7): /* invlpg */
-            if (s->cpl != 0) {
-                gen_exception_gpf(s);
+            if (!check_cpl0(s)) {
                 break;
             }
             gen_update_cc_op(s);
@@ -7648,9 +7639,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         case 0xf8: /* swapgs */
 #ifdef TARGET_X86_64
             if (CODE64(s)) {
-                if (s->cpl != 0) {
-                    gen_exception_gpf(s);
-                } else {
+                if (check_cpl0(s)) {
                     tcg_gen_mov_tl(s->T0, cpu_seg_base[R_GS]);
                     tcg_gen_ld_tl(cpu_seg_base[R_GS], cpu_env,
                                   offsetof(CPUX86State, kernelgsbase));
@@ -7684,9 +7673,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
 
     case 0x108: /* invd */
     case 0x109: /* wbinvd */
-        if (s->cpl != 0) {
-            gen_exception_gpf(s);
-        } else {
+        if (check_cpl0(s)) {
             gen_svm_check_intercept(s, pc_start, (b & 2) ? SVM_EXIT_INVD : SVM_EXIT_WBINVD);
             /* nothing to do */
         }
@@ -8008,9 +7995,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         break;
     case 0x120: /* mov reg, crN */
     case 0x122: /* mov crN, reg */
-        if (s->cpl != 0) {
-            gen_exception_gpf(s);
-        } else {
+        if (check_cpl0(s)) {
             modrm = x86_ldub_code(env, s);
             /* Ignore the mod bits (assume (modrm&0xc0)==0xc0).
              * AMD documentation (24594.pdf) and testing of
@@ -8062,9 +8047,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         break;
     case 0x121: /* mov reg, drN */
     case 0x123: /* mov drN, reg */
-        if (s->cpl != 0) {
-            gen_exception_gpf(s);
-        } else {
+        if (check_cpl0(s)) {
 #ifndef CONFIG_USER_ONLY
             modrm = x86_ldub_code(env, s);
             /* Ignore the mod bits (assume (modrm&0xc0)==0xc0).
@@ -8098,9 +8081,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         }
         break;
     case 0x106: /* clts */
-        if (s->cpl != 0) {
-            gen_exception_gpf(s);
-        } else {
+        if (check_cpl0(s)) {
             gen_svm_check_intercept(s, pc_start, SVM_EXIT_WRITE_CR0);
             gen_helper_clts(cpu_env);
             /* abort block because static cpu state changed */
