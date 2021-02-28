@@ -103,6 +103,16 @@ armhf-debian-cross-container:
   variables:
     NAME: debian-armhf-cross
 
+hexagon-debian-cross-container:
+  <<: *container_job_definition
+  stage: containers-layer2
+  needs: ['amd64-debian10-container']
+  when: manual
+  timeout: 3h
+  variables:
+    NAME: debian-hexagon-cross
+    EXTRA_FILES: tests/docker/dockerfiles/debian-hexagon-cross.docker.d/build-toolchain.sh
+
 hppa-debian-cross-container:
   <<: *container_job_definition
   stage: containers-layer2
