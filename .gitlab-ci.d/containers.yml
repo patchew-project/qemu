@@ -16,6 +16,7 @@
     - ./tests/docker/docker.py --engine docker build
           -t "qemu/$NAME" -f "tests/docker/dockerfiles/$NAME.docker"
           -r $CI_REGISTRY_IMAGE
+          $(test -n "$EXTRA_FILES" && echo "--extra-files $EXTRA_FILES")
     - docker tag "qemu/$NAME" "$TAG"
     - docker push "$TAG"
   after_script:
