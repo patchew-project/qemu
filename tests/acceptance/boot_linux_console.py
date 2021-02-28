@@ -239,8 +239,8 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=machine:malta
         :avocado: tags=endian:little
         """
-        kernel_url = ('https://github.com/philmd/qemu-testing-blob/'
-                      'raw/9ad2df38/mips/malta/mips64el/'
+        kernel_url = ('http://mipsfedora.imgtec.com/development/22/'
+                      'mips64el/images/20150601/'
                       'vmlinux-3.19.3.mtoman.20150408')
         kernel_hash = '00d1d268fb9f7d8beda1de6bebcc46e884d71754'
         kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
