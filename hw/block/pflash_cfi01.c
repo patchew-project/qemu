@@ -702,6 +702,7 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     int ret;
     uint64_t blocks_per_device, sector_len_per_device, device_len;
     int num_devices;
+    bool romd_mr_shared_mapped;
 
     if (pfl->sector_len == 0) {
         error_setg(errp, "attribute \"sector-length\" not specified or zero.");
@@ -743,19 +744,41 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
         pfl->ro = 0;
     }
 
-    memory_region_init_rom_device(
-        &pfl->mem, OBJECT(dev),
-        &pflash_cfi01_ops,
-        pfl,
-        pfl->name, total_len, errp);
-    if (*errp) {
-        return;
+    if (pfl->ro && pfl->blk) {
+        BlockDriverState *bs = blk_bs(pfl->blk);
+
+        /* If "raw" driver used, try to mmap the backing file as RAM_SHARED */
+        if (bs->drv == &bdrv_raw) { /* FIXME check offset=0 ? */
+            Error *local_err = NULL;
+
+            memory_region_init_rom_device_from_file(&pfl->mem, OBJECT(dev),
+                                                    &pflash_cfi01_ops, pfl,
+                                                    pfl->name, total_len,
+                                                    qemu_real_host_page_size,
+                                                    RAM_SHARED,
+                                                    bs->exact_filename,
+                                                    true, &local_err);
+            if (local_err) {
+                error_report_err(local_err);
+                /* fall back to memory_region_init_rom_device() */
+            } else {
+                romd_mr_shared_mapped = true;
+            }
+        }
+    }
+    if (!romd_mr_shared_mapped) {
+        memory_region_init_rom_device(&pfl->mem, OBJECT(dev),
+                                      &pflash_cfi01_ops, pfl,
+                                      pfl->name, total_len, errp);
+        if (*errp) {
+            return;
+        }
     }
 
     pfl->storage = memory_region_get_ram_ptr(&pfl->mem);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->mem);
 
-    if (pfl->blk) {
+    if (pfl->blk && !romd_mr_shared_mapped) {
         if (!blk_check_size_and_read_all(pfl->blk, pfl->storage, total_len,
                                          errp)) {
             vmstate_unregister_ram(&pfl->mem, DEVICE(pfl));
