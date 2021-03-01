@@ -40,6 +40,9 @@
 #include "hw/irq.h"
 #include "hw/isa/isa.h"
 #include "qom/object.h"
+#include "sysemu/kvm.h"
+#include <linux/kvm.h>
+#include "hw/qdev-properties.h"
 
 #define IOMEM_LEN    0x10000
 
@@ -53,6 +56,15 @@ struct PCTestdev {
     MemoryRegion iomem;
     uint32_t ioport_data;
     char iomem_buf[IOMEM_LEN];
+
+    uint64_t guest_paddr;
+    uint64_t memory_size;
+    char *read_fifo;
+    char *write_fifo;
+    bool posted_writes;
+    bool pio;
+    int rfd;
+    int wfd;
 };
 
 #define TYPE_TESTDEV "pc-testdev"
@@ -169,6 +181,9 @@ static const MemoryRegionOps test_iomem_ops = {
 
 static void testdev_realizefn(DeviceState *d, Error **errp)
 {
+    struct kvm_ioregion ioreg;
+    int flags = 0;
+
     ISADevice *isa = ISA_DEVICE(d);
     PCTestdev *dev = TESTDEV(d);
     MemoryRegion *mem = isa_address_space(isa);
@@ -191,7 +206,64 @@ static void testdev_realizefn(DeviceState *d, Error **errp)
     memory_region_add_subregion(io,  0xe8,       &dev->ioport_byte);
     memory_region_add_subregion(io,  0x2000,     &dev->irq);
     memory_region_add_subregion(mem, 0xff000000, &dev->iomem);
+
+    if (!dev->guest_paddr || !dev->write_fifo) {
+        return;
+    }
+
+    dev->wfd = open(dev->write_fifo, O_WRONLY);
+    if (dev->wfd < 0) {
+        error_report("failed to open write fifo %s", dev->write_fifo);
+        return;
+    }
+
+    if (dev->read_fifo) {
+        dev->rfd = open(dev->read_fifo, O_RDONLY);
+        if (dev->rfd < 0) {
+            error_report("failed to open read fifo %s", dev->read_fifo);
+            close(dev->wfd);
+            return;
+        }
+    }
+
+    flags |= dev->pio ? KVM_IOREGION_PIO : 0;
+    flags |= dev->posted_writes ? KVM_IOREGION_POSTED_WRITES : 0;
+    ioreg.guest_paddr = dev->guest_paddr;
+    ioreg.memory_size = dev->memory_size;
+    ioreg.write_fd = dev->wfd;
+    ioreg.read_fd = dev->rfd;
+    ioreg.flags = flags;
+    kvm_vm_ioctl(kvm_state, KVM_SET_IOREGION, &ioreg);
 }
+
+static void testdev_unrealizefn(DeviceState *d)
+{
+    struct kvm_ioregion ioreg;
+    PCTestdev *dev = TESTDEV(d);
+
+    if (!dev->guest_paddr || !dev->write_fifo) {
+        return;
+    }
+
+    ioreg.guest_paddr = dev->guest_paddr;
+    ioreg.memory_size = dev->memory_size;
+    ioreg.flags = KVM_IOREGION_DEASSIGN;
+    kvm_vm_ioctl(kvm_state, KVM_SET_IOREGION, &ioreg);
+    close(dev->wfd);
+    if (dev->rfd > 0) {
+        close(dev->rfd);
+    }
+}
+
+static Property ioregionfd_properties[] = {
+    DEFINE_PROP_UINT64("addr", PCTestdev, guest_paddr, 0),
+    DEFINE_PROP_UINT64("size", PCTestdev, memory_size, 0),
+    DEFINE_PROP_STRING("rfifo", PCTestdev, read_fifo),
+    DEFINE_PROP_STRING("wfifo", PCTestdev, write_fifo),
+    DEFINE_PROP_BOOL("pio", PCTestdev, pio, false),
+    DEFINE_PROP_BOOL("pw", PCTestdev, posted_writes, false),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 static void testdev_class_init(ObjectClass *klass, void *data)
 {
@@ -199,6 +271,8 @@ static void testdev_class_init(ObjectClass *klass, void *data)
 
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->realize = testdev_realizefn;
+    dc->unrealize = testdev_unrealizefn;
+    device_class_set_props(dc, ioregionfd_properties);
 }
 
 static const TypeInfo testdev_info = {

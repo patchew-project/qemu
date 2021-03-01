@@ -234,6 +234,8 @@ int kvm_has_intx_set_mask(void);
 bool kvm_arm_supports_user_irq(void);
 
 
+int kvm_vm_ioctl(KVMState *s, int type, ...);
+
 #ifdef NEED_CPU_H
 #include "cpu.h"
 
@@ -256,8 +258,6 @@ void phys_mem_set_alloc(void *(*alloc)(size_t, uint64_t *align, bool shared));
 /* internal API */
 
 int kvm_ioctl(KVMState *s, int type, ...);
-
-int kvm_vm_ioctl(KVMState *s, int type, ...);
 
 int kvm_vcpu_ioctl(CPUState *cpu, int type, ...);
 
