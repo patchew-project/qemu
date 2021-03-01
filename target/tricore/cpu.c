@@ -23,6 +23,7 @@
 #include "exec/exec-all.h"
 #include "qemu/error-report.h"
 #include "migration/vmstate.h"
+#include "hw/core/sysemu-cpu-ops.h"
 
 static inline void set_feature(CPUTriCoreState *env, int feature)
 {

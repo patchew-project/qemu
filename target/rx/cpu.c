@@ -25,6 +25,7 @@
 #include "exec/exec-all.h"
 #include "hw/loader.h"
 #include "fpu/softfloat.h"
+#include "hw/core/sysemu-cpu-ops.h"
 
 static void rx_cpu_set_pc(CPUState *cs, vaddr value)
 {

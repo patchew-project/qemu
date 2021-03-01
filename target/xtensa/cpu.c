@@ -34,6 +34,7 @@
 #include "fpu/softfloat.h"
 #include "qemu/module.h"
 #include "migration/vmstate.h"
+#include "hw/core/sysemu-cpu-ops.h"
 
 
 static void xtensa_cpu_set_pc(CPUState *cs, vaddr value)

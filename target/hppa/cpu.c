@@ -25,6 +25,7 @@
 #include "qemu/module.h"
 #include "exec/exec-all.h"
 #include "fpu/softfloat.h"
+#include "hw/core/sysemu-cpu-ops.h"
 
 
 static void hppa_cpu_set_pc(CPUState *cs, vaddr value)

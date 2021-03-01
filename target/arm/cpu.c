@@ -35,6 +35,7 @@
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/loader.h"
 #include "hw/boards.h"
+#include "hw/core/sysemu-cpu-ops.h"
 #endif
 #include "sysemu/sysemu.h"
 #include "sysemu/tcg.h"

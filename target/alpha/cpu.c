@@ -24,6 +24,7 @@
 #include "qemu/qemu-print.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
+#include "hw/core/sysemu-cpu-ops.h"
 
 
 static void alpha_cpu_set_pc(CPUState *cs, vaddr value)

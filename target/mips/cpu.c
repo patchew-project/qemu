@@ -34,6 +34,7 @@
 #include "hw/semihosting/semihost.h"
 #include "qapi/qapi-commands-machine-target.h"
 #include "fpu_helper.h"
+#include "hw/core/sysemu-cpu-ops.h"
 
 #if !defined(CONFIG_USER_ONLY)
 

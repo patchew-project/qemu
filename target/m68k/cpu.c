@@ -23,6 +23,7 @@
 #include "cpu.h"
 #include "migration/vmstate.h"
 #include "fpu/softfloat.h"
+#include "hw/core/sysemu-cpu-ops.h"
 
 static void m68k_cpu_set_pc(CPUState *cs, vaddr value)
 {

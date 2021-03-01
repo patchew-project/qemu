@@ -25,6 +25,7 @@
 #include "exec/exec-all.h"
 #include "hw/qdev-properties.h"
 #include "qapi/visitor.h"
+#include "hw/core/sysemu-cpu-ops.h"
 
 //#define DEBUG_FEATURES
 

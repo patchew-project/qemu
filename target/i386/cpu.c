@@ -60,6 +60,7 @@
 #include "exec/address-spaces.h"
 #include "hw/i386/apic_internal.h"
 #include "hw/boards.h"
+#include "hw/core/sysemu-cpu-ops.h"
 #endif
 
 #include "disas/capstone.h"

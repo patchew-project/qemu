@@ -26,6 +26,7 @@
 #include "exec/gdbstub.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+#include "hw/core/sysemu-cpu-ops.h"
 
 static void nios2_cpu_set_pc(CPUState *cs, vaddr value)
 {

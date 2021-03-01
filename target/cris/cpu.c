@@ -26,6 +26,7 @@
 #include "qemu/qemu-print.h"
 #include "cpu.h"
 #include "mmu.h"
+#include "hw/core/sysemu-cpu-ops.h"
 
 
 static void cris_cpu_set_pc(CPUState *cs, vaddr value)

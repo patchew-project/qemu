@@ -22,6 +22,7 @@
 #include "cpu.h"
 #include "migration/vmstate.h"
 #include "machine.h"
+#include "hw/core/sysemu-cpu-ops.h"
 
 static void moxie_cpu_set_pc(CPUState *cs, vaddr value)
 {

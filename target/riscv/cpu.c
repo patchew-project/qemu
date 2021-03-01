@@ -29,6 +29,7 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "fpu/softfloat-helpers.h"
+#include "hw/core/sysemu-cpu-ops.h"
 
 /* RISC-V CPU definitions */
 

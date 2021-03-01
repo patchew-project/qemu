@@ -42,6 +42,7 @@
 #include "disas/capstone.h"
 #include "fpu/softfloat.h"
 #include "qapi/qapi-commands-machine-target.h"
+#include "hw/core/sysemu-cpu-ops.h"
 
 /* #define PPC_DUMP_CPU */
 /* #define PPC_DEBUG_SPR */

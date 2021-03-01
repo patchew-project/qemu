@@ -26,6 +26,7 @@
 #include "migration/vmstate.h"
 #include "exec/exec-all.h"
 #include "fpu/softfloat-helpers.h"
+#include "hw/core/sysemu-cpu-ops.h"
 
 static void superh_cpu_set_pc(CPUState *cs, vaddr value)
 {

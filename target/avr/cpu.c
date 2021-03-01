@@ -24,6 +24,7 @@
 #include "exec/exec-all.h"
 #include "cpu.h"
 #include "disas/dis-asm.h"
+#include "hw/core/sysemu-cpu-ops.h"
 
 static void avr_cpu_set_pc(CPUState *cs, vaddr value)
 {
