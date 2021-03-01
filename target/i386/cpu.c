@@ -4658,6 +4658,25 @@ static void x86_cpuid_set_tsc_freq(Object *obj, Visitor *v, const char *name,
     cpu->env.tsc_khz = cpu->env.user_tsc_khz = value / 1000;
 }
 
+static bool x86_hv_default_get(Object *obj, Error **errp)
+{
+    X86CPU *cpu = X86_CPU(obj);
+
+    return cpu->hyperv_default;
+}
+
+static void x86_hv_default_set(Object *obj, bool value, Error **errp)
+{
+    X86CPU *cpu = X86_CPU(obj);
+
+    cpu->hyperv_default = value;
+
+    /* hv-default overrides everything with the default set */
+    if (value) {
+        cpu->hyperv_features = cpu->hyperv_default_features;
+    }
+}
+
 /* Generic getter for "feature-words" and "filtered-features" properties */
 static void x86_cpu_get_feature_words(Object *obj, Visitor *v,
                                       const char *name, void *opaque,
@@ -6563,9 +6582,15 @@ static void x86_cpu_filter_features(X86CPU *cpu, bool verbose)
     }
 }
 
-static void x86_cpu_hyperv_realize(X86CPU *cpu)
+static void x86_cpu_hyperv_realize(X86CPU *cpu, Error **errp)
 {
     size_t len;
+
+    if (cpu->hyperv_passthrough && cpu->hyperv_default) {
+        error_setg(errp,
+                   "'hv-default' and 'hv-paththrough' are mutually exclusive");
+        return;
+    }
 
     /* Hyper-V vendor id */
     if (!cpu->hyperv_vendor) {
@@ -6768,7 +6793,10 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 
     /* Process Hyper-V enlightenments */
-    x86_cpu_hyperv_realize(cpu);
+    x86_cpu_hyperv_realize(cpu, &local_err);
+    if (local_err) {
+        goto out;
+    }
 
     cpu_exec_realizefn(cs, &local_err);
     if (local_err != NULL) {
@@ -7063,6 +7091,20 @@ static void x86_cpu_initfn(Object *obj)
     if (xcc->model) {
         x86_cpu_load_model(cpu, xcc->model);
     }
+
+    /*
+     * Hyper-V features enabled with 'hv-default=on'
+     * TODO: add 'HYPERV_FEAT_EVMCS' to the list. Enlightened VMCS can only
+     * be enabled for VMX enabled guests but here it can't be checked.
+     */
+    cpu->hyperv_default_features = BIT(HYPERV_FEAT_RELAXED) |
+        BIT(HYPERV_FEAT_VAPIC) | BIT(HYPERV_FEAT_TIME) |
+        BIT(HYPERV_FEAT_CRASH) | BIT(HYPERV_FEAT_RESET) |
+        BIT(HYPERV_FEAT_VPINDEX) | BIT(HYPERV_FEAT_RUNTIME) |
+        BIT(HYPERV_FEAT_SYNIC) | BIT(HYPERV_FEAT_STIMER) |
+        BIT(HYPERV_FEAT_FREQUENCIES) | BIT(HYPERV_FEAT_REENLIGHTENMENT) |
+        BIT(HYPERV_FEAT_TLBFLUSH) | BIT(HYPERV_FEAT_IPI) |
+        BIT(HYPERV_FEAT_STIMER_DIRECT);
 }
 
 static int64_t x86_cpu_get_arch_id(CPUState *cs)
@@ -7388,6 +7430,10 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     object_class_property_add(oc, "crash-information", "GuestPanicInformation",
                               x86_cpu_get_crash_info_qom, NULL, NULL, NULL);
 #endif
+
+    object_class_property_add_bool(oc, "hv-default",
+                              x86_hv_default_get,
+                              x86_hv_default_set);
 
     for (w = 0; w < FEATURE_WORDS; w++) {
         int bitnr;
