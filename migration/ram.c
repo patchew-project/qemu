@@ -1970,15 +1970,13 @@ static int ram_save_target_page(RAMState *rs, PageSearchStatus *pss,
 }
 
 /**
- * ram_save_host_page: save a whole host page
+ * ram_save_host_page: save a whole host page or the rest of a RAMBlock
  *
- * Starting at *offset send pages up to the end of the current host
- * page. It's valid for the initial offset to point into the middle of
- * a host page in which case the remainder of the hostpage is sent.
- * Only dirty target pages are sent. Note that the host page size may
- * be a huge page for this block.
- * The saving stops at the boundary of the used_length of the block
- * if the RAMBlock isn't a multiple of the host page size.
+ * Send dirty pages between pss->page and either the end of that page
+ * or the used_length of the RAMBlock, whichever is smaller.
+ *
+ * Note that if the host page is a huge page, pss->page may be in the
+ * middle of that page.
  *
  * Returns the number of pages written or negative on error
  *
