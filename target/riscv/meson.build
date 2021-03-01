@@ -31,5 +31,8 @@ riscv_softmmu_ss.add(files(
   'machine.c'
 ))
 
+riscv_user_ss = ss.source_set()
+
 target_arch += {'riscv': riscv_ss}
 target_softmmu_arch += {'riscv': riscv_softmmu_ss}
+target_user_arch += {'riscv': riscv_user_ss}
