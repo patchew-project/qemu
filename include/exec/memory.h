@@ -487,6 +487,9 @@ struct MemoryRegion {
     const char *name;
     unsigned ioeventfd_nb;
     MemoryRegionIoeventfd *ioeventfds;
+#ifndef CONFIG_POSIX
+    gchar *contents;
+#endif
 };
 
 struct IOMMUMemoryRegion {
@@ -1132,6 +1135,43 @@ void memory_region_init_rom_device_nomigrate(MemoryRegion *mr,
                                              Error **errp);
 
 /**
+ * memory_region_init_rom_device_from_file_nomigrate:
+ * Initialize a ROM memory region from the specified backing file.
+ * Writes are handled via callbacks.
+ *
+ * Note that this function does not do anything to cause the data in the
+ * RAM side of the memory region to be migrated; that is the responsibility
+ * of the caller.
+ *
+ * @mr: the #MemoryRegion to be initialized.
+ * @owner: the object that tracks the region's reference count
+ * @ops: callbacks for write access handling (must not be NULL).
+ * @opaque: passed to the read and write callbacks of the @ops structure.
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
+ *        must be unique within any device
+ * @size: size of the region.
+ * @ram_flags: specify the properties of the ram block, which can be one
+ *             or bit-or of following values
+ *             - RAM_SHARED: mmap the backing file or device with MAP_SHARED
+ *             - RAM_PMEM: the backend @mem_path is persistent memory
+ *             Other bits are ignored.
+ * @path: specify the backing file
+ * @readonly: true to open @path for reading, false for read/write.
+ * @errp: pointer to Error*, to store an error if it happens.
+ */
+void memory_region_init_rom_device_from_file_nomigrate(MemoryRegion *mr,
+                                                       Object *owner,
+                                                       const MemoryRegionOps *ops,
+                                                       void *opaque,
+                                                       const char *name,
+                                                       uint64_t size,
+                                                       uint64_t align,
+                                                       uint32_t ram_flags,
+                                                       const char *path,
+                                                       bool readonly,
+                                                       Error **errp);
+
+/**
  * memory_region_init_iommu: Initialize a memory region of a custom type
  * that translates addresses
  *
@@ -1248,6 +1288,51 @@ void memory_region_init_rom_device(MemoryRegion *mr,
                                    uint64_t size,
                                    Error **errp);
 
+
+/**
+ * memory_region_init_rom_device_from_file:
+ * Initialize a ROM memory region from the specified backing file.
+ * Writes are handled via callbacks.
+ *
+ * This function initializes a memory region backed by RAM for reads
+ * and callbacks for writes, and arranges for the RAM backing to
+ * be migrated (by calling vmstate_register_ram()
+ * if @owner is a DeviceState, or vmstate_register_ram_global() if
+ * @owner is NULL).
+ *
+ * TODO: Currently we restrict @owner to being either NULL (for
+ * global RAM regions with no owner) or devices, so that we can
+ * give the RAM block a unique name for migration purposes.
+ * We should lift this restriction and allow arbitrary Objects.
+ * If you pass a non-NULL non-device @owner then we will assert.
+ *
+ * @mr: the #MemoryRegion to be initialized.
+ * @owner: the object that tracks the region's reference count
+ * @ops: callbacks for write access handling (must not be NULL).
+ * @opaque: passed to the read and write callbacks of the @ops structure.
+ * @name: Region name, becomes part of RAMBlock name used in migration stream
+ *        must be unique within any device
+ * @size: size of the region.
+ * @ram_flags: specify the properties of the ram block, which can be one
+ *             or bit-or of following values
+ *             - RAM_SHARED: mmap the backing file or device with MAP_SHARED
+ *             - RAM_PMEM: the backend @mem_path is persistent memory
+ *             Other bits are ignored.
+ * @path: specify the backing file
+ * @readonly: true to open @path for reading, false for read/write.
+ * @errp: pointer to Error*, to store an error if it happens.
+ */
+void memory_region_init_rom_device_from_file(MemoryRegion *mr,
+                                             Object *owner,
+                                             const MemoryRegionOps *ops,
+                                             void *opaque,
+                                             const char *name,
+                                             uint64_t size,
+                                             uint64_t align,
+                                             uint32_t ram_flags,
+                                             const char *path,
+                                             bool readonly,
+                                             Error **errp);
 
 /**
  * memory_region_owner: get a memory region's owner.

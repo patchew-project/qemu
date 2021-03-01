@@ -1120,6 +1120,14 @@ static void memory_region_destructor_ram(MemoryRegion *mr)
     qemu_ram_free(mr->ram_block);
 }
 
+#ifndef CONFIG_POSIX
+static void memory_region_destructor_contents(MemoryRegion *mr)
+{
+    qemu_ram_free(mr->ram_block);
+    g_free(mr->contents);
+}
+#endif
+
 static bool memory_region_need_escape(char c)
 {
     return c == '/' || c == '[' || c == '\\' || c == ']';
@@ -1710,6 +1718,96 @@ void memory_region_init_rom_device_nomigrate(MemoryRegion *mr,
         object_unparent(OBJECT(mr));
         error_propagate(errp, err);
     }
+}
+
+void memory_region_init_rom_device_from_file_nomigrate(MemoryRegion *mr,
+                                                       Object *owner,
+                                                       const MemoryRegionOps *ops,
+                                                       void *opaque,
+                                                       const char *name,
+                                                       uint64_t size,
+                                                       uint64_t align,
+                                                       uint32_t ram_flags,
+                                                       const char *path,
+                                                       bool readonly,
+                                                       Error **errp)
+{
+    Error *err = NULL;
+
+    assert(ops);
+#ifdef CONFIG_POSIX
+    memory_region_init(mr, owner, name, size);
+    mr->opaque = opaque;
+    mr->ops = ops;
+    mr->rom_device = true;
+    mr->readonly = readonly;
+    mr->ram = true;
+    mr->align = align;
+    mr->terminates = true;
+    mr->destructor = memory_region_destructor_ram;
+    mr->ram_block = qemu_ram_alloc_from_file(size, mr, ram_flags, path,
+                                             readonly, &err);
+    if (err) {
+        mr->size = int128_zero();
+        object_unparent(OBJECT(mr));
+        error_propagate(errp, err);
+    }
+#else
+    g_autoptr(GError) gerr = NULL;
+    gsize len;
+
+    memory_region_init(mr, owner, name, size);
+    mr->ops = ops;
+    mr->opaque = opaque;
+    mr->terminates = true;
+    mr->rom_device = true;
+
+    if (!g_file_get_contents(path, &mr->contents, &len, &gerr)) {
+        error_setg(errp, "Unable to read '%s': %s", path, gerr->message);
+        return;
+    }
+    mr->destructor = memory_region_destructor_contents;
+    mr->contents = g_realloc(mr->contents, size);
+    mr->ram_block = qemu_ram_alloc_from_ptr(size, mr->contents, mr, &err);
+    if (err) {
+        mr->size = int128_zero();
+        object_unparent(OBJECT(mr));
+        error_propagate(errp, err);
+    }
+#endif
+}
+
+void memory_region_init_rom_device_from_file(MemoryRegion *mr,
+                                             Object *owner,
+                                             const MemoryRegionOps *ops,
+                                             void *opaque,
+                                             const char *name,
+                                             uint64_t size,
+                                             uint64_t align,
+                                             uint32_t ram_flags,
+                                             const char *path,
+                                             bool readonly,
+                                             Error **errp)
+{
+    DeviceState *owner_dev;
+    Error *err = NULL;
+
+    memory_region_init_rom_device_from_file_nomigrate(mr, owner, ops, opaque,
+                                                      name, size, align,
+                                                      ram_flags, path, readonly,
+                                                      &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    /* This will assert if owner is neither NULL nor a DeviceState.
+     * We only want the owner here for the purposes of defining a
+     * unique name for migration. TODO: Ideally we should implement
+     * a naming scheme for Objects which are not DeviceStates, in
+     * which case we can relax this restriction.
+     */
+    owner_dev = DEVICE(owner);
+    vmstate_register_ram(mr, owner_dev);
 }
 
 void memory_region_init_iommu(void *_iommu_mr,
