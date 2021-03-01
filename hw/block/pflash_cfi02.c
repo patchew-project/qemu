@@ -791,15 +791,6 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    memory_region_init_rom_device(&pfl->orig_mem, OBJECT(pfl),
-                                  &pflash_cfi02_ops, pfl, pfl->name,
-                                  pfl->chip_len, errp);
-    if (*errp) {
-        return;
-    }
-
-    pfl->storage = memory_region_get_ram_ptr(&pfl->orig_mem);
-
     if (pfl->blk) {
         uint64_t perm;
         pfl->ro = !blk_supports_write_perm(pfl->blk);
@@ -811,6 +802,15 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     } else {
         pfl->ro = 0;
     }
+
+    memory_region_init_rom_device(&pfl->orig_mem, OBJECT(pfl),
+                                  &pflash_cfi02_ops, pfl, pfl->name,
+                                  pfl->chip_len, errp);
+    if (*errp) {
+        return;
+    }
+
+    pfl->storage = memory_region_get_ram_ptr(&pfl->orig_mem);
 
     if (pfl->blk) {
         if (!blk_check_size_and_read_all(pfl->blk, pfl->storage,
