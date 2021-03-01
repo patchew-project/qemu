@@ -106,7 +106,7 @@ again:
         error_report("vfio-ccw: write I/O region failed with errno=%d", errno);
         ret = -errno;
     } else {
-        ret = region->ret_code;
+        ret = 0;
     }
     switch (ret) {
     case 0:
@@ -194,7 +194,7 @@ again:
         error_report("vfio-ccw: write cmd region failed with errno=%d", errno);
         ret = -errno;
     } else {
-        ret = region->ret_code;
+        ret = 0;
     }
     switch (ret) {
     case 0:
@@ -234,7 +234,7 @@ again:
         error_report("vfio-ccw: write cmd region failed with errno=%d", errno);
         ret = -errno;
     } else {
-        ret = region->ret_code;
+        ret = 0;
     }
     switch (ret) {
     case 0:
