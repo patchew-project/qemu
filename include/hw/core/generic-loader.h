@@ -29,6 +29,7 @@ struct GenericLoaderState {
     /* <public> */
     CPUState *cpu;
 
+    uint64_t csbaseaddr;
     uint64_t addr;
     uint64_t data;
     uint8_t data_len;
