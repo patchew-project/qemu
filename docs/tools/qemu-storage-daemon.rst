@@ -118,6 +118,16 @@ Standard options:
   List object properties with ``<type>,help``. See the :manpage:`qemu(1)`
   manual page for a description of the object properties.
 
+.. option:: --pidfile PATH
+
+  is the path to a file where the daemon writes its pid. This allows scripts to
+  stop the daemon by sending a signal::
+
+    $ kill -SIGTERM $(<path/to/qsd.pid)
+
+  A file lock is applied to the file so only one instance of the daemon can run
+  with a given pid file path. The daemon unlinks its pid file when terminating.
+
 Examples
 --------
 Launch the daemon with QMP monitor socket ``qmp.sock`` so clients can execute
