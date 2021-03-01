@@ -43,6 +43,7 @@
 #include "qemu/cutils.h"
 #include "qemu/config-file.h"
 #include "qemu/ctype.h"
+#include "qemu/id.h"
 #include "qemu/iov.h"
 #include "qemu/qemu-print.h"
 #include "qemu/main-loop.h"
@@ -1009,6 +1010,17 @@ static int net_client_init1(const Netdev *netdev, bool is_netdev, Error **errp)
             !netdev->u.nic.has_netdev) {
             peer = net_hub_add_port(0, NULL, NULL);
         }
+    }
+
+    /*
+     * The id for -net has already been checked by QemuOpts and
+     * could be automatically generated, in which case it is not
+     * well-formed by design.  HMP and QMP only call us with
+     * is_netdev == true.
+     */
+    if (is_netdev && !id_wellformed(netdev->id)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "id", "an identifier");
+        return -1;
     }
 
     nc = qemu_find_netdev(netdev->id);
