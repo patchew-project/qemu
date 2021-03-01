@@ -866,6 +866,18 @@ Supported image file formats:
     issue ``lsattr filename`` to check if the NOCOW flag is set or not
     (Capital 'C' is NOCOW flag).
 
+  ``data_file``
+    Pathname that refers to a file that will store all guest data. If
+    this option is used, the qcow2 file will only contain the image's
+    metadata.
+
+  ``data_file_raw``
+    If this option is set to ``on``, QEMU will always keep the external
+    data file consistent as a standalone read-only raw image. The default
+    value is ``off``.
+
+    This option can only be enabled if ``data_file`` is set.
+
 ``Other``
 
   QEMU also supports various other image file formats for
