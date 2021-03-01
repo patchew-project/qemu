@@ -7171,6 +7171,16 @@ static void x86_cpu_set_pc(CPUState *cs, vaddr value)
     cpu->env.eip = value;
 }
 
+static void x86_cpu_set_csbase(CPUState *cs, vaddr value)
+{
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
+
+    cpu_x86_load_seg_cache(env, R_CS, 0xf000, value, 0xffff,
+                            DESC_P_MASK | DESC_S_MASK | DESC_CS_MASK |
+                            DESC_R_MASK | DESC_A_MASK);
+}
+
 int x86_cpu_pending_interrupt(CPUState *cs, int interrupt_request)
 {
     X86CPU *cpu = X86_CPU(cs);
@@ -7412,6 +7422,7 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
 
     cc->dump_state = x86_cpu_dump_state;
     cc->set_pc = x86_cpu_set_pc;
+    cc->set_csbase = x86_cpu_set_csbase;
     cc->gdb_read_register = x86_cpu_gdb_read_register;
     cc->gdb_write_register = x86_cpu_gdb_write_register;
     cc->get_arch_id = x86_cpu_get_arch_id;

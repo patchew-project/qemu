@@ -53,6 +53,9 @@ static void generic_loader_reset(void *opaque)
         cpu_reset(s->cpu);
         if (cc) {
             cc->set_pc(s->cpu, s->addr);
+            if (cc->set_csbase) {
+                cc->set_csbase(s->cpu, s->csbaseaddr);
+            }
         }
     }
 
@@ -103,7 +106,7 @@ static void generic_loader_realize(DeviceState *dev, Error **errp)
         if (s->cpu_num != CPU_NONE) {
             s->set_pc = true;
         }
-    } else if (s->addr) {
+    } else if (s->addr || s->csbaseaddr) {
         /* User is setting the PC */
         if (s->data || s->data_len || s->data_be) {
             error_setg(errp, "data can not be specified when setting a "
@@ -180,6 +183,7 @@ static void generic_loader_unrealize(DeviceState *dev)
 }
 
 static Property generic_loader_props[] = {
+    DEFINE_PROP_UINT64("csbaseaddr", GenericLoaderState, csbaseaddr, 0xffff0000),
     DEFINE_PROP_UINT64("addr", GenericLoaderState, addr, 0),
     DEFINE_PROP_UINT64("data", GenericLoaderState, data, 0),
     DEFINE_PROP_UINT8("data-len", GenericLoaderState, data_len, 0),
