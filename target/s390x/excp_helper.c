@@ -105,20 +105,6 @@ bool s390_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 
 #else /* !CONFIG_USER_ONLY */
 
-static inline uint64_t cpu_mmu_idx_to_asc(int mmu_idx)
-{
-    switch (mmu_idx) {
-    case MMU_PRIMARY_IDX:
-        return PSW_ASC_PRIMARY;
-    case MMU_SECONDARY_IDX:
-        return PSW_ASC_SECONDARY;
-    case MMU_HOME_IDX:
-        return PSW_ASC_HOME;
-    default:
-        abort();
-    }
-}
-
 bool s390_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                        MMUAccessType access_type, int mmu_idx,
                        bool probe, uintptr_t retaddr)

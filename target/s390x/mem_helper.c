@@ -856,9 +856,30 @@ uint32_t HELPER(mvpg)(CPUS390XState *env, uint64_t r0, uint64_t r1, uint64_t r2)
     r2 = wrap_address(env, r2 & TARGET_PAGE_MASK);
 
     /*
+     * If the condition-code-option (CCO) bit is set and DAT is enabled,
+     * we have to check for page table translation faults first:
+     */
+#ifndef CONFIG_USER_ONLY
+    if (extract64(r0, 8, 1) && mmu_idx != MMU_REAL_IDX) {
+        uint64_t asc = cpu_mmu_idx_to_asc(mmu_idx);
+        uint64_t raddr, tec;
+        int flags, exc;
+
+        exc = mmu_translate(env, r2, MMU_DATA_LOAD, asc, &raddr, &flags, &tec);
+        if (exc) {
+            return 2;
+        }
+
+        exc = mmu_translate(env, r1, MMU_DATA_STORE, asc, &raddr, &flags, &tec);
+        if (exc && exc != PGM_PROTECTION) {
+            return 1;
+        }
+    }
+#endif
+
+    /*
      * TODO:
      * - Access key handling
-     * - CC-option with surpression of page-translation exceptions
      * - Store r1/r2 register identifiers at real location 162
      */
     srca = access_prepare(env, r2, TARGET_PAGE_SIZE, MMU_DATA_LOAD, mmu_idx,
