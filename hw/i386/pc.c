@@ -718,6 +718,7 @@ void pc_smp_parse(MachineState *ms, QemuOpts *opts)
         unsigned dies = qemu_opt_get_number(opts, "dies", 1);
         unsigned cores   = qemu_opt_get_number(opts, "cores", 0);
         unsigned threads = qemu_opt_get_number(opts, "threads", 0);
+        unsigned aux_cpus = qemu_opt_get_number(opts, "auxcpus", 0);
 
         /* compute missing values, prefer sockets over cores over threads */
         if (cpus == 0 || sockets == 0) {
@@ -763,10 +764,16 @@ void pc_smp_parse(MachineState *ms, QemuOpts *opts)
             exit(1);
         }
 
+        if (aux_cpus >= ms->smp.max_cpus) {
+            error_report("auxcpus must be lower than max_cpus");
+            exit(1);
+        }
+
         ms->smp.cpus = cpus;
         ms->smp.cores = cores;
         ms->smp.threads = threads;
         ms->smp.sockets = sockets;
+        ms->smp.aux_cpus = aux_cpus;
         x86ms->smp_dies = dies;
     }
 

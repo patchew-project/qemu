@@ -720,6 +720,9 @@ static QemuOptsList qemu_smp_opts = {
         }, {
             .name = "maxcpus",
             .type = QEMU_OPT_NUMBER,
+        }, {
+            .name = "auxcpus",
+            .type = QEMU_OPT_NUMBER,
         },
         { /*End of list */ }
     },
