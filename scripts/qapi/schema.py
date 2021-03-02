@@ -46,6 +46,9 @@ class QAPISchemaEntity:
         self.features = features or []
         self._checked = False
 
+    def __repr__(self):
+        return "%s<%s>" % (type(self).__name__, self.name)
+
     def c_name(self):
         return c_name(self.name)
 
