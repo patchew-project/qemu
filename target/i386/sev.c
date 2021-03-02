@@ -33,6 +33,7 @@
 #include "exec/address-spaces.h"
 #include "monitor/monitor.h"
 #include "exec/confidential-guest-support.h"
+#include "migration/confidential-ram.h"
 #include "hw/i386/pc.h"
 
 #define TYPE_SEV_GUEST "sev-guest"
@@ -1011,6 +1012,7 @@ static void
 sev_register_types(void)
 {
     type_register_static(&sev_guest_info);
+    register_end_of_confidential_ram();
 }
 
 type_init(sev_register_types);

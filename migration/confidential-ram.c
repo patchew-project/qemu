@@ -8,6 +8,8 @@
 #include "io/channel.h"
 #include "qapi/error.h"
 #include "exec/memory.h"
+#include "migration/vmstate.h"
+#include "sysemu/runstate.h"
 #include "trace.h"
 #include "confidential-ram.h"
 
@@ -224,4 +226,33 @@ int cgs_mh_load_encrypted_page(QEMUFile *f, ram_addr_t dest_gpa)
                      "%" PRIu64 ": ret=%d", dest_gpa, ret);
     }
     return ret;
+}
+
+typedef struct {
+    bool dummy;
+} EndOfConfidentialRAMState;
+
+static EndOfConfidentialRAMState end_of_confidential_ram_state = { .dummy = false };
+
+static int end_of_confidential_ram_post_load(void *opaque, int version_id)
+{
+    vm_stop(RUN_STATE_INMIGRATE);
+    return 0;
+}
+
+static const VMStateDescription vmstate_end_of_confidential_ram = {
+    .name = "end-of-confidential-ram",
+    .priority = MIG_PRI_GICV3, /* TODO define new (higher) priority level */
+    .version_id = 1,
+    .post_load = end_of_confidential_ram_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(dummy, EndOfConfidentialRAMState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+void register_end_of_confidential_ram(void)
+{
+    vmstate_register(NULL, 0, &vmstate_end_of_confidential_ram,
+                     &end_of_confidential_ram_state);
 }

@@ -18,4 +18,6 @@ int cgs_mh_save_encrypted_page(QEMUFile *f, ram_addr_t src_gpa, uint32_t size,
 
 int cgs_mh_load_encrypted_page(QEMUFile *f, ram_addr_t dest_gpa);
 
+void register_end_of_confidential_ram(void);
+
 #endif
