@@ -2098,6 +2098,11 @@ void qmp_migrate_incoming(const char *uri, Error **errp)
     once = false;
 }
 
+void qmp_start_migrate_incoming(const char *uri, Error **errp)
+{
+    qemu_start_incoming_migration(uri, errp);
+}
+
 void qmp_migrate_recover(const char *uri, Error **errp)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();

@@ -1570,6 +1570,32 @@
 { 'command': 'migrate-incoming', 'data': {'uri': 'str' } }
 
 ##
+# @start-migrate-incoming:
+#
+# Force start an incoming migration even in a running VM.  This is used by the
+# target VM in guest-assisted migration of a confidential guest.
+#
+# @uri: The Uniform Resource Identifier identifying the source or
+#       address to listen on
+#
+# Returns: nothing on success
+#
+# Since: 6.0
+#
+# Notes:
+#
+# The uri format is the same as the -incoming command-line option.
+#
+# Example:
+#
+# -> { "execute": "start-migrate-incoming",
+#      "arguments": { "uri": "tcp::4446" } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'start-migrate-incoming', 'data': {'uri': 'str' } }
+
+##
 # @xen-save-devices-state:
 #
 # Save the state of all devices to file. The RAM and the block devices
