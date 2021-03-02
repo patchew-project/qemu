@@ -24,6 +24,7 @@
 #include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/cpu-throttle.h"
+#include "sysemu/cpus.h"
 #include "rdma.h"
 #include "ram.h"
 #include "migration/global_state.h"
@@ -3156,14 +3157,14 @@ static void migration_completion(MigrationState *s)
         qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
         s->vm_was_running = runstate_is_running();
         ret = global_state_store();
+        pause_all_vcpus_except_aux();
+        qemu_mutex_unlock_iothread();
 
         if (!ret) {
             bool inactivate = !migrate_colo_enabled();
-            ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
-            if (ret >= 0) {
-                ret = migration_maybe_pause(s, &current_active_state,
-                                            MIGRATION_STATUS_DEVICE);
-            }
+            ret = migration_maybe_pause(s, &current_active_state,
+                                        MIGRATION_STATUS_DEVICE);
+
             if (ret >= 0) {
                 qemu_file_set_rate_limit(s->to_dst_file, INT64_MAX);
                 ret = qemu_savevm_state_complete_precopy(s->to_dst_file, false,
@@ -3173,7 +3174,7 @@ static void migration_completion(MigrationState *s)
                 s->block_inactive = true;
             }
         }
-        qemu_mutex_unlock_iothread();
+        runstate_set(RUN_STATE_FINISH_MIGRATE);
 
         if (ret < 0) {
             goto fail;
