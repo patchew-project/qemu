@@ -345,4 +345,5 @@ migration_pagecache_init(int64_t max_num_items) "Setting cache buckets to %" PRI
 migration_pagecache_insert(void) "Error allocating page"
 
 # confidential-ram.c
+encrypted_ram_load_page(uint32_t hdr_len, uint32_t trans_len, uint64_t gpa) "hdr_len: %u, trans_len: %u, gpa: 0x%" PRIx64
 encrypted_ram_save_page(uint32_t size, uint64_t gpa) "size: %u, gpa: 0x%" PRIx64

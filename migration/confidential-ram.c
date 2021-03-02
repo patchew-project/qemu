@@ -182,3 +182,40 @@ int cgs_mh_save_encrypted_page(QEMUFile *f, ram_addr_t src_gpa, uint32_t size,
 
     return ret;
 }
+
+int cgs_mh_load_encrypted_page(QEMUFile *f, ram_addr_t dest_gpa)
+{
+    int ret = 1;
+    uint32_t page_hdr_len, enc_page_len;
+
+    init_cgs_mig_helper_if_needed();
+
+    assert((dest_gpa & TARGET_PAGE_MASK) == dest_gpa);
+
+    /* Read page header */
+    page_hdr_len = qemu_get_be32(f);
+    if (page_hdr_len > 1024) {
+        error_report("confidential-ram: page header is too large (%d bytes) "
+                     "when loading gpa %" PRIu64, page_hdr_len, dest_gpa);
+        return -EINVAL;
+    }
+    cmhs.io_page_hdr->len = page_hdr_len;
+    qemu_get_buffer(f, cmhs.io_page_hdr->data, page_hdr_len);
+
+    /* Read encrypted page */
+    enc_page_len = qemu_get_be32(f);
+    if (enc_page_len != TARGET_PAGE_SIZE) {
+        error_report("confidential-ram: encrypted page is too large (%d bytes) "
+                     "when loading gpa %" PRIu64, enc_page_len, dest_gpa);
+        return -EINVAL;
+    }
+    qemu_get_buffer(f, cmhs.io_page, enc_page_len);
+
+    trace_encrypted_ram_load_page(page_hdr_len, enc_page_len, dest_gpa);
+    ret = send_command_to_cgs_mig_helper(CGS_MIG_HELPER_CMD_DECRYPT, dest_gpa);
+    if (ret) {
+        error_report("confidential-ram: failed loading page at dest_gpa "
+                     "%" PRIu64 ": ret=%d", dest_gpa, ret);
+    }
+    return ret;
+}

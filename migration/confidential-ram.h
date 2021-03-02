@@ -14,4 +14,6 @@ void cgs_mh_cleanup(void);
 int cgs_mh_save_encrypted_page(QEMUFile *f, ram_addr_t src_gpa, uint32_t size,
                                uint64_t *bytes_sent);
 
+int cgs_mh_load_encrypted_page(QEMUFile *f, ram_addr_t dest_gpa);
+
 #endif
