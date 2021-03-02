@@ -51,6 +51,7 @@ MemoryRegion *machine_consume_memdev(MachineState *machine,
  * @type - QOM class name of possible @cpu object
  * @props - CPU object properties, initialized by board
  * #vcpus_count - number of threads provided by @cpu object
+ * @aux - is this CPU auxiliary
  */
 typedef struct CPUArchId {
     uint64_t arch_id;
@@ -58,6 +59,7 @@ typedef struct CPUArchId {
     CpuInstanceProperties props;
     Object *cpu;
     const char *type;
+    bool aux;
 } CPUArchId;
 
 /**
