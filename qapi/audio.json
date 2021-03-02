@@ -419,3 +419,16 @@
     'sdl':       'AudiodevSdlOptions',
     'spice':     'AudiodevGenericOptions',
     'wav':       'AudiodevWavOptions' } }
+
+##
+# @query-audiodevs:
+#
+# Returns information about audiodev configuration
+#
+# Returns: array of @Audiodev
+#
+# Since: 6.0
+#
+##
+{ 'command': 'query-audiodevs',
+  'returns': ['Audiodev'] }
