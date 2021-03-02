@@ -59,6 +59,9 @@ struct RAMBlock {
      */
     unsigned long *clear_bmap;
     uint8_t clear_bmap_shift;
+
+    /* bitmap of page encryption state for an encrypted guest */
+    unsigned long *encbmap;
 };
 #endif
 #endif

@@ -61,6 +61,7 @@
 #if defined(__linux__)
 #include "qemu/userfaultfd.h"
 #endif /* defined(__linux__) */
+#include "hw/boards.h"
 
 /***********************************************************/
 /* ram save/restore */
@@ -80,6 +81,13 @@
 #define RAM_SAVE_FLAG_XBZRLE   0x40
 /* 0x80 is reserved in migration.h start with 0x100 next */
 #define RAM_SAVE_FLAG_COMPRESS_PAGE    0x100
+
+static inline bool memcrypt_enabled(void)
+{
+    MachineState *ms = MACHINE(qdev_get_machine());
+
+    return ms->cgs;
+}
 
 static inline bool is_zero_range(uint8_t *p, uint64_t size)
 {
@@ -865,6 +873,9 @@ static void ramblock_sync_dirty_bitmap(RAMState *rs, RAMBlock *rb)
 
     rs->migration_dirty_pages += new_dirty_pages;
     rs->num_dirty_pages_period += new_dirty_pages;
+    if (memcrypt_enabled()) {
+        cpu_physical_memory_sync_encrypted_bitmap(rb, 0, rb->used_length);
+    }
 }
 
 /**
@@ -2174,6 +2185,8 @@ static void ram_save_cleanup(void *opaque)
         block->clear_bmap = NULL;
         g_free(block->bmap);
         block->bmap = NULL;
+        g_free(block->encbmap);
+        block->encbmap = NULL;
     }
 
     xbzrle_cleanup();
@@ -2615,6 +2628,10 @@ static void ram_list_init_bitmaps(void)
             bitmap_set(block->bmap, 0, pages);
             block->clear_bmap_shift = shift;
             block->clear_bmap = bitmap_new(clear_bmap_size(pages, shift));
+            if (memcrypt_enabled()) {
+                block->encbmap = bitmap_new(pages);
+                bitmap_set(block->encbmap, 0, pages);
+            }
         }
     }
 }
