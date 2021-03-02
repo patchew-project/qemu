@@ -3054,6 +3054,10 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
         ram_control_after_iterate(f, RAM_CONTROL_FINISH);
     }
 
+    if (confidential_guest()) {
+        cgs_mh_cleanup();
+    }
+
     if (ret >= 0) {
         multifd_send_sync_main(rs->f);
         qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
@@ -3547,6 +3551,10 @@ static int ram_load_cleanup(void *opaque)
     RAMBLOCK_FOREACH_NOT_IGNORED(rb) {
         g_free(rb->receivedmap);
         rb->receivedmap = NULL;
+    }
+
+    if (confidential_guest()) {
+        cgs_mh_cleanup();
     }
 
     return 0;
