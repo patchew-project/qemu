@@ -18,6 +18,7 @@
 #include "trace.h"
 #include "sysemu/dma.h"
 #include "sysemu/sysemu.h"
+#include "exec/ramblock.h"
 #include "hw/virtio/virtio.h"
 #include "migration/qemu-file-types.h"
 #include "hw/virtio/virtio-gpu.h"
@@ -30,9 +31,14 @@
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+#include "standard-headers/drm/drm_fourcc.h"
+#include <sys/ioctl.h>
+
+#include <linux/udmabuf.h>
 
 #define VIRTIO_GPU_VM_VERSION 1
 
+static int udmabuf_fd;
 static struct virtio_gpu_simple_resource*
 virtio_gpu_find_resource(VirtIOGPU *g, uint32_t resource_id);
 
@@ -519,6 +525,119 @@ static void virtio_unref_resource(pixman_image_t *image, void *data)
     pixman_image_unref(data);
 }
 
+static VGPUDMABuf *virtio_gpu_get_dmabuf(VirtIOGPU *g,
+                                         struct virtio_gpu_simple_resource *res)
+{
+    VGPUDMABuf *dmabuf;
+    RAMBlock *rb;
+    ram_addr_t offset;
+    struct udmabuf_create_list *create;
+    uint32_t modifier_hi, modifier_lo;
+    uint64_t modifier;
+    static uint64_t ids = 1;
+    int i, dmabuf_fd;
+
+    create = g_malloc0(sizeof(*create) +
+                       res->iov_cnt * sizeof (struct udmabuf_create_item));
+    if (!create)
+        return NULL;
+
+    create->count = res->iov_cnt;
+    create->flags = UDMABUF_FLAGS_CLOEXEC;
+    for (i = 0; i < res->iov_cnt; i++) {
+        rb = qemu_ram_block_from_host(res->iov[i].iov_base, false, &offset);
+        if (!rb || rb->fd < 0) {
+                g_free(create);
+                return NULL;
+        }
+
+        create->list[i].memfd = rb->fd;
+        create->list[i].__pad = 0;
+        create->list[i].offset = offset;
+        create->list[i].size = res->iov[i].iov_len;
+    }
+
+    dmabuf_fd = ioctl(udmabuf_fd, UDMABUF_CREATE_LIST, create);
+    if (dmabuf_fd < 0) {
+        g_free(create);
+        return NULL;
+    }
+
+    /* FIXME: We should get the modifier and format info with blob resources */
+    modifier_hi = fourcc_mod_code(INTEL, I915_FORMAT_MOD_X_TILED) >> 32;
+    modifier_lo = fourcc_mod_code(INTEL,I915_FORMAT_MOD_X_TILED) & 0xFFFFFFFF;
+    modifier = ((uint64_t)modifier_hi << 32) | modifier_lo;
+
+    dmabuf = g_new0(VGPUDMABuf, 1);
+    dmabuf->dmabuf_id = ids++;
+    dmabuf->buf.width = res->width;
+    dmabuf->buf.height = res->height;
+    dmabuf->buf.stride = pixman_image_get_stride(res->image);
+    dmabuf->buf.fourcc = DRM_FORMAT_XRGB8888;
+    dmabuf->buf.modifier = modifier;
+    dmabuf->buf.fd = dmabuf_fd;
+
+    QTAILQ_INSERT_HEAD(&g->dmabuf.bufs, dmabuf, next);
+    g_free(create);
+
+    return dmabuf;
+}
+
+static void virtio_gpu_free_one_dmabuf(VirtIOGPU *g, VGPUDMABuf *dmabuf,
+                                       struct virtio_gpu_scanout *scanout)
+{
+    QTAILQ_REMOVE(&g->dmabuf.bufs, dmabuf, next);
+    dpy_gl_release_dmabuf(scanout->con, &dmabuf->buf);
+
+    close(dmabuf->buf.fd);
+    g_free(dmabuf);
+}
+
+static void virtio_gpu_free_dmabufs(VirtIOGPU *g,
+                                    struct virtio_gpu_scanout *scanout)
+{
+    VGPUDMABuf *dmabuf, *tmp;
+    uint32_t keep = 1;
+
+    QTAILQ_FOREACH_SAFE(dmabuf, &g->dmabuf.bufs, next, tmp) {
+        if (keep > 0) {
+            keep--;
+            continue;
+        }
+        assert(dmabuf != g->dmabuf.primary);
+        virtio_gpu_free_one_dmabuf(g, dmabuf, scanout);
+    }
+}
+
+static int virtio_gpu_dmabuf_update(VirtIOGPU *g,
+                                    struct virtio_gpu_simple_resource *res,
+                                    struct virtio_gpu_scanout *scanout)
+{
+    VGPUDMABuf *primary;
+    bool free_bufs = false;
+
+    primary = virtio_gpu_get_dmabuf(g, res);
+    if (!primary) {
+        return -EINVAL;
+    }
+
+    if (g->dmabuf.primary != primary) {
+        g->dmabuf.primary = primary;
+        qemu_console_resize(scanout->con,
+                            primary->buf.width, primary->buf.height);
+        dpy_gl_scanout_dmabuf(scanout->con, &primary->buf);
+        free_bufs = true;
+    }
+
+    dpy_gl_update(scanout->con, 0, 0, primary->buf.width, primary->buf.height);
+
+    if (free_bufs) {
+        virtio_gpu_free_dmabufs(g, scanout);
+    }
+
+    return 0;
+}
+
 static void virtio_gpu_set_scanout(VirtIOGPU *g,
                                    struct virtio_gpu_ctrl_command *cmd)
 {
@@ -528,6 +647,7 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
     uint32_t offset;
     int bpp;
     struct virtio_gpu_set_scanout ss;
+    int ret;
 
     VIRTIO_GPU_FILL_CMD(ss);
     virtio_gpu_bswap_32(&ss, sizeof(ss));
@@ -573,6 +693,12 @@ static void virtio_gpu_set_scanout(VirtIOGPU *g,
     }
 
     scanout = &g->parent_obj.scanout[ss.scanout_id];
+
+    if (udmabuf_fd > 0) {
+        ret = virtio_gpu_dmabuf_update(g, res, scanout);
+        if (!ret)
+            return;
+    }
 
     format = pixman_image_get_format(res->image);
     bpp = DIV_ROUND_UP(PIXMAN_FORMAT_BPP(format), 8);
@@ -1136,6 +1262,13 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
                                         virtio_gpu_handle_ctrl_cb,
                                         virtio_gpu_handle_cursor_cb,
                                         errp)) {
+        return;
+    }
+
+    udmabuf_fd = open("/dev/udmabuf", O_RDWR);
+    if (udmabuf_fd < 0) {
+        error_setg_errno(errp, errno,
+                         "udmabuf: failed to open vhost device");
         return;
     }
 
