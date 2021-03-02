@@ -1915,6 +1915,16 @@ static int vtd_bind_guest_pasid(IntelIOMMUState *s, VTDBus *vtd_bus,
     HostIOMMUContext *iommu_ctx;
     int ret = -1;
 
+    if (pasid < VTD_HPASID_MIN) {
+        /*
+         * If pasid < VTD_HPASID_MIN, this pasid is not allocated
+         * from host. No need to pass down the changes on it to host.
+         * TODO: when IOVA over FLPT is ready, this switch should be
+         * refined.
+         */
+        return 0;
+    }
+
     vtd_dev_icx = vtd_bus->dev_icx[devfn];
     if (!vtd_dev_icx) {
         /* means no need to go further, e.g. for emulated devices */
