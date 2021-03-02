@@ -343,3 +343,6 @@ migration_block_save_pending(uint64_t pending) "Enter save live pending  %" PRIu
 # page_cache.c
 migration_pagecache_init(int64_t max_num_items) "Setting cache buckets to %" PRId64
 migration_pagecache_insert(void) "Error allocating page"
+
+# confidential-ram.c
+encrypted_ram_save_page(uint32_t size, uint64_t gpa) "size: %u, gpa: 0x%" PRIx64
