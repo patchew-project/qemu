@@ -53,10 +53,13 @@
 #include "block.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/cpu-throttle.h"
+#include "sysemu/kvm.h"
 #include "savevm.h"
 #include "qemu/iov.h"
 #include "multifd.h"
 #include "sysemu/runstate.h"
+#include "hw/boards.h"
+#include "confidential-ram.h"
 
 #if defined(__linux__)
 #include "qemu/userfaultfd.h"
@@ -81,6 +84,7 @@
 #define RAM_SAVE_FLAG_XBZRLE   0x40
 /* 0x80 is reserved in migration.h start with 0x100 next */
 #define RAM_SAVE_FLAG_COMPRESS_PAGE    0x100
+#define RAM_SAVE_FLAG_GUEST_ENCRYPTED_PAGE    0x200
 
 static inline bool memcrypt_enabled(void)
 {
@@ -92,6 +96,13 @@ static inline bool memcrypt_enabled(void)
 static inline bool is_zero_range(uint8_t *p, uint64_t size)
 {
     return buffer_is_zero(p, size);
+}
+
+static inline bool confidential_guest(void)
+{
+    MachineState *ms = MACHINE(qdev_get_machine());
+
+    return ms->cgs;
 }
 
 XBZRLECacheStats xbzrle_counters;
@@ -658,6 +669,23 @@ static void mig_throttle_guest_down(uint64_t bytes_dirty_period,
         }
         cpu_throttle_set(MIN(throttle_now + throttle_inc, pct_max));
     }
+}
+
+/**
+ * is_page_encrypted: check if the page is encrypted
+ *
+ * Returns a bool indicating whether the page is encrypted.
+ */
+static bool is_page_encrypted(RAMState *rs, RAMBlock *block, unsigned long page)
+{
+    /* ROM devices contain unencrypted data */
+    if (memory_region_is_romd(block->mr) ||
+        memory_region_is_rom(block->mr) ||
+        !memory_region_is_ram(block->mr)) {
+        return false;
+    }
+
+    return test_bit(page, block->encbmap);
 }
 
 /**
@@ -1929,6 +1957,45 @@ static bool save_compress_page(RAMState *rs, RAMBlock *block, ram_addr_t offset)
 }
 
 /**
+ * ram_save_encrypted_page - send the given encrypted page to the stream
+ *
+ * Return the number of pages written (=1).
+ */
+static int ram_save_encrypted_page(RAMState *rs, PageSearchStatus *pss,
+                                   bool last_stage)
+{
+    int ret;
+    uint8_t *p;
+    RAMBlock *block = pss->block;
+    ram_addr_t offset = pss->page << TARGET_PAGE_BITS;
+    ram_addr_t gpa;
+    uint64_t bytes_sent;
+
+    p = block->host + offset;
+
+    /* Find the GPA of the page */
+    if (!kvm_physical_memory_addr_from_host(kvm_state, p, &gpa)) {
+        error_report("%s failed to get gpa for offset %" PRIu64 " block %s",
+                     __func__, offset, memory_region_name(block->mr));
+        return -1;
+    }
+
+    ram_counters.transferred +=
+        save_page_header(rs, rs->f, block,
+                    offset | RAM_SAVE_FLAG_GUEST_ENCRYPTED_PAGE);
+
+    ret = cgs_mh_save_encrypted_page(rs->f, gpa, TARGET_PAGE_SIZE, &bytes_sent);
+    if (ret) {
+        return -1;
+    }
+
+    ram_counters.transferred += bytes_sent;
+    ram_counters.normal++;
+
+    return 1;
+}
+
+/**
  * ram_save_target_page: save one target page
  *
  * Returns the number of pages written
@@ -1946,6 +2013,26 @@ static int ram_save_target_page(RAMState *rs, PageSearchStatus *pss,
 
     if (control_save_page(rs, block, offset, &res)) {
         return res;
+    }
+
+    /*
+     * If memory encryption is enabled then skip saving the data pages used by
+     * the migration handler.
+     */
+    if (confidential_guest() &&
+        gpa_inside_migration_helper_shared_area(offset)) {
+        return 0;
+    }
+
+    /*
+     * If memory encryption is enabled then use memory encryption APIs
+     * to write the outgoing buffer to the wire. The encryption APIs
+     * will take care of accessing the guest memory and re-encrypt it
+     * for the transport purposes.
+     */
+    if (confidential_guest() &&
+        is_page_encrypted(rs, pss->block, pss->page)) {
+        return ram_save_encrypted_page(rs, pss, last_stage);
     }
 
     if (save_compress_page(rs, block, offset)) {
@@ -2774,6 +2861,10 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
 
     if (compress_threads_save_setup()) {
         return -1;
+    }
+
+    if (confidential_guest()) {
+        cgs_mh_init();
     }
 
     /* migration has already setup the bitmap, reuse it. */
