@@ -550,6 +550,19 @@ static bool all_vcpus_paused(void)
     return true;
 }
 
+static bool all_vcpus_except_aux_paused(void)
+{
+    CPUState *cpu;
+
+    CPU_FOREACH(cpu) {
+        if (!cpu->aux && !cpu->stopped) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void pause_all_vcpus(void)
 {
     CPUState *cpu;
@@ -564,8 +577,9 @@ void pause_all_vcpus(void)
         }
     }
 
-    /* We need to drop the replay_lock so any vCPU threads woken up
-     * can finish their replay tasks
+    /*
+     * Drop the replay_lock so any vCPU threads woken up can finish their
+     * replay tasks
      */
     replay_mutex_unlock();
 
@@ -573,6 +587,41 @@ void pause_all_vcpus(void)
         qemu_cond_wait(&qemu_pause_cond, &qemu_global_mutex);
         CPU_FOREACH(cpu) {
             qemu_cpu_kick(cpu);
+        }
+    }
+
+    qemu_mutex_unlock_iothread();
+    replay_mutex_lock();
+    qemu_mutex_lock_iothread();
+}
+
+void pause_all_vcpus_except_aux(void)
+{
+    CPUState *cpu;
+
+    qemu_clock_enable(QEMU_CLOCK_VIRTUAL, false);
+    CPU_FOREACH(cpu) {
+        if (!cpu->aux) {
+            if (qemu_cpu_is_self(cpu)) {
+                qemu_cpu_stop(cpu, true);
+            } else {
+                cpu->stop = true;
+                qemu_cpu_kick(cpu);
+            }
+        }
+    }
+
+    /* We need to drop the replay_lock so any vCPU threads woken up
+     * can finish their replay tasks
+     */
+    replay_mutex_unlock();
+
+    while (!all_vcpus_except_aux_paused()) {
+        qemu_cond_wait(&qemu_pause_cond, &qemu_global_mutex);
+        CPU_FOREACH(cpu) {
+            if (!cpu->aux) {
+                qemu_cpu_kick(cpu);
+            }
         }
     }
 
