@@ -297,7 +297,16 @@ static int cpu_post_load(void *opaque, int version_id)
     X86CPU *cpu = opaque;
     CPUState *cs = CPU(cpu);
     CPUX86State *env = &cpu->env;
+    MachineState *ms = MACHINE(qdev_get_machine());
     int i;
+
+    /*
+     * When loading the state of a confidential guest, set TSC to zero at allow
+     * the guest OS to re-sync with kvmclock.
+     */
+    if (ms->cgs) {
+        env->tsc = 0;
+    }
 
     if (env->tsc_khz && env->user_tsc_khz &&
         env->tsc_khz != env->user_tsc_khz) {
