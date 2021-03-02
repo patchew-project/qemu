@@ -26,12 +26,15 @@
 #include "qemu/notify.h"
 #include "ui/console.h"
 #include "hw/display/ramfb.h"
+#include "hw/iommu/host_iommu_context.h"
 #ifdef CONFIG_LINUX
 #include <linux/vfio.h>
 #endif
 #include "sysemu/sysemu.h"
 
 #define VFIO_MSG_PREFIX "vfio %s: "
+
+#define TYPE_VFIO_HOST_IOMMU_CONTEXT "qemu:vfio-host-iommu-context"
 
 enum {
     VFIO_DEVICE_TYPE_PCI = 0,
