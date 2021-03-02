@@ -98,6 +98,7 @@ static ObjectClass *moxie_cpu_class_by_name(const char *cpu_model)
 
 static struct TCGCPUOps moxie_tcg_ops = {
     .initialize = moxie_translate_init,
+    .has_work = moxie_cpu_has_work,
     .tlb_fill = moxie_cpu_tlb_fill,
 
 #ifndef CONFIG_USER_ONLY
@@ -117,7 +118,6 @@ static void moxie_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = moxie_cpu_class_by_name;
 
-    cc->has_work = moxie_cpu_has_work;
     cc->dump_state = moxie_cpu_dump_state;
     cc->set_pc = moxie_cpu_set_pc;
 #ifndef CONFIG_USER_ONLY

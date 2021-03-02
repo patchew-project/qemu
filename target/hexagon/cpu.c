@@ -268,6 +268,7 @@ static bool hexagon_tlb_fill(CPUState *cs, vaddr address, int size,
 
 static struct TCGCPUOps hexagon_tcg_ops = {
     .initialize = hexagon_translate_init,
+    .has_work = hexagon_cpu_has_work,
     .synchronize_from_tb = hexagon_cpu_synchronize_from_tb,
     .tlb_fill = hexagon_tlb_fill,
 };
@@ -284,7 +285,6 @@ static void hexagon_cpu_class_init(ObjectClass *c, void *data)
     device_class_set_parent_reset(dc, hexagon_cpu_reset, &mcc->parent_reset);
 
     cc->class_by_name = hexagon_cpu_class_by_name;
-    cc->has_work = hexagon_cpu_has_work;
     cc->dump_state = hexagon_dump_state;
     cc->set_pc = hexagon_cpu_set_pc;
     cc->gdb_read_register = hexagon_gdb_read_register;

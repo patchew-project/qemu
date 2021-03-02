@@ -451,7 +451,7 @@ bool cpu_has_work(CPUState *cpu)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
-    return cc->has_work(cpu);
+    return cc->tcg_ops->has_work(cpu);
 }
 
 static inline bool cpu_handle_halt(CPUState *cpu)

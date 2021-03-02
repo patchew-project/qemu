@@ -124,6 +124,7 @@ static const VMStateDescription vmstate_uc32_cpu = {
 
 static struct TCGCPUOps uc32_tcg_ops = {
     .initialize = uc32_translate_init,
+    .has_work = uc32_cpu_has_work,
     .cpu_exec_interrupt = uc32_cpu_exec_interrupt,
     .tlb_fill = uc32_cpu_tlb_fill,
 
@@ -142,7 +143,6 @@ static void uc32_cpu_class_init(ObjectClass *oc, void *data)
                                     &ucc->parent_realize);
 
     cc->class_by_name = uc32_cpu_class_by_name;
-    cc->has_work = uc32_cpu_has_work;
     cc->dump_state = uc32_cpu_dump_state;
     cc->set_pc = uc32_cpu_set_pc;
     cc->get_phys_page_debug = uc32_cpu_get_phys_page_debug;

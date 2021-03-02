@@ -135,6 +135,7 @@ static ObjectClass *hppa_cpu_class_by_name(const char *cpu_model)
 
 static struct TCGCPUOps hppa_tcg_ops = {
     .initialize = hppa_translate_init,
+    .has_work = hppa_cpu_has_work,
     .synchronize_from_tb = hppa_cpu_synchronize_from_tb,
     .cpu_exec_interrupt = hppa_cpu_exec_interrupt,
     .tlb_fill = hppa_cpu_tlb_fill,
@@ -155,7 +156,6 @@ static void hppa_cpu_class_init(ObjectClass *oc, void *data)
                                     &acc->parent_realize);
 
     cc->class_by_name = hppa_cpu_class_by_name;
-    cc->has_work = hppa_cpu_has_work;
     cc->dump_state = hppa_cpu_dump_state;
     cc->set_pc = hppa_cpu_set_pc;
     cc->gdb_read_register = hppa_cpu_gdb_read_register;

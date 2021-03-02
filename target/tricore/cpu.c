@@ -146,6 +146,7 @@ static void tc27x_initfn(Object *obj)
 
 static struct TCGCPUOps tricore_tcg_ops = {
     .initialize = tricore_tcg_init,
+    .has_work = tricore_cpu_has_work,
     .synchronize_from_tb = tricore_cpu_synchronize_from_tb,
     .tlb_fill = tricore_cpu_tlb_fill,
 };
@@ -161,7 +162,6 @@ static void tricore_cpu_class_init(ObjectClass *c, void *data)
 
     device_class_set_parent_reset(dc, tricore_cpu_reset, &mcc->parent_reset);
     cc->class_by_name = tricore_cpu_class_by_name;
-    cc->has_work = tricore_cpu_has_work;
 
     cc->gdb_read_register = tricore_cpu_gdb_read_register;
     cc->gdb_write_register = tricore_cpu_gdb_write_register;
