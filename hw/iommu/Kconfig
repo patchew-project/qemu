@@ -1,0 +1,4 @@
+config IOMMU
+    bool
+    default y
+    depends on LINUX
