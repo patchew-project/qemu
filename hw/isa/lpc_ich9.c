@@ -529,9 +529,10 @@ ich9_lpc_pmcon_update(ICH9LPCState *lpc)
 static int ich9_lpc_post_load(void *opaque, int version_id)
 {
     ICH9LPCState *lpc = opaque;
+    uint32_t rcba_old = pci_get_long(lpc->d.config + ICH9_LPC_RCBA);
 
     ich9_lpc_pmbase_sci_update(lpc);
-    ich9_lpc_rcba_update(lpc, 0 /* disabled ICH9_LPC_RCBA_EN */);
+    ich9_lpc_rcba_update(lpc, rcba_old);
     ich9_lpc_pmcon_update(lpc);
     return 0;
 }
