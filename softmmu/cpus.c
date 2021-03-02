@@ -162,7 +162,9 @@ void cpu_synchronize_all_pre_loadvm(void)
     CPUState *cpu;
 
     CPU_FOREACH(cpu) {
-        cpu_synchronize_pre_loadvm(cpu);
+        if (!cpu->aux) {
+            cpu_synchronize_pre_loadvm(cpu);
+        }
     }
 }
 
