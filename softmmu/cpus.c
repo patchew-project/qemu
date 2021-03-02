@@ -157,6 +157,17 @@ void cpu_synchronize_all_post_init(void)
     }
 }
 
+void cpu_synchronize_without_aux_post_init(void)
+{
+    CPUState *cpu;
+
+    CPU_FOREACH(cpu) {
+        if (!cpu->aux) {
+            cpu_synchronize_post_init(cpu);
+        }
+    }
+}
+
 void cpu_synchronize_all_pre_loadvm(void)
 {
     CPUState *cpu;
