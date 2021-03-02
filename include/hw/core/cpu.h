@@ -430,6 +430,8 @@ struct CPUState {
 
     int hvf_fd;
 
+    bool aux;
+
     /* track IOMMUs whose translations we've cached in the TCG TLB */
     GArray *iommu_notifiers;
 };

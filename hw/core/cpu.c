@@ -387,6 +387,7 @@ static Property cpu_common_props[] = {
                      MemoryRegion *),
 #endif
     DEFINE_PROP_BOOL("start-powered-off", CPUState, start_powered_off, false),
+    DEFINE_PROP_BOOL("aux", CPUState, aux, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
