@@ -68,3 +68,7 @@ config PCI_POWERNV
 
 config REMOTE_PCIHOST
     bool
+
+config MV64361
+    bool
+    select PCI
