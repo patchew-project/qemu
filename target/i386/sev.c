@@ -32,6 +32,7 @@
 #include "qom/object.h"
 #include "exec/address-spaces.h"
 #include "monitor/monitor.h"
+#include "hw/boards.h"
 #include "exec/confidential-guest-support.h"
 #include "migration/confidential-ram.h"
 #include "hw/i386/pc.h"
@@ -669,6 +670,7 @@ sev_launch_finish(SevGuestState *sev)
 {
     int ret, error;
     Error *local_err = NULL;
+    MachineState *ms = MACHINE(qdev_get_machine());
 
     trace_kvm_sev_launch_finish();
     ret = sev_ioctl(sev->sev_fd, KVM_SEV_LAUNCH_FINISH, 0, &error);
@@ -680,14 +682,19 @@ sev_launch_finish(SevGuestState *sev)
 
     sev_set_guest_state(sev, SEV_STATE_RUNNING);
 
-    /* add migration blocker */
-    error_setg(&sev_mig_blocker,
-               "SEV: Migration is not implemented");
-    ret = migrate_add_blocker(sev_mig_blocker, &local_err);
-    if (local_err) {
-        error_report_err(local_err);
-        error_free(sev_mig_blocker);
-        exit(1);
+    /*
+     * SEV migration is not supported unless there's an auxiliary CPU running
+     * the guest-assisted migration helper.
+     */
+    if (ms->smp.aux_cpus == 0) {
+        error_setg(&sev_mig_blocker,
+                   "SEV: Migration is not implemented");
+        ret = migrate_add_blocker(sev_mig_blocker, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            error_free(sev_mig_blocker);
+            exit(1);
+        }
     }
 }
 
