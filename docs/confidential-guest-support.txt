@@ -47,3 +47,8 @@ s390x Protected Virtualization (PV)
     docs/system/s390x/protvirt.rst
 
 Other mechanisms may be supported in future.
+
+Live migration support
+----------------------
+Details regarding confidential guest live migration are in:
+    docs/confidential-guest-live-migration.rst
