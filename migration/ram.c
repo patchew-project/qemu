@@ -3519,6 +3519,10 @@ void colo_release_ram_cache(void)
  */
 static int ram_load_setup(QEMUFile *f, void *opaque)
 {
+    if (confidential_guest()) {
+        cgs_mh_init();
+    }
+
     if (compress_threads_load_setup(f)) {
         return -1;
     }
@@ -3812,6 +3816,8 @@ void colo_flush_ram_cache(void)
 static int ram_load_precopy(QEMUFile *f)
 {
     int flags = 0, ret = 0, invalid_flags = 0, len = 0, i = 0;
+    ram_addr_t gpa;
+
     /* ADVISE is earlier, it shows the source has the postcopy capability on */
     bool postcopy_advised = postcopy_is_advised();
     if (!migrate_use_compression()) {
@@ -3848,7 +3854,8 @@ static int ram_load_precopy(QEMUFile *f)
         }
 
         if (flags & (RAM_SAVE_FLAG_ZERO | RAM_SAVE_FLAG_PAGE |
-                     RAM_SAVE_FLAG_COMPRESS_PAGE | RAM_SAVE_FLAG_XBZRLE)) {
+                     RAM_SAVE_FLAG_COMPRESS_PAGE | RAM_SAVE_FLAG_XBZRLE |
+                     RAM_SAVE_FLAG_GUEST_ENCRYPTED_PAGE)) {
             RAMBlock *block = ram_block_from_stream(f, flags);
 
             host = host_from_ram_block_offset(block, addr);
@@ -3977,6 +3984,16 @@ static int ram_load_precopy(QEMUFile *f)
                 break;
             }
             break;
+
+        case RAM_SAVE_FLAG_GUEST_ENCRYPTED_PAGE:
+            if (!kvm_physical_memory_addr_from_host(kvm_state, host, &gpa)) {
+                error_report("%s: failed to get gpa for host %p", __func__, host);
+                ret = -EINVAL;
+                break;
+            }
+            ret = cgs_mh_load_encrypted_page(f, gpa);
+            break;
+
         case RAM_SAVE_FLAG_EOS:
             /* normal exit */
             multifd_recv_sync_main();
