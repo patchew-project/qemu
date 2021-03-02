@@ -10,6 +10,7 @@
 
 #ifndef CONFIG_TCG
 #define tcg_enabled() 0
+#define cpu_has_work(cpu) false
 #else
 
 void tcg_exec_init(unsigned long tb_size, int splitwx);
@@ -25,6 +26,16 @@ extern bool tcg_allowed;
  */
 extern bool mttcg_enabled;
 #define qemu_tcg_mttcg_enabled() (mttcg_enabled)
+
+/**
+ * cpu_has_work:
+ * @cpu: The vCPU to check.
+ *
+ * Checks whether the CPU has work to do.
+ *
+ * Returns: %true if the CPU has work, %false otherwise.
+ */
+bool cpu_has_work(CPUState *cpu);
 
 #endif /* CONFIG_TCG */
 

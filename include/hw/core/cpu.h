@@ -671,22 +671,6 @@ CPUState *cpu_create(const char *typename);
 const char *parse_cpu_option(const char *cpu_option);
 
 /**
- * cpu_has_work:
- * @cpu: The vCPU to check.
- *
- * Checks whether the CPU has work to do.
- *
- * Returns: %true if the CPU has work, %false otherwise.
- */
-static inline bool cpu_has_work(CPUState *cpu)
-{
-    CPUClass *cc = CPU_GET_CLASS(cpu);
-
-    g_assert(cc->has_work);
-    return cc->has_work(cpu);
-}
-
-/**
  * qemu_cpu_is_self:
  * @cpu: The vCPU to check against.
  *
