@@ -8,6 +8,8 @@
 #include "exec/cpu-common.h"
 #include "qemu-file.h"
 
+bool gpa_inside_migration_helper_shared_area(ram_addr_t gpa);
+
 void cgs_mh_init(void);
 void cgs_mh_cleanup(void);
 

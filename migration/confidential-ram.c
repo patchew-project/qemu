@@ -68,6 +68,12 @@ static CGSMigHelperState cmhs = {0};
 #define MH_SHARED_CMD_PARAMS_ADDR    0x820000
 #define MH_SHARED_IO_PAGE_HDR_ADDR   (MH_SHARED_CMD_PARAMS_ADDR + 0x800)
 #define MH_SHARED_IO_PAGE_ADDR       (MH_SHARED_CMD_PARAMS_ADDR + 0x1000)
+#define MH_SHARED_LAST_BYTE          (MH_SHARED_CMD_PARAMS_ADDR + 0x1fff)
+
+bool gpa_inside_migration_helper_shared_area(ram_addr_t gpa)
+{
+    return gpa >= MH_SHARED_CMD_PARAMS_ADDR && gpa <= MH_SHARED_LAST_BYTE;
+}
 
 void cgs_mh_init(void)
 {
