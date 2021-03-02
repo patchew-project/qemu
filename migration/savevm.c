@@ -2673,6 +2673,13 @@ out:
     return ret;
 }
 
+static inline bool confidential_guest(void)
+{
+    MachineState *ms = MACHINE(qdev_get_machine());
+
+    return ms->cgs;
+}
+
 int qemu_loadvm_state(QEMUFile *f)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
@@ -2693,7 +2700,9 @@ int qemu_loadvm_state(QEMUFile *f)
         return -EINVAL;
     }
 
-    cpu_synchronize_all_pre_loadvm();
+    if (!confidential_guest()) {
+        cpu_synchronize_all_pre_loadvm();
+    }
 
     ret = qemu_loadvm_state_main(f, mis);
     qemu_event_set(&mis->main_thread_load_event);
