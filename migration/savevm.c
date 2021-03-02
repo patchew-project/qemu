@@ -2754,7 +2754,7 @@ int qemu_loadvm_state(QEMUFile *f)
     }
 
     qemu_loadvm_state_cleanup();
-    cpu_synchronize_all_post_init();
+    cpu_synchronize_without_aux_post_init();
 
     return ret;
 }
