@@ -436,6 +436,11 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
 
         method = aml_method(CPU_NOTIFY_METHOD, 2, AML_NOTSERIALIZED);
         for (i = 0; i < arch_ids->len; i++) {
+            if (arch_ids->cpus[i].aux) {
+                /* don't build objects for auxiliary CPUs */
+                continue;
+            }
+
             Aml *cpu = aml_name(CPU_NAME_FMT, i);
             Aml *uid = aml_arg(0);
             Aml *event = aml_arg(1);
@@ -651,6 +656,11 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
 
         /* build Processor object for each processor */
         for (i = 0; i < arch_ids->len; i++) {
+            if (arch_ids->cpus[i].aux) {
+                /* don't build objects for auxiliary CPUs */
+                continue;
+            }
+
             Aml *dev;
             Aml *uid = aml_int(i);
             GArray *madt_buf = g_array_new(0, 1, 1);

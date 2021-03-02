@@ -1768,6 +1768,11 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
     srat->reserved1 = cpu_to_le32(1);
 
     for (i = 0; i < apic_ids->len; i++) {
+        if (apic_ids->cpus[i].aux) {
+            /* don't build objects for auxiliary CPUs */
+            continue;
+        }
+
         int node_id = apic_ids->cpus[i].props.node_id;
         uint32_t apic_id = apic_ids->cpus[i].arch_id;
 
