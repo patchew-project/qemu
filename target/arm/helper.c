@@ -6345,6 +6345,7 @@ static const ARMCPRegInfo zcr_el3_reginfo = {
     .writefn = zcr_write, .raw_writefn = raw_write
 };
 
+#ifndef CONFIG_USER_ONLY
 void hw_watchpoint_update(ARMCPU *cpu, int n)
 {
     CPUARMState *env = &cpu->env;
@@ -6470,6 +6471,7 @@ static void dbgwcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     raw_write(env, ri, value);
     hw_watchpoint_update(cpu, i);
 }
+#endif /* !CONFIG_USER_ONLY */
 
 void hw_breakpoint_update(ARMCPU *cpu, int n)
 {
@@ -6643,6 +6645,7 @@ static void define_debug_regs(ARMCPU *cpu)
         define_arm_cp_regs(cpu, dbgregs);
     }
 
+#ifndef CONFIG_USER_ONLY
     for (i = 0; i < arm_num_wrps(cpu); i++) {
         ARMCPRegInfo dbgregs[] = {
             { .name = "DBGWVR", .state = ARM_CP_STATE_BOTH,
@@ -6661,6 +6664,7 @@ static void define_debug_regs(ARMCPU *cpu)
         };
         define_arm_cp_regs(cpu, dbgregs);
     }
+#endif /* !CONFIG_USER_ONLY */
 }
 
 static void define_pmu_regs(ARMCPU *cpu)

@@ -432,10 +432,10 @@ static void arm_cpu_reset(DeviceState *dev)
     if (kvm_enabled()) {
         kvm_arm_reset_vcpu(cpu);
     }
-#endif
 
-    hw_breakpoint_update_all(cpu);
     hw_watchpoint_update_all(cpu);
+#endif
+    hw_breakpoint_update_all(cpu);
     arm_rebuild_hflags(env);
 }
 

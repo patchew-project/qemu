@@ -11,6 +11,8 @@
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 
+#ifndef CONFIG_USER_ONLY
+
 /* Return true if the linked breakpoint entry lbn passes its checks */
 static bool linked_bp_matches(ARMCPU *cpu, int lbn)
 {
@@ -227,6 +229,8 @@ bool arm_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
     return check_watchpoints(cpu);
 }
 
+#endif /* !CONFIG_USER_ONLY */
+
 static bool check_breakpoints(ARMCPU *cpu)
 {
     CPUARMState *env = &cpu->env;
@@ -240,11 +244,13 @@ static bool check_breakpoints(ARMCPU *cpu)
         return false;
     }
 
+#ifndef CONFIG_USER_ONLY
     for (int n = 0; n < ARRAY_SIZE(env->cpu_breakpoint); n++) {
         if (bp_wp_matches(cpu, n, false)) {
             return true;
         }
     }
+#endif /* !CONFIG_USER_ONLY */
     return false;
 }
 
@@ -267,6 +273,7 @@ void arm_debug_excp_handler(CPUState *cs)
     CPUARMState *env = &cpu->env;
     uint64_t pc;
     bool same_el;
+#ifndef CONFIG_USER_ONLY
     CPUWatchpoint *wp_hit = cs->watchpoint_hit;
 
     if (wp_hit && (wp_hit->flags & BP_CPU)) {
@@ -282,6 +289,7 @@ void arm_debug_excp_handler(CPUState *cs)
                         arm_debug_target_el(env));
         return;
     }
+#endif /* !CONFIG_USER_ONLY */
 
     pc = is_a64(env) ? env->pc : env->regs[15];
     same_el = (arm_debug_target_el(env) == arm_current_el(env));

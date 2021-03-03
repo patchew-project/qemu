@@ -4849,6 +4849,7 @@ void sve_ldnfff1_r(CPUARMState *env, void *vg, const target_ulong addr,
                 /* Some page is MMIO, see below. */
                 goto do_fault;
             }
+#ifndef CONFIG_USER_ONLY
             if (unlikely(flags & TLB_WATCHPOINT) &&
                 (cpu_watchpoint_address_matches
                  (env_cpu(env), addr + mem_off, 1 << msz)
@@ -4856,6 +4857,7 @@ void sve_ldnfff1_r(CPUARMState *env, void *vg, const target_ulong addr,
                 /* Watchpoint hit, see below. */
                 goto do_fault;
             }
+#endif
             if (mtedesc && !mte_probe1(env, mtedesc, addr + mem_off)) {
                 goto do_fault;
             }
@@ -4900,12 +4902,14 @@ void sve_ldnfff1_r(CPUARMState *env, void *vg, const target_ulong addr,
         uint64_t pg = *(uint64_t *)(vg + (reg_off >> 3));
         do {
             if ((pg >> (reg_off & 63)) & 1) {
+#ifndef CONFIG_USER_ONLY
                 if (unlikely(flags & TLB_WATCHPOINT) &&
                     (cpu_watchpoint_address_matches
                      (env_cpu(env), addr + mem_off, 1 << msz)
                      & BP_MEM_READ)) {
                     goto do_fault;
                 }
+#endif
                 if (mtedesc && !mte_probe1(env, mtedesc, addr + mem_off)) {
                     goto do_fault;
                 }
@@ -5355,10 +5359,12 @@ void sve_ld1_z(CPUARMState *env, void *vd, uint64_t *vg, void *vm,
                                mmu_idx, retaddr);
 
                 if (likely(in_page >= msize)) {
+#ifndef CONFIG_USER_ONLY
                     if (unlikely(info.flags & TLB_WATCHPOINT)) {
                         cpu_check_watchpoint(env_cpu(env), addr, msize,
                                              info.attrs, BP_MEM_READ, retaddr);
                     }
+#endif
                     if (mtedesc && arm_tlb_mte_tagged(&info.attrs)) {
                         mte_check1(env, mtedesc, addr, retaddr);
                     }
@@ -5367,11 +5373,13 @@ void sve_ld1_z(CPUARMState *env, void *vd, uint64_t *vg, void *vm,
                     /* Element crosses the page boundary. */
                     sve_probe_page(&info2, false, env, addr + in_page, 0,
                                    MMU_DATA_LOAD, mmu_idx, retaddr);
+#ifndef CONFIG_USER_ONLY
                     if (unlikely((info.flags | info2.flags) & TLB_WATCHPOINT)) {
                         cpu_check_watchpoint(env_cpu(env), addr,
                                              msize, info.attrs,
                                              BP_MEM_READ, retaddr);
                     }
+#endif
                     if (mtedesc && arm_tlb_mte_tagged(&info.attrs)) {
                         mte_check1(env, mtedesc, addr, retaddr);
                     }
@@ -5568,11 +5576,13 @@ void sve_ldff1_z(CPUARMState *env, void *vd, uint64_t *vg, void *vm,
                 if (unlikely(info.flags & (TLB_INVALID_MASK | TLB_MMIO))) {
                     goto fault;
                 }
+#ifndef CONFIG_USER_ONLY
                 if (unlikely(info.flags & TLB_WATCHPOINT) &&
                     (cpu_watchpoint_address_matches
                      (env_cpu(env), addr, msize) & BP_MEM_READ)) {
                     goto fault;
                 }
+#endif
                 if (mtedesc &&
                     arm_tlb_mte_tagged(&info.attrs) &&
                     !mte_probe1(env, mtedesc, addr)) {
@@ -5754,10 +5764,12 @@ void sve_st1_z(CPUARMState *env, void *vd, uint64_t *vg, void *vm,
                     info.flags |= info2.flags;
                 }
 
+#ifndef CONFIG_USER_ONLY
                 if (unlikely(info.flags & TLB_WATCHPOINT)) {
                     cpu_check_watchpoint(env_cpu(env), addr, msize,
                                          info.attrs, BP_MEM_WRITE, retaddr);
                 }
+#endif
 
                 if (mtedesc && arm_tlb_mte_tagged(&info.attrs)) {
                     mte_check1(env, mtedesc, addr, retaddr);

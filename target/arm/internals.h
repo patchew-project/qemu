@@ -263,6 +263,7 @@ static inline bool extended_addresses_enabled(CPUARMState *env)
            (arm_feature(env, ARM_FEATURE_LPAE) && (tcr->raw_tcr & TTBCR_EAE));
 }
 
+#ifndef CONFIG_USER_ONLY
 /*
  * Update a QEMU watchpoint based on the information the guest has set in the
  * DBGWCR<n>_EL1 and DBGWVR<n>_EL1 registers.
@@ -286,6 +287,7 @@ bool arm_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp);
  * addresses.
  */
 vaddr arm_adjust_watchpoint_address(CPUState *cs, vaddr addr, int len);
+#endif /* !CONFIG_USER_ONLY */
 
 void hw_breakpoint_update(ARMCPU *cpu, int n);
 /*
