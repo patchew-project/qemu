@@ -314,7 +314,6 @@ struct AccelvCPUState;
  * @opaque: User data.
  * @mem_io_pc: Host Program Counter at which the memory was accessed.
  * @accel_vcpu: Pointer to accelerator-specific AccelvCPUState field.
- * @kvm_fd: vCPU file descriptor for KVM.
  * @work_mutex: Lock to prevent multiple access to @work_list.
  * @work_list: List of pending asynchronous work.
  * @trace_dstate_delayed: Delayed changes to trace_dstate (includes all changes
@@ -416,7 +415,6 @@ struct CPUState {
 
     /* Accelerator-specific fields. */
     struct AccelvCPUState *accel_vcpu;
-    int kvm_fd;
     struct KVMState *kvm_state;
     struct kvm_run *kvm_run;
     int hvf_fd;

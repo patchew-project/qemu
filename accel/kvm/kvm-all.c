@@ -387,7 +387,7 @@ static int do_kvm_destroy_vcpu(CPUState *cpu)
 
     vcpu = g_malloc0(sizeof(*vcpu));
     vcpu->vcpu_id = kvm_arch_vcpu_id(cpu);
-    vcpu->kvm_fd = cpu->kvm_fd;
+    vcpu->kvm_fd = cpu->accel_vcpu->kvm_fd;
     QLIST_INSERT_HEAD(&kvm_state->kvm_parked_vcpus, vcpu, node);
 err:
     return ret;
@@ -436,7 +436,7 @@ int kvm_init_vcpu(CPUState *cpu, Error **errp)
     }
 
     cpu->accel_vcpu = g_new(struct AccelvCPUState, 1);
-    cpu->kvm_fd = ret;
+    cpu->accel_vcpu->kvm_fd = ret;
     cpu->kvm_state = s;
     cpu->vcpu_dirty = true;
 
@@ -449,7 +449,7 @@ int kvm_init_vcpu(CPUState *cpu, Error **errp)
     }
 
     cpu->kvm_run = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED,
-                        cpu->kvm_fd, 0);
+                        cpu->accel_vcpu->kvm_fd, 0);
     if (cpu->kvm_run == MAP_FAILED) {
         ret = -errno;
         error_setg_errno(errp, ret,
@@ -2631,7 +2631,7 @@ int kvm_vcpu_ioctl(CPUState *cpu, int type, ...)
     va_end(ap);
 
     trace_kvm_vcpu_ioctl(cpu->cpu_index, type, arg);
-    ret = ioctl(cpu->kvm_fd, type, arg);
+    ret = ioctl(cpu->accel_vcpu->kvm_fd, type, arg);
     if (ret == -1) {
         ret = -errno;
     }

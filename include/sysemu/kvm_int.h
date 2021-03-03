@@ -14,6 +14,10 @@
 #include "sysemu/kvm.h"
 
 struct AccelvCPUState {
+    /**
+     * @kvm_fd: vCPU file descriptor for KVM
+     */
+    int kvm_fd;
 };
 
 typedef struct KVMSlot
