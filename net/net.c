@@ -55,6 +55,8 @@
 #include "sysemu/sysemu.h"
 #include "net/filter.h"
 #include "qapi/string-output-visitor.h"
+#include "net/colo-compare.h"
+#include "qom/object_interfaces.h"
 
 /* Net bridge is currently not supported for W32. */
 #if !defined(_WIN32)
@@ -1167,14 +1169,159 @@ void qmp_netdev_del(const char *id, Error **errp)
     }
 }
 
+static CompareState *colo_passthrough_check(L4_Connection *conn, Error **errp)
+{
+    Object *container;
+    Object *obj;
+    CompareState *s;
+
+    if (!conn->id) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "id",
+                   "Need input colo-compare object id");
+        return NULL;
+    }
+
+    container = object_get_objects_root();
+    obj = object_resolve_path_component(container, conn->id);
+    if (!obj) {
+        error_setg(errp, "colo-compare '%s' not found", conn->id);
+        return NULL;
+    }
+
+    s = COLO_COMPARE(obj);
+
+    if (conn->protocol == -1) {
+        error_setg(errp, "COLO pass through get wrong protocol");
+        return NULL;
+    }
+
+    if ((conn->src_ip && !qemu_isdigit(conn->src_ip[0])) ||
+        (conn->dst_ip && !qemu_isdigit(conn->dst_ip[0]))) {
+        error_setg(errp, "COLO pass through get wrong IP");
+        return NULL;
+    }
+
+    if (conn->src_port > 65536 || conn->src_port < 0 ||
+        conn->dst_port > 65536 || conn->dst_port < 0) {
+        error_setg(errp, "COLO pass through get wrong port");
+        return NULL;
+    }
+
+    return s;
+}
+
+static void compare_passthrough_add(CompareState *s,
+                                    L4_Connection *conn,
+                                    Error **errp)
+{
+    PassthroughEntry *bypass = NULL, *next = NULL, *origin = NULL;
+
+    bypass = g_new0(PassthroughEntry, 1);
+
+    bypass->l4_protocol = conn->protocol;
+    bypass->src_port = conn->src_port;
+    bypass->dst_port = conn->dst_port;
+
+    if (!inet_aton(conn->src_ip, &bypass->src_ip)) {
+        bypass->src_ip.s_addr = 0;
+    }
+
+    if (!inet_aton(conn->dst_ip, &bypass->dst_ip)) {
+        bypass->dst_ip.s_addr = 0;
+    }
+
+    if (!QLIST_EMPTY(&s->passthroughlist)) {
+        QLIST_FOREACH_SAFE(origin, &s->passthroughlist, node, next) {
+            if ((bypass->l4_protocol == origin->l4_protocol) &&
+                (bypass->src_port == origin->src_port) &&
+                (bypass->src_ip.s_addr == origin->src_ip.s_addr) &&
+                (bypass->dst_ip.s_addr == origin->dst_ip.s_addr)) {
+                error_setg(errp, "The pass through connection already exists");
+                g_free(bypass);
+                return;
+            }
+        }
+    }
+
+    QLIST_INSERT_HEAD(&s->passthroughlist, bypass, node);
+}
+
+static void compare_passthrough_del(CompareState *s,
+                                    L4_Connection *conn,
+                                    Error **errp)
+{
+    PassthroughEntry *bypass = NULL, *next = NULL, *origin = NULL;
+
+    bypass = g_new0(PassthroughEntry, 1);
+
+    bypass->l4_protocol = conn->protocol;
+    bypass->src_port = conn->src_port;
+    bypass->dst_port = conn->dst_port;
+
+    if (!inet_aton(conn->src_ip, &bypass->src_ip)) {
+        bypass->src_ip.s_addr = 0;
+    }
+
+    if (!inet_aton(conn->dst_ip, &bypass->dst_ip)) {
+        bypass->dst_ip.s_addr = 0;
+    }
+
+    if (!QLIST_EMPTY(&s->passthroughlist)) {
+        QLIST_FOREACH_SAFE(origin, &s->passthroughlist, node, next) {
+            if ((bypass->l4_protocol == origin->l4_protocol) &&
+                (bypass->src_port == origin->src_port) &&
+                (bypass->src_ip.s_addr == origin->src_ip.s_addr) &&
+                (bypass->dst_ip.s_addr == origin->dst_ip.s_addr)) {
+                QLIST_REMOVE(origin, node);
+                g_free(origin);
+                g_free(bypass);
+                return;
+            }
+        }
+        error_setg(errp, "The pass through list can't find the connection");
+    } else {
+        error_setg(errp, "The pass through connection list is empty");
+    }
+
+    g_free(bypass);
+}
+
 void qmp_colo_passthrough_add(L4_Connection *conn, Error **errp)
 {
     /* Setup passthrough connection */
+    CompareState *s;
+    Error *err = NULL;
+
+    s = colo_passthrough_check(conn, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    compare_passthrough_add(s, conn, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
 }
 
 void qmp_colo_passthrough_del(L4_Connection *conn, Error **errp)
 {
     /* Delete passthrough connection */
+    CompareState *s;
+    Error *err = NULL;
+
+    s = colo_passthrough_check(conn, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    compare_passthrough_del(s, conn, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
 }
 
 static void netfilter_print_info(Monitor *mon, NetFilterState *nf)
