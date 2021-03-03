@@ -2760,7 +2760,7 @@ struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUState *cpu,
 {
     struct kvm_sw_breakpoint *bp;
 
-    QTAILQ_FOREACH(bp, &cpu->kvm_state->kvm_sw_breakpoints, entry) {
+    QTAILQ_FOREACH(bp, &kvm_vcpu_state(cpu)->kvm_sw_breakpoints, entry) {
         if (bp->pc == pc) {
             return bp;
         }
@@ -2770,7 +2770,7 @@ struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUState *cpu,
 
 int kvm_sw_breakpoints_active(CPUState *cpu)
 {
-    return !QTAILQ_EMPTY(&cpu->kvm_state->kvm_sw_breakpoints);
+    return !QTAILQ_EMPTY(&kvm_vcpu_state(cpu)->kvm_sw_breakpoints);
 }
 
 struct kvm_set_guest_debug_data {
@@ -2825,7 +2825,7 @@ int kvm_insert_breakpoint(CPUState *cpu, target_ulong addr,
             return err;
         }
 
-        QTAILQ_INSERT_HEAD(&cpu->kvm_state->kvm_sw_breakpoints, bp, entry);
+        QTAILQ_INSERT_HEAD(&kvm_vcpu_state(cpu)->kvm_sw_breakpoints, bp, entry);
     } else {
         err = kvm_arch_insert_hw_breakpoint(addr, len, type);
         if (err) {
@@ -2864,7 +2864,7 @@ int kvm_remove_breakpoint(CPUState *cpu, target_ulong addr,
             return err;
         }
 
-        QTAILQ_REMOVE(&cpu->kvm_state->kvm_sw_breakpoints, bp, entry);
+        QTAILQ_REMOVE(&kvm_vcpu_state(cpu)->kvm_sw_breakpoints, bp, entry);
         g_free(bp);
     } else {
         err = kvm_arch_remove_hw_breakpoint(addr, len, type);
@@ -2885,7 +2885,7 @@ int kvm_remove_breakpoint(CPUState *cpu, target_ulong addr,
 void kvm_remove_all_breakpoints(CPUState *cpu)
 {
     struct kvm_sw_breakpoint *bp, *next;
-    KVMState *s = cpu->kvm_state;
+    KVMState *s = kvm_vcpu_state(cpu);
     CPUState *tmpcpu;
 
     QTAILQ_FOREACH_SAFE(bp, &s->kvm_sw_breakpoints, entry, next) {

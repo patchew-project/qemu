@@ -61,7 +61,7 @@ int kvm_arm_vcpu_finalize(CPUState *cs, int feature)
 
 void kvm_arm_init_serror_injection(CPUState *cs)
 {
-    cap_has_inject_serror_esr = kvm_check_extension(cs->kvm_state,
+    cap_has_inject_serror_esr = kvm_check_extension(kvm_vcpu_state(cs),
                                     KVM_CAP_ARM_INJECT_SERROR_ESR);
 }
 

@@ -205,7 +205,7 @@ static int kvm_booke206_tlb_init(PowerPCCPU *cpu)
     int ret, i;
 
     if (!kvm_enabled() ||
-        !kvm_check_extension(cs->kvm_state, KVM_CAP_SW_TLB)) {
+        !kvm_check_extension(kvm_vcpu_state(cs), KVM_CAP_SW_TLB)) {
         return 0;
     }
 
@@ -303,7 +303,7 @@ target_ulong kvmppc_configure_v3_mmu(PowerPCCPU *cpu,
         flags |= KVM_PPC_MMUV3_GTSE;
     }
     cfg.flags = flags;
-    ret = kvm_vm_ioctl(cs->kvm_state, KVM_PPC_CONFIGURE_V3_MMU, &cfg);
+    ret = kvm_vm_ioctl(kvm_vcpu_state(cs), KVM_PPC_CONFIGURE_V3_MMU, &cfg);
     switch (ret) {
     case 0:
         return H_SUCCESS;
@@ -483,7 +483,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         ret = kvm_booke206_tlb_init(cpu);
         break;
     case POWERPC_MMU_2_07:
-        if (!cap_htm && !kvmppc_is_pr(cs->kvm_state)) {
+        if (!cap_htm && !kvmppc_is_pr(kvm_vcpu_state(cs))) {
             /*
              * KVM-HV has transactional memory on POWER8 also without
              * the KVM_CAP_PPC_HTM extension, so enable it here
@@ -1947,8 +1947,8 @@ static int kvmppc_get_pvinfo(CPUPPCState *env, struct kvm_ppc_pvinfo *pvinfo)
 {
     CPUState *cs = env_cpu(env);
 
-    if (kvm_vm_check_extension(cs->kvm_state, KVM_CAP_PPC_GET_PVINFO) &&
-        !kvm_vm_ioctl(cs->kvm_state, KVM_PPC_GET_PVINFO, pvinfo)) {
+    if (kvm_vm_check_extension(kvm_vcpu_state(cs), KVM_CAP_PPC_GET_PVINFO) &&
+        !kvm_vm_ioctl(kvm_vcpu_state(cs), KVM_PPC_GET_PVINFO, pvinfo)) {
         return 0;
     }
 
@@ -2864,7 +2864,7 @@ int kvmppc_resize_hpt_prepare(PowerPCCPU *cpu, target_ulong flags, int shift)
         return -ENOSYS;
     }
 
-    return kvm_vm_ioctl(cs->kvm_state, KVM_PPC_RESIZE_HPT_PREPARE, &rhpt);
+    return kvm_vm_ioctl(kvm_vcpu_state(cs), KVM_PPC_RESIZE_HPT_PREPARE, &rhpt);
 }
 
 int kvmppc_resize_hpt_commit(PowerPCCPU *cpu, target_ulong flags, int shift)
@@ -2879,7 +2879,7 @@ int kvmppc_resize_hpt_commit(PowerPCCPU *cpu, target_ulong flags, int shift)
         return -ENOSYS;
     }
 
-    return kvm_vm_ioctl(cs->kvm_state, KVM_PPC_RESIZE_HPT_COMMIT, &rhpt);
+    return kvm_vm_ioctl(kvm_vcpu_state(cs), KVM_PPC_RESIZE_HPT_COMMIT, &rhpt);
 }
 
 /*
@@ -2909,7 +2909,7 @@ bool kvmppc_pvr_workaround_required(PowerPCCPU *cpu)
         return false;
     }
 
-    return !kvmppc_is_pr(cs->kvm_state);
+    return !kvmppc_is_pr(kvm_vcpu_state(cs));
 }
 
 void kvmppc_set_reg_ppc_online(PowerPCCPU *cpu, unsigned int online)
