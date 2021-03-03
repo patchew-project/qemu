@@ -361,6 +361,8 @@ int kvm_arch_init_vcpu(CPUState *cpu);
 int kvm_arch_destroy_vcpu(CPUState *cpu);
 
 bool kvm_vcpu_id_is_valid(int vcpu_id);
+/* Returns a pointer to the KVMState associated with this vCPU */
+KVMState *kvm_vcpu_state(CPUState *cpu);
 
 /* Returns VCPU ID to be used on KVM_CREATE_VCPU ioctl() */
 unsigned long kvm_arch_vcpu_id(CPUState *cpu);

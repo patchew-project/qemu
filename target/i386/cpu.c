@@ -5755,7 +5755,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     case 0xA:
         /* Architectural Performance Monitoring Leaf */
         if (kvm_enabled() && cpu->enable_pmu) {
-            KVMState *s = cs->kvm_state;
+            KVMState *s = kvm_vcpu_state(cs);
 
             *eax = kvm_arch_get_supported_cpuid(s, 0xA, count, R_EAX);
             *ebx = kvm_arch_get_supported_cpuid(s, 0xA, count, R_EBX);
@@ -6620,7 +6620,7 @@ static void x86_cpu_filter_features(X86CPU *cpu, bool verbose)
 
     if ((env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_INTEL_PT) &&
         kvm_enabled()) {
-        KVMState *s = CPU(cpu)->kvm_state;
+        KVMState *s = kvm_vcpu_state(CPU(cpu));
         uint32_t eax_0 = kvm_arch_get_supported_cpuid(s, 0x14, 0, R_EAX);
         uint32_t ebx_0 = kvm_arch_get_supported_cpuid(s, 0x14, 0, R_EBX);
         uint32_t ecx_0 = kvm_arch_get_supported_cpuid(s, 0x14, 0, R_ECX);
