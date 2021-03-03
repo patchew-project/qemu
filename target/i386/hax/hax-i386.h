@@ -26,8 +26,8 @@ typedef HANDLE hax_fd;
 
 extern struct hax_state hax_global;
 
-typedef struct hax_vcpu_state hax_vcpu_state;
-struct hax_vcpu_state {
+typedef struct AccelvCPUState hax_vcpu_state;
+struct AccelvCPUState {
     hax_fd fd;
     int vcpu_id;
     struct hax_tunnel *tunnel;
