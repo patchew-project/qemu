@@ -38,7 +38,7 @@
 #endif
 
 #define ARM_CPU_FREQ 1000000000 /* FIXME: 1 GHz, should be configurable */
-#define PMCR_NUM_COUNTERS 4 /* QEMU IMPDEF choice */
+#define PMCR_NUM_COUNTERS 6 /* QEMU IMPDEF choice */
 
 #ifndef CONFIG_USER_ONLY
 
