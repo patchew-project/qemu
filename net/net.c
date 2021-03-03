@@ -620,6 +620,7 @@ static ssize_t qemu_send_packet_async_with_flags(NetClientState *sender,
                                                  const uint8_t *buf, int size,
                                                  NetPacketSent *sent_cb)
 {
+    static const uint8_t null_buf[ETH_ZLEN] = { };
     NetQueue *queue;
     int ret;
     int iovcnt = 1;
@@ -627,6 +628,10 @@ static ssize_t qemu_send_packet_async_with_flags(NetClientState *sender,
         [0] = {
             .iov_base = (void *)buf,
             .iov_len = size,
+        },
+        [1] = {
+            .iov_base = (void *)null_buf,
+            .iov_len = ETH_ZLEN,
         },
     };
 
@@ -637,6 +642,15 @@ static ssize_t qemu_send_packet_async_with_flags(NetClientState *sender,
 
     if (sender->link_down || !sender->peer) {
         return size;
+    }
+
+    /* Pad to minimum Ethernet frame length for SLiRP and TAP */
+    if (sender->info->type == NET_CLIENT_DRIVER_USER ||
+        sender->info->type == NET_CLIENT_DRIVER_TAP) {
+        if (size < ETH_ZLEN) {
+            iov[1].iov_len = ETH_ZLEN - size;
+            iovcnt = 2;
+        }
     }
 
     /* Let filters handle the packet first */
