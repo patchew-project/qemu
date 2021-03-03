@@ -201,6 +201,7 @@ void xtensa_register_core(XtensaConfigList *node)
     g_free((gpointer)type.name);
 }
 
+#ifndef CONFIG_USER_ONLY
 static uint32_t check_hw_breakpoints(CPUXtensaState *env)
 {
     unsigned i;
@@ -213,9 +214,11 @@ static uint32_t check_hw_breakpoints(CPUXtensaState *env)
     }
     return 0;
 }
+#endif
 
 void xtensa_breakpoint_handler(CPUState *cs)
 {
+#ifndef CONFIG_USER_ONLY
     XtensaCPU *cpu = XTENSA_CPU(cs);
     CPUXtensaState *env = &cpu->env;
 
@@ -231,6 +234,7 @@ void xtensa_breakpoint_handler(CPUState *cs)
             cpu_loop_exit_noexc(cs);
         }
     }
+#endif
 }
 
 void xtensa_cpu_list(void)
