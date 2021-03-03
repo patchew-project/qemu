@@ -148,9 +148,9 @@ struct whpx_register_set {
     WHV_REGISTER_VALUE values[RTL_NUMBER_OF(whpx_register_names)];
 };
 
-typedef struct whpx_vcpu whpx_vcpu;
+typedef struct AccelvCPUState whpx_vcpu;
 
-struct whpx_vcpu {
+struct AccelvCPUState {
     WHV_EMULATOR_HANDLE emulator;
     bool window_registered;
     bool interruptable;
