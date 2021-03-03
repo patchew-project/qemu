@@ -393,10 +393,6 @@ struct CPUState {
      */
     uintptr_t mem_io_pc;
 
-    int kvm_fd;
-    struct KVMState *kvm_state;
-    struct kvm_run *kvm_run;
-
     /* Used for events with 'vcpu' and *without* the 'disabled' properties */
     DECLARE_BITMAP(trace_dstate_delayed, CPU_TRACE_DSTATE_MAX_EVENTS);
     DECLARE_BITMAP(trace_dstate, CPU_TRACE_DSTATE_MAX_EVENTS);
@@ -416,6 +412,12 @@ struct CPUState {
     uint32_t can_do_io;
     int32_t exception_index;
 
+    /* Accelerator-specific fields. */
+    int kvm_fd;
+    struct KVMState *kvm_state;
+    struct kvm_run *kvm_run;
+    struct hax_vcpu_state *hax_vcpu;
+    int hvf_fd;
     /* shared by kvm, hax and hvf */
     bool vcpu_dirty;
 
@@ -425,10 +427,6 @@ struct CPUState {
     bool throttle_thread_scheduled;
 
     bool ignore_memory_transaction_failures;
-
-    struct hax_vcpu_state *hax_vcpu;
-
-    int hvf_fd;
 
     /* track IOMMUs whose translations we've cached in the TCG TLB */
     GArray *iommu_notifiers;
