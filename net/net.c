@@ -637,6 +637,7 @@ static ssize_t qemu_send_packet_async_with_flags(NetClientState *sender,
                                                  NetPacketSent *sent_cb)
 {
     NetQueue *queue;
+    uint8_t min_buf[ETH_ZLEN];
     int ret;
 
 #ifdef DEBUG_NET
@@ -646,6 +647,17 @@ static ssize_t qemu_send_packet_async_with_flags(NetClientState *sender,
 
     if (sender->link_down || !sender->peer) {
         return size;
+    }
+
+    /* Pad to minimum Ethernet frame length for SLiRP and TAP */
+    if (sender->info->type == NET_CLIENT_DRIVER_USER ||
+        sender->info->type == NET_CLIENT_DRIVER_TAP) {
+        if (size < ETH_ZLEN) {
+            memcpy(min_buf, buf, size);
+            memset(&min_buf[size], 0, ETH_ZLEN - size);
+            buf = min_buf;
+            size = ETH_ZLEN;
+        }
     }
 
     /* Let filters handle the packet first */
