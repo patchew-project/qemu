@@ -19,6 +19,7 @@ struct AccelvCPUState {
      */
     int kvm_fd;
     struct KVMState *kvm_state;
+    struct kvm_run *kvm_run;
 };
 
 typedef struct KVMSlot

@@ -460,14 +460,15 @@ void kvm_s390_reset_vcpu_normal(S390CPU *cpu)
 
 static int can_sync_regs(CPUState *cs, int regs)
 {
-    return cap_sync_regs && (cs->kvm_run->kvm_valid_regs & regs) == regs;
+    return cap_sync_regs
+           && (cs->accel_vcpu->kvm_run->kvm_valid_regs & regs) == regs;
 }
 
 int kvm_arch_put_registers(CPUState *cs, int level)
 {
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
-    struct kvm_run *run = cs->kvm_run;
+    struct kvm_run *run = cs->accel_vcpu->kvm_run;
     struct kvm_sregs sregs;
     struct kvm_regs regs;
     struct kvm_fpu fpu = {};
@@ -624,7 +625,7 @@ int kvm_arch_get_registers(CPUState *cs)
 {
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
-    struct kvm_run *run = cs->kvm_run;
+    struct kvm_run *run = cs->accel_vcpu->kvm_run;
     struct kvm_sregs sregs;
     struct kvm_regs regs;
     struct kvm_fpu fpu;
@@ -1621,8 +1622,8 @@ void kvm_s390_set_diag318(CPUState *cs, uint64_t diag318_info)
     /* Feat bit is set only if KVM supports sync for diag318 */
     if (s390_has_feat(S390_FEAT_DIAG_318)) {
         env->diag318_info = diag318_info;
-        cs->kvm_run->s.regs.diag318 = diag318_info;
-        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_DIAG318;
+        cs->accel_vcpu->kvm_run->s.regs.diag318 = diag318_info;
+        cs->accel_vcpu->kvm_run->kvm_dirty_regs |= KVM_SYNC_DIAG318;
     }
 }
 
@@ -1783,7 +1784,7 @@ static int handle_oper_loop(S390CPU *cpu, struct kvm_run *run)
 static int handle_intercept(S390CPU *cpu)
 {
     CPUState *cs = CPU(cpu);
-    struct kvm_run *run = cs->kvm_run;
+    struct kvm_run *run = cs->accel_vcpu->kvm_run;
     int icpt_code = run->s390_sieic.icptcode;
     int r = 0;
 
@@ -1844,7 +1845,7 @@ static int handle_intercept(S390CPU *cpu)
 static int handle_tsch(S390CPU *cpu)
 {
     CPUState *cs = CPU(cpu);
-    struct kvm_run *run = cs->kvm_run;
+    struct kvm_run *run = cs->accel_vcpu->kvm_run;
     int ret;
 
     ret = ioinst_handle_tsch(cpu, cpu->env.regs[1], run->s390_tsch.ipb,
@@ -1934,7 +1935,7 @@ static void insert_stsi_3_2_2(S390CPU *cpu, __u64 addr, uint8_t ar)
 static int handle_stsi(S390CPU *cpu)
 {
     CPUState *cs = CPU(cpu);
-    struct kvm_run *run = cs->kvm_run;
+    struct kvm_run *run = cs->accel_vcpu->kvm_run;
 
     switch (run->s390_stsi.fc) {
     case 3:
@@ -1952,7 +1953,7 @@ static int handle_stsi(S390CPU *cpu)
 static int kvm_arch_handle_debug_exit(S390CPU *cpu)
 {
     CPUState *cs = CPU(cpu);
-    struct kvm_run *run = cs->kvm_run;
+    struct kvm_run *run = cs->accel_vcpu->kvm_run;
 
     int ret = 0;
     struct kvm_debug_exit_arch *arch_info = &run->debug.arch;

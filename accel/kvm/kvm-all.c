@@ -380,7 +380,7 @@ static int do_kvm_destroy_vcpu(CPUState *cpu)
         goto err;
     }
 
-    ret = munmap(cpu->kvm_run, mmap_size);
+    ret = munmap(cpu->accel_vcpu->kvm_run, mmap_size);
     if (ret < 0) {
         goto err;
     }
@@ -448,9 +448,9 @@ int kvm_init_vcpu(CPUState *cpu, Error **errp)
         goto err;
     }
 
-    cpu->kvm_run = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED,
-                        cpu->accel_vcpu->kvm_fd, 0);
-    if (cpu->kvm_run == MAP_FAILED) {
+    cpu->accel_vcpu->kvm_run = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE,
+                                    MAP_SHARED, cpu->accel_vcpu->kvm_fd, 0);
+    if (cpu->accel_vcpu->kvm_run == MAP_FAILED) {
         ret = -errno;
         error_setg_errno(errp, ret,
                          "kvm_init_vcpu: mmap'ing vcpu state failed (%lu)",
@@ -460,7 +460,7 @@ int kvm_init_vcpu(CPUState *cpu, Error **errp)
 
     if (s->coalesced_mmio && !s->coalesced_mmio_ring) {
         s->coalesced_mmio_ring =
-            (void *)cpu->kvm_run + s->coalesced_mmio * PAGE_SIZE;
+            (void *)cpu->accel_vcpu->kvm_run + s->coalesced_mmio * PAGE_SIZE;
     }
 
     ret = kvm_arch_init_vcpu(cpu);
@@ -2382,7 +2382,7 @@ static __thread bool have_sigbus_pending;
 
 static void kvm_cpu_kick(CPUState *cpu)
 {
-    qatomic_set(&cpu->kvm_run->immediate_exit, 1);
+    qatomic_set(&cpu->accel_vcpu->kvm_run->immediate_exit, 1);
 }
 
 static void kvm_cpu_kick_self(void)
@@ -2403,7 +2403,7 @@ static void kvm_eat_signals(CPUState *cpu)
     int r;
 
     if (kvm_immediate_exit) {
-        qatomic_set(&cpu->kvm_run->immediate_exit, 0);
+        qatomic_set(&cpu->accel_vcpu->kvm_run->immediate_exit, 0);
         /* Write kvm_run->immediate_exit before the cpu->exit_request
          * write in kvm_cpu_exec.
          */
@@ -2431,7 +2431,7 @@ static void kvm_eat_signals(CPUState *cpu)
 
 int kvm_cpu_exec(CPUState *cpu)
 {
-    struct kvm_run *run = cpu->kvm_run;
+    struct kvm_run *run = cpu->accel_vcpu->kvm_run;
     int ret, run_ret;
 
     DPRINTF("kvm_cpu_exec()\n");
