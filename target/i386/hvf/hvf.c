@@ -533,7 +533,7 @@ int hvf_init_vcpu(CPUState *cpu)
     }
 
     r = hv_vcpu_create((hv_vcpuid_t *)&cpu->hvf_fd, HV_VCPU_DEFAULT);
-    cpu->vcpu_dirty = 1;
+    cpu->vcpu_dirty = true;
     assert_hvf_ok(r);
 
     if (hv_vmx_read_capability(HV_VMX_CAP_PINBASED,
