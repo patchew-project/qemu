@@ -274,6 +274,9 @@ struct qemu_work_item;
 #define CPU_UNSET_NUMA_NODE_ID -1
 #define CPU_TRACE_DSTATE_MAX_EVENTS 32
 
+/* This structure is defined by each accelerator. */
+struct AccelvCPUState;
+
 /**
  * CPUState:
  * @cpu_index: CPU index (informative).
@@ -312,6 +315,7 @@ struct qemu_work_item;
  * @next_cpu: Next CPU sharing TB cache.
  * @opaque: User data.
  * @mem_io_pc: Host Program Counter at which the memory was accessed.
+ * @accel_vcpu: Pointer to accelerator-specific AccelvCPUState field.
  * @kvm_fd: vCPU file descriptor for KVM.
  * @work_mutex: Lock to prevent multiple access to @work_list.
  * @work_list: List of pending asynchronous work.
@@ -413,6 +417,7 @@ struct CPUState {
     int32_t exception_index;
 
     /* Accelerator-specific fields. */
+    struct AccelvCPUState *accel_vcpu;
     int kvm_fd;
     struct KVMState *kvm_state;
     struct kvm_run *kvm_run;
