@@ -6182,7 +6182,6 @@ static void x86_cpu_reset(DeviceState *dev)
     env->dr[6] = DR6_FIXED_1;
     env->dr[7] = DR7_FIXED_1;
     cpu_breakpoint_remove_all(s, BP_CPU);
-    cpu_watchpoint_remove_all(s, BP_CPU);
 
     cr4 = 0;
     xcr0 = XSTATE_FP_MASK;
@@ -6205,6 +6204,8 @@ static void x86_cpu_reset(DeviceState *dev)
     if (env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_FSGSBASE) {
         cr4 |= CR4_FSGSBASE_MASK;
     }
+#else
+    cpu_watchpoint_remove_all(s, BP_CPU);
 #endif
 
     env->xcr0 = xcr0;
