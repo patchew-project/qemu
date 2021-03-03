@@ -216,6 +216,17 @@ static bool check_watchpoints(ARMCPU *cpu)
     return false;
 }
 
+bool arm_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
+{
+    /*
+     * Called by core code when a CPU watchpoint fires; need to check if this
+     * is also an architectural watchpoint match.
+     */
+    ARMCPU *cpu = ARM_CPU(cs);
+
+    return check_watchpoints(cpu);
+}
+
 static bool check_breakpoints(ARMCPU *cpu)
 {
     CPUARMState *env = &cpu->env;
@@ -245,17 +256,6 @@ void HELPER(check_breakpoints)(CPUARMState *env)
     if (check_breakpoints(cpu)) {
         HELPER(exception_internal(env, EXCP_DEBUG));
     }
-}
-
-bool arm_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
-{
-    /*
-     * Called by core code when a CPU watchpoint fires; need to check if this
-     * is also an architectural watchpoint match.
-     */
-    ARMCPU *cpu = ARM_CPU(cs);
-
-    return check_watchpoints(cpu);
 }
 
 void arm_debug_excp_handler(CPUState *cs)
