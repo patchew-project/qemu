@@ -467,6 +467,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
 {
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
+    struct kvm_run *run = cs->kvm_run;
     struct kvm_sregs sregs;
     struct kvm_regs regs;
     struct kvm_fpu fpu = {};
@@ -474,13 +475,13 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     int i;
 
     /* always save the PSW  and the GPRS*/
-    cs->kvm_run->psw_addr = env->psw.addr;
-    cs->kvm_run->psw_mask = env->psw.mask;
+    run->psw_addr = env->psw.addr;
+    run->psw_mask = env->psw.mask;
 
     if (can_sync_regs(cs, KVM_SYNC_GPRS)) {
         for (i = 0; i < 16; i++) {
-            cs->kvm_run->s.regs.gprs[i] = env->regs[i];
-            cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_GPRS;
+            run->s.regs.gprs[i] = env->regs[i];
+            run->kvm_dirty_regs |= KVM_SYNC_GPRS;
         }
     } else {
         for (i = 0; i < 16; i++) {
@@ -494,17 +495,17 @@ int kvm_arch_put_registers(CPUState *cs, int level)
 
     if (can_sync_regs(cs, KVM_SYNC_VRS)) {
         for (i = 0; i < 32; i++) {
-            cs->kvm_run->s.regs.vrs[i][0] = env->vregs[i][0];
-            cs->kvm_run->s.regs.vrs[i][1] = env->vregs[i][1];
+            run->s.regs.vrs[i][0] = env->vregs[i][0];
+            run->s.regs.vrs[i][1] = env->vregs[i][1];
         }
-        cs->kvm_run->s.regs.fpc = env->fpc;
-        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_VRS;
+        run->s.regs.fpc = env->fpc;
+        run->kvm_dirty_regs |= KVM_SYNC_VRS;
     } else if (can_sync_regs(cs, KVM_SYNC_FPRS)) {
         for (i = 0; i < 16; i++) {
-            cs->kvm_run->s.regs.fprs[i] = *get_freg(env, i);
+            run->s.regs.fprs[i] = *get_freg(env, i);
         }
-        cs->kvm_run->s.regs.fpc = env->fpc;
-        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_FPRS;
+        run->s.regs.fpc = env->fpc;
+        run->kvm_dirty_regs |= KVM_SYNC_FPRS;
     } else {
         /* Floating point */
         for (i = 0; i < 16; i++) {
@@ -524,12 +525,12 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     }
 
     if (can_sync_regs(cs, KVM_SYNC_ARCH0)) {
-        cs->kvm_run->s.regs.cputm = env->cputm;
-        cs->kvm_run->s.regs.ckc = env->ckc;
-        cs->kvm_run->s.regs.todpr = env->todpr;
-        cs->kvm_run->s.regs.gbea = env->gbea;
-        cs->kvm_run->s.regs.pp = env->pp;
-        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_ARCH0;
+        run->s.regs.cputm = env->cputm;
+        run->s.regs.ckc = env->ckc;
+        run->s.regs.todpr = env->todpr;
+        run->s.regs.gbea = env->gbea;
+        run->s.regs.pp = env->pp;
+        run->kvm_dirty_regs |= KVM_SYNC_ARCH0;
     } else {
         /*
          * These ONE_REGS are not protected by a capability. As they are only
@@ -544,16 +545,16 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     }
 
     if (can_sync_regs(cs, KVM_SYNC_RICCB)) {
-        memcpy(cs->kvm_run->s.regs.riccb, env->riccb, 64);
-        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_RICCB;
+        memcpy(run->s.regs.riccb, env->riccb, 64);
+        run->kvm_dirty_regs |= KVM_SYNC_RICCB;
     }
 
     /* pfault parameters */
     if (can_sync_regs(cs, KVM_SYNC_PFAULT)) {
-        cs->kvm_run->s.regs.pft = env->pfault_token;
-        cs->kvm_run->s.regs.pfs = env->pfault_select;
-        cs->kvm_run->s.regs.pfc = env->pfault_compare;
-        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_PFAULT;
+        run->s.regs.pft = env->pfault_token;
+        run->s.regs.pfs = env->pfault_select;
+        run->s.regs.pfc = env->pfault_compare;
+        run->kvm_dirty_regs |= KVM_SYNC_PFAULT;
     } else if (cap_async_pf) {
         r = kvm_set_one_reg(cs, KVM_REG_S390_PFTOKEN, &env->pfault_token);
         if (r < 0) {
@@ -572,11 +573,11 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     /* access registers and control registers*/
     if (can_sync_regs(cs, KVM_SYNC_ACRS | KVM_SYNC_CRS)) {
         for (i = 0; i < 16; i++) {
-            cs->kvm_run->s.regs.acrs[i] = env->aregs[i];
-            cs->kvm_run->s.regs.crs[i] = env->cregs[i];
+            run->s.regs.acrs[i] = env->aregs[i];
+            run->s.regs.crs[i] = env->cregs[i];
         }
-        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_ACRS;
-        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_CRS;
+        run->kvm_dirty_regs |= KVM_SYNC_ACRS;
+        run->kvm_dirty_regs |= KVM_SYNC_CRS;
     } else {
         for (i = 0; i < 16; i++) {
             sregs.acrs[i] = env->aregs[i];
@@ -589,30 +590,30 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     }
 
     if (can_sync_regs(cs, KVM_SYNC_GSCB)) {
-        memcpy(cs->kvm_run->s.regs.gscb, env->gscb, 32);
-        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_GSCB;
+        memcpy(run->s.regs.gscb, env->gscb, 32);
+        run->kvm_dirty_regs |= KVM_SYNC_GSCB;
     }
 
     if (can_sync_regs(cs, KVM_SYNC_BPBC)) {
-        cs->kvm_run->s.regs.bpbc = env->bpbc;
-        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_BPBC;
+        run->s.regs.bpbc = env->bpbc;
+        run->kvm_dirty_regs |= KVM_SYNC_BPBC;
     }
 
     if (can_sync_regs(cs, KVM_SYNC_ETOKEN)) {
-        cs->kvm_run->s.regs.etoken = env->etoken;
-        cs->kvm_run->s.regs.etoken_extension  = env->etoken_extension;
-        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_ETOKEN;
+        run->s.regs.etoken = env->etoken;
+        run->s.regs.etoken_extension  = env->etoken_extension;
+        run->kvm_dirty_regs |= KVM_SYNC_ETOKEN;
     }
 
     if (can_sync_regs(cs, KVM_SYNC_DIAG318)) {
-        cs->kvm_run->s.regs.diag318 = env->diag318_info;
-        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_DIAG318;
+        run->s.regs.diag318 = env->diag318_info;
+        run->kvm_dirty_regs |= KVM_SYNC_DIAG318;
     }
 
     /* Finally the prefix */
     if (can_sync_regs(cs, KVM_SYNC_PREFIX)) {
-        cs->kvm_run->s.regs.prefix = env->psa;
-        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_PREFIX;
+        run->s.regs.prefix = env->psa;
+        run->kvm_dirty_regs |= KVM_SYNC_PREFIX;
     } else {
         /* prefix is only supported via sync regs */
     }
@@ -623,19 +624,20 @@ int kvm_arch_get_registers(CPUState *cs)
 {
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
+    struct kvm_run *run = cs->kvm_run;
     struct kvm_sregs sregs;
     struct kvm_regs regs;
     struct kvm_fpu fpu;
     int i, r;
 
     /* get the PSW */
-    env->psw.addr = cs->kvm_run->psw_addr;
-    env->psw.mask = cs->kvm_run->psw_mask;
+    env->psw.addr = run->psw_addr;
+    env->psw.mask = run->psw_mask;
 
     /* the GPRS */
     if (can_sync_regs(cs, KVM_SYNC_GPRS)) {
         for (i = 0; i < 16; i++) {
-            env->regs[i] = cs->kvm_run->s.regs.gprs[i];
+            env->regs[i] = run->s.regs.gprs[i];
         }
     } else {
         r = kvm_vcpu_ioctl(cs, KVM_GET_REGS, &regs);
@@ -650,8 +652,8 @@ int kvm_arch_get_registers(CPUState *cs)
     /* The ACRS and CRS */
     if (can_sync_regs(cs, KVM_SYNC_ACRS | KVM_SYNC_CRS)) {
         for (i = 0; i < 16; i++) {
-            env->aregs[i] = cs->kvm_run->s.regs.acrs[i];
-            env->cregs[i] = cs->kvm_run->s.regs.crs[i];
+            env->aregs[i] = run->s.regs.acrs[i];
+            env->cregs[i] = run->s.regs.crs[i];
         }
     } else {
         r = kvm_vcpu_ioctl(cs, KVM_GET_SREGS, &sregs);
@@ -667,15 +669,15 @@ int kvm_arch_get_registers(CPUState *cs)
     /* Floating point and vector registers */
     if (can_sync_regs(cs, KVM_SYNC_VRS)) {
         for (i = 0; i < 32; i++) {
-            env->vregs[i][0] = cs->kvm_run->s.regs.vrs[i][0];
-            env->vregs[i][1] = cs->kvm_run->s.regs.vrs[i][1];
+            env->vregs[i][0] = run->s.regs.vrs[i][0];
+            env->vregs[i][1] = run->s.regs.vrs[i][1];
         }
-        env->fpc = cs->kvm_run->s.regs.fpc;
+        env->fpc = run->s.regs.fpc;
     } else if (can_sync_regs(cs, KVM_SYNC_FPRS)) {
         for (i = 0; i < 16; i++) {
-            *get_freg(env, i) = cs->kvm_run->s.regs.fprs[i];
+            *get_freg(env, i) = run->s.regs.fprs[i];
         }
-        env->fpc = cs->kvm_run->s.regs.fpc;
+        env->fpc = run->s.regs.fpc;
     } else {
         r = kvm_vcpu_ioctl(cs, KVM_GET_FPU, &fpu);
         if (r < 0) {
@@ -689,15 +691,15 @@ int kvm_arch_get_registers(CPUState *cs)
 
     /* The prefix */
     if (can_sync_regs(cs, KVM_SYNC_PREFIX)) {
-        env->psa = cs->kvm_run->s.regs.prefix;
+        env->psa = run->s.regs.prefix;
     }
 
     if (can_sync_regs(cs, KVM_SYNC_ARCH0)) {
-        env->cputm = cs->kvm_run->s.regs.cputm;
-        env->ckc = cs->kvm_run->s.regs.ckc;
-        env->todpr = cs->kvm_run->s.regs.todpr;
-        env->gbea = cs->kvm_run->s.regs.gbea;
-        env->pp = cs->kvm_run->s.regs.pp;
+        env->cputm = run->s.regs.cputm;
+        env->ckc = run->s.regs.ckc;
+        env->todpr = run->s.regs.todpr;
+        env->gbea = run->s.regs.gbea;
+        env->pp = run->s.regs.pp;
     } else {
         /*
          * These ONE_REGS are not protected by a capability. As they are only
@@ -712,27 +714,27 @@ int kvm_arch_get_registers(CPUState *cs)
     }
 
     if (can_sync_regs(cs, KVM_SYNC_RICCB)) {
-        memcpy(env->riccb, cs->kvm_run->s.regs.riccb, 64);
+        memcpy(env->riccb, run->s.regs.riccb, 64);
     }
 
     if (can_sync_regs(cs, KVM_SYNC_GSCB)) {
-        memcpy(env->gscb, cs->kvm_run->s.regs.gscb, 32);
+        memcpy(env->gscb, run->s.regs.gscb, 32);
     }
 
     if (can_sync_regs(cs, KVM_SYNC_BPBC)) {
-        env->bpbc = cs->kvm_run->s.regs.bpbc;
+        env->bpbc = run->s.regs.bpbc;
     }
 
     if (can_sync_regs(cs, KVM_SYNC_ETOKEN)) {
-        env->etoken = cs->kvm_run->s.regs.etoken;
-        env->etoken_extension = cs->kvm_run->s.regs.etoken_extension;
+        env->etoken = run->s.regs.etoken;
+        env->etoken_extension = run->s.regs.etoken_extension;
     }
 
     /* pfault parameters */
     if (can_sync_regs(cs, KVM_SYNC_PFAULT)) {
-        env->pfault_token = cs->kvm_run->s.regs.pft;
-        env->pfault_select = cs->kvm_run->s.regs.pfs;
-        env->pfault_compare = cs->kvm_run->s.regs.pfc;
+        env->pfault_token = run->s.regs.pft;
+        env->pfault_select = run->s.regs.pfs;
+        env->pfault_compare = run->s.regs.pfc;
     } else if (cap_async_pf) {
         r = kvm_get_one_reg(cs, KVM_REG_S390_PFTOKEN, &env->pfault_token);
         if (r < 0) {
@@ -749,7 +751,7 @@ int kvm_arch_get_registers(CPUState *cs)
     }
 
     if (can_sync_regs(cs, KVM_SYNC_DIAG318)) {
-        env->diag318_info = cs->kvm_run->s.regs.diag318;
+        env->diag318_info = run->s.regs.diag318;
     }
 
     return 0;
