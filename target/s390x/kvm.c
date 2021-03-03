@@ -2085,7 +2085,7 @@ int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state)
     int ret;
 
     /* the kvm part might not have been initialized yet */
-    if (CPU(cpu)->kvm_state == NULL) {
+    if (CPU(cpu)->accel_vcpu == NULL) {
         return 0;
     }
 

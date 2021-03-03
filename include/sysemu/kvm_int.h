@@ -13,6 +13,9 @@
 #include "qemu/accel.h"
 #include "sysemu/kvm.h"
 
+struct AccelvCPUState {
+};
+
 typedef struct KVMSlot
 {
     hwaddr start_addr;

@@ -399,6 +399,7 @@ void kvm_destroy_vcpu(CPUState *cpu)
         error_report("kvm_destroy_vcpu failed");
         exit(EXIT_FAILURE);
     }
+    g_free(cpu->accel_vcpu);
 }
 
 static int kvm_get_vcpu(KVMState *s, unsigned long vcpu_id)
@@ -434,6 +435,7 @@ int kvm_init_vcpu(CPUState *cpu, Error **errp)
         goto err;
     }
 
+    cpu->accel_vcpu = g_new(struct AccelvCPUState, 1);
     cpu->kvm_fd = ret;
     cpu->kvm_state = s;
     cpu->vcpu_dirty = true;
@@ -468,6 +470,9 @@ int kvm_init_vcpu(CPUState *cpu, Error **errp)
                          kvm_arch_vcpu_id(cpu));
     }
 err:
+    if (ret < 0) {
+        g_free(cpu->accel_vcpu);
+    }
     return ret;
 }
 
