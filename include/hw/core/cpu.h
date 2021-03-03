@@ -558,7 +558,8 @@ hwaddr cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
  */
 hwaddr cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 
-/** cpu_asidx_from_attrs:
+/**
+ * cpu_asidx_from_attrs:
  * @cpu: CPU
  * @attrs: memory transaction attributes
  *
