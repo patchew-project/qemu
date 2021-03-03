@@ -251,7 +251,8 @@ static inline unsigned int arm_pamax(ARMCPU *cpu)
     return pamax_map[parange];
 }
 
-/* Return true if extended addresses are enabled.
+/*
+ * Return true if extended addresses are enabled.
  * This is always the case if our translation regime is 64 bit,
  * but depends on TTBCR.EAE for 32 bit.
  */
@@ -262,20 +263,24 @@ static inline bool extended_addresses_enabled(CPUARMState *env)
            (arm_feature(env, ARM_FEATURE_LPAE) && (tcr->raw_tcr & TTBCR_EAE));
 }
 
-/* Update a QEMU watchpoint based on the information the guest has set in the
+/*
+ * Update a QEMU watchpoint based on the information the guest has set in the
  * DBGWCR<n>_EL1 and DBGWVR<n>_EL1 registers.
  */
 void hw_watchpoint_update(ARMCPU *cpu, int n);
-/* Update the QEMU watchpoints for every guest watchpoint. This does a
+/*
+ * Update the QEMU watchpoints for every guest watchpoint. This does a
  * complete delete-and-reinstate of the QEMU watchpoint list and so is
  * suitable for use after migration or on reset.
  */
 void hw_watchpoint_update_all(ARMCPU *cpu);
-/* Update a QEMU breakpoint based on the information the guest has set in the
+/*
+ * Update a QEMU breakpoint based on the information the guest has set in the
  * DBGBCR<n>_EL1 and DBGBVR<n>_EL1 registers.
  */
 void hw_breakpoint_update(ARMCPU *cpu, int n);
-/* Update the QEMU breakpoints for every guest breakpoint. This does a
+/*
+ * Update the QEMU breakpoints for every guest breakpoint. This does a
  * complete delete-and-reinstate of the QEMU breakpoint list and so is
  * suitable for use after migration or on reset.
  */
@@ -284,7 +289,8 @@ void hw_breakpoint_update_all(ARMCPU *cpu);
 /* Callback function for checking if a watchpoint should trigger. */
 bool arm_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp);
 
-/* Adjust addresses (in BE32 mode) before testing against watchpoint
+/*
+ * Adjust addresses (in BE32 mode) before testing against watchpoint
  * addresses.
  */
 vaddr arm_adjust_watchpoint_address(CPUState *cs, vaddr addr, int len);
