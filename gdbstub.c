@@ -41,6 +41,7 @@
 #include "exec/gdbstub.h"
 #include "hw/cpu/cluster.h"
 #include "hw/boards.h"
+#include "hw/core/sysemu-cpu-ops.h"
 #endif
 
 #define MAX_PACKET_LENGTH 4096
