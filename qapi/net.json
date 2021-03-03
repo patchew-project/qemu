@@ -744,3 +744,29 @@
 ##
 { 'enum': 'IP_PROTOCOL', 'data': [ 'tcp', 'udp', 'dccp', 'sctp', 'udplite',
     'icmp', 'igmp', 'ipv6' ] }
+
+##
+# @L4_Connection:
+#
+# Layer 4 network connection.
+#
+# Just for IPv4.
+#
+# @protocol: Transport layer protocol like TCP/UDP...
+#
+# @id: For specific module with Qemu object ID, If there is no such part,
+#      it means global rules.
+#
+# @src_ip: Source IP.
+#
+# @dst_ip: Destination IP.
+#
+# @src_port: Source port.
+#
+# @dst_port: Destination port.
+#
+# Since: 6.0
+##
+{ 'struct': 'L4_Connection',
+  'data': { 'protocol': 'IP_PROTOCOL', '*id': 'str', '*src_ip': 'str', '*dst_ip': 'str',
+    '*src_port': 'int', '*dst_port': 'int' } }
