@@ -770,3 +770,43 @@
 { 'struct': 'L4_Connection',
   'data': { 'protocol': 'IP_PROTOCOL', '*id': 'str', '*src_ip': 'str', '*dst_ip': 'str',
     '*src_port': 'int', '*dst_port': 'int' } }
+
+##
+# @colo-passthrough-add:
+#
+# Add passthrough entry according to customer's needs in COLO-compare.
+#
+# Returns: Nothing on success
+#
+# Since: 6.0
+#
+# Example:
+#
+# -> { "execute": "colo-passthrough-add",
+#      "arguments": { "protocol": "tcp", "id": "object0", "src_ip": "192.168.1.1",
+#      "dst_ip": "192.168.1.2", "src_port": 1234, "dst_port": 4321 } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'colo-passthrough-add', 'boxed': true,
+     'data': 'L4_Connection' }
+
+##
+# @colo-passthrough-del:
+#
+# Delete passthrough entry according to customer's needs in COLO-compare.
+#
+# Returns: Nothing on success
+#
+# Since: 6.0
+#
+# Example:
+#
+# -> { "execute": "colo-passthrough-del",
+#      "arguments": { "protocol": "tcp", "id": "object0", "src_ip": "192.168.1.1",
+#      "dst_ip": "192.168.1.2", "src_port": 1234, "dst_port": 4321 } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'colo-passthrough-del', 'boxed': true,
+     'data': 'L4_Connection' }
