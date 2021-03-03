@@ -52,6 +52,7 @@ struct HVFState {
 extern HVFState *hvf_state;
 
 struct AccelvCPUState {
+    hv_vcpuid_t hvf_fd;
 };
 
 void hvf_set_phys_mem(MemoryRegionSection *, bool);

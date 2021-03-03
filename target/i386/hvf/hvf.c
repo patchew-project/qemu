@@ -245,19 +245,19 @@ void vmx_update_tpr(CPUState *cpu)
     int tpr = cpu_get_apic_tpr(x86_cpu->apic_state) << 4;
     int irr = apic_get_highest_priority_irr(x86_cpu->apic_state);
 
-    wreg(cpu->hvf_fd, HV_X86_TPR, tpr);
+    wreg(cpu->accel_vcpu->hvf_fd, HV_X86_TPR, tpr);
     if (irr == -1) {
-        wvmcs(cpu->hvf_fd, VMCS_TPR_THRESHOLD, 0);
+        wvmcs(cpu->accel_vcpu->hvf_fd, VMCS_TPR_THRESHOLD, 0);
     } else {
-        wvmcs(cpu->hvf_fd, VMCS_TPR_THRESHOLD, (irr > tpr) ? tpr >> 4 :
-              irr >> 4);
+        wvmcs(cpu->accel_vcpu->hvf_fd, VMCS_TPR_THRESHOLD,
+              (irr > tpr) ? tpr >> 4 : irr >> 4);
     }
 }
 
 static void update_apic_tpr(CPUState *cpu)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
-    int tpr = rreg(cpu->hvf_fd, HV_X86_TPR) >> 4;
+    int tpr = rreg(cpu->accel_vcpu->hvf_fd, HV_X86_TPR) >> 4;
     cpu_set_apic_tpr(x86_cpu->apic_state, tpr);
 }
 
@@ -448,7 +448,7 @@ void hvf_vcpu_destroy(CPUState *cpu)
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
 
-    hv_return_t ret = hv_vcpu_destroy((hv_vcpuid_t)cpu->hvf_fd);
+    hv_return_t ret = hv_vcpu_destroy(cpu->accel_vcpu->hvf_fd);
     g_free(env->hvf_mmio_buf);
     assert_hvf_ok(ret);
     g_free(cpu->accel_vcpu);
@@ -537,7 +537,7 @@ int hvf_init_vcpu(CPUState *cpu)
     r = hv_vcpu_create(&hvf_fd, HV_VCPU_DEFAULT);
     assert_hvf_ok(r);
     cpu->accel_vcpu = g_new(struct AccelvCPUState, 1);
-    cpu->hvf_fd = (int)hvf_fd
+    cpu->accel_vcpu->hvf_fd = hvf_fd
     cpu->vcpu_dirty = true;
 
     if (hv_vmx_read_capability(HV_VMX_CAP_PINBASED,
@@ -635,16 +635,17 @@ static void hvf_store_events(CPUState *cpu, uint32_t ins_len, uint64_t idtvec_in
         }
         if (idtvec_info & VMCS_IDT_VEC_ERRCODE_VALID) {
             env->has_error_code = true;
-            env->error_code = rvmcs(cpu->hvf_fd, VMCS_IDT_VECTORING_ERROR);
+            env->error_code = rvmcs(cpu->accel_vcpu->hvf_fd,
+                                    VMCS_IDT_VECTORING_ERROR);
         }
     }
-    if ((rvmcs(cpu->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY) &
+    if ((rvmcs(cpu->accel_vcpu->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY) &
         VMCS_INTERRUPTIBILITY_NMI_BLOCKING)) {
         env->hflags2 |= HF2_NMI_MASK;
     } else {
         env->hflags2 &= ~HF2_NMI_MASK;
     }
-    if (rvmcs(cpu->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY) &
+    if (rvmcs(cpu->accel_vcpu->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY) &
          (VMCS_INTERRUPTIBILITY_STI_BLOCKING |
          VMCS_INTERRUPTIBILITY_MOVSS_BLOCKING)) {
         env->hflags |= HF_INHIBIT_IRQ_MASK;
@@ -699,7 +700,7 @@ int hvf_vcpu_exec(CPUState *cpu)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
     CPUX86State *env = &x86_cpu->env;
-    hv_vcpuid_t hvf_fd = (hv_vcpuid_t)cpu_state->hvf_fd;
+    hv_vcpuid_t hvf_fd = cpu_state->accel_vcpu->hvf_fd;
     int ret = 0;
     uint64_t rip = 0;
 

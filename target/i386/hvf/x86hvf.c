@@ -81,7 +81,8 @@ void hvf_put_xsave(CPUState *cpu_state)
 
     x86_cpu_xsave_all_areas(X86_CPU(cpu_state), xsave);
 
-    if (hv_vcpu_write_fpstate(cpu_state->hvf_fd, (void*)xsave, 4096)) {
+    if (hv_vcpu_write_fpstate(cpu_state->accel_vcpu->hvf_fd,
+                              (void *)xsave, 4096)) {
         abort();
     }
 }
@@ -89,7 +90,7 @@ void hvf_put_xsave(CPUState *cpu_state)
 void hvf_put_segments(CPUState *cpu_state)
 {
     CPUX86State *env = &X86_CPU(cpu_state)->env;
-    hv_vcpuid_t hvf_fd = (hv_vcpuid_t)cpu_state->hvf_fd;
+    hv_vcpuid_t hvf_fd = cpu_state->accel_vcpu->hvf_fd;
     struct vmx_segment seg;
     
     wvmcs(hvf_fd, VMCS_GUEST_IDTR_LIMIT, env->idt.limit);
@@ -136,7 +137,7 @@ void hvf_put_segments(CPUState *cpu_state)
 void hvf_put_msrs(CPUState *cpu_state)
 {
     CPUX86State *env = &X86_CPU(cpu_state)->env;
-    hv_vcpuid_t hvf_fd = (hv_vcpuid_t)cpu_state->hvf_fd;
+    hv_vcpuid_t hvf_fd = cpu_state->accel_vcpu->hvf_fd;
 
     hv_vcpu_write_msr(hvf_fd, MSR_IA32_SYSENTER_CS, env->sysenter_cs);
     hv_vcpu_write_msr(hvf_fd, MSR_IA32_SYSENTER_ESP, env->sysenter_esp);
@@ -162,7 +163,8 @@ void hvf_get_xsave(CPUState *cpu_state)
 
     xsave = X86_CPU(cpu_state)->env.xsave_buf;
 
-    if (hv_vcpu_read_fpstate(cpu_state->hvf_fd, (void*)xsave, 4096)) {
+    if (hv_vcpu_read_fpstate(cpu_state->accel_vcpu->hvf_fd,
+                             (void *)xsave, 4096)) {
         abort();
     }
 
@@ -172,7 +174,7 @@ void hvf_get_xsave(CPUState *cpu_state)
 void hvf_get_segments(CPUState *cpu_state)
 {
     CPUX86State *env = &X86_CPU(cpu_state)->env;
-    hv_vcpuid_t hvf_fd = (hv_vcpuid_t)cpu_state->hvf_fd;
+    hv_vcpuid_t hvf_fd = cpu_state->accel_vcpu->hvf_fd;
     struct vmx_segment seg;
 
     env->interrupt_injected = -1;
@@ -217,7 +219,7 @@ void hvf_get_segments(CPUState *cpu_state)
 void hvf_get_msrs(CPUState *cpu_state)
 {
     CPUX86State *env = &X86_CPU(cpu_state)->env;
-    hv_vcpuid_t hvf_fd = (hv_vcpuid_t)cpu_state->hvf_fd;
+    hv_vcpuid_t hvf_fd = cpu_state->accel_vcpu->hvf_fd;
     uint64_t tmp;
     
     hv_vcpu_read_msr(hvf_fd, MSR_IA32_SYSENTER_CS, &tmp);
@@ -247,7 +249,7 @@ int hvf_put_registers(CPUState *cpu_state)
 {
     X86CPU *x86cpu = X86_CPU(cpu_state);
     CPUX86State *env = &x86cpu->env;
-    hv_vcpuid_t hvf_fd = (hv_vcpuid_t)cpu_state->hvf_fd;
+    hv_vcpuid_t hvf_fd = cpu_state->accel_vcpu->hvf_fd;
 
     wreg(hvf_fd, HV_X86_RAX, env->regs[R_EAX]);
     wreg(hvf_fd, HV_X86_RBX, env->regs[R_EBX]);
@@ -292,7 +294,7 @@ int hvf_get_registers(CPUState *cpu_state)
 {
     X86CPU *x86cpu = X86_CPU(cpu_state);
     CPUX86State *env = &x86cpu->env;
-    hv_vcpuid_t hvf_fd = (hv_vcpuid_t)cpu_state->hvf_fd;
+    hv_vcpuid_t hvf_fd = cpu_state->accel_vcpu->hvf_fd;
 
     env->regs[R_EAX] = rreg(hvf_fd, HV_X86_RAX);
     env->regs[R_EBX] = rreg(hvf_fd, HV_X86_RBX);
@@ -336,24 +338,24 @@ int hvf_get_registers(CPUState *cpu_state)
 static void vmx_set_int_window_exiting(CPUState *cpu)
 {
      uint64_t val;
-     val = rvmcs(cpu->hvf_fd, VMCS_PRI_PROC_BASED_CTLS);
-     wvmcs(cpu->hvf_fd, VMCS_PRI_PROC_BASED_CTLS, val |
+     val = rvmcs(cpu->accel_vcpu->hvf_fd, VMCS_PRI_PROC_BASED_CTLS);
+     wvmcs(cpu->accel_vcpu->hvf_fd, VMCS_PRI_PROC_BASED_CTLS, val |
              VMCS_PRI_PROC_BASED_CTLS_INT_WINDOW_EXITING);
 }
 
 void vmx_clear_int_window_exiting(CPUState *cpu)
 {
      uint64_t val;
-     val = rvmcs(cpu->hvf_fd, VMCS_PRI_PROC_BASED_CTLS);
-     wvmcs(cpu->hvf_fd, VMCS_PRI_PROC_BASED_CTLS, val &
-             ~VMCS_PRI_PROC_BASED_CTLS_INT_WINDOW_EXITING);
+     val = rvmcs(cpu->accel_vcpu->hvf_fd, VMCS_PRI_PROC_BASED_CTLS);
+     wvmcs(cpu->accel_vcpu->hvf_fd, VMCS_PRI_PROC_BASED_CTLS,\
+           val & ~VMCS_PRI_PROC_BASED_CTLS_INT_WINDOW_EXITING);
 }
 
 bool hvf_inject_interrupts(CPUState *cpu_state)
 {
     X86CPU *x86cpu = X86_CPU(cpu_state);
     CPUX86State *env = &x86cpu->env;
-    hv_vcpuid_t hvf_fd = (hv_vcpuid_t)cpu_state->hvf_fd;
+    hv_vcpuid_t hvf_fd = cpu_state->accel_vcpu->hvf_fd;
 
     uint8_t vector;
     uint64_t intr_type;
@@ -437,7 +439,7 @@ int hvf_process_events(CPUState *cpu_state)
     X86CPU *cpu = X86_CPU(cpu_state);
     CPUX86State *env = &cpu->env;
 
-    env->eflags = rreg(cpu_state->hvf_fd, HV_X86_RFLAGS);
+    env->eflags = rreg(cpu_state->accel_vcpu->hvf_fd, HV_X86_RFLAGS);
 
     if (cpu_state->interrupt_request & CPU_INTERRUPT_INIT) {
         hvf_cpu_synchronize_state(cpu_state);

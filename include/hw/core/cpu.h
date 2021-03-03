@@ -415,7 +415,6 @@ struct CPUState {
 
     /* Accelerator-specific fields. */
     struct AccelvCPUState *accel_vcpu;
-    int hvf_fd;
     /* shared by kvm, hax and hvf */
     bool vcpu_dirty;
 
