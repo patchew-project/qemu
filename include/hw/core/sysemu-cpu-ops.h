@@ -17,6 +17,14 @@
  */
 typedef struct SysemuCPUOps {
     /**
+     * @virtio_is_big_endian: Callback to return %true if a CPU which supports
+     *       runtime configurable endianness is currently big-endian.
+     * Non-configurable CPUs can use the default implementation of this method.
+     * This method should not be used by any callers other than the pre-1.0
+     * virtio devices.
+     */
+    bool (*virtio_is_big_endian)(CPUState *cpu);
+    /**
      * @vmsd: State description for migration.
      */
     const VMStateDescription *vmsd;
