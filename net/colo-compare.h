@@ -54,6 +54,15 @@ typedef struct SendEntry {
     uint8_t *buf;
 } SendEntry;
 
+typedef struct PassthroughEntry {
+    int l4_protocol;
+    int src_port;
+    int dst_port;
+    struct in_addr src_ip;
+    struct in_addr dst_ip;
+    QLIST_ENTRY(PassthroughEntry) node;
+} PassthroughEntry;
+
 /*
  *  + CompareState ++
  *  |               |
@@ -110,6 +119,7 @@ struct CompareState {
 
     QEMUBH *event_bh;
     enum colo_event event;
+    QLIST_HEAD(, PassthroughEntry) passthroughlist;
 
     QTAILQ_ENTRY(CompareState) next;
 };
