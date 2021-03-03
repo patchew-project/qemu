@@ -471,13 +471,16 @@ static inline bool cpu_handle_halt(CPUState *cpu)
 static inline void cpu_handle_debug_exception(CPUState *cpu)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
-    CPUWatchpoint *wp;
 
+#ifndef CONFIG_USER_ONLY
     if (!cpu->watchpoint_hit) {
+        CPUWatchpoint *wp;
+
         QTAILQ_FOREACH(wp, &cpu->watchpoints, entry) {
             wp->flags &= ~BP_WATCHPOINT_HIT;
         }
     }
+#endif
 
     if (cc->tcg_ops->debug_excp_handler) {
         cc->tcg_ops->debug_excp_handler(cpu);
