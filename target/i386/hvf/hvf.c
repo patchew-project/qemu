@@ -451,6 +451,7 @@ void hvf_vcpu_destroy(CPUState *cpu)
     hv_return_t ret = hv_vcpu_destroy((hv_vcpuid_t)cpu->hvf_fd);
     g_free(env->hvf_mmio_buf);
     assert_hvf_ok(ret);
+    g_free(cpu->accel_vcpu);
 }
 
 static void dummy_signal(int sig)
@@ -534,9 +535,10 @@ int hvf_init_vcpu(CPUState *cpu)
     }
 
     r = hv_vcpu_create(&hvf_fd, HV_VCPU_DEFAULT);
-    cpu->vcpu_dirty = true;
     assert_hvf_ok(r);
+    cpu->accel_vcpu = g_new(struct AccelvCPUState, 1);
     cpu->hvf_fd = (int)hvf_fd
+    cpu->vcpu_dirty = true;
 
     if (hv_vmx_read_capability(HV_VMX_CAP_PINBASED,
         &hvf_state->hvf_caps->vmx_cap_pinbased)) {

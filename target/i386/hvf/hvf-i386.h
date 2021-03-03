@@ -51,6 +51,9 @@ struct HVFState {
 };
 extern HVFState *hvf_state;
 
+struct AccelvCPUState {
+};
+
 void hvf_set_phys_mem(MemoryRegionSection *, bool);
 void hvf_handle_io(CPUArchState *, uint16_t, void *, int, int, int);
 hvf_slot *hvf_find_overlap_slot(uint64_t, uint64_t);
