@@ -174,7 +174,13 @@ static void rx_cpu_init(Object *obj)
 }
 
 #ifndef CONFIG_USER_ONLY
+static const VMStateDescription vmstate_rx_cpu = {
+    .name = "cpu",
+    .unmigratable = 1,
+};
+
 static const struct SysemuCPUOps rx_sysemu_ops = {
+    .vmsd = &vmstate_rx_cpu,
 };
 #endif
 

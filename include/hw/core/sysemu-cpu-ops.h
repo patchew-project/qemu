@@ -16,6 +16,10 @@
  * struct SysemuCPUOps: System operations specific to a CPU class
  */
 typedef struct SysemuCPUOps {
+    /**
+     * @vmsd: State description for migration.
+     */
+    const VMStateDescription *vmsd;
 } SysemuCPUOps;
 
 #endif /* SYSEMU_CPU_OPS_H */

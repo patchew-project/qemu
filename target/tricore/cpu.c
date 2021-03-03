@@ -22,6 +22,7 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "qemu/error-report.h"
+#include "migration/vmstate.h"
 
 static inline void set_feature(CPUTriCoreState *env, int feature)
 {
@@ -142,7 +143,13 @@ static void tc27x_initfn(Object *obj)
     set_feature(&cpu->env, TRICORE_FEATURE_161);
 }
 
+static const VMStateDescription vmstate_tricore_cpu = {
+    .name = "cpu",
+    .unmigratable = 1,
+};
+
 static const struct SysemuCPUOps tricore_sysemu_ops = {
+    .vmsd = &vmstate_tricore_cpu,
 };
 
 #include "hw/core/tcg-cpu-ops.h"
