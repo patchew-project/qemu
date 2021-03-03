@@ -437,7 +437,7 @@ int kvm_init_vcpu(CPUState *cpu, Error **errp)
 
     cpu->accel_vcpu = g_new(struct AccelvCPUState, 1);
     cpu->accel_vcpu->kvm_fd = ret;
-    cpu->kvm_state = s;
+    cpu->accel_vcpu->kvm_state = s;
     cpu->vcpu_dirty = true;
 
     mmap_size = kvm_ioctl(s, KVM_GET_VCPU_MMAP_SIZE, 0);
@@ -1985,7 +1985,7 @@ bool kvm_vcpu_id_is_valid(int vcpu_id)
 
 KVMState *kvm_vcpu_state(CPUState *cpu)
 {
-    return cpu->kvm_state;
+    return cpu->accel_vcpu->kvm_state;
 }
 
 static int kvm_init(MachineState *ms)

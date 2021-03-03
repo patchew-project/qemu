@@ -415,7 +415,6 @@ struct CPUState {
 
     /* Accelerator-specific fields. */
     struct AccelvCPUState *accel_vcpu;
-    struct KVMState *kvm_state;
     struct kvm_run *kvm_run;
     int hvf_fd;
     /* shared by kvm, hax and hvf */

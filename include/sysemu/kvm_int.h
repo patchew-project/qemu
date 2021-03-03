@@ -18,6 +18,7 @@ struct AccelvCPUState {
      * @kvm_fd: vCPU file descriptor for KVM
      */
     int kvm_fd;
+    struct KVMState *kvm_state;
 };
 
 typedef struct KVMSlot
