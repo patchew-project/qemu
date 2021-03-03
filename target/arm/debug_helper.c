@@ -230,7 +230,6 @@ bool arm_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
 static bool check_breakpoints(ARMCPU *cpu)
 {
     CPUARMState *env = &cpu->env;
-    int n;
 
     /*
      * If breakpoints are disabled globally or we can't take debug
@@ -241,7 +240,7 @@ static bool check_breakpoints(ARMCPU *cpu)
         return false;
     }
 
-    for (n = 0; n < ARRAY_SIZE(env->cpu_breakpoint); n++) {
+    for (int n = 0; n < ARRAY_SIZE(env->cpu_breakpoint); n++) {
         if (bp_wp_matches(cpu, n, false)) {
             return true;
         }
@@ -266,47 +265,48 @@ void arm_debug_excp_handler(CPUState *cs)
      */
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
+    uint64_t pc;
+    bool same_el;
     CPUWatchpoint *wp_hit = cs->watchpoint_hit;
 
-    if (wp_hit) {
-        if (wp_hit->flags & BP_CPU) {
-            bool wnr = (wp_hit->flags & BP_WATCHPOINT_HIT_WRITE) != 0;
-            bool same_el = arm_debug_target_el(env) == arm_current_el(env);
+    if (wp_hit && (wp_hit->flags & BP_CPU)) {
+        bool wnr = (wp_hit->flags & BP_WATCHPOINT_HIT_WRITE) != 0;
+        bool same_el = arm_debug_target_el(env) == arm_current_el(env);
 
-            cs->watchpoint_hit = NULL;
-
-            env->exception.fsr = arm_debug_exception_fsr(env);
-            env->exception.vaddress = wp_hit->hitaddr;
-            raise_exception(env, EXCP_DATA_ABORT,
-                    syn_watchpoint(same_el, 0, wnr),
-                    arm_debug_target_el(env));
-        }
-    } else {
-        uint64_t pc = is_a64(env) ? env->pc : env->regs[15];
-        bool same_el = (arm_debug_target_el(env) == arm_current_el(env));
-
-        /*
-         * (1) GDB breakpoints should be handled first.
-         * (2) Do not raise a CPU exception if no CPU breakpoint has fired,
-         * since singlestep is also done by generating a debug internal
-         * exception.
-         */
-        if (cpu_breakpoint_test(cs, pc, BP_GDB)
-            || !cpu_breakpoint_test(cs, pc, BP_CPU)) {
-            return;
-        }
+        cs->watchpoint_hit = NULL;
 
         env->exception.fsr = arm_debug_exception_fsr(env);
-        /*
-         * FAR is UNKNOWN: clear vaddress to avoid potentially exposing
-         * values to the guest that it shouldn't be able to see at its
-         * exception/security level.
-         */
-        env->exception.vaddress = 0;
-        raise_exception(env, EXCP_PREFETCH_ABORT,
-                        syn_breakpoint(same_el),
+        env->exception.vaddress = wp_hit->hitaddr;
+        raise_exception(env, EXCP_DATA_ABORT,
+                        syn_watchpoint(same_el, 0, wnr),
                         arm_debug_target_el(env));
+        return;
     }
+
+    pc = is_a64(env) ? env->pc : env->regs[15];
+    same_el = (arm_debug_target_el(env) == arm_current_el(env));
+
+    /*
+     * (1) GDB breakpoints should be handled first.
+     * (2) Do not raise a CPU exception if no CPU breakpoint has fired,
+     * since singlestep is also done by generating a debug internal
+     * exception.
+     */
+    if (cpu_breakpoint_test(cs, pc, BP_GDB)
+        || !cpu_breakpoint_test(cs, pc, BP_CPU)) {
+        return;
+    }
+
+    env->exception.fsr = arm_debug_exception_fsr(env);
+    /*
+     * FAR is UNKNOWN: clear vaddress to avoid potentially exposing
+     * values to the guest that it shouldn't be able to see at its
+     * exception/security level.
+     */
+    env->exception.vaddress = 0;
+    raise_exception(env, EXCP_PREFETCH_ABORT,
+                    syn_breakpoint(same_el),
+                    arm_debug_target_el(env));
 }
 
 #if !defined(CONFIG_USER_ONLY)
