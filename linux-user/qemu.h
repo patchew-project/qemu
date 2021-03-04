@@ -157,7 +157,7 @@ typedef struct TaskState {
 
     /* This thread's sigaltstack, if it has one */
     struct target_sigaltstack sigaltstack_used;
-} __attribute__((aligned(16))) TaskState;
+} QEMU_ALIGNED(16) TaskState;
 
 extern char *exec_path;
 void init_task_state(TaskState *ts);

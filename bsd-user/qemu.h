@@ -96,7 +96,7 @@ typedef struct TaskState {
     int signal_pending; /* non zero if a signal may be pending */
 
     uint8_t stack[];
-} __attribute__((aligned(16))) TaskState;
+} QEMU_ALIGNED(16) TaskState;
 
 void init_task_state(TaskState *ts);
 extern const char *qemu_uname_release;
