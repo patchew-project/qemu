@@ -53,6 +53,8 @@ def bench_block_job(cmd, cmd_args, qemu_args):
         return {'error': 'qemu failed: ' + str(vm.get_log())}
 
     try:
+        subprocess.run('sync; echo 3 > /proc/sys/vm/drop_caches', shell=True,
+                       check=True)
         res = vm.qmp(cmd, **cmd_args)
         if res != {'return': {}}:
             vm.shutdown()
