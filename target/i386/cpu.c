@@ -7171,6 +7171,7 @@ static void x86_cpu_set_pc(CPUState *cs, vaddr value)
     cpu->env.eip = value;
 }
 
+/* FIXME TCG only? */
 int x86_cpu_pending_interrupt(CPUState *cs, int interrupt_request)
 {
     X86CPU *cpu = X86_CPU(cs);
@@ -7211,11 +7212,6 @@ int x86_cpu_pending_interrupt(CPUState *cs, int interrupt_request)
     }
 
     return 0;
-}
-
-static bool x86_cpu_has_work(CPUState *cs)
-{
-    return x86_cpu_pending_interrupt(cs, cs->interrupt_request) != 0;
 }
 
 static void x86_disas_set_info(CPUState *cs, disassemble_info *info)
@@ -7404,7 +7400,6 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = x86_cpu_class_by_name;
     cc->parse_features = x86_cpu_parse_featurestr;
-    cc->has_work = x86_cpu_has_work;
 
 #ifdef CONFIG_TCG
     tcg_cpu_common_class_init(cc);

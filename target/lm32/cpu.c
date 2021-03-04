@@ -214,6 +214,7 @@ static ObjectClass *lm32_cpu_class_by_name(const char *cpu_model)
 
 static const struct TCGCPUOps lm32_tcg_ops = {
     .initialize = lm32_translate_init,
+    .has_work = lm32_cpu_has_work,
     .cpu_exec_interrupt = lm32_cpu_exec_interrupt,
     .tlb_fill = lm32_cpu_tlb_fill,
     .debug_excp_handler = lm32_debug_excp_handler,
@@ -234,7 +235,6 @@ static void lm32_cpu_class_init(ObjectClass *oc, void *data)
     device_class_set_parent_reset(dc, lm32_cpu_reset, &lcc->parent_reset);
 
     cc->class_by_name = lm32_cpu_class_by_name;
-    cc->has_work = lm32_cpu_has_work;
     cc->dump_state = lm32_cpu_dump_state;
     cc->set_pc = lm32_cpu_set_pc;
     cc->gdb_read_register = lm32_cpu_gdb_read_register;

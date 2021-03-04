@@ -138,6 +138,7 @@ static bool tilegx_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 
 static const struct TCGCPUOps tilegx_tcg_ops = {
     .initialize = tilegx_tcg_init,
+    .has_work = tilegx_cpu_has_work,
     .cpu_exec_interrupt = tilegx_cpu_exec_interrupt,
     .tlb_fill = tilegx_cpu_tlb_fill,
 
@@ -158,7 +159,6 @@ static void tilegx_cpu_class_init(ObjectClass *oc, void *data)
     device_class_set_parent_reset(dc, tilegx_cpu_reset, &tcc->parent_reset);
 
     cc->class_by_name = tilegx_cpu_class_by_name;
-    cc->has_work = tilegx_cpu_has_work;
     cc->dump_state = tilegx_cpu_dump_state;
     cc->set_pc = tilegx_cpu_set_pc;
     cc->gdb_num_core_regs = 0;

@@ -20,6 +20,10 @@ struct TCGCPUOps {
      */
     void (*initialize)(void);
     /**
+     * @has_work: Callback for checking if there is work to do
+     */
+    bool (*has_work)(CPUState *cpu);
+    /**
      * @synchronize_from_tb: Synchronize state from a TCG #TranslationBlock
      *
      * This is called when we abandon execution of a TB before starting it,

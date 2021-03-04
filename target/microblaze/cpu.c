@@ -356,6 +356,7 @@ static ObjectClass *mb_cpu_class_by_name(const char *cpu_model)
 
 static const struct TCGCPUOps mb_tcg_ops = {
     .initialize = mb_tcg_init,
+    .has_work = mb_cpu_has_work,
     .synchronize_from_tb = mb_cpu_synchronize_from_tb,
     .cpu_exec_interrupt = mb_cpu_exec_interrupt,
     .tlb_fill = mb_cpu_tlb_fill,
@@ -378,7 +379,6 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
     device_class_set_parent_reset(dc, mb_cpu_reset, &mcc->parent_reset);
 
     cc->class_by_name = mb_cpu_class_by_name;
-    cc->has_work = mb_cpu_has_work;
 
     cc->dump_state = mb_cpu_dump_state;
     cc->set_pc = mb_cpu_set_pc;

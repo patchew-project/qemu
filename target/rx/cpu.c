@@ -177,6 +177,7 @@ static void rx_cpu_init(Object *obj)
 
 static const struct TCGCPUOps rx_tcg_ops = {
     .initialize = rx_translate_init,
+    .has_work = rx_cpu_has_work,
     .synchronize_from_tb = rx_cpu_synchronize_from_tb,
     .cpu_exec_interrupt = rx_cpu_exec_interrupt,
     .tlb_fill = rx_cpu_tlb_fill,
@@ -198,7 +199,6 @@ static void rx_cpu_class_init(ObjectClass *klass, void *data)
                                   &rcc->parent_reset);
 
     cc->class_by_name = rx_cpu_class_by_name;
-    cc->has_work = rx_cpu_has_work;
     cc->dump_state = rx_cpu_dump_state;
     cc->set_pc = rx_cpu_set_pc;
 
