@@ -155,7 +155,9 @@ def bench(args):
                 'qemu-binary': path
             })
 
-    result = simplebench.bench(bench_func, test_envs, test_cases, count=3)
+    result = simplebench.bench(bench_func, test_envs, test_cases,
+                               count=args.count,
+                               initial_run = not args.no_initial_run)
     with open('results.json', 'w') as f:
         json.dump(result, f, indent=4)
     print(results_to_text(result))
@@ -210,5 +212,11 @@ Setup cache for target nodes. Options:
    cached: use system cache (Qemu default) and aio=threads (Qemu default)
    both: generate two test cases for each src:dst pair''',
                    default='direct', choices=('direct', 'cached', 'both'))
+
+    p.add_argument('--count', type=int, default=3, help='''\
+Number of test runs per table cell''')
+
+    p.add_argument('--no-initial-run', action='store_true', help='''\
+Don't do initial run of test for each cell which doesn't count''')
 
     bench(p.parse_args())
