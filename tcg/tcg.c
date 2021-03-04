@@ -65,6 +65,7 @@
 #include "elf.h"
 #include "exec/log.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/tcg.h"
 
 /* Forward declarations for functions declared in tcg-target.c.inc and
    used here. */
