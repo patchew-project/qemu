@@ -48,6 +48,11 @@
 /* #define PPC_DUMP_SPR_ACCESSES */
 /* #define USE_APPLE_GDB */
 
+static const struct TCGCPUOps power7_tcg_ops;
+static const struct TCGCPUOps power8_tcg_ops;
+static const struct TCGCPUOps power9_tcg_ops;
+static const struct TCGCPUOps power10_tcg_ops;
+
 /*
  * Generic callbacks:
  * do nothing but store/retrieve spr value
@@ -8685,6 +8690,9 @@ POWERPC_FAMILY(POWER7)(ObjectClass *oc, void *data)
     pcc->l1_dcache_size = 0x8000;
     pcc->l1_icache_size = 0x8000;
     pcc->interrupts_big_endian = ppc_cpu_interrupts_big_endian_lpcr;
+#ifdef CONFIG_TCG
+    cc->tcg_ops = &power7_tcg_ops;
+#endif /* CONFIG_TCG */
 }
 
 static void init_proc_POWER8(CPUPPCState *env)
@@ -8863,6 +8871,9 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
     pcc->l1_dcache_size = 0x8000;
     pcc->l1_icache_size = 0x8000;
     pcc->interrupts_big_endian = ppc_cpu_interrupts_big_endian_lpcr;
+#ifdef CONFIG_TCG
+    cc->tcg_ops = &power8_tcg_ops;
+#endif /* CONFIG_TCG */
 }
 
 #ifdef CONFIG_SOFTMMU
@@ -9081,6 +9092,9 @@ POWERPC_FAMILY(POWER9)(ObjectClass *oc, void *data)
     pcc->l1_dcache_size = 0x8000;
     pcc->l1_icache_size = 0x8000;
     pcc->interrupts_big_endian = ppc_cpu_interrupts_big_endian_lpcr;
+#ifdef CONFIG_TCG
+    cc->tcg_ops = &power9_tcg_ops;
+#endif /* CONFIG_TCG */
 }
 
 #ifdef CONFIG_SOFTMMU
@@ -9292,6 +9306,9 @@ POWERPC_FAMILY(POWER10)(ObjectClass *oc, void *data)
     pcc->l1_dcache_size = 0x8000;
     pcc->l1_icache_size = 0x8000;
     pcc->interrupts_big_endian = ppc_cpu_interrupts_big_endian_lpcr;
+#ifdef CONFIG_TCG
+    cc->tcg_ops = &power10_tcg_ops;
+#endif /* CONFIG_TCG */
 }
 
 #if !defined(CONFIG_USER_ONLY)
@@ -10847,6 +10864,58 @@ static Property ppc_cpu_properties[] = {
 #include "hw/core/tcg-cpu-ops.h"
 
 static const struct TCGCPUOps ppc_tcg_ops = {
+  .initialize = ppc_translate_init,
+  .cpu_exec_interrupt = ppc_cpu_exec_interrupt,
+  .tlb_fill = ppc_cpu_tlb_fill,
+
+#ifndef CONFIG_USER_ONLY
+  .do_interrupt = ppc_cpu_do_interrupt,
+  .cpu_exec_enter = ppc_cpu_exec_enter,
+  .cpu_exec_exit = ppc_cpu_exec_exit,
+  .do_unaligned_access = ppc_cpu_do_unaligned_access,
+#endif /* !CONFIG_USER_ONLY */
+};
+
+static const struct TCGCPUOps power7_tcg_ops = {
+  .initialize = ppc_translate_init,
+  .cpu_exec_interrupt = ppc_cpu_exec_interrupt,
+  .tlb_fill = ppc_cpu_tlb_fill,
+
+#ifndef CONFIG_USER_ONLY
+  .do_interrupt = ppc_cpu_do_interrupt,
+  .cpu_exec_enter = ppc_cpu_exec_enter,
+  .cpu_exec_exit = ppc_cpu_exec_exit,
+  .do_unaligned_access = ppc_cpu_do_unaligned_access,
+#endif /* !CONFIG_USER_ONLY */
+};
+
+static const struct TCGCPUOps power8_tcg_ops = {
+  .initialize = ppc_translate_init,
+  .cpu_exec_interrupt = ppc_cpu_exec_interrupt,
+  .tlb_fill = ppc_cpu_tlb_fill,
+
+#ifndef CONFIG_USER_ONLY
+  .do_interrupt = ppc_cpu_do_interrupt,
+  .cpu_exec_enter = ppc_cpu_exec_enter,
+  .cpu_exec_exit = ppc_cpu_exec_exit,
+  .do_unaligned_access = ppc_cpu_do_unaligned_access,
+#endif /* !CONFIG_USER_ONLY */
+};
+
+static const struct TCGCPUOps power9_tcg_ops = {
+  .initialize = ppc_translate_init,
+  .cpu_exec_interrupt = ppc_cpu_exec_interrupt,
+  .tlb_fill = ppc_cpu_tlb_fill,
+
+#ifndef CONFIG_USER_ONLY
+  .do_interrupt = ppc_cpu_do_interrupt,
+  .cpu_exec_enter = ppc_cpu_exec_enter,
+  .cpu_exec_exit = ppc_cpu_exec_exit,
+  .do_unaligned_access = ppc_cpu_do_unaligned_access,
+#endif /* !CONFIG_USER_ONLY */
+};
+
+static const struct TCGCPUOps power10_tcg_ops = {
   .initialize = ppc_translate_init,
   .cpu_exec_interrupt = ppc_cpu_exec_interrupt,
   .tlb_fill = ppc_cpu_tlb_fill,
