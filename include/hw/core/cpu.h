@@ -274,6 +274,9 @@ struct qemu_work_item;
 #define CPU_UNSET_NUMA_NODE_ID -1
 #define CPU_TRACE_DSTATE_MAX_EVENTS 32
 
+/* See bsd-user/qemu.h and linux-user/qemu.h */
+typedef struct TaskState TaskState;
+
 /**
  * CPUState:
  * @cpu_index: CPU index (informative).
@@ -310,7 +313,7 @@ struct qemu_work_item;
  * @gdb_num_regs: Number of total registers accessible to GDB.
  * @gdb_num_g_regs: Number of registers in GDB 'g' packets.
  * @next_cpu: Next CPU sharing TB cache.
- * @opaque: User data.
+ * @opaque: User task data.
  * @mem_io_pc: Host Program Counter at which the memory was accessed.
  * @kvm_fd: vCPU file descriptor for KVM.
  * @work_mutex: Lock to prevent multiple access to @work_list.
@@ -386,7 +389,7 @@ struct CPUState {
     QTAILQ_HEAD(, CPUWatchpoint) watchpoints;
     CPUWatchpoint *watchpoint_hit;
 
-    void *opaque;
+    TaskState *opaque;
 
     /* In order to avoid passing too many arguments to the MMIO helpers,
      * we store some rarely used information in the CPU context.

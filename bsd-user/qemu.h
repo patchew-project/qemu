@@ -83,7 +83,7 @@ struct emulated_sigtable {
 
 /* NOTE: we force a big alignment so that the stack stored after is
    aligned too */
-typedef struct TaskState {
+struct TaskState {
     pid_t ts_tid;     /* tid (or pid) of this task */
 
     struct TaskState *next;
@@ -96,7 +96,7 @@ typedef struct TaskState {
     int signal_pending; /* non zero if a signal may be pending */
 
     uint8_t stack[];
-} QEMU_ALIGNED(16) TaskState;
+} QEMU_ALIGNED(16);
 
 void init_task_state(TaskState *ts);
 extern const char *qemu_uname_release;

@@ -100,7 +100,7 @@ struct emulated_sigtable {
 
 /* NOTE: we force a big alignment so that the stack stored after is
    aligned too */
-typedef struct TaskState {
+struct TaskState {
     pid_t ts_tid;     /* tid (or pid) of this task */
 #ifdef TARGET_ARM
 # ifdef TARGET_ABI32
@@ -157,7 +157,7 @@ typedef struct TaskState {
 
     /* This thread's sigaltstack, if it has one */
     struct target_sigaltstack sigaltstack_used;
-} QEMU_ALIGNED(16) TaskState;
+} QEMU_ALIGNED(16);
 
 extern char *exec_path;
 void init_task_state(TaskState *ts);
