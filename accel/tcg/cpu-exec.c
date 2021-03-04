@@ -447,6 +447,13 @@ static inline TranslationBlock *tb_find(CPUState *cpu,
     return tb;
 }
 
+bool cpu_has_work(CPUState *cpu)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    return cc->has_work(cpu);
+}
+
 static inline bool cpu_handle_halt(CPUState *cpu)
 {
     if (cpu->halted) {

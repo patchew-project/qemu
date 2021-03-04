@@ -42,6 +42,7 @@
 #include "sysemu/runstate.h"
 #include "sysemu/cpu-timers.h"
 #include "sysemu/whpx.h"
+#include "sysemu/tcg.h"
 #include "hw/boards.h"
 #include "hw/hw.h"
 
