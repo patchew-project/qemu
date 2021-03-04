@@ -214,7 +214,7 @@ setup_return(CPUARMState *env, struct target_sigaction *ka,
     abi_ulong retcode;
 
     int thumb;
-    int is_fdpic = info_is_fdpic(((TaskState *)thread_cpu->opaque)->info);
+    int is_fdpic = info_is_fdpic(thread_cpu->task_state->info);
 
     if (is_fdpic) {
         /* In FDPIC mode, ka->_sa_handler points to a function

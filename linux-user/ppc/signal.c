@@ -491,7 +491,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
 #if defined(TARGET_PPC64)
     struct target_sigcontext *sc = 0;
 #if !defined(TARGET_ABI32)
-    struct image_info *image = ((TaskState *)thread_cpu->opaque)->info;
+    struct image_info *image = thread_cpu->task_state->info;
 #endif
 #endif
 
@@ -684,8 +684,6 @@ abi_long do_swapcontext(CPUArchState *env, abi_ulong uold_ctx,
     }
 
     if (uold_ctx) {
-        TaskState *ts = (TaskState *)thread_cpu->opaque;
-
         if (!lock_user_struct(VERIFY_WRITE, uctx, uold_ctx, 1)) {
             return -TARGET_EFAULT;
         }
@@ -701,7 +699,8 @@ abi_long do_swapcontext(CPUArchState *env, abi_ulong uold_ctx,
 #endif
 
         save_user_regs(env, mctx);
-        host_to_target_sigset(&uctx->tuc_sigmask, &ts->signal_mask);
+        host_to_target_sigset(&uctx->tuc_sigmask,
+                              &thread_cpu->task_state->signal_mask);
 
         unlock_user_struct(uctx, uold_ctx, 1);
     }

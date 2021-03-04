@@ -85,8 +85,7 @@ void cpu_loop(CPUCRISState *env)
 void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
 {
     CPUState *cpu = env_cpu(env);
-    TaskState *ts = cpu->opaque;
-    struct image_info *info = ts->info;
+    struct image_info *info = cpu->task_state->info;
 
     env->regs[0] = regs->r0;
     env->regs[1] = regs->r1;

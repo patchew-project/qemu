@@ -425,7 +425,7 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
 #if defined(CONFIG_USER_ONLY)
         {
         CPUState *cs = env_cpu(env);
-        TaskState *ts = cs->opaque;
+        TaskState *ts = cs->task_state;
         /* Allocate the heap using sbrk.  */
         if (!ts->heap_limit) {
             abi_ulong ret;

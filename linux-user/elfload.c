@@ -3805,12 +3805,11 @@ static int write_note(struct memelfnote *men, int fd)
 static void fill_thread_info(struct elf_note_info *info, const CPUArchState *env)
 {
     CPUState *cpu = env_cpu((CPUArchState *)env);
-    TaskState *ts = (TaskState *)cpu->opaque;
     struct elf_thread_status *ets;
 
     ets = g_malloc0(sizeof (*ets));
     ets->num_notes = 1; /* only prstatus is dumped */
-    fill_prstatus(&ets->prstatus, ts, 0);
+    fill_prstatus(&ets->prstatus, cpu->task_state, 0);
     elf_core_copy_regs(&ets->prstatus.pr_reg, env);
     fill_note(&ets->notes[0], "CORE", NT_PRSTATUS, sizeof (ets->prstatus),
               &ets->prstatus);
@@ -3835,7 +3834,7 @@ static int fill_note_info(struct elf_note_info *info,
 {
 #define NUMNOTES 3
     CPUState *cpu = env_cpu((CPUArchState *)env);
-    TaskState *ts = (TaskState *)cpu->opaque;
+    TaskState *ts = cpu->task_state;
     int i;
 
     info->notes = g_new0(struct memelfnote, NUMNOTES);
@@ -3959,7 +3958,6 @@ static int write_note_info(struct elf_note_info *info, int fd)
 static int elf_core_dump(int signr, const CPUArchState *env)
 {
     const CPUState *cpu = env_cpu((CPUArchState *)env);
-    const TaskState *ts = (const TaskState *)cpu->opaque;
     struct vm_area_struct *vma = NULL;
     char corefile[PATH_MAX];
     struct elf_note_info info;
@@ -3978,7 +3976,7 @@ static int elf_core_dump(int signr, const CPUArchState *env)
     if (dumpsize.rlim_cur == 0)
         return 0;
 
-    if (core_dump_filename(ts, corefile, sizeof (corefile)) < 0)
+    if (core_dump_filename(cpu->task_state, corefile, sizeof(corefile)) < 0)
         return (-errno);
 
     if ((fd = open(corefile, O_WRONLY | O_CREAT,

@@ -94,8 +94,7 @@ static inline int target_memory_rw_debug(CPUState *cpu, target_ulong addr,
 static inline int cpu_gdb_index(CPUState *cpu)
 {
 #if defined(CONFIG_USER_ONLY)
-    TaskState *ts = (TaskState *) cpu->opaque;
-    return ts->ts_tid;
+    return cpu->task_state->ts_tid;
 #else
     return cpu->cpu_index + 1;
 #endif
@@ -2121,7 +2120,7 @@ static void handle_query_offsets(GdbCmdContext *gdb_ctx, void *user_ctx)
 {
     TaskState *ts;
 
-    ts = gdbserver_state.c_cpu->opaque;
+    ts = gdbserver_state.c_cpu->task_state;
     g_string_printf(gdbserver_state.str_buf,
                     "Text=" TARGET_ABI_FMT_lx
                     ";Data=" TARGET_ABI_FMT_lx
@@ -2174,7 +2173,7 @@ static void handle_query_supported(GdbCmdContext *gdb_ctx, void *user_ctx)
     }
 
 #ifdef CONFIG_USER_ONLY
-    if (gdbserver_state.c_cpu->opaque) {
+    if (gdbserver_state.c_cpu->task_state) {
         g_string_append(gdbserver_state.str_buf, ";qXfer:auxv:read+");
     }
 #endif
@@ -2243,7 +2242,6 @@ static void handle_query_xfer_features(GdbCmdContext *gdb_ctx, void *user_ctx)
 #if defined(CONFIG_USER_ONLY) && defined(CONFIG_LINUX_USER)
 static void handle_query_xfer_auxv(GdbCmdContext *gdb_ctx, void *user_ctx)
 {
-    TaskState *ts;
     unsigned long offset, len, saved_auxv, auxv_len;
 
     if (gdb_ctx->num_params < 2) {
@@ -2253,9 +2251,8 @@ static void handle_query_xfer_auxv(GdbCmdContext *gdb_ctx, void *user_ctx)
 
     offset = gdb_ctx->params[0].val_ul;
     len = gdb_ctx->params[1].val_ul;
-    ts = gdbserver_state.c_cpu->opaque;
-    saved_auxv = ts->info->saved_auxv;
-    auxv_len = ts->info->auxv_len;
+    saved_auxv = gdbserver_state.c_cpu->task_state->info->saved_auxv;
+    auxv_len = gdbserver_state.c_cpu->task_state->info->auxv_len;
 
     if (offset >= auxv_len) {
         put_packet("E00");

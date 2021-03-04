@@ -322,8 +322,7 @@ error:
 void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
 {
     CPUState *cpu = env_cpu(env);
-    TaskState *ts = cpu->opaque;
-    struct image_info *info = ts->info;
+    struct image_info *info = cpu->task_state->info;
     int i;
 
     struct mode_req {

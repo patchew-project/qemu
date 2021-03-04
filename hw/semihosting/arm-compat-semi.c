@@ -375,9 +375,7 @@ static inline uint32_t set_swi_errno(CPUState *cs, uint32_t code)
 {
     if (code == (uint32_t)-1) {
 #ifdef CONFIG_USER_ONLY
-        TaskState *ts = cs->opaque;
-
-        ts->swi_errno = errno;
+        cs->task_state->swi_errno = errno;
 #else
         syscall_err = errno;
 #endif
@@ -388,9 +386,7 @@ static inline uint32_t set_swi_errno(CPUState *cs, uint32_t code)
 static inline uint32_t get_swi_errno(CPUState *cs)
 {
 #ifdef CONFIG_USER_ONLY
-    TaskState *ts = cs->opaque;
-
-    return ts->swi_errno;
+    return cs->task_state->swi_errno;
 #else
     return syscall_err;
 #endif
@@ -1107,7 +1103,7 @@ target_ulong do_common_semihosting(CPUState *cs)
 #if !defined(CONFIG_USER_ONLY)
             const char *cmdline;
 #else
-            TaskState *ts = cs->opaque;
+            TaskState *ts = cs->task_state;
 #endif
             GET_ARG(0);
             GET_ARG(1);
@@ -1188,7 +1184,7 @@ target_ulong do_common_semihosting(CPUState *cs)
             target_ulong limit;
             int i;
 #ifdef CONFIG_USER_ONLY
-            TaskState *ts = cs->opaque;
+            TaskState *ts = cs->task_state;
 #else
             target_ulong rambase = common_semi_rambase(cs);
 #endif

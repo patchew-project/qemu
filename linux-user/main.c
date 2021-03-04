@@ -807,7 +807,7 @@ int main(int argc, char **argv, char **envp)
     /* build Task State */
     ts->info = info;
     ts->bprm = &bprm;
-    cpu->opaque = ts;
+    cpu->task_state = ts;
     task_settid(ts);
 
     ret = loader_exec(execfd, exec_path, target_argv, target_environ, regs,

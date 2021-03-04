@@ -185,7 +185,6 @@ void target_to_host_old_sigset(sigset_t *sigset,
 
 int block_signals(void)
 {
-    TaskState *ts = (TaskState *)thread_cpu->opaque;
     sigset_t set;
 
     /* It's OK to block everything including SIGSEGV, because we won't
@@ -195,7 +194,7 @@ int block_signals(void)
     sigfillset(&set);
     sigprocmask(SIG_SETMASK, &set, 0);
 
-    return qatomic_xchg(&ts->signal_pending, 1);
+    return qatomic_xchg(&thread_cpu->task_state->signal_pending, 1);
 }
 
 /* Wrapper for sigprocmask function
@@ -207,7 +206,7 @@ int block_signals(void)
  */
 int do_sigprocmask(int how, const sigset_t *set, sigset_t *oldset)
 {
-    TaskState *ts = (TaskState *)thread_cpu->opaque;
+    TaskState *ts = thread_cpu->task_state;
 
     if (oldset) {
         *oldset = ts->signal_mask;
@@ -251,9 +250,7 @@ int do_sigprocmask(int how, const sigset_t *set, sigset_t *oldset)
  */
 void set_sigmask(const sigset_t *set)
 {
-    TaskState *ts = (TaskState *)thread_cpu->opaque;
-
-    ts->signal_mask = *set;
+    thread_cpu->task_state->signal_mask = *set;
 }
 #endif
 
@@ -261,7 +258,7 @@ void set_sigmask(const sigset_t *set)
 
 int on_sig_stack(unsigned long sp)
 {
-    TaskState *ts = (TaskState *)thread_cpu->opaque;
+    TaskState *ts = thread_cpu->task_state;
 
     return (sp - ts->sigaltstack_used.ss_sp
             < ts->sigaltstack_used.ss_size);
@@ -269,7 +266,7 @@ int on_sig_stack(unsigned long sp)
 
 int sas_ss_flags(unsigned long sp)
 {
-    TaskState *ts = (TaskState *)thread_cpu->opaque;
+    TaskState *ts = thread_cpu->task_state;
 
     return (ts->sigaltstack_used.ss_size == 0 ? SS_DISABLE
             : on_sig_stack(sp) ? SS_ONSTACK : 0);
@@ -280,7 +277,7 @@ abi_ulong target_sigsp(abi_ulong sp, struct target_sigaction *ka)
     /*
      * This is the X/Open sanctioned signal stack switching.
      */
-    TaskState *ts = (TaskState *)thread_cpu->opaque;
+    TaskState *ts = thread_cpu->task_state;
 
     if ((ka->sa_flags & TARGET_SA_ONSTACK) && !sas_ss_flags(sp)) {
         return ts->sigaltstack_used.ss_sp + ts->sigaltstack_used.ss_size;
@@ -290,7 +287,7 @@ abi_ulong target_sigsp(abi_ulong sp, struct target_sigaction *ka)
 
 void target_save_altstack(target_stack_t *uss, CPUArchState *env)
 {
-    TaskState *ts = (TaskState *)thread_cpu->opaque;
+    TaskState *ts = thread_cpu->task_state;
 
     __put_user(ts->sigaltstack_used.ss_sp, &uss->ss_sp);
     __put_user(sas_ss_flags(get_sp_from_cpustate(env)), &uss->ss_flags);
@@ -543,7 +540,6 @@ static void signal_table_init(void)
 
 void signal_init(void)
 {
-    TaskState *ts = (TaskState *)thread_cpu->opaque;
     struct sigaction act;
     struct sigaction oact;
     int i;
@@ -553,7 +549,7 @@ void signal_init(void)
     signal_table_init();
 
     /* Set the signal mask from the host mask. */
-    sigprocmask(0, 0, &ts->signal_mask);
+    sigprocmask(0, 0, &thread_cpu->task_state->signal_mask);
 
     sigfillset(&act.sa_mask);
     act.sa_flags = SA_SIGINFO;
@@ -623,7 +619,7 @@ static void QEMU_NORETURN dump_core_and_abort(int target_sig)
 {
     CPUState *cpu = thread_cpu;
     CPUArchState *env = cpu->env_ptr;
-    TaskState *ts = (TaskState *)cpu->opaque;
+    TaskState *ts = cpu->task_state;
     int host_sig, core_dumped = 0;
     struct sigaction act;
 
@@ -678,7 +674,7 @@ int queue_signal(CPUArchState *env, int sig, int si_type,
                  target_siginfo_t *info)
 {
     CPUState *cpu = env_cpu(env);
-    TaskState *ts = cpu->opaque;
+    TaskState *ts = cpu->task_state;
 
     trace_user_queue_signal(env, sig);
 
@@ -703,7 +699,7 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
 {
     CPUArchState *env = thread_cpu->env_ptr;
     CPUState *cpu = env_cpu(env);
-    TaskState *ts = cpu->opaque;
+    TaskState *ts = cpu->task_state;
 
     int sig;
     target_siginfo_t tinfo;
@@ -760,7 +756,7 @@ abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp)
 {
     int ret;
     struct target_sigaltstack oss;
-    TaskState *ts = (TaskState *)thread_cpu->opaque;
+    TaskState *ts = thread_cpu->task_state;
 
     /* XXX: test errors */
     if(uoss_addr)
@@ -778,7 +774,7 @@ abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp)
 
 #if defined(TARGET_PPC64)
         /* ELF V2 for PPC64 has a 4K minimum stack size for signal handlers */
-        struct image_info *image = ((TaskState *)thread_cpu->opaque)->info;
+        struct image_info *image = thread_cpu->task_state->info;
         if (get_ppc64_abi(image) > 1) {
             minstacksize = 4096;
         }
@@ -918,7 +914,7 @@ static void handle_pending_signal(CPUArchState *cpu_env, int sig,
     sigset_t set;
     target_sigset_t target_old_set;
     struct target_sigaction *sa;
-    TaskState *ts = cpu->opaque;
+    TaskState *ts = cpu->task_state;
 
     trace_user_handle_signal(cpu_env, sig);
     /* dequeue signal */
@@ -1000,7 +996,7 @@ void process_pending_signals(CPUArchState *cpu_env)
 {
     CPUState *cpu = env_cpu(cpu_env);
     int sig;
-    TaskState *ts = cpu->opaque;
+    TaskState *ts = cpu->task_state;
     sigset_t set;
     sigset_t *blocked_set;
 

@@ -73,7 +73,7 @@ static inline unsigned int vm_getl(CPUX86State *env,
 void save_v86_state(CPUX86State *env)
 {
     CPUState *cs = env_cpu(env);
-    TaskState *ts = cs->opaque;
+    TaskState *ts = cs->task_state;
     struct target_vm86plus_struct * target_v86;
 
     if (!lock_user_struct(VERIFY_WRITE, target_v86, ts->target_v86, 0))
@@ -133,7 +133,7 @@ static inline void return_to_32bit(CPUX86State *env, int retval)
 static inline int set_IF(CPUX86State *env)
 {
     CPUState *cs = env_cpu(env);
-    TaskState *ts = cs->opaque;
+    TaskState *ts = cs->task_state;
 
     ts->v86flags |= VIF_MASK;
     if (ts->v86flags & VIP_MASK) {
@@ -146,9 +146,8 @@ static inline int set_IF(CPUX86State *env)
 static inline void clear_IF(CPUX86State *env)
 {
     CPUState *cs = env_cpu(env);
-    TaskState *ts = cs->opaque;
 
-    ts->v86flags &= ~VIF_MASK;
+    cs->task_state->v86flags &= ~VIF_MASK;
 }
 
 static inline void clear_TF(CPUX86State *env)
@@ -164,7 +163,7 @@ static inline void clear_AC(CPUX86State *env)
 static inline int set_vflags_long(unsigned long eflags, CPUX86State *env)
 {
     CPUState *cs = env_cpu(env);
-    TaskState *ts = cs->opaque;
+    TaskState *ts = cs->task_state;
 
     set_flags(ts->v86flags, eflags, ts->v86mask);
     set_flags(env->eflags, eflags, SAFE_MASK);
@@ -178,7 +177,7 @@ static inline int set_vflags_long(unsigned long eflags, CPUX86State *env)
 static inline int set_vflags_short(unsigned short flags, CPUX86State *env)
 {
     CPUState *cs = env_cpu(env);
-    TaskState *ts = cs->opaque;
+    TaskState *ts = cs->task_state;
 
     set_flags(ts->v86flags, flags, ts->v86mask & 0xffff);
     set_flags(env->eflags, flags, SAFE_MASK);
@@ -192,7 +191,7 @@ static inline int set_vflags_short(unsigned short flags, CPUX86State *env)
 static inline unsigned int get_vflags(CPUX86State *env)
 {
     CPUState *cs = env_cpu(env);
-    TaskState *ts = cs->opaque;
+    TaskState *ts = cs->task_state;
     unsigned int flags;
 
     flags = env->eflags & RETURN_MASK;
@@ -209,7 +208,7 @@ static inline unsigned int get_vflags(CPUX86State *env)
 static void do_int(CPUX86State *env, int intno)
 {
     CPUState *cs = env_cpu(env);
-    TaskState *ts = cs->opaque;
+    TaskState *ts = cs->task_state;
     uint32_t int_addr, segoffs, ssp;
     unsigned int sp;
 
@@ -268,7 +267,7 @@ void handle_vm86_trap(CPUX86State *env, int trapno)
 void handle_vm86_fault(CPUX86State *env)
 {
     CPUState *cs = env_cpu(env);
-    TaskState *ts = cs->opaque;
+    TaskState *ts = cs->task_state;
     uint32_t csp, ssp;
     unsigned int ip, sp, newflags, newip, newcs, opcode, intno;
     int data32, pref_done;
@@ -393,7 +392,7 @@ void handle_vm86_fault(CPUX86State *env)
 int do_vm86(CPUX86State *env, long subfunction, abi_ulong vm86_addr)
 {
     CPUState *cs = env_cpu(env);
-    TaskState *ts = cs->opaque;
+    TaskState *ts = cs->task_state;
     struct target_vm86plus_struct * target_v86;
     int ret;
 

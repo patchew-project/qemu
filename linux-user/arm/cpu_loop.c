@@ -244,7 +244,7 @@ void cpu_loop(CPUARMState *env)
         case EXCP_NOCP:
         case EXCP_INVSTATE:
             {
-                TaskState *ts = cs->opaque;
+                TaskState *ts = cs->task_state;
                 uint32_t opcode;
                 int rc;
 
@@ -470,7 +470,7 @@ void cpu_loop(CPUARMState *env)
 void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
 {
     CPUState *cpu = env_cpu(env);
-    TaskState *ts = cpu->opaque;
+    TaskState *ts = cpu->task_state;
     struct image_info *info = ts->info;
     int i;
 

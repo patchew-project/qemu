@@ -381,7 +381,7 @@ extern long safe_syscall_base(int *pending, long number, ...);
 #define safe_syscall(...)                                               \
     ({                                                                  \
         long ret_;                                                      \
-        int *psp_ = &((TaskState *)thread_cpu->opaque)->signal_pending; \
+        int *psp_ = &thread_cpu->task_state->signal_pending; \
         ret_ = safe_syscall_base(psp_, __VA_ARGS__);                    \
         if (is_error(ret_)) {                                           \
             errno = -ret_;                                              \

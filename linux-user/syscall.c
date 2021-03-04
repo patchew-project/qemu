@@ -6417,16 +6417,14 @@ static void *clone_func(void *arg)
     new_thread_info *info = arg;
     CPUArchState *env;
     CPUState *cpu;
-    TaskState *ts;
 
     rcu_register_thread();
     tcg_register_thread();
     env = info->env;
     cpu = env_cpu(env);
     thread_cpu = cpu;
-    ts = (TaskState *)cpu->opaque;
     info->tid = sys_gettid();
-    task_settid(ts);
+    task_settid(cpu->task_state);
     if (info->child_tidptr)
         put_user_u32(info->tid, info->child_tidptr);
     if (info->parent_tidptr)
@@ -6454,7 +6452,6 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
 {
     CPUState *cpu = env_cpu(env);
     int ret;
-    TaskState *ts;
     CPUState *new_cpu;
     CPUArchState *new_env;
     sigset_t sigmask;
@@ -6466,7 +6463,8 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         flags &= ~(CLONE_VFORK | CLONE_VM);
 
     if (flags & CLONE_VM) {
-        TaskState *parent_ts = (TaskState *)cpu->opaque;
+        TaskState *ts;
+        TaskState *parent_ts = cpu->task_state;
         new_thread_info info;
         pthread_attr_t attr;
 
@@ -6487,7 +6485,7 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         cpu_clone_regs_child(new_env, newsp, flags);
         cpu_clone_regs_parent(env, flags);
         new_cpu = env_cpu(new_env);
-        new_cpu->opaque = ts;
+        new_cpu->task_state = ts;
         ts->bprm = parent_ts->bprm;
         ts->info = parent_ts->info;
         ts->signal_mask = parent_ts->signal_mask;
@@ -6576,11 +6574,10 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
                 put_user_u32(sys_gettid(), child_tidptr);
             if (flags & CLONE_PARENT_SETTID)
                 put_user_u32(sys_gettid(), parent_tidptr);
-            ts = (TaskState *)cpu->opaque;
             if (flags & CLONE_SETTLS)
                 cpu_set_tls (env, newtls);
             if (flags & CLONE_CHILD_CLEARTID)
-                ts->child_tidptr = child_tidptr;
+                cpu->task_state->child_tidptr = child_tidptr;
         } else {
             cpu_clone_regs_parent(env, flags);
             fork_end(0);
@@ -7841,7 +7838,7 @@ int host_to_target_waitstatus(int status)
 static int open_self_cmdline(void *cpu_env, int fd)
 {
     CPUState *cpu = env_cpu((CPUArchState *)cpu_env);
-    struct linux_binprm *bprm = ((TaskState *)cpu->opaque)->bprm;
+    struct linux_binprm *bprm = cpu->task_state->bprm;
     int i;
 
     for (i = 0; i < bprm->argc; i++) {
@@ -7858,7 +7855,6 @@ static int open_self_cmdline(void *cpu_env, int fd)
 static int open_self_maps(void *cpu_env, int fd)
 {
     CPUState *cpu = env_cpu((CPUArchState *)cpu_env);
-    TaskState *ts = cpu->opaque;
     GSList *map_info = read_self_maps();
     GSList *s;
     int count;
@@ -7879,7 +7875,7 @@ static int open_self_maps(void *cpu_env, int fd)
                 continue;
             }
 
-            if (h2g(min) == ts->info->stack_limit) {
+            if (h2g(min) == cpu->task_state->info->stack_limit) {
                 path = "[stack]";
             } else {
                 path = e->path;
@@ -7920,7 +7916,7 @@ static int open_self_maps(void *cpu_env, int fd)
 static int open_self_stat(void *cpu_env, int fd)
 {
     CPUState *cpu = env_cpu((CPUArchState *)cpu_env);
-    TaskState *ts = cpu->opaque;
+    TaskState *ts = cpu->task_state;
     g_autoptr(GString) buf = g_string_new(NULL);
     int i;
 
@@ -7952,9 +7948,8 @@ static int open_self_stat(void *cpu_env, int fd)
 static int open_self_auxv(void *cpu_env, int fd)
 {
     CPUState *cpu = env_cpu((CPUArchState *)cpu_env);
-    TaskState *ts = cpu->opaque;
-    abi_ulong auxv = ts->info->saved_auxv;
-    abi_ulong len = ts->info->auxv_len;
+    abi_ulong auxv = cpu->task_state->info->saved_auxv;
+    abi_ulong len = cpu->task_state->info->auxv_len;
     char *ptr;
 
     /*
@@ -8276,7 +8271,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
         pthread_mutex_lock(&clone_lock);
 
         if (CPU_NEXT(first_cpu)) {
-            TaskState *ts = cpu->opaque;
+            TaskState *ts = cpu->task_state;
 
             object_property_set_bool(OBJECT(cpu), "realized", false, NULL);
             object_unref(OBJECT(cpu));
@@ -8700,7 +8695,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 #ifdef TARGET_NR_pause /* not on alpha */
     case TARGET_NR_pause:
         if (!block_signals()) {
-            sigsuspend(&((TaskState *)cpu->opaque)->signal_mask);
+            sigsuspend(&cpu->task_state->signal_mask);
         }
         return -TARGET_EINTR;
 #endif
@@ -9305,7 +9300,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 #ifdef TARGET_NR_sigsuspend
     case TARGET_NR_sigsuspend:
         {
-            TaskState *ts = cpu->opaque;
+            TaskState *ts = cpu->task_state;
 #if defined(TARGET_ALPHA)
             abi_ulong mask = arg1;
             target_to_host_old_sigset(&ts->sigsuspend_mask, &mask);
@@ -9325,7 +9320,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 #endif
     case TARGET_NR_rt_sigsuspend:
         {
-            TaskState *ts = cpu->opaque;
+            TaskState *ts = cpu->task_state;
 
             if (arg2 != sizeof(target_sigset_t)) {
                 return -TARGET_EINVAL;
@@ -9736,7 +9731,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_mprotect:
         arg1 = cpu_untagged_addr(cpu, arg1);
         {
-            TaskState *ts = cpu->opaque;
+            TaskState *ts = cpu->task_state;
             /* Special hack to detect libc making the stack executable.  */
             if ((arg3 & PROT_GROWSDOWN)
                 && arg1 >= ts->info->stack_limit
@@ -12184,8 +12179,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
       return do_set_thread_area(cpu_env, arg1);
 #elif defined(TARGET_M68K)
       {
-          TaskState *ts = cpu->opaque;
-          ts->tp_value = arg1;
+          cpu->task_state->tp_value = arg1;
           return 0;
       }
 #else
@@ -12198,8 +12192,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
         return do_get_thread_area(cpu_env, arg1);
 #elif defined(TARGET_M68K)
         {
-            TaskState *ts = cpu->opaque;
-            return ts->tp_value;
+            return cpu->task_state->tp_value;
         }
 #else
         return -TARGET_ENOSYS;

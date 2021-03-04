@@ -1000,7 +1000,7 @@ int main(int argc, char **argv)
     memset(ts, 0, sizeof(TaskState));
     init_task_state(ts);
     ts->info = info;
-    cpu->opaque = ts;
+    cpu->task_state = ts;
 
 #if defined(TARGET_I386)
     env->cr[0] = CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK;
