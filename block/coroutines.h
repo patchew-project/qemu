@@ -66,4 +66,7 @@ int coroutine_fn bdrv_co_readv_vmstate(BlockDriverState *bs,
 int coroutine_fn bdrv_co_writev_vmstate(BlockDriverState *bs,
                                         QEMUIOVector *qiov, int64_t pos);
 
+int coroutine_fn qcow2_co_flush_compressed_cache(BlockDriverState *bs);
+int generated_co_wrapper qcow2_flush_compressed_cache(BlockDriverState *bs);
+
 #endif /* BLOCK_COROUTINES_INT_H */

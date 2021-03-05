@@ -29,6 +29,7 @@
 #include "qemu/bswap.h"
 #include "qemu/cutils.h"
 #include "trace.h"
+#include "block/coroutines.h"
 
 static int64_t alloc_clusters_noref(BlockDriverState *bs, uint64_t size,
                                     uint64_t max);
@@ -1040,6 +1041,10 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
                 qcow2_cache_discard(s->l2_table_cache, table);
             }
 
+            if (s->compressed_cache) {
+                seqcache_discard_cluster(s->compressed_cache, cluster_offset);
+            }
+
             if (s->discard_passthrough[type]) {
                 update_refcount_discard(bs, cluster_offset, s->cluster_size);
             }
@@ -1348,6 +1353,11 @@ int coroutine_fn qcow2_write_caches(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
     int ret;
+
+    ret = qcow2_flush_compressed_cache(bs);
+    if (ret < 0) {
+        return ret;
+    }
 
     ret = qcow2_cache_write(bs, s->l2_table_cache);
     if (ret < 0) {

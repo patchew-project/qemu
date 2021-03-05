@@ -42,6 +42,7 @@
 #include "qapi/qapi-visit-block-core.h"
 #include "crypto.h"
 #include "block/aio_task.h"
+#include "block/coroutines.h"
 
 /*
   Differences with QCOW:
@@ -1836,6 +1837,10 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
     s->inflight_writes_counters =
         g_hash_table_new_full(g_int64_hash, g_int64_equal, g_free, g_free);
 
+    if (!has_data_file(bs) && (bs->file->bs->open_flags & BDRV_O_NOCACHE)) {
+        s->compressed_cache = seqcache_new(s->cluster_size);
+    }
+
     return ret;
 
  fail:
@@ -2655,6 +2660,91 @@ fail_nometa:
     return ret;
 }
 
+/*
+ * Flush one cluster of compressed cache if exists. If @unfinished is true and
+ * there is no finished cluster to flush, flush the unfinished one. Otherwise
+ * flush only finished clusters.
+ *
+ * Return 0 if nothing to flush, 1 if one cluster successfully flushed and <0 on
+ * error.
+ */
+static int coroutine_fn
+qcow2_co_compressed_flush_one(BlockDriverState *bs, bool unfinished)
+{
+    BDRVQcow2State *s = bs->opaque;
+    int ret;
+    int64_t align = 1;
+    int64_t offset, bytes;
+    uint8_t *buf;
+
+    if (!s->compressed_cache) {
+        return 0;
+    }
+
+    if (!seqcache_get_next_flush(s->compressed_cache, &offset, &bytes, &buf,
+                                 &unfinished))
+    {
+        return 0;
+    }
+
+    qcow2_inflight_writes_inc(bs, offset, bytes);
+
+    /*
+     * Don't try to align-up unfinished cached cluster, parallel write to it is
+     * possible! For finished host clusters data in the tail of the cluster will
+     * be never used. So, take some good alignment for speed.
+     *
+     * Note also, that seqcache guarantees that allocated size of @buf is enough
+     * to fill the cluster up to the end, so we are safe to align up with
+     * align <= cluster_size.
+     */
+    if (!unfinished) {
+        align = MIN(s->cluster_size,
+                    MAX(s->data_file->bs->bl.request_alignment,
+                        bdrv_opt_mem_align(bs)));
+    }
+
+    BLKDBG_EVENT(s->data_file, BLKDBG_WRITE_COMPRESSED);
+    ret = bdrv_co_pwrite(s->data_file, offset,
+                         QEMU_ALIGN_UP(offset + bytes, align) - offset,
+                         buf, 0);
+    if (ret < 0 && s->compressed_flush_ret == 0) {
+        /*
+         * The data that was "written" earlier is lost. We don't want to
+         * care with storing it somehow to retry flushing later. Also, how much
+         * data will we have to store, if not drop it after failed flush?
+         * After this point qcow2_co_flush_compressed_cache() (and
+         * qcow2_flush_compressed_cache()) never return success.
+         */
+        s->compressed_flush_ret = ret;
+    }
+
+    seqcache_discard_cluster(s->compressed_cache, offset);
+
+    qcow2_inflight_writes_dec(bs, offset, bytes);
+
+    return ret < 0 ? ret : 1;
+}
+
+int coroutine_fn qcow2_co_flush_compressed_cache(BlockDriverState *bs)
+{
+    BDRVQcow2State *s = bs->opaque;
+
+    if (s->compressed_cache) {
+        uint64_t nb_clusters = seqcache_nb_clusters(s->compressed_cache);
+
+        /*
+         * If parallel writes are possible we don't want to loop forever. So
+         * flush only clusters available at start of flush operation.
+         */
+        while (nb_clusters--) {
+            qcow2_co_compressed_flush_one(bs, true);
+        }
+    }
+
+    return s->compressed_flush_ret;
+}
+
 static int qcow2_inactivate(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
@@ -2667,6 +2757,13 @@ static int qcow2_inactivate(BlockDriverState *bs)
         error_reportf_err(local_err, "Lost persistent bitmaps during "
                           "inactivation of node '%s': ",
                           bdrv_get_device_or_node_name(bs));
+    }
+
+    ret = qcow2_flush_compressed_cache(bs);
+    if (ret) {
+        result = ret;
+        error_report("Failed to flush the compressed write cache: %s",
+                     strerror(-ret));
     }
 
     ret = qcow2_cache_flush(bs, s->l2_table_cache);
@@ -2700,6 +2797,12 @@ static void qcow2_close(BlockDriverState *bs)
     if (!(s->flags & BDRV_O_INACTIVE)) {
         qcow2_inactivate(bs);
     }
+
+    /*
+     * Cache should be flushed in qcow2_inactivate() and should be empty in
+     * inactive mode. So we are safe to free it.
+     */
+    seqcache_free(s->compressed_cache);
 
     cache_clean_timer_del(bs);
     qcow2_cache_destroy(s->l2_table_cache);
@@ -4555,18 +4658,42 @@ qcow2_co_pwritev_compressed_task(BlockDriverState *bs,
         goto fail;
     }
 
-    qcow2_inflight_writes_inc(bs, cluster_offset, out_len);
+    if (s->compressed_cache) {
+        /*
+         * It's important to do seqcache_write() in the same critical section
+         * (by s->lock) as qcow2_alloc_compressed_cluster_offset(), so that the
+         * cache is filled sequentially.
+         */
+        seqcache_write(s->compressed_cache, cluster_offset, out_len, out_buf);
 
-    qemu_co_mutex_unlock(&s->lock);
+        qemu_co_mutex_unlock(&s->lock);
 
-    BLKDBG_EVENT(s->data_file, BLKDBG_WRITE_COMPRESSED);
-    ret = bdrv_co_pwrite(s->data_file, cluster_offset, out_len, out_buf, 0);
+        ret = qcow2_co_compressed_flush_one(bs, false);
+        if (ret < 0) {
+            /*
+             * if ret < 0 it probably not this request which failed, but some
+             * previous one that was cached. Moreover, when we write to the
+             * cache we probably may always report success, because
+             * seqcache_write() never fails. Still, it's better to inform
+             * compressed backup now then wait until final flush.
+             */
+            goto fail;
+        }
+    } else {
+        qcow2_inflight_writes_inc(bs, cluster_offset, out_len);
 
-    qcow2_inflight_writes_dec(bs, cluster_offset, out_len);
+        qemu_co_mutex_unlock(&s->lock);
 
-    if (ret < 0) {
-        goto fail;
+        BLKDBG_EVENT(s->data_file, BLKDBG_WRITE_COMPRESSED);
+        ret = bdrv_co_pwrite(s->data_file, cluster_offset, out_len, out_buf, 0);
+
+        qcow2_inflight_writes_dec(bs, cluster_offset, out_len);
+
+        if (ret < 0) {
+            goto fail;
+        }
     }
+
 success:
     ret = 0;
 fail:
@@ -4678,10 +4805,19 @@ qcow2_co_preadv_compressed(BlockDriverState *bs,
 
     out_buf = qemu_blockalign(bs, s->cluster_size);
 
-    BLKDBG_EVENT(bs->file, BLKDBG_READ_COMPRESSED);
-    ret = bdrv_co_pread(bs->file, coffset, csize, buf, 0);
-    if (ret < 0) {
-        goto fail;
+    /*
+     * seqcache_read may return less bytes than csize, as csize may exceed
+     * actual compressed data size. So we are OK if seqcache_read returns
+     * something > 0.
+     */
+    if (!s->compressed_cache ||
+        seqcache_read(s->compressed_cache, coffset, csize, buf) <= 0)
+    {
+        BLKDBG_EVENT(bs->file, BLKDBG_READ_COMPRESSED);
+        ret = bdrv_co_pread(bs->file, coffset, csize, buf, 0);
+        if (ret < 0) {
+            goto fail;
+        }
     }
 
     if (qcow2_co_decompress(bs, out_buf, s->cluster_size, buf, csize) < 0) {

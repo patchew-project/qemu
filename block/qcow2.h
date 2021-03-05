@@ -28,6 +28,7 @@
 #include "crypto/block.h"
 #include "qemu/coroutine.h"
 #include "qemu/units.h"
+#include "qemu/seqcache.h"
 #include "block/block_int.h"
 
 //#define DEBUG_ALLOC
@@ -422,6 +423,9 @@ typedef struct BDRVQcow2State {
     Qcow2CompressionType compression_type;
 
     GHashTable *inflight_writes_counters;
+
+    SeqCache *compressed_cache;
+    int compressed_flush_ret;
 } BDRVQcow2State;
 
 typedef struct Qcow2COWRegion {
