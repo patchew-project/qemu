@@ -507,6 +507,7 @@ static int raw_probe(const uint8_t *buf, int buf_size, const char *filename)
 static int raw_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz)
 {
     BDRVRawState *s = bs->opaque;
+    uint32_t size;
     int ret;
 
     ret = bdrv_probe_blocksizes(bs->file->bs, bsz);
@@ -514,7 +515,8 @@ static int raw_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz)
         return ret;
     }
 
-    if (!QEMU_IS_ALIGNED(s->offset, MAX(bsz->log, bsz->phys))) {
+    size = MAX(bsz->log, bsz->phys);
+    if (size && !QEMU_IS_ALIGNED(s->offset, size)) {
         return -ENOTSUP;
     }
 

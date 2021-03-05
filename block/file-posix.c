@@ -44,6 +44,7 @@
 #if defined(__APPLE__) && (__MACH__)
 #include <paths.h>
 #include <sys/param.h>
+#include <sys/mount.h>
 #include <IOKit/IOKitLib.h>
 #include <IOKit/IOBSD.h>
 #include <IOKit/storage/IOMediaBSDClient.h>
@@ -1292,6 +1293,8 @@ static int hdev_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz)
     if (check_for_dasd(s->fd) < 0) {
         return -ENOTSUP;
     }
+    bsz->opt_io = 0;
+    bsz->discard_granularity = -1;
     ret = probe_logical_blocksize(s->fd, &bsz->log);
     if (ret < 0) {
         return ret;
@@ -1586,6 +1589,7 @@ out:
     }
 }
 
+G_GNUC_UNUSED
 static int translate_err(int err)
 {
     if (err == -ENODEV || err == -ENOSYS || err == -EOPNOTSUPP ||
@@ -1795,16 +1799,27 @@ static int handle_aiocb_discard(void *opaque)
             }
         } while (errno == EINTR);
 
-        ret = -errno;
+        ret = translate_err(-errno);
 #endif
     } else {
 #ifdef CONFIG_FALLOCATE_PUNCH_HOLE
         ret = do_fallocate(s->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
                            aiocb->aio_offset, aiocb->aio_nbytes);
+        ret = translate_err(-errno);
+#elif defined(__APPLE__) && (__MACH__)
+        fpunchhole_t fpunchhole;
+        fpunchhole.fp_flags = 0;
+        fpunchhole.reserved = 0;
+        fpunchhole.fp_offset = aiocb->aio_offset;
+        fpunchhole.fp_length = aiocb->aio_nbytes;
+        if (fcntl(s->fd, F_PUNCHHOLE, &fpunchhole) == -1) {
+            ret = errno == ENODEV ? -ENOTSUP : -errno;
+        } else {
+            ret = 0;
+        }
 #endif
     }
 
-    ret = translate_err(ret);
     if (ret == -ENOTSUP) {
         s->has_discard = false;
     }
@@ -2111,6 +2126,26 @@ static int raw_co_flush_to_disk(BlockDriverState *bs)
     }
 #endif
     return raw_thread_pool_submit(bs, handle_aiocb_flush, &acb);
+}
+
+static int raw_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz)
+{
+#if defined(__APPLE__) && (__MACH__)
+    BDRVRawState *s = bs->opaque;
+    struct statfs buf;
+
+    if (!fstatfs(s->fd, &buf)) {
+        bsz->phys = 0;
+        bsz->log = 0;
+        bsz->opt_io = buf.f_iosize;
+        bsz->discard_granularity = buf.f_bsize;
+        return 0;
+    }
+
+    return -errno;
+#else
+    return -ENOTSUP;
+#endif
 }
 
 static void raw_aio_attach_aio_context(BlockDriverState *bs,
@@ -3247,6 +3282,7 @@ BlockDriver bdrv_file = {
     .bdrv_refresh_limits = raw_refresh_limits,
     .bdrv_io_plug = raw_aio_plug,
     .bdrv_io_unplug = raw_aio_unplug,
+    .bdrv_probe_blocksizes = raw_probe_blocksizes,
     .bdrv_attach_aio_context = raw_aio_attach_aio_context,
 
     .bdrv_co_truncate = raw_co_truncate,

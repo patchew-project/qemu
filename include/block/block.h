@@ -93,6 +93,8 @@ typedef enum {
 typedef struct BlockSizes {
     uint32_t phys;
     uint32_t log;
+    uint32_t discard_granularity;
+    uint32_t opt_io;
 } BlockSizes;
 
 typedef struct HDGeometry {
