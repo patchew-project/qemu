@@ -1988,7 +1988,7 @@ static int ram_save_target_page(RAMState *rs, PageSearchStatus *pss,
 static int ram_save_host_page(RAMState *rs, PageSearchStatus *pss,
                               bool last_stage)
 {
-    int tmppages, pages = 0;
+    int pages = 0;
     size_t pagesize_bits =
         qemu_ram_pagesize(pss->block) >> TARGET_PAGE_BITS;
     unsigned long start_page = pss->page;
@@ -2000,21 +2000,28 @@ static int ram_save_host_page(RAMState *rs, PageSearchStatus *pss,
     }
 
     do {
+        int pages_this_iteration = 0;
+
         /* Check if the page is dirty and send it if it is */
         if (!migration_bitmap_clear_dirty(rs, pss->block, pss->page)) {
             pss->page++;
             continue;
         }
 
-        tmppages = ram_save_target_page(rs, pss, last_stage);
-        if (tmppages < 0) {
-            return tmppages;
+        pages_this_iteration = ram_save_target_page(rs, pss, last_stage);
+        if (pages_this_iteration < 0) {
+            return pages_this_iteration;
         }
 
-        pages += tmppages;
+        pages += pages_this_iteration;
         pss->page++;
-        /* Allow rate limiting to happen in the middle of huge pages */
-        migration_rate_limit();
+        /*
+         * Allow rate limiting to happen in the middle of huge pages if
+         * something is sent in the current iteration.
+         */
+        if (pagesize_bits > 1 && pages_this_iteration > 0) {
+            migration_rate_limit();
+        }
     } while ((pss->page & (pagesize_bits - 1)) &&
              offset_in_ramblock(pss->block,
                                 ((ram_addr_t)pss->page) << TARGET_PAGE_BITS));
