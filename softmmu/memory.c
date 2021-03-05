@@ -2925,7 +2925,7 @@ static void mtree_print_mr_owner(const MemoryRegion *mr)
 }
 
 static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
-                           hwaddr offset,
+                           hwaddr offset, hwaddr base,
                            MemoryRegionListHead *alias_print_queue,
                            bool owner, bool display_disabled)
 {
@@ -2974,7 +2974,7 @@ static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
             qemu_printf(TARGET_FMT_plx "-" TARGET_FMT_plx
                         " (prio %d, %s%s): alias %s @%s " TARGET_FMT_plx
                         "-" TARGET_FMT_plx "%s",
-                        cur_start, cur_end,
+                        cur_start - base, cur_end - base,
                         mr->priority,
                         mr->nonvolatile ? "nv-" : "",
                         memory_region_type((MemoryRegion *)mr),
@@ -2995,7 +2995,7 @@ static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
             }
             qemu_printf(TARGET_FMT_plx "-" TARGET_FMT_plx
                         " (prio %d, %s%s): %s%s",
-                        cur_start, cur_end,
+                        cur_start - base, cur_end - base,
                         mr->priority,
                         mr->nonvolatile ? "nv-" : "",
                         memory_region_type((MemoryRegion *)mr),
@@ -3028,7 +3028,7 @@ static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
     }
 
     QTAILQ_FOREACH(ml, &submr_print_queue, mrqueue) {
-        mtree_print_mr(ml->mr, level + 1, cur_start,
+        mtree_print_mr(ml->mr, level + 1, cur_start, base,
                        alias_print_queue, owner, display_disabled);
     }
 
@@ -3188,14 +3188,15 @@ void mtree_info(bool flatview, bool dispatch_tree, bool owner, bool disabled)
 
     QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
         qemu_printf("address-space: %s\n", as->name);
-        mtree_print_mr(as->root, 1, 0, &ml_head, owner, disabled);
+        mtree_print_mr(as->root, 1, 0, as->root->addr,
+                       &ml_head, owner, disabled);
         qemu_printf("\n");
     }
 
     /* print aliased regions */
     QTAILQ_FOREACH(ml, &ml_head, mrqueue) {
         qemu_printf("memory-region: %s\n", memory_region_name(ml->mr));
-        mtree_print_mr(ml->mr, 1, 0, &ml_head, owner, disabled);
+        mtree_print_mr(ml->mr, 1, 0, 0, &ml_head, owner, disabled);
         qemu_printf("\n");
     }
 
