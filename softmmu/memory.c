@@ -2925,7 +2925,7 @@ static void mtree_print_mr_owner(const MemoryRegion *mr)
 }
 
 static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
-                           hwaddr base,
+                           hwaddr offset,
                            MemoryRegionListHead *alias_print_queue,
                            bool owner, bool display_disabled)
 {
@@ -2939,7 +2939,7 @@ static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
         return;
     }
 
-    cur_start = base + mr->addr;
+    cur_start = offset + mr->addr;
     cur_end = cur_start + MR_SIZE(mr->size);
 
     /*
@@ -2947,7 +2947,7 @@ static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
      * happen normally. When it happens, we dump something to warn the
      * user who is observing this.
      */
-    if (cur_start < base || cur_end < cur_start) {
+    if (cur_start < offset || cur_end < cur_start) {
         qemu_printf("[DETECTED OVERFLOW!] ");
     }
 
