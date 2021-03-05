@@ -2219,6 +2219,7 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
 #ifdef IP_FREEBIND
         case IP_FREEBIND:
 #endif
+        case IP_MULTICAST_IF:
         case IP_MULTICAST_TTL:
         case IP_MULTICAST_LOOP:
             val = 0;
@@ -2265,6 +2266,7 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
         case IPV6_V6ONLY:
         case IPV6_RECVPKTINFO:
         case IPV6_UNICAST_HOPS:
+        case IPV6_MULTICAST_IF:
         case IPV6_MULTICAST_HOPS:
         case IPV6_MULTICAST_LOOP:
         case IPV6_RECVERR:
@@ -2891,6 +2893,7 @@ get_timeout:
 #ifdef IP_FREEBIND
         case IP_FREEBIND:
 #endif
+        case IP_MULTICAST_IF:
         case IP_MULTICAST_TTL:
         case IP_MULTICAST_LOOP:
             if (get_user_u32(len, optlen))
@@ -2926,6 +2929,7 @@ get_timeout:
         case IPV6_V6ONLY:
         case IPV6_RECVPKTINFO:
         case IPV6_UNICAST_HOPS:
+        case IPV6_MULTICAST_IF:
         case IPV6_MULTICAST_HOPS:
         case IPV6_MULTICAST_LOOP:
         case IPV6_RECVERR:
