@@ -823,6 +823,78 @@ static const GuestFDFunctions guestfd_fns[] = {
 #endif
 
 /*
+ * SYS_HEAPINFO is a little weird: "On entry, the PARAMETER REGISTER
+ * contains the address of a pointer to a four-field data block" which
+ * we then fill in. The PARAMETER REGISTER is unchanged.
+ */
+
+struct HeapInfo {
+    target_ulong heap_base;
+    target_ulong heap_limit;
+    target_ulong stack_base;
+    target_ulong stack_limit;
+};
+
+static bool do_heapinfo(CPUState *cs, target_long arg0)
+{
+    target_ulong limit;
+    struct HeapInfo info = {};
+#ifdef CONFIG_USER_ONLY
+    TaskState *ts = cs->opaque;
+#else
+    target_ulong rambase = common_semi_rambase(cs);
+#endif
+
+#ifdef CONFIG_USER_ONLY
+    /*
+     * Some C libraries assume the heap immediately follows .bss, so
+     * allocate it using sbrk.
+     */
+    if (!ts->heap_limit) {
+        abi_ulong ret;
+
+        ts->heap_base = do_brk(0);
+        limit = ts->heap_base + COMMON_SEMI_HEAP_SIZE;
+        /* Try a big heap, and reduce the size if that fails.  */
+        for (;;) {
+            ret = do_brk(limit);
+            if (ret >= limit) {
+                break;
+            }
+            limit = (ts->heap_base >> 1) + (limit >> 1);
+        }
+        ts->heap_limit = limit;
+    }
+
+    info.heap_base = ts->heap_base;
+    info.heap_limit = ts->heap_limit;
+    info.stack_base = ts->stack_base;
+    info.stack_limit = 0; /* Stack limit.  */
+
+    if (copy_to_user(arg0, &info, sizeof(info))) {
+        errno = EFAULT;
+        return  set_swi_errno(cs, -1);
+    }
+#else
+    limit = current_machine->ram_size;
+    /* TODO: Make this use the limit of the loaded application.  */
+    info.heap_base = rambase + limit / 2;
+    info.heap_limit = rambase + limit;
+    info.stack_base = rambase + limit; /* Stack base */
+    info.stack_limit = rambase; /* Stack limit.  */
+
+    if (cpu_memory_rw_debug(cs, arg0, &info, sizeof(info), true)) {
+        errno = EFAULT;
+        return  set_swi_errno(cs, -1);
+    }
+
+#endif
+
+    return 0;
+}
+
+
+/*
  * Do a semihosting call.
  *
  * The specification always says that the "return register" either
@@ -1184,63 +1256,8 @@ target_ulong do_common_semihosting(CPUState *cs)
         }
     case TARGET_SYS_HEAPINFO:
         {
-            target_ulong retvals[4];
-            target_ulong limit;
-            int i;
-#ifdef CONFIG_USER_ONLY
-            TaskState *ts = cs->opaque;
-#else
-            target_ulong rambase = common_semi_rambase(cs);
-#endif
-
             GET_ARG(0);
-
-#ifdef CONFIG_USER_ONLY
-            /*
-             * Some C libraries assume the heap immediately follows .bss, so
-             * allocate it using sbrk.
-             */
-            if (!ts->heap_limit) {
-                abi_ulong ret;
-
-                ts->heap_base = do_brk(0);
-                limit = ts->heap_base + COMMON_SEMI_HEAP_SIZE;
-                /* Try a big heap, and reduce the size if that fails.  */
-                for (;;) {
-                    ret = do_brk(limit);
-                    if (ret >= limit) {
-                        break;
-                    }
-                    limit = (ts->heap_base >> 1) + (limit >> 1);
-                }
-                ts->heap_limit = limit;
-            }
-
-            retvals[0] = ts->heap_base;
-            retvals[1] = ts->heap_limit;
-            retvals[2] = ts->stack_base;
-            retvals[3] = 0; /* Stack limit.  */
-#else
-            limit = current_machine->ram_size;
-            /* TODO: Make this use the limit of the loaded application.  */
-            retvals[0] = rambase + limit / 2;
-            retvals[1] = rambase + limit;
-            retvals[2] = rambase + limit; /* Stack base */
-            retvals[3] = rambase; /* Stack limit.  */
-#endif
-
-            for (i = 0; i < ARRAY_SIZE(retvals); i++) {
-                bool fail;
-
-                fail = SET_ARG(i, retvals[i]);
-
-                if (fail) {
-                    /* Couldn't write back to argument block */
-                    errno = EFAULT;
-                    return set_swi_errno(cs, -1);
-                }
-            }
-            return 0;
+            return do_heapinfo(cs, arg0);
         }
     case TARGET_SYS_EXIT:
     case TARGET_SYS_EXIT_EXTENDED:

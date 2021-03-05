@@ -9,6 +9,7 @@
 
 #define SYS_WRITE0      0x04
 #define SYS_READC       0x07
+#define SYS_HEAPINFO    0x16
 #define SYS_REPORTEXC   0x18
 
 uintptr_t __semi_call(uintptr_t type, uintptr_t arg0)
