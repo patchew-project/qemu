@@ -256,7 +256,7 @@ static void backup_init_bcs_bitmap(BackupBlockJob *job)
 static int coroutine_fn backup_run(Job *job, Error **errp)
 {
     BackupBlockJob *s = container_of(job, BackupBlockJob, common.job);
-    int ret;
+    int ret = 0;
 
     backup_init_bcs_bitmap(s);
 
@@ -298,10 +298,12 @@ static int coroutine_fn backup_run(Job *job, Error **errp)
             job_yield(job);
         }
     } else {
-        return backup_loop(s);
+        ret = backup_loop(s);
     }
 
-    return 0;
+    block_job_final_target_flush(&s->common, s->target_bs, &ret);
+
+    return ret;
 }
 
 static void coroutine_fn backup_pause(Job *job)

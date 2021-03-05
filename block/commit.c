@@ -193,6 +193,8 @@ static int coroutine_fn commit_run(Job *job, Error **errp)
     ret = 0;
 
 out:
+    block_job_final_target_flush(&s->common, blk_bs(s->base), &ret);
+
     qemu_vfree(buf);
 
     return ret;

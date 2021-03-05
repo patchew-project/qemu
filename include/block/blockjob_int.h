@@ -119,4 +119,22 @@ int64_t block_job_ratelimit_get_delay(BlockJob *job, uint64_t n);
 BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
                                         int is_read, int error);
 
+/**
+ * block_job_final_target_flush:
+ * @job: The job to signal an error for if flush failed.
+ * @target_bs: The bs to flush.
+ * @ret: Will be updated (to return code of bdrv_flush()) only if it is zero
+ *       now. This is a bit unusual interface but all callers are comfortable
+ *       with it.
+ *
+ * The function is intended to be called at the end of .run() for any data
+ * copying job.
+ *
+ * There are may be some internal caches in format layers of target,
+ * like compressed_cache in qcow2 format. So we should call flush to
+ * be sure that all data reached the destination protocol layer.
+ */
+void block_job_final_target_flush(BlockJob *job, BlockDriverState *target_bs,
+                                  int *ret);
+
 #endif

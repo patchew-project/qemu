@@ -1095,6 +1095,8 @@ immediate_exit:
     g_free(s->in_flight_bitmap);
     bdrv_dirty_iter_free(s->dbi);
 
+    block_job_final_target_flush(&s->common, blk_bs(s->target), &ret);
+
     if (need_drain) {
         s->in_drain = true;
         bdrv_drained_begin(bs);

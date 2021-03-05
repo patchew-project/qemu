@@ -182,6 +182,8 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
         }
     }
 
+    block_job_final_target_flush(&s->common, s->target_bs, &error);
+
     /* Do not remove the backing file if an error was there but ignored. */
     return error;
 }
