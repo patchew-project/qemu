@@ -3385,3 +3385,9 @@ Performance Tools and Tests
 M: Ahmed Karaman <ahmedkhaledkaraman@gmail.com>
 S: Maintained
 F: scripts/performance/
+
+Sequential Cache
+M: Vladimir Sementsov-Ogievskiy <vsementsov@virtuozzo.com>
+S: Supported
+F: util/seqcache.c
+F: include/qemu/seqcache.h
