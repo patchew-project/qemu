@@ -17,6 +17,7 @@ size_t qemu_mempath_getpagesize(const char *mem_path);
  *  @readonly: true for a read-only mapping, false for read/write.
  *  @shared: map has RAM_SHARED flag.
  *  @is_pmem: map has RAM_PMEM flag.
+ *  @noreserve: map has RAM_NORESERVE flag.
  *  @map_offset: map starts at offset of map_offset from the start of fd
  *
  * Return:
@@ -29,6 +30,7 @@ void *qemu_ram_mmap(int fd,
                     bool readonly,
                     bool shared,
                     bool is_pmem,
+                    bool noreserve,
                     off_t map_offset);
 
 void qemu_ram_munmap(int fd, void *ptr, size_t size);
