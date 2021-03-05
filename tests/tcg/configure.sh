@@ -72,6 +72,12 @@ fi
 : ${cross_cc_x86_64="x86_64-pc-linux-gnu-gcc"}
 : ${cross_cc_cflags_x86_64="-m64"}
 
+# cross as defaults, can be overridden with --cross-as-ARCH
+: ${cross_as_tricore="tricore-as"}
+
+# cross ld defaults, can be overridden with --cross-ld-ARCH
+: ${cross_as_tricore="tricore-ld"}
+
 for target in $target_list; do
   arch=${target%%-*}
   case $arch in
@@ -228,6 +234,18 @@ for target in $target_list; do
     fi
     echo "CROSS_CC_GUEST=$target_compiler" >> $config_target_mak
 
+    eval "target_as=\${cross_as_$i}"
+    if has $target_as; then
+      echo "CROSS_AS_GUEST=$target_as" >> $config_target_mak
+      continue
+    fi
+
+    eval "target_ld=\${cross_ld_$i}"
+    if has $target_ld; then
+      echo "CROSS_LD_GUEST=$target_ld" >> $config_target_mak
+      continue
+    fi
+
     # Test for compiler features for optional tests. We only do this
     # for cross compilers because ensuring the docker containers based
     # compilers is a requirememt for adding a new test that needs a
@@ -261,5 +279,7 @@ for target in $target_list; do
   if test $got_cross_cc = no && test "$container" != no && test -n "$container_image"; then
     echo "DOCKER_IMAGE=$container_image" >> $config_target_mak
     echo "DOCKER_CROSS_CC_GUEST=$container_cross_cc" >> $config_target_mak
+    echo "DOCKER_CROSS_AS_GUEST=$container_cross_as" >> $config_target_mak
+    echo "DOCKER_CROSS_LD_GUEST=$container_cross_ld" >> $config_target_mak
   fi
 done
