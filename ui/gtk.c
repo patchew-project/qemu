@@ -567,7 +567,7 @@ static void gd_switch(DisplayChangeListener *dcl,
     }
     vc->gfx.ds = surface;
 
-    if (surface->format == PIXMAN_x8r8g8b8) {
+    if (surface && surface->format == PIXMAN_x8r8g8b8) {
         /*
          * PIXMAN_x8r8g8b8 == CAIRO_FORMAT_RGB24
          *
@@ -580,7 +580,7 @@ static void gd_switch(DisplayChangeListener *dcl,
              surface_width(surface),
              surface_height(surface),
              surface_stride(surface));
-    } else {
+    } else if (surface) {
         /* Must convert surface, use pixman to do it. */
         vc->gfx.convert = pixman_image_create_bits(PIXMAN_x8r8g8b8,
                                                    surface_width(surface),
