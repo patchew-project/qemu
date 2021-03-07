@@ -460,10 +460,11 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
         }
     } else {
         if (flash) {
-            MemoryRegion *flash_mr = pflash_cfi01_get_memory(flash);
+            MemoryRegion *flash_mr;
             MemoryRegion *flash_io = g_malloc(sizeof(*flash_io));
             uint32_t size = env->config->sysrom.location[0].size;
 
+            flash_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(flash), 0);
             if (board->flash->size - board->flash->boot_base < size) {
                 size = board->flash->size - board->flash->boot_base;
             }
