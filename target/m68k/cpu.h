@@ -505,6 +505,7 @@ enum m68k_features {
     M68K_FEATURE_CHK2,  /* CHK2 insn. (680[2346]0, and CPU32) */
     M68K_FEATURE_MOVEP, /* MOVEP insn. (680[01234]0, and CPU32) */
     M68K_FEATURE_MOVEC, /* MOVEC insn. (from 68010) */
+    M68K_FEATURE_NO_DALIGN, /* Unaligned data accesses (680[2346]0) */
 };
 
 static inline int m68k_feature(CPUM68KState *env, int feature)
