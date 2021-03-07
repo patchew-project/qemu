@@ -984,11 +984,6 @@ BlockBackend *pflash_cfi01_get_blk(PFlashCFI01 *fl)
     return fl->blk;
 }
 
-MemoryRegion *pflash_cfi01_get_memory(PFlashCFI01 *fl)
-{
-    return &fl->mem;
-}
-
 /*
  * Handle -drive if=pflash for machines that use properties.
  * If @dinfo is null, do nothing.
