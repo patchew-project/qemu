@@ -1075,6 +1075,7 @@ static inline uint16_t nvme_check_mdts(NvmeCtrl *n, size_t len)
     uint8_t mdts = n->params.mdts;
 
     if (mdts && len > n->page_size << mdts) {
+        trace_pci_nvme_err_mdts(len);
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
@@ -1945,7 +1946,6 @@ static uint16_t nvme_compare(NvmeCtrl *n, NvmeRequest *req)
 
     status = nvme_check_mdts(n, len);
     if (status) {
-        trace_pci_nvme_err_mdts(nvme_cid(req), len);
         return status;
     }
 
@@ -2048,7 +2048,6 @@ static uint16_t nvme_read(NvmeCtrl *n, NvmeRequest *req)
 
     status = nvme_check_mdts(n, data_size);
     if (status) {
-        trace_pci_nvme_err_mdts(nvme_cid(req), data_size);
         goto invalid;
     }
 
@@ -2116,7 +2115,6 @@ static uint16_t nvme_do_write(NvmeCtrl *n, NvmeRequest *req, bool append,
     if (!wrz) {
         status = nvme_check_mdts(n, data_size);
         if (status) {
-            trace_pci_nvme_err_mdts(nvme_cid(req), data_size);
             goto invalid;
         }
     }
@@ -2610,7 +2608,6 @@ static uint16_t nvme_zone_mgmt_recv(NvmeCtrl *n, NvmeRequest *req)
 
     status = nvme_check_mdts(n, data_size);
     if (status) {
-        trace_pci_nvme_err_mdts(nvme_cid(req), data_size);
         return status;
     }
 
@@ -3052,7 +3049,6 @@ static uint16_t nvme_get_log(NvmeCtrl *n, NvmeRequest *req)
 
     status = nvme_check_mdts(n, len);
     if (status) {
-        trace_pci_nvme_err_mdts(nvme_cid(req), len);
         return status;
     }
 
