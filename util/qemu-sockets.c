@@ -635,9 +635,12 @@ int inet_parse(InetSocketAddress *addr, const char *str, Error **errp)
             return -1;
         }
     } else if (str[0] == '[') {
-        /* IPv6 addr */
+        /*
+         * Probably, but not necessarily, an IPv6 addr.
+         * Note that [127.0.0.1] is also valid.
+         */
         if (sscanf(str, "[%64[^]]]:%32[^,]%n", host, port, &pos) != 2) {
-            error_setg(errp, "error parsing IPv6 address '%s'", str);
+            error_setg(errp, "error parsing address '%s'", str);
             return -1;
         }
     } else {
