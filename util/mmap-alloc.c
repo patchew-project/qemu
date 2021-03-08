@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "qemu/mmap-alloc.h"
 #include "qemu/host-utils.h"
+#include "qemu/error-report.h"
 
 #define HUGETLBFS_MAGIC       0x958458f6
 
@@ -182,6 +183,11 @@ void *qemu_ram_mmap(int fd,
     const size_t guard_pagesize = mmap_guard_pagesize(fd);
     size_t offset, total;
     void *ptr, *guardptr;
+
+    if (mmap_flags & QEMU_RAM_MMAP_NORESERVE) {
+        error_report("Skipping reservation of swap space is not supported");
+        return MAP_FAILED;
+    }
 
     /*
      * Note: this always allocates at least one extra page of virtual address

@@ -15,6 +15,9 @@ size_t qemu_mempath_getpagesize(const char *mem_path);
 /* Map MAP_SYNC|MAP_SHARED_VALIDATE if possible, fallback and warn otherwise. */
 #define QEMU_RAM_MMAP_PMEM          (1 << 2)
 
+/* Map MAP_NORESERVE and fail if not effective. */
+#define QEMU_RAM_MMAP_NORESERVE     (1 << 3)
+
 /**
  * qemu_ram_mmap: mmap the specified file or device.
  *

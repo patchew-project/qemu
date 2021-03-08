@@ -227,9 +227,11 @@ void *qemu_memalign(size_t alignment, size_t size)
 }
 
 /* alloc shared memory pages */
-void *qemu_anon_ram_alloc(size_t size, uint64_t *alignment, bool shared)
+void *qemu_anon_ram_alloc(size_t size, uint64_t *alignment, bool shared,
+                          bool noreserve)
 {
-    const uint32_t mmap_flags = shared ? QEMU_RAM_MMAP_SHARED : 0;
+    const uint32_t mmap_flags = (shared ? QEMU_RAM_MMAP_SHARED : 0) |
+                                (noreserve ? QEMU_RAM_MMAP_NORESERVE : 0);
     size_t align = QEMU_VMALLOC_ALIGN;
     void *ptr = qemu_ram_mmap(-1, size, align, mmap_flags, 0);
 
