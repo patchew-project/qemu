@@ -6,6 +6,15 @@ size_t qemu_fd_getpagesize(int fd);
 
 size_t qemu_mempath_getpagesize(const char *mem_path);
 
+/* Map PROT_READ instead of PROT_READ|PROT_WRITE. */
+#define QEMU_RAM_MMAP_READONLY      (1 << 0)
+
+/* Map MAP_SHARED instead of MAP_PRIVATE. */
+#define QEMU_RAM_MMAP_SHARED        (1 << 1)
+
+/* Map MAP_SYNC|MAP_SHARED_VALIDATE if possible, fallback and warn otherwise. */
+#define QEMU_RAM_MMAP_PMEM          (1 << 2)
+
 /**
  * qemu_ram_mmap: mmap the specified file or device.
  *
@@ -14,9 +23,7 @@ size_t qemu_mempath_getpagesize(const char *mem_path);
  *  @size: the number of bytes to be mmaped
  *  @align: if not zero, specify the alignment of the starting mapping address;
  *          otherwise, the alignment in use will be determined by QEMU.
- *  @readonly: true for a read-only mapping, false for read/write.
- *  @shared: map has RAM_SHARED flag.
- *  @is_pmem: map has RAM_PMEM flag.
+ *  @mmap_flags: QEMU_RAM_MMAP_* flags
  *  @map_offset: map starts at offset of map_offset from the start of fd
  *
  * Return:
@@ -26,9 +33,7 @@ size_t qemu_mempath_getpagesize(const char *mem_path);
 void *qemu_ram_mmap(int fd,
                     size_t size,
                     size_t align,
-                    bool readonly,
-                    bool shared,
-                    bool is_pmem,
+                    uint32_t mmap_flags,
                     off_t map_offset);
 
 void qemu_ram_munmap(int fd, void *ptr, size_t size);
