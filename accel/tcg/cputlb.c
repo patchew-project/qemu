@@ -590,6 +590,24 @@ static void tlb_flush_page_by_mmuidx_async_2(CPUState *cpu,
     g_free(d);
 }
 
+typedef struct {
+    target_ulong addr;
+    unsigned int num_pages;
+    uint16_t idxmap;
+} TLBFlushPageRangeByMMUIdxData;
+
+static void tlb_flush_page_range_by_mmuidx_async_0(CPUState *cpu,
+                                                   run_on_cpu_data data)
+{
+    TLBFlushPageRangeByMMUIdxData *d = data.host_ptr;
+
+    tlb_flush_page_range_by_mmuidx(cpu,
+                                   d->addr,
+                                   d->num_pages,
+                                   d->idxmap);
+    g_free(d);
+}
+
 void tlb_flush_page_by_mmuidx(CPUState *cpu, target_ulong addr, uint16_t idxmap)
 {
     tlb_debug("addr: "TARGET_FMT_lx" mmu_idx:%" PRIx16 "\n", addr, idxmap);
@@ -621,6 +639,55 @@ void tlb_flush_page_by_mmuidx(CPUState *cpu, target_ulong addr, uint16_t idxmap)
 void tlb_flush_page(CPUState *cpu, target_ulong addr)
 {
     tlb_flush_page_by_mmuidx(cpu, addr, ALL_MMUIDX_BITS);
+}
+
+void tlb_flush_page_range_by_mmuidx(CPUState *cpu, target_ulong addr,
+                                    unsigned int num_pages, uint16_t idxmap)
+{
+    int i;
+    int mmu_idx;
+    target_ulong p;
+    CPUArchState *env = cpu->env_ptr;
+
+    /* This should already be page aligned */
+    addr &= TARGET_PAGE_MASK;
+
+    assert_cpu_is_self(cpu);
+
+    tlb_debug("page addr:" TARGET_FMT_lx " mmu_map:0x%x\n", addr, idxmap);
+
+    qemu_spin_lock(&env_tlb(env)->c.lock);
+    for (i = 0; i < num_pages; i++) {
+        for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
+            if ((idxmap >> mmu_idx) & 1) {
+                p = addr + (i * TARGET_PAGE_SIZE);
+                tlb_flush_page_locked(env, mmu_idx, p);
+                tb_flush_jmp_cache(cpu, addr);
+            }
+        }
+    }
+    qemu_spin_unlock(&env_tlb(env)->c.lock);
+}
+
+void tlb_flush_page_range_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
+                                                    target_ulong addr,
+                                                    unsigned int num_pages,
+                                                    uint16_t idxmap)
+{
+    CPUState *dst_cpu;
+    TLBFlushPageRangeByMMUIdxData *d;
+
+    CPU_FOREACH(dst_cpu) {
+        d = g_new(TLBFlushPageRangeByMMUIdxData, 1);
+
+        d->addr = addr;
+        d->num_pages = num_pages;
+        d->idxmap = idxmap;
+
+        async_run_on_cpu(dst_cpu,
+                         tlb_flush_page_range_by_mmuidx_async_0,
+                         RUN_ON_CPU_HOST_PTR(d));
+    }
 }
 
 void tlb_flush_page_by_mmuidx_all_cpus(CPUState *src_cpu, target_ulong addr,
