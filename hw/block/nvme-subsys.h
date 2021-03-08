@@ -20,6 +20,10 @@ typedef struct NvmeNamespace NvmeNamespace;
 typedef struct NvmeSubsystem {
     DeviceState parent_obj;
     uint8_t     subnqn[256];
+
+    NvmeCtrl    *ctrls[NVME_SUBSYS_MAX_CTRLS];
 } NvmeSubsystem;
+
+int nvme_subsys_register_ctrl(NvmeCtrl *n, Error **errp);
 
 #endif /* NVME_SUBSYS_H */
