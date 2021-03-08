@@ -16,6 +16,7 @@
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-net.h"
 #include "chardev/char-fe.h"
+#include "io/channel-socket.h"
 #include "sysemu/kvm.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
@@ -237,7 +238,8 @@ struct vhost_user {
     struct vhost_dev *dev;
     /* Shared between vhost devs of the same virtio device */
     VhostUserState *user;
-    int slave_fd;
+    QIOChannel *slave_ioc;
+    GSource *slave_src;
     NotifierWithReturn postcopy_notifier;
     struct PostCopyFD  postcopy_fd;
     uint64_t           postcopy_client_bases[VHOST_USER_MAX_RAM_SLOTS];
@@ -1441,54 +1443,31 @@ static int vhost_user_slave_handle_vring_host_notifier(struct vhost_dev *dev,
     return 0;
 }
 
-static void slave_read(void *opaque)
+static gboolean slave_read(QIOChannel *ioc, GIOCondition condition,
+                           gpointer opaque)
 {
     struct vhost_dev *dev = opaque;
     struct vhost_user *u = dev->opaque;
     VhostUserHeader hdr = { 0, };
     VhostUserPayload payload = { 0, };
-    int size, ret = 0;
+    ssize_t size;
+    int ret = 0;
     struct iovec iov;
-    struct msghdr msgh;
-    int fd[VHOST_USER_SLAVE_MAX_FDS];
-    char control[CMSG_SPACE(sizeof(fd))];
-    struct cmsghdr *cmsg;
-    int i, fdsize = 0;
-
-    memset(&msgh, 0, sizeof(msgh));
-    msgh.msg_iov = &iov;
-    msgh.msg_iovlen = 1;
-    msgh.msg_control = control;
-    msgh.msg_controllen = sizeof(control);
-
-    memset(fd, -1, sizeof(fd));
+    g_autofree int *fd = NULL;
+    size_t fdsize = 0;
+    int i;
 
     /* Read header */
     iov.iov_base = &hdr;
     iov.iov_len = VHOST_USER_HDR_SIZE;
 
     do {
-        size = recvmsg(u->slave_fd, &msgh, 0);
-    } while (size < 0 && (errno == EINTR || errno == EAGAIN));
+        size = qio_channel_readv_full(ioc, &iov, 1, &fd, &fdsize, NULL);
+    } while (size == QIO_CHANNEL_ERR_BLOCK);
 
     if (size != VHOST_USER_HDR_SIZE) {
         error_report("Failed to read from slave.");
         goto err;
-    }
-
-    if (msgh.msg_flags & MSG_CTRUNC) {
-        error_report("Truncated message.");
-        goto err;
-    }
-
-    for (cmsg = CMSG_FIRSTHDR(&msgh); cmsg != NULL;
-         cmsg = CMSG_NXTHDR(&msgh, cmsg)) {
-            if (cmsg->cmsg_level == SOL_SOCKET &&
-                cmsg->cmsg_type == SCM_RIGHTS) {
-                    fdsize = cmsg->cmsg_len - CMSG_LEN(0);
-                    memcpy(fd, CMSG_DATA(cmsg), fdsize);
-                    break;
-            }
     }
 
     if (hdr.size > VHOST_USER_PAYLOAD_SIZE) {
@@ -1500,8 +1479,8 @@ static void slave_read(void *opaque)
 
     /* Read payload */
     do {
-        size = read(u->slave_fd, &payload, hdr.size);
-    } while (size < 0 && (errno == EINTR || errno == EAGAIN));
+        size = qio_channel_read(ioc, (char *) &payload, hdr.size, NULL);
+    } while (size == QIO_CHANNEL_ERR_BLOCK);
 
     if (size != hdr.size) {
         error_report("Failed to read payload from slave.");
@@ -1517,7 +1496,7 @@ static void slave_read(void *opaque)
         break;
     case VHOST_USER_SLAVE_VRING_HOST_NOTIFIER_MSG:
         ret = vhost_user_slave_handle_vring_host_notifier(dev, &payload.area,
-                                                          fd[0]);
+                                                          fd ? fd[0] : -1);
         break;
     default:
         error_report("Received unexpected msg type: %d.", hdr.request);
@@ -1525,8 +1504,8 @@ static void slave_read(void *opaque)
     }
 
     /* Close the remaining file descriptors. */
-    for (i = 0; i < fdsize; i++) {
-        if (fd[i] != -1) {
+    if (fd) {
+        for (i = 0; i < fdsize; i++) {
             close(fd[i]);
         }
     }
@@ -1551,8 +1530,8 @@ static void slave_read(void *opaque)
         iovec[1].iov_len = hdr.size;
 
         do {
-            size = writev(u->slave_fd, iovec, ARRAY_SIZE(iovec));
-        } while (size < 0 && (errno == EINTR || errno == EAGAIN));
+            size = qio_channel_writev(ioc, iovec, ARRAY_SIZE(iovec), NULL);
+        } while (size == QIO_CHANNEL_ERR_BLOCK);
 
         if (size != VHOST_USER_HDR_SIZE + hdr.size) {
             error_report("Failed to send msg reply to slave.");
@@ -1560,18 +1539,20 @@ static void slave_read(void *opaque)
         }
     }
 
-    return;
+    return G_SOURCE_CONTINUE;
 
 err:
-    qemu_set_fd_handler(u->slave_fd, NULL, NULL, NULL);
-    close(u->slave_fd);
-    u->slave_fd = -1;
-    for (i = 0; i < fdsize; i++) {
-        if (fd[i] != -1) {
+    g_source_destroy(u->slave_src);
+    g_source_unref(u->slave_src);
+    u->slave_src = NULL;
+    object_unref(OBJECT(ioc));
+    u->slave_ioc = NULL;
+    if (fd) {
+        for (i = 0; i < fdsize; i++) {
             close(fd[i]);
         }
     }
-    return;
+    return G_SOURCE_REMOVE;
 }
 
 static int vhost_setup_slave_channel(struct vhost_dev *dev)
@@ -1595,8 +1576,9 @@ static int vhost_setup_slave_channel(struct vhost_dev *dev)
         return -1;
     }
 
-    u->slave_fd = sv[0];
-    qemu_set_fd_handler(u->slave_fd, slave_read, NULL, dev);
+    u->slave_ioc = QIO_CHANNEL(qio_channel_socket_new_fd(sv[0], &error_abort));
+    u->slave_src = qio_channel_add_watch_source(u->slave_ioc, G_IO_IN,
+                                                slave_read, dev, NULL, NULL);
 
     if (reply_supported) {
         msg.hdr.flags |= VHOST_USER_NEED_REPLY_MASK;
@@ -1614,9 +1596,11 @@ static int vhost_setup_slave_channel(struct vhost_dev *dev)
 out:
     close(sv[1]);
     if (ret) {
-        qemu_set_fd_handler(u->slave_fd, NULL, NULL, NULL);
-        close(u->slave_fd);
-        u->slave_fd = -1;
+        g_source_destroy(u->slave_src);
+        g_source_unref(u->slave_src);
+        u->slave_src = NULL;
+        object_unref(OBJECT(u->slave_ioc));
+        u->slave_ioc = NULL;
     }
 
     return ret;
@@ -1853,7 +1837,6 @@ static int vhost_user_backend_init(struct vhost_dev *dev, void *opaque)
 
     u = g_new0(struct vhost_user, 1);
     u->user = opaque;
-    u->slave_fd = -1;
     u->dev = dev;
     dev->opaque = u;
 
@@ -1968,10 +1951,12 @@ static int vhost_user_backend_cleanup(struct vhost_dev *dev)
         close(u->postcopy_fd.fd);
         u->postcopy_fd.handler = NULL;
     }
-    if (u->slave_fd >= 0) {
-        qemu_set_fd_handler(u->slave_fd, NULL, NULL, NULL);
-        close(u->slave_fd);
-        u->slave_fd = -1;
+    if (u->slave_ioc) {
+        g_source_destroy(u->slave_src);
+        g_source_unref(u->slave_src);
+        u->slave_src = NULL;
+        object_unref(OBJECT(u->slave_ioc));
+        u->slave_ioc = NULL;
     }
     g_free(u->region_rb);
     u->region_rb = NULL;
