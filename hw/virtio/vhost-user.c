@@ -294,15 +294,27 @@ static int vhost_user_read_header(struct vhost_dev *dev, VhostUserMsg *msg)
     return 0;
 }
 
-static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
+struct vhost_user_read_cb_data {
+    struct vhost_dev *dev;
+    VhostUserMsg *msg;
+    GMainLoop *loop;
+    int ret;
+};
+
+static gboolean vhost_user_read_cb(GIOChannel *source, GIOCondition condition,
+                                   gpointer opaque)
 {
+    struct vhost_user_read_cb_data *data = opaque;
+    struct vhost_dev *dev = data->dev;
+    VhostUserMsg *msg = data->msg;
     struct vhost_user *u = dev->opaque;
     CharBackend *chr = u->user->chr;
     uint8_t *p = (uint8_t *) msg;
     int r, size;
 
     if (vhost_user_read_header(dev, msg) < 0) {
-        return -1;
+        data->ret = -1;
+        goto end;
     }
 
     /* validate message size is sane */
@@ -310,7 +322,8 @@ static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
         error_report("Failed to read msg header."
                 " Size %d exceeds the maximum %zu.", msg->hdr.size,
                 VHOST_USER_PAYLOAD_SIZE);
-        return -1;
+        data->ret = -1;
+        goto end;
     }
 
     if (msg->hdr.size) {
@@ -320,11 +333,47 @@ static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
         if (r != size) {
             error_report("Failed to read msg payload."
                          " Read %d instead of %d.", r, msg->hdr.size);
-            return -1;
+            data->ret = -1;
+            goto end;
         }
     }
 
-    return 0;
+end:
+    g_main_loop_quit(data->loop);
+    return G_SOURCE_REMOVE;
+}
+
+static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
+{
+    struct vhost_user *u = dev->opaque;
+    CharBackend *chr = u->user->chr;
+    GMainContext *prev_ctxt = chr->chr->gcontext;
+    GMainContext *ctxt = g_main_context_new();
+    GMainLoop *loop = g_main_loop_new(ctxt, FALSE);
+    struct vhost_user_read_cb_data data = {
+        .dev = dev,
+        .loop = loop,
+        .msg = msg,
+        .ret = 0
+    };
+
+    /* Switch context and add a new watch to monitor chardev activity */
+    qemu_chr_be_update_read_handlers(chr->chr, ctxt);
+    qemu_chr_fe_add_watch(chr, G_IO_IN | G_IO_HUP, vhost_user_read_cb, &data);
+
+    g_main_loop_run(loop);
+
+    /*
+     * Restore the previous context. This also destroys/recreates event
+     * sources : this guarantees that all pending events in the original
+     * context that have been processed by the nested loop are purged.
+     */
+    qemu_chr_be_update_read_handlers(chr->chr, prev_ctxt);
+
+    g_main_loop_unref(loop);
+    g_main_context_unref(ctxt);
+
+    return data.ret;
 }
 
 static int process_message_reply(struct vhost_dev *dev,
