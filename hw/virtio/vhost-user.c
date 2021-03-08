@@ -345,6 +345,9 @@ end:
     return G_SOURCE_REMOVE;
 }
 
+static gboolean slave_read(QIOChannel *ioc, GIOCondition condition,
+                           gpointer opaque);
+
 static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
 {
     struct vhost_user *u = dev->opaque;
@@ -352,6 +355,7 @@ static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
     GMainContext *prev_ctxt = chr->chr->gcontext;
     GMainContext *ctxt = g_main_context_new();
     GMainLoop *loop = g_main_loop_new(ctxt, FALSE);
+    GSource *slave_src = NULL;
     struct vhost_user_read_cb_data data = {
         .dev = dev,
         .loop = loop,
@@ -363,7 +367,29 @@ static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
     qemu_chr_be_update_read_handlers(chr->chr, ctxt);
     qemu_chr_fe_add_watch(chr, G_IO_IN | G_IO_HUP, vhost_user_read_cb, &data);
 
+    if (u->slave_ioc) {
+        /*
+         * This guarantees that all pending events in the main context
+         * for the slave channel are purged. They will be re-detected
+         * and processed now by the nested loop.
+         */
+        g_source_destroy(u->slave_src);
+        g_source_unref(u->slave_src);
+        u->slave_src = NULL;
+        slave_src = qio_channel_add_watch_source(u->slave_ioc, G_IO_IN,
+                                                 slave_read, dev, NULL,
+                                                 ctxt);
+    }
+
     g_main_loop_run(loop);
+
+    if (u->slave_ioc) {
+        g_source_destroy(slave_src);
+        g_source_unref(slave_src);
+        u->slave_src = qio_channel_add_watch_source(u->slave_ioc, G_IO_IN,
+                                                    slave_read, dev, NULL,
+                                                    NULL);
+    }
 
     /*
      * Restore the previous context. This also destroys/recreates event
@@ -371,6 +397,7 @@ static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
      * context that have been processed by the nested loop are purged.
      */
     qemu_chr_be_update_read_handlers(chr->chr, prev_ctxt);
+
 
     g_main_loop_unref(loop);
     g_main_context_unref(ctxt);
