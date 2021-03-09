@@ -1210,6 +1210,8 @@ target_ulong do_common_semihosting(CPUState *cs)
             retvals[2] = rambase + limit; /* Stack base */
             retvals[3] = rambase; /* Stack limit.  */
 #endif
+            /* The result array is pointed to by arg0 */
+            args = arg0;
 
             for (i = 0; i < ARRAY_SIZE(retvals); i++) {
                 bool fail;
