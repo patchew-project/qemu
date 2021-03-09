@@ -60,6 +60,7 @@ if config_all_devices.has_key('CONFIG_VIRTIO_GPU')
   virtio_gpu_ss.add(when: ['CONFIG_VIRTIO_GPU', 'CONFIG_VIRGL'],
                     if_true: [files('virtio-gpu-3d.c'), pixman, virgl])
   virtio_gpu_ss.add(when: 'CONFIG_VHOST_USER_GPU', if_true: files('vhost-user-gpu.c'))
+  virtio_gpu_ss.add(when: 'CONFIG_FW_CFG_DMA', if_true: files('virtio-ramfb.c'))
   hw_display_modules += {'virtio-gpu': virtio_gpu_ss}
 endif
 
