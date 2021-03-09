@@ -407,23 +407,21 @@ _eth_get_rss_ex_dst_addr(const struct iovec *pkt, int pkt_frags,
 {
     size_t input_size = iov_size(pkt, pkt_frags);
     struct ip6_ext_hdr_routing *rthdr;
+    size_t bytes_read;
 
     if (input_size < ext_hdr_offset + sizeof(*rthdr)) {
         return false;
     }
     rthdr = (struct ip6_ext_hdr_routing *) ext_hdr;
 
-    if ((rthdr->rtype == 2) && (rthdr->segleft == 1)) {
-        size_t bytes_read;
-
-        bytes_read = iov_to_buf(pkt, pkt_frags,
-                                ext_hdr_offset + sizeof(*ext_hdr),
-                                dst_addr, sizeof(*dst_addr));
-
-        return bytes_read == sizeof(*dst_addr);
+    if ((rthdr->rtype != 2) || (rthdr->segleft != 1)) {
+        return false;
     }
 
-    return false;
+    bytes_read = iov_to_buf(pkt, pkt_frags, ext_hdr_offset + sizeof(*ext_hdr),
+                            dst_addr, sizeof(*dst_addr));
+
+    return bytes_read == sizeof(*dst_addr);
 }
 
 static bool
