@@ -405,11 +405,10 @@ _eth_get_rss_ex_dst_addr(const struct iovec *pkt, int pkt_frags,
                         struct ip6_ext_hdr *ext_hdr,
                         struct in6_address *dst_addr)
 {
+    size_t input_size = iov_size(pkt, pkt_frags);
     struct ip6_ext_hdr_routing *rthdr = (struct ip6_ext_hdr_routing *) ext_hdr;
 
     if ((rthdr->rtype == 2) && (rthdr->segleft == 1)) {
-
-        size_t input_size = iov_size(pkt, pkt_frags);
         size_t bytes_read;
 
         if (input_size < ext_hdr_offset + sizeof(*ext_hdr)) {
