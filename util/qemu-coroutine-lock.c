@@ -356,24 +356,20 @@ void qemu_co_rwlock_unlock(CoRwlock *lock)
     Coroutine *self = qemu_coroutine_self();
 
     assert(qemu_in_coroutine());
-    if (!lock->reader) {
-        /* The critical section started in qemu_co_rwlock_wrlock or
-         * qemu_co_rwlock_upgrade.
-         */
-        qemu_co_queue_restart_all(&lock->wqueue);
-        qemu_co_queue_restart_all(&lock->rqueue);
-    } else {
+    if (lock->reader) {
         self->locks_held--;
 
+        /* Read-side critical sections do not hold lock->mutex. */
         qemu_co_mutex_lock(&lock->mutex);
         lock->reader--;
         assert(lock->reader >= 0);
-        /* If there are no remaining readers wake one waiting writer
-         * or all waiting readers.
-         */
-        if (!lock->reader && !qemu_co_queue_next(&lock->wqueue)) {
-            qemu_co_queue_restart_all(&lock->rqueue);
-        }
+    }
+
+    /* If there are no remaining readers wake one waiting writer or
+     * all waiting readers.
+     */
+    if (!lock->reader && !qemu_co_queue_next(&lock->wqueue)) {
+        qemu_co_queue_restart_all(&lock->rqueue);
     }
     qemu_co_mutex_unlock(&lock->mutex);
 }
