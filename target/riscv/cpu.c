@@ -137,6 +137,14 @@ static void set_feature(CPURISCVState *env, int feature)
     env->features |= (1ULL << feature);
 }
 
+static void set_rnmi_vectors(CPURISCVState *env, int irqvec, int excpvec)
+{
+#ifndef CONFIG_USER_ONLY
+    env->rnmi_irqvec = irqvec;
+    env->rnmi_excpvec = excpvec;
+#endif
+}
+
 static void set_resetvec(CPURISCVState *env, int resetvec)
 {
 #ifndef CONFIG_USER_ONLY
@@ -372,6 +380,23 @@ static void riscv_cpu_disas_set_info(CPUState *s, disassemble_info *info)
     }
 }
 
+#ifndef CONFIG_USER_ONLY
+static void riscv_cpu_set_rnmi(void *opaque, int irq, int level)
+{
+    RISCVCPU *cpu = opaque;
+    CPURISCVState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
+
+    if (level) {
+        env->nmip |= 1 << irq;
+        cpu_interrupt(cs, CPU_INTERRUPT_RNMI);
+    } else {
+        env->nmip &= ~(1 << irq);
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_RNMI);
+    }
+}
+#endif
+
 static void riscv_cpu_realize(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -414,6 +439,16 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
     }
 
     set_resetvec(env, cpu->cfg.resetvec);
+
+    if (cpu->cfg.rnmi) {
+        set_feature(env, RISCV_FEATURE_RNMI);
+        set_rnmi_vectors(env, cpu->cfg.rnmi_irqvec, cpu->cfg.rnmi_excpvec);
+#ifndef CONFIG_USER_ONLY
+        env->nmie = true;
+        qdev_init_gpio_in_named(DEVICE(cpu), riscv_cpu_set_rnmi,
+                                "rnmi", TARGET_LONG_BITS);
+#endif
+    }
 
     /* If only XLEN is set for misa, then set misa from properties */
     if (env->misa == RV32 || env->misa == RV64) {
@@ -554,6 +589,11 @@ static Property riscv_cpu_properties[] = {
     DEFINE_PROP_BOOL("mmu", RISCVCPU, cfg.mmu, true),
     DEFINE_PROP_BOOL("pmp", RISCVCPU, cfg.pmp, true),
     DEFINE_PROP_UINT64("resetvec", RISCVCPU, cfg.resetvec, DEFAULT_RSTVEC),
+    DEFINE_PROP_BOOL("rnmi", RISCVCPU, cfg.rnmi, false),
+    DEFINE_PROP_UINT64("rnmi_irqvec", RISCVCPU, cfg.rnmi_irqvec,
+                       DEFAULT_RNMI_IRQVEC),
+    DEFINE_PROP_UINT64("rnmi_excpvec", RISCVCPU, cfg.rnmi_excpvec,
+                       DEFAULT_RNMI_EXCPVEC),
     DEFINE_PROP_END_OF_LIST(),
 };
 

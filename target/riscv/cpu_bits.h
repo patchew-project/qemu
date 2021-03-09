@@ -166,6 +166,12 @@
 #define CSR_MTVAL           0x343
 #define CSR_MIP             0x344
 
+/* NMI */
+#define CSR_MNSCRATCH       0x350
+#define CSR_MNEPC           0x351
+#define CSR_MNCAUSE         0x352
+#define CSR_MNSTATUS        0x353
+
 /* Legacy Machine Trap Handling (priv v1.9.1) */
 #define CSR_MBADADDR        0x343
 
@@ -526,6 +532,12 @@
 /* Default Reset Vector adress */
 #define DEFAULT_RSTVEC      0x1000
 
+/* Default RNMI Interrupt Vector address */
+#define DEFAULT_RNMI_IRQVEC     0x1000
+
+/* Default RNMI Exception Vector address */
+#define DEFAULT_RNMI_EXCPVEC    0x1000
+
 /* Exception causes */
 #define EXCP_NONE                                -1 /* sentinel value */
 #define RISCV_EXCP_INST_ADDR_MIS                 0x0
@@ -551,6 +563,9 @@
 
 #define RISCV_EXCP_INT_FLAG                0x80000000
 #define RISCV_EXCP_INT_MASK                0x7fffffff
+
+/* RNMI mnstatus CSR mask */
+#define MNSTATUS_MPP                       MSTATUS_MPP
 
 /* Interrupt causes */
 #define IRQ_U_SOFT                         0
@@ -592,4 +607,8 @@
 #define MIE_UTIE                           (1 << IRQ_U_TIMER)
 #define MIE_SSIE                           (1 << IRQ_S_SOFT)
 #define MIE_USIE                           (1 << IRQ_U_SOFT)
+
+/* RISC-V-specific interrupt pending bits */
+#define CPU_INTERRUPT_RNMI                 CPU_INTERRUPT_TGT_EXT_0
+
 #endif

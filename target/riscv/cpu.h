@@ -80,7 +80,8 @@
 enum {
     RISCV_FEATURE_MMU,
     RISCV_FEATURE_PMP,
-    RISCV_FEATURE_MISA
+    RISCV_FEATURE_MISA,
+    RISCV_FEATURE_RNMI,
 };
 
 #define PRIV_VERSION_1_10_0 0x00011000
@@ -177,6 +178,16 @@ struct CPURISCVState {
     target_ulong mepc;
     target_ulong mcause;
     target_ulong mtval;  /* since: priv-1.10.0 */
+
+    /* NMI */
+    target_ulong mnscratch;
+    target_ulong mnepc;
+    target_ulong mncause; /* mncause without bit XLEN-1 set to 1 */
+    target_ulong mnstatus;
+    bool nmie;
+    target_ulong nmip;
+    target_ulong rnmi_irqvec;
+    target_ulong rnmi_excpvec;
 
     /* Hypervisor CSRs */
     target_ulong hstatus;
@@ -300,6 +311,9 @@ struct RISCVCPU {
         bool mmu;
         bool pmp;
         uint64_t resetvec;
+        bool rnmi;
+        uint64_t rnmi_irqvec;
+        uint64_t rnmi_excpvec;
     } cfg;
 };
 

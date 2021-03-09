@@ -38,6 +38,19 @@ int riscv_cpu_mmu_index(CPURISCVState *env, bool ifetch)
 #ifndef CONFIG_USER_ONLY
 static int riscv_cpu_local_irq_pending(CPURISCVState *env)
 {
+    if (riscv_feature(env, RISCV_FEATURE_RNMI)) {
+        /* Priority: RNMI > Other interrupt. */
+        if (env->nmip && env->nmie) {
+            return ctz64(env->nmip); /* since non-zero */
+        } else if (!env->nmie) {
+            /*
+             * We are already in RNMI handler,
+             * other interrupts cannot preempt.
+             */
+            return EXCP_NONE;
+        }
+    }
+
     target_ulong irqs;
 
     target_ulong mstatus_mie = get_field(env->mstatus, MSTATUS_MIE);
@@ -80,7 +93,8 @@ static int riscv_cpu_local_irq_pending(CPURISCVState *env)
 bool riscv_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
 #if !defined(CONFIG_USER_ONLY)
-    if (interrupt_request & CPU_INTERRUPT_HARD) {
+    if (interrupt_request &
+            (CPU_INTERRUPT_HARD | CPU_INTERRUPT_RNMI)) {
         RISCVCPU *cpu = RISCV_CPU(cs);
         CPURISCVState *env = &cpu->env;
         int interruptno = riscv_cpu_local_irq_pending(env);
@@ -847,6 +861,23 @@ void riscv_cpu_do_interrupt(CPUState *cs)
     target_ulong tval = 0;
     target_ulong htval = 0;
     target_ulong mtval2 = 0;
+    target_ulong nextpc;
+    bool nmi_execp = false;
+
+    if (riscv_feature(env, RISCV_FEATURE_RNMI)) {
+        nmi_execp = !env->nmie && !async;
+
+        if (env->nmip && async) {
+            env->nmie = false;
+            env->mnstatus = set_field(env->mnstatus, MSTATUS_MPP,
+                                      env->priv);
+            env->mncause = cause;
+            env->mnepc = env->pc;
+            env->pc = env->rnmi_irqvec;
+            riscv_cpu_set_mode(env, PRV_M);
+            goto handled;
+        }
+    }
 
     if  (cause == RISCV_EXCP_SEMIHOST) {
         if (env->priv >= PRV_S) {
@@ -905,7 +936,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
                   __func__, env->mhartid, async, cause, env->pc, tval,
                   riscv_cpu_get_trap_name(cause, async));
 
-    if (env->priv <= PRV_S &&
+    if (env->priv <= PRV_S && !nmi_execp &&
             cause < TARGET_LONG_BITS && ((deleg >> cause) & 1)) {
         /* handle the trap in S-mode */
         if (riscv_has_ext(env, RVH)) {
@@ -1005,8 +1036,15 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         env->mepc = env->pc;
         env->mbadaddr = tval;
         env->mtval2 = mtval2;
-        env->pc = (env->mtvec >> 2 << 2) +
-            ((async && (env->mtvec & 3) == 1) ? cause * 4 : 0);
+
+        if (nmi_execp) {
+            nextpc = env->rnmi_excpvec;
+        } else {
+            nextpc = (env->mtvec >> 2 << 2) +
+                ((async && (env->mtvec & 3) == 1) ? cause * 4 : 0);
+        }
+        env->pc = nextpc;
+
         riscv_cpu_set_mode(env, PRV_M);
     }
 
@@ -1016,6 +1054,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
      * RISC-V ISA Specification.
      */
 
+handled:
 #endif
     cs->exception_index = EXCP_NONE; /* mark handled to qemu */
 }

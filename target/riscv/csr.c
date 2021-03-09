@@ -188,6 +188,11 @@ static int pmp(CPURISCVState *env, int csrno)
 {
     return -!riscv_feature(env, RISCV_FEATURE_PMP);
 }
+
+static int nmi(CPURISCVState *env, int csrno)
+{
+    return -!riscv_feature(env, RISCV_FEATURE_RNMI);
+}
 #endif
 
 /* User Floating-Point CSRs */
@@ -709,6 +714,54 @@ static int read_mbadaddr(CPURISCVState *env, int csrno, target_ulong *val)
 static int write_mbadaddr(CPURISCVState *env, int csrno, target_ulong val)
 {
     env->mbadaddr = val;
+    return 0;
+}
+
+static int read_mnscratch(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = env->mnscratch;
+    return 0;
+}
+
+static int write_mnscratch(CPURISCVState *env, int csrno, target_ulong val)
+{
+    env->mnscratch = val;
+    return 0;
+}
+
+static int read_mnepc(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = env->mnepc;
+    return 0;
+}
+
+static int write_mnepc(CPURISCVState *env, int csrno, target_ulong val)
+{
+    env->mnepc = val;
+    return 0;
+}
+
+static int read_mncause(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = env->mncause;
+    return 0;
+}
+
+static int write_mncause(CPURISCVState *env, int csrno, target_ulong val)
+{
+    env->mncause = val;
+    return 0;
+}
+
+static int read_mnstatus(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = env->mnstatus;
+    return 0;
+}
+
+static int write_mnstatus(CPURISCVState *env, int csrno, target_ulong val)
+{
+    env->mnstatus = val & MNSTATUS_MPP;
     return 0;
 }
 
@@ -1426,6 +1479,12 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MCAUSE]   = { "mcause",   any,  read_mcause,   write_mcause   },
     [CSR_MBADADDR] = { "mbadaddr", any,  read_mbadaddr, write_mbadaddr },
     [CSR_MIP]      = { "mip",      any,  NULL,    NULL, rmw_mip        },
+
+    /* NMI */
+    [CSR_MNSCRATCH] = { "mnscratch", nmi, read_mnscratch, write_mnscratch },
+    [CSR_MNEPC]     = { "mnepc",     nmi, read_mnepc,     write_mnepc     },
+    [CSR_MNCAUSE]   = { "mncause",   nmi, read_mncause,   write_mncause   },
+    [CSR_MNSTATUS]  = { "mnstatus",  nmi, read_mnstatus,  write_mnstatus  },
 
     /* Supervisor Trap Setup */
     [CSR_SSTATUS]    = { "sstatus",    smode, read_sstatus,    write_sstatus    },
