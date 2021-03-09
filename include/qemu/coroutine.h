@@ -241,7 +241,8 @@ typedef struct CoRwlock {
     int pending_writer;
     int reader;
     CoMutex mutex;
-    CoQueue queue;
+    CoQueue rqueue;
+    CoQueue wqueue;
 } CoRwlock;
 
 /**
@@ -283,8 +284,9 @@ void qemu_co_rwlock_downgrade(CoRwlock *lock);
 void qemu_co_rwlock_wrlock(CoRwlock *lock);
 
 /**
- * Unlocks the read/write lock and schedules the next coroutine that was
- * waiting for this lock to be run.
+ * Unlocks the read/write lock and schedules the next coroutine that
+ * was waiting for this lock to be run, preferring to wake one
+ * attempting to take a write lock over those taking a read lock.
  */
 void qemu_co_rwlock_unlock(CoRwlock *lock);
 
