@@ -793,6 +793,14 @@ MLS_zzxz_h      01000100 .. 1 ..... 000011 ..... .....          @rrxr_h
 MLS_zzxz_s      01000100 .. 1 ..... 000011 ..... .....          @rrxr_s
 MLS_zzxz_d      01000100 .. 1 ..... 000011 ..... .....          @rrxr_d
 
+# SVE2 saturating multiply-add high (indexed)
+SQRDMLAH_zzxz_h 01000100 .. 1 ..... 000100 ..... .....          @rrxr_h
+SQRDMLAH_zzxz_s 01000100 .. 1 ..... 000100 ..... .....          @rrxr_s
+SQRDMLAH_zzxz_d 01000100 .. 1 ..... 000100 ..... .....          @rrxr_d
+SQRDMLSH_zzxz_h 01000100 .. 1 ..... 000101 ..... .....          @rrxr_h
+SQRDMLSH_zzxz_s 01000100 .. 1 ..... 000101 ..... .....          @rrxr_s
+SQRDMLSH_zzxz_d 01000100 .. 1 ..... 000101 ..... .....          @rrxr_d
+
 # SVE2 integer multiply (indexed)
 MUL_zzx_h       01000100 .. 1 ..... 111110 ..... .....          @rrx_h
 MUL_zzx_s       01000100 .. 1 ..... 111110 ..... .....          @rrx_s
