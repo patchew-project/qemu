@@ -193,6 +193,14 @@ static void pflash_mode_read_array(PFlashCFI02 *pfl)
     memory_region_rom_device_set_romd(&pfl->orig_mem, true);
 }
 
+static void pflash_cfi02_reset(DeviceState *dev)
+{
+    PFlashCFI02 *pfl = PFLASH_CFI02(dev);
+
+    trace_pflash_reset();
+    pflash_mode_read_array(pfl);
+}
+
 static size_t pflash_regions_count(PFlashCFI02 *pfl)
 {
     return pfl->cfi_table[0x2c];
@@ -330,8 +338,7 @@ static uint64_t pflash_read(void *opaque, hwaddr offset, unsigned int width)
     default:
         /* This should never happen : reset state & treat it as a read*/
         DPRINTF("%s: unknown command state: %x\n", __func__, pfl->cmd);
-        pfl->wcycle = 0;
-        pfl->cmd = 0;
+        pflash_cfi02_reset(DEVICE(pfl));
         /* fall through to the read code */
     case 0x80: /* Erase (unlock) */
         /* We accept reads during second unlock sequence... */
@@ -710,10 +717,8 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
 
     /* Reset flash */
  reset_flash:
-    trace_pflash_reset();
     pfl->bypass = 0;
-    pfl->wcycle = 0;
-    pfl->cmd = 0;
+    pflash_cfi02_reset(DEVICE(pfl));
     return;
 
  do_bypass:
@@ -977,6 +982,7 @@ static void pflash_cfi02_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = pflash_cfi02_realize;
+    dc->reset = pflash_cfi02_reset;
     dc->unrealize = pflash_cfi02_unrealize;
     device_class_set_props(dc, pflash_cfi02_properties);
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
