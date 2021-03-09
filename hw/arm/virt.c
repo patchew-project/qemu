@@ -2547,14 +2547,13 @@ static int virt_kvm_type(MachineState *ms, const char *type_str)
                      "require an IPA range (%d bits) larger than "
                      "the one supported by the host (%d bits)",
                      requested_pa_size, max_vm_pa_size);
-       exit(1);
+        exit(1);
     }
+
     /*
-     * By default we return 0 which corresponds to an implicit legacy
-     * 40b IPA setting. Otherwise we return the actual requested PA
-     * logsize
+     * KVM requires the IPA size to be at least 32 bits.
      */
-    return requested_pa_size > 40 ? requested_pa_size : 0;
+    return requested_pa_size < 32 ? 32 : requested_pa_size;
 }
 
 static void virt_machine_class_init(ObjectClass *oc, void *data)
