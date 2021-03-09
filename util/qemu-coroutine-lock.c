@@ -330,7 +330,8 @@ void coroutine_fn qemu_co_mutex_unlock(CoMutex *mutex)
 void qemu_co_rwlock_init(CoRwlock *lock)
 {
     memset(lock, 0, sizeof(*lock));
-    qemu_co_queue_init(&lock->queue);
+    qemu_co_queue_init(&lock->rqueue);
+    qemu_co_queue_init(&lock->wqueue);
     qemu_co_mutex_init(&lock->mutex);
 }
 
@@ -341,7 +342,7 @@ void qemu_co_rwlock_rdlock(CoRwlock *lock)
     qemu_co_mutex_lock(&lock->mutex);
     /* For fairness, wait if a writer is in line.  */
     while (lock->pending_writer) {
-        qemu_co_queue_wait(&lock->queue, &lock->mutex);
+        qemu_co_queue_wait(&lock->rqueue, &lock->mutex);
     }
     lock->reader++;
     qemu_co_mutex_unlock(&lock->mutex);
@@ -356,17 +357,22 @@ void qemu_co_rwlock_unlock(CoRwlock *lock)
 
     assert(qemu_in_coroutine());
     if (!lock->reader) {
-        /* The critical section started in qemu_co_rwlock_wrlock.  */
-        qemu_co_queue_restart_all(&lock->queue);
+        /* The critical section started in qemu_co_rwlock_wrlock or
+         * qemu_co_rwlock_upgrade.
+         */
+        qemu_co_queue_restart_all(&lock->wqueue);
+        qemu_co_queue_restart_all(&lock->rqueue);
     } else {
         self->locks_held--;
 
         qemu_co_mutex_lock(&lock->mutex);
         lock->reader--;
         assert(lock->reader >= 0);
-        /* Wakeup only one waiting writer */
-        if (!lock->reader) {
-            qemu_co_queue_next(&lock->queue);
+        /* If there are no remaining readers wake one waiting writer
+         * or all waiting readers.
+         */
+        if (!lock->reader && !qemu_co_queue_next(&lock->wqueue)) {
+            qemu_co_queue_restart_all(&lock->rqueue);
         }
     }
     qemu_co_mutex_unlock(&lock->mutex);
@@ -392,7 +398,7 @@ void qemu_co_rwlock_wrlock(CoRwlock *lock)
     qemu_co_mutex_lock(&lock->mutex);
     lock->pending_writer++;
     while (lock->reader) {
-        qemu_co_queue_wait(&lock->queue, &lock->mutex);
+        qemu_co_queue_wait(&lock->wqueue, &lock->mutex);
     }
     lock->pending_writer--;
 
@@ -411,7 +417,7 @@ void qemu_co_rwlock_upgrade(CoRwlock *lock)
     lock->reader--;
     lock->pending_writer++;
     while (lock->reader) {
-        qemu_co_queue_wait(&lock->queue, &lock->mutex);
+        qemu_co_queue_wait(&lock->wqueue, &lock->mutex);
     }
     lock->pending_writer--;
 
