@@ -134,7 +134,7 @@ check-acceptance: check-venv $(TESTS_RESULTS_DIR) get-vm-images
 
 # Consolidated targets
 
-.PHONY: check-block check check-clean get-vm-images
+.PHONY: check-block check check-clean get-vm-images check-speed
 check:
 
 ifeq ($(CONFIG_TOOLS)$(CONFIG_POSIX),yy)
@@ -156,6 +156,7 @@ clean: check-clean
 
 # For backwards compatibility
 
-check-speed: bench-speed
+check-speed:
+	$(MAKE) bench-speed
 
 endif
