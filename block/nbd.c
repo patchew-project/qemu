@@ -117,8 +117,6 @@ typedef struct BDRVNBDState {
     Coroutine *connection_co;
     Coroutine *teardown_co;
     QemuCoSleepState *connection_co_sleep_ns_state;
-    bool drained;
-    bool wait_drained_end;
     int in_flight;
     NBDClientState state;
     int connect_status;
@@ -126,6 +124,7 @@ typedef struct BDRVNBDState {
     bool wait_in_flight;
 
     QEMUTimer *reconnect_delay_timer;
+    int64_t reconnect_expire_time_ns;
 
     NBDClientRequest requests[MAX_NBD_REQUESTS];
     NBDReply reply;
@@ -163,6 +162,18 @@ static void nbd_clear_bdrvstate(BDRVNBDState *s)
     s->tlscredsid = NULL;
     g_free(s->x_dirty_bitmap);
     s->x_dirty_bitmap = NULL;
+}
+
+static bool nbd_client_connecting(BDRVNBDState *s)
+{
+    NBDClientState state = qatomic_load_acquire(&s->state);
+    return state == NBD_CLIENT_CONNECTING_WAIT ||
+        state == NBD_CLIENT_CONNECTING_NOWAIT;
+}
+
+static bool nbd_client_connecting_wait(BDRVNBDState *s)
+{
+    return qatomic_load_acquire(&s->state) == NBD_CLIENT_CONNECTING_WAIT;
 }
 
 static void nbd_channel_error(BDRVNBDState *s, int ret)
@@ -217,10 +228,6 @@ static void reconnect_delay_timer_cb(void *opaque)
 
 static void reconnect_delay_timer_init(BDRVNBDState *s, uint64_t expire_time_ns)
 {
-    if (qatomic_load_acquire(&s->state) != NBD_CLIENT_CONNECTING_WAIT) {
-        return;
-    }
-
     assert(!s->reconnect_delay_timer);
     s->reconnect_delay_timer = aio_timer_new(bdrv_get_aio_context(s->bs),
                                              QEMU_CLOCK_REALTIME,
@@ -233,8 +240,20 @@ static void nbd_client_detach_aio_context(BlockDriverState *bs)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
 
-    /* Timer is deleted in nbd_client_co_drain_begin() */
-    assert(!s->reconnect_delay_timer);
+    /*
+     * This runs in the (old, about to be detached) aio context of the @bs so
+     * accessing the stuff on @s is concurrency-free.
+     */
+    assert(qemu_get_current_aio_context() == bdrv_get_aio_context(bs));
+
+    /*
+     * Preserve the expiration time of the reconnect_delay_timer in order to
+     * resume it on the new aio context.
+     */
+    s->reconnect_expire_time_ns = s->reconnect_delay_timer ?
+        timer_expire_time_ns(s->reconnect_delay_timer) : -1;
+    reconnect_delay_timer_del(s);
+
     /*
      * If reconnect is in progress we may have no ->ioc.  It will be
      * re-instantiated in the proper aio context once the connection is
@@ -250,6 +269,16 @@ static void nbd_client_attach_aio_context_bh(void *opaque)
     BlockDriverState *bs = opaque;
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
 
+    /*
+     * This runs in the (new, just attached) aio context of the @bs so
+     * accessing the stuff on @s is concurrency-free.
+     */
+    assert(qemu_get_current_aio_context() == bdrv_get_aio_context(bs));
+
+    if (nbd_client_connecting_wait(s) && s->reconnect_expire_time_ns >= 0) {
+        reconnect_delay_timer_init(s, s->reconnect_expire_time_ns);
+    }
+
     if (s->connection_co) {
         /*
          * The node is still drained, so we know the coroutine has yielded in
@@ -259,7 +288,6 @@ static void nbd_client_attach_aio_context_bh(void *opaque)
          */
         qemu_aio_coroutine_enter(bs->aio_context, s->connection_co);
     }
-    bdrv_dec_in_flight(bs);
 }
 
 static void nbd_client_attach_aio_context(BlockDriverState *bs,
@@ -275,7 +303,6 @@ static void nbd_client_attach_aio_context(BlockDriverState *bs,
         qio_channel_attach_aio_context(QIO_CHANNEL(s->ioc), new_context);
     }
 
-    bdrv_inc_in_flight(bs);
 
     /*
      * Need to wait here for the BH to run because the BH must run while the
@@ -283,37 +310,6 @@ static void nbd_client_attach_aio_context(BlockDriverState *bs,
      */
     aio_wait_bh_oneshot(new_context, nbd_client_attach_aio_context_bh, bs);
 }
-
-static void coroutine_fn nbd_client_co_drain_begin(BlockDriverState *bs)
-{
-    BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
-
-    s->drained = true;
-    if (s->connection_co_sleep_ns_state) {
-        qemu_co_sleep_wake(s->connection_co_sleep_ns_state);
-    }
-
-    nbd_co_establish_connection_cancel(bs, false);
-
-    reconnect_delay_timer_del(s);
-
-    if (qatomic_load_acquire(&s->state) == NBD_CLIENT_CONNECTING_WAIT) {
-        s->state = NBD_CLIENT_CONNECTING_NOWAIT;
-        qemu_co_queue_restart_all(&s->free_sema);
-    }
-}
-
-static void coroutine_fn nbd_client_co_drain_end(BlockDriverState *bs)
-{
-    BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
-
-    s->drained = false;
-    if (s->wait_drained_end) {
-        s->wait_drained_end = false;
-        aio_co_wake(s->connection_co);
-    }
-}
-
 
 static void nbd_teardown_connection(BlockDriverState *bs)
 {
@@ -344,18 +340,6 @@ static void nbd_teardown_connection(BlockDriverState *bs)
         BDRV_POLL_WHILE(bs, s->connection_co);
     }
     assert(!s->connection_co);
-}
-
-static bool nbd_client_connecting(BDRVNBDState *s)
-{
-    NBDClientState state = qatomic_load_acquire(&s->state);
-    return state == NBD_CLIENT_CONNECTING_WAIT ||
-        state == NBD_CLIENT_CONNECTING_NOWAIT;
-}
-
-static bool nbd_client_connecting_wait(BDRVNBDState *s)
-{
-    return qatomic_load_acquire(&s->state) == NBD_CLIENT_CONNECTING_WAIT;
 }
 
 static void connect_bh(void *opaque)
@@ -624,21 +608,9 @@ static coroutine_fn void nbd_reconnect_attempt(BDRVNBDState *s)
         goto out;
     }
 
-    bdrv_dec_in_flight(s->bs);
 
     ret = nbd_client_handshake(s->bs, &local_err);
 
-    if (s->drained) {
-        s->wait_drained_end = true;
-        while (s->drained) {
-            /*
-             * We may be entered once from nbd_client_attach_aio_context_bh
-             * and then from nbd_client_co_drain_end. So here is a loop.
-             */
-            qemu_coroutine_yield();
-        }
-    }
-    bdrv_inc_in_flight(s->bs);
 
 out:
     s->connect_status = ret;
@@ -666,26 +638,10 @@ static coroutine_fn void nbd_co_reconnect_loop(BDRVNBDState *s)
     nbd_reconnect_attempt(s);
 
     while (nbd_client_connecting(s)) {
-        if (s->drained) {
-            bdrv_dec_in_flight(s->bs);
-            s->wait_drained_end = true;
-            while (s->drained) {
-                /*
-                 * We may be entered once from nbd_client_attach_aio_context_bh
-                 * and then from nbd_client_co_drain_end. So here is a loop.
-                 */
-                qemu_coroutine_yield();
-            }
-            bdrv_inc_in_flight(s->bs);
-        } else {
-            qemu_co_sleep_ns_wakeable(QEMU_CLOCK_REALTIME, timeout,
-                                      &s->connection_co_sleep_ns_state);
-            if (s->drained) {
-                continue;
-            }
-            if (timeout < max_timeout) {
-                timeout *= 2;
-            }
+        qemu_co_sleep_ns_wakeable(QEMU_CLOCK_REALTIME, timeout,
+                                  &s->connection_co_sleep_ns_state);
+        if (timeout < max_timeout) {
+            timeout *= 2;
         }
 
         nbd_reconnect_attempt(s);
@@ -766,7 +722,6 @@ static coroutine_fn void nbd_connection_entry(void *opaque)
 
     qemu_co_queue_restart_all(&s->free_sema);
     nbd_recv_coroutines_wake_all(s);
-    bdrv_dec_in_flight(s->bs);
 
     s->connection_co = NULL;
     if (s->ioc) {
@@ -2314,7 +2269,6 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
     nbd_init_connect_thread(s);
 
     s->connection_co = qemu_coroutine_create(nbd_connection_entry, s);
-    bdrv_inc_in_flight(bs);
     aio_co_schedule(bdrv_get_aio_context(bs), s->connection_co);
 
     return 0;
@@ -2490,8 +2444,6 @@ static BlockDriver bdrv_nbd = {
     .bdrv_getlength             = nbd_getlength,
     .bdrv_detach_aio_context    = nbd_client_detach_aio_context,
     .bdrv_attach_aio_context    = nbd_client_attach_aio_context,
-    .bdrv_co_drain_begin        = nbd_client_co_drain_begin,
-    .bdrv_co_drain_end          = nbd_client_co_drain_end,
     .bdrv_refresh_filename      = nbd_refresh_filename,
     .bdrv_co_block_status       = nbd_client_co_block_status,
     .bdrv_dirname               = nbd_dirname,
@@ -2519,8 +2471,6 @@ static BlockDriver bdrv_nbd_tcp = {
     .bdrv_getlength             = nbd_getlength,
     .bdrv_detach_aio_context    = nbd_client_detach_aio_context,
     .bdrv_attach_aio_context    = nbd_client_attach_aio_context,
-    .bdrv_co_drain_begin        = nbd_client_co_drain_begin,
-    .bdrv_co_drain_end          = nbd_client_co_drain_end,
     .bdrv_refresh_filename      = nbd_refresh_filename,
     .bdrv_co_block_status       = nbd_client_co_block_status,
     .bdrv_dirname               = nbd_dirname,
@@ -2548,8 +2498,6 @@ static BlockDriver bdrv_nbd_unix = {
     .bdrv_getlength             = nbd_getlength,
     .bdrv_detach_aio_context    = nbd_client_detach_aio_context,
     .bdrv_attach_aio_context    = nbd_client_attach_aio_context,
-    .bdrv_co_drain_begin        = nbd_client_co_drain_begin,
-    .bdrv_co_drain_end          = nbd_client_co_drain_end,
     .bdrv_refresh_filename      = nbd_refresh_filename,
     .bdrv_co_block_status       = nbd_client_co_block_status,
     .bdrv_dirname               = nbd_dirname,
