@@ -631,7 +631,9 @@ static void char_braille_finalize(Object *obj)
 {
     BaumChardev *baum = BAUM_CHARDEV(obj);
 
-    timer_free(baum->cellCount_timer);
+    if (baum->cellCount_timer) {
+        timer_free(baum->cellCount_timer);
+    }
     if (baum->brlapi) {
         brlapi__closeConnection(baum->brlapi);
         g_free(baum->brlapi);
