@@ -291,6 +291,8 @@ _wait_event()
 # $qmp_pretty: Set this variable to 'y' to enable QMP pretty printing.
 # $keep_stderr: Set this variable to 'y' to keep QEMU's stderr output on stderr.
 #               If this variable is empty, stderr will be redirected to stdout.
+# $qsd: Set this variable to 'y' to use the QSD instead of QEMU.
+#       stdout and stderr are never redirected when using the QSD.
 # Returns:
 # $QEMU_HANDLE: set to a handle value to communicate with this QEMU instance.
 #
@@ -300,16 +302,29 @@ _launch_qemu()
     local fifo_out=
     local fifo_in=
 
+    if [[ $qsd = 'y' ]]; then
+        mon_arg='--monitor'
+    else
+        mon_arg='-mon'
+    fi
+
     if (shopt -s nocasematch; [[ "${qemu_comm_method}" == "monitor" ]])
     then
-        comm="-monitor stdio"
+        comm=(--chardev stdio,id=pipe
+              $mon_arg pipe,mode=readline)
     else
         local qemu_comm_method="qmp"
         if [ "$qmp_pretty" = "y" ]; then
-            comm="-monitor none -qmp-pretty stdio"
+            comm=(--chardev stdio,id=pipe
+                  $mon_arg pipe,mode=control,pretty=on)
         else
-            comm="-monitor none -qmp stdio"
+            comm=(--chardev stdio,id=pipe
+                  $mon_arg pipe,mode=control,pretty=off)
         fi
+    fi
+
+    if [[ $qsd != 'y' ]]; then
+        comm=(-monitor none "${comm[@]}")
     fi
 
     fifo_out=${QEMU_FIFO_OUT}_${_QEMU_HANDLE}
@@ -322,15 +337,23 @@ _launch_qemu()
         object_options="--object secret,id=keysec0,data=$IMGKEYSECRET"
     fi
 
+    if [[ $qsd = 'y' ]]; then
+        cmd=$QSD
+        args=()
+    else
+        cmd=$QEMU
+        args=(-nographic -serial none)
+    fi
+    args+=(${object_options} "${comm[@]}")
+    args+=("$@")
+
+    # Just set both QEMU_NEED_PID and QSD_NEED_PID, it can't hurt.
     if [ -z "$keep_stderr" ]; then
-        QEMU_NEED_PID='y'\
-        ${QEMU} ${object_options} -nographic -serial none ${comm} "${@}" >"${fifo_out}" \
-                                                       2>&1 \
-                                                       <"${fifo_in}" &
+        QEMU_NEED_PID='y' QSD_NEED_PID='y' $cmd "${args[@]}" \
+            >"$fifo_out" 2>&1 <"$fifo_in" &
     elif [ "$keep_stderr" = "y" ]; then
-        QEMU_NEED_PID='y'\
-        ${QEMU} ${object_options} -nographic -serial none ${comm} "${@}" >"${fifo_out}" \
-                                                       <"${fifo_in}" &
+        QEMU_NEED_PID='y' QSD_NEED_PID='y' $cmd "${args[@]}" \
+            >"$fifo_out" <"$fifo_in" &
     else
         exit 1
     fi
@@ -360,6 +383,16 @@ _launch_qemu()
             silent=yes _timed_wait_for ${_QEMU_HANDLE} "^}"
         fi
     fi
+
+    if [[ $qsd = 'y' ]]; then
+        # Wait for PID file, then move it to where qemu would put it
+        pidfile="$QEMU_TEST_DIR/qemu-storage-daemon.pid"
+        while [[ ! -f $pidfile ]]; do
+            sleep 0.5
+        done
+        mv "$pidfile" "$QEMU_TEST_DIR/qemu-${_QEMU_HANDLE}.pid"
+    fi
+
     QEMU_HANDLE=${_QEMU_HANDLE}
     let _QEMU_HANDLE++
 }
