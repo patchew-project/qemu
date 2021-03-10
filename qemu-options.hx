@@ -1759,9 +1759,6 @@ SRST
         position without having to grab the mouse. Also overrides the
         PS/2 mouse emulation when activated.
 
-    ``u2f-key``
-        U2F (Universal Second Factor) key.
-
     ``wacom-tablet``
         Wacom PenPartner USB tablet.
 
