@@ -136,12 +136,18 @@ static inline bool nvme_ns_ext(NvmeNamespace *ns)
 }
 
 /* calculate the number of LBAs that the namespace can accomodate */
+static inline uint64_t __nvme_nlbas(size_t size, uint8_t lbads, uint16_t ms)
+{
+    if (ms) {
+        return size / ((1 << lbads) + ms);
+    }
+
+    return size >> lbads;
+}
+
 static inline uint64_t nvme_ns_nlbas(NvmeNamespace *ns)
 {
-    if (nvme_msize(ns)) {
-        return ns->size / (nvme_lsize(ns) + nvme_msize(ns));
-    }
-    return ns->size >> nvme_ns_lbads(ns);
+    return __nvme_nlbas(ns->size, nvme_ns_lbads(ns), nvme_msize(ns));
 }
 
 typedef struct NvmeCtrl NvmeCtrl;
