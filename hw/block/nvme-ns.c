@@ -166,38 +166,59 @@ static int nvme_ns_init_blk(NvmeNamespace *ns, Error **errp)
     return 0;
 }
 
-static int nvme_ns_zoned_check_calc_geometry(NvmeNamespace *ns, Error **errp)
+static int nvme_verify_zone_geometry(size_t ns_size, uint8_t lbads,
+                                     uint16_t ms, uint64_t zone_size,
+                                     uint64_t zone_cap, Error **errp)
 {
-    uint64_t zone_size, zone_cap;
-    uint32_t lbasz = nvme_lsize(ns);
+    size_t lbasz = 1 << lbads;
 
-    /* Make sure that the values of ZNS properties are sane */
-    if (ns->params.zone_size_bs) {
-        zone_size = ns->params.zone_size_bs;
-    } else {
-        zone_size = NVME_DEFAULT_ZONE_SIZE;
-    }
-    if (ns->params.zone_cap_bs) {
-        zone_cap = ns->params.zone_cap_bs;
-    } else {
+    if (!zone_cap) {
         zone_cap = zone_size;
     }
+
     if (zone_cap > zone_size) {
         error_setg(errp, "zone capacity %"PRIu64"B exceeds "
                    "zone size %"PRIu64"B", zone_cap, zone_size);
         return -1;
     }
+
     if (zone_size < lbasz) {
         error_setg(errp, "zone size %"PRIu64"B too small, "
-                   "must be at least %"PRIu32"B", zone_size, lbasz);
-        return -1;
-    }
-    if (zone_cap < lbasz) {
-        error_setg(errp, "zone capacity %"PRIu64"B too small, "
-                   "must be at least %"PRIu32"B", zone_cap, lbasz);
+                   "must be at least %zuB", zone_size, lbasz);
         return -1;
     }
 
+    if (zone_cap < lbasz) {
+        error_setg(errp, "zone capacity %"PRIu64"B too small, "
+                   "must be at least %zuB", zone_cap, lbasz);
+        return -1;
+    }
+
+    if (!(__nvme_nlbas(ns_size, lbads, ms) / (zone_size / lbasz))) {
+        error_setg(errp, "insufficient drive capacity, must be at least the "
+                   "size of one zone (%"PRIu64"B)", zone_size);
+        return -1;
+    }
+
+    return 0;
+}
+
+
+static int nvme_ns_zoned_set_geometry(NvmeNamespace *ns, Error **errp)
+{
+    uint64_t zone_size, zone_cap;
+    uint32_t lbasz = nvme_lsize(ns);
+
+    zone_size = zone_cap = ns->params.zone_size_bs;
+
+    if (ns->params.zone_cap_bs) {
+        zone_cap = ns->params.zone_cap_bs;
+    }
+
+    if (nvme_verify_zone_geometry(ns->size, nvme_ns_lbads(ns), nvme_msize(ns),
+                                  zone_size, zone_cap, errp)) {
+        return -1;
+    }
     /*
      * Save the main zone geometry values to avoid
      * calculating them later again.
@@ -205,14 +226,6 @@ static int nvme_ns_zoned_check_calc_geometry(NvmeNamespace *ns, Error **errp)
     ns->zone_size = zone_size / lbasz;
     ns->zone_capacity = zone_cap / lbasz;
     ns->num_zones = nvme_ns_nlbas(ns) / ns->zone_size;
-
-    /* Do a few more sanity checks of ZNS properties */
-    if (!ns->num_zones) {
-        error_setg(errp,
-                   "insufficient drive capacity, must be at least the size "
-                   "of one zone (%"PRIu64"B)", zone_size);
-        return -1;
-    }
 
     return 0;
 }
@@ -256,10 +269,14 @@ static void nvme_ns_zoned_init_state(NvmeNamespace *ns)
     }
 }
 
-static void nvme_ns_init_zoned(NvmeNamespace *ns)
+static int nvme_ns_init_zoned(NvmeNamespace *ns, Error **errp)
 {
     NvmeIdNsZoned *id_ns_z;
     int i;
+
+    if (nvme_ns_zoned_set_geometry(ns, errp)) {
+        return -1;
+    }
 
     nvme_ns_zoned_init_state(ns);
 
@@ -299,6 +316,8 @@ static void nvme_ns_init_zoned(NvmeNamespace *ns)
     }
 
     ns->id_ns_zoned = id_ns_z;
+
+    return 0;
 }
 
 static void nvme_clear_zone(NvmeNamespace *ns, NvmeZone *zone)
@@ -407,10 +426,9 @@ int nvme_ns_setup(NvmeNamespace *ns, Error **errp)
         return -1;
     }
     if (ns->params.zoned) {
-        if (nvme_ns_zoned_check_calc_geometry(ns, errp) != 0) {
+        if (nvme_ns_init_zoned(ns, errp)) {
             return -1;
         }
-        nvme_ns_init_zoned(ns);
     }
 
     return 0;
