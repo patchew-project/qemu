@@ -32,7 +32,7 @@
 
 #define MIN_DISCARD_GRANULARITY (4 * KiB)
 
-static void nvme_ns_init_format(NvmeNamespace *ns)
+void nvme_ns_init_format(NvmeNamespace *ns)
 {
     NvmeIdNs *id_ns = &ns->id_ns;
     BlockDriverInfo bdi;
@@ -66,6 +66,7 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
     int i;
 
     ns->csi = NVME_CSI_NVM;
+    ns->status = 0x0;
 
     ns->id_ns.dlfeat = 0x1;
 
@@ -166,9 +167,9 @@ static int nvme_ns_init_blk(NvmeNamespace *ns, Error **errp)
     return 0;
 }
 
-static int nvme_verify_zone_geometry(size_t ns_size, uint8_t lbads,
-                                     uint16_t ms, uint64_t zone_size,
-                                     uint64_t zone_cap, Error **errp)
+int nvme_verify_zone_geometry(size_t ns_size, uint8_t lbads, uint16_t ms,
+                              uint64_t zone_size, uint64_t zone_cap,
+                              Error **errp)
 {
     size_t lbasz = 1 << lbads;
 
@@ -269,7 +270,7 @@ static void nvme_ns_zoned_init_state(NvmeNamespace *ns)
     }
 }
 
-static int nvme_ns_init_zoned(NvmeNamespace *ns, Error **errp)
+int nvme_ns_init_zoned(NvmeNamespace *ns, Error **errp)
 {
     NvmeIdNsZoned *id_ns_z;
     int i;

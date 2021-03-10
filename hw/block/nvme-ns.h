@@ -59,6 +59,7 @@ typedef struct NvmeNamespace {
     NvmeIdNs     id_ns;
     const uint32_t *iocs;
     uint8_t      csi;
+    uint16_t     status;
 
     NvmeSubsystem   *subsys;
     QTAILQ_ENTRY(NvmeNamespace) entry;
@@ -83,6 +84,11 @@ typedef struct NvmeNamespace {
         uint32_t err_rec;
     } features;
 } NvmeNamespace;
+
+static inline uint16_t nvme_ns_status(NvmeNamespace *ns)
+{
+    return ns->status;
+}
 
 static inline uint32_t nvme_nsid(NvmeNamespace *ns)
 {
@@ -224,9 +230,15 @@ static inline void nvme_aor_dec_active(NvmeNamespace *ns)
     assert(ns->nr_active_zones >= 0);
 }
 
+void nvme_ns_init_format(NvmeNamespace *ns);
+int nvme_ns_init_zoned(NvmeNamespace *ns, Error **errp);
 int nvme_ns_setup(NvmeNamespace *ns, Error **errp);
 void nvme_ns_drain(NvmeNamespace *ns);
 void nvme_ns_shutdown(NvmeNamespace *ns);
 void nvme_ns_cleanup(NvmeNamespace *ns);
+
+int nvme_verify_zone_geometry(size_t ns_size, uint8_t lbads, uint16_t ms,
+                              uint64_t zone_size, uint64_t zone_cap,
+                              Error **errp);
 
 #endif /* NVME_NS_H */
