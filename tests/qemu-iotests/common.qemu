@@ -365,37 +365,50 @@ _launch_qemu()
 }
 
 
-# Silently kills the QEMU process
+# Silently kills all QEMU processes
 #
 # If $wait is set to anything other than the empty string, the process will not
 # be killed but only waited for, and any output will be forwarded to stdout. If
 # $wait is empty, the process will be killed and all output will be suppressed.
+#
+# To cleanup a single process, use _cleanup_single_qemu instead.
 _cleanup_qemu()
 {
     # QEMU_PID[], QEMU_IN[], QEMU_OUT[] all use same indices
     for i in "${!QEMU_OUT[@]}"
     do
-        local QEMU_PID
-        if [ -f "${QEMU_TEST_DIR}/qemu-${i}.pid" ]; then
-            read QEMU_PID < "${QEMU_TEST_DIR}/qemu-${i}.pid"
-            rm -f "${QEMU_TEST_DIR}/qemu-${i}.pid"
-            if [ -z "${wait}" ] && [ -n "${QEMU_PID}" ]; then
-                kill -KILL ${QEMU_PID} 2>/dev/null
-            fi
-            if [ -n "${QEMU_PID}" ]; then
-                wait ${QEMU_PID} 2>/dev/null # silent kill
-            fi
-        fi
-
-        if [ -n "${wait}" ]; then
-            cat <&${QEMU_OUT[$i]} | _filter_testdir | _filter_qemu \
-                                  | _filter_qemu_io | _filter_qmp | _filter_hmp
-        fi
-        rm -f "${QEMU_FIFO_IN}_${i}" "${QEMU_FIFO_OUT}_${i}"
-        eval "exec ${QEMU_IN[$i]}<&-"   # close file descriptors
-        eval "exec ${QEMU_OUT[$i]}<&-"
-
-        unset QEMU_IN[$i]
-        unset QEMU_OUT[$i]
+        _cleanup_single_qemu $i
     done
+}
+
+# The same as _cleanup_qemu, but for a single instance.
+#
+# Input parameters:
+# $1: qemu handle
+_cleanup_single_qemu()
+{
+    i=$1
+
+    local QEMU_PID
+    if [ -f "${QEMU_TEST_DIR}/qemu-${i}.pid" ]; then
+        read QEMU_PID < "${QEMU_TEST_DIR}/qemu-${i}.pid"
+        rm -f "${QEMU_TEST_DIR}/qemu-${i}.pid"
+        if [ -z "${wait}" ] && [ -n "${QEMU_PID}" ]; then
+            kill -KILL ${QEMU_PID} 2>/dev/null
+        fi
+        if [ -n "${QEMU_PID}" ]; then
+            wait ${QEMU_PID} 2>/dev/null # silent kill
+        fi
+    fi
+
+    if [ -n "${wait}" ]; then
+        cat <&${QEMU_OUT[$i]} | _filter_testdir | _filter_qemu \
+                              | _filter_qemu_io | _filter_qmp | _filter_hmp
+    fi
+    rm -f "${QEMU_FIFO_IN}_${i}" "${QEMU_FIFO_OUT}_${i}"
+    eval "exec ${QEMU_IN[$i]}<&-"   # close file descriptors
+    eval "exec ${QEMU_OUT[$i]}<&-"
+
+    unset QEMU_IN[$i]
+    unset QEMU_OUT[$i]
 }
