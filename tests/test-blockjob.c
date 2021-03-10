@@ -70,9 +70,7 @@ static BlockBackend *create_blk(const char *name)
     BlockBackend *blk = blk_new(qemu_get_aio_context(), 0, BLK_PERM_ALL);
     BlockDriverState *bs;
 
-    QDict *opt = qdict_new();
-    qdict_put_str(opt, "file.read-zeroes", "on");
-    bs = bdrv_open("null-co://", NULL, opt, 0, &error_abort);
+    bs = bdrv_open("zeroes-co://", NULL, NULL, 0, &error_abort);
     g_assert_nonnull(bs);
 
     blk_insert_bs(blk, bs, &error_abort);
