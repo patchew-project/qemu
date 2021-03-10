@@ -2352,8 +2352,9 @@ static int rebuild_refcount_structure(BlockDriverState *bs,
                                       int64_t *nb_clusters)
 {
     BDRVQcow2State *s = bs->opaque;
-    int64_t first_free_cluster = 0, reftable_offset = -1, cluster = 0;
+    int64_t first_free_cluster = 0, reftable_offset = -1, cluster;
     int64_t refblock_offset, refblock_start, refblock_index;
+    int64_t first_cluster, end_cluster;
     uint32_t reftable_size = 0;
     uint64_t *on_disk_reftable = NULL;
     void *on_disk_refblock;
@@ -2365,8 +2366,11 @@ static int rebuild_refcount_structure(BlockDriverState *bs,
 
     qcow2_cache_empty(bs, s->refcount_block_cache);
 
+    first_cluster = 0;
+    end_cluster = *nb_clusters;
+
 write_refblocks:
-    for (; cluster < *nb_clusters; cluster++) {
+    for (cluster = first_cluster; cluster < end_cluster; cluster++) {
         if (!s->get_refcount(*refcount_table, cluster)) {
             continue;
         }
@@ -2374,65 +2378,68 @@ write_refblocks:
         refblock_index = cluster >> s->refcount_block_bits;
         refblock_start = refblock_index << s->refcount_block_bits;
 
-        /* Don't allocate a cluster in a refblock already written to disk */
-        if (first_free_cluster < refblock_start) {
-            first_free_cluster = refblock_start;
-        }
-        refblock_offset = alloc_clusters_imrt(bs, 1, refcount_table,
-                                              nb_clusters, &first_free_cluster);
-        if (refblock_offset < 0) {
-            fprintf(stderr, "ERROR allocating refblock: %s\n",
-                    strerror(-refblock_offset));
-            res->check_errors++;
-            ret = refblock_offset;
-            goto fail;
-        }
-
-        if (reftable_size <= refblock_index) {
-            uint32_t old_reftable_size = reftable_size;
-            uint64_t *new_on_disk_reftable;
-
-            reftable_size = ROUND_UP((refblock_index + 1) * REFTABLE_ENTRY_SIZE,
-                                     s->cluster_size) / REFTABLE_ENTRY_SIZE;
-            new_on_disk_reftable = g_try_realloc(on_disk_reftable,
-                                                 reftable_size *
-                                                 REFTABLE_ENTRY_SIZE);
-            if (!new_on_disk_reftable) {
-                res->check_errors++;
-                ret = -ENOMEM;
-                goto fail;
-            }
-            on_disk_reftable = new_on_disk_reftable;
-
-            memset(on_disk_reftable + old_reftable_size, 0,
-                   (reftable_size - old_reftable_size) * REFTABLE_ENTRY_SIZE);
-
-            /* The offset we have for the reftable is now no longer valid;
-             * this will leak that range, but we can easily fix that by running
-             * a leak-fixing check after this rebuild operation */
-            reftable_offset = -1;
-        } else {
-            assert(on_disk_reftable);
-        }
-        on_disk_reftable[refblock_index] = refblock_offset;
-
-        /* If this is apparently the last refblock (for now), try to squeeze the
-         * reftable in */
-        if (refblock_index == (*nb_clusters - 1) >> s->refcount_block_bits &&
-            reftable_offset < 0)
+        if (reftable_size > refblock_index &&
+            on_disk_reftable[refblock_index])
         {
-            uint64_t reftable_clusters = size_to_clusters(s, reftable_size *
-                                                          REFTABLE_ENTRY_SIZE);
-            reftable_offset = alloc_clusters_imrt(bs, reftable_clusters,
-                                                  refcount_table, nb_clusters,
+            refblock_offset = on_disk_reftable[refblock_index];
+        } else {
+            int64_t refblock_cluster_index;
+
+            /* Don't allocate a cluster in a refblock already written to disk */
+            if (first_free_cluster < refblock_start) {
+                first_free_cluster = refblock_start;
+            }
+            refblock_offset = alloc_clusters_imrt(bs, 1, refcount_table,
+                                                  nb_clusters,
                                                   &first_free_cluster);
-            if (reftable_offset < 0) {
-                fprintf(stderr, "ERROR allocating reftable: %s\n",
-                        strerror(-reftable_offset));
+            if (refblock_offset < 0) {
+                fprintf(stderr, "ERROR allocating refblock: %s\n",
+                        strerror(-refblock_offset));
                 res->check_errors++;
-                ret = reftable_offset;
+                ret = refblock_offset;
                 goto fail;
             }
+
+            refblock_cluster_index = refblock_offset / s->cluster_size;
+            if (refblock_cluster_index >= end_cluster) {
+                /*
+                 * We must write the refblock that holds this refblock's
+                 * refcount
+                 */
+                end_cluster = refblock_cluster_index + 1;
+            }
+
+            if (reftable_size <= refblock_index) {
+                uint32_t old_reftable_size = reftable_size;
+                uint64_t *new_on_disk_reftable;
+
+                reftable_size =
+                    ROUND_UP((refblock_index + 1) * REFTABLE_ENTRY_SIZE,
+                             s->cluster_size) / REFTABLE_ENTRY_SIZE;
+                new_on_disk_reftable =
+                    g_try_realloc(on_disk_reftable,
+                                  reftable_size * REFTABLE_ENTRY_SIZE);
+                if (!new_on_disk_reftable) {
+                    res->check_errors++;
+                    ret = -ENOMEM;
+                    goto fail;
+                }
+                on_disk_reftable = new_on_disk_reftable;
+
+                memset(on_disk_reftable + old_reftable_size, 0,
+                       (reftable_size - old_reftable_size) *
+                       REFTABLE_ENTRY_SIZE);
+
+                /*
+                 * The offset we have for the reftable is now no longer valid;
+                 * this will leak that range, but we can easily fix that by
+                 * running a leak-fixing check after this rebuild operation
+                 */
+                reftable_offset = -1;
+            } else {
+                assert(on_disk_reftable);
+            }
+            on_disk_reftable[refblock_index] = refblock_offset;
         }
 
         ret = qcow2_pre_write_overlap_check(bs, 0, refblock_offset,
@@ -2459,15 +2466,12 @@ write_refblocks:
     }
 
     if (reftable_offset < 0) {
-        uint64_t post_refblock_start, reftable_clusters;
+        uint64_t reftable_clusters;
 
-        post_refblock_start = ROUND_UP(*nb_clusters, s->refcount_block_size);
         reftable_clusters =
             size_to_clusters(s, reftable_size * REFTABLE_ENTRY_SIZE);
-        /* Not pretty but simple */
-        if (first_free_cluster < post_refblock_start) {
-            first_free_cluster = post_refblock_start;
-        }
+
+        first_free_cluster = 0;
         reftable_offset = alloc_clusters_imrt(bs, reftable_clusters,
                                               refcount_table, nb_clusters,
                                               &first_free_cluster);
@@ -2478,6 +2482,10 @@ write_refblocks:
             ret = reftable_offset;
             goto fail;
         }
+
+        assert(offset_into_cluster(s, reftable_offset) == 0);
+        first_cluster = reftable_offset / s->cluster_size;
+        end_cluster = first_cluster + reftable_clusters;
 
         goto write_refblocks;
     }
