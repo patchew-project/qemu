@@ -76,6 +76,30 @@ static void null_aio_parse_filename(const char *filename, QDict *options,
     }
 }
 
+static void zero_co_parse_filename(const char *filename, QDict *options,
+                                   Error **errp)
+{
+    /* This functions only exists so that a zero-co:// filename is accepted
+     * with the zero-co driver. */
+    if (strcmp(filename, "zero-co://")) {
+        error_setg(errp, "The only allowed filename for this driver is "
+                         "'zero-co://'");
+        return;
+    }
+}
+
+static void zero_aio_parse_filename(const char *filename, QDict *options,
+                                    Error **errp)
+{
+    /* This functions only exists so that a zero-aio:// filename is accepted
+     * with the zero-aio driver. */
+    if (strcmp(filename, "zero-aio://")) {
+        error_setg(errp, "The only allowed filename for this driver is "
+                         "'zero-aio://'");
+        return;
+    }
+}
+
 static int null_file_open(BlockDriverState *bs, QDict *options, int flags,
                           Error **errp)
 {
@@ -94,6 +118,29 @@ static int null_file_open(BlockDriverState *bs, QDict *options, int flags,
         ret = -EINVAL;
     }
     s->read_zeroes = qemu_opt_get_bool(opts, NULL_OPT_ZEROES, false);
+    qemu_opts_del(opts);
+    bs->supported_write_flags = BDRV_REQ_FUA;
+    return ret;
+}
+
+static int zero_file_open(BlockDriverState *bs, QDict *options, int flags,
+                          Error **errp)
+{
+    QemuOpts *opts;
+    BDRVNullState *s = bs->opaque;
+    int ret = 0;
+
+    opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
+    qemu_opts_absorb_qdict(opts, options, &error_abort);
+    s->length =
+        qemu_opt_get_size(opts, BLOCK_OPT_SIZE, 1 << 30);
+    s->latency_ns =
+        qemu_opt_get_number(opts, NULL_OPT_LATENCY, 0);
+    if (s->latency_ns < 0) {
+        error_setg(errp, "latency-ns is invalid");
+        ret = -EINVAL;
+    }
+    s->read_zeroes = true;
     qemu_opts_del(opts);
     bs->supported_write_flags = BDRV_REQ_FUA;
     return ret;
@@ -316,10 +363,54 @@ static BlockDriver bdrv_null_aio = {
     .strong_runtime_opts    = null_strong_runtime_opts,
 };
 
+static BlockDriver bdrv_zero_co = {
+    .format_name            = "zero-co",
+    .protocol_name          = "zero-co",
+    .instance_size          = sizeof(BDRVNullState),
+
+    .bdrv_file_open         = zero_file_open,
+    .bdrv_parse_filename    = zero_co_parse_filename,
+    .bdrv_getlength         = null_getlength,
+    .bdrv_get_allocated_file_size = null_allocated_file_size,
+
+    .bdrv_co_preadv         = null_co_preadv,
+    .bdrv_co_pwritev        = null_co_pwritev,
+    .bdrv_co_flush_to_disk  = null_co_flush,
+    .bdrv_reopen_prepare    = null_reopen_prepare,
+
+    .bdrv_co_block_status   = null_co_block_status,
+
+    .bdrv_refresh_filename  = null_refresh_filename,
+    .strong_runtime_opts    = null_strong_runtime_opts,
+};
+
+static BlockDriver bdrv_zero_aio = {
+    .format_name            = "zero-aio",
+    .protocol_name          = "zero-aio",
+    .instance_size          = sizeof(BDRVNullState),
+
+    .bdrv_file_open         = zero_file_open,
+    .bdrv_parse_filename    = zero_aio_parse_filename,
+    .bdrv_getlength         = null_getlength,
+    .bdrv_get_allocated_file_size = null_allocated_file_size,
+
+    .bdrv_aio_preadv        = null_aio_preadv,
+    .bdrv_aio_pwritev       = null_aio_pwritev,
+    .bdrv_aio_flush         = null_aio_flush,
+    .bdrv_reopen_prepare    = null_reopen_prepare,
+
+    .bdrv_co_block_status   = null_co_block_status,
+
+    .bdrv_refresh_filename  = null_refresh_filename,
+    .strong_runtime_opts    = null_strong_runtime_opts,
+};
+
 static void bdrv_null_init(void)
 {
     bdrv_register(&bdrv_null_co);
     bdrv_register(&bdrv_null_aio);
+    bdrv_register(&bdrv_zero_co);
+    bdrv_register(&bdrv_zero_aio);
 }
 
 block_init(bdrv_null_init);
