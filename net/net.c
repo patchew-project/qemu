@@ -581,22 +581,6 @@ static ssize_t filter_receive_iov(NetClientState *nc,
     return ret;
 }
 
-static ssize_t filter_receive(NetClientState *nc,
-                              NetFilterDirection direction,
-                              NetClientState *sender,
-                              unsigned flags,
-                              const uint8_t *data,
-                              size_t size,
-                              NetPacketSent *sent_cb)
-{
-    struct iovec iov = {
-        .iov_base = (void *)data,
-        .iov_len = size
-    };
-
-    return filter_receive_iov(nc, direction, sender, flags, &iov, 1, sent_cb);
-}
-
 void qemu_purge_queued_packets(NetClientState *nc)
 {
     if (!nc->peer) {
@@ -638,6 +622,13 @@ static ssize_t qemu_send_packet_async_with_flags(NetClientState *sender,
 {
     NetQueue *queue;
     int ret;
+    int iovcnt = 1;
+    struct iovec iov[] = {
+        [0] = {
+            .iov_base = (void *)buf,
+            .iov_len = size,
+        },
+    };
 
 #ifdef DEBUG_NET
     printf("qemu_send_packet_async:\n");
@@ -649,21 +640,21 @@ static ssize_t qemu_send_packet_async_with_flags(NetClientState *sender,
     }
 
     /* Let filters handle the packet first */
-    ret = filter_receive(sender, NET_FILTER_DIRECTION_TX,
-                         sender, flags, buf, size, sent_cb);
+    ret = filter_receive_iov(sender, NET_FILTER_DIRECTION_TX,
+                             sender, flags, iov, iovcnt, sent_cb);
     if (ret) {
         return ret;
     }
 
-    ret = filter_receive(sender->peer, NET_FILTER_DIRECTION_RX,
-                         sender, flags, buf, size, sent_cb);
+    ret = filter_receive_iov(sender->peer, NET_FILTER_DIRECTION_RX,
+                             sender, flags, iov, iovcnt, sent_cb);
     if (ret) {
         return ret;
     }
 
     queue = sender->peer->incoming_queue;
 
-    return qemu_net_queue_send(queue, sender, flags, buf, size, sent_cb);
+    return qemu_net_queue_send_iov(queue, sender, flags, iov, iovcnt, sent_cb);
 }
 
 ssize_t qemu_send_packet_async(NetClientState *sender,
