@@ -623,6 +623,28 @@ void tlb_flush_page(CPUState *cpu, target_ulong addr)
     tlb_flush_page_by_mmuidx(cpu, addr, ALL_MMUIDX_BITS);
 }
 
+void tlb_flush_page_range_by_mmuidx(CPUState *cpu, target_ulong addr,
+                                    unsigned int num_pages, uint16_t idxmap)
+{
+  /*
+   * We currently do a full flush, but for performance this should be
+   * updated to only flush the requested pages, taking TBI into account.
+   */
+    tlb_flush_by_mmuidx(cpu, idxmap);
+}
+
+void tlb_flush_page_range_by_mmuidx_all_cpus_synced(CPUState *src_cpu,
+                                                    target_ulong addr,
+                                                    unsigned int num_pages,
+                                                    uint16_t idxmap)
+{
+    /*
+     * We currently do a full flush, but for performance this should be
+     * updated to only flush the requested pages, taking TBI into account.
+     */
+    tlb_flush_by_mmuidx_all_cpus_synced(src_cpu, idxmap);
+}
+
 void tlb_flush_page_by_mmuidx_all_cpus(CPUState *src_cpu, target_ulong addr,
                                        uint16_t idxmap)
 {
