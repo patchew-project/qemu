@@ -402,7 +402,7 @@ eth_is_ip6_extension_header_type(uint8_t hdr_type)
 static bool
 _eth_get_rss_ex_dst_addr(const struct iovec *pkt, int pkt_frags,
                         size_t ext_hdr_offset,
-                        struct ip6_ext_hdr *ext_hdr,
+                        const struct ip6_ext_hdr *ext_hdr,
                         struct in6_address *dst_addr)
 {
     struct ip6_ext_hdr_routing *rthdr = (struct ip6_ext_hdr_routing *) ext_hdr;
