@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/boards.h"
+#include "hw/misc/led.h"
 #include "atmega.h"
 #include "boot.h"
 #include "qom/object.h"
@@ -22,6 +23,8 @@ struct ArduinoMachineState {
     MachineState parent_obj;
     /*< public >*/
     AtmegaMcuState mcu;
+
+    LEDState *onboard_led;
 };
 typedef struct ArduinoMachineState ArduinoMachineState;
 
@@ -48,6 +51,18 @@ static void arduino_machine_init(MachineState *machine)
     object_property_set_uint(OBJECT(&ams->mcu), "xtal-frequency-hz",
                              amc->xtal_hz, &error_abort);
     sysbus_realize(SYS_BUS_DEVICE(&ams->mcu), &error_abort);
+
+    ams->onboard_led = led_create_simple(OBJECT(ams),
+                                         GPIO_POLARITY_ACTIVE_HIGH,
+                                         LED_COLOR_BLUE,
+                                         "D13 LED");
+
+    /* TODO: Add macro or function to map pins to ports */
+    /* The onboard led is connected to PIN 13 in all boards currently supported
+     * in QEMU. And PIN 13 is mapped to PORT B BIT 5.
+     */
+    qdev_connect_gpio_out(DEVICE(&ams->mcu.gpio[1]), 5,
+                          qdev_get_gpio_in(DEVICE(ams->onboard_led), 0));
 
     if (machine->firmware) {
         if (!avr_load_firmware(&ams->mcu.cpu, machine,
