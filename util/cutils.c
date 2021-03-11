@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "qemu/host-utils.h"
 #include <math.h>
+#include <float.h>
 
 #include "qemu-common.h"
 #include "qemu/sockets.h"
@@ -329,6 +330,15 @@ static int do_strtosz(const char *nptr, const char **end,
                         "is deprecated: %s", nptr);
         }
         endptr++;
+        /*
+         * Add in a fudge-factor (2^53 when double is IEEE format) for
+         * all scales less than P (2^50), so that things like
+         * 12.345M with unit 1000 produce 12345000 instead of
+         * 12344999.
+         */
+        if (mul > 1e49) {
+            fraction += DBL_EPSILON;
+        }
     } else {
         mul = suffix_mul(default_suffix, unit);
         assert(mul > 0);
