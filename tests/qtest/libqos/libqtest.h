@@ -764,6 +764,15 @@ void qmp_expect_error_and_unref(QDict *rsp, const char *class);
 bool qtest_probe_child(QTestState *s);
 
 /**
+ * qtest_probe_accel:
+ * @s: QTestState instance to operate on.
+ * @name: Accelerator name to check for.
+ *
+ * Returns: true if the accelerator is built in.
+ */
+bool qtest_probe_accel(QTestState *s, const char *name);
+
+/**
  * qtest_set_expected_status:
  * @s: QTestState instance to operate on.
  * @status: an expected exit status.
