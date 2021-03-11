@@ -397,9 +397,9 @@ struct VuDev {
     VuVirtq *vq;
     VuDevInflightInfo inflight_info;
     int log_call_fd;
-    /* Must be held while using slave_fd */
-    pthread_mutex_t slave_mutex;
-    int slave_fd;
+    /* Must be held while using backend */
+    pthread_mutex_t backend_mutex;
+    int backend_fd;
     uint64_t log_size;
     uint8_t *log_table;
     uint64_t features;
