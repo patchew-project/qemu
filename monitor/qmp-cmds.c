@@ -334,3 +334,16 @@ MemoryInfo *qmp_query_memory_size_summary(Error **errp)
 
     return mem_info;
 }
+
+void qmp_display_reload(bool has_vnc_tls_certs, bool vnc_tls_certs,
+                        Error **errp)
+{
+    Error *local_err = NULL;
+
+    if (has_vnc_tls_certs && vnc_tls_certs) {
+        if (!vnc_display_reload_certs(NULL, &local_err)) {
+            error_propagate(errp, local_err);
+            return;
+        }
+    }
+}

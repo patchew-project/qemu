@@ -1179,3 +1179,22 @@
 ##
 { 'command': 'query-display-options',
   'returns': 'DisplayOptions' }
+
+##
+# @display-reload:
+#
+# Reload display configuration
+#
+# Returns: Nothing on success
+#
+# Since: 6.0
+#
+# Example:
+#
+# -> { "execute": "display-reload",
+#      "arguments": { "vnc-tls-certs": true } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'display-reload',
+  'data': { '*vnc-tls-certs': 'bool' } }
