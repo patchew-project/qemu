@@ -4189,7 +4189,7 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
         goto error;
     }
 
-    if (drv->bdrv_reopen_prepare) {
+    if (drv->bdrv_reopen_prepare || drv->is_filter) {
         /*
          * If a driver-specific option is missing, it means that we
          * should reset it to its default value.
@@ -4201,16 +4201,19 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
             goto error;
         }
 
-        ret = drv->bdrv_reopen_prepare(reopen_state, queue, &local_err);
-        if (ret) {
-            if (local_err != NULL) {
-                error_propagate(errp, local_err);
-            } else {
-                bdrv_refresh_filename(reopen_state->bs);
-                error_setg(errp, "failed while preparing to reopen image '%s'",
-                           reopen_state->bs->filename);
+        if (drv->bdrv_reopen_prepare) {
+            ret = drv->bdrv_reopen_prepare(reopen_state, queue, &local_err);
+            if (ret) {
+                if (local_err != NULL) {
+                    error_propagate(errp, local_err);
+                } else {
+                    bdrv_refresh_filename(reopen_state->bs);
+                    error_setg(errp,
+                               "failed while preparing to reopen image '%s'",
+                               reopen_state->bs->filename);
+                }
+                goto error;
             }
-            goto error;
         }
     } else {
         /* It is currently mandatory to have a bdrv_reopen_prepare()

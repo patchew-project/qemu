@@ -524,9 +524,8 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         result = self.vm.qmp('blockdev-add', conv_keys = False, **bvopts)
         self.assert_qmp(result, 'return', {})
 
-        # blkverify doesn't currently allow reopening. TODO: implement this
-        self.reopen(bvopts, {}, "Block format 'blkverify' used by node 'bv'" +
-                    " does not support reopening files")
+        # blkverify allows reopening
+        self.reopen(bvopts, {})
 
         # Illegal: hd0 is a child of the blkverify node
         self.reopen(opts[0], {'backing': 'bv'},
