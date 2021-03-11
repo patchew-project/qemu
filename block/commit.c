@@ -71,9 +71,8 @@ static void commit_abort(Job *job)
         bdrv_unfreeze_backing_chain(s->commit_top_bs, s->base_bs);
     }
 
-    /* Make sure commit_top_bs and top stay around until bdrv_replace_node() */
+    /* Make sure top stay around until bdrv_replace_node() */
     bdrv_ref(top_bs);
-    bdrv_ref(s->commit_top_bs);
 
     if (s->base) {
         blk_unref(s->base);
@@ -93,7 +92,6 @@ static void commit_abort(Job *job)
     bdrv_replace_node(s->commit_top_bs, s->commit_top_bs->backing->bs,
                       &error_abort);
 
-    bdrv_unref(s->commit_top_bs);
     bdrv_unref(top_bs);
 }
 
@@ -109,6 +107,7 @@ static void commit_clean(Job *job)
     }
 
     g_free(s->backing_file_str);
+    bdrv_unref(s->commit_top_bs);
     blk_unref(s->top);
 }
 
@@ -317,6 +316,8 @@ void commit_start(const char *job_id, BlockDriverState *bs,
         goto fail;
     }
 
+    bdrv_ref(commit_top_bs);
+
     s->commit_top_bs = commit_top_bs;
 
     /*
@@ -416,6 +417,7 @@ fail:
      * otherwise this would fail because of lack of permissions. */
     if (commit_top_bs) {
         bdrv_replace_node(commit_top_bs, top, &error_abort);
+        bdrv_unref(commit_top_bs);
     }
 }
 
