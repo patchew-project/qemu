@@ -166,6 +166,15 @@ Using ``-M kernel-irqchip=off`` with x86 machine types that include a local
 APIC is deprecated.  The ``split`` setting is supported, as is using
 ``-M kernel-irqchip=off`` with the ISA PC machine type.
 
+``opened`` property of ``rng-*`` objects (since 6.0.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The only effect of specifying ``opened=on`` in the command line or QMP
+``object-add`` is that the device is opened immediately, possibly before all
+other options have been processed.  This will either have no effect (if
+``opened`` was the last option) or cause errors.  The property is therefore
+useless and should not be specified.
+
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 
