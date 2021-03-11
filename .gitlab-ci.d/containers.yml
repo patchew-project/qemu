@@ -249,3 +249,8 @@ amd64-opensuse-leap-container:
   <<: *container_job_definition
   variables:
     NAME: opensuse-leap
+
+cocci-fedora-container:
+  <<: *container_job_definition
+  variables:
+    NAME: fedora-coccinelle

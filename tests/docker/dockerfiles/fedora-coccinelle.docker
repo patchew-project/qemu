@@ -1,0 +1,16 @@
+#
+# Docker image to run Coccinelle spatch
+# (program matching and transformation engine)
+#
+# Copyright (C) 2021 Red Hat, Inc.
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+FROM fedora:32
+
+# Please keep this list sorted alphabetically
+RUN dnf install -y \
+    coccinelle \
+    diffutils \
+    findutils \
+    git-core

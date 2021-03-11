@@ -869,6 +869,32 @@ build-libvhost-user:
     - meson
     - ninja
 
+check-cocci:
+  stage: build
+  needs: ['cocci-fedora-container']
+  image: $CI_REGISTRY_IMAGE/qemu/fedora-coccinelle:latest
+  script:
+    - for script in
+            scripts/coccinelle/errp-guard.cocci
+            scripts/coccinelle/exec_rw_const.cocci
+            scripts/coccinelle/inplace-byteswaps.cocci
+            scripts/coccinelle/overflow_muldiv64.cocci
+            scripts/coccinelle/qom-parent-type.cocci
+            scripts/coccinelle/qom-parent-type.cocci
+            scripts/coccinelle/remove_local_err.cocci
+            scripts/coccinelle/remove_muldiv64.cocci
+            scripts/coccinelle/return_directly.cocci
+            scripts/coccinelle/typecast.cocci
+            scripts/coccinelle/use-after-abort-fatal-errp.cocci
+      ; do
+        spatch --macro-file scripts/cocci-macro-file.h
+               --sp-file $script
+               --timeout 137
+               --jobs 2
+               --use-gitgrep
+               --dir .
+      ; done
+
 # Prepare for GitLab pages deployment. Anything copied into the
 # "public" directory will be deployed to $USER.gitlab.io/$PROJECT
 pages:
