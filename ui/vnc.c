@@ -658,6 +658,9 @@ void vnc_framebuffer_update(VncState *vs, int x, int y, int w, int h,
 
 static void vnc_desktop_resize_ext(VncState *vs, int reject_reason)
 {
+    trace_vnc_msg_server_ext_desktop_resize(
+        vs, vs->ioc, vs->client_width, vs->client_height, reject_reason);
+
     vnc_lock_output(vs);
     vnc_write_u8(vs, VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
     vnc_write_u8(vs, 0);
@@ -703,6 +706,9 @@ static void vnc_desktop_resize(VncState *vs)
         vnc_desktop_resize_ext(vs, 0);
         return;
     }
+
+    trace_vnc_msg_server_desktop_resize(
+        vs, vs->ioc, vs->client_width, vs->client_height);
 
     vnc_lock_output(vs);
     vnc_write_u8(vs, VNC_MSG_SERVER_FRAMEBUFFER_UPDATE);
@@ -1181,6 +1187,7 @@ static void audio_capture_notify(void *opaque, audcnotification_e cmd)
     assert(vs->magic == VNC_MAGIC);
     switch (cmd) {
     case AUD_CNOTIFY_DISABLE:
+        trace_vnc_msg_server_audio_end(vs, vs->ioc);
         vnc_lock_output(vs);
         vnc_write_u8(vs, VNC_MSG_SERVER_QEMU);
         vnc_write_u8(vs, VNC_MSG_SERVER_QEMU_AUDIO);
@@ -1190,6 +1197,7 @@ static void audio_capture_notify(void *opaque, audcnotification_e cmd)
         break;
 
     case AUD_CNOTIFY_ENABLE:
+        trace_vnc_msg_server_audio_begin(vs, vs->ioc);
         vnc_lock_output(vs);
         vnc_write_u8(vs, VNC_MSG_SERVER_QEMU);
         vnc_write_u8(vs, VNC_MSG_SERVER_QEMU_AUDIO);
@@ -1209,6 +1217,7 @@ static void audio_capture(void *opaque, const void *buf, int size)
     VncState *vs = opaque;
 
     assert(vs->magic == VNC_MAGIC);
+    trace_vnc_msg_server_audio_data(vs, vs->ioc, buf, size);
     vnc_lock_output(vs);
     if (vs->output.offset < vs->throttle_output_offset) {
         vnc_write_u8(vs, VNC_MSG_SERVER_QEMU);
@@ -2453,9 +2462,11 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
 
             switch (read_u16 (data, 2)) {
             case VNC_MSG_CLIENT_QEMU_AUDIO_ENABLE:
+                trace_vnc_msg_client_audio_enable(vs, vs->ioc);
                 audio_add(vs);
                 break;
             case VNC_MSG_CLIENT_QEMU_AUDIO_DISABLE:
+                trace_vnc_msg_client_audio_disable(vs, vs->ioc);
                 audio_del(vs);
                 break;
             case VNC_MSG_CLIENT_QEMU_AUDIO_SET_FORMAT:
@@ -2491,6 +2502,8 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
                     break;
                 }
                 vs->as.freq = freq;
+                trace_vnc_msg_client_audio_format(
+                    vs, vs->ioc, vs->as.fmt, vs->as.nchannels, vs->as.freq);
                 break;
             default:
                 VNC_DEBUG("Invalid audio message %d\n", read_u8(data, 4));
@@ -2509,6 +2522,7 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
     {
         size_t size;
         uint8_t screens;
+        int w, h;
 
         if (len < 8) {
             return 8;
@@ -2519,12 +2533,15 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
         if (len < size) {
             return size;
         }
+        w = read_u16(data, 2);
+        h = read_u16(data, 4);
 
+        trace_vnc_msg_client_set_desktop_size(vs, vs->ioc, w, h, screens);
         if (dpy_ui_info_supported(vs->vd->dcl.con)) {
             QemuUIInfo info;
             memset(&info, 0, sizeof(info));
-            info.width = read_u16(data, 2);
-            info.height = read_u16(data, 4);
+            info.width = w;
+            info.height = h;
             dpy_set_ui_info(vs->vd->dcl.con, &info);
             vnc_desktop_resize_ext(vs, 4 /* Request forwarded */);
         } else {
