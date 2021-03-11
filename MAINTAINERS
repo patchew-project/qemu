@@ -2627,6 +2627,7 @@ S: Maintained
 F: tests/qtest/fuzz/
 F: scripts/oss-fuzz/
 F: hw/mem/sparse-mem.c
+F: tests/qtest/sparse-mem-test.c
 F: docs/devel/fuzzing.rst
 
 Register API
