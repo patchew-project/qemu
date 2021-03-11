@@ -1,9 +1,11 @@
 #if TARGET_REGISTER_BITS == 64
 # define dh_alias_tr     i64
 # define dh_is_64bit_tr  1
+# define dh_ffitype_tr   dh_ffitype_i64
 #else
 # define dh_alias_tr     i32
 # define dh_is_64bit_tr  0
+# define dh_ffitype_tr   dh_ffitype_i32
 #endif
 #define dh_ctype_tr      target_ureg
 #define dh_is_signed_tr  0
