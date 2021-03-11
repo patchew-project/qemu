@@ -2300,14 +2300,17 @@ static void qemu_validate_options(void)
 
 static void qemu_process_sugar_options(void)
 {
-    if (mem_prealloc) {
-        char *val;
+    char *val;
 
-        val = g_strdup_printf("%d",
-                 (uint32_t) qemu_opt_get_number(qemu_find_opts_singleton("smp-opts"), "cpus", 1));
-        object_register_sugar_prop("memory-backend", "prealloc-threads", val,
-                                   false);
-        g_free(val);
+    val = g_strdup_printf("%d",
+              (uint32_t) qemu_opt_get_number(
+                             qemu_find_opts_singleton("smp-opts"), "cpus", 1));
+
+    object_register_sugar_prop("memory-backend", "prealloc-threads", val,
+                                false);
+    g_free(val);
+
+    if (mem_prealloc) {
         object_register_sugar_prop("memory-backend", "prealloc", "on", false);
     }
 
