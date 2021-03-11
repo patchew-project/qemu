@@ -21,7 +21,7 @@
 #define SVE_MAX_VQ 16
 
 #define MACHINE     "-machine virt,gic-version=max -accel tcg "
-#define MACHINE_KVM "-machine virt,gic-version=max -accel kvm -accel tcg "
+#define MACHINE_KVM "-machine virt,gic-version=max -accel kvm "
 #define QUERY_HEAD  "{ 'execute': 'query-cpu-model-expansion', " \
                     "  'arguments': { 'type': 'full', "
 #define QUERY_TAIL  "}}"
@@ -413,6 +413,10 @@ static void sve_tests_sve_off_kvm(const void *data)
     QTestState *qts;
 
     qts = qtest_init(MACHINE_KVM "-cpu max,sve=off");
+    if (!qtest_probe_accel(qts, "kvm")) {
+        g_test_skip("KVM not available, skipping test");
+        goto done;
+    }
 
     /*
      * We don't know if this host supports SVE so we don't
@@ -424,6 +428,7 @@ static void sve_tests_sve_off_kvm(const void *data)
     assert_sve_vls(qts, "max", 0, NULL);
     assert_sve_vls(qts, "max", 0, "{ 'sve128': false }");
 
+done:
     qtest_quit(qts);
 }
 
@@ -492,6 +497,10 @@ static void test_query_cpu_model_expansion_kvm(const void *data)
     QTestState *qts;
 
     qts = qtest_init(MACHINE_KVM "-cpu max");
+    if (!qtest_probe_accel(qts, "kvm")) {
+        g_test_skip("KVM not available, skipping test");
+        goto done;
+    }
 
     /*
      * These tests target the 'host' CPU type, so KVM must be enabled.
@@ -609,6 +618,7 @@ static void test_query_cpu_model_expansion_kvm(const void *data)
         assert_has_not_feature(qts, "host", "kvm-steal-time");
     }
 
+done:
     qtest_quit(qts);
 }
 
