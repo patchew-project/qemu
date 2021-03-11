@@ -803,7 +803,6 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_cpus)
     size_t page_size;
     size_t region_size;
     size_t i;
-    uintptr_t splitwx_diff;
     int have_prot;
 
     have_prot = alloc_code_gen_buffer(size_code_gen_buffer(tb_size),
@@ -845,8 +844,7 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_cpus)
     /* init the region struct */
     qemu_mutex_init(&region.lock);
 
-    /* set guard pages */
-    splitwx_diff = tcg_splitwx_diff;
+    /* Set guard pages.  No need to do this for the rx_buf, only the rw_buf. */
     for (i = 0; i < region.n; i++) {
         void *start, *end;
         int rc;
@@ -854,10 +852,6 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_cpus)
         tcg_region_bounds(i, &start, &end);
         rc = qemu_mprotect_none(end, page_size);
         g_assert(!rc);
-        if (splitwx_diff) {
-            rc = qemu_mprotect_none(end + splitwx_diff, page_size);
-            g_assert(!rc);
-        }
     }
 
     tcg_region_trees_init();
