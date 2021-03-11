@@ -925,7 +925,7 @@ static GString *generic_fuzz_cmdline(FuzzTarget *t)
     if (!getenv("QEMU_FUZZ_ARGS")) {
         usage();
     }
-    g_string_append_printf(cmd_line, " -display none \
+    g_string_append_printf(cmd_line, " -display none -device sparse-mem \
                                       -machine accel=qtest, \
                                       -m 512M %s ", getenv("QEMU_FUZZ_ARGS"));
     return cmd_line;
