@@ -605,6 +605,7 @@ static void raise_mmu_exception(CPURISCVState *env, target_ulong address,
         g_assert_not_reached();
     }
     env->badaddr = address;
+    env->two_stage_lookup = two_stage;
 }
 
 hwaddr riscv_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
@@ -646,6 +647,8 @@ void riscv_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
     }
 
     env->badaddr = addr;
+    env->two_stage_lookup = riscv_cpu_virt_enabled(env) ||
+                            riscv_cpu_two_stage_lookup(mmu_idx);
     riscv_raise_exception(&cpu->env, cs->exception_index, retaddr);
 }
 
@@ -669,6 +672,8 @@ void riscv_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
         g_assert_not_reached();
     }
     env->badaddr = addr;
+    env->two_stage_lookup = riscv_cpu_virt_enabled(env) ||
+                            riscv_cpu_two_stage_lookup(mmu_idx);
     riscv_raise_exception(env, cs->exception_index, retaddr);
 }
 #endif /* !CONFIG_USER_ONLY */
@@ -910,16 +915,8 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         /* handle the trap in S-mode */
         if (riscv_has_ext(env, RVH)) {
             target_ulong hdeleg = async ? env->hideleg : env->hedeleg;
-            bool two_stage_lookup = false;
 
-            if (env->priv == PRV_M ||
-                (env->priv == PRV_S && !riscv_cpu_virt_enabled(env)) ||
-                (env->priv == PRV_U && !riscv_cpu_virt_enabled(env) &&
-                    get_field(env->hstatus, HSTATUS_HU))) {
-                    two_stage_lookup = true;
-            }
-
-            if ((riscv_cpu_virt_enabled(env) || two_stage_lookup) && write_tval) {
+            if (env->two_stage_lookup && write_tval) {
                 /*
                  * If we are writing a guest virtual address to stval, set
                  * this to 1. If we are trapping to VS we will set this to 0
@@ -957,10 +954,7 @@ void riscv_cpu_do_interrupt(CPUState *cs)
                 riscv_cpu_set_force_hs_excep(env, 0);
             } else {
                 /* Trap into HS mode */
-                if (!two_stage_lookup) {
-                    env->hstatus = set_field(env->hstatus, HSTATUS_SPV,
-                                             riscv_cpu_virt_enabled(env));
-                }
+                env->hstatus = set_field(env->hstatus, HSTATUS_SPV, false);
                 htval = env->guest_phys_fault_addr;
             }
         }
@@ -1018,4 +1012,5 @@ void riscv_cpu_do_interrupt(CPUState *cs)
 
 #endif
     cs->exception_index = EXCP_NONE; /* mark handled to qemu */
+    env->two_stage_lookup = false;
 }

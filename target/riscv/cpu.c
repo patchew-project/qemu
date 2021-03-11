@@ -358,6 +358,7 @@ static void riscv_cpu_reset(DeviceState *dev)
     env->pc = env->resetvec;
 #endif
     cs->exception_index = EXCP_NONE;
+    env->two_stage_lookup = false;
     env->load_res = -1;
     set_default_nan_mode(1, &env->fp_status);
 }

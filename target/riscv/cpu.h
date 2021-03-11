@@ -131,6 +131,9 @@ struct CPURISCVState {
 
     target_ulong badaddr;
     target_ulong guest_phys_fault_addr;
+    /* Signals whether the current exception occurred with two-stage address
+       translation active. */
+    bool two_stage_lookup;
 
     target_ulong priv_ver;
     target_ulong vext_ver;
