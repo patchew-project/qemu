@@ -75,6 +75,12 @@ The ``pretty=on|off`` switch has no effect for HMP monitors, but is
 silently ignored. Using the switch with HMP monitors will become an
 error in the future.
 
+``-chardev`` backend aliases ``tty`` and ``parport`` (since 6.0)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+``tty`` and ``parport`` are aliases that will be removed. Instead, the
+actual backend names ``serial`` and ``parallel`` should be used.
+
 RISC-V ``-bios`` (since 5.1)
 ''''''''''''''''''''''''''''
 
