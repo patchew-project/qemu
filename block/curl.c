@@ -832,12 +832,12 @@ static void curl_setup_preadv(BlockDriverState *bs, CURLAIOCB *acb)
     uint64_t start = acb->offset;
     uint64_t end;
 
-    qemu_mutex_lock(&s->mutex);
+    QEMU_LOCK_GUARD(&s->mutex);
 
     // In case we have the requested data already (e.g. read-ahead),
     // we can just call the callback and be done.
     if (curl_find_buf(s, start, acb->bytes, acb)) {
-        goto out;
+        return;
     }
 
     // No cache found, so let's start a new request
@@ -852,7 +852,7 @@ static void curl_setup_preadv(BlockDriverState *bs, CURLAIOCB *acb)
     if (curl_init_state(s, state) < 0) {
         curl_clean_state(state);
         acb->ret = -EIO;
-        goto out;
+        return;
     }
 
     acb->start = 0;
@@ -867,7 +867,7 @@ static void curl_setup_preadv(BlockDriverState *bs, CURLAIOCB *acb)
     if (state->buf_len && state->orig_buf == NULL) {
         curl_clean_state(state);
         acb->ret = -ENOMEM;
-        goto out;
+        return;
     }
     state->acb[0] = acb;
 
@@ -880,14 +880,11 @@ static void curl_setup_preadv(BlockDriverState *bs, CURLAIOCB *acb)
         acb->ret = -EIO;
 
         curl_clean_state(state);
-        goto out;
+        return;
     }
 
     /* Tell curl it needs to kick things off */
     curl_multi_socket_action(s->multi, CURL_SOCKET_TIMEOUT, 0, &running);
-
-out:
-    qemu_mutex_unlock(&s->mutex);
 }
 
 static int coroutine_fn curl_co_preadv(BlockDriverState *bs,
