@@ -166,6 +166,14 @@ Using ``-M kernel-irqchip=off`` with x86 machine types that include a local
 APIC is deprecated.  The ``split`` setting is supported, as is using
 ``-M kernel-irqchip=off`` with the ISA PC machine type.
 
+``-spice password=string`` (since 6.0)
+''''''''''''''''''''''''''''''''''''''
+
+This option is insecure because the SPICE password remains visible in
+the process listing. This is replaced by the new ``password-secret``
+option which lets the password be securely provided on the command
+line using a ``secret`` object instance.
+
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
 
