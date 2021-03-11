@@ -20,7 +20,7 @@
  */
 #define SVE_MAX_VQ 16
 
-#define MACHINE     "-machine virt,gic-version=max -accel tcg "
+#define MACHINE_TCG "-machine virt,gic-version=max -accel tcg "
 #define MACHINE_KVM "-machine virt,gic-version=max -accel kvm "
 #define QUERY_HEAD  "{ 'execute': 'query-cpu-model-expansion', " \
                     "  'arguments': { 'type': 'full', "
@@ -352,7 +352,11 @@ static void sve_tests_sve_max_vq_8(const void *data)
 {
     QTestState *qts;
 
-    qts = qtest_init(MACHINE "-cpu max,sve-max-vq=8");
+    qts = qtest_init(MACHINE_TCG "-cpu max,sve-max-vq=8");
+    if (!qtest_probe_accel(qts, "tcg")) {
+        g_test_skip("TCG not available, skipping test");
+        goto done;
+    }
 
     assert_sve_vls(qts, "max", BIT_ULL(8) - 1, NULL);
 
@@ -380,6 +384,7 @@ static void sve_tests_sve_max_vq_8(const void *data)
     assert_sve_vls(qts, "max", 0xff, "{ 'sve256': true }");
     assert_error(qts, "max", "cannot disable sve256", "{ 'sve256': false }");
 
+done:
     qtest_quit(qts);
 }
 
@@ -387,7 +392,11 @@ static void sve_tests_sve_off(const void *data)
 {
     QTestState *qts;
 
-    qts = qtest_init(MACHINE "-cpu max,sve=off");
+    qts = qtest_init(MACHINE_TCG "-cpu max,sve=off");
+    if (!qtest_probe_accel(qts, "tcg")) {
+        g_test_skip("TCG not available, skipping test");
+        goto done;
+    }
 
     /* SVE is off, so the map should be empty. */
     assert_sve_vls(qts, "max", 0, NULL);
@@ -405,6 +414,7 @@ static void sve_tests_sve_off(const void *data)
     assert_sve_vls(qts, "max", 0x3,
                    "{ 'sve': true, 'sve128': true, 'sve256': true }");
 
+done:
     qtest_quit(qts);
 }
 
@@ -448,7 +458,11 @@ static void test_query_cpu_model_expansion(const void *data)
 {
     QTestState *qts;
 
-    qts = qtest_init(MACHINE "-cpu max");
+    qts = qtest_init(MACHINE_TCG "-cpu max");
+    if (!qtest_probe_accel(qts, "tcg")) {
+        g_test_skip("TCG not available, skipping test");
+        goto done;
+    }
 
     /* Test common query-cpu-model-expansion input validation */
     assert_type_full(qts);
@@ -489,6 +503,7 @@ static void test_query_cpu_model_expansion(const void *data)
                      "{ 'aarch64': false }");
     }
 
+done:
     qtest_quit(qts);
 }
 
