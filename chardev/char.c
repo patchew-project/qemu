@@ -115,7 +115,7 @@ static int qemu_chr_write_buffer(Chardev *s,
     int res = 0;
     *offset = 0;
 
-    qemu_mutex_lock(&s->chr_write_lock);
+    QEMU_LOCK_GUARD(&s->chr_write_lock);
     while (*offset < len) {
     retry:
         res = cc->chr_write(s, buf + *offset, len - *offset);
@@ -153,7 +153,6 @@ static int qemu_chr_write_buffer(Chardev *s,
          */
         qemu_chr_write_log(s, buf, len);
     }
-    qemu_mutex_unlock(&s->chr_write_lock);
 
     return res;
 }
