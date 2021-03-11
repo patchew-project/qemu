@@ -718,15 +718,13 @@ static void test_acpi_one(const char *params, test_data *data)
     char *args;
     bool use_uefi = data->uefi_fl1 && data->uefi_fl2;
 
-#ifndef CONFIG_TCG
-    if (data->tcg_only) {
-        g_test_skip("TCG disabled, skipping ACPI tcg_only test");
-        return;
-    }
-#endif /* CONFIG_TCG */
-
     args = test_acpi_create_args(data, params, use_uefi);
     data->qts = qtest_init(args);
+    if (data->tcg_only && !qtest_probe_accel(data->qts, "tcg")) {
+        g_test_skip("TCG not available, skipping test");
+        goto done;
+    }
+
     test_acpi_load_tables(data, use_uefi);
 
     if (getenv(ACPI_REBUILD_EXPECTED_AML)) {
@@ -745,6 +743,7 @@ static void test_acpi_one(const char *params, test_data *data)
         test_smbios_structs(data);
     }
 
+done:
     qtest_quit(data->qts);
     g_free(args);
 }
