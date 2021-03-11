@@ -126,7 +126,7 @@ static int tpm_emulator_ctrlcmd(TPMEmulator *tpm, unsigned long cmd, void *msg,
     uint8_t *buf = NULL;
     int ret = -1;
 
-    qemu_mutex_lock(&tpm->mutex);
+    QEMU_LOCK_GUARD(&tpm->mutex);
 
     buf = g_alloca(n);
     memcpy(buf, &cmd_no, sizeof(cmd_no));
@@ -134,20 +134,18 @@ static int tpm_emulator_ctrlcmd(TPMEmulator *tpm, unsigned long cmd, void *msg,
 
     n = qemu_chr_fe_write_all(dev, buf, n);
     if (n <= 0) {
-        goto end;
+        return ret;
     }
 
     if (msg_len_out != 0) {
         n = qemu_chr_fe_read_all(dev, msg, msg_len_out);
         if (n <= 0) {
-            goto end;
+            return ret;
         }
     }
 
     ret = 0;
 
-end:
-    qemu_mutex_unlock(&tpm->mutex);
     return ret;
 }
 
