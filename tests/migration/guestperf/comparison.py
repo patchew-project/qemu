@@ -121,4 +121,18 @@ COMPARISONS = [
         Scenario("compr-xbzrle-cache-50",
                  compression_xbzrle=True, compression_xbzrle_cache=50),
     ]),
+
+
+    # Looking at effect of multifd with
+    # varying numbers of channels
+    Comparison("compr-multifd", scenarios = [
+        Scenario("compr-multifd-channels-2",
+                 multifd=True, multifd_channels=2),
+        Scenario("compr-multifd-channels-32",
+                 multifd=True, multifd_channels=32),
+        Scenario("compr-multifd-channels-64",
+                 multifd=True, multifd_channels=64),
+        Scenario("compr-multifd-channels-128",
+                 multifd=True, multifd_channels=128),
+    ]),
 ]
