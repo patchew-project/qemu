@@ -307,8 +307,9 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.reopen(hd_opts(0), {'read-only': True})
         self.check_node_graph(original_graph)
 
-        # The backing file (hd0) is now a reference, we cannot change backing.* anymore
-        self.reopen(opts, {}, "Cannot change the option 'backing.driver'")
+        # The backing file (hd0) is now a reference, buf we can change
+        # backing.* anyway
+        self.reopen(opts, {})
 
         # We can't remove 'hd0' while it's a backing image of 'hd1'
         result = self.vm.qmp('blockdev-del', conv_keys = True, node_name = 'hd0')
@@ -899,7 +900,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         # We can't reopen with the original options because there is a filter
         # inserted by stream job above hd1.
         self.reopen(opts, {},
-                    "Cannot change the option 'backing.backing.file.node-name'")
+                    "Option 'bottom' cannot be reset to its default value")
 
         # We can't reopen hd1 to read-only, as block-stream requires it to be
         # read-write
@@ -949,7 +950,7 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.wait_until_completed(drive = 'commit0')
 
     # Reopen the chain during a block-commit job (from hd1 to hd2)
-    def test_block_commit_2(self):
+    def do_test_block_commit_2(self, detach_hd1):
         # hd2 <- hd1 <- hd0
         opts = hd_opts(0)
         opts['backing'] = hd_opts(1)
@@ -959,23 +960,33 @@ class TestBlockdevReopen(iotests.QMPTestCase):
 
         result = self.vm.qmp('block-commit', conv_keys = True, job_id = 'commit0',
                              device = 'hd0', top_node = 'hd1',
-                             auto_finalize = False)
+                             auto_finalize = False, filter_node_name = 'fl')
         self.assert_qmp(result, 'return', {})
 
         # We can't remove hd2 while the commit job is ongoing
         opts['backing']['backing'] = None
-        self.reopen(opts, {}, "Cannot change the option 'backing.driver'")
+        self.reopen(opts, {}, "Cannot change 'backing' link from 'fl' to 'hd1'")
 
-        # We can't remove hd1 while the commit job is ongoing
-        opts['backing'] = None
-        self.reopen(opts, {}, "Cannot change backing link if 'hd0' has an implicit backing file")
+        if (detach_hd1):
+            # But nothing wrong in detaching hd1 together with the commit job
+            opts['backing'] = None
+            self.reopen(opts, {})
 
         # hd2 <- hd0
         self.vm.run_job('commit0', auto_finalize = False, auto_dismiss = True)
 
         self.assert_qmp(self.get_node('hd0'), 'ro', False)
         self.assertEqual(self.get_node('hd1'), None)
-        self.assert_qmp(self.get_node('hd2'), 'ro', True)
+        if detach_hd1:
+            self.assertEqual(self.get_node('hd2'), None)
+        else:
+            self.assert_qmp(self.get_node('hd2'), 'ro', True)
+
+    def test_block_commit_2(self):
+        self.do_test_block_commit_2(False)
+
+    def test_block_commit_3(self):
+        self.do_test_block_commit_2(True)
 
     def run_test_iothreads(self, iothread_a, iothread_b, errmsg = None):
         opts = hd_opts(0)

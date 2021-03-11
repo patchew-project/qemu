@@ -2769,34 +2769,6 @@ void bdrv_root_unref_child(BdrvChild *child)
     bdrv_unref(child_bs);
 }
 
-/**
- * Clear all inherits_from pointers from children and grandchildren of
- * @root that point to @root, where necessary.
- */
-static void bdrv_unset_inherits_from(BlockDriverState *root, BdrvChild *child)
-{
-    BdrvChild *c;
-
-    if (child->bs->inherits_from == root) {
-        /*
-         * Remove inherits_from only when the last reference between root and
-         * child->bs goes away.
-         */
-        QLIST_FOREACH(c, &root->children, next) {
-            if (c != child && c->bs == child->bs) {
-                break;
-            }
-        }
-        if (c == NULL) {
-            child->bs->inherits_from = NULL;
-        }
-    }
-
-    QLIST_FOREACH(c, &child->bs->children, next) {
-        bdrv_unset_inherits_from(root, c);
-    }
-}
-
 /* Callers must ensure that child->frozen is false. */
 void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child)
 {
@@ -2804,7 +2776,6 @@ void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child)
         return;
     }
 
-    bdrv_unset_inherits_from(parent, child);
     bdrv_root_unref_child(child);
 }
 
@@ -2817,18 +2788,6 @@ static void bdrv_parent_cb_change_media(BlockDriverState *bs, bool load)
             c->klass->change_media(c, load);
         }
     }
-}
-
-/* Return true if you can reach parent going through child->inherits_from
- * recursively. If parent or child are NULL, return false */
-static bool bdrv_inherits_from_recursive(BlockDriverState *child,
-                                         BlockDriverState *parent)
-{
-    while (child && child != parent) {
-        child = child->inherits_from;
-    }
-
-    return child != NULL;
 }
 
 /*
@@ -2853,8 +2812,6 @@ int bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
                         Error **errp)
 {
     int ret = 0;
-    bool update_inherits_from = bdrv_chain_contains(bs, backing_hd) &&
-        bdrv_inherits_from_recursive(backing_hd, bs);
 
     if (bdrv_is_backing_chain_frozen(bs, child_bs(bs->backing), errp)) {
         return -EPERM;
@@ -2879,13 +2836,6 @@ int bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd,
     if (!bs->backing) {
         ret = -EPERM;
         goto out;
-    }
-
-    /* If backing_hd was already part of bs's backing chain, and
-     * inherits_from pointed recursively to bs then let's update it to
-     * point directly to bs (else it will become NULL). */
-    if (update_inherits_from) {
-        backing_hd->inherits_from = bs;
     }
 
 out:
@@ -3283,7 +3233,6 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
             parent_is_format = true;
         }
 
-        bs->inherits_from = parent;
         child_class->inherit_options(child_role, parent_is_format,
                                      &flags, options,
                                      parent->open_flags, parent->options);
@@ -3716,13 +3665,6 @@ static BlockReopenQueue *bdrv_reopen_queue_child(BlockReopenQueue *bs_queue,
     QLIST_FOREACH(child, &bs->children, next) {
         QDict *new_child_options = NULL;
         bool child_keep_old = keep_old_opts;
-
-        /* reopen can only change the options of block devices that were
-         * implicitly created and inherited options. For other (referenced)
-         * block devices, a syntax like "backing.foo" results in an error. */
-        if (child->bs->inherits_from != bs) {
-            continue;
-        }
 
         /* Check if the options contain a child reference */
         if (qdict_haskey(options, child->name)) {
@@ -4933,8 +4875,6 @@ void bdrv_unfreeze_backing_chain(BlockDriverState *bs, BlockDriverState *base)
 int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
                            const char *backing_file_str)
 {
-    BlockDriverState *explicit_top = top;
-    bool update_inherits_from;
     BdrvChild *c;
     Error *local_err = NULL;
     int ret = -EIO;
@@ -4952,14 +4892,6 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
     if (!bdrv_chain_contains(top, base)) {
         goto exit;
     }
-
-    /* If 'base' recursively inherits from 'top' then we should set
-     * base->inherits_from to top->inherits_from after 'top' and all
-     * other intermediate nodes have been dropped.
-     * If 'top' is an implicit node (e.g. "commit_top") we should skip
-     * it because no one inherits from it. We use explicit_top for that. */
-    explicit_top = bdrv_skip_implicit_filters(explicit_top);
-    update_inherits_from = bdrv_inherits_from_recursive(base, explicit_top);
 
     /* success - we can delete the intermediate states, and link top->base */
     /* TODO Check graph modification op blockers (BLK_PERM_GRAPH_MOD) once
@@ -4999,10 +4931,6 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
                 goto exit;
             }
         }
-    }
-
-    if (update_inherits_from) {
-        base->inherits_from = explicit_top->inherits_from;
     }
 
     ret = 0;

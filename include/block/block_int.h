@@ -935,10 +935,6 @@ struct BlockDriverState {
     /* operation blockers */
     QLIST_HEAD(, BdrvOpBlocker) op_blockers[BLOCK_OP_TYPE_MAX];
 
-    /* The node that this node inherited default options from (and a reopen on
-     * which can affect this node by changing these defaults). This is always a
-     * parent node of this node. */
-    BlockDriverState *inherits_from;
     QLIST_HEAD(, BdrvChild) children;
     QLIST_HEAD(, BdrvChild) parents;
 
