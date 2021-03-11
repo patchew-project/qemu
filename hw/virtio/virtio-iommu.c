@@ -617,37 +617,36 @@ static void virtio_iommu_handle_command(VirtIODevice *vdev, VirtQueue *vq)
             tail.status = VIRTIO_IOMMU_S_DEVERR;
             goto out;
         }
-        qemu_mutex_lock(&s->mutex);
-        switch (head.type) {
-        case VIRTIO_IOMMU_T_ATTACH:
-            tail.status = virtio_iommu_handle_attach(s, iov, iov_cnt);
-            break;
-        case VIRTIO_IOMMU_T_DETACH:
-            tail.status = virtio_iommu_handle_detach(s, iov, iov_cnt);
-            break;
-        case VIRTIO_IOMMU_T_MAP:
-            tail.status = virtio_iommu_handle_map(s, iov, iov_cnt);
-            break;
-        case VIRTIO_IOMMU_T_UNMAP:
-            tail.status = virtio_iommu_handle_unmap(s, iov, iov_cnt);
-            break;
-        case VIRTIO_IOMMU_T_PROBE:
-        {
-            struct virtio_iommu_req_tail *ptail;
+        WITH_QEMU_LOCK_GUARD(&s->mutex) {
+            switch (head.type) {
+            case VIRTIO_IOMMU_T_ATTACH:
+                tail.status = virtio_iommu_handle_attach(s, iov, iov_cnt);
+                break;
+            case VIRTIO_IOMMU_T_DETACH:
+                tail.status = virtio_iommu_handle_detach(s, iov, iov_cnt);
+                break;
+            case VIRTIO_IOMMU_T_MAP:
+                tail.status = virtio_iommu_handle_map(s, iov, iov_cnt);
+                break;
+            case VIRTIO_IOMMU_T_UNMAP:
+                tail.status = virtio_iommu_handle_unmap(s, iov, iov_cnt);
+                break;
+            case VIRTIO_IOMMU_T_PROBE:
+            {
+                struct virtio_iommu_req_tail *ptail;
 
-            output_size = s->config.probe_size + sizeof(tail);
-            buf = g_malloc0(output_size);
+                output_size = s->config.probe_size + sizeof(tail);
+                buf = g_malloc0(output_size);
 
-            ptail = (struct virtio_iommu_req_tail *)
-                        (buf + s->config.probe_size);
-            ptail->status = virtio_iommu_handle_probe(s, iov, iov_cnt, buf);
-            break;
+                ptail = (struct virtio_iommu_req_tail *)
+                            (buf + s->config.probe_size);
+                ptail->status = virtio_iommu_handle_probe(s, iov, iov_cnt, buf);
+                break;
+            }
+            default:
+                tail.status = VIRTIO_IOMMU_S_UNSUPP;
+            }
         }
-        default:
-            tail.status = VIRTIO_IOMMU_S_UNSUPP;
-        }
-        qemu_mutex_unlock(&s->mutex);
-
 out:
         sz = iov_from_buf(elem->in_sg, elem->in_num, 0,
                           buf ? buf : &tail, output_size);
@@ -734,7 +733,7 @@ static IOMMUTLBEntry virtio_iommu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
     sid = virtio_iommu_get_bdf(sdev);
 
     trace_virtio_iommu_translate(mr->parent_obj.name, sid, addr, flag);
-    qemu_mutex_lock(&s->mutex);
+    QEMU_LOCK_GUARD(&s->mutex);
 
     ep = g_tree_lookup(s->endpoints, GUINT_TO_POINTER(sid));
     if (!ep) {
@@ -746,7 +745,7 @@ static IOMMUTLBEntry virtio_iommu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
         } else {
             entry.perm = flag;
         }
-        goto unlock;
+        return entry;
     }
 
     for (i = 0; i < s->nb_reserved_regions; i++) {
@@ -764,7 +763,7 @@ static IOMMUTLBEntry virtio_iommu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
                                           sid, addr);
                 break;
             }
-            goto unlock;
+            return entry;
         }
     }
 
@@ -779,7 +778,7 @@ static IOMMUTLBEntry virtio_iommu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
         } else {
             entry.perm = flag;
         }
-        goto unlock;
+        return entry;
     }
 
     found = g_tree_lookup_extended(ep->domain->mappings, (gpointer)(&interval),
@@ -791,7 +790,7 @@ static IOMMUTLBEntry virtio_iommu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
         virtio_iommu_report_fault(s, VIRTIO_IOMMU_FAULT_R_MAPPING,
                                   VIRTIO_IOMMU_FAULT_F_ADDRESS,
                                   sid, addr);
-        goto unlock;
+        return entry;
     }
 
     read_fault = (flag & IOMMU_RO) &&
@@ -808,14 +807,12 @@ static IOMMUTLBEntry virtio_iommu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
         virtio_iommu_report_fault(s, VIRTIO_IOMMU_FAULT_R_MAPPING,
                                   flags | VIRTIO_IOMMU_FAULT_F_ADDRESS,
                                   sid, addr);
-        goto unlock;
+        return entry;
     }
     entry.translated_addr = addr - mapping_key->low + mapping_value->phys_addr;
     entry.perm = flag;
     trace_virtio_iommu_translate_out(addr, entry.translated_addr, sid);
 
-unlock:
-    qemu_mutex_unlock(&s->mutex);
     return entry;
 }
 
@@ -884,21 +881,18 @@ static void virtio_iommu_replay(IOMMUMemoryRegion *mr, IOMMUNotifier *n)
 
     sid = virtio_iommu_get_bdf(sdev);
 
-    qemu_mutex_lock(&s->mutex);
+    QEMU_LOCK_GUARD(&s->mutex);
 
     if (!s->endpoints) {
-        goto unlock;
+        return;
     }
 
     ep = g_tree_lookup(s->endpoints, GUINT_TO_POINTER(sid));
     if (!ep || !ep->domain) {
-        goto unlock;
+        return;
     }
 
     g_tree_foreach(ep->domain->mappings, virtio_iommu_remap, mr);
-
-unlock:
-    qemu_mutex_unlock(&s->mutex);
 }
 
 static int virtio_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu_mr,
