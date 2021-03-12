@@ -72,7 +72,6 @@ void gd_gl_area_draw(VirtualConsole *vc)
     }
 
     glFlush();
-    graphic_hw_gl_flushed(vc->gfx.dcl.con);
 }
 
 void gd_gl_area_update(DisplayChangeListener *dcl,
