@@ -734,6 +734,61 @@ vg_set_scanout(VuGpu *g,
     }
 }
 
+void
+vg_send_update(VuGpu *g,
+               uint32_t scanout_id,
+               uint32_t x,
+               uint32_t y,
+               uint32_t width,
+               uint32_t height,
+               size_t data_size,
+               VgUpdateFill fill_cb,
+               void *fill_data)
+{
+    void *p = g_malloc(VHOST_USER_GPU_HDR_SIZE +
+                       sizeof(VhostUserGpuUpdate) + data_size);
+    VhostUserGpuMsg *msg = p;
+    msg->request = VHOST_USER_GPU_UPDATE;
+    msg->size = sizeof(VhostUserGpuUpdate) + data_size;
+    msg->payload.update = (VhostUserGpuUpdate) {
+        .scanout_id = scanout_id,
+        .x = x,
+        .y = y,
+        .width = width,
+        .height = height,
+    };
+    fill_cb(g, msg, fill_data);
+    vg_send_msg(g, msg, -1);
+    g_free(msg);
+}
+
+static void
+fill_update_data(VuGpu *g, VhostUserGpuMsg *msg, void *fill_data)
+{
+    struct virtio_gpu_simple_resource *res = fill_data;
+    pixman_image_t *i;
+    size_t bpp;
+    uint32_t x, y, width, height;
+
+    x = msg->payload.update.x;
+    y = msg->payload.update.y;
+    width = msg->payload.update.width;
+    height = msg->payload.update.height;
+
+    bpp = PIXMAN_FORMAT_BPP(pixman_image_get_format(res->image)) / 8;
+    i = pixman_image_create_bits(pixman_image_get_format(res->image),
+                                 width, height,
+                                 (void *)msg + offsetof(VhostUserGpuMsg,
+                                                        payload.update.data),
+                                 width * bpp);
+    pixman_image_composite(PIXMAN_OP_SRC,
+                           res->image, NULL, i,
+                           x, y,
+                           0, 0, 0, 0,
+                           width, height);
+    pixman_image_unref(i);
+}
+
 static void
 vg_resource_flush(VuGpu *g,
                   struct virtio_gpu_ctrl_command *cmd)
@@ -798,33 +853,8 @@ vg_resource_flush(VuGpu *g,
                 PIXMAN_FORMAT_BPP(pixman_image_get_format(res->image)) / 8;
             size_t size = width * height * bpp;
 
-            void *p = g_malloc(VHOST_USER_GPU_HDR_SIZE +
-                               sizeof(VhostUserGpuUpdate) + size);
-            VhostUserGpuMsg *msg = p;
-            msg->request = VHOST_USER_GPU_UPDATE;
-            msg->size = sizeof(VhostUserGpuUpdate) + size;
-            msg->payload.update = (VhostUserGpuUpdate) {
-                .scanout_id = i,
-                .x = extents->x1,
-                .y = extents->y1,
-                .width = width,
-                .height = height,
-            };
-            pixman_image_t *i =
-                pixman_image_create_bits(pixman_image_get_format(res->image),
-                                         msg->payload.update.width,
-                                         msg->payload.update.height,
-                                         p + offsetof(VhostUserGpuMsg,
-                                                      payload.update.data),
-                                         width * bpp);
-            pixman_image_composite(PIXMAN_OP_SRC,
-                                   res->image, NULL, i,
-                                   extents->x1, extents->y1,
-                                   0, 0, 0, 0,
-                                   width, height);
-            pixman_image_unref(i);
-            vg_send_msg(g, msg, -1);
-            g_free(msg);
+            vg_send_update(g, i, extents->x1, extents->y1, width, height,
+                           size, fill_update_data, res);
         }
         pixman_region_fini(&region);
         pixman_region_fini(&finalregion);

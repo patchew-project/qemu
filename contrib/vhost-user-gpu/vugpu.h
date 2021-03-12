@@ -201,4 +201,15 @@ void    vg_send_cursor_update(VuGpu *g,
 void    vg_send_cursor_pos(VuGpu *g,
                            const struct virtio_gpu_update_cursor *cursor);
 
+typedef void (*VgUpdateFill)(VuGpu *g, VhostUserGpuMsg *msg, void *fill_data);
+
+void    vg_send_update(VuGpu *g,
+                       uint32_t scanout_id,
+                       uint32_t x,
+                       uint32_t y,
+                       uint32_t width,
+                       uint32_t height,
+                       size_t data_size,
+                       VgUpdateFill fill_cb,
+                       void *fill_data);
 #endif
