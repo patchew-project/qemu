@@ -183,6 +183,7 @@ static const struct {
     { "ui-spice-app",   "chardev-spice" },
 
 #ifdef CONFIG_OPENGL
+    { "ui-dbus",         "ui-opengl"    },
     { "ui-egl-headless", "ui-opengl"    },
     { "ui-gtk",          "ui-opengl"    },
     { "ui-sdl",          "ui-opengl"    },
@@ -294,6 +295,7 @@ static struct {
     const char *prefix;
     const char *module;
 } const qom_modules[] = {
+    { "dbus-display",          "backends-", "dbus"            },
     { "ccid-card-passthru",    "hw-", "usb-smartcard"         },
     { "ccid-card-emulated",    "hw-", "usb-smartcard"         },
     { "usb-redir",             "hw-", "usb-redirect"          },

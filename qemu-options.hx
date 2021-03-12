@@ -1766,6 +1766,10 @@ DEF("display", HAS_ARG, QEMU_OPTION_display,
 #if defined(CONFIG_OPENGL)
     "-display egl-headless[,rendernode=<file>]\n"
 #endif
+#if defined(CONFIG_UI_DBUS)
+    "-display dbus[,addr=<dbusaddr>]\n"
+    "             [,gl=on|core|es|off][,rendernode=<file>]\n"
+#endif
     "-display none\n"
     "                select display backend type\n"
     "                The default display is equivalent to\n                "
@@ -1827,6 +1831,10 @@ SRST
         Start QEMU as a Spice server and launch the default Spice client
         application. The Spice server will redirect the serial consoles
         and QEMU monitors. (Since 4.0)
+
+    ``dbus``
+        Start a D-Bus service for the display. (Since X.X)
+
 ERST
 
 DEF("nographic", 0, QEMU_OPTION_nographic,

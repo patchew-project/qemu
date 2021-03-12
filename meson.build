@@ -1861,6 +1861,11 @@ if 'CONFIG_VHOST_USER' in config_host
   vhost_user = libvhost_user.get_variable('vhost_user_dep')
 endif
 
+# FIXME enable_modules shouldn't be necessary, but: https://github.com/mesonbuild/meson/issues/8333
+if enable_modules and config_host.has_key('CONFIG_GIO') and config_host.has_key('GDBUS_CODEGEN')
+  config_host += {'CONFIG_UI_DBUS': 'y'}
+endif
+
 subdir('qapi')
 subdir('qobject')
 subdir('stubs')

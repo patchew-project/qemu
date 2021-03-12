@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<node>
+  <!-- on /org/qemu/Display1/VM -->
+  <interface name="org.qemu.Display1.VM">
+    <property name="Name" type="s" access="read"/>
+    <property name="UUID" type="s" access="read"/>
+    <property name="ConsoleIDs" type="au" access="read"/>
+  </interface>
+
+  <!-- on /org/qemu/Display1/Console_N -->
+  <interface name="org.qemu.Display1.Console">
+    <method name="RegisterListener">
+      <arg type="h" name="listener" direction="in"/>
+    </method>
+    <method name="SetUIInfo">
+      <arg name="width_mm" type="q" direction="in"/>
+      <arg name="height_mm" type="q" direction="in"/>
+      <arg name="xoff" type="i" direction="in"/>
+      <arg name="yoff" type="i" direction="in"/>
+      <arg name="width" type="u" direction="in"/>
+      <arg name="height" type="u" direction="in"/>
+    </method>
+    <property name="Label" type="s" access="read"/>
+    <property name="Head" type="u" access="read"/>
+    <property name="Type" type="s" access="read"/>
+    <property name="Width" type="u" access="read"/>
+    <property name="Height" type="u" access="read"/>
+    <property name="DeviceAddress" type="s" access="read"/>
+  </interface>
+
+  <interface name="org.qemu.Display1.Keyboard">
+    <method name="Press">
+      <arg type="u" name="keycode" direction="in"/>
+    </method>
+    <method name="Release">
+      <arg type="u" name="keycode" direction="in"/>
+    </method>
+    <!--
+       scroll = 1 << 0
+       num    = 1 << 1
+       caps   = 1 << 2
+    -->
+    <property name="Modifiers" type="u" access="readwrite"/>
+  </interface>
+
+  <interface name="org.qemu.Display1.Mouse">
+    <!--
+       left = 0
+       middle = 1
+       right = 2
+       wheel-up = 3
+       wheel-down = 4
+       side = 5
+       extra = 6
+    -->
+    <method name="Press">
+      <arg type="u" name="button" direction="in"/>
+    </method>
+    <method name="Release">
+      <arg type="u" name="button" direction="in"/>
+    </method>
+    <method name="SetAbsPosition">
+      <arg type="u" name="x" direction="in"/>
+      <arg type="u" name="y" direction="in"/>
+    </method>
+  </interface>
+
+  <!-- on client /org/qemu/Display1/Listener -->
+  <interface name="org.qemu.Display1.Listener">
+    <method name="Scanout">
+      <arg type="u" name="width" direction="in"/>
+      <arg type="u" name="height" direction="in"/>
+      <arg type="u" name="stride" direction="in"/>
+      <arg type="u" name="pixman_format" direction="in"/>
+      <arg type="ay" name="data" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+    </method>
+    <method name="Update">
+      <arg type="i" name="x" direction="in"/>
+      <arg type="i" name="y" direction="in"/>
+      <arg type="i" name="width" direction="in"/>
+      <arg type="i" name="height" direction="in"/>
+      <arg type="u" name="stride" direction="in"/>
+      <arg type="u" name="pixman_format" direction="in"/>
+      <arg type="ay" name="data" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+    </method>
+    <method name="ScanoutDMABUF">
+      <arg type="h" name="dmabuf" direction="in"/>
+      <arg type="u" name="width" direction="in"/>
+      <arg type="u" name="height" direction="in"/>
+      <arg type="u" name="stride" direction="in"/>
+      <arg type="u" name="fourcc" direction="in"/>
+      <!-- xywh? -->
+      <arg type="t" name="modifier" direction="in"/>
+      <arg type="b" name="y0_top" direction="in"/>
+    </method>
+    <method name="UpdateDMABUF">
+      <arg type="i" name="x" direction="in"/>
+      <arg type="i" name="y" direction="in"/>
+      <arg type="i" name="width" direction="in"/>
+      <arg type="i" name="height" direction="in"/>
+    </method>
+    <method name="Disable">
+    </method>
+    <method name="MouseSet">
+      <arg type="i" name="x" direction="in"/>
+      <arg type="i" name="y" direction="in"/>
+      <arg type="i" name="on" direction="in"/>
+    </method>
+    <method name="CursorDefine">
+      <arg type="i" name="width" direction="in"/>
+      <arg type="i" name="height" direction="in"/>
+      <arg type="i" name="hot_x" direction="in"/>
+      <arg type="i" name="hot_y" direction="in"/>
+      <arg type="ay" name="data" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+    </method>
+  </interface>
+</node>
