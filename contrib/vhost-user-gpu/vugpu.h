@@ -195,5 +195,7 @@ void    vg_send_dmabuf_update(VuGpu *g,
                               uint32_t width,
                               uint32_t height);
 void    vg_send_scanout(VuGpu *g, uint32_t scanout_id);
-
+void    vg_send_cursor_update(VuGpu *g,
+                              const struct virtio_gpu_update_cursor *cursor,
+                              const void *data);
 #endif
