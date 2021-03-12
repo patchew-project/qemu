@@ -332,7 +332,7 @@ vg_resource_create_2d(VuGpu *g,
     res->resource_id = c2d.resource_id;
 
     pformat = virtio_gpu_get_pixman_format(c2d.format);
-    if (!pformat) {
+    if (!pformat || pformat != PIXMAN_x8r8g8b8) {
         g_critical("%s: host couldn't handle guest format %d",
                    __func__, c2d.format);
         g_free(res);
