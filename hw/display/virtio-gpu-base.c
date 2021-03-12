@@ -141,6 +141,19 @@ virtio_gpu_get_flags(void *opaque)
     return flags;
 }
 
+static bool
+virtio_gpu_register_dbus_listener(void *opaque, QemuConsole *con, int fd)
+{
+    VirtIOGPUBase *g = opaque;
+    VirtIOGPUBaseClass *vgc = VIRTIO_GPU_BASE_GET_CLASS(g);
+
+    if (vgc->register_dbus_listener) {
+        return vgc->register_dbus_listener(g, con, fd);
+    }
+
+    return false;
+}
+
 static const GraphicHwOps virtio_gpu_ops = {
     .get_flags = virtio_gpu_get_flags,
     .invalidate = virtio_gpu_invalidate_display,
@@ -148,6 +161,7 @@ static const GraphicHwOps virtio_gpu_ops = {
     .text_update = virtio_gpu_text_update,
     .ui_info = virtio_gpu_ui_info,
     .gl_block = virtio_gpu_gl_block,
+    .register_dbus_listener = virtio_gpu_register_dbus_listener,
 };
 
 bool

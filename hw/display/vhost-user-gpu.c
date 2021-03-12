@@ -370,6 +370,38 @@ vhost_user_gpu_gl_flushed(VirtIOGPUBase *b)
 }
 
 static bool
+vhost_user_gpu_scanout_idx(VirtIOGPUBase *b, QemuConsole *con, uint8_t *idx)
+{
+    VhostUserGPU *g = VHOST_USER_GPU(b);
+    struct virtio_gpu_scanout *s;
+    uint8_t i;
+
+    for (i = 0; i < G_N_ELEMENTS(g->parent_obj.scanout); i++) {
+        s = &g->parent_obj.scanout[i];
+        if (s->con == con) {
+            *idx = i;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool
+vhost_user_gpu_do_register_dbus_listener(VirtIOGPUBase *b, QemuConsole *con, int fd)
+{
+    VhostUserGPU *g = VHOST_USER_GPU(b);
+    uint8_t idx = 0;
+
+    if (!vhost_user_gpu_scanout_idx(b, con, &idx)) {
+        error_report("Failed to find attached console %p", con);
+        return false;
+    }
+
+    return vhost_user_gpu_register_dbus_listener(&g->vhost->dev, idx, fd) == 0;
+}
+
+static bool
 vhost_user_gpu_do_set_socket(VhostUserGPU *g, Error **errp)
 {
     Chardev *chr;
@@ -576,6 +608,7 @@ vhost_user_gpu_class_init(ObjectClass *klass, void *data)
     VirtIOGPUBaseClass *vgc = VIRTIO_GPU_BASE_CLASS(klass);
 
     vgc->gl_flushed = vhost_user_gpu_gl_flushed;
+    vgc->register_dbus_listener = vhost_user_gpu_do_register_dbus_listener;
 
     vdc->realize = vhost_user_gpu_device_realize;
     vdc->reset = vhost_user_gpu_reset;

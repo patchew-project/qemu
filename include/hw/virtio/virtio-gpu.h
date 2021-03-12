@@ -122,6 +122,7 @@ struct VirtIOGPUBaseClass {
     VirtioDeviceClass parent;
 
     void (*gl_flushed)(VirtIOGPUBase *g);
+    bool (*register_dbus_listener)(VirtIOGPUBase *g, QemuConsole *con, int fd);
 };
 
 #define VIRTIO_GPU_BASE_PROPERTIES(_state, _conf)                       \

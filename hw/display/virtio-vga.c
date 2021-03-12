@@ -76,6 +76,15 @@ static int virtio_vga_base_get_flags(void *opaque)
     return g->hw_ops->get_flags(g);
 }
 
+static bool virtio_vga_base_register_dbus_listener(void *opaque,
+                                                   QemuConsole *con, int fd)
+{
+    VirtIOVGABase *vvga = opaque;
+    VirtIOGPUBase *g = vvga->vgpu;
+
+    return g->hw_ops->register_dbus_listener(g, con, fd);
+}
+
 static const GraphicHwOps virtio_vga_base_ops = {
     .get_flags = virtio_vga_base_get_flags,
     .invalidate = virtio_vga_base_invalidate_display,
@@ -83,6 +92,7 @@ static const GraphicHwOps virtio_vga_base_ops = {
     .text_update = virtio_vga_base_text_update,
     .ui_info = virtio_vga_base_ui_info,
     .gl_block = virtio_vga_base_gl_block,
+    .register_dbus_listener = virtio_vga_base_register_dbus_listener,
 };
 
 static const VMStateDescription vmstate_virtio_vga_base = {
