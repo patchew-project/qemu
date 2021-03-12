@@ -180,5 +180,13 @@ bool    vg_recv_msg(VuGpu *g, uint32_t expect_req, uint32_t expect_size,
                     gpointer payload);
 
 void    vg_send_disable_scanout(VuGpu *g, int scanout_id);
+void    vg_send_dmabuf_scanout(VuGpu *g,
+                               const struct virtio_gpu_set_scanout *ss,
+                               uint32_t fd_width,
+                               uint32_t fd_height,
+                               uint32_t fd_stride,
+                               int fd_drm_fourcc,
+                               uint32_t fd_flags,
+                               int fd);
 
 #endif

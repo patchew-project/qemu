@@ -587,6 +587,38 @@ vg_transfer_to_host_2d(VuGpu *g,
     }
 }
 
+void
+vg_send_dmabuf_scanout(VuGpu *g,
+                       const struct virtio_gpu_set_scanout *ss,
+                       uint32_t fd_width,
+                       uint32_t fd_height,
+                       uint32_t fd_stride,
+                       int fd_drm_fourcc,
+                       uint32_t fd_flags,
+                       int fd)
+{
+    VhostUserGpuMsg msg = {
+        .request = VHOST_USER_GPU_DMABUF_SCANOUT,
+        .size = sizeof(VhostUserGpuDMABUFScanout),
+        .payload.dmabuf_scanout = (VhostUserGpuDMABUFScanout) {
+            .scanout_id = ss->scanout_id,
+            .x = ss->r.x,
+            .y = ss->r.y,
+            .width = ss->r.width,
+            .height = ss->r.height,
+            .fd_width = fd_width,
+            .fd_height = fd_height,
+            .fd_stride = fd_stride,
+            .fd_drm_fourcc = fd_drm_fourcc,
+            .fd_flags = fd_flags,
+        }
+    };
+
+    g_debug("send dmabuf scanout: %d", ss->scanout_id);
+    vg_send_msg(g, &msg, fd);
+}
+
+
 static void
 vg_set_scanout(VuGpu *g,
                struct virtio_gpu_ctrl_command *cmd)
@@ -651,24 +683,15 @@ vg_set_scanout(VuGpu *g,
     struct vugbm_buffer *buffer = &res->buffer;
 
     if (vugbm_buffer_can_get_dmabuf_fd(buffer)) {
-        VhostUserGpuMsg msg = {
-            .request = VHOST_USER_GPU_DMABUF_SCANOUT,
-            .size = sizeof(VhostUserGpuDMABUFScanout),
-            .payload.dmabuf_scanout = (VhostUserGpuDMABUFScanout) {
-                .scanout_id = ss.scanout_id,
-                .x = ss.r.x,
-                .y = ss.r.y,
-                .width = ss.r.width,
-                .height = ss.r.height,
-                .fd_width = buffer->width,
-                .fd_height = buffer->height,
-                .fd_stride = buffer->stride,
-                .fd_drm_fourcc = buffer->format
-            }
-        };
-
         if (vugbm_buffer_get_dmabuf_fd(buffer, &fd)) {
-            vg_send_msg(g, &msg, fd);
+            vg_send_dmabuf_scanout(g,
+                                   &ss,
+                                   buffer->width,
+                                   buffer->height,
+                                   buffer->stride,
+                                   buffer->format,
+                                   0,
+                                   fd);
             close(fd);
         }
     } else {

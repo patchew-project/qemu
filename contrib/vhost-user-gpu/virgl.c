@@ -337,21 +337,14 @@ virgl_cmd_set_scanout(VuGpu *g,
             return;
         }
         assert(fd >= 0);
-        VhostUserGpuMsg msg = {
-            .request = VHOST_USER_GPU_DMABUF_SCANOUT,
-            .size = sizeof(VhostUserGpuDMABUFScanout),
-            .payload.dmabuf_scanout.scanout_id = ss.scanout_id,
-            .payload.dmabuf_scanout.x =  ss.r.x,
-            .payload.dmabuf_scanout.y =  ss.r.y,
-            .payload.dmabuf_scanout.width = ss.r.width,
-            .payload.dmabuf_scanout.height = ss.r.height,
-            .payload.dmabuf_scanout.fd_width = info.width,
-            .payload.dmabuf_scanout.fd_height = info.height,
-            .payload.dmabuf_scanout.fd_stride = info.stride,
-            .payload.dmabuf_scanout.fd_flags = info.flags,
-            .payload.dmabuf_scanout.fd_drm_fourcc = info.drm_fourcc
-        };
-        vg_send_msg(g, &msg, fd);
+        vg_send_dmabuf_scanout(g,
+                               &ss,
+                               info.width,
+                               info.height,
+                               info.stride,
+                               info.drm_fourcc,
+                               info.flags,
+                               fd);
         close(fd);
     } else {
         vg_send_disable_scanout(g, ss.scanout_id);
