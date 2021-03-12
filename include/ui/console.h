@@ -489,4 +489,10 @@ int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp);
 /* input.c */
 int index_from_key(const char *key, size_t key_length);
 
+/* util.c */
+bool qemu_console_fill_device_address(QemuConsole *con,
+                                      char *device_address,
+                                      size_t size,
+                                      Error **errp);
+
 #endif
