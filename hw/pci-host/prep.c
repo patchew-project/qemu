@@ -159,8 +159,7 @@ static uint64_t raven_io_read(void *opaque, hwaddr addr,
     uint8_t buf[4];
 
     addr = raven_io_address(s, addr);
-    address_space_read(&s->pci_io_as, addr + 0x80000000,
-                       MEMTXATTRS_UNSPECIFIED, buf, size);
+    address_space_read(&s->pci_io_as, addr, MEMTXATTRS_UNSPECIFIED, buf, size);
 
     if (size == 1) {
         return buf[0];
@@ -191,8 +190,7 @@ static void raven_io_write(void *opaque, hwaddr addr,
         g_assert_not_reached();
     }
 
-    address_space_write(&s->pci_io_as, addr + 0x80000000,
-                        MEMTXATTRS_UNSPECIFIED, buf, size);
+    address_space_write(&s->pci_io_as, addr, MEMTXATTRS_UNSPECIFIED, buf, size);
 }
 
 static const MemoryRegionOps raven_io_ops = {
@@ -294,9 +292,8 @@ static void raven_pcihost_initfn(Object *obj)
     address_space_init(&s->pci_io_as, &s->pci_io, "raven-io");
 
     /* CPU address space */
-    memory_region_add_subregion(address_space_mem, 0x80000000, &s->pci_io);
-    memory_region_add_subregion_overlap(address_space_mem, 0x80000000,
-                                        &s->pci_io_non_contiguous, 1);
+    memory_region_add_subregion(address_space_mem, 0x80000000,
+                                &s->pci_io_non_contiguous);
     memory_region_add_subregion(address_space_mem, 0xc0000000, &s->pci_memory);
     pci_root_bus_new_inplace(&s->pci_bus, sizeof(s->pci_bus), DEVICE(obj), NULL,
                              &s->pci_memory, &s->pci_io, 0, TYPE_PCI_BUS);
