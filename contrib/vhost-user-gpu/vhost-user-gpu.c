@@ -18,12 +18,15 @@
 
 #include <pixman.h>
 #include <glib-unix.h>
+#include <gio/gunixfdlist.h>
 
 #include "vugpu.h"
 #include "hw/virtio/virtio-gpu-bswap.h"
 #include "hw/virtio/virtio-gpu-pixman.h"
 #include "virgl.h"
 #include "vugbm.h"
+
+#include "ui/dbus-display1.h"
 
 enum {
     VHOST_USER_GPU_MAX_QUEUES = 2,
@@ -359,7 +362,11 @@ vg_resource_create_2d(VuGpu *g,
 void
 vg_send_disable_scanout(VuGpu *g, int scanout_id)
 {
+    GHashTableIter iter;
+    DBusDisplayDisplay1Listener *listener;
+
     g_debug("send disable scanout %d", scanout_id);
+    g_return_if_fail(scanout_id < VIRTIO_GPU_MAX_SCANOUTS);
 
     if (g->sock_fd >= 0) {
         VhostUserGpuMsg msg = {
@@ -368,6 +375,12 @@ vg_send_disable_scanout(VuGpu *g, int scanout_id)
             .payload.scanout.scanout_id = scanout_id,
         };
         vg_send_msg(g, &msg, -1);
+    }
+
+    g_hash_table_iter_init(&iter, g->listeners[scanout_id]);
+    while (g_hash_table_iter_next(&iter, (void **)&listener, NULL)) {
+        dbus_display_display1_listener_call_disable(
+            listener, G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
     }
 }
 
@@ -597,6 +610,10 @@ vg_send_dmabuf_scanout(VuGpu *g,
                        uint32_t fd_flags,
                        int fd)
 {
+    GHashTableIter iter;
+    DBusDisplayDisplay1Listener *listener;
+    g_autoptr(GError) err = NULL;
+    g_autoptr(GUnixFDList) fd_list = NULL;
     VhostUserGpuMsg msg = {
         .request = VHOST_USER_GPU_DMABUF_SCANOUT,
         .size = sizeof(VhostUserGpuDMABUFScanout),
@@ -615,7 +632,49 @@ vg_send_dmabuf_scanout(VuGpu *g,
     };
 
     g_debug("send dmabuf scanout: %d", ss->scanout_id);
+    g_return_if_fail(ss->scanout_id < VIRTIO_GPU_MAX_SCANOUTS);
+
     vg_send_msg(g, &msg, fd);
+
+    fd_list = g_unix_fd_list_new();
+    if (g_unix_fd_list_append(fd_list, fd, &err) != 0) {
+        g_warning("Failed to setup dmabuf fdlist: %s", err->message);
+        return;
+    }
+
+    g_hash_table_iter_init(&iter, g->listeners[ss->scanout_id]);
+    while (g_hash_table_iter_next(&iter, (void **)&listener, NULL)) {
+        dbus_display_display1_listener_call_scanout_dmabuf(
+            listener,
+            g_variant_new_handle(0),
+            fd_width,
+            fd_height,
+            fd_stride,
+            fd_drm_fourcc,
+            0, /* modifier */
+            fd_flags & VIRTIO_GPU_RESOURCE_FLAG_Y_0_TOP, /* == VIRGL_Y_0_TOP */
+            G_DBUS_CALL_FLAGS_NONE,
+            -1,
+            fd_list,
+            NULL, NULL, NULL);
+    }
+}
+
+static void
+dbus_update_gl_cb(GObject *source_object,
+                  GAsyncResult *res,
+                  gpointer user_data)
+{
+    g_autoptr(GError) err = NULL;
+    VuGpu *g = user_data;
+
+    if (!dbus_display_display1_listener_call_update_dmabuf_finish(
+            DBUS_DISPLAY_DISPLAY1_LISTENER(source_object), res, &err)) {
+        g_warning("Failed to call update dmabuf: %s", err->message);
+    }
+
+    g->wait_dbus--;
+    vg_handle_ctrl(&g->dev.parent, 0);
 }
 
 void
@@ -626,6 +685,8 @@ vg_send_dmabuf_update(VuGpu *g,
                       uint32_t width,
                       uint32_t height)
 {
+    GHashTableIter iter;
+    DBusDisplayDisplay1Listener *listener;
     VhostUserGpuMsg msg = {
         .request = VHOST_USER_GPU_DMABUF_UPDATE,
         .size = sizeof(VhostUserGpuUpdate),
@@ -635,7 +696,22 @@ vg_send_dmabuf_update(VuGpu *g,
         .payload.update.width = width,
         .payload.update.height = height
     };
+
+    g_return_if_fail(scanout_id < VIRTIO_GPU_MAX_SCANOUTS);
+
     vg_send_msg(g, &msg, -1);
+
+    g_hash_table_iter_init(&iter, g->listeners[scanout_id]);
+    while (g_hash_table_iter_next(&iter, (void **)&listener, NULL)) {
+        g->wait_dbus++;
+        dbus_display_display1_listener_call_update_dmabuf(
+            listener,
+            x, y, width, height,
+            G_DBUS_CALL_FLAGS_NONE,
+            -1, NULL,
+            dbus_update_gl_cb,
+            g);
+    }
 }
 
 void
@@ -652,6 +728,8 @@ vg_send_scanout(VuGpu *g, uint32_t scanout_id)
         }
     };
     vg_send_msg(g, &msg, -1);
+
+    /* dbus-listener is postponed until data is available */
 }
 
 static void
@@ -745,9 +823,17 @@ vg_send_update(VuGpu *g,
                VgUpdateFill fill_cb,
                void *fill_data)
 {
-    void *p = g_malloc(VHOST_USER_GPU_HDR_SIZE +
+    GHashTableIter iter;
+    DBusDisplayDisplay1Listener *listener;
+    g_autoptr(GVariant) v_data = NULL;
+    bool scanout = false;
+    VhostUserGpuMsg *msg;
+    void *p = NULL;
+
+    g_return_if_fail(scanout_id < VIRTIO_GPU_MAX_SCANOUTS);
+
+    msg = p = g_malloc(VHOST_USER_GPU_HDR_SIZE +
                        sizeof(VhostUserGpuUpdate) + data_size);
-    VhostUserGpuMsg *msg = p;
     msg->request = VHOST_USER_GPU_UPDATE;
     msg->size = sizeof(VhostUserGpuUpdate) + data_size;
     msg->payload.update = (VhostUserGpuUpdate) {
@@ -759,7 +845,40 @@ vg_send_update(VuGpu *g,
     };
     fill_cb(g, msg, fill_data);
     vg_send_msg(g, msg, -1);
-    g_free(msg);
+
+    if (x == 0 && y == 0 &&
+        width == g->scanout[scanout_id].width &&
+        height == g->scanout[scanout_id].height) {
+        scanout = true;
+    }
+
+    v_data = g_variant_new_from_data(
+        G_VARIANT_TYPE("ay"),
+        p + offsetof(VhostUserGpuMsg, payload.update.data),
+        data_size,
+        TRUE,
+        g_free,
+        p);
+    g_variant_ref_sink(v_data);
+
+    g_hash_table_iter_init(&iter, g->listeners[scanout_id]);
+    while (g_hash_table_iter_next(&iter, (void **)&listener, NULL)) {
+        if (scanout) {
+            dbus_display_display1_listener_call_scanout(
+                listener,
+                width, height, width * 4, PIXMAN_x8r8g8b8,
+                v_data,
+                G_DBUS_CALL_FLAGS_NONE,
+                -1, NULL, NULL, NULL);
+        } else {
+            dbus_display_display1_listener_call_update(
+                listener,
+                x, y, width, height, width * 4, PIXMAN_x8r8g8b8,
+                v_data,
+                G_DBUS_CALL_FLAGS_NONE,
+                -1, NULL, NULL, NULL);
+        }
+    }
 }
 
 static void
@@ -912,7 +1031,7 @@ vg_handle_ctrl(VuDev *dev, int qidx)
     size_t len;
 
     for (;;) {
-        if (vg->wait_in != 0) {
+        if (vg->wait_in != 0 || vg->wait_dbus > 0) {
             return;
         }
 
@@ -970,7 +1089,15 @@ vg_send_cursor_update(VuGpu *g,
                       const struct virtio_gpu_update_cursor *cursor,
                       const void *data)
 {
-    VhostUserGpuMsg msg = {
+    GHashTableIter iter;
+    DBusDisplayDisplay1Listener *listener;
+    VhostUserGpuMsg *msg;
+    g_autoptr(GVariant) v_data = NULL;
+
+    g_return_if_fail(cursor->pos.scanout_id < VIRTIO_GPU_MAX_SCANOUTS);
+
+    msg = g_new0(VhostUserGpuMsg, 1);
+    *msg = (VhostUserGpuMsg) {
         .request = VHOST_USER_GPU_CURSOR_UPDATE,
         .size = sizeof(VhostUserGpuCursorUpdate),
         .payload.cursor_update = {
@@ -983,15 +1110,43 @@ vg_send_cursor_update(VuGpu *g,
             .hot_y = cursor->hot_y,
         }
     };
+
     /* we can afford that cursor copy */
-    memcpy(msg.payload.cursor_update.data, data,
-           sizeof(msg.payload.cursor_update.data));
-    vg_send_msg(g, &msg, -1);
+    memcpy(msg->payload.cursor_update.data, data,
+           sizeof(msg->payload.cursor_update.data));
+    vg_send_msg(g, msg, -1);
+
+    v_data = g_variant_new_from_data(
+        G_VARIANT_TYPE("ay"),
+        msg->payload.cursor_update.data,
+        sizeof(msg->payload.cursor_update.data),
+        TRUE,
+        g_free,
+        msg);
+    g_variant_ref_sink(v_data);
+
+    g_hash_table_iter_init(&iter, g->listeners[cursor->pos.scanout_id]);
+    while (g_hash_table_iter_next(&iter, (void **)&listener, NULL)) {
+        dbus_display_display1_listener_call_cursor_define(
+            listener,
+            64,
+            64,
+            cursor->hot_x,
+            cursor->hot_y,
+            v_data,
+            G_DBUS_CALL_FLAGS_NONE,
+            -1,
+            NULL,
+            NULL,
+            NULL);
+    }
 }
 
 void
 vg_send_cursor_pos(VuGpu *g, const struct virtio_gpu_update_cursor *cursor)
 {
+    GHashTableIter iter;
+    DBusDisplayDisplay1Listener *listener;
     VhostUserGpuMsg msg = {
         .request = cursor->resource_id ?
         VHOST_USER_GPU_CURSOR_POS : VHOST_USER_GPU_CURSOR_POS_HIDE,
@@ -1002,7 +1157,20 @@ vg_send_cursor_pos(VuGpu *g, const struct virtio_gpu_update_cursor *cursor)
             .y = cursor->pos.y,
         }
     };
+
+    g_return_if_fail(cursor->pos.scanout_id < VIRTIO_GPU_MAX_SCANOUTS);
+
     vg_send_msg(g, &msg, -1);
+
+    g_hash_table_iter_init(&iter, g->listeners[cursor->pos.scanout_id]);
+    while (g_hash_table_iter_next(&iter, (void **)&listener, NULL)) {
+        dbus_display_display1_listener_call_mouse_set(
+            listener,
+            cursor->pos.x,
+            cursor->pos.y,
+            cursor->resource_id != 0,
+            G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
+    }
 }
 
 static void
@@ -1127,6 +1295,70 @@ set_gpu_protocol_features(VuGpu *g)
                                protocol_features_cb, g);
 }
 
+static void
+listener_vanished_cb(GDBusConnection *connection,
+                     gboolean remote_peer_vanished,
+                     GError *error,
+                     VuGpu *g)
+{
+    DBusDisplayDisplay1Listener *listener;
+    uint8_t idx;
+
+    listener = g_object_get_data(G_OBJECT(connection), "listener");
+    g_debug("Removing dbus-listener %p", listener);
+
+    idx = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(listener), "idx"));
+    g_hash_table_remove(g->listeners[idx], listener);
+}
+
+static void
+vg_register_dbus_listener(VuGpu *g, uint8_t idx, int fd)
+{
+    GDBusConnection *listener_conn;
+    g_autoptr(GError) err = NULL;
+    g_autoptr(GSocket) socket = NULL;
+    g_autoptr(GSocketConnection) socket_conn = NULL;
+    g_autofree char *guid = g_dbus_generate_guid();
+    DBusDisplayDisplay1Listener *listener;
+
+    socket = g_socket_new_from_fd(fd, &err);
+    if (err) {
+        g_warning("Couldn't make a socket: %s", err->message);
+        close(fd);
+        return;
+    }
+    socket_conn = g_socket_connection_factory_create_connection(socket);
+    listener_conn = g_dbus_connection_new_sync(G_IO_STREAM(socket_conn),
+                                               guid,
+                                               G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_SERVER,
+                                               NULL, NULL, &err);
+    if (err) {
+        g_warning("Failed to setup peer connection: %s", err->message);
+        return;
+    }
+
+    listener = dbus_display_display1_listener_proxy_new_sync(
+        listener_conn,
+        G_DBUS_PROXY_FLAGS_DO_NOT_AUTO_START,
+        NULL,
+        "/org/qemu/Display1/Listener",
+        NULL,
+        &err);
+    if (!listener) {
+        g_warning("failed to setup proxy: %s", err->message);
+        return;
+    }
+
+    g_debug("Adding dbus-listener %p", listener);
+
+    g_object_set_data(G_OBJECT(listener), "idx", GINT_TO_POINTER(idx));
+    g_object_set_data(G_OBJECT(listener_conn), "listener", listener);
+    g_hash_table_add(g->listeners[idx], listener);
+    g_object_connect(listener_conn,
+                     "signal::closed", listener_vanished_cb, g,
+                     NULL);
+}
+
 static int
 vg_process_msg(VuDev *dev, VhostUserMsg *msg, int *do_reply)
 {
@@ -1138,6 +1370,12 @@ vg_process_msg(VuDev *dev, VhostUserMsg *msg, int *do_reply)
         g_return_val_if_fail(g->sock_fd == -1, 1);
         g->sock_fd = msg->fds[0];
         set_gpu_protocol_features(g);
+        return 1;
+    }
+    case VHOST_USER_GPU_QEMU_DBUS_LISTENER: {
+        g_return_val_if_fail(msg->fd_num == 1, 1);
+        g_return_val_if_fail(msg->payload.u64 < VIRTIO_GPU_MAX_SCANOUTS, 1);
+        vg_register_dbus_listener(g, msg->payload.u64, msg->fds[0]);
         return 1;
     }
     default:
@@ -1173,6 +1411,12 @@ vg_set_features(VuDev *dev, uint64_t features)
     }
 
     g->virgl = virgl;
+}
+
+static uint64_t
+vg_get_protocol_features(VuDev *dev)
+{
+    return 1 << VHOST_USER_PROTOCOL_F_GPU_QEMU_DBUS_LISTENER;
 }
 
 static int
@@ -1211,6 +1455,7 @@ vg_set_config(VuDev *dev, const uint8_t *data,
 static const VuDevIface vuiface = {
     .set_features = vg_set_features,
     .get_features = vg_get_features,
+    .get_protocol_features = vg_get_protocol_features,
     .queue_set_started = vg_queue_set_started,
     .process_msg = vg_process_msg,
     .get_config = vg_get_config,
@@ -1221,8 +1466,13 @@ static void
 vg_destroy(VuGpu *g)
 {
     struct virtio_gpu_simple_resource *res, *tmp;
+    int i;
 
     vug_deinit(&g->dev);
+
+    for (i = 0; i < VIRTIO_GPU_MAX_SCANOUTS; i++) {
+        g_clear_pointer(&g->listeners[i], g_hash_table_unref);
+    }
 
     vg_sock_fd_close(g);
 
@@ -1253,7 +1503,7 @@ main(int argc, char *argv[])
     GOptionContext *context;
     GError *error = NULL;
     GMainLoop *loop = NULL;
-    int fd;
+    int i, fd;
     VuGpu g = { .sock_fd = -1, .drm_rnode_fd = -1 };
 
     QTAILQ_INIT(&g.reslist);
@@ -1305,6 +1555,10 @@ main(int argc, char *argv[])
     if (fd == -1) {
         g_printerr("Invalid vhost-user socket.\n");
         exit(EXIT_FAILURE);
+    }
+
+    for (i = 0; i < VIRTIO_GPU_MAX_SCANOUTS; i++) {
+        g.listeners[i] = g_hash_table_new_full(NULL, NULL, g_object_unref, NULL);
     }
 
     if (!vug_init(&g.dev, VHOST_USER_GPU_MAX_QUEUES, fd, vg_panic, &vuiface)) {

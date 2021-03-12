@@ -119,12 +119,15 @@ typedef struct VuGpu {
     int drm_rnode_fd;
     GSource *renderer_source;
     guint wait_in;
+    guint wait_dbus;
 
     bool virgl;
     bool virgl_inited;
     uint32_t inflight;
 
     struct virtio_gpu_scanout scanout[VIRTIO_GPU_MAX_SCANOUTS];
+    GHashTable *listeners[VIRTIO_GPU_MAX_SCANOUTS];
+
     QTAILQ_HEAD(, virtio_gpu_simple_resource) reslist;
     QTAILQ_HEAD(, virtio_gpu_ctrl_command) fenceq;
 } VuGpu;
