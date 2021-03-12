@@ -271,7 +271,6 @@ static ssize_t colo_rewriter_receive_iov(NetFilterState *nf,
     }
 
     pkt = packet_new(buf, size, vnet_hdr_len);
-    g_free(buf);
 
     /*
      * if we get tcp packet
