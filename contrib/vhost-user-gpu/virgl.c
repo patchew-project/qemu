@@ -370,16 +370,7 @@ virgl_cmd_resource_flush(VuGpu *g,
         if (g->scanout[i].resource_id != rf.resource_id) {
             continue;
         }
-        VhostUserGpuMsg msg = {
-            .request = VHOST_USER_GPU_DMABUF_UPDATE,
-            .size = sizeof(VhostUserGpuUpdate),
-            .payload.update.scanout_id = i,
-            .payload.update.x = rf.r.x,
-            .payload.update.y = rf.r.y,
-            .payload.update.width = rf.r.width,
-            .payload.update.height = rf.r.height
-        };
-        vg_send_msg(g, &msg, -1);
+        vg_send_dmabuf_update(g, i, rf.r.x, rf.r.y, rf.r.width, rf.r.height);
         vg_wait_ok(g);
     }
 }

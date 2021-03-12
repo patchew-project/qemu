@@ -188,5 +188,11 @@ void    vg_send_dmabuf_scanout(VuGpu *g,
                                int fd_drm_fourcc,
                                uint32_t fd_flags,
                                int fd);
+void    vg_send_dmabuf_update(VuGpu *g,
+                              uint32_t scanout_id,
+                              uint32_t x,
+                              uint32_t y,
+                              uint32_t width,
+                              uint32_t height);
 
 #endif

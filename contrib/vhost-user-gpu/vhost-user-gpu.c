@@ -618,6 +618,25 @@ vg_send_dmabuf_scanout(VuGpu *g,
     vg_send_msg(g, &msg, fd);
 }
 
+void
+vg_send_dmabuf_update(VuGpu *g,
+                      uint32_t scanout_id,
+                      uint32_t x,
+                      uint32_t y,
+                      uint32_t width,
+                      uint32_t height)
+{
+    VhostUserGpuMsg msg = {
+        .request = VHOST_USER_GPU_DMABUF_UPDATE,
+        .size = sizeof(VhostUserGpuUpdate),
+        .payload.update.scanout_id = scanout_id,
+        .payload.update.x = x,
+        .payload.update.y = y,
+        .payload.update.width = width,
+        .payload.update.height = height
+    };
+    vg_send_msg(g, &msg, -1);
+}
 
 static void
 vg_set_scanout(VuGpu *g,
@@ -765,18 +784,7 @@ vg_resource_flush(VuGpu *g,
         size_t height = extents->y2 - extents->y1;
 
         if (vugbm_buffer_can_get_dmabuf_fd(&res->buffer)) {
-            VhostUserGpuMsg vmsg = {
-                .request = VHOST_USER_GPU_DMABUF_UPDATE,
-                .size = sizeof(VhostUserGpuUpdate),
-                .payload.update = (VhostUserGpuUpdate) {
-                    .scanout_id = i,
-                    .x = extents->x1,
-                    .y = extents->y1,
-                    .width = width,
-                    .height = height,
-                }
-            };
-            vg_send_msg(g, &vmsg, -1);
+            vg_send_dmabuf_update(g, i, extents->x1, extents->y1, width, height);
             vg_wait_ok(g);
         } else {
             size_t bpp =
