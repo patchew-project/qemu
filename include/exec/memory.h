@@ -778,7 +778,9 @@ static inline FlatView *address_space_to_flatview(AddressSpace *as)
 
 typedef int (*flatview_cb)(Int128 start,
                            Int128 len,
-                           const MemoryRegion*, void*);
+                           const MemoryRegion *mr,
+                           hwaddr offset_in_region,
+                           void *opaque);
 
 void flatview_for_each_range(FlatView *fv, flatview_cb cb , void *opaque);
 
