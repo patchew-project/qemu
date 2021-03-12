@@ -959,23 +959,29 @@ vg_send_cursor_update(VuGpu *g,
     vg_send_msg(g, &msg, -1);
 }
 
+void
+vg_send_cursor_pos(VuGpu *g, const struct virtio_gpu_update_cursor *cursor)
+{
+    VhostUserGpuMsg msg = {
+        .request = cursor->resource_id ?
+        VHOST_USER_GPU_CURSOR_POS : VHOST_USER_GPU_CURSOR_POS_HIDE,
+        .size = sizeof(VhostUserGpuCursorPos),
+        .payload.cursor_pos = {
+            .scanout_id = cursor->pos.scanout_id,
+            .x = cursor->pos.x,
+            .y = cursor->pos.y,
+        }
+    };
+    vg_send_msg(g, &msg, -1);
+}
+
 static void
 vg_process_cursor_cmd(VuGpu *g, struct virtio_gpu_update_cursor *cursor)
 {
     switch (cursor->hdr.type) {
     case VIRTIO_GPU_CMD_MOVE_CURSOR: {
-        VhostUserGpuMsg msg = {
-            .request = cursor->resource_id ?
-                VHOST_USER_GPU_CURSOR_POS : VHOST_USER_GPU_CURSOR_POS_HIDE,
-            .size = sizeof(VhostUserGpuCursorPos),
-            .payload.cursor_pos = {
-                .scanout_id = cursor->pos.scanout_id,
-                .x = cursor->pos.x,
-                .y = cursor->pos.y,
-            }
-        };
         g_debug("%s: move", G_STRFUNC);
-        vg_send_msg(g, &msg, -1);
+        vg_send_cursor_pos(g, cursor);
         break;
     }
     case VIRTIO_GPU_CMD_UPDATE_CURSOR: {

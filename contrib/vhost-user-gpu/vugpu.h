@@ -198,4 +198,7 @@ void    vg_send_scanout(VuGpu *g, uint32_t scanout_id);
 void    vg_send_cursor_update(VuGpu *g,
                               const struct virtio_gpu_update_cursor *cursor,
                               const void *data);
+void    vg_send_cursor_pos(VuGpu *g,
+                           const struct virtio_gpu_update_cursor *cursor);
+
 #endif
