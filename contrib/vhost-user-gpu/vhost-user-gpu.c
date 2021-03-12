@@ -638,6 +638,22 @@ vg_send_dmabuf_update(VuGpu *g,
     vg_send_msg(g, &msg, -1);
 }
 
+void
+vg_send_scanout(VuGpu *g, uint32_t scanout_id)
+{
+    struct virtio_gpu_scanout *scanout = &g->scanout[scanout_id];
+    VhostUserGpuMsg msg = {
+        .request = VHOST_USER_GPU_SCANOUT,
+        .size = sizeof(VhostUserGpuScanout),
+        .payload.scanout = (VhostUserGpuScanout) {
+            .scanout_id = scanout_id,
+            .width = scanout->width,
+            .height = scanout->height
+        }
+    };
+    vg_send_msg(g, &msg, -1);
+}
+
 static void
 vg_set_scanout(VuGpu *g,
                struct virtio_gpu_ctrl_command *cmd)
@@ -714,16 +730,7 @@ vg_set_scanout(VuGpu *g,
             close(fd);
         }
     } else {
-        VhostUserGpuMsg msg = {
-            .request = VHOST_USER_GPU_SCANOUT,
-            .size = sizeof(VhostUserGpuScanout),
-            .payload.scanout = (VhostUserGpuScanout) {
-                .scanout_id = ss.scanout_id,
-                .width = scanout->width,
-                .height = scanout->height
-            }
-        };
-        vg_send_msg(g, &msg, -1);
+        vg_send_scanout(g, ss.scanout_id);
     }
 }
 
