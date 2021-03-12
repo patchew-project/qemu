@@ -1078,12 +1078,15 @@
 # @rendernode: Which DRM render node should be used. Default is the first
 #              available node on the host.
 #
+# @audiodev: Use the specified DBus audiodev to export audio.
+#
 # Since: X.X
 #
 ##
 { 'struct'  : 'DisplayDBus',
-  'data'    : { '*rendernode' : 'str',
-                '*addr': 'str' } }
+  'data'    : { '*rendernode': 'str',
+                '*addr': 'str',
+                '*audiodev': 'str' } }
 
  ##
  # @DisplayGLMode:

@@ -35,6 +35,7 @@ struct DBusDisplay {
 
     DisplayGLMode gl_mode;
     char *dbus_addr;
+    char *audiodev;
     DisplayGLCtx glctx;
 
     GDBusConnection *bus;

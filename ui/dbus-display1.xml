@@ -120,4 +120,86 @@
       </arg>
     </method>
   </interface>
+
+  <!-- on /org/qemu/Display1/Audio -->
+  <interface name="org.qemu.Display1.Audio">
+    <method name="RegisterOutListener">
+      <arg type="h" name="listener" direction="in"/>
+    </method>
+    <method name="RegisterInListener">
+      <arg type="h" name="listener" direction="in"/>
+    </method>
+  </interface>
+
+  <!-- on client /org/qemu/Display1/AudioOutListener -->
+  <interface name="org.qemu.Display1.AudioOutListener">
+    <method name="Init">
+      <arg name="id" type="t" direction="in"/>
+      <arg name="bits" type="y" direction="in"/>
+      <arg name="is_signed" type="b" direction="in"/>
+      <arg name="is_float" type="b" direction="in"/>
+      <arg name="freq" type="u" direction="in"/>
+      <arg name="nchannels" type="y" direction="in"/>
+      <arg name="bytes_per_frame" type="u" direction="in"/>
+      <arg name="bytes_per_second" type="u" direction="in"/>
+      <arg name="be" type="b" direction="in"/>
+    </method>
+    <method name="Fini">
+      <arg name="id" type="t" direction="in"/>
+    </method>
+    <method name="SetEnabled">
+      <arg name="id" type="t" direction="in"/>
+      <arg name="enabled" type="b" direction="in"/>
+    </method>
+    <method name="SetVolume">
+      <arg name="id" type="t" direction="in"/>
+      <arg name="mute" type="b" direction="in"/>
+      <arg name="volume" type="ay" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+    </method>
+    <method name="Write">
+      <arg name="id" type="t" direction="in"/>
+      <arg type="ay" name="data" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+    </method>
+  </interface>
+
+  <!-- on client /org/qemu/Display1/AudioInListener -->
+  <interface name="org.qemu.Display1.AudioInListener">
+    <method name="Init">
+      <arg name="id" type="t" direction="in"/>
+      <arg name="bits" type="y" direction="in"/>
+      <arg name="is_signed" type="b" direction="in"/>
+      <arg name="is_float" type="b" direction="in"/>
+      <arg name="freq" type="u" direction="in"/>
+      <arg name="nchannels" type="y" direction="in"/>
+      <arg name="bytes_per_frame" type="u" direction="in"/>
+      <arg name="bytes_per_second" type="u" direction="in"/>
+      <arg name="be" type="b" direction="in"/>
+    </method>
+    <method name="Fini">
+      <arg name="id" type="t" direction="in"/>
+    </method>
+    <method name="SetEnabled">
+      <arg name="id" type="t" direction="in"/>
+      <arg name="enabled" type="b" direction="in"/>
+    </method>
+    <method name="SetVolume">
+      <arg name="id" type="t" direction="in"/>
+      <arg name="mute" type="b" direction="in"/>
+      <arg name="volume" type="ay" direction="in">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+    </method>
+    <method name="Read">
+      <arg name="id" type="t" direction="in"/>
+      <arg name="size" type="t" direction="in"/>
+      <arg type="ay" name="data" direction="out">
+        <annotation name="org.gtk.GDBus.C.ForceGVariant" value="true"/>
+      </arg>
+    </method>
+  </interface>
+
 </node>
