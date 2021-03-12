@@ -356,6 +356,21 @@ vg_resource_create_2d(VuGpu *g,
     QTAILQ_INSERT_HEAD(&g->reslist, res, next);
 }
 
+void
+vg_send_disable_scanout(VuGpu *g, int scanout_id)
+{
+    g_debug("send disable scanout %d", scanout_id);
+
+    if (g->sock_fd >= 0) {
+        VhostUserGpuMsg msg = {
+            .request = VHOST_USER_GPU_SCANOUT,
+            .size = sizeof(VhostUserGpuScanout),
+            .payload.scanout.scanout_id = scanout_id,
+        };
+        vg_send_msg(g, &msg, -1);
+    }
+}
+
 static void
 vg_disable_scanout(VuGpu *g, int scanout_id)
 {
@@ -374,14 +389,7 @@ vg_disable_scanout(VuGpu *g, int scanout_id)
     scanout->width = 0;
     scanout->height = 0;
 
-    if (g->sock_fd >= 0) {
-        VhostUserGpuMsg msg = {
-            .request = VHOST_USER_GPU_SCANOUT,
-            .size = sizeof(VhostUserGpuScanout),
-            .payload.scanout.scanout_id = scanout_id,
-        };
-        vg_send_msg(g, &msg, -1);
-    }
+    vg_send_disable_scanout(g, scanout_id);
 }
 
 static void

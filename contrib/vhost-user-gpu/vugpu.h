@@ -179,5 +179,6 @@ void    vg_send_msg(VuGpu *g, const VhostUserGpuMsg *msg, int fd);
 bool    vg_recv_msg(VuGpu *g, uint32_t expect_req, uint32_t expect_size,
                     gpointer payload);
 
+void    vg_send_disable_scanout(VuGpu *g, int scanout_id);
 
 #endif

@@ -354,13 +354,7 @@ virgl_cmd_set_scanout(VuGpu *g,
         vg_send_msg(g, &msg, fd);
         close(fd);
     } else {
-        VhostUserGpuMsg msg = {
-            .request = VHOST_USER_GPU_DMABUF_SCANOUT,
-            .size = sizeof(VhostUserGpuDMABUFScanout),
-            .payload.dmabuf_scanout.scanout_id = ss.scanout_id,
-        };
-        g_debug("disable scanout");
-        vg_send_msg(g, &msg, -1);
+        vg_send_disable_scanout(g, ss.scanout_id);
     }
     g->scanout[ss.scanout_id].resource_id = ss.resource_id;
 }
