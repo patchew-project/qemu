@@ -320,6 +320,17 @@ void graphic_hw_gl_block(QemuConsole *con, bool block)
     }
 }
 
+bool graphic_hw_register_dbus_listener(QemuConsole *con, int fd)
+{
+    assert(con != NULL);
+
+    if (con->hw_ops->register_dbus_listener) {
+        return con->hw_ops->register_dbus_listener(con->hw, con, fd);
+    }
+
+    return false;
+}
+
 int qemu_console_get_window_id(QemuConsole *con)
 {
     return con->window_id;

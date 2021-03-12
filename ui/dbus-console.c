@@ -242,10 +242,13 @@ dbus_console_register_listener(DBusDisplayConsole *self,
         close(fd);
         return DBUS_METHOD_INVOCATION_HANDLED;
     }
-    socket_conn = g_socket_connection_factory_create_connection(socket);
     /* return now: easier for the other end, as it may handle priv dbus synchronously */
     dbus_display_display1_console_complete_register_listener(self->iface, invocation, NULL);
 
+    if (graphic_hw_register_dbus_listener(self->con, fd)) {
+        return DBUS_METHOD_INVOCATION_HANDLED;
+    }
+    socket_conn = g_socket_connection_factory_create_connection(socket);
     listener_conn = g_dbus_connection_new_sync(G_IO_STREAM(socket_conn),
                                                guid,
                                                G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_SERVER,
