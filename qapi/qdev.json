@@ -124,3 +124,31 @@
 ##
 { 'event': 'DEVICE_DELETED',
   'data': { '*device': 'str', 'path': 'str' } }
+
+##
+# @DEVICE_NOT_DELETED:
+#
+# Emitted whenever the device removal process expired and the device
+# still exists in QOM. This indicates that the guest took too long
+# to acknowlege the device removal, and we can not be sure of whether
+# the process will be completed in the guest later on or a guest
+# side error occurred.
+#
+# It is not safe to reuse the specified device ID.
+#
+# @device: device name
+#
+# @path: device path
+#
+# Since: 6.0
+#
+# Example:
+#
+# <- { "event": "DEVICE_NOT_DELETED",
+#      "data": { "device": "core1",
+#                "path": "/machine/peripheral/core1" },
+#      "timestamp": { "seconds": 1615570254, "microseconds": 573986 } }
+#
+##
+{ 'event': 'DEVICE_NOT_DELETED',
+  'data': { '*device': 'str', 'path': 'str' } }
