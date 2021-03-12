@@ -190,5 +190,7 @@ int vhost_backend_handle_iotlb_msg(struct vhost_dev *dev,
                                           struct vhost_iotlb_msg *imsg);
 
 int vhost_user_gpu_set_socket(struct vhost_dev *dev, int fd);
+int vhost_user_gpu_register_dbus_listener(struct vhost_dev *dev,
+                                          uint8_t idx, int fd);
 
 #endif /* VHOST_BACKEND_H */

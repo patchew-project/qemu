@@ -834,6 +834,7 @@ Protocol features
   #define VHOST_USER_PROTOCOL_F_INBAND_NOTIFICATIONS 14
   #define VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS  15
   #define VHOST_USER_PROTOCOL_F_STATUS               16
+  #define VHOST_USER_PROTOCOL_F_GPU_QEMU_DBUS_LISTENER 17
 
 Master message types
 --------------------
@@ -1346,6 +1347,15 @@ Master message types
   successfully negotiated, this message is submitted by the master to
   query the backend for its device status as defined in the Virtio
   specification.
+
+``VHOST_USER_GPU_QEMU_DBUS_LISTENER``
+  :id: 41
+  :equivalent ioctl: N/A
+  :request payload: ``u32`` the scanout to listen for
+
+  When the ``VHOST_USER_PROTOCOL_F_GPU_QEMU_DBUS_LISTENER`` protocol feature has
+  been successfully negotiated, this message is submitted by the frontend to
+  register a graphical listener using a currently private QEMU DBus protocol.
 
 
 Slave message types

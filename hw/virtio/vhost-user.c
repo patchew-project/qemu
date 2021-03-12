@@ -79,6 +79,8 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_RESET_DEVICE = 13,
     /* Feature 14 reserved for VHOST_USER_PROTOCOL_F_INBAND_NOTIFICATIONS. */
     VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS = 15,
+    VHOST_USER_PROTOCOL_F_STATUS = 16,
+    VHOST_USER_PROTOCOL_F_GPU_QEMU_DBUS_LISTENER = 17,
     VHOST_USER_PROTOCOL_F_MAX
 };
 
@@ -124,6 +126,9 @@ typedef enum VhostUserRequest {
     VHOST_USER_GET_MAX_MEM_SLOTS = 36,
     VHOST_USER_ADD_MEM_REG = 37,
     VHOST_USER_REM_MEM_REG = 38,
+    VHOST_USER_SET_STATUS = 39,
+    VHOST_USER_GET_STATUS = 40,
+    VHOST_USER_GPU_QEMU_DBUS_LISTENER = 41,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -406,6 +411,24 @@ int vhost_user_gpu_set_socket(struct vhost_dev *dev, int fd)
 
     return vhost_user_write(dev, &msg, &fd, 1);
 }
+
+int vhost_user_gpu_register_dbus_listener(struct vhost_dev *dev, uint8_t idx, int fd)
+{
+    VhostUserMsg msg = {
+        .hdr.request = VHOST_USER_GPU_QEMU_DBUS_LISTENER,
+        .hdr.flags = VHOST_USER_VERSION,
+        .payload.u64 = idx,
+        .hdr.size = sizeof(msg.payload.u64),
+    };
+
+    if (!(dev->protocol_features &
+          (1ULL << VHOST_USER_PROTOCOL_F_GPU_QEMU_DBUS_LISTENER))) {
+        return -1;
+    }
+
+    return vhost_user_write(dev, &msg, &fd, 1);
+}
+
 
 static int vhost_user_set_log_base(struct vhost_dev *dev, uint64_t base,
                                    struct vhost_log *log)
