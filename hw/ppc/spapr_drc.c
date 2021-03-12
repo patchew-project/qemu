@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qnull.h"
+#include "qapi/qapi-events-qdev.h"
 #include "cpu.h"
 #include "qemu/cutils.h"
 #include "hw/ppc/spapr_drc.h"
@@ -529,9 +530,16 @@ static const VMStateDescription vmstate_spapr_drc = {
 static void drc_unplug_timeout_cb(void *opaque)
 {
     SpaprDrc *drc = opaque;
+    DeviceState *dev = drc->dev;
 
     if (drc->unplug_requested) {
         drc->unplug_requested = false;
+
+        if (dev) {
+            qapi_event_send_device_not_deleted(!!dev->id,
+                                               dev->id,
+                                               dev->canonical_path);
+        }
     }
 }
 
