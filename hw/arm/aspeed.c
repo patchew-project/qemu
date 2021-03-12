@@ -40,6 +40,7 @@ struct AspeedMachineState {
 
     AspeedSoCState soc;
     MemoryRegion ram_container;
+    MemoryRegion ram_container_alias;
     MemoryRegion max_ram;
     bool mmio_exec;
     char *fmc_model;
@@ -339,9 +340,12 @@ static void aspeed_machine_init(MachineState *machine)
     }
     qdev_realize(DEVICE(&bmc->soc), NULL, &error_abort);
 
+    memory_region_init_alias(&bmc->ram_container_alias, NULL,
+                             "ram-container-alias", &bmc->ram_container, 0,
+                             memory_region_size(&bmc->ram_container));
     memory_region_add_subregion(get_system_memory(),
                                 sc->memmap[ASPEED_DEV_SDRAM],
-                                &bmc->ram_container);
+                                &bmc->ram_container_alias);
 
     max_ram_size = object_property_get_uint(OBJECT(&bmc->soc), "max-ram-size",
                                             &error_abort);
