@@ -85,6 +85,10 @@ TIMEOUT=15
 endif
 
 ifdef CONFIG_USER_ONLY
+
+# FIXME bsd-user?
+include $(SRC_PATH)/default-configs/targets/$(TARGET_NAME)-linux-user.mak
+
 # The order we include is important. We include multiarch first and
 # then the target. If there are common tests shared between
 # sub-targets (e.g. ARM & AArch64) then it is up to
@@ -92,6 +96,16 @@ ifdef CONFIG_USER_ONLY
 # architecture in its VPATH.
 -include $(SRC_PATH)/tests/tcg/multiarch/Makefile.target
 -include $(SRC_PATH)/tests/tcg/$(TARGET_NAME)/Makefile.target
+ifneq ($(TARGET_ARCH),)
+ifneq ($(TARGET_ARCH),$(TARGET_NAME))
+-include $(SRC_PATH)/tests/tcg/$(TARGET_ARCH)/Makefile.target
+endif
+endif
+ifneq ($(TARGET_BASE_ARCH),)
+ifneq ($(TARGET_BASE_ARCH),$(TARGET_ARCH))
+-include $(SRC_PATH)/tests/tcg/$(TARGET_BASE_ARCH)/Makefile.target
+endif
+endif
 
 # Add the common build options
 CFLAGS+=-Wall -Werror -O0 -g -fno-strict-aliasing
@@ -102,12 +116,25 @@ endif
 %: %.c
 	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@ $(LDFLAGS)
 else
+
+include $(SRC_PATH)/default-configs/targets/$(TARGET_NAME)-softmmu.mak
+
 # For softmmu targets we include a different Makefile fragement as the
 # build options for bare programs are usually pretty different. They
 # are expected to provide their own build recipes.
 -include $(SRC_PATH)/tests/tcg/minilib/Makefile.target
 -include $(SRC_PATH)/tests/tcg/multiarch/system/Makefile.softmmu-target
 -include $(SRC_PATH)/tests/tcg/$(TARGET_NAME)/Makefile.softmmu-target
+ifneq ($(TARGET_ARCH),)
+ifneq ($(TARGET_ARCH),$(TARGET_NAME))
+-include $(SRC_PATH)/tests/tcg/$(TARGET_ARCH)/Makefile.softmmu-target
+endif
+endif
+ifneq ($(TARGET_BASE_ARCH),)
+ifneq ($(TARGET_BASE_ARCH),$(TARGET_ARCH))
+-include $(SRC_PATH)/tests/tcg/$(TARGET_BASE_ARCH)/Makefile.softmmu-target
+endif
+endif
 
 endif
 
