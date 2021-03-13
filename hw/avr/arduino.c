@@ -43,6 +43,12 @@ typedef struct ArduinoMachineClass ArduinoMachineClass;
 DECLARE_OBJ_CHECKERS(ArduinoMachineState, ArduinoMachineClass,
                      ARDUINO_MACHINE, TYPE_ARDUINO_MACHINE)
 
+static unsigned gpio_port_index(char c)
+{
+    assert(c >= 'A' && c < 'A' + GPIO_MAX);
+    return c - 'A';
+}
+
 static void arduino_machine_init(MachineState *machine)
 {
     ArduinoMachineClass *amc = ARDUINO_MACHINE_GET_CLASS(machine);
@@ -59,7 +65,7 @@ static void arduino_machine_init(MachineState *machine)
                                          LED_COLOR_YELLOW,
                                          "D13 LED");
 
-    qdev_connect_gpio_out(DEVICE(&ams->mcu.gpio[1]),
+    qdev_connect_gpio_out(DEVICE(&ams->mcu.gpio[gpio_port_index('B')]),
                           amc->d13_led_portb_bit,
                           qdev_get_gpio_in(DEVICE(ams->onboard_led), 0));
 
