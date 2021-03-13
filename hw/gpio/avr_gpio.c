@@ -25,6 +25,7 @@
 #include "hw/irq.h"
 #include "hw/gpio/avr_gpio.h"
 #include "hw/qdev-properties.h"
+#include "migration/vmstate.h"
 
 static void avr_gpio_reset(DeviceState *dev)
 {
@@ -100,6 +101,18 @@ static const MemoryRegionOps avr_gpio_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static const VMStateDescription avr_gpio_vmstate = {
+    .name = "avr-gpio",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(reg.pin, AVRGPIOState),
+        VMSTATE_UINT8(reg.ddr, AVRGPIOState),
+        VMSTATE_UINT8(reg.port, AVRGPIOState),
+        VMSTATE_END_OF_LIST(),
+    },
+};
+
 static void avr_gpio_init(Object *obj)
 {
     AVRGPIOState *s = AVR_GPIO(obj);
@@ -120,6 +133,7 @@ static void avr_gpio_class_init(ObjectClass *klass, void *data)
 
     dc->reset = avr_gpio_reset;
     dc->realize = avr_gpio_realize;
+    dc->vmsd = &avr_gpio_vmstate;
 }
 
 static const TypeInfo avr_gpio_info = {
