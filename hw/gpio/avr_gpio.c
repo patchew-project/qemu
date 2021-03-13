@@ -2,6 +2,7 @@
  * AVR processors GPIO registers emulation.
  *
  * Copyright (C) 2020 Heecheol Yang <heecheol.yang@outlook.com>
+ * Copyright (C) 2021 Niteesh Babu G S <niteesh.gs@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -26,6 +27,12 @@
 #include "hw/gpio/avr_gpio.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+#include "trace.h"
+
+static char port_name(AVRGPIOState *s)
+{
+    return 'A' + s->id;
+}
 
 static void avr_gpio_reset(DeviceState *dev)
 {
@@ -47,32 +54,41 @@ static void avr_gpio_write_port(AVRGPIOState *s, uint64_t value)
 
         if (cur_ddr_pin_val && (cur_port_pin_val != new_port_pin_val)) {
             qemu_set_irq(s->out[pin], new_port_pin_val);
+            trace_avr_gpio_update_output_irq(port_name(s), pin, new_port_pin_val);
         }
     }
     s->reg.port = value & s->reg.ddr;
 }
 static uint64_t avr_gpio_read(void *opaque, hwaddr offset, unsigned int size)
 {
+    uint8_t val = 0;
     AVRGPIOState *s = (AVRGPIOState *)opaque;
     switch (offset) {
     case GPIO_PIN:
-        return s->reg.pin;
+        val = s->reg.pin;
+        break;
     case GPIO_DDR:
-        return s->reg.ddr;
+        val = s->reg.ddr;
+        break;
     case GPIO_PORT:
-        return s->reg.port;
+        val = s->reg.port;
+        break;
     default:
         g_assert_not_reached();
         break;
     }
-    return 0;
+
+    trace_avr_gpio_read(port_name(s), offset, val);
+    return val;
 }
 
 static void avr_gpio_write(void *opaque, hwaddr offset, uint64_t value,
                                 unsigned int size)
 {
     AVRGPIOState *s = (AVRGPIOState *)opaque;
-    value = value & 0xF;
+    value = value & 0xFF;
+
+    trace_avr_gpio_write(port_name(s), offset, value);
     switch (offset) {
     case GPIO_PIN:
         s->reg.pin = value;
