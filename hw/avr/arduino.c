@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/boards.h"
+#include "hw/misc/led.h"
 #include "atmega.h"
 #include "boot.h"
 #include "qom/object.h"
@@ -22,6 +23,8 @@ struct ArduinoMachineState {
     MachineState parent_obj;
     /*< public >*/
     AtmegaMcuState mcu;
+
+    LEDState *onboard_led;
 };
 typedef struct ArduinoMachineState ArduinoMachineState;
 
@@ -31,6 +34,7 @@ struct ArduinoMachineClass {
     /*< public >*/
     const char *mcu_type;
     uint64_t xtal_hz;
+    unsigned d13_led_portb_bit; /* PORTB GPIO for D13 yellow LED */
 };
 typedef struct ArduinoMachineClass ArduinoMachineClass;
 
@@ -48,6 +52,16 @@ static void arduino_machine_init(MachineState *machine)
     object_property_set_uint(OBJECT(&ams->mcu), "xtal-frequency-hz",
                              amc->xtal_hz, &error_abort);
     sysbus_realize(SYS_BUS_DEVICE(&ams->mcu), &error_abort);
+
+    /* Onboard led connected to digital header PIN 13 */
+    ams->onboard_led = led_create_simple(OBJECT(ams),
+                                         GPIO_POLARITY_ACTIVE_HIGH,
+                                         LED_COLOR_YELLOW,
+                                         "D13 LED");
+
+    qdev_connect_gpio_out(DEVICE(&ams->mcu.gpio[1]),
+                          amc->d13_led_portb_bit,
+                          qdev_get_gpio_in(DEVICE(ams->onboard_led), 0));
 
     if (machine->firmware) {
         if (!avr_load_firmware(&ams->mcu.cpu, machine,
@@ -83,6 +97,7 @@ static void arduino_duemilanove_class_init(ObjectClass *oc, void *data)
     mc->alias       = "2009";
     amc->mcu_type   = TYPE_ATMEGA168_MCU;
     amc->xtal_hz    = 16 * 1000 * 1000;
+    amc->d13_led_portb_bit = 5;
 };
 
 static void arduino_uno_class_init(ObjectClass *oc, void *data)
@@ -98,6 +113,7 @@ static void arduino_uno_class_init(ObjectClass *oc, void *data)
     mc->alias       = "uno";
     amc->mcu_type   = TYPE_ATMEGA328_MCU;
     amc->xtal_hz    = 16 * 1000 * 1000;
+    amc->d13_led_portb_bit = 5;
 };
 
 static void arduino_mega_class_init(ObjectClass *oc, void *data)
@@ -113,6 +129,7 @@ static void arduino_mega_class_init(ObjectClass *oc, void *data)
     mc->alias       = "mega";
     amc->mcu_type   = TYPE_ATMEGA1280_MCU;
     amc->xtal_hz    = 16 * 1000 * 1000;
+    amc->d13_led_portb_bit = 7;
 };
 
 static void arduino_mega2560_class_init(ObjectClass *oc, void *data)
@@ -128,6 +145,7 @@ static void arduino_mega2560_class_init(ObjectClass *oc, void *data)
     mc->alias       = "mega2560";
     amc->mcu_type   = TYPE_ATMEGA2560_MCU;
     amc->xtal_hz    = 16 * 1000 * 1000; /* CSTCE16M0V53-R0 */
+    amc->d13_led_portb_bit = 7;
 };
 
 static const TypeInfo arduino_machine_types[] = {
