@@ -243,7 +243,7 @@ static const char *get_uuid(void)
     int i, cc, chk = 0;
     static char uuid_str[37];
 
-    mem = malloc(2 * PAGE_SIZE);
+    mem = g_try_malloc(2 * PAGE_SIZE);
     if (!mem) {
         puts("Out of memory ... can not get UUID.");
         return NULL;
@@ -261,7 +261,7 @@ static const char *get_uuid(void)
                  : "d" (r0), "d" (r1), [addr] "a" (buf)
                  : "cc", "memory");
     if (cc) {
-        free(mem);
+        g_free(mem);
         return NULL;
     }
 
@@ -269,7 +269,7 @@ static const char *get_uuid(void)
         uuid[i] = buf[STSI322_VMDB_UUID_OFFSET + i];
         chk |= uuid[i];
     }
-    free(mem);
+    g_free(mem);
     if (!chk) {
         return NULL;
     }
