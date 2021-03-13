@@ -79,7 +79,7 @@ int xtensa_insnbuf_size(xtensa_isa isa)
 xtensa_insnbuf xtensa_insnbuf_alloc(xtensa_isa isa)
 {
     xtensa_insnbuf result = (xtensa_insnbuf)
-        malloc(xtensa_insnbuf_size(isa) * sizeof(xtensa_insnbuf_word));
+        g_try_malloc(xtensa_insnbuf_size(isa) * sizeof(xtensa_insnbuf_word));
 
     CHECK_ALLOC(result, 0);
     return result;
@@ -89,7 +89,7 @@ xtensa_insnbuf xtensa_insnbuf_alloc(xtensa_isa isa)
 void xtensa_insnbuf_free(xtensa_isa isa __attribute__ ((unused)),
                          xtensa_insnbuf buf)
 {
-    free(buf);
+    g_free(buf);
 }
 
 
@@ -237,7 +237,7 @@ xtensa_isa xtensa_isa_init(void *xtensa_modules, xtensa_isa_status *errno_p,
 
     /* Set up the opcode name lookup table. */
     isa->opname_lookup_table =
-        malloc(isa->num_opcodes * sizeof(xtensa_lookup_entry));
+        g_try_new(xtensa_lookup_entry, isa->num_opcodes);
     CHECK_ALLOC_FOR_INIT(isa->opname_lookup_table, NULL, errno_p, error_msg_p);
     for (n = 0; n < isa->num_opcodes; n++) {
         isa->opname_lookup_table[n].key = isa->opcodes[n].name;
@@ -248,7 +248,7 @@ xtensa_isa xtensa_isa_init(void *xtensa_modules, xtensa_isa_status *errno_p,
 
     /* Set up the state name lookup table. */
     isa->state_lookup_table =
-        malloc(isa->num_states * sizeof(xtensa_lookup_entry));
+        g_try_new(xtensa_lookup_entry, isa->num_states);
     CHECK_ALLOC_FOR_INIT(isa->state_lookup_table, NULL, errno_p, error_msg_p);
     for (n = 0; n < isa->num_states; n++) {
         isa->state_lookup_table[n].key = isa->states[n].name;
@@ -259,7 +259,7 @@ xtensa_isa xtensa_isa_init(void *xtensa_modules, xtensa_isa_status *errno_p,
 
     /* Set up the sysreg name lookup table. */
     isa->sysreg_lookup_table =
-        malloc(isa->num_sysregs * sizeof(xtensa_lookup_entry));
+        g_try_new(xtensa_lookup_entry, isa->num_sysregs);
     CHECK_ALLOC_FOR_INIT(isa->sysreg_lookup_table, NULL, errno_p, error_msg_p);
     for (n = 0; n < isa->num_sysregs; n++) {
         isa->sysreg_lookup_table[n].key = isa->sysregs[n].name;
@@ -271,7 +271,7 @@ xtensa_isa xtensa_isa_init(void *xtensa_modules, xtensa_isa_status *errno_p,
     /* Set up the user & system sysreg number tables. */
     for (is_user = 0; is_user < 2; is_user++) {
         isa->sysreg_table[is_user] =
-            malloc((isa->max_sysreg_num[is_user] + 1) * sizeof(xtensa_sysreg));
+            g_try_new(xtensa_sysreg, isa->max_sysreg_num[is_user] + 1);
         CHECK_ALLOC_FOR_INIT(isa->sysreg_table[is_user], NULL,
                              errno_p, error_msg_p);
 
@@ -290,7 +290,7 @@ xtensa_isa xtensa_isa_init(void *xtensa_modules, xtensa_isa_status *errno_p,
 
     /* Set up the interface lookup table. */
     isa->interface_lookup_table =
-        malloc(isa->num_interfaces * sizeof(xtensa_lookup_entry));
+        g_try_new(xtensa_lookup_entry, isa->num_interfaces);
     CHECK_ALLOC_FOR_INIT(isa->interface_lookup_table, NULL, errno_p,
                          error_msg_p);
     for (n = 0; n < isa->num_interfaces; n++) {
@@ -302,7 +302,7 @@ xtensa_isa xtensa_isa_init(void *xtensa_modules, xtensa_isa_status *errno_p,
 
     /* Set up the funcUnit lookup table. */
     isa->funcUnit_lookup_table =
-        malloc(isa->num_funcUnits * sizeof(xtensa_lookup_entry));
+        g_try_new(xtensa_lookup_entry, isa->num_funcUnits);
     CHECK_ALLOC_FOR_INIT(isa->funcUnit_lookup_table, NULL, errno_p,
                          error_msg_p);
     for (n = 0; n < isa->num_funcUnits; n++) {
@@ -333,33 +333,33 @@ void xtensa_isa_free(xtensa_isa isa)
      */
 
     if (intisa->opname_lookup_table) {
-        free(intisa->opname_lookup_table);
+        g_free(intisa->opname_lookup_table);
         intisa->opname_lookup_table = 0;
     }
 
     if (intisa->state_lookup_table) {
-        free(intisa->state_lookup_table);
+        g_free(intisa->state_lookup_table);
         intisa->state_lookup_table = 0;
     }
 
     if (intisa->sysreg_lookup_table) {
-        free(intisa->sysreg_lookup_table);
+        g_free(intisa->sysreg_lookup_table);
         intisa->sysreg_lookup_table = 0;
     }
     for (n = 0; n < 2; n++) {
         if (intisa->sysreg_table[n]) {
-            free(intisa->sysreg_table[n]);
+            g_free(intisa->sysreg_table[n]);
             intisa->sysreg_table[n] = 0;
         }
     }
 
     if (intisa->interface_lookup_table) {
-        free(intisa->interface_lookup_table);
+        g_free(intisa->interface_lookup_table);
         intisa->interface_lookup_table = 0;
     }
 
     if (intisa->funcUnit_lookup_table) {
-        free(intisa->funcUnit_lookup_table);
+        g_free(intisa->funcUnit_lookup_table);
         intisa->funcUnit_lookup_table = 0;
     }
 }
