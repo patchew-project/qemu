@@ -1055,8 +1055,7 @@ static target_ulong h_cede(PowerPCCPU *cpu, SpaprMachineState *spapr,
     CPUState *cs = CPU(cpu);
     SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
 
-    env->msr |= (1ULL << MSR_EE);
-    hreg_compute_hflags(env);
+    hreg_store_msr(env, env->msr | (1ULL << MSR_EE), false);
 
     if (spapr_cpu->prod) {
         spapr_cpu->prod = false;
