@@ -113,6 +113,11 @@ static const VMStateDescription avr_gpio_vmstate = {
     },
 };
 
+static Property avr_gpio_properties[] = {
+    DEFINE_PROP_UINT8("id", AVRGPIOState, id, UINT8_MAX),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void avr_gpio_init(Object *obj)
 {
     AVRGPIOState *s = AVR_GPIO(obj);
@@ -123,9 +128,13 @@ static void avr_gpio_init(Object *obj)
 }
 static void avr_gpio_realize(DeviceState *dev, Error **errp)
 {
-    /* Do nothing currently */
-}
+    AVRGPIOState *s = AVR_GPIO(dev);
 
+    if (s->id == UINT8_MAX) {
+        error_setg(errp, "property 'id' not set");
+        return;
+    }
+}
 
 static void avr_gpio_class_init(ObjectClass *klass, void *data)
 {
@@ -134,6 +143,7 @@ static void avr_gpio_class_init(ObjectClass *klass, void *data)
     dc->reset = avr_gpio_reset;
     dc->realize = avr_gpio_realize;
     dc->vmsd = &avr_gpio_vmstate;
+    device_class_set_props(dc, avr_gpio_properties);
 }
 
 static const TypeInfo avr_gpio_info = {

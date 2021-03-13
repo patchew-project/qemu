@@ -285,6 +285,7 @@ static void atmega_realize(DeviceState *dev, Error **errp)
         devname = g_strdup_printf("atmega-gpio-%c", 'a' + (char)i);
         object_initialize_child(OBJECT(dev), devname, &s->gpio[i],
                                 TYPE_AVR_GPIO);
+        qdev_prop_set_uint8(DEVICE(&s->gpio[i]), "id", i);
         sysbus_realize(SYS_BUS_DEVICE(&s->gpio[i]), &error_abort);
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpio[i]), 0,
                         OFFSET_DATA + mc->dev[idx].addr);

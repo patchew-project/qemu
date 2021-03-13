@@ -48,6 +48,7 @@ struct AVRGPIOState {
     /* PORTx data changed IRQs */
     qemu_irq out[8u];
 
+    uint8_t id;
 };
 
 #endif /* AVR_GPIO_H */
