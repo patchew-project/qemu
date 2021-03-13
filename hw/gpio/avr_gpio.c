@@ -39,20 +39,15 @@ static void avr_gpio_reset(DeviceState *dev)
 static void avr_gpio_write_port(AVRGPIOState *s, uint64_t value)
 {
     uint8_t pin;
-    uint8_t cur_port_val = s->reg.port;
-    uint8_t cur_ddr_val = s->reg.ddr;
 
     for (pin = 0u; pin < AVR_GPIO_COUNT ; pin++) {
-        uint8_t cur_port_pin_val = cur_port_val & 0x01u;
-        uint8_t cur_ddr_pin_val = cur_ddr_val & 0x01u;
-        uint8_t new_port_pin_val = value & 0x01u;
+        uint8_t cur_port_pin_val = extract32(s->reg.port, pin, 1);
+        uint8_t cur_ddr_pin_val = extract32(s->reg.ddr, pin, 1);
+        uint8_t new_port_pin_val = extract32(value, pin, 1);
 
         if (cur_ddr_pin_val && (cur_port_pin_val != new_port_pin_val)) {
             qemu_set_irq(s->out[pin], new_port_pin_val);
         }
-        cur_port_val >>= 1u;
-        cur_ddr_val >>= 1u;
-        value >>= 1u;
     }
     s->reg.port = value & s->reg.ddr;
 }
