@@ -151,6 +151,8 @@ struct VirtIOPCIProxy {
     VirtIOIRQFD *vector_irqfd;
     int nvqs_with_notifiers;
     VirtioBusState bus;
+
+    uint32_t vgamem_size_mb;
 };
 
 static inline bool virtio_pci_modern(VirtIOPCIProxy *proxy)

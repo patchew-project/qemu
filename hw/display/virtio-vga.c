@@ -118,7 +118,7 @@ static void virtio_vga_base_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     int i;
 
     /* init vga compat bits */
-    vga->vram_size_mb = 8;
+    vga->vram_size_mb = vpci_dev->vgamem_size_mb;
     vga_common_init(vga, OBJECT(vpci_dev));
     vga_init(vga, OBJECT(vpci_dev), pci_address_space(&vpci_dev->pci_dev),
              pci_address_space_io(&vpci_dev->pci_dev), true);
@@ -204,6 +204,7 @@ static void virtio_vga_set_big_endian_fb(Object *obj, bool value, Error **errp)
 
 static Property virtio_vga_base_properties[] = {
     DEFINE_VIRTIO_GPU_PCI_PROPERTIES(VirtIOPCIProxy),
+    DEFINE_PROP_UINT32("vgamem_mb", VirtIOPCIProxy, vgamem_size_mb, 8),
     DEFINE_PROP_END_OF_LIST(),
 };
 
