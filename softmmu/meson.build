@@ -2,7 +2,6 @@ specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: [files(
   'arch_init.c',
   'balloon.c',
   'cpus.c',
-  'cpu-io.c',
   'cpu-throttle.c',
   'datadir.c',
   'globals.c',
@@ -16,6 +15,7 @@ specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: [files(
   'cpu-timers.c',
   'runstate-action.c',
 )])
+specific_ss.add(when: 'TARGET_HAS_IOPORT', if_true: files('cpu-io.c'))
 
 specific_ss.add(when: ['CONFIG_SOFTMMU', 'CONFIG_TCG'], if_true: [files(
   'icount.c'
