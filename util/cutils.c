@@ -342,7 +342,7 @@ static int do_strtosz(const char *nptr, const char **end,
         retval = -ERANGE;
         goto out;
     }
-    *result = val * mul + (uint64_t) (fraction * mul);
+    *result = val * mul + (uint64_t)fma(fraction, mul, DBL_EPSILON);
     retval = 0;
 
 out:
