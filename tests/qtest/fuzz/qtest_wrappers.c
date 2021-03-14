@@ -24,12 +24,14 @@ static bool serialize = true;
     RET_TYPE __wrap_##NAME_AND_ARGS;\
     RET_TYPE __real_##NAME_AND_ARGS;
 
+#ifdef TARGET_HAS_IOPORT
 WRAP(uint8_t  , qtest_inb(QTestState *s, uint16_t addr))
 WRAP(uint16_t , qtest_inw(QTestState *s, uint16_t addr))
 WRAP(uint32_t , qtest_inl(QTestState *s, uint16_t addr))
 WRAP(void     , qtest_outb(QTestState *s, uint16_t addr, uint8_t value))
 WRAP(void     , qtest_outw(QTestState *s, uint16_t addr, uint16_t value))
 WRAP(void     , qtest_outl(QTestState *s, uint16_t addr, uint32_t value))
+#endif /* TARGET_HAS_IOPORT */
 WRAP(uint8_t  , qtest_readb(QTestState *s, uint64_t addr))
 WRAP(uint16_t , qtest_readw(QTestState *s, uint64_t addr))
 WRAP(uint32_t , qtest_readl(QTestState *s, uint64_t addr))
@@ -50,6 +52,7 @@ WRAP(void,      qtest_memset(QTestState *s, uint64_t addr,
                              uint8_t patt, size_t size))
 
 
+#ifdef TARGET_HAS_IOPORT
 uint8_t __wrap_qtest_inb(QTestState *s, uint16_t addr)
 {
     if (!serialize) {
@@ -103,6 +106,7 @@ void __wrap_qtest_outl(QTestState *s, uint16_t addr, uint32_t value)
         __real_qtest_outl(s, addr, value);
     }
 }
+#endif /* TARGET_HAS_IOPORT */
 
 uint8_t __wrap_qtest_readb(QTestState *s, uint64_t addr)
 {

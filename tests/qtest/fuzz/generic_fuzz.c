@@ -304,6 +304,13 @@ static bool get_io_address(address_range *result, AddressSpace *as,
     return cb_info.found;
 }
 
+static bool get_mmio_address(address_range *result,
+                             uint8_t index, uint32_t offset)
+{
+    return get_io_address(result, &address_space_memory, index, offset);
+}
+
+#ifdef TARGET_HAS_IOPORT
 static bool get_pio_address(address_range *result,
                             uint8_t index, uint16_t offset)
 {
@@ -316,12 +323,6 @@ static bool get_pio_address(address_range *result,
      */
     bool found = get_io_address(result, &address_space_io, index, offset);
     return result->addr <= 0xFFFF ? found : false;
-}
-
-static bool get_mmio_address(address_range *result,
-                             uint8_t index, uint32_t offset)
-{
-    return get_io_address(result, &address_space_memory, index, offset);
 }
 
 static void op_in(QTestState *s, const unsigned char * data, size_t len)
@@ -395,6 +396,7 @@ static void op_out(QTestState *s, const unsigned char * data, size_t len)
         break;
     }
 }
+#endif /* TARGET_HAS_IOPORT */
 
 static void op_read(QTestState *s, const unsigned char * data, size_t len)
 {
@@ -626,8 +628,10 @@ static void handle_timeout(int sig)
 static void generic_fuzz(QTestState *s, const unsigned char *Data, size_t Size)
 {
     void (*ops[]) (QTestState *s, const unsigned char* , size_t) = {
+#ifdef TARGET_HAS_IOPORT
         [OP_IN]                 = op_in,
         [OP_OUT]                = op_out,
+#endif /* TARGET_HAS_IOPORT */
         [OP_READ]               = op_read,
         [OP_WRITE]              = op_write,
         [OP_PCI_READ]           = op_pci_read,
