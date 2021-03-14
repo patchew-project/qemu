@@ -106,7 +106,7 @@ static void list_add_req(struct fuse_req *req, struct fuse_req *next)
 static void destroy_req(fuse_req_t req)
 {
     pthread_mutex_destroy(&req->lock);
-    free(req);
+    g_free(req);
 }
 
 void fuse_free_req(fuse_req_t req)
@@ -130,7 +130,7 @@ static struct fuse_req *fuse_ll_alloc_req(struct fuse_session *se)
 {
     struct fuse_req *req;
 
-    req = (struct fuse_req *)calloc(1, sizeof(struct fuse_req));
+    req = g_try_new(struct fuse_req, 1);
     if (req == NULL) {
         fuse_log(FUSE_LOG_ERR, "fuse: failed to allocate request\n");
     } else {
@@ -219,7 +219,7 @@ int fuse_reply_iov(fuse_req_t req, const struct iovec *iov, int count)
     int res;
     struct iovec *padded_iov;
 
-    padded_iov = malloc((count + 1) * sizeof(struct iovec));
+    padded_iov = g_try_new(struct iovec, count + 1);
     if (padded_iov == NULL) {
         return fuse_reply_err(req, ENOMEM);
     }
@@ -228,7 +228,7 @@ int fuse_reply_iov(fuse_req_t req, const struct iovec *iov, int count)
     count++;
 
     res = send_reply_iov(req, 0, padded_iov, count);
-    free(padded_iov);
+    g_free(padded_iov);
 
     return res;
 }
@@ -568,7 +568,7 @@ static struct fuse_ioctl_iovec *fuse_ioctl_iovec_copy(const struct iovec *iov,
     struct fuse_ioctl_iovec *fiov;
     size_t i;
 
-    fiov = malloc(sizeof(fiov[0]) * count);
+    fiov = g_try_new(struct fuse_ioctl_iovec, count);
     if (!fiov) {
         return NULL;
     }
@@ -629,8 +629,8 @@ int fuse_reply_ioctl_retry(fuse_req_t req, const struct iovec *in_iov,
 
     res = send_reply_iov(req, 0, iov, count);
 out:
-    free(in_fiov);
-    free(out_fiov);
+    g_free(in_fiov);
+    g_free(out_fiov);
 
     return res;
 
@@ -667,7 +667,7 @@ int fuse_reply_ioctl_iov(fuse_req_t req, int result, const struct iovec *iov,
     struct fuse_ioctl_out arg;
     int res;
 
-    padded_iov = malloc((count + 2) * sizeof(struct iovec));
+    padded_iov = g_try_new(struct iovec, count + 2);
     if (padded_iov == NULL) {
         return fuse_reply_err(req, ENOMEM);
     }
@@ -680,7 +680,7 @@ int fuse_reply_ioctl_iov(fuse_req_t req, int result, const struct iovec *iov,
     memcpy(&padded_iov[2], iov, count * sizeof(struct iovec));
 
     res = send_reply_iov(req, 0, padded_iov, count + 2);
-    free(padded_iov);
+    g_free(padded_iov);
 
     return res;
 }
@@ -1684,7 +1684,7 @@ static struct fuse_req *check_interrupt(struct fuse_session *se,
         if (curr->u.i.unique == req->unique) {
             req->interrupted = 1;
             list_del_req(curr);
-            free(curr);
+            g_free(curr);
             return NULL;
         }
     }
@@ -1760,7 +1760,7 @@ static void do_ioctl(fuse_req_t req, fuse_ino_t nodeid,
 
 void fuse_pollhandle_destroy(struct fuse_pollhandle *ph)
 {
-    free(ph);
+    g_free(ph);
 }
 
 static void do_poll(fuse_req_t req, fuse_ino_t nodeid,
@@ -1783,7 +1783,7 @@ static void do_poll(fuse_req_t req, fuse_ino_t nodeid,
         struct fuse_pollhandle *ph = NULL;
 
         if (arg->flags & FUSE_POLL_SCHEDULE_NOTIFY) {
-            ph = malloc(sizeof(struct fuse_pollhandle));
+            ph = g_try_new(struct fuse_pollhandle, 1);
             if (ph == NULL) {
                 fuse_reply_err(req, ENOMEM);
                 return;
@@ -2476,7 +2476,7 @@ void fuse_session_destroy(struct fuse_session *se)
     free(se->vu_socket_path);
     se->vu_socket_path = NULL;
 
-    free(se);
+    g_free(se);
 }
 
 
@@ -2499,7 +2499,7 @@ struct fuse_session *fuse_session_new(struct fuse_args *args,
         return NULL;
     }
 
-    se = (struct fuse_session *)calloc(1, sizeof(struct fuse_session));
+    se = g_try_new0(struct fuse_session, 1);
     if (se == NULL) {
         fuse_log(FUSE_LOG_ERR, "fuse: failed to allocate fuse object\n");
         goto out1;
@@ -2559,7 +2559,7 @@ struct fuse_session *fuse_session_new(struct fuse_args *args,
 out4:
     fuse_opt_free_args(args);
 out2:
-    free(se);
+    g_free(se);
 out1:
     return NULL;
 }
