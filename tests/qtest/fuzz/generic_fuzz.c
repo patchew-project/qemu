@@ -784,6 +784,7 @@ static void generic_pre_fuzz(QTestState *s)
     MemoryRegion *mr;
     QPCIBus *pcibus;
     char **result;
+    const char* machine_type;
 
     if (!getenv("QEMU_FUZZ_OBJECTS")) {
         usage();
@@ -827,9 +828,13 @@ static void generic_pre_fuzz(QTestState *s)
         exit(1);
     }
 
-    pcibus = qpci_new_pc(s, NULL);
-    g_ptr_array_foreach(fuzzable_pci_devices, pci_enum, pcibus);
-    qpci_free_pc(pcibus);
+    machine_type = object_get_typename(qdev_get_machine());
+    if(fuzzable_pci_devices->len && strstr(machine_type, "pc") == machine_type)
+    {
+        pcibus = qpci_new_pc(s, NULL);
+        g_ptr_array_foreach(fuzzable_pci_devices, pci_enum, pcibus);
+        qpci_free_pc(pcibus);
+    }
 
     counter_shm_init();
 }
