@@ -1,2 +1,3 @@
 TARGET_ARCH=avr
+TARGET_HAS_IOPORT=y
 TARGET_XML_FILES= gdb-xml/avr-cpu.xml
