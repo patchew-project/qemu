@@ -530,11 +530,6 @@ static int alloc_code_gen_buffer(size_t tb_size, int splitwx, Error **errp)
     }
 #endif
 
-    if (qemu_mprotect_rwx(buf, size)) {
-        error_setg_errno(errp, errno, "mprotect of jit buffer");
-        return false;
-    }
-
     region.start_aligned = buf;
     region.total_size = size;
 
@@ -818,8 +813,7 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_cpus)
 {
     const size_t page_size = qemu_real_host_page_size;
     size_t region_size;
-    size_t i;
-    int have_prot;
+    int have_prot, need_prot;
 
     /* Size the buffer.  */
     if (tb_size == 0) {
@@ -875,14 +869,38 @@ void tcg_region_init(size_t tb_size, int splitwx, unsigned max_cpus)
     /* init the region struct */
     qemu_mutex_init(&region.lock);
 
-    /* Set guard pages.  No need to do this for the rx_buf, only the rw_buf. */
-    for (i = 0; i < region.n; i++) {
+    /*
+     * Set guard pages.  No need to do this for the rx_buf, only the rw_buf.
+     * Work with the page protections set up with the initial mapping.
+     */
+    need_prot = PAGE_READ | PAGE_WRITE;
+#ifndef CONFIG_TCG_INTERPRETER
+    if (tcg_splitwx_diff == 0) {
+        need_prot |= PAGE_EXEC;
+    }
+#endif
+    for (size_t i = 0, n = region.n; i < n; i++) {
         void *start, *end;
         int rc;
 
         tcg_region_bounds(i, &start, &end);
-        rc = qemu_mprotect_none(end, page_size);
-        g_assert(!rc);
+        if (have_prot != need_prot) {
+            if (need_prot == (PAGE_READ | PAGE_WRITE | PAGE_EXEC)) {
+                rc = qemu_mprotect_rwx(start, end - start);
+            } else if (need_prot == (PAGE_READ | PAGE_WRITE)) {
+                rc = qemu_mprotect_rw(start, end - start);
+            } else {
+                g_assert_not_reached();
+            }
+            if (rc) {
+                error_setg_errno(&error_fatal, errno,
+                                 "mprotect of jit buffer");
+            }
+        }
+        if (have_prot != 0) {
+            /* If guard-page permissions don't change, it isn't fatal. */
+            (void)qemu_mprotect_none(end, page_size);
+        }
     }
 
     tcg_region_trees_init();
