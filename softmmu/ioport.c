@@ -26,7 +26,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "cpu.h"
 #include "exec/ioport.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
@@ -53,65 +52,6 @@ const MemoryRegionOps unassigned_io_ops = {
     .write = unassigned_io_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
-
-void cpu_outb(uint32_t addr, uint8_t val)
-{
-    trace_cpu_out(addr, 'b', val);
-    address_space_write(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
-                        &val, 1);
-}
-
-void cpu_outw(uint32_t addr, uint16_t val)
-{
-    uint8_t buf[2];
-
-    trace_cpu_out(addr, 'w', val);
-    stw_p(buf, val);
-    address_space_write(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
-                        buf, 2);
-}
-
-void cpu_outl(uint32_t addr, uint32_t val)
-{
-    uint8_t buf[4];
-
-    trace_cpu_out(addr, 'l', val);
-    stl_p(buf, val);
-    address_space_write(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
-                        buf, 4);
-}
-
-uint8_t cpu_inb(uint32_t addr)
-{
-    uint8_t val;
-
-    address_space_read(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
-                       &val, 1);
-    trace_cpu_in(addr, 'b', val);
-    return val;
-}
-
-uint16_t cpu_inw(uint32_t addr)
-{
-    uint8_t buf[2];
-    uint16_t val;
-
-    address_space_read(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED, buf, 2);
-    val = lduw_p(buf);
-    trace_cpu_in(addr, 'w', val);
-    return val;
-}
-
-uint32_t cpu_inl(uint32_t addr)
-{
-    uint8_t buf[4];
-    uint32_t val;
-
-    address_space_read(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED, buf, 4);
-    val = ldl_p(buf);
-    trace_cpu_in(addr, 'l', val);
-    return val;
-}
 
 void portio_list_init(PortioList *piolist,
                       Object *owner,

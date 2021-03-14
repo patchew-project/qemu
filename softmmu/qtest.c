@@ -31,6 +31,7 @@
 #ifdef CONFIG_PSERIES
 #include "hw/ppc/spapr_rtas.h"
 #endif
+#include "exec/cpu-io.h"
 
 #define MAX_IRQ 256
 

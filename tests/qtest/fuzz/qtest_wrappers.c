@@ -12,8 +12,9 @@
  */
 
 #include "qemu/osdep.h"
+#include "exec/address-spaces.h"
+#include "exec/cpu-io.h"
 #include "hw/core/cpu.h"
-#include "exec/ioport.h"
 
 #include "fuzz.h"
 

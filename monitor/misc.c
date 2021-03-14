@@ -77,7 +77,7 @@
 #include "qapi/qmp-event.h"
 #include "sysemu/cpus.h"
 #include "qemu/cutils.h"
-
+#include "exec/cpu-io.h"
 #if defined(TARGET_S390X)
 #include "hw/s390x/storage-keys.h"
 #include "hw/s390x/storage-attributes.h"

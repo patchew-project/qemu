@@ -34,6 +34,7 @@
 #include "sysemu/xen-mapcache.h"
 #include "trace.h"
 #include "exec/address-spaces.h"
+#include "exec/cpu-io.h"
 
 #include <xen/hvm/ioreq.h>
 #include <xen/hvm/e820.h>

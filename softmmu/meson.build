@@ -2,11 +2,11 @@ specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: [files(
   'arch_init.c',
   'balloon.c',
   'cpus.c',
+  'cpu-io.c',
   'cpu-throttle.c',
   'datadir.c',
   'globals.c',
   'physmem.c',
-  'ioport.c',
   'rtc.c',
   'runstate.c',
   'memory.c',
@@ -24,6 +24,7 @@ specific_ss.add(when: ['CONFIG_SOFTMMU', 'CONFIG_TCG'], if_true: [files(
 softmmu_ss.add(files(
   'bootdevice.c',
   'dma-helpers.c',
+  'ioport.c',
   'qdev-monitor.c',
 ), sdl, libpmem, libdaxctl)
 
