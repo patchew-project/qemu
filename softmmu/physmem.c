@@ -93,7 +93,7 @@ static MemoryRegion *system_io;
 AddressSpace address_space_io;
 AddressSpace address_space_memory;
 
-static MemoryRegion io_mem_unassigned;
+static MemoryRegion unassigned_mr;
 
 typedef struct PhysPageEntry PhysPageEntry;
 
@@ -458,7 +458,7 @@ static MemoryRegionSection address_space_translate_iommu(IOMMUMemoryRegion *iomm
     return *section;
 
 unassigned:
-    return (MemoryRegionSection) { .mr = &io_mem_unassigned };
+    return (MemoryRegionSection) { .mr = &unassigned_mr };
 }
 
 /**
@@ -534,7 +534,7 @@ IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
                                     attrs);
 
     /* Illegal translation */
-    if (section.mr == &io_mem_unassigned) {
+    if (section.mr == &unassigned_mr) {
         goto iotlb_fail;
     }
 
@@ -1212,7 +1212,7 @@ static void register_subpage(FlatView *fv, MemoryRegionSection *section)
     };
     hwaddr start, end;
 
-    assert(existing->mr->subpage || existing->mr == &io_mem_unassigned);
+    assert(existing->mr->subpage || existing->mr == &unassigned_mr);
 
     if (!(existing->mr->subpage)) {
         subpage = subpage_init(fv, base);
@@ -2573,7 +2573,7 @@ MemoryRegionSection *iotlb_to_section(CPUState *cpu,
 
 static void io_mem_init(void)
 {
-    memory_region_init_io(&io_mem_unassigned, NULL, &unassigned_mem_ops, NULL,
+    memory_region_init_io(&unassigned_mr, NULL, &unassigned_mem_ops, NULL,
                           NULL, UINT64_MAX);
 }
 
@@ -2582,7 +2582,7 @@ AddressSpaceDispatch *address_space_dispatch_new(FlatView *fv)
     AddressSpaceDispatch *d = g_new0(AddressSpaceDispatch, 1);
     uint16_t n;
 
-    n = dummy_section(&d->map, fv, &io_mem_unassigned);
+    n = dummy_section(&d->map, fv, &unassigned_mr);
     assert(n == PHYS_SECTION_UNASSIGNED);
 
     d->phys_map  = (PhysPageEntry) { .ptr = PHYS_MAP_NODE_NIL, .skip = 1 };
