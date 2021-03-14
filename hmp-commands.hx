@@ -561,6 +561,7 @@ SRST
   used.
 ERST
 
+#ifdef TARGET_HAS_IOPORT
     {
         .name       = "i",
         .args_type  = "fmt:/,addr:i,index:i.",
@@ -586,6 +587,7 @@ SRST
 ``o/``\ *fmt* *addr* *val*
   Write to I/O port.
 ERST
+#endif /* TARGET_HAS_IOPORT */
 
     {
         .name       = "sendkey",

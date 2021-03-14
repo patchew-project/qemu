@@ -77,7 +77,9 @@
 #include "qapi/qmp-event.h"
 #include "sysemu/cpus.h"
 #include "qemu/cutils.h"
+#ifdef TARGET_HAS_IOPORT
 #include "exec/cpu-io.h"
+#endif
 #if defined(TARGET_S390X)
 #include "hw/s390x/storage-keys.h"
 #include "hw/s390x/storage-attributes.h"
@@ -884,6 +886,7 @@ static void hmp_mouse_button(Monitor *mon, const QDict *qdict)
     mouse_button_state = button_state;
 }
 
+#ifdef TARGET_HAS_IOPORT
 static void hmp_ioport_read(Monitor *mon, const QDict *qdict)
 {
     int size = qdict_get_int(qdict, "size");
@@ -939,6 +942,7 @@ static void hmp_ioport_write(Monitor *mon, const QDict *qdict)
         break;
     }
 }
+#endif /* TARGET_HAS_IOPORT */
 
 static void hmp_boot_set(Monitor *mon, const QDict *qdict)
 {
