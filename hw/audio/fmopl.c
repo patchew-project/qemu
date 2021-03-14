@@ -607,26 +607,32 @@ static int OPLOpenTable( void )
 	double pom;
 
 	/* allocate dynamic tables */
-	if( (TL_TABLE = malloc(TL_MAX*2*sizeof(int32_t))) == NULL)
-		return 0;
-	if( (SIN_TABLE = malloc(SIN_ENT*4 *sizeof(int32_t *))) == NULL)
-	{
-		free(TL_TABLE);
-		return 0;
-	}
-	if( (AMS_TABLE = malloc(AMS_ENT*2 *sizeof(int32_t))) == NULL)
-	{
-		free(TL_TABLE);
-		free(SIN_TABLE);
-		return 0;
-	}
-	if( (VIB_TABLE = malloc(VIB_ENT*2 *sizeof(int32_t))) == NULL)
-	{
-		free(TL_TABLE);
-		free(SIN_TABLE);
-		free(AMS_TABLE);
-		return 0;
-	}
+    TL_TABLE = malloc(TL_MAX * 2 * sizeof(int32_t));
+    if (TL_TABLE == NULL) {
+        return 0;
+    }
+
+    SIN_TABLE = malloc(SIN_ENT * 4 * sizeof(int32_t *));
+    if (SIN_TABLE == NULL) {
+        free(TL_TABLE);
+        return 0;
+    }
+
+    AMS_TABLE = malloc(AMS_ENT * 2 * sizeof(int32_t));
+    if (AMS_TABLE == NULL) {
+        free(TL_TABLE);
+        free(SIN_TABLE);
+        return 0;
+    }
+
+    VIB_TABLE = malloc(VIB_ENT * 2 * sizeof(int32_t));
+    if (VIB_TABLE == NULL) {
+        free(TL_TABLE);
+        free(SIN_TABLE);
+        free(AMS_TABLE);
+        return 0;
+    }
+
     ENV_CURVE = g_new(int32_t, 2 * EG_ENT + 1);
 	/* make total level table */
 	for (t = 0;t < EG_ENT-1 ;t++){
@@ -696,10 +702,10 @@ static int OPLOpenTable( void )
 static void OPLCloseTable( void )
 {
     g_free(ENV_CURVE);
-	free(TL_TABLE);
-	free(SIN_TABLE);
-	free(AMS_TABLE);
-	free(VIB_TABLE);
+    free(TL_TABLE);
+    free(SIN_TABLE);
+    free(AMS_TABLE);
+    free(VIB_TABLE);
 }
 
 /* CSM Key Control */
@@ -1082,7 +1088,7 @@ FM_OPL *OPLCreate(int clock, int rate)
 	state_size  = sizeof(FM_OPL);
 	state_size += sizeof(OPL_CH)*max_ch;
 	/* allocate memory block */
-	ptr = malloc(state_size);
+    ptr = malloc(state_size);
 	if(ptr==NULL) return NULL;
 	/* clear */
 	memset(ptr,0,state_size);
@@ -1128,7 +1134,7 @@ void OPLDestroy(FM_OPL *OPL)
 	}
 #endif
 	OPL_UnLockTable();
-	free(OPL);
+    free(OPL);
 }
 
 /* ----------  Option handlers ----------       */
