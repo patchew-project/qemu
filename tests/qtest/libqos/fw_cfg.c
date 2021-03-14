@@ -131,6 +131,7 @@ void mm_fw_cfg_uninit(QFWCFG *fw_cfg)
     g_free(fw_cfg);
 }
 
+#ifdef TARGET_HAS_IOPORT
 static void io_fw_cfg_select(QFWCFG *fw_cfg, uint16_t key)
 {
     qtest_outw(fw_cfg->qts, fw_cfg->base, key);
@@ -162,3 +163,4 @@ void io_fw_cfg_uninit(QFWCFG *fw_cfg)
 {
     g_free(fw_cfg);
 }
+#endif /* TARGET_HAS_IOPORT */

@@ -36,6 +36,8 @@ size_t qfw_cfg_get_file(QFWCFG *fw_cfg, const char *filename,
 
 QFWCFG *mm_fw_cfg_init(QTestState *qts, uint64_t base);
 void mm_fw_cfg_uninit(QFWCFG *fw_cfg);
+
+#ifdef TARGET_HAS_IOPORT
 QFWCFG *io_fw_cfg_init(QTestState *qts, uint16_t base);
 void io_fw_cfg_uninit(QFWCFG *fw_cfg);
 
@@ -48,6 +50,7 @@ static inline void pc_fw_cfg_uninit(QFWCFG *fw_cfg)
 {
     io_fw_cfg_uninit(fw_cfg);
 }
+#endif /* TARGET_HAS_IOPORT */
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(QFWCFG, mm_fw_cfg_uninit)
 
