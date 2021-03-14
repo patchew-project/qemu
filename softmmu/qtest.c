@@ -31,7 +31,9 @@
 #ifdef CONFIG_PSERIES
 #include "hw/ppc/spapr_rtas.h"
 #endif
+#ifdef TARGET_HAS_IOPORT
 #include "exec/cpu-io.h"
+#endif
 
 #define MAX_IRQ 256
 
@@ -462,7 +464,9 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         qemu_set_irq(irq, level);
         qtest_send_prefix(chr);
         qtest_send(chr, "OK\n");
-    } else if (strcmp(words[0], "outb") == 0 ||
+    }
+#ifdef TARGET_HAS_IOPORT
+    else if (strcmp(words[0], "outb") == 0 ||
                strcmp(words[0], "outw") == 0 ||
                strcmp(words[0], "outl") == 0) {
         unsigned long addr;
@@ -506,7 +510,9 @@ static void qtest_process_command(CharBackend *chr, gchar **words)
         }
         qtest_send_prefix(chr);
         qtest_sendf(chr, "OK 0x%04x\n", value);
-    } else if (strcmp(words[0], "writeb") == 0 ||
+    }
+#endif /* TARGET_HAS_IOPORT */
+    else if (strcmp(words[0], "writeb") == 0 ||
                strcmp(words[0], "writew") == 0 ||
                strcmp(words[0], "writel") == 0 ||
                strcmp(words[0], "writeq") == 0) {
