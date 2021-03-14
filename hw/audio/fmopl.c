@@ -607,33 +607,41 @@ static int OPLOpenTable( void )
 	double pom;
 
 	/* allocate dynamic tables */
-    TL_TABLE = malloc(TL_MAX * 2 * sizeof(int32_t));
+    TL_TABLE = g_try_new(int32_t, TL_MAX * 2);
     if (TL_TABLE == NULL) {
         return 0;
     }
 
-    SIN_TABLE = malloc(SIN_ENT * 4 * sizeof(int32_t *));
+    SIN_TABLE = g_try_new(int32_t *, SIN_ENT * 4);
     if (SIN_TABLE == NULL) {
-        free(TL_TABLE);
+        g_free(TL_TABLE);
         return 0;
     }
 
-    AMS_TABLE = malloc(AMS_ENT * 2 * sizeof(int32_t));
+    AMS_TABLE = g_try_new(int32_t, AMS_ENT * 2);
     if (AMS_TABLE == NULL) {
-        free(TL_TABLE);
-        free(SIN_TABLE);
+        g_free(TL_TABLE);
+        g_free(SIN_TABLE);
         return 0;
     }
 
-    VIB_TABLE = malloc(VIB_ENT * 2 * sizeof(int32_t));
+    VIB_TABLE = g_try_new(int32_t, VIB_ENT * 2);
     if (VIB_TABLE == NULL) {
-        free(TL_TABLE);
-        free(SIN_TABLE);
-        free(AMS_TABLE);
+        g_free(TL_TABLE);
+        g_free(SIN_TABLE);
+        g_free(AMS_TABLE);
         return 0;
     }
 
-    ENV_CURVE = g_new(int32_t, 2 * EG_ENT + 1);
+    ENV_CURVE = g_try_new(int32_t, 2 * EG_ENT + 1);
+    if (ENV_CURVE == NULL) {
+        g_free(TL_TABLE);
+        g_free(SIN_TABLE);
+        g_free(AMS_TABLE);
+        g_free(VIB_TABLE);
+        return 0;
+    }
+
 	/* make total level table */
 	for (t = 0;t < EG_ENT-1 ;t++){
 		rate = ((1<<TL_BITS)-1)/pow(10,EG_STEP*t/20);	/* dB -> voltage */
@@ -702,10 +710,10 @@ static int OPLOpenTable( void )
 static void OPLCloseTable( void )
 {
     g_free(ENV_CURVE);
-    free(TL_TABLE);
-    free(SIN_TABLE);
-    free(AMS_TABLE);
-    free(VIB_TABLE);
+    g_free(TL_TABLE);
+    g_free(SIN_TABLE);
+    g_free(AMS_TABLE);
+    g_free(VIB_TABLE);
 }
 
 /* CSM Key Control */
@@ -1088,7 +1096,7 @@ FM_OPL *OPLCreate(int clock, int rate)
 	state_size  = sizeof(FM_OPL);
 	state_size += sizeof(OPL_CH)*max_ch;
 	/* allocate memory block */
-    ptr = malloc(state_size);
+    ptr = g_try_malloc(state_size);
 	if(ptr==NULL) return NULL;
 	/* clear */
 	memset(ptr,0,state_size);
@@ -1134,7 +1142,7 @@ void OPLDestroy(FM_OPL *OPL)
 	}
 #endif
 	OPL_UnLockTable();
-    free(OPL);
+    g_free(OPL);
 }
 
 /* ----------  Option handlers ----------       */
