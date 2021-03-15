@@ -31,6 +31,7 @@
 #include <pwd.h>
 #include <sys/wait.h>
 #endif
+#include "net/eth.h"
 #include "net/net.h"
 #include "clients.h"
 #include "hub.h"
@@ -115,6 +116,17 @@ static ssize_t net_slirp_send_packet(const void *pkt, size_t pkt_len,
                                      void *opaque)
 {
     SlirpState *s = opaque;
+    uint8_t min_buf[ETH_ZLEN];
+
+    if (!s->nc.peer->do_not_pad) {
+        /* Pad to minimum Ethernet frame length */
+        if (pkt_len < ETH_ZLEN) {
+            memcpy(min_buf, pkt, pkt_len);
+            memset(&min_buf[pkt_len], 0, ETH_ZLEN - pkt_len);
+            pkt = min_buf;
+            pkt_len = ETH_ZLEN;
+        }
+    }
 
     return qemu_send_packet(&s->nc, pkt, pkt_len);
 }
