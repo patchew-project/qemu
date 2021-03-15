@@ -1021,6 +1021,19 @@ int vhost_device_iotlb_miss(struct vhost_dev *dev, uint64_t iova, int write)
 
     trace_vhost_iotlb_miss(dev, 1);
 
+    if (qatomic_load_acquire(&dev->shadow_vqs_enabled)) {
+        uaddr = iova;
+        len = 4096;
+        ret = vhost_backend_update_device_iotlb(dev, iova, uaddr, len,
+                                                IOMMU_RW);
+        if (ret) {
+            trace_vhost_iotlb_miss(dev, 2);
+            error_report("Fail to update device iotlb");
+        }
+
+        return ret;
+    }
+
     iotlb = address_space_get_iotlb_entry(dev->vdev->dma_as,
                                           iova, write,
                                           MEMTXATTRS_UNSPECIFIED);
@@ -1227,14 +1240,87 @@ static int vhost_sw_live_migration_stop(struct vhost_dev *dev)
     /* Can be read by vhost_virtqueue_mask, from vm exit */
     qatomic_store_release(&dev->shadow_vqs_enabled, false);
 
+    dev->vhost_ops->vhost_set_vring_enable(dev, false);
+    if (vhost_backend_invalidate_device_iotlb(dev, 0, -1ULL)) {
+        error_report("Fail to invalidate device iotlb");
+    }
+
     for (idx = 0; idx < dev->nvqs; ++idx) {
+        /*
+         * Update used ring information for IOTLB to work correctly,
+         * vhost-kernel code requires for this.
+         */
+        struct vhost_virtqueue *vq = dev->vqs + idx;
+        vhost_device_iotlb_miss(dev, vq->used_phys, true);
+
         vhost_shadow_vq_stop(dev, idx, dev->shadow_vqs[idx]);
+        vhost_virtqueue_start(dev, dev->vdev, &dev->vqs[idx],
+                              dev->vq_index + idx);
+    }
+
+    /* Enable guest's vq vring */
+    dev->vhost_ops->vhost_set_vring_enable(dev, true);
+
+    for (idx = 0; idx < dev->nvqs; ++idx) {
         vhost_shadow_vq_free(dev->shadow_vqs[idx]);
     }
 
     g_free(dev->shadow_vqs);
     dev->shadow_vqs = NULL;
     return 0;
+}
+
+/*
+ * Start shadow virtqueue in a given queue.
+ * In failure case, this function leaves queue working as regular vhost mode.
+ */
+static bool vhost_sw_live_migration_start_vq(struct vhost_dev *dev,
+                                             unsigned idx)
+{
+    struct vhost_vring_addr addr = {
+        .index = idx,
+    };
+    struct vhost_vring_state s = {
+        .index = idx,
+    };
+    int r;
+    bool ok;
+
+    vhost_virtqueue_stop(dev, dev->vdev, &dev->vqs[idx], dev->vq_index + idx);
+    ok = vhost_shadow_vq_start(dev, idx, dev->shadow_vqs[idx]);
+    if (unlikely(!ok)) {
+        return false;
+    }
+
+    /* From this point, vhost_virtqueue_start can reset these changes */
+    vhost_shadow_vq_get_vring_addr(dev->shadow_vqs[idx], &addr);
+    r = dev->vhost_ops->vhost_set_vring_addr(dev, &addr);
+    if (unlikely(r != 0)) {
+        VHOST_OPS_DEBUG("vhost_set_vring_addr for shadow vq failed");
+        goto err;
+    }
+
+    r = dev->vhost_ops->vhost_set_vring_base(dev, &s);
+    if (unlikely(r != 0)) {
+        VHOST_OPS_DEBUG("vhost_set_vring_base for shadow vq failed");
+        goto err;
+    }
+
+    /*
+     * Update used ring information for IOTLB to work correctly,
+     * vhost-kernel code requires for this.
+     */
+    r = vhost_device_iotlb_miss(dev, addr.used_user_addr, true);
+    if (unlikely(r != 0)) {
+        /* Debug message already printed */
+        goto err;
+    }
+
+    return true;
+
+err:
+    vhost_virtqueue_start(dev, dev->vdev, &dev->vqs[idx], dev->vq_index + idx);
+    return false;
 }
 
 static int vhost_sw_live_migration_start(struct vhost_dev *dev)
@@ -1249,24 +1335,35 @@ static int vhost_sw_live_migration_start(struct vhost_dev *dev)
         }
     }
 
+    dev->vhost_ops->vhost_set_vring_enable(dev, false);
+    if (vhost_backend_invalidate_device_iotlb(dev, 0, -1ULL)) {
+        error_report("Fail to invalidate device iotlb");
+    }
+
     /* Can be read by vhost_virtqueue_mask, from vm exit */
     qatomic_store_release(&dev->shadow_vqs_enabled, true);
     for (idx = 0; idx < dev->nvqs; ++idx) {
-        bool ok = vhost_shadow_vq_start(dev, idx, dev->shadow_vqs[idx]);
+        bool ok = vhost_sw_live_migration_start_vq(dev, idx);
         if (unlikely(!ok)) {
             goto err_start;
         }
     }
 
+    /* Enable shadow vq vring */
+    dev->vhost_ops->vhost_set_vring_enable(dev, true);
     return 0;
 
 err_start:
     qatomic_store_release(&dev->shadow_vqs_enabled, false);
     for (stop_idx = 0; stop_idx < idx; stop_idx++) {
         vhost_shadow_vq_stop(dev, idx, dev->shadow_vqs[stop_idx]);
+        vhost_virtqueue_start(dev, dev->vdev, &dev->vqs[idx],
+                              dev->vq_index + stop_idx);
     }
 
 err_new:
+    /* Enable guest's vring */
+    dev->vhost_ops->vhost_set_vring_enable(dev, true);
     for (idx = 0; idx < dev->nvqs; ++idx) {
         vhost_shadow_vq_free(dev->shadow_vqs[idx]);
     }
@@ -1970,6 +2067,20 @@ void qmp_x_vhost_enable_shadow_vq(const char *name, bool enable, Error **errp)
 
         if (!hdev->started) {
             err_cause = "Device is not started";
+        } else if (!vhost_dev_has_iommu(hdev)) {
+            err_cause = "Does not support iommu";
+        } else if (hdev->acked_features & BIT_ULL(VIRTIO_F_RING_PACKED)) {
+            err_cause = "Is packed";
+        } else if (hdev->acked_features & BIT_ULL(VIRTIO_RING_F_EVENT_IDX)) {
+            err_cause = "Have event idx";
+        } else if (hdev->acked_features &
+                   BIT_ULL(VIRTIO_RING_F_INDIRECT_DESC)) {
+            err_cause = "Supports indirect descriptors";
+        } else if (!hdev->vhost_ops->vhost_set_vring_enable) {
+            err_cause = "Cannot pause device";
+        }
+
+        if (err_cause) {
             goto err;
         }
 
