@@ -311,7 +311,6 @@ static void nbd_client_attach_aio_context_bh(void *opaque)
     if (s->connection_co) {
         qemu_aio_coroutine_enter(bs->aio_context, s->connection_co);
     }
-    bdrv_dec_in_flight(bs);
 }
 
 static void nbd_client_attach_aio_context(BlockDriverState *bs,
@@ -327,7 +326,6 @@ static void nbd_client_attach_aio_context(BlockDriverState *bs,
         qio_channel_attach_aio_context(QIO_CHANNEL(s->ioc), new_context);
     }
 
-    bdrv_inc_in_flight(bs);
 
     /*
      * Need to wait here for the BH to run because the BH must run while the
@@ -643,11 +641,9 @@ static coroutine_fn void nbd_reconnect_attempt(BDRVNBDState *s)
         goto out;
     }
 
-    bdrv_dec_in_flight(s->bs);
 
     ret = nbd_client_handshake(s->bs, &local_err);
 
-    bdrv_inc_in_flight(s->bs);
 
 out:
     s->connect_status = ret;
@@ -759,7 +755,6 @@ static coroutine_fn void nbd_connection_entry(void *opaque)
 
     qemu_co_queue_restart_all(&s->free_sema);
     nbd_recv_coroutines_wake_all(s);
-    bdrv_dec_in_flight(s->bs);
 
     s->connection_co = NULL;
     if (s->ioc) {
@@ -2307,7 +2302,6 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
     nbd_init_connect_thread(s);
 
     s->connection_co = qemu_coroutine_create(nbd_connection_entry, s);
-    bdrv_inc_in_flight(bs);
     aio_co_schedule(bdrv_get_aio_context(bs), s->connection_co);
 
     return 0;
