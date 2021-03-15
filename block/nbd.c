@@ -126,6 +126,7 @@ typedef struct BDRVNBDState {
     bool wait_in_flight;
 
     QEMUTimer *reconnect_delay_timer;
+    int64_t reconnect_expire_time_ns;
 
     NBDClientRequest requests[MAX_NBD_REQUESTS];
     NBDReply reply;
@@ -240,6 +241,7 @@ static void reconnect_delay_timer_init(BDRVNBDState *s, uint64_t expire_time_ns)
 static void nbd_client_detach_aio_context(BlockDriverState *bs)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
+    NBDConnectThread *thr = s->connect_thread;
 
     /*
      * This runs in the (old, about to be detached) aio context of the @bs so
@@ -247,8 +249,31 @@ static void nbd_client_detach_aio_context(BlockDriverState *bs)
      */
     assert(qemu_get_current_aio_context() == bdrv_get_aio_context(bs));
 
-    /* Timer is deleted in nbd_client_co_drain_begin() */
-    assert(!s->reconnect_delay_timer);
+    /*
+     * Make sure the connection thread doesn't try to deliver its status to the
+     * old context.
+     */
+    qemu_mutex_lock(&thr->mutex);
+    thr->bh_ctx = NULL;
+    qemu_mutex_unlock(&thr->mutex);
+
+    /*
+     * Preserve the expiration time of the reconnect_delay_timer in order to
+     * resume it on the new aio context.
+     */
+    s->reconnect_expire_time_ns = s->reconnect_delay_timer ?
+        timer_expire_time_ns(s->reconnect_delay_timer) : -1;
+    reconnect_delay_timer_del(s);
+
+    /*
+     * If the connection coroutine was sleeping between reconnect attempts,
+     * wake it up now and let it continue the process in the new aio context.
+     * This will distort the exponential back-off but that's probably ok.
+     */
+    if (s->connection_co_sleep_ns_state) {
+        qemu_co_sleep_wake(s->connection_co_sleep_ns_state);
+    }
+
     /*
      * If reconnect is in progress we may have no ->ioc.  It will be
      * re-instantiated in the proper aio context once the connection is
@@ -263,12 +288,27 @@ static void nbd_client_attach_aio_context_bh(void *opaque)
 {
     BlockDriverState *bs = opaque;
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
+    NBDConnectThread *thr = s->connect_thread;
 
     /*
      * This runs in the (new, just attached) aio context of the @bs so
      * accessing the stuff on @s is concurrency-free.
      */
     assert(qemu_get_current_aio_context() == bdrv_get_aio_context(bs));
+
+    if (nbd_client_connecting_wait(s) && s->reconnect_expire_time_ns >= 0) {
+        reconnect_delay_timer_init(s, s->reconnect_expire_time_ns);
+    }
+
+    /*
+     * If the connection thread hasn't completed connecting yet, make sure it
+     * can deliver its status in the new context.
+     */
+    qemu_mutex_lock(&thr->mutex);
+    if (thr->state == CONNECT_THREAD_RUNNING) {
+        thr->bh_ctx = qemu_get_current_aio_context();
+    }
+    qemu_mutex_unlock(&thr->mutex);
 
     if (s->connection_co) {
         /*
