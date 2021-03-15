@@ -6441,6 +6441,11 @@ if test -n "${deprecated_features}"; then
     echo "  features: ${deprecated_features}"
 fi
 
+cat *-config-devices.h *-config-target.h | grep '^#define '  \
+    | grep -v CONFIG_TCG | grep -v CONFIG_USER_ONLY \
+    | sed -e 's/#define //' -e 's/ .*//' | sort -u \
+    | sed -e 's/^/#pragma GCC poison /' > config-poison.h
+
 # Save the configure command line for later reuse.
 cat <<EOD >config.status
 #!/bin/sh
