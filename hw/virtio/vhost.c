@@ -1527,6 +1527,8 @@ void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
     r = hdev->vhost_ops->vhost_set_vring_call(hdev, &file);
     if (r < 0) {
         VHOST_OPS_DEBUG("vhost_set_vring_call failed");
+    } else {
+        hdev->vqs[index].notifier_is_masked = mask;
     }
 }
 
