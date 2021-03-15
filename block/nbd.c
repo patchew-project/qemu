@@ -486,6 +486,15 @@ nbd_co_establish_connection(BlockDriverState *bs, Error **errp)
     s->wait_connect = true;
     qemu_coroutine_yield();
 
+    /*
+     * If nbd_co_establish_connection_cancel had a chance to run it may have
+     * invalidated ->connect_thread.
+     */
+    thr = s->connect_thread;
+    if (!thr) {
+        return -ECONNABORTED;
+    }
+
     qemu_mutex_lock(&thr->mutex);
 
     switch (thr->state) {
