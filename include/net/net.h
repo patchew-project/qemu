@@ -100,6 +100,7 @@ struct NetClientState {
     int vring_enable;
     int vnet_hdr_len;
     bool is_netdev;
+    bool do_not_pad;
     QTAILQ_HEAD(, NetFilterState) filters;
 };
 
