@@ -20,6 +20,7 @@ import avocado
 from avocado.utils import cloudinit
 from avocado.utils import datadrainer
 from avocado.utils import network
+from avocado.utils import process
 from avocado.utils import vmimage
 from avocado.utils.path import find_command
 
@@ -256,6 +257,19 @@ class Test(QemuBaseTest):
                         find_only=find_only,
                         cancel_on_missing=cancel_on_missing)
 
+class QemuUserTest(QemuBaseTest):
+    def setUp(self):
+        self._ldpath = []
+        super(QemuUserTest, self).setUp("qemu-%s")
+
+    def add_ldpath(self, ldpath):
+        self._ldpath += [os.path.abspath(ldpath)]
+
+    def run(self, bin_path, args=[]):
+        qemu_args = " ".join(["-L %s" % ldpath for ldpath in self._ldpath])
+        bin_args = " ".join(args)
+        return process.run("%s %s %s %s" % (self.qemu_bin, qemu_args,
+                                            bin_path, bin_args))
 
 class LinuxTest(Test):
     """Facilitates having a cloud-image Linux based available.
