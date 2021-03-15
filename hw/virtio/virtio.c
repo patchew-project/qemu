@@ -670,6 +670,20 @@ int virtio_queue_empty(VirtQueue *vq)
     }
 }
 
+/*
+ * virtio_queue_full:
+ * @vq The #VirtQueue
+ *
+ * Check if all descriptors of the queue are available. In other words, is the
+ * complete opposite of virtio_queue_empty: If the queue is full, the driver
+ * cannot transfer more buffers to the device until the latter make some as
+ * used.
+ */
+bool virtio_queue_full(const VirtQueue *vq)
+{
+    return vq->inuse >= vq->vring.num;
+}
+
 static void virtqueue_unmap_sg(VirtQueue *vq, const VirtQueueElement *elem,
                                unsigned int len)
 {
@@ -1439,7 +1453,7 @@ static void *virtqueue_split_pop(VirtQueue *vq, size_t sz)
 
     max = vq->vring.num;
 
-    if (vq->inuse >= vq->vring.num) {
+    if (unlikely(virtio_queue_full(vq))) {
         virtio_error(vdev, "Virtqueue size exceeded");
         goto done;
     }
@@ -1574,7 +1588,7 @@ static void *virtqueue_packed_pop(VirtQueue *vq, size_t sz)
 
     max = vq->vring.num;
 
-    if (vq->inuse >= vq->vring.num) {
+    if (unlikely(virtio_queue_full(vq))) {
         virtio_error(vdev, "Virtqueue size exceeded");
         goto done;
     }
