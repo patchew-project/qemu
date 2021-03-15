@@ -1086,89 +1086,49 @@ static void gen_mxu_S32MAX_S32MIN(DisasContext *ctx)
 static void gen_mxu_D16MAX_D16MIN(DisasContext *ctx)
 {
     uint32_t pad, opc, XRc, XRb, XRa;
+    TCGv_i32 b, c, bs, cs;
+    TCGCond cond;
 
     pad = extract32(ctx->opcode, 21, 5);
-    opc = extract32(ctx->opcode, 18, 3);
-    XRc = extract32(ctx->opcode, 14, 4);
-    XRb = extract32(ctx->opcode, 10, 4);
-    XRa = extract32(ctx->opcode,  6, 4);
-
     if (unlikely(pad != 0)) {
         /* opcode padding incorrect -> do nothing */
-    } else if (unlikely(XRc == 0)) {
-        /* destination is zero register -> do nothing */
-    } else if (unlikely((XRb == 0) && (XRa == 0))) {
-        /* both operands zero registers -> just set destination to zero */
-        tcg_gen_movi_i32(mxu_gpr[XRc - 1], 0);
-    } else if (unlikely((XRb == 0) || (XRa == 0))) {
-        /* exactly one operand is zero register - find which one is not...*/
-        uint32_t XRx = XRb ? XRb : XRc;
-        /* ...and do half-word-wise max/min with one operand 0 */
-        TCGv_i32 t0 = tcg_temp_new();
-        TCGv_i32 t1 = tcg_const_i32(0);
-
-        /* the left half-word first */
-        tcg_gen_andi_i32(t0, mxu_gpr[XRx - 1], 0xFFFF0000);
-        if (opc == OPC_MXU_D16MAX) {
-            tcg_gen_smax_i32(mxu_gpr[XRa - 1], t0, t1);
-        } else {
-            tcg_gen_smin_i32(mxu_gpr[XRa - 1], t0, t1);
-        }
-
-        /* the right half-word */
-        tcg_gen_andi_i32(t0, mxu_gpr[XRx - 1], 0x0000FFFF);
-        /* move half-words to the leftmost position */
-        tcg_gen_shli_i32(t0, t0, 16);
-        /* t0 will be max/min of t0 and t1 */
-        if (opc == OPC_MXU_D16MAX) {
-            tcg_gen_smax_i32(t0, t0, t1);
-        } else {
-            tcg_gen_smin_i32(t0, t0, t1);
-        }
-        /* return resulting half-words to its original position */
-        tcg_gen_shri_i32(t0, t0, 16);
-        /* finally update the destination */
-        tcg_gen_or_i32(mxu_gpr[XRa - 1], mxu_gpr[XRa - 1], t0);
-
-        tcg_temp_free(t1);
-        tcg_temp_free(t0);
-    } else if (unlikely(XRb == XRc)) {
-        /* both operands same -> just set destination to one of them */
-        tcg_gen_mov_i32(mxu_gpr[XRa - 1], mxu_gpr[XRb - 1]);
-    } else {
-        /* the most general case */
-        TCGv_i32 t0 = tcg_temp_new();
-        TCGv_i32 t1 = tcg_temp_new();
-
-        /* the left half-word first */
-        tcg_gen_andi_i32(t0, mxu_gpr[XRb - 1], 0xFFFF0000);
-        tcg_gen_andi_i32(t1, mxu_gpr[XRc - 1], 0xFFFF0000);
-        if (opc == OPC_MXU_D16MAX) {
-            tcg_gen_smax_i32(mxu_gpr[XRa - 1], t0, t1);
-        } else {
-            tcg_gen_smin_i32(mxu_gpr[XRa - 1], t0, t1);
-        }
-
-        /* the right half-word */
-        tcg_gen_andi_i32(t0, mxu_gpr[XRb - 1], 0x0000FFFF);
-        tcg_gen_andi_i32(t1, mxu_gpr[XRc - 1], 0x0000FFFF);
-        /* move half-words to the leftmost position */
-        tcg_gen_shli_i32(t0, t0, 16);
-        tcg_gen_shli_i32(t1, t1, 16);
-        /* t0 will be max/min of t0 and t1 */
-        if (opc == OPC_MXU_D16MAX) {
-            tcg_gen_smax_i32(t0, t0, t1);
-        } else {
-            tcg_gen_smin_i32(t0, t0, t1);
-        }
-        /* return resulting half-words to its original position */
-        tcg_gen_shri_i32(t0, t0, 16);
-        /* finally update the destination */
-        tcg_gen_or_i32(mxu_gpr[XRa - 1], mxu_gpr[XRa - 1], t0);
-
-        tcg_temp_free(t1);
-        tcg_temp_free(t0);
+        return;
     }
+
+    XRa = extract32(ctx->opcode,  6, 4);
+    if (unlikely(XRa == 0)) {
+        /* destination is zero register -> do nothing */
+        return;
+    }
+    b = tcg_temp_new();
+    c = tcg_temp_new();
+    bs = tcg_temp_new();
+    cs = tcg_temp_new();
+
+    opc = extract32(ctx->opcode, 18, 3);
+    cond = (opc == OPC_MXU_D16MAX) ? TCG_COND_GT : TCG_COND_LE;
+
+    XRb = extract32(ctx->opcode, 10, 4);
+    XRc = extract32(ctx->opcode, 14, 4);
+    gen_load_mxu_gpr(b, XRb);
+    gen_load_mxu_gpr(c, XRc);
+
+    /* short0 */
+    tcg_gen_sextract_i32(bs, b, 0, 16);
+    tcg_gen_sextract_i32(cs, c, 0, 16);
+    tcg_gen_movcond_i32(cond, mxu_gpr[XRa - 1], bs, cs, bs, cs);
+
+    /* short1 */
+    tcg_gen_sextract_i32(bs, b, 16, 16);
+    tcg_gen_sextract_i32(cs, c, 16, 16);
+    tcg_gen_movcond_i32(cond, b, bs, cs, bs, cs);
+
+    tcg_gen_deposit_i32(mxu_gpr[XRa - 1], mxu_gpr[XRa - 1], b, 16, 16);
+
+    tcg_temp_free(cs);
+    tcg_temp_free(bs);
+    tcg_temp_free(c);
+    tcg_temp_free(b);
 }
 
 /*
