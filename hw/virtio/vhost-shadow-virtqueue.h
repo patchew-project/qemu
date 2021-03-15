@@ -19,6 +19,8 @@ typedef struct VhostShadowVirtqueue VhostShadowVirtqueue;
 
 void vhost_shadow_vq_mask(VhostShadowVirtqueue *svq, EventNotifier *masked);
 void vhost_shadow_vq_unmask(VhostShadowVirtqueue *svq);
+void vhost_shadow_vq_get_vring_addr(const VhostShadowVirtqueue *svq,
+                                    struct vhost_vring_addr *addr);
 
 bool vhost_shadow_vq_start(struct vhost_dev *dev,
                            unsigned idx,
