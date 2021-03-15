@@ -241,6 +241,12 @@ static void nbd_client_detach_aio_context(BlockDriverState *bs)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
 
+    /*
+     * This runs in the (old, about to be detached) aio context of the @bs so
+     * accessing the stuff on @s is concurrency-free.
+     */
+    assert(qemu_get_current_aio_context() == bdrv_get_aio_context(bs));
+
     /* Timer is deleted in nbd_client_co_drain_begin() */
     assert(!s->reconnect_delay_timer);
     /*
@@ -257,6 +263,12 @@ static void nbd_client_attach_aio_context_bh(void *opaque)
 {
     BlockDriverState *bs = opaque;
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
+
+    /*
+     * This runs in the (new, just attached) aio context of the @bs so
+     * accessing the stuff on @s is concurrency-free.
+     */
+    assert(qemu_get_current_aio_context() == bdrv_get_aio_context(bs));
 
     if (s->connection_co) {
         /*
