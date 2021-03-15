@@ -32,8 +32,22 @@ typedef struct VhostShadowVirtqueue {
      */
     EventNotifier host_notifier;
 
+    /* (Possible) masked notifier */
+    struct {
+        EventNotifier *n;
+
+        /*
+         * Event to confirm unmasking.
+         * set when the masked notifier has no uses
+         */
+        QemuEvent is_free;
+    } masked_notifier;
+
     /* Virtio queue shadowing */
     VirtQueue *vq;
+
+    /* Virtio device */
+    VirtIODevice *vdev;
 } VhostShadowVirtqueue;
 
 /* Forward guest notifications */
@@ -47,6 +61,70 @@ static void vhost_handle_guest_kick(EventNotifier *n)
     }
 
     event_notifier_set(&svq->kick_notifier);
+}
+
+/* Forward vhost notifications */
+static void vhost_shadow_vq_handle_call_no_test(EventNotifier *n)
+{
+    VhostShadowVirtqueue *svq = container_of(n, VhostShadowVirtqueue,
+                                             call_notifier);
+    EventNotifier *masked_notifier;
+
+    /* Signal start of using masked notifier */
+    qemu_event_reset(&svq->masked_notifier.is_free);
+    masked_notifier = qatomic_load_acquire(&svq->masked_notifier.n);
+    if (!masked_notifier) {
+        qemu_event_set(&svq->masked_notifier.is_free);
+    }
+
+    if (!masked_notifier) {
+        unsigned n = virtio_get_queue_index(svq->vq);
+        virtio_queue_invalidate_signalled_used(svq->vdev, n);
+        virtio_notify_irqfd(svq->vdev, svq->vq);
+    } else {
+        event_notifier_set(svq->masked_notifier.n);
+    }
+
+    if (masked_notifier) {
+        /* Signal not using it anymore */
+        qemu_event_set(&svq->masked_notifier.is_free);
+    }
+}
+
+static void vhost_shadow_vq_handle_call(EventNotifier *n)
+{
+
+    if (likely(event_notifier_test_and_clear(n))) {
+        vhost_shadow_vq_handle_call_no_test(n);
+    }
+}
+
+/*
+ * Mask the shadow virtqueue.
+ *
+ * It can be called from a guest masking vmexit or shadow virtqueue start
+ * through QMP.
+ *
+ * @vq Shadow virtqueue
+ * @masked Masked notifier to signal instead of guest
+ */
+void vhost_shadow_vq_mask(VhostShadowVirtqueue *svq, EventNotifier *masked)
+{
+    qatomic_store_release(&svq->masked_notifier.n, masked);
+}
+
+/*
+ * Unmask the shadow virtqueue.
+ *
+ * It can be called from a guest unmasking vmexit or shadow virtqueue start
+ * through QMP.
+ *
+ * @vq Shadow virtqueue
+ */
+void vhost_shadow_vq_unmask(VhostShadowVirtqueue *svq)
+{
+    qatomic_store_release(&svq->masked_notifier.n, NULL);
+    qemu_event_wait(&svq->masked_notifier.is_free);
 }
 
 /*
@@ -103,7 +181,38 @@ bool vhost_shadow_vq_start(struct vhost_dev *dev,
         goto err_set_vring_kick;
     }
 
+    /* Set vhost call */
+    file.fd = event_notifier_get_fd(&svq->call_notifier),
+    r = dev->vhost_ops->vhost_set_vring_call(dev, &file);
+    if (unlikely(r != 0)) {
+        error_report("Couldn't set call fd: %s", strerror(errno));
+        goto err_set_vring_call;
+    }
+
+
+    /*
+     * Lock to avoid a race condition between guest setting masked status and
+     * us.
+     */
+    QEMU_LOCK_GUARD(&dev->vqs[idx].masked_mutex);
+    /* Set shadow vq -> guest notifier */
+    assert(dev->shadow_vqs_enabled);
+    vhost_virtqueue_mask(dev, dev->vdev, dev->vq_index + idx,
+                         dev->vqs[idx].notifier_is_masked);
+
+    if (dev->vqs[idx].notifier_is_masked &&
+               event_notifier_test_and_clear(&dev->vqs[idx].masked_notifier)) {
+        /* Check for pending notifications from the device */
+        vhost_shadow_vq_handle_call_no_test(&svq->call_notifier);
+    }
+
     return true;
+
+err_set_vring_call:
+    r = vhost_shadow_vq_restore_vdev_host_notifier(dev, idx, svq);
+    if (unlikely(r < 0)) {
+        error_report("Couldn't restore vq kick fd: %s", strerror(-r));
+    }
 
 err_set_vring_kick:
     event_notifier_set_handler(&svq->host_notifier, NULL);
@@ -126,7 +235,19 @@ void vhost_shadow_vq_stop(struct vhost_dev *dev,
         error_report("Couldn't restore vq kick fd: %s", strerror(-r));
     }
 
+    assert(!dev->shadow_vqs_enabled);
+
     event_notifier_set_handler(&svq->host_notifier, NULL);
+
+    /*
+     * Lock to avoid a race condition between guest setting masked status and
+     * us.
+     */
+    QEMU_LOCK_GUARD(&dev->vqs[idx].masked_mutex);
+
+    /* Restore vhost call */
+    vhost_virtqueue_mask(dev, dev->vdev, dev->vq_index + idx,
+                         dev->vqs[idx].notifier_is_masked);
 }
 
 /*
@@ -154,6 +275,10 @@ VhostShadowVirtqueue *vhost_shadow_vq_new(struct vhost_dev *dev, int idx)
     }
 
     svq->vq = virtio_get_queue(dev->vdev, vq_idx);
+    svq->vdev = dev->vdev;
+    event_notifier_set_handler(&svq->call_notifier,
+                               vhost_shadow_vq_handle_call);
+    qemu_event_init(&svq->masked_notifier.is_free, true);
     return g_steal_pointer(&svq);
 
 err_init_call_notifier:
@@ -168,7 +293,9 @@ err_init_kick_notifier:
  */
 void vhost_shadow_vq_free(VhostShadowVirtqueue *vq)
 {
+    qemu_event_destroy(&vq->masked_notifier.is_free);
     event_notifier_cleanup(&vq->kick_notifier);
+    event_notifier_set_handler(&vq->call_notifier, NULL);
     event_notifier_cleanup(&vq->call_notifier);
     g_free(vq);
 }

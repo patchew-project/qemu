@@ -29,6 +29,7 @@ struct vhost_virtqueue {
     unsigned long long used_phys;
     unsigned used_size;
     bool notifier_is_masked;
+    QemuRecMutex masked_mutex;
     EventNotifier masked_notifier;
     struct vhost_dev *dev;
 };

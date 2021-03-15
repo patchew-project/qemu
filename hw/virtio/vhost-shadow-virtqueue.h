@@ -17,6 +17,9 @@
 
 typedef struct VhostShadowVirtqueue VhostShadowVirtqueue;
 
+void vhost_shadow_vq_mask(VhostShadowVirtqueue *svq, EventNotifier *masked);
+void vhost_shadow_vq_unmask(VhostShadowVirtqueue *svq);
+
 bool vhost_shadow_vq_start(struct vhost_dev *dev,
                            unsigned idx,
                            VhostShadowVirtqueue *svq);

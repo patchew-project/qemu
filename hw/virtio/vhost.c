@@ -1224,7 +1224,8 @@ static int vhost_sw_live_migration_stop(struct vhost_dev *dev)
 {
     int idx;
 
-    dev->shadow_vqs_enabled = false;
+    /* Can be read by vhost_virtqueue_mask, from vm exit */
+    qatomic_store_release(&dev->shadow_vqs_enabled, false);
 
     for (idx = 0; idx < dev->nvqs; ++idx) {
         vhost_shadow_vq_stop(dev, idx, dev->shadow_vqs[idx]);
@@ -1248,7 +1249,8 @@ static int vhost_sw_live_migration_start(struct vhost_dev *dev)
         }
     }
 
-    dev->shadow_vqs_enabled = true;
+    /* Can be read by vhost_virtqueue_mask, from vm exit */
+    qatomic_store_release(&dev->shadow_vqs_enabled, true);
     for (idx = 0; idx < dev->nvqs; ++idx) {
         bool ok = vhost_shadow_vq_start(dev, idx, dev->shadow_vqs[idx]);
         if (unlikely(!ok)) {
@@ -1259,7 +1261,7 @@ static int vhost_sw_live_migration_start(struct vhost_dev *dev)
     return 0;
 
 err_start:
-    dev->shadow_vqs_enabled = false;
+    qatomic_store_release(&dev->shadow_vqs_enabled, false);
     for (stop_idx = 0; stop_idx < idx; stop_idx++) {
         vhost_shadow_vq_stop(dev, idx, dev->shadow_vqs[stop_idx]);
     }
@@ -1343,6 +1345,7 @@ static int vhost_virtqueue_init(struct vhost_dev *dev,
         goto fail_call;
     }
 
+    qemu_rec_mutex_init(&vq->masked_mutex);
     vq->dev = dev;
 
     return 0;
@@ -1353,6 +1356,7 @@ fail_call:
 
 static void vhost_virtqueue_cleanup(struct vhost_virtqueue *vq)
 {
+    qemu_rec_mutex_destroy(&vq->masked_mutex);
     event_notifier_cleanup(&vq->masked_notifier);
 }
 
@@ -1590,6 +1594,25 @@ void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
 
     /* should only be called after backend is connected */
     assert(hdev->vhost_ops);
+
+    /* Avoid race condition with shadow virtqueue stop/start */
+    QEMU_LOCK_GUARD(&hdev->vqs[index].masked_mutex);
+
+    /* Set by QMP thread, so using acquire semantics */
+    if (qatomic_load_acquire(&hdev->shadow_vqs_enabled)) {
+        if (mask) {
+            vhost_shadow_vq_mask(hdev->shadow_vqs[index],
+                                 &hdev->vqs[index].masked_notifier);
+        } else {
+            vhost_shadow_vq_unmask(hdev->shadow_vqs[index]);
+        }
+
+        /*
+         * Vhost call fd must remain the same since shadow vq is not polling
+         * for changes
+         */
+        return;
+    }
 
     if (mask) {
         assert(vdev->use_guest_notifier_mask);
