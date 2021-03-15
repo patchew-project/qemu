@@ -562,11 +562,12 @@ nbd_co_establish_connection(BlockDriverState *bs, Error **errp)
     case CONNECT_THREAD_RUNNING:
     case CONNECT_THREAD_RUNNING_DETACHED:
         /*
-         * Obviously, drained section wants to start. Report the attempt as
-         * failed. Still connect thread is executing in background, and its
+         * Spurious corotine resume before connection attempt has finished,
+         * presumably upon attaching a new aio_context. Report the attempt as
+         * failed.  Still connect thread is executing in background, and its
          * result may be used for next connection attempt.
          */
-        ret = -1;
+        ret = -ECONNABORTED;
         error_setg(errp, "Connection attempt cancelled by other operation");
         break;
 
