@@ -2799,7 +2799,7 @@ F: tests/unit/test-uuid.c
 Yank feature
 M: Lukas Straub <lukasstraub2@web.de>
 S: Odd fixes
-F: util/yank.c
+F: monitor/yank.c
 F: stubs/yank.c
 F: include/qemu/yank.h
 F: qapi/yank.json
