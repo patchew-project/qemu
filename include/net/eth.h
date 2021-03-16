@@ -31,6 +31,31 @@
 
 #define ETH_ALEN 6
 #define ETH_HLEN 14
+#define ETH_ZLEN 60     /* Min. octets in frame without FCS */
+
+/**
+ * pad_short_frame - pad a short frame to the minimum ethernet frame length
+ *
+ * If the ethernet frame size is shorter than 60 bytes, it will be padded to
+ * 60 bytes at the address @min_pkt.
+ *
+ * @min_pkt: buffer address to hold the padded frame
+ * @pkt: address to hold the original ethernet frame
+ * @size: size of the original ethernet frame
+ * @return true if the frame is padded, otherwise false
+ */
+static inline bool pad_short_frame(uint8_t *min_pkt, const uint8_t *pkt,
+                                   int size)
+{
+    if (size < ETH_ZLEN) {
+        /* pad to minimum ethernet frame length */
+        memcpy(min_pkt, pkt, size);
+        memset(&min_pkt[size], 0, ETH_ZLEN - size);
+        return true;
+    }
+
+    return false;
+}
 
 struct eth_header {
     uint8_t  h_dest[ETH_ALEN];   /* destination eth addr */
