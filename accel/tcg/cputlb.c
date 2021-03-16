@@ -2100,6 +2100,7 @@ static inline uint64_t cpu_load_helper(CPUArchState *env, abi_ptr addr,
     meminfo = trace_mem_get_info(op, mmu_idx, false);
     trace_guest_mem_before_exec(env_cpu(env), addr, meminfo);
 
+    cpu_req_mo(TCG_MO_LD_LD | TCG_MO_ST_LD);
     op &= ~MO_SIGN;
     oi = make_memop_idx(op, mmu_idx);
     ret = full_load(env, addr, oi, retaddr);
@@ -2542,6 +2543,7 @@ cpu_store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
     meminfo = trace_mem_get_info(op, mmu_idx, true);
     trace_guest_mem_before_exec(env_cpu(env), addr, meminfo);
 
+    cpu_req_mo(TCG_MO_LD_ST | TCG_MO_ST_ST);
     oi = make_memop_idx(op, mmu_idx);
     store_helper(env, addr, val, oi, retaddr, op);
 
