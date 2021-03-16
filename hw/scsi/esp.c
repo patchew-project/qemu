@@ -524,7 +524,9 @@ static void do_dma_pdma_cb(ESPState *s)
         }
 
         if (s->async_len == 0) {
-            scsi_req_continue(s->current_req);
+            if (s->current_req) {
+                scsi_req_continue(s->current_req);
+            }
             return;
         }
 
@@ -674,14 +676,16 @@ static void esp_do_dma(ESPState *s)
         s->ti_size -= len;
     }
     if (s->async_len == 0) {
-        scsi_req_continue(s->current_req);
-        /*
-         * If there is still data to be read from the device then
-         * complete the DMA operation immediately.  Otherwise defer
-         * until the scsi layer has completed.
-         */
-        if (to_device || esp_get_tc(s) != 0 || s->ti_size == 0) {
-            return;
+        if (s->current_req) {
+            scsi_req_continue(s->current_req);
+            /*
+             * If there is still data to be read from the device then
+             * complete the DMA operation immediately.  Otherwise defer
+             * until the scsi layer has completed.
+             */
+            if (to_device || esp_get_tc(s) != 0 || s->ti_size == 0) {
+                return;
+            }
         }
     }
 
@@ -744,10 +748,12 @@ static void esp_do_nodma(ESPState *s)
     }
 
     if (s->async_len == 0) {
-        scsi_req_continue(s->current_req);
+        if (s->current_req) {
+            scsi_req_continue(s->current_req);
 
-        if (to_device || s->ti_size == 0) {
-            return;
+            if (to_device || s->ti_size == 0) {
+                return;
+            }
         }
     }
 
