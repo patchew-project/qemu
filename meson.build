@@ -1749,6 +1749,7 @@ user_ss = ss.source_set()
 util_ss = ss.source_set()
 
 modules = {}
+modules_restricted = {}
 hw_arch = {}
 target_arch = {}
 target_softmmu_arch = {}
@@ -2092,14 +2093,54 @@ common_ss.add(hwcore)
 # Targets #
 ###########
 
+module_targets = []
 foreach m : block_mods + softmmu_mods
-  shared_module(m.name(),
+   module_targets += shared_module(m.name(),
                 name_prefix: '',
                 link_whole: m,
                 install: true,
                 install_dir: qemu_moddir)
 endforeach
 
+foreach target : target_dirs
+  if not target.endswith('-softmmu')
+    continue
+  endif
+  filtered_module_targets = []
+  foreach m : module_targets
+    restricted_to = modules_restricted.get(m.name(), [])
+    if restricted_to.length() == 0 or restricted_to.contains(target)
+      filtered_module_targets += m
+    endif
+  endforeach
+  s = custom_target('Make symbolic links script for ' + target + ' modules' ,
+		   input: filtered_module_targets,
+		   output: 'make_mod_symlinks_'+target+'.sh',
+		   install: false,
+		   depends: filtered_module_targets,
+		   build_by_default: true,
+		   build_always_stale: true,
+		   command: [
+                     meson.current_source_dir() / 'scripts/modules/target-symlinks.sh',
+		     '@OUTPUT@',
+		     target,
+		     '@INPUT@'
+		   ])
+
+  # We run the script as a part of the build so things keep working form the
+  # build tree (without requiring an instalation). I couldn't find a nicer way.
+  custom_target('Run symbolic links script for ' + target + ' modules' ,
+		   depends: s,
+		   output: 'make_mod_symlinks_'+target+'.sh.dummy',
+		   install: false,
+		   build_by_default: true,
+		   build_always_stale: true,
+		   command: [
+		     s.full_path(),
+                     meson.current_build_dir()
+		   ])
+  meson.add_install_script(meson.current_source_dir() / 'scripts/call_generated_script.sh', s.full_path(), qemu_moddir)
+endforeach
 softmmu_ss.add(authz, blockdev, chardev, crypto, io, qmp)
 common_ss.add(qom, qemuutil)
 

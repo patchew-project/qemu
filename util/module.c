@@ -64,6 +64,15 @@ static ModuleTypeList *find_type(module_init_type type)
     return &init_type_list[type];
 }
 
+static char const *emulator_modules_dir;
+
+void set_emulator_modules_dir(char const *dir_name)
+{
+    assert(dir_name);
+    assert(!emulator_modules_dir);
+    emulator_modules_dir = dir_name;
+}
+
 void register_module_init(void (*fn)(void), module_init_type type)
 {
     ModuleEntry *e;
@@ -252,8 +261,8 @@ bool module_load_one(const char *prefix, const char *lib_name, bool mayfail)
     assert(n_dirs <= ARRAY_SIZE(dirs));
 
     for (i = 0; i < n_dirs; i++) {
-        fname = g_strdup_printf("%s/%s%s",
-                dirs[i], module_name, CONFIG_HOST_DSOSUF);
+        fname = g_strdup_printf("%s/%s/%s%s", dirs[i], emulator_modules_dir,
+                                module_name, CONFIG_HOST_DSOSUF);
         ret = module_load_file(fname, mayfail, export_symbols);
         g_free(fname);
         fname = NULL;

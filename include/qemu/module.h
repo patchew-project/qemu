@@ -73,4 +73,6 @@ bool module_load_one(const char *prefix, const char *lib_name, bool mayfail);
 void module_load_qom_one(const char *type);
 void module_load_qom_all(void);
 
+void set_emulator_modules_dir(char const *dir_name);
+
 #endif

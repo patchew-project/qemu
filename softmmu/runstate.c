@@ -758,6 +758,7 @@ void qemu_init_subsystems(void)
 
     atexit(qemu_run_exit_notifiers);
 
+    set_emulator_modules_dir(g_strconcat(TARGET_NAME, "-softmmu"));
     module_call_init(MODULE_INIT_QOM);
     module_call_init(MODULE_INIT_MIGRATION);
 
