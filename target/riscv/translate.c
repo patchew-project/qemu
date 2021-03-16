@@ -537,7 +537,7 @@ static void gen_set_rm(DisasContext *ctx, int rm)
     tcg_temp_free_i32(t0);
 }
 
-static void decode_RV32_64C0(DisasContext *ctx, uint16_t opcode)
+static bool decode_RV32_64C0(DisasContext *ctx, uint16_t opcode)
 {
     uint8_t funct3 = extract16(opcode, 13, 3);
     uint8_t rd_rs2 = GET_C_RS2S(opcode);
@@ -554,7 +554,7 @@ static void decode_RV32_64C0(DisasContext *ctx, uint16_t opcode)
         gen_fp_load(ctx, OPC_RISC_FLW, rd_rs2, rs1s,
                     GET_C_LW_IMM(opcode));
 #endif
-        break;
+        return true;
     case 7:
 #if defined(TARGET_RISCV64)
         /* C.SD (RV64/128) -> sd rs2', offset[7:3](rs1')*/
@@ -565,18 +565,21 @@ static void decode_RV32_64C0(DisasContext *ctx, uint16_t opcode)
         gen_fp_store(ctx, OPC_RISC_FSW, rs1s, rd_rs2,
                      GET_C_LW_IMM(opcode));
 #endif
-        break;
+        return true;
+    default:
+        return false;
     }
 }
 
-static void decode_RV32_64C(DisasContext *ctx, uint16_t opcode)
+static bool decode_RV32_64C(DisasContext *ctx, uint16_t opcode)
 {
     uint8_t op = extract16(opcode, 0, 2);
 
     switch (op) {
     case 0:
-        decode_RV32_64C0(ctx, opcode);
-        break;
+        return decode_RV32_64C0(ctx, opcode);
+    default:
+        return false;
     }
 }
 
@@ -780,7 +783,9 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
             ctx->pc_succ_insn = ctx->base.pc_next + 2;
             if (!decode_insn16(ctx, opcode)) {
                 /* fall back to old decoder */
-                decode_RV32_64C(ctx, opcode);
+                if (!decode_RV32_64C(ctx, opcode)) {
+                    gen_exception_illegal(ctx);
+                }
             }
         }
     } else {
