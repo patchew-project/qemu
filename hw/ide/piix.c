@@ -34,6 +34,7 @@
 #include "hw/ide/pci.h"
 #include "trace.h"
 
+static bool pci_piix3_xen_ide_unplug_done;
 static uint64_t bmdma_read(void *opaque, hwaddr addr, unsigned size)
 {
     BMDMAState *bm = opaque;
@@ -109,6 +110,8 @@ static void piix_ide_reset(DeviceState *dev)
     uint8_t *pci_conf = pd->config;
     int i;
 
+    if (pci_piix3_xen_ide_unplug_done == true)
+        return;
     for (i = 0; i < 2; i++) {
         ide_bus_reset(&d->bus[i]);
     }
@@ -169,6 +172,7 @@ int pci_piix3_xen_ide_unplug(DeviceState *dev, bool aux)
     IDEBus *idebus;
     BlockBackend *blk;
 
+    pci_piix3_xen_ide_unplug_done = true;
     pci_ide = PCI_IDE(dev);
 
     for (i = aux ? 1 : 0; i < 4; i++) {
@@ -259,6 +263,7 @@ static const TypeInfo piix4_ide_info = {
 
 static void piix_ide_register_types(void)
 {
+    pci_piix3_xen_ide_unplug_done = false;
     type_register_static(&piix3_ide_info);
     type_register_static(&piix3_ide_xen_info);
     type_register_static(&piix4_ide_info);
