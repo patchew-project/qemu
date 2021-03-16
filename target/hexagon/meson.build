@@ -188,4 +188,7 @@ hexagon_ss.add(files(
     'conv_emu.c',
 ))
 
+hexagon_user_ss = ss.source_set()
+
 target_arch += {'hexagon': hexagon_ss}
+target_user_arch += {'hexagon': hexagon_user_ss}

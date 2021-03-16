@@ -19,5 +19,8 @@ sparc_softmmu_ss.add(files(
   'monitor.c',
 ))
 
+sparc_user_ss = ss.source_set()
+
 target_arch += {'sparc': sparc_ss}
 target_softmmu_arch += {'sparc': sparc_softmmu_ss}
+target_user_arch += {'sparc': sparc_user_ss}

@@ -19,5 +19,8 @@ openrisc_ss.add(files(
 openrisc_softmmu_ss = ss.source_set()
 openrisc_softmmu_ss.add(files('machine.c'))
 
+openrisc_user_ss = ss.source_set()
+
 target_arch += {'openrisc': openrisc_ss}
 target_softmmu_arch += {'openrisc': openrisc_softmmu_ss}
+target_user_arch += {'openrisc': openrisc_user_ss}

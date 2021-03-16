@@ -33,5 +33,8 @@ ppc_softmmu_ss.add(when: 'TARGET_PPC64', if_true: files(
   'mmu-radix64.c',
 ))
 
+ppc_user_ss = ss.source_set()
+
 target_arch += {'ppc': ppc_ss}
 target_softmmu_arch += {'ppc': ppc_softmmu_ss}
+target_user_arch += {'ppc': ppc_user_ss}

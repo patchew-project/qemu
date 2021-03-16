@@ -47,6 +47,8 @@ mips_softmmu_ss.add(when: 'CONFIG_TCG', if_true: files(
 ))
 
 mips_ss.add_all(when: 'CONFIG_TCG', if_true: [mips_tcg_ss])
+mips_user_ss = ss.source_set()
 
 target_arch += {'mips': mips_ss}
 target_softmmu_arch += {'mips': mips_softmmu_ss}
+target_user_arch += {'mips': mips_user_ss}

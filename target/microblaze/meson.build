@@ -16,5 +16,8 @@ microblaze_softmmu_ss.add(files(
   'machine.c',
 ))
 
+microblaze_user_ss = ss.source_set()
+
 target_arch += {'microblaze': microblaze_ss}
 target_softmmu_arch += {'microblaze': microblaze_softmmu_ss}
+target_user_arch += {'microblaze': microblaze_user_ss}

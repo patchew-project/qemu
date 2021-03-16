@@ -11,5 +11,8 @@ nios2_ss.add(files(
 nios2_softmmu_ss = ss.source_set()
 nios2_softmmu_ss.add(files('monitor.c'))
 
+nios2_user_ss = ss.source_set()
+
 target_arch += {'nios2': nios2_ss}
 target_softmmu_arch += {'nios2': nios2_softmmu_ss}
+target_user_arch += {'nios2': nios2_user_ss}
