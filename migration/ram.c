@@ -53,10 +53,12 @@
 #include "block.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/cpu-throttle.h"
+#include "sysemu/kvm.h"
 #include "savevm.h"
 #include "qemu/iov.h"
 #include "multifd.h"
 #include "sysemu/runstate.h"
+#include "kvm_arm.h"
 
 #if defined(__linux__)
 #include "qemu/userfaultfd.h"
@@ -80,6 +82,9 @@
 #define RAM_SAVE_FLAG_XBZRLE   0x40
 /* 0x80 is reserved in migration.h start with 0x100 next */
 #define RAM_SAVE_FLAG_COMPRESS_PAGE    0x100
+#define RAM_SAVE_FLAG_MTE              0x200
+
+#define MTE_GRANULE_SIZE   (16)
 
 static inline bool is_zero_range(uint8_t *p, uint64_t size)
 {
@@ -317,6 +322,8 @@ struct RAMState {
     bool ram_bulk_stage;
     /* The free page optimization is enabled */
     bool fpo_enabled;
+    /* The RAM meta data(e.t memory tag) is enabled */
+    bool metadata_enabled;
     /* How many times we have dirty too many pages */
     int dirty_rate_high_cnt;
     /* these variables are used for bitmap sync */
@@ -392,6 +399,15 @@ void precopy_enable_free_page_optimization(void)
     }
 
     ram_state->fpo_enabled = true;
+}
+
+void precopy_enable_metadata_migration(void)
+{
+    if (!ram_state) {
+        return;
+    }
+
+    ram_state->metadata_enabled = true;
 }
 
 uint64_t ram_bytes_remaining(void)
@@ -1134,6 +1150,61 @@ static bool control_save_page(RAMState *rs, RAMBlock *block, ram_addr_t offset,
     return true;
 }
 
+static int save_normal_page_mte_tags(QEMUFile *f, uint8_t *addr)
+{
+    uint8_t *tag_buf = NULL;
+    uint64_t ipa;
+    int size = TARGET_PAGE_SIZE / MTE_GRANULE_SIZE;
+
+    if (kvm_physical_memory_addr_from_host(kvm_state, addr, &ipa)) {
+        /* Buffer for the page tags(one byte per tag) */
+        tag_buf = g_try_malloc0(size);
+        if (!tag_buf) {
+            error_report("%s: Error allocating MTE tag_buf", __func__);
+            return 0;
+        }
+
+        if (kvm_arm_mte_get_tags(ipa, TARGET_PAGE_SIZE, tag_buf) < 0) {
+            error_report("%s: Can't get MTE tags from guest", __func__);
+            g_free(tag_buf);
+            return 0;
+        }
+
+        qemu_put_buffer(f, tag_buf, size);
+
+        g_free(tag_buf);
+
+        return size;
+    }
+
+    return 0;
+}
+
+static void load_normal_page_mte_tags(QEMUFile *f, uint8_t *addr)
+{
+    uint8_t *tag_buf = NULL;
+    uint64_t ipa;
+    int size = TARGET_PAGE_SIZE / MTE_GRANULE_SIZE;
+
+    if (kvm_physical_memory_addr_from_host(kvm_state, addr, &ipa)) {
+        /* Buffer for the page tags(one byte per tag) */
+        tag_buf = g_try_malloc0(size);
+        if (!tag_buf) {
+            error_report("%s: Error allocating MTE tag_buf", __func__);
+            return;
+        }
+
+        qemu_get_buffer(f, tag_buf, size);
+        if (kvm_arm_mte_set_tags(ipa, TARGET_PAGE_SIZE, tag_buf) < 0) {
+            error_report("%s: Can't set MTE tags to guest", __func__);
+        }
+
+        g_free(tag_buf);
+    }
+
+    return;
+}
+
 /*
  * directly send the page to the stream
  *
@@ -1148,6 +1219,10 @@ static bool control_save_page(RAMState *rs, RAMBlock *block, ram_addr_t offset,
 static int save_normal_page(RAMState *rs, RAMBlock *block, ram_addr_t offset,
                             uint8_t *buf, bool async)
 {
+    if (rs->metadata_enabled) {
+        offset |= RAM_SAVE_FLAG_MTE;
+    }
+
     ram_counters.transferred += save_page_header(rs, rs->f, block,
                                                  offset | RAM_SAVE_FLAG_PAGE);
     if (async) {
@@ -1159,6 +1234,11 @@ static int save_normal_page(RAMState *rs, RAMBlock *block, ram_addr_t offset,
     }
     ram_counters.transferred += TARGET_PAGE_SIZE;
     ram_counters.normal++;
+
+    if (rs->metadata_enabled) {
+        ram_counters.transferred += save_normal_page_mte_tags(rs->f, buf);
+    }
+
     return 1;
 }
 
@@ -2189,6 +2269,7 @@ static void ram_state_reset(RAMState *rs)
     rs->last_version = ram_list.version;
     rs->ram_bulk_stage = true;
     rs->fpo_enabled = false;
+    rs->metadata_enabled = false;
 }
 
 #define MAX_WAIT 50 /* ms, half buffered_file limit */
@@ -3779,7 +3860,7 @@ static int ram_load_precopy(QEMUFile *f)
             trace_ram_load_loop(block->idstr, (uint64_t)addr, flags, host);
         }
 
-        switch (flags & ~RAM_SAVE_FLAG_CONTINUE) {
+        switch (flags & ~(RAM_SAVE_FLAG_CONTINUE | RAM_SAVE_FLAG_MTE)) {
         case RAM_SAVE_FLAG_MEM_SIZE:
             /* Synchronize RAM block list */
             total_ram_bytes = addr;
@@ -3849,6 +3930,9 @@ static int ram_load_precopy(QEMUFile *f)
 
         case RAM_SAVE_FLAG_PAGE:
             qemu_get_buffer(f, host, TARGET_PAGE_SIZE);
+            if (flags & RAM_SAVE_FLAG_MTE) {
+                load_normal_page_mte_tags(f, host);
+            }
             break;
 
         case RAM_SAVE_FLAG_COMPRESS_PAGE:
