@@ -2324,7 +2324,7 @@ if have_tools
              dependencies: [block, qemuutil], install: true)
   qemu_nbd = executable('qemu-nbd', files('qemu-nbd.c'),
                dependencies: [blockdev, qemuutil, gnutls], install: true)
-  qemu_snap = executable('qemu-snap', files('qemu-snap.c'),
+  qemu_snap = executable('qemu-snap', files('qemu-snap.c', 'qemu-snap-handlers.c'),
                dependencies: [blockdev, qemuutil, migration], install: true)
 
   subdir('storage-daemon')

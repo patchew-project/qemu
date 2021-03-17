@@ -44,6 +44,14 @@
 #define OPT_CACHE   256
 #define OPT_AIO     257
 
+/* Snapshot task execution state */
+typedef struct SnapTaskState {
+    QEMUBH *bh;                 /* BH to enter task's coroutine */
+    Coroutine *co;              /* Coroutine to execute task */
+
+    int ret;                    /* Return code, -EINPROGRESS until complete */
+} SnapTaskState;
+
 /* Parameters for snapshot saving */
 typedef struct SnapSaveParams {
     const char *filename;       /* QCOW2 image file name */
@@ -177,6 +185,51 @@ static BlockBackend *snap_open(const char *filename, int flags)
     return blk;
 }
 
+static void coroutine_fn do_snap_save_co(void *opaque)
+{
+    SnapTaskState *task_state = opaque;
+    SnapSaveState *sn = snap_save_get_state();
+
+    /* Enter main routine */
+    task_state->ret = snap_save_state_main(sn);
+}
+
+static void coroutine_fn do_snap_load_co(void *opaque)
+{
+    SnapTaskState *task_state = opaque;
+    SnapLoadState *sn = snap_load_get_state();
+
+    /* Enter main routine */
+    task_state->ret = snap_load_state_main(sn);
+}
+
+/* We use BH to enter coroutine from the main loop context */
+static void enter_co_bh(void *opaque)
+{
+    SnapTaskState *task_state = opaque;
+
+    qemu_coroutine_enter(task_state->co);
+    /* Delete BH once we entered coroutine from the main loop */
+    qemu_bh_delete(task_state->bh);
+    task_state->bh = NULL;
+}
+
+static int run_snap_task(CoroutineEntry *entry)
+{
+    SnapTaskState task_state;
+
+    task_state.bh = qemu_bh_new(enter_co_bh, &task_state);
+    task_state.co = qemu_coroutine_create(entry, &task_state);
+    task_state.ret = -EINPROGRESS;
+
+    qemu_bh_schedule(task_state.bh);
+    while (task_state.ret == -EINPROGRESS) {
+        main_loop_wait(false);
+    }
+
+    return task_state.ret;
+}
+
 static int snap_save(const SnapSaveParams *params)
 {
     SnapSaveState *sn;
@@ -189,6 +242,11 @@ static int snap_save(const SnapSaveParams *params)
             params->bdrv_flags, params->writethrough);
     if (!sn->blk) {
         goto fail;
+    }
+
+    res = run_snap_task(do_snap_save_co);
+    if (res) {
+        error_report("Failed to save snapshot: error=%d", res);
     }
 
 fail:
@@ -208,6 +266,11 @@ static int snap_load(SnapLoadParams *params)
     sn->blk = snap_open(params->filename, params->bdrv_flags);
     if (!sn->blk) {
         goto fail;
+    }
+
+    res = run_snap_task(do_snap_load_co);
+    if (res) {
+        error_report("Failed to load snapshot: error=%d", res);
     }
 
 fail:

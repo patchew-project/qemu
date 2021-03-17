@@ -32,4 +32,7 @@ typedef struct SnapLoadState {
 SnapSaveState *snap_save_get_state(void);
 SnapLoadState *snap_load_get_state(void);
 
+int coroutine_fn snap_save_state_main(SnapSaveState *sn);
+int coroutine_fn snap_load_state_main(SnapLoadState *sn);
+
 #endif /* QEMU_SNAP_H */
