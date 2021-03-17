@@ -141,6 +141,10 @@ static void snap_load_destroy_state(void)
 {
     SnapLoadState *sn = snap_load_get_state();
 
+    if (sn->has_rp_listen_thread) {
+        qemu_thread_join(&sn->rp_listen_thread);
+    }
+
     if (sn->aio_pool) {
         aio_pool_free(sn->aio_pool);
     }
@@ -330,6 +334,7 @@ static int snap_load(SnapLoadParams *params)
 {
     SnapLoadState *sn;
     QIOChannel *ioc_fd;
+    QIOChannel *ioc_rp_fd;
     uint8_t *buf;
     size_t count;
     int res = -1;
@@ -338,10 +343,21 @@ static int snap_load(SnapLoadParams *params)
     snap_load_init_state();
     sn = snap_load_get_state();
 
+    sn->postcopy = params->postcopy;
+    sn->postcopy_percent = params->postcopy_percent;
+
     ioc_fd = qio_channel_new_fd(params->fd, NULL);
     qio_channel_set_name(QIO_CHANNEL(ioc_fd), "snap-channel-outgoing");
     sn->f_fd = qemu_fopen_channel_output(ioc_fd);
     object_unref(OBJECT(ioc_fd));
+
+    /* Open return path QEMUFile in case we shall use postcopy */
+    if (params->postcopy) {
+        ioc_rp_fd = qio_channel_new_fd(params->rp_fd, NULL);
+        qio_channel_set_name(QIO_CHANNEL(ioc_fd), "snap-channel-rp");
+        sn->f_rp_fd = qemu_fopen_channel_input(ioc_rp_fd);
+        object_unref(OBJECT(ioc_rp_fd));
+    }
 
     sn->blk = snap_open(params->filename, params->bdrv_flags);
     if (!sn->blk) {

@@ -30,6 +30,8 @@
 #define AIO_BUFFER_SIZE         (1024 * 1024)
 /* Max. concurrent AIO tasks */
 #define AIO_TASKS_MAX           8
+/* Max. concurrent AIO tasks in postcopy */
+#define AIO_TASKS_POSTCOPY_MAX  4
 
 typedef struct AioBufferPool AioBufferPool;
 
@@ -103,6 +105,7 @@ typedef struct SnapLoadState {
     BlockBackend *blk;          /* Block backend */
 
     QEMUFile *f_fd;             /* Outgoing migration stream QEMUFile */
+    QEMUFile *f_rp_fd;          /* Return path stream QEMUFile */
     QEMUFile *f_vmstate;        /* Block backend vmstate area QEMUFile */
     /*
      * Buffer to keep first few KBs of BDRV vmstate that we stashed at the
@@ -113,6 +116,14 @@ typedef struct SnapLoadState {
 
     /* AIO buffer pool */
     AioBufferPool *aio_pool;
+
+    bool postcopy;              /* From command-line --postcopy */
+    int postcopy_percent;       /* From command-line --postcopy */
+    bool in_postcopy;           /* Switched to postcopy mode */
+
+    /* Return path listening thread */
+    QemuThread rp_listen_thread;
+    bool has_rp_listen_thread;
 
     /* BDRV vmstate offset of RAM block list section */
     int64_t state_ram_list_offset;
