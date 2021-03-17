@@ -1847,7 +1847,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
                                cpu->secure_memory);
     }
 
-    if (cpu->tag_memory != NULL) {
+    if (cpu->tag_memory != NULL && !kvm_enabled()) {
         cpu_address_space_init(cs, ARMASIdx_TagNS, "cpu-tag-memory",
                                cpu->tag_memory);
         if (has_secure) {

@@ -32,6 +32,7 @@
 #include "hw/boards.h"
 #include "hw/irq.h"
 #include "qemu/log.h"
+#include "hw/arm/virt.h"
 
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
@@ -272,6 +273,14 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
             cap_has_inject_ext_dabt = kvm_check_extension(s,
                                     KVM_CAP_ARM_INJECT_EXT_DABT);
         }
+    }
+
+    if (kvm_check_extension(s, KVM_CAP_ARM_MTE) &&
+        object_dynamic_cast(OBJECT(ms), TYPE_VIRT_MACHINE) &&
+        VIRT_MACHINE(ms)->mte) {
+            if (kvm_vm_enable_cap(s, KVM_CAP_ARM_MTE, 0)) {
+                error_report("Failed to enable KVM_CAP_ARM_MTE cap");
+            }
     }
 
     return ret;
