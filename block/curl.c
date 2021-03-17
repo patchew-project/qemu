@@ -893,6 +893,7 @@ out:
 static int coroutine_fn curl_co_preadv(BlockDriverState *bs,
         uint64_t offset, uint64_t bytes, QEMUIOVector *qiov, int flags)
 {
+    BDRVCURLState *s = bs->opaque;
     CURLAIOCB acb = {
         .co = qemu_coroutine_self(),
         .ret = -EINPROGRESS,
@@ -900,6 +901,15 @@ static int coroutine_fn curl_co_preadv(BlockDriverState *bs,
         .offset = offset,
         .bytes = bytes
     };
+
+    if (offset > s->len || bytes > s->len - offset) {
+        uint64_t req_bytes = offset > s->len ? 0 : s->len - offset;
+        qemu_iovec_memset(qiov, req_bytes, 0, bytes - req_bytes);
+        bytes = req_bytes;
+    }
+    if (bytes == 0) {
+        return 0;
+    }
 
     curl_setup_preadv(bs, &acb);
     while (acb.ret == -EINPROGRESS) {
