@@ -1819,7 +1819,13 @@ uint32_t kvmppc_get_tbfreq(void)
 {
     char line[512];
     char *ns;
-    uint32_t retval = NANOSECONDS_PER_SECOND;
+    static uint32_t retval = -1;
+
+    if (retval != -1) {
+        return retval;
+    }
+
+    retval = NANOSECONDS_PER_SECOND;
 
     if (read_cpuinfo("timebase", line, sizeof(line))) {
         return retval;
@@ -1832,7 +1838,8 @@ uint32_t kvmppc_get_tbfreq(void)
 
     ns++;
 
-    return atoi(ns);
+    retval = atoi(ns);
+    return retval;
 }
 
 bool kvmppc_get_host_serial(char **value)
