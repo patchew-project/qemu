@@ -31,6 +31,16 @@
 #include "migration/qemu-file.h"
 #include "qemu-snap.h"
 
+/* QCOW2 image options */
+#define BLK_FORMAT_DRIVER       "qcow2"
+#define BLK_CREATE_OPT_STRING   "preallocation=off,lazy_refcounts=on,"  \
+                                        "extended_l2=off,compat=v3,cluster_size=1M,"    \
+                                        "refcount_bits=8"
+/* L2 cache size to cover 2TB of memory */
+#define BLK_L2_CACHE_SIZE       "16M"
+/* Single L2 cache entry for the whole L2 table */
+#define BLK_L2_CACHE_ENTRY_SIZE "1M"
+
 #define OPT_CACHE   256
 #define OPT_AIO     257
 
@@ -104,30 +114,106 @@ static void snap_load_destroy_state(void)
     /* TODO: implement */
 }
 
+static BlockBackend *snap_create(const char *filename, int64_t image_size,
+        int flags, bool writethrough)
+{
+    char *create_opt_string;
+    QDict *blk_opts;
+    BlockBackend *blk;
+    Error *local_err = NULL;
+
+    /* Create QCOW2 image with given parameters */
+    create_opt_string = g_strdup(BLK_CREATE_OPT_STRING);
+    bdrv_img_create(filename, BLK_FORMAT_DRIVER, NULL, NULL,
+            create_opt_string, image_size, flags, true, &local_err);
+    g_free(create_opt_string);
+
+    if (local_err) {
+        error_reportf_err(local_err, "Could not create '%s': ", filename);
+        goto fail;
+    }
+
+    /* Block backend open options */
+    blk_opts = qdict_new();
+    qdict_put_str(blk_opts, "driver", BLK_FORMAT_DRIVER);
+    qdict_put_str(blk_opts, "l2-cache-size", BLK_L2_CACHE_SIZE);
+    qdict_put_str(blk_opts, "l2-cache-entry-size", BLK_L2_CACHE_ENTRY_SIZE);
+
+    /* Open block backend instance for the created image */
+    blk = blk_new_open(filename, NULL, blk_opts, flags, &local_err);
+    if (!blk) {
+        error_reportf_err(local_err, "Could not open '%s': ", filename);
+        /* Delete image file */
+        qemu_unlink(filename);
+        goto fail;
+    }
+
+    blk_set_enable_write_cache(blk, !writethrough);
+    return blk;
+
+fail:
+    return NULL;
+}
+
+static BlockBackend *snap_open(const char *filename, int flags)
+{
+    QDict *blk_opts;
+    BlockBackend *blk;
+    Error *local_err = NULL;
+
+    /* Block backend open options */
+    blk_opts = qdict_new();
+    qdict_put_str(blk_opts, "driver", BLK_FORMAT_DRIVER);
+    qdict_put_str(blk_opts, "l2-cache-size", BLK_L2_CACHE_SIZE);
+    qdict_put_str(blk_opts, "l2-cache-entry-size", BLK_L2_CACHE_ENTRY_SIZE);
+
+    /* Open block backend instance */
+    blk = blk_new_open(filename, NULL, blk_opts, flags, &local_err);
+    if (!blk) {
+        error_reportf_err(local_err, "Could not open '%s': ", filename);
+        return NULL;
+    }
+
+    return blk;
+}
+
 static int snap_save(const SnapSaveParams *params)
 {
     SnapSaveState *sn;
+    int res = -1;
 
     snap_save_init_state();
     sn = snap_save_get_state();
-    (void) sn;
 
+    sn->blk = snap_create(params->filename, params->image_size,
+            params->bdrv_flags, params->writethrough);
+    if (!sn->blk) {
+        goto fail;
+    }
+
+fail:
     snap_save_destroy_state();
 
-    return 0;
+    return res;
 }
 
 static int snap_load(SnapLoadParams *params)
 {
     SnapLoadState *sn;
+    int res = -1;
 
     snap_load_init_state();
     sn = snap_load_get_state();
-    (void) sn;
 
+    sn->blk = snap_open(params->filename, params->bdrv_flags);
+    if (!sn->blk) {
+        goto fail;
+    }
+
+fail:
     snap_load_destroy_state();
 
-    return 0;
+    return res;
 }
 
 static int64_t cvtnum_full(const char *name, const char *value,
