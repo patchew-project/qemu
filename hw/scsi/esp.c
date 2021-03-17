@@ -509,18 +509,20 @@ static void do_dma_pdma_cb(ESPState *s)
         /* Copy FIFO data to device */
         len = MIN(s->async_len, ESP_FIFO_SZ);
         len = MIN(len, fifo8_num_used(&s->fifo));
-        memcpy(s->async_buf, fifo8_pop_buf(&s->fifo, len, &n), len);
-        s->async_buf += n;
-        s->async_len -= n;
-        s->ti_size += n;
-
-        if (n < len) {
-            /* Unaligned accesses can cause FIFO wraparound */
-            len = len - n;
+        if (len) {
             memcpy(s->async_buf, fifo8_pop_buf(&s->fifo, len, &n), len);
             s->async_buf += n;
             s->async_len -= n;
             s->ti_size += n;
+
+            if (n < len) {
+                /* Unaligned accesses can cause FIFO wraparound */
+                len = len - n;
+                memcpy(s->async_buf, fifo8_pop_buf(&s->fifo, len, &n), len);
+                s->async_buf += n;
+                s->async_len -= n;
+                s->ti_size += n;
+            }
         }
 
         if (s->async_len == 0) {
@@ -730,10 +732,12 @@ static void esp_do_nodma(ESPState *s)
 
     if (to_device) {
         len = MIN(fifo8_num_used(&s->fifo), ESP_FIFO_SZ);
-        memcpy(s->async_buf, fifo8_pop_buf(&s->fifo, len, &n), len);
-        s->async_buf += len;
-        s->async_len -= len;
-        s->ti_size += len;
+        if (len) {
+            memcpy(s->async_buf, fifo8_pop_buf(&s->fifo, len, &n), len);
+            s->async_buf += len;
+            s->async_len -= len;
+            s->ti_size += len;
+        }
     } else {
         len = MIN(s->ti_size, s->async_len);
         len = MIN(len, fifo8_num_free(&s->fifo));
