@@ -657,6 +657,12 @@ int64_t qemu_ftell(QEMUFile *f)
     return f->pos;
 }
 
+int64_t qemu_ftell2(QEMUFile *f)
+{
+    qemu_fflush(f);
+    return f->pos + f->buf_index - f->buf_size;
+}
+
 int qemu_file_rate_limit(QEMUFile *f)
 {
     if (f->shutdown) {
