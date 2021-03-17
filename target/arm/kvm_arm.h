@@ -360,6 +360,8 @@ int kvm_arm_vgic_probe(void);
 
 void kvm_arm_pmu_set_irq(CPUState *cs, int irq);
 void kvm_arm_pmu_init(CPUState *cs);
+int kvm_arm_mte_get_tags(uint64_t ipa, uint64_t len, uint8_t *buf);
+int kvm_arm_mte_set_tags(uint64_t ipa, uint64_t len, uint8_t *buf);
 
 /**
  * kvm_arm_pvtime_init:

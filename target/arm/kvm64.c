@@ -1606,3 +1606,27 @@ bool kvm_arm_verify_ext_dabt_pending(CPUState *cs)
     }
     return false;
 }
+
+int kvm_arm_mte_get_tags(uint64_t ipa, uint64_t len, uint8_t *buf)
+{
+    struct kvm_arm_copy_mte_tags args = {
+        .guest_ipa = ipa,
+        .length = len,
+        .addr = buf,
+        .flags = KVM_ARM_TAGS_FROM_GUEST,
+    };
+
+    return kvm_vm_ioctl(kvm_state, KVM_ARM_MTE_COPY_TAGS, &args);
+}
+
+int kvm_arm_mte_set_tags(uint64_t ipa, uint64_t len, uint8_t *buf)
+{
+    struct kvm_arm_copy_mte_tags args = {
+        .guest_ipa = ipa,
+        .length = len,
+        .addr = buf,
+        .flags = KVM_ARM_TAGS_TO_GUEST,
+    };
+
+    return kvm_vm_ioctl(kvm_state, KVM_ARM_MTE_COPY_TAGS, &args);
+}
