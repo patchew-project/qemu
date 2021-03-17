@@ -3580,46 +3580,64 @@ fail:
     visit_free(v);
 }
 
-void qmp_x_blockdev_reopen(BlockdevOptions *options, Error **errp)
+void qmp_x_blockdev_reopen(BlockdevOptionsList *reopen_list, Error **errp)
 {
-    BlockDriverState *bs;
-    AioContext *ctx;
-    QObject *obj;
-    Visitor *v = qobject_output_visitor_new(&obj);
-    BlockReopenQueue *queue;
-    QDict *qdict;
+    BlockReopenQueue *queue = NULL;
+    GSList *aio_ctxs = NULL;
+    GSList *visitors = NULL;
+    GSList *drained = NULL;
 
-    /* Check for the selected node name */
-    if (!options->has_node_name) {
-        error_setg(errp, "node-name not specified");
-        goto fail;
-    }
+    /* Add each one of the BDS that we want to reopen to the queue */
+    for (; reopen_list != NULL; reopen_list = reopen_list->next) {
+        BlockdevOptions *options = reopen_list->value;
+        BlockDriverState *bs;
+        AioContext *ctx;
+        QObject *obj;
+        Visitor *v;
+        QDict *qdict;
 
-    bs = bdrv_find_node(options->node_name);
-    if (!bs) {
-        error_setg(errp, "Failed to find node with node-name='%s'",
+        /* Check for the selected node name */
+        if (!options->has_node_name) {
+            error_setg(errp, "node-name not specified");
+            goto fail;
+        }
+
+        bs = bdrv_find_node(options->node_name);
+        if (!bs) {
+            error_setg(errp, "Failed to find node with node-name='%s'",
                    options->node_name);
-        goto fail;
+            goto fail;
+        }
+
+        v = qobject_output_visitor_new(&obj);
+        visitors = g_slist_prepend(visitors, v);
+
+        /* Put all options in a QDict and flatten it */
+        visit_type_BlockdevOptions(v, NULL, &options, &error_abort);
+        visit_complete(v, &obj);
+        qdict = qobject_to(QDict, obj);
+
+        qdict_flatten(qdict);
+
+        ctx = bdrv_get_aio_context(bs);
+        if (!g_slist_find(aio_ctxs, ctx)) {
+            aio_ctxs = g_slist_prepend(aio_ctxs, ctx);
+            aio_context_acquire(ctx);
+        }
+        bdrv_subtree_drained_begin(bs);
+        queue = bdrv_reopen_queue(queue, bs, qdict, false);
+        drained = g_slist_prepend(drained, bs);
     }
-
-    /* Put all options in a QDict and flatten it */
-    visit_type_BlockdevOptions(v, NULL, &options, &error_abort);
-    visit_complete(v, &obj);
-    qdict = qobject_to(QDict, obj);
-
-    qdict_flatten(qdict);
 
     /* Perform the reopen operation */
-    ctx = bdrv_get_aio_context(bs);
-    aio_context_acquire(ctx);
-    bdrv_subtree_drained_begin(bs);
-    queue = bdrv_reopen_queue(NULL, bs, qdict, false);
     bdrv_reopen_multiple(queue, errp);
-    bdrv_subtree_drained_end(bs);
-    aio_context_release(ctx);
+    queue = NULL;
 
 fail:
-    visit_free(v);
+    bdrv_reopen_queue_free(queue);
+    g_slist_free_full(drained, (GDestroyNotify) bdrv_subtree_drained_end);
+    g_slist_free_full(aio_ctxs, (GDestroyNotify) aio_context_release);
+    g_slist_free_full(visitors, (GDestroyNotify) visit_free);
 }
 
 void qmp_blockdev_del(const char *node_name, Error **errp)
