@@ -109,6 +109,9 @@ static void piix_ide_reset(DeviceState *dev)
     uint8_t *pci_conf = pd->config;
     int i;
 
+    if (d->xen_unplug_done == true) {
+        return;
+    }
     for (i = 0; i < 2; i++) {
         ide_bus_reset(&d->bus[i]);
     }
@@ -151,6 +154,7 @@ static void pci_piix_ide_realize(PCIDevice *dev, Error **errp)
     PCIIDEState *d = PCI_IDE(dev);
     uint8_t *pci_conf = dev->config;
 
+    d->xen_unplug_done = false;
     pci_conf[PCI_CLASS_PROG] = 0x80; // legacy ATA mode
 
     bmdma_setup_bar(d);
@@ -170,6 +174,7 @@ int pci_piix3_xen_ide_unplug(DeviceState *dev, bool aux)
     BlockBackend *blk;
 
     pci_ide = PCI_IDE(dev);
+    pci_ide->xen_unplug_done = true;
 
     for (i = aux ? 1 : 0; i < 4; i++) {
         idebus = &pci_ide->bus[i / 2];
