@@ -79,6 +79,7 @@
 #include "hw/virtio/virtio-iommu.h"
 #include "hw/char/pl011.h"
 #include "qemu/guest-random.h"
+#include "migration/misc.h"
 
 #define DEFINE_VIRT_MACHINE_LATEST(major, minor, latest) \
     static void virt_##major##_##minor##_class_init(ObjectClass *oc, \
@@ -826,6 +827,21 @@ static void virt_powerdown_req(Notifier *n, void *opaque)
         /* use gpio Pin 3 for power button event */
         qemu_set_irq(qdev_get_gpio_in(gpio_key_dev, 0), 1);
     }
+}
+
+static int virt_precopy_notify(NotifierWithReturn *n, void *data)
+{
+    PrecopyNotifyData *pnd = data;
+
+    switch (pnd->reason) {
+    case PRECOPY_NOTIFY_SETUP:
+        precopy_enable_metadata_migration();
+        break;
+    default:
+        break;
+    }
+
+    return 0;
 }
 
 static void create_gpio_keys(char *fdt, DeviceState *pl061_dev,
@@ -1912,9 +1928,9 @@ static void machvirt_init(MachineState *machine)
     }
 
     if (vms->mte && kvm_enabled()) {
-        error_report("mach-virt: KVM does not support providing "
-                     "MTE to the guest CPU");
-        exit(1);
+        /* connect migration precopy request */
+        vms->precopy_notifier.notify = virt_precopy_notify;
+        precopy_add_notifier(&vms->precopy_notifier);
     }
 
     create_fdt(vms);
