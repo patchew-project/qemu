@@ -932,8 +932,6 @@ static int init_directories(BDRVVVFATState* s,
     /* Now build FAT, and write back information into directory */
     init_fat(s);
 
-    /* TODO: if there are more entries, bootsector has to be adjusted! */
-    s->root_entries = 0x02 * 0x10 * s->sectors_per_cluster;
     s->cluster_count=sector2cluster(s, s->sector_count);
 
     mapping = array_get_next(&(s->mapping));
@@ -1133,11 +1131,52 @@ static void vvfat_parse_filename(const char *filename, QDict *options,
     qdict_put_bool(options, "rw", rw);
 }
 
+static bool check_size(uint32_t offset_to_bootsector, int cyls, int heads,
+                      int secs, uint8_t sectors_per_cluster, int fat_type,
+                      uint64_t sum, uint64_t size_disk)
+{
+    uint32_t sector_count = cyls * heads * secs - offset_to_bootsector;
+    int i = 1 + sectors_per_cluster * 0x200 * 8 / fat_type;
+    uint16_t sectors_per_fat = (sector_count + i) / i;
+    /*size + FAT1 and FAT2 table size*/
+    if ((sum + sectors_per_fat * 512 * 2) < size_disk) {
+        return true;
+    }
+    return false;
+}
+
+static uint64_t find_size(const char *dirname, unsigned int cluster)
+{
+    uint64_t sum = 0;
+    DIR *dir = opendir(dirname);
+    struct dirent *entry;
+    while ((entry = readdir(dir))) {
+        uint16_t length = strlen(dirname) + 2 + strlen(entry->d_name);
+        char *buffer;
+        struct stat st;
+        buffer = g_malloc(length);
+        snprintf(buffer, length, "%s/%s", dirname, entry->d_name);
+        if (stat(buffer, &st) < 0) {
+            g_free(buffer);
+            continue;
+        }
+        if (strcmp(entry->d_name, ".") && strcmp(entry->d_name, "..")
+                                            && S_ISDIR(st.st_mode)) {
+            sum += find_size(buffer, cluster);
+        }
+        g_free(buffer);
+        sum += (st.st_size + cluster - 1) / (cluster) * (cluster);
+    }
+    closedir(dir);
+    return sum;
+}
+
 static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
                       Error **errp)
 {
     BDRVVVFATState *s = bs->opaque;
     int cyls, heads, secs;
+    uint64_t size_disk;
     bool floppy;
     const char *dirname, *label;
     QemuOpts *opts;
@@ -1163,6 +1202,28 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
     s->fat_type = qemu_opt_get_number(opts, "fat-type", 0);
     floppy = qemu_opt_get_bool(opts, "floppy", false);
 
+    uint64_t sum = 0;
+    if (floppy) {
+        if (!s->fat_type) {
+            s->sectors_per_cluster = 2;
+        } else {
+            s->sectors_per_cluster = 1;
+        }
+    } else if (s->fat_type == 12) {
+        s->offset_to_bootsector = 0x3f;
+        s->sectors_per_cluster = 0x10;
+    } else {
+        s->offset_to_bootsector = 0x3f;
+        /* LATER TODO: if FAT32, adjust */
+        s->sectors_per_cluster = 0x80;
+    }
+
+    sum += find_size(dirname, s->sectors_per_cluster * 0x200);
+    /* TODO: if there are more entries, bootsector has to be adjusted! */
+    s->root_entries = 0x02 * 0x10 * s->sectors_per_cluster;
+    /*File size + boot sector size + root directory size*/
+    sum += 512 + s->root_entries * 32;
+
     memset(s->volume_label, ' ', sizeof(s->volume_label));
     label = qemu_opt_get(opts, "label");
     if (label) {
@@ -1182,22 +1243,40 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
         if (!s->fat_type) {
             s->fat_type = 12;
             secs = 36;
-            s->sectors_per_cluster = 2;
         } else {
             secs = s->fat_type == 12 ? 18 : 36;
-            s->sectors_per_cluster = 1;
         }
         cyls = 80;
         heads = 2;
     } else {
-        /* 32MB or 504MB disk*/
         if (!s->fat_type) {
             s->fat_type = 16;
         }
-        s->offset_to_bootsector = 0x3f;
+        size_disk = 528482304;
         cyls = s->fat_type == 12 ? 64 : 1024;
         heads = 16;
         secs = 63;
+        if (!check_size(s->offset_to_bootsector, cyls, heads, secs,
+                      s->sectors_per_cluster, s->fat_type, sum, 
+                      size_disk)) {
+            if (s->fat_type > 12) {
+                size_disk = 4294950912;
+                cyls = 8322;
+                heads = 16;
+                secs = 63;
+
+            } else {
+                fprintf(stderr, "Requires Fat16 or Fat32\n");
+                return -2;
+            }
+            if (!check_size(s->offset_to_bootsector, cyls, heads,
+                                   secs, s->sectors_per_cluster,
+                                   s->fat_type, sum, size_disk)) {
+                fprintf(stderr, "Folder is larger than %f GB\n",
+                                (float)size_disk / 1073741824);
+                return -2;
+            }
+        }
     }
 
     switch (s->fat_type) {
@@ -1215,9 +1294,6 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
 
 
     s->bs = bs;
-
-    /* LATER TODO: if FAT32, adjust */
-    s->sectors_per_cluster=0x10;
 
     s->current_cluster=0xffffffff;
 
