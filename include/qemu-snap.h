@@ -26,6 +26,11 @@
  */
 #define PAGE_SIZE_MAX           16384
 
+/* Buffer size for RAM chunk loads via AIO buffer_pool */
+#define AIO_BUFFER_SIZE         (1024 * 1024)
+/* Max. concurrent AIO tasks */
+#define AIO_TASKS_MAX           8
+
 typedef struct AioBufferPool AioBufferPool;
 
 typedef struct AioBufferStatus {
@@ -96,6 +101,25 @@ typedef struct SnapSaveState {
 
 typedef struct SnapLoadState {
     BlockBackend *blk;          /* Block backend */
+
+    QEMUFile *f_fd;             /* Outgoing migration stream QEMUFile */
+    QEMUFile *f_vmstate;        /* Block backend vmstate area QEMUFile */
+    /*
+     * Buffer to keep first few KBs of BDRV vmstate that we stashed at the
+     * start. Within this buffer are VM state header, configuration section
+     * and the first 'ram' section with RAM block list.
+     */
+    QIOChannelBuffer *ioc_lbuf;
+
+    /* AIO buffer pool */
+    AioBufferPool *aio_pool;
+
+    /* BDRV vmstate offset of RAM block list section */
+    int64_t state_ram_list_offset;
+    /* BDRV vmstate offset of the first device section */
+    int64_t state_device_offset;
+    /* BDRV vmstate End-Of-File */
+    int64_t state_eof;
 } SnapLoadState;
 
 SnapSaveState *snap_save_get_state(void);
