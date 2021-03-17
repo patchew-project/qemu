@@ -51,8 +51,47 @@ typedef struct AioBufferTask {
 
 typedef AioBufferStatus coroutine_fn (*AioBufferFunc)(AioBufferTask *task);
 
+typedef struct QIOChannelBuffer QIOChannelBuffer;
+
 typedef struct SnapSaveState {
+    const char *filename;       /* Image file name */
     BlockBackend *blk;          /* Block backend */
+
+    QEMUFile *f_fd;             /* Incoming migration stream QEMUFile */
+    QEMUFile *f_vmstate;        /* Block backend vmstate area QEMUFile */
+    /*
+     * Buffer to stash first few KBs of incoming stream, part of it later will
+     * go the the VMSTATE area of the image file. Specifically, these are VM
+     * state header, configuration section and the section which contains
+     * RAM block list.
+     */
+    QIOChannelBuffer *ioc_lbuf;
+    /* Page coalescing buffer channel */
+    QIOChannelBuffer *ioc_pbuf;
+
+    /* BDRV offset matching start of ioc_pbuf */
+    int64_t bdrv_offset;
+    /* Last BDRV offset saved to ioc_pbuf */
+    int64_t last_bdrv_offset;
+
+    /* Stream read position, updated at the beginning of each new section */
+    int64_t stream_pos;
+
+    /* Stream read position at the beginning of RAM block list section */
+    int64_t ram_list_pos;
+    /* Stream read position at the beginning of the first RAM data section */
+    int64_t ram_pos;
+    /* Stream read position at the beginning of the first device state section */
+    int64_t device_pos;
+
+    /* Final status */
+    int status;
+
+    /*
+     * Keep first few bytes from the beginning of each section for the case
+     * when we meet device state section and go into 'default_handler'.
+     */
+    uint8_t section_header[512];
 } SnapSaveState;
 
 typedef struct SnapLoadState {
@@ -64,6 +103,9 @@ SnapLoadState *snap_load_get_state(void);
 
 int coroutine_fn snap_save_state_main(SnapSaveState *sn);
 int coroutine_fn snap_load_state_main(SnapLoadState *sn);
+
+void snap_ram_init_state(int page_bits);
+void snap_ram_destroy_state(void);
 
 QEMUFile *qemu_fopen_bdrv_vmstate(BlockDriverState *bs, int is_writable);
 

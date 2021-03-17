@@ -105,11 +105,31 @@ SnapLoadState *snap_load_get_state(void)
 static void snap_save_init_state(void)
 {
     memset(&save_state, 0, sizeof(save_state));
+    save_state.status = -1;
 }
 
 static void snap_save_destroy_state(void)
 {
-    /* TODO: implement */
+    SnapSaveState *sn = snap_save_get_state();
+
+    if (sn->ioc_lbuf) {
+        object_unref(OBJECT(sn->ioc_lbuf));
+    }
+    if (sn->ioc_pbuf) {
+        object_unref(OBJECT(sn->ioc_pbuf));
+    }
+    if (sn->f_vmstate) {
+        qemu_fclose(sn->f_vmstate);
+    }
+    if (sn->blk) {
+        blk_flush(sn->blk);
+        blk_unref(sn->blk);
+
+        /* Delete image file in case of failure */
+        if (sn->status) {
+            qemu_unlink(sn->filename);
+        }
+    }
 }
 
 static void snap_load_init_state(void)
@@ -190,6 +210,8 @@ static void coroutine_fn do_snap_save_co(void *opaque)
     SnapTaskState *task_state = opaque;
     SnapSaveState *sn = snap_save_get_state();
 
+    /* Switch to non-blocking mode in coroutine context */
+    qemu_file_set_blocking(sn->f_fd, false);
     /* Enter main routine */
     task_state->ret = snap_save_state_main(sn);
 }
@@ -233,16 +255,45 @@ static int run_snap_task(CoroutineEntry *entry)
 static int snap_save(const SnapSaveParams *params)
 {
     SnapSaveState *sn;
+    QIOChannel *ioc_fd;
+    uint8_t *buf;
+    size_t count;
     int res = -1;
 
+    snap_ram_init_state(ctz64(params->page_size));
     snap_save_init_state();
     sn = snap_save_get_state();
+
+    sn->filename = params->filename;
+
+    ioc_fd = qio_channel_new_fd(params->fd, NULL);
+    qio_channel_set_name(QIO_CHANNEL(ioc_fd), "snap-channel-incoming");
+    sn->f_fd = qemu_fopen_channel_input(ioc_fd);
+    object_unref(OBJECT(ioc_fd));
+
+    /* Create buffer channel to store leading part of incoming stream */
+    sn->ioc_lbuf = qio_channel_buffer_new(INPLACE_READ_MAX);
+    qio_channel_set_name(QIO_CHANNEL(sn->ioc_lbuf), "snap-leader-buffer");
+
+    count = qemu_peek_buffer(sn->f_fd, &buf, INPLACE_READ_MAX, 0);
+    res = qemu_file_get_error(sn->f_fd);
+    if (res < 0) {
+        goto fail;
+    }
+    qio_channel_write(QIO_CHANNEL(sn->ioc_lbuf), (char *) buf, count, NULL);
+
+    /* Used for incoming page coalescing */
+    sn->ioc_pbuf = qio_channel_buffer_new(128 * 1024);
+    qio_channel_set_name(QIO_CHANNEL(sn->ioc_pbuf), "snap-page-buffer");
 
     sn->blk = snap_create(params->filename, params->image_size,
             params->bdrv_flags, params->writethrough);
     if (!sn->blk) {
         goto fail;
     }
+
+    /* Open QEMUFile so we can write to BDRV vmstate area */
+    sn->f_vmstate = qemu_fopen_bdrv_vmstate(blk_bs(sn->blk), 1);
 
     res = run_snap_task(do_snap_save_co);
     if (res) {
@@ -251,6 +302,7 @@ static int snap_save(const SnapSaveParams *params)
 
 fail:
     snap_save_destroy_state();
+    snap_ram_destroy_state();
 
     return res;
 }
