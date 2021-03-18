@@ -2525,6 +2525,7 @@ M: Cleber Rosa <crosa@redhat.com>
 S: Odd Fixes
 F: scripts/*.py
 F: tests/*.py
+F: tests/migration/
 
 Benchmark util
 M: Vladimir Sementsov-Ogievskiy <vsementsov@virtuozzo.com>
