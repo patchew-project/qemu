@@ -10,7 +10,7 @@
      register descriptions.  -->
 
 <!DOCTYPE feature SYSTEM "gdb-target.dtd">
-<feature name="org.gnu.gdb.riscv.cpu">
+<feature name="org.gnu.gdb.avr.cpu">
   <reg name="r0" bitsize="8" type="int" regnum="0"/>
   <reg name="r1" bitsize="8" type="int"/>
   <reg name="r2" bitsize="8" type="int"/>
@@ -44,6 +44,6 @@
   <reg name="r30" bitsize="8" type="int"/>
   <reg name="r31" bitsize="8" type="int"/>
   <reg name="sreg" bitsize="8" type="int"/>
-  <reg name="sp" bitsize="8" type="int"/>
-  <reg name="pc" bitsize="8" type="int"/>
+  <reg name="sp" bitsize="16" type="data_ptr"/>
+  <reg name="pc" bitsize="22" type="code_ptr"/>
 </feature>
