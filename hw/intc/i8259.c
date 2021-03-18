@@ -176,7 +176,7 @@ static void pic_intack(PICCommonState *s, int irq)
 int pic_read_irq(DeviceState *d)
 {
     PICCommonState *s = PIC_COMMON(d);
-    int irq, irq2, intno;
+    int irq, irq2 = -1, intno;
 
     irq = pic_get_irq(s);
     if (irq >= 0) {
