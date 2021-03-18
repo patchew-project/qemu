@@ -1460,6 +1460,17 @@ static int hyperv_init_vcpu(X86CPU *cpu)
     return 0;
 }
 
+int kvm_hv_tsc_frequency_loaded(X86CPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+
+    /*
+     * KVM doens't fully support re-enlightenment notifications so we need to
+     * make sure TSC frequency doesn't change upon migration.
+     */
+    return kvm_arch_set_tsc_khz(cs);
+}
+
 static Error *invtsc_mig_blocker;
 
 #define KVM_MAX_CPUID_ENTRIES  100

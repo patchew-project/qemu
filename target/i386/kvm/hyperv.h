@@ -20,6 +20,7 @@
 
 #ifdef CONFIG_KVM
 int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit);
+int kvm_hv_tsc_frequency_loaded(X86CPU *cpu);
 #endif
 
 int hyperv_x86_synic_add(X86CPU *cpu);

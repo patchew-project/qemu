@@ -896,6 +896,42 @@ static const VMStateDescription vmstate_msr_hyperv_reenlightenment = {
         VMSTATE_END_OF_LIST()
     }
 };
+
+static bool hyperv_tsc_frequency_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    return env->tsc_khz != 0 && (env->msr_hv_reenlightenment_control ||
+                                 env->msr_hv_tsc_emulation_control);
+}
+
+static int hyperv_tsc_frequency_post_load(void *opaque, int version_id)
+{
+    X86CPU *cpu = opaque;
+    int r;
+
+    r = kvm_hv_tsc_frequency_loaded(cpu);
+    if (r) {
+        error_report("Failed to set the desired TSC frequency and "
+                     "reenlightenment was exposed");
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+static const VMStateDescription vmstate_msr_hyperv_tsc_frequency = {
+    .name = "cpu/msr_hyperv_tsc_frequency",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = hyperv_tsc_frequency_needed,
+    .post_load = hyperv_tsc_frequency_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_INT64(env.tsc_khz, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
 #endif
 
 static bool avx512_needed(void *opaque)
@@ -1495,6 +1531,7 @@ VMStateDescription vmstate_x86_cpu = {
         &vmstate_msr_hyperv_synic,
         &vmstate_msr_hyperv_stimer,
         &vmstate_msr_hyperv_reenlightenment,
+        &vmstate_msr_hyperv_tsc_frequency,
 #endif
         &vmstate_avx512,
         &vmstate_xss,
