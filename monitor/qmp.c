@@ -74,8 +74,9 @@ static void monitor_qmp_cleanup_req_queue_locked(MonitorQMP *mon)
     }
 }
 
-static void monitor_qmp_cleanup_queue_and_resume(MonitorQMP *mon)
+static void monitor_qmp_cleanup_queue_and_resume(void *opaque)
 {
+    MonitorQMP *mon = opaque;
     QEMU_LOCK_GUARD(&mon->qmp_queue_lock);
 
     /*
@@ -453,8 +454,18 @@ static void monitor_qmp_event(void *opaque, QEMUChrEvent event)
          * backend is still open.  For example, when the backend is
          * stdio, it's possible that stdout is still open when stdin
          * is closed.
+         *
+         * monitor_qmp_cleanup_queue_and_resume must not run in main
+         * context, as it acquires a qmp_queue_lock, which is held by
+         * the dispatcher coroutine during a reschedule/yield to the
+         * main context, and could thus lead to a deadlock.
+         *
+         * This is safe to delay, since the dispatcher also moves
+         * back to the iohandler context before reaquiring any
+         * queue locks.
          */
-        monitor_qmp_cleanup_queue_and_resume(mon);
+        aio_bh_schedule_oneshot(iohandler_get_aio_context(),
+                                monitor_qmp_cleanup_queue_and_resume, mon);
         json_message_parser_destroy(&mon->parser);
         json_message_parser_init(&mon->parser, handle_qmp_command,
                                  mon, NULL);
