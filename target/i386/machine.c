@@ -697,6 +697,7 @@ static const VMStateDescription vmstate_mpx = {
     }
 };
 
+#ifdef CONFIG_KVM
 static bool hyperv_hypercall_enable_needed(void *opaque)
 {
     X86CPU *cpu = opaque;
@@ -895,6 +896,7 @@ static const VMStateDescription vmstate_msr_hyperv_reenlightenment = {
         VMSTATE_END_OF_LIST()
     }
 };
+#endif
 
 static bool avx512_needed(void *opaque)
 {
@@ -1484,6 +1486,7 @@ VMStateDescription vmstate_x86_cpu = {
         &vmstate_msr_ia32_feature_control,
         &vmstate_msr_architectural_pmu,
         &vmstate_mpx,
+#ifdef CONFIG_KVM
         &vmstate_msr_hypercall_hypercall,
         &vmstate_msr_hyperv_vapic,
         &vmstate_msr_hyperv_time,
@@ -1492,6 +1495,7 @@ VMStateDescription vmstate_x86_cpu = {
         &vmstate_msr_hyperv_synic,
         &vmstate_msr_hyperv_stimer,
         &vmstate_msr_hyperv_reenlightenment,
+#endif
         &vmstate_avx512,
         &vmstate_xss,
         &vmstate_umwait,
