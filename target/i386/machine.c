@@ -706,7 +706,7 @@ static bool hyperv_hypercall_enable_needed(void *opaque)
     return env->msr_hv_hypercall != 0 || env->msr_hv_guest_os_id != 0;
 }
 
-static const VMStateDescription vmstate_msr_hypercall_hypercall = {
+static const VMStateDescription vmstate_msr_hyperv_hypercall = {
     .name = "cpu/msr_hyperv_hypercall",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -1487,7 +1487,7 @@ VMStateDescription vmstate_x86_cpu = {
         &vmstate_msr_architectural_pmu,
         &vmstate_mpx,
 #ifdef CONFIG_KVM
-        &vmstate_msr_hypercall_hypercall,
+        &vmstate_msr_hyperv_hypercall,
         &vmstate_msr_hyperv_vapic,
         &vmstate_msr_hyperv_time,
         &vmstate_msr_hyperv_crash,
