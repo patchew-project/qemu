@@ -1561,6 +1561,57 @@ out:
 }
 
 /*
+ * ram_block_populate_pages: populate memory in the RAM block by reading
+ *   an integer from the beginning of each page.
+ *
+ * Since it's solely used for userfault_fd WP feature, here we just
+ *   hardcode page size to TARGET_PAGE_SIZE.
+ *
+ * @bs: RAM block to populate
+ */
+volatile int ram_block_populate_pages__tmp;
+static void ram_block_populate_pages(RAMBlock *bs)
+{
+    ram_addr_t offset = 0;
+    int tmp = 0;
+
+    for (char *ptr = (char *) bs->host; offset < bs->used_length;
+            ptr += TARGET_PAGE_SIZE, offset += TARGET_PAGE_SIZE) {
+        /* Try to do it without memory writes */
+        tmp += *(volatile int *) ptr;
+    }
+    /* Create dependency on 'extern volatile int' to avoid optimizing out */
+    ram_block_populate_pages__tmp += tmp;
+}
+
+/*
+ * ram_write_tracking_prepare: prepare for UFFD-WP memory tracking
+ */
+void ram_write_tracking_prepare(void)
+{
+    RAMBlock *bs;
+
+    RCU_READ_LOCK_GUARD();
+
+    RAMBLOCK_FOREACH_NOT_IGNORED(bs) {
+        /* Nothing to do with read-only and MMIO-writable regions */
+        if (bs->mr->readonly || bs->mr->rom_device) {
+            continue;
+        }
+
+        /*
+         * Populate pages of the RAM block before enabling userfault_fd
+         * write protection.
+         *
+         * This stage is required since ioctl(UFFDIO_WRITEPROTECT) with
+         * UFFDIO_WRITEPROTECT_MODE_WP mode setting would silently skip
+         * pages with pte_none() entries in page table.
+         */
+        ram_block_populate_pages(bs);
+    }
+}
+
+/*
  * ram_write_tracking_start: start UFFD-WP memory tracking
  *
  * Returns 0 for success or negative value in case of error
