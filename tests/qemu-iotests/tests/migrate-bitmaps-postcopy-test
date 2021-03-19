@@ -224,6 +224,15 @@ class TestDirtyBitmapPostcopyMigration(iotests.QMPTestCase):
         self.start_postcopy()
 
         self.vm_b_events += self.vm_b.get_qmp_events()
+
+        # Check that we can't remove in-flight bitmaps.
+        for i in range(0, nb_bitmaps):
+            result = self.vm_b.qmp('block-dirty-bitmap-remove',
+                                   node='drive0', name='bitmap{}'.format(i))
+            self.assert_qmp(result, 'error/desc',
+                            ("Bitmap 'bitmap{}' is currently in use by "
+                             "another operation and cannot be used").format(i))
+
         self.vm_b.shutdown()
         # recreate vm_b, so there is no incoming option, which prevents
         # loading bitmaps from disk
