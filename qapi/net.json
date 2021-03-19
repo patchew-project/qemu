@@ -794,3 +794,34 @@
 #
 ##
 { 'command': 'query-netdev', 'returns': ['NetdevInfo'] }
+
+##
+# @IP_PROTOCOL:
+#
+# Transport layer protocol.
+#
+# Just for IPv4.
+#
+# @tcp: Transmission Control Protocol.
+#
+# @udp: User Datagram Protocol.
+#
+# @dccp: Datagram Congestion Control Protocol.
+#
+# @sctp: Stream Control Transmission Protocol.
+#
+# @udplite: Lightweight User Datagram Protocol.
+#
+# @icmp: Internet Control Message Protocol.
+#
+# @igmp: Internet Group Management Protocol.
+#
+# @ipv6: IPv6 Encapsulation.
+#
+# TODO: Need to add more transport layer protocol.
+#
+# Since: 6.1
+##
+{ 'enum': 'IP_PROTOCOL', 'data': [ 'tcp', 'udp', 'dccp', 'sctp', 'udplite',
+    'icmp', 'igmp', 'ipv6' ] }
+
