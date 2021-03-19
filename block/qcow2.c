@@ -1899,6 +1899,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
 
     /* Initialise locks */
     qemu_co_mutex_init(&s->lock);
+    qemu_co_rwlock_init(&s->discard_rw_lock);
 
     if (qemu_in_coroutine()) {
         /* From bdrv_co_create.  */
@@ -2182,9 +2183,17 @@ typedef struct Qcow2AioTask {
     QEMUIOVector *qiov;
     uint64_t qiov_offset;
     QCowL2Meta *l2meta; /* only for write */
+    bool rdlock; /* only for write */
 } Qcow2AioTask;
 
 static coroutine_fn int qcow2_co_preadv_task_entry(AioTask *task);
+
+/*
+ * @rdlock: If true, it means that qcow2_add_task is called with discard_rw_lock
+ * rd-locked, and this rd-lock must be transaferred to the task. The task itself
+ * will release the lock. The caller expects that after qcow2_add_task() call
+ * the lock is already released.
+ */
 static coroutine_fn int qcow2_add_task(BlockDriverState *bs,
                                        AioTaskPool *pool,
                                        AioTaskFunc func,
@@ -2194,8 +2203,10 @@ static coroutine_fn int qcow2_add_task(BlockDriverState *bs,
                                        uint64_t bytes,
                                        QEMUIOVector *qiov,
                                        size_t qiov_offset,
-                                       QCowL2Meta *l2meta)
+                                       QCowL2Meta *l2meta,
+                                       bool rdlock)
 {
+    BDRVQcow2State *s = bs->opaque;
     Qcow2AioTask local_task;
     Qcow2AioTask *task = pool ? g_new(Qcow2AioTask, 1) : &local_task;
 
@@ -2209,6 +2220,7 @@ static coroutine_fn int qcow2_add_task(BlockDriverState *bs,
         .bytes = bytes,
         .qiov_offset = qiov_offset,
         .l2meta = l2meta,
+        .rdlock = rdlock,
     };
 
     trace_qcow2_add_task(qemu_coroutine_self(), bs, pool,
@@ -2217,10 +2229,24 @@ static coroutine_fn int qcow2_add_task(BlockDriverState *bs,
                          qiov, qiov_offset);
 
     if (!pool) {
+        /*
+         * func will release rd-lock if needed and caller's expectation would be
+         * satisfied, so we should not care.
+         */
         return func(&task->task);
     }
 
+    /*
+     * We are going to run task in a different coroutine. We can't acquire lock
+     * in one coroutine and release in another. So, the new coroutine should
+     * take it's own rd-lock, and we should release ours one.
+     */
+    task->rdlock = false;
     aio_task_pool_start_task(pool, &task->task);
+    if (rdlock) {
+        assert(task->rdlock); /* caller took ownership */
+        qemu_co_rwlock_unlock(&s->discard_rw_lock);
+    }
 
     return 0;
 }
@@ -2274,6 +2300,7 @@ static coroutine_fn int qcow2_co_preadv_task_entry(AioTask *task)
     Qcow2AioTask *t = container_of(task, Qcow2AioTask, task);
 
     assert(!t->l2meta);
+    assert(!t->rdlock);
 
     return qcow2_co_preadv_task(t->bs, t->subcluster_type,
                                 t->host_offset, t->offset, t->bytes,
@@ -2320,7 +2347,7 @@ static coroutine_fn int qcow2_co_preadv_part(BlockDriverState *bs,
             }
             ret = qcow2_add_task(bs, aio, qcow2_co_preadv_task_entry, type,
                                  host_offset, offset, cur_bytes,
-                                 qiov, qiov_offset, NULL);
+                                 qiov, qiov_offset, NULL, false);
             if (ret < 0) {
                 goto out;
             }
@@ -2483,18 +2510,31 @@ static int handle_alloc_space(BlockDriverState *bs, QCowL2Meta *l2meta)
  * Called with s->lock unlocked
  * l2meta  - if not NULL, qcow2_co_pwritev_task() will consume it. Caller must
  *           not use it somehow after qcow2_co_pwritev_task() call
+ *
+ * @rdlock must be non-NULL.
+ * If *@rdlock is true it means that discard_rw_lock is already taken. We should
+ * not reacquire it, but caller expects that we release it.
+ * If *@rdlock is false, we should take it ourselves (and still release in the
+ * end). When rd-lock is taken, we should set *@rdlock to true, so that parent
+ * coroutine can check it.
  */
 static coroutine_fn int qcow2_co_pwritev_task(BlockDriverState *bs,
                                               uint64_t host_offset,
                                               uint64_t offset, uint64_t bytes,
                                               QEMUIOVector *qiov,
                                               uint64_t qiov_offset,
-                                              QCowL2Meta *l2meta)
+                                              QCowL2Meta *l2meta,
+                                              bool *rdlock)
 {
     int ret;
     BDRVQcow2State *s = bs->opaque;
     void *crypt_buf = NULL;
     QEMUIOVector encrypted_qiov;
+
+    if (!*rdlock) {
+        qemu_co_rwlock_rdlock(&s->discard_rw_lock);
+        *rdlock = true;
+    }
 
     if (bs->encrypted) {
         assert(s->crypto);
@@ -2538,12 +2578,14 @@ static coroutine_fn int qcow2_co_pwritev_task(BlockDriverState *bs,
         }
     }
 
+    qemu_co_rwlock_unlock(&s->discard_rw_lock);
     qemu_co_mutex_lock(&s->lock);
 
     ret = qcow2_handle_l2meta(bs, &l2meta, true);
     goto out_locked;
 
 out_unlocked:
+    qemu_co_rwlock_unlock(&s->discard_rw_lock);
     qemu_co_mutex_lock(&s->lock);
 
 out_locked:
@@ -2563,7 +2605,7 @@ static coroutine_fn int qcow2_co_pwritev_task_entry(AioTask *task)
 
     return qcow2_co_pwritev_task(t->bs, t->host_offset,
                                  t->offset, t->bytes, t->qiov, t->qiov_offset,
-                                 t->l2meta);
+                                 t->l2meta, &t->rdlock);
 }
 
 static coroutine_fn int qcow2_co_pwritev_part(
@@ -2607,6 +2649,8 @@ static coroutine_fn int qcow2_co_pwritev_part(
             goto out_locked;
         }
 
+        qemu_co_rwlock_rdlock(&s->discard_rw_lock);
+
         qemu_co_mutex_unlock(&s->lock);
 
         if (!aio && cur_bytes != bytes) {
@@ -2614,7 +2658,10 @@ static coroutine_fn int qcow2_co_pwritev_part(
         }
         ret = qcow2_add_task(bs, aio, qcow2_co_pwritev_task_entry, 0,
                              host_offset, offset,
-                             cur_bytes, qiov, qiov_offset, l2meta);
+                             cur_bytes, qiov, qiov_offset, l2meta, true);
+        /*
+         * now discard_rw_lock is released and we are safe to take s->lock again
+         */
         l2meta = NULL; /* l2meta is consumed by qcow2_co_pwritev_task() */
         if (ret < 0) {
             goto fail_nometa;
@@ -4094,10 +4141,15 @@ qcow2_co_copy_range_to(BlockDriverState *bs,
             goto fail;
         }
 
+        qemu_co_rwlock_rdlock(&s->discard_rw_lock);
         qemu_co_mutex_unlock(&s->lock);
+
         ret = bdrv_co_copy_range_to(src, src_offset, s->data_file, host_offset,
                                     cur_bytes, read_flags, write_flags);
+
+        qemu_co_rwlock_unlock(&s->discard_rw_lock);
         qemu_co_mutex_lock(&s->lock);
+
         if (ret < 0) {
             goto fail;
         }
@@ -4533,13 +4585,19 @@ qcow2_co_pwritev_compressed_task(BlockDriverState *bs,
     }
 
     ret = qcow2_pre_write_overlap_check(bs, 0, cluster_offset, out_len, true);
-    qemu_co_mutex_unlock(&s->lock);
     if (ret < 0) {
+        qemu_co_mutex_unlock(&s->lock);
         goto fail;
     }
 
+    qemu_co_rwlock_rdlock(&s->discard_rw_lock);
+    qemu_co_mutex_unlock(&s->lock);
+
     BLKDBG_EVENT(s->data_file, BLKDBG_WRITE_COMPRESSED);
     ret = bdrv_co_pwrite(s->data_file, cluster_offset, out_len, out_buf, 0);
+
+    qemu_co_rwlock_unlock(&s->discard_rw_lock);
+
     if (ret < 0) {
         goto fail;
     }
@@ -4608,7 +4666,8 @@ qcow2_co_pwritev_compressed_part(BlockDriverState *bs,
         }
 
         ret = qcow2_add_task(bs, aio, qcow2_co_pwritev_compressed_task_entry,
-                             0, 0, offset, chunk_size, qiov, qiov_offset, NULL);
+                             0, 0, offset, chunk_size, qiov, qiov_offset, NULL,
+                             false);
         if (ret < 0) {
             break;
         }

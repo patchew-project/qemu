@@ -420,6 +420,26 @@ typedef struct BDRVQcow2State {
      * is to convert the image with the desired compression type set.
      */
     Qcow2CompressionType compression_type;
+
+    /*
+     * discard_rw_lock prevents discarding host cluster when there are in-flight
+     * writes into it. So, in-flight writes are "readers" and the code reducing
+     * cluster refcount to zero in update_refcount() is "writer".
+     *
+     * Data-writes should works as follows:
+     * 1. rd-lock should be acquired in the same s->lock critical section where
+     *    corresponding host clusters were allocated or somehow got from the
+     *    metadata. Otherwise we risk miss discarding the cluster on s->lock
+     *    unlocking (unlock should only schedule another coroutine, not enter
+     *    it, but better be absolutely safe).
+     *
+     * 2. rd-lock should be released after data writing finish.
+     *
+     * For reducing refcount to zero (and therefore allowing reallocating the
+     * host cluster for other needs) it's enough to take rw-lock (to wait for
+     * all in-flight writes) and immediately release it (see update_refcount()).
+     */
+    CoRwlock discard_rw_lock;
 } BDRVQcow2State;
 
 typedef struct Qcow2COWRegion {

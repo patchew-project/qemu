@@ -878,6 +878,28 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
         } else {
             refcount += addend;
         }
+
+        if (qemu_in_coroutine() && refcount == 0) {
+            /*
+             * Refcount becomes zero, but there are still may be in-fligth
+             * writes, that writing data to the cluster (that's done without
+             * qcow2 mutext held).
+             *
+             * Data writing protected by rd-locked discard_rw_lock. So here
+             * it's enough to take and immediately release wr-lock on it.
+             * We can immediately release it, because new write requests can't
+             * came to cluster which refcount becomes 0 (There should not be any
+             * links from L2 tables to it).
+             *
+             * We can't do it if we are not in coroutine. But if we are not in
+             * coroutine, that also means that we are modifying metadata not
+             * taking qcow2 s->lock mutex, which is wrong as well.. So, let's
+             * hope for a bright future.
+             */
+            qemu_co_rwlock_wrlock(&s->discard_rw_lock);
+            qemu_co_rwlock_unlock(&s->discard_rw_lock);
+        }
+
         if (refcount == 0 && cluster_index < s->free_cluster_index) {
             s->free_cluster_index = cluster_index;
         }
