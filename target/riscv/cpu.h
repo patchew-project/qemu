@@ -220,9 +220,16 @@ struct CPURISCVState {
     target_ulong mcycle_prev;
     target_ulong minstret_prev;
 
+    /* PMU counter configured values */
+    target_ulong mphmcounter_val[32];
+
     /* for RV32 */
     target_ulong mcycleh_prev;
     target_ulong minstreth_prev;
+    target_ulong mphmcounterh_val[32];
+
+    /* PMU event selector configured values */
+    target_ulong mphmevent_val[29];
 
     target_ulong sscratch;
     target_ulong mscratch;
