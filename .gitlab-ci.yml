@@ -14,6 +14,8 @@ include:
   - local: '/.gitlab-ci.d/crossbuilds.yml'
 
 .native_build_job_template: &native_build_job_definition
+  tags:
+  - docker
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
   before_script:
@@ -38,6 +40,8 @@ include:
       fi
 
 .native_test_job_template: &native_test_job_definition
+  tags:
+  - docker
   stage: test
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
   script:

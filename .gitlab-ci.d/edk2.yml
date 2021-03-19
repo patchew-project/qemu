@@ -5,6 +5,8 @@ docker-edk2:
    - .gitlab-ci.d/edk2.yml
    - .gitlab-ci.d/edk2/Dockerfile
    when: always
+ tags:
+ - docker
  image: docker:19.03.1
  services:
  - docker:19.03.1-dind
@@ -24,6 +26,8 @@ docker-edk2:
  - docker push $IMAGE_TAG
 
 build-edk2:
+ tags:
+ - docker
  stage: build
  needs: ['docker-edk2']
  rules: # Only run this job when ...

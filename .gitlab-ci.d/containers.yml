@@ -1,4 +1,6 @@
 .container_job_template: &container_job_definition
+  tags:
+  - docker
   image: docker:stable
   stage: containers
   services:

@@ -1,4 +1,6 @@
 .cross_system_build_job:
+  tags:
+  - docker
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
   timeout: 80m
@@ -18,6 +20,8 @@
 # KVM), and set extra options (such disabling other accelerators) via the
 # $ACCEL_CONFIGURE_OPTS variable.
 .cross_accel_build_job:
+  tags:
+  - docker
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
   timeout: 30m

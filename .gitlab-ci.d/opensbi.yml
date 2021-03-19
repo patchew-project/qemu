@@ -5,6 +5,8 @@ docker-opensbi:
    - .gitlab-ci.d/opensbi.yml
    - .gitlab-ci.d/opensbi/Dockerfile
    when: always
+ tags:
+ - docker
  image: docker:19.03.1
  services:
  - docker:19.03.1-dind
@@ -24,6 +26,8 @@ docker-opensbi:
  - docker push $IMAGE_TAG
 
 build-opensbi:
+ tags:
+ - docker
  stage: build
  needs: ['docker-opensbi']
  rules: # Only run this job when ...
