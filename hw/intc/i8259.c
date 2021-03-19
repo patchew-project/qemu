@@ -183,7 +183,8 @@ int pic_read_irq(DeviceState *d)
         int irq2;
 
         if (irq == 2) {
-            irq2 = pic_get_irq(slave_pic);
+            int irq2 = pic_get_irq(slave_pic);
+
             if (irq2 >= 0) {
                 pic_intack(slave_pic, irq2);
             } else {
