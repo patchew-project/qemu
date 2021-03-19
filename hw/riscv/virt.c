@@ -42,6 +42,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/pci/pci.h"
 #include "hw/pci-host/gpex.h"
+#include <libfdt.h>
 
 static const MemMapEntry virt_memmap[] = {
     [VIRT_DEBUG] =       {        0x0,         0x100 },
@@ -180,7 +181,7 @@ static void create_fdt(RISCVVirtState *s, const MemMapEntry *memmap,
                        uint64_t mem_size, const char *cmdline, bool is_32_bit)
 {
     void *fdt;
-    int i, cpu, socket;
+    int i, cpu, socket, rc;
     MachineState *mc = MACHINE(s);
     uint64_t addr, size;
     uint32_t *clint_cells, *plic_cells;
@@ -190,9 +191,10 @@ static void create_fdt(RISCVVirtState *s, const MemMapEntry *memmap,
     uint32_t phandle = 1, plic_mmio_phandle = 1;
     uint32_t plic_pcie_phandle = 1, plic_virtio_phandle = 1;
     char *mem_name, *cpu_name, *core_name, *intc_name;
-    char *name, *clint_name, *plic_name, *clust_name;
+    char *name, *clint_name, *plic_name, *clust_name, *pmu_name;
     hwaddr flashsize = virt_memmap[VIRT_FLASH].size / 2;
     hwaddr flashbase = virt_memmap[VIRT_FLASH].base;
+    uint32_t pmu_event_ctr_map[6] = {};
 
     if (mc->dtb) {
         fdt = mc->fdt = load_device_tree(mc->dtb, &s->fdt_size);
@@ -284,6 +286,22 @@ static void create_fdt(RISCVVirtState *s, const MemMapEntry *memmap,
             g_free(cpu_name);
         }
 
+        rc = fdt_path_offset(fdt, "/pmu");
+        if (rc == -FDT_ERR_NOTFOUND) {
+                pmu_name = g_strdup_printf("/pmu");
+                qemu_fdt_add_subnode(fdt, pmu_name);
+                qemu_fdt_setprop_string(fdt, pmu_name, "compatible",
+                                        "riscv,pmu");
+                pmu_event_ctr_map[0] = cpu_to_be32(0x00000001);
+                pmu_event_ctr_map[1] = cpu_to_be32(0x00000001);
+                pmu_event_ctr_map[2] = cpu_to_be32(0x00000001);
+                pmu_event_ctr_map[3] = cpu_to_be32(0x00000002);
+                pmu_event_ctr_map[4] = cpu_to_be32(0x00000002);
+                pmu_event_ctr_map[5] = cpu_to_be32(0x00000004);
+                qemu_fdt_setprop(fdt, pmu_name, "opensbi,event-to-counters",
+                                 pmu_event_ctr_map, sizeof(pmu_event_ctr_map));
+                g_free(pmu_name);
+        }
         addr = memmap[VIRT_DRAM].base + riscv_socket_mem_offset(mc, socket);
         size = riscv_socket_mem_size(mc, socket);
         mem_name = g_strdup_printf("/memory@%lx", (long)addr);
