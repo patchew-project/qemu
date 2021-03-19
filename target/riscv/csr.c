@@ -631,6 +631,26 @@ static int write_mtvec(CPURISCVState *env, int csrno, target_ulong val)
     return 0;
 }
 
+static int read_mcountinhibit(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    if (env->priv_ver < PRIV_VERSION_1_11_0) {
+        return -RISCV_EXCP_ILLEGAL_INST;
+    }
+
+    *val = env->mcountinhibit;
+    return 0;
+}
+
+static int write_mcountinhibit(CPURISCVState *env, int csrno, target_ulong val)
+{
+    if (env->priv_ver < PRIV_VERSION_1_11_0) {
+        return -RISCV_EXCP_ILLEGAL_INST;
+    }
+
+    env->mcountinhibit = val;
+    return 0;
+}
+
 static int read_mcounteren(CPURISCVState *env, int csrno, target_ulong *val)
 {
     *val = env->mcounteren;
@@ -1532,6 +1552,9 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MHPMCOUNTER29]  = { "mhpmcounter29",  any,    read_zero },
     [CSR_MHPMCOUNTER30]  = { "mhpmcounter30",  any,    read_zero },
     [CSR_MHPMCOUNTER31]  = { "mhpmcounter31",  any,    read_zero },
+
+    [CSR_MCOUNTINHIBIT]  = { "mcountinhibi",   any,    read_mcountinhibit,
+                                                       write_mcountinhibit },
 
     [CSR_MHPMEVENT3]     = { "mhpmevent3",     any,    read_zero },
     [CSR_MHPMEVENT4]     = { "mhpmevent4",     any,    read_zero },
