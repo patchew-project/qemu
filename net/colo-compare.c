@@ -141,6 +141,7 @@ static int packet_enqueue(CompareState *s, int mode, Connection **con)
     ConnectionKey key;
     Packet *pkt = NULL;
     Connection *conn;
+    PassthroughEntry *bypass, *next;
     int ret;
 
     if (mode == PRIMARY_IN) {
@@ -159,6 +160,32 @@ static int packet_enqueue(CompareState *s, int mode, Connection **con)
         return -1;
     }
     fill_connection_key(pkt, &key);
+
+    /* Check COLO passthrough connenction */
+    qemu_mutex_lock(&s->passthroughlist_mutex);
+    if (!QLIST_EMPTY(&s->passthroughlist)) {
+        QLIST_FOREACH_SAFE(bypass, &s->passthroughlist, node, next) {
+            if (((key.ip_proto == IPPROTO_TCP) && (bypass->l4_protocol == 0)) ||
+                ((key.ip_proto == IPPROTO_UDP) && (bypass->l4_protocol == 1))) {
+                if (bypass->src_port == 0 || bypass->src_port == key.dst_port) {
+                    if (bypass->src_ip.s_addr == 0 ||
+                        bypass->src_ip.s_addr == key.src.s_addr) {
+                        if (bypass->dst_port == 0 ||
+                            bypass->dst_port == key.src_port) {
+                            if (bypass->dst_ip.s_addr == 0 ||
+                                bypass->dst_ip.s_addr == key.dst.s_addr) {
+                                packet_destroy(pkt, NULL);
+                                pkt = NULL;
+                                qemu_mutex_unlock(&s->passthroughlist_mutex);
+                                return -1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    qemu_mutex_unlock(&s->passthroughlist_mutex);
 
     conn = connection_get(s->connection_track_table,
                           &key,
@@ -1224,6 +1251,7 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
     }
 
     g_queue_init(&s->conn_list);
+    QLIST_INIT(&s->passthroughlist);
 
     s->connection_track_table = g_hash_table_new_full(connection_key_hash,
                                                       connection_key_equal,
@@ -1236,6 +1264,7 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
     if (!colo_compare_active) {
         qemu_mutex_init(&event_mtx);
         qemu_cond_init(&event_complete_cond);
+        qemu_mutex_init(&s->passthroughlist_mutex);
         colo_compare_active = true;
     }
     QTAILQ_INSERT_TAIL(&net_compares, s, next);
