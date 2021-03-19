@@ -796,6 +796,11 @@
 #
 # @prealloc: enables or disables memory preallocation
 #
+# @reserve: enables or disables reservation of swap space (or huge pages
+#           if applicable). If reservation is enabled (default), actual
+#           reservation depends on underlying OS support. In contrast,
+#           disabling reservation without OS support will bail out. (since 6.1)
+#
 # @host-nodes: host nodes for its memory policy
 #
 # @policy: memory policy of memory backend
@@ -809,6 +814,7 @@
     'merge':      'bool',
     'dump':       'bool',
     'prealloc':   'bool',
+    'reserve':    'bool',
     'host-nodes': ['uint16'],
     'policy':     'HostMemPolicy' }}
 
