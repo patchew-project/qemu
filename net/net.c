@@ -1199,6 +1199,16 @@ void qmp_netdev_del(const char *id, Error **errp)
     }
 }
 
+void qmp_colo_passthrough_add(L4_Connection *conn, Error **errp)
+{
+    /* Setup passthrough connection */
+}
+
+void qmp_colo_passthrough_del(L4_Connection *conn, Error **errp)
+{
+    /* Delete passthrough connection */
+}
+
 static void netfilter_print_info(Monitor *mon, NetFilterState *nf)
 {
     char *str;
