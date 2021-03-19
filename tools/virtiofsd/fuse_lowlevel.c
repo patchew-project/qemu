@@ -1755,7 +1755,7 @@ static void do_ioctl(fuse_req_t req, fuse_ino_t nodeid,
 
 void fuse_pollhandle_destroy(struct fuse_pollhandle *ph)
 {
-    free(ph);
+    g_free(ph);
 }
 
 static void do_poll(fuse_req_t req, fuse_ino_t nodeid,
@@ -1778,11 +1778,7 @@ static void do_poll(fuse_req_t req, fuse_ino_t nodeid,
         struct fuse_pollhandle *ph = NULL;
 
         if (arg->flags & FUSE_POLL_SCHEDULE_NOTIFY) {
-            ph = malloc(sizeof(struct fuse_pollhandle));
-            if (ph == NULL) {
-                fuse_reply_err(req, ENOMEM);
-                return;
-            }
+            ph = g_new(struct fuse_pollhandle, 1);
             ph->kh = arg->kh;
             ph->se = req->se;
         }
