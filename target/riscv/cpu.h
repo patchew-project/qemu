@@ -216,6 +216,14 @@ struct CPURISCVState {
 
     target_ulong mcountinhibit;
 
+    /* Snapshot values for mcycle & minstret */
+    target_ulong mcycle_prev;
+    target_ulong minstret_prev;
+
+    /* for RV32 */
+    target_ulong mcycleh_prev;
+    target_ulong minstreth_prev;
+
     target_ulong sscratch;
     target_ulong mscratch;
 

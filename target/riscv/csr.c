@@ -319,31 +319,106 @@ static int write_vstart(CPURISCVState *env, int csrno, target_ulong val)
 }
 
 /* User Timers and Counters */
-static int read_instret(CPURISCVState *env, int csrno, target_ulong *val)
+
+static target_ulong get_icount_ticks(bool brv32)
 {
+    int64_t val;
+    target_ulong result;
+
 #if !defined(CONFIG_USER_ONLY)
     if (icount_enabled()) {
-        *val = icount_get();
+        val = icount_get();
     } else {
-        *val = cpu_get_host_ticks();
+        val = cpu_get_host_ticks();
     }
 #else
-    *val = cpu_get_host_ticks();
+    val = cpu_get_host_ticks();
 #endif
+
+    if (brv32) {
+        result = val >> 32;
+    } else {
+        result = val;
+    }
+
+    return result;
+}
+
+static int read_cycle(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    if (get_field(env->mcountinhibit, HCOUNTEREN_CY)) {
+        /**
+         * Counter should not increment if inhibit bit is set. We can't really
+         * stop the icount counting. Just return the previous value to indicate
+         * that counter was not incremented.
+         */
+        *val = env->mcycle_prev;
+        return 0;
+    }
+
+    *val = get_icount_ticks(false);
+
+    if (*val > env->mcycle_prev)
+        *val = *val - env->mcycle_prev + env->mphmcounter_val[0];
+    else
+        /* Overflow scenario */
+        *val = UINT64_MAX - env->mcycle_prev + 1 + env->mphmcounter_val[0] + *val;
+
+    return 0;
+}
+
+static int read_instret(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    if (get_field(env->mcountinhibit, HCOUNTEREN_IR)) {
+        *val = env->minstret_prev;
+        return 0;
+    }
+
+    *val = get_icount_ticks(false);
+
+    if (*val > env->minstret_prev)
+        *val = *val - env->minstret_prev + env->mphmcounter_val[2];
+    else
+        /* Overflow scenario */
+        *val = UINT64_MAX - env->minstret_prev + 1 + env->mphmcounter_val[2] + *val;
+
+    return 0;
+}
+
+static int read_cycleh(CPURISCVState *env, int csrno, target_ulong *val)
+{
+
+    if (get_field(env->mcountinhibit, HCOUNTEREN_CY)) {
+        *val = env->mcycleh_prev;
+        return 0;
+    }
+
+    *val = get_icount_ticks(true);
+
+    if (*val > env->mcycleh_prev)
+        *val = *val - env->mcycleh_prev + env->mphmcounterh_val[0];
+    else
+        /* Overflow scenario */
+        *val = UINT32_MAX - env->mcycleh_prev + 1 + env->mphmcounterh_val[0] + *val;
+
     return 0;
 }
 
 static int read_instreth(CPURISCVState *env, int csrno, target_ulong *val)
 {
-#if !defined(CONFIG_USER_ONLY)
-    if (icount_enabled()) {
-        *val = icount_get() >> 32;
-    } else {
-        *val = cpu_get_host_ticks() >> 32;
+    if (get_field(env->mcountinhibit, HCOUNTEREN_IR)) {
+        *val = env->minstreth_prev;
+        return 0;
     }
-#else
-    *val = cpu_get_host_ticks() >> 32;
-#endif
+
+    *val = get_icount_ticks(true);
+
+    if (*val > env->minstreth_prev)
+        *val = *val - env->minstreth_prev + env->mphmcounterh_val[2];
+    else
+        /* Overflow scenario */
+        *val = UINT32_MAX - env->minstreth_prev + 1 + env->mphmcounterh_val[2] + *val;
+
     return 0;
 }
 
@@ -1383,9 +1458,9 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_VL]       = { "vl",       vs,     read_vl                    },
     [CSR_VTYPE]    = { "vtype",    vs,     read_vtype                 },
     /* User Timers and Counters */
-    [CSR_CYCLE]    = { "cycle",    ctr,    read_instret  },
+    [CSR_CYCLE]    = { "cycle",    ctr,    read_cycle  },
     [CSR_INSTRET]  = { "instret",  ctr,    read_instret  },
-    [CSR_CYCLEH]   = { "cycleh",   ctr32,  read_instreth },
+    [CSR_CYCLEH]   = { "cycleh",   ctr32,  read_cycleh },
     [CSR_INSTRETH] = { "instreth", ctr32,  read_instreth },
 
     /*
@@ -1397,10 +1472,10 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 
 #if !defined(CONFIG_USER_ONLY)
     /* Machine Timers and Counters */
-    [CSR_MCYCLE]    = { "mcycle",    any,   read_instret  },
-    [CSR_MINSTRET]  = { "minstret",  any,   read_instret  },
-    [CSR_MCYCLEH]   = { "mcycleh",   any32, read_instreth },
-    [CSR_MINSTRETH] = { "minstreth", any32, read_instreth },
+    [CSR_MCYCLE]    = { "mcycle",    any,   read_cycle  , write_mhpmcounter},
+    [CSR_MINSTRET]  = { "minstret",  any,   read_instret, write_mhpmcounter},
+    [CSR_MCYCLEH]   = { "mcycleh",   any32, read_cycleh , write_mhpmcounterh},
+    [CSR_MINSTRETH] = { "minstreth", any32, read_instreth , write_mhpmcounterh},
 
     /* Machine Information Registers */
     [CSR_MVENDORID] = { "mvendorid", any,   read_zero    },
