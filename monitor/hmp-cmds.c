@@ -1634,6 +1634,40 @@ void hmp_netdev_del(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
+void hmp_colo_passthrough_add(Monitor *mon, const QDict *qdict)
+{
+    const char *prot = qdict_get_str(qdict, "protocol");
+    L4_Connection *l4_conn = g_new0(L4_Connection, 1);
+    Error *err = NULL;
+
+    l4_conn->id = g_strdup(qdict_get_try_str(qdict, "id"));
+    l4_conn->protocol = qapi_enum_parse(&IP_PROTOCOL_lookup, prot, -1, &err);
+    l4_conn->src_ip = g_strdup(qdict_get_try_str(qdict, "src_ip"));
+    l4_conn->dst_ip = g_strdup(qdict_get_try_str(qdict, "dst_ip"));
+    l4_conn->src_port = qdict_get_try_int(qdict, "src_port", 0);
+    l4_conn->dst_port = qdict_get_try_int(qdict, "dst_port", 0);
+
+    qmp_colo_passthrough_add(l4_conn, &err);
+    hmp_handle_error(mon, err);
+}
+
+void hmp_colo_passthrough_del(Monitor *mon, const QDict *qdict)
+{
+    const char *prot = qdict_get_str(qdict, "protocol");
+    L4_Connection *l4_conn = g_new0(L4_Connection, 1);
+    Error *err = NULL;
+
+    l4_conn->id = g_strdup(qdict_get_try_str(qdict, "id"));
+    l4_conn->protocol = qapi_enum_parse(&IP_PROTOCOL_lookup, prot, -1, &err);
+    l4_conn->src_ip = g_strdup(qdict_get_try_str(qdict, "src_ip"));
+    l4_conn->dst_ip = g_strdup(qdict_get_try_str(qdict, "dst_ip"));
+    l4_conn->src_port = qdict_get_try_int(qdict, "src_port", 0);
+    l4_conn->dst_port = qdict_get_try_int(qdict, "dst_port", 0);
+
+    qmp_colo_passthrough_del(l4_conn, &err);
+    hmp_handle_error(mon, err);
+}
+
 void hmp_object_add(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
