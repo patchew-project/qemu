@@ -24,9 +24,17 @@ static void test_mon_explicit(const void *data)
     QTestState *qts;
     g_autofree char *s = NULL;
     g_autofree char *cli = NULL;
+    const char *arch = qtest_get_arch();
 
-    cli = make_cli(data, "-smp 8 -numa node,nodeid=0,memdev=ram,cpus=0-3 "
-                         "-numa node,nodeid=1,cpus=4-7");
+    if (g_str_equal(arch, "ppc64")) {
+        cli = make_cli(data, "-smp 8,threads=1,cores=4,sockets=2 "
+                             "-numa node,nodeid=0,memdev=ram,cpus=0-3 "
+                             "-numa node,nodeid=1,cpus=4-7");
+    } else {
+        cli = make_cli(data, "-smp 8 -numa node,nodeid=0,memdev=ram,cpus=0-3 "
+                             "-numa node,nodeid=1,cpus=4-7");
+    }
+
     qts = qtest_init(cli);
 
     s = qtest_hmp(qts, "info numa");
@@ -57,10 +65,18 @@ static void test_mon_partial(const void *data)
     QTestState *qts;
     g_autofree char *s = NULL;
     g_autofree char *cli = NULL;
+    const char *arch = qtest_get_arch();
 
-    cli = make_cli(data, "-smp 8 "
-                   "-numa node,nodeid=0,memdev=ram,cpus=0-1 "
-                   "-numa node,nodeid=1,cpus=4-5 ");
+    if (g_str_equal(arch, "ppc64")) {
+        cli = make_cli(data, "-smp 8,threads=1,cores=4,sockets=2 "
+                             "-numa node,nodeid=0,memdev=ram,cpus=0-1 "
+                             "-numa node,nodeid=1,cpus=4-5 ");
+    } else {
+        cli = make_cli(data, "-smp 8 "
+                             "-numa node,nodeid=0,memdev=ram,cpus=0-1 "
+                             "-numa node,nodeid=1,cpus=4-5 ");
+    }
+
     qts = qtest_init(cli);
 
     s = qtest_hmp(qts, "info numa");
@@ -85,9 +101,17 @@ static void test_query_cpus(const void *data)
     QObject *e;
     QTestState *qts;
     g_autofree char *cli = NULL;
+    const char *arch = qtest_get_arch();
 
-    cli = make_cli(data, "-smp 8 -numa node,memdev=ram,cpus=0-3 "
-                         "-numa node,cpus=4-7");
+    if (g_str_equal(arch, "ppc64")) {
+        cli = make_cli(data, "-smp 8,threads=1,cores=4,sockets=2 "
+                             "-numa node,memdev=ram,cpus=0-3 "
+                             "-numa node,cpus=4-7");
+    } else {
+        cli = make_cli(data, "-smp 8 -numa node,memdev=ram,cpus=0-3 "
+                             "-numa node,cpus=4-7");
+    }
+
     qts = qtest_init(cli);
     cpus = get_cpus(qts, &resp);
     g_assert(cpus);
@@ -177,7 +201,7 @@ static void spapr_numa_cpu(const void *data)
     QTestState *qts;
     g_autofree char *cli = NULL;
 
-    cli = make_cli(data, "-smp 4,cores=4 "
+    cli = make_cli(data, "-smp 4,threads=1,cores=2,sockets=2 "
         "-numa node,nodeid=0,memdev=ram -numa node,nodeid=1 "
         "-numa cpu,node-id=0,core-id=0 "
         "-numa cpu,node-id=0,core-id=1 "
@@ -554,7 +578,17 @@ int main(int argc, char **argv)
 
     g_test_init(&argc, &argv, NULL);
 
-    qtest_add_data_func("/numa/mon/cpus/default", args, test_def_cpu_split);
+    /*
+     * Starting on 6.0.0, for the pseries machine, '-smp 8' will only work
+     * if we have 8 NUMA nodes. If we specify 'smp 8,sockets=2' to match
+     * 2 NUMA nodes, the CPUs will be split as 0123/4567 instead of
+     * 0246/1357 that test_def_cpu_split expects. In short, this test is
+     * no longer valid for ppc64 in 6.0.0.
+     */
+    if (!g_str_equal(arch, "ppc64")) {
+        qtest_add_data_func("/numa/mon/cpus/default", args, test_def_cpu_split);
+    }
+
     qtest_add_data_func("/numa/mon/cpus/explicit", args, test_mon_explicit);
     qtest_add_data_func("/numa/mon/cpus/partial", args, test_mon_partial);
     qtest_add_data_func("/numa/qmp/cpus/query-cpus", args, test_query_cpus);

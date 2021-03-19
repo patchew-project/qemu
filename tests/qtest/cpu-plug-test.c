@@ -118,8 +118,8 @@ static void add_pseries_test_case(const char *mname)
     data->machine = g_strdup(mname);
     data->cpu_model = "power8_v2.0";
     data->device_model = g_strdup("power8_v2.0-spapr-cpu-core");
-    data->sockets = 2;
-    data->cores = 3;
+    data->sockets = 1;
+    data->cores = 6;
     data->threads = 1;
     data->maxcpus = data->sockets * data->cores * data->threads;
 

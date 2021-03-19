@@ -163,6 +163,13 @@ void spapr_numa_associativity_init(SpaprMachineState *spapr,
     int i, j, max_nodes_with_gpus;
     bool using_legacy_numa = spapr_machine_using_legacy_numa(spapr);
 
+    if (!smc->pre_6_0_smp_topology &&
+        nb_numa_nodes != machine->smp.sockets) {
+        error_report("Number of CPU sockets must be equal to the number "
+                     "of NUMA nodes");
+        exit(EXIT_FAILURE);
+    }
+
     /*
      * For all associativity arrays: first position is the size,
      * position MAX_DISTANCE_REF_POINTS is always the numa_id,

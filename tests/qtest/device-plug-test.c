@@ -91,7 +91,14 @@ static void test_spapr_cpu_unplug_request(void)
 {
     QTestState *qtest;
 
-    qtest = qtest_initf("-cpu power9_v2.0 -smp 1,maxcpus=2 "
+    /*
+     * Default smp settings will prioritize sockets over cores and
+     * threads, so '-smp 2,maxcpus=2' will add 2 sockets. However,
+     * the pseries machine requires a NUMA node for each socket
+     * (since 6.0.0). Specify sockets=1 to make life easier.
+     */
+    qtest = qtest_initf("-cpu power9_v2.0 "
+                        "-smp 1,maxcpus=2,threads=1,cores=2,sockets=1 "
                         "-device power9_v2.0-spapr-cpu-core,core-id=1,id=dev0");
 
     /* similar to test_pci_unplug_request */
