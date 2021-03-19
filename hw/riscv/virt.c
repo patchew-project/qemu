@@ -194,7 +194,9 @@ static void create_fdt(RISCVVirtState *s, const MemMapEntry *memmap,
     char *name, *clint_name, *plic_name, *clust_name, *pmu_name;
     hwaddr flashsize = virt_memmap[VIRT_FLASH].size / 2;
     hwaddr flashbase = virt_memmap[VIRT_FLASH].base;
-    uint32_t pmu_event_ctr_map[6] = {};
+    uint32_t pmu_event_map[6] = {};
+    uint32_t pmu_event_ctr_map[12] = {};
+    uint32_t pmu_raw_event_ctr_map[6] = {};
 
     if (mc->dtb) {
         fdt = mc->fdt = load_device_tree(mc->dtb, &s->fdt_size);
@@ -288,18 +290,46 @@ static void create_fdt(RISCVVirtState *s, const MemMapEntry *memmap,
 
         rc = fdt_path_offset(fdt, "/pmu");
         if (rc == -FDT_ERR_NOTFOUND) {
+                pmu_event_map[0] = cpu_to_be32(0x00000009);
+                pmu_event_map[1] = cpu_to_be32(0x00000000);
+                pmu_event_map[2] = cpu_to_be32(0x00000200);
+                pmu_event_map[3] = cpu_to_be32(0x00010000);
+                pmu_event_map[4] = cpu_to_be32(0x00000100);
+                pmu_event_map[5] = cpu_to_be32(0x00000002);
                 pmu_name = g_strdup_printf("/pmu");
                 qemu_fdt_add_subnode(fdt, pmu_name);
                 qemu_fdt_setprop_string(fdt, pmu_name, "compatible",
                                         "riscv,pmu");
+                qemu_fdt_setprop(fdt, pmu_name, "opensbi,event-to-mhpmevent",
+                                 pmu_event_map, sizeof(pmu_event_map));
+
                 pmu_event_ctr_map[0] = cpu_to_be32(0x00000001);
                 pmu_event_ctr_map[1] = cpu_to_be32(0x00000001);
                 pmu_event_ctr_map[2] = cpu_to_be32(0x00000001);
                 pmu_event_ctr_map[3] = cpu_to_be32(0x00000002);
                 pmu_event_ctr_map[4] = cpu_to_be32(0x00000002);
                 pmu_event_ctr_map[5] = cpu_to_be32(0x00000004);
+
+                pmu_event_ctr_map[6] = cpu_to_be32(0x00000003);
+                pmu_event_ctr_map[7] = cpu_to_be32(0x0000000A);
+                pmu_event_ctr_map[8] = cpu_to_be32(0x00000FF8);
+                pmu_event_ctr_map[9] = cpu_to_be32(0x00010000);
+                pmu_event_ctr_map[10] = cpu_to_be32(0x001C000);
+                pmu_event_ctr_map[11] = cpu_to_be32(0x00001F0);
+
                 qemu_fdt_setprop(fdt, pmu_name, "opensbi,event-to-counters",
-                                 pmu_event_ctr_map, sizeof(pmu_event_ctr_map));
+                             pmu_event_ctr_map, sizeof(pmu_event_ctr_map));
+
+                pmu_raw_event_ctr_map[0] = cpu_to_be32(0x00000000);
+                pmu_raw_event_ctr_map[1] = cpu_to_be32(0x00000002);
+                pmu_raw_event_ctr_map[2] = cpu_to_be32(0x00000F00);
+                pmu_raw_event_ctr_map[3] = cpu_to_be32(0x00000000);
+                pmu_raw_event_ctr_map[4] = cpu_to_be32(0x00000003);
+                pmu_raw_event_ctr_map[5] = cpu_to_be32(0x000000F0);
+                qemu_fdt_setprop(fdt, pmu_name, "opensbi,raw-event-to-counters",
+                                 pmu_raw_event_ctr_map,
+                                 sizeof(pmu_raw_event_ctr_map));
+
                 g_free(pmu_name);
         }
         addr = memmap[VIRT_DRAM].base + riscv_socket_mem_offset(mc, socket);
