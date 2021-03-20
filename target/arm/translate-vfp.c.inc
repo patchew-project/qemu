@@ -120,7 +120,7 @@ static void gen_preserve_fp_state(DisasContext *s)
  */
 static bool full_vfp_access_check(DisasContext *s, bool ignore_vfp_enabled)
 {
-    if (s->fp_excp_el) {
+    if (s->fp_excp_el && !ignore_vfp_enabled) {
         /* M-profile handled this earlier, in disas_m_nocp() */
         assert (!arm_dc_feature(s, ARM_FEATURE_M));
         gen_exception_insn(s, s->pc_curr, EXCP_UDEF,
