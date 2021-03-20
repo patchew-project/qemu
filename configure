@@ -75,6 +75,7 @@ fi
 
 TMPB="qemu-conf"
 TMPC="${TMPDIR1}/${TMPB}.c"
+TMPC_B="${TMPDIR1}/${TMPB}_b.c"
 TMPO="${TMPDIR1}/${TMPB}.o"
 TMPCXX="${TMPDIR1}/${TMPB}.cxx"
 TMPE="${TMPDIR1}/${TMPB}.exe"
@@ -4896,13 +4897,38 @@ fi
 
 attralias=no
 cat > $TMPC << EOF
-int x = 1;
+static int x;
 extern const int y __attribute__((alias("x")));
-int main(void) { return 0; }
+extern int read_y(void);
+void write_x(int val);
+
+void write_x(int val)
+{
+    x = val;
+}
+
+int main(void)
+{
+    return read_y();
+}
 EOF
-if compile_prog "" "" ; then
-    attralias=yes
+cat > $TMPC_B << EOF
+extern const int y;
+extern void write_x(int val);
+int read_y(void);
+
+int read_y(void)
+{
+     write_x(1);
+     return y;
+}
+EOF
+
+TMPC+=" ${TMPC_B}"
+if compile_prog "" "" && ! $TMPE; then
+   attralias=yes
 fi
+TMPC="${TMPDIR1}/${TMPB}.c"
 
 ########################################
 # check if getauxval is available.
