@@ -249,7 +249,7 @@ void riscv_setup_rom_reset_vec(MachineState *machine, RISCVHartArrayState *harts
                                hwaddr start_addr,
                                hwaddr rom_base, hwaddr rom_size,
                                uint64_t kernel_entry,
-                               uint32_t fdt_load_addr, void *fdt)
+                               uint32_t fdt_load_addr)
 {
     int i;
     uint32_t start_addr_hi32 = 0x00000000;
