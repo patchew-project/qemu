@@ -27,7 +27,8 @@ asm (".code32"); /* this code will be executed in protected mode */
 #include "optrom_fw_cfg.h"
 #include "../../include/hw/xen/start_info.h"
 
-#define RSDP_SIGNATURE          0x2052545020445352LL /* "RSD PTR " */
+#define RSDP_SIGNATURE          "RSD PTR "
+#define RSDP_SIGNATURE_SIZE     8
 #define RSDP_AREA_ADDR          0x000E0000
 #define RSDP_AREA_SIZE          0x00020000
 #define EBDA_BASE_ADDR          0x0000040E
@@ -53,12 +54,14 @@ static uint8_t cmdline_buffer[CMDLINE_BUFSIZE];
 /* Search RSDP signature. */
 static uintptr_t search_rsdp(uint32_t start_addr, uint32_t end_addr)
 {
-    uint64_t *rsdp_p;
+    char rsdp_signature[RSDP_SIGNATURE_SIZE] = RSDP_SIGNATURE;
+    char *rsdp_p;
 
     /* RSDP signature is always on a 16 byte boundary */
-    for (rsdp_p = (uint64_t *)start_addr; rsdp_p < (uint64_t *)end_addr;
-         rsdp_p += 2) {
-        if (*rsdp_p == RSDP_SIGNATURE) {
+    for (rsdp_p = (char *)start_addr; rsdp_p < (char *)end_addr;
+         rsdp_p += 16) {
+        if (__builtin_memcmp(rsdp_p, rsdp_signature,
+                             RSDP_SIGNATURE_SIZE) == 0) {
             return (uintptr_t)rsdp_p;
         }
     }
