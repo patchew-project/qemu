@@ -158,6 +158,14 @@ struct VirtioDeviceClass {
      * processed, e.g. for bounds checking.
      */
     int (*post_load)(VirtIODevice *vdev);
+    /* In case when some of negotiated features are missing on the destination
+       system, the migration is expected to fail. To avoid such failure, the
+       device may implement this callback and apply graceful configuration
+       change to extend host features (for example, disable vhost).
+       If the device returns true the virtio reinitializes the host features
+       and further set_features call may succeed.
+     */
+    bool (*missing_features_migrated)(VirtIODevice *vdev, uint64_t val);
     const VMStateDescription *vmsd;
     bool (*primary_unplug_pending)(void *opaque);
 };

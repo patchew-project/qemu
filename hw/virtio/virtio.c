@@ -3107,6 +3107,14 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
         vdev->device_endian = virtio_default_endian();
     }
 
+    if (vdc->missing_features_migrated) {
+        uint64_t missing = (vdev->guest_features & ~(vdev->host_features));
+        if (missing && vdc->missing_features_migrated(vdev, missing)) {
+            vdev->host_features =
+                vdc->get_features(vdev, vdev->host_features, NULL);
+        }
+    }
+
     if (virtio_64bit_features_needed(vdev)) {
         /*
          * Subsection load filled vdev->guest_features.  Run them
