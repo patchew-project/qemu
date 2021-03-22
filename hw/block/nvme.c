@@ -4984,6 +4984,11 @@ static uint16_t nvme_format_ns(NvmeCtrl *n, NvmeNamespace *ns, uint8_t lbaf,
     ns->status = NVME_FORMAT_IN_PROGRESS;
 
     len = ns->size;
+
+    if (!len) {
+        return NVME_SUCCESS;
+    }
+
     offset = 0;
 
     count = g_new(int, 1);
