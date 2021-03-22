@@ -76,11 +76,8 @@ test('decodetree', sh,
      workdir: meson.current_source_dir() / 'decode',
      suite: 'decodetree')
 
-if 'CONFIG_TCG' in config_all
-  subdir('fp')
-endif
-
 if not get_option('tcg').disabled()
+  subdir('fp')
   if 'CONFIG_PLUGIN' in config_host
     subdir('plugin')
   endif
