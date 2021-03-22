@@ -527,6 +527,15 @@ static RxFilterInfo *virtio_net_query_rxfilter(NetClientState *nc)
     return info;
 }
 
+static void virtio_net_allow_vhost(VirtIONet *n, bool allow)
+{
+    int i;
+    for (i = 0; i < n->max_queues; i++) {
+        NetClientState *nc = qemu_get_subqueue(n->nic, i)->peer;
+        nc->vhost_net_disabled = !allow;
+    }
+}
+
 static void virtio_net_reset(VirtIODevice *vdev)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
@@ -564,6 +573,7 @@ static void virtio_net_reset(VirtIODevice *vdev)
             assert(!virtio_net_get_subqueue(nc)->async_tx.elem);
         }
     }
+    virtio_net_allow_vhost(n, true);
 }
 
 static void peer_test_vnet_hdr(VirtIONet *n)
@@ -699,6 +709,27 @@ static void virtio_net_set_queues(VirtIONet *n)
             assert(!r);
         }
     }
+}
+
+static bool can_disable_vhost(VirtIONet *n)
+{
+    NetClientState *peer = qemu_get_queue(n->nic)->peer;
+    NetdevInfo *ndi;
+    if (!get_vhost_net(peer)) {
+        return false;
+    }
+    if (!peer) {
+        return true;
+    }
+    if (peer->info->type != NET_CLIENT_DRIVER_TAP) {
+        return false;
+    }
+    ndi = peer->stored_config;
+    if (ndi && ndi->u.tap.has_vhostforce && ndi->u.tap.vhostforce) {
+        printf("vhost forced, can't drop it\n");
+        return false;
+    }
+    return true;
 }
 
 static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue);
@@ -3433,6 +3464,25 @@ static bool dev_unplug_pending(void *opaque)
     return vdc->primary_unplug_pending(dev);
 }
 
+static bool virtio_net_missing_features_migrated(VirtIODevice *vdev,
+                                                 uint64_t missing)
+{
+    VirtIONet *n = VIRTIO_NET(vdev);
+    bool disable_vhost = false;
+    if (virtio_has_feature(missing, VIRTIO_NET_F_HASH_REPORT) ||
+        virtio_has_feature(missing, VIRTIO_NET_F_RSS) ||
+        virtio_has_feature(missing, VIRTIO_F_RING_PACKED)) {
+        disable_vhost = true;
+    }
+    disable_vhost = disable_vhost && can_disable_vhost(n);
+    if (disable_vhost) {
+        warn_report("falling back to userspace virtio due to missing"
+                    " features %lx", missing);
+        virtio_net_allow_vhost(n, false);
+    }
+    return disable_vhost;
+}
+
 static const VMStateDescription vmstate_virtio_net = {
     .name = "virtio-net",
     .minimum_version_id = VIRTIO_NET_VM_VERSION,
@@ -3527,6 +3577,7 @@ static void virtio_net_class_init(ObjectClass *klass, void *data)
     vdc->get_features = virtio_net_get_features;
     vdc->set_features = virtio_net_set_features;
     vdc->bad_features = virtio_net_bad_features;
+    vdc->missing_features_migrated = virtio_net_missing_features_migrated;
     vdc->reset = virtio_net_reset;
     vdc->set_status = virtio_net_set_status;
     vdc->guest_notifier_mask = virtio_net_guest_notifier_mask;
