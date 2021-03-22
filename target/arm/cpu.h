@@ -4183,6 +4183,14 @@ static inline bool isar_feature_aa64_ssbs(const ARMISARegisters *id)
 }
 
 /*
+ * Currently we don't differentiate between the ARMv8.3-NV and ARMv8.4-NV.
+ */
+static inline bool isar_feature_aa64_nv(const ARMISARegisters *id)
+{
+    return FIELD_EX64(id->id_aa64mmfr2, ID_AA64MMFR2, NV) != 0;
+}
+
+/*
  * Feature tests for "does this exist in either 32-bit or 64-bit?"
  */
 static inline bool isar_feature_any_fp16(const ARMISARegisters *id)

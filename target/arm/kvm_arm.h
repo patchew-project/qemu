@@ -286,6 +286,24 @@ void kvm_arm_steal_time_finalize(ARMCPU *cpu, Error **errp);
 bool kvm_arm_steal_time_supported(void);
 
 /**
+ * kvm_arm_nested_virt_finalize:
+ * @cpu: ARMCPU for which to finalize nested-virt
+ * @errp: Pointer to Error* for error propagation
+ *
+ * Validate the nested-virt property selection and set its default
+ * based on KVM support and guest configuration.
+ */
+void kvm_arm_nested_virt_finalize(ARMCPU *cpu, Error **errp);
+
+/**
+ * kvm_arm_nested_virt_supported:
+ *
+ * Returns: true if KVM can enable nested virtualization
+ * and false otherwise.
+ */
+bool kvm_arm_nested_virt_supported(void);
+
+/**
  * kvm_arm_aarch32_supported:
  *
  * Returns: true if KVM can enable AArch32 mode
@@ -398,6 +416,11 @@ static inline bool kvm_arm_steal_time_supported(void)
     return false;
 }
 
+static inline bool kvm_arm_nested_virt_supported(void)
+{
+    return false;
+}
+
 /*
  * These functions should never actually be called without KVM support.
  */
@@ -437,6 +460,11 @@ static inline void kvm_arm_pvtime_init(CPUState *cs, uint64_t ipa)
 }
 
 static inline void kvm_arm_steal_time_finalize(ARMCPU *cpu, Error **errp)
+{
+    g_assert_not_reached();
+}
+
+static inline void kvm_arm_nested_virt_finalize(ARMCPU *cpu, Error **errp)
 {
     g_assert_not_reached();
 }
