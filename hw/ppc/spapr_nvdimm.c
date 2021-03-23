@@ -125,6 +125,9 @@ static int spapr_dt_nvdimm(SpaprMachineState *spapr, void *fdt,
     uint64_t lsize = nvdimm->label_size;
     uint64_t size = object_property_get_int(OBJECT(nvdimm), PC_DIMM_SIZE_PROP,
                                             NULL);
+    bool sync_dax = object_property_get_bool(OBJECT(nvdimm),
+                                             NVDIMM_SYNC_DAX_PROP,
+                                             &error_abort);
 
     drc = spapr_drc_by_id(TYPE_SPAPR_DRC_PMEM, slot);
     g_assert(drc);
@@ -158,6 +161,11 @@ static int spapr_dt_nvdimm(SpaprMachineState *spapr, void *fdt,
     _FDT((fdt_setprop_string(fdt, child_offset, "ibm,pmem-application",
                              "operating-system")));
     _FDT(fdt_setprop(fdt, child_offset, "ibm,cache-flush-required", NULL, 0));
+
+    if (!sync_dax) {
+        _FDT(fdt_setprop(fdt, child_offset, "ibm,hcall-flush-required",
+                         NULL, 0));
+    }
 
     return child_offset;
 }
@@ -567,10 +575,12 @@ static target_ulong h_scm_flush(PowerPCCPU *cpu, SpaprMachineState *spapr,
                                       target_ulong opcode, target_ulong *args)
 {
     int ret;
+    bool sync_dax;
     uint32_t drc_index = args[0];
     uint64_t continue_token = args[1];
     SpaprDrc *drc = spapr_drc_by_index(drc_index);
     PCDIMMDevice *dimm;
+    NVDIMMDevice *nvdimm;
     HostMemoryBackend *backend = NULL;
     SpaprNVDIMMDeviceFlushState *state;
     ThreadPool *pool = aio_get_thread_pool(qemu_get_aio_context());
@@ -578,6 +588,13 @@ static target_ulong h_scm_flush(PowerPCCPU *cpu, SpaprMachineState *spapr,
     if (!drc || !drc->dev ||
         spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PMEM) {
         return H_PARAMETER;
+    }
+
+    nvdimm = NVDIMM(drc->dev);
+    sync_dax = object_property_get_bool(OBJECT(nvdimm), NVDIMM_SYNC_DAX_PROP,
+                                        &error_abort);
+    if (sync_dax) {
+        return H_UNSUPPORTED;
     }
 
     if (continue_token != 0) {
