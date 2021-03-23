@@ -25,6 +25,7 @@
 #define OPTROM_H
 
 #include <stdint.h>
+#include <stddef.h>
 #include "../../include/standard-headers/linux/qemu_fw_cfg.h"
 
 #define barrier() asm("" : : : "memory")
@@ -107,4 +108,18 @@ static inline uint32_t be32_to_cpu(uint32_t x)
     return bswap32(x);
 }
 
+static inline int memcmp(const void *str1, const void *str2, size_t count)
+{
+    const unsigned char *c1 = str1, *c2 = str2;
+    int ret = 0;
+
+    while (count--) {
+        ret = *c1++ - *c2++;
+        if (ret) {
+            break;
+        }
+    }
+
+    return ret;
+}
 #endif /* OPTROM_H */
