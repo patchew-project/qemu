@@ -1450,6 +1450,8 @@ static void pci_irq_handler(void *opaque, int irq_num, int level)
     PCIDevice *pci_dev = opaque;
     int change;
 
+    assert(0 <= irq_num && irq_num < PCI_NUM_PINS);
+    assert(level == 0 || level == 1);
     change = level - pci_irq_state(pci_dev, irq_num);
     if (!change)
         return;
@@ -1463,7 +1465,13 @@ static void pci_irq_handler(void *opaque, int irq_num, int level)
 
 static inline int pci_intx(PCIDevice *pci_dev)
 {
-    return pci_get_byte(pci_dev->config + PCI_INTERRUPT_PIN) - 1;
+    int intx = pci_get_byte(pci_dev->config + PCI_INTERRUPT_PIN) - 1;
+    /*
+     * This function is used to setup/trigger irq.
+     * So PIN = 0 (interrupt isn't used) doesn't make sense.
+     */
+    assert(0 <= intx && intx < PCI_NUM_PINS);
+    return intx;
 }
 
 qemu_irq pci_allocate_irq(PCIDevice *pci_dev)
