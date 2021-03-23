@@ -396,11 +396,7 @@ static void bcm2835_fb_reset(DeviceState *dev)
 
     s->pending = false;
 
-    s->config = s->initial_config;
-
-    s->invalidate = true;
-    qemu_console_resize(s->con, s->initial_config.xres, s->initial_config.yres);
-    s->lock = false;
+    bcm2835_fb_reconfigure(s, &s->initial_config);
 }
 
 static void bcm2835_fb_realize(DeviceState *dev, Error **errp)
