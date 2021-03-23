@@ -73,7 +73,6 @@ blobs_ss.add(files(
   's390-netboot.img',
   'slof.bin',
   'skiboot.lid',
-  'palcode-clipper',
   'u-boot.e500',
   'u-boot-sam460-20100605.bin',
   'qemu_vga.ndrv',
@@ -88,6 +87,12 @@ blobs_ss.add(files(
 if host_machine.system() == 'windows'
   blobs_ss.add(files(
     'qemu-nsis.bmp',
+  ))
+endif
+
+if install_blobs_alpha
+  blobs_ss.add(files(
+    'palcode-clipper',
   ))
 endif
 
