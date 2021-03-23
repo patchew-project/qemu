@@ -66,10 +66,6 @@ blobs_ss.add(files(
   'pvh.bin',
   's390-ccw.img',
   's390-netboot.img',
-  'opensbi-riscv32-generic-fw_dynamic.bin',
-  'opensbi-riscv64-generic-fw_dynamic.bin',
-  'opensbi-riscv32-generic-fw_dynamic.elf',
-  'opensbi-riscv64-generic-fw_dynamic.elf',
 ))
 
 if host_machine.system() == 'windows'
@@ -113,6 +109,15 @@ if install_blobs_ppc
     'skiboot.lid',
     'u-boot.e500',
     'u-boot-sam460-20100605.bin',
+  ))
+endif
+
+if install_blobs_riscv
+  blobs_ss.add(files(
+    'opensbi-riscv32-generic-fw_dynamic.bin',
+    'opensbi-riscv64-generic-fw_dynamic.bin',
+    'opensbi-riscv32-generic-fw_dynamic.elf',
+    'opensbi-riscv64-generic-fw_dynamic.elf',
   ))
 endif
 

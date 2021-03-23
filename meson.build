@@ -98,6 +98,7 @@ install_blobs_arm = false
 install_blobs_hppa = false
 install_blobs_microblaze = false
 install_blobs_ppc = false
+install_blobs_riscv = false
 if get_option('install_blobs')
   foreach target : target_dirs
     install_edk2_blobs = install_edk2_blobs or target in edk2_targets
@@ -106,6 +107,7 @@ if get_option('install_blobs')
     install_blobs_hppa = install_blobs_hppa or target in ['hppa-softmmu']
     install_blobs_microblaze = install_blobs_microblaze or target in ['microblaze-softmmu', 'microblazeel-softmmu']
     install_blobs_ppc = install_blobs_ppc or (target.startswith('ppc') and target.endswith('softmmu'))
+    install_blobs_riscv = install_blobs_riscv or target in ['riscv32-softmmu', 'riscv64-softmmu']
   endforeach
 endif
 
