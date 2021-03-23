@@ -67,6 +67,12 @@
 #define GICD_CTLR_E1NWF             (1U << 7)
 #define GICD_CTLR_RWP               (1U << 31)
 
+#define GICD_TYPER_LPIS_OFFSET         17
+#define GICD_TYPER_IDBITS_OFFSET       19
+#define GICD_TYPER_IDBITS_MASK       0x1f
+/* 16 bits EventId */
+#define GICD_TYPER_IDBITS            0xf
+
 /*
  * Redistributor frame offsets from RD_base
  */
@@ -123,14 +129,17 @@
 #define GICR_WAKER_ChildrenAsleep    (1U << 2)
 
 #define GICR_PROPBASER_OUTER_CACHEABILITY_MASK (7ULL << 56)
-#define GICR_PROPBASER_ADDR_MASK               (0xfffffffffULL << 12)
+#define GICR_PROPBASER_ADDR_OFFSET               12
+#define GICR_PROPBASER_ADDR_MASK               ((1ULL << 40) - 1)
 #define GICR_PROPBASER_SHAREABILITY_MASK       (3U << 10)
 #define GICR_PROPBASER_CACHEABILITY_MASK       (7U << 7)
 #define GICR_PROPBASER_IDBITS_MASK             (0x1f)
+#define GICR_PROPBASER_IDBITS_THRESHOLD          0xd
 
 #define GICR_PENDBASER_PTZ                     (1ULL << 62)
 #define GICR_PENDBASER_OUTER_CACHEABILITY_MASK (7ULL << 56)
-#define GICR_PENDBASER_ADDR_MASK               (0xffffffffULL << 16)
+#define GICR_PENDBASER_ADDR_OFFSET               16
+#define GICR_PENDBASER_ADDR_MASK               ((1ULL << 36) - 1)
 #define GICR_PENDBASER_SHAREABILITY_MASK       (3U << 10)
 #define GICR_PENDBASER_CACHEABILITY_MASK       (7U << 7)
 
@@ -239,10 +248,170 @@
 #define ICH_VTR_EL2_PREBITS_SHIFT 26
 #define ICH_VTR_EL2_PRIBITS_SHIFT 29
 
+#define GITS_CTLR_ENABLED             (1U << 0)  /* ITS Enabled or not */
+#define GITS_CTLR_QUIESCENT           (1U << 31) /* Quiescent bit */
+
+#define GITS_BASER_SIZE                     (0xff)
+#define GITS_BASER_PAGESIZE_OFFSET            8
+#define GITS_BASER_PAGESIZE_MASK             0x3
+#define GITS_BASER_SHAREABILITY_OFFSET        10
+#define GITS_BASER_SHAREABILITY_MASK         0x3
+#define GITS_BASER_PHYADDR_OFFSET             12
+#define GITS_BASER_PHYADDR_MASK             ((1ULL << 36) - 1)
+#define GITS_BASER_PHYADDR_OFFSETL_64K        16
+#define GITS_BASER_PHYADDR_MASKL_64K        ((1ULL << 32) - 1)
+#define GITS_BASER_PHYADDR_OFFSETH_64K        48
+#define GITS_BASER_PHYADDR_MASKH_64K        ((1ULL << 4) - 1)
+#define GITS_BASER_ENTRYSIZE_OFFSET           48
+#define GITS_BASER_ENTRYSIZE_MASK           ((1U << 5) - 1)
+#define GITS_BASER_OUTERCACHE_OFFSET          53
+#define GITS_BASER_OUTERCACHE_MASK            0x7
+#define GITS_BASER_TYPE_OFFSET                56
+#define GITS_BASER_TYPE_MASK                  0x7
+#define GITS_BASER_INNERCACHE_OFFSET          59
+#define GITS_BASER_INNERCACHE_MASK            0x7
+#define GITS_BASER_INDIRECT_OFFSET            62
+#define GITS_BASER_INDIRECT_MASK              0x1
+#define GITS_BASER_VALID                      63
+#define GITS_BASER_VALID_MASK                 0x1
+
+#define GITS_BASER_VAL_MASK                 ((0x7ULL << 56) | (0x1fULL << 48))
+
+#define GITS_BASER_PAGESIZE_4K                0
+#define GITS_BASER_PAGESIZE_16K               1
+#define GITS_BASER_PAGESIZE_64K               2
+
+#define GITS_ITT_TYPE_DEVICE                  1ULL
+#define GITS_ITT_TYPE_COLLECTION              4ULL
+
+#define GITS_CBASER_SIZE                    (0xff)
+#define GITS_CBASER_SHAREABILITY_OFFSET       10
+#define GITS_CBASER_SHAREABILITY_MASK        0x3
+#define GITS_CBASER_PHYADDR_OFFSET            12
+#define GITS_CBASER_PHYADDR_MASK       ((1ULL << 40) - 1)
+#define GITS_CBASER_OUTERCACHE_OFFSET         53
+#define GITS_CBASER_OUTERCACHE_MASK          0x7
+#define GITS_CBASER_INNERCACHE_OFFSET         59
+#define GITS_CBASER_INNERCACHE_MASK          0x7
+#define GITS_CBASER_VALID_OFFSET              63
+#define GITS_CBASER_VALID_MASK               0x1
+
+#define GITS_CREADR_STALLED           (1U << 0)
+#define GITS_CREADR_OFFSET             5
+#define GITS_CREADR_OFFSET_MASK       ((1U << 15) - 1)
+
+#define GITS_CWRITER_RETRY            (1U << 0)
+#define GITS_CWRITER_OFFSET             5
+#define GITS_CWRITER_OFFSET_MASK      ((1U << 15) - 1)
+
+#define GITS_TYPER_DEVBITS_OFFSET       13
+#define GITS_TYPER_DEVBITS_MASK        0x1f
+#define GITS_TYPER_IDBITS_OFFSET        8
+#define GITS_TYPER_IDBITS_MASK         0x1f
+#define GITS_TYPER_CIDBITS_OFFSET       32
+#define GITS_TYPER_CIDBITS_MASK        0xf
+#define GITS_TYPER_CIL_OFFSET           36
+#define GITS_TYPER_CIL_MASK             0x1
+#define GITS_TYPER_PTA_OFFSET           19
+#define GITS_TYPER_PTA_MASK             0x1
+#define GITS_TYPER_SEIS_OFFSET          18
+#define GITS_TYPER_SEIS_MASK            0x1
+
+/* Default features advertised by this version of ITS */
+/* Physical LPIs supported */
+#define GITS_TYPER_PHYSICAL           (1U << 0)
+/*
+ * 11 bytes Interrupt translation Table Entry size
+ * Valid = 1 bit,InterruptType = 1 bit,
+ * Size of LPI number space[considering max 24 bits],
+ * Size of LPI number space[considering max 24 bits],
+ * ICID = 16 bits,
+ * vPEID = 16 bits
+ */
+#define GITS_TYPER_ITT_ENTRY_OFFSET     4
+#define GITS_TYPER_ITT_ENTRY_SIZE       0xB
+#define GITS_TYPER_IDBITS_OFFSET        8
+
+/* 16 bits EventId */
+#define GITS_TYPER_IDBITS             GICD_TYPER_IDBITS
+/* 16 bits DeviceId */
+#define GITS_TYPER_DEVBITS            (0xf << 13)
+/* Collection ID Limit indicated by CIDbits(next) */
+#define GITS_TYPER_CIL                (1ULL << 36)
+/* 16 bits CollectionId */
+#define GITS_TYPER_CIDBITS            (0xfULL << 32)
+/*
+ * 8 bytes Device Table Entry size
+ * Valid = 1 bit,ITTAddr = 44 bits,Size = 5 bits
+ */
+#define GITS_DTE_SIZE                 (0x8ULL)
+/*
+ * 8 bytes Collection Table Entry size
+ * Valid = 1 bit,RDBase = 36 bits(considering max RDBASE)
+ */
+#define GITS_CTE_SIZE                 (0x8ULL)
+
 /* Special interrupt IDs */
 #define INTID_SECURE 1020
 #define INTID_NONSECURE 1021
 #define INTID_SPURIOUS 1023
+
+/* ITS Commands */
+#define GITS_CMD_CLEAR            0x04
+#define GITS_CMD_DISCARD          0x0F
+#define GITS_CMD_INT              0x03
+#define GITS_CMD_MAPC             0x09
+#define GITS_CMD_MAPD             0x08
+#define GITS_CMD_MAPI             0x0B
+#define GITS_CMD_MAPTI            0x0A
+#define GITS_CMD_SYNC             0x05
+
+#define GITS_ITT_PAGE_SIZE_0      0x1000
+#define GITS_ITT_PAGE_SIZE_1      0x4000
+#define GITS_ITT_PAGE_SIZE_2      0x10000
+
+#define GITS_CMDQ_ENTRY_SIZE               32
+#define GITS_CMDQ_MAX_ENTRIES_PER_PAGE     128
+#define NUM_BYTES_IN_DW                     8
+
+#define CMD_MASK                  0xff
+
+/* MAPC command fields */
+#define ICID_LEN                  16
+#define ICID_MASK                 ((1U << ICID_LEN) - 1)
+#define RDBASE_LEN                32
+#define RDBASE_OFFSET             16
+#define RDBASE_MASK               ((1ULL << RDBASE_LEN) - 1)
+#define RDBASE_PROCNUM_LEN        16
+#define RDBASE_PROCNUM_MASK       ((1ULL << RDBASE_PROCNUM_LEN) - 1)
+
+#define DEVID_OFFSET              32
+#define DEVID_LEN                 32
+#define DEVID_MASK                ((1ULL << DEVID_LEN) - 1)
+
+/* MAPD command fields */
+#define ITTADDR_LEN               44
+#define ITTADDR_OFFSET            8
+#define ITTADDR_MASK              ((1ULL << ITTADDR_LEN) - 1)
+#define SIZE_MASK                 0x1f
+
+/* MAPI command fields */
+#define EVENTID_MASK              ((1ULL << 32) - 1)
+
+/* MAPTI command fields */
+#define pINTID_OFFSET              32
+#define pINTID_MASK               ((1ULL << 32) - 1)
+
+#define VALID_SHIFT               63
+#define VALID_MASK                0x1
+
+#define L1TABLE_ENTRY_SIZE         8
+
+#define LPI_CTE_ENABLE_OFFSET      0
+#define LPI_CTE_ENABLED          VALID_MASK
+#define LPI_CTE_PRIORITY_OFFSET    2
+#define LPI_CTE_PRIORITY_MASK     ((1U << 6) - 1)
+#define LPI_PRIORITY_MASK         0xfc
 
 /* Functions internal to the emulated GICv3 */
 
