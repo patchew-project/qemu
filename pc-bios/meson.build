@@ -62,8 +62,6 @@ blobs_ss.add(files(
   'efi-vmxnet3.rom',
   'bamboo.dtb',
   'canyonlands.dtb',
-  'petalogix-s3adsp1800.dtb',
-  'petalogix-ml605.dtb',
   'multiboot.bin',
   'linuxboot.bin',
   'linuxboot_dma.bin',
@@ -103,6 +101,13 @@ endif
 if install_blobs_hppa
   blobs_ss.add(files(
     'hppa-firmware.img',
+  ))
+endif
+
+if install_blobs_microblaze
+  blobs_ss.add(files(
+    'petalogix-s3adsp1800.dtb',
+    'petalogix-ml605.dtb',
   ))
 endif
 
