@@ -41,8 +41,6 @@ blobs_ss.add(files(
   'vgabios-ramfb.bin',
   'vgabios-bochs-display.bin',
   'vgabios-ati.bin',
-  'openbios-sparc32',
-  'openbios-sparc64',
   'QEMU,tcx.bin',
   'QEMU,cgthree.bin',
   'pxe-e1000.rom',
@@ -123,6 +121,13 @@ if install_blobs_s390x
   blobs_ss.add(files(
     's390-ccw.img',
     's390-netboot.img',
+  ))
+endif
+
+if install_blobs_sparc
+  blobs_ss.add(files(
+    'openbios-sparc32',
+    'openbios-sparc64',
   ))
 endif
 
