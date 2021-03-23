@@ -76,7 +76,6 @@ blobs_ss.add(files(
   'u-boot.e500',
   'u-boot-sam460-20100605.bin',
   'qemu_vga.ndrv',
-  'hppa-firmware.img',
   'opensbi-riscv32-generic-fw_dynamic.bin',
   'opensbi-riscv64-generic-fw_dynamic.bin',
   'opensbi-riscv32-generic-fw_dynamic.elf',
@@ -98,6 +97,12 @@ endif
 if install_blobs_arm
   blobs_ss.add(files(
     'npcm7xx_bootrom.bin',
+  ))
+endif
+
+if install_blobs_hppa
+  blobs_ss.add(files(
+    'hppa-firmware.img',
   ))
 endif
 
