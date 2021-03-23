@@ -1,3 +1,5 @@
+blobs_ss = ss.source_set()
+
 if install_edk2_blobs
   fds = [
     'edk2-aarch64-code.fd',
@@ -22,7 +24,7 @@ if install_edk2_blobs
   endforeach
 endif
 
-blobs = files(
+blobs_ss.add(files(
   'bios.bin',
   'bios-256k.bin',
   'bios-microvm.bin',
@@ -81,10 +83,12 @@ blobs = files(
   'opensbi-riscv32-generic-fw_dynamic.elf',
   'opensbi-riscv64-generic-fw_dynamic.elf',
   'npcm7xx_bootrom.bin',
-)
+))
+
+blobs_ss = blobs_ss.apply(config_host, strict: false)
 
 if get_option('install_blobs')
-  install_data(blobs, install_dir: qemu_datadir)
+  install_data(blobs_ss.sources(), install_dir: qemu_datadir)
 endif
 
 subdir('descriptors')
