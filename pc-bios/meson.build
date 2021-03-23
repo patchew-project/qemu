@@ -60,7 +60,6 @@ blobs_ss.add(files(
   'efi-virtio.rom',
   'efi-e1000e.rom',
   'efi-vmxnet3.rom',
-  'qemu-nsis.bmp',
   'bamboo.dtb',
   'canyonlands.dtb',
   'petalogix-s3adsp1800.dtb',
@@ -85,6 +84,12 @@ blobs_ss.add(files(
   'opensbi-riscv64-generic-fw_dynamic.elf',
   'npcm7xx_bootrom.bin',
 ))
+
+if host_machine.system() == 'windows'
+  blobs_ss.add(files(
+    'qemu-nsis.bmp',
+  ))
+endif
 
 blobs_ss = blobs_ss.apply(config_host, strict: false)
 
