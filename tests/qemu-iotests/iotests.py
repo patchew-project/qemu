@@ -1271,37 +1271,48 @@ def skip_if_user_is_root(func):
             return func(*args, **kwargs)
     return func_wrapper
 
-def execute_unittest(debug=False):
-    """Executes unittests within the calling module."""
+# We need to filter out the time taken from the output so that
+# qemu-iotest can reliably diff the results against master output.
+class ReproducibleTextTestRunner(unittest.TextTestRunner):
+    __output = None
 
-    verbosity = 2 if debug else 1
+    @classmethod
+    @property
+    def output(cls):
+        if cls.__output is not None:
+            return cls.__output
 
-    if debug:
-        output = sys.stdout
-    else:
-        # We need to filter out the time taken from the output so that
-        # qemu-iotest can reliably diff the results against master output.
-        output = io.StringIO()
-
-    runner = unittest.TextTestRunner(stream=output, descriptions=True,
-                                     verbosity=verbosity)
-    try:
-        # unittest.main() will use sys.exit(); so expect a SystemExit
-        # exception
-        unittest.main(testRunner=runner)
-    finally:
-        # We need to filter out the time taken from the output so that
-        # qemu-iotest can reliably diff the results against master output.
-        if not debug:
-            out = output.getvalue()
+        cls.__output = io.StringIO()
+        def print_output():
+            out = cls.__output.getvalue()
             out = re.sub(r'Ran (\d+) tests? in [\d.]+s', r'Ran \1 tests', out)
 
             # Hide skipped tests from the reference output
             out = re.sub(r'OK \(skipped=\d+\)', 'OK', out)
             out_first_line, out_rest = out.split('\n', 1)
             out = out_first_line.replace('s', '.') + '\n' + out_rest
-
             sys.stderr.write(out)
+
+        atexit.register(print_output)
+        return cls.__output
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(stream=ReproducibleTextTestRunner.output, *args, **kwargs)
+
+def execute_unittest(argv, debug=False):
+    """Executes unittests within the calling module."""
+
+    # If we see non-empty argv we must not be invoked as a test script,
+    # so do not bother making constant output; debuggability is more
+    # important.
+    if debug or len(argv) > 1:
+        argv += ['-v']
+        runner = unittest.TextTestRunner
+    else:
+        runner = ReproducibleTextTestRunner
+
+    unittest.main(argv=argv, testRunner=runner,
+                  warnings=None if sys.warnoptions else 'ignore')
 
 def execute_setup_common(supported_fmts: Sequence[str] = (),
                          supported_platforms: Sequence[str] = (),
@@ -1338,7 +1349,7 @@ def execute_test(*args, test_function=None, **kwargs):
 
     debug = execute_setup_common(*args, **kwargs)
     if not test_function:
-        execute_unittest(debug)
+        execute_unittest(sys.argv, debug)
     else:
         test_function()
 
