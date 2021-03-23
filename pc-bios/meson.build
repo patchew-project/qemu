@@ -22,6 +22,8 @@ if install_edk2_blobs
                   install_dir: qemu_datadir,
                   command: [ bzip2, '-dc', '@INPUT0@' ])
   endforeach
+
+  blobs_ss.add(files('edk2-licenses.txt'))
 endif
 
 blobs_ss.add(files(
@@ -76,7 +78,6 @@ blobs_ss.add(files(
   'u-boot.e500',
   'u-boot-sam460-20100605.bin',
   'qemu_vga.ndrv',
-  'edk2-licenses.txt',
   'hppa-firmware.img',
   'opensbi-riscv32-generic-fw_dynamic.bin',
   'opensbi-riscv64-generic-fw_dynamic.bin',
