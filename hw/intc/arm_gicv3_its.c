@@ -262,6 +262,7 @@ static MemTxResult process_int(GICv3ITSState *s, uint64_t value,
     bool ite_valid = false;
     uint64_t cte = 0;
     bool cte_valid = false;
+    uint64_t rdbase;
     uint8_t buff[GITS_TYPER_ITT_ENTRY_SIZE];
     uint64_t itt_addr;
 
@@ -315,12 +316,18 @@ static MemTxResult process_int(GICv3ITSState *s, uint64_t value,
              * since with a physical address the target address must be
              * 64KB aligned
              */
-
+            rdbase = (cte >> 1U) & RDBASE_MASK;
             /*
              * Current implementation only supports rdbase == procnum
              * Hence rdbase physical address is ignored
              */
         } else {
+            rdbase = (cte >> 1U) & RDBASE_PROCNUM_MASK;
+            if ((cmd == CLEAR) || (cmd == DISCARD)) {
+                gicv3_redist_process_lpi(&s->gicv3->cpu[rdbase], pIntid, 0);
+            } else {
+                gicv3_redist_process_lpi(&s->gicv3->cpu[rdbase], pIntid, 1);
+            }
 
             if (cmd == DISCARD) {
                 /* remove mapping from interrupt translation table */
