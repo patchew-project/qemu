@@ -64,8 +64,6 @@ blobs_ss.add(files(
   'linuxboot_dma.bin',
   'kvmvapic.bin',
   'pvh.bin',
-  's390-ccw.img',
-  's390-netboot.img',
 ))
 
 if host_machine.system() == 'windows'
@@ -118,6 +116,13 @@ if install_blobs_riscv
     'opensbi-riscv64-generic-fw_dynamic.bin',
     'opensbi-riscv32-generic-fw_dynamic.elf',
     'opensbi-riscv64-generic-fw_dynamic.elf',
+  ))
+endif
+
+if install_blobs_s390x
+  blobs_ss.add(files(
+    's390-ccw.img',
+    's390-netboot.img',
   ))
 endif
 
