@@ -27,10 +27,6 @@ if install_edk2_blobs
 endif
 
 blobs_ss.add(files(
-  'bios.bin',
-  'bios-256k.bin',
-  'bios-microvm.bin',
-  'qboot.rom',
   'sgabios.bin',
   'vgabios.bin',
   'vgabios-cirrus.bin',
@@ -57,11 +53,6 @@ blobs_ss.add(files(
   'efi-virtio.rom',
   'efi-e1000e.rom',
   'efi-vmxnet3.rom',
-  'multiboot.bin',
-  'linuxboot.bin',
-  'linuxboot_dma.bin',
-  'kvmvapic.bin',
-  'pvh.bin',
 ))
 
 if host_machine.system() == 'windows'
@@ -128,6 +119,20 @@ if install_blobs_sparc
   blobs_ss.add(files(
     'openbios-sparc32',
     'openbios-sparc64',
+  ))
+endif
+
+if install_blobs_x86
+  blobs_ss.add(files(
+    'bios.bin',
+    'bios-256k.bin',
+    'bios-microvm.bin',
+    'qboot.rom',
+    'multiboot.bin',
+    'linuxboot.bin',
+    'linuxboot_dma.bin',
+    'kvmvapic.bin',
+    'pvh.bin',
   ))
 endif
 

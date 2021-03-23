@@ -101,6 +101,7 @@ install_blobs_ppc = false
 install_blobs_riscv = false
 install_blobs_s390x = false
 install_blobs_sparc = false
+install_blobs_x86 = false
 if get_option('install_blobs')
   foreach target : target_dirs
     install_edk2_blobs = install_edk2_blobs or target in edk2_targets
@@ -112,6 +113,7 @@ if get_option('install_blobs')
     install_blobs_riscv = install_blobs_riscv or target in ['riscv32-softmmu', 'riscv64-softmmu']
     install_blobs_s390x = install_blobs_s390x or target in ['s390x-softmmu']
     install_blobs_sparc = install_blobs_sparc or target in ['sparc-softmmu', 'sparc64-softmmu']
+    install_blobs_x86 = install_blobs_x86 or target in ['i386-softmmu', 'x86_64-softmmu']
   endforeach
 endif
 
