@@ -94,10 +94,12 @@ endif
 edk2_targets = [ 'arm-softmmu', 'aarch64-softmmu', 'i386-softmmu', 'x86_64-softmmu' ]
 install_edk2_blobs = false
 install_blobs_alpha = false
+install_blobs_arm = false
 if get_option('install_blobs')
   foreach target : target_dirs
     install_edk2_blobs = install_edk2_blobs or target in edk2_targets
     install_blobs_alpha = install_blobs_alpha or target in ['alpha-softmmu']
+    install_blobs_arm = install_blobs_hppa or target in ['arm-softmmu', 'aarch64-softmmu']
   endforeach
 endif
 

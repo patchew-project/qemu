@@ -81,7 +81,6 @@ blobs_ss.add(files(
   'opensbi-riscv64-generic-fw_dynamic.bin',
   'opensbi-riscv32-generic-fw_dynamic.elf',
   'opensbi-riscv64-generic-fw_dynamic.elf',
-  'npcm7xx_bootrom.bin',
 ))
 
 if host_machine.system() == 'windows'
@@ -93,6 +92,12 @@ endif
 if install_blobs_alpha
   blobs_ss.add(files(
     'palcode-clipper',
+  ))
+endif
+
+if install_blobs_arm
+  blobs_ss.add(files(
+    'npcm7xx_bootrom.bin',
   ))
 endif
 
