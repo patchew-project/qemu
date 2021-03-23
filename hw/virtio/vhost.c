@@ -1264,8 +1264,8 @@ static int vhost_virtqueue_init(struct vhost_dev *dev,
     if (r < 0) {
         return r;
     }
-
     file.fd = event_notifier_get_fd(&vq->masked_notifier);
+
     r = dev->vhost_ops->vhost_set_vring_call(dev, &file);
     if (r) {
         VHOST_OPS_DEBUG("vhost_set_vring_call failed");
@@ -1321,6 +1321,10 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         if (r < 0) {
             goto fail;
         }
+    }
+    r = event_notifier_init(&hdev->masked_config_notifier, 0);
+    if (r < 0) {
+        return r;
     }
 
     if (busyloop_timeout) {
@@ -1412,6 +1416,8 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
     for (i = 0; i < hdev->nvqs; ++i) {
         vhost_virtqueue_cleanup(hdev->vqs + i);
     }
+    event_notifier_cleanup(&hdev->masked_config_notifier);
+
     if (hdev->mem) {
         /* those are only safe after successful init */
         memory_listener_unregister(&hdev->memory_listener);
@@ -1505,6 +1511,10 @@ bool vhost_virtqueue_pending(struct vhost_dev *hdev, int n)
     return event_notifier_test_and_clear(&vq->masked_notifier);
 }
 
+bool vhost_config_pending(struct vhost_dev *hdev, int n)
+{
+    return event_notifier_test_and_clear(&hdev->masked_config_notifier);
+}
 /* Mask/unmask events from this vq. */
 void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
                          bool mask)
@@ -1527,6 +1537,31 @@ void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
     r = hdev->vhost_ops->vhost_set_vring_call(hdev, &file);
     if (r < 0) {
         VHOST_OPS_DEBUG("vhost_set_vring_call failed");
+    }
+}
+
+/* Mask/unmask events from this config. */
+void vhost_config_mask(struct vhost_dev *hdev, VirtIODevice *vdev,
+                         bool mask)
+{
+    int fd;
+    int r;
+   EventNotifier *masked_config_notifier = &hdev->masked_config_notifier;
+   EventNotifier *config_notifier = &vdev->config_notifier;
+   if (vdev->use_config_notifier != VIRTIO_CONFIG_WORK) {
+        return;
+    }
+    /* should only be called after backend is connected */
+    assert(hdev->vhost_ops);
+    if (mask) {
+        assert(vdev->use_guest_notifier_mask);
+        fd = event_notifier_get_fd(masked_config_notifier);
+    } else {
+        fd = event_notifier_get_fd(config_notifier);
+    }
+   r = hdev->vhost_ops->vhost_set_config_call(hdev, &fd);
+    if (r < 0) {
+        error_report("vhost_set_config_call failed");
     }
 }
 
@@ -1739,7 +1774,12 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
             goto fail_vq;
         }
     }
-
+    if (vdev->use_config_notifier == VIRTIO_CONFIG_WORK) {
+        event_notifier_test_and_clear(&hdev->masked_config_notifier);
+        if (!vdev->use_guest_notifier_mask) {
+            vhost_config_mask(hdev, vdev,  false);
+        }
+    }
     if (hdev->log_enabled) {
         uint64_t log_base;
 

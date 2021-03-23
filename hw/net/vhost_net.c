@@ -339,7 +339,9 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
             dev->use_guest_notifier_mask = false;
         }
      }
-
+    if (ncs->peer && ncs->peer->info->type == NET_CLIENT_DRIVER_VHOST_VDPA) {
+        dev->use_config_notifier = VIRTIO_CONFIG_SUPPORT;
+    }
     r = k->set_guest_notifiers(qbus->parent, total_queues * 2, true);
     if (r < 0) {
         error_report("Error binding guest notifier: %d", -r);
@@ -391,7 +393,6 @@ void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs,
     for (i = 0; i < total_queues; i++) {
         vhost_net_stop_one(get_vhost_net(ncs[i].peer), dev);
     }
-
     r = k->set_guest_notifiers(qbus->parent, total_queues * 2, false);
     if (r < 0) {
         fprintf(stderr, "vhost guest notifier cleanup failed: %d\n", r);
@@ -424,6 +425,17 @@ void vhost_net_virtqueue_mask(VHostNetState *net, VirtIODevice *dev,
                               int idx, bool mask)
 {
     vhost_virtqueue_mask(&net->dev, dev, idx, mask);
+}
+
+bool vhost_net_config_pending(VHostNetState *net, int idx)
+{
+    return vhost_config_pending(&net->dev, idx);
+}
+
+void vhost_net_config_mask(VHostNetState *net, VirtIODevice *dev,
+                              bool mask)
+{
+    vhost_config_mask(&net->dev, dev,  mask);
 }
 
 VHostNetState *get_vhost_net(NetClientState *nc)

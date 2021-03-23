@@ -941,23 +941,28 @@ static void virtio_crypto_set_status(VirtIODevice *vdev, uint8_t status)
 }
 
 static void virtio_crypto_guest_notifier_mask(VirtIODevice *vdev, int idx,
-                                           bool mask)
+                                           bool mask, int type)
 {
     VirtIOCrypto *vcrypto = VIRTIO_CRYPTO(vdev);
     int queue = virtio_crypto_vq2q(idx);
 
     assert(vcrypto->vhost_started);
-
+    if (type != VIRTIO_VQ_VECTOR) {
+        return;
+    }
     cryptodev_vhost_virtqueue_mask(vdev, queue, idx, mask);
 }
 
-static bool virtio_crypto_guest_notifier_pending(VirtIODevice *vdev, int idx)
+static bool virtio_crypto_guest_notifier_pending(VirtIODevice *vdev, int idx,
+                                           int type)
 {
     VirtIOCrypto *vcrypto = VIRTIO_CRYPTO(vdev);
     int queue = virtio_crypto_vq2q(idx);
 
     assert(vcrypto->vhost_started);
-
+    if (type != VIRTIO_VQ_VECTOR) {
+        return false;
+    }
     return cryptodev_vhost_virtqueue_pending(vdev, queue, idx);
 }
 

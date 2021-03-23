@@ -67,6 +67,19 @@ typedef struct VirtQueueElement
 
 #define VIRTIO_NO_VECTOR 0xffff
 
+enum virtio_vector_type {
+    VIRTIO_VQ_VECTOR,
+    VIRTIO_CONFIG_VECTOR,
+    VIRTIO_VECTOR_UNKNOWN,
+};
+
+enum virtio_config_status {
+    VIRTIO_CONFIG_SUPPORT,
+    VIRTIO_CONFIG_WORK,
+    VIRTIO_CONFIG_STOP,
+    VIRTIO_CONFIG_STATUS_UNKNOWN,
+};
+
 #define TYPE_VIRTIO_DEVICE "virtio-device"
 OBJECT_DECLARE_TYPE(VirtIODevice, VirtioDeviceClass, VIRTIO_DEVICE)
 
@@ -108,6 +121,8 @@ struct VirtIODevice
     bool use_guest_notifier_mask;
     AddressSpace *dma_as;
     QLIST_HEAD(, VirtQueue) *vector_queues;
+    EventNotifier config_notifier;
+    enum virtio_config_status use_config_notifier;
 };
 
 struct VirtioDeviceClass {
@@ -138,13 +153,13 @@ struct VirtioDeviceClass {
      * If backend does not support masking,
      * must check in frontend instead.
      */
-    bool (*guest_notifier_pending)(VirtIODevice *vdev, int n);
+    bool (*guest_notifier_pending)(VirtIODevice *vdev, int n, int type);
     /* Mask/unmask events from this vq. Any events reported
      * while masked will become pending.
      * If backend does not support masking,
      * must mask in frontend instead.
      */
-    void (*guest_notifier_mask)(VirtIODevice *vdev, int n, bool mask);
+    void (*guest_notifier_mask)(VirtIODevice *vdev, int n, bool mask, int type);
     int (*start_ioeventfd)(VirtIODevice *vdev);
     void (*stop_ioeventfd)(VirtIODevice *vdev);
     /* Saving and loading of a device; trying to deprecate save/load
@@ -310,11 +325,15 @@ uint16_t virtio_get_queue_index(VirtQueue *vq);
 EventNotifier *virtio_queue_get_guest_notifier(VirtQueue *vq);
 void virtio_queue_set_guest_notifier_fd_handler(VirtQueue *vq, bool assign,
                                                 bool with_irqfd);
+void virtio_set_config_notifier_fd_handler(VirtIODevice *vdev, bool assign,
+                                                bool with_irqfd);
+
 int virtio_device_start_ioeventfd(VirtIODevice *vdev);
 int virtio_device_grab_ioeventfd(VirtIODevice *vdev);
 void virtio_device_release_ioeventfd(VirtIODevice *vdev);
 bool virtio_device_ioeventfd_enabled(VirtIODevice *vdev);
 EventNotifier *virtio_queue_get_host_notifier(VirtQueue *vq);
+EventNotifier *virtio_get_config_notifier(VirtIODevice *vdev);
 void virtio_queue_set_host_notifier_enabled(VirtQueue *vq, bool enabled);
 void virtio_queue_host_notifier_read(EventNotifier *n);
 void virtio_queue_aio_set_host_notifier_handler(VirtQueue *vq, AioContext *ctx,

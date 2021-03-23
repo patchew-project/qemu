@@ -97,18 +97,22 @@ static void vhost_vsock_common_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 }
 
 static void vhost_vsock_common_guest_notifier_mask(VirtIODevice *vdev, int idx,
-                                            bool mask)
+                                            bool mask, int type)
 {
     VHostVSockCommon *vvc = VHOST_VSOCK_COMMON(vdev);
-
+    if (type != VIRTIO_VQ_VECTOR) {
+        return;
+    }
     vhost_virtqueue_mask(&vvc->vhost_dev, vdev, idx, mask);
 }
 
 static bool vhost_vsock_common_guest_notifier_pending(VirtIODevice *vdev,
-                                               int idx)
+                                               int idx, int type)
 {
     VHostVSockCommon *vvc = VHOST_VSOCK_COMMON(vdev);
-
+    if (type != VIRTIO_VQ_VECTOR) {
+        return false;
+    }
     return vhost_virtqueue_pending(&vvc->vhost_dev, idx);
 }
 
