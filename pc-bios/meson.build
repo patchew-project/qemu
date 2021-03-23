@@ -43,7 +43,6 @@ blobs_ss.add(files(
   'vgabios-ati.bin',
   'openbios-sparc32',
   'openbios-sparc64',
-  'openbios-ppc',
   'QEMU,tcx.bin',
   'QEMU,cgthree.bin',
   'pxe-e1000.rom',
@@ -60,8 +59,6 @@ blobs_ss.add(files(
   'efi-virtio.rom',
   'efi-e1000e.rom',
   'efi-vmxnet3.rom',
-  'bamboo.dtb',
-  'canyonlands.dtb',
   'multiboot.bin',
   'linuxboot.bin',
   'linuxboot_dma.bin',
@@ -69,11 +66,6 @@ blobs_ss.add(files(
   'pvh.bin',
   's390-ccw.img',
   's390-netboot.img',
-  'slof.bin',
-  'skiboot.lid',
-  'u-boot.e500',
-  'u-boot-sam460-20100605.bin',
-  'qemu_vga.ndrv',
   'opensbi-riscv32-generic-fw_dynamic.bin',
   'opensbi-riscv64-generic-fw_dynamic.bin',
   'opensbi-riscv32-generic-fw_dynamic.elf',
@@ -108,6 +100,19 @@ if install_blobs_microblaze
   blobs_ss.add(files(
     'petalogix-s3adsp1800.dtb',
     'petalogix-ml605.dtb',
+  ))
+endif
+
+if install_blobs_ppc
+  blobs_ss.add(files(
+    'bamboo.dtb',
+    'canyonlands.dtb',
+    'openbios-ppc',
+    'qemu_vga.ndrv',
+    'slof.bin',
+    'skiboot.lid',
+    'u-boot.e500',
+    'u-boot-sam460-20100605.bin',
   ))
 endif
 
