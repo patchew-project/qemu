@@ -320,6 +320,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(VT82C686BISAState, VT82C686B_ISA)
 struct VT82C686BISAState {
     PCIDevice dev;
     qemu_irq cpu_intr;
+    qemu_irq *pic_irq;
     SuperIOConfig superio_cfg;
 };
 
@@ -373,6 +374,13 @@ static void vt82c686b_isa_reset(DeviceState *dev)
     s->superio_cfg.regs[0xe8] = 0xbe; /* Serial port 2 base addr */
 }
 
+static void vt82c686b_isa_irq(void *opaque, int irq, int level)
+{
+    VT82C686BISAState *s = opaque;
+
+    qemu_set_irq(s->pic_irq[irq], level);
+}
+
 static void vt82c686b_realize(PCIDevice *d, Error **errp)
 {
     VT82C686BISAState *s = VT82C686B_ISA(d);
@@ -383,7 +391,10 @@ static void vt82c686b_realize(PCIDevice *d, Error **errp)
     qdev_init_gpio_out_named(dev, &s->cpu_intr, "intr", 1);
     isa_bus = isa_bus_new(dev, get_system_memory(), pci_address_space_io(d),
                           &error_fatal);
-    isa_bus_irqs(isa_bus, i8259_init(isa_bus, s->cpu_intr));
+    s->pic_irq = i8259_init(isa_bus, s->cpu_intr);
+    isa_bus_irqs(isa_bus, s->pic_irq);
+    qdev_init_gpio_in_named(dev, vt82c686b_isa_irq, "isa-irq", ISA_NUM_IRQS);
+
     i8254_pit_init(isa_bus, 0x40, 0, NULL);
     i8257_dma_init(isa_bus, 0);
     isa_create_simple(isa_bus, TYPE_VT82C686B_SUPERIO);
