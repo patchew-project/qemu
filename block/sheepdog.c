@@ -3101,7 +3101,7 @@ static int sd_load_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
 
 
 static coroutine_fn int sd_co_pdiscard(BlockDriverState *bs, int64_t offset,
-                                      int bytes)
+                                       int64_t bytes)
 {
     SheepdogAIOCB acb;
     BDRVSheepdogState *s = bs->opaque;
@@ -3112,6 +3112,8 @@ static coroutine_fn int sd_co_pdiscard(BlockDriverState *bs, int64_t offset,
     if (!s->discard_supported) {
         return 0;
     }
+
+    assert(bytes <= INT_MAX); /* thanks to max_pdiscard */
 
     memset(&discard_iov, 0, sizeof(discard_iov));
     memset(&iov, 0, sizeof(iov));
@@ -3184,6 +3186,11 @@ static int64_t sd_get_allocated_file_size(BlockDriverState *bs)
         size += object_size;
     }
     return size;
+}
+
+static void sd_refresh_limits(BlockDriverState *bs, Error **errp)
+{
+    bs->bl.max_pdiscard = INT_MAX;
 }
 
 static QemuOptsList sd_create_opts = {
@@ -3269,6 +3276,8 @@ static BlockDriver bdrv_sheepdog = {
 
     .create_opts                  = &sd_create_opts,
     .strong_runtime_opts          = sd_strong_runtime_opts,
+
+    .bdrv_refresh_limits          = sd_refresh_limits,
 };
 
 static BlockDriver bdrv_sheepdog_tcp = {
@@ -3307,6 +3316,8 @@ static BlockDriver bdrv_sheepdog_tcp = {
 
     .create_opts                  = &sd_create_opts,
     .strong_runtime_opts          = sd_strong_runtime_opts,
+
+    .bdrv_refresh_limits          = sd_refresh_limits,
 };
 
 static BlockDriver bdrv_sheepdog_unix = {
@@ -3345,6 +3356,8 @@ static BlockDriver bdrv_sheepdog_unix = {
 
     .create_opts                  = &sd_create_opts,
     .strong_runtime_opts          = sd_strong_runtime_opts,
+
+    .bdrv_refresh_limits          = sd_refresh_limits,
 };
 
 static void bdrv_sheepdog_init(void)
