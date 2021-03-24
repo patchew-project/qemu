@@ -95,10 +95,11 @@ static void piix4_isa_reset(DeviceState *dev)
 
 static const VMStateDescription vmstate_piix4 = {
     .name = "PIIX4",
-    .version_id = 2,
-    .minimum_version_id = 2,
+    .version_id = 3,
+    .minimum_version_id = 3,
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, PIIX4State),
+        VMSTATE_UINT8(rcr, PIIX4State),
         VMSTATE_END_OF_LIST()
     }
 };
