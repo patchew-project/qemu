@@ -323,12 +323,6 @@ struct VT82C686BISAState {
     SuperIOConfig superio_cfg;
 };
 
-static void via_isa_request_i8259_irq(void *opaque, int irq, int level)
-{
-    VT82C686BISAState *s = opaque;
-    qemu_set_irq(s->cpu_intr, level);
-}
-
 static void vt82c686b_write_config(PCIDevice *d, uint32_t addr,
                                    uint32_t val, int len)
 {
@@ -384,14 +378,12 @@ static void vt82c686b_realize(PCIDevice *d, Error **errp)
     VT82C686BISAState *s = VT82C686B_ISA(d);
     DeviceState *dev = DEVICE(d);
     ISABus *isa_bus;
-    qemu_irq *isa_irq;
     int i;
 
     qdev_init_gpio_out_named(dev, &s->cpu_intr, "intr", 1);
-    isa_irq = qemu_allocate_irqs(via_isa_request_i8259_irq, s, 1);
     isa_bus = isa_bus_new(dev, get_system_memory(), pci_address_space_io(d),
                           &error_fatal);
-    isa_bus_irqs(isa_bus, i8259_init(isa_bus, *isa_irq));
+    isa_bus_irqs(isa_bus, i8259_init(isa_bus, s->cpu_intr));
     i8254_pit_init(isa_bus, 0x40, 0, NULL);
     i8257_dma_init(isa_bus, 0);
     isa_create_simple(isa_bus, TYPE_VT82C686B_SUPERIO);
