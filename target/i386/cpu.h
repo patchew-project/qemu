@@ -249,6 +249,17 @@ typedef enum X86Seg {
 #define CR4_PKE_MASK   (1U << 22)
 #define CR4_PKS_MASK   (1U << 24)
 
+#define XFEATURE_X87        (1UL << 0)
+#define XFEATURE_SSE        (1UL << 1)
+#define XFEATURE_AVX        (1UL << 2)
+#define XFEATURE_AVX512_OPMASK          (1UL << 5)
+#define XFEATURE_AVX512_ZMM_Hi256       (1UL << 6)
+#define XFEATURE_AVX512_Hi16_ZMM        (1UL << 7)
+#define XFEATURE_AVX512     (XFEATURE_AVX512_OPMASK | \
+                             XFEATURE_AVX512_ZMM_Hi256 | \
+                             XFEATURE_AVX512_Hi16_ZMM)
+
+
 #define DR6_BD          (1 << 13)
 #define DR6_BS          (1 << 14)
 #define DR6_BT          (1 << 15)
