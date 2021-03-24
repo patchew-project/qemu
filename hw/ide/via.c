@@ -33,6 +33,17 @@
 #include "hw/ide/pci.h"
 #include "trace.h"
 
+#define TYPE_VIA_IDE "via-ide"
+OBJECT_DECLARE_SIMPLE_TYPE(VIAIDEState, VIA_IDE)
+
+struct VIAIDEState {
+    /* <private> */
+    PCIIDEState parent_obj;
+    /* <public> */
+
+    qemu_irq irq[2];
+};
+
 static uint64_t bmdma_read(void *opaque, hwaddr addr,
                            unsigned size)
 {
@@ -105,6 +116,7 @@ static void bmdma_setup_bar(PCIIDEState *d)
 static void via_ide_set_irq(void *opaque, int n, int level)
 {
     PCIDevice *d = PCI_DEVICE(opaque);
+    VIAIDEState *s = VIA_IDE(d);
 
     if (level) {
         d->config[0x70 + n * 8] |= 0x80;
@@ -112,7 +124,7 @@ static void via_ide_set_irq(void *opaque, int n, int level)
         d->config[0x70 + n * 8] &= ~0x80;
     }
 
-    qemu_set_irq(isa_get_irq(NULL, 14 + n), level);
+    qemu_set_irq(s->irq[n], level);
 }
 
 static void via_ide_reset(DeviceState *dev)
@@ -159,6 +171,7 @@ static void via_ide_reset(DeviceState *dev)
 
 static void via_ide_realize(PCIDevice *dev, Error **errp)
 {
+    VIAIDEState *s = VIA_IDE(dev);
     PCIIDEState *d = PCI_IDE(dev);
     DeviceState *ds = DEVICE(dev);
     uint8_t *pci_conf = dev->config;
@@ -188,6 +201,7 @@ static void via_ide_realize(PCIDevice *dev, Error **errp)
     bmdma_setup_bar(d);
     pci_register_bar(dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &d->bmdma_bar);
 
+    qdev_init_gpio_out_named(ds, s->irq, "ide-irq", ARRAY_SIZE(s->irq));
     qdev_init_gpio_in(ds, via_ide_set_irq, ARRAY_SIZE(d->bus));
     for (i = 0; i < ARRAY_SIZE(d->bus); i++) {
         ide_bus_new(&d->bus[i], sizeof(d->bus[i]), ds, i, MAX_IDE_DEVS);
@@ -227,8 +241,9 @@ static void via_ide_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo via_ide_info = {
-    .name          = "via-ide",
+    .name          = TYPE_VIA_IDE,
     .parent        = TYPE_PCI_IDE,
+    .instance_size = sizeof(VIAIDEState),
     .class_init    = via_ide_class_init,
 };
 
