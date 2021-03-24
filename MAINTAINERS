@@ -1969,6 +1969,15 @@ F: hw/virtio/virtio-mem-pci.h
 F: hw/virtio/virtio-mem-pci.c
 F: include/hw/virtio/virtio-mem.h
 
+virtio-i2c
+M: Viresh Kumar <viresh.kumar@linaro.org>
+S: Supported
+F: docs/tools/vhost-user-i2c.rst
+F: hw/virtio/vhost-user-i2c.c
+F: hw/virtio/vhost-user-i2c-pci.c
+F: include/hw/virtio/vhost-user-i2c.h
+F: tools/vhost-user-i2c/*
+
 nvme
 M: Keith Busch <kbusch@kernel.org>
 M: Klaus Jensen <its@irrelevant.dk>
