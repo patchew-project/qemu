@@ -218,7 +218,7 @@ static void vu_i2c_device_realize(DeviceState *dev, Error **errp)
 
     virtio_init(vdev, "vhost-user-i2c", VIRTIO_ID_I2C, 0);
 
-    i2c->req_vq = virtio_add_queue(vdev, 3, vu_i2c_handle_output);
+    i2c->req_vq = virtio_add_queue(vdev, 4, vu_i2c_handle_output);
     i2c->vhost_dev.nvqs = 1;
     i2c->vhost_dev.vqs = g_new0(struct vhost_virtqueue, i2c->vhost_dev.nvqs);
     ret = vhost_dev_init(&i2c->vhost_dev, &i2c->vhost_user,
