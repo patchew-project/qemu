@@ -5148,6 +5148,288 @@ CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
     return cpu_list;
 }
 
+/*
+ * struct cpuid_leaf_range - helper struct that describes valid range of
+ * cpuid leaves as returned by CPUID in response to EAX=0 or EAX=0x80000000,
+ * etc.
+ *
+ * The purpose of this struct is to deal with a sparse nature of leaf value
+ * space. Ther CPUID logic of returning the maximum leaf is not straightforward
+ * and requires inner knowledge of what cpuid extensions are available on a
+ * specific cpu. Also this logic is designed to be expandable across many years
+ * ahead. QEMU code would have to be updated as well. That's why there should
+ * be only one point where all cpuid leaf ranges logic will be modified.
+ *
+ * In practice this will be used to detect if any arbitrary cpuid leaf value
+ * is valid for a specific cpu model. For that one will call
+ * 'cpuid_get_cpuid_leaf_ranges' to get all valid ranges for a provided cpu
+ * model and then call 'cpu_leaf_in_range' to find out which of the ranges
+ * contains the leaf in question.
+ */
+#define CPUID_MAX_LEAF_RANGES 4
+
+struct cpuid_leaf_range {
+    uint32_t min;
+    uint32_t max;
+};
+
+struct cpuid_leaf_ranges {
+    struct cpuid_leaf_range ranges[CPUID_MAX_LEAF_RANGES];
+    int count;
+};
+
+static void cpuid_get_cpuid_leaf_ranges(CPUX86State *env,
+                                        struct cpuid_leaf_ranges *r)
+{
+    struct cpuid_leaf_range *rng;
+
+    r->count = 0;
+    rng = &r->ranges[r->count++];
+    rng->min = 0x00000000;
+    rng->max = env->cpuid_level;
+
+    rng = &r->ranges[r->count++];
+    rng->min = 0x40000000;
+    rng->max = 0x40000001;
+
+    if (env->cpuid_xlevel) {
+        rng = &r->ranges[r->count++];
+        rng->min = 0x80000000;
+        rng->max = env->cpuid_xlevel;
+    }
+
+    if (env->cpuid_xlevel2) {
+        rng = &r->ranges[r->count++];
+        rng->min = 0xC0000000;
+        rng->max = env->cpuid_xlevel2;
+    }
+}
+
+static inline bool cpuid_leaf_in_range(uint32_t leaf,
+                                       struct cpuid_leaf_range *r)
+{
+    return leaf >= r->min && leaf <= r->max;
+}
+
+static uint32_t cpuid_limit_from_leaf(CPUX86State *env, uint32_t leaf)
+{
+    struct cpuid_leaf_ranges ranges;
+    struct cpuid_leaf_range *current_range, *end_range;
+
+    cpuid_get_cpuid_leaf_ranges(env, &ranges);
+    current_range = &ranges.ranges[0];
+    end_range = current_range + ranges.count;
+    while (current_range != end_range) {
+        if (cpuid_leaf_in_range(leaf, current_range)) {
+            break;
+        }
+        current_range++;
+    }
+    if (current_range != end_range) {
+        return current_range->max;
+    }
+    return 0;
+}
+
+/*
+ * cpuid_num_subleafs_map - array of values that map leaf values to the number
+ * of subleafs in it.
+ */
+struct leaf_to_num_subleaves_map {
+    uint32_t leaf;
+    uint32_t num_subleaves;
+};
+
+static const struct leaf_to_num_subleaves_map cpuid_num_subleaves_map[] = {
+    { .leaf = 0x00000004, .num_subleaves = 4 },
+    { .leaf = 0x00000007, .num_subleaves = 1 },
+    { .leaf = 0x0000000a, .num_subleaves = 1 },
+    { .leaf = 0x0000000b, .num_subleaves = 2 },
+    { .leaf = 0x0000000d, .num_subleaves = ARRAY_SIZE(x86_ext_save_areas) },
+    { .leaf = 0x00000014, .num_subleaves = 2 }
+};
+
+static uint32_t cpu_x86_cpuid_get_num_subleaves(CPUX86State *env,
+                                                uint32_t index)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(cpuid_num_subleaves_map); ++i) {
+        if (cpuid_num_subleaves_map[i].leaf == index) {
+            return cpuid_num_subleaves_map[i].num_subleaves;
+        }
+    }
+    return 1;
+}
+
+/*
+ * struct x86_cpuid_leaf_iter - CPUID leaves iterator.
+ * cpuid leaves iterator will hide the complex logic of walking over a full
+ * value space of leaves available to a specific cpu model.
+ *
+ * Purpose of this iterator: for each specific cpu model, initialized in
+ * QEMU, the amount of available cpuid leaves may vary and their enumeration
+ * is somewhat complex, considering the need to jump from basic info leaves to
+ * extended info leaves plus some additional more specific leaf ranges.
+ * This iterator hides this complexity and helps to separate leaf-walking logic
+ * from the actual use-case logic.
+ */
+struct x86_cpuid_leaf_iter {
+    CPUX86State *env;
+    uint32_t leaf;
+    bool valid;
+};
+
+static void x86_cpuid_leaf_iter_start(struct x86_cpuid_leaf_iter *i,
+                                      CPUX86State *env)
+{
+    i->env = env;
+    i->leaf = 0;
+    i->valid = true;
+}
+
+static void x86_cpuid_leaf_iter_next(struct x86_cpuid_leaf_iter *i)
+{
+    struct cpuid_leaf_ranges ranges;
+    struct cpuid_leaf_range *current_range, *end_range;
+
+    cpuid_get_cpuid_leaf_ranges(i->env, &ranges);
+    current_range = &ranges.ranges[0];
+    end_range = current_range + ranges.count;
+    while (current_range != end_range) {
+        if (cpuid_leaf_in_range(i->leaf, current_range)) {
+            break;
+        }
+        current_range++;
+    }
+    if (current_range != end_range) {
+        if (i->leaf < current_range->max) {
+            i->leaf++;
+            return;
+        }
+        current_range++;
+    }
+    if (current_range != end_range) {
+        i->leaf = current_range->min;
+        return;
+    }
+
+    i->valid = false;
+}
+
+static bool x86_cpuid_leaf_iter_valid(struct x86_cpuid_leaf_iter *i)
+{
+    return i->valid;
+}
+
+/*
+ * struct x86_cpuid_subleaf_iter - helps to iterate over all subleaves
+ * in a given CPUID leaf. Most of the cpuid leaves do not have varying output
+ * that is depenent of the subleaf value in ECX at all, but this maps into a
+ * single iteration to subleaf 0.
+ */
+struct x86_cpuid_subleaf_iter {
+    CPUX86State *env;
+    uint32_t leaf;
+    uint32_t subleaf;
+    bool valid;
+};
+
+static void x86_cpuid_subleaf_iter_start(struct x86_cpuid_subleaf_iter *i,
+                                  CPUX86State *env, uint32_t leaf)
+{
+    i->env = env;
+    i->leaf = leaf;
+    i->subleaf = 0;
+    i->valid = true;
+}
+
+static void x86_cpuid_subleaf_iter_next(struct x86_cpuid_subleaf_iter *i)
+{
+    uint32_t max_subleaf = cpu_x86_cpuid_get_num_subleaves(i->env, i->leaf) - 1;
+
+    if (i->subleaf < max_subleaf) {
+        i->subleaf++;
+    } else {
+        i->valid = false;
+    }
+}
+
+static bool x86_cpuid_subleaf_iter_valid(struct x86_cpuid_subleaf_iter *i)
+{
+    return i->valid;
+}
+
+static void cpu_model_fill_cpuid_subleaf(X86CPU *cpu, int leaf_idx,
+                                         int subleaf_idx,
+                                         CpuidSubleaf *subleaf)
+{
+    uint32_t eax, ebx, ecx, edx;
+
+    cpu_x86_cpuid(&cpu->env, leaf_idx, subleaf_idx, &eax, &ebx, &ecx, &edx);
+    subleaf->subleaf = subleaf_idx;
+    subleaf->eax = eax;
+    subleaf->ebx = ebx;
+    subleaf->ecx = ecx;
+    subleaf->edx = edx;
+}
+
+static void cpu_model_fill_cpuid_leaf(X86CPU *cpu, int leaf_idx,
+                                      CpuidLeaf *leaf)
+{
+    struct x86_cpuid_subleaf_iter it;
+    CpuidSubleaf *subleaf;
+    CpuidSubleafList **tail = &leaf->subleaves;
+
+    leaf->leaf = leaf_idx;
+    x86_cpuid_subleaf_iter_start(&it, &cpu->env, leaf_idx);
+    for (; x86_cpuid_subleaf_iter_valid(&it);
+        x86_cpuid_subleaf_iter_next(&it)) {
+        subleaf = g_malloc0(sizeof(*subleaf));
+        cpu_model_fill_cpuid_subleaf(cpu, leaf_idx, it.subleaf, subleaf);
+        QAPI_LIST_APPEND(tail, subleaf);
+    }
+}
+
+static void cpu_model_fill_cpuid(Object *cpu, CpuModelCpuidDescription *info,
+                                 Error **errp)
+{
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    struct x86_cpuid_leaf_iter it;
+    CpuidLeaf *leaf;
+    CpuidLeafList **tail;
+
+    info->cpuid = g_malloc0(sizeof(*info->cpuid));
+    tail = &info->cpuid->leaves;
+    info->model_id = object_property_get_str(cpu, "model-id", errp);
+    info->vendor = object_property_get_str(cpu, "vendor", errp);
+    x86_cpuid_leaf_iter_start(&it, &x86_cpu->env);
+    for (; x86_cpuid_leaf_iter_valid(&it); x86_cpuid_leaf_iter_next(&it)) {
+        leaf = g_malloc0(sizeof(*leaf));
+        cpu_model_fill_cpuid_leaf(x86_cpu, it.leaf, leaf);
+        QAPI_LIST_APPEND(tail, leaf);
+    }
+}
+
+CpuModelCpuidDescription *qmp_query_cpu_model_cpuid(Error **errp)
+{
+    MachineState *ms = MACHINE(qdev_get_machine());
+    const char *class_name;
+    CpuModelCpuidDescription *info;
+    SysEmuTarget target = qapi_enum_parse(&SysEmuTarget_lookup, TARGET_NAME,
+                                          -1, &error_abort);
+    Object *cpu = ms->possible_cpus->cpus[0].cpu;
+
+    class_name = object_class_get_name(object_get_class(cpu));
+    info = g_malloc0(sizeof(*info));
+    info->class_name = g_strdup(class_name);
+
+    if (target == SYS_EMU_TARGET_X86_64) {
+        cpu_model_fill_cpuid(cpu, info, errp);
+    }
+
+    return info;
+}
+
 static uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
                                                    bool migratable_only)
 {
@@ -5607,15 +5889,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     topo_info.threads_per_core = cs->nr_threads;
 
     /* Calculate & apply limits for different index ranges */
-    if (index >= 0xC0000000) {
-        limit = env->cpuid_xlevel2;
-    } else if (index >= 0x80000000) {
-        limit = env->cpuid_xlevel;
-    } else if (index >= 0x40000000) {
-        limit = 0x40000001;
-    } else {
-        limit = env->cpuid_level;
-    }
+    limit = cpuid_limit_from_leaf(env, index);
 
     if (index > limit) {
         /* Intel documentation states that invalid EAX input will
