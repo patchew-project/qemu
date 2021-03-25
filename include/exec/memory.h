@@ -1848,13 +1848,25 @@ void memory_region_clear_flush_coalesced(MemoryRegion *mr);
  * @match_data: whether to match against @data, instead of just @addr
  * @data: the data to match against the guest write
  * @e: event notifier to be triggered when @addr, @size, and @data all match.
+ * @transaction: whether to start a transaction for the change
  **/
-void memory_region_add_eventfd(MemoryRegion *mr,
-                               hwaddr addr,
-                               unsigned size,
-                               bool match_data,
-                               uint64_t data,
-                               EventNotifier *e);
+void memory_region_add_eventfd_full(MemoryRegion *mr,
+                                    hwaddr addr,
+                                    unsigned size,
+                                    bool match_data,
+                                    uint64_t data,
+                                    EventNotifier *e,
+                                    bool transaction);
+
+static inline void memory_region_add_eventfd(MemoryRegion *mr,
+                                             hwaddr addr,
+                                             unsigned size,
+                                             bool match_data,
+                                             uint64_t data,
+                                             EventNotifier *e)
+{
+    memory_region_add_eventfd_full(mr, addr, size, match_data, data, e, true);
+}
 
 /**
  * memory_region_del_eventfd: Cancel an eventfd.
@@ -1868,13 +1880,25 @@ void memory_region_add_eventfd(MemoryRegion *mr,
  * @match_data: whether to match against @data, instead of just @addr
  * @data: the data to match against the guest write
  * @e: event notifier to be triggered when @addr, @size, and @data all match.
+ * @transaction: whether to start a transaction for the change
  */
-void memory_region_del_eventfd(MemoryRegion *mr,
-                               hwaddr addr,
-                               unsigned size,
-                               bool match_data,
-                               uint64_t data,
-                               EventNotifier *e);
+void memory_region_del_eventfd_full(MemoryRegion *mr,
+                                    hwaddr addr,
+                                    unsigned size,
+                                    bool match_data,
+                                    uint64_t data,
+                                    EventNotifier *e,
+                                    bool transaction);
+
+static inline void memory_region_del_eventfd(MemoryRegion *mr,
+                                             hwaddr addr,
+                                             unsigned size,
+                                             bool match_data,
+                                             uint64_t data,
+                                             EventNotifier *e)
+{
+    memory_region_del_eventfd_full(mr, addr, size, match_data, data, e, true);
+}
 
 /**
  * memory_region_add_subregion: Add a subregion to a container.

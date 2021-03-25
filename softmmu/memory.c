@@ -2341,12 +2341,13 @@ void memory_region_clear_flush_coalesced(MemoryRegion *mr)
 
 static bool userspace_eventfd_warning;
 
-void memory_region_add_eventfd(MemoryRegion *mr,
-                               hwaddr addr,
-                               unsigned size,
-                               bool match_data,
-                               uint64_t data,
-                               EventNotifier *e)
+void memory_region_add_eventfd_full(MemoryRegion *mr,
+                                    hwaddr addr,
+                                    unsigned size,
+                                    bool match_data,
+                                    uint64_t data,
+                                    EventNotifier *e,
+                                    bool transaction)
 {
     MemoryRegionIoeventfd mrfd = {
         .addr.start = int128_make64(addr),
@@ -2367,7 +2368,9 @@ void memory_region_add_eventfd(MemoryRegion *mr,
     if (size) {
         adjust_endianness(mr, &mrfd.data, size_memop(size) | MO_TE);
     }
-    memory_region_transaction_begin();
+    if (transaction) {
+        memory_region_transaction_begin();
+    }
     for (i = 0; i < mr->ioeventfd_nb; ++i) {
         if (memory_region_ioeventfd_before(&mrfd, &mr->ioeventfds[i])) {
             break;
@@ -2380,15 +2383,18 @@ void memory_region_add_eventfd(MemoryRegion *mr,
             sizeof(*mr->ioeventfds) * (mr->ioeventfd_nb-1 - i));
     mr->ioeventfds[i] = mrfd;
     ioeventfd_update_pending |= mr->enabled;
-    memory_region_transaction_commit();
+    if (transaction) {
+        memory_region_transaction_commit();
+    }
 }
 
-void memory_region_del_eventfd(MemoryRegion *mr,
-                               hwaddr addr,
-                               unsigned size,
-                               bool match_data,
-                               uint64_t data,
-                               EventNotifier *e)
+void memory_region_del_eventfd_full(MemoryRegion *mr,
+                                    hwaddr addr,
+                                    unsigned size,
+                                    bool match_data,
+                                    uint64_t data,
+                                    EventNotifier *e,
+                                    bool transaction)
 {
     MemoryRegionIoeventfd mrfd = {
         .addr.start = int128_make64(addr),
@@ -2402,7 +2408,9 @@ void memory_region_del_eventfd(MemoryRegion *mr,
     if (size) {
         adjust_endianness(mr, &mrfd.data, size_memop(size) | MO_TE);
     }
-    memory_region_transaction_begin();
+    if (transaction) {
+        memory_region_transaction_begin();
+    }
     for (i = 0; i < mr->ioeventfd_nb; ++i) {
         if (memory_region_ioeventfd_equal(&mrfd, &mr->ioeventfds[i])) {
             break;
@@ -2415,7 +2423,9 @@ void memory_region_del_eventfd(MemoryRegion *mr,
     mr->ioeventfds = g_realloc(mr->ioeventfds,
                                   sizeof(*mr->ioeventfds)*mr->ioeventfd_nb + 1);
     ioeventfd_update_pending |= mr->enabled;
-    memory_region_transaction_commit();
+    if (transaction) {
+        memory_region_transaction_commit();
+    }
 }
 
 static void memory_region_update_container_subregions(MemoryRegion *subregion)
