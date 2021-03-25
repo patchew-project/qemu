@@ -144,30 +144,26 @@ def check_flags(expr: _JSONObject, info: QAPISourceInfo) -> None:
 
 def check_if(expr: _JSONObject, info: QAPISourceInfo, source: str) -> None:
 
-    def check_if_str(ifcond: object) -> None:
-        if not isinstance(ifcond, str):
-            raise QAPISemError(
-                info,
-                "'if' condition of %s must be a string or a list of strings"
-                % source)
-        if ifcond.strip() == '':
-            raise QAPISemError(
-                info,
-                "'if' condition '%s' of %s makes no sense"
-                % (ifcond, source))
-
     ifcond = expr.get('if')
     if ifcond is None:
         return
+
     if isinstance(ifcond, list):
-        if ifcond == []:
+        if not ifcond:
             raise QAPISemError(
-                info, "'if' condition [] of %s is useless" % source)
-        for elt in ifcond:
-            check_if_str(elt)
+                info, f"'if' condition [] of {source} is useless")
     else:
-        check_if_str(ifcond)
-        expr['if'] = [ifcond]
+        # Normalize to a list
+        ifcond = expr['if'] = [ifcond]
+
+    for elt in ifcond:
+        if not isinstance(elt, str):
+            raise QAPISemError(info, (
+                f"'if' condition of {source}"
+                " must be a string or a list of strings"))
+        if not elt.strip():
+            raise QAPISemError(
+                info, f"'if' condition '{elt}' of {source} makes no sense")
 
 
 def normalize_members(members: object) -> None:
