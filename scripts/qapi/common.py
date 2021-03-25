@@ -41,7 +41,8 @@ def camel_to_upper(value: str) -> str:
     length = len(c_fun_str)
     for i in range(length):
         char = c_fun_str[i]
-        # When char is upper case and no '_' appears before, do more checks
+        # When char is upper case and no '_' appears before,
+        # do more checks
         if char.isupper() and (i > 0) and c_fun_str[i - 1] != '_':
             if i < length - 1 and c_fun_str[i + 1].islower():
                 new_name += '_'
@@ -78,8 +79,9 @@ def c_name(name: str, protect: bool = True) -> str:
     protect=True: 'int' -> 'q_int'; protect=False: 'int' -> 'int'
 
     :param name: The name to map.
-    :param protect: If true, avoid returning certain ticklish identifiers
-                    (like C keywords) by prepending ``q_``.
+    :param protect: If true, avoid returning certain ticklish
+                    identifiers (like C keywords) by prepending
+                    ``q_``.
     """
     # ANSI X3J11/88-090, 3.1.1
     c89_words = set(['auto', 'break', 'case', 'char', 'const', 'continue',

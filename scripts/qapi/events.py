@@ -48,7 +48,8 @@ def gen_param_var(typ: QAPISchemaObjectType) -> str:
     """
     Generate a struct variable holding the event parameters.
 
-    Initialize it with the function arguments defined in `gen_event_send`.
+    Initialize it with the function arguments defined in
+    `gen_event_send`.
     """
     assert not typ.variants
     ret = mcgen('''
@@ -86,9 +87,9 @@ def gen_event_send(name: str,
     # FIXME: Our declaration of local variables (and of 'errp' in the
     # parameter list) can collide with exploded members of the event's
     # data type passed in as parameters.  If this collision ever hits in
-    # practice, we can rename our local variables with a leading _ prefix,
-    # or split the code into a wrapper function that creates a boxed
-    # 'param' object then calls another to do the real work.
+    # practice, we can rename our local variables with a leading _
+    # prefix, or split the code into a wrapper function that creates a
+    # boxed 'param' object then calls another to do the real work.
     have_args = boxed or (arg_type and not arg_type.is_empty())
 
     ret = mcgen('''

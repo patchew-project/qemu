@@ -35,8 +35,8 @@ from .schema import (
 from .source import QAPISourceInfo
 
 
-# variants must be emitted before their container; track what has already
-# been output
+# variants must be emitted before their container; track what has
+# already been output
 objects_seen = set()
 
 
@@ -297,7 +297,8 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
 '''))
 
     def visit_begin(self, schema: QAPISchema) -> None:
-        # gen_object() is recursive, ensure it doesn't visit the empty type
+        # gen_object() is recursive, ensure
+        # it doesn't visit the empty type
         objects_seen.add(schema.the_empty_object_type.name)
 
     def _gen_type_cleanup(self, name: str) -> None:

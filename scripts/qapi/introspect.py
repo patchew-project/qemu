@@ -61,8 +61,9 @@ from .source import QAPISourceInfo
 # With optional annotations, the type of all values is:
 # JSONValue = Union[_Value, Annotated[_Value]]
 #
-# Sadly, mypy does not support recursive types; so the _Stub alias is used to
-# mark the imprecision in the type model where we'd otherwise use JSONValue.
+# Sadly, mypy does not support recursive types; so the _Stub alias is
+# used to mark the imprecision in the type model where we'd otherwise
+# use JSONValue.
 _Stub = Any
 _Scalar = Union[str, bool, None]
 _NonScalar = Union[Dict[str, _Stub], List[_Stub]]
@@ -217,7 +218,8 @@ const QLitObject %(c_name)s = %(c_string)s;
         self._name_map = {}
 
     def visit_needed(self, entity: QAPISchemaEntity) -> bool:
-        # Ignore types on first pass; visit_end() will pick up used types
+        # Ignore types on first pass;
+        # visit_end() will pick up used types
         return not isinstance(entity, QAPISchemaType)
 
     def _name(self, name: str) -> str:

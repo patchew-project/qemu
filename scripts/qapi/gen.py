@@ -63,9 +63,9 @@ class QAPIGen:
         return ''
 
     def write(self, output_dir: str) -> None:
-        # Include paths starting with ../ are used to reuse modules of the main
-        # schema in specialised schemas. Don't overwrite the files that are
-        # already generated for the main schema.
+        # Include paths starting with ../ are used to reuse modules
+        # of the main schema in specialised schemas. Don't overwrite
+        # the files that are already generated for the main schema.
         if self.fname.startswith('../'):
             return
         pathname = os.path.join(output_dir, self.fname)
@@ -189,7 +189,7 @@ class QAPIGenH(QAPIGenC):
 @contextmanager
 def ifcontext(ifcond: Sequence[str], *args: QAPIGenCCode) -> Iterator[None]:
     """
-    A with-statement context manager that wraps with `start_if()` / `end_if()`.
+    A context manager that wraps output with `start_if()` / `end_if()`.
 
     :param ifcond: A sequence of conditionals, passed to `start_if()`.
     :param args: any number of `QAPIGenCCode`.

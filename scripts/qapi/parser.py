@@ -331,8 +331,8 @@ class QAPIDoc:
             self._indent = indent
 
         def append(self, line):
-            # Strip leading spaces corresponding to the expected indent level
-            # Blank lines are always OK.
+            # Strip leading spaces corresponding to the expected indent
+            # level. Blank lines are always OK.
             if line:
                 indent = re.match(r'\s*', line).end()
                 if indent < self._indent:
@@ -353,10 +353,10 @@ class QAPIDoc:
             self.member = member
 
     def __init__(self, parser, info):
-        # self._parser is used to report errors with QAPIParseError.  The
-        # resulting error position depends on the state of the parser.
-        # It happens to be the beginning of the comment.  More or less
-        # servicable, but action at a distance.
+        # self._parser is used to report errors with QAPIParseError.
+        # The resulting error position depends on the state of the
+        # parser. It happens to be the beginning of the comment. More
+        # or less servicable, but action at a distance.
         self._parser = parser
         self.info = info
         self.symbol = None
@@ -430,7 +430,8 @@ class QAPIDoc:
             if not line.endswith(':'):
                 raise QAPIParseError(self._parser, "line should end with ':'")
             self.symbol = line[1:-1]
-            # FIXME invalid names other than the empty string aren't flagged
+            # FIXME invalid names other than the empty string aren't
+            # flagged
             if not self.symbol:
                 raise QAPIParseError(self._parser, "invalid name")
         elif self.symbol:

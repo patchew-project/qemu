@@ -166,9 +166,10 @@ class QAPISchemaModule:
     @classmethod
     def is_builtin_module(cls, name: str) -> bool:
         """
-        The built-in module is a single System module for the built-in types.
+        Return true when given the built-in module name.
 
-        It is always "./builtin".
+        The built-in module is a specific System module for the built-in
+        types. It is always "./builtin".
         """
         return name == cls.BUILTIN_MODULE_NAME
 
@@ -294,7 +295,8 @@ class QAPISchemaEnumType(QAPISchemaType):
             m.connect_doc(doc)
 
     def is_implicit(self):
-        # See QAPISchema._make_implicit_enum_type() and ._def_predefineds()
+        # See QAPISchema._make_implicit_enum_type() and
+        # ._def_predefineds()
         return self.name.endswith('Kind') or self.name == 'QType'
 
     def c_type(self):
@@ -421,9 +423,9 @@ class QAPISchemaObjectType(QAPISchemaType):
 
         self.members = members  # mark completed
 
-    # Check that the members of this type do not cause duplicate JSON members,
-    # and update seen to track the members seen so far. Report any errors
-    # on behalf of info, which is not necessarily self.info
+    # Check that the members of this type do not cause duplicate JSON
+    # members, and update seen to track the members seen so far. Report
+    # any errors on behalf of info, which is not necessarily self.info
     def check_clash(self, info, seen):
         assert self._checked
         assert not self.variants       # not implemented
@@ -494,11 +496,12 @@ class QAPISchemaAlternateType(QAPISchemaType):
     def check(self, schema):
         super().check(schema)
         self.variants.tag_member.check(schema)
-        # Not calling self.variants.check_clash(), because there's nothing
-        # to clash with
+        # Not calling self.variants.check_clash(), because there's
+        # nothing to clash with
         self.variants.check(schema, {})
-        # Alternate branch names have no relation to the tag enum values;
-        # so we have to check for potential name collisions ourselves.
+        # Alternate branch names have no relation to the tag enum
+        # values; so we have to check for potential name collisions
+        # ourselves.
         seen = {}
         types_seen = {}
         for v in self.variants.variants:
