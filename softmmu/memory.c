@@ -2368,7 +2368,7 @@ void memory_region_add_eventfd_full(MemoryRegion *mr,
     if (size) {
         adjust_endianness(mr, &mrfd.data, size_memop(size) | MO_TE);
     }
-    if (transaction) {
+    if (!transaction) {
         memory_region_transaction_begin();
     }
     for (i = 0; i < mr->ioeventfd_nb; ++i) {
@@ -2383,7 +2383,7 @@ void memory_region_add_eventfd_full(MemoryRegion *mr,
             sizeof(*mr->ioeventfds) * (mr->ioeventfd_nb-1 - i));
     mr->ioeventfds[i] = mrfd;
     ioeventfd_update_pending |= mr->enabled;
-    if (transaction) {
+    if (!transaction) {
         memory_region_transaction_commit();
     }
 }

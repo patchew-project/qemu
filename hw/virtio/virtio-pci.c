@@ -243,45 +243,64 @@ static int virtio_pci_ioeventfd_assign(DeviceState *d, EventNotifier *notifier,
     hwaddr modern_addr = virtio_pci_queue_mem_mult(proxy) *
                          virtio_get_queue_index(vq);
     hwaddr legacy_addr = VIRTIO_PCI_QUEUE_NOTIFY;
+    bool transaction = !proxy->ioeventfd_assign_started;
 
     if (assign) {
         if (modern) {
             if (fast_mmio) {
-                memory_region_add_eventfd(modern_mr, modern_addr, 0,
-                                          false, n, notifier);
+                memory_region_add_eventfd_full(modern_mr, modern_addr, 0,
+                                               false, n, notifier, transaction);
             } else {
-                memory_region_add_eventfd(modern_mr, modern_addr, 2,
-                                          false, n, notifier);
+                memory_region_add_eventfd_full(modern_mr, modern_addr, 2,
+                                               false, n, notifier, transaction);
             }
             if (modern_pio) {
-                memory_region_add_eventfd(modern_notify_mr, 0, 2,
-                                              true, n, notifier);
+                memory_region_add_eventfd_full(modern_notify_mr, 0, 2,
+                                               true, n, notifier, transaction);
             }
         }
         if (legacy) {
-            memory_region_add_eventfd(legacy_mr, legacy_addr, 2,
-                                      true, n, notifier);
+            memory_region_add_eventfd_full(legacy_mr, legacy_addr, 2,
+                                           true, n, notifier, transaction);
         }
     } else {
         if (modern) {
             if (fast_mmio) {
-                memory_region_del_eventfd(modern_mr, modern_addr, 0,
-                                          false, n, notifier);
+                memory_region_del_eventfd_full(modern_mr, modern_addr, 0,
+                                               false, n, notifier, transaction);
             } else {
-                memory_region_del_eventfd(modern_mr, modern_addr, 2,
-                                          false, n, notifier);
+                memory_region_del_eventfd_full(modern_mr, modern_addr, 2,
+                                               false, n, notifier, transaction);
             }
             if (modern_pio) {
-                memory_region_del_eventfd(modern_notify_mr, 0, 2,
-                                          true, n, notifier);
+                memory_region_del_eventfd_full(modern_notify_mr, 0, 2,
+                                               true, n, notifier, transaction);
             }
         }
         if (legacy) {
-            memory_region_del_eventfd(legacy_mr, legacy_addr, 2,
-                                      true, n, notifier);
+            memory_region_del_eventfd_full(legacy_mr, legacy_addr, 2,
+                                           true, n, notifier, transaction);
         }
     }
     return 0;
+}
+
+static void virtio_pci_ioeventfd_assign_begin(DeviceState *d)
+{
+    VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
+
+    assert(!proxy->ioeventfd_assign_started);
+    proxy->ioeventfd_assign_started = true;
+    memory_region_transaction_begin();
+}
+
+static void virtio_pci_ioeventfd_assign_commit(DeviceState *d)
+{
+    VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
+
+    assert(proxy->ioeventfd_assign_started);
+    memory_region_transaction_commit();
+    proxy->ioeventfd_assign_started = false;
 }
 
 static void virtio_pci_start_ioeventfd(VirtIOPCIProxy *proxy)
@@ -2161,6 +2180,8 @@ static void virtio_pci_bus_class_init(ObjectClass *klass, void *data)
     k->query_nvectors = virtio_pci_query_nvectors;
     k->ioeventfd_enabled = virtio_pci_ioeventfd_enabled;
     k->ioeventfd_assign = virtio_pci_ioeventfd_assign;
+    k->ioeventfd_assign_begin = virtio_pci_ioeventfd_assign_begin;
+    k->ioeventfd_assign_commit = virtio_pci_ioeventfd_assign_commit;
     k->get_dma_as = virtio_pci_get_dma_as;
     k->queue_enabled = virtio_pci_queue_enabled;
 }

@@ -141,6 +141,7 @@ struct VirtIOPCIProxy {
     bool disable_modern;
     bool ignore_backend_features;
     OnOffAuto disable_legacy;
+    bool ioeventfd_assign_started;
     uint32_t class_code;
     uint32_t nvectors;
     uint32_t dfselect;
