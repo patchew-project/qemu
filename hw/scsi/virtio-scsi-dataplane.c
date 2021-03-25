@@ -141,6 +141,7 @@ int virtio_scsi_dataplane_start(VirtIODevice *vdev)
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
+    VirtioBusState *bus = VIRTIO_BUS(qbus);
 
     if (s->dataplane_started ||
         s->dataplane_starting ||
@@ -171,12 +172,9 @@ int virtio_scsi_dataplane_start(VirtIODevice *vdev)
 
     vq_init_count++;
 
-    for (i = 0; i < vs->conf.num_queues; i++) {
-        rc = virtio_scsi_set_host_notifier(s, vs->cmd_vqs[i], i + 2);
-        if (rc) {
-            goto fail_host_notifiers;
-        }
-        vq_init_count++;
+    rc = virtio_bus_set_host_notifiers(bus, vs->conf.num_queues, 2, true);
+    if (rc) {
+        goto fail_host_notifiers;
     }
 
     aio_context_acquire(s->ctx);
@@ -196,10 +194,13 @@ int virtio_scsi_dataplane_start(VirtIODevice *vdev)
     return 0;
 
 fail_host_notifiers:
-    for (i = 0; i < vq_init_count; i++) {
-        virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, false);
-        virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus), i);
-    }
+    /*
+     * Only host notifiers for ctrl_vq and event_vq can be set at
+     * this point. Notifiers for cmd_vqs[] have been reverted by
+     * virtio_bus_set_host_notifiers() already.
+     */
+    assert(vq_init_count <= 2);
+    virtio_bus_set_host_notifiers(bus, vq_init_count, 0, false);
     k->set_guest_notifiers(qbus->parent, vs->conf.num_queues + 2, false);
 fail_guest_notifiers:
     s->dataplane_fenced = true;
@@ -215,7 +216,6 @@ void virtio_scsi_dataplane_stop(VirtIODevice *vdev)
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
-    int i;
 
     if (!s->dataplane_started || s->dataplane_stopping) {
         return;
@@ -235,10 +235,8 @@ void virtio_scsi_dataplane_stop(VirtIODevice *vdev)
 
     blk_drain_all(); /* ensure there are no in-flight requests */
 
-    for (i = 0; i < vs->conf.num_queues + 2; i++) {
-        virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, false);
-        virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus), i);
-    }
+    virtio_bus_set_host_notifiers(VIRTIO_BUS(qbus), vs->conf.num_queues + 2, 0,
+                                  false);
 
     /* Clean up guest notifier (irq) */
     k->set_guest_notifiers(qbus->parent, vs->conf.num_queues + 2, false);
