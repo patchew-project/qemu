@@ -154,5 +154,8 @@ void virtio_bus_release_ioeventfd(VirtioBusState *bus);
 int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign);
 /* Tell the bus that the ioeventfd handler is no longer required. */
 void virtio_bus_cleanup_host_notifier(VirtioBusState *bus, int n);
+/* Call virtio_bus_set_host_notifier() for several consecutive vqs */
+int virtio_bus_set_host_notifiers(VirtioBusState *bus, int nvqs, int n_offset,
+                                  bool assign);
 
 #endif /* VIRTIO_BUS_H */

@@ -308,6 +308,42 @@ void virtio_bus_cleanup_host_notifier(VirtioBusState *bus, int n)
     event_notifier_cleanup(notifier);
 }
 
+static void virtio_bus_unset_and_cleanup_host_notifiers(VirtioBusState *bus,
+                                                        int nvqs, int n_offset)
+{
+    int i;
+
+    for (i = 0; i < nvqs; i++) {
+        virtio_bus_set_host_notifier(bus, i + n_offset, false);
+        virtio_bus_cleanup_host_notifier(bus, i + n_offset);
+    }
+}
+
+int virtio_bus_set_host_notifiers(VirtioBusState *bus, int nvqs, int n_offset,
+                                  bool assign)
+{
+    VirtIODevice *vdev = virtio_bus_get_device(bus);
+    int i;
+    int rc;
+
+    if (assign) {
+        for (i = 0; i < nvqs; i++) {
+            rc = virtio_bus_set_host_notifier(bus, i + n_offset, true);
+            if (rc != 0) {
+                warn_report_once("%s: Failed to set host notifier (%s).\n",
+                                 vdev->name, strerror(-rc));
+
+                virtio_bus_unset_and_cleanup_host_notifiers(bus, i, n_offset);
+                return rc;
+            }
+        }
+    } else {
+        virtio_bus_unset_and_cleanup_host_notifiers(bus, nvqs, n_offset);
+    }
+
+    return 0;
+}
+
 static char *virtio_bus_get_dev_path(DeviceState *dev)
 {
     BusState *bus = qdev_get_parent_bus(dev);
