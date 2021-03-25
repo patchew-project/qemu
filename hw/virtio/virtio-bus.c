@@ -295,6 +295,28 @@ int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign)
     return r;
 }
 
+static void virtio_bus_set_host_notifier_begin(VirtioBusState *bus)
+{
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
+    DeviceState *proxy = DEVICE(BUS(bus)->parent);
+
+    if (k->ioeventfd_assign_begin) {
+        assert(k->ioeventfd_assign_commit);
+        k->ioeventfd_assign_begin(proxy);
+    }
+}
+
+static void virtio_bus_set_host_notifier_commit(VirtioBusState *bus)
+{
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(bus);
+    DeviceState *proxy = DEVICE(BUS(bus)->parent);
+
+    if (k->ioeventfd_assign_commit) {
+        assert(k->ioeventfd_assign_begin);
+        k->ioeventfd_assign_commit(proxy);
+    }
+}
+
 void virtio_bus_cleanup_host_notifier(VirtioBusState *bus, int n)
 {
     VirtIODevice *vdev = virtio_bus_get_device(bus);
@@ -308,6 +330,7 @@ void virtio_bus_cleanup_host_notifier(VirtioBusState *bus, int n)
     event_notifier_cleanup(notifier);
 }
 
+/* virtio_bus_set_host_notifier_begin() must have been called */
 static void virtio_bus_unset_and_cleanup_host_notifiers(VirtioBusState *bus,
                                                         int nvqs, int n_offset)
 {
@@ -315,6 +338,10 @@ static void virtio_bus_unset_and_cleanup_host_notifiers(VirtioBusState *bus,
 
     for (i = 0; i < nvqs; i++) {
         virtio_bus_set_host_notifier(bus, i + n_offset, false);
+    }
+    /* Let address_space_update_ioeventfds() run before closing ioeventfds */
+    virtio_bus_set_host_notifier_commit(bus);
+    for (i = 0; i < nvqs; i++) {
         virtio_bus_cleanup_host_notifier(bus, i + n_offset);
     }
 }
@@ -327,17 +354,24 @@ int virtio_bus_set_host_notifiers(VirtioBusState *bus, int nvqs, int n_offset,
     int rc;
 
     if (assign) {
+        virtio_bus_set_host_notifier_begin(bus);
+
         for (i = 0; i < nvqs; i++) {
             rc = virtio_bus_set_host_notifier(bus, i + n_offset, true);
             if (rc != 0) {
                 warn_report_once("%s: Failed to set host notifier (%s).\n",
                                  vdev->name, strerror(-rc));
 
+                /* This also calls virtio_bus_set_host_notifier_commit() */
                 virtio_bus_unset_and_cleanup_host_notifiers(bus, i, n_offset);
                 return rc;
             }
         }
+
+        virtio_bus_set_host_notifier_commit(bus);
     } else {
+        virtio_bus_set_host_notifier_begin(bus);
+        /* This also calls virtio_bus_set_host_notifier_commit() */
         virtio_bus_unset_and_cleanup_host_notifiers(bus, nvqs, n_offset);
     }
 

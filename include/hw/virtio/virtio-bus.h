@@ -82,6 +82,10 @@ struct VirtioBusClass {
      */
     int (*ioeventfd_assign)(DeviceState *d, EventNotifier *notifier,
                             int n, bool assign);
+
+    void (*ioeventfd_assign_begin)(DeviceState *d);
+    void (*ioeventfd_assign_commit)(DeviceState *d);
+
     /*
      * Whether queue number n is enabled.
      */
