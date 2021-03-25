@@ -172,6 +172,7 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
     VirtIOBlockDataPlane *s = vblk->dataplane;
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vblk)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    VirtioBusState *bus = VIRTIO_BUS(qbus);
     AioContext *old_context;
     unsigned i;
     unsigned nvqs = s->conf->num_queues;
@@ -199,16 +200,9 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
     }
 
     /* Set up virtqueue notify */
-    for (i = 0; i < nvqs; i++) {
-        r = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, true);
-        if (r != 0) {
-            fprintf(stderr, "virtio-blk failed to set host notifier (%d)\n", r);
-            while (i--) {
-                virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, false);
-                virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus), i);
-            }
-            goto fail_host_notifiers;
-        }
+    r = virtio_bus_set_host_notifiers(bus, nvqs, 0, true);
+    if (r != 0) {
+        goto fail_host_notifiers;
     }
 
     s->starting = false;
@@ -246,10 +240,7 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
     return 0;
 
   fail_aio_context:
-    for (i = 0; i < nvqs; i++) {
-        virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, false);
-        virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus), i);
-    }
+    virtio_bus_set_host_notifiers(bus, nvqs, 0, false);
   fail_host_notifiers:
     k->set_guest_notifiers(qbus->parent, nvqs, false);
   fail_guest_notifiers:
@@ -287,7 +278,6 @@ void virtio_blk_data_plane_stop(VirtIODevice *vdev)
     VirtIOBlockDataPlane *s = vblk->dataplane;
     BusState *qbus = qdev_get_parent_bus(DEVICE(vblk));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
-    unsigned i;
     unsigned nvqs = s->conf->num_queues;
 
     if (!vblk->dataplane_started || s->stopping) {
@@ -312,10 +302,7 @@ void virtio_blk_data_plane_stop(VirtIODevice *vdev)
 
     aio_context_release(s->ctx);
 
-    for (i = 0; i < nvqs; i++) {
-        virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, false);
-        virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus), i);
-    }
+    virtio_bus_set_host_notifiers(VIRTIO_BUS(qbus), nvqs, 0, false);
 
     qemu_bh_cancel(s->bh);
     notify_guest_bh(s); /* final chance to notify guest */
