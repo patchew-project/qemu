@@ -101,6 +101,7 @@ config MUSICPAL
     select MARVELL_88W8618
     select PTIMER
     select PFLASH_CFI02
+    select ALIASED_REGION
     select SERIAL
     select WM8750
 
