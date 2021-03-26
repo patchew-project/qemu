@@ -29,9 +29,17 @@ typedef enum DeviceCategory {
     DEVICE_CATEGORY_MAX
 } DeviceCategory;
 
+enum {
+    DEVICE_EVENT_CALL,
+    DEVICE_EVENT_KICK,
+    DEVICE_EVENT_MAX
+};
+
 typedef void (*DeviceRealize)(DeviceState *dev, Error **errp);
 typedef void (*DeviceUnrealize)(DeviceState *dev);
 typedef void (*DeviceReset)(DeviceState *dev);
+typedef void (*DeviceEvent)(DeviceState *dev, int event, int queue,
+                            Error **errp);
 typedef void (*BusRealize)(BusState *bus, Error **errp);
 typedef void (*BusUnrealize)(BusState *bus);
 
@@ -132,6 +140,7 @@ struct DeviceClass {
     DeviceReset reset;
     DeviceRealize realize;
     DeviceUnrealize unrealize;
+    DeviceEvent event;
 
     /* device state */
     const VMStateDescription *vmsd;

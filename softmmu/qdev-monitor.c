@@ -924,6 +924,62 @@ void hmp_device_del(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
+static const char * const device_events[DEVICE_EVENT_MAX] = {
+    [DEVICE_EVENT_KICK] = "kick",
+    [DEVICE_EVENT_CALL] = "call"
+};
+
+static int get_device_event(const char *event)
+{
+    int evt;
+
+    for (evt = 0; evt < ARRAY_SIZE(device_events); evt++) {
+        if (!strcmp(device_events[evt], event)) {
+            return evt;
+        }
+    }
+
+    return -ENOENT;
+}
+
+void qmp_x_debug_device_event(const char *dev, const char *event,
+                              int64_t queue, Error **errp)
+{
+    DeviceState *device = find_device_state(dev, NULL);
+    DeviceClass *dc;
+    int evt;
+
+    if (!device) {
+        error_setg(errp, "Device %s not found", dev);
+        return;
+    }
+
+    dc = DEVICE_GET_CLASS(device);
+    if (!dc->event) {
+        error_setg(errp, "device_event is not supported");
+        return;
+    }
+
+    evt = get_device_event(event);
+    if (evt < 0) {
+        error_setg(errp, "Unsupported event %s", event);
+        return;
+    }
+
+    dc->event(device, evt, queue, errp);
+}
+
+void hmp_x_debug_device_event(Monitor *mon, const QDict *qdict)
+{
+    const char *dev = qdict_get_str(qdict, "dev");
+    const char *event = qdict_get_str(qdict, "event");
+    int queue = qdict_get_try_int(qdict, "queue", -1);
+    Error *err = NULL;
+
+    qmp_x_debug_device_event(dev, event, queue, &err);
+    hmp_handle_error(mon, err);
+}
+
 BlockBackend *blk_by_qdev_id(const char *id, Error **errp)
 {
     DeviceState *dev;
