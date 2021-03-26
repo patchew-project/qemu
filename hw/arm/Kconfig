@@ -42,6 +42,7 @@ config DIGIC
     bool
     select PTIMER
     select PFLASH_CFI02
+    select ALIASED_REGION
 
 config EXYNOS4
     bool
