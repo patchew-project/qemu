@@ -1,7 +1,7 @@
 /*
  * Aliased memory regions
  *
- * Copyright (c) 2018  Philippe Mathieu-Daudé <f4bug@amsat.org>
+ * Copyright (c) 2018, 2020  Philippe Mathieu-Daudé <f4bug@amsat.org>
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -13,6 +13,50 @@
 #include "hw/sysbus.h"
 #include "hw/misc/aliased_region.h"
 #include "hw/qdev-properties.h"
+
+static MemTxResult aliased_io_read(void *opaque, hwaddr offset,
+                                   uint64_t *data, unsigned size,
+                                   MemTxAttrs attrs)
+{
+    AliasedRegionState *s = ALIASED_REGION(opaque);
+
+    return address_space_read(&s->io.as, offset, attrs, data, size);
+}
+
+static MemTxResult aliased_io_write(void *opaque, hwaddr offset,
+                                    uint64_t data, unsigned size,
+                                    MemTxAttrs attrs)
+{
+    AliasedRegionState *s = ALIASED_REGION(opaque);
+
+    return address_space_write(&s->io.as, offset, attrs, &data, size);
+}
+
+static bool aliased_io_accepts(void *opaque, hwaddr offset, unsigned size,
+                               bool is_write, MemTxAttrs attrs)
+{
+    AliasedRegionState *s = ALIASED_REGION(opaque);
+
+    return address_space_access_valid(&s->io.as, offset, size, is_write, attrs);
+}
+
+static const MemoryRegionOps aliased_io_ops = {
+    .read_with_attrs = aliased_io_read,
+    .write_with_attrs = aliased_io_write,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 8,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 8,
+    .valid.accepts = aliased_io_accepts,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
+static void aliased_io_realize(AliasedRegionState *s, const char *mr_name)
+{
+    memory_region_init_io(&s->container, OBJECT(s), &aliased_io_ops, s,
+                          mr_name, s->region_size);
+    address_space_init(&s->io.as, s->mr, memory_region_name(s->mr));
+}
 
 static void aliased_mem_realize(AliasedRegionState *s, const char *mr_name)
 {
@@ -63,7 +107,15 @@ static void aliased_mr_realize(DeviceState *dev, Error **errp)
     span = size_to_str(s->span_size);
     name = g_strdup_printf("masked %s [span of %s]",
                            memory_region_name(s->mr), span);
-    aliased_mem_realize(s, name);
+
+    if (memory_region_is_ram(s->mr)
+            || memory_region_is_ram_device(s->mr)
+            || memory_region_is_romd(s->mr)) {
+        aliased_mem_realize(s, name);
+    } else {
+        /* I/O or container */
+        aliased_io_realize(s, name);
+    }
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->container);
 }
 

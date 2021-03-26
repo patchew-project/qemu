@@ -1,7 +1,7 @@
 /*
  * Aliased memory regions
  *
- * Copyright (c) 2018  Philippe Mathieu-Daudé <f4bug@amsat.org>
+ * Copyright (c) 2018, 2020  Philippe Mathieu-Daudé <f4bug@amsat.org>
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -24,6 +24,10 @@ struct AliasedRegionState {
     uint64_t region_size;
     uint64_t span_size;
     MemoryRegion *mr;
+
+    struct {
+        AddressSpace as;
+    } io;
 
     struct {
         size_t count;
