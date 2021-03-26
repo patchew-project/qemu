@@ -805,6 +805,15 @@ typedef struct Qcow2InFlightWriteCounter {
      * 0 the entry is removed from s->inflight_writes_counters.
      */
     uint64_t inflight_writes_cnt;
+
+    /* For convenience, keep cluster_index here */
+    int64_t cluster_index;
+
+    /* Cluster refcount is known to be zero */
+    bool refcount_zero;
+
+    /* Cluster refcount was made zero with this discard-type */
+    enum qcow2_discard_type last_discard_type;
 } Qcow2InFlightWriteCounter;
 
 /* Find Qcow2InFlightWriteCounter corresponding to @cluster_index */
@@ -845,6 +854,7 @@ update_inflight_write_cnt(BlockDriverState *bs, int64_t offset, int64_t length,
         if (!decrease) {
             if (!infl) {
                 infl = g_new0(Qcow2InFlightWriteCounter, 1);
+                infl->cluster_index = cluster_index;
                 g_hash_table_insert(s->inflight_writes_counters,
                                     g_memdup(&cluster_index,
                                              sizeof(cluster_index)), infl);
@@ -857,10 +867,40 @@ update_inflight_write_cnt(BlockDriverState *bs, int64_t offset, int64_t length,
         assert(infl);
         assert(infl->inflight_writes_cnt >= 1);
 
-        infl->inflight_writes_cnt--;
+        if (infl->inflight_writes_cnt > 1) {
+            infl->inflight_writes_cnt--;
+            continue;
+        }
 
-        if (infl->inflight_writes_cnt == 0) {
+        if (!infl->refcount_zero) {
+            /*
+             * All in-flight writes are finished, but cluster is still in use,
+             * nothing to do now.
+             */
             g_hash_table_remove(s->inflight_writes_counters, &cluster_index);
+            continue;
+        }
+
+        /*
+         * OK. At this point there no more refcounts and no more in-flight
+         * writes. Cluster is almost free. But we probably want to do one more
+         * in-flight operation: discard. So we keep inflight_writes_cnt = 1
+         * during the discard.
+         */
+        if (s->discard_passthrough[infl->last_discard_type]) {
+            int64_t cluster_offset = cluster_index << s->cluster_bits;
+            if (s->cache_discards) {
+                update_refcount_discard(bs, cluster_offset, s->cluster_size);
+            } else {
+                /* Discard is optional, ignore the return value */
+                bdrv_pdiscard(bs->file, cluster_offset, s->cluster_size);
+            }
+        }
+
+        g_hash_table_remove(s->inflight_writes_counters, &cluster_index);
+
+        if (cluster_index < s->free_cluster_index) {
+            s->free_cluster_index = cluster_index;
         }
     }
 }
@@ -970,6 +1010,7 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
         s->set_refcount(refcount_block, block_index, refcount);
 
         if (refcount == 0) {
+            Qcow2InFlightWriteCounter *infl;
             void *table;
 
             table = qcow2_cache_is_table_offset(s->refcount_block_cache,
@@ -986,8 +1027,24 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
                 qcow2_cache_discard(s->l2_table_cache, table);
             }
 
-            if (s->discard_passthrough[type]) {
-                update_refcount_discard(bs, cluster_offset, s->cluster_size);
+            infl = find_infl_wr(s, cluster_index);
+            if (infl) {
+                /*
+                 * Refcount becomes zero, but there are still in-flight writes
+                 * to the cluster. update_inflight_write_cnt() will take care
+                 * of discarding the cluster and updating s->free_cluster_index.
+                 */
+                infl->refcount_zero = true;
+                infl->last_discard_type = type;
+            } else {
+                /* Refcount is zero and no in-fligth writes. Cluster is free. */
+                if (cluster_index < s->free_cluster_index) {
+                    s->free_cluster_index = cluster_index;
+                }
+                if (s->discard_passthrough[type]) {
+                    update_refcount_discard(bs, cluster_offset,
+                                            s->cluster_size);
+                }
             }
         }
     }
@@ -1049,7 +1106,7 @@ int qcow2_update_cluster_refcount(BlockDriverState *bs,
 
 
 /*
- * Cluster is free when its refcount is 0
+ * Cluster is free when its refcount is 0 and there is no in-flight writes
  *
  * Return < 0 if failed to get refcount
  *          0 if cluster is not free
@@ -1057,6 +1114,7 @@ int qcow2_update_cluster_refcount(BlockDriverState *bs,
  */
 static int is_cluster_free(BlockDriverState *bs, int64_t cluster_index)
 {
+    BDRVQcow2State *s = bs->opaque;
     int ret;
     uint64_t refcount;
 
@@ -1065,7 +1123,7 @@ static int is_cluster_free(BlockDriverState *bs, int64_t cluster_index)
         return ret;
     }
 
-    return refcount == 0;
+    return refcount == 0 && !find_infl_wr(s, cluster_index);
 }
 
 /* return < 0 if error */
