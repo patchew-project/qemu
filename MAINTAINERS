@@ -2097,6 +2097,12 @@ S: Maintained
 F: include/hw/misc/empty_slot.h
 F: hw/misc/empty_slot.c
 
+Aliased memory region
+M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+S: Maintained
+F: include/hw/misc/aliased_region.h
+F: hw/misc/aliased_region.c
+
 Standard VGA
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Maintained
