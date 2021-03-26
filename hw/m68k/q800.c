@@ -40,6 +40,7 @@
 #include "standard-headers/asm-m68k/bootinfo.h"
 #include "standard-headers/asm-m68k/bootinfo-mac.h"
 #include "bootinfo.h"
+#include "hw/misc/aliased_region.h"
 #include "hw/misc/mac_via.h"
 #include "hw/input/adb.h"
 #include "hw/nubus/mac-nubus-bridge.h"
@@ -214,9 +215,6 @@ static void q800_init(MachineState *machine)
     int32_t initrd_size;
     MemoryRegion *rom;
     MemoryRegion *macio;
-    MemoryRegion *io;
-    const int io_slice_nb = (IO_SIZE / IO_SLICE);
-    int i;
     ram_addr_t ram_size = machine->ram_size;
     const char *kernel_filename = machine->kernel_filename;
     const char *initrd_filename = machine->initrd_filename;
@@ -258,15 +256,8 @@ static void q800_init(MachineState *machine)
      * Memory from IO_BASE to IO_BASE + IO_SLICE is repeated
      * from IO_BASE + IO_SLICE to IO_BASE + IO_SIZE
      */
-    io = g_new(MemoryRegion, io_slice_nb);
-    for (i = 0; i < io_slice_nb; i++) {
-        char *name = g_strdup_printf("mac_m68k.io[%d]", i);
-
-        memory_region_init_alias(&io[i], NULL, name, macio, 0, IO_SLICE);
-        memory_region_add_subregion(get_system_memory(),
-                                    IO_BASE + i * IO_SLICE, &io[i]);
-        g_free(name);
-    }
+    memory_region_add_subregion_aliased(get_system_memory(),
+                                        IO_BASE, IO_SIZE, macio, IO_SLICE);
 
     /* IRQ Glue */
     glue = qdev_new(TYPE_GLUE);

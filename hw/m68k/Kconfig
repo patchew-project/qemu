@@ -23,6 +23,7 @@ config Q800
     select ESP
     select DP8393X
     select OR_IRQ
+    select ALIASED_REGION
 
 config M68K_VIRT
     bool
