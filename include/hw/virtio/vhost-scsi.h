@@ -32,4 +32,7 @@ struct VHostSCSI {
     VHostSCSICommon parent_obj;
 };
 
+void vhost_scsi_device_event(DeviceState *dev, int event, int queue,
+                             Error **errp);
+
 #endif

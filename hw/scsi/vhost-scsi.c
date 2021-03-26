@@ -163,6 +163,12 @@ static const VMStateDescription vmstate_virtio_vhost_scsi = {
     .pre_save = vhost_scsi_pre_save,
 };
 
+void vhost_scsi_device_event(DeviceState *dev, int event, int queue,
+                             Error **errp)
+{
+    virtio_device_event(dev, event, queue, true, errp);
+}
+
 static void vhost_scsi_realize(DeviceState *dev, Error **errp)
 {
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(dev);
