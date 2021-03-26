@@ -75,7 +75,6 @@ struct PFlashCFI02 {
     uint32_t nb_blocs[PFLASH_MAX_ERASE_REGIONS];
     uint32_t sector_len[PFLASH_MAX_ERASE_REGIONS];
     uint32_t chip_len;
-    uint8_t mappings;
     uint8_t width;
     uint8_t be;
     int wcycle; /* if 0, the flash is read normally */
@@ -92,13 +91,6 @@ struct PFlashCFI02 {
     uint16_t unlock_addr1;
     uint8_t cfi_table[0x4d];
     QEMUTimer timer;
-    /*
-     * The device replicates the flash memory across its memory space.  Emulate
-     * that by having a container (.mem) filled with an array of aliases
-     * (.mem_mappings) pointing to the flash memory (.orig_mem).
-     */
-    MemoryRegion mem;
-    MemoryRegion *mem_mappings;    /* array; one per mapping */
     MemoryRegion orig_mem;
     bool rom_mode;
     int read_counter; /* used for lazy switch-back to rom mode */
@@ -156,23 +148,6 @@ static inline void reset_dq3(PFlashCFI02 *pfl)
 static inline void toggle_dq2(PFlashCFI02 *pfl)
 {
     pfl->status ^= 0x04;
-}
-
-/*
- * Set up replicated mappings of the same region.
- */
-static void pflash_setup_mappings(PFlashCFI02 *pfl)
-{
-    unsigned i;
-    hwaddr size = memory_region_size(&pfl->orig_mem);
-
-    memory_region_init(&pfl->mem, OBJECT(pfl), "pflash", pfl->mappings * size);
-    pfl->mem_mappings = g_new(MemoryRegion, pfl->mappings);
-    for (i = 0; i < pfl->mappings; ++i) {
-        memory_region_init_alias(&pfl->mem_mappings[i], OBJECT(pfl),
-                                 "pflash-alias", &pfl->orig_mem, 0, size);
-        memory_region_add_subregion(&pfl->mem, i * size, &pfl->mem_mappings[i]);
-    }
 }
 
 static void pflash_reset_state_machine(PFlashCFI02 *pfl)
@@ -917,12 +892,7 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     pfl->sector_erase_map = bitmap_new(pfl->total_sectors);
 
     pfl->rom_mode = true;
-    if (pfl->mappings > 1) {
-        pflash_setup_mappings(pfl);
-        sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->mem);
-    } else {
-        sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->orig_mem);
-    }
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->orig_mem);
 
     timer_init_ns(&pfl->timer, QEMU_CLOCK_VIRTUAL, pflash_timer, pfl);
     pfl->status = 0;
@@ -950,7 +920,6 @@ static Property pflash_cfi02_properties[] = {
     DEFINE_PROP_UINT32("num-blocks3", PFlashCFI02, nb_blocs[3], 0),
     DEFINE_PROP_UINT32("sector-length3", PFlashCFI02, sector_len[3], 0),
     DEFINE_PROP_UINT8("width", PFlashCFI02, width, 0),
-    DEFINE_PROP_UINT8("mappings", PFlashCFI02, mappings, 0),
     DEFINE_PROP_UINT8("big-endian", PFlashCFI02, be, 0),
     DEFINE_PROP_UINT16("id0", PFlashCFI02, ident0, 0),
     DEFINE_PROP_UINT16("id1", PFlashCFI02, ident1, 0),
@@ -1008,6 +977,7 @@ PFlashCFI02 *pflash_cfi02_register(hwaddr base,
 {
     DeviceState *dev = qdev_new(TYPE_PFLASH_CFI02);
 
+    assert(nb_mappings <= 1);
     if (blk) {
         qdev_prop_set_drive(dev, "drive", blk);
     }
@@ -1015,7 +985,6 @@ PFlashCFI02 *pflash_cfi02_register(hwaddr base,
     qdev_prop_set_uint32(dev, "num-blocks", size / sector_len);
     qdev_prop_set_uint32(dev, "sector-length", sector_len);
     qdev_prop_set_uint8(dev, "width", width);
-    qdev_prop_set_uint8(dev, "mappings", nb_mappings);
     qdev_prop_set_uint8(dev, "big-endian", !!be);
     qdev_prop_set_uint16(dev, "id0", id0);
     qdev_prop_set_uint16(dev, "id1", id1);
