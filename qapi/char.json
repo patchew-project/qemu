@@ -395,10 +395,12 @@
 #
 # Configuration info for vdagent.
 #
+# @mouse: enable/disable mouse, default is enabled.
+#
 # Since: 6.0
 ##
 { 'struct': 'ChardevVDAgent',
-  'data': { },
+  'data': { '*mouse'    : 'bool' },
   'base': 'ChardevCommon' }
 
 ##
