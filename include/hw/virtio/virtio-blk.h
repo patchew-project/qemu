@@ -92,5 +92,7 @@ typedef struct MultiReqBuffer {
 
 bool virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq);
 void virtio_blk_process_queued_requests(VirtIOBlock *s, bool is_bh);
+void virtio_blk_device_event(DeviceState *dev, int event, int queue,
+                             Error **errp);
 
 #endif

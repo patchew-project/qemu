@@ -1118,6 +1118,15 @@ static int virtio_blk_load_device(VirtIODevice *vdev, QEMUFile *f,
     return 0;
 }
 
+void virtio_blk_device_event(DeviceState *dev, int event, int queue,
+                             Error **errp)
+{
+    VirtIOBlock *s = VIRTIO_BLK(dev);
+    bool irqfd = s->dataplane_started && !s->dataplane_disabled;
+
+    virtio_device_event(dev, event, queue, irqfd, errp);
+}
+
 static void virtio_resize_cb(void *opaque)
 {
     VirtIODevice *vdev = opaque;

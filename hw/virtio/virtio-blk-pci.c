@@ -47,6 +47,15 @@ static Property virtio_blk_pci_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void virtio_blk_pci_event(DeviceState *dev, int event, int queue,
+                                 Error **errp)
+{
+    VirtIOBlkPCI *vblk = VIRTIO_BLK_PCI(dev);
+    DeviceState *vdev = DEVICE(&vblk->vdev);
+
+    virtio_blk_device_event(vdev, event, queue, errp);
+}
+
 static void virtio_blk_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     VirtIOBlkPCI *dev = VIRTIO_BLK_PCI(vpci_dev);
@@ -72,6 +81,7 @@ static void virtio_blk_pci_class_init(ObjectClass *klass, void *data)
 
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     device_class_set_props(dc, virtio_blk_pci_properties);
+    dc->event = virtio_blk_pci_event;
     k->realize = virtio_blk_pci_realize;
     pcidev_k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
     pcidev_k->device_id = PCI_DEVICE_ID_VIRTIO_BLOCK;
