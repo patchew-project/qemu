@@ -799,6 +799,92 @@ found:
     }
 }
 
+typedef struct Qcow2InFlightWriteCounter {
+    /*
+     * Number of in-flight writes to the cluster, always > 0, as when it becomes
+     * 0 the entry is removed from s->inflight_writes_counters.
+     */
+    uint64_t inflight_writes_cnt;
+} Qcow2InFlightWriteCounter;
+
+/* Find Qcow2InFlightWriteCounter corresponding to @cluster_index */
+static Qcow2InFlightWriteCounter *find_infl_wr(BDRVQcow2State *s,
+                                               int64_t cluster_index)
+{
+    Qcow2InFlightWriteCounter *infl;
+
+    if (!s->inflight_writes_counters) {
+        return NULL;
+    }
+
+    infl = g_hash_table_lookup(s->inflight_writes_counters, &cluster_index);
+
+    if (infl) {
+        assert(infl->inflight_writes_cnt > 0);
+    }
+
+    return infl;
+}
+
+/*
+ * The function is intended to be called with decrease=false before writing
+ * guest data and with decrease=true after write finish.
+ */
+static void coroutine_fn
+update_inflight_write_cnt(BlockDriverState *bs, int64_t offset, int64_t length,
+                          bool decrease)
+{
+    BDRVQcow2State *s = bs->opaque;
+    int64_t start, last, cluster_index;
+
+    start = start_of_cluster(s, offset) >> s->cluster_bits;
+    last = start_of_cluster(s, offset + length - 1) >> s->cluster_bits;
+    for (cluster_index = start; cluster_index <= last; cluster_index++) {
+        Qcow2InFlightWriteCounter *infl = find_infl_wr(s, cluster_index);
+
+        if (!decrease) {
+            if (!infl) {
+                infl = g_new0(Qcow2InFlightWriteCounter, 1);
+                g_hash_table_insert(s->inflight_writes_counters,
+                                    g_memdup(&cluster_index,
+                                             sizeof(cluster_index)), infl);
+            }
+            infl->inflight_writes_cnt++;
+            continue;
+        }
+
+        /* decrease */
+        assert(infl);
+        assert(infl->inflight_writes_cnt >= 1);
+
+        infl->inflight_writes_cnt--;
+
+        if (infl->inflight_writes_cnt == 0) {
+            g_hash_table_remove(s->inflight_writes_counters, &cluster_index);
+        }
+    }
+}
+
+/*
+ * Works both with locked and unlocked s->lock. It just doesn't touch s->lock in
+ * contrast to qcow2_inflight_writes_dec()
+ */
+void qcow2_inflight_writes_inc(BlockDriverState *bs, int64_t offset,
+                               int64_t length)
+{
+    update_inflight_write_cnt(bs, offset, length, false);
+}
+
+/*
+ * Called with s->lock not locked by caller. Will take s->lock only if need to
+ * actually discard some clusters.
+ */
+void qcow2_inflight_writes_dec(BlockDriverState *bs, int64_t offset,
+                               int64_t length)
+{
+    update_inflight_write_cnt(bs, offset, length, true);
+}
+
 /* XXX: cache several refcount block clusters ? */
 /* @addend is the absolute value of the addend; if @decrease is set, @addend
  * will be subtracted from the current refcount, otherwise it will be added */

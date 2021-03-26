@@ -1834,6 +1834,8 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
 #endif
 
     qemu_co_queue_init(&s->thread_task_queue);
+    s->inflight_writes_counters =
+        g_hash_table_new_full(g_int64_hash, g_int64_equal, g_free, g_free);
 
     return ret;
 
@@ -2709,6 +2711,9 @@ static void qcow2_close(BlockDriverState *bs)
     g_free(s->image_data_file);
     g_free(s->image_backing_file);
     g_free(s->image_backing_format);
+
+    assert(g_hash_table_size(s->inflight_writes_counters) == 0);
+    g_hash_table_unref(s->inflight_writes_counters);
 
     if (has_data_file(bs)) {
         bdrv_unref_child(bs, s->data_file);
