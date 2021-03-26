@@ -887,14 +887,15 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
             void *table;
 
             table = qcow2_cache_is_table_offset(s->refcount_block_cache,
-                                                offset);
+                                                cluster_offset);
             if (table != NULL) {
                 qcow2_cache_put(s->refcount_block_cache, &refcount_block);
                 old_table_index = -1;
                 qcow2_cache_discard(s->refcount_block_cache, table);
             }
 
-            table = qcow2_cache_is_table_offset(s->l2_table_cache, offset);
+            table = qcow2_cache_is_table_offset(s->l2_table_cache,
+                                                cluster_offset);
             if (table != NULL) {
                 qcow2_cache_discard(s->l2_table_cache, table);
             }
