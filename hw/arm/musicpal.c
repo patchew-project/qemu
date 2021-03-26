@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "cpu.h"
 #include "hw/sysbus.h"
@@ -1640,6 +1641,7 @@ static void musicpal_init(MachineState *machine)
     /* Register flash */
     dinfo = drive_get(IF_PFLASH, 0, 0);
     if (dinfo) {
+        static const size_t sector_size = 64 * KiB;
         BlockBackend *blk = blk_by_legacy_dinfo(dinfo);
 
         flash_size = blk_getlength(blk);
@@ -1649,17 +1651,30 @@ static void musicpal_init(MachineState *machine)
             exit(1);
         }
 
+        dev = qdev_new(TYPE_PFLASH_CFI02);
+        qdev_prop_set_drive(dev, "drive", blk);
+        qdev_prop_set_uint32(dev, "num-blocks", flash_size / sector_size);
+        qdev_prop_set_uint32(dev, "sector-length", sector_size);
+        qdev_prop_set_uint8(dev, "width", 2); /* 16-bit */
+        qdev_prop_set_uint8(dev, "mappings", MP_FLASH_SIZE_MAX / flash_size);
+        qdev_prop_set_uint8(dev, "big-endian", 0);
+        qdev_prop_set_uint16(dev, "id0", 0x00bf);
+        qdev_prop_set_uint16(dev, "id1", 0x236d);
+        qdev_prop_set_uint16(dev, "id2", 0x0000);
+        qdev_prop_set_uint16(dev, "id3", 0x0000);
+        qdev_prop_set_uint16(dev, "unlock-addr0", 0x5555);
+        qdev_prop_set_uint16(dev, "unlock-addr1", 0x2aaa);
+        qdev_prop_set_string(dev, "name", "musicpal.flash");
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+        sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0,
+                        0x100000000ULL - MP_FLASH_SIZE_MAX);
+
         /*
          * The original U-Boot accesses the flash at 0xFE000000 instead of
          * 0xFF800000 (if there is 8 MB flash). So remap flash access if the
          * image is smaller than 32 MB.
          */
-        pflash_cfi02_register(0x100000000ULL - MP_FLASH_SIZE_MAX,
-                              "musicpal.flash", flash_size,
-                              blk, 0x10000,
-                              MP_FLASH_SIZE_MAX / flash_size,
-                              2, 0x00BF, 0x236D, 0x0000, 0x0000,
-                              0x5555, 0x2AAA, 0);
     }
     sysbus_create_simple(TYPE_MV88W8618_FLASHCFG, MP_FLASHCFG_BASE, NULL);
 
