@@ -163,4 +163,7 @@ void virtio_scsi_dataplane_setup(VirtIOSCSI *s, Error **errp);
 int virtio_scsi_dataplane_start(VirtIODevice *s);
 void virtio_scsi_dataplane_stop(VirtIODevice *s);
 
+void virtio_scsi_device_event(DeviceState *dev, int event, int queue,
+                              Error **errp);
+
 #endif /* QEMU_VIRTIO_SCSI_H */

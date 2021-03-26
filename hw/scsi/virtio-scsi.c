@@ -962,6 +962,15 @@ static struct SCSIBusInfo virtio_scsi_scsi_info = {
     .load_request = virtio_scsi_load_request,
 };
 
+void virtio_scsi_device_event(DeviceState *dev, int event, int queue,
+                              Error **errp)
+{
+    VirtIOSCSI *s = VIRTIO_SCSI(dev);
+    bool irqfd = s->dataplane_started && !s->dataplane_fenced;
+
+    virtio_device_event(dev, event, queue, irqfd, errp);
+}
+
 void virtio_scsi_common_realize(DeviceState *dev,
                                 VirtIOHandleOutput ctrl,
                                 VirtIOHandleOutput evt,
