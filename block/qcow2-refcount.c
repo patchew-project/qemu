@@ -962,13 +962,32 @@ int qcow2_update_cluster_refcount(BlockDriverState *bs,
 /* cluster allocation functions */
 
 
+/*
+ * Cluster is free when its refcount is 0
+ *
+ * Return < 0 if failed to get refcount
+ *          0 if cluster is not free
+ *          1 if cluster is free
+ */
+static int is_cluster_free(BlockDriverState *bs, int64_t cluster_index)
+{
+    int ret;
+    uint64_t refcount;
+
+    ret = qcow2_get_refcount(bs, cluster_index, &refcount);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return refcount == 0;
+}
 
 /* return < 0 if error */
 static int64_t alloc_clusters_noref(BlockDriverState *bs, uint64_t size,
                                     uint64_t max)
 {
     BDRVQcow2State *s = bs->opaque;
-    uint64_t i, nb_clusters, refcount;
+    uint64_t i, nb_clusters;
     int ret;
 
     /* We can't allocate clusters if they may still be queued for discard. */
@@ -980,11 +999,11 @@ static int64_t alloc_clusters_noref(BlockDriverState *bs, uint64_t size,
 retry:
     for(i = 0; i < nb_clusters; i++) {
         uint64_t next_cluster_index = s->free_cluster_index++;
-        ret = qcow2_get_refcount(bs, next_cluster_index, &refcount);
 
+        ret = is_cluster_free(bs, next_cluster_index);
         if (ret < 0) {
             return ret;
-        } else if (refcount != 0) {
+        } else if (!ret) {
             goto retry;
         }
     }
@@ -1031,7 +1050,7 @@ int64_t qcow2_alloc_clusters_at(BlockDriverState *bs, uint64_t offset,
                                 int64_t nb_clusters)
 {
     BDRVQcow2State *s = bs->opaque;
-    uint64_t cluster_index, refcount;
+    uint64_t cluster_index;
     uint64_t i;
     int ret;
 
@@ -1044,10 +1063,10 @@ int64_t qcow2_alloc_clusters_at(BlockDriverState *bs, uint64_t offset,
         /* Check how many clusters there are free */
         cluster_index = offset >> s->cluster_bits;
         for(i = 0; i < nb_clusters; i++) {
-            ret = qcow2_get_refcount(bs, cluster_index++, &refcount);
+            ret = is_cluster_free(bs, cluster_index++);
             if (ret < 0) {
                 return ret;
-            } else if (refcount != 0) {
+            } else if (!ret) {
                 break;
             }
         }
