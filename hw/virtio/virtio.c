@@ -30,6 +30,8 @@
 #include "sysemu/runstate.h"
 #include "standard-headers/linux/virtio_ids.h"
 
+/* #define DEBUG_VIRTIO_EVENT */
+
 /*
  * The alignment to use between consumer and producer parts of vring.
  * x86 pagesize again. This is the default, used by transports like PCI
@@ -2570,6 +2572,68 @@ void virtio_notify(VirtIODevice *vdev, VirtQueue *vq)
 
     trace_virtio_notify(vdev, vq);
     virtio_irq(vq);
+}
+
+static void virtio_device_event_call(VirtQueue *vq, bool eventfd,
+                                     Error **errp)
+{
+#ifdef DEBUG_VIRTIO_EVENT
+    printf("The 'call' event is triggered for path=%s, queue=%d, irqfd=%d.\n",
+           object_get_canonical_path(OBJECT(vq->vdev)),
+           vq->queue_index, eventfd);
+#endif
+
+    if (eventfd) {
+        virtio_set_isr(vq->vdev, 0x1);
+        event_notifier_set(&vq->guest_notifier);
+    } else {
+        virtio_irq(vq);
+    }
+}
+
+static void virtio_device_event_kick(VirtQueue *vq, bool eventfd,
+                                     Error **errp)
+{
+#ifdef DEBUG_VIRTIO_EVENT
+    printf("The 'kick' event is triggered for path=%s, queue=%d.\n",
+           object_get_canonical_path(OBJECT(vq->vdev)), vq->queue_index);
+#endif
+
+    virtio_queue_notify(vq->vdev, virtio_get_queue_index(vq));
+}
+
+typedef void (VirtIOEvent)(VirtQueue *vq, bool eventfd, Error **errp);
+
+static VirtIOEvent *virtio_event_funcs[DEVICE_EVENT_MAX] = {
+    [DEVICE_EVENT_CALL] = virtio_device_event_call,
+    [DEVICE_EVENT_KICK] = virtio_device_event_kick
+};
+
+void virtio_device_event(DeviceState *dev, int event, int queue,
+                         bool eventfd, Error **errp)
+{
+    struct VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    int num = virtio_get_num_queues(vdev);
+    VirtQueue *vq;
+
+    assert(event < DEVICE_EVENT_MAX);
+
+    if (vdev->broken) {
+        error_setg(errp, "Broken device");
+        return;
+    }
+
+    if (queue < 0 || queue >= num) {
+        error_setg(errp, "Invalid queue %d", queue);
+        return;
+    }
+
+    vq = &vdev->vq[queue];
+
+    if (virtio_event_funcs[event])
+        virtio_event_funcs[event](vq, eventfd, errp);
+    else
+        error_setg(errp, "The event is not supported");
 }
 
 void virtio_notify_config(VirtIODevice *vdev)
