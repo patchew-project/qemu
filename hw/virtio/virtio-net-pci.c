@@ -46,6 +46,15 @@ static Property virtio_net_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void virtio_net_pci_event(DeviceState *dev, int event, int queue,
+                                 Error **errp)
+{
+    VirtIONetPCI *vnet = VIRTIO_NET_PCI(dev);
+    DeviceState *vdev = DEVICE(&vnet->vdev);
+
+    virtio_net_device_event(vdev, event, queue, errp);
+}
+
 static void virtio_net_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     DeviceState *qdev = DEVICE(vpci_dev);
@@ -77,6 +86,7 @@ static void virtio_net_pci_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     device_class_set_props(dc, virtio_net_properties);
+    dc->event = virtio_net_pci_event;
     vpciklass->realize = virtio_net_pci_realize;
 }
 

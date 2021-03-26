@@ -214,4 +214,7 @@ struct VirtIONet {
 void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
                                    const char *type);
 
+void virtio_net_device_event(DeviceState *dev, int event, int queue,
+                             Error **errp);
+
 #endif

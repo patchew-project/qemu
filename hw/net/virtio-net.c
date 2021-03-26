@@ -3195,6 +3195,15 @@ static bool failover_hide_primary_device(DeviceListener *listener,
     return qatomic_read(&n->failover_primary_hidden);
 }
 
+void virtio_net_device_event(DeviceState *dev, int event, int queue,
+                             Error **errp)
+{
+    VirtIONet *n = VIRTIO_NET(dev);
+    bool irqfd = n->vhost_started;
+
+    virtio_device_event(dev, event, queue, irqfd, errp);
+}
+
 static void virtio_net_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
