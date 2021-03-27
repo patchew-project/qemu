@@ -1227,6 +1227,18 @@ static void memory_region_priority_getter(Object *obj, Visitor *v,
     visit_type_int32(v, name, &value, errp);
 }
 
+static void memory_region_priority_setter(Object *obj, Visitor *v,
+                                          const char *name, void *opaque,
+                                          Error **errp)
+{
+    MemoryRegion *mr = MEMORY_REGION(obj);
+    int32_t priority;
+
+    if (visit_type_int32(v, name, &priority, errp)) {
+        memory_region_set_priority(mr, priority);
+    }
+}
+
 static void memory_region_size_getter(Object *obj, Visitor *v,
                                       const char *name, void *opaque,
                                       Error **errp)
@@ -1272,7 +1284,7 @@ static void memory_region_initfn(Object *obj)
                                    &mr->addr, OBJ_PROP_FLAG_READ);
     object_property_add(OBJECT(mr), "priority", "int32",
                         memory_region_priority_getter,
-                        NULL, /* memory_region_priority_setter */
+                        memory_region_priority_setter,
                         NULL, NULL);
     object_property_add(OBJECT(mr), "size", "uint64",
                         memory_region_size_getter,
