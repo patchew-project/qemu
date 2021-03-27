@@ -1237,6 +1237,18 @@ static void memory_region_size_getter(Object *obj, Visitor *v,
     visit_type_uint64(v, name, &value, errp);
 }
 
+static void memory_region_size_setter(Object *obj, Visitor *v,
+                                      const char *name, void *opaque,
+                                      Error **errp)
+{
+    MemoryRegion *mr = MEMORY_REGION(obj);
+    uint64_t size;
+
+    if (visit_type_uint64(v, name, &size, errp)) {
+        memory_region_set_size(mr, size);
+    }
+}
+
 static void memory_region_initfn(Object *obj)
 {
     MemoryRegion *mr = MEMORY_REGION(obj);
@@ -1264,7 +1276,7 @@ static void memory_region_initfn(Object *obj)
                         NULL, NULL);
     object_property_add(OBJECT(mr), "size", "uint64",
                         memory_region_size_getter,
-                        NULL, /* memory_region_size_setter, */
+                        memory_region_size_setter,
                         NULL, NULL);
 }
 
