@@ -2504,6 +2504,17 @@ void memory_region_set_size(MemoryRegion *mr, uint64_t size)
     memory_region_transaction_commit();
 }
 
+void memory_region_set_priority(MemoryRegion *mr, int priority)
+{
+    if (priority == mr->priority) {
+        return;
+    }
+    memory_region_transaction_begin();
+    mr->priority = priority;
+    memory_region_update_pending = true;
+    memory_region_transaction_commit();
+}
+
 static void memory_region_readd_subregion(MemoryRegion *mr)
 {
     MemoryRegion *container = mr->container;

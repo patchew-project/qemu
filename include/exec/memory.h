@@ -1984,6 +1984,16 @@ void memory_region_set_alias_offset(MemoryRegion *mr,
                                     hwaddr offset);
 
 /**
+ * memory_region_set_priority: dynamically update the priority of a region.
+ *
+ * Dynamically updates the priority of a region.
+ *
+ * @mr: the #MemoryRegion to be updated.
+ * @priority: priority of the region.
+ */
+void memory_region_set_priority(MemoryRegion *mr, int priority);
+
+/**
  * memory_region_present: checks if an address relative to a @container
  * translates into #MemoryRegion within @container
  *
