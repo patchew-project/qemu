@@ -191,8 +191,18 @@ static uint32_t vpc_checksum(void *p, size_t size)
 
 static int vpc_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
-    if (buf_size >= 8 && !strncmp((char *)buf, "conectix", 8))
+    if (buf_size >= 8 && !strncmp((char *)buf, "conectix", 8)) {
         return 100;
+    }
+
+    /* It could be a fixed-size image without header -> check extension, too */
+    if (filename) {
+        int len = strlen(filename);
+        if (len > 4 && !strcasecmp(&filename[len - 4], ".vhd")) {
+            return 10;
+        }
+    }
+
     return 0;
 }
 
