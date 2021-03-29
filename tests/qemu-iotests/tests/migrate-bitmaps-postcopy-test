@@ -76,6 +76,9 @@ def check_bitmaps(vm, count):
 
 
 class TestDirtyBitmapPostcopyMigration(iotests.QMPTestCase):
+    discards1_sha256 = None
+    all_discards_sha256 = None
+
     def tearDown(self):
         if debug:
             self.vm_a_events += self.vm_a.get_qmp_events()
