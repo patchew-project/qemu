@@ -371,6 +371,7 @@
 #define __NR_faccessat2	(__NR_Linux + 439)
 #define __NR_process_madvise	(__NR_Linux + 440)
 #define __NR_epoll_pwait2	(__NR_Linux + 441)
+#define __NR_mount_setattr	(__NR_Linux + 442)
 
 
 #endif /* _ASM_MIPS_UNISTD_N32_H */
