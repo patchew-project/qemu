@@ -1392,15 +1392,15 @@ void test_code16(void)
     /* call the first function */
     asm volatile ("lcall %1, %2"
                   : "=a" (res)
-                  : "i" (MK_SEL(1)), "i" (&code16_func1): "memory", "cc");
+                  : "i" (MK_SEL(1)), "Ts" (&code16_func1): "memory", "cc");
     printf("func1() = 0x%08x\n", res);
     asm volatile ("lcall %2, %3"
                   : "=a" (res), "=c" (res2)
-                  : "i" (MK_SEL(1)), "i" (&code16_func2): "memory", "cc");
+                  : "i" (MK_SEL(1)), "Ts" (&code16_func2): "memory", "cc");
     printf("func2() = 0x%08x spdec=%d\n", res, res2);
     asm volatile ("lcall %1, %2"
                   : "=a" (res)
-                  : "i" (MK_SEL(1)), "i" (&code16_func3): "memory", "cc");
+                  : "i" (MK_SEL(1)), "Ts" (&code16_func3): "memory", "cc");
     printf("func3() = 0x%08x\n", res);
 }
 #endif
