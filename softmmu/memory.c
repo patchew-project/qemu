@@ -314,42 +314,6 @@ void flatview_unref(FlatView *view)
     }
 }
 
-static bool can_merge(FlatRange *r1, FlatRange *r2)
-{
-    return int128_eq(addrrange_end(r1->addr), r2->addr.start)
-        && r1->mr == r2->mr
-        && int128_eq(int128_add(int128_make64(r1->offset_in_region),
-                                r1->addr.size),
-                     int128_make64(r2->offset_in_region))
-        && r1->dirty_log_mask == r2->dirty_log_mask
-        && r1->romd_mode == r2->romd_mode
-        && r1->readonly == r2->readonly
-        && r1->nonvolatile == r2->nonvolatile;
-}
-
-/* Attempt to simplify a view by merging adjacent ranges */
-static void flatview_simplify(FlatView *view)
-{
-    unsigned i, j, k;
-
-    i = 0;
-    while (i < view->nr) {
-        j = i + 1;
-        while (j < view->nr
-               && can_merge(&view->ranges[j-1], &view->ranges[j])) {
-            int128_addto(&view->ranges[i].addr.size, view->ranges[j].addr.size);
-            ++j;
-        }
-        ++i;
-        for (k = i; k < j; k++) {
-            memory_region_unref(view->ranges[k].mr);
-        }
-        memmove(&view->ranges[i], &view->ranges[j],
-                (view->nr - j) * sizeof(view->ranges[j]));
-        view->nr -= j - i;
-    }
-}
-
 static bool memory_region_big_endian(MemoryRegion *mr)
 {
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -735,7 +699,6 @@ static FlatView *generate_memory_topology(MemoryRegion *mr)
                              addrrange_make(int128_zero(), int128_2_64()),
                              false, false);
     }
-    flatview_simplify(view);
 
     view->dispatch = address_space_dispatch_new(view);
     for (i = 0; i < view->nr; i++) {
