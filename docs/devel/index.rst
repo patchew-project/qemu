@@ -32,6 +32,7 @@ Contents:
    tcg-icount
    tracing
    multi-thread-tcg
+   replay
    tcg-plugins
    bitops
    reset

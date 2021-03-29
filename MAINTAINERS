@@ -2852,7 +2852,7 @@ F: replay/*
 F: block/blkreplay.c
 F: net/filter-replay.c
 F: include/sysemu/replay.h
-F: docs/replay.txt
+F: docs/devel/replay.rst
 F: stubs/replay.c
 F: tests/acceptance/replay_kernel.py
 F: tests/acceptance/reverse_debugging.py
