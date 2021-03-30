@@ -66,5 +66,5 @@ static XtensaConfig $NAME __attribute__((unused)) = {
 REGISTER_CORE($NAME)
 EOF
 
-grep -q core-${NAME}.o "$BASE"/Makefile.objs || \
-    echo "obj-y += core-${NAME}.o" >> "$BASE"/Makefile.objs
+grep -q core-${NAME}.c "$BASE"/meson.build || \
+    echo "xtensa_ss.add(files('core-${NAME}.c'))" >> "$BASE"/meson.build
