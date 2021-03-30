@@ -6,6 +6,7 @@ ENV PACKAGES \
     bzip2 \
     diffutils \
     findutils \
+    flex \
     gcc \
     gettext \
     git \
