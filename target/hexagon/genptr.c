@@ -26,8 +26,9 @@
 #include "translate.h"
 #include "macros.h"
 #include "gen_tcg.h"
+#include "genptr.h"
 
-static inline TCGv gen_read_preg(TCGv pred, uint8_t num)
+TCGv gen_read_preg(TCGv pred, uint8_t num)
 {
     tcg_gen_mov_tl(pred, hex_pred[num]);
     return pred;
@@ -54,7 +55,7 @@ static inline void gen_log_predicated_reg_write(int rnum, TCGv val,
     tcg_temp_free(slot_mask);
 }
 
-static inline void gen_log_reg_write(int rnum, TCGv val)
+void gen_log_reg_write(int rnum, TCGv val)
 {
     tcg_gen_mov_tl(hex_new_value[rnum], val);
 #if HEX_DEBUG
@@ -118,7 +119,7 @@ static void gen_log_reg_write_pair(int rnum, TCGv_i64 val)
 #endif
 }
 
-static inline void gen_log_pred_write(int pnum, TCGv val)
+void gen_log_pred_write(int pnum, TCGv val)
 {
     TCGv zero = tcg_const_tl(0);
     TCGv base_val = tcg_temp_new();
