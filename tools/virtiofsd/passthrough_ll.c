@@ -175,7 +175,7 @@ struct lo_data {
     int user_killpriv_v2, killpriv_v2;
     /* If set, virtiofsd is responsible for setting umask during creation */
     bool change_umask;
-    int user_posix_acl;
+    int user_posix_acl, posix_acl;
 };
 
 static const struct fuse_opt lo_opts[] = {
@@ -716,16 +716,19 @@ static void lo_init(void *userdata, struct fuse_conn_info *conn)
          * now. It will fail later in fuse_lowlevel.c
          */
         if (!(conn->capable & FUSE_CAP_POSIX_ACL) ||
-            !(conn->capable & FUSE_CAP_DONT_MASK)) {
+            !(conn->capable & FUSE_CAP_DONT_MASK) ||
+            !(conn->capable & FUSE_CAP_SETXATTR_V2)) {
             fuse_log(FUSE_LOG_ERR, "lo_init: Can not enable posix acl."
-                     " kernel does not support FUSE_POSIX_ACL or FUSE_DONT_MASK"
-                     " capability.\n");
+                     " kernel does not support FUSE_POSIX_ACL, FUSE_DONT_MASK"
+                     " or FUSE_SETXATTR_V2 capability.\n");
         } else {
             fuse_log(FUSE_LOG_DEBUG, "lo_init: enabling posix acl\n");
         }
 
-        conn->want |= FUSE_CAP_POSIX_ACL | FUSE_CAP_DONT_MASK;
+        conn->want |= FUSE_CAP_POSIX_ACL | FUSE_CAP_DONT_MASK |
+                      FUSE_CAP_SETXATTR_V2;
         lo->change_umask = true;
+        lo->posix_acl = true;
     } else {
         /* User either did not specify anything or wants it disabled */
         fuse_log(FUSE_LOG_DEBUG, "lo_init: disabling posix_acl\n");
@@ -3100,12 +3103,49 @@ static void lo_setxattr(fuse_req_t req, fuse_ino_t ino, const char *in_name,
 
     sprintf(procname, "%i", inode->fd);
     if (S_ISREG(inode->filetype) || S_ISDIR(inode->filetype)) {
+        bool switched_creds = false;
+        struct lo_cred old = {};
+
         fd = openat(lo->proc_self_fd, procname, O_RDONLY);
         if (fd < 0) {
             saverr = errno;
             goto out;
         }
+
+        /*
+         * If we are setting posix access acl and if SGID needs to be
+         * cleared, then switch to caller's gid and drop CAP_FSETID
+         * and that should make sure host kernel clears SGID.
+         *
+         * This probably will not work when we support idmapped mounts.
+         * In that case we will need to find a non-root gid and switch
+         * to it. (Instead of gid in request). Fix it when we support
+         * idmapped mounts.
+         */
+        if (lo->posix_acl && !strcmp(name, "system.posix_acl_access")
+            && (extra_flags & FUSE_SETXATTR_ACL_KILL_SGID)) {
+            ret = lo_change_cred(req, &old, false);
+            if (ret) {
+                saverr = ret;
+                goto out;
+            }
+            ret = drop_effective_cap("FSETID", NULL);
+            if (ret != 0) {
+                lo_restore_cred(&old, false);
+                saverr = ret;
+                goto out;
+            }
+            switched_creds = true;
+        }
+
         ret = fsetxattr(fd, name, value, size, flags);
+
+        if (switched_creds) {
+            if (gain_effective_cap("FSETID")) {
+                fuse_log(FUSE_LOG_ERR, "Failed to gain CAP_FSETID\n");
+            }
+            lo_restore_cred(&old, false);
+        }
     } else {
         /* fchdir should not fail here */
         assert(fchdir(lo->proc_self_fd) == 0);
