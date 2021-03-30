@@ -1420,10 +1420,10 @@ static void do_statfs(fuse_req_t req, fuse_ino_t nodeid,
     }
 }
 
-static void do_setxattr(fuse_req_t req, fuse_ino_t nodeid,
-                        struct fuse_mbuf_iter *iter)
+static void do_setxattr_v2(fuse_req_t req, fuse_ino_t nodeid,
+                           struct fuse_mbuf_iter *iter)
 {
-    struct fuse_setxattr_in *arg;
+    struct fuse_setxattr_in_v2 *arg;
     const char *name;
     const char *value;
 
@@ -1441,7 +1441,39 @@ static void do_setxattr(fuse_req_t req, fuse_ino_t nodeid,
     }
 
     if (req->se->op.setxattr) {
-        req->se->op.setxattr(req, nodeid, name, value, arg->size, arg->flags);
+        req->se->op.setxattr(req, nodeid, name, value, arg->size, arg->flags,
+                             arg->setxattr_flags);
+    } else {
+        fuse_reply_err(req, ENOSYS);
+    }
+}
+
+static void do_setxattr(fuse_req_t req, fuse_ino_t nodeid,
+                        struct fuse_mbuf_iter *iter)
+{
+    struct fuse_setxattr_in *arg;
+    const char *name;
+    const char *value;
+
+    if (req->se->conn.want & FUSE_CAP_SETXATTR_V2) {
+        return do_setxattr_v2(req, nodeid, iter);
+    }
+    arg = fuse_mbuf_iter_advance(iter, sizeof(*arg));
+    name = fuse_mbuf_iter_advance_str(iter);
+    if (!arg || !name) {
+        fuse_reply_err(req, EINVAL);
+        return;
+    }
+
+    value = fuse_mbuf_iter_advance(iter, arg->size);
+    if (!value) {
+        fuse_reply_err(req, EINVAL);
+        return;
+    }
+
+    if (req->se->op.setxattr) {
+        req->se->op.setxattr(req, nodeid, name, value, arg->size, arg->flags,
+                             0);
     } else {
         fuse_reply_err(req, ENOSYS);
     }
@@ -1988,6 +2020,9 @@ static void do_init(fuse_req_t req, fuse_ino_t nodeid,
     if (arg->flags & FUSE_HANDLE_KILLPRIV_V2) {
         se->conn.capable |= FUSE_CAP_HANDLE_KILLPRIV_V2;
     }
+    if (arg->flags & FUSE_SETXATTR_V2) {
+        se->conn.capable |= FUSE_CAP_SETXATTR_V2;
+    }
 #ifdef HAVE_SPLICE
 #ifdef HAVE_VMSPLICE
     se->conn.capable |= FUSE_CAP_SPLICE_WRITE | FUSE_CAP_SPLICE_MOVE;
@@ -2020,6 +2055,7 @@ static void do_init(fuse_req_t req, fuse_ino_t nodeid,
     LL_SET_DEFAULT(se->op.readdirplus, FUSE_CAP_READDIRPLUS);
     LL_SET_DEFAULT(se->op.readdirplus && se->op.readdir,
                    FUSE_CAP_READDIRPLUS_AUTO);
+    LL_SET_DEFAULT(1, FUSE_CAP_SETXATTR_V2);
     se->conn.time_gran = 1;
 
     if (bufsize < FUSE_MIN_READ_BUFFER) {
@@ -2121,6 +2157,10 @@ static void do_init(fuse_req_t req, fuse_ino_t nodeid,
 
     if (se->conn.want & FUSE_CAP_HANDLE_KILLPRIV_V2) {
         outarg.flags |= FUSE_HANDLE_KILLPRIV_V2;
+    }
+
+    if (se->conn.want & FUSE_CAP_SETXATTR_V2) {
+        outarg.flags |= FUSE_SETXATTR_V2;
     }
 
     fuse_log(FUSE_LOG_DEBUG, "   INIT: %u.%u\n", outarg.major, outarg.minor);
