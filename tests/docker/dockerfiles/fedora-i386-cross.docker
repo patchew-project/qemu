@@ -1,11 +1,13 @@
 FROM fedora:33
 ENV PACKAGES \
+    bison \
     bzip2 \
     diffutils \
     findutils \
     flex \
     gcc \
     git \
+    glib2-devel \
     libtasn1-devel.i686 \
     libzstd-devel.i686 \
     make \

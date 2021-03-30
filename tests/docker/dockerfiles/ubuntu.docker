@@ -11,6 +11,7 @@
 
 FROM ubuntu:20.04
 ENV PACKAGES \
+    bison \
     ccache \
     clang \
     dbus \
@@ -30,6 +31,7 @@ ENV PACKAGES \
     libepoxy-dev \
     libfdt-dev \
     libgbm-dev \
+    libglib2.0-dev \
     libgnutls28-dev \
     libgtk-3-dev \
     libibverbs-dev \

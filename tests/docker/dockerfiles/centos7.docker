@@ -5,6 +5,7 @@ RUN yum -y update
 
 # Please keep this list sorted alphabetically
 ENV PACKAGES \
+    bison \
     bzip2 \
     bzip2-devel \
     ccache \
