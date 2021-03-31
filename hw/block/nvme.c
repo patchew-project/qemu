@@ -214,6 +214,7 @@ static const uint32_t nvme_cse_acs[256] = {
     [NVME_ADM_CMD_ASYNC_EV_REQ]     = NVME_CMD_EFF_CSUPP,
     [NVME_ADM_CMD_NS_ATTACHMENT]    = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_NIC,
     [NVME_ADM_CMD_FORMAT_NVM]       = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
+    [NVME_ADM_CMD_DST]              = NVME_CMD_EFF_CSUPP,
 };
 
 static const uint32_t nvme_cse_iocs_none[256];
@@ -3980,6 +3981,34 @@ static uint16_t nvme_cmd_effects(NvmeCtrl *n, uint8_t csi, uint32_t buf_len,
     return nvme_c2h(n, ((uint8_t *)&log) + off, trans_len, req);
 }
 
+static uint16_t nvme_dst_info(NvmeCtrl *n,  uint32_t buf_len, uint64_t off,
+                              NvmeRequest *req)
+{
+    NvmeDstLogPage dst_log = {};
+    NvmeDst *dst;
+    NvmeDstEntry *traverser;
+    uint32_t trans_len;
+    uint8_t entry_index = 0;
+    dst = &n->dst;
+
+    if (off >= sizeof(dst_log)) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    dst_log.current_dsto = dst->current_dsto;
+    dst_log.current_dstc = dst->current_dstc;
+
+    QTAILQ_FOREACH(traverser, &dst->dst_list, entry) {
+        memcpy(&dst_log.dst_result[entry_index],
+            &traverser->dst_entry, sizeof(NvmeSelfTestResult));
+        entry_index++;
+    }
+
+    trans_len = MIN(sizeof(dst_log) - off, buf_len);
+
+    return nvme_c2h(n, ((uint8_t *)&dst_log) + off, trans_len, req);
+}
+
 static uint16_t nvme_get_log(NvmeCtrl *n, NvmeRequest *req)
 {
     NvmeCmd *cmd = &req->cmd;
@@ -4027,6 +4056,8 @@ static uint16_t nvme_get_log(NvmeCtrl *n, NvmeRequest *req)
         return nvme_changed_nslist(n, rae, len, off, req);
     case NVME_LOG_CMD_EFFECTS:
         return nvme_cmd_effects(n, csi, len, off, req);
+    case NVME_LOG_DEV_SELF_TEST:
+        return nvme_dst_info(n, len, off, req);
     default:
         trace_pci_nvme_err_invalid_log_page(nvme_cid(req), lid);
         return NVME_INVALID_FIELD | NVME_DNR;
@@ -5075,6 +5106,73 @@ static uint16_t nvme_format(NvmeCtrl *n, NvmeRequest *req)
     return req->status;
 }
 
+static void nvme_dst_create_entry(NvmeCtrl *n, uint32_t nsid,
+                                uint8_t stc)
+{
+    NvmeDstEntry *cur_entry;
+    time_t current_ms;
+
+    cur_entry = QTAILQ_LAST(&n->dst.dst_list);
+    QTAILQ_REMOVE(&n->dst.dst_list, cur_entry, entry);
+    memset(cur_entry, 0x0, sizeof(NvmeDstEntry));
+
+    cur_entry->dst_entry.dst_status = stc << 4;
+
+    if ((n->temperature >= n->features.temp_thresh_hi) ||
+        (n->temperature <= n->features.temp_thresh_low)) {
+        cur_entry->dst_entry.dst_status |= NVME_DST_WITH_FAILED_SEG;
+        cur_entry->dst_entry.segment_number = NVME_SMART_CHECK;
+    }
+
+    current_ms = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL);
+    cur_entry->dst_entry.poh = cpu_to_le64((((current_ms -
+        n->starttime_ms) / 1000) / 60) / 60);
+    cur_entry->dst_entry.nsid = nsid;
+
+    QTAILQ_INSERT_HEAD(&n->dst.dst_list, cur_entry, entry);
+}
+
+static uint16_t nvme_dst_processing(NvmeCtrl *n, uint32_t nsid,
+                                    uint8_t stc)
+{
+    /*
+     * n->dst.current_dsto will be always 0x0 or NO DST OPERATION,
+     * since no background device self test operation takes place.
+     */
+    assert(n->dst.current_dsto == NVME_DST_NO_OPERATION);
+
+    if (stc == NVME_ABORT_DSTO) {
+        goto out;
+    }
+    if (stc == NVME_SHORT_DSTO || stc == NVME_EXTENDED_DSTO) {
+        nvme_dst_create_entry(n, nsid, stc);
+    }
+
+out:
+    n->dst.current_dstc = NVME_DST_OPERATION_COMPLETED;
+    return NVME_SUCCESS;
+}
+
+static uint16_t nvme_dst(NvmeCtrl *n, NvmeRequest *req)
+{
+    uint32_t dw10 = le32_to_cpu(req->cmd.cdw10);
+    uint32_t nsid = le32_to_cpu(req->cmd.nsid);
+    uint8_t stc = dw10 & 0xf;
+
+    trace_pci_nvme_dst(nvme_cid(req), nsid, stc);
+
+    if (!nvme_nsid_valid(n, nsid) && nsid != 0) {
+        return NVME_INVALID_NSID | NVME_DNR;
+    }
+
+    if (nsid != NVME_NSID_BROADCAST && nsid != 0 &&
+        !nvme_ns(n, nsid)) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    return nvme_dst_processing(n, nsid, stc);
+}
+
 static uint16_t nvme_admin_cmd(NvmeCtrl *n, NvmeRequest *req)
 {
     trace_pci_nvme_admin_cmd(nvme_cid(req), nvme_sqid(req), req->cmd.opcode,
@@ -5115,6 +5213,8 @@ static uint16_t nvme_admin_cmd(NvmeCtrl *n, NvmeRequest *req)
         return nvme_ns_attachment(n, req);
     case NVME_ADM_CMD_FORMAT_NVM:
         return nvme_format(n, req);
+    case NVME_ADM_CMD_DST:
+        return nvme_dst(n, req);
     default:
         assert(false);
     }
@@ -5876,6 +5976,15 @@ static void nvme_init_state(NvmeCtrl *n)
     n->features.temp_thresh_hi = NVME_TEMPERATURE_WARNING;
     n->starttime_ms = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL);
     n->aer_reqs = g_new0(NvmeRequest *, n->params.aerl + 1);
+
+    QTAILQ_INIT(&n->dst.dst_list);
+
+    while (n->dst.num_entries < NVME_DST_MAX_ENTRIES) {
+        NvmeDstEntry *next_entry = g_malloc0(sizeof(NvmeDstEntry));
+        next_entry->dst_entry.dst_status = NVME_DST_ENTRY_NOT_USED;
+        QTAILQ_INSERT_HEAD(&n->dst.dst_list, next_entry, entry);
+        n->dst.num_entries++;
+    }
 }
 
 static int nvme_attach_namespace(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
@@ -6091,7 +6200,8 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
 
     id->mdts = n->params.mdts;
     id->ver = cpu_to_le32(NVME_SPEC_VER);
-    id->oacs = cpu_to_le16(NVME_OACS_NS_MGMT | NVME_OACS_FORMAT);
+    id->oacs = cpu_to_le16(NVME_OACS_NS_MGMT | NVME_OACS_FORMAT |
+        NVME_OACS_DST);
     id->cntrltype = 0x1;
 
     /*
@@ -6246,6 +6356,12 @@ static void nvme_exit(PCIDevice *pci_dev)
         host_memory_backend_set_mapped(n->pmr.dev, false);
     }
     msix_uninit_exclusive_bar(pci_dev);
+
+    while (!QTAILQ_EMPTY(&n->dst.dst_list)) {
+        NvmeDstEntry *entry = QTAILQ_FIRST(&n->dst.dst_list);
+        QTAILQ_REMOVE(&n->dst.dst_list, entry, entry);
+        g_free(entry);
+    }
 }
 
 static Property nvme_props[] = {
