@@ -567,6 +567,7 @@ enum NvmeAdminCommands {
     NVME_ADM_CMD_ACTIVATE_FW    = 0x10,
     NVME_ADM_CMD_DOWNLOAD_FW    = 0x11,
     NVME_ADM_CMD_NS_ATTACHMENT  = 0x15,
+    NVME_ADM_CMD_DST            = 0x14,
     NVME_ADM_CMD_FORMAT_NVM     = 0x80,
     NVME_ADM_CMD_SECURITY_SEND  = 0x81,
     NVME_ADM_CMD_SECURITY_RECV  = 0x82,
@@ -849,6 +850,7 @@ enum NvmeStatusCodes {
     NVME_NS_ALREADY_ATTACHED    = 0x0118,
     NVME_NS_NOT_ATTACHED        = 0x011A,
     NVME_NS_CTRL_LIST_INVALID   = 0x011C,
+    NVME_DST_IN_PROGRESS        = 0x011D,
     NVME_CONFLICTING_ATTRS      = 0x0180,
     NVME_INVALID_PROT_INFO      = 0x0181,
     NVME_WRITE_TO_RO            = 0x0182,
@@ -920,6 +922,50 @@ typedef struct QEMU_PACKED NvmeSmartLog {
 } NvmeSmartLog;
 
 #define NVME_SMART_WARN_MAX     6
+
+enum NvmeDstOpStatus {
+    NVME_DST_NO_OPERATION           = 0,
+    NVME_DST_OPERATION_COMPLETED    = 100,
+    NVME_DST_MAX_ENTRIES            = 20,
+};
+
+typedef struct QEMU_PACKED NvmeSelfTestResult {
+    uint8_t     dst_status;
+    uint8_t     segment_number;
+    uint8_t     valid_dinfo;
+    uint8_t     rsvd;
+    uint64_t    poh;
+    uint32_t    nsid;
+    uint64_t    flba;
+    uint8_t     sct;
+    uint8_t     sc;
+    uint8_t     vs[2];
+} NvmeSelfTestResult;
+
+typedef struct QEMU_PACKED NvmeDstLogPage {
+    uint8_t             current_dsto;
+    uint8_t             current_dstc;
+    uint8_t             rsvd[2];
+    NvmeSelfTestResult  dst_result[NVME_DST_MAX_ENTRIES];
+} NvmeDstLogPage;
+
+enum NvmeDstStc {
+    NVME_SHORT_DSTO     = 0x01,
+    NVME_EXTENDED_DSTO  = 0x02,
+    NVME_ABORT_DSTO     = 0x0f,
+};
+
+enum NvmeDstStatusResult {
+    NVME_DST_WITHOUT_ERROR      = 0x0,
+    NVME_DST_ABORTED_BY_DST_CMD = 0x1,
+    NVME_DST_WITH_FAILED_SEG    = 0x7,
+    NVME_DST_ENTRY_NOT_USED     = 0xf,
+};
+
+enum NvmeDstSegmentNumber {
+    NVME_SMART_CHECK    = 0x2,
+};
+
 enum NvmeSmartWarn {
     NVME_SMART_SPARE                  = 1 << 0,
     NVME_SMART_TEMPERATURE            = 1 << 1,
@@ -951,6 +997,7 @@ enum NvmeLogIdentifier {
     NVME_LOG_FW_SLOT_INFO   = 0x03,
     NVME_LOG_CHANGED_NSLIST = 0x04,
     NVME_LOG_CMD_EFFECTS    = 0x05,
+    NVME_LOG_DEV_SELF_TEST  = 0x06,
 };
 
 typedef struct QEMU_PACKED NvmePSD {
@@ -1076,6 +1123,7 @@ enum NvmeIdCtrlOacs {
     NVME_OACS_FORMAT    = 1 << 1,
     NVME_OACS_FW        = 1 << 2,
     NVME_OACS_NS_MGMT   = 1 << 3,
+    NVME_OACS_DST       = 1 << 4,
 };
 
 enum NvmeIdCtrlOncs {
@@ -1445,5 +1493,6 @@ static inline void _nvme_check_size(void)
     QEMU_BUILD_BUG_ON(sizeof(NvmeIdNsDescr) != 4);
     QEMU_BUILD_BUG_ON(sizeof(NvmeZoneDescr) != 64);
     QEMU_BUILD_BUG_ON(sizeof(NvmeDifTuple) != 8);
+    QEMU_BUILD_BUG_ON(sizeof(NvmeDstLogPage) != 564);
 }
 #endif
