@@ -158,6 +158,18 @@ typedef struct NvmeFeatureVal {
     uint32_t    async_config;
 } NvmeFeatureVal;
 
+typedef struct NvmeDst {
+    uint8_t      current_dsto;
+    uint8_t      current_dstc;
+    uint8_t      num_entries;
+    QTAILQ_HEAD(dst_list, NvmeDstEntry)  dst_list;
+} NvmeDst;
+
+typedef struct NvmeDstEntry {
+    NvmeSelfTestResult           dst_entry;
+    QTAILQ_ENTRY(NvmeDstEntry)   entry;
+} NvmeDstEntry;
+
 typedef struct NvmeCtrl {
     PCIDevice    parent_obj;
     MemoryRegion bar0;
@@ -223,6 +235,7 @@ typedef struct NvmeCtrl {
     NvmeCQueue      admin_cq;
     NvmeIdCtrl      id_ctrl;
     NvmeFeatureVal  features;
+    NvmeDst         dst;
 } NvmeCtrl;
 
 static inline NvmeNamespace *nvme_ns(NvmeCtrl *n, uint32_t nsid)
