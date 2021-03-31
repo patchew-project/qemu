@@ -20,6 +20,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/virtio/virtio.h"
 #include "migration/qemu-file-types.h"
+#include "migration/blocker.h"
 #include "hw/virtio/virtio-gpu.h"
 #include "hw/virtio/virtio-gpu-bswap.h"
 #include "hw/virtio/virtio-gpu-pixman.h"
@@ -1160,6 +1161,7 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
     VirtIOGPU *g = VIRTIO_GPU(qdev);
+    Error *local_err = NULL;
     bool have_virgl;
 
 #if !defined(CONFIG_VIRGL) || defined(HOST_WORDS_BIGENDIAN)
@@ -1174,6 +1176,29 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
         VIRTIO_GPU_BASE(g)->virtio_config.num_capsets =
             virtio_gpu_virgl_get_num_capsets(g);
 #endif
+    }
+
+    if (virtio_gpu_blob_enabled(g->parent_obj.conf)) {
+        if (!virtio_gpu_have_udmabuf()) {
+            error_setg(errp, "cannot enable blob resources without udmabuf");
+            return;
+        }
+
+        /* FIXME: to be investigated ... */
+        if (virtio_gpu_virgl_enabled(g->parent_obj.conf)) {
+            error_setg(errp, "blobs and virgl are not compatible (yet)");
+            return;
+        }
+
+        /* FIXME: must xfer resource type somehow */
+        error_setg(&g->parent_obj.migration_blocker,
+                   "blobs are not migratable (yet)");
+        migrate_add_blocker(g->parent_obj.migration_blocker, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            error_free(g->parent_obj.migration_blocker);
+            return;
+        }
     }
 
     if (!virtio_gpu_base_device_realize(qdev,
@@ -1292,6 +1317,8 @@ static Property virtio_gpu_properties[] = {
     DEFINE_PROP_BIT("stats", VirtIOGPU, parent_obj.conf.flags,
                     VIRTIO_GPU_FLAG_STATS_ENABLED, false),
 #endif
+    DEFINE_PROP_BIT("blob", VirtIOGPU, parent_obj.conf.flags,
+                    VIRTIO_GPU_FLAG_BLOB_ENABLED, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
