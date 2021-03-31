@@ -87,6 +87,7 @@ if cpu in ['x86', 'x86_64']
   accelerator_targets += {
     'CONFIG_HAX': ['i386-softmmu', 'x86_64-softmmu'],
     'CONFIG_HVF': ['x86_64-softmmu'],
+    'CONFIG_NVMM': ['i386-softmmu', 'x86_64-softmmu'],
     'CONFIG_WHPX': ['i386-softmmu', 'x86_64-softmmu'],
   }
 endif
@@ -170,6 +171,7 @@ version_res = []
 coref = []
 iokit = []
 emulator_link_args = []
+nvmm = []
 hvf = not_found
 if targetos == 'windows'
   socket = cc.find_library('ws2_32')
@@ -194,6 +196,12 @@ elif targetos == 'openbsd'
   if not get_option('tcg').disabled() and target_dirs.length() > 0
     # Disable OpenBSD W^X if available
     emulator_link_args = cc.get_supported_link_arguments('-Wl,-z,wxneeded')
+  endif
+elif targetos == 'netbsd'
+  if not get_option('nvmm').disabled()
+    if cc.has_header('nvmm.h')
+      nvmm = cc.find_library('nvmm')
+    endif
   endif
 endif
 
@@ -225,6 +233,11 @@ endif
 if not get_option('hax').disabled()
   if get_option('hax').enabled() or targetos in ['windows', 'darwin', 'netbsd']
     accelerators += 'CONFIG_HAX'
+  endif
+endif
+if not get_option('nvmm').disabled()
+  if cc.has_header('nvmm.h', required: get_option('nvmm'))
+    accelerators += 'CONFIG_NVMM'
   endif
 endif
 
@@ -270,6 +283,9 @@ if 'CONFIG_KVM' not in accelerators and get_option('kvm').enabled()
 endif
 if 'CONFIG_HVF' not in accelerators and get_option('hvf').enabled()
   error('HVF not available on this platform')
+endif
+if 'CONFIG_NVMM' not in accelerators and get_option('nvmm').enabled()
+  error('NVMM not available on this platform')
 endif
 if 'CONFIG_WHPX' not in accelerators and get_option('whpx').enabled()
   error('WHPX not available on this platform')
@@ -607,7 +623,7 @@ if have_system and not get_option('curses').disabled()
       has_curses_h = cc.has_header('curses.h', args: curses_compile_args)
     endif
     if has_curses_h
-      curses_libname_list = (targetos == 'windows' ? ['pdcurses'] : ['ncursesw', 'cursesw'])
+      curses_libname_list = (targetos == 'windows' ? ['pdcurses'] : ['ncursesw', 'cursesw', 'curses'])
       foreach curses_libname : curses_libname_list
         libcurses = cc.find_library(curses_libname,
                                     required: false,
@@ -625,7 +641,7 @@ if have_system and not get_option('curses').disabled()
     endif
   endif
   if not get_option('iconv').disabled()
-    foreach link_args : [ ['-liconv'], [] ]
+    foreach link_args : [ [], ['-liconv'] ]
       # Programs will be linked with glib and this will bring in libiconv on FreeBSD.
       # We need to use libiconv if available because mixing libiconv's headers with
       # the system libc does not work.
@@ -2226,7 +2242,7 @@ foreach target : target_dirs
       'name': 'qemu-system-' + target_name,
       'gui': false,
       'sources': files('softmmu/main.c'),
-      'dependencies': []
+      'dependencies': [nvmm]
     }]
     if targetos == 'windows' and (sdl.found() or gtk.found())
       execs += [{
@@ -2576,6 +2592,7 @@ if have_system
   summary_info += {'HAX support':       config_all.has_key('CONFIG_HAX')}
   summary_info += {'HVF support':       config_all.has_key('CONFIG_HVF')}
   summary_info += {'WHPX support':      config_all.has_key('CONFIG_WHPX')}
+  summary_info += {'NVMM support':      config_all.has_key('CONFIG_NVMM')}
   summary_info += {'Xen support':       config_host.has_key('CONFIG_XEN_BACKEND')}
   if config_host.has_key('CONFIG_XEN_BACKEND')
     summary_info += {'xen ctrl version':  config_host['CONFIG_XEN_CTRL_INTERFACE_VERSION']}
