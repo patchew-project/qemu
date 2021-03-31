@@ -661,7 +661,8 @@ build-oss-fuzz:
     IMAGE: fedora
   script:
     - mkdir build-oss-fuzz
-    - CC="clang" CXX="clang++" CFLAGS="-fsanitize=address"
+    - CC="clang" CXX="clang++"
+      CFLAGS="-fsanitize=address -fno-sanitize-recover=address"
       ./scripts/oss-fuzz/build.sh
     - export ASAN_OPTIONS="fast_unwind_on_malloc=0"
     - for fuzzer in $(find ./build-oss-fuzz/DEST_DIR/ -executable -type f
