@@ -206,6 +206,7 @@ static VGPUDMABuf *virtio_gpu_create_dmabuf(VirtIOGPU *g,
     dmabuf->buf.height = fb->height;
     dmabuf->buf.stride = fb->stride;
     dmabuf->buf.fourcc = qemu_pixman_to_drm_format(fb->format);
+    dmabuf->buf.modifier = fb->modifier;
     dmabuf->buf.fd = res->dmabuf_fd;
 
     dmabuf->scanout_id = scanout_id;

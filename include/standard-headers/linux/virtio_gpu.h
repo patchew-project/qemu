@@ -409,6 +409,7 @@ struct virtio_gpu_set_scanout_blob {
 	uint32_t width;
 	uint32_t height;
 	uint32_t format;
+	uint64_t modifier;
 	uint32_t padding;
 	uint32_t strides[4];
 	uint32_t offsets[4];

@@ -63,6 +63,7 @@ struct virtio_gpu_framebuffer {
     uint32_t width, height;
     uint32_t stride;
     uint32_t offset;
+    uint64_t modifier;
 };
 
 struct virtio_gpu_scanout {
