@@ -1349,6 +1349,17 @@ void arm_cpu_finalize_features(ARMCPU *cpu, Error **errp)
                 return;
             }
         }
+
+        /*
+         * Currently, vCPU feature 'el2' only supported in KVM mode.
+         */
+        if (kvm_enabled()) {
+            arm_cpu_el2_finalize(cpu, &local_err);
+            if (local_err != NULL) {
+                error_propagate(errp, local_err);
+                return;
+            }
+        }
     }
 
     if (kvm_enabled()) {
