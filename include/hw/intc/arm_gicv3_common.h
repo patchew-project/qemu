@@ -226,12 +226,16 @@ struct GICv3State {
     int dev_fd; /* kvm device fd if backed by kvm vgic support */
     Error *migration_blocker;
 
+    MemoryRegion *sysmem;
+    AddressSpace sysmem_as;
+
     /* Distributor */
 
     /* for a GIC with the security extensions the NS banked version of this
      * register is just an alias of bit 1 of the S banked version.
      */
     uint32_t gicd_ctlr;
+    uint32_t gicd_typer;
     uint32_t gicd_statusr[2];
     GIC_DECLARE_BITMAP(group);        /* GICD_IGROUPR */
     GIC_DECLARE_BITMAP(grpmod);       /* GICD_IGRPMODR */

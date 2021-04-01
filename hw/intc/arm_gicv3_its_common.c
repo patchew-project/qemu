@@ -48,6 +48,42 @@ static int gicv3_its_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateDescription vmstate_its_dtdesc = {
+    .name = "arm_gicv3_its_dtdesc",
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(valid, DevTableDesc),
+        VMSTATE_BOOL(indirect, DevTableDesc),
+        VMSTATE_UINT16(entry_sz, DevTableDesc),
+        VMSTATE_UINT32(max_entries, DevTableDesc),
+        VMSTATE_UINT32(max_devids, DevTableDesc),
+        VMSTATE_UINT64(base_addr, DevTableDesc),
+        VMSTATE_END_OF_LIST(),
+    },
+};
+
+static const VMStateDescription vmstate_its_ctdesc = {
+    .name = "arm_gicv3_its_ctdesc",
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(valid, CollTableDesc),
+        VMSTATE_BOOL(indirect, CollTableDesc),
+        VMSTATE_UINT16(entry_sz, CollTableDesc),
+        VMSTATE_UINT32(max_entries, CollTableDesc),
+        VMSTATE_UINT32(max_collids, CollTableDesc),
+        VMSTATE_UINT64(base_addr, CollTableDesc),
+        VMSTATE_END_OF_LIST(),
+    },
+};
+
+static const VMStateDescription vmstate_its_cqdesc = {
+    .name = "arm_gicv3_its_cqdesc",
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(valid, CmdQDesc),
+        VMSTATE_UINT32(max_entries, CmdQDesc),
+        VMSTATE_UINT64(base_addr, CmdQDesc),
+        VMSTATE_END_OF_LIST(),
+    },
+};
+
 static const VMStateDescription vmstate_its = {
     .name = "arm_gicv3_its",
     .version_id = 1,
@@ -56,6 +92,12 @@ static const VMStateDescription vmstate_its = {
     .post_load = gicv3_its_post_load,
     .priority = MIG_PRI_GICV3_ITS,
     .fields = (VMStateField[]) {
+        VMSTATE_STRUCT(dt, GICv3ITSState, 0, vmstate_its_dtdesc,
+                        DevTableDesc),
+        VMSTATE_STRUCT(ct, GICv3ITSState, 0, vmstate_its_ctdesc,
+                        CollTableDesc),
+        VMSTATE_STRUCT(cq, GICv3ITSState, 0, vmstate_its_cqdesc,
+                        CmdQDesc),
         VMSTATE_UINT32(ctlr, GICv3ITSState),
         VMSTATE_UINT32(translater, GICv3ITSState),
         VMSTATE_UINT32(iidr, GICv3ITSState),

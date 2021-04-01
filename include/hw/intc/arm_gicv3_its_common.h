@@ -43,6 +43,30 @@
 
 #define GITS_PIDR2       0xFFE8
 
+typedef struct {
+    bool valid;
+    bool indirect;
+    uint16_t entry_sz;
+    uint32_t max_entries;
+    uint32_t max_devids;
+    uint64_t base_addr;
+} DevTableDesc;
+
+typedef struct {
+    bool valid;
+    bool indirect;
+    uint16_t entry_sz;
+    uint32_t max_entries;
+    uint32_t max_collids;
+    uint64_t base_addr;
+} CollTableDesc;
+
+typedef struct {
+    bool valid;
+    uint32_t max_entries;
+    uint64_t base_addr;
+} CmdQDesc;
+
 struct GICv3ITSState {
     SysBusDevice parent_obj;
 
@@ -65,6 +89,10 @@ struct GICv3ITSState {
     uint64_t cwriter;
     uint64_t creadr;
     uint64_t baser[8];
+
+    DevTableDesc  dt;
+    CollTableDesc ct;
+    CmdQDesc      cq;
 
     Error *migration_blocker;
 };
