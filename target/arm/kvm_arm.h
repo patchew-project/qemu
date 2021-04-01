@@ -286,6 +286,14 @@ void kvm_arm_steal_time_finalize(ARMCPU *cpu, Error **errp);
 bool kvm_arm_steal_time_supported(void);
 
 /**
+ * kvm_arm_el2_supported:
+ *
+ * Returns: true if KVM can enable el2(nested virtualization)
+ * and false otherwise.
+ */
+bool kvm_arm_el2_supported(void);
+
+/**
  * kvm_arm_aarch32_supported:
  *
  * Returns: true if KVM can enable AArch32 mode
@@ -394,6 +402,11 @@ static inline bool kvm_arm_sve_supported(void)
 }
 
 static inline bool kvm_arm_steal_time_supported(void)
+{
+    return false;
+}
+
+static inline bool kvm_arm_el2_supported(void)
 {
     return false;
 }
