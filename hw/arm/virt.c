@@ -663,6 +663,11 @@ static void create_gic(VirtMachineState *vms)
             qdev_prop_set_uint32(vms->gic, "redist-region-count[1]",
                 MIN(smp_cpus - redist0_count, redist1_capacity));
         }
+
+        if (kvm_irqchip_in_kernel()) {
+            bool el2 = object_property_get_bool(OBJECT(first_cpu), "el2", NULL);
+            qdev_prop_set_bit(vms->gic, "has-virtualization-extensions", el2);
+        }
     } else {
         if (!kvm_irqchip_in_kernel()) {
             qdev_prop_set_bit(vms->gic, "has-virtualization-extensions",
