@@ -603,6 +603,58 @@ static Property arm_cpu_pauth_property =
 static Property arm_cpu_pauth_impdef_property =
     DEFINE_PROP_BOOL("pauth-impdef", ARMCPU, prop_pauth_impdef, false);
 
+void arm_cpu_el2_finalize(ARMCPU *cpu, Error **errp)
+{
+    if (cpu->has_el2) {
+        if (!kvm_enabled() || !kvm_arm_el2_supported()) {
+            error_setg(errp, "'el2' cannot be enabled on this host");
+            return;
+        }
+    }
+
+    if (cpu->has_el2) {
+        set_feature(&cpu->env, ARM_FEATURE_EL2);
+    } else {
+        unset_feature(&cpu->env, ARM_FEATURE_EL2);
+    }
+}
+
+static bool arm_get_el2(Object *obj, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    return cpu->has_el2;
+}
+
+static void arm_set_el2(Object *obj, bool value, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    if (value) {
+        if (!kvm_enabled() || !kvm_arm_el2_supported()) {
+            error_setg(errp, "'el2' cannot be enabled on this host");
+            return;
+        }
+        set_feature(&cpu->env, ARM_FEATURE_EL2);
+    } else {
+        unset_feature(&cpu->env, ARM_FEATURE_EL2);
+    }
+
+    cpu->has_el2 = value;
+}
+
+void aarch64_add_el2_properties(Object *obj)
+{
+    /*
+     * vCPU feature 'el2' is only available in KVM mode, and is
+     * disabled by default to keep in line with that in TCG mode.
+     */
+    ARM_CPU(obj)->has_el2 = false;
+    object_property_add_bool(obj, "el2", arm_get_el2, arm_set_el2);
+    object_property_set_description(obj, "el2", "Set off to disable "
+                                    "nested virtulization.");
+}
+
 /* -cpu max: if KVM is enabled, like -cpu host (best possible with this host);
  * otherwise, a CPU with as many features enabled as our emulation supports.
  * The version of '-cpu max' for qemu-system-arm is defined in cpu.c;
