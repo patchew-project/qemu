@@ -454,6 +454,7 @@ static void fdt_add_gic_node(VirtMachineState *vms)
 {
     MachineState *ms = MACHINE(vms);
     char *nodename;
+    bool has_el2 = object_property_get_bool(OBJECT(first_cpu), "el2", NULL);
 
     vms->gic_phandle = qemu_fdt_alloc_phandle(ms->fdt);
     qemu_fdt_setprop_cell(ms->fdt, "/", "interrupt-parent", vms->gic_phandle);
@@ -491,7 +492,7 @@ static void fdt_add_gic_node(VirtMachineState *vms)
                                  2, vms->memmap[VIRT_HIGH_GIC_REDIST2].size);
         }
 
-        if (vms->virt) {
+        if (vms->virt || has_el2) {
             qemu_fdt_setprop_cells(ms->fdt, nodename, "interrupts",
                                    GIC_FDT_IRQ_TYPE_PPI, ARCH_GIC_MAINT_IRQ,
                                    GIC_FDT_IRQ_FLAGS_LEVEL_HI);
@@ -1911,8 +1912,8 @@ static void machvirt_init(MachineState *machine)
     }
 
     if (vms->virt && kvm_enabled()) {
-        error_report("mach-virt: KVM does not support providing "
-                     "Virtualization extensions to the guest CPU");
+        error_report("mach-virt: VM 'virtualization' feature is not supported "
+                     "in KVM mode, please use CPU feature 'el2' instead");
         exit(1);
     }
 
@@ -1950,11 +1951,16 @@ static void machvirt_init(MachineState *machine)
             object_property_set_bool(cpuobj, "has_el3", false, NULL);
         }
 
-        if (!vms->virt && object_property_find(cpuobj, "has_el2")) {
+        if (!vms->virt && !kvm_enabled() &&
+            object_property_find(cpuobj, "has_el2")) {
             object_property_set_bool(cpuobj, "has_el2", false, NULL);
         }
 
         if (vms->psci_conduit != QEMU_PSCI_CONDUIT_DISABLED) {
+            if (kvm_enabled() && ARM_CPU(cpuobj)->has_el2) {
+                vms->psci_conduit = QEMU_PSCI_CONDUIT_SMC;
+            }
+
             object_property_set_int(cpuobj, "psci-conduit", vms->psci_conduit,
                                     NULL);
 
