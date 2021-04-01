@@ -180,6 +180,10 @@ struct CPURISCVState {
     target_ulong mtval;  /* since: priv-1.10.0 */
 
     /* NMI */
+    target_ulong mnscratch;
+    target_ulong mnepc;
+    target_ulong mncause; /* mncause without bit XLEN-1 set to 1 */
+    target_ulong mnstatus;
     bool nmie;
     target_ulong nmip;
     target_ulong rnmi_irqvec;

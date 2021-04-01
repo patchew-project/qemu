@@ -166,6 +166,12 @@
 #define CSR_MTVAL           0x343
 #define CSR_MIP             0x344
 
+/* NMI */
+#define CSR_MNSCRATCH       0x350
+#define CSR_MNEPC           0x351
+#define CSR_MNCAUSE         0x352
+#define CSR_MNSTATUS        0x353
+
 /* Legacy Machine Trap Handling (priv v1.9.1) */
 #define CSR_MBADADDR        0x343
 
@@ -557,6 +563,9 @@
 
 #define RISCV_EXCP_INT_FLAG                0x80000000
 #define RISCV_EXCP_INT_MASK                0x7fffffff
+
+/* RNMI mnstatus CSR mask */
+#define MNSTATUS_MPP                       MSTATUS_MPP
 
 /* Interrupt causes */
 #define IRQ_U_SOFT                         0
