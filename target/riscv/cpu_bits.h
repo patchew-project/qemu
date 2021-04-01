@@ -526,6 +526,12 @@
 /* Default Reset Vector adress */
 #define DEFAULT_RSTVEC      0x1000
 
+/* Default RNMI Interrupt Vector address */
+#define DEFAULT_RNMI_IRQVEC     0x1000
+
+/* Default RNMI Exception Vector address */
+#define DEFAULT_RNMI_EXCPVEC    0x1000
+
 /* Exception causes */
 #define EXCP_NONE                                -1 /* sentinel value */
 #define RISCV_EXCP_INST_ADDR_MIS                 0x0
