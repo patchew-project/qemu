@@ -4244,6 +4244,7 @@ static PropValue kvm_default_props[] = {
     { "kvmclock", "on" },
     { "kvm-nopiodelay", "on" },
     { "kvm-asyncpf", "on" },
+    { "kvm-asyncpf-int", "on" },
     { "kvm-steal-time", "on" },
     { "kvm-pv-eoi", "on" },
     { "kvmclock-stable-bit", "on" },
