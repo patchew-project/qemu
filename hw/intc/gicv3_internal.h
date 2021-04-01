@@ -323,6 +323,13 @@ FIELD(GITS_TYPER, CIL, 36, 1)
 #define ITTADDR_MASK              ((1ULL << ITTADDR_LEN) - 1)
 #define SIZE_MASK                 0x1f
 
+/* MAPI command fields */
+#define EVENTID_MASK              ((1ULL << 32) - 1)
+
+/* MAPTI command fields */
+#define pINTID_OFFSET              32
+#define pINTID_MASK               ((1ULL << 32) - 1)
+
 #define VALID_SHIFT               63
 #define VALID_MASK                0x1
 
