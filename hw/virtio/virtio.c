@@ -173,8 +173,7 @@ static void virtio_init_region_cache(VirtIODevice *vdev, int n)
     }
     new = g_new0(VRingMemoryRegionCaches, 1);
     size = virtio_queue_get_desc_size(vdev, n);
-    packed = virtio_vdev_has_feature(vq->vdev, VIRTIO_F_RING_PACKED) ?
-                                   true : false;
+    packed = virtio_vdev_has_feature(vq->vdev, VIRTIO_F_RING_PACKED);
     len = address_space_cache_init(&new->desc, vdev->dma_as,
                                    addr, size, packed);
     if (len < size) {
