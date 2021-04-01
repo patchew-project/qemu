@@ -1099,7 +1099,7 @@ static Property arm_cpu_rvbar_property =
 
 #ifndef CONFIG_USER_ONLY
 static Property arm_cpu_has_el2_property =
-            DEFINE_PROP_BOOL("has_el2", ARMCPU, has_el2, true);
+            DEFINE_PROP_BOOL("has_el2", ARMCPU, has_el2, false);
 
 static Property arm_cpu_has_el3_property =
             DEFINE_PROP_BOOL("has_el3", ARMCPU, has_el3, true);
@@ -2018,6 +2018,7 @@ static void arm_host_initfn(Object *obj)
     kvm_arm_set_cpu_features_from_host(cpu);
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
         aarch64_add_sve_properties(obj);
+        aarch64_add_el2_properties(obj);
     }
     arm_cpu_post_init(obj);
 }
