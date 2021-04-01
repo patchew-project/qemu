@@ -123,9 +123,6 @@ static char *qemu_rbd_next_tok(char *src, char delim, char **p)
         if (*end == delim) {
             break;
         }
-        if (*end == '\\' && end[1] != '\0') {
-            end++;
-        }
     }
     if (*end == delim) {
         *p = end + 1;
