@@ -1396,6 +1396,38 @@ static const VMStateDescription vmstate_msr_tsx_ctrl = {
     }
 };
 
+static bool pdptrs_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    if (!kvm_supports_sregs2()) {
+        return false;
+    }
+
+    if (!(env->cr[0] & CR0_PG_MASK)) {
+        return false;
+    }
+
+    if (env->efer & MSR_EFER_LMA) {
+        return false;
+    }
+
+    return env->cr[4] & CR4_PAE_MASK;
+}
+
+static const VMStateDescription vmstate_pdptrs = {
+    .name = "cpu/pdptrs",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = pdptrs_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64_ARRAY(env.pdptrs, X86CPU, 4),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+
 VMStateDescription vmstate_x86_cpu = {
     .name = "cpu",
     .version_id = 12,
@@ -1531,6 +1563,7 @@ VMStateDescription vmstate_x86_cpu = {
         &vmstate_nested_state,
 #endif
         &vmstate_msr_tsx_ctrl,
+        &vmstate_pdptrs,
         NULL
     }
 };
