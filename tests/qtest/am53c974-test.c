@@ -9,6 +9,22 @@
 
 #include "libqos/libqtest.h"
 
+static void test_do_cmd_assert(void)
+{
+    QTestState *s = qtest_init(
+        "-device am53c974,id=scsi "
+        "-device scsi-hd,drive=disk0 -drive "
+        "id=disk0,if=none,file=null-co://,format=raw -nodefaults");
+    qtest_outl(s, 0xcf8, 0x80001010);
+    qtest_outl(s, 0xcfc, 0xc000);
+    qtest_outl(s, 0xcf8, 0x80001004);
+    qtest_outw(s, 0xcfc, 0x01);
+    qtest_outl(s, 0xc00b, 0x4100);
+    qtest_outb(s, 0xc008, 0x42);
+    qtest_outw(s, 0xc03f, 0x0300);
+    qtest_outl(s, 0xc00b, 0xc100);
+    qtest_quit(s);
+}
 
 static void test_cmdfifo_underflow_ok(void)
 {
@@ -194,6 +210,8 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
 
     if (strcmp(arch, "i386") == 0) {
+        qtest_add_func("am53c974/test_do_cmd_asser",
+                       test_do_cmd_assert);
         qtest_add_func("am53c974/test_cmdfifo_underflow_ok",
                        test_cmdfifo_underflow_ok);
         qtest_add_func("am53c974/test_cmdfifo_underflow2_ok",
