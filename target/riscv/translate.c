@@ -369,6 +369,9 @@ static void gen_jal(DisasContext *ctx, int rd, target_ulong imm)
 static void mark_fs_dirty(DisasContext *ctx)
 {
     TCGv tmp;
+    CPUState *cpu = ctx->cs;
+    CPURISCVState *env = cpu->env_ptr;
+
     if (ctx->mstatus_fs == MSTATUS_FS) {
         return;
     }
@@ -377,12 +380,24 @@ static void mark_fs_dirty(DisasContext *ctx)
 
     tmp = tcg_temp_new();
     tcg_gen_ld_tl(tmp, cpu_env, offsetof(CPURISCVState, mstatus));
-    tcg_gen_ori_tl(tmp, tmp, MSTATUS_FS | MSTATUS_SD);
+    if (riscv_cpu_is_32bit(env)) {
+        tcg_gen_ori_tl(tmp, tmp, MSTATUS_FS | MSTATUS32_SD);
+    } else {
+#if defined(TARGET_RISCV64)
+        tcg_gen_ori_tl(tmp, tmp, MSTATUS_FS | MSTATUS64_SD);
+#endif
+    }
     tcg_gen_st_tl(tmp, cpu_env, offsetof(CPURISCVState, mstatus));
 
     if (ctx->virt_enabled) {
         tcg_gen_ld_tl(tmp, cpu_env, offsetof(CPURISCVState, mstatus_hs));
-        tcg_gen_ori_tl(tmp, tmp, MSTATUS_FS | MSTATUS_SD);
+        if (riscv_cpu_is_32bit(env)) {
+            tcg_gen_ori_tl(tmp, tmp, MSTATUS_FS | MSTATUS32_SD);
+        } else {
+#if defined(TARGET_RISCV64)
+            tcg_gen_ori_tl(tmp, tmp, MSTATUS_FS | MSTATUS64_SD);
+#endif
+        }
         tcg_gen_st_tl(tmp, cpu_env, offsetof(CPURISCVState, mstatus_hs));
     }
     tcg_temp_free(tmp);
