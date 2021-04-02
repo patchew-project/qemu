@@ -37,7 +37,7 @@ struct sifive_pdma_chan {
 };
 
 #define SIFIVE_PDMA_CHANS           4
-#define SIFIVE_PDMA_IRQS            (SIFIVE_PDMA_CHANS * 2)
+#define SIFIVE_PDMA_IRQS            (SIFIVE_PDMA_CHANS)
 #define SIFIVE_PDMA_REG_SIZE        0x100000
 #define SIFIVE_PDMA_CHAN_NO(reg)    ((reg & (SIFIVE_PDMA_REG_SIZE - 1)) >> 12)
 

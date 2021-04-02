@@ -302,7 +302,9 @@ L: qemu-riscv@nongnu.org
 S: Supported
 F: target/riscv/
 F: hw/riscv/
+F: hw/*/*sifive*
 F: include/hw/riscv/
+F: include/hw/*/*sifive*
 F: linux-user/host/riscv32/
 F: linux-user/host/riscv64/
 
