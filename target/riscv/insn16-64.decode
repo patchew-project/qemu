@@ -16,6 +16,37 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
+# Fields imported from insn16.decode:
+%rd        7:5
+%rs1_3     7:3                !function=ex_rvc_register
+%rs2_3     2:3                !function=ex_rvc_register
+%rs2_5     2:5
+
+# Immediates imported from insn16.decode:
+%imm_ci        12:s1 2:5
+%uimm_cl_d     5:2 10:3           !function=ex_shift_3
+%uimm_6bit_ld 2:3 12:1 5:2           !function=ex_shift_3
+%uimm_6bit_lw 2:2 12:1 4:3           !function=ex_shift_2
+%uimm_6bit_sd 7:3 10:3               !function=ex_shift_3
+
+# Argument sets imported from insn16.decode:
+&empty                  !extern
+&r         rd rs1 rs2   !extern
+&i         imm rs1 rd   !extern
+&s         imm rs1 rs2  !extern
+&j         imm rd       !extern
+&b         imm rs2 rs1  !extern
+&u         imm rd       !extern
+&shift     shamt rs1 rd !extern
+
+# Formats 16 imported from insn16.decode:
+@ci        ... . ..... .....  .. &i      imm=%imm_ci      rs1=%rd     %rd
+@cl_d      ... ... ... .. ... .. &i      imm=%uimm_cl_d   rs1=%rs1_3  rd=%rs2_3
+@cs_d      ... ... ... .. ... .. &s      imm=%uimm_cl_d   rs1=%rs1_3  rs2=%rs2_3
+@cs_2      ... ... ... .. ... .. &r      rs2=%rs2_3       rs1=%rs1_3  rd=%rs1_3
+@c_ldsp    ... . .....  ..... .. &i      imm=%uimm_6bit_ld rs1=2 %rd
+@c_sdsp    ... . .....  ..... .. &s      imm=%uimm_6bit_sd rs1=2 rs2=%rs2_5
+
 # *** RV64C Standard Extension (Quadrant 0) ***
 ld                011  ... ... .. ... 00 @cl_d
 sd                111  ... ... .. ... 00 @cs_d

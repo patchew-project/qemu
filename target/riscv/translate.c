@@ -602,6 +602,10 @@ static uint32_t opcode_at(DisasContextBase *dcbase, target_ulong pc)
 
 /* Include the auto-generated decoder for 16 bit insn */
 #include "decode-insn16.c.inc"
+#include "decode-insn16-32.c.inc"
+#ifdef TARGET_RISCV64
+# include "decode-insn16-64.c.inc"
+#endif
 
 static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
 {
@@ -612,7 +616,19 @@ static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
         } else {
             ctx->pc_succ_insn = ctx->base.pc_next + 2;
             if (!decode_insn16(ctx, opcode)) {
-                gen_exception_illegal(ctx);
+                if (riscv_cpu_is_32bit(env)) {
+                    if (!decode_insn16_32(ctx, opcode)) {
+                        gen_exception_illegal(ctx);
+                    }
+                } else {
+#ifdef TARGET_RISCV64
+                    if (!decode_insn16_64(ctx, opcode)) {
+                        gen_exception_illegal(ctx);
+                    }
+#else
+                    gen_exception_illegal(ctx);
+#endif
+                }
             }
         }
     } else {
