@@ -44,6 +44,9 @@ struct I2CSlaveClass {
 struct I2CSlave {
     DeviceState qdev;
 
+    /* Whether the i2c child device is reachable from this bus. */
+    bool reachable;
+
     /* Remaining fields for internal use by the I2C code.  */
     uint8_t address;
 };

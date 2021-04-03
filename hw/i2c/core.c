@@ -18,6 +18,7 @@
 #define I2C_BROADCAST 0x00
 
 static Property i2c_props[] = {
+    DEFINE_PROP_BOOL("reachable", struct I2CSlave, reachable, true),
     DEFINE_PROP_UINT8("address", struct I2CSlave, address, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -118,6 +119,9 @@ int i2c_start_transfer(I2CBus *bus, uint8_t address, int recv)
         QTAILQ_FOREACH(kid, &bus->qbus.children, sibling) {
             DeviceState *qdev = kid->child;
             I2CSlave *candidate = I2C_SLAVE(qdev);
+            if (!candidate->reachable) {
+                continue;
+            }
             if ((candidate->address == address) || (bus->broadcast)) {
                 node = g_malloc(sizeof(struct I2CNode));
                 node->elt = candidate;
@@ -262,6 +266,7 @@ const VMStateDescription vmstate_i2c_slave = {
     .minimum_version_id = 1,
     .post_load = i2c_slave_post_load,
     .fields = (VMStateField[]) {
+        VMSTATE_BOOL(reachable, I2CSlave),
         VMSTATE_UINT8(address, I2CSlave),
         VMSTATE_END_OF_LIST()
     }
@@ -272,6 +277,7 @@ I2CSlave *i2c_slave_new(const char *name, uint8_t addr)
     DeviceState *dev;
 
     dev = qdev_new(name);
+    qdev_prop_set_bit(dev, "reachable", true);
     qdev_prop_set_uint8(dev, "address", addr);
     return I2C_SLAVE(dev);
 }
