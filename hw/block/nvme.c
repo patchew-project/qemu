@@ -5915,7 +5915,7 @@ int nvme_register_namespace(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
             return -1;
         }
     } else {
-        if (n->namespaces[nsid - 1]) {
+        if (n->namespaces[nsid]) {
             error_setg(errp, "namespace id '%d' is already in use", nsid);
             return -1;
         }
