@@ -87,9 +87,10 @@ ALLOWED_TYPES = [
     "ssize_t",
     "uintptr_t",
     "ptrdiff_t",
-    # Magic substitution is done by tracetool
+    # Magic substitution is done by tracetool TCG_2_HOST
     "TCGv",
 ]
+
 
 def validate_type(name):
     bits = name.split(" ")
@@ -405,9 +406,13 @@ def read_events(fobj, fname):
         try:
             event = Event.build(line, lineno, fname)
         except ValueError as e:
-            arg0 = 'Error at %s:%d: %s' % (fname, lineno, e.args[0])
-            e.args = (arg0,) + e.args[1:]
-            raise
+            # these get translated by TCG_2_HOST later
+            if "TCGv_" not in e.args[0]:
+                arg0 = 'Error at %s:%d: %s' % (fname, lineno, e.args[0])
+                e.args = (arg0,) + e.args[1:]
+                raise
+            else:
+                pass
 
         # transform TCG-enabled events
         if "tcg" not in event.properties:
