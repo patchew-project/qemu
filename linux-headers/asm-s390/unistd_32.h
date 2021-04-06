@@ -414,5 +414,6 @@
 #define __NR_faccessat2 439
 #define __NR_process_madvise 440
 #define __NR_epoll_pwait2 441
+#define __NR_mount_setattr 442
 
 #endif /* _ASM_S390_UNISTD_32_H */
