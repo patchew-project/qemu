@@ -254,10 +254,6 @@ F: include/hw/timer/mips_gictimer.h
 F: tests/tcg/mips/
 K: ^Subject:.*(?i)mips
 
-MIPS TCG CPUs (nanoMIPS ISA)
-S: Orphan
-F: disas/nanomips.*
-
 Moxie TCG CPUs
 M: Anthony Green <green@moxielogic.com>
 S: Maintained
