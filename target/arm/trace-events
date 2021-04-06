@@ -1,5 +1,10 @@
 # See docs/devel/tracing.txt for syntax documentation.
 
+# translate-a64.c
+# Mode: softmmu
+# Targets: TCG(aarch64-softmmu)
+tcg eret(int current_el, TCGv target_el) "trans_eret: from EL%d", "exec_eret: EL%d to EL%"PRId64
+
 # helper.c
 arm_gt_recalc(int timer, int irqstate, uint64_t nexttick) "gt recalc: timer %d irqstate %d next tick 0x%" PRIx64
 arm_gt_recalc_disabled(int timer) "gt recalc: timer %d irqstate 0 timer disabled"

@@ -36,6 +36,7 @@
 #include "exec/log.h"
 
 #include "trace-tcg.h"
+#include "trace.h"
 #include "translate-a64.h"
 #include "qemu/atomic128.h"
 
@@ -2302,6 +2303,9 @@ static void disas_uncond_b_reg(DisasContext *s, uint32_t insn)
         default:
             goto do_unallocated;
         }
+
+        trace_eret_tcg(s->current_el, dst);
+
         if (tb_cflags(s->base.tb) & CF_USE_ICOUNT) {
             gen_io_start();
         }
