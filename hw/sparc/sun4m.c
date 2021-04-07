@@ -1427,18 +1427,23 @@ static void sbook_init(MachineState *machine)
     sun4m_hw_init(&sun4m_hwdefs[8], machine);
 }
 
+static void sun4m_machine_class_common_init(MachineClass *mc)
+{
+    mc->block_default_type = IF_SCSI;
+    mc->default_boot_order = "c";
+    mc->default_display = "tcx";
+    mc->default_ram_id = "sun4m.ram";
+}
+
 static void ss5_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "Sun4m platform, SPARCstation 5";
     mc->init = ss5_init;
-    mc->block_default_type = IF_SCSI;
     mc->is_default = true;
-    mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Fujitsu-MB86904");
-    mc->default_display = "tcx";
-    mc->default_ram_id = "sun4m.ram";
+    sun4m_machine_class_common_init(mc);
 }
 
 static const TypeInfo ss5_type = {
@@ -1453,12 +1458,9 @@ static void ss10_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Sun4m platform, SPARCstation 10";
     mc->init = ss10_init;
-    mc->block_default_type = IF_SCSI;
     mc->max_cpus = 4;
-    mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-SuperSparc-II");
-    mc->default_display = "tcx";
-    mc->default_ram_id = "sun4m.ram";
+    sun4m_machine_class_common_init(mc);
 }
 
 static const TypeInfo ss10_type = {
@@ -1473,12 +1475,9 @@ static void ss600mp_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Sun4m platform, SPARCserver 600MP";
     mc->init = ss600mp_init;
-    mc->block_default_type = IF_SCSI;
     mc->max_cpus = 4;
-    mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-SuperSparc-II");
-    mc->default_display = "tcx";
-    mc->default_ram_id = "sun4m.ram";
+    sun4m_machine_class_common_init(mc);
 }
 
 static const TypeInfo ss600mp_type = {
@@ -1493,12 +1492,9 @@ static void ss20_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Sun4m platform, SPARCstation 20";
     mc->init = ss20_init;
-    mc->block_default_type = IF_SCSI;
     mc->max_cpus = 4;
-    mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-SuperSparc-II");
-    mc->default_display = "tcx";
-    mc->default_ram_id = "sun4m.ram";
+    sun4m_machine_class_common_init(mc);
 }
 
 static const TypeInfo ss20_type = {
@@ -1513,11 +1509,8 @@ static void voyager_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Sun4m platform, SPARCstation Voyager";
     mc->init = vger_init;
-    mc->block_default_type = IF_SCSI;
-    mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Fujitsu-MB86904");
-    mc->default_display = "tcx";
-    mc->default_ram_id = "sun4m.ram";
+    sun4m_machine_class_common_init(mc);
 }
 
 static const TypeInfo voyager_type = {
@@ -1532,11 +1525,8 @@ static void ss_lx_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Sun4m platform, SPARCstation LX";
     mc->init = ss_lx_init;
-    mc->block_default_type = IF_SCSI;
-    mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-MicroSparc-I");
-    mc->default_display = "tcx";
-    mc->default_ram_id = "sun4m.ram";
+    sun4m_machine_class_common_init(mc);
 }
 
 static const TypeInfo ss_lx_type = {
@@ -1551,11 +1541,8 @@ static void ss4_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Sun4m platform, SPARCstation 4";
     mc->init = ss4_init;
-    mc->block_default_type = IF_SCSI;
-    mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Fujitsu-MB86904");
-    mc->default_display = "tcx";
-    mc->default_ram_id = "sun4m.ram";
+    sun4m_machine_class_common_init(mc);
 }
 
 static const TypeInfo ss4_type = {
@@ -1570,11 +1557,8 @@ static void scls_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Sun4m platform, SPARCClassic";
     mc->init = scls_init;
-    mc->block_default_type = IF_SCSI;
-    mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-MicroSparc-I");
-    mc->default_display = "tcx";
-    mc->default_ram_id = "sun4m.ram";
+    sun4m_machine_class_common_init(mc);
 }
 
 static const TypeInfo scls_type = {
@@ -1589,11 +1573,8 @@ static void sbook_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Sun4m platform, SPARCbook";
     mc->init = sbook_init;
-    mc->block_default_type = IF_SCSI;
-    mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-MicroSparc-I");
-    mc->default_display = "tcx";
-    mc->default_ram_id = "sun4m.ram";
+    sun4m_machine_class_common_init(mc);
 }
 
 static const TypeInfo sbook_type = {
