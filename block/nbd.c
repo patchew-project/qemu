@@ -101,15 +101,6 @@ typedef struct NBDConnectCB {
     AioContext *bh_ctx; /* where to schedule bh (NULL means don't schedule) */
 } NBDConnectCB;
 
-typedef void (*NBDConnectThreadCallback)(QIOChannelSocket *sioc, int ret,
-                                         void *opaque);
-
-typedef struct NBDConnectThread {
-    SocketAddress *saddr; /* address to connect to */
-    NBDConnectThreadCallback cb;
-    void *cb_opaque;
-} NBDConnectThread;
-
 typedef struct BDRVNBDState {
     QIOChannelSocket *sioc; /* The master data channel */
     QIOChannel *ioc; /* The current I/O channel which may differ (eg TLS) */
@@ -413,43 +404,6 @@ static void connect_thread_cb(QIOChannelSocket *sioc, int ret, void *opaque)
     if (do_free) {
         g_free(thr);
     }
-}
-
-static void *connect_thread_func(void *opaque)
-{
-    NBDConnectThread *thr = opaque;
-    int ret;
-    QIOChannelSocket *sioc = qio_channel_socket_new();
-
-    ret = qio_channel_socket_connect_sync(sioc, thr->saddr, NULL);
-    if (ret < 0) {
-        object_unref(OBJECT(sioc));
-        sioc = NULL;
-    }
-
-    thr->cb(sioc, ret, thr->cb_opaque);
-
-    qapi_free_SocketAddress(thr->saddr);
-    g_free(thr);
-
-    return NULL;
-}
-
-static void nbd_connect_thread_start(const SocketAddress *saddr,
-                                     NBDConnectThreadCallback cb,
-                                     void *cb_opaque)
-{
-    QemuThread thread;
-    NBDConnectThread *thr = g_new(NBDConnectThread, 1);
-
-    *thr = (NBDConnectThread) {
-        .saddr = QAPI_CLONE(SocketAddress, saddr),
-        .cb = cb,
-        .cb_opaque = cb_opaque,
-    };
-
-    qemu_thread_create(&thread, "nbd-connect",
-                       connect_thread_func, thr, QEMU_THREAD_DETACHED);
 }
 
 static int coroutine_fn

@@ -406,4 +406,10 @@ const char *nbd_info_lookup(uint16_t info);
 const char *nbd_cmd_lookup(uint16_t info);
 const char *nbd_err_lookup(int err);
 
+
+typedef void (*NBDConnectThreadCallback)(QIOChannelSocket *sioc, int ret,
+                                         void *opaque);
+void nbd_connect_thread_start(const SocketAddress *saddr,
+                              NBDConnectThreadCallback cb, void *cb_opaque);
+
 #endif
