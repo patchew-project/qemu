@@ -385,19 +385,10 @@ static void nbd_free_connect_thread(NBDConnectThread *thr)
     g_free(thr);
 }
 
-static void *connect_thread_func(void *opaque)
+static void connect_thread_cb(int ret, void *opaque)
 {
     NBDConnectThread *thr = opaque;
-    int ret;
     bool do_free = false;
-
-    thr->sioc = qio_channel_socket_new();
-
-    ret = qio_channel_socket_connect_sync(thr->sioc, thr->saddr, NULL);
-    if (ret < 0) {
-        object_unref(OBJECT(thr->sioc));
-        thr->sioc = NULL;
-    }
 
     qemu_mutex_lock(&thr->mutex);
 
@@ -423,6 +414,22 @@ static void *connect_thread_func(void *opaque)
     if (do_free) {
         nbd_free_connect_thread(thr);
     }
+}
+
+static void *connect_thread_func(void *opaque)
+{
+    NBDConnectThread *thr = opaque;
+    int ret;
+
+    thr->sioc = qio_channel_socket_new();
+
+    ret = qio_channel_socket_connect_sync(thr->sioc, thr->saddr, NULL);
+    if (ret < 0) {
+        object_unref(OBJECT(thr->sioc));
+        thr->sioc = NULL;
+    }
+
+    connect_thread_cb(ret, thr);
 
     return NULL;
 }
