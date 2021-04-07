@@ -362,11 +362,9 @@ static void nbd_init_connect_thread(BlockDriverState *bs)
     qemu_mutex_init(&s->connect_thread->mutex);
 }
 
-static void connect_bh(void *opaque)
+static void coroutine_wake_bh(void *opaque)
 {
-    BDRVNBDState *state = opaque;
-
-    aio_co_wake(state->connection_co);
+    aio_co_wake(opaque);
 }
 
 static void connect_thread_cb(QIOChannelSocket *sioc, int ret, void *opaque)
@@ -403,7 +401,8 @@ static void connect_thread_cb(QIOChannelSocket *sioc, int ret, void *opaque)
          * Direct call to aio_co_wake() from thread context works bad. So use
          * aio_bh_schedule_oneshot() as a mediator.
          */
-        aio_bh_schedule_oneshot(bdrv_get_aio_context(thr->bs), connect_bh, s);
+        aio_bh_schedule_oneshot(bdrv_get_aio_context(thr->bs),
+                                coroutine_wake_bh, s->connection_co);
     }
 
     if (do_free) {
