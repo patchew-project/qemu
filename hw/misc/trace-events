@@ -19,6 +19,13 @@ allwinner_h3_dramphy_write(uint64_t offset, uint64_t data, unsigned size) "write
 allwinner_sid_read(uint64_t offset, uint64_t data, unsigned size) "offset 0x%" PRIx64 " data 0x%" PRIx64 " size %" PRIu32
 allwinner_sid_write(uint64_t offset, uint64_t data, unsigned size) "offset 0x%" PRIx64 " data 0x%" PRIx64 " size %" PRIu32
 
+# aspeed_ibt.c
+aspeed_ibt_chr_dump_msg(const char *func, const char *buf, uint32_t len) "%s: %s #%d bytes"
+aspeed_ibt_chr_event(bool connected) "connected:%d"
+aspeed_ibt_read(uint64_t offset, uint64_t value) "offset:0x%" PRIx64 " value:0x%" PRIx64
+aspeed_ibt_write(uint64_t offset, uint64_t value) "offset:0x%" PRIx64 " value:0x%" PRIx64
+aspeed_ibt_event(const char* event) "%s"
+
 # avr_power.c
 avr_power_read(uint8_t value) "power_reduc read value:%u"
 avr_power_write(uint8_t value) "power_reduc write value:%u"
