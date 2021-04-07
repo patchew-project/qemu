@@ -413,7 +413,6 @@ static void connect_thread_cb(QIOChannelSocket *sioc, int ret, void *opaque)
 static int coroutine_fn
 nbd_co_establish_connection(BlockDriverState *bs)
 {
-    int ret;
     BDRVNBDState *s = bs->opaque;
     NBDConnectCB *thr = s->connect_thread;
 
@@ -430,10 +429,7 @@ nbd_co_establish_connection(BlockDriverState *bs)
         thr->state = CONNECT_THREAD_NONE;
         s->sioc = thr->sioc;
         thr->sioc = NULL;
-        yank_register_function(BLOCKDEV_YANK_INSTANCE(bs->node_name),
-                               nbd_yank, bs);
-        qemu_mutex_unlock(&thr->mutex);
-        return 0;
+        goto out;
     case CONNECT_THREAD_RUNNING:
         /* Already running, will wait */
         break;
@@ -459,11 +455,6 @@ nbd_co_establish_connection(BlockDriverState *bs)
         thr->state = CONNECT_THREAD_NONE;
         s->sioc = thr->sioc;
         thr->sioc = NULL;
-        if (s->sioc) {
-            yank_register_function(BLOCKDEV_YANK_INSTANCE(bs->node_name),
-                                   nbd_yank, bs);
-        }
-        ret = (s->sioc ? 0 : -1);
         break;
     case CONNECT_THREAD_RUNNING:
     case CONNECT_THREAD_RUNNING_DETACHED:
@@ -472,7 +463,6 @@ nbd_co_establish_connection(BlockDriverState *bs)
          * failed. Still connect thread is executing in background, and its
          * result may be used for next connection attempt.
          */
-        ret = -1;
         break;
 
     case CONNECT_THREAD_NONE:
@@ -486,9 +476,15 @@ nbd_co_establish_connection(BlockDriverState *bs)
         abort();
     }
 
+out:
     qemu_mutex_unlock(&thr->mutex);
 
-    return ret;
+    if (s->sioc) {
+        yank_register_function(BLOCKDEV_YANK_INSTANCE(bs->node_name),
+                               nbd_yank, bs);
+    }
+
+    return s->sioc ? 0 : -1;
 }
 
 /*
