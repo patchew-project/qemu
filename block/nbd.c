@@ -88,13 +88,15 @@ typedef struct NBDConnectCB {
     /* Result of last attempt. Valid in FAIL and SUCCESS states. */
     QIOChannelSocket *sioc;
 
-    /* state and bh_ctx are protected by mutex */
     QemuMutex mutex;
+    /* All further fields are protected by mutex */
     NBDConnectThreadState state; /* current state of the thread */
-    AioContext *bh_ctx; /* where to schedule bh (NULL means don't schedule) */
 
     /* Link to NBD BDS. If NULL thread is detached, BDS is probably closed. */
     BlockDriverState *bs;
+
+    /* connection_co is waiting in yield() */
+    bool wait_connect;
 } NBDConnectCB;
 
 typedef struct BDRVNBDState {
@@ -129,7 +131,6 @@ typedef struct BDRVNBDState {
     char *x_dirty_bitmap;
     bool alloc_depth;
 
-    bool wait_connect;
     NBDConnectCB *connect_thread;
 } BDRVNBDState;
 
@@ -365,8 +366,6 @@ static void connect_bh(void *opaque)
 {
     BDRVNBDState *state = opaque;
 
-    assert(state->wait_connect);
-    state->wait_connect = false;
     aio_co_wake(state->connection_co);
 }
 
@@ -374,6 +373,7 @@ static void connect_thread_cb(QIOChannelSocket *sioc, int ret, void *opaque)
 {
     NBDConnectCB *thr = opaque;
     bool do_free = false;
+    bool do_wake = false;
     BDRVNBDState *s = thr->bs ? thr->bs->opaque : NULL;
 
     qemu_mutex_lock(&thr->mutex);
@@ -383,12 +383,8 @@ static void connect_thread_cb(QIOChannelSocket *sioc, int ret, void *opaque)
     switch (thr->state) {
     case CONNECT_THREAD_RUNNING:
         thr->state = ret < 0 ? CONNECT_THREAD_FAIL : CONNECT_THREAD_SUCCESS;
-        if (thr->bh_ctx) {
-            aio_bh_schedule_oneshot(thr->bh_ctx, connect_bh, s);
-
-            /* play safe, don't reuse bh_ctx on further connection attempts */
-            thr->bh_ctx = NULL;
-        }
+        do_wake = thr->wait_connect;
+        thr->wait_connect = false;
         break;
     case CONNECT_THREAD_RUNNING_DETACHED:
         do_free = true;
@@ -398,6 +394,17 @@ static void connect_thread_cb(QIOChannelSocket *sioc, int ret, void *opaque)
     }
 
     qemu_mutex_unlock(&thr->mutex);
+
+    if (do_wake) {
+        /*
+         * At this point we are sure that connection_co sleeps in the
+         * corresponding yield point and we here have an exclusive right
+         * (and obligations) to wake it.
+         * Direct call to aio_co_wake() from thread context works bad. So use
+         * aio_bh_schedule_oneshot() as a mediator.
+         */
+        aio_bh_schedule_oneshot(bdrv_get_aio_context(thr->bs), connect_bh, s);
+    }
 
     if (do_free) {
         g_free(thr);
@@ -435,20 +442,14 @@ nbd_co_establish_connection(BlockDriverState *bs)
         abort();
     }
 
-    thr->bh_ctx = qemu_get_current_aio_context();
+    thr->wait_connect = true;
 
     qemu_mutex_unlock(&thr->mutex);
-
 
     /*
      * We are going to wait for connect-thread finish, but
      * nbd_client_co_drain_begin() can interrupt.
-     *
-     * Note that wait_connect variable is not visible for connect-thread. It
-     * doesn't need mutex protection, it used only inside home aio context of
-     * bs.
      */
-    s->wait_connect = true;
     qemu_coroutine_yield();
 
     qemu_mutex_lock(&thr->mutex);
@@ -512,9 +513,8 @@ static void nbd_co_establish_connection_cancel(BlockDriverState *bs,
 
     if (thr->state == CONNECT_THREAD_RUNNING) {
         /* We can cancel only in running state, when bh is not yet scheduled */
-        thr->bh_ctx = NULL;
-        if (s->wait_connect) {
-            s->wait_connect = false;
+        if (thr->wait_connect) {
+            thr->wait_connect = false;
             wake = true;
         }
         if (detach) {
