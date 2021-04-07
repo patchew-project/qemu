@@ -72,7 +72,8 @@ class TestEnv(ContextManager['TestEnv']):
                      'QEMU_NBD_OPTIONS', 'IMGOPTS', 'IMGFMT', 'IMGPROTO',
                      'AIOMODE', 'CACHEMODE', 'VALGRIND_QEMU',
                      'CACHEMODE_IS_DEFAULT', 'IMGFMT_GENERIC', 'IMGOPTSSYNTAX',
-                     'IMGKEYSECRET', 'QEMU_DEFAULT_MACHINE', 'MALLOC_PERTURB_']
+                     'IMGKEYSECRET', 'QEMU_DEFAULT_MACHINE', 'MALLOC_PERTURB_',
+                     'GDB_QEMU']
 
     def get_env(self) -> Dict[str, str]:
         env = {}
@@ -163,13 +164,22 @@ class TestEnv(ContextManager['TestEnv']):
                  imgopts: Optional[str] = None,
                  misalign: bool = False,
                  debug: bool = False,
-                 valgrind: bool = False) -> None:
+                 valgrind: bool = False,
+                 gdb: bool = False) -> None:
         self.imgfmt = imgfmt
         self.imgproto = imgproto
         self.aiomode = aiomode
         self.imgopts = imgopts
         self.misalign = misalign
         self.debug = debug
+
+        self.gdb_qemu = os.getenv('GDB_QEMU')
+
+        if gdb and not self.gdb_qemu:
+            self.gdb_qemu = 'localhost:12345'
+        elif self.gdb_qemu and not gdb:
+            del self.gdb_qemu
+            del os.environ['GDB_QEMU']
 
         if valgrind:
             self.valgrind_qemu = 'y'
@@ -269,7 +279,9 @@ IMGPROTO      -- {IMGPROTO}
 PLATFORM      -- {platform}
 TEST_DIR      -- {TEST_DIR}
 SOCK_DIR      -- {SOCK_DIR}
-SOCKET_SCM_HELPER -- {SOCKET_SCM_HELPER}"""
+SOCKET_SCM_HELPER -- {SOCKET_SCM_HELPER}
+GDB_QEMU      -- "{GDB_QEMU}"
+"""
 
         args = collections.defaultdict(str, self.get_env())
 
