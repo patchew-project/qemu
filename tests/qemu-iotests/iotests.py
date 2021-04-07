@@ -694,7 +694,7 @@ class VM(qtest.QEMUQtestMachine):
     def get_qmp_events_filtered(self, wait=60.0):
         result = []
         qmp_wait = wait
-        if qemu_gdb:
+        if qemu_gdb or qemu_valgrind:
             qmp_wait = 0.0
         for ev in self.get_qmp_events(wait=qmp_wait):
             result.append(filter_qmp_event(ev))
@@ -998,7 +998,7 @@ class QMPTestCase(unittest.TestCase):
         self.assert_qmp(result, 'return', {})
 
         qmp_wait = wait
-        if qemu_gdb:
+        if qemu_gdb or qemu_valgrind:
             qmp_wait = 0.0
 
         if resume:
@@ -1024,7 +1024,7 @@ class QMPTestCase(unittest.TestCase):
                              wait=60.0, error=None):
         '''Wait for a block job to finish, returning the event'''
         qmp_wait = wait
-        if qemu_gdb:
+        if qemu_gdb or qemu_valgrind:
             qmp_wait = 0.0
         while True:
             for event in self.vm.get_qmp_events(wait=qmp_wait):
@@ -1072,7 +1072,7 @@ class QMPTestCase(unittest.TestCase):
 
     def pause_wait(self, job_id='job0'):
         def_timeout = 3
-        if qemu_gdb:
+        if qemu_gdb or qemu_valgrind:
             def_timeout = 3000
         with Timeout(def_timeout, "Timeout waiting for job to pause"):
             while True:

@@ -409,7 +409,9 @@ class QEMUMachine:
                                        shell=False,
                                        close_fds=False)
 
-        timer = None if 'gdbserver' in self._wrapper else 15.0
+        delay_timer = 'gdbserver' in self._wrapper
+        delay_timer |= 'valgrind' in self._wrapper
+        timer = None if delay_timer else 15.0
         self._post_launch(timer)
 
     def _early_cleanup(self) -> None:
