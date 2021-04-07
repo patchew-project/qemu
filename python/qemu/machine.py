@@ -321,9 +321,9 @@ class QEMUMachine:
                 nickname=self._name
             )
 
-    def _post_launch(self) -> None:
+    def _post_launch(self, timer) -> None:
         if self._qmp_connection:
-            self._qmp.accept()
+            self._qmp.accept(timer)
 
     def _post_shutdown(self) -> None:
         """

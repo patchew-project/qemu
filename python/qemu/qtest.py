@@ -138,9 +138,9 @@ class QEMUQtestMachine(QEMUMachine):
         super()._pre_launch()
         self._qtest = QEMUQtestProtocol(self._qtest_path, server=True)
 
-    def _post_launch(self) -> None:
+    def _post_launch(self, timer) -> None:
         assert self._qtest is not None
-        super()._post_launch()
+        super()._post_launch(timer)
         self._qtest.accept()
 
     def _post_shutdown(self) -> None:
