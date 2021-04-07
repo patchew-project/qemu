@@ -408,7 +408,9 @@ class QEMUMachine:
                                        stderr=subprocess.STDOUT,
                                        shell=False,
                                        close_fds=False)
-        self._post_launch()
+
+        timer = None if 'gdbserver' in self._wrapper else 15.0
+        self._post_launch(timer)
 
     def _early_cleanup(self) -> None:
         """

@@ -681,7 +681,10 @@ class VM(qtest.QEMUQtestMachine):
 
     def get_qmp_events_filtered(self, wait=60.0):
         result = []
-        for ev in self.get_qmp_events(wait=wait):
+        qmp_wait = wait
+        if qemu_gdb:
+            qmp_wait = 0.0
+        for ev in self.get_qmp_events(wait=qmp_wait):
             result.append(filter_qmp_event(ev))
         return result
 
@@ -982,13 +985,17 @@ class QMPTestCase(unittest.TestCase):
         result = self.vm.qmp('block-job-cancel', device=drive, force=force)
         self.assert_qmp(result, 'return', {})
 
+        qmp_wait = wait
+        if qemu_gdb:
+            qmp_wait = 0.0
+
         if resume:
             self.vm.resume_drive(drive)
 
         cancelled = False
         result = None
         while not cancelled:
-            for event in self.vm.get_qmp_events(wait=wait):
+            for event in self.vm.get_qmp_events(wait=qmp_wait):
                 if event['event'] == 'BLOCK_JOB_COMPLETED' or \
                    event['event'] == 'BLOCK_JOB_CANCELLED':
                     self.assert_qmp(event, 'data/device', drive)
@@ -1004,8 +1011,11 @@ class QMPTestCase(unittest.TestCase):
     def wait_until_completed(self, drive='drive0', check_offset=True,
                              wait=60.0, error=None):
         '''Wait for a block job to finish, returning the event'''
+        qmp_wait = wait
+        if qemu_gdb:
+            qmp_wait = 0.0
         while True:
-            for event in self.vm.get_qmp_events(wait=wait):
+            for event in self.vm.get_qmp_events(wait=qmp_wait):
                 if event['event'] == 'BLOCK_JOB_COMPLETED':
                     self.assert_qmp(event, 'data/device', drive)
                     if error is None:
@@ -1049,7 +1059,10 @@ class QMPTestCase(unittest.TestCase):
         self.assertTrue(event['data']['type'] in ['mirror', 'commit'])
 
     def pause_wait(self, job_id='job0'):
-        with Timeout(3, "Timeout waiting for job to pause"):
+        def_timeout = 3
+        if qemu_gdb:
+            def_timeout = 3000
+        with Timeout(def_timeout, "Timeout waiting for job to pause"):
             while True:
                 result = self.vm.qmp('query-block-jobs')
                 found = False
