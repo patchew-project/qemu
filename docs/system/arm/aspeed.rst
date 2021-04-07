@@ -49,7 +49,7 @@ Supported devices
  * Ethernet controllers
  * Front LEDs (PCA9552 on I2C bus)
  * LPC Peripheral Controller (a subset of subdevices are supported)
- * Hash/Crypto Engine (HACE) - Hash support only, no scatter-gather
+ * Hash/Crypto Engine (HACE) - Hash support only
 
 
 Missing devices

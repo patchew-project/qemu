@@ -57,6 +57,14 @@
 /* Other cmd bits */
 #define  HASH_IRQ_EN                    BIT(9)
 #define  HASH_SG_EN                     BIT(18)
+/* Scatter-gather data list */
+#define SG_LIST_LEN_SIZE                4
+#define SG_LIST_LEN_MASK                0x0FFFFFFF
+#define SG_LIST_LEN_LAST                BIT(31)
+#define SG_LIST_ADDR_SIZE               4
+#define SG_LIST_ADDR_MASK               0x7FFFFFFF
+#define SG_LIST_ENTRY_SIZE              (SG_LIST_LEN_SIZE + SG_LIST_ADDR_SIZE)
+#define ASPEED_HACE_MAX_SG              256        /* max number of entries */
 
 static const struct {
     uint32_t mask;
@@ -129,6 +137,121 @@ static int do_hash_operation(AspeedHACEState *s, int algo)
     return 0;
 }
 
+static int do_hash_sg_operation(AspeedHACEState *s, int algo)
+{
+    hwaddr src, dest, req_size;
+    uint32_t entry_len, entry_addr;
+    uint8_t *digest_buf = NULL;
+    unsigned int i = 0;
+    MemTxResult result;
+    struct iovec iov[ASPEED_HACE_MAX_SG];
+    size_t digest_len = 0, size = 0;
+    int rc;
+
+    req_size = s->regs[R_HASH_SRC_LEN];
+    dest = s->regs[R_HASH_DEST];
+
+    while (i < ASPEED_HACE_MAX_SG) {
+        src = s->regs[R_HASH_SRC] + (i * SG_LIST_ENTRY_SIZE);
+        entry_len = address_space_ldl_le(&s->dram_as, src,
+                                         MEMTXATTRS_UNSPECIFIED, &result);
+        if (result != MEMTX_OK) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: failed to load SG Array length entry %"PRIu32
+                          " from 0x%"HWADDR_PRIx"\n", __func__, i, src);
+            rc = -EACCES;
+            goto cleanup;
+        }
+        entry_addr = address_space_ldl_le(&s->dram_as, src + SG_LIST_LEN_SIZE,
+                                          MEMTXATTRS_UNSPECIFIED, &result);
+        if (result != MEMTX_OK) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: failed to load SG Array address entry %"PRIu32
+                          " from 0x%"HWADDR_PRIx"\n",
+                          __func__, i, src + SG_LIST_LEN_SIZE);
+            rc = -EACCES;
+            goto cleanup;
+        }
+
+        iov[i].iov_len = (hwaddr) (entry_len & SG_LIST_LEN_MASK);
+        iov[i].iov_base = address_space_map(&s->dram_as,
+                                            entry_addr & SG_LIST_ADDR_MASK,
+                                            &iov[i].iov_len, false,
+                                            MEMTXATTRS_UNSPECIFIED);
+        if (!iov[i].iov_base) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: failed to map dram for SG array entry %"PRIu32
+                          " for region 0x%"PRIx32", len %"PRIu32"\n",
+                          __func__, i, entry_addr & SG_LIST_ADDR_MASK,
+                          entry_len & SG_LIST_LEN_MASK);
+            rc = -EACCES;
+            goto cleanup;
+        }
+        if (iov[i].iov_len != (entry_len & SG_LIST_LEN_MASK))
+            qemu_log_mask(LOG_GUEST_ERROR,
+                         "%s:  Warning: dram map for SG region entry %"PRIu32
+                         " requested size %"PRIu32" != mapped size %"PRIu64"\n",
+                         __func__, i, entry_len & SG_LIST_LEN_MASK,
+                         iov[i].iov_len);
+
+        size += iov[i].iov_len;
+        i++;
+
+        if (entry_len & SG_LIST_LEN_LAST) {
+            break;
+        }
+    }
+
+    if (!(entry_len & SG_LIST_LEN_LAST)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Error: Exhausted maximum of %"PRIu32
+                      " SG array entries\n",
+                      __func__, ASPEED_HACE_MAX_SG);
+        rc = -ENOTSUP;
+        goto cleanup;
+    }
+
+    if (size != req_size)
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Warning: requested SG total size %"PRIu64
+                      " != actual size %"PRIu64"\n",
+                      __func__, req_size, size);
+
+    rc = qcrypto_hash_bytesv(algo, iov, i, &digest_buf, &digest_len,
+                            &error_fatal);
+    if (rc < 0) {
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: qcrypto failed\n",
+                      __func__);
+        goto cleanup;
+    }
+
+    rc = address_space_write(&s->dram_as, dest, MEMTXATTRS_UNSPECIFIED,
+                             digest_buf, digest_len);
+    if (rc)
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: address space write failed\n", __func__);
+    g_free(digest_buf);
+
+cleanup:
+
+    for (; i > 0; i--) {
+        address_space_unmap(&s->dram_as, iov[i - 1].iov_base,
+                            iov[i - 1].iov_len, false,
+                            iov[i - 1].iov_len);
+    }
+
+    /*
+     * Set status bits to indicate completion. Testing shows hardware sets
+     * these irrespective of HASH_IRQ_EN.
+     */
+    if (!rc) {
+        s->regs[R_STATUS] |= HASH_IRQ;
+    }
+
+    return rc;
+}
+
+
 
 static uint64_t aspeed_hace_read(void *opaque, hwaddr addr, unsigned int size)
 {
@@ -187,11 +310,6 @@ static void aspeed_hace_write(void *opaque, hwaddr addr, uint64_t data,
                           "%s: HMAC engine command mode %"PRIx64" not implemented",
                           __func__, (data & HASH_HMAC_MASK) >> 8);
         }
-        if (data & HASH_SG_EN) {
-            qemu_log_mask(LOG_UNIMP,
-                          "%s: Hash scatter gather mode not implemented",
-                          __func__);
-        }
         if (data & BIT(1)) {
             qemu_log_mask(LOG_UNIMP,
                           "%s: Cascaded mode not implemented",
@@ -204,7 +322,10 @@ static void aspeed_hace_write(void *opaque, hwaddr addr, uint64_t data,
                         __func__, data & ahc->hash_mask);
                 break;
         }
-        do_hash_operation(s, algo);
+        if (data & HASH_SG_EN)
+            do_hash_sg_operation(s, algo);
+        else
+            do_hash_operation(s, algo);
 
         if (data & HASH_IRQ_EN) {
             qemu_irq_raise(s->irq);
