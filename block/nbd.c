@@ -501,7 +501,7 @@ static void nbd_co_establish_connection_cancel(BlockDriverState *bs,
 {
     BDRVNBDState *s = bs->opaque;
     NBDConnectCB *thr = s->connect_thread;
-    bool wake = false;
+    bool do_wake = false;
     bool do_free = false;
 
     qemu_mutex_lock(&thr->mutex);
@@ -510,7 +510,7 @@ static void nbd_co_establish_connection_cancel(BlockDriverState *bs,
         /* We can cancel only in running state, when bh is not yet scheduled */
         if (thr->wait_connect) {
             thr->wait_connect = false;
-            wake = true;
+            do_wake = true;
         }
         if (detach) {
             thr->bs = NULL;
@@ -528,7 +528,7 @@ static void nbd_co_establish_connection_cancel(BlockDriverState *bs,
         s->connect_thread = NULL;
     }
 
-    if (wake) {
+    if (do_wake) {
         aio_co_wake(s->connection_co);
     }
 }
