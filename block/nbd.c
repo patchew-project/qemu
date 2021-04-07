@@ -85,13 +85,6 @@ typedef enum NBDConnectThreadState {
 } NBDConnectThreadState;
 
 typedef struct NBDConnectCB {
-    /*
-     * Bottom half to schedule on completion. Scheduled only if bh_ctx is not
-     * NULL
-     */
-    QEMUBHFunc *bh_func;
-    void *bh_opaque;
-
     /* Result of last attempt. Valid in FAIL and SUCCESS states. */
     QIOChannelSocket *sioc;
 
@@ -99,6 +92,9 @@ typedef struct NBDConnectCB {
     QemuMutex mutex;
     NBDConnectThreadState state; /* current state of the thread */
     AioContext *bh_ctx; /* where to schedule bh (NULL means don't schedule) */
+
+    /* Link to NBD BDS. If NULL thread is detached, BDS is probably closed. */
+    BlockDriverState *bs;
 } NBDConnectCB;
 
 typedef struct BDRVNBDState {
@@ -351,6 +347,20 @@ static bool nbd_client_connecting_wait(BDRVNBDState *s)
     return qatomic_load_acquire(&s->state) == NBD_CLIENT_CONNECTING_WAIT;
 }
 
+static void nbd_init_connect_thread(BlockDriverState *bs)
+{
+    BDRVNBDState *s = bs->opaque;
+
+    s->connect_thread = g_new(NBDConnectCB, 1);
+
+    *s->connect_thread = (NBDConnectCB) {
+        .state = CONNECT_THREAD_NONE,
+        .bs = bs,
+    };
+
+    qemu_mutex_init(&s->connect_thread->mutex);
+}
+
 static void connect_bh(void *opaque)
 {
     BDRVNBDState *state = opaque;
@@ -360,23 +370,11 @@ static void connect_bh(void *opaque)
     aio_co_wake(state->connection_co);
 }
 
-static void nbd_init_connect_thread(BDRVNBDState *s)
-{
-    s->connect_thread = g_new(NBDConnectCB, 1);
-
-    *s->connect_thread = (NBDConnectCB) {
-        .state = CONNECT_THREAD_NONE,
-        .bh_func = connect_bh,
-        .bh_opaque = s,
-    };
-
-    qemu_mutex_init(&s->connect_thread->mutex);
-}
-
 static void connect_thread_cb(QIOChannelSocket *sioc, int ret, void *opaque)
 {
     NBDConnectCB *thr = opaque;
     bool do_free = false;
+    BDRVNBDState *s = thr->bs ? thr->bs->opaque : NULL;
 
     qemu_mutex_lock(&thr->mutex);
 
@@ -386,7 +384,7 @@ static void connect_thread_cb(QIOChannelSocket *sioc, int ret, void *opaque)
     case CONNECT_THREAD_RUNNING:
         thr->state = ret < 0 ? CONNECT_THREAD_FAIL : CONNECT_THREAD_SUCCESS;
         if (thr->bh_ctx) {
-            aio_bh_schedule_oneshot(thr->bh_ctx, thr->bh_func, thr->bh_opaque);
+            aio_bh_schedule_oneshot(thr->bh_ctx, connect_bh, s);
 
             /* play safe, don't reuse bh_ctx on further connection attempts */
             thr->bh_ctx = NULL;
@@ -520,6 +518,7 @@ static void nbd_co_establish_connection_cancel(BlockDriverState *bs,
             wake = true;
         }
         if (detach) {
+            thr->bs = NULL;
             thr->state = CONNECT_THREAD_RUNNING_DETACHED;
             s->connect_thread = NULL;
         }
@@ -2271,7 +2270,7 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
     /* successfully connected */
     s->state = NBD_CLIENT_CONNECTED;
 
-    nbd_init_connect_thread(s);
+    nbd_init_connect_thread(bs);
 
     s->connection_co = qemu_coroutine_create(nbd_connection_entry, s);
     bdrv_inc_in_flight(bs);
