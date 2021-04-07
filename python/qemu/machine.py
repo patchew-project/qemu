@@ -109,7 +109,7 @@ class QEMUMachine:
 
         self._binary = binary
         self._args = list(args)
-        self._wrapper = wrapper
+        self._wrapper = list(wrapper)
 
         self._name = name or "qemu-%d" % os.getpid()
         self._test_dir = test_dir
