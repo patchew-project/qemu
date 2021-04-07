@@ -84,7 +84,7 @@ typedef enum NBDConnectThreadState {
     CONNECT_THREAD_SUCCESS
 } NBDConnectThreadState;
 
-typedef struct NBDConnectThread {
+typedef struct NBDConnectCB {
     /* Initialization constants */
     SocketAddress *saddr; /* address to connect to */
     /*
@@ -101,7 +101,7 @@ typedef struct NBDConnectThread {
     QemuMutex mutex;
     NBDConnectThreadState state; /* current state of the thread */
     AioContext *bh_ctx; /* where to schedule bh (NULL means don't schedule) */
-} NBDConnectThread;
+} NBDConnectCB;
 
 typedef struct BDRVNBDState {
     QIOChannelSocket *sioc; /* The master data channel */
@@ -136,7 +136,7 @@ typedef struct BDRVNBDState {
     bool alloc_depth;
 
     bool wait_connect;
-    NBDConnectThread *connect_thread;
+    NBDConnectCB *connect_thread;
 } BDRVNBDState;
 
 static int nbd_establish_connection(BlockDriverState *bs, SocketAddress *saddr,
@@ -364,9 +364,9 @@ static void connect_bh(void *opaque)
 
 static void nbd_init_connect_thread(BDRVNBDState *s)
 {
-    s->connect_thread = g_new(NBDConnectThread, 1);
+    s->connect_thread = g_new(NBDConnectCB, 1);
 
-    *s->connect_thread = (NBDConnectThread) {
+    *s->connect_thread = (NBDConnectCB) {
         .saddr = QAPI_CLONE(SocketAddress, s->saddr),
         .state = CONNECT_THREAD_NONE,
         .bh_func = connect_bh,
@@ -376,7 +376,7 @@ static void nbd_init_connect_thread(BDRVNBDState *s)
     qemu_mutex_init(&s->connect_thread->mutex);
 }
 
-static void nbd_free_connect_thread(NBDConnectThread *thr)
+static void nbd_free_connect_thread(NBDConnectCB *thr)
 {
     if (thr->sioc) {
         qio_channel_close(QIO_CHANNEL(thr->sioc), NULL);
@@ -387,7 +387,7 @@ static void nbd_free_connect_thread(NBDConnectThread *thr)
 
 static void connect_thread_cb(int ret, void *opaque)
 {
-    NBDConnectThread *thr = opaque;
+    NBDConnectCB *thr = opaque;
     bool do_free = false;
 
     qemu_mutex_lock(&thr->mutex);
@@ -418,7 +418,7 @@ static void connect_thread_cb(int ret, void *opaque)
 
 static void *connect_thread_func(void *opaque)
 {
-    NBDConnectThread *thr = opaque;
+    NBDConnectCB *thr = opaque;
     int ret;
 
     thr->sioc = qio_channel_socket_new();
@@ -440,7 +440,7 @@ nbd_co_establish_connection(BlockDriverState *bs)
     int ret;
     QemuThread thread;
     BDRVNBDState *s = bs->opaque;
-    NBDConnectThread *thr = s->connect_thread;
+    NBDConnectCB *thr = s->connect_thread;
 
     qemu_mutex_lock(&thr->mutex);
 
@@ -536,7 +536,7 @@ static void nbd_co_establish_connection_cancel(BlockDriverState *bs,
                                                bool detach)
 {
     BDRVNBDState *s = bs->opaque;
-    NBDConnectThread *thr = s->connect_thread;
+    NBDConnectCB *thr = s->connect_thread;
     bool wake = false;
     bool do_free = false;
 
