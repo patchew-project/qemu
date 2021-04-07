@@ -94,12 +94,8 @@ typedef struct NBDConnectThread {
     QEMUBHFunc *bh_func;
     void *bh_opaque;
 
-    /*
-     * Result of last attempt. Valid in FAIL and SUCCESS states.
-     * If you want to steal error, don't forget to set pointer to NULL.
-     */
+    /* Result of last attempt. Valid in FAIL and SUCCESS states. */
     QIOChannelSocket *sioc;
-    Error *err;
 
     /* state and bh_ctx are protected by mutex */
     QemuMutex mutex;
@@ -385,7 +381,6 @@ static void nbd_free_connect_thread(NBDConnectThread *thr)
     if (thr->sioc) {
         qio_channel_close(QIO_CHANNEL(thr->sioc), NULL);
     }
-    error_free(thr->err);
     qapi_free_SocketAddress(thr->saddr);
     g_free(thr);
 }
@@ -398,9 +393,7 @@ static void *connect_thread_func(void *opaque)
 
     thr->sioc = qio_channel_socket_new();
 
-    error_free(thr->err);
-    thr->err = NULL;
-    ret = qio_channel_socket_connect_sync(thr->sioc, thr->saddr, &thr->err);
+    ret = qio_channel_socket_connect_sync(thr->sioc, thr->saddr, NULL);
     if (ret < 0) {
         object_unref(OBJECT(thr->sioc));
         thr->sioc = NULL;
@@ -447,8 +440,6 @@ nbd_co_establish_connection(BlockDriverState *bs)
     switch (thr->state) {
     case CONNECT_THREAD_FAIL:
     case CONNECT_THREAD_NONE:
-        error_free(thr->err);
-        thr->err = NULL;
         thr->state = CONNECT_THREAD_RUNNING;
         qemu_thread_create(&thread, "nbd-connect",
                            connect_thread_func, thr, QEMU_THREAD_DETACHED);
@@ -491,8 +482,6 @@ nbd_co_establish_connection(BlockDriverState *bs)
     case CONNECT_THREAD_SUCCESS:
     case CONNECT_THREAD_FAIL:
         thr->state = CONNECT_THREAD_NONE;
-        error_free(thr->err);
-        thr->err = NULL;
         s->sioc = thr->sioc;
         thr->sioc = NULL;
         if (s->sioc) {
