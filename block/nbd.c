@@ -145,7 +145,7 @@ typedef struct BDRVNBDState {
 
 static int nbd_establish_connection(BlockDriverState *bs, SocketAddress *saddr,
                                     Error **errp);
-static int nbd_co_establish_connection(BlockDriverState *bs, Error **errp);
+static int nbd_co_establish_connection(BlockDriverState *bs);
 static void nbd_co_establish_connection_cancel(BlockDriverState *bs,
                                                bool detach);
 static int nbd_client_handshake(BlockDriverState *bs, Error **errp);
@@ -435,7 +435,7 @@ static void *connect_thread_func(void *opaque)
 }
 
 static int coroutine_fn
-nbd_co_establish_connection(BlockDriverState *bs, Error **errp)
+nbd_co_establish_connection(BlockDriverState *bs)
 {
     int ret;
     QemuThread thread;
@@ -491,7 +491,7 @@ nbd_co_establish_connection(BlockDriverState *bs, Error **errp)
     case CONNECT_THREAD_SUCCESS:
     case CONNECT_THREAD_FAIL:
         thr->state = CONNECT_THREAD_NONE;
-        error_propagate(errp, thr->err);
+        error_free(thr->err);
         thr->err = NULL;
         s->sioc = thr->sioc;
         thr->sioc = NULL;
@@ -509,7 +509,6 @@ nbd_co_establish_connection(BlockDriverState *bs, Error **errp)
          * result may be used for next connection attempt.
          */
         ret = -1;
-        error_setg(errp, "Connection attempt cancelled by other operation");
         break;
 
     case CONNECT_THREAD_NONE:
@@ -617,7 +616,7 @@ static coroutine_fn void nbd_reconnect_attempt(BDRVNBDState *s)
         s->ioc = NULL;
     }
 
-    if (nbd_co_establish_connection(s->bs, NULL) < 0) {
+    if (nbd_co_establish_connection(s->bs) < 0) {
         ret = -ECONNREFUSED;
         goto out;
     }
