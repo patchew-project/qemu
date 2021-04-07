@@ -910,6 +910,14 @@ const char *qtest_get_arch(void)
         abort();
     }
 
+    if (strcmp(end + 1, "kvm") == 0) {
+        fprintf(stderr, "QTEST_QEMU_BINARY must end with *-<arch>. If you are "
+                        "using qemu-kvm, please create a symlink like ln -s "
+                        "path/to/qemu-kvm qemu-system-x86_64 and use that "
+                        "instead.\n");
+        abort();
+    }
+
     return end + 1;
 }
 
