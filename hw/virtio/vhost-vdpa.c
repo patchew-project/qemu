@@ -467,11 +467,33 @@ static int vhost_vdpa_get_config(struct vhost_dev *dev, uint8_t *config,
     }
     return ret;
  }
-
+static void vhost_vdpa_config_notify_start(struct vhost_dev *dev,
+                                struct VirtIODevice *vdev, bool start)
+{
+    int fd = 0;
+    int r = 0;
+    if (!(dev->features & (0x1ULL << VIRTIO_NET_F_STATUS))) {
+        return;
+    }
+    if (start) {
+        fd = event_notifier_get_fd(&vdev->config_notifier);
+        r = dev->vhost_ops->vhost_set_config_call(dev, &fd);
+        if (!r) {
+            vdev->use_config_notifier = true;
+            event_notifier_set(&vdev->config_notifier);
+        }
+    } else {
+        fd = -1;
+        vdev->use_config_notifier = false;
+        r = dev->vhost_ops->vhost_set_config_call(dev, &fd);
+    }
+    return;
+}
 static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
 {
     struct vhost_vdpa *v = dev->opaque;
     trace_vhost_vdpa_dev_start(dev, started);
+    VirtIODevice *vdev = dev->vdev;
     if (started) {
         uint8_t status = 0;
         memory_listener_register(&v->listener, &address_space_memory);
@@ -479,8 +501,10 @@ static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
         vhost_vdpa_add_status(dev, VIRTIO_CONFIG_S_DRIVER_OK);
         vhost_vdpa_call(dev, VHOST_VDPA_GET_STATUS, &status);
 
+        vhost_vdpa_config_notify_start(dev, vdev, true);
         return !(status & VIRTIO_CONFIG_S_DRIVER_OK);
     } else {
+        vhost_vdpa_config_notify_start(dev, vdev, false);
         vhost_vdpa_reset_device(dev);
         vhost_vdpa_add_status(dev, VIRTIO_CONFIG_S_ACKNOWLEDGE |
                                    VIRTIO_CONFIG_S_DRIVER);
