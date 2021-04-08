@@ -54,13 +54,14 @@ static void vhost_user_blk_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     VHostUserBlkPCI *dev = VHOST_USER_BLK_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
+    VHostBlkCommon *vbc = VHOST_BLK_COMMON(&dev->vdev);
 
-    if (dev->vdev.num_queues == VHOST_USER_BLK_AUTO_NUM_QUEUES) {
-        dev->vdev.num_queues = virtio_pci_optimal_num_queues(0);
+    if (vbc->num_queues == VHOST_BLK_AUTO_NUM_QUEUES) {
+        vbc->num_queues = virtio_pci_optimal_num_queues(0);
     }
 
     if (vpci_dev->nvectors == DEV_NVECTORS_UNSPECIFIED) {
-        vpci_dev->nvectors = dev->vdev.num_queues + 1;
+        vpci_dev->nvectors = vbc->num_queues + 1;
     }
 
     qdev_realize(vdev, BUS(&vpci_dev->bus), errp);
