@@ -614,19 +614,12 @@ void aio_co_wake(struct Coroutine *co)
 
 void aio_co_enter(AioContext *ctx, struct Coroutine *co)
 {
-    if (ctx != qemu_get_current_aio_context()) {
-        aio_co_schedule(ctx, co);
-        return;
-    }
-
-    if (qemu_in_coroutine()) {
+    if (ctx == qemu_get_current_aio_context() && qemu_in_coroutine()) {
         Coroutine *self = qemu_coroutine_self();
         assert(self != co);
         QSIMPLEQ_INSERT_TAIL(&self->co_queue_wakeup, co, co_queue_next);
     } else {
-        aio_context_acquire(ctx);
-        qemu_aio_coroutine_enter(ctx, co);
-        aio_context_release(ctx);
+        aio_co_schedule(ctx, co);
     }
 }
 
