@@ -17,5 +17,6 @@ softmmu_ss.add(when: 'CONFIG_NVME_PCI', if_true: files('nvme.c', 'nvme-ns.c', 'n
 
 specific_ss.add(when: 'CONFIG_VIRTIO_BLK', if_true: files('virtio-blk.c'))
 specific_ss.add(when: 'CONFIG_VHOST_USER_BLK', if_true: files('vhost-blk-common.c', 'vhost-user-blk.c'))
+specific_ss.add(when: 'CONFIG_VHOST_VDPA_BLK', if_true: files('vhost-blk-common.c', 'vhost-vdpa-blk.c'))
 
 subdir('dataplane')

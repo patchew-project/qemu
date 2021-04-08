@@ -41,5 +41,10 @@ config VHOST_USER_BLK
     default y if VIRTIO_PCI
     depends on VIRTIO && VHOST_USER && LINUX
 
+config VHOST_VDPA_BLK
+    bool
+    default y if VIRTIO_PCI
+    depends on VIRTIO && VHOST_VDPA && LINUX
+
 config SWIM
     bool
