@@ -665,7 +665,7 @@ static int virtio_mmio_set_guest_notifier(DeviceState *d, int n, bool assign,
     }
 
     if (vdc->guest_notifier_mask && vdev->use_guest_notifier_mask) {
-        vdc->guest_notifier_mask(vdev, n, !assign);
+        vdc->guest_notifier_mask(vdev, n, !assign, VIRTIO_VQ_VECTOR);
     }
 
     return 0;

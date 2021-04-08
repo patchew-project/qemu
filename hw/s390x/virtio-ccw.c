@@ -1012,16 +1012,16 @@ static int virtio_ccw_set_guest_notifier(VirtioCcwDevice *dev, int n,
          * need to manually trigger any guest masking callbacks here.
          */
         if (k->guest_notifier_mask && vdev->use_guest_notifier_mask) {
-            k->guest_notifier_mask(vdev, n, false);
+            k->guest_notifier_mask(vdev, n, false, VIRTIO_VQ_VECTOR);
         }
         /* get lost events and re-inject */
         if (k->guest_notifier_pending &&
-            k->guest_notifier_pending(vdev, n)) {
+            k->guest_notifier_pending(vdev, n, VIRTIO_VQ_VECTOR)) {
             event_notifier_set(notifier);
         }
     } else {
         if (k->guest_notifier_mask && vdev->use_guest_notifier_mask) {
-            k->guest_notifier_mask(vdev, n, true);
+            k->guest_notifier_mask(vdev, n, true, VIRTIO_VQ_VECTOR);
         }
         if (with_irqfd) {
             virtio_ccw_remove_irqfd(dev, n);

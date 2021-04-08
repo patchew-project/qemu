@@ -3047,22 +3047,27 @@ static NetClientInfo net_virtio_info = {
     .announce = virtio_net_announce,
 };
 
-static bool virtio_net_guest_notifier_pending(VirtIODevice *vdev, int idx)
+static bool virtio_net_guest_notifier_pending(VirtIODevice *vdev, int idx,
+                                int type)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
     NetClientState *nc = qemu_get_subqueue(n->nic, vq2q(idx));
     assert(n->vhost_started);
-    return vhost_net_virtqueue_pending(get_vhost_net(nc->peer), idx);
+    if (type == VIRTIO_VQ_VECTOR) {
+        return vhost_net_virtqueue_pending(get_vhost_net(nc->peer), idx);
+    }
+    return false;
 }
 
 static void virtio_net_guest_notifier_mask(VirtIODevice *vdev, int idx,
-                                           bool mask)
+                                           bool mask, int type)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
     NetClientState *nc = qemu_get_subqueue(n->nic, vq2q(idx));
     assert(n->vhost_started);
-    vhost_net_virtqueue_mask(get_vhost_net(nc->peer),
-                             vdev, idx, mask);
+    if (type == VIRTIO_VQ_VECTOR) {
+        vhost_net_virtqueue_mask(get_vhost_net(nc->peer), vdev, idx, mask);
+     }
 }
 
 static void virtio_net_set_config_size(VirtIONet *n, uint64_t host_features)

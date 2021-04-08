@@ -67,6 +67,11 @@ typedef struct VirtQueueElement
 
 #define VIRTIO_NO_VECTOR 0xffff
 
+enum virtio_vector_type {
+    VIRTIO_VQ_VECTOR,
+    VIRTIO_CONFIG_VECTOR,
+    VIRTIO_VECTOR_UNKNOWN,
+};
 #define TYPE_VIRTIO_DEVICE "virtio-device"
 OBJECT_DECLARE_TYPE(VirtIODevice, VirtioDeviceClass, VIRTIO_DEVICE)
 
@@ -138,13 +143,13 @@ struct VirtioDeviceClass {
      * If backend does not support masking,
      * must check in frontend instead.
      */
-    bool (*guest_notifier_pending)(VirtIODevice *vdev, int n);
+    bool (*guest_notifier_pending)(VirtIODevice *vdev, int n, int type);
     /* Mask/unmask events from this vq. Any events reported
      * while masked will become pending.
      * If backend does not support masking,
      * must mask in frontend instead.
      */
-    void (*guest_notifier_mask)(VirtIODevice *vdev, int n, bool mask);
+    void (*guest_notifier_mask)(VirtIODevice *vdev, int n, bool mask, int type);
     int (*start_ioeventfd)(VirtIODevice *vdev);
     void (*stop_ioeventfd)(VirtIODevice *vdev);
     /* Saving and loading of a device; trying to deprecate save/load
