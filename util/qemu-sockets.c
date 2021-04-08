@@ -206,6 +206,21 @@ static int try_bind(int socket, InetSocketAddress *saddr, struct addrinfo *e)
 #endif
 }
 
+static int check_mptcp(const InetSocketAddress *saddr, struct addrinfo *ai,
+                       Error **errp)
+{
+    if (saddr->has_mptcp && saddr->mptcp) {
+#ifdef IPPROTO_MPTCP
+        ai->ai_protocol = IPPROTO_MPTCP;
+#else
+        error_setg(errp, "MPTCP unavailable in this build");
+        return -1;
+#endif
+    }
+
+    return 0;
+}
+
 static int inet_listen_saddr(InetSocketAddress *saddr,
                              int port_offset,
                              int num,
@@ -278,6 +293,11 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
 
     /* create socket + bind/listen */
     for (e = res; e != NULL; e = e->ai_next) {
+        if (check_mptcp(saddr, e, &err)) {
+            error_propagate(errp, err);
+            return -1;
+        }
+
         getnameinfo((struct sockaddr*)e->ai_addr,e->ai_addrlen,
                         uaddr,INET6_ADDRSTRLEN,uport,32,
                         NI_NUMERICHOST | NI_NUMERICSERV);
@@ -456,6 +476,11 @@ int inet_connect_saddr(InetSocketAddress *saddr, Error **errp)
     for (e = res; e != NULL; e = e->ai_next) {
         error_free(local_err);
         local_err = NULL;
+
+        if (check_mptcp(saddr, e, &local_err)) {
+            break;
+        }
+
         sock = inet_connect_addr(saddr, e, &local_err);
         if (sock >= 0) {
             break;
@@ -686,6 +711,15 @@ int inet_parse(InetSocketAddress *addr, const char *str, Error **errp)
             return -1;
         }
         addr->has_keep_alive = true;
+    }
+    begin = strstr(optstr, ",mptcp");
+    if (begin) {
+        if (inet_parse_flag("mptcp", begin + strlen(",mptcp"),
+                            &addr->mptcp, errp) < 0)
+        {
+            return -1;
+        }
+        addr->has_mptcp = true;
     }
     return 0;
 }

@@ -122,6 +122,8 @@ static int qio_dns_resolver_lookup_sync_inet(QIODNSResolver *resolver,
             .ipv4 = iaddr->ipv4,
             .has_ipv6 = iaddr->has_ipv6,
             .ipv6 = iaddr->ipv6,
+            .has_mptcp = iaddr->has_mptcp,
+            .mptcp = iaddr->mptcp,
         };
 
         (*addrs)[i] = newaddr;
