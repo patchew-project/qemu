@@ -240,6 +240,22 @@ class Test(avocado.Test):
                 self._vms[name].set_machine(self.machine)
         return self._vms[name]
 
+    def set_vm_arg(self, arg, value):
+        """
+        Set an argument to list of extra arguments to be given to the QEMU
+        binary. If the argument already exists then its value is replaced.
+
+        :param arg: the QEMU argument, such as "-cpu" in "-cpu host"
+        :type arg: str
+        :param value: the argument value, such as "host" in "-cpu host"
+        :type value: str
+        """
+        if arg not in self.vm.args:
+            self.vm.args.extend([arg, value])
+        else:
+            idx = self.vm.args.index(arg)
+            self.vm.args[idx + 1] = value
+
     def tearDown(self):
         for vm in self._vms.values():
             vm.shutdown()
