@@ -120,7 +120,18 @@ class TestSingleDrive(iotests.QMPTestCase):
         result = self.vm.qmp('block-job-resume', device='drive0')
         self.assert_qmp(result, 'return', {})
 
-        self.complete_and_wait()
+        self.wait_ready()
+
+        # Check that a job on STANDBY cannot be completed
+        self.pause_job('drive0')
+        result = self.vm.qmp('block-job-complete', device='drive0')
+        self.assert_qmp(result, 'error/desc',
+                        "Job 'drive0' has been paused by the user")
+
+        result = self.vm.qmp('block-job-resume', device='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        self.complete_and_wait(wait_ready=False)
         self.vm.shutdown()
         self.assertTrue(iotests.compare_images(test_img, target_img),
                         'target image does not match source after mirroring')
