@@ -73,12 +73,6 @@ typedef enum NBDConnectThreadState {
     /* Thread is running, no results for now */
     CONNECT_THREAD_RUNNING,
 
-    /*
-     * Thread is running, but requestor exited. Thread should close
-     * the new socket and free the connect state on exit.
-     */
-    CONNECT_THREAD_RUNNING_DETACHED,
-
     /* Thread finished, results are stored in a state */
     CONNECT_THREAD_FAIL,
     CONNECT_THREAD_SUCCESS
@@ -100,6 +94,8 @@ typedef struct NBDConnectThread {
      */
     QIOChannelSocket *sioc;
     Error *err;
+
+    int refcnt; /* atomic access */
 
     /* state and bh_ctx are protected by mutex */
     QemuMutex mutex;
@@ -144,16 +140,18 @@ typedef struct BDRVNBDState {
     NBDConnectThread *connect_thread;
 } BDRVNBDState;
 
+static void connect_thread_state_unref(NBDConnectThread *thr);
 static int nbd_establish_connection(BlockDriverState *bs, SocketAddress *saddr,
                                     Error **errp);
 static int nbd_co_establish_connection(BlockDriverState *bs, Error **errp);
-static void nbd_co_establish_connection_cancel(BlockDriverState *bs,
-                                               bool detach);
+static void nbd_co_establish_connection_cancel(BlockDriverState *bs);
 static int nbd_client_handshake(BlockDriverState *bs, Error **errp);
 static void nbd_yank(void *opaque);
 
 static void nbd_clear_bdrvstate(BDRVNBDState *s)
 {
+    connect_thread_state_unref(s->connect_thread);
+    s->connect_thread = NULL;
     object_unref(OBJECT(s->tlscreds));
     qapi_free_SocketAddress(s->saddr);
     s->saddr = NULL;
@@ -293,7 +291,7 @@ static void coroutine_fn nbd_client_co_drain_begin(BlockDriverState *bs)
         qemu_co_sleep_wake(s->connection_co_sleep_ns_state);
     }
 
-    nbd_co_establish_connection_cancel(bs, false);
+    nbd_co_establish_connection_cancel(bs);
 
     reconnect_delay_timer_del(s);
 
@@ -333,7 +331,7 @@ static void nbd_teardown_connection(BlockDriverState *bs)
         if (s->connection_co_sleep_ns_state) {
             qemu_co_sleep_wake(s->connection_co_sleep_ns_state);
         }
-        nbd_co_establish_connection_cancel(bs, true);
+        nbd_co_establish_connection_cancel(bs);
     }
     if (qemu_in_coroutine()) {
         s->teardown_co = qemu_coroutine_self();
@@ -376,26 +374,28 @@ static void nbd_init_connect_thread(BDRVNBDState *s)
         .state = CONNECT_THREAD_NONE,
         .bh_func = connect_bh,
         .bh_opaque = s,
+        .refcnt = 1,
     };
 
     qemu_mutex_init(&s->connect_thread->mutex);
 }
 
-static void nbd_free_connect_thread(NBDConnectThread *thr)
+static void connect_thread_state_unref(NBDConnectThread *thr)
 {
-    if (thr->sioc) {
-        qio_channel_close(QIO_CHANNEL(thr->sioc), NULL);
+    if (qatomic_dec_fetch(&thr->refcnt) == 0) {
+        if (thr->sioc) {
+            qio_channel_close(QIO_CHANNEL(thr->sioc), NULL);
+        }
+        error_free(thr->err);
+        qapi_free_SocketAddress(thr->saddr);
+        g_free(thr);
     }
-    error_free(thr->err);
-    qapi_free_SocketAddress(thr->saddr);
-    g_free(thr);
 }
 
 static void *connect_thread_func(void *opaque)
 {
     NBDConnectThread *thr = opaque;
     int ret;
-    bool do_free = false;
 
     thr->sioc = qio_channel_socket_new();
 
@@ -419,18 +419,13 @@ static void *connect_thread_func(void *opaque)
             thr->bh_ctx = NULL;
         }
         break;
-    case CONNECT_THREAD_RUNNING_DETACHED:
-        do_free = true;
-        break;
     default:
         abort();
     }
 
     qemu_mutex_unlock(&thr->mutex);
 
-    if (do_free) {
-        nbd_free_connect_thread(thr);
-    }
+    connect_thread_state_unref(thr);
 
     return NULL;
 }
@@ -451,6 +446,7 @@ nbd_co_establish_connection(BlockDriverState *bs, Error **errp)
         error_free(thr->err);
         thr->err = NULL;
         thr->state = CONNECT_THREAD_RUNNING;
+        qatomic_inc(&thr->refcnt); /* for thread */
         qemu_thread_create(&thread, "nbd-connect",
                            connect_thread_func, thr, QEMU_THREAD_DETACHED);
         break;
@@ -503,7 +499,6 @@ nbd_co_establish_connection(BlockDriverState *bs, Error **errp)
         ret = (s->sioc ? 0 : -1);
         break;
     case CONNECT_THREAD_RUNNING:
-    case CONNECT_THREAD_RUNNING_DETACHED:
         /*
          * Obviously, drained section wants to start. Report the attempt as
          * failed. Still connect thread is executing in background, and its
@@ -533,18 +528,12 @@ nbd_co_establish_connection(BlockDriverState *bs, Error **errp)
  * nbd_co_establish_connection_cancel
  * Cancel nbd_co_establish_connection asynchronously: it will finish soon, to
  * allow drained section to begin.
- *
- * If detach is true, also cleanup the state (or if thread is running, move it
- * to CONNECT_THREAD_RUNNING_DETACHED state). s->connect_thread becomes NULL if
- * detach is true.
  */
-static void nbd_co_establish_connection_cancel(BlockDriverState *bs,
-                                               bool detach)
+static void nbd_co_establish_connection_cancel(BlockDriverState *bs)
 {
     BDRVNBDState *s = bs->opaque;
     NBDConnectThread *thr = s->connect_thread;
     bool wake = false;
-    bool do_free = false;
 
     qemu_mutex_lock(&thr->mutex);
 
@@ -555,20 +544,9 @@ static void nbd_co_establish_connection_cancel(BlockDriverState *bs,
             s->wait_connect = false;
             wake = true;
         }
-        if (detach) {
-            thr->state = CONNECT_THREAD_RUNNING_DETACHED;
-            s->connect_thread = NULL;
-        }
-    } else if (detach) {
-        do_free = true;
     }
 
     qemu_mutex_unlock(&thr->mutex);
-
-    if (do_free) {
-        nbd_free_connect_thread(thr);
-        s->connect_thread = NULL;
-    }
 
     if (wake) {
         aio_co_wake(s->connection_co);
