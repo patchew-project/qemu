@@ -21,7 +21,6 @@ typedef struct vhost_vdpa {
     struct vhost_dev *dev;
 } VhostVDPA;
 
-extern AddressSpace address_space_memory;
 extern int vhost_vdpa_get_device_id(struct vhost_dev *dev,
                                    uint32_t *device_id);
 #endif
