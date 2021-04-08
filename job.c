@@ -1023,3 +1023,45 @@ int job_finish_sync(Job *job, void (*finish)(Job *, Error **errp), Error **errp)
     job_unref(job);
     return ret;
 }
+
+int job_wait_unpaused(Job *job, Error **errp)
+{
+    /*
+     * Only run this function from the main context, because this is
+     * what we need, and this way we do not have to think about what
+     * happens if the user concurrently pauses the job from the main
+     * monitor.
+     */
+    assert(qemu_get_current_aio_context() == qemu_get_aio_context());
+
+    /*
+     * Quick path (e.g. so we do not get an error if pause_count > 0
+     * but the job is not even paused)
+     */
+    if (!job->paused) {
+        return 0;
+    }
+
+    /* If the user has paused the job, waiting will not help */
+    if (job->user_paused) {
+        error_setg(errp, "Job '%s' has been paused by the user", job->id);
+        return -EBUSY;
+    }
+
+    /* Similarly, if the job is still drained, waiting will not help either */
+    if (job->pause_count > 0) {
+        error_setg(errp, "Job '%s' is blocked and cannot be unpaused", job->id);
+        return -EBUSY;
+    }
+
+    /*
+     * This function is specifically for waiting for a job to be
+     * resumed after a drained section.  Ending the drained section
+     * includes a job_enter(), which schedules the job loop to be run,
+     * and once it does, job->paused will be cleared.  Therefore, we
+     * do not need to invoke job_enter() here.
+     */
+    AIO_WAIT_WHILE(job->aio_context, job->paused);
+
+    return 0;
+}
