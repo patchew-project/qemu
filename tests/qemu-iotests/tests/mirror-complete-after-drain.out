@@ -1,0 +1,14 @@
+{"execute": "blockdev-mirror", "arguments": {"buf-size": 16777216, "device": "source-disk-0", "granularity": 1048576, "job-id": "mirror-disk-0", "sync": "full", "target": "target-disk-0"}}
+{"return": {}}
+{"execute": "blockdev-mirror", "arguments": {"buf-size": 16777216, "device": "source-disk-1", "granularity": 1048576, "job-id": "mirror-disk-1", "sync": "full", "target": "target-disk-1"}}
+{"return": {}}
+{"execute": "blockdev-mirror", "arguments": {"buf-size": 16777216, "device": "source-disk-2", "granularity": 1048576, "job-id": "mirror-disk-2", "sync": "full", "target": "target-disk-2"}}
+{"return": {}}
+{"execute": "blockdev-mirror", "arguments": {"buf-size": 16777216, "device": "source-disk-3", "granularity": 1048576, "job-id": "mirror-disk-3", "sync": "full", "target": "target-disk-3"}}
+{"return": {}}
+{"execute": "blockdev-mirror", "arguments": {"device": "source-null-0", "job-id": "mirror-null-0", "sync": "full", "target": "target-null-0"}}
+{"return": {}}
+{"execute": "transaction", "arguments": {"actions": []}}
+{"return": {}}
+{"execute": "block-job-complete", "arguments": {"device": "mirror-null-0"}}
+{"return": {}}
