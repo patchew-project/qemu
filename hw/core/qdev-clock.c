@@ -210,3 +210,14 @@ void qdev_connect_clock_in(DeviceState *dev, const char *name, Clock *source)
     assert(!dev->realized);
     clock_set_source(qdev_get_clock_in(dev, name), source);
 }
+
+Clock *qdev_ground_clock(void)
+{
+    static Clock *gnd_clk;
+
+    if (!gnd_clk) {
+        gnd_clk = clock_new(qdev_get_machine(), "gnd");
+    }
+
+    return gnd_clk;
+}
