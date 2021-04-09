@@ -2612,4 +2612,19 @@ static inline ppc_avr_t *cpu_avr_ptr(CPUPPCState *env, int i)
 void dump_mmu(CPUPPCState *env);
 
 void ppc_maybe_bswap_register(CPUPPCState *env, uint8_t *mem_buf, int len);
+
+/*
+ * functions used by cpu_ppc_realize, but that dont necessarily make sense
+ * to be added to cpu.c, because they seem very related to TCG or gdb
+ */
+
+/* gdbstub.c */
+void ppc_cpu_gdb_init(CPUState *cs, PowerPCCPUClass *ppc);
+
+/* translate_init.c.inc */
+void create_ppc_opcodes(PowerPCCPU *cpu, Error **errp);
+void destroy_ppc_opcodes(PowerPCCPU *cpu);
+void gen_spr_generic(CPUPPCState *env);
+void init_ppc_proc(PowerPCCPU *cpu);
+
 #endif /* PPC_CPU_H */
