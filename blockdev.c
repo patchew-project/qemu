@@ -3414,6 +3414,9 @@ void qmp_block_job_complete(const char *device, Error **errp)
         return;
     }
 
+    if (job_wait_unpaused(&job->job, errp) < 0) {
+        return;
+    }
     trace_qmp_block_job_complete(job);
     job_complete(&job->job, errp);
     aio_context_release(aio_context);

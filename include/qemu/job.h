@@ -563,4 +563,19 @@ void job_dismiss(Job **job, Error **errp);
  */
 int job_finish_sync(Job *job, void (*finish)(Job *, Error **errp), Error **errp);
 
+/**
+ * If the job has been paused because of a drained section, and that
+ * section has ended, wait until the job is resumed.
+ *
+ * Return 0 if the job is not paused, or if it has been successfully
+ * resumed.
+ * Return an error if the job has been paused in such a way that
+ * waiting will not resume it, i.e. if it has been paused by the user,
+ * or if it is still drained.
+ *
+ * Callers must be in the home AioContext and hold the AioContext lock
+ * of job->aio_context.
+ */
+int job_wait_unpaused(Job *job, Error **errp);
+
 #endif
