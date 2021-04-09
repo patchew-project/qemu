@@ -16,6 +16,7 @@
 #include "hw/qdev-clock.h"
 #include "hw/qdev-core.h"
 #include "qapi/error.h"
+#include "clock-internal.h"
 
 /*
  * qdev_init_clocklist:
