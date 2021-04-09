@@ -27,6 +27,11 @@
 #include "sysemu/kvm.h"
 #include "internal.h"
 
+static uint32_t ns_to_count(CPUMIPSState *env, uint64_t ns)
+{
+    return ns / env->cp0_count_ns;
+}
+
 /* MIPS R4K timer */
 static void cpu_mips_timer_update(CPUMIPSState *env)
 {
@@ -34,8 +39,7 @@ static void cpu_mips_timer_update(CPUMIPSState *env)
     uint32_t wait;
 
     now_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    wait = env->CP0_Compare - env->CP0_Count -
-           (uint32_t)(now_ns / env->cp0_count_ns);
+    wait = env->CP0_Compare - env->CP0_Count - ns_to_count(env, now_ns);
     next_ns = now_ns + (uint64_t)wait * env->cp0_count_ns;
     timer_mod(env->timer, next_ns);
 }
@@ -64,7 +68,7 @@ uint32_t cpu_mips_get_count(CPUMIPSState *env)
             cpu_mips_timer_expire(env);
         }
 
-        return env->CP0_Count + (uint32_t)(now_ns / env->cp0_count_ns);
+        return env->CP0_Count + ns_to_count(env, now_ns);
     }
 }
 
@@ -79,9 +83,8 @@ void cpu_mips_store_count(CPUMIPSState *env, uint32_t count)
         env->CP0_Count = count;
     } else {
         /* Store new count register */
-        env->CP0_Count = count -
-               (uint32_t)(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) /
-                          env->cp0_count_ns);
+        env->CP0_Count = count - ns_to_count(env,
+                                             qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         /* Update timer timer */
         cpu_mips_timer_update(env);
     }
@@ -107,8 +110,7 @@ void cpu_mips_start_count(CPUMIPSState *env)
 void cpu_mips_stop_count(CPUMIPSState *env)
 {
     /* Store the current value */
-    env->CP0_Count += (uint32_t)(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) /
-                                 env->cp0_count_ns);
+    env->CP0_Count += ns_to_count(env, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
 }
 
 static void mips_timer_cb(void *opaque)
