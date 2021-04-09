@@ -612,7 +612,7 @@ static void mips_cpu_realizefn(DeviceState *dev, Error **errp)
     MIPSCPUClass *mcc = MIPS_CPU_GET_CLASS(dev);
     Error *local_err = NULL;
 
-    if (!clock_get(cpu->clock)) {
+    if (!clock_has_source(cpu->clock)) {
 #ifndef CONFIG_USER_ONLY
         if (!qtest_enabled()) {
             g_autofree char *cpu_freq_str = freq_to_str(CPU_FREQ_HZ_DEFAULT);
