@@ -12,7 +12,9 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "hw/clock.h"
 #include "hw/boards.h"
+#include "hw/qdev-clock.h"
 #include "atmega.h"
 #include "boot.h"
 #include "qom/object.h"
@@ -21,6 +23,7 @@ struct ArduinoMachineState {
     /*< private >*/
     MachineState parent_obj;
     /*< public >*/
+    Clock *xtal;
     AtmegaMcuState mcu;
 };
 typedef struct ArduinoMachineState ArduinoMachineState;
@@ -44,9 +47,10 @@ static void arduino_machine_init(MachineState *machine)
     ArduinoMachineClass *amc = ARDUINO_MACHINE_GET_CLASS(machine);
     ArduinoMachineState *ams = ARDUINO_MACHINE(machine);
 
+    ams->xtal = machine_create_constant_clock(machine, "osc", amc->xtal_hz);
+
     object_initialize_child(OBJECT(machine), "mcu", &ams->mcu, amc->mcu_type);
-    object_property_set_uint(OBJECT(&ams->mcu), "xtal-frequency-hz",
-                             amc->xtal_hz, &error_abort);
+    qdev_connect_clock_in(DEVICE(&ams->mcu), "osc-in", ams->xtal);
     sysbus_realize(SYS_BUS_DEVICE(&ams->mcu), &error_abort);
 
     if (machine->firmware) {

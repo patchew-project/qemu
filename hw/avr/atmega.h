@@ -11,6 +11,7 @@
 #ifndef HW_AVR_ATMEGA_H
 #define HW_AVR_ATMEGA_H
 
+#include "hw/clock.h"
 #include "hw/char/avr_usart.h"
 #include "hw/timer/avr_timer16.h"
 #include "hw/misc/avr_power.h"
@@ -41,11 +42,11 @@ struct AtmegaMcuState {
     MemoryRegion flash;
     MemoryRegion eeprom;
     MemoryRegion sram;
+    Clock *xtal_clkin;
     DeviceState *io;
     AVRMaskState pwr[POWER_MAX];
     AVRUsartState usart[USART_MAX];
     AVRTimer16State timer[TIMER_MAX];
-    uint64_t xtal_freq_hz;
 };
 
 #endif /* HW_AVR_ATMEGA_H */

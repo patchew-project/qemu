@@ -28,6 +28,7 @@
 #ifndef HW_TIMER_AVR_TIMER16_H
 #define HW_TIMER_AVR_TIMER16_H
 
+#include "hw/clock.h"
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "hw/hw.h"
@@ -84,7 +85,8 @@ struct AVRTimer16State {
     uint8_t ifr;
 
     uint8_t id;
-    uint64_t cpu_freq_hz;
+    Clock *io_clkin;
+
     uint64_t freq_hz;
     uint64_t period_ns;
     uint64_t reset_time_ns;

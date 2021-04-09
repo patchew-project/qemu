@@ -35,6 +35,7 @@
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "hw/irq.h"
+#include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"
 #include "hw/timer/avr_timer16.h"
 #include "trace.h"
@@ -167,7 +168,7 @@ static void avr_timer16_clksrc_update(AVRTimer16State *t16)
         break;
     }
     if (divider) {
-        t16->freq_hz = t16->cpu_freq_hz / divider;
+        t16->freq_hz = clock_get_hz(t16->io_clkin) / divider;
         t16->period_ns = NANOSECONDS_PER_SECOND / t16->freq_hz;
         trace_avr_timer16_clksrc_update(t16->freq_hz, t16->period_ns,
                                         (uint64_t)(1e6 / t16->freq_hz));
@@ -544,8 +545,6 @@ static const MemoryRegionOps avr_timer16_ifr_ops = {
 
 static Property avr_timer16_properties[] = {
     DEFINE_PROP_UINT8("id", struct AVRTimer16State, id, 0),
-    DEFINE_PROP_UINT64("cpu-frequency-hz", struct AVRTimer16State,
-                       cpu_freq_hz, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -560,9 +559,19 @@ static void avr_timer16_pr(void *opaque, int irq, int level)
     }
 }
 
+static void avr_timer16_clock_update(void *opaque, ClockEvent event)
+{
+    AVRTimer16State *s = opaque;
+
+    avr_timer16_clksrc_update(s);
+}
+
 static void avr_timer16_init(Object *obj)
 {
     AVRTimer16State *s = AVR_TIMER16(obj);
+
+    s->io_clkin = qdev_init_clock_in(DEVICE(obj), "io-clk",
+                                     avr_timer16_clock_update, s, ClockUpdate);
 
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->capt_irq);
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->compa_irq);
@@ -586,11 +595,6 @@ static void avr_timer16_init(Object *obj)
 static void avr_timer16_realize(DeviceState *dev, Error **errp)
 {
     AVRTimer16State *s = AVR_TIMER16(dev);
-
-    if (s->cpu_freq_hz == 0) {
-        error_setg(errp, "AVR timer16: cpu-frequency-hz property must be set");
-        return;
-    }
 
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, avr_timer16_interrupt, s);
     s->enabled = true;

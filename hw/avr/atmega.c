@@ -15,6 +15,7 @@
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"
+#include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "qom/object.h"
@@ -216,6 +217,14 @@ static void connect_power_reduction_gpio(AtmegaMcuState *s,
                        qdev_get_gpio_in(cpu, 0));
 }
 
+static void atmega_init(Object *obj)
+{
+    AtmegaMcuState *s = ATMEGA_MCU(obj);
+
+    s->xtal_clkin = qdev_init_clock_in(DEVICE(obj), "osc-in",
+                                       NULL, NULL, ClockUpdate);
+}
+
 static void atmega_realize(DeviceState *dev, Error **errp)
 {
     AtmegaMcuState *s = ATMEGA_MCU(dev);
@@ -226,11 +235,6 @@ static void atmega_realize(DeviceState *dev, Error **errp)
     size_t i;
 
     assert(mc->io_size <= 0x200);
-
-    if (!s->xtal_freq_hz) {
-        error_setg(errp, "\"xtal-frequency-hz\" property must be provided.");
-        return;
-    }
 
     /* CPU */
     object_initialize_child(OBJECT(dev), "cpu", &s->cpu, mc->cpu_type);
@@ -328,8 +332,7 @@ static void atmega_realize(DeviceState *dev, Error **errp)
         devname = g_strdup_printf("timer%zu", i);
         object_initialize_child(OBJECT(dev), devname, &s->timer[i],
                                 TYPE_AVR_TIMER16);
-        object_property_set_uint(OBJECT(&s->timer[i]), "cpu-frequency-hz",
-                                 s->xtal_freq_hz, &error_abort);
+        qdev_connect_clock_in(DEVICE(&s->timer[i]), "io-clk", s->xtal_clkin);
         sbd = SYS_BUS_DEVICE(&s->timer[i]);
         sysbus_realize(sbd, &error_abort);
         sysbus_mmio_map(sbd, 0, OFFSET_DATA + mc->dev[idx].addr);
@@ -353,8 +356,6 @@ static void atmega_realize(DeviceState *dev, Error **errp)
 }
 
 static Property atmega_props[] = {
-    DEFINE_PROP_UINT64("xtal-frequency-hz", AtmegaMcuState,
-                       xtal_freq_hz, 0),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -449,6 +450,7 @@ static const TypeInfo atmega_mcu_types[] = {
         .name           = TYPE_ATMEGA_MCU,
         .parent         = TYPE_SYS_BUS_DEVICE,
         .instance_size  = sizeof(AtmegaMcuState),
+        .instance_init  = atmega_init,
         .class_size     = sizeof(AtmegaMcuClass),
         .class_init     = atmega_class_init,
         .abstract       = true,
