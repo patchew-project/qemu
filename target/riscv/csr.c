@@ -774,6 +774,80 @@ static int rmw_mip(CPURISCVState *env, int csrno, target_ulong *ret_value,
     return 0;
 }
 
+static bool get_xnxti_status(CPURISCVState *env)
+{
+    CPUState *cs = env_cpu(env);
+    int clic_irq, clic_priv, clic_il, pil;
+
+    if (!env->exccode) { /* No interrupt */
+        return false;
+    }
+    /* The system is not in a CLIC mode */
+    if (!riscv_clic_is_clic_mode(env)) {
+        return false;
+    } else {
+        riscv_clic_decode_exccode(env->exccode, &clic_priv, &clic_il,
+                                  &clic_irq);
+
+        if (env->priv == PRV_M) {
+            pil = MAX(get_field(env->mcause, MCAUSE_MPIL), env->mintthresh);
+        } else if (env->priv == PRV_S) {
+            pil = MAX(get_field(env->scause, SCAUSE_SPIL), env->sintthresh);
+        } else {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "CSR: rmw xnxti with unsupported mode\n");
+            exit(1);
+        }
+
+        if ((clic_priv != env->priv) || /* No horizontal interrupt */
+            (clic_il <= pil) || /* No higher level interrupt */
+            (riscv_clic_shv_interrupt(env->clic, clic_priv, cs->cpu_index,
+                                      clic_irq))) { /* CLIC vector mode */
+            return false;
+        } else {
+            return true;
+        }
+    }
+}
+
+static int rmw_mnxti(CPURISCVState *env, int csrno, target_ulong *ret_value,
+                     target_ulong new_value, target_ulong write_mask)
+{
+    int clic_priv, clic_il, clic_irq;
+    bool ready;
+    CPUState *cs = env_cpu(env);
+    if (write_mask) {
+        env->mstatus |= new_value & (write_mask & 0b11111);
+    }
+
+    qemu_mutex_lock_iothread();
+    ready = get_xnxti_status(env);
+    if (ready) {
+        riscv_clic_decode_exccode(env->exccode, &clic_priv, &clic_il,
+                                  &clic_irq);
+        if (write_mask) {
+            bool edge = riscv_clic_edge_triggered(env->clic, clic_priv,
+                                                  cs->cpu_index, clic_irq);
+            if (edge) {
+                riscv_clic_clean_pending(env->clic, clic_priv,
+                                         cs->cpu_index, clic_irq);
+            }
+            env->mintstatus = set_field(env->mintstatus,
+                                        MINTSTATUS_MIL, clic_il);
+            env->mcause = set_field(env->mcause, MCAUSE_EXCCODE, clic_irq);
+        }
+        if (ret_value) {
+            *ret_value = (env->mtvt & ~0x3f) + sizeof(target_ulong) * clic_irq;
+        }
+    } else {
+        if (ret_value) {
+            *ret_value = 0;
+        }
+    }
+    qemu_mutex_unlock_iothread();
+    return 0;
+}
+
 static int read_mintstatus(CPURISCVState *env, int csrno, target_ulong *val)
 {
     *val = env->mintstatus;
@@ -980,6 +1054,44 @@ static int rmw_sip(CPURISCVState *env, int csrno, target_ulong *ret_value,
 
     *ret_value &= env->mideleg;
     return ret;
+}
+
+static int rmw_snxti(CPURISCVState *env, int csrno, target_ulong *ret_value,
+                     target_ulong new_value, target_ulong write_mask)
+{
+    int clic_priv, clic_il, clic_irq;
+    bool ready;
+    CPUState *cs = env_cpu(env);
+    if (write_mask) {
+        env->mstatus |= new_value & (write_mask & 0b11111);
+    }
+
+    qemu_mutex_lock_iothread();
+    ready = get_xnxti_status(env);
+    if (ready) {
+        riscv_clic_decode_exccode(env->exccode, &clic_priv, &clic_il,
+                                  &clic_irq);
+        if (write_mask) {
+            bool edge = riscv_clic_edge_triggered(env->clic, clic_priv,
+                                                  cs->cpu_index, clic_irq);
+            if (edge) {
+                riscv_clic_clean_pending(env->clic, clic_priv,
+                                         cs->cpu_index, clic_irq);
+            }
+            env->mintstatus = set_field(env->mintstatus,
+                                        MINTSTATUS_SIL, clic_il);
+            env->scause = set_field(env->scause, SCAUSE_EXCCODE, clic_irq);
+        }
+        if (ret_value) {
+            *ret_value = (env->stvt & ~0x3f) + sizeof(target_ulong) * clic_irq;
+        }
+    } else {
+        if (ret_value) {
+            *ret_value = 0;
+        }
+    }
+    qemu_mutex_unlock_iothread();
+    return 0;
 }
 
 static int read_sintstatus(CPURISCVState *env, int csrno, target_ulong *val)
@@ -1755,6 +1867,7 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 
     /* Machine Mode Core Level Interrupt Controller */
     [CSR_MTVT] = { "mtvt", clic,  read_mtvt,  write_mtvt      },
+    [CSR_MNXTI] = { "mnxti", clic,  NULL,  NULL,  rmw_mnxti   },
     [CSR_MINTSTATUS] = { "mintstatus", clic,  read_mintstatus },
     [CSR_MINTTHRESH] = { "mintthresh", clic,  read_mintthresh,
                          write_mintthresh },
@@ -1766,6 +1879,7 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
 
     /* Supervisor Mode Core Level Interrupt Controller */
     [CSR_STVT] = { "stvt", clic,  read_stvt, write_stvt       },
+    [CSR_SNXTI] = { "snxti", clic,  NULL,  NULL,  rmw_snxti   },
 
 #endif /* !CONFIG_USER_ONLY */
 };
