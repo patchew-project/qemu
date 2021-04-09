@@ -185,9 +185,9 @@ static void mips_jazz_init(MachineState *machine,
         exit(EXIT_FAILURE);
     }
 
-    cpuclk = clock_new(OBJECT(machine), "cpu-refclk");
-    clock_set_hz(cpuclk, ext_clk[jazz_model].freq_hz
-                         * ext_clk[jazz_model].pll_mult);
+    cpuclk = machine_create_constant_clock(machine, "cpu-refclk",
+                                           ext_clk[jazz_model].freq_hz
+                                           * ext_clk[jazz_model].pll_mult);
 
     /* init CPUs */
     cpu = mips_cpu_create_with_clock(machine->cpu_type, cpuclk);

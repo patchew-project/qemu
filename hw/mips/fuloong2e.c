@@ -259,8 +259,8 @@ static void mips_fuloong2e_init(MachineState *machine)
     CPUMIPSState *env;
     DeviceState *dev;
 
-    cpuclk = clock_new(OBJECT(machine), "cpu-refclk");
-    clock_set_hz(cpuclk, 533080000); /* ~533 MHz */
+    cpuclk = machine_create_constant_clock(machine, "cpu-refclk",
+                                           533080000); /* ~533 MHz */
 
     /* init CPUs */
     cpu = mips_cpu_create_with_clock(machine->cpu_type, cpuclk);

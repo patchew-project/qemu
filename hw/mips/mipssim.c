@@ -153,11 +153,12 @@ mips_mipssim_init(MachineState *machine)
     ResetData *reset_info;
     int bios_size;
 
-    cpuclk = clock_new(OBJECT(machine), "cpu-refclk");
 #ifdef TARGET_MIPS64
-    clock_set_hz(cpuclk, 6000000); /* 6 MHz */
+    cpuclk = machine_create_constant_clock(machine, "cpu-refclk",
+                                           6000000); /* 6 MHz */
 #else
-    clock_set_hz(cpuclk, 12000000); /* 12 MHz */
+    cpuclk = machine_create_constant_clock(machine, "cpu-refclk",
+                                           12000000); /* 12 MHz */
 #endif
 
     /* Init CPUs. */
