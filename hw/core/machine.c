@@ -1234,6 +1234,13 @@ void machine_run_board_init(MachineState *machine)
     phase_advance(PHASE_MACHINE_INITIALIZED);
 }
 
+static void constant_clock_reset(void *opaque)
+{
+    Clock *clk = opaque;
+
+    clock_propagate(clk);
+}
+
 Clock *machine_create_constant_clock(MachineState *machine,
                                      const char *name, unsigned freq_hz)
 {
@@ -1241,6 +1248,7 @@ Clock *machine_create_constant_clock(MachineState *machine,
 
     clk = clock_new(OBJECT(machine), name);
     clock_set_hz(clk, freq_hz);
+    qemu_register_reset(constant_clock_reset, clk);
 
     return clk;
 }
