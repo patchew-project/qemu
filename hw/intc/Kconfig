@@ -68,6 +68,9 @@ config SIFIVE_CLINT
 config SIFIVE_PLIC
     bool
 
+config RISCV_CLIC
+    bool
+
 config GOLDFISH_PIC
     bool
 

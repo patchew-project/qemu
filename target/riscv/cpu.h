@@ -33,6 +33,7 @@
 #define RISCV_CPU_TYPE_SUFFIX "-" TYPE_RISCV_CPU
 #define RISCV_CPU_TYPE_NAME(name) (name RISCV_CPU_TYPE_SUFFIX)
 #define CPU_RESOLVING_TYPE TYPE_RISCV_CPU
+#define CPU_INTERRUPT_CLIC CPU_INTERRUPT_TGT_EXT_0
 
 #define TYPE_RISCV_CPU_ANY              RISCV_CPU_TYPE_NAME("any")
 #define TYPE_RISCV_CPU_BASE32           RISCV_CPU_TYPE_NAME("rv32")
@@ -247,6 +248,7 @@ struct CPURISCVState {
     /* Fields from here on are preserved across CPU reset. */
     QEMUTimer *timer; /* Internal timer */
     void *clic;       /* clic interrupt controller */
+    uint32_t exccode; /* clic irq encode */
 };
 
 OBJECT_DECLARE_TYPE(RISCVCPU, RISCVCPUClass,
