@@ -8,7 +8,9 @@
 #include "qapi/error.h"
 #include "qemu/main-loop.h"
 #include "kvm_ppc.h"
+#ifdef CONFIG_TCG
 #include "exec/helper-proto.h"
+#endif /*CONFIG_TCG*/
 
 static int cpu_load_old(QEMUFile *f, void *opaque, int version_id)
 {
@@ -95,7 +97,18 @@ static int cpu_load_old(QEMUFile *f, void *opaque, int version_id)
         ppc_store_sdr1(env, sdr1);
     }
     qemu_get_be32s(f, &vscr);
-    helper_mtvscr(env, vscr);
+#if defined(CONFIG_KVM)
+    if(kvm_enabled()){
+        kvmppc_mtvscr(cpu, vscr);
+    }else
+#endif
+#if defined(CONFIG_TCG)
+        helper_mtvscr(env, vscr);
+#else
+    {
+        /* TODO: Add correct error handling, even though this should never be reached */
+    }
+#endif
     qemu_get_be64s(f, &env->spe_acc);
     qemu_get_be32s(f, &env->spe_fscr);
     qemu_get_betls(f, &env->msr_mask);
@@ -450,7 +463,16 @@ static int get_vscr(QEMUFile *f, void *opaque, size_t size,
                     const VMStateField *field)
 {
     PowerPCCPU *cpu = opaque;
+#if defined(CONFIG_KVM)
+    if(kvm_enabled()){
+        kvmppc_mtvscr(cpu, qemu_get_be32(f));
+        return 0;
+    }
+#endif /*CONFIG_KVM*/
+
+#if defined(CONFIG_TCG)
     helper_mtvscr(&cpu->env, qemu_get_be32(f));
+#endif /*CONFIG_TCG*/
     return 0;
 }
 
@@ -458,7 +480,16 @@ static int put_vscr(QEMUFile *f, void *opaque, size_t size,
                     const VMStateField *field, JSONWriter *vmdesc)
 {
     PowerPCCPU *cpu = opaque;
+#if defined(CONFIG_KVM)
+    if(kvm_enabled()){
+        qemu_put_be32(f, kvmppc_mfvscr(cpu));
+        return 0;
+    }
+#endif /*CONFIG_KVM*/
+
+#if defined(CONFIG_TCG)
     qemu_put_be32(f, helper_mfvscr(&cpu->env));
+#endif /*CONFIG_TCG*/
     return 0;
 }
 

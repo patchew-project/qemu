@@ -17,7 +17,10 @@
 #include "elf.h"
 #include "sysemu/dump.h"
 #include "sysemu/kvm.h"
+#include "kvm_ppc.h"
+#if defined(CONFIG_TCG)
 #include "exec/helper-proto.h"
+#endif /* CONFIG_TCG */
 
 #ifdef TARGET_PPC64
 #define ELFCLASS ELFCLASS64
@@ -176,7 +179,21 @@ static void ppc_write_elf_vmxregset(NoteFuncArg *arg, PowerPCCPU *cpu)
             vmxregset->avr[i].u64[1] = avr->u64[1];
         }
     }
+    /* This is the first solution implemented. My personal favorite as it
+     * allows for explicit error handling, however it is much less readable */
+#if defined(CONFIG_KVM)
+    if(kvm_enabled()){
+        vmxregset->vscr.u32[3] = cpu_to_dump32(s, kvmppc_mfvscr(cpu));
+    }else
+#endif
+
+#if defined(CONFIG_TCG)
     vmxregset->vscr.u32[3] = cpu_to_dump32(s, helper_mfvscr(&cpu->env));
+#else
+    {
+        /* TODO: add proper error handling, even tough this should never be reached */
+    }
+#endif
 }
 
 static void ppc_write_elf_vsxregset(NoteFuncArg *arg, PowerPCCPU *cpu)

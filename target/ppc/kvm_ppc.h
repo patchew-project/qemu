@@ -86,6 +86,17 @@ void kvmppc_set_reg_tb_offset(PowerPCCPU *cpu, int64_t tb_offset);
 
 int kvm_handle_nmi(PowerPCCPU *cpu, struct kvm_run *run);
 
+int kvmppc_mtvscr(PowerPCCPU*, uint32_t);
+int kvmppc_mfvscr(PowerPCCPU*);
+
+/* This is the second (quick and dirty) solution. Not my personal favorite
+ * as it hides what is actually happening from the user and doesn't allow
+ * for error checking. but it requires less change in other files */
+#ifndef CONFIG_TCG
+#define helper_mtvscr(env, val) kvmppc_mtvscr(env_archcpu(env),val)
+#define helper_mfvscr(env) kvmppc_mfvscr(env_archcpu(env))
+#endif
+
 #else
 
 static inline uint32_t kvmppc_get_tbfreq(void)

@@ -51,6 +51,7 @@
 #include "elf.h"
 #include "sysemu/kvm_int.h"
 
+
 #define PROC_DEVTREE_CPU      "/proc/device-tree/cpus/"
 
 #define DEBUG_RETURN_GUEST 0
@@ -2946,4 +2947,33 @@ void kvmppc_set_reg_tb_offset(PowerPCCPU *cpu, int64_t tb_offset)
 bool kvm_arch_cpu_check_are_resettable(void)
 {
     return true;
+}
+
+/* Functions added to replace helper_m(t|f)vscr from int_helper.c */
+int kvmppc_mtvscr(PowerPCCPU *cpu, uint32_t val){
+    CPUState *cs = CPU(cpu);
+    CPUPPCState *env = &cpu->env;
+    struct kvm_one_reg reg;
+    int ret;
+    reg.id = KVM_REG_PPC_VSCR;
+    reg.addr = (uintptr_t) &env->vscr;
+    ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+    if(ret < 0){
+        fprintf(stderr, "Unable to set VSCR to KVM: %s", strerror(errno));
+    }
+    return ret;
+}
+
+int kvmppc_mfvscr(PowerPCCPU *cpu){
+    CPUState *cs = CPU(cpu);
+    CPUPPCState *env = &cpu->env;
+    struct kvm_one_reg reg;
+    int ret;
+    reg.id = KVM_REG_PPC_VSCR;
+    reg.addr = (uintptr_t) &env->vscr;
+    ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+    if(ret < 0){
+        fprintf(stderr, "Unable to get VSCR to KVM: %s", strerror(errno));
+    }
+    return ret;
 }
