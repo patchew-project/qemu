@@ -161,4 +161,13 @@ typedef struct ClockPortInitElem ClockPortInitArray[];
  */
 void qdev_init_clocks(DeviceState *dev, const ClockPortInitArray clocks);
 
+/**
+ * qdev_ground_clock:
+ * @returns: a pointer to the ground clock
+ *
+ * Get the special 'ground' clock. This clock can be used as input
+ * (unclocked) or output.
+ */
+Clock *qdev_ground_clock(void);
+
 #endif /* QDEV_CLOCK_H */
