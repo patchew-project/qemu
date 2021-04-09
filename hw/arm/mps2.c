@@ -143,8 +143,7 @@ static void mps2_common_init(MachineState *machine)
     }
 
     /* This clock doesn't need migration because it is fixed-frequency */
-    mms->sysclk = clock_new(OBJECT(machine), "SYSCLK");
-    clock_set_hz(mms->sysclk, SYSCLK_FRQ);
+    mms->sysclk = machine_create_constant_clock(machine, "SYSCLK", SYSCLK_FRQ);
 
     /* The FPGA images have an odd combination of different RAMs,
      * because in hardware they are different implementations and
