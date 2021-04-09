@@ -79,7 +79,14 @@ static void clock_propagate_period(Clock *clk, bool call_callbacks)
 {
     Clock *child;
 
+    trace_clock_propagate(CLOCK_PATH(clk),
+                          CLOCK_PERIOD_TO_HZ(clk->period),
+                          call_callbacks);
     QLIST_FOREACH(child, &clk->children, sibling) {
+        trace_clock_propagate_children(CLOCK_PATH(clk),
+                                       CLOCK_PERIOD_TO_HZ(clk->period),
+                                       CLOCK_PATH(child),
+                                       CLOCK_PERIOD_TO_HZ(child->period));
         if (child->period != clk->period) {
             if (call_callbacks) {
                 clock_call_callback(child, ClockPreUpdate);
@@ -99,7 +106,6 @@ static void clock_propagate_period(Clock *clk, bool call_callbacks)
 void clock_propagate(Clock *clk)
 {
     assert(clk->source == NULL);
-    trace_clock_propagate(CLOCK_PATH(clk));
     clock_propagate_period(clk, true);
 }
 
