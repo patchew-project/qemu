@@ -24,6 +24,10 @@
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 
+#if !defined(CONFIG_USER_ONLY)
+#include "hw/intc/riscv_clic.h"
+#endif
+
 /* Exceptions processing helpers */
 void QEMU_NORETURN riscv_raise_exception(CPURISCVState *env,
                                           uint32_t exception, uintptr_t pc)
@@ -130,6 +134,17 @@ target_ulong helper_sret(CPURISCVState *env, target_ulong cpu_pc_deb)
         mstatus = set_field(mstatus, MSTATUS_SPIE, 1);
         mstatus = set_field(mstatus, MSTATUS_SPP, PRV_U);
         env->mstatus = mstatus;
+
+        if (riscv_clic_is_clic_mode(env)) {
+            CPUState *cs = env_cpu(env);
+            target_ulong spil = get_field(env->scause, SCAUSE_SPIL);
+            env->mintstatus = set_field(env->mintstatus, MINTSTATUS_SIL, spil);
+            env->scause = set_field(env->scause, SCAUSE_SPIE, 0);
+            env->scause = set_field(env->scause, SCAUSE_SPP, PRV_U);
+            qemu_mutex_lock_iothread();
+            riscv_clic_get_next_interrupt(env->clic, cs->cpu_index);
+            qemu_mutex_unlock_iothread();
+        }
     }
 
     riscv_cpu_set_mode(env, prev_priv);
@@ -172,6 +187,16 @@ target_ulong helper_mret(CPURISCVState *env, target_ulong cpu_pc_deb)
         riscv_cpu_set_virt_enabled(env, prev_virt);
     }
 
+    if (riscv_clic_is_clic_mode(env)) {
+        CPUState *cs = env_cpu(env);
+        target_ulong mpil = get_field(env->mcause, MCAUSE_MPIL);
+        env->mintstatus = set_field(env->mintstatus, MINTSTATUS_MIL, mpil);
+        env->mcause = set_field(env->mcause, MCAUSE_MPIE, 0);
+        env->mcause = set_field(env->mcause, MCAUSE_MPP, PRV_U);
+        qemu_mutex_lock_iothread();
+        riscv_clic_get_next_interrupt(env->clic, cs->cpu_index);
+        qemu_mutex_unlock_iothread();
+    }
     return retpc;
 }
 
