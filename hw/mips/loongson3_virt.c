@@ -152,7 +152,7 @@ static const MemoryRegionOps loongson3_pm_ops = {
     }
 };
 
-#define DEF_LOONGSON3_FREQ (800 * 1000 * 1000)
+#define DEF_LOONGSON3_FREQ (2000 * 1000 * 1000)
 
 static uint64_t get_cpu_freq_hz(void)
 {
