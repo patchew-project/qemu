@@ -2522,7 +2522,7 @@ static uint16_t nvme_dsm(NvmeCtrl *n, NvmeRequest *req)
             uint64_t slba = le64_to_cpu(range[i].slba);
             uint32_t nlb = le32_to_cpu(range[i].nlb);
 
-            if (nvme_check_bounds(ns, slba, nlb)) {
+            if (nvme_check_bounds(ns, slba, nlb) || slba == ns->id_ns.nsze) {
                 trace_pci_nvme_err_invalid_lba_range(slba, nlb,
                                                      ns->id_ns.nsze);
                 continue;
