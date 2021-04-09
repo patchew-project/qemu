@@ -667,6 +667,18 @@ static int write_mcounteren(CPURISCVState *env, int csrno, target_ulong val)
     return 0;
 }
 
+static int read_mtvt(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = env->mtvt;
+    return 0;
+}
+
+static int write_mtvt(CPURISCVState *env, int csrno, target_ulong val)
+{
+    env->mtvt = val & ~((1ULL << 6) - 1);
+    return 0;
+}
+
 /* This regiser is replaced with CSR_MCOUNTINHIBIT in 1.11.0 */
 static int read_mscounteren(CPURISCVState *env, int csrno, target_ulong *val)
 {
@@ -873,6 +885,18 @@ static int read_scounteren(CPURISCVState *env, int csrno, target_ulong *val)
 static int write_scounteren(CPURISCVState *env, int csrno, target_ulong val)
 {
     env->scounteren = val;
+    return 0;
+}
+
+static int read_stvt(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = env->stvt;
+    return 0;
+}
+
+static int write_stvt(CPURISCVState *env, int csrno, target_ulong val)
+{
+    env->stvt = val & ~((1ULL << 6) - 1);
     return 0;
 }
 
@@ -1730,6 +1754,7 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MHPMCOUNTER31H] = { "mhpmcounter31h", any32,  read_zero },
 
     /* Machine Mode Core Level Interrupt Controller */
+    [CSR_MTVT] = { "mtvt", clic,  read_mtvt,  write_mtvt      },
     [CSR_MINTSTATUS] = { "mintstatus", clic,  read_mintstatus },
     [CSR_MINTTHRESH] = { "mintthresh", clic,  read_mintthresh,
                          write_mintthresh },
@@ -1738,6 +1763,9 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_SINTSTATUS] = { "sintstatus", clic,  read_sintstatus },
     [CSR_SINTTHRESH] = { "sintthresh", clic,  read_sintthresh,
                          write_sintthresh },
+
+    /* Supervisor Mode Core Level Interrupt Controller */
+    [CSR_STVT] = { "stvt", clic,  read_stvt, write_stvt       },
 
 #endif /* !CONFIG_USER_ONLY */
 };
