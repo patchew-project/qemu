@@ -1293,6 +1293,20 @@ void qdev_machine_creation_done(void)
     register_global_state();
 }
 
+Object *do_qdev_get_machine(void)
+{
+    Object *machine;
+
+    machine = object_resolve_path_component(object_get_root(), "machine");
+    /*
+     * qdev_get_machine() shouldn't be called before qemu_create_machine()
+     * has created the "/machine" path.
+     */
+    assert(machine != NULL);
+
+    return machine;
+}
+
 static const TypeInfo machine_info = {
     .name = TYPE_MACHINE,
     .parent = TYPE_OBJECT,

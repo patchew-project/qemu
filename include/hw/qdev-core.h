@@ -782,6 +782,7 @@ const char *qdev_fw_name(DeviceState *dev);
 
 void qdev_assert_realized_properly(void);
 Object *qdev_get_machine(void);
+Object *do_qdev_get_machine(void);
 
 /* FIXME: make this a link<> */
 bool qdev_set_parent_bus(DeviceState *dev, BusState *bus, Error **errp);

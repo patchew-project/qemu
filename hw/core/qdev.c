@@ -1131,7 +1131,7 @@ Object *qdev_get_machine(void)
     static Object *dev;
 
     if (dev == NULL) {
-        dev = container_get(object_get_root(), "/machine");
+        dev = do_qdev_get_machine();
     }
 
     return dev;
