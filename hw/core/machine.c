@@ -1233,6 +1233,17 @@ void machine_run_board_init(MachineState *machine)
     phase_advance(PHASE_MACHINE_INITIALIZED);
 }
 
+Clock *machine_create_constant_clock(MachineState *machine,
+                                     const char *name, unsigned freq_hz)
+{
+    Clock *clk;
+
+    clk = clock_new(OBJECT(machine), name);
+    clock_set_hz(clk, freq_hz);
+
+    return clk;
+}
+
 static NotifierList machine_init_done_notifiers =
     NOTIFIER_LIST_INITIALIZER(machine_init_done_notifiers);
 

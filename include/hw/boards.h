@@ -11,6 +11,7 @@
 #include "qemu/module.h"
 #include "qom/object.h"
 #include "hw/core/cpu.h"
+#include "hw/clock.h"
 
 #define TYPE_MACHINE_SUFFIX "-machine"
 
@@ -82,6 +83,22 @@ bool device_is_dynamic_sysbus(MachineClass *mc, DeviceState *dev);
  */
 MemoryRegion *machine_consume_memdev(MachineState *machine,
                                      HostMemoryBackend *backend);
+
+/**
+ * machine_create_constant_clock:
+ * @machine: the parent machine
+ * @name: the clock object name
+ * @freq_hz: the clock frequency (in Hz)
+ *
+ * Helper function to create a new constant clock (fixed frequency
+ * of @freq_hz) and parent it to @machine. There is no need to call
+ * clock_setup_canonical_path on the returned clock as it is done
+ * by this function.
+ *
+ * @return the newly created clock
+ */
+Clock *machine_create_constant_clock(MachineState *machine,
+                                     const char *name, unsigned freq_hz);
 
 /**
  * CPUArchId:
