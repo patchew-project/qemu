@@ -23,6 +23,10 @@
 #include "qemu/main-loop.h"
 #include "exec/exec-all.h"
 
+#if !defined(CONFIG_USER_ONLY)
+#include "hw/intc/riscv_clic.h"
+#endif
+
 /* CSR function table public API */
 void riscv_get_csr_ops(int csrno, riscv_csr_operations *ops)
 {
@@ -611,13 +615,17 @@ static int write_mideleg(CPURISCVState *env, int csrno, target_ulong val)
 
 static int read_mie(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    *val = env->mie;
+    /* The xie CSR appears hardwired to zero in CLIC mode, (Section 4.3) */
+    *val = riscv_clic_is_clic_mode(env) ? 0 : env->mie;
     return 0;
 }
 
 static int write_mie(CPURISCVState *env, int csrno, target_ulong val)
 {
-    env->mie = (env->mie & ~all_ints) | (val & all_ints);
+    /* Writes to xie will be ignored and will not trap. (Section 4.3) */
+    if (!riscv_clic_is_clic_mode(env)) {
+        env->mie = (env->mie & ~all_ints) | (val & all_ints);
+    }
     return 0;
 }
 
@@ -785,7 +793,8 @@ static int read_sie(CPURISCVState *env, int csrno, target_ulong *val)
     if (riscv_cpu_virt_enabled(env)) {
         read_vsie(env, CSR_VSIE, val);
     } else {
-        *val = env->mie & env->mideleg;
+        /* The xie CSR appears hardwired to zero in CLIC mode. (Section 4.3) */
+        *val = riscv_clic_is_clic_mode(env) ? 0 : env->mie & env->mideleg;
     }
     return 0;
 }
@@ -805,6 +814,10 @@ static int write_sie(CPURISCVState *env, int csrno, target_ulong val)
     } else {
         target_ulong newval = (env->mie & ~S_MODE_INTERRUPTS) |
                               (val & S_MODE_INTERRUPTS);
+        /* Writes to xie will be ignored and will not trap. (Section 4.3) */
+        if (riscv_clic_is_clic_mode(env)) {
+            return 0;
+        }
         write_mie(env, CSR_MIE, newval);
     }
 
