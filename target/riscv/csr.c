@@ -188,6 +188,12 @@ static int pmp(CPURISCVState *env, int csrno)
 {
     return -!riscv_feature(env, RISCV_FEATURE_PMP);
 }
+
+static int clic(CPURISCVState *env, int csrno)
+{
+    return !!env->clic;
+}
+
 #endif
 
 /* User Floating-Point CSRs */
@@ -734,6 +740,12 @@ static int rmw_mip(CPURISCVState *env, int csrno, target_ulong *ret_value,
     return 0;
 }
 
+static int read_mintstatus(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    *val = env->mintstatus;
+    return 0;
+}
+
 /* Supervisor Trap Setup */
 static int read_sstatus(CPURISCVState *env, int csrno, target_ulong *val)
 {
@@ -891,6 +903,13 @@ static int rmw_sip(CPURISCVState *env, int csrno, target_ulong *ret_value,
 
     *ret_value &= env->mideleg;
     return ret;
+}
+
+static int read_sintstatus(CPURISCVState *env, int csrno, target_ulong *val)
+{
+    target_ulong mask = SINTSTATUS_SIL | SINTSTATUS_UIL;
+    *val = env->mintstatus & mask;
+    return 0;
 }
 
 /* Supervisor Protection and Translation */
@@ -1644,5 +1663,12 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MHPMCOUNTER29H] = { "mhpmcounter29h", any32,  read_zero },
     [CSR_MHPMCOUNTER30H] = { "mhpmcounter30h", any32,  read_zero },
     [CSR_MHPMCOUNTER31H] = { "mhpmcounter31h", any32,  read_zero },
+
+    /* Machine Mode Core Level Interrupt Controller */
+    [CSR_MINTSTATUS] = { "mintstatus", clic,  read_mintstatus },
+
+    /* Supervisor Mode Core Level Interrupt Controller */
+    [CSR_SINTSTATUS] = { "sintstatus", clic,  read_sintstatus },
+
 #endif /* !CONFIG_USER_ONLY */
 };

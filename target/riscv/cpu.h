@@ -159,6 +159,7 @@ struct CPURISCVState {
     target_ulong mip;
 
     uint32_t miclaim;
+    uint32_t mintstatus; /* clic-spec */
 
     target_ulong mie;
     target_ulong mideleg;
@@ -243,6 +244,7 @@ struct CPURISCVState {
 
     /* Fields from here on are preserved across CPU reset. */
     QEMUTimer *timer; /* Internal timer */
+    void *clic;       /* clic interrupt controller */
 };
 
 OBJECT_DECLARE_TYPE(RISCVCPU, RISCVCPUClass,
