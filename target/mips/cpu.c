@@ -604,6 +604,13 @@ static void mips_cp0_period_set(MIPSCPU *cpu)
     assert(env->cp0_count_ns);
 }
 
+static void mips_cpu_clk_update(void *opaque, ClockEvent event)
+{
+    MIPSCPU *cpu = opaque;
+
+    mips_cp0_period_set(cpu);
+}
+
 static void mips_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -624,7 +631,6 @@ static void mips_cpu_realizefn(DeviceState *dev, Error **errp)
         /* Initialize the frequency in case the clock remains unconnected. */
         clock_set_hz(cpu->clock, CPU_FREQ_HZ_DEFAULT);
     }
-    mips_cp0_period_set(cpu);
 
     cpu_exec_realizefn(cs, &local_err);
     if (local_err != NULL) {
@@ -653,7 +659,8 @@ static void mips_cpu_initfn(Object *obj)
     MIPSCPUClass *mcc = MIPS_CPU_GET_CLASS(obj);
 
     cpu_set_cpustate_pointers(cpu);
-    cpu->clock = qdev_init_clock_in(DEVICE(obj), "clk-in", NULL, cpu, 0);
+    cpu->clock = qdev_init_clock_in(DEVICE(obj), "clk-in",
+                                    mips_cpu_clk_update, cpu, ClockUpdate);
     env->cpu_model = mcc->cpu_def;
 }
 
