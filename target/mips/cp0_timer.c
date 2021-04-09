@@ -32,6 +32,12 @@ static uint32_t ns_to_count(CPUMIPSState *env, uint64_t ns)
     return ns / env->cp0_count_ns;
 }
 
+static uint32_t ns_substract_to_count(CPUMIPSState *env,
+                                      uint32_t count, uint64_t ns)
+{
+    return count - ns_to_count(env, ns);
+}
+
 /* MIPS R4K timer */
 static void cpu_mips_timer_update(CPUMIPSState *env)
 {
@@ -39,7 +45,7 @@ static void cpu_mips_timer_update(CPUMIPSState *env)
     uint32_t wait;
 
     now_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    wait = env->CP0_Compare - env->CP0_Count - ns_to_count(env, now_ns);
+    wait = ns_substract_to_count(env, env->CP0_Compare - env->CP0_Count, now_ns);
     next_ns = now_ns + (uint64_t)wait * env->cp0_count_ns;
     timer_mod(env->timer, next_ns);
 }
@@ -83,8 +89,8 @@ void cpu_mips_store_count(CPUMIPSState *env, uint32_t count)
         env->CP0_Count = count;
     } else {
         /* Store new count register */
-        env->CP0_Count = count - ns_to_count(env,
-                                             qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+        env->CP0_Count = ns_substract_to_count(env, count,
+                                               qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         /* Update timer timer */
         cpu_mips_timer_update(env);
     }
