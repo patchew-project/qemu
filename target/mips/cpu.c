@@ -595,22 +595,6 @@ static void mips_cpu_disas_set_info(CPUState *s, disassemble_info *info)
 #define CPU_FREQ_HZ_DEFAULT     200000000
 #define CP0_COUNT_RATE_DEFAULT  2
 
-static void mips_cp0_period_set(MIPSCPU *cpu)
-{
-    CPUMIPSState *env = &cpu->env;
-
-    env->cp0_count_ns = clock_ticks_to_ns(MIPS_CPU(cpu)->clock,
-                                          cpu->cp0_count_rate);
-    assert(env->cp0_count_ns);
-}
-
-static void mips_cpu_clk_update(void *opaque, ClockEvent event)
-{
-    MIPSCPU *cpu = opaque;
-
-    mips_cp0_period_set(cpu);
-}
-
 static void mips_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -660,7 +644,7 @@ static void mips_cpu_initfn(Object *obj)
 
     cpu_set_cpustate_pointers(cpu);
     cpu->clock = qdev_init_clock_in(DEVICE(obj), "clk-in",
-                                    mips_cpu_clk_update, cpu, ClockUpdate);
+                                    NULL, NULL, ClockUpdate);
     env->cpu_model = mcc->cpu_def;
 }
 
