@@ -715,6 +715,7 @@ static void riscv_clic_realize(DeviceState *dev, Error **errp)
                                          &cpu->env, 1);
         qdev_connect_gpio_out(dev, i, irq);
         cpu->env.clic = clic;
+        cpu->env.mclicbase = clic->mclicbase;
     }
 }
 

@@ -162,6 +162,7 @@ struct CPURISCVState {
     uint32_t miclaim;
     uint32_t mintstatus; /* clic-spec */
     target_ulong mintthresh; /* clic-spec */
+    target_ulong mclicbase; /* clic-spec */
 
     target_ulong mie;
     target_ulong mideleg;
