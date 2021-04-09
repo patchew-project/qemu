@@ -530,8 +530,8 @@ static void mips_loongson3_virt_init(MachineState *machine)
     sysbus_create_simple("goldfish_rtc", virt_memmap[VIRT_RTC].base,
                          qdev_get_gpio_in(liointc, RTC_IRQ));
 
-    cpuclk = clock_new(OBJECT(machine), "cpu-refclk");
-    clock_set_hz(cpuclk, DEF_LOONGSON3_FREQ);
+    cpuclk = machine_create_constant_clock(machine, "cpu-refclk",
+                                           DEF_LOONGSON3_FREQ);
 
     for (i = 0; i < machine->smp.cpus; i++) {
         int ip;
