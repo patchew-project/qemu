@@ -204,7 +204,6 @@ struct BCM2835CprmanState {
     uint32_t xosc_freq;
 
     Clock *xosc;
-    Clock *gnd;
 };
 
 #endif

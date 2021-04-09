@@ -678,9 +678,6 @@ static void cprman_init(Object *obj)
     }
 
     s->xosc = clock_new(obj, "xosc");
-    s->gnd = clock_new(obj, "gnd");
-
-    clock_set(s->gnd, 0);
 
     memory_region_init_io(&s->iomem, obj, &cprman_ops,
                           s, "bcm2835-cprman", 0x2000);
@@ -697,7 +694,7 @@ static void connect_mux_sources(BCM2835CprmanState *s,
 
     /* For sources from 0 to 3. Source 4 to 9 are mux specific */
     Clock * const CLK_SRC_MAPPING[] = {
-        [CPRMAN_CLOCK_SRC_GND] = s->gnd,
+        [CPRMAN_CLOCK_SRC_GND] = qdev_ground_clock(),
         [CPRMAN_CLOCK_SRC_XOSC] = s->xosc,
         [CPRMAN_CLOCK_SRC_TD0] = td0,
         [CPRMAN_CLOCK_SRC_TD1] = td1,
@@ -708,7 +705,7 @@ static void connect_mux_sources(BCM2835CprmanState *s,
         Clock *src;
 
         if (mapping == CPRMAN_CLOCK_SRC_FORCE_GROUND) {
-            src = s->gnd;
+            src = qdev_ground_clock();
         } else if (mapping == CPRMAN_CLOCK_SRC_DSI0HSCK) {
             src = s->dsi0hsck_mux.out;
         } else if (i < CPRMAN_CLOCK_SRC_PLLA) {
