@@ -735,6 +735,11 @@ static int rmw_mip(CPURISCVState *env, int csrno, target_ulong *ret_value,
     target_ulong mask = write_mask & delegable_ints & ~env->miclaim;
     uint32_t old_mip;
 
+     /* The xip CSR appears hardwired to zero in CLIC mode. (Section 4.3) */
+    if (riscv_clic_is_clic_mode(env)) {
+        *ret_value = 0;
+        return 0;
+    }
     if (mask) {
         old_mip = riscv_cpu_update_mip(cpu, mask, (new_value & mask));
     } else {
@@ -922,6 +927,11 @@ static int rmw_sip(CPURISCVState *env, int csrno, target_ulong *ret_value,
     if (riscv_cpu_virt_enabled(env)) {
         ret = rmw_vsip(env, CSR_VSIP, ret_value, new_value, write_mask);
     } else {
+        /* The xip CSR appears hardwired to zero in CLIC mode. (Section 4.3) */
+        if (riscv_clic_is_clic_mode(env)) {
+            *ret_value = 0;
+            return 0;
+        }
         ret = rmw_mip(env, CSR_MSTATUS, ret_value, new_value,
                       write_mask & env->mideleg & sip_writable_mask);
     }
