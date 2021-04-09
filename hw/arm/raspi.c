@@ -40,6 +40,7 @@ struct RaspiMachineState {
     /*< private >*/
     MachineState parent_obj;
     /*< public >*/
+    Clock *xosc;
     BCM283XState soc;
     struct arm_boot_info binfo;
 };
@@ -277,12 +278,15 @@ static void raspi_machine_init(MachineState *machine)
     memory_region_add_subregion_overlap(get_system_memory(), 0,
                                         machine->ram, 0);
 
+    s->xosc = machine_create_constant_clock(machine, "xosc", 19200000);
+
     /* Setup the SOC */
     object_initialize_child(OBJECT(machine), "soc", &s->soc,
                             board_soc_type(board_rev));
     object_property_add_const_link(OBJECT(&s->soc), "ram", OBJECT(machine->ram));
     object_property_set_int(OBJECT(&s->soc), "board-rev", board_rev,
                             &error_abort);
+    qdev_connect_clock_in(DEVICE(&s->soc), "xosc-in", s->xosc);
     qdev_realize(DEVICE(&s->soc), NULL, &error_abort);
 
     /* Create and plug in the SD cards */

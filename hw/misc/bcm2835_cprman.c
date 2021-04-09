@@ -637,8 +637,6 @@ static void cprman_reset(DeviceState *dev)
     for (i = 0; i < CPRMAN_NUM_CLOCK_MUX; i++) {
         device_cold_reset(DEVICE(&s->clock_muxes[i]));
     }
-
-    clock_update_hz(s->xosc, s->xosc_freq);
 }
 
 static void cprman_init(Object *obj)
@@ -677,7 +675,7 @@ static void cprman_init(Object *obj)
         g_free(alias);
     }
 
-    s->xosc = clock_new(obj, "xosc");
+    s->xosc = qdev_init_clock_in(DEVICE(obj), "xosc-in", NULL, s, ClockUpdate);
 
     memory_region_init_io(&s->iomem, obj, &cprman_ops,
                           s, "bcm2835-cprman", 0x2000);
@@ -776,7 +774,6 @@ static const VMStateDescription cprman_vmstate = {
 };
 
 static Property cprman_properties[] = {
-    DEFINE_PROP_UINT32("xosc-freq-hz", BCM2835CprmanState, xosc_freq, 19200000),
     DEFINE_PROP_END_OF_LIST()
 };
 

@@ -201,7 +201,6 @@ struct BCM2835CprmanState {
     CprmanDsi0HsckMuxState dsi0hsck_mux;
 
     uint32_t regs[CPRMAN_NUM_REGS];
-    uint32_t xosc_freq;
 
     Clock *xosc;
 };

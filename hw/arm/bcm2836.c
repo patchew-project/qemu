@@ -63,6 +63,7 @@ static void bcm2836_init(Object *obj)
                               "board-rev");
     object_property_add_alias(obj, "vcram-size", OBJECT(&s->peripherals),
                               "vcram-size");
+    qdev_alias_clock(DEVICE(&s->peripherals), "xosc-in", DEVICE(s), "xosc-in");
 }
 
 static bool bcm283x_common_realize(DeviceState *dev, Error **errp)

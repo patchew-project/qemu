@@ -123,6 +123,7 @@ static void bcm2835_peripherals_init(Object *obj)
 
     /* CPRMAN clock manager */
     object_initialize_child(obj, "cprman", &s->cprman, TYPE_BCM2835_CPRMAN);
+    qdev_alias_clock(DEVICE(&s->cprman), "xosc-in", DEVICE(s), "xosc-in");
 
     object_property_add_const_link(OBJECT(&s->dwc2), "dma-mr",
                                    OBJECT(&s->gpu_bus_mr));
