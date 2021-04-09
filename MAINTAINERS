@@ -2926,6 +2926,7 @@ S: Maintained
 F: include/hw/clock.h
 F: include/hw/qdev-clock.h
 F: hw/core/clock.c
+F: hw/core/clock-internal.h
 F: hw/core/clock-vmstate.c
 F: hw/core/qdev-clock.c
 F: docs/devel/clocks.rst
