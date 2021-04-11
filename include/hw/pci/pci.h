@@ -268,6 +268,8 @@ typedef struct PCIReqIDCache PCIReqIDCache;
 
 struct PCIPASIDOps {
     int (*set_pasid_table)(PCIBus *bus, int32_t devfn, IOMMUConfig *config);
+    int (*return_page_response)(PCIBus *bus, int32_t devfn,
+                                IOMMUPageResponse *resp);
 };
 typedef struct PCIPASIDOps PCIPASIDOps;
 
@@ -501,6 +503,8 @@ void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque);
 void pci_setup_pasid_ops(PCIDevice *dev, PCIPASIDOps *ops);
 bool pci_device_is_pasid_ops_set(PCIBus *bus, int32_t devfn);
 int pci_device_set_pasid_table(PCIBus *bus, int32_t devfn, IOMMUConfig *config);
+int pci_device_return_page_response(PCIBus *bus, int32_t devfn,
+                                    IOMMUPageResponse *resp);
 
 static inline void
 pci_set_byte(uint8_t *config, uint8_t val)

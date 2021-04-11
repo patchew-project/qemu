@@ -2765,6 +2765,22 @@ int pci_device_set_pasid_table(PCIBus *bus, int32_t devfn,
     return -ENOENT;
 }
 
+int pci_device_return_page_response(PCIBus *bus, int32_t devfn,
+                                    IOMMUPageResponse *resp)
+{
+    PCIDevice *dev;
+
+    if (!bus) {
+        return -EINVAL;
+    }
+
+    dev = bus->devices[devfn];
+    if (dev && dev->pasid_ops && dev->pasid_ops->return_page_response) {
+        return dev->pasid_ops->return_page_response(bus, devfn, resp);
+    }
+    return -ENOENT;
+}
+
 static void pci_dev_get_w64(PCIBus *b, PCIDevice *dev, void *opaque)
 {
     Range *range = opaque;
