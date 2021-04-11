@@ -105,6 +105,7 @@ typedef struct SMMUIOTLBPageInvInfo {
 } SMMUIOTLBPageInvInfo;
 
 typedef struct SMMUSIDRange {
+    SMMUState *state;
     uint32_t start;
     uint32_t end;
 } SMMUSIDRange;
