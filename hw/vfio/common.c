@@ -1742,6 +1742,8 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     QLIST_FOREACH(container, &space->containers, next) {
         if (!ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &container->fd)) {
             group->container = container;
+            trace_vfio_connect_existing_container(group->groupid,
+                                                  container->fd);
             QLIST_INSERT_HEAD(&container->group_list, group, container_next);
             vfio_kvm_device_add_group(group);
             return 0;
@@ -1775,6 +1777,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     if (ret) {
         goto free_container_exit;
     }
+    trace_vfio_connect_new_container(group->groupid, container->fd);
 
     switch (container->iommu_type) {
     case VFIO_TYPE1v2_IOMMU:
