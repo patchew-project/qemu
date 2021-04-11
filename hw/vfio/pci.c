@@ -2669,6 +2669,61 @@ out:
     g_free(fault_region_info);
 }
 
+static void vfio_init_fault_response_regions(VFIOPCIDevice *vdev, Error **errp)
+{
+    struct vfio_region_info *fault_region_info = NULL;
+    struct vfio_region_info_cap_fault *cap_fault;
+    VFIODevice *vbasedev = &vdev->vbasedev;
+    struct vfio_info_cap_header *hdr;
+    char *fault_region_name;
+    int ret;
+
+    ret = vfio_get_dev_region_info(&vdev->vbasedev,
+                                   VFIO_REGION_TYPE_NESTED,
+                                   VFIO_REGION_SUBTYPE_NESTED_DMA_FAULT_RESPONSE,
+                                   &fault_region_info);
+    if (ret) {
+        goto out;
+    }
+
+    hdr = vfio_get_region_info_cap(fault_region_info,
+                                   VFIO_REGION_INFO_CAP_DMA_FAULT_RESPONSE);
+    if (!hdr) {
+        error_setg(errp, "failed to retrieve DMA FAULT RESPONSE capability");
+        goto out;
+    }
+    cap_fault = container_of(hdr, struct vfio_region_info_cap_fault,
+                             header);
+    if (cap_fault->version != 1) {
+        error_setg(errp, "Unsupported DMA FAULT RESPONSE API version %d",
+                   cap_fault->version);
+        goto out;
+    }
+
+    fault_region_name = g_strdup_printf("%s DMA FAULT RESPONSE %d",
+                                        vbasedev->name,
+                                        fault_region_info->index);
+
+    ret = vfio_region_setup(OBJECT(vdev), vbasedev,
+                            &vdev->dma_fault_response_region,
+                            fault_region_info->index,
+                            fault_region_name);
+    g_free(fault_region_name);
+    if (ret) {
+        error_setg_errno(errp, -ret,
+                         "failed to set up the DMA FAULT RESPONSE region %d",
+                         fault_region_info->index);
+        goto out;
+    }
+
+    ret = vfio_region_mmap(&vdev->dma_fault_response_region);
+    if (ret) {
+        error_setg_errno(errp, -ret, "Failed to mmap the DMA FAULT RESPONSE queue");
+    }
+out:
+    g_free(fault_region_info);
+}
+
 static void vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
 {
     VFIODevice *vbasedev = &vdev->vbasedev;
@@ -2739,6 +2794,12 @@ static void vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
     }
 
     vfio_init_fault_regions(vdev, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    vfio_init_fault_response_regions(vdev, &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -2922,8 +2983,68 @@ static int vfio_iommu_set_pasid_table(PCIBus *bus, int32_t devfn,
     return ioctl(container->fd, VFIO_IOMMU_SET_PASID_TABLE, &info);
 }
 
+static int vfio_iommu_return_page_response(PCIBus *bus, int32_t devfn,
+                                           IOMMUPageResponse *resp)
+{
+    PCIDevice *pdev = bus->devices[devfn];
+    VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
+    struct iommu_page_response *response = &resp->resp;
+    struct vfio_region_dma_fault_response header;
+    struct iommu_page_response *queue;
+    char *queue_buffer = NULL;
+    ssize_t bytes;
+
+    if (!vdev->dma_fault_response_region.mem) {
+        return -EINVAL;
+    }
+
+    /* read the header */
+    bytes = pread(vdev->vbasedev.fd, &header, sizeof(header),
+                  vdev->dma_fault_response_region.fd_offset);
+    if (bytes != sizeof(header)) {
+        error_report("%s unable to read the fault region header (0x%lx)",
+                     __func__, bytes);
+        return -1;
+    }
+
+    /* Normally the fault queue is mmapped */
+    queue = (struct iommu_page_response *)vdev->dma_fault_response_region.mmaps[0].mmap;
+    if (!queue) {
+        size_t queue_size = header.nb_entries * header.entry_size;
+
+        error_report("%s: fault queue not mmapped: slower fault handling",
+                     vdev->vbasedev.name);
+
+        queue_buffer = g_malloc(queue_size);
+        bytes = pread(vdev->vbasedev.fd, queue_buffer, queue_size,
+                      vdev->dma_fault_response_region.fd_offset + header.offset);
+        if (bytes != queue_size) {
+            error_report("%s unable to read the fault queue (0x%lx)",
+                         __func__, bytes);
+            return -1;
+        }
+
+        queue = (struct iommu_page_response *)queue_buffer;
+    }
+    /* deposit the new response in the queue and increment the head */
+    memcpy(queue + header.head, response, header.entry_size);
+
+    vdev->fault_response_head_index =
+        (vdev->fault_response_head_index + 1) % header.nb_entries;
+    bytes = pwrite(vdev->vbasedev.fd, &vdev->fault_response_head_index, 4,
+                   vdev->dma_fault_response_region.fd_offset);
+    if (bytes != 4) {
+        error_report("%s unable to write the fault response region head index (0x%lx)",
+                     __func__, bytes);
+    }
+    g_free(queue_buffer);
+
+    return 0;
+}
+
 static PCIPASIDOps vfio_pci_pasid_ops = {
     .set_pasid_table = vfio_iommu_set_pasid_table,
+    .return_page_response = vfio_iommu_return_page_response,
 };
 
 static void vfio_dma_fault_notifier_handler(void *opaque)
@@ -3387,6 +3508,7 @@ static void vfio_instance_finalize(Object *obj)
     vfio_display_finalize(vdev);
     vfio_bars_finalize(vdev);
     vfio_region_finalize(&vdev->dma_fault_region);
+    vfio_region_finalize(&vdev->dma_fault_response_region);
     g_free(vdev->emulated_config_bits);
     g_free(vdev->rom);
     /*
@@ -3408,6 +3530,7 @@ static void vfio_exitfn(PCIDevice *pdev)
     vfio_unregister_err_notifier(vdev);
     vfio_unregister_ext_irq_notifiers(vdev);
     vfio_region_exit(&vdev->dma_fault_region);
+    vfio_region_exit(&vdev->dma_fault_response_region);
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
     if (vdev->irqchip_change_notifier.notify) {
         kvm_irqchip_remove_change_notifier(&vdev->irqchip_change_notifier);

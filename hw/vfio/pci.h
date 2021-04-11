@@ -147,6 +147,8 @@ struct VFIOPCIDevice {
     VFIOPCIExtIRQ *ext_irqs;
     VFIORegion dma_fault_region;
     uint32_t fault_tail_index;
+    VFIORegion dma_fault_response_region;
+    uint32_t fault_response_head_index;
     int (*resetfn)(struct VFIOPCIDevice *);
     uint32_t vendor_id;
     uint32_t device_id;
