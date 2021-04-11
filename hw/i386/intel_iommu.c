@@ -1195,7 +1195,7 @@ static int vtd_page_walk_level(dma_addr_t addr, uint64_t start,
     uint32_t offset;
     uint64_t slpte;
     uint64_t subpage_size, subpage_mask;
-    IOMMUTLBEvent event;
+    IOMMUTLBEvent event = {};
     uint64_t iova = start;
     uint64_t iova_next;
     int ret = 0;
@@ -2427,7 +2427,7 @@ static bool vtd_process_device_iotlb_desc(IntelIOMMUState *s,
                                           VTDInvDesc *inv_desc)
 {
     VTDAddressSpace *vtd_dev_as;
-    IOMMUTLBEvent event;
+    IOMMUTLBEvent event = {};
     struct VTDBus *vtd_bus;
     hwaddr addr;
     uint64_t sz;
@@ -3483,7 +3483,7 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
     size = remain = end - start + 1;
 
     while (remain >= VTD_PAGE_SIZE) {
-        IOMMUTLBEvent event;
+        IOMMUTLBEvent event = {};
         uint64_t mask = dma_aligned_pow2_mask(start, end, s->aw_bits);
         uint64_t size = mask + 1;
 

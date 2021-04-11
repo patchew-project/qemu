@@ -75,14 +75,48 @@ typedef enum {
     IOMMU_RW   = 3,
 } IOMMUAccessFlags;
 
+/* Granularity of the cache invalidation */
+typedef enum {
+    IOMMU_INV_GRAN_ADDR = 0,
+    IOMMU_INV_GRAN_PASID,
+    IOMMU_INV_GRAN_DOMAIN,
+} IOMMUInvGranularity;
+
 #define IOMMU_ACCESS_FLAG(r, w) (((r) ? IOMMU_RO : 0) | ((w) ? IOMMU_WO : 0))
 
+/**
+ * IOMMUTLBEntry - IOMMU TLB entry
+ *
+ * Structure used when performing a translation or when notifying MAP or
+ * UNMAP (invalidation) events
+ *
+ * @target_as: target address space
+ * @iova: IO virtual address (input)
+ * @translated_addr: translated address (output)
+ * @addr_mask: address mask (0xfff means 4K binding), must be multiple of 2
+ * @perm: permission flag of the mapping (NONE encodes no mapping or
+ * invalidation notification)
+ * @granularity: granularity of the invalidation
+ * @flags: informs whether the following fields are set
+ * @arch_id: architecture specific ID tagging the TLB
+ * @pasid: PASID tagging the TLB
+ * @leaf: when @perm is NONE, indicates whether only caches for the last
+ * level of translation need to be invalidated.
+ */
 struct IOMMUTLBEntry {
     AddressSpace    *target_as;
     hwaddr           iova;
     hwaddr           translated_addr;
-    hwaddr           addr_mask;  /* 0xfff = 4k translation */
+    hwaddr           addr_mask;
     IOMMUAccessFlags perm;
+    IOMMUInvGranularity granularity;
+#define IOMMU_INV_FLAGS_PASID  (1 << 0)
+#define IOMMU_INV_FLAGS_ARCHID (1 << 1)
+#define IOMMU_INV_FLAGS_LEAF   (1 << 2)
+    uint32_t         flags;
+    uint32_t         arch_id;
+    uint32_t         pasid;
+    bool             leaf;
 };
 
 /*
