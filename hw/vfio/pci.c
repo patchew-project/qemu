@@ -366,6 +366,65 @@ static void vfio_msi_interrupt(void *opaque)
     notify(&vdev->pdev, nr);
 }
 
+static bool vfio_iommu_require_msi_binding(IOMMUMemoryRegion *iommu_mr)
+{
+    bool msi_translate = false, nested = false;
+
+    memory_region_iommu_get_attr(iommu_mr, IOMMU_ATTR_MSI_TRANSLATE,
+                                 (void *)&msi_translate);
+    memory_region_iommu_get_attr(iommu_mr, IOMMU_ATTR_VFIO_NESTED,
+                                 (void *)&nested);
+    if (!nested || !msi_translate) {
+        return false;
+    }
+   return true;
+}
+
+static int vfio_register_msi_binding(VFIOPCIDevice *vdev,
+                                     int vector_n, bool set)
+{
+    VFIOContainer *container = vdev->vbasedev.group->container;
+    PCIDevice *dev = &vdev->pdev;
+    AddressSpace *as = pci_device_iommu_address_space(dev);
+    IOMMUMemoryRegionClass *imrc;
+    IOMMUMemoryRegion *iommu_mr;
+    IOMMUTLBEntry entry;
+    MSIMessage msg;
+
+    if (as == &address_space_memory) {
+        return 0;
+    }
+
+    iommu_mr = IOMMU_MEMORY_REGION(as->root);
+    if (!vfio_iommu_require_msi_binding(iommu_mr)) {
+        return 0;
+    }
+
+    /* MSI doorbell address is translated by an IOMMU */
+
+    if (!set) { /* unregister */
+        trace_vfio_unregister_msi_binding(vdev->vbasedev.name, vector_n);
+
+        return vfio_iommu_unset_msi_binding(container, vector_n);
+    }
+
+    msg = pci_get_msi_message(dev, vector_n);
+    imrc = memory_region_get_iommu_class_nocheck(iommu_mr);
+
+    rcu_read_lock();
+    entry = imrc->translate(iommu_mr, msg.address, IOMMU_WO, 0);
+    rcu_read_unlock();
+
+    if (entry.perm == IOMMU_NONE) {
+        return -ENOENT;
+    }
+
+    trace_vfio_register_msi_binding(vdev->vbasedev.name, vector_n,
+                                    msg.address, entry.translated_addr);
+
+    return vfio_iommu_set_msi_binding(container, vector_n, &entry);
+}
+
 static int vfio_enable_vectors(VFIOPCIDevice *vdev, bool msix)
 {
     struct vfio_irq_set *irq_set;
@@ -383,7 +442,7 @@ static int vfio_enable_vectors(VFIOPCIDevice *vdev, bool msix)
     fds = (int32_t *)&irq_set->data;
 
     for (i = 0; i < vdev->nr_vectors; i++) {
-        int fd = -1;
+        int ret, fd = -1;
 
         /*
          * MSI vs MSI-X - The guest has direct access to MSI mask and pending
@@ -392,6 +451,12 @@ static int vfio_enable_vectors(VFIOPCIDevice *vdev, bool msix)
          * KVM signaling path only when configured and unmasked.
          */
         if (vdev->msi_vectors[i].use) {
+            ret = vfio_register_msi_binding(vdev, i, true);
+            if (ret) {
+                error_report("%s failed to register S1 MSI binding "
+                             "for vector %d(%d)", vdev->vbasedev.name, i, ret);
+                goto out;
+            }
             if (vdev->msi_vectors[i].virq < 0 ||
                 (msix && msix_is_masked(&vdev->pdev, i))) {
                 fd = event_notifier_get_fd(&vdev->msi_vectors[i].interrupt);
@@ -405,6 +470,7 @@ static int vfio_enable_vectors(VFIOPCIDevice *vdev, bool msix)
 
     ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_SET_IRQS, irq_set);
 
+out:
     g_free(irq_set);
 
     return ret;
@@ -719,7 +785,8 @@ static void vfio_msi_disable_common(VFIOPCIDevice *vdev)
 
 static void vfio_msix_disable(VFIOPCIDevice *vdev)
 {
-    int i;
+    int ret, i;
+
 
     msix_unset_vector_notifiers(&vdev->pdev);
 
@@ -731,6 +798,11 @@ static void vfio_msix_disable(VFIOPCIDevice *vdev)
         if (vdev->msi_vectors[i].use) {
             vfio_msix_vector_release(&vdev->pdev, i);
             msix_vector_unuse(&vdev->pdev, i);
+            ret = vfio_register_msi_binding(vdev, i, false);
+            if (ret) {
+                error_report("%s: failed to unregister S1 MSI binding "
+                             "for vector %d(%d)", vdev->vbasedev.name, i, ret);
+            }
         }
     }
 

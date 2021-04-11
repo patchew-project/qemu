@@ -662,6 +662,65 @@ static void vfio_iommu_unmap_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
     }
 }
 
+int vfio_iommu_set_msi_binding(VFIOContainer *container, int n,
+                               IOMMUTLBEntry *iotlb)
+{
+    struct vfio_iommu_type1_set_msi_binding ustruct;
+    VFIOMSIBinding *binding;
+    int ret;
+
+    QLIST_FOREACH(binding, &container->msibinding_list, next) {
+        if (binding->index == n) {
+            return 0;
+        }
+    }
+
+    ustruct.argsz = sizeof(struct vfio_iommu_type1_set_msi_binding);
+    ustruct.iova = iotlb->iova;
+    ustruct.flags = VFIO_IOMMU_BIND_MSI;
+    ustruct.gpa = iotlb->translated_addr;
+    ustruct.size = iotlb->addr_mask + 1;
+    ret = ioctl(container->fd, VFIO_IOMMU_SET_MSI_BINDING , &ustruct);
+    if (ret) {
+        error_report("%s: failed to register the stage1 MSI binding (%m)",
+                     __func__);
+        return ret;
+    }
+    binding =  g_new0(VFIOMSIBinding, 1);
+    binding->iova = ustruct.iova;
+    binding->gpa = ustruct.gpa;
+    binding->size = ustruct.size;
+    binding->index = n;
+
+    QLIST_INSERT_HEAD(&container->msibinding_list, binding, next);
+    return 0;
+}
+
+int vfio_iommu_unset_msi_binding(VFIOContainer *container, int n)
+{
+    struct vfio_iommu_type1_set_msi_binding ustruct;
+    VFIOMSIBinding *binding, *tmp;
+    int ret;
+
+    ustruct.argsz = sizeof(struct vfio_iommu_type1_set_msi_binding);
+    QLIST_FOREACH_SAFE(binding, &container->msibinding_list, next, tmp) {
+        if (binding->index != n) {
+            continue;
+        }
+        ustruct.flags = VFIO_IOMMU_UNBIND_MSI;
+        ustruct.iova = binding->iova;
+        ret = ioctl(container->fd, VFIO_IOMMU_SET_MSI_BINDING , &ustruct);
+        if (ret) {
+            error_report("Failed to unregister the stage1 MSI binding "
+                         "for iova=0x%"PRIx64" (%m)", binding->iova);
+        }
+        QLIST_REMOVE(binding, next);
+        g_free(binding);
+        return ret;
+    }
+    return 0;
+}
+
 static void vfio_iommu_map_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
 {
     VFIOGuestIOMMU *giommu = container_of(n, VFIOGuestIOMMU, n);
