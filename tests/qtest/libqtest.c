@@ -910,6 +910,16 @@ const char *qtest_get_arch(void)
         abort();
     }
 
+    if (!strstr(qemu, "-system-")) {
+        fprintf(stderr, "QTEST_QEMU_BINARY must end with *-system-<arch> where "
+                        "'arch' is the target architecture (x86_64, aarch64, "
+                        "etc). If you are using qemu-kvm or another custom "
+                        "name, please create a symlink like ln -s "
+                        "path/to/qemu-kvm qemu-system-x86_64 and use that "
+                        "instead.\n");
+        abort();
+    }
+
     return end + 1;
 }
 
