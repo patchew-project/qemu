@@ -37,6 +37,8 @@ void gen_set_pc_im(DisasContext *s, target_ulong val);
 void gen_lookup_tb(DisasContext *s);
 long vfp_reg_offset(bool dp, unsigned reg);
 long neon_full_reg_offset(unsigned reg);
+long neon_element_offset(int reg, int element, MemOp memop);
+void gen_rev16(TCGv_i32 dest, TCGv_i32 var);
 
 static inline TCGv_i32 load_cpu_offset(int offset)
 {
@@ -134,5 +136,11 @@ static inline void gen_set_cpsr(TCGv_i32 var, uint32_t mask)
 }
 /* Set NZCV flags from the high 4 bits of var.  */
 #define gen_set_nzcv(var) gen_set_cpsr(var, CPSR_NZCV)
+
+/* Swap low and high halfwords.  */
+static inline void gen_swap_half(TCGv_i32 dest, TCGv_i32 var)
+{
+    tcg_gen_rotri_i32(dest, var, 16);
+}
 
 #endif
