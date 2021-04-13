@@ -1173,11 +1173,12 @@ class SizeLeaf:
         ind = str_indent(i)
 
         # If we need to load more bytes, do so now.
-        if extracted < self.width:
-            output(ind, 'insn = ', decode_function,
-                   '_load_bytes(ctx, insn, {0}, {1});\n'
-                   .format(extracted // 8, self.width // 8));
-            extracted = self.width
+        if self.width is not None:
+            if extracted < self.width:
+                output(ind, 'insn = ', decode_function,
+                       '_load_bytes(ctx, insn, {0}, {1});\n'
+                       .format(extracted // 8, self.width // 8));
+                extracted = self.width
         output(ind, 'return insn;\n')
 # end SizeLeaf
 
