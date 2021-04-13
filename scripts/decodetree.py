@@ -1278,9 +1278,10 @@ def main():
     global anyextern
 
     decode_scope = 'static '
+    noloadfunc = False
 
     long_opts = ['decode=', 'translate=', 'output=', 'insnwidth=',
-                 'static-decode=', 'varinsnwidth=']
+                 'static-decode=', 'varinsnwidth=', 'noloadfunc']
     try:
         (opts, args) = getopt.gnu_getopt(sys.argv[1:], 'o:vw:', long_opts)
     except getopt.GetoptError as err:
@@ -1312,6 +1313,8 @@ def main():
                 deposit_function = 'deposit64'
             elif insnwidth != 32:
                 error(0, 'cannot handle insns of width', insnwidth)
+        elif o == '--noloadfunc':
+            noloadfunc = True
         else:
             assert False, 'unhandled option'
 
@@ -1401,12 +1404,13 @@ def main():
     output(i4, 'return false;\n')
     output('}\n')
 
-    if variablewidth:
-        output('\n', decode_scope, insntype, ' ', decode_function,
-               '_load(DisasContext *ctx)\n{\n',
-               '    ', insntype, ' insn = 0;\n\n')
-        stree.output_code(4, 0, 0, 0)
-        output('}\n')
+    if not noloadfunc:
+        if variablewidth:
+            output('\n', decode_scope, insntype, ' ', decode_function,
+                   '_load(DisasContext *ctx)\n{\n',
+                   '    ', insntype, ' insn = 0;\n\n')
+            stree.output_code(4, 0, 0, 0)
+            output('}\n')
 
     if output_file:
         output_fd.close()
