@@ -42,6 +42,10 @@ output_file = None
 output_fd = None
 insntype = 'uint32_t'
 decode_function = 'decode'
+field_data_type = 'int'
+extract_function = 'extract32'
+sextract_function = 'sextract32'
+deposit_function = 'deposit32'
 
 # An identifier for C.
 re_C_ident = '[a-zA-Z][a-zA-Z0-9_]*'
@@ -185,9 +189,9 @@ class Field:
 
     def str_extract(self):
         if self.sign:
-            extr = 'sextract32'
+            extr = sextract_function
         else:
-            extr = 'extract32'
+            extr = extract_function
         return '{0}(insn, {1}, {2})'.format(extr, self.pos, self.len)
 
     def __eq__(self, other):
@@ -215,8 +219,9 @@ class MultiField:
             if pos == 0:
                 ret = f.str_extract()
             else:
-                ret = 'deposit32({0}, {1}, {2}, {3})' \
-                      .format(ret, pos, 32 - pos, f.str_extract())
+                ret = '{4}({0}, {1}, {2}, {3})' \
+                      .format(ret, pos, insnwidth - pos, f.str_extract(),
+                              deposit_function)
             pos += f.len
         return ret
 
@@ -311,7 +316,7 @@ class Arguments:
         if not self.extern:
             output('typedef struct {\n')
             for n in self.fields:
-                output('    int ', n, ';\n')
+                output('    ', field_data_type, ' ', n, ';\n')
             output('} ', self.struct_name(), ';\n\n')
 # end Arguments
 
@@ -1264,6 +1269,10 @@ def main():
     global insntype
     global insnmask
     global decode_function
+    global extract_function
+    global sextract_function
+    global deposit_function
+    global field_data_type
     global variablewidth
     global anyextern
 
@@ -1293,6 +1302,13 @@ def main():
             if insnwidth == 16:
                 insntype = 'uint16_t'
                 insnmask = 0xffff
+            elif insnwidth == 64:
+                insntype = 'uint64_t'
+                insnmask = 0xffffffffffffffff
+                field_data_type = 'int64_t'
+                extract_function = 'extract64'
+                sextract_function = 'sextract64'
+                deposit_function = 'deposit64'
             elif insnwidth != 32:
                 error(0, 'cannot handle insns of width', insnwidth)
         else:
