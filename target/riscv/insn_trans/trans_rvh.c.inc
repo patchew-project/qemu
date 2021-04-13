@@ -203,10 +203,10 @@ static bool trans_hsv_w(DisasContext *ctx, arg_hsv_w *a)
 #endif
 }
 
-#ifdef TARGET_RISCV64
 static bool trans_hlv_wu(DisasContext *ctx, arg_hlv_wu *a)
 {
     REQUIRE_EXT(ctx, RVH);
+    REQUIRE_64BIT(ctx);
 #ifndef CONFIG_USER_ONLY
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
@@ -229,6 +229,7 @@ static bool trans_hlv_wu(DisasContext *ctx, arg_hlv_wu *a)
 static bool trans_hlv_d(DisasContext *ctx, arg_hlv_d *a)
 {
     REQUIRE_EXT(ctx, RVH);
+    REQUIRE_64BIT(ctx);
 #ifndef CONFIG_USER_ONLY
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
@@ -251,6 +252,7 @@ static bool trans_hlv_d(DisasContext *ctx, arg_hlv_d *a)
 static bool trans_hsv_d(DisasContext *ctx, arg_hsv_d *a)
 {
     REQUIRE_EXT(ctx, RVH);
+    REQUIRE_64BIT(ctx);
 #ifndef CONFIG_USER_ONLY
     TCGv t0 = tcg_temp_new();
     TCGv dat = tcg_temp_new();
@@ -269,7 +271,6 @@ static bool trans_hsv_d(DisasContext *ctx, arg_hsv_d *a)
     return false;
 #endif
 }
-#endif
 
 static bool trans_hlvx_hu(DisasContext *ctx, arg_hlvx_hu *a)
 {

@@ -72,15 +72,13 @@ static inline bool has_ext(DisasContext *ctx, uint32_t ext)
     return ctx->misa & ext;
 }
 
-#ifndef CONFIG_USER_ONLY
-# ifdef TARGET_RISCV32
-#  define is_32bit(ctx)  true
-# else
+#ifdef TARGET_RISCV32
+# define is_32bit(ctx)  true
+#else
 static inline bool is_32bit(DisasContext *ctx)
 {
-    return !(ctx->misa & RV64);
+    return (ctx->misa & RV32) == RV32;
 }
-# endif
 #endif
 
 /*
@@ -436,6 +434,12 @@ EX_SH(12)
     }                              \
 } while (0)
 
+#define REQUIRE_64BIT(ctx) do { \
+    if (is_32bit(ctx)) {        \
+        return false;           \
+    }                           \
+} while (0)
+
 static int ex_rvc_register(DisasContext *ctx, int reg)
 {
     return 8 + reg;
@@ -483,7 +487,6 @@ static bool gen_arith_imm_tl(DisasContext *ctx, arg_i *a,
     return true;
 }
 
-#ifdef TARGET_RISCV64
 static void gen_addw(TCGv ret, TCGv arg1, TCGv arg2)
 {
     tcg_gen_add_tl(ret, arg1, arg2);
@@ -543,8 +546,6 @@ static bool gen_arith_div_uw(DisasContext *ctx, arg_r *a,
     tcg_temp_free(source2);
     return true;
 }
-
-#endif
 
 static bool gen_arith(DisasContext *ctx, arg_r *a,
                       void(*func)(TCGv, TCGv, TCGv))
