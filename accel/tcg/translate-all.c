@@ -1848,7 +1848,6 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     CPUArchState *env = cpu->env_ptr;
     TranslationBlock *tb, *existing_tb;
     tb_page_addr_t phys_pc, phys_page2;
-    target_ulong virt_page2;
     tcg_insn_unit *gen_code_buf;
     int gen_code_size, search_size, max_insns;
 #ifdef CONFIG_PROFILER
@@ -2085,11 +2084,15 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     }
 
     /* check next page if needed */
-    virt_page2 = (pc + tb->size - 1) & TARGET_PAGE_MASK;
     phys_page2 = -1;
-    if ((pc & TARGET_PAGE_MASK) != virt_page2) {
-        phys_page2 = get_page_addr_code(env, virt_page2);
+    if (tb->size != 0) {
+        target_ulong virt_page2 = (pc + tb->size - 1) & TARGET_PAGE_MASK;
+
+        if ((pc & TARGET_PAGE_MASK) != virt_page2) {
+            phys_page2 = get_page_addr_code(env, virt_page2);
+        }
     }
+
     /*
      * No explicit memory barrier is required -- tb_link_page() makes the
      * TB visible in a consistent state.
