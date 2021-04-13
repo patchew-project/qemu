@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# group: rw quick
+#
+# Test qemu-nbd base:allocation metacontext
+#
+# Copyright (C) 2021 Nir Soffer <nirsof@gmail.com>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# owner=nirsof@gmail.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+status=1 # failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+    rm -f "$TEST_DIR/server.log"
+    nbd_server_stop
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.nbd
+
+_supported_fmt qcow2
+_supported_proto nbd
+_supported_os Linux
+_require_command QEMU_NBD
+
+TEST_IMG="nbd+unix:///?socket=$nbd_unix_socket"
+
+echo
+echo "=== Single image ==="
+echo
+
+$QEMU_IMG create -f "$IMGFMT" -o cluster_size=64k \
+    "$TEST_IMG_FILE" 384k | _filter_img_create_filenames
+
+$QEMU_IO -f $IMGFMT -c "write -P 1 0k 64k" "$TEST_IMG_FILE" | _filter_qemu_io
+$QEMU_IO -f $IMGFMT -c "write -P 2 64k 512" "$TEST_IMG_FILE" | _filter_qemu_io
+$QEMU_IO -f $IMGFMT -c "write -z 192k 64k" "$TEST_IMG_FILE" | _filter_qemu_io
+$QEMU_IO -f $IMGFMT -c "write -z 256k 512" "$TEST_IMG_FILE" | _filter_qemu_io
+
+nbd_server_start_unix_socket -f $IMGFMT "$TEST_IMG_FILE"
+
+echo
+$QEMU_NBD_PROG --list -k $nbd_unix_socket >/dev/null
+$QEMU_IMG map -f raw --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+nbd_server_stop
+
+echo
+echo "=== Image with backing file ==="
+echo
+
+$QEMU_IMG create -f "$IMGFMT" -o cluster_size=64k \
+    "$TEST_IMG_FILE.base" 384k | _filter_img_create_filenames
+
+$QEMU_IO -f $IMGFMT -c "write -P 1 0k 64k" "$TEST_IMG_FILE.base" | _filter_qemu_io
+$QEMU_IO -f $IMGFMT -c "write -P 2 64k 512" "$TEST_IMG_FILE.base" | _filter_qemu_io
+
+$QEMU_IMG create -f "$IMGFMT" -o cluster_size=64k \
+    -b "$TEST_IMG_FILE.base" -F $IMGFMT "$TEST_IMG_FILE" | _filter_img_create_filenames
+
+$QEMU_IO -f $IMGFMT -c "write -z 192k 64k" "$TEST_IMG_FILE" | _filter_qemu_io
+$QEMU_IO -f $IMGFMT -c "write -z 256k 512" "$TEST_IMG_FILE" | _filter_qemu_io
+
+nbd_server_start_unix_socket -f $IMGFMT "$TEST_IMG_FILE"
+
+echo
+$QEMU_NBD_PROG --list -k $nbd_unix_socket >/dev/null
+$QEMU_IMG map -f raw --output=json "$TEST_IMG" | _filter_qemu_img_map
+
+nbd_server_stop
+
+# success, all done
+echo
+echo '*** done'
+rm -f $seq.full
+status=0

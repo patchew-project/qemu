@@ -1,0 +1,34 @@
+QA output created by 314
+
+=== Single image ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT cluster_size=65536 extended_l2=off compression_type=zlib size=393216 lazy_refcounts=off refcount_bits=16
+wrote 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 512/512 bytes at offset 65536
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 65536/65536 bytes at offset 196608
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 512/512 bytes at offset 262144
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+[{ "start": 0, "length": 131072, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 131072, "length": 262144, "depth": 0, "zero": true, "data": false, "offset": OFFSET}]
+
+=== Image with backing file ===
+
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT cluster_size=65536 extended_l2=off compression_type=zlib size=393216 lazy_refcounts=off refcount_bits=16
+wrote 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 512/512 bytes at offset 65536
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT cluster_size=65536 extended_l2=off compression_type=zlib size=393216 backing_file=TEST_DIR/t.IMGFMT.base backing_fmt=IMGFMT lazy_refcounts=off refcount_bits=16
+wrote 65536/65536 bytes at offset 196608
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 512/512 bytes at offset 262144
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+[{ "start": 0, "length": 131072, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
+{ "start": 131072, "length": 262144, "depth": 0, "zero": true, "data": false, "offset": OFFSET}]
+
+*** done

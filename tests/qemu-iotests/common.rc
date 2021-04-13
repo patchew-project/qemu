@@ -612,6 +612,7 @@ _cleanup_test_img()
         nbd)
             _stop_nbd_server
             rm -f "$TEST_IMG_FILE"
+            rm -f "$TEST_IMG_FILE.base"
             ;;
 
         fuse)
