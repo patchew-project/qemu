@@ -1,4 +1,9 @@
+gen = [
+  decodetree.process('ppc.decode', extra_args: ['--varinsnwidth=64', '--noloadfunc'])
+]
+
 ppc_ss = ss.source_set()
+ppc_ss.add(gen)
 ppc_ss.add(files(
   'cpu-models.c',
   'cpu.c',

@@ -154,6 +154,11 @@ void ppc_translate_init(void)
 /* internal defines */
 struct DisasContext {
     DisasContextBase base;
+
+    /*
+     * 'opcode' should be considered deprecated and be used only
+     * by legacy non-decodetree code
+     */
     uint32_t opcode;
     uint32_t exception;
     /* Routine used to access memory */
@@ -180,6 +185,8 @@ struct DisasContext {
     uint32_t flags;
     uint64_t insns_flags;
     uint64_t insns_flags2;
+    target_ulong insn_size;
+    CPUPPCState *env;
 };
 
 /* Return true iff byteswap is needed in a scalar memop */
@@ -197,6 +204,10 @@ static inline bool need_byteswap(const DisasContext *ctx)
 # define NARROW_MODE(C)  (!(C)->sf_mode)
 #else
 # define NARROW_MODE(C)  0
+#endif
+
+#if defined(DO_PPC_STATISTICS)
+static uint64_t ppc_decodetree_hit_count;
 #endif
 
 struct opc_handler_t {
@@ -254,7 +265,7 @@ static void gen_exception_err(DisasContext *ctx, uint32_t excp, uint32_t error)
      * faulting instruction
      */
     if (ctx->exception == POWERPC_EXCP_NONE) {
-        gen_update_nip(ctx, ctx->base.pc_next - 4);
+        gen_update_nip(ctx, ctx->base.pc_next - ctx->insn_size);
     }
     t0 = tcg_const_i32(excp);
     t1 = tcg_const_i32(error);
@@ -273,7 +284,7 @@ static void gen_exception(DisasContext *ctx, uint32_t excp)
      * faulting instruction
      */
     if (ctx->exception == POWERPC_EXCP_NONE) {
-        gen_update_nip(ctx, ctx->base.pc_next - 4);
+        gen_update_nip(ctx, ctx->base.pc_next - ctx->insn_size);
     }
     t0 = tcg_const_i32(excp);
     gen_helper_raise_exception(cpu_env, t0);
@@ -3113,7 +3124,8 @@ static void gen_eieio(DisasContext *ctx)
          */
         if (!(ctx->insns_flags2 & PPC2_ISA300)) {
             qemu_log_mask(LOG_GUEST_ERROR, "invalid eieio using bit 6 at @"
-                          TARGET_FMT_lx "\n", ctx->base.pc_next - 4);
+                          TARGET_FMT_lx "\n",
+                          ctx->base.pc_next - ctx->insn_size);
         } else {
             bar = TCG_MO_ST_LD;
         }
@@ -3782,14 +3794,14 @@ static void gen_b(DisasContext *ctx)
     li = LI(ctx->opcode);
     li = (li ^ 0x02000000) - 0x02000000;
     if (likely(AA(ctx->opcode) == 0)) {
-        target = ctx->base.pc_next + li - 4;
+        target = ctx->base.pc_next + li - ctx->insn_size;
     } else {
         target = li;
     }
     if (LK(ctx->opcode)) {
         gen_setlr(ctx, ctx->base.pc_next);
     }
-    gen_update_cfar(ctx, ctx->base.pc_next - 4);
+    gen_update_cfar(ctx, ctx->base.pc_next - ctx->insn_size);
     gen_goto_tb(ctx, 0, target);
 }
 
@@ -3888,11 +3900,11 @@ static void gen_bcond(DisasContext *ctx, int type)
         }
         tcg_temp_free_i32(temp);
     }
-    gen_update_cfar(ctx, ctx->base.pc_next - 4);
+    gen_update_cfar(ctx, ctx->base.pc_next - ctx->insn_size);
     if (type == BCOND_IM) {
         target_ulong li = (target_long)((int16_t)(BD(ctx->opcode)));
         if (likely(AA(ctx->opcode) == 0)) {
-            gen_goto_tb(ctx, 0, ctx->base.pc_next + li - 4);
+            gen_goto_tb(ctx, 0, ctx->base.pc_next + li - ctx->insn_size);
         } else {
             gen_goto_tb(ctx, 0, li);
         }
@@ -4008,7 +4020,7 @@ static void gen_rfi(DisasContext *ctx)
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
         gen_io_start();
     }
-    gen_update_cfar(ctx, ctx->base.pc_next - 4);
+    gen_update_cfar(ctx, ctx->base.pc_next - ctx->insn_size);
     gen_helper_rfi(cpu_env);
     gen_sync_exception(ctx);
 #endif
@@ -4025,7 +4037,7 @@ static void gen_rfid(DisasContext *ctx)
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
         gen_io_start();
     }
-    gen_update_cfar(ctx, ctx->base.pc_next - 4);
+    gen_update_cfar(ctx, ctx->base.pc_next - ctx->insn_size);
     gen_helper_rfid(cpu_env);
     gen_sync_exception(ctx);
 #endif
@@ -4042,7 +4054,7 @@ static void gen_rfscv(DisasContext *ctx)
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
         gen_io_start();
     }
-    gen_update_cfar(ctx, ctx->base.pc_next - 4);
+    gen_update_cfar(ctx, ctx->base.pc_next - ctx->insn_size);
     gen_helper_rfscv(cpu_env);
     gen_sync_exception(ctx);
 #endif
@@ -4338,7 +4350,7 @@ static inline void gen_op_mfspr(DisasContext *ctx)
             if (sprn != SPR_PVR) {
                 qemu_log_mask(LOG_GUEST_ERROR, "Trying to read privileged spr "
                               "%d (0x%03x) at " TARGET_FMT_lx "\n", sprn, sprn,
-                              ctx->base.pc_next - 4);
+                              ctx->base.pc_next - ctx->insn_size);
             }
             gen_priv_exception(ctx, POWERPC_EXCP_PRIV_REG);
         }
@@ -4352,7 +4364,8 @@ static inline void gen_op_mfspr(DisasContext *ctx)
         /* Not defined */
         qemu_log_mask(LOG_GUEST_ERROR,
                       "Trying to read invalid spr %d (0x%03x) at "
-                      TARGET_FMT_lx "\n", sprn, sprn, ctx->base.pc_next - 4);
+                      TARGET_FMT_lx "\n", sprn, sprn,
+                      ctx->base.pc_next - ctx->insn_size);
 
         /*
          * The behaviour depends on MSR:PR and SPR# bit 0x10, it can
@@ -4516,7 +4529,7 @@ static void gen_mtspr(DisasContext *ctx)
             /* Privilege exception */
             qemu_log_mask(LOG_GUEST_ERROR, "Trying to write privileged spr "
                           "%d (0x%03x) at " TARGET_FMT_lx "\n", sprn, sprn,
-                          ctx->base.pc_next - 4);
+                          ctx->base.pc_next - ctx->insn_size);
             gen_priv_exception(ctx, POWERPC_EXCP_PRIV_REG);
         }
     } else {
@@ -4530,7 +4543,8 @@ static void gen_mtspr(DisasContext *ctx)
         /* Not defined */
         qemu_log_mask(LOG_GUEST_ERROR,
                       "Trying to write invalid spr %d (0x%03x) at "
-                      TARGET_FMT_lx "\n", sprn, sprn, ctx->base.pc_next - 4);
+                      TARGET_FMT_lx "\n", sprn, sprn,
+                      ctx->base.pc_next - ctx->insn_size);
 
 
         /*
@@ -6900,6 +6914,60 @@ static inline void set_avr64(int regno, TCGv_i64 src, bool high)
     tcg_gen_st_i64(src, cpu_env, avr64_offset(regno, high));
 }
 
+/*
+ * Check if a given 32-bit value is a prefix for a 64-bit instruction.
+ */
+static inline int is_insn_prefix(uint32_t insn)
+{
+    return (opc1(insn) == 0x01);
+}
+
+/*
+ * Load a 32- or 64-bit instruction.
+ *
+ * 32-bit instructions are returned in the higher 32-bits
+ */
+static uint64_t ppc_load_insn(DisasContext *ctx)
+{
+    uint64_t insn;
+    uint32_t insn_part;
+
+    /* read 4 bytes */
+    insn_part = translator_ldl_swap(ctx->env, ctx->base.pc_next,
+                                    need_byteswap(ctx));
+    insn = ((uint64_t)insn_part) << 32;
+    ctx->base.pc_next += 4;
+    ctx->insn_size = 4;
+
+    if (is_insn_prefix(insn_part)) {
+        /* read 4 more bytes */
+        insn_part = translator_ldl_swap(ctx->env, ctx->base.pc_next,
+                                        need_byteswap(ctx));
+        insn |= insn_part;
+
+        ctx->base.pc_next += 4;
+        ctx->insn_size += 4;
+    }
+
+    return insn;
+}
+
+/*
+ * Peek at the next instruction's size.
+ */
+static target_ulong ppc_peek_next_insn_size(DisasContext *ctx)
+{
+    uint32_t insn_part;
+
+    /* read 4 bytes */
+    insn_part = translator_ldl_swap(ctx->env, ctx->base.pc_next,
+                                    need_byteswap(ctx));
+
+    return is_insn_prefix(insn_part) ? 8 : 4;
+}
+
+#include "decode-ppc.c.inc"
+
 #include "translate/fp-impl.c.inc"
 
 #include "translate/vmx-impl.c.inc"
@@ -7832,7 +7900,7 @@ void ppc_cpu_dump_statistics(CPUState *cs, int flags)
     opc_handler_t **t1, **t2, **t3, *handler;
     int op1, op2, op3;
 
-    t1 = cpu->env.opcodes;
+    t1 = cpu->opcodes;
     for (op1 = 0; op1 < 64; op1++) {
         handler = t1[op1];
         if (is_indirect_opcode(handler)) {
@@ -7872,6 +7940,10 @@ void ppc_cpu_dump_statistics(CPUState *cs, int flags)
                         handler->count, handler->count);
         }
     }
+
+    qemu_printf("decodetree: "
+                "%016" PRIx64 " %" PRId64 "\n",
+                ppc_decodetree_hit_count, ppc_decodetree_hit_count);
 #endif
 }
 
@@ -7879,7 +7951,6 @@ static void ppc_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
     CPUPPCState *env = cs->env_ptr;
-    int bound;
 
     ctx->exception = POWERPC_EXCP_NONE;
     ctx->spr_cb = env->spr_cb;
@@ -7961,8 +8032,7 @@ static void ppc_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     msr_se = 1;
 #endif
 
-    bound = -(ctx->base.pc_first | TARGET_PAGE_MASK) / 4;
-    ctx->base.max_insns = MIN(ctx->base.max_insns, bound);
+    ctx->env = env;
 }
 
 static void ppc_tr_tb_start(DisasContextBase *db, CPUState *cs)
@@ -7979,37 +8049,31 @@ static bool ppc_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
+    target_ulong insn_size = ppc_peek_next_insn_size(ctx);
+
     gen_debug_exception(ctx);
     dcbase->is_jmp = DISAS_NORETURN;
     /*
      * The address covered by the breakpoint must be included in
      * [tb->pc, tb->pc + tb->size) in order to for it to be properly
-     * cleared -- thus we increment the PC here so that the logic
-     * setting tb->size below does the right thing.
+     * cleared -- thus we increment the PC here.
      */
-    ctx->base.pc_next += 4;
+    ctx->base.pc_next += insn_size;
     return true;
 }
 
-static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
+/*
+ * Legacy (non-decodetree) 32-bit instruction translation code.
+ *
+ * Any new instructions should be implemented using the decode tree,
+ * and not use this code.
+ */
+static void ppc_tr_translate_insn_legacy(DisasContext *ctx, CPUState *cs)
 {
-    DisasContext *ctx = container_of(dcbase, DisasContext, base);
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = cs->env_ptr;
     opc_handler_t **table, *handler;
 
-    LOG_DISAS("----------------\n");
-    LOG_DISAS("nip=" TARGET_FMT_lx " super=%d ir=%d\n",
-              ctx->base.pc_next, ctx->mem_idx, (int)msr_ir);
-
-    ctx->opcode = translator_ldl_swap(env, ctx->base.pc_next,
-                                      need_byteswap(ctx));
-
-    LOG_DISAS("translate opcode %08x (%02x %02x %02x %02x) (%s)\n",
-              ctx->opcode, opc1(ctx->opcode), opc2(ctx->opcode),
-              opc3(ctx->opcode), opc4(ctx->opcode),
-              ctx->le_mode ? "little" : "big");
-    ctx->base.pc_next += 4;
     table = cpu->opcodes;
     handler = table[opc1(ctx->opcode)];
     if (is_indirect_opcode(handler)) {
@@ -8031,7 +8095,8 @@ static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
                       TARGET_FMT_lx " %d\n",
                       opc1(ctx->opcode), opc2(ctx->opcode),
                       opc3(ctx->opcode), opc4(ctx->opcode),
-                      ctx->opcode, ctx->base.pc_next - 4, (int)msr_ir);
+                      ctx->opcode, ctx->base.pc_next - ctx->insn_size,
+                      (int)msr_ir);
     } else {
         uint32_t inval;
 
@@ -8048,7 +8113,7 @@ static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
                           TARGET_FMT_lx "\n", ctx->opcode & inval,
                           opc1(ctx->opcode), opc2(ctx->opcode),
                           opc3(ctx->opcode), opc4(ctx->opcode),
-                          ctx->opcode, ctx->base.pc_next - 4);
+                          ctx->opcode, ctx->base.pc_next - ctx->insn_size);
             gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
             ctx->base.is_jmp = DISAS_NORETURN;
             return;
@@ -8067,11 +8132,55 @@ static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
         uint32_t excp = gen_prep_dbgex(ctx);
         gen_exception_nip(ctx, excp, ctx->base.pc_next);
     }
+}
 
-    if (tcg_check_temp_count()) {
-        qemu_log("Opcode %02x %02x %02x %02x (%08x) leaked "
-                 "temporaries\n", opc1(ctx->opcode), opc2(ctx->opcode),
-                 opc3(ctx->opcode), opc4(ctx->opcode), ctx->opcode);
+static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
+{
+#if defined(PPC_DEBUG_DISAS)
+    /* env is needed by LOG_DISAS */
+    CPUPPCState *env = cs->env_ptr;
+#endif
+    DisasContext *ctx = container_of(dcbase, DisasContext, base);
+    uint64_t insn;
+
+    LOG_DISAS("----------------\n");
+    LOG_DISAS("nip=" TARGET_FMT_lx " super=%d ir=%d\n",
+              ctx->base.pc_next, ctx->mem_idx, (int)msr_ir);
+
+    /* load the next insn, keeping track of the insn size */
+    insn = ppc_load_insn(ctx);
+
+    if (unlikely(ctx->insn_size == 8 &&
+                 (ctx->base.pc_next & 0x3f) == 0x04)) {
+        /*
+         * Raise alignment exception when a 64-bit insn crosses a
+         * 64-byte boundary
+         */
+        gen_exception_err(ctx, POWERPC_EXCP_ALIGN, POWERPC_EXCP_ALIGN_INSN);
+    } else {
+        LOG_DISAS("translate opcode %016" PRIx64 " (%s)\n",
+                  insn, ctx->le_mode ? "little" : "big");
+
+        if (!decode(ctx, insn)) {
+            /*
+             * Instruction not found in decode tree.
+             * Fall back to legacy 32-bit instruction code.
+             *
+             * ppc_load_insn() keeps 32-bit instructions in the high
+             * 32-bits of insn.
+             */
+            ctx->opcode = (uint32_t)(insn >> 32);
+            ppc_tr_translate_insn_legacy(ctx, cs);
+        } else {
+#if defined(DO_PPC_STATISTICS)
+            ppc_decodetree_hit_count++;
+#endif
+        }
+
+        if (tcg_check_temp_count()) {
+            qemu_log("Opcode (%016" PRIx64 ") leaked "
+                     "temporaries\n", insn);
+        }
     }
 
     ctx->base.is_jmp = ctx->exception == POWERPC_EXCP_NONE ?
