@@ -16,3 +16,11 @@
 # You should have received a copy of the GNU Lesser General Public
 # License along with this library; if not, see <http://www.gnu.org/licenses/>.
 #
+
+%p_D8_SI        32:s18 0:16
+
+# Fixed-Point Facility Instructions
+&addi   r rt ra si
+
+paddi   000001 10 0 -- r:1 -- .................. 001110 rt:5 ra:5 ................ si=%p_D8_SI &addi
+addi    001110 rt:5 ra:5 si:s16 &addi r=0
