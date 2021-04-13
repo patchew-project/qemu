@@ -1399,6 +1399,11 @@ static target_ulong h_set_mode_resource_addr_trans_mode(PowerPCCPU *cpu,
         return H_UNSUPPORTED_FLAG;
     }
 
+    if (mflags == AIL_0001_8000 && (pcc->insns_flags2 & PPC2_ISA310)) {
+        /* AIL 2 is also reserved in ISA v3.1 */
+        return H_UNSUPPORTED_FLAG;
+    }
+
     spapr_set_all_lpcrs(mflags << LPCR_AIL_SHIFT, LPCR_AIL);
 
     return H_SUCCESS;

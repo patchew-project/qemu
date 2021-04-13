@@ -197,7 +197,8 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
     target_ulong msr, new_msr, vector;
-    int srr0, srr1, asrr0, asrr1, lev = -1, ail;
+    int srr0, srr1, asrr0, asrr1, lev = -1;
+    int ail, hail, using_ail;
     bool lpes0;
 
     qemu_log_mask(CPU_LOG_INT, "Raise exception at " TARGET_FMT_lx
@@ -239,24 +240,39 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
      * On anything else, we behave as if LPES0 is 1
      * (externals don't alter MSR:HV)
      *
-     * AIL is initialized here but can be cleared by
-     * selected exceptions
+     * ail/hail are initialized here but can be cleared by
+     * selected exceptions, and other conditions afterwards.
      */
 #if defined(TARGET_PPC64)
     if (excp_model == POWERPC_EXCP_POWER7 ||
         excp_model == POWERPC_EXCP_POWER8 ||
-        excp_model == POWERPC_EXCP_POWER9) {
+        excp_model == POWERPC_EXCP_POWER9 ||
+        excp_model == POWERPC_EXCP_POWER10) {
         lpes0 = !!(env->spr[SPR_LPCR] & LPCR_LPES0);
         if (excp_model != POWERPC_EXCP_POWER7) {
             ail = (env->spr[SPR_LPCR] & LPCR_AIL) >> LPCR_AIL_SHIFT;
         } else {
             ail = 0;
         }
+        if (excp_model == POWERPC_EXCP_POWER10) {
+            if (AIL_0001_8000) {
+                ail = 0; /* AIL=2 is reserved in ISA v3.1 */
+            }
+
+            if (env->spr[SPR_LPCR] & LPCR_HAIL) {
+                hail = AIL_C000_0000_0000_4000;
+            } else {
+                hail = 0;
+            }
+        } else {
+            hail = ail;
+        }
     } else
 #endif /* defined(TARGET_PPC64) */
     {
         lpes0 = true;
         ail = 0;
+        hail = 0;
     }
 
     /*
@@ -316,6 +332,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             new_msr |= (target_ulong)MSR_HVB;
         }
         ail = 0;
+        hail = 0;
 
         /* machine check exceptions don't have ME set */
         new_msr &= ~((target_ulong)1 << MSR_ME);
@@ -520,6 +537,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             }
         }
         ail = 0;
+        hail = 0;
         break;
     case POWERPC_EXCP_DSEG:      /* Data segment exception                   */
     case POWERPC_EXCP_ISEG:      /* Instruction segment exception            */
@@ -773,7 +791,8 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         } else if (env->spr[SPR_LPCR] & LPCR_ILE) {
             new_msr |= (target_ulong)1 << MSR_LE;
         }
-    } else if (excp_model == POWERPC_EXCP_POWER9) {
+    } else if (excp_model == POWERPC_EXCP_POWER9 ||
+               excp_model == POWERPC_EXCP_POWER10) {
         if (new_msr & MSR_HVB) {
             if (env->spr[SPR_HID0] & HID0_POWER9_HILE) {
                 new_msr |= (target_ulong)1 << MSR_LE;
@@ -791,21 +810,76 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
 #endif
 
     /*
-     * AIL only works if MSR[IR] and MSR[DR] are both enabled.
+     * The ail variable is for AIL behaviour for interrupts that begin
+     * execution with MSR[HV]=0, and the hail variable is for AIL behaviour for
+     * interrupts that begin execution with MSR[HV]=1.
+     *
+     * There is a large matrix of behaviours depending on the processor and
+     * the current operating modes when the interrupt is taken, and the
+     * interrupt type. The below tables lists behaviour for interrupts except
+     * for SRESET, machine check, and HMI (which are all taken in real mode
+     * with AIL 0).
+     *
+     * POWER8, POWER9 with LPCR[HR]=0
+     * | LPCR[AIL] | MSR[IR||DR] | MSR[HV] | new MSR[HV] | AIL |
+     * +-----------+-------------+---------+-------------+-----+
+     * | a         | 00/01/10    | x       | x           | 0   |
+     * | a         | 11          | 0       | 1           | 0   |
+     * | a         | 11          | 1       | 1           | a   |
+     * | a         | 11          | 0       | 0           | a   |
+     * +-------------------------------------------------------+
+     *
+     * POWER9 with LPCR[HR]=1
+     * | LPCR[AIL] | MSR[IR||DR] | MSR[HV] | new MSR[HV] | AIL |
+     * +-----------+-------------+---------+-------------+-----+
+     * | a         | 00/01/10    | x       | x           | 0   |
+     * | a         | 11          | x       | x           | a   |
+     * +-------------------------------------------------------+
+     *
+     * The difference with POWER9 being that MSR[HV] 0->1 interrupts can be
+     * sent to the hypervisor in AIL mode if the guest is radix (LPCR[HR]=1).
+     * This is good for performance but allows the guest to influence the
+     * AIL of the hypervisor interrupt using its MSR, and also the hypervisor
+     * must disallow guest interrupts (MSR[HV] 0->0) from using AIL if the
+     * hypervisor does not want to use AIL for its MSR[HV] 0->1 interrupts.
+     *
+     * POWER10 addresses those issues with a new LPCR[HAIL] bit that is
+     * applied to interrupt that begin execution with MSR[HV]=1 (so both
+     * MSR[HV] 0->1 and 1->1).
+     *
+     * POWER10 behaviour is
+     * | LPCR[AIL] | LPCR[HAIL] | MSR[IR||DR] | MSR[HV] | new MSR[HV] | AIL |
+     * +-----------+------------+-------------+---------+-------------+-----+
+     * | a         | h          | 00/01/10    | 0       | 0           | 0   |
+     * | a         | h          | 11          | 0       | 0           | a   |
+     * | a         | h          | x           | 0       | 1           | h   |
+     * | a         | h          | 00/01/10    | 1       | 1           | 0   |
+     * | a         | h          | 11          | 1       | 1           | h   |
+     * +--------------------------------------------------------------------+
      */
-    if (!((msr >> MSR_IR) & 1) || !((msr >> MSR_DR) & 1)) {
-        ail = 0;
-    }
 
-    /*
-     * AIL does not work if there is a MSR[HV] 0->1 transition and the
-     * partition is in HPT mode. For radix guests, such interrupts are
-     * allowed to be delivered to the hypervisor in ail mode.
-     */
-    if ((new_msr & MSR_HVB) && !(msr & MSR_HVB)) {
-        if (!(env->spr[SPR_LPCR] & LPCR_HR)) {
+    if (excp_model == POWERPC_EXCP_POWER8 ||
+        excp_model == POWERPC_EXCP_POWER9) {
+        if (!((msr >> MSR_IR) & 1) || !((msr >> MSR_DR) & 1)) {
             ail = 0;
+            hail = 0;
+        } else if ((new_msr & MSR_HVB) && !(msr & MSR_HVB)) {
+            if (!(env->spr[SPR_LPCR] & LPCR_HR)) {
+                hail = 0;
+            }
         }
+    } else if (excp_model == POWERPC_EXCP_POWER10) {
+        if ((new_msr & MSR_HVB) == (msr & MSR_HVB)) {
+            if (!((msr >> MSR_IR) & 1) || !((msr >> MSR_DR) & 1)) {
+                ail = 0;
+                hail = 0;
+            }
+        }
+    }
+    if (new_msr & MSR_HVB) {
+        using_ail = hail;
+    } else {
+        using_ail = ail;
     }
 
     vector = env->excp_vectors[excp];
@@ -849,18 +923,18 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         env->spr[srr1] = msr;
 
         /* Handle AIL */
-        if (ail) {
+        if (using_ail) {
             new_msr |= (1 << MSR_IR) | (1 << MSR_DR);
-            vector |= ppc_excp_vector_offset(cs, ail);
+            vector |= ppc_excp_vector_offset(cs, using_ail);
         }
 
 #if defined(TARGET_PPC64)
     } else {
         /* scv AIL is a little different */
-        if (ail) {
+        if (using_ail) {
             new_msr |= (1 << MSR_IR) | (1 << MSR_DR);
         }
-        if (ail == AIL_C000_0000_0000_4000) {
+        if (using_ail == AIL_C000_0000_0000_4000) {
             vector |= 0xc000000000003000ull;
         } else {
             vector |= 0x0000000000017000ull;
