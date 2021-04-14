@@ -132,6 +132,10 @@ typedef enum VhostUserSlaveRequest {
 #define VHOST_USER_FS_FLAG_MAP_R (1u << 0)
 #define VHOST_USER_FS_FLAG_MAP_W (1u << 1)
 
+/* Generic flags for the overall message and not individual ranges */
+/* Drop capability CAP_FSETID during the operation */
+#define VHOST_USER_FS_GENFLAG_DROP_FSETID (1u << 0)
+
 typedef struct {
     /* Offsets within the file being mapped */
     uint64_t fd_offset;
@@ -144,6 +148,8 @@ typedef struct {
 } VhostUserFSSlaveMsgEntry;
 
 typedef struct {
+    /* Generic flags for the overall message */
+    uint32_t flags;
     /* Number of entries */
     uint16_t count;
     /* Spare */
