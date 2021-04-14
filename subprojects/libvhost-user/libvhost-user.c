@@ -403,9 +403,11 @@ vu_send_reply(VuDev *dev, int conn_fd, VhostUserMsg *vmsg)
  * Processes a reply on the slave channel.
  * Entered with slave_mutex held and releases it before exit.
  * Returns true on success.
+ * *payload is written on success
  */
 static bool
-vu_process_message_reply(VuDev *dev, const VhostUserMsg *vmsg)
+vu_process_message_reply(VuDev *dev, const VhostUserMsg *vmsg,
+                         uint64_t *payload)
 {
     VhostUserMsg msg_reply;
     bool result = false;
@@ -425,7 +427,8 @@ vu_process_message_reply(VuDev *dev, const VhostUserMsg *vmsg)
         goto out;
     }
 
-    result = msg_reply.payload.u64 == 0;
+    *payload = msg_reply.payload.u64;
+    result = true;
 
 out:
     pthread_mutex_unlock(&dev->slave_mutex);
@@ -1312,6 +1315,8 @@ bool vu_set_queue_host_notifier(VuDev *dev, VuVirtq *vq, int fd,
 {
     int qidx = vq - dev->vq;
     int fd_num = 0;
+    bool res;
+    uint64_t payload = 0;
     VhostUserMsg vmsg = {
         .request = VHOST_USER_SLAVE_VRING_HOST_NOTIFIER_MSG,
         .flags = VHOST_USER_VERSION | VHOST_USER_NEED_REPLY_MASK,
@@ -1342,7 +1347,10 @@ bool vu_set_queue_host_notifier(VuDev *dev, VuVirtq *vq, int fd,
     }
 
     /* Also unlocks the slave_mutex */
-    return vu_process_message_reply(dev, &vmsg);
+    res = vu_process_message_reply(dev, &vmsg, &payload);
+    res = res && (payload == 0);
+
+    return res;
 }
 
 static bool
