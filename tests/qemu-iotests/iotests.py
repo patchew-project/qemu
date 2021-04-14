@@ -473,7 +473,10 @@ def log(msg: Msg,
 
 class Timeout:
     def __init__(self, seconds, errmsg="Timeout"):
-        self.seconds = seconds
+        if qemu_gdb:
+            self.seconds = 3000
+        else:
+            self.seconds = seconds
         self.errmsg = errmsg
     def __enter__(self):
         signal.signal(signal.SIGALRM, self.timeout)
@@ -678,6 +681,11 @@ class VM(qtest.QEMUQtestMachine):
         for key in obj:
             output_list += [key + '=' + obj[key]]
         return ','.join(output_list)
+
+    def get_qmp_events(self, wait: bool = False) -> List[QMPMessage]:
+        if qemu_gdb:
+            wait = 0.0
+        return super().get_qmp_events(wait=wait)
 
     def get_qmp_events_filtered(self, wait=60.0):
         result = []
