@@ -577,7 +577,8 @@ class VM(qtest.QEMUQtestMachine):
 
     def __init__(self, path_suffix=''):
         name = "qemu%s-%d" % (path_suffix, os.getpid())
-        super().__init__(qemu_prog, qemu_opts, name=name,
+        super().__init__(qemu_prog, qemu_opts, wrapper=qemu_gdb,
+                         name=name,
                          test_dir=test_dir,
                          socket_scm_helper=socket_scm_helper,
                          sock_dir=sock_dir)
