@@ -293,7 +293,7 @@ static void vu_blk_process_vq(VuDev *vu_dev, int idx)
     while (1) {
         VuBlkReq *req;
 
-        req = vu_queue_pop(vu_dev, vq, sizeof(VuBlkReq));
+        req = vu_queue_pop(vu_dev, vq, sizeof(VuBlkReq), NULL, NULL);
         if (!req) {
             break;
         }

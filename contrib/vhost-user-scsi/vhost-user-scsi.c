@@ -252,7 +252,7 @@ static void vus_proc_req(VuDev *vu_dev, int idx)
         VirtIOSCSICmdReq *req;
         VirtIOSCSICmdResp *rsp;
 
-        elem = vu_queue_pop(vu_dev, vq, sizeof(VuVirtqElement));
+        elem = vu_queue_pop(vu_dev, vq, sizeof(VuVirtqElement), NULL, NULL);
         if (!elem) {
             g_debug("No more elements pending on vq[%d]@%p", idx, vq);
             break;

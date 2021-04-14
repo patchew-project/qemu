@@ -840,7 +840,8 @@ vg_handle_ctrl(VuDev *dev, int qidx)
             return;
         }
 
-        cmd = vu_queue_pop(dev, vq, sizeof(struct virtio_gpu_ctrl_command));
+        cmd = vu_queue_pop(dev, vq, sizeof(struct virtio_gpu_ctrl_command),
+                           NULL, NULL);
         if (!cmd) {
             break;
         }
@@ -949,7 +950,7 @@ vg_handle_cursor(VuDev *dev, int qidx)
     struct virtio_gpu_update_cursor cursor;
 
     for (;;) {
-        elem = vu_queue_pop(dev, vq, sizeof(VuVirtqElement));
+        elem = vu_queue_pop(dev, vq, sizeof(VuVirtqElement), NULL, NULL);
         if (!elem) {
             break;
         }
