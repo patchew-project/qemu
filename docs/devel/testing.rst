@@ -229,6 +229,13 @@ Debugging a test case
 QEMU iotests offers some options to debug a failing test, that can be
 given as options to the ``check`` script:
 
+* ``-gdb`` wraps ``gdbsever`` to the QEMU binary,
+  so it is possible to connect to it via gdb.
+  One way to do so is via ``gdb -iex "target remote $GDB_QEMU"``
+  The default address is ``localhost:12345``, and can be changed
+  by setting the ``$GDB_QEMU`` environmental variable.
+  The final command line will be ``gdbserver $GDB_QEMU $QEMU ...``
+
 * ``-d`` (debug) just increases the logging verbosity, showing
   for example the QMP commands and answers.
 
