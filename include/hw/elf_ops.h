@@ -562,6 +562,23 @@ static int glue(load_elf, SZ)(const char *name, int fd,
                     if (res != MEMTX_OK) {
                         goto fail;
                     }
+                    /*
+                     * We need to zero'ify the space that is not copied
+                     * from file
+                     */
+                    if (file_size < mem_size) {
+                        static uint8_t zero[4096];
+                        uint64_t i;
+                        for (i = file_size; i < mem_size; i += sizeof(zero)) {
+                            res = address_space_write(
+                                         as ? as : &address_space_memory,
+                                         addr + i, MEMTXATTRS_UNSPECIFIED,
+                                         zero, MIN(sizeof(zero), mem_size - i));
+                            if (res != MEMTX_OK) {
+                                goto fail;
+                            }
+                        }
+                    }
                 }
             }
 
