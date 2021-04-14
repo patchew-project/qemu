@@ -1,4 +1,26 @@
+
+.ccache_cross_setup:
+  cache:
+    key: "$CI_JOB_NAME"
+    paths:
+      - ccache
+  before_script:
+    - mkdir -p ccache
+    - if command -v ccache ; then
+        export CCACHE_BASEDIR=${PWD} ;
+        export CCACHE_DIR=${PWD}/ccache ;
+        export CCACHE_MAXSIZE="1G" ;
+        if [ -e /usr/lib/ccache ]; then
+          export PATH=/usr/lib/ccache:$PATH ;
+        fi ;
+        if [ -e /usr/lib64/ccache ]; then
+          export PATH=/usr/lib64/ccache:$PATH ;
+        fi ;
+        ccache --zero-stats ;
+      fi
+
 .cross_system_build_job:
+  extends: .ccache_cross_setup
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
   timeout: 80m
@@ -11,6 +33,7 @@
           i386-softmmu microblaze-softmmu mips-softmmu mipsel-softmmu
           mips64-softmmu ppc-softmmu sh4-softmmu xtensa-softmmu"
     - make -j$(expr $(nproc) + 1) all check-build $MAKE_CHECK_ARGS
+    - if command -v ccache ; then ccache --show-stats ; fi
 
 # Job to cross-build specific accelerators.
 #
@@ -18,6 +41,7 @@
 # KVM), and set extra options (such disabling other accelerators) via the
 # $ACCEL_CONFIGURE_OPTS variable.
 .cross_accel_build_job:
+  extends: .ccache_cross_setup
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
   timeout: 30m
@@ -28,8 +52,10 @@
       ../configure --enable-werror --disable-docs $QEMU_CONFIGURE_OPTS
         --disable-tools --enable-${ACCEL:-kvm} $ACCEL_CONFIGURE_OPTS
     - make -j$(expr $(nproc) + 1) all check-build
+    - if command -v ccache ; then ccache --show-stats ; fi
 
 .cross_user_build_job:
+  extends: .ccache_cross_setup
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
   script:
@@ -39,6 +65,7 @@
       ../configure --enable-werror --disable-docs $QEMU_CONFIGURE_OPTS
         --disable-system
     - make -j$(expr $(nproc) + 1) all check-build $MAKE_CHECK_ARGS
+    - if command -v ccache ; then ccache --show-stats ; fi
 
 cross-armel-system:
   extends: .cross_system_build_job
@@ -195,6 +222,7 @@ cross-win64-system:
         --target-list="cris-softmmu x86_64-softmmu microblaze-softmmu
           mipsel-softmmu mips64-softmmu ppc-softmmu sh4-softmmu xtensa-softmmu"
     - make -j$(expr $(nproc) + 1) all check-build
+    - if command -v ccache ; then ccache --show-stats ; fi
 
 cross-amd64-xen-only:
   extends: .cross_accel_build_job
