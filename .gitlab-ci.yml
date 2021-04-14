@@ -18,7 +18,26 @@ include:
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
   before_script:
     - JOBS=$(expr $(nproc) + 1)
+  cache:
+    key: "$CI_JOB_NAME"
+    paths:
+      - ccache
   script:
+    - mkdir -p ccache
+    - if command -v ccache ; then
+        export CCACHE_BASEDIR=${PWD} ;
+        export CCACHE_DIR=${PWD}/ccache ;
+        export CCACHE_MAXSIZE="1G" ;
+        export CCACHE_COMPILERCHECK=content ;
+        if [ -e /usr/lib/ccache/bin ]; then
+          export PATH=/usr/lib/ccache/bin:$PATH ;
+        elif [ -e /usr/lib/ccache ]; then
+          export PATH=/usr/lib/ccache:$PATH ;
+        elif [ -e /usr/lib64/ccache ]; then
+          export PATH=/usr/lib64/ccache:$PATH ;
+        fi ;
+        ccache --zero-stats ;
+      fi
     - mkdir build
     - cd build
     - if test -n "$TARGETS";
@@ -36,6 +55,7 @@ include:
       then
         make -j"$JOBS" $MAKE_CHECK_ARGS ;
       fi
+    - if command -v ccache ; then ccache --show-stats ; fi
 
 .native_test_job_template: &native_test_job_definition
   stage: test
