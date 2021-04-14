@@ -595,6 +595,26 @@ class VM(qtest.QEMUQtestMachine):
                          sock_dir=sock_dir)
         self._num_drives = 0
 
+    def subprocess_check_valgrind(self, valgrind) -> None:
+
+        if not valgrind:
+            return
+
+        valgrind_filename =  test_dir + "/" + str(self._popen.pid) + ".valgrind"
+
+        if self.exitcode() == 99:
+            with open(valgrind_filename) as f:
+                content = f.readlines()
+            for line in content:
+                print(line, end ="")
+            print("")
+        else:
+            os.remove(valgrind_filename)
+
+    def _post_shutdown(self) -> None:
+        super()._post_shutdown()
+        self.subprocess_check_valgrind(qemu_valgrind)
+
     def add_object(self, opts):
         self._args.append('-object')
         self._args.append(opts)
