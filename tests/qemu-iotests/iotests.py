@@ -79,6 +79,8 @@ qemu_gdb = []
 if os.environ.get('GDB_QEMU'):
     qemu_gdb = ['gdbserver'] + os.environ.get('GDB_QEMU').strip().split(' ')
 
+qemu_print = os.environ.get('PRINT_QEMU', False)
+
 imgfmt = os.environ.get('IMGFMT', 'raw')
 imgproto = os.environ.get('IMGPROTO', 'file')
 output_dir = os.environ.get('OUTPUT_DIR', '.')
@@ -615,6 +617,13 @@ class VM(qtest.QEMUQtestMachine):
     def _post_shutdown(self) -> None:
         super()._post_shutdown()
         self.subprocess_check_valgrind(qemu_valgrind)
+
+    def _pre_launch(self) -> None:
+        super()._pre_launch()
+        if qemu_print and self._qemu_log_file != None:
+            # set QEMU binary output to stdout
+            self._qemu_log_file.close()
+            self._qemu_log_file = None
 
     def add_object(self, opts):
         self._args.append('-object')

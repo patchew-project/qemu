@@ -73,7 +73,7 @@ class TestEnv(ContextManager['TestEnv']):
                      'AIOMODE', 'CACHEMODE', 'VALGRIND_QEMU',
                      'CACHEMODE_IS_DEFAULT', 'IMGFMT_GENERIC', 'IMGOPTSSYNTAX',
                      'IMGKEYSECRET', 'QEMU_DEFAULT_MACHINE', 'MALLOC_PERTURB_',
-                     'GDB_QEMU']
+                     'GDB_QEMU', 'PRINT_QEMU']
 
     def get_env(self) -> Dict[str, str]:
         env = {}
@@ -165,13 +165,17 @@ class TestEnv(ContextManager['TestEnv']):
                  misalign: bool = False,
                  debug: bool = False,
                  valgrind: bool = False,
-                 gdb: bool = False) -> None:
+                 gdb: bool = False,
+                 qprint: bool = False) -> None:
         self.imgfmt = imgfmt
         self.imgproto = imgproto
         self.aiomode = aiomode
         self.imgopts = imgopts
         self.misalign = misalign
         self.debug = debug
+
+        if qprint:
+            self.print_qemu = 'y'
 
         if gdb:
             self.gdb_qemu = os.environ.get('GDB_QEMU', 'localhost:12345')
@@ -279,6 +283,7 @@ SOCK_DIR      -- {SOCK_DIR}
 SOCKET_SCM_HELPER -- {SOCKET_SCM_HELPER}
 GDB_QEMU      -- "{GDB_QEMU}"
 VALGRIND_QEMU     -- "{VALGRIND_QEMU}"
+PRINT_QEMU    --  "{PRINT_QEMU}"
 """
 
         args = collections.defaultdict(str, self.get_env())
