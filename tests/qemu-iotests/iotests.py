@@ -484,7 +484,7 @@ def log(msg: Msg,
 
 class Timeout:
     def __init__(self, seconds, errmsg="Timeout"):
-        if qemu_gdb:
+        if qemu_gdb or qemu_valgrind:
             self.seconds = 3000
         else:
             self.seconds = seconds
@@ -695,7 +695,7 @@ class VM(qtest.QEMUQtestMachine):
         return ','.join(output_list)
 
     def get_qmp_events(self, wait: bool = False) -> List[QMPMessage]:
-        if qemu_gdb:
+        if qemu_gdb or qemu_valgrind:
             wait = 0.0
         return super().get_qmp_events(wait=wait)
 

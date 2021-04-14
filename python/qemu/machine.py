@@ -410,7 +410,7 @@ class QEMUMachine:
                                        shell=False,
                                        close_fds=False)
 
-        if 'gdbserver' in self._wrapper:
+        if 'gdbserver' in self._wrapper or 'valgrind' in self._wrapper:
             self._qmp_timer = None
         self._post_launch()
 
