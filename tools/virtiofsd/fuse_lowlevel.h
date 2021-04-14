@@ -2013,4 +2013,29 @@ int64_t fuse_virtio_map(fuse_req_t req, VhostUserFSSlaveMsg *msg, int fd);
  */
 int64_t fuse_virtio_unmap(struct fuse_session *se, VhostUserFSSlaveMsg *msg);
 
+/**
+ * For use with virtio-fs; request IO directly to memory
+ *
+ * @param se The current session
+ * @param msg A set of IO requests
+ * @param fd The fd to map
+ * @return Length on success, negative errno on error
+ */
+int64_t fuse_virtio_io(struct fuse_session *se, VhostUserFSSlaveMsg *msg,
+                       int fd);
+
+/**
+ * For use with virtio-fs; wrapper for fuse_virtio_io for writes
+ * from memory to an fd
+ * @param req The request that triggered this action
+ * @param dst The destination (file) memory buffer
+ * @param dst_off Byte offset in the file
+ * @param src The source (memory) buffer
+ * @param src_off The GPA
+ * @param len Length in bytes
+ */
+ssize_t fuse_virtio_write(fuse_req_t req, const struct fuse_buf *dst,
+                          size_t dst_off, const struct fuse_buf *src,
+                          size_t src_off, size_t len);
+
 #endif /* FUSE_LOWLEVEL_H_ */
