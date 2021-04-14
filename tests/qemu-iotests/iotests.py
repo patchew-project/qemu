@@ -588,7 +588,8 @@ class VM(qtest.QEMUQtestMachine):
 
     def __init__(self, path_suffix=''):
         name = "qemu%s-%d" % (path_suffix, os.getpid())
-        super().__init__(qemu_prog, qemu_opts, wrapper=qemu_gdb,
+        wrapper = qemu_gdb if qemu_gdb else qemu_valgrind
+        super().__init__(qemu_prog, qemu_opts, wrapper=wrapper,
                          name=name,
                          test_dir=test_dir,
                          socket_scm_helper=socket_scm_helper,
