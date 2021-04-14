@@ -110,6 +110,7 @@ class QEMUMachine:
         self._binary = binary
         self._args = list(args)
         self._wrapper = wrapper
+        self._qmp_timer = 15.0
 
         self._name = name or "qemu-%d" % os.getpid()
         self._test_dir = test_dir
@@ -323,7 +324,7 @@ class QEMUMachine:
 
     def _post_launch(self) -> None:
         if self._qmp_connection:
-            self._qmp.accept()
+            self._qmp.accept(self._qmp_timer)
 
     def _post_shutdown(self) -> None:
         """
