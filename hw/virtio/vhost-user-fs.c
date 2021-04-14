@@ -45,6 +45,72 @@ static const int user_feature_bits[] = {
 #define DAX_WINDOW_PROT PROT_NONE
 #endif
 
+/*
+ * The message apparently had 'received_size' bytes, check this
+ * matches the count in the message.
+ *
+ * Returns true if the size matches.
+ */
+static bool check_slave_message_entries(const VhostUserFSSlaveMsg *sm,
+                                        int received_size)
+{
+    int tmp;
+
+    /*
+     * VhostUserFSSlaveMsg consists of a body followed by 'n' entries,
+     * (each VhostUserFSSlaveMsgEntry).  There's a maximum of
+     * VHOST_USER_FS_SLAVE_MAX_ENTRIES of these.
+     */
+    if (received_size <= sizeof(VhostUserFSSlaveMsg)) {
+        error_report("%s: Short VhostUserFSSlaveMsg size, %d", __func__,
+                     received_size);
+        return false;
+    }
+
+    tmp = received_size - sizeof(VhostUserFSSlaveMsg);
+    if (tmp % sizeof(VhostUserFSSlaveMsgEntry)) {
+        error_report("%s: Non-multiple VhostUserFSSlaveMsg size, %d", __func__,
+                     received_size);
+        return false;
+    }
+
+    tmp /= sizeof(VhostUserFSSlaveMsgEntry);
+    if (tmp != sm->count) {
+        error_report("%s: VhostUserFSSlaveMsg count mismatch, %d count: %d",
+                     __func__, tmp, sm->count);
+        return false;
+    }
+
+    if (sm->count > VHOST_USER_FS_SLAVE_MAX_ENTRIES) {
+        error_report("%s: VhostUserFSSlaveMsg too many entries: %d",
+                     __func__, sm->count);
+        return false;
+    }
+    return true;
+}
+
+uint64_t vhost_user_fs_slave_map(struct vhost_dev *dev, int message_size,
+                                 VhostUserFSSlaveMsg *sm, int fd)
+{
+    if (!check_slave_message_entries(sm, message_size)) {
+        return (uint64_t)-1;
+    }
+
+    /* TODO */
+    return (uint64_t)-1;
+}
+
+uint64_t vhost_user_fs_slave_unmap(struct vhost_dev *dev, int message_size,
+                                   VhostUserFSSlaveMsg *sm)
+{
+    if (!check_slave_message_entries(sm, message_size)) {
+        return (uint64_t)-1;
+    }
+
+    /* TODO */
+    return (uint64_t)-1;
+}
+
 static void vuf_get_config(VirtIODevice *vdev, uint8_t *config)
 {
     VHostUserFS *fs = VHOST_USER_FS(vdev);
