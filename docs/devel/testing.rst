@@ -246,6 +246,10 @@ given as options to the ``check`` script:
 * ``-d`` (debug) just increases the logging verbosity, showing
   for example the QMP commands and answers.
 
+* ``-p`` (print) allows QEMU binary stdout to be shown in the
+  test console, instead of saving it into a log file in
+  ``$TEST_DIR/qemu-machine-<random_string>``.
+
 Test case groups
 ----------------
 
