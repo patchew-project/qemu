@@ -74,3 +74,6 @@ ENV FEATURES clang tsan pyyaml sdl2
 # Apply patch https://reviews.llvm.org/D75820
 # This is required for TSan in clang-10 to compile with QEMU.
 RUN sed -i 's/^const/static const/g' /usr/lib/llvm-10/lib/clang/10.0.0/include/sanitizer/tsan_interface.h
+
+# The symlink for cc is missing on Ubuntu
+RUN cd /usr/lib/ccache && ln -s ../../bin/ccache cc
