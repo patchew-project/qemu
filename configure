@@ -6440,6 +6440,11 @@ if test -n "${deprecated_features}"; then
     echo "  features: ${deprecated_features}"
 fi
 
+sed -n -e '/CONFIG_TCG/d' -e '/CONFIG_USER_ONLY/d' \
+    -e '/^#define / { s///; s/ .*//; s/^/#pragma GCC poison /p; }' \
+    *-config-devices.h *-config-target.h | \
+    sort -u > config-poison.h
+
 # Save the configure command line for later reuse.
 cat <<EOD >config.status
 #!/bin/sh
