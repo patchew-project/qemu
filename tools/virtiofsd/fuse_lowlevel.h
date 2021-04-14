@@ -24,6 +24,7 @@
 #endif
 
 #include "fuse_common.h"
+#include "standard-headers/linux/fuse.h"
 
 #include <sys/statvfs.h>
 #include <sys/uio.h>
@@ -1171,7 +1172,6 @@ struct fuse_lowlevel_ops {
      */
     void (*readdirplus)(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
                         struct fuse_file_info *fi);
-
     /**
      * Copy a range of data from one file to another
      *
@@ -1227,6 +1227,27 @@ struct fuse_lowlevel_ops {
      */
     void (*lseek)(fuse_req_t req, fuse_ino_t ino, off_t off, int whence,
                   struct fuse_file_info *fi);
+
+    /*
+     * Map file sections into kernel visible cache
+     *
+     * Map a section of the file into address space visible to the kernel
+     * mounting the filesystem.
+     * TODO
+     */
+    void (*setupmapping)(fuse_req_t req, fuse_ino_t ino, uint64_t foffset,
+                         uint64_t len, uint64_t moffset, uint64_t flags,
+                         struct fuse_file_info *fi);
+
+    /*
+     * Unmap file sections in kernel visible cache
+     *
+     * Unmap sections previously mapped by setupmapping
+     * TODO
+     */
+    void (*removemapping)(fuse_req_t req, struct fuse_session *se,
+                          fuse_ino_t ino, unsigned num,
+                          struct fuse_removemapping_one *argp);
 };
 
 /**
