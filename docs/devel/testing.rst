@@ -236,6 +236,13 @@ given as options to the ``check`` script:
   by setting the ``$GDB_QEMU`` environmental variable.
   The final command line will be ``gdbserver $GDB_QEMU $QEMU ...``
 
+* ``-valgrind`` wraps a valgrind instance to QEMU. If it detects
+  warnings, it will print and save the log in
+  ``$TEST_DIR/<valgrind_pid>.valgrind``.
+  The final command line will be ``valgrind --log-file=$TEST_DIR/
+  <valgrind_pid>.valgrind --error-exitcode=99 $QEMU ...``
+  Note: if used together with ``-gdb``, this command will be ignored.
+
 * ``-d`` (debug) just increases the logging verbosity, showing
   for example the QMP commands and answers.
 
