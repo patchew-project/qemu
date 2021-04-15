@@ -48,6 +48,12 @@ class Migration(Test):
         dest_vm = self.get_vm('-incoming', dest_uri)
         dest_vm.add_args('-nodefaults', '-no-shutdown')
         dest_vm.launch()
+
+        cpus = dest_vm.command('query-cpus-fast')
+        if cpus:
+            if cpus[0].get('target') == 's390x':
+                self.cancel('Migration without a guest not possible on s390')
+
         if src_uri is None:
             src_uri = dest_uri
         source_vm = self.get_vm()
