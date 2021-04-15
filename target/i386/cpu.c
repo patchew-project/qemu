@@ -56,6 +56,7 @@
 #include "sysemu/tcg.h"
 #include "hw/qdev-properties.h"
 #include "hw/i386/topology.h"
+#include "migration/blocker.h"
 #ifndef CONFIG_USER_ONLY
 #include "exec/address-spaces.h"
 #include "hw/i386/apic_internal.h"
@@ -6659,9 +6660,32 @@ static void x86_cpu_filter_features(X86CPU *cpu, bool verbose)
     }
 }
 
-static void x86_cpu_hyperv_realize(X86CPU *cpu)
+static Error *hv_reenlightenment_mig_blocker;
+
+static void x86_cpu_hyperv_realize(X86CPU *cpu, Error **errp)
 {
+    CPUX86State *env = &cpu->env;
+    Error *local_err = NULL;
     size_t len;
+
+    /*
+     * Reenlightenment requires explicit 'tsc-frequency' setting for successful
+     * migration (see hyperv_reenlightenment_post_load()). As 'hv-passthrough'
+     * mode is not migratable, we can loosen the restriction.
+     */
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_REENLIGHTENMENT) &&
+        !cpu->hyperv_passthrough && !env->user_tsc_khz &&
+        cpu->hyperv_reenlightenment_requires_tscfreq) {
+
+        error_setg(&hv_reenlightenment_mig_blocker,
+                   "'hv-reenlightenment' requires 'tsc-frequency' to be set");
+
+        migrate_add_blocker(hv_reenlightenment_mig_blocker, &local_err);
+        if (local_err != NULL) {
+            error_propagate(errp, local_err);
+            return;
+        }
+    }
 
     /* Hyper-V vendor id */
     if (!cpu->hyperv_vendor) {
@@ -6858,7 +6882,11 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 
     /* Process Hyper-V enlightenments */
-    x86_cpu_hyperv_realize(cpu);
+    x86_cpu_hyperv_realize(cpu, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     cpu_exec_realizefn(cs, &local_err);
     if (local_err != NULL) {
@@ -7386,6 +7414,8 @@ static Property x86_cpu_properties[] = {
     DEFINE_PROP_INT32("x-hv-max-vps", X86CPU, hv_max_vps, -1),
     DEFINE_PROP_BOOL("x-hv-synic-kvm-only", X86CPU, hyperv_synic_kvm_only,
                      false),
+    DEFINE_PROP_BOOL("x-hv-reenlightenment-requires-tscfreq", X86CPU,
+                     hyperv_reenlightenment_requires_tscfreq, true),
     DEFINE_PROP_BOOL("x-intel-pt-auto-level", X86CPU, intel_pt_auto_level,
                      true),
     DEFINE_PROP_END_OF_LIST()

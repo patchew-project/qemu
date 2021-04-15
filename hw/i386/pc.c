@@ -98,6 +98,7 @@
 
 GlobalProperty pc_compat_5_2[] = {
     { "ICH9-LPC", "x-smi-cpu-hotunplug", "off" },
+    { TYPE_X86_CPU, "x-hv-reenlightenment-requires-tscfreq", "off"},
 };
 const size_t pc_compat_5_2_len = G_N_ELEMENTS(pc_compat_5_2);
 

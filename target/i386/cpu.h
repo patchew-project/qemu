@@ -1677,6 +1677,7 @@ struct X86CPU {
     uint32_t hyperv_spinlock_attempts;
     char *hyperv_vendor;
     bool hyperv_synic_kvm_only;
+    bool hyperv_reenlightenment_requires_tscfreq;
     uint64_t hyperv_features;
     bool hyperv_passthrough;
     OnOffAuto hyperv_no_nonarch_cs;

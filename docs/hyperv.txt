@@ -165,6 +165,7 @@ emulate TSC accesses after migration so 'tsc-frequency=' CPU option also has to
 be specified to make migration succeed. The destination host has to either have
 the same TSC frequency or support TSC scaling CPU feature.
 
+Requires: tsc-frequency (for migration)
 Recommended: hv-frequencies
 
 3.16. hv-evmcs
