@@ -133,6 +133,14 @@ check-acceptance: check-venv $(TESTS_RESULTS_DIR) get-vm-images
             $(if $(GITLAB_CI),,--failfast) tests/acceptance, \
             "AVOCADO", "tests/acceptance")
 
+# Runs qtest and unit tests on a custom Avocado job
+check-qtest-unit: check-venv $(TESTS_RESULTS_DIR)
+	$(MESON) introspect --tests | $(TESTS_VENV_DIR)/bin/python $(SRC_PATH)/tests/jobs/qtest-unit.py $(TESTS_RESULTS_DIR)
+
+# Runs qtest and unit and accpetance tests on a custom Avocado job
+check-qtest-unit-acceptance: check-venv $(TESTS_RESULTS_DIR)
+	$(MESON) introspect --tests | $(TESTS_VENV_DIR)/bin/python $(SRC_PATH)/tests/jobs/qtest-unit-acceptance.py $(TESTS_RESULTS_DIR)
+
 # Consolidated targets
 
 .PHONY: check-block check check-clean get-vm-images
