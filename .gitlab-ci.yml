@@ -53,6 +53,7 @@ include:
     key: "${CI_JOB_NAME}-cache"
     paths:
       - ${CI_PROJECT_DIR}/avocado-cache
+      - ~/.cache/pip
     policy: pull-push
   artifacts:
     name: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
