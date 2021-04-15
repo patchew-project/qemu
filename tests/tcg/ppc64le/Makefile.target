@@ -9,4 +9,9 @@ PPC64LE_TESTS=bcdsub
 endif
 bcdsub: CFLAGS += -mpower8-vector
 
+ifneq ($(DOCKER_IMAGE)$(CROSS_CC_HAS_POWER10),)
+PPC64LE_TESTS += pli_33bits
+endif
+pli_33bits: CFLAGS += -mpower10
+
 TESTS += $(PPC64LE_TESTS)
