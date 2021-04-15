@@ -8,6 +8,10 @@ config FDC_ISA
     # select ISA_BUS here instead of polluting each board that requires one
     select ISA_BUS
 
+config FDC_SYSBUS
+    bool
+    select FDC
+
 config SSI_M25P80
     bool
 
