@@ -14,11 +14,18 @@
 
 #include "hw/virtio/virtio.h"
 
+typedef struct VhostVDPAHostNotifier {
+    MemoryRegion mr;
+    void *addr;
+} VhostVDPAHostNotifier;
+
 typedef struct vhost_vdpa {
     int device_fd;
     uint32_t msg_type;
     MemoryListener listener;
     struct vhost_dev *dev;
+    VhostVDPAHostNotifier notifier[VIRTIO_QUEUE_MAX];
+    bool host_notifier_set;
 } VhostVDPA;
 
 extern AddressSpace address_space_memory;
