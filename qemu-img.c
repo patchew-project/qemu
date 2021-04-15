@@ -1168,20 +1168,10 @@ static int is_allocated_sectors(const uint8_t *buf, int n, int *pnum,
     }
 
     tail = (sector_num + i) & (alignment - 1);
-    if (tail) {
-        if (is_zero && i <= tail) {
-            /* treat unallocated areas which only consist
-             * of a small tail as allocated. */
-            is_zero = false;
-        }
-        if (!is_zero) {
-            /* align up end offset of allocated areas. */
-            i += alignment - tail;
-            i = MIN(i, n);
-        } else {
-            /* align down end offset of zero areas. */
-            i -= tail;
-        }
+    if (tail && !is_zero) {
+        /* align up end offset of allocated areas. */
+        i += alignment - tail;
+        i = MIN(i, n);
     }
     *pnum = i;
     return !is_zero;
