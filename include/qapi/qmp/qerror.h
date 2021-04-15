@@ -50,6 +50,9 @@
 #define QERR_MISSING_PARAMETER \
     "Parameter '%s' is missing"
 
+#define QERR_NO_MIGRATION \
+    "Guest is not migratable ('--no-migration' used)"
+
 #define QERR_PERMISSION_DENIED \
     "Insufficient permission to perform this operation"
 

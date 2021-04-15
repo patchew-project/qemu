@@ -4234,6 +4234,13 @@ SRST
     an unmigratable state.
 ERST
 
+DEF("no-migration", 0, QEMU_OPTION_no_migration, \
+    "-no-migration     disallow migration\n", QEMU_ARCH_ALL)
+SRST
+``-no-migration``
+    Disallow migration. Don't warn about non-migratable configurations.
+ERST
+
 DEF("nodefaults", 0, QEMU_OPTION_nodefaults, \
     "-nodefaults     don't create default devices\n", QEMU_ARCH_ALL)
 SRST

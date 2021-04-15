@@ -1077,7 +1077,9 @@ static void fill_source_migration_info(MigrationInfo *info)
     info->blocked = migration_is_blocked(NULL);
     info->has_blocked_reasons = info->blocked;
     info->blocked_reasons = NULL;
-    if (info->blocked) {
+    if (no_migration) {
+        QAPI_LIST_PREPEND(info->blocked_reasons, g_strdup(QERR_NO_MIGRATION));
+    } else if (info->blocked) {
         GSList *cur_blocker = migration_blockers;
 
         /*
@@ -2056,6 +2058,10 @@ void migrate_init(MigrationState *s)
 
 int migrate_add_blocker(Error *reason, Error **errp)
 {
+    if (!no_migration) {
+        warn_report("Guest won't be migratable: %s", error_get_pretty(reason));
+    }
+
     if (only_migratable) {
         error_propagate_prepend(errp, error_copy(reason),
                                 "disallowing migration blocker "
@@ -2163,6 +2169,11 @@ bool migration_is_blocked(Error **errp)
         return true;
     }
 
+    if (no_migration) {
+        error_setg(errp, QERR_NO_MIGRATION);
+        return true;
+    }
+
     if (migration_blockers) {
         error_propagate(errp, error_copy(migration_blockers->data));
         return true;
@@ -2204,6 +2215,11 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
 
         /* This is a resume, skip init status */
         return true;
+    }
+
+    if (no_migration) {
+        error_setg(errp, QERR_NO_MIGRATION);
+        return false;
     }
 
     if (migration_is_running(s->state)) {
