@@ -21,19 +21,24 @@ const char common_args[] = "-nodefaults -machine none";
 
 /* Query smoke tests */
 
+static bool tcg_accel_available;
+
 static int query_error_class(const char *cmd)
 {
-    static struct {
+    static const struct {
         const char *cmd;
         int err_class;
+        /*
+         * Pointer to boolean.
+         * If non-NULL and value is %true, the error class is skipped.
+         */
+        bool *skip_err_class;
     } fails[] = {
         /* Success depends on build configuration: */
 #ifndef CONFIG_SPICE
         { "query-spice", ERROR_CLASS_COMMAND_NOT_FOUND },
 #endif
-#ifndef CONFIG_TCG
-        { "query-replay", ERROR_CLASS_COMMAND_NOT_FOUND },
-#endif
+        { "query-replay", ERROR_CLASS_COMMAND_NOT_FOUND, &tcg_accel_available },
 #ifndef CONFIG_VNC
         { "query-vnc", ERROR_CLASS_GENERIC_ERROR },
         { "query-vnc-servers", ERROR_CLASS_GENERIC_ERROR },
@@ -51,6 +56,9 @@ static int query_error_class(const char *cmd)
     int i;
 
     for (i = 0; fails[i].cmd; i++) {
+        if (fails[i].skip_err_class && *fails[i].skip_err_class) {
+            continue;
+        }
         if (!strcmp(cmd, fails[i].cmd)) {
             return fails[i].err_class;
         }
@@ -333,6 +341,8 @@ int main(int argc, char *argv[])
 {
     QmpSchema schema;
     int ret;
+
+    tcg_accel_available = qtest_has_accel("tcg");
 
     g_test_init(&argc, &argv, NULL);
 
