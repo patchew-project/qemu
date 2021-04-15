@@ -53,7 +53,11 @@ class Migration(Test):
         source_vm = self.get_vm()
         source_vm.add_args('-nodefaults')
         source_vm.launch()
-        source_vm.qmp('migrate', uri=src_uri)
+        response = source_vm.qmp('migrate', uri=src_uri)
+        if 'error' in response:
+            if 'desc' in response['error']:
+                msg = response['error']['desc']
+            self.cancel('Migration does not seem to be supported: %s' % msg)
         self.assert_migration(source_vm, dest_vm)
 
     def _get_free_port(self):
