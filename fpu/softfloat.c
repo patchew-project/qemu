@@ -694,13 +694,12 @@ static FloatParts round_canonical(FloatParts p, float_status *s,
 
     switch (p.cls) {
     case float_class_normal:
+        overflow_norm = false;
         switch (s->float_rounding_mode) {
         case float_round_nearest_even:
-            overflow_norm = false;
             inc = ((frac & roundeven_mask) != frac_lsbm1 ? frac_lsbm1 : 0);
             break;
         case float_round_ties_away:
-            overflow_norm = false;
             inc = frac_lsbm1;
             break;
         case float_round_to_zero:
@@ -717,6 +716,8 @@ static FloatParts round_canonical(FloatParts p, float_status *s,
             break;
         case float_round_to_odd:
             overflow_norm = true;
+            /* fall through */
+        case float_round_to_odd_inf:
             inc = frac & frac_lsb ? 0 : round_mask;
             break;
         default:
@@ -771,6 +772,7 @@ static FloatParts round_canonical(FloatParts p, float_status *s,
                            ? frac_lsbm1 : 0);
                     break;
                 case float_round_to_odd:
+                case float_round_to_odd_inf:
                     inc = frac & frac_lsb ? 0 : round_mask;
                     break;
                 default:
@@ -6860,6 +6862,8 @@ float128 float128_round_to_int(float128 a, float_status *status)
 
             case float_round_to_zero:
                 break;
+            default:
+                g_assert_not_reached();
             }
             return packFloat128( aSign, 0, 0, 0 );
         }
