@@ -135,14 +135,15 @@ qio_channel_socket_new_fd(int fd,
 }
 
 
-int qio_channel_socket_connect_sync(QIOChannelSocket *ioc,
-                                    SocketAddress *addr,
-                                    Error **errp)
+int qio_channel_socket_connect_sync_mon(QIOChannelSocket *ioc,
+                                        SocketAddress *addr,
+                                        Monitor *mon,
+                                        Error **errp)
 {
     int fd;
 
     trace_qio_channel_socket_connect_sync(ioc, addr);
-    fd = socket_connect(addr, errp);
+    fd = socket_connect(addr, mon, errp);
     if (fd < 0) {
         trace_qio_channel_socket_connect_fail(ioc);
         return -1;
@@ -155,6 +156,14 @@ int qio_channel_socket_connect_sync(QIOChannelSocket *ioc,
     }
 
     return 0;
+}
+
+
+int qio_channel_socket_connect_sync(QIOChannelSocket *ioc,
+                                    SocketAddress *addr,
+                                    Error **errp)
+{
+    return qio_channel_socket_connect_sync_mon(ioc, addr, NULL, errp);
 }
 
 

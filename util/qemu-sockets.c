@@ -1116,9 +1116,9 @@ fail:
     return NULL;
 }
 
-static int socket_get_fd(const char *fdstr, int num, Error **errp)
+static int socket_get_fd(const char *fdstr, int num, Monitor *mon, Error **errp)
 {
-    Monitor *cur_mon = monitor_cur();
+    Monitor *cur_mon = mon ?: monitor_cur();
     int fd;
     if (num != 1) {
         error_setg_errno(errp, EINVAL, "socket_get_fd: too many connections");
@@ -1145,7 +1145,7 @@ static int socket_get_fd(const char *fdstr, int num, Error **errp)
     return fd;
 }
 
-int socket_connect(SocketAddress *addr, Error **errp)
+int socket_connect(SocketAddress *addr, Monitor *mon, Error **errp)
 {
     int fd;
 
@@ -1159,7 +1159,7 @@ int socket_connect(SocketAddress *addr, Error **errp)
         break;
 
     case SOCKET_ADDRESS_TYPE_FD:
-        fd = socket_get_fd(addr->u.fd.str, 1, errp);
+        fd = socket_get_fd(addr->u.fd.str, 1, mon, errp);
         break;
 
     case SOCKET_ADDRESS_TYPE_VSOCK:
@@ -1187,7 +1187,7 @@ int socket_listen(SocketAddress *addr, int num, Error **errp)
         break;
 
     case SOCKET_ADDRESS_TYPE_FD:
-        fd = socket_get_fd(addr->u.fd.str, num, errp);
+        fd = socket_get_fd(addr->u.fd.str, num, NULL, errp);
         break;
 
     case SOCKET_ADDRESS_TYPE_VSOCK:

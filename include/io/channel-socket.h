@@ -79,6 +79,23 @@ qio_channel_socket_new_fd(int fd,
 
 
 /**
+ * qio_channel_socket_connect_sync_mon:
+ * @ioc: the socket channel object
+ * @addr: the address to connect to
+ * @mon: current monitor. If NULL, it will be detected by
+ *       current coroutine.
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Attempt to connect to the address @addr. This method
+ * will run in the foreground so the caller will not regain
+ * execution control until the connection is established or
+ * an error occurs.
+ */
+int qio_channel_socket_connect_sync_mon(QIOChannelSocket *ioc,
+                                        SocketAddress *addr,
+                                        Monitor *mon,
+                                        Error **errp);
+/**
  * qio_channel_socket_connect_sync:
  * @ioc: the socket channel object
  * @addr: the address to connect to
@@ -88,6 +105,9 @@ qio_channel_socket_new_fd(int fd,
  * will run in the foreground so the caller will not regain
  * execution control until the connection is established or
  * an error occurs.
+ *
+ * This a wrapper, calling qio_channel_socket_connect_sync_mon()
+ * with @mon=NULL.
  */
 int qio_channel_socket_connect_sync(QIOChannelSocket *ioc,
                                     SocketAddress *addr,
