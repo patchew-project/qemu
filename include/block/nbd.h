@@ -419,9 +419,9 @@ NBDClientConnection *nbd_client_connection_new(const SocketAddress *saddr,
                                                Monitor *mon);
 void nbd_client_connection_release(NBDClientConnection *conn);
 
-QIOChannelSocket *coroutine_fn
+QIOChannel *coroutine_fn
 nbd_co_establish_connection(NBDClientConnection *conn, NBDExportInfo *info,
-                            QIOChannel **ioc, Error **errp);
+                            Error **errp);
 
 void coroutine_fn nbd_co_establish_connection_cancel(NBDClientConnection *conn);
 
