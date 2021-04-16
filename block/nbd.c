@@ -66,24 +66,6 @@ typedef enum NBDClientState {
     NBD_CLIENT_QUIT
 } NBDClientState;
 
-typedef enum NBDConnectThreadState {
-    /* No thread, no pending results */
-    CONNECT_THREAD_NONE,
-
-    /* Thread is running, no results for now */
-    CONNECT_THREAD_RUNNING,
-
-    /*
-     * Thread is running, but requestor exited. Thread should close
-     * the new socket and free the connect state on exit.
-     */
-    CONNECT_THREAD_RUNNING_DETACHED,
-
-    /* Thread finished, results are stored in a state */
-    CONNECT_THREAD_FAIL,
-    CONNECT_THREAD_SUCCESS
-} NBDConnectThreadState;
-
 typedef struct NBDConnectThread {
     /* Initialization constants */
     SocketAddress *saddr; /* address to connect to */
@@ -97,7 +79,8 @@ typedef struct NBDConnectThread {
 
     QemuMutex mutex;
     /* All further fields are protected by mutex */
-    NBDConnectThreadState state; /* current state of the thread */
+    bool running; /* thread is running now */
+    bool detached; /* thread is detached and should cleanup the state */
     Coroutine *wait_co; /* nbd_co_establish_connection() wait in yield() */
 } NBDConnectThread;
 
@@ -147,17 +130,17 @@ static void nbd_clear_bdrvstate(BlockDriverState *bs)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
     NBDConnectThread *thr = s->connect_thread;
-    bool thr_running;
+    bool do_free;
 
     qemu_mutex_lock(&thr->mutex);
-    thr_running = thr->state == CONNECT_THREAD_RUNNING;
-    if (thr_running) {
-        thr->state = CONNECT_THREAD_RUNNING_DETACHED;
+    if (thr->running) {
+        thr->detached = true;
     }
+    do_free = !thr->running && !thr->detached;
     qemu_mutex_unlock(&thr->mutex);
 
     /* the runaway thread will clean it up itself */
-    if (!thr_running) {
+    if (do_free) {
         nbd_free_connect_thread(thr);
     }
 
@@ -373,7 +356,6 @@ static void nbd_init_connect_thread(BDRVNBDState *s)
 
     *s->connect_thread = (NBDConnectThread) {
         .saddr = QAPI_CLONE(SocketAddress, s->saddr),
-        .state = CONNECT_THREAD_NONE,
     };
 
     qemu_mutex_init(&s->connect_thread->mutex);
@@ -408,20 +390,13 @@ static void *connect_thread_func(void *opaque)
 
     qemu_mutex_lock(&thr->mutex);
 
-    switch (thr->state) {
-    case CONNECT_THREAD_RUNNING:
-        thr->state = ret < 0 ? CONNECT_THREAD_FAIL : CONNECT_THREAD_SUCCESS;
-        if (thr->wait_co) {
-            aio_co_schedule(NULL, thr->wait_co);
-            thr->wait_co = NULL;
-        }
-        break;
-    case CONNECT_THREAD_RUNNING_DETACHED:
-        do_free = true;
-        break;
-    default:
-        abort();
+    assert(thr->running);
+    thr->running = false;
+    if (thr->wait_co) {
+        aio_co_schedule(NULL, thr->wait_co);
+        thr->wait_co = NULL;
     }
+    do_free = thr->detached;
 
     qemu_mutex_unlock(&thr->mutex);
 
@@ -435,36 +410,24 @@ static void *connect_thread_func(void *opaque)
 static int coroutine_fn
 nbd_co_establish_connection(BlockDriverState *bs, Error **errp)
 {
-    int ret;
     QemuThread thread;
     BDRVNBDState *s = bs->opaque;
     NBDConnectThread *thr = s->connect_thread;
 
+    assert(!s->sioc);
+
     qemu_mutex_lock(&thr->mutex);
 
-    switch (thr->state) {
-    case CONNECT_THREAD_FAIL:
-    case CONNECT_THREAD_NONE:
+    if (!thr->running) {
+        if (thr->sioc) {
+            /* Previous attempt finally succeeded in background */
+            goto out;
+        }
+        thr->running = true;
         error_free(thr->err);
         thr->err = NULL;
-        thr->state = CONNECT_THREAD_RUNNING;
         qemu_thread_create(&thread, "nbd-connect",
                            connect_thread_func, thr, QEMU_THREAD_DETACHED);
-        break;
-    case CONNECT_THREAD_SUCCESS:
-        /* Previous attempt finally succeeded in background */
-        thr->state = CONNECT_THREAD_NONE;
-        s->sioc = thr->sioc;
-        thr->sioc = NULL;
-        yank_register_function(BLOCKDEV_YANK_INSTANCE(bs->node_name),
-                               nbd_yank, bs);
-        qemu_mutex_unlock(&thr->mutex);
-        return 0;
-    case CONNECT_THREAD_RUNNING:
-        /* Already running, will wait */
-        break;
-    default:
-        abort();
     }
 
     thr->wait_co = qemu_coroutine_self();
@@ -479,10 +442,15 @@ nbd_co_establish_connection(BlockDriverState *bs, Error **errp)
 
     qemu_mutex_lock(&thr->mutex);
 
-    switch (thr->state) {
-    case CONNECT_THREAD_SUCCESS:
-    case CONNECT_THREAD_FAIL:
-        thr->state = CONNECT_THREAD_NONE;
+out:
+    if (thr->running) {
+        /*
+         * Obviously, drained section wants to start. Report the attempt as
+         * failed. Still connect thread is executing in background, and its
+         * result may be used for next connection attempt.
+         */
+        error_setg(errp, "Connection attempt cancelled by other operation");
+    } else {
         error_propagate(errp, thr->err);
         thr->err = NULL;
         s->sioc = thr->sioc;
@@ -491,33 +459,11 @@ nbd_co_establish_connection(BlockDriverState *bs, Error **errp)
             yank_register_function(BLOCKDEV_YANK_INSTANCE(bs->node_name),
                                    nbd_yank, bs);
         }
-        ret = (s->sioc ? 0 : -1);
-        break;
-    case CONNECT_THREAD_RUNNING:
-    case CONNECT_THREAD_RUNNING_DETACHED:
-        /*
-         * Obviously, drained section wants to start. Report the attempt as
-         * failed. Still connect thread is executing in background, and its
-         * result may be used for next connection attempt.
-         */
-        ret = -1;
-        error_setg(errp, "Connection attempt cancelled by other operation");
-        break;
-
-    case CONNECT_THREAD_NONE:
-        /*
-         * Impossible. We've seen this thread running. So it should be
-         * running or at least give some results.
-         */
-        abort();
-
-    default:
-        abort();
     }
 
     qemu_mutex_unlock(&thr->mutex);
 
-    return ret;
+    return s->sioc ? 0 : -1;
 }
 
 /*
@@ -532,12 +478,9 @@ static void nbd_co_establish_connection_cancel(BlockDriverState *bs)
 
     qemu_mutex_lock(&thr->mutex);
 
-    if (thr->state == CONNECT_THREAD_RUNNING) {
-        /* We can cancel only in running state, when bh is not yet scheduled */
-        if (thr->wait_co) {
-            aio_co_schedule(NULL, thr->wait_co);
-            thr->wait_co = NULL;
-        }
+    if (thr->wait_co) {
+        aio_co_schedule(NULL, thr->wait_co);
+        thr->wait_co = NULL;
     }
 
     qemu_mutex_unlock(&thr->mutex);
