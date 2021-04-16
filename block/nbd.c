@@ -118,7 +118,7 @@ typedef struct BDRVNBDState {
     NBDClientConnection *conn;
 } BDRVNBDState;
 
-static void nbd_free_connect_thread(NBDClientConnection *conn);
+static void nbd_client_connection_release(NBDClientConnection *conn);
 static int nbd_establish_connection(BlockDriverState *bs, SocketAddress *saddr,
                                     Error **errp);
 static coroutine_fn QIOChannelSocket *
@@ -130,20 +130,9 @@ static void nbd_yank(void *opaque);
 static void nbd_clear_bdrvstate(BlockDriverState *bs)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
-    NBDClientConnection *conn = s->conn;
-    bool do_free;
 
-    qemu_mutex_lock(&conn->mutex);
-    if (conn->running) {
-        conn->detached = true;
-    }
-    do_free = !conn->running && !conn->detached;
-    qemu_mutex_unlock(&conn->mutex);
-
-    /* the runaway thread will clean it up itself */
-    if (do_free) {
-        nbd_free_connect_thread(conn);
-    }
+    nbd_client_connection_release(s->conn);
+    s->conn = NULL;
 
     yank_unregister_instance(BLOCKDEV_YANK_INSTANCE(bs->node_name));
 
@@ -365,7 +354,7 @@ nbd_client_connection_new(const SocketAddress *saddr)
     return conn;
 }
 
-static void nbd_free_connect_thread(NBDClientConnection *conn)
+static void nbd_client_connection_do_free(NBDClientConnection *conn)
 {
     if (conn->sioc) {
         qio_channel_close(QIO_CHANNEL(conn->sioc), NULL);
@@ -379,8 +368,8 @@ static void nbd_free_connect_thread(NBDClientConnection *conn)
 static void *connect_thread_func(void *opaque)
 {
     NBDClientConnection *conn = opaque;
+    bool do_free;
     int ret;
-    bool do_free = false;
 
     conn->sioc = qio_channel_socket_new();
 
@@ -405,10 +394,30 @@ static void *connect_thread_func(void *opaque)
     qemu_mutex_unlock(&conn->mutex);
 
     if (do_free) {
-        nbd_free_connect_thread(conn);
+        nbd_client_connection_do_free(conn);
     }
 
     return NULL;
+}
+
+static void nbd_client_connection_release(NBDClientConnection *conn)
+{
+    bool do_free;
+
+    if (!conn) {
+        return;
+    }
+
+    qemu_mutex_lock(&conn->mutex);
+    if (conn->running) {
+        conn->detached = true;
+    }
+    do_free = !conn->running && !conn->detached;
+    qemu_mutex_unlock(&conn->mutex);
+
+    if (do_free) {
+        nbd_client_connection_do_free(conn);
+    }
 }
 
 /*
