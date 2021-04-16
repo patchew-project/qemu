@@ -126,6 +126,8 @@ static int nbd_connect(QIOChannelSocket *sioc, SocketAddress *addr,
         return ret;
     }
 
+    qio_channel_set_delay(QIO_CHANNEL(sioc), false);
+
     if (!info) {
         return 0;
     }
