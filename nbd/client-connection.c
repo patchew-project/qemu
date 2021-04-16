@@ -37,6 +37,7 @@ struct NBDClientConnection {
     bool do_negotiation;
 
     bool do_retry;
+    Monitor *mon;
 
     /*
      * Result of last attempt. Valid in FAIL and SUCCESS states.
@@ -67,7 +68,8 @@ NBDClientConnection *nbd_client_connection_new(const SocketAddress *saddr,
                                                bool do_negotiation,
                                                const char *export_name,
                                                const char *x_dirty_bitmap,
-                                               QCryptoTLSCreds *tlscreds)
+                                               QCryptoTLSCreds *tlscreds,
+                                               Monitor *mon)
 {
     NBDClientConnection *conn = g_new(NBDClientConnection, 1);
 
@@ -76,6 +78,7 @@ NBDClientConnection *nbd_client_connection_new(const SocketAddress *saddr,
         .saddr = QAPI_CLONE(SocketAddress, saddr),
         .tlscreds = tlscreds,
         .do_negotiation = do_negotiation,
+        .mon = mon,
 
         .initial_info.request_sizes = true,
         .initial_info.structured_reply = true,
@@ -110,7 +113,7 @@ static void nbd_client_connection_do_free(NBDClientConnection *conn)
  */
 static int nbd_connect(QIOChannelSocket *sioc, SocketAddress *addr,
                        NBDExportInfo *info, QCryptoTLSCreds *tlscreds,
-                       QIOChannel **outioc, Error **errp)
+                       QIOChannel **outioc, Monitor *mon, Error **errp)
 {
     int ret;
 
@@ -118,7 +121,7 @@ static int nbd_connect(QIOChannelSocket *sioc, SocketAddress *addr,
         *outioc = NULL;
     }
 
-    ret = qio_channel_socket_connect_sync(sioc, addr, errp);
+    ret = qio_channel_socket_connect_sync_mon(sioc, addr, mon, errp);
     if (ret < 0) {
         return ret;
     }
@@ -171,7 +174,7 @@ static void *connect_thread_func(void *opaque)
 
         ret = nbd_connect(conn->sioc, conn->saddr,
                           conn->do_negotiation ? &conn->updated_info : NULL,
-                          conn->tlscreds, &conn->ioc, &conn->err);
+                          conn->tlscreds, &conn->ioc, conn->mon, &conn->err);
         conn->updated_info.x_dirty_bitmap = NULL;
         conn->updated_info.name = NULL;
 

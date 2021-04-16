@@ -45,6 +45,8 @@
 #include "block/nbd.h"
 #include "block/block_int.h"
 
+#include "monitor/monitor.h"
+
 #include "qemu/yank.h"
 
 #define EN_OPTSTR ":exportname="
@@ -2064,7 +2066,8 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     s->conn = nbd_client_connection_new(s->saddr, true, s->export,
-                                        s->x_dirty_bitmap, s->tlscreds);
+                                        s->x_dirty_bitmap, s->tlscreds,
+                                        monitor_cur());
 
     /*
      * establish TCP connection, return error if it fails
