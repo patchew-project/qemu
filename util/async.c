@@ -545,6 +545,14 @@ fail:
 
 void aio_co_schedule(AioContext *ctx, Coroutine *co)
 {
+    if (!ctx) {
+        /*
+         * Read coroutine before co->ctx.  Matches smp_wmb in
+         * qemu_coroutine_enter.
+         */
+        smp_read_barrier_depends();
+        ctx = qatomic_read(&co->ctx);
+    }
     trace_aio_co_schedule(ctx, co);
     const char *scheduled = qatomic_cmpxchg(&co->scheduled, NULL,
                                            __func__);

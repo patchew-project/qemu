@@ -643,7 +643,7 @@ static inline bool aio_node_check(AioContext *ctx, bool is_external)
 
 /**
  * aio_co_schedule:
- * @ctx: the aio context
+ * @ctx: the aio context, if NULL, the current ctx of @co will be used.
  * @co: the coroutine
  *
  * Start a coroutine on a remote AioContext.
