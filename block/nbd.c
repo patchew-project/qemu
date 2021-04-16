@@ -121,7 +121,8 @@ typedef struct BDRVNBDState {
 static void nbd_free_connect_thread(NBDConnectThread *thr);
 static int nbd_establish_connection(BlockDriverState *bs, SocketAddress *saddr,
                                     Error **errp);
-static int nbd_co_establish_connection(BlockDriverState *bs, Error **errp);
+static coroutine_fn QIOChannelSocket *
+nbd_co_establish_connection(NBDConnectThread *thr, Error **errp);
 static void nbd_co_establish_connection_cancel(BlockDriverState *bs);
 static int nbd_client_handshake(BlockDriverState *bs, Error **errp);
 static void nbd_yank(void *opaque);
@@ -407,22 +408,36 @@ static void *connect_thread_func(void *opaque)
     return NULL;
 }
 
-static int coroutine_fn
-nbd_co_establish_connection(BlockDriverState *bs, Error **errp)
+/*
+ * Get a new connection in context of @thr:
+ *   if thread is running, wait for completion
+ *   if thread is already succeeded in background, and user didn't get the
+ *     result, just return it now
+ *   otherwise if thread is not running, start a thread and wait for completion
+ */
+static coroutine_fn QIOChannelSocket *
+nbd_co_establish_connection(NBDConnectThread *thr, Error **errp)
 {
+    QIOChannelSocket *sioc = NULL;
     QemuThread thread;
-    BDRVNBDState *s = bs->opaque;
-    NBDConnectThread *thr = s->connect_thread;
-
-    assert(!s->sioc);
 
     qemu_mutex_lock(&thr->mutex);
+
+    /*
+     * Don't call nbd_co_establish_connection() in several coroutines in
+     * parallel. Only one call at once is supported.
+     */
+    assert(!thr->wait_co);
 
     if (!thr->running) {
         if (thr->sioc) {
             /* Previous attempt finally succeeded in background */
-            goto out;
+            sioc = g_steal_pointer(&thr->sioc);
+            qemu_mutex_unlock(&thr->mutex);
+
+            return sioc;
         }
+
         thr->running = true;
         error_free(thr->err);
         thr->err = NULL;
@@ -436,13 +451,12 @@ nbd_co_establish_connection(BlockDriverState *bs, Error **errp)
 
     /*
      * We are going to wait for connect-thread finish, but
-     * nbd_client_co_drain_begin() can interrupt.
+     * nbd_co_establish_connection_cancel() can interrupt.
      */
     qemu_coroutine_yield();
 
     qemu_mutex_lock(&thr->mutex);
 
-out:
     if (thr->running) {
         /*
          * Obviously, drained section wants to start. Report the attempt as
@@ -453,17 +467,12 @@ out:
     } else {
         error_propagate(errp, thr->err);
         thr->err = NULL;
-        s->sioc = thr->sioc;
-        thr->sioc = NULL;
-        if (s->sioc) {
-            yank_register_function(BLOCKDEV_YANK_INSTANCE(bs->node_name),
-                                   nbd_yank, bs);
-        }
+        sioc = g_steal_pointer(&thr->sioc);
     }
 
     qemu_mutex_unlock(&thr->mutex);
 
-    return s->sioc ? 0 : -1;
+    return sioc;
 }
 
 /*
@@ -530,10 +539,14 @@ static coroutine_fn void nbd_reconnect_attempt(BDRVNBDState *s)
         s->ioc = NULL;
     }
 
-    if (nbd_co_establish_connection(s->bs, NULL) < 0) {
+    s->sioc = nbd_co_establish_connection(s->connect_thread, NULL);
+    if (!s->sioc) {
         ret = -ECONNREFUSED;
         goto out;
     }
+
+    yank_register_function(BLOCKDEV_YANK_INSTANCE(s->bs->node_name), nbd_yank,
+                           s->bs);
 
     bdrv_dec_in_flight(s->bs);
 
