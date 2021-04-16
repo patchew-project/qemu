@@ -36,6 +36,8 @@ struct NBDClientConnection {
     NBDExportInfo initial_info;
     bool do_negotiation;
 
+    bool do_retry;
+
     /*
      * Result of last attempt. Valid in FAIL and SUCCESS states.
      * If you want to steal error, don't forget to set pointer to NULL.
@@ -51,6 +53,15 @@ struct NBDClientConnection {
     bool detached; /* thread is detached and should cleanup the state */
     Coroutine *wait_co; /* nbd_co_establish_connection() wait in yield() */
 };
+
+/*
+ * The function isn't protected by any mutex, so call it when thread is not
+ * running.
+ */
+void nbd_client_connection_enable_retry(NBDClientConnection *conn)
+{
+    conn->do_retry = true;
+}
 
 NBDClientConnection *nbd_client_connection_new(const SocketAddress *saddr,
                                                bool do_negotiation,
@@ -144,23 +155,36 @@ static void *connect_thread_func(void *opaque)
     NBDClientConnection *conn = opaque;
     bool do_free;
     int ret;
+    uint64_t timeout = 1;
+    uint64_t max_timeout = 16;
 
-    conn->sioc = qio_channel_socket_new();
+    while (true) {
+        conn->sioc = qio_channel_socket_new();
 
-    error_free(conn->err);
-    conn->err = NULL;
-    conn->updated_info = conn->initial_info;
+        error_free(conn->err);
+        conn->err = NULL;
+        conn->updated_info = conn->initial_info;
 
-    ret = nbd_connect(conn->sioc, conn->saddr,
-                      conn->do_negotiation ? &conn->updated_info : NULL,
-                      conn->tlscreds, &conn->ioc, &conn->err);
-    if (ret < 0) {
-        object_unref(OBJECT(conn->sioc));
-        conn->sioc = NULL;
+        ret = nbd_connect(conn->sioc, conn->saddr,
+                          conn->do_negotiation ? &conn->updated_info : NULL,
+                          conn->tlscreds, &conn->ioc, &conn->err);
+        conn->updated_info.x_dirty_bitmap = NULL;
+        conn->updated_info.name = NULL;
+
+        if (ret < 0) {
+            object_unref(OBJECT(conn->sioc));
+            conn->sioc = NULL;
+            if (conn->do_retry) {
+                sleep(timeout);
+                if (timeout < max_timeout) {
+                    timeout *= 2;
+                }
+                continue;
+            }
+        }
+
+        break;
     }
-
-    conn->updated_info.x_dirty_bitmap = NULL;
-    conn->updated_info.name = NULL;
 
     WITH_QEMU_LOCK_GUARD(&conn->mutex) {
         assert(conn->running);
@@ -171,7 +195,6 @@ static void *connect_thread_func(void *opaque)
         }
         do_free = conn->detached;
     }
-
 
     if (do_free) {
         nbd_client_connection_do_free(conn);
