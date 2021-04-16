@@ -1987,7 +1987,12 @@ case "$meson" in
     git | internal)
         meson="$python ${source_path}/meson/meson.py"
         ;;
-    *) meson=$(command -v "$meson") ;;
+    *)
+        meson=$(command -v "$meson")
+        if test -z "$meson"; then
+            error_exit "Meson not found.  Use --meson=/path/to/meson (absolute path)"
+        fi
+        ;;
 esac
 
 # Probe for ninja
