@@ -6337,7 +6337,10 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
                 goto unknown_op;
             }
         }
+        tcg_gen_movi_tl(s->tmp0, pc_start - s->cs_base);
+        tcg_gen_st_tl(s->tmp0, cpu_env, offsetof(CPUX86State, fpip));
         break;
+
         /************************/
         /* string ops */
 

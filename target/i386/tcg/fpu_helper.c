@@ -2395,7 +2395,7 @@ static void do_fstenv(CPUX86State *env, target_ulong ptr, int data32,
         cpu_stl_data_ra(env, ptr, env->fpuc, retaddr);
         cpu_stl_data_ra(env, ptr + 4, fpus, retaddr);
         cpu_stl_data_ra(env, ptr + 8, fptag, retaddr);
-        cpu_stl_data_ra(env, ptr + 12, 0, retaddr); /* fpip */
+        cpu_stl_data_ra(env, ptr + 12, env->fpip, retaddr); /* fpip */
         cpu_stl_data_ra(env, ptr + 16, 0, retaddr); /* fpcs */
         cpu_stl_data_ra(env, ptr + 20, 0, retaddr); /* fpoo */
         cpu_stl_data_ra(env, ptr + 24, 0, retaddr); /* fpos */
@@ -2404,7 +2404,7 @@ static void do_fstenv(CPUX86State *env, target_ulong ptr, int data32,
         cpu_stw_data_ra(env, ptr, env->fpuc, retaddr);
         cpu_stw_data_ra(env, ptr + 2, fpus, retaddr);
         cpu_stw_data_ra(env, ptr + 4, fptag, retaddr);
-        cpu_stw_data_ra(env, ptr + 6, 0, retaddr);
+        cpu_stw_data_ra(env, ptr + 6, env->fpip, retaddr);
         cpu_stw_data_ra(env, ptr + 8, 0, retaddr);
         cpu_stw_data_ra(env, ptr + 10, 0, retaddr);
         cpu_stw_data_ra(env, ptr + 12, 0, retaddr);
