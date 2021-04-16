@@ -152,6 +152,7 @@ static void nbd_recv_coroutines_wake_all(BDRVNBDState *s)
         NBDClientRequest *req = &s->requests[i];
 
         if (req->coroutine && req->receiving) {
+            req->receiving = false;
             aio_co_wake(req->coroutine);
         }
     }
@@ -552,6 +553,7 @@ static coroutine_fn void nbd_connection_entry(void *opaque)
          *   connection_co happens through a bottom half, which can only
          *   run after we yield.
          */
+        s->requests[i].receiving = false;
         aio_co_wake(s->requests[i].coroutine);
         qemu_coroutine_yield();
     }
@@ -614,7 +616,7 @@ static int nbd_co_send_request(BlockDriverState *bs,
     if (qiov) {
         qio_channel_set_cork(s->ioc, true);
         rc = nbd_send_request(s->ioc, request);
-        if (nbd_clinet_connected(s) && rc >= 0) {
+        if (nbd_client_connected(s) && rc >= 0) {
             if (qio_channel_writev_all(s->ioc, qiov->iov, qiov->niov,
                                        NULL) < 0) {
                 rc = -EIO;
@@ -938,7 +940,7 @@ static coroutine_fn int nbd_co_do_receive_one_chunk(
     /* Wait until we're woken up by nbd_connection_entry.  */
     s->requests[i].receiving = true;
     qemu_coroutine_yield();
-    s->requests[i].receiving = false;
+    assert(!s->requests[i].receiving);
     if (!nbd_client_connected(s)) {
         error_setg(errp, "Connection closed");
         return -EIO;
