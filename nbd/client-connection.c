@@ -87,17 +87,16 @@ static void *connect_thread_func(void *opaque)
         conn->sioc = NULL;
     }
 
-    qemu_mutex_lock(&conn->mutex);
-
-    assert(conn->running);
-    conn->running = false;
-    if (conn->wait_co) {
-        aio_co_schedule(NULL, conn->wait_co);
-        conn->wait_co = NULL;
+    WITH_QEMU_LOCK_GUARD(&conn->mutex) {
+        assert(conn->running);
+        conn->running = false;
+        if (conn->wait_co) {
+            aio_co_schedule(NULL, conn->wait_co);
+            conn->wait_co = NULL;
+        }
     }
     do_free = conn->detached;
 
-    qemu_mutex_unlock(&conn->mutex);
 
     if (do_free) {
         nbd_client_connection_do_free(conn);
@@ -136,36 +135,30 @@ void nbd_client_connection_release(NBDClientConnection *conn)
 QIOChannelSocket *coroutine_fn
 nbd_co_establish_connection(NBDClientConnection *conn, Error **errp)
 {
-    QIOChannelSocket *sioc = NULL;
     QemuThread thread;
 
-    qemu_mutex_lock(&conn->mutex);
+    WITH_QEMU_LOCK_GUARD(&conn->mutex) {
+        /*
+         * Don't call nbd_co_establish_connection() in several coroutines in
+         * parallel. Only one call at once is supported.
+         */
+        assert(!conn->wait_co);
 
-    /*
-     * Don't call nbd_co_establish_connection() in several coroutines in
-     * parallel. Only one call at once is supported.
-     */
-    assert(!conn->wait_co);
+        if (!conn->running) {
+            if (conn->sioc) {
+                /* Previous attempt finally succeeded in background */
+                return g_steal_pointer(&conn->sioc);
+            }
 
-    if (!conn->running) {
-        if (conn->sioc) {
-            /* Previous attempt finally succeeded in background */
-            sioc = g_steal_pointer(&conn->sioc);
-            qemu_mutex_unlock(&conn->mutex);
-
-            return sioc;
+            conn->running = true;
+            error_free(conn->err);
+            conn->err = NULL;
+            qemu_thread_create(&thread, "nbd-connect",
+                               connect_thread_func, conn, QEMU_THREAD_DETACHED);
         }
 
-        conn->running = true;
-        error_free(conn->err);
-        conn->err = NULL;
-        qemu_thread_create(&thread, "nbd-connect",
-                           connect_thread_func, conn, QEMU_THREAD_DETACHED);
+        conn->wait_co = qemu_coroutine_self();
     }
-
-    conn->wait_co = qemu_coroutine_self();
-
-    qemu_mutex_unlock(&conn->mutex);
 
     /*
      * We are going to wait for connect-thread finish, but
@@ -173,24 +166,23 @@ nbd_co_establish_connection(NBDClientConnection *conn, Error **errp)
      */
     qemu_coroutine_yield();
 
-    qemu_mutex_lock(&conn->mutex);
-
-    if (conn->running) {
-        /*
-         * Obviously, drained section wants to start. Report the attempt as
-         * failed. Still connect thread is executing in background, and its
-         * result may be used for next connection attempt.
-         */
-        error_setg(errp, "Connection attempt cancelled by other operation");
-    } else {
-        error_propagate(errp, conn->err);
-        conn->err = NULL;
-        sioc = g_steal_pointer(&conn->sioc);
+    WITH_QEMU_LOCK_GUARD(&conn->mutex) {
+        if (conn->running) {
+            /*
+             * Obviously, drained section wants to start. Report the attempt as
+             * failed. Still connect thread is executing in background, and its
+             * result may be used for next connection attempt.
+             */
+            error_setg(errp, "Connection attempt cancelled by other operation");
+            return NULL;
+        } else {
+            error_propagate(errp, conn->err);
+            conn->err = NULL;
+            return g_steal_pointer(&conn->sioc);
+        }
     }
 
-    qemu_mutex_unlock(&conn->mutex);
-
-    return sioc;
+    abort(); /* unreachable */
 }
 
 /*
@@ -201,12 +193,10 @@ nbd_co_establish_connection(NBDClientConnection *conn, Error **errp)
  */
 void coroutine_fn nbd_co_establish_connection_cancel(NBDClientConnection *conn)
 {
-    qemu_mutex_lock(&conn->mutex);
+    QEMU_LOCK_GUARD(&conn->mutex);
 
     if (conn->wait_co) {
         aio_co_schedule(NULL, conn->wait_co);
         conn->wait_co = NULL;
     }
-
-    qemu_mutex_unlock(&conn->mutex);
 }
