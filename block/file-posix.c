@@ -1675,6 +1675,13 @@ static int handle_aiocb_write_zeroes(void *opaque)
             }
             s->has_fallocate = false;
         } else if (ret != -ENOTSUP) {
+            if (ret == -EINVAL) {
+                /*
+                 * File systems like GPFS do not like unaligned byte ranges,
+                 * treat it like unsupported (so caller falls back to pwrite)
+                 */
+                return -ENOTSUP;
+            }
             return ret;
         } else {
             s->has_discard = false;
