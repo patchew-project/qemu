@@ -2522,6 +2522,7 @@ static void memory_region_readd_subregion(MemoryRegion *mr)
 
 void memory_region_set_address(MemoryRegion *mr, hwaddr addr)
 {
+    assert(!mr->is_root_mr);
     if (addr != mr->addr) {
         mr->addr = addr;
         memory_region_readd_subregion(mr);
