@@ -67,6 +67,7 @@ struct PRePPCIState {
     PCIBus pci_bus;
     AddressSpace pci_io_as;
     MemoryRegion pci_io;
+    MemoryRegion pci_io_alias;
     MemoryRegion pci_io_non_contiguous;
     MemoryRegion pci_memory;
     MemoryRegion pci_intack;
@@ -143,14 +144,13 @@ static inline hwaddr raven_io_address(PREPPCIState *s,
 {
     /*
      * We shouldn't access AddressSpace internals. However this assert
-     * is temporarily introduced to prove a subtle inconsistency from
-     * commit 1ae1dc5ba24 ("raven: Set a correct PCI I/O memory region"):
-     * AddressSpace root region must be zero-based, but the Raven use is not.
+     * is temporarily used to prove a subtle inconsistency from commit
+     * 1ae1dc5ba24 ("raven: Set a correct PCI I/O memory region") which
+     * expected the PCI I/O root region base address to be 0x80000000.
      *
-     * Assert the root region is based on physical address 0x80000000
-     * until the issue is fixed.
+     * We now use an alias memory region as root, which is zero-based.
      */
-    assert(s->pci_io_as.root->addr == PCI_IO_BASE_ADDR);
+    assert(s->pci_io_as.root->addr == 0);
 
     if (s->contiguous_map == 0) {
         /* 64 KB contiguous space for IOs */
@@ -172,8 +172,7 @@ static uint64_t raven_io_read(void *opaque, hwaddr addr,
     uint8_t buf[4];
 
     addr = raven_io_address(s, addr);
-    address_space_read(&s->pci_io_as, addr + PCI_IO_BASE_ADDR,
-                       MEMTXATTRS_UNSPECIFIED, buf, size);
+    address_space_read(&s->pci_io_as, addr, MEMTXATTRS_UNSPECIFIED, buf, size);
 
     if (size == 1) {
         return buf[0];
@@ -204,8 +203,7 @@ static void raven_io_write(void *opaque, hwaddr addr,
         g_assert_not_reached();
     }
 
-    address_space_write(&s->pci_io_as, addr + PCI_IO_BASE_ADDR,
-                        MEMTXATTRS_UNSPECIFIED, buf, size);
+    address_space_write(&s->pci_io_as, addr, MEMTXATTRS_UNSPECIFIED, buf, size);
 }
 
 static const MemoryRegionOps raven_io_ops = {
@@ -301,6 +299,8 @@ static void raven_pcihost_initfn(Object *obj)
     DeviceState *pci_dev;
 
     memory_region_init(&s->pci_io, obj, "pci-io", 0x3f800000);
+    memory_region_init_alias(&s->pci_io_alias, obj, "pci-io",
+                             &s->pci_io, 0, memory_region_size(&s->pci_io));
     memory_region_init_io(&s->pci_io_non_contiguous, obj, &raven_io_ops, s,
                           "pci-io-non-contiguous", 0x00800000);
     memory_region_init(&s->pci_memory, obj, "pci-memory", 0x3f000000);
@@ -308,7 +308,7 @@ static void raven_pcihost_initfn(Object *obj)
 
     /* CPU address space */
     memory_region_add_subregion(address_space_mem, PCI_IO_BASE_ADDR,
-                                &s->pci_io);
+                                &s->pci_io_alias);
     memory_region_add_subregion_overlap(address_space_mem, PCI_IO_BASE_ADDR,
                                         &s->pci_io_non_contiguous, 1);
     memory_region_add_subregion(address_space_mem, 0xc0000000, &s->pci_memory);
