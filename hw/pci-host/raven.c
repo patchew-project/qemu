@@ -67,7 +67,6 @@ struct PRePPCIState {
     PCIBus pci_bus;
     AddressSpace pci_io_as;
     MemoryRegion pci_io;
-    MemoryRegion pci_io_alias;
     MemoryRegion pci_io_non_contiguous;
     MemoryRegion pci_memory;
     MemoryRegion pci_intack;
@@ -299,8 +298,6 @@ static void raven_pcihost_initfn(Object *obj)
     DeviceState *pci_dev;
 
     memory_region_init(&s->pci_io, obj, "pci-io", 0x3f800000);
-    memory_region_init_alias(&s->pci_io_alias, obj, "pci-io",
-                             &s->pci_io, 0, memory_region_size(&s->pci_io));
     memory_region_init_io(&s->pci_io_non_contiguous, obj, &raven_io_ops, s,
                           "pci-io-non-contiguous", 0x00800000);
     memory_region_init(&s->pci_memory, obj, "pci-memory", 0x3f000000);
@@ -308,9 +305,7 @@ static void raven_pcihost_initfn(Object *obj)
 
     /* CPU address space */
     memory_region_add_subregion(address_space_mem, PCI_IO_BASE_ADDR,
-                                &s->pci_io_alias);
-    memory_region_add_subregion_overlap(address_space_mem, PCI_IO_BASE_ADDR,
-                                        &s->pci_io_non_contiguous, 1);
+                                &s->pci_io_non_contiguous);
     memory_region_add_subregion(address_space_mem, 0xc0000000, &s->pci_memory);
     pci_root_bus_new_inplace(&s->pci_bus, sizeof(s->pci_bus), DEVICE(obj), NULL,
                              &s->pci_memory, &s->pci_io, 0, TYPE_PCI_BUS);
