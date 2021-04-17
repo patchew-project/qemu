@@ -141,16 +141,6 @@ static const MemoryRegionOps raven_intack_ops = {
 static inline hwaddr raven_io_address(PREPPCIState *s,
                                       hwaddr addr)
 {
-    /*
-     * We shouldn't access AddressSpace internals. However this assert
-     * is temporarily used to prove a subtle inconsistency from commit
-     * 1ae1dc5ba24 ("raven: Set a correct PCI I/O memory region") which
-     * expected the PCI I/O root region base address to be 0x80000000.
-     *
-     * We now use an alias memory region as root, which is zero-based.
-     */
-    assert(s->pci_io_as.root->addr == 0);
-
     if (s->contiguous_map == 0) {
         /* 64 KB contiguous space for IOs */
         addr &= 0xFFFF;
