@@ -1,2 +1,21 @@
-include:
-  - local: '/.gitlab-ci.d/qemu-project.yml'
+# Dynamic child pipelines
+# https://docs.gitlab.com/ee/ci/parent_child_pipelines.html#dynamic-child-pipelines
+
+generate-config:
+  stage: build
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  artifacts:
+    paths:
+      - generated-config.yml
+  script:
+    - cp .gitlab-ci.d/qemu-project.yml generated-config.yml
+
+generate-pipeline:
+  stage: test
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  trigger:
+    include:
+      - artifact: generated-config.yml
+        job: generate-config
