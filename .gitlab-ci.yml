@@ -9,7 +9,12 @@ generate-config:
     paths:
       - generated-config.yml
   script:
-    - cp .gitlab-ci.d/qemu-project.yml generated-config.yml
+    - if test -e .gitlab-ci.d/${CI_PROJECT_NAMESPACE}.yml ;
+      then
+        cp .gitlab-ci.d/${CI_PROJECT_NAMESPACE}.yml generated-config.yml ;
+      else
+        cp .gitlab-ci.d/qemu-project.yml generated-config.yml ;
+      fi
 
 generate-pipeline:
   stage: test
