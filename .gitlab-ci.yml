@@ -48,7 +48,7 @@ include:
     # Avoid recompiling by hiding ninja with NINJA=":"
     - make NINJA=":" $MAKE_CHECK_ARGS
 
-.acceptance_test_job_template:
+.integration_test_job_template:
   cache:
     key: "${CI_JOB_NAME}-cache"
     paths:
@@ -111,7 +111,7 @@ acceptance-system-alpine:
   variables:
     IMAGE: alpine
     MAKE_CHECK_ARGS: check-acceptance
-  extends: .acceptance_test_job_template
+  extends: .integration_test_job_template
 
 build-system-ubuntu:
   extends: .native_build_job_template
@@ -145,7 +145,7 @@ acceptance-system-ubuntu:
   variables:
     IMAGE: ubuntu2004
     MAKE_CHECK_ARGS: check-acceptance
-  extends: .acceptance_test_job_template
+  extends: .integration_test_job_template
 
 build-system-debian:
   extends: .native_build_job_template
@@ -179,7 +179,7 @@ acceptance-system-debian:
   variables:
     IMAGE: debian-amd64
     MAKE_CHECK_ARGS: check-acceptance
-  extends: .acceptance_test_job_template
+  extends: .integration_test_job_template
 
 build-system-fedora:
   extends: .native_build_job_template
@@ -214,7 +214,7 @@ acceptance-system-fedora:
   variables:
     IMAGE: fedora
     MAKE_CHECK_ARGS: check-acceptance
-  extends: .acceptance_test_job_template
+  extends: .integration_test_job_template
 
 build-system-centos:
   extends: .native_build_job_template
@@ -249,7 +249,7 @@ acceptance-system-centos:
   variables:
     IMAGE: centos8
     MAKE_CHECK_ARGS: check-acceptance
-  extends: .acceptance_test_job_template
+  extends: .integration_test_job_template
 
 build-system-opensuse:
   extends: .native_build_job_template
@@ -282,7 +282,7 @@ acceptance-system-opensuse:
   variables:
     IMAGE: opensuse-leap
     MAKE_CHECK_ARGS: check-acceptance
-  extends: .acceptance_test_job_template
+  extends: .integration_test_job_template
 
 
 build-disabled:
@@ -525,7 +525,7 @@ acceptance-cfi-aarch64:
   variables:
     IMAGE: fedora
     MAKE_CHECK_ARGS: check-acceptance
-  extends: .acceptance_test_job_template
+  extends: .integration_test_job_template
 
 build-cfi-ppc64-s390x:
   extends: .native_build_job_template
@@ -562,7 +562,7 @@ acceptance-cfi-ppc64-s390x:
   variables:
     IMAGE: fedora
     MAKE_CHECK_ARGS: check-acceptance
-  extends: .acceptance_test_job_template
+  extends: .integration_test_job_template
 
 build-cfi-x86_64:
   extends: .native_build_job_template
@@ -599,7 +599,7 @@ acceptance-cfi-x86_64:
   variables:
     IMAGE: fedora
     MAKE_CHECK_ARGS: check-acceptance
-  extends: .acceptance_test_job_template
+  extends: .integration_test_job_template
 
 tsan-build:
   extends: .native_build_job_template
