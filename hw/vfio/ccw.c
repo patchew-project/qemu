@@ -411,20 +411,19 @@ static void vfio_ccw_register_irq_notifier(VFIOCCWDevice *vcdev,
         return;
     }
 
-    if (vdev->num_irqs < irq + 1) {
-        error_setg(errp, "vfio: unexpected number of irqs %u",
-                   vdev->num_irqs);
-        return;
-    }
-
     argsz = sizeof(*irq_info);
     irq_info = g_malloc0(argsz);
     irq_info->index = irq;
     irq_info->argsz = argsz;
     if (ioctl(vdev->fd, VFIO_DEVICE_GET_IRQ_INFO,
               irq_info) < 0 || irq_info->count < 1) {
-        error_setg_errno(errp, errno, "vfio: Error getting irq info");
-        goto out_free_info;
+        if (errno == EINVAL) {
+            warn_report("Unable to get information about IRQ %u", irq);
+            goto out_free_info;
+        } else {
+            error_setg_errno(errp, errno, "vfio: Error getting irq info");
+            goto out_free_info;
+        }
     }
 
     if (event_notifier_init(notifier, 0)) {
