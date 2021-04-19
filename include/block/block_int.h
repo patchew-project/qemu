@@ -154,7 +154,9 @@ struct BlockDriver {
      */
     bool supports_backing;
 
-    /* For handling image reopen for split or non-split files */
+    /* For handling image reopen for split or non-split files.  Called
+     * with no I/O pending.
+     */
     int (*bdrv_reopen_prepare)(BDRVReopenState *reopen_state,
                                BlockReopenQueue *queue, Error **errp);
     void (*bdrv_reopen_commit)(BDRVReopenState *reopen_state);
@@ -168,6 +170,7 @@ struct BlockDriver {
     /* Protocol drivers should implement this instead of bdrv_open */
     int (*bdrv_file_open)(BlockDriverState *bs, QDict *options, int flags,
                           Error **errp);
+    /* Called from main thread.  */
     void (*bdrv_close)(BlockDriverState *bs);
 
 
