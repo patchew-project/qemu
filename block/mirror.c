@@ -631,7 +631,6 @@ static int mirror_exit_common(Job *job)
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common.job);
     BlockJob *bjob = &s->common;
     MirrorBDSOpaque *bs_opaque;
-    AioContext *replace_aio_context = NULL;
     BlockDriverState *src;
     BlockDriverState *target_bs;
     BlockDriverState *mirror_top_bs;
@@ -699,11 +698,6 @@ static int mirror_exit_common(Job *job)
         }
     }
 
-    if (s->to_replace) {
-        replace_aio_context = bdrv_get_aio_context(s->to_replace);
-        aio_context_acquire(replace_aio_context);
-    }
-
     if (s->should_complete && !abort) {
         BlockDriverState *to_replace = s->to_replace ?: src;
         bool ro = bdrv_is_read_only(to_replace);
@@ -739,9 +733,6 @@ static int mirror_exit_common(Job *job)
         bdrv_op_unblock_all(s->to_replace, s->replace_blocker);
         error_free(s->replace_blocker);
         bdrv_unref(s->to_replace);
-    }
-    if (replace_aio_context) {
-        aio_context_release(replace_aio_context);
     }
     g_free(s->replaces);
     bdrv_unref(target_bs);

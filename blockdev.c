@@ -3469,7 +3469,6 @@ void qmp_change_backing_file(const char *device,
                              Error **errp)
 {
     BlockDriverState *bs = NULL;
-    AioContext *aio_context;
     BlockDriverState *image_bs = NULL;
     Error *local_err = NULL;
     bool ro;
@@ -3480,37 +3479,34 @@ void qmp_change_backing_file(const char *device,
         return;
     }
 
-    aio_context = bdrv_get_aio_context(bs);
-    aio_context_acquire(aio_context);
-
     image_bs = bdrv_lookup_bs(NULL, image_node_name, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        goto out;
+        return;
     }
 
     if (!image_bs) {
         error_setg(errp, "image file not found");
-        goto out;
+        return;
     }
 
     if (bdrv_find_base(image_bs) == image_bs) {
         error_setg(errp, "not allowing backing file change on an image "
                          "without a backing file");
-        goto out;
+        return;
     }
 
     /* even though we are not necessarily operating on bs, we need it to
      * determine if block ops are currently prohibited on the chain */
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_CHANGE, errp)) {
-        goto out;
+        return;
     }
 
     /* final sanity check */
     if (!bdrv_chain_contains(bs, image_bs)) {
         error_setg(errp, "'%s' and image file are not in the same chain",
                    device);
-        goto out;
+        return;
     }
 
     /* if not r/w, reopen to make r/w */
@@ -3518,7 +3514,7 @@ void qmp_change_backing_file(const char *device,
 
     if (ro) {
         if (bdrv_reopen_set_read_only(image_bs, false, errp) != 0) {
-            goto out;
+            return;
         }
     }
 
@@ -3536,9 +3532,6 @@ void qmp_change_backing_file(const char *device,
     if (ro) {
         bdrv_reopen_set_read_only(image_bs, true, errp);
     }
-
-out:
-    aio_context_release(aio_context);
 }
 
 void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
