@@ -382,7 +382,8 @@ static int nvme_addr_write(NvmeCtrl *n, hwaddr addr, void *buf, int size)
 
 static bool nvme_nsid_valid(NvmeCtrl *n, uint32_t nsid)
 {
-    return nsid && (nsid == NVME_NSID_BROADCAST || nsid <= n->num_namespaces);
+    return nsid &&
+        (nsid == NVME_NSID_BROADCAST || nsid <= NVME_MAX_NAMESPACES);
 }
 
 static int nvme_check_sqid(NvmeCtrl *n, uint16_t sqid)
@@ -2865,7 +2866,7 @@ static uint16_t nvme_flush(NvmeCtrl *n, NvmeRequest *req)
     /* 1-initialize; see comment in nvme_dsm */
     *num_flushes = 1;
 
-    for (int i = 1; i <= n->num_namespaces; i++) {
+    for (int i = 1; i <= NVME_MAX_NAMESPACES; i++) {
         ns = nvme_ns(n, i);
         if (!ns) {
             continue;
@@ -3835,7 +3836,7 @@ static uint16_t nvme_smart_info(NvmeCtrl *n, uint8_t rae, uint32_t buf_len,
     } else {
         int i;
 
-        for (i = 1; i <= n->num_namespaces; i++) {
+        for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
             ns = nvme_ns(n, i);
             if (!ns) {
                 continue;
@@ -4332,7 +4333,7 @@ static uint16_t nvme_identify_nslist(NvmeCtrl *n, NvmeRequest *req,
         return NVME_INVALID_NSID | NVME_DNR;
     }
 
-    for (i = 1; i <= n->num_namespaces; i++) {
+    for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
         ns = nvme_ns(n, i);
         if (!ns) {
             if (!active) {
@@ -4380,7 +4381,7 @@ static uint16_t nvme_identify_nslist_csi(NvmeCtrl *n, NvmeRequest *req,
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
-    for (i = 1; i <= n->num_namespaces; i++) {
+    for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
         ns = nvme_ns(n, i);
         if (!ns) {
             if (!active) {
@@ -4646,7 +4647,7 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeRequest *req)
         goto out;
     case NVME_VOLATILE_WRITE_CACHE:
         result = 0;
-        for (i = 1; i <= n->num_namespaces; i++) {
+        for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
             ns = nvme_ns(n, i);
             if (!ns) {
                 continue;
@@ -4796,7 +4797,7 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeRequest *req)
         break;
     case NVME_ERROR_RECOVERY:
         if (nsid == NVME_NSID_BROADCAST) {
-            for (i = 1; i <= n->num_namespaces; i++) {
+            for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
                 ns = nvme_ns(n, i);
 
                 if (!ns) {
@@ -4817,7 +4818,7 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeRequest *req)
         }
         break;
     case NVME_VOLATILE_WRITE_CACHE:
-        for (i = 1; i <= n->num_namespaces; i++) {
+        for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
             ns = nvme_ns(n, i);
             if (!ns) {
                 continue;
@@ -5110,7 +5111,7 @@ static uint16_t nvme_format(NvmeCtrl *n, NvmeRequest *req)
             req->status = status;
         }
     } else {
-        for (i = 1; i <= n->num_namespaces; i++) {
+        for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
             ns = nvme_ns(n, i);
             if (!ns) {
                 continue;
@@ -5221,7 +5222,7 @@ static void nvme_ctrl_reset(NvmeCtrl *n)
     NvmeNamespace *ns;
     int i;
 
-    for (i = 1; i <= n->num_namespaces; i++) {
+    for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
         ns = nvme_ns(n, i);
         if (!ns) {
             continue;
@@ -5263,7 +5264,7 @@ static void nvme_ctrl_shutdown(NvmeCtrl *n)
         memory_region_msync(&n->pmr.dev->mr, 0, n->pmr.dev->size);
     }
 
-    for (i = 1; i <= n->num_namespaces; i++) {
+    for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
         ns = nvme_ns(n, i);
         if (!ns) {
             continue;
@@ -5278,7 +5279,7 @@ static void nvme_select_iocs(NvmeCtrl *n)
     NvmeNamespace *ns;
     int i;
 
-    for (i = 1; i <= n->num_namespaces; i++) {
+    for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
         ns = nvme_ns(n, i);
         if (!ns) {
             continue;
@@ -5905,7 +5906,6 @@ static void nvme_check_constraints(NvmeCtrl *n, Error **errp)
 
 static void nvme_init_state(NvmeCtrl *n)
 {
-    n->num_namespaces = NVME_MAX_NAMESPACES;
     /* add one to max_ioqpairs to account for the admin queue pair */
     n->reg_size = pow2ceil(sizeof(NvmeBar) +
                            2 * (n->params.max_ioqpairs + 1) * NVME_DB_SIZE);
@@ -6086,7 +6086,7 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
 
     id->sqes = (0x6 << 4) | 0x6;
     id->cqes = (0x4 << 4) | 0x4;
-    id->nn = cpu_to_le32(n->num_namespaces);
+    id->nn = cpu_to_le32(NVME_MAX_NAMESPACES);
     id->oncs = cpu_to_le16(NVME_ONCS_WRITE_ZEROES | NVME_ONCS_TIMESTAMP |
                            NVME_ONCS_FEATURES | NVME_ONCS_DSM |
                            NVME_ONCS_COMPARE | NVME_ONCS_COPY);
@@ -6205,7 +6205,7 @@ static void nvme_exit(PCIDevice *pci_dev)
 
     nvme_ctrl_reset(n);
 
-    for (i = 1; i <= n->num_namespaces; i++) {
+    for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
         ns = nvme_ns(n, i);
         if (!ns) {
             continue;
