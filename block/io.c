@@ -3137,10 +3137,22 @@ bool bdrv_qiov_is_aligned(BlockDriverState *bs, QEMUIOVector *qiov)
     return true;
 }
 
+static QemuSpin notifiers_spin_lock;
+
 void bdrv_add_before_write_notifier(BlockDriverState *bs,
                                     NotifierWithReturn *notifier)
 {
+    qemu_spin_lock(&notifiers_spin_lock);
     notifier_with_return_list_add(&bs->before_write_notifiers, notifier);
+    qemu_spin_unlock(&notifiers_spin_lock);
+}
+
+void bdrv_remove_before_write_notifier(BlockDriverState *bs,
+                                       NotifierWithReturn *notifier)
+{
+    qemu_spin_lock(&notifiers_spin_lock);
+    notifier_with_return_remove(notifier);
+    qemu_spin_unlock(&notifiers_spin_lock);
 }
 
 void bdrv_io_plug(BlockDriverState *bs)

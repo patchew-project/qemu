@@ -1089,12 +1089,49 @@ bool bdrv_backing_overridden(BlockDriverState *bs);
 
 /**
  * bdrv_add_before_write_notifier:
+ * @bs: The #BlockDriverState for which to register the notifier
+ * @notifier: The notifier to add
  *
  * Register a callback that is invoked before write requests are processed but
  * after any throttling or waiting for overlapping requests.
  */
 void bdrv_add_before_write_notifier(BlockDriverState *bs,
                                     NotifierWithReturn *notifier);
+
+/**
+ * bdrv_remove_before_write_notifier:
+ * @bs: The #BlockDriverState for which to register the notifier
+ * @notifier: The notifier to add
+ *
+ * Unregister a callback that is invoked before write requests are processed but
+ * after any throttling or waiting for overlapping requests.
+ *
+ * Note that more I/O could be pending on @bs.  You need to wait for
+ * it to finish, for example with bdrv_drain(), before freeing @notifier.
+ */
+void bdrv_remove_before_write_notifier(BlockDriverState *bs,
+                                       NotifierWithReturn *notifier);
+
+/**
+ * bdrv_detach_aio_context:
+ *
+ * May be called from .bdrv_detach_aio_context() to detach children from the
+ * current #AioContext.  This is only needed by block drivers that manage their
+ * own children.  Both ->file and ->backing are automatically handled and
+ * block drivers should not call this function on them explicitly.
+ */
+void bdrv_detach_aio_context(BlockDriverState *bs);
+
+/**
+ * bdrv_attach_aio_context:
+ *
+ * May be called from .bdrv_attach_aio_context() to attach children to the new
+ * #AioContext.  This is only needed by block drivers that manage their own
+ * children.  Both ->file and ->backing are automatically handled and block
+ * drivers should not call this function on them explicitly.
+ */
+void bdrv_attach_aio_context(BlockDriverState *bs,
+                             AioContext *new_context);
 
 /**
  * bdrv_add_aio_context_notifier:
