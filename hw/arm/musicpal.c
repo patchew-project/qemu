@@ -30,6 +30,7 @@
 #include "hw/irq.h"
 #include "hw/or-irq.h"
 #include "hw/audio/wm8750.h"
+#include "hw/misc/aliased_region.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/runstate.h"
 #include "sysemu/dma.h"
@@ -1656,7 +1657,7 @@ static void musicpal_init(MachineState *machine)
         qdev_prop_set_uint32(dev, "num-blocks", flash_size / sector_size);
         qdev_prop_set_uint32(dev, "sector-length", sector_size);
         qdev_prop_set_uint8(dev, "width", 2); /* 16-bit */
-        qdev_prop_set_uint8(dev, "mappings", MP_FLASH_SIZE_MAX / flash_size);
+        qdev_prop_set_uint8(dev, "mappings", 0);
         qdev_prop_set_uint8(dev, "big-endian", 0);
         qdev_prop_set_uint16(dev, "id0", 0x00bf);
         qdev_prop_set_uint16(dev, "id1", 0x236d);
@@ -1667,14 +1668,16 @@ static void musicpal_init(MachineState *machine)
         qdev_prop_set_string(dev, "name", "musicpal.flash");
         sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
-        sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0,
-                        0x100000000ULL - MP_FLASH_SIZE_MAX);
-
         /*
          * The original U-Boot accesses the flash at 0xFE000000 instead of
          * 0xFF800000 (if there is 8 MB flash). So remap flash access if the
          * image is smaller than 32 MB.
          */
+        memory_region_add_subregion_aliased(get_system_memory(),
+                                0x100000000ULL - MP_FLASH_SIZE_MAX,
+                                MP_FLASH_SIZE_MAX,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0),
+                                flash_size);
     }
     sysbus_create_simple(TYPE_MV88W8618_FLASHCFG, MP_FLASHCFG_BASE, NULL);
 
