@@ -31,6 +31,8 @@
 #include "hw/boards.h"
 #include "exec/address-spaces.h"
 #include "qemu/error-report.h"
+#include "hw/qdev-properties.h"
+#include "hw/misc/aliased_region.h"
 #include "hw/arm/digic.h"
 #include "hw/block/flash.h"
 #include "hw/loader.h"
@@ -120,12 +122,25 @@ static void digic4_add_k8p3215uqb_rom(DigicState *s, hwaddr addr,
 #define FLASH_K8P3215UQB_SIZE (4 * 1024 * 1024)
 #define FLASH_K8P3215UQB_SECTOR_SIZE (64 * 1024)
 
-    pflash_cfi02_register(addr, "pflash", FLASH_K8P3215UQB_SIZE,
-                          NULL, FLASH_K8P3215UQB_SECTOR_SIZE,
-                          DIGIC4_ROM_MAX_SIZE / FLASH_K8P3215UQB_SIZE,
-                          4,
-                          0x00EC, 0x007E, 0x0003, 0x0001,
-                          0x0555, 0x2aa, 0);
+    DeviceState *dev = qdev_new(TYPE_PFLASH_CFI02);
+
+    qdev_prop_set_uint32(dev, "num-blocks",
+                         FLASH_K8P3215UQB_SIZE / FLASH_K8P3215UQB_SECTOR_SIZE);
+    qdev_prop_set_uint32(dev, "sector-length", FLASH_K8P3215UQB_SECTOR_SIZE);
+    qdev_prop_set_uint8(dev, "width", 4); /* 32-bit */
+    qdev_prop_set_uint8(dev, "mappings",
+                        DIGIC4_ROM_MAX_SIZE / FLASH_K8P3215UQB_SIZE);
+    qdev_prop_set_uint8(dev, "big-endian", 0);
+    qdev_prop_set_uint16(dev, "id0", 0x00ec);
+    qdev_prop_set_uint16(dev, "id1", 0x007e);
+    qdev_prop_set_uint16(dev, "id2", 0x0003);
+    qdev_prop_set_uint16(dev, "id3", 0x0001);
+    qdev_prop_set_uint16(dev, "unlock-addr0", 0x0555);
+    qdev_prop_set_uint16(dev, "unlock-addr1", 0x2aa);
+    qdev_prop_set_string(dev, "name", "pflash");
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, addr);
 
     digic_load_rom(s, addr, FLASH_K8P3215UQB_SIZE, filename);
 }
