@@ -151,6 +151,9 @@ config AUX
 config UNIMP
     bool
 
+config ALIASED_REGION
+    bool
+
 config LED
     bool
 
