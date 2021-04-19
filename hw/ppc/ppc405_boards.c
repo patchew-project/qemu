@@ -198,7 +198,7 @@ static void ref405ep_init(MachineState *machine)
         pflash_cfi02_register((uint32_t)(-bios_size),
                               "ef405ep.bios", bios_size,
                               blk_by_legacy_dinfo(dinfo),
-                              64 * KiB, 1,
+                              64 * KiB,
                               2, 0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA,
                               1);
     } else
@@ -469,7 +469,7 @@ static void taihu_405ep_init(MachineState *machine)
         pflash_cfi02_register(0xFFE00000,
                               "taihu_405ep.bios", bios_size,
                               blk_by_legacy_dinfo(dinfo),
-                              64 * KiB, 1,
+                              64 * KiB,
                               4, 0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA,
                               1);
         fl_idx++;
@@ -502,7 +502,7 @@ static void taihu_405ep_init(MachineState *machine)
         bios_size = 32 * MiB;
         pflash_cfi02_register(0xfc000000, "taihu_405ep.flash", bios_size,
                               blk_by_legacy_dinfo(dinfo),
-                              64 * KiB, 1,
+                              64 * KiB,
                               4, 0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA,
                               1);
         fl_idx++;

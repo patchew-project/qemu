@@ -220,7 +220,7 @@ static void zynq_init(MachineState *machine)
     pflash_cfi02_register(0xe2000000, "zynq.pflash", FLASH_SIZE,
                           dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
                           FLASH_SECTOR_SIZE, 1,
-                          1, 0x0066, 0x0022, 0x0000, 0x0000, 0x0555, 0x2aa,
+                          0x0066, 0x0022, 0x0000, 0x0000, 0x0555, 0x2aa,
                           0);
 
     /* Create the main clock source, and feed slcr with it */
