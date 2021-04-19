@@ -3056,13 +3056,18 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
             return;
         }
 
-        to_replace_bs = check_to_replace_node(bs, replaces, errp);
+        to_replace_bs = bdrv_find_node(replaces);
         if (!to_replace_bs) {
+            error_setg(errp, "Failed to find node with node-name='%s'",
+                       replaces);
             return;
         }
 
         replace_aio_context = bdrv_get_aio_context(to_replace_bs);
         aio_context_acquire(replace_aio_context);
+        if (!check_to_replace_node(bs, to_replace_bs, replaces, errp)) {
+            return;
+        }
         replace_size = bdrv_getlength(to_replace_bs);
         aio_context_release(replace_aio_context);
 

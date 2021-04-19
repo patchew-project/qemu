@@ -6776,24 +6776,15 @@ bool bdrv_recurse_can_replace(BlockDriverState *bs,
  *
  * The result (whether the node can be replaced or not) is only valid
  * for as long as no graph or permission changes occur.
+ *
+ * Called with AioContext lock held.
  */
 BlockDriverState *check_to_replace_node(BlockDriverState *parent_bs,
+                                        BlockDriverState *to_replace_bs,
                                         const char *node_name, Error **errp)
 {
-    BlockDriverState *to_replace_bs = bdrv_find_node(node_name);
-    AioContext *aio_context;
-
-    if (!to_replace_bs) {
-        error_setg(errp, "Failed to find node with node-name='%s'", node_name);
-        return NULL;
-    }
-
-    aio_context = bdrv_get_aio_context(to_replace_bs);
-    aio_context_acquire(aio_context);
-
     if (bdrv_op_is_blocked(to_replace_bs, BLOCK_OP_TYPE_REPLACE, errp)) {
-        to_replace_bs = NULL;
-        goto out;
+        return NULL;
     }
 
     /* We don't want arbitrary node of the BDS chain to be replaced only the top
@@ -6806,12 +6797,9 @@ BlockDriverState *check_to_replace_node(BlockDriverState *parent_bs,
                    "because it cannot be guaranteed that doing so would not "
                    "lead to an abrupt change of visible data",
                    node_name, parent_bs->node_name);
-        to_replace_bs = NULL;
-        goto out;
+        return NULL;
     }
 
-out:
-    aio_context_release(aio_context);
     return to_replace_bs;
 }
 
