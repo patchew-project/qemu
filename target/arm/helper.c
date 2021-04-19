@@ -13257,11 +13257,10 @@ static inline void assert_hflags_rebuild_correctly(CPUARMState *env)
     CPUARMTBFlags r = rebuild_hflags_internal(env);
 
     if (unlikely(c.flags != r.flags || c.flags2 != r.flags2)) {
-        fprintf(stderr, "TCG hflags mismatch "
-                        "(current:(0x%08x,0x" TARGET_FMT_lx ")"
-                        " rebuilt:(0x%08x,0x" TARGET_FMT_lx ")\n",
-                c.flags, c.flags2, r.flags, r.flags2);
-        abort();
+        cpu_abort(env_cpu(env), "TCG hflags mismatch "
+                  "(current:(0x%08x,0x" TARGET_FMT_lx ")"
+                  " rebuilt:(0x%08x,0x" TARGET_FMT_lx ")\n",
+                  c.flags, c.flags2, r.flags, r.flags2);
     }
 #endif
 }
