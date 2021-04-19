@@ -3124,6 +3124,34 @@ static void lo_lseek(fuse_req_t req, fuse_ino_t ino, off_t off, int whence,
     }
 }
 
+static void lo_syncfs(fuse_req_t req, int wait)
+{
+    if (wait) {
+        struct lo_data *lo = lo_data(req);
+        int fd, ret;
+
+        fd = lo_inode_open(lo, &lo->root, O_RDONLY);
+        if (fd < 0) {
+            fuse_reply_err(req, errno);
+            return;
+        }
+
+        /*
+         * FIXME: this is suboptimal because it will also flush unrelated
+         *        writes not coming from the client. This can dramatically
+         *        increase the time spent in syncfs() if some process is
+         *        writing lots of data on the same filesystem as virtiofsd.
+         */
+        ret = syncfs(fd);
+        /* syncfs() never fails on a valid fd */
+        assert(ret == 0);
+
+        close(fd);
+    }
+
+    fuse_reply_err(req, 0);
+}
+
 static void lo_destroy(void *userdata)
 {
     struct lo_data *lo = (struct lo_data *)userdata;
@@ -3184,6 +3212,7 @@ static struct fuse_lowlevel_ops lo_oper = {
     .copy_file_range = lo_copy_file_range,
 #endif
     .lseek = lo_lseek,
+    .syncfs = lo_syncfs,
     .destroy = lo_destroy,
 };
 
