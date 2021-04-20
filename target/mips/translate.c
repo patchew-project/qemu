@@ -15245,8 +15245,11 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
     uint16_t insn;
     int rt, rs, rd, rr;
     int16_t imm;
-    uint32_t op, minor, minor2, mips32_op;
+    uint32_t op, minor, mips32_op;
     uint32_t cond, fmt, cc;
+#ifndef CONFIG_USER_ONLY
+    uint32_t minor2;
+#endif /* !CONFIG_USER_ONLY */
 
     insn = translator_lduw(env, ctx->base.pc_next + 2);
     ctx->opcode = (ctx->opcode << 16) | insn;
@@ -16205,6 +16208,7 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
             gen_st_cond(ctx, rt, rs, offset, MO_TEQ, false);
             break;
 #endif
+#ifndef CONFIG_USER_ONLY
         case LD_EVA:
             if (!ctx->eva) {
                 MIPS_INVAL("pool32c ld-eva");
@@ -16294,6 +16298,7 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
                 goto do_st_lr;
             };
             break;
+#endif /* !CONFIG_USER_ONLY */
         case PREF:
             /* Treat as no-op */
             if ((ctx->insn_flags & ISA_MIPS_R6) && (rt >= 24)) {
@@ -24486,16 +24491,18 @@ static void decode_opc_special3(CPUMIPSState *env, DisasContext *ctx)
 {
     int rs, rt, rd, sa;
     uint32_t op1, op2;
-    int16_t imm;
 
     rs = (ctx->opcode >> 21) & 0x1f;
     rt = (ctx->opcode >> 16) & 0x1f;
     rd = (ctx->opcode >> 11) & 0x1f;
     sa = (ctx->opcode >> 6) & 0x1f;
-    imm = sextract32(ctx->opcode, 7, 9);
 
     op1 = MASK_SPECIAL3(ctx->opcode);
 
+#ifndef CONFIG_USER_ONLY
+    int16_t imm;
+
+    imm = sextract32(ctx->opcode, 7, 9);
     /*
      * EVA loads and stores overlap Loongson 2E instructions decoded by
      * decode_opc_special3_legacy(), so be careful to allow their decoding when
@@ -24537,6 +24544,7 @@ static void decode_opc_special3(CPUMIPSState *env, DisasContext *ctx)
             return;
         }
     }
+#endif /* !CONFIG_USER_ONLY */
 
     switch (op1) {
     case OPC_EXT:
