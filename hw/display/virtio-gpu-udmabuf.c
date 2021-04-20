@@ -72,7 +72,10 @@ static void virtio_gpu_create_udmabuf(struct virtio_gpu_simple_resource *res)
 
 static void virtio_gpu_remap_udmabuf(struct virtio_gpu_simple_resource *res)
 {
-    res->remapsz = res->width * res->height * 4;
+    if (res->blob_size) {
+        res->remapsz = res->blob_size;
+    }
+
     res->remapsz = QEMU_ALIGN_UP(res->remapsz, qemu_real_host_page_size);
 
     res->remapped = mmap(NULL, res->remapsz, PROT_READ,
@@ -152,7 +155,9 @@ void virtio_gpu_init_udmabuf(struct virtio_gpu_simple_resource *res)
         pdata = res->remapped;
     }
 
-    (void) pdata;
+    if (pdata) {
+        res->blob = pdata;
+    }
 }
 
 void virtio_gpu_fini_udmabuf(struct virtio_gpu_simple_resource *res)

@@ -48,6 +48,8 @@ struct virtio_gpu_simple_resource {
     pixman_image_t *image;
     uint64_t hostmem;
 
+    uint64_t blob_size;
+    void *blob;
     int dmabuf_fd;
     size_t remapsz;
     uint8_t *remapped;
