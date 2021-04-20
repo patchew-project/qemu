@@ -167,6 +167,84 @@ void virtio_gpu_fini_udmabuf(struct virtio_gpu_simple_resource *res)
     }
 }
 
+static void virtio_gpu_free_one_dmabuf(VirtIOGPU *g, VGPUDMABuf *dmabuf,
+                                       uint32_t scanout_id)
+{
+    struct virtio_gpu_scanout *scanout = &g->parent_obj.scanout[scanout_id];
+
+    QTAILQ_REMOVE(&g->dmabuf.bufs, dmabuf, next);
+    dpy_gl_release_dmabuf(scanout->con, &dmabuf->buf);
+    g_free(dmabuf);
+}
+
+static void virtio_gpu_free_dmabufs(VirtIOGPU *g,
+                                    uint32_t scanout_id)
+{
+    VGPUDMABuf *dmabuf, *tmp;
+
+    QTAILQ_FOREACH_SAFE(dmabuf, &g->dmabuf.bufs, next, tmp) {
+        if (dmabuf != g->dmabuf.primary &&
+            dmabuf->scanout_id == scanout_id) {
+            virtio_gpu_free_one_dmabuf(g, dmabuf, scanout_id);
+            break;
+        }
+    }
+}
+
+static VGPUDMABuf
+*virtio_gpu_create_dmabuf(VirtIOGPU *g,
+                          uint32_t scanout_id,
+                          struct virtio_gpu_simple_resource *res,
+                          struct virtio_gpu_framebuffer *fb)
+{
+    VGPUDMABuf *dmabuf;
+
+    if (res->dmabuf_fd < 0) {
+        return NULL;
+    }
+
+    dmabuf = g_new0(VGPUDMABuf, 1);
+    dmabuf->buf.width = fb->width;
+    dmabuf->buf.height = fb->height;
+    dmabuf->buf.stride = fb->stride;
+    dmabuf->buf.fourcc = qemu_pixman_to_drm_format(fb->format);
+    dmabuf->buf.fd = res->dmabuf_fd;
+
+    dmabuf->scanout_id = scanout_id;
+    QTAILQ_INSERT_HEAD(&g->dmabuf.bufs, dmabuf, next);
+
+    return dmabuf;
+}
+
+int virtio_gpu_update_dmabuf(VirtIOGPU *g,
+                             uint32_t scanout_id,
+                             struct virtio_gpu_simple_resource *res,
+                             struct virtio_gpu_framebuffer *fb)
+{
+    struct virtio_gpu_scanout *scanout = &g->parent_obj.scanout[scanout_id];
+    VGPUDMABuf *primary;
+    bool free_bufs = false;
+
+    primary = virtio_gpu_create_dmabuf(g, scanout_id, res, fb);
+    if (!primary) {
+        return -EINVAL;
+    }
+
+    if (g->dmabuf.primary != primary) {
+        g->dmabuf.primary = primary;
+        qemu_console_resize(scanout->con,
+                            primary->buf.width, primary->buf.height);
+        dpy_gl_scanout_dmabuf(scanout->con, &primary->buf);
+        free_bufs = true;
+    }
+
+    if (free_bufs) {
+        virtio_gpu_free_dmabufs(g, scanout_id);
+    }
+
+    return 0;
+}
+
 #else
 
 bool virtio_gpu_have_udmabuf(void)
@@ -183,6 +261,15 @@ void virtio_gpu_init_udmabuf(struct virtio_gpu_simple_resource *res)
 void virtio_gpu_fini_udmabuf(struct virtio_gpu_simple_resource *res)
 {
     /* nothing (stub) */
+}
+
+int virtio_gpu_update_dmabuf(VirtIOGPU *g,
+                             uint32_t scanout_id,
+                             struct virtio_gpu_simple_resource *res,
+                             struct virtio_gpu_framebuffer *fb)
+{
+    /* nothing (stub) */
+    return 0;
 }
 
 #endif
