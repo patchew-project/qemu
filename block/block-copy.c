@@ -48,25 +48,32 @@ typedef struct BlockCopyCallState {
     QLIST_ENTRY(BlockCopyCallState) list;
 
     /* State */
-    int ret;
     bool finished;
     QemuCoSleepState *sleep_state;
     bool cancelled;
 
     /* OUT parameters */
+    int ret;
     bool error_is_read;
 } BlockCopyCallState;
 
 typedef struct BlockCopyTask {
+    /* IN parameters. Initialized in block_copy_task_create()
+     * and never changed.
+     */
     AioTask task;
-
     BlockCopyState *s;
     BlockCopyCallState *call_state;
+
+    /* State */
     int64_t offset;
     int64_t bytes;
     bool zeroes;
-    QLIST_ENTRY(BlockCopyTask) list;
     CoQueue wait_queue; /* coroutines blocked on this task */
+
+    /* To reference all call states from BlockCopyTask */
+    QLIST_ENTRY(BlockCopyTask) list;
+
 } BlockCopyTask;
 
 static int64_t task_end(BlockCopyTask *task)
@@ -153,7 +160,7 @@ static bool coroutine_fn block_copy_wait_one(BlockCopyState *s, int64_t offset,
  * Search for the first dirty area in offset/bytes range and create task at
  * the beginning of it.
  */
-static BlockCopyTask *block_copy_task_create(BlockCopyState *s,
+static BlockCopyTask *coroutine_fn block_copy_task_create(BlockCopyState *s,
                                              BlockCopyCallState *call_state,
                                              int64_t offset, int64_t bytes)
 {
