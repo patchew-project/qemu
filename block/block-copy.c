@@ -65,7 +65,9 @@ typedef struct BlockCopyTask {
     BlockCopyState *s;
     BlockCopyCallState *call_state;
 
-    /* State */
+    /* State. These fields are protected by the tasks_lock
+     * in BlockCopyState
+     */
     int64_t offset;
     int64_t bytes;
     bool zeroes;
@@ -95,6 +97,8 @@ typedef struct BlockCopyState {
     bool use_copy_range;
     int64_t copy_size;
     uint64_t len;
+
+    CoMutex tasks_lock;
     QLIST_HEAD(, BlockCopyTask) tasks; /* All tasks from all block-copy calls */
     QLIST_HEAD(, BlockCopyCallState) calls;
 
@@ -124,6 +128,7 @@ typedef struct BlockCopyState {
     RateLimit rate_limit;
 } BlockCopyState;
 
+/* Called with lock held */
 static BlockCopyTask *find_conflicting_task(BlockCopyState *s,
                                             int64_t offset, int64_t bytes)
 {
@@ -145,13 +150,19 @@ static BlockCopyTask *find_conflicting_task(BlockCopyState *s,
 static bool coroutine_fn block_copy_wait_one(BlockCopyState *s, int64_t offset,
                                              int64_t bytes)
 {
-    BlockCopyTask *task = find_conflicting_task(s, offset, bytes);
+    BlockCopyTask *task;
+
+    qemu_co_mutex_lock(&s->tasks_lock);
+    task = find_conflicting_task(s, offset, bytes);
 
     if (!task) {
+        qemu_co_mutex_unlock(&s->tasks_lock);
         return false;
     }
 
-    qemu_co_queue_wait(&task->wait_queue, NULL);
+    qemu_co_queue_wait(&task->wait_queue, &s->tasks_lock);
+
+    qemu_co_mutex_unlock(&s->tasks_lock);
 
     return true;
 }
@@ -178,7 +189,9 @@ static BlockCopyTask *coroutine_fn block_copy_task_create(BlockCopyState *s,
     bytes = QEMU_ALIGN_UP(bytes, s->cluster_size);
 
     /* region is dirty, so no existent tasks possible in it */
+    qemu_co_mutex_lock(&s->tasks_lock);
     assert(!find_conflicting_task(s, offset, bytes));
+    qemu_co_mutex_unlock(&s->tasks_lock);
 
     bdrv_reset_dirty_bitmap(s->copy_bitmap, offset, bytes);
     s->in_flight_bytes += bytes;
@@ -192,8 +205,9 @@ static BlockCopyTask *coroutine_fn block_copy_task_create(BlockCopyState *s,
         .bytes = bytes,
     };
     qemu_co_queue_init(&task->wait_queue);
+    qemu_co_mutex_lock(&s->tasks_lock);
     QLIST_INSERT_HEAD(&s->tasks, task, list);
-
+    qemu_co_mutex_unlock(&s->tasks_lock);
     return task;
 }
 
@@ -297,6 +311,7 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
     }
 
     QLIST_INIT(&s->tasks);
+    qemu_co_mutex_init(&s->tasks_lock);
     QLIST_INIT(&s->calls);
 
     return s;
