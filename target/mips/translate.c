@@ -20906,27 +20906,24 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                 }
                 break;
             case NM_P_LS_E0:
+                check_cp0_enabled(ctx);
                 switch (extract32(ctx->opcode, 11, 4)) {
                 case NM_LBE:
                     check_eva(ctx);
-                    check_cp0_enabled(ctx);
                     gen_ld(ctx, OPC_LBE, rt, rs, s);
                     break;
                 case NM_SBE:
                     check_eva(ctx);
-                    check_cp0_enabled(ctx);
                     gen_st(ctx, OPC_SBE, rt, rs, s);
                     break;
                 case NM_LBUE:
                     check_eva(ctx);
-                    check_cp0_enabled(ctx);
                     gen_ld(ctx, OPC_LBUE, rt, rs, s);
                     break;
                 case NM_P_PREFE:
                     if (rt == 31) {
                         /* case NM_SYNCIE */
                         check_eva(ctx);
-                        check_cp0_enabled(ctx);
                         /*
                          * Break the TB to be able to sync copied instructions
                          * immediately.
@@ -20935,39 +20932,32 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                     } else {
                         /* case NM_PREFE */
                         check_eva(ctx);
-                        check_cp0_enabled(ctx);
                         /* Treat as NOP. */
                     }
                     break;
                 case NM_LHE:
                     check_eva(ctx);
-                    check_cp0_enabled(ctx);
                     gen_ld(ctx, OPC_LHE, rt, rs, s);
                     break;
                 case NM_SHE:
                     check_eva(ctx);
-                    check_cp0_enabled(ctx);
                     gen_st(ctx, OPC_SHE, rt, rs, s);
                     break;
                 case NM_LHUE:
                     check_eva(ctx);
-                    check_cp0_enabled(ctx);
                     gen_ld(ctx, OPC_LHUE, rt, rs, s);
                     break;
                 case NM_CACHEE:
                     check_eva(ctx);
-                    check_cp0_enabled(ctx);
                     check_nms_dl_il_sl_tl_l2c(ctx);
                     gen_cache_operation(ctx, rt, rs, s);
                     break;
                 case NM_LWE:
                     check_eva(ctx);
-                    check_cp0_enabled(ctx);
                     gen_ld(ctx, OPC_LWE, rt, rs, s);
                     break;
                 case NM_SWE:
                     check_eva(ctx);
-                    check_cp0_enabled(ctx);
                     gen_st(ctx, OPC_SWE, rt, rs, s);
                     break;
                 case NM_P_LLE:
@@ -20975,13 +20965,11 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                     case NM_LLE:
                         check_xnp(ctx);
                         check_eva(ctx);
-                        check_cp0_enabled(ctx);
                         gen_ld(ctx, OPC_LLE, rt, rs, s);
                         break;
                     case NM_LLWPE:
                         check_xnp(ctx);
                         check_eva(ctx);
-                        check_cp0_enabled(ctx);
                         gen_llwp(ctx, rs, 0, rt, extract32(ctx->opcode, 3, 5));
                         break;
                     default:
@@ -20994,13 +20982,11 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                     case NM_SCE:
                         check_xnp(ctx);
                         check_eva(ctx);
-                        check_cp0_enabled(ctx);
                         gen_st_cond(ctx, rt, rs, s, MO_TESL, true);
                         break;
                     case NM_SCWPE:
                         check_xnp(ctx);
                         check_eva(ctx);
-                        check_cp0_enabled(ctx);
                         gen_scwp(ctx, rs, 0, rt, extract32(ctx->opcode, 3, 5),
                                  true);
                         break;
