@@ -74,6 +74,13 @@ struct X86MachineState {
      * will be translated to MSI messages in the address space.
      */
     AddressSpace *ioapic_as;
+
+    /*
+     * ratelimit enforced on detected bus locks, the default value
+     * is 0 per second
+     */
+    uint64_t bld;
+    RateLimit bld_limit;
 };
 
 #define X86_MACHINE_SMM              "smm"

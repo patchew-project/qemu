@@ -1256,6 +1256,12 @@ static void x86_machine_initfn(Object *obj)
     x86ms->pci_irq_mask = ACPI_BUILD_PCI_IRQS;
     x86ms->oem_id = g_strndup(ACPI_BUILD_APPNAME6, 6);
     x86ms->oem_table_id = g_strndup(ACPI_BUILD_APPNAME8, 8);
+    x86ms->bld = 0;
+
+    object_property_add_uint64_ptr(obj, "bus-lock-detection",
+                                   &x86ms->bld, OBJ_PROP_FLAG_READWRITE);
+    object_property_set_description(obj, "bus-lock-detection",
+            "Bus lock detection ratelimit");
 }
 
 static void x86_machine_class_init(ObjectClass *oc, void *data)
