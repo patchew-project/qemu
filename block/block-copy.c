@@ -310,10 +310,9 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
         s->copy_size = MAX(s->cluster_size, BLOCK_COPY_MAX_BUFFER);
     }
 
-    QLIST_INIT(&s->tasks);
     qemu_co_mutex_init(&s->tasks_lock);
+    QLIST_INIT(&s->tasks);
     QLIST_INIT(&s->calls);
-
     return s;
 }
 
@@ -712,7 +711,9 @@ static int coroutine_fn block_copy_common(BlockCopyCallState *call_state)
 {
     int ret;
 
+    qemu_co_mutex_lock(&call_state->s->tasks_lock);
     QLIST_INSERT_HEAD(&call_state->s->calls, call_state, list);
+    qemu_co_mutex_unlock(&call_state->s->tasks_lock);
 
     do {
         ret = block_copy_dirty_clusters(call_state);
@@ -739,7 +740,9 @@ static int coroutine_fn block_copy_common(BlockCopyCallState *call_state)
         call_state->cb(call_state->cb_opaque);
     }
 
+    qemu_co_mutex_lock(&call_state->s->tasks_lock);
     QLIST_REMOVE(call_state, list);
+    qemu_co_mutex_unlock(&call_state->s->tasks_lock);
 
     return ret;
 }
