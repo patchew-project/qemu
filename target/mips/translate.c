@@ -9417,7 +9417,9 @@ static void gen_cp0(CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
 {
     const char *opn = "ldst";
 
-    check_cp0_enabled(ctx);
+    if (!check_cp0_enabled(ctx)) {
+        return;
+    }
     switch (opc) {
     case OPC_MFC0:
         if (rt == 0) {
@@ -14651,17 +14653,17 @@ static void gen_pool32axf(CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
 #ifndef CONFIG_USER_ONLY
     case MFC0:
     case MFC0 + 32:
-        check_cp0_enabled(ctx);
-        if (rt == 0) {
-            /* Treat as NOP. */
-            break;
+        if (check_cp0_enabled(ctx)) {
+            if (rt == 0) {
+                /* Treat as NOP. */
+                break;
+            }
+            gen_mfc0(ctx, cpu_gpr[rt], rs, (ctx->opcode >> 11) & 0x7);
         }
-        gen_mfc0(ctx, cpu_gpr[rt], rs, (ctx->opcode >> 11) & 0x7);
         break;
     case MTC0:
     case MTC0 + 32:
-        check_cp0_enabled(ctx);
-        {
+        if (check_cp0_enabled(ctx)) {
             TCGv t0 = tcg_temp_new();
 
             gen_load_gpr(t0, rt);
@@ -14809,14 +14811,15 @@ static void gen_pool32axf(CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
         }
         break;
     case 0x05:
+        if (!check_cp0_enabled(ctx)) {
+            break;
+        }
         switch (minor) {
         case RDPGPR:
-            check_cp0_enabled(ctx);
             check_insn(ctx, ISA_MIPS_R2);
             gen_load_srsgpr(rs, rt);
             break;
         case WRPGPR:
-            check_cp0_enabled(ctx);
             check_insn(ctx, ISA_MIPS_R2);
             gen_store_srsgpr(rs, rt);
             break;
@@ -14863,8 +14866,7 @@ static void gen_pool32axf(CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
     case 0x1d:
         switch (minor) {
         case DI:
-            check_cp0_enabled(ctx);
-            {
+            if (check_cp0_enabled(ctx)) {
                 TCGv t0 = tcg_temp_new();
 
                 save_cpu_state(ctx, 1);
@@ -14879,8 +14881,7 @@ static void gen_pool32axf(CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
             }
             break;
         case EI:
-            check_cp0_enabled(ctx);
-            {
+            if (check_cp0_enabled(ctx)) {
                 TCGv t0 = tcg_temp_new();
 
                 save_cpu_state(ctx, 1);
@@ -15449,8 +15450,7 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
         minor = (ctx->opcode >> 12) & 0xf;
         switch (minor) {
         case CACHE:
-            check_cp0_enabled(ctx);
-            if (ctx->hflags & MIPS_HFLAG_ITC_CACHE) {
+            if (check_cp0_enabled(ctx) && ctx->hflags & MIPS_HFLAG_ITC_CACHE) {
                 gen_cache_operation(ctx, rt, rs, imm);
             }
             break;
@@ -16211,7 +16211,9 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
                 gen_reserved_instruction(ctx);
                 break;
             }
-            check_cp0_enabled(ctx);
+            if (!check_cp0_enabled(ctx)) {
+                break;
+            }
 
             minor2 = (ctx->opcode >> 9) & 0x7;
             offset = sextract32(ctx->opcode, 0, 9);
@@ -16250,7 +16252,9 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
                 gen_reserved_instruction(ctx);
                 break;
             }
-            check_cp0_enabled(ctx);
+            if (!check_cp0_enabled(ctx)) {
+                break;
+            }
 
             minor2 = (ctx->opcode >> 9) & 0x7;
             offset = sextract32(ctx->opcode, 0, 9);
@@ -17995,24 +17999,24 @@ static void gen_pool32a0_nanomips_insn(CPUMIPSState *env, DisasContext *ctx)
         if (rd == 0) {
             /* P_DVP */
 #ifndef CONFIG_USER_ONLY
-            TCGv t0 = tcg_temp_new();
-            switch (extract32(ctx->opcode, 10, 1)) {
-            case NM_DVP:
-                if (ctx->vp) {
-                    check_cp0_enabled(ctx);
-                    gen_helper_dvp(t0, cpu_env);
-                    gen_store_gpr(t0, rt);
+            if (check_cp0_enabled(ctx)) {
+                TCGv t0 = tcg_temp_new();
+                switch (extract32(ctx->opcode, 10, 1)) {
+                case NM_DVP:
+                    if (ctx->vp) {
+                        gen_helper_dvp(t0, cpu_env);
+                        gen_store_gpr(t0, rt);
+                    }
+                    break;
+                case NM_EVP:
+                    if (ctx->vp) {
+                        gen_helper_evp(t0, cpu_env);
+                        gen_store_gpr(t0, rt);
+                    }
+                    break;
                 }
-                break;
-            case NM_EVP:
-                if (ctx->vp) {
-                    check_cp0_enabled(ctx);
-                    gen_helper_evp(t0, cpu_env);
-                    gen_store_gpr(t0, rt);
-                }
-                break;
+                tcg_temp_free(t0);
             }
-            tcg_temp_free(t0);
 #endif
         } else {
             gen_slt(ctx, OPC_SLTU, rd, rs, rt);
@@ -18067,16 +18071,16 @@ static void gen_pool32a0_nanomips_insn(CPUMIPSState *env, DisasContext *ctx)
         break;
 #ifndef CONFIG_USER_ONLY
     case NM_MFC0:
-        check_cp0_enabled(ctx);
-        if (rt == 0) {
-            /* Treat as NOP. */
-            break;
+        if (check_cp0_enabled(ctx)) {
+            if (rt == 0) {
+                /* Treat as NOP. */
+                break;
+            }
+            gen_mfc0(ctx, cpu_gpr[rt], rs, extract32(ctx->opcode, 11, 3));
         }
-        gen_mfc0(ctx, cpu_gpr[rt], rs, extract32(ctx->opcode, 11, 3));
         break;
     case NM_MTC0:
-        check_cp0_enabled(ctx);
-        {
+        if (check_cp0_enabled(ctx)) {
             TCGv t0 = tcg_temp_new();
 
             gen_load_gpr(t0, rt);
@@ -18140,19 +18144,23 @@ static void gen_pool32a0_nanomips_insn(CPUMIPSState *env, DisasContext *ctx)
         break;
     case NM_MFTR:
     case NM_MFHTR:
-        check_cp0_enabled(ctx);
-        if (rd == 0) {
-            /* Treat as NOP. */
-            return;
+        if (check_cp0_enabled(ctx)) {
+            if (rd == 0) {
+                /* Treat as NOP. */
+                return;
+            }
+            gen_mftr(env, ctx, rs, rt, extract32(ctx->opcode, 10, 1),
+                     extract32(ctx->opcode, 11, 5),
+                     extract32(ctx->opcode, 3, 1));
         }
-        gen_mftr(env, ctx, rs, rt, extract32(ctx->opcode, 10, 1),
-                 extract32(ctx->opcode, 11, 5), extract32(ctx->opcode, 3, 1));
         break;
     case NM_MTTR:
     case NM_MTHTR:
-        check_cp0_enabled(ctx);
-        gen_mttr(env, ctx, rs, rt, extract32(ctx->opcode, 10, 1),
-                 extract32(ctx->opcode, 11, 5), extract32(ctx->opcode, 3, 1));
+        if (check_cp0_enabled(ctx)) {
+            gen_mttr(env, ctx, rs, rt, extract32(ctx->opcode, 10, 1),
+                     extract32(ctx->opcode, 11, 5),
+                     extract32(ctx->opcode, 3, 1));
+        }
         break;
     case NM_YIELD:
         check_mt(ctx);
@@ -18943,8 +18951,7 @@ static void gen_pool32axf_nanomips_insn(CPUMIPSState *env, DisasContext *ctx)
             gen_cp0(env, ctx, OPC_TLBINVF, 0, 0);
             break;
         case NM_DI:
-            check_cp0_enabled(ctx);
-            {
+            if (check_cp0_enabled(ctx)) {
                 TCGv t0 = tcg_temp_new();
 
                 save_cpu_state(ctx, 1);
@@ -18956,8 +18963,7 @@ static void gen_pool32axf_nanomips_insn(CPUMIPSState *env, DisasContext *ctx)
             }
             break;
         case NM_EI:
-            check_cp0_enabled(ctx);
-            {
+            if (check_cp0_enabled(ctx)) {
                 TCGv t0 = tcg_temp_new();
 
                 save_cpu_state(ctx, 1);
@@ -20900,15 +20906,17 @@ static int decode_nanomips_32_48_opc(CPUMIPSState *env, DisasContext *ctx)
                     }
                     break;
                 case NM_CACHE:
-                    check_cp0_enabled(ctx);
-                    if (ctx->hflags & MIPS_HFLAG_ITC_CACHE) {
+                    if (check_cp0_enabled(ctx)
+                            && ctx->hflags & MIPS_HFLAG_ITC_CACHE) {
                         gen_cache_operation(ctx, rt, rs, s);
                     }
                     break;
                 }
                 break;
             case NM_P_LS_E0:
-                check_cp0_enabled(ctx);
+                if (check_cp0_enabled(ctx)) {
+                    break;
+                }
                 switch (extract32(ctx->opcode, 11, 4)) {
                 case NM_LBE:
                     check_eva(ctx);
@@ -23770,8 +23778,7 @@ static void decode_opc_special3_r6(CPUMIPSState *env, DisasContext *ctx)
         /* Treat as NOP. */
         break;
     case R6_OPC_CACHE:
-        check_cp0_enabled(ctx);
-        if (ctx->hflags & MIPS_HFLAG_ITC_CACHE) {
+        if (check_cp0_enabled(ctx) && ctx->hflags & MIPS_HFLAG_ITC_CACHE) {
             gen_cache_operation(ctx, rt, rs, imm);
         }
         break;
@@ -23806,7 +23813,9 @@ static void decode_opc_special3_r6(CPUMIPSState *env, DisasContext *ctx)
         if (unlikely(ctx->gi <= 1)) {
             gen_reserved_instruction(ctx);
         }
-        check_cp0_enabled(ctx);
+        if (!check_cp0_enabled(ctx)) {
+            break;
+        }
         switch ((ctx->opcode >> 6) & 3) {
         case 0:    /* GINVI */
             /* Treat as NOP. */
@@ -24493,6 +24502,9 @@ static void decode_opc_special3(CPUMIPSState *env, DisasContext *ctx)
      * EVA is absent.
      */
     if (ctx->eva) {
+        if (!check_cp0_enabled(ctx)) {
+            return;
+        }
         switch (op1) {
         case OPC_LWLE:
         case OPC_LWRE:
@@ -24502,7 +24514,6 @@ static void decode_opc_special3(CPUMIPSState *env, DisasContext *ctx)
         case OPC_LHE:
         case OPC_LLE:
         case OPC_LWE:
-            check_cp0_enabled(ctx);
             gen_ld(ctx, op1, rt, rs, imm);
             return;
         case OPC_SWLE:
@@ -24510,22 +24521,18 @@ static void decode_opc_special3(CPUMIPSState *env, DisasContext *ctx)
         case OPC_SBE:
         case OPC_SHE:
         case OPC_SWE:
-            check_cp0_enabled(ctx);
             gen_st(ctx, op1, rt, rs, imm);
             return;
         case OPC_SCE:
-            check_cp0_enabled(ctx);
             gen_st_cond(ctx, rt, rs, imm, MO_TESL, true);
             return;
         case OPC_CACHEE:
             check_eva(ctx);
-            check_cp0_enabled(ctx);
             if (ctx->hflags & MIPS_HFLAG_ITC_CACHE) {
                 gen_cache_operation(ctx, rt, rs, imm);
             }
             return;
         case OPC_PREFE:
-            check_cp0_enabled(ctx);
             /* Treat as NOP. */
             return;
         }
@@ -24750,7 +24757,9 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
         }
         break;
     case OPC_CP0:
-        check_cp0_enabled(ctx);
+        if (!check_cp0_enabled(ctx)) {
+            break;
+        }
         op1 = MASK_CP0(ctx->opcode);
         switch (op1) {
         case OPC_MFC0:
@@ -24990,9 +24999,8 @@ static bool decode_opc_legacy(CPUMIPSState *env, DisasContext *ctx)
         gen_st_cond(ctx, rt, rs, imm, MO_TESL, false);
         break;
     case OPC_CACHE:
-        check_cp0_enabled(ctx);
         check_insn(ctx, ISA_MIPS3 | ISA_MIPS_R1);
-        if (ctx->hflags & MIPS_HFLAG_ITC_CACHE) {
+        if (check_cp0_enabled(ctx) && ctx->hflags & MIPS_HFLAG_ITC_CACHE) {
             gen_cache_operation(ctx, rt, rs, imm);
         }
         /* Treat as NOP. */
