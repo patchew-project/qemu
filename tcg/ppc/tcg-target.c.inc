@@ -25,6 +25,11 @@
 #include "elf.h"
 #include "../tcg-pool.c.inc"
 
+/* Clang does not define _CALL_* */
+#if defined(__clang__) && defined(__ELF__) && !defined(_CALL_SYSV)
+#define _CALL_SYSV 1
+#endif
+
 #if defined _CALL_DARWIN || defined __APPLE__
 #define TCG_TARGET_CALL_DARWIN
 #endif
