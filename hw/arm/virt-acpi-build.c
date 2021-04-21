@@ -44,6 +44,7 @@
 #include "hw/acpi/tpm.h"
 #include "hw/pci/pcie_host.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/pci_bus.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/arm/virt.h"
 #include "hw/mem/nvdimm.h"
@@ -237,6 +238,41 @@ static void acpi_dsdt_add_tpm(Aml *scope, VirtMachineState *vms)
     aml_append(scope, dev);
 }
 
+/* Build the iort ID mapping to SMMUv3 for a given PCI host bridge */
+static int
+iort_host_bridges(Object *obj, void *opaque)
+{
+    GArray *idmap_blob = opaque;
+
+    if (object_dynamic_cast(obj, TYPE_PCI_HOST_BRIDGE)) {
+        PCIBus *bus = PCI_HOST_BRIDGE(obj)->bus;
+
+        if (bus && !pci_bus_bypass_iommu(bus)) {
+            int min_bus, max_bus;
+            pci_bus_range(bus, &min_bus, &max_bus);
+
+            AcpiIortIdMapping idmap = {
+                .input_base = cpu_to_le32(min_bus << 8),
+                .id_count = cpu_to_le32((max_bus - min_bus + 1) << 8),
+                .output_base = cpu_to_le32(min_bus << 8),
+                .output_reference = cpu_to_le32(0),
+                .flags = cpu_to_le32(0),
+            };
+            g_array_append_val(idmap_blob, idmap);
+        }
+    }
+
+    return 0;
+}
+
+static int smmu_idmap_sort_func(gconstpointer a, gconstpointer b)
+{
+    AcpiIortIdMapping *idmap_a = (AcpiIortIdMapping *)a;
+    AcpiIortIdMapping *idmap_b = (AcpiIortIdMapping *)b;
+
+    return idmap_a->input_base - idmap_b->input_base;
+}
+
 static void
 build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 {
@@ -247,6 +283,45 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     AcpiIortSmmu3 *smmu;
     size_t node_size, iort_node_offset, iort_length, smmu_offset = 0;
     AcpiIortRC *rc;
+    uint32_t base, i, rc_map_count;
+    GArray *smmu_idmap_blob =
+        g_array_new(false, true, sizeof(AcpiIortIdMapping));
+    GArray *its_idmap_blob =
+        g_array_new(false, true, sizeof(AcpiIortIdMapping));
+
+    object_child_foreach_recursive(object_get_root(),
+                                   iort_host_bridges, smmu_idmap_blob);
+
+    g_array_sort(smmu_idmap_blob, smmu_idmap_sort_func);
+
+    /* Build the iort ID mapping to ITS directly */
+    i = 0, base = 0;
+    while (base < 0xFFFF && i <= smmu_idmap_blob->len) {
+        AcpiIortIdMapping new_idmap = {
+            .input_base = cpu_to_le32(base),
+            .id_count = cpu_to_le32(0),
+            .output_base = cpu_to_le32(base),
+            .output_reference = cpu_to_le32(0),
+            .flags = cpu_to_le32(0),
+        };
+
+        if (i == smmu_idmap_blob->len) {
+            if (base < 0xFFFF) {
+                new_idmap.id_count = cpu_to_le32(0xFFFF - base);
+                g_array_append_val(its_idmap_blob, new_idmap);
+            }
+            break;
+        }
+
+        idmap = &g_array_index(smmu_idmap_blob, AcpiIortIdMapping, i);
+        if (base < idmap->input_base) {
+            new_idmap.id_count = cpu_to_le32(idmap->input_base - base);
+            g_array_append_val(its_idmap_blob, new_idmap);
+        }
+
+        i++;
+        base = idmap->input_base + idmap->id_count;
+    }
 
     iort = acpi_data_push(table_data, sizeof(*iort));
 
@@ -280,13 +355,13 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 
         /* SMMUv3 node */
         smmu_offset = iort_node_offset + node_size;
-        node_size = sizeof(*smmu) + sizeof(*idmap);
+        node_size = sizeof(*smmu) + sizeof(*idmap) * smmu_idmap_blob->len;
         iort_length += node_size;
         smmu = acpi_data_push(table_data, node_size);
 
         smmu->type = ACPI_IORT_NODE_SMMU_V3;
         smmu->length = cpu_to_le16(node_size);
-        smmu->mapping_count = cpu_to_le32(1);
+        smmu->mapping_count = cpu_to_le32(smmu_idmap_blob->len);
         smmu->mapping_offset = cpu_to_le32(sizeof(*smmu));
         smmu->base_address = cpu_to_le64(vms->memmap[VIRT_SMMU].base);
         smmu->flags = cpu_to_le32(ACPI_IORT_SMMU_V3_COHACC_OVERRIDE);
@@ -295,23 +370,24 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
         smmu->sync_gsiv = cpu_to_le32(irq + 2);
         smmu->gerr_gsiv = cpu_to_le32(irq + 3);
 
-        /* Identity RID mapping covering the whole input RID range */
-        idmap = &smmu->id_mapping_array[0];
-        idmap->input_base = 0;
-        idmap->id_count = cpu_to_le32(0xFFFF);
-        idmap->output_base = 0;
-        /* output IORT node is the ITS group node (the first node) */
-        idmap->output_reference = cpu_to_le32(iort_node_offset);
+        for (i = 0; i < smmu_idmap_blob->len; i++) {
+            idmap = &smmu->id_mapping_array[i];
+            *idmap = g_array_index(smmu_idmap_blob, AcpiIortIdMapping, i);
+            /* output IORT node is the ITS group node (the first node) */
+            idmap->output_reference = cpu_to_le32(iort_node_offset);
+        }
     }
 
     /* Root Complex Node */
-    node_size = sizeof(*rc) + sizeof(*idmap);
+    rc_map_count = (vms->iommu == VIRT_IOMMU_SMMUV3) ?
+        smmu_idmap_blob->len + its_idmap_blob->len : 1;
+    node_size = sizeof(*rc) + sizeof(*idmap) * rc_map_count;
     iort_length += node_size;
     rc = acpi_data_push(table_data, node_size);
 
     rc->type = ACPI_IORT_NODE_PCI_ROOT_COMPLEX;
     rc->length = cpu_to_le16(node_size);
-    rc->mapping_count = cpu_to_le32(1);
+    rc->mapping_count = cpu_to_le32(rc_map_count);
     rc->mapping_offset = cpu_to_le32(sizeof(*rc));
 
     /* fully coherent device */
@@ -319,19 +395,33 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     rc->memory_properties.memory_flags = 0x3; /* CCA = CPM = DCAS = 1 */
     rc->pci_segment_number = 0; /* MCFG pci_segment */
 
-    /* Identity RID mapping covering the whole input RID range */
-    idmap = &rc->id_mapping_array[0];
-    idmap->input_base = 0;
-    idmap->id_count = cpu_to_le32(0xFFFF);
-    idmap->output_base = 0;
-
     if (vms->iommu == VIRT_IOMMU_SMMUV3) {
-        /* output IORT node is the smmuv3 node */
-        idmap->output_reference = cpu_to_le32(smmu_offset);
+        for (i = 0; i < rc_map_count; i++) {
+            idmap = &rc->id_mapping_array[i];
+
+            if (i < smmu_idmap_blob->len) {
+                *idmap = g_array_index(smmu_idmap_blob, AcpiIortIdMapping, i);
+                /* output IORT node is the smmuv3 node */
+                idmap->output_reference = cpu_to_le32(smmu_offset);
+            } else {
+                *idmap = g_array_index(its_idmap_blob,
+                         AcpiIortIdMapping, i - smmu_idmap_blob->len);
+                /* output IORT node is the ITS group node (the first node) */
+                idmap->output_reference = cpu_to_le32(iort_node_offset);
+            }
+        }
     } else {
+        /* Identity RID mapping covering the whole input RID range */
+        idmap = &rc->id_mapping_array[0];
+        idmap->input_base = cpu_to_le32(0);
+        idmap->id_count = cpu_to_le32(0xFFFF);
+        idmap->output_base = cpu_to_le32(0);
         /* output IORT node is the ITS group node (the first node) */
         idmap->output_reference = cpu_to_le32(iort_node_offset);
     }
+
+    g_array_free(smmu_idmap_blob, true);
+    g_array_free(its_idmap_blob, true);
 
     /*
      * Update the pointer address in case table_data->data moves during above
