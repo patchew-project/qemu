@@ -36,6 +36,8 @@
 #include "qemu/main-loop.h"
 #include "sysemu/replay.h"
 
+#include "qapi/qapi-events-block-core.h"
+
 /* Maximum bounce buffer for copy-on-read and write zeroes, in bytes */
 #define MAX_BOUNCE_BUFFER (32768 << BDRV_SECTOR_BITS)
 
@@ -2001,6 +2003,8 @@ bdrv_co_write_req_prepare(BdrvChild *child, int64_t offset, int64_t bytes,
            child->perm & BLK_PERM_RESIZE);
 
     switch (req->type) {
+        uint64_t write_threshold;
+
     case BDRV_TRACKED_WRITE:
     case BDRV_TRACKED_DISCARD:
         if (flags & BDRV_REQ_WRITE_UNCHANGED) {
@@ -2008,8 +2012,15 @@ bdrv_co_write_req_prepare(BdrvChild *child, int64_t offset, int64_t bytes,
         } else {
             assert(child->perm & BLK_PERM_WRITE);
         }
-        return notifier_with_return_list_notify(&bs->before_write_notifiers,
-                                                req);
+        write_threshold = qatomic_read(&bs->write_threshold_offset);
+        if (write_threshold > 0 && offset + bytes > write_threshold) {
+            qapi_event_send_block_write_threshold(
+                bs->node_name,
+                offset + bytes - write_threshold,
+                write_threshold);
+            qatomic_set(&bs->write_threshold_offset, 0);
+        }
+        return 0;
     case BDRV_TRACKED_TRUNCATE:
         assert(child->perm & BLK_PERM_RESIZE);
         return 0;
@@ -3162,12 +3173,6 @@ bool bdrv_qiov_is_aligned(BlockDriverState *bs, QEMUIOVector *qiov)
     }
 
     return true;
-}
-
-void bdrv_add_before_write_notifier(BlockDriverState *bs,
-                                    NotifierWithReturn *notifier)
-{
-    notifier_with_return_list_add(&bs->before_write_notifiers, notifier);
 }
 
 void bdrv_io_plug(BlockDriverState *bs)

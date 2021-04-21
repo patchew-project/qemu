@@ -12,6 +12,44 @@
 #include "block/write-threshold.h"
 
 
+/*
+ * bdrv_write_threshold_is_set
+ *
+ * Tell if a write threshold is set for a given BDS.
+ */
+static bool bdrv_write_threshold_is_set(const BlockDriverState *bs)
+{
+    return bs->write_threshold_offset > 0;
+}
+
+/*
+ * bdrv_write_threshold_exceeded
+ *
+ * Return the extent of a write request that exceeded the threshold,
+ * or zero if the request is below the threshold.
+ * Return zero also if the threshold was not set.
+ *
+ * NOTE: here we assume the following holds for each request this code
+ * deals with:
+ *
+ * assert((req->offset + req->bytes) <= UINT64_MAX)
+ *
+ * Please not there is *not* an actual C assert().
+ */
+static uint64_t bdrv_write_threshold_exceeded(const BlockDriverState *bs,
+                                              const BdrvTrackedRequest *req)
+{
+    if (bdrv_write_threshold_is_set(bs)) {
+        if (req->offset > bs->write_threshold_offset) {
+            return (req->offset - bs->write_threshold_offset) + req->bytes;
+        }
+        if ((req->offset + req->bytes) > bs->write_threshold_offset) {
+            return (req->offset + req->bytes) - bs->write_threshold_offset;
+        }
+    }
+    return 0;
+}
+
 static void test_threshold_not_set_on_init(void)
 {
     uint64_t res;
