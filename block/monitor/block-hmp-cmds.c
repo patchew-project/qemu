@@ -559,6 +559,7 @@ void hmp_qemu_io(Monitor *mon, const QDict *qdict)
 {
     BlockBackend *blk;
     BlockBackend *local_blk = NULL;
+    AioContext *ctx;
     bool qdev = qdict_get_try_bool(qdict, "qdev", false);
     const char *device = qdict_get_str(qdict, "device");
     const char *command = qdict_get_str(qdict, "command");
@@ -615,7 +616,13 @@ void hmp_qemu_io(Monitor *mon, const QDict *qdict)
     qemuio_command(blk, command);
 
 fail:
+    ctx = blk_get_aio_context(blk);
+    aio_context_acquire(ctx);
+
     blk_unref(local_blk);
+
+    aio_context_release(ctx);
+
     hmp_handle_error(mon, err);
 }
 
