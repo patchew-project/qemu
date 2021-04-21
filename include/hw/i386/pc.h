@@ -45,6 +45,7 @@ typedef struct PCMachineState {
     bool sata_enabled;
     bool pit_enabled;
     bool hpet_enabled;
+    bool bypass_iommu;
     uint64_t max_fw_size;
 
     /* NUMA information: */
