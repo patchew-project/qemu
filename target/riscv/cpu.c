@@ -583,6 +583,8 @@ static const char *riscv_gdb_get_dynamic_xml(CPUState *cs, const char *xmlname)
 
 #ifndef CONFIG_USER_ONLY
 static const struct SysemuCPUOps riscv_sysemu_ops = {
+    .write_elf64_note = riscv_cpu_write_elf64_note,
+    .write_elf32_note = riscv_cpu_write_elf32_note,
     /* For now, mark unmigratable: */
     .vmsd = &vmstate_riscv_cpu,
 };
@@ -631,8 +633,6 @@ static void riscv_cpu_class_init(ObjectClass *c, void *data)
 #ifndef CONFIG_USER_ONLY
     cc->get_phys_page_debug = riscv_cpu_get_phys_page_debug;
     cc->sysemu_ops = &riscv_sysemu_ops;
-    cc->write_elf64_note = riscv_cpu_write_elf64_note;
-    cc->write_elf32_note = riscv_cpu_write_elf32_note;
 #endif
     cc->gdb_arch_name = riscv_gdb_arch_name;
     cc->gdb_get_dynamic_xml = riscv_gdb_get_dynamic_xml;
