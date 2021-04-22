@@ -878,9 +878,6 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
         } else {
             refcount += addend;
         }
-        if (refcount == 0 && cluster_index < s->free_cluster_index) {
-            s->free_cluster_index = cluster_index;
-        }
         s->set_refcount(refcount_block, block_index, refcount);
 
         if (refcount == 0) {
@@ -900,8 +897,20 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
                 qcow2_cache_discard(s->l2_table_cache, table);
             }
 
-            if (s->discard_passthrough[type]) {
-                qcow2_cache_host_discard(bs, cluster_offset, s->cluster_size);
+            if (!qcow2_host_cluster_postponed_discard(bs, cluster_index,
+                                                      type))
+            {
+                /*
+                 * Refcount is zero as well as host-range-refcnt. Cluster is
+                 * free.
+                 */
+                if (cluster_index < s->free_cluster_index) {
+                    s->free_cluster_index = cluster_index;
+                }
+                if (s->discard_passthrough[type]) {
+                    qcow2_cache_host_discard(bs, cluster_offset,
+                                            s->cluster_size);
+                }
             }
         }
     }
@@ -963,7 +972,7 @@ int qcow2_update_cluster_refcount(BlockDriverState *bs,
 
 
 /*
- * Cluster is free when its refcount is 0
+ * Cluster is free when its refcount is 0 and there is no in-flight writes
  *
  * Return < 0 if failed to get refcount
  *          0 if cluster is not free
@@ -979,7 +988,7 @@ static int is_cluster_free(BlockDriverState *bs, int64_t cluster_index)
         return ret;
     }
 
-    return refcount == 0;
+    return refcount == 0 && qcow2_get_host_range_refcnt(bs, cluster_index) == 0;
 }
 
 /* return < 0 if error */

@@ -911,6 +911,10 @@ void qcow2_host_range_unref(BlockDriverState *bs, int64_t offset,
 uint64_t qcow2_get_host_range_refcnt(BlockDriverState *bs,
                                      int64_t cluster_index);
 
+bool qcow2_host_cluster_postponed_discard(BlockDriverState *bs,
+                                          int64_t cluster_index,
+                                          enum qcow2_discard_type type);
+
 /* qcow2-cluster.c functions */
 int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
                         bool exact_size);

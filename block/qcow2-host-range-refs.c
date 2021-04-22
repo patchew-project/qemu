@@ -30,6 +30,13 @@ typedef struct HostCluster {
 
     /* For convenience, keep cluster_index here */
     int64_t cluster_index;
+
+    /*
+     * Qcow2 refcount of this host cluster is zero. So, when all dynamic users
+     * put their references back, we should discard the cluster.
+     */
+    bool postponed_discard;
+    enum qcow2_discard_type postponed_discard_type;
 } HostCluster;
 
 void qcow2_init_host_range_refs(BDRVQcow2State *s)
@@ -122,6 +129,46 @@ qcow2_host_range_unref(BlockDriverState *bs, int64_t offset, int64_t length)
             continue;
         }
 
+        if (!cl->postponed_discard) {
+            g_hash_table_remove(s->host_range_refs, &cluster_index);
+            continue;
+        }
+
+        /*
+         * OK. refcnt become 0 and we should do postponed discard. Let's keep
+         * host_range_refcnt = 1 during this final IO operation.
+         */
+        if (s->discard_passthrough[cl->postponed_discard_type]) {
+            int64_t cluster_offset = cluster_index << s->cluster_bits;
+            if (s->cache_discards) {
+                qcow2_cache_host_discard(bs, cluster_offset, s->cluster_size);
+            } else {
+                /* Discard is optional, ignore the return value */
+                bdrv_pdiscard(bs->file, cluster_offset, s->cluster_size);
+            }
+        }
+
         g_hash_table_remove(s->host_range_refs, &cluster_index);
+
+        if (cluster_index < s->free_cluster_index) {
+            s->free_cluster_index = cluster_index;
+        }
     }
+}
+
+bool qcow2_host_cluster_postponed_discard(BlockDriverState *bs,
+                                          int64_t cluster_index,
+                                          enum qcow2_discard_type type)
+{
+    BDRVQcow2State *s = bs->opaque;
+    HostCluster *cl = find_host_cluster(s, cluster_index);
+
+    if (!cl) {
+        return false;
+    }
+
+    cl->postponed_discard = true;
+    cl->postponed_discard_type = type;
+
+    return true;
 }
