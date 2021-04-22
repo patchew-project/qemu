@@ -3931,10 +3931,6 @@ static coroutine_fn int qcow2_co_pwrite_zeroes(BlockDriverState *bs,
     }
 
     if (head || tail) {
-        uint64_t off;
-        unsigned int nr;
-        QCow2SubclusterType type;
-
         assert(head + bytes + tail <= s->subcluster_size);
 
         /* check whether remainder of cluster already reads as zero */
@@ -3942,32 +3938,37 @@ static coroutine_fn int qcow2_co_pwrite_zeroes(BlockDriverState *bs,
               is_zero(bs, offset + bytes, tail))) {
             return -ENOTSUP;
         }
+    }
 
-        qemu_co_mutex_lock(&s->lock);
+    QEMU_LOCK_GUARD(&s->lock);
+
+    if (head || tail) {
+        uint64_t off;
+        unsigned int nr;
+        QCow2SubclusterType type;
+
         /* We can have new write after previous check */
         offset -= head;
         bytes = s->subcluster_size;
         nr = s->subcluster_size;
         ret = qcow2_get_host_offset(bs, offset, &nr, &off, &type);
-        if (ret < 0 ||
-            (type != QCOW2_SUBCLUSTER_UNALLOCATED_PLAIN &&
-             type != QCOW2_SUBCLUSTER_UNALLOCATED_ALLOC &&
-             type != QCOW2_SUBCLUSTER_ZERO_PLAIN &&
-             type != QCOW2_SUBCLUSTER_ZERO_ALLOC)) {
-            qemu_co_mutex_unlock(&s->lock);
-            return ret < 0 ? ret : -ENOTSUP;
+        if (ret < 0) {
+            return ret;
         }
-    } else {
-        qemu_co_mutex_lock(&s->lock);
+
+        if (type != QCOW2_SUBCLUSTER_UNALLOCATED_PLAIN &&
+            type != QCOW2_SUBCLUSTER_UNALLOCATED_ALLOC &&
+            type != QCOW2_SUBCLUSTER_ZERO_PLAIN &&
+            type != QCOW2_SUBCLUSTER_ZERO_ALLOC)
+        {
+            return -ENOTSUP;
+        }
     }
 
     trace_qcow2_pwrite_zeroes(qemu_coroutine_self(), offset, bytes);
 
     /* Whatever is left can use real zero subclusters */
-    ret = qcow2_subcluster_zeroize(bs, offset, bytes, flags);
-    qemu_co_mutex_unlock(&s->lock);
-
-    return ret;
+    return qcow2_subcluster_zeroize(bs, offset, bytes, flags);
 }
 
 static coroutine_fn int qcow2_co_pdiscard(BlockDriverState *bs,
