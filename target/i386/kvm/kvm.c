@@ -835,6 +835,8 @@ static struct {
     [HYPERV_FEAT_CRASH] = {
         .desc = "crash MSRs (hv-crash)",
         .flags = {
+            {.func = HV_CPUID_FEATURES, .reg = R_EAX,
+             .bits = HV_HYPERCALL_AVAILABLE},
             {.func = HV_CPUID_FEATURES, .reg = R_EDX,
              .bits = HV_GUEST_CRASH_MSR_AVAILABLE}
         }
@@ -843,28 +845,28 @@ static struct {
         .desc = "reset MSR (hv-reset)",
         .flags = {
             {.func = HV_CPUID_FEATURES, .reg = R_EAX,
-             .bits = HV_RESET_AVAILABLE}
+             .bits = HV_HYPERCALL_AVAILABLE | HV_RESET_AVAILABLE}
         }
     },
     [HYPERV_FEAT_VPINDEX] = {
         .desc = "VP_INDEX MSR (hv-vpindex)",
         .flags = {
             {.func = HV_CPUID_FEATURES, .reg = R_EAX,
-             .bits = HV_VP_INDEX_AVAILABLE}
+             .bits = HV_HYPERCALL_AVAILABLE | HV_VP_INDEX_AVAILABLE}
         }
     },
     [HYPERV_FEAT_RUNTIME] = {
         .desc = "VP_RUNTIME MSR (hv-runtime)",
         .flags = {
             {.func = HV_CPUID_FEATURES, .reg = R_EAX,
-             .bits = HV_VP_RUNTIME_AVAILABLE}
+             .bits = HV_HYPERCALL_AVAILABLE | HV_VP_RUNTIME_AVAILABLE}
         }
     },
     [HYPERV_FEAT_SYNIC] = {
         .desc = "synthetic interrupt controller (hv-synic)",
         .flags = {
             {.func = HV_CPUID_FEATURES, .reg = R_EAX,
-             .bits = HV_SYNIC_AVAILABLE}
+             .bits = HV_HYPERCALL_AVAILABLE | HV_SYNIC_AVAILABLE}
         }
     },
     [HYPERV_FEAT_STIMER] = {
@@ -879,7 +881,7 @@ static struct {
         .desc = "frequency MSRs (hv-frequencies)",
         .flags = {
             {.func = HV_CPUID_FEATURES, .reg = R_EAX,
-             .bits = HV_ACCESS_FREQUENCY_MSRS},
+             .bits = HV_HYPERCALL_AVAILABLE | HV_ACCESS_FREQUENCY_MSRS},
             {.func = HV_CPUID_FEATURES, .reg = R_EDX,
              .bits = HV_FREQUENCY_MSRS_AVAILABLE}
         }
@@ -888,7 +890,8 @@ static struct {
         .desc = "reenlightenment MSRs (hv-reenlightenment)",
         .flags = {
             {.func = HV_CPUID_FEATURES, .reg = R_EAX,
-             .bits = HV_ACCESS_REENLIGHTENMENTS_CONTROL}
+             .bits = HV_HYPERCALL_AVAILABLE |
+             HV_ACCESS_REENLIGHTENMENTS_CONTROL}
         }
     },
     [HYPERV_FEAT_TLBFLUSH] = {
