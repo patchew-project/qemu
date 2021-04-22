@@ -25,6 +25,7 @@
 #include "cpu-qom.h"
 
 #include "exec/cpu-defs.h"
+#include "hw/core/sysemu-cpu-ops.h"
 
 /* PSW define */
 REG32(PSW, 0)

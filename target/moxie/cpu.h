@@ -22,6 +22,9 @@
 
 #include "exec/cpu-defs.h"
 #include "qom/object.h"
+#ifndef CONFIG_USER_ONLY
+#include "hw/core/sysemu-cpu-ops.h"
+#endif
 
 #define MOXIE_EX_DIV0        0
 #define MOXIE_EX_BAD         1
