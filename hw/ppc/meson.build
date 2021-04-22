@@ -14,7 +14,6 @@ ppc_ss.add(when: 'CONFIG_PSERIES', if_true: files(
   'spapr_caps.c',
   'spapr_vio.c',
   'spapr_events.c',
-  'spapr_hcall.c',
   'spapr_iommu.c',
   'spapr_rtas.c',
   'spapr_pci.c',
@@ -29,6 +28,15 @@ ppc_ss.add(when: 'CONFIG_PSERIES', if_true: files(
   'spapr_numa.c',
   'pef.c',
 ))
+tcg_ss = ss.source_set()
+tcg_ss.add(when: 'CONFIG_TCG', if_true: files(
+  'spapr_hcall.c',
+), if_false: files(
+  'spapr_hcall_tcg_stub.c',
+))
+
+ppc_ss.add_all(when: 'CONFIG_PSERIES', if_true: tcg_ss)
+
 ppc_ss.add(when: 'CONFIG_SPAPR_RNG', if_true: files('spapr_rng.c'))
 ppc_ss.add(when: ['CONFIG_PSERIES', 'CONFIG_LINUX'], if_true: files(
   'spapr_pci_vfio.c',
