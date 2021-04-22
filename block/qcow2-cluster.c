@@ -809,6 +809,10 @@ static int get_cluster_table(BlockDriverState *bs, uint64_t offset,
  * already allocated at the offset, return an error.
  *
  * Return 0 on success and -errno in error cases
+ *
+ * On success the host range [*host_offset, *host_offset + compressed_size) is
+ * referenced. Caller is responsible to unref it by qcow2_host_range_unref()
+ * after finishing IO operation with this range.
  */
 int qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
                                           uint64_t offset,
@@ -866,6 +870,9 @@ int qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
     qcow2_cache_put(s->l2_table_cache, (void **) &l2_slice);
 
     *host_offset = cluster_offset & s->cluster_offset_mask;
+
+    qcow2_host_range_ref(bs, *host_offset, compressed_size);
+
     return 0;
 }
 
@@ -1738,6 +1745,10 @@ out:
  * is queued and will be reentered when the dependency has completed.
  *
  * Return 0 on success and -errno in error cases
+ *
+ * On success the host range [*host_offset, *host_offset + *bytes) is
+ * referenced. Caller is responsible to unref it by qcow2_host_range_unref()
+ * after finishing IO operation with this range.
  */
 int qcow2_alloc_host_offset(BlockDriverState *bs, uint64_t offset,
                             unsigned int *bytes, uint64_t *host_offset,
@@ -1847,6 +1858,8 @@ again:
     assert(*host_offset != INV_OFFSET);
     assert(offset_into_cluster(s, *host_offset) ==
            offset_into_cluster(s, offset));
+
+    qcow2_host_range_ref(bs, *host_offset, *bytes);
 
     return 0;
 }

@@ -2489,6 +2489,8 @@ static int handle_alloc_space(BlockDriverState *bs, QCowL2Meta *l2meta)
  * Called with s->lock unlocked
  * l2meta  - if not NULL, qcow2_co_pwritev_task() will consume it. Caller must
  *           not use it somehow after qcow2_co_pwritev_task() call
+ *
+ * Function consumes range reference both on success and failure.
  */
 static coroutine_fn int qcow2_co_pwritev_task(BlockDriverState *bs,
                                               uint64_t host_offset,
@@ -2554,6 +2556,9 @@ out_unlocked:
 
 out_locked:
     qcow2_handle_l2meta(bs, &l2meta, false);
+
+    qcow2_host_range_unref(bs, host_offset, bytes);
+
     qemu_co_mutex_unlock(&s->lock);
 
     qemu_vfree(crypt_buf);
@@ -2610,6 +2615,7 @@ static coroutine_fn int qcow2_co_pwritev_part(
         ret = qcow2_pre_write_overlap_check(bs, 0, host_offset,
                                             cur_bytes, true);
         if (ret < 0) {
+            qcow2_host_range_unref(bs, host_offset, cur_bytes);
             goto out_locked;
         }
 
@@ -3150,6 +3156,9 @@ static int coroutine_fn preallocate_co(BlockDriverState *bs, uint64_t offset,
             error_setg_errno(errp, -ret, "Allocating clusters failed");
             goto out;
         }
+
+        /* We do truncate under mutex, don't bother with host range refs */
+        qcow2_host_range_unref(bs, host_offset, cur_bytes);
 
         for (m = meta; m != NULL; m = m->next) {
             m->prealloc = true;
@@ -4122,12 +4131,14 @@ qcow2_co_copy_range_to(BlockDriverState *bs,
         ret = qcow2_pre_write_overlap_check(bs, 0, host_offset, cur_bytes,
                                             true);
         if (ret < 0) {
+            qcow2_host_range_unref(bs, host_offset, cur_bytes);
             goto fail;
         }
 
         qemu_co_mutex_unlock(&s->lock);
         ret = bdrv_co_copy_range_to(src, src_offset, s->data_file, host_offset,
                                     cur_bytes, read_flags, write_flags);
+        qcow2_host_range_unref(bs, host_offset, cur_bytes);
         qemu_co_mutex_lock(&s->lock);
         if (ret < 0) {
             goto fail;
@@ -4540,6 +4551,7 @@ qcow2_co_pwritev_compressed_task(BlockDriverState *bs,
     ssize_t out_len;
     uint8_t *buf, *out_buf;
     uint64_t cluster_offset;
+    bool unref_range = false;
 
     assert(bytes == s->cluster_size || (bytes < s->cluster_size &&
            (offset + bytes == bs->total_sectors << BDRV_SECTOR_BITS)));
@@ -4574,6 +4586,7 @@ qcow2_co_pwritev_compressed_task(BlockDriverState *bs,
         qemu_co_mutex_unlock(&s->lock);
         goto fail;
     }
+    unref_range = true;
 
     ret = qcow2_pre_write_overlap_check(bs, 0, cluster_offset, out_len, true);
     qemu_co_mutex_unlock(&s->lock);
@@ -4589,6 +4602,9 @@ qcow2_co_pwritev_compressed_task(BlockDriverState *bs,
 success:
     ret = 0;
 fail:
+    if (unref_range) {
+        qcow2_host_range_unref(bs, cluster_offset, out_len);
+    }
     qemu_vfree(buf);
     g_free(out_buf);
     return ret;
