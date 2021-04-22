@@ -4663,6 +4663,19 @@ qcow2_co_pwritev_compressed_part(BlockDriverState *bs,
     return ret;
 }
 
+void qcow2_parse_compressed_cluster_descriptor(BDRVQcow2State *s,
+                                               uint64_t cluster_descriptor,
+                                               uint64_t *coffset,
+                                               int *csize)
+{
+    int nb_csectors;
+
+    *coffset = cluster_descriptor & s->cluster_offset_mask;
+    nb_csectors = ((cluster_descriptor >> s->csize_shift) & s->csize_mask) + 1;
+    *csize = nb_csectors * QCOW2_COMPRESSED_SECTOR_SIZE -
+        (*coffset & ~QCOW2_COMPRESSED_SECTOR_MASK);
+}
+
 static int coroutine_fn
 qcow2_co_preadv_compressed(BlockDriverState *bs,
                            uint64_t cluster_descriptor,
@@ -4672,15 +4685,13 @@ qcow2_co_preadv_compressed(BlockDriverState *bs,
                            size_t qiov_offset)
 {
     BDRVQcow2State *s = bs->opaque;
-    int ret = 0, csize, nb_csectors;
+    int ret = 0, csize;
     uint64_t coffset;
     uint8_t *buf, *out_buf;
     int offset_in_cluster = offset_into_cluster(s, offset);
 
-    coffset = cluster_descriptor & s->cluster_offset_mask;
-    nb_csectors = ((cluster_descriptor >> s->csize_shift) & s->csize_mask) + 1;
-    csize = nb_csectors * QCOW2_COMPRESSED_SECTOR_SIZE -
-        (coffset & ~QCOW2_COMPRESSED_SECTOR_MASK);
+    qcow2_parse_compressed_cluster_descriptor(s, cluster_descriptor, &coffset,
+                                              &csize);
 
     buf = g_try_malloc(csize);
     if (!buf) {
