@@ -568,6 +568,10 @@ static int coroutine_fn do_perform_cow_write(BlockDriverState *bs,
  * Compressed clusters are always processed one by one.
  *
  * Returns 0 on success, -errno in error cases.
+ *
+ * The returned range is referenced, so that it can't be discarded in parallel.
+ * Caller is responsible to unref by qcow2_put_host_offset() after finishing IO
+ * operations with the range.
  */
 int qcow2_get_host_offset(BlockDriverState *bs, uint64_t offset,
                           unsigned int *bytes, uint64_t *host_offset,
@@ -721,11 +725,45 @@ out:
 
     *subcluster_type = type;
 
+    if (type == QCOW2_SUBCLUSTER_COMPRESSED) {
+        uint64_t coffset;
+        int csize;
+
+        qcow2_parse_compressed_cluster_descriptor(s, *host_offset, &coffset,
+                                                  &csize);
+        qcow2_host_range_ref(bs, coffset, csize);
+    } else if (*host_offset) {
+        qcow2_host_range_ref(bs, *host_offset, *bytes);
+    }
+
     return 0;
 
 fail:
     qcow2_cache_put(s->l2_table_cache, (void **)&l2_slice);
     return ret;
+}
+
+/*
+ * Caller of qcow2_get_host_offset() must call qcow2_put_host_offset() with
+ * returned parameters of qcow2_get_host_offset() when caller don't need them
+ * anymore.
+ */
+void qcow2_put_host_offset(BlockDriverState *bs,
+                           unsigned int bytes, uint64_t host_offset,
+                           QCow2SubclusterType subcluster_type)
+{
+    BDRVQcow2State *s = bs->opaque;
+
+    if (subcluster_type == QCOW2_SUBCLUSTER_COMPRESSED) {
+        uint64_t coffset;
+        int csize;
+
+        qcow2_parse_compressed_cluster_descriptor(s, host_offset, &coffset,
+                                                  &csize);
+        qcow2_host_range_unref(bs, coffset, csize);
+    } else if (host_offset) {
+        qcow2_host_range_unref(bs, host_offset, bytes);
+    }
 }
 
 /*

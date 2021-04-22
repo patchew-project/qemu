@@ -2069,6 +2069,8 @@ static int coroutine_fn qcow2_co_block_status(BlockDriverState *bs,
         return ret;
     }
 
+    qcow2_put_host_offset(bs, bytes, host_offset, type);
+
     *pnum = bytes;
 
     if ((type == QCOW2_SUBCLUSTER_NORMAL ||
@@ -2227,6 +2229,7 @@ static coroutine_fn int qcow2_add_task(BlockDriverState *bs,
     return 0;
 }
 
+/* Function consumes host range reference if needed */
 static coroutine_fn int qcow2_co_preadv_task(BlockDriverState *bs,
                                              QCow2SubclusterType subc_type,
                                              uint64_t host_offset,
@@ -2271,6 +2274,8 @@ static coroutine_fn int qcow2_co_preadv_task(BlockDriverState *bs,
     default:
         g_assert_not_reached();
     }
+
+    qcow2_put_host_offset(bs, bytes, host_offset, subc_type);
 
     return ret;
 }
@@ -2320,6 +2325,7 @@ static coroutine_fn int qcow2_co_preadv_part(BlockDriverState *bs,
             (type == QCOW2_SUBCLUSTER_UNALLOCATED_ALLOC && !bs->backing))
         {
             qemu_iovec_memset(qiov, qiov_offset, 0, cur_bytes);
+            qcow2_put_host_offset(bs, cur_bytes, host_offset, type);
         } else {
             if (!aio && cur_bytes != bytes) {
                 aio = aio_task_pool_new(QCOW2_MAX_WORKERS);
@@ -3968,6 +3974,12 @@ static coroutine_fn int qcow2_co_pwrite_zeroes(BlockDriverState *bs,
             return ret;
         }
 
+        /*
+         * We do the whole thing under s->lock, so we are safe in modifying
+         * metadata. We don't need the reference.
+         */
+        qcow2_put_host_offset(bs, nr, off, type);
+
         if (type != QCOW2_SUBCLUSTER_UNALLOCATED_PLAIN &&
             type != QCOW2_SUBCLUSTER_UNALLOCATED_ALLOC &&
             type != QCOW2_SUBCLUSTER_ZERO_PLAIN &&
@@ -4064,6 +4076,7 @@ qcow2_co_copy_range_from(BlockDriverState *bs,
             break;
 
         case QCOW2_SUBCLUSTER_COMPRESSED:
+            qcow2_put_host_offset(bs, cur_bytes, copy_offset, type);
             ret = -ENOTSUP;
             goto out;
 
@@ -4079,6 +4092,7 @@ qcow2_co_copy_range_from(BlockDriverState *bs,
                                       copy_offset,
                                       dst, dst_offset,
                                       cur_bytes, read_flags, cur_write_flags);
+        qcow2_put_host_offset(bs, cur_bytes, copy_offset, type);
         qemu_co_mutex_lock(&s->lock);
         if (ret < 0) {
             goto out;
@@ -4700,6 +4714,7 @@ void qcow2_parse_compressed_cluster_descriptor(BDRVQcow2State *s,
         (*coffset & ~QCOW2_COMPRESSED_SECTOR_MASK);
 }
 
+/* Function consumes host range reference */
 static int coroutine_fn
 qcow2_co_preadv_compressed(BlockDriverState *bs,
                            uint64_t cluster_descriptor,
