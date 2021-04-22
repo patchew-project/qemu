@@ -3,6 +3,7 @@ ppc_ss.add(files(
   'cpu-models.c',
   'cpu.c',
   'gdbstub.c',
+  'common-misc.c',
 ))
 
 ppc_ss.add(libdecnumber)

@@ -52,6 +52,7 @@
 #include "mmu-hash64.h"
 #include "mmu-book3s-v3.h"
 #include "cpu-models.h"
+#include "common-misc.h"
 #include "hw/core/cpu.h"
 
 #include "hw/boards.h"
