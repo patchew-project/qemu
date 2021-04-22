@@ -25,6 +25,7 @@ block_ss.add(files(
   'qcow2-bitmap.c',
   'qcow2-cache.c',
   'qcow2-cluster.c',
+  'qcow2-host-range-refs.c',
   'qcow2-refcount.c',
   'qcow2-snapshot.c',
   'qcow2-threads.c',

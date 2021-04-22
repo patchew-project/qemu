@@ -1834,6 +1834,7 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
 #endif
 
     qemu_co_queue_init(&s->thread_task_queue);
+    qcow2_init_host_range_refs(s);
 
     return ret;
 
@@ -2713,6 +2714,8 @@ static void qcow2_close(BlockDriverState *bs)
     g_free(s->image_data_file);
     g_free(s->image_backing_file);
     g_free(s->image_backing_format);
+
+    qcow2_release_host_range_refs(s);
 
     if (has_data_file(bs)) {
         bdrv_unref_child(bs, s->data_file);

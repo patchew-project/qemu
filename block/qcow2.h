@@ -420,6 +420,9 @@ typedef struct BDRVQcow2State {
      * is to convert the image with the desired compression type set.
      */
     Qcow2CompressionType compression_type;
+
+    /* For qcow2-host-range-refs.c */
+    GHashTable *host_range_refs;
 } BDRVQcow2State;
 
 typedef struct Qcow2COWRegion {
@@ -898,6 +901,15 @@ int qcow2_detect_metadata_preallocation(BlockDriverState *bs);
 
 void qcow2_cache_host_discard(BlockDriverState *bs,
                               uint64_t offset, uint64_t length);
+
+void qcow2_init_host_range_refs(BDRVQcow2State *s);
+void qcow2_release_host_range_refs(BDRVQcow2State *s);
+void qcow2_host_range_ref(BlockDriverState *bs, int64_t offset,
+                               int64_t length);
+void qcow2_host_range_unref(BlockDriverState *bs, int64_t offset,
+                               int64_t length);
+uint64_t qcow2_get_host_range_refcnt(BlockDriverState *bs,
+                                     int64_t cluster_index);
 
 /* qcow2-cluster.c functions */
 int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
