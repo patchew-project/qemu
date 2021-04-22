@@ -2234,6 +2234,7 @@ static coroutine_fn int qcow2_co_preadv_task(BlockDriverState *bs,
                                              size_t qiov_offset)
 {
     BDRVQcow2State *s = bs->opaque;
+    int ret;
 
     switch (subc_type) {
     case QCOW2_SUBCLUSTER_ZERO_PLAIN:
@@ -2246,28 +2247,31 @@ static coroutine_fn int qcow2_co_preadv_task(BlockDriverState *bs,
         assert(bs->backing); /* otherwise handled in qcow2_co_preadv_part */
 
         BLKDBG_EVENT(bs->file, BLKDBG_READ_BACKING_AIO);
-        return bdrv_co_preadv_part(bs->backing, offset, bytes,
-                                   qiov, qiov_offset, 0);
+        ret = bdrv_co_preadv_part(bs->backing, offset, bytes,
+                                  qiov, qiov_offset, 0);
+        break;
 
     case QCOW2_SUBCLUSTER_COMPRESSED:
-        return qcow2_co_preadv_compressed(bs, host_offset,
-                                          offset, bytes, qiov, qiov_offset);
+        ret = qcow2_co_preadv_compressed(bs, host_offset,
+                                         offset, bytes, qiov, qiov_offset);
+        break;
 
     case QCOW2_SUBCLUSTER_NORMAL:
         if (bs->encrypted) {
-            return qcow2_co_preadv_encrypted(bs, host_offset,
-                                             offset, bytes, qiov, qiov_offset);
+            ret = qcow2_co_preadv_encrypted(bs, host_offset,
+                                            offset, bytes, qiov, qiov_offset);
+        } else {
+            BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
+            ret = bdrv_co_preadv_part(s->data_file, host_offset,
+                                      bytes, qiov, qiov_offset, 0);
         }
-
-        BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
-        return bdrv_co_preadv_part(s->data_file, host_offset,
-                                   bytes, qiov, qiov_offset, 0);
+        break;
 
     default:
         g_assert_not_reached();
     }
 
-    g_assert_not_reached();
+    return ret;
 }
 
 static coroutine_fn int qcow2_co_preadv_task_entry(AioTask *task)
