@@ -821,9 +821,7 @@ int qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
     int64_t cluster_offset;
     int nb_csectors;
 
-    if (has_data_file(bs)) {
-        return 0;
-    }
+    assert(!has_data_file(bs));
 
     ret = get_cluster_table(bs, offset, &l2_slice, &l2_index);
     if (ret < 0) {
