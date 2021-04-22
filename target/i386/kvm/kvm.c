@@ -1341,6 +1341,11 @@ static int hyperv_fill_cpuids(CPUState *cs,
     c->ebx = hv_build_cpuid_leaf(cs, HV_CPUID_FEATURES, R_EBX);
     c->edx = hv_build_cpuid_leaf(cs, HV_CPUID_FEATURES, R_EDX);
 
+    /* In-QEMU SynIC and Vmbus devices require messages/signals hypercalls */
+    if (!cpu->hyperv_synic_kvm_only) {
+        c->ebx |= HV_POST_MESSAGES | HV_SIGNAL_EVENTS;
+    }
+
     /* Not exposed by KVM but needed to make CPU hotplug in Windows work */
     c->edx |= HV_CPU_DYNAMIC_PARTITIONING_AVAILABLE;
 
