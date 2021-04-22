@@ -25,6 +25,7 @@
 #include "exec/log.h"
 #include "exec/gdbstub.h"
 #include "hw/qdev-properties.h"
+#include "migration/vmstate.h"
 
 static void nios2_cpu_set_pc(CPUState *cs, vaddr value)
 {
@@ -208,7 +209,13 @@ static Property nios2_properties[] = {
 };
 
 #ifndef CONFIG_USER_ONLY
+static const VMStateDescription vmstate_nios2_cpu = {
+    .name = "cpu",
+    .unmigratable = 1,
+};
+
 static const struct SysemuCPUOps nios2_sysemu_ops = {
+    .vmsd = &vmstate_nios2_cpu,
 };
 #endif
 
