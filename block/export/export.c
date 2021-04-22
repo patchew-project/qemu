@@ -68,6 +68,7 @@ static const BlockExportDriver *blk_exp_find_driver(BlockExportType type)
 
 BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
 {
+    ERRP_GUARD();
     bool fixed_iothread = export->has_fixed_iothread && export->fixed_iothread;
     const BlockExportDriver *drv;
     BlockExport *exp = NULL;
@@ -127,6 +128,9 @@ BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp)
             ctx = new_ctx;
         } else if (fixed_iothread) {
             goto fail;
+        } else {
+            error_free(*errp);
+            *errp = NULL;
         }
     }
 
