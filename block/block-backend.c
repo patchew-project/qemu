@@ -14,6 +14,7 @@
 #include "sysemu/block-backend.h"
 #include "block/block_int.h"
 #include "block/blockjob.h"
+#include "block/coroutines.h"
 #include "block/throttle-groups.h"
 #include "hw/qdev-core.h"
 #include "sysemu/blockdev.h"
@@ -2225,6 +2226,42 @@ int blk_load_vmstate(BlockBackend *blk, uint8_t *buf, int64_t pos, int size)
     }
 
     return bdrv_load_vmstate(blk_bs(blk), buf, pos, size);
+}
+
+int blk_co_save_vmstate(BlockBackend *blk, const uint8_t *buf,
+                        int64_t pos, int size)
+{
+    int ret;
+    QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, size);
+
+    if (!blk_is_available(blk)) {
+        return -ENOMEDIUM;
+    }
+
+    ret = bdrv_co_writev_vmstate(blk_bs(blk), &qiov, pos);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (!blk->enable_write_cache) {
+        ret = bdrv_flush(blk_bs(blk));
+    }
+
+    return ret < 0 ? ret : 0;
+}
+
+int blk_co_load_vmstate(BlockBackend *blk, uint8_t *buf, int64_t pos, int size)
+{
+    int ret;
+    QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, size);
+
+    if (!blk_is_available(blk)) {
+        return -ENOMEDIUM;
+    }
+
+    ret = bdrv_co_readv_vmstate(blk_bs(blk), &qiov, pos);
+
+    return ret < 0 ? ret : 0;
 }
 
 int blk_probe_blocksizes(BlockBackend *blk, BlockSizes *bsz)
