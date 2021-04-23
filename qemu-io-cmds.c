@@ -527,20 +527,6 @@ fail:
     return buf;
 }
 
-static int do_pread(BlockBackend *blk, char *buf, int64_t offset,
-                    int64_t bytes, int64_t *total)
-{
-    if (bytes > INT_MAX) {
-        return -ERANGE;
-    }
-
-    *total = blk_pread(blk, offset, (uint8_t *)buf, bytes);
-    if (*total < 0) {
-        return *total;
-    }
-    return 1;
-}
-
 static int do_pwrite(BlockBackend *blk, char *buf, int64_t offset,
                      int64_t bytes, int flags, int64_t *total)
 {
@@ -583,20 +569,6 @@ static int do_write_compressed(BlockBackend *blk, char *buf, int64_t offset,
         return ret;
     }
     *total = bytes;
-    return 1;
-}
-
-static int do_load_vmstate(BlockBackend *blk, char *buf, int64_t offset,
-                           int64_t count, int64_t *total)
-{
-    if (count > INT_MAX) {
-        return -ERANGE;
-    }
-
-    *total = blk_load_vmstate(blk, (uint8_t *)buf, offset, count);
-    if (*total < 0) {
-        return *total;
-    }
     return 1;
 }
 
@@ -667,17 +639,16 @@ static const cmdinfo_t read_cmd = {
     .help       = read_help,
 };
 
-static int read_f(BlockBackend *blk, int argc, char **argv)
+static int coroutine_fn read_f(BlockBackend *blk, int argc, char **argv)
 {
     struct timespec t1, t2;
     bool Cflag = false, qflag = false, vflag = false;
     bool Pflag = false, sflag = false, lflag = false, bflag = false;
-    int c, cnt, ret;
-    char *buf;
+    int c, ret;
+    uint8_t *buf;
     int64_t offset;
     int64_t count;
     /* Some compilers get confused and warn if this is not initialized.  */
-    int64_t total = 0;
     int pattern = 0;
     int64_t pattern_offset = 0, pattern_count = 0;
 
@@ -780,9 +751,9 @@ static int read_f(BlockBackend *blk, int argc, char **argv)
 
     clock_gettime(CLOCK_MONOTONIC, &t1);
     if (bflag) {
-        ret = do_load_vmstate(blk, buf, offset, count, &total);
+        ret = blk_co_load_vmstate(blk, buf, offset, count);
     } else {
-        ret = do_pread(blk, buf, offset, count, &total);
+        ret = blk_co_pread(blk, offset, count, buf, 0);
     }
     clock_gettime(CLOCK_MONOTONIC, &t2);
 
@@ -790,9 +761,6 @@ static int read_f(BlockBackend *blk, int argc, char **argv)
         printf("read failed: %s\n", strerror(-ret));
         goto out;
     }
-    cnt = ret;
-
-    ret = 0;
 
     if (Pflag) {
         void *cmp_buf = g_malloc(pattern_count);
@@ -816,7 +784,7 @@ static int read_f(BlockBackend *blk, int argc, char **argv)
 
     /* Finally, report back -- -C gives a parsable format */
     t2 = tsub(t2, t1);
-    print_report("read", &t2, offset, count, total, cnt, Cflag);
+    print_report("read", &t2, offset, count, count, 1, Cflag);
 
 out:
     qemu_io_free(buf);
