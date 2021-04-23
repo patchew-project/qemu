@@ -1062,7 +1062,6 @@ static BlockDriver bdrv_blkdebug = {
     .bdrv_debug_remove_breakpoint
                                 = blkdebug_debug_remove_breakpoint,
     .bdrv_debug_resume          = blkdebug_debug_resume,
-    .bdrv_debug_is_suspended    = blkdebug_debug_is_suspended,
     .bdrv_debug_wait_break      = blkdebug_debug_wait_break,
 
     .strong_runtime_opts        = blkdebug_strong_runtime_opts,

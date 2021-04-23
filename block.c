@@ -5690,19 +5690,6 @@ int bdrv_debug_resume(BlockDriverState *bs, const char *tag)
     return -ENOTSUP;
 }
 
-bool bdrv_debug_is_suspended(BlockDriverState *bs, const char *tag)
-{
-    while (bs && bs->drv && !bs->drv->bdrv_debug_is_suspended) {
-        bs = bdrv_primary_bs(bs);
-    }
-
-    if (bs && bs->drv && bs->drv->bdrv_debug_is_suspended) {
-        return bs->drv->bdrv_debug_is_suspended(bs, tag);
-    }
-
-    return false;
-}
-
 void coroutine_fn bdrv_debug_wait_break(BlockDriverState *bs, const char *tag)
 {
     while (bs && bs->drv && !bs->drv->bdrv_debug_wait_break) {
