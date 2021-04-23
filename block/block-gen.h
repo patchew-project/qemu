@@ -27,6 +27,7 @@
 #define BLOCK_BLOCK_GEN_H
 
 #include "block/block_int.h"
+#include "monitor/monitor.h"
 
 /* Base structure for argument packing structures */
 typedef struct AioPollCo {
@@ -38,10 +39,19 @@ typedef struct AioPollCo {
 
 static inline int aio_poll_co(AioPollCo *s)
 {
+    Monitor *mon = monitor_cur();
     assert(!qemu_in_coroutine());
+
+    if (mon) {
+        monitor_set_cur(s->co, mon);
+    }
 
     aio_co_enter(s->ctx, s->co);
     AIO_WAIT_WHILE(s->ctx, s->in_progress);
+
+    if (mon) {
+        monitor_set_cur(s->co, NULL);
+    }
 
     return s->ret;
 }
