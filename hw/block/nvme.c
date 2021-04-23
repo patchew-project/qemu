@@ -6140,11 +6140,15 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
 
 static int nvme_init_subsys(NvmeCtrl *n, Error **errp)
 {
+    DeviceClass *dc;
     int cntlid;
 
     if (!n->subsys) {
         return 0;
     }
+
+    dc = DEVICE_GET_CLASS(n);
+    dc->hotpluggable = false;
 
     cntlid = nvme_subsys_register_ctrl(n, errp);
     if (cntlid < 0) {
