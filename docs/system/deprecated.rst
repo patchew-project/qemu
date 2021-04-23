@@ -186,6 +186,11 @@ Use the more generic commands ``block-export-add`` and ``block-export-del``
 instead.  As part of this deprecation, where ``nbd-server-add`` used a
 single ``bitmap``, the new ``block-export-add`` uses a list of ``bitmaps``.
 
+``drive-backup`` (since 6.0)
+''''''''''''''''''''''''''''
+
+Use ``blockdev-backup`` in pair with ``blockdev-add`` instead.
+
 System accelerators
 -------------------
 
