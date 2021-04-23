@@ -2847,13 +2847,13 @@ SRST
         #connect a TAP device to bridge qemubr0
         |qemu_system| linux.img -netdev bridge,br=qemubr0,id=n1 -device virtio-net,netdev=n1
 
-``-netdev socket,id=id[,fd=h][,listen=[host]:port][,connect=host:port]``
+``-netdev socket,id=id[,fd=h][,listen=[host]:port|path][,connect=host:port|path]``
     This host network backend can be used to connect the guest's network
-    to another QEMU virtual machine using a TCP socket connection. If
-    ``listen`` is specified, QEMU waits for incoming connections on port
-    (host is optional). ``connect`` is used to connect to another QEMU
-    instance using the ``listen`` option. ``fd``\ =h specifies an
-    already opened TCP socket.
+    to another QEMU virtual machine using a TCP or a UNIX domain socket
+    connection. If ``listen`` is specified, QEMU waits for incoming
+    connections on port (host is optional), or on path. ``connect`` is used
+    to connect to another QEMU instance using the ``listen`` option.
+    ``fd``\ =h specifies an already opened TCP or UNIX domain socket.
 
     Example:
 

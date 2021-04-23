@@ -511,26 +511,60 @@ static int net_socket_listen_init(NetClientState *peer,
 {
     NetClientState *nc;
     NetSocketState *s;
-    struct sockaddr_in saddr;
-    int fd, ret;
+    struct sockaddr_storage saddr;
+    struct sockaddr_in *saddr_in = (struct sockaddr_in *)&saddr;
+    struct sockaddr_un *saddr_un = (struct sockaddr_un *)&saddr;
+    size_t saddr_size;
+    int fd, ret, pf;
 
-    if (parse_host_port(&saddr, host_str, errp) < 0) {
-        return -1;
+#ifndef WIN32
+    if (strchr(host_str, ':')) {
+#endif
+        if (parse_host_port(saddr_in, host_str, errp) < 0)
+            return -1;
+
+        pf = PF_INET;
+        saddr_size = sizeof(*saddr_in);
+#ifndef WIN32
+    } else {
+        struct stat sb;
+
+        if (stat(host_str, &sb) == -1) {
+            error_setg_errno(errp, errno, "can't stat socket path");
+            return -1;
+        }
+
+        if ((sb.st_mode & S_IFMT) != S_IFSOCK) {
+            error_setg_errno(errp, errno, "path provided is not a socket");
+            return -1;
+        }
+
+        saddr_un->sun_family = PF_UNIX;
+        strncpy(saddr_un->sun_path, host_str, sizeof(saddr_un->sun_path));
+
+        pf = PF_UNIX;
+        saddr_size = sizeof(*saddr_un);
     }
+#endif /* !WIN32 */
 
-    fd = qemu_socket(PF_INET, SOCK_STREAM, 0);
+    fd = qemu_socket(pf, SOCK_STREAM, 0);
     if (fd < 0) {
         error_setg_errno(errp, errno, "can't create stream socket");
         return -1;
     }
     qemu_set_nonblock(fd);
 
-    socket_set_fast_reuse(fd);
+    if (pf == PF_INET)
+        socket_set_fast_reuse(fd);
 
-    ret = bind(fd, (struct sockaddr *)&saddr, sizeof(saddr));
+    ret = bind(fd, (struct sockaddr *)&saddr, saddr_size);
     if (ret < 0) {
-        error_setg_errno(errp, errno, "can't bind ip=%s to socket",
-                         inet_ntoa(saddr.sin_addr));
+        if (pf == PF_INET)
+            error_setg_errno(errp, errno, "can't bind ip=%s to socket",
+                             inet_ntoa(saddr_in->sin_addr));
+        else if (pf == PF_UNIX)
+            error_setg_errno(errp, errno, "can't create socket with path: %s",
+                             host_str);
         closesocket(fd);
         return -1;
     }
@@ -559,14 +593,44 @@ static int net_socket_connect_init(NetClientState *peer,
                                    Error **errp)
 {
     NetSocketState *s;
-    int fd, connected, ret;
-    struct sockaddr_in saddr;
+    int fd, connected, ret, pf;
+    struct sockaddr_storage saddr;
+    size_t saddr_size;
+    struct sockaddr_in *saddr_in = (struct sockaddr_in *)&saddr;
+#ifndef WIN32
+    struct sockaddr_un *saddr_un = (struct sockaddr_un *)&saddr;
 
-    if (parse_host_port(&saddr, host_str, errp) < 0) {
-        return -1;
+
+    if (strchr(host_str, ':')) {
+#endif
+        if (parse_host_port(saddr_in, host_str, errp) < 0)
+            return -1;
+
+        pf = PF_INET;
+        saddr_size = sizeof(*saddr_in);
+#ifndef WIN32
+    } else {
+        struct stat sb;
+
+        if (stat(host_str, &sb) == -1) {
+            error_setg_errno(errp, errno, "can't stat socket path");
+            return -1;
+        }
+
+        if ((sb.st_mode & S_IFMT) != S_IFSOCK) {
+            error_setg_errno(errp, errno, "provided path is not a socket");
+            return -1;
+        }
+
+        saddr_un->sun_family = PF_UNIX;
+        strncpy(saddr_un->sun_path, host_str, sizeof(saddr_un->sun_path));
+
+        pf = PF_UNIX;
+        saddr_size = sizeof(*saddr_un);
     }
+#endif /* !WIN32 */
 
-    fd = qemu_socket(PF_INET, SOCK_STREAM, 0);
+    fd = qemu_socket(pf, SOCK_STREAM, 0);
     if (fd < 0) {
         error_setg_errno(errp, errno, "can't create stream socket");
         return -1;
@@ -575,7 +639,7 @@ static int net_socket_connect_init(NetClientState *peer,
 
     connected = 0;
     for(;;) {
-        ret = connect(fd, (struct sockaddr *)&saddr, sizeof(saddr));
+        ret = connect(fd, (struct sockaddr *)&saddr, saddr_size);
         if (ret < 0) {
             if (errno == EINTR || errno == EWOULDBLOCK) {
                 /* continue */
@@ -598,9 +662,15 @@ static int net_socket_connect_init(NetClientState *peer,
         return -1;
     }
 
-    snprintf(s->nc.info_str, sizeof(s->nc.info_str),
-             "socket: connect to %s:%d",
-             inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
+    if (pf == PF_INET) {
+        snprintf(s->nc.info_str, sizeof(s->nc.info_str),
+                 "socket: connect to %s:%d",
+                 inet_ntoa(saddr_in->sin_addr), ntohs(saddr_in->sin_port));
+    } else if (pf == PF_UNIX) {
+        snprintf(s->nc.info_str, sizeof(s->nc.info_str),
+                 "socket: connect to %s", saddr_un->sun_path);
+    }
+
     return 0;
 }
 
