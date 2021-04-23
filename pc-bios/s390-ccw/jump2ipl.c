@@ -83,7 +83,7 @@ void jump_to_low_kernel(void)
     }
 
     /* Trying to get PSW at zero address */
-    if (*((uint64_t *)0) & RESET_PSW_MASK) {
+    if (*reset_psw & RESET_PSW_MASK) {
         /*
          * Surely nobody will try running directly from lowcore, so
          * let's use 0 as an indication that we want to load the reset
