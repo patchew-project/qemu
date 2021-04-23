@@ -42,6 +42,8 @@ def gen_header():
 #include "qemu/osdep.h"
 #include "block/coroutines.h"
 #include "block/block-gen.h"
+#include "qemu-io.h"
+#include "sysemu/block-backend.h"
 #include "block/block_int.h"\
 """
 
@@ -100,12 +102,23 @@ def snake_to_camel(func_name: str) -> str:
 def gen_wrapper(func: FuncDecl) -> str:
     assert not '_co_' in func.name
     assert func.return_type == 'int'
-    assert func.args[0].type in ['BlockDriverState *', 'BdrvChild *']
+    assert func.args[0].type in ['BlockDriverState *', 'BdrvChild *',
+                                 'BlockBackend *']
 
     subsystem, subname = func.name.split('_', 1)
 
     name = f'{subsystem}_co_{subname}'
-    bs = 'bs' if func.args[0].type == 'BlockDriverState *' else 'child->bs'
+
+    first_arg_type = func.args[0].type
+    if first_arg_type == 'BlockDriverState *':
+        ctx = 'bdrv_get_aio_context(bs)'
+    elif first_arg_type == 'BdrvChild *':
+        ctx = '(child ? bdrv_get_aio_context(child->bs) : ' \
+            'qemu_get_aio_context())'
+    else:
+        assert first_arg_type == 'BlockBackend *'
+        ctx = '(blk ? blk_get_aio_context(blk) : qemu_get_aio_context())'
+
     struct_name = snake_to_camel(name)
 
     return f"""\
@@ -114,7 +127,7 @@ def gen_wrapper(func: FuncDecl) -> str:
  */
 
 typedef struct {struct_name} {{
-    BdrvPollCo poll_state;
+    AioPollCo poll_state;
 { func.gen_block('    {decl};') }
 }} {struct_name};
 
@@ -134,7 +147,7 @@ int {func.name}({ func.gen_list('{decl}') })
         return {name}({ func.gen_list('{name}') });
     }} else {{
         {struct_name} s = {{
-            .poll_state.bs = {bs},
+            .poll_state.ctx = {ctx},
             .poll_state.in_progress = true,
 
 { func.gen_block('            .{name} = {name},') }
@@ -142,7 +155,7 @@ int {func.name}({ func.gen_list('{decl}') })
 
         s.poll_state.co = qemu_coroutine_create({name}_entry, &s);
 
-        return bdrv_poll_co(&s.poll_state);
+        return aio_poll_co(&s.poll_state);
     }}
 }}"""
 
