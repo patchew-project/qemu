@@ -10,4 +10,11 @@ PPC64_TESTS=bcdsub
 endif
 bcdsub: CFLAGS += -mpower8-vector
 
+ifneq ($(DOCKER_IMAGE)$(CROSS_CC_HAS_POWER10),)
+POWER10_TESTS=byte_reverse
+RUN_POWER10_TESTS=$(patsubst %, run-%, $(POWER10_TESTS))
+$(RUN_POWER10_TESTS): QEMU_OPTS+=-cpu POWER10
+PPC64_TESTS += $(POWER10_TESTS)
+endif
+
 TESTS += $(PPC64_TESTS)
