@@ -527,65 +527,6 @@ fail:
     return buf;
 }
 
-static int do_pwrite(BlockBackend *blk, char *buf, int64_t offset,
-                     int64_t bytes, int flags, int64_t *total)
-{
-    if (bytes > INT_MAX) {
-        return -ERANGE;
-    }
-
-    *total = blk_pwrite(blk, offset, (uint8_t *)buf, bytes, flags);
-    if (*total < 0) {
-        return *total;
-    }
-    return 1;
-}
-
-static int coroutine_fn
-do_co_pwrite_zeroes(BlockBackend *blk, int64_t offset,
-                    int64_t bytes, int flags, int64_t *total)
-{
-    int ret = blk_co_pwrite_zeroes(blk, offset, bytes, flags);
-    if (ret < 0) {
-        *total = ret;
-        return ret;
-    } else {
-        *total = bytes;
-        return 1;
-    }
-}
-
-static int do_write_compressed(BlockBackend *blk, char *buf, int64_t offset,
-                               int64_t bytes, int64_t *total)
-{
-    int ret;
-
-    if (bytes > BDRV_REQUEST_MAX_BYTES) {
-        return -ERANGE;
-    }
-
-    ret = blk_pwrite_compressed(blk, offset, buf, bytes);
-    if (ret < 0) {
-        return ret;
-    }
-    *total = bytes;
-    return 1;
-}
-
-static int do_save_vmstate(BlockBackend *blk, char *buf, int64_t offset,
-                           int64_t count, int64_t *total)
-{
-    if (count > INT_MAX) {
-        return -ERANGE;
-    }
-
-    *total = blk_save_vmstate(blk, (uint8_t *)buf, offset, count);
-    if (*total < 0) {
-        return *total;
-    }
-    return 1;
-}
-
 static int coroutine_fn do_co_readv(BlockBackend *blk, QEMUIOVector *qiov,
                                     int64_t offset, int *total)
 {
@@ -945,7 +886,7 @@ static void write_help(void)
 "\n");
 }
 
-static int write_f(BlockBackend *blk, int argc, char **argv);
+static int coroutine_fn write_f(BlockBackend *blk, int argc, char **argv);
 
 static const cmdinfo_t write_cmd = {
     .name       = "write",
@@ -965,12 +906,11 @@ static int coroutine_fn write_f(BlockBackend *blk, int argc, char **argv)
     bool Cflag = false, qflag = false, bflag = false;
     bool Pflag = false, zflag = false, cflag = false, sflag = false;
     int flags = 0;
-    int c, cnt, ret;
-    char *buf = NULL;
+    int c, ret;
+    uint8_t *buf = NULL;
     int64_t offset;
     int64_t count;
     /* Some compilers get confused and warn if this is not initialized.  */
-    int64_t total = 0;
     int pattern = 0xcd;
     const char *file_name = NULL;
 
@@ -981,6 +921,7 @@ static int coroutine_fn write_f(BlockBackend *blk, int argc, char **argv)
             break;
         case 'c':
             cflag = true;
+            flags |= BDRV_REQ_WRITE_COMPRESSED;
             break;
         case 'C':
             Cflag = true;
@@ -1013,6 +954,7 @@ static int coroutine_fn write_f(BlockBackend *blk, int argc, char **argv)
             break;
         case 'z':
             zflag = true;
+            flags |= BDRV_REQ_ZERO_WRITE;
             break;
         default:
             qemuio_command_usage(&write_cmd);
@@ -1095,13 +1037,9 @@ static int coroutine_fn write_f(BlockBackend *blk, int argc, char **argv)
 
     clock_gettime(CLOCK_MONOTONIC, &t1);
     if (bflag) {
-        ret = do_save_vmstate(blk, buf, offset, count, &total);
-    } else if (zflag) {
-        ret = do_co_pwrite_zeroes(blk, offset, count, flags, &total);
-    } else if (cflag) {
-        ret = do_write_compressed(blk, buf, offset, count, &total);
+        ret = blk_co_save_vmstate(blk, buf, offset, count);
     } else {
-        ret = do_pwrite(blk, buf, offset, count, flags, &total);
+        ret = blk_co_pwrite(blk, offset, count, buf, flags);
     }
     clock_gettime(CLOCK_MONOTONIC, &t2);
 
@@ -1109,9 +1047,6 @@ static int coroutine_fn write_f(BlockBackend *blk, int argc, char **argv)
         printf("write failed: %s\n", strerror(-ret));
         goto out;
     }
-    cnt = ret;
-
-    ret = 0;
 
     if (qflag) {
         goto out;
@@ -1119,7 +1054,7 @@ static int coroutine_fn write_f(BlockBackend *blk, int argc, char **argv)
 
     /* Finally, report back -- -C gives a parsable format */
     t2 = tsub(t2, t1);
-    print_report("wrote", &t2, offset, count, total, cnt, Cflag);
+    print_report("wrote", &t2, offset, count, count, 1, Cflag);
 
 out:
     if (!zflag) {
