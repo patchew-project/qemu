@@ -527,24 +527,6 @@ fail:
     return buf;
 }
 
-static int coroutine_fn do_co_readv(BlockBackend *blk, QEMUIOVector *qiov,
-                                    int64_t offset, int *total)
-{
-    int ret = blk_co_preadv(blk, offset, qiov->size, qiov, 0);
-
-    *total = qiov->size;
-    return ret < 0 ? ret : 1;
-}
-
-static int coroutine_fn do_co_writev(BlockBackend *blk, QEMUIOVector *qiov,
-                                     int64_t offset, int flags, int *total)
-{
-    int ret = blk_co_pwritev(blk, offset, qiov->size, qiov, flags);
-
-    *total = qiov->size;
-    return ret < 0 ? ret : 1;
-}
-
 static void read_help(void)
 {
     printf(
@@ -767,11 +749,10 @@ static int coroutine_fn readv_f(BlockBackend *blk, int argc, char **argv)
 {
     struct timespec t1, t2;
     bool Cflag = false, qflag = false, vflag = false;
-    int c, cnt, ret;
+    int c, ret;
     char *buf;
     int64_t offset;
     /* Some compilers get confused and warn if this is not initialized.  */
-    int total = 0;
     int nr_iov;
     QEMUIOVector qiov;
     int pattern = 0;
@@ -821,16 +802,13 @@ static int coroutine_fn readv_f(BlockBackend *blk, int argc, char **argv)
     }
 
     clock_gettime(CLOCK_MONOTONIC, &t1);
-    ret = do_co_readv(blk, &qiov, offset, &total);
+    ret = blk_co_preadv(blk, offset, qiov.size, &qiov, 0);
     clock_gettime(CLOCK_MONOTONIC, &t2);
 
     if (ret < 0) {
         printf("readv failed: %s\n", strerror(-ret));
         goto out;
     }
-    cnt = ret;
-
-    ret = 0;
 
     if (Pflag) {
         void *cmp_buf = g_malloc(qiov.size);
@@ -853,7 +831,7 @@ static int coroutine_fn readv_f(BlockBackend *blk, int argc, char **argv)
 
     /* Finally, report back -- -C gives a parsable format */
     t2 = tsub(t2, t1);
-    print_report("read", &t2, offset, qiov.size, total, cnt, Cflag);
+    print_report("read", &t2, offset, qiov.size, qiov.size, 1, Cflag);
 
 out:
     qemu_iovec_destroy(&qiov);
@@ -1100,11 +1078,10 @@ static int coroutine_fn writev_f(BlockBackend *blk, int argc, char **argv)
     struct timespec t1, t2;
     bool Cflag = false, qflag = false;
     int flags = 0;
-    int c, cnt, ret;
+    int c, ret;
     char *buf;
     int64_t offset;
     /* Some compilers get confused and warn if this is not initialized.  */
-    int total = 0;
     int nr_iov;
     int pattern = 0xcd;
     QEMUIOVector qiov;
@@ -1151,16 +1128,13 @@ static int coroutine_fn writev_f(BlockBackend *blk, int argc, char **argv)
     }
 
     clock_gettime(CLOCK_MONOTONIC, &t1);
-    ret = do_co_writev(blk, &qiov, offset, flags, &total);
+    ret = blk_co_pwritev(blk, offset, qiov.size,  &qiov, flags);
     clock_gettime(CLOCK_MONOTONIC, &t2);
 
     if (ret < 0) {
         printf("writev failed: %s\n", strerror(-ret));
         goto out;
     }
-    cnt = ret;
-
-    ret = 0;
 
     if (qflag) {
         goto out;
@@ -1168,7 +1142,7 @@ static int coroutine_fn writev_f(BlockBackend *blk, int argc, char **argv)
 
     /* Finally, report back -- -C gives a parsable format */
     t2 = tsub(t2, t1);
-    print_report("wrote", &t2, offset, qiov.size, total, cnt, Cflag);
+    print_report("wrote", &t2, offset, qiov.size, qiov.size, 1, Cflag);
 out:
     qemu_iovec_destroy(&qiov);
     qemu_io_free(buf);
