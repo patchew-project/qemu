@@ -2198,36 +2198,6 @@ int blk_truncate(BlockBackend *blk, int64_t offset, bool exact,
     return bdrv_truncate(blk->root, offset, exact, prealloc, flags, errp);
 }
 
-int blk_save_vmstate(BlockBackend *blk, const uint8_t *buf,
-                     int64_t pos, int size)
-{
-    int ret;
-
-    if (!blk_is_available(blk)) {
-        return -ENOMEDIUM;
-    }
-
-    ret = bdrv_save_vmstate(blk_bs(blk), buf, pos, size);
-    if (ret < 0) {
-        return ret;
-    }
-
-    if (ret == size && !blk->enable_write_cache) {
-        ret = bdrv_flush(blk_bs(blk));
-    }
-
-    return ret < 0 ? ret : size;
-}
-
-int blk_load_vmstate(BlockBackend *blk, uint8_t *buf, int64_t pos, int size)
-{
-    if (!blk_is_available(blk)) {
-        return -ENOMEDIUM;
-    }
-
-    return bdrv_load_vmstate(blk_bs(blk), buf, pos, size);
-}
-
 int blk_co_save_vmstate(BlockBackend *blk, const uint8_t *buf,
                         int64_t pos, int size)
 {

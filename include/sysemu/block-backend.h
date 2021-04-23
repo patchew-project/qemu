@@ -242,9 +242,6 @@ int blk_pwrite_compressed(BlockBackend *blk, int64_t offset, const void *buf,
 int blk_truncate(BlockBackend *blk, int64_t offset, bool exact,
                  PreallocMode prealloc, BdrvRequestFlags flags, Error **errp);
 int blk_pdiscard(BlockBackend *blk, int64_t offset, int bytes);
-int blk_save_vmstate(BlockBackend *blk, const uint8_t *buf,
-                     int64_t pos, int size);
-int blk_load_vmstate(BlockBackend *blk, uint8_t *buf, int64_t pos, int size);
 int blk_co_save_vmstate(BlockBackend *blk, const uint8_t *buf,
                         int64_t pos, int size);
 int blk_co_load_vmstate(BlockBackend *blk, uint8_t *buf, int64_t pos, int size);
