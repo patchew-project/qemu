@@ -555,56 +555,16 @@ static int do_pwrite(BlockBackend *blk, char *buf, int64_t offset,
     return 1;
 }
 
-typedef struct {
-    BlockBackend *blk;
-    int64_t offset;
-    int64_t bytes;
-    int64_t *total;
-    int flags;
-    int ret;
-    bool done;
-} CoWriteZeroes;
-
-static void coroutine_fn co_pwrite_zeroes_entry(void *opaque)
+static int coroutine_fn
+do_co_pwrite_zeroes(BlockBackend *blk, int64_t offset,
+                    int64_t bytes, int flags, int64_t *total)
 {
-    CoWriteZeroes *data = opaque;
-
-    data->ret = blk_co_pwrite_zeroes(data->blk, data->offset, data->bytes,
-                                     data->flags);
-    data->done = true;
-    if (data->ret < 0) {
-        *data->total = data->ret;
-        return;
-    }
-
-    *data->total = data->bytes;
-}
-
-static int do_co_pwrite_zeroes(BlockBackend *blk, int64_t offset,
-                               int64_t bytes, int flags, int64_t *total)
-{
-    Coroutine *co;
-    CoWriteZeroes data = {
-        .blk    = blk,
-        .offset = offset,
-        .bytes  = bytes,
-        .total  = total,
-        .flags  = flags,
-        .done   = false,
-    };
-
-    if (bytes > INT_MAX) {
-        return -ERANGE;
-    }
-
-    co = qemu_coroutine_create(co_pwrite_zeroes_entry, &data);
-    bdrv_coroutine_enter(blk_bs(blk), co);
-    while (!data.done) {
-        aio_poll(blk_get_aio_context(blk), true);
-    }
-    if (data.ret < 0) {
-        return data.ret;
+    int ret = blk_co_pwrite_zeroes(blk, offset, bytes, flags);
+    if (ret < 0) {
+        *total = ret;
+        return ret;
     } else {
+        *total = bytes;
         return 1;
     }
 }
@@ -654,38 +614,22 @@ static int do_save_vmstate(BlockBackend *blk, char *buf, int64_t offset,
     return 1;
 }
 
-#define NOT_DONE 0x7fffffff
-static void aio_rw_done(void *opaque, int ret)
+static int coroutine_fn do_co_readv(BlockBackend *blk, QEMUIOVector *qiov,
+                                    int64_t offset, int *total)
 {
-    *(int *)opaque = ret;
-}
-
-static int do_aio_readv(BlockBackend *blk, QEMUIOVector *qiov,
-                        int64_t offset, int *total)
-{
-    int async_ret = NOT_DONE;
-
-    blk_aio_preadv(blk, offset, qiov, 0, aio_rw_done, &async_ret);
-    while (async_ret == NOT_DONE) {
-        main_loop_wait(false);
-    }
+    int ret = blk_co_preadv(blk, offset, qiov->size, qiov, 0);
 
     *total = qiov->size;
-    return async_ret < 0 ? async_ret : 1;
+    return ret < 0 ? ret : 1;
 }
 
-static int do_aio_writev(BlockBackend *blk, QEMUIOVector *qiov,
-                         int64_t offset, int flags, int *total)
+static int coroutine_fn do_co_writev(BlockBackend *blk, QEMUIOVector *qiov,
+                                     int64_t offset, int flags, int *total)
 {
-    int async_ret = NOT_DONE;
-
-    blk_aio_pwritev(blk, offset, qiov, flags, aio_rw_done, &async_ret);
-    while (async_ret == NOT_DONE) {
-        main_loop_wait(false);
-    }
+    int ret = blk_co_pwritev(blk, offset, qiov->size, qiov, flags);
 
     *total = qiov->size;
-    return async_ret < 0 ? async_ret : 1;
+    return ret < 0 ? ret : 1;
 }
 
 static void read_help(void)
@@ -910,7 +854,7 @@ static const cmdinfo_t readv_cmd = {
     .help       = readv_help,
 };
 
-static int readv_f(BlockBackend *blk, int argc, char **argv)
+static int coroutine_fn readv_f(BlockBackend *blk, int argc, char **argv)
 {
     struct timespec t1, t2;
     bool Cflag = false, qflag = false, vflag = false;
@@ -968,7 +912,7 @@ static int readv_f(BlockBackend *blk, int argc, char **argv)
     }
 
     clock_gettime(CLOCK_MONOTONIC, &t1);
-    ret = do_aio_readv(blk, &qiov, offset, &total);
+    ret = do_co_readv(blk, &qiov, offset, &total);
     clock_gettime(CLOCK_MONOTONIC, &t2);
 
     if (ret < 0) {
@@ -1047,7 +991,7 @@ static const cmdinfo_t write_cmd = {
     .help       = write_help,
 };
 
-static int write_f(BlockBackend *blk, int argc, char **argv)
+static int coroutine_fn write_f(BlockBackend *blk, int argc, char **argv)
 {
     struct timespec t1, t2;
     bool Cflag = false, qflag = false, bflag = false;
@@ -1235,7 +1179,7 @@ writev_help(void)
 "\n");
 }
 
-static int writev_f(BlockBackend *blk, int argc, char **argv);
+static int coroutine_fn writev_f(BlockBackend *blk, int argc, char **argv);
 
 static const cmdinfo_t writev_cmd = {
     .name       = "writev",
@@ -1248,7 +1192,7 @@ static const cmdinfo_t writev_cmd = {
     .help       = writev_help,
 };
 
-static int writev_f(BlockBackend *blk, int argc, char **argv)
+static int coroutine_fn writev_f(BlockBackend *blk, int argc, char **argv)
 {
     struct timespec t1, t2;
     bool Cflag = false, qflag = false;
@@ -1304,7 +1248,7 @@ static int writev_f(BlockBackend *blk, int argc, char **argv)
     }
 
     clock_gettime(CLOCK_MONOTONIC, &t1);
-    ret = do_aio_writev(blk, &qiov, offset, flags, &total);
+    ret = do_co_writev(blk, &qiov, offset, flags, &total);
     clock_gettime(CLOCK_MONOTONIC, &t2);
 
     if (ret < 0) {
@@ -2283,9 +2227,7 @@ static const cmdinfo_t resume_cmd = {
 
 static int wait_break_f(BlockBackend *blk, int argc, char **argv)
 {
-    while (!bdrv_debug_is_suspended(blk_bs(blk), argv[1])) {
-        aio_poll(blk_get_aio_context(blk), true);
-    }
+    bdrv_debug_wait_break(blk_bs(blk), argv[1]);
     return 0;
 }
 
@@ -2457,11 +2399,7 @@ static const cmdinfo_t help_cmd = {
     .oneline    = "help for one or all commands",
 };
 
-/*
- * Called with aio context of blk acquired. Or with qemu_get_aio_context()
- * context acquired if no blk is NULL.
- */
-int qemuio_command(BlockBackend *blk, const char *cmd)
+int coroutine_fn qemuio_co_command(BlockBackend *blk, const char *cmd)
 {
     char *input;
     const cmdinfo_t *ct;

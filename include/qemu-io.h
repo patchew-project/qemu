@@ -18,6 +18,7 @@
 #ifndef QEMU_IO_H
 #define QEMU_IO_H
 
+#include "block/block.h"
 
 #define CMD_FLAG_GLOBAL ((int)0x80000000) /* don't iterate "args" */
 
@@ -45,7 +46,13 @@ typedef struct cmdinfo {
 
 extern bool qemuio_misalign;
 
-int qemuio_command(BlockBackend *blk, const char *cmd);
+int coroutine_fn qemuio_co_command(BlockBackend *blk, const char *cmd);
+
+/*
+ * Called with aio context of blk acquired. Or with qemu_get_aio_context()
+ * context acquired if no blk is NULL.
+ */
+int generated_co_wrapper qemuio_command(BlockBackend *blk, const char *cmd);
 
 void qemuio_add_command(const cmdinfo_t *ci);
 void qemuio_command_usage(const cmdinfo_t *ci);

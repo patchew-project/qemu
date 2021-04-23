@@ -114,7 +114,8 @@ wrapper_py = find_program('../scripts/block-coroutine-wrapper.py')
 block_gen_c = custom_target('block-gen.c',
                             output: 'block-gen.c',
                             input: files('../include/block/block.h',
-                                         'coroutines.h'),
+                                         'coroutines.h',
+                                         '../include/qemu-io.h'),
                             command: [wrapper_py, '@OUTPUT@', '@INPUT@'])
 block_ss.add(block_gen_c)
 
