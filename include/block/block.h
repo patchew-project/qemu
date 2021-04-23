@@ -648,6 +648,7 @@ int bdrv_debug_breakpoint(BlockDriverState *bs, const char *event,
 int bdrv_debug_remove_breakpoint(BlockDriverState *bs, const char *tag);
 int bdrv_debug_resume(BlockDriverState *bs, const char *tag);
 bool bdrv_debug_is_suspended(BlockDriverState *bs, const char *tag);
+void coroutine_fn bdrv_debug_wait_break(BlockDriverState *bs, const char *tag);
 
 /**
  * bdrv_get_aio_context:

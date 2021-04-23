@@ -5703,6 +5703,17 @@ bool bdrv_debug_is_suspended(BlockDriverState *bs, const char *tag)
     return false;
 }
 
+void coroutine_fn bdrv_debug_wait_break(BlockDriverState *bs, const char *tag)
+{
+    while (bs && bs->drv && !bs->drv->bdrv_debug_wait_break) {
+        bs = bdrv_primary_bs(bs);
+    }
+
+    if (bs && bs->drv && bs->drv->bdrv_debug_wait_break) {
+        bs->drv->bdrv_debug_wait_break(bs, tag);
+    }
+}
+
 /* backing_file can either be relative, or absolute, or a protocol.  If it is
  * relative, it must be relative to the chain.  So, passing in bs->filename
  * from a BDS as backing_file should not be done, as that may be relative to

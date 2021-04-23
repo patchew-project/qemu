@@ -57,6 +57,7 @@ typedef struct BDRVBlkdebugState {
     QLIST_HEAD(, BlkdebugRule) rules[BLKDBG__MAX];
     QSIMPLEQ_HEAD(, BlkdebugRule) active_rules;
     QLIST_HEAD(, BlkdebugSuspendedReq) suspended_reqs;
+    CoQueue break_waiters;
 } BDRVBlkdebugState;
 
 typedef struct BlkdebugAIOCB {
@@ -467,6 +468,8 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
     int ret;
     uint64_t align;
 
+    qemu_co_queue_init(&s->break_waiters);
+
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     if (!qemu_opts_absorb_qdict(opts, options, errp)) {
         ret = -EINVAL;
@@ -785,6 +788,8 @@ static void suspend_request(BlockDriverState *bs, BlkdebugRule *rule)
     remove_rule(rule);
     QLIST_INSERT_HEAD(&s->suspended_reqs, &r, next);
 
+    qemu_co_queue_restart_all(&s->break_waiters);
+
     if (!qtest_enabled()) {
         printf("blkdebug: Suspended request '%s'\n", r.tag);
     }
@@ -922,6 +927,16 @@ static bool blkdebug_debug_is_suspended(BlockDriverState *bs, const char *tag)
     return false;
 }
 
+static void coroutine_fn
+blkdebug_debug_wait_break(BlockDriverState *bs, const char *tag)
+{
+    BDRVBlkdebugState *s = bs->opaque;
+
+    while (!blkdebug_debug_is_suspended(bs, tag)) {
+        qemu_co_queue_wait(&s->break_waiters, NULL);
+    }
+}
+
 static int64_t blkdebug_getlength(BlockDriverState *bs)
 {
     return bdrv_getlength(bs->file->bs);
@@ -1048,6 +1063,7 @@ static BlockDriver bdrv_blkdebug = {
                                 = blkdebug_debug_remove_breakpoint,
     .bdrv_debug_resume          = blkdebug_debug_resume,
     .bdrv_debug_is_suspended    = blkdebug_debug_is_suspended,
+    .bdrv_debug_wait_break      = blkdebug_debug_wait_break,
 
     .strong_runtime_opts        = blkdebug_strong_runtime_opts,
 };
