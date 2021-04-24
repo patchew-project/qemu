@@ -59,27 +59,12 @@ struct target_pt_regs {
 #define TARGET_GDT_ENTRY_TLS_MIN 12
 #define TARGET_GDT_ENTRY_TLS_MAX 14
 
-#if 0 // Redefine this
-struct target_modify_ldt_ldt_s {
-	unsigned int  entry_number;
-        abi_ulong     base_addr;
-	unsigned int  limit;
-	unsigned int  seg_32bit:1;
-	unsigned int  contents:2;
-	unsigned int  read_exec_only:1;
-	unsigned int  limit_in_pages:1;
-	unsigned int  seg_not_present:1;
-	unsigned int  useable:1;
-	unsigned int  lm:1;
-};
-#else
 struct target_modify_ldt_ldt_s {
 	unsigned int  entry_number;
         abi_ulong     base_addr;
 	unsigned int  limit;
         unsigned int flags;
 };
-#endif
 
 struct target_ipc64_perm
 {
