@@ -77,8 +77,8 @@ static abi_long do_obreak(abi_ulong new_brk)
     /* We need to allocate more memory after the brk... */
     new_alloc_size = HOST_PAGE_ALIGN(new_brk - brk_page + 1);
     mapped_addr = get_errno(target_mmap(brk_page, new_alloc_size,
-                                        PROT_READ|PROT_WRITE,
-                                        MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0));
+                                        PROT_READ | PROT_WRITE,
+                                        MAP_ANON | MAP_FIXED | MAP_PRIVATE, -1, 0));
 
     if (!is_error(mapped_addr))
         target_brk = new_brk;
@@ -158,7 +158,7 @@ static abi_long do_freebsd_sysarch(void *env, int op, abi_ulong parms)
 static int
 oidfmt(int *oid, int len, char *fmt, uint32_t *kind)
 {
-    int qoid[CTL_MAXNAME+2];
+    int qoid[CTL_MAXNAME + 2];
     uint8_t buf[BUFSIZ];
     int i;
     size_t j;
@@ -241,7 +241,7 @@ static abi_long do_freebsd_sysctl(abi_ulong namep, int32_t namelen, abi_ulong ol
         return -TARGET_EFAULT;
     holdlen = oldlen;
     for (p = hnamep, q = snamep, i = 0; i < namelen; p++, i++)
-       *q++ = tswap32(*p);
+        *q++ = tswap32(*p);
     oidfmt(snamep, namelen, NULL, &kind);
     /* XXX swap hnewp */
     ret = get_errno(sysctl(snamep, namelen, holdp, &holdlen, hnewp, newlen));
@@ -271,7 +271,7 @@ static abi_long lock_iovec(int type, struct iovec *vec, abi_ulong target_addr,
     target_vec = lock_user(VERIFY_READ, target_addr, count * sizeof(struct target_iovec), 1);
     if (!target_vec)
         return -TARGET_EFAULT;
-    for (i = 0;i < count; i++) {
+    for (i = 0; i < count; i++) {
         base = tswapl(target_vec[i].iov_base);
         vec[i].iov_len = tswapl(target_vec[i].iov_len);
         if (vec[i].iov_len != 0) {
@@ -283,7 +283,7 @@ static abi_long lock_iovec(int type, struct iovec *vec, abi_ulong target_addr,
             vec[i].iov_base = NULL;
         }
     }
-    unlock_user (target_vec, target_addr, 0);
+    unlock_user(target_vec, target_addr, 0);
     return 0;
 }
 
@@ -297,13 +297,13 @@ static abi_long unlock_iovec(struct iovec *vec, abi_ulong target_addr,
     target_vec = lock_user(VERIFY_READ, target_addr, count * sizeof(struct target_iovec), 1);
     if (!target_vec)
         return -TARGET_EFAULT;
-    for (i = 0;i < count; i++) {
+    for (i = 0; i < count; i++) {
         if (target_vec[i].iov_base) {
             base = tswapl(target_vec[i].iov_base);
             unlock_user(vec[i].iov_base, base, copy ? vec[i].iov_len : 0);
         }
     }
-    unlock_user (target_vec, target_addr, 0);
+    unlock_user(target_vec, target_addr, 0);
 
     return 0;
 }
@@ -393,7 +393,7 @@ abi_long do_freebsd_syscall(void *cpu_env, int num, abi_long arg1,
         break;
     case TARGET_FREEBSD_NR_syscall:
     case TARGET_FREEBSD_NR___syscall:
-        ret = do_freebsd_syscall(cpu_env,arg1 & 0xffff,arg2,arg3,arg4,arg5,arg6,arg7,arg8,0);
+        ret = do_freebsd_syscall(cpu_env, arg1 & 0xffff, arg2, arg3, arg4, arg5, arg6, arg7, arg8, 0);
         break;
     default:
         ret = get_errno(syscall(num, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8));
@@ -472,7 +472,7 @@ abi_long do_netbsd_syscall(void *cpu_env, int num, abi_long arg1,
         break;
     case TARGET_NETBSD_NR_syscall:
     case TARGET_NETBSD_NR___syscall:
-        ret = do_netbsd_syscall(cpu_env,arg1 & 0xffff,arg2,arg3,arg4,arg5,arg6,0);
+        ret = do_netbsd_syscall(cpu_env, arg1 & 0xffff, arg2, arg3, arg4, arg5, arg6, 0);
         break;
     default:
         ret = syscall(num, arg1, arg2, arg3, arg4, arg5, arg6);
@@ -551,7 +551,7 @@ abi_long do_openbsd_syscall(void *cpu_env, int num, abi_long arg1,
         break;
     case TARGET_OPENBSD_NR_syscall:
     case TARGET_OPENBSD_NR___syscall:
-        ret = do_openbsd_syscall(cpu_env,arg1 & 0xffff,arg2,arg3,arg4,arg5,arg6,0);
+        ret = do_openbsd_syscall(cpu_env, arg1 & 0xffff, arg2, arg3, arg4, arg5, arg6, 0);
         break;
     default:
         ret = syscall(num, arg1, arg2, arg3, arg4, arg5, arg6);
