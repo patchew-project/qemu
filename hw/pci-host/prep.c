@@ -230,6 +230,15 @@ static void raven_change_gpio(void *opaque, int n, int level)
     s->contiguous_map = level;
 }
 
+static void raven_pcihost_reset(DeviceState *dev)
+{
+    PREPPCIState *s = RAVEN_PCI_HOST_BRIDGE(dev);
+
+    if (!s->is_legacy_prep) {
+        device_legacy_reset(DEVICE(&s->or_irq));
+    }
+}
+
 static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
 {
     SysBusDevice *dev = SYS_BUS_DEVICE(d);
@@ -422,6 +431,7 @@ static void raven_pcihost_class_init(ObjectClass *klass, void *data)
 
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->realize = raven_pcihost_realizefn;
+    dc->reset = raven_pcihost_reset;
     device_class_set_props(dc, raven_pcihost_properties);
     dc->fw_name = "pci";
 }
