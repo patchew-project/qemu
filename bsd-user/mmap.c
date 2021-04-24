@@ -23,8 +23,6 @@
 #include "bsd-mman.h"
 #include "exec/exec-all.h"
 
-//#define DEBUG_MMAP
-
 static pthread_mutex_t mmap_mutex = PTHREAD_MUTEX_INITIALIZER;
 static __thread int mmap_lock_count;
 
@@ -165,8 +163,10 @@ static int mmap_frag(abi_ulong real_start,
 
     prot_new = prot | prot1;
     if (!(flags & MAP_ANON)) {
-        /* msync() won't work here, so we return an error if write is
-           possible while it is a shared mapping */
+        /*
+         * msync() won't work here, so we return an error if write is possible
+         * while it is a shared mapping
+         */
         if ((flags & TARGET_BSD_MAP_FLAGMASK) == MAP_SHARED &&
             (prot & PROT_WRITE))
             return -1;
@@ -194,12 +194,13 @@ static abi_ulong mmap_next_start = 0x40000000;
 
 unsigned long last_brk;
 
-/* find a free memory area of size 'size'. The search starts at
-   'start'. If 'start' == 0, then a default start address is used.
-   Return -1 if error.
-*/
-/* page_init() marks pages used by the host as reserved to be sure not
-   to use them. */
+/*
+ * find a free memory area of size 'size'. The search starts at 'start'. If
+ * 'start' == 0, then a default start address is used.  Return -1 if error.
+ *
+ * page_init() marks pages used by the host as reserved to be sure not to use
+ * them.
+ */
 static abi_ulong mmap_find_vma(abi_ulong start, abi_ulong size)
 {
     abi_ulong addr, addr1, addr_start;
@@ -208,11 +209,12 @@ static abi_ulong mmap_find_vma(abi_ulong start, abi_ulong size)
 
     new_brk = (unsigned long)sbrk(0);
     if (last_brk && last_brk < new_brk && last_brk == (target_ulong)last_brk) {
-        /* This is a hack to catch the host allocating memory with brk().
-           If it uses mmap then we loose.
-           FIXME: We really want to avoid the host allocating memory in
-           the first place, and maybe leave some slack to avoid switching
-           to mmap.  */
+        /*
+         * This is a hack to catch the host allocating memory with brk().  If it
+         * uses mmap then we loose.
+         * FIXME: We really want to avoid the host allocating memory in the
+         * first place, and maybe leave some slack to avoid switching to mmap.
+         */
         page_set_flags(last_brk & TARGET_PAGE_MASK,
                        TARGET_PAGE_ALIGN(new_brk),
                        PAGE_RESERVED);
@@ -298,9 +300,10 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
             errno = ENOMEM;
             goto fail;
         }
-        /* Note: we prefer to control the mapping address. It is
-           especially important if qemu_host_page_size >
-           qemu_real_host_page_size */
+        /*
+         * Note: we prefer to control the mapping address. It is specially
+         * important if qemu_host_page_size > qemu_real_host_page_size
+         */
         p = mmap(g2h_untagged(mmap_start),
                  host_len, prot, flags | MAP_FIXED, fd, host_offset);
         if (p == MAP_FAILED)
@@ -329,12 +332,16 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
             }
         }
 
-        /* worst case: we cannot map the file because the offset is not
-           aligned, so we read it */
+        /*
+         * worst case: we cannot map the file because the offset is not aligned,
+         * so we read it
+         */
         if (!(flags & MAP_ANON) &&
             (offset & ~qemu_host_page_mask) != (start & ~qemu_host_page_mask)) {
-            /* msync() won't work here, so we return an error if write is
-               possible while it is a shared mapping */
+            /*
+             * msync() won't work here, so we return an error if write is
+             * possible while it is a shared mapping
+             */
             if ((flags & TARGET_BSD_MAP_FLAGMASK) == MAP_SHARED &&
                 (prot & PROT_WRITE)) {
                 errno = EINVAL;
