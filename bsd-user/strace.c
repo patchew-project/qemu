@@ -159,8 +159,10 @@ static void print_syscall(int num, const struct syscallname *scnames,
                 scnames[i].call(&scnames[i], arg1, arg2, arg3, arg4, arg5,
                         arg6);
             } else {
-                /* XXX: this format system is broken because it uses
-                   host types and host pointers for strings */
+                /*
+                 * XXX: this format system is broken because it uses host types
+                 * and host pointers for strings
+                 */
                 if (scnames[i].format != NULL) {
                     format = scnames[i].format;
                 }
