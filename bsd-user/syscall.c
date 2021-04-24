@@ -28,8 +28,6 @@
 #include "qemu-common.h"
 #include "user/syscall-trace.h"
 
-//#define DEBUG
-
 static abi_ulong target_brk;
 static abi_ulong target_original_brk;
 
@@ -78,7 +76,8 @@ static abi_long do_obreak(abi_ulong new_brk)
     new_alloc_size = HOST_PAGE_ALIGN(new_brk - brk_page + 1);
     mapped_addr = get_errno(target_mmap(brk_page, new_alloc_size,
                                         PROT_READ | PROT_WRITE,
-                                        MAP_ANON | MAP_FIXED | MAP_PRIVATE, -1, 0));
+                                        MAP_ANON | MAP_FIXED | MAP_PRIVATE,
+                                        -1, 0));
 
     if (!is_error(mapped_addr))
         target_brk = new_brk;
@@ -221,8 +220,9 @@ static int sysctl_oldcvt(void *holdp, size_t holdlen, uint32_t kind)
 }
 
 /* XXX this needs to be emulated on non-FreeBSD hosts... */
-static abi_long do_freebsd_sysctl(abi_ulong namep, int32_t namelen, abi_ulong oldp,
-                          abi_ulong oldlenp, abi_ulong newp, abi_ulong newlen)
+static abi_long do_freebsd_sysctl(abi_ulong namep, int32_t namelen,
+                                  abi_ulong oldp, abi_ulong oldlenp,
+                                  abi_ulong newp, abi_ulong newlen)
 {
     abi_long ret;
     void *hnamep, *holdp, *hnewp = NULL;
@@ -268,7 +268,8 @@ static abi_long lock_iovec(int type, struct iovec *vec, abi_ulong target_addr,
     abi_ulong base;
     int i;
 
-    target_vec = lock_user(VERIFY_READ, target_addr, count * sizeof(struct target_iovec), 1);
+    target_vec = lock_user(VERIFY_READ, target_addr,
+                           count * sizeof(struct target_iovec), 1);
     if (!target_vec)
         return -TARGET_EFAULT;
     for (i = 0; i < count; i++) {
@@ -294,7 +295,8 @@ static abi_long unlock_iovec(struct iovec *vec, abi_ulong target_addr,
     abi_ulong base;
     int i;
 
-    target_vec = lock_user(VERIFY_READ, target_addr, count * sizeof(struct target_iovec), 1);
+    target_vec = lock_user(VERIFY_READ, target_addr,
+                           count * sizeof(struct target_iovec), 1);
     if (!target_vec)
         return -TARGET_EFAULT;
     for (i = 0; i < count; i++) {
@@ -373,7 +375,8 @@ abi_long do_freebsd_syscall(void *cpu_env, int num, abi_long arg1,
         break;
     case TARGET_FREEBSD_NR_mmap:
         ret = get_errno(target_mmap(arg1, arg2, arg3,
-                                    target_to_host_bitmask(arg4, mmap_flags_tbl),
+                                    target_to_host_bitmask(arg4,
+                                                           mmap_flags_tbl),
                                     arg5,
                                     arg6));
         break;
@@ -393,10 +396,12 @@ abi_long do_freebsd_syscall(void *cpu_env, int num, abi_long arg1,
         break;
     case TARGET_FREEBSD_NR_syscall:
     case TARGET_FREEBSD_NR___syscall:
-        ret = do_freebsd_syscall(cpu_env, arg1 & 0xffff, arg2, arg3, arg4, arg5, arg6, arg7, arg8, 0);
+        ret = do_freebsd_syscall(cpu_env, arg1 & 0xffff, arg2, arg3, arg4,
+                                 arg5, arg6, arg7, arg8, 0);
         break;
     default:
-        ret = get_errno(syscall(num, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8));
+        ret = get_errno(syscall(num, arg1, arg2, arg3, arg4, arg5, arg6,
+                                arg7, arg8));
         break;
     }
  fail:
@@ -463,7 +468,8 @@ abi_long do_netbsd_syscall(void *cpu_env, int num, abi_long arg1,
         break;
     case TARGET_NETBSD_NR_mmap:
         ret = get_errno(target_mmap(arg1, arg2, arg3,
-                                    target_to_host_bitmask(arg4, mmap_flags_tbl),
+                                    target_to_host_bitmask(arg4,
+                                                           mmap_flags_tbl),
                                     arg5,
                                     arg6));
         break;
@@ -472,7 +478,8 @@ abi_long do_netbsd_syscall(void *cpu_env, int num, abi_long arg1,
         break;
     case TARGET_NETBSD_NR_syscall:
     case TARGET_NETBSD_NR___syscall:
-        ret = do_netbsd_syscall(cpu_env, arg1 & 0xffff, arg2, arg3, arg4, arg5, arg6, 0);
+        ret = do_netbsd_syscall(cpu_env, arg1 & 0xffff, arg2, arg3, arg4, arg5,
+                                arg6, 0);
         break;
     default:
         ret = syscall(num, arg1, arg2, arg3, arg4, arg5, arg6);
@@ -536,13 +543,15 @@ abi_long do_openbsd_syscall(void *cpu_env, int num, abi_long arg1,
         if (!(p = lock_user_string(arg1)))
             goto efault;
         ret = get_errno(open(path(p),
-                             target_to_host_bitmask(arg2, fcntl_flags_tbl),
+                             target_to_host_bitmask(arg2,
+                                                    fcntl_flags_tbl),
                              arg3));
         unlock_user(p, arg1, 0);
         break;
     case TARGET_OPENBSD_NR_mmap:
         ret = get_errno(target_mmap(arg1, arg2, arg3,
-                                    target_to_host_bitmask(arg4, mmap_flags_tbl),
+                                    target_to_host_bitmask(arg4,
+                                                           mmap_flags_tbl),
                                     arg5,
                                     arg6));
         break;
@@ -551,7 +560,8 @@ abi_long do_openbsd_syscall(void *cpu_env, int num, abi_long arg1,
         break;
     case TARGET_OPENBSD_NR_syscall:
     case TARGET_OPENBSD_NR___syscall:
-        ret = do_openbsd_syscall(cpu_env, arg1 & 0xffff, arg2, arg3, arg4, arg5, arg6, 0);
+        ret = do_openbsd_syscall(cpu_env, arg1 & 0xffff, arg2, arg3, arg4,
+                                 arg5, arg6, 0);
         break;
     default:
         ret = syscall(num, arg1, arg2, arg3, arg4, arg5, arg6);
