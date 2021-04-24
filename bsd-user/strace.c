@@ -80,7 +80,8 @@ static void print_execve(const struct syscallname *name, abi_long arg1,
         if (!arg_addr) {
             break;
         }
-        if ((s = lock_user_string(arg_addr))) {
+        s = lock_user_string(arg_addr);
+        if (s) {
             gemu_log("\"%s\",", s);
             unlock_user(s, arg_addr, 0);
         }
