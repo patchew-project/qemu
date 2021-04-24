@@ -42,6 +42,7 @@
 #include "trace/control.h"
 
 #include "host_os.h"
+#include "target_arch_cpu.h"
 
 int singlestep;
 unsigned long mmap_min_addr;
