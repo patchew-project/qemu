@@ -33,11 +33,12 @@ static abi_ulong target_original_brk;
 
 static inline abi_long get_errno(abi_long ret)
 {
-    if (ret == -1)
+    if (ret == -1) {
         /* XXX need to translate host -> target errnos here */
         return -(errno);
-    else
+    } else {
         return ret;
+    }
 }
 
 #define target_to_host_bitmask(x, tbl) (x)
@@ -59,10 +60,12 @@ static abi_long do_obreak(abi_ulong new_brk)
     abi_long mapped_addr;
     int new_alloc_size;
 
-    if (!new_brk)
+    if (!new_brk) {
         return 0;
-    if (new_brk < target_original_brk)
+    }
+    if (new_brk < target_original_brk) {
         return -TARGET_EINVAL;
+    }
 
     brk_page = HOST_PAGE_ALIGN(target_brk);
 
@@ -79,10 +82,11 @@ static abi_long do_obreak(abi_ulong new_brk)
                                         MAP_ANON | MAP_FIXED | MAP_PRIVATE,
                                         -1, 0));
 
-    if (!is_error(mapped_addr))
+    if (!is_error(mapped_addr)) {
         target_brk = new_brk;
-    else
+    } else {
         return mapped_addr;
+    }
 
     return 0;
 }
@@ -98,35 +102,39 @@ static abi_long do_freebsd_sysarch(CPUX86State *env, int op, abi_ulong parms)
 #ifdef TARGET_ABI32
     case TARGET_FREEBSD_I386_SET_GSBASE:
     case TARGET_FREEBSD_I386_SET_FSBASE:
-        if (op == TARGET_FREEBSD_I386_SET_GSBASE)
+        if (op == TARGET_FREEBSD_I386_SET_GSBASE) {
 #else
     case TARGET_FREEBSD_AMD64_SET_GSBASE:
     case TARGET_FREEBSD_AMD64_SET_FSBASE:
-        if (op == TARGET_FREEBSD_AMD64_SET_GSBASE)
+        if (op == TARGET_FREEBSD_AMD64_SET_GSBASE) {
 #endif
             idx = R_GS;
-        else
+        } else {
             idx = R_FS;
-        if (get_user(val, parms, abi_ulong))
+        }
+        if (get_user(val, parms, abi_ulong)) {
             return -TARGET_EFAULT;
+        }
         cpu_x86_load_seg(env, idx, 0);
         env->segs[idx].base = val;
         break;
 #ifdef TARGET_ABI32
     case TARGET_FREEBSD_I386_GET_GSBASE:
     case TARGET_FREEBSD_I386_GET_FSBASE:
-        if (op == TARGET_FREEBSD_I386_GET_GSBASE)
+        if (op == TARGET_FREEBSD_I386_GET_GSBASE) {
 #else
     case TARGET_FREEBSD_AMD64_GET_GSBASE:
     case TARGET_FREEBSD_AMD64_GET_FSBASE:
-        if (op == TARGET_FREEBSD_AMD64_GET_GSBASE)
+        if (op == TARGET_FREEBSD_AMD64_GET_GSBASE) {
 #endif
             idx = R_GS;
-        else
+        } else {
             idx = R_FS;
+        }
         val = env->segs[idx].base;
-        if (put_user(val, parms, abi_ulong))
+        if (put_user(val, parms, abi_ulong)) {
             return -TARGET_EFAULT;
+        }
         break;
     /* XXX handle the others... */
     default:
@@ -168,14 +176,17 @@ oidfmt(int *oid, int len, char *fmt, uint32_t *kind)
 
     j = sizeof(buf);
     i = sysctl(qoid, len + 2, buf, &j, 0, 0);
-    if (i)
+    if (i) {
         return i;
+    }
 
-    if (kind)
+    if (kind) {
         *kind = *(uint32_t *)buf;
+    }
 
-    if (fmt)
+    if (fmt) {
         strcpy(fmt, (char *)(buf + sizeof(uint32_t)));
+    }
     return (0);
 }
 
@@ -231,27 +242,34 @@ static abi_long do_freebsd_sysctl(abi_ulong namep, int32_t namelen,
     int32_t *snamep = g_malloc(sizeof(int32_t) * namelen), *p, *q, i;
     uint32_t kind = 0;
 
-    if (oldlenp)
+    if (oldlenp) {
         get_user_ual(oldlen, oldlenp);
-    if (!(hnamep = lock_user(VERIFY_READ, namep, namelen, 1)))
+    }
+    if (!(hnamep = lock_user(VERIFY_READ, namep, namelen, 1))) {
         return -TARGET_EFAULT;
-    if (newp && !(hnewp = lock_user(VERIFY_READ, newp, newlen, 1)))
+    }
+    if (newp && !(hnewp = lock_user(VERIFY_READ, newp, newlen, 1))) {
         return -TARGET_EFAULT;
-    if (!(holdp = lock_user(VERIFY_WRITE, oldp, oldlen, 0)))
+    }
+    if (!(holdp = lock_user(VERIFY_WRITE, oldp, oldlen, 0))) {
         return -TARGET_EFAULT;
+    }
     holdlen = oldlen;
-    for (p = hnamep, q = snamep, i = 0; i < namelen; p++, i++)
+    for (p = hnamep, q = snamep, i = 0; i < namelen; p++, i++) {
         *q++ = tswap32(*p);
+    }
     oidfmt(snamep, namelen, NULL, &kind);
     /* XXX swap hnewp */
     ret = get_errno(sysctl(snamep, namelen, holdp, &holdlen, hnewp, newlen));
-    if (!ret)
+    if (!ret) {
         sysctl_oldcvt(holdp, holdlen, kind);
+    }
     put_user_ual(holdlen, oldlenp);
     unlock_user(hnamep, namep, 0);
     unlock_user(holdp, oldp, holdlen);
-    if (hnewp)
+    if (hnewp) {
         unlock_user(hnewp, newp, 0);
+    }
     g_free(snamep);
     return ret;
 }
@@ -271,8 +289,9 @@ static abi_long lock_iovec(int type, struct iovec *vec, abi_ulong target_addr,
 
     target_vec = lock_user(VERIFY_READ, target_addr,
                            count * sizeof(struct target_iovec), 1);
-    if (!target_vec)
+    if (!target_vec) {
         return -TARGET_EFAULT;
+    }
     for (i = 0; i < count; i++) {
         base = tswapl(target_vec[i].iov_base);
         vec[i].iov_len = tswapl(target_vec[i].iov_len);
@@ -300,8 +319,9 @@ static abi_long unlock_iovec(struct iovec *vec, abi_ulong target_addr,
 
     target_vec = lock_user(VERIFY_READ, target_addr,
                            count * sizeof(struct target_iovec), 1);
-    if (!target_vec)
+    if (!target_vec) {
         return -TARGET_EFAULT;
+    }
     for (i = 0; i < count; i++) {
         if (target_vec[i].iov_base) {
             base = tswapl(target_vec[i].iov_base);
@@ -332,8 +352,9 @@ abi_long do_freebsd_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
     record_syscall_start(cpu, num, arg1, arg2, arg3, arg4, arg5, arg6, 0, 0);
 
-    if (do_strace)
+    if (do_strace) {
         print_freebsd_syscall(num, arg1, arg2, arg3, arg4, arg5, arg6);
+    }
 
     switch (num) {
     case TARGET_FREEBSD_NR_exit:
@@ -347,14 +368,16 @@ abi_long do_freebsd_syscall(void *cpu_env, int num, abi_long arg1,
         ret = 0; /* avoid warning */
         break;
     case TARGET_FREEBSD_NR_read:
-        if (!(p = lock_user(VERIFY_WRITE, arg2, arg3, 0)))
+        if (!(p = lock_user(VERIFY_WRITE, arg2, arg3, 0))) {
             goto efault;
+        }
         ret = get_errno(read(arg1, p, arg3));
         unlock_user(p, arg2, ret);
         break;
     case TARGET_FREEBSD_NR_write:
-        if (!(p = lock_user(VERIFY_READ, arg2, arg3, 1)))
+        if (!(p = lock_user(VERIFY_READ, arg2, arg3, 1))) {
             goto efault;
+        }
         ret = get_errno(write(arg1, p, arg3));
         unlock_user(p, arg2, 0);
         break;
@@ -364,15 +387,17 @@ abi_long do_freebsd_syscall(void *cpu_env, int num, abi_long arg1,
             struct iovec *vec;
 
             vec = alloca(count * sizeof(struct iovec));
-            if (lock_iovec(VERIFY_READ, vec, arg2, count, 1) < 0)
+            if (lock_iovec(VERIFY_READ, vec, arg2, count, 1) < 0) {
                 goto efault;
+            }
             ret = get_errno(writev(arg1, vec, count));
             unlock_iovec(vec, arg2, count, 0);
         }
         break;
     case TARGET_FREEBSD_NR_open:
-        if (!(p = lock_user_string(arg1)))
+        if (!(p = lock_user_string(arg1))) {
             goto efault;
+        }
         ret = get_errno(open(path(p),
                              target_to_host_bitmask(arg2, fcntl_flags_tbl),
                              arg3));
@@ -413,8 +438,9 @@ abi_long do_freebsd_syscall(void *cpu_env, int num, abi_long arg1,
 #ifdef DEBUG
     gemu_log(" = %ld\n", ret);
 #endif
-    if (do_strace)
+    if (do_strace) {
         print_freebsd_syscall_ret(num, ret);
+    }
 
     record_syscall_return(cpu, num, ret);
     return ret;
@@ -437,8 +463,9 @@ abi_long do_netbsd_syscall(void *cpu_env, int num, abi_long arg1,
 
     record_syscall_start(cpu, num, arg1, arg2, arg3, arg4, arg5, arg6, 0, 0);
 
-    if (do_strace)
+    if (do_strace) {
         print_netbsd_syscall(num, arg1, arg2, arg3, arg4, arg5, arg6);
+    }
 
     switch (num) {
     case TARGET_NETBSD_NR_exit:
@@ -452,20 +479,23 @@ abi_long do_netbsd_syscall(void *cpu_env, int num, abi_long arg1,
         ret = 0; /* avoid warning */
         break;
     case TARGET_NETBSD_NR_read:
-        if (!(p = lock_user(VERIFY_WRITE, arg2, arg3, 0)))
+        if (!(p = lock_user(VERIFY_WRITE, arg2, arg3, 0))) {
             goto efault;
+        }
         ret = get_errno(read(arg1, p, arg3));
         unlock_user(p, arg2, ret);
         break;
     case TARGET_NETBSD_NR_write:
-        if (!(p = lock_user(VERIFY_READ, arg2, arg3, 1)))
+        if (!(p = lock_user(VERIFY_READ, arg2, arg3, 1))) {
             goto efault;
+        }
         ret = get_errno(write(arg1, p, arg3));
         unlock_user(p, arg2, 0);
         break;
     case TARGET_NETBSD_NR_open:
-        if (!(p = lock_user_string(arg1)))
+        if (!(p = lock_user_string(arg1))) {
             goto efault;
+        }
         ret = get_errno(open(path(p),
                              target_to_host_bitmask(arg2, fcntl_flags_tbl),
                              arg3));
@@ -494,8 +524,9 @@ abi_long do_netbsd_syscall(void *cpu_env, int num, abi_long arg1,
 #ifdef DEBUG
     gemu_log(" = %ld\n", ret);
 #endif
-    if (do_strace)
+    if (do_strace) {
         print_netbsd_syscall_ret(num, ret);
+    }
 
     record_syscall_return(cpu, num, ret);
     return ret;
@@ -518,8 +549,9 @@ abi_long do_openbsd_syscall(void *cpu_env, int num, abi_long arg1,
 
     record_syscall_start(cpu, num, arg1, arg2, arg3, arg4, arg5, arg6, 0, 0);
 
-    if (do_strace)
+    if (do_strace) {
         print_openbsd_syscall(num, arg1, arg2, arg3, arg4, arg5, arg6);
+    }
 
     switch (num) {
     case TARGET_OPENBSD_NR_exit:
@@ -533,20 +565,23 @@ abi_long do_openbsd_syscall(void *cpu_env, int num, abi_long arg1,
         ret = 0; /* avoid warning */
         break;
     case TARGET_OPENBSD_NR_read:
-        if (!(p = lock_user(VERIFY_WRITE, arg2, arg3, 0)))
+        if (!(p = lock_user(VERIFY_WRITE, arg2, arg3, 0))) {
             goto efault;
+        }
         ret = get_errno(read(arg1, p, arg3));
         unlock_user(p, arg2, ret);
         break;
     case TARGET_OPENBSD_NR_write:
-        if (!(p = lock_user(VERIFY_READ, arg2, arg3, 1)))
+        if (!(p = lock_user(VERIFY_READ, arg2, arg3, 1))) {
             goto efault;
+        }
         ret = get_errno(write(arg1, p, arg3));
         unlock_user(p, arg2, 0);
         break;
     case TARGET_OPENBSD_NR_open:
-        if (!(p = lock_user_string(arg1)))
+        if (!(p = lock_user_string(arg1))) {
             goto efault;
+        }
         ret = get_errno(open(path(p),
                              target_to_host_bitmask(arg2,
                                                     fcntl_flags_tbl),
@@ -576,8 +611,9 @@ abi_long do_openbsd_syscall(void *cpu_env, int num, abi_long arg1,
 #ifdef DEBUG
     gemu_log(" = %ld\n", ret);
 #endif
-    if (do_strace)
+    if (do_strace) {
         print_openbsd_syscall_ret(num, ret);
+    }
 
     record_syscall_return(cpu, num, ret);
     return ret;
