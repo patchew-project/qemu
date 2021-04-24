@@ -140,8 +140,8 @@ static abi_long do_freebsd_sysarch(CPUX86State *env, int op, abi_ulong parms)
 #ifdef TARGET_SPARC
 static abi_long do_freebsd_sysarch(void *env, int op, abi_ulong parms)
 {
-    /* XXX handle
-     * TARGET_FREEBSD_SPARC_UTRAP_INSTALL,
+    /*
+     * XXX handle TARGET_FREEBSD_SPARC_UTRAP_INSTALL,
      * TARGET_FREEBSD_SPARC_SIGTRAMP_INSTALL
      */
     return -TARGET_EINVAL;
@@ -257,7 +257,8 @@ static abi_long do_freebsd_sysctl(abi_ulong namep, int32_t namelen,
 }
 #endif
 
-/* FIXME
+/*
+ * FIXME
  * lock_iovec()/unlock_iovec() have a return code of 0 for success where
  * other lock functions have a return code of 0 for failure.
  */
@@ -277,8 +278,10 @@ static abi_long lock_iovec(int type, struct iovec *vec, abi_ulong target_addr,
         vec[i].iov_len = tswapl(target_vec[i].iov_len);
         if (vec[i].iov_len != 0) {
             vec[i].iov_base = lock_user(type, base, vec[i].iov_len, copy);
-            /* Don't check lock_user return value. We must call writev even
-               if a element has invalid base address. */
+            /*
+             * Don't check lock_user return value. We must call writev even if a
+             * element has invalid base address.
+             */
         } else {
             /* zero length pointer is ignored */
             vec[i].iov_base = NULL;
@@ -310,9 +313,11 @@ static abi_long unlock_iovec(struct iovec *vec, abi_ulong target_addr,
     return 0;
 }
 
-/* do_syscall() should always have a single exit point at the end so
-   that actions, such as logging of syscall results, can be performed.
-   All errnos that do_syscall() returns must be -TARGET_<errcode>. */
+/*
+ * do_syscall() should always have a single exit point at the end so that
+ * actions, such as logging of syscall results, can be performed.  All errnos
+ * that do_syscall() returns must be -TARGET_<errcode>.
+ */
 abi_long do_freebsd_syscall(void *cpu_env, int num, abi_long arg1,
                             abi_long arg2, abi_long arg3, abi_long arg4,
                             abi_long arg5, abi_long arg6, abi_long arg7,
