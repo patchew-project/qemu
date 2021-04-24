@@ -245,13 +245,18 @@ static abi_long do_freebsd_sysctl(abi_ulong namep, int32_t namelen,
     if (oldlenp) {
         get_user_ual(oldlen, oldlenp);
     }
-    if (!(hnamep = lock_user(VERIFY_READ, namep, namelen, 1))) {
+    hnamep = lock_user(VERIFY_READ, namep, namelen, 1);
+    if (!hnamep) {
         return -TARGET_EFAULT;
     }
-    if (newp && !(hnewp = lock_user(VERIFY_READ, newp, newlen, 1))) {
-        return -TARGET_EFAULT;
+    if (newp) {
+        hnewp = lock_user(VERIFY_READ, newp, newlen, 1);
+        if (!hnewp) {
+            return -TARGET_EFAULT;
+        }
     }
-    if (!(holdp = lock_user(VERIFY_WRITE, oldp, oldlen, 0))) {
+    holdp = lock_user(VERIFY_WRITE, oldp, oldlen, 0);
+    if (!holdp) {
         return -TARGET_EFAULT;
     }
     holdlen = oldlen;
@@ -368,14 +373,16 @@ abi_long do_freebsd_syscall(void *cpu_env, int num, abi_long arg1,
         ret = 0; /* avoid warning */
         break;
     case TARGET_FREEBSD_NR_read:
-        if (!(p = lock_user(VERIFY_WRITE, arg2, arg3, 0))) {
+        p = lock_user(VERIFY_WRITE, arg2, arg3, 0);
+        if (!p) {
             goto efault;
         }
         ret = get_errno(read(arg1, p, arg3));
         unlock_user(p, arg2, ret);
         break;
     case TARGET_FREEBSD_NR_write:
-        if (!(p = lock_user(VERIFY_READ, arg2, arg3, 1))) {
+        p = lock_user(VERIFY_READ, arg2, arg3, 1);
+        if (!p) {
             goto efault;
         }
         ret = get_errno(write(arg1, p, arg3));
@@ -395,7 +402,8 @@ abi_long do_freebsd_syscall(void *cpu_env, int num, abi_long arg1,
         }
         break;
     case TARGET_FREEBSD_NR_open:
-        if (!(p = lock_user_string(arg1))) {
+        p = lock_user_string(arg1);
+        if (!p) {
             goto efault;
         }
         ret = get_errno(open(path(p),
@@ -479,21 +487,24 @@ abi_long do_netbsd_syscall(void *cpu_env, int num, abi_long arg1,
         ret = 0; /* avoid warning */
         break;
     case TARGET_NETBSD_NR_read:
-        if (!(p = lock_user(VERIFY_WRITE, arg2, arg3, 0))) {
+        p = lock_user(VERIFY_WRITE, arg2, arg3, 0);
+        if (!p) {
             goto efault;
         }
         ret = get_errno(read(arg1, p, arg3));
         unlock_user(p, arg2, ret);
         break;
     case TARGET_NETBSD_NR_write:
-        if (!(p = lock_user(VERIFY_READ, arg2, arg3, 1))) {
+        p = lock_user(VERIFY_READ, arg2, arg3, 1);
+        if (!p) {
             goto efault;
         }
         ret = get_errno(write(arg1, p, arg3));
         unlock_user(p, arg2, 0);
         break;
     case TARGET_NETBSD_NR_open:
-        if (!(p = lock_user_string(arg1))) {
+        p = lock_user_string(arg1);
+        if (!p) {
             goto efault;
         }
         ret = get_errno(open(path(p),
@@ -565,21 +576,24 @@ abi_long do_openbsd_syscall(void *cpu_env, int num, abi_long arg1,
         ret = 0; /* avoid warning */
         break;
     case TARGET_OPENBSD_NR_read:
-        if (!(p = lock_user(VERIFY_WRITE, arg2, arg3, 0))) {
+        p = lock_user(VERIFY_WRITE, arg2, arg3, 0);
+        if (!p) {
             goto efault;
         }
         ret = get_errno(read(arg1, p, arg3));
         unlock_user(p, arg2, ret);
         break;
     case TARGET_OPENBSD_NR_write:
-        if (!(p = lock_user(VERIFY_READ, arg2, arg3, 1))) {
+        p = lock_user(VERIFY_READ, arg2, arg3, 1);
+        if (!p) {
             goto efault;
         }
         ret = get_errno(write(arg1, p, arg3));
         unlock_user(p, arg2, 0);
         break;
     case TARGET_OPENBSD_NR_open:
-        if (!(p = lock_user_string(arg1))) {
+        p = lock_user_string(arg1);
+        if (!p) {
             goto efault;
         }
         ret = get_errno(open(path(p),
