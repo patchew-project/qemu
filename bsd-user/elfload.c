@@ -1270,9 +1270,6 @@ int load_elf_binary(struct linux_binprm *bprm, struct target_pt_regs *regs,
               ibcs2_interpreter = 1;
             }
 
-#if 0
-            printf("Using ELF interpreter %s\n", path(elf_interpreter));
-#endif
             if (retval >= 0) {
                 retval = open(path(elf_interpreter), O_RDONLY);
                 if (retval >= 0) {
@@ -1528,15 +1525,6 @@ int load_elf_binary(struct linux_binprm *bprm, struct target_pt_regs *regs,
     set_brk(elf_bss, elf_brk);
 
     padzero(elf_bss, elf_brk);
-
-#if 0
-    printf("(start_brk) %x\n" , info->start_brk);
-    printf("(end_code) %x\n" , info->end_code);
-    printf("(start_code) %x\n" , info->start_code);
-    printf("(end_data) %x\n" , info->end_data);
-    printf("(start_stack) %x\n" , info->start_stack);
-    printf("(brk) %x\n" , info->brk);
-#endif
 
     if (info->personality == PER_SVR4)
     {
