@@ -14,7 +14,8 @@ abi_long copy_from_user(void *hptr, abi_ulong gaddr, size_t len)
     abi_long ret = 0;
     void *ghptr;
 
-    if ((ghptr = lock_user(VERIFY_READ, gaddr, len, 1))) {
+    ghptr = lock_user(VERIFY_READ, gaddr, len, 1);
+    if (ghptr) {
         memcpy(hptr, ghptr, len);
         unlock_user(ghptr, gaddr, 0);
     } else
@@ -29,7 +30,8 @@ abi_long copy_to_user(abi_ulong gaddr, void *hptr, size_t len)
     abi_long ret = 0;
     void *ghptr;
 
-    if ((ghptr = lock_user(VERIFY_WRITE, gaddr, len, 0))) {
+    ghptr = lock_user(VERIFY_WRITE, gaddr, len, 0);
+    if (ghptr) {
         memcpy(ghptr, hptr, len);
         unlock_user(ghptr, gaddr, len);
     } else
