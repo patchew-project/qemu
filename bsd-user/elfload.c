@@ -756,7 +756,7 @@ static void padzero(abi_ulong elf_bss, abi_ulong last_bss)
 
 
 static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
-                                   struct elfhdr * exec,
+                                   struct elfhdr *exec,
                                    abi_ulong load_addr,
                                    abi_ulong load_bias,
                                    abi_ulong interp_load_addr, int ibcs,
@@ -891,12 +891,12 @@ static abi_ulong load_elf_interp(struct elfhdr *interp_elf_ex,
     if (retval < 0) {
         perror("load_elf_interp");
         exit(-1);
-        free (elf_phdata);
+        free(elf_phdata);
         return retval;
     }
 #ifdef BSWAP_NEEDED
     eppnt = elf_phdata;
-    for (i = 0; i<interp_elf_ex->e_phnum; i++, eppnt++) {
+    for (i = 0; i < interp_elf_ex->e_phnum; i++, eppnt++) {
         bswap_phdr(eppnt);
     }
 #endif
@@ -1155,11 +1155,11 @@ int load_elf_binary(struct linux_binprm *bprm, struct target_pt_regs *regs,
     unsigned int interpreter_type = INTERPRETER_NONE;
     unsigned char ibcs2_interpreter;
     int i;
-    struct elf_phdr * elf_ppnt;
+    struct elf_phdr *elf_ppnt;
     struct elf_phdr *elf_phdata;
     abi_ulong elf_bss, k, elf_brk;
     int retval;
-    char * elf_interpreter;
+    char *elf_interpreter;
     abi_ulong elf_entry, interp_load_addr = 0;
     abi_ulong start_code, end_code, start_data, end_data;
     abi_ulong reloc_func_desc = 0;
@@ -1183,14 +1183,14 @@ int load_elf_binary(struct linux_binprm *bprm, struct target_pt_regs *regs,
     }
 
     bprm->p = copy_elf_strings(1, &bprm->filename, bprm->page, bprm->p);
-    bprm->p = copy_elf_strings(bprm->envc, bprm->envp, bprm->page,bprm->p);
-    bprm->p = copy_elf_strings(bprm->argc, bprm->argv, bprm->page,bprm->p);
+    bprm->p = copy_elf_strings(bprm->envc, bprm->envp, bprm->page, bprm->p);
+    bprm->p = copy_elf_strings(bprm->argc, bprm->argv, bprm->page, bprm->p);
     if (!bprm->p) {
         retval = -E2BIG;
     }
 
     /* Now read in all of the header information */
-    elf_phdata = (struct elf_phdr *)malloc(elf_ex.e_phentsize*elf_ex.e_phnum);
+    elf_phdata = (struct elf_phdr *)malloc(elf_ex.e_phentsize * elf_ex.e_phnum);
     if (elf_phdata == NULL) {
         return -ENOMEM;
     }
@@ -1223,11 +1223,11 @@ int load_elf_binary(struct linux_binprm *bprm, struct target_pt_regs *regs,
     elf_interpreter = NULL;
     start_code = ~((abi_ulong)0UL);
     end_code = 0;
-    start_data = 0;
+    start_data =n 0;
     end_data = 0;
     interp_ex.a_info = 0;
 
-    for (i = 0;i < elf_ex.e_phnum; i++) {
+    for (i = 0; i < elf_ex.e_phnum; i++) {
         if (elf_ppnt->p_type == PT_INTERP) {
             if (elf_interpreter != NULL)
             {
@@ -1267,7 +1267,7 @@ int load_elf_binary(struct linux_binprm *bprm, struct target_pt_regs *regs,
 
             if (strcmp(elf_interpreter, "/usr/lib/libc.so.1") == 0 ||
                 strcmp(elf_interpreter, "/usr/lib/ld.so.1") == 0) {
-              ibcs2_interpreter = 1;
+                ibcs2_interpreter = 1;
             }
 
             if (retval >= 0) {
