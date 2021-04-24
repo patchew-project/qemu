@@ -1544,7 +1544,7 @@ int load_elf_binary(struct linux_binprm *bprm, struct target_pt_regs *regs,
 static int load_aout_interp(void *exptr, int interp_fd)
 {
     printf("a.out interpreter not yet supported\n");
-    return(0);
+    return 0;
 }
 
 void do_init_thread(struct target_pt_regs *regs, struct image_info *infop)
