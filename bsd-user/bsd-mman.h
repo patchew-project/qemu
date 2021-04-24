@@ -1,4 +1,4 @@
-/*-
+/*
  * Copyright (c) 1982, 1986, 1993
  *      The Regents of the University of California.  All rights reserved.
  *
@@ -30,16 +30,20 @@
  * $FreeBSD: src/sys/sys/mman.h,v 1.42 2008/03/28 04:29:27 ps Exp $
  */
 
-#define TARGET_FREEBSD_MAP_RESERVED0080 0x0080  /* previously misimplemented MAP_INHERIT */
-#define TARGET_FREEBSD_MAP_RESERVED0100 0x0100  /* previously unimplemented MAP_NOEXTEND */
-#define TARGET_FREEBSD_MAP_STACK        0x0400  /* region grows down, like a stack */
-#define TARGET_FREEBSD_MAP_NOSYNC       0x0800  /* page to but do not sync underlying file */
+#define TARGET_FREEBSD_MAP_RESERVED0080 0x0080
+                                 /* previously misimplemented MAP_INHERIT */
+#define TARGET_FREEBSD_MAP_RESERVED0100 0x0100
+                                 /* previously unimplemented MAP_NOEXTEND */
+#define TARGET_FREEBSD_MAP_STACK        0x0400
+                                 /* region grows down, like a stack */
+#define TARGET_FREEBSD_MAP_NOSYNC       0x0800
+                                 /* page to but do not sync underlying file */
 
 #define TARGET_FREEBSD_MAP_FLAGMASK     0x1ff7
 
 /*      $NetBSD: mman.h,v 1.42 2008/11/18 22:13:49 ad Exp $     */
 
-/*-
+/*
  * Copyright (c) 1982, 1986, 1993
  *      The Regents of the University of California.  All rights reserved.
  *
@@ -69,18 +73,21 @@
  *
  *      @(#)mman.h      8.2 (Berkeley) 1/9/95
  */
-#define TARGET_NETBSD_MAP_INHERIT       0x0080  /* region is retained after exec */
-#define TARGET_NETBSD_MAP_TRYFIXED      0x0400 /* attempt hint address, even within break */
-#define TARGET_NETBSD_MAP_WIRED         0x0800  /* mlock() mapping when it is established */
-
-#define TARGET_NETBSD_MAP_STACK         0x2000  /* allocated from memory, swap space (stack) */
+#define TARGET_NETBSD_MAP_INHERIT       0x0080
+                                /* region is retained after exec */
+#define TARGET_NETBSD_MAP_TRYFIXED      0x0400
+                                /* attempt hint address, even within break */
+#define TARGET_NETBSD_MAP_WIRED         0x0800
+                                /* mlock() mapping when it is established */
+#define TARGET_NETBSD_MAP_STACK         0x2000
+                                /* allocated from memory, swap space (stack) */
 
 #define TARGET_NETBSD_MAP_FLAGMASK      0x3ff7
 
 /*      $OpenBSD: mman.h,v 1.18 2003/07/21 22:52:19 tedu Exp $  */
 /*      $NetBSD: mman.h,v 1.11 1995/03/26 20:24:23 jtc Exp $    */
 
-/*-
+/*
  * Copyright (c) 1982, 1986, 1993
  *      The Regents of the University of California.  All rights reserved.
  *
@@ -111,11 +118,14 @@
  *      @(#)mman.h      8.1 (Berkeley) 6/2/93
  */
 
-#define TARGET_OPENBSD_MAP_INHERIT      0x0080  /* region is retained after exec */
-#define TARGET_OPENBSD_MAP_NOEXTEND     0x0100  /* for MAP_FILE, don't change file size */
-#define TARGET_OPENBSD_MAP_TRYFIXED     0x0400  /* attempt hint address, even within heap */
+#define TARGET_OPENBSD_MAP_INHERIT      0x0080
+                                /* region is retained after exec */
+#define TARGET_OPENBSD_MAP_NOEXTEND     0x0100
+                                /* for MAP_FILE, don't change file size */
+#define TARGET_OPENBSD_MAP_TRYFIXED     0x0400
+                                /* attempt hint address, even within heap */
 
 #define TARGET_OPENBSD_MAP_FLAGMASK     0x17f7
 
-// XXX
+/* XXX what to do in the future? */
 #define TARGET_BSD_MAP_FLAGMASK         0x3ff7
