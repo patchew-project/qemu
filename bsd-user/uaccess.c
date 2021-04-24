@@ -4,9 +4,10 @@
 
 #include "qemu.h"
 
-/* copy_from_user() and copy_to_user() are usually used to copy data
- * buffers between the target and host.  These internally perform
- * locking/unlocking of the memory.
+/*
+ * copy_from_user() and copy_to_user() are usually used to copy data buffers
+ * between the target and host.  These internally perform locking/unlocking of
+ * the memory.
  */
 abi_long copy_from_user(void *hptr, abi_ulong gaddr, size_t len)
 {
@@ -37,8 +38,10 @@ abi_long copy_to_user(abi_ulong gaddr, void *hptr, size_t len)
     return ret;
 }
 
-/* Return the length of a string in target memory or -TARGET_EFAULT if
-   access error  */
+/*
+ * Return the length of a string in target memory or -TARGET_EFAULT if access
+ * error
+ */
 abi_long target_strlen(abi_ulong guest_addr1)
 {
     uint8_t *ptr;
