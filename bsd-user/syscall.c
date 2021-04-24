@@ -187,7 +187,7 @@ oidfmt(int *oid, int len, char *fmt, uint32_t *kind)
     if (fmt) {
         strcpy(fmt, (char *)(buf + sizeof(uint32_t)));
     }
-    return (0);
+    return 0;
 }
 
 /*
