@@ -24,6 +24,7 @@
 #include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 #include "migration/vmstate.h"
+#include "sysemu/reset.h"
 #include "sysemu/dma.h"
 #include "exec/address-spaces.h"
 #include "trace.h"
@@ -302,6 +303,11 @@ static const VMStateDescription vmstate_spapr_tce_table = {
     }
 };
 
+static void spapr_tce_reset_handler(void *dev)
+{
+    device_legacy_reset(DEVICE(dev));
+}
+
 static void spapr_tce_table_realize(DeviceState *dev, Error **errp)
 {
     SpaprTceTable *tcet = SPAPR_TCE_TABLE(dev);
@@ -324,6 +330,8 @@ static void spapr_tce_table_realize(DeviceState *dev, Error **errp)
 
     vmstate_register(VMSTATE_IF(tcet), tcet->liobn, &vmstate_spapr_tce_table,
                      tcet);
+
+    qemu_register_reset(spapr_tce_reset_handler, dev);
 }
 
 void spapr_tce_set_need_vfio(SpaprTceTable *tcet, bool need_vfio)
@@ -424,6 +432,8 @@ void spapr_tce_table_disable(SpaprTceTable *tcet)
 static void spapr_tce_table_unrealize(DeviceState *dev)
 {
     SpaprTceTable *tcet = SPAPR_TCE_TABLE(dev);
+
+    qemu_unregister_reset(spapr_tce_reset_handler, dev);
 
     vmstate_unregister(VMSTATE_IF(tcet), &vmstate_spapr_tce_table, tcet);
 
