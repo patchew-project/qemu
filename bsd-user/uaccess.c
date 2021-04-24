@@ -54,8 +54,9 @@ abi_long target_strlen(abi_ulong guest_addr1)
     for (;;) {
         max_len = TARGET_PAGE_SIZE - (guest_addr & ~TARGET_PAGE_MASK);
         ptr = lock_user(VERIFY_READ, guest_addr, max_len, 1);
-        if (!ptr)
+        if (!ptr) {
             return -TARGET_EFAULT;
+        }
         len = qemu_strnlen((const char *)ptr, max_len);
         unlock_user(ptr, guest_addr, 0);
         guest_addr += len;
@@ -63,8 +64,9 @@ abi_long target_strlen(abi_ulong guest_addr1)
         if (guest_addr == 0 ||
             (guest_addr - guest_addr1) > 0x7fffffff)
             return -TARGET_EFAULT;
-        if (len != max_len)
+        if (len != max_len) {
             break;
+        }
     }
     return guest_addr - guest_addr1;
 }
