@@ -4,13 +4,15 @@
 #include "../sparc/target_errno.h"
 
 struct target_pt_regs {
-	abi_ulong u_regs[16];
-	abi_ulong tstate;
-	abi_ulong pc;
-	abi_ulong npc;
-	abi_ulong y;
-	abi_ulong fprs;
+    abi_ulong u_regs[16];
+    abi_ulong tstate;
+    abi_ulong pc;
+    abi_ulong npc;
+    uint32_t y;
+    uint32_t magic;
 };
+
+#define TARGET_PT_REGS_MAGIC 0x57ac6c00
 
 #define UNAME_MACHINE "sparc64"
 #define UNAME_MINIMUM_RELEASE "2.6.32"
