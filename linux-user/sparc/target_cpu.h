@@ -20,6 +20,12 @@
 #ifndef SPARC_TARGET_CPU_H
 #define SPARC_TARGET_CPU_H
 
+#if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
+# define TARGET_STACK_BIAS 2047
+#else
+# define TARGET_STACK_BIAS 0
+#endif
+
 static inline void cpu_clone_regs_child(CPUSPARCState *env, target_ulong newsp,
                                         unsigned flags)
 {
