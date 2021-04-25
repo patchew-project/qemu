@@ -751,7 +751,7 @@ void pc_smp_parse(MachineState *ms, QemuOpts *opts)
             exit(1);
         }
 
-        if (sockets * dies * cores * threads != ms->smp.max_cpus) {
+        if (sockets * dies * cores * threads > ms->smp.max_cpus) {
             error_report("Invalid CPU topology deprecated: "
                          "sockets (%u) * dies (%u) * cores (%u) * threads (%u) "
                          "!= maxcpus (%u)",
