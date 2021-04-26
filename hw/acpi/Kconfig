@@ -40,5 +40,6 @@ config ACPI_VMGENID
     bool
     default y
     depends on PC
+    select FW_CFG
 
 config ACPI_HW_REDUCED
