@@ -32,6 +32,7 @@
 #ifdef CONFIG_KVM_IS_POSSIBLE
 
 extern bool kvm_allowed;
+extern bool kvm_sregs2;
 extern bool kvm_kernel_irqchip;
 extern bool kvm_split_irqchip;
 extern bool kvm_async_interrupts_allowed;
@@ -138,6 +139,9 @@ extern bool kvm_msi_use_devid;
  * Returns: true if GSI direct mapping is enabled.
  */
 #define kvm_gsi_direct_mapping() (kvm_gsi_direct_mapping)
+
+
+#define kvm_supports_sregs2() (kvm_sregs2)
 
 /**
  * kvm_readonly_mem_enabled:
