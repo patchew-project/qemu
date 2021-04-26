@@ -6,9 +6,6 @@ config DDC
 config EDID
     bool
 
-config FW_CFG_DMA
-    bool
-
 config VGA_CIRRUS
     bool
     default y if PCI_DEVICES

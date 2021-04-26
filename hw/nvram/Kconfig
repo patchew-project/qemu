@@ -1,6 +1,10 @@
 config FW_CFG
     bool
 
+config FW_CFG_DMA
+    bool
+    select FW_CFG
+
 config DS1225Y
     bool
 
