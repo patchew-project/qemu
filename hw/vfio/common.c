@@ -668,6 +668,15 @@ static void vfio_listener_region_add(MemoryListener *listener,
                 int128_get64(int128_sub(section->size, int128_one())));
         return;
     }
+    
+    /* Do not add virtio fs cache section */                  
+    if (!strcmp(memory_region_name(section->mr), "virtio-fs-cache")) {
+        trace_vfio_listener_region_add_skip(
+                section->offset_within_address_space,
+                section->offset_within_address_space +
+                int128_get64(int128_sub(section->size, int128_one())));
+        return;
+    }  
 
     if (unlikely((section->offset_within_address_space &
                   ~qemu_real_host_page_mask) !=
