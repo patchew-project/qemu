@@ -14,3 +14,4 @@ config DINO
     select LASIPS2
     select PARALLEL
     select ARTIST
+    select FW_CFG

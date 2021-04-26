@@ -13,6 +13,7 @@ config SUN4U
     select PCKBD
     select SIMBA
     select CHRP_NVRAM
+    select FW_CFG
 
 config NIAGARA
     bool

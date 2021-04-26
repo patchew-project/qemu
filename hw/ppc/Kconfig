@@ -131,6 +131,7 @@ config VIRTEX
 # Only used by 64-bit targets
 config FW_CFG_PPC
     bool
+    select FW_CFG
 
 config FDT_PPC
     bool

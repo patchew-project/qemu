@@ -15,6 +15,7 @@ config SUN4M
     select STP2000
     select CHRP_NVRAM
     select OR_IRQ
+    select FW_CFG
 
 config LEON3
     bool

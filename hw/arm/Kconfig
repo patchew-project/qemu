@@ -8,6 +8,7 @@ config ARM_VIRT
     imply TPM_TIS_SYSBUS
     select ARM_GIC
     select ACPI
+    select FW_CFG
     select ARM_SMMUV3
     select GPIO_KEY
     select FW_CFG_DMA
@@ -216,6 +217,7 @@ config SBSA_REF
     select PL061 # GPIO
     select USB_EHCI_SYSBUS
     select WDT_SBSA
+    select FW_CFG
 
 config SABRELITE
     bool

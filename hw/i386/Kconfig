@@ -52,6 +52,7 @@ config PC_ACPI
     select SMBUS_EEPROM
     select PFLASH_CFI01
     depends on ACPI_SMBUS
+    select FW_CFG
 
 config I440FX
     bool
@@ -106,6 +107,7 @@ config MICROVM
     select ACPI_HW_REDUCED
     select PCI_EXPRESS_GENERIC_BRIDGE
     select USB_XHCI_SYSBUS
+    select FW_CFG
 
 config X86_IOMMU
     bool
