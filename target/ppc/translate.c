@@ -3744,8 +3744,9 @@ static void gen_lookup_and_goto_ptr(DisasContext *ctx)
         } else if (sse & (CPU_SINGLE_STEP | CPU_BRANCH_STEP)) {
             uint32_t excp = gen_prep_dbgex(ctx);
             gen_exception(ctx, excp);
+        } else {
+            tcg_gen_exit_tb(NULL, 0);
         }
-        tcg_gen_exit_tb(NULL, 0);
     } else {
         tcg_gen_lookup_and_goto_ptr();
     }
@@ -8101,9 +8102,10 @@ static void ppc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
     } else if (ctx->exception != POWERPC_EXCP_BRANCH) {
         if (unlikely(ctx->base.singlestep_enabled)) {
             gen_debug_exception(ctx);
+        } else {
+            /* Generate the return instruction */
+            tcg_gen_exit_tb(NULL, 0);
         }
-        /* Generate the return instruction */
-        tcg_gen_exit_tb(NULL, 0);
     }
 }
 
