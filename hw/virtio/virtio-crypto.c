@@ -947,7 +947,9 @@ static void virtio_crypto_guest_notifier_mask(VirtIODevice *vdev, int idx,
     int queue = virtio_crypto_vq2q(idx);
 
     assert(vcrypto->vhost_started);
-
+    if (idx == -1) {
+        return;
+    }
     cryptodev_vhost_virtqueue_mask(vdev, queue, idx, mask);
 }
 
@@ -957,7 +959,9 @@ static bool virtio_crypto_guest_notifier_pending(VirtIODevice *vdev, int idx)
     int queue = virtio_crypto_vq2q(idx);
 
     assert(vcrypto->vhost_started);
-
+    if (idx == -1) {
+        return false;
+    }
     return cryptodev_vhost_virtqueue_pending(vdev, queue, idx);
 }
 
