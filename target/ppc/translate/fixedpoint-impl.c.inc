@@ -58,3 +58,15 @@ static bool trans_PADDI(DisasContext *ctx, arg_PLS_D *a)
     }
     return true;
 }
+
+static bool trans_PNOP(DisasContext *ctx, arg_PNOP *a)
+{
+    /*
+     * TODO: diagnose the set of patterns that are illegal:
+     * branches, rfebb, sync other than isync, or a
+     * service processor attention.
+     * The Engineering Note allows us to either diagnose
+     * these as illegal, or treat them all as no-op.
+     */
+    return true;
+}
