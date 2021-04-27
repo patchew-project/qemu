@@ -121,6 +121,48 @@ static bool trans_LDU(DisasContext *ctx, arg_D *a)
     return do_ldst_D(ctx, a, true, false, MO_Q);
 }
 
+static bool trans_STB(DisasContext *ctx, arg_D *a)
+{
+    return do_ldst_D(ctx, a, false, true, MO_UB);
+}
+
+static bool trans_STBU(DisasContext *ctx, arg_D *a)
+{
+    return do_ldst_D(ctx, a, true, true, MO_UB);
+}
+
+static bool trans_STH(DisasContext *ctx, arg_D *a)
+{
+    return do_ldst_D(ctx, a, false, true, MO_UW);
+}
+
+static bool trans_STHU(DisasContext *ctx, arg_D *a)
+{
+    return do_ldst_D(ctx, a, true, true, MO_UW);
+}
+
+static bool trans_STW(DisasContext *ctx, arg_D *a)
+{
+    return do_ldst_D(ctx, a, false, true, MO_UL);
+}
+
+static bool trans_STWU(DisasContext *ctx, arg_D *a)
+{
+    return do_ldst_D(ctx, a, true, true, MO_UL);
+}
+
+static bool trans_STD(DisasContext *ctx, arg_D *a)
+{
+    REQUIRE_INSNS_FLAGS(ctx, 64B);
+    return do_ldst_D(ctx, a, false, true, MO_Q);
+}
+
+static bool trans_STDU(DisasContext *ctx, arg_D *a)
+{
+    REQUIRE_INSNS_FLAGS(ctx, 64B);
+    return do_ldst_D(ctx, a, true, true, MO_Q);
+}
+
 static bool do_ldst_X(DisasContext *ctx, arg_X *a, bool update,
                       bool store, MemOp mop)
 {
@@ -216,6 +258,48 @@ static bool trans_LDUX(DisasContext *ctx, arg_X *a)
 {
     REQUIRE_INSNS_FLAGS(ctx, 64B);
     return do_ldst_X(ctx, a, true, false, MO_Q);
+}
+
+static bool trans_STBX(DisasContext *ctx, arg_X *a)
+{
+    return do_ldst_X(ctx, a, false, true, MO_UB);
+}
+
+static bool trans_STBUX(DisasContext *ctx, arg_X *a)
+{
+    return do_ldst_X(ctx, a, true, true, MO_UB);
+}
+
+static bool trans_STHX(DisasContext *ctx, arg_X *a)
+{
+    return do_ldst_X(ctx, a, false, true, MO_UW);
+}
+
+static bool trans_STHUX(DisasContext *ctx, arg_X *a)
+{
+    return do_ldst_X(ctx, a, true, true, MO_UW);
+}
+
+static bool trans_STWX(DisasContext *ctx, arg_X *a)
+{
+    return do_ldst_X(ctx, a, false, true, MO_UL);
+}
+
+static bool trans_STWUX(DisasContext *ctx, arg_X *a)
+{
+    return do_ldst_X(ctx, a, true, true, MO_UL);
+}
+
+static bool trans_STDX(DisasContext *ctx, arg_X *a)
+{
+    REQUIRE_INSNS_FLAGS(ctx, 64B);
+    return do_ldst_X(ctx, a, false, true, MO_Q);
+}
+
+static bool trans_STDUX(DisasContext *ctx, arg_X *a)
+{
+    REQUIRE_INSNS_FLAGS(ctx, 64B);
+    return do_ldst_X(ctx, a, true, true, MO_Q);
 }
 
 static bool do_ldst_PLS_D(DisasContext *ctx, arg_PLS_D *a,
