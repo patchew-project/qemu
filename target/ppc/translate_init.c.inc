@@ -188,7 +188,7 @@ static void spr_read_decr(DisasContext *ctx, int gprn, int sprn)
     }
     gen_helper_load_decr(cpu_gpr[gprn], cpu_env);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_stop_exception(ctx);
+        gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
     }
 }
 
@@ -199,7 +199,7 @@ static void spr_write_decr(DisasContext *ctx, int sprn, int gprn)
     }
     gen_helper_store_decr(cpu_env, cpu_gpr[gprn]);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_stop_exception(ctx);
+        gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
     }
 }
 #endif
@@ -214,7 +214,7 @@ static void spr_read_tbl(DisasContext *ctx, int gprn, int sprn)
     gen_helper_load_tbl(cpu_gpr[gprn], cpu_env);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
         gen_io_end();
-        gen_stop_exception(ctx);
+        gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
     }
 }
 
@@ -226,7 +226,7 @@ static void spr_read_tbu(DisasContext *ctx, int gprn, int sprn)
     gen_helper_load_tbu(cpu_gpr[gprn], cpu_env);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
         gen_io_end();
-        gen_stop_exception(ctx);
+        gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
     }
 }
 
@@ -251,7 +251,7 @@ static void spr_write_tbl(DisasContext *ctx, int sprn, int gprn)
     gen_helper_store_tbl(cpu_env, cpu_gpr[gprn]);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
         gen_io_end();
-        gen_stop_exception(ctx);
+        gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
     }
 }
 
@@ -263,7 +263,7 @@ static void spr_write_tbu(DisasContext *ctx, int sprn, int gprn)
     gen_helper_store_tbu(cpu_env, cpu_gpr[gprn]);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
         gen_io_end();
-        gen_stop_exception(ctx);
+        gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
     }
 }
 
@@ -288,7 +288,7 @@ static void spr_read_purr(DisasContext *ctx, int gprn, int sprn)
     }
     gen_helper_load_purr(cpu_gpr[gprn], cpu_env);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_stop_exception(ctx);
+        gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
     }
 }
 
@@ -299,7 +299,7 @@ static void spr_write_purr(DisasContext *ctx, int sprn, int gprn)
     }
     gen_helper_store_purr(cpu_env, cpu_gpr[gprn]);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_stop_exception(ctx);
+        gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
     }
 }
 
@@ -312,7 +312,7 @@ static void spr_read_hdecr(DisasContext *ctx, int gprn, int sprn)
     gen_helper_load_hdecr(cpu_gpr[gprn], cpu_env);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
         gen_io_end();
-        gen_stop_exception(ctx);
+        gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
     }
 }
 
@@ -324,7 +324,7 @@ static void spr_write_hdecr(DisasContext *ctx, int sprn, int gprn)
     gen_helper_store_hdecr(cpu_env, cpu_gpr[gprn]);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
         gen_io_end();
-        gen_stop_exception(ctx);
+        gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
     }
 }
 
@@ -335,7 +335,7 @@ static void spr_read_vtb(DisasContext *ctx, int gprn, int sprn)
     }
     gen_helper_load_vtb(cpu_gpr[gprn], cpu_env);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_stop_exception(ctx);
+        gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
     }
 }
 
@@ -346,7 +346,7 @@ static void spr_write_vtb(DisasContext *ctx, int sprn, int gprn)
     }
     gen_helper_store_vtb(cpu_env, cpu_gpr[gprn]);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_stop_exception(ctx);
+        gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
     }
 }
 
@@ -357,7 +357,7 @@ static void spr_write_tbu40(DisasContext *ctx, int sprn, int gprn)
     }
     gen_helper_store_tbu40(cpu_env, cpu_gpr[gprn]);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_stop_exception(ctx);
+        gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
     }
 }
 
@@ -534,7 +534,7 @@ static void spr_write_hid0_601(DisasContext *ctx, int sprn, int gprn)
 {
     gen_helper_store_hid0_601(cpu_env, cpu_gpr[gprn]);
     /* Must stop the translation as endianness may have changed */
-    gen_stop_exception(ctx);
+    gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
 }
 #endif
 
@@ -571,7 +571,7 @@ static void spr_read_40x_pit(DisasContext *ctx, int gprn, int sprn)
     }
     gen_helper_load_40x_pit(cpu_gpr[gprn], cpu_env);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_stop_exception(ctx);
+        gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
     }
 }
 
@@ -582,7 +582,7 @@ static void spr_write_40x_pit(DisasContext *ctx, int sprn, int gprn)
     }
     gen_helper_store_40x_pit(cpu_env, cpu_gpr[gprn]);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_stop_exception(ctx);
+        gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
     }
 }
 
@@ -594,9 +594,9 @@ static void spr_write_40x_dbcr0(DisasContext *ctx, int sprn, int gprn)
     gen_store_spr(sprn, cpu_gpr[gprn]);
     gen_helper_store_40x_dbcr0(cpu_env, cpu_gpr[gprn]);
     /* We must stop translation as we may have rebooted */
-    gen_stop_exception(ctx);
+    gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_stop_exception(ctx);
+        gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
     }
 }
 
@@ -607,7 +607,7 @@ static void spr_write_40x_sler(DisasContext *ctx, int sprn, int gprn)
     }
     gen_helper_store_40x_sler(cpu_env, cpu_gpr[gprn]);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_stop_exception(ctx);
+        gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
     }
 }
 
@@ -618,7 +618,7 @@ static void spr_write_booke_tcr(DisasContext *ctx, int sprn, int gprn)
     }
     gen_helper_store_booke_tcr(cpu_env, cpu_gpr[gprn]);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_stop_exception(ctx);
+        gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
     }
 }
 
@@ -629,7 +629,7 @@ static void spr_write_booke_tsr(DisasContext *ctx, int sprn, int gprn)
     }
     gen_helper_store_booke_tsr(cpu_env, cpu_gpr[gprn]);
     if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-        gen_stop_exception(ctx);
+        gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
     }
 }
 #endif

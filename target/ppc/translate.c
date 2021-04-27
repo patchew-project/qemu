@@ -263,6 +263,7 @@ static void gen_exception_err(DisasContext *ctx, uint32_t excp, uint32_t error)
     tcg_temp_free_i32(t0);
     tcg_temp_free_i32(t1);
     ctx->exception = (excp);
+    ctx->base.is_jmp = DISAS_NORETURN;
 }
 
 static void gen_exception(DisasContext *ctx, uint32_t excp)
@@ -280,6 +281,7 @@ static void gen_exception(DisasContext *ctx, uint32_t excp)
     gen_helper_raise_exception(cpu_env, t0);
     tcg_temp_free_i32(t0);
     ctx->exception = (excp);
+    ctx->base.is_jmp = DISAS_NORETURN;
 }
 
 static void gen_exception_nip(DisasContext *ctx, uint32_t excp,
@@ -292,6 +294,7 @@ static void gen_exception_nip(DisasContext *ctx, uint32_t excp,
     gen_helper_raise_exception(cpu_env, t0);
     tcg_temp_free_i32(t0);
     ctx->exception = (excp);
+    ctx->base.is_jmp = DISAS_NORETURN;
 }
 
 /*
@@ -337,6 +340,7 @@ static void gen_debug_exception(DisasContext *ctx)
     t0 = tcg_const_i32(EXCP_DEBUG);
     gen_helper_raise_exception(cpu_env, t0);
     tcg_temp_free_i32(t0);
+    ctx->base.is_jmp = DISAS_NORETURN;
 }
 
 static inline void gen_inval_exception(DisasContext *ctx, uint32_t error)
@@ -357,19 +361,17 @@ static inline void gen_hvpriv_exception(DisasContext *ctx, uint32_t error)
 }
 
 /* Stop translation */
-static inline void gen_stop_exception(DisasContext *ctx)
+static inline void gen_end_tb_exception(DisasContext *ctx, uint32_t excp)
 {
-    gen_update_nip(ctx, ctx->base.pc_next);
-    ctx->exception = POWERPC_EXCP_STOP;
+    /* No need to update nip for SYNC/BRANCH, as execution flow will change */
+    if ((excp != POWERPC_EXCP_SYNC) &&
+        (excp != POWERPC_EXCP_BRANCH))
+    {
+        gen_update_nip(ctx, ctx->base.pc_next);
+    }
+    ctx->exception = excp;
+    ctx->base.is_jmp = DISAS_NORETURN;
 }
-
-#ifndef CONFIG_USER_ONLY
-/* No need to update nip here, as execution flow will change */
-static inline void gen_sync_exception(DisasContext *ctx)
-{
-    ctx->exception = POWERPC_EXCP_SYNC;
-}
-#endif
 
 #define GEN_HANDLER(name, opc1, opc2, opc3, inval, type)                      \
 GEN_OPCODE(name, opc1, opc2, opc3, inval, type, PPC_NONE)
@@ -1863,7 +1865,7 @@ static void gen_darn(DisasContext *ctx)
             gen_helper_darn64(cpu_gpr[rD(ctx->opcode)]);
         }
         if (tb_cflags(ctx->base.tb) & CF_USE_ICOUNT) {
-            gen_stop_exception(ctx);
+            gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
         }
     }
 }
@@ -3159,7 +3161,7 @@ static void gen_isync(DisasContext *ctx)
         gen_check_tlb_flush(ctx, false);
     }
     tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
-    gen_stop_exception(ctx);
+    gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
 }
 
 #define MEMOP_GET_SIZE(x)  (1 << ((x) & MO_SIZE))
@@ -3778,7 +3780,8 @@ static void gen_b(DisasContext *ctx)
 {
     target_ulong li, target;
 
-    ctx->exception = POWERPC_EXCP_BRANCH;
+    gen_end_tb_exception(ctx, POWERPC_EXCP_BRANCH);
+
     /* sign extend LI */
     li = LI(ctx->opcode);
     li = (li ^ 0x02000000) - 0x02000000;
@@ -3804,7 +3807,8 @@ static void gen_bcond(DisasContext *ctx, int type)
     uint32_t bo = BO(ctx->opcode);
     TCGLabel *l1;
     TCGv target;
-    ctx->exception = POWERPC_EXCP_BRANCH;
+
+    gen_end_tb_exception(ctx, POWERPC_EXCP_BRANCH);
 
     if (type == BCOND_LR || type == BCOND_CTR || type == BCOND_TAR) {
         target = tcg_temp_local_new();
@@ -4011,7 +4015,7 @@ static void gen_rfi(DisasContext *ctx)
     }
     gen_update_cfar(ctx, ctx->cia);
     gen_helper_rfi(cpu_env);
-    gen_sync_exception(ctx);
+    gen_end_tb_exception(ctx, POWERPC_EXCP_SYNC);
 #endif
 }
 
@@ -4028,7 +4032,7 @@ static void gen_rfid(DisasContext *ctx)
     }
     gen_update_cfar(ctx, ctx->cia);
     gen_helper_rfid(cpu_env);
-    gen_sync_exception(ctx);
+    gen_end_tb_exception(ctx, POWERPC_EXCP_SYNC);
 #endif
 }
 
@@ -4045,7 +4049,7 @@ static void gen_rfscv(DisasContext *ctx)
     }
     gen_update_cfar(ctx, ctx->cia);
     gen_helper_rfscv(cpu_env);
-    gen_sync_exception(ctx);
+    gen_end_tb_exception(ctx, POWERPC_EXCP_SYNC);
 #endif
 }
 #endif
@@ -4058,7 +4062,7 @@ static void gen_hrfid(DisasContext *ctx)
     /* Restore CPU state */
     CHK_HV;
     gen_helper_hrfid(cpu_env);
-    gen_sync_exception(ctx);
+    gen_end_tb_exception(ctx, POWERPC_EXCP_SYNC);
 #endif
 }
 #endif
@@ -4444,7 +4448,7 @@ static void gen_mtmsrd(DisasContext *ctx)
         gen_helper_store_msr(cpu_env, cpu_gpr[rS(ctx->opcode)]);
     }
     /* Must stop the translation as machine state (may have) changed */
-    gen_stop_exception(ctx);
+    gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
 #endif /* !defined(CONFIG_USER_ONLY) */
 }
 #endif /* defined(TARGET_PPC64) */
@@ -4489,7 +4493,7 @@ static void gen_mtmsr(DisasContext *ctx)
         tcg_temp_free(msr);
     }
     /* Must stop the translation as machine state (may have) changed */
-    gen_stop_exception(ctx);
+    gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
 #endif
 }
 
@@ -5944,7 +5948,7 @@ static void gen_rfsvc(DisasContext *ctx)
     CHK_SV;
 
     gen_helper_rfsvc(cpu_env);
-    gen_sync_exception(ctx);
+    gen_end_tb_exception(ctx, POWERPC_EXCP_SYNC);
 #endif /* defined(CONFIG_USER_ONLY) */
 }
 
@@ -6324,7 +6328,7 @@ static void gen_rfci_40x(DisasContext *ctx)
     CHK_SV;
     /* Restore CPU state */
     gen_helper_40x_rfci(cpu_env);
-    gen_sync_exception(ctx);
+    gen_end_tb_exception(ctx, POWERPC_EXCP_SYNC);
 #endif /* defined(CONFIG_USER_ONLY) */
 }
 
@@ -6336,7 +6340,7 @@ static void gen_rfci(DisasContext *ctx)
     CHK_SV;
     /* Restore CPU state */
     gen_helper_rfci(cpu_env);
-    gen_sync_exception(ctx);
+    gen_end_tb_exception(ctx, POWERPC_EXCP_SYNC);
 #endif /* defined(CONFIG_USER_ONLY) */
 }
 
@@ -6351,7 +6355,7 @@ static void gen_rfdi(DisasContext *ctx)
     CHK_SV;
     /* Restore CPU state */
     gen_helper_rfdi(cpu_env);
-    gen_sync_exception(ctx);
+    gen_end_tb_exception(ctx, POWERPC_EXCP_SYNC);
 #endif /* defined(CONFIG_USER_ONLY) */
 }
 
@@ -6364,7 +6368,7 @@ static void gen_rfmci(DisasContext *ctx)
     CHK_SV;
     /* Restore CPU state */
     gen_helper_rfmci(cpu_env);
-    gen_sync_exception(ctx);
+    gen_end_tb_exception(ctx, POWERPC_EXCP_SYNC);
 #endif /* defined(CONFIG_USER_ONLY) */
 }
 
@@ -6626,7 +6630,7 @@ static void gen_wrtee(DisasContext *ctx)
      * Stop translation to have a chance to raise an exception if we
      * just set msr_ee to 1
      */
-    gen_stop_exception(ctx);
+    gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
 #endif /* defined(CONFIG_USER_ONLY) */
 }
 
@@ -6640,7 +6644,7 @@ static void gen_wrteei(DisasContext *ctx)
     if (ctx->opcode & 0x00008000) {
         tcg_gen_ori_tl(cpu_msr, cpu_msr, (1 << MSR_EE));
         /* Stop translation to have a chance to raise an exception */
-        gen_stop_exception(ctx);
+        gen_end_tb_exception(ctx, POWERPC_EXCP_STOP);
     } else {
         tcg_gen_andi_tl(cpu_msr, cpu_msr, ~(1 << MSR_EE));
     }
@@ -8037,7 +8041,6 @@ static bool ppc_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
     gen_debug_exception(ctx);
-    dcbase->is_jmp = DISAS_NORETURN;
     /*
      * The address covered by the breakpoint must be included in
      * [tb->pc, tb->pc + tb->size) in order to for it to be properly
@@ -8067,7 +8070,6 @@ static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
     ok = decode_legacy(cpu, ctx, insn);
     if (!ok) {
         gen_invalid(ctx);
-        ctx->base.is_jmp = DISAS_NORETURN;
     }
 
 #if defined(DO_PPC_STATISTICS)
@@ -8088,9 +8090,6 @@ static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
                  "temporaries\n", opc1(ctx->opcode), opc2(ctx->opcode),
                  opc3(ctx->opcode), opc4(ctx->opcode), ctx->opcode);
     }
-
-    ctx->base.is_jmp = ctx->exception == POWERPC_EXCP_NONE ?
-        DISAS_NEXT : DISAS_NORETURN;
 }
 
 static void ppc_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
