@@ -45,6 +45,9 @@ mips_softmmu_ss.add(when: 'CONFIG_TCG', if_true: files(
   'cp0_helper.c',
   'mips-semi.c',
 ))
+mips_softmmu_ss.add(when: 'CONFIG_MIPS_ITU', if_false: files(
+  'cp0_itu-stub.c',
+))
 
 mips_ss.add_all(when: 'CONFIG_TCG', if_true: [mips_tcg_ss])
 
