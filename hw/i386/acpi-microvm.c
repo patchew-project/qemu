@@ -26,6 +26,7 @@
 
 #include "exec/memory.h"
 #include "hw/acpi/acpi.h"
+#include "hw/acpi/pci.h"
 #include "hw/acpi/aml-build.h"
 #include "hw/acpi/bios-linker-loader.h"
 #include "hw/acpi/generic_event_device.h"
@@ -208,6 +209,16 @@ static void acpi_build_microvm(AcpiBuildTables *tables,
     acpi_build_madt(tables_blob, tables->linker, X86_MACHINE(machine),
                     ACPI_DEVICE_IF(x86ms->acpi_dev), x86ms->oem_id,
                     x86ms->oem_table_id);
+
+    acpi_add_table(table_offsets, tables_blob);
+    {
+        AcpiMcfgInfo mcfg = {
+           .base = mms->gpex.ecam.base,
+           .size = mms->gpex.ecam.size,
+        };
+        build_mcfg(tables_blob, tables->linker, &mcfg, x86ms->oem_id,
+                   x86ms->oem_table_id);
+    }
 
     xsdt = tables_blob->len;
     build_xsdt(tables_blob, tables->linker, table_offsets, x86ms->oem_id,
