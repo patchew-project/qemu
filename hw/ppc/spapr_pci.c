@@ -538,8 +538,9 @@ static void rtas_ibm_get_config_addr_info2(PowerPCCPU *cpu,
     }
 
     /*
-     * We always have PE address of form "00BB0001". "BB"
-     * represents the bus number of PE's primary bus.
+     * Return PE address of form "00BBD001". "BB" represents the
+     * bus number of PE's primary bus and "D" represents the device number.
+     * Guest uses this PE address to enable EEH on this pci device.
      */
     option = rtas_ld(args, 3);
     switch (option) {
@@ -550,7 +551,8 @@ static void rtas_ibm_get_config_addr_info2(PowerPCCPU *cpu,
             goto param_error_exit;
         }
 
-        rtas_st(rets, 1, (pci_bus_num(pci_get_bus(pdev)) << 16) + 1);
+        rtas_st(rets, 1, (pci_bus_num(pci_get_bus(pdev)) << 16) |
+                         (PCI_DEVFN(PCI_SLOT(pdev->devfn), 0) << 8) | 1);
         break;
     case RTAS_GET_PE_MODE:
         rtas_st(rets, 1, RTAS_PE_MODE_SHARED);
