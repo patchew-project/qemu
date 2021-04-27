@@ -7837,7 +7837,11 @@ static bool ppc_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
 
 static bool is_prefix_insn(DisasContext *ctx, uint32_t insn)
 {
-    /* TODO: Check ctx->insns_flags* for whether prefixes are supported. */
+    if (!(ctx->insns_flags2 & PPC2_ISA310)) {
+        /* Prefixed instructions are not supported */
+        return false;
+    }
+
     return opc1(insn) == 1;
 }
 
