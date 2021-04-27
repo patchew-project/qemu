@@ -21,6 +21,7 @@
 #include "qemu/error-report.h"
 #include "qemu/memfd.h"
 #include "standard-headers/linux/vhost_types.h"
+#include "standard-headers/linux/virtio_net.h"
 #include "exec/address-spaces.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
@@ -1322,6 +1323,10 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
             goto fail;
         }
     }
+    r = event_notifier_init(&hdev->masked_config_notifier, 0);
+    if (r < 0) {
+        return r;
+    }
 
     if (busyloop_timeout) {
         for (i = 0; i < hdev->nvqs; ++i) {
@@ -1412,6 +1417,7 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
     for (i = 0; i < hdev->nvqs; ++i) {
         vhost_virtqueue_cleanup(hdev->vqs + i);
     }
+    event_notifier_cleanup(&hdev->masked_config_notifier);
     if (hdev->mem) {
         /* those are only safe after successful init */
         memory_listener_unregister(&hdev->memory_listener);
@@ -1505,6 +1511,16 @@ bool vhost_virtqueue_pending(struct vhost_dev *hdev, int n)
     return event_notifier_test_and_clear(&vq->masked_notifier);
 }
 
+bool vhost_config_pending(struct vhost_dev *hdev, int n)
+{
+    assert(hdev->vhost_ops);
+
+    if ((hdev->started == false) ||
+        (hdev->vhost_ops->vhost_set_config_call == NULL)) {
+        return false;
+    }
+    return event_notifier_test_and_clear(&hdev->masked_config_notifier);
+}
 /* Mask/unmask events from this vq. */
 void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
                          bool mask)
@@ -1527,6 +1543,30 @@ void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
     r = hdev->vhost_ops->vhost_set_vring_call(hdev, &file);
     if (r < 0) {
         VHOST_OPS_DEBUG("vhost_set_vring_call failed");
+    }
+}
+void vhost_config_mask(struct vhost_dev *hdev, VirtIODevice *vdev,
+                         bool mask)
+{
+   int fd;
+   int r;
+   EventNotifier *masked_config_notifier = &hdev->masked_config_notifier;
+   EventNotifier *config_notifier = &vdev->config_notifier;
+   assert(hdev->vhost_ops);
+
+   if ((hdev->started == false) ||
+        (hdev->vhost_ops->vhost_set_config_call == NULL)) {
+        return ;
+    }
+    if (mask) {
+        assert(vdev->use_guest_notifier_mask);
+        fd = event_notifier_get_fd(masked_config_notifier);
+    } else {
+        fd = event_notifier_get_fd(config_notifier);
+    }
+   r = hdev->vhost_ops->vhost_set_config_call(hdev, &fd);
+   if (r < 0) {
+        error_report("vhost_set_config_call failed");
     }
 }
 
@@ -1708,6 +1748,7 @@ int vhost_dev_get_inflight(struct vhost_dev *dev, uint16_t queue_size,
 int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
 {
     int i, r;
+    int fd = 0;
 
     /* should only be called after backend is connected */
     assert(hdev->vhost_ops);
@@ -1739,7 +1780,10 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
             goto fail_vq;
         }
     }
-
+    event_notifier_test_and_clear(&hdev->masked_config_notifier);
+    if (!vdev->use_guest_notifier_mask) {
+        vhost_config_mask(hdev, vdev,  true);
+    }
     if (hdev->log_enabled) {
         uint64_t log_base;
 
@@ -1756,6 +1800,7 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
             goto fail_log;
         }
     }
+
     if (hdev->vhost_ops->vhost_dev_start) {
         r = hdev->vhost_ops->vhost_dev_start(hdev, true);
         if (r) {
@@ -1772,6 +1817,19 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
             struct vhost_virtqueue *vq = hdev->vqs + i;
             vhost_device_iotlb_miss(hdev, vq->used_phys, true);
         }
+    }
+   if (!(hdev->features & (0x1ULL << VIRTIO_NET_F_STATUS))) {
+        return 0;
+    }
+    if (hdev->vhost_ops->vhost_set_config_call) {
+        fd = event_notifier_get_fd(&vdev->config_notifier);
+        r = hdev->vhost_ops->vhost_set_config_call(hdev, &fd);
+        if (!r) {
+            event_notifier_set(&vdev->config_notifier);
+        }
+        if (r) {
+            goto fail_log;
+         }
     }
     return 0;
 fail_log:
@@ -1795,10 +1853,18 @@ fail_features:
 void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev)
 {
     int i;
+    int fd;
 
     /* should only be called after backend is connected */
     assert(hdev->vhost_ops);
-
+    event_notifier_test_and_clear(&hdev->masked_config_notifier);
+    event_notifier_test_and_clear(&vdev->config_notifier);
+    if ((hdev->features & (0x1ULL << VIRTIO_NET_F_STATUS))) {
+        if (hdev->vhost_ops->vhost_set_config_call) {
+            fd = -1;
+            hdev->vhost_ops->vhost_set_config_call(hdev, &fd);
+        }
+    }
     if (hdev->vhost_ops->vhost_dev_start) {
         hdev->vhost_ops->vhost_dev_start(hdev, false);
     }
