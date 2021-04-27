@@ -114,6 +114,7 @@ struct CPUMIPSMVPContext {
 #define CP0MVPC0_PTLBE  16
 #define CP0MVPC0_TCA    15
 #define CP0MVPC0_PVPE   10
+#define CP0MVPC0_MVP    1
 #define CP0MVPC0_PTC    0
     int32_t CP0_MVPConf1;
 #define CP0MVPC1_CIM    31
