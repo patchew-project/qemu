@@ -362,6 +362,26 @@ static bool trans_PLD(DisasContext *ctx, arg_PLS_D *a)
     return do_ldst_PLS_D(ctx, a, false, MO_Q);
 }
 
+static bool trans_PSTB(DisasContext *ctx, arg_PLS_D *a)
+{
+    return do_ldst_PLS_D(ctx, a, true, MO_UB);
+}
+
+static bool trans_PSTH(DisasContext *ctx, arg_PLS_D *a)
+{
+    return do_ldst_PLS_D(ctx, a, true, MO_UW);
+}
+
+static bool trans_PSTW(DisasContext *ctx, arg_PLS_D *a)
+{
+    return do_ldst_PLS_D(ctx, a, true, MO_UL);
+}
+
+static bool trans_PSTD(DisasContext *ctx, arg_PLS_D *a)
+{
+    return do_ldst_PLS_D(ctx, a, true, MO_Q);
+}
+
 static bool trans_ADDI(DisasContext *ctx, arg_D *a)
 {
     if (a->ra) {
