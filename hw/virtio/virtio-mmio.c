@@ -658,9 +658,9 @@ static int virtio_mmio_set_guest_notifier(DeviceState *d, int n, bool assign,
         if (r < 0) {
             return r;
         }
-        virtio_queue_set_guest_notifier_fd_handler(vq, true, with_irqfd);
+        virtio_set_notifier_fd_handler(vdev, n, true, with_irqfd);
     } else {
-        virtio_queue_set_guest_notifier_fd_handler(vq, false, with_irqfd);
+        virtio_set_notifier_fd_handler(vdev, n, false, with_irqfd);
         event_notifier_cleanup(notifier);
     }
 
@@ -680,9 +680,9 @@ static int virtio_mmio_set_config_notifier(DeviceState *d,  bool assign)
     int r = 0;
     if (assign) {
         r = event_notifier_init(notifier, 0);
-        virtio_set_config_notifier_fd_handler(vdev, true, false);
+        virtio_set_notifier_fd_handler(vdev, -1, true, false);
     } else {
-        virtio_set_config_notifier_fd_handler(vdev, false, false);
+        virtio_set_notifier_fd_handler(vdev, -1, false, false);
         event_notifier_cleanup(notifier);
     }
         if (vdc->guest_notifier_mask && vdev->use_guest_notifier_mask) {

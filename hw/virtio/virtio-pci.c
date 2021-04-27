@@ -808,10 +808,10 @@ static int virtio_pci_set_config_notifier(DeviceState *d,  bool assign)
     int r = 0;
     if (assign) {
         r = event_notifier_init(notifier, 0);
-        virtio_set_config_notifier_fd_handler(vdev, true, true);
+        virtio_set_notifier_fd_handler(vdev, -1, true, true);
         kvm_virtio_pci_vector_config_use(proxy);
     } else {
-        virtio_set_config_notifier_fd_handler(vdev, false, true);
+        virtio_set_notifier_fd_handler(vdev, -1, false, true);
         kvm_virtio_pci_vector_config_release(proxy);
         event_notifier_cleanup(notifier);
     }
@@ -1007,9 +1007,9 @@ static int virtio_pci_set_guest_notifier(DeviceState *d, int n, bool assign,
         if (r < 0) {
             return r;
         }
-        virtio_queue_set_guest_notifier_fd_handler(vq, true, with_irqfd);
+        virtio_set_notifier_fd_handler(vdev, n, true, with_irqfd);
     } else {
-        virtio_queue_set_guest_notifier_fd_handler(vq, false, with_irqfd);
+        virtio_set_notifier_fd_handler(vdev, n, false, with_irqfd);
         event_notifier_cleanup(notifier);
     }
 
@@ -1051,6 +1051,7 @@ static int virtio_pci_set_guest_notifiers(DeviceState *d, int nvqs, bool assign)
         msix_unset_vector_notifiers(&proxy->pci_dev);
         if (proxy->vector_irqfd) {
             kvm_virtio_pci_vector_release(proxy, nvqs);
+            kvm_virtio_pci_vector_config_release(proxy);
             g_free(proxy->vector_irqfd);
             proxy->vector_irqfd = NULL;
         }

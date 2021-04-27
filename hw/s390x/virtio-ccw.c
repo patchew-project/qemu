@@ -1028,11 +1028,11 @@ static int virtio_ccw_set_guest_notifier(VirtioCcwDevice *dev, int n,
         if (r < 0) {
             return r;
         }
-        virtio_queue_set_guest_notifier_fd_handler(vq, true, with_irqfd);
+        virtio_set_notifier_fd_handler(vdev, n, true, with_irqfd);
         if (with_irqfd) {
             r = virtio_ccw_add_irqfd(dev, n);
             if (r) {
-                virtio_queue_set_guest_notifier_fd_handler(vq, false,
+                virtio_set_notifier_fd_handler(vdev, n, false,
                                                            with_irqfd);
                 return r;
             }
@@ -1056,7 +1056,7 @@ static int virtio_ccw_set_guest_notifier(VirtioCcwDevice *dev, int n,
         if (with_irqfd) {
             virtio_ccw_remove_irqfd(dev, n);
         }
-        virtio_queue_set_guest_notifier_fd_handler(vq, false, with_irqfd);
+        virtio_set_notifier_fd_handler(vdev, n, false, with_irqfd);
         event_notifier_cleanup(notifier);
     }
     return 0;
