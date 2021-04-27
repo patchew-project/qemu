@@ -670,7 +670,26 @@ static int virtio_mmio_set_guest_notifier(DeviceState *d, int n, bool assign,
 
     return 0;
 }
+static int virtio_mmio_set_config_notifier(DeviceState *d,  bool assign)
+{
+    VirtIOMMIOProxy *proxy = VIRTIO_MMIO(d);
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+        VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
 
+    EventNotifier *notifier = virtio_get_config_notifier(vdev);
+    int r = 0;
+    if (assign) {
+        r = event_notifier_init(notifier, 0);
+        virtio_set_config_notifier_fd_handler(vdev, true, false);
+    } else {
+        virtio_set_config_notifier_fd_handler(vdev, false, false);
+        event_notifier_cleanup(notifier);
+    }
+        if (vdc->guest_notifier_mask && vdev->use_guest_notifier_mask) {
+            vdc->guest_notifier_mask(vdev, -1, !assign);
+    }
+    return r;
+}
 static int virtio_mmio_set_guest_notifiers(DeviceState *d, int nvqs,
                                            bool assign)
 {
@@ -692,8 +711,15 @@ static int virtio_mmio_set_guest_notifiers(DeviceState *d, int nvqs,
             goto assign_error;
         }
     }
+   r = virtio_mmio_set_config_notifier(d, assign);
+   if (r < 0) {
+            goto config_assign_error;
+   }
 
     return 0;
+config_assign_error:
+    assert(assign);
+    r = virtio_mmio_set_config_notifier(d, false);
 
 assign_error:
     /* We get here on assignment failure. Recover by undoing for VQs 0 .. n. */
