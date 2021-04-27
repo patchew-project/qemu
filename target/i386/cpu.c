@@ -6623,11 +6623,36 @@ static void x86_cpu_filter_features(X86CPU *cpu, bool verbose)
     }
 
     for (w = 0; w < FEATURE_WORDS; w++) {
+        if (w == FEAT_PERF_CAPABILITIES) {
+            continue;
+        }
+
         uint64_t host_feat =
             x86_cpu_get_supported_feature_word(w, false);
         uint64_t requested_features = env->features[w];
         uint64_t unavailable_features = requested_features & ~host_feat;
         mark_unavailable_features(cpu, w, unavailable_features, prefix);
+    }
+
+    uint64_t host_perf_cap =
+        x86_cpu_get_supported_feature_word(FEAT_PERF_CAPABILITIES, false);
+    if (!cpu->lbr_fmt && !cpu->migratable) {
+        cpu->lbr_fmt = host_perf_cap & PERF_CAP_LBR_FMT;
+        if (cpu->lbr_fmt) {
+            info_report("vPMU: The value of lbr-fmt has been adjusted "
+                        "to 0x%lx and guest LBR is enabled.",
+                        host_perf_cap & PERF_CAP_LBR_FMT);
+        }
+    } else {
+        uint64_t requested_lbr_fmt = cpu->lbr_fmt & PERF_CAP_LBR_FMT;
+        if (requested_lbr_fmt && kvm_enabled()) {
+            if (requested_lbr_fmt != (host_perf_cap & PERF_CAP_LBR_FMT)) {
+                cpu->lbr_fmt = 0;
+                warn_report("vPMU: The supported lbr-fmt value on the host "
+                            "is 0x%lx and guest LBR is disabled.",
+                            host_perf_cap & PERF_CAP_LBR_FMT);
+            }
+        }
     }
 
     if ((env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_INTEL_PT) &&
@@ -6732,6 +6757,14 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         } else {
             cpu->ucode_rev = 0x100000000ULL;
         }
+    }
+
+    if (cpu->lbr_fmt) {
+        if (!cpu->enable_pmu) {
+            error_setg(errp, "LBR is unsupported since guest PMU is disabled.");
+            return;
+        }
+        env->features[FEAT_PERF_CAPABILITIES] |= cpu->lbr_fmt;
     }
 
     /* mwait extended info: needed for Core compatibility */
@@ -7300,6 +7333,7 @@ static Property x86_cpu_properties[] = {
 #endif
     DEFINE_PROP_INT32("node-id", X86CPU, node_id, CPU_UNSET_NUMA_NODE_ID),
     DEFINE_PROP_BOOL("pmu", X86CPU, enable_pmu, false),
+    DEFINE_PROP_UINT8("lbr-fmt", X86CPU, lbr_fmt, 0),
 
     DEFINE_PROP_UINT32("hv-spinlocks", X86CPU, hyperv_spinlock_attempts,
                        HYPERV_SPINLOCK_NEVER_NOTIFY),

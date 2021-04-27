@@ -2732,8 +2732,14 @@ static void kvm_msr_entry_add_perf(X86CPU *cpu, FeatureWordArray f)
                                            MSR_IA32_PERF_CAPABILITIES);
 
     if (kvm_perf_cap) {
-        kvm_msr_entry_add(cpu, MSR_IA32_PERF_CAPABILITIES,
-                        kvm_perf_cap & f[FEAT_PERF_CAPABILITIES]);
+        kvm_perf_cap = (cpu->migratable) ?
+            (kvm_perf_cap & f[FEAT_PERF_CAPABILITIES]) : kvm_perf_cap;
+
+        if (!cpu->lbr_fmt) {
+            kvm_perf_cap &= ~PERF_CAP_LBR_FMT;
+        }
+
+        kvm_msr_entry_add(cpu, MSR_IA32_PERF_CAPABILITIES, kvm_perf_cap);
     }
 }
 
