@@ -218,6 +218,66 @@ static bool trans_LDUX(DisasContext *ctx, arg_X *a)
     return do_ldst_X(ctx, a, true, false, MO_Q);
 }
 
+static bool do_ldst_PLS_D(DisasContext *ctx, arg_PLS_D *a,
+                          bool store, MemOp mop)
+{
+    TCGv ea;
+
+    if (!resolve_PLS_D(ctx, a)) {
+        return false;
+    }
+    gen_set_access_type(ctx, ACCESS_INT);
+
+    ea = tcg_temp_new();
+    if (a->ra) {
+        tcg_gen_addi_tl(ea, cpu_gpr[a->ra], a->si);
+    } else {
+        tcg_gen_movi_tl(ea, a->si);
+    }
+    if (NARROW_MODE(ctx)) {
+        tcg_gen_ext32u_tl(ea, ea);
+    }
+    mop ^= ctx->default_tcg_memop_mask;
+    if (store) {
+        tcg_gen_qemu_st_tl(cpu_gpr[a->rt], ea, ctx->mem_idx, mop);
+    } else {
+        tcg_gen_qemu_ld_tl(cpu_gpr[a->rt], ea, ctx->mem_idx, mop);
+    }
+    tcg_temp_free(ea);
+
+    return true;
+}
+
+static bool trans_PLBZ(DisasContext *ctx, arg_PLS_D *a)
+{
+    return do_ldst_PLS_D(ctx, a, false, MO_UB);
+}
+
+static bool trans_PLHZ(DisasContext *ctx, arg_PLS_D *a)
+{
+    return do_ldst_PLS_D(ctx, a, false, MO_UW);
+}
+
+static bool trans_PLHA(DisasContext *ctx, arg_PLS_D *a)
+{
+    return do_ldst_PLS_D(ctx, a, false, MO_SW);
+}
+
+static bool trans_PLWZ(DisasContext *ctx, arg_PLS_D *a)
+{
+    return do_ldst_PLS_D(ctx, a, false, MO_UL);
+}
+
+static bool trans_PLWA(DisasContext *ctx, arg_PLS_D *a)
+{
+    return do_ldst_PLS_D(ctx, a, false, MO_SL);
+}
+
+static bool trans_PLD(DisasContext *ctx, arg_PLS_D *a)
+{
+    return do_ldst_PLS_D(ctx, a, false, MO_Q);
+}
+
 static bool trans_ADDI(DisasContext *ctx, arg_D *a)
 {
     if (a->ra) {
