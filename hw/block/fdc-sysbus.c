@@ -106,15 +106,11 @@ void sysbus_fdc_init_drives(SysBusDevice *dev, DriveInfo **fds)
 void fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
                         hwaddr mmio_base, DriveInfo **fds)
 {
-    FDCtrl *fdctrl;
     DeviceState *dev;
     SysBusDevice *sbd;
-    FDCtrlSysBus *sys;
 
     dev = qdev_new("sysbus-fdc");
-    sys = SYSBUS_FDC(dev);
-    fdctrl = &sys->state;
-    fdctrl->dma_chann = dma_chann; /* FIXME */
+    qdev_prop_set_int32(dev, "dma-channel", dma_chann);
     sbd = SYS_BUS_DEVICE(dev);
     sysbus_realize_and_unref(sbd, &error_fatal);
     sysbus_connect_irq(sbd, 0, irq);
@@ -130,8 +126,6 @@ static void sysbus_fdc_common_initfn(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     FDCtrlSysBus *sys = SYSBUS_FDC(obj);
     FDCtrl *fdctrl = &sys->state;
-
-    fdctrl->dma_chann = -1;
 
     qdev_set_legacy_instance_id(dev, 0 /* io */, 2); /* FIXME */
 
@@ -173,6 +167,7 @@ static Property sysbus_fdc_properties[] = {
     DEFINE_PROP_SIGNED("fallback", FDCtrlSysBus, state.fallback,
                         FLOPPY_DRIVE_TYPE_144, qdev_prop_fdc_drive_type,
                         FloppyDriveType),
+    DEFINE_PROP_INT32("dma-channel", FDCtrlSysBus, state.dma_chann, -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
