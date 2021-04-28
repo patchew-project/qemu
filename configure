@@ -6398,6 +6398,7 @@ NINJA=$ninja $meson setup \
         --sysconfdir "$sysconfdir" \
         --localedir "$localedir" \
         --localstatedir "$local_statedir" \
+        --buildtype $(if test "$debug_info" = yes; then echo "debugoptimized"; else echo "release"; fi) \
         -Ddocdir="$docdir" \
         -Dqemu_firmwarepath="$firmwarepath" \
         -Dqemu_suffix="$qemu_suffix" \
