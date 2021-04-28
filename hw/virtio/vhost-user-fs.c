@@ -23,6 +23,8 @@
 #include "hw/virtio/vhost-user-fs.h"
 #include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
+#include "exec/address-spaces.h"
+#include "trace.h"
 
 static const int user_feature_bits[] = {
     VIRTIO_F_VERSION_1,
@@ -218,6 +220,99 @@ uint64_t vhost_user_fs_slave_unmap(struct vhost_dev *dev, int message_size,
     }
 
     return (uint64_t)res;
+}
+
+uint64_t vhost_user_fs_slave_io(struct vhost_dev *dev, int message_size,
+                                VhostUserFSSlaveMsg *sm, int fd)
+{
+    VHostUserFS *fs = (VHostUserFS *)object_dynamic_cast(OBJECT(dev->vdev),
+                          TYPE_VHOST_USER_FS);
+    if (!fs) {
+        error_report("%s: Bad fs ptr", __func__);
+        return (uint64_t)-1;
+    }
+    if (!check_slave_message_entries(sm, message_size)) {
+        return (uint64_t)-1;
+    }
+
+    unsigned int i;
+    int res = 0;
+    size_t done = 0;
+
+    if (fd < 0) {
+        error_report("Bad fd for io");
+        return (uint64_t)-1;
+    }
+
+    for (i = 0; i < sm->count && !res; i++) {
+        VhostUserFSSlaveMsgEntry *e = &sm->entries[i];
+        if (e->len == 0) {
+            continue;
+        }
+
+        size_t len = e->len;
+        uint64_t fd_offset = e->fd_offset;
+        hwaddr gpa = e->c_offset;
+
+        while (len && !res) {
+            hwaddr xlat, xlat_len;
+            bool is_write = e->flags & VHOST_USER_FS_FLAG_MAP_W;
+            MemoryRegion *mr = address_space_translate(dev->vdev->dma_as, gpa,
+                                                       &xlat, &xlat_len,
+                                                       is_write,
+                                                       MEMTXATTRS_UNSPECIFIED);
+            if (!mr || !xlat_len) {
+                error_report("No guest region found for 0x%" HWADDR_PRIx, gpa);
+                res = -EFAULT;
+                break;
+            }
+
+            trace_vhost_user_fs_slave_io_loop(mr->name,
+                                          (uint64_t)xlat,
+                                          memory_region_is_ram(mr),
+                                          memory_region_is_romd(mr),
+                                          (size_t)xlat_len);
+
+            void *hostptr = qemu_map_ram_ptr(mr->ram_block,
+                                             xlat);
+            ssize_t transferred;
+            if (e->flags & VHOST_USER_FS_FLAG_MAP_R) {
+                /* Read from file into RAM */
+                if (mr->readonly) {
+                    res = -EFAULT;
+                    break;
+                }
+                transferred = pread(fd, hostptr, xlat_len, fd_offset);
+            } else if (e->flags & VHOST_USER_FS_FLAG_MAP_W) {
+                /* Write into file from RAM */
+                transferred = pwrite(fd, hostptr, xlat_len, fd_offset);
+            } else {
+                transferred = EINVAL;
+            }
+
+            trace_vhost_user_fs_slave_io_loop_res(transferred);
+            if (transferred < 0) {
+                res = -errno;
+                break;
+            }
+            if (!transferred) {
+                /* EOF */
+                break;
+            }
+
+            done += transferred;
+            fd_offset += transferred;
+            gpa += transferred;
+            len -= transferred;
+        }
+    }
+    close(fd);
+
+    trace_vhost_user_fs_slave_io_exit(res, done);
+    if (res < 0) {
+        return (uint64_t)res;
+    }
+    return (uint64_t)done;
 }
 
 static void vuf_get_config(VirtIODevice *vdev, uint8_t *config)

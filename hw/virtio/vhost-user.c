@@ -138,6 +138,7 @@ typedef enum VhostUserSlaveRequest {
     VHOST_USER_SLAVE_VRING_ERR = 5,
     VHOST_USER_SLAVE_FS_MAP = 6,
     VHOST_USER_SLAVE_FS_UNMAP = 7,
+    VHOST_USER_SLAVE_FS_IO = 8,
     VHOST_USER_SLAVE_MAX
 }  VhostUserSlaveRequest;
 
@@ -1562,6 +1563,10 @@ static gboolean slave_read(QIOChannel *ioc, GIOCondition condition,
         break;
     case VHOST_USER_SLAVE_FS_UNMAP:
         ret = vhost_user_fs_slave_unmap(dev, hdr.size, &payload.fs);
+        break;
+    case VHOST_USER_SLAVE_FS_IO:
+        ret = vhost_user_fs_slave_io(dev, hdr.size, &payload.fs,
+                                     fd ? fd[0] : -1);
         break;
 #endif
     default:

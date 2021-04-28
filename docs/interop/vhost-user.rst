@@ -1453,6 +1453,22 @@ Slave message types
   multiple chunks can be unmapped in one command.
   A reply is generated indicating whether unmapping succeeded.
 
+``VHOST_USER_SLAVE_FS_IO``
+  :id: 9
+  :equivalent ioctl: N/A
+  :slave payload: ``struct VhostUserFSSlaveMsg``
+  :master payload: N/A
+
+  Requests that IO be performed directly from an fd, passed in ancillary
+  data, to guest memory on behalf of the daemon; this is normally for a
+  case where a memory region isn't visible to the daemon. slave payload
+  has flags which determine the direction of IO operation.
+
+  The ``VHOST_USER_FS_FLAG_MAP_R`` flag must be set in the ``flags`` field to
+  read from the file into RAM.
+  The ``VHOST_USER_FS_FLAG_MAP_W`` flag must be set in the ``flags`` field to
+  write to the file from RAM.
+
 .. _reply_ack:
 
 VHOST_USER_PROTOCOL_F_REPLY_ACK
