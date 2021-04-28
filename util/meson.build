@@ -59,12 +59,10 @@ if have_block
   util_ss.add(files('aiocb.c', 'async.c', 'aio-wait.c'))
   util_ss.add(files('base64.c'))
   util_ss.add(files('buffer.c'))
-  util_ss.add(files('bufferiszero.c'))
   util_ss.add(files('coroutine-@0@.c'.format(config_host['CONFIG_COROUTINE_BACKEND'])))
   util_ss.add(files('hbitmap.c'))
-  util_ss.add(files('hexdump.c'))
   util_ss.add(files('iova-tree.c'))
-  util_ss.add(files('iov.c', 'qemu-sockets.c', 'uri.c'))
+  util_ss.add(files('qemu-sockets.c', 'uri.c'))
   util_ss.add(files('lockcnt.c'))
   util_ss.add(files('main-loop.c'))
   util_ss.add(files('nvdimm-utils.c'))
@@ -82,4 +80,10 @@ if have_block
   util_ss.add(when: 'CONFIG_INOTIFY1', if_true: files('filemonitor-inotify.c'),
                                         if_false: files('filemonitor-stub.c'))
   util_ss.add(when: 'CONFIG_LINUX', if_true: files('vfio-helpers.c'))
+endif
+
+if have_block or config_host.has_key('CONFIG_VHOST_USER_FS')
+  util_ss.add(files('hexdump.c'))
+  util_ss.add(files('bufferiszero.c'))
+  util_ss.add(files('iov.c'))
 endif
