@@ -1080,6 +1080,12 @@ elif get_option('virtfs').disabled()
   have_virtfs = false
 endif
 
+if config_host.has_key('CONFIG_VHOST_USER_FS')
+  if not libcap_ng.found()
+    error('vhost-user-fs requires libcap-ng-devel')
+  endif
+endif
+
 config_host_data.set_quoted('CONFIG_BINDIR', get_option('prefix') / get_option('bindir'))
 config_host_data.set_quoted('CONFIG_PREFIX', get_option('prefix'))
 config_host_data.set_quoted('CONFIG_QEMU_CONFDIR', get_option('prefix') / qemu_confdir)
