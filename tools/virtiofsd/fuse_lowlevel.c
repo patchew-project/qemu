@@ -1899,8 +1899,17 @@ static void do_setupmapping(fuse_req_t req, fuse_ino_t nodeid,
     }
 
     if (req->se->op.setupmapping) {
-        req->se->op.setupmapping(req, nodeid, arg->foffset, arg->len,
-                                 arg->moffset, genflags, &fi);
+        /*
+         * TODO: Add a flag to request which tells if arg->fh is
+         * valid or not.
+         */
+        if (fi.fh == (uint64_t)-1) {
+            req->se->op.setupmapping(req, nodeid, arg->foffset, arg->len,
+                                     arg->moffset, genflags, NULL);
+        } else {
+            req->se->op.setupmapping(req, nodeid, arg->foffset, arg->len,
+                                     arg->moffset, genflags, &fi);
+        }
     } else {
         fuse_reply_err(req, ENOSYS);
     }
