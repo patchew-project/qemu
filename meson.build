@@ -393,14 +393,14 @@ if cocoa.found() and get_option('gtk').enabled()
 endif
 
 seccomp = not_found
-if not get_option('seccomp').auto() or have_system or have_tools
+if not get_option('seccomp').auto() or have_system or have_tools or not get_option('virtiofsd').auto()
   seccomp = dependency('libseccomp', version: '>=2.3.0',
                        required: get_option('seccomp'),
                        method: 'pkg-config', kwargs: static_kwargs)
 endif
 
 libcap_ng = not_found
-if not get_option('cap_ng').auto() or have_system or have_tools
+if not get_option('cap_ng').auto() or have_system or have_tools or not get_option('virtiofsd').auto()
   libcap_ng = cc.find_library('cap-ng', has_headers: ['cap-ng.h'],
                               required: get_option('cap_ng'),
                               kwargs: static_kwargs)
