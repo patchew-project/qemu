@@ -2301,7 +2301,7 @@ static void lo_write_buf(fuse_req_t req, fuse_ino_t ino,
         }
     }
 
-    res = fuse_buf_copy(&out_buf, in_buf);
+    res = fuse_buf_copy(req, &out_buf, in_buf);
     if (res < 0) {
         fuse_reply_err(req, -res);
     } else {

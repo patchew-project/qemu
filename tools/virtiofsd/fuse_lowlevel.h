@@ -42,9 +42,6 @@
 /** Inode number type */
 typedef uint64_t fuse_ino_t;
 
-/** Request pointer type */
-typedef struct fuse_req *fuse_req_t;
-
 /**
  * Session
  *

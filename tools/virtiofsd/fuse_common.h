@@ -510,6 +510,8 @@ struct fuse_conn_info {
 struct fuse_session;
 struct fuse_pollhandle;
 struct fuse_conn_info_opts;
+struct fuse_req;
+typedef struct fuse_req *fuse_req_t;
 
 /**
  * This function parses several command-line options that can be used
@@ -728,11 +730,13 @@ size_t fuse_buf_size(const struct fuse_bufvec *bufv);
 /**
  * Copy data from one buffer vector to another
  *
+ * @param req The request this copy is part of
  * @param dst destination buffer vector
  * @param src source buffer vector
  * @return actual number of bytes copied or -errno on error
  */
-ssize_t fuse_buf_copy(struct fuse_bufvec *dst, struct fuse_bufvec *src);
+ssize_t fuse_buf_copy(fuse_req_t req,
+                      struct fuse_bufvec *dst, struct fuse_bufvec *src);
 
 /**
  * Memory buffer iterator

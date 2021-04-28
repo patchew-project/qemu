@@ -200,13 +200,20 @@ static ssize_t fuse_buf_fd_to_fd(const struct fuse_buf *dst, size_t dst_off,
     return copied;
 }
 
-static ssize_t fuse_buf_copy_one(const struct fuse_buf *dst, size_t dst_off,
+static ssize_t fuse_buf_copy_one(fuse_req_t req,
+                                 const struct fuse_buf *dst, size_t dst_off,
                                  const struct fuse_buf *src, size_t src_off,
                                  size_t len)
 {
     int src_is_fd = src->flags & FUSE_BUF_IS_FD;
     int dst_is_fd = dst->flags & FUSE_BUF_IS_FD;
+    int src_is_phys = src->flags & FUSE_BUF_PHYS_ADDR;
+    int dst_is_phys = src->flags & FUSE_BUF_PHYS_ADDR;
 
+    if (src_is_phys && !src_is_fd && dst_is_fd) {
+        return fuse_virtio_write(req, dst, dst_off, src, src_off, len);
+    }
+    assert(!src_is_phys && !dst_is_phys);
     if (!src_is_fd && !dst_is_fd) {
         char *dstmem = (char *)dst->mem + dst_off;
         char *srcmem = (char *)src->mem + src_off;
@@ -259,7 +266,8 @@ static int fuse_bufvec_advance(struct fuse_bufvec *bufv, size_t len)
     return 1;
 }
 
-ssize_t fuse_buf_copy(struct fuse_bufvec *dstv, struct fuse_bufvec *srcv)
+ssize_t fuse_buf_copy(fuse_req_t req, struct fuse_bufvec *dstv,
+                      struct fuse_bufvec *srcv)
 {
     size_t copied = 0, i;
 
@@ -301,7 +309,7 @@ ssize_t fuse_buf_copy(struct fuse_bufvec *dstv, struct fuse_bufvec *srcv)
         dst_len = dst->size - dstv->off;
         len = min_size(src_len, dst_len);
 
-        res = fuse_buf_copy_one(dst, dstv->off, src, srcv->off, len);
+        res = fuse_buf_copy_one(req, dst, dstv->off, src, srcv->off, len);
         if (res < 0) {
             if (!copied) {
                 return res;
