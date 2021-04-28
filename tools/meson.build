@@ -5,7 +5,9 @@ have_virtiofsd = (targetos == 'linux' and
     'CONFIG_VHOST_USER' in config_host)
 
 if get_option('virtiofsd').enabled()
-  if not have_virtiofsd
+  if not have_system
+    error('virtiofsd requires full-system emulation target(s)')
+  elif not have_virtiofsd
     if targetos != 'linux'
       error('virtiofsd requires Linux')
     elif not seccomp.found() or not libcap_ng.found()
