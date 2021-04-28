@@ -1870,6 +1870,73 @@ static void do_lseek(fuse_req_t req, fuse_ino_t nodeid,
     }
 }
 
+static void do_setupmapping(fuse_req_t req, fuse_ino_t nodeid,
+                            struct fuse_mbuf_iter *iter)
+{
+    struct fuse_setupmapping_in *arg;
+    struct fuse_file_info fi;
+
+    arg = fuse_mbuf_iter_advance(iter, sizeof(*arg));
+    if (!arg) {
+        fuse_reply_err(req, EINVAL);
+        return;
+    }
+
+    memset(&fi, 0, sizeof(fi));
+    fi.fh = arg->fh;
+
+    /*
+     *  TODO: Need to come up with a better definition of flags here; it can't
+     * be the kernel view of the flags, since that's abstracted from the client
+     * similarly, it's not the vhost-user set
+     * for now just use O_ flags
+     */
+    uint64_t genflags;
+
+    genflags = O_RDONLY;
+    if (arg->flags & FUSE_SETUPMAPPING_FLAG_WRITE) {
+        genflags = O_RDWR;
+    }
+
+    if (req->se->op.setupmapping) {
+        req->se->op.setupmapping(req, nodeid, arg->foffset, arg->len,
+                                 arg->moffset, genflags, &fi);
+    } else {
+        fuse_reply_err(req, ENOSYS);
+    }
+}
+
+static void do_removemapping(fuse_req_t req, fuse_ino_t nodeid,
+                             struct fuse_mbuf_iter *iter)
+{
+    struct fuse_removemapping_in *arg;
+    struct fuse_removemapping_one *one;
+
+    arg = fuse_mbuf_iter_advance(iter, sizeof(*arg));
+    if (!arg || !arg->count ||
+        (uint64_t)arg->count * sizeof(*one) >= SIZE_MAX) {
+        fuse_log(FUSE_LOG_ERR, "do_removemapping: invalid arg %p\n", arg);
+        fuse_reply_err(req, EINVAL);
+        return;
+    }
+
+    one = fuse_mbuf_iter_advance(iter, arg->count * sizeof(*one));
+    if (!one) {
+        fuse_log(
+            FUSE_LOG_ERR,
+            "do_removemapping: invalid in, expected %d * %zd, has %zd - %zd\n",
+            arg->count, sizeof(*one), iter->size, iter->pos);
+        fuse_reply_err(req, EINVAL);
+        return;
+    }
+
+    if (req->se->op.removemapping) {
+        req->se->op.removemapping(req, req->se, nodeid, arg->count, one);
+    } else {
+        fuse_reply_err(req, ENOSYS);
+    }
+}
+
 static void do_init(fuse_req_t req, fuse_ino_t nodeid,
                     struct fuse_mbuf_iter *iter)
 {
@@ -2267,6 +2334,8 @@ static struct {
     [FUSE_RENAME2] = { do_rename2, "RENAME2" },
     [FUSE_COPY_FILE_RANGE] = { do_copy_file_range, "COPY_FILE_RANGE" },
     [FUSE_LSEEK] = { do_lseek, "LSEEK" },
+    [FUSE_SETUPMAPPING] = { do_setupmapping, "SETUPMAPPING" },
+    [FUSE_REMOVEMAPPING] = { do_removemapping, "REMOVEMAPPING" },
 };
 
 #define FUSE_MAXOP (sizeof(fuse_ll_ops) / sizeof(fuse_ll_ops[0]))
