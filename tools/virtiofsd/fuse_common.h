@@ -626,6 +626,13 @@ enum fuse_buf_flags {
      * detected.
      */
     FUSE_BUF_FD_RETRY = (1 << 3),
+
+    /**
+     * The addresses in the iovec represent guest physical addresses
+     * that can't be mapped by the daemon process.
+     * IO must be bounced back to the VMM to do it.
+     */
+    FUSE_BUF_PHYS_ADDR = (1 << 4),
 };
 
 /**

@@ -77,6 +77,7 @@ static ssize_t fuse_buf_write(const struct fuse_buf *dst, size_t dst_off,
     ssize_t res = 0;
     size_t copied = 0;
 
+    assert(!(src->flags & FUSE_BUF_PHYS_ADDR));
     while (len) {
         if (dst->flags & FUSE_BUF_FD_SEEK) {
             res = pwrite(dst->fd, (char *)src->mem + src_off, len,
@@ -272,7 +273,8 @@ ssize_t fuse_buf_copy(struct fuse_bufvec *dstv, struct fuse_bufvec *srcv)
      * process
      */
     for (i = 0; i < srcv->count; i++) {
-        if (srcv->buf[i].flags & FUSE_BUF_IS_FD) {
+        if ((srcv->buf[i].flags & FUSE_BUF_PHYS_ADDR) ||
+            (srcv->buf[i].flags & FUSE_BUF_IS_FD)) {
             break;
         }
     }
