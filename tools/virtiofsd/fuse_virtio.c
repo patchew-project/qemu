@@ -1141,3 +1141,46 @@ int64_t fuse_virtio_unmap(struct fuse_session *se, VhostUserFSSlaveMsg *msg)
     return vu_fs_cache_request(&se->virtio_dev->dev, VHOST_USER_SLAVE_FS_UNMAP,
                                -1, msg);
 }
+
+int64_t fuse_virtio_io(struct fuse_session *se, VhostUserFSSlaveMsg *msg,
+                       int fd)
+{
+    if (!se->virtio_dev) {
+        return -ENODEV;
+    }
+    return vu_fs_cache_request(&se->virtio_dev->dev, VHOST_USER_SLAVE_FS_IO,
+                               fd, msg);
+}
+
+/*
+ * Write to a file (dst) from an area of guest GPA (src) that probably
+ * isn't visible to the daemon.
+ */
+ssize_t fuse_virtio_write(fuse_req_t req, const struct fuse_buf *dst,
+                          size_t dst_off, const struct fuse_buf *src,
+                          size_t src_off, size_t len)
+{
+    VhostUserFSSlaveMsg *msg = g_malloc0(sizeof(VhostUserFSSlaveMsg) +
+                                         sizeof(VhostUserFSSlaveMsgEntry));
+
+    msg->count = 1;
+
+    if (dst->flags & FUSE_BUF_FD_SEEK) {
+        msg->entries[0].fd_offset = dst->pos + dst_off;
+    } else {
+        off_t cur = lseek(dst->fd, 0, SEEK_CUR);
+        if (cur == (off_t)-1) {
+            g_free(msg);
+            return -errno;
+        }
+        msg->entries[0].fd_offset = cur;
+    }
+    msg->entries[0].c_offset = (uintptr_t)src->mem + src_off;
+    msg->entries[0].len = len;
+    msg->entries[0].flags = VHOST_USER_FS_FLAG_MAP_W;
+
+    int64_t result = fuse_virtio_io(req->se, msg, dst->fd);
+    fuse_log(FUSE_LOG_DEBUG, "%s: result=%" PRId64 " \n", __func__, result);
+    g_free(msg);
+    return result;
+}
