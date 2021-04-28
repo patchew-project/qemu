@@ -657,7 +657,6 @@ enum {
 
 enum {
     FD_STATE_MULTI  = 0x01,	/* multi track flag */
-    FD_STATE_FORMAT = 0x02,	/* format flag */
 };
 
 enum {
@@ -826,7 +825,6 @@ enum {
 };
 
 #define FD_MULTI_TRACK(state) ((state) & FD_STATE_MULTI)
-#define FD_FORMAT_CMD(state) ((state) & FD_STATE_FORMAT)
 
 struct FDCtrl {
     MemoryRegion iomem;
@@ -1942,67 +1940,6 @@ static uint32_t fdctrl_read_data(FDCtrl *fdctrl)
     return retval;
 }
 
-static void fdctrl_format_sector(FDCtrl *fdctrl)
-{
-    FDrive *cur_drv;
-    uint8_t kh, kt, ks;
-
-    SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
-    cur_drv = get_cur_drv(fdctrl);
-    kt = fdctrl->fifo[6];
-    kh = fdctrl->fifo[7];
-    ks = fdctrl->fifo[8];
-    FLOPPY_DPRINTF("format sector at %d %d %02x %02x (%d)\n",
-                   GET_CUR_DRV(fdctrl), kh, kt, ks,
-                   fd_sector_calc(kh, kt, ks, cur_drv->last_sect,
-                                  NUM_SIDES(cur_drv)));
-    switch (fd_seek(cur_drv, kh, kt, ks, fdctrl->config & FD_CONFIG_EIS)) {
-    case 2:
-        /* sect too big */
-        fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, 0x00, 0x00);
-        fdctrl->fifo[3] = kt;
-        fdctrl->fifo[4] = kh;
-        fdctrl->fifo[5] = ks;
-        return;
-    case 3:
-        /* track too big */
-        fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, FD_SR1_EC, 0x00);
-        fdctrl->fifo[3] = kt;
-        fdctrl->fifo[4] = kh;
-        fdctrl->fifo[5] = ks;
-        return;
-    case 4:
-        /* No seek enabled */
-        fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, 0x00, 0x00);
-        fdctrl->fifo[3] = kt;
-        fdctrl->fifo[4] = kh;
-        fdctrl->fifo[5] = ks;
-        return;
-    case 1:
-        fdctrl->status0 |= FD_SR0_SEEK;
-        break;
-    default:
-        break;
-    }
-    memset(fdctrl->fifo, 0, FD_SECTOR_LEN);
-    if (cur_drv->blk == NULL ||
-        blk_pwrite(cur_drv->blk, fd_offset(cur_drv), fdctrl->fifo,
-                   BDRV_SECTOR_SIZE, 0) < 0) {
-        FLOPPY_DPRINTF("error formatting sector %d\n", fd_sector(cur_drv));
-        fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM | FD_SR0_SEEK, 0x00, 0x00);
-    } else {
-        if (cur_drv->sect == cur_drv->last_sect) {
-            fdctrl->data_state &= ~FD_STATE_FORMAT;
-            /* Last sector done */
-            fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
-        } else {
-            /* More to do */
-            fdctrl->data_pos = 0;
-            fdctrl->data_len = 4;
-        }
-    }
-}
-
 static void fdctrl_handle_lock(FDCtrl *fdctrl, int direction)
 {
     fdctrl->lock = (fdctrl->fifo[0] & 0x80) ? 1 : 0;
@@ -2108,34 +2045,6 @@ static void fdctrl_handle_readid(FDCtrl *fdctrl, int direction)
     cur_drv->head = (fdctrl->fifo[1] >> 2) & 1;
     timer_mod(fdctrl->result_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
              (NANOSECONDS_PER_SECOND / 50));
-}
-
-static void fdctrl_handle_format_track(FDCtrl *fdctrl, int direction)
-{
-    FDrive *cur_drv;
-
-    SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
-    cur_drv = get_cur_drv(fdctrl);
-    fdctrl->data_state |= FD_STATE_FORMAT;
-    if (fdctrl->fifo[0] & 0x80)
-        fdctrl->data_state |= FD_STATE_MULTI;
-    else
-        fdctrl->data_state &= ~FD_STATE_MULTI;
-    cur_drv->bps =
-        fdctrl->fifo[2] > 7 ? 16384 : 128 << fdctrl->fifo[2];
-#if 0
-    cur_drv->last_sect =
-        cur_drv->flags & FDISK_DBL_SIDES ? fdctrl->fifo[3] :
-        fdctrl->fifo[3] / 2;
-#else
-    cur_drv->last_sect = fdctrl->fifo[3];
-#endif
-    /* TODO: implement format using DMA expected by the Bochs BIOS
-     * and Linux fdformat (read 3 bytes per sector via DMA and fill
-     * the sector with the specified fill byte
-     */
-    fdctrl->data_state &= ~FD_STATE_FORMAT;
-    fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
 }
 
 static void fdctrl_handle_specify(FDCtrl *fdctrl, int direction)
@@ -2330,7 +2239,6 @@ static const FDCtrlCommand handlers[] = {
     { FD_CMD_SEEK, 0xff, "SEEK", 2, fdctrl_handle_seek },
     { FD_CMD_SENSE_INTERRUPT_STATUS, 0xff, "SENSE INTERRUPT STATUS", 0, fdctrl_handle_sense_interrupt_status },
     { FD_CMD_RECALIBRATE, 0xff, "RECALIBRATE", 1, fdctrl_handle_recalibrate },
-    { FD_CMD_FORMAT_TRACK, 0xbf, "FORMAT TRACK", 5, fdctrl_handle_format_track },
     { FD_CMD_READ_TRACK, 0xbf, "READ TRACK", 8, fdctrl_start_transfer, FD_DIR_READ },
     { FD_CMD_RESTORE, 0xff, "RESTORE", 17, fdctrl_handle_restore }, /* part of READ DELETED DATA */
     { FD_CMD_SAVE, 0xff, "SAVE", 0, fdctrl_handle_save }, /* part of READ DELETED DATA */
@@ -2447,11 +2355,6 @@ static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
         if (fdctrl->data_pos == fdctrl->data_len) {
             /* We have all parameters now, execute the command */
             fdctrl->phase = FD_PHASE_EXECUTION;
-
-            if (fdctrl->data_state & FD_STATE_FORMAT) {
-                fdctrl_format_sector(fdctrl);
-                break;
-            }
 
             cmd = get_command(fdctrl->fifo[0]);
             FLOPPY_DPRINTF("Calling handler for '%s'\n", cmd->name);
