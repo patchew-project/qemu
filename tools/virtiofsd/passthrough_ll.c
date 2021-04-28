@@ -3210,8 +3210,36 @@ static void lo_removemapping(fuse_req_t req, struct fuse_session *se,
                              fuse_ino_t ino, unsigned num,
                              struct fuse_removemapping_one *argp)
 {
-    /* TODO */
-    fuse_reply_err(req, ENOSYS);
+    VhostUserFSSlaveMsg *msg;
+    size_t alloc_count = (num > VHOST_USER_FS_SLAVE_MAX_ENTRIES) ?
+                              VHOST_USER_FS_SLAVE_MAX_ENTRIES : num;
+    int ret = 0;
+    msg = g_malloc0(sizeof(VhostUserFSSlaveMsg) +
+                    alloc_count * sizeof(VhostUserFSSlaveMsgEntry));
+
+    for (int i = 0, o = 0; num > 0; i++, argp++) {
+        VhostUserFSSlaveMsgEntry *e = &msg->entries[o];
+
+        e->len = argp->len;
+        e->c_offset = argp->moffset;
+
+        o++;
+        if (--num == 0 || o == VHOST_USER_FS_SLAVE_MAX_ENTRIES) {
+            msg->count = o;
+            ret = fuse_virtio_unmap(se, msg);
+            if (ret < 0) {
+                fuse_log(FUSE_LOG_ERR,
+                         "%s: unmap over virtio failed "
+                         "(offset=0x%" PRIx64 ", len=0x%" PRIx64 "). err=%d\n",
+                         __func__, argp->moffset, argp->len, ret);
+                break;
+            }
+            o = 0;
+        }
+    }
+
+    fuse_reply_err(req, -ret);
+    g_free(msg);
 }
 
 static struct fuse_lowlevel_ops lo_oper = {
