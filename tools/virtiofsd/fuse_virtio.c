@@ -732,7 +732,8 @@ static void *fv_queue_thread(void *opaque)
                  __func__, qi->qidx, (size_t)evalue, in_bytes, out_bytes);
 
         while (1) {
-            FVRequest *req = vu_queue_pop(dev, q, sizeof(FVRequest));
+            FVRequest *req = vu_queue_pop(dev, q, sizeof(FVRequest),
+                                          NULL, NULL);
             if (!req) {
                 break;
             }

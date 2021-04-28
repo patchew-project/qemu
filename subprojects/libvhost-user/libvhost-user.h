@@ -589,11 +589,17 @@ void vu_queue_notify_sync(VuDev *dev, VuVirtq *vq);
  * @dev: a VuDev context
  * @vq: a VuVirtq queue
  * @sz: the size of struct to return (must be >= VuVirtqElement)
+ * @p_bad_in: If none NULL, a pointer to an integer count of
+ *            unmappable regions in input descriptors
+ * @p_bad_out: If none NULL, a pointer to an integer count of
+ *            unmappable regions in output descriptors
+ *
  *
  * Returns: a VuVirtqElement filled from the queue or NULL. The
  * returned element must be free()-d by the caller.
  */
-void *vu_queue_pop(VuDev *dev, VuVirtq *vq, size_t sz);
+void *vu_queue_pop(VuDev *dev, VuVirtq *vq, size_t sz,
+                   unsigned int *p_bad_in, unsigned int *p_bad_out);
 
 
 /**
