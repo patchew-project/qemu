@@ -1291,7 +1291,7 @@ int64_t fuse_virtio_io(struct fuse_session *se, VhostUserFSSlaveMsg *msg,
  */
 ssize_t fuse_virtio_write(fuse_req_t req, const struct fuse_buf *dst,
                           size_t dst_off, const struct fuse_buf *src,
-                          size_t src_off, size_t len)
+                          size_t src_off, size_t len, bool dropped_cap_fsetid)
 {
     VhostUserFSSlaveMsg *msg = g_malloc0(sizeof(VhostUserFSSlaveMsg) +
                                          sizeof(VhostUserFSSlaveMsgEntry));
@@ -1311,6 +1311,9 @@ ssize_t fuse_virtio_write(fuse_req_t req, const struct fuse_buf *dst,
     msg->entries[0].c_offset = (uintptr_t)src->mem + src_off;
     msg->entries[0].len = len;
     msg->entries[0].flags = VHOST_USER_FS_FLAG_MAP_W;
+    if (dropped_cap_fsetid) {
+        msg->flags |= VHOST_USER_FS_GENFLAG_DROP_FSETID;
+    }
 
     int64_t result = fuse_virtio_io(req->se, msg, dst->fd);
     fuse_log(FUSE_LOG_DEBUG, "%s: result=%" PRId64 " \n", __func__, result);
