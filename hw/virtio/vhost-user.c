@@ -12,6 +12,7 @@
 #include "qapi/error.h"
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-user.h"
+#include "hw/virtio/vhost-user-fs.h"
 #include "hw/virtio/vhost-backend.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-net.h"
@@ -133,6 +134,10 @@ typedef enum VhostUserSlaveRequest {
     VHOST_USER_SLAVE_IOTLB_MSG = 1,
     VHOST_USER_SLAVE_CONFIG_CHANGE_MSG = 2,
     VHOST_USER_SLAVE_VRING_HOST_NOTIFIER_MSG = 3,
+    VHOST_USER_SLAVE_VRING_CALL = 4,
+    VHOST_USER_SLAVE_VRING_ERR = 5,
+    VHOST_USER_SLAVE_FS_MAP = 6,
+    VHOST_USER_SLAVE_FS_UNMAP = 7,
     VHOST_USER_SLAVE_MAX
 }  VhostUserSlaveRequest;
 
@@ -205,6 +210,16 @@ typedef struct {
     uint32_t size; /* the following payload size */
 } QEMU_PACKED VhostUserHeader;
 
+/*
+ * VhostUserFSSlaveMsg is special since it has a variable entry count,
+ * but it does have a maximum, so make a type for that to fit in our union
+ * for max size.
+ */
+typedef struct {
+    VhostUserFSSlaveMsg fs;
+    VhostUserFSSlaveMsgEntry entries[VHOST_USER_FS_SLAVE_MAX_ENTRIES];
+} QEMU_PACKED VhostUserFSSlaveMsgMax;
+
 typedef union {
 #define VHOST_USER_VRING_IDX_MASK   (0xff)
 #define VHOST_USER_VRING_NOFD_MASK  (0x1<<8)
@@ -219,6 +234,8 @@ typedef union {
         VhostUserCryptoSession session;
         VhostUserVringArea area;
         VhostUserInflight inflight;
+        VhostUserFSSlaveMsg fs;
+        VhostUserFSSlaveMsg fs_max; /* Never actually used */
 } VhostUserPayload;
 
 typedef struct VhostUserMsg {
@@ -1538,6 +1555,15 @@ static gboolean slave_read(QIOChannel *ioc, GIOCondition condition,
         ret = vhost_user_slave_handle_vring_host_notifier(dev, &payload.area,
                                                           fd ? fd[0] : -1);
         break;
+#ifdef CONFIG_VHOST_USER_FS
+    case VHOST_USER_SLAVE_FS_MAP:
+        ret = vhost_user_fs_slave_map(dev, hdr.size, &payload.fs,
+                                      fd ? fd[0] : -1);
+        break;
+    case VHOST_USER_SLAVE_FS_UNMAP:
+        ret = vhost_user_fs_slave_unmap(dev, hdr.size, &payload.fs);
+        break;
+#endif
     default:
         error_report("Received unexpected msg type: %d.", hdr.request);
         ret = true;
