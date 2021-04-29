@@ -378,6 +378,201 @@ static uint32_t virtio_snd_handle_pcm_set_params(VirtIOSound *s,
     return sz;
 }
 
+/*
+ * Get a QEMU Audiosystem compatible format value from a VIRTIO_SND_PCM_FMT_*
+ */
+static AudioFormat virtio_snd_get_qemu_format(uint32_t format)
+{
+    switch (format) {
+    case VIRTIO_SND_PCM_FMT_U8:
+        return AUDIO_FORMAT_U8;
+    case VIRTIO_SND_PCM_FMT_S8:
+        return AUDIO_FORMAT_S8;
+    case VIRTIO_SND_PCM_FMT_U16:
+        return AUDIO_FORMAT_U16;
+    case VIRTIO_SND_PCM_FMT_S16:
+        return AUDIO_FORMAT_S16;
+    case VIRTIO_SND_PCM_FMT_U32:
+        return AUDIO_FORMAT_U32;
+    case VIRTIO_SND_PCM_FMT_S32:
+        return AUDIO_FORMAT_S32;
+    case VIRTIO_SND_PCM_FMT_FLOAT:
+        return AUDIO_FORMAT_F32;
+    default:
+        return -1;
+    }
+}
+
+/*
+ * Get a QEMU Audiosystem compatible frequency value from a
+ * VIRTIO_SND_PCM_RATE_*
+ */
+static uint32_t virtio_snd_get_qemu_freq(uint32_t rate)
+{
+    switch (rate) {
+    case VIRTIO_SND_PCM_RATE_5512:
+        return 5512;
+    case VIRTIO_SND_PCM_RATE_8000:
+        return 8000;
+    case VIRTIO_SND_PCM_RATE_11025:
+        return 11025;
+    case VIRTIO_SND_PCM_RATE_16000:
+        return 16000;
+    case VIRTIO_SND_PCM_RATE_22050:
+        return 22050;
+    case VIRTIO_SND_PCM_RATE_32000:
+        return 32000;
+    case VIRTIO_SND_PCM_RATE_44100:
+        return 44100;
+    case VIRTIO_SND_PCM_RATE_48000:
+        return 48000;
+    case VIRTIO_SND_PCM_RATE_64000:
+        return 64000;
+    case VIRTIO_SND_PCM_RATE_88200:
+        return 88200;
+    case VIRTIO_SND_PCM_RATE_96000:
+        return 96000;
+    case VIRTIO_SND_PCM_RATE_176399:
+        return 176399;
+    case VIRTIO_SND_PCM_RATE_192000:
+        return 192000;
+    case VIRTIO_SND_PCM_RATE_384000:
+        return 384000;
+    default:
+        return -1;
+    }
+}
+
+/*
+ * Get QEMU Audiosystem compatible audsettings from virtio based pcm stream
+ * params.
+ */
+static void virtio_snd_get_qemu_audsettings(audsettings *as,
+                                            virtio_snd_pcm_params *params)
+{
+    as->nchannels = params->channel;
+    as->fmt = virtio_snd_get_qemu_format(params->format);
+    as->freq = virtio_snd_get_qemu_freq(params->rate);
+    as->endianness = AUDIO_HOST_ENDIANNESS;
+}
+
+/*
+ * Get the maximum number of virtqueue elements that can be inserted
+ * into a virtio sound pcm stream
+ *
+ * @st: virtio sound pcm stream
+ */
+static int virtio_snd_pcm_get_nelems(virtio_snd_pcm_stream *st)
+{
+    return st->buffer_bytes / st->period_bytes
+           + !!(st->buffer_bytes % st->period_bytes);
+}
+
+/*
+ * Prepares a VirtIOSound card stream.
+ * Returns a virtio sound status (VIRTIO_SND_S_*).
+ *
+ * @s: VirtIOSound card
+ * @stream: stream id
+ */
+static uint32_t virtio_snd_pcm_prepare_impl(VirtIOSound *s, uint32_t stream)
+{
+    if (!s->streams || !s->pcm_params || !s->pcm_params[stream]) {
+        virtio_snd_err("Cannot prepare stream %d without params.\n", stream);
+        return VIRTIO_SND_S_BAD_MSG;
+    }
+
+    uint32_t supported_formats = 1 << VIRTIO_SND_PCM_FMT_S8 |
+                                 1 << VIRTIO_SND_PCM_FMT_U8 |
+                                 1 << VIRTIO_SND_PCM_FMT_S16 |
+                                 1 << VIRTIO_SND_PCM_FMT_U16 |
+                                 1 << VIRTIO_SND_PCM_FMT_S32 |
+                                 1 << VIRTIO_SND_PCM_FMT_U32 |
+                                 1 << VIRTIO_SND_PCM_FMT_FLOAT;
+
+    uint32_t supported_rates = 1 << VIRTIO_SND_PCM_RATE_5512 |
+                               1 << VIRTIO_SND_PCM_RATE_8000 |
+                               1 << VIRTIO_SND_PCM_RATE_11025 |
+                               1 << VIRTIO_SND_PCM_RATE_16000 |
+                               1 << VIRTIO_SND_PCM_RATE_22050 |
+                               1 << VIRTIO_SND_PCM_RATE_32000 |
+                               1 << VIRTIO_SND_PCM_RATE_44100 |
+                               1 << VIRTIO_SND_PCM_RATE_48000 |
+                               1 << VIRTIO_SND_PCM_RATE_64000 |
+                               1 << VIRTIO_SND_PCM_RATE_88200 |
+                               1 << VIRTIO_SND_PCM_RATE_96000 |
+                               1 << VIRTIO_SND_PCM_RATE_176399 |
+                               1 << VIRTIO_SND_PCM_RATE_192000 |
+                               1 << VIRTIO_SND_PCM_RATE_384000;
+
+    virtio_snd_pcm_stream *st = g_new0(virtio_snd_pcm_stream, 1);
+    st->hda_fn_nid = VIRTIO_SOUND_HDA_FN_NID_OUT;
+    st->features = 0;
+    st->direction = stream <= s->snd_conf.streams / 2 ?
+                    VIRTIO_SND_D_OUTPUT : VIRTIO_SND_D_INPUT;
+    st->channels_min = 1;
+    st->channels_max = AUDIO_MAX_CHANNELS;
+    st->formats = supported_formats;
+    st->rates = supported_rates;
+    st->s = s;
+
+    st->buffer_bytes = s->pcm_params[stream]->buffer_bytes;
+    st->period_bytes = s->pcm_params[stream]->period_bytes;
+
+    audsettings as;
+    virtio_snd_get_qemu_audsettings(&as, s->pcm_params[stream]);
+
+    if (st->direction == VIRTIO_SND_D_OUTPUT) {
+        /* st->voice.out = AUD_open_out(&s->card,
+         *                              st->voice.out,
+         *                              "virtio_snd_card",
+         *                              st,
+         *                              virtio_snd_output_cb, &as);
+         */
+    } else {
+        /* st->voice.in = AUD_open_in(&s->card,
+         *                            st->voice.in,
+         *                            "virtio_snd_card",
+         *                            st,
+         *                            virtio_snd_input_cb,
+         *                            &as);
+         */
+    }
+
+    uint32_t nelems = virtio_snd_pcm_get_nelems(st);
+    st->elems = g_new0(VirtQueueElement *, nelems);
+    st->tail = -1;
+    st->w_pos = 0;
+    st->r_pos = 0;
+    s->streams[stream] = st;
+
+    return VIRTIO_SND_S_OK;
+}
+
+/*
+ * Handles VIRTIO_SND_R_PCM_PREPARE.
+ * The function writes the response to the virtqueue element.
+ * Returns the used size in bytes.
+ *
+ * @s: VirtIOSound card
+ * @elem: The request element from control queue
+ */
+static uint32_t virtio_snd_handle_pcm_prepare(VirtIOSound *s,
+                                              VirtQueueElement *elem)
+{
+    virtio_snd_pcm_hdr req;
+    size_t sz;
+
+    sz = iov_to_buf(elem->out_sg, elem->out_num, 0, &req, sizeof(req));
+    assert(sz == sizeof(virtio_snd_pcm_hdr));
+
+    virtio_snd_hdr resp;
+    resp.code = virtio_snd_pcm_prepare_impl(s, req.stream_id);
+    sz = iov_from_buf(elem->in_sg, elem->in_num, 0, &resp, sizeof(resp));
+    assert(sz == sizeof(virtio_snd_hdr));
+    return sz;
+}
+
 /* The control queue handler. Pops an element from the control virtqueue,
  * checks the header and performs the requested action. Finally marks the
  * element as used.
@@ -429,7 +624,8 @@ static void virtio_snd_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
             sz = virtio_snd_handle_pcm_set_params(s, elem);
             goto done;
         } else if (ctrl.code == VIRTIO_SND_R_PCM_PREPARE) {
-            virtio_snd_log("VIRTIO_SND_R_PCM_PREPARE");
+            sz = virtio_snd_handle_pcm_prepare(s, elem);
+            goto done;
         } else if (ctrl.code == VIRTIO_SND_R_PCM_START) {
             virtio_snd_log("VIRTIO_SND_R_PCM_START");
         } else if (ctrl.code == VIRTIO_SND_R_PCM_STOP) {
