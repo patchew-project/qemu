@@ -281,6 +281,103 @@ done:
     return sizeof(virtio_snd_hdr) + sz;
 }
 
+/*
+ * Set the given stream params.
+ * Called by both virtio_snd_handle_pcm_set_params and during device
+ * initialization.
+ * Returns a virtio sound status VIRTIO_SND_S_*
+ *
+ * @s: VirtIOSound card device
+ * @params: The PCM params as defined in the virtio specification
+ */
+static uint32_t virtio_snd_pcm_set_params_impl(VirtIOSound *s,
+                                               virtio_snd_pcm_set_params *params)
+{
+    uint32_t st = params->hdr.stream_id;
+    if (st > s->snd_conf.streams || !(s->pcm_params)) {
+        virtio_error(VIRTIO_DEVICE(s), "Streams not initalized\n");
+        return VIRTIO_SND_S_BAD_MSG;
+    }
+
+    if (!s->pcm_params[st]) {
+        s->pcm_params[st] = g_new0(virtio_snd_pcm_params, 1);
+    }
+    virtio_snd_pcm_params *st_params = s->pcm_params[st];
+
+    st_params->features = params->features;
+    st_params->buffer_bytes = params->buffer_bytes;
+    st_params->period_bytes = params->period_bytes;
+
+    if (params->channel < 1 || params->channel > AUDIO_MAX_CHANNELS) {
+        virtio_snd_err("Number of channels not supported\n");
+        return VIRTIO_SND_S_NOT_SUPP;
+    }
+    st_params->channel = params->channel;
+
+    uint32_t supported_formats = 1 << VIRTIO_SND_PCM_FMT_S8 |
+                                 1 << VIRTIO_SND_PCM_FMT_U8 |
+                                 1 << VIRTIO_SND_PCM_FMT_S16 |
+                                 1 << VIRTIO_SND_PCM_FMT_U16 |
+                                 1 << VIRTIO_SND_PCM_FMT_S32 |
+                                 1 << VIRTIO_SND_PCM_FMT_U32 |
+                                 1 << VIRTIO_SND_PCM_FMT_FLOAT;
+
+    uint32_t supported_rates = 1 << VIRTIO_SND_PCM_RATE_5512 |
+                               1 << VIRTIO_SND_PCM_RATE_8000 |
+                               1 << VIRTIO_SND_PCM_RATE_11025 |
+                               1 << VIRTIO_SND_PCM_RATE_16000 |
+                               1 << VIRTIO_SND_PCM_RATE_22050 |
+                               1 << VIRTIO_SND_PCM_RATE_32000 |
+                               1 << VIRTIO_SND_PCM_RATE_44100 |
+                               1 << VIRTIO_SND_PCM_RATE_48000 |
+                               1 << VIRTIO_SND_PCM_RATE_64000 |
+                               1 << VIRTIO_SND_PCM_RATE_88200 |
+                               1 << VIRTIO_SND_PCM_RATE_96000 |
+                               1 << VIRTIO_SND_PCM_RATE_176399 |
+                               1 << VIRTIO_SND_PCM_RATE_192000 |
+                               1 << VIRTIO_SND_PCM_RATE_384000;
+
+    if (!(supported_formats & (1 << params->format))) {
+        virtio_snd_err("Stream format not supported\n");
+        return VIRTIO_SND_S_NOT_SUPP;
+    }
+    st_params->format = params->format;
+
+    if (!(supported_rates & (1 << params->rate))) {
+        virtio_snd_err("Stream rate not supported\n");
+        return VIRTIO_SND_S_NOT_SUPP;
+    }
+    st_params->rate = params->rate;
+
+    st_params->period_bytes = params->period_bytes;
+    st_params->buffer_bytes = params->buffer_bytes;
+    return VIRTIO_SND_S_OK;
+}
+
+/*
+ * Handles the VIRTIO_SND_R_PCM_SET_PARAMS request.
+ * The function writes the response to the virtqueue element.
+ * Returns the used size in bytes.
+ *
+ * @s: VirtIOSound card device
+ * @elem: The request element from control queue
+ */
+static uint32_t virtio_snd_handle_pcm_set_params(VirtIOSound *s,
+                                                 VirtQueueElement *elem)
+{
+    virtio_snd_pcm_set_params req;
+    uint32_t sz;
+    sz = iov_to_buf(elem->out_sg, elem->out_num, 0, &req, sizeof(req));
+    assert(sz == sizeof(virtio_snd_pcm_set_params));
+
+    virtio_snd_hdr resp;
+    resp.code = virtio_snd_pcm_set_params_impl(s, &req);
+
+    sz = iov_from_buf(elem->in_sg, elem->in_num, 0, &resp, sizeof(resp));
+    assert(sz == sizeof(virtio_snd_hdr));
+    return sz;
+}
+
 /* The control queue handler. Pops an element from the control virtqueue,
  * checks the header and performs the requested action. Finally marks the
  * element as used.
@@ -329,7 +426,8 @@ static void virtio_snd_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
             sz = virtio_snd_handle_pcm_info(s, elem);
             goto done;
         } else if (ctrl.code == VIRTIO_SND_R_PCM_SET_PARAMS) {
-            virtio_snd_log("VIRTIO_SND_R_PCM_SET_PARAMS");
+            sz = virtio_snd_handle_pcm_set_params(s, elem);
+            goto done;
         } else if (ctrl.code == VIRTIO_SND_R_PCM_PREPARE) {
             virtio_snd_log("VIRTIO_SND_R_PCM_PREPARE");
         } else if (ctrl.code == VIRTIO_SND_R_PCM_START) {
