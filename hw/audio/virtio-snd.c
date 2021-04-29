@@ -1006,8 +1006,34 @@ static void virtio_snd_device_realize(DeviceState *dev, Error **errp)
     }
 }
 
+/*
+ * Frees the resources allocated to the device and then frees the device
+ * itself.
+ *
+ * @dev: VirtIOSound card device
+ */
 static void virtio_snd_device_unrealize(DeviceState *dev)
 {
+    VirtIOSound *s = VIRTIO_SOUND(dev);
+
+    for (int i = 0; i < s->snd_conf.streams; i++) {
+        virtio_snd_pcm_release_impl(s, i);
+        g_free(s->pcm_params[i]);
+        s->pcm_params[i] = NULL;
+    }
+    g_free(s->streams);
+    s->streams = NULL;
+    g_free(s->pcm_params);
+    s->pcm_params = NULL;
+
+    for (int i = 0; i < s->snd_conf.jacks; i++) {
+        g_free(s->jacks[i]);
+        s->jacks[i] = NULL;
+    }
+    g_free(s->jacks);
+    s->jacks = NULL;
+
+    virtio_delete_queue(s->ctrl_vq);
 }
 
 static void virtio_snd_reset(VirtIODevice *vdev)
