@@ -50,6 +50,10 @@ bool spapr_nvdimm_validate(HotplugHandler *hotplug_dev, NVDIMMDevice *nvdimm,
 {
     const MachineClass *mc = MACHINE_GET_CLASS(hotplug_dev);
     const MachineState *ms = MACHINE(hotplug_dev);
+    PCDIMMDevice __attribute__((unused)) *dimm = PC_DIMM(nvdimm);
+    MemoryRegion __attribute__((unused)) *mr;
+    bool __attribute__((unused)) is_pmem = false;
+    NvdimmSyncModes __attribute__((unused)) sync;
     g_autofree char *uuidstr = NULL;
     QemuUUID uuid;
     int ret;
@@ -76,6 +80,24 @@ bool spapr_nvdimm_validate(HotplugHandler *hotplug_dev, NVDIMMDevice *nvdimm,
                    SPAPR_MINIMUM_SCM_BLOCK_SIZE / MiB);
         return false;
     }
+
+#ifdef CONFIG_LIBPMEM
+    sync = object_property_get_enum(OBJECT(nvdimm), NVDIMM_SYNC_DAX_PROP,
+                                    "NvdimmSyncModes", &error_abort);
+
+    mr = host_memory_backend_get_memory(dimm->hostmem);
+    if (memory_region_get_fd(mr) > 0) { /* memor-backend-file */
+        HostMemoryBackend *backend = MEMORY_BACKEND(dimm->hostmem);
+        is_pmem = object_property_get_bool(OBJECT(backend), "pmem",
+                                           &error_abort);
+    }
+
+    if (sync == NVDIMM_SYNC_MODES_WRITEBACK && is_pmem) {
+        warn_report("The NVDIMM backing device being Synchronous DAX capable, "
+                    NVDIMM_SYNC_DAX_PROP"='%s' is unnecessary as the backend "
+                    "ensures the safety already.", NvdimmSyncModes_str(sync));
+    }
+#endif
 
     uuidstr = object_property_get_str(OBJECT(nvdimm), NVDIMM_UUID_PROP,
                                       &error_abort);
@@ -124,6 +146,9 @@ static int spapr_dt_nvdimm(SpaprMachineState *spapr, void *fdt,
     uint64_t lsize = nvdimm->label_size;
     uint64_t size = object_property_get_int(OBJECT(nvdimm), PC_DIMM_SIZE_PROP,
                                             NULL);
+    NvdimmSyncModes sync_dax = object_property_get_enum(OBJECT(nvdimm),
+                                         NVDIMM_SYNC_DAX_PROP,
+                                         "NvdimmSyncModes", &error_abort);
 
     drc = spapr_drc_by_id(TYPE_SPAPR_DRC_PMEM, slot);
     g_assert(drc);
@@ -157,6 +182,11 @@ static int spapr_dt_nvdimm(SpaprMachineState *spapr, void *fdt,
     _FDT((fdt_setprop_string(fdt, child_offset, "ibm,pmem-application",
                              "operating-system")));
     _FDT(fdt_setprop(fdt, child_offset, "ibm,cache-flush-required", NULL, 0));
+
+    if (sync_dax == NVDIMM_SYNC_MODES_WRITEBACK) {
+        _FDT(fdt_setprop(fdt, child_offset, "ibm,hcall-flush-required",
+                         NULL, 0));
+    }
 
     return child_offset;
 }
@@ -566,6 +596,8 @@ static target_ulong h_scm_flush(PowerPCCPU *cpu, SpaprMachineState *spapr,
     uint64_t continue_token = args[1];
     SpaprDrc *drc = spapr_drc_by_index(drc_index);
     PCDIMMDevice *dimm;
+    NVDIMMDevice *nvdimm;
+    NvdimmSyncModes sync_dax;
     HostMemoryBackend *backend = NULL;
     SpaprNVDIMMDeviceFlushState *state;
     ThreadPool *pool = aio_get_thread_pool(qemu_get_aio_context());
@@ -573,6 +605,13 @@ static target_ulong h_scm_flush(PowerPCCPU *cpu, SpaprMachineState *spapr,
     if (!drc || !drc->dev ||
         spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PMEM) {
         return H_PARAMETER;
+    }
+
+    nvdimm = NVDIMM(drc->dev);
+    sync_dax = object_property_get_enum(OBJECT(nvdimm), NVDIMM_SYNC_DAX_PROP,
+                                    "NvdimmSyncModes", &error_abort);
+    if (sync_dax != NVDIMM_SYNC_MODES_WRITEBACK) {
+        return H_UNSUPPORTED;
     }
 
     if (continue_token != 0) {

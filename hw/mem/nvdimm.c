@@ -96,6 +96,19 @@ static void nvdimm_set_uuid(Object *obj, Visitor *v, const char *name,
     g_free(value);
 }
 
+static int nvdimm_get_sync_mode(Object *obj, Error **errp G_GNUC_UNUSED)
+{
+    NVDIMMDevice *nvdimm = NVDIMM(obj);
+
+    return nvdimm->sync_dax;
+}
+
+static void nvdimm_set_sync_mode(Object *obj, int mode, Error **errp)
+{
+    NVDIMMDevice *nvdimm = NVDIMM(obj);
+
+    nvdimm->sync_dax = mode;
+}
 
 static void nvdimm_init(Object *obj)
 {
@@ -105,6 +118,13 @@ static void nvdimm_init(Object *obj)
 
     object_property_add(obj, NVDIMM_UUID_PROP, "QemuUUID", nvdimm_get_uuid,
                         nvdimm_set_uuid, NULL, NULL);
+
+    object_property_add_enum(obj, NVDIMM_SYNC_DAX_PROP, "NvdimmSyncModes",
+                             &NvdimmSyncModes_lookup, nvdimm_get_sync_mode,
+                             nvdimm_set_sync_mode);
+    object_property_set_description(obj, NVDIMM_SYNC_DAX_PROP,
+                                    "Set the Synchronus DAX mode");
+
 }
 
 static void nvdimm_finalize(Object *obj)
@@ -119,6 +139,9 @@ static void nvdimm_prepare_memory_region(NVDIMMDevice *nvdimm, Error **errp)
     PCDIMMDevice *dimm = PC_DIMM(nvdimm);
     uint64_t align, pmem_size, size;
     MemoryRegion *mr;
+    HostMemoryBackend *hostmem;
+    bool is_file_backed;
+    bool __attribute__((unused)) is_pmem = false;
 
     g_assert(!nvdimm->nvdimm_mr);
 
@@ -135,9 +158,8 @@ static void nvdimm_prepare_memory_region(NVDIMMDevice *nvdimm, Error **errp)
     nvdimm->label_data = memory_region_get_ram_ptr(mr) + pmem_size;
     pmem_size = QEMU_ALIGN_DOWN(pmem_size, align);
 
+    hostmem = dimm->hostmem;
     if (size <= nvdimm->label_size || !pmem_size) {
-        HostMemoryBackend *hostmem = dimm->hostmem;
-
         error_setg(errp, "the size of memdev %s (0x%" PRIx64 ") is too "
                    "small to contain nvdimm label (0x%" PRIx64 ") and "
                    "aligned PMEM (0x%" PRIx64 ")",
@@ -147,13 +169,35 @@ static void nvdimm_prepare_memory_region(NVDIMMDevice *nvdimm, Error **errp)
     }
 
     if (!nvdimm->unarmed && memory_region_is_rom(mr)) {
-        HostMemoryBackend *hostmem = dimm->hostmem;
-
         error_setg(errp, "'unarmed' property must be off since memdev %s "
                    "is read-only",
                    object_get_canonical_path_component(OBJECT(hostmem)));
         return;
     }
+
+    is_file_backed = (memory_region_get_fd(mr) > 0);
+    if (nvdimm->sync_dax == NVDIMM_SYNC_MODES_WRITEBACK && !is_file_backed) {
+        error_setg(errp, NVDIMM_SYNC_DAX_PROP"='%s' mode requires the "
+                   "memdev %s to be file backed",
+                   NvdimmSyncModes_str(nvdimm->sync_dax),
+                   object_get_canonical_path_component(OBJECT(hostmem)));
+        return;
+    }
+
+#ifdef CONFIG_LIBPMEM
+    if (is_file_backed) {
+        is_pmem = object_property_get_bool(OBJECT(hostmem), "pmem",
+                                           &error_abort);
+    }
+
+    if (nvdimm->sync_dax == NVDIMM_SYNC_MODES_DIRECT && !is_pmem) {
+        error_setg(errp, "NVDIMM device "NVDIMM_SYNC_DAX_PROP"=%s mode requires"
+                   " the memory backend device to be synchronous DAX capable. "
+                   "Indicate it so with pmem=yes for the corresponding "
+                   "memory-backend-file.",
+                   NvdimmSyncModes_str(nvdimm->sync_dax));
+    }
+#endif
 
     nvdimm->nvdimm_mr = g_new(MemoryRegion, 1);
     memory_region_init_alias(nvdimm->nvdimm_mr, OBJECT(dimm),

@@ -197,3 +197,23 @@
 { 'enum': 'GrabToggleKeys',
   'data': [ 'ctrl-ctrl', 'alt-alt', 'shift-shift','meta-meta', 'scrolllock',
             'ctrl-scrolllock' ] }
+
+##
+# @NvdimmSyncModes:
+#
+# Indicates the mode of flush to be used to ensure persistence in case
+# of power failures.
+#
+# @unsafe: This is to indicate, the data on the backend device not be
+#          consistent in power failure scenarios.
+# @direct: This is to indicate the backend device supports synchronous DAX
+#          and no explicit flush requests from the guest is required.
+# @writeback: To be used when the backend device doesn't support synchronous
+#             DAX. The hypervisor issues flushes to the disk when requested
+#             by the guest.
+# Since: 6.0
+#
+##
+{ 'enum': 'NvdimmSyncModes',
+  'data': [ 'unsafe', 'writeback',
+            { 'name': 'direct', 'if': 'defined(CONFIG_LIBPMEM)' } ] }

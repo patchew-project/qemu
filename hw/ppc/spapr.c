@@ -4616,6 +4616,11 @@ static void spapr_machine_latest_class_options(MachineClass *mc)
 static void spapr_machine_6_0_class_options(MachineClass *mc)
 {
     /* Defaults for the latest behaviour inherited from the base class */
+    static GlobalProperty compat[] = {
+        { "nvdimm", "sync-dax", "writeback" },
+    };
+
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
 
 DEFINE_SPAPR_MACHINE(6_0, "6.0", true);
@@ -4625,8 +4630,13 @@ DEFINE_SPAPR_MACHINE(6_0, "6.0", true);
  */
 static void spapr_machine_5_2_class_options(MachineClass *mc)
 {
+    static GlobalProperty compat[] = {
+        { "nvdimm", "sync-dax", "unsafe" },
+    };
+
     spapr_machine_6_0_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_5_2, hw_compat_5_2_len);
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
 
 DEFINE_SPAPR_MACHINE(5_2, "5.2", false);

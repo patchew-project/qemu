@@ -28,6 +28,7 @@
 #include "qemu/uuid.h"
 #include "hw/acpi/aml-build.h"
 #include "qom/object.h"
+#include "qapi/qapi-types-machine.h"
 
 #define NVDIMM_DEBUG 0
 #define nvdimm_debug(fmt, ...)                                \
@@ -51,6 +52,7 @@ OBJECT_DECLARE_TYPE(NVDIMMDevice, NVDIMMClass, NVDIMM)
 #define NVDIMM_LABEL_SIZE_PROP "label-size"
 #define NVDIMM_UUID_PROP       "uuid"
 #define NVDIMM_UNARMED_PROP    "unarmed"
+#define NVDIMM_SYNC_DAX_PROP   "sync-dax"
 
 struct NVDIMMDevice {
     /* private */
@@ -84,6 +86,15 @@ struct NVDIMMDevice {
      * the guest write persistence.
      */
     bool unarmed;
+
+    /*
+     * The 'writeback' value would indicate the guest to make explicit
+     * flush requests to hypervisor. When 'direct', the device is
+     * assumed to be synchronous DAX capable and no explicit flush
+     * is required. 'unsafe' indicates flush semantics unimplemented
+     * and the data persistence not guaranteed in power failure scenarios.
+     */
+    NvdimmSyncModes sync_dax;
 
     /*
      * The PPC64 - spapr requires each nvdimm device have a uuid.

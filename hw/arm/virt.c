@@ -2358,6 +2358,27 @@ static const CPUArchIdList *virt_possible_cpu_arch_ids(MachineState *ms)
     return ms->possible_cpus;
 }
 
+static bool virt_nvdimm_validate(const MachineState *ms, NVDIMMDevice *nvdimm,
+                                 Error **errp)
+{
+    NvdimmSyncModes sync;
+
+    if (!ms->nvdimms_state->is_enabled) {
+        error_setg(errp, "nvdimm is not enabled: add 'nvdimm=on' to '-M'");
+        return false;
+    }
+
+    sync = object_property_get_enum(OBJECT(nvdimm), NVDIMM_SYNC_DAX_PROP,
+                                    "NvdimmSyncModes", &error_abort);
+    if (sync == NVDIMM_SYNC_MODES_WRITEBACK) {
+        error_setg(errp, "NVDIMM device " NVDIMM_SYNC_DAX_PROP
+                         "=%s mode unsupported", NvdimmSyncModes_str(sync));
+        return false;
+    }
+
+    return true;
+}
+
 static void virt_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
                                  Error **errp)
 {
@@ -2376,9 +2397,10 @@ static void virt_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
         return;
     }
 
-    if (is_nvdimm && !ms->nvdimms_state->is_enabled) {
-        error_setg(errp, "nvdimm is not enabled: add 'nvdimm=on' to '-M'");
-        return;
+    if (is_nvdimm) {
+        if (!virt_nvdimm_validate(ms, NVDIMM(dev), errp)) {
+            return;
+        }
     }
 
     pc_dimm_pre_plug(PC_DIMM(dev), MACHINE(hotplug_dev), NULL, errp);

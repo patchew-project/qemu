@@ -1211,6 +1211,27 @@ void pc_i8259_create(ISABus *isa_bus, qemu_irq *i8259_irqs)
     g_free(i8259);
 }
 
+static bool pc_nvdimm_validate(const MachineState *ms, NVDIMMDevice *nvdimm,
+                               Error **errp)
+{
+    NvdimmSyncModes sync;
+
+    if (!ms->nvdimms_state->is_enabled) {
+        error_setg(errp, "nvdimm is not enabled: add 'nvdimm=on' to '-M'");
+        return false;
+    }
+
+    sync = object_property_get_enum(OBJECT(nvdimm), NVDIMM_SYNC_DAX_PROP,
+                                    "NvdimmSyncModes", &error_abort);
+    if (sync == NVDIMM_SYNC_MODES_WRITEBACK) {
+        error_setg(errp, "NVDIMM device " NVDIMM_SYNC_DAX_PROP
+                   "=%s mode unsupported", NvdimmSyncModes_str(sync));
+        return false;
+    }
+
+    return true;
+}
+
 static void pc_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
                                Error **errp)
 {
@@ -1233,9 +1254,10 @@ static void pc_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
         return;
     }
 
-    if (is_nvdimm && !ms->nvdimms_state->is_enabled) {
-        error_setg(errp, "nvdimm is not enabled: missing 'nvdimm' in '-M'");
-        return;
+    if (is_nvdimm) {
+        if (!pc_nvdimm_validate(ms, NVDIMM(dev), errp)) {
+            return;
+        }
     }
 
     hotplug_handler_pre_plug(x86ms->acpi_dev, dev, &local_err);
