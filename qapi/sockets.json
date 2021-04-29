@@ -86,8 +86,8 @@
 { 'struct': 'UnixSocketAddress',
   'data': {
     'path': 'str',
-    '*abstract': { 'type': 'bool', 'if': 'defined(CONFIG_LINUX)' },
-    '*tight': { 'type': 'bool', 'if': 'defined(CONFIG_LINUX)' } } }
+    '*abstract': { 'type': 'bool', 'if': 'CONFIG_LINUX' },
+    '*tight': { 'type': 'bool', 'if': 'CONFIG_LINUX' } } }
 
 ##
 # @VsockSocketAddress:

@@ -137,7 +137,7 @@
 { 'struct': 'BlockExportOptionsFuse',
   'data': { 'mountpoint': 'str',
             '*growable': 'bool' },
-  'if': 'defined(CONFIG_FUSE)' }
+  'if': 'CONFIG_FUSE' }
 
 ##
 # @NbdServerAddOptions:
@@ -247,7 +247,7 @@
 ##
 { 'enum': 'BlockExportType',
   'data': [ 'nbd', 'vhost-user-blk',
-            { 'name': 'fuse', 'if': 'defined(CONFIG_FUSE)' } ] }
+            { 'name': 'fuse', 'if': 'CONFIG_FUSE' } ] }
 
 ##
 # @BlockExportOptions:
@@ -290,7 +290,7 @@
       'nbd': 'BlockExportOptionsNbd',
       'vhost-user-blk': 'BlockExportOptionsVhostUserBlk',
       'fuse': { 'type': 'BlockExportOptionsFuse',
-                'if': 'defined(CONFIG_FUSE)' }
+                'if': 'CONFIG_FUSE' }
    } }
 
 ##
