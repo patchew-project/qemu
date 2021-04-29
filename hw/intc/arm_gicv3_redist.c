@@ -244,14 +244,22 @@ static MemTxResult gicr_readl(GICv3CPUState *cs, hwaddr offset,
 static MemTxResult gicr_writel(GICv3CPUState *cs, hwaddr offset,
                                uint64_t value, MemTxAttrs attrs)
 {
+    uint64_t data;
+
     switch (offset) {
     case GICR_CTLR:
         /* For our implementation, GICR_TYPER.DPGS is 0 and so all
          * the DPG bits are RAZ/WI. We don't do anything asynchronously,
-         * so UWP and RWP are RAZ/WI. And GICR_TYPER.LPIS is 0 (we don't
-         * implement LPIs) so Enable_LPIs is RES0. So there are no writable
-         * bits for us.
+         * so UWP and RWP are RAZ/WI. GICR_TYPER.LPIS is 1 (we
+         * implement LPIs) so Enable_LPIs is programmable.
          */
+        if (cs->gicr_typer & GICR_TYPER_PLPIS) {
+            if (value & GICR_CTLR_ENABLE_LPIS) {
+                cs->gicr_ctlr |= GICR_CTLR_ENABLE_LPIS;
+            } else {
+                cs->gicr_ctlr &= ~GICR_CTLR_ENABLE_LPIS;
+            }
+        }
         return MEMTX_OK;
     case GICR_STATUSR:
         /* RAZ/WI for our implementation */
@@ -275,7 +283,12 @@ static MemTxResult gicr_writel(GICv3CPUState *cs, hwaddr offset,
         cs->gicr_waker = value;
         return MEMTX_OK;
     case GICR_PROPBASER:
-        cs->gicr_propbaser = deposit64(cs->gicr_propbaser, 0, 32, value);
+        data = value;
+        if (FIELD_EX64(data, GICR_PROPBASER, IDBITS) > GICD_TYPER_IDBITS) {
+            data &= ~R_GICR_PROPBASER_IDBITS_MASK;
+            data |= GICD_TYPER_IDBITS;
+        }
+        cs->gicr_propbaser = deposit64(cs->gicr_propbaser, 0, 32, data);
         return MEMTX_OK;
     case GICR_PROPBASER + 4:
         cs->gicr_propbaser = deposit64(cs->gicr_propbaser, 32, 32, value);
@@ -395,9 +408,16 @@ static MemTxResult gicr_readll(GICv3CPUState *cs, hwaddr offset,
 static MemTxResult gicr_writell(GICv3CPUState *cs, hwaddr offset,
                                 uint64_t value, MemTxAttrs attrs)
 {
+    uint64_t data;
+
     switch (offset) {
     case GICR_PROPBASER:
-        cs->gicr_propbaser = value;
+        data = value;
+        if (FIELD_EX64(data, GICR_PROPBASER, IDBITS) > GICD_TYPER_IDBITS) {
+            data &= ~R_GICR_PROPBASER_IDBITS_MASK;
+            data |= GICD_TYPER_IDBITS;
+        }
+        cs->gicr_propbaser = data;
         return MEMTX_OK;
     case GICR_PENDBASER:
         cs->gicr_pendbaser = value;
