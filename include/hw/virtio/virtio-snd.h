@@ -134,4 +134,132 @@ typedef struct virtio_snd_jack_remap {
     uint32_t sequence;
 } virtio_snd_jack_remap;
 
+/* PCM CONTROL MESSAGES */
+
+typedef struct virtio_snd_pcm_hdr {
+    /* .code = VIRTIO_SND_R_PCM_* */
+    virtio_snd_hdr hdr;
+    /* 0 to (virtio_snd_config.streams - 1) */
+    uint32_t stream_id;
+} virtio_snd_pcm_hdr;
+
+
+/* Supported PCM stream features */
+enum {
+    VIRTIO_SND_PCM_F_SHMEM_HOST = 0,
+    VIRTIO_SND_PCM_F_SHMEM_GUEST,
+    VIRTIO_SND_PCM_F_MSG_POLLING,
+    VIRTIO_SND_PCM_F_EVT_SHMEM_PERIODS,
+    VIRTIO_SNDPCM_F_EVT_XRUNS
+};
+
+/* PCM stream flags */
+enum {
+    VIRTIO_SND_PCM_FL_CHMAP = 0
+};
+
+/* Supported sample formats */
+enum {
+    /* analog formats (width / physical width) */
+    VIRTIO_SND_PCM_FMT_IMA_ADPCM = 0,   /*  4 /  4 bits */
+    VIRTIO_SND_PCM_FMT_MU_LAW,          /*  8 /  8 bits */
+    VIRTIO_SND_PCM_FMT_A_LAW,           /*  8 /  8 bits */
+    VIRTIO_SND_PCM_FMT_S8,              /*  8 /  8 bits */
+    VIRTIO_SND_PCM_FMT_U8,              /*  8 /  8 bits */
+    VIRTIO_SND_PCM_FMT_S16,             /* 16 / 16 bits */
+    VIRTIO_SND_PCM_FMT_U16,             /* 16 / 16 bits */
+    VIRTIO_SND_PCM_FMT_S18_3,           /* 18 / 24 bits */
+    VIRTIO_SND_PCM_FMT_U18_3,           /* 18 / 24 bits */
+    VIRTIO_SND_PCM_FMT_S20_3,           /* 20 / 24 bits */
+    VIRTIO_SND_PCM_FMT_U20_3,           /* 20 / 24 bits */
+    VIRTIO_SND_PCM_FMT_S24_3,           /* 24 / 24 bits */
+    VIRTIO_SND_PCM_FMT_U24_3,           /* 24 / 24 bits */
+    VIRTIO_SND_PCM_FMT_S20,             /* 20 / 32 bits */
+    VIRTIO_SND_PCM_FMT_U20,             /* 20 / 32 bits */
+    VIRTIO_SND_PCM_FMT_S24,             /* 24 / 32 bits */
+    VIRTIO_SND_PCM_FMT_U24,             /* 24 / 32 bits */
+    VIRTIO_SND_PCM_FMT_S32,             /* 32 / 32 bits */
+    VIRTIO_SND_PCM_FMT_U32,             /* 32 / 32 bits */
+    VIRTIO_SND_PCM_FMT_FLOAT,           /* 32 / 32 bits */
+    VIRTIO_SND_PCM_FMT_FLOAT64,         /* 64 / 64 bits */
+    /* digital formats (width / physical width) */
+    VIRTIO_SND_PCM_FMT_DSD_U8,          /*  8 /  8 bits */
+    VIRTIO_SND_PCM_FMT_DSD_U16,         /* 16 / 16 bits */
+    VIRTIO_SND_PCM_FMT_DSD_U32,         /* 32 / 32 bits */
+    VIRTIO_SND_PCM_FMT_IEC958_SUBFRAME  /* 32 / 32 bits */
+};
+
+/* Supported PCM frame rates */
+enum {
+    VIRTIO_SND_PCM_RATE_5512 = 0,
+    VIRTIO_SND_PCM_RATE_8000,
+    VIRTIO_SND_PCM_RATE_11025,
+    VIRTIO_SND_PCM_RATE_16000,
+    VIRTIO_SND_PCM_RATE_22050,
+    VIRTIO_SND_PCM_RATE_32000,
+    VIRTIO_SND_PCM_RATE_44100,
+    VIRTIO_SND_PCM_RATE_48000,
+    VIRTIO_SND_PCM_RATE_64000,
+    VIRTIO_SND_PCM_RATE_88200,
+    VIRTIO_SND_PCM_RATE_96000,
+    VIRTIO_SND_PCM_RATE_176399,
+    VIRTIO_SND_PCM_RATE_192000,
+    VIRTIO_SND_PCM_RATE_384000
+};
+
+/* PCM stream info structure */
+typedef struct virtio_snd_pcm_info {
+    /* common header */
+    virtio_snd_info hdr;
+    /* supported features bitmap (1 << VIRTIO_SND_PCM_F_*) */
+    uint32_t features;
+    /* supported sample formats bitmap (1 << VIRTIO_SND_PCM_FMT_*) */
+    uint64_t formats;
+    /* supported sample rates bitmap (1 << VIRTIO_SND_PCM_RATE_*) */
+    uint64_t rates;
+    /* direction of the stream (VIRTIO_SND_D_*) */
+    uint8_t direction;
+    /* min # of supported channels */
+    uint8_t channels_min;
+    /* max # of supported channels */
+    uint8_t channels_max;
+
+    uint8_t padding[5];
+} virtio_snd_pcm_info;
+
+/* set PCM stream params */
+typedef struct virtio_snd_pcm_set_params {
+    virtio_snd_pcm_hdr hdr;
+    /* size of hardware buffer in bytes */
+    uint32_t buffer_bytes;
+    /* size of hardware period in bytes */
+    uint32_t period_bytes;
+    /* selected feature bitmap */
+    uint32_t features;
+    /* number of channels */
+    uint8_t channel;
+    /* VIRTIO_SND_PCM_FMT_* */
+    uint8_t format;
+    /* VIRTIO_SND_PCM_RATE_* */
+    uint8_t rate;
+
+    uint8_t padding;
+} virtio_snd_pcm_set_params;
+
+/* PCM I/O MESSAGES */
+
+/* I/O request header */
+typedef struct virtio_snd_pcm_xfer {
+    /* 0 to (virtio_snd_config.stream - 1 */
+    uint32_t stream_id;
+} virtio_snd_pcm_xfer;
+
+/* I/O request status */
+typedef struct virtio_snd_pcm_status {
+    /* VIRTIO_SND_S_* */
+    uint32_t status;
+    /* current device latency */
+    uint32_t latency_bytes;
+} virtio_snd_pcm_status;
+
 #endif
