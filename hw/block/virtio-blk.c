@@ -25,10 +25,6 @@
 #include "sysemu/runstate.h"
 #include "hw/virtio/virtio-blk.h"
 #include "dataplane/virtio-blk.h"
-#include "scsi/constants.h"
-#ifdef __linux__
-# include <scsi/sg.h>
-#endif
 #include "hw/virtio/virtio-bus.h"
 #include "migration/qemu-file-types.h"
 #include "hw/virtio/virtio-access.h"
@@ -200,59 +196,6 @@ out:
     aio_context_release(blk_get_aio_context(s->conf.conf.blk));
 }
 
-#ifdef __linux__
-
-typedef struct {
-    VirtIOBlockReq *req;
-    struct sg_io_hdr hdr;
-} VirtIOBlockIoctlReq;
-
-static void virtio_blk_ioctl_complete(void *opaque, int status)
-{
-    VirtIOBlockIoctlReq *ioctl_req = opaque;
-    VirtIOBlockReq *req = ioctl_req->req;
-    VirtIOBlock *s = req->dev;
-    VirtIODevice *vdev = VIRTIO_DEVICE(s);
-    struct virtio_scsi_inhdr *scsi;
-    struct sg_io_hdr *hdr;
-
-    scsi = (void *)req->elem.in_sg[req->elem.in_num - 2].iov_base;
-
-    if (status) {
-        status = VIRTIO_BLK_S_UNSUPP;
-        virtio_stl_p(vdev, &scsi->errors, 255);
-        goto out;
-    }
-
-    hdr = &ioctl_req->hdr;
-    /*
-     * From SCSI-Generic-HOWTO: "Some lower level drivers (e.g. ide-scsi)
-     * clear the masked_status field [hence status gets cleared too, see
-     * block/scsi_ioctl.c] even when a CHECK_CONDITION or COMMAND_TERMINATED
-     * status has occurred.  However they do set DRIVER_SENSE in driver_status
-     * field. Also a (sb_len_wr > 0) indicates there is a sense buffer.
-     */
-    if (hdr->status == 0 && hdr->sb_len_wr > 0) {
-        hdr->status = CHECK_CONDITION;
-    }
-
-    virtio_stl_p(vdev, &scsi->errors,
-                 hdr->status | (hdr->msg_status << 8) |
-                 (hdr->host_status << 16) | (hdr->driver_status << 24));
-    virtio_stl_p(vdev, &scsi->residual, hdr->resid);
-    virtio_stl_p(vdev, &scsi->sense_len, hdr->sb_len_wr);
-    virtio_stl_p(vdev, &scsi->data_len, hdr->dxfer_len);
-
-out:
-    aio_context_acquire(blk_get_aio_context(s->conf.conf.blk));
-    virtio_blk_req_complete(req, status);
-    virtio_blk_free_request(req);
-    aio_context_release(blk_get_aio_context(s->conf.conf.blk));
-    g_free(ioctl_req);
-}
-
-#endif
-
 static VirtIOBlockReq *virtio_blk_get_request(VirtIOBlock *s, VirtQueue *vq)
 {
     VirtIOBlockReq *req = virtqueue_pop(vq, sizeof(VirtIOBlockReq));
@@ -261,126 +204,6 @@ static VirtIOBlockReq *virtio_blk_get_request(VirtIOBlock *s, VirtQueue *vq)
         virtio_blk_init_request(s, vq, req);
     }
     return req;
-}
-
-static int virtio_blk_handle_scsi_req(VirtIOBlockReq *req)
-{
-    int status = VIRTIO_BLK_S_OK;
-    struct virtio_scsi_inhdr *scsi = NULL;
-    VirtIOBlock *blk = req->dev;
-    VirtIODevice *vdev = VIRTIO_DEVICE(blk);
-    VirtQueueElement *elem = &req->elem;
-
-#ifdef __linux__
-    int i;
-    VirtIOBlockIoctlReq *ioctl_req;
-    BlockAIOCB *acb;
-#endif
-
-    /*
-     * We require at least one output segment each for the virtio_blk_outhdr
-     * and the SCSI command block.
-     *
-     * We also at least require the virtio_blk_inhdr, the virtio_scsi_inhdr
-     * and the sense buffer pointer in the input segments.
-     */
-    if (elem->out_num < 2 || elem->in_num < 3) {
-        status = VIRTIO_BLK_S_IOERR;
-        goto fail;
-    }
-
-    /*
-     * The scsi inhdr is placed in the second-to-last input segment, just
-     * before the regular inhdr.
-     */
-    scsi = (void *)elem->in_sg[elem->in_num - 2].iov_base;
-
-    if (!virtio_has_feature(blk->host_features, VIRTIO_BLK_F_SCSI)) {
-        status = VIRTIO_BLK_S_UNSUPP;
-        goto fail;
-    }
-
-    /*
-     * No support for bidirection commands yet.
-     */
-    if (elem->out_num > 2 && elem->in_num > 3) {
-        status = VIRTIO_BLK_S_UNSUPP;
-        goto fail;
-    }
-
-#ifdef __linux__
-    ioctl_req = g_new0(VirtIOBlockIoctlReq, 1);
-    ioctl_req->req = req;
-    ioctl_req->hdr.interface_id = 'S';
-    ioctl_req->hdr.cmd_len = elem->out_sg[1].iov_len;
-    ioctl_req->hdr.cmdp = elem->out_sg[1].iov_base;
-    ioctl_req->hdr.dxfer_len = 0;
-
-    if (elem->out_num > 2) {
-        /*
-         * If there are more than the minimally required 2 output segments
-         * there is write payload starting from the third iovec.
-         */
-        ioctl_req->hdr.dxfer_direction = SG_DXFER_TO_DEV;
-        ioctl_req->hdr.iovec_count = elem->out_num - 2;
-
-        for (i = 0; i < ioctl_req->hdr.iovec_count; i++) {
-            ioctl_req->hdr.dxfer_len += elem->out_sg[i + 2].iov_len;
-        }
-
-        ioctl_req->hdr.dxferp = elem->out_sg + 2;
-
-    } else if (elem->in_num > 3) {
-        /*
-         * If we have more than 3 input segments the guest wants to actually
-         * read data.
-         */
-        ioctl_req->hdr.dxfer_direction = SG_DXFER_FROM_DEV;
-        ioctl_req->hdr.iovec_count = elem->in_num - 3;
-        for (i = 0; i < ioctl_req->hdr.iovec_count; i++) {
-            ioctl_req->hdr.dxfer_len += elem->in_sg[i].iov_len;
-        }
-
-        ioctl_req->hdr.dxferp = elem->in_sg;
-    } else {
-        /*
-         * Some SCSI commands don't actually transfer any data.
-         */
-        ioctl_req->hdr.dxfer_direction = SG_DXFER_NONE;
-    }
-
-    ioctl_req->hdr.sbp = elem->in_sg[elem->in_num - 3].iov_base;
-    ioctl_req->hdr.mx_sb_len = elem->in_sg[elem->in_num - 3].iov_len;
-
-    acb = blk_aio_ioctl(blk->blk, SG_IO, &ioctl_req->hdr,
-                        virtio_blk_ioctl_complete, ioctl_req);
-    if (!acb) {
-        g_free(ioctl_req);
-        status = VIRTIO_BLK_S_UNSUPP;
-        goto fail;
-    }
-    return -EINPROGRESS;
-#else
-    abort();
-#endif
-
-fail:
-    /* Just put anything nonzero so that the ioctl fails in the guest.  */
-    if (scsi) {
-        virtio_stl_p(vdev, &scsi->errors, 255);
-    }
-    return status;
-}
-
-static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
-{
-    int status;
-
-    status = virtio_blk_handle_scsi_req(req);
-    if (status != -EINPROGRESS) {
-        virtio_blk_req_complete(req, status);
-        virtio_blk_free_request(req);
-    }
 }
 
 static inline void submit_requests(BlockBackend *blk, MultiReqBuffer *mrb,
@@ -699,9 +522,6 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
     case VIRTIO_BLK_T_FLUSH:
         virtio_blk_handle_flush(req, mrb);
         break;
-    case VIRTIO_BLK_T_SCSI_CMD:
-        virtio_blk_handle_scsi(req);
-        break;
     case VIRTIO_BLK_T_GET_ID:
     {
         /*
@@ -1010,14 +830,8 @@ static uint64_t virtio_blk_get_features(VirtIODevice *vdev, uint64_t features,
     virtio_add_feature(&features, VIRTIO_BLK_F_GEOMETRY);
     virtio_add_feature(&features, VIRTIO_BLK_F_TOPOLOGY);
     virtio_add_feature(&features, VIRTIO_BLK_F_BLK_SIZE);
-    if (virtio_has_feature(features, VIRTIO_F_VERSION_1)) {
-        if (virtio_has_feature(s->host_features, VIRTIO_BLK_F_SCSI)) {
-            error_setg(errp, "Please set scsi=off for virtio-blk devices in order to use virtio 1.0");
-            return 0;
-        }
-    } else {
+    if (!virtio_has_feature(features, VIRTIO_F_VERSION_1)) {
         virtio_clear_feature(&features, VIRTIO_F_ANY_LAYOUT);
-        virtio_add_feature(&features, VIRTIO_BLK_F_SCSI);
     }
 
     if (blk_enable_write_cache(s->blk) ||
@@ -1289,10 +1103,6 @@ static Property virtio_blk_properties[] = {
     DEFINE_PROP_STRING("serial", VirtIOBlock, conf.serial),
     DEFINE_PROP_BIT64("config-wce", VirtIOBlock, host_features,
                       VIRTIO_BLK_F_CONFIG_WCE, true),
-#ifdef __linux__
-    DEFINE_PROP_BIT64("scsi", VirtIOBlock, host_features,
-                      VIRTIO_BLK_F_SCSI, false),
-#endif
     DEFINE_PROP_BIT("request-merging", VirtIOBlock, conf.request_merging, 0,
                     true),
     DEFINE_PROP_UINT16("num-queues", VirtIOBlock, conf.num_queues,
