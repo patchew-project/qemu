@@ -94,4 +94,44 @@ typedef struct virtio_snd_info {
     uint32_t hda_fn_nid;
 } virtio_snd_info;
 
+/* JACK CONTROL MESSAGES */
+
+typedef struct virtio_snd_jack_hdr {
+    /* VIRTIO_SND_R_JACK_* */
+    virtio_snd_hdr hdr;
+    /* 0 to (virtio_snd_config.jacks - 1) */
+    uint32_t jack_id;
+} virtio_snd_jack_hdr;
+
+/* Supported jack features */
+enum {
+    VIRTIO_SND_F_JACK_REMAP = 0
+};
+
+/* jack information structure */
+typedef struct virtio_snd_jack_info {
+    /* common header */
+    virtio_snd_info hdr;
+    /* 1 << VIRTIO_SND_JACK_F_* */
+    uint32_t features;
+    /* pin default configuration from HDA spec */
+    uint32_t hda_reg_defconf;
+    /* pin capabilities from HDA spec */
+    uint32_t hda_reg_caps;
+    /* connection status (0: disconnected, 1: connected) */
+    uint8_t connected;
+
+    uint8_t padding[7];
+} virtio_snd_jack_info;
+
+/* jack remapping control request */
+typedef struct virtio_snd_jack_remap {
+    /* .code = VIRTIO_SND_R_JACK_REMAP */
+    virtio_snd_jack_hdr hdr;
+    /* selected association number */
+    uint32_t association;
+    /* selected sequence number */
+    uint32_t sequence;
+} virtio_snd_jack_remap;
+
 #endif
