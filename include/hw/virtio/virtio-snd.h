@@ -13,6 +13,9 @@
 
 #define VIRTIO_ID_SOUND 25
 
+#define TYPE_VIRTIO_SOUND "virtio-sound-device"
+OBJECT_DECLARE_SIMPLE_TYPE(VirtIOSound, VIRTIO_SOUND)
+
 /* CONFIGURATION SPACE */
 
 typedef struct virtio_snd_config {
@@ -325,5 +328,66 @@ typedef struct virtio_snd_chmap_info {
     /* channel position values (VIRTIO_SND_CHMAP_*) */
     uint8_t positions[VIRTIO_SND_CHMAP_MAX_SIZE];
 } virtio_snd_chmap_info;
+
+/* VIRTIO SOUND DEVICE */
+
+/* Jacks */
+typedef struct virtio_snd_jack {
+    uint32_t features; /* 1 << VIRTIO_SND_JACK_F_XXX */
+    uint32_t hda_fn_nid;
+    uint32_t hda_reg_defconf;
+    uint32_t hda_reg_caps;
+    uint8_t connected;
+} virtio_snd_jack;
+
+/* Streams */
+typedef struct virtio_snd_pcm_stream {
+    uint32_t hda_fn_nid;
+    uint32_t buffer_bytes;
+    uint32_t period_bytes;
+    uint32_t features; /* 1 << VIRTIO_SND_PCM_F_XXX */
+    uint32_t flags; /* 1 << VIRTIO_SND_PCM_FL_XXX */
+    uint32_t direction;
+    uint8_t channels_min;
+    uint8_t channels_max;
+    uint64_t formats; /* 1 << VIRTIO_SND_PCM_FMT_XXX */
+    uint64_t rates; /* 1 << VIRTIO_SND_PCM_RATE_XXX */
+    int tail, r_pos, w_pos;
+    VirtQueueElement **elems;
+    VirtIOSound *s;
+    union {
+        SWVoiceIn *in;
+        SWVoiceOut *out;
+    } voice;
+} virtio_snd_pcm_stream;
+
+/* Stream params */
+typedef struct virtio_snd_pcm_params {
+    uint32_t features;
+    uint32_t buffer_bytes;          /* size of hardware buffer in bytes */
+    uint32_t period_bytes;          /* size of hardware period in bytes */
+    uint8_t channel;
+    uint8_t format;
+    uint8_t rate;
+} virtio_snd_pcm_params;
+
+/* Sound device */
+struct VirtIOSound {
+    /* Parent VirtIODevice object */
+    VirtIODevice parent_obj;
+    virtio_snd_config snd_conf;
+
+    VirtQueue *ctrl_vq;
+    VirtQueue *event_vq;
+    VirtQueue *tx_vq;
+    VirtQueue *rx_vq;
+
+    QEMUSoundCard card;
+    size_t config_size;
+
+    virtio_snd_pcm_params **pcm_params;
+    virtio_snd_pcm_stream **streams;
+    virtio_snd_jack **jacks;
+};
 
 #endif
