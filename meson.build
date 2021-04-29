@@ -51,6 +51,8 @@ foreach target : target_dirs
   have_system = have_system or target.endswith('-softmmu')
 endforeach
 have_tools = 'CONFIG_TOOLS' in config_host
+# virtiofsd depends on sysemu
+have_system = have_system or not get_option('virtiofsd').disabled()
 have_block = have_system or have_tools
 
 python = import('python').find_installation()
