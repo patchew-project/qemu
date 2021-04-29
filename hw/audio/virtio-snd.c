@@ -760,6 +760,35 @@ static uint32_t virtio_snd_handle_pcm_start(VirtIOSound *s,
     return sz;
 }
 
+/*
+ * Handles VIRTIO_SND_R_PCM_STOP.
+ * The function writes the response to the virtqueue element.
+ * Returns the used size in bytes.
+ * TODO: Doesn't handle the stream buffers that are yet to be played.
+ *
+ * @s: VirtIOSound card
+ * @elem: The request element from control queue
+ */
+static uint32_t virtio_snd_handle_pcm_stop(VirtIOSound *s,
+                                           VirtQueueElement *elem)
+{
+    virtio_snd_pcm_hdr req;
+    size_t sz;
+
+    sz = iov_to_buf(elem->out_sg, elem->out_num, 0, &req, sizeof(req));
+    assert(sz == sizeof(virtio_snd_pcm_hdr));
+
+    virtio_snd_hdr resp;
+    resp.code = VIRTIO_SND_S_OK;
+
+    virtio_snd_pcm_stream *st = virtio_snd_pcm_get_stream(s, req.stream_id);
+    AUD_set_active_out(st->voice.out, false);
+
+    sz = iov_from_buf(elem->in_sg, elem->in_num, 0, &resp, sizeof(resp));
+    assert(sz == sizeof(virtio_snd_hdr));
+    return sz;
+}
+
 /* The control queue handler. Pops an element from the control virtqueue,
  * checks the header and performs the requested action. Finally marks the
  * element as used.
@@ -817,7 +846,8 @@ static void virtio_snd_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
             sz = virtio_snd_handle_pcm_start(s, elem);
             goto done;
         } else if (ctrl.code == VIRTIO_SND_R_PCM_STOP) {
-            virtio_snd_log("VIRTIO_SND_R_PCM_STOP");
+            sz = virtio_snd_handle_pcm_stop(s, elem);
+            goto done;
         } else if (ctrl.code == VIRTIO_SND_R_PCM_RELEASE) {
             virtio_snd_log("VIRTIO_SND_R_PCM_RELEASE");
         } else {
