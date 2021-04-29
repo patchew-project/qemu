@@ -1,0 +1,126 @@
+/*
+ * Virtio Sound device
+ */
+
+#include "qemu/osdep.h"
+#include "qemu/atomic.h"
+#include "qemu/iov.h"
+#include "qemu/main-loop.h"
+#include "qemu/module.h"
+#include "hw/virtio/virtio.h"
+#include "audio/audio.h"
+#include "qemu/error-report.h"
+#include "qemu/timer.h"
+#include "qemu/option.h"
+#include "qemu/option_int.h"
+#include "qemu/config-file.h"
+#include "qapi/qmp/qdict.h"
+#include "hw/virtio/virtio-snd.h"
+#include "hw/virtio/virtio-bus.h"
+#include "qapi/error.h"
+#include "qapi/qapi-events-audio.h"
+#include "hw/qdev-properties.h"
+#include "qapi/qapi-types-migration.h"
+#include "qapi/qapi-events-migration.h"
+#include "migration/misc.h"
+#include "standard-headers/linux/ethtool.h"
+#include "sysemu/sysemu.h"
+#include "trace.h"
+#include "monitor/qdev.h"
+#include "hw/pci/pci.h"
+#include "intel-hda-defs.h"
+
+#define VIRTIO_SOUND_VM_VERSION 1
+
+#define VIRTIO_SOUND_JACK_DEFAULT 0
+#define VIRTIO_SOUND_STREAM_DEFAULT 1
+#define VIRTIO_SOUND_CHMAP_DEFAULT 0
+
+#define VIRTIO_SOUND_HDA_FN_NID_OUT 0
+#define VIRTIO_SOUND_HDA_FN_NID_IN 1
+
+static void virtio_snd_get_config(VirtIODevice *vdev, uint8_t *config)
+{
+}
+
+static void virtio_snd_set_config(VirtIODevice *vdev, const uint8_t *config)
+{
+}
+
+static const VMStateDescription vmstate_virtio_snd_device = {
+    .name = "virtio-snd-device",
+    .version_id = VIRTIO_SOUND_VM_VERSION,
+    .minimum_version_id = VIRTIO_SOUND_VM_VERSION,
+};
+
+static const VMStateDescription vmstate_virtio_snd = {
+    .name = "virtio-sound",
+    .minimum_version_id = VIRTIO_SOUND_VM_VERSION,
+    .version_id = VIRTIO_SOUND_VM_VERSION,
+    .fields = (VMStateField[]) {
+        VMSTATE_VIRTIO_DEVICE,
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static Property virtio_snd_properties[] = {
+    DEFINE_AUDIO_PROPERTIES(VirtIOSound, card),
+    DEFINE_PROP_UINT32("jacks", VirtIOSound, snd_conf.jacks,
+                       VIRTIO_SOUND_JACK_DEFAULT),
+    DEFINE_PROP_UINT32("streams", VirtIOSound, snd_conf.streams,
+                       VIRTIO_SOUND_STREAM_DEFAULT),
+    DEFINE_PROP_UINT32("chmaps", VirtIOSound, snd_conf.chmaps,
+                       VIRTIO_SOUND_CHMAP_DEFAULT),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static uint64_t virtio_snd_get_features(VirtIODevice *vdev, uint64_t features,
+                                        Error **errp)
+{
+    return vdev->host_features;
+}
+
+static void virtio_snd_device_realize(DeviceState *dev, Error **errp)
+{
+}
+
+static void virtio_snd_device_unrealize(DeviceState *dev)
+{
+}
+
+static void virtio_snd_reset(VirtIODevice *vdev)
+{
+}
+
+static void virtio_snd_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+
+    device_class_set_props(dc, virtio_snd_properties);
+    dc->vmsd = &vmstate_virtio_snd;
+    set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
+    vdc->realize = virtio_snd_device_realize;
+    vdc->unrealize = virtio_snd_device_unrealize;
+    vdc->get_config = virtio_snd_get_config;
+    vdc->set_config = virtio_snd_set_config;
+    vdc->get_features = virtio_snd_get_features;
+    vdc->reset = virtio_snd_reset;
+    vdc->legacy_features = 0;
+    vdc->vmsd = &vmstate_virtio_snd_device;
+}
+
+
+static const TypeInfo virtio_snd_dev_info = {
+    .name = TYPE_VIRTIO_SOUND,
+    .parent = TYPE_VIRTIO_DEVICE,
+    .instance_size = sizeof(VirtIOSound),
+    .class_init = virtio_snd_class_init,
+};
+
+static void virtio_register_types(void)
+{
+    type_register_static(&virtio_snd_dev_info);
+}
+
+type_init(virtio_register_types)

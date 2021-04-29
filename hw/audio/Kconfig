@@ -50,3 +50,8 @@ config CS4231
 
 config MARVELL_88W8618
     bool
+
+config VIRTIO_SND
+    bool
+    default y if PCI_DEVICES
+    depends on PCI
