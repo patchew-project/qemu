@@ -800,6 +800,19 @@ build-libvhost-user:
     - meson
     - ninja
 
+build-virtiofsd-fedora:
+  <<: *native_build_job_definition
+  needs:
+    job: amd64-fedora-container
+  variables:
+    IMAGE: fedora
+    CONFIGURE_ARGS: --enable-virtiofsd
+        --disable-system --disable-user --disable-tools --disable-docs
+  artifacts:
+    expire_in: 2 days
+    paths:
+      - build/tools/virtiofsd/virtiofsd
+
 # No targets are built here, just tools, docs, and unit tests. This
 # also feeds into the eventual documentation deployment steps later
 build-tools-and-docs-debian:
