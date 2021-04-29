@@ -97,8 +97,43 @@ static uint64_t virtio_snd_get_features(VirtIODevice *vdev, uint64_t features,
     return vdev->host_features;
 }
 
+/*
+ * Initializes the VirtIOSound card device. Validates the configuration
+ * passed by the command line. Initializes the virtqueues. Allocates resources
+ * for and initializes streams, jacks and chmaps.
+ *
+ * @dev: VirtIOSound card device
+ * @errp: Set if there is an error
+ */
 static void virtio_snd_device_realize(DeviceState *dev, Error **errp)
 {
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtIOSound *s = VIRTIO_SOUND(dev);
+
+    virtio_init(vdev, "virtio-snd", VIRTIO_ID_SOUND, sizeof(virtio_snd_config));
+
+    /* set number of jacks and streams */
+    if (s->snd_conf.jacks > 8) {
+        error_setg(errp, "Invalid number of jacks: %d", s->snd_conf.jacks);
+        return;
+    }
+    if (s->snd_conf.streams < 1 || s->snd_conf.streams > 10) {
+        error_setg(errp, "Invalid number of streams: %d", s->snd_conf.streams);
+        return;
+    }
+
+    if (s->snd_conf.chmaps > VIRTIO_SND_CHMAP_MAX_SIZE) {
+        error_setg(errp, "Invalid number of channel maps: %d",
+                   s->snd_conf.chmaps);
+        return;
+    }
+
+    /* set up QEMUSoundCard and audiodev */
+    AUD_register_card ("virtio_snd_card", &s->card);
+
+    s->streams = g_new0(virtio_snd_pcm_stream *, s->snd_conf.streams);
+    s->pcm_params = g_new0(virtio_snd_pcm_params *, s->snd_conf.streams);
+    s->jacks = g_new0(virtio_snd_jack *, s->snd_conf.jacks);
 }
 
 static void virtio_snd_device_unrealize(DeviceState *dev)
