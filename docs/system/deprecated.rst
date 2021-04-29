@@ -222,12 +222,6 @@ a future version of QEMU. Support for this CPU was removed from the
 upstream Linux kernel, and there is no available upstream toolchain
 to build binaries for it.
 
-``Icelake-Client`` CPU Model (since 5.2.0)
-''''''''''''''''''''''''''''''''''''''''''
-
-``Icelake-Client`` CPU Models are deprecated. Use ``Icelake-Server`` CPU
-Models instead.
-
 MIPS ``I7200`` CPU Model (since 5.2)
 ''''''''''''''''''''''''''''''''''''
 

@@ -285,6 +285,11 @@ The RISC-V no MMU cpus have been removed. The two CPUs: ``rv32imacu-nommu`` and
 ``rv64imacu-nommu`` can no longer be used. Instead the MMU status can be specified
 via the CPU ``mmu`` option when using the ``rv32`` or ``rv64`` CPUs.
 
+x86 Icelake-Client CPU (removed in 6.1)
+'''''''''''''''''''''''''''''''''''''''
+
+``Icelake-Client`` cpu can no longer be used. Use ``Icelake-Server`` instead.
+
 System emulator machines
 ------------------------
 
