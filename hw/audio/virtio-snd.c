@@ -862,7 +862,7 @@ static uint32_t virtio_snd_handle_pcm_release(VirtIOSound *s,
 static void virtio_snd_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOSound *s = VIRTIO_SOUND(vdev);
-    virtio_snd_hdr ctrl;
+    virtio_snd_hdr ctrl, resp;
 
     VirtQueueElement *elem = NULL;
     size_t sz;
@@ -874,7 +874,7 @@ static void virtio_snd_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
         if (!elem) {
             break;
         }
-        if (iov_size(elem->in_sg, elem->in_num) < sizeof(ctrl) ||
+        if (iov_size(elem->in_sg, elem->in_num) < sizeof(resp) ||
                 iov_size(elem->out_sg, elem->out_num) < sizeof(ctrl)) {
             virtio_snd_err("virtio-snd ctrl missing headers\n");
             virtqueue_detach_element(vq, elem, 0);
@@ -890,40 +890,34 @@ static void virtio_snd_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
         if (sz != sizeof(ctrl)) {
             /* error */
             virtio_snd_err("virtio snd ctrl could not read header\n");
+            resp.code = VIRTIO_SND_S_BAD_MSG;
         } else if (ctrl.code == VIRTIO_SND_R_JACK_INFO) {
             sz = virtio_snd_handle_jack_info(s, elem);
-            goto done;
         } else if (ctrl.code == VIRTIO_SND_R_JACK_REMAP) {
             sz = virtio_snd_handle_jack_remap(s, elem);
-            goto done;
         } else if (ctrl.code == VIRTIO_SND_R_PCM_INFO) {
             sz = virtio_snd_handle_pcm_info(s, elem);
-            goto done;
         } else if (ctrl.code == VIRTIO_SND_R_PCM_SET_PARAMS) {
             sz = virtio_snd_handle_pcm_set_params(s, elem);
-            goto done;
         } else if (ctrl.code == VIRTIO_SND_R_PCM_PREPARE) {
             sz = virtio_snd_handle_pcm_prepare(s, elem);
-            goto done;
         } else if (ctrl.code == VIRTIO_SND_R_PCM_START) {
             sz = virtio_snd_handle_pcm_start(s, elem);
-            goto done;
         } else if (ctrl.code == VIRTIO_SND_R_PCM_STOP) {
             sz = virtio_snd_handle_pcm_stop(s, elem);
-            goto done;
         } else if (ctrl.code == VIRTIO_SND_R_PCM_RELEASE) {
             sz = virtio_snd_handle_pcm_release(s, elem);
-            goto done;
         } else {
             /* error */
             virtio_snd_err("virtio snd header not recognized: %d\n", ctrl.code);
+            resp.code = VIRTIO_SND_S_BAD_MSG;
         }
 
-        virtio_snd_hdr resp;
-        resp.code = VIRTIO_SND_S_OK;
-        sz = iov_from_buf(elem->in_sg, elem->in_num, 0, &resp, sizeof(resp));
+        if (resp.code == VIRTIO_SND_S_BAD_MSG) {
+            sz = iov_from_buf(elem->in_sg, elem->in_num, 0, &resp,
+                              sizeof(resp));
+        }
 
-done:
         virtqueue_push(vq, elem, sz);
         virtio_notify(vdev, vq);
         g_free(iov2);
