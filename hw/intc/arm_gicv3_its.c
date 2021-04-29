@@ -28,6 +28,162 @@ struct GICv3ITSClass {
     void (*parent_reset)(DeviceState *dev);
 };
 
+static bool extract_table_params(GICv3ITSState *s)
+{
+    bool result = true;
+    uint16_t num_pages = 0;
+    uint8_t  page_sz_type;
+    uint8_t type;
+    uint32_t page_sz = 0;
+    uint64_t value;
+
+    for (int i = 0; i < 8; i++) {
+        value = s->baser[i];
+
+        if (!value) {
+            continue;
+        }
+
+        page_sz_type = FIELD_EX64(value, GITS_BASER, PAGESIZE);
+
+        switch (page_sz_type) {
+        case 0:
+            page_sz = GITS_ITT_PAGE_SIZE_0;
+            break;
+
+        case 1:
+            page_sz = GITS_ITT_PAGE_SIZE_1;
+            break;
+
+        case 2:
+        case 3:
+            page_sz = GITS_ITT_PAGE_SIZE_2;
+            break;
+
+        default:
+            result = false;
+            break;
+        }
+
+        if (result) {
+            num_pages = FIELD_EX64(value, GITS_BASER, SIZE);
+
+            type = FIELD_EX64(value, GITS_BASER, TYPE);
+
+            switch (type) {
+
+            case GITS_ITT_TYPE_DEVICE:
+                memset(&s->dt, 0 , sizeof(s->dt));
+                s->dt.valid = FIELD_EX64(value, GITS_BASER, VALID);
+
+                if (s->dt.valid) {
+                    s->dt.page_sz = page_sz;
+                    s->dt.indirect = FIELD_EX64(value, GITS_BASER, INDIRECT);
+                    s->dt.entry_sz = FIELD_EX64(value, GITS_BASER, ENTRYSIZE);
+
+                    if (!s->dt.indirect) {
+                        s->dt.max_entries = ((num_pages + 1) * page_sz) /
+                                                       s->dt.entry_sz;
+                    } else {
+                        s->dt.max_entries = ((((num_pages + 1) * page_sz) /
+                                        L1TABLE_ENTRY_SIZE) *
+                                    (page_sz / s->dt.entry_sz));
+                    }
+
+                    s->dt.max_devids = (1UL << (FIELD_EX64(s->typer, GITS_TYPER,
+                                                    DEVBITS) + 1));
+
+                    if ((page_sz == GITS_ITT_PAGE_SIZE_0) ||
+                        (page_sz == GITS_ITT_PAGE_SIZE_1)) {
+                        s->dt.base_addr = FIELD_EX64(value, GITS_BASER,
+                                                      PHYADDR);
+                        s->dt.base_addr <<= R_GITS_BASER_PHYADDR_SHIFT;
+                    } else if (page_sz == GITS_ITT_PAGE_SIZE_2) {
+                        s->dt.base_addr = FIELD_EX64(value, GITS_BASER,
+                                           PHYADDRL_64K) <<
+                                           R_GITS_BASER_PHYADDRL_64K_SHIFT;
+                        s->dt.base_addr |= ((value >>
+                                             R_GITS_BASER_PHYADDR_SHIFT) &
+                                             R_GITS_BASER_PHYADDRH_64K_MASK) <<
+                                             R_GITS_BASER_PHYADDRH_64K_SHIFT;
+                    }
+                }
+                break;
+
+            case GITS_ITT_TYPE_COLLECTION:
+                memset(&s->ct, 0 , sizeof(s->ct));
+                s->ct.valid = FIELD_EX64(value, GITS_BASER, VALID);
+
+                /*
+                 * GITS_TYPER.HCC is 0 for this implementation
+                 * hence writes are discarded if ct.valid is 0
+                 */
+                if (s->ct.valid) {
+                    s->ct.page_sz = page_sz;
+                    s->ct.indirect = FIELD_EX64(value, GITS_BASER, INDIRECT);
+                    s->ct.entry_sz = FIELD_EX64(value, GITS_BASER, ENTRYSIZE);
+
+                    if (!s->ct.indirect) {
+                        s->ct.max_entries = ((num_pages + 1) * page_sz) /
+                                              s->ct.entry_sz;
+                    } else {
+                        s->ct.max_entries = ((((num_pages + 1) * page_sz) /
+                                              L1TABLE_ENTRY_SIZE) *
+                                              (page_sz / s->ct.entry_sz));
+                    }
+
+                    if (FIELD_EX64(s->typer, GITS_TYPER, CIL)) {
+                        s->ct.max_collids = (1UL << (FIELD_EX64(s->typer,
+                                                     GITS_TYPER, CIDBITS) + 1));
+                    } else {
+                        /* 16-bit CollectionId supported when CIL == 0 */
+                        s->ct.max_collids = (1UL << 16);
+                    }
+
+                    if ((page_sz == GITS_ITT_PAGE_SIZE_0) ||
+                         (page_sz == GITS_ITT_PAGE_SIZE_1)) {
+                        s->ct.base_addr = FIELD_EX64(value, GITS_BASER,
+                                                     PHYADDR);
+                        s->ct.base_addr <<= R_GITS_BASER_PHYADDR_SHIFT;
+                    } else if (page_sz == GITS_ITT_PAGE_SIZE_2) {
+                        s->ct.base_addr = FIELD_EX64(value, GITS_BASER,
+                                                PHYADDRL_64K) <<
+                                                R_GITS_BASER_PHYADDRL_64K_SHIFT;
+                        s->ct.base_addr |= ((value >>
+                                             R_GITS_BASER_PHYADDR_SHIFT) &
+                                             R_GITS_BASER_PHYADDRH_64K_MASK) <<
+                                             R_GITS_BASER_PHYADDRH_64K_SHIFT;
+                    }
+                }
+                break;
+
+            default:
+                break;
+            }
+        }
+    }
+    return result;
+}
+
+static void extract_cmdq_params(GICv3ITSState *s)
+{
+    uint16_t num_pages = 0;
+    uint64_t value = s->cbaser;
+
+    num_pages = FIELD_EX64(value, GITS_CBASER, SIZE);
+
+    memset(&s->cq, 0 , sizeof(s->cq));
+    s->cq.valid = FIELD_EX64(value, GITS_CBASER, VALID);
+
+    if (s->cq.valid) {
+        s->cq.max_entries = ((num_pages + 1) * GITS_ITT_PAGE_SIZE_0) /
+                                                GITS_CMDQ_ENTRY_SIZE;
+        s->cq.base_addr = FIELD_EX64(value, GITS_CBASER, PHYADDR);
+        s->cq.base_addr <<= R_GITS_CBASER_PHYADDR_SHIFT;
+    }
+    return;
+}
+
 static MemTxResult gicv3_its_translation_write(void *opaque, hwaddr offset,
                                uint64_t data, unsigned size, MemTxAttrs attrs)
 {
@@ -40,7 +196,70 @@ static MemTxResult its_writel(GICv3ITSState *s, hwaddr offset,
                                uint64_t value, MemTxAttrs attrs)
 {
     MemTxResult result = MEMTX_OK;
+    int index;
+    uint64_t temp = 0;
 
+    switch (offset) {
+    case GITS_CTLR:
+        s->ctlr |= (value & ~(s->ctlr));
+
+        if (s->ctlr & ITS_CTLR_ENABLED) {
+            if (!extract_table_params(s)) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                    "%s: error extracting GITS_BASER parameters "
+                    TARGET_FMT_plx "\n", __func__, offset);
+            } else {
+                extract_cmdq_params(s);
+                s->creadr = 0;
+            }
+        }
+        break;
+    case GITS_CBASER:
+        /*
+         * IMPDEF choice:- GITS_CBASER register becomes RO if ITS is
+         *                 already enabled
+         */
+        if (!(s->ctlr & ITS_CTLR_ENABLED)) {
+            s->cbaser = deposit64(s->cbaser, 0, 32, value);
+            s->creadr = 0;
+        }
+        break;
+    case GITS_CBASER + 4:
+        /*
+         * IMPDEF choice:- GITS_CBASER register becomes RO if ITS is
+         *                 already enabled
+         */
+        if (!(s->ctlr & ITS_CTLR_ENABLED)) {
+            s->cbaser = deposit64(s->cbaser, 32, 32, value);
+        }
+        break;
+    case GITS_CWRITER:
+        s->cwriter = deposit64(s->cwriter, 0, 32, value);
+        break;
+    case GITS_CWRITER + 4:
+        s->cwriter = deposit64(s->cwriter, 32, 32, value);
+        break;
+    case GITS_BASER ... GITS_BASER + 0x3f:
+        /*
+         * IMPDEF choice:- GITS_BASERn register becomes RO if ITS is
+         *                 already enabled
+         */
+        if (!(s->ctlr & ITS_CTLR_ENABLED)) {
+            index = (offset - GITS_BASER) / 8;
+
+            if (offset & 7) {
+                temp = s->baser[index];
+                temp = deposit64(temp, 32, 32, (value & ~GITS_BASER_VAL_MASK));
+                s->baser[index] |= temp;
+            } else {
+                s->baser[index] =  deposit64(s->baser[index], 0, 32, value);
+            }
+        }
+        break;
+    default:
+        result = MEMTX_ERROR;
+        break;
+    }
     return result;
 }
 
@@ -48,7 +267,54 @@ static MemTxResult its_readl(GICv3ITSState *s, hwaddr offset,
                                uint64_t *data, MemTxAttrs attrs)
 {
     MemTxResult result = MEMTX_OK;
+    int index;
 
+    switch (offset) {
+    case GITS_CTLR:
+        *data = s->ctlr;
+        break;
+    case GITS_IIDR:
+        *data = gicv3_iidr();
+        break;
+    case GITS_PIDR2:
+        *data = gicv3_idreg(offset - GITS_PIDR2);
+        break;
+    case GITS_TYPER:
+        *data = extract64(s->typer, 0, 32);
+        break;
+    case GITS_TYPER + 4:
+        *data = extract64(s->typer, 32, 32);
+        break;
+    case GITS_CBASER:
+        *data = extract64(s->cbaser, 0, 32);
+        break;
+    case GITS_CBASER + 4:
+        *data = extract64(s->cbaser, 32, 32);
+        break;
+    case GITS_CREADR:
+        *data = extract64(s->creadr, 0, 32);
+        break;
+    case GITS_CREADR + 4:
+        *data = extract64(s->creadr, 32, 32);
+        break;
+    case GITS_CWRITER:
+        *data = extract64(s->cwriter, 0, 32);
+        break;
+    case GITS_CWRITER + 4:
+        *data = extract64(s->cwriter, 32, 32);
+        break;
+    case GITS_BASER ... GITS_BASER + 0x3f:
+        index = (offset - GITS_BASER) / 8;
+        if (offset & 7) {
+            *data = s->baser[index] >> 32;
+        } else {
+            *data = (uint32_t)s->baser[index];
+        }
+        break;
+    default:
+        result = MEMTX_ERROR;
+        break;
+    }
     return result;
 }
 
@@ -56,7 +322,35 @@ static MemTxResult its_writell(GICv3ITSState *s, hwaddr offset,
                                uint64_t value, MemTxAttrs attrs)
 {
     MemTxResult result = MEMTX_OK;
+    int index;
 
+    switch (offset) {
+    case GITS_BASER ... GITS_BASER + 0x3f:
+        /*
+         * IMPDEF choice:- GITS_BASERn register becomes RO if ITS is
+         *                 already enabled
+         */
+        if (!(s->ctlr & ITS_CTLR_ENABLED)) {
+            index = (offset - GITS_BASER) / 8;
+            s->baser[index] |= (value & ~GITS_BASER_VAL_MASK);
+        }
+        break;
+    case GITS_CBASER:
+        /*
+         * IMPDEF choice:- GITS_CBASER register becomes RO if ITS is
+         *                 already enabled
+         */
+        if (!(s->ctlr & ITS_CTLR_ENABLED)) {
+            s->cbaser = value;
+        }
+        break;
+    case GITS_CWRITER:
+        s->cwriter = value;
+        break;
+    default:
+        result = MEMTX_ERROR;
+        break;
+    }
     return result;
 }
 
@@ -64,7 +358,29 @@ static MemTxResult its_readll(GICv3ITSState *s, hwaddr offset,
                                uint64_t *data, MemTxAttrs attrs)
 {
     MemTxResult result = MEMTX_OK;
+    int index;
 
+    switch (offset) {
+    case GITS_TYPER:
+        *data = s->typer;
+        break;
+    case GITS_BASER ... GITS_BASER + 0x3f:
+        index = (offset - GITS_BASER) / 8;
+        *data = s->baser[index];
+        break;
+    case GITS_CBASER:
+        *data = s->cbaser;
+        break;
+    case GITS_CREADR:
+        *data = s->creadr;
+        break;
+    case GITS_CWRITER:
+        *data = s->cwriter;
+        break;
+    default:
+        result = MEMTX_ERROR;
+        break;
+    }
     return result;
 }
 
@@ -161,6 +477,9 @@ static void gicv3_arm_its_realize(DeviceState *dev, Error **errp)
     gicv3_its_init_mmio(s, &gicv3_its_control_ops, &gicv3_its_translation_ops);
 
     if (s->gicv3->cpu->gicr_typer & GICR_TYPER_PLPIS) {
+        address_space_init(&s->gicv3->dma_as, s->gicv3->dma,
+                           "gicv3-its-sysmem");
+
         /* set the ITS default features supported */
         s->typer = FIELD_DP64(s->typer, GITS_TYPER, PHYSICAL,
                                        GITS_TYPE_PHYSICAL);
@@ -207,6 +526,18 @@ static void gicv3_its_reset(DeviceState *dev)
     }
 }
 
+static void gicv3_its_post_load(GICv3ITSState *s)
+{
+    if (s->ctlr & ITS_CTLR_ENABLED) {
+        if (!extract_table_params(s)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                "%s: error extracting GITS_BASER parameters\n", __func__);
+        } else {
+            extract_cmdq_params(s);
+        }
+    }
+}
+
 static Property gicv3_its_props[] = {
     DEFINE_PROP_LINK("parent-gicv3", GICv3ITSState, gicv3, "arm-gicv3",
                      GICv3State *),
@@ -217,10 +548,12 @@ static void gicv3_its_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     GICv3ITSClass *ic = ARM_GICV3_ITS_CLASS(klass);
+    GICv3ITSCommonClass *icc = ARM_GICV3_ITS_COMMON_CLASS(klass);
 
     dc->realize = gicv3_arm_its_realize;
     device_class_set_props(dc, gicv3_its_props);
     device_class_set_parent_reset(dc, gicv3_its_reset, &ic->parent_reset);
+    icc->post_load = gicv3_its_post_load;
 }
 
 static const TypeInfo gicv3_its_info = {
