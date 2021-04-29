@@ -219,6 +219,7 @@ static MemTxResult process_int(GICv3ITSState *s, uint64_t value,
     bool ite_valid = false;
     uint64_t cte = 0;
     bool cte_valid = false;
+    uint64_t rdbase;
     uint64_t itel = 0;
     uint32_t iteh = 0;
 
@@ -275,10 +276,13 @@ static MemTxResult process_int(GICv3ITSState *s, uint64_t value,
          * command in the queue
          */
     } else {
-        /*
-         * Current implementation only supports rdbase == procnum
-         * Hence rdbase physical address is ignored
-         */
+        rdbase = (cte >> 1U) & RDBASE_PROCNUM_MASK;
+        if ((cmd == CLEAR) || (cmd == DISCARD)) {
+            gicv3_redist_process_lpi(&s->gicv3->cpu[rdbase], pIntid, 0);
+        } else {
+            gicv3_redist_process_lpi(&s->gicv3->cpu[rdbase], pIntid, 1);
+        }
+
         if (cmd == DISCARD) {
             /* remove mapping from interrupt translation table */
             res = update_ite(s, eventid, dte, itel, iteh);
