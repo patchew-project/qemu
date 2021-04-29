@@ -1089,6 +1089,20 @@
   'data'    : { '*charset'       : 'str' } }
 
 ##
+# @DisplayCocoa:
+#
+# Cocoa display options.
+#
+# @full-grab:       Capture all key presses, including system combos. This
+#                   requires accessibility permissions, since it performs
+#                   a global grab on key events. (default: off)
+#                   See https://support.apple.com/en-in/guide/mac-help/mh32356/mac
+#
+##
+{ 'struct'  : 'DisplayCocoa',
+  'data'    : { '*full-grab'     : 'bool' } }
+
+##
 # @DisplayType:
 #
 # Display (user interface) type.
@@ -1153,6 +1167,7 @@
                 '*gl'            : 'DisplayGLMode' },
   'discriminator' : 'type',
   'data'    : { 'gtk'            : 'DisplayGTK',
+                'cocoa'          : 'DisplayCocoa',
                 'curses'         : 'DisplayCurses',
                 'egl-headless'   : 'DisplayEGLHeadless'} }
 
