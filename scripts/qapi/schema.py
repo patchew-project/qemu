@@ -19,7 +19,7 @@ import os
 import re
 from typing import Optional
 
-from .common import POINTER_SUFFIX, c_name
+from .common import POINTER_SUFFIX, c_name, mcgen
 from .error import QAPISemError, QAPISourceError
 from .expr import check_exprs
 from .parser import QAPISchemaParser
@@ -28,6 +28,22 @@ from .parser import QAPISchemaParser
 class QAPISchemaIfCond:
     def __init__(self, ifcond=None):
         self.ifcond = ifcond or []
+
+    def gen_if(self):
+        ret = ''
+        for ifc in self.ifcond:
+            ret += mcgen('''
+#if %(cond)s
+''', cond=ifc)
+        return ret
+
+    def gen_endif(self):
+        ret = ''
+        for ifc in reversed(self.ifcond):
+            ret += mcgen('''
+#endif /* %(cond)s */
+''', cond=ifc)
+        return ret
 
     def __bool__(self):
         return bool(self.ifcond)
