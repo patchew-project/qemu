@@ -683,11 +683,51 @@ static void virtio_snd_device_realize(DeviceState *dev, Error **errp)
     /* set up QEMUSoundCard and audiodev */
     AUD_register_card ("virtio_snd_card", &s->card);
 
+    // set default params for all streams
+    virtio_snd_pcm_set_params default_params;
+    default_params.features = 0;
+    default_params.buffer_bytes = 8192;
+    default_params.period_bytes = 4096;
+    default_params.channel = 2;
+    default_params.format = VIRTIO_SND_PCM_FMT_S16;
+    default_params.rate = VIRTIO_SND_PCM_RATE_44100;
+
     s->ctrl_vq = virtio_add_queue(vdev, 64, virtio_snd_handle_ctrl);
 
     s->streams = g_new0(virtio_snd_pcm_stream *, s->snd_conf.streams);
     s->pcm_params = g_new0(virtio_snd_pcm_params *, s->snd_conf.streams);
     s->jacks = g_new0(virtio_snd_jack *, s->snd_conf.jacks);
+
+    uint32_t status;
+    for (int i = 0; i < s->snd_conf.streams; i++) {
+        default_params.hdr.stream_id = i;
+        status = virtio_snd_pcm_set_params_impl(s, &default_params);
+        if (status != VIRTIO_SND_S_OK) {
+            error_setg(errp, "Can't initalize stream params.\n");
+            return;
+        }
+        status = virtio_snd_pcm_prepare_impl(s, i);
+        if (status != VIRTIO_SND_S_OK) {
+            error_setg(errp, "Can't prepare streams.\n");
+            return;
+        }
+    }
+
+    for (int i = 0; i < s->snd_conf.jacks; i++) {
+        // TODO: For now the hda_fn_nid connects the starting streams to these
+        // jacks. This isn't working for now since the directions will be wrong
+        // for a few jacks. Similarly the capabilities are just placeholders.
+        s->jacks[i] = (virtio_snd_jack *)g_malloc0(sizeof(virtio_snd_jack));
+        s->jacks[i]->features = 0;
+        s->jacks[i]->hda_fn_nid = i;
+        s->jacks[i]->hda_reg_defconf = ((AC_JACK_PORT_COMPLEX << AC_DEFCFG_PORT_CONN_SHIFT) |
+                                       (AC_JACK_LINE_OUT     << AC_DEFCFG_DEVICE_SHIFT)    |
+                                       (AC_JACK_CONN_1_8     << AC_DEFCFG_CONN_TYPE_SHIFT) |
+                                       (AC_JACK_COLOR_GREEN  << AC_DEFCFG_COLOR_SHIFT)     |
+                                       0x10);
+        s->jacks[i]->hda_reg_caps = AC_PINCAP_OUT;
+        s->jacks[i]->connected = false;
+    }
 }
 
 static void virtio_snd_device_unrealize(DeviceState *dev)
