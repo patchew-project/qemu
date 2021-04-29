@@ -100,6 +100,80 @@ static uint64_t virtio_snd_get_features(VirtIODevice *vdev, uint64_t features,
 {
     return vdev->host_features;
 }
+/*
+ * Get a specific jack from the VirtIOSound card.
+ *
+ * @s: VirtIOSound card device.
+ * @id: Jack id
+ */
+static virtio_snd_jack *virtio_snd_get_jack(VirtIOSound *s, uint32_t id)
+{
+    if (id >= s->snd_conf.jacks) {
+        return NULL;
+    }
+    return s->jacks[id];
+}
+
+/*
+ * Handles VIRTIO_SND_R_JACK_INFO.
+ * The function writes the info structs and response to the virtqueue element.
+ * Returns the used size in bytes.
+ *
+ * @s: VirtIOSound card
+ * @elem: The request element from control queue
+ */
+static uint32_t virtio_snd_handle_jack_info(VirtIOSound *s,
+                                            VirtQueueElement *elem)
+{
+    virtio_snd_query_info req;
+    size_t sz = iov_to_buf(elem->out_sg, elem->out_num, 0, &req, sizeof(req));
+    assert(sz == sizeof(virtio_snd_query_info));
+
+    virtio_snd_hdr resp;
+
+    if (iov_size(elem->in_sg, elem->in_num) <
+        sizeof(virtio_snd_hdr) + req.count * req.size) {
+        virtio_snd_err("jack info: buffer too small got: %lu needed: %lu\n",
+                       iov_size(elem->in_sg, elem->in_num),
+                       sizeof(virtio_snd_hdr) + req.count * req.size);
+        resp.code = VIRTIO_SND_S_BAD_MSG;
+        goto done;
+    }
+
+    virtio_snd_jack_info *jack_info = g_new0(virtio_snd_jack_info, req.count);
+    for (int i = req.start_id; i < req.count + req.start_id; i++) {
+        virtio_snd_jack *jack = virtio_snd_get_jack(s, i);
+        if (!jack) {
+            virtio_snd_err("Invalid jack id: %d\n", i);
+            resp.code = VIRTIO_SND_S_BAD_MSG;
+            goto done;
+        }
+
+        jack_info[i - req.start_id].hdr.hda_fn_nid = jack->hda_fn_nid;
+        jack_info[i - req.start_id].features = jack->features;
+        jack_info[i - req.start_id].hda_reg_defconf = jack->hda_reg_defconf;
+        jack_info[i - req.start_id].hda_reg_caps = jack->hda_reg_caps;
+        jack_info[i - req.start_id].connected = jack->connected;
+        memset(jack_info[i - req.start_id].padding, 0,
+               sizeof(jack_info[i - req.start_id].padding));
+    }
+
+    resp.code = VIRTIO_SND_S_OK;
+done:
+    sz = iov_from_buf(elem->in_sg, elem->in_num, 0, &resp, sizeof(resp));
+    assert(sz == sizeof(virtio_snd_hdr));
+
+    if (resp.code == VIRTIO_SND_S_BAD_MSG) {
+        g_free(jack_info);
+        return sz;
+    }
+
+    sz = iov_from_buf(elem->in_sg, elem->in_num, sizeof(virtio_snd_hdr),
+                      jack_info, sizeof(virtio_snd_jack_info) * req.count);
+    assert(sz == req.count * req.size);
+    g_free(jack_info);
+    return sizeof(virtio_snd_hdr) + sz;
+}
 
 /* The control queue handler. Pops an element from the control virtqueue,
  * checks the header and performs the requested action. Finally marks the
@@ -110,6 +184,7 @@ static uint64_t virtio_snd_get_features(VirtIODevice *vdev, uint64_t features,
  */
 static void virtio_snd_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 {
+    VirtIOSound *s = VIRTIO_SOUND(vdev);
     virtio_snd_hdr ctrl;
 
     VirtQueueElement *elem = NULL;
@@ -139,7 +214,8 @@ static void virtio_snd_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
             /* error */
             virtio_snd_err("virtio snd ctrl could not read header\n");
         } else if (ctrl.code == VIRTIO_SND_R_JACK_INFO) {
-            virtio_snd_log("VIRTIO_SND_R_JACK_INFO");
+            sz = virtio_snd_handle_jack_info(s, elem);
+            goto done;
         } else if (ctrl.code == VIRTIO_SND_R_JACK_REMAP) {
             virtio_snd_log("VIRTIO_SND_R_JACK_REMAP");
         } else if (ctrl.code == VIRTIO_SND_R_PCM_INFO) {
@@ -162,8 +238,9 @@ static void virtio_snd_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
         virtio_snd_hdr resp;
         resp.code = VIRTIO_SND_S_OK;
         sz = iov_from_buf(elem->in_sg, elem->in_num, 0, &resp, sizeof(resp));
-        virtqueue_push(vq, elem, sz);
 
+done:
+        virtqueue_push(vq, elem, sz);
         virtio_notify(vdev, vq);
         g_free(iov2);
         g_free(elem);
