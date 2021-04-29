@@ -175,6 +175,27 @@ done:
     return sizeof(virtio_snd_hdr) + sz;
 }
 
+/*
+ * Handles VIRTIO_SND_R_JACK_REMAP.
+ * Not implemented yet.
+ *
+ * @s: VirtIOSound card
+ * @elem: The request element from control queue
+ */
+static uint32_t virtio_snd_handle_jack_remap(VirtIOSound *s,
+                                             VirtQueueElement *elem)
+{
+    virtio_snd_hdr resp;
+    resp.code = VIRTIO_SND_S_OK;
+
+    /* TODO: implement remap */
+
+    size_t sz;
+    sz = iov_from_buf(elem->in_sg, elem->in_num, 0, &resp, sizeof(resp));
+    assert(sz == sizeof(virtio_snd_hdr));
+    return sz;
+}
+
 /* The control queue handler. Pops an element from the control virtqueue,
  * checks the header and performs the requested action. Finally marks the
  * element as used.
@@ -217,7 +238,8 @@ static void virtio_snd_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
             sz = virtio_snd_handle_jack_info(s, elem);
             goto done;
         } else if (ctrl.code == VIRTIO_SND_R_JACK_REMAP) {
-            virtio_snd_log("VIRTIO_SND_R_JACK_REMAP");
+            sz = virtio_snd_handle_jack_remap(s, elem);
+            goto done;
         } else if (ctrl.code == VIRTIO_SND_R_PCM_INFO) {
             virtio_snd_log("VIRTIO_SND_R_PCM_INFO");
         } else if (ctrl.code == VIRTIO_SND_R_PCM_SET_PARAMS) {
