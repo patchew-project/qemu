@@ -926,6 +926,66 @@ static void virtio_snd_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 }
 
 /*
+ * Adds a virtqueue element to a VirtIOSound card stream. Makes the buffer
+ * available to the stream for consumption.
+ *
+ * @s: VirtIOSound card
+ * @stream: stream id
+ * @elem: The tx virtqueue element that contains the I/O message
+ */
+static void virtio_snd_pcm_add_buf(VirtIOSound *s, uint32_t stream,
+                                   VirtQueueElement *elem)
+{
+    virtio_snd_pcm_stream *st = virtio_snd_pcm_get_stream(s, stream);
+    int nelems = virtio_snd_pcm_get_nelems(st);
+    st->tail++;
+    st->tail %= nelems;
+
+    if (st->elems[st->tail]) {
+        return;
+    }
+
+    st->elems[st->tail] = elem;
+    st->r_pos += iov_size(elem->out_sg, elem->out_num)
+                 - sizeof(virtio_snd_pcm_xfer);
+    st->r_pos %= st->buffer_bytes + 1;
+}
+
+/*
+ * The tx virtqueue handler. Makes the buffers available to their respective
+ * streams for consumption.
+ *
+ * @vdev: VirtIOSound card
+ * @vq: tx virtqueue
+ */
+static void virtio_snd_handle_tx(VirtIODevice *vdev, VirtQueue *vq)
+{
+    VirtIOSound *s = VIRTIO_SOUND(vdev);
+    VirtQueueElement *elem;
+    size_t sz;
+    virtio_snd_pcm_xfer hdr;
+
+    for (;;) {
+        elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+        if (!elem) {
+            break;
+        }
+        if (iov_size(elem->in_sg, elem->in_num) < sizeof(virtio_snd_pcm_status) ||
+            iov_size(elem->out_sg, elem->out_num) < sizeof(virtio_snd_pcm_xfer)) {
+            virtqueue_detach_element(vq, elem, 0);
+            g_free(elem);
+            break;
+        }
+
+        /* get the message hdr object */
+        sz = iov_to_buf(elem->out_sg, elem->out_num, 0, &hdr, sizeof(hdr));
+        assert(sz == sizeof(virtio_snd_pcm_xfer));
+
+        virtio_snd_pcm_add_buf(s, hdr.stream_id, elem);
+    }
+}
+
+/*
  * Initializes the VirtIOSound card device. Validates the configuration
  * passed by the command line. Initializes the virtqueues. Allocates resources
  * for and initializes streams, jacks and chmaps.
@@ -969,6 +1029,7 @@ static void virtio_snd_device_realize(DeviceState *dev, Error **errp)
     default_params.rate = VIRTIO_SND_PCM_RATE_44100;
 
     s->ctrl_vq = virtio_add_queue(vdev, 64, virtio_snd_handle_ctrl);
+    s->tx_vq = virtio_add_queue(vdev, 64, virtio_snd_handle_tx);
 
     s->streams = g_new0(virtio_snd_pcm_stream *, s->snd_conf.streams);
     s->pcm_params = g_new0(virtio_snd_pcm_params *, s->snd_conf.streams);
@@ -1034,6 +1095,7 @@ static void virtio_snd_device_unrealize(DeviceState *dev)
     s->jacks = NULL;
 
     virtio_delete_queue(s->ctrl_vq);
+    virtio_delete_queue(s->tx_vq);
 }
 
 static void virtio_snd_reset(VirtIODevice *vdev)
