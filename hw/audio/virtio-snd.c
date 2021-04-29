@@ -39,6 +39,10 @@
 #define VIRTIO_SOUND_HDA_FN_NID_OUT 0
 #define VIRTIO_SOUND_HDA_FN_NID_IN 1
 
+#define virtio_snd_log(...) AUD_log("virtio sound info", __VA_ARGS__)
+#define virtio_snd_warn(...) AUD_log("virtio sound warn", __VA_ARGS__)
+#define virtio_snd_err(...) AUD_log("virtio sound err", __VA_ARGS__)
+
 static void virtio_snd_get_config(VirtIODevice *vdev, uint8_t *config)
 {
     VirtIOSound *s = VIRTIO_SOUND(vdev);
@@ -174,5 +178,9 @@ static void virtio_register_types(void)
 {
     type_register_static(&virtio_snd_dev_info);
 }
+
+#undef virtio_snd_log
+#undef virtio_snd_warn
+#undef virtio_snd_err
 
 type_init(virtio_register_types)
