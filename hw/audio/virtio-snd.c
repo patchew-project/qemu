@@ -196,6 +196,91 @@ static uint32_t virtio_snd_handle_jack_remap(VirtIOSound *s,
     return sz;
 }
 
+/*
+ * Get a specific stream from the virtio sound card device.
+ *
+ * @s: VirtIOSound card device
+ * @stream: Stream id
+ *
+ * Returns NULL if function fails.
+ * TODO: Make failure more explicit. Output can be NULL if the stream number
+ *       is valid but the stream hasn't been allocated yet.
+ */
+static virtio_snd_pcm_stream *virtio_snd_pcm_get_stream(VirtIOSound *s,
+                                                        uint32_t stream)
+{
+    if (stream >= s->snd_conf.streams) {
+        virtio_snd_err("Invalid stream request %d\n", stream);
+        return NULL;
+    }
+    return s->streams[stream];
+}
+
+/*
+ * Handle the VIRTIO_SND_R_PCM_INFO request.
+ * The function writes the info structs to the request element.
+ * Returns the used size in bytes.
+ *
+ * @s: VirtIOSound card device
+ * @elem: The request element from control queue
+ */
+static uint32_t virtio_snd_handle_pcm_info(VirtIOSound *s,
+                                           VirtQueueElement *elem)
+{
+    virtio_snd_query_info req;
+    uint32_t sz;
+    sz = iov_to_buf(elem->out_sg, elem->out_num, 0, &req, sizeof(req));
+    assert(sz == sizeof(virtio_snd_query_info));
+
+    virtio_snd_hdr resp;
+    if (iov_size(elem->in_sg, elem->in_num) <
+        sizeof(virtio_snd_hdr) + req.size * req.count) {
+        virtio_snd_err("pcm info: buffer too small, got: %lu, needed: %lu\n",
+                iov_size(elem->in_sg, elem->in_num),
+                sizeof(virtio_snd_pcm_info));
+        resp.code = VIRTIO_SND_S_BAD_MSG;
+        goto done;
+    }
+
+    virtio_snd_pcm_stream *stream;
+    virtio_snd_pcm_info *pcm_info = g_new0(virtio_snd_pcm_info, req.count);
+    for (int i = req.start_id; i < req.start_id + req.count; i++) {
+        stream = virtio_snd_pcm_get_stream(s, i);
+
+        if (!stream) {
+            virtio_snd_err("Invalid stream id: %d\n", i);
+            resp.code = VIRTIO_SND_S_BAD_MSG;
+            goto done;
+        }
+
+        pcm_info[i - req.start_id].hdr.hda_fn_nid = stream->hda_fn_nid;
+        pcm_info[i - req.start_id].features = stream->features;
+        pcm_info[i - req.start_id].formats = stream->formats;
+        pcm_info[i - req.start_id].rates = stream->rates;
+        pcm_info[i - req.start_id].direction = stream->direction;
+        pcm_info[i - req.start_id].channels_min = stream->channels_min;
+        pcm_info[i - req.start_id].channels_max = stream->channels_max;
+
+        memset(&pcm_info[i].padding, 0, sizeof(pcm_info[i].padding));
+    }
+
+    resp.code = VIRTIO_SND_S_OK;
+done:
+    sz = iov_from_buf(elem->in_sg, elem->in_num, 0, &resp, sizeof(resp));
+    assert(sz == sizeof(virtio_snd_hdr));
+
+    if (resp.code == VIRTIO_SND_S_BAD_MSG) {
+        g_free(pcm_info);
+        return sz;
+    }
+
+    sz = iov_from_buf(elem->in_sg, elem->in_num, sizeof(virtio_snd_hdr),
+                      pcm_info, sizeof(virtio_snd_pcm_info) * req.count);
+    assert(sz == req.size * req.count);
+    g_free(pcm_info);
+    return sizeof(virtio_snd_hdr) + sz;
+}
+
 /* The control queue handler. Pops an element from the control virtqueue,
  * checks the header and performs the requested action. Finally marks the
  * element as used.
@@ -241,7 +326,8 @@ static void virtio_snd_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
             sz = virtio_snd_handle_jack_remap(s, elem);
             goto done;
         } else if (ctrl.code == VIRTIO_SND_R_PCM_INFO) {
-            virtio_snd_log("VIRTIO_SND_R_PCM_INFO");
+            sz = virtio_snd_handle_pcm_info(s, elem);
+            goto done;
         } else if (ctrl.code == VIRTIO_SND_R_PCM_SET_PARAMS) {
             virtio_snd_log("VIRTIO_SND_R_PCM_SET_PARAMS");
         } else if (ctrl.code == VIRTIO_SND_R_PCM_PREPARE) {
