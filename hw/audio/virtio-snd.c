@@ -469,6 +469,165 @@ static int virtio_snd_pcm_get_nelems(virtio_snd_pcm_stream *st)
 }
 
 /*
+ * Get the size in bytes of the buffer that still has to be written.
+ *
+ * @st: virtio sound pcm stream
+ */
+static int virtio_snd_pcm_get_pending_bytes(virtio_snd_pcm_stream *st)
+{
+    int pending = st->r_pos - st->w_pos;
+    return pending < 0 ? pending + st->buffer_bytes : pending;
+}
+
+/*
+ * Get data from a stream of the virtio sound device.
+ *
+ * @st: VirtIOSound card stream
+ * @offset: Start reading from this offseta in the stream (in bytes)
+ * @buffer: Write to this buffer
+ * @size: The number of bytes to read
+ */
+static void virtio_snd_pcm_get_buf(virtio_snd_pcm_stream *st, uint32_t offset,
+                                      void *buffer, uint32_t size)
+{
+    int nelems = virtio_snd_pcm_get_nelems(st);
+    int i = 0;
+    while (offset > st->period_bytes) {
+        offset -= st->period_bytes;
+        i++;
+        i %= nelems;
+    }
+
+
+    /*
+     * If the size spans beyond the current virtqueue element, read everything
+     * from the current virtqueue element and move to the next element. Repeat
+     * until we have read the required size.
+     */
+    while (size) {
+        int remaining = iov_size(st->elems[i]->out_sg, st->elems[i]->out_num)
+                        - sizeof(virtio_snd_pcm_xfer) - offset;
+        int to_read = MIN(remaining, size), wpos = 0;
+        size_t sz;
+        sz = iov_to_buf(st->elems[i]->out_sg, st->elems[i]->out_num,
+                        sizeof(virtio_snd_pcm_xfer) + offset, buffer + wpos,
+                        to_read);
+
+        assert(sz == to_read);
+
+        offset = 0;
+        size -= to_read;
+        wpos += to_read;
+        i++;
+        i %= nelems;
+    }
+}
+
+/*
+ * Handle a buffer after it has been written by AUD_write.
+ * It writes the status for the I/O messages that have been completed and
+ * marks the tx virtqueue elmenets as used. It notifies the device
+ * about I/O completion.
+ *
+ * @st: VirtIOSound card stream
+ * @size: Size that was written by AUD_write
+ *        If size = 0, write for the last element failed
+ */
+static void virtio_snd_pcm_handle_buf_written(virtio_snd_pcm_stream *st,
+                                              uint32_t size)
+{
+    int offset = st->w_pos, i = 0;
+    int nelems = virtio_snd_pcm_get_nelems(st);
+
+    while (offset >= st->period_bytes) {
+        offset -= st->period_bytes;
+        i++;
+        i %= nelems;
+    }
+
+    virtio_snd_pcm_status status;
+    size_t sz;
+    if (!size) {
+        status.status = VIRTIO_SND_S_IO_ERR;
+        status.latency_bytes = 0;
+
+        sz = iov_from_buf(st->elems[i]->in_sg, st->elems[i]->in_num, 0,
+                          &status, sizeof(status));
+        assert(sz == sizeof(virtio_snd_pcm_status));
+
+        int push_size = iov_size(st->elems[i]->out_sg, st->elems[i]->out_num)
+                        + sizeof(virtio_snd_pcm_status);
+
+        virtqueue_push(st->s->tx_vq, st->elems[i], push_size);
+        return;
+    }
+
+    status.status = VIRTIO_SND_S_OK;
+    status.latency_bytes = 0;
+
+    /*
+     * If the written size spans beyond current element, update the status for
+     * the current element, mark it as used and push it back on the tx
+     * virtqueue. Notify the device about the I/O completion. Repeat until
+     * the required bytes are handled.
+     */
+    while (size) {
+        int curr_elem_size = iov_size(st->elems[i]->out_sg, st->elems[i]->out_num)
+                             - sizeof(virtio_snd_pcm_xfer) - offset;
+        if (size >= curr_elem_size) {
+            sz = iov_from_buf(st->elems[i]->in_sg, st->elems[i]->in_num, 0,
+                              &status, sizeof(status));
+            assert(sz == sizeof(virtio_snd_pcm_status));
+
+            int push_size = sizeof(virtio_snd_pcm_xfer) + curr_elem_size
+                            + offset + sizeof(virtio_snd_pcm_status);
+
+            virtqueue_push(st->s->tx_vq, st->elems[i], push_size);
+            virtio_notify(VIRTIO_DEVICE(st->s), st->s->tx_vq);
+            g_free(st->elems[i]);
+            st->elems[i] = NULL;
+            size -= curr_elem_size;
+            virtio_snd_log("remains: %d\n", size);
+            st->w_pos += curr_elem_size;
+            st->w_pos %= st->buffer_bytes + 1;
+            i++;
+            i %= nelems;
+            offset = 0;
+        } else {
+            st->w_pos += size;
+            st->w_pos %= st->buffer_bytes + 1;
+            break;
+        }
+    }
+}
+
+/*
+ * Callback for AUD_open_out.
+ * Reads a buffer from the VirtIOSound card stream and writes it
+ * using AUD_write.
+ *
+ * @opaque: VirtIOSound card stream
+ * @free: Size in bytes that can be written via AUD_write
+ */
+static void virtio_snd_output_cb(void *opaque, int free)
+{
+    int to_play, pending;
+    virtio_snd_pcm_stream *st = opaque;
+
+    pending = virtio_snd_pcm_get_pending_bytes(st);
+    to_play = MIN(free, pending);
+
+    while (to_play) {
+        uint8_t *mixbuf = g_malloc0(to_play);
+        virtio_snd_pcm_get_buf(st, st->w_pos, mixbuf, to_play);
+        int wbytes = AUD_write(st->voice.out, mixbuf, to_play);
+        to_play -= wbytes;
+        virtio_snd_pcm_handle_buf_written(st, wbytes);
+        g_free(mixbuf);
+    }
+}
+
+/*
  * Prepares a VirtIOSound card stream.
  * Returns a virtio sound status (VIRTIO_SND_S_*).
  *
@@ -523,12 +682,12 @@ static uint32_t virtio_snd_pcm_prepare_impl(VirtIOSound *s, uint32_t stream)
     virtio_snd_get_qemu_audsettings(&as, s->pcm_params[stream]);
 
     if (st->direction == VIRTIO_SND_D_OUTPUT) {
-        /* st->voice.out = AUD_open_out(&s->card,
-         *                              st->voice.out,
-         *                              "virtio_snd_card",
-         *                              st,
-         *                              virtio_snd_output_cb, &as);
-         */
+        st->voice.out = AUD_open_out(&s->card,
+                                     st->voice.out,
+                                     "virtio_snd_card",
+                                     st,
+                                     virtio_snd_output_cb, &as);
+
     } else {
         /* st->voice.in = AUD_open_in(&s->card,
          *                            st->voice.in,
