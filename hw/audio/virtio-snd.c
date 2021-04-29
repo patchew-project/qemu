@@ -101,6 +101,75 @@ static uint64_t virtio_snd_get_features(VirtIODevice *vdev, uint64_t features,
     return vdev->host_features;
 }
 
+/* The control queue handler. Pops an element from the control virtqueue,
+ * checks the header and performs the requested action. Finally marks the
+ * element as used.
+ *
+ * @vdev: VirtIOSound card device
+ * @vq: Control virtqueue
+ */
+static void virtio_snd_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
+{
+    virtio_snd_hdr ctrl;
+
+    VirtQueueElement *elem = NULL;
+    size_t sz;
+    struct iovec *iov, *iov2;
+    unsigned int iov_cnt;
+
+    for (;;) {
+        elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+        if (!elem) {
+            break;
+        }
+        if (iov_size(elem->in_sg, elem->in_num) < sizeof(ctrl) ||
+                iov_size(elem->out_sg, elem->out_num) < sizeof(ctrl)) {
+            virtio_snd_err("virtio-snd ctrl missing headers\n");
+            virtqueue_detach_element(vq, elem, 0);
+            g_free(elem);
+            break;
+        }
+
+        iov_cnt = elem->out_num;
+        iov2 = iov = g_memdup(elem->out_sg,
+                              sizeof(struct iovec) * elem->out_num);
+        sz = iov_to_buf(iov, iov_cnt, 0, &ctrl, sizeof(ctrl));
+        iov_discard_front(&iov, &iov_cnt, sizeof(ctrl));
+        if (sz != sizeof(ctrl)) {
+            /* error */
+            virtio_snd_err("virtio snd ctrl could not read header\n");
+        } else if (ctrl.code == VIRTIO_SND_R_JACK_INFO) {
+            virtio_snd_log("VIRTIO_SND_R_JACK_INFO");
+        } else if (ctrl.code == VIRTIO_SND_R_JACK_REMAP) {
+            virtio_snd_log("VIRTIO_SND_R_JACK_REMAP");
+        } else if (ctrl.code == VIRTIO_SND_R_PCM_INFO) {
+            virtio_snd_log("VIRTIO_SND_R_PCM_INFO");
+        } else if (ctrl.code == VIRTIO_SND_R_PCM_SET_PARAMS) {
+            virtio_snd_log("VIRTIO_SND_R_PCM_SET_PARAMS");
+        } else if (ctrl.code == VIRTIO_SND_R_PCM_PREPARE) {
+            virtio_snd_log("VIRTIO_SND_R_PCM_PREPARE");
+        } else if (ctrl.code == VIRTIO_SND_R_PCM_START) {
+            virtio_snd_log("VIRTIO_SND_R_PCM_START");
+        } else if (ctrl.code == VIRTIO_SND_R_PCM_STOP) {
+            virtio_snd_log("VIRTIO_SND_R_PCM_STOP");
+        } else if (ctrl.code == VIRTIO_SND_R_PCM_RELEASE) {
+            virtio_snd_log("VIRTIO_SND_R_PCM_RELEASE");
+        } else {
+            /* error */
+            virtio_snd_err("virtio snd header not recognized: %d\n", ctrl.code);
+        }
+
+        virtio_snd_hdr resp;
+        resp.code = VIRTIO_SND_S_OK;
+        sz = iov_from_buf(elem->in_sg, elem->in_num, 0, &resp, sizeof(resp));
+        virtqueue_push(vq, elem, sz);
+
+        virtio_notify(vdev, vq);
+        g_free(iov2);
+        g_free(elem);
+    }
+}
+
 /*
  * Initializes the VirtIOSound card device. Validates the configuration
  * passed by the command line. Initializes the virtqueues. Allocates resources
@@ -134,6 +203,8 @@ static void virtio_snd_device_realize(DeviceState *dev, Error **errp)
 
     /* set up QEMUSoundCard and audiodev */
     AUD_register_card ("virtio_snd_card", &s->card);
+
+    s->ctrl_vq = virtio_add_queue(vdev, 64, virtio_snd_handle_ctrl);
 
     s->streams = g_new0(virtio_snd_pcm_stream *, s->snd_conf.streams);
     s->pcm_params = g_new0(virtio_snd_pcm_params *, s->snd_conf.streams);
