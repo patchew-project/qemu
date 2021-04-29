@@ -19,22 +19,15 @@ import os
 import re
 from typing import Optional
 
-from .common import (
-    POINTER_SUFFIX,
-    IfAll,
-    IfOption,
-    c_name,
-    mcgen,
-)
+from .common import POINTER_SUFFIX, c_name, mcgen
 from .error import QAPISemError, QAPISourceError
 from .expr import check_exprs
 from .parser import QAPISchemaParser
 
 
 class QAPISchemaIfCond:
-    def __init__(self, ifcond=None):
-        pred_list = [IfOption(opt) for opt in ifcond or []]
-        self.pred = IfAll(pred_list)
+    def __init__(self, pred=None):
+        self.pred = pred
 
     def gen_doc(self):
         if self.pred:

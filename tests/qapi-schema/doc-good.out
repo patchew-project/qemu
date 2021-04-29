@@ -12,15 +12,15 @@ enum QType
 module doc-good.json
 enum Enum
     member one
-        if IfAll(['defined(IFONE)'])
+        if 'defined(IFONE)'
     member two
-    if IfAll(['defined(IFCOND)'])
+    if 'defined(IFCOND)'
     feature enum-feat
 object Base
     member base1: Enum optional=False
 object Variant1
     member var1: str optional=False
-        if IfAll(['defined(IFSTR)'])
+        if 'defined(IFSTR)'
         feature member-feat
     feature variant1-feat
 object Variant2
@@ -29,7 +29,7 @@ object Object
     tag base1
     case one: Variant1
     case two: Variant2
-        if IfAll(['IFTWO'])
+        if 'IFTWO'
     feature union-feat1
 object q_obj_Variant1-wrapper
     member data: Variant1 optional=False
@@ -38,13 +38,13 @@ object q_obj_Variant2-wrapper
 enum SugaredUnionKind
     member one
     member two
-        if IfAll(['IFTWO'])
+        if 'IFTWO'
 object SugaredUnion
     member type: SugaredUnionKind optional=False
     tag type
     case one: q_obj_Variant1-wrapper
     case two: q_obj_Variant2-wrapper
-        if IfAll(['IFTWO'])
+        if 'IFTWO'
     feature union-feat2
 alternate Alternate
     tag type

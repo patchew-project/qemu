@@ -42,7 +42,14 @@ from typing import (
     cast,
 )
 
-from .common import c_name
+from .common import (
+    IfAll,
+    IfAny,
+    IfNot,
+    IfOption,
+    IfPredicate,
+    c_name,
+)
 from .error import QAPISemError
 from .parser import QAPIDoc
 from .source import QAPISourceInfo
@@ -261,6 +268,10 @@ def check_if(expr: _JSONObject, info: QAPISourceInfo, source: str) -> None:
     """
     Normalize and validate the ``if`` member of an object.
 
+    The ``if`` field may be either a ``str``, a ``List[str]`` or a dict.
+    A ``str`` element or a ``List[str]`` will be normalized to
+    ``IfAll([str])``.
+
     The ``if`` member may be either a ``str`` or a ``List[str]``.
     A ``str`` value will be normalized to ``List[str]``.
 
@@ -281,25 +292,44 @@ def check_if(expr: _JSONObject, info: QAPISourceInfo, source: str) -> None:
     if ifcond is None:
         return
 
-    if isinstance(ifcond, list):
-        if not ifcond:
+    def normalize(cond: Union[str, List[str], object]) -> IfPredicate:
+        if isinstance(cond, str):
+            if not cond.strip():
+                raise QAPISemError(
+                    info,
+                    "'if' condition '%s' of %s makes no sense"
+                    % (cond, source))
+            return IfOption(cond)
+        if isinstance(cond, list):
+            cond = {"all": cond}
+        if not isinstance(cond, dict):
+            raise QAPISemError(
+                info,
+                "'if' condition of %s must be a string, "
+                "a list of strings or a dict" % source)
+        if len(cond) != 1:
+            raise QAPISemError(
+                info,
+                "'if' condition dict of %s must have one key: "
+                "'all', 'any' or 'not'" % source)
+        check_keys(cond, info, "'if' condition", [],
+                   ["all", "any", "not"])
+        oper, operands = next(iter(cond.items()))
+        if oper == "not":
+            return IfNot(normalize(operands))
+        if not operands:
             raise QAPISemError(
                 info, "'if' condition [] of %s is useless" % source)
-    else:
-        # Normalize to a list
-        ifcond = expr['if'] = [ifcond]
+        if not isinstance(operands, list):
+            raise QAPISemError(
+                info, "'%s' condition of %s must be a list" % (oper, source))
+        operands = [normalize(o) for o in operands]
+        return IfAll(operands) if oper == "all" else IfAny(operands)
 
-    for elt in ifcond:
-        if not isinstance(elt, str):
-            raise QAPISemError(
-                info,
-                "'if' condition of %s must be a string or a list of strings"
-                % source)
-        if not elt.strip():
-            raise QAPISemError(
-                info,
-                "'if' condition '%s' of %s makes no sense"
-                % (elt, source))
+    ifcond = expr.get('if')
+    if ifcond is None:
+        return
+    expr['if'] = normalize(ifcond)
 
 
 def normalize_members(members: object) -> None:
