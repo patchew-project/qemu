@@ -1098,9 +1098,14 @@
 #                   a global grab on key events. (default: off)
 #                   See https://support.apple.com/en-in/guide/mac-help/mh32356/mac
 #
+# @swap-option-command: Swaps the Option and Command keys so that their key codes
+#                       match their position on non-Mac keyboards and you can use
+#                       Meta/Super and Alt where you expect them. (default: on)
+#
 ##
 { 'struct'  : 'DisplayCocoa',
-  'data'    : { '*full-grab'     : 'bool' } }
+  'data'    : { '*full-grab'           : 'bool',
+                '*swap-option-command' : 'bool' } }
 
 ##
 # @DisplayType:
