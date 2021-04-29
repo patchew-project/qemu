@@ -19,7 +19,13 @@ import os
 import re
 from typing import Optional
 
-from .common import POINTER_SUFFIX, c_name, mcgen
+from .common import (
+    POINTER_SUFFIX,
+    IfAll,
+    IfOption,
+    c_name,
+    mcgen,
+)
 from .error import QAPISemError, QAPISourceError
 from .expr import check_exprs
 from .parser import QAPISchemaParser
@@ -27,34 +33,38 @@ from .parser import QAPISchemaParser
 
 class QAPISchemaIfCond:
     def __init__(self, ifcond=None):
-        self.ifcond = ifcond or []
+        pred_list = [IfOption(opt) for opt in ifcond or []]
+        self.pred = IfAll(pred_list)
+
+    def gen_doc(self):
+        if self.pred:
+            return self.pred.docgen()
+        return ""
 
     def gen_if(self):
-        ret = ''
-        for ifc in self.ifcond:
-            ret += mcgen('''
+        if self.pred:
+            return mcgen('''
 #if %(cond)s
-''', cond=ifc)
-        return ret
+''', cond=self.pred.cgen())
+        return ""
 
     def gen_endif(self):
-        ret = ''
-        for ifc in reversed(self.ifcond):
-            ret += mcgen('''
-#endif /* %(cond)s */
-''', cond=ifc)
-        return ret
+        if self.pred:
+            return mcgen('''
+#endif // %(cond)s
+''', cond=self.pred.cgen())
+        return ""
 
     def __bool__(self):
-        return bool(self.ifcond)
+        return bool(self.pred)
 
     def __repr__(self):
-        return repr(self.ifcond)
+        return repr(self.pred)
 
     def __eq__(self, other):
         if not isinstance(other, QAPISchemaIfCond):
             return NotImplemented
-        return self.ifcond == other.ifcond
+        return self.pred == other.pred
 
 
 class QAPISchemaEntity:

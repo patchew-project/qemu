@@ -11,8 +11,9 @@
 # This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
 
+from abc import ABC, abstractmethod
 import re
-from typing import Optional
+from typing import Optional, Sequence
 
 
 #: Magic string that gets removed along with all space to its right.
@@ -192,3 +193,54 @@ def guardend(name: str) -> str:
 #endif /* %(name)s */
 ''',
                  name=c_fname(name).upper())
+
+
+class IfPredicate(ABC):
+    @abstractmethod
+    def cgen(self) -> str:
+        pass
+
+    @abstractmethod
+    def docgen(self) -> str:
+        pass
+
+
+class IfOption(IfPredicate):
+    def __init__(self, option: str):
+        self.option = option
+
+    def cgen(self) -> str:
+        return self.option
+
+    def docgen(self) -> str:
+        return self.option
+
+    def __repr__(self) -> str:
+        return repr(self.option)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, IfOption):
+            return False
+        return self.option == other.option
+
+
+class IfAll(IfPredicate):
+    def __init__(self, pred_list: Sequence[IfPredicate]):
+        self.pred_list = pred_list
+
+    def cgen(self) -> str:
+        return " && ".join([p.cgen() for p in self.pred_list])
+
+    def docgen(self) -> str:
+        return " and ".join([p.docgen() for p in self.pred_list])
+
+    def __bool__(self) -> bool:
+        return bool(self.pred_list)
+
+    def __repr__(self) -> str:
+        return f"IfAll({self.pred_list})"
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, IfAll):
+            return False
+        return self.pred_list == other.pred_list
