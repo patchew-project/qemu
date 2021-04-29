@@ -998,6 +998,18 @@ static void virtio_snd_handle_event(VirtIODevice *vdev, VirtQueue *vq)
 }
 
 /*
+ * The rx virtqueue handler.
+ * Not implemented yet.
+ *
+ * @vdev: VirtIOSound card
+ * @vq: rx vq
+ */
+static void virtio_snd_handle_rx(VirtIODevice *vdev, VirtQueue *vq)
+{
+    virtio_snd_log("rx queue callback called\n");
+}
+
+/*
  * Initializes the VirtIOSound card device. Validates the configuration
  * passed by the command line. Initializes the virtqueues. Allocates resources
  * for and initializes streams, jacks and chmaps.
@@ -1043,6 +1055,7 @@ static void virtio_snd_device_realize(DeviceState *dev, Error **errp)
     s->ctrl_vq = virtio_add_queue(vdev, 64, virtio_snd_handle_ctrl);
     s->event_vq = virtio_add_queue(vdev, 64, virtio_snd_handle_event);
     s->tx_vq = virtio_add_queue(vdev, 64, virtio_snd_handle_tx);
+    s->rx_vq = virtio_add_queue(vdev, 64, virtio_snd_handle_rx);
 
     s->streams = g_new0(virtio_snd_pcm_stream *, s->snd_conf.streams);
     s->pcm_params = g_new0(virtio_snd_pcm_params *, s->snd_conf.streams);
@@ -1110,6 +1123,7 @@ static void virtio_snd_device_unrealize(DeviceState *dev)
     virtio_delete_queue(s->ctrl_vq);
     virtio_delete_queue(s->tx_vq);
     virtio_delete_queue(s->event_vq);
+    virtio_delete_queue(s->rx_vq);
 }
 
 static void virtio_snd_reset(VirtIODevice *vdev)
