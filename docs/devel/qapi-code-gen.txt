@@ -780,26 +780,31 @@ downstream command __com.redhat_drive-mirror.
 === Configuring the schema ===
 
 Syntax:
-    COND = STRING
-         | [ STRING, ... ]
+    COND = CFG-ID
+         | [ COND, ... ]
+         | { 'all: [ COND, ... ] }
+         | { 'any: [ COND, ... ] }
+         | { 'not': COND }
 
-All definitions take an optional 'if' member.  Its value must be a
-string or a list of strings.  A string is shorthand for a list
-containing just that string.  The code generated for the definition
-will then be guarded by #if STRING for each STRING in the COND list.
+    CFG-ID = STRING
+
+All definitions take an optional 'if' member. Its value must be a string, a list
+of strings or an object with a single member 'all', 'any' or 'not'. A string is
+shorthand for a list containing just that string. A list is a shorthand for a
+'all'-member object. The C code generated for the definition will then be guarded
+by an #if precessor expression generated from that condition: 'all': [COND, ...]
+will generate '(COND && ...)', 'any': [COND, ...] '(COND || ...)', 'not': COND '!COND'.
 
 Example: a conditional struct
 
  { 'struct': 'IfStruct', 'data': { 'foo': 'int' },
-   'if': ['CONFIG_FOO', 'HAVE_BAR'] }
+   'if': { 'all': [ 'CONFIG_FOO', 'HAVE_BAR' ] } }
 
 gets its generated code guarded like this:
 
- #if defined(CONFIG_FOO)
- #if defined(HAVE_BAR)
+ #if defined(CONFIG_FOO) && defined(HAVE_BAR)
  ... generated code ...
- #endif /* defined(HAVE_BAR) */
- #endif /* defined(CONFIG_FOO) */
+ #endif /* defined(HAVE_BAR) && defined(CONFIG_FOO) */
 
 Individual members of complex types, commands arguments, and
 event-specific data can also be made conditional.  This requires the
