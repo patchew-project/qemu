@@ -3142,7 +3142,7 @@ static int enable_write_target(BlockDriverState *bs, Error **errp)
     int size = sector2cluster(s, s->sector_count);
     QDict *options;
 
-    s->used_clusters = calloc(size, 1);
+    s->used_clusters = g_malloc0(size);
 
     array_init(&(s->commits), sizeof(commit_t));
 
@@ -3233,6 +3233,7 @@ static void vvfat_close(BlockDriverState *bs)
     array_free(&(s->directory));
     array_free(&(s->mapping));
     g_free(s->cluster_buffer);
+    g_free(s->used_clusters);
     g_free(s->qcow_filename);
 
     if (s->qcow) {
