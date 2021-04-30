@@ -4486,6 +4486,11 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
     target_ulong next_eip, tval;
     int rex_w, rex_r;
     target_ulong pc_start = s->base.pc_next;
+    /* For FCS, FIP, FDS and FDP. */
+    AddressParts last_addr;
+    TCGv ea;
+    bool update_fdp;
+    bool update_fip;
 
     s->pc_start = s->pc = pc_start;
     s->override = -1;
@@ -4505,6 +4510,9 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
     prefixes = 0;
     rex_w = -1;
     rex_r = 0;
+
+    update_fip = true;
+    update_fdp = false;
 
  next_byte:
     b = x86_ldub_code(env, s);
@@ -5850,7 +5858,11 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
         op = ((b & 7) << 3) | ((modrm >> 3) & 7);
         if (mod != 3) {
             /* memory op */
-            gen_lea_modrm(env, s, modrm);
+            update_fdp = true;
+            last_addr = gen_lea_modrm_0(env, s, modrm);
+            ea = gen_lea_modrm_1(s, last_addr);
+            gen_lea_v_seg(s, s->aflag, ea, last_addr.def_seg, s->override);
+
             switch(op) {
             case 0x00 ... 0x07: /* fxxxs */
             case 0x10 ... 0x17: /* fixxxl */
@@ -5976,19 +5988,23 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
                 break;
             case 0x0c: /* fldenv mem */
                 gen_helper_fldenv(cpu_env, s->A0, tcg_const_i32(dflag - 1));
+                update_fip = update_fdp = false;
                 break;
             case 0x0d: /* fldcw mem */
                 tcg_gen_qemu_ld_i32(s->tmp2_i32, s->A0,
                                     s->mem_index, MO_LEUW);
                 gen_helper_fldcw(cpu_env, s->tmp2_i32);
+                update_fip = update_fdp = false;
                 break;
             case 0x0e: /* fnstenv mem */
                 gen_helper_fstenv(cpu_env, s->A0, tcg_const_i32(dflag - 1));
+                update_fip = update_fdp = false;
                 break;
             case 0x0f: /* fnstcw mem */
                 gen_helper_fnstcw(s->tmp2_i32, cpu_env);
                 tcg_gen_qemu_st_i32(s->tmp2_i32, s->A0,
                                     s->mem_index, MO_LEUW);
+                update_fip = update_fdp = false;
                 break;
             case 0x1d: /* fldt mem */
                 gen_helper_fldt_ST0(cpu_env, s->A0);
@@ -5999,14 +6015,17 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
                 break;
             case 0x2c: /* frstor mem */
                 gen_helper_frstor(cpu_env, s->A0, tcg_const_i32(dflag - 1));
+                update_fip = update_fdp = false;
                 break;
             case 0x2e: /* fnsave mem */
                 gen_helper_fsave(cpu_env, s->A0, tcg_const_i32(dflag - 1));
+                update_fip = update_fdp = false;
                 break;
             case 0x2f: /* fnstsw mem */
                 gen_helper_fnstsw(s->tmp2_i32, cpu_env);
                 tcg_gen_qemu_st_i32(s->tmp2_i32, s->A0,
                                     s->mem_index, MO_LEUW);
+                update_fip = update_fdp = false;
                 break;
             case 0x3c: /* fbld */
                 gen_helper_fbld_ST0(cpu_env, s->A0);
@@ -6047,6 +6066,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
                 case 0: /* fnop */
                     /* check exceptions (FreeBSD FPU probe) */
                     gen_helper_fwait(cpu_env);
+                    update_fip = update_fdp = false;
                     break;
                 default:
                     goto unknown_op;
@@ -6214,9 +6234,11 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
                     break;
                 case 2: /* fclex */
                     gen_helper_fclex(cpu_env);
+                    update_fip = update_fdp = false;
                     break;
                 case 3: /* fninit */
                     gen_helper_fninit(cpu_env);
+                    update_fip = update_fdp = false;
                     break;
                 case 4: /* fsetpm (287 only, just do nop here) */
                     break;
@@ -6336,6 +6358,27 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
             default:
                 goto unknown_op;
             }
+        }
+
+
+        if (update_fip) {
+            tcg_gen_movi_tl(s->T0, pc_start - s->cs_base);
+            tcg_gen_st_tl(s->T0, cpu_env, offsetof(CPUX86State, fpip));
+
+            tcg_gen_mov_tl(s->T0, cpu_seg_base[R_CS]);
+            tcg_gen_st16_tl(s->T0, cpu_env, offsetof(CPUX86State, fpcs));
+        }
+
+        if (update_fdp) {
+            if (s->override < 0) {
+                tcg_gen_mov_tl(s->A0, cpu_seg_base[last_addr.def_seg]);
+            } else {
+                tcg_gen_mov_tl(s->A0, cpu_seg_base[s->override]);
+            }
+            tcg_gen_st16_tl(s->A0, cpu_env, offsetof(CPUX86State, fpds));
+
+            ea = gen_lea_modrm_1(s, last_addr);
+            tcg_gen_st_tl(ea, cpu_env, offsetof(CPUX86State, fpdp));
         }
         break;
         /************************/
