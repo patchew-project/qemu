@@ -302,6 +302,11 @@ class QEMUMachine:
                 args.extend(['-device', device])
         return args
 
+    @property
+    def args(self) -> List[str]:
+        """Returns the list of arguments given to the QEMU binary."""
+        return self._args
+
     def _pre_launch(self) -> None:
         self._temp_dir = tempfile.mkdtemp(prefix="qemu-machine-",
                                           dir=self._test_dir)
