@@ -3228,6 +3228,11 @@ static void vvfat_close(BlockDriverState *bs)
 {
     BDRVVVFATState *s = bs->opaque;
 
+    for (unsigned j = 0; j < s->mapping.next; j++) {
+        mapping_t *mapping = array_get(&(s->mapping), j);
+
+        g_free(mapping->path);
+    }
     vvfat_close_current_file(s);
     array_free(&(s->fat));
     array_free(&(s->directory));
