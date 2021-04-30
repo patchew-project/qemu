@@ -423,6 +423,9 @@ static direntry_t *create_long_filename(BDRVVVFATState *s, const char *filename)
         if(offset<10) offset=1+offset;
         else if(offset<22) offset=14+offset-10;
         else offset=28+offset-22;
+        if (offset >= ARRAY_SIZE(entry->name)) {
+            continue;
+        }
         entry=array_get(&(s->directory),s->directory.next-1-(i/26));
         if (i >= 2 * length + 2) {
             entry->name[offset] = 0xff;
