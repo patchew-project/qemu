@@ -16,3 +16,42 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+
+/*
+ * Incorporate CIA into the constant when R=1.
+ * Validate that when R=1, RA=0.
+ */
+static bool resolve_PLS_D(DisasContext *ctx, arg_PLS_D *a)
+{
+    if (a->r) {
+        if (unlikely(a->ra != 0)) {
+            gen_invalid(ctx);
+            return false;
+        }
+        a->si += ctx->cia;
+    }
+    return true;
+}
+
+static bool trans_ADDI(DisasContext *ctx, arg_PLS_D *a)
+{
+    if (resolve_PLS_D(ctx, a)) {
+        if (a->ra) {
+            tcg_gen_addi_tl(cpu_gpr[a->rt], cpu_gpr[a->ra], a->si);
+        } else {
+            tcg_gen_movi_tl(cpu_gpr[a->rt], a->si);
+        }
+    }
+    return true;
+}
+
+static bool trans_ADDIS(DisasContext *ctx, arg_D *a)
+{
+    int si = a->si << 16;
+    if (a->ra) {
+        tcg_gen_addi_tl(cpu_gpr[a->rt], cpu_gpr[a->ra], si);
+    } else {
+        tcg_gen_movi_tl(cpu_gpr[a->rt], si);
+    }
+    return true;
+}

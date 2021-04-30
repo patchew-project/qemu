@@ -16,3 +16,15 @@
 # You should have received a copy of the GNU Lesser General Public
 # License along with this library; if not, see <http://www.gnu.org/licenses/>.
 #
+
+&D              rt ra si
+@D              ...... rt:5 ra:5 si:s16                 &D
+
+# If a prefix is allowed, decode with default values.
+&PLS_D          rt ra si:int64_t r:bool
+@PLS_D          ...... rt:5 ra:5 si:s16                 &PLS_D r=0
+
+### Fixed-Point Arithmetic Instructions
+
+ADDI            001110 ..... ..... ................     @PLS_D
+ADDIS           001111 ..... ..... ................     @D

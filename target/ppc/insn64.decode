@@ -16,3 +16,18 @@
 # You should have received a copy of the GNU Lesser General Public
 # License along with this library; if not, see <http://www.gnu.org/licenses/>.
 #
+
+# Many all of these instruction names would be prefixed by "P",
+# but we share code with the non-prefixed instruction.
+
+# Format MLS:D and 8LS:D
+&PLS_D          rt ra si:int64_t r:bool  !extern
+%pls_si         32:s18 0:16
+@PLS_D          ...... .. ... r:1 .. .................. \
+                ...... rt:5 ra:5 ................       \
+                &PLS_D si=%pls_si
+
+### Fixed-Point Arithmetic Instructions
+
+ADDI            000001 10 0--.-- ..................     \
+                001110 ..... ..... ................     @PLS_D
