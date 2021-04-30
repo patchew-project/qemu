@@ -55,3 +55,8 @@ static bool trans_ADDIS(DisasContext *ctx, arg_D *a)
     }
     return true;
 }
+
+static bool trans_NOP(DisasContext *ctx, arg_NOP *a)
+{
+    return true;
+}

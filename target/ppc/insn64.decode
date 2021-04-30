@@ -20,6 +20,8 @@
 # Many all of these instruction names would be prefixed by "P",
 # but we share code with the non-prefixed instruction.
 
+&empty          !extern
+
 # Format MLS:D and 8LS:D
 &PLS_D          rt ra si:int64_t r:bool  !extern
 %pls_si         32:s18 0:16
@@ -31,3 +33,12 @@
 
 ADDI            000001 10 0--.-- ..................     \
                 001110 ..... ..... ................     @PLS_D
+
+### Prefixed No-operation Instruction
+
+# TODO: diagnose the set of patterns that are illegal:
+# branches, rfebb, sync other than isync, or a service processor attention.
+# The Engineering Note allows us to either diagnose these as illegal,
+# or treat them all as no-op.
+NOP             000001 11 0000-- 000000000000000000     \
+                --------------------------------

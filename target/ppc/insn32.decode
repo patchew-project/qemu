@@ -17,6 +17,8 @@
 # License along with this library; if not, see <http://www.gnu.org/licenses/>.
 #
 
+&empty
+
 &D              rt ra si
 @D              ...... rt:5 ra:5 si:s16                 &D
 
