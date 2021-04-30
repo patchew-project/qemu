@@ -175,7 +175,7 @@ static int do_sgio_worker(void *opaque)
     return status;
 }
 
-static int do_sgio(int fd, const uint8_t *cdb, uint8_t *sense,
+static int coroutine_fn do_sgio(int fd, const uint8_t *cdb, uint8_t *sense,
                     uint8_t *buf, int *sz, int dir)
 {
     ThreadPool *pool = aio_get_thread_pool(qemu_get_aio_context());

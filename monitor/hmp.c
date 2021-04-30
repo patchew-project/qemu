@@ -1068,7 +1068,7 @@ typedef struct HandleHmpCommandCo {
     bool done;
 } HandleHmpCommandCo;
 
-static void handle_hmp_command_co(void *opaque)
+static void coroutine_fn handle_hmp_command_co(void *opaque)
 {
     HandleHmpCommandCo *data = opaque;
     data->cmd->cmd(data->mon, data->qdict);

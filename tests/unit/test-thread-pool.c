@@ -72,7 +72,7 @@ static void test_submit_aio(void)
     g_assert_cmpint(data.ret, ==, 0);
 }
 
-static void co_test_cb(void *opaque)
+static void coroutine_fn co_test_cb(void *opaque)
 {
     WorkerTestData *data = opaque;
 
@@ -90,7 +90,7 @@ static void co_test_cb(void *opaque)
     /* The test continues in test_submit_co, after aio_poll... */
 }
 
-static void test_submit_co(void)
+static void coroutine_fn test_submit_co(void)
 {
     WorkerTestData data;
     Coroutine *co = qemu_coroutine_create(co_test_cb, &data);

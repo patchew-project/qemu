@@ -36,7 +36,7 @@ typedef struct BdrvPollCo {
     Coroutine *co; /* Keep pointer here for debugging */
 } BdrvPollCo;
 
-static inline int bdrv_poll_co(BdrvPollCo *s)
+static inline int coroutine_fn bdrv_poll_co(BdrvPollCo *s)
 {
     assert(!qemu_in_coroutine());
 
