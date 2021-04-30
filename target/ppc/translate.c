@@ -367,13 +367,6 @@ static inline void gen_hvpriv_exception(DisasContext *ctx, uint32_t error)
     gen_exception_err(ctx, POWERPC_EXCP_HV_EMU, POWERPC_EXCP_PRIV | error);
 }
 
-/* Stop translation */
-static inline void gen_stop_exception(DisasContext *ctx)
-{
-    gen_update_nip(ctx, ctx->base.pc_next);
-    ctx->exception = POWERPC_EXCP_STOP;
-}
-
 #define GEN_HANDLER(name, opc1, opc2, opc3, inval, type)                      \
 GEN_OPCODE(name, opc1, opc2, opc3, inval, type, PPC_NONE)
 
@@ -3157,7 +3150,7 @@ static void gen_isync(DisasContext *ctx)
         gen_check_tlb_flush(ctx, false);
     }
     tcg_gen_mb(TCG_MO_ALL | TCG_BAR_SC);
-    gen_stop_exception(ctx);
+    ctx->base.is_jmp = DISAS_EXIT_UPDATE;
 }
 
 #define MEMOP_GET_SIZE(x)  (1 << ((x) & MO_SIZE))
@@ -4434,7 +4427,7 @@ static void gen_mtmsrd(DisasContext *ctx)
         gen_helper_store_msr(cpu_env, cpu_gpr[rS(ctx->opcode)]);
     }
     /* Must stop the translation as machine state (may have) changed */
-    gen_stop_exception(ctx);
+    ctx->base.is_jmp = DISAS_EXIT_UPDATE;
 #endif /* !defined(CONFIG_USER_ONLY) */
 }
 #endif /* defined(TARGET_PPC64) */
@@ -4477,7 +4470,7 @@ static void gen_mtmsr(DisasContext *ctx)
         tcg_temp_free(msr);
     }
     /* Must stop the translation as machine state (may have) changed */
-    gen_stop_exception(ctx);
+    ctx->base.is_jmp = DISAS_EXIT_UPDATE;
 #endif
 }
 
@@ -6614,7 +6607,7 @@ static void gen_wrtee(DisasContext *ctx)
      * Stop translation to have a chance to raise an exception if we
      * just set msr_ee to 1
      */
-    gen_stop_exception(ctx);
+    ctx->base.is_jmp = DISAS_EXIT_UPDATE;
 #endif /* defined(CONFIG_USER_ONLY) */
 }
 
@@ -6628,7 +6621,7 @@ static void gen_wrteei(DisasContext *ctx)
     if (ctx->opcode & 0x00008000) {
         tcg_gen_ori_tl(cpu_msr, cpu_msr, (1 << MSR_EE));
         /* Stop translation to have a chance to raise an exception */
-        gen_stop_exception(ctx);
+        ctx->base.is_jmp = DISAS_EXIT_UPDATE;
     } else {
         tcg_gen_andi_tl(cpu_msr, cpu_msr, ~(1 << MSR_EE));
     }
@@ -8082,9 +8075,6 @@ static void ppc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
             break;
         case POWERPC_EXCP_BRANCH:
             ctx->base.is_jmp = DISAS_NORETURN;
-            break;
-        case POWERPC_EXCP_STOP:
-            ctx->base.is_jmp = DISAS_EXIT;
             break;
         default:
             /* Every other ctx->exception should have set NORETURN. */
