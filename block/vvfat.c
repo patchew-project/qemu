@@ -3233,6 +3233,7 @@ static void vvfat_close(BlockDriverState *bs)
     array_free(&(s->directory));
     array_free(&(s->mapping));
     g_free(s->cluster_buffer);
+    g_free(s->qcow_filename);
 
     if (s->qcow) {
         migrate_del_blocker(s->migration_blocker);
