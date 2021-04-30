@@ -285,6 +285,13 @@ The RISC-V no MMU cpus have been removed. The two CPUs: ``rv32imacu-nommu`` and
 ``rv64imacu-nommu`` can no longer be used. Instead the MMU status can be specified
 via the CPU ``mmu`` option when using the ``rv32`` or ``rv64`` CPUs.
 
+``moxie`` CPU (removed in 6.1)
+''''''''''''''''''''''''''''''
+
+Nobody was using this CPU emulation in QEMU, and there were no test images
+available to make sure that the code is still working, so it has been removed
+without replacement.
+
 System emulator machines
 ------------------------
 
