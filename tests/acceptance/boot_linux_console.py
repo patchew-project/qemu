@@ -238,6 +238,7 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=arch:mips64el
         :avocado: tags=machine:malta
         :avocado: tags=endian:little
+        :avocado: tags=cpu:5KEc
         """
         kernel_url = ('https://github.com/philmd/qemu-testing-blob/'
                       'raw/9ad2df38/mips/malta/mips64el/'
@@ -257,8 +258,7 @@ class BootLinuxConsole(LinuxKernelTest):
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE
                                + 'console=ttyS0 console=tty '
                                + 'rdinit=/sbin/init noreboot')
-        self.vm.add_args('-cpu', '5KEc',
-                         '-kernel', kernel_path,
+        self.vm.add_args('-kernel', kernel_path,
                          '-initrd', initrd_path,
                          '-append', kernel_command_line,
                          '-no-reboot')
@@ -286,7 +286,6 @@ class BootLinuxConsole(LinuxKernelTest):
                                + 'mem=256m@@0x0 '
                                + 'console=ttyS0')
         self.vm.add_args('-no-reboot',
-                         '-cpu', 'I7200',
                          '-kernel', kernel_path,
                          '-append', kernel_command_line)
         self.vm.launch()
@@ -298,6 +297,7 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=arch:mipsel
         :avocado: tags=machine:malta
         :avocado: tags=endian:little
+        :avocado: tags=cpu:I7200
         """
         kernel_url = ('https://mipsdistros.mips.com/LinuxDistro/nanomips/'
                       'kernels/v4.15.18-432-gb2eb9a8b07a1-20180627102142/'
@@ -310,6 +310,7 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=arch:mipsel
         :avocado: tags=machine:malta
         :avocado: tags=endian:little
+        :avocado: tags=cpu:I7200
         """
         kernel_url = ('https://mipsdistros.mips.com/LinuxDistro/nanomips/'
                       'kernels/v4.15.18-432-gb2eb9a8b07a1-20180627102142/'
@@ -322,6 +323,7 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=arch:mipsel
         :avocado: tags=machine:malta
         :avocado: tags=endian:little
+        :avocado: tags=cpu:I7200
         """
         kernel_url = ('https://mipsdistros.mips.com/LinuxDistro/nanomips/'
                       'kernels/v4.15.18-432-gb2eb9a8b07a1-20180627102142/'
@@ -333,6 +335,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:aarch64
         :avocado: tags=machine:virt
+        :avocado: tags=cpu:cortex-a53
         """
         kernel_url = ('https://archives.fedoraproject.org/pub/archive/fedora'
                       '/linux/releases/29/Everything/aarch64/os/images/pxeboot'
@@ -343,8 +346,7 @@ class BootLinuxConsole(LinuxKernelTest):
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
                                'console=ttyAMA0')
-        self.vm.add_args('-cpu', 'cortex-a53',
-                         '-kernel', kernel_path,
+        self.vm.add_args('-kernel', kernel_path,
                          '-append', kernel_command_line)
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
@@ -1038,9 +1040,9 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:ppc64
         :avocado: tags=machine:ppce500
+        :avocado: tags=cpu:e5500
         """
         tar_hash = '6951d86d644b302898da2fd701739c9406527fe1'
-        self.vm.add_args('-cpu', 'e5500')
         self.do_test_advcal_2018('19', tar_hash, 'uImage')
 
     def test_ppc_g3beige(self):
@@ -1082,7 +1084,7 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:xtensa
         :avocado: tags=machine:lx60
+        :avocado: tags=cpu:dc233c
         """
         tar_hash = '49e88d9933742f0164b60839886c9739cb7a0d34'
-        self.vm.add_args('-cpu', 'dc233c')
         self.do_test_advcal_2018('02', tar_hash, 'santas-sleigh-ride.elf')
