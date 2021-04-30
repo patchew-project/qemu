@@ -34,6 +34,7 @@
 #include "kvm_ppc.h"
 #include "migration/vmstate.h"
 #include "sysemu/tcg.h"
+#include "mmu-misc.h"
 
 #include "hw/ppc/spapr.h"
 

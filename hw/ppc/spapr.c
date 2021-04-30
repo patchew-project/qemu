@@ -53,6 +53,7 @@
 #include "mmu-book3s-v3.h"
 #include "cpu-models.h"
 #include "hw/core/cpu.h"
+#include "mmu-misc.h"
 
 #include "hw/boards.h"
 #include "hw/ppc/ppc.h"

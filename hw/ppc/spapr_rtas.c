@@ -35,6 +35,7 @@
 #include "sysemu/hw_accel.h"
 #include "sysemu/runstate.h"
 #include "kvm_ppc.h"
+#include "mmu-misc.h"
 
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"

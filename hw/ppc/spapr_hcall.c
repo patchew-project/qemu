@@ -13,6 +13,7 @@
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_cpu_core.h"
 #include "mmu-hash64.h"
+#include "mmu-misc.h"
 #include "cpu-models.h"
 #include "trace.h"
 #include "kvm_ppc.h"

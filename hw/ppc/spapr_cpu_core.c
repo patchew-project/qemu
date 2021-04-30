@@ -24,6 +24,7 @@
 #include "sysemu/reset.h"
 #include "sysemu/hw_accel.h"
 #include "qemu/error-report.h"
+#include "mmu-misc.h"
 
 static void spapr_reset_vcpu(PowerPCCPU *cpu)
 {
