@@ -89,7 +89,12 @@ static void input_linux_toggle_grab(InputLinux *il)
             continue;
         }
         if (item->grab_active != il->grab_active) {
-            input_linux_toggle_grab(item);
+            if (item->keycount) {
+                /* delay grab until all keys are released */
+                item->grab_request = true;
+            } else {
+                input_linux_toggle_grab(item);
+            }
         }
     }
 }
