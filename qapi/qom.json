@@ -488,6 +488,8 @@
 #
 # @repeat: enables auto-repeat events (default: false)
 #
+# @grab-active: if true, device is grabbed (default: true)
+#
 # @grab-toggle: the key or key combination that toggles device grab
 #               (default: ctrl-ctrl)
 #
@@ -497,6 +499,7 @@
   'data': { 'evdev': 'str',
             '*grab_all': 'bool',
             '*repeat': 'bool',
+            '*grab-active': 'bool',
             '*grab-toggle': 'GrabToggleKeys' } }
 
 ##

@@ -399,10 +399,9 @@ static void input_linux_complete(UserCreatable *uc, Error **errp)
     }
 
     qemu_set_fd_handler(il->fd, input_linux_event, NULL, il);
-    if (il->keycount) {
-        /* delay grab until all keys are released */
-        il->grab_request = true;
-    } else {
+    /* delay grab until all keys are released */
+    if (il->grab_request && !il->keycount) {
+        il->grab_request = false;
         input_linux_toggle_grab(il);
     }
     QTAILQ_INSERT_TAIL(&inputs, il, next);
@@ -493,8 +492,37 @@ static void input_linux_set_grab_toggle(Object *obj, int value,
     il->grab_toggle = value;
 }
 
+static bool input_linux_get_grab_active(Object *obj, Error **errp)
+{
+    InputLinux *il = INPUT_LINUX(obj);
+
+    return il->grab_active;
+}
+
+static void input_linux_set_grab_active(Object *obj, bool value,
+                                        Error **errp)
+{
+    InputLinux *il = INPUT_LINUX(obj);
+
+    if (!il->initialized) {
+        il->grab_request = value;
+        return;
+    }
+
+    if (il->grab_active != value) {
+        if (il->keycount) {
+            il->grab_request = true;
+        } else {
+            input_linux_toggle_grab(il);
+        }
+    }
+}
+
 static void input_linux_instance_init(Object *obj)
 {
+    InputLinux *il = INPUT_LINUX(obj);
+
+    il->grab_request = true;
 }
 
 static void input_linux_class_init(ObjectClass *oc, void *data)
@@ -512,6 +540,9 @@ static void input_linux_class_init(ObjectClass *oc, void *data)
     object_class_property_add_bool(oc, "repeat",
                                    input_linux_get_repeat,
                                    input_linux_set_repeat);
+    object_class_property_add_bool(oc, "grab-active",
+                                   input_linux_get_grab_active,
+                                   input_linux_set_grab_active);
     object_class_property_add_enum(oc, "grab-toggle", "GrabToggleKeys",
                                    &GrabToggleKeys_lookup,
                                    input_linux_get_grab_toggle,
