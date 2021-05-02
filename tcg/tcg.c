@@ -152,6 +152,9 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
 static int tcg_out_ldst_finalize(TCGContext *s);
 #endif
 
+TCGContext tcg_init_ctx;
+__thread TCGContext *tcg_ctx;
+
 TCGContext **tcg_ctxs;
 unsigned int tcg_cur_ctxs;
 unsigned int tcg_max_ctxs;
