@@ -25,9 +25,21 @@
 #ifndef TCG_INTERNAL_H
 #define TCG_INTERNAL_H 1
 
+typedef struct TCGHelperInfo {
+    void *func;
+    const char *name;
+    unsigned flags;
+    unsigned typemask;
+} TCGHelperInfo;
+
+static inline const TCGHelperInfo *tcg_call_info(TCGOp *op)
+{
+    return (void *)(uintptr_t)op->args[TCGOP_CALLO(op) + TCGOP_CALLI(op) + 1];
+}
+
 static inline unsigned tcg_call_flags(TCGOp *op)
 {
-    return op->args[TCGOP_CALLO(op) + TCGOP_CALLI(op) + 1];
+    return tcg_call_info(op)->flags;
 }
 
 #endif /* TCG_INTERNAL_H */
