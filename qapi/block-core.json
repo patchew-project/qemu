@@ -3610,6 +3610,64 @@
   'data': [ 'cephx', 'none' ] }
 
 ##
+# @RbdImageEncryptionFormat:
+#
+# Since: 6.1
+##
+{ 'enum': 'RbdImageEncryptionFormat',
+  'data': [ 'luks1', 'luks2' ] }
+
+##
+# @RbdEncryptionAlgorithm:
+#
+# Since: 6.1
+##
+{ 'enum': 'RbdEncryptionAlgorithm',
+  'data': [ 'aes-128', 'aes-256' ] }
+
+##
+# @RbdEncryptionOptionsLUKSBase:
+#
+# @cipher-alg: The encryption algorithm
+# @passphrase-secret: ID of a QCryptoSecret object providing a passphrase
+#                     for unlocking the encryption
+#
+# Since: 6.1
+##
+{ 'struct': 'RbdEncryptionOptionsLUKSBase',
+  'data': { '*cipher-alg': 'RbdEncryptionAlgorithm',
+            '*passphrase-secret': 'str' }}
+
+##
+# @RbdEncryptionOptionsLUKS1:
+#
+# Since: 6.1
+##
+{ 'struct': 'RbdEncryptionOptionsLUKS1',
+  'base': 'RbdEncryptionOptionsLUKSBase',
+  'data': {}}
+
+##
+# @RbdEncryptionOptionsLUKS2:
+#
+# Since: 6.1
+##
+{ 'struct': 'RbdEncryptionOptionsLUKS2',
+  'base': 'RbdEncryptionOptionsLUKSBase',
+  'data': {}}
+
+##
+# @RbdEncryptionSpec:
+#
+# Since: 6.1
+##
+{ 'union': 'RbdEncryptionSpec',
+  'base': { 'format': 'RbdImageEncryptionFormat' },
+  'discriminator': 'format',
+  'data': { 'luks1': 'RbdEncryptionOptionsLUKS1',
+            'luks2': 'RbdEncryptionOptionsLUKS2'} }
+
+##
 # @BlockdevOptionsRbd:
 #
 # @pool: Ceph pool name.
@@ -3623,6 +3681,8 @@
 #        options specified via QAPI.
 #
 # @snapshot: Ceph snapshot name.
+#
+# @encrypt: Image encryption specification. (Since 6.1)
 #
 # @user: Ceph id name.
 #
@@ -3646,6 +3706,7 @@
             'image': 'str',
             '*conf': 'str',
             '*snapshot': 'str',
+            '*encrypt': 'RbdEncryptionSpec',
             '*user': 'str',
             '*auth-client-required': ['RbdAuthMode'],
             '*key-secret': 'str',

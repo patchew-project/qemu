@@ -108,6 +108,13 @@ typedef struct BDRVRBDState {
     uint64_t image_size;
 } BDRVRBDState;
 
+#ifdef LIBRBD_SUPPORTS_ENCRYPTION
+typedef int (*RbdEncryptionFunc)(rbd_image_t image,
+                                 rbd_encryption_format_t format,
+                                 rbd_encryption_options_t opts,
+                                 size_t opts_size);
+#endif
+
 static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
                             BlockdevOptionsRbd *opts, bool cache,
                             const char *keypairs, const char *secretid,
@@ -341,6 +348,115 @@ static void qemu_rbd_memset(RADOSCB *rcb, int64_t offs)
     }
 }
 
+#ifdef LIBRBD_SUPPORTS_ENCRYPTION
+static int qemu_rbd_convert_luks_options(
+        RbdEncryptionOptionsLUKSBase *luks_opts,
+        rbd_encryption_algorithm_t *alg,
+        char** passphrase,
+        Error **errp)
+{
+    int r = 0;
+
+    if (!luks_opts->has_passphrase_secret) {
+        r = -EINVAL;
+        error_setg_errno(errp, -r, "missing encrypt.passphrase-secret");
+        return r;
+    }
+
+    *passphrase = qcrypto_secret_lookup_as_utf8(luks_opts->passphrase_secret,
+                                                errp);
+    if (!*passphrase) {
+        return -EIO;
+    }
+
+    if (luks_opts->has_cipher_alg) {
+        switch (luks_opts->cipher_alg) {
+            case RBD_ENCRYPTION_ALGORITHM_AES_128: {
+                *alg = RBD_ENCRYPTION_ALGORITHM_AES128;
+                break;
+            }
+            case RBD_ENCRYPTION_ALGORITHM_AES_256: {
+                *alg = RBD_ENCRYPTION_ALGORITHM_AES256;
+                break;
+            }
+            default: {
+                r = -ENOTSUP;
+                error_setg_errno(errp, -r, "unknown encryption algorithm: %u",
+                                 luks_opts->cipher_alg);
+                return r;
+            }
+        }
+    } else {
+        /* default alg */
+        *alg = RBD_ENCRYPTION_ALGORITHM_AES256;
+    }
+
+    return 0;
+}
+
+static int qemu_rbd_apply_encryption_function(rbd_image_t image,
+                                              RbdEncryptionSpec* spec,
+                                              RbdEncryptionFunc func,
+                                              Error **errp)
+{
+    int r = 0;
+    g_autofree char *passphrase = NULL;
+    g_autofree rbd_encryption_options_t opts = NULL;
+    rbd_encryption_format_t format;
+    size_t opts_size;
+
+    switch (spec->format) {
+        case RBD_IMAGE_ENCRYPTION_FORMAT_LUKS1: {
+            rbd_encryption_luks1_format_options_t *luks1_opts =
+                    g_new0(rbd_encryption_luks1_format_options_t, 1);
+            format = RBD_ENCRYPTION_FORMAT_LUKS1;
+            opts = luks1_opts;
+            opts_size = sizeof(rbd_encryption_luks1_format_options_t);
+            r = qemu_rbd_convert_luks_options(
+                    qapi_RbdEncryptionOptionsLUKS1_base(&spec->u.luks1),
+                    &luks1_opts->alg, &passphrase, errp);
+            if (passphrase) {
+                luks1_opts->passphrase = passphrase;
+                luks1_opts->passphrase_size = strlen(passphrase);
+            }
+            break;
+        }
+        case RBD_IMAGE_ENCRYPTION_FORMAT_LUKS2: {
+            rbd_encryption_luks2_format_options_t *luks2_opts =
+                    g_new0(rbd_encryption_luks2_format_options_t, 1);
+            format = RBD_ENCRYPTION_FORMAT_LUKS2;
+            opts = luks2_opts;
+            opts_size = sizeof(rbd_encryption_luks2_format_options_t);
+            r = qemu_rbd_convert_luks_options(
+                    qapi_RbdEncryptionOptionsLUKS2_base(&spec->u.luks2),
+                    &luks2_opts->alg, &passphrase, errp);
+            if (passphrase) {
+                luks2_opts->passphrase = passphrase;
+                luks2_opts->passphrase_size = strlen(passphrase);
+            }
+            break;
+        }
+        default: {
+            r = -ENOTSUP;
+            error_setg_errno(
+                    errp, -r, "unknown image encryption format: %u",
+                    spec->format);
+        }
+    }
+
+    if (r < 0) {
+        return r;
+    }
+
+    r = func(image, format, opts, opts_size);
+    if (r < 0) {
+        error_setg_errno(errp, -r, "error applying encryption function");
+    }
+
+    return r;
+}
+#endif
+
 /* FIXME Deprecate and remove keypairs or make it available in QMP. */
 static int qemu_rbd_do_create(BlockdevCreateOptions *options,
                               const char *keypairs, const char *password_secret,
@@ -357,6 +473,13 @@ static int qemu_rbd_do_create(BlockdevCreateOptions *options,
         error_setg(errp, "Can't use snapshot name for image creation");
         return -EINVAL;
     }
+
+#ifndef LIBRBD_SUPPORTS_ENCRYPTION
+    if (opts->location->has_encrypt) {
+        error_setg(errp, "RBD library does not support image encryption");
+        return -ENOTSUP;
+    }
+#endif
 
     if (opts->has_cluster_size) {
         int64_t objsize = opts->cluster_size;
@@ -383,6 +506,30 @@ static int qemu_rbd_do_create(BlockdevCreateOptions *options,
         goto out;
     }
 
+#ifdef LIBRBD_SUPPORTS_ENCRYPTION
+    if (opts->location->has_encrypt) {
+        rbd_image_t image;
+
+        ret = rbd_open(io_ctx, opts->location->image, &image, NULL);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "error reading header from %s",
+                             opts->location->image);
+            goto out;
+        }
+
+        ret = qemu_rbd_apply_encryption_function(image,
+                                                 opts->location->encrypt,
+                                                 &rbd_encryption_format,
+                                                 errp);
+        rbd_close(image);
+        if (ret < 0) {
+            /* encryption format fail, try removing the image */
+            rbd_remove(io_ctx, opts->location->image);
+            goto out;
+        }
+    }
+#endif
+
     ret = 0;
 out:
     rados_ioctx_destroy(io_ctx);
@@ -395,6 +542,42 @@ static int qemu_rbd_co_create(BlockdevCreateOptions *options, Error **errp)
     return qemu_rbd_do_create(options, NULL, NULL, errp);
 }
 
+static int qemu_rbd_extract_encryption_spec(QemuOpts *opts,
+                                            RbdEncryptionSpec **spec,
+                                            Error **errp)
+{
+    QDict *opts_qdict;
+    QDict *encrypt_qdict;
+    Visitor *v;
+    int ret = 0;
+
+    opts_qdict = qemu_opts_to_qdict(opts, NULL);
+    qdict_extract_subqdict(opts_qdict, &encrypt_qdict, "encrypt.");
+    qobject_unref(opts_qdict);
+    if (!qdict_size(encrypt_qdict)) {
+        *spec = NULL;
+        goto exit;
+    }
+
+    /* Convert options into a QAPI object */
+    v = qobject_input_visitor_new_flat_confused(encrypt_qdict, errp);
+    if (!v) {
+        ret = -EINVAL;
+        goto exit;
+    }
+
+    visit_type_RbdEncryptionSpec(v, NULL, spec, errp);
+    visit_free(v);
+    if (!*spec) {
+        ret = -EINVAL;
+        goto exit;
+    }
+
+exit:
+    qobject_unref(encrypt_qdict);
+    return ret;
+}
+
 static int coroutine_fn qemu_rbd_co_create_opts(BlockDriver *drv,
                                                 const char *filename,
                                                 QemuOpts *opts,
@@ -403,6 +586,7 @@ static int coroutine_fn qemu_rbd_co_create_opts(BlockDriver *drv,
     BlockdevCreateOptions *create_options;
     BlockdevCreateOptionsRbd *rbd_opts;
     BlockdevOptionsRbd *loc;
+    RbdEncryptionSpec *encryption_spec = NULL;
     Error *local_err = NULL;
     const char *keypairs, *password_secret;
     QDict *options = NULL;
@@ -431,6 +615,11 @@ static int coroutine_fn qemu_rbd_co_create_opts(BlockDriver *drv,
         goto exit;
     }
 
+    ret = qemu_rbd_extract_encryption_spec(opts, &encryption_spec, errp);
+    if (ret < 0) {
+        goto exit;
+    }
+
     /*
      * Caution: while qdict_get_try_str() is fine, getting non-string
      * types would require more care.  When @options come from -blockdev
@@ -446,6 +635,8 @@ static int coroutine_fn qemu_rbd_co_create_opts(BlockDriver *drv,
     loc->q_namespace = g_strdup(qdict_get_try_str(options, "namespace"));
     loc->has_q_namespace = !!loc->q_namespace;
     loc->image       = g_strdup(qdict_get_try_str(options, "image"));
+    loc->encrypt     = encryption_spec;
+    loc->has_encrypt = !!encryption_spec;
     keypairs         = qdict_get_try_str(options, "=keyvalue-pairs");
 
     ret = qemu_rbd_do_create(create_options, keypairs, password_secret, errp);
@@ -756,12 +947,26 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
         goto failed_open;
     }
 
+    if (opts->has_encrypt) {
+#ifdef LIBRBD_SUPPORTS_ENCRYPTION
+        r = qemu_rbd_apply_encryption_function(s->image, opts->encrypt,
+                                               &rbd_encryption_load, errp);
+        if (r < 0) {
+            goto failed_post_open;
+        }
+#else
+        r = -ENOTSUP;
+        error_setg_errno(errp, -r,
+                         "RBD library does not support image encryption");
+        goto failed_post_open;
+#endif
+    }
+
     r = rbd_get_size(s->image, &s->image_size);
     if (r < 0) {
         error_setg_errno(errp, -r, "error getting image size from %s",
                          s->image_name);
-        rbd_close(s->image);
-        goto failed_open;
+        goto failed_post_open;
     }
 
     /* If we are using an rbd snapshot, we must be r/o, otherwise
@@ -769,8 +974,7 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     if (s->snap != NULL) {
         r = bdrv_apply_auto_read_only(bs, "rbd snapshots are read-only", errp);
         if (r < 0) {
-            rbd_close(s->image);
-            goto failed_open;
+            goto failed_post_open;
         }
     }
 
@@ -780,6 +984,8 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
     r = 0;
     goto out;
 
+failed_post_open:
+    rbd_close(s->image);
 failed_open:
     rados_ioctx_destroy(s->io_ctx);
     g_free(s->snap);
@@ -1242,6 +1448,22 @@ static QemuOptsList qemu_rbd_create_opts = {
             .name = "password-secret",
             .type = QEMU_OPT_STRING,
             .help = "ID of secret providing the password",
+        },
+        {
+            .name = "encrypt.format",
+            .type = QEMU_OPT_STRING,
+            .help = "Encrypt the image, format choices: 'luks1', 'luks2'",
+        },
+        {
+            .name = "encrypt.cipher-alg",
+            .type = QEMU_OPT_STRING,
+            .help = "Name of encryption cipher algorithm"
+                    " (allowed values: aes-128, aes-256)",
+        },
+        {
+            .name = "encrypt.passphrase-secret",
+            .type = QEMU_OPT_STRING,
+            .help = "ID of secret providing LUKS passphrase",
         },
         { /* end of list */ }
     }
