@@ -1668,6 +1668,10 @@ static void armsse_reset(DeviceState *dev)
     ARMSSE *s = ARM_SSE(dev);
 
     s->nsccfg = 0;
+
+    device_cold_reset(DEVICE(&s->mpc_irq_orgate));
+    device_cold_reset(DEVICE(&s->ppc_irq_orgate));
+    device_cold_reset(DEVICE(&s->sec_resp_splitter));
 }
 
 static void armsse_class_init(ObjectClass *klass, void *data)
