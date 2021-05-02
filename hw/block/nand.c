@@ -24,6 +24,7 @@
 #include "hw/qdev-properties-system.h"
 #include "hw/block/flash.h"
 #include "sysemu/block-backend.h"
+#include "sysemu/reset.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -364,6 +365,11 @@ static const VMStateDescription vmstate_nand = {
     }
 };
 
+static void nand_reset_handler(void *dev)
+{
+    device_cold_reset(DEVICE(dev));
+}
+
 static void nand_realize(DeviceState *dev, Error **errp)
 {
     int pagesize;
@@ -423,6 +429,13 @@ static void nand_realize(DeviceState *dev, Error **errp)
     }
     /* Give s->ioaddr a sane value in case we save state before it is used. */
     s->ioaddr = s->io;
+
+    qemu_register_reset(nand_reset_handler, dev);
+}
+
+static void nand_unrealize(DeviceState *dev)
+{
+    qemu_unregister_reset(nand_reset_handler, dev);
 }
 
 static Property nand_properties[] = {
@@ -437,6 +450,7 @@ static void nand_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = nand_realize;
+    dc->unrealize = nand_unrealize;
     dc->reset = nand_reset;
     dc->vmsd = &vmstate_nand;
     device_class_set_props(dc, nand_properties);
