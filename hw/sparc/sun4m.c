@@ -1138,9 +1138,26 @@ enum {
     ss600mp_id,
 };
 
-static const struct sun4m_hwdef sun4m_hwdefs[] = {
-    /* SS-5 */
-    {
+static void sun4m_machine_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->init = sun4m_hw_init;
+    mc->block_default_type = IF_SCSI;
+    mc->default_boot_order = "c";
+    mc->default_display = "tcx";
+    mc->default_ram_id = "sun4m.ram";
+}
+
+static void ss5_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
+
+    mc->desc = "Sun4m platform, SPARCstation 5";
+    mc->is_default = true;
+    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Fujitsu-MB86904");
+    smc->hwdef = &(const struct sun4m_hwdef) {
         .iommu_base   = 0x10000000,
         .iommu_pad_base = 0x10004000,
         .iommu_pad_len  = 0x0fffb000,
@@ -1165,9 +1182,18 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .machine_id = ss5_id,
         .iommu_version = 0x05000000,
         .max_mem = 0x10000000,
-    },
-    /* SS-10 */
-    {
+    };
+}
+
+static void ss10_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
+
+    mc->desc = "Sun4m platform, SPARCstation 10";
+    mc->max_cpus = 4;
+    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-SuperSparc-II");
+    smc->hwdef = &(const struct sun4m_hwdef) {
         .iommu_base   = 0xfe0000000ULL,
         .tcx_base     = 0xe20000000ULL,
         .slavio_base  = 0xff0000000ULL,
@@ -1190,9 +1216,18 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .machine_id = ss10_id,
         .iommu_version = 0x03000000,
         .max_mem = 0xf00000000ULL,
-    },
-    /* SS-600MP */
-    {
+    };
+}
+
+static void ss600mp_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
+
+    mc->desc = "Sun4m platform, SPARCserver 600MP";
+    mc->max_cpus = 4;
+    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-SuperSparc-II");
+    smc->hwdef = &(const struct sun4m_hwdef) {
         .iommu_base   = 0xfe0000000ULL,
         .tcx_base     = 0xe20000000ULL,
         .slavio_base  = 0xff0000000ULL,
@@ -1213,9 +1248,18 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .machine_id = ss600mp_id,
         .iommu_version = 0x01000000,
         .max_mem = 0xf00000000ULL,
-    },
-    /* SS-20 */
-    {
+    };
+}
+
+static void ss20_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
+
+    mc->desc = "Sun4m platform, SPARCstation 20";
+    mc->max_cpus = 4;
+    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-SuperSparc-II");
+    smc->hwdef = &(const struct sun4m_hwdef) {
         .iommu_base   = 0xfe0000000ULL,
         .tcx_base     = 0xe20000000ULL,
         .slavio_base  = 0xff0000000ULL,
@@ -1254,9 +1298,17 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .machine_id = ss20_id,
         .iommu_version = 0x13000000,
         .max_mem = 0xf00000000ULL,
-    },
-    /* Voyager */
-    {
+    };
+}
+
+static void voyager_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
+
+    mc->desc = "Sun4m platform, SPARCstation Voyager";
+    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Fujitsu-MB86904");
+    smc->hwdef = &(const struct sun4m_hwdef) {
         .iommu_base   = 0x10000000,
         .tcx_base     = 0x50000000,
         .slavio_base  = 0x70000000,
@@ -1277,9 +1329,17 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .machine_id = vger_id,
         .iommu_version = 0x05000000,
         .max_mem = 0x10000000,
-    },
-    /* LX */
-    {
+    };
+}
+
+static void ss_lx_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
+
+    mc->desc = "Sun4m platform, SPARCstation LX";
+    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-MicroSparc-I");
+    smc->hwdef = &(const struct sun4m_hwdef) {
         .iommu_base   = 0x10000000,
         .iommu_pad_base = 0x10004000,
         .iommu_pad_len  = 0x0fffb000,
@@ -1301,9 +1361,17 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .machine_id = lx_id,
         .iommu_version = 0x04000000,
         .max_mem = 0x10000000,
-    },
-    /* SS-4 */
-    {
+    };
+}
+
+static void ss4_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
+
+    mc->desc = "Sun4m platform, SPARCstation 4";
+    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Fujitsu-MB86904");
+    smc->hwdef = &(const struct sun4m_hwdef) {
         .iommu_base   = 0x10000000,
         .tcx_base     = 0x50000000,
         .cs_base      = 0x6c000000,
@@ -1325,9 +1393,17 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .machine_id = ss4_id,
         .iommu_version = 0x05000000,
         .max_mem = 0x10000000,
-    },
-    /* SPARCClassic */
-    {
+    };
+}
+
+static void scls_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
+
+    mc->desc = "Sun4m platform, SPARCClassic";
+    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-MicroSparc-I");
+    smc->hwdef = &(const struct sun4m_hwdef) {
         .iommu_base   = 0x10000000,
         .tcx_base     = 0x50000000,
         .slavio_base  = 0x70000000,
@@ -1348,9 +1424,17 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .machine_id = scls_id,
         .iommu_version = 0x05000000,
         .max_mem = 0x10000000,
-    },
-    /* SPARCbook */
-    {
+    };
+}
+
+static void sbook_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
+
+    mc->desc = "Sun4m platform, SPARCbook";
+    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-MicroSparc-I");
+    smc->hwdef = &(const struct sun4m_hwdef) {
         .iommu_base   = 0x10000000,
         .tcx_base     = 0x50000000, /* XXX */
         .slavio_base  = 0x70000000,
@@ -1371,112 +1455,7 @@ static const struct sun4m_hwdef sun4m_hwdefs[] = {
         .machine_id = sbook_id,
         .iommu_version = 0x05000000,
         .max_mem = 0x10000000,
-    },
-};
-
-static void sun4m_machine_class_init(ObjectClass *oc, void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-
-    mc->init = sun4m_hw_init;
-    mc->block_default_type = IF_SCSI;
-    mc->default_boot_order = "c";
-    mc->default_display = "tcx";
-    mc->default_ram_id = "sun4m.ram";
-}
-
-static void ss5_class_init(ObjectClass *oc, void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
-
-    mc->desc = "Sun4m platform, SPARCstation 5";
-    mc->is_default = true;
-    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Fujitsu-MB86904");
-    smc->hwdef = &sun4m_hwdefs[0];
-}
-
-static void ss10_class_init(ObjectClass *oc, void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
-
-    mc->desc = "Sun4m platform, SPARCstation 10";
-    mc->max_cpus = 4;
-    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-SuperSparc-II");
-    smc->hwdef = &sun4m_hwdefs[1];
-}
-
-static void ss600mp_class_init(ObjectClass *oc, void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
-
-    mc->desc = "Sun4m platform, SPARCserver 600MP";
-    mc->max_cpus = 4;
-    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-SuperSparc-II");
-    smc->hwdef = &sun4m_hwdefs[2];
-}
-
-static void ss20_class_init(ObjectClass *oc, void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
-
-    mc->desc = "Sun4m platform, SPARCstation 20";
-    mc->max_cpus = 4;
-    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-SuperSparc-II");
-    smc->hwdef = &sun4m_hwdefs[3];
-}
-
-static void voyager_class_init(ObjectClass *oc, void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
-
-    mc->desc = "Sun4m platform, SPARCstation Voyager";
-    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Fujitsu-MB86904");
-    smc->hwdef = &sun4m_hwdefs[4];
-}
-
-static void ss_lx_class_init(ObjectClass *oc, void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
-
-    mc->desc = "Sun4m platform, SPARCstation LX";
-    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-MicroSparc-I");
-    smc->hwdef = &sun4m_hwdefs[5];
-}
-
-static void ss4_class_init(ObjectClass *oc, void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
-
-    mc->desc = "Sun4m platform, SPARCstation 4";
-    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Fujitsu-MB86904");
-    smc->hwdef = &sun4m_hwdefs[6];
-}
-
-static void scls_class_init(ObjectClass *oc, void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
-
-    mc->desc = "Sun4m platform, SPARCClassic";
-    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-MicroSparc-I");
-    smc->hwdef = &sun4m_hwdefs[7];
-}
-
-static void sbook_class_init(ObjectClass *oc, void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
-
-    mc->desc = "Sun4m platform, SPARCbook";
-    mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-MicroSparc-I");
-    smc->hwdef = &sun4m_hwdefs[8];
+    };
 }
 
 static const TypeInfo sun4m_machine_types[] = {
