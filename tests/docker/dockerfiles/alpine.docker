@@ -20,6 +20,7 @@ ENV PACKAGES \
 	gtk+3.0-dev \
 	libaio-dev \
 	libcap-ng-dev \
+	libffi-dev \
 	libjpeg-turbo-dev \
 	libnfs-dev \
 	libpng-dev \
