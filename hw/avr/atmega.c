@@ -28,6 +28,7 @@ enum AtmegaPeripheral {
     GPIOG, GPIOH, GPIOI, GPIOJ, GPIOK, GPIOL,
     USART0, USART1, USART2, USART3,
     TIMER0, TIMER1, TIMER2, TIMER3, TIMER4, TIMER5,
+    WDT,
     PERIFMAX
 };
 
@@ -75,6 +76,7 @@ static const peripheral_cfg dev168_328[PERIFMAX] = {
     [GPIOD]         = {  0x29 },
     [GPIOC]         = {  0x26 },
     [GPIOB]         = {  0x23 },
+    [WDT]           = {  0x60 },
 }, dev1280_2560[PERIFMAX] = {
     [USART3]        = { 0x130, POWER1, 2 },
     [TIMER5]        = { 0x120, POWER1, 5, 0x73, 0x3a, true },
@@ -99,6 +101,7 @@ static const peripheral_cfg dev168_328[PERIFMAX] = {
     [GPIOC]         = {  0x26 },
     [GPIOB]         = {  0x23 },
     [GPIOA]         = {  0x20 },
+    [WDT]           = {  0x60 },
 };
 
 enum AtmegaIrq {
@@ -118,6 +121,7 @@ enum AtmegaIrq {
         TIMER4_COMPC_IRQ, TIMER4_OVF_IRQ,
     TIMER5_CAPT_IRQ, TIMER5_COMPA_IRQ, TIMER5_COMPB_IRQ,
         TIMER5_COMPC_IRQ, TIMER5_OVF_IRQ,
+    WATCHDOG_TIMER_IRQ,
     IRQ_COUNT
 };
 
@@ -133,6 +137,7 @@ enum AtmegaIrq {
 #define TIMER_OVF_IRQ(n)    (n * TIMER_IRQ_COUNT + TIMER0_OVF_IRQ)
 
 static const uint8_t irq168_328[IRQ_COUNT] = {
+    [WATCHDOG_TIMER_IRQ]    = 7,
     [TIMER2_COMPA_IRQ]      = 8,
     [TIMER2_COMPB_IRQ]      = 9,
     [TIMER2_OVF_IRQ]        = 10,
@@ -147,6 +152,7 @@ static const uint8_t irq168_328[IRQ_COUNT] = {
     [USART0_DRE_IRQ]        = 20,
     [USART0_TXC_IRQ]        = 21,
 }, irq1280_2560[IRQ_COUNT] = {
+    [WATCHDOG_TIMER_IRQ]    = 13,
     [TIMER2_COMPA_IRQ]      = 14,
     [TIMER2_COMPB_IRQ]      = 15,
     [TIMER2_OVF_IRQ]        = 16,
@@ -344,10 +350,17 @@ static void atmega_realize(DeviceState *dev, Error **errp)
         g_free(devname);
     }
 
+    /* Watchdog Timer */
+    object_initialize_child(OBJECT(dev), "wdt", &s->wdt, TYPE_AVR_WDT);
+    sysbus_realize(SYS_BUS_DEVICE(&s->wdt), &error_abort);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->wdt), 0,
+                    OFFSET_DATA + mc->dev[WDT].addr);
+    qdev_connect_gpio_out_named(cpudev, "wdr", 0,
+                    qdev_get_gpio_in_named(DEVICE(&s->wdt), "wdr", 0));
+
     create_unimplemented_device("avr-twi",          OFFSET_DATA + 0x0b8, 6);
     create_unimplemented_device("avr-adc",          OFFSET_DATA + 0x078, 8);
     create_unimplemented_device("avr-ext-mem-ctrl", OFFSET_DATA + 0x074, 2);
-    create_unimplemented_device("avr-watchdog",     OFFSET_DATA + 0x060, 1);
     create_unimplemented_device("avr-spi",          OFFSET_DATA + 0x04c, 3);
     create_unimplemented_device("avr-eeprom",       OFFSET_DATA + 0x03f, 3);
 }
