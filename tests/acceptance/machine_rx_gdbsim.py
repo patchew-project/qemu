@@ -12,12 +12,12 @@ import os
 
 from avocado import skipIf
 from avocado_qemu import Test
-from avocado_qemu import exec_command_and_wait_for_pattern
+from avocado_qemu import ConsoleMixIn
 from avocado_qemu import wait_for_console_pattern
 from avocado.utils import archive
 
 
-class RxGdbSimMachine(Test):
+class RxGdbSimMachine(Test, ConsoleMixIn):
 
     timeout = 30
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
@@ -44,7 +44,7 @@ class RxGdbSimMachine(Test):
         wait_for_console_pattern(self, uboot_version)
         gcc_version = 'rx-unknown-linux-gcc (GCC) 9.0.0 20181105 (experimental)'
         # FIXME limit baudrate on chardev, else we type too fast
-        #exec_command_and_wait_for_pattern(self, 'version', gcc_version)
+        #self.exec_command_and_wait_for_pattern('version', gcc_version)
 
     @skipIf(os.getenv('GITLAB_CI'), 'Running on GitLab')
     def test_linux_sash(self):
@@ -70,4 +70,4 @@ class RxGdbSimMachine(Test):
         self.vm.launch()
         wait_for_console_pattern(self, 'Sash command shell (version 1.1.1)',
                                  failure_message='Kernel panic - not syncing')
-        exec_command_and_wait_for_pattern(self, 'printenv', 'TERM=linux')
+        self.exec_command_and_wait_for_pattern('printenv', 'TERM=linux')

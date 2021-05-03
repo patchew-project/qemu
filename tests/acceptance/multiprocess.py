@@ -10,7 +10,6 @@ import socket
 from avocado_qemu import Test
 from avocado_qemu import wait_for_console_pattern
 from avocado_qemu import ConsoleMixIn
-from avocado_qemu import exec_command_and_wait_for_pattern
 
 class Multiprocess(Test, ConsoleMixIn):
     """
@@ -60,7 +59,7 @@ class Multiprocess(Test, ConsoleMixIn):
         wait_for_console_pattern(self, 'as init process',
                                  'Kernel panic - not syncing')
         self.exec_command('mount -t sysfs sysfs /sys')
-        exec_command_and_wait_for_pattern(self,
+        self.exec_command_and_wait_for_pattern(
                                           'cat /sys/bus/pci/devices/*/uevent',
                                           'PCI_ID=1000:0012')
 

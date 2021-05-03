@@ -7,7 +7,7 @@
 from avocado_qemu import Test
 from avocado_qemu import BUILD_DIR
 from avocado_qemu import wait_for_console_pattern
-from avocado_qemu import exec_command_and_wait_for_pattern
+from avocado_qemu import ConsoleMixIn
 from avocado_qemu import is_readable_executable_file
 
 from qemu.accel import kvm_available
@@ -31,7 +31,7 @@ def pick_default_vug_bin():
         return bld_dir_path
 
 
-class VirtioGPUx86(Test):
+class VirtioGPUx86(Test, ConsoleMixIn):
     """
     :avocado: tags=virtio-gpu
     """
@@ -92,9 +92,7 @@ class VirtioGPUx86(Test):
             self.cancel("VirGL not enabled?")
 
         self.wait_for_console_pattern("as init process")
-        exec_command_and_wait_for_pattern(
-            self, "/usr/sbin/modprobe virtio_gpu", ""
-        )
+        self.exec_command_and_wait_for_pattern("/usr/sbin/modprobe virtio_gpu", "")
         self.wait_for_console_pattern("features: +virgl +edid")
 
     def test_vhost_user_vga_virgl(self):
@@ -157,9 +155,7 @@ class VirtioGPUx86(Test):
         )
         self.vm.launch()
         self.wait_for_console_pattern("as init process")
-        exec_command_and_wait_for_pattern(
-            self, "/usr/sbin/modprobe virtio_gpu", ""
-        )
+        self.exec_command_and_wait_for_pattern("/usr/sbin/modprobe virtio_gpu", "")
         self.wait_for_console_pattern("features: +virgl -edid")
         self.vm.shutdown()
         qemu_sock.close()

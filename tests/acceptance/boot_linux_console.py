@@ -16,7 +16,6 @@ import shutil
 from avocado import skip
 from avocado import skipUnless
 from avocado_qemu import Test
-from avocado_qemu import exec_command_and_wait_for_pattern
 from avocado_qemu import ConsoleMixIn
 from avocado_qemu import wait_for_console_pattern
 from avocado.utils import process
@@ -223,12 +222,12 @@ class BootLinuxConsole(LinuxKernelTest):
         self.vm.launch()
         self.wait_for_console_pattern('Boot successful.')
 
-        exec_command_and_wait_for_pattern(self, 'cat /proc/cpuinfo',
-                                                'BogoMIPS')
-        exec_command_and_wait_for_pattern(self, 'uname -a',
-                                                'Debian')
-        exec_command_and_wait_for_pattern(self, 'reboot',
-                                                'reboot: Restarting system')
+        self.exec_command_and_wait_for_pattern('cat /proc/cpuinfo',
+                                               'BogoMIPS')
+        self.exec_command_and_wait_for_pattern('uname -a',
+                                               'Debian')
+        self.exec_command_and_wait_for_pattern('reboot',
+                                               'reboot: Restarting system')
         # Wait for VM to shut down gracefully
         self.vm.wait()
 
@@ -265,12 +264,12 @@ class BootLinuxConsole(LinuxKernelTest):
         self.vm.launch()
         wait_for_console_pattern(self, 'Boot successful.')
 
-        exec_command_and_wait_for_pattern(self, 'cat /proc/cpuinfo',
-                                                'MIPS 5KE')
-        exec_command_and_wait_for_pattern(self, 'uname -a',
-                                                '3.19.3.mtoman.20150408')
-        exec_command_and_wait_for_pattern(self, 'reboot',
-                                                'reboot: Restarting system')
+        self.exec_command_and_wait_for_pattern('cat /proc/cpuinfo',
+                                               'MIPS 5KE')
+        self.exec_command_and_wait_for_pattern('uname -a',
+                                               '3.19.3.mtoman.20150408')
+        self.exec_command_and_wait_for_pattern('reboot',
+                                               'reboot: Restarting system')
         # Wait for VM to shut down gracefully
         self.vm.wait()
 
@@ -422,9 +421,9 @@ class BootLinuxConsole(LinuxKernelTest):
         self.vm.launch()
         self.wait_for_console_pattern('Enter \'help\' for a list')
 
-        exec_command_and_wait_for_pattern(self, 'ifconfig eth0 10.0.2.15',
-                                                 'eth0: link becomes ready')
-        exec_command_and_wait_for_pattern(self, 'ping -c 3 10.0.2.2',
+        self.exec_command_and_wait_for_pattern('ifconfig eth0 10.0.2.15',
+                                               'eth0: link becomes ready')
+        self.exec_command_and_wait_for_pattern('ping -c 3 10.0.2.2',
             '3 packets transmitted, 3 packets received, 0% packet loss')
 
     def do_test_arm_raspi2(self, uart_id):
@@ -541,10 +540,10 @@ class BootLinuxConsole(LinuxKernelTest):
         self.vm.launch()
         self.wait_for_console_pattern('Boot successful.')
 
-        exec_command_and_wait_for_pattern(self, 'cat /proc/cpuinfo',
-                                                'Allwinner sun4i/sun5i')
-        exec_command_and_wait_for_pattern(self, 'cat /proc/iomem',
-                                                'system-control@1c00000')
+        self.exec_command_and_wait_for_pattern('cat /proc/cpuinfo',
+                                               'Allwinner sun4i/sun5i')
+        self.exec_command_and_wait_for_pattern('cat /proc/iomem',
+                                               'system-control@1c00000')
         # cubieboard's reboot is not functioning; omit reboot test.
 
     def test_arm_cubieboard_sata(self):
@@ -584,10 +583,10 @@ class BootLinuxConsole(LinuxKernelTest):
         self.vm.launch()
         self.wait_for_console_pattern('Boot successful.')
 
-        exec_command_and_wait_for_pattern(self, 'cat /proc/cpuinfo',
-                                                'Allwinner sun4i/sun5i')
-        exec_command_and_wait_for_pattern(self, 'cat /proc/partitions',
-                                                'sda')
+        self.exec_command_and_wait_for_pattern('cat /proc/cpuinfo',
+                                               'Allwinner sun4i/sun5i')
+        self.exec_command_and_wait_for_pattern('cat /proc/partitions',
+                                               'sda')
         # cubieboard's reboot is not functioning; omit reboot test.
 
     @skipUnless(os.getenv('AVOCADO_TIMEOUT_EXPECTED'), 'Test might timeout')
@@ -628,11 +627,11 @@ class BootLinuxConsole(LinuxKernelTest):
         self.wait_for_console_pattern('U-Boot ')
         self.interrupt_interactive_console_until_pattern(
                 'Hit any key to stop autoboot:', 'U-Boot>')
-        exec_command_and_wait_for_pattern(
-                self, "setenv bootargs ${bootargs} " + kernel_command_line,
+        self.exec_command_and_wait_for_pattern(
+                "setenv bootargs ${bootargs} " + kernel_command_line,
                 'U-Boot>')
-        exec_command_and_wait_for_pattern(
-                self, 'run romboot', 'Booting Kernel from flash')
+        self.exec_command_and_wait_for_pattern(
+                'run romboot', 'Booting Kernel from flash')
         self.wait_for_console_pattern('Booting Linux on physical CPU 0x0')
         self.wait_for_console_pattern('CPU1: thread -1, cpu 1, socket 0')
         self.wait_for_console_pattern('OpenBMC Project Reference Distro')
@@ -732,12 +731,12 @@ class BootLinuxConsole(LinuxKernelTest):
         self.vm.launch()
         self.wait_for_console_pattern('Boot successful.')
 
-        exec_command_and_wait_for_pattern(self, 'cat /proc/cpuinfo',
-                                                'Allwinner sun8i Family')
-        exec_command_and_wait_for_pattern(self, 'cat /proc/iomem',
-                                                'system-control@1c00000')
-        exec_command_and_wait_for_pattern(self, 'reboot',
-                                                'reboot: Restarting system')
+        self.exec_command_and_wait_for_pattern('cat /proc/cpuinfo',
+                                               'Allwinner sun8i Family')
+        self.exec_command_and_wait_for_pattern('cat /proc/iomem',
+                                               'system-control@1c00000')
+        self.exec_command_and_wait_for_pattern('reboot',
+                                               'reboot: Restarting system')
         # Wait for VM to shut down gracefully
         self.vm.wait()
 
@@ -777,18 +776,18 @@ class BootLinuxConsole(LinuxKernelTest):
         shell_ready = "/bin/sh: can't access tty; job control turned off"
         self.wait_for_console_pattern(shell_ready)
 
-        exec_command_and_wait_for_pattern(self, 'cat /proc/cpuinfo',
-                                                'Allwinner sun8i Family')
-        exec_command_and_wait_for_pattern(self, 'cat /proc/partitions',
-                                                'mmcblk0')
-        exec_command_and_wait_for_pattern(self, 'ifconfig eth0 up',
-                                                 'eth0: Link is Up')
-        exec_command_and_wait_for_pattern(self, 'udhcpc eth0',
+        self.exec_command_and_wait_for_pattern('cat /proc/cpuinfo',
+                                               'Allwinner sun8i Family')
+        self.exec_command_and_wait_for_pattern('cat /proc/partitions',
+                                               'mmcblk0')
+        self.exec_command_and_wait_for_pattern('ifconfig eth0 up',
+                                               'eth0: Link is Up')
+        self.exec_command_and_wait_for_pattern('udhcpc eth0',
             'udhcpc: lease of 10.0.2.15 obtained')
-        exec_command_and_wait_for_pattern(self, 'ping -c 3 10.0.2.2',
+        self.exec_command_and_wait_for_pattern('ping -c 3 10.0.2.2',
             '3 packets transmitted, 3 packets received, 0% packet loss')
-        exec_command_and_wait_for_pattern(self, 'reboot',
-                                                'reboot: Restarting system')
+        self.exec_command_and_wait_for_pattern('reboot',
+                                               'reboot: Restarting system')
         # Wait for VM to shut down gracefully
         self.vm.wait()
 
@@ -829,10 +828,10 @@ class BootLinuxConsole(LinuxKernelTest):
 
         self.wait_for_console_pattern('U-Boot SPL')
         self.wait_for_console_pattern('Autoboot in ')
-        exec_command_and_wait_for_pattern(self, ' ', '=>')
-        exec_command_and_wait_for_pattern(self, "setenv extraargs '" +
-                                                kernel_command_line + "'", '=>')
-        exec_command_and_wait_for_pattern(self, 'boot', 'Starting kernel ...');
+        self.exec_command_and_wait_for_pattern(' ', '=>')
+        self.exec_command_and_wait_for_pattern("setenv extraargs '" +
+                                               kernel_command_line + "'", '=>')
+        self.exec_command_and_wait_for_pattern('boot', 'Starting kernel ...');
 
         self.wait_for_console_pattern('systemd[1]: Set hostname ' +
                                       'to <orangepipc>')
@@ -883,20 +882,20 @@ class BootLinuxConsole(LinuxKernelTest):
                                        'Hit any key to stop autoboot:',
                                        'switch to partitions #0, OK')
 
-        exec_command_and_wait_for_pattern(self, '', '=>')
+        self.exec_command_and_wait_for_pattern('', '=>')
         cmd = 'setenv bootargs root=ld0a'
-        exec_command_and_wait_for_pattern(self, cmd, '=>')
+        self.exec_command_and_wait_for_pattern(cmd, '=>')
         cmd = 'setenv kernel netbsd-GENERIC.ub'
-        exec_command_and_wait_for_pattern(self, cmd, '=>')
+        self.exec_command_and_wait_for_pattern(cmd, '=>')
         cmd = 'setenv fdtfile dtb/sun8i-h3-orangepi-pc.dtb'
-        exec_command_and_wait_for_pattern(self, cmd, '=>')
+        self.exec_command_and_wait_for_pattern(cmd, '=>')
         cmd = ("setenv bootcmd 'fatload mmc 0:1 ${kernel_addr_r} ${kernel}; "
                "fatload mmc 0:1 ${fdt_addr_r} ${fdtfile}; "
                "fdt addr ${fdt_addr_r}; "
                "bootm ${kernel_addr_r} - ${fdt_addr_r}'")
-        exec_command_and_wait_for_pattern(self, cmd, '=>')
+        self.exec_command_and_wait_for_pattern(cmd, '=>')
 
-        exec_command_and_wait_for_pattern(self, 'boot',
+        self.exec_command_and_wait_for_pattern('boot',
                                           'Booting kernel from Legacy Image')
         wait_for_console_pattern(self, 'Starting kernel ...')
         wait_for_console_pattern(self, 'NetBSD 9.0 (GENERIC)')

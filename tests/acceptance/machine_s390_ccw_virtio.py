@@ -14,11 +14,11 @@ import tempfile
 
 from avocado import skipIf
 from avocado_qemu import Test
-from avocado_qemu import exec_command_and_wait_for_pattern
+from avocado_qemu import ConsoleMixIn
 from avocado_qemu import wait_for_console_pattern
 from avocado.utils import archive
 
-class S390CCWVirtioMachine(Test):
+class S390CCWVirtioMachine(Test, ConsoleMixIn):
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
 
     timeout = 120
@@ -29,13 +29,13 @@ class S390CCWVirtioMachine(Test):
                                  vm=vm)
 
     def wait_for_crw_reports(self):
-        exec_command_and_wait_for_pattern(self,
+        self.exec_command_and_wait_for_pattern(
                         'while ! (dmesg -c | grep CRW) ; do sleep 1 ; done',
                         'CRW reports')
 
     dmesg_clear_count = 1
     def clear_guest_dmesg(self):
-        exec_command_and_wait_for_pattern(self, 'dmesg -c > /dev/null; '
+        self.exec_command_and_wait_for_pattern('dmesg -c > /dev/null; '
                     'echo dm_clear\ ' + str(self.dmesg_clear_count),
                     'dm_clear ' + str(self.dmesg_clear_count))
         self.dmesg_clear_count += 1
@@ -81,13 +81,13 @@ class S390CCWVirtioMachine(Test):
         shell_ready = "sh: can't access tty; job control turned off"
         self.wait_for_console_pattern(shell_ready)
         # first debug shell is too early, we need to wait for device detection
-        exec_command_and_wait_for_pattern(self, 'exit', shell_ready)
+        self.exec_command_and_wait_for_pattern('exit', shell_ready)
 
         ccw_bus_ids="0.1.1111  0.2.0000  0.3.1234"
         pci_bus_ids="0005:00:00.0  000a:00:00.0"
-        exec_command_and_wait_for_pattern(self, 'ls /sys/bus/ccw/devices/',
+        self.exec_command_and_wait_for_pattern('ls /sys/bus/ccw/devices/',
                                           ccw_bus_ids)
-        exec_command_and_wait_for_pattern(self, 'ls /sys/bus/pci/devices/',
+        self.exec_command_and_wait_for_pattern('ls /sys/bus/pci/devices/',
                                           pci_bus_ids)
         # check that the device at 0.2.0000 is in legacy mode, while the
         # device at 0.3.1234 has the virtio-1 feature bit set
@@ -95,14 +95,14 @@ class S390CCWVirtioMachine(Test):
                             "10000000000000000000000000000000"
         virtio_rng_features_legacy="00000000000000000000000000001100" + \
                                    "00000000000000000000000000000000"
-        exec_command_and_wait_for_pattern(self,
+        self.exec_command_and_wait_for_pattern(
                         'cat /sys/bus/ccw/devices/0.2.0000/virtio?/features',
                         virtio_rng_features_legacy)
-        exec_command_and_wait_for_pattern(self,
+        self.exec_command_and_wait_for_pattern(
                         'cat /sys/bus/ccw/devices/0.3.1234/virtio?/features',
                         virtio_rng_features)
         # check that /dev/hwrng works - and that it's gone after ejecting
-        exec_command_and_wait_for_pattern(self,
+        self.exec_command_and_wait_for_pattern(
                         'dd if=/dev/hwrng of=/dev/null bs=1k count=10',
                         '10+0 records out')
         self.clear_guest_dmesg()
@@ -111,22 +111,22 @@ class S390CCWVirtioMachine(Test):
         self.clear_guest_dmesg()
         self.vm.command('device_del', id='rn2')
         self.wait_for_crw_reports()
-        exec_command_and_wait_for_pattern(self,
+        self.exec_command_and_wait_for_pattern(
                         'dd if=/dev/hwrng of=/dev/null bs=1k count=10',
                         'dd: /dev/hwrng: No such device')
         # verify that we indeed have virtio-net devices (without having the
         # virtio-net driver handy)
-        exec_command_and_wait_for_pattern(self,
+        self.exec_command_and_wait_for_pattern(
                                     'cat /sys/bus/ccw/devices/0.1.1111/cutype',
                                     '3832/01')
-        exec_command_and_wait_for_pattern(self,
+        self.exec_command_and_wait_for_pattern(
                     'cat /sys/bus/pci/devices/0005\:00\:00.0/subsystem_vendor',
                     '0x1af4')
-        exec_command_and_wait_for_pattern(self,
+        self.exec_command_and_wait_for_pattern(
                     'cat /sys/bus/pci/devices/0005\:00\:00.0/subsystem_device',
                     '0x0001')
         # check fid propagation
-        exec_command_and_wait_for_pattern(self,
+        self.exec_command_and_wait_for_pattern(
                         'cat /sys/bus/pci/devices/000a\:00\:00.0/function_id',
                         '0x0000000c')
         # add another device
@@ -134,7 +134,7 @@ class S390CCWVirtioMachine(Test):
         self.vm.command('device_add', driver='virtio-net-ccw',
                         devno='fe.0.4711', id='net_4711')
         self.wait_for_crw_reports()
-        exec_command_and_wait_for_pattern(self, 'for i in 1 2 3 4 5 6 7 ; do '
+        self.exec_command_and_wait_for_pattern('for i in 1 2 3 4 5 6 7 ; do '
                     'if [ -e /sys/bus/ccw/devices/*4711 ]; then break; fi ;'
                     'sleep 1 ; done ; ls /sys/bus/ccw/devices/',
                     '0.0.4711')
@@ -144,17 +144,17 @@ class S390CCWVirtioMachine(Test):
         self.vm.event_wait(name='DEVICE_DELETED',
                            match={'data': {'device': 'net_4711'}})
         self.wait_for_crw_reports()
-        exec_command_and_wait_for_pattern(self,
+        self.exec_command_and_wait_for_pattern(
                                           'ls /sys/bus/ccw/devices/0.0.4711',
                                           'No such file or directory')
         # test the virtio-balloon device
-        exec_command_and_wait_for_pattern(self, 'head -n 1 /proc/meminfo',
+        self.exec_command_and_wait_for_pattern('head -n 1 /proc/meminfo',
                                           'MemTotal:         115640 kB')
         self.vm.command('human-monitor-command', command_line='balloon 96')
-        exec_command_and_wait_for_pattern(self, 'head -n 1 /proc/meminfo',
+        self.exec_command_and_wait_for_pattern('head -n 1 /proc/meminfo',
                                           'MemTotal:          82872 kB')
         self.vm.command('human-monitor-command', command_line='balloon 128')
-        exec_command_and_wait_for_pattern(self, 'head -n 1 /proc/meminfo',
+        self.exec_command_and_wait_for_pattern('head -n 1 /proc/meminfo',
                                           'MemTotal:         115640 kB')
 
 
@@ -203,23 +203,23 @@ class S390CCWVirtioMachine(Test):
 
         # Some tests to see whether the CLI options have been considered:
         self.log.info("Test whether QEMU CLI options have been considered")
-        exec_command_and_wait_for_pattern(self,
+        self.exec_command_and_wait_for_pattern(
                         'while ! (dmesg | grep enP7p0s0) ; do sleep 1 ; done',
                         'virtio_net virtio0 enP7p0s0: renamed')
-        exec_command_and_wait_for_pattern(self, 'lspci',
+        self.exec_command_and_wait_for_pattern('lspci',
                              '0007:00:00.0 Class 0200: Device 1af4:1000')
-        exec_command_and_wait_for_pattern(self,
+        self.exec_command_and_wait_for_pattern(
                              'cat /sys/class/net/enP7p0s0/address',
                              '02:ca:fe:fa:ce:12')
-        exec_command_and_wait_for_pattern(self, 'lscss', '0.1.9876')
-        exec_command_and_wait_for_pattern(self, 'lscss', '0.2.5432')
-        exec_command_and_wait_for_pattern(self, 'cat /proc/cpuinfo',
+        self.exec_command_and_wait_for_pattern('lscss', '0.1.9876')
+        self.exec_command_and_wait_for_pattern('lscss', '0.2.5432')
+        self.exec_command_and_wait_for_pattern('cat /proc/cpuinfo',
                              'processors    : 4')
-        exec_command_and_wait_for_pattern(self, 'grep MemTotal /proc/meminfo',
+        self.exec_command_and_wait_for_pattern('grep MemTotal /proc/meminfo',
                              'MemTotal:         499848 kB')
-        exec_command_and_wait_for_pattern(self, 'grep Name /proc/sysinfo',
+        self.exec_command_and_wait_for_pattern('grep Name /proc/sysinfo',
                              'Extended Name:   Some Guest Name')
-        exec_command_and_wait_for_pattern(self, 'grep UUID /proc/sysinfo',
+        self.exec_command_and_wait_for_pattern('grep UUID /proc/sysinfo',
                              '30de4fd9-b4d5-409e-86a5-09b387f70bfa')
 
         # Disable blinking cursor, then write some stuff into the framebuffer.
@@ -229,16 +229,16 @@ class S390CCWVirtioMachine(Test):
         # can simply read the written "magic bytes" back from the PPM file to
         # check whether the framebuffer is working as expected.
         self.log.info("Test screendump of virtio-gpu device")
-        exec_command_and_wait_for_pattern(self,
+        self.exec_command_and_wait_for_pattern(
                         'while ! (dmesg | grep gpudrmfb) ; do sleep 1 ; done',
                         'virtio_gpudrmfb frame buffer device')
-        exec_command_and_wait_for_pattern(self,
+        self.exec_command_and_wait_for_pattern(
             'echo -e "\e[?25l" > /dev/tty0', ':/#')
-        exec_command_and_wait_for_pattern(self, 'for ((i=0;i<250;i++)); do '
+        self.exec_command_and_wait_for_pattern('for ((i=0;i<250;i++)); do '
             'echo " The  qu ick  fo x j ump s o ver  a  laz y d og" >> fox.txt;'
             'done',
             ':/#')
-        exec_command_and_wait_for_pattern(self,
+        self.exec_command_and_wait_for_pattern(
             'dd if=fox.txt of=/dev/fb0 bs=1000 oflag=sync,nocache ; rm fox.txt',
             '12+0 records out')
         with tempfile.NamedTemporaryFile(suffix='.ppm',
@@ -261,12 +261,12 @@ class S390CCWVirtioMachine(Test):
                         id='cbe0')
         self.vm.command('device_add', driver='virtio-crypto-ccw', id='crypdev0',
                         cryptodev='cbe0', devno='fe.0.2342')
-        exec_command_and_wait_for_pattern(self,
+        self.exec_command_and_wait_for_pattern(
                         'while ! (dmesg -c | grep Accelerator.device) ; do'
                         ' sleep 1 ; done', 'Accelerator device is ready')
-        exec_command_and_wait_for_pattern(self, 'lscss', '0.0.2342')
+        self.exec_command_and_wait_for_pattern('lscss', '0.0.2342')
         self.vm.command('device_del', id='crypdev0')
         self.vm.command('object-del', id='cbe0')
-        exec_command_and_wait_for_pattern(self,
+        self.exec_command_and_wait_for_pattern(
                         'while ! (dmesg -c | grep Start.virtcrypto_remove) ; do'
                         ' sleep 1 ; done', 'Start virtcrypto_remove.')
