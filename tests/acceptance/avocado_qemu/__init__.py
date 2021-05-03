@@ -76,33 +76,32 @@ def pick_default_qemu_bin(arch=None):
     if is_readable_executable_file(qemu_bin_from_bld_dir_path):
         return qemu_bin_from_bld_dir_path
 
-
-def _console_interaction(test, success_message, failure_message,
-                         send_string, keep_sending=False, vm=None):
-    assert not keep_sending or send_string
-    if vm is None:
-        vm = test.vm
-    console = vm.console_socket.makefile()
-    console_logger = logging.getLogger('console')
-    while True:
-        if send_string:
-            vm.console_socket.sendall(send_string.encode())
-            if not keep_sending:
-                send_string = None # send only once
-        msg = console.readline().strip()
-        if not msg:
-            continue
-        console_logger.debug(msg)
-        if success_message is None or success_message in msg:
-            break
-        if failure_message and failure_message in msg:
-            console.close()
-            fail = 'Failure message found in console: "%s". Expected: "%s"' % \
-                    (failure_message, success_message)
-            test.fail(fail)
-
 class ConsoleMixIn():
     """Contains utilities for interacting with a guest via Console."""
+
+    def _console_interaction(self, success_message, failure_message,
+                             send_string, keep_sending=False, vm=None):
+        assert not keep_sending or send_string
+        if vm is None:
+            vm = self.vm
+        console = vm.console_socket.makefile()
+        console_logger = logging.getLogger('console')
+        while True:
+            if send_string:
+                vm.console_socket.sendall(send_string.encode())
+                if not keep_sending:
+                    send_string = None # send only once
+            msg = console.readline().strip()
+            if not msg:
+                continue
+            console_logger.debug(msg)
+            if success_message is None or success_message in msg:
+                break
+            if failure_message and failure_message in msg:
+                console.close()
+                fail = 'Failure message found in console: "%s". Expected: "%s"' % \
+                        (failure_message, success_message)
+                self.fail(fail)
 
     def exec_command(self, command):
         """
@@ -112,7 +111,7 @@ class ConsoleMixIn():
         :param command: the command to send
         :type command: str
         """
-        _console_interaction(self, None, None, command + '\r')
+        self._console_interaction(None, None, command + '\r')
 
     def exec_command_and_wait_for_pattern(self, command,
                                           success_message, failure_message=None):
@@ -125,7 +124,7 @@ class ConsoleMixIn():
         :param success_message: if this message appears, test succeeds
         :param failure_message: if this message appears, test fails
         """
-        _console_interaction(self, success_message, failure_message, command + '\r')
+        self._console_interaction(success_message, failure_message, command + '\r')
 
     def interrupt_interactive_console_until_pattern(self, success_message,
                                                     failure_message=None,
@@ -147,7 +146,7 @@ class ConsoleMixIn():
         :param interrupt_string: a string to send to the console before trying
                                 to read a new line
         """
-        _console_interaction(self, success_message, failure_message,
+        self._console_interaction(success_message, failure_message,
                          interrupt_string, True)
 
     def wait_for_console_pattern(self, success_message, failure_message=None,
@@ -158,7 +157,7 @@ class ConsoleMixIn():
         :param success_message: if this message appears, test succeeds
         :param failure_message: if this message appears, test fails
         """
-        _console_interaction(self, success_message, failure_message, None, vm=vm)
+        self._console_interaction(success_message, failure_message, None, vm=vm)
 
 class Test(avocado.Test):
     def _get_unique_tag_val(self, tag_name):
