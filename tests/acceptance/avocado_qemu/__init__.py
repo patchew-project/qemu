@@ -101,32 +101,6 @@ def _console_interaction(test, success_message, failure_message,
                     (failure_message, success_message)
             test.fail(fail)
 
-def interrupt_interactive_console_until_pattern(test, success_message,
-                                                failure_message=None,
-                                                interrupt_string='\r'):
-    """
-    Keep sending a string to interrupt a console prompt, while logging the
-    console output. Typical use case is to break a boot loader prompt, such:
-
-        Press a key within 5 seconds to interrupt boot process.
-        5
-        4
-        3
-        2
-        1
-        Booting default image...
-
-    :param test: an Avocado test containing a VM that will have its console
-                 read and probed for a success or failure message
-    :type test: :class:`avocado_qemu.Test`
-    :param success_message: if this message appears, test succeeds
-    :param failure_message: if this message appears, test fails
-    :param interrupt_string: a string to send to the console before trying
-                             to read a new line
-    """
-    _console_interaction(test, success_message, failure_message,
-                         interrupt_string, True)
-
 def wait_for_console_pattern(test, success_message, failure_message=None,
                              vm=None):
     """
@@ -167,6 +141,32 @@ def exec_command_and_wait_for_pattern(test, command,
     :param failure_message: if this message appears, test fails
     """
     _console_interaction(test, success_message, failure_message, command + '\r')
+
+class ConsoleMixIn():
+    """Contains utilities for interacting with a guest via Console."""
+
+    def interrupt_interactive_console_until_pattern(self, success_message,
+                                                    failure_message=None,
+                                                    interrupt_string='\r'):
+        """
+        Keep sending a string to interrupt a console prompt, while logging the
+        console output. Typical use case is to break a boot loader prompt, such:
+
+            Press a key within 5 seconds to interrupt boot process.
+            5
+            4
+            3
+            2
+            1
+            Booting default image...
+
+        :param success_message: if this message appears, test succeeds
+        :param failure_message: if this message appears, test fails
+        :param interrupt_string: a string to send to the console before trying
+                                to read a new line
+        """
+        _console_interaction(self, success_message, failure_message,
+                         interrupt_string, True)
 
 class Test(avocado.Test):
     def _get_unique_tag_val(self, tag_name):

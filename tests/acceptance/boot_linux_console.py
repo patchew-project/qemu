@@ -17,7 +17,7 @@ from avocado import skip
 from avocado import skipUnless
 from avocado_qemu import Test
 from avocado_qemu import exec_command_and_wait_for_pattern
-from avocado_qemu import interrupt_interactive_console_until_pattern
+from avocado_qemu import ConsoleMixIn
 from avocado_qemu import wait_for_console_pattern
 from avocado.utils import process
 from avocado.utils import archive
@@ -45,7 +45,7 @@ def image_pow2ceil_expand(path):
             with open(path, 'ab+') as fd:
                 fd.truncate(size_aligned)
 
-class LinuxKernelTest(Test):
+class LinuxKernelTest(Test, ConsoleMixIn):
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
 
     def wait_for_console_pattern(self, success_message, vm=None):
@@ -626,8 +626,8 @@ class BootLinuxConsole(LinuxKernelTest):
         self.wait_for_console_pattern('>Device: Poleg BMC NPCM730')
         self.wait_for_console_pattern('>Skip DDR init.')
         self.wait_for_console_pattern('U-Boot ')
-        interrupt_interactive_console_until_pattern(
-                self, 'Hit any key to stop autoboot:', 'U-Boot>')
+        self.interrupt_interactive_console_until_pattern(
+                'Hit any key to stop autoboot:', 'U-Boot>')
         exec_command_and_wait_for_pattern(
                 self, "setenv bootargs ${bootargs} " + kernel_command_line,
                 'U-Boot>')
@@ -879,7 +879,7 @@ class BootLinuxConsole(LinuxKernelTest):
                          '-no-reboot')
         self.vm.launch()
         wait_for_console_pattern(self, 'U-Boot 2020.01+dfsg-1')
-        interrupt_interactive_console_until_pattern(self,
+        self.interrupt_interactive_console_until_pattern(
                                        'Hit any key to stop autoboot:',
                                        'switch to partitions #0, OK')
 
