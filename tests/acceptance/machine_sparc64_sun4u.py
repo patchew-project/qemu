@@ -1,4 +1,4 @@
-# Functional test that boots a Linux kernel and checks the console
+"""Functional test that boots a Linux kernel and checks the console"""
 #
 # Copyright (c) 2020 Red Hat, Inc.
 #
@@ -8,16 +8,15 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later. See the COPYING file in the top-level directory.
 
-import os
-
-from avocado_qemu import wait_for_console_pattern
 from avocado.utils import archive
-from boot_linux_console import LinuxKernelTest
+from avocado_qemu import Test
+from avocado_qemu import wait_for_console_pattern
 
-class Sun4uMachine(LinuxKernelTest):
+class Sun4uMachine(Test):
     """Boots the Linux kernel and checks that the console is operational"""
 
     timeout = 90
+    KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
 
     def test_sparc64_sun4u(self):
         """
