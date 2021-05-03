@@ -2040,20 +2040,35 @@ static char *bdrv_child_user_desc(BdrvChild *c)
     return c->klass->get_parent_desc(c);
 }
 
+/*
+ * Check that @a allows everything that @b needs. @a and @b must reference same
+ * child node.
+ */
 static bool bdrv_a_allow_b(BdrvChild *a, BdrvChild *b, Error **errp)
 {
-    g_autofree char *user = NULL;
-    g_autofree char *perm_names = NULL;
+    g_autofree char *a_user = NULL;
+    g_autofree char *a_against = NULL;
+    g_autofree char *b_user = NULL;
+    g_autofree char *b_perm = NULL;
+
+    assert(a->bs);
+    assert(a->bs == b->bs);
 
     if ((b->perm & a->shared_perm) == b->perm) {
         return true;
     }
 
-    perm_names = bdrv_perm_names(b->perm & ~a->shared_perm);
-    user = bdrv_child_user_desc(a);
-    error_setg(errp, "Conflicts with use by %s as '%s', which does not "
-               "allow '%s' on %s",
-               user, a->name, perm_names, bdrv_get_node_name(b->bs));
+    a_user = bdrv_child_user_desc(a);
+    a_against = bdrv_perm_names(b->perm & ~a->shared_perm);
+
+    b_user = bdrv_child_user_desc(b);
+    b_perm = bdrv_perm_names(b->perm);
+
+    error_setg(errp, "Permission conflict on node '%s': %s wants to use it as "
+               "'%s', which requires these permissions: %s. On the other hand %s "
+               "wants to use it as '%s', which doesn't share: %s",
+               bdrv_get_node_name(b->bs),
+               b_user, b->name, b_perm, a_user, a->name, a_against);
 
     return false;
 }
