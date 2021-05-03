@@ -4047,7 +4047,7 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
 {
     int ret = -1;
     BlockReopenQueueEntry *bs_entry, *next;
-    Transaction *tran = tran_new();
+    Transaction *tran;
     g_autoptr(GHashTable) found = NULL;
     g_autoptr(GSList) refresh_list = NULL;
 
@@ -4060,6 +4060,8 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
             goto cleanup;
         }
     }
+
+    tran = tran_new();
 
     QTAILQ_FOREACH(bs_entry, bs_queue, entry) {
         assert(bs_entry->state.bs->quiesce_counter > 0);
