@@ -1655,7 +1655,7 @@ typedef struct X86CPUDefinition {
     int stepping;
     FeatureWordArray features;
     const char *model_id;
-    CPUCaches *cache_info;
+    const CPUCaches *const cache_info;
     /*
      * Definitions for alternative versions of CPU model.
      * List is terminated by item with version == 0.
@@ -1698,7 +1698,7 @@ static const X86CPUVersionDefinition *x86_cpu_def_get_versions(X86CPUDefinition 
     return def->versions ?: default_version_list;
 }
 
-static CPUCaches epyc_cache_info = {
+static const CPUCaches epyc_cache_info = {
     .l1d_cache = &(CPUCacheInfo) {
         .type = DATA_CACHE,
         .level = 1,
@@ -1748,7 +1748,7 @@ static CPUCaches epyc_cache_info = {
     },
 };
 
-static CPUCaches epyc_rome_cache_info = {
+static const CPUCaches epyc_rome_cache_info = {
     .l1d_cache = &(CPUCacheInfo) {
         .type = DATA_CACHE,
         .level = 1,
@@ -1798,7 +1798,7 @@ static CPUCaches epyc_rome_cache_info = {
     },
 };
 
-static CPUCaches epyc_milan_cache_info = {
+static const CPUCaches epyc_milan_cache_info = {
     .l1d_cache = &(CPUCacheInfo) {
         .type = DATA_CACHE,
         .level = 1,
