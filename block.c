@@ -2918,12 +2918,18 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                    child_role, perm, shared_perm, opaque,
                                    &child, tran, errp);
     if (ret < 0) {
-        bdrv_unref(child_bs);
-        return NULL;
+        goto out;
     }
 
     ret = bdrv_refresh_perms(child_bs, errp);
+    if (ret < 0) {
+        goto out;
+    }
+
+out:
     tran_finalize(tran, ret);
+    /* child is unset on failure by bdrv_attach_child_common_abort() */
+    assert((ret < 0) == !child);
 
     bdrv_unref(child_bs);
     return child;
