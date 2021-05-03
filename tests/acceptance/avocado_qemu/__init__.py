@@ -114,18 +114,6 @@ def wait_for_console_pattern(test, success_message, failure_message=None,
     """
     _console_interaction(test, success_message, failure_message, None, vm=vm)
 
-def exec_command(test, command):
-    """
-    Send a command to a console (appending CRLF characters), while logging
-    the content.
-
-    :param test: an Avocado test containing a VM.
-    :type test: :class:`avocado_qemu.Test`
-    :param command: the command to send
-    :type command: str
-    """
-    _console_interaction(test, None, None, command + '\r')
-
 def exec_command_and_wait_for_pattern(test, command,
                                       success_message, failure_message=None):
     """
@@ -144,6 +132,16 @@ def exec_command_and_wait_for_pattern(test, command,
 
 class ConsoleMixIn():
     """Contains utilities for interacting with a guest via Console."""
+
+    def exec_command(self, command):
+        """
+        Send a command to a console (appending CRLF characters), while logging
+        the content.
+
+        :param command: the command to send
+        :type command: str
+        """
+        _console_interaction(self, None, None, command + '\r')
 
     def interrupt_interactive_console_until_pattern(self, success_message,
                                                     failure_message=None,
