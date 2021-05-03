@@ -17,7 +17,6 @@ import time
 from avocado import skip
 from avocado import skipIf
 from avocado import skipUnless
-from avocado_qemu import wait_for_console_pattern
 from avocado.utils import archive
 from avocado.utils import process
 from boot_linux_console import LinuxKernelTest
