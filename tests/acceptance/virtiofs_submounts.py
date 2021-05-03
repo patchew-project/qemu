@@ -6,7 +6,6 @@ import time
 
 from avocado import skipUnless
 from avocado_qemu import LinuxTest, BUILD_DIR
-from avocado_qemu import wait_for_console_pattern
 from avocado.utils import ssh
 
 

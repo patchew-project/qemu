@@ -6,7 +6,6 @@
 
 from avocado_qemu import Test
 from avocado_qemu import BUILD_DIR
-from avocado_qemu import wait_for_console_pattern
 from avocado_qemu import ConsoleMixIn
 from avocado_qemu import is_readable_executable_file
 
@@ -49,8 +48,7 @@ class VirtioGPUx86(Test, ConsoleMixIn):
     )
 
     def wait_for_console_pattern(self, success_message, vm=None):
-        wait_for_console_pattern(
-            self,
+        super().wait_for_console_pattern(
             success_message,
             failure_message="Kernel panic - not syncing",
             vm=vm,

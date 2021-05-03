@@ -12,9 +12,9 @@ import time
 
 from avocado import skipUnless
 from avocado_qemu import Test
-from avocado_qemu import wait_for_console_pattern
+from avocado_qemu import ConsoleMixIn
 
-class MipsLoongson3v(Test):
+class MipsLoongson3v(Test, ConsoleMixIn):
     timeout = 60
 
     @skipUnless(os.getenv('AVOCADO_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
@@ -36,4 +36,4 @@ class MipsLoongson3v(Test):
         self.vm.set_console()
         self.vm.add_args('-bios', pmon_path)
         self.vm.launch()
-        wait_for_console_pattern(self, 'CPU GODSON3 BogoMIPS:')
+        self.wait_for_console_pattern('CPU GODSON3 BogoMIPS:')

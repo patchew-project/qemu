@@ -6,10 +6,10 @@
 # later. See the COPYING file in the top-level directory.
 
 from avocado_qemu import Test
-from avocado_qemu import wait_for_console_pattern
+from avocado_qemu import ConsoleMixIn
 from avocado.utils import archive
 
-class MicroblazeMachine(Test):
+class MicroblazeMachine(Test, ConsoleMixIn):
 
     timeout = 90
 
@@ -27,8 +27,8 @@ class MicroblazeMachine(Test):
         self.vm.set_console()
         self.vm.add_args('-kernel', self.workdir + '/day17/ballerina.bin')
         self.vm.launch()
-        wait_for_console_pattern(self, 'This architecture does not have '
-                                       'kernel memory protection')
+        self.wait_for_console_pattern('This architecture does not have '
+                                      'kernel memory protection')
         # Note:
         # The kernel sometimes gets stuck after the "This architecture ..."
         # message, that's why we don't test for a later string here. This

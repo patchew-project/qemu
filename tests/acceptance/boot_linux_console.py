@@ -17,7 +17,6 @@ from avocado import skip
 from avocado import skipUnless
 from avocado_qemu import Test
 from avocado_qemu import ConsoleMixIn
-from avocado_qemu import wait_for_console_pattern
 from avocado.utils import process
 from avocado.utils import archive
 from avocado.utils.path import find_command, CmdNotFoundError
@@ -48,7 +47,7 @@ class LinuxKernelTest(Test, ConsoleMixIn):
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
 
     def wait_for_console_pattern(self, success_message, vm=None):
-        wait_for_console_pattern(self, success_message,
+        super().wait_for_console_pattern(success_message,
                                  failure_message='Kernel panic - not syncing',
                                  vm=vm)
 
@@ -262,7 +261,7 @@ class BootLinuxConsole(LinuxKernelTest):
                          '-append', kernel_command_line,
                          '-no-reboot')
         self.vm.launch()
-        wait_for_console_pattern(self, 'Boot successful.')
+        ConsoleMixIn.wait_for_console_pattern(self, 'Boot successful.')
 
         self.exec_command_and_wait_for_pattern('cat /proc/cpuinfo',
                                                'MIPS 5KE')
@@ -877,7 +876,7 @@ class BootLinuxConsole(LinuxKernelTest):
                          '-global', 'allwinner-rtc.base-year=2000',
                          '-no-reboot')
         self.vm.launch()
-        wait_for_console_pattern(self, 'U-Boot 2020.01+dfsg-1')
+        ConsoleMixIn.wait_for_console_pattern(self, 'U-Boot 2020.01+dfsg-1')
         self.interrupt_interactive_console_until_pattern(
                                        'Hit any key to stop autoboot:',
                                        'switch to partitions #0, OK')
@@ -897,10 +896,11 @@ class BootLinuxConsole(LinuxKernelTest):
 
         self.exec_command_and_wait_for_pattern('boot',
                                           'Booting kernel from Legacy Image')
-        wait_for_console_pattern(self, 'Starting kernel ...')
-        wait_for_console_pattern(self, 'NetBSD 9.0 (GENERIC)')
+        ConsoleMixIn.wait_for_console_pattern(self, 'Starting kernel ...')
+        ConsoleMixIn.wait_for_console_pattern(self, 'NetBSD 9.0 (GENERIC)')
         # Wait for user-space
-        wait_for_console_pattern(self, 'Starting root file system check')
+        ConsoleMixIn.wait_for_console_pattern(self,
+                                            'Starting root file system check')
 
     def test_aarch64_raspi3_atf(self):
         """

@@ -6,11 +6,11 @@
 # later. See the COPYING file in the top-level directory.
 
 from avocado_qemu import Test
-from avocado_qemu import wait_for_console_pattern
+from avocado_qemu import ConsoleMixIn
 from avocado import skip
 
 
-class Leon3Machine(Test):
+class Leon3Machine(Test, ConsoleMixIn):
 
     timeout = 60
 
@@ -33,5 +33,5 @@ class Leon3Machine(Test):
 
         self.vm.launch()
 
-        wait_for_console_pattern(self, 'Copyright (c) 2001-2014 HelenOS project')
-        wait_for_console_pattern(self, 'Booting the kernel ...')
+        self.wait_for_console_pattern('Copyright (c) 2001-2014 HelenOS project')
+        self.wait_for_console_pattern('Booting the kernel ...')

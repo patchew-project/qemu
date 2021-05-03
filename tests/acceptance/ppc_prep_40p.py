@@ -10,10 +10,10 @@ import os
 from avocado import skipIf
 from avocado import skipUnless
 from avocado_qemu import Test
-from avocado_qemu import wait_for_console_pattern
+from avocado_qemu import ConsoleMixIn
 
 
-class IbmPrep40pMachine(Test):
+class IbmPrep40pMachine(Test, ConsoleMixIn):
 
     timeout = 60
 
@@ -44,8 +44,8 @@ class IbmPrep40pMachine(Test):
                          '-fda', drive_path)
         self.vm.launch()
         os_banner = 'NetBSD 4.0 (GENERIC) #0: Sun Dec 16 00:49:40 PST 2007'
-        wait_for_console_pattern(self, os_banner)
-        wait_for_console_pattern(self, 'Model: IBM PPS Model 6015')
+        self.wait_for_console_pattern(os_banner)
+        self.wait_for_console_pattern('Model: IBM PPS Model 6015')
 
     def test_openbios_192m(self):
         """
@@ -56,9 +56,9 @@ class IbmPrep40pMachine(Test):
         self.vm.add_args('-m', '192') # test fw_cfg
 
         self.vm.launch()
-        wait_for_console_pattern(self, '>> OpenBIOS')
-        wait_for_console_pattern(self, '>> Memory: 192M')
-        wait_for_console_pattern(self, '>> CPU type PowerPC,604')
+        self.wait_for_console_pattern('>> OpenBIOS')
+        self.wait_for_console_pattern('>> Memory: 192M')
+        self.wait_for_console_pattern('>> CPU type PowerPC,604')
 
     def test_openbios_and_netbsd(self):
         """
@@ -75,4 +75,4 @@ class IbmPrep40pMachine(Test):
                          '-boot', 'd')
 
         self.vm.launch()
-        wait_for_console_pattern(self, 'NetBSD/prep BOOT, Revision 1.9')
+        self.wait_for_console_pattern('NetBSD/prep BOOT, Revision 1.9')

@@ -12,9 +12,9 @@ import os
 
 from avocado import skipUnless
 from avocado_qemu import Test
-from avocado_qemu import wait_for_console_pattern
+from avocado_qemu import ConsoleMixIn
 
-class N8x0Machine(Test):
+class N8x0Machine(Test, ConsoleMixIn):
     """Boots the Linux kernel and checks that the console is operational"""
 
     timeout = 90
@@ -30,7 +30,7 @@ class N8x0Machine(Test):
         self.vm.add_args('-kernel', kernel_path,
                          '-append', 'printk.time=0 console=ttyS1')
         self.vm.launch()
-        wait_for_console_pattern(self, 'TSC2005 driver initializing')
+        self.wait_for_console_pattern('TSC2005 driver initializing')
 
     @skipUnless(os.getenv('AVOCADO_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
     def test_n800(self):

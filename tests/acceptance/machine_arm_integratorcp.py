@@ -13,7 +13,7 @@ import logging
 
 from avocado import skipUnless
 from avocado_qemu import Test
-from avocado_qemu import wait_for_console_pattern
+from avocado_qemu import ConsoleMixIn
 
 
 NUMPY_AVAILABLE = True
@@ -29,7 +29,7 @@ except ImportError:
     CV2_AVAILABLE = False
 
 
-class IntegratorMachine(Test):
+class IntegratorMachine(Test, ConsoleMixIn):
 
     timeout = 90
 
@@ -59,7 +59,7 @@ class IntegratorMachine(Test):
         :avocado: tags=device:pl011
         """
         self.boot_integratorcp()
-        wait_for_console_pattern(self, 'Log in as root')
+        self.wait_for_console_pattern('Log in as root')
 
     @skipUnless(NUMPY_AVAILABLE, 'Python NumPy not installed')
     @skipUnless(CV2_AVAILABLE, 'Python OpenCV not installed')
@@ -80,7 +80,7 @@ class IntegratorMachine(Test):
 
         self.boot_integratorcp()
         framebuffer_ready = 'Console: switching to colour frame buffer device'
-        wait_for_console_pattern(self, framebuffer_ready)
+        self.wait_for_console_pattern(framebuffer_ready)
         self.vm.command('human-monitor-command', command_line='stop')
         self.vm.command('human-monitor-command',
                         command_line='screendump %s' % screendump_path)

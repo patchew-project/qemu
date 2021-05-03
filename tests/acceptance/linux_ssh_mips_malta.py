@@ -13,13 +13,13 @@ import time
 
 from avocado import skipUnless
 from avocado_qemu import Test
-from avocado_qemu import wait_for_console_pattern
+from avocado_qemu import ConsoleMixIn
 from avocado.utils import process
 from avocado.utils import archive
 from avocado.utils import ssh
 
 
-class LinuxSSH(Test):
+class LinuxSSH(Test, ConsoleMixIn):
 
     timeout = 150 # Not for 'configure --enable-debug --enable-debug-tcg'
 
@@ -126,7 +126,7 @@ class LinuxSSH(Test):
 
         self.log.info('VM launched, waiting for sshd')
         console_pattern = 'Starting OpenBSD Secure Shell server: sshd'
-        wait_for_console_pattern(self, console_pattern, 'Oops')
+        self.wait_for_console_pattern(console_pattern, 'Oops')
         self.log.info('sshd ready')
 
         self.ssh_connect('root', 'root')
@@ -134,7 +134,7 @@ class LinuxSSH(Test):
     def shutdown_via_ssh(self):
         self.ssh_command('poweroff')
         self.ssh_disconnect_vm()
-        wait_for_console_pattern(self, 'Power down', 'Oops')
+        self.wait_for_console_pattern('Power down', 'Oops')
 
     def ssh_command_output_contains(self, cmd, exp):
         stdout, _ = self.ssh_command(cmd)

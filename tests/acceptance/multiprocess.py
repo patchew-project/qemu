@@ -8,7 +8,6 @@ import os
 import socket
 
 from avocado_qemu import Test
-from avocado_qemu import wait_for_console_pattern
 from avocado_qemu import ConsoleMixIn
 
 class Multiprocess(Test, ConsoleMixIn):
@@ -56,8 +55,8 @@ class Multiprocess(Test, ConsoleMixIn):
                          'x-pci-proxy-dev,'
                          'id=lsi1,fd='+str(proxy_sock.fileno()))
         self.vm.launch()
-        wait_for_console_pattern(self, 'as init process',
-                                 'Kernel panic - not syncing')
+        self.wait_for_console_pattern('as init process',
+                                      'Kernel panic - not syncing')
         self.exec_command('mount -t sysfs sysfs /sys')
         self.exec_command_and_wait_for_pattern(
                                           'cat /sys/bus/pci/devices/*/uevent',

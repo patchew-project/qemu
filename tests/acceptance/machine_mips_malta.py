@@ -13,7 +13,7 @@ import logging
 
 from avocado import skipUnless
 from avocado_qemu import Test
-from avocado_qemu import wait_for_console_pattern
+from avocado_qemu import ConsoleMixIn
 from avocado.utils import archive
 from avocado import skipIf
 
@@ -33,7 +33,7 @@ except ImportError:
 
 @skipUnless(NUMPY_AVAILABLE, 'Python NumPy not installed')
 @skipUnless(CV2_AVAILABLE, 'Python OpenCV not installed')
-class MaltaMachineFramebuffer(Test):
+class MaltaMachineFramebuffer(Test, ConsoleMixIn):
 
     timeout = 30
 
@@ -68,7 +68,7 @@ class MaltaMachineFramebuffer(Test):
                          '-append', kernel_command_line)
         self.vm.launch()
         framebuffer_ready = 'Console: switching to colour frame buffer device'
-        wait_for_console_pattern(self, framebuffer_ready,
+        self.wait_for_console_pattern(framebuffer_ready,
                                  failure_message='Kernel panic - not syncing')
         self.vm.command('human-monitor-command', command_line='stop')
         self.vm.command('human-monitor-command',

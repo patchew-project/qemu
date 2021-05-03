@@ -101,19 +101,6 @@ def _console_interaction(test, success_message, failure_message,
                     (failure_message, success_message)
             test.fail(fail)
 
-def wait_for_console_pattern(test, success_message, failure_message=None,
-                             vm=None):
-    """
-    Waits for messages to appear on the console, while logging the content
-
-    :param test: an Avocado test containing a VM that will have its console
-                 read and probed for a success or failure message
-    :type test: :class:`avocado_qemu.Test`
-    :param success_message: if this message appears, test succeeds
-    :param failure_message: if this message appears, test fails
-    """
-    _console_interaction(test, success_message, failure_message, None, vm=vm)
-
 class ConsoleMixIn():
     """Contains utilities for interacting with a guest via Console."""
 
@@ -162,6 +149,16 @@ class ConsoleMixIn():
         """
         _console_interaction(self, success_message, failure_message,
                          interrupt_string, True)
+
+    def wait_for_console_pattern(self, success_message, failure_message=None,
+                             vm=None):
+        """
+        Waits for messages to appear on the console, while logging the content
+
+        :param success_message: if this message appears, test succeeds
+        :param failure_message: if this message appears, test fails
+        """
+        _console_interaction(self, success_message, failure_message, None, vm=vm)
 
 class Test(avocado.Test):
     def _get_unique_tag_val(self, tag_name):

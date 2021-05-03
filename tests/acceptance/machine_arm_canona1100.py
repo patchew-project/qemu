@@ -9,10 +9,10 @@
 # later.  See the COPYING file in the top-level directory.
 
 from avocado_qemu import Test
-from avocado_qemu import wait_for_console_pattern
+from avocado_qemu import ConsoleMixIn
 from avocado.utils import archive
 
-class CanonA1100Machine(Test):
+class CanonA1100Machine(Test, ConsoleMixIn):
     """Boots the barebox firmware and checks that the console is operational"""
 
     timeout = 90
@@ -32,4 +32,4 @@ class CanonA1100Machine(Test):
         self.vm.add_args('-bios',
                          self.workdir + '/day18/barebox.canon-a1100.bin')
         self.vm.launch()
-        wait_for_console_pattern(self, 'running /env/bin/init')
+        self.wait_for_console_pattern('running /env/bin/init')

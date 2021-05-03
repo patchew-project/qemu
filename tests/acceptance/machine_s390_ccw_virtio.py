@@ -15,7 +15,6 @@ import tempfile
 from avocado import skipIf
 from avocado_qemu import Test
 from avocado_qemu import ConsoleMixIn
-from avocado_qemu import wait_for_console_pattern
 from avocado.utils import archive
 
 class S390CCWVirtioMachine(Test, ConsoleMixIn):
@@ -24,9 +23,9 @@ class S390CCWVirtioMachine(Test, ConsoleMixIn):
     timeout = 120
 
     def wait_for_console_pattern(self, success_message, vm=None):
-        wait_for_console_pattern(self, success_message,
-                                 failure_message='Kernel panic - not syncing',
-                                 vm=vm)
+        super().wait_for_console_pattern(success_message,
+                                       failure_message='Kernel panic - not syncing',
+                                       vm=vm)
 
     def wait_for_crw_reports(self):
         self.exec_command_and_wait_for_pattern(

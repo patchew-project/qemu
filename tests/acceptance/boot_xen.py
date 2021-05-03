@@ -14,7 +14,6 @@
 import os
 
 from avocado import skipIf
-from avocado_qemu import wait_for_console_pattern
 from boot_linux_console import LinuxKernelTest
 
 
@@ -59,7 +58,9 @@ class BootXenBase(LinuxKernelTest):
         self.vm.launch()
 
         console_pattern = 'VFS: Cannot open root device'
-        wait_for_console_pattern(self, console_pattern, "Panic on CPU 0:")
+        # pylint: disable=E1003
+        super(LinuxKernelTest, self).wait_for_console_pattern(console_pattern,
+            "Panic on CPU 0:")
 
 
 class BootXen(BootXenBase):

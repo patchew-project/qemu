@@ -7,9 +7,9 @@
 
 from avocado.utils import archive
 from avocado_qemu import Test
-from avocado_qemu import wait_for_console_pattern
+from avocado_qemu import ConsoleMixIn
 
-class PpcMachine(Test):
+class PpcMachine(Test, ConsoleMixIn):
 
     timeout = 90
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
@@ -32,7 +32,7 @@ class PpcMachine(Test):
                          '-append', kernel_command_line)
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
-        wait_for_console_pattern(self, console_pattern, self.panic_message)
+        self.wait_for_console_pattern(console_pattern, self.panic_message)
 
     def test_ppc_mpc8544ds(self):
         """
@@ -47,7 +47,7 @@ class PpcMachine(Test):
         self.vm.set_console()
         self.vm.add_args('-kernel', self.workdir + '/creek/creek.bin')
         self.vm.launch()
-        wait_for_console_pattern(self, 'QEMU advent calendar 2020',
+        self.wait_for_console_pattern('QEMU advent calendar 2020',
                                  self.panic_message)
 
     def test_ppc_virtex_ml507(self):
@@ -65,5 +65,5 @@ class PpcMachine(Test):
                          '-dtb', self.workdir + '/hippo/virtex440-ml507.dtb',
                          '-m', '512')
         self.vm.launch()
-        wait_for_console_pattern(self, 'QEMU advent calendar 2020',
+        self.wait_for_console_pattern('QEMU advent calendar 2020',
                                  self.panic_message)
