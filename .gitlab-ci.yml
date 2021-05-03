@@ -37,7 +37,7 @@ include:
         make -j"$JOBS" $MAKE_CHECK_ARGS ;
       fi
 
-.native_test_job_template: &native_test_job_definition
+.native_test_job_template:
   stage: test
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
   script:
@@ -95,7 +95,7 @@ build-system-alpine:
       - build
 
 check-system-alpine:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-system-alpine
       artifacts: true
@@ -104,7 +104,7 @@ check-system-alpine:
     MAKE_CHECK_ARGS: check
 
 acceptance-system-alpine:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-system-alpine
       artifacts: true
@@ -129,7 +129,7 @@ build-system-ubuntu:
       - build
 
 check-system-ubuntu:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-system-ubuntu
       artifacts: true
@@ -138,7 +138,7 @@ check-system-ubuntu:
     MAKE_CHECK_ARGS: check
 
 acceptance-system-ubuntu:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-system-ubuntu
       artifacts: true
@@ -163,7 +163,7 @@ build-system-debian:
       - build
 
 check-system-debian:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-system-debian
       artifacts: true
@@ -172,7 +172,7 @@ check-system-debian:
     MAKE_CHECK_ARGS: check
 
 acceptance-system-debian:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-system-debian
       artifacts: true
@@ -198,7 +198,7 @@ build-system-fedora:
       - build
 
 check-system-fedora:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-system-fedora
       artifacts: true
@@ -207,7 +207,7 @@ check-system-fedora:
     MAKE_CHECK_ARGS: check
 
 acceptance-system-fedora:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-system-fedora
       artifacts: true
@@ -233,7 +233,7 @@ build-system-centos:
       - build
 
 check-system-centos:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-system-centos
       artifacts: true
@@ -242,7 +242,7 @@ check-system-centos:
     MAKE_CHECK_ARGS: check
 
 acceptance-system-centos:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-system-centos
       artifacts: true
@@ -266,7 +266,7 @@ build-system-opensuse:
       - build
 
 check-system-opensuse:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-system-opensuse
       artifacts: true
@@ -275,7 +275,7 @@ check-system-opensuse:
     MAKE_CHECK_ARGS: check
 
 acceptance-system-opensuse:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-system-opensuse
       artifacts: true
@@ -509,7 +509,7 @@ build-cfi-aarch64:
       - build
 
 check-cfi-aarch64:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-cfi-aarch64
       artifacts: true
@@ -518,7 +518,7 @@ check-cfi-aarch64:
     MAKE_CHECK_ARGS: check
 
 acceptance-cfi-aarch64:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-cfi-aarch64
       artifacts: true
@@ -546,7 +546,7 @@ build-cfi-ppc64-s390x:
       - build
 
 check-cfi-ppc64-s390x:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-cfi-ppc64-s390x
       artifacts: true
@@ -555,7 +555,7 @@ check-cfi-ppc64-s390x:
     MAKE_CHECK_ARGS: check
 
 acceptance-cfi-ppc64-s390x:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-cfi-ppc64-s390x
       artifacts: true
@@ -583,7 +583,7 @@ build-cfi-x86_64:
       - build
 
 check-cfi-x86_64:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-cfi-x86_64
       artifacts: true
@@ -592,7 +592,7 @@ check-cfi-x86_64:
     MAKE_CHECK_ARGS: check
 
 acceptance-cfi-x86_64:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-cfi-x86_64
       artifacts: true
@@ -630,7 +630,7 @@ build-deprecated:
 # We split the check-tcg step as test failures are expected but we still
 # want to catch the build breaking.
 check-deprecated:
-  <<: *native_test_job_definition
+  extends: .native_test_job_template
   needs:
     - job: build-deprecated
       artifacts: true
