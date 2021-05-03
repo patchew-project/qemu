@@ -753,7 +753,7 @@ static uint8_t base_required_struct_types[] = {
     0, 1, 3, 4, 16, 17, 19, 32, 127
 };
 
-static void test_acpi_piix4_tcg(void)
+static void test_acpi_piix4(void)
 {
     test_data data;
 
@@ -768,7 +768,7 @@ static void test_acpi_piix4_tcg(void)
     free_test_data(&data);
 }
 
-static void test_acpi_piix4_tcg_bridge(void)
+static void test_acpi_piix4_bridge(void)
 {
     test_data data;
 
@@ -824,7 +824,7 @@ static void test_acpi_piix4_no_acpi_pci_hotplug(void)
     free_test_data(&data);
 }
 
-static void test_acpi_q35_tcg(void)
+static void test_acpi_q35(void)
 {
     test_data data;
 
@@ -841,7 +841,7 @@ static void test_acpi_q35_tcg(void)
     free_test_data(&data);
 }
 
-static void test_acpi_q35_tcg_bridge(void)
+static void test_acpi_q35_bridge(void)
 {
     test_data data;
 
@@ -855,7 +855,7 @@ static void test_acpi_q35_tcg_bridge(void)
     free_test_data(&data);
 }
 
-static void test_acpi_q35_tcg_mmio64(void)
+static void test_acpi_q35_mmio64(void)
 {
     test_data data = {
         .machine = MACHINE_Q35,
@@ -872,7 +872,7 @@ static void test_acpi_q35_tcg_mmio64(void)
     free_test_data(&data);
 }
 
-static void test_acpi_piix4_tcg_cphp(void)
+static void test_acpi_piix4_cphp(void)
 {
     test_data data;
 
@@ -888,7 +888,7 @@ static void test_acpi_piix4_tcg_cphp(void)
     free_test_data(&data);
 }
 
-static void test_acpi_q35_tcg_cphp(void)
+static void test_acpi_q35_cphp(void)
 {
     test_data data;
 
@@ -908,7 +908,7 @@ static uint8_t ipmi_required_struct_types[] = {
     0, 1, 3, 4, 16, 17, 19, 32, 38, 127
 };
 
-static void test_acpi_q35_tcg_ipmi(void)
+static void test_acpi_q35_ipmi(void)
 {
     test_data data;
 
@@ -923,7 +923,7 @@ static void test_acpi_q35_tcg_ipmi(void)
     free_test_data(&data);
 }
 
-static void test_acpi_piix4_tcg_ipmi(void)
+static void test_acpi_piix4_ipmi(void)
 {
     test_data data;
 
@@ -941,7 +941,7 @@ static void test_acpi_piix4_tcg_ipmi(void)
     free_test_data(&data);
 }
 
-static void test_acpi_q35_tcg_memhp(void)
+static void test_acpi_q35_memhp(void)
 {
     test_data data;
 
@@ -957,7 +957,7 @@ static void test_acpi_q35_tcg_memhp(void)
     free_test_data(&data);
 }
 
-static void test_acpi_piix4_tcg_memhp(void)
+static void test_acpi_piix4_memhp(void)
 {
     test_data data;
 
@@ -973,7 +973,7 @@ static void test_acpi_piix4_tcg_memhp(void)
     free_test_data(&data);
 }
 
-static void test_acpi_piix4_tcg_nosmm(void)
+static void test_acpi_piix4_nosmm(void)
 {
     test_data data;
 
@@ -984,7 +984,7 @@ static void test_acpi_piix4_tcg_nosmm(void)
     free_test_data(&data);
 }
 
-static void test_acpi_piix4_tcg_smm_compat(void)
+static void test_acpi_piix4_smm_compat(void)
 {
     test_data data;
 
@@ -995,7 +995,7 @@ static void test_acpi_piix4_tcg_smm_compat(void)
     free_test_data(&data);
 }
 
-static void test_acpi_piix4_tcg_smm_compat_nosmm(void)
+static void test_acpi_piix4_smm_compat_nosmm(void)
 {
     test_data data;
 
@@ -1006,7 +1006,7 @@ static void test_acpi_piix4_tcg_smm_compat_nosmm(void)
     free_test_data(&data);
 }
 
-static void test_acpi_piix4_tcg_nohpet(void)
+static void test_acpi_piix4_nohpet(void)
 {
     test_data data;
 
@@ -1017,7 +1017,7 @@ static void test_acpi_piix4_tcg_nohpet(void)
     free_test_data(&data);
 }
 
-static void test_acpi_q35_tcg_numamem(void)
+static void test_acpi_q35_numamem(void)
 {
     test_data data;
 
@@ -1029,7 +1029,7 @@ static void test_acpi_q35_tcg_numamem(void)
     free_test_data(&data);
 }
 
-static void test_acpi_q35_tcg_nosmm(void)
+static void test_acpi_q35_nosmm(void)
 {
     test_data data;
 
@@ -1040,7 +1040,7 @@ static void test_acpi_q35_tcg_nosmm(void)
     free_test_data(&data);
 }
 
-static void test_acpi_q35_tcg_smm_compat(void)
+static void test_acpi_q35_smm_compat(void)
 {
     test_data data;
 
@@ -1051,7 +1051,7 @@ static void test_acpi_q35_tcg_smm_compat(void)
     free_test_data(&data);
 }
 
-static void test_acpi_q35_tcg_smm_compat_nosmm(void)
+static void test_acpi_q35_smm_compat_nosmm(void)
 {
     test_data data;
 
@@ -1062,7 +1062,7 @@ static void test_acpi_q35_tcg_smm_compat_nosmm(void)
     free_test_data(&data);
 }
 
-static void test_acpi_q35_tcg_nohpet(void)
+static void test_acpi_q35_nohpet(void)
 {
     test_data data;
 
@@ -1073,7 +1073,7 @@ static void test_acpi_q35_tcg_nohpet(void)
     free_test_data(&data);
 }
 
-static void test_acpi_piix4_tcg_numamem(void)
+static void test_acpi_piix4_numamem(void)
 {
     test_data data;
 
@@ -1087,11 +1087,11 @@ static void test_acpi_piix4_tcg_numamem(void)
 
 uint64_t tpm_tis_base_addr;
 
-static void test_acpi_tcg_tpm(const char *machine, const char *tpm_if,
+static void test_acpi_tpm(const char *machine, const char *tpm_if,
                               uint64_t base)
 {
 #ifdef CONFIG_TPM
-    gchar *tmp_dir_name = g_strdup_printf("qemu-test_acpi_%s_tcg_%s.XXXXXX",
+    gchar *tmp_dir_name = g_strdup_printf("qemu-test_acpi_%s_%s.XXXXXX",
                                           machine, tpm_if);
     char *tmp_path = g_dir_make_tmp(tmp_dir_name, NULL);
     TestState test;
@@ -1139,12 +1139,12 @@ static void test_acpi_tcg_tpm(const char *machine, const char *tpm_if,
 #endif
 }
 
-static void test_acpi_q35_tcg_tpm_tis(void)
+static void test_acpi_q35_tpm_tis(void)
 {
-    test_acpi_tcg_tpm("q35", "tis", 0xFED40000);
+    test_acpi_tpm("q35", "tis", 0xFED40000);
 }
 
-static void test_acpi_tcg_dimm_pxm(const char *machine)
+static void test_acpi_dimm_pxm(const char *machine)
 {
     test_data data;
 
@@ -1174,14 +1174,14 @@ static void test_acpi_tcg_dimm_pxm(const char *machine)
     free_test_data(&data);
 }
 
-static void test_acpi_q35_tcg_dimm_pxm(void)
+static void test_acpi_q35_dimm_pxm(void)
 {
-    test_acpi_tcg_dimm_pxm(MACHINE_Q35);
+    test_acpi_dimm_pxm(MACHINE_Q35);
 }
 
-static void test_acpi_piix4_tcg_dimm_pxm(void)
+static void test_acpi_piix4_dimm_pxm(void)
 {
-    test_acpi_tcg_dimm_pxm(MACHINE_PC);
+    test_acpi_dimm_pxm(MACHINE_PC);
 }
 
 static void test_acpi_virt_tcg_memhp(void)
@@ -1223,7 +1223,7 @@ static void test_acpi_microvm_prepare(test_data *data)
     data->blkdev = "virtio-blk-device";
 }
 
-static void test_acpi_microvm_tcg(void)
+static void test_acpi_microvm(void)
 {
     test_data data;
 
@@ -1233,7 +1233,7 @@ static void test_acpi_microvm_tcg(void)
     free_test_data(&data);
 }
 
-static void test_acpi_microvm_usb_tcg(void)
+static void test_acpi_microvm_usb(void)
 {
     test_data data;
 
@@ -1244,7 +1244,7 @@ static void test_acpi_microvm_usb_tcg(void)
     free_test_data(&data);
 }
 
-static void test_acpi_microvm_rtc_tcg(void)
+static void test_acpi_microvm_rtc(void)
 {
     test_data data;
 
@@ -1255,7 +1255,7 @@ static void test_acpi_microvm_rtc_tcg(void)
     free_test_data(&data);
 }
 
-static void test_acpi_microvm_pcie_tcg(void)
+static void test_acpi_microvm_pcie(void)
 {
     test_data data;
 
@@ -1267,7 +1267,7 @@ static void test_acpi_microvm_pcie_tcg(void)
     free_test_data(&data);
 }
 
-static void test_acpi_microvm_ioapic2_tcg(void)
+static void test_acpi_microvm_ioapic2(void)
 {
     test_data data;
 
@@ -1332,7 +1332,7 @@ static void test_acpi_virt_tcg_pxb(void)
     free_test_data(&data);
 }
 
-static void test_acpi_tcg_acpi_hmat(const char *machine)
+static void test_acpi_acpi_hmat(const char *machine)
 {
     test_data data;
 
@@ -1364,14 +1364,14 @@ static void test_acpi_tcg_acpi_hmat(const char *machine)
     free_test_data(&data);
 }
 
-static void test_acpi_q35_tcg_acpi_hmat(void)
+static void test_acpi_q35_acpi_hmat(void)
 {
-    test_acpi_tcg_acpi_hmat(MACHINE_Q35);
+    test_acpi_acpi_hmat(MACHINE_Q35);
 }
 
-static void test_acpi_piix4_tcg_acpi_hmat(void)
+static void test_acpi_piix4_acpi_hmat(void)
 {
-    test_acpi_tcg_acpi_hmat(MACHINE_PC);
+    test_acpi_acpi_hmat(MACHINE_PC);
 }
 
 static void test_acpi_virt_tcg(void)
@@ -1512,50 +1512,50 @@ int main(int argc, char *argv[])
             return ret;
         }
         qtest_add_func("acpi/q35/oem-fields", test_acpi_oem_fields_q35);
-        qtest_add_func("acpi/q35/tpm-tis", test_acpi_q35_tcg_tpm_tis);
-        qtest_add_func("acpi/piix4", test_acpi_piix4_tcg);
+        qtest_add_func("acpi/q35/tpm-tis", test_acpi_q35_tpm_tis);
+        qtest_add_func("acpi/piix4", test_acpi_piix4);
         qtest_add_func("acpi/oem-fields", test_acpi_oem_fields_pc);
-        qtest_add_func("acpi/piix4/bridge", test_acpi_piix4_tcg_bridge);
+        qtest_add_func("acpi/piix4/bridge", test_acpi_piix4_bridge);
         qtest_add_func("acpi/piix4/pci-hotplug/no_root_hotplug",
                        test_acpi_piix4_no_root_hotplug);
         qtest_add_func("acpi/piix4/pci-hotplug/no_bridge_hotplug",
                        test_acpi_piix4_no_bridge_hotplug);
         qtest_add_func("acpi/piix4/pci-hotplug/off",
                        test_acpi_piix4_no_acpi_pci_hotplug);
-        qtest_add_func("acpi/q35", test_acpi_q35_tcg);
-        qtest_add_func("acpi/q35/bridge", test_acpi_q35_tcg_bridge);
-        qtest_add_func("acpi/q35/mmio64", test_acpi_q35_tcg_mmio64);
-        qtest_add_func("acpi/piix4/ipmi", test_acpi_piix4_tcg_ipmi);
-        qtest_add_func("acpi/q35/ipmi", test_acpi_q35_tcg_ipmi);
-        qtest_add_func("acpi/piix4/cpuhp", test_acpi_piix4_tcg_cphp);
-        qtest_add_func("acpi/q35/cpuhp", test_acpi_q35_tcg_cphp);
-        qtest_add_func("acpi/piix4/memhp", test_acpi_piix4_tcg_memhp);
-        qtest_add_func("acpi/q35/memhp", test_acpi_q35_tcg_memhp);
-        qtest_add_func("acpi/piix4/numamem", test_acpi_piix4_tcg_numamem);
-        qtest_add_func("acpi/q35/numamem", test_acpi_q35_tcg_numamem);
-        qtest_add_func("acpi/piix4/nosmm", test_acpi_piix4_tcg_nosmm);
+        qtest_add_func("acpi/q35", test_acpi_q35);
+        qtest_add_func("acpi/q35/bridge", test_acpi_q35_bridge);
+        qtest_add_func("acpi/q35/mmio64", test_acpi_q35_mmio64);
+        qtest_add_func("acpi/piix4/ipmi", test_acpi_piix4_ipmi);
+        qtest_add_func("acpi/q35/ipmi", test_acpi_q35_ipmi);
+        qtest_add_func("acpi/piix4/cpuhp", test_acpi_piix4_cphp);
+        qtest_add_func("acpi/q35/cpuhp", test_acpi_q35_cphp);
+        qtest_add_func("acpi/piix4/memhp", test_acpi_piix4_memhp);
+        qtest_add_func("acpi/q35/memhp", test_acpi_q35_memhp);
+        qtest_add_func("acpi/piix4/numamem", test_acpi_piix4_numamem);
+        qtest_add_func("acpi/q35/numamem", test_acpi_q35_numamem);
+        qtest_add_func("acpi/piix4/nosmm", test_acpi_piix4_nosmm);
         qtest_add_func("acpi/piix4/smm-compat",
-                       test_acpi_piix4_tcg_smm_compat);
+                       test_acpi_piix4_smm_compat);
         qtest_add_func("acpi/piix4/smm-compat-nosmm",
-                       test_acpi_piix4_tcg_smm_compat_nosmm);
-        qtest_add_func("acpi/piix4/nohpet", test_acpi_piix4_tcg_nohpet);
-        qtest_add_func("acpi/q35/nosmm", test_acpi_q35_tcg_nosmm);
+                       test_acpi_piix4_smm_compat_nosmm);
+        qtest_add_func("acpi/piix4/nohpet", test_acpi_piix4_nohpet);
+        qtest_add_func("acpi/q35/nosmm", test_acpi_q35_nosmm);
         qtest_add_func("acpi/q35/smm-compat",
-                       test_acpi_q35_tcg_smm_compat);
+                       test_acpi_q35_smm_compat);
         qtest_add_func("acpi/q35/smm-compat-nosmm",
-                       test_acpi_q35_tcg_smm_compat_nosmm);
-        qtest_add_func("acpi/q35/nohpet", test_acpi_q35_tcg_nohpet);
-        qtest_add_func("acpi/piix4/dimmpxm", test_acpi_piix4_tcg_dimm_pxm);
-        qtest_add_func("acpi/q35/dimmpxm", test_acpi_q35_tcg_dimm_pxm);
-        qtest_add_func("acpi/piix4/acpihmat", test_acpi_piix4_tcg_acpi_hmat);
-        qtest_add_func("acpi/q35/acpihmat", test_acpi_q35_tcg_acpi_hmat);
-        qtest_add_func("acpi/microvm", test_acpi_microvm_tcg);
-        qtest_add_func("acpi/microvm/usb", test_acpi_microvm_usb_tcg);
-        qtest_add_func("acpi/microvm/rtc", test_acpi_microvm_rtc_tcg);
-        qtest_add_func("acpi/microvm/ioapic2", test_acpi_microvm_ioapic2_tcg);
+                       test_acpi_q35_smm_compat_nosmm);
+        qtest_add_func("acpi/q35/nohpet", test_acpi_q35_nohpet);
+        qtest_add_func("acpi/piix4/dimmpxm", test_acpi_piix4_dimm_pxm);
+        qtest_add_func("acpi/q35/dimmpxm", test_acpi_q35_dimm_pxm);
+        qtest_add_func("acpi/piix4/acpihmat", test_acpi_piix4_acpi_hmat);
+        qtest_add_func("acpi/q35/acpihmat", test_acpi_q35_acpi_hmat);
+        qtest_add_func("acpi/microvm", test_acpi_microvm);
+        qtest_add_func("acpi/microvm/usb", test_acpi_microvm_usb);
+        qtest_add_func("acpi/microvm/rtc", test_acpi_microvm_rtc);
+        qtest_add_func("acpi/microvm/ioapic2", test_acpi_microvm_ioapic2);
         qtest_add_func("acpi/microvm/oem-fields", test_acpi_oem_fields_microvm);
         if (strcmp(arch, "x86_64") == 0) {
-            qtest_add_func("acpi/microvm/pcie", test_acpi_microvm_pcie_tcg);
+            qtest_add_func("acpi/microvm/pcie", test_acpi_microvm_pcie);
         }
     } else if (strcmp(arch, "aarch64") == 0) {
         qtest_add_func("acpi/virt", test_acpi_virt_tcg);
