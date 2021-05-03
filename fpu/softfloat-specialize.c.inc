@@ -103,7 +103,7 @@ static inline bool snan_bit_is_one(float_status *status)
 {
 #if defined(TARGET_MIPS)
     return status->snan_bit_is_one;
-#elif defined(TARGET_HPPA) || defined(TARGET_UNICORE32) || defined(TARGET_SH4)
+#elif defined(TARGET_HPPA) || defined(TARGET_SH4)
     return 1;
 #else
     return 0;
@@ -146,11 +146,10 @@ static FloatParts parts_default_nan(float_status *status)
     /* snan_bit_is_one, set msb-1.  */
     frac = 1ULL << (DECOMPOSED_BINARY_POINT - 2);
 #else
-    /* This case is true for Alpha, ARM, MIPS, OpenRISC, PPC, RISC-V,
-     * S390, SH4, TriCore, and Xtensa.  I cannot find documentation
-     * for Unicore32; the choice from the original commit is unchanged.
-     * Our other supported targets, CRIS, Nios2, and Tile,
-     * do not have floating-point.
+    /*
+     * This case is true for Alpha, ARM, MIPS, OpenRISC, PPC, RISC-V,
+     * S390, SH4, TriCore, and Xtensa.  Our other supported targets,
+     * CRIS, Nios2, and Tile, do not have floating-point.
      */
     if (snan_bit_is_one(status)) {
         /* set all bits other than msb */
