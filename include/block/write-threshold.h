@@ -59,4 +59,13 @@ bool bdrv_write_threshold_is_set(const BlockDriverState *bs);
 uint64_t bdrv_write_threshold_exceeded(const BlockDriverState *bs,
                                        const BdrvTrackedRequest *req);
 
+/*
+ * bdrv_write_threshold_check_write
+ *
+ * Check, does specified request exceeds write threshold. If it is, send
+ * corresponding event and unset write threshold.
+ */
+void bdrv_write_threshold_check_write(BlockDriverState *bs, int64_t offset,
+                                      int64_t bytes);
+
 #endif
