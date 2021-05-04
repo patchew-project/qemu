@@ -20,6 +20,7 @@
 
 #include <linux/kvm.h>
 #include "standard-headers/asm-x86/kvm_para.h"
+#include "qapi/qapi-commands-machine-target.h"
 
 #include "cpu.h"
 #include "sysemu/sysemu.h"
@@ -1464,16 +1465,48 @@ static Error *invtsc_mig_blocker;
 
 #define KVM_MAX_CPUID_ENTRIES  100
 
+struct CPUIDEntriesInfo {
+    struct kvm_cpuid2 cpuid;
+    struct kvm_cpuid_entry2 entries[KVM_MAX_CPUID_ENTRIES];
+};
+
+struct CPUIDEntriesInfo *cpuid_data_cached;
+
+CpuidEntryList *
+qmp_query_cpu_model_cpuid(Error **errp)
+{
+    int i;
+    struct kvm_cpuid_entry2 *kvm_entry;
+    CpuidEntryList *head = NULL, **tail = &head;
+    CpuidEntry *entry;
+
+    if (!cpuid_data_cached) {
+        error_setg(errp, "cpuid_data cache not ready");
+        return NULL;
+    }
+
+    for (i = 0; i < cpuid_data_cached->cpuid.nent; ++i) {
+        kvm_entry = &cpuid_data_cached->entries[i];
+        entry = g_malloc0(sizeof(*entry));
+        entry->leaf = kvm_entry->function;
+        entry->subleaf = kvm_entry->index;
+        entry->eax = kvm_entry->eax;
+        entry->ebx = kvm_entry->ebx;
+        entry->ecx = kvm_entry->ecx;
+        entry->edx = kvm_entry->edx;
+        QAPI_LIST_APPEND(tail, entry);
+    }
+
+    return head;
+}
+
 int kvm_arch_init_vcpu(CPUState *cs)
 {
-    struct {
-        struct kvm_cpuid2 cpuid;
-        struct kvm_cpuid_entry2 entries[KVM_MAX_CPUID_ENTRIES];
-    } cpuid_data;
     /*
      * The kernel defines these structs with padding fields so there
      * should be no extra padding in our cpuid_data struct.
      */
+    struct CPUIDEntriesInfo cpuid_data;
     QEMU_BUILD_BUG_ON(sizeof(cpuid_data) !=
                       sizeof(struct kvm_cpuid2) +
                       sizeof(struct kvm_cpuid_entry2) * KVM_MAX_CPUID_ENTRIES);
@@ -1832,6 +1865,10 @@ int kvm_arch_init_vcpu(CPUState *cs)
     r = kvm_vcpu_ioctl(cs, KVM_SET_CPUID2, &cpuid_data);
     if (r) {
         goto fail;
+    }
+    if (!cpuid_data_cached) {
+        cpuid_data_cached = g_malloc0(sizeof(cpuid_data));
+        memcpy(cpuid_data_cached, &cpuid_data, sizeof(cpuid_data));
     }
 
     if (has_xsave) {
