@@ -1568,6 +1568,11 @@ static int xhci_setup_packet(XHCITransfer *xfer)
         qemu_sglist_destroy(&xfer->sgl);
         return -1;
     }
+    if (xfer->packet.iov.size > ep->max_packet_size) {
+        usb_packet_unmap(&xfer->packet, &xfer->sgl);
+        qemu_sglist_destroy(&xfer->sgl);
+        return -1;
+    }
     DPRINTF("xhci: setup packet pid 0x%x addr %d ep %d\n",
             xfer->packet.pid, ep->dev->addr, ep->nr);
     return 0;
