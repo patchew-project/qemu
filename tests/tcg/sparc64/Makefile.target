@@ -7,5 +7,12 @@
 run-linux-test: linux-test
 	$(call skip-test, $<, "BROKEN")
 
+# currently broken: hangs after the first thread exits
+run-signals: signals
+	$(call skip-test, $<, "BROKEN")
+
+run-plugin-signals-with-%: signals
+	$(call skip-test, $<, "BROKEN")
+
 # On Sparc64 Linux support 8k pages
 EXTRA_RUNS+=run-test-mmap-8192

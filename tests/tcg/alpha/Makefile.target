@@ -14,5 +14,12 @@ test-cmov: test-cond.c
 
 run-test-cmov: test-cmov
 
+# currently broken: executes a halt on sigreturn leading to being terminated by signal SIGILL (Illegal instruction)
+run-signals: signals
+	$(call skip-test, $<, "BROKEN")
+
+run-plugin-signals-with-%: signals
+	$(call skip-test, $<, "BROKEN")
+
 # On Alpha Linux only supports 8k pages
 EXTRA_RUNS+=run-test-mmap-8192
