@@ -1456,11 +1456,13 @@ typedef void (*GdbCmdHandler)(GdbCmdContext *gdb_ctx, void *user_ctx);
  * '.' -> Skip 1 char unless reached "\0"
  * Any other value is treated as the delimiter value itself
  */
+#define GDB_CMD_PARSE_ENTRY_CMD_SIZE    20
+#define GDB_CMD_PARSE_ENTRY_SCHEMA_SIZE 8
 typedef struct GdbCmdParseEntry {
     GdbCmdHandler handler;
-    const char *cmd;
+    const char cmd[GDB_CMD_PARSE_ENTRY_CMD_SIZE];
     bool cmd_startswith;
-    const char *schema;
+    const char schema[GDB_CMD_PARSE_ENTRY_SCHEMA_SIZE];
 } GdbCmdParseEntry;
 
 static inline int startswith(const char *string, const char *pattern)
@@ -1480,14 +1482,14 @@ static int process_string_cmd(void *user_ctx, const char *data,
 
     for (i = 0; i < num_cmds; i++) {
         const GdbCmdParseEntry *cmd = &cmds[i];
-        g_assert(cmd->handler && cmd->cmd);
+        g_assert(cmd->handler && *cmd->cmd);
 
         if ((cmd->cmd_startswith && !startswith(data, cmd->cmd)) ||
             (!cmd->cmd_startswith && strcmp(cmd->cmd, data))) {
             continue;
         }
 
-        if (cmd->schema) {
+        if (*cmd->schema) {
             schema_len = strlen(cmd->schema);
             if (schema_len % 2) {
                 return -2;
