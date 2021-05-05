@@ -68,10 +68,11 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
                                    rec->insns, rec->exec_count);
         }
 
-        g_list_free(it);
+        g_list_free_full(it, g_free);
         g_mutex_unlock(&lock);
     }
 
+    g_hash_table_destroy(hotblocks);
     qemu_plugin_outs(report->str);
 }
 
