@@ -4924,7 +4924,9 @@ float128 float32_to_float128(float32 a, float_status *status)
     aSign = extractFloat32Sign( a );
     if ( aExp == 0xFF ) {
         if (aSig) {
-            return commonNaNToFloat128(float32ToCommonNaN(a, status), status);
+            float128 res = commonNaNToFloat128(float32ToCommonNaN(a, status),
+                                               status);
+            return float128_silence_nan(res, status);
         }
         return packFloat128( aSign, 0x7FFF, 0, 0 );
     }
@@ -5229,7 +5231,9 @@ float128 float64_to_float128(float64 a, float_status *status)
     aSign = extractFloat64Sign( a );
     if ( aExp == 0x7FF ) {
         if (aSig) {
-            return commonNaNToFloat128(float64ToCommonNaN(a, status), status);
+            float128 res = commonNaNToFloat128(float64ToCommonNaN(a, status),
+                                               status);
+            return float128_silence_nan(res, status);
         }
         return packFloat128( aSign, 0x7FFF, 0, 0 );
     }
@@ -6665,7 +6669,9 @@ float32 float128_to_float32(float128 a, float_status *status)
     aSign = extractFloat128Sign( a );
     if ( aExp == 0x7FFF ) {
         if ( aSig0 | aSig1 ) {
-            return commonNaNToFloat32(float128ToCommonNaN(a, status), status);
+            float32 res = commonNaNToFloat32(float128ToCommonNaN(a, status),
+                                             status);
+            return float32_silence_nan(res, status);
         }
         return packFloat32( aSign, 0xFF, 0 );
     }
@@ -6699,7 +6705,9 @@ float64 float128_to_float64(float128 a, float_status *status)
     aSign = extractFloat128Sign( a );
     if ( aExp == 0x7FFF ) {
         if ( aSig0 | aSig1 ) {
-            return commonNaNToFloat64(float128ToCommonNaN(a, status), status);
+            float64 res = commonNaNToFloat64(float128ToCommonNaN(a, status),
+                                             status);
+            return float64_silence_nan(res, status);
         }
         return packFloat64( aSign, 0x7FF, 0 );
     }
