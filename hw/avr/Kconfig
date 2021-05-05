@@ -3,6 +3,7 @@ config AVR_ATMEGA_MCU
     select AVR_TIMER16
     select AVR_USART
     select AVR_POWER
+    select AVR_WDT
 
 config ARDUINO
     select AVR_ATMEGA_MCU

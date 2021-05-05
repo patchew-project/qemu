@@ -1411,6 +1411,9 @@ static bool trans_SBIC(DisasContext *ctx, arg_SBIC *a)
 {
     TCGv temp = tcg_const_i32(a->reg);
 
+    if (tb_cflags(ctx->tb) & CF_USE_ICOUNT) {
+        gen_io_start();
+    }
     gen_helper_inb(temp, cpu_env, temp);
     tcg_gen_andi_tl(temp, temp, 1 << a->bit);
     ctx->skip_cond = TCG_COND_EQ;
@@ -1429,6 +1432,9 @@ static bool trans_SBIS(DisasContext *ctx, arg_SBIS *a)
 {
     TCGv temp = tcg_const_i32(a->reg);
 
+    if (tb_cflags(ctx->tb) & CF_USE_ICOUNT) {
+        gen_io_start();
+    }
     gen_helper_inb(temp, cpu_env, temp);
     tcg_gen_andi_tl(temp, temp, 1 << a->bit);
     ctx->skip_cond = TCG_COND_NE;
@@ -1611,6 +1617,9 @@ static TCGv gen_get_zaddr(void)
 static void gen_data_store(DisasContext *ctx, TCGv data, TCGv addr)
 {
     if (ctx->tb->flags & TB_FLAGS_FULL_ACCESS) {
+        if (tb_cflags(ctx->tb) & CF_USE_ICOUNT) {
+            gen_io_start();
+        }
         gen_helper_fullwr(cpu_env, data, addr);
     } else {
         tcg_gen_qemu_st8(data, addr, MMU_DATA_IDX); /* mem[addr] = data */
@@ -1620,6 +1629,9 @@ static void gen_data_store(DisasContext *ctx, TCGv data, TCGv addr)
 static void gen_data_load(DisasContext *ctx, TCGv data, TCGv addr)
 {
     if (ctx->tb->flags & TB_FLAGS_FULL_ACCESS) {
+        if (tb_cflags(ctx->tb) & CF_USE_ICOUNT) {
+            gen_io_start();
+        }
         gen_helper_fullrd(data, cpu_env, addr);
     } else {
         tcg_gen_qemu_ld8u(data, addr, MMU_DATA_IDX); /* data = mem[addr] */
@@ -2325,6 +2337,9 @@ static bool trans_IN(DisasContext *ctx, arg_IN *a)
     TCGv Rd = cpu_r[a->rd];
     TCGv port = tcg_const_i32(a->imm);
 
+    if (tb_cflags(ctx->tb) & CF_USE_ICOUNT) {
+        gen_io_start();
+    }
     gen_helper_inb(Rd, cpu_env, port);
 
     tcg_temp_free_i32(port);
@@ -2341,6 +2356,9 @@ static bool trans_OUT(DisasContext *ctx, arg_OUT *a)
     TCGv Rd = cpu_r[a->rd];
     TCGv port = tcg_const_i32(a->imm);
 
+    if (tb_cflags(ctx->tb) & CF_USE_ICOUNT) {
+        gen_io_start();
+    }
     gen_helper_outb(cpu_env, port, Rd);
 
     tcg_temp_free_i32(port);
@@ -2641,6 +2659,9 @@ static bool trans_SBI(DisasContext *ctx, arg_SBI *a)
     TCGv data = tcg_temp_new_i32();
     TCGv port = tcg_const_i32(a->reg);
 
+    if (tb_cflags(ctx->tb) & CF_USE_ICOUNT) {
+        gen_io_start();
+    }
     gen_helper_inb(data, cpu_env, port);
     tcg_gen_ori_tl(data, data, 1 << a->bit);
     gen_helper_outb(cpu_env, port, data);
@@ -2660,6 +2681,9 @@ static bool trans_CBI(DisasContext *ctx, arg_CBI *a)
     TCGv data = tcg_temp_new_i32();
     TCGv port = tcg_const_i32(a->reg);
 
+    if (tb_cflags(ctx->tb) & CF_USE_ICOUNT) {
+        gen_io_start();
+    }
     gen_helper_inb(data, cpu_env, port);
     tcg_gen_andi_tl(data, data, ~(1 << a->bit));
     gen_helper_outb(cpu_env, port, data);
@@ -2830,6 +2854,9 @@ static bool trans_SLEEP(DisasContext *ctx, arg_SLEEP *a)
  */
 static bool trans_WDR(DisasContext *ctx, arg_WDR *a)
 {
+    if (tb_cflags(ctx->tb) & CF_USE_ICOUNT) {
+        gen_io_start();
+    }
     gen_helper_wdr(cpu_env);
 
     return true;
@@ -2919,6 +2946,9 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
          * This flag is set by ST/LD instruction we will regenerate it ONLY
          * with mem/cpu memory access instead of mem access
          */
+        if (tb_cflags(tb) & CF_USE_ICOUNT) {
+            gen_io_start();
+        }
         max_insns = 1;
     }
     if (ctx.singlestep) {
@@ -2953,6 +2983,10 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
             tcg_gen_movi_tl(cpu_pc, ctx.npc);
             gen_helper_debug(cpu_env);
             goto done_generating;
+        }
+
+        if (num_insns == max_insns && (tb_cflags(tb) & CF_LAST_IO)) {
+            gen_io_start();
         }
 
         /* Conditionally skip the next instruction, if indicated.  */
@@ -2997,10 +3031,6 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
              && num_insns < max_insns
              && (ctx.npc - pc_start) * 2 < TARGET_PAGE_SIZE - 4
              && !tcg_op_buf_full());
-
-    if (tb->cflags & CF_LAST_IO) {
-        gen_io_end();
-    }
 
     bool nonconst_skip = canonicalize_skip(&ctx);
 

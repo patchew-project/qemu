@@ -5,3 +5,8 @@ cmsdk_apb_watchdog_read(uint64_t offset, uint64_t data, unsigned size) "CMSDK AP
 cmsdk_apb_watchdog_write(uint64_t offset, uint64_t data, unsigned size) "CMSDK APB watchdog write: offset 0x%" PRIx64 " data 0x%" PRIx64 " size %u"
 cmsdk_apb_watchdog_reset(void) "CMSDK APB watchdog: reset"
 cmsdk_apb_watchdog_lock(uint32_t lock) "CMSDK APB watchdog: lock %" PRIu32
+
+# avr_wdt.c
+avr_wdt_read(uint8_t addr, uint8_t value) "wdt read addr:%u value:%u"
+avr_wdt_write(uint8_t addr, uint8_t value) "wdt write addr:%u value:%u"
+avr_wdt_interrupt(void) ""

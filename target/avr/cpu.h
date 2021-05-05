@@ -152,6 +152,7 @@ typedef struct AVRCPU {
 
     CPUNegativeOffsetState neg;
     CPUAVRState env;
+    qemu_irq wdr; /* reset WDT */
 } AVRCPU;
 
 extern const struct VMStateDescription vms_avr_cpu;
