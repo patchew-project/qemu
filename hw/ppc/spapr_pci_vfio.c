@@ -47,6 +47,16 @@ void spapr_phb_vfio_reset(DeviceState *qdev)
     spapr_phb_vfio_eeh_reenable(SPAPR_PCI_HOST_BRIDGE(qdev));
 }
 
+static void spapr_eeh_pci_find_device(PCIBus *bus, PCIDevice *pdev,
+                                      void *opaque)
+{
+    bool *found = opaque;
+
+    if (object_dynamic_cast(OBJECT(pdev), "vfio-pci")) {
+        *found = true;
+    }
+}
+
 int spapr_phb_vfio_eeh_set_option(SpaprPhbState *sphb,
                                   unsigned int addr, int option)
 {
@@ -59,17 +69,20 @@ int spapr_phb_vfio_eeh_set_option(SpaprPhbState *sphb,
         break;
     case RTAS_EEH_ENABLE: {
         PCIHostState *phb;
-        PCIDevice *pdev;
+        bool found = false;
 
         /*
-         * The EEH functionality is enabled on basis of PCI device,
-         * instead of PE. We need check the validity of the PCI
-         * device address.
+         * The EEH functionality is enabled per sphb level instead of
+         * per PCI device. We just need to check the validity of the PCI
+         * pass-through devices (vfio-pci) under this sphb bus.
+         * We have already validated that all the devices under this sphb
+         * are from same iommu group (within same PE) before comming here.
          */
         phb = PCI_HOST_BRIDGE(sphb);
-        pdev = pci_find_device(phb->bus,
-                               (addr >> 16) & 0xFF, (addr >> 8) & 0xFF);
-        if (!pdev || !object_dynamic_cast(OBJECT(pdev), "vfio-pci")) {
+        pci_for_each_device(phb->bus, (addr >> 16) & 0xFF,
+                            spapr_eeh_pci_find_device, &found);
+
+        if (!found) {
             return RTAS_OUT_PARAM_ERROR;
         }
 
