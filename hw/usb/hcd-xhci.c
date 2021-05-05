@@ -2382,7 +2382,7 @@ static void xhci_detach_slot(XHCIState *xhci, USBPort *uport)
 static TRBCCode xhci_get_port_bandwidth(XHCIState *xhci, uint64_t pctx)
 {
     dma_addr_t ctx;
-    uint8_t bw_ctx[xhci->numports+1];
+    g_autofree uint8_t *bw_ctx = g_malloc(xhci->numports + 1);
 
     DPRINTF("xhci_get_port_bandwidth()\n");
 
