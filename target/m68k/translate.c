@@ -1826,7 +1826,7 @@ DISAS_INSN(abcd_reg)
 
 DISAS_INSN(abcd_mem)
 {
-    TCGv src, dest, addr;
+    TCGv src, dest;
 
     gen_flush_flags(s); /* !Z is sticky */
 
@@ -1835,11 +1835,11 @@ DISAS_INSN(abcd_mem)
     src = gen_ea_mode(env, s, 4, REG(insn, 0), OS_BYTE,
                       NULL_QREG, NULL, EA_LOADU, IS_USER(s));
     dest = gen_ea_mode(env, s, 4, REG(insn, 9), OS_BYTE,
-                       NULL_QREG, &addr, EA_LOADU, IS_USER(s));
+                       NULL_QREG, NULL, EA_LOADU, IS_USER(s));
 
     bcd_add(dest, src);
 
-    gen_ea_mode(env, s, 4, REG(insn, 9), OS_BYTE, dest, &addr,
+    gen_ea_mode(env, s, 4, REG(insn, 9), OS_BYTE, dest, NULL,
                 EA_STORE, IS_USER(s));
 
     bcd_flags(dest);
@@ -1863,7 +1863,7 @@ DISAS_INSN(sbcd_reg)
 
 DISAS_INSN(sbcd_mem)
 {
-    TCGv src, dest, addr;
+    TCGv src, dest;
 
     gen_flush_flags(s); /* !Z is sticky */
 
@@ -1872,11 +1872,11 @@ DISAS_INSN(sbcd_mem)
     src = gen_ea_mode(env, s, 4, REG(insn, 0), OS_BYTE,
                       NULL_QREG, NULL, EA_LOADU, IS_USER(s));
     dest = gen_ea_mode(env, s, 4, REG(insn, 9), OS_BYTE,
-                       NULL_QREG, &addr, EA_LOADU, IS_USER(s));
+                       NULL_QREG, NULL, EA_LOADU, IS_USER(s));
 
     bcd_sub(dest, src);
 
-    gen_ea_mode(env, s, 4, REG(insn, 9), OS_BYTE, dest, &addr,
+    gen_ea_mode(env, s, 4, REG(insn, 9), OS_BYTE, dest, NULL,
                 EA_STORE, IS_USER(s));
 
     bcd_flags(dest);
