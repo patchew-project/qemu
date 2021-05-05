@@ -9302,7 +9302,7 @@ POWERPC_FAMILY(POWER10)(ObjectClass *oc, void *data)
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
     pcc->lpcr_mask = LPCR_VPM1 | LPCR_ISL | LPCR_KBV | LPCR_DPFD |
-        (LPCR_PECE_U_MASK & LPCR_HVEE) | LPCR_ILE | LPCR_AIL |
+        (LPCR_PECE_U_MASK & LPCR_HVEE) | LPCR_ILE |  LPCR_HAIL | LPCR_AIL |
         LPCR_UPRT | LPCR_EVIRT | LPCR_ONL | LPCR_HR | LPCR_LD |
         (LPCR_PECE_L_MASK & (LPCR_PDEE | LPCR_HDEE | LPCR_EEE |
                              LPCR_DEE | LPCR_OEE))
