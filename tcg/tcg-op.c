@@ -2687,6 +2687,8 @@ void tcg_gen_exit_tb(const TranslationBlock *tb, unsigned idx)
         tcg_debug_assert(idx == TB_EXIT_REQUESTED);
     }
 
+    trace_exit_tb_tcg(val & ~TB_EXIT_MASK, val & TB_EXIT_MASK);
+
     plugin_gen_disable_mem_helpers();
     tcg_gen_op1i(INDEX_op_exit_tb, val);
 }
@@ -2703,6 +2705,9 @@ void tcg_gen_goto_tb(unsigned idx)
     plugin_gen_disable_mem_helpers();
     /* When not chaining, we simply fall through to the "fallback" exit.  */
     if (!qemu_loglevel_mask(CPU_LOG_TB_NOCHAIN)) {
+
+        trace_goto_tb_tcg(idx);
+
         tcg_gen_op1i(INDEX_op_goto_tb, idx);
     }
 }
@@ -2715,6 +2720,9 @@ void tcg_gen_lookup_and_goto_ptr(void)
         plugin_gen_disable_mem_helpers();
         ptr = tcg_temp_new_ptr();
         gen_helper_lookup_tb_ptr(ptr, cpu_env);
+
+        trace_goto_ptr_tcg(ptr);
+
         tcg_gen_op1i(INDEX_op_goto_ptr, tcgv_ptr_arg(ptr));
         tcg_temp_free_ptr(ptr);
     } else {

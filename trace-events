@@ -136,6 +136,18 @@ vcpu guest_cpu_reset(void)
 # Targets: TCG(all)
 vcpu tcg guest_mem_before(TCGv vaddr, uint16_t info) "info=%d", "vaddr=0x%016"PRIx64" info=%d"
 
+# Mode: user, softmmu
+# Targets: TCG(all)
+tcg exit_tb(uint64_t ptr, uint64_t idx) "tb=0x%016"PRIx64"/%"PRId64"", "tb=0x%016"PRIx64"/%"PRId64""
+
+# Mode: user, softmmu
+# Targets: TCG(all)
+tcg goto_tb(uint64_t idx) "idx=%"PRId64"", "idx=%"PRId64""
+
+# Mode: user, softmmu
+# Targets: TCG(all)
+tcg goto_ptr(TCGv_ptr ptr) "", "ptr=%p"
+
 # include/user/syscall-trace.h
 
 # @num: System call number.
