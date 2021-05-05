@@ -1474,7 +1474,9 @@ static int process_string_cmd(void *user_ctx, const char *data,
                               const GdbCmdParseEntry *cmds, int num_cmds)
 {
     int i, schema_len, max_num_params = 0;
-    GdbCmdContext gdb_ctx;
+    g_autofree GdbCmdVariant *params = g_new(GdbCmdVariant,
+                                        GDB_CMD_PARSE_ENTRY_SCHEMA_SIZE / 2);
+    GdbCmdContext gdb_ctx = { .params = params };
 
     if (!cmds) {
         return -1;
@@ -1498,8 +1500,6 @@ static int process_string_cmd(void *user_ctx, const char *data,
             max_num_params = schema_len / 2;
         }
 
-        gdb_ctx.params =
-            (GdbCmdVariant *)alloca(sizeof(*gdb_ctx.params) * max_num_params);
         memset(gdb_ctx.params, 0, sizeof(*gdb_ctx.params) * max_num_params);
 
         if (cmd_parse_params(&data[strlen(cmd->cmd)], cmd->schema,
