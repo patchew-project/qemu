@@ -652,7 +652,7 @@ static uint16_t nvme_map_prp(NvmeCtrl *n, NvmeSg *sg, uint64_t prp1,
     len -= trans_len;
     if (len) {
         if (len > n->page_size) {
-            uint64_t prp_list[n->max_prp_ents];
+            g_autofree uint64_t *prp_list = NULL;
             uint32_t nents, prp_trans;
             int i = 0;
 
@@ -662,8 +662,10 @@ static uint16_t nvme_map_prp(NvmeCtrl *n, NvmeSg *sg, uint64_t prp1,
              * that offset.
              */
             nents = (n->page_size - (prp2 & (n->page_size - 1))) >> 3;
-            prp_trans = MIN(n->max_prp_ents, nents) * sizeof(uint64_t);
-            ret = nvme_addr_read(n, prp2, (void *)prp_list, prp_trans);
+            prp_trans = MIN(n->max_prp_ents, nents);
+            prp_list = g_new(uint64_t, prp_trans);
+            ret = nvme_addr_read(n, prp2, (void *)prp_list,
+                                 prp_trans * sizeof(uint64_t));
             if (ret) {
                 trace_pci_nvme_err_addr_read(prp2);
                 status = NVME_DATA_TRAS_ERROR;
@@ -682,9 +684,8 @@ static uint16_t nvme_map_prp(NvmeCtrl *n, NvmeSg *sg, uint64_t prp1,
                     i = 0;
                     nents = (len + n->page_size - 1) >> n->page_bits;
                     nents = MIN(nents, n->max_prp_ents);
-                    prp_trans = nents * sizeof(uint64_t);
                     ret = nvme_addr_read(n, prp_ent, (void *)prp_list,
-                                         prp_trans);
+                                         nents * sizeof(uint64_t));
                     if (ret) {
                         trace_pci_nvme_err_addr_read(prp_ent);
                         status = NVME_DATA_TRAS_ERROR;
@@ -2510,10 +2511,10 @@ static uint16_t nvme_dsm(NvmeCtrl *n, NvmeRequest *req)
     if (attr & NVME_DSMGMT_AD) {
         int64_t offset;
         size_t len;
-        NvmeDsmRange range[nr];
+        g_autofree NvmeDsmRange *range = g_new(NvmeDsmRange, nr);
         uintptr_t *discards = (uintptr_t *)&req->opaque;
 
-        status = nvme_h2c(n, (uint8_t *)range, sizeof(range), req);
+        status = nvme_h2c(n, (uint8_t *)range, sizeof(*range) * nr, req);
         if (status) {
             return status;
         }
