@@ -64,7 +64,7 @@ static coroutine_fn int backup_top_cbw(BlockDriverState *bs, uint64_t offset,
 }
 
 static int coroutine_fn backup_top_co_pdiscard(BlockDriverState *bs,
-                                               int64_t offset, int bytes)
+                                               int64_t offset, int64_t bytes)
 {
     int ret = backup_top_cbw(bs, offset, bytes, 0);
     if (ret < 0) {
