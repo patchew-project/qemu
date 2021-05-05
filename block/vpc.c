@@ -509,7 +509,7 @@ static inline int64_t get_image_offset(BlockDriverState *bs, uint64_t offset,
        miss sparse read optimization, but it's not a problem in terms of
        correctness. */
     if (write && (s->last_bitmap_offset != bitmap_offset)) {
-        uint8_t bitmap[s->bitmap_size];
+        g_autofree uint8_t *bitmap = g_malloc(s->bitmap_size);
         int r;
 
         s->last_bitmap_offset = bitmap_offset;
@@ -556,7 +556,7 @@ static int64_t alloc_block(BlockDriverState *bs, int64_t offset)
     int64_t bat_offset;
     uint32_t index, bat_value;
     int ret;
-    uint8_t bitmap[s->bitmap_size];
+    g_autofree uint8_t *bitmap = g_malloc(s->bitmap_size);
 
     /* Check if sector_num is valid */
     if ((offset < 0) || (offset > bs->total_sectors * BDRV_SECTOR_SIZE)) {
