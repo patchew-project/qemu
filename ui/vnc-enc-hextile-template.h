@@ -25,10 +25,11 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
     int bg_count = 0;
     int fg_count = 0;
     int flags = 0;
-    uint8_t data[(vs->client_pf.bytes_per_pixel + 2) * 16 * 16];
+    g_autofree uint8_t *data = g_malloc((VNC_SERVER_FB_BYTES + 2) * 16 * 16);
     int n_data = 0;
     int n_subtiles = 0;
 
+    assert(vs->client_pf.bytes_per_pixel <= VNC_SERVER_FB_BYTES);
     for (j = 0; j < h; j++) {
         for (i = 0; i < w; i++) {
             switch (n_colors) {
