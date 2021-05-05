@@ -312,6 +312,19 @@ The ``I7200`` guest CPU relies on the nanoMIPS ISA, which is deprecated
 (the ISA has never been upstreamed to a compiler toolchain). Therefore
 this CPU is also deprecated.
 
+TCG introspection features
+--------------------------
+
+TCG trace-events (since 6.1)
+''''''''''''''''''''''''''''
+
+The ability to add new TCG trace points has bit rotted and as the
+feature can be replicated with TCG plugins it will be deprecated. If
+any user is currently using this feature and needs help with
+converting to using TCG plugins they should contact the qemu-devel
+mailing list.
+
+
 Related binaries
 ----------------
 
