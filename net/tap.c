@@ -450,9 +450,11 @@ static void launch_script(const char *setup_script, const char *ifname,
     }
 }
 
-static int recv_fd(int c)
+/*
+ * Returns: -1 on error, 0 on end of file, 1 if an FD was received
+ */
+static int recv_fd(int c, int *fd)
 {
-    int fd;
     uint8_t msgbuf[CMSG_SPACE(sizeof(fd))];
     struct msghdr msg = {
         .msg_control = msgbuf,
@@ -476,12 +478,12 @@ static int recv_fd(int c)
     msg.msg_iovlen = 1;
 
     len = recvmsg(c, &msg, 0);
-    if (len > 0) {
-        memcpy(&fd, CMSG_DATA(cmsg), sizeof(fd));
-        return fd;
+    if (len <= 0) {
+        return len;
     }
 
-    return len;
+    memcpy(fd, CMSG_DATA(cmsg), sizeof(*fd));
+    return 1;
 }
 
 static int net_bridge_run_helper(const char *helper, const char *bridge,
@@ -564,14 +566,15 @@ static int net_bridge_run_helper(const char *helper, const char *bridge,
         _exit(1);
 
     } else {
-        int fd;
+        int ret;
+        int fd = -1;
         int saved_errno;
 
         close(sv[1]);
 
         do {
-            fd = recv_fd(sv[0]);
-        } while (fd == -1 && errno == EINTR);
+            ret = recv_fd(sv[0], &fd);
+        } while (ret == -1 && errno == EINTR);
         saved_errno = errno;
 
         close(sv[0]);
@@ -580,13 +583,22 @@ static int net_bridge_run_helper(const char *helper, const char *bridge,
             /* loop */
         }
         sigprocmask(SIG_SETMASK, &oldmask, NULL);
-        if (fd < 0) {
+        if (ret < 0) {
             error_setg_errno(errp, saved_errno,
                              "failed to recv file descriptor");
             return -1;
         }
         if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
             error_setg(errp, "bridge helper failed");
+            return -1;
+        }
+
+        /*
+         * ret == 0 means EOF, and if status == 0 then helper
+         * exited cleanly but forgot to send us an FD. Opps...
+         */
+        if (ret == 0) {
+            error_setg(errp, "bridge helper did not send a file descriptor");
             return -1;
         }
         return fd;
