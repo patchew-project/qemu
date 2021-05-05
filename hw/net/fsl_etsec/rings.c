@@ -381,8 +381,6 @@ static void fill_rx_bd(eTSEC          *etsec,
     uint16_t to_write;
     hwaddr   bufptr = bd->bufptr +
         ((hwaddr)(etsec->regs[TBDBPH].value & 0xF) << 32);
-    uint8_t  padd[etsec->rx_padding];
-    uint8_t  rem;
 
     RING_DEBUG("eTSEC fill Rx buffer @ 0x%016" HWADDR_PRIx
                " size:%zu(padding + crc:%u) + fcb:%u\n",
@@ -423,11 +421,12 @@ static void fill_rx_bd(eTSEC          *etsec,
         /* The remaining bytes are only for padding which is not actually
          * allocated in the data buffer.
          */
-
-        rem = MIN(etsec->regs[MRBLR].value - bd->length, etsec->rx_padding);
+        uint8_t  rem = MIN(etsec->regs[MRBLR].value - bd->length,
+                           etsec->rx_padding);
 
         if (rem > 0) {
-            memset(padd, 0x0, sizeof(padd));
+            g_autofree uint8_t *padd = g_malloc0(etsec->rx_padding);
+
             etsec->rx_padding -= rem;
             *size             -= rem;
             bd->length        += rem;
