@@ -97,13 +97,14 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
         g_list_free(it);
     }
 
+    g_hash_table_destroy(pages);
     qemu_plugin_outs(report->str);
 }
 
 static void plugin_init(void)
 {
     page_mask = (page_size - 1);
-    pages = g_hash_table_new(NULL, g_direct_equal);
+    pages = g_hash_table_new_full(NULL, g_direct_equal, NULL, g_free);
 }
 
 static void vcpu_haddr(unsigned int cpu_index, qemu_plugin_meminfo_t meminfo,
