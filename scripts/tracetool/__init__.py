@@ -87,9 +87,8 @@ ALLOWED_TYPES = [
     "ssize_t",
     "uintptr_t",
     "ptrdiff_t",
-    # Magic substitution is done by tracetool
-    "TCGv",
 ]
+
 
 def validate_type(name):
     bits = name.split(" ")
@@ -98,6 +97,10 @@ def validate_type(name):
         if bit == "":
             continue
         if bit == "const":
+            continue
+        # Magic substitution of TCGv types will be done later
+        # using tracetool.transform.TCG_2_HOST
+        if bit.startswith("TCGv") and bit != "TCGv_vec":
             continue
         if bit not in ALLOWED_TYPES:
             raise ValueError("Argument type '%s' is not allowed. "
