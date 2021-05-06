@@ -1,0 +1,317 @@
+#!/usr/bin/env python3
+#
+# Copyright (C) 2021 Red Hat, Inc.
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+import os
+
+# Virtual I/O Device (VIRTIO) Version 1.1
+
+# 2.1 Device Status Field
+status_name = {
+    ( 1, 'ACKNOWLEDGE' ),
+    ( 2, 'DRIVER') ,
+    ( 4, 'DRIVER_OK' ),
+    ( 8, 'FEATURES_OK' ),
+    ( 64, 'DEVICE_NEEDS_RESET' ),
+    ( 128, 'FAILED' )
+}
+
+# 5 Device Types
+device_name = {
+    1:'Network Card',
+    2:'Block Device',
+    3:'Console',
+    4:'Entropy Source',
+    5:'Memory Ballooning (traditional)',
+    6:'ioMemory',
+    7:'rpmsg',
+    8:'SCSI host',
+    9:'9P transport',
+    10:'MAC80211 WLAN',
+    11:'rproc serial',
+    12:'CAIF',
+    13:'Memory Balloon',
+    16:'GPU Device',
+    17:'Timer/Clock Device',
+    18:'Input Device',
+    19:'Socket Device',
+    20:'Crypto Device',
+    21:'Signal Distribution Module',
+    22:'pstore Device',
+    23:'IOMMU Device',
+    24:'Memory Device',
+# From linux headers
+    26:'Filesystem',
+    27:'pmem',
+    29:'mac80211-hwsim',
+}
+
+# 5.1 Network Device
+# 5.1.3 Feature bits
+net_feature_name = {
+    0:'CSUM',
+    1:'GUEST_CSUM',
+    2:'CTRL_GUEST_OFFLOADS',
+    3:'MTU',
+    5:'MAC',
+    6:'GSO',
+    7:'GUEST_TSO4',
+    8:'GUEST_TSO6',
+    9:'GUEST_ECN',
+    10:'GUEST_UFO',
+    11:'HOST_TSO4',
+    12:'HOST_TSO6',
+    13:'HOST_ECN',
+    14:'HOST_UFO',
+    15:'MRG_RXBUF',
+    16:'STATUS',
+    17:'CTRL_VQ',
+    18:'CTRL_RX',
+    19:'CTRL_VLAN',
+    21:'GUEST_ANNOUNCE',
+    22:'MQ',
+    23:'CTRL_MAC_ADDR',
+    41:'GUEST_RSC4',
+    42:'GUEST_RSC6',
+    61:'RSC_EXT',
+    62:'STANDBY',
+}
+
+def get_feature_net(feature):
+    return net_feature_name[feature]
+
+# 5.2 Block Device
+# 5.2.3 Feature bits
+block_feature_name = {
+    0:'BARRIER',
+    1:'SIZE_MAX',
+    2:'SEG_MAX',
+    4:'GEOMETRY',
+    5:'RO',
+    6:'BLK_SIZE',
+    7:'SCSI',
+    9:'FLUSH',
+    10:'TOPOLOGY',
+    11:'CONFIG_WCE',
+    13:'DISCARD',
+    14:'WRITE_ZEROES',
+}
+
+def get_feature_block(feature):
+    return block_feature_name[feature]
+
+# 5.3 Console Device
+# 5.3.3 Feature bits
+console_feature_name = {
+    0:'SIZE',
+    1:'MULTIPORT',
+    2:'EMERG_WRITE',
+}
+
+def get_feature_console(feature):
+    return console_feature_name[feature]
+
+# 5.4 Entropy Device
+# 5.4.3 Feature bits
+# No feature bits
+
+# 5.5 Traditional Memory Balloon Device
+# 5.5.3 Feature bits
+balloon_traditional_feature_name = {
+    0:'MUST_TELL_HOST',
+    1:'STATS_VQ',
+    2:'DEFLATE_ON_OOM',
+# from linux headers
+    3:'FREE_PAGE_HINT',
+    4:'PAGE_POISON',
+    5:'REPORTING',
+}
+
+def get_feature_balloon_traditional(feature):
+    return balloon_traditional_feature_name[feature]
+
+# 5.6 SCSI Host Device
+# 5.6.3 Feature bits
+scsi_feature_name = {
+    0:'INOUT',
+    1:'HOTPLUG',
+    2:'CHANGE',
+    3:'T10_PI',
+}
+
+def get_feature_scsi_host(feature):
+    return scsi_feature_name[feature]
+
+# 5.7 GPU Device
+# 5.7.3 Feature bits
+gpu_feature_name = {
+    0:'VIRGL',
+    1:'EDID',
+}
+
+def get_feature_gpu(feature):
+    return gpu_feature_name[feature]
+
+# 5.8 Input Device
+# 5.8.3 Feature bits
+# No feature bits
+
+# 5.9 Crypto Device
+# 5.9.3 Feature bits
+crypto_feature_name = {
+    0:'REVISION_1',
+    1:'CIPHER_STATELESS_MODE',
+    2:'HASH_STATELESS_MODE',
+    3:'MAC_STATELESS_MODE',
+    4:'AEAD_STATELESS_MODE',
+}
+
+def get_feature_crypto(feature):
+    return crypto_feature_name[feature]
+
+# 5.10 Socket Device
+# 5.10.3 Feature bits
+# No feature bits
+
+# following feature bits from linux headers
+# 9P
+ninep_feature_name = {
+    0:'MOUNT_TAG',
+}
+
+def get_feature_9p(feature):
+    return ninep_feature_name[feature]
+
+# IOMMU
+iommu_feature_name = {
+    0:'INPUT_RANGE',
+    1:'DOMAIN_RANGE',
+    2:'MAP_UNMAP',
+    3:'BYPASS',
+    4:'PROBE',
+    5:'MMIO',
+}
+
+def get_feature_iommu(feature):
+    return iommu_feature_name[feature]
+
+# MEM
+
+mem_feature_name = {
+    0:'ACPI_PXM',
+}
+
+def get_feature_memory(feature):
+    return mem_feature_name[feature]
+
+get_feature = {
+    1:get_feature_net,
+    2:get_feature_block,
+    3:get_feature_console,
+    5:get_feature_balloon_traditional,
+    8:get_feature_scsi_host,
+    9:get_feature_9p,
+    16:get_feature_gpu,
+    20:get_feature_crypto,
+    23:get_feature_iommu,
+    24:get_feature_memory,
+}
+
+# 6 Reserved Feature Bits
+reserved_feature_name = {
+    24:'NOTIFY_ON_EMPTY',
+    27:'ANY_LAYOUT',
+    28:'RING_INDIRECT_DESC',
+    29:'RING_EVENT_IDX',
+    30:'BAD_FEATURE',
+    32:'VERSION_1',
+    33:'ACCESS_PLATFORM',
+    34:'RING_PACKED',
+    35:'IN_ORDER',
+    36:'ORDER_PLATFORM',
+    37:'SR_IOV',
+    38:'NOTIFICATION_DATA'
+}
+
+vendor_name = {
+    0x554D4551:'Virt (MMIO)',
+    0x1AF4:'Red Hat, Inc. (PCI)',
+}
+
+def get_status_name(status):
+    result = ''
+    for name in status_name:
+        if name[0] & status:
+            result = result + name[1] + ' '
+    return result
+
+def list_interfaces(path):
+    interfaces = ''
+    for interface in sorted(os.listdir(path)):
+        interfaces = interfaces + interface + ' '
+    return interfaces
+
+def get_net_interfaces(path):
+    return list_interfaces(path + '/net')
+
+def get_block_interfaces(path):
+    return list_interfaces(path + '/block')
+
+def get_console_interfaces(path):
+    return list_interfaces(path + '/block')
+
+def get_9p_interfaces(path):
+    return open(path + '/mount_tag').read().rstrip()
+
+def get_gpu_interfaces(path):
+    return list_interfaces(path + '/graphics')
+
+def get_input_interaces(path):
+    return list_interfaces(path + '/input')
+
+get_interfaces = {
+    1:get_net_interfaces,
+    2:get_block_interfaces,
+    3:get_console_interfaces,
+    9:get_9p_interfaces,
+    16:get_gpu_interfaces,
+    18:get_input_interaces,
+}
+
+busses = '/sys/bus/virtio'
+devices = busses + '/devices'
+
+for device in sorted(os.listdir(devices)):
+    bus = os.path.basename(os.path.dirname(os.readlink(devices + '/' + device)))
+    path = devices + '/' + device
+    subsystem = os.path.basename(os.readlink(path + '/subsystem'))
+    device_id = int(open(path + '/device').read(), base = 0)
+    vendor = int(open(path + '/vendor').read(), base = 0)
+    driver = os.path.basename(os.readlink(path + '/driver'))
+    modalias = open(path + '/modalias').read().rstrip()
+    features = open(path + '/features').read().rstrip()
+    status = open(path + '/status').read().rstrip()
+
+    print(bus + ' ' + device + ' ' + vendor_name[vendor] + ' Virtio ' + device_name[device_id])
+    print('\tSubsystem: ' + subsystem)
+    print('\tModalias: ' + modalias)
+    print('\tStatus: ' + get_status_name(int(status, base=0)))
+    bit=0
+    for feature in features:
+        if feature == '1':
+            try:
+                if bit >= 24:
+                    print('\tFeature: ' + reserved_feature_name[bit])
+                else:
+                    print('\tFeature: ' + get_feature[device_id](bit))
+            except:
+                print('\tFeature: ' + str(bit))
+        bit += 1
+    print('\tKernel driver in use: ' + driver)
+    try:
+        print('\tInterfaces: ' + get_interfaces[device_id](path))
+    except:
+        print('\tNo interface')
+    print('')
