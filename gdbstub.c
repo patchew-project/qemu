@@ -1368,11 +1368,8 @@ static int cmd_parse_params(const char *data, const char *schema,
     int curr_param;
     const char *curr_schema, *curr_data;
 
+    assert(schema);
     *num_params = 0;
-
-    if (!schema) {
-        return 0;
-    }
 
     curr_schema = schema;
     curr_param = 0;
@@ -1471,7 +1468,7 @@ static inline int startswith(const char *string, const char *pattern)
 static int process_string_cmd(void *user_ctx, const char *data,
                               const GdbCmdParseEntry *cmds, int num_cmds)
 {
-    int i, schema_len, max_num_params = 0;
+    int i;
     GdbCmdContext gdb_ctx;
 
     if (!cmds) {
@@ -1488,21 +1485,21 @@ static int process_string_cmd(void *user_ctx, const char *data,
         }
 
         if (cmd->schema) {
-            schema_len = strlen(cmd->schema);
+            int schema_len = strlen(cmd->schema);
+            int max_num_params = schema_len / 2;
+
             if (schema_len % 2) {
                 return -2;
             }
 
-            max_num_params = schema_len / 2;
-        }
+            gdb_ctx.params = (GdbCmdVariant *)alloca(sizeof(*gdb_ctx.params)
+                                                     * max_num_params);
+            memset(gdb_ctx.params, 0, sizeof(*gdb_ctx.params) * max_num_params);
 
-        gdb_ctx.params =
-            (GdbCmdVariant *)alloca(sizeof(*gdb_ctx.params) * max_num_params);
-        memset(gdb_ctx.params, 0, sizeof(*gdb_ctx.params) * max_num_params);
-
-        if (cmd_parse_params(&data[strlen(cmd->cmd)], cmd->schema,
-                             gdb_ctx.params, &gdb_ctx.num_params)) {
-            return -1;
+            if (cmd_parse_params(&data[strlen(cmd->cmd)], cmd->schema,
+                                 gdb_ctx.params, &gdb_ctx.num_params)) {
+                return -1;
+            }
         }
 
         cmd->handler(&gdb_ctx, user_ctx);
