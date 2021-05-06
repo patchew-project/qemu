@@ -954,7 +954,11 @@ struct BlockDriverState {
      */
     int64_t total_sectors;
 
-    /* threshold limit for writes, in bytes. "High water mark". */
+    /*
+     * Threshold limit for writes, in bytes. "High water mark".
+     * Don't access directly, use bdrw_write_threshold* interface.
+     * Protected by atomic access, no lock is needed.
+     */
     uint64_t write_threshold_offset;
 
     /* Writing to the list requires the BQL _and_ the dirty_bitmap_mutex.

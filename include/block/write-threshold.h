@@ -24,6 +24,8 @@
  * To be used with thin-provisioned block devices.
  *
  * Use threshold_bytes == 0 to disable.
+ *
+ * Function is thread-safe, no lock is needed.
  */
 void bdrv_write_threshold_set(BlockDriverState *bs, uint64_t threshold_bytes);
 
@@ -32,6 +34,8 @@ void bdrv_write_threshold_set(BlockDriverState *bs, uint64_t threshold_bytes);
  *
  * Get the configured write threshold, in bytes.
  * Zero means no threshold configured.
+ *
+ * Function is thread-safe, no lock is needed.
  */
 uint64_t bdrv_write_threshold_get(const BlockDriverState *bs);
 
@@ -40,6 +44,8 @@ uint64_t bdrv_write_threshold_get(const BlockDriverState *bs);
  *
  * Check whether the specified request exceeds the write threshold.
  * If it is, send corresponding event and disable write threshold checking.
+ *
+ * Function is thread-safe, no lock is needed.
  */
 void bdrv_write_threshold_check_write(BlockDriverState *bs, int64_t offset,
                                       int64_t bytes);
