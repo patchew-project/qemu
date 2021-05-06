@@ -1487,14 +1487,13 @@ static int process_string_cmd(void *user_ctx, const char *data,
         if (cmd->schema) {
             int schema_len = strlen(cmd->schema);
             int max_num_params = schema_len / 2;
+            g_autofree GdbCmdVariant *params = NULL;
 
             if (schema_len % 2) {
                 return -2;
             }
 
-            gdb_ctx.params = (GdbCmdVariant *)alloca(sizeof(*gdb_ctx.params)
-                                                     * max_num_params);
-            memset(gdb_ctx.params, 0, sizeof(*gdb_ctx.params) * max_num_params);
+            gdb_ctx.params = params = g_new0(GdbCmdVariant, max_num_params);
 
             if (cmd_parse_params(&data[strlen(cmd->cmd)], cmd->schema,
                                  gdb_ctx.params, &gdb_ctx.num_params)) {
