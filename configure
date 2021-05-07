@@ -552,7 +552,7 @@ ARFLAGS="${ARFLAGS-rv}"
 # provides these semantics.)
 QEMU_CFLAGS="-fno-strict-aliasing -fno-common -fwrapv $QEMU_CFLAGS"
 QEMU_CFLAGS="-Wundef -Wwrite-strings -Wmissing-prototypes $QEMU_CFLAGS"
-QEMU_CFLAGS="-Wstrict-prototypes -Wredundant-decls -Walloca $QEMU_CFLAGS"
+QEMU_CFLAGS="-Wstrict-prototypes -Wredundant-decls $QEMU_CFLAGS"
 QEMU_CFLAGS="-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE $QEMU_CFLAGS"
 
 # Flags that are needed during configure but later taken care of by Meson
@@ -5252,6 +5252,14 @@ case "$slirp" in
     if test "$git_submodules_action" != "ignore"; then
       git_submodules="${git_submodules} slirp"
     fi
+    ;;
+esac
+
+# Kludge pending an alloca() call removed from libSLiRP, see:
+# https://lists.freedesktop.org/archives/slirp/2021-May/000150.html
+case "$slirp" in
+  internal | disabled)
+    QEMU_CFLAGS="-Walloca $QEMU_CFLAGS"
     ;;
 esac
 
