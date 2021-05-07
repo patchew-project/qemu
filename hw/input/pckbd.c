@@ -132,11 +132,14 @@
 
 #define KBD_PENDING_KBD         1
 #define KBD_PENDING_AUX         2
+#define KBD_PENDING_CTRL_KBD    0x04
+#define KBD_PENDING_CTRL_AUX    0x08
 
 #define KBD_MIGR_TIMER_PENDING  0x1
 
 #define KBD_OBSRC_KBD           0x01
 #define KBD_OBSRC_MOUSE         0x02
+#define KBD_OBSRC_CTRL          0x04
 
 typedef struct KBDState {
     uint8_t write_cmd; /* if non zero, write data to port 60 is expected */
@@ -149,6 +152,7 @@ typedef struct KBDState {
     /* Bitmask of devices with data available.  */
     uint8_t pending;
     uint8_t obdata;
+    uint8_t cbdata;
     void *kbd;
     void *mouse;
     QEMUTimer *throttle_timer;
@@ -199,12 +203,18 @@ static void kbd_update_irq(KBDState *s)
     if (s->pending) {
         s->status |= KBD_STAT_OBF;
         s->outport |= KBD_OUT_OBF;
-        if (s->pending == KBD_PENDING_AUX) {
+        if (s->pending & KBD_PENDING_CTRL_KBD) {
+            s->obsrc = KBD_OBSRC_CTRL;
+        } else if (s->pending & KBD_PENDING_CTRL_AUX) {
+            s->status |= KBD_STAT_MOUSE_OBF;
+            s->outport |= KBD_OUT_MOUSE_OBF;
+            s->obsrc = KBD_OBSRC_CTRL;
+        } else if (s->pending & KBD_PENDING_KBD) {
+            s->obsrc = KBD_OBSRC_KBD;
+        } else {
             s->status |= KBD_STAT_MOUSE_OBF;
             s->outport |= KBD_OUT_MOUSE_OBF;
             s->obsrc = KBD_OBSRC_MOUSE;
-        } else {
-            s->obsrc = KBD_OBSRC_KBD;
         }
     }
     kbd_update_irq_lines(s);
@@ -276,10 +286,21 @@ static uint64_t kbd_read_status(void *opaque, hwaddr addr,
 
 static void kbd_queue(KBDState *s, int b, int aux)
 {
-    if (aux)
-        ps2_queue(s->mouse, b);
-    else
-        ps2_queue(s->kbd, b);
+    s->cbdata = b;
+    s->pending &= ~KBD_PENDING_CTRL_KBD & ~KBD_PENDING_CTRL_AUX;
+    s->pending |= aux ? KBD_PENDING_CTRL_AUX : KBD_PENDING_CTRL_KBD;
+    kbd_safe_update_irq(s);
+}
+
+static uint8_t kbd_dequeue(KBDState *s)
+{
+    uint8_t b = s->cbdata;
+
+    s->pending &= ~KBD_PENDING_CTRL_KBD & ~KBD_PENDING_CTRL_AUX;
+    if (s->pending) {
+        kbd_update_irq(s);
+    }
+    return b;
 }
 
 static void outport_write(KBDState *s, uint32_t val)
@@ -389,6 +410,8 @@ static uint64_t kbd_read_data(void *opaque, hwaddr addr,
             s->obdata = ps2_read_data(s->kbd);
         } else if (s->obsrc & KBD_OBSRC_MOUSE) {
             s->obdata = ps2_read_data(s->mouse);
+        } else if (s->obsrc & KBD_OBSRC_CTRL) {
+            s->obdata = kbd_dequeue(s);
         }
     }
 
@@ -530,6 +553,7 @@ static const VMStateDescription vmstate_kbd = {
         VMSTATE_UINT32_V(migration_flags, KBDState, 4),
         VMSTATE_UINT32_V(obsrc, KBDState, 4),
         VMSTATE_UINT8_V(obdata, KBDState, 4),
+        VMSTATE_UINT8_V(cbdata, KBDState, 4),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription*[]) {
