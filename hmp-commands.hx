@@ -351,6 +351,50 @@ SRST
 ERST
 
     {
+        .name       = "cprinfo",
+        .args_type  = "",
+        .params     = "",
+        .help       = "return list of modes supported by cprsave",
+        .cmd        = hmp_cprinfo,
+    },
+
+SRST
+``cprinfo``
+Return a space-delimited list of modes supported by cprsave.
+ERST
+
+    {
+        .name       = "cprsave",
+        .args_type  = "file:s,mode:s",
+        .params     = "file 'restart'|'reboot'",
+        .help       = "create a checkpoint of the VM in file",
+        .cmd        = hmp_cprsave,
+    },
+
+SRST
+``cprsave`` *file* *mode*
+Create a checkpoint of the whole virtual machine and save it in *file*.
+If *mode* is 'reboot', the checkpoint remains valid after a host kexec
+reboot.  Guest ram must be backed by persistant shared memory.
+If *mode* is 'restart', pause the VCPUs, exec /usr/bin/qemu-exec if it
+exists, else exec argv[0], passing all the original command line arguments.
+Guest ram must be allocated with the memfd-alloc machine option.
+ERST
+
+    {
+        .name       = "cprload",
+        .args_type  = "file:s",
+        .params     = "file",
+        .help       = "load VM checkpoint from file",
+        .cmd        = hmp_cprload,
+    },
+
+SRST
+``cprload`` *file*
+Load a virtual machine from checkpoint file *file* and continue VCPUs.
+ERST
+
+    {
         .name       = "delvm",
         .args_type  = "name:s",
         .params     = "tag",
