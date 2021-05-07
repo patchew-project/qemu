@@ -9,6 +9,7 @@
 /* vl.c */
 
 extern int only_migratable;
+extern bool only_cpr_capable;
 extern char **argv_main;
 extern const char *qemu_name;
 extern QemuUUID qemu_uuid;
