@@ -3509,6 +3509,12 @@ void qemu_init(int argc, char **argv, char **envp)
      */
     loc_set_none();
 
+    /* Equivalent to -S, but no need for parent to modify argv. */
+    if (getenv("QEMU_START_FREEZE")) {
+        unsetenv("QEMU_START_FREEZE");
+        autostart = 0;
+    }
+
     qemu_validate_options();
     qemu_process_sugar_options();
 
