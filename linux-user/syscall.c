@@ -11417,10 +11417,12 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
         {
             int gidsetsize = arg1;
             target_id *target_grouplist;
-            gid_t *grouplist;
+            g_autofree gid_t *grouplist = g_try_new(gid_t, gidsetsize);
             int i;
 
-            grouplist = alloca(gidsetsize * sizeof(gid_t));
+            if (!grouplist) {
+                return -TARGET_ENOMEM;
+            }
             ret = get_errno(getgroups(gidsetsize, grouplist));
             if (gidsetsize == 0)
                 return ret;
@@ -11438,10 +11440,13 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
         {
             int gidsetsize = arg1;
             target_id *target_grouplist;
-            gid_t *grouplist = NULL;
+            g_autofree gid_t *grouplist = NULL;
             int i;
             if (gidsetsize) {
-                grouplist = alloca(gidsetsize * sizeof(gid_t));
+                grouplist = g_try_new(gid_t, gidsetsize);
+                if (!grouplist) {
+                    return -TARGET_ENOMEM;
+                }
                 target_grouplist = lock_user(VERIFY_READ, arg2, gidsetsize * sizeof(target_id), 1);
                 if (!target_grouplist) {
                     return -TARGET_EFAULT;
@@ -11736,10 +11741,12 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
         {
             int gidsetsize = arg1;
             uint32_t *target_grouplist;
-            gid_t *grouplist;
+            g_autofree gid_t *grouplist = g_try_new(gid_t, gidsetsize);
             int i;
 
-            grouplist = alloca(gidsetsize * sizeof(gid_t));
+            if (!grouplist) {
+                return -TARGET_ENOMEM;
+            }
             ret = get_errno(getgroups(gidsetsize, grouplist));
             if (gidsetsize == 0)
                 return ret;
@@ -11760,10 +11767,12 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
         {
             int gidsetsize = arg1;
             uint32_t *target_grouplist;
-            gid_t *grouplist;
+            g_autofree gid_t *grouplist = g_try_new(gid_t, gidsetsize);
             int i;
 
-            grouplist = alloca(gidsetsize * sizeof(gid_t));
+            if (!grouplist) {
+                return -TARGET_ENOMEM;
+            }
             target_grouplist = lock_user(VERIFY_READ, arg2, gidsetsize * 4, 1);
             if (!target_grouplist) {
                 return -TARGET_EFAULT;
