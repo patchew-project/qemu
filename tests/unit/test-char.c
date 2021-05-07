@@ -574,7 +574,7 @@ static void char_udp_test_internal(Chardev *reuse_chr, int sock)
     struct sockaddr_in other;
     SocketIdleData d = { 0, };
     Chardev *chr;
-    CharBackend *be;
+    CharBackend tmpbe, *be = &tmpbe;
     socklen_t alen = sizeof(other);
     int ret;
     char buf[10];
@@ -590,7 +590,6 @@ static void char_udp_test_internal(Chardev *reuse_chr, int sock)
         chr = qemu_chr_new("client", tmp, NULL);
         g_assert_nonnull(chr);
 
-        be = g_alloca(sizeof(CharBackend));
         qemu_chr_fe_init(be, chr, &error_abort);
     }
 
