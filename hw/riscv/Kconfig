@@ -67,3 +67,12 @@ config SPIKE
     select MSI_NONBROKEN
     select SIFIVE_CLINT
     select SIFIVE_PLIC
+
+config NUCLEI_N
+    bool
+    select MSI_NONBROKEN
+    select NUCLEI_SYSTIMER
+    select NUCLEI_ECLIC
+    select SIFIVE_GPIO
+    select NUCLEI_UART
+    select UNIMP
