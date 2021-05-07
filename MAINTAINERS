@@ -2861,6 +2861,17 @@ F: net/colo*
 F: net/filter-rewriter.c
 F: net/filter-mirror.c
 
+CPR
+M: Steve Sistare <steven.sistare@oracle.com>
+M: Mark Kanda <mark.kanda@oracle.com>
+S: Maintained
+F: hw/vfio/cpr.c
+F: include/migration/cpr.h
+F: migration/cpr.c
+F: qapi/cpr.json
+F: include/qemu/env.h
+F: util/env.c
+
 Record/replay
 M: Pavel Dovgalyuk <pavel.dovgaluk@ispras.ru>
 R: Paolo Bonzini <pbonzini@redhat.com>
