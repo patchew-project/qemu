@@ -198,18 +198,37 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
         goto fail_guest_notifiers;
     }
 
+    /*
+     * Batch all the host notifiers in a single transaction to avoid
+     * quadratic time complexity in address_space_update_ioeventfds().
+     */
+    memory_region_transaction_begin();
+
     /* Set up virtqueue notify */
     for (i = 0; i < nvqs; i++) {
         r = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, true);
         if (r != 0) {
+            int j = i;
+
             fprintf(stderr, "virtio-blk failed to set host notifier (%d)\n", r);
             while (i--) {
                 virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, false);
+            }
+
+            /*
+             * The transaction expects the ioeventfds to be open when it
+             * commits. Do it now, before the cleanup loop.
+             */
+            memory_region_transaction_commit();
+
+            while (j--) {
                 virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus), i);
             }
             goto fail_host_notifiers;
         }
     }
+
+    memory_region_transaction_commit();
 
     s->starting = false;
     vblk->dataplane_started = true;
@@ -312,8 +331,23 @@ void virtio_blk_data_plane_stop(VirtIODevice *vdev)
 
     aio_context_release(s->ctx);
 
+    /*
+     * Batch all the host notifiers in a single transaction to avoid
+     * quadratic time complexity in address_space_update_ioeventfds().
+     */
+    memory_region_transaction_begin();
+
     for (i = 0; i < nvqs; i++) {
         virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), i, false);
+    }
+
+    /*
+     * The transaction expects the ioeventfds to be open when it
+     * commits. Do it now, before the cleanup loop.
+     */
+    memory_region_transaction_commit();
+
+    for (i = 0; i < nvqs; i++) {
         virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus), i);
     }
 
