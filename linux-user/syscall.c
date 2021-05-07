@@ -2191,7 +2191,6 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
 {
     abi_long ret;
     int val;
-    struct ip_mreqn *ip_mreq;
     struct ip_mreq_source *ip_mreq_source;
 
     switch(level) {
@@ -2235,15 +2234,21 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
             break;
         case IP_ADD_MEMBERSHIP:
         case IP_DROP_MEMBERSHIP:
+        {
+            g_autofree struct ip_mreqn *ip_mreq = NULL;
+
             if (optlen < sizeof (struct target_ip_mreq) ||
                 optlen > sizeof (struct target_ip_mreqn))
                 return -TARGET_EINVAL;
 
-            ip_mreq = (struct ip_mreqn *) alloca(optlen);
+            ip_mreq = g_try_malloc(optlen);
+            if (!ip_mreq) {
+                return -TARGET_ENOMEM;
+            }
             target_to_host_ip_mreq(ip_mreq, optval_addr, optlen);
             ret = get_errno(setsockopt(sockfd, level, optname, ip_mreq, optlen));
             break;
-
+        }
         case IP_BLOCK_SOURCE:
         case IP_UNBLOCK_SOURCE:
         case IP_ADD_SOURCE_MEMBERSHIP:
@@ -2492,7 +2497,8 @@ set_timeout:
         }
 	case TARGET_SO_BINDTODEVICE:
 	{
-		char *dev_ifname, *addr_ifname;
+                char *dev_ifname;
+                g_autofree char *addr_ifname = NULL;
 
 		if (optlen > IFNAMSIZ - 1) {
 		    optlen = IFNAMSIZ - 1;
@@ -2502,7 +2508,10 @@ set_timeout:
 		    return -TARGET_EFAULT;
 		}
 		optname = SO_BINDTODEVICE;
-		addr_ifname = alloca(IFNAMSIZ);
+                addr_ifname = g_try_malloc(IFNAMSIZ);
+                if (!addr_ifname) {
+                    return -TARGET_ENOMEM;
+                }
 		memcpy(addr_ifname, dev_ifname, optlen);
 		addr_ifname[optlen] = 0;
 		ret = get_errno(setsockopt(sockfd, SOL_SOCKET, optname,
