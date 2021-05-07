@@ -132,6 +132,9 @@ void cprsave(const char *file, CprMode mode, Error **errp)
         shutdown_action = SHUTDOWN_ACTION_POWEROFF;
         qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
     } else if (restart) {
+        if (!qemu_chr_cpr_capable(errp)) {
+            goto err;
+        }
         if (vfio_cprsave(errp)) {
             goto err;
         }
