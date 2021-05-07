@@ -171,6 +171,20 @@ target_ulong helper_mret(CPURISCVState *env, target_ulong cpu_pc_deb)
         riscv_cpu_set_virt_enabled(env, prev_virt);
     }
 
+    if ((env->mtvec & 0b111111) == 0b000011) {
+        target_ulong mpil = get_field(env->mcause, MCAUSE_MPIL);
+        env->mintstatus = set_field(env->mintstatus, MINTSTATUS_MIL, mpil);
+
+        qemu_mutex_lock_iothread();
+        riscv_cpu_eclic_get_next_interrupt(env->eclic);
+        qemu_mutex_unlock_iothread();
+
+        if (get_field(env->mcause, MCAUSE_INTERRUPT) == 1) {
+            env->mstatus = set_field(env->mstatus, MSTATUS_MPP,
+                        get_field(env->mcause, MCAUSE_MPP));
+        }
+    }
+
     return retpc;
 }
 
