@@ -136,6 +136,7 @@ void cprsave(const char *file, CprMode mode, Error **errp)
             goto err;
         }
         walkenv(FD_PREFIX, preserve_fd, 0);
+        vhost_dev_reset_all();
         setenv("QEMU_START_FREEZE", "", 1);
         qemu_system_exec_request();
     }
