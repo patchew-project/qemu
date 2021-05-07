@@ -360,6 +360,7 @@ struct PCIDevice {
     /* ID of standby device in net_failover pair */
     char *failover_pair_id;
     uint32_t acpi_index;
+    bool reused;
 };
 
 void pci_register_bar(PCIDevice *pci_dev, int region_num,

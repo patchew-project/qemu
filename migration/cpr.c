@@ -132,6 +132,9 @@ void cprsave(const char *file, CprMode mode, Error **errp)
         shutdown_action = SHUTDOWN_ACTION_POWEROFF;
         qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
     } else if (restart) {
+        if (vfio_cprsave(errp)) {
+            goto err;
+        }
         walkenv(FD_PREFIX, preserve_fd, 0);
         setenv("QEMU_START_FREEZE", "", 1);
         qemu_system_exec_request();
@@ -173,6 +176,10 @@ void cprload(const char *file, Error **errp)
     qemu_fclose(f);
     if (ret < 0) {
         error_setg(errp, "Error %d while loading VM state", ret);
+        return;
+    }
+
+    if (vfio_cprload(errp)) {
         return;
     }
 
