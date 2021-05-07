@@ -3307,14 +3307,17 @@ static abi_long do_socket(int domain, int type, int protocol)
 static abi_long do_bind(int sockfd, abi_ulong target_addr,
                         socklen_t addrlen)
 {
-    void *addr;
+    g_autofree void *addr = NULL;
     abi_long ret;
 
     if ((int)addrlen < 0) {
         return -TARGET_EINVAL;
     }
 
-    addr = alloca(addrlen+1);
+    addr = g_try_malloc(addrlen + 1);
+    if (!addr) {
+        return -TARGET_ENOMEM;
+    }
 
     ret = target_to_host_sockaddr(sockfd, addr, target_addr, addrlen);
     if (ret)
@@ -3327,14 +3330,17 @@ static abi_long do_bind(int sockfd, abi_ulong target_addr,
 static abi_long do_connect(int sockfd, abi_ulong target_addr,
                            socklen_t addrlen)
 {
-    void *addr;
+    g_autofree void *addr = NULL;
     abi_long ret;
 
     if ((int)addrlen < 0) {
         return -TARGET_EINVAL;
     }
 
-    addr = alloca(addrlen+1);
+    addr = g_try_malloc(addrlen + 1);
+    if (!addr) {
+        return -TARGET_ENOMEM;
+    }
 
     ret = target_to_host_sockaddr(sockfd, addr, target_addr, addrlen);
     if (ret)
@@ -3519,7 +3525,7 @@ static abi_long do_accept4(int fd, abi_ulong target_addr,
                            abi_ulong target_addrlen_addr, int flags)
 {
     socklen_t addrlen, ret_addrlen;
-    void *addr;
+    g_autofree void *addr = NULL;
     abi_long ret;
     int host_flags;
 
@@ -3541,7 +3547,10 @@ static abi_long do_accept4(int fd, abi_ulong target_addr,
         return -TARGET_EFAULT;
     }
 
-    addr = alloca(addrlen);
+    addr = g_try_malloc(addrlen);
+    if (!addr) {
+        return -TARGET_ENOMEM;
+    }
 
     ret_addrlen = addrlen;
     ret = get_errno(safe_accept4(fd, addr, &ret_addrlen, host_flags));
@@ -3559,7 +3568,7 @@ static abi_long do_getpeername(int fd, abi_ulong target_addr,
                                abi_ulong target_addrlen_addr)
 {
     socklen_t addrlen, ret_addrlen;
-    void *addr;
+    g_autofree void *addr = NULL;
     abi_long ret;
 
     if (get_user_u32(addrlen, target_addrlen_addr))
@@ -3573,7 +3582,10 @@ static abi_long do_getpeername(int fd, abi_ulong target_addr,
         return -TARGET_EFAULT;
     }
 
-    addr = alloca(addrlen);
+    addr = g_try_malloc(addrlen);
+    if (!addr) {
+        return -TARGET_ENOMEM;
+    }
 
     ret_addrlen = addrlen;
     ret = get_errno(getpeername(fd, addr, &ret_addrlen));
@@ -3591,7 +3603,7 @@ static abi_long do_getsockname(int fd, abi_ulong target_addr,
                                abi_ulong target_addrlen_addr)
 {
     socklen_t addrlen, ret_addrlen;
-    void *addr;
+    g_autofree void *addr = NULL;
     abi_long ret;
 
     if (get_user_u32(addrlen, target_addrlen_addr))
@@ -3605,7 +3617,10 @@ static abi_long do_getsockname(int fd, abi_ulong target_addr,
         return -TARGET_EFAULT;
     }
 
-    addr = alloca(addrlen);
+    addr = g_try_malloc(addrlen);
+    if (!addr) {
+        return -TARGET_ENOMEM;
+    }
 
     ret_addrlen = addrlen;
     ret = get_errno(getsockname(fd, addr, &ret_addrlen));
@@ -3640,7 +3655,6 @@ static abi_long do_socketpair(int domain, int type, int protocol,
 static abi_long do_sendto(int fd, abi_ulong msg, size_t len, int flags,
                           abi_ulong target_addr, socklen_t addrlen)
 {
-    void *addr;
     void *host_msg;
     void *copy_msg = NULL;
     abi_long ret;
@@ -3662,7 +3676,11 @@ static abi_long do_sendto(int fd, abi_ulong msg, size_t len, int flags,
         }
     }
     if (target_addr) {
-        addr = alloca(addrlen+1);
+        g_autofree void *addr = g_try_malloc(addrlen + 1);
+
+        if (!addr) {
+            return -TARGET_ENOMEM;
+        }
         ret = target_to_host_sockaddr(fd, addr, target_addr, addrlen);
         if (ret) {
             goto fail;
@@ -3686,7 +3704,7 @@ static abi_long do_recvfrom(int fd, abi_ulong msg, size_t len, int flags,
                             abi_ulong target_addrlen)
 {
     socklen_t addrlen, ret_addrlen;
-    void *addr;
+    g_autofree void *addr = NULL;
     void *host_msg;
     abi_long ret;
 
@@ -3707,12 +3725,14 @@ static abi_long do_recvfrom(int fd, abi_ulong msg, size_t len, int flags,
             ret = -TARGET_EINVAL;
             goto fail;
         }
-        addr = alloca(addrlen);
+        addr = g_try_malloc(addrlen);
+        if (!addr) {
+            return -TARGET_ENOMEM;
+        }
         ret_addrlen = addrlen;
         ret = get_errno(safe_recvfrom(fd, host_msg, len, flags,
                                       addr, &ret_addrlen));
     } else {
-        addr = NULL; /* To keep compiler quiet.  */
         addrlen = 0; /* To keep compiler quiet.  */
         ret = get_errno(safe_recvfrom(fd, host_msg, len, flags, NULL, 0));
     }
