@@ -338,6 +338,7 @@ static ShutdownCause reset_requested;
 static ShutdownCause shutdown_requested;
 static int shutdown_signal;
 static pid_t shutdown_pid;
+static int exec_requested;
 static int powerdown_requested;
 static int debug_requested;
 static int suspend_requested;
@@ -365,6 +366,11 @@ ShutdownCause qemu_reset_requested_get(void)
 static int qemu_shutdown_requested(void)
 {
     return qatomic_xchg(&shutdown_requested, SHUTDOWN_CAUSE_NONE);
+}
+
+static int qemu_exec_requested(void)
+{
+    return qatomic_xchg(&exec_requested, 0);
 }
 
 static void qemu_kill_report(void)
@@ -625,6 +631,13 @@ void qemu_system_shutdown_request(ShutdownCause reason)
     qemu_notify_event();
 }
 
+void qemu_system_exec_request(void)
+{
+    shutdown_requested = 1;
+    exec_requested = 1;
+    qemu_notify_event();
+}
+
 static void qemu_system_powerdown(void)
 {
     qapi_event_send_powerdown();
@@ -660,6 +673,16 @@ void qemu_system_debug_request(void)
     qemu_notify_event();
 }
 
+static void qemu_exec(void)
+{
+    const char *helper = "/usr/bin/qemu-exec";
+    const char *bin = !access(helper, X_OK) ? helper : argv_main[0];
+
+    execvp(bin, argv_main);
+    error_report("execvp failed, errno %d.", errno);
+    exit(1);
+}
+
 static bool main_loop_should_exit(void)
 {
     RunState r;
@@ -673,6 +696,11 @@ static bool main_loop_should_exit(void)
     }
     request = qemu_shutdown_requested();
     if (request) {
+
+        if (qemu_exec_requested()) {
+            qemu_exec();
+            /* not reached */
+        }
         qemu_kill_report();
         qemu_system_shutdown(request);
         if (shutdown_action == SHUTDOWN_ACTION_PAUSE) {
