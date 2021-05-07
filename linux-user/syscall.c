@@ -1605,11 +1605,10 @@ static abi_long do_ppoll(abi_long arg1, abi_long arg2, abi_long arg3,
 {
     struct target_pollfd *target_pfd;
     unsigned int nfds = arg2;
-    struct pollfd *pfd;
+    g_autofree struct pollfd *pfd = NULL;
     unsigned int i;
     abi_long ret;
 
-    pfd = NULL;
     target_pfd = NULL;
     if (nfds) {
         if (nfds > (INT_MAX / sizeof(struct target_pollfd))) {
@@ -1621,7 +1620,10 @@ static abi_long do_ppoll(abi_long arg1, abi_long arg2, abi_long arg3,
             return -TARGET_EFAULT;
         }
 
-        pfd = alloca(sizeof(struct pollfd) * nfds);
+        pfd = g_try_new(struct pollfd, nfds);
+        if (!pfd) {
+            return -TARGET_ENOMEM;
+        }
         for (i = 0; i < nfds; i++) {
             pfd[i].fd = tswap32(target_pfd[i].fd);
             pfd[i].events = tswap16(target_pfd[i].events);
