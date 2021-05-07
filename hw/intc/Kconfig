@@ -76,3 +76,6 @@ config M68K_IRQC
 
 config NUCLEI_ECLIC
     bool
+
+config NUCLEI_SYSTIMER
+    bool
