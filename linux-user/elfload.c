@@ -2591,6 +2591,7 @@ static void load_elf_image(const char *image_name, int image_fd,
 {
     struct elfhdr *ehdr = (struct elfhdr *)bprm_buf;
     struct elf_phdr *phdr;
+    g_autofree void *phdr_alloc = NULL;
     abi_ulong load_addr, load_bias, loaddr, hiaddr, error;
     int i, retval, prot_exec;
     Error *err = NULL;
@@ -2610,7 +2611,12 @@ static void load_elf_image(const char *image_name, int image_fd,
     if (ehdr->e_phoff + i <= BPRM_BUF_SIZE) {
         phdr = (struct elf_phdr *)(bprm_buf + ehdr->e_phoff);
     } else {
-        phdr = (struct elf_phdr *) alloca(i);
+        phdr_alloc = g_try_malloc(i);
+        if (!phdr_alloc) {
+            error_setg(&err, "Not enough memory to load ELF program header");
+            goto exit_errmsg;
+        }
+        phdr = (struct elf_phdr *) phdr_alloc;
         retval = pread(image_fd, phdr, i, ehdr->e_phoff);
         if (retval != i) {
             goto exit_read;
@@ -2979,15 +2985,15 @@ static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias)
 {
     int i, shnum, nsyms, sym_idx = 0, str_idx = 0;
     uint64_t segsz;
-    struct elf_shdr *shdr;
+    g_autofree struct elf_shdr *shdr;
     char *strings = NULL;
     struct syminfo *s = NULL;
     struct elf_sym *new_syms, *syms = NULL;
 
     shnum = hdr->e_shnum;
     i = shnum * sizeof(struct elf_shdr);
-    shdr = (struct elf_shdr *)alloca(i);
-    if (pread(fd, shdr, i, hdr->e_shoff) != i) {
+    shdr = (struct elf_shdr *)g_try_malloc(i);
+    if (shdr == NULL || pread(fd, shdr, i, hdr->e_shoff) != i) {
         return;
     }
 
