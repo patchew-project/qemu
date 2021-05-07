@@ -3379,15 +3379,8 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
         msg.msg_name = NULL;
         msg.msg_namelen = 0;
     }
-    msg.msg_controllen = 2 * tswapal(msgp->msg_controllen);
-    msg.msg_control = alloca(msg.msg_controllen);
-    memset(msg.msg_control, 0, msg.msg_controllen);
-
-    msg.msg_flags = tswap32(msgp->msg_flags);
 
     count = tswapal(msgp->msg_iovlen);
-    target_vec = tswapal(msgp->msg_iov);
-
     if (count > IOV_MAX) {
         /* sendrcvmsg returns a different errno for this condition than
          * readv/writev, so we must catch it here before lock_iovec() does.
@@ -3396,14 +3389,20 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
         goto out2;
     }
 
+    target_vec = tswapal(msgp->msg_iov);
     vec = lock_iovec(send ? VERIFY_READ : VERIFY_WRITE,
                      target_vec, count, send);
     if (vec == NULL) {
         ret = -host_to_target_errno(errno);
         goto out2;
     }
+
     msg.msg_iovlen = count;
     msg.msg_iov = vec;
+    msg.msg_flags = tswap32(msgp->msg_flags);
+    msg.msg_controllen = 2 * tswapal(msgp->msg_controllen);
+    msg.msg_control = alloca(msg.msg_controllen);
+    memset(msg.msg_control, 0, msg.msg_controllen);
 
     if (send) {
         if (fd_trans_target_to_host_data(fd)) {
