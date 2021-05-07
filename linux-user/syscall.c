@@ -10630,7 +10630,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_sched_getaffinity:
         {
             unsigned int mask_size;
-            unsigned long *mask;
+            g_autofree unsigned long *mask = NULL;
 
             /*
              * sched_getaffinity needs multiples of ulong, so need to take
@@ -10641,8 +10641,10 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
             }
             mask_size = (arg2 + (sizeof(*mask) - 1)) & ~(sizeof(*mask) - 1);
 
-            mask = alloca(mask_size);
-            memset(mask, 0, mask_size);
+            mask = g_try_malloc0(mask_size);
+            if (!mask) {
+                return -TARGET_ENOMEM;
+            }
             ret = get_errno(sys_sched_getaffinity(arg1, mask_size, mask));
 
             if (!is_error(ret)) {
@@ -10670,7 +10672,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_sched_setaffinity:
         {
             unsigned int mask_size;
-            unsigned long *mask;
+            g_autofree unsigned long *mask = NULL;
 
             /*
              * sched_setaffinity needs multiples of ulong, so need to take
@@ -10680,7 +10682,10 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
                 return -TARGET_EINVAL;
             }
             mask_size = (arg2 + (sizeof(*mask) - 1)) & ~(sizeof(*mask) - 1);
-            mask = alloca(mask_size);
+            mask = g_try_malloc(mask_size);
+            if (!mask) {
+                return -TARGET_ENOMEM;
+            }
 
             ret = target_to_host_cpu_mask(mask, mask_size, arg3, arg2);
             if (ret) {
