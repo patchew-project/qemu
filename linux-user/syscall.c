@@ -3358,13 +3358,19 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
     abi_ulong count;
     struct iovec *vec;
     abi_ulong target_vec;
+    g_autofree void *msg_control = NULL;
 
     if (msgp->msg_name) {
         msg.msg_namelen = tswap32(msgp->msg_namelen);
-        msg.msg_name = alloca(msg.msg_namelen+1);
+        msg.msg_name = g_try_malloc(msg.msg_namelen + 1);
+        if (!msg.msg_name) {
+            ret = -TARGET_ENOMEM;
+            goto out2;
+        }
         ret = target_to_host_sockaddr(fd, msg.msg_name,
                                       tswapal(msgp->msg_name),
                                       msg.msg_namelen);
+        g_free(msg.msg_name);
         if (ret == -TARGET_EFAULT) {
             /* For connected sockets msg_name and msg_namelen must
              * be ignored, so returning EFAULT immediately is wrong.
@@ -3401,8 +3407,7 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
     msg.msg_iov = vec;
     msg.msg_flags = tswap32(msgp->msg_flags);
     msg.msg_controllen = 2 * tswapal(msgp->msg_controllen);
-    msg.msg_control = alloca(msg.msg_controllen);
-    memset(msg.msg_control, 0, msg.msg_controllen);
+    msg.msg_control = msg_control = g_malloc0(msg.msg_controllen);
 
     if (send) {
         if (fd_trans_target_to_host_data(fd)) {
