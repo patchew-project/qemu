@@ -421,6 +421,29 @@ unmap_exit:
     return ret;
 }
 
+static VFIODMARange *vfio_lookup_match_range(VFIOContainer *container,
+        hwaddr start_addr, hwaddr size)
+{
+    VFIODMARange *qrange;
+
+    QLIST_FOREACH(qrange, &container->dma_list, next) {
+        if (qrange->iova == start_addr && qrange->size == size) {
+            return qrange;
+        }
+    }
+    return NULL;
+}
+
+static void vfio_dma_range_init_dirty_bitmap(VFIODMARange *qrange)
+{
+    uint64_t pages, size;
+
+    pages = REAL_HOST_PAGE_ALIGN(qrange->size) / qemu_real_host_page_size;
+    size = ROUND_UP(pages, sizeof(__u64) * BITS_PER_BYTE) / BITS_PER_BYTE;
+
+    qrange->bitmap = g_malloc0(size);
+}
+
 /*
  * DMA - Mapping and unmapping for the "type1" IOMMU interface used on x86
  */
@@ -434,11 +457,28 @@ static int vfio_dma_unmap(VFIOContainer *container,
         .iova = iova,
         .size = size,
     };
+    VFIODMARange *qrange;
 
     if (iotlb && container->dirty_pages_supported &&
         vfio_devices_all_running_and_saving(container)) {
         return vfio_dma_unmap_bitmap(container, iova, size, iotlb);
     }
+
+    /*
+     * unregister the DMA range
+     *
+     * It seems that the memory layer will give us the same section as the one
+     * used in region_add(). Otherwise it'll be complicated to manipulate the
+     * bitmap across region_{add,del}. Is there any guarantee?
+     *
+     * But there is really not such a restriction on the kernel interface
+     * (VFIO_IOMMU_DIRTY_PAGES_FLAG_{UN}MAP_DMA, etc).
+     */
+    qrange = vfio_lookup_match_range(container, iova, size);
+    assert(qrange);
+    g_free(qrange->bitmap);
+    QLIST_REMOVE(qrange, next);
+    g_free(qrange);
 
     while (ioctl(container->fd, VFIO_IOMMU_UNMAP_DMA, &unmap)) {
         /*
@@ -476,6 +516,14 @@ static int vfio_dma_map(VFIOContainer *container, hwaddr iova,
         .iova = iova,
         .size = size,
     };
+    VFIODMARange *qrange;
+
+    qrange = g_malloc0(sizeof(*qrange));
+    qrange->iova = iova;
+    qrange->size = size;
+    QLIST_INSERT_HEAD(&container->dma_list, qrange, next);
+    /* XXX allocate the dirty bitmap on demand */
+    vfio_dma_range_init_dirty_bitmap(qrange);
 
     if (!readonly) {
         map.flags |= VFIO_DMA_MAP_FLAG_WRITE;
@@ -1023,8 +1071,13 @@ static int vfio_get_dirty_bitmap(VFIOContainer *container, uint64_t iova,
 {
     struct vfio_iommu_type1_dirty_bitmap *dbitmap;
     struct vfio_iommu_type1_dirty_bitmap_get *range;
+    VFIODMARange *qrange;
     uint64_t pages;
     int ret;
+
+    qrange = vfio_lookup_match_range(container, iova, size);
+    /* the same as vfio_dma_unmap() */
+    assert(qrange);
 
     dbitmap = g_malloc0(sizeof(*dbitmap) + sizeof(*range));
 
@@ -1044,11 +1097,8 @@ static int vfio_get_dirty_bitmap(VFIOContainer *container, uint64_t iova,
     pages = REAL_HOST_PAGE_ALIGN(range->size) / qemu_real_host_page_size;
     range->bitmap.size = ROUND_UP(pages, sizeof(__u64) * BITS_PER_BYTE) /
                                          BITS_PER_BYTE;
-    range->bitmap.data = g_try_malloc0(range->bitmap.size);
-    if (!range->bitmap.data) {
-        ret = -ENOMEM;
-        goto err_out;
-    }
+
+    range->bitmap.data = (__u64 *)qrange->bitmap;
 
     ret = ioctl(container->fd, VFIO_IOMMU_DIRTY_PAGES, dbitmap);
     if (ret) {
@@ -1064,7 +1114,6 @@ static int vfio_get_dirty_bitmap(VFIOContainer *container, uint64_t iova,
     trace_vfio_get_dirty_bitmap(container->fd, range->iova, range->size,
                                 range->bitmap.size, ram_addr);
 err_out:
-    g_free(range->bitmap.data);
     g_free(dbitmap);
 
     return ret;
@@ -1770,6 +1819,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     container->dirty_pages_supported = false;
     QLIST_INIT(&container->giommu_list);
     QLIST_INIT(&container->hostwin_list);
+    QLIST_INIT(&container->dma_list);
 
     ret = vfio_init_container(container, group->fd, errp);
     if (ret) {
