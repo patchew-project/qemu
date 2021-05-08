@@ -936,3 +936,72 @@ static void partsN(uint_to_float)(FloatPartsN *p, uint64_t a,
         p->frac_hi = a << shift;
     }
 }
+
+/*
+ * Float min/max.
+ *
+ * Return -1 to return the chosen nan in *a;
+ * return 0 to use the a input unchanged; 1 to use the b input unchanged.
+ */
+static int partsN(minmax)(FloatPartsN *a, FloatPartsN *b,
+                          float_status *s, int flags, const FloatFmt *fmt)
+{
+    int ab_mask = float_cmask(a->cls) | float_cmask(b->cls);
+    int a_exp, b_exp;
+    bool a_less;
+
+    if (unlikely(ab_mask & float_cmask_anynan)) {
+        /*
+         * For minnum/maxnum, if one operand is a QNaN, and the other
+         * operand is numerical, then return numerical argument.
+         */
+        if ((flags & minmax_isnum)
+            && !(ab_mask & float_cmask_snan)
+            && (ab_mask & ~float_cmask_qnan)) {
+            return is_nan(a->cls);
+        }
+        *a = *parts_pick_nan(a, b, s);
+        return -1;
+    }
+
+    a_exp = a->exp;
+    b_exp = b->exp;
+
+    if (unlikely(ab_mask != float_cmask_normal)) {
+        switch (a->cls) {
+        case float_class_normal:
+            break;
+        case float_class_inf:
+            a_exp = INT_MAX;
+            break;
+        case float_class_zero:
+            a_exp = INT_MIN;
+            break;
+        default:
+            g_assert_not_reached();
+            break;
+        }
+        switch (b->cls) {
+        case float_class_normal:
+            break;
+        case float_class_inf:
+            b_exp = INT_MAX;
+            break;
+        case float_class_zero:
+            b_exp = INT_MIN;
+            break;
+        default:
+            g_assert_not_reached();
+            break;
+        }
+    }
+
+    if (a->sign != b->sign && !(flags & minmax_ismag)) {
+        a_less = a->sign;
+    } else if (a_exp != b_exp) {
+        a_less = a_exp < b_exp;
+    } else {
+        a_less = frac_cmp(a, b) < 0;
+    }
+    return a_less ^ !!(flags & minmax_ismin);
+}
