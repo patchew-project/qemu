@@ -956,15 +956,12 @@ static int frac128_normalize(FloatParts128 *a)
 {
     if (a->frac_hi) {
         int shl = clz64(a->frac_hi);
-        if (shl) {
-            int shr = 64 - shl;
-            a->frac_hi = (a->frac_hi << shl) | (a->frac_lo >> shr);
-            a->frac_lo = (a->frac_lo << shl);
-        }
+        a->frac_hi = shl_double(a->frac_hi, a->frac_lo, shl);
+        a->frac_lo <<= shl;
         return shl;
     } else if (a->frac_lo) {
         int shl = clz64(a->frac_lo);
-        a->frac_hi = (a->frac_lo << shl);
+        a->frac_hi = a->frac_lo << shl;
         a->frac_lo = 0;
         return shl + 64;
     }
@@ -975,7 +972,7 @@ static int frac256_normalize(FloatParts256 *a)
 {
     uint64_t a0 = a->frac_hi, a1 = a->frac_hm;
     uint64_t a2 = a->frac_lm, a3 = a->frac_lo;
-    int ret, shl, shr;
+    int ret, shl;
 
     if (likely(a0)) {
         shl = clz64(a0);
@@ -1005,11 +1002,10 @@ static int frac256_normalize(FloatParts256 *a)
         ret += shl;
     }
 
-    shr = -shl & 63;
-    a0 = (a0 << shl) | (a1 >> shr);
-    a1 = (a1 << shl) | (a2 >> shr);
-    a2 = (a2 << shl) | (a3 >> shr);
-    a3 = (a3 << shl);
+    a0 = shl_double(a0, a1, shl);
+    a1 = shl_double(a1, a2, shl);
+    a2 = shl_double(a2, a3, shl);
+    a3 <<= shl;
 
  done:
     a->frac_hi = a0;
@@ -1028,7 +1024,20 @@ static void frac64_shl(FloatParts64 *a, int c)
 
 static void frac128_shl(FloatParts128 *a, int c)
 {
-    shift128Left(a->frac_hi, a->frac_lo, c, &a->frac_hi, &a->frac_lo);
+    uint64_t a0 = a->frac_hi, a1 = a->frac_lo;
+
+    if (c & 64) {
+        a0 = a1, a1 = 0;
+    }
+
+    c &= 63;
+    if (c) {
+        a0 = shl_double(a0, a1, c);
+        a1 = a1 << c;
+    }
+
+    a->frac_hi = a0;
+    a->frac_lo = a1;
 }
 
 #define frac_shl(A, C)  FRAC_GENERIC_64_128(shl, A)(A, C)
@@ -1040,19 +1049,68 @@ static void frac64_shr(FloatParts64 *a, int c)
 
 static void frac128_shr(FloatParts128 *a, int c)
 {
-    shift128Right(a->frac_hi, a->frac_lo, c, &a->frac_hi, &a->frac_lo);
+    uint64_t a0 = a->frac_hi, a1 = a->frac_lo;
+
+    if (c & 64) {
+        a1 = a0, a0 = 0;
+    }
+
+    c &= 63;
+    if (c) {
+        a1 = shr_double(a0, a1, c);
+        a0 = a0 >> c;
+    }
+
+    a->frac_hi = a0;
+    a->frac_lo = a1;
 }
 
 #define frac_shr(A, C)  FRAC_GENERIC_64_128(shr, A)(A, C)
 
 static void frac64_shrjam(FloatParts64 *a, int c)
 {
-    shift64RightJamming(a->frac, c, &a->frac);
+    uint64_t a0 = a->frac;
+
+    if (likely(c != 0)) {
+        if (likely(c < 64)) {
+            a0 = (a0 >> c) | (shr_double(a0, 0, c) != 0);
+        } else {
+            a0 = a0 != 0;
+        }
+        a->frac = a0;
+    }
 }
 
 static void frac128_shrjam(FloatParts128 *a, int c)
 {
-    shift128RightJamming(a->frac_hi, a->frac_lo, c, &a->frac_hi, &a->frac_lo);
+    uint64_t a0 = a->frac_hi, a1 = a->frac_lo;
+    uint64_t sticky = 0;
+
+    if (unlikely(c == 0)) {
+        return;
+    } else if (likely(c < 64)) {
+        /* nothing */
+    } else if (likely(c < 128)) {
+        sticky = a1;
+        a1 = a0;
+        a0 = 0;
+        c &= 63;
+        if (c == 0) {
+            goto done;
+        }
+    } else {
+        sticky = a0 | a1;
+        a0 = a1 = 0;
+        goto done;
+    }
+
+    sticky |= shr_double(a1, 0, c);
+    a1 = shr_double(a0, a1, c);
+    a0 = a0 >> c;
+
+ done:
+    a->frac_lo = a1 | (sticky != 0);
+    a->frac_hi = a0;
 }
 
 static void frac256_shrjam(FloatParts256 *a, int c)
@@ -1060,7 +1118,6 @@ static void frac256_shrjam(FloatParts256 *a, int c)
     uint64_t a0 = a->frac_hi, a1 = a->frac_hm;
     uint64_t a2 = a->frac_lm, a3 = a->frac_lo;
     uint64_t sticky = 0;
-    int invc;
 
     if (unlikely(c == 0)) {
         return;
@@ -1085,12 +1142,11 @@ static void frac256_shrjam(FloatParts256 *a, int c)
         goto done;
     }
 
-    invc = -c & 63;
-    sticky |= a3 << invc;
-    a3 = (a3 >> c) | (a2 << invc);
-    a2 = (a2 >> c) | (a1 << invc);
-    a1 = (a1 >> c) | (a0 << invc);
-    a0 = (a0 >> c);
+    sticky |= shr_double(a3, 0, c);
+    a3 = shr_double(a2, a3, c);
+    a2 = shr_double(a1, a2, c);
+    a1 = shr_double(a0, a1, c);
+    a0 = a0 >> c;
 
  done:
     a->frac_lo = a3 | (sticky != 0);
