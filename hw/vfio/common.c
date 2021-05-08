@@ -1082,7 +1082,9 @@ static int vfio_get_dirty_bitmap(VFIOContainer *container, uint64_t iova,
     dbitmap = g_malloc0(sizeof(*dbitmap) + sizeof(*range));
 
     dbitmap->argsz = sizeof(*dbitmap) + sizeof(*range);
-    dbitmap->flags = VFIO_IOMMU_DIRTY_PAGES_FLAG_GET_BITMAP;
+    dbitmap->flags = container->dirty_log_manual_clear ?
+                     VFIO_IOMMU_DIRTY_PAGES_FLAG_GET_BITMAP_NOCLEAR :
+                     VFIO_IOMMU_DIRTY_PAGES_FLAG_GET_BITMAP;
     range = (struct vfio_iommu_type1_dirty_bitmap_get *)&dbitmap->data;
     range->iova = iova;
     range->size = size;
@@ -1213,12 +1215,148 @@ static void vfio_listener_log_sync(MemoryListener *listener,
     }
 }
 
+/*
+ * I'm not sure if there's any alignment requirement for the CLEAR_BITMAP
+ * ioctl. But copy from kvm side and align {start, size} with 64 pages.
+ *
+ * I think the code can be simplified a lot if no alignment requirement.
+ */
+#define VFIO_CLEAR_LOG_SHIFT  6
+#define VFIO_CLEAR_LOG_ALIGN  (qemu_real_host_page_size << VFIO_CLEAR_LOG_SHIFT)
+#define VFIO_CLEAR_LOG_MASK   (-VFIO_CLEAR_LOG_ALIGN)
+
+static int vfio_log_clear_one_range(VFIOContainer *container,
+        VFIODMARange *qrange, uint64_t start, uint64_t size)
+{
+    struct vfio_iommu_type1_dirty_bitmap *dbitmap;
+    struct vfio_iommu_type1_dirty_bitmap_get *range;
+
+    dbitmap = g_malloc0(sizeof(*dbitmap) + sizeof(*range));
+
+    dbitmap->argsz = sizeof(*dbitmap) + sizeof(*range);
+    dbitmap->flags = VFIO_IOMMU_DIRTY_PAGES_FLAG_CLEAR_BITMAP;
+    range = (struct vfio_iommu_type1_dirty_bitmap_get *)&dbitmap->data;
+
+    /*
+     * Now let's deal with the actual bitmap, which is almost the same
+     * as the kvm side.
+     */
+    uint64_t end, bmap_start, start_delta, bmap_npages;
+    unsigned long *bmap_clear = NULL, psize = qemu_real_host_page_size;
+    int ret;
+
+    bmap_start = start & VFIO_CLEAR_LOG_MASK;
+    start_delta = start - bmap_start;
+    bmap_start /= psize;
+
+    bmap_npages = DIV_ROUND_UP(size + start_delta, VFIO_CLEAR_LOG_ALIGN)
+        << VFIO_CLEAR_LOG_SHIFT;
+    end = qrange->size / psize;
+    if (bmap_npages > end - bmap_start) {
+        bmap_npages = end - bmap_start;
+    }
+    start_delta /= psize;
+
+    if (start_delta) {
+        bmap_clear = bitmap_new(bmap_npages);
+        bitmap_copy_with_src_offset(bmap_clear, qrange->bitmap,
+                                    bmap_start, start_delta + size / psize);
+        bitmap_clear(bmap_clear, 0, start_delta);
+        range->bitmap.data = (__u64 *)bmap_clear;
+    } else {
+        range->bitmap.data = (__u64 *)(qrange->bitmap + BIT_WORD(bmap_start));
+    }
+
+    range->iova = qrange->iova + bmap_start * psize;
+    range->size = bmap_npages * psize;
+    range->bitmap.size = ROUND_UP(bmap_npages, sizeof(__u64) * BITS_PER_BYTE) /
+                                               BITS_PER_BYTE;
+    range->bitmap.pgsize = qemu_real_host_page_size;
+
+    ret = ioctl(container->fd, VFIO_IOMMU_DIRTY_PAGES, dbitmap);
+    if (ret) {
+        error_report("Failed to clear dirty log for iova: 0x%"PRIx64
+                " size: 0x%"PRIx64" err: %d", (uint64_t)range->iova,
+                (uint64_t)range->size, errno);
+        goto err_out;
+    }
+
+    bitmap_clear(qrange->bitmap, bmap_start + start_delta, size / psize);
+err_out:
+    g_free(bmap_clear);
+    g_free(dbitmap);
+    return 0;
+}
+
+static int vfio_physical_log_clear(VFIOContainer *container,
+                                   MemoryRegionSection *section)
+{
+    uint64_t start, size, offset, count;
+    VFIODMARange *qrange;
+    int ret = 0;
+
+    if (!container->dirty_log_manual_clear) {
+        /* No need to do explicit clear */
+        return ret;
+    }
+
+    start = section->offset_within_address_space;
+    size = int128_get64(section->size);
+
+    if (!size) {
+        return ret;
+    }
+
+    QLIST_FOREACH(qrange, &container->dma_list, next) {
+        /*
+         * Discard ranges that do not overlap the section (e.g., the
+         * Memory BAR regions of the device)
+         */
+        if (qrange->iova > start + size - 1 ||
+            start > qrange->iova + qrange->size - 1) {
+            continue;
+        }
+
+        if (start >= qrange->iova) {
+            /* The range starts before section or is aligned to it. */
+            offset = start - qrange->iova;
+            count = MIN(qrange->size - offset, size);
+        } else {
+            /* The range starts after section. */
+            offset = 0;
+            count = MIN(qrange->size, size - (qrange->iova - start));
+        }
+        ret = vfio_log_clear_one_range(container, qrange, offset, count);
+        if (ret < 0) {
+            break;
+        }
+    }
+
+    return ret;
+}
+
+static void vfio_listener_log_clear(MemoryListener *listener,
+                                    MemoryRegionSection *section)
+{
+    VFIOContainer *container = container_of(listener, VFIOContainer, listener);
+
+    if (vfio_listener_skipped_section(section) ||
+        !container->dirty_pages_supported) {
+        return;
+    }
+
+    if (vfio_devices_all_dirty_tracking(container)) {
+        vfio_physical_log_clear(container, section);
+    }
+}
+
 static const MemoryListener vfio_memory_listener = {
     .region_add = vfio_listener_region_add,
     .region_del = vfio_listener_region_del,
     .log_global_start = vfio_listener_log_global_start,
     .log_global_stop = vfio_listener_log_global_stop,
     .log_sync = vfio_listener_log_sync,
+    .log_clear = vfio_listener_log_clear,
 };
 
 static void vfio_listener_release(VFIOContainer *container)
@@ -1646,7 +1784,7 @@ static int vfio_get_iommu_type(VFIOContainer *container,
 static int vfio_init_container(VFIOContainer *container, int group_fd,
                                Error **errp)
 {
-    int iommu_type, ret;
+    int iommu_type, dirty_log_manual_clear, ret;
 
     iommu_type = vfio_get_iommu_type(container, errp);
     if (iommu_type < 0) {
@@ -1675,6 +1813,13 @@ static int vfio_init_container(VFIOContainer *container, int group_fd,
     }
 
     container->iommu_type = iommu_type;
+
+    dirty_log_manual_clear = ioctl(container->fd, VFIO_CHECK_EXTENSION,
+                                   VFIO_DIRTY_LOG_MANUAL_CLEAR);
+    if (dirty_log_manual_clear) {
+        container->dirty_log_manual_clear = dirty_log_manual_clear;
+    }
+
     return 0;
 }
 
