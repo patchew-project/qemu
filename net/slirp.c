@@ -876,6 +876,7 @@ static int slirp_smb(SlirpState* s, const char *exported_dir,
             "printing = bsd\n"
             "disable spoolss = yes\n"
             "usershare max shares = 0\n"
+            "server min protocol = NT1\n"
             "[qemu]\n"
             "path=%s\n"
             "read only=no\n"
