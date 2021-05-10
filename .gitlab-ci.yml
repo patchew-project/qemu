@@ -13,11 +13,14 @@ include:
   - local: '/.gitlab-ci.d/containers.yml'
   - local: '/.gitlab-ci.d/crossbuilds.yml'
 
+.environment_variables_template:
+  before_script:
+    - JOBS=$(expr $(nproc) + 1)
+
 .native_build_job_template:
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
-  before_script:
-    - JOBS=$(expr $(nproc) + 1)
+  extends: .environment_variables_template
   script:
     - mkdir build
     - cd build
