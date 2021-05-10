@@ -19,9 +19,11 @@ include:
         test $(uname) = "FreeBSD"
         ;
       then
+        MAKE=gmake
         JOBS=$(sysctl -n hw.ncpu)
         ;
       else
+        MAKE=make
         JOBS=$(expr $(nproc) + 1)
         ;
       fi
@@ -44,22 +46,23 @@ include:
       then
         meson configure . -Dbackend_max_links="$LD_JOBS" ;
       fi || exit 1;
-    - make -j"$JOBS"
+    - $MAKE -j"$JOBS"
     - if test -n "$MAKE_CHECK_ARGS";
       then
-        make -j"$JOBS" $MAKE_CHECK_ARGS ;
+        $MAKE -j"$JOBS" $MAKE_CHECK_ARGS ;
       fi
 
 .native_test_job_template:
   stage: test
   image: $CI_REGISTRY_IMAGE/qemu/$IMAGE:latest
+  extends: .environment_variables_template
   script:
     - scripts/git-submodule.sh update
         $(sed -n '/GIT_SUBMODULES=/ s/.*=// p' build/config-host.mak)
     - cd build
     - find . -type f -exec touch {} +
     # Avoid recompiling by hiding ninja with NINJA=":"
-    - make NINJA=":" $MAKE_CHECK_ARGS
+    - $MAKE NINJA=":" $MAKE_CHECK_ARGS
 
 .acceptance_template: &acceptance_definition
   cache:
@@ -833,17 +836,18 @@ build-tools-and-docs-debian:
 pages:
   image: $CI_REGISTRY_IMAGE/qemu/debian-amd64:latest
   stage: test
+  extends: .environment_variables_template
   needs:
     - job: build-tools-and-docs-debian
   script:
     - mkdir -p public
     # HTML-ised source tree
-    - make gtags
+    - $MAKE gtags
     - htags -anT --tree-view=filetree -m qemu_init
         -t "Welcome to the QEMU sourcecode"
     - mv HTML public/src
     # Project documentation
-    - make -C build install DESTDIR=$(pwd)/temp-install
+    - $MAKE -C build install DESTDIR=$(pwd)/temp-install
     - mv temp-install/usr/local/share/doc/qemu/* public/
   artifacts:
     paths:
