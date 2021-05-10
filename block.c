@@ -6431,6 +6431,44 @@ bool bdrv_op_blocker_is_empty(BlockDriverState *bs)
     return true;
 }
 
+static bool validate_backing_file(const char *filename,
+                                  const char *backing_file, Error **errp)
+{
+    bool ret = false;
+    char *rf, *real_filename = g_malloc0(PATH_MAX + 1);
+    char *rb, *real_backing = g_malloc0(PATH_MAX + 1);
+
+    rf = realpath(filename, real_filename);
+    if (!rf) {
+        if (errno == ENOENT) {
+            /* filename doesn't exit, ignore it */
+            rf = (char *)filename;
+        } else {
+            error_setg(errp, "Failed to resolve %s", filename);
+            goto out;
+        }
+    }
+    rb = realpath(backing_file, real_backing);
+    if (!rb) {
+        error_setg(errp, "Failed to resolve %s", backing_file);
+        goto out;
+    }
+    if (!strcmp(rf, rb)) {
+        error_setg(errp, "Error: Trying to create an image with the "
+                            "same filename as the backing file");
+        goto out;
+    }
+    if (backing_file[0] == '\0') {
+        error_setg(errp, "Expected backing file name, got empty string");
+        goto out;
+    }
+    ret = true;
+out:
+    g_free(real_filename);
+    g_free(real_backing);
+    return ret;
+}
+
 void bdrv_img_create(const char *filename, const char *fmt,
                      const char *base_filename, const char *base_fmt,
                      char *options, uint64_t img_size, int flags, bool quiet,
@@ -6507,13 +6545,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
 
     backing_file = qemu_opt_get(opts, BLOCK_OPT_BACKING_FILE);
     if (backing_file) {
-        if (!strcmp(filename, backing_file)) {
-            error_setg(errp, "Error: Trying to create an image with the "
-                             "same filename as the backing file");
-            goto out;
-        }
-        if (backing_file[0] == '\0') {
-            error_setg(errp, "Expected backing file name, got empty string");
+        if (!validate_backing_file(filename, backing_file, errp)) {
             goto out;
         }
     }
