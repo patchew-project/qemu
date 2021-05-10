@@ -131,6 +131,7 @@ bool qemu_write_pidfile(const char *path, Error **errp)
             error_setg_errno(errp, errno, "Cannot open pid file");
             return false;
         }
+	unlink(path);
 
         if (fstat(fd, &b) < 0) {
             error_setg_errno(errp, errno, "Cannot stat file");
