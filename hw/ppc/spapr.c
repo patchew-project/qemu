@@ -1105,6 +1105,20 @@ static void spapr_dt_hypervisor(SpaprMachineState *spapr, void *fdt)
     }
 }
 
+static void spapr_dt_stb(SpaprMachineState *spapr, void *fdt)
+{
+    /*
+     * PowerVM may provide fw-secure-boot, which purports to tell a partition
+     * if the underlying firmware was booted securely. It's not meaningful
+     * for KVM as there are no agreed semantics for what it would mean (host
+     * secure boot only gives you integrity for the host kernel, not host
+     * qemu). So we omit the property for now.
+     */
+    if (spapr->secure_boot)
+        _FDT(fdt_setprop_cell(fdt, 0, "ibm,secure-boot",
+            spapr->secure_boot_level));
+}
+
 void *spapr_build_fdt(SpaprMachineState *spapr, bool reset, size_t space)
 {
     MachineState *machine = MACHINE(spapr);
@@ -1221,6 +1235,9 @@ void *spapr_build_fdt(SpaprMachineState *spapr, bool reset, size_t space)
     if (kvm_enabled()) {
         spapr_dt_hypervisor(spapr, fdt);
     }
+
+    /* /ibm,secureboot */
+    spapr_dt_stb(spapr, fdt);
 
     /* Build memory reserve map */
     if (reset) {
@@ -3252,6 +3269,20 @@ static void spapr_set_host_serial(Object *obj, const char *value, Error **errp)
     spapr->host_serial = g_strdup(value);
 }
 
+static bool spapr_get_secure_boot(Object *obj, Error **errp)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(obj);
+
+    return spapr->secure_boot;
+}
+
+static void spapr_set_secure_boot(Object *obj, bool value, Error **errp)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(obj);
+
+    spapr->secure_boot = value;
+}
+
 static void spapr_instance_init(Object *obj)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(obj);
@@ -3325,6 +3356,17 @@ static void spapr_instance_init(Object *obj)
         spapr_get_host_serial, spapr_set_host_serial);
     object_property_set_description(obj, "host-serial",
         "Host serial number to advertise in guest device tree");
+
+    /* If we have secure boot, the default level is 2: enable and enforce */
+    spapr->secure_boot_level = 2;
+    object_property_add_bool(obj, "secure-boot",
+        spapr_get_secure_boot, spapr_set_secure_boot);
+    object_property_set_description(obj, "secure-boot",
+        "Advertise secure boot in the guest device tree");
+    object_property_add_uint8_ptr(obj, "secure-boot-level",
+        &spapr->secure_boot_level, OBJ_PROP_FLAG_READWRITE);
+    object_property_set_description(obj, "secure-boot-level",
+        "Level of secure boot advertised in the guest device tree");
 }
 
 static void spapr_machine_finalizefn(Object *obj)
