@@ -60,24 +60,14 @@ static void notify_guest_bh(void *opaque)
 {
     VirtIOBlockDataPlane *s = opaque;
     unsigned nvqs = s->conf->num_queues;
-    unsigned long bitmap[BITS_TO_LONGS(nvqs)];
-    unsigned j;
 
-    memcpy(bitmap, s->batch_notify_vqs, sizeof(bitmap));
-    memset(s->batch_notify_vqs, 0, sizeof(bitmap));
+    for (unsigned long i = find_first_bit(s->batch_notify_vqs, nvqs);
+             i < nvqs; i = find_next_bit(s->batch_notify_vqs, nvqs, i)) {
+        VirtQueue *vq = virtio_get_queue(s->vdev, i);
 
-    for (j = 0; j < nvqs; j += BITS_PER_LONG) {
-        unsigned long bits = bitmap[j / BITS_PER_LONG];
-
-        while (bits != 0) {
-            unsigned i = j + ctzl(bits);
-            VirtQueue *vq = virtio_get_queue(s->vdev, i);
-
-            virtio_notify_irqfd(s->vdev, vq);
-
-            bits &= bits - 1; /* clear right-most bit */
-        }
+        virtio_notify_irqfd(s->vdev, vq);
     }
+    bitmap_clear(s->batch_notify_vqs, 0, nvqs);
 }
 
 /* Context: QEMU global mutex held */
