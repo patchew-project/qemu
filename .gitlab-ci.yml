@@ -15,7 +15,17 @@ include:
 
 .environment_variables_template:
   before_script:
-    - JOBS=$(expr $(nproc) + 1)
+    - if
+        test $(uname) = "FreeBSD"
+        ;
+      then
+        JOBS=$(sysctl -n hw.ncpu)
+        ;
+      else
+        JOBS=$(expr $(nproc) + 1)
+        ;
+      fi
+    - echo "=== Using $JOBS simultaneous jobs ==="
 
 .native_build_job_template:
   stage: build
