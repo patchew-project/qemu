@@ -3153,6 +3153,43 @@ static void lo_lseek(fuse_req_t req, fuse_ino_t ino, off_t off, int whence,
     }
 }
 
+static void lo_syncfs(fuse_req_t req)
+{
+    struct lo_data *lo = lo_data(req);
+    GHashTableIter iter;
+    gpointer key, value;
+    int err = 0;
+
+    pthread_mutex_lock(&lo->mutex);
+
+    g_hash_table_iter_init(&iter, lo->mnt_inodes);
+    while (g_hash_table_iter_next(&iter, &key, &value)) {
+        struct lo_inode *inode = value;
+        int fd;
+
+        fuse_log(FUSE_LOG_DEBUG, "lo_syncfs(ino=%" PRIu64 ")\n",
+                 inode->fuse_ino);
+
+        fd = lo_inode_open(lo, inode, O_RDONLY);
+        if (fd < 0) {
+            err = -fd;
+            break;
+        }
+
+        if (syncfs(fd) < 0) {
+            err = errno;
+            close(fd);
+            break;
+        }
+
+        close(fd);
+    }
+
+    pthread_mutex_unlock(&lo->mutex);
+
+    fuse_reply_err(req, err);
+}
+
 static void lo_destroy(void *userdata)
 {
     struct lo_data *lo = (struct lo_data *)userdata;
@@ -3214,6 +3251,7 @@ static struct fuse_lowlevel_ops lo_oper = {
     .copy_file_range = lo_copy_file_range,
 #endif
     .lseek = lo_lseek,
+    .syncfs = lo_syncfs,
     .destroy = lo_destroy,
 };
 
