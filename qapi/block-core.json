@@ -680,7 +680,8 @@
 #    }
 #
 ##
-{ 'command': 'query-block', 'returns': ['BlockInfo'] }
+{ 'command': 'query-block', 'returns': ['BlockInfo'],
+  'allow-preconfig': true }
 
 
 ##
@@ -1056,7 +1057,8 @@
 ##
 { 'command': 'query-blockstats',
   'data': { '*query-nodes': 'bool' },
-  'returns': ['BlockStats'] }
+  'returns': ['BlockStats'],
+  'allow-preconfig': true }
 
 ##
 # @BlockdevOnError:
@@ -1205,7 +1207,8 @@
 #
 # Since: 1.1
 ##
-{ 'command': 'query-block-jobs', 'returns': ['BlockJobInfo'] }
+{ 'command': 'query-block-jobs', 'returns': ['BlockJobInfo'],
+  'allow-preconfig': true }
 
 ##
 # @block_resize:
@@ -1236,7 +1239,8 @@
   'data': { '*device': 'str',
             '*node-name': 'str',
             'size': 'int' },
-  'coroutine': true }
+  'coroutine': true,
+  'allow-preconfig': true }
 
 ##
 # @NewImageMode:
@@ -1447,7 +1451,8 @@
 #
 ##
 { 'command': 'blockdev-snapshot-sync',
-  'data': 'BlockdevSnapshotSync' }
+  'data': 'BlockdevSnapshotSync',
+  'allow-preconfig': true }
 
 
 ##
@@ -1489,7 +1494,8 @@
 ##
 { 'command': 'blockdev-snapshot',
   'data': 'BlockdevSnapshot',
-  'features': [ 'allow-write-only-overlay' ] }
+  'features': [ 'allow-write-only-overlay' ],
+  'allow-preconfig': true }
 
 ##
 # @change-backing-file:
@@ -1521,7 +1527,8 @@
 ##
 { 'command': 'change-backing-file',
   'data': { 'device': 'str', 'image-node-name': 'str',
-            'backing-file': 'str' } }
+            'backing-file': 'str' },
+  'allow-preconfig': true }
 
 ##
 # @block-commit:
@@ -1631,7 +1638,8 @@
             '*backing-file': 'str', '*speed': 'int',
             '*on-error': 'BlockdevOnError',
             '*filter-node-name': 'str',
-            '*auto-finalize': 'bool', '*auto-dismiss': 'bool' } }
+            '*auto-finalize': 'bool', '*auto-dismiss': 'bool' },
+  'allow-preconfig': true }
 
 ##
 # @drive-backup:
@@ -1657,7 +1665,8 @@
 #
 ##
 { 'command': 'drive-backup', 'boxed': true,
-  'data': 'DriveBackup' }
+  'data': 'DriveBackup',
+  'allow-preconfig': true }
 
 ##
 # @blockdev-backup:
@@ -1682,7 +1691,8 @@
 #
 ##
 { 'command': 'blockdev-backup', 'boxed': true,
-  'data': 'BlockdevBackup' }
+  'data': 'BlockdevBackup',
+  'allow-preconfig': true }
 
 
 ##
@@ -1748,7 +1758,8 @@
 ##
 { 'command': 'query-named-block-nodes',
   'returns': [ 'BlockDeviceInfo' ],
-  'data': { '*flat': 'bool' } }
+  'data': { '*flat': 'bool' },
+  'allow-preconfig': true }
 
 ##
 # @XDbgBlockGraphNodeType:
@@ -1856,7 +1867,8 @@
 #
 # Since: 4.0
 ##
-{ 'command': 'x-debug-query-block-graph', 'returns': 'XDbgBlockGraph' }
+{ 'command': 'x-debug-query-block-graph', 'returns': 'XDbgBlockGraph',
+  'allow-preconfig': true }
 
 ##
 # @drive-mirror:
@@ -1884,7 +1896,8 @@
 #
 ##
 { 'command': 'drive-mirror', 'boxed': true,
-  'data': 'DriveMirror' }
+  'data': 'DriveMirror',
+  'allow-preconfig': true }
 
 ##
 # @DriveMirror:
@@ -2055,7 +2068,8 @@
 #
 ##
 { 'command': 'block-dirty-bitmap-add',
-  'data': 'BlockDirtyBitmapAdd' }
+  'data': 'BlockDirtyBitmapAdd',
+  'allow-preconfig': true }
 
 ##
 # @block-dirty-bitmap-remove:
@@ -2079,7 +2093,8 @@
 #
 ##
 { 'command': 'block-dirty-bitmap-remove',
-  'data': 'BlockDirtyBitmap' }
+  'data': 'BlockDirtyBitmap',
+  'allow-preconfig': true }
 
 ##
 # @block-dirty-bitmap-clear:
@@ -2102,7 +2117,8 @@
 #
 ##
 { 'command': 'block-dirty-bitmap-clear',
-  'data': 'BlockDirtyBitmap' }
+  'data': 'BlockDirtyBitmap',
+  'allow-preconfig': true }
 
 ##
 # @block-dirty-bitmap-enable:
@@ -2123,7 +2139,8 @@
 #
 ##
 { 'command': 'block-dirty-bitmap-enable',
-  'data': 'BlockDirtyBitmap' }
+  'data': 'BlockDirtyBitmap',
+  'allow-preconfig': true }
 
 ##
 # @block-dirty-bitmap-disable:
@@ -2144,7 +2161,8 @@
 #
 ##
 { 'command': 'block-dirty-bitmap-disable',
-  'data': 'BlockDirtyBitmap' }
+  'data': 'BlockDirtyBitmap',
+  'allow-preconfig': true }
 
 ##
 # @block-dirty-bitmap-merge:
@@ -2176,7 +2194,8 @@
 #
 ##
 { 'command': 'block-dirty-bitmap-merge',
-  'data': 'BlockDirtyBitmapMerge' }
+  'data': 'BlockDirtyBitmapMerge',
+  'allow-preconfig': true }
 
 ##
 # @BlockDirtyBitmapSha256:
@@ -2203,7 +2222,8 @@
 # Since: 2.10
 ##
 { 'command': 'x-debug-block-dirty-bitmap-sha256',
-  'data': 'BlockDirtyBitmap', 'returns': 'BlockDirtyBitmapSha256' }
+  'data': 'BlockDirtyBitmap', 'returns': 'BlockDirtyBitmapSha256',
+  'allow-preconfig': true }
 
 ##
 # @blockdev-mirror:
@@ -2288,7 +2308,8 @@
             '*on-target-error': 'BlockdevOnError',
             '*filter-node-name': 'str',
             '*copy-mode': 'MirrorCopyMode',
-            '*auto-finalize': 'bool', '*auto-dismiss': 'bool' } }
+            '*auto-finalize': 'bool', '*auto-dismiss': 'bool' },
+  'allow-preconfig': true }
 
 ##
 # @BlockIOThrottle:
@@ -2560,7 +2581,8 @@
             '*base-node': 'str', '*backing-file': 'str', '*bottom': 'str',
             '*speed': 'int', '*on-error': 'BlockdevOnError',
             '*filter-node-name': 'str',
-            '*auto-finalize': 'bool', '*auto-dismiss': 'bool' } }
+            '*auto-finalize': 'bool', '*auto-dismiss': 'bool' },
+  'allow-preconfig': true }
 
 ##
 # @block-job-set-speed:
@@ -2584,7 +2606,8 @@
 # Since: 1.1
 ##
 { 'command': 'block-job-set-speed',
-  'data': { 'device': 'str', 'speed': 'int' } }
+  'data': { 'device': 'str', 'speed': 'int' },
+  'allow-preconfig': true }
 
 ##
 # @block-job-cancel:
@@ -2623,7 +2646,8 @@
 #
 # Since: 1.1
 ##
-{ 'command': 'block-job-cancel', 'data': { 'device': 'str', '*force': 'bool' } }
+{ 'command': 'block-job-cancel', 'data': { 'device': 'str', '*force': 'bool' },
+  'allow-preconfig': true }
 
 ##
 # @block-job-pause:
@@ -2647,7 +2671,8 @@
 #
 # Since: 1.3
 ##
-{ 'command': 'block-job-pause', 'data': { 'device': 'str' } }
+{ 'command': 'block-job-pause', 'data': { 'device': 'str' },
+  'allow-preconfig': true }
 
 ##
 # @block-job-resume:
@@ -2669,7 +2694,8 @@
 #
 # Since: 1.3
 ##
-{ 'command': 'block-job-resume', 'data': { 'device': 'str' } }
+{ 'command': 'block-job-resume', 'data': { 'device': 'str' },
+  'allow-preconfig': true }
 
 ##
 # @block-job-complete:
@@ -2697,7 +2723,8 @@
 #
 # Since: 1.3
 ##
-{ 'command': 'block-job-complete', 'data': { 'device': 'str' } }
+{ 'command': 'block-job-complete', 'data': { 'device': 'str' },
+  'allow-preconfig': true }
 
 ##
 # @block-job-dismiss:
@@ -2717,7 +2744,8 @@
 #
 # Since: 2.12
 ##
-{ 'command': 'block-job-dismiss', 'data': { 'id': 'str' } }
+{ 'command': 'block-job-dismiss', 'data': { 'id': 'str' },
+  'allow-preconfig': true }
 
 ##
 # @block-job-finalize:
@@ -2735,7 +2763,8 @@
 #
 # Since: 2.12
 ##
-{ 'command': 'block-job-finalize', 'data': { 'id': 'str' } }
+{ 'command': 'block-job-finalize', 'data': { 'id': 'str' },
+  'allow-preconfig': true }
 
 ##
 # @BlockdevDiscardOptions:
@@ -4105,7 +4134,8 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'blockdev-add', 'data': 'BlockdevOptions', 'boxed': true }
+{ 'command': 'blockdev-add', 'data': 'BlockdevOptions', 'boxed': true,
+  'allow-preconfig': true }
 
 ##
 # @x-blockdev-reopen:
@@ -4147,7 +4177,8 @@
 # Since: 4.0
 ##
 { 'command': 'x-blockdev-reopen',
-  'data': 'BlockdevOptions', 'boxed': true }
+  'data': 'BlockdevOptions', 'boxed': true,
+  'allow-preconfig': true }
 
 ##
 # @blockdev-del:
@@ -4180,7 +4211,8 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'blockdev-del', 'data': { 'node-name': 'str' } }
+{ 'command': 'blockdev-del', 'data': { 'node-name': 'str' },
+  'allow-preconfig': true }
 
 ##
 # @BlockdevCreateOptionsFile:
@@ -4618,7 +4650,8 @@
 ##
 { 'command': 'blockdev-create',
   'data': { 'job-id': 'str',
-            'options': 'BlockdevCreateOptions' } }
+            'options': 'BlockdevCreateOptions' },
+  'allow-preconfig': true }
 
 ##
 # @BlockdevAmendOptionsLUKS:
@@ -4686,7 +4719,8 @@
   'data': { 'job-id': 'str',
             'node-name': 'str',
             'options': 'BlockdevAmendOptions',
-            '*force': 'bool' } }
+            '*force': 'bool' },
+  'allow-preconfig': true }
 
 ##
 # @BlockErrorAction:
@@ -5037,7 +5071,8 @@
 #
 ##
 { 'command': 'block-set-write-threshold',
-  'data': { 'node-name': 'str', 'write-threshold': 'uint64' } }
+  'data': { 'node-name': 'str', 'write-threshold': 'uint64' },
+  'allow-preconfig': true }
 
 ##
 # @x-blockdev-change:
@@ -5095,7 +5130,8 @@
 { 'command': 'x-blockdev-change',
   'data' : { 'parent': 'str',
              '*child': 'str',
-             '*node': 'str' } }
+             '*node': 'str' },
+  'allow-preconfig': true }
 
 ##
 # @x-blockdev-set-iothread:
@@ -5135,7 +5171,8 @@
 { 'command': 'x-blockdev-set-iothread',
   'data' : { 'node-name': 'str',
              'iothread': 'StrOrNull',
-             '*force': 'bool' } }
+             '*force': 'bool' },
+  'allow-preconfig': true }
 
 ##
 # @QuorumOpType:
@@ -5267,7 +5304,8 @@
 #
 ##
 { 'command': 'blockdev-snapshot-internal-sync',
-  'data': 'BlockdevSnapshotInternal' }
+  'data': 'BlockdevSnapshotInternal',
+  'allow-preconfig': true }
 
 ##
 # @blockdev-snapshot-delete-internal-sync:
@@ -5314,4 +5352,5 @@
 ##
 { 'command': 'blockdev-snapshot-delete-internal-sync',
   'data': { 'device': 'str', '*id': 'str', '*name': 'str'},
-  'returns': 'SnapshotInfo' }
+  'returns': 'SnapshotInfo',
+  'allow-preconfig': true }
