@@ -34,10 +34,8 @@
 #include "hw/mips/cpudevs.h"
 #include "hw/pci/pci.h"
 #include "hw/loader.h"
-#include "hw/ide/pci.h"
 #include "hw/qdev-properties.h"
 #include "elf.h"
-#include "hw/isa/vt82c686.h"
 #include "sysemu/qtest.h"
 #include "sysemu/reset.h"
 #include "sysemu/sysemu.h"
@@ -197,36 +195,6 @@ static void main_cpu_reset(void *opaque)
     }
 }
 
-static void vt82c686b_southbridge_init(PCIBus *pci_bus, int slot, qemu_irq intc,
-                                       I2CBus **i2c_bus)
-{
-    PCIDevice *dev;
-    DeviceState *isa;
-
-    dev = pci_create_simple_multifunction(pci_bus, PCI_DEVFN(slot, 0), true,
-                                          TYPE_VT82C686B_ISA);
-    isa = DEVICE(dev);
-    qdev_connect_gpio_out_named(isa, "intr", 0, intc);
-
-    dev = pci_create_simple(pci_bus, PCI_DEVFN(slot, 1), "via-ide");
-    for (unsigned i = 0; i < 2; i++) {
-        qdev_connect_gpio_out_named(DEVICE(dev), "ide-irq", i,
-                                    qdev_get_gpio_in_named(isa,
-                                                           "isa-irq", 14 + i));
-    }
-    pci_ide_create_devs(dev);
-
-    pci_create_simple(pci_bus, PCI_DEVFN(slot, 2), "vt82c686b-usb-uhci");
-    pci_create_simple(pci_bus, PCI_DEVFN(slot, 3), "vt82c686b-usb-uhci");
-
-    dev = pci_create_simple(pci_bus, PCI_DEVFN(slot, 4), TYPE_VT82C686B_PM);
-    *i2c_bus = I2C_BUS(qdev_get_child_bus(DEVICE(dev), "i2c"));
-
-    /* Audio support */
-    pci_create_simple(pci_bus, PCI_DEVFN(slot, 5), TYPE_VIA_AC97);
-    pci_create_simple(pci_bus, PCI_DEVFN(slot, 6), TYPE_VIA_MC97);
-}
-
 /* Network support */
 static void network_init(PCIBus *pci_bus)
 {
@@ -323,8 +291,14 @@ static void mips_fuloong2e_init(MachineState *machine)
     pci_bus = bonito_init((qemu_irq *)&(env->irq[2]));
 
     /* South bridge -> IP5 */
-    vt82c686b_southbridge_init(pci_bus, FULOONG2E_VIA_SLOT, env->irq[5],
-                               &smbus);
+    dev = qdev_new("vt82c686b-southbridge");
+    object_property_set_uint(OBJECT(dev), "pci-slot",
+                             FULOONG2E_VIA_SLOT, &error_fatal);
+    object_property_set_link(OBJECT(dev), "pci-bus",
+                             OBJECT(pci_bus), &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    qdev_connect_gpio_out_named(dev, "intr", 0, env->irq[5]);
+    smbus = I2C_BUS(qdev_get_child_bus(dev, "i2c"));
 
     /* GPU */
     if (vga_interface_type != VGA_NONE) {
