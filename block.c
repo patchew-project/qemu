@@ -6431,6 +6431,37 @@ bool bdrv_op_blocker_is_empty(BlockDriverState *bs)
     return true;
 }
 
+static bool validate_backing_file(const char *filename,
+                                  const char *backing_file, Error **errp)
+{
+    struct stat filename_stat, backing_stat;
+
+    if (backing_file[0] == '\0') {
+        error_setg(errp, "Expected backing file name, got empty string");
+        goto out;
+    }
+
+    /* check whether filename and backing_file are refering to the same file */
+    if (stat(backing_file, &backing_stat) == -1) {
+        error_setg(errp, "Cannot stat backing file %s", backing_file);
+        goto out;
+    }
+    if (stat(filename, &filename_stat) == -1) {
+        /* Simply consider filename doesn't exist, no need to further check */
+        return true;
+    }
+    if ((filename_stat.st_dev == backing_stat.st_dev) &&
+        (filename_stat.st_ino == backing_stat.st_ino)) {
+        error_setg(errp, "Error: Trying to create an image with the "
+                         "same filename as the backing file");
+        goto out;
+    }
+
+    return true;
+out:
+    return false;
+}
+
 void bdrv_img_create(const char *filename, const char *fmt,
                      const char *base_filename, const char *base_fmt,
                      char *options, uint64_t img_size, int flags, bool quiet,
@@ -6507,13 +6538,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
 
     backing_file = qemu_opt_get(opts, BLOCK_OPT_BACKING_FILE);
     if (backing_file) {
-        if (!strcmp(filename, backing_file)) {
-            error_setg(errp, "Error: Trying to create an image with the "
-                             "same filename as the backing file");
-            goto out;
-        }
-        if (backing_file[0] == '\0') {
-            error_setg(errp, "Expected backing file name, got empty string");
+        if (!validate_backing_file(filename, backing_file, errp)) {
             goto out;
         }
     }
