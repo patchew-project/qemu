@@ -32,7 +32,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(I82378State, I82378)
 struct I82378State {
     PCIDevice parent_obj;
 
-    qemu_irq out[2];
+    qemu_irq intr;
     qemu_irq *i8259;
     MemoryRegion io;
 };
@@ -88,7 +88,7 @@ static void i82378_realize(PCIDevice *pci, Error **errp)
      */
 
     /* 2 82C59 (irq) */
-    s->i8259 = i8259_init(isabus, s->out[0]);
+    s->i8259 = i8259_init(isabus, s->intr);
     isa_bus_irqs(isabus, s->i8259);
 
     /* 1 82C54 (pit) */
@@ -106,7 +106,7 @@ static void i82378_init(Object *obj)
     DeviceState *dev = DEVICE(obj);
     I82378State *s = I82378(obj);
 
-    qdev_init_gpio_out_named(dev, s->out, "intr", 1);
+    qdev_init_gpio_out_named(dev, &s->intr, "intr", 1);
     qdev_init_gpio_in(dev, i82378_request_pic_irq, 16);
 }
 
