@@ -13,6 +13,7 @@ ENV PACKAGES \
     gettext \
     git \
     glib2-devel \
+    glibc-static \
     libaio-devel \
     libepoxy-devel \
     libfdt-devel \

@@ -441,12 +441,12 @@ build-user-plugins:
     MAKE_CHECK_ARGS: check-tcg
   timeout: 1h 30m
 
-build-user-centos7:
+build-user-centos8:
   <<: *native_build_job_definition
   needs:
-    job: amd64-centos7-container
+    job: amd64-centos8-container
   variables:
-    IMAGE: centos7
+    IMAGE: centos8
     CONFIGURE_ARGS: --disable-system --disable-tools --disable-docs
     MAKE_CHECK_ARGS: check-tcg
 
