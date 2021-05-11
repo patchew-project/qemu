@@ -41,3 +41,6 @@ config PVRDMA
 config MULTIPROCESS_ALLOWED
     bool
     imply MULTIPROCESS
+
+config FDT
+    bool
