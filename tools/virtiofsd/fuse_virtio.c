@@ -446,12 +446,9 @@ int virtio_send_data_iov(struct fuse_session *se, struct fuse_chan *ch,
     vu_queue_notify(dev, q);
     pthread_mutex_unlock(&qi->vq_lock);
     vu_dispatch_unlock(qi->virtio_dev);
+    req->reply_sent = true;
 
 err:
-    if (ret == 0) {
-        req->reply_sent = true;
-    }
-
     return ret;
 }
 
