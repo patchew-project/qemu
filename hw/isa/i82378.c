@@ -113,7 +113,7 @@ static void i82378_init(Object *obj)
     DeviceState *dev = DEVICE(obj);
     I82378State *s = I82378(obj);
 
-    qdev_init_gpio_out(dev, s->out, 1);
+    qdev_init_gpio_out_named(dev, s->out, "intr", 1);
     qdev_init_gpio_in(dev, i82378_request_pic_irq, 16);
 }
 
