@@ -1612,7 +1612,7 @@ if have_system
        int main(void) { fdt_check_full(NULL, 0); return 0; }''',
          dependencies: fdt)
       fdt_opt = 'system'
-    elif have_internal
+    elif have_internal and fdt_opt in ['enabled', 'auto']
       fdt_opt = 'internal'
     else
       fdt_opt = 'disabled'
