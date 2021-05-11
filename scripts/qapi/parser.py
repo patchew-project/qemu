@@ -26,7 +26,7 @@ from typing import (
 
 from .common import must_match
 from .error import QAPISemError, QAPISourceError
-from .qapidoc import QAPIDoc
+from .qapidoc import QAPIDoc, QAPIDocError
 from .source import QAPISourceInfo
 
 
@@ -391,7 +391,7 @@ class QAPISchemaParser:
                 self, "expected '{', '[', string, or boolean")
         return expr
 
-    def get_doc(self, info: QAPISourceInfo) -> List['QAPIDoc']:
+    def _get_doc(self, info: QAPISourceInfo) -> List['QAPIDoc']:
         if self.val != '##':
             raise QAPIParseError(
                 self, "junk after '##' at start of documentation comment")
@@ -424,3 +424,11 @@ class QAPISchemaParser:
             self.accept(False)
 
         raise QAPIParseError(self, "documentation comment must end with '##'")
+
+    def get_doc(self, info: QAPISourceInfo) -> List['QAPIDoc']:
+        # Tie QAPIDocError exceptions to the current parser state,
+        # re-raise as QAPIParseError.
+        try:
+            return self._get_doc(info)
+        except QAPIDocError as err:
+            raise QAPIParseError(self, str(err)) from err

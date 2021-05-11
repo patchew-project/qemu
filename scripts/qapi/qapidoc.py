@@ -18,7 +18,11 @@ from collections import OrderedDict
 import re
 
 from .common import must_match
-from .error import QAPISemError
+from .error import QAPIError, QAPISemError
+
+
+class QAPIDocError(QAPIError):
+    """QAPIDoc parsing errors."""
 
 
 class QAPIDoc:
@@ -56,8 +60,7 @@ class QAPIDoc:
             if line:
                 indent = must_match(r'\s*', line).end()
                 if indent < self._indent:
-                    raise QAPIParseError(
-                        self._parser,
+                    raise QAPIDocError(
                         "unexpected de-indent (expected at least %d spaces)" %
                         self._indent)
                 line = line[self._indent:]
@@ -114,7 +117,7 @@ class QAPIDoc:
             return
 
         if line[0] != ' ':
-            raise QAPIParseError(self._parser, "missing space after #")
+            raise QAPIDocError("missing space after #")
         line = line[1:]
         self._append_line(line)
 
@@ -148,11 +151,11 @@ class QAPIDoc:
         # recognized, and get silently treated as ordinary text
         if not self.symbol and not self.body.text and line.startswith('@'):
             if not line.endswith(':'):
-                raise QAPIParseError(self._parser, "line should end with ':'")
+                raise QAPIDocError("line should end with ':'")
             self.symbol = line[1:-1]
             # FIXME invalid names other than the empty string aren't flagged
             if not self.symbol:
-                raise QAPIParseError(self._parser, "invalid name")
+                raise QAPIDocError("invalid name")
         elif self.symbol:
             # This is a definition documentation block
             if name.startswith('@') and name.endswith(':'):
@@ -261,9 +264,8 @@ class QAPIDoc:
         name = line.split(' ', 1)[0]
 
         if name.startswith('@') and name.endswith(':'):
-            raise QAPIParseError(self._parser,
-                                 "'%s' can't follow '%s' section"
-                                 % (name, self.sections[0].name))
+            raise QAPIDocError("'%s' can't follow '%s' section"
+                               % (name, self.sections[0].name))
         if self._is_section_tag(name):
             # If line is "Section:   first line of description", find
             # the index of 'f', which is the indent we expect for any
@@ -286,10 +288,9 @@ class QAPIDoc:
     def _start_symbol_section(self, symbols_dict, name, indent):
         # FIXME invalid names other than the empty string aren't flagged
         if not name:
-            raise QAPIParseError(self._parser, "invalid parameter name")
+            raise QAPIDocError("invalid parameter name")
         if name in symbols_dict:
-            raise QAPIParseError(self._parser,
-                                 "'%s' parameter name duplicated" % name)
+            raise QAPIDocError("'%s' parameter name duplicated" % name)
         assert not self.sections
         self._end_section()
         self._section = QAPIDoc.ArgSection(self._parser, name, indent)
@@ -303,8 +304,7 @@ class QAPIDoc:
 
     def _start_section(self, name=None, indent=0):
         if name in ('Returns', 'Since') and self.has_section(name):
-            raise QAPIParseError(self._parser,
-                                 "duplicated '%s' section" % name)
+            raise QAPIDocError("duplicated '%s' section" % name)
         self._end_section()
         self._section = QAPIDoc.Section(self._parser, name, indent)
         self.sections.append(self._section)
@@ -313,17 +313,15 @@ class QAPIDoc:
         if self._section:
             text = self._section.text = self._section.text.strip()
             if self._section.name and (not text or text.isspace()):
-                raise QAPIParseError(
-                    self._parser,
+                raise QAPIDocError(
                     "empty doc section '%s'" % self._section.name)
             self._section = None
 
     def _append_freeform(self, line):
         match = re.match(r'(@\S+:)', line)
         if match:
-            raise QAPIParseError(self._parser,
-                                 "'%s' not allowed in free-form documentation"
-                                 % match.group(1))
+            raise QAPIDocError("'%s' not allowed in free-form documentation"
+                               % match.group(1))
         self._section.append(line)
 
     def connect_member(self, member):
