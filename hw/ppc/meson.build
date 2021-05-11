@@ -9,7 +9,7 @@ ppc_ss.add(when: 'CONFIG_FDT_PPC', if_true: [files(
 ppc_ss.add(when: 'CONFIG_FW_CFG_PPC', if_true: files('fw_cfg.c'))
 
 # IBM pSeries (sPAPR)
-ppc_ss.add(when: 'CONFIG_PSERIES', if_true: files(
+ppc_ss.add(when: 'CONFIG_PSERIES', if_true: [files(
   'spapr.c',
   'spapr_caps.c',
   'spapr_vio.c',
@@ -28,7 +28,7 @@ ppc_ss.add(when: 'CONFIG_PSERIES', if_true: files(
   'spapr_rtas_ddw.c',
   'spapr_numa.c',
   'pef.c',
-))
+), fdt])
 ppc_ss.add(when: 'CONFIG_SPAPR_RNG', if_true: files('spapr_rng.c'))
 ppc_ss.add(when: ['CONFIG_PSERIES', 'CONFIG_LINUX'], if_true: files(
   'spapr_pci_vfio.c',
