@@ -201,12 +201,19 @@ static void vt82c686b_southbridge_init(PCIBus *pci_bus, int slot, qemu_irq intc,
                                        I2CBus **i2c_bus)
 {
     PCIDevice *dev;
+    DeviceState *isa;
 
     dev = pci_create_simple_multifunction(pci_bus, PCI_DEVFN(slot, 0), true,
                                           TYPE_VT82C686B_ISA);
-    qdev_connect_gpio_out_named(DEVICE(dev), "intr", 0, intc);
+    isa = DEVICE(dev);
+    qdev_connect_gpio_out_named(isa, "intr", 0, intc);
 
     dev = pci_create_simple(pci_bus, PCI_DEVFN(slot, 1), "via-ide");
+    for (unsigned i = 0; i < 2; i++) {
+        qdev_connect_gpio_out_named(DEVICE(dev), "ide-irq", i,
+                                    qdev_get_gpio_in_named(isa,
+                                                           "isa-irq", 14 + i));
+    }
     pci_ide_create_devs(dev);
 
     pci_create_simple(pci_bus, PCI_DEVFN(slot, 2), "vt82c686b-usb-uhci");
