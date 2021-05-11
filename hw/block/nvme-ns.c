@@ -526,6 +526,36 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
     nvme_attach_ns(n, ns);
 }
 
+static void nvme_ns_unrealize(DeviceState *dev)
+{
+    NvmeNamespace *ns = NVME_NS(dev);
+    BusState *s = qdev_get_parent_bus(dev);
+    NvmeCtrl *n = NVME(s->parent);
+    NvmeSubsystem *subsys = n->subsys;
+    uint32_t nsid = ns->params.nsid;
+    int i;
+
+    nvme_ns_drain(ns);
+    nvme_ns_shutdown(ns);
+    nvme_ns_cleanup(ns);
+
+    if (subsys) {
+        subsys->namespaces[nsid] = NULL;
+
+        if (ns->params.shared) {
+            for (i = 0; i < ARRAY_SIZE(subsys->ctrls); i++) {
+                NvmeCtrl *ctrl = subsys->ctrls[i];
+
+                if (ctrl) {
+                    nvme_detach_ns(ctrl, ns);
+                }
+            }
+            return;
+        }
+    }
+    nvme_detach_ns(n, ns);
+}
+
 static Property nvme_ns_props[] = {
     DEFINE_BLOCK_PROPERTIES(NvmeNamespace, blkconf),
     DEFINE_PROP_BOOL("detached", NvmeNamespace, params.detached, false),
@@ -563,6 +593,7 @@ static void nvme_ns_class_init(ObjectClass *oc, void *data)
 
     dc->bus_type = TYPE_NVME_BUS;
     dc->realize = nvme_ns_realize;
+    dc->unrealize = nvme_ns_unrealize;
     device_class_set_props(dc, nvme_ns_props);
     dc->desc = "Virtual NVMe namespace";
 }

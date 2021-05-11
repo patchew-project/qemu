@@ -42,6 +42,18 @@ int nvme_subsys_register_ctrl(NvmeCtrl *n, Error **errp)
     return cntlid;
 }
 
+void nvme_subsys_unregister_ctrl(NvmeCtrl *n)
+{
+    NvmeSubsystem *subsys = n->subsys;
+    int cntlid = n->cntlid;
+
+    if (!n->subsys)
+        return;
+    assert(cntlid < ARRAY_SIZE(subsys->ctrls));
+    subsys->ctrls[cntlid] = NULL;
+    n->cntlid = -1;
+}
+
 static void nvme_subsys_setup(NvmeSubsystem *subsys)
 {
     const char *nqn = subsys->params.nqn ?

@@ -4963,26 +4963,12 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
             }
 
             nvme_attach_ns(ctrl, ns);
-            __nvme_select_ns_iocs(ctrl, ns);
         } else {
             if (!nvme_ns(ctrl, nsid)) {
                 return NVME_NS_NOT_ATTACHED | NVME_DNR;
             }
 
-            ctrl->namespaces[nsid - 1] = NULL;
-            ns->attached--;
-
-            nvme_update_dmrsl(ctrl);
-        }
-
-        /*
-         * Add namespace id to the changed namespace id list for event clearing
-         * via Get Log Page command.
-         */
-        if (!test_and_set_bit(nsid, ctrl->changed_nsids)) {
-            nvme_enqueue_event(ctrl, NVME_AER_TYPE_NOTICE,
-                               NVME_AER_INFO_NOTICE_NS_ATTR_CHANGED,
-                               NVME_LOG_CHANGED_NSLIST);
+            nvme_detach_ns(ctrl, ns);
         }
     }
 
@@ -6166,6 +6152,34 @@ void nvme_attach_ns(NvmeCtrl *n, NvmeNamespace *ns)
 
     n->dmrsl = MIN_NON_ZERO(n->dmrsl,
                             BDRV_REQUEST_MAX_BYTES / nvme_l2b(ns, 1));
+    if (NVME_CC_EN(n->bar.cc)) {
+        /* Ctrl is live */
+        __nvme_select_ns_iocs(n, ns);
+        if (!test_and_set_bit(nsid, n->changed_nsids)) {
+            nvme_enqueue_event(n, NVME_AER_TYPE_NOTICE,
+                               NVME_AER_INFO_NOTICE_NS_ATTR_CHANGED,
+                               NVME_LOG_CHANGED_NSLIST);
+        }
+    }
+}
+
+void nvme_detach_ns(NvmeCtrl *n, NvmeNamespace *ns)
+{
+    uint32_t nsid = ns->params.nsid;
+
+    if (ns->attached) {
+        n->namespaces[nsid - 1] = NULL;
+        ns->attached--;
+    }
+    nvme_update_dmrsl(n);
+    if (NVME_CC_EN(n->bar.cc)) {
+        /* Ctrl is live */
+        if (!test_and_set_bit(nsid, n->changed_nsids)) {
+            nvme_enqueue_event(n, NVME_AER_TYPE_NOTICE,
+                               NVME_AER_INFO_NOTICE_NS_ATTR_CHANGED,
+                               NVME_LOG_CHANGED_NSLIST);
+        }
+    }
 }
 
 static void nvme_realize(PCIDevice *pci_dev, Error **errp)
@@ -6193,7 +6207,7 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
         return;
     }
     nvme_init_ctrl(n, pci_dev);
-
+    qbus_set_bus_hotplug_handler(BUS(&n->bus));
     /* setup a namespace if the controller drive property was given */
     if (n->namespace.blkconf.blk) {
         ns = &n->namespace;
@@ -6223,6 +6237,8 @@ static void nvme_exit(PCIDevice *pci_dev)
 
         nvme_ns_cleanup(ns);
     }
+
+    nvme_subsys_unregister_ctrl(n);
 
     g_free(n->cq);
     g_free(n->sq);
@@ -6348,10 +6364,22 @@ static const TypeInfo nvme_info = {
     },
 };
 
+static void nvme_bus_class_init(ObjectClass *klass, void *data)
+{
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
+
+    hc->unplug = qdev_simple_device_unplug_cb;
+}
+
 static const TypeInfo nvme_bus_info = {
     .name = TYPE_NVME_BUS,
     .parent = TYPE_BUS,
     .instance_size = sizeof(NvmeBus),
+    .class_init = nvme_bus_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_HOTPLUG_HANDLER },
+        { }
+    }
 };
 
 static void nvme_register_types(void)
