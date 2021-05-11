@@ -54,7 +54,8 @@ memfd_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
     name = host_memory_backend_get_name(backend);
     memory_region_init_ram_from_fd(&backend->mr, OBJECT(backend),
                                    name, backend->size,
-                                   backend->share, fd, 0, errp);
+                                   backend->share ? RAM_SHARED : 0,
+                                   fd, 0, errp);
     g_free(name);
 }
 
