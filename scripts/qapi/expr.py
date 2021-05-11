@@ -44,7 +44,7 @@ from typing import (
 
 from .common import c_name
 from .error import QAPISemError
-from .parser import QAPIDoc
+from .qapidoc import QAPIDoc
 from .source import QAPISourceInfo
 
 
