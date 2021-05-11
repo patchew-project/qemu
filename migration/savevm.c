@@ -2992,6 +2992,7 @@ bool load_snapshot(const char *name, const char *vmstate,
     int ret;
     AioContext *aio_context;
     MigrationIncomingState *mis = migration_incoming_get_current();
+    int saved_vm_running  = runstate_is_running();
 
     if (!bdrv_all_can_snapshot(has_devices, devices, errp)) {
         return false;
@@ -3023,6 +3024,8 @@ bool load_snapshot(const char *name, const char *vmstate,
                    " offline using qemu-img");
         return false;
     }
+
+    vm_stop(RUN_STATE_RESTORE_VM);
 
     /*
      * Flush the record/replay queue. Now the VM state is going
@@ -3061,13 +3064,17 @@ bool load_snapshot(const char *name, const char *vmstate,
 
     if (ret < 0) {
         error_setg(errp, "Error %d while loading VM state", ret);
-        return false;
+        goto err_restart;
     }
 
     return true;
 
 err_drain:
     bdrv_drain_all_end();
+err_restart:
+    if (saved_vm_running) {
+        vm_start();
+    }
     return false;
 }
 
@@ -3135,17 +3142,10 @@ static void snapshot_load_job_bh(void *opaque)
 {
     Job *job = opaque;
     SnapshotJob *s = container_of(job, SnapshotJob, common);
-    int orig_vm_running;
 
     job_progress_set_remaining(&s->common, 1);
 
-    orig_vm_running = runstate_is_running();
-    vm_stop(RUN_STATE_RESTORE_VM);
-
     s->ret = load_snapshot(s->tag, s->vmstate, true, s->devices, s->errp);
-    if (s->ret && orig_vm_running) {
-        vm_start();
-    }
 
     job_progress_update(&s->common, 1);
 
