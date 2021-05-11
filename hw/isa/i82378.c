@@ -47,12 +47,6 @@ static const VMStateDescription vmstate_i82378 = {
     },
 };
 
-static void i82378_request_out0_irq(void *opaque, int irq, int level)
-{
-    I82378State *s = opaque;
-    qemu_set_irq(s->out[0], level);
-}
-
 static void i82378_request_pic_irq(void *opaque, int irq, int level)
 {
     DeviceState *dev = opaque;
@@ -94,8 +88,7 @@ static void i82378_realize(PCIDevice *pci, Error **errp)
      */
 
     /* 2 82C59 (irq) */
-    s->i8259 = i8259_init(isabus,
-                          qemu_allocate_irq(i82378_request_out0_irq, s, 0));
+    s->i8259 = i8259_init(isabus, s->out[0]);
     isa_bus_irqs(isabus, s->i8259);
 
     /* 1 82C54 (pit) */
