@@ -51,8 +51,40 @@ typedef struct AioRingEvent {
 
 typedef ssize_t coroutine_fn (*AioRingFunc)(AioRingRequest *req);
 
+typedef struct QIOChannelBuffer QIOChannelBuffer;
+
 typedef struct StateSaveCtx {
-    BlockBackend *blk;          /* Block backend */
+    BlockBackend *blk;              /* Block backend */
+    QEMUFile *f_fd;                 /* QEMUFile for incoming stream */
+    QEMUFile *f_vmstate;            /* QEMUFile for vmstate backing */
+
+    QIOChannelBuffer *ioc_leader;   /* Migration stream leader */
+    QIOChannelBuffer *ioc_pages;    /* Page coalescing buffer */
+
+    /* Block offset of first page in ioc_pages */
+    int64_t bdrv_offset;
+    /* Block offset of the last page in ioc_pages */
+    int64_t last_bdrv_offset;
+
+    /* Current section offset */
+    int64_t section_offset;
+    /* Offset of the section containing list of RAM blocks */
+    int64_t ram_list_offset;
+    /* Offset of the first RAM section */
+    int64_t ram_offset;
+    /* Offset of the first non-iterable device section */
+    int64_t device_offset;
+
+    /* Zero buffer to fill unwritten slices on backing */
+    void *zero_buf;
+
+    /*
+     * Since we can't rewind the state of migration stream QEMUFile, we just
+     * keep first few hundreds of bytes from the beginning of each section for
+     * the case if particular section appears to be the first non-iterable
+     * device section and we are going to call default_handler().
+     */
+    uint8_t section_header[512];
 } StateSaveCtx;
 
 typedef struct StateLoadCtx {

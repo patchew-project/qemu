@@ -94,7 +94,24 @@ static void init_save_context(void)
 
 static void destroy_save_context(void)
 {
-    /* TODO: implement */
+    StateSaveCtx *s = get_save_context();
+
+    if (s->f_vmstate) {
+        qemu_fclose(s->f_vmstate);
+    }
+    if (s->blk) {
+        blk_flush(s->blk);
+        blk_unref(s->blk);
+    }
+    if (s->zero_buf) {
+        qemu_vfree(s->zero_buf);
+    }
+    if (s->ioc_leader) {
+        object_unref(OBJECT(s->ioc_leader));
+    }
+    if (s->ioc_pages) {
+        object_unref(OBJECT(s->ioc_pages));
+    }
 }
 
 static void init_load_context(void)
@@ -134,6 +151,9 @@ static void enter_co_bh(void *opaque)
 static void coroutine_fn snapshot_save_co(void *opaque)
 {
     StateSaveCtx *s = get_save_context();
+    QIOChannel *ioc_fd;
+    uint8_t *buf;
+    size_t count;
     int res = -1;
 
     init_save_context();
@@ -144,6 +164,40 @@ static void coroutine_fn snapshot_save_co(void *opaque)
     if (!s->blk) {
         goto fail;
     }
+
+    /* QEMUFile on vmstate */
+    s->f_vmstate = qemu_fopen_bdrv_vmstate(blk_bs(s->blk), 1);
+    qemu_file_set_blocking(s->f_vmstate, false);
+
+    /* QEMUFile on migration fd */
+    ioc_fd = qio_channel_new_fd(params.fd, &error_fatal);
+    qio_channel_set_name(QIO_CHANNEL(ioc_fd), "migration-channel-incoming");
+    s->f_fd = qemu_fopen_channel_input(ioc_fd);
+    object_unref(OBJECT(ioc_fd));
+    /* Use non-blocking mode in coroutine */
+    qemu_file_set_blocking(s->f_fd, false);
+
+    /* Buffer channel to store leading part of migration stream */
+    s->ioc_leader = qio_channel_buffer_new(INPLACE_READ_MAX);
+    qio_channel_set_name(QIO_CHANNEL(s->ioc_leader), "migration-leader-buffer");
+
+    /* Page coalescing buffer */
+    s->ioc_pages = qio_channel_buffer_new(128 * 1024);
+    qio_channel_set_name(QIO_CHANNEL(s->ioc_pages), "migration-page-buffer");
+
+    /* Bounce buffer to fill unwritten extents in image backing */
+    s->zero_buf = qemu_blockalign0(blk_bs(s->blk), slice_size);
+
+    /*
+     * Here we stash the leading part of migration stream without promoting read
+     * position. Later we'll make use of it when writing the vmstate stream.
+     */
+    count = qemu_peek_buffer(s->f_fd, &buf, INPLACE_READ_MAX, 0);
+    res = qemu_file_get_error(s->f_fd);
+    if (res < 0) {
+        goto fail;
+    }
+    qio_channel_write(QIO_CHANNEL(s->ioc_leader), (char *) buf, count, NULL);
 
     res = save_state_main(s);
     if (res) {
