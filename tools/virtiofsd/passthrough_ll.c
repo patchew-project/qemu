@@ -969,13 +969,86 @@ static int do_statx(struct lo_data *lo, int dirfd, const char *pathname,
 }
 
 /*
+ * Use readdir() to find mp_name's inode ID on the parent's filesystem.
+ * (For mount points, stat() will only return the inode ID on the
+ * filesystem mounted there, i.e. the root directory's inode ID.  The
+ * mount point originally was a directory on the parent filesystem,
+ * though, and so has a different inode ID there.  When passing
+ * submount information to the guest, we need to pass this other ID,
+ * so the guest can use it as the inode ID until the submount is
+ * auto-mounted.  (At which point the guest will invoke getattr and
+ * find the inode ID on the submount.))
+ *
+ * Return 0 on success, and -errno otherwise.  *pino is set only in
+ * case of success.
+ */
+static int get_mp_ino_on_parent(const struct lo_inode *dir, const char *mp_name,
+                                ino_t *pino)
+{
+    int dirfd = -1;
+    int ret;
+    DIR *dp = NULL;
+
+    dirfd = openat(dir->fd, ".", O_RDONLY);
+    if (dirfd < 0) {
+        ret = -errno;
+        goto out;
+    }
+
+    dp = fdopendir(dirfd);
+    if (!dp) {
+        ret = -errno;
+        goto out;
+    }
+    /* Owned by dp now */
+    dirfd = -1;
+
+    while (true) {
+        struct dirent *de;
+
+        errno = 0;
+        de = readdir(dp);
+        if (!de) {
+            ret = errno ? -errno : -ENOENT;
+            goto out;
+        }
+
+        if (!strcmp(de->d_name, mp_name)) {
+            *pino = de->d_ino;
+            ret = 0;
+            goto out;
+        }
+    }
+
+out:
+    if (dp) {
+        closedir(dp);
+    }
+    if (dirfd >= 0) {
+        close(dirfd);
+    }
+    return ret;
+}
+
+/*
  * Increments nlookup on the inode on success. unref_inode_lolocked() must be
  * called eventually to decrement nlookup again. If inodep is non-NULL, the
  * inode pointer is stored and the caller must call lo_inode_put().
+ *
+ * If parent_fs_st_ino is true, the entry is a mount point, and submounts are
+ * announced to the guest, set e->attr.st_ino to the entry's inode ID on its
+ * parent filesystem instead of its inode ID on the filesystem mounted on it.
+ * (For mount points, the entry encompasses two inodes: One on the parent FS,
+ * and one on the mounted FS (where it is the root node), so it has two inode
+ * IDs.  When looking up entries, we should show the guest the parent FS's inode
+ * ID, because as long as the guest has not auto-mounted the submount, it should
+ * see that original ID.  Once it does perform the auto-mount, it will invoke
+ * getattr and see the root node's inode ID.)
  */
 static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
                         struct fuse_entry_param *e,
-                        struct lo_inode **inodep)
+                        struct lo_inode **inodep,
+                        bool parent_fs_st_ino)
 {
     int newfd;
     int res;
@@ -984,6 +1057,7 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
     struct lo_data *lo = lo_data(req);
     struct lo_inode *inode = NULL;
     struct lo_inode *dir = lo_inode(req, parent);
+    ino_t ino_id_for_guest;
 
     if (inodep) {
         *inodep = NULL; /* in case there is an error */
@@ -1018,9 +1092,22 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         goto out_err;
     }
 
+    ino_id_for_guest = e->attr.st_ino;
+
     if (S_ISDIR(e->attr.st_mode) && lo->announce_submounts &&
         (e->attr.st_dev != dir->key.dev || mnt_id != dir->key.mnt_id)) {
         e->attr_flags |= FUSE_ATTR_SUBMOUNT;
+
+        if (parent_fs_st_ino) {
+            /*
+             * Best effort, so ignore errors.
+             * Also note that using readdir() means there may be races:
+             * The directory entry we find (if any) may be different
+             * from newfd.  Again, this is a best effort.  Reporting
+             * the wrong inode ID to the guest is not catastrophic.
+             */
+            get_mp_ino_on_parent(dir, name, &ino_id_for_guest);
+        }
     }
 
     inode = lo_find(lo, &e->attr, mnt_id);
@@ -1043,6 +1130,10 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
 
         inode->nlookup = 1;
         inode->fd = newfd;
+        /*
+         * For the inode key, use the dev/ino/mnt ID as reported by stat()
+         * (i.e. not ino_id_for_guest)
+         */
         inode->key.ino = e->attr.st_ino;
         inode->key.dev = e->attr.st_dev;
         inode->key.mnt_id = mnt_id;
@@ -1057,6 +1148,9 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         pthread_mutex_unlock(&lo->mutex);
     }
     e->ino = inode->fuse_ino;
+
+    /* Report ino_id_for_guest to the guest */
+    e->attr.st_ino = ino_id_for_guest;
 
     /* Transfer ownership of inode pointer to caller or drop it */
     if (inodep) {
@@ -1104,7 +1198,7 @@ static void lo_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
         return;
     }
 
-    err = lo_do_lookup(req, parent, name, &e, NULL);
+    err = lo_do_lookup(req, parent, name, &e, NULL, true);
     if (err) {
         fuse_reply_err(req, err);
     } else {
@@ -1217,7 +1311,7 @@ static void lo_mknod_symlink(fuse_req_t req, fuse_ino_t parent,
         goto out;
     }
 
-    saverr = lo_do_lookup(req, parent, name, &e, NULL);
+    saverr = lo_do_lookup(req, parent, name, &e, NULL, false);
     if (saverr) {
         goto out;
     }
@@ -1714,7 +1808,7 @@ static void lo_do_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
 
         if (plus) {
             if (!is_dot_or_dotdot(name)) {
-                err = lo_do_lookup(req, ino, name, &e, NULL);
+                err = lo_do_lookup(req, ino, name, &e, NULL, true);
                 if (err) {
                     goto error;
                 }
@@ -1935,7 +2029,7 @@ static void lo_create(fuse_req_t req, fuse_ino_t parent, const char *name,
         goto out;
     }
 
-    err = lo_do_lookup(req, parent, name, &e, &inode);
+    err = lo_do_lookup(req, parent, name, &e, &inode, false);
     if (err) {
         goto out;
     }
