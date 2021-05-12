@@ -1,0 +1,13 @@
+{
+    "configurations": [
+        {
+            "name": "qemu",
+            "includePath": [ "${default}", "${workspaceFolder}/linux-headers/**", "${workspaceFolder}/include/**", "${workspaceFolder}/+build/**"],
+            "compileCommands": "${workspaceFolder}/${config:mesonbuild.buildFolder}/compile_commands.json",
+            "intelliSenseMode": "linux-gcc-x64",
+            "cStandard": "c11",
+            "cppStandard": "c++14"
+        }
+    ],
+    "version": 4
+}

@@ -1,0 +1,23 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "cppbuild",
+			"label": "C/C++: build active file with compile_commands.json",
+			"command": "python3",
+			"args": [
+				"${workspaceFolder}/scripts/rebuild.py", "${file}"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/${config:mesonbuild.buildFolder}"
+			},
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		}
+	]
+}

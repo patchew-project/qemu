@@ -1,0 +1,11 @@
+{
+	"files.associations": {
+		"*.mak": "makefile",
+		"*.c.inc": "c",
+		"*.h.inc": "c",
+		"*.json": "python",
+		"*.rst.inc": "restructuredtext",
+		"*.vert": "glsl",
+		"*.frag": "glsl"
+	}
+}
