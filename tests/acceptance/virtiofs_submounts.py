@@ -220,7 +220,7 @@ class VirtiofsSubmountsTest(LinuxTest):
         self.run(('bash', self.get_data('cleanup.sh'), scratch_dir))
 
     @skipUnless(*has_cmds(('sudo -n', ('sudo', '-n', 'true')),
-                          'ssh-keygen', 'bash', 'losetup', 'mkfs.xfs', 'mount'))
+                          'bash', 'losetup', 'mkfs.xfs', 'mount'))
     def setUp(self):
         vmlinuz = self.params.get('vmlinuz')
         if vmlinuz is None:
@@ -242,13 +242,7 @@ class VirtiofsSubmountsTest(LinuxTest):
 
         self.seed = self.params.get('seed')
 
-        self.ssh_key = os.path.join(self.workdir, 'id_ed25519')
-
-        self.run(('ssh-keygen', '-N', '', '-t', 'ed25519', '-f', self.ssh_key))
-
-        pubkey = open(self.ssh_key + '.pub').read()
-
-        super(VirtiofsSubmountsTest, self).setUp(pubkey)
+        super(VirtiofsSubmountsTest, self).setUp()
 
         if len(vmlinuz) > 0:
             self.vm.add_args('-kernel', vmlinuz,
