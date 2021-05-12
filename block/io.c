@@ -2849,6 +2849,13 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
     BdrvChild *child;
     int current_gen;
     int ret = 0;
+    bool no_primary_child = false;
+
+    /* Quorum drivers do not have the primary child. */
+    if (!primary_child) {
+        primary_child = bs->file;
+        no_primary_child = true;
+    }
 
     bdrv_inc_in_flight(bs);
 
@@ -2886,12 +2893,12 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
 
     /* But don't actually force it to the disk with cache=unsafe */
     if (bs->open_flags & BDRV_O_NO_FLUSH) {
-        goto flush_children;
+        goto flush_data;
     }
 
     /* Check if we really need to flush anything */
     if (bs->flushed_gen == current_gen) {
-        goto flush_children;
+        goto flush_data;
     }
 
     BLKDBG_EVENT(primary_child, BLKDBG_FLUSH_TO_DISK);
@@ -2938,13 +2945,19 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
     /* Now flush the underlying protocol.  It will also have BDRV_O_NO_FLUSH
      * in the case of cache=unsafe, so there are no useless flushes.
      */
-flush_children:
-    ret = 0;
-    QLIST_FOREACH(child, &bs->children, next) {
-        if (child->perm & (BLK_PERM_WRITE | BLK_PERM_WRITE_UNCHANGED)) {
-            int this_child_ret = bdrv_co_flush(child->bs);
-            if (!ret) {
-                ret = this_child_ret;
+flush_data:
+    if (no_primary_child) {
+        /* Flush parent */
+        ret = bs->file ? bdrv_co_flush(bs->file->bs) : 0;
+    } else {
+        /* Flush childrens */
+        ret = 0;
+        QLIST_FOREACH(child, &bs->children, next) {
+            if (child->perm & (BLK_PERM_WRITE | BLK_PERM_WRITE_UNCHANGED)) {
+                int this_child_ret = bdrv_co_flush(child->bs);
+                if (!ret) {
+                    ret = this_child_ret;
+                }
             }
         }
     }
