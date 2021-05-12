@@ -258,6 +258,7 @@ class TestRunner(ContextManager['TestRunner']):
 
         t0 = time.time()
         with f_bad.open('w', encoding="utf-8") as f:
+            # pylint: disable=consider-using-with
             proc = subprocess.Popen(args, cwd=str(f_test.parent), env=env,
                                     stdout=f, stderr=subprocess.STDOUT)
             try:

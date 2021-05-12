@@ -311,7 +311,7 @@ def qemu_nbd_popen(*args):
     cmd.extend(args)
 
     log('Start NBD server')
-    p = subprocess.Popen(cmd)
+    p = subprocess.Popen(cmd)  # pylint: disable=consider-using-with
     try:
         while not os.path.exists(pid_file):
             if p.poll() is not None:
