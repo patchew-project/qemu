@@ -34,6 +34,13 @@
 /* RAM slice size for snapshot revert */
 #define SLICE_SIZE_REVERT           (16 * PAGE_SIZE_MAX)
 
+/* AIO transfer size */
+#define AIO_TRANSFER_SIZE           BDRV_CLUSTER_SIZE
+/* AIO ring size */
+#define AIO_RING_SIZE               64
+/* AIO ring in-flight limit */
+#define AIO_RING_INFLIGHT           16
+
 typedef struct AioRing AioRing;
 
 typedef struct AioRingRequest {
@@ -88,7 +95,20 @@ typedef struct StateSaveCtx {
 } StateSaveCtx;
 
 typedef struct StateLoadCtx {
-    BlockBackend *blk;          /* Block backend */
+    BlockBackend *blk;              /* Block backend */
+    QEMUFile *f_fd;                 /* QEMUFile for outgoing stream */
+    QEMUFile *f_vmstate;            /* QEMUFile for vmstate backing */
+
+    QIOChannelBuffer *ioc_leader;   /* vmstate stream leader */
+
+    AioRing *aio_ring;              /* AIO ring */
+
+    /* vmstate offset of the section containing list of RAM blocks */
+    int64_t ram_list_offset;
+    /* vmstate offset of the first non-iterable device section */
+    int64_t device_offset;
+    /* vmstate EOF */
+    int64_t eof_offset;
 } StateLoadCtx;
 
 extern int64_t page_size;       /* Page size */
@@ -100,6 +120,8 @@ extern int slice_bits;          /* RAM slice size bits */
 
 void ram_init_state(void);
 void ram_destroy_state(void);
+ssize_t coroutine_fn ram_load_aio_co(AioRingRequest *req);
+
 StateSaveCtx *get_save_context(void);
 StateLoadCtx *get_load_context(void);
 int coroutine_fn save_state_main(StateSaveCtx *s);
