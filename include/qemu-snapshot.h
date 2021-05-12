@@ -36,10 +36,14 @@
 
 /* AIO transfer size */
 #define AIO_TRANSFER_SIZE           BDRV_CLUSTER_SIZE
+/* AIO transfer size for postcopy */
+#define AIO_TRANSFER_SIZE_LOWLAT    (BDRV_CLUSTER_SIZE / 4)
 /* AIO ring size */
 #define AIO_RING_SIZE               64
 /* AIO ring in-flight limit */
 #define AIO_RING_INFLIGHT           16
+/* AIO ring in-flight limit for postcopy */
+#define AIO_RING_INFLIGHT_LOWLAT    4
 
 typedef struct AioRing AioRing;
 
@@ -97,11 +101,19 @@ typedef struct StateSaveCtx {
 typedef struct StateLoadCtx {
     BlockBackend *blk;              /* Block backend */
     QEMUFile *f_fd;                 /* QEMUFile for outgoing stream */
+    QEMUFile *f_rp_fd;              /* QEMUFile for return path stream */
     QEMUFile *f_vmstate;            /* QEMUFile for vmstate backing */
 
     QIOChannelBuffer *ioc_leader;   /* vmstate stream leader */
 
     AioRing *aio_ring;              /* AIO ring */
+
+    bool postcopy;                  /* From command-line --postcopy */
+    int postcopy_percent;           /* From command-line --postcopy */
+    bool in_postcopy;               /* In postcopy mode */
+
+    QemuThread rp_listen_thread;    /* Return path listening thread */
+    bool has_rp_listen_thread;      /* Have listening thread */
 
     /* vmstate offset of the section containing list of RAM blocks */
     int64_t ram_list_offset;
