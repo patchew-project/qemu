@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "e1f54e4d7fc287bdff731659614f5f9bbea2f1aee122ba04506ab26c4007440e"
+            "sha256": "986164b4c690953890066f288b48c3d84c63df86fc8fa30a26e9001d5b0968e0"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -15,7 +15,12 @@
             }
         ]
     },
-    "default": {},
+    "default": {
+        "qemu": {
+            "editable": true,
+            "path": "."
+        }
+    },
     "develop": {
         "astroid": {
             "hashes": [
