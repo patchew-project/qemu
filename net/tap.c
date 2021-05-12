@@ -467,7 +467,7 @@ static int recv_fd(int c)
     cmsg->cmsg_level = SOL_SOCKET;
     cmsg->cmsg_type = SCM_RIGHTS;
     cmsg->cmsg_len = CMSG_LEN(sizeof(fd));
-    msg.msg_controllen = cmsg->cmsg_len;
+    msg.msg_controllen = CMSG_SPACE(sizeof(fd));
 
     iov.iov_base = req;
     iov.iov_len = sizeof(req);
