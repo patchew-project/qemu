@@ -238,20 +238,27 @@ def qemu_io_silent_check(*args):
 class QemuIoInteractive:
     def __init__(self, *args):
         self.args = qemu_io_args_no_fmt + list(args)
+
+        # Resource cleaned up via close()
+        # pylint: disable=consider-using-with
         self._p = subprocess.Popen(self.args, stdin=subprocess.PIPE,
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT,
                                    universal_newlines=True)
+        if self._p.poll():
+            # Failed to start.
+            out = self._p.stdout.read()
+            raise subprocess.SubprocessError(out, self._p.poll())
+
+        # Eat the first prompt
         out = self._p.stdout.read(9)
-        if out != 'qemu-io> ':
-            # Most probably qemu-io just failed to start.
-            # Let's collect the whole output and exit.
-            out += self._p.stdout.read()
-            self._p.wait(timeout=1)
-            raise ValueError(out)
+        assert out == 'qemu-io> ', "Did not understand qemu-io prompt"
 
     def close(self):
-        self._p.communicate('q\n')
+        try:
+            self._p.communicate('q\n', timeout=5)
+        except subprocess.TimeoutExpired:
+            self._p.kill()
 
     def _read_output(self):
         pattern = 'qemu-io> '
