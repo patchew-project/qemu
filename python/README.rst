@@ -49,3 +49,5 @@ Files in this directory
   this package; it is referenced by ``setup.cfg``.
 - ``setup.cfg`` houses setuptools package configuration.
 - ``setup.py`` is the setuptools installer used by pip; See above.
+- ``tox.ini`` houses configuration for tox, which runs tests against
+  several Python versions to test compatibility.

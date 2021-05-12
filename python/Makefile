@@ -16,6 +16,8 @@ help:
 	@echo ""
 	@echo "make check:      run linters using the current environment."
 	@echo ""
+	@echo "make check-tox:  run linters using multiple python versions."
+	@echo ""
 	@echo "make clean:      remove build output."
 	@echo ""
 	@echo "make distclean:  remove venv files, qemu package forwarder, and"
@@ -35,8 +37,11 @@ develop:
 check:
 	@avocado --config avocado.cfg run tests/
 
+check-tox:
+	@tox
+
 clean:
 	rm -rf build/ dist/
 
 distclean: clean
-	rm -rf qemu.egg-info/ .venv/
+	rm -rf qemu.egg-info/ .venv/ .tox/

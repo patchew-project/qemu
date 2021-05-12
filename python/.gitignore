@@ -17,3 +17,4 @@ qemu.egg-info/
 
 # virtual environments (pipenv et al)
 .venv/
+.tox/
