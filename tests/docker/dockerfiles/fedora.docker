@@ -84,6 +84,7 @@ ENV PACKAGES \
     numactl-devel \
     perl \
     perl-Test-Harness \
+    pipenv \
     pixman-devel \
     python3 \
     python3-PyYAML \
@@ -93,6 +94,7 @@ ENV PACKAGES \
     python3-pip \
     python3-sphinx \
     python3-virtualenv \
+    python3.6 \
     rdma-core-devel \
     SDL2-devel \
     snappy-devel \

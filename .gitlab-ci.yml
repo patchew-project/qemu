@@ -778,6 +778,18 @@ check-patch:
     GIT_DEPTH: 1000
   allow_failure: true
 
+
+check-python:
+  stage: test
+  image: $CI_REGISTRY_IMAGE/qemu/fedora:latest
+  script:
+    - cd python
+    - make venv-check
+  variables:
+    GIT_DEPTH: 1000
+  needs:
+    job: amd64-fedora-container
+
 check-dco:
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/centos8:latest
