@@ -19,41 +19,27 @@ fi
 
 cd "$shared_dir"
 
-# FIXME: This should not be necessary, but it is.  In order for all
-# submounts to be proper mount points, we need to visit them.
-# (Before we visit them, they will not be auto-mounted, and so just
-# appear as normal directories, with the catch that their st_ino will
-# be the st_ino of the filesystem they host, while the st_dev will
-# still be the st_dev of the parent.)
-# `find` does not work, because it will refuse to touch the mount
-# points as long as they are not mounted; their st_dev being shared
-# with the parent and st_ino just being the root node's inode ID
-# will practically ensure that this node exists elsewhere on the
-# filesystem, and `find` is required to recognize loops and not to
-# follow them.
-# Thus, we have to manually visit all nodes first.
-
-mnt_i=0
-
-function recursively_visit()
-{
-    pushd "$1" >/dev/null
-    for entry in *; do
-        if [[ "$entry" == mnt* ]]; then
-            mnt_i=$((mnt_i + 1))
-            printf "Triggering auto-mount $mnt_i...\r"
-        fi
-
-        if [ -d "$entry" ]; then
-            recursively_visit "$entry"
-        fi
-    done
-    popd >/dev/null
-}
-
-recursively_visit .
-echo
-
+# See whether `find` complains about anything, like file system loops,
+# by looking for a file that does not exist (so the output should be
+# empty).
+# (Historically, for mount points, virtiofsd reported only the inode ID
+# in submount, i.e. the submount root's inode ID.  However, while the
+# submount is not yet auto-mounted in the guest, it would have the
+# parent's device ID, and so would have the same st_dev/st_ino
+# combination as the parent filesystem's root.  This would lead to
+# `find` reporting file system loops.
+# This has been fixed so that virtiofsd reports the mount point node's
+# inode ID in the parent filesystem, and when the guest auto-mounts the
+# submount, it will only then see the inode ID in that FS.)
+#
+# As a side-effect, this `find` auto-mounts all submounts by visiting
+# the whole tree.
+find_output=$(find -name there-is-no-such-file 2>&1)
+if [ -n "$find_output" ]; then
+    echo "Error: find has reported errors or warnings:" >&2
+    echo "$find_output" >&2
+    exit 1
+fi
 
 if [ -n "$(find -name not-mounted)" ]; then
     echo "Error: not-mounted files visible on mount points:" >&2
