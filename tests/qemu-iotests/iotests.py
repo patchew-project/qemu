@@ -113,15 +113,16 @@ def qemu_tool_pipe_and_status(tool: str, args: Sequence[str],
     Run a tool and return both its output and its exit code
     """
     stderr = subprocess.STDOUT if connect_stderr else None
-    subp = subprocess.Popen(args,
-                            stdout=subprocess.PIPE,
-                            stderr=stderr,
-                            universal_newlines=True)
-    output = subp.communicate()[0]
-    if subp.returncode < 0:
+    res = subprocess.run(args,
+                         stdout=subprocess.PIPE,
+                         stderr=stderr,
+                         universal_newlines=True,
+                         check=False)
+    output = res.stdout
+    if res.returncode < 0:
         cmd = ' '.join(args)
-        sys.stderr.write(f'{tool} received signal {-subp.returncode}: {cmd}\n')
-    return (output, subp.returncode)
+        sys.stderr.write(f'{tool} received signal {-res.returncode}: {cmd}\n')
+    return (output, res.returncode)
 
 def qemu_img_pipe_and_status(*args: str) -> Tuple[str, int]:
     """
@@ -1153,6 +1154,8 @@ def _verify_virtio_scsi_pci_or_ccw() -> None:
 
 
 def supports_quorum():
+    # https://github.com/PyCQA/astroid/issues/689
+    # pylint: disable=unsupported-membership-test
     return 'quorum' in qemu_img_pipe('--help')
 
 def verify_quorum():
