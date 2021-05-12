@@ -31,10 +31,11 @@ OBJECTS = start.o main.o bootmap.o jump2ipl.o sclp.o menu.o \
 
 QEMU_CFLAGS := -Wall $(filter -W%, $(QEMU_CFLAGS))
 QEMU_CFLAGS += $(call cc-option,-Werror $(QEMU_CFLAGS),-Wno-stringop-overflow)
-QEMU_CFLAGS += -ffreestanding -fno-delete-null-pointer-checks -fno-common -fPIE
+QEMU_CFLAGS += -ffreestanding -fno-common -fPIE
 QEMU_CFLAGS += -fwrapv -fno-strict-aliasing -fno-asynchronous-unwind-tables
-QEMU_CFLAGS += $(call cc-option, $(QEMU_CFLAGS), -fno-stack-protector)
-QEMU_CFLAGS += -msoft-float
+QEMU_CFLAGS += $(call cc-option,-Werror $(QEMU_CFLAGS),-fno-delete-null-pointer-checks)
+QEMU_CFLAGS += $(call cc-option,-Werror $(QEMU_CFLAGS),-fno-stack-protector)
+QEMU_CFLAGS += $(call cc-option,-Werror $(QEMU_CFLAGS),-msoft-float)
 QEMU_CFLAGS += $(call cc-option, $(QEMU_CFLAGS),-march=z900,-march=z10)
 QEMU_CFLAGS += -std=gnu99
 LDFLAGS += -Wl,-pie -nostdlib
