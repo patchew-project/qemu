@@ -124,6 +124,7 @@ void qemu_file_set_hooks(QEMUFile *f, const QEMUFileHooks *hooks);
 int qemu_get_fd(QEMUFile *f);
 int qemu_fclose(QEMUFile *f);
 int64_t qemu_ftell(QEMUFile *f);
+int64_t qemu_ftell2(QEMUFile *f);
 int64_t qemu_ftell_fast(QEMUFile *f);
 /*
  * put_buffer without copying the buffer.
