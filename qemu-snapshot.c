@@ -123,6 +123,10 @@ static void destroy_load_context(void)
 {
     StateLoadCtx *s = get_load_context();
 
+    if (s->has_rp_listen_thread) {
+        qemu_thread_join(&s->rp_listen_thread);
+    }
+
     if (s->f_vmstate) {
         qemu_fclose(s->f_vmstate);
     }
@@ -226,11 +230,15 @@ static void coroutine_fn snapshot_load_co(void *opaque)
 {
     StateLoadCtx *s = get_load_context();
     QIOChannel *ioc_fd;
+    QIOChannel *ioc_rp_fd;
     uint8_t *buf;
     size_t count;
     int res = -1;
 
     init_load_context();
+
+    s->postcopy = params.postcopy;
+    s->postcopy_percent = params.postcopy_percent;
 
     /* Block backend */
     s->blk = image_open_opts(params.blk_optstr, params.blk_options,
@@ -249,6 +257,14 @@ static void coroutine_fn snapshot_load_co(void *opaque)
     s->f_fd = qemu_fopen_channel_output(ioc_fd);
     object_unref(OBJECT(ioc_fd));
     qemu_file_set_blocking(s->f_fd, false);
+
+    /* QEMUFile on return path fd if we are going to use postcopy */
+    if (params.postcopy) {
+        ioc_rp_fd = qio_channel_new_fd(params.rp_fd, NULL);
+        qio_channel_set_name(QIO_CHANNEL(ioc_fd), "migration-channel-rp");
+        s->f_rp_fd = qemu_fopen_channel_input(ioc_rp_fd);
+        object_unref(OBJECT(ioc_rp_fd));
+    }
 
     /* Buffer channel to store leading part of migration stream */
     s->ioc_leader = qio_channel_buffer_new(INPLACE_READ_MAX);
