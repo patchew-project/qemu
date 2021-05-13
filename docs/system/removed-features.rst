@@ -126,6 +126,12 @@ devices.  Drives the board doesn't pick up can no longer be used with
 This option was undocumented and not used in the field.
 Use `-device usb-ccid`` instead.
 
+``-writeconfig`` (since 6.1)
+'''''''''''''''''''''''''''''
+
+The ``-writeconfig`` option was not able to serialize the entire contents
+of the QEMU command line.  It is thus considered a failed experiment
+and removed without a replacement.
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
