@@ -372,8 +372,19 @@ Along with many other images, the ``centos8`` image is defined in a Dockerfile
 in ``tests/docker/dockerfiles/``, called ``centos8.docker``. ``make docker-help``
 command will list all the available images.
 
-To add a new image, simply create a new ``.docker`` file under the
-``tests/docker/dockerfiles/`` directory.
+Most of the existing Dockerfiles were written by hand, simply by creating a
+a new ``.docker`` file under the ``tests/docker/dockerfiles/`` directory.
+This has led to an inconsistent set of packages being present across the
+different containers. Thus going forward, QEMU is aiming to automatically
+generate the Dockerfiles using the tools provided by the libvirt-ci project
+
+  https://gitlab.com/libvirt/libvirt-ci
+
+In that project, there is a master ``qemu.yml`` file defining the list of
+build pre-requisites, that is processed together with the ``mappings.yml``
+file to produce the distro specific list of package names. The automatically
+generated Dockerfiles are produced by ``tests/docker/dockerfiles-refresh.py``
+which is wired up to the ``make docker-refresh`` target.
 
 A ``.pre`` script can be added beside the ``.docker`` file, which will be
 executed before building the image under the build context directory. This is

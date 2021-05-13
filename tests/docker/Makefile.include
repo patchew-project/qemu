@@ -27,6 +27,8 @@ DOCKER_TESTS := $(notdir $(shell \
 ENGINE := auto
 
 DOCKER_SCRIPT=$(SRC_PATH)/tests/docker/docker.py --engine $(ENGINE)
+REFRESH_SCRIPT=$(SRC_PATH)/tests/docker/dockerfiles-refresh.py
+LCITOOL=$(SRC_PATH)/tests/docker/libvirt-ci/lcitool
 
 TESTS ?= %
 IMAGES ?= %
@@ -199,6 +201,7 @@ docker:
 	@echo '    docker-image:        Build all images.'
 	@echo '    docker-image-IMAGE:  Build image "IMAGE".'
 	@echo '    docker-run:          For manually running a "TEST" with "IMAGE".'
+	@echo '    docker-refresh:      Re-generate dockerfiles after updating libvirt-ci'
 	@echo
 	@echo 'Available container images:'
 	@echo '    $(DOCKER_IMAGES)'
@@ -281,3 +284,10 @@ docker-run-%:
 
 docker-clean:
 	$(call quiet-command, $(DOCKER_SCRIPT) clean)
+
+docker-refresh:
+	@if [ ! -f $(LCITOOL) ] ; \
+	then \
+	    cd $(SRC_PATH) && git submodule update --init tests/docker/libvirt-ci ; \
+	fi
+	$(call quiet-command, $(REFRESH_SCRIPT) $(LCITOOL) $(SRC_PATH))
