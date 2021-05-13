@@ -53,5 +53,11 @@ def generate_image(filename, host, cross=None, trailer=None):
 try:
    generate_image("centos8.docker", "centos-8")
    generate_image("fedora.docker", "fedora-33")
+
+   skipssh = ["# https://bugs.launchpad.net/qemu/+bug/1838763\n",
+              "ENV QEMU_CONFIGURE_OPTS --disable-libssh\n"]
+
+   generate_image("ubuntu1804.docker", "ubuntu-1804",
+                  trailer="".join(skipssh))
 except Exception as ex:
    print(str(ex), file=sys.stderr)
