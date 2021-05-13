@@ -1,5 +1,8 @@
 # Default configuration for arm-softmmu
 
+# TODO: semihosting is always required - move to default-configs/targets/
+CONFIG_ARM_COMPATIBLE_SEMIHOSTING=y
+
 # TODO: ARM_V7M is currently always required - make this more flexible!
 CONFIG_ARM_V7M=y
 
@@ -41,5 +44,4 @@ CONFIG_MICROBIT=y
 CONFIG_FSL_IMX25=y
 CONFIG_FSL_IMX7=y
 CONFIG_FSL_IMX6UL=y
-CONFIG_ARM_COMPATIBLE_SEMIHOSTING=y
 CONFIG_ALLWINNER_H3=y

@@ -1,9 +1,11 @@
 # Default configuration for riscv32-softmmu
 
+# TODO: semihosting is always required - move to default-configs/targets/
+CONFIG_ARM_COMPATIBLE_SEMIHOSTING=y
+
 # Uncomment the following lines to disable these optional devices:
 #
 #CONFIG_PCI_DEVICES=n
-CONFIG_ARM_COMPATIBLE_SEMIHOSTING=y
 
 # Boards:
 #
