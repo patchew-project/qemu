@@ -70,6 +70,7 @@ AccelClass *accel_find(const char *opt_name);
 AccelState *current_accel(void);
 
 void accel_init_interfaces(AccelClass *ac);
+bool accel_print_class_properties(const char *opt_name);
 
 #ifndef CONFIG_USER_ONLY
 int accel_init_machine(AccelState *accel, MachineState *ms);

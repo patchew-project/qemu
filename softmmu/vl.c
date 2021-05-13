@@ -155,6 +155,7 @@ static const char *incoming;
 static const char *loadvm;
 static const char *accelerators;
 static QDict *machine_opts_dict;
+static KeyvalConfigGroup accel_opts_list;
 static QTAILQ_HEAD(, ObjectOption) object_opts = QTAILQ_HEAD_INITIALIZER(object_opts);
 static ram_addr_t maxram_size;
 static uint64_t ram_slots;
@@ -242,20 +243,6 @@ static QemuOptsList qemu_option_rom_opts = {
             .type = QEMU_OPT_STRING,
         },
         { /* end of list */ }
-    },
-};
-
-static QemuOptsList qemu_accel_opts = {
-    .name = "accel",
-    .implied_opt_name = "accel",
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_accel_opts.head),
-    .desc = {
-        /*
-         * no elements => accept any
-         * sanity checking will happen later
-         * when setting accelerator properties
-         */
-        { }
     },
 };
 
@@ -1595,21 +1582,6 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
     return machine_class;
 }
 
-static int object_parse_property_opt(Object *obj,
-                                     const char *name, const char *value,
-                                     const char *skip, Error **errp)
-{
-    if (g_str_equal(name, skip)) {
-        return 0;
-    }
-
-    if (!object_property_parse(obj, name, value, errp)) {
-        return -1;
-    }
-
-    return 0;
-}
-
 /* *Non*recursively replace underscores with dashes in QDict keys.  */
 static void keyval_dashify(QDict *qdict, Error **errp)
 {
@@ -2101,7 +2073,8 @@ static int global_init_func(void *opaque, QemuOpts *opts, Error **errp)
  */
 static bool is_qemuopts_group(const char *group)
 {
-    if (g_str_equal(group, "machine")) {
+    if (g_str_equal(group, "machine") ||
+        g_str_equal(group, "accel")) {
         return false;
     }
     return true;
@@ -2113,6 +2086,9 @@ static bool is_qemuopts_group(const char *group)
  */
 static KeyvalConfigGroup *qemu_config_list(const char *group)
 {
+    if (g_str_equal(group, "accel")) {
+        return &accel_opts_list;
+    }
     return NULL;
 }
 
@@ -2152,6 +2128,26 @@ static void qemu_record_config_group(const char *group, QDict *dict, bool from_j
     } else {
         abort();
     }
+}
+
+static QDict *qemu_parse_config_option(const char *group, const char *arg,
+                                       bool *help, Error **errp)
+{
+    QDict *args;
+
+    *help = false;
+    if (arg[0] == '{') {
+        args = (QDict*) qobject_from_json(arg, errp);
+        if (args) {
+            qemu_record_config_group(group, args, true, &error_abort);
+        }
+    } else {
+        args = keyval_parse(arg, group, help, errp);
+        if (args) {
+            qemu_record_config_group(group, args, false, &error_abort);
+        }
+    }
+    return args;
 }
 
 static void qemu_set_qdict_option(QDict *dict, const char *key, const char *value,
@@ -2261,17 +2257,9 @@ static int do_configure_icount(void *opaque, QemuOpts *opts, Error **errp)
     return 0;
 }
 
-static int accelerator_set_property(void *opaque,
-                                const char *name, const char *value,
-                                Error **errp)
+static bool do_configure_accelerator(KeyvalConfigEntry *e)
 {
-    return object_parse_property_opt(opaque, name, value, "accel", errp);
-}
-
-static int do_configure_accelerator(void *opaque, QemuOpts *opts, Error **errp)
-{
-    bool *p_init_failed = opaque;
-    const char *acc = qemu_opt_get(opts, "accel");
+    const char *acc = qdict_get_try_str(e->dict, "accel");
     AccelClass *ac = accel_find(acc);
     AccelState *accel;
     int ret;
@@ -2280,38 +2268,36 @@ static int do_configure_accelerator(void *opaque, QemuOpts *opts, Error **errp)
     qtest_with_kvm = g_str_equal(acc, "kvm") && qtest_chrdev != NULL;
 
     if (!ac) {
-        *p_init_failed = true;
         if (!qtest_with_kvm) {
             error_report("invalid accelerator %s", acc);
         }
-        return 0;
+        return true;
     }
     accel = ACCEL(object_new_with_class(OBJECT_CLASS(ac)));
     object_apply_compat_props(OBJECT(accel));
-    qemu_opt_foreach(opts, accelerator_set_property,
-                     accel,
-                     &error_fatal);
+    qdict_del(e->dict, "accel");
+    object_set_properties_from_keyval(OBJECT(accel), e->dict, e->from_json, &error_fatal);
 
     ret = accel_init_machine(accel, current_machine);
     if (ret < 0) {
-        *p_init_failed = true;
         if (!qtest_with_kvm || ret != -ENOENT) {
-            error_report("failed to initialize %s: %s", acc, strerror(-ret));
+            error_report("failed to initialize %s: %s", ac->name, strerror(-ret));
         }
-        return 0;
+        return true;
     }
 
-    return 1;
+    return false;
 }
 
 static void configure_accelerators(const char *progname)
 {
     bool init_failed = false;
+    KeyvalConfigEntry *accel;
 
     qemu_opts_foreach(qemu_find_opts("icount"),
                       do_configure_icount, NULL, &error_fatal);
 
-    if (QTAILQ_EMPTY(&qemu_accel_opts.head)) {
+    if (QTAILQ_EMPTY(&accel_opts_list)) {
         char **accel_list, **tmp;
 
         if (accelerators == NULL) {
@@ -2344,7 +2330,9 @@ static void configure_accelerators(const char *progname)
              * such as "-machine accel=tcg,,thread=single".
              */
             if (accel_find(*tmp)) {
-                qemu_opts_parse_noisily(qemu_find_opts("accel"), *tmp, true);
+                QDict *qdict = qdict_new();
+                qdict_put_str(qdict, "accel", *tmp);
+                qemu_record_config_group("accel", qdict, true, &error_abort);
             } else {
                 init_failed = true;
                 error_report("invalid accelerator %s", *tmp);
@@ -2358,8 +2346,14 @@ static void configure_accelerators(const char *progname)
         }
     }
 
-    if (!qemu_opts_foreach(qemu_find_opts("accel"),
-                           do_configure_accelerator, &init_failed, &error_fatal)) {
+    QTAILQ_FOREACH_REVERSE(accel, &accel_opts_list, next) {
+        init_failed = do_configure_accelerator(accel);
+        if (current_accel()) {
+            break;
+        }
+    }
+
+    if (!current_accel()) {
         if (!init_failed) {
             error_report("no accelerator found");
         }
@@ -2375,6 +2369,27 @@ static void configure_accelerators(const char *progname)
         error_report("-icount is not allowed with hardware virtualization");
         exit(1);
     }
+}
+
+static void list_accelerators(void)
+{
+    printf("Accelerators supported in QEMU binary:\n");
+    GSList *el, *accel_list = object_class_get_list(TYPE_ACCEL,
+                                                    false);
+    for (el = accel_list; el; el = el->next) {
+        gchar *typename = g_strdup(object_class_get_name(
+                                   OBJECT_CLASS(el->data)));
+        /* omit qtest which is used for tests only */
+        if (g_strcmp0(typename, ACCEL_CLASS_NAME("qtest")) &&
+            g_str_has_suffix(typename, ACCEL_CLASS_SUFFIX)) {
+            gchar **optname = g_strsplit(typename,
+                                         ACCEL_CLASS_SUFFIX, 0);
+            printf("%s\n", optname[0]);
+            g_strfreev(optname);
+        }
+        g_free(typename);
+    }
+    g_slist_free(accel_list);
 }
 
 static void create_default_memdev(MachineState *ms, const char *path)
@@ -2701,7 +2716,7 @@ void qmp_x_exit_preconfig(Error **errp)
 void qemu_init(int argc, char **argv, char **envp)
 {
     QemuOpts *opts;
-    QemuOpts *icount_opts = NULL, *accel_opts = NULL;
+    QemuOpts *icount_opts = NULL;
     QemuOptsList *olist;
     int optind;
     const char *optarg;
@@ -2725,7 +2740,6 @@ void qemu_init(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_trace_opts);
     qemu_plugin_add_opts();
     qemu_add_opts(&qemu_option_rom_opts);
-    qemu_add_opts(&qemu_accel_opts);
     qemu_add_opts(&qemu_mem_opts);
     qemu_add_opts(&qemu_smp_opts);
     qemu_add_opts(&qemu_boot_opts);
@@ -3282,30 +3296,20 @@ void qemu_init(int argc, char **argv, char **envp)
                     break;
                 }
             case QEMU_OPTION_accel:
-                accel_opts = qemu_opts_parse_noisily(qemu_find_opts("accel"),
-                                                     optarg, true);
-                optarg = qemu_opt_get(accel_opts, "accel");
-                if (!optarg || is_help_option(optarg)) {
-                    printf("Accelerators supported in QEMU binary:\n");
-                    GSList *el, *accel_list = object_class_get_list(TYPE_ACCEL,
-                                                                    false);
-                    for (el = accel_list; el; el = el->next) {
-                        gchar *typename = g_strdup(object_class_get_name(
-                                                   OBJECT_CLASS(el->data)));
-                        /* omit qtest which is used for tests only */
-                        if (g_strcmp0(typename, ACCEL_CLASS_NAME("qtest")) &&
-                            g_str_has_suffix(typename, ACCEL_CLASS_SUFFIX)) {
-                            gchar **optname = g_strsplit(typename,
-                                                         ACCEL_CLASS_SUFFIX, 0);
-                            printf("%s\n", optname[0]);
-                            g_strfreev(optname);
+                {
+                    bool help;
+                    QDict *args;
+
+                    args = qemu_parse_config_option("accel", optarg, &help, &error_fatal);
+                    if (help) {
+                        const char *type = qdict_get_try_str(args, "accel");
+                        if (!type || !accel_print_class_properties(type)) {
+                            list_accelerators();
                         }
-                        g_free(typename);
+                        exit(0);
                     }
-                    g_slist_free(accel_list);
-                    exit(0);
+                    break;
                 }
-                break;
             case QEMU_OPTION_usb:
                 qdict_put_str(machine_opts_dict, "usb", "on");
                 break;
