@@ -517,6 +517,9 @@ void pcie_cap_slot_unplug_request_cb(HotplugHandler *hotplug_dev,
 void pcie_cap_slot_init(PCIDevice *dev, PCIESlot *s)
 {
     uint32_t pos = dev->exp.exp_cap;
+    bool native_pcihp_enabled = object_property_get_bool(qdev_get_machine(),
+                                                         "x-native-pci-hotplug",
+                                                         NULL);
 
     pci_word_test_and_set_mask(dev->config + pos + PCI_EXP_FLAGS,
                                PCI_EXP_FLAGS_SLOT);
@@ -529,7 +532,13 @@ void pcie_cap_slot_init(PCIDevice *dev, PCIESlot *s)
                                PCI_EXP_SLTCAP_PIP |
                                PCI_EXP_SLTCAP_AIP |
                                PCI_EXP_SLTCAP_ABP);
-    if (s->hotplug) {
+
+    /*
+     * Enable native hot-plug on all hot-plugged bridges unless
+     * hot-plug is disabled on the slot.
+     */
+    if (s->hotplug &&
+        (native_pcihp_enabled || DEVICE(dev)->hotplugged)) {
         pci_long_test_and_set_mask(dev->config + pos + PCI_EXP_SLTCAP,
                                    PCI_EXP_SLTCAP_HPS |
                                    PCI_EXP_SLTCAP_HPC);

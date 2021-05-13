@@ -581,6 +581,21 @@ static void machine_set_memdev(Object *obj, const char *value, Error **errp)
     ms->ram_memdev_id = g_strdup(value);
 }
 
+static void machine_set_native_pci_hotplug(Object *obj, bool value,
+                                           Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    ms->native_pci_hotplug = value;
+}
+
+static bool machine_get_native_pci_hotplug(Object *obj, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+
+    return ms->native_pci_hotplug;
+}
+
 
 static void machine_init_notify(Notifier *notifier, void *data)
 {
@@ -890,6 +905,10 @@ static void machine_class_init(ObjectClass *oc, void *data)
                                    OBJ_PROP_LINK_STRONG);
     object_class_property_set_description(oc, "confidential-guest-support",
                                           "Set confidential guest scheme to support");
+
+    object_class_property_add_bool(oc, "x-native-pci-hotplug",
+                                   machine_get_native_pci_hotplug,
+                                   machine_set_native_pci_hotplug);
 
     /* For compatibility */
     object_class_property_add_str(oc, "memory-encryption",

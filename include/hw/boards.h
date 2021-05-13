@@ -334,6 +334,7 @@ struct MachineState {
     CpuTopology smp;
     struct NVDIMMState *nvdimms_state;
     struct NumaState *numa_state;
+    bool native_pci_hotplug;
 };
 
 #define DEFINE_MACHINE(namestr, machine_initfn) \
