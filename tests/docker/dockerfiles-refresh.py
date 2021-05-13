@@ -65,5 +65,6 @@ try:
                "RUN sed -i 's/^const/static const/g' /usr/lib/llvm-10/lib/clang/10.0.0/include/sanitizer/tsan_interface.h\n"]
    generate_image("ubuntu2004.docker", "ubuntu-2004",
                   trailer="".join(tsanhack))
+   generate_image("opensuse-leap.docker", "opensuse-leap-152")
 except Exception as ex:
    print(str(ex), file=sys.stderr)
