@@ -240,11 +240,6 @@ amd64-ubuntu2004-container:
   variables:
     NAME: ubuntu2004
 
-amd64-ubuntu-container:
-  <<: *container_job_definition
-  variables:
-    NAME: ubuntu
-
 amd64-opensuse-leap-container:
   <<: *container_job_definition
   variables:
