@@ -12,6 +12,7 @@ config MICROCHIP_PFSOC
     select SIFIVE_CLINT
     select SIFIVE_PDMA
     select SIFIVE_PLIC
+    select SERIAL
     select UNIMP
 
 config OPENTITAN
