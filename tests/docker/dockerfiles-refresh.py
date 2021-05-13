@@ -59,5 +59,11 @@ try:
 
    generate_image("ubuntu1804.docker", "ubuntu-1804",
                   trailer="".join(skipssh))
+
+   tsanhack = ["# Apply patch https://reviews.llvm.org/D75820\n",
+               "# This is required for TSan in clang-10 to compile with QEMU.\n",
+               "RUN sed -i 's/^const/static const/g' /usr/lib/llvm-10/lib/clang/10.0.0/include/sanitizer/tsan_interface.h\n"]
+   generate_image("ubuntu2004.docker", "ubuntu-2004",
+                  trailer="".join(tsanhack))
 except Exception as ex:
    print(str(ex), file=sys.stderr)
