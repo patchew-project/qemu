@@ -52,5 +52,6 @@ def generate_image(filename, host, cross=None, trailer=None):
 
 try:
    generate_image("centos8.docker", "centos-8")
+   generate_image("fedora.docker", "fedora-33")
 except Exception as ex:
    print(str(ex), file=sys.stderr)
