@@ -121,6 +121,7 @@
 #include "qapi/qapi-commands-misc.h"
 #include "qapi/qapi-visit-qom.h"
 #include "qapi/qapi-commands-ui.h"
+#include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/iothread.h"
 #include "qemu/guest-random.h"
@@ -139,6 +140,14 @@ typedef struct ObjectOption {
     ObjectOptions *opts;
     QTAILQ_ENTRY(ObjectOption) next;
 } ObjectOption;
+
+typedef struct KeyvalConfigEntry {
+    QDict *dict;
+    bool from_json;
+    QTAILQ_ENTRY(KeyvalConfigEntry) next;
+} KeyvalConfigEntry;
+
+typedef QTAILQ_HEAD(, KeyvalConfigEntry) KeyvalConfigGroup;
 
 static const char *cpu_option;
 static const char *mem_path;
@@ -2114,13 +2123,98 @@ static int global_init_func(void *opaque, QemuOpts *opts, Error **errp)
     return 0;
 }
 
+/*
+ * Return whether configuration group @group is stored in QemuOpts or
+ * in a list of QDicts.
+ */
+static bool is_qemuopts_group(const char *group)
+{
+    return true;
+}
+
+/*
+ * Return a pointer to a list of QDicts, used to store options for
+ * "-set GROUP.*".
+ */
+static KeyvalConfigGroup *qemu_config_list(const char *group)
+{
+    return NULL;
+}
+
+/*
+ * Return a pointer to a QDict inside the list starting at @head,
+ * used to store options for "-GROUP id=...".
+ */
+static KeyvalConfigEntry *qemu_find_config(KeyvalConfigGroup *head, const char *id)
+{
+    KeyvalConfigEntry *e;
+    assert(id);
+    QTAILQ_FOREACH(e, head, next) {
+        if (g_strcmp0(qdict_get_try_str(e->dict, "id"), id) == 0) {
+            return e;
+        }
+    }
+    return NULL;
+}
+
+static void qemu_record_config_group(const char *group, QDict *dict, bool from_json, Error **errp)
+{
+    KeyvalConfigGroup *head;
+
+    head = qemu_config_list(group);
+    if (head) {
+        KeyvalConfigEntry *e = g_new(KeyvalConfigEntry, 1);
+        e->dict = dict;
+        e->from_json = from_json;
+        QTAILQ_INSERT_HEAD(head, e, next);
+    } else {
+        abort();
+    }
+}
+
+static void qemu_set_qdict_option(QDict *dict, const char *key, const char *value,
+                                  Error **errp)
+{
+    QDict *merge_dict;
+
+    merge_dict = qdict_new();
+    qdict_put_str(merge_dict, key, value);
+    keyval_merge(dict, merge_dict, errp);
+    qobject_unref(merge_dict);
+}
+
+/*
+ * Parse non-QemuOpts config file groups, pass the rest to
+ * qemu_config_do_parse.
+ */
+static void qemu_parse_config_group(const char *group, QDict *qdict,
+                                    void *opaque, Error **errp)
+{
+    QObject *crumpled;
+    if (is_qemuopts_group(group)) {
+        qemu_config_do_parse(group, qdict, opaque, errp);
+        return;
+    }
+
+    crumpled = qdict_crumple(qdict, errp);
+    if (!crumpled) {
+        return;
+    }
+    if (qobject_type(crumpled) != QTYPE_QDICT) {
+        assert(qobject_type(crumpled) == QTYPE_QLIST);
+        error_setg(errp, "Lists cannot be at top level of a configuration section");
+        return;
+    }
+    qemu_record_config_group(group, qobject_to(QDict, crumpled), false, errp);
+}
+
 static void qemu_read_default_config_file(Error **errp)
 {
     ERRP_GUARD();
     int ret;
     g_autofree char *file = get_relocated_path(CONFIG_QEMU_CONFDIR "/qemu.conf");
 
-    ret = qemu_read_config_file(file, qemu_config_do_parse, errp);
+    ret = qemu_read_config_file(file, qemu_parse_config_group, errp);
     if (ret < 0) {
         if (ret == -ENOENT) {
             error_free(*errp);
@@ -2129,37 +2223,48 @@ static void qemu_read_default_config_file(Error **errp)
     }
 }
 
-static int qemu_set_option(const char *str)
+static void qemu_set_option(const char *str, Error **errp)
 {
-    Error *local_err = NULL;
     char group[64], id[64], arg[64];
     QemuOptsList *list;
     QemuOpts *opts;
+    KeyvalConfigGroup *head;
     int rc, offset;
 
     rc = sscanf(str, "%63[^.].%63[^.].%63[^=]%n", group, id, arg, &offset);
     if (rc < 3 || str[offset] != '=') {
-        error_report("can't parse: \"%s\"", str);
-        return -1;
+        error_setg(errp, "can't parse: \"%s\"", str);
+        return;
     }
 
-    list = qemu_find_opts(group);
-    if (list == NULL) {
-        return -1;
+    head = qemu_config_list(group);
+    if (head) {
+        KeyvalConfigEntry *e = qemu_find_config(head, id);
+        if (!e) {
+            goto not_found;
+        }
+        if (e->from_json) {
+            error_setg(errp, "cannot use -set with %s \"%s\" passed as JSON", group, id);
+            return;
+        }
+        qemu_set_qdict_option(e->dict, arg, str + offset + 1, errp);
+        return;
     }
 
-    opts = qemu_opts_find(list, id);
-    if (!opts) {
-        error_report("there is no %s \"%s\" defined",
-                     list->name, id);
-        return -1;
+    list = qemu_find_opts_err(group, errp);
+    if (list) {
+        opts = qemu_opts_find(list, id);
+        if (!opts) {
+            goto not_found;
+        }
+        qemu_opt_set(opts, arg, str + offset + 1, errp);
+        return;
     }
 
-    if (!qemu_opt_set(opts, arg, str + offset + 1, &local_err)) {
-        error_report_err(local_err);
-        return -1;
-    }
-    return 0;
+    return;
+
+not_found:
+    error_setg(errp, "there is no %s \"%s\" defined", group, id);
 }
 
 static void user_register_global_props(void)
@@ -2736,8 +2841,7 @@ void qemu_init(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_set:
-                if (qemu_set_option(optarg) != 0)
-                    exit(1);
+                qemu_set_option(optarg, &error_fatal);
                 break;
             case QEMU_OPTION_global:
                 if (qemu_global_option(optarg) != 0)
@@ -3369,7 +3473,7 @@ void qemu_init(int argc, char **argv, char **envp)
                 qemu_plugin_opt_parse(optarg, &plugin_list);
                 break;
             case QEMU_OPTION_readconfig:
-                qemu_read_config_file(optarg, qemu_config_do_parse, &error_fatal);
+                qemu_read_config_file(optarg, qemu_parse_config_group, &error_fatal);
                 break;
             case QEMU_OPTION_spice:
                 olist = qemu_find_opts_err("spice", NULL);
