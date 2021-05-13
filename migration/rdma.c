@@ -2466,7 +2466,7 @@ static int qemu_rdma_connect(RDMAContext *rdma, Error **errp)
                                           .private_data = &cap,
                                           .private_data_len = sizeof(cap),
                                         };
-    struct rdma_cm_event *cm_event;
+    struct rdma_cm_event *cm_event = NULL;
     int ret;
 
     /*
