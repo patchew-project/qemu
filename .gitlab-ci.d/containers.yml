@@ -26,11 +26,6 @@ amd64-alpine-container:
   variables:
     NAME: alpine
 
-amd64-centos7-container:
-  <<: *container_job_definition
-  variables:
-    NAME: centos7
-
 amd64-centos8-container:
   <<: *container_job_definition
   variables:
