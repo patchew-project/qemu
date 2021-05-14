@@ -193,6 +193,7 @@ typedef struct DisasContext {
     { qemu_build_not_reached(); }
 
 #ifdef CONFIG_USER_ONLY
+STUB_HELPER(check_io, TCGv_env env, TCGv_i32 port, TCGv_i32 size)
 STUB_HELPER(clgi, TCGv_env env)
 STUB_HELPER(flush_page, TCGv_env env, TCGv addr)
 STUB_HELPER(hlt, TCGv_env env, TCGv_i32 pc_ofs)
@@ -217,6 +218,7 @@ static void gen_jr(DisasContext *s, TCGv dest);
 static void gen_jmp(DisasContext *s, target_ulong eip);
 static void gen_jmp_tb(DisasContext *s, target_ulong eip, int tb_num);
 static void gen_op(DisasContext *s1, int op, MemOp ot, int d);
+static void gen_exception_gpf(DisasContext *s);
 
 /* i386 arith/logic operations */
 enum {
@@ -681,6 +683,14 @@ static void gen_helper_out_func(MemOp ot, TCGv_i32 v, TCGv_i32 n)
 static bool gen_check_io(DisasContext *s, MemOp ot, TCGv_i32 port,
                          uint32_t svm_flags)
 {
+#ifdef CONFIG_USER_ONLY
+    /*
+     * We do not implement the iopriv(2) syscall, so the TSS check
+     * will always fail.
+     */
+    gen_exception_gpf(s);
+    return false;
+#else
     if (PE(s) && (CPL(s) > IOPL(s) || VM86(s))) {
         gen_helper_check_io(cpu_env, port, tcg_constant_i32(1 << ot));
     }
@@ -699,6 +709,7 @@ static bool gen_check_io(DisasContext *s, MemOp ot, TCGv_i32 port,
                                 tcg_constant_i32(next_eip - cur_eip));
     }
     return true;
+#endif
 }
 
 static inline void gen_movs(DisasContext *s, MemOp ot)
