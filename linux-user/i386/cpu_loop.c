@@ -199,6 +199,8 @@ void cpu_loop(CPUX86State *env)
 {
     CPUState *cs = env_cpu(env);
     int trapnr;
+    int si_code;
+    uint8_t status;
     abi_ulong pc;
     abi_ulong ret;
 
@@ -315,6 +317,28 @@ void cpu_loop(CPUX86State *env)
         case EXCP_ATOMIC:
             cpu_exec_step_atomic(cs);
             break;
+        case EXCP10_COPR:
+            si_code = 0;
+            status = env->fp_status.float_exception_flags;
+            if (status & float_flag_invalid) {
+                si_code = TARGET_FPE_FLTINV;
+            }
+            if (status & float_flag_divbyzero) {
+                si_code = TARGET_FPE_FLTDIV;
+            }
+            if (status & float_flag_overflow) {
+                si_code = TARGET_FPE_FLTOVF;
+            }
+            if ((status & float_flag_underflow) ||
+                (status & float_flag_input_denormal) ||
+                (status & float_flag_output_denormal)) {
+                si_code = TARGET_FPE_FLTUND;
+            }
+            if (status & float_flag_inexact) {
+                si_code = TARGET_FPE_FLTRES;
+            }
+            gen_signal(env, TARGET_SIGFPE, si_code, env->eip);
+            break;
         default:
             pc = env->segs[R_CS].base + env->eip;
             EXCP_DUMP(env, "qemu: 0x%08lx: unhandled CPU exception 0x%x - aborting\n",
@@ -327,7 +351,7 @@ void cpu_loop(CPUX86State *env)
 
 void target_cpu_copy_regs(CPUArchState *env, struct target_pt_regs *regs)
 {
-    env->cr[0] = CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK;
+    env->cr[0] = CR0_PG_MASK | CR0_WP_MASK | CR0_PE_MASK | CR0_NE_MASK;
     env->hflags |= HF_PE_MASK | HF_CPL_MASK;
     if (env->features[FEAT_1_EDX] & CPUID_SSE) {
         env->cr[4] |= CR4_OSFXSR_MASK;
