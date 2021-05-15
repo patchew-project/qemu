@@ -135,12 +135,16 @@
 
 #define KBD_MIGR_TIMER_PENDING  0x1
 
+#define KBD_OBSRC_KBD           0x01
+#define KBD_OBSRC_MOUSE         0x02
+
 typedef struct KBDState {
     uint8_t write_cmd; /* if non zero, write data to port 60 is expected */
     uint8_t status;
     uint8_t mode;
     uint8_t outport;
     uint32_t migration_flags;
+    uint32_t obsrc;
     bool outport_present;
     /* Bitmask of devices with data available.  */
     uint8_t pending;
@@ -198,6 +202,9 @@ static void kbd_update_irq(KBDState *s)
         if (s->pending == KBD_PENDING_AUX) {
             s->status |= KBD_STAT_MOUSE_OBF;
             s->outport |= KBD_OUT_MOUSE_OBF;
+            s->obsrc = KBD_OBSRC_MOUSE;
+        } else {
+            s->obsrc = KBD_OBSRC_KBD;
         }
     }
     kbd_update_irq_lines(s);
@@ -368,18 +375,17 @@ static uint64_t kbd_read_data(void *opaque, hwaddr addr,
                               unsigned size)
 {
     KBDState *s = opaque;
-    uint8_t status = s->status;
 
-    if (status & KBD_STAT_OBF) {
+    if (s->status & KBD_STAT_OBF) {
         kbd_deassert_irq(s);
-        if (status & KBD_STAT_MOUSE_OBF) {
-            s->obdata = ps2_read_data(s->mouse);
-        } else {
+        if (s->obsrc & KBD_OBSRC_KBD) {
             if (s->throttle_timer) {
                 timer_mod(s->throttle_timer,
                           qemu_clock_get_us(QEMU_CLOCK_VIRTUAL) + 1000);
             }
             s->obdata = ps2_read_data(s->kbd);
+        } else if (s->obsrc & KBD_OBSRC_MOUSE) {
+            s->obdata = ps2_read_data(s->mouse);
         }
     }
 
@@ -496,6 +502,11 @@ static int kbd_post_load(void *opaque, int version_id)
         s->outport = kbd_outport_default(s);
     }
     s->outport_present = false;
+    if (version_id < 4) {
+        s->obsrc = s->status & KBD_STAT_OBF ?
+            (s->status & KBD_STAT_MOUSE_OBF ? KBD_OBSRC_MOUSE : KBD_OBSRC_KBD) :
+            0;
+    }
     if (s->migration_flags & KBD_MIGR_TIMER_PENDING) {
         kbd_throttle_timeout(s);
     }
@@ -514,6 +525,7 @@ static const VMStateDescription vmstate_kbd = {
         VMSTATE_UINT8(mode, KBDState),
         VMSTATE_UINT8(pending, KBDState),
         VMSTATE_UINT32_V(migration_flags, KBDState, 4),
+        VMSTATE_UINT32_V(obsrc, KBDState, 4),
         VMSTATE_UINT8_V(obdata, KBDState, 4),
         VMSTATE_END_OF_LIST()
     },
