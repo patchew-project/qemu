@@ -326,6 +326,7 @@ struct SpaprMachineState {
 #define H_P8              -61
 #define H_P9              -62
 #define H_OVERLAP         -68
+#define H_BAD_DATA        -70
 #define H_UNSUPPORTED_FLAG -256
 #define H_MULTI_THREADS_ACTIVE -9005
 
@@ -539,8 +540,9 @@ struct SpaprMachineState {
 #define H_SCM_UNBIND_MEM        0x3F0
 #define H_SCM_UNBIND_ALL        0x3FC
 #define H_SCM_HEALTH            0x400
+#define H_SCM_PERFORMANCE_STATS 0x418
 
-#define MAX_HCALL_OPCODE        H_SCM_HEALTH
+#define MAX_HCALL_OPCODE        H_SCM_PERFORMANCE_STATS
 
 /* The hcalls above are standardized in PAPR and implemented by pHyp
  * as well.
@@ -786,6 +788,21 @@ OBJECT_DECLARE_SIMPLE_TYPE(SpaprTceTable, SPAPR_TCE_TABLE)
 #define TYPE_SPAPR_IOMMU_MEMORY_REGION "spapr-iommu-memory-region"
 DECLARE_INSTANCE_CHECKER(IOMMUMemoryRegion, SPAPR_IOMMU_MEMORY_REGION,
                          TYPE_SPAPR_IOMMU_MEMORY_REGION)
+
+/* Defs and structs exchanged with guest when reporting drc perf stats */
+#define SCM_STATS_EYECATCHER "SCMSTATS"
+
+struct QEMU_PACKED papr_scm_perf_stat {
+    uint64_t statistic_id;
+    uint64_t statistic_value;
+};
+
+struct QEMU_PACKED papr_scm_perf_stats {
+    uint8_t eye_catcher[8];    /* Should be “SCMSTATS” */
+    uint32_t stats_version;  /* Should be 0x01 */
+    uint32_t num_statistics; /* Number of stats following */
+    struct papr_scm_perf_stat scm_statistics[]; /* Performance matrics */
+};
 
 struct SpaprTceTable {
     DeviceState parent;

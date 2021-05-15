@@ -35,6 +35,19 @@
 /* SCM device is unable to persist memory contents */
 #define PAPR_PMEM_UNARMED PPC_BIT(0)
 
+/* Minimum output buffer size needed to return all nvdimm_perf_stats */
+#define SCM_STATS_MIN_OUTPUT_BUFFER  (sizeof(struct papr_scm_perf_stats) + \
+                                      sizeof(struct papr_scm_perf_stat) * \
+                                      ARRAY_SIZE(nvdimm_perf_stats))
+
+/* Maximum number of stats that we can return back in a single stat request */
+#define SCM_STATS_MAX_STATS 255
+
+/* Maximum possible output buffer to fulfill a perf-stats request */
+#define SCM_STATS_MAX_OUTPUT_BUFFER  (sizeof(struct papr_scm_perf_stats) + \
+                                      sizeof(struct papr_scm_perf_stat) * \
+                                      SCM_STATS_MAX_STATS)
+
 bool spapr_nvdimm_validate(HotplugHandler *hotplug_dev, NVDIMMDevice *nvdimm,
                            uint64_t size, Error **errp)
 {
@@ -502,6 +515,214 @@ static target_ulong h_scm_health(PowerPCCPU *cpu, SpaprMachineState *spapr,
     return H_SUCCESS;
 }
 
+static int perf_stat_noop(SpaprDrc *drc, uint64_t unused, uint64_t *val)
+{
+    *val = 0;
+    return H_SUCCESS;
+}
+
+static int perf_stat_memlife(SpaprDrc *drc, uint64_t unused, uint64_t *val)
+{
+    /* Assume full life available of an NVDIMM right now */
+    *val = 100;
+    return H_SUCCESS;
+}
+
+/*
+ * Holds all supported performance stats accessors. Each performance-statistic
+ * is uniquely identified by a 8-byte ascii string for example: 'MemLife '
+ * which indicate in percentage how much usage life of an nvdimm is remaining.
+ * 'NoopStat' which is primarily used to test support for retriving performance
+ * stats and also to replace unknown stats present in the rr-buffer.
+ *
+ */
+static const struct {
+    char stat_id[8];
+    int  (*stat_getval)(SpaprDrc *drc, uint64_t id, uint64_t *val);
+} nvdimm_perf_stats[] = {
+    { "NoopStat", perf_stat_noop},
+    { "MemLife ", perf_stat_memlife},
+};
+
+/*
+ * Given a nvdimm drc and stat-name return its value. In case given stat-name
+ * isnt supported then return H_PARTIAL.
+ */
+static int nvdimm_stat_getval(SpaprDrc *drc, uint64_t id, uint64_t *val)
+{
+    int index;
+    char stat_id[8];
+
+    /* since comparision is done */
+    memcpy(&stat_id[0], &id, 8);
+    *val = 0;
+
+    /* Lookup the stats-id in the nvdimm_perf_stats table */
+    for (index = 0; index < ARRAY_SIZE(nvdimm_perf_stats); ++index) {
+        if (memcmp(nvdimm_perf_stats[index].stat_id, &stat_id[0], 8) == 0) {
+            return nvdimm_perf_stats[index].stat_getval(drc, id, val);
+        }
+    }
+    return H_PARTIAL;
+}
+
+/*
+ * Given a request & result buffer header verify its contents. Also
+ * buffer-size and number of stats requested are within our expected
+ * sane bounds.
+ */
+static int scm_perf_check_rr_buffer(struct papr_scm_perf_stats *header,
+                                    hwaddr addr, size_t size,
+                                    uint32_t *num_stats)
+{
+    size_t expected_buffsize;
+
+    /* Verify the header eyecather and version */
+    if (memcmp(&header->eye_catcher, SCM_STATS_EYECATCHER,
+               sizeof(header->eye_catcher))) {
+        return H_BAD_DATA;
+    }
+    if (be32_to_cpu(header->stats_version) != 0x1) {
+        return H_NOT_AVAILABLE;
+    }
+
+    /* verify that rr buffer has enough space */
+    *num_stats = be32_to_cpu(header->num_statistics);
+    if (*num_stats == 0) { /* Return all stats */
+        expected_buffsize = SCM_STATS_MIN_OUTPUT_BUFFER;
+    } else if (*num_stats > SCM_STATS_MAX_STATS) {
+        /* Too many stats requested */
+        return H_P3;
+    } else { /* Return a subset of stats */
+        expected_buffsize = sizeof(struct papr_scm_perf_stats) +
+            (*num_stats) * sizeof(struct papr_scm_perf_stat);
+    }
+
+    if (size < expected_buffsize || size > SCM_STATS_MAX_OUTPUT_BUFFER) {
+        return H_P3;
+    }
+
+    return H_SUCCESS;
+}
+
+/*
+ * For a given DRC index (R3) return one ore more performance stats of an nvdimm
+ * device in guest allocated Request-and-result buffer (rr-buffer) (R4) of
+ * given 'size' (R5). The rr-buffer consists of a header described by
+ * 'struct papr_scm_perf_stats' that embeds the 'stats_version' and
+ * 'num_statistics' fields. This is followed by an array of
+ * 'struct papr_scm_perf_stat'. Based on the request type the writes the
+ * performance into the array of 'struct papr_scm_perf_stat' embedded inside
+ * the rr-buffer provided by the guest.
+ * Special cases handled are:
+ * 'size' == 0  : Return the maximum possible size of rr-buffer
+ * 'size' != 0 && 'num_statistics == 0' : Return all possible performance stats
+ *
+ * In case there was an error fetching a specific stats (e.g stat-id unknown or
+ * any other error) then return the stat-id in R4 and also replace its stat
+ * entry in rr-buffer with 'NoopStat'
+ */
+static target_ulong h_scm_performance_stats(PowerPCCPU *cpu,
+                                            SpaprMachineState *spapr,
+                                            target_ulong opcode,
+                                            target_ulong *args)
+{
+    SpaprDrc *drc = spapr_drc_by_index(args[0]);
+    const hwaddr addr = args[1];
+    size_t size = args[2];
+    struct papr_scm_perf_stats *perfstats;
+    struct papr_scm_perf_stat *stats;
+    uint64_t invalid_stat = 0, stat_val;
+    MemTxResult result;
+    uint32_t num_stats;
+    unsigned long rc;
+    int index;
+
+    /* Ensure that the drc is valid & is valid PMEM dimm and is plugged in */
+    if (!drc || !drc->dev ||
+        spapr_drc_type(drc) != SPAPR_DR_CONNECTOR_TYPE_PMEM) {
+        return H_PARAMETER;
+    }
+
+    /* Guest requested max buffer size for output buffer */
+    if (size == 0) {
+        args[0] = SCM_STATS_MAX_OUTPUT_BUFFER;
+        return H_SUCCESS;
+    }
+
+    /* verify size is enough to hold rr-buffer header */
+    if (size < sizeof(struct papr_scm_perf_stats)) {
+        return H_BAD_DATA;
+    }
+
+    /* allocate enough buffer space locally for holding max stats */
+    perfstats = g_try_malloc0(SCM_STATS_MAX_OUTPUT_BUFFER);
+    if (!perfstats) {
+        return H_NO_MEM;
+    }
+
+    /* Read and verify rr-buffer header */
+    result = address_space_read(&address_space_memory, addr,
+                                MEMTXATTRS_UNSPECIFIED, perfstats,
+                                sizeof(struct papr_scm_perf_stats));
+    rc = (result == MEMTX_OK) ?
+        scm_perf_check_rr_buffer(perfstats, addr, size, &num_stats) :
+        H_PRIVILEGE;
+    if (rc != H_SUCCESS) {
+        g_free(perfstats);
+        return rc;
+    }
+
+    stats = &perfstats->scm_statistics[0];
+    /* when returning all stats generate a canned response first */
+    if (num_stats == 0) {
+        for (index = 1; index < ARRAY_SIZE(nvdimm_perf_stats); ++index) {
+            memcpy(&stats[index - 1].statistic_id,
+                   &nvdimm_perf_stats[index].stat_id, 8);
+        }
+        num_stats = ARRAY_SIZE(nvdimm_perf_stats) - 1;
+    } else {
+        /* copy the rr-buffer from the guest memory */
+        result = address_space_read(&address_space_memory,
+                                    addr + sizeof(struct papr_scm_perf_stats),
+                                    MEMTXATTRS_UNSPECIFIED, stats,
+                                    size - sizeof(struct papr_scm_perf_stats));
+        if (result != MEMTX_OK) {
+            g_free(perfstats);
+            return H_PRIVILEGE;
+        }
+    }
+
+    for (index = 0; index < num_stats; ++index) {
+        rc = nvdimm_stat_getval(drc, stats[index].statistic_id, &stat_val);
+
+        /* On error add noop stat to rr buffer & save last inval stat-id */
+        if (rc != H_SUCCESS) {
+            if (!invalid_stat) {
+                invalid_stat = stats[index].statistic_id;
+            }
+            memcpy(&stats[index].statistic_id, nvdimm_perf_stats[0].stat_id, 8);
+        }
+        /* Caller expects stat values in BE encoding */
+        stats[index].statistic_value = cpu_to_be64(stat_val);
+    }
+
+    /* Update and copy the local rr-buffer back to guest */
+    perfstats->num_statistics = cpu_to_be32(num_stats);
+    g_assert(size <= SCM_STATS_MAX_OUTPUT_BUFFER);
+    result = address_space_write(&address_space_memory, addr,
+                                 MEMTXATTRS_UNSPECIFIED, perfstats, size);
+
+    /* Cleanup the stats buffer */
+    g_free(perfstats);
+    if (result) {
+        return H_PRIVILEGE;
+    }
+    /* Check if there was a failure in fetching any stat */
+    args[0] = invalid_stat;
+    return invalid_stat ? H_PARTIAL : H_SUCCESS;
+}
+
 static void spapr_scm_register_types(void)
 {
     /* qemu/scm specific hcalls */
@@ -511,6 +732,7 @@ static void spapr_scm_register_types(void)
     spapr_register_hypercall(H_SCM_UNBIND_MEM, h_scm_unbind_mem);
     spapr_register_hypercall(H_SCM_UNBIND_ALL, h_scm_unbind_all);
     spapr_register_hypercall(H_SCM_HEALTH, h_scm_health);
+    spapr_register_hypercall(H_SCM_PERFORMANCE_STATS, h_scm_performance_stats);
 }
 
 type_init(spapr_scm_register_types)
