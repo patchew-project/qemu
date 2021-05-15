@@ -317,11 +317,11 @@ static uint32_t qxl_crc32(const uint8_t *p, unsigned len)
 
 static ram_addr_t qxl_rom_size(void)
 {
-#define QXL_REQUIRED_SZ (sizeof(QXLRom) + sizeof(QXLModes) + sizeof(qxl_modes))
-#define QXL_ROM_SZ 8192
+    uint32_t rom_size;
 
-    QEMU_BUILD_BUG_ON(QXL_REQUIRED_SZ > QXL_ROM_SZ);
-    return QXL_ROM_SZ;
+    rom_size = sizeof(QXLRom) + sizeof(QXLModes) + sizeof(qxl_modes);
+    rom_size = QEMU_ALIGN_UP(rom_size, qemu_real_host_page_size);
+    return rom_size;
 }
 
 static void init_qxl_rom(PCIQXLDevice *d)
