@@ -13,6 +13,7 @@
 
 #include "hw/char/avr_usart.h"
 #include "hw/timer/avr_timer16.h"
+#include "hw/watchdog/avr_wdt.h"
 #include "hw/misc/avr_power.h"
 #include "target/avr/cpu.h"
 #include "qom/object.h"
@@ -45,6 +46,7 @@ struct AtmegaMcuState {
     AVRMaskState pwr[POWER_MAX];
     AVRUsartState usart[USART_MAX];
     AVRTimer16State timer[TIMER_MAX];
+    AVRWatchdogState wdt;
     uint64_t xtal_freq_hz;
 };
 

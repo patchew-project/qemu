@@ -1036,6 +1036,8 @@ F: include/hw/timer/avr_timer16.h
 F: hw/timer/avr_timer16.c
 F: include/hw/misc/avr_power.h
 F: hw/misc/avr_power.c
+F: include/hw/watchdog/avr_wdt.h
+F: hw/watchdog/avr_wdt.c
 
 Arduino
 M: Philippe Mathieu-Daudé <f4bug@amsat.org>

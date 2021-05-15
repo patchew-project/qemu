@@ -74,6 +74,7 @@ enum {
     DISAS_EXIT   = DISAS_TARGET_0,  /* We want return to the cpu main loop.  */
     DISAS_LOOKUP = DISAS_TARGET_1,  /* We have a variable condition exit.  */
     DISAS_CHAIN  = DISAS_TARGET_2,  /* We have a single condition exit.  */
+    DISAS_ICOUNT = DISAS_TARGET_3
 };
 
 typedef struct DisasContext DisasContext;
@@ -100,7 +101,7 @@ struct DisasContext {
      *     B   - instruction that can be skipped. this depends on execution of A
      * there are two scenarios
      * 1. A and B belong to the same translation block
-     * 2. A is the last instruction in the translation block and B is the last
+     * 2. A is the last instruction in the translation block and B is the first
      *
      * following variables are used to simplify the skipping logic, they are
      * used in the following manner (sketch)
@@ -1411,11 +1412,17 @@ static bool trans_SBIC(DisasContext *ctx, arg_SBIC *a)
 {
     TCGv temp = tcg_const_i32(a->reg);
 
+    if (ctx->tb->cflags & CF_USE_ICOUNT) {
+        gen_io_start();
+    }
+
     gen_helper_inb(temp, cpu_env, temp);
     tcg_gen_andi_tl(temp, temp, 1 << a->bit);
     ctx->skip_cond = TCG_COND_EQ;
     ctx->skip_var0 = temp;
     ctx->free_skip_var0 = true;
+
+    ctx->bstate = DISAS_ICOUNT;
 
     return true;
 }
@@ -1429,11 +1436,17 @@ static bool trans_SBIS(DisasContext *ctx, arg_SBIS *a)
 {
     TCGv temp = tcg_const_i32(a->reg);
 
+    if (ctx->tb->cflags & CF_USE_ICOUNT) {
+        gen_io_start();
+    }
+
     gen_helper_inb(temp, cpu_env, temp);
     tcg_gen_andi_tl(temp, temp, 1 << a->bit);
     ctx->skip_cond = TCG_COND_NE;
     ctx->skip_var0 = temp;
     ctx->free_skip_var0 = true;
+
+    ctx->bstate = DISAS_ICOUNT;
 
     return true;
 }
@@ -1611,7 +1624,11 @@ static TCGv gen_get_zaddr(void)
 static void gen_data_store(DisasContext *ctx, TCGv data, TCGv addr)
 {
     if (ctx->tb->flags & TB_FLAGS_FULL_ACCESS) {
+        if (ctx->tb->cflags & CF_USE_ICOUNT) {
+            gen_io_start();
+        }
         gen_helper_fullwr(cpu_env, data, addr);
+        ctx->bstate = DISAS_ICOUNT;
     } else {
         tcg_gen_qemu_st8(data, addr, MMU_DATA_IDX); /* mem[addr] = data */
     }
@@ -1620,7 +1637,11 @@ static void gen_data_store(DisasContext *ctx, TCGv data, TCGv addr)
 static void gen_data_load(DisasContext *ctx, TCGv data, TCGv addr)
 {
     if (ctx->tb->flags & TB_FLAGS_FULL_ACCESS) {
+        if (ctx->tb->cflags & CF_USE_ICOUNT) {
+            gen_io_start();
+        }
         gen_helper_fullrd(data, cpu_env, addr);
+        ctx->bstate = DISAS_ICOUNT;
     } else {
         tcg_gen_qemu_ld8u(data, addr, MMU_DATA_IDX); /* data = mem[addr] */
     }
@@ -2325,9 +2346,15 @@ static bool trans_IN(DisasContext *ctx, arg_IN *a)
     TCGv Rd = cpu_r[a->rd];
     TCGv port = tcg_const_i32(a->imm);
 
+    if (ctx->tb->cflags & CF_USE_ICOUNT) {
+        gen_io_start();
+    }
+
     gen_helper_inb(Rd, cpu_env, port);
 
     tcg_temp_free_i32(port);
+
+    ctx->bstate = DISAS_ICOUNT;
 
     return true;
 }
@@ -2341,9 +2368,15 @@ static bool trans_OUT(DisasContext *ctx, arg_OUT *a)
     TCGv Rd = cpu_r[a->rd];
     TCGv port = tcg_const_i32(a->imm);
 
+    if (ctx->tb->cflags & CF_USE_ICOUNT) {
+        gen_io_start();
+    }
+
     gen_helper_outb(cpu_env, port, Rd);
 
     tcg_temp_free_i32(port);
+
+    ctx->bstate = DISAS_ICOUNT;
 
     return true;
 }
@@ -2641,12 +2674,18 @@ static bool trans_SBI(DisasContext *ctx, arg_SBI *a)
     TCGv data = tcg_temp_new_i32();
     TCGv port = tcg_const_i32(a->reg);
 
+    if (ctx->tb->cflags & CF_USE_ICOUNT) {
+        gen_io_start();
+    }
+
     gen_helper_inb(data, cpu_env, port);
     tcg_gen_ori_tl(data, data, 1 << a->bit);
     gen_helper_outb(cpu_env, port, data);
 
     tcg_temp_free_i32(port);
     tcg_temp_free_i32(data);
+
+    ctx->bstate = DISAS_ICOUNT;
 
     return true;
 }
@@ -2660,12 +2699,18 @@ static bool trans_CBI(DisasContext *ctx, arg_CBI *a)
     TCGv data = tcg_temp_new_i32();
     TCGv port = tcg_const_i32(a->reg);
 
+    if (ctx->tb->cflags & CF_USE_ICOUNT) {
+        gen_io_start();
+    }
+
     gen_helper_inb(data, cpu_env, port);
     tcg_gen_andi_tl(data, data, ~(1 << a->bit));
     gen_helper_outb(cpu_env, port, data);
 
     tcg_temp_free_i32(data);
     tcg_temp_free_i32(port);
+
+    ctx->bstate = DISAS_ICOUNT;
 
     return true;
 }
@@ -2830,7 +2875,11 @@ static bool trans_SLEEP(DisasContext *ctx, arg_SLEEP *a)
  */
 static bool trans_WDR(DisasContext *ctx, arg_WDR *a)
 {
+    if (ctx->tb->cflags & CF_USE_ICOUNT) {
+        gen_io_start();
+    }
     gen_helper_wdr(cpu_env);
+    ctx->bstate = DISAS_ICOUNT;
 
     return true;
 }
@@ -2991,6 +3040,13 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
             gen_set_label(skip_label);
             if (ctx.bstate == DISAS_NORETURN) {
                 ctx.bstate = DISAS_CHAIN;
+            }
+        }
+
+        if (ctx.bstate == DISAS_ICOUNT) {
+            ctx.bstate = DISAS_NEXT;
+            if (tb->cflags & CF_USE_ICOUNT) {
+                break;
             }
         }
     } while (ctx.bstate == DISAS_NEXT
