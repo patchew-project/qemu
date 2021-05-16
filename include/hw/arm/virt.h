@@ -129,6 +129,8 @@ struct VirtMachineClass {
     bool no_kvm_steal_time;
     bool acpi_expose_flash;
     bool no_secure_gpio;
+    /* Machines < 6.1 has no support of cpu topology description for guest */
+    bool no_cpu_topology;
 };
 
 struct VirtMachineState {
