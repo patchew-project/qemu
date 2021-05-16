@@ -69,6 +69,7 @@ bool arm_is_psci_call(ARMCPU *cpu, int excp_type)
     case QEMU_PSCI_0_2_FN64_CPU_SUSPEND:
     case QEMU_PSCI_0_1_FN_MIGRATE:
     case QEMU_PSCI_0_2_FN_MIGRATE:
+    case QEMU_SMCCC_TC_WINDOWS10_BOOT:
         return true;
     default:
         return false;
@@ -194,6 +195,7 @@ void arm_handle_psci_call(ARMCPU *cpu)
         break;
     case QEMU_PSCI_0_1_FN_MIGRATE:
     case QEMU_PSCI_0_2_FN_MIGRATE:
+    case QEMU_SMCCC_TC_WINDOWS10_BOOT:
         ret = QEMU_PSCI_RET_NOT_SUPPORTED;
         break;
     default:
