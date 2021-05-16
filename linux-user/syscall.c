@@ -3337,7 +3337,7 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
                                       int flags, int send)
 {
     abi_long ret, len;
-    struct msghdr msg;
+    struct msghdr msg = { 0 };
     abi_ulong count;
     struct iovec *vec;
     abi_ulong target_vec;
