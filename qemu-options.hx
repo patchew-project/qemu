@@ -203,6 +203,10 @@ SRST
     computed. If any on the three values is given, the total number of
     CPUs n can be omitted. maxcpus specifies the maximum number of
     hotpluggable CPUs.
+
+    For the ARM target, at least one of cpus or maxcpus must be provided.
+    Threads will default to 1 if not provided. Sockets and cores must be
+    either both provided or both not.
 ERST
 
 DEF("numa", HAS_ARG, QEMU_OPTION_numa,

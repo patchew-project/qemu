@@ -77,6 +77,8 @@
 #include "hw/virtio/virtio-iommu.h"
 #include "hw/char/pl011.h"
 #include "qemu/guest-random.h"
+#include "qapi/qmp/qerror.h"
+#include "sysemu/replay.h"
 
 #define DEFINE_VIRT_MACHINE_LATEST(major, minor, latest) \
     static void virt_##major##_##minor##_class_init(ObjectClass *oc, \
@@ -2630,6 +2632,98 @@ static int virt_kvm_type(MachineState *ms, const char *type_str)
     return fixed_ipa ? 0 : requested_pa_size;
 }
 
+/*
+ * virt_smp_parse - Used to parse -smp command line for ARM machines.
+ *
+ * Compared with the default smp_parse where all the missing values
+ * are automatically calculated in turn, in this function, we expect
+ * more detailed topology information provided and are more strict
+ * with the -smp cmdlines when parsing them.
+ *
+ * We require that at least one of cpus or maxcpus must be provided.
+ * Threads will default to 1 if not provided. Sockets and cores must
+ * be either both provided or both not.
+ *
+ * Note, if neither sockets nor cores are specified, we will calculate
+ * all the missing values just like smp_parse() does, but will disable
+ * exposure of cpu topology descriptions to guest.
+ */
+static void virt_smp_parse(MachineState *ms, QemuOpts *opts)
+{
+    VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(ms);
+
+    if (opts) {
+        unsigned cpus = qemu_opt_get_number(opts, "cpus", 0);
+        unsigned maxcpus = qemu_opt_get_number(opts, "maxcpus", 0);
+        unsigned sockets = qemu_opt_get_number(opts, "sockets", 0);
+        unsigned cores = qemu_opt_get_number(opts, "cores", 0);
+        unsigned threads = qemu_opt_get_number(opts, "threads", 0);
+
+        /* Default threads to 1 if not provided */
+        threads = threads > 0 ? threads : 1;
+
+        if (cpus == 0 && maxcpus == 0) {
+            error_report("at least one of cpus or maxcpus must be provided");
+            exit(1);
+        }
+
+        if (sockets == 0 && cores == 0) {
+            /* Disable exposure of topology descriptions to guest */
+            vmc->no_cpu_topology = true;
+
+            /* Compute missing values, prefer sockets over cores */
+            cores = 1;
+            if (cpus == 0) {
+                sockets = 1;
+                cpus = sockets * cores * threads;
+            } else {
+                maxcpus = maxcpus > 0 ? maxcpus : cpus;
+                sockets = maxcpus / (cores * threads);
+            }
+        } else if (sockets > 0 && cores > 0) {
+            cpus = cpus > 0 ? cpus : sockets * cores * threads;
+            maxcpus = maxcpus > 0 ? maxcpus : cpus;
+        } else {
+            error_report("sockets and cores must be both provided "
+                         "or both not");
+            exit(1);
+        }
+
+        if (maxcpus < cpus) {
+            error_report("maxcpus must be equal to or greater than smp");
+            exit(1);
+        }
+
+        if (sockets * cores * threads < cpus) {
+            error_report("cpu topology: "
+                         "sockets (%u) * cores (%u) * threads (%u) < "
+                         "smp_cpus (%u)",
+                         sockets, cores, threads, cpus);
+            exit(1);
+        }
+
+        if (sockets * cores * threads != maxcpus) {
+            error_report("cpu topology: "
+                         "sockets (%u) * cores (%u) * threads (%u) "
+                         "!= maxcpus (%u)",
+                         sockets, cores, threads, maxcpus);
+            exit(1);
+        }
+
+        ms->smp.cpus = cpus;
+        ms->smp.max_cpus = maxcpus;
+        ms->smp.sockets = sockets;
+        ms->smp.cores = cores;
+        ms->smp.threads = threads;
+    }
+
+    if (ms->smp.cpus > 1) {
+        Error *blocker = NULL;
+        error_setg(&blocker, QERR_REPLAY_NOT_SUPPORTED, "smp");
+        replay_add_blocker(blocker);
+    }
+}
+
 static void virt_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -2655,6 +2749,7 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     mc->cpu_index_to_instance_props = virt_cpu_index_to_props;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a15");
     mc->get_default_cpu_node_id = virt_get_default_cpu_node_id;
+    mc->smp_parse = virt_smp_parse;
     mc->kvm_type = virt_kvm_type;
     assert(!mc->get_hotplug_handler);
     mc->get_hotplug_handler = virt_machine_get_hotplug_handler;
