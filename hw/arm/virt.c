@@ -2064,6 +2064,13 @@ static void machvirt_init(MachineState *machine)
         }
 
         qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
+
+        /*
+         * As ARM cpu hotplug is not supported yet, we initialize
+         * the present cpu members here.
+         */
+        machine->possible_cpus->cpus[n].cpu = cpuobj;
+
         object_unref(cpuobj);
     }
     fdt_add_timer_nodes(vms);
