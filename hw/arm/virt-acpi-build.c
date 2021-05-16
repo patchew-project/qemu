@@ -481,6 +481,9 @@ build_madt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     const int *irqmap = vms->irqmap;
     AcpiMadtGenericDistributor *gicd;
     AcpiMadtGenericMsiFrame *gic_msi;
+    MachineClass *mc = MACHINE_GET_CLASS(vms);
+    const CPUArchIdList *possible_cpus = mc->possible_cpu_arch_ids(MACHINE(vms));
+    bool pmu;
     int i;
 
     acpi_data_push(table_data, sizeof(AcpiMultipleApicTable));
@@ -491,10 +494,20 @@ build_madt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     gicd->base_address = cpu_to_le64(memmap[VIRT_GIC_DIST].base);
     gicd->version = vms->gic_version;
 
-    for (i = 0; i < MACHINE(vms)->smp.cpus; i++) {
+    for (i = 0; i < possible_cpus->len; i++) {
         AcpiMadtGenericCpuInterface *gicc = acpi_data_push(table_data,
                                                            sizeof(*gicc));
         ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(i));
+
+        /*
+         * PMU should have been either implemented for all CPUs or not,
+         * so we only get information from the first CPU, which could
+         * represent the others.
+         */
+        if (i == 0) {
+            pmu = arm_feature(&armcpu->env, ARM_FEATURE_PMU);
+        }
+        assert(!armcpu || arm_feature(&armcpu->env, ARM_FEATURE_PMU) == pmu);
 
         gicc->type = ACPI_APIC_GENERIC_CPU_INTERFACE;
         gicc->length = sizeof(*gicc);
@@ -504,11 +517,19 @@ build_madt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
             gicc->gicv_base_address = cpu_to_le64(memmap[VIRT_GIC_VCPU].base);
         }
         gicc->cpu_interface_number = cpu_to_le32(i);
-        gicc->arm_mpidr = cpu_to_le64(armcpu->mp_affinity);
+        gicc->arm_mpidr = cpu_to_le64(possible_cpus->cpus[i].arch_id);
         gicc->uid = cpu_to_le32(i);
-        gicc->flags = cpu_to_le32(ACPI_MADT_GICC_ENABLED);
 
-        if (arm_feature(&armcpu->env, ARM_FEATURE_PMU)) {
+        /*
+         * ACPI spec says that LAPIC entry for non present CPU may be
+         * omitted from MADT or it must be marked as disabled. Here we
+         * choose to also keep the disabled ones in MADT.
+         */
+        if (possible_cpus->cpus[i].cpu != NULL) {
+            gicc->flags = cpu_to_le32(ACPI_MADT_GICC_ENABLED);
+        }
+
+        if (pmu) {
             gicc->performance_interrupt = cpu_to_le32(PPI(VIRTUAL_PMU_IRQ));
         }
         if (vms->virt) {
