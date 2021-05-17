@@ -143,6 +143,22 @@ static void mips_jazz_do_transaction_failed(CPUState *cs, hwaddr physaddr,
 }
 #endif /* CONFIG_TCG && !CONFIG_USER_ONLY */
 
+static void fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
+                               hwaddr mmio_base, DriveInfo **fds)
+{
+    DeviceState *dev;
+    SysBusDevice *sbd;
+
+    dev = qdev_new("sysbus-fdc");
+    qdev_prop_set_int32(dev, "dma-channel", dma_chann);
+    sbd = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(sbd, &error_fatal);
+    sysbus_connect_irq(sbd, 0, irq);
+    sysbus_mmio_map(sbd, 0, mmio_base);
+
+    sysbus_fdc_init_drives(sbd, fds);
+}
+
 static void mips_jazz_init(MachineState *machine,
                            enum jazz_model_e jazz_model)
 {
