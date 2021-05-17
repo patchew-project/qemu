@@ -339,16 +339,6 @@ static void gen_exception_cause(DisasContext *dc, uint32_t cause)
     }
 }
 
-static void gen_exception_cause_vaddr(DisasContext *dc, uint32_t cause,
-        TCGv_i32 vaddr)
-{
-    TCGv_i32 tpc = tcg_const_i32(dc->pc);
-    TCGv_i32 tcause = tcg_const_i32(cause);
-    gen_helper_exception_cause_vaddr(cpu_env, tpc, tcause, vaddr);
-    tcg_temp_free(tpc);
-    tcg_temp_free(tcause);
-}
-
 static void gen_debug_exception(DisasContext *dc, uint32_t cause)
 {
     TCGv_i32 tpc = tcg_const_i32(dc->pc);
@@ -554,20 +544,16 @@ static uint32_t test_exceptions_hpi(DisasContext *dc, const OpcodeArg arg[],
     return test_exceptions_sr(dc, arg, par);
 }
 
-static void gen_load_store_alignment(DisasContext *dc, int shift,
-        TCGv_i32 addr, bool no_hw_alignment)
+static MemOp gen_load_store_alignment(DisasContext *dc, int shift,
+                                      TCGv_i32 addr, bool no_hw_alignment)
 {
     if (!option_enabled(dc, XTENSA_OPTION_UNALIGNED_EXCEPTION)) {
         tcg_gen_andi_i32(addr, addr, ~0 << shift);
-    } else if (option_enabled(dc, XTENSA_OPTION_HW_ALIGNMENT) &&
-            no_hw_alignment) {
-        TCGLabel *label = gen_new_label();
-        TCGv_i32 tmp = tcg_temp_new_i32();
-        tcg_gen_andi_i32(tmp, addr, ~(~0 << shift));
-        tcg_gen_brcondi_i32(TCG_COND_EQ, tmp, 0, label);
-        gen_exception_cause_vaddr(dc, LOAD_STORE_ALIGNMENT_CAUSE, addr);
-        gen_set_label(label);
-        tcg_temp_free(tmp);
+    }
+    if (!no_hw_alignment && option_enabled(dc, XTENSA_OPTION_HW_ALIGNMENT)) {
+        return MO_UNALN;
+    } else {
+        return MO_ALIGN;
     }
 }
 
@@ -1784,10 +1770,11 @@ static void translate_l32e(DisasContext *dc, const OpcodeArg arg[],
                            const uint32_t par[])
 {
     TCGv_i32 addr = tcg_temp_new_i32();
+    MemOp al;
 
     tcg_gen_addi_i32(addr, arg[1].in, arg[2].imm);
-    gen_load_store_alignment(dc, 2, addr, false);
-    tcg_gen_qemu_ld_tl(arg[0].out, addr, dc->ring, MO_TEUL);
+    al = gen_load_store_alignment(dc, 2, addr, false);
+    tcg_gen_qemu_ld_tl(arg[0].out, addr, dc->ring, MO_TEUL | al);
     tcg_temp_free(addr);
 }
 
@@ -1813,11 +1800,12 @@ static void translate_l32ex(DisasContext *dc, const OpcodeArg arg[],
                             const uint32_t par[])
 {
     TCGv_i32 addr = tcg_temp_new_i32();
+    MemOp al;
 
     tcg_gen_mov_i32(addr, arg[1].in);
-    gen_load_store_alignment(dc, 2, addr, true);
+    al = gen_load_store_alignment(dc, 2, addr, true);
     gen_check_exclusive(dc, addr, false);
-    tcg_gen_qemu_ld_i32(arg[0].out, addr, dc->ring, MO_TEUL);
+    tcg_gen_qemu_ld_i32(arg[0].out, addr, dc->ring, MO_TEUL | al);
     tcg_gen_mov_i32(cpu_exclusive_addr, addr);
     tcg_gen_mov_i32(cpu_exclusive_val, arg[0].out);
     tcg_temp_free(addr);
@@ -1827,18 +1815,19 @@ static void translate_ldst(DisasContext *dc, const OpcodeArg arg[],
                            const uint32_t par[])
 {
     TCGv_i32 addr = tcg_temp_new_i32();
+    MemOp al = MO_UNALN;
 
     tcg_gen_addi_i32(addr, arg[1].in, arg[2].imm);
     if (par[0] & MO_SIZE) {
-        gen_load_store_alignment(dc, par[0] & MO_SIZE, addr, par[1]);
+        al = gen_load_store_alignment(dc, par[0] & MO_SIZE, addr, par[1]);
     }
     if (par[2]) {
         if (par[1]) {
             tcg_gen_mb(TCG_BAR_STRL | TCG_MO_ALL);
         }
-        tcg_gen_qemu_st_tl(arg[0].in, addr, dc->cring, par[0]);
+        tcg_gen_qemu_st_tl(arg[0].in, addr, dc->cring, par[0] | al);
     } else {
-        tcg_gen_qemu_ld_tl(arg[0].out, addr, dc->cring, par[0]);
+        tcg_gen_qemu_ld_tl(arg[0].out, addr, dc->cring, par[0] | al);
         if (par[1]) {
             tcg_gen_mb(TCG_BAR_LDAQ | TCG_MO_ALL);
         }
@@ -1909,9 +1898,11 @@ static void translate_mac16(DisasContext *dc, const OpcodeArg arg[],
     TCGv_i32 mem32 = tcg_temp_new_i32();
 
     if (ld_offset) {
+        MemOp al;
+
         tcg_gen_addi_i32(vaddr, arg[1].in, ld_offset);
-        gen_load_store_alignment(dc, 2, vaddr, false);
-        tcg_gen_qemu_ld32u(mem32, vaddr, dc->cring);
+        al = gen_load_store_alignment(dc, 2, vaddr, false);
+        tcg_gen_qemu_ld_tl(mem32, vaddr, dc->cring, MO_TEUL | al);
     }
     if (op != MAC16_NONE) {
         TCGv_i32 m1 = gen_mac16_m(arg[off].in,
@@ -2357,13 +2348,14 @@ static void translate_s32c1i(DisasContext *dc, const OpcodeArg arg[],
 {
     TCGv_i32 tmp = tcg_temp_local_new_i32();
     TCGv_i32 addr = tcg_temp_local_new_i32();
+    MemOp al;
 
     tcg_gen_mov_i32(tmp, arg[0].in);
     tcg_gen_addi_i32(addr, arg[1].in, arg[2].imm);
-    gen_load_store_alignment(dc, 2, addr, true);
+    al = gen_load_store_alignment(dc, 2, addr, true);
     gen_check_atomctl(dc, addr);
     tcg_gen_atomic_cmpxchg_i32(arg[0].out, addr, cpu_SR[SCOMPARE1],
-                               tmp, dc->cring, MO_TEUL);
+                               tmp, dc->cring, MO_TEUL | al);
     tcg_temp_free(addr);
     tcg_temp_free(tmp);
 }
@@ -2372,10 +2364,11 @@ static void translate_s32e(DisasContext *dc, const OpcodeArg arg[],
                            const uint32_t par[])
 {
     TCGv_i32 addr = tcg_temp_new_i32();
+    MemOp al;
 
     tcg_gen_addi_i32(addr, arg[1].in, arg[2].imm);
-    gen_load_store_alignment(dc, 2, addr, false);
-    tcg_gen_qemu_st_tl(arg[0].in, addr, dc->ring, MO_TEUL);
+    al = gen_load_store_alignment(dc, 2, addr, false);
+    tcg_gen_qemu_st_tl(arg[0].in, addr, dc->ring, MO_TEUL | al);
     tcg_temp_free(addr);
 }
 
@@ -2386,14 +2379,15 @@ static void translate_s32ex(DisasContext *dc, const OpcodeArg arg[],
     TCGv_i32 addr = tcg_temp_local_new_i32();
     TCGv_i32 res = tcg_temp_local_new_i32();
     TCGLabel *label = gen_new_label();
+    MemOp al;
 
     tcg_gen_movi_i32(res, 0);
     tcg_gen_mov_i32(addr, arg[1].in);
-    gen_load_store_alignment(dc, 2, addr, true);
+    al = gen_load_store_alignment(dc, 2, addr, true);
     tcg_gen_brcond_i32(TCG_COND_NE, addr, cpu_exclusive_addr, label);
     gen_check_exclusive(dc, addr, true);
     tcg_gen_atomic_cmpxchg_i32(prev, cpu_exclusive_addr, cpu_exclusive_val,
-                               arg[0].in, dc->cring, MO_TEUL);
+                               arg[0].in, dc->cring, MO_TEUL | al);
     tcg_gen_setcond_i32(TCG_COND_EQ, res, prev, cpu_exclusive_val);
     tcg_gen_movcond_i32(TCG_COND_EQ, cpu_exclusive_val,
                         prev, cpu_exclusive_val, prev, cpu_exclusive_val);
@@ -6642,13 +6636,14 @@ static void translate_ldsti(DisasContext *dc, const OpcodeArg arg[],
                             const uint32_t par[])
 {
     TCGv_i32 addr = tcg_temp_new_i32();
+    MemOp al;
 
     tcg_gen_addi_i32(addr, arg[1].in, arg[2].imm);
-    gen_load_store_alignment(dc, 2, addr, false);
+    al = gen_load_store_alignment(dc, 2, addr, false);
     if (par[0]) {
-        tcg_gen_qemu_st32(arg[0].in, addr, dc->cring);
+        tcg_gen_qemu_st_tl(arg[0].in, addr, dc->cring, MO_TEUL | al);
     } else {
-        tcg_gen_qemu_ld32u(arg[0].out, addr, dc->cring);
+        tcg_gen_qemu_ld_tl(arg[0].out, addr, dc->cring, MO_TEUL | al);
     }
     if (par[1]) {
         tcg_gen_mov_i32(arg[1].out, addr);
@@ -6660,13 +6655,14 @@ static void translate_ldstx(DisasContext *dc, const OpcodeArg arg[],
                             const uint32_t par[])
 {
     TCGv_i32 addr = tcg_temp_new_i32();
+    MemOp al;
 
     tcg_gen_add_i32(addr, arg[1].in, arg[2].in);
-    gen_load_store_alignment(dc, 2, addr, false);
+    al = gen_load_store_alignment(dc, 2, addr, false);
     if (par[0]) {
-        tcg_gen_qemu_st32(arg[0].in, addr, dc->cring);
+        tcg_gen_qemu_st_tl(arg[0].in, addr, dc->cring, MO_TEUL | al);
     } else {
-        tcg_gen_qemu_ld32u(arg[0].out, addr, dc->cring);
+        tcg_gen_qemu_ld_tl(arg[0].out, addr, dc->cring, MO_TEUL | al);
     }
     if (par[1]) {
         tcg_gen_mov_i32(arg[1].out, addr);
@@ -7104,6 +7100,7 @@ static void translate_ldsti_d(DisasContext *dc, const OpcodeArg arg[],
                               const uint32_t par[])
 {
     TCGv_i32 addr;
+    MemOp al;
 
     if (par[1]) {
         addr = tcg_temp_new_i32();
@@ -7111,11 +7108,11 @@ static void translate_ldsti_d(DisasContext *dc, const OpcodeArg arg[],
     } else {
         addr = arg[1].in;
     }
-    gen_load_store_alignment(dc, 3, addr, false);
+    al = gen_load_store_alignment(dc, 3, addr, false);
     if (par[0]) {
-        tcg_gen_qemu_st64(arg[0].in, addr, dc->cring);
+        tcg_gen_qemu_st_i64(arg[0].in, addr, dc->cring, MO_TEQ | al);
     } else {
-        tcg_gen_qemu_ld64(arg[0].out, addr, dc->cring);
+        tcg_gen_qemu_ld_i64(arg[0].out, addr, dc->cring, MO_TEQ | al);
     }
     if (par[2]) {
         if (par[1]) {
@@ -7134,6 +7131,7 @@ static void translate_ldsti_s(DisasContext *dc, const OpcodeArg arg[],
 {
     TCGv_i32 addr;
     OpcodeArg arg32[1];
+    MemOp al;
 
     if (par[1]) {
         addr = tcg_temp_new_i32();
@@ -7141,14 +7139,14 @@ static void translate_ldsti_s(DisasContext *dc, const OpcodeArg arg[],
     } else {
         addr = arg[1].in;
     }
-    gen_load_store_alignment(dc, 2, addr, false);
+    al = gen_load_store_alignment(dc, 2, addr, false);
     if (par[0]) {
         get_f32_i1(arg, arg32, 0);
-        tcg_gen_qemu_st32(arg32[0].in, addr, dc->cring);
+        tcg_gen_qemu_st_tl(arg32[0].in, addr, dc->cring, MO_TEUL | al);
         put_f32_i1(arg, arg32, 0);
     } else {
         get_f32_o1(arg, arg32, 0);
-        tcg_gen_qemu_ld32u(arg32[0].out, addr, dc->cring);
+        tcg_gen_qemu_ld_tl(arg32[0].out, addr, dc->cring, MO_TEUL | al);
         put_f32_o1(arg, arg32, 0);
     }
     if (par[2]) {
@@ -7167,6 +7165,7 @@ static void translate_ldstx_d(DisasContext *dc, const OpcodeArg arg[],
                               const uint32_t par[])
 {
     TCGv_i32 addr;
+    MemOp al;
 
     if (par[1]) {
         addr = tcg_temp_new_i32();
@@ -7174,11 +7173,11 @@ static void translate_ldstx_d(DisasContext *dc, const OpcodeArg arg[],
     } else {
         addr = arg[1].in;
     }
-    gen_load_store_alignment(dc, 3, addr, false);
+    al = gen_load_store_alignment(dc, 3, addr, false);
     if (par[0]) {
-        tcg_gen_qemu_st64(arg[0].in, addr, dc->cring);
+        tcg_gen_qemu_st_i64(arg[0].in, addr, dc->cring, MO_TEQ | al);
     } else {
-        tcg_gen_qemu_ld64(arg[0].out, addr, dc->cring);
+        tcg_gen_qemu_ld_i64(arg[0].out, addr, dc->cring, MO_TEQ | al);
     }
     if (par[2]) {
         if (par[1]) {
@@ -7197,6 +7196,7 @@ static void translate_ldstx_s(DisasContext *dc, const OpcodeArg arg[],
 {
     TCGv_i32 addr;
     OpcodeArg arg32[1];
+    MemOp al;
 
     if (par[1]) {
         addr = tcg_temp_new_i32();
@@ -7204,14 +7204,14 @@ static void translate_ldstx_s(DisasContext *dc, const OpcodeArg arg[],
     } else {
         addr = arg[1].in;
     }
-    gen_load_store_alignment(dc, 2, addr, false);
+    al = gen_load_store_alignment(dc, 2, addr, false);
     if (par[0]) {
         get_f32_i1(arg, arg32, 0);
-        tcg_gen_qemu_st32(arg32[0].in, addr, dc->cring);
+        tcg_gen_qemu_st_tl(arg32[0].in, addr, dc->cring, MO_TEUL | al);
         put_f32_i1(arg, arg32, 0);
     } else {
         get_f32_o1(arg, arg32, 0);
-        tcg_gen_qemu_ld32u(arg32[0].out, addr, dc->cring);
+        tcg_gen_qemu_ld_tl(arg32[0].out, addr, dc->cring, MO_TEUL | al);
         put_f32_o1(arg, arg32, 0);
     }
     if (par[2]) {
