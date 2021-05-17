@@ -12,15 +12,15 @@ enum QType
 module doc-good.json
 enum Enum
     member one
-        if IfOption('defined(IFONE)')
+        if IfOption('IFONE')
     member two
-    if IfOption('defined(IFCOND)')
+    if IfOption('IFCOND')
     feature enum-feat
 object Base
     member base1: Enum optional=False
 object Variant1
     member var1: str optional=False
-        if IfOption('defined(IFSTR)')
+        if IfOption('IFSTR')
         feature member-feat
     feature variant1-feat
 object Variant2

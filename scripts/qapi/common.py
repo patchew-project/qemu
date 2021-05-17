@@ -225,7 +225,7 @@ class IfOption(IfPredicate):
         self.option = option
 
     def cgen(self) -> str:
-        return self.option
+        return f"defined({self.option})"
 
     def docgen(self) -> str:
         return self.option
