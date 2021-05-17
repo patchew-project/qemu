@@ -367,7 +367,10 @@ static int64_t backup_calculate_cluster_size(BlockDriverState *target,
      * targets with a backing file, try to avoid COW if possible.
      */
     ret = bdrv_get_info(target, &bdi);
-    if (ret == -ENOTSUP && !target_does_cow) {
+    if (ret < 0 && ret != -ENOTSUP) {
+        error_setg_errno(errp, -ret, "Failed to get target info");
+        return ret;
+    } else if (ret == -ENOTSUP && !target_does_cow) {
         /* Cluster size is not defined */
         warn_report("The target block device doesn't provide "
                     "information about the block size and it doesn't have a "
@@ -376,14 +379,7 @@ static int64_t backup_calculate_cluster_size(BlockDriverState *target,
                     "this default, the backup may be unusable",
                     BACKUP_CLUSTER_SIZE_DEFAULT);
         return BACKUP_CLUSTER_SIZE_DEFAULT;
-    } else if (ret < 0 && !target_does_cow) {
-        error_setg_errno(errp, -ret,
-            "Couldn't determine the cluster size of the target image, "
-            "which has no backing file");
-        error_append_hint(errp,
-            "Aborting, since this may create an unusable destination image\n");
-        return ret;
-    } else if (ret < 0 && target_does_cow) {
+    } else if (ret == -ENOTSUP && target_does_cow) {
         /* Not fatal; just trudge on ahead. */
         return BACKUP_CLUSTER_SIZE_DEFAULT;
     }
