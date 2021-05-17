@@ -3619,12 +3619,39 @@ static void gen_sync(DisasContext *ctx)
 /* wait */
 static void gen_wait(DisasContext *ctx)
 {
-    TCGv_i32 t0 = tcg_const_i32(1);
-    tcg_gen_st_i32(t0, cpu_env,
-                   -offsetof(PowerPCCPU, env) + offsetof(CPUState, halted));
-    tcg_temp_free_i32(t0);
-    /* Stop translation, as the CPU is supposed to sleep from now */
-    gen_exception_nip(ctx, EXCP_HLT, ctx->base.pc_next);
+    uint32_t wc = (ctx->opcode >> 21) & 3;
+
+    /*
+     * wait 0 waits for an exception to occur.
+     */
+    if (wc == 0) {
+        TCGv_i32 t0 = tcg_const_i32(1);
+        tcg_gen_st_i32(t0, cpu_env,
+                       -offsetof(PowerPCCPU, env) + offsetof(CPUState, halted));
+        tcg_temp_free_i32(t0);
+        /* Stop translation, as the CPU is supposed to sleep from now */
+        gen_exception_nip(ctx, EXCP_HLT, ctx->base.pc_next);
+    }
+
+    /*
+     * Other wait types must not wait until an exception occurs because
+     * ignoring their other wake-up conditions could cause a hang.
+     *
+     * wait 1 (waitrsv) waits for an exception or a reservation to be lost.
+     * This can happen for implementation specific reasons, so it can be
+     * implemented as a no-op.
+     *
+     * wait 2 waits for an exception or an amount of time to pass. This is
+     * implementation specific so it can be implemented as a no-op.
+     *
+     * wait 3 is reserved, so it may be implemented as a no-op.
+     *
+     * ISA v3.1 does allow for execution to resume "in the rare case of
+     * an implementation-dependent event", so in any case software must
+     * not depend on the architected resumption condition to become
+     * true, so no-op implementations are architecturally correct (if
+     * suboptimal).
+     */
 }
 
 #if defined(TARGET_PPC64)
