@@ -29,6 +29,9 @@ class QAPISchemaIfCond:
     def __init__(self, ifcond=None):
         self.ifcond = ifcond or []
 
+    def cgen(self):
+        return ' && '.join([i for i in self.ifcond])
+
     # Returns true if the condition is not void
     def __bool__(self):
         return bool(self.ifcond)
