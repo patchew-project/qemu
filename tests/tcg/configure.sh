@@ -105,6 +105,14 @@ for target in $target_list; do
   esac
 
   container_image=
+  container_hosts=
+  container_cross_cc=
+  container_cross_as=
+  container_cross_ld=
+
+  # suppress clang
+  supress_clang=
+
   case $target in
     aarch64-*)
       # We don't have any bigendian build tools so we only use this for AArch64
@@ -142,6 +150,7 @@ for target in $target_list; do
       container_hosts=x86_64
       container_image=fedora-i386-cross
       container_cross_cc=gcc
+      supress_clang=yes
       ;;
     m68k-*)
       container_hosts=x86_64
@@ -213,6 +222,7 @@ for target in $target_list; do
       container_hosts="aarch64 ppc64el x86_64"
       container_image=debian-amd64-cross
       container_cross_cc=x86_64-linux-gnu-gcc
+      supress_clang=yes
       ;;
     xtensa*-softmmu)
       container_hosts=x86_64
@@ -246,71 +256,75 @@ for target in $target_list; do
     if eval test "x\${cross_cc_$i+yes}" != xyes; then
       continue
     fi
+    eval "target_compiler=\${cross_cc_$arch}"
 
-    eval "target_compiler=\${cross_cc_$i}"
-    if ! has $target_compiler; then
-      continue
+    if has "$target_compiler"; then
+        if test "$supress_clang" = yes &&
+                $target_compiler --version | grep -qi "clang"; then
+            got_cross_cc=no
+        else
+            write_c_skeleton
+            if ! do_compiler "$target_compiler" $target_compiler_cflags \
+                 -o $TMPE $TMPC -static ; then
+                # For host systems we might get away with building without -static
+                if do_compiler "$target_compiler" $target_compiler_cflags \
+                               -o $TMPE $TMPC ; then
+                    got_cross_cc=yes
+                    echo "CROSS_CC_GUEST_STATIC=y" >> $config_target_mak
+                    echo "CROSS_CC_GUEST=$target_compiler" >> $config_target_mak
+                fi
+            else
+                got_cross_cc=yes
+                echo "CROSS_CC_GUEST_STATIC=y" >> $config_target_mak
+                echo "CROSS_CC_GUEST=$target_compiler" >> $config_target_mak
+            fi
+
+            # Test for compiler features for optional tests. We only do this
+            # for cross compilers because ensuring the docker containers based
+            # compilers is a requirememt for adding a new test that needs a
+            # compiler feature.
+            case $target in
+                aarch64-*)
+                    if do_compiler "$target_compiler" $target_compiler_cflags \
+                                   -march=armv8.1-a+sve -o $TMPE $TMPC; then
+                        echo "CROSS_CC_HAS_SVE=y" >> $config_target_mak
+                    fi
+                    if do_compiler "$target_compiler" $target_compiler_cflags \
+                                   -march=armv8.3-a -o $TMPE $TMPC; then
+                        echo "CROSS_CC_HAS_ARMV8_3=y" >> $config_target_mak
+                    fi
+                    if do_compiler "$target_compiler" $target_compiler_cflags \
+                                   -mbranch-protection=standard -o $TMPE $TMPC; then
+                        echo "CROSS_CC_HAS_ARMV8_BTI=y" >> $config_target_mak
+                    fi
+                    if do_compiler "$target_compiler" $target_compiler_cflags \
+                                   -march=armv8.5-a+memtag -o $TMPE $TMPC; then
+                        echo "CROSS_CC_HAS_ARMV8_MTE=y" >> $config_target_mak
+                    fi
+                    ;;
+                ppc*)
+                    if do_compiler "$target_compiler" $target_compiler_cflags \
+                                   -mpower8-vector -o $TMPE $TMPC; then
+                        echo "CROSS_CC_HAS_POWER8_VECTOR=y" >> $config_target_mak
+                    fi
+                    ;;
+                i386-linux-user)
+                    if do_compiler "$target_compiler" $target_compiler_cflags \
+                                   -Werror -fno-pie -o $TMPE $TMPC; then
+                        echo "CROSS_CC_HAS_I386_NOPIE=y" >> $config_target_mak
+                    fi
+                    ;;
+            esac
+        fi
     fi
-    write_c_skeleton
-    if ! do_compiler "$target_compiler" $target_compiler_cflags -o $TMPE $TMPC -static ; then
-      # For host systems we might get away with building without -static
-      if ! do_compiler "$target_compiler" $target_compiler_cflags -o $TMPE $TMPC ; then
-        continue
-      fi
-      echo "CROSS_CC_GUEST_STATIC=y" >> $config_target_mak
-    else
-      echo "CROSS_CC_GUEST_STATIC=y" >> $config_target_mak
+
+    if test $got_cross_cc = no && test "$container" != no && test -n "$container_image"; then
+        for host in $container_hosts; do
+            if test "$host" = "$ARCH"; then
+                echo "DOCKER_IMAGE=$container_image" >> $config_target_mak
+                echo "DOCKER_CROSS_CC_GUEST=$container_cross_cc" >> $config_target_mak
+            fi
+        done
     fi
-    echo "CROSS_CC_GUEST=$target_compiler" >> $config_target_mak
-
-    # Test for compiler features for optional tests. We only do this
-    # for cross compilers because ensuring the docker containers based
-    # compilers is a requirememt for adding a new test that needs a
-    # compiler feature.
-    case $target in
-        aarch64-*)
-            if do_compiler "$target_compiler" $target_compiler_cflags \
-               -march=armv8.1-a+sve -o $TMPE $TMPC; then
-                echo "CROSS_CC_HAS_SVE=y" >> $config_target_mak
-            fi
-            if do_compiler "$target_compiler" $target_compiler_cflags \
-               -march=armv8.3-a -o $TMPE $TMPC; then
-                echo "CROSS_CC_HAS_ARMV8_3=y" >> $config_target_mak
-            fi
-            if do_compiler "$target_compiler" $target_compiler_cflags \
-               -mbranch-protection=standard -o $TMPE $TMPC; then
-                echo "CROSS_CC_HAS_ARMV8_BTI=y" >> $config_target_mak
-            fi
-            if do_compiler "$target_compiler" $target_compiler_cflags \
-               -march=armv8.5-a+memtag -o $TMPE $TMPC; then
-                echo "CROSS_CC_HAS_ARMV8_MTE=y" >> $config_target_mak
-            fi
-        ;;
-        ppc*)
-            if do_compiler "$target_compiler" $target_compiler_cflags \
-               -mpower8-vector -o $TMPE $TMPC; then
-                echo "CROSS_CC_HAS_POWER8_VECTOR=y" >> $config_target_mak
-            fi
-        ;;
-        i386-linux-user)
-            if do_compiler "$target_compiler" $target_compiler_cflags \
-                -Werror -fno-pie -o $TMPE $TMPC; then
-                echo "CROSS_CC_HAS_I386_NOPIE=y" >> $config_target_mak
-            fi
-        ;;
-    esac
-
-    enabled_cross_compilers="$enabled_cross_compilers $target_compiler"
-    got_cross_cc=yes
-    break
   done
-
-  if test $got_cross_cc = no && test "$container" != no && test -n "$container_image"; then
-      for host in $container_hosts; do
-          if test "$host" = "$ARCH"; then
-              echo "DOCKER_IMAGE=$container_image" >> $config_target_mak
-              echo "DOCKER_CROSS_CC_GUEST=$container_cross_cc" >> $config_target_mak
-          fi
-      done
-  fi
 done
