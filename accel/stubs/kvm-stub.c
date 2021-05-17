@@ -20,6 +20,7 @@
 KVMState *kvm_state;
 bool kvm_kernel_irqchip;
 bool kvm_async_interrupts_allowed;
+bool kvm_halt_in_kernel_allowed;
 bool kvm_eventfds_allowed;
 bool kvm_irqfds_allowed;
 bool kvm_resamplefds_allowed;
@@ -147,4 +148,10 @@ bool kvm_arm_supports_user_irq(void)
 {
     return false;
 }
+
+bool kvm_cpu_check_are_resettable(void)
+{
+    g_assert_not_reached();
+}
+
 #endif
