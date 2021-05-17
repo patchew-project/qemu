@@ -1862,7 +1862,7 @@ error:
     return ret;
 }
 
-int whpx_enabled(void)
+bool whpx_enabled(void)
 {
     return whpx_allowed;
 }

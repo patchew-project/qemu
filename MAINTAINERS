@@ -442,6 +442,7 @@ F: include/sysemu/hvf.h
 WHPX CPUs
 M: Sunil Muthuswamy <sunilmut@microsoft.com>
 S: Supported
+F: accel/stubs/whpx-stub.c
 F: target/i386/whpx/
 F: include/sysemu/whpx.h
 
