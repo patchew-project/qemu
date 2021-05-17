@@ -2,6 +2,7 @@ specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: [files(
   'arch_init.c',
   'balloon.c',
   'cpus.c',
+  'cpus-qmp.c',
   'cpu-throttle.c',
   'datadir.c',
   'globals.c',
