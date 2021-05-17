@@ -22,6 +22,8 @@ from typing import Optional
 from .common import (
     POINTER_SUFFIX,
     IfAll,
+    IfAny,
+    IfNot,
     IfOption,
     c_name,
 )
@@ -31,15 +33,14 @@ from .parser import QAPISchemaParser
 
 
 class QAPISchemaIfCond:
-    def __init__(self, ifcond=None):
-        self.ifcond = ifcond or []
-        self.pred = IfAll([IfOption(opt) for opt in self.ifcond])
+    def __init__(self, pred=None):
+        self.pred = pred
 
     def docgen(self):
-        return self.pred.docgen()
+        return self and self.pred.docgen()
 
     def cgen(self):
-        return self.pred.cgen()
+        return self and self.pred.cgen()
 
     # Returns true if the condition is not void
     def __bool__(self):
@@ -984,16 +985,41 @@ class QAPISchema:
         self._def_entity(QAPISchemaEnumType('QType', None, None, None, None,
                                             qtype_values, 'QTYPE'))
 
+    def _make_if(self, cond):
+        if isinstance(cond, QAPISchemaIfCond):
+            return cond
+        if cond is None:
+            return QAPISchemaIfCond()
+
+        def make_pred(node):
+            if isinstance(node, str):
+                return IfOption(node)
+            oper, operands = next(iter(node.items()))
+            op2cls = {
+                'all': IfAll,
+                'any': IfAny,
+                'not': IfNot,
+            }
+
+            if isinstance(operands, list):
+                operands = [make_pred(o) for o in operands]
+            else:
+                operands = make_pred(operands)
+
+            return op2cls[oper](operands)
+
+        return QAPISchemaIfCond(make_pred(cond))
+
     def _make_features(self, features, info):
         if features is None:
             return []
         return [QAPISchemaFeature(f['name'], info,
-                                  QAPISchemaIfCond(f.get('if')))
+                                  self._make_if(f.get('if')))
                 for f in features]
 
     def _make_enum_members(self, values, info):
         return [QAPISchemaEnumMember(v['name'], info,
-                                     QAPISchemaIfCond(v.get('if')))
+                                     self._make_if(v.get('if')))
                 for v in values]
 
     def _make_implicit_enum_type(self, name, info, ifcond, values):
@@ -1039,7 +1065,7 @@ class QAPISchema:
         name = expr['enum']
         data = expr['data']
         prefix = expr.get('prefix')
-        ifcond = QAPISchemaIfCond(expr.get('if'))
+        ifcond = self._make_if(expr.get('if'))
         features = self._make_features(expr.get('features'), info)
         self._def_entity(QAPISchemaEnumType(
             name, info, doc, ifcond, features,
@@ -1058,7 +1084,7 @@ class QAPISchema:
 
     def _make_members(self, data, info):
         return [self._make_member(key, value['type'],
-                                  QAPISchemaIfCond(value.get('if')),
+                                  self._make_if(value.get('if')),
                                   value.get('features'), info)
                 for (key, value) in data.items()]
 
@@ -1066,7 +1092,7 @@ class QAPISchema:
         name = expr['struct']
         base = expr.get('base')
         data = expr['data']
-        ifcond = QAPISchemaIfCond(expr.get('if'))
+        ifcond = self._make_if(expr.get('if'))
         features = self._make_features(expr.get('features'), info)
         self._def_entity(QAPISchemaObjectType(
             name, info, doc, ifcond, features, base,
@@ -1089,7 +1115,7 @@ class QAPISchema:
         name = expr['union']
         data = expr['data']
         base = expr.get('base')
-        ifcond = QAPISchemaIfCond(expr.get('if'))
+        ifcond = self._make_if(expr.get('if'))
         features = self._make_features(expr.get('features'), info)
         tag_name = expr.get('discriminator')
         tag_member = None
@@ -1100,7 +1126,7 @@ class QAPISchema:
         if tag_name:
             variants = [
                 self._make_variant(key, value['type'],
-                                   QAPISchemaIfCond(value.get('if')),
+                                   self._make_if(value.get('if')),
                                    info)
                 for (key, value) in data.items()
             ]
@@ -1108,11 +1134,11 @@ class QAPISchema:
         else:
             variants = [
                 self._make_simple_variant(key, value['type'],
-                                          QAPISchemaIfCond(value.get('if')),
+                                          self._make_if(value.get('if')),
                                           info)
                 for (key, value) in data.items()
             ]
-            enum = [{'name': v.name, 'if': v.ifcond.ifcond} for v in variants]
+            enum = [{'name': v.name, 'if': v.ifcond} for v in variants]
             typ = self._make_implicit_enum_type(name, info, ifcond, enum)
             tag_member = QAPISchemaObjectTypeMember('type', info, typ, False)
             members = [tag_member]
@@ -1125,11 +1151,11 @@ class QAPISchema:
     def _def_alternate_type(self, expr, info, doc):
         name = expr['alternate']
         data = expr['data']
-        ifcond = QAPISchemaIfCond(expr.get('if'))
+        ifcond = self._make_if(expr.get('if'))
         features = self._make_features(expr.get('features'), info)
         variants = [
             self._make_variant(key, value['type'],
-                               QAPISchemaIfCond(value.get('if')),
+                               self._make_if(value.get('if')),
                                info)
             for (key, value) in data.items()
         ]
@@ -1149,7 +1175,7 @@ class QAPISchema:
         allow_oob = expr.get('allow-oob', False)
         allow_preconfig = expr.get('allow-preconfig', False)
         coroutine = expr.get('coroutine', False)
-        ifcond = QAPISchemaIfCond(expr.get('if'))
+        ifcond = self._make_if(expr.get('if'))
         features = self._make_features(expr.get('features'), info)
         if isinstance(data, OrderedDict):
             data = self._make_implicit_object_type(
@@ -1168,7 +1194,7 @@ class QAPISchema:
         name = expr['event']
         data = expr.get('data')
         boxed = expr.get('boxed', False)
-        ifcond = QAPISchemaIfCond(expr.get('if'))
+        ifcond = self._make_if(expr.get('if'))
         features = self._make_features(expr.get('features'), info)
         if isinstance(data, OrderedDict):
             data = self._make_implicit_object_type(

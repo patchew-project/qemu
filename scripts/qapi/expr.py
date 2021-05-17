@@ -261,12 +261,13 @@ def check_if(expr: _JSONObject, info: QAPISourceInfo, source: str) -> None:
     """
     Normalize and validate the ``if`` member of an object.
 
-    The ``if`` member may be either a ``str`` or a ``List[str]``.
-    A ``str`` value will be normalized to ``List[str]``.
+    The ``if`` field may be either a ``str``, a ``List[str]`` or a dict.
+    A ``str`` element or a ``List[str]`` will be normalized to
+    ``{'all': List[str]}``.
 
     :forms:
       :sugared: ``Union[str, List[str]]``
-      :canonical: ``List[str]``
+      :canonical: ``Union[str, dict]``
 
     :param expr: The expression containing the ``if`` member to validate.
     :param info: QAPI schema source file information.
@@ -281,25 +282,41 @@ def check_if(expr: _JSONObject, info: QAPISourceInfo, source: str) -> None:
     if ifcond is None:
         return
 
-    if isinstance(ifcond, list):
-        if not ifcond:
+    def normalize(cond: Union[str, List[str], object]) -> Union[str, object]:
+        if isinstance(cond, str):
+            if not cond.strip():
+                raise QAPISemError(
+                    info,
+                    "'if' condition '%s' of %s makes no sense"
+                    % (cond, source))
+            return cond
+        if isinstance(cond, list):
+            cond = {"all": cond}
+        if not isinstance(cond, dict):
+            raise QAPISemError(
+                info,
+                "'if' condition of %s must be a string, "
+                "a list of strings or a dict" % source)
+        if len(cond) != 1:
+            raise QAPISemError(
+                info,
+                "'if' condition dict of %s must have one key: "
+                "'all', 'any' or 'not'" % source)
+        check_keys(cond, info, "'if' condition", [],
+                   ["all", "any", "not"])
+        oper, operands = next(iter(cond.items()))
+        if not operands:
             raise QAPISemError(
                 info, "'if' condition [] of %s is useless" % source)
-    else:
-        # Normalize to a list
-        ifcond = expr['if'] = [ifcond]
+        if oper == "not":
+            return {oper: normalize(operands)}
+        if oper in ("all", "any") and not isinstance(operands, list):
+            raise QAPISemError(
+                info, "'%s' condition of %s must be a list" % (oper, source))
+        operands = [normalize(o) for o in operands]
+        return {oper: operands}
 
-    for elt in ifcond:
-        if not isinstance(elt, str):
-            raise QAPISemError(
-                info,
-                "'if' condition of %s must be a string or a list of strings"
-                % source)
-        if not elt.strip():
-            raise QAPISemError(
-                info,
-                "'if' condition '%s' of %s makes no sense"
-                % (elt, source))
+    expr['if'] = normalize(ifcond)
 
 
 def normalize_members(members: object) -> None:
