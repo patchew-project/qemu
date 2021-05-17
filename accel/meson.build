@@ -2,11 +2,13 @@ specific_ss.add(files('accel-common.c'))
 softmmu_ss.add(files('accel-softmmu.c'))
 user_ss.add(files('accel-user.c'))
 
-subdir('qtest')
-subdir('kvm')
 subdir('tcg')
-subdir('xen')
-subdir('stubs')
+if have_system
+  subdir('kvm')
+  subdir('qtest')
+  subdir('stubs')
+  subdir('xen')
+endif
 
 dummy_ss = ss.source_set()
 dummy_ss.add(files(
