@@ -1,21 +1,10 @@
 specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: [files(
   'arch_init.c',
-  'balloon.c',
-  'cpus.c',
   'cpus-qmp.c',
-  'cpu-throttle.c',
-  'datadir.c',
-  'globals.c',
-  'physmem.c',
   'ioport.c',
-  'rtc.c',
-  'runstate.c',
   'memory.c',
-  'memory_mapping.c',
+  'physmem.c',
   'qtest.c',
-  'vl.c',
-  'cpu-timers.c',
-  'runstate-action.c',
 )])
 
 specific_ss.add(when: ['CONFIG_SOFTMMU', 'CONFIG_TCG'], if_true: [files(
@@ -23,9 +12,20 @@ specific_ss.add(when: ['CONFIG_SOFTMMU', 'CONFIG_TCG'], if_true: [files(
 )])
 
 softmmu_ss.add(files(
+  'balloon.c',
   'bootdevice.c',
+  'cpus.c',
+  'cpu-throttle.c',
+  'cpu-timers.c',
+  'datadir.c',
   'dma-helpers.c',
+  'globals.c',
+  'memory_mapping.c',
   'qdev-monitor.c',
+  'rtc.c',
+  'runstate-action.c',
+  'runstate.c',
+  'vl.c',
 ), sdl, libpmem, libdaxctl)
 
 softmmu_ss.add(when: 'CONFIG_TPM', if_true: files('tpm.c'))
