@@ -239,15 +239,26 @@ class IfOption(IfPredicate):
         return self.option == other.option
 
 
-class IfAll(IfPredicate):
+class IfPredicateList(IfPredicate):
+    C_SEP = ""
+    DOC_SEP = ""
+
     def __init__(self, pred_list: Sequence[IfPredicate]):
         self.pred_list = pred_list
 
     def cgen(self) -> str:
-        return " && ".join([p.cgen() for p in self.pred_list])
+        sep = " " + self.C_SEP + " "
+        gen = sep.join([p.cgen() for p in self.pred_list])
+        if len(self.pred_list) <= 1:
+            return gen
+        return "(%s)" % gen
 
     def docgen(self) -> str:
-        return " and ".join([p.docgen() for p in self.pred_list])
+        sep = " " + self.DOC_SEP + " "
+        gen = sep.join([p.docgen() for p in self.pred_list])
+        if len(self.pred_list) <= 1:
+            return gen
+        return "(%s)" % gen
 
     def __bool__(self) -> bool:
         return bool(self.pred_list)
@@ -256,6 +267,16 @@ class IfAll(IfPredicate):
         return f"{type(self).__name__}({self.pred_list!r})"
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, IfAll):
+        if not isinstance(other, type(self)):
             return NotImplemented
         return self.pred_list == other.pred_list
+
+
+class IfAll(IfPredicateList):
+    C_SEP = "&&"
+    DOC_SEP = "and"
+
+
+class IfAny(IfPredicateList):
+    C_SEP = "||"
+    DOC_SEP = "or"
