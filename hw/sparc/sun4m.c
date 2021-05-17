@@ -816,6 +816,22 @@ static void dummy_fdc_tc(void *opaque, int irq, int level)
 {
 }
 
+static void sun4m_fdctrl_init(qemu_irq irq, hwaddr io_base,
+                              DriveInfo **fds, qemu_irq *fdc_tc)
+{
+    DeviceState *dev;
+    SysBusDevice *sbd;
+
+    dev = qdev_new("sun-fdtwo");
+    sbd = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(sbd, &error_fatal);
+    sysbus_connect_irq(sbd, 0, irq);
+    sysbus_mmio_map(sbd, 0, io_base);
+    *fdc_tc = qdev_get_gpio_in(dev, 0);
+
+    sysbus_fdc_init_drives(sbd, fds);
+}
+
 static void sun4m_hw_init(MachineState *machine)
 {
     const struct sun4m_hwdef *hwdef = SUN4M_MACHINE_GET_CLASS(machine)->hwdef;
