@@ -19,7 +19,12 @@ import os
 import re
 from typing import Optional
 
-from .common import POINTER_SUFFIX, c_name
+from .common import (
+    POINTER_SUFFIX,
+    IfAll,
+    IfOption,
+    c_name,
+)
 from .error import QAPISemError, QAPISourceError
 from .expr import check_exprs
 from .parser import QAPISchemaParser
@@ -28,18 +33,22 @@ from .parser import QAPISchemaParser
 class QAPISchemaIfCond:
     def __init__(self, ifcond=None):
         self.ifcond = ifcond or []
+        self.pred = IfAll([IfOption(opt) for opt in self.ifcond])
+
+    def docgen(self):
+        return self.pred.docgen()
 
     def cgen(self):
-        return ' && '.join([i for i in self.ifcond])
+        return self.pred.cgen()
 
     # Returns true if the condition is not void
     def __bool__(self):
-        return bool(self.ifcond)
+        return bool(self.pred)
 
     def __eq__(self, other):
         if not isinstance(other, QAPISchemaIfCond):
             return NotImplemented
-        return self.ifcond == other.ifcond
+        return self.pred == other.pred
 
 
 class QAPISchemaEntity:
