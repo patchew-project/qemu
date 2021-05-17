@@ -24,18 +24,6 @@
 
 int hax_sync_vcpus(void);
 
-#ifdef NEED_CPU_H
-
-#ifdef CONFIG_HAX
-
-int hax_enabled(void);
-
-#else /* CONFIG_HAX */
-
-#define hax_enabled() (0)
-
-#endif /* CONFIG_HAX */
-
-#endif /* NEED_CPU_H */
+bool hax_enabled(void);
 
 #endif /* QEMU_HAX_H */

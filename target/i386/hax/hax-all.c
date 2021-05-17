@@ -56,7 +56,7 @@ struct hax_state hax_global;
 static void hax_vcpu_sync_state(CPUArchState *env, int modified);
 static int hax_arch_get_registers(CPUArchState *env);
 
-int hax_enabled(void)
+bool hax_enabled(void)
 {
     return hax_allowed;
 }
