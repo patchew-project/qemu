@@ -1,5 +1,9 @@
 config FDC
     bool
+
+config FDC_ISA
+    bool
+    select FDC
     # FIXME: there is no separate file for the MMIO floppy disk controller, so
     # select ISA_BUS here instead of polluting each board that requires one
     select ISA_BUS
