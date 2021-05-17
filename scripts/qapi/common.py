@@ -239,6 +239,28 @@ class IfOption(IfPredicate):
         return self.option == other.option
 
 
+class IfNot(IfPredicate):
+    def __init__(self, pred: IfPredicate):
+        self.pred = pred
+
+    def cgen(self) -> str:
+        return "!" + self.pred.cgen()
+
+    def docgen(self) -> str:
+        return "not " + self.pred.docgen()
+
+    def __bool__(self) -> bool:
+        return bool(self.pred)
+
+    def __repr__(self) -> str:
+        return f"IfNot({self.pred!r})"
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, type(self)):
+            return False
+        return self.pred == other.pred
+
+
 class IfPredicateList(IfPredicate):
     C_SEP = ""
     DOC_SEP = ""
