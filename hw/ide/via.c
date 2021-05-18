@@ -106,6 +106,7 @@ static void bmdma_setup_bar(PCIIDEState *d)
 static void via_ide_set_irq(void *opaque, int n, int level)
 {
     PCIDevice *d = PCI_DEVICE(opaque);
+    PCIIDEState *id = PCI_IDE(d);
 
     if (level) {
         d->config[0x70 + n * 8] |= 0x80;
@@ -113,7 +114,7 @@ static void via_ide_set_irq(void *opaque, int n, int level)
         d->config[0x70 + n * 8] &= ~0x80;
     }
 
-    qemu_set_irq(isa_get_irq(NULL, 14 + n), level);
+    qemu_set_irq(isa_bus_get_irq(id->isa_bus, 14 + n), level);
 }
 
 static void via_ide_reset(DeviceState *dev)
