@@ -89,7 +89,11 @@ qemu_irq isa_bus_get_irq(ISABus *bus, unsigned isairq)
  */
 qemu_irq isa_get_irq(ISADevice *dev, unsigned isairq)
 {
-    assert(!dev || ISA_BUS(qdev_get_parent_bus(DEVICE(dev))) == isabus);
+    ISABus *isabus;
+
+    assert(dev);
+    isabus = isa_bus_from_device(dev);
+
     return isa_bus_get_irq(isabus, isairq);
 }
 
