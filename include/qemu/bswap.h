@@ -336,18 +336,6 @@ static inline void stb_p(void *ptr, uint8_t v)
  * of good performance.
  */
 
-static inline int ldl_he_p(const void *ptr)
-{
-    int32_t r;
-    __builtin_memcpy(&r, ptr, sizeof(r));
-    return r;
-}
-
-static inline void stl_he_p(void *ptr, uint32_t v)
-{
-    __builtin_memcpy(ptr, &v, sizeof(v));
-}
-
 static inline uint64_t ldq_he_p(const void *ptr)
 {
     uint64_t r;
@@ -360,19 +348,9 @@ static inline void stq_he_p(void *ptr, uint64_t v)
     __builtin_memcpy(ptr, &v, sizeof(v));
 }
 
-static inline int ldl_le_p(const void *ptr)
-{
-    return le_bswap(ldl_he_p(ptr), 32);
-}
-
 static inline uint64_t ldq_le_p(const void *ptr)
 {
     return le_bswap(ldq_he_p(ptr), 64);
-}
-
-static inline void stl_le_p(void *ptr, uint32_t v)
-{
-    stl_he_p(ptr, le_bswap(v, 32));
 }
 
 static inline void stq_le_p(void *ptr, uint64_t v)
@@ -380,19 +358,9 @@ static inline void stq_le_p(void *ptr, uint64_t v)
     stq_he_p(ptr, le_bswap(v, 64));
 }
 
-static inline int ldl_be_p(const void *ptr)
-{
-    return be_bswap(ldl_he_p(ptr), 32);
-}
-
 static inline uint64_t ldq_be_p(const void *ptr)
 {
     return be_bswap(ldq_he_p(ptr), 64);
-}
-
-static inline void stl_be_p(void *ptr, uint32_t v)
-{
-    stl_he_p(ptr, be_bswap(v, 32));
 }
 
 static inline void stq_be_p(void *ptr, uint64_t v)
@@ -436,9 +404,14 @@ static inline void st ## size ## _ ## endian ## _p(void *ptr, vtype v)\
     ST_CONVERT_END(le, bits, vtype, size)\
     ST_CONVERT_END(be, bits, vtype, size)
 
+#define LDST_CONVERT(bits, rtype, vtype, size)\
+    LD_CONVERT(bits, rtype, vtype, size)\
+    ST_CONVERT(bits, vtype, size)
+
 ST_CONVERT(16, uint16_t, w)
 LD_CONVERT(16, int, int16_t, sw)
 LD_CONVERT(16, int, uint16_t, uw)
+LDST_CONVERT(32, int, uint32_t, l)
 
 static inline unsigned long leul_to_cpu(unsigned long v)
 {
