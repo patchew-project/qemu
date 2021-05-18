@@ -139,7 +139,11 @@ static void gen_lxvwsx(DisasContext *ctx)
     gen_addr_reg_index(ctx, EA);
 
     data = tcg_temp_new_i32();
-    tcg_gen_qemu_ld_i32(data, EA, ctx->mem_idx, MO_TEUL);
+    if (ctx->le_mode) {
+        tcg_gen_qemu_ld_i32(data, EA, ctx->mem_idx, MO_LEUL);
+    } else {
+        tcg_gen_qemu_ld_i32(data, EA, ctx->mem_idx, MO_BEUL);
+    }
     tcg_gen_gvec_dup_i32(MO_UL, vsr_full_offset(xT(ctx->opcode)), 16, 16, data);
 
     tcg_temp_free(EA);
@@ -162,7 +166,11 @@ static void gen_lxvdsx(DisasContext *ctx)
     gen_addr_reg_index(ctx, EA);
 
     data = tcg_temp_new_i64();
-    tcg_gen_qemu_ld_i64(data, EA, ctx->mem_idx, MO_TEQ);
+    if (ctx->le_mode) {
+        tcg_gen_qemu_ld_i64(data, EA, ctx->mem_idx, MO_LEQ);
+    } else {
+        tcg_gen_qemu_ld_i64(data, EA, ctx->mem_idx, MO_BEQ);
+    }
     tcg_gen_gvec_dup_i64(MO_Q, vsr_full_offset(xT(ctx->opcode)), 16, 16, data);
 
     tcg_temp_free(EA);
