@@ -2581,6 +2581,16 @@ void virtio_notify_config(VirtIODevice *vdev)
     virtio_notify_vector(vdev, vdev->config_vector);
 }
 
+uint16_t virtio_get_vector(VirtIODevice *vdev, int n)
+{
+    return vdev->vq[n].vector;
+}
+
+uint16_t virtio_get_config_vector(VirtIODevice *vdev)
+{
+    return vdev->config_vector;
+}
+
 static bool virtio_device_endian_needed(void *opaque)
 {
     VirtIODevice *vdev = opaque;
