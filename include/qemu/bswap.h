@@ -350,11 +350,6 @@ static inline int ldsw_he_p(const void *ptr)
     return r;
 }
 
-static inline void stw_he_p(void *ptr, uint16_t v)
-{
-    __builtin_memcpy(ptr, &v, sizeof(v));
-}
-
 static inline int ldl_he_p(const void *ptr)
 {
     int32_t r;
@@ -399,11 +394,6 @@ static inline uint64_t ldq_le_p(const void *ptr)
     return le_bswap(ldq_he_p(ptr), 64);
 }
 
-static inline void stw_le_p(void *ptr, uint16_t v)
-{
-    stw_he_p(ptr, le_bswap(v, 16));
-}
-
 static inline void stl_le_p(void *ptr, uint32_t v)
 {
     stl_he_p(ptr, le_bswap(v, 32));
@@ -434,11 +424,6 @@ static inline uint64_t ldq_be_p(const void *ptr)
     return be_bswap(ldq_he_p(ptr), 64);
 }
 
-static inline void stw_be_p(void *ptr, uint16_t v)
-{
-    stw_he_p(ptr, be_bswap(v, 16));
-}
-
 static inline void stl_be_p(void *ptr, uint32_t v)
 {
     stl_he_p(ptr, be_bswap(v, 32));
@@ -465,6 +450,8 @@ static inline void st ## size ## _ ## endian ## _p(void *ptr, vtype v)\
     ST_CONVERT_UNALIGNED(bits, vtype, size)\
     ST_CONVERT_END(le, bits, vtype, size)\
     ST_CONVERT_END(be, bits, vtype, size)
+
+ST_CONVERT(16, uint16_t, w)
 
 static inline unsigned long leul_to_cpu(unsigned long v)
 {
