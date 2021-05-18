@@ -336,38 +336,6 @@ static inline void stb_p(void *ptr, uint8_t v)
  * of good performance.
  */
 
-static inline uint64_t ldq_he_p(const void *ptr)
-{
-    uint64_t r;
-    __builtin_memcpy(&r, ptr, sizeof(r));
-    return r;
-}
-
-static inline void stq_he_p(void *ptr, uint64_t v)
-{
-    __builtin_memcpy(ptr, &v, sizeof(v));
-}
-
-static inline uint64_t ldq_le_p(const void *ptr)
-{
-    return le_bswap(ldq_he_p(ptr), 64);
-}
-
-static inline void stq_le_p(void *ptr, uint64_t v)
-{
-    stq_he_p(ptr, le_bswap(v, 64));
-}
-
-static inline uint64_t ldq_be_p(const void *ptr)
-{
-    return be_bswap(ldq_he_p(ptr), 64);
-}
-
-static inline void stq_be_p(void *ptr, uint64_t v)
-{
-    stq_he_p(ptr, be_bswap(v, 64));
-}
-
 #define LD_CONVERT_UNALIGNED(bits, rtype, vtype, size)\
 static inline rtype ld ## size ## _he_p(const void *ptr)\
 {\
@@ -412,6 +380,7 @@ ST_CONVERT(16, uint16_t, w)
 LD_CONVERT(16, int, int16_t, sw)
 LD_CONVERT(16, int, uint16_t, uw)
 LDST_CONVERT(32, int, uint32_t, l)
+LDST_CONVERT(64, uint64_t, uint64_t, q)
 
 static inline unsigned long leul_to_cpu(unsigned long v)
 {
