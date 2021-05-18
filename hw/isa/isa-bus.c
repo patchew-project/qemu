@@ -136,6 +136,10 @@ static inline void isa_init_ioport(ISADevice *dev, uint16_t ioport)
 
 void isa_register_ioport(ISADevice *dev, MemoryRegion *io, uint16_t start)
 {
+    ISABus *isabus;
+
+    assert(dev);
+    isabus = isa_bus_from_device(dev);
     memory_region_add_subregion(isabus->address_space_io, start, io);
     isa_init_ioport(dev, start);
 }
@@ -156,6 +160,11 @@ void isa_register_portio_list(ISADevice *dev,
                               const MemoryRegionPortio *pio_start,
                               void *opaque, const char *name)
 {
+    ISABus *isabus;
+
+    assert(dev);
+    isabus = isa_bus_from_device(dev);
+
     /* START is how we should treat DEV, regardless of the actual
        contents of the portio array.  This is how the old code
        actually handled e.g. the FDC device.  */
@@ -302,18 +311,20 @@ static char *isabus_get_fw_dev_path(DeviceState *dev)
 
 MemoryRegion *isa_address_space(ISADevice *dev)
 {
-    if (dev) {
-        return isa_bus_from_device(dev)->address_space;
-    }
+    ISABus *isabus;
+
+    assert(dev);
+    isabus = isa_bus_from_device(dev);
 
     return isabus->address_space;
 }
 
 MemoryRegion *isa_address_space_io(ISADevice *dev)
 {
-    if (dev) {
-        return isa_bus_from_device(dev)->address_space_io;
-    }
+    ISABus *isabus;
+
+    assert(dev);
+    isabus = isa_bus_from_device(dev);
 
     return isabus->address_space_io;
 }
