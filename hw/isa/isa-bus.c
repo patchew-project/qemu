@@ -75,6 +75,12 @@ void isa_bus_irqs(ISABus *bus, qemu_irq *irqs)
     bus->irqs = irqs;
 }
 
+qemu_irq isa_bus_get_irq(ISABus *bus, unsigned isairq)
+{
+    assert(isairq < ISA_NUM_IRQS);
+    return bus->irqs[isairq];
+}
+
 /*
  * isa_get_irq() returns the corresponding qemu_irq entry for the i8259.
  *
@@ -84,8 +90,7 @@ void isa_bus_irqs(ISABus *bus, qemu_irq *irqs)
 qemu_irq isa_get_irq(ISADevice *dev, unsigned isairq)
 {
     assert(!dev || ISA_BUS(qdev_get_parent_bus(DEVICE(dev))) == isabus);
-    assert(isairq < ISA_NUM_IRQS);
-    return isabus->irqs[isairq];
+    return isa_bus_get_irq(isabus, isairq);
 }
 
 void isa_init_irq(ISADevice *dev, qemu_irq *p, unsigned isairq)

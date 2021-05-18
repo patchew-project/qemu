@@ -91,6 +91,7 @@ struct ISADevice {
 ISABus *isa_bus_new(DeviceState *dev, MemoryRegion *address_space,
                     MemoryRegion *address_space_io, Error **errp);
 void isa_bus_irqs(ISABus *bus, qemu_irq *irqs);
+qemu_irq isa_bus_get_irq(ISABus *bus, unsigned isairq);
 qemu_irq isa_get_irq(ISADevice *dev, unsigned isairq);
 void isa_init_irq(ISADevice *dev, qemu_irq *p, unsigned isairq);
 void isa_connect_gpio_out(ISADevice *isadev, int gpioirq, unsigned isairq);
