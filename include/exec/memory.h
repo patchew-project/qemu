@@ -2315,9 +2315,20 @@ static inline void address_space_stb_cached(MemoryRegionCache *cache,
     }
 }
 
+#define address_space_ldub_cached_aligned   address_space_ldub_cached
+#define address_space_stb_cached_aligned    address_space_stb_cached
+
 #define ENDIANNESS   _le
 #include "exec/memory_ldst_cached.h.inc"
 
+#define ENDIANNESS   _be
+#include "exec/memory_ldst_cached.h.inc"
+
+#define LDST_ALIGNED
+#define ENDIANNESS   _le
+#include "exec/memory_ldst_cached.h.inc"
+
+#define LDST_ALIGNED
 #define ENDIANNESS   _be
 #include "exec/memory_ldst_cached.h.inc"
 

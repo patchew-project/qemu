@@ -17,12 +17,21 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef LDST_ALIGNED
+#define FUNC_SUFFIX _cached_aligned
+#define LDST_SUFFIX _ap
+#undef LDST_ALIGNED
+#else
+#define FUNC_SUFFIX _cached
+#define LDST_SUFFIX _p
+#endif
+
 #define ADDRESS_SPACE_LD_CACHED(size) \
-    glue(glue(address_space_ld, size), glue(ENDIANNESS, _cached))
+    glue(glue(address_space_ld, size), glue(ENDIANNESS, FUNC_SUFFIX))
 #define ADDRESS_SPACE_LD_CACHED_SLOW(size) \
     glue(glue(address_space_ld, size), glue(ENDIANNESS, _cached_slow))
 #define LD_P(size) \
-    glue(glue(ld, size), glue(ENDIANNESS, _p))
+    glue(glue(ld, size), glue(ENDIANNESS, LDST_SUFFIX))
 
 static inline uint16_t ADDRESS_SPACE_LD_CACHED(uw)(MemoryRegionCache *cache,
     hwaddr addr, MemTxAttrs attrs, MemTxResult *result)
@@ -65,11 +74,11 @@ static inline uint64_t ADDRESS_SPACE_LD_CACHED(q)(MemoryRegionCache *cache,
 #undef LD_P
 
 #define ADDRESS_SPACE_ST_CACHED(size) \
-    glue(glue(address_space_st, size), glue(ENDIANNESS, _cached))
+    glue(glue(address_space_st, size), glue(ENDIANNESS, FUNC_SUFFIX))
 #define ADDRESS_SPACE_ST_CACHED_SLOW(size) \
     glue(glue(address_space_st, size), glue(ENDIANNESS, _cached_slow))
 #define ST_P(size) \
-    glue(glue(st, size), glue(ENDIANNESS, _p))
+    glue(glue(st, size), glue(ENDIANNESS, LDST_SUFFIX))
 
 static inline void ADDRESS_SPACE_ST_CACHED(w)(MemoryRegionCache *cache,
     hwaddr addr, uint16_t val, MemTxAttrs attrs, MemTxResult *result)
@@ -107,5 +116,8 @@ static inline void ADDRESS_SPACE_ST_CACHED(q)(MemoryRegionCache *cache,
 #undef ADDRESS_SPACE_ST_CACHED
 #undef ADDRESS_SPACE_ST_CACHED_SLOW
 #undef ST_P
+
+#undef FUNC_SUFFIX
+#undef LDST_SUFFIX
 
 #undef ENDIANNESS
