@@ -100,18 +100,13 @@ static inline void virtio_st ## size ## _phys_cached(VirtIODevice *vdev,\
     }\
 }
 
+#define VIRTIO_LDST_CONVERT(size, rtype, vtype)\
+    VIRTIO_LD_CONVERT(size, rtype)\
+    VIRTIO_ST_CONVERT(size, vtype)
+
 VIRTIO_LD_CONVERT(uw, uint16_t)
 VIRTIO_ST_CONVERT(w, uint16_t)
-
-static inline uint32_t virtio_ldl_phys(VirtIODevice *vdev, hwaddr pa)
-{
-    AddressSpace *dma_as = vdev->dma_as;
-
-    if (virtio_access_is_big_endian(vdev)) {
-        return ldl_be_phys(dma_as, pa);
-    }
-    return ldl_le_phys(dma_as, pa);
-}
+VIRTIO_LDST_CONVERT(l, int, uint32_t)
 
 static inline uint64_t virtio_ldq_phys(VirtIODevice *vdev, hwaddr pa)
 {
@@ -123,42 +118,12 @@ static inline uint64_t virtio_ldq_phys(VirtIODevice *vdev, hwaddr pa)
     return ldq_le_phys(dma_as, pa);
 }
 
-static inline void virtio_stl_phys(VirtIODevice *vdev, hwaddr pa,
-                                   uint32_t value)
-{
-    AddressSpace *dma_as = vdev->dma_as;
-
-    if (virtio_access_is_big_endian(vdev)) {
-        stl_be_phys(dma_as, pa, value);
-    } else {
-        stl_le_phys(dma_as, pa, value);
-    }
-}
-
-static inline void virtio_stl_p(VirtIODevice *vdev, void *ptr, uint32_t v)
-{
-    if (virtio_access_is_big_endian(vdev)) {
-        stl_be_p(ptr, v);
-    } else {
-        stl_le_p(ptr, v);
-    }
-}
-
 static inline void virtio_stq_p(VirtIODevice *vdev, void *ptr, uint64_t v)
 {
     if (virtio_access_is_big_endian(vdev)) {
         stq_be_p(ptr, v);
     } else {
         stq_le_p(ptr, v);
-    }
-}
-
-static inline uint32_t virtio_ldl_p(VirtIODevice *vdev, const void *ptr)
-{
-    if (virtio_access_is_big_endian(vdev)) {
-        return ldl_be_p(ptr);
-    } else {
-        return ldl_le_p(ptr);
     }
 }
 
@@ -180,16 +145,6 @@ static inline uint16_t virtio_tswap16(VirtIODevice *vdev, uint16_t s)
 #endif
 }
 
-static inline uint32_t virtio_ldl_phys_cached(VirtIODevice *vdev,
-                                              MemoryRegionCache *cache,
-                                              hwaddr pa)
-{
-    if (virtio_access_is_big_endian(vdev)) {
-        return ldl_be_phys_cached(cache, pa);
-    }
-    return ldl_le_phys_cached(cache, pa);
-}
-
 static inline uint64_t virtio_ldq_phys_cached(VirtIODevice *vdev,
                                               MemoryRegionCache *cache,
                                               hwaddr pa)
@@ -198,17 +153,6 @@ static inline uint64_t virtio_ldq_phys_cached(VirtIODevice *vdev,
         return ldq_be_phys_cached(cache, pa);
     }
     return ldq_le_phys_cached(cache, pa);
-}
-
-static inline void virtio_stl_phys_cached(VirtIODevice *vdev,
-                                          MemoryRegionCache *cache,
-                                          hwaddr pa, uint32_t value)
-{
-    if (virtio_access_is_big_endian(vdev)) {
-        stl_be_phys_cached(cache, pa, value);
-    } else {
-        stl_le_phys_cached(cache, pa, value);
-    }
 }
 
 static inline void virtio_tswap16s(VirtIODevice *vdev, uint16_t *s)
