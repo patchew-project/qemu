@@ -2337,6 +2337,11 @@ static inline void address_space_stb_cached(MemoryRegionCache *cache,
 #define ARG1_DECL    MemoryRegionCache *cache
 #include "exec/memory_ldst_phys.h.inc"
 
+#define SUFFIX       _cached_aligned
+#define ARG1         cache
+#define ARG1_DECL    MemoryRegionCache *cache
+#include "exec/memory_ldst_phys.h.inc"
+
 /* address_space_cache_init: prepare for repeated access to a physical
  * memory region
  *
