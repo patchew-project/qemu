@@ -449,6 +449,23 @@ static inline void stq_be_p(void *ptr, uint64_t v)
     stq_he_p(ptr, be_bswap(v, 64));
 }
 
+#define ST_CONVERT_UNALIGNED(bits, vtype, size)\
+static inline void st ## size ## _he_p(void *ptr, vtype v)\
+{\
+    __builtin_memcpy(ptr, &v, sizeof(v));\
+}
+
+#define ST_CONVERT_END(endian, bits, vtype, size)\
+static inline void st ## size ## _ ## endian ## _p(void *ptr, vtype v)\
+{\
+    st ## size ## _he_p(ptr, glue(endian, _bswap)(v, bits));\
+}
+
+#define ST_CONVERT(bits, vtype, size)\
+    ST_CONVERT_UNALIGNED(bits, vtype, size)\
+    ST_CONVERT_END(le, bits, vtype, size)\
+    ST_CONVERT_END(be, bits, vtype, size)
+
 static inline unsigned long leul_to_cpu(unsigned long v)
 {
 #if HOST_LONG_BITS == 32
