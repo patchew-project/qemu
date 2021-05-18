@@ -201,12 +201,16 @@ static void vt82c686b_southbridge_init(PCIBus *pci_bus, int slot, qemu_irq intc,
                                        I2CBus **i2c_bus)
 {
     PCIDevice *dev;
+    BusState *isa_bus;
 
     dev = pci_create_simple_multifunction(pci_bus, PCI_DEVFN(slot, 0), true,
                                           TYPE_VT82C686B_ISA);
+    isa_bus = qdev_get_child_bus(DEVICE(dev), "isa.0");
     qdev_connect_gpio_out(DEVICE(dev), 0, intc);
 
     dev = pci_new(PCI_DEVFN(slot, 1), "via-ide");
+    object_property_set_link(OBJECT(dev), "isa-bus",
+                             OBJECT(isa_bus), &error_abort);
     pci_realize_and_unref(dev, pci_bus, &error_abort);
     pci_ide_create_devs(dev);
 

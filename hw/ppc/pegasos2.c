@@ -57,6 +57,7 @@ static void pegasos2_init(MachineState *machine)
     PCIBus *pci_bus;
     PCIDevice *dev;
     I2CBus *i2c_bus;
+    BusState *isa_bus;
     const char *fwname = machine->firmware ?: PROM_FILENAME;
     char *filename;
     int sz;
@@ -104,11 +105,14 @@ static void pegasos2_init(MachineState *machine)
     /* VT8231 function 0: PCI-to-ISA Bridge */
     dev = pci_create_simple_multifunction(pci_bus, PCI_DEVFN(12, 0), true,
                                           TYPE_VT8231_ISA);
+    isa_bus = qdev_get_child_bus(DEVICE(dev), "isa.0");
     qdev_connect_gpio_out(DEVICE(dev), 0,
                           qdev_get_gpio_in_named(mv, "gpp", 31));
 
     /* VT8231 function 1: IDE Controller */
     dev = pci_new(PCI_DEVFN(12, 1), "via-ide");
+    object_property_set_link(OBJECT(dev), "isa-bus",
+                             OBJECT(isa_bus), &error_abort);
     pci_realize_and_unref(dev, pci_bus, &error_abort);
     pci_ide_create_devs(dev);
 

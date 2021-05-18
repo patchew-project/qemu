@@ -165,6 +165,11 @@ static void via_ide_realize(PCIDevice *dev, Error **errp)
     uint8_t *pci_conf = dev->config;
     int i;
 
+    if (!d->isa_bus) {
+        error_setg(errp, "via-ide: 'isa-bus' link not set");
+        return;
+    }
+
     pci_config_set_prog_interface(pci_conf, 0x8a); /* legacy mode */
     pci_set_long(pci_conf + PCI_CAPABILITY_LIST, 0x000000c0);
     dev->wmask[PCI_INTERRUPT_LINE] = 0;
