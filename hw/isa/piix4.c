@@ -248,20 +248,24 @@ static void piix4_register_types(void)
 
 type_init(piix4_register_types)
 
-DeviceState *piix4_create(PCIBus *pci_bus, ISABus **isa_bus, I2CBus **smbus)
+DeviceState *piix4_create(PCIBus *pci_bus, ISABus **isa_busp, I2CBus **smbus)
 {
     PCIDevice *pci;
     DeviceState *dev;
+    ISABus *isa_bus;
     int devfn = PCI_DEVFN(10, 0);
 
     pci = pci_create_simple_multifunction(pci_bus, devfn,  true,
                                           TYPE_PIIX4_PCI_DEVICE);
     dev = DEVICE(pci);
-    if (isa_bus) {
-        *isa_bus = ISA_BUS(qdev_get_child_bus(dev, "isa.0"));
+    isa_bus = ISA_BUS(qdev_get_child_bus(dev, "isa.0"));
+    if (isa_busp) {
+        *isa_busp = isa_bus;
     }
 
     pci = pci_new(devfn + 1, "piix4-ide");
+    object_property_set_link(OBJECT(pci), "isa-bus",
+                             OBJECT(isa_bus), &error_abort);
     pci_realize_and_unref(pci, pci_bus, &error_abort);
     pci_ide_create_devs(pci);
 

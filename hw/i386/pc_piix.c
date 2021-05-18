@@ -246,6 +246,8 @@ static void pc_init1(MachineState *machine,
 
         dev = pci_new(piix3_devfn + 1,
                       xen_enabled() ? "piix3-ide-xen" : "piix3-ide");
+        object_property_set_link(OBJECT(dev), "isa-bus",
+                                 OBJECT(isa_bus), &error_abort);
         pci_realize_and_unref(dev, pci_bus, &error_abort);
         pci_ide_create_devs(dev);
         idebus[0] = qdev_get_child_bus(&dev->qdev, "ide.0");

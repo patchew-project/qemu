@@ -152,6 +152,11 @@ static void pci_piix_ide_realize(PCIDevice *dev, Error **errp)
     PCIIDEState *d = PCI_IDE(dev);
     uint8_t *pci_conf = dev->config;
 
+    if (!d->isa_bus) {
+        error_setg(errp, "piix-ide: 'isa-bus' link not set");
+        return;
+    }
+
     pci_conf[PCI_CLASS_PROG] = 0x80; // legacy ATA mode
 
     bmdma_setup_bar(d);
