@@ -39,6 +39,35 @@ static inline bool virtio_access_is_big_endian(VirtIODevice *vdev)
 #endif
 }
 
+#define VIRTIO_LD_CONVERT(size, rtype)\
+static inline rtype virtio_ld ## size ## _phys(VirtIODevice *vdev, hwaddr pa)\
+{\
+    AddressSpace *dma_as = vdev->dma_as;\
+\
+    if (virtio_access_is_big_endian(vdev)) {\
+        return ld ## size ## _be_phys(dma_as, pa);\
+    }\
+    return ld ## size ## _le_phys(dma_as, pa);\
+}\
+static inline rtype virtio_ld ## size ## _p(VirtIODevice *vdev,\
+                                            const void *ptr)\
+{\
+    if (virtio_access_is_big_endian(vdev)) {\
+        return ld ## size ## _be_p(ptr);\
+    } else {\
+        return ld ## size ## _le_p(ptr);\
+    }\
+}\
+static inline rtype virtio_ld ## size ## _phys_cached(VirtIODevice *vdev,\
+                                                      MemoryRegionCache *cache,\
+                                                      hwaddr pa)\
+{\
+    if (virtio_access_is_big_endian(vdev)) {\
+        return ld ## size ## _be_phys_cached(cache, pa);\
+    }\
+    return ld ## size ## _le_phys_cached(cache, pa);\
+}
+
 static inline uint16_t virtio_lduw_phys(VirtIODevice *vdev, hwaddr pa)
 {
     AddressSpace *dma_as = vdev->dma_as;
