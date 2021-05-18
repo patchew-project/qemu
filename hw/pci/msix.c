@@ -22,6 +22,7 @@
 #include "sysemu/xen.h"
 #include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"
+#include "monitor/monitor.h"
 #include "qemu/range.h"
 #include "qapi/error.h"
 #include "trace.h"
@@ -669,3 +670,65 @@ const VMStateDescription vmstate_msix = {
         VMSTATE_END_OF_LIST()
     }
 };
+
+static void msix_dump_table(Monitor *mon, PCIDevice *dev)
+{
+    int vector;
+    uint32_t val;
+    uint8_t *table_entry;
+
+    monitor_printf(mon, "Msg L.Addr ");
+    monitor_printf(mon, "Msg U.Addr ");
+    monitor_printf(mon, "Msg Data   ");
+    monitor_printf(mon, "Vect Ctrl\n");
+
+    for (vector = 0; vector < dev->msix_entries_nr; vector++) {
+        table_entry = dev->msix_table + vector * PCI_MSIX_ENTRY_SIZE;
+
+        val = pci_get_long(table_entry + PCI_MSIX_ENTRY_LOWER_ADDR);
+        monitor_printf(mon, "0x%08x ", val);
+
+        val = pci_get_long(table_entry + PCI_MSIX_ENTRY_UPPER_ADDR);
+        monitor_printf(mon, "0x%08x ", val);
+
+        val = pci_get_long(table_entry + PCI_MSIX_ENTRY_DATA);
+        monitor_printf(mon, "0x%08x ", val);
+
+        val = pci_get_long(table_entry + PCI_MSIX_ENTRY_VECTOR_CTRL);
+        monitor_printf(mon, "0x%08x\n", val);
+    }
+
+    monitor_printf(mon, "\n");
+}
+
+static void msix_dump_pba(Monitor *mon, PCIDevice *dev)
+{
+    int vector;
+
+    monitor_printf(mon, "MSI-X PBA\n");
+
+    for (vector = 0; vector < dev->msix_entries_nr; vector++) {
+        monitor_printf(mon, "%d ", !!msix_is_pending(dev, vector));
+
+        if (vector % 16 == 15) {
+            monitor_printf(mon, "\n");
+        }
+    }
+
+    if (vector % 16 != 15) {
+        monitor_printf(mon, "\n");
+    }
+
+    monitor_printf(mon, "\n");
+}
+
+void msix_dump_info(Monitor *mon, PCIDevice *dev, Error **errp)
+{
+    if (!msix_present(dev)) {
+        error_setg(errp, "MSI-X not available");
+        return;
+    }
+
+    msix_dump_table(mon, dev);
+    msix_dump_pba(mon, dev);
+}
