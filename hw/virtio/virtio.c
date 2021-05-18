@@ -296,7 +296,7 @@ static inline uint16_t vring_avail_flags(VirtQueue *vq)
         return 0;
     }
 
-    return virtio_lduw_phys_cached(vq->vdev, &caches->avail, pa);
+    return virtio_lduw_phys_cached_aligned(vq->vdev, &caches->avail, pa);
 }
 
 /* Called within rcu_read_lock().  */
@@ -309,7 +309,8 @@ static inline uint16_t vring_avail_idx(VirtQueue *vq)
         return 0;
     }
 
-    vq->shadow_avail_idx = virtio_lduw_phys_cached(vq->vdev, &caches->avail, pa);
+    vq->shadow_avail_idx = virtio_lduw_phys_cached_aligned(vq->vdev,
+                                                           &caches->avail, pa);
     return vq->shadow_avail_idx;
 }
 
@@ -359,7 +360,7 @@ static uint16_t vring_used_idx(VirtQueue *vq)
         return 0;
     }
 
-    return virtio_lduw_phys_cached(vq->vdev, &caches->used, pa);
+    return virtio_lduw_phys_cached_aligned(vq->vdev, &caches->used, pa);
 }
 
 /* Called within rcu_read_lock().  */
@@ -369,7 +370,7 @@ static inline void vring_used_idx_set(VirtQueue *vq, uint16_t val)
     hwaddr pa = offsetof(VRingUsed, idx);
 
     if (caches) {
-        virtio_stw_phys_cached(vq->vdev, &caches->used, pa, val);
+        virtio_stw_phys_cached_aligned(vq->vdev, &caches->used, pa, val);
         address_space_cache_invalidate(&caches->used, pa, sizeof(val));
     }
 
@@ -388,8 +389,8 @@ static inline void vring_used_flags_set_bit(VirtQueue *vq, int mask)
         return;
     }
 
-    flags = virtio_lduw_phys_cached(vq->vdev, &caches->used, pa);
-    virtio_stw_phys_cached(vdev, &caches->used, pa, flags | mask);
+    flags = virtio_lduw_phys_cached_aligned(vq->vdev, &caches->used, pa);
+    virtio_stw_phys_cached_aligned(vdev, &caches->used, pa, flags | mask);
     address_space_cache_invalidate(&caches->used, pa, sizeof(flags));
 }
 
