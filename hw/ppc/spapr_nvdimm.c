@@ -54,6 +54,8 @@ bool spapr_nvdimm_validate(HotplugHandler *hotplug_dev, NVDIMMDevice *nvdimm,
 {
     const MachineClass *mc = MACHINE_GET_CLASS(hotplug_dev);
     const MachineState *ms = MACHINE(hotplug_dev);
+    PCDIMMDevice *dimm = PC_DIMM(nvdimm);
+    MemoryRegion *mr = host_memory_backend_get_memory(dimm->hostmem);
     g_autofree char *uuidstr = NULL;
     QemuUUID uuid;
     int ret;
@@ -88,6 +90,14 @@ bool spapr_nvdimm_validate(HotplugHandler *hotplug_dev, NVDIMMDevice *nvdimm,
 
     if (qemu_uuid_is_null(&uuid)) {
         error_setg(errp, "NVDIMM device requires the uuid to be set");
+        return false;
+    }
+
+    if (object_dynamic_cast(OBJECT(nvdimm), TYPE_SPAPR_NVDIMM) &&
+        (memory_region_get_fd(mr) < 0)) {
+        error_setg(errp, "spapr-nvdimm device requires the "
+                   "memdev %s to be of memory-backend-file type",
+                   object_get_canonical_path_component(OBJECT(dimm->hostmem)));
         return false;
     }
 
@@ -161,6 +171,21 @@ static int spapr_dt_nvdimm(SpaprMachineState *spapr, void *fdt,
     _FDT((fdt_setprop_string(fdt, child_offset, "ibm,pmem-application",
                              "operating-system")));
     _FDT(fdt_setprop(fdt, child_offset, "ibm,cache-flush-required", NULL, 0));
+
+    if (object_dynamic_cast(OBJECT(nvdimm), TYPE_SPAPR_NVDIMM)) {
+        bool is_pmem = false;
+#ifdef CONFIG_LIBPMEM
+        PCDIMMDevice *dimm = PC_DIMM(nvdimm);
+        HostMemoryBackend *hostmem = dimm->hostmem;
+
+        is_pmem = object_property_get_bool(OBJECT(hostmem), "pmem",
+                                           &error_abort);
+#endif
+        if (!is_pmem) {
+            _FDT(fdt_setprop(fdt, child_offset, "ibm,hcall-flush-required",
+                             NULL, 0));
+        }
+    }
 
     return child_offset;
 }
@@ -585,7 +610,16 @@ static target_ulong h_scm_flush(PowerPCCPU *cpu, SpaprMachineState *spapr,
     }
 
     dimm = PC_DIMM(drc->dev);
+    if (!object_dynamic_cast(OBJECT(dimm), TYPE_SPAPR_NVDIMM)) {
+        return H_PARAMETER;
+    }
+
     backend = MEMORY_BACKEND(dimm->hostmem);
+#ifdef CONFIG_LIBPMEM
+    if (object_property_get_bool(OBJECT(backend), "pmem", &error_abort)) {
+        return H_UNSUPPORTED;
+    }
+#endif
     fd = memory_region_get_fd(&backend->mr);
 
     if (fd < 0) {
@@ -766,3 +800,15 @@ static void spapr_scm_register_types(void)
 }
 
 type_init(spapr_scm_register_types)
+
+static TypeInfo spapr_nvdimm_info = {
+    .name          = TYPE_SPAPR_NVDIMM,
+    .parent        = TYPE_NVDIMM,
+};
+
+static void spapr_nvdimm_register_types(void)
+{
+    type_register_static(&spapr_nvdimm_info);
+}
+
+type_init(spapr_nvdimm_register_types)

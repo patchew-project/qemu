@@ -13,6 +13,10 @@
 #include "hw/mem/nvdimm.h"
 #include "migration/vmstate.h"
 
+#define TYPE_SPAPR_NVDIMM "spapr-nvdimm"
+OBJECT_DECLARE_SIMPLE_TYPE(SpaprNVDIMMDevice, SPAPR_NVDIMM)
+
+typedef struct SpaprNVDIMMDevice  SpaprNVDIMMDevice;
 typedef struct SpaprDrc SpaprDrc;
 typedef struct SpaprMachineState SpaprMachineState;
 
