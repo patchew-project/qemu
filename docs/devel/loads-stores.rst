@@ -13,20 +13,21 @@ documentation of each API -- for that you should look at the
 documentation comments in the relevant header files.
 
 
-``ld*_p and st*_p``
-~~~~~~~~~~~~~~~~~~~
+``ld*_[a]p and st*_[a]p``
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 These functions operate on a host pointer, and should be used
 when you already have a pointer into host memory (corresponding
 to guest ram or a local buffer). They deal with doing accesses
 with the desired endianness and with correctly handling
-potentially unaligned pointer values.
+potentially unaligned pointer values. If the pointer alignment
+is known to be safe, then the aligned functions can be used.
 
 Function names follow the pattern:
 
-load: ``ld{sign}{size}_{endian}_p(ptr)``
+load: ``ld{sign}{size}_{endian}_{aligned}p(ptr)``
 
-store: ``st{size}_{endian}_p(ptr, val)``
+store: ``st{size}_{endian}_{aligned}p(ptr, val)``
 
 ``sign``
  - (empty) : for 32 or 64 bit sizes
@@ -49,24 +50,28 @@ The ``_{endian}`` infix is omitted for target-endian accesses.
 The target endian accessors are only available to source
 files which are built per-target.
 
+By using the ``_{aligned}`` infix, unsafe optimizations might be used,
+however unaligned pointer might trigger an exception and abort the
+process.
+
 There are also functions which take the size as an argument:
 
-load: ``ldn{endian}_p(ptr, sz)``
+load: ``ldn{endian}_{aligned}p(ptr, sz)``
 
 which performs an unsigned load of ``sz`` bytes from ``ptr``
 as an ``{endian}`` order value and returns it in a uint64_t.
 
-store: ``stn{endian}_p(ptr, sz, val)``
+store: ``stn{endian}_{aligned}p(ptr, sz, val)``
 
 which stores ``val`` to ``ptr`` as an ``{endian}`` order value
 of size ``sz`` bytes.
 
 
 Regexes for git grep
- - ``\<ld[us]\?[bwlq]\(_[hbl]e\)\?_p\>``
- - ``\<st[bwlq]\(_[hbl]e\)\?_p\>``
- - ``\<ldn_\([hbl]e\)?_p\>``
- - ``\<stn_\([hbl]e\)?_p\>``
+ - ``\<ld[us]\?[bwlq]\(_[hbl]e\)\?_a?p\>``
+ - ``\<st[bwlq]\(_[hbl]e\)\?_a?p\>``
+ - ``\<ldn_\([hbl]e\)?_a?p\>``
+ - ``\<stn_\([hbl]e\)?_a?p\>``
 
 ``cpu_{ld,st}*_mmuidx_ra``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~

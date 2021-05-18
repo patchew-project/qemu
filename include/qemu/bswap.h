@@ -350,25 +350,47 @@ static inline void st ## size ## _he_p(void *ptr, vtype v)\
     __builtin_memcpy(ptr, &v, sizeof(v));\
 }
 
+#define LD_CONVERT_ALIGNED(bits, rtype, vtype, size)\
+static inline rtype ld ## size ## _he_ap(const void *ptr)\
+{\
+    return *(vtype *)ptr;\
+}
+
+#define ST_CONVERT_ALIGNED(bits, vtype, size)\
+static inline void st ## size ## _he_ap(void *ptr, vtype v)\
+{\
+    *(vtype *)ptr = v;\
+}
+
 #define LD_CONVERT_END(endian, bits, rtype, vtype, size)\
 static inline rtype ld ## size ## _ ## endian ## _p(const void *ptr)\
 {\
     return (vtype)glue(endian, _bswap)(ld ## size ## _he_p(ptr), bits);\
+}\
+static inline rtype ld ## size ## _ ## endian ## _ap(const void *ptr)\
+{\
+    return (vtype)glue(endian, _bswap)(ld ## size ## _he_ap(ptr), bits);\
 }
 
 #define ST_CONVERT_END(endian, bits, vtype, size)\
 static inline void st ## size ## _ ## endian ## _p(void *ptr, vtype v)\
 {\
     st ## size ## _he_p(ptr, glue(endian, _bswap)(v, bits));\
+}\
+static inline void st ## size ## _ ## endian ## _ap(void *ptr, vtype v)\
+{\
+    st ## size ## _he_ap(ptr, glue(endian, _bswap)(v, bits));\
 }
 
 #define LD_CONVERT(bits, rtype, vtype, size)\
     LD_CONVERT_UNALIGNED(bits, rtype, vtype, size)\
+    LD_CONVERT_ALIGNED(bits, rtype, vtype, size)\
     LD_CONVERT_END(le, bits, rtype, vtype, size)\
     LD_CONVERT_END(be, bits, rtype, vtype, size)
 
 #define ST_CONVERT(bits, vtype, size)\
     ST_CONVERT_UNALIGNED(bits, vtype, size)\
+    ST_CONVERT_ALIGNED(bits, vtype, size)\
     ST_CONVERT_END(le, bits, vtype, size)\
     ST_CONVERT_END(be, bits, vtype, size)
 
