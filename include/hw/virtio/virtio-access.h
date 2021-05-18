@@ -66,6 +66,16 @@ static inline rtype virtio_ld ## size ## _phys_cached(VirtIODevice *vdev,\
         return ld ## size ## _be_phys_cached(cache, pa);\
     }\
     return ld ## size ## _le_phys_cached(cache, pa);\
+}\
+static inline rtype virtio_ld ## size ## _phys_cached_aligned(\
+                                                      VirtIODevice *vdev,\
+                                                      MemoryRegionCache *cache,\
+                                                      hwaddr pa)\
+{\
+    if (virtio_access_is_big_endian(vdev)) {\
+        return ld ## size ## _be_phys_cached_aligned(cache, pa);\
+    }\
+    return ld ## size ## _le_phys_cached_aligned(cache, pa);\
 }
 
 #define VIRTIO_ST_CONVERT(size, vtype)\
@@ -97,6 +107,17 @@ static inline void virtio_st ## size ## _phys_cached(VirtIODevice *vdev,\
         st ## size ## _be_phys_cached(cache, pa, value);\
     } else {\
         st ## size ## _le_phys_cached(cache, pa, value);\
+    }\
+}\
+static inline void virtio_st ## size ## _phys_cached_aligned(\
+                                                     VirtIODevice *vdev,\
+                                                     MemoryRegionCache *cache,\
+                                                     hwaddr pa, vtype value)\
+{\
+    if (virtio_access_is_big_endian(vdev)) {\
+        st ## size ## _be_phys_cached_aligned(cache, pa, value);\
+    } else {\
+        st ## size ## _le_phys_cached_aligned(cache, pa, value);\
     }\
 }
 
