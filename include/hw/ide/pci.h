@@ -47,6 +47,7 @@ struct PCIIDEState {
     PCIDevice parent_obj;
     /*< public >*/
 
+    ISABus *isa_bus;
     IDEBus bus[2];
     BMDMAState bmdma[2];
     uint32_t secondary; /* used only for cmd646 */

@@ -28,8 +28,9 @@
 #include "hw/pci/pci.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
+#include "qapi/error.h"
 #include "sysemu/dma.h"
-
+#include "hw/isa/isa.h"
 #include "hw/ide/pci.h"
 #include "trace.h"
 
@@ -210,6 +211,12 @@ static void via_ide_exitfn(PCIDevice *dev)
     }
 }
 
+static Property via_ide_properties[] = {
+    DEFINE_PROP_LINK("isa-bus", PCIIDEState, isa_bus,
+                     TYPE_ISA_BUS, ISABus *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void via_ide_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -224,6 +231,7 @@ static void via_ide_class_init(ObjectClass *klass, void *data)
     k->revision = 0x06;
     k->class_id = PCI_CLASS_STORAGE_IDE;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+    device_class_set_props(dc, via_ide_properties);
 }
 
 static const TypeInfo via_ide_info = {
