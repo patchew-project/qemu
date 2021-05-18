@@ -261,7 +261,8 @@ DeviceState *piix4_create(PCIBus *pci_bus, ISABus **isa_bus, I2CBus **smbus)
         *isa_bus = ISA_BUS(qdev_get_child_bus(dev, "isa.0"));
     }
 
-    pci = pci_create_simple(pci_bus, devfn + 1, "piix4-ide");
+    pci = pci_new(devfn + 1, "piix4-ide");
+    pci_realize_and_unref(pci, pci_bus, &error_abort);
     pci_ide_create_devs(pci);
 
     pci_create_simple(pci_bus, devfn + 2, "piix4-usb-uhci");
