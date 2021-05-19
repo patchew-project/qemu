@@ -5504,9 +5504,6 @@ echo "ARCH=$ARCH" >> $config_host_mak
 if test "$debug_tcg" = "yes" ; then
   echo "CONFIG_DEBUG_TCG=y" >> $config_host_mak
 fi
-if test "$strip_opt" = "yes" ; then
-  echo "STRIP=${strip}" >> $config_host_mak
-fi
 if test "$bigendian" = "yes" ; then
   echo "HOST_WORDS_BIGENDIAN=y" >> $config_host_mak
 fi
