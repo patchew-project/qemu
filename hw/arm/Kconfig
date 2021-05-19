@@ -292,6 +292,7 @@ config ZYNQ
     select XILINX_SPI
     select XILINX_SPIPS
     select ZYNQ_DEVCFG
+    select USB_CHIPIDEA
 
 config ARM_V7M
     bool
