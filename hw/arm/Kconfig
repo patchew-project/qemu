@@ -385,6 +385,7 @@ config FSL_IMX25
     select IMX_I2C
     select WDT_IMX2
     select DS1338
+    select USB_CHIPIDEA
 
 config FSL_IMX31
     bool
@@ -403,6 +404,7 @@ config FSL_IMX6
     select IMX_USBPHY
     select WDT_IMX2
     select SDHCI
+    select USB_CHIPIDEA
 
 config ASPEED_SOC
     bool
@@ -447,6 +449,7 @@ config FSL_IMX7
     select PCI_EXPRESS_DESIGNWARE
     select SDHCI
     select UNIMP
+    select USB_CHIPIDEA
 
 config ARM_SMMUV3
     bool
@@ -460,6 +463,7 @@ config FSL_IMX6UL
     select WDT_IMX2
     select SDHCI
     select UNIMP
+    select USB_CHIPIDEA
 
 config MICROBIT
     bool
