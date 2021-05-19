@@ -931,6 +931,10 @@ int hvf_vcpu_exec(CPUState *cpu)
         cpu_synchronize_state(cpu);
         if (!hvf_handle_psci_call(cpu)) {
             advance_pc = true;
+        } else if (env->xregs[0] == QEMU_SMCCC_TC_WINDOWS10_BOOT) {
+            /* This special SMC is called by Windows 10 on boot. Return error */
+            env->xregs[0] = -1;
+            advance_pc = true;
         } else {
             trace_hvf_unknown_smc(env->xregs[0]);
             hvf_raise_exception(env, EXCP_UDEF, syn_uncategorized());
