@@ -4,7 +4,8 @@ softmmu_ss.add(files(
   'hd-geometry.c'
 ))
 softmmu_ss.add(when: 'CONFIG_ECC', if_true: files('ecc.c'))
-softmmu_ss.add(when: 'CONFIG_FDC', if_true: files('fdc.c'),
+softmmu_ss.add(when: 'CONFIG_FDC', if_true: files('fdc.c'))
+softmmu_ss.add(when: 'CONFIG_FDC_ISA', if_true: files('fdc-isa.c'),
                                        if_false: files('fdc-isa-stubs.c'))
 softmmu_ss.add(when: 'CONFIG_NAND', if_true: files('nand.c'))
 softmmu_ss.add(when: 'CONFIG_ONENAND', if_true: files('onenand.c'))
