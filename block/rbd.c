@@ -976,6 +976,7 @@ static int64_t qemu_rbd_getlength(BlockDriverState *bs)
         return r;
     }
 
+    s->image_size = info.size;
     return info.size;
 }
 
