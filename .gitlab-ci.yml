@@ -52,7 +52,7 @@ include:
     # Avoid recompiling by hiding ninja with NINJA=":"
     - make NINJA=":" $MAKE_CHECK_ARGS
 
-.acceptance_test_job_template:
+.integration_test_job_template:
   extends: .native_test_job_template
   cache:
     key: "${CI_JOB_NAME}-cache"
@@ -109,7 +109,7 @@ check-system-alpine:
     MAKE_CHECK_ARGS: check
 
 acceptance-system-alpine:
-  extends: .acceptance_test_job_template
+  extends: .integration_test_job_template
   needs:
     - job: build-system-alpine
       artifacts: true
@@ -142,7 +142,7 @@ check-system-ubuntu:
     MAKE_CHECK_ARGS: check
 
 acceptance-system-ubuntu:
-  extends: .acceptance_test_job_template
+  extends: .integration_test_job_template
   needs:
     - job: build-system-ubuntu
       artifacts: true
@@ -175,7 +175,7 @@ check-system-debian:
     MAKE_CHECK_ARGS: check
 
 acceptance-system-debian:
-  extends: .acceptance_test_job_template
+  extends: .integration_test_job_template
   needs:
     - job: build-system-debian
       artifacts: true
@@ -209,7 +209,7 @@ check-system-fedora:
     MAKE_CHECK_ARGS: check
 
 acceptance-system-fedora:
-  extends: .acceptance_test_job_template
+  extends: .integration_test_job_template
   needs:
     - job: build-system-fedora
       artifacts: true
@@ -243,7 +243,7 @@ check-system-centos:
     MAKE_CHECK_ARGS: check
 
 acceptance-system-centos:
-  extends: .acceptance_test_job_template
+  extends: .integration_test_job_template
   needs:
     - job: build-system-centos
       artifacts: true
@@ -275,7 +275,7 @@ check-system-opensuse:
     MAKE_CHECK_ARGS: check
 
 acceptance-system-opensuse:
-  extends: .acceptance_test_job_template
+  extends: .integration_test_job_template
   needs:
     - job: build-system-opensuse
       artifacts: true
@@ -516,7 +516,7 @@ check-cfi-aarch64:
     MAKE_CHECK_ARGS: check
 
 acceptance-cfi-aarch64:
-  extends: .acceptance_test_job_template
+  extends: .integration_test_job_template
   needs:
     - job: build-cfi-aarch64
       artifacts: true
@@ -552,7 +552,7 @@ check-cfi-ppc64-s390x:
     MAKE_CHECK_ARGS: check
 
 acceptance-cfi-ppc64-s390x:
-  extends: .acceptance_test_job_template
+  extends: .integration_test_job_template
   needs:
     - job: build-cfi-ppc64-s390x
       artifacts: true
@@ -588,7 +588,7 @@ check-cfi-x86_64:
     MAKE_CHECK_ARGS: check
 
 acceptance-cfi-x86_64:
-  extends: .acceptance_test_job_template
+  extends: .integration_test_job_template
   needs:
     - job: build-cfi-x86_64
       artifacts: true
