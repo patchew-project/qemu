@@ -2397,44 +2397,24 @@ static int kvm_put_fpu(X86CPU *cpu)
     return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_FPU, &fpu);
 }
 
-#define XSAVE_FCW_FSW     0
-#define XSAVE_FTW_FOP     1
-#define XSAVE_CWD_RIP     2
-#define XSAVE_CWD_RDP     4
-#define XSAVE_MXCSR       6
-#define XSAVE_ST_SPACE    8
-#define XSAVE_XMM_SPACE   40
-#define XSAVE_XSTATE_BV   128
-#define XSAVE_YMMH_SPACE  144
-#define XSAVE_BNDREGS     240
-#define XSAVE_BNDCSR      256
-#define XSAVE_OPMASK      272
-#define XSAVE_ZMM_Hi256   288
-#define XSAVE_Hi16_ZMM    416
-#define XSAVE_PKRU        672
+#define ASSERT_OFFSET(offset, field) \
+    QEMU_BUILD_BUG_ON(offset != offsetof(X86XSaveArea, field))
 
-#define XSAVE_BYTE_OFFSET(word_offset) \
-    ((word_offset) * sizeof_field(struct kvm_xsave, region[0]))
-
-#define ASSERT_OFFSET(word_offset, field) \
-    QEMU_BUILD_BUG_ON(XSAVE_BYTE_OFFSET(word_offset) != \
-                      offsetof(X86XSaveArea, field))
-
-ASSERT_OFFSET(XSAVE_FCW_FSW, legacy.fcw);
-ASSERT_OFFSET(XSAVE_FTW_FOP, legacy.ftw);
-ASSERT_OFFSET(XSAVE_CWD_RIP, legacy.fpip);
-ASSERT_OFFSET(XSAVE_CWD_RDP, legacy.fpdp);
-ASSERT_OFFSET(XSAVE_MXCSR, legacy.mxcsr);
-ASSERT_OFFSET(XSAVE_ST_SPACE, legacy.fpregs);
-ASSERT_OFFSET(XSAVE_XMM_SPACE, legacy.xmm_regs);
-ASSERT_OFFSET(XSAVE_XSTATE_BV, header.xstate_bv);
-ASSERT_OFFSET(XSAVE_YMMH_SPACE, avx_state);
-ASSERT_OFFSET(XSAVE_BNDREGS, bndreg_state);
-ASSERT_OFFSET(XSAVE_BNDCSR, bndcsr_state);
-ASSERT_OFFSET(XSAVE_OPMASK, opmask_state);
-ASSERT_OFFSET(XSAVE_ZMM_Hi256, zmm_hi256_state);
-ASSERT_OFFSET(XSAVE_Hi16_ZMM, hi16_zmm_state);
-ASSERT_OFFSET(XSAVE_PKRU, pkru_state);
+ASSERT_OFFSET(XSAVE_FCW_FSW_OFFSET, legacy.fcw);
+ASSERT_OFFSET(XSAVE_FTW_FOP_OFFSET, legacy.ftw);
+ASSERT_OFFSET(XSAVE_CWD_RIP_OFFSET, legacy.fpip);
+ASSERT_OFFSET(XSAVE_CWD_RDP_OFFSET, legacy.fpdp);
+ASSERT_OFFSET(XSAVE_MXCSR_OFFSET, legacy.mxcsr);
+ASSERT_OFFSET(XSAVE_ST_SPACE_OFFSET, legacy.fpregs);
+ASSERT_OFFSET(XSAVE_XMM_SPACE_OFFSET, legacy.xmm_regs);
+ASSERT_OFFSET(XSAVE_XSTATE_BV_OFFSET, header.xstate_bv);
+ASSERT_OFFSET(XSAVE_AVX_OFFSET, avx_state);
+ASSERT_OFFSET(XSAVE_BNDREG_OFFSET, bndreg_state);
+ASSERT_OFFSET(XSAVE_BNDCSR_OFFSET, bndcsr_state);
+ASSERT_OFFSET(XSAVE_OPMASK_OFFSET, opmask_state);
+ASSERT_OFFSET(XSAVE_ZMM_HI256_OFFSET, zmm_hi256_state);
+ASSERT_OFFSET(XSAVE_HI16_ZMM_OFFSET, hi16_zmm_state);
+ASSERT_OFFSET(XSAVE_PKRU_OFFSET, pkru_state);
 
 static int kvm_put_xsave(X86CPU *cpu)
 {
