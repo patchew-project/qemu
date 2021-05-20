@@ -31,6 +31,13 @@ static inline uint16_t ADDRESS_SPACE_LD_CACHED(uw)(MemoryRegionCache *cache,
     assert(addr < cache->len && 2 <= cache->len - addr);
     fuzz_dma_read_cb(cache->xlat + addr, 2, cache->mrs.mr);
     if (likely(cache->ptr)) {
+        if (attrs.aligned && unlikely(!QEMU_PTR_IS_ALIGNED(cache->ptr,
+                                                           sizeof(uint16_t)))) {
+            if (result) {
+                *result = MEMTX_UNALIGNED_ERROR;
+            }
+            return (uint16_t)-1; /* XXX */
+        }
         if (result) {
             *result = MEMTX_OK;
         }
@@ -47,6 +54,13 @@ static inline uint32_t ADDRESS_SPACE_LD_CACHED(l)(MemoryRegionCache *cache,
     assert(addr < cache->len && 4 <= cache->len - addr);
     fuzz_dma_read_cb(cache->xlat + addr, 4, cache->mrs.mr);
     if (likely(cache->ptr)) {
+        if (attrs.aligned && unlikely(!QEMU_PTR_IS_ALIGNED(cache->ptr,
+                                                           sizeof(uint32_t)))) {
+            if (result) {
+                *result = MEMTX_UNALIGNED_ERROR;
+            }
+            return (uint32_t)-1; /* XXX */
+        }
         if (result) {
             *result = MEMTX_OK;
         }
@@ -63,6 +77,13 @@ static inline uint64_t ADDRESS_SPACE_LD_CACHED(q)(MemoryRegionCache *cache,
     assert(addr < cache->len && 8 <= cache->len - addr);
     fuzz_dma_read_cb(cache->xlat + addr, 8, cache->mrs.mr);
     if (likely(cache->ptr)) {
+        if (attrs.aligned && unlikely(!QEMU_PTR_IS_ALIGNED(cache->ptr,
+                                                           sizeof(uint64_t)))) {
+            if (result) {
+                *result = MEMTX_UNALIGNED_ERROR;
+            }
+            return (uint64_t)-1; /* XXX */
+        }
         if (result) {
             *result = MEMTX_OK;
         }
@@ -89,6 +110,13 @@ static inline void ADDRESS_SPACE_ST_CACHED(w)(MemoryRegionCache *cache,
 {
     assert(addr < cache->len && 2 <= cache->len - addr);
     if (likely(cache->ptr)) {
+        if (attrs.aligned && unlikely(!QEMU_PTR_IS_ALIGNED(cache->ptr,
+                                                           sizeof(uint16_t)))) {
+            if (result) {
+                *result = MEMTX_UNALIGNED_ERROR;
+            }
+            return;
+        }
         if (result) {
             *result = MEMTX_OK;
         }
@@ -104,6 +132,13 @@ static inline void ADDRESS_SPACE_ST_CACHED(l)(MemoryRegionCache *cache,
 {
     assert(addr < cache->len && 4 <= cache->len - addr);
     if (likely(cache->ptr)) {
+        if (attrs.aligned && unlikely(!QEMU_PTR_IS_ALIGNED(cache->ptr,
+                                                           sizeof(uint32_t)))) {
+            if (result) {
+                *result = MEMTX_UNALIGNED_ERROR;
+            }
+            return;
+        }
         if (result) {
             *result = MEMTX_OK;
         }
@@ -119,6 +154,13 @@ static inline void ADDRESS_SPACE_ST_CACHED(q)(MemoryRegionCache *cache,
 {
     assert(addr < cache->len && 8 <= cache->len - addr);
     if (likely(cache->ptr)) {
+        if (attrs.aligned && unlikely(!QEMU_PTR_IS_ALIGNED(cache->ptr,
+                                                           sizeof(uint64_t)))) {
+            if (result) {
+                *result = MEMTX_UNALIGNED_ERROR;
+            }
+            return;
+        }
         if (result) {
             *result = MEMTX_OK;
         }
