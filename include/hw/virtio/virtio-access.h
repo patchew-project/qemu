@@ -156,14 +156,41 @@ static inline uint16_t virtio_tswap16(VirtIODevice *vdev, uint16_t s)
 #endif
 }
 
+/**
+ * virtio_ld*_phys_cached_with_attrs: load from a VirtIO cached #MemoryRegion
+ * virtio_st*_phys_cached_with_attrs: store to a VirtIO cached #MemoryRegion
+ *
+ * These functions perform a load or store of the byte, word,
+ * longword or quad to the specified address.  The address is
+ * a physical address in the VirtIO device AddressSpace, but it must lie within
+ * a #MemoryRegion that was mapped with address_space_cache_init.
+ *
+ * @vdev: virtio device accessed
+ * @cache: previously initialized #MemoryRegionCache to be accessed
+ * @pa: physical address within the address space
+ * @val: data value, for stores
+ * @attrs: memory transaction attributes
+ * @result: location to write the success/failure of the transaction;
+ *   if NULL, this information is discarded
+ */
+
+static inline uint16_t virtio_lduw_phys_cached_with_attrs(VirtIODevice *vdev,
+                                                MemoryRegionCache *cache,
+                                                hwaddr pa, MemTxAttrs attrs,
+                                                MemTxResult *result)
+{
+    if (virtio_access_is_big_endian(vdev)) {
+        return address_space_lduw_be_cached(cache, pa, attrs, result);
+    }
+    return address_space_lduw_le_cached(cache, pa, attrs, result);
+}
+
 static inline uint16_t virtio_lduw_phys_cached(VirtIODevice *vdev,
                                                MemoryRegionCache *cache,
                                                hwaddr pa)
 {
-    if (virtio_access_is_big_endian(vdev)) {
-        return lduw_be_phys_cached(cache, pa);
-    }
-    return lduw_le_phys_cached(cache, pa);
+    return virtio_lduw_phys_cached_with_attrs(vdev, cache, pa,
+                                              MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
 static inline uint32_t virtio_ldl_phys_cached(VirtIODevice *vdev,
