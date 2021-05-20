@@ -134,7 +134,7 @@ size_t virtio_bus_get_vdev_config_len(VirtioBusState *bus)
 }
 
 /* Get bad features of the plugged device. */
-uint32_t virtio_bus_get_vdev_bad_features(VirtioBusState *bus)
+uint64_t virtio_bus_get_vdev_bad_features(VirtioBusState *bus)
 {
     VirtIODevice *vdev = virtio_bus_get_device(bus);
     VirtioDeviceClass *k;
