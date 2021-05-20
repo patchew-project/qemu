@@ -40,6 +40,7 @@
 #define VIRTIO_BLK_F_MQ		12	/* support more than one vq */
 #define VIRTIO_BLK_F_DISCARD	13	/* DISCARD is supported */
 #define VIRTIO_BLK_F_WRITE_ZEROES	14	/* WRITE ZEROES is supported */
+#define VIRTIO_BLK_F_NO_PS      16      /* Disable partitions scanning */
 
 /* Legacy feature bits */
 #ifndef VIRTIO_BLK_NO_LEGACY

@@ -1031,6 +1031,9 @@ static uint64_t virtio_blk_get_features(VirtIODevice *vdev, uint64_t features,
     if (s->conf.num_queues > 1) {
         virtio_add_feature(&features, VIRTIO_BLK_F_MQ);
     }
+    if (!s->conf.scan_parts) {
+        virtio_add_feature(&features, VIRTIO_BLK_F_NO_PS);
+    }
 
     return features;
 }
@@ -1295,6 +1298,7 @@ static Property virtio_blk_properties[] = {
 #endif
     DEFINE_PROP_BIT("request-merging", VirtIOBlock, conf.request_merging, 0,
                     true),
+    DEFINE_PROP_BOOL("scan-parts", VirtIOBlock, conf.scan_parts, true),
     DEFINE_PROP_UINT16("num-queues", VirtIOBlock, conf.num_queues,
                        VIRTIO_BLK_AUTO_NUM_QUEUES),
     DEFINE_PROP_UINT16("queue-size", VirtIOBlock, conf.queue_size, 256),
