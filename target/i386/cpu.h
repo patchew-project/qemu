@@ -1319,7 +1319,8 @@ typedef struct XSavePKRU {
 #define XSAVE_OPMASK_OFFSET     0x440
 #define XSAVE_ZMM_HI256_OFFSET  0x480
 #define XSAVE_HI16_ZMM_OFFSET   0x680
-#define XSAVE_PKRU_OFFSET       0xa80
+#define XSAVE_INTEL_PKRU_OFFSET 0xa80
+#define XSAVE_AMD_PKRU_OFFSET   0x980
 
 typedef struct X86XSaveArea {
     X86LegacyXSaveArea legacy;
@@ -1348,6 +1349,16 @@ typedef struct X86XSaveArea {
             /* PKRU State: */
             XSavePKRU pkru_state;
         } intel;
+        struct {
+            /* Ensure that XSavePKRU is properly aligned. */
+            uint8_t padding[XSAVE_AMD_PKRU_OFFSET
+                            - sizeof(X86LegacyXSaveArea)
+                            - sizeof(X86XSaveHeader)
+                            - sizeof(XSaveAVX)];
+
+            /* PKRU State: */
+            XSavePKRU pkru_state;
+        } amd;
     };
 } X86XSaveArea;
 
@@ -1370,7 +1381,9 @@ QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, intel.hi16_zmm_state)
                   != XSAVE_HI16_ZMM_OFFSET);
 QEMU_BUILD_BUG_ON(sizeof(XSaveHi16_ZMM) != 0x400);
 QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, intel.pkru_state)
-                  != XSAVE_PKRU_OFFSET);
+                  != XSAVE_INTEL_PKRU_OFFSET);
+QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, amd.pkru_state)
+                  != XSAVE_AMD_PKRU_OFFSET);
 QEMU_BUILD_BUG_ON(sizeof(XSavePKRU) != 0x8);
 
 typedef enum TPRAccess {

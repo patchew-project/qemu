@@ -2414,7 +2414,8 @@ ASSERT_OFFSET(XSAVE_BNDCSR_OFFSET, intel.bndcsr_state);
 ASSERT_OFFSET(XSAVE_OPMASK_OFFSET, intel.opmask_state);
 ASSERT_OFFSET(XSAVE_ZMM_HI256_OFFSET, intel.zmm_hi256_state);
 ASSERT_OFFSET(XSAVE_HI16_ZMM_OFFSET, intel.hi16_zmm_state);
-ASSERT_OFFSET(XSAVE_PKRU_OFFSET, intel.pkru_state);
+ASSERT_OFFSET(XSAVE_INTEL_PKRU_OFFSET, intel.pkru_state);
+ASSERT_OFFSET(XSAVE_AMD_PKRU_OFFSET, amd.pkru_state);
 
 static int kvm_put_xsave(X86CPU *cpu)
 {
