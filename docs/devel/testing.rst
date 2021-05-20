@@ -643,17 +643,16 @@ supported. To start the fuzzer, run
 Alternatively, some command different from "qemu-img info" can be tested, by
 changing the ``-c`` option.
 
-Acceptance tests using the Avocado Framework
-============================================
+System tests using the Avocado Framework
+========================================
 
-The ``tests/acceptance`` directory hosts functional tests, also known
-as acceptance level tests.  They're usually higher level tests, and
-may interact with external resources and with various guest operating
-systems.
+The ``tests/system`` directory hosts system tests. They're usually higher
+level tests, and may interact with external resources and with various
+guest operating systems.
 
 These tests are written using the Avocado Testing Framework (which must
 be installed separately) in conjunction with a the ``avocado_qemu.Test``
-class, implemented at ``tests/acceptance/avocado_qemu``.
+class, implemented at ``tests/system/avocado_qemu``.
 
 Tests based on ``avocado_qemu.Test`` can easily:
 
@@ -685,11 +684,11 @@ Tests based on ``avocado_qemu.Test`` can easily:
 Running tests
 -------------
 
-You can run the acceptance tests simply by executing:
+You can run the system tests simply by executing:
 
 .. code::
 
-  make check-acceptance
+  make check-system
 
 This involves the automatic creation of Python virtual environment
 within the build tree (at ``tests/venv``) which will have all the
@@ -709,7 +708,7 @@ may be invoked by running:
 
  .. code::
 
-  tests/venv/bin/avocado run $OPTION1 $OPTION2 tests/acceptance/
+  tests/venv/bin/avocado run $OPTION1 $OPTION2 tests/system/
 
 Manual Installation
 -------------------
@@ -727,7 +726,7 @@ Alternatively, follow the instructions on this link:
 Overview
 --------
 
-The ``tests/acceptance/avocado_qemu`` directory provides the
+The ``tests/system/avocado_qemu`` directory provides the
 ``avocado_qemu`` Python module, containing the ``avocado_qemu.Test``
 class.  Here's a simple usage example:
 
@@ -1011,7 +1010,7 @@ And remove any package you want with::
 
   pip uninstall <package_name>
 
-If you've used ``make check-acceptance``, the Python virtual environment where
+If you've used ``make check-system``, the Python virtual environment where
 Avocado is installed will be cleaned up as part of ``make check-clean``.
 
 .. _checktcg-ref:

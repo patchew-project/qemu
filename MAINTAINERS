@@ -178,7 +178,7 @@ S: Maintained
 F: docs/system/target-avr.rst
 F: gdb-xml/avr-cpu.xml
 F: target/avr/
-F: tests/acceptance/machine_avr6.py
+F: tests/system/machine_avr6.py
 
 CRIS TCG CPUs
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
@@ -272,7 +272,7 @@ F: target/ppc/
 F: hw/ppc/
 F: include/hw/ppc/
 F: disas/ppc.c
-F: tests/acceptance/machine_ppc.py
+F: tests/system/machine_ppc.py
 
 RISC-V TCG CPUs
 M: Palmer Dabbelt <palmer@dabbelt.com>
@@ -641,7 +641,7 @@ S: Odd Fixes
 F: include/hw/arm/digic.h
 F: hw/*/digic*
 F: include/hw/*/digic*
-F: tests/acceptance/machine_arm_canona1100.py
+F: tests/system/machine_arm_canona1100.py
 F: docs/system/arm/digic.rst
 
 Goldfish RTC
@@ -690,7 +690,7 @@ S: Maintained
 F: hw/arm/integratorcp.c
 F: hw/misc/arm_integrator_debug.c
 F: include/hw/misc/arm_integrator_debug.h
-F: tests/acceptance/machine_arm_integratorcp.py
+F: tests/system/machine_arm_integratorcp.py
 F: docs/system/arm/integratorcp.rst
 
 MCIMX6UL EVK / i.MX6ul
@@ -787,7 +787,7 @@ F: hw/rtc/twl92230.c
 F: include/hw/display/blizzard.h
 F: include/hw/input/tsc2xxx.h
 F: include/hw/misc/cbus.h
-F: tests/acceptance/machine_arm_n8x0.py
+F: tests/system/machine_arm_n8x0.py
 F: docs/system/arm/nseries.rst
 
 Palm
@@ -1123,7 +1123,7 @@ M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
 F: hw/microblaze/petalogix_s3adsp1800_mmu.c
 F: include/hw/char/xilinx_uartlite.h
-F: tests/acceptance/machine_microblaze.py
+F: tests/system/machine_microblaze.py
 
 petalogix_ml605
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
@@ -1149,8 +1149,8 @@ F: hw/acpi/piix4.c
 F: hw/mips/malta.c
 F: hw/mips/gt64xxx_pci.c
 F: include/hw/southbridge/piix.h
-F: tests/acceptance/linux_ssh_mips_malta.py
-F: tests/acceptance/machine_mips_malta.py
+F: tests/system/linux_ssh_mips_malta.py
+F: tests/system/machine_mips_malta.py
 
 Mipssim
 R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
@@ -1177,7 +1177,7 @@ F: hw/intc/loongson_liointc.c
 F: hw/mips/loongson3_bootp.c
 F: hw/mips/loongson3_bootp.h
 F: hw/mips/loongson3_virt.c
-F: tests/acceptance/machine_mips_loongson3v.py
+F: tests/system/machine_mips_loongson3v.py
 
 Boston
 M: Paul Burton <paulburton@kernel.org>
@@ -1284,7 +1284,7 @@ F: hw/dma/i82374.c
 F: hw/rtc/m48t59-isa.c
 F: include/hw/isa/pc87312.h
 F: include/hw/rtc/m48t59.h
-F: tests/acceptance/ppc_prep_40p.py
+F: tests/system/ppc_prep_40p.py
 
 sPAPR
 M: David Gibson <david@gibson.dropbear.id.au>
@@ -1402,7 +1402,7 @@ R: Yoshinori Sato <ysato@users.sourceforge.jp>
 S: Orphan
 F: docs/system/target-rx.rst
 F: hw/rx/rx-gdbsim.c
-F: tests/acceptance/machine_rx_gdbsim.py
+F: tests/system/machine_rx_gdbsim.py
 
 SH4 Machines
 ------------
@@ -1456,7 +1456,7 @@ F: include/hw/pci-host/sabre.h
 F: hw/pci-bridge/simba.c
 F: include/hw/pci-bridge/simba.h
 F: pc-bios/openbios-sparc64
-F: tests/acceptance/machine_sparc64_sun4u.py
+F: tests/system/machine_sparc64_sun4u.py
 
 Sun4v
 M: Artyom Tarasenko <atar4qemu@gmail.com>
@@ -1472,7 +1472,7 @@ S: Maintained
 F: hw/sparc/leon3.c
 F: hw/*/grlib*
 F: include/hw/*/grlib*
-F: tests/acceptance/machine_sparc_leon3.py
+F: tests/system/machine_sparc_leon3.py
 
 S390 Machines
 -------------
@@ -1488,7 +1488,7 @@ F: include/hw/s390x/
 F: hw/watchdog/wdt_diag288.c
 F: include/hw/watchdog/wdt_diag288.h
 F: default-configs/*/s390x-softmmu.mak
-F: tests/acceptance/machine_s390_ccw_virtio.py
+F: tests/system/machine_s390_ccw_virtio.py
 T: git https://gitlab.com/cohuck/qemu.git s390-next
 T: git https://github.com/borntraeger/qemu.git s390-next
 L: qemu-s390x@nongnu.org
@@ -2045,7 +2045,7 @@ M: Alex Bennée <alex.bennee@linaro.org>
 S: Maintained
 F: hw/core/guest-loader.c
 F: docs/system/guest-loader.rst
-F: tests/acceptance/boot_xen.py
+F: tests/system/boot_xen.py
 
 Intel Hexadecimal Object File Loader
 M: Su Hang <suhang16@mails.ucas.ac.cn>
@@ -2854,8 +2854,8 @@ F: net/filter-replay.c
 F: include/sysemu/replay.h
 F: docs/replay.txt
 F: stubs/replay.c
-F: tests/acceptance/replay_kernel.py
-F: tests/acceptance/reverse_debugging.py
+F: tests/system/replay_kernel.py
+F: tests/system/reverse_debugging.py
 F: qapi/replay.json
 
 IOVA Tree
@@ -2970,7 +2970,7 @@ S: Maintained
 F: docs/devel/tcg-plugins.rst
 F: plugins/
 F: tests/plugin/
-F: tests/acceptance/tcg_plugins.py
+F: tests/system/tcg_plugins.py
 F: contrib/plugins/
 
 AArch64 TCG target
@@ -3348,13 +3348,13 @@ S: Maintained
 F: tests/tcg/Makefile
 F: tests/tcg/Makefile.include
 
-Acceptance (Integration) Testing with the Avocado framework
+System Testing with the Avocado framework
 W: https://trello.com/b/6Qi1pxVn/avocado-qemu
 R: Cleber Rosa <crosa@redhat.com>
 R: Philippe Mathieu-Daudé <philmd@redhat.com>
 R: Wainer dos Santos Moschetta <wainersm@redhat.com>
 S: Odd Fixes
-F: tests/acceptance/
+F: tests/system/
 
 Documentation
 -------------

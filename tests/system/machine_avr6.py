@@ -1,5 +1,5 @@
 #
-# QEMU AVR acceptance tests
+# QEMU AVR system tests
 #
 # Copyright (c) 2019-2020 Michael Rolnik <mrolnik@gmail.com>
 #
