@@ -1147,8 +1147,16 @@ static void rom_reset(void *unused)
             void *host = memory_region_get_ram_ptr(rom->mr);
             memcpy(host, rom->data, rom->datasize);
         } else {
-            address_space_write_rom(rom->as, rom->addr, MEMTXATTRS_UNSPECIFIED,
-                                    rom->data, rom->datasize);
+            MemTxResult res;
+
+            res = address_space_write_rom(rom->as, rom->addr,
+                                          MEMTXATTRS_UNSPECIFIED,
+                                          rom->data, rom->datasize);
+            if (res != MEMTX_OK) {
+                warn_report("rom: unable to write data (file '%s', "
+                            "addr=0x" TARGET_FMT_plx ", size=0x%zu)",
+                            rom->name, rom->addr, rom->datasize);
+            }
         }
         if (rom->isrom) {
             /* rom needs to be written only once */
