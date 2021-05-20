@@ -32,6 +32,13 @@ static inline uint32_t glue(address_space_ldl_internal, SUFFIX)(ARG1_DECL,
     MemTxResult r;
     bool release_lock = false;
 
+    if (unlikely(!QEMU_IS_ALIGNED(addr, sizeof(uint32_t)))) {
+        if (result) {
+            *result = MEMTX_UNALIGNED_ERROR;
+        }
+        return (uint32_t)-1; /* XXX */
+    }
+
     RCU_READ_LOCK();
     mr = TRANSLATE(addr, &addr1, &l, false, attrs);
     if (l < 4 || !memory_access_is_direct(mr, false)) {
@@ -100,6 +107,13 @@ static inline uint64_t glue(address_space_ldq_internal, SUFFIX)(ARG1_DECL,
     hwaddr addr1;
     MemTxResult r;
     bool release_lock = false;
+
+    if (unlikely(!QEMU_IS_ALIGNED(addr, sizeof(uint64_t)))) {
+        if (result) {
+            *result = MEMTX_UNALIGNED_ERROR;
+        }
+        return (uint64_t)-1; /* XXX */
+    }
 
     RCU_READ_LOCK();
     mr = TRANSLATE(addr, &addr1, &l, false, attrs);
@@ -205,6 +219,13 @@ static inline uint16_t glue(address_space_lduw_internal, SUFFIX)(ARG1_DECL,
     MemTxResult r;
     bool release_lock = false;
 
+    if (unlikely(!QEMU_IS_ALIGNED(addr, sizeof(uint16_t)))) {
+        if (result) {
+            *result = MEMTX_UNALIGNED_ERROR;
+        }
+        return (uint16_t)-1; /* XXX */
+    }
+
     RCU_READ_LOCK();
     mr = TRANSLATE(addr, &addr1, &l, false, attrs);
     if (l < 2 || !memory_access_is_direct(mr, false)) {
@@ -275,6 +296,13 @@ void glue(address_space_stl_notdirty, SUFFIX)(ARG1_DECL,
     uint8_t dirty_log_mask;
     bool release_lock = false;
 
+    if (unlikely(!QEMU_IS_ALIGNED(addr, sizeof(uint32_t)))) {
+        if (result) {
+            *result = MEMTX_UNALIGNED_ERROR;
+        }
+        return;
+    }
+
     RCU_READ_LOCK();
     mr = TRANSLATE(addr, &addr1, &l, true, attrs);
     if (l < 4 || !memory_access_is_direct(mr, true)) {
@@ -311,6 +339,13 @@ static inline void glue(address_space_stl_internal, SUFFIX)(ARG1_DECL,
     hwaddr addr1;
     MemTxResult r;
     bool release_lock = false;
+
+    if (unlikely(!QEMU_IS_ALIGNED(addr, sizeof(uint32_t)))) {
+        if (result) {
+            *result = MEMTX_UNALIGNED_ERROR;
+        }
+        return;
+    }
 
     RCU_READ_LOCK();
     mr = TRANSLATE(addr, &addr1, &l, true, attrs);
@@ -408,6 +443,13 @@ static inline void glue(address_space_stw_internal, SUFFIX)(ARG1_DECL,
     MemTxResult r;
     bool release_lock = false;
 
+    if (unlikely(!QEMU_IS_ALIGNED(addr, sizeof(uint16_t)))) {
+        if (result) {
+            *result = MEMTX_UNALIGNED_ERROR;
+        }
+        return;
+    }
+
     RCU_READ_LOCK();
     mr = TRANSLATE(addr, &addr1, &l, true, attrs);
     if (l < 2 || !memory_access_is_direct(mr, true)) {
@@ -471,6 +513,13 @@ static void glue(address_space_stq_internal, SUFFIX)(ARG1_DECL,
     hwaddr addr1;
     MemTxResult r;
     bool release_lock = false;
+
+    if (unlikely(!QEMU_IS_ALIGNED(addr, sizeof(uint64_t)))) {
+        if (result) {
+            *result = MEMTX_UNALIGNED_ERROR;
+        }
+        return;
+    }
 
     RCU_READ_LOCK();
     mr = TRANSLATE(addr, &addr1, &l, true, attrs);
