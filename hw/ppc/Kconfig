@@ -143,3 +143,6 @@ config FW_CFG_PPC
 
 config FDT_PPC
     bool
+
+config VOF
+    bool
