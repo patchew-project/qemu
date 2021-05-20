@@ -291,15 +291,24 @@ static inline bool vring_avail_flags(VirtQueue *vq, uint16_t *val)
 {
     VRingMemoryRegionCaches *caches = vring_get_region_caches(vq);
     hwaddr pa = offsetof(VRingAvail, flags);
+    MemTxAttrs attrs = { .aligned = 1 };
+    MemTxResult res;
 
     if (!caches) {
         *val = 0;
         return true;
     }
 
-    *val = virtio_lduw_phys_cached_with_attrs(vq->vdev, &caches->avail, pa);
+    *val = virtio_lduw_phys_cached_with_attrs(vq->vdev, &caches->avail,
+                                              pa, attrs, &res);
+    if (res == MEMTX_UNALIGNED_ERROR) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "virtio: vring flag address 0x%" HWADDR_PRIX " "
+                      "is not aligned\n", pa);
+        return false;
+    }
 
-    return true;
+    return res == MEMTX_OK;
 }
 
 /* Called within rcu_read_lock().  */
