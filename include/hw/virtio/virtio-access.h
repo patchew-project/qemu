@@ -120,7 +120,7 @@ static inline void virtio_stq_p(VirtIODevice *vdev, void *ptr, uint64_t v)
     }
 }
 
-static inline int virtio_lduw_p(VirtIODevice *vdev, const void *ptr)
+static inline uint16_t virtio_lduw_p(VirtIODevice *vdev, const void *ptr)
 {
     if (virtio_access_is_big_endian(vdev)) {
         return lduw_be_p(ptr);
@@ -129,7 +129,7 @@ static inline int virtio_lduw_p(VirtIODevice *vdev, const void *ptr)
     }
 }
 
-static inline int virtio_ldl_p(VirtIODevice *vdev, const void *ptr)
+static inline uint32_t virtio_ldl_p(VirtIODevice *vdev, const void *ptr)
 {
     if (virtio_access_is_big_endian(vdev)) {
         return ldl_be_p(ptr);
