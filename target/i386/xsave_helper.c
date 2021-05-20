@@ -31,16 +31,16 @@ void x86_cpu_xsave_all_areas(X86CPU *cpu, X86XSaveArea *buf)
             sizeof env->fpregs);
     xsave->legacy.mxcsr = env->mxcsr;
     xsave->header.xstate_bv = env->xstate_bv;
-    memcpy(&xsave->bndreg_state.bnd_regs, env->bnd_regs,
+    memcpy(&xsave->intel.bndreg_state.bnd_regs, env->bnd_regs,
             sizeof env->bnd_regs);
-    xsave->bndcsr_state.bndcsr = env->bndcs_regs;
-    memcpy(&xsave->opmask_state.opmask_regs, env->opmask_regs,
+    xsave->intel.bndcsr_state.bndcsr = env->bndcs_regs;
+    memcpy(&xsave->intel.opmask_state.opmask_regs, env->opmask_regs,
             sizeof env->opmask_regs);
 
     for (i = 0; i < CPU_NB_REGS; i++) {
         uint8_t *xmm = xsave->legacy.xmm_regs[i];
         uint8_t *ymmh = xsave->avx_state.ymmh[i];
-        uint8_t *zmmh = xsave->zmm_hi256_state.zmm_hi256[i];
+        uint8_t *zmmh = xsave->intel.zmm_hi256_state.zmm_hi256[i];
         stq_p(xmm,     env->xmm_regs[i].ZMM_Q(0));
         stq_p(xmm+8,   env->xmm_regs[i].ZMM_Q(1));
         stq_p(ymmh,    env->xmm_regs[i].ZMM_Q(2));
@@ -52,9 +52,9 @@ void x86_cpu_xsave_all_areas(X86CPU *cpu, X86XSaveArea *buf)
     }
 
 #ifdef TARGET_X86_64
-    memcpy(&xsave->hi16_zmm_state.hi16_zmm, &env->xmm_regs[16],
+    memcpy(&xsave->intel.hi16_zmm_state.hi16_zmm, &env->xmm_regs[16],
             16 * sizeof env->xmm_regs[16]);
-    memcpy(&xsave->pkru_state, &env->pkru, sizeof env->pkru);
+    memcpy(&xsave->intel.pkru_state, &env->pkru, sizeof env->pkru);
 #endif
 
 }
@@ -83,16 +83,16 @@ void x86_cpu_xrstor_all_areas(X86CPU *cpu, const X86XSaveArea *buf)
     memcpy(env->fpregs, &xsave->legacy.fpregs,
             sizeof env->fpregs);
     env->xstate_bv = xsave->header.xstate_bv;
-    memcpy(env->bnd_regs, &xsave->bndreg_state.bnd_regs,
+    memcpy(env->bnd_regs, &xsave->intel.bndreg_state.bnd_regs,
             sizeof env->bnd_regs);
-    env->bndcs_regs = xsave->bndcsr_state.bndcsr;
-    memcpy(env->opmask_regs, &xsave->opmask_state.opmask_regs,
+    env->bndcs_regs = xsave->intel.bndcsr_state.bndcsr;
+    memcpy(env->opmask_regs, &xsave->intel.opmask_state.opmask_regs,
             sizeof env->opmask_regs);
 
     for (i = 0; i < CPU_NB_REGS; i++) {
         const uint8_t *xmm = xsave->legacy.xmm_regs[i];
         const uint8_t *ymmh = xsave->avx_state.ymmh[i];
-        const uint8_t *zmmh = xsave->zmm_hi256_state.zmm_hi256[i];
+        const uint8_t *zmmh = xsave->intel.zmm_hi256_state.zmm_hi256[i];
         env->xmm_regs[i].ZMM_Q(0) = ldq_p(xmm);
         env->xmm_regs[i].ZMM_Q(1) = ldq_p(xmm+8);
         env->xmm_regs[i].ZMM_Q(2) = ldq_p(ymmh);
@@ -104,9 +104,9 @@ void x86_cpu_xrstor_all_areas(X86CPU *cpu, const X86XSaveArea *buf)
     }
 
 #ifdef TARGET_X86_64
-    memcpy(&env->xmm_regs[16], &xsave->hi16_zmm_state.hi16_zmm,
+    memcpy(&env->xmm_regs[16], &xsave->intel.hi16_zmm_state.hi16_zmm,
            16 * sizeof env->xmm_regs[16]);
-    memcpy(&env->pkru, &xsave->pkru_state, sizeof env->pkru);
+    memcpy(&env->pkru, &xsave->intel.pkru_state, sizeof env->pkru);
 #endif
 
 }

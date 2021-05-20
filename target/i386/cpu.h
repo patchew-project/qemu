@@ -1330,36 +1330,47 @@ typedef struct X86XSaveArea {
     /* AVX State: */
     XSaveAVX avx_state;
 
-    /* Ensure that XSaveBNDREG is properly aligned. */
-    uint8_t padding[XSAVE_BNDREG_OFFSET
-                    - sizeof(X86LegacyXSaveArea)
-                    - sizeof(X86XSaveHeader)
-                    - sizeof(XSaveAVX)];
+    union {
+        struct {
+            /* Ensure that XSaveBNDREG is properly aligned. */
+            uint8_t padding[XSAVE_BNDREG_OFFSET
+                            - sizeof(X86LegacyXSaveArea)
+                            - sizeof(X86XSaveHeader)
+                            - sizeof(XSaveAVX)];
 
-    /* MPX State: */
-    XSaveBNDREG bndreg_state;
-    XSaveBNDCSR bndcsr_state;
-    /* AVX-512 State: */
-    XSaveOpmask opmask_state;
-    XSaveZMM_Hi256 zmm_hi256_state;
-    XSaveHi16_ZMM hi16_zmm_state;
-    /* PKRU State: */
-    XSavePKRU pkru_state;
+            /* MPX State: */
+            XSaveBNDREG bndreg_state;
+            XSaveBNDCSR bndcsr_state;
+            /* AVX-512 State: */
+            XSaveOpmask opmask_state;
+            XSaveZMM_Hi256 zmm_hi256_state;
+            XSaveHi16_ZMM hi16_zmm_state;
+            /* PKRU State: */
+            XSavePKRU pkru_state;
+        } intel;
+    };
 } X86XSaveArea;
 
-QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, avx_state) != XSAVE_AVX_OFFSET);
+QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, avx_state)
+                  != XSAVE_AVX_OFFSET);
 QEMU_BUILD_BUG_ON(sizeof(XSaveAVX) != 0x100);
-QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, bndreg_state) != XSAVE_BNDREG_OFFSET);
+QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, intel.bndreg_state)
+                  != XSAVE_BNDREG_OFFSET);
 QEMU_BUILD_BUG_ON(sizeof(XSaveBNDREG) != 0x40);
-QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, bndcsr_state) != XSAVE_BNDCSR_OFFSET);
+QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, intel.bndcsr_state)
+                  != XSAVE_BNDCSR_OFFSET);
 QEMU_BUILD_BUG_ON(sizeof(XSaveBNDCSR) != 0x40);
-QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, opmask_state) != XSAVE_OPMASK_OFFSET);
+QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, intel.opmask_state)
+                  != XSAVE_OPMASK_OFFSET);
 QEMU_BUILD_BUG_ON(sizeof(XSaveOpmask) != 0x40);
-QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, zmm_hi256_state) != XSAVE_ZMM_HI256_OFFSET);
+QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, intel.zmm_hi256_state)
+                  != XSAVE_ZMM_HI256_OFFSET);
 QEMU_BUILD_BUG_ON(sizeof(XSaveZMM_Hi256) != 0x200);
-QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, hi16_zmm_state) != XSAVE_HI16_ZMM_OFFSET);
+QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, intel.hi16_zmm_state)
+                  != XSAVE_HI16_ZMM_OFFSET);
 QEMU_BUILD_BUG_ON(sizeof(XSaveHi16_ZMM) != 0x400);
-QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, pkru_state) != XSAVE_PKRU_OFFSET);
+QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, intel.pkru_state)
+                  != XSAVE_PKRU_OFFSET);
 QEMU_BUILD_BUG_ON(sizeof(XSavePKRU) != 0x8);
 
 typedef enum TPRAccess {

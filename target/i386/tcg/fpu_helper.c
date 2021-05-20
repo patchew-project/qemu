@@ -2637,13 +2637,13 @@ static void do_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm,
         do_xsave_sse(env, ptr, ra);
     }
     if (opt & XSTATE_BNDREGS_MASK) {
-        do_xsave_bndregs(env, ptr + XO(bndreg_state), ra);
+        do_xsave_bndregs(env, ptr + XO(intel.bndreg_state), ra);
     }
     if (opt & XSTATE_BNDCSR_MASK) {
-        do_xsave_bndcsr(env, ptr + XO(bndcsr_state), ra);
+        do_xsave_bndcsr(env, ptr + XO(intel.bndcsr_state), ra);
     }
     if (opt & XSTATE_PKRU_MASK) {
-        do_xsave_pkru(env, ptr + XO(pkru_state), ra);
+        do_xsave_pkru(env, ptr + XO(intel.pkru_state), ra);
     }
 
     /* Update the XSTATE_BV field.  */
@@ -2836,7 +2836,7 @@ void helper_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
     }
     if (rfbm & XSTATE_BNDREGS_MASK) {
         if (xstate_bv & XSTATE_BNDREGS_MASK) {
-            do_xrstor_bndregs(env, ptr + XO(bndreg_state), ra);
+            do_xrstor_bndregs(env, ptr + XO(intel.bndreg_state), ra);
             env->hflags |= HF_MPX_IU_MASK;
         } else {
             memset(env->bnd_regs, 0, sizeof(env->bnd_regs));
@@ -2845,7 +2845,7 @@ void helper_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
     }
     if (rfbm & XSTATE_BNDCSR_MASK) {
         if (xstate_bv & XSTATE_BNDCSR_MASK) {
-            do_xrstor_bndcsr(env, ptr + XO(bndcsr_state), ra);
+            do_xrstor_bndcsr(env, ptr + XO(intel.bndcsr_state), ra);
         } else {
             memset(&env->bndcs_regs, 0, sizeof(env->bndcs_regs));
         }
@@ -2854,7 +2854,7 @@ void helper_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
     if (rfbm & XSTATE_PKRU_MASK) {
         uint64_t old_pkru = env->pkru;
         if (xstate_bv & XSTATE_PKRU_MASK) {
-            do_xrstor_pkru(env, ptr + XO(pkru_state), ra);
+            do_xrstor_pkru(env, ptr + XO(intel.pkru_state), ra);
         } else {
             env->pkru = 0;
         }
