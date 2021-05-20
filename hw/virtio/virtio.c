@@ -287,16 +287,19 @@ static VRingMemoryRegionCaches *vring_get_region_caches(struct VirtQueue *vq)
 }
 
 /* Called within rcu_read_lock().  */
-static inline uint16_t vring_avail_flags(VirtQueue *vq)
+static inline bool vring_avail_flags(VirtQueue *vq, uint16_t *val)
 {
     VRingMemoryRegionCaches *caches = vring_get_region_caches(vq);
     hwaddr pa = offsetof(VRingAvail, flags);
 
     if (!caches) {
-        return 0;
+        *val = 0;
+        return true;
     }
 
-    return virtio_lduw_phys_cached(vq->vdev, &caches->avail, pa);
+    *val = virtio_lduw_phys_cached_with_attrs(vq->vdev, &caches->avail, pa);
+
+    return true;
 }
 
 /* Called within rcu_read_lock().  */
@@ -2462,7 +2465,9 @@ static bool virtio_split_should_notify(VirtIODevice *vdev, VirtQueue *vq)
     }
 
     if (!virtio_vdev_has_feature(vdev, VIRTIO_RING_F_EVENT_IDX)) {
-        return !(vring_avail_flags(vq) & VRING_AVAIL_F_NO_INTERRUPT);
+        uint16_t flags;
+        return vring_avail_flags(vq, &flags)
+               && !(flags & VRING_AVAIL_F_NO_INTERRUPT);
     }
 
     v = vq->signalled_used_valid;
