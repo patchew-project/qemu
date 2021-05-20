@@ -2643,7 +2643,11 @@ static void do_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm,
         do_xsave_bndcsr(env, ptr + XO(intel.bndcsr_state), ra);
     }
     if (opt & XSTATE_PKRU_MASK) {
-        do_xsave_pkru(env, ptr + XO(intel.pkru_state), ra);
+        if (IS_AMD_CPU(env)) {
+            do_xsave_pkru(env, ptr + XO(amd.pkru_state), ra);
+        } else {
+            do_xsave_pkru(env, ptr + XO(intel.pkru_state), ra);
+        }
     }
 
     /* Update the XSTATE_BV field.  */
@@ -2854,7 +2858,11 @@ void helper_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
     if (rfbm & XSTATE_PKRU_MASK) {
         uint64_t old_pkru = env->pkru;
         if (xstate_bv & XSTATE_PKRU_MASK) {
-            do_xrstor_pkru(env, ptr + XO(intel.pkru_state), ra);
+            if (IS_AMD_CPU(env)) {
+                do_xrstor_pkru(env, ptr + XO(amd.pkru_state), ra);
+            } else {
+                do_xrstor_pkru(env, ptr + XO(intel.pkru_state), ra);
+            }
         } else {
             env->pkru = 0;
         }
