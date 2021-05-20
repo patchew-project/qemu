@@ -1397,7 +1397,7 @@ typedef struct ExtSaveArea {
     uint32_t offset, size;
 } ExtSaveArea;
 
-static const ExtSaveArea x86_ext_save_areas[] = {
+static ExtSaveArea x86_ext_save_areas[] = {
     [XSTATE_FP_BIT] = {
         /* x87 FP state component is always enabled if XSAVE is supported */
         .feature = FEAT_1_ECX, .bits = CPUID_EXT_XSAVE,
@@ -6087,6 +6087,11 @@ static void x86_cpu_filter_features(X86CPU *cpu, bool verbose)
              */
             mark_unavailable_features(cpu, FEAT_7_0_EBX, CPUID_7_0_EBX_INTEL_PT, prefix);
         }
+    }
+
+    if (IS_AMD_CPU(env)) {
+        x86_ext_save_areas[XSTATE_PKRU_BIT].offset =
+            offsetof(X86XSaveArea, amd.pkru_state);
     }
 }
 
