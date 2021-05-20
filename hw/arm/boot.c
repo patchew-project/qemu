@@ -291,15 +291,20 @@ static inline bool have_dtb(const struct arm_boot_info *info)
 
 #define WRITE_WORD(p, value) do { \
     address_space_stl_notdirty(as, p, value, \
-                               MEMTXATTRS_UNSPECIFIED, NULL);  \
+                               MEMTXATTRS_UNSPECIFIED, &result); \
+    if (result != MEMTX_OK) { \
+        goto fail; \
+    } \
     p += 4;                       \
 } while (0)
 
-static void set_kernel_args(const struct arm_boot_info *info, AddressSpace *as)
+/* Returns: 0 on success, -1 on error */
+static int set_kernel_args(const struct arm_boot_info *info, AddressSpace *as)
 {
     int initrd_size = info->initrd_size;
     hwaddr base = info->loader_start;
     hwaddr p;
+    MemTxResult result;
 
     p = base + KERNEL_ARGS_ADDR;
     /* ATAG_CORE */
@@ -326,8 +331,11 @@ static void set_kernel_args(const struct arm_boot_info *info, AddressSpace *as)
         int cmdline_size;
 
         cmdline_size = strlen(info->kernel_cmdline);
-        address_space_write(as, p + 8, MEMTXATTRS_UNSPECIFIED,
-                            info->kernel_cmdline, cmdline_size + 1);
+        result = address_space_write(as, p + 8, MEMTXATTRS_UNSPECIFIED,
+                                     info->kernel_cmdline, cmdline_size + 1);
+        if (result != MEMTX_OK) {
+            goto fail;
+        }
         cmdline_size = (cmdline_size >> 2) + 1;
         WRITE_WORD(p, cmdline_size + 2);
         WRITE_WORD(p, 0x54410009);
@@ -341,22 +349,31 @@ static void set_kernel_args(const struct arm_boot_info *info, AddressSpace *as)
         atag_board_len = (info->atag_board(info, atag_board_buf) + 3) & ~3;
         WRITE_WORD(p, (atag_board_len + 8) >> 2);
         WRITE_WORD(p, 0x414f4d50);
-        address_space_write(as, p, MEMTXATTRS_UNSPECIFIED,
-                            atag_board_buf, atag_board_len);
+        result = address_space_write(as, p, MEMTXATTRS_UNSPECIFIED,
+                                     atag_board_buf, atag_board_len);
+        if (result != MEMTX_OK) {
+            goto fail;
+        }
         p += atag_board_len;
     }
     /* ATAG_END */
     WRITE_WORD(p, 0);
     WRITE_WORD(p, 0);
+
+    return 0;
+fail:
+    return -1;
 }
 
-static void set_kernel_args_old(const struct arm_boot_info *info,
-                                AddressSpace *as)
+/* Returns: 0 on success, -1 on error */
+static int set_kernel_args_old(const struct arm_boot_info *info,
+                               AddressSpace *as)
 {
     hwaddr p;
     const char *s;
     int initrd_size = info->initrd_size;
     hwaddr base = info->loader_start;
+    MemTxResult result;
 
     /* see linux/include/asm-arm/setup.h */
     p = base + KERNEL_ARGS_ADDR;
@@ -419,10 +436,18 @@ static void set_kernel_args_old(const struct arm_boot_info *info,
     }
     s = info->kernel_cmdline;
     if (s) {
-        address_space_write(as, p, MEMTXATTRS_UNSPECIFIED, s, strlen(s) + 1);
+        result = address_space_write(as, p, MEMTXATTRS_UNSPECIFIED,
+                                     s, strlen(s) + 1);
+        if (result != MEMTX_OK) {
+            goto fail;
+        }
     } else {
         WRITE_WORD(p, 0);
     }
+
+    return 0;
+fail:
+    return -1;
 }
 
 static int fdt_add_memory_node(void *fdt, uint32_t acells, hwaddr mem_base,
@@ -786,10 +811,16 @@ static void do_cpu_reset(void *opaque)
                 cpu_set_pc(cs, info->loader_start);
 
                 if (!have_dtb(info)) {
+                    int err;
+
                     if (old_param) {
-                        set_kernel_args_old(info, as);
+                        err = set_kernel_args_old(info, as);
                     } else {
-                        set_kernel_args(info, as);
+                        err = set_kernel_args(info, as);
+                    }
+                    if (err) {
+                        error_report("could not set kernel arguments");
+                        exit(1);
                     }
                 }
             } else {
