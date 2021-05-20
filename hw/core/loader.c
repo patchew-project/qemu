@@ -1142,6 +1142,7 @@ static void rom_reset(void *unused)
         if (rom->data == NULL) {
             continue;
         }
+        trace_loader_write_rom(rom->name, rom->addr, rom->datasize, rom->isrom);
         if (rom->mr) {
             void *host = memory_region_get_ram_ptr(rom->mr);
             memcpy(host, rom->data, rom->datasize);
@@ -1160,8 +1161,6 @@ static void rom_reset(void *unused)
          * CPU definitely fetches its instructions from the just written data.
          */
         cpu_flush_icache_range(rom->addr, rom->datasize);
-
-        trace_loader_write_rom(rom->name, rom->addr, rom->datasize, rom->isrom);
     }
 }
 
