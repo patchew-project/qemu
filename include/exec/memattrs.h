@@ -39,6 +39,8 @@ typedef struct MemTxAttrs {
     unsigned int requester_id:16;
     /* Invert endianness for this page */
     unsigned int byte_swap:1;
+    /* Memory access must be aligned */
+    unsigned int aligned:1;
     /*
      * The following are target-specific page-table bits.  These are not
      * related to actual memory transactions at all.  However, this structure
@@ -66,6 +68,7 @@ typedef struct MemTxAttrs {
 #define MEMTX_OK 0
 #define MEMTX_ERROR             (1U << 0) /* device returned an error */
 #define MEMTX_DECODE_ERROR      (1U << 1) /* nothing at that address */
+#define MEMTX_UNALIGNED_ERROR   (1U << 2) /* address is not aligned */
 typedef uint32_t MemTxResult;
 
 #endif
