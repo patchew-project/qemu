@@ -113,6 +113,14 @@ static void cbw_refresh_filename(BlockDriverState *bs)
             bs->file->bs->filename);
 }
 
+static bool cbw_is_fleecing(BlockDriverState *bs)
+{
+    BDRVCopyBeforeWriteState *s = bs->opaque;
+
+    return bs->file && s->target &&
+        bdrv_skip_filters(bs) == bdrv_backing_chain_next(s->target->bs);
+}
+
 static void cbw_child_perm(BlockDriverState *bs, BdrvChild *c,
                            BdrvChildRole role,
                            BlockReopenQueue *reopen_queue,
@@ -129,7 +137,8 @@ static void cbw_child_perm(BlockDriverState *bs, BdrvChild *c,
          * only upfront.
          */
         *nshared = BLK_PERM_ALL & ~BLK_PERM_RESIZE;
-        *nperm = BLK_PERM_WRITE;
+        *nperm =
+            cbw_is_fleecing(bs) ? BLK_PERM_WRITE_UNCHANGED : BLK_PERM_WRITE;
     } else {
         /* Source child */
         bdrv_default_perms(bs, c, role, reopen_queue,
