@@ -21,6 +21,7 @@
 #include "qemu-common.h"
 #include "qemu.h"
 #include "cpu_loop-common.h"
+#include "internal.h"
 
 /* s390x masks the fault address it reports in si_addr for SIGSEGV and SIGBUS */
 #define S390X_FAIL_ADDR_MASK -4096LL
@@ -29,6 +30,7 @@ void cpu_loop(CPUS390XState *env)
 {
     CPUState *cs = env_cpu(env);
     int trapnr, n, sig;
+    target_ulong excp_psw_addr;
     target_siginfo_t info;
     target_ulong addr;
     abi_long ret;
@@ -38,6 +40,7 @@ void cpu_loop(CPUS390XState *env)
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
         process_queued_cpu_work(cs);
+        excp_psw_addr = env->psw.addr;
 
         switch (trapnr) {
         case EXCP_INTERRUPT:
@@ -66,6 +69,7 @@ void cpu_loop(CPUS390XState *env)
             n = TARGET_TRAP_BRKPT;
             goto do_signal_pc;
         case EXCP_PGM:
+            s390_cpu_program_interrupt_advance_psw(env);
             n = env->int_pgm_code;
             switch (n) {
             case PGM_OPERATION:
@@ -131,7 +135,7 @@ void cpu_loop(CPUS390XState *env)
             break;
 
         do_signal_pc:
-            addr = env->psw.addr;
+            addr = excp_psw_addr;
         do_signal:
             info.si_signo = sig;
             info.si_errno = 0;
