@@ -2534,12 +2534,16 @@ static void kvm_msr_entry_add(X86CPU *cpu, uint32_t index, uint64_t value)
     msrs->nmsrs++;
 }
 
-static int kvm_put_one_msr(X86CPU *cpu, int index, uint64_t value)
+int kvm_put_one_msr(X86CPU *cpu, int index, uint64_t value)
 {
-    kvm_msr_buf_reset(cpu);
-    kvm_msr_entry_add(cpu, index, value);
+    uint8_t msr_buf[sizeof(struct kvm_msrs) + sizeof(struct kvm_msr_entry)] = { 0 };
+    struct kvm_msrs *msr = (struct kvm_msrs *)msr_buf;
 
-    return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, cpu->kvm_msr_buf);
+    msr->nmsrs = 1;
+    msr->entries[0].index = index;
+    msr->entries[0].data = value;
+
+    return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, msr);
 }
 
 void kvm_put_apicbase(X86CPU *cpu, uint64_t value)
