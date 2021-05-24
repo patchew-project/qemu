@@ -7986,33 +7986,27 @@ static int open_self_auxv(void *cpu_env, int fd)
     return 0;
 }
 
-static int is_proc_myself(const char *filename, const char *entry)
+static bool is_proc_myself(const char *filename, const char *entry)
 {
-    if (!strncmp(filename, "/proc/", strlen("/proc/"))) {
+    if (g_str_has_prefix(filename, "/proc/")) {
         filename += strlen("/proc/");
-        if (!strncmp(filename, "self/", strlen("self/"))) {
+        if (g_str_has_prefix(filename, "self/")) {
             filename += strlen("self/");
-        } else if (*filename >= '1' && *filename <= '9') {
-            char myself[80];
-            snprintf(myself, sizeof(myself), "%d/", getpid());
-            if (!strncmp(filename, myself, strlen(myself))) {
-                filename += strlen(myself);
-            } else {
-                return 0;
+        } else if (g_ascii_isdigit(*filename)) {
+            g_autofree char * myself = g_strdup_printf("%d/", getpid());
+            if (!g_str_has_prefix(filename, myself)) {
+                return false;
             }
-        } else {
-            return 0;
+            filename += strlen(myself);
         }
-        if (!strcmp(filename, entry)) {
-            return 1;
-        }
+        return g_str_has_prefix(filename, entry);
     }
-    return 0;
+    return false;
 }
 
 #if defined(HOST_WORDS_BIGENDIAN) != defined(TARGET_WORDS_BIGENDIAN) || \
     defined(TARGET_SPARC) || defined(TARGET_M68K) || defined(TARGET_HPPA)
-static int is_proc(const char *filename, const char *entry)
+static bool is_proc(const char *filename, const char *entry)
 {
     return strcmp(filename, entry) == 0;
 }
@@ -8096,7 +8090,7 @@ static int do_openat(void *cpu_env, int dirfd, const char *pathname, int flags, 
     struct fake_open {
         const char *filename;
         int (*fill)(void *cpu_env, int fd);
-        int (*cmp)(const char *s1, const char *s2);
+        bool (*cmp)(const char *s1, const char *s2);
     };
     const struct fake_open *fake_open;
     static const struct fake_open fakes[] = {
