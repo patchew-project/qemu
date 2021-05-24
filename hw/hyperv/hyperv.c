@@ -43,7 +43,7 @@ static void alloc_overlay_page(struct hyperv_overlay_page *overlay,
     memory_region_init_ram(&overlay->mr, owner, name,
                            qemu_real_host_page_size, &error_abort);
     overlay->ram_ptr = memory_region_get_ram_ptr(&overlay->mr);
-    overlay->addr = 0;
+    overlay->addr = HYPERV_INVALID_OVERLAY_GPA;
 }
 
 /**
@@ -52,14 +52,17 @@ static void alloc_overlay_page(struct hyperv_overlay_page *overlay,
  */
 static void hyperv_overlay_update(struct hyperv_overlay_page *overlay, hwaddr addr)
 {
-    /* check if overlay page is enabled */
-    addr = (addr & HYPERV_OVERLAY_ENABLED) ? (addr & TARGET_PAGE_MASK) : 0;
+    if (addr != HYPERV_INVALID_OVERLAY_GPA) {
+        /* check if overlay page is enabled */
+        addr = (addr & HYPERV_OVERLAY_ENABLED) ?
+                (addr & TARGET_PAGE_MASK) : HYPERV_INVALID_OVERLAY_GPA;
+    }
 
     if (overlay->addr != addr) {
-        if (overlay->addr) {
+        if (overlay->addr != HYPERV_INVALID_OVERLAY_GPA) {
             memory_region_del_subregion(get_system_memory(), &overlay->mr);
         }
-        if (addr) {
+        if (addr != HYPERV_INVALID_OVERLAY_GPA) {
             memory_region_add_subregion(get_system_memory(), addr, &overlay->mr);
             overlay->ram_ptr = memory_region_get_ram_ptr(&overlay->mr);
         }
@@ -121,7 +124,7 @@ static void synic_reset(DeviceState *dev)
     SynICState *synic = SYNIC(dev);
     memset(synic->msg_page.ram_ptr, 0, sizeof(struct hyperv_message_page));
     memset(synic->event_page.ram_ptr, 0, sizeof(struct hyperv_event_flags_page));
-    synic_update(synic, false, 0, 0);
+    synic_update(synic, false, HYPERV_INVALID_OVERLAY_GPA, HYPERV_INVALID_OVERLAY_GPA);
 }
 
 static void synic_class_init(ObjectClass *klass, void *data)

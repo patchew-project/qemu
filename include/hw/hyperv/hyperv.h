@@ -15,6 +15,7 @@
 #include "exec/memory.h"
 
 #define HYPERV_OVERLAY_ENABLED     (1u << 0)
+#define HYPERV_INVALID_OVERLAY_GPA ((hwaddr)-1)
 
 struct hyperv_overlay_page {
     hwaddr addr;
