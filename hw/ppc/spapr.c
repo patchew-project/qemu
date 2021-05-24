@@ -3890,6 +3890,8 @@ static void spapr_core_plug(HotplugHandler *hotplug_dev, DeviceState *dev)
         for (i = 0; i < cc->nr_threads; i++) {
             ppc_set_compat(core->threads[i], POWERPC_CPU(first_cpu)->compat_pvr,
                            &error_abort);
+            ppc_store_lpcr(core->threads[i],
+                           POWERPC_CPU(first_cpu)->env.spr[SPR_LPCR]);
         }
     }
 
