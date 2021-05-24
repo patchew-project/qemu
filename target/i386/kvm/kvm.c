@@ -117,6 +117,8 @@ static bool has_msr_ucode_rev;
 static bool has_msr_vmx_procbased_ctls2;
 static bool has_msr_perf_capabs;
 static bool has_msr_pkrs;
+static bool has_msr_filtering;
+static bool msr_filters_active;
 
 static uint32_t has_architectural_pmu_version;
 static uint32_t num_architectural_pmu_gp_counters;
@@ -2138,6 +2140,57 @@ static void register_smram_listener(Notifier *n, void *unused)
                                  &smram_address_space, 1);
 }
 
+static void kvm_set_msr_filter_range(struct kvm_msr_filter_range *range, uint32_t flags,
+                                     uint32_t base, uint32_t nmsrs, ...)
+{
+    int i, filter_to_userspace;
+    va_list ap;
+
+    range->flags = flags;
+    range->nmsrs = nmsrs;
+    range->base = base;
+
+    va_start(ap, nmsrs);
+    for (i = 0; i < nmsrs; i++) {
+        filter_to_userspace = va_arg(ap, int);
+        if (!filter_to_userspace) {
+            range->bitmap[i / 8] = 1 << (i % 8);
+        }
+    }
+    va_end(ap);
+}
+
+static int kvm_set_msr_filters(KVMState *s)
+{
+    int r, nmsrs, nfilt = 0, bitmap_pos = 0;
+    struct kvm_msr_filter filter = { };
+    struct kvm_msr_filter_range *range;
+    uint8_t bitmap_buf[KVM_MSR_FILTER_MAX_RANGES * 8] = {0};
+
+    filter.flags = KVM_MSR_FILTER_DEFAULT_ALLOW;
+
+    if (has_hyperv) {
+        /* Hyper-V overlay page MSRs */
+        nmsrs = 2;
+        range = &filter.ranges[nfilt++];
+        range->bitmap = &bitmap_buf[bitmap_pos];
+        kvm_set_msr_filter_range(range, KVM_MSR_FILTER_WRITE,
+                                 HV_X64_MSR_GUEST_OS_ID, nmsrs,
+                                 true, /* HV_X64_MSR_GUEST_OS_ID */
+                                 true  /* HV_X64_MSR_HYPERCALL */);
+        bitmap_pos += ROUND_UP(nmsrs, 8) / 8;
+        assert(bitmap_pos < sizeof(bitmap_buf));
+    }
+
+    r = kvm_vm_ioctl(s, KVM_X86_SET_MSR_FILTER, &filter);
+    if (r != 0) {
+        error_report("kvm: failed to set MSR filters");
+        return -1;
+    }
+
+    return 0;
+}
+
 int kvm_arch_init(MachineState *ms, KVMState *s)
 {
     uint64_t identity_base = 0xfffbc000;
@@ -2266,6 +2319,17 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
         if (ret < 0) {
             error_report("kvm: guest stopping CPU not supported: %s",
                          strerror(-ret));
+        }
+    }
+
+    has_msr_filtering = kvm_check_extension(s, KVM_CAP_X86_USER_SPACE_MSR) &&
+                        kvm_check_extension(s, KVM_CAP_X86_MSR_FILTER);
+    if (has_msr_filtering) {
+        ret = kvm_vm_enable_cap(s, KVM_CAP_X86_USER_SPACE_MSR, 0,
+                                KVM_MSR_EXIT_REASON_FILTER);
+        if (ret == 0) {
+            ret = kvm_set_msr_filters(s);
+            msr_filters_active = (ret == 0);
         }
     }
 
@@ -4542,6 +4606,11 @@ static bool host_supports_vmx(void)
     return ecx & CPUID_EXT_VMX;
 }
 
+static int kvm_handle_wrmsr(X86CPU *cpu, struct kvm_run *run)
+{
+    return 0;
+}
+
 #define VMX_INVALID_GUEST_STATE 0x80000021
 
 int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
@@ -4599,6 +4668,9 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
     case KVM_EXIT_IOAPIC_EOI:
         ioapic_eoi_broadcast(run->eoi.vector);
         ret = 0;
+        break;
+    case KVM_EXIT_X86_WRMSR:
+        ret = kvm_handle_wrmsr(cpu, run);
         break;
     default:
         fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);
