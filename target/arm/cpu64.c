@@ -575,26 +575,31 @@ void aarch64_add_sve_properties(Object *obj)
 
 void arm_cpu_pauth_finalize(ARMCPU *cpu, Error **errp)
 {
-    int arch_val = 0, impdef_val = 0;
+    int apa = FIELD_EX64(cpu->isar.id_aa64isar1, ID_AA64ISAR1, APA);
+    int gpa = FIELD_EX64(cpu->isar.id_aa64isar1, ID_AA64ISAR1, GPA);
+    int api = FIELD_EX64(cpu->isar.id_aa64isar1, ID_AA64ISAR1, API);
+    int gpi = FIELD_EX64(cpu->isar.id_aa64isar1, ID_AA64ISAR1, GPI);
     uint64_t t;
 
+    if (object_property_find(OBJECT(cpu), "pauth-impdef")) {
+        api = gpi = cpu->prop_pauth_impdef;
+    }
+
+    if (object_property_find(OBJECT(cpu), "pauth")) {
+        apa = gpa = cpu->prop_pauth;
+    }
+
     /* TODO: Handle HaveEnhancedPAC, HaveEnhancedPAC2, HaveFPAC. */
-    if (cpu->prop_pauth) {
-        if (cpu->prop_pauth_impdef) {
-            impdef_val = 1;
-        } else {
-            arch_val = 1;
-        }
-    } else if (cpu->prop_pauth_impdef) {
+    if (cpu->prop_pauth_impdef && !cpu->prop_pauth) {
         error_setg(errp, "cannot enable pauth-impdef without pauth");
         error_append_hint(errp, "Add pauth=on to the CPU property list.\n");
     }
 
     t = cpu->isar.id_aa64isar1;
-    t = FIELD_DP64(t, ID_AA64ISAR1, APA, arch_val);
-    t = FIELD_DP64(t, ID_AA64ISAR1, GPA, arch_val);
-    t = FIELD_DP64(t, ID_AA64ISAR1, API, impdef_val);
-    t = FIELD_DP64(t, ID_AA64ISAR1, GPI, impdef_val);
+    t = FIELD_DP64(t, ID_AA64ISAR1, APA, apa);
+    t = FIELD_DP64(t, ID_AA64ISAR1, GPA, gpa);
+    t = FIELD_DP64(t, ID_AA64ISAR1, API, api);
+    t = FIELD_DP64(t, ID_AA64ISAR1, GPI, gpi);
     cpu->isar.id_aa64isar1 = t;
 }
 
@@ -662,6 +667,10 @@ static void aarch64_max_initfn(Object *obj)
         t = FIELD_DP64(t, ID_AA64ISAR1, SPECRES, 1);
         t = FIELD_DP64(t, ID_AA64ISAR1, FRINTTS, 1);
         t = FIELD_DP64(t, ID_AA64ISAR1, LRCPC, 2); /* ARMv8.4-RCPC */
+        t = FIELD_DP64(t, ID_AA64ISAR1, APA, 1);
+        t = FIELD_DP64(t, ID_AA64ISAR1, GPA, 1);
+        t = FIELD_DP64(t, ID_AA64ISAR1, API, 0);
+        t = FIELD_DP64(t, ID_AA64ISAR1, GPI, 0);
         cpu->isar.id_aa64isar1 = t;
 
         t = cpu->isar.id_aa64pfr0;
