@@ -181,8 +181,13 @@ static void pc_dimm_realize(DeviceState *dev, Error **errp)
     PCDIMMDevice *dimm = PC_DIMM(dev);
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
     MachineState *ms = MACHINE(qdev_get_machine());
-    int nb_numa_nodes = ms->numa_state->num_nodes;
+    int nb_numa_nodes;
 
+    if (!ms->numa_state) {
+        error_setg(errp, "NUMA is not supported by this machine-type");
+        return;
+    }
+    nb_numa_nodes = ms->numa_state->num_nodes;
     if (!dimm->hostmem) {
         error_setg(errp, "'" PC_DIMM_MEMDEV_PROP "' property is not set");
         return;
