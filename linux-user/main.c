@@ -55,6 +55,7 @@
 #endif
 
 char *exec_path;
+char exec_path_store[PATH_MAX];
 
 int singlestep;
 static const char *argv0;
@@ -610,7 +611,10 @@ static int parse_args(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    exec_path = argv[optind];
+    exec_path = realpath(argv[optind], exec_path_store);
+    if (exec_path == NULL) {
+        exec_path = argv[optind];
+    }
 
     return optind;
 }
