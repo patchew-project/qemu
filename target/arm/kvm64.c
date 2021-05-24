@@ -1403,7 +1403,10 @@ void kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
     hwaddr paddr;
     Object *obj = qdev_get_machine();
     VirtMachineState *vms = VIRT_MACHINE(obj);
+    bool acpi_enabled = false;
+#ifdef CONFIG_ARM_VIRT
     bool acpi_enabled = virt_is_acpi_enabled(vms);
+    #endif /* CONFIG_ARM_VIRT */
 
     assert(code == BUS_MCEERR_AR || code == BUS_MCEERR_AO);
 
@@ -1426,12 +1429,13 @@ void kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
              */
             if (code == BUS_MCEERR_AR) {
                 kvm_cpu_synchronize_state(c);
-                if (!acpi_ghes_record_errors(ACPI_HEST_SRC_ID_SEA, paddr)) {
-                    kvm_inject_arm_sea(c);
-                } else {
-                    error_report("failed to record the error");
-                    abort();
+#ifdef CONFIG_ACPI_APEI
+                if (acpi_ghes_record_errors(ACPI_HEST_SRC_ID_SEA, paddr)) {
+                  error_report("failed to record the error");
+                  abort();
                 }
+#endif /* CONFIG_ACPI_APEI */
+                kvm_inject_arm_sea(c);
             }
             return;
         }
