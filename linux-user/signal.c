@@ -1020,9 +1020,8 @@ void process_pending_signals(CPUArchState *cpu_env)
     sigset_t *blocked_set;
 
     while (qatomic_read(&ts->signal_pending)) {
-        /* FIXME: This is not threadsafe.  */
         sigfillset(&set);
-        sigprocmask(SIG_SETMASK, &set, 0);
+        pthread_sigmask(SIG_SETMASK, &set, 0);
 
     restart_scan:
         sig = ts->sync_signal.pending;
