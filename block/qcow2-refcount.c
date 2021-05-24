@@ -1681,6 +1681,7 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
         uint64_t coffset;
         int csize;
         l2_entry = get_l2_entry(s, l2_table, i);
+        uint64_t l2_bitmap = get_l2_bitmap(s, l2_table, i);
 
         switch (qcow2_get_cluster_type(bs, l2_entry)) {
         case QCOW2_CLUSTER_COMPRESSED:
@@ -1696,6 +1697,14 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
             if (has_data_file(bs)) {
                 fprintf(stderr, "ERROR compressed cluster %d with data file, "
                         "entry=0x%" PRIx64 "\n", i, l2_entry);
+                res->corruptions++;
+                break;
+            }
+
+            if (l2_bitmap) {
+                fprintf(stderr, "ERROR compressed cluster %d with non-zero "
+                        "subcluster allocation bitmap, entry=0x%" PRIx64 "\n",
+                        i, l2_entry);
                 res->corruptions++;
                 break;
             }
@@ -1727,13 +1736,19 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
         {
             uint64_t offset = l2_entry & L2E_OFFSET_MASK;
 
+            if ((l2_bitmap >> 32) & l2_bitmap) {
+                res->corruptions++;
+                fprintf(stderr, "ERROR offset=%" PRIx64 ": Allocated "
+                        "cluster has corrupted subcluster allocation bitmap\n",
+                        offset);
+            }
+
             /* Correct offsets are cluster aligned */
             if (offset_into_cluster(s, offset)) {
                 bool contains_data;
                 res->corruptions++;
 
                 if (has_subclusters(s)) {
-                    uint64_t l2_bitmap = get_l2_bitmap(s, l2_table, i);
                     contains_data = (l2_bitmap & QCOW_L2_BITMAP_ALL_ALLOC);
                 } else {
                     contains_data = !(l2_entry & QCOW_OFLAG_ZERO);
@@ -1800,6 +1815,19 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
 
         case QCOW2_CLUSTER_ZERO_PLAIN:
         case QCOW2_CLUSTER_UNALLOCATED:
+            if (l2_bitmap & QCOW_L2_BITMAP_ALL_ALLOC) {
+                res->corruptions++;
+                fprintf(stderr, "%s: Unallocated "
+                        "cluster has non-zero subcluster allocation map\n",
+                        fix & BDRV_FIX_ERRORS ? "Repairing" : "ERROR");
+                if (fix & BDRV_FIX_ERRORS) {
+                    ret = fix_l2_entry_by_zero(bs, res, l2_offset, l2_table, i,
+                                               active, &metadata_overlap);
+                    if (metadata_overlap) {
+                        return ret;
+                    }
+                }
+            }
             break;
 
         default:
