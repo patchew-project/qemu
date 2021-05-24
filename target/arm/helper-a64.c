@@ -72,11 +72,13 @@ static void daif_check(CPUARMState *env, uint32_t op,
 {
     /* DAIF update to PSTATE. This is OK from EL0 only if UMA is set.  */
     if (arm_current_el(env) == 0 && !(arm_sctlr(env, 0) & SCTLR_UMA)) {
-        raise_exception_ra(env, EXCP_UDEF,
-                           syn_aa64_sysregtrap(0, extract32(op, 0, 3),
-                                               extract32(op, 3, 3), 4,
-                                               imm, 0x1f, 0),
-                           exception_target_el(env), ra);
+        CPUState *cs = env_cpu(env);
+        cpu_restore_state(cs, ra, true);
+        raise_exception(env, EXCP_UDEF,
+                        syn_aa64_sysregtrap(0, extract32(op, 0, 3),
+                                            extract32(op, 3, 3), 4,
+                                            imm, 0x1f, 0),
+                        exception_target_el(env));
     }
 }
 

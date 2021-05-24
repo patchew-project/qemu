@@ -385,7 +385,9 @@ static uint64_t pauth_strip(CPUARMState *env, uint64_t ptr, bool data)
 static void QEMU_NORETURN pauth_trap(CPUARMState *env, int target_el,
                                      uintptr_t ra)
 {
-    raise_exception_ra(env, EXCP_UDEF, syn_pactrap(), target_el, ra);
+    CPUState *cs = env_cpu(env);
+    cpu_restore_state(cs, ra, true);
+    raise_exception(env, EXCP_UDEF, syn_pactrap(), target_el);
 }
 
 static void pauth_check_trap(CPUARMState *env, int el, uintptr_t ra)
