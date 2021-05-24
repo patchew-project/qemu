@@ -38,6 +38,7 @@ enum NvmeCapShift {
     CAP_DSTRD_SHIFT    = 32,
     CAP_NSSRS_SHIFT    = 36,
     CAP_CSS_SHIFT      = 37,
+    CAP_BPS_SHIFT      = 45,
     CAP_MPSMIN_SHIFT   = 48,
     CAP_MPSMAX_SHIFT   = 52,
     CAP_PMRS_SHIFT     = 56,
@@ -52,6 +53,7 @@ enum NvmeCapMask {
     CAP_DSTRD_MASK     = 0xf,
     CAP_NSSRS_MASK     = 0x1,
     CAP_CSS_MASK       = 0xff,
+    CAP_BPS_MASK       = 0x1,
     CAP_MPSMIN_MASK    = 0xf,
     CAP_MPSMAX_MASK    = 0xf,
     CAP_PMRS_MASK      = 0x1,
@@ -65,6 +67,7 @@ enum NvmeCapMask {
 #define NVME_CAP_DSTRD(cap) (((cap) >> CAP_DSTRD_SHIFT)  & CAP_DSTRD_MASK)
 #define NVME_CAP_NSSRS(cap) (((cap) >> CAP_NSSRS_SHIFT)  & CAP_NSSRS_MASK)
 #define NVME_CAP_CSS(cap)   (((cap) >> CAP_CSS_SHIFT)    & CAP_CSS_MASK)
+#define NVME_CAP_BPS(cap)   (((cap) >> CAP_BPS_SHIFT)    & CAP_BPS_MASK)
 #define NVME_CAP_MPSMIN(cap)(((cap) >> CAP_MPSMIN_SHIFT) & CAP_MPSMIN_MASK)
 #define NVME_CAP_MPSMAX(cap)(((cap) >> CAP_MPSMAX_SHIFT) & CAP_MPSMAX_MASK)
 #define NVME_CAP_PMRS(cap)  (((cap) >> CAP_PMRS_SHIFT)   & CAP_PMRS_MASK)
@@ -84,6 +87,8 @@ enum NvmeCapMask {
                                                            << CAP_NSSRS_SHIFT)
 #define NVME_CAP_SET_CSS(cap, val)    (cap |= (uint64_t)(val & CAP_CSS_MASK)   \
                                                            << CAP_CSS_SHIFT)
+#define NVME_CAP_SET_BPS(cap, val)    (cap |= (uint64_t)(val & CAP_BPS_MASK)   \
+                                                           << CAP_BPS_SHIFT)
 #define NVME_CAP_SET_MPSMIN(cap, val) (cap |= (uint64_t)(val & CAP_MPSMIN_MASK)\
                                                            << CAP_MPSMIN_SHIFT)
 #define NVME_CAP_SET_MPSMAX(cap, val) (cap |= (uint64_t)(val & CAP_MPSMAX_MASK)\
@@ -495,6 +500,63 @@ enum NvmePmrmscMask {
 #define NVME_PMRMSC_SET_CBA(pmrmsc, val)   \
     (pmrmsc |= (uint64_t)(val & PMRMSC_CBA_MASK) << PMRMSC_CBA_SHIFT)
 
+enum NvmeBpReadStatus {
+    NVME_BPINFO_BRS_NOREAD  = 0x0,
+    NVME_BPINFO_BRS_READING = 0x1,
+    NVME_BPINFO_BRS_SUCCESS = 0x2,
+    NVME_BPINFO_BRS_ERROR   = 0x3,
+};
+
+enum NvmeBpInfoShift {
+    BPINFO_BPSZ_SHIFT   = 0,
+    BPINFO_BRS_SHIFT    = 24,
+    BPINFO_ABPID_SHIFT  = 31,
+};
+
+enum NvmeBpInfoMask {
+    BPINFO_BPSZ_MASK  = 0x7fff,
+    BPINFO_BRS_MASK   = 0x3,
+    BPINFO_ABPID_MASK = 0x1,
+};
+
+#define NVME_BPINFO_SET_BPSZ(bpinfo, val) \
+    (bpinfo |= (uint64_t)(val & BPINFO_BPSZ_MASK)  << BPINFO_BPSZ_SHIFT)
+#define NVME_BPINFO_SET_BRS(bpinfo, val)   \
+    (bpinfo |= (uint64_t)(val & BPINFO_BRS_MASK) << BPINFO_BRS_SHIFT)
+#define NVME_BPINFO_SET_ABPID(bpinfo, val)   \
+    (bpinfo |= (uint64_t)(val & BPINFO_ABPID_MASK) << BPINFO_ABPID_SHIFT)
+
+#define NVME_BPINFO_BPSZ(bpinfo)   \
+    ((bpinfo >> BPINFO_BPSZ_SHIFT) & BPINFO_BPSZ_MASK)
+#define NVME_BPINFO_BRS(bpinfo)   \
+    ((bpinfo >> BPINFO_BRS_SHIFT) & BPINFO_BRS_MASK)
+#define NVME_BPINFO_ABPID(bpinfo)   \
+    ((bpinfo >> BPINFO_ABPID_SHIFT) & BPINFO_ABPID_MASK)
+
+#define NVME_BPINFO_CLEAR_ABPID(bpinfo)  \
+    (bpinfo &= (uint64_t)(~(BPINFO_ABPID_MASK << BPINFO_ABPID_SHIFT)))
+#define NVME_BPINFO_CLEAR_BRS(bpinfo)   \
+    (bpinfo &= (uint64_t)(~(BPINFO_BRS_MASK << BPINFO_BRS_SHIFT)))
+
+enum NvmeBpReadSelectShift {
+    BPRSEL_BPRSZ_SHIFT  = 0,
+    BPRSEL_BPROF_SHIFT  = 10,
+    BPRSEL_BPID_SHIFT   = 31,
+};
+
+enum NvmeBpReadSelectMask {
+    BPRSEL_BPRSZ_MASK  = 0x3ff,
+    BPRSEL_BPROF_MASK  = 0xffff,
+    BPRSEL_BPID_MASK   = 0x1,
+};
+
+#define NVME_BPRSEL_BPRSZ(bprsel)   \
+    ((bprsel >> BPRSEL_BPRSZ_SHIFT) & BPRSEL_BPRSZ_MASK)
+#define NVME_BPRSEL_BPROF(bprsel)   \
+    ((bprsel >> BPRSEL_BPROF_SHIFT) & BPRSEL_BPROF_MASK)
+#define NVME_BPRSEL_BPID(bprsel)   \
+    ((bprsel >> BPRSEL_BPID_SHIFT) & BPRSEL_BPID_MASK)
+
 enum NvmeSglDescriptorType {
     NVME_SGL_DESCR_TYPE_DATA_BLOCK          = 0x0,
     NVME_SGL_DESCR_TYPE_BIT_BUCKET          = 0x1,
@@ -564,7 +626,7 @@ enum NvmeAdminCommands {
     NVME_ADM_CMD_SET_FEATURES   = 0x09,
     NVME_ADM_CMD_GET_FEATURES   = 0x0a,
     NVME_ADM_CMD_ASYNC_EV_REQ   = 0x0c,
-    NVME_ADM_CMD_ACTIVATE_FW    = 0x10,
+    NVME_ADM_CMD_COMMIT_FW      = 0x10,
     NVME_ADM_CMD_DOWNLOAD_FW    = 0x11,
     NVME_ADM_CMD_NS_ATTACHMENT  = 0x15,
     NVME_ADM_CMD_FORMAT_NVM     = 0x80,
@@ -846,6 +908,8 @@ enum NvmeStatusCodes {
     NVME_FEAT_NOT_CHANGEABLE    = 0x010e,
     NVME_FEAT_NOT_NS_SPEC       = 0x010f,
     NVME_FW_REQ_SUSYSTEM_RESET  = 0x0110,
+    NVME_FW_ACTIVATE_PROHIBITED = 0x0113,
+    NVME_BP_WRITE_PROHIBITED    = 0x011e,
     NVME_NS_ALREADY_ATTACHED    = 0x0118,
     NVME_NS_PRIVATE             = 0x0119,
     NVME_NS_NOT_ATTACHED        = 0x011a,
@@ -1105,6 +1169,15 @@ enum NvmeIdctrlVwc {
 
 enum NvmeIdCtrlFrmw {
     NVME_FRMW_SLOT1_RO = 1 << 0,
+};
+
+enum NvmeFwCommitActions {
+    NVME_FW_CA_REPLACE                  = 0x00,
+    NVME_FW_CA_REPLACE_AND_ACTIVATE     = 0x01,
+    NVME_FW_CA_ACTIVATE                 = 0x02,
+    NVME_FW_CA_REPLACE_AND_ACTIVATE_NOW = 0x03,
+    NVME_FW_CA_REPLACE_BP               = 0x06,
+    NVME_FW_CA_ACTIVATE_BP              = 0x07,
 };
 
 enum NvmeIdCtrlLpa {
