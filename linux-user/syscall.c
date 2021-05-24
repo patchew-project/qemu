@@ -8470,6 +8470,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 #endif
     case TARGET_NR_execve:
         {
+            const char *path;
             char **argp, **envp;
             int argc, envc;
             abi_ulong gp;
@@ -8537,7 +8538,11 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
              * before the execve completes and makes it the other
              * program's problem.
              */
-            ret = get_errno(safe_execve(p, argp, envp));
+            path = p;
+            if (is_proc_myself(path, "exe")) {
+                path = exec_path;
+            }
+            ret = get_errno(safe_execve(path, argp, envp));
             unlock_user(p, arg1, 0);
 
             goto execve_end;
