@@ -56,6 +56,7 @@
 
 char *exec_path;
 char exec_path_store[PATH_MAX];
+int exec_fd = -1;
 
 int singlestep;
 static const char *argv0;
@@ -832,6 +833,13 @@ int main(int argc, char **argv, char **envp)
     ts->bprm = &bprm;
     cpu->opaque = ts;
     task_settid(ts);
+
+    /*
+     * dup execfd to a global so that it can be used after loader_exec
+     * closes it.
+     */
+
+    exec_fd = dup(execfd);
 
     ret = loader_exec(execfd, exec_path, target_argv, target_environ, regs,
         info, &bprm);

@@ -8117,12 +8117,11 @@ static int do_openat(void *cpu_env, int dirfd, const char *pathname, int flags, 
     };
 
     if (is_proc_myself(pathname, "exe")) {
-        int execfd = qemu_getauxval(AT_EXECFD);
-        if (execfd) {
+        if (exec_fd != -1) {
             char filename[PATH_MAX];
             int ret;
 
-            snprintf(filename, sizeof(filename), "/proc/self/fd/%d", execfd);
+            snprintf(filename, sizeof(filename), "/proc/self/fd/%d", exec_fd);
             ret = safe_openat(dirfd, filename, flags, mode);
             if (ret != -1) {
                 return ret;
