@@ -36,6 +36,7 @@ struct SynICState {
 OBJECT_DECLARE_SIMPLE_TYPE(SynICState, SYNIC)
 
 static bool synic_enabled;
+struct hyperv_overlay_page hcall_page;
 
 static void alloc_overlay_page(struct hyperv_overlay_page *overlay,
                                Object *owner, const char *name)
@@ -50,7 +51,7 @@ static void alloc_overlay_page(struct hyperv_overlay_page *overlay,
  * This method must be called with iothread lock taken as it modifies
  * the memory hierarchy.
  */
-static void hyperv_overlay_update(struct hyperv_overlay_page *overlay, hwaddr addr)
+void hyperv_overlay_update(struct hyperv_overlay_page *overlay, hwaddr addr)
 {
     if (addr != HYPERV_INVALID_OVERLAY_GPA) {
         /* check if overlay page is enabled */
@@ -68,6 +69,13 @@ static void hyperv_overlay_update(struct hyperv_overlay_page *overlay, hwaddr ad
         }
         overlay->addr = addr;
     }
+}
+
+void hyperv_overlay_init(void)
+{
+    memory_region_init_ram(&hcall_page.mr, NULL, "hyperv.hcall_page",
+                           qemu_real_host_page_size, &error_abort);
+    hcall_page.addr = HYPERV_INVALID_OVERLAY_GPA;
 }
 
 static void synic_update(SynICState *synic, bool enable,

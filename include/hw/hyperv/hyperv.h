@@ -85,6 +85,11 @@ static inline uint32_t hyperv_vp_index(CPUState *cs)
     return cs->cpu_index;
 }
 
+extern struct hyperv_overlay_page hcall_page;
+
+void hyperv_overlay_init(void);
+void hyperv_overlay_update(struct hyperv_overlay_page *page, hwaddr addr);
+
 void hyperv_synic_add(CPUState *cs);
 void hyperv_synic_reset(CPUState *cs);
 void hyperv_synic_update(CPUState *cs, bool enable,

@@ -2333,6 +2333,10 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
         }
     }
 
+    if (has_hyperv && msr_filters_active) {
+        hyperv_overlay_init();
+    }
+
     return 0;
 }
 
@@ -4608,7 +4612,27 @@ static bool host_supports_vmx(void)
 
 static int kvm_handle_wrmsr(X86CPU *cpu, struct kvm_run *run)
 {
-    return 0;
+    int r = -1;
+    uint32_t msr;
+    uint64_t data;
+
+    if (run->msr.reason != KVM_MSR_EXIT_REASON_FILTER) {
+        return -1;
+    }
+
+    msr = run->msr.index;
+    data = run->msr.data;
+
+    switch (msr) {
+    case HV_X64_MSR_GUEST_OS_ID:
+    case HV_X64_MSR_HYPERCALL:
+        r = kvm_hv_handle_wrmsr(cpu, msr, data);
+        break;
+    default:
+        error_report("Unknown MSR exit");
+    }
+
+    return r;
 }
 
 #define VMX_INVALID_GUEST_STATE 0x80000021
