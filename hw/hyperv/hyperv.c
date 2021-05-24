@@ -28,18 +28,52 @@ struct SynICState {
     CPUState *cs;
 
     bool enabled;
-    hwaddr msg_page_addr;
-    hwaddr event_page_addr;
-    MemoryRegion msg_page_mr;
-    MemoryRegion event_page_mr;
-    struct hyperv_message_page *msg_page;
-    struct hyperv_event_flags_page *event_page;
+    struct hyperv_overlay_page msg_page;
+    struct hyperv_overlay_page event_page;
 };
 
 #define TYPE_SYNIC "hyperv-synic"
 OBJECT_DECLARE_SIMPLE_TYPE(SynICState, SYNIC)
 
 static bool synic_enabled;
+
+static void alloc_overlay_page(struct hyperv_overlay_page *overlay,
+                               Object *owner, const char *name)
+{
+    memory_region_init_ram(&overlay->mr, owner, name,
+                           qemu_real_host_page_size, &error_abort);
+    overlay->ram_ptr = memory_region_get_ram_ptr(&overlay->mr);
+    overlay->addr = 0;
+}
+
+/**
+ * This method must be called with iothread lock taken as it modifies
+ * the memory hierarchy.
+ */
+static void hyperv_overlay_update(struct hyperv_overlay_page *overlay, hwaddr addr)
+{
+    /* check if overlay page is enabled */
+    addr = (addr & HYPERV_OVERLAY_ENABLED) ? (addr & TARGET_PAGE_MASK) : 0;
+
+    if (overlay->addr != addr) {
+        if (overlay->addr) {
+            memory_region_del_subregion(get_system_memory(), &overlay->mr);
+        }
+        if (addr) {
+            memory_region_add_subregion(get_system_memory(), addr, &overlay->mr);
+            overlay->ram_ptr = memory_region_get_ram_ptr(&overlay->mr);
+        }
+        overlay->addr = addr;
+    }
+}
+
+static void synic_update(SynICState *synic, bool enable,
+                         hwaddr msg_page_addr, hwaddr event_page_addr)
+{
+    synic->enabled = enable;
+    hyperv_overlay_update(&synic->msg_page, msg_page_addr);
+    hyperv_overlay_update(&synic->event_page, event_page_addr);
+}
 
 bool hyperv_is_synic_enabled(void)
 {
@@ -49,35 +83,6 @@ bool hyperv_is_synic_enabled(void)
 static SynICState *get_synic(CPUState *cs)
 {
     return SYNIC(object_resolve_path_component(OBJECT(cs), "synic"));
-}
-
-static void synic_update(SynICState *synic, bool enable,
-                         hwaddr msg_page_addr, hwaddr event_page_addr)
-{
-
-    synic->enabled = enable;
-    if (synic->msg_page_addr != msg_page_addr) {
-        if (synic->msg_page_addr) {
-            memory_region_del_subregion(get_system_memory(),
-                                        &synic->msg_page_mr);
-        }
-        if (msg_page_addr) {
-            memory_region_add_subregion(get_system_memory(), msg_page_addr,
-                                        &synic->msg_page_mr);
-        }
-        synic->msg_page_addr = msg_page_addr;
-    }
-    if (synic->event_page_addr != event_page_addr) {
-        if (synic->event_page_addr) {
-            memory_region_del_subregion(get_system_memory(),
-                                        &synic->event_page_mr);
-        }
-        if (event_page_addr) {
-            memory_region_add_subregion(get_system_memory(), event_page_addr,
-                                        &synic->event_page_mr);
-        }
-        synic->event_page_addr = event_page_addr;
-    }
 }
 
 void hyperv_synic_update(CPUState *cs, bool enable,
@@ -104,21 +109,18 @@ static void synic_realize(DeviceState *dev, Error **errp)
     msgp_name = g_strdup_printf("synic-%u-msg-page", vp_index);
     eventp_name = g_strdup_printf("synic-%u-event-page", vp_index);
 
-    memory_region_init_ram(&synic->msg_page_mr, obj, msgp_name,
-                           sizeof(*synic->msg_page), &error_abort);
-    memory_region_init_ram(&synic->event_page_mr, obj, eventp_name,
-                           sizeof(*synic->event_page), &error_abort);
-    synic->msg_page = memory_region_get_ram_ptr(&synic->msg_page_mr);
-    synic->event_page = memory_region_get_ram_ptr(&synic->event_page_mr);
+    alloc_overlay_page(&synic->msg_page, obj, msgp_name);
+    alloc_overlay_page(&synic->event_page, obj, eventp_name);
 
     g_free(msgp_name);
     g_free(eventp_name);
 }
+
 static void synic_reset(DeviceState *dev)
 {
     SynICState *synic = SYNIC(dev);
-    memset(synic->msg_page, 0, sizeof(*synic->msg_page));
-    memset(synic->event_page, 0, sizeof(*synic->event_page));
+    memset(synic->msg_page.ram_ptr, 0, sizeof(struct hyperv_message_page));
+    memset(synic->event_page.ram_ptr, 0, sizeof(struct hyperv_event_flags_page));
     synic_update(synic, false, 0, 0);
 }
 
@@ -254,17 +256,19 @@ static void cpu_post_msg(CPUState *cs, run_on_cpu_data data)
     HvSintRoute *sint_route = data.host_ptr;
     HvSintStagedMessage *staged_msg = sint_route->staged_msg;
     SynICState *synic = sint_route->synic;
+    struct hyperv_message_page *msg_page;
     struct hyperv_message *dst_msg;
     bool wait_for_sint_ack = false;
 
     assert(staged_msg->state == HV_STAGED_MSG_BUSY);
 
-    if (!synic->enabled || !synic->msg_page_addr) {
+    if (!synic->enabled || !synic->msg_page.addr) {
         staged_msg->status = -ENXIO;
         goto posted;
     }
 
-    dst_msg = &synic->msg_page->slot[sint_route->sint];
+    msg_page = synic->msg_page.ram_ptr;
+    dst_msg = &msg_page->slot[sint_route->sint];
 
     if (dst_msg->header.message_type != HV_MESSAGE_NONE) {
         dst_msg->header.message_flags |= HV_MESSAGE_FLAG_PENDING;
@@ -275,7 +279,8 @@ static void cpu_post_msg(CPUState *cs, run_on_cpu_data data)
         staged_msg->status = hyperv_sint_route_set_sint(sint_route);
     }
 
-    memory_region_set_dirty(&synic->msg_page_mr, 0, sizeof(*synic->msg_page));
+    memory_region_set_dirty(&synic->msg_page.mr, 0,
+                            sizeof(struct hyperv_message_page));
 
 posted:
     qatomic_set(&staged_msg->state, HV_STAGED_MSG_POSTED);
@@ -338,22 +343,24 @@ int hyperv_set_event_flag(HvSintRoute *sint_route, unsigned eventno)
     int ret;
     SynICState *synic = sint_route->synic;
     unsigned long *flags, set_mask;
+    struct hyperv_event_flags_page *event_page;
     unsigned set_idx;
 
     if (eventno > HV_EVENT_FLAGS_COUNT) {
         return -EINVAL;
     }
-    if (!synic->enabled || !synic->event_page_addr) {
+    if (!synic->enabled || !synic->event_page.addr) {
         return -ENXIO;
     }
 
     set_idx = BIT_WORD(eventno);
     set_mask = BIT_MASK(eventno);
-    flags = synic->event_page->slot[sint_route->sint].flags;
+    event_page = synic->event_page.ram_ptr;
+    flags = event_page->slot[sint_route->sint].flags;
 
     if ((qatomic_fetch_or(&flags[set_idx], set_mask) & set_mask) != set_mask) {
-        memory_region_set_dirty(&synic->event_page_mr, 0,
-                                sizeof(*synic->event_page));
+        memory_region_set_dirty(&synic->event_page.mr, 0,
+                                sizeof(struct hyperv_event_flags_page));
         ret = hyperv_sint_route_set_sint(sint_route);
     } else {
         ret = 0;

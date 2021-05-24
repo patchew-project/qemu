@@ -12,6 +12,15 @@
 
 #include "cpu-qom.h"
 #include "hw/hyperv/hyperv-proto.h"
+#include "exec/memory.h"
+
+#define HYPERV_OVERLAY_ENABLED     (1u << 0)
+
+struct hyperv_overlay_page {
+    hwaddr addr;
+    MemoryRegion mr;
+    void *ram_ptr;
+};
 
 typedef struct HvSintRoute HvSintRoute;
 
