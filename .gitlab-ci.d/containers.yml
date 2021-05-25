@@ -106,9 +106,6 @@ armhf-debian-cross-container:
 hexagon-cross-container:
   image: docker:stable
   stage: containers
-  except:
-    variables:
-      - $CI_PROJECT_NAMESPACE == 'qemu-project'
   variables:
     NAME: debian-hexagon-cross
     GIT_DEPTH: 1
@@ -127,6 +124,10 @@ hexagon-cross-container:
     - docker push "$TAG"
   after_script:
     - docker logout
+  rules:
+    - if: '$CI_PROJECT_NAMESPACE == "qemu-project"'
+      when: never
+    - when: on_success
 
 hppa-debian-cross-container:
   extends: .container_job_template
