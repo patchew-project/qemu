@@ -951,7 +951,11 @@ static void page_lock_pair(PageDesc **ret_p1, tb_page_addr_t phys1,
  * Users running large scale system emulation may want to tweak their
  * runtime setup via the tb-size control on the command line.
  */
+#ifdef TARGET_I386
+#define DEFAULT_CODE_GEN_BUFFER_SIZE_1 (32 * MiB)
+#else
 #define DEFAULT_CODE_GEN_BUFFER_SIZE_1 (1 * GiB)
+#endif
 #endif
 #endif
 
