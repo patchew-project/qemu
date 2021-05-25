@@ -47,6 +47,7 @@ typedef struct BDRVBlkdebugState {
     uint64_t max_write_zero;
     uint64_t opt_discard;
     uint64_t max_discard;
+    uint64_t blocksize;
 
     uint64_t take_child_perms;
     uint64_t unshare_child_perms;
@@ -455,6 +456,11 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_SIZE,
             .help = "Maximum discard size in bytes",
         },
+        {
+            .name = "blocksize",
+            .type = QEMU_OPT_SIZE,
+            .help = "Blocksize of device",
+        },
         { /* end of list */ }
     },
 };
@@ -559,6 +565,14 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
                           MAX(s->opt_discard, align)))) {
         error_setg(errp, "Cannot meet constraints with max-discard %" PRIu64,
                    s->max_discard);
+        goto out;
+    }
+
+    s->blocksize = qemu_opt_get_size(opts, "blocksize", 512);
+    if (s->blocksize && (s->blocksize >= INT_MAX ||
+        !is_power_of_2(s->blocksize))) {
+        error_setg(errp, "Cannot meet constraints with blocksize %" PRIu64,
+                   s->blocksize);
         goto out;
     }
 
@@ -984,6 +998,19 @@ static void blkdebug_refresh_limits(BlockDriverState *bs, Error **errp)
     }
 }
 
+static int blkdebug_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz)
+{
+    BDRVBlkdebugState *s = bs->opaque;
+
+    if (!s->blocksize) {
+        return 0;
+    }
+
+    bsz->phys = s->blocksize;
+    bsz->log = s->blocksize;
+    return 0;
+}
+
 static int blkdebug_reopen_prepare(BDRVReopenState *reopen_state,
                                    BlockReopenQueue *queue, Error **errp)
 {
@@ -1010,6 +1037,7 @@ static const char *const blkdebug_strong_runtime_opts[] = {
     "inject-error.",
     "set-state.",
     "align",
+    "blocksize",
     "max-transfer",
     "opt-write-zero",
     "max-write-zero",
@@ -1034,6 +1062,7 @@ static BlockDriver bdrv_blkdebug = {
     .bdrv_getlength         = blkdebug_getlength,
     .bdrv_refresh_filename  = blkdebug_refresh_filename,
     .bdrv_refresh_limits    = blkdebug_refresh_limits,
+    .bdrv_probe_blocksizes  = blkdebug_probe_blocksizes,
 
     .bdrv_co_preadv         = blkdebug_co_preadv,
     .bdrv_co_pwritev        = blkdebug_co_pwritev,
