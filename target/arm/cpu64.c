@@ -759,10 +759,7 @@ static void aarch64_max_initfn(Object *obj)
         cpu->ctr = 0x80038003; /* 32 byte I and D cacheline size, VIPT icache */
         cpu->dcz_blocksize = 7; /*  512 bytes */
 #endif
-
-        /* Default to PAUTH on, with the architected algorithm. */
-        qdev_property_add_static(DEVICE(obj), &arm_cpu_pauth_property);
-        qdev_property_add_static(DEVICE(obj), &arm_cpu_pauth_impdef_property);
+        set_feature(&cpu->env, ARM_FEATURE_PAUTH);
     }
 
     aarch64_add_sve_properties(obj);
@@ -834,8 +831,16 @@ static void aarch64_cpu_class_init(ObjectClass *oc, void *data)
 static void aarch64_cpu_instance_init(Object *obj)
 {
     ARMCPUClass *acc = ARM_CPU_GET_CLASS(obj);
+    ARMCPU *cpu = ARM_CPU(obj);
 
     acc->info->initfn(obj);
+
+    /* Default to PAUTH on, with the architected algorithm. */
+    if (arm_feature(&cpu->env, ARM_FEATURE_PAUTH)) {
+        qdev_property_add_static(DEVICE(obj), &arm_cpu_pauth_property);
+        qdev_property_add_static(DEVICE(obj), &arm_cpu_pauth_impdef_property);
+    }
+
     arm_cpu_post_init(obj);
 }
 

@@ -974,6 +974,7 @@ struct ARMCPU {
      */
     bool prop_pauth;
     bool prop_pauth_impdef;
+    bool has_pauth;
 
     /* DCZ blocksize, in log_2(words), ie low 4 bits of DCZID_EL0 */
     uint32_t dcz_blocksize;
@@ -2120,6 +2121,7 @@ enum arm_features {
     ARM_FEATURE_M_SECURITY, /* M profile Security Extension */
     ARM_FEATURE_M_MAIN, /* M profile Main Extension */
     ARM_FEATURE_V8_1M, /* M profile extras only in v8.1M and later */
+    ARM_FEATURE_PAUTH, /* has pointer authentication support */
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)
