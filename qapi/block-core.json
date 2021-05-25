@@ -3407,6 +3407,12 @@
 # @blocksize: blocksize of device in bytes, must be
 #             positive power of 2 (since 6.1)
 #
+# @log-blocksize: logical blocksize of device in bytes, must be positive power
+#                 of 2, or 0 for default (@blocksize) (since 6.1)
+#
+# @phys-blocksize: physical blocksize of device in bytes, must be positive
+#                  power of 2, or 0 for default (@blocksize) (since 6.1)
+#
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsBlkdebug',
@@ -3416,6 +3422,7 @@
             '*opt-write-zero': 'int32', '*max-write-zero': 'int32',
             '*opt-discard': 'int32', '*max-discard': 'int32',
             '*blocksize': 'int',
+            '*log-blocksize': 'int', '*phys-blocksize': 'int',
             '*inject-error': ['BlkdebugInjectErrorOptions'],
             '*set-state': ['BlkdebugSetStateOptions'],
             '*take-child-perms': ['BlockPermission'],

@@ -48,6 +48,8 @@ typedef struct BDRVBlkdebugState {
     uint64_t opt_discard;
     uint64_t max_discard;
     uint64_t blocksize;
+    uint64_t phys_blocksize;
+    uint64_t log_blocksize;
 
     uint64_t take_child_perms;
     uint64_t unshare_child_perms;
@@ -459,7 +461,17 @@ static QemuOptsList runtime_opts = {
         {
             .name = "blocksize",
             .type = QEMU_OPT_SIZE,
-            .help = "Blocksize of device",
+            .help = "Blocksize of device (512 default)",
+        },
+        {
+            .name = "phys-blocksize",
+            .type = QEMU_OPT_SIZE,
+            .help = "Physical blocksize of device (Defaults to 'blocksize')",
+        },
+        {
+            .name = "log-blocksize",
+            .type = QEMU_OPT_SIZE,
+            .help = "Logical blocksize of device (Defaults to 'blocksize')",
         },
         { /* end of list */ }
     },
@@ -573,6 +585,22 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
         !is_power_of_2(s->blocksize))) {
         error_setg(errp, "Cannot meet constraints with blocksize %" PRIu64,
                    s->blocksize);
+        goto out;
+    }
+
+    s->phys_blocksize = qemu_opt_get_size(opts, "phys-blocksize", 0);
+    if (s->phys_blocksize && (s->phys_blocksize >= INT_MAX ||
+        !is_power_of_2(s->phys_blocksize))) {
+        error_setg(errp, "Cannot meet constraints with phys-blocksize %" PRIu64,
+                   s->phys_blocksize);
+        goto out;
+    }
+
+    s->log_blocksize = qemu_opt_get_size(opts, "log-blocksize", 0);
+    if (s->log_blocksize && (s->log_blocksize >= INT_MAX ||
+        !is_power_of_2(s->log_blocksize))) {
+        error_setg(errp, "Cannot meet constraints with log-blocksize %" PRIu64,
+                   s->log_blocksize);
         goto out;
     }
 
@@ -1002,12 +1030,9 @@ static int blkdebug_probe_blocksizes(BlockDriverState *bs, BlockSizes *bsz)
 {
     BDRVBlkdebugState *s = bs->opaque;
 
-    if (!s->blocksize) {
-        return 0;
-    }
+    bsz->phys = s->phys_blocksize ? s->phys_blocksize : s->blocksize;
+    bsz->log = s->log_blocksize ? s->log_blocksize : s->blocksize;
 
-    bsz->phys = s->blocksize;
-    bsz->log = s->blocksize;
     return 0;
 }
 
@@ -1038,6 +1063,8 @@ static const char *const blkdebug_strong_runtime_opts[] = {
     "set-state.",
     "align",
     "blocksize",
+    "phys-blocksize",
+    "log-blocksize",
     "max-transfer",
     "opt-write-zero",
     "max-write-zero",
