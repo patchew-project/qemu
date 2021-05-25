@@ -1081,8 +1081,6 @@ have_virtfs = (targetos == 'linux' and
     libattr.found() and
     libcap_ng.found())
 
-have_virtfs_proxy_helper = have_virtfs and have_tools
-
 if get_option('virtfs').enabled()
   if not have_virtfs
     if targetos != 'linux'
@@ -1096,6 +1094,8 @@ if get_option('virtfs').enabled()
 elif get_option('virtfs').disabled()
   have_virtfs = false
 endif
+
+have_virtfs_proxy_helper = have_virtfs and have_tools
 
 config_host_data.set_quoted('CONFIG_BINDIR', get_option('prefix') / get_option('bindir'))
 config_host_data.set_quoted('CONFIG_PREFIX', get_option('prefix'))
