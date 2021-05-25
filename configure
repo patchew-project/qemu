@@ -5383,13 +5383,6 @@ fi
 
 ##########################################
 
-# Exclude --warn-common with TSan to suppress warnings from the TSan libraries.
-if test "$solaris" = "no" && test "$tsan" = "no"; then
-    if $ld --version 2>/dev/null | grep "GNU ld" >/dev/null 2>/dev/null ; then
-        QEMU_LDFLAGS="-Wl,--warn-common $QEMU_LDFLAGS"
-    fi
-fi
-
 # Use ASLR, no-SEH and DEP if available
 if test "$mingw32" = "yes" ; then
     flags="--no-seh --nxcompat"
