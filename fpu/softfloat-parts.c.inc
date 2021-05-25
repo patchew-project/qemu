@@ -140,8 +140,8 @@ static void partsN(canonicalize)(FloatPartsN *p, float_status *status,
  * fraction; these bits will be removed. The exponent will be biased
  * by EXP_BIAS and must be bounded by [EXP_MAX-1, 0].
  */
-static void partsN(uncanon)(FloatPartsN *p, float_status *s,
-                            const FloatFmt *fmt)
+static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
+                                   const FloatFmt *fmt)
 {
     const int exp_max = fmt->exp_max;
     const int frac_shift = fmt->frac_shift;
@@ -152,29 +152,6 @@ static void partsN(uncanon)(FloatPartsN *p, float_status *s,
     uint64_t inc;
     bool overflow_norm;
     int exp, flags = 0;
-
-    if (unlikely(p->cls != float_class_normal)) {
-        switch (p->cls) {
-        case float_class_zero:
-            p->exp = 0;
-            frac_clear(p);
-            return;
-        case float_class_inf:
-            g_assert(!fmt->arm_althp);
-            p->exp = fmt->exp_max;
-            frac_clear(p);
-            return;
-        case float_class_qnan:
-        case float_class_snan:
-            g_assert(!fmt->arm_althp);
-            p->exp = fmt->exp_max;
-            frac_shr(p, fmt->frac_shift);
-            return;
-        default:
-            break;
-        }
-        g_assert_not_reached();
-    }
 
     switch (s->float_rounding_mode) {
     case float_round_nearest_even:
@@ -280,6 +257,35 @@ static void partsN(uncanon)(FloatPartsN *p, float_status *s,
     }
     p->exp = exp;
     float_raise(flags, s);
+}
+
+static void partsN(uncanon)(FloatPartsN *p, float_status *s,
+                            const FloatFmt *fmt)
+{
+    if (likely(p->cls == float_class_normal)) {
+        parts_uncanon_normal(p, s, fmt);
+    } else {
+        switch (p->cls) {
+        case float_class_zero:
+            p->exp = 0;
+            frac_clear(p);
+            return;
+        case float_class_inf:
+            g_assert(!fmt->arm_althp);
+            p->exp = fmt->exp_max;
+            frac_clear(p);
+            return;
+        case float_class_qnan:
+        case float_class_snan:
+            g_assert(!fmt->arm_althp);
+            p->exp = fmt->exp_max;
+            frac_shr(p, fmt->frac_shift);
+            return;
+        default:
+            break;
+        }
+        g_assert_not_reached();
+    }
 }
 
 /*
