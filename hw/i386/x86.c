@@ -37,12 +37,16 @@
 #include "sysemu/replay.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/cpu-timers.h"
+#include "sysemu/sev.h"
+#include "exec/confidential-guest-support.h"
 #include "trace.h"
+#include "crypto/hash.h"
 
 #include "hw/i386/x86.h"
 #include "target/i386/cpu.h"
 #include "hw/i386/topology.h"
 #include "hw/i386/fw_cfg.h"
+#include "hw/i386/pc.h"
 #include "hw/intc/i8259.h"
 #include "hw/rtc/mc146818rtc.h"
 
@@ -758,6 +762,42 @@ static bool load_elfboot(const char *kernel_filename,
     return true;
 }
 
+struct sev_hash_table_descriptor {
+    uint32_t base;
+    uint32_t size;
+};
+
+/* hard code sha256 digest size */
+#define HASH_SIZE 32
+
+struct sev_hash_table_entry {
+    uint8_t guid[16];
+    uint16_t len;
+    uint8_t hash[HASH_SIZE];
+} __attribute__ ((packed));
+
+struct sev_hash_table {
+    uint8_t guid[16];
+    uint16_t len;
+    struct sev_hash_table_entry entries[];
+} __attribute__((packed));
+
+#define SEV_HASH_TABLE_RV_GUID "7255371f-3a3b-4b04-927b-1da6efa8d454"
+
+static const uint8_t sev_hash_table_header_guid[] =
+        UUID_LE(0x9438d606, 0x4f22, 0x4cc9, 0xb4, 0x79, 0xa7, 0x93,
+                0xd4, 0x11, 0xfd, 0x21);
+
+static const uint8_t sev_kernel_entry_guid[] =
+        UUID_LE(0x4de79437, 0xabd2, 0x427f, 0xb8, 0x35, 0xd5, 0xb1,
+                0x72, 0xd2, 0x04, 0x5b);
+static const uint8_t sev_initrd_entry_guid[] =
+        UUID_LE(0x44baf731, 0x3a2f, 0x4bd7, 0x9a, 0xf1, 0x41, 0xe2,
+                0x91, 0x69, 0x78, 0x1d);
+static const uint8_t sev_cmdline_entry_guid[] =
+        UUID_LE(0x97d02dd8, 0xbd20, 0x4c94, 0xaa, 0x78, 0xe7, 0x71,
+                0x4d, 0x36, 0xab, 0x2a);
+
 void x86_load_linux(X86MachineState *x86ms,
                     FWCfgState *fw_cfg,
                     int acpi_data_size,
@@ -778,6 +818,11 @@ void x86_load_linux(X86MachineState *x86ms,
     const char *initrd_filename = machine->initrd_filename;
     const char *dtb_filename = machine->dtb;
     const char *kernel_cmdline = machine->kernel_cmdline;
+    uint8_t buf[HASH_SIZE];
+    uint8_t *hash = buf;
+    size_t hash_len = sizeof(buf);
+    struct sev_hash_table *sev_ht = NULL;
+    int sev_ht_index = 0;
 
     /* Align to 16 bytes as a paranoia measure */
     cmdline_size = (strlen(kernel_cmdline) + 16) & ~15;
@@ -797,6 +842,22 @@ void x86_load_linux(X86MachineState *x86ms,
         fprintf(stderr, "qemu: could not load kernel '%s': %s\n",
                 kernel_filename, strerror(errno));
         exit(1);
+    }
+
+    if (machine->cgs && machine->cgs->ready) {
+        uint8_t *data;
+        struct sev_hash_table_descriptor *area;
+
+        if (!pc_system_ovmf_table_find(SEV_HASH_TABLE_RV_GUID, &data, NULL)) {
+            fprintf(stderr, "qemu: kernel command line specified but OVMF has "
+                    "no hash table guid\n");
+            exit(1);
+        }
+        area = (struct sev_hash_table_descriptor *)data;
+
+        sev_ht = qemu_map_ram_ptr(NULL, area->base);
+        memcpy(sev_ht->guid, sev_hash_table_header_guid, sizeof(sev_ht->guid));
+        sev_ht->len = sizeof(*sev_ht);
     }
 
     /* kernel protocol version */
@@ -925,6 +986,17 @@ void x86_load_linux(X86MachineState *x86ms,
     fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_SIZE, strlen(kernel_cmdline) + 1);
     fw_cfg_add_string(fw_cfg, FW_CFG_CMDLINE_DATA, kernel_cmdline);
 
+    if (sev_ht) {
+        struct sev_hash_table_entry *e = &sev_ht->entries[sev_ht_index++];
+
+        qcrypto_hash_bytes(QCRYPTO_HASH_ALG_SHA256, (char *)kernel_cmdline,
+                           strlen(kernel_cmdline) + 1,
+                           &hash, &hash_len, &error_fatal);
+        memcpy(e->hash, hash, hash_len);
+        e->len = sizeof(*e);
+        memcpy(e->guid, sev_cmdline_entry_guid, sizeof(e->guid));
+    }
+
     if (protocol >= 0x202) {
         stl_p(header + 0x228, cmdline_addr);
     } else {
@@ -1008,6 +1080,17 @@ void x86_load_linux(X86MachineState *x86ms,
 
         stl_p(header + 0x218, initrd_addr);
         stl_p(header + 0x21c, initrd_size);
+
+        if (sev_ht) {
+            struct sev_hash_table_entry *e = &sev_ht->entries[sev_ht_index++];
+
+            qcrypto_hash_bytes(QCRYPTO_HASH_ALG_SHA256, (char *)initrd_data,
+                               initrd_size, &hash, &hash_len, &error_fatal);
+            memcpy(e->hash, hash, hash_len);
+            e->len = sizeof(*e);
+            memcpy(e->guid, sev_initrd_entry_guid, sizeof(e->guid));
+        }
+
     }
 
     /* load kernel and setup */
@@ -1063,7 +1146,17 @@ void x86_load_linux(X86MachineState *x86ms,
         load_image_size(dtb_filename, setup_data->data, dtb_size);
     }
 
-    memcpy(setup, header, MIN(sizeof(header), setup_size));
+    /*
+     * If we're doing an encrypted VM (sev_ht will be set), it will be
+     * OVMF based, which uses the efi stub for booting and doesn't
+     * require any values to be placed in the kernel header.  We
+     * therefore don't update the header so the hash of the kernel on
+     * the other side of the fw_cfg interface matches the hash of the
+     * file the user passed in.
+     */
+    if (!sev_ht) {
+        memcpy(setup, header, MIN(sizeof(header), setup_size));
+    }
 
     fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_ADDR, prot_addr);
     fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_SIZE, kernel_size);
@@ -1073,6 +1166,31 @@ void x86_load_linux(X86MachineState *x86ms,
     fw_cfg_add_i32(fw_cfg, FW_CFG_SETUP_SIZE, setup_size);
     fw_cfg_add_bytes(fw_cfg, FW_CFG_SETUP_DATA, setup, setup_size);
 
+    if (sev_ht) {
+        struct iovec iov[2] = {
+            {.iov_base = (char *)setup, .iov_len = setup_size },
+            {.iov_base = (char *)kernel, .iov_len = kernel_size }
+        };
+        struct sev_hash_table_entry *e = &sev_ht->entries[sev_ht_index++];
+        int len;
+
+        qcrypto_hash_bytesv(QCRYPTO_HASH_ALG_SHA256, iov, 2,
+                            &hash, &hash_len, &error_fatal);
+        memcpy(e->hash, hash, hash_len);
+        e->len = sizeof(*e);
+        memcpy(e->guid, sev_kernel_entry_guid, sizeof(e->guid));
+
+        /* now we have all the possible entries, finalize the hash table */
+        sev_ht->len += sev_ht_index * sizeof(*e);
+        /* SEV len has to be 16 byte aligned */
+        len = ROUND_UP(sev_ht->len, 16);
+        if (len != sev_ht->len) {
+            /* zero the excess data so hash can be reliably calculated */
+            memset(&sev_ht->entries[sev_ht_index], 0, len - sev_ht->len);
+        }
+
+        sev_encrypt_flash((uint8_t *)sev_ht, len, &error_fatal);
+    }
     option_rom[nb_option_roms].bootindex = 0;
     option_rom[nb_option_roms].name = "linuxboot.bin";
     if (linuxboot_dma_enabled && fw_cfg_dma_enabled(fw_cfg)) {
