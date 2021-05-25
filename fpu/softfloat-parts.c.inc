@@ -936,3 +936,84 @@ static void partsN(uint_to_float)(FloatPartsN *p, uint64_t a,
         p->frac_hi = a << shift;
     }
 }
+
+/*
+ * Float min/max.
+ *
+ * Return -1 to return the chosen nan in *a;
+ * return 0 to use the a input unchanged; 1 to use the b input unchanged.
+ */
+static int partsN(minmax)(FloatPartsN *a, FloatPartsN *b,
+                          float_status *s, int flags, const FloatFmt *fmt)
+{
+    int ab_mask = float_cmask(a->cls) | float_cmask(b->cls);
+    int a_exp, b_exp, cmp;
+
+    if (unlikely(ab_mask & float_cmask_anynan)) {
+        /*
+         * For minnum/maxnum, if one operand is a QNaN, and the other
+         * operand is numerical, then return numerical argument.
+         */
+        if ((flags & minmax_isnum)
+            && !(ab_mask & float_cmask_snan)
+            && (ab_mask & ~float_cmask_qnan)) {
+            return is_nan(a->cls);
+        }
+        *a = *parts_pick_nan(a, b, s);
+        return -1;
+    }
+
+    a_exp = a->exp;
+    b_exp = b->exp;
+
+    if (unlikely(ab_mask != float_cmask_normal)) {
+        switch (a->cls) {
+        case float_class_normal:
+            break;
+        case float_class_inf:
+            a_exp = INT16_MAX;
+            break;
+        case float_class_zero:
+            a_exp = INT16_MIN;
+            break;
+        default:
+            g_assert_not_reached();
+            break;
+        }
+        switch (b->cls) {
+        case float_class_normal:
+            break;
+        case float_class_inf:
+            b_exp = INT16_MAX;
+            break;
+        case float_class_zero:
+            b_exp = INT16_MIN;
+            break;
+        default:
+            g_assert_not_reached();
+            break;
+        }
+    }
+
+    /* Compare magnitudes. */
+    cmp = a_exp - b_exp;
+    if (cmp == 0) {
+        cmp = frac_cmp(a, b);
+    }
+
+    /*
+     * Take the sign into account.
+     * For ismag, only do this if the magnitudes are equal.
+     */
+    if (!(flags & minmax_ismag) || cmp == 0) {
+        if (a->sign != b->sign) {
+            /* For differing signs, the negative operand is less. */
+            cmp = a->sign ? -1 : 1;
+        } else if (a->sign) {
+            /* For two negative operands, invert the magnitude comparison. */
+            cmp = -cmp;
+        }
+    }
+
+    return (cmp < 0) ^ !!(flags & minmax_ismin);
+}
