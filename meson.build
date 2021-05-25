@@ -2738,6 +2738,17 @@ summary_info += {'libudev':           libudev.found()}
 summary_info += {'FUSE lseek':        fuse_lseek.found()}
 summary(summary_info, bool_yn: true, section: 'Dependencies')
 
+# Modules
+summary_info = {}
+foreach d, list : modules
+  k = []
+    foreach m, _ : list
+      k += [m]
+    endforeach
+  summary_info += {d: ' '.join(k)}
+endforeach
+summary(summary_info, bool_yn: true, section: 'Modules')
+
 if not supported_cpus.contains(cpu)
   message()
   warning('SUPPORT FOR THIS HOST CPU WILL GO AWAY IN FUTURE RELEASES!')
