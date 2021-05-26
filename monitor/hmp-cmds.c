@@ -1634,6 +1634,88 @@ void hmp_netdev_del(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
+void hmp_colo_passthrough_add(Monitor *mon, const QDict *qdict)
+{
+    IPFlowSpec *spec = g_new0(IPFlowSpec, 1);
+    char *src, *dst;
+    Error *err = NULL;
+
+    spec->protocol = g_strdup(qdict_get_try_str(qdict, "protocol"));
+    spec->object_name = g_strdup(qdict_get_try_str(qdict, "object-name"));
+
+    src = g_strdup(qdict_get_try_str(qdict, "src"));
+    if (src) {
+        spec->source = g_new0(InetSocketAddressBase, 1);
+
+        if (inet_parse_base(spec->source, src, NULL)) {
+            monitor_printf(mon, "bad colo passthrough src address");
+            goto out;
+        }
+    }
+
+    dst = g_strdup(qdict_get_try_str(qdict, "dst"));
+    if (dst) {
+        spec->destination = g_new0(InetSocketAddressBase, 1);
+
+        if (inet_parse_base(spec->destination, dst, NULL)) {
+            monitor_printf(mon, "bad colo passthrough dst address");
+            goto out;
+        }
+    }
+
+    qmp_colo_passthrough_add(spec, &err);
+
+out:
+    g_free(src);
+    src = NULL;
+
+    g_free(dst);
+    dst = NULL;
+
+    hmp_handle_error(mon, err);
+}
+
+void hmp_colo_passthrough_del(Monitor *mon, const QDict *qdict)
+{
+    IPFlowSpec *spec = g_new0(IPFlowSpec, 1);
+    char *src, *dst;
+    Error *err = NULL;
+
+    spec->protocol = g_strdup(qdict_get_try_str(qdict, "protocol"));
+    spec->object_name = g_strdup(qdict_get_try_str(qdict, "object-name"));
+
+    src = g_strdup(qdict_get_try_str(qdict, "src"));
+    if (src) {
+        spec->source = g_new0(InetSocketAddressBase, 1);
+
+        if (inet_parse_base(spec->source, src, NULL)) {
+            monitor_printf(mon, "bad colo passthrough src address");
+            goto out;
+        }
+    }
+
+    dst = g_strdup(qdict_get_try_str(qdict, "dst"));
+    if (dst) {
+        spec->destination = g_new0(InetSocketAddressBase, 1);
+
+        if (inet_parse_base(spec->destination, dst, NULL)) {
+            monitor_printf(mon, "bad colo passthrough dst address");
+            goto out;
+        }
+    }
+
+    qmp_colo_passthrough_del(spec, &err);
+
+out:
+    g_free(src);
+    src = NULL;
+
+    g_free(dst);
+    dst = NULL;
+
+    hmp_handle_error(mon, err);
+}
+
 void hmp_object_add(Monitor *mon, const QDict *qdict)
 {
     const char *options = qdict_get_str(qdict, "object");

@@ -1291,6 +1291,32 @@ SRST
 ERST
 
     {
+        .name       = "colo_passthrough_add",
+        .args_type  = "protocol:s,object-name:s?,src:s?,dst:s?",
+        .params     = "protocol [object-name] [src] [dst]",
+        .help       = "Add network stream to colo passthrough list",
+        .cmd        = hmp_colo_passthrough_add,
+    },
+
+SRST
+``colo_passthrough_add``
+  Add network stream to colo passthrough list.
+ERST
+
+    {
+        .name       = "colo_passthrough_del",
+        .args_type  = "protocol:s,object-name:s?,src:s?,dst:s?",
+        .params     = "protocol [object-name] [src] [dst]",
+        .help       = "Delete network stream from colo passthrough list",
+        .cmd        = hmp_colo_passthrough_del,
+    },
+
+SRST
+``colo_passthrough_del``
+  Delete network stream from colo passthrough list.
+ERST
+
+    {
         .name       = "object_add",
         .args_type  = "object:S",
         .params     = "[qom-type=]type,id=str[,prop=value][,...]",
