@@ -32,11 +32,11 @@ def make_argparser() -> argparse.ArgumentParser:
 
     p.add_argument('-n', '--dry-run', action='store_true',
                    help='show me, do not run tests')
-    p.add_argument('-makecheck', action='store_true',
+    p.add_argument('--makecheck', action='store_true',
                    help='pretty print output for make check')
 
     p.add_argument('-d', dest='debug', action='store_true', help='debug')
-    p.add_argument('-misalign', action='store_true',
+    p.add_argument('--misalign', action='store_true',
                    help='misalign memory allocations')
     p.add_argument('--color', choices=['on', 'off', 'auto'],
                    default='auto', help="use terminal colors. The default "
@@ -46,7 +46,7 @@ def make_argparser() -> argparse.ArgumentParser:
     mg = g_env.add_mutually_exclusive_group()
     # We don't set default for cachemode, as we need to distinguish default
     # from user input later.
-    mg.add_argument('-nocache', dest='cachemode', action='store_const',
+    mg.add_argument('--nocache', dest='cachemode', action='store_const',
                     const='none', help='set cache mode "none" (O_DIRECT), '
                     'sets CACHEMODE environment variable')
     mg.add_argument('-c', dest='cachemode',
@@ -85,7 +85,7 @@ def make_argparser() -> argparse.ArgumentParser:
     g_bash.add_argument('-o', dest='imgopts',
                         help='options to pass to qemu-img create/convert, '
                         'sets IMGOPTS environment variable')
-    g_bash.add_argument('-valgrind', action='store_true',
+    g_bash.add_argument('--valgrind', action='store_true',
                         help='use valgrind, sets VALGRIND_QEMU environment '
                         'variable')
 

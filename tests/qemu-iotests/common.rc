@@ -124,7 +124,7 @@ fi
 
 # Set the variables to the empty string to turn Valgrind off
 # for specific processes, e.g.
-# $ VALGRIND_QEMU_IO= ./check -qcow2 -valgrind 015
+# $ VALGRIND_QEMU_IO= ./check -qcow2 --valgrind 015
 
 : ${VALGRIND_QEMU_VM=$VALGRIND_QEMU}
 : ${VALGRIND_QEMU_IMG=$VALGRIND_QEMU}
@@ -134,7 +134,7 @@ fi
 
 # The Valgrind own parameters may be set with
 # its environment variable VALGRIND_OPTS, e.g.
-# $ VALGRIND_OPTS="--leak-check=yes" ./check -qcow2 -valgrind 015
+# $ VALGRIND_OPTS="--leak-check=yes" ./check -qcow2 --valgrind 015
 
 _qemu_proc_exec()
 {
