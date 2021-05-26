@@ -61,6 +61,13 @@ struct target_siginfo_fpu {
 #endif
 };
 
+struct target_siginfo_v8plus {
+#if defined(TARGET_SPARC64) && defined(TARGET_ABI32)
+    uint32_t u_regs_upper[16];
+    uint32_t asi;
+#endif
+};
+
 #ifdef TARGET_ARCH_HAS_SETUP_FRAME
 struct target_signal_frame {
     struct target_stackf ss;
@@ -69,7 +76,8 @@ struct target_signal_frame {
     abi_ulong fpu_save;
     uint32_t insns[2] QEMU_ALIGNED(8);
     abi_ulong extramask[TARGET_NSIG_WORDS - 1];
-    abi_ulong extra_size; /* Should be 0 */
+    abi_ulong extra_size; /* Should be sizeof(v8plus) */
+    struct target_siginfo_v8plus v8plus;
     abi_ulong rwin_save;
 };
 #endif
@@ -87,8 +95,9 @@ struct target_rt_signal_frame {
     abi_ulong fpu_save;
     uint32_t insns[2];
     target_stack_t stack;
-    abi_ulong extra_size; /* Should be 0 */
+    abi_ulong extra_size; /* Should be sizeof(v8plus) */
 #endif
+    struct target_siginfo_v8plus v8plus;
     abi_ulong rwin_save;
 };
 
@@ -121,7 +130,34 @@ static abi_ulong get_sigframe(struct target_sigaction *sa,
     return sp;
 }
 
-static void save_pt_regs(struct target_pt_regs *regs, CPUSPARCState *env)
+/* Fake PSR_IMPL | PSR_VER, meaning 64-bit cpu is present. */
+#define PSR_V8PLUS  0xff000000u
+/* If PSR_V8PLUS, this field contains %xcc. */
+#define PSR_XCC     0x000f0000u
+
+#if defined(TARGET_SPARC64) && defined(TARGET_ABI32)
+# define SAVE_REG(X, I)                                 \
+    do {                                                \
+        __put_user(X, &regs->u_regs[I]);                \
+        __put_user(X >> 32, &v8plus->u_regs_upper[I]);  \
+    } while (0)
+# define RESTORE_REG(X, I)                              \
+    do {                                                \
+        uint32_t l_, h_ = 0;                            \
+        __get_user(l_, &regs->u_regs[I]);               \
+        if ((psr & PSR_V8PLUS) == PSR_V8PLUS) {         \
+            __get_user(h_, &v8plus->u_regs_upper[I]);   \
+        }                                               \
+        X = deposit64(l_, 32, 32, h_);                  \
+    } while (0)
+#else
+# define SAVE_REG(X, I)     __put_user(X, &regs->u_regs[I])
+# define RESTORE_REG(X, I)  __get_user(X, &regs->u_regs[I])
+#endif
+
+static void save_pt_regs(struct target_pt_regs *regs,
+                         struct target_siginfo_v8plus *v8plus,
+                         CPUSPARCState *env)
 {
     int i;
 
@@ -130,7 +166,18 @@ static void save_pt_regs(struct target_pt_regs *regs, CPUSPARCState *env)
     /* TODO: magic should contain PT_REG_MAGIC + %tt. */
     __put_user(0, &regs->magic);
 #else
-    __put_user(cpu_get_psr(env), &regs->psr);
+    uint32_t psr;
+# ifdef TARGET_SPARC64
+    /* See linux/arch/sparc/include/uapi/asm/psrcompat.h, tstate_to_psr */
+    uint64_t tstate = sparc64_tstate(env);
+    psr = (tstate & 0x1f) /* TSTATE_CWP */
+        | ((tstate >> 12) & PSR_ICC)
+        | ((tstate >> 20) & PSR_XCC)
+        | PSR_S | PSR_V8PLUS;
+# else
+    psr = cpu_get_psr(env);
+# endif
+    __put_user(psr, &regs->psr);
 #endif
 
     __put_user(env->pc, &regs->pc);
@@ -138,14 +185,20 @@ static void save_pt_regs(struct target_pt_regs *regs, CPUSPARCState *env)
     __put_user(env->y, &regs->y);
 
     for (i = 0; i < 8; i++) {
-        __put_user(env->gregs[i], &regs->u_regs[i]);
+        SAVE_REG(env->gregs[i], i);
     }
     for (i = 0; i < 8; i++) {
-        __put_user(env->regwptr[WREG_O0 + i], &regs->u_regs[i + 8]);
+        SAVE_REG(env->regwptr[WREG_O0 + i], i + 8);
     }
+
+#if defined(TARGET_SPARC64) && defined(TARGET_ABI32)
+    __put_user(env->asi, &v8plus->asi);
+#endif
 }
 
-static void restore_pt_regs(struct target_pt_regs *regs, CPUSPARCState *env)
+static void restore_pt_regs(struct target_pt_regs *regs,
+                            struct target_siginfo_v8plus *v8plus,
+                            CPUSPARCState *env)
 {
     int i;
 
@@ -163,7 +216,15 @@ static void restore_pt_regs(struct target_pt_regs *regs, CPUSPARCState *env)
      */
     uint32_t psr;
     __get_user(psr, &regs->psr);
-    env->psr = (psr & PSR_ICC) | (env->psr & ~PSR_ICC);
+# ifdef TARGET_SPARC64
+    /* Unconditionally restore %icc and %xcc; conditionally restore %asi. */
+    cpu_put_ccr(env, ((psr & PSR_ICC) >> 20) | ((psr & PSR_XCC) >> 12));
+    if ((psr & PSR_V8PLUS) == PSR_V8PLUS) {
+        env->asi = v8plus->asi & 0xff;
+    }
+# else
+    cpu_put_psr(env, (psr & PSR_ICC) | (env->psr & ~PSR_ICC));
+# endif
 #endif
 
     /* Note that pc and npc are handled in the caller. */
@@ -171,12 +232,15 @@ static void restore_pt_regs(struct target_pt_regs *regs, CPUSPARCState *env)
     __get_user(env->y, &regs->y);
 
     for (i = 0; i < 8; i++) {
-        __get_user(env->gregs[i], &regs->u_regs[i]);
+        RESTORE_REG(env->gregs[i], i);
     }
     for (i = 0; i < 8; i++) {
-        __get_user(env->regwptr[WREG_O0 + i], &regs->u_regs[i + 8]);
+        RESTORE_REG(env->regwptr[WREG_O0 + i], i + 8);
     }
 }
+
+#undef SAVE_REG
+#undef RESTORE_REG
 
 static void save_reg_win(struct target_reg_window *win, CPUSPARCState *env)
 {
@@ -259,8 +323,8 @@ void setup_frame(int sig, struct target_sigaction *ka,
     }
 
     /* 2. Save the current process state */
-    save_pt_regs(&sf->regs, env);
-    __put_user(0, &sf->extra_size);
+    save_pt_regs(&sf->regs, &sf->v8plus, env);
+    __put_user(sizeof(sf->v8plus), &sf->extra_size);
 
     save_fpu((struct target_siginfo_fpu *)(sf + 1), env);
     __put_user(sf_addr + sizeof(*sf), &sf->fpu_save);
@@ -321,7 +385,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
 
     /* 2. Save the current process state */
     save_reg_win(&sf->ss.win, env);
-    save_pt_regs(&sf->regs, env);
+    save_pt_regs(&sf->regs, &sf->v8plus, env);
 
     save_fpu((struct target_siginfo_fpu *)(sf + 1), env);
     __put_user(sf_addr + sizeof(*sf), &sf->fpu_save);
@@ -333,7 +397,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     target_save_altstack(&sf->stack, env);
 
 #ifdef TARGET_ABI32
-    __put_user(0, &sf->extra_size);
+    __put_user(sizeof(sf->v8plus), &sf->extra_size);
 #endif
 
     /* 3. signal handler back-trampoline and parameters */
@@ -404,7 +468,7 @@ long do_sigreturn(CPUSPARCState *env)
     }
 
     /* 2. Restore the state */
-    restore_pt_regs(&sf->regs, env);
+    restore_pt_regs(&sf->regs, &sf->v8plus, env);
     env->pc = pc;
     env->npc = npc;
 
@@ -471,7 +535,7 @@ long do_rt_sigreturn(CPUSPARCState *env)
     }
 
     /* 2. Restore the state */
-    restore_pt_regs(&sf->regs, env);
+    restore_pt_regs(&sf->regs, &sf->v8plus, env);
 
     __get_user(ptr, &sf->fpu_save);
     if (ptr) {
