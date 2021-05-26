@@ -54,6 +54,8 @@
 #include "sysemu/runstate.h"
 #include "net/filter.h"
 #include "qapi/string-output-visitor.h"
+#include "net/colo-compare.h"
+#include "qom/object_interfaces.h"
 
 /* Net bridge is currently not supported for W32. */
 #if !defined(_WIN32)
@@ -1194,14 +1196,170 @@ void qmp_netdev_del(const char *id, Error **errp)
     }
 }
 
+static CompareState *colo_passthrough_check(IPFlowSpec *spec, Error **errp)
+{
+    Object *container;
+    Object *obj;
+    CompareState *s;
+
+    if (!spec->object_name) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "object-name",
+                   "Need input colo-compare object name");
+        return NULL;
+    }
+
+    container = object_get_objects_root();
+    obj = object_resolve_path_component(container, spec->object_name);
+    if (!obj) {
+        error_setg(errp, "colo-compare '%s' not found", spec->object_name);
+        return NULL;
+    }
+
+    s = COLO_COMPARE(obj);
+
+    if (!getprotobyname(spec->protocol)) {
+        error_setg(errp, "COLO pass through get wrong protocol");
+        return NULL;
+    }
+
+    if ((spec->source->host && !qemu_isdigit(spec->source->host[0])) ||
+        (spec->destination->host &&
+        !qemu_isdigit(spec->destination->host[0]))) {
+        error_setg(errp, "COLO pass through get wrong IP");
+        return NULL;
+    }
+
+    if (atoi(spec->source->port) > 65536 || atoi(spec->source->port) < 0 ||
+        atoi(spec->destination->port) > 65536 ||
+        atoi(spec->destination->port) < 0) {
+        error_setg(errp, "COLO pass through get wrong port");
+        return NULL;
+    }
+
+    return s;
+}
+
+static COLOPassthroughEntry *compare_passthrough_find(CompareState *s,
+                                                      COLOPassthroughEntry *ent)
+{
+    COLOPassthroughEntry *next = NULL, *origin = NULL;
+
+    if (!QLIST_EMPTY(&s->passthroughlist)) {
+        QLIST_FOREACH_SAFE(origin, &s->passthroughlist, node, next) {
+            if ((ent->l4_protocol->p_proto == origin->l4_protocol->p_proto) &&
+                (ent->src_port == origin->src_port) &&
+                (ent->dst_port == origin->dst_port) &&
+                (ent->src_ip.s_addr == origin->src_ip.s_addr) &&
+                (ent->dst_ip.s_addr == origin->dst_ip.s_addr)) {
+                return origin;
+            }
+        }
+    }
+
+    return NULL;
+}
+
+static void compare_passthrough_add(CompareState *s,
+                                    IPFlowSpec *spec,
+                                    Error **errp)
+{
+    COLOPassthroughEntry *pass = NULL;
+
+    pass = g_new0(COLOPassthroughEntry, 1);
+
+    pass->l4_protocol = getprotobyname(spec->protocol);
+    pass->src_port = atoi(spec->source->port);
+    pass->dst_port = atoi(spec->destination->port);
+
+    if (!inet_aton(spec->source->host, &pass->src_ip)) {
+        pass->src_ip.s_addr = 0;
+    }
+
+    if (!inet_aton(spec->destination->host, &pass->dst_ip)) {
+        pass->dst_ip.s_addr = 0;
+    }
+
+    qemu_mutex_lock(&s->passthroughlist_mutex);
+    if (compare_passthrough_find(s, pass)) {
+        error_setg(errp, "The pass through connection already exists");
+        g_free(pass);
+        qemu_mutex_unlock(&s->passthroughlist_mutex);
+        return;
+    }
+
+    QLIST_INSERT_HEAD(&s->passthroughlist, pass, node);
+    qemu_mutex_unlock(&s->passthroughlist_mutex);
+}
+
+static void compare_passthrough_del(CompareState *s,
+                                    IPFlowSpec *spec,
+                                    Error **errp)
+{
+    COLOPassthroughEntry *pass = NULL, *result = NULL;
+
+    pass = g_new0(COLOPassthroughEntry, 1);
+
+    pass->l4_protocol = getprotobyname(spec->protocol);
+    pass->src_port = atoi(spec->source->port);
+    pass->dst_port = atoi(spec->destination->port);
+
+    if (!inet_aton(spec->source->host, &pass->src_ip)) {
+        pass->src_ip.s_addr = 0;
+    }
+
+    if (!inet_aton(spec->destination->host, &pass->dst_ip)) {
+        pass->dst_ip.s_addr = 0;
+    }
+
+    qemu_mutex_lock(&s->passthroughlist_mutex);
+
+    result = compare_passthrough_find(s, pass);
+    if (result) {
+        QLIST_REMOVE(result, node);
+        g_free(result);
+    } else {
+        error_setg(errp, "Can't find the IP flow Spec");
+    }
+
+    g_free(pass);
+    qemu_mutex_unlock(&s->passthroughlist_mutex);
+}
+
+
 void qmp_colo_passthrough_add(IPFlowSpec *spec, Error **errp)
 {
-    /* TODO implement setup passthrough rule */
+    CompareState *s;
+    Error *err = NULL;
+
+    s = colo_passthrough_check(spec, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    compare_passthrough_add(s, spec, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
 }
 
 void qmp_colo_passthrough_del(IPFlowSpec *spec, Error **errp)
 {
-    /* TODO implement delete passthrough rule */
+    CompareState *s;
+    Error *err = NULL;
+
+    s = colo_passthrough_check(spec, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    compare_passthrough_del(s, spec, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
 }
 
 static void netfilter_print_info(Monitor *mon, NetFilterState *nf)
