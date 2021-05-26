@@ -576,6 +576,9 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     }
 
     read_only = qemu_opt_get_bool(opts, BDRV_OPT_READ_ONLY, false);
+    if (!read_only) {
+        bdrv_flags |= BDRV_O_RDWR;
+    }
 
     /* init */
     if ((!file || !*file) && !qdict_size(bs_opts)) {
@@ -584,7 +587,6 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         blk = blk_new(qemu_get_aio_context(), 0, BLK_PERM_ALL);
         blk_rs = blk_get_root_state(blk);
         blk_rs->open_flags    = bdrv_flags;
-        blk_rs->read_only     = read_only;
         blk_rs->detect_zeroes = detect_zeroes;
 
         qobject_unref(bs_opts);
