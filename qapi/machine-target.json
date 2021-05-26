@@ -329,3 +329,57 @@
 ##
 { 'command': 'query-cpu-definitions', 'returns': ['CpuDefinitionInfo'],
   'if': 'defined(TARGET_PPC) || defined(TARGET_ARM) || defined(TARGET_I386) || defined(TARGET_S390X) || defined(TARGET_MIPS)' }
+
+##
+# @Accelerator:
+#
+# An enumeration of accelerator names.
+#
+# Since: 6.1
+##
+{ 'enum': 'Accelerator',
+  'data': [
+      { 'name': 'hax', 'if': 'defined(CONFIG_HAX)' },
+      { 'name': 'hvf', 'if': 'defined(CONFIG_HVF)' },
+      { 'name': 'kvm', 'if': 'defined(CONFIG_KVM)' },
+      { 'name': 'qtest' },
+      { 'name': 'tcg', 'if': 'defined(CONFIG_TCG)' },
+      { 'name': 'whpx', 'if': 'defined(CONFIG_WHPX)' },
+      { 'name': 'xen', 'if': 'defined(CONFIG_XEN_BACKEND)' } ] }
+
+##
+# @AcceleratorInfo:
+#
+# Accelerator information.
+#
+# @name: The accelerator name.
+#
+# Since: 6.1
+##
+{ 'struct': 'AcceleratorInfo',
+  'data': { 'name': 'Accelerator' } }
+
+##
+# @query-accels:
+#
+# Get a list of AcceleratorInfo for all built-in accelerators.
+#
+# Returns: a list of @AcceleratorInfo describing each accelerator.
+#
+# Since: 6.1
+#
+# Example:
+#
+# -> { "execute": "query-accels" }
+# <- { "return": [
+#        {
+#            "name": "qtest"
+#        },
+#        {
+#            "name": "kvm"
+#        }
+#    ] }
+#
+##
+{ 'command': 'query-accels',
+  'returns': ['AcceleratorInfo'] }
