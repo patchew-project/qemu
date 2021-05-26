@@ -40,9 +40,12 @@ static void spapr_reset_vcpu(PowerPCCPU *cpu)
 
     lpcr = env->spr[SPR_LPCR];
 
-    /* Set emulated LPCR to not send interrupts to hypervisor. Note that
-     * under KVM, the actual HW LPCR will be set differently by KVM itself,
-     * the settings below ensure proper operations with TCG in absence of
+    /*
+     * Set emulated LPCR to not send interrupts to hypervisor. Note that
+     * under KVM, the actual HW LPCR will be set differently by KVM itself
+     * and that gets loaded by kvm_arch_get_registers and kvm_arch_init_vcpu.
+     *
+     * The LPCR settings below ensure proper operations with TCG in absence of
      * a real hypervisor.
      *
      * Disable Power-saving mode Exit Cause exceptions for the CPU, so

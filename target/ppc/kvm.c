@@ -104,6 +104,7 @@ static bool kvmppc_is_pr(KVMState *ks)
     return kvm_vm_check_extension(ks, KVM_CAP_PPC_GET_PVINFO) != 0;
 }
 
+static void kvm_get_one_spr(CPUState *cs, uint64_t id, int spr);
 static int kvm_ppc_register_host_cpu_type(void);
 static void kvmppc_get_cpu_characteristics(KVMState *s);
 static int kvmppc_get_dec_bits(void);
@@ -476,6 +477,16 @@ int kvm_arch_init_vcpu(CPUState *cs)
         }
         return ret;
     }
+
+    /*
+     * As explained in spapr_reset_vcpu, a KVM guest needs to synchronize
+     * to the LPCR value set by KVM.
+     */
+#ifdef TARGET_PPC64
+    kvm_get_one_spr(cs, KVM_REG_PPC_LPCR_64, SPR_LPCR);
+#else
+    kvm_get_one_spr(cs, KVM_REG_PPC_LPCR, SPR_LPCR);
+#endif
 
     switch (cenv->mmu_model) {
     case POWERPC_MMU_BOOKE206:
@@ -1307,6 +1318,7 @@ int kvm_arch_get_registers(CPUState *cs)
 
         kvm_get_one_reg(cs, KVM_REG_PPC_TB_OFFSET, &env->tb_env->tb_offset);
         kvm_get_one_spr(cs, KVM_REG_PPC_DPDES, SPR_DPDES);
+        kvm_get_one_spr(cs, KVM_REG_PPC_LPCR_64, SPR_LPCR);
 #endif
     }
 
@@ -2529,24 +2541,18 @@ int kvmppc_get_cap_large_decr(void)
 
 int kvmppc_enable_cap_large_decr(PowerPCCPU *cpu, int enable)
 {
+    CPUPPCState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
     uint64_t lpcr;
 
-    kvm_get_one_reg(cs, KVM_REG_PPC_LPCR_64, &lpcr);
-    /* Do we need to modify the LPCR? */
-    if (!!(lpcr & LPCR_LD) != !!enable) {
-        if (enable) {
-            lpcr |= LPCR_LD;
-        } else {
-            lpcr &= ~LPCR_LD;
-        }
-        kvm_set_one_reg(cs, KVM_REG_PPC_LPCR_64, &lpcr);
-        kvm_get_one_reg(cs, KVM_REG_PPC_LPCR_64, &lpcr);
-
-        if (!!(lpcr & LPCR_LD) != !!enable) {
-            return -1;
-        }
+    cpu_synchronize_state(cs);
+    lpcr = env->spr[SPR_LPCR];
+    if (enable) {
+        lpcr |= LPCR_LD;
+    } else {
+        lpcr &= ~LPCR_LD;
     }
+    ppc_store_lpcr(cpu, lpcr);
 
     return 0;
 }
