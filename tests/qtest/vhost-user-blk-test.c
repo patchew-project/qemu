@@ -803,11 +803,16 @@ static void destroy_file(void *path)
 static char *drive_create(void)
 {
     int fd, ret;
+    mode_t old_umask;
     /** vhost-user-blk won't recognize drive located in /tmp */
     char *t_path = g_strdup("qtest.XXXXXX");
 
     /** Create a temporary raw image */
+    old_umask = umask(S_IXUSR |
+                      S_IRGRP | S_IWGRP | S_IXGRP |
+                      S_IROTH | S_IWOTH | S_IXOTH);
     fd = mkstemp(t_path);
+    umask(old_umask);
     g_assert_cmpint(fd, >=, 0);
     ret = ftruncate(fd, TEST_IMAGE_SIZE);
     g_assert_cmpint(ret, ==, 0);
@@ -821,10 +826,15 @@ static char *create_listen_socket(int *fd)
 {
     int tmp_fd;
     char *path;
+    mode_t old_umask;
 
     /* No race because our pid makes the path unique */
     path = g_strdup_printf("/tmp/qtest-%d-sock.XXXXXX", getpid());
+    old_umask = umask(S_IXUSR |
+                      S_IRGRP | S_IWGRP | S_IXGRP |
+                      S_IROTH | S_IWOTH | S_IXOTH);
     tmp_fd = mkstemp(path);
+    umask(old_umask);
     g_assert_cmpint(tmp_fd, >=, 0);
     close(tmp_fd);
     unlink(path);
