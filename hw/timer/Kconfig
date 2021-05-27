@@ -54,3 +54,6 @@ config SSE_TIMER
 
 config AVR_TIMER16
     bool
+
+config RENESAS_TIMER
+    bool
