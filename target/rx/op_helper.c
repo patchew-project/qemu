@@ -97,9 +97,11 @@ static void update_fpsw(CPURXState *env, float32 ret, uintptr_t retaddr)
         if (xcpt & float_flag_inexact) {
             SET_FPSW(X);
         }
-        if ((xcpt & (float_flag_iflush_denormal
-                     | float_flag_oflush_denormal))
-            && !FIELD_EX32(env->fpsw, FPSW, DN)) {
+        /*
+         * If any input or output denormals, not flushed to zero, raise CE:
+         * unimplemented processing has been encountered.
+         */
+        if (xcpt & (float_flag_inorm_denormal | float_flag_result_denormal)) {
             env->fpsw = FIELD_DP32(env->fpsw, FPSW, CE, 1);
         }
 
