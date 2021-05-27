@@ -31,14 +31,16 @@
 /* Same address of GDB integrated simulator */
 #define SDRAM_BASE  EXT_CS_BASE
 
+typedef struct RxGdbSimMachineClass RxGdbSimMachineClass;
+
 struct RxGdbSimMachineClass {
     /*< private >*/
     MachineClass parent_class;
     /*< public >*/
     const char *mcu_name;
     uint32_t xtal_freq_hz;
+    size_t romsize;
 };
-typedef struct RxGdbSimMachineClass RxGdbSimMachineClass;
 
 struct RxGdbSimMachineState {
     /*< private >*/
@@ -54,26 +56,50 @@ DECLARE_OBJ_CHECKERS(RxGdbSimMachineState, RxGdbSimMachineClass,
                      RX_GDBSIM_MACHINE, TYPE_RX_GDBSIM_MACHINE)
 
 
-static void rx_load_image(RXCPU *cpu, const char *filename,
-                          uint32_t start, uint32_t size)
+#define TINYBOOT_TOP (0xffffff00)
+
+static void set_bootstrap(hwaddr entry, hwaddr dtb)
 {
-    static uint32_t extable[32];
-    long kernel_size;
+    /* Minimal hardware initialize for kernel requirement */
+    /* linux kernel only works little-endian mode */
+    static uint8_t tinyboot[256] = {
+        0xfb, 0x2e, 0x20, 0x00, 0x08,       /* mov.l #0x80020, r2 */
+        0xf8, 0x2e, 0x00, 0x01, 0x01,       /* mov.l #0x00010100, [r2] */
+        0xfb, 0x2e, 0x10, 0x00, 0x08,       /* mov.l #0x80010, r2 */
+        0xf8, 0x22, 0xdf, 0x7d, 0xff, 0xff, /* mov.l #0xffff7ddf, [r2] */
+        0x62, 0x42,                         /* add #4, r2 */
+        0xf8, 0x22, 0xff, 0x7f, 0xff, 0x7f, /* mov.l #0x7fff7fff, [r2] */
+        0xfb, 0x2e, 0x40, 0x82, 0x08,       /* mov.l #0x88240, r2 */
+        0x3c, 0x22, 0x00,                   /* mov.b #0, 2[r2] */
+        0x3c, 0x21, 0x4e,                   /* mov.b #78, 1[r2] */
+        0xfb, 0x22, 0x70, 0xff, 0xff, 0xff, /* mov.l #0xffffff70, r2 */
+        0xec, 0x21,                         /* mov.l [r2], r1 */
+        0xfb, 0x22, 0x74, 0xff, 0xff, 0xff, /* mov.l #0xffffff74, r2 */
+        0xec, 0x22,                         /* mov.l [r2], r2 */
+        0x7f, 0x02,                         /* jmp r2 */
+    };
     int i;
+
+    *((uint32_t *)&tinyboot[0x70]) = cpu_to_le32(dtb);
+    *((uint32_t *)&tinyboot[0x74]) = cpu_to_le32(entry);
+
+    /* setup exception trap trampoline */
+    for (i = 0; i < 31; i++) {
+        *((uint32_t *)&tinyboot[0x80 + i * 4]) = cpu_to_le32(0x10 + i * 4);
+    }
+    *((uint32_t *)&tinyboot[0xfc]) = cpu_to_le32(TINYBOOT_TOP);
+    rom_add_blob_fixed("tinyboot", tinyboot, sizeof(tinyboot), TINYBOOT_TOP);
+}
+
+static void load_kernel(const char *filename, uint32_t start, uint32_t size)
+{
+    long kernel_size;
 
     kernel_size = load_image_targphys(filename, start, size);
     if (kernel_size < 0) {
         fprintf(stderr, "qemu: could not load kernel '%s'\n", filename);
         exit(1);
     }
-    cpu->env.pc = start;
-
-    /* setup exception trap trampoline */
-    /* linux kernel only works little-endian mode */
-    for (i = 0; i < ARRAY_SIZE(extable); i++) {
-        extable[i] = cpu_to_le32(0x10 + i * 4);
-    }
-    rom_add_blob_fixed("extable", extable, sizeof(extable), VECTOR_TABLE_BASE);
 }
 
 static void rx_gdbsim_init(MachineState *machine)
@@ -101,33 +127,15 @@ static void rx_gdbsim_init(MachineState *machine)
                              &error_abort);
     object_property_set_uint(OBJECT(&s->mcu), "xtal-frequency-hz",
                              rxc->xtal_freq_hz, &error_abort);
-    object_property_set_bool(OBJECT(&s->mcu), "load-kernel",
-                             kernel_filename != NULL, &error_abort);
-
-    if (!kernel_filename) {
-        if (machine->firmware) {
-            rom_add_file_fixed(machine->firmware, RX62N_CFLASH_BASE, 0);
-        } else if (!qtest_enabled()) {
-            error_report("No bios or kernel specified");
-            exit(1);
-        }
-    }
-
-    qdev_realize(DEVICE(&s->mcu), NULL, &error_abort);
-
     /* Load kernel and dtb */
     if (kernel_filename) {
         ram_addr_t kernel_offset;
-
-        /*
-         * The kernel image is loaded into
-         * the latter half of the SDRAM space.
-         */
+        ram_addr_t dtb_offset = 0;
         kernel_offset = machine->ram_size / 2;
-        rx_load_image(RX_CPU(first_cpu), kernel_filename,
-                      SDRAM_BASE + kernel_offset, kernel_offset);
+
+        load_kernel(machine->kernel_filename,
+                    SDRAM_BASE + kernel_offset, kernel_offset);
         if (dtb_filename) {
-            ram_addr_t dtb_offset;
             int dtb_size;
             g_autofree void *dtb = load_device_tree(dtb_filename, &dtb_size);
 
@@ -145,10 +153,17 @@ static void rx_gdbsim_init(MachineState *machine)
             dtb_offset = machine->ram_size - dtb_size;
             rom_add_blob_fixed("dtb", dtb, dtb_size,
                                SDRAM_BASE + dtb_offset);
-            /* Set dtb address to R1 */
-            RX_CPU(first_cpu)->env.regs[1] = SDRAM_BASE + dtb_offset;
+        }
+        set_bootstrap(SDRAM_BASE + kernel_offset, SDRAM_BASE + dtb_offset);
+    } else {
+        if (machine->firmware) {
+            rom_add_file_fixed(machine->firmware, RX62N_CFLASH_BASE, 0);
+        } else if (!qtest_enabled()) {
+            error_report("No bios or kernel specified");
+            exit(1);
         }
     }
+    qdev_realize(DEVICE(&s->mcu), NULL, &error_abort);
 }
 
 static void rx_gdbsim_class_init(ObjectClass *oc, void *data)

@@ -33,14 +33,6 @@
 #include "qemu/units.h"
 #include "qom/object.h"
 
-#define TYPE_RX62N_MCU "rx62n-mcu"
-typedef struct RX62NState RX62NState;
-DECLARE_INSTANCE_CHECKER(RX62NState, RX62N_MCU,
-                         TYPE_RX62N_MCU)
-
-#define TYPE_R5F562N7_MCU "r5f562n7-mcu"
-#define TYPE_R5F562N8_MCU "r5f562n8-mcu"
-
 #define EXT_CS_BASE         0x01000000
 #define VECTOR_TABLE_BASE   0xffffff80
 #define RX62N_CFLASH_BASE   0xfff80000
@@ -49,7 +41,7 @@ DECLARE_INSTANCE_CHECKER(RX62NState, RX62N_MCU,
 #define RX62N_NR_CMT    2
 #define RX62N_NR_SCI    6
 
-struct RX62NState {
+typedef struct RX62NState {
     /*< private >*/
     DeviceState parent_obj;
     /*< public >*/
@@ -75,5 +67,11 @@ struct RX62NState {
     uint32_t xtal_freq_hz;
 } RX62NState;
 
+#define TYPE_RX62N_MCU "rx62n-mcu"
+
+#define TYPE_R5F562N7_MCU "r5f562n7-mcu"
+#define TYPE_R5F562N8_MCU "r5f562n8-mcu"
+DECLARE_INSTANCE_CHECKER(RX62NState, RX62N_MCU,
+                         TYPE_RX62N_MCU)
 
 #endif

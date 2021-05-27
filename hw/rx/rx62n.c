@@ -58,20 +58,6 @@
 #define RX62N_XTAL_MIN_HZ  (8 * 1000 * 1000)
 #define RX62N_XTAL_MAX_HZ (14 * 1000 * 1000)
 
-struct RX62NClass {
-    /*< private >*/
-    DeviceClass parent_class;
-    /*< public >*/
-    const char *name;
-    uint64_t ram_size;
-    uint64_t rom_flash_size;
-    uint64_t data_flash_size;
-};
-typedef struct RX62NClass RX62NClass;
-
-DECLARE_CLASS_CHECKERS(RX62NClass, RX62N_MCU,
-                       TYPE_RX62N_MCU)
-
 /*
  * IRQ -> IPR mapping table
  * 0x00 - 0x91: IPR no (IPR00 to IPR91)
@@ -281,7 +267,6 @@ static void rx62n_realize(DeviceState *dev, Error **errp)
 static Property rx62n_properties[] = {
     DEFINE_PROP_LINK("main-bus", RX62NState, sysmem, TYPE_MEMORY_REGION,
                      MemoryRegion *),
-    DEFINE_PROP_BOOL("load-kernel", RX62NState, kernel, false),
     DEFINE_PROP_UINT32("xtal-frequency-hz", RX62NState, xtal_freq_hz, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
