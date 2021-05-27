@@ -126,61 +126,23 @@ this code that are retained.
  * denormal/inf/NaN; (2) when operands are not guaranteed to lead to a 0 result
  * and the result is < the minimum normal.
  */
-#define GEN_INPUT_FLUSH__NOCHECK(name, soft_t)                          \
+
+#define GEN_INPUT_FLUSH(name, soft_t)                                   \
     static inline void name(soft_t *a, float_status *s)                 \
     {                                                                   \
         if (unlikely(soft_t ## _is_denormal(*a))) {                     \
-            *a = soft_t ## _set_sign(soft_t ## _zero,                   \
-                                     soft_t ## _is_neg(*a));            \
-            float_raise(float_flag_iflush_denormal, s);                  \
+            if (s->flush_inputs_to_zero) {                              \
+                *a = soft_t ## _set_sign(0, soft_t ## _is_neg(*a));     \
+                float_raise(float_flag_iflush_denormal, s);             \
+            } else {                                                    \
+                float_raise(float_flag_inorm_denormal, s);              \
+            }                                                           \
         }                                                               \
     }
 
-GEN_INPUT_FLUSH__NOCHECK(float32_input_flush__nocheck, float32)
-GEN_INPUT_FLUSH__NOCHECK(float64_input_flush__nocheck, float64)
-#undef GEN_INPUT_FLUSH__NOCHECK
-
-#define GEN_INPUT_FLUSH1(name, soft_t)                  \
-    static inline void name(soft_t *a, float_status *s) \
-    {                                                   \
-        if (likely(!s->flush_inputs_to_zero)) {         \
-            return;                                     \
-        }                                               \
-        soft_t ## _input_flush__nocheck(a, s);          \
-    }
-
-GEN_INPUT_FLUSH1(float32_input_flush1, float32)
-GEN_INPUT_FLUSH1(float64_input_flush1, float64)
-#undef GEN_INPUT_FLUSH1
-
-#define GEN_INPUT_FLUSH2(name, soft_t)                                  \
-    static inline void name(soft_t *a, soft_t *b, float_status *s)      \
-    {                                                                   \
-        if (likely(!s->flush_inputs_to_zero)) {                         \
-            return;                                                     \
-        }                                                               \
-        soft_t ## _input_flush__nocheck(a, s);                          \
-        soft_t ## _input_flush__nocheck(b, s);                          \
-    }
-
-GEN_INPUT_FLUSH2(float32_input_flush2, float32)
-GEN_INPUT_FLUSH2(float64_input_flush2, float64)
-#undef GEN_INPUT_FLUSH2
-
-#define GEN_INPUT_FLUSH3(name, soft_t)                                  \
-    static inline void name(soft_t *a, soft_t *b, soft_t *c, float_status *s) \
-    {                                                                   \
-        if (likely(!s->flush_inputs_to_zero)) {                         \
-            return;                                                     \
-        }                                                               \
-        soft_t ## _input_flush__nocheck(a, s);                          \
-        soft_t ## _input_flush__nocheck(b, s);                          \
-        soft_t ## _input_flush__nocheck(c, s);                          \
-    }
-
-GEN_INPUT_FLUSH3(float32_input_flush3, float32)
-GEN_INPUT_FLUSH3(float64_input_flush3, float64)
-#undef GEN_INPUT_FLUSH3
+GEN_INPUT_FLUSH(float32_input_flush, float32)
+GEN_INPUT_FLUSH(float64_input_flush, float64)
+#undef GEN_INPUT_FLUSH
 
 /*
  * Choose whether to use fpclassify or float32/64_* primitives in the generated
@@ -353,7 +315,8 @@ float32_gen2(float32 xa, float32 xb, float_status *s,
         goto soft;
     }
 
-    float32_input_flush2(&ua.s, &ub.s, s);
+    float32_input_flush(&ua.s, s);
+    float32_input_flush(&ub.s, s);
     if (unlikely(!pre(ua, ub))) {
         goto soft;
     }
@@ -384,7 +347,8 @@ float64_gen2(float64 xa, float64 xb, float_status *s,
         goto soft;
     }
 
-    float64_input_flush2(&ua.s, &ub.s, s);
+    float64_input_flush(&ua.s, s);
+    float64_input_flush(&ub.s, s);
     if (unlikely(!pre(ua, ub))) {
         goto soft;
     }
@@ -2161,7 +2125,9 @@ float32_muladd(float32 xa, float32 xb, float32 xc, int flags, float_status *s)
         goto soft;
     }
 
-    float32_input_flush3(&ua.s, &ub.s, &uc.s, s);
+    float32_input_flush(&ua.s, s);
+    float32_input_flush(&ub.s, s);
+    float32_input_flush(&uc.s, s);
     if (unlikely(!f32_is_zon3(ua, ub, uc))) {
         goto soft;
     }
@@ -2232,7 +2198,9 @@ float64_muladd(float64 xa, float64 xb, float64 xc, int flags, float_status *s)
         goto soft;
     }
 
-    float64_input_flush3(&ua.s, &ub.s, &uc.s, s);
+    float64_input_flush(&ua.s, s);
+    float64_input_flush(&ub.s, s);
+    float64_input_flush(&uc.s, s);
     if (unlikely(!f64_is_zon3(ua, ub, uc))) {
         goto soft;
     }
@@ -3988,7 +3956,8 @@ float32_hs_compare(float32 xa, float32 xb, float_status *s, bool is_quiet)
         goto soft;
     }
 
-    float32_input_flush2(&ua.s, &ub.s, s);
+    float32_input_flush(&ua.s, s);
+    float32_input_flush(&ub.s, s);
     if (isgreaterequal(ua.h, ub.h)) {
         if (isgreater(ua.h, ub.h)) {
             return float_relation_greater;
@@ -4038,7 +4007,8 @@ float64_hs_compare(float64 xa, float64 xb, float_status *s, bool is_quiet)
         goto soft;
     }
 
-    float64_input_flush2(&ua.s, &ub.s, s);
+    float64_input_flush(&ua.s, s);
+    float64_input_flush(&ub.s, s);
     if (isgreaterequal(ua.h, ub.h)) {
         if (isgreater(ua.h, ub.h)) {
             return float_relation_greater;
@@ -4230,7 +4200,7 @@ float32 QEMU_FLATTEN float32_sqrt(float32 xa, float_status *s)
         goto soft;
     }
 
-    float32_input_flush1(&ua.s, s);
+    float32_input_flush(&ua.s, s);
     if (QEMU_HARDFLOAT_1F32_USE_FP) {
         if (unlikely(!(fpclassify(ua.h) == FP_NORMAL ||
                        fpclassify(ua.h) == FP_ZERO) ||
@@ -4257,7 +4227,7 @@ float64 QEMU_FLATTEN float64_sqrt(float64 xa, float_status *s)
         goto soft;
     }
 
-    float64_input_flush1(&ua.s, s);
+    float64_input_flush(&ua.s, s);
     if (QEMU_HARDFLOAT_1F64_USE_FP) {
         if (unlikely(!(fpclassify(ua.h) == FP_NORMAL ||
                        fpclassify(ua.h) == FP_ZERO) ||

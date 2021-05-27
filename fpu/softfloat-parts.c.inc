@@ -119,6 +119,7 @@ static void partsN(canonicalize)(FloatPartsN *p, float_status *status,
             int shift = frac_normalize(p);
             p->cls = float_class_normal;
             p->exp = fmt->frac_shift - fmt->exp_bias - shift + 1;
+            float_raise(float_flag_inorm_denormal, status);
         }
     } else if (likely(p->exp < fmt->exp_max) || fmt->arm_althp) {
         p->cls = float_class_normal;

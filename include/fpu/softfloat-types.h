@@ -143,13 +143,14 @@ typedef enum __attribute__((__packed__)) {
  */
 
 enum {
-    float_flag_invalid   =  1,
-    float_flag_divbyzero =  4,
-    float_flag_overflow  =  8,
-    float_flag_underflow = 16,
-    float_flag_inexact   = 32,
-    float_flag_iflush_denormal = 64,
-    float_flag_oflush_denormal = 128
+    float_flag_invalid         = 0x0001,
+    float_flag_divbyzero       = 0x0002,
+    float_flag_overflow        = 0x0004,
+    float_flag_underflow       = 0x0008,
+    float_flag_inexact         = 0x0010,
+    float_flag_inorm_denormal  = 0x0020,  /* denormal input, normalized */
+    float_flag_iflush_denormal = 0x0040,  /* denormal input, flushed to zero */
+    float_flag_oflush_denormal = 0x0080,  /* denormal result, flushed to zero */
 };
 
 /*
