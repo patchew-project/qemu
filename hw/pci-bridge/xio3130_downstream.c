@@ -87,6 +87,13 @@ static void xio3130_downstream_realize(PCIDevice *d, Error **errp)
         goto err_bridge;
     }
 
+    /*
+     * Following two fields must be set before calling pcie_cap_init() which
+     * will fill them to MLS and MLW of PCI_EXP_LNKCAP register.
+     */
+    s->speed = QEMU_PCI_EXP_LNK_2_5GT;
+    s->width = QEMU_PCI_EXP_LNK_X1;
+
     rc = pcie_cap_init(d, XIO3130_EXP_OFFSET, PCI_EXP_TYPE_DOWNSTREAM,
                        p->port, errp);
     if (rc < 0) {
