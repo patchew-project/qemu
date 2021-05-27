@@ -249,6 +249,12 @@ Use ``migrate-set-parameters`` and ``info migrate-parameters`` instead.
 
 Use ``migrate-set-parameters`` instead.
 
+``cpustats`` (removed in 6.1)
+'''''''''''''''''''''''''''''
+
+This command didn't produce any output already. Removed to avoid expectations
+of maintaining/fixing it.
+
 Guest Emulator ISAs
 -------------------
 
