@@ -149,7 +149,7 @@ enum {
     float_flag_underflow = 16,
     float_flag_inexact   = 32,
     float_flag_iflush_denormal = 64,
-    float_flag_output_denormal = 128
+    float_flag_oflush_denormal = 128
 };
 
 /*

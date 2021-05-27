@@ -46,7 +46,7 @@ static inline int vfp_exceptbits_from_host(int host_bits)
     if (host_bits & float_flag_overflow) {
         target_bits |= 4;
     }
-    if (host_bits & (float_flag_underflow | float_flag_output_denormal)) {
+    if (host_bits & (float_flag_underflow | float_flag_oflush_denormal)) {
         target_bits |= 8;
     }
     if (host_bits & float_flag_inexact) {
