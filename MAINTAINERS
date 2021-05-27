@@ -1414,7 +1414,7 @@ F: hw/char/renesas_sci.c
 F: hw/sh4/r2d.c
 F: hw/intc/sh_intc.c
 F: hw/pci-host/sh_pci.c
-F: hw/timer/sh_timer.c
+F: hw/timer/renesas_timer.c
 F: include/hw/sh4/sh_intc.h
 
 Shix
@@ -1425,7 +1425,7 @@ F: hw/block/tc58128.c
 F: hw/char/reness_sci.c
 F: hw/sh4/shix.c
 F: hw/intc/sh_intc.c
-F: hw/timer/sh_timer.c
+F: hw/timer/renesas_timer.c
 F: include/hw/sh4/sh_intc.h
 
 SPARC Machines
