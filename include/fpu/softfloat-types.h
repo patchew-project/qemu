@@ -151,6 +151,7 @@ enum {
     float_flag_inorm_denormal  = 0x0020,  /* denormal input, normalized */
     float_flag_iflush_denormal = 0x0040,  /* denormal input, flushed to zero */
     float_flag_oflush_denormal = 0x0080,  /* denormal result, flushed to zero */
+    float_flag_result_denormal = 0x0100,  /* denormal result, not flushed */
 };
 
 /*
@@ -170,8 +171,8 @@ typedef enum __attribute__((__packed__)) {
  */
 
 typedef struct float_status {
+    uint16_t float_exception_flags;
     FloatRoundMode float_rounding_mode;
-    uint8_t     float_exception_flags;
     FloatX80RoundPrec floatx80_rounding_precision;
     bool tininess_before_rounding;
     /* should denormalised results go to zero and set the inexact flag? */

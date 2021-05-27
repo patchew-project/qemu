@@ -276,8 +276,12 @@ static void partsN(uncanon_normal)(FloatPartsN *p, float_status *s,
         if (is_tiny && (flags & float_flag_inexact)) {
             flags |= float_flag_underflow;
         }
-        if (exp == 0 && frac_eqz(p)) {
-            p->cls = float_class_zero;
+        if (exp == 0) {
+            if (frac_eqz(p)) {
+                p->cls = float_class_zero;
+            } else {
+                flags |= float_flag_result_denormal;
+            }
         }
     }
     p->exp = exp;
