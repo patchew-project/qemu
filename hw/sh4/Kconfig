@@ -20,5 +20,5 @@ config SHIX
 config SH7750
     bool
     select SH_INTC
-    select SH_SCI
-    select SH_TIMER
+    select RENESAS_TIMER
+    select RENESAS_SCI

@@ -31,9 +31,10 @@
 #include "sh7750_regs.h"
 #include "sh7750_regnames.h"
 #include "hw/sh4/sh_intc.h"
-#include "hw/timer/tmu012.h"
+#include "hw/timer/renesas_timer.h"
 #include "exec/exec-all.h"
 #include "hw/sh4/sh7751-cpg.h"
+#include "hw/char/renesas_sci.h"
 #include "hw/qdev-properties.h"
 
 #define NB_DEVICES 4
@@ -774,6 +775,74 @@ static SH7751CPGBaseState *sh_cpg_init(MemoryRegion *sysmem,
     return cpg;
 }
 
+static void tmu012_init(MemoryRegion *sysmem, hwaddr base,
+                        int unit,
+                        qemu_irq ch0_irq, qemu_irq ch1_irq,
+                        qemu_irq ch2_irq0, qemu_irq ch2_irq1,
+                        SH7751CPGBaseState *cpg)
+{
+    RenesasTMUState *tmu;
+    char ckname[16];
+
+    tmu = RENESAS_TMU(qdev_new(TYPE_RENESAS_TMU));
+    qdev_prop_set_uint32(DEVICE(tmu), "unit", unit);
+    snprintf(ckname, sizeof(ckname), "pck_tmu-%d", unit);
+    qdev_connect_clock_in(DEVICE(tmu), "pck",
+                          qdev_get_clock_out(DEVICE(cpg), "pck_tmu-0"));
+
+    sysbus_realize(SYS_BUS_DEVICE(tmu), &error_abort);
+    sysbus_connect_irq(SYS_BUS_DEVICE(tmu), 0, ch0_irq);
+    sysbus_connect_irq(SYS_BUS_DEVICE(tmu), 1, ch1_irq);
+    if (unit == 0) {
+        sysbus_connect_irq(SYS_BUS_DEVICE(tmu), 2, ch2_irq0);
+    }
+    /* ch2_irq1 is not used. */
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(tmu), 0, base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(tmu), 1, P4ADDR(base));
+    sysbus_mmio_map(SYS_BUS_DEVICE(tmu), 2, A7ADDR(base));
+}
+
+static void sh_serial_init(MemoryRegion *sysmem,
+                           hwaddr base, int feat,
+                           uint32_t freq, Chardev *chr,
+                           qemu_irq eri_source,
+                           qemu_irq rxi_source,
+                           qemu_irq txi_source,
+                           qemu_irq tei_source,
+                           qemu_irq bri_source,
+                           SH7751CPGBaseState *cpg)
+{
+    RenesasSCIBaseState *sci;
+    char ckname[16];
+
+    switch(feat) {
+    case 0: /* SCI */
+        sci = RENESAS_SCI_BASE(qdev_new(TYPE_RENESAS_SCI));
+        snprintf(ckname, sizeof(ckname), "pck_sci");
+        break;
+    case SH_SERIAL_FEAT_SCIF:
+        sci = RENESAS_SCI_BASE(qdev_new(TYPE_RENESAS_SCIF));
+        snprintf(ckname, sizeof(ckname), "pck_scif");
+        break;
+    }
+    qdev_prop_set_chr(DEVICE(sci), "chardev", chr);
+    qdev_prop_set_uint32(DEVICE(sci), "register-size", SCI_REGSIZE_32);
+    qdev_connect_clock_in(DEVICE(sci), "pck",
+                          qdev_get_clock_out(DEVICE(cpg), ckname));
+    sysbus_connect_irq(SYS_BUS_DEVICE(sci), 0, eri_source);
+    sysbus_connect_irq(SYS_BUS_DEVICE(sci), 1, rxi_source);
+    sysbus_connect_irq(SYS_BUS_DEVICE(sci), 2, txi_source);
+    if (tei_source)
+        sysbus_connect_irq(SYS_BUS_DEVICE(sci), 3, tei_source);
+    if (bri_source)
+        sysbus_connect_irq(SYS_BUS_DEVICE(sci), 3, bri_source);
+    sysbus_realize(SYS_BUS_DEVICE(sci), &error_abort);
+    sysbus_mmio_map(SYS_BUS_DEVICE(sci), 0, base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(sci), 1, P4ADDR(base));
+    sysbus_mmio_map(SYS_BUS_DEVICE(sci), 2, A7ADDR(base));
+}
+
 SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
 {
     SH7750State *s;
@@ -830,7 +899,7 @@ SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
                    s->intc.irqs[SCI1_RXI],
                    s->intc.irqs[SCI1_TXI],
                    s->intc.irqs[SCI1_TEI],
-                   NULL);
+                   NULL, cpg);
     sh_serial_init(sysmem, 0x1fe80000,
                    SH_SERIAL_FEAT_SCIF,
                    s->periph_freq, serial_hd(1),
@@ -838,17 +907,14 @@ SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
                    s->intc.irqs[SCIF_RXI],
                    s->intc.irqs[SCIF_TXI],
                    NULL,
-                   s->intc.irqs[SCIF_BRI]);
+                   s->intc.irqs[SCIF_BRI], cpg);
 
-    tmu012_init(sysmem, 0x1fd80000,
-		TMU012_FEAT_TOCR | TMU012_FEAT_3CHAN | TMU012_FEAT_EXTCLK,
-		s->periph_freq,
+    tmu012_init(sysmem, 0x1fd80000, 0,
 		s->intc.irqs[TMU0],
 		s->intc.irqs[TMU1],
 		s->intc.irqs[TMU2_TUNI],
-		s->intc.irqs[TMU2_TICPI]);
+		s->intc.irqs[TMU2_TICPI], cpg);
 
-    sysbus_realize(SYS_BUS_DEVICE(cpg), &error_abort);
     if (cpu->env.id & (SH_CPU_SH7750 | SH_CPU_SH7750S | SH_CPU_SH7751)) {
         sh_intc_register_sources(&s->intc,
 				 _INTC_ARRAY(vectors_dma4),
@@ -865,10 +931,10 @@ SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
         sh_intc_register_sources(&s->intc,
 				 _INTC_ARRAY(vectors_tmu34),
 				 NULL, 0);
-        tmu012_init(sysmem, 0x1e100000, 0, s->periph_freq,
+        tmu012_init(sysmem, 0x1e100000, 1,
 		    s->intc.irqs[TMU3],
 		    s->intc.irqs[TMU4],
-		    NULL, NULL);
+		    NULL, NULL, cpg);
     }
 
     if (cpu->env.id & (SH_CPU_SH7751_ALL)) {
@@ -886,6 +952,7 @@ SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
     sh_intc_register_sources(&s->intc,
 				_INTC_ARRAY(vectors_irl),
 				_INTC_ARRAY(groups_irl));
+    sysbus_realize(SYS_BUS_DEVICE(cpg), &error_abort);
     return s;
 }
 
