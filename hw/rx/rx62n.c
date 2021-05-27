@@ -164,7 +164,7 @@ static void register_tmr(RX62NState *s, int unit)
     char ckname[16];
 
     object_initialize_child(OBJECT(s), "tmr[*]",
-                            &s->tmr[unit], TYPE_RENESAS_TMR);
+                            &s->tmr[unit], TYPE_RENESAS_TMR8);
     tmr = SYS_BUS_DEVICE(&s->tmr[unit]);
 
     irqbase = RX62N_TMR_IRQ + TMR_NR_IRQ * unit;
@@ -174,10 +174,10 @@ static void register_tmr(RX62NState *s, int unit)
     sysbus_mmio_map(tmr, 0, RX62N_TMR_BASE + unit * 0x10);
 
     qdev_prop_set_uint32(DEVICE(tmr), "unit", unit);
-    sysbus_realize(tmr, &error_abort);
     snprintf(ckname, sizeof(ckname), "pck_tmr8-%d", unit);
     qdev_connect_clock_in(DEVICE(tmr), "pck",
                           qdev_get_clock_out(DEVICE(&s->cpg), ckname));
+    sysbus_realize(tmr, &error_abort);
 }
 
 static void register_cmt(RX62NState *s, int unit)
@@ -190,6 +190,9 @@ static void register_cmt(RX62NState *s, int unit)
                             &s->cmt[unit], TYPE_RENESAS_CMT);
     cmt = SYS_BUS_DEVICE(&s->cmt[unit]);
     qdev_prop_set_uint32(DEVICE(cmt), "unit", unit);
+    snprintf(ckname, sizeof(ckname), "pck_cmt-%d", unit);
+    qdev_connect_clock_in(DEVICE(cmt), "pck",
+                          qdev_get_clock_out(DEVICE(&s->cpg), ckname));
 
     irqbase = RX62N_CMT_IRQ + CMT_NR_IRQ * unit;
     for (i = 0; i < CMT_NR_IRQ; i++) {
@@ -197,20 +200,23 @@ static void register_cmt(RX62NState *s, int unit)
     }
     sysbus_mmio_map(cmt, 0, RX62N_CMT_BASE + unit * 0x10);
     sysbus_realize(cmt, &error_abort);
-    snprintf(ckname, sizeof(ckname), "pck_cmt-%d", unit);
-    qdev_connect_clock_in(DEVICE(cmt), "pck",
-                          qdev_get_clock_out(DEVICE(&s->cpg), ckname));
 }
 
 static void register_sci(RX62NState *s, int unit)
 {
     SysBusDevice *sci;
     int i, irqbase;
+    char ckname[16];
 
     object_initialize_child(OBJECT(s), "sci[*]",
-                            &s->sci[unit], TYPE_RENESAS_SCI);
+                            &s->sci[unit], TYPE_RENESAS_SCIA);
     sci = SYS_BUS_DEVICE(&s->sci[unit]);
     qdev_prop_set_chr(DEVICE(sci), "chardev", serial_hd(unit));
+    qdev_prop_set_uint32(DEVICE(sci), "unit", unit);
+    qdev_prop_set_uint32(DEVICE(sci), "register-size", SCI_REGSIZE_8);
+    snprintf(ckname, sizeof(ckname), "pck_sci-%d", unit);
+    qdev_connect_clock_in(DEVICE(sci), "pck",
+                          qdev_get_clock_out(DEVICE(&s->cpg), ckname));
     sysbus_realize(sci, &error_abort);
 
     irqbase = RX62N_SCI_IRQ + SCI_NR_IRQ * unit;
