@@ -6205,7 +6205,7 @@ static int ieee_to_mips_xcpt_msa(int ieee_xcpt)
     return mips_xcpt;
 }
 
-static int update_msacsr(CPUMIPSState *env, int action, int denormal)
+static int update_msacsr(CPUMIPSState *env, int action)
 {
     int ieee_exception_flags;
     int mips_exception_flags = 0;
@@ -6215,10 +6215,6 @@ static int update_msacsr(CPUMIPSState *env, int action, int denormal)
     ieee_exception_flags = get_float_exception_flags(
                                &env->active_tc.msa_fp_status);
 
-    /* QEMU softfloat does not signal all underflow cases */
-    if (denormal) {
-        ieee_exception_flags |= float_flag_underflow;
-    }
     if (ieee_exception_flags) {
         mips_exception_flags = ieee_to_mips_xcpt_msa(ieee_exception_flags);
     }
@@ -6469,7 +6465,7 @@ static int32_t float64_to_q32(float64 a, float_status *status)
             cond = float ## BITS ## _ ## OP ## _quiet(ARG1, ARG2, status);  \
         }                                                                   \
         DEST = cond ? M_MAX_UINT(BITS) : 0;                                 \
-        c = update_msacsr(env, CLEAR_IS_INEXACT, 0);                        \
+        c = update_msacsr(env, CLEAR_IS_INEXACT);                           \
                                                                             \
         if (get_enabled_exceptions(env, c)) {                               \
             DEST = ((FLOAT_SNAN ## BITS(status) >> 6) << 6) | c;            \
@@ -7043,13 +7039,6 @@ void helper_msa_fsne_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
     compare_ne(env, pwd, pws, pwt, df, 0, GETPC());
 }
 
-#define float16_is_zero(ARG) 0
-#define float16_is_zero_or_denormal(ARG) 0
-
-#define IS_DENORMAL(ARG, BITS)                      \
-    (!float ## BITS ## _is_zero(ARG)                \
-    && float ## BITS ## _is_zero_or_denormal(ARG))
-
 #define MSA_FLOAT_BINOP(DEST, OP, ARG1, ARG2, BITS)                         \
     do {                                                                    \
         float_status *status = &env->active_tc.msa_fp_status;               \
@@ -7057,7 +7046,7 @@ void helper_msa_fsne_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
                                                                             \
         set_float_exception_flags(0, status);                               \
         DEST = float ## BITS ## _ ## OP(ARG1, ARG2, status);                \
-        c = update_msacsr(env, 0, IS_DENORMAL(DEST, BITS));                 \
+        c = update_msacsr(env, 0);                                          \
                                                                             \
         if (get_enabled_exceptions(env, c)) {                               \
             DEST = ((FLOAT_SNAN ## BITS(status) >> 6) << 6) | c;            \
@@ -7193,7 +7182,7 @@ void helper_msa_fdiv_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
                                                                             \
         set_float_exception_flags(0, status);                               \
         DEST = float ## BITS ## _muladd(ARG2, ARG3, ARG1, NEGATE, status);  \
-        c = update_msacsr(env, 0, IS_DENORMAL(DEST, BITS));                 \
+        c = update_msacsr(env, 0);                                          \
                                                                             \
         if (get_enabled_exceptions(env, c)) {                               \
             DEST = ((FLOAT_SNAN ## BITS(status) >> 6) << 6) | c;            \
@@ -7312,7 +7301,7 @@ void helper_msa_fexp2_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
                                                                             \
         set_float_exception_flags(0, status);                               \
         DEST = float ## BITS ## _ ## OP(ARG, status);                       \
-        c = update_msacsr(env, 0, IS_DENORMAL(DEST, BITS));                 \
+        c = update_msacsr(env, 0);                                          \
                                                                             \
         if (get_enabled_exceptions(env, c)) {                               \
             DEST = ((FLOAT_SNAN ## BITS(status) >> 6) << 6) | c;            \
@@ -7365,7 +7354,7 @@ void helper_msa_fexdo_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
                                                                             \
         set_float_exception_flags(0, status);                               \
         DEST = float ## BITS ## _ ## OP(ARG, status);                       \
-        c = update_msacsr(env, CLEAR_FS_UNDERFLOW, 0);                      \
+        c = update_msacsr(env, CLEAR_FS_UNDERFLOW);                         \
                                                                             \
         if (get_enabled_exceptions(env, c)) {                               \
             DEST = ((FLOAT_SNAN ## XBITS(status) >> 6) << 6) | c;           \
@@ -7416,7 +7405,7 @@ void helper_msa_ftq_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
                                                                             \
         set_float_exception_flags(0, status);                               \
         DEST = float ## BITS ## _ ## OP(ARG1, ARG2, status);                \
-        c = update_msacsr(env, 0, 0);                                       \
+        c = update_msacsr(env, 0);                                          \
                                                                             \
         if (get_enabled_exceptions(env, c)) {                               \
             DEST = ((FLOAT_SNAN ## BITS(status) >> 6) << 6) | c;            \
@@ -7672,7 +7661,7 @@ void helper_msa_fclass_df(CPUMIPSState *env, uint32_t df,
                                                                             \
         set_float_exception_flags(0, status);                               \
         DEST = float ## BITS ## _ ## OP(ARG, status);                       \
-        c = update_msacsr(env, CLEAR_FS_UNDERFLOW, 0);                      \
+        c = update_msacsr(env, CLEAR_FS_UNDERFLOW);                         \
                                                                             \
         if (get_enabled_exceptions(env, c)) {                               \
             DEST = ((FLOAT_SNAN ## BITS(status) >> 6) << 6) | c;            \
@@ -7780,8 +7769,7 @@ void helper_msa_fsqrt_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
         DEST = float ## BITS ## _ ## div(FLOAT_ONE ## BITS, ARG, status);   \
         c = update_msacsr(env, float ## BITS ## _is_infinity(ARG) ||        \
                           float ## BITS ## _is_quiet_nan(DEST, status) ?    \
-                          0 : RECIPROCAL_INEXACT,                           \
-                          IS_DENORMAL(DEST, BITS));                         \
+                          0 : RECIPROCAL_INEXACT);                          \
                                                                             \
         if (get_enabled_exceptions(env, c)) {                               \
             DEST = ((FLOAT_SNAN ## BITS(status) >> 6) << 6) | c;            \
@@ -7897,7 +7885,7 @@ void helper_msa_frint_df(CPUMIPSState *env, uint32_t df, uint32_t wd,
                                   (~float_flag_inexact),                    \
                                   status);                                  \
                                                                             \
-        c = update_msacsr(env, 0, IS_DENORMAL(DEST, BITS));                 \
+        c = update_msacsr(env, 0);                                          \
                                                                             \
         if (get_enabled_exceptions(env, c)) {                               \
             DEST = ((FLOAT_SNAN ## BITS(status) >> 6) << 6) | c;            \
