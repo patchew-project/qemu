@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/irq.h"
 #include "hw/sh4/sh.h"
 #include "sysemu/sysemu.h"
@@ -32,6 +33,8 @@
 #include "hw/sh4/sh_intc.h"
 #include "hw/timer/tmu012.h"
 #include "exec/exec-all.h"
+#include "hw/sh4/sh7751-cpg.h"
+#include "hw/qdev-properties.h"
 
 #define NB_DEVICES 4
 
@@ -752,9 +755,29 @@ static const MemoryRegionOps sh7750_mmct_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static SH7751CPGBaseState *sh_cpg_init(MemoryRegion *sysmem,
+                                      int cputype)
+{
+    const char *cpgtype;
+    SH7751CPGBaseState *cpg;
+    if (cputype & (SH_CPU_SH7750R | SH_CPU_SH7751R)) {
+        cpgtype = TYPE_SH7751R_CPG;
+    } else {
+        cpgtype = TYPE_SH7751_CPG;
+    }
+    cpg = SH7751CPGBase(qdev_new(cpgtype));
+    qdev_prop_set_uint32(DEVICE(cpg), "xtal-frequency-hz", 20 * 1000 * 1000);
+    qdev_prop_set_uint32(DEVICE(cpg), "clock-mode", 5);
+    sysbus_mmio_map(SYS_BUS_DEVICE(cpg), 0, 0x1fc00000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(cpg), 1, P4ADDR(0x1fc00000));
+    sysbus_mmio_map(SYS_BUS_DEVICE(cpg), 2, A7ADDR(0x1fc00000));
+    return cpg;
+}
+
 SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
 {
     SH7750State *s;
+    SH7751CPGBaseState *cpg;
 
     s = g_malloc0(sizeof(SH7750State));
     s->cpu = cpu;
@@ -800,6 +823,7 @@ SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
 
     cpu->env.intc_handle = &s->intc;
 
+    cpg = sh_cpg_init(sysmem, cpu->env.id);
     sh_serial_init(sysmem, 0x1fe00000,
                    0, s->periph_freq, serial_hd(0),
                    s->intc.irqs[SCI1_ERI],
@@ -824,6 +848,7 @@ SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
 		s->intc.irqs[TMU2_TUNI],
 		s->intc.irqs[TMU2_TICPI]);
 
+    sysbus_realize(SYS_BUS_DEVICE(cpg), &error_abort);
     if (cpu->env.id & (SH_CPU_SH7750 | SH_CPU_SH7750S | SH_CPU_SH7751)) {
         sh_intc_register_sources(&s->intc,
 				 _INTC_ARRAY(vectors_dma4),
