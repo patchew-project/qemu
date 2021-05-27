@@ -120,7 +120,7 @@ static void update_fpsw(CPURXState *env, float32 ret, uintptr_t retaddr)
 
 void helper_set_fpsw(CPURXState *env, uint32_t val)
 {
-    static const int roundmode[] = {
+    static const FloatRoundMode roundmode[] = {
         float_round_nearest_even,
         float_round_to_zero,
         float_round_up,
