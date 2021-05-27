@@ -127,13 +127,20 @@ void helper_set_fpsw(CPURXState *env, uint32_t val)
         float_round_down,
     };
     uint32_t fpsw = env->fpsw;
+    bool dn;
+
     fpsw |= 0x7fffff03;
     val &= ~0x80000000;
     fpsw &= val;
     FIELD_DP32(fpsw, FPSW, FS, FIELD_EX32(fpsw, FPSW, FLAGS) != 0);
     env->fpsw = fpsw;
-    set_float_rounding_mode(roundmode[FIELD_EX32(env->fpsw, FPSW, RM)],
+
+    set_float_rounding_mode(roundmode[FIELD_EX32(fpsw, FPSW, RM)],
                             &env->fp_status);
+
+    dn = FIELD_EX32(env->fpsw, FPSW, DN);
+    set_flush_to_zero(dn, &env->fp_status);
+    set_flush_inputs_to_zero(dn, &env->fp_status);
 }
 
 #define FLOATOP(op, func)                                           \
