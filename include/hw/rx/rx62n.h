@@ -29,6 +29,7 @@
 #include "hw/timer/renesas_tmr.h"
 #include "hw/timer/renesas_cmt.h"
 #include "hw/char/renesas_sci.h"
+#include "hw/rx/rx62n-cpg.h"
 #include "qemu/units.h"
 #include "qom/object.h"
 
@@ -58,9 +59,9 @@ struct RX62NState {
     RTMRState tmr[RX62N_NR_TMR];
     RCMTState cmt[RX62N_NR_CMT];
     RSCIState sci[RX62N_NR_SCI];
+    RX62NCPGState cpg;
 
     MemoryRegion *sysmem;
-    bool kernel;
 
     MemoryRegion iram;
     MemoryRegion iomem1;
@@ -72,8 +73,7 @@ struct RX62NState {
 
     /* Input Clock (XTAL) frequency */
     uint32_t xtal_freq_hz;
-    /* Peripheral Module Clock frequency */
-    uint32_t pclk_freq_hz;
-};
+} RX62NState;
+
 
 #endif

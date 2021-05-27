@@ -45,6 +45,7 @@
 #define RX62N_TMR_BASE  0x00088200
 #define RX62N_CMT_BASE  0x00088000
 #define RX62N_SCI_BASE  0x00088240
+#define RX62N_CPG_BASE  0x00080010
 
 /*
  * RX62N Peripheral IRQ
@@ -56,7 +57,6 @@
 
 #define RX62N_XTAL_MIN_HZ  (8 * 1000 * 1000)
 #define RX62N_XTAL_MAX_HZ (14 * 1000 * 1000)
-#define RX62N_PCLK_MAX_HZ (50 * 1000 * 1000)
 
 struct RX62NClass {
     /*< private >*/
@@ -161,36 +161,45 @@ static void register_tmr(RX62NState *s, int unit)
 {
     SysBusDevice *tmr;
     int i, irqbase;
+    char ckname[16];
 
     object_initialize_child(OBJECT(s), "tmr[*]",
                             &s->tmr[unit], TYPE_RENESAS_TMR);
     tmr = SYS_BUS_DEVICE(&s->tmr[unit]);
-    qdev_prop_set_uint64(DEVICE(tmr), "input-freq", s->pclk_freq_hz);
-    sysbus_realize(tmr, &error_abort);
 
     irqbase = RX62N_TMR_IRQ + TMR_NR_IRQ * unit;
     for (i = 0; i < TMR_NR_IRQ; i++) {
         sysbus_connect_irq(tmr, i, s->irq[irqbase + i]);
     }
     sysbus_mmio_map(tmr, 0, RX62N_TMR_BASE + unit * 0x10);
+
+    qdev_prop_set_uint32(DEVICE(tmr), "unit", unit);
+    sysbus_realize(tmr, &error_abort);
+    snprintf(ckname, sizeof(ckname), "pck_tmr8-%d", unit);
+    qdev_connect_clock_in(DEVICE(tmr), "pck",
+                          qdev_get_clock_out(DEVICE(&s->cpg), ckname));
 }
 
 static void register_cmt(RX62NState *s, int unit)
 {
     SysBusDevice *cmt;
     int i, irqbase;
+    char ckname[16];
 
     object_initialize_child(OBJECT(s), "cmt[*]",
                             &s->cmt[unit], TYPE_RENESAS_CMT);
     cmt = SYS_BUS_DEVICE(&s->cmt[unit]);
-    qdev_prop_set_uint64(DEVICE(cmt), "input-freq", s->pclk_freq_hz);
-    sysbus_realize(cmt, &error_abort);
+    qdev_prop_set_uint32(DEVICE(cmt), "unit", unit);
 
     irqbase = RX62N_CMT_IRQ + CMT_NR_IRQ * unit;
     for (i = 0; i < CMT_NR_IRQ; i++) {
         sysbus_connect_irq(cmt, i, s->irq[irqbase + i]);
     }
     sysbus_mmio_map(cmt, 0, RX62N_CMT_BASE + unit * 0x10);
+    sysbus_realize(cmt, &error_abort);
+    snprintf(ckname, sizeof(ckname), "pck_cmt-%d", unit);
+    qdev_connect_clock_in(DEVICE(cmt), "pck",
+                          qdev_get_clock_out(DEVICE(&s->cpg), ckname));
 }
 
 static void register_sci(RX62NState *s, int unit)
@@ -202,7 +211,6 @@ static void register_sci(RX62NState *s, int unit)
                             &s->sci[unit], TYPE_RENESAS_SCI);
     sci = SYS_BUS_DEVICE(&s->sci[unit]);
     qdev_prop_set_chr(DEVICE(sci), "chardev", serial_hd(unit));
-    qdev_prop_set_uint64(DEVICE(sci), "input-freq", s->pclk_freq_hz);
     sysbus_realize(sci, &error_abort);
 
     irqbase = RX62N_SCI_IRQ + SCI_NR_IRQ * unit;
@@ -210,6 +218,18 @@ static void register_sci(RX62NState *s, int unit)
         sysbus_connect_irq(sci, i, s->irq[irqbase + i]);
     }
     sysbus_mmio_map(sci, 0, RX62N_SCI_BASE + unit * 0x08);
+}
+
+static void register_cpg(RX62NState *s)
+{
+    SysBusDevice *cpg;
+
+    object_initialize_child(OBJECT(s), "rx62n-cpg", &s->cpg,
+                            TYPE_RX62N_CPG);
+    cpg = SYS_BUS_DEVICE(&s->cpg);
+    qdev_prop_set_uint64(DEVICE(cpg), "xtal-frequency-hz", s->xtal_freq_hz);
+
+    sysbus_mmio_map(cpg, 0, RX62N_CPG_BASE);
 }
 
 static void rx62n_realize(DeviceState *dev, Error **errp)
@@ -227,11 +247,6 @@ static void rx62n_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "\"xtal-frequency-hz\" property in incorrect range.");
         return;
     }
-    /* Use a 4x fixed multiplier */
-    s->pclk_freq_hz = 4 * s->xtal_freq_hz;
-    /* PCLK range: 8-50 MHz */
-    assert(s->pclk_freq_hz <= RX62N_PCLK_MAX_HZ);
-
     memory_region_init_ram(&s->iram, OBJECT(dev), "iram",
                            rxc->ram_size, &error_abort);
     memory_region_add_subregion(s->sysmem, RX62N_IRAM_BASE, &s->iram);
@@ -248,11 +263,13 @@ static void rx62n_realize(DeviceState *dev, Error **errp)
 
     register_icu(s);
     s->cpu.env.ack = qdev_get_gpio_in_named(DEVICE(&s->icu), "ack", 0);
+    register_cpg(s);
     register_tmr(s, 0);
     register_tmr(s, 1);
     register_cmt(s, 0);
     register_cmt(s, 1);
     register_sci(s, 0);
+    sysbus_realize(SYS_BUS_DEVICE(&s->cpg), &error_abort);
 }
 
 static Property rx62n_properties[] = {
