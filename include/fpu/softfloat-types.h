@@ -148,7 +148,7 @@ enum {
     float_flag_overflow  =  8,
     float_flag_underflow = 16,
     float_flag_inexact   = 32,
-    float_flag_input_denormal = 64,
+    float_flag_iflush_denormal = 64,
     float_flag_output_denormal = 128
 };
 

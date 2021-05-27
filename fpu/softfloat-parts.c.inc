@@ -112,7 +112,7 @@ static void partsN(canonicalize)(FloatPartsN *p, float_status *status,
         if (likely(frac_eqz(p))) {
             p->cls = float_class_zero;
         } else if (status->flush_inputs_to_zero) {
-            float_raise(float_flag_input_denormal, status);
+            float_raise(float_flag_iflush_denormal, status);
             p->cls = float_class_zero;
             frac_clear(p);
         } else {

@@ -52,7 +52,7 @@ static inline int vfp_exceptbits_from_host(int host_bits)
     if (host_bits & float_flag_inexact) {
         target_bits |= 0x10;
     }
-    if (host_bits & float_flag_input_denormal) {
+    if (host_bits & float_flag_iflush_denormal) {
         target_bits |= 0x80;
     }
     return target_bits;
@@ -79,7 +79,7 @@ static inline int vfp_exceptbits_to_host(int target_bits)
         host_bits |= float_flag_inexact;
     }
     if (target_bits & 0x80) {
-        host_bits |= float_flag_input_denormal;
+        host_bits |= float_flag_iflush_denormal;
     }
     return host_bits;
 }
@@ -92,9 +92,9 @@ static uint32_t vfp_get_fpscr_from_host(CPUARMState *env)
     i |= get_float_exception_flags(&env->vfp.standard_fp_status);
     /* FZ16 does not generate an input denormal exception.  */
     i |= (get_float_exception_flags(&env->vfp.fp_status_f16)
-          & ~float_flag_input_denormal);
+          & ~float_flag_iflush_denormal);
     i |= (get_float_exception_flags(&env->vfp.standard_fp_status_f16)
-          & ~float_flag_input_denormal);
+          & ~float_flag_iflush_denormal);
     return vfp_exceptbits_from_host(i);
 }
 
@@ -1124,7 +1124,7 @@ uint64_t HELPER(fjcvtzs)(float64 value, void *vstatus)
         inexact = sign;
         if (frac != 0) {
             if (status->flush_inputs_to_zero) {
-                float_raise(float_flag_input_denormal, status);
+                float_raise(float_flag_iflush_denormal, status);
             } else {
                 float_raise(float_flag_inexact, status);
                 inexact = 1;
