@@ -141,6 +141,11 @@
  *
  *     zoned.cross_read=<enable RAZB, default: false>
  *         Setting this property to true enables Read Across Zone Boundaries.
+ *
+ *     zoned.auto_transition=<enable auto resource management, default: true>
+ *         Indicates if zones in zone state implicitly opened can be
+ *         automatically transitioned to zone state closed for resource
+ *         management purposes.
  */
 
 #include "qemu/osdep.h"
@@ -1699,7 +1704,9 @@ static uint16_t nvme_zrm_open_flags(NvmeNamespace *ns, NvmeZone *zone,
         /* fallthrough */
 
     case NVME_ZONE_STATE_CLOSED:
-        nvme_zrm_auto_transition_zone(ns);
+        if (ns->params.auto_transition_zones) {
+            nvme_zrm_auto_transition_zone(ns);
+        }
         status = nvme_aor_check(ns, act, 1);
         if (status) {
             return status;

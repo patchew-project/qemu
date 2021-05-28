@@ -100,6 +100,7 @@ typedef struct NvmeNamespaceParams {
     uint32_t max_active_zones;
     uint32_t max_open_zones;
     uint32_t zd_extension_size;
+    bool     auto_transition_zones;
 } NvmeNamespaceParams;
 
 typedef struct NvmeNamespace {
