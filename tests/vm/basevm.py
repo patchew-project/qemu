@@ -21,6 +21,7 @@ import datetime
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 from qemu.accel import kvm_available
 from qemu.machine import QEMUMachine
+from qemu.utils import get_info_usernet_hostfwd_port
 import subprocess
 import hashlib
 import argparse
@@ -306,11 +307,7 @@ class BaseVM(object):
         self.console_init()
         usernet_info = guest.qmp("human-monitor-command",
                                  command_line="info usernet")
-        self.ssh_port = None
-        for l in usernet_info["return"].splitlines():
-            fields = l.split()
-            if "TCP[HOST_FORWARD]" in fields and "22" in fields:
-                self.ssh_port = l.split()[3]
+        self.ssh_port = get_info_usernet_hostfwd_port(usernet_info)
         if not self.ssh_port:
             raise Exception("Cannot find ssh port from 'info usernet':\n%s" % \
                             usernet_info)
