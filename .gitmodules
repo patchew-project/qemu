@@ -49,8 +49,8 @@
 [submodule "roms/edk2"]
 	path = roms/edk2
 	url = https://gitlab.com/qemu-project/edk2.git
-[submodule "slirp"]
-	path = slirp
+[submodule "subprojects/libslirp"]
+	path = subprojects/libslirp
 	url = https://gitlab.com/qemu-project/libslirp.git
 [submodule "roms/opensbi"]
 	path = roms/opensbi

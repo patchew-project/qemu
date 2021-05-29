@@ -5279,7 +5279,7 @@ fi
 case "$slirp" in
   auto | enabled | internal)
     # Simpler to always update submodule, even if not needed.
-    git_submodules="${git_submodules} slirp"
+    git_submodules="${git_submodules} subprojects/libslirp"
     ;;
 esac
 
