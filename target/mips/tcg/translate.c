@@ -23016,8 +23016,8 @@ static void gen_mipsdsp_append(CPUMIPSState *env, DisasContext *ctx,
             }
             break;
         case OPC_DBALIGN:
-            sa &= 7;
-            if (sa != 0 && sa != 2 && sa != 4) {
+            sa &= 3;
+            if (sa != 0 && sa != 2) {
                 tcg_gen_shli_tl(cpu_gpr[rt], cpu_gpr[rt], 8 * sa);
                 tcg_gen_shri_tl(t0, t0, 8 * (8 - sa));
                 tcg_gen_or_tl(cpu_gpr[rt], cpu_gpr[rt], t0);
