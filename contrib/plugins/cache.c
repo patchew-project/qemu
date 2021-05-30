@@ -22,7 +22,7 @@ static GRand *rng;
 static GHashTable *dmiss_ht;
 static GHashTable *imiss_ht;
 
-static GMutex dmtx, imtx;
+static GMutex dmtx, imtx, fmtx;
 
 static int limit;
 static bool sys;
@@ -32,6 +32,8 @@ static uint64_t dmisses;
 
 static uint64_t imem_accesses;
 static uint64_t imisses;
+
+FILE *tracefile;
 
 static enum qemu_plugin_mem_rw rw = QEMU_PLUGIN_MEM_RW;
 
@@ -205,6 +207,16 @@ static void vcpu_mem_access(unsigned int cpu_index, qemu_plugin_meminfo_t info,
     insn_addr = ((struct InsnData *) userdata)->addr;
     effective_addr = hwaddr ? qemu_plugin_hwaddr_phys_addr(hwaddr) : vaddr;
 
+    if (tracefile) {
+        g_mutex_lock(&fmtx);
+        g_autoptr(GString) rep = g_string_new("");
+        bool is_store = qemu_plugin_mem_is_store(info);
+        g_string_append_printf(rep, "%c: 0x%" PRIx64,
+                is_store ? 'S' : 'L', effective_addr);
+        fprintf(tracefile, "%s\n", rep->str);
+        g_mutex_unlock(&fmtx);
+    }
+
     if (access_cache(dcache, effective_addr) == MISS) {
         struct InsnData *insn = get_or_create(dmiss_ht, userdata, insn_addr);
         insn->misses++;
@@ -221,11 +233,20 @@ static void vcpu_insn_exec(unsigned int vcpu_index, void *userdata)
     g_mutex_lock(&imtx);
     addr = ((struct InsnData *) userdata)->addr;
 
+    if (tracefile) {
+        g_mutex_lock(&fmtx);
+        g_autoptr(GString) rep = g_string_new("");
+        g_string_append_printf(rep, "I: 0x%" PRIx64, addr);
+        fprintf(tracefile, "%s\n", rep->str);
+        g_mutex_unlock(&fmtx);
+    }
+
     if (access_cache(icache, addr) == MISS) {
         struct InsnData *insn = get_or_create(imiss_ht, userdata, addr);
         insn->misses++;
         imisses++;
     }
+
     imem_accesses++;
     g_mutex_unlock(&imtx);
 }
@@ -352,6 +373,15 @@ static void plugin_exit()
 
     g_mutex_unlock(&dmtx);
     g_mutex_unlock(&imtx);
+
+    if (tracefile) {
+        fclose(tracefile);
+    }
+}
+
+static bool bad_cache_params(int blksize, int assoc, int cachesize)
+{
+    return (cachesize % blksize) != 0 || (cachesize % (blksize * assoc) != 0);
 }
 
 QEMU_PLUGIN_EXPORT
@@ -377,12 +407,46 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
 
     for (i = 0; i < argc; i++) {
         char *opt = argv[i];
-        if (g_str_has_prefix(opt, "limit=")) {
+        if (g_str_has_prefix(opt, "I=")) {
+            gchar **toks = g_strsplit(opt + 2, " ", -1);
+            if (g_strv_length(toks) != 3) {
+                fprintf(stderr, "option parsing failed: %s\n", opt);
+                return -1;
+            }
+            icachesize = g_ascii_strtoull(toks[0], NULL, 10);
+            iassoc = g_ascii_strtoull(toks[1], NULL, 10);
+            iblksize = g_ascii_strtoull(toks[2], NULL, 10);
+        } else if (g_str_has_prefix(opt, "D=")) {
+            gchar **toks = g_strsplit(opt + 2, " ", -1);
+            if (g_strv_length(toks) != 3) {
+                fprintf(stderr, "option parsing failed: %s\n", opt);
+                return -1;
+            }
+            dcachesize = g_ascii_strtoull(toks[0], NULL, 10);
+            dassoc = g_ascii_strtoull(toks[1], NULL, 10);
+            dblksize = g_ascii_strtoull(toks[2], NULL, 10);
+        } else if (g_str_has_prefix(opt, "limit=")) {
             limit = g_ascii_strtoull(opt + 6, NULL, 10);
+        } else if (g_str_has_prefix(opt, "tracefile=")) {
+            char *file_name = opt + 10;
+            tracefile = fopen(file_name, "w");
+            if (!tracefile) {
+                fprintf(stderr, "could not open: %s for writing\n", file_name);
+            }
         } else {
             fprintf(stderr, "option parsing failed: %s\n", opt);
             return -1;
         }
+    }
+
+    if (bad_cache_params(iblksize, iassoc, icachesize)) {
+        fprintf(stderr, "icache cannot be constructed from given parameters\n");
+        return -1;
+    }
+
+    if (bad_cache_params(dblksize, dassoc, dcachesize)) {
+        fprintf(stderr, "dcache cannot be constructed from given parameters\n");
+        return -1;
     }
 
     dcache = cache_init(dblksize, dassoc, dcachesize);
