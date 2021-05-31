@@ -7986,6 +7986,26 @@ static int open_self_auxv(void *cpu_env, int fd)
     return 0;
 }
 
+static int is_same_qemu(const char *their_exe)
+{
+    struct stat our_st;
+    struct stat their_st;
+
+    if (stat("/proc/self/exe", &our_st) != 0) {
+        return 0;
+    }
+    if (stat(their_exe, &their_st) != 0) {
+        return 0;
+    }
+    if (our_st.st_dev != their_st.st_dev) {
+        return 0;
+    }
+    if (our_st.st_ino != their_st.st_ino) {
+        return 0;
+    }
+    return 1;
+}
+
 static const char *get_exe_path(int pid, char *buf, size_t bufsize)
 {
     ssize_t ssz;
@@ -7996,6 +8016,20 @@ static const char *get_exe_path(int pid, char *buf, size_t bufsize)
     }
 
     /* dockerd makes runc invoke dockerd using "/proc/${dockerd_pid}/exe". */
+
+    /*
+     * Check that it's the same qemu binary as ours
+     * to avoid false positives.
+     *
+     * While ideally we want to allow different qemu binaries,
+     * (E.g. linux-user for a different arch)
+     * I can't think of any reliable way to detect the cases.
+     */
+    snprintf(buf, bufsize, "/proc/%d/exe", pid);
+    if (!is_same_qemu(buf)) {
+        return NULL;
+    }
+
     snprintf(buf, bufsize, "/proc/%d/cmdline", pid);
     fd = open(buf, O_RDONLY);
     if (fd == -1) {
@@ -8033,10 +8067,6 @@ static const char *get_exe_path(int pid, char *buf, size_t bufsize)
             }
         }
 
-        /*
-         * XXX a bit too loose detection of qemu.
-         * maybe we can compare /proc/$pid/exe with ours.
-         */
         slash = strrchr(argv0, '/');
         if (slash != NULL) {
             argv0 = slash + 1; /* basename */
