@@ -7986,6 +7986,45 @@ static int open_self_auxv(void *cpu_env, int fd)
     return 0;
 }
 
+static const char *get_exe_path(int pid, char *buf, size_t bufsize)
+{
+    if (pid == getpid()) {
+        return exec_path;
+    }
+
+    return NULL;
+}
+
+static int is_proc_file(const char *filename, int *pidp, const char *entry)
+{
+    if (!strncmp(filename, "/proc/", strlen("/proc/"))) {
+        int pid;
+
+        filename += strlen("/proc/");
+        if (!strncmp(filename, "self/", strlen("self/"))) {
+            pid = getpid();
+            filename += strlen("self/");
+        } else if (*filename >= '1' && *filename <= '9') {
+            pid = 0;
+            while (*filename >= '0' && *filename <= '9') {
+                pid = pid * 10 + *filename - '0';
+                filename++;
+            }
+            if (*filename != '/') {
+                return 0;
+            }
+            filename++;
+        } else {
+            return 0;
+        }
+        if (!strcmp(filename, entry)) {
+            *pidp = pid;
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static int is_proc_myself(const char *filename, const char *entry)
 {
     if (!strncmp(filename, "/proc/", strlen("/proc/"))) {
@@ -8492,6 +8531,8 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
             abi_ulong addr;
             char **q;
             int total_size = 0;
+            int pid;
+            char path_store[PATH_MAX];
 
             argc = 0;
             guest_argp = arg2;
@@ -8552,8 +8593,11 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
              * program's problem.
              */
             path = p;
-            if (is_proc_myself(path, "exe")) {
-                path = exec_path;
+            if (is_proc_file(path, &pid, "exe")) {
+                path = get_exe_path(pid, path_store, sizeof(path_store));
+                if (path == NULL) {
+                    path = p;
+                }
             }
             ret = get_errno(safe_execve(path, argp, envp));
             unlock_user(p, arg1, 0);
