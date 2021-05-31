@@ -46,7 +46,9 @@ class FreeBSDVM(basevm.BaseVM):
         "gettext",
 
         # libs: crypto
+        "cyrus-sasl",
         "gnutls",
+        "nettle",
 
         # libs: images
         "jpeg-turbo",
@@ -56,6 +58,7 @@ class FreeBSDVM(basevm.BaseVM):
         "sdl2",
         "gtk3",
         "libxkbcommon",
+        "pixman",
 
         # libs: opengl
         "libepoxy",
@@ -63,6 +66,8 @@ class FreeBSDVM(basevm.BaseVM):
 
         # libs: migration
         "zstd",
+
+        "usbredir",
     ]
 
     # TODO: Enable gnutls again once FreeBSD's libtasn1 got fixed
