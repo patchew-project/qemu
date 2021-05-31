@@ -55,6 +55,7 @@
 #endif
 
 char *exec_path;
+int exec_fd = -1;
 
 int singlestep;
 static const char *argv0;
@@ -693,7 +694,14 @@ int main(int argc, char **argv, char **envp)
      * Manage binfmt-misc open-binary flag
      */
     execfd = qemu_getauxval(AT_EXECFD);
-    if (execfd == 0) {
+    if (execfd > 0) {
+        /*
+         * dup execfd to a global so that it can be used after loader_exec
+         * closes it.
+         */
+
+        exec_fd = dup(execfd);
+    } else {
         execfd = open(exec_path, O_RDONLY);
         if (execfd < 0) {
             printf("Error while loading %s: %s\n", exec_path, strerror(errno));
