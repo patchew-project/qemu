@@ -78,31 +78,39 @@ static struct DirtyRateInfo *query_dirty_rate_info(void)
     return info;
 }
 
-static void init_dirtyrate_stat(int64_t start_time, int64_t calc_time)
+static void init_dirtyrate_stat(int64_t start_time,
+                                int64_t calc_time,
+                                struct DirtyRateConfig config)
 {
-    DirtyStat.total_dirty_samples = 0;
-    DirtyStat.total_sample_count = 0;
-    DirtyStat.total_block_mem_MB = 0;
     DirtyStat.dirty_rate = -1;
     DirtyStat.start_time = start_time;
     DirtyStat.calc_time = calc_time;
+
+    if (config.vcpu) {
+        DirtyStat.method.vcpu.nvcpu = -1;
+        DirtyStat.method.vcpu.rates = NULL;
+    } else {
+        DirtyStat.method.vm.total_dirty_samples = 0;
+        DirtyStat.method.vm.total_sample_count = 0;
+        DirtyStat.method.vm.total_block_mem_MB = 0;
+    }
 }
 
 static void update_dirtyrate_stat(struct RamblockDirtyInfo *info)
 {
-    DirtyStat.total_dirty_samples += info->sample_dirty_count;
-    DirtyStat.total_sample_count += info->sample_pages_count;
+    DirtyStat.method.vm.total_dirty_samples += info->sample_dirty_count;
+    DirtyStat.method.vm.total_sample_count += info->sample_pages_count;
     /* size of total pages in MB */
-    DirtyStat.total_block_mem_MB += (info->ramblock_pages *
+    DirtyStat.method.vm.total_block_mem_MB += (info->ramblock_pages *
                                      TARGET_PAGE_SIZE) >> 20;
 }
 
 static void update_dirtyrate(uint64_t msec)
 {
     uint64_t dirtyrate;
-    uint64_t total_dirty_samples = DirtyStat.total_dirty_samples;
-    uint64_t total_sample_count = DirtyStat.total_sample_count;
-    uint64_t total_block_mem_MB = DirtyStat.total_block_mem_MB;
+    uint64_t total_dirty_samples = DirtyStat.method.vm.total_dirty_samples;
+    uint64_t total_sample_count = DirtyStat.method.vm.total_sample_count;
+    uint64_t total_block_mem_MB = DirtyStat.method.vm.total_block_mem_MB;
 
     dirtyrate = total_dirty_samples * total_block_mem_MB *
                 1000 / (total_sample_count * msec);
@@ -315,7 +323,7 @@ static bool compare_page_hash_info(struct RamblockDirtyInfo *info,
         update_dirtyrate_stat(block_dinfo);
     }
 
-    if (DirtyStat.total_sample_count == 0) {
+    if (DirtyStat.method.vm.total_sample_count == 0) {
         return false;
     }
 
@@ -371,7 +379,7 @@ void *get_dirtyrate_thread(void *arg)
 
     start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME) / 1000;
     calc_time = config.sample_period_seconds;
-    init_dirtyrate_stat(start_time, calc_time);
+    init_dirtyrate_stat(start_time, calc_time, config);
 
     calculate_dirtyrate(config);
 
