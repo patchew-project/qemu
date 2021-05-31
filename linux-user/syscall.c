@@ -7988,9 +7988,68 @@ static int open_self_auxv(void *cpu_env, int fd)
 
 static const char *get_exe_path(int pid, char *buf, size_t bufsize)
 {
+    ssize_t ssz;
+    int fd;
+
     if (pid == getpid()) {
         return exec_path;
     }
+
+    /* dockerd makes runc invoke dockerd using "/proc/${dockerd_pid}/exe". */
+    snprintf(buf, bufsize, "/proc/%d/cmdline", pid);
+    fd = open(buf, O_RDONLY);
+    if (fd == -1) {
+        return NULL;
+    }
+    ssz = read(fd, buf, bufsize);
+    if (ssz != -1) {
+        const char *argv0;
+        const char *argv1;
+        const char *cp;
+        const char *ep;
+        const char *slash;
+
+        cp = buf;
+        ep = cp + ssz;
+
+        argv0 = cp;
+        while (*cp != 0) {
+            cp++;
+            if (cp >= ep) {
+                goto fail;
+            }
+        }
+
+        cp++;
+        if (cp >= ep) {
+            goto fail;
+        }
+
+        argv1 = cp;
+        while (*cp != 0) {
+            cp++;
+            if (cp >= ep) {
+                goto fail;
+            }
+        }
+
+        /*
+         * XXX a bit too loose detection of qemu.
+         * maybe we can compare /proc/$pid/exe with ours.
+         */
+        slash = strrchr(argv0, '/');
+        if (slash != NULL) {
+            argv0 = slash + 1; /* basename */
+        }
+        if (strncmp(argv0, "qemu-", sizeof("qemu-") - 1)) {
+            goto fail;
+        }
+
+        close(fd);
+        return argv1;
+    }
+fail:
+    close(fd);
 
     return NULL;
 }
