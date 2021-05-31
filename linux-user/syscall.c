@@ -6553,6 +6553,8 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         pthread_mutex_destroy(&info.mutex);
         pthread_mutex_unlock(&clone_lock);
     } else {
+        flags &= ~CLONE_PARENT; /* XXX crude hack for libcontainer. */
+
         /* if no CLONE_VM, we consider it is a fork */
         if (flags & CLONE_INVALID_FORK_FLAGS) {
             return -TARGET_EINVAL;
