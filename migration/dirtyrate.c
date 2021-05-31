@@ -16,6 +16,7 @@
 #include "cpu.h"
 #include "exec/ramblock.h"
 #include "qemu/rcu_queue.h"
+#include "sysemu/kvm.h"
 #include "qapi/qapi-commands-migration.h"
 #include "ram.h"
 #include "trace.h"
@@ -416,6 +417,14 @@ void qmp_calc_dirty_rate(int64_t calc_time,
     }
 
     /*
+     * Vcpu method only works when kvm dirty ring is enabled.
+     */
+    if (has_vcpu && vcpu && !kvm_dirty_ring_enabled()) {
+        error_setg(errp, "kvm dirty ring is disabled, use sample method.");
+        return;
+    }
+
+    /*
      * Init calculation state as unstarted.
      */
     ret = dirtyrate_set_state(&CalculatingState, CalculatingState,
@@ -427,6 +436,7 @@ void qmp_calc_dirty_rate(int64_t calc_time,
 
     config.sample_period_seconds = calc_time;
     config.sample_pages_per_gigabytes = DIRTYRATE_DEFAULT_SAMPLE_PAGES;
+    config.vcpu = has_vcpu ? vcpu : false;
     qemu_thread_create(&thread, "get_dirtyrate", get_dirtyrate_thread,
                        (void *)&config, QEMU_THREAD_DETACHED);
 }
