@@ -506,6 +506,9 @@ int kvm_init_vcpu(CPUState *cpu, Error **errp)
         }
     }
 
+    cpu->dirty_pages = 0;
+    cpu->stat_dirty_pages = false;
+
     ret = kvm_arch_init_vcpu(cpu);
     if (ret < 0) {
         error_setg_errno(errp, -ret,
@@ -739,6 +742,9 @@ static uint32_t kvm_dirty_ring_reap_one(KVMState *s, CPUState *cpu)
                                  cur->offset);
         dirty_gfn_set_collected(cur);
         trace_kvm_dirty_ring_page(cpu->cpu_index, fetch, cur->offset);
+        if (cpu->stat_dirty_pages) {
+            cpu->dirty_pages++;
+        }
         fetch++;
         count++;
     }
