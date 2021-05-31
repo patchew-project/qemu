@@ -55,6 +55,7 @@
 #endif
 
 char *exec_path;
+char exec_path_store[PATH_MAX];
 int exec_fd = -1;
 
 int singlestep;
@@ -611,7 +612,20 @@ static int parse_args(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    exec_path = argv[optind];
+    /*
+     * Try to get the realpath of the executable to avoid being
+     * fooled by chdir is the user app.
+     *
+     * Note: realpath here can fail for some use cases.
+     * For example, runc executes an unlinked binary via
+     * /proc/self/fd.
+     * It isn't fatal as far as we have an exec fd.
+     * (Otherwise, we will fail to load the binary.
+     */
+    exec_path = realpath(argv[optind], exec_path_store);
+    if (exec_path == NULL) {
+        exec_path = argv[optind];
+    }
 
     return optind;
 }
