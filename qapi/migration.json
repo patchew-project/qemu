@@ -1709,6 +1709,21 @@
   'data': { 'device-id': 'str' } }
 
 ##
+# @DirtyRateVcpu:
+#
+# Dirty rate of vcpu.
+#
+# @id: vcpu index.
+#
+# @dirty-rate: dirty rate.
+#
+# Since: 6.1
+#
+##
+{ 'struct': 'DirtyRateVcpu',
+  'data': { 'id': 'int', 'dirty-rate': 'int64' } }
+
+##
 # @DirtyRateStatus:
 #
 # An enumeration of dirtyrate status.
@@ -1740,6 +1755,10 @@
 #
 # @calc-time: time in units of second for sample dirty pages
 #
+# @vcpu: calculate dirtyrate for each vcpu (Since 6.1)
+#
+# @vcpu-dirty-rate: dirtyrate for each vcpu (Since 6.1)
+#
 # Since: 5.2
 #
 ##
@@ -1747,7 +1766,9 @@
   'data': {'*dirty-rate': 'int64',
            'status': 'DirtyRateStatus',
            'start-time': 'int64',
-           'calc-time': 'int64'} }
+           'calc-time': 'int64',
+           '*vcpu': 'bool',
+           '*vcpu-dirty-rate': [ 'DirtyRateVcpu' ] } }
 
 ##
 # @calc-dirty-rate:
@@ -1756,13 +1777,16 @@
 #
 # @calc-time: time in units of second for sample dirty pages
 #
+# @vcpu: calculate vcpu dirty rate if true, the default value is
+#        false (since 6.1)
+#
 # Since: 5.2
 #
 # Example:
 #   {"command": "calc-dirty-rate", "data": {"calc-time": 1} }
 #
 ##
-{ 'command': 'calc-dirty-rate', 'data': {'calc-time': 'int64'} }
+{ 'command': 'calc-dirty-rate', 'data': {'calc-time': 'int64', '*vcpu': 'bool'} }
 
 ##
 # @query-dirty-rate:

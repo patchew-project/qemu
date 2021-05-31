@@ -38,6 +38,7 @@
 struct DirtyRateConfig {
     uint64_t sample_pages_per_gigabytes; /* sample pages per GB */
     int64_t sample_period_seconds; /* time duration between two sampling */
+    bool vcpu; /* calculate dirtyrate for each vcpu using dirty ring */
 };
 
 /*

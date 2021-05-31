@@ -383,7 +383,10 @@ void *get_dirtyrate_thread(void *arg)
     return NULL;
 }
 
-void qmp_calc_dirty_rate(int64_t calc_time, Error **errp)
+void qmp_calc_dirty_rate(int64_t calc_time,
+                         bool has_vcpu,
+                         bool vcpu,
+                         Error **errp)
 {
     static struct DirtyRateConfig config;
     QemuThread thread;
