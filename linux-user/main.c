@@ -726,7 +726,38 @@ int main(int argc, char **argv, char **envp)
     /*
      * get binfmt_misc flags
      */
+#if 0
     preserve_argv0 = !!(qemu_getauxval(AT_FLAGS) & AT_FLAGS_PRESERVE_ARGV0);
+#else
+/*
+ * my kernel doesn't have the following commit. this is a crude workaroud.
+
+commit 2347961b11d4079deace3c81dceed460c08a8fc1
+Author: Laurent Vivier <laurent@vivier.eu>
+Date:   Tue Jan 28 14:25:39 2020 +0100
+
+    binfmt_misc: pass binfmt_misc flags to the interpreter
+
+    It can be useful to the interpreter to know which flags are in use.
+
+    For instance, knowing if the preserve-argv[0] is in use would
+    allow to skip the pathname argument.
+
+    This patch uses an unused auxiliary vector, AT_FLAGS, to add a
+    flag to inform interpreter if the preserve-argv[0] is enabled.
+
+    Note by Helge Deller:
+    The real-world user of this patch is qemu-user, which needs to know
+    if it has to preserve the argv[0]. See Debian bug #970460.
+
+    Signed-off-by: Laurent Vivier <laurent@vivier.eu>
+    Reviewed-by: YunQiang Su <ysu@wavecomp.com>
+    URL: http://bugs.debian.org/970460
+    Signed-off-by: Helge Deller <deller@gmx.de>
+
+ */
+    preserve_argv0 = true;
+#endif
 
     /*
      * Manage binfmt-misc preserve-arg[0] flag
