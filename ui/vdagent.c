@@ -456,7 +456,6 @@ static void vdagent_chr_recv_clipboard(VDAgentChardev *vd, VDAgentMessage *msg)
     switch (msg->type) {
     case VD_AGENT_CLIPBOARD_GRAB:
         trace_vdagent_cb_grab_selection(GET_NAME(sel_name, s));
-        info = qemu_clipboard_info_new(&vd->cbpeer, s);
         if (size > sizeof(uint32_t) * 10) {
             /*
              * spice has 6 types as of 2021. Limiting to 10 entries
@@ -464,6 +463,7 @@ static void vdagent_chr_recv_clipboard(VDAgentChardev *vd, VDAgentMessage *msg)
              */
             return;
         }
+        info = qemu_clipboard_info_new(&vd->cbpeer, s);
         while (size >= sizeof(uint32_t)) {
             trace_vdagent_cb_grab_type(GET_NAME(type_name, *(uint32_t *)data));
             switch (*(uint32_t *)data) {
