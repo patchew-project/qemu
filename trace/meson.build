@@ -2,10 +2,22 @@
 specific_ss.add(files('control-target.c'))
 
 trace_events_files = []
-foreach dir : [ '.' ] + trace_events_subdirs
-  trace_events_file = meson.source_root() / dir / 'trace-events'
+
+trace_events_config += {
+  'file'  : meson.source_root() / 'trace-events',
+  'group' : 'root',
+}
+foreach dir : trace_events_subdirs
+  trace_events_config += {
+    'file'  : meson.source_root() / dir / 'trace-events',
+    'group' : dir.underscorify(),
+  }
+endforeach
+
+foreach c : trace_events_config
+  trace_events_file = c.get('file')
   trace_events_files += [ trace_events_file ]
-  group_name = dir == '.' ? 'root' : dir.underscorify()
+  group_name = c.get('group')
   group = '--group=' + group_name
   fmt = '@0@-' + group_name + '.@1@'
 

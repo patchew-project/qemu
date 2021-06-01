@@ -1792,6 +1792,7 @@ target_user_arch = {}
 
 # TODO: add each directory to the subdirs from its own meson.build, once
 # we have those
+trace_events_config = []
 trace_events_subdirs = [
   'crypto',
   'qapi',
