@@ -32,7 +32,7 @@
 #include "sysemu/runstate.h"
 #include "migration/blocker.h"
 #include "migration/vmstate.h"
-#include "trace.h"
+#include "trace-qxl.h"
 
 #include "qxl.h"
 
