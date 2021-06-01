@@ -1897,6 +1897,10 @@ if 'CONFIG_VHOST_USER' in config_host
   vhost_user = libvhost_user.get_variable('vhost_user_dep')
 endif
 
+# any subdir updating trace_events_config[] must
+# come before the 'trace' subdir.
+subdir('hw')
+
 subdir('qapi')
 subdir('qobject')
 subdir('stubs')
@@ -2007,7 +2011,6 @@ subdir('monitor')
 subdir('net')
 subdir('replay')
 subdir('semihosting')
-subdir('hw')
 subdir('accel')
 subdir('plugins')
 subdir('bsd-user')
