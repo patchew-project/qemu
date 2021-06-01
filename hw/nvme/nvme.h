@@ -435,6 +435,9 @@ typedef struct NvmeCtrl {
     DECLARE_BITMAP(changed_nsids, NVME_CHANGED_NSID_SIZE);
 
     NvmeSubsystem   *subsys;
+    BlockBackend    *blk_bp;
+    uint8_t         *bp_data;
+    uint64_t        bp_size;
 
     NvmeNamespace   namespace;
     NvmeNamespace   *namespaces[NVME_MAX_NAMESPACES + 1];
