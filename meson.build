@@ -2042,12 +2042,44 @@ foreach d, list : modules
       module_ss = module_ss.apply(config_all, strict: false)
       module_trace_cfg = module_trace.get(d + '-' + m, {})
       module_trace_src = module_trace_cfg.get('src', [])
+      module_trace_evt = module_trace_cfg.get('evt', '')
       sl = static_library(d + '-' + m, [genh, module_ss.sources(), module_trace_src],
                           dependencies: [modulecommon, module_ss.dependencies()], pic: true)
       if d == 'block'
         block_mods += sl
       else
         softmmu_mods += sl
+      endif
+      if 'CONFIG_TRACE_SYSTEMTAP' in config_host and module_trace_evt != ''
+        modname = d + '-' + m
+	modlib = modname + '.so'
+        foreach stp: [
+          {'ext': '.stp-build', 'fmt': 'stap', 'bin': meson.current_build_dir() / modlib, 'install': false},
+          {'ext': '.stp', 'fmt': 'stap', 'bin': get_option('prefix') / qemu_moddir / modlib, 'install': true},
+          {'ext': '-simpletrace.stp', 'fmt': 'simpletrace-stap', 'bin': '', 'install': true},
+          {'ext': '-log.stp', 'fmt': 'log-stap', 'bin': '', 'install': true},
+        ]
+          foreach target : target_dirs
+            config_target = config_target_mak[target]
+            target_name = config_target['TARGET_NAME']
+            if target.endswith('-softmmu')
+              custom_target(modname + '-' + target_name + stp['ext'],
+                            input: module_trace_evt,
+                            output: modname + '-' + target_name + stp['ext'],
+                            install: stp['install'],
+                            install_dir: get_option('datadir') / 'systemtap/tapset',
+                            command: [
+                              tracetool, '--group=all', '--format=' + stp['fmt'],
+                              '--binary=' + stp['bin'],
+                              '--target-name=' + target_name,
+                              '--target-type=system',
+                              '--probe-prefix=qemu.system.' + target_name,
+                              '@INPUT@', '@OUTPUT@'
+                            ],
+                            depend_files: tracetool_depends)
+            endif
+          endforeach
+        endforeach
       endif
     else
       if d == 'block'

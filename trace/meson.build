@@ -16,7 +16,6 @@ endforeach
 
 foreach c : trace_events_config
   trace_events_file = c.get('file')
-  trace_events_files += [ trace_events_file ]
   module_name = c.get('module', '')
   group_name = c.get('group', module_name.underscorify())
   group = '--group=' + group_name
@@ -66,9 +65,11 @@ foreach c : trace_events_config
     genh += trace_dtrace_h
   endif
   if enable_modules and module_name != ''
-    module_trace += { module_name : { 'src' : module_trace_src } }
+    module_trace += { module_name : { 'src' : module_trace_src,
+                                      'evt' : trace_events_file } }
   else
     trace_ss.add(module_trace_src)
+    trace_events_files += [ trace_events_file ]
   endif
 endforeach
 
