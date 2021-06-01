@@ -1,0 +1,112 @@
+
+Overview
+--------
+
+The QMP configuration in the context of this design stands for customizing an
+existing machine using the QEMU Monitor Protocol (QMP). The requirement for such
+a configuration comes from the use cases where a complete system-on-chip can be
+customized: from the number of cores, available peripherals, memories, IRQ
+mapping, etc. Our goal is to enable the emulation of customized platforms
+without requiring modifications in QEMU, and thus the QEMU recompilation.
+
+We will perform the QMP configuration from a QMP client that will communicate
+with QEMU via a socket. As an example of a QMP client, we will include a script,
+namely the QMP configurator, that will read QMP commands from a configuration
+file and send them to QEMU, one by one. The configuration file will be a text
+file that includes only a list of QMP commands to be executed.
+
+We will start QEMU with the -preconfig command-line option, thus QEMU will wait
+for the QMP configuration at an early initialization phase, before the machine
+initialization. The following configuration flow will rely on the machine
+initialization phases. In each initialization phase, a set of QMP commands will
+be available for configuring the machine and advancing it to the next
+initialization phase. Upon reaching the final initialization phase, the machine
+shall be ready to run. We specify detailed configuration flow in
+"QMP configuration flow in QEMU."
+
+
+QMP configurator
+----------------
+
+We decided to include the QMP configurator, a QMP client script that will
+communicate with QEMU, to automate the configuration. The QMP configurator will
+read the QMP commands from the configuration file, send each QMP command to
+QEMU, and quit at the end or exit earlier in the case of an error. We have not
+envisioned the QMP configurator to be interactive. For debugging purposes, one
+could use the QMP shell instead (scripts/qmp/qmp-shell).
+
+
+QMP configuration file
+----------------------
+
+The QMP configuration file will be a text file that includes only a list of
+QMP commands which configure the machine. QMP commands in the configuration file
+shall be in the same format and order as if they were issued using the QMP
+shell. The QMP configurator will convert each command into JSON format before
+sending it to QEMU, similarly as the QMP shell does.
+
+There are several ways to create a configuration file. One approach is to
+manually create a list of QMP commands which specify how to configure the
+machine. Another convenient method is to generate QMP commands from existing
+descriptions, such as the device tree or a proprietary format. Either way, the
+creation of the configuration file is out of the scope of this work.
+
+However, along with the QMP configurator, we will include an example of the
+machine and its configuration file to demonstrate the QMP configuration
+approach.
+
+
+QMP configuration flow in QEMU
+------------------------------
+
+We will build the QMP configuration flow on top of the machine initialization
+phases, that are:
+1) no-machine: machine does not exist yet (current_machine == NULL)
+2) machine-created: machine exists, but its accelerator does not
+   (current_machine->accelerator == NULL)
+3) accel-created: machine's accelerator is configured
+   (current_machine->accelerator != NULL), but machine class's init() has not
+   been called (no properties validated, machine_init_done notifiers not
+   registered, no sysbus, etc.)
+4) initialized: machine class's init() has been called, thus machine properties
+   are validated, machine_init_done notifiers registered, sysbus realized, etc.
+   Devices added at this phase are considered to be cold-plugged.
+5) ready: machine_init_done notifiers are called, then QEMU is ready to start
+   CPUs. Devices added at this phase are considered to be hot-plugged.
+
+We can stop QEMU today using the -preconfig command-line option at phase 3
+('accel-created'). This option was introduced to enable the QMP configuration of
+parameters that affect the machine initialization. We cannot add devices at
+this point because the machine class's init() has not been called, thus sysbus
+does not exist yet (a device cannot be added because there is no bus to attach
+it to).
+
+QEMU can be also stopped using the -S command-line option at the machine 'ready'
+phase. However, it is too late to add devices at this phase because the machine
+is already configured, and any devices added at this point are considered to be
+hot-plugged.
+
+Since the existing -preconfig command-line option stops QEMU too early, and the
+-S option stops too late, we need a way to stop QEMU in between (after the
+machine is initialized and before it becomes ready).
+
+We will reuse the existing -preconfig command-line option to stop QEMU at the
+'accel-created' phase. Then, we will add a QMP command, namely 'x-machine-init',
+to advance and stop the machine in the next initialization phase
+('initialized' phase). We will configure the machine during this phase using the
+existing 'device_add' QMP command. Note that the use of 'device_add' QMP command
+is currently not allowed before the machine is ready. We will enable the use of
+'device_add' during the 'initialized' phase.
+
+Once we complete the configuration, we will advance the machine to the 'ready'
+phase using the existing 'x-exit-preconfig' command. Upon the execution of
+'x-exit-preconfig' command, the machine will immediately start running the guest
+unless the -S option is provided as the command-line argument.
+
+We will also implement a QMP command to query the current machine initialization
+phase, namely the 'query-machine-phase' command.
+
+--------------------------------------------------------------------------------
+
+This work is supported by Xilinx, SiFive, and Greensocs.
+
