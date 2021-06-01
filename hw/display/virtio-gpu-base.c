@@ -17,7 +17,7 @@
 #include "migration/blocker.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
-#include "trace.h"
+#include "trace-virtio.h"
 
 void
 virtio_gpu_base_reset(VirtIOGPUBase *g)

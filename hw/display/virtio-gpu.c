@@ -15,7 +15,7 @@
 #include "qemu/units.h"
 #include "qemu/iov.h"
 #include "ui/console.h"
-#include "trace.h"
+#include "trace-virtio.h"
 #include "sysemu/dma.h"
 #include "sysemu/sysemu.h"
 #include "hw/virtio/virtio.h"

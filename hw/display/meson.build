@@ -62,6 +62,10 @@ if config_all_devices.has_key('CONFIG_VIRTIO_GPU')
                     if_true: [files('virtio-gpu-base.c', 'virtio-gpu.c'), pixman])
   virtio_gpu_ss.add(when: 'CONFIG_LINUX', if_true: files('virtio-gpu-udmabuf.c'))
   virtio_gpu_ss.add(when: 'CONFIG_VHOST_USER_GPU', if_true: files('vhost-user-gpu.c'))
+  trace_events_config += {
+    'file'   : meson.source_root() / 'hw' / 'display' / 'trace-events-virtio',
+    'module' : 'hw-display-virtio-gpu',
+  }
   hw_display_modules += {'virtio-gpu': virtio_gpu_ss}
 
   virtio_gpu_gl_ss = ss.source_set()
