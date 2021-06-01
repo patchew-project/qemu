@@ -13,7 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/iov.h"
-#include "trace.h"
+#include "trace-virtio-gl.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-gpu.h"
 
