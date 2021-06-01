@@ -1159,7 +1159,11 @@ static int kvmppc_get_books_sregs(PowerPCCPU *cpu)
     }
 
     if (!cpu->vhyp) {
-        ppc_store_sdr1(env, sregs.u.s.sdr1);
+        /*
+         * We have just gotten the SDR1, there should be no
+         * reason to do error checking.... right?
+         */
+        env->spr[SPR_SDR1] = sregs.u.s.sdr1;
     }
 
     /* Sync SLB */
