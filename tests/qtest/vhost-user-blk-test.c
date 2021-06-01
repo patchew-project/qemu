@@ -910,14 +910,18 @@ static void start_vhost_user_blk(GString *cmd_line, int vus_instances,
                    storage_daemon_command->str);
     pid_t pid = fork();
     if (pid == 0) {
+        int fd;
+
         /*
          * Close standard file descriptors so tap-driver.pl pipe detects when
          * our parent terminates.
          */
         close(0);
+        fd = open("/dev/null", O_RDONLY);
+        g_assert_cmpint(fd, ==, 0);
         close(1);
-        open("/dev/null", O_RDONLY);
-        open("/dev/null", O_WRONLY);
+        fd = open("/dev/null", O_WRONLY);
+        g_assert_cmpint(fd, ==, 1);
 
         execlp("/bin/sh", "sh", "-c", storage_daemon_command->str, NULL);
         exit(1);
