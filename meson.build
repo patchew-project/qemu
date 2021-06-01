@@ -1781,6 +1781,7 @@ user_ss = ss.source_set()
 util_ss = ss.source_set()
 
 modules = {}
+module_trace = {}
 hw_arch = {}
 target_arch = {}
 target_softmmu_arch = {}
@@ -2039,7 +2040,9 @@ foreach d, list : modules
   foreach m, module_ss : list
     if enable_modules and targetos != 'windows'
       module_ss = module_ss.apply(config_all, strict: false)
-      sl = static_library(d + '-' + m, [genh, module_ss.sources()],
+      module_trace_cfg = module_trace.get(d + '-' + m, {})
+      module_trace_src = module_trace_cfg.get('src', [])
+      sl = static_library(d + '-' + m, [genh, module_ss.sources(), module_trace_src],
                           dependencies: [modulecommon, module_ss.dependencies()], pic: true)
       if d == 'block'
         block_mods += sl
