@@ -1037,3 +1037,7 @@ static void spice_register_config(void)
     qemu_add_opts(&qemu_spice_opts);
 }
 opts_init(spice_register_config);
+
+#ifdef CONFIG_OPENGL
+module_dep("chardev-spice");
+#endif
