@@ -32,10 +32,6 @@
 #include "mmu-book3s-v3.h"
 #include "helper_regs.h"
 
-#ifdef CONFIG_TCG
-#include "exec/helper-proto.h"
-#endif
-
 /* #define DEBUG_SLB */
 
 #ifdef DEBUG_SLB
@@ -48,7 +44,7 @@
  * SLB handling
  */
 
-static ppc_slb_t *slb_lookup(PowerPCCPU *cpu, target_ulong eaddr)
+ppc_slb_t *slb_lookup(PowerPCCPU *cpu, target_ulong eaddr)
 {
     CPUPPCState *env = &cpu->env;
     uint64_t esid_256M, esid_1T;
@@ -99,114 +95,6 @@ void dump_slb(PowerPCCPU *cpu)
                     i, slbe, slbv);
     }
 }
-
-#ifdef CONFIG_TCG
-void helper_slbia(CPUPPCState *env, uint32_t ih)
-{
-    PowerPCCPU *cpu = env_archcpu(env);
-    int starting_entry;
-    int n;
-
-    /*
-     * slbia must always flush all TLB (which is equivalent to ERAT in ppc
-     * architecture). Matching on SLB_ESID_V is not good enough, because slbmte
-     * can overwrite a valid SLB without flushing its lookaside information.
-     *
-     * It would be possible to keep the TLB in synch with the SLB by flushing
-     * when a valid entry is overwritten by slbmte, and therefore slbia would
-     * not have to flush unless it evicts a valid SLB entry. However it is
-     * expected that slbmte is more common than slbia, and slbia is usually
-     * going to evict valid SLB entries, so that tradeoff is unlikely to be a
-     * good one.
-     *
-     * ISA v2.05 introduced IH field with values 0,1,2,6. These all invalidate
-     * the same SLB entries (everything but entry 0), but differ in what
-     * "lookaside information" is invalidated. TCG can ignore this and flush
-     * everything.
-     *
-     * ISA v3.0 introduced additional values 3,4,7, which change what SLBs are
-     * invalidated.
-     */
-
-    env->tlb_need_flush |= TLB_NEED_LOCAL_FLUSH;
-
-    starting_entry = 1; /* default for IH=0,1,2,6 */
-
-    if (env->mmu_model == POWERPC_MMU_3_00) {
-        switch (ih) {
-        case 0x7:
-            /* invalidate no SLBs, but all lookaside information */
-            return;
-
-        case 0x3:
-        case 0x4:
-            /* also considers SLB entry 0 */
-            starting_entry = 0;
-            break;
-
-        case 0x5:
-            /* treat undefined values as ih==0, and warn */
-            qemu_log_mask(LOG_GUEST_ERROR,
-                          "slbia undefined IH field %u.\n", ih);
-            break;
-
-        default:
-            /* 0,1,2,6 */
-            break;
-        }
-    }
-
-    for (n = starting_entry; n < cpu->hash64_opts->slb_size; n++) {
-        ppc_slb_t *slb = &env->slb[n];
-
-        if (!(slb->esid & SLB_ESID_V)) {
-            continue;
-        }
-        if (env->mmu_model == POWERPC_MMU_3_00) {
-            if (ih == 0x3 && (slb->vsid & SLB_VSID_C) == 0) {
-                /* preserves entries with a class value of 0 */
-                continue;
-            }
-        }
-
-        slb->esid &= ~SLB_ESID_V;
-    }
-}
-
-static void __helper_slbie(CPUPPCState *env, target_ulong addr,
-                           target_ulong global)
-{
-    PowerPCCPU *cpu = env_archcpu(env);
-    ppc_slb_t *slb;
-
-    slb = slb_lookup(cpu, addr);
-    if (!slb) {
-        return;
-    }
-
-    if (slb->esid & SLB_ESID_V) {
-        slb->esid &= ~SLB_ESID_V;
-
-        /*
-         * XXX: given the fact that segment size is 256 MB or 1TB,
-         *      and we still don't have a tlb_flush_mask(env, n, mask)
-         *      in QEMU, we just invalidate all TLBs
-         */
-        env->tlb_need_flush |=
-            (global == false ? TLB_NEED_LOCAL_FLUSH : TLB_NEED_GLOBAL_FLUSH);
-    }
-}
-
-void helper_slbie(CPUPPCState *env, target_ulong addr)
-{
-    __helper_slbie(env, addr, false);
-}
-
-void helper_slbieg(CPUPPCState *env, target_ulong addr)
-{
-    __helper_slbie(env, addr, true);
-}
-#endif
 
 int ppc_store_slb(PowerPCCPU *cpu, target_ulong slot,
                   target_ulong esid, target_ulong vsid)
@@ -259,102 +147,6 @@ int ppc_store_slb(PowerPCCPU *cpu, target_ulong slot,
 
     return 0;
 }
-
-#ifdef CONFIG_TCG
-static int ppc_load_slb_esid(PowerPCCPU *cpu, target_ulong rb,
-                             target_ulong *rt)
-{
-    CPUPPCState *env = &cpu->env;
-    int slot = rb & 0xfff;
-    ppc_slb_t *slb = &env->slb[slot];
-
-    if (slot >= cpu->hash64_opts->slb_size) {
-        return -1;
-    }
-
-    *rt = slb->esid;
-    return 0;
-}
-
-static int ppc_load_slb_vsid(PowerPCCPU *cpu, target_ulong rb,
-                             target_ulong *rt)
-{
-    CPUPPCState *env = &cpu->env;
-    int slot = rb & 0xfff;
-    ppc_slb_t *slb = &env->slb[slot];
-
-    if (slot >= cpu->hash64_opts->slb_size) {
-        return -1;
-    }
-
-    *rt = slb->vsid;
-    return 0;
-}
-
-static int ppc_find_slb_vsid(PowerPCCPU *cpu, target_ulong rb,
-                             target_ulong *rt)
-{
-    CPUPPCState *env = &cpu->env;
-    ppc_slb_t *slb;
-
-    if (!msr_is_64bit(env, env->msr)) {
-        rb &= 0xffffffff;
-    }
-    slb = slb_lookup(cpu, rb);
-    if (slb == NULL) {
-        *rt = (target_ulong)-1ul;
-    } else {
-        *rt = slb->vsid;
-    }
-    return 0;
-}
-
-void helper_store_slb(CPUPPCState *env, target_ulong rb, target_ulong rs)
-{
-    PowerPCCPU *cpu = env_archcpu(env);
-
-    if (ppc_store_slb(cpu, rb & 0xfff, rb & ~0xfffULL, rs) < 0) {
-        raise_exception_err_ra(env, POWERPC_EXCP_PROGRAM,
-                               POWERPC_EXCP_INVAL, GETPC());
-    }
-}
-
-target_ulong helper_load_slb_esid(CPUPPCState *env, target_ulong rb)
-{
-    PowerPCCPU *cpu = env_archcpu(env);
-    target_ulong rt = 0;
-
-    if (ppc_load_slb_esid(cpu, rb, &rt) < 0) {
-        raise_exception_err_ra(env, POWERPC_EXCP_PROGRAM,
-                               POWERPC_EXCP_INVAL, GETPC());
-    }
-    return rt;
-}
-
-target_ulong helper_find_slb_vsid(CPUPPCState *env, target_ulong rb)
-{
-    PowerPCCPU *cpu = env_archcpu(env);
-    target_ulong rt = 0;
-
-    if (ppc_find_slb_vsid(cpu, rb, &rt) < 0) {
-        raise_exception_err_ra(env, POWERPC_EXCP_PROGRAM,
-                               POWERPC_EXCP_INVAL, GETPC());
-    }
-    return rt;
-}
-
-target_ulong helper_load_slb_vsid(CPUPPCState *env, target_ulong rb)
-{
-    PowerPCCPU *cpu = env_archcpu(env);
-    target_ulong rt = 0;
-
-    if (ppc_load_slb_vsid(cpu, rb, &rt) < 0) {
-        raise_exception_err_ra(env, POWERPC_EXCP_PROGRAM,
-                               POWERPC_EXCP_INVAL, GETPC());
-    }
-    return rt;
-}
-#endif
 
 /* Check No-Execute or Guarded Storage */
 static inline int ppc_hash64_pte_noexec_guard(PowerPCCPU *cpu,
@@ -1145,15 +937,6 @@ void ppc_hash64_tlb_flush_hpte(PowerPCCPU *cpu, target_ulong ptex,
      */
     cpu->env.tlb_need_flush = TLB_NEED_GLOBAL_FLUSH | TLB_NEED_LOCAL_FLUSH;
 }
-
-#ifdef CONFIG_TCG
-void helper_store_lpcr(CPUPPCState *env, target_ulong val)
-{
-    PowerPCCPU *cpu = env_archcpu(env);
-
-    ppc_store_lpcr(cpu, val);
-}
-#endif
 
 void ppc_hash64_init(PowerPCCPU *cpu)
 {
