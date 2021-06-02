@@ -1330,6 +1330,41 @@ void store_booke_tsr(CPUPPCState *env, target_ulong val);
 void ppc_tlb_invalidate_all(CPUPPCState *env);
 void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr);
 void cpu_ppc_set_vhyp(PowerPCCPU *cpu, PPCVirtualHypervisor *vhyp);
+
+typedef struct mmu_ctx_t mmu_ctx_t;
+int ppcemb_tlb_check(CPUPPCState *env, ppcemb_tlb_t *tlb,
+                            hwaddr *raddrp,
+                            target_ulong address, uint32_t pid, int ext,
+                            int i);
+int get_physical_address_wtlb(CPUPPCState *env, mmu_ctx_t *ctx,
+                                     target_ulong eaddr,
+                                     MMUAccessType access_type, int type,
+                                     int mmu_idx);
+hwaddr booke206_tlb_to_page_size(CPUPPCState *env,
+                                        ppcmas_tlb_t *tlb);
+int ppcmas_tlb_check(CPUPPCState *env, ppcmas_tlb_t *tlb,
+                            hwaddr *raddrp, target_ulong address,
+                            uint32_t pid);
+int get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
+                                target_ulong eaddr, MMUAccessType access_type,
+                                int type);
+static inline int ppc6xx_tlb_getnum(CPUPPCState *env, target_ulong eaddr,
+                                    int way, int is_code)
+{
+    int nr;
+
+    /* Select TLB num in a way from address */
+    nr = (eaddr >> TARGET_PAGE_BITS) & (env->tlb_per_way - 1);
+    /* Select TLB way */
+    nr += env->tlb_per_way * way;
+    /* 6xx have separate TLBs for instructions and data */
+    if (is_code && env->id_tlbs == 1) {
+        nr += env->nb_tlb;
+    }
+
+    return nr;
+}
+
 #endif
 #endif
 
