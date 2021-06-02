@@ -204,6 +204,16 @@ struct GICv3CPUState {
      * real state above; it doesn't need to be migrated.
      */
     PendingIrq hppi;
+
+    /*
+     * Current highest priority pending lpi for this CPU.
+     * This is cached information that can be recalculated from the
+     * real state above; it doesn't need to be migrated.
+     */
+    PendingIrq hpplpi;
+
+    bool lpivalid; /* current highest priority lpi validity status */
+
     /* This is temporary working state, to avoid a malloc in gicv3_update() */
     bool seenbetter;
 };
