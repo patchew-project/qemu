@@ -38,6 +38,9 @@
 #include "qom/object.h"
 #include <poll.h>
 
+typedef struct rdma_cm_event rdma_cm_event;
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(rdma_cm_event, rdma_ack_cm_event)
+
 /*
  * Print and error on both the Monitor and the Log file.
  */
@@ -939,7 +942,7 @@ static int qemu_rdma_resolve_host(RDMAContext *rdma, Error **errp)
     int ret;
     struct rdma_addrinfo *res;
     char port_str[16];
-    struct rdma_cm_event *cm_event;
+    g_autoptr(rdma_cm_event) cm_event = NULL;
     char ip[40] = "unknown";
     struct rdma_addrinfo *e;
 
@@ -1007,11 +1010,11 @@ route:
         ERROR(errp, "result not equal to event_addr_resolved %s",
                 rdma_event_str(cm_event->event));
         perror("rdma_resolve_addr");
-        rdma_ack_cm_event(cm_event);
         ret = -EINVAL;
         goto err_resolve_get_addr;
     }
     rdma_ack_cm_event(cm_event);
+    cm_event = NULL;
 
     /* resolve route */
     ret = rdma_resolve_route(rdma->cm_id, RDMA_RESOLVE_TIMEOUT_MS);
@@ -1028,11 +1031,9 @@ route:
     if (cm_event->event != RDMA_CM_EVENT_ROUTE_RESOLVED) {
         ERROR(errp, "result not equal to event_route_resolved: %s",
                         rdma_event_str(cm_event->event));
-        rdma_ack_cm_event(cm_event);
         ret = -EINVAL;
         goto err_resolve_get_addr;
     }
-    rdma_ack_cm_event(cm_event);
     rdma->verbs = rdma->cm_id->verbs;
     qemu_rdma_dump_id("source_resolve_host", rdma->cm_id->verbs);
     qemu_rdma_dump_gid("source_resolve_host", rdma->cm_id);
@@ -1501,7 +1502,7 @@ static uint64_t qemu_rdma_poll(RDMAContext *rdma, uint64_t *wr_id_out,
  */
 static int qemu_rdma_wait_comp_channel(RDMAContext *rdma)
 {
-    struct rdma_cm_event *cm_event;
+    g_autoptr(rdma_cm_event) cm_event = NULL;
     int ret = -1;
 
     /*
@@ -2503,7 +2504,7 @@ static int qemu_rdma_connect(RDMAContext *rdma, Error **errp, bool return_path)
                                           .private_data = &cap,
                                           .private_data_len = sizeof(cap),
                                         };
-    struct rdma_cm_event *cm_event;
+    g_autoptr(rdma_cm_event) cm_event = NULL;
     int ret;
 
     /*
@@ -2544,7 +2545,6 @@ static int qemu_rdma_connect(RDMAContext *rdma, Error **errp, bool return_path)
     if (cm_event->event != RDMA_CM_EVENT_ESTABLISHED) {
         perror("rdma_get_cm_event != EVENT_ESTABLISHED after rdma_connect");
         ERROR(errp, "connecting to destination!");
-        rdma_ack_cm_event(cm_event);
         goto err_rdma_source_connect;
     }
     rdma->connected = true;
@@ -2563,8 +2563,6 @@ static int qemu_rdma_connect(RDMAContext *rdma, Error **errp, bool return_path)
     }
 
     trace_qemu_rdma_connect_pin_all_outcome(rdma->pin_all);
-
-    rdma_ack_cm_event(cm_event);
 
     rdma->control_ready_expected = 1;
     rdma->nb_sent = 0;
@@ -3279,7 +3277,7 @@ static void rdma_cm_poll_handler(void *opaque)
 {
     RDMAContext *rdma = opaque;
     int ret;
-    struct rdma_cm_event *cm_event;
+    g_autoptr(rdma_cm_event) cm_event = NULL;
     MigrationIncomingState *mis = migration_incoming_get_current();
 
     ret = rdma_get_cm_event(rdma->channel, &cm_event);
@@ -3287,7 +3285,6 @@ static void rdma_cm_poll_handler(void *opaque)
         error_report("get_cm_event failed %d", errno);
         return;
     }
-    rdma_ack_cm_event(cm_event);
 
     if (cm_event->event == RDMA_CM_EVENT_DISCONNECTED ||
         cm_event->event == RDMA_CM_EVENT_DEVICE_REMOVAL) {
@@ -3317,7 +3314,7 @@ static int qemu_rdma_accept(RDMAContext *rdma)
                                             .private_data_len = sizeof(cap),
                                          };
     RDMAContext *rdma_return_path = NULL;
-    struct rdma_cm_event *cm_event;
+    g_autoptr(rdma_cm_event) cm_event = NULL;
     struct ibv_context *verbs;
     int ret = -EINVAL;
     int idx;
@@ -3328,7 +3325,6 @@ static int qemu_rdma_accept(RDMAContext *rdma)
     }
 
     if (cm_event->event != RDMA_CM_EVENT_CONNECT_REQUEST) {
-        rdma_ack_cm_event(cm_event);
         goto err_rdma_dest_wait;
     }
 
@@ -3339,7 +3335,6 @@ static int qemu_rdma_accept(RDMAContext *rdma)
     if (migrate_postcopy() && !rdma->is_return_path) {
         rdma_return_path = qemu_rdma_data_init(rdma->host_port, NULL);
         if (rdma_return_path == NULL) {
-            rdma_ack_cm_event(cm_event);
             goto err_rdma_dest_wait;
         }
 
@@ -3353,7 +3348,6 @@ static int qemu_rdma_accept(RDMAContext *rdma)
     if (cap.version < 1 || cap.version > RDMA_CONTROL_VERSION_CURRENT) {
             error_report("Unknown source RDMA version: %d, bailing...",
                             cap.version);
-            rdma_ack_cm_event(cm_event);
             goto err_rdma_dest_wait;
     }
 
@@ -3374,6 +3368,7 @@ static int qemu_rdma_accept(RDMAContext *rdma)
     verbs = cm_event->id->verbs;
 
     rdma_ack_cm_event(cm_event);
+    cm_event = NULL;
 
     trace_qemu_rdma_accept_pin_state(rdma->pin_all);
 
@@ -3441,11 +3436,9 @@ static int qemu_rdma_accept(RDMAContext *rdma)
 
     if (cm_event->event != RDMA_CM_EVENT_ESTABLISHED) {
         error_report("rdma_accept not event established");
-        rdma_ack_cm_event(cm_event);
         goto err_rdma_dest_wait;
     }
 
-    rdma_ack_cm_event(cm_event);
     rdma->connected = true;
 
     ret = qemu_rdma_post_recv_control(rdma, RDMA_WRID_READY);
