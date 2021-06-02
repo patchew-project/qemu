@@ -294,6 +294,7 @@ static MemTxResult process_mapti(GICv3ITSState *s, uint64_t value,
     uint64_t itel = 0;
     uint32_t iteh = 0;
     uint32_t int_spurious = INTID_SPURIOUS;
+    uint64_t idbits;
 
     devid = (value >> DEVID_SHIFT) & DEVID_MASK;
     offset += NUM_BYTES_IN_DW;
@@ -330,7 +331,13 @@ static MemTxResult process_mapti(GICv3ITSState *s, uint64_t value,
     max_eventid = (1UL << (((dte >> 1U) & SIZE_MASK) + 1));
 
     if (!ignore_pInt) {
-        max_Intid = (1UL << (FIELD_EX64(s->typer, GITS_TYPER, IDBITS) + 1));
+        idbits = MIN(FIELD_EX64(s->gicv3->cpu->gicr_propbaser, GICR_PROPBASER,
+                                IDBITS), GICD_TYPER_IDBITS);
+
+        if (idbits < GICR_PROPBASER_IDBITS_THRESHOLD) {
+            return res;
+        }
+        max_Intid = (1ULL << (idbits + 1));
     }
 
     if ((devid > s->dt.max_devids) || (icid > s->ct.max_collids) ||
