@@ -8909,7 +8909,11 @@ static void ppc_cpu_reset(DeviceState *dev)
 #if !defined(CONFIG_USER_ONLY)
     env->nip = env->hreset_vector | env->excp_prefix;
     if (env->mmu_model != POWERPC_MMU_REAL) {
+#if defined(CONFIG_TCG)
         ppc_tlb_invalidate_all(env);
+#else
+	cpu_abort(env_cpu(env),"PowerPC not in real mode, invalid in this build\n");
+#endif
     }
 #endif
 
