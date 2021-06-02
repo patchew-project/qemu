@@ -2358,6 +2358,9 @@ if xkbcommon.found()
                            dependencies: [qemuutil, xkbcommon], install: have_tools)
 endif
 
+qemu_modinfo = executable('qemu-modinfo', files('qemu-modinfo.c') + genh,
+                          dependencies: [glib], install: have_tools)
+
 if have_tools
   qemu_img = executable('qemu-img', [files('qemu-img.c'), hxdep],
              dependencies: [authz, block, crypto, io, qom, qemuutil], install: true)
