@@ -286,6 +286,9 @@ print-help = @$(call print-help-run,$1,$2)
 
 .PHONY: help
 help:
+	@echo  'Architecture specific targets:'
+	@ninja -t targets all | sed -ne 's/\(.*\): cpp_LINKER.*/  \1/p'
+	@echo  ''
 	@echo  'Generic targets:'
 	$(call print-help,all,Build all)
 	$(call print-help,dir/file.o,Build specified target only)
@@ -293,6 +296,10 @@ help:
 	$(call print-help,ctags/gtags/TAGS,Generate tags file for editors)
 	$(call print-help,cscope,Generate cscope index)
 	$(call print-help,sparse,Run sparse on the QEMU source)
+	@echo  ''
+	@echo  'Tools and helper targets:'
+	@ninja -t targets all | sed -ne 's/\(.*\): c_LINKER.*/  \1/p' \
+		| sort | egrep -v '^  (subprojects|tests|target)'
 	@echo  ''
 ifeq ($(CONFIG_PLUGIN),y)
 	@echo  'Plugin targets:'
