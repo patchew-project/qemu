@@ -6057,11 +6057,12 @@ static void x86_cpu_hyperv_realize(X86CPU *cpu)
                                 &error_abort);
     }
     len = strlen(cpu->hyperv_vendor);
-    if (len > 12) {
-        warn_report("hv-vendor-id truncated to 12 characters");
-        len = 12;
+    if (len > sizeof(cpu->hyperv_vendor_id)) {
+        warn_report("hv-vendor-id truncated to %ld characters",
+                    sizeof(cpu->hyperv_vendor_id));
+        len = sizeof(cpu->hyperv_vendor_id);
     }
-    memset(cpu->hyperv_vendor_id, 0, 12);
+    memset(cpu->hyperv_vendor_id, 0, sizeof(cpu->hyperv_vendor_id));
     memcpy(cpu->hyperv_vendor_id, cpu->hyperv_vendor, len);
 
     /* 'Hv#1' interface identification*/
