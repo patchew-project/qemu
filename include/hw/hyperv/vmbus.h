@@ -13,7 +13,6 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/dma.h"
 #include "hw/qdev-core.h"
-#include "migration/vmstate.h"
 #include "hw/hyperv/vmbus-proto.h"
 #include "qemu/uuid.h"
 #include "qom/object.h"
@@ -84,8 +83,6 @@ struct VMBusDevice {
     VMBusChannel *channels;
     AddressSpace *dma_as;
 };
-
-extern const VMStateDescription vmstate_vmbus_dev;
 
 /*
  * A unit of work parsed out of a message in the receive (i.e. guest->host)

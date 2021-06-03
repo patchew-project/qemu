@@ -2438,6 +2438,20 @@ static void vmbus_dev_unrealize(DeviceState *dev)
     free_channels(vdev);
 }
 
+static const VMStateDescription vmstate_vmbus_dev = {
+    .name = TYPE_VMBUS_DEVICE,
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8_ARRAY(instanceid.data, VMBusDevice, 16),
+        VMSTATE_UINT16(num_channels, VMBusDevice),
+        VMSTATE_STRUCT_VARRAY_POINTER_UINT16(channels, VMBusDevice,
+                                             num_channels, vmstate_channel,
+                                             VMBusChannel),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void vmbus_dev_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *kdev = DEVICE_CLASS(klass);
@@ -2463,20 +2477,6 @@ static void vmbus_dev_instance_init(Object *obj)
         qdev_property_add_static(DEVICE(vdev), &vmbus_dev_instanceid);
     }
 }
-
-const VMStateDescription vmstate_vmbus_dev = {
-    .name = TYPE_VMBUS_DEVICE,
-    .version_id = 0,
-    .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT8_ARRAY(instanceid.data, VMBusDevice, 16),
-        VMSTATE_UINT16(num_channels, VMBusDevice),
-        VMSTATE_STRUCT_VARRAY_POINTER_UINT16(channels, VMBusDevice,
-                                             num_channels, vmstate_channel,
-                                             VMBusChannel),
-        VMSTATE_END_OF_LIST()
-    }
-};
 
 /* vmbus generic device base */
 static const TypeInfo vmbus_dev_type_info = {
