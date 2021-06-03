@@ -123,19 +123,6 @@ void mb_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
                   (access_type == MMU_DATA_LOAD ? "DATA_LOAD" : "DATA_STORE"));
 
     assert(env->msr & MSR_EE);
-
-    if (access_type == MMU_INST_FETCH) {
-        if (!cpu->cfg.iopb_bus_exception) {
-            return;
-        }
-        env->esr = ESR_EC_INSN_BUS;
-    } else {
-        if (!cpu->cfg.dopb_bus_exception) {
-            return;
-        }
-        env->esr = ESR_EC_DATA_BUS;
-    }
-
     env->ear = addr;
     cs->exception_index = EXCP_HW_EXCP;
     cpu_loop_exit_restore(cs, retaddr);

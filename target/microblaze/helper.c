@@ -56,6 +56,18 @@ static bool mb_cpu_access_is_secure(MicroBlazeCPU *cpu,
     }
 }
 
+/* On-chip Peripheral Bus (OPB) interface */
+static bool mb_cpu_address_is_opb(MicroBlazeCPU *cpu,
+                                  vaddr address, unsigned size)
+{
+    if (cpu->cfg.iopb_bus_exception || cpu->cfg.dopb_bus_exception) {
+        /* TODO */
+        warn_report_once("On-chip Peripheral Bus (OPB) interface "
+                         "feature not implemented.");
+    }
+    return false;
+}
+
 bool mb_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                      MMUAccessType access_type, int mmu_idx,
                      bool probe, uintptr_t retaddr)
@@ -118,6 +130,13 @@ bool mb_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         break;
     default:
         abort();
+    }
+    if (mb_cpu_address_is_opb(cpu, address, size)) {
+        if (access_type == MMU_INST_FETCH) {
+            env->esr = ESR_EC_INSN_BUS;
+        } else {
+           env->esr = ESR_EC_DATA_BUS;
+        }
     }
 
     if (cs->exception_index == EXCP_MMU) {
