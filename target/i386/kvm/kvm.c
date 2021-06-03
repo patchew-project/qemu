@@ -1490,13 +1490,19 @@ static int hyperv_init_vcpu(X86CPU *cpu)
         ret = kvm_vcpu_enable_cap(cs, KVM_CAP_HYPERV_ENLIGHTENED_VMCS, 0,
                                   (uintptr_t)&evmcs_version);
 
-        if (ret < 0) {
-            fprintf(stderr, "Hyper-V %s is not supported by kernel\n",
-                    kvm_hyperv_properties[HYPERV_FEAT_EVMCS].desc);
+        /*
+         * KVM is required to support EVMCS ver.1. as that's what 'hv-evmcs'
+         * option sets. Note: we hardcode the maximum supported eVMCS version
+         * to '1' as well so 'hv-evmcs' feature is migratable even when (and if)
+         * ver.2 is implemented. A new option (e.g. 'hv-evmcs=2') will then have
+         * to be added.
+         */
+        if (ret < 0 || (uint8_t)evmcs_version > 1) {
+            error_report("Hyper-V %s verson 1 is not supported by kernel",
+                         kvm_hyperv_properties[HYPERV_FEAT_EVMCS].desc);
             return ret;
         }
-
-        cpu->hyperv_nested[0] = evmcs_version;
+        cpu->hyperv_nested[0] = (1 << 8) | 1;
     }
 
     return 0;
