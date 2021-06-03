@@ -99,14 +99,22 @@ bool mb_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                   mmu_idx, address);
 
     env->ear = address;
+
+    env->esr = (access_type == MMU_DATA_STORE) ? ESR_S : 0;
     switch (lu.err) {
     case ERR_PROT:
-        env->esr = access_type == MMU_INST_FETCH ? 17 : 16;
-        env->esr |= (access_type == MMU_DATA_STORE) << 10;
+        if (access_type == MMU_INST_FETCH) {
+            env->esr |= ESR_EC_INSN_STORAGE;
+        } else {
+           env->esr |= ESR_EC_DATA_STORAGE;
+        }
         break;
     case ERR_MISS:
-        env->esr = access_type == MMU_INST_FETCH ? 19 : 18;
-        env->esr |= (access_type == MMU_DATA_STORE) << 10;
+        if (access_type == MMU_INST_FETCH) {
+            env->esr |= ESR_EC_INSN_TLB;
+        } else {
+           env->esr |= ESR_EC_DATA_TLB;
+        }
         break;
     default:
         abort();
