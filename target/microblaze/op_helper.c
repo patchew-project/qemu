@@ -122,9 +122,7 @@ void mb_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
                   access_type == MMU_INST_FETCH ? "INST_FETCH" :
                   (access_type == MMU_DATA_LOAD ? "DATA_LOAD" : "DATA_STORE"));
 
-    if (!(env->msr & MSR_EE)) {
-        return;
-    }
+    assert(env->msr & MSR_EE);
 
     if (access_type == MMU_INST_FETCH) {
         if (!cpu->cfg.iopb_bus_exception) {
