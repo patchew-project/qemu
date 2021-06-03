@@ -95,10 +95,10 @@ typedef struct CPUMBState CPUMBState;
 #define          ESR_EC_FPU             6
 #define          ESR_EC_PRIVINSN        7
 #define          ESR_EC_STACKPROT       7  /* Same as PRIVINSN.  */
-#define          ESR_EC_DATA_STORAGE    8
-#define          ESR_EC_INSN_STORAGE    9
-#define          ESR_EC_DATA_TLB        10
-#define          ESR_EC_INSN_TLB        11
+#define          ESR_EC_DATA_STORAGE    16
+#define          ESR_EC_INSN_STORAGE    17
+#define          ESR_EC_DATA_TLB        18
+#define          ESR_EC_INSN_TLB        19
 #define          ESR_EC_MASK            31
 
 /* Floating Point Status Register (FSR) Bits */
