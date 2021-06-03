@@ -2445,6 +2445,7 @@ static void vmbus_dev_class_init(ObjectClass *klass, void *data)
     kdev->realize = vmbus_dev_realize;
     kdev->unrealize = vmbus_dev_unrealize;
     kdev->reset = vmbus_dev_reset;
+    kdev->vmsd = &vmstate_vmbus_dev;
 }
 
 static Property vmbus_dev_instanceid =
