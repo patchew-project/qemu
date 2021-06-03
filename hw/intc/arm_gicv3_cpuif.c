@@ -1357,7 +1357,8 @@ static void icc_eoir_write(CPUARMState *env, const ARMCPRegInfo *ri,
         }
         break;
     default:
-        g_assert_not_reached();
+        /* No interrupt was active, this is UNPREDICTABLE. Ignore it. */
+        return;
     }
 
     icc_drop_prio(cs, grp);
