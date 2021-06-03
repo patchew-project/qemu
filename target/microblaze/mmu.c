@@ -19,14 +19,15 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
 
 static unsigned int tlb_decode_size(unsigned int f)
 {
     static const unsigned int sizes[] = {
-        1 * 1024, 4 * 1024, 16 * 1024, 64 * 1024, 256 * 1024,
-        1 * 1024 * 1024, 4 * 1024 * 1024, 16 * 1024 * 1024
+        1 * KiB, 4 * KiB, 16 * KiB, 64 * KiB, 256 * KiB,
+        1 * MiB, 4 * MiB, 16 * MiB
     };
     assert(f < ARRAY_SIZE(sizes));
     return sizes[f];
