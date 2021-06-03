@@ -4,6 +4,7 @@ microblaze_ss = ss.source_set()
 microblaze_ss.add(gen)
 microblaze_ss.add(files(
   'cpu.c',
+  'fpu_helper.c',
   'gdbstub.c',
   'helper.c',
   'op_helper.c',
