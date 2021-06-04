@@ -22,6 +22,7 @@ from avocado.utils import datadrainer
 from avocado.utils import network
 from avocado.utils import ssh
 from avocado.utils import vmimage
+from avocado.utils import process
 from avocado.utils.path import find_command
 
 
@@ -143,6 +144,43 @@ def wait_for_console_pattern(test, success_message, failure_message=None,
     :param failure_message: if this message appears, test fails
     """
     _console_interaction(test, success_message, failure_message, None, vm=vm)
+
+def extract_from_deb(test, deb, path):
+    """
+    Extracts a file from a deb package into the test workdir
+
+    :param deb: path to the deb archive
+    :param path: path within the deb archive of the file to be extracted
+    :returns: path of the extracted file
+    """
+    cwd = os.getcwd()
+    os.chdir(test.workdir)
+    file_path = process.run("ar t %s" % deb).stdout_text.split()[2]
+    process.run("ar x %s %s" % (deb, file_path))
+    archive.extract(file_path, test.workdir)
+    os.chdir(cwd)
+    # Return complete path to extracted file.  Because callers to
+    # extract_from_deb() specify 'path' with a leading slash, it is
+    # necessary to use os.path.relpath() as otherwise os.path.join()
+    # interprets it as an absolute path and drops the test.workdir part.
+    return os.path.normpath(os.path.join(test.workdir,
+                                         os.path.relpath(path, '/')))
+
+def extract_from_rpm(test, rpm, path):
+    """
+    Extracts a file from an RPM package into the test workdir.
+
+    :param rpm: path to the rpm archive
+    :param path: path within the rpm archive of the file to be extracted
+                 needs to be a relative path (starting with './') because
+                 cpio(1), which is used to extract the file, expects that.
+    :returns: path of the extracted file
+    """
+    cwd = os.getcwd()
+    os.chdir(test.workdir)
+    process.run("rpm2cpio %s | cpio -id %s" % (rpm, path), shell=True)
+    os.chdir(cwd)
+    return os.path.normpath(os.path.join(test.workdir, path))
 
 def exec_command(test, command):
     """

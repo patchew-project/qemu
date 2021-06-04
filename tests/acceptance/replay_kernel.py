@@ -18,6 +18,7 @@ from avocado import skip
 from avocado import skipIf
 from avocado import skipUnless
 from avocado_qemu import wait_for_console_pattern
+from avocado_qemu import extract_from_deb
 from avocado.utils import archive
 from avocado.utils import process
 from boot_linux_console import LinuxKernelTest
@@ -106,8 +107,8 @@ class ReplayKernelNormal(ReplayKernelBase):
                    'linux-image-2.6.32-5-4kc-malta_2.6.32-48_mips.deb')
         deb_hash = 'a8cfc28ad8f45f54811fc6cf74fc43ffcfe0ba04'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
-        kernel_path = self.extract_from_deb(deb_path,
-                                            '/boot/vmlinux-2.6.32-5-4kc-malta')
+        kernel_path = extract_from_deb(deb_path,
+                                       '/boot/vmlinux-2.6.32-5-4kc-malta')
         kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'console=ttyS0'
         console_pattern = 'Kernel command line: %s' % kernel_command_line
 
@@ -134,8 +135,8 @@ class ReplayKernelNormal(ReplayKernelBase):
                    'linux-image-2.6.32-5-5kc-malta_2.6.32-48_mipsel.deb')
         deb_hash = '1aaec92083bf22fda31e0d27fa8d9a388e5fc3d5'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
-        kernel_path = self.extract_from_deb(deb_path,
-                                            '/boot/vmlinux-2.6.32-5-5kc-malta')
+        kernel_path = extract_from_deb(deb_path,
+                                       '/boot/vmlinux-2.6.32-5-5kc-malta')
         kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'console=ttyS0'
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.run_rr(kernel_path, kernel_command_line, console_pattern, shift=5)
@@ -186,10 +187,10 @@ class ReplayKernelNormal(ReplayKernelBase):
                    'linux-5.10.16-sunxi/linux-image-current-sunxi_21.02.2_armhf.deb')
         deb_hash = '9fa84beda245cabf0b4fa84cf6eaa7738ead1da0'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
-        kernel_path = self.extract_from_deb(deb_path,
-                                            '/boot/vmlinuz-5.10.16-sunxi')
+        kernel_path = extract_from_deb(deb_path,
+                                       '/boot/vmlinuz-5.10.16-sunxi')
         dtb_path = '/usr/lib/linux-image-current-sunxi/sun4i-a10-cubieboard.dtb'
-        dtb_path = self.extract_from_deb(deb_path, dtb_path)
+        dtb_path = extract_from_deb(deb_path, dtb_path)
         initrd_url = ('https://github.com/groeck/linux-build-test/raw/'
                       '2eb0a73b5d5a28df3170c546ddaaa9757e1e0848/rootfs/'
                       'arm/rootfs-armv5.cpio.gz')
@@ -234,8 +235,8 @@ class ReplayKernelNormal(ReplayKernelBase):
                    '/l/linux/kernel-image-5.3.0-1-m68k-di_5.3.7-1_m68k.udeb')
         deb_hash = '044954bb9be4160a3ce81f8bc1b5e856b75cccd1'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
-        kernel_path = self.extract_from_deb(deb_path,
-                                            '/boot/vmlinux-5.3.0-1-m68k')
+        kernel_path = extract_from_deb(deb_path,
+                                       '/boot/vmlinux-5.3.0-1-m68k')
 
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
                                'console=ttyS0 vga=off')
@@ -370,8 +371,8 @@ class ReplayKernelSlow(ReplayKernelBase):
                    'linux-image-4.5.0-2-4kc-malta_4.5.5-1_mips.deb')
         deb_hash = 'a3c84f3e88b54e06107d65a410d1d1e8e0f340f8'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
-        kernel_path = self.extract_from_deb(deb_path,
-                                            '/boot/vmlinux-4.5.0-2-4kc-malta')
+        kernel_path = extract_from_deb(deb_path,
+                                       '/boot/vmlinux-4.5.0-2-4kc-malta')
         initrd_url = ('https://github.com/groeck/linux-build-test/raw/'
                       '8584a59ed9e5eb5ee7ca91f6d74bbb06619205b8/rootfs/'
                       'mips/rootfs.cpio.gz')

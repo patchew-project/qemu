@@ -14,6 +14,7 @@ import mmap
 import re
 
 from boot_linux_console import LinuxKernelTest
+from avocado_qemu import extract_from_deb
 
 
 class PluginKernelBase(LinuxKernelTest):
@@ -59,8 +60,8 @@ class PluginKernelNormal(PluginKernelBase):
                       'linux-image-4.19.0-12-arm64_4.19.152-1_arm64.deb')
         kernel_sha1 = '2036c2792f80ac9c4ccaae742b2e0a28385b6010'
         kernel_deb = self.fetch_asset(kernel_url, asset_hash=kernel_sha1)
-        kernel_path = self.extract_from_deb(kernel_deb,
-                                            "/boot/vmlinuz-4.19.0-12-arm64")
+        kernel_path = extract_from_deb(kernel_deb,
+                                       "/boot/vmlinuz-4.19.0-12-arm64")
         return kernel_path
 
     def test_aarch64_virt_insn(self):

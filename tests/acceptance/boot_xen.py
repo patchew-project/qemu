@@ -15,6 +15,7 @@ import os
 
 from avocado import skipIf
 from avocado_qemu import wait_for_console_pattern
+from avocado_qemu import extract_from_deb
 from boot_linux_console import LinuxKernelTest
 
 
@@ -78,7 +79,7 @@ class BootXen(BootXenBase):
                    'xen-hypervisor-4.11-arm64_4.11.4%2B37-g3263f257ca-1_arm64.deb')
         xen_sha1 = '034e634d4416adbad1212d59b62bccdcda63e62a'
         xen_deb = self.fetch_asset(xen_url, asset_hash=xen_sha1)
-        xen_path = self.extract_from_deb(xen_deb, "/boot/xen-4.11-arm64")
+        xen_path = extract_from_deb(xen_deb, "/boot/xen-4.11-arm64")
 
         self.launch_xen(xen_path)
 
@@ -96,7 +97,7 @@ class BootXen(BootXenBase):
                    'xen-hypervisor-4.14-arm64_4.14.0%2B80-gd101b417b7-1_arm64.deb')
         xen_sha1 = 'b9d209dd689ed2b393e625303a225badefec1160'
         xen_deb = self.fetch_asset(xen_url, asset_hash=xen_sha1)
-        xen_path = self.extract_from_deb(xen_deb, "/boot/xen-4.14-arm64")
+        xen_path = extract_from_deb(xen_deb, "/boot/xen-4.14-arm64")
 
         self.launch_xen(xen_path)
 
@@ -113,6 +114,6 @@ class BootXen(BootXenBase):
                    '?path=%2F&files=xen-upstream-4.15-unstable.deb')
         xen_sha1 = 'fc191172b85cf355abb95d275a24cc0f6d6579d8'
         xen_deb = self.fetch_asset(xen_url, asset_hash=xen_sha1)
-        xen_path = self.extract_from_deb(xen_deb, "/boot/xen-4.15-unstable")
+        xen_path = extract_from_deb(xen_deb, "/boot/xen-4.15-unstable")
 
         self.launch_xen(xen_path)
