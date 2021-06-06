@@ -30,7 +30,7 @@ ENTRY(_prom_entry)
 	bl prom_entry
 	nop
 	mtlr    %r31
-	ld      %r31,104(%r1)
+	lwz     %r31,104(%r1)
 	addi    %r1,%r1,112
 	blr
 

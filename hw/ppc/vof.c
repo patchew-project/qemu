@@ -144,12 +144,15 @@ static uint32_t vof_finddevice(const void *fdt, uint32_t nodeaddr)
     char fullnode[VOF_MAX_PATH];
     uint32_t ret = -1;
     int offset;
+    gchar *p;
 
     if (readstr(nodeaddr, fullnode, sizeof(fullnode))) {
         return (uint32_t) ret;
     }
 
-    offset = fdt_path_offset(fdt, fullnode);
+    p = g_ascii_strdown(fullnode, -1);
+    offset = fdt_path_offset(fdt, p);
+    g_free(p);
     if (offset >= 0) {
         ret = fdt_get_phandle(fdt, offset);
     }
@@ -160,14 +163,14 @@ static uint32_t vof_finddevice(const void *fdt, uint32_t nodeaddr)
 static const void *getprop(const void *fdt, int nodeoff, const char *propname,
                            int *proplen, bool *write0)
 {
-    const char *unit, *prop;
+    const char *unit, *prop = fdt_getprop(fdt, nodeoff, propname, proplen);
 
     /*
      * The "name" property is not actually stored as a property in the FDT,
      * we emulate it by returning a pointer to the node's name and adjust
      * proplen to include only the name but not the unit.
      */
-    if (strcmp(propname, "name") == 0) {
+    if (!prop && strcmp(propname, "name") == 0) {
         prop = fdt_get_name(fdt, nodeoff, proplen);
         if (!prop) {
             *proplen = 0;
@@ -193,7 +196,7 @@ static const void *getprop(const void *fdt, int nodeoff, const char *propname,
     if (write0) {
         *write0 = false;
     }
-    return fdt_getprop(fdt, nodeoff, propname, proplen);
+    return prop;
 }
 
 static uint32_t vof_getprop(const void *fdt, uint32_t nodeph, uint32_t pname,
