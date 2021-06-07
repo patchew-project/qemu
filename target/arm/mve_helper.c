@@ -508,6 +508,36 @@ DO_2OP_U(vhaddu, do_vhadd_u)
 DO_2OP_S(vhsubs, do_vhsub_s)
 DO_2OP_U(vhsubu, do_vhsub_u)
 
+static inline uint32_t do_ushl(uint32_t n, int8_t shift, int esize)
+{
+    if (shift >= esize || shift <= -esize) {
+        return 0;
+    } else if (shift < 0) {
+        return n >> -shift;
+    } else {
+        return n << shift;
+    }
+}
+
+static inline int32_t do_sshl(int32_t n, int8_t shift, int esize)
+{
+    if (shift >= esize) {
+        return 0;
+    } else if (shift <= -esize) {
+        return n >> (esize - 1);
+    } else if (shift < 0) {
+        return n >> -shift;
+    } else {
+        return n << shift;
+    }
+}
+
+#define DO_VSHLS(N, M) do_sshl(N, M, sizeof(N) * 8)
+#define DO_VSHLU(N, M) do_ushl(N, M, sizeof(N) * 8)
+
+DO_2OP_S(vshls, DO_VSHLS)
+DO_2OP_U(vshlu, DO_VSHLU)
+
 static inline int32_t do_sat_bhw(int64_t val, int64_t min, int64_t max, bool *s)
 {
     if (val > max) {
