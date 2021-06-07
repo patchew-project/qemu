@@ -196,3 +196,51 @@ DO_VSTR(vstrh_w, 4, stw, int32_t, H4)
 
 #undef DO_VLDR
 #undef DO_VSTR
+
+/*
+ * Take the bottom bits of mask (which is 1 bit per lane) and
+ * convert to a mask which has 1s in each byte which is predicated.
+ */
+static uint8_t mask_to_bytemask1(uint16_t mask)
+{
+    return (mask & 1) ? 0xff : 0;
+}
+
+static uint16_t mask_to_bytemask2(uint16_t mask)
+{
+    static const uint16_t masks[] = { 0x0000, 0x00ff, 0xff00, 0xffff };
+    return masks[mask & 3];
+}
+
+static uint32_t mask_to_bytemask4(uint16_t mask)
+{
+    static const uint32_t masks[] = {
+        0x00000000, 0x000000ff, 0x0000ff00, 0x0000ffff,
+        0x00ff0000, 0x00ff00ff, 0x00ffff00, 0x00ffffff,
+        0xff000000, 0xff0000ff, 0xff00ff00, 0xff00ffff,
+        0xffff0000, 0xffff00ff, 0xffffff00, 0xffffffff,
+    };
+    return masks[mask & 0xf];
+}
+
+#define DO_1OP(OP, ESIZE, TYPE, H, FN)                                  \
+    void HELPER(mve_##OP)(CPUARMState *env, void *vd, void *vm)         \
+    {                                                                   \
+        TYPE *d = vd, *m = vm;                                          \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned e;                                                     \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
+            TYPE r = FN(m[H(e)]);                                       \
+            uint64_t bytemask = mask_to_bytemask##ESIZE(mask);          \
+            d[H(e)] &= ~bytemask;                                       \
+            d[H(e)] |= (r & bytemask);                                  \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
+#define DO_CLZ_B(N)   (clz32(N) - 24)
+#define DO_CLZ_H(N)   (clz32(N) - 16)
+
+DO_1OP(vclzb, 1, uint8_t, H1, DO_CLZ_B)
+DO_1OP(vclzh, 2, uint16_t, H2, DO_CLZ_H)
+DO_1OP(vclzw, 4, uint32_t, H4, clz32)
