@@ -268,3 +268,13 @@ DO_1OP(vrev64w, 8, uint64_t, , wswap64)
 #define DO_NOT(N) (~(N))
 
 DO_1OP(vmvn, 1, uint8_t, H1, DO_NOT)
+
+#define DO_ABS(N) ((N) < 0 ? -(N) : (N))
+#define DO_FABS(N)    (N & ((__typeof(N))-1 >> 1))
+
+DO_1OP(vabsb, 1, int8_t, H1, DO_ABS)
+DO_1OP(vabsh, 2, int16_t, H2, DO_ABS)
+DO_1OP(vabsw, 4, int32_t, H4, DO_ABS)
+
+DO_1OP(vfabsh, 2, uint16_t, H2, DO_FABS)
+DO_1OP(vfabss, 4, uint32_t, H4, DO_FABS)
