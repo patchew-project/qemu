@@ -610,6 +610,37 @@ DO_2OP_U(vrhaddu, DO_RHADD_U)
 DO_VADC(vadc, )
 DO_VADC(vsbc, DO_NOT)
 
+#define DO_VCADD(OP, ESIZE, TYPE, H, FN0, FN1)                          \
+    void HELPER(glue(mve_, OP))(CPUARMState *env, void *vd, void *vn, void *vm) \
+    {                                                                   \
+        TYPE *d = vd, *n = vn, *m = vm;                                 \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned e;                                                     \
+        TYPE r[16 / ESIZE];                                             \
+        /* Calculate all results first to avoid overwriting inputs */   \
+        for (e = 0; e < 16 / ESIZE; e++) {                              \
+            if (!(e & 1)) {                                             \
+                r[e] = FN0(n[H(e)], m[H(e + 1)]);                       \
+            } else {                                                    \
+                r[e] = FN1(n[H(e)], m[H(e - 1)]);                       \
+            }                                                           \
+        }                                                               \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
+            uint64_t bytemask = mask_to_bytemask##ESIZE(mask);          \
+            d[H(e)] &= ~bytemask;                                       \
+            d[H(e)] |= (r[e] & bytemask);                               \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
+#define DO_VCADD_ALL(OP, FN0, FN1)              \
+    DO_VCADD(OP##b, 1, int8_t, H1, FN0, FN1)    \
+    DO_VCADD(OP##h, 2, int16_t, H1, FN0, FN1)   \
+    DO_VCADD(OP##w, 4, int32_t, H1, FN0, FN1)
+
+DO_VCADD_ALL(vcadd90, DO_SUB, DO_ADD)
+DO_VCADD_ALL(vcadd270, DO_ADD, DO_SUB)
+
 static inline int32_t do_sat_bhw(int64_t val, int64_t min, int64_t max, bool *s)
 {
     if (val > max) {
