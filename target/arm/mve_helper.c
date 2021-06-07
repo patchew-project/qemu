@@ -335,6 +335,27 @@ DO_1OP(vfnegs, 4, uint32_t, H4, DO_FNEG)
     DO_2OP(OP##h, 2, int16_t, H2, FN)           \
     DO_2OP(OP##w, 4, int32_t, H4, FN)
 
+/*
+ * "Long" operations where two half-sized inputs (taken from either the
+ * top or the bottom of the input vector) produce a double-width result.
+ * Here TYPE and H are for the input, and LESIZE, LTYPE, LH for the output.
+ */
+#define DO_2OP_L(OP, TOP, TYPE, H, LESIZE, LTYPE, LH, FN)               \
+    void HELPER(glue(mve_, OP))(CPUARMState *env, void *vd, void *vn, void *vm) \
+    {                                                                   \
+        LTYPE *d = vd;                                                  \
+        TYPE *n = vn, *m = vm;                                          \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned le;                                                    \
+        for (le = 0; le < 16 / LESIZE; le++, mask >>= LESIZE) {         \
+            LTYPE r = FN((LTYPE)n[H(le * 2 + TOP)], m[H(le * 2 + TOP)]); \
+            uint64_t bytemask = mask_to_bytemask##LESIZE(mask);         \
+            d[LH(le)] &= ~bytemask;                                     \
+            d[LH(le)] |= (r & bytemask);                                \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
 #define DO_AND(N, M)  ((N) & (M))
 #define DO_BIC(N, M)  ((N) & ~(M))
 #define DO_ORR(N, M)  ((N) | (M))
@@ -354,6 +375,20 @@ DO_2OP(veor, 1, uint8_t, H1, DO_EOR)
 DO_2OP_U(vadd, DO_ADD)
 DO_2OP_U(vsub, DO_SUB)
 DO_2OP_U(vmul, DO_MUL)
+
+DO_2OP_L(vmullbsb, 0, int8_t, H1, 2, int16_t, H2, DO_MUL)
+DO_2OP_L(vmullbsh, 0, int16_t, H2, 4, int32_t, H4, DO_MUL)
+DO_2OP_L(vmullbsw, 0, int32_t, H4, 8, int64_t, , DO_MUL)
+DO_2OP_L(vmullbub, 0, uint8_t, H1, 2, uint16_t, H2, DO_MUL)
+DO_2OP_L(vmullbuh, 0, uint16_t, H2, 4, uint32_t, H4, DO_MUL)
+DO_2OP_L(vmullbuw, 0, uint32_t, H4, 8, uint64_t, , DO_MUL)
+
+DO_2OP_L(vmulltsb, 1, int8_t, H1, 2, int16_t, H2, DO_MUL)
+DO_2OP_L(vmulltsh, 1, int16_t, H2, 4, int32_t, H4, DO_MUL)
+DO_2OP_L(vmulltsw, 1, int32_t, H4, 8, int64_t, , DO_MUL)
+DO_2OP_L(vmulltub, 1, uint8_t, H1, 2, uint16_t, H2, DO_MUL)
+DO_2OP_L(vmulltuh, 1, uint16_t, H2, 4, uint32_t, H4, DO_MUL)
+DO_2OP_L(vmulltuw, 1, uint32_t, H4, 8, uint64_t, , DO_MUL)
 
 /*
  * Because the computation type is at least twice as large as required,
