@@ -605,6 +605,7 @@ typedef struct {
 #define HWCAP_S390_HIGH_GPRS    512
 #define HWCAP_S390_TE           1024
 #define HWCAP_S390_VXRS         2048
+#define HWCAP_S390_VXRS_EXT     8192
 
 /* M68K specific definitions. */
 /* We use the top 24 bits to encode information about the
