@@ -3039,7 +3039,9 @@ static int get_block_status(BlockDriverState *bs, int64_t offset,
     *e = (MapEntry) {
         .start = offset,
         .length = bytes,
-        .data = !!(ret & BDRV_BLOCK_DATA),
+        .data = !!(has_offset
+            ? ret & BDRV_BLOCK_DATA
+            : ret & BDRV_BLOCK_ALLOCATED),
         .zero = !!(ret & BDRV_BLOCK_ZERO),
         .offset = map,
         .has_offset = has_offset,
