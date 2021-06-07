@@ -229,6 +229,24 @@ static uint64_t mask_to_bytemask8(uint16_t mask)
         ((uint64_t)mask_to_bytemask4(mask >> 4) << 32);
 }
 
+#define DO_VDUP(OP, ESIZE, TYPE, H)                                     \
+    void HELPER(mve_##OP)(CPUARMState *env, void *vd, uint32_t val)     \
+    {                                                                   \
+        TYPE *d = vd;                                                   \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned e;                                                     \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
+            uint64_t bytemask = mask_to_bytemask##ESIZE(mask);          \
+            d[H(e)] &= ~bytemask;                                       \
+            d[H(e)] |= (val & bytemask);                                \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
+DO_VDUP(vdupb, 1, uint8_t, H1)
+DO_VDUP(vduph, 2, uint16_t, H2)
+DO_VDUP(vdupw, 4, uint32_t, H4)
+
 #define DO_1OP(OP, ESIZE, TYPE, H, FN)                                  \
     void HELPER(mve_##OP)(CPUARMState *env, void *vd, void *vm)         \
     {                                                                   \
