@@ -376,6 +376,18 @@ DO_1OP(vfnegs, 4, uint32_t, H4, DO_FNEG)
         mve_advance_vpt(env);                                           \
     }
 
+/* provide unsigned 2-op helpers for all sizes */
+#define DO_2OP_SAT_U(OP, FN)                    \
+    DO_2OP_SAT(OP##b, 1, uint8_t, H1, FN)       \
+    DO_2OP_SAT(OP##h, 2, uint16_t, H2, FN)      \
+    DO_2OP_SAT(OP##w, 4, uint32_t, H4, FN)
+
+/* provide signed 2-op helpers for all sizes */
+#define DO_2OP_SAT_S(OP, FN)                    \
+    DO_2OP_SAT(OP##b, 1, int8_t, H1, FN)        \
+    DO_2OP_SAT(OP##h, 2, int16_t, H2, FN)       \
+    DO_2OP_SAT(OP##w, 4, int32_t, H4, FN)
+
 #define DO_AND(N, M)  ((N) & (M))
 #define DO_BIC(N, M)  ((N) & ~(M))
 #define DO_ORR(N, M)  ((N) | (M))
@@ -563,6 +575,67 @@ DO_2OP_SAT(vqsubuw, 4, uint32_t, H4, DO_UQSUB_W)
 DO_2OP_SAT(vqsubsb, 1, int8_t, H1, DO_SQSUB_B)
 DO_2OP_SAT(vqsubsh, 2, int16_t, H2, DO_SQSUB_H)
 DO_2OP_SAT(vqsubsw, 4, int32_t, H4, DO_SQSUB_W)
+
+#define DO_SQSHL_OP(src1, src2, satp)                           \
+    ({                                                          \
+        int8_t tmp;                                             \
+        typeof(src1) dest;                                      \
+        tmp = (int8_t)src2;                                     \
+        if (tmp >= (ssize_t)sizeof(src1) * 8) {                 \
+            if (src1) {                                         \
+                *satp = true;                                   \
+                dest = (uint32_t)(1 << (sizeof(src1) * 8 - 1)); \
+                if (src1 > 0) {                                 \
+                    dest--;                                     \
+                }                                               \
+            } else {                                            \
+                dest = src1;                                    \
+            }                                                   \
+        } else if (tmp <= -(ssize_t)sizeof(src1) * 8) {         \
+            dest = src1 >> 31;                                  \
+        } else if (tmp < 0) {                                   \
+            dest = src1 >> -tmp;                                \
+        } else {                                                \
+            dest = src1 << tmp;                                 \
+            if ((dest >> tmp) != src1) {                        \
+                *satp = true;                                   \
+                dest = (uint32_t)(1 << (sizeof(src1) * 8 - 1)); \
+                if (src1 > 0) {                                 \
+                    dest--;                                     \
+                }                                               \
+            }                                                   \
+        }                                                       \
+        dest;                                                   \
+    })
+
+#define DO_UQSHL_OP(src1, src2, satp)                   \
+    ({                                                  \
+        int8_t tmp;                                     \
+        typeof(src1) dest;                              \
+        tmp = (int8_t)src2;                             \
+        if (tmp >= (ssize_t)sizeof(src1) * 8) {         \
+            if (src1) {                                 \
+                *satp = true;                           \
+                dest = ~0;                              \
+            } else {                                    \
+                dest = 0;                               \
+            }                                           \
+        } else if (tmp <= -(ssize_t)sizeof(src1) * 8) { \
+            dest = 0;                                   \
+        } else if (tmp < 0) {                           \
+            dest = src1 >> -tmp;                        \
+        } else {                                        \
+            dest = src1 << tmp;                         \
+            if ((dest >> tmp) != src1) {                \
+                *satp = true;                           \
+                dest = ~0;                              \
+            }                                           \
+        }                                               \
+        dest;                                           \
+    })
+
+DO_2OP_SAT_S(vqshls, DO_SQSHL_OP)
+DO_2OP_SAT_U(vqshlu, DO_UQSHL_OP)
 
 #define DO_2OP_SCALAR(OP, ESIZE, TYPE, H, FN)                           \
     void HELPER(glue(mve_, OP))(CPUARMState *env, void *vd, void *vn,   \
