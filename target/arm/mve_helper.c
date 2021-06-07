@@ -357,6 +357,25 @@ DO_1OP(vfnegs, 4, uint32_t, H4, DO_FNEG)
         mve_advance_vpt(env);                                           \
     }
 
+#define DO_2OP_SAT(OP, ESIZE, TYPE, H, FN)                              \
+    void HELPER(glue(mve_, OP))(CPUARMState *env, void *vd, void *vn, void *vm) \
+    {                                                                   \
+        TYPE *d = vd, *n = vn, *m = vm;                                 \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned e;                                                     \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
+            bool sat = false;                                           \
+            TYPE r = FN(n[H(e)], m[H(e)], &sat);                        \
+            uint64_t bytemask = mask_to_bytemask##ESIZE(mask);          \
+            d[H(e)] &= ~bytemask;                                       \
+            d[H(e)] |= (r & bytemask);                                  \
+            if (sat && (mask & 1)) {                                    \
+                env->vfp.qc[0] = 1;                                     \
+            }                                                           \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
 #define DO_AND(N, M)  ((N) & (M))
 #define DO_BIC(N, M)  ((N) & ~(M))
 #define DO_ORR(N, M)  ((N) | (M))
@@ -522,6 +541,14 @@ static inline int32_t do_sat_bhw(int64_t val, int64_t min, int64_t max, bool *s)
                                          INT16_MIN, INT16_MAX, s)
 #define DO_QRDMULH_W(n, m, s) do_sat_bhw(((int64_t)n * m + (1 << 30)) >> 31, \
                                          INT32_MIN, INT32_MAX, s)
+
+DO_2OP_SAT(vqdmulhb, 1, int8_t, H1, DO_QDMULH_B)
+DO_2OP_SAT(vqdmulhh, 2, int16_t, H2, DO_QDMULH_H)
+DO_2OP_SAT(vqdmulhw, 4, int32_t, H4, DO_QDMULH_W)
+
+DO_2OP_SAT(vqrdmulhb, 1, int8_t, H1, DO_QRDMULH_B)
+DO_2OP_SAT(vqrdmulhh, 2, int16_t, H2, DO_QRDMULH_H)
+DO_2OP_SAT(vqrdmulhw, 4, int32_t, H4, DO_QRDMULH_W)
 
 #define DO_2OP_SCALAR(OP, ESIZE, TYPE, H, FN)                           \
     void HELPER(glue(mve_, OP))(CPUARMState *env, void *vd, void *vn,   \
