@@ -444,6 +444,9 @@ static void pc_i440fx_5_2_machine_options(MachineClass *m)
     m->is_default = false;
     compat_props_add(m->compat_props, hw_compat_5_2, hw_compat_5_2_len);
     compat_props_add(m->compat_props, pc_compat_5_2, pc_compat_5_2_len);
+#ifdef TARGET_X86_64
+    m->default_cpu_type = X86_CPU_TYPE_NAME("qemu64");
+#endif
 }
 
 DEFINE_I440FX_MACHINE(v5_2, "pc-i440fx-5.2", NULL,

@@ -372,6 +372,9 @@ static void pc_q35_5_2_machine_options(MachineClass *m)
     m->alias = NULL;
     compat_props_add(m->compat_props, hw_compat_5_2, hw_compat_5_2_len);
     compat_props_add(m->compat_props, pc_compat_5_2, pc_compat_5_2_len);
+#ifdef TARGET_X86_64
+    m->default_cpu_type = X86_CPU_TYPE_NAME("qemu64");
+#endif
 }
 
 DEFINE_Q35_MACHINE(v5_2, "pc-q35-5.2", NULL,
