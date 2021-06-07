@@ -330,6 +330,11 @@ get_ramblock_vfn_hash(const char *idstr, uint64_t vfn, uint32_t crc) "ramblock n
 calc_page_dirty_rate(const char *idstr, uint32_t new_crc, uint32_t old_crc) "ramblock name: %s, new crc: %" PRIu32 ", old crc: %" PRIu32
 skip_sample_ramblock(const char *idstr, uint64_t ramblock_size) "ramblock name: %s, ramblock size: %" PRIu64
 find_page_matched(const char *idstr) "ramblock %s addr or size changed"
+dirtyrate_calculate(int64_t dirtyrate) "dirty rate: %" PRIi64
+dirtyrate_do_calculate_vcpu(int idx, uint64_t pages, int64_t seconds) "vcpu[%d]: dirty %"PRIu64 " pages in %"PRIi64 " seconds"
+dirtyrate_powerdown_callback(void) ""
+dirtyrate_dirty_log_start(void) ""
+dirtyrate_dirty_log_stop(void) ""
 
 # block.c
 migration_block_init_shared(const char *blk_device_name) "Start migration for %s with shared base image"

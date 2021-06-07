@@ -1736,8 +1736,9 @@ ERST
 
     {
         .name       = "calc_dirty_rate",
-        .args_type  = "second:l,sample_pages_per_GB:l?",
-        .params     = "second [sample_pages_per_GB]",
-        .help       = "start a round of guest dirty rate measurement",
+        .args_type  = "second:l,per_vcpu:b,sample_pages_per_GB:l?",
+        .params     = "second on|off [sample_pages_per_GB]",
+        .help       = "start a round of guest dirty rate measurement, "
+                      "calculate for vcpu use on|off",
         .cmd        = hmp_calc_dirty_rate,
     },

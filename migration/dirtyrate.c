@@ -16,6 +16,9 @@
 #include "cpu.h"
 #include "exec/ramblock.h"
 #include "qemu/rcu_queue.h"
+#include "qemu/main-loop.h"
+#include "sysemu/kvm.h"
+#include "sysemu/runstate.h"
 #include "qapi/qapi-commands-migration.h"
 #include "ram.h"
 #include "trace.h"
@@ -23,9 +26,38 @@
 #include "monitor/hmp.h"
 #include "monitor/monitor.h"
 #include "qapi/qmp/qdict.h"
+#include "exec/memory.h"
+
+typedef enum {
+    CALC_NONE = 0,
+    CALC_DIRTY_RING,
+    CALC_SAMPLE_PAGES,
+} CalcMethod;
+
+typedef struct DirtyPageRecord {
+    int64_t start_pages;
+    int64_t end_pages;
+} DirtyPageRecord;
+
+static DirtyPageRecord *dirty_pages;
 
 static int CalculatingState = DIRTY_RATE_STATUS_UNSTARTED;
 static struct DirtyRateStat DirtyStat;
+static CalcMethod last_method = CALC_NONE;
+bool register_powerdown_callback = false;
+
+static void dirtyrate_powerdown_req(Notifier *n, void *opaque)
+{
+    if (last_method == CALC_DIRTY_RING) {
+        g_free(DirtyStat.method.vcpu.rates);
+        DirtyStat.method.vcpu.rates = NULL;
+    }
+    trace_dirtyrate_powerdown_callback();
+}
+
+static Notifier dirtyrate_powerdown_notifier = {
+    .notify = dirtyrate_powerdown_req
+};
 
 static int64_t set_sample_page_period(int64_t msec, int64_t initial_time)
 {
@@ -72,6 +104,7 @@ static struct DirtyRateInfo *query_dirty_rate_info(void)
 {
     int64_t dirty_rate = DirtyStat.dirty_rate;
     struct DirtyRateInfo *info = g_malloc0(sizeof(DirtyRateInfo));
+    DirtyRateVcpuList *head = NULL, **tail = &head;
 
     if (qatomic_read(&CalculatingState) == DIRTY_RATE_STATUS_MEASURED) {
         info->has_dirty_rate = true;
@@ -81,7 +114,22 @@ static struct DirtyRateInfo *query_dirty_rate_info(void)
     info->status = CalculatingState;
     info->start_time = DirtyStat.start_time;
     info->calc_time = DirtyStat.calc_time;
-    info->sample_pages = DirtyStat.sample_pages;
+
+    if (last_method == CALC_DIRTY_RING) {
+        int i = 0;
+        info->per_vcpu = true;
+        info->has_vcpu_dirty_rate = true;
+        for (i = 0; i < DirtyStat.method.vcpu.nvcpu; i++) {
+            DirtyRateVcpu *rate = g_malloc0(sizeof(DirtyRateVcpu));
+            rate->id = DirtyStat.method.vcpu.rates[i].id;
+            rate->dirty_rate = DirtyStat.method.vcpu.rates[i].dirty_rate;
+            QAPI_LIST_APPEND(tail, rate);
+        }
+        info->vcpu_dirty_rate = head;
+    } else {
+        info->has_sample_pages = true;
+        info->sample_pages = DirtyStat.sample_pages;
+    }
 
     trace_query_dirty_rate_info(DirtyRateStatus_str(CalculatingState));
 
@@ -94,15 +142,37 @@ static void init_dirtyrate_stat(int64_t start_time,
     DirtyStat.dirty_rate = -1;
     DirtyStat.start_time = start_time;
     DirtyStat.calc_time = config.sample_period_seconds;
-    DirtyStat.sample_pages = config.sample_pages_per_gigabytes;
+    DirtyStat.sample_pages =
+        config.per_vcpu ? -1 : config.sample_pages_per_gigabytes;
 
-    if (config.per_vcpu) {
-        DirtyStat.method.vcpu.nvcpu = -1;
-        DirtyStat.method.vcpu.rates = NULL;
-    } else {
-        DirtyStat.method.vm.total_dirty_samples = 0;
-        DirtyStat.method.vm.total_sample_count = 0;
-        DirtyStat.method.vm.total_block_mem_MB = 0;
+    if (unlikely(!register_powerdown_callback)) {
+        qemu_register_powerdown_notifier(&dirtyrate_powerdown_notifier);
+        register_powerdown_callback = true;
+    }
+
+    switch (last_method) {
+    case CALC_NONE:
+    case CALC_SAMPLE_PAGES:
+        if (config.per_vcpu) {
+            DirtyStat.method.vcpu.nvcpu = -1;
+            DirtyStat.method.vcpu.rates = NULL;
+        } else {
+            DirtyStat.method.vm.total_dirty_samples = 0;
+            DirtyStat.method.vm.total_sample_count = 0;
+            DirtyStat.method.vm.total_block_mem_MB = 0;
+        }
+        break;
+    case CALC_DIRTY_RING:
+        if (!config.per_vcpu) {
+            g_free(DirtyStat.method.vcpu.rates);
+            DirtyStat.method.vcpu.rates = NULL;
+            DirtyStat.method.vm.total_dirty_samples = 0;
+            DirtyStat.method.vm.total_sample_count = 0;
+            DirtyStat.method.vm.total_block_mem_MB = 0;
+        }
+        break;
+    default:
+        break;
     }
 }
 
@@ -316,7 +386,7 @@ find_block_matched(RAMBlock *block, int count,
 }
 
 static bool compare_page_hash_info(struct RamblockDirtyInfo *info,
-                                  int block_count)
+                                   int block_count)
 {
     struct RamblockDirtyInfo *block_dinfo = NULL;
     RAMBlock *block = NULL;
@@ -340,14 +410,125 @@ static bool compare_page_hash_info(struct RamblockDirtyInfo *info,
     return true;
 }
 
-static void calculate_dirtyrate(struct DirtyRateConfig config)
+static void record_dirtypages(CPUState *cpu, bool start)
+{
+    if (start) {
+        dirty_pages[cpu->cpu_index].start_pages = cpu->dirty_pages;
+    } else {
+        dirty_pages[cpu->cpu_index].end_pages = cpu->dirty_pages;
+    }
+}
+
+static void dirtyrate_global_dirty_log_start(void)
+{
+    /* dirty logging is enabled already */
+    if (global_dirty_log) {
+        return;
+    }
+
+    qemu_mutex_lock_iothread();
+    memory_global_dirty_log_start(GLOBAL_DIRTY_DIRTY_RATE);
+    qemu_mutex_unlock_iothread();
+    trace_dirtyrate_dirty_log_start();
+}
+
+static void dirtyrate_global_dirty_log_stop(void)
+{
+    /* migration is in process, do not stop dirty logging,
+     * just clear the GLOBAL_DIRTY_DIRTY_RATE bit */
+    if (global_dirty_log & GLOBAL_DIRTY_MIGRATION) {
+        global_dirty_log &= ~(GLOBAL_DIRTY_DIRTY_RATE);
+        return;
+    }
+
+    qemu_mutex_lock_iothread();
+    memory_global_dirty_log_stop(GLOBAL_DIRTY_DIRTY_RATE);
+    qemu_mutex_unlock_iothread();
+    trace_dirtyrate_dirty_log_stop();
+}
+
+static int64_t do_calculate_dirtyrate_vcpu(int idx)
+{
+    uint64_t memory_size_MB;
+    int64_t time_s;
+    uint64_t start_pages = dirty_pages[idx].start_pages;
+    uint64_t end_pages = dirty_pages[idx].end_pages;
+    uint64_t dirty_pages = 0;
+
+    /* uint64_t over the INT64_MAX */
+    if (unlikely(end_pages < start_pages)) {
+        dirty_pages = INT64_MAX - start_pages + end_pages + 1;
+    } else {
+        dirty_pages = end_pages - start_pages;
+    }
+
+    memory_size_MB = (dirty_pages * TARGET_PAGE_SIZE) >> 20;
+    time_s = DirtyStat.calc_time;
+
+    trace_dirtyrate_do_calculate_vcpu(idx, dirty_pages, time_s);
+
+    return memory_size_MB / time_s;
+}
+
+static void calculate_dirtyrate_vcpu(struct DirtyRateConfig config)
+{
+    CPUState *cpu;
+    int64_t msec = 0;
+    int64_t start_time;
+    uint64_t dirtyrate = 0;
+    uint64_t dirtyrate_sum = 0;
+    int nvcpu = 0;
+    int i = 0;
+
+    CPU_FOREACH(cpu) {
+        nvcpu++;
+    }
+
+    dirty_pages = g_malloc0(sizeof(*dirty_pages) * nvcpu);
+
+    dirtyrate_global_dirty_log_start();
+
+    CPU_FOREACH(cpu) {
+        record_dirtypages(cpu, true);
+    }
+
+    DirtyStat.method.vcpu.nvcpu = nvcpu;
+    if (last_method != CALC_DIRTY_RING) {
+        DirtyStat.method.vcpu.rates =
+            g_malloc0(sizeof(DirtyRateVcpu) * nvcpu);
+    }
+
+    start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    DirtyStat.start_time = start_time / 1000;
+
+    msec = config.sample_period_seconds * 1000;
+    msec = set_sample_page_period(msec, start_time);
+    DirtyStat.calc_time = msec / 1000;
+
+    CPU_FOREACH(cpu) {
+        record_dirtypages(cpu, false);
+    }
+
+    dirtyrate_global_dirty_log_stop();
+
+    for (i = 0; i < DirtyStat.method.vcpu.nvcpu; i++) {
+        dirtyrate = do_calculate_dirtyrate_vcpu(i);
+        DirtyStat.method.vcpu.rates[i].id = i;
+        DirtyStat.method.vcpu.rates[i].dirty_rate = dirtyrate;
+        dirtyrate_sum += dirtyrate;
+    }
+
+    DirtyStat.dirty_rate = dirtyrate_sum / DirtyStat.method.vcpu.nvcpu;
+    g_free(dirty_pages);
+}
+
+static void calculate_dirtyrate_sample_vm(struct DirtyRateConfig config)
 {
     struct RamblockDirtyInfo *block_dinfo = NULL;
     int block_count = 0;
     int64_t msec = 0;
     int64_t initial_time;
 
-    rcu_register_thread();
     rcu_read_lock();
     initial_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     if (!record_ramblock_hash_info(&block_dinfo, config, &block_count)) {
@@ -364,13 +545,24 @@ static void calculate_dirtyrate(struct DirtyRateConfig config)
     if (!compare_page_hash_info(block_dinfo, block_count)) {
         goto out;
     }
-
     update_dirtyrate(msec);
 
 out:
     rcu_read_unlock();
     free_ramblock_dirty_info(block_dinfo, block_count);
-    rcu_unregister_thread();
+}
+
+static void calculate_dirtyrate(struct DirtyRateConfig config)
+{
+    if (config.per_vcpu) {
+        calculate_dirtyrate_vcpu(config);
+        last_method = CALC_DIRTY_RING;
+    } else {
+        calculate_dirtyrate_sample_vm(config);
+        last_method = CALC_SAMPLE_PAGES;
+    }
+
+    trace_dirtyrate_calculate(DirtyStat.dirty_rate);
 }
 
 void *get_dirtyrate_thread(void *arg)
@@ -378,6 +570,8 @@ void *get_dirtyrate_thread(void *arg)
     struct DirtyRateConfig config = *(struct DirtyRateConfig *)arg;
     int ret;
     int64_t start_time;
+
+    rcu_register_thread();
 
     ret = dirtyrate_set_state(&CalculatingState, DIRTY_RATE_STATUS_UNSTARTED,
                               DIRTY_RATE_STATUS_MEASURING);
@@ -396,6 +590,8 @@ void *get_dirtyrate_thread(void *arg)
     if (ret == -1) {
         error_report("change dirtyrate state failed.");
     }
+
+    rcu_unregister_thread();
     return NULL;
 }
 
