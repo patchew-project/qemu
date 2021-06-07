@@ -1709,6 +1709,21 @@
   'data': { 'device-id': 'str' } }
 
 ##
+# @DirtyRateVcpu:
+#
+# Dirty rate of vcpu.
+#
+# @id: vcpu index.
+#
+# @dirty-rate: dirty rate.
+#
+# Since: 6.1
+#
+##
+{ 'struct': 'DirtyRateVcpu',
+  'data': { 'id': 'int', 'dirty-rate': 'int64' } }
+
+##
 # @DirtyRateStatus:
 #
 # An enumeration of dirtyrate status.
@@ -1743,6 +1758,10 @@
 # @sample-pages: page count per GB for sample dirty pages
 #                the default value is 512 (since 6.1)
 #
+# @per-vcpu: calculate dirtyrate for each vcpu (Since 6.1)
+#
+# @vcpu-dirty-rate: dirtyrate for each vcpu (Since 6.1)
+#
 # Since: 5.2
 #
 ##
@@ -1751,7 +1770,9 @@
            'status': 'DirtyRateStatus',
            'start-time': 'int64',
            'calc-time': 'int64',
-           'sample-pages': 'uint64'} }
+           '*sample-pages': 'uint64',
+           'per-vcpu': 'bool',
+           '*vcpu-dirty-rate': [ 'DirtyRateVcpu' ] } }
 
 ##
 # @calc-dirty-rate:
@@ -1759,6 +1780,10 @@
 # start calculating dirty page rate for vm
 #
 # @calc-time: time in units of second for sample dirty pages
+#
+# @per-vcpu: calculate vcpu dirty rate if true, the default value is
+#            false, note that the per-vcpu and sample-pages are mutually
+#            exclusive (since 6.1)
 #
 # @sample-pages: page count per GB for sample dirty pages
 #                the default value is 512 (since 6.1)
@@ -1769,7 +1794,7 @@
 #   {"command": "calc-dirty-rate", "data": {"calc-time": 1, 'sample-pages': 512} }
 #
 ##
-{ 'command': 'calc-dirty-rate', 'data': {'calc-time': 'int64', '*sample-pages': 'int'} }
+{ 'command': 'calc-dirty-rate', 'data': {'calc-time': 'int64', 'per-vcpu': 'bool', '*sample-pages': 'int'} }
 
 ##
 # @query-dirty-rate:

@@ -397,8 +397,11 @@ void *get_dirtyrate_thread(void *arg)
     return NULL;
 }
 
-void qmp_calc_dirty_rate(int64_t calc_time, bool has_sample_pages,
-                         int64_t sample_pages, Error **errp)
+void qmp_calc_dirty_rate(int64_t calc_time,
+                         bool per_vcpu,
+                         bool has_sample_pages,
+                         int64_t sample_pages,
+                         Error **errp)
 {
     static struct DirtyRateConfig config;
     QemuThread thread;
@@ -419,6 +422,12 @@ void qmp_calc_dirty_rate(int64_t calc_time, bool has_sample_pages,
         return;
     }
 
+    if (has_sample_pages && per_vcpu) {
+        error_setg(errp, "per-vcpu and sample-pages are mutually exclusive, "
+                         "only one of then can be specified!\n");
+        return;
+    }
+
     if (has_sample_pages) {
         if (!is_sample_pages_valid(sample_pages)) {
             error_setg(errp, "sample-pages is out of range[%d, %d].",
@@ -428,6 +437,15 @@ void qmp_calc_dirty_rate(int64_t calc_time, bool has_sample_pages,
         }
     } else {
         sample_pages = DIRTYRATE_DEFAULT_SAMPLE_PAGES;
+    }
+
+    /*
+     * Vcpu method only works when kvm dirty ring is enabled.
+     */
+    if (per_vcpu && !kvm_dirty_ring_enabled()) {
+        error_setg(errp, "dirty ring is disabled or conflict with migration"
+                         "use sample method or remeasure later.");
+        return;
     }
 
     /*
@@ -442,6 +460,7 @@ void qmp_calc_dirty_rate(int64_t calc_time, bool has_sample_pages,
 
     config.sample_period_seconds = calc_time;
     config.sample_pages_per_gigabytes = sample_pages;
+    config.per_vcpu = per_vcpu;
     qemu_thread_create(&thread, "get_dirtyrate", get_dirtyrate_thread,
                        (void *)&config, QEMU_THREAD_DETACHED);
 }
@@ -459,13 +478,22 @@ void hmp_info_dirty_rate(Monitor *mon, const QDict *qdict)
                    DirtyRateStatus_str(info->status));
     monitor_printf(mon, "Start Time: %"PRIi64" (ms)\n",
                    info->start_time);
-    monitor_printf(mon, "Sample Pages: %"PRIu64" (per GB)\n",
-                   info->sample_pages);
     monitor_printf(mon, "Period: %"PRIi64" (sec)\n",
                    info->calc_time);
+    if (info->has_sample_pages) {
+        monitor_printf(mon, "Sample Pages: %"PRIu64" (per GB)\n",
+                       info->sample_pages);
+    }
     monitor_printf(mon, "Dirty rate: ");
     if (info->has_dirty_rate) {
         monitor_printf(mon, "%"PRIi64" (MB/s)\n", info->dirty_rate);
+        if (info->per_vcpu && info->has_vcpu_dirty_rate) {
+            DirtyRateVcpuList *rate, *head = info->vcpu_dirty_rate;
+            for (rate = head; rate != NULL; rate = rate->next) {
+                monitor_printf(mon, "vcpu[%"PRIi64"], Dirty rate: %"PRIi64"\n",
+                               rate->value->id, rate->value->dirty_rate);
+            }
+        }
     } else {
         monitor_printf(mon, "(not ready)\n");
     }
@@ -477,6 +505,7 @@ void hmp_calc_dirty_rate(Monitor *mon, const QDict *qdict)
     int64_t sec = qdict_get_try_int(qdict, "second", 0);
     int64_t sample_pages = qdict_get_try_int(qdict, "sample_pages_per_GB", -1);
     bool has_sample_pages = (sample_pages != -1);
+    bool per_vcpu = qdict_get_try_bool(qdict, "per_vcpu", false);
     Error *err = NULL;
 
     if (!sec) {
@@ -484,7 +513,13 @@ void hmp_calc_dirty_rate(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    qmp_calc_dirty_rate(sec, has_sample_pages, sample_pages, &err);
+    if (has_sample_pages && per_vcpu) {
+        monitor_printf(mon, "per_vcpu and sample_pages are mutually exclusive, "
+                       "only one of then can be specified!\n");
+        return;
+    }
+
+    qmp_calc_dirty_rate(sec, per_vcpu, has_sample_pages, sample_pages, &err);
     if (err) {
         hmp_handle_error(mon, err);
         return;
