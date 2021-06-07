@@ -550,6 +550,20 @@ DO_2OP_SAT(vqrdmulhb, 1, int8_t, H1, DO_QRDMULH_B)
 DO_2OP_SAT(vqrdmulhh, 2, int16_t, H2, DO_QRDMULH_H)
 DO_2OP_SAT(vqrdmulhw, 4, int32_t, H4, DO_QRDMULH_W)
 
+DO_2OP_SAT(vqaddub, 1, uint8_t, H1, DO_UQADD_B)
+DO_2OP_SAT(vqadduh, 2, uint16_t, H2, DO_UQADD_H)
+DO_2OP_SAT(vqadduw, 4, uint32_t, H4, DO_UQADD_W)
+DO_2OP_SAT(vqaddsb, 1, int8_t, H1, DO_SQADD_B)
+DO_2OP_SAT(vqaddsh, 2, int16_t, H2, DO_SQADD_H)
+DO_2OP_SAT(vqaddsw, 4, int32_t, H4, DO_SQADD_W)
+
+DO_2OP_SAT(vqsubub, 1, uint8_t, H1, DO_UQSUB_B)
+DO_2OP_SAT(vqsubuh, 2, uint16_t, H2, DO_UQSUB_H)
+DO_2OP_SAT(vqsubuw, 4, uint32_t, H4, DO_UQSUB_W)
+DO_2OP_SAT(vqsubsb, 1, int8_t, H1, DO_SQSUB_B)
+DO_2OP_SAT(vqsubsh, 2, int16_t, H2, DO_SQSUB_H)
+DO_2OP_SAT(vqsubsw, 4, int32_t, H4, DO_SQSUB_W)
+
 #define DO_2OP_SCALAR(OP, ESIZE, TYPE, H, FN)                           \
     void HELPER(glue(mve_, OP))(CPUARMState *env, void *vd, void *vn,   \
                                 uint32_t rm)                            \
