@@ -538,6 +538,42 @@ static inline int32_t do_sshl(int32_t n, int8_t shift, int esize)
 DO_2OP_S(vshls, DO_VSHLS)
 DO_2OP_U(vshlu, DO_VSHLU)
 
+static inline uint32_t do_urshl(uint32_t n, int8_t shift, int esize)
+{
+    if (shift >= esize || shift < -esize) {
+        return 0;
+    } else if (shift == -esize) {
+        return n >> (-esize - 1);
+    } else if (shift < 0) {
+        /* Use 64 bit intermediate: adding the rounding const might overflow */
+        uint64_t r = (uint64_t)n + (1 << (-1 - shift));
+        return r >> -shift;
+    } else {
+        return n << shift;
+    }
+}
+
+static inline int32_t do_srshl(int32_t n, int8_t shift, int esize)
+{
+    if (shift >= esize || shift <= -esize) {
+        return 0;
+    } else if (shift == -esize) {
+        return n >> (-esize - 1);
+    } else if (shift < 0) {
+        /* Use 64 bit intermediate: adding the rounding const might overflow */
+        int64_t r = (int64_t)n + (1 << (-1 - shift));
+        return r >> -shift;
+    } else {
+        return n << shift;
+    }
+}
+
+#define DO_VRSHLS(N, M) do_srshl(N, M, sizeof(N) * 8)
+#define DO_VRSHLU(N, M) do_urshl(N, M, sizeof(N) * 8)
+
+DO_2OP_S(vrshls, DO_VRSHLS)
+DO_2OP_U(vrshlu, DO_VRSHLU)
+
 static inline int32_t do_sat_bhw(int64_t val, int64_t min, int64_t max, bool *s)
 {
     if (val > max) {
