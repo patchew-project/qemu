@@ -180,9 +180,19 @@ DO_VLDR(vldrb, 1, ldub, uint8_t, H1)
 DO_VLDR(vldrh, 2, lduw, uint16_t, H2)
 DO_VLDR(vldrw, 4, ldl, uint32_t, H4)
 
+DO_VLDR(vldrb_sh, 2, ldsb, int16_t, H2)
+DO_VLDR(vldrb_sw, 4, ldsb, int32_t, H4)
+DO_VLDR(vldrb_uh, 2, ldub, uint16_t, H2)
+DO_VLDR(vldrb_uw, 4, ldub, uint32_t, H4)
+DO_VLDR(vldrh_sw, 4, ldsw, int32_t, H4)
+DO_VLDR(vldrh_uw, 4, lduw, uint32_t, H4)
+
 DO_VSTR(vstrb, 1, stb, uint8_t, H1)
 DO_VSTR(vstrh, 2, stw, uint16_t, H2)
 DO_VSTR(vstrw, 4, stl, uint32_t, H4)
+DO_VSTR(vstrb_h, 2, stb, int16_t, H2)
+DO_VSTR(vstrb_w, 4, stb, int32_t, H4)
+DO_VSTR(vstrh_w, 4, stw, int32_t, H4)
 
 #undef DO_VLDR
 #undef DO_VSTR
