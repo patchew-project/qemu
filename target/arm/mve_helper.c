@@ -223,6 +223,12 @@ static uint32_t mask_to_bytemask4(uint16_t mask)
     return masks[mask & 0xf];
 }
 
+static uint64_t mask_to_bytemask8(uint16_t mask)
+{
+    return mask_to_bytemask4(mask) |
+        ((uint64_t)mask_to_bytemask4(mask >> 4) << 32);
+}
+
 #define DO_1OP(OP, ESIZE, TYPE, H, FN)                                  \
     void HELPER(mve_##OP)(CPUARMState *env, void *vd, void *vm)         \
     {                                                                   \
@@ -251,3 +257,10 @@ DO_1OP(vclsw, 4, int32_t, H4, clrsb32)
 DO_1OP(vclzb, 1, uint8_t, H1, DO_CLZ_B)
 DO_1OP(vclzh, 2, uint16_t, H2, DO_CLZ_H)
 DO_1OP(vclzw, 4, uint32_t, H4, clz32)
+
+DO_1OP(vrev16b, 2, uint16_t, H2, bswap16)
+DO_1OP(vrev32b, 4, uint32_t, H4, bswap32)
+DO_1OP(vrev32h, 4, uint32_t, H4, hswap32)
+DO_1OP(vrev64b, 8, uint64_t, , bswap64)
+DO_1OP(vrev64h, 8, uint64_t, , hswap64)
+DO_1OP(vrev64w, 8, uint64_t, , wswap64)
