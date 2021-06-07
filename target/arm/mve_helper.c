@@ -1103,6 +1103,36 @@ DO_2OP_SAT_SCALAR_L(vqdmullt_scalarh, 1, int16_t, H2, 4, int32_t, H4, \
 DO_2OP_SAT_SCALAR_L(vqdmullt_scalarw, 1, int32_t, H4, 8, int64_t, , \
                     do_qdmullw, SATMASK32)
 
+/*
+ * Long saturating ops
+ */
+#define DO_2OP_SAT_L(OP, TOP, TYPE, H, LESIZE, LTYPE, LH, FN, SATMASK)  \
+    void HELPER(glue(mve_, OP))(CPUARMState *env, void *vd, void *vn,   \
+                                void *vm)                               \
+    {                                                                   \
+        LTYPE *d = vd;                                                  \
+        TYPE *n = vn, *m = vm;                                          \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned le;                                                    \
+        for (le = 0; le < 16 / LESIZE; le++, mask >>= LESIZE) {         \
+            bool sat = false;                                           \
+            LTYPE op1 = n[H(le * 2 + TOP)], op2 = m[H(le * 2 + TOP)];   \
+            LTYPE r = FN(op1, op2, &sat);                               \
+            uint64_t bytemask = mask_to_bytemask##LESIZE(mask);         \
+            d[LH(le)] &= ~bytemask;                                     \
+            d[LH(le)] |= (r & bytemask);                                \
+            if (sat && (mask & SATMASK)) {                              \
+                env->vfp.qc[0] = 1;                                     \
+            }                                                           \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
+DO_2OP_SAT_L(vqdmullbh, 0, int16_t, H2, 4, int32_t, H4, do_qdmullh, SATMASK16B)
+DO_2OP_SAT_L(vqdmullbw, 0, int32_t, H4, 8, int64_t, , do_qdmullw, SATMASK32)
+DO_2OP_SAT_L(vqdmullth, 1, int16_t, H2, 4, int32_t, H4, do_qdmullh, SATMASK16T)
+DO_2OP_SAT_L(vqdmulltw, 1, int32_t, H4, 8, int64_t, , do_qdmullw, SATMASK32)
+
 static inline uint32_t do_vbrsrb(uint32_t n, uint32_t m)
 {
     m &= 0xff;
