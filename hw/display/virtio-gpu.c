@@ -523,6 +523,7 @@ static void virtio_gpu_resource_flush(VirtIOGPU *g,
                 console_has_gl(scanout->con)) {
                 dpy_gl_update(scanout->con, 0, 0, scanout->width,
                               scanout->height);
+                virtio_gpu_resource_wait_sync(g, res);
                 return;
             }
         }

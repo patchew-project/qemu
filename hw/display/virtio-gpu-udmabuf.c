@@ -168,6 +168,34 @@ static void virtio_gpu_free_dmabuf(VirtIOGPU *g, VGPUDMABuf *dmabuf)
 }
 
 static VGPUDMABuf
+*virtio_gpu_find_dmabuf(VirtIOGPU *g,
+                        struct virtio_gpu_simple_resource *res)
+{
+    VGPUDMABuf *dmabuf, *tmp;
+
+    QTAILQ_FOREACH_SAFE(dmabuf, &g->dmabuf.bufs, next, tmp) {
+        if (dmabuf->buf.fd == res->dmabuf_fd) {
+            return dmabuf;
+        }
+    }
+
+    return NULL;
+}
+
+void virtio_gpu_resource_wait_sync(VirtIOGPU *g,
+                                   struct virtio_gpu_simple_resource *res)
+{
+    struct virtio_gpu_scanout *scanout;
+    VGPUDMABuf *dmabuf;
+
+    dmabuf = virtio_gpu_find_dmabuf(g, res);
+    if (dmabuf && dmabuf->buf.sync) {
+        scanout = &g->parent_obj.scanout[dmabuf->scanout_id];
+        dpy_gl_wait_dmabuf(scanout->con, &dmabuf->buf);
+    }
+}
+
+static VGPUDMABuf
 *virtio_gpu_create_dmabuf(VirtIOGPU *g,
                           uint32_t scanout_id,
                           struct virtio_gpu_simple_resource *res,
