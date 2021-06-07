@@ -637,6 +637,133 @@ DO_2OP_SAT(vqsubsw, 4, int32_t, H4, DO_SQSUB_W)
 DO_2OP_SAT_S(vqshls, DO_SQSHL_OP)
 DO_2OP_SAT_U(vqshlu, DO_UQSHL_OP)
 
+#define DO_UQRSHL_OP(src1, src2, satp)                  \
+    ({                                                  \
+        int8_t tmp;                                     \
+        typeof(src1) dest;                              \
+        tmp = (int8_t)src2;                             \
+        if (tmp >= (ssize_t)sizeof(src1) * 8) {         \
+            if (src1) {                                 \
+                *satp = true;                           \
+                dest = ~0;                              \
+            } else {                                    \
+                dest = 0;                               \
+            }                                           \
+        } else if (tmp < -(ssize_t)sizeof(src1) * 8) {  \
+            dest = 0;                                   \
+        } else if (tmp == -(ssize_t)sizeof(src1) * 8) { \
+            dest = src1 >> (sizeof(src1) * 8 - 1);      \
+        } else if (tmp < 0) {                           \
+            dest = (src1 + (1 << (-1 - tmp))) >> -tmp;  \
+        } else {                                        \
+            dest = src1 << tmp;                         \
+            if ((dest >> tmp) != src1) {                \
+                *satp = true;                           \
+                dest = ~0;                              \
+            }                                           \
+        }                                               \
+        dest;                                           \
+    })
+
+/*
+ * The addition of the rounding constant may overflow, so we use an
+ * intermediate 64 bit accumulator for the 32-bit version.
+ */
+#define DO_UQRSHL32_OP(src1, src2, satp)                                \
+    ({                                                                  \
+        uint32_t dest;                                                  \
+        uint32_t val = src1;                                            \
+        int8_t shift = (int8_t)src2;                                    \
+        if (shift >= 32) {                                              \
+            if (val) {                                                  \
+                *satp = true;                                           \
+                dest = ~0;                                              \
+            } else {                                                    \
+                dest = 0;                                               \
+            }                                                           \
+        } else if (shift < -32) {                                       \
+            dest = 0;                                                   \
+        } else if (shift == -32) {                                      \
+            dest = val >> 31;                                           \
+        } else if (shift < 0) {                                         \
+            uint64_t big_dest = ((uint64_t)val + (1 << (-1 - shift)));  \
+            dest = big_dest >> -shift;                                  \
+        } else {                                                        \
+            dest = val << shift;                                        \
+            if ((dest >> shift) != val) {                               \
+                *satp = true;                                           \
+                dest = ~0;                                              \
+            }                                                           \
+        }                                                               \
+        dest;                                                           \
+    })
+
+#define DO_SQRSHL_OP(src1, src2, satp)                                  \
+    ({                                                                  \
+        int8_t tmp;                                                     \
+        typeof(src1) dest;                                              \
+        tmp = (int8_t)src2;                                             \
+        if (tmp >= (ssize_t)sizeof(src1) * 8) {                         \
+            if (src1) {                                                 \
+                *satp = true;                                           \
+                dest = (typeof(dest))(1 << (sizeof(src1) * 8 - 1));     \
+                if (src1 > 0) {                                         \
+                    dest--;                                             \
+                }                                                       \
+            } else {                                                    \
+                dest = 0;                                               \
+            }                                                           \
+        } else if (tmp <= -(ssize_t)sizeof(src1) * 8) {                 \
+            dest = 0;                                                   \
+        } else if (tmp < 0) {                                           \
+            dest = (src1 + (1 << (-1 - tmp))) >> -tmp;                  \
+        } else {                                                        \
+            dest = src1 << tmp;                                         \
+            if ((dest >> tmp) != src1) {                                \
+                *satp = true;                                           \
+                dest = (uint32_t)(1 << (sizeof(src1) * 8 - 1));         \
+                if (src1 > 0) {                                         \
+                    dest--;                                             \
+                }                                                       \
+            }                                                           \
+        }                                                               \
+        dest;                                                           \
+    })
+
+#define DO_SQRSHL32_OP(src1, src2, satp)                                \
+    ({                                                                  \
+        int32_t dest;                                                   \
+        int32_t val = (int32_t)src1;                                    \
+        int8_t shift = (int8_t)src2;                                    \
+        if (shift >= 32) {                                              \
+            if (val) {                                                  \
+                *satp = true;                                           \
+                dest = (val >> 31) ^ ~(1U << 31);                       \
+            } else {                                                    \
+                dest = 0;                                               \
+            }                                                           \
+        } else if (shift <= -32) {                                      \
+            dest = 0;                                                   \
+        } else if (shift < 0) {                                         \
+            int64_t big_dest = ((int64_t)val + (1 << (-1 - shift)));    \
+            dest = big_dest >> -shift;                                  \
+        } else {                                                        \
+            dest = val << shift;                                        \
+            if ((dest >> shift) != val) {                               \
+                *satp = true;                                           \
+                dest = (val >> 31) ^ ~(1U << 31);                       \
+            }                                                           \
+        }                                                               \
+        dest;                                                           \
+    })
+
+DO_2OP_SAT(vqrshlub, 1, uint8_t, H1, DO_UQRSHL_OP)
+DO_2OP_SAT(vqrshluh, 2, uint16_t, H2, DO_UQRSHL_OP)
+DO_2OP_SAT(vqrshluw, 4, uint32_t, H4, DO_UQRSHL32_OP)
+DO_2OP_SAT(vqrshlsb, 1, int8_t, H1, DO_SQRSHL_OP)
+DO_2OP_SAT(vqrshlsh, 2, int16_t, H2, DO_SQRSHL_OP)
+DO_2OP_SAT(vqrshlsw, 4, int32_t, H4, DO_SQRSHL32_OP)
+
 #define DO_2OP_SCALAR(OP, ESIZE, TYPE, H, FN)                           \
     void HELPER(glue(mve_, OP))(CPUARMState *env, void *vd, void *vn,   \
                                 uint32_t rm)                            \
