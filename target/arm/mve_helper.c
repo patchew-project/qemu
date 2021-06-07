@@ -638,8 +638,13 @@ DO_VADC(vsbc, DO_NOT)
     DO_VCADD(OP##h, 2, int16_t, H1, FN0, FN1)   \
     DO_VCADD(OP##w, 4, int32_t, H1, FN0, FN1)
 
+#define DO_HADD(N, M) (((int64_t)(N) + (int64_t)(M)) >> 1)
+#define DO_HSUB(N, M) (((int64_t)(N) - (int64_t)(M)) >> 1)
+
 DO_VCADD_ALL(vcadd90, DO_SUB, DO_ADD)
 DO_VCADD_ALL(vcadd270, DO_ADD, DO_SUB)
+DO_VCADD_ALL(vhcadd90, DO_HSUB, DO_HADD)
+DO_VCADD_ALL(vhcadd270, DO_HADD, DO_HSUB)
 
 static inline int32_t do_sat_bhw(int64_t val, int64_t min, int64_t max, bool *s)
 {
