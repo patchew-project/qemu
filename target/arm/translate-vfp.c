@@ -1564,6 +1564,8 @@ static bool trans_VLDM_VSTM_sp(DisasContext *s, arg_VLDM_VSTM_sp *a)
         return false;
     }
 
+    s->eci_handled = true;
+
     if (!vfp_access_check(s)) {
         return true;
     }
@@ -1613,6 +1615,7 @@ static bool trans_VLDM_VSTM_sp(DisasContext *s, arg_VLDM_VSTM_sp *a)
         tcg_temp_free_i32(addr);
     }
 
+    clear_eci_state(s);
     return true;
 }
 
@@ -1646,6 +1649,8 @@ static bool trans_VLDM_VSTM_dp(DisasContext *s, arg_VLDM_VSTM_dp *a)
     if (!dc_isar_feature(aa32_simd_r32, s) && (a->vd + n) > 16) {
         return false;
     }
+
+    s->eci_handled = true;
 
     if (!vfp_access_check(s)) {
         return true;
@@ -1703,6 +1708,7 @@ static bool trans_VLDM_VSTM_dp(DisasContext *s, arg_VLDM_VSTM_dp *a)
         tcg_temp_free_i32(addr);
     }
 
+    clear_eci_state(s);
     return true;
 }
 
