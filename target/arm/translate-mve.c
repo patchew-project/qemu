@@ -33,6 +33,7 @@ typedef void MVEGenOneOpFn(TCGv_ptr, TCGv_ptr, TCGv_ptr);
 typedef void MVEGenTwoOpFn(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_ptr);
 typedef void MVEGenTwoOpScalarFn(TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_i32);
 typedef void MVEGenDualAccOpFn(TCGv_i64, TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_i64);
+typedef void MVEGenADCFn(TCGv_i32, TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_ptr, TCGv_i32);
 
 /* Return the offset of a Qn register (same semantics as aa32_vfp_qreg()) */
 static inline long mve_qreg_offset(unsigned reg)
@@ -736,4 +737,72 @@ static bool trans_VPST(DisasContext *s, arg_VPST *a)
         store_cpu_field(eci, condexec_bits);
     }
     return true;
+}
+
+static bool do_vadc(DisasContext *s, arg_vadc *a, MVEGenADCFn fn,
+                    uint32_t fixed_carry)
+{
+    /*
+     * VADC and VSBC: these perform an add-with-carry or subtract-with-carry
+     * of the 32-bit elements in each lane of the input vectors, where the
+     * carry-out of each add is the carry-in of the next.  The initial carry
+     * input is either fixed (for the I variant: 0 for VADCI, 1 for VSBCI,
+     * passed in as fixed_carry) or is from FPSCR.C; the carry out at the
+     * end is written back to FPSCR.C.
+     */
+
+    TCGv_ptr qd, qn, qm;
+    TCGv_i32 nzcv, fpscr;
+
+    if (!dc_isar_feature(aa32_mve, s)) {
+        return false;
+    }
+    if (a->qd > 7 || a->qn > 7 || a->qm > 7 || !fn) {
+        return false;
+    }
+    if (!mve_eci_check(s)) {
+        return true;
+    }
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    /*
+     * This insn is subject to beat-wise execution.  Partial execution
+     * of an I=1 (initial carry input fixed) insn which does not
+     * execute the first beat must start with the current FPSCR.NZCV
+     * value, not the fixed constant input.
+     */
+    if (a->i && !mve_skip_first_beat(s)) {
+        /* Carry input is 0 (VADCI) or 1 (VSBCI), NZV zeroed */
+        nzcv = tcg_const_i32(fixed_carry);
+    } else {
+        /* Carry input from existing NZCV flag values */
+        nzcv = load_cpu_field(vfp.xregs[ARM_VFP_FPSCR]);
+        tcg_gen_andi_i32(nzcv, nzcv, FPCR_NZCV_MASK);
+    }
+    qd = mve_qreg_ptr(a->qd);
+    qn = mve_qreg_ptr(a->qn);
+    qm = mve_qreg_ptr(a->qm);
+    fn(nzcv, cpu_env, qd, qn, qm, nzcv);
+    fpscr = load_cpu_field(vfp.xregs[ARM_VFP_FPSCR]);
+    tcg_gen_andi_i32(fpscr, fpscr, ~FPCR_NZCV_MASK);
+    tcg_gen_or_i32(fpscr, fpscr, nzcv);
+    store_cpu_field(fpscr, vfp.xregs[ARM_VFP_FPSCR]);
+    tcg_temp_free_i32(nzcv);
+    tcg_temp_free_ptr(qd);
+    tcg_temp_free_ptr(qn);
+    tcg_temp_free_ptr(qm);
+    mve_update_eci(s);
+    return true;
+}
+
+static bool trans_VADC(DisasContext *s, arg_vadc *a)
+{
+    return do_vadc(s, a, gen_helper_mve_vadc, 0);
+}
+
+static bool trans_VSBC(DisasContext *s, arg_vadc *a)
+{
+    return do_vadc(s, a, gen_helper_mve_vsbc, FPCR_C);
 }

@@ -580,6 +580,36 @@ DO_2OP_U(vrshlu, DO_VRSHLU)
 DO_2OP_S(vrhadds, DO_RHADD_S)
 DO_2OP_U(vrhaddu, DO_RHADD_U)
 
+#define DO_VADC(OP, INV)                                                \
+    uint32_t HELPER(glue(mve_, OP))(CPUARMState *env, void *vd,         \
+                                    void *vn, void *vm, uint32_t nzcv)  \
+    {                                                                   \
+        uint32_t *d = vd, *n = vn, *m = vm;                             \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned e;                                                     \
+        int carry = (nzcv & FPCR_C) ? 1 : 0;                            \
+        /* If we do no additions at all the flags are preserved */      \
+        bool updates_flags = (mask & 0x1111) != 0;                      \
+        for (e = 0; e < 16 / 4; e++, mask >>= 4) {                      \
+            uint64_t r = (uint64_t)n[H4(e)] + INV(m[H4(e)]) + carry;    \
+            if (mask & 1) {                                             \
+                carry = r >> 32;                                        \
+            }                                                           \
+            uint64_t bytemask = mask_to_bytemask4(mask);                \
+            d[H4(e)] &= ~bytemask;                                      \
+            d[H4(e)] |= (r & bytemask);                                 \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+        if (updates_flags) {                                            \
+            nzcv = carry ? FPCR_C : 0;                                  \
+        }                                                               \
+        return nzcv;                                                    \
+    }
+
+/* VSBC differs only in inverting op2 before the additiona */
+DO_VADC(vadc, )
+DO_VADC(vsbc, DO_NOT)
+
 static inline int32_t do_sat_bhw(int64_t val, int64_t min, int64_t max, bool *s)
 {
     if (val > max) {

@@ -30,6 +30,7 @@
 &1op qd qm size
 &2op qd qm qn size
 &2scalar qd qn rm size
+&vadc qd qm qn i
 
 @vldr_vstr ....... . . . . l:1 rn:4 ... ...... imm:7 &vldr_vstr qd=%qd u=0
 # Note that both Rn and Qd are 3 bits only (no D bit)
@@ -41,6 +42,8 @@
 @2op_nosz .... .... .... .... .... .... .... .... &2op qd=%qd qm=%qm qn=%qn size=0
 @2op_sz28 .... .... .... .... .... .... .... .... &2op qd=%qd qm=%qm qn=%qn \
      size=%size_28
+
+@vadc .... .... .... .... ... i:1 .... .... .... &vadc qd=%qd qm=%qm qn=%qn
 
 # The _rev suffix indicates that Vn and Vm are reversed. This is
 # the case for shifts. In the Arm ARM these insns are documented
@@ -159,6 +162,9 @@ VQDMULLT         111 . 1110 0 . 11 ... 0 ... 1 1111 . 0 . 0 ... 1 @2op_sz28
 
 VRHADD_S         111 0 1111 0 . .. ... 0 ... 0 0001 . 1 . 0 ... 0 @2op
 VRHADD_U         111 1 1111 0 . .. ... 0 ... 0 0001 . 1 . 0 ... 0 @2op
+
+VADC             1110 1110 0 . 11 ... 0 ... . 1111 . 0 . 0 ... 0 @vadc
+VSBC             1111 1110 0 . 11 ... 0 ... . 1111 . 0 . 0 ... 0 @vadc
 
 # Vector miscellaneous
 
