@@ -1917,6 +1917,16 @@ void dpy_gl_release_dmabuf(QemuConsole *con,
     }
 }
 
+void dpy_gl_wait_dmabuf(QemuConsole *con,
+                        QemuDmaBuf *dmabuf)
+{
+    assert(con->gl);
+
+    if (con->gl->ops->dpy_gl_wait_dmabuf) {
+        con->gl->ops->dpy_gl_wait_dmabuf(con->gl, dmabuf);
+    }
+}
+
 void dpy_gl_update(QemuConsole *con,
                    uint32_t x, uint32_t y, uint32_t w, uint32_t h)
 {
