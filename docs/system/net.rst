@@ -41,6 +41,13 @@ download OpenVPN from : https://openvpn.net/.
 Using the user mode network stack
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+.. warning::
+   The user mode network stack (`slirp`_) is notoriously unsafe. We strongly
+   discourage its usage in a production environment. It is mostly useful for
+   developers or informed end-users. It is recommended to use other networking
+   solutions, or a dedicated standalone slirp process with the minimum
+   privileges.
+
 By using the option ``-net user`` (default configuration if no ``-net``
 option is specified), QEMU uses a completely user mode network stack
 (you don't need root privilege to use the virtual network). The virtual
@@ -98,3 +105,5 @@ option, it is possible to create emulated networks that span several
 QEMU instances. See the description of the ``-netdev socket`` option in
 :ref:`sec_005finvocation` to have a basic
 example.
+
+.. _slirp: https://gitlab.freedesktop.org/slirp/libslirp

@@ -388,6 +388,8 @@ static int net_slirp_init(NetClientState *peer, const char *model,
     char *end;
     struct slirp_config_str *config;
 
+    warn_report("User mode network stack is unsafe!");
+
     if (!ipv4 && (vnetwork || vhost || vnameserver)) {
         error_setg(errp, "IPv4 disabled but netmask/host/dns provided");
         return -1;

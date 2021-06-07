@@ -2652,7 +2652,9 @@ SRST
 
 ``-netdev user,id=id[,option][,option][,...]``
     Configure user mode host network backend which requires no
-    administrator privilege to run. Valid options are:
+    administrator privilege to run, but is notoriously **unsafe**!
+
+    Valid options are:
 
     ``id=id``
         Assign symbolic name for use in monitor commands.
