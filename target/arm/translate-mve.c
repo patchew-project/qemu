@@ -588,3 +588,62 @@ static bool trans_VRMLSLDAVH(DisasContext *s, arg_vmlaldav *a)
     };
     return do_long_dual_acc(s, a, fns[a->x]);
 }
+
+static bool trans_VPST(DisasContext *s, arg_VPST *a)
+{
+    TCGv_i32 vpr, mask;
+
+    /* mask == 0 is a "related encoding" */
+    if (!dc_isar_feature(aa32_mve, s) || !a->mask) {
+        return false;
+    }
+    if (!mve_eci_check(s)) {
+        return true;
+    }
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+    /*
+     * Set the VPR mask fields. We take advantage of MASK01 and MASK23
+     * being adjacent fields in the register.
+     *
+     * This insn is not predicated, but it is subject to beat-wise
+     * execution, and the mask is updated on the odd-numbered beats.
+     * So if PSR.ECI says we should skip beat 1, we mustn't update the
+     * 01 mask field.
+     */
+    vpr = load_cpu_field(v7m.vpr);
+    switch (s->eci) {
+    case ECI_NONE:
+    case ECI_A0:
+        /* Update both 01 and 23 fields */
+        mask = tcg_const_i32(a->mask | (a->mask << 4));
+        tcg_gen_deposit_i32(vpr, vpr, mask, R_V7M_VPR_MASK01_SHIFT,
+                            R_V7M_VPR_MASK01_LENGTH + R_V7M_VPR_MASK23_LENGTH);
+        break;
+    case ECI_A0A1:
+    case ECI_A0A1A2:
+    case ECI_A0A1A2B0:
+        /* Update only the 23 mask field */
+        mask = tcg_const_i32(a->mask);
+        tcg_gen_deposit_i32(vpr, vpr, mask, R_V7M_VPR_MASK23_SHIFT,
+                            R_V7M_VPR_MASK23_LENGTH);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    store_cpu_field(vpr, v7m.vpr);
+    tcg_temp_free_i32(mask);
+
+    if (s->eci) {
+        TCGv_i32 eci;
+        mve_update_eci(s);
+        /*
+         * Update ECI in CPUState (since we didn't call a helper
+         * that will call mve_advance_vpt()).
+         */
+        eci = tcg_const_i32(s->eci << 4);
+        store_cpu_field(eci, condexec_bits);
+    }
+    return true;
+}
