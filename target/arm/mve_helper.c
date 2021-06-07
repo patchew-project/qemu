@@ -278,3 +278,13 @@ DO_1OP(vabsw, 4, int32_t, H4, DO_ABS)
 
 DO_1OP(vfabsh, 2, uint16_t, H2, DO_FABS)
 DO_1OP(vfabss, 4, uint32_t, H4, DO_FABS)
+
+#define DO_NEG(N)    (-(N))
+#define DO_FNEG(N)    ((N) ^ ~((__typeof(N))-1 >> 1))
+
+DO_1OP(vnegb, 1, int8_t, H1, DO_NEG)
+DO_1OP(vnegh, 2, int16_t, H2, DO_NEG)
+DO_1OP(vnegw, 4, int32_t, H4, DO_NEG)
+
+DO_1OP(vfnegh, 2, uint16_t, H2, DO_FNEG)
+DO_1OP(vfnegs, 4, uint32_t, H4, DO_FNEG)
