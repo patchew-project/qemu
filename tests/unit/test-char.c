@@ -214,6 +214,10 @@ static void char_mux_test(void)
     qemu_chr_fe_take_focus(&chr_be2);
 
     base = qemu_chr_find("mux-label-base");
+    g_assert_nonnull(base);
+    if (base == 0) {
+        goto fail;
+    }
     g_assert_cmpint(qemu_chr_be_can_write(base), !=, 0);
 
     qemu_chr_be_write(base, (void *)"hello", 6);
@@ -333,6 +337,7 @@ static void char_mux_test(void)
     g_assert_cmpint(strlen(data), !=, 0);
     g_free(data);
 
+fail:
     qemu_chr_fe_deinit(&chr_be1, false);
     qemu_chr_fe_deinit(&chr_be2, true);
 }
@@ -486,6 +491,9 @@ static void char_pipe_test(void)
     chr = qemu_chr_new("pipe", tmp, NULL);
     g_assert_nonnull(chr);
     g_free(tmp);
+    if (!chr) {
+        goto fail;
+    }
 
     qemu_chr_fe_init(&be, chr, &error_abort);
 
@@ -493,12 +501,20 @@ static void char_pipe_test(void)
     g_assert_cmpint(ret, ==, 9);
 
     fd = open(out, O_RDWR);
+    g_assert_cmpint(fd, >=, 0);
+    if (fd < 0) {
+        goto fail;
+    }
     ret = read(fd, buf, sizeof(buf));
     g_assert_cmpint(ret, ==, 9);
     g_assert_cmpstr(buf, ==, "pipe-out");
     close(fd);
 
     fd = open(in, O_WRONLY);
+    g_assert_cmpint(fd, >=, 0);
+    if (fd < 0) {
+        goto fail;
+    }
     ret = write(fd, "pipe-in", 8);
     g_assert_cmpint(ret, ==, 8);
     close(fd);
@@ -518,6 +534,7 @@ static void char_pipe_test(void)
 
     qemu_chr_fe_deinit(&be, true);
 
+fail:
     g_assert(g_unlink(in) == 0);
     g_assert(g_unlink(out) == 0);
     g_assert(g_rmdir(tmp_path) == 0);
@@ -556,7 +573,10 @@ static int make_udp_socket(int *port)
     socklen_t alen = sizeof(addr);
     int ret, sock = qemu_socket(PF_INET, SOCK_DGRAM, 0);
 
-    g_assert_cmpint(sock, >, 0);
+    g_assert_cmpint(sock, >=, 0);
+    if (sock < 0) {
+        return sock;
+    }
     addr.sin_family = AF_INET ;
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
     addr.sin_port = 0;
@@ -586,6 +606,9 @@ static void char_udp_test_internal(Chardev *reuse_chr, int sock)
     } else {
         int port;
         sock = make_udp_socket(&port);
+        if (sock < 0) {
+            return;
+        }
         tmp = g_strdup_printf("udp:127.0.0.1:%d", port);
         chr = qemu_chr_new("client", tmp, NULL);
         g_assert_nonnull(chr);
@@ -1224,6 +1247,10 @@ static void char_file_fifo_test(void)
     }
 
     fd = open(fifo, O_RDWR);
+    g_assert_cmpint(fd, >=, 0);
+    if (fd < 0) {
+        goto fail;
+    }
     ret = write(fd, "fifo-in", 8);
     g_assert_cmpint(ret, ==, 8);
 
@@ -1253,6 +1280,7 @@ static void char_file_fifo_test(void)
 
     qemu_chr_fe_deinit(&be, true);
 
+fail:
     g_unlink(fifo);
     g_free(fifo);
     g_unlink(out);
@@ -1371,7 +1399,7 @@ static int chardev_change_denied(void *opaque)
 
 static void char_hotswap_test(void)
 {
-    char *chr_args;
+    char *chr_args = NULL;
     Chardev *chr;
     CharBackend be;
 
@@ -1385,6 +1413,9 @@ static void char_hotswap_test(void)
     int port;
     int sock = make_udp_socket(&port);
     g_assert_cmpint(sock, >, 0);
+    if (sock < 0) {
+        goto fail;
+    }
 
     chr_args = g_strdup_printf("udp:127.0.0.1:%d", port);
 
@@ -1422,6 +1453,7 @@ static void char_hotswap_test(void)
     object_unparent(OBJECT(chr));
 
     qapi_free_ChardevReturn(ret);
+fail:
     g_unlink(filename);
     g_free(filename);
     g_rmdir(tmp_path);
