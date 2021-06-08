@@ -20,12 +20,14 @@ from typing import Optional
 
 # pylint: disable=import-error
 from .accel import kvm_available, list_accel, tcg_available
+from .feature import list_feature
 
 
 __all__ = (
     'get_info_usernet_hostfwd_port',
     'kvm_available',
     'list_accel',
+    'list_feature',
     'tcg_available',
 )
 

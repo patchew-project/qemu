@@ -14,13 +14,11 @@ accelerators.
 # the COPYING file in the top-level directory.
 #
 
-import logging
 import os
-import subprocess
 from typing import List, Optional
 
+from qemu.utils.feature import list_feature
 
-LOG = logging.getLogger(__name__)
 
 # Mapping host architecture to any additional architectures it can
 # support which often includes its 32 bit cousin.
@@ -39,16 +37,7 @@ def list_accel(qemu_bin: str) -> List[str]:
     @raise Exception: if failed to run `qemu -accel help`
     @return a list of accelerator names.
     """
-    if not qemu_bin:
-        return []
-    try:
-        out = subprocess.check_output([qemu_bin, '-accel', 'help'],
-                                      universal_newlines=True)
-    except:
-        LOG.debug("Failed to get the list of accelerators in %s", qemu_bin)
-        raise
-    # Skip the first line which is the header.
-    return [acc.strip() for acc in out.splitlines()[1:]]
+    return list_feature(qemu_bin, 'accel')
 
 
 def kvm_available(target_arch: Optional[str] = None,
