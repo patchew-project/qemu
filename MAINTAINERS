@@ -2938,6 +2938,10 @@ F: hw/core/clock-vmstate.c
 F: hw/core/qdev-clock.c
 F: docs/devel/clocks.rst
 
+AMD Secure Encrypted Virtualization
+R: Connor Kuehl <ckuehl@redhat.com>
+F: target/i386/sev.c
+
 Usermode Emulation
 ------------------
 Overall usermode emulation
