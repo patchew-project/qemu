@@ -11,6 +11,7 @@
 import logging
 import os
 import shutil
+import subprocess
 import sys
 import uuid
 import tempfile
@@ -45,7 +46,8 @@ from qemu.machine import QEMUMachine
 from qemu.utils import (
     get_info_usernet_hostfwd_port,
     kvm_available,
-    tcg_available,
+    list_feature,
+    tcg_available
 )
 
 def is_readable_executable_file(path):
@@ -181,6 +183,31 @@ class Test(avocado.Test):
         if len(vals) == 1:
             return vals.pop()
         return None
+
+    def require_feature(self, feature, option=None):
+        """
+        Requires a feature to be available for the test to continue
+
+        It takes into account the currently set qemu binary, and only checks
+        for by running a "qemu -$feature help" command.  If the specific option
+        is given, it checks if it's listed for the given feature.
+
+        If the check fails, the test is canceled.
+
+        :param feature: name of a QEMU feature, such as "accel" or "machine"
+        :type feature: str
+        :param option: the specific value for the feature.  For instance,
+                       if feature is "machine", option can be "q35".
+        type option: str
+        """
+        try:
+            options_available = list_feature(self.qemu_bin, feature)
+        except subprocess.CalledProcessError:
+            self.cancel('Feature "%s" does not appear to be present.' % feature)
+        if option is not None:
+            if option not in options_available:
+                self.cancel('Feature "%s" does not have "%s" as an option' %
+                            (feature, option))
 
     def require_accelerator(self, accelerator):
         """
