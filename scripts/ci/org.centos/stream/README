@@ -1,0 +1,2 @@
+This directory contains scripts for generating a build of QEMU that
+closely matches the CentOS Stream builds of the qemu-kvm package.

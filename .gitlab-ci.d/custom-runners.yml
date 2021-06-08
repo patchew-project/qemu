@@ -220,3 +220,32 @@ ubuntu-20.04-aarch64-notcg:
  - ../configure --disable-libssh --disable-tcg
  - make --output-sync -j`nproc`
  - make --output-sync -j`nproc` check V=1
+
+centos-stream-8-x86_64:
+ allow_failure: true
+ needs: []
+ stage: build
+ tags:
+ - centos_stream_8
+ - x86_64
+ rules:
+ - if: '$CI_COMMIT_BRANCH =~ /^staging/'
+ artifacts:
+   name: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+   when: on_failure
+   expire_in: 7 days
+   paths:
+     - build/tests/results/latest/results.xml
+     - build/tests/results/latest/test-results
+   reports:
+     junit: build/tests/results/latest/results.xml
+ script:
+ - mkdir build
+ - cd build
+ - ../scripts/ci/org.centos/stream/configure
+ - make --output-sync -j`nproc`
+ - make --output-sync -j`nproc` check V=1
+ - make get-vm-images
+ # Only run tests that are either marked explicitly for KVM and x86_64
+ # or tests that are supposed to be valid for all targets
+ - ./tests/venv/bin/avocado run --job-results-dir=tests/results/ --filter-by-tags-include-empty --filter-by-tags-include-empty-key -t accel:kvm,arch:x86_64 -- tests/acceptance/
