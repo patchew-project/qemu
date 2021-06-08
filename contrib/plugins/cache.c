@@ -104,8 +104,17 @@ static inline uint64_t extract_set(struct Cache *cache, uint64_t addr)
     return (addr & cache->set_mask) >> cache->blksize_shift;
 }
 
+static bool bad_cache_params(int blksize, int assoc, int cachesize)
+{
+    return (cachesize % blksize) != 0 || (cachesize % (blksize * assoc) != 0);
+}
+
 static struct Cache *cache_init(int blksize, int assoc, int cachesize)
 {
+    if (bad_cache_params(blksize, assoc, cachesize)) {
+        return NULL;
+    }
+
     struct Cache *cache;
     int i;
     uint64_t blk_mask;
@@ -403,8 +412,30 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
 
     for (i = 0; i < argc; i++) {
         char *opt = argv[i];
-        if (g_str_has_prefix(opt, "limit=")) {
-            limit = g_ascii_strtoull(opt + 6, NULL, 10);
+        if (g_str_has_prefix(opt, "I=")) {
+            gchar **toks = g_strsplit(opt + 2, " ", -1);
+            if (g_strv_length(toks) != 3) {
+                g_strfreev(toks);
+                fprintf(stderr, "option parsing failed: %s\n", opt);
+                return -1;
+            }
+            icachesize = g_ascii_strtoull(toks[0], NULL, 10);
+            iassoc = g_ascii_strtoull(toks[1], NULL, 10);
+            iblksize = g_ascii_strtoull(toks[2], NULL, 10);
+            g_strfreev(toks);
+        } else if (g_str_has_prefix(opt, "D=")) {
+            gchar **toks = g_strsplit(opt + 2, " ", -1);
+            if (g_strv_length(toks) != 3) {
+                g_strfreev(toks);
+                fprintf(stderr, "option parsing failed: %s\n", opt);
+                return -1;
+            }
+            dcachesize = g_ascii_strtoull(toks[0], NULL, 10);
+            dassoc = g_ascii_strtoull(toks[1], NULL, 10);
+            dblksize = g_ascii_strtoull(toks[2], NULL, 10);
+            g_strfreev(toks);
+        } else if (g_str_has_prefix(opt, "limit=")) {
+            limit = g_ascii_strtoll(opt + 6, NULL, 10);
         } else {
             fprintf(stderr, "option parsing failed: %s\n", opt);
             return -1;
@@ -412,7 +443,16 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
     }
 
     dcache = cache_init(dblksize, dassoc, dcachesize);
+    if (!dcache) {
+        fprintf(stderr, "dcache cannot be constructed from given parameters\n");
+        return -1;
+    }
+
     icache = cache_init(iblksize, iassoc, icachesize);
+    if (!icache) {
+        fprintf(stderr, "icache cannot be constructed from given parameters\n");
+        return -1;
+    }
 
     qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans);
     qemu_plugin_register_atexit_cb(id, plugin_exit, NULL);
