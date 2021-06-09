@@ -1851,6 +1851,85 @@ load_memop(const void *haddr, MemOp op)
     }
 }
 
+static uint64_t __attribute__((noinline))
+load_helper_unaligned(CPUArchState *env, target_ulong addr, uintptr_t retaddr,
+                      size_t size, uintptr_t mmu_idx, bool code_read,
+                      bool big_endian)
+{
+    uintptr_t index, index2;
+    CPUTLBEntry *entry, *entry2;
+    const size_t tlb_off = code_read ?
+        offsetof(CPUTLBEntry, addr_code) : offsetof(CPUTLBEntry, addr_read);
+    const MMUAccessType access_type =
+        code_read ? MMU_INST_FETCH : MMU_DATA_LOAD;
+    target_ulong page2, tlb_addr, tlb_addr2;
+    uint64_t val = 0;
+    TCGMemOpIdx oi;
+    size_t size2;
+    int i;
+
+    /*
+     * Ensure the second page is in the TLB.  Note that the first page
+     * is already guaranteed to be filled, and that the second page
+     * cannot evict the first.
+     */
+    page2 = (addr + size) & TARGET_PAGE_MASK;
+    size2 = (addr + size) & ~TARGET_PAGE_MASK;
+    index2 = tlb_index(env, mmu_idx, page2);
+    entry2 = tlb_entry(env, mmu_idx, page2);
+
+    tlb_addr2 = code_read ? entry2->addr_code : entry2->addr_read;
+    if (!tlb_hit_page(tlb_addr2, page2)) {
+        if (!victim_tlb_hit(env, mmu_idx, index2, tlb_off, page2)) {
+            tlb_fill(env_cpu(env), page2, size2, access_type,
+                     mmu_idx, retaddr);
+            index2 = tlb_index(env, mmu_idx, page2);
+            entry2 = tlb_entry(env, mmu_idx, page2);
+        }
+        tlb_addr2 = code_read ? entry2->addr_code : entry2->addr_read;
+    }
+
+    index = tlb_index(env, mmu_idx, addr);
+    entry = tlb_entry(env, mmu_idx, addr);
+    tlb_addr = code_read ? entry->addr_code : entry->addr_read;
+
+    /*
+     * Handle watchpoints
+     */
+    if (unlikely(tlb_addr & TLB_WATCHPOINT)) {
+        cpu_check_watchpoint(env_cpu(env), addr, size - size2,
+                             env_tlb(env)->d[mmu_idx].iotlb[index].attrs,
+                             BP_MEM_READ, retaddr);
+    }
+    if (unlikely(tlb_addr2 & TLB_WATCHPOINT)) {
+        cpu_check_watchpoint(env_cpu(env), page2, size2,
+                             env_tlb(env)->d[mmu_idx].iotlb[index2].attrs,
+                             BP_MEM_READ, retaddr);
+    }
+
+    /*
+     * XXX: not efficient, but simple.
+     * This loop must go in the forward direction to avoid issues
+     * with self-modifying code in Windows 64-bit.
+     */
+    oi = make_memop_idx(MO_UB, mmu_idx);
+    if (big_endian) {
+        for (i = 0; i < size; ++i) {
+            /* Big-endian load.  */
+            uint8_t val8 = helper_ret_ldub_mmu(env, addr + i, oi, retaddr);
+            val |= val8 << (((size - 1) * 8) - (i * 8));
+        }
+    } else {
+        for (i = 0; i < size; ++i) {
+            /* Little-endian load.  */
+            uint8_t val8 = helper_ret_ldub_mmu(env, addr + i, oi, retaddr);
+            val |= val8 << (i * 8);
+        }
+    }
+
+    return val;
+}
+
 static inline uint64_t QEMU_ALWAYS_INLINE
 load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
             uintptr_t retaddr, MemOp op, bool code_read,
@@ -1893,7 +1972,7 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
         CPUIOTLBEntry *iotlbentry;
         bool need_swap;
 
-        /* For anything that is unaligned, recurse through full_load.  */
+        /* For anything that is unaligned, recurse through byte loads.  */
         if ((addr & (size - 1)) != 0) {
             goto do_unaligned_access;
         }
@@ -1932,23 +2011,9 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
     if (size > 1
         && unlikely((addr & ~TARGET_PAGE_MASK) + size - 1
                     >= TARGET_PAGE_SIZE)) {
-        target_ulong addr1, addr2;
-        uint64_t r1, r2;
-        unsigned shift;
     do_unaligned_access:
-        addr1 = addr & ~((target_ulong)size - 1);
-        addr2 = addr1 + size;
-        r1 = full_load(env, addr1, oi, retaddr);
-        r2 = full_load(env, addr2, oi, retaddr);
-        shift = (addr & (size - 1)) * 8;
-
-        if (memop_big_endian(op)) {
-            /* Big-endian combine.  */
-            res = (r1 << shift) | (r2 >> ((size * 8) - shift));
-        } else {
-            /* Little-endian combine.  */
-            res = (r1 >> shift) | (r2 << ((size * 8) - shift));
-        }
+        res = load_helper_unaligned(env, addr, retaddr, size, mmu_idx,
+                                    code_read, memop_big_endian(op));
         return res & MAKE_64BIT_MASK(0, size * 8);
     }
 
