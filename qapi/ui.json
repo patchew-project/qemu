@@ -1126,9 +1126,15 @@
 #
 ##
 { 'enum'    : 'DisplayType',
-  'data'    : [ 'default', 'none', 'gtk', 'sdl',
-                'egl-headless', 'curses', 'cocoa',
-                'spice-app'] }
+  'data'    : [
+    { 'name': 'default' },
+    { 'name': 'none' },
+    { 'name': 'gtk' },
+    { 'name': 'sdl', 'if': 'defined(CONFIG_SDL)' },
+    { 'name': 'egl-headless' },
+    { 'name': 'curses' },
+    { 'name': 'cocoa', 'if': 'defined(CONFIG_COCOA)' },
+    { 'name': 'spice-app', 'if': 'defined(CONFIG_SPICE)'} ] }
 
 ##
 # @DisplayOptions:
