@@ -7,6 +7,8 @@
 
 #include "qemu/osdep.h"
 #include "qapi/qapi-commands-tpm.h"
+#include "qapi/qmp/qerror.h"
+#include "qapi/error.h"
 #include "sysemu/tpm.h"
 #include "hw/acpi/tpm.h"
 
@@ -21,16 +23,19 @@ void tpm_cleanup(void)
 
 TPMInfoList *qmp_query_tpm(Error **errp)
 {
+    error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
 }
 
 TpmTypeList *qmp_query_tpm_types(Error **errp)
 {
+    error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
 }
 
 TpmModelList *qmp_query_tpm_models(Error **errp)
 {
+    error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
 }
 
