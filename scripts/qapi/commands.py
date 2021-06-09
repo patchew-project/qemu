@@ -91,8 +91,8 @@ def gen_call(name: str,
 def gen_marshal_output(ret_type: QAPISchemaType) -> str:
     return mcgen('''
 
-static void qmp_marshal_output_%(c_name)s(%(c_type)s ret_in,
-                                QObject **ret_out, Error **errp)
+static inline void qmp_marshal_output_%(c_name)s(%(c_type)s ret_in,
+                                        QObject **ret_out, Error **errp)
 {
     Visitor *v;
 
