@@ -455,8 +455,10 @@ static int vhost_user_blk_realize_connect(VHostUserBlk *s, Error **errp)
 
 static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_GUARD();
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserBlk *s = VHOST_USER_BLK(vdev);
+    int retries;
     int i, ret;
 
     if (!s->chardev.chr) {
@@ -498,7 +500,17 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
     s->inflight = g_new0(struct vhost_inflight, 1);
     s->vhost_vqs = g_new0(struct vhost_virtqueue, s->num_queues);
 
-    ret = vhost_user_blk_realize_connect(s, errp);
+    retries = 3;
+    assert(!*errp);
+    do {
+        if (*errp) {
+            error_prepend(errp, "Reconnecting after error: ");
+            error_report_err(*errp);
+            *errp = NULL;
+        }
+        ret = vhost_user_blk_realize_connect(s, errp);
+    } while (ret == -EPROTO && retries--);
+
     if (ret < 0) {
         goto virtio_err;
     }
