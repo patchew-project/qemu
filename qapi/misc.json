@@ -519,3 +519,32 @@
  'data': { '*option': 'str' },
  'returns': ['CommandLineOptionInfo'],
  'allow-preconfig': true }
+
+##
+# @HelperPath:
+#
+# Name of the helper and binary location.
+##
+{ 'struct': 'HelperPath',
+  'data': {'name': 'str', 'path': 'str'} }
+
+##
+# @query-helper-paths:
+#
+# Query specific eBPF RSS helper for current qemu binary.
+#
+# Returns: list of object that contains name and path for helper.
+#
+# Example:
+#
+# -> { "execute": "query-helper-paths" }
+# <- { "return": [
+#        {
+#          "name": "qemu-ebpf-rss-helper",
+#          "path": "/usr/local/libexec/qemu-ebpf-rss-helper"
+#        }
+#      ]
+#    }
+#
+##
+{ 'command': 'query-helper-paths', 'returns': ['HelperPath'] }

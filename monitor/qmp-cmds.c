@@ -351,3 +351,81 @@ void qmp_display_reload(DisplayReloadOptions *arg, Error **errp)
         abort();
     }
 }
+
+#ifdef CONFIG_LINUX
+
+static const char *get_dirname(char *path)
+{
+    char *sep;
+
+    sep = strrchr(path, '/');
+    if (sep == path) {
+        return "/";
+    } else if (sep) {
+        *sep = 0;
+        return path;
+    }
+    return ".";
+}
+
+static char *find_helper(const char *name)
+{
+    char qemu_exec[PATH_MAX];
+    const char *qemu_dir = NULL;
+    char *helper = NULL;
+
+    if (name == NULL) {
+        return NULL;
+    }
+
+    if (readlink("/proc/self/exe", qemu_exec, PATH_MAX) > 0) {
+        qemu_dir = get_dirname(qemu_exec);
+
+        helper = g_strdup_printf("%s/%s", qemu_dir, name);
+        if (access(helper, F_OK) == 0) {
+            return helper;
+        }
+        g_free(helper);
+    }
+
+    helper = g_strdup_printf("%s/%s", CONFIG_QEMU_HELPERDIR, name);
+    if (access(helper, F_OK) == 0) {
+        return helper;
+    }
+    g_free(helper);
+
+    return NULL;
+}
+
+HelperPathList *qmp_query_helper_paths(Error **errp)
+{
+    HelperPathList *ret = NULL;
+    const char *helpers_list[] = {
+#ifdef CONFIG_EBPF
+        "qemu-ebpf-rss-helper",
+#endif
+        NULL
+    };
+    const char **helper_iter = helpers_list;
+
+    for (; *helper_iter != NULL; ++helper_iter) {
+        char *path = find_helper(*helper_iter);
+        if (path) {
+            HelperPath *helper = g_new0(HelperPath, 1);
+            helper->name = g_strdup(*helper_iter);
+            helper->path = path;
+
+            QAPI_LIST_PREPEND(ret, helper);
+        }
+    }
+
+    return ret;
+}
+#else
+
+HelperPathList *qmp_query_helper_paths(Error **errp)
+{
+    return NULL;
+}
+
+#endif
