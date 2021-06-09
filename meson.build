@@ -1033,19 +1033,22 @@ if not get_option('fuse_lseek').disabled()
 endif
 
 # libbpf
-libbpf = dependency('libbpf', required: get_option('bpf'), method: 'pkg-config')
-if libbpf.found() and not cc.links('''
-   #include <bpf/libbpf.h>
-   int main(void)
-   {
-     bpf_object__destroy_skeleton(NULL);
-     return 0;
-   }''', dependencies: libbpf)
-  libbpf = not_found
-  if get_option('bpf').enabled()
-    error('libbpf skeleton test failed')
-  else
-    warning('libbpf skeleton test failed, disabling')
+libbpf = not_found
+if targetos == 'linux'
+  libbpf = dependency('libbpf', required: get_option('bpf'), method: 'pkg-config')
+  if libbpf.found() and not cc.links('''
+    #include <bpf/libbpf.h>
+    int main(void)
+    {
+      bpf_object__destroy_skeleton(NULL);
+      return 0;
+    }''', dependencies: libbpf)
+    libbpf = not_found
+    if get_option('bpf').enabled()
+      error('libbpf skeleton test failed')
+    else
+      warning('libbpf skeleton test failed, disabling')
+    endif
   endif
 endif
 
