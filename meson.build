@@ -2413,6 +2413,14 @@ if have_tools
                dependencies: [authz, crypto, io, qom, qemuutil,
                               libcap_ng, mpathpersist],
                install: true)
+
+    if libbpf.found()
+        executable('qemu-ebpf-rss-helper', files(
+                   'ebpf/qemu-ebpf-rss-helper.c', 'ebpf/ebpf_rss.c'),
+                   dependencies: [qemuutil, libbpf, glib],
+                   install: true,
+                   install_dir: get_option('libexecdir'))
+    endif
   endif
 
   if 'CONFIG_IVSHMEM' in config_host
