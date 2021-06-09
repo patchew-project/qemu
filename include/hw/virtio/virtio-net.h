@@ -213,6 +213,7 @@ struct VirtIONet {
     VirtioNetRssData rss_data;
     struct NetRxPkt *rx_pkt;
     struct EBPFRSSContext ebpf_rss;
+    char *ebpf_rss_fds;
 };
 
 void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
