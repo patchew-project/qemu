@@ -186,6 +186,9 @@ void fuse_cmdline_help(void)
            "                               to virtiofsd from guest applications.\n"
            "                               default: no_allow_direct_io\n"
            "    -o announce_submounts      Announce sub-mount points to the guest\n"
+           "    -o inode_file_handles      Use file handles to reference inodes\n"
+           "                               instead of O_PATH file descriptors\n"
+           "                               (requires -o modcaps=+dac_read_search)\n"
            );
 }
 
