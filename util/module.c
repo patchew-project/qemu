@@ -110,6 +110,36 @@ void module_call_init(module_init_type type)
 }
 
 #ifdef CONFIG_MODULES
+
+static char *module_dirs[5];
+static int module_ndirs;
+
+static void module_load_path_init(void)
+{
+    const char *search_dir;
+
+    if (module_ndirs) {
+        return;
+    }
+
+    search_dir = getenv("QEMU_MODULE_DIR");
+    if (search_dir != NULL) {
+        module_dirs[module_ndirs++] = g_strdup_printf("%s", search_dir);
+    }
+    module_dirs[module_ndirs++] = get_relocated_path(CONFIG_QEMU_MODDIR);
+    module_dirs[module_ndirs++] = g_strdup(qemu_get_exec_dir());
+
+#ifdef CONFIG_MODULE_UPGRADES
+    version_dir = g_strcanon(g_strdup(QEMU_PKGVERSION),
+                             G_CSET_A_2_Z G_CSET_a_2_z G_CSET_DIGITS "+-.~",
+                             '_');
+    module_dirs[module_ndirs++] = g_strdup_printf("/var/run/qemu/%s", version_dir);
+#endif
+
+    assert(module_ndirs <= ARRAY_SIZE(module_dirs));
+
+}
+
 static int module_load_file(const char *fname, bool mayfail, bool export_symbols)
 {
     GModule *g_module;
@@ -204,10 +234,8 @@ bool module_load_one(const char *prefix, const char *lib_name, bool mayfail)
 #ifdef CONFIG_MODULE_UPGRADES
     char *version_dir;
 #endif
-    const char *search_dir;
-    char *dirs[5];
     char *module_name;
-    int i = 0, n_dirs = 0;
+    int i = 0;
     int ret, dep;
     bool export_symbols = false;
     static GHashTable *loaded_modules;
@@ -240,25 +268,11 @@ bool module_load_one(const char *prefix, const char *lib_name, bool mayfail)
     }
     g_hash_table_add(loaded_modules, module_name);
 
-    search_dir = getenv("QEMU_MODULE_DIR");
-    if (search_dir != NULL) {
-        dirs[n_dirs++] = g_strdup_printf("%s", search_dir);
-    }
-    dirs[n_dirs++] = get_relocated_path(CONFIG_QEMU_MODDIR);
-    dirs[n_dirs++] = g_strdup(qemu_get_exec_dir());
+    module_load_path_init();
 
-#ifdef CONFIG_MODULE_UPGRADES
-    version_dir = g_strcanon(g_strdup(QEMU_PKGVERSION),
-                             G_CSET_A_2_Z G_CSET_a_2_z G_CSET_DIGITS "+-.~",
-                             '_');
-    dirs[n_dirs++] = g_strdup_printf("/var/run/qemu/%s", version_dir);
-#endif
-
-    assert(n_dirs <= ARRAY_SIZE(dirs));
-
-    for (i = 0; i < n_dirs; i++) {
+    for (i = 0; i < module_ndirs; i++) {
         fname = g_strdup_printf("%s/%s%s",
-                dirs[i], module_name, CONFIG_HOST_DSOSUF);
+                module_dirs[i], module_name, CONFIG_HOST_DSOSUF);
         ret = module_load_file(fname, mayfail, export_symbols);
         g_free(fname);
         fname = NULL;
@@ -272,10 +286,6 @@ bool module_load_one(const char *prefix, const char *lib_name, bool mayfail)
     if (!success) {
         g_hash_table_remove(loaded_modules, module_name);
         g_free(module_name);
-    }
-
-    for (i = 0; i < n_dirs; i++) {
-        g_free(dirs[i]);
     }
 
 #endif
