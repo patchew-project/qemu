@@ -158,7 +158,7 @@ static void module_load_modinfo(void)
 {
     char *file, *json;
     FILE *fp;
-    int i, size;
+    int i, size, ret;
     Visitor *v;
     Error *errp = NULL;
 
@@ -185,8 +185,8 @@ static void module_load_modinfo(void)
     size = ftell(fp);
     fseek(fp, 0, SEEK_SET);
     json = g_malloc0(size + 1);
-    fread(json, size, 1, fp);
-    json[size] = 0;
+    ret = fread(json, 1, size, fp);
+    json[ret] = 0;
     fclose(fp);
 
     v = qobject_input_visitor_new_str(json, NULL, &errp);
