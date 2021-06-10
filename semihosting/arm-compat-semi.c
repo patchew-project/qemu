@@ -1202,10 +1202,14 @@ target_ulong do_common_semihosting(CPUState *cs)
             retvals[3] = 0; /* Stack limit.  */
 #else
             limit = current_machine->ram_size;
-            /* TODO: Make this use the limit of the loaded application.  */
-            retvals[0] = rambase + limit / 2;
-            retvals[1] = rambase + limit;
-            retvals[2] = rambase + limit; /* Stack base */
+            /*
+             * Reporting 0 indicates we couldn't calculate the real
+             * values which should force most software to fall back to
+             * using information it has.
+             */
+            retvals[0] = 0; /* Heap Base */
+            retvals[1] = rambase + limit; /* Heap Limit */
+            retvals[2] = 0; /* Stack base */
             retvals[3] = rambase; /* Stack limit.  */
 #endif
 
