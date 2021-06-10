@@ -115,3 +115,16 @@ GEN_RVP_R_OOL(rstsa16);
 GEN_RVP_R_OOL(urstsa16);
 GEN_RVP_R_OOL(kstsa16);
 GEN_RVP_R_OOL(ukstsa16);
+
+/* 8-bit Addition & Subtraction Instructions */
+GEN_RVP_R_INLINE(add8, tcg_gen_vec_add8_tl, tcg_gen_add_tl);
+GEN_RVP_R_INLINE(sub8, tcg_gen_vec_sub8_tl, tcg_gen_sub_tl);
+
+GEN_RVP_R_OOL(radd8);
+GEN_RVP_R_OOL(uradd8);
+GEN_RVP_R_OOL(kadd8);
+GEN_RVP_R_OOL(ukadd8);
+GEN_RVP_R_OOL(rsub8);
+GEN_RVP_R_OOL(ursub8);
+GEN_RVP_R_OOL(ksub8);
+GEN_RVP_R_OOL(uksub8);
