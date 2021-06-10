@@ -219,7 +219,7 @@ static struct {
 static __thread bool cap_loaded = 0;
 
 static struct lo_inode *lo_find(struct lo_data *lo, struct stat *st,
-                                uint64_t mnt_id);
+                                uint64_t mnt_id, bool increase_nlookup);
 static int xattr_map_client(const struct lo_data *lo, const char *client_name,
                             char **out_name);
 
@@ -880,7 +880,7 @@ out_err:
 }
 
 static struct lo_inode *lo_find(struct lo_data *lo, struct stat *st,
-                                uint64_t mnt_id)
+                                uint64_t mnt_id, bool increase_nlookup)
 {
     struct lo_inode *p;
     struct lo_key key = {
@@ -893,7 +893,9 @@ static struct lo_inode *lo_find(struct lo_data *lo, struct stat *st,
     p = g_hash_table_lookup(lo->inodes, &key);
     if (p) {
         assert(p->nlookup > 0);
-        p->nlookup++;
+        if (increase_nlookup) {
+            p->nlookup++;
+        }
         g_atomic_int_inc(&p->refcount);
     }
     pthread_mutex_unlock(&lo->mutex);
@@ -1023,7 +1025,7 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         e->attr_flags |= FUSE_ATTR_SUBMOUNT;
     }
 
-    inode = lo_find(lo, &e->attr, mnt_id);
+    inode = lo_find(lo, &e->attr, mnt_id, true);
     if (inode) {
         close(newfd);
     } else {
@@ -1316,7 +1318,7 @@ out_err:
     fuse_reply_err(req, saverr);
 }
 
-/* Increments nlookup and caller must release refcount using lo_inode_put() */
+/* Caller must release refcount using lo_inode_put() */
 static struct lo_inode *lookup_name(fuse_req_t req, fuse_ino_t parent,
                                     const char *name)
 {
@@ -1336,7 +1338,7 @@ static struct lo_inode *lookup_name(fuse_req_t req, fuse_ino_t parent,
         return NULL;
     }
 
-    return lo_find(lo, &attr, mnt_id);
+    return lo_find(lo, &attr, mnt_id, false);
 }
 
 static void lo_rmdir(fuse_req_t req, fuse_ino_t parent, const char *name)
@@ -1364,7 +1366,6 @@ static void lo_rmdir(fuse_req_t req, fuse_ino_t parent, const char *name)
     res = unlinkat(lo_fd(req, parent), name, AT_REMOVEDIR);
 
     fuse_reply_err(req, res == -1 ? errno : 0);
-    unref_inode_lolocked(lo, inode, 1);
     lo_inode_put(lo, &inode);
 }
 
@@ -1423,8 +1424,6 @@ static void lo_rename(fuse_req_t req, fuse_ino_t parent, const char *name,
 
     fuse_reply_err(req, res == -1 ? errno : 0);
 out:
-    unref_inode_lolocked(lo, oldinode, 1);
-    unref_inode_lolocked(lo, newinode, 1);
     lo_inode_put(lo, &oldinode);
     lo_inode_put(lo, &newinode);
     lo_inode_put(lo, &parent_inode);
@@ -1456,7 +1455,6 @@ static void lo_unlink(fuse_req_t req, fuse_ino_t parent, const char *name)
     res = unlinkat(lo_fd(req, parent), name, 0);
 
     fuse_reply_err(req, res == -1 ? errno : 0);
-    unref_inode_lolocked(lo, inode, 1);
     lo_inode_put(lo, &inode);
 }
 
