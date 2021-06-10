@@ -473,6 +473,21 @@ static void nvme_irq_deassert(NvmeCtrl *n, NvmeCQueue *cq)
     }
 }
 
+/*
+ * Check if the vector used by the cq can be deasserted, i.e. it needn't be
+ * asserted for some other cq.
+ */
+static bool nvme_irq_can_deassert(NvmeCtrl *n, NvmeCQueue *cq)
+{
+    for (unsigned qid = 0; qid < n->params.max_ioqpairs + 1; qid++) {
+        NvmeCQueue *q = n->cq[qid];
+
+        if (q && q->vector == cq->vector && q->head != q->tail)
+            return false;  /* some queue needs this to stay asserted */
+    }
+    return true;
+}
+
 static void nvme_req_clear(NvmeRequest *req)
 {
     req->ns = NULL;
@@ -4089,7 +4104,9 @@ static uint16_t nvme_del_cq(NvmeCtrl *n, NvmeRequest *req)
         trace_pci_nvme_err_invalid_del_cq_notempty(qid);
         return NVME_INVALID_QUEUE_DEL;
     }
-    nvme_irq_deassert(n, cq);
+    if (nvme_irq_can_deassert(n, cq)) {
+        nvme_irq_deassert(n, cq);
+    }
     trace_pci_nvme_del_cq(qid);
     nvme_free_cq(cq, n);
     return NVME_SUCCESS;
@@ -5757,7 +5774,7 @@ static void nvme_process_db(NvmeCtrl *n, hwaddr addr, int val)
             timer_mod(cq->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 500);
         }
 
-        if (cq->tail == cq->head) {
+        if (nvme_irq_can_deassert(n, cq)) {
             nvme_irq_deassert(n, cq);
         }
     } else {
