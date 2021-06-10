@@ -2454,6 +2454,7 @@ GuestDeviceInfoList *qmp_guest_get_devices(Error **errp)
             GMatchInfo *match_info;
             GuestDeviceIdPCI *id;
             if (!g_regex_match(device_pci_re, hw_ids[j], 0, &match_info)) {
+                g_match_info_free(match_info);
                 continue;
             }
             skip = false;
