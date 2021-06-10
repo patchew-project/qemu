@@ -3613,3 +3613,185 @@ static inline void do_kmatt32(CPURISCVState *env, void *vd, void *va,
 }
 
 RVPR_ACC(kmatt32, 1, 8);
+
+/* (RV64 Only) 32-bit Parallel Multiply & Add Instructions */
+static inline void do_kmda32(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    int64_t *d = vd;
+    int32_t *a = va, *b = vb;
+    if (a[H4(i)] == INT32_MIN && b[H4(i)] == INT32_MIN &&
+        a[H4(i + 1)] == INT32_MIN && b[H4(i + 1)] == INT32_MIN) {
+        *d = INT64_MAX;
+        env->vxsat = 0x1;
+    } else {
+        *d = (int64_t)a[H4(i)] * b[H4(i)] +
+             (int64_t)a[H4(i + 1)] * b[H4(i + 1)];
+    }
+}
+
+RVPR64_64_64(kmda32, 1, 8);
+
+static inline void do_kmxda32(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    int64_t *d = vd;
+    int32_t *a = va, *b = vb;
+    if (a[H4(i)] == INT32_MIN && b[H4(i)] == INT32_MIN &&
+        a[H4(i + 1)] == INT32_MIN && b[H4(i + 1)] == INT32_MIN) {
+        *d = INT64_MAX;
+        env->vxsat = 0x1;
+    } else {
+        *d = (int64_t)a[H4(i)] * b[H4(i + 1)] +
+             (int64_t)a[H4(i + 1)] * b[H4(i)];
+    }
+}
+
+RVPR64_64_64(kmxda32, 1, 8);
+
+static inline void do_kmaxda32(CPURISCVState *env, void *vd, void *va,
+                               void *vb, void *vc, uint8_t i)
+{
+    int64_t *d = vd, *c = vc;
+    int32_t *a = va, *b = vb;
+    int64_t p1, p2;
+    p1 = (int64_t)a[H4(i)] * b[H4(i + 1)];
+    p2 = (int64_t)a[H4(i + 1)] * b[H4(i)];
+
+    if (a[H4(i)] == INT32_MIN && a[H4(i + 1)] == INT32_MIN &&
+        b[H4(i)] == INT32_MIN && b[H4(i + 1)] == INT32_MIN) {
+        if (*d < 0) {
+            *d = (INT64_MAX + *c) + 1ll;
+        } else {
+            env->vxsat = 0x1;
+            *d = INT64_MAX;
+        }
+    } else {
+        *d = sadd64(env, 0, p1 + p2, *c);
+    }
+}
+
+RVPR_ACC(kmaxda32, 1, 8);
+
+static inline void do_kmads32(CPURISCVState *env, void *vd, void *va,
+                              void *vb, void *vc, uint8_t i)
+{
+    int64_t *d = vd, *c = vc;
+    int32_t *a = va, *b = vb;
+    int64_t t0, t1;
+    t1 = (int64_t)a[H4(i + 1)] * b[H4(i + 1)];
+    t0 = (int64_t)a[H4(i)] * b[H4(i)];
+
+    *d = sadd64(env, 0, t1 - t0, *c);
+}
+
+RVPR_ACC(kmads32, 1, 8);
+
+static inline void do_kmadrs32(CPURISCVState *env, void *vd, void *va,
+                               void *vb, void *vc, uint8_t i)
+{
+    int64_t *d = vd, *c = vc;
+    int32_t *a = va, *b = vb;
+    int64_t t0, t1;
+    t1 = (int64_t)a[H4(i + 1)] * b[H4(i + 1)];
+    t0 = (int64_t)a[H4(i)] * b[H4(i)];
+
+    *d = sadd64(env, 0, t0 - t1, *c);
+}
+
+RVPR_ACC(kmadrs32, 1, 8);
+
+static inline void do_kmaxds32(CPURISCVState *env, void *vd, void *va,
+                               void *vb, void *vc, uint8_t i)
+{
+    int64_t *d = vd, *c = vc;
+    int32_t *a = va, *b = vb;
+    int64_t t01, t10;
+    t01 = (int64_t)a[H4(i)] * b[H4(i + 1)];
+    t10 = (int64_t)a[H4(i + 1)] * b[H4(i)];
+
+    *d = sadd64(env, 0, t10 - t01, *c);
+}
+
+RVPR_ACC(kmaxds32, 1, 8);
+
+static inline void do_kmsda32(CPURISCVState *env, void *vd, void *va,
+                              void *vb, void *vc, uint8_t i)
+{
+    int64_t *d = vd, *c = vc;
+    int32_t *a = va, *b = vb;
+    int64_t t0, t1;
+    t0 = (int64_t)a[H4(i)] * b[H4(i)];
+    t1 = (int64_t)a[H4(i + 1)] * b[H4(i + 1)];
+
+    if (a[H4(i)] == INT32_MIN && a[H4(i + 1)] == INT32_MIN &&
+        b[H4(i)] == INT32_MIN && b[H4(i + 1)] == INT32_MIN) {
+        if (*c < 0) {
+            env->vxsat = 0x1;
+            *d = INT64_MIN;
+        } else {
+            *d = *c - 1ll - INT64_MAX;
+        }
+    } else {
+        *d = ssub64(env, 0, *c, t0 + t1);
+    }
+}
+
+RVPR_ACC(kmsda32, 1, 8);
+
+static inline void do_kmsxda32(CPURISCVState *env, void *vd, void *va,
+                               void *vb, void *vc, uint8_t i)
+{
+    int64_t *d = vd, *c = vc;
+    int32_t *a = va, *b = vb;
+    int64_t t01, t10;
+    t10 = (int64_t)a[H4(i + 1)] * b[H4(i)];
+    t01 = (int64_t)a[H4(i)] * b[H4(i + 1)];
+
+    if (a[H4(i)] == INT32_MIN && a[H4(i + 1)] == INT32_MIN &&
+        b[H4(i)] == INT32_MIN && b[H4(i + 1)] == INT32_MIN) {
+        if (*c < 0) {
+            env->vxsat = 0x1;
+            *d = INT64_MIN;
+        } else {
+            *d = *c - 1ll - INT64_MAX;
+        }
+    } else {
+        *d = ssub64(env, 0, *c, t10 + t01);
+    }
+}
+
+RVPR_ACC(kmsxda32, 1, 8);
+
+static inline void do_smds32(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    int64_t *d = vd;
+    int32_t *a = va, *b = vb;
+    *d = (int64_t)a[H4(i + 1)] * b[H4(i + 1)] -
+         (int64_t)a[H4(i)] * b[H4(i)];
+}
+
+RVPR64_64_64(smds32, 1, 8);
+
+static inline void do_smdrs32(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    int64_t *d = vd;
+    int32_t *a = va, *b = vb;
+    *d = (int64_t)a[H4(i)] * b[H4(i)] -
+         (int64_t)a[H4(i + 1)] * b[H4(i + 1)];
+}
+
+RVPR64_64_64(smdrs32, 1, 8);
+
+static inline void do_smxds32(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    int64_t *d = vd;
+    int32_t *a = va, *b = vb;
+    *d = (int64_t)a[H4(i + 1)] * b[H4(i)] -
+         (int64_t)a[H4(i)] * b[H4(i + 1)];
+}
+
+RVPR64_64_64(smxds32, 1, 8);
