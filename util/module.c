@@ -122,6 +122,12 @@ void module_call_init(module_init_type type)
 static Modules *modinfo;
 static char *module_dirs[5];
 static int module_ndirs;
+static const char *module_arch;
+
+void module_allow_arch(const char *arch)
+{
+    module_arch = arch;
+}
 
 static void module_load_path_init(void)
 {
@@ -295,6 +301,14 @@ bool module_load_one(const char *prefix, const char *lib_name, bool mayfail)
     module_load_modinfo();
 
     for (modlist = modinfo->list; modlist != NULL; modlist = modlist->next) {
+        if (modlist->value->has_arch) {
+            if (strcmp(modlist->value->name, module_name) == 0) {
+                if (!module_arch ||
+                    strcmp(modlist->value->arch, module_arch) != 0) {
+                    return false;
+                }
+            }
+        }
         if (modlist->value->has_deps) {
             if (strcmp(modlist->value->name, module_name) == 0) {
                 /* we depend on other module(s) */
@@ -401,6 +415,7 @@ void qemu_load_module_for_opts(const char *group)
 
 #else
 
+void module_allow_arch(const char *arch) {}
 void qemu_load_module_for_opts(const char *group) {}
 void module_load_qom_one(const char *type) {}
 void module_load_qom_all(void) {}
