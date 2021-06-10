@@ -325,6 +325,7 @@ vhost_net="$default_feature"
 vhost_crypto="$default_feature"
 vhost_scsi="$default_feature"
 vhost_vsock="$default_feature"
+vhost_vsock_dgram="no"
 vhost_user="no"
 vhost_user_blk_server="auto"
 vhost_user_fs="$default_feature"
@@ -1260,6 +1261,10 @@ for opt do
   ;;
   --enable-vhost-vsock) vhost_vsock="yes"
   ;;
+  --disable-vhost-vsock-dgram) vhost_vsock_dgram="no"
+  ;;
+  --enable-vhost-vsock-dgram) vhost_vsock_dgram="yes"
+  ;;
   --disable-vhost-user-blk-server) vhost_user_blk_server="disabled"
   ;;
   --enable-vhost-user-blk-server) vhost_user_blk_server="enabled"
@@ -1878,6 +1883,7 @@ disabled with --disable-FEATURE, default is enabled if available
   attr            attr and xattr support
   vhost-net       vhost-net kernel acceleration support
   vhost-vsock     virtio sockets device support
+  vhost-vsock-dgram     virtio sockets datagram type support
   vhost-scsi      vhost-scsi kernel target support
   vhost-crypto    vhost-user-crypto backend support
   vhost-kernel    vhost kernel backend support
@@ -2442,6 +2448,10 @@ fi
 test "$vhost_vsock" = "" && vhost_vsock=$vhost_kernel
 if test "$vhost_vsock" = "yes" && test "$vhost_kernel" != "yes"; then
   error_exit "--enable-vhost-vsock requires --enable-vhost-kernel"
+fi
+test "$vhost_vsock_dgram" = "" && vhost_vsock_dgram=$vhost_vsock
+if test "$vhost_vsock_dgram" = "yes" && test "$vhost_vsock" != "yes"; then
+  error_exit "--enable-vhost-vsock-dgram requires --enable-vhost-vsock"
 fi
 
 # vhost-user backends
@@ -5791,6 +5801,9 @@ if test "$vhost_vsock" = "yes" ; then
   echo "CONFIG_VHOST_VSOCK=y" >> $config_host_mak
   if test "$vhost_user" = "yes" ; then
     echo "CONFIG_VHOST_USER_VSOCK=y" >> $config_host_mak
+  fi
+  if test "$vhost_vsock_dgram" = "yes" ; then
+    echo "CONFIG_VHOST_VSOCK_DGRAM=y" >> $config_host_mak
   fi
 fi
 if test "$vhost_kernel" = "yes" ; then

@@ -105,11 +105,13 @@ static void vhost_vsock_set_status(VirtIODevice *vdev, uint8_t status)
 }
 
 static uint64_t vhost_vsock_get_features(VirtIODevice *vdev,
-                                         uint64_t requested_features,
+                                         uint64_t features,
                                          Error **errp)
 {
-    /* No feature bits used yet */
-    return requested_features;
+#ifdef CONFIG_VHOST_VSOCK_DGRAM
+    virtio_add_feature(&features, VIRTIO_VSOCK_F_DGRAM);
+#endif
+    return features;
 }
 
 static const VMStateDescription vmstate_virtio_vhost_vsock = {

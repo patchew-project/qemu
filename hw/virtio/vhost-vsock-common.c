@@ -208,7 +208,12 @@ void vhost_vsock_common_realize(VirtIODevice *vdev, const char *name)
                                       vhost_vsock_common_handle_output);
     vvc->trans_vq = virtio_add_queue(vdev, VHOST_VSOCK_QUEUE_SIZE,
                                        vhost_vsock_common_handle_output);
-
+#ifdef CONFIG_VHOST_VSOCK_DGRAM
+    vvc->dgram_recv_vq = virtio_add_queue(vdev, VHOST_VSOCK_QUEUE_SIZE,
+                                      vhost_vsock_common_handle_output);
+    vvc->dgram_trans_vq = virtio_add_queue(vdev, VHOST_VSOCK_QUEUE_SIZE,
+                                       vhost_vsock_common_handle_output);
+#endif
     /* The event queue belongs to QEMU */
     vvc->event_vq = virtio_add_queue(vdev, VHOST_VSOCK_QUEUE_SIZE,
                                        vhost_vsock_common_handle_output);
@@ -227,6 +232,10 @@ void vhost_vsock_common_unrealize(VirtIODevice *vdev)
 
     virtio_delete_queue(vvc->recv_vq);
     virtio_delete_queue(vvc->trans_vq);
+#ifdef CONFIG_VHOST_VSOCK_DGRAM
+    virtio_delete_queue(vvc->dgram_recv_vq);
+    virtio_delete_queue(vvc->dgram_trans_vq);
+#endif
     virtio_delete_queue(vvc->event_vq);
     virtio_cleanup(vdev);
 }

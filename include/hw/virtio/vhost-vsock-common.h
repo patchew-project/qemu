@@ -27,13 +27,21 @@ enum {
 struct VHostVSockCommon {
     VirtIODevice parent;
 
+#ifdef CONFIG_VHOST_VSOCK_DGRAM
+    struct vhost_virtqueue vhost_vqs[4];
+#else
     struct vhost_virtqueue vhost_vqs[2];
+#endif
+
     struct vhost_dev vhost_dev;
 
     VirtQueue *event_vq;
     VirtQueue *recv_vq;
     VirtQueue *trans_vq;
-
+#ifdef CONFIG_VHOST_VSOCK_DGRAM
+    VirtQueue *dgram_recv_vq;
+    VirtQueue *dgram_trans_vq;
+#endif
     QEMUTimer *post_load_timer;
 };
 
