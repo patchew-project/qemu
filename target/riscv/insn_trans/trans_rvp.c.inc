@@ -210,3 +210,10 @@ GEN_RVP_R_OOL(scmplt16);
 GEN_RVP_R_OOL(scmple16);
 GEN_RVP_R_OOL(ucmplt16);
 GEN_RVP_R_OOL(ucmple16);
+
+/* SIMD 8-bit Compare Instructions */
+GEN_RVP_R_OOL(cmpeq8);
+GEN_RVP_R_OOL(scmplt8);
+GEN_RVP_R_OOL(scmple8);
+GEN_RVP_R_OOL(ucmplt8);
+GEN_RVP_R_OOL(ucmple8);
