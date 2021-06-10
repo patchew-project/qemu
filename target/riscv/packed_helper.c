@@ -2818,3 +2818,95 @@ static inline void do_kabsw(CPURISCVState *env, void *vd, void *va, uint8_t i)
 }
 
 RVPR2(kabsw, 2, 4);
+
+/* 32-bit Computation Instructions */
+static inline void do_raddw(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    int32_t *a = va, *b = vb;
+    target_long *d = vd;
+
+    *d = hadd32(a[H4(i)], b[H4(i)]);
+}
+
+RVPR(raddw, 2, 4);
+
+static inline void do_uraddw(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    uint32_t *a = va, *b = vb;
+    target_long *d = vd;
+
+    *d = (int32_t)haddu32(a[H4(i)], b[H4(i)]);
+}
+
+RVPR(uraddw, 2, 4);
+
+static inline void do_rsubw(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    int32_t *a = va, *b = vb;
+    target_long *d = vd;
+
+    *d = hsub32(a[H4(i)], b[H4(i)]);
+}
+
+RVPR(rsubw, 2, 4);
+
+static inline void do_ursubw(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    uint32_t *a = va, *b = vb;
+    target_long *d = vd;
+
+    *d = (int32_t)hsubu64(a[H4(i)], b[H4(i)]);
+}
+
+RVPR(ursubw, 2, 4);
+
+static inline void do_maxw(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    target_long *d = vd;
+    int32_t *a = va, *b = vb;
+
+    *d = (a[H4(i)] > b[H4(i)]) ? a[H4(i)] : b[H4(i)];
+}
+
+RVPR(maxw, 2, 4);
+
+static inline void do_minw(CPURISCVState *env, void *vd, void *va,
+                           void *vb, uint8_t i)
+{
+    target_long *d = vd;
+    int32_t *a = va, *b = vb;
+
+    *d = (a[H4(i)] < b[H4(i)]) ? a[H4(i)] : b[H4(i)];
+}
+
+RVPR(minw, 2, 4);
+
+static inline void do_mulr64(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    uint64_t *d = vd;
+    uint32_t *a = va, *b = vb;
+
+    *d = (uint64_t)a[H4(0)] * b[H4(0)];
+}
+
+RVPR64(mulr64);
+
+static inline void do_mulsr64(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    int32_t *d = vd;
+    int64_t result;
+    int32_t *a = va, *b = vb;
+
+    result = (int64_t)a[H4(0)] * b[H4(0)];
+    d[H4(1)] = result >> 32;
+    d[H4(0)] = result & UINT32_MAX;
+}
+
+RVPR64(mulsr64);

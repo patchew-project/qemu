@@ -698,3 +698,13 @@ GEN_RVP_R_ACC_OOL(kdmabb);
 GEN_RVP_R_ACC_OOL(kdmabt);
 GEN_RVP_R_ACC_OOL(kdmatt);
 GEN_RVP_R2_OOL(kabsw);
+
+/* 32-bit Computation Instructions */
+GEN_RVP_R_OOL(raddw);
+GEN_RVP_R_OOL(uraddw);
+GEN_RVP_R_OOL(rsubw);
+GEN_RVP_R_OOL(ursubw);
+GEN_RVP_R_OOL(minw);
+GEN_RVP_R_OOL(maxw);
+GEN_RVP_R_D64_OOL(mulr64);
+GEN_RVP_R_D64_OOL(mulsr64);
