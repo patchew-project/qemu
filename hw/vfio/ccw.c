@@ -371,12 +371,6 @@ static void vfio_ccw_io_notifier_handler(void *opaque)
     copy_scsw_to_guest(&s, &irb.scsw);
     schib->scsw = s;
 
-    /* If a uint check is pending, copy sense data. */
-    if ((schib->scsw.dstat & SCSW_DSTAT_UNIT_CHECK) &&
-        (schib->pmcw.chars & PMCW_CHARS_MASK_CSENSE)) {
-        memcpy(sch->sense_data, irb.ecw, sizeof(irb.ecw));
-    }
-
 read_err:
     css_inject_io_interrupt(sch);
 }
