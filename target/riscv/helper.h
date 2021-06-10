@@ -1316,3 +1316,5 @@ DEF_HELPER_4(kmadrs, tl, env, tl, tl, tl)
 DEF_HELPER_4(kmaxds, tl, env, tl, tl, tl)
 DEF_HELPER_4(kmsda, tl, env, tl, tl, tl)
 DEF_HELPER_4(kmsxda, tl, env, tl, tl, tl)
+
+DEF_HELPER_3(smal, i64, env, i64, tl)
