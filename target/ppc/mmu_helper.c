@@ -825,6 +825,7 @@ static int mmubooke_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     return ret;
 }
 
+#ifdef CONFIG_TCG
 static void booke206_flush_tlb(CPUPPCState *env, int flags,
                                const int check_iprot)
 {
@@ -846,6 +847,7 @@ static void booke206_flush_tlb(CPUPPCState *env, int flags,
 
     tlb_flush(env_cpu(env));
 }
+#endif
 
 static hwaddr booke206_tlb_to_page_size(CPUPPCState *env,
                                         ppcmas_tlb_t *tlb)
@@ -1956,6 +1958,7 @@ void helper_store_601_batl(CPUPPCState *env, uint32_t nr, target_ulong value)
 /* TLB management */
 void ppc_tlb_invalidate_all(CPUPPCState *env)
 {
+#ifdef CONFIG_TCG
 #if defined(TARGET_PPC64)
     if (mmu_is_64bit(env->mmu_model)) {
         env->tlb_need_flush = 0;
@@ -1994,6 +1997,7 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
         cpu_abort(env_cpu(env), "Unknown MMU model %x\n", env->mmu_model);
         break;
     }
+#endif
 }
 
 #ifdef CONFIG_TCG
