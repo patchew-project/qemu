@@ -1676,3 +1676,271 @@ static inline void do_kmmawt2_u(CPURISCVState *env, void *vd, void *va,
 }
 
 RVPR_ACC(kmmawt2_u, 1, 4);
+
+/* Signed 16-bit Multiply with 32-bit Add/Subtract Instruction */
+static inline void do_smbb16(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    int32_t *d = vd;
+    int16_t *a = va, *b = vb;
+    d[H4(i)] = (int32_t)a[H2(2 * i)] * b[H2(2 * i)];
+}
+
+RVPR(smbb16, 1, 4);
+
+static inline void do_smbt16(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    int32_t *d = vd;
+    int16_t *a = va, *b = vb;
+    d[H4(i)] = (int32_t)a[H2(2 * i)] * b[H2(2 * i + 1)];
+}
+
+RVPR(smbt16, 1, 4);
+
+static inline void do_smtt16(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    int32_t *d = vd;
+    int16_t *a = va, *b = vb;
+    d[H4(i)] = (int32_t)a[H2(2 * i + 1)] * b[H2(2 * i + 1)];
+}
+
+RVPR(smtt16, 1, 4);
+
+static inline void do_kmda(CPURISCVState *env, void *vd, void *va,
+                           void *vb, uint8_t i)
+{
+    int32_t *d = vd;
+    int16_t *a = va, *b = vb;
+    if (a[H2(2 * i)] == INT16_MIN && a[H2(2 * i + 1)] == INT16_MIN &&
+        b[H2(2 * i)] == INT16_MIN && a[H2(2 * i + 1)] == INT16_MIN) {
+        d[H4(i)] = INT32_MAX;
+        env->vxsat = 0x1;
+    } else {
+        d[H4(i)] = (int32_t)a[H2(2 * i)] * b[H2(2 * i)] +
+                   (int32_t)a[H2(2 * i + 1)] * b[H2(2 * i + 1)];
+    }
+}
+
+RVPR(kmda, 1, 4);
+
+static inline void do_kmxda(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    int32_t *d = vd;
+    int16_t *a = va, *b = vb;
+    if (a[H2(2 * i)] == INT16_MIN && a[H2(2 * i + 1)] == INT16_MIN &&
+        b[H2(2 * i)] == INT16_MIN && a[H2(2 * i + 1)] == INT16_MIN) {
+        d[H4(i)] = INT32_MAX;
+        env->vxsat = 0x1;
+    } else {
+        d[H4(i)] = (int32_t)a[H2(2 * i + 1)] * b[H2(2 * i)] +
+                   (int32_t)a[H2(2 * i)] * b[H2(2 * i + 1)];
+    }
+}
+
+RVPR(kmxda, 1, 4);
+
+static inline void do_smds(CPURISCVState *env, void *vd, void *va,
+                           void *vb, uint8_t i)
+{
+    int32_t *d = vd;
+    int16_t *a = va, *b = vb;
+    d[H4(i)] = (int32_t)a[H2(2 * i + 1)] * b[H2(2 * i + 1)] -
+               (int32_t)a[H2(2 * i)] * b[H2(2 * i)];
+}
+
+RVPR(smds, 1, 4);
+
+static inline void do_smdrs(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    int32_t *d = vd;
+    int16_t *a = va, *b = vb;
+    d[H4(i)] = (int32_t)a[H2(2 * i)] * b[H2(2 * i)] -
+               (int32_t)a[H2(2 * i + 1)] * b[H2(2 * i + 1)];
+}
+
+RVPR(smdrs, 1, 4);
+
+static inline void do_smxds(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    int32_t *d = vd;
+    int16_t *a = va, *b = vb;
+    d[H4(i)] = (int32_t)a[H2(2 * i + 1)] * b[H2(2 * i)] -
+               (int32_t)a[H2(2 * i)] * b[H2(2 * i + 1)];
+}
+
+RVPR(smxds, 1, 4);
+
+static inline void do_kmabb(CPURISCVState *env, void *vd, void *va,
+                            void *vb, void *vc, uint8_t i)
+{
+    int32_t *d = vd, *c = vc;
+    int16_t *a = va, *b = vb;
+    d[H4(i)] = sadd32(env, 0, (int32_t)a[H2(2 * i)] * b[H2(2 * i)], c[H4(i)]);
+}
+
+RVPR_ACC(kmabb, 1, 4);
+
+static inline void do_kmabt(CPURISCVState *env, void *vd, void *va,
+                            void *vb, void *vc, uint8_t i)
+{
+    int32_t *d = vd, *c = vc;
+    int16_t *a = va, *b = vb;
+    d[H4(i)] = sadd32(env, 0, (int32_t)a[H2(2 * i)] * b[H2(2 * i + 1)],
+                      c[H4(i)]);
+}
+
+RVPR_ACC(kmabt, 1, 4);
+
+static inline void do_kmatt(CPURISCVState *env, void *vd, void *va,
+                            void *vb, void *vc, uint8_t i)
+{
+    int32_t *d = vd, *c = vc;
+    int16_t *a = va, *b = vb;
+    d[H4(i)] = sadd32(env, 0, (int32_t)a[H2(2 * i + 1)] * b[H2(2 * i + 1)],
+                      c[H4(i)]);
+}
+
+RVPR_ACC(kmatt, 1, 4);
+
+static inline void do_kmada(CPURISCVState *env, void *vd, void *va,
+                            void *vb, void *vc, uint8_t i)
+{
+    int32_t *d = vd, *c = vc;
+    int16_t *a = va, *b = vb;
+    int32_t p1, p2;
+    p1 = (int32_t)a[H2(2 * i)] * b[H2(2 * i)];
+    p2 = (int32_t)a[H2(2 * i + 1)] * b[H2(2 * i + 1)];
+
+    if (a[H2(i)] == INT16_MIN && a[H2(i + 1)] == INT16_MIN &&
+        b[H2(i)] == INT16_MIN && b[H2(i + 1)] == INT16_MIN) {
+        if (c[H4(i)] < 0) {
+            d[H4(i)] = INT32_MAX + c[H4(i)] + 1ll;
+        } else {
+            env->vxsat = 0x1;
+            d[H4(i)] = INT32_MAX;
+        }
+    } else {
+        d[H4(i)] = sadd32(env, 0, p1 + p2, c[H4(i)]);
+    }
+}
+
+RVPR_ACC(kmada, 1, 4);
+
+static inline void do_kmaxda(CPURISCVState *env, void *vd, void *va,
+                             void *vb, void *vc, uint8_t i)
+{
+    int32_t *d = vd, *c = vc;
+    int16_t *a = va, *b = vb;
+    int32_t p1, p2;
+    p1 = (int32_t)a[H2(2 * i + 1)] * b[H2(2 * i)];
+    p2 = (int32_t)a[H2(2 * i)] * b[H2(2 * i + 1)];
+
+    if (a[H2(2 * i)] == INT16_MIN && a[H2(2 * i + 1)] == INT16_MIN &&
+        b[H2(2 * i)] == INT16_MIN && b[H2(2 * i + 1)] == INT16_MIN) {
+        if (c[H4(i)] < 0) {
+            d[H4(i)] = INT32_MAX + c[H4(i)] + 1ll;
+        } else {
+            env->vxsat = 0x1;
+            d[H4(i)] = INT32_MAX;
+        }
+    } else {
+        d[H4(i)] = sadd32(env, 0, p1 + p2, c[H4(i)]);
+    }
+}
+
+RVPR_ACC(kmaxda, 1, 4);
+
+static inline void do_kmads(CPURISCVState *env, void *vd, void *va,
+                            void *vb, void *vc, uint8_t i)
+{
+    int32_t *d = vd, *c = vc;
+    int16_t *a = va, *b = vb;
+    int32_t p1, p2;
+    p1 =   (int32_t)a[H2(2 * i + 1)] * b[H2(2 * i + 1)];
+    p2 =   (int32_t)a[H2(2 * i)] * b[H2(2 * i)];
+
+    d[H4(i)] = sadd32(env, 0, p1 - p2, c[H4(i)]);
+}
+
+RVPR_ACC(kmads, 1, 4);
+
+static inline void do_kmadrs(CPURISCVState *env, void *vd, void *va,
+                             void *vb, void * vc, uint8_t i)
+{
+    int32_t *d = vd, *c = vc;
+    int16_t *a = va, *b = vb;
+    int32_t p1, p2;
+    p1 = (int32_t)a[H2(2 * i)] * b[H2(2 * i)];
+    p2 = (int32_t)a[H2(2 * i + 1)] * b[H2(2 * i + 1)];
+
+    d[H4(i)] = sadd32(env, 0, p1 - p2, c[H4(i)]);
+}
+
+RVPR_ACC(kmadrs, 1, 4);
+
+static inline void do_kmaxds(CPURISCVState *env, void *vd, void *va,
+                             void *vb, void *vc, uint8_t i)
+{
+    int32_t *d = vd, *c = vc;
+    int16_t *a = va, *b = vb;
+    int32_t p1, p2;
+    p1 = (int32_t)a[H2(2 * i + 1)] * b[H2(2 * i)];
+    p2 = (int32_t)a[H2(2 * i)] * b[H2(2 * i + 1)];
+
+    d[H4(i)] = sadd32(env, 0, p1 - p2, c[H4(i)]);
+}
+
+RVPR_ACC(kmaxds, 1, 4);
+
+static inline void do_kmsda(CPURISCVState *env, void *vd, void *va,
+                            void *vb, void *vc, uint8_t i)
+{
+    int32_t *d = vd, *c = vc;
+    int16_t *a = va, *b = vb;
+    int32_t p1, p2;
+    p1 = (int32_t)a[H2(2 * i)] * b[H2(2 * i)];
+    p2 = (int32_t)a[H2(2 * i + 1)] * b[H2(2 * i + 1)];
+
+    if (a[H2(i)] == INT16_MIN && a[H2(i + 1)] == INT16_MIN &&
+        b[H2(i)] == INT16_MIN && b[H2(i + 1)] == INT16_MIN) {
+        if (c[H4(i)] < 0) {
+            env->vxsat = 0x1;
+            d[H4(i)] = INT32_MIN;
+        } else {
+            d[H4(i)] = c[H4(i)] - 1ll - INT32_MAX;
+        }
+    } else {
+        d[H4(i)] = ssub32(env, 0, c[H4(i)], p1 + p2);
+    }
+}
+
+RVPR_ACC(kmsda, 1, 4);
+
+static inline void do_kmsxda(CPURISCVState *env, void *vd, void *va,
+                             void *vb, void * vc, uint8_t i)
+{
+    int32_t *d = vd, *c = vc;
+    int16_t *a = va, *b = vb;
+    int32_t p1, p2;
+    p1 = (int32_t)a[H2(2 * i)] * b[H2(2 * i + 1)];
+    p2 = (int32_t)a[H2(2 * i + 1)] * b[H2(2 * i)];
+
+    if (a[H2(i)] == INT16_MIN && a[H2(i + 1)] == INT16_MIN &&
+        b[H2(i)] == INT16_MIN && b[H2(i + 1)] == INT16_MIN) {
+        if (d[H4(i)] < 0) {
+            env->vxsat = 0x1;
+            d[H4(i)] = INT32_MIN;
+        } else {
+            d[H4(i)] = c[H4(i)] - 1ll - INT32_MAX;
+        }
+    } else {
+        d[H4(i)] = ssub32(env, 0, c[H4(i)], p1 + p2);
+    }
+}
+
+RVPR_ACC(kmsxda, 1, 4);
