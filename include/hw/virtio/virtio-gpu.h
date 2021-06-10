@@ -274,6 +274,8 @@ int virtio_gpu_update_dmabuf(VirtIOGPU *g,
                              uint32_t scanout_id,
                              struct virtio_gpu_simple_resource *res,
                              struct virtio_gpu_framebuffer *fb);
+void virtio_gpu_resource_wait_sync(VirtIOGPU *g,
+                                   struct virtio_gpu_simple_resource *res);
 
 /* virtio-gpu-3d.c */
 void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,

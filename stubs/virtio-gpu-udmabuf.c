@@ -25,3 +25,9 @@ int virtio_gpu_update_dmabuf(VirtIOGPU *g,
     /* nothing (stub) */
     return 0;
 }
+
+void virtio_gpu_resource_wait_sync(VirtIOGPU *g,
+                                   struct virtio_gpu_simple_resource *res)
+{
+    /* nothing (stub) */
+}
