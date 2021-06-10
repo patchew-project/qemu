@@ -348,3 +348,15 @@ GEN_RVP_R2_OOL(clrs8);
 GEN_RVP_R2_OOL(clz8);
 GEN_RVP_R2_OOL(clo8);
 GEN_RVP_R2_OOL(swap8);
+
+/* 8-bit Unpacking Instructions */
+GEN_RVP_R2_OOL(sunpkd810);
+GEN_RVP_R2_OOL(sunpkd820);
+GEN_RVP_R2_OOL(sunpkd830);
+GEN_RVP_R2_OOL(sunpkd831);
+GEN_RVP_R2_OOL(sunpkd832);
+GEN_RVP_R2_OOL(zunpkd810);
+GEN_RVP_R2_OOL(zunpkd820);
+GEN_RVP_R2_OOL(zunpkd830);
+GEN_RVP_R2_OOL(zunpkd831);
+GEN_RVP_R2_OOL(zunpkd832);
