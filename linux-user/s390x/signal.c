@@ -65,6 +65,10 @@ typedef struct {
     uint8_t callee_used_stack[__SIGNAL_FRAMESIZE];
     target_sigcontext sc;
     target_sigregs sregs;
+    uint32_t scc_op;
+    uint64_t scc_src;
+    uint64_t scc_dst;
+    uint64_t scc_vr;
     int signo;
     target_sigregs_ext sregs_ext;
     uint16_t retcode;
@@ -86,6 +90,10 @@ typedef struct {
     uint8_t callee_used_stack[__SIGNAL_FRAMESIZE];
     uint16_t retcode;
     struct target_siginfo info;
+    uint32_t scc_op;
+    uint64_t scc_src;
+    uint64_t scc_dst;
+    uint64_t scc_vr;
     struct target_ucontext uc;
 } rt_sigframe;
 
@@ -224,6 +232,12 @@ void setup_frame(int sig, struct target_sigaction *ka,
     env->regs[5] = 0; /* FIXME: regs->int_parm_long */
     env->regs[6] = 0; /* FIXME: current->thread.last_break */
 
+    /* Some programs could clobber the condition code, so save it here */
+    __put_user(env->cc_op, &frame->scc_op);
+    __put_user(env->cc_src, &frame->scc_src);
+    __put_user(env->cc_dst, &frame->scc_dst);
+    __put_user(env->cc_vr, &frame->scc_vr);
+
     unlock_user_struct(frame, frame_addr, 1);
 }
 
@@ -273,6 +287,12 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     save_sigregs_ext(env, &frame->uc.tuc_mcontext_ext);
     tswap_sigset(&frame->uc.tuc_sigmask, set);
 
+    /* Some programs could clobber the condition code, so save it here */
+    __put_user(env->cc_op, &frame->scc_op);
+    __put_user(env->cc_src, &frame->scc_src);
+    __put_user(env->cc_dst, &frame->scc_dst);
+    __put_user(env->cc_vr, &frame->scc_vr);
+
     /* Set up registers for signal handler */
     env->regs[14] = restorer;
     env->regs[15] = frame_addr;
@@ -285,6 +305,10 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     env->regs[3] = frame_addr + offsetof(typeof(*frame), info);
     env->regs[4] = frame_addr + offsetof(typeof(*frame), uc);
     env->regs[5] = 0; /* FIXME: current->thread.last_break */
+
+    /* QUESTION: Was there a missing unlock user struct here? */
+    unlock_user_struct(frame, frame_addr, 1);
+    return;
 }
 
 static void restore_sigregs(CPUS390XState *env, target_sigregs *sc)
@@ -350,6 +374,12 @@ long do_sigreturn(CPUS390XState *env)
     restore_sigregs(env, &frame->sregs);
     restore_sigregs_ext(env, &frame->sregs_ext);
 
+    /* restore the condition code */
+    __get_user(env->cc_op, &frame->scc_op);
+    __get_user(env->cc_src, &frame->scc_src);
+    __get_user(env->cc_dst, &frame->scc_dst);
+    __get_user(env->cc_vr, &frame->scc_vr);
+
     unlock_user_struct(frame, frame_addr, 0);
     return -TARGET_QEMU_ESIGRETURN;
 }
@@ -372,6 +402,11 @@ long do_rt_sigreturn(CPUS390XState *env)
     restore_sigregs(env, &frame->uc.tuc_mcontext);
     restore_sigregs_ext(env, &frame->uc.tuc_mcontext_ext);
 
+    /* restore the condition code */
+    __get_user(env->cc_op, &frame->scc_op);
+    __get_user(env->cc_src, &frame->scc_src);
+    __get_user(env->cc_dst, &frame->scc_dst);
+    __get_user(env->cc_vr, &frame->scc_vr);
     target_restore_altstack(&frame->uc.tuc_stack, env);
 
     unlock_user_struct(frame, frame_addr, 0);
