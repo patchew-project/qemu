@@ -422,6 +422,8 @@ void tcg_gen_vec_rotl16i_i64(TCGv_i64 d, TCGv_i64 a, int64_t c);
 #define tcg_gen_vec_shl8i_tl tcg_gen_vec_shl8i_i64
 #define tcg_gen_vec_shr8i_tl tcg_gen_vec_shr8i_i64
 #define tcg_gen_vec_sar8i_tl tcg_gen_vec_sar8i_i64
+#define tcg_gen_vec_add32_tl tcg_gen_vec_add32_i64
+#define tcg_gen_vec_sub32_tl tcg_gen_vec_sub32_i64
 #else
 #define tcg_gen_vec_add16_tl tcg_gen_vec_add16_i32
 #define tcg_gen_vec_sub16_tl tcg_gen_vec_sub16_i32
@@ -433,6 +435,8 @@ void tcg_gen_vec_rotl16i_i64(TCGv_i64 d, TCGv_i64 a, int64_t c);
 #define tcg_gen_vec_shl8i_tl tcg_gen_vec_shl8i_i32
 #define tcg_gen_vec_shr8i_tl tcg_gen_vec_shr8i_i32
 #define tcg_gen_vec_sar8i_tl tcg_gen_vec_sar8i_i32
+#define tcg_gen_vec_add32_tl tcg_gen_add_i32
+#define tcg_gen_vec_sub32_tl tcg_gen_sub_i32
 #endif
 
 #endif
