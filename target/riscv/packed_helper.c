@@ -2088,3 +2088,135 @@ static inline void do_smaqa_su(CPURISCVState *env, void *vd, void *va,
 }
 
 RVPR_ACC(smaqa_su, 1, 4);
+
+/*
+ *** 64-bit Profile Instructions
+ */
+/* 64-bit Addition & Subtraction Instructions */
+
+/* Define a common function to loop elements in packed register */
+static inline uint64_t
+rvpr64_64_64(CPURISCVState *env, uint64_t a, uint64_t b,
+             uint8_t step, uint8_t size, PackedFn3i *fn)
+{
+    int i, passes = sizeof(uint64_t) / size;
+    uint64_t result = 0;
+
+    for (i = 0; i < passes; i += step) {
+        fn(env, &result, &a, &b, i);
+    }
+    return result;
+}
+
+#define RVPR64_64_64(NAME, STEP, SIZE)                                    \
+uint64_t HELPER(NAME)(CPURISCVState *env, uint64_t a, uint64_t b)         \
+{                                                                         \
+    return rvpr64_64_64(env, a, b, STEP, SIZE, (PackedFn3i *)do_##NAME);  \
+}
+
+static inline void do_add64(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    int64_t *d = vd, *a = va, *b = vb;
+    *d = *a + *b;
+}
+
+RVPR64_64_64(add64, 1, 8);
+
+static inline int64_t hadd64(int64_t a, int64_t b)
+{
+    int64_t res = a + b;
+    int64_t over = (res ^ a) & (res ^ b) & INT64_MIN;
+
+    /* With signed overflow, bit 64 is inverse of bit 63. */
+    return (res >> 1) ^ over;
+}
+
+static inline void do_radd64(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    int64_t *d = vd, *a = va, *b = vb;
+    *d = hadd64(*a, *b);
+}
+
+RVPR64_64_64(radd64, 1, 8);
+
+static inline uint64_t haddu64(uint64_t a, uint64_t b)
+{
+    uint64_t res = a + b;
+    bool over = res < a;
+
+    return over ? ((res >> 1) | INT64_MIN) : (res >> 1);
+}
+
+static inline void do_uradd64(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    uint64_t *d = vd, *a = va, *b = vb;
+    *d = haddu64(*a, *b);
+}
+
+RVPR64_64_64(uradd64, 1, 8);
+
+static inline void do_kadd64(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    int64_t *d = vd, *a = va, *b = vb;
+    *d = sadd64(env, 0, *a, *b);
+}
+
+RVPR64_64_64(kadd64, 1, 8);
+
+static inline void do_ukadd64(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    uint64_t *d = vd, *a = va, *b = vb;
+    *d = saddu64(env, 0, *a, *b);
+}
+
+RVPR64_64_64(ukadd64, 1, 8);
+
+static inline void do_sub64(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    int64_t *d = vd, *a = va, *b = vb;
+    *d = *a - *b;
+}
+
+RVPR64_64_64(sub64, 1, 8);
+
+static inline void do_rsub64(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    int64_t *d = vd, *a = va, *b = vb;
+    *d = hsub64(*a, *b);
+}
+
+RVPR64_64_64(rsub64, 1, 8);
+
+static inline void do_ursub64(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    uint64_t *d = vd, *a = va, *b = vb;
+    *d = hsubu64(*a, *b);
+}
+
+RVPR64_64_64(ursub64, 1, 8);
+
+static inline void do_ksub64(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    int64_t *d = vd, *a = va, *b = vb;
+    *d = ssub64(env, 0, *a, *b);
+}
+
+RVPR64_64_64(ksub64, 1, 8);
+
+static inline void do_uksub64(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    uint64_t *d = vd, *a = va, *b = vb;
+    *d = ssubu64(env, 0, *a, *b);
+}
+
+RVPR64_64_64(uksub64, 1, 8);
