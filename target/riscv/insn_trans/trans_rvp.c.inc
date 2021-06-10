@@ -413,3 +413,21 @@ GEN_RVP_R_ACC_OOL(kmmsb);
 GEN_RVP_R_ACC_OOL(kmmsb_u);
 GEN_RVP_R_OOL(kwmmul);
 GEN_RVP_R_OOL(kwmmul_u);
+
+/* Most Significant Word “32x16” Multiply & Add Instructions */
+GEN_RVP_R_OOL(smmwb);
+GEN_RVP_R_OOL(smmwb_u);
+GEN_RVP_R_OOL(smmwt);
+GEN_RVP_R_OOL(smmwt_u);
+GEN_RVP_R_ACC_OOL(kmmawb);
+GEN_RVP_R_ACC_OOL(kmmawb_u);
+GEN_RVP_R_ACC_OOL(kmmawt);
+GEN_RVP_R_ACC_OOL(kmmawt_u);
+GEN_RVP_R_OOL(kmmwb2);
+GEN_RVP_R_OOL(kmmwb2_u);
+GEN_RVP_R_OOL(kmmwt2);
+GEN_RVP_R_OOL(kmmwt2_u);
+GEN_RVP_R_ACC_OOL(kmmawb2);
+GEN_RVP_R_ACC_OOL(kmmawb2_u);
+GEN_RVP_R_ACC_OOL(kmmawt2);
+GEN_RVP_R_ACC_OOL(kmmawt2_u);
