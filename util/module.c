@@ -21,6 +21,7 @@
 #include "qemu/module.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
+#include "qemu/config-file.h"
 #ifdef CONFIG_MODULE_UPGRADES
 #include "qemu-version.h"
 #endif
@@ -381,8 +382,26 @@ void module_load_qom_all(void)
     module_loaded_qom_all = true;
 }
 
+void qemu_load_module_for_opts(const char *group)
+{
+    ModuleInfoList *modlist;
+
+    module_load_path_init();
+    module_load_modinfo();
+
+    for (modlist = modinfo->list; modlist != NULL; modlist = modlist->next) {
+        if (!modlist->value->has_opts) {
+            continue;
+        }
+        if (strcmp(modlist->value->opts, group) == 0) {
+            module_load_one("", modlist->value->name, false);
+        }
+    }
+}
+
 #else
 
+void qemu_load_module_for_opts(const char *group) {}
 void module_load_qom_one(const char *type) {}
 void module_load_qom_all(void) {}
 
