@@ -1103,3 +1103,22 @@ static bool trans_##NAME(DisasContext *s, arg_r2 *a)   \
 }
 
 GEN_RVP64_R2_OOL(kabs32);
+
+/* (RV64 Only) SIMD Q15 saturating Multiply Instructions */
+GEN_RVP64_R_OOL(khmbb16);
+GEN_RVP64_R_OOL(khmbt16);
+GEN_RVP64_R_OOL(khmtt16);
+GEN_RVP64_R_OOL(kdmbb16);
+GEN_RVP64_R_OOL(kdmbt16);
+GEN_RVP64_R_OOL(kdmtt16);
+
+#define GEN_RVP64_R_ACC_OOL(NAME)                      \
+static bool trans_##NAME(DisasContext *s, arg_r *a)    \
+{                                                      \
+    REQUIRE_64BIT(s);                                  \
+    return r_acc_ool(s, a, gen_helper_##NAME);         \
+}
+
+GEN_RVP64_R_ACC_OOL(kdmabb16);
+GEN_RVP64_R_ACC_OOL(kdmabt16);
+GEN_RVP64_R_ACC_OOL(kdmatt16);
