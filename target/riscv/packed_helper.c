@@ -2910,3 +2910,80 @@ static inline void do_mulsr64(CPURISCVState *env, void *vd, void *va,
 }
 
 RVPR64(mulsr64);
+
+/* Miscellaneous Instructions */
+static inline void do_ave(CPURISCVState *env, void *vd, void *va,
+                          void *vb, uint8_t i)
+{
+    target_long *d = vd, *a = va, *b = vb, half;
+
+    half = hadd64(*a, *b);
+    if ((*a ^ *b) & 0x1) {
+        half++;
+    }
+    *d = half;
+}
+
+RVPR(ave, 1, sizeof(target_ulong));
+
+static inline void do_sra_u(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    target_long *d = vd, *a = va;
+    uint8_t *b = vb;
+    uint8_t shift = riscv_has_ext(env, RV32) ? (*b & 0x1f) : (*b & 0x3f);
+
+    *d = vssra64(env, 0, *a, shift);
+}
+
+RVPR(sra_u, 1, sizeof(target_ulong));
+
+static inline void do_bitrev(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    target_ulong *d = vd, *a = va;
+    uint8_t *b = vb;
+    uint8_t shift = riscv_has_ext(env, RV32) ? (*b & 0x1f) : (*b & 0x3f);
+
+    *d = revbit64(*a) >> (64 - shift - 1);
+}
+
+RVPR(bitrev, 1, sizeof(target_ulong));
+
+static inline target_ulong
+rvpr_64(CPURISCVState *env, uint64_t a, target_ulong b, PackedFn3 *fn)
+{
+    target_ulong result = 0;
+
+    fn(env, &result, &a, &b);
+    return result;
+}
+
+#define RVPR_64(NAME)                                       \
+target_ulong HELPER(NAME)(CPURISCVState *env, uint64_t a,   \
+                          target_ulong b)                   \
+{                                                           \
+    return rvpr_64(env, a, b, (PackedFn3 *)do_##NAME);      \
+}
+
+static inline void do_wext(CPURISCVState *env, void *vd, void *va,
+                           void *vb, uint8_t i)
+{
+    target_long *d = vd;
+    int64_t *a = va;
+    uint8_t b = *(uint8_t *)vb & 0x1f;
+
+    *d = sextract64(*a, b, 32);
+}
+
+RVPR_64(wext);
+
+static inline void do_bpick(CPURISCVState *env, void *vd, void *va,
+                            void *vb, void *vc, uint8_t i)
+{
+    target_long *d = vd, *a = va, *b = vb, *c = vc;
+
+    *d = (*c & *a) | (~*c & *b);
+}
+
+RVPR_ACC(bpick, 1, sizeof(target_ulong));
