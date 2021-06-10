@@ -1122,3 +1122,7 @@ static bool trans_##NAME(DisasContext *s, arg_r *a)    \
 GEN_RVP64_R_ACC_OOL(kdmabb16);
 GEN_RVP64_R_ACC_OOL(kdmabt16);
 GEN_RVP64_R_ACC_OOL(kdmatt16);
+
+/* (RV64 Only) 32-bit Multiply Instructions */
+GEN_RVP64_R_OOL(smbt32);
+GEN_RVP64_R_OOL(smtt32);
