@@ -827,3 +827,96 @@ static inline void do_khmx16(CPURISCVState *env, void *vd, void *va,
 }
 
 RVPR(khmx16, 2, 2);
+
+/* SIMD 8-bit Multiply Instructions */
+static inline void do_smul8(CPURISCVState *env, void *vd, void *va, void *vb)
+{
+    int16_t *d = vd;
+    int8_t *a = va, *b = vb;
+    d[H2(0)] = (int16_t)a[H1(0)] * b[H1(0)];
+    d[H2(1)] = (int16_t)a[H1(1)] * b[H1(1)];
+    d[H2(2)] = (int16_t)a[H1(2)] * b[H1(2)];
+    d[H2(3)] = (int16_t)a[H1(3)] * b[H1(3)];
+}
+
+RVPR64(smul8);
+
+static inline void do_smulx8(CPURISCVState *env, void *vd, void *va, void *vb)
+{
+    int16_t *d = vd;
+    int8_t *a = va, *b = vb;
+    d[H2(0)] = (int16_t)a[H1(0)] * b[H1(1)];
+    d[H2(1)] = (int16_t)a[H1(1)] * b[H1(0)];
+    d[H2(2)] = (int16_t)a[H1(2)] * b[H1(3)];
+    d[H2(3)] = (int16_t)a[H1(3)] * b[H1(2)];
+}
+
+RVPR64(smulx8);
+
+static inline void do_umul8(CPURISCVState *env, void *vd, void *va, void *vb)
+{
+    uint16_t *d = vd;
+    uint8_t *a = va, *b = vb;
+    d[H2(0)] = (uint16_t)a[H1(0)] * b[H1(0)];
+    d[H2(1)] = (uint16_t)a[H1(1)] * b[H1(1)];
+    d[H2(2)] = (uint16_t)a[H1(2)] * b[H1(2)];
+    d[H2(3)] = (uint16_t)a[H1(3)] * b[H1(3)];
+}
+
+RVPR64(umul8);
+
+static inline void do_umulx8(CPURISCVState *env, void *vd, void *va, void *vb)
+{
+    uint16_t *d = vd;
+    uint8_t *a = va, *b = vb;
+    d[H2(0)] = (uint16_t)a[H1(0)] * b[H1(1)];
+    d[H2(1)] = (uint16_t)a[H1(1)] * b[H1(0)];
+    d[H2(2)] = (uint16_t)a[H1(2)] * b[H1(3)];
+    d[H2(3)] = (uint16_t)a[H1(3)] * b[H1(2)];
+}
+
+RVPR64(umulx8);
+
+static inline void do_khm8(CPURISCVState *env, void *vd, void *va,
+                           void *vb, uint8_t i)
+{
+    int8_t *d = vd, *a = va, *b = vb;
+
+    if (a[i] == INT8_MIN && b[i] == INT8_MIN) {
+        env->vxsat = 1;
+        d[i] = INT8_MAX;
+    } else {
+        d[i] = (int16_t)a[i] * b[i] >> 7;
+    }
+}
+
+RVPR(khm8, 1, 1);
+
+static inline void do_khmx8(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    int8_t *d = vd, *a = va, *b = vb;
+    /*
+     * t[x] = ra.B[x] s* rb.B[y];
+     * rt.B[x] = SAT.Q7(t[x] s>> 7);
+     *
+     * (RV32: (x,y)=(3,2),(2,3),
+     *              (1,0),(0,1),
+     * (RV64: (x,y)=(7,6),(6,7),(5,4),(4,5),
+     *              (3,2),(2,3),(1,0),(0,1))
+     */
+    if (a[H1(i)] == INT8_MIN && b[H1(i + 1)] == INT8_MIN) {
+        env->vxsat = 1;
+        d[H1(i)] = INT8_MAX;
+    } else {
+        d[H1(i)] = (int16_t)a[H1(i)] * b[H1(i + 1)] >> 7;
+    }
+    if (a[H1(i + 1)] == INT8_MIN && b[H1(i)] == INT8_MIN) {
+        env->vxsat = 1;
+        d[H1(i + 1)] = INT8_MAX;
+    } else {
+        d[H1(i + 1)] = (int16_t)a[H1(i + 1)] * b[H1(i)] >> 7;
+    }
+}
+
+RVPR(khmx8, 2, 1);

@@ -286,3 +286,11 @@ GEN_RVP_R_D64_OOL(umul16);
 GEN_RVP_R_D64_OOL(umulx16);
 GEN_RVP_R_OOL(khm16);
 GEN_RVP_R_OOL(khmx16);
+
+/* SIMD 8-bit Multiply Instructions */
+GEN_RVP_R_D64_OOL(smul8);
+GEN_RVP_R_D64_OOL(smulx8);
+GEN_RVP_R_D64_OOL(umul8);
+GEN_RVP_R_D64_OOL(umulx8);
+GEN_RVP_R_OOL(khm8);
+GEN_RVP_R_OOL(khmx8);
