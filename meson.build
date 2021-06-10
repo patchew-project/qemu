@@ -2372,6 +2372,17 @@ if xkbcommon.found()
                            dependencies: [qemuutil, xkbcommon], install: have_tools)
 endif
 
+if config_host.has_key('CONFIG_MODULES')
+   qemu_modinfo = executable('qemu-modinfo', files('qemu-modinfo.c') + genh,
+                             dependencies: [glib, qemuutil], install: have_tools)
+   custom_target('modinfo.json',
+                 input: [ softmmu_mods, block_mods ],
+                 output: 'modinfo.json',
+                 install: true,
+                 install_dir: qemu_moddir,
+                 command: [ qemu_modinfo, '.' ])
+endif
+
 if have_tools
   qemu_img = executable('qemu-img', [files('qemu-img.c'), hxdep],
              dependencies: [authz, block, crypto, io, qom, qemuutil], install: true)
