@@ -258,7 +258,7 @@ static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
      * Flush the whole TB cache to force re-translation of such TBs.
      * This is heavyweight, but we're debugging anyway.
      */
-    tb_flush(cpu);
+    /* tb_flush(cpu); */
 }
 #endif
 
