@@ -17,6 +17,7 @@ riscv_ss.add(files(
   'op_helper.c',
   'vector_helper.c',
   'bitmanip_helper.c',
+  'packed_helper.c',
   'translate.c',
 ))
 
