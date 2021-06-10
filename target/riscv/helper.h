@@ -1318,3 +1318,11 @@ DEF_HELPER_4(kmsda, tl, env, tl, tl, tl)
 DEF_HELPER_4(kmsxda, tl, env, tl, tl, tl)
 
 DEF_HELPER_3(smal, i64, env, i64, tl)
+
+DEF_HELPER_3(sclip32, tl, env, tl, tl)
+DEF_HELPER_3(uclip32, tl, env, tl, tl)
+DEF_HELPER_2(clrs32, tl, env, tl)
+DEF_HELPER_2(clz32, tl, env, tl)
+DEF_HELPER_2(clo32, tl, env, tl)
+DEF_HELPER_3(pbsad, tl, env, tl, tl)
+DEF_HELPER_4(pbsada, tl, env, tl, tl, tl)
