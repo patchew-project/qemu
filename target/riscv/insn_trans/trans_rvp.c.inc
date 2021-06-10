@@ -1088,3 +1088,18 @@ GEN_RVP64_R_OOL(kslra32);
 GEN_RVP64_R_OOL(sra32_u);
 GEN_RVP64_R_OOL(srl32_u);
 GEN_RVP64_R_OOL(kslra32_u);
+
+/* (RV64 Only) SIMD 32-bit Miscellaneous Instructions */
+GEN_RVP64_R_OOL(smin32);
+GEN_RVP64_R_OOL(umin32);
+GEN_RVP64_R_OOL(smax32);
+GEN_RVP64_R_OOL(umax32);
+
+#define GEN_RVP64_R2_OOL(NAME)                         \
+static bool trans_##NAME(DisasContext *s, arg_r2 *a)   \
+{                                                      \
+    REQUIRE_64BIT(s);                                  \
+    return r2_ool(s, a, gen_helper_##NAME);            \
+}
+
+GEN_RVP64_R2_OOL(kabs32);
