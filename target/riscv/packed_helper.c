@@ -920,3 +920,161 @@ static inline void do_khmx8(CPURISCVState *env, void *vd, void *va,
 }
 
 RVPR(khmx8, 2, 1);
+
+/* SIMD 16-bit Miscellaneous Instructions */
+static inline void do_smin16(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    int16_t *d = vd, *a = va, *b = vb;
+
+    d[i] = (a[i] < b[i]) ? a[i] : b[i];
+}
+
+RVPR(smin16, 1, 2);
+
+static inline void do_umin16(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    uint16_t *d = vd, *a = va, *b = vb;
+
+    d[i] = (a[i] < b[i]) ? a[i] : b[i];
+}
+
+RVPR(umin16, 1, 2);
+
+static inline void do_smax16(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    int16_t *d = vd, *a = va, *b = vb;
+
+    d[i] = (a[i] > b[i]) ? a[i] : b[i];
+}
+
+RVPR(smax16, 1, 2);
+
+static inline void do_umax16(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    uint16_t *d = vd, *a = va, *b = vb;
+
+    d[i] = (a[i] > b[i]) ? a[i] : b[i];
+}
+
+RVPR(umax16, 1, 2);
+
+static int64_t sat64(CPURISCVState *env, int64_t a, uint8_t shift)
+{
+    int64_t max = shift >= 64 ? INT64_MAX : (1ull << shift) - 1;
+    int64_t min = shift >= 64 ? INT64_MIN : -(1ull << shift);
+    int64_t result;
+
+    if (a > max) {
+        result = max;
+        env->vxsat = 0x1;
+    } else if (a < min) {
+        result = min;
+        env->vxsat = 0x1;
+    } else {
+        result = a;
+    }
+    return result;
+}
+
+static inline void do_sclip16(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    int16_t *d = vd, *a = va;
+    uint8_t shift = *(uint8_t *)vb & 0xf;
+
+    d[i] = sat64(env, a[i], shift);
+}
+
+RVPR(sclip16, 1, 2);
+
+static uint64_t satu64(CPURISCVState *env, uint64_t a, uint8_t shift)
+{
+    uint64_t max = shift >= 64 ? UINT64_MAX : (1ull << shift) - 1;
+    uint64_t result;
+
+    if (a > max) {
+        result = max;
+        env->vxsat = 0x1;
+    } else {
+        result = a;
+    }
+    return result;
+}
+
+static inline void do_uclip16(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    int16_t *d = vd, *a = va;
+    uint8_t shift = *(uint8_t *)vb & 0xf;
+
+    if (a[i] < 0) {
+        d[i] = 0;
+        env->vxsat = 0x1;
+    } else {
+        d[i] = satu64(env, a[i], shift);
+    }
+}
+
+RVPR(uclip16, 1, 2);
+
+typedef void PackedFn2i(CPURISCVState *, void *, void *, uint8_t);
+
+static inline target_ulong rvpr2(CPURISCVState *env, target_ulong a,
+                                 uint8_t step, uint8_t size, PackedFn2i *fn)
+{
+    int i, passes = sizeof(target_ulong) / size;
+    target_ulong result;
+
+    for (i = 0; i < passes; i += step) {
+        fn(env, &result, &a, i);
+    }
+    return result;
+}
+
+#define RVPR2(NAME, STEP, SIZE)                                  \
+target_ulong HELPER(NAME)(CPURISCVState *env, target_ulong a)    \
+{                                                                \
+    return rvpr2(env, a, STEP, SIZE, (PackedFn2i *)do_##NAME);   \
+}
+
+static inline void do_kabs16(CPURISCVState *env, void *vd, void *va, uint8_t i)
+{
+    int16_t *d = vd, *a = va;
+
+    if (a[i] == INT16_MIN) {
+        d[i] = INT16_MAX;
+        env->vxsat = 0x1;
+    } else {
+        d[i] = abs(a[i]);
+    }
+}
+
+RVPR2(kabs16, 1, 2);
+
+static inline void do_clrs16(CPURISCVState *env, void *vd, void *va, uint8_t i)
+{
+    int16_t *d = vd, *a = va;
+    d[i] = clrsb32(a[i]) - 16;
+}
+
+RVPR2(clrs16, 1, 2);
+
+static inline void do_clz16(CPURISCVState *env, void *vd, void *va, uint8_t i)
+{
+    int16_t *d = vd, *a = va;
+    d[i] = (a[i] < 0) ? 0 : (clz32(a[i]) - 16);
+}
+
+RVPR2(clz16, 1, 2);
+
+static inline void do_clo16(CPURISCVState *env, void *vd, void *va, uint8_t i)
+{
+    int16_t *d = vd, *a = va;
+    d[i] = (a[i] >= 0) ? 0 : (clo32(a[i]) - 16);
+}
+
+RVPR2(clo16, 1, 2);

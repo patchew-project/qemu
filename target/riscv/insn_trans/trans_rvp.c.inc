@@ -294,3 +294,44 @@ GEN_RVP_R_D64_OOL(umul8);
 GEN_RVP_R_D64_OOL(umulx8);
 GEN_RVP_R_OOL(khm8);
 GEN_RVP_R_OOL(khmx8);
+
+/* SIMD 16-bit Miscellaneous Instructions */
+GEN_RVP_R_OOL(smin16);
+GEN_RVP_R_OOL(umin16);
+GEN_RVP_R_OOL(smax16);
+GEN_RVP_R_OOL(umax16);
+GEN_RVP_SHIFTI(sclip16, NULL, gen_helper_sclip16);
+GEN_RVP_SHIFTI(uclip16, NULL, gen_helper_uclip16);
+
+/* Out of line helpers for R2 format */
+static bool
+r2_ool(DisasContext *ctx, arg_r2 *a,
+       void (* fn)(TCGv, TCGv_ptr, TCGv))
+{
+    TCGv src1, dst;
+    if (!has_ext(ctx, RVP)) {
+        return false;
+    }
+
+    src1 = tcg_temp_new();
+    dst = tcg_temp_new();
+
+    gen_get_gpr(src1, a->rs1);
+    fn(dst, cpu_env, src1);
+    gen_set_gpr(a->rd, dst);
+
+    tcg_temp_free(src1);
+    tcg_temp_free(dst);
+    return true;
+}
+
+#define GEN_RVP_R2_OOL(NAME)                           \
+static bool trans_##NAME(DisasContext *s, arg_r2 *a)   \
+{                                                      \
+    return r2_ool(s, a, gen_helper_##NAME);            \
+}
+
+GEN_RVP_R2_OOL(kabs16);
+GEN_RVP_R2_OOL(clrs16);
+GEN_RVP_R2_OOL(clz16);
+GEN_RVP_R2_OOL(clo16);
