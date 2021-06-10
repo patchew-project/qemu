@@ -20,9 +20,16 @@
 #include "qemu/queue.h"
 #include "qemu/module.h"
 #include "qemu/cutils.h"
+#include "qemu/error-report.h"
 #ifdef CONFIG_MODULE_UPGRADES
 #include "qemu-version.h"
 #endif
+#include "trace.h"
+
+#include "qapi/error.h"
+#include "qapi/qapi-types-modules.h"
+#include "qapi/qapi-visit-modules.h"
+#include "qapi/qobject-input-visitor.h"
 
 typedef struct ModuleEntry
 {
@@ -111,6 +118,7 @@ void module_call_init(module_init_type type)
 
 #ifdef CONFIG_MODULES
 
+static Modules *modinfo;
 static char *module_dirs[5];
 static int module_ndirs;
 
@@ -137,7 +145,52 @@ static void module_load_path_init(void)
 #endif
 
     assert(module_ndirs <= ARRAY_SIZE(module_dirs));
+}
 
+static void module_load_modinfo(void)
+{
+    char *file, *json;
+    FILE *fp;
+    int i, size;
+    Visitor *v;
+    Error *errp = NULL;
+
+    if (modinfo) {
+        return;
+    }
+
+    for (i = 0; i < module_ndirs; i++) {
+        file = g_strdup_printf("%s/modinfo.json", module_dirs[i]);
+        fp = fopen(file, "r");
+        if (fp != NULL) {
+            break;
+        }
+        g_free(file);
+    }
+    if (NULL == fp) {
+        warn_report("No modinfo.json file found.");
+        return;
+    } else {
+        trace_module_load_modinfo(file);
+    }
+
+    fseek(fp, 0, SEEK_END);
+    size = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    json = g_malloc0(size + 1);
+    fread(json, size, 1, fp);
+    json[size] = 0;
+    fclose(fp);
+
+    v = qobject_input_visitor_new_str(json, NULL, &errp);
+    if (errp) {
+        error_reportf_err(errp, "parse error (%s)", file);
+        g_free(file);
+        return;
+    }
+    visit_type_Modules(v, NULL, &modinfo, &errp);
+    visit_free(v);
+    g_free(file);
 }
 
 static int module_load_file(const char *fname, bool mayfail, bool export_symbols)
@@ -269,6 +322,7 @@ bool module_load_one(const char *prefix, const char *lib_name, bool mayfail)
     g_hash_table_add(loaded_modules, module_name);
 
     module_load_path_init();
+    module_load_modinfo();
 
     for (i = 0; i < module_ndirs; i++) {
         fname = g_strdup_printf("%s/%s%s",
