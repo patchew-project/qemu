@@ -681,3 +681,20 @@ GEN_RVP_R_OOL(khmbt);
 GEN_RVP_R_OOL(khmtt);
 GEN_RVP_R_OOL(ukaddh);
 GEN_RVP_R_OOL(uksubh);
+
+/* Non-SIMD Q31 saturation ALU Instructions */
+GEN_RVP_R_OOL(kaddw);
+GEN_RVP_R_OOL(ukaddw);
+GEN_RVP_R_OOL(ksubw);
+GEN_RVP_R_OOL(uksubw);
+GEN_RVP_R_OOL(kdmbb);
+GEN_RVP_R_OOL(kdmbt);
+GEN_RVP_R_OOL(kdmtt);
+GEN_RVP_R_OOL(kslraw);
+GEN_RVP_R_OOL(kslraw_u);
+GEN_RVP_R_OOL(ksllw);
+GEN_RVP_SHIFTI(kslliw, NULL, gen_helper_ksllw);
+GEN_RVP_R_ACC_OOL(kdmabb);
+GEN_RVP_R_ACC_OOL(kdmabt);
+GEN_RVP_R_ACC_OOL(kdmatt);
+GEN_RVP_R2_OOL(kabsw);
