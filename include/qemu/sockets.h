@@ -111,4 +111,18 @@ SocketAddress *socket_remote_address(int fd, Error **errp);
  */
 SocketAddress *socket_address_flatten(SocketAddressLegacy *addr);
 
+/**
+ * socket_address_parse_named_fd:
+ *
+ * Modify @addr, replacing named fd by corresponding number.
+ *
+ * Parsing named fd (by sockget_get_fd) is not possible in context where
+ * current monitor is not available. So, SocketAddress user may first call
+ * socket_parse_named_fd() to parse named fd in advance, and then pass @addr to
+ * the context where monitor is not available.
+ *
+ * Return 0 on success.
+ */
+int socket_address_parse_named_fd(SocketAddress *addr, Error **errp);
+
 #endif /* QEMU_SOCKETS_H */
