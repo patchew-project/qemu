@@ -982,7 +982,7 @@ void virtio_gpu_simple_process_cmd(VirtIOGPU *g,
         cmd->error = VIRTIO_GPU_RESP_ERR_UNSPEC;
         break;
     }
-    if (!cmd->finished) {
+    if (!cmd->finished && !(cmd->cmd_hdr.flags & VIRTIO_GPU_FLAG_FENCE)) {
         virtio_gpu_ctrl_response_nodata(g, cmd, cmd->error ? cmd->error :
                                         VIRTIO_GPU_RESP_OK_NODATA);
     }
@@ -1038,6 +1038,46 @@ void virtio_gpu_process_cmdq(VirtIOGPU *g)
         }
     }
     g->processing_cmdq = false;
+}
+
+static void virtio_gpu_signal_fence(VirtIOGPU *g,
+                                    struct virtio_gpu_ctrl_command *cmd,
+                                    enum virtio_gpu_ctrl_type type)
+{
+    struct virtio_gpu_simple_resource *res;
+    struct virtio_gpu_resource_flush rf;
+
+    VIRTIO_GPU_FILL_CMD(rf);
+    virtio_gpu_bswap_32(&rf, sizeof(rf));
+    res = virtio_gpu_find_check_resource(g, rf.resource_id, true,
+                                         __func__, &cmd->error);
+    if (res) {
+        virtio_gpu_resource_wait_sync(g, res);
+    }
+    virtio_gpu_ctrl_response_nodata(g, cmd, VIRTIO_GPU_RESP_OK_NODATA);
+}
+
+static void virtio_gpu_process_fenceq(VirtIOGPU *g)
+{
+    struct virtio_gpu_ctrl_command *cmd, *tmp;
+
+    QTAILQ_FOREACH_SAFE(cmd, &g->fenceq, next, tmp) {
+        trace_virtio_gpu_fence_resp(cmd->cmd_hdr.fence_id);
+        virtio_gpu_signal_fence(g, cmd, VIRTIO_GPU_RESP_OK_NODATA);
+        QTAILQ_REMOVE(&g->fenceq, cmd, next);
+        g_free(cmd);
+        g->inflight--;
+        if (virtio_gpu_stats_enabled(g->parent_obj.conf)) {
+            fprintf(stderr, "inflight: %3d (-)\r", g->inflight);
+        }
+    }
+}
+
+static void virtio_gpu_handle_gl_flushed(VirtIOGPUBase *b)
+{
+    VirtIOGPU *g = container_of(b, VirtIOGPU, parent_obj);
+
+    virtio_gpu_process_fenceq(g);
 }
 
 static void virtio_gpu_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
@@ -1398,10 +1438,12 @@ static void virtio_gpu_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     VirtIOGPUClass *vgc = VIRTIO_GPU_CLASS(klass);
+    VirtIOGPUBaseClass *vgbc = &vgc->parent;
 
     vgc->handle_ctrl = virtio_gpu_handle_ctrl;
     vgc->process_cmd = virtio_gpu_simple_process_cmd;
     vgc->update_cursor_data = virtio_gpu_update_cursor_data;
+    vgbc->gl_flushed = virtio_gpu_handle_gl_flushed;
 
     vdc->realize = virtio_gpu_device_realize;
     vdc->reset = virtio_gpu_reset;
