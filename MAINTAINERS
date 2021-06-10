@@ -2937,6 +2937,13 @@ F: hw/core/clock-vmstate.c
 F: hw/core/qdev-clock.c
 F: docs/devel/clocks.rst
 
+AMD Secure Encrypted Virtualization (SEV)
+R: Connor Kuehl <ckuehl@redhat.com>
+F: docs/amd-memory-encryption.txt
+F: accel/kvm/sev-stub.c
+F: target/i386/sev*
+F: include/sysemu/sev.h
+
 Usermode Emulation
 ------------------
 Overall usermode emulation
