@@ -631,3 +631,49 @@ static inline void do_kslra8_u(CPURISCVState *env, void *vd, void *va,
 }
 
 RVPR(kslra8_u, 1, 1);
+
+/* SIMD 16-bit Compare Instructions */
+static inline void do_cmpeq16(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    uint16_t *d = vd, *a = va, *b = vb;
+    d[i] = (a[i] == b[i]) ? 0xffff : 0x0;
+}
+
+RVPR(cmpeq16, 1, 2);
+
+static inline void do_scmplt16(CPURISCVState *env, void *vd, void *va,
+                               void *vb, uint8_t i)
+{
+    int16_t *d = vd, *a = va, *b = vb;
+    d[i] = (a[i] < b[i]) ? 0xffff : 0x0;
+}
+
+RVPR(scmplt16, 1, 2);
+
+static inline void do_scmple16(CPURISCVState *env, void *vd, void *va,
+                               void *vb, uint8_t i)
+{
+    int16_t *d = vd, *a = va, *b = vb;
+    d[i] = (a[i] <= b[i]) ? 0xffff : 0x0;
+}
+
+RVPR(scmple16, 1, 2);
+
+static inline void do_ucmplt16(CPURISCVState *env, void *vd, void *va,
+                               void *vb, uint8_t i)
+{
+    uint16_t *d = vd, *a = va, *b = vb;
+    d[i] = (a[i] < b[i]) ? 0xffff : 0x0;
+}
+
+RVPR(ucmplt16, 1, 2);
+
+static inline void do_ucmple16(CPURISCVState *env, void *vd, void *va,
+                               void *vb, uint8_t i)
+{
+    uint16_t *d = vd, *a = va, *b = vb;
+    d[i] = (a[i] <= b[i]) ? 0xffff : 0x0;
+}
+
+RVPR(ucmple16, 1, 2);
