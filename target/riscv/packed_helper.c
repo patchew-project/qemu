@@ -2375,3 +2375,154 @@ static inline void do_ukmsr64(CPURISCVState *env, void *vd, void *va,
 }
 
 RVPR64_ACC(ukmsr64, 1, 4);
+
+/* Signed 16-bit Multiply with 64-bit Add/Subtract Instructions */
+static inline void do_smalbb(CPURISCVState *env, void *vd, void *va,
+                             void *vb, void *vc, uint8_t i)
+{
+    int64_t *d = vd, *c = vc;
+    int16_t *a = va, *b = vb;
+
+    if (i == 0) {
+        *d = *c;
+    }
+
+    *d += (int64_t)a[H2(i)] * b[H2(i)];
+}
+
+RVPR64_ACC(smalbb, 2, 2);
+
+static inline void do_smalbt(CPURISCVState *env, void *vd, void *va,
+                             void *vb, void *vc, uint8_t i)
+{
+    int64_t *d = vd, *c = vc;
+    int16_t *a = va, *b = vb;
+
+    if (i == 0) {
+        *d = *c;
+    }
+
+    *d += (int64_t)a[H2(i)] * b[H2(i + 1)];
+}
+
+RVPR64_ACC(smalbt, 2, 2);
+
+static inline void do_smaltt(CPURISCVState *env, void *vd, void *va,
+                             void *vb, void *vc, uint8_t i)
+{
+    int64_t *d = vd, *c = vc;
+    int16_t *a = va, *b = vb;
+
+    if (i == 0) {
+        *d = *c;
+    }
+
+    *d += (int64_t)a[H2(i + 1)] * b[H2(i + 1)];
+}
+
+RVPR64_ACC(smaltt, 2, 2);
+
+static inline void do_smalda(CPURISCVState *env, void *vd, void *va,
+                             void *vb, void *vc, uint8_t i)
+{
+    int64_t *d = vd, *c = vc;
+    int16_t *a = va, *b = vb;
+
+    if (i == 0) {
+        *d = *c;
+    }
+
+    *d += (int64_t)a[H2(i)] * b[H2(i)] + (int64_t)a[H2(i + 1)] * b[H2(i + 1)];
+}
+
+RVPR64_ACC(smalda, 2, 2);
+
+static inline void do_smalxda(CPURISCVState *env, void *vd, void *va,
+                              void *vb, void *vc, uint8_t i)
+{
+    int64_t *d = vd, *c = vc;
+    int16_t *a = va, *b = vb;
+
+    if (i == 0) {
+        *d = *c;
+    }
+
+    *d += (int64_t)a[H2(i)] * b[H2(i + 1)] + (int64_t)a[H2(i + 1)] * b[H2(i)];
+}
+
+RVPR64_ACC(smalxda, 2, 2);
+
+static inline void do_smalds(CPURISCVState *env, void *vd, void *va,
+                             void *vb, void *vc, uint8_t i)
+{
+    int64_t *d = vd, *c = vc;
+    int16_t *a = va, *b = vb;
+
+    if (i == 0) {
+        *d = *c;
+    }
+
+    *d += (int64_t)a[H2(i + 1)] * b[H2(i + 1)] - (int64_t)a[H2(i)] * b[H2(i)];
+}
+
+RVPR64_ACC(smalds, 2, 2);
+
+static inline void do_smaldrs(CPURISCVState *env, void *vd, void *va,
+                              void *vb, void *vc, uint8_t i)
+{
+    int64_t *d = vd, *c = vc;
+    int16_t *a = va, *b = vb;
+
+    if (i == 0) {
+        *d = *c;
+    }
+
+    *d += (int64_t)a[H2(i)] * b[H2(i)] - (int64_t)a[H2(i + 1)] * b[H2(i + 1)];
+}
+
+RVPR64_ACC(smaldrs, 2, 2);
+
+static inline void do_smalxds(CPURISCVState *env, void *vd, void *va,
+                              void *vb, void *vc, uint8_t i)
+{
+    int64_t *d = vd, *c = vc;
+    int16_t *a = va, *b = vb;
+
+    if (i == 0) {
+        *d = *c;
+    }
+
+    *d += (int64_t)a[H2(i + 1)] * b[H2(i)] - (int64_t)a[H2(i)] * b[H2(i + 1)];
+}
+
+RVPR64_ACC(smalxds, 2, 2);
+
+static inline void do_smslda(CPURISCVState *env, void *vd, void *va,
+                             void *vb, void *vc, uint8_t i)
+{
+    int64_t *d = vd, *c = vc;
+    int16_t *a = va, *b = vb;
+
+    if (i == 0) {
+        *d = *c;
+    }
+
+    *d -= (int64_t)a[H2(i)] * b[H2(i)] + (int64_t)a[H2(i + 1)] * b[H2(i + 1)];
+}
+
+RVPR64_ACC(smslda, 2, 2);
+
+static inline void do_smslxda(CPURISCVState *env, void *vd, void *va,
+                              void *vb, void *vc, uint8_t i)
+{
+    int64_t *d = vd, *c = vc;
+    int16_t *a = va, *b = vb;
+
+    if (i == 0) {
+        *d = *c;
+    }
+
+    *d -= (int64_t)a[H2(i + 1)] * b[H2(i)] + (int64_t)a[H2(i)] * b[H2(i + 1)];
+}
+
+RVPR64_ACC(smslxda, 2, 2);
