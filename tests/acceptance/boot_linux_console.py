@@ -1104,6 +1104,18 @@ class BootLinuxConsole(LinuxKernelTest):
         tar_hash = 'ac688fd00561a2b6ce1359f9ff6aa2b98c9a570c'
         self.do_test_advcal_2018('07', tar_hash, 'sanity-clause.elf')
 
+    def test_ppc64_e500(self):
+        """
+        :avocado: tags=arch:ppc64
+        :avocado: tags=machine:ppce500
+        :avocado: tags=cpu:e5500
+        """
+        tar_hash = '6951d86d644b302898da2fd701739c9406527fe1'
+        tar_url = ('https://www.qemu-advent-calendar.org'
+                   '/2018/download/day19.tar.xz')
+        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        self.do_test_advcal_2018(file_path, 'uImage', ('-cpu', 'e5500'))
+
     def test_or1k_sim(self):
         """
         :avocado: tags=arch:or1k
