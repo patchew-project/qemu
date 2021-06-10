@@ -425,3 +425,107 @@ static inline void do_uksub8(CPURISCVState *env, void *vd, void *va,
 }
 
 RVPR(uksub8, 1, 1);
+
+/* 16-bit Shift Instructions */
+static inline void do_sra16(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    int16_t *d = vd, *a = va;
+    uint8_t shift = *(uint8_t *)vb & 0xf;
+    d[i] = a[i] >> shift;
+}
+
+RVPR(sra16, 1, 2);
+
+static inline void do_srl16(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    uint16_t *d = vd, *a = va;
+    uint8_t shift = *(uint8_t *)vb & 0xf;
+    d[i] = a[i] >> shift;
+}
+
+RVPR(srl16, 1, 2);
+
+static inline void do_sll16(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    uint16_t *d = vd, *a = va;
+    uint8_t shift = *(uint8_t *)vb & 0xf;
+    d[i] = a[i] << shift;
+}
+
+RVPR(sll16, 1, 2);
+
+static inline void do_sra16_u(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    int16_t *d = vd, *a = va;
+    uint8_t shift = *(uint8_t *)vb & 0xf;
+
+    d[i] = vssra16(env, 0, a[i], shift);
+}
+
+RVPR(sra16_u, 1, 2);
+
+static inline void do_srl16_u(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    uint16_t *d = vd, *a = va;
+    uint8_t shift = *(uint8_t *)vb & 0xf;
+
+    d[i] = vssrl16(env, 0, a[i], shift);
+}
+
+RVPR(srl16_u, 1, 2);
+
+static inline void do_ksll16(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    int16_t *d = vd, *a = va, result;
+    uint8_t shift = *(uint8_t *)vb & 0xf;
+
+    result = a[i] << shift;
+    if (shift > (clrsb32(a[i]) - 16)) {
+        env->vxsat = 0x1;
+        d[i] = (a[i] & INT16_MIN) ? INT16_MIN : INT16_MAX;
+    } else {
+        d[i] = result;
+    }
+}
+
+RVPR(ksll16, 1, 2);
+
+static inline void do_kslra16(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    int16_t *d = vd, *a = va;
+    int32_t shift = sextract32((*(target_ulong *)vb), 0, 5);
+
+    if (shift >= 0) {
+        do_ksll16(env, vd, va, vb, i);
+    } else {
+        shift = -shift;
+        shift = (shift == 16) ? 15 : shift;
+        d[i] = a[i] >> shift;
+    }
+}
+
+RVPR(kslra16, 1, 2);
+
+static inline void do_kslra16_u(CPURISCVState *env, void *vd, void *va,
+                                void *vb, uint8_t i)
+{
+    int16_t *d = vd, *a = va;
+    int32_t shift = sextract32((*(uint32_t *)vb), 0, 5);
+
+    if (shift >= 0) {
+        do_ksll16(env, vd, va, vb, i);
+    } else {
+        shift = -shift;
+        shift = (shift == 16) ? 15 : shift;
+        d[i] = vssra16(env, 0, a[i], shift);
+    }
+}
+
+RVPR(kslra16_u, 1, 2);
