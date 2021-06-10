@@ -3035,6 +3035,9 @@ static int get_block_status(BlockDriverState *bs, int64_t offset,
         bdrv_refresh_filename(file);
         filename = file->filename;
     }
+    if (!(ret & BDRV_BLOCK_ALLOCATED)) {
+        depth = -1;
+    }
 
     *e = (MapEntry) {
         .start = offset,

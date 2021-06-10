@@ -24,7 +24,7 @@ read 131072/131072 bytes at offset 262144
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 [{ "start": 0, "length": 262144, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 262144, "length": 131072, "depth": 0, "zero": true, "data": false}]
+{ "start": 262144, "length": 131072, "depth": -1, "zero": true, "data": false}]
 
 read 131072/131072 bytes at offset 0
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
@@ -35,5 +35,5 @@ read 131072/131072 bytes at offset 262144
 
 [{ "start": 0, "length": 262144, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
 { "start": 262144, "length": 65536, "depth": 0, "zero": true, "data": false},
-{ "start": 327680, "length": 65536, "depth": 1, "zero": true, "data": false}]
+{ "start": 327680, "length": 65536, "depth": -1, "zero": true, "data": false}]
 *** done

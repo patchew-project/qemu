@@ -598,8 +598,11 @@ Command description:
     all-zero clusters);
   - whether the data is known to read as zero (boolean field ``zero``);
   - in order to make the output shorter, the target file is expressed as
-    a ``depth``; for example, a depth of 2 refers to the backing file
-    of the backing file of *FILENAME*.
+    a ``depth``; a depth of 0 means the data comes from the given
+    file, a positive depth means the data comes from a specific file
+    in the backing chain, and a depth of -1 merely implies that the
+    data is not local, but no information was available on which
+    backing file (if any) provides the data.
 
   In JSON format, the ``offset`` field is optional; it is absent in
   cases where ``human`` format would omit the entry or exit with an error.
