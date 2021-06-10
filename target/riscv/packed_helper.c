@@ -723,3 +723,107 @@ static inline void do_ucmple8(CPURISCVState *env, void *vd, void *va,
 }
 
 RVPR(ucmple8, 1, 1);
+
+/* SIMD 16-bit Multiply Instructions */
+typedef void PackedFn3(CPURISCVState *, void *, void *, void *);
+static inline uint64_t rvpr64(CPURISCVState *env, target_ulong a,
+                              target_ulong b, PackedFn3 *fn)
+{
+    uint64_t result;
+
+    fn(env, &result, &a, &b);
+    return result;
+}
+
+#define RVPR64(NAME)                                            \
+uint64_t HELPER(NAME)(CPURISCVState *env, target_ulong a,       \
+                      target_ulong b)                           \
+{                                                               \
+    return rvpr64(env, a, b, (PackedFn3 *)do_##NAME);           \
+}
+
+static inline void do_smul16(CPURISCVState *env, void *vd, void *va, void *vb)
+{
+    int32_t *d = vd;
+    int16_t *a = va, *b = vb;
+    d[H4(0)] = (int32_t)a[H2(0)] * b[H2(0)];
+    d[H4(1)] = (int32_t)a[H2(1)] * b[H2(1)];
+}
+
+RVPR64(smul16);
+
+static inline void do_smulx16(CPURISCVState *env, void *vd, void *va, void *vb)
+{
+    int32_t *d = vd;
+    int16_t *a = va, *b = vb;
+    d[H4(0)] = (int32_t)a[H2(0)] * b[H2(1)];
+    d[H4(1)] = (int32_t)a[H2(1)] * b[H2(0)];
+}
+
+RVPR64(smulx16);
+
+static inline void do_umul16(CPURISCVState *env, void *vd, void *va, void *vb,
+                             uint8_t i)
+{
+    uint32_t *d = vd;
+    uint16_t *a = va, *b = vb;
+    d[H4(0)] = (uint32_t)a[H2(0)] * b[H2(0)];
+    d[H4(1)] = (uint32_t)a[H2(1)] * b[H2(1)];
+}
+
+RVPR64(umul16);
+
+static inline void do_umulx16(CPURISCVState *env, void *vd, void *va, void *vb,
+                              uint8_t i)
+{
+    uint32_t *d = vd;
+    uint16_t *a = va, *b = vb;
+    d[H4(0)] = (uint32_t)a[H2(0)] * b[H2(1)];
+    d[H4(1)] = (uint32_t)a[H2(1)] * b[H2(0)];
+}
+
+RVPR64(umulx16);
+
+static inline void do_khm16(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    int16_t *d = vd, *a = va, *b = vb;
+
+    if (a[i] == INT16_MIN && b[i] == INT16_MIN) {
+        env->vxsat = 1;
+        d[i] = INT16_MAX;
+    } else {
+        d[i] = (int32_t)a[i] * b[i] >> 15;
+    }
+}
+
+RVPR(khm16, 1, 2);
+
+static inline void do_khmx16(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    int16_t *d = vd, *a = va, *b = vb;
+
+    /*
+     * t[x] = ra.H[x] s* rb.H[y];
+     * rt.H[x] = SAT.Q15(t[x] s>> 15);
+     *
+     * (RV32: (x,y)=(1,0),(0,1),
+     *  RV64: (x,y)=(3,2),(2,3),
+     *              (1,0),(0,1)
+     */
+    if (a[H2(i)] == INT16_MIN && b[H2(i + 1)] == INT16_MIN) {
+        env->vxsat = 1;
+        d[H2(i)] = INT16_MAX;
+    } else {
+        d[H2(i)] = (int32_t)a[H2(i)] * b[H2(i + 1)] >> 15;
+    }
+    if (a[H2(i + 1)] == INT16_MIN && b[H2(i)] == INT16_MIN) {
+        env->vxsat = 1;
+        d[H2(i + 1)] = INT16_MAX;
+    } else {
+        d[H2(i + 1)] = (int32_t)a[H2(i + 1)] * b[H2(i)] >> 15;
+    }
+}
+
+RVPR(khmx16, 2, 2);
