@@ -1,0 +1,36 @@
+# -*- Mode: Python -*-
+# vim: filetype=python
+
+##
+# @ModuleInfo:
+#
+# qemu module metadata
+#
+# @name: module name
+#
+# @objs: list of qom objects implemented by the module.
+#
+# @deps: list of other modules this module depends on.
+#
+# @arch: module architecture.
+#
+# @opts: qemu opts implemented by module.
+#
+# Since: 6.1
+##
+{ 'struct': 'ModuleInfo',
+  'data': { 'name'  : 'str',
+            '*objs' : ['str'],
+            '*deps' : ['str'],
+            '*arch' : 'str',
+            '*opts' : 'str'}}
+
+##
+# @Modules:
+#
+# qemu module list
+#
+# Since: 6.1
+##
+{ 'struct': 'Modules',
+  'data': { 'list' : ['ModuleInfo']}}
