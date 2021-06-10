@@ -131,7 +131,7 @@ static int nbd_establish_connection(BlockDriverState *bs, SocketAddress *saddr,
                                     Error **errp);
 static coroutine_fn QIOChannelSocket *
 nbd_co_establish_connection(NBDConnectThread *thr, Error **errp);
-static void nbd_co_establish_connection_cancel(BlockDriverState *bs);
+static void nbd_co_establish_connection_cancel(NBDConnectThread *thr);
 static int nbd_client_handshake(BlockDriverState *bs, Error **errp);
 static void nbd_yank(void *opaque);
 
@@ -294,7 +294,7 @@ static void coroutine_fn nbd_client_co_drain_begin(BlockDriverState *bs)
     s->drained = true;
     qemu_co_sleep_wake(&s->reconnect_sleep);
 
-    nbd_co_establish_connection_cancel(bs);
+    nbd_co_establish_connection_cancel(s->connect_thread);
 
     reconnect_delay_timer_del(s);
 
@@ -332,7 +332,7 @@ static void nbd_teardown_connection(BlockDriverState *bs)
     s->state = NBD_CLIENT_QUIT;
     if (s->connection_co) {
         qemu_co_sleep_wake(&s->reconnect_sleep);
-        nbd_co_establish_connection_cancel(bs);
+        nbd_co_establish_connection_cancel(s->connect_thread);
     }
     if (qemu_in_coroutine()) {
         s->teardown_co = qemu_coroutine_self();
@@ -487,13 +487,14 @@ nbd_co_establish_connection(NBDConnectThread *thr, Error **errp)
 
 /*
  * nbd_co_establish_connection_cancel
- * Cancel nbd_co_establish_connection asynchronously: it will finish soon, to
- * allow drained section to begin.
+ * Cancel nbd_co_establish_connection() asynchronously.
+ *
+ * Note that this function neither directly stops the thread nor closes the
+ * socket, but rather safely wakes nbd_co_establish_connection() which is
+ * sleeping in yield()
  */
-static void nbd_co_establish_connection_cancel(BlockDriverState *bs)
+static void nbd_co_establish_connection_cancel(NBDConnectThread *thr)
 {
-    BDRVNBDState *s = bs->opaque;
-    NBDConnectThread *thr = s->connect_thread;
     Coroutine *wait_co;
 
     qemu_mutex_lock(&thr->mutex);
