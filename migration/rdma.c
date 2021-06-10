@@ -361,6 +361,8 @@ typedef struct RDMAContext {
     struct ibv_comp_channel *comp_channel;  /* completion channel */
     struct ibv_pd *pd;                      /* protection domain */
     struct ibv_cq *cq;                      /* completion queue */
+    int64_t ooo_wrid;
+    int64_t ooo_wrid_byte_len;
 
     /*
      * If a previous write failed (perhaps because of a failed
@@ -1613,11 +1615,32 @@ static int qemu_rdma_block_for_wrid(RDMAContext *rdma, int wrid_requested,
         wr_id = wr_id_in & RDMA_WRID_TYPE_MASK;
 
         if (wr_id == RDMA_WRID_NONE) {
+            if (rdma->ooo_wrid >= RDMA_WRID_SEND_CONTROL && rdma->ooo_wrid == wrid_requested) {
+                error_report("get expected ooo wrid %d", wrid_requested);
+                if (byte_len && rdma->ooo_wrid_byte_len != -1) {
+                    *byte_len = rdma->ooo_wrid_byte_len;
+                    rdma->ooo_wrid = RDMA_WRID_NONE;
+                    return 0;
+                }
+            }
             break;
         }
         if (wr_id != wrid_requested) {
             trace_qemu_rdma_block_for_wrid_miss(print_wrid(wrid_requested),
                        wrid_requested, print_wrid(wr_id), wr_id);
+            if (wr_id >= RDMA_WRID_SEND_CONTROL) {
+                if (rdma->ooo_wrid > RDMA_WRID_NONE) {
+                    error_report("more than one out of order wird(%ld, %ld)", rdma->ooo_wrid, wr_id);
+                    return -1;
+                }
+                error_report("get out of order wird(%ld)\n", wr_id);
+                rdma->ooo_wrid = wr_id;
+                if (byte_len) {
+                    rdma->ooo_wrid_byte_len = *byte_len;
+                } else {
+                    rdma->ooo_wrid_byte_len = -1;
+                }
+            }
         }
     }
 
