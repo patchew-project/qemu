@@ -511,3 +511,8 @@ GEN_RVP_R2_OOL(clz32);
 GEN_RVP_R2_OOL(clo32);
 GEN_RVP_R_OOL(pbsad);
 GEN_RVP_R_ACC_OOL(pbsada);
+
+/* 8-bit Multiply with 32-bit Add Instructions */
+GEN_RVP_R_ACC_OOL(smaqa);
+GEN_RVP_R_ACC_OOL(umaqa);
+GEN_RVP_R_ACC_OOL(smaqa_su);
