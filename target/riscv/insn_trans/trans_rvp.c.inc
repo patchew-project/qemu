@@ -1033,3 +1033,58 @@ GEN_RVP64_R_OOL(rstsa32);
 GEN_RVP64_R_OOL(urstsa32);
 GEN_RVP64_R_OOL(kstsa32);
 GEN_RVP64_R_OOL(ukstsa32);
+
+/* (RV64 Only) SIMD 32-bit Shift Instructions */
+static inline bool
+rvp64_shifti(DisasContext *ctx, arg_shift *a,
+             void (* fn)(TCGv_i64, TCGv_ptr, TCGv_i64, TCGv_i64))
+{
+    TCGv t1;
+    TCGv_i64 src1, dst, shift;
+    if (!has_ext(ctx, RVP)) {
+        return false;
+    }
+
+    src1 = tcg_temp_new_i64();
+    dst = tcg_temp_new_i64();
+    t1 = tcg_temp_new();
+
+    gen_get_gpr(t1, a->rs1);
+    tcg_gen_ext_tl_i64(src1, t1);
+    shift = tcg_const_i64(a->shamt);
+
+    fn(dst, cpu_env, src1, shift);
+    tcg_gen_trunc_i64_tl(t1, dst);
+    gen_set_gpr(a->rd, t1);
+
+    tcg_temp_free_i64(src1);
+    tcg_temp_free_i64(dst);
+    tcg_temp_free_i64(shift);
+    tcg_temp_free(t1);
+    return true;
+}
+
+#define GEN_RVP64_SHIFTI(NAME, OP)                       \
+static bool trans_##NAME(DisasContext *s, arg_shift *a)  \
+{                                                        \
+    REQUIRE_64BIT(s);                                    \
+    return rvp64_shifti(s, a, OP);                       \
+}
+
+GEN_RVP64_SHIFTI(srai32, gen_helper_sra32);
+GEN_RVP64_SHIFTI(srli32, gen_helper_srl32);
+GEN_RVP64_SHIFTI(slli32, gen_helper_sll32);
+
+GEN_RVP64_SHIFTI(srai32_u, gen_helper_sra32_u);
+GEN_RVP64_SHIFTI(srli32_u, gen_helper_srl32_u);
+GEN_RVP64_SHIFTI(kslli32, gen_helper_ksll32);
+
+GEN_RVP64_R_OOL(sra32);
+GEN_RVP64_R_OOL(srl32);
+GEN_RVP64_R_OOL(sll32);
+GEN_RVP64_R_OOL(ksll32);
+GEN_RVP64_R_OOL(kslra32);
+
+GEN_RVP64_R_OOL(sra32_u);
+GEN_RVP64_R_OOL(srl32_u);
+GEN_RVP64_R_OOL(kslra32_u);
