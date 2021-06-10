@@ -360,3 +360,12 @@ GEN_RVP_R2_OOL(zunpkd820);
 GEN_RVP_R2_OOL(zunpkd830);
 GEN_RVP_R2_OOL(zunpkd831);
 GEN_RVP_R2_OOL(zunpkd832);
+
+/*
+ *** Partial-SIMD Data Processing Instruction
+ */
+/* 16-bit Packing Instructions */
+GEN_RVP_R_OOL(pkbb16);
+GEN_RVP_R_OOL(pkbt16);
+GEN_RVP_R_OOL(pktt16);
+GEN_RVP_R_OOL(pktb16);
