@@ -137,6 +137,11 @@ static void set_vext_version(CPURISCVState *env, int vext_ver)
     env->vext_ver = vext_ver;
 }
 
+static void set_pext_version(CPURISCVState *env, int pext_ver)
+{
+    env->pext_ver = pext_ver;
+}
+
 static void set_feature(CPURISCVState *env, int feature)
 {
     env->features |= (1ULL << feature);
@@ -395,6 +400,7 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
     int priv_version = PRIV_VERSION_1_11_0;
     int bext_version = BEXT_VERSION_0_93_0;
     int vext_version = VEXT_VERSION_0_07_1;
+    int pext_version = PEXT_VERSION_0_09_4;
     target_ulong target_misa = env->misa;
     Error *local_err = NULL;
 
@@ -420,6 +426,7 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
     set_priv_version(env, priv_version);
     set_bext_version(env, bext_version);
     set_vext_version(env, vext_version);
+    set_pext_version(env, pext_version);
 
     if (cpu->cfg.mmu) {
         set_feature(env, RISCV_FEATURE_MMU);
@@ -552,6 +559,30 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
                         "use the default value v0.7.1\n");
             }
             set_vext_version(env, vext_version);
+        }
+        if (cpu->cfg.ext_p) {
+            target_misa |= RVP;
+            if (cpu->cfg.pext_spec) {
+                if (!g_strcmp0(cpu->cfg.pext_spec, "v0.9.4")) {
+                    pext_version = PEXT_VERSION_0_09_4;
+                } else {
+                    error_setg(errp,
+                               "Unsupported packed spec version '%s'",
+                               cpu->cfg.pext_spec);
+                    return;
+                }
+            } else {
+                qemu_log("packed verison is not specified, "
+                         "use the default value v0.9.4\n");
+            }
+            if (env->misa == RV64) {
+                if (!cpu->cfg.ext_psfoperand) {
+                    error_setg(errp, "The Zpsfoperand"
+                                     "sub-extensions is required for RV64P.");
+                    return;
+                }
+            }
+            set_pext_version(env, pext_version);
         }
 
         set_misa(env, target_misa);
