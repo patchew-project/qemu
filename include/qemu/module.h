@@ -73,4 +73,26 @@ bool module_load_one(const char *prefix, const char *lib_name, bool mayfail);
 void module_load_qom_one(const char *type);
 void module_load_qom_all(void);
 
+/*
+ * macros to store module metadata in a .modinfo section.
+ * qemu-modinfo utility will collect the metadata.
+ *
+ * Use "objdump -t -s -j .modinfo ${module}.so" to inspect.
+ */
+
+#define ___PASTE(a, b) a##b
+#define __PASTE(a, b) ___PASTE(a, b)
+
+#define modinfo(kind, value)                             \
+    static const char __PASTE(kind, __LINE__)[]          \
+        __attribute__((__used__))                        \
+        __attribute__((section(".modinfo")))             \
+        __attribute__((aligned(1)))                      \
+        = stringify(kind) "=" value
+
+#define module_obj(name) modinfo(obj, name)
+#define module_dep(name) modinfo(dep, name)
+#define module_arch(name) modinfo(arch, name)
+#define module_opts(name) modinfo(opts, name)
+
 #endif
