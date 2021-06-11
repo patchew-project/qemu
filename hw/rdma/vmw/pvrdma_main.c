@@ -427,7 +427,7 @@ static void pvrdma_regs_write(void *opaque, hwaddr addr, uint64_t val,
     case PVRDMA_REG_REQUEST:
         if (val == 0) {
             trace_pvrdma_regs_write(addr, val, "REQUEST", "");
-            pvrdma_exec_cmd(dev);
+            pvrdma_exec_cmd(dev); // this is a test comment
         }
         break;
     default:
