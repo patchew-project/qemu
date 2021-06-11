@@ -68,11 +68,11 @@ read 65536/65536 bytes at offset 4194304
 read 65536/65536 bytes at offset 8388608
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 [{ "start": 0, "length": 65536, "depth": 0, "zero": false, "data": true},
-{ "start": 65536, "length": 4128768, "depth": 0, "zero": true, "data": false},
+{ "start": 65536, "length": 4128768, "depth": 1, "zero": true, "data": false},
 { "start": 4194304, "length": 65536, "depth": 0, "zero": false, "data": true},
-{ "start": 4259840, "length": 4128768, "depth": 0, "zero": true, "data": false},
+{ "start": 4259840, "length": 4128768, "depth": 1, "zero": true, "data": false},
 { "start": 8388608, "length": 65536, "depth": 0, "zero": false, "data": true},
-{ "start": 8454144, "length": 4128768, "depth": 0, "zero": true, "data": false}]
+{ "start": 8454144, "length": 4128768, "depth": 1, "zero": true, "data": false}]
 read 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 65536/65536 bytes at offset 4194304
@@ -95,11 +95,11 @@ wrote 1024/1024 bytes at offset 1046528
 wrote 1024/1024 bytes at offset 0
 1 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 [{ "start": 0, "length": 65536, "depth": 0, "zero": false, "data": true},
-{ "start": 65536, "length": 65536, "depth": 0, "zero": true, "data": false},
+{ "start": 65536, "length": 65536, "depth": 1, "zero": true, "data": false},
 { "start": 131072, "length": 196608, "depth": 0, "zero": false, "data": true},
-{ "start": 327680, "length": 655360, "depth": 0, "zero": true, "data": false},
+{ "start": 327680, "length": 655360, "depth": 1, "zero": true, "data": false},
 { "start": 983040, "length": 65536, "depth": 0, "zero": false, "data": true},
-{ "start": 1048576, "length": 1046528, "depth": 0, "zero": true, "data": false}]
+{ "start": 1048576, "length": 1046528, "depth": 1, "zero": true, "data": false}]
 read 16384/16384 bytes at offset 0
 16 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 read 16384/16384 bytes at offset 16384
@@ -195,31 +195,31 @@ wrote 1024/1024 bytes at offset 17408
 
 convert -S 4k
 [{ "start": 0, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 4096, "length": 4096, "depth": 0, "zero": true, "data": false},
+{ "start": 4096, "length": 4096, "depth": 1, "zero": true, "data": false},
 { "start": 8192, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 12288, "length": 4096, "depth": 0, "zero": true, "data": false},
+{ "start": 12288, "length": 4096, "depth": 1, "zero": true, "data": false},
 { "start": 16384, "length": 4096, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 20480, "length": 67088384, "depth": 0, "zero": true, "data": false}]
+{ "start": 20480, "length": 67088384, "depth": 1, "zero": true, "data": false}]
 
 convert -c -S 4k
 [{ "start": 0, "length": 1024, "depth": 0, "zero": false, "data": true},
-{ "start": 1024, "length": 7168, "depth": 0, "zero": true, "data": false},
+{ "start": 1024, "length": 7168, "depth": 1, "zero": true, "data": false},
 { "start": 8192, "length": 1024, "depth": 0, "zero": false, "data": true},
-{ "start": 9216, "length": 8192, "depth": 0, "zero": true, "data": false},
+{ "start": 9216, "length": 8192, "depth": 1, "zero": true, "data": false},
 { "start": 17408, "length": 1024, "depth": 0, "zero": false, "data": true},
-{ "start": 18432, "length": 67090432, "depth": 0, "zero": true, "data": false}]
+{ "start": 18432, "length": 67090432, "depth": 1, "zero": true, "data": false}]
 
 convert -S 8k
 [{ "start": 0, "length": 24576, "depth": 0, "zero": false, "data": true, "offset": OFFSET},
-{ "start": 24576, "length": 67084288, "depth": 0, "zero": true, "data": false}]
+{ "start": 24576, "length": 67084288, "depth": 1, "zero": true, "data": false}]
 
 convert -c -S 8k
 [{ "start": 0, "length": 1024, "depth": 0, "zero": false, "data": true},
-{ "start": 1024, "length": 7168, "depth": 0, "zero": true, "data": false},
+{ "start": 1024, "length": 7168, "depth": 1, "zero": true, "data": false},
 { "start": 8192, "length": 1024, "depth": 0, "zero": false, "data": true},
-{ "start": 9216, "length": 8192, "depth": 0, "zero": true, "data": false},
+{ "start": 9216, "length": 8192, "depth": 1, "zero": true, "data": false},
 { "start": 17408, "length": 1024, "depth": 0, "zero": false, "data": true},
-{ "start": 18432, "length": 67090432, "depth": 0, "zero": true, "data": false}]
+{ "start": 18432, "length": 67090432, "depth": 1, "zero": true, "data": false}]
 
 === -n to a non-zero image ===
 
@@ -235,7 +235,7 @@ Formatting 'TEST_DIR/t.IMGFMT.orig', fmt=IMGFMT size=67108864
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 [{ "start": 0, "length": 67108864, "depth": 0, "zero": true, "data": false}]
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-[{ "start": 0, "length": 67108864, "depth": 0, "zero": true, "data": false}]
+[{ "start": 0, "length": 67108864, "depth": 1, "zero": true, "data": false}]
 
 === -n to an empty image with a backing file ===
 

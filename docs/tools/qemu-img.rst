@@ -599,7 +599,8 @@ Command description:
   - whether the data is known to read as zero (boolean field ``zero``);
   - in order to make the output shorter, the target file is expressed as
     a ``depth``; for example, a depth of 2 refers to the backing file
-    of the backing file of *FILENAME*.
+    of the backing file of *FILENAME*.  Depth will be one larger than
+    the chain length if no file in the chain provides the data.
 
   In JSON format, the ``offset`` field is optional; it is absent in
   cases where ``human`` format would omit the entry or exit with an error.
