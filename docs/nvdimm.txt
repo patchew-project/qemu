@@ -247,7 +247,8 @@ is built with libpmem [2] support (configured with --enable-libpmem), QEMU
 will take necessary operations to guarantee the persistence of its own writes
 to the vNVDIMM backend(e.g., in vNVDIMM label emulation and live migration).
 If 'pmem' is 'on' while there is no libpmem support, qemu will exit and report
-a "lack of libpmem support" message to ensure the persistence is available.
+a "lack of libpmem support" (or "Invalid parameter 'pmem'" since v6.0.0)
+message to ensure the persistence is available.
 For example, if we want to ensure the persistence for some backend file,
 use the QEMU command line:
 
