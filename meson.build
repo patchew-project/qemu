@@ -606,7 +606,11 @@ if have_system and not get_option('curses').disabled()
     endif
   endforeach
   msg = get_option('curses').enabled() ? 'curses library not found' : ''
-  curses_compile_args = ['-DNCURSES_WIDECHAR']
+  if host_machine.system() == 'darwin'
+    curses_compile_args = [ '-D_XOPEN_SOURCE_EXTENDED=1']
+  else
+    curses_compile_args = ['-DNCURSES_WIDECHAR=1']
+  endif
   if curses.found()
     if cc.links(curses_test, args: curses_compile_args, dependencies: [curses])
       curses = declare_dependency(compile_args: curses_compile_args, dependencies: [curses])
