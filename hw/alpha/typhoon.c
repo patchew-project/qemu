@@ -919,10 +919,31 @@ PCIBus *typhoon_init(MemoryRegion *ram, ISABus **isa_bus, qemu_irq *p_rtc_irq,
     /* Pchip1 PCI I/O, 0x802.FC00.0000, 32MB.  */
     /* Pchip1 PCI configuration, 0x802.FE00.0000, 16MB.  */
 
-    /* Init the ISA bus.  */
-    /* ??? Technically there should be a cy82c693ub pci-isa bridge.  */
+    /* Init the PCI-ISA bridge.  Technically, PCI-based Alphas shipped
+       with one of three different PCI-ISA bridges:
+
+       - Intel i82378 SIO
+       - Cypress CY82c693UB
+       - ALI M1533
+
+       (An Intel i82375 PCI-EISA bridge was also used on some models.)
+
+       For simplicity, we model an i82378 here, even though it wouldn't
+       have been on any Tsunami/Typhoon systems; it's close enough, and
+       we don't want to deal with modelling the CY82c693UB (which has
+       incompatible edge/level control registers, plus other peripherals
+       like IDE and USB) or the M1533 (which also has IDE and USB).
+
+       Importantly, we need to provide a PCI device node for it, otherwise
+       some operating systems won't notice there's an ISA bus to configure.
+
+       ??? We are using a private, stripped-down implementation of i82378
+       so that we can handle the way the ISA interrupts are wired up on
+       Tsunami/Typhoon systems.  */
     {
         qemu_irq *isa_irqs;
+
+        pci_create_simple(b, PCI_DEVFN(7, 0), "i82378-typhoon");
 
         *isa_bus = isa_bus_new(NULL, get_system_memory(), &s->pchip.reg_io,
                                &error_abort);
@@ -954,10 +975,96 @@ static const TypeInfo typhoon_iommu_memory_region_info = {
     .class_init = typhoon_iommu_memory_region_class_init,
 };
 
+/* The following was copied from hw/isa/i82378.c and modified to provide
+   only the minimal PCI device node.  */
+
+/*
+ * QEMU Intel i82378 emulation (PCI to ISA bridge)
+ *
+ * Copyright (c) 2010-2011 Herv\xc3\xa9 Poussineau
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "migration/vmstate.h"
+
+#define TYPE_I82378 "i82378-typhoon"
+#define I82378(obj) \
+    OBJECT_CHECK(I82378State, (obj), TYPE_I82378)
+
+typedef struct I82378State {
+    PCIDevice parent_obj;
+} I82378State;
+
+static const VMStateDescription vmstate_i82378 = {
+    .name = "pci-i82378-typhoon",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (VMStateField[]) {
+        VMSTATE_PCI_DEVICE(parent_obj, I82378State),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static void i82378_realize(PCIDevice *pci, Error **errp)
+{
+    uint8_t *pci_conf;
+
+    pci_conf = pci->config;
+    pci_set_word(pci_conf + PCI_COMMAND,
+                 PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
+    pci_set_word(pci_conf + PCI_STATUS,
+                 PCI_STATUS_DEVSEL_MEDIUM);
+
+    pci_config_set_interrupt_pin(pci_conf, 1); /* interrupt pin 0 */
+}
+
+static void i82378_init(Object *obj)
+{
+}
+
+static void i82378_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    k->realize = i82378_realize;
+    k->vendor_id = PCI_VENDOR_ID_INTEL;
+    k->device_id = PCI_DEVICE_ID_INTEL_82378;
+    k->revision = 0x03;
+    k->class_id = PCI_CLASS_BRIDGE_ISA;
+    dc->vmsd = &vmstate_i82378;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+}
+
+static const TypeInfo i82378_typhoon_type_info = {
+    .name = TYPE_I82378,
+    .parent = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(I82378State),
+    .instance_init = i82378_init,
+    .class_init = i82378_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { },
+    },
+};
+
 static void typhoon_register_types(void)
 {
     type_register_static(&typhoon_pcihost_info);
     type_register_static(&typhoon_iommu_memory_region_info);
+    type_register_static(&i82378_typhoon_type_info);
 }
 
 type_init(typhoon_register_types)
