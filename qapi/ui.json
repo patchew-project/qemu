@@ -1041,7 +1041,8 @@
 ##
 { 'struct'  : 'DisplayGTK',
   'data'    : { '*grab-on-hover' : 'bool',
-                '*zoom-to-fit'   : 'bool'  } }
+                '*zoom-to-fit'   : 'bool',
+		'*monitor-num' : 'int' } }
 
 ##
 # @DisplayEGLHeadless:
