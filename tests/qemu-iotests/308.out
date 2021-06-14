@@ -167,4 +167,51 @@ OK: Post-truncate image size is as expected
 
 === Compare copy with original ===
 Images are identical.
+
+=== Test permissions ===
+
+--- allow-other=false ---
+{'execute': 'qmp_capabilities'}
+{"return": {}}
+{'execute': 'block-export-add',
+          'arguments': {
+              'type': 'fuse',
+              'id': 'export',
+              'node-name': 'node-format',
+              'mountpoint': 'TEST_DIR/t.IMGFMT.fuse',
+         'writable': true,
+         'allow-other': false
+          } }
+{"return": {}}
+(Invoking chmod)
+chmod: changing permissions of 'TEST_DIR/t.IMGFMT.fuse': Operation not supported
+Permissions post-chmod: 600
+(Removing all permissions)
+chmod: changing permissions of 'TEST_DIR/t.IMGFMT.fuse': Operation not supported
+{'execute': 'quit'}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false, "reason": "host-qmp-quit"}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_EXPORT_DELETED", "data": {"id": "export"}}
+
+--- allow-other=true ---
+{'execute': 'qmp_capabilities'}
+{"return": {}}
+{'execute': 'block-export-add',
+          'arguments': {
+              'type': 'fuse',
+              'id': 'export',
+              'node-name': 'node-format',
+              'mountpoint': 'TEST_DIR/t.IMGFMT.fuse',
+         'writable': true,
+         'allow-other': true
+          } }
+{"return": {}}
+(Invoking chmod)
+Permissions post-chmod: 666
+(Removing all permissions)
+qemu-io: can't open: Could not open 'TEST_DIR/t.IMGFMT.fuse': Permission denied
+{'execute': 'quit'}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false, "reason": "host-qmp-quit"}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "BLOCK_EXPORT_DELETED", "data": {"id": "export"}}
 *** done

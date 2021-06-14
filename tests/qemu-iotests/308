@@ -334,6 +334,97 @@ echo '=== Compare copy with original ==='
 
 $QEMU_IMG compare -f raw -F $IMGFMT "$COPIED_IMG" "$TEST_IMG"
 
+echo
+echo '=== Test permissions ==='
+
+# Test that you can only change permissions on the export with allow-other=true.
+# We cannot really test the primary reason behind allow-other (i.e. to allow
+# users other than the current one access to the export), because for that we
+# would need sudo, which realistically nobody will allow this test to use.
+# What we can do is test that allow-other=true also enables default_permissions,
+# i.e. whether we can still read from the file if we remove the read permission.
+
+# $1: allow-other value ('true' or 'false')
+run_permission_test()
+{
+    # Below, we want to test permission checks on the export.  To do that
+    # properly, we need to ensure that those checks are not bypassed, so we have
+    # to drop cap_dac_override.
+    # (Note that cap_dac_read_search bypasses read permission checks, which is
+    # why we try to open the file R/W below, so we do not have to care about
+    # cap_dac_read_search here.)
+    # $capsh is effectively a shell command, i.e. can be used like:
+    #   $capsh -c "$command $args..."
+    # By default it is just bash.
+    capsh='/usr/bin/env bash'
+    if type -p capsh > /dev/null; then
+        if ! capsh --has-p=cap_dac_override 2>/dev/null; then
+            # No cap_dac_override, we are good to go
+            true # pass
+        elif capsh --has-p=cap_setpcap 2>/dev/null; then
+            # We will need to drop cap_dac_override, but doing so requires
+            # cap_setpcap in turn
+            capsh='capsh --drop=cap_dac_override --'
+        else
+            # Hopefully a rare case
+            _notrun 'CAP_DAC_OVERRIDE must be dropped, but this cannot be' \
+                    'done without CAP_SETPCAP'
+        fi
+    elif [ "$(id -u)" -ne 0 ]; then
+        # Non-root users probably do not have those capabilities, so try to get
+        # by without capsh
+        true # pass
+    else
+        # Running this test as root without capsh on the system should be a rare
+        # case...
+        _notrun 'No capsh found while run as root'
+    fi
+
+    _launch_qemu \
+        -blockdev \
+        "$IMGFMT,node-name=node-format,file.driver=file,file.filename=$TEST_IMG"
+
+    _send_qemu_cmd $QEMU_HANDLE \
+        "{'execute': 'qmp_capabilities'}" \
+        'return'
+
+    # Writable so we can open it R/W below
+    fuse_export_add 'export' \
+        "'mountpoint': '$EXT_MP',
+         'writable': true,
+         'allow-other': $1"
+
+    echo '(Invoking chmod)'
+    chmod 666 "$EXT_MP" 2>&1 | _filter_testdir | _filter_imgfmt
+    stat -c 'Permissions post-chmod: %a' "$EXT_MP"
+
+    echo '(Removing all permissions)'
+    chmod 000 "$EXT_MP" 2>&1 | _filter_testdir | _filter_imgfmt
+
+    # We want a permission denied here (with allow-other=true)
+    # (Use $QEMU_IO_PROG, because $capsh will not know the wrapper that is
+    # $QEMU_IO)
+    # Use blkdebug to force-take the WRITE permission so this will definitely
+    # try to open the export with O_RDWR.
+    imgopts="driver=blkdebug,take-child-perms.0=write,"
+    imgopts+="image.driver=file,image.filename=$EXT_MP"
+    $capsh -c "$QEMU_IO_PROG -c quit --image-opts '$imgopts'" 2>&1 \
+        | _filter_qemu_io | _filter_testdir | _filter_imgfmt
+
+    _send_qemu_cmd $QEMU_HANDLE \
+        "{'execute': 'quit'}" \
+        'return'
+
+    wait=yes _cleanup_qemu
+}
+
+for ao in 'false' 'true'; do
+    echo
+    echo "--- allow-other=$ao ---"
+
+    run_permission_test "$ao"
+done
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
