@@ -788,25 +788,35 @@ static inline void tcg_out_sari64(TCGContext *s, TCGReg dst, TCGReg src, int c)
     tcg_out32(s, SRADI | RA(dst) | RS(src) | SH(c & 0x1f) | ((c >> 4) & 2));
 }
 
-static void tcg_out_bswap16(TCGContext *s, TCGReg dst, TCGReg src)
+static void tcg_out_bswap16(TCGContext *s, TCGReg dst, TCGReg src, int flags)
 {
     TCGReg tmp = dst == src ? TCG_REG_R0 : dst;
 
-                                                   /* src = abcd */
-    tcg_out_rlw(s, RLWINM, tmp, src, 24, 24, 31);  /* tmp = 000c */
-    tcg_out_rlw(s, RLWIMI, tmp, src, 8, 16, 23);   /* tmp = 00dc */
-    tcg_out_mov(s, TCG_TYPE_REG, dst, tmp);
+                                                   /* src = xxxx abcd */
+    tcg_out_rlw(s, RLWINM, tmp, src, 24, 24, 31);  /* tmp = 0000 000c */
+    tcg_out_rlw(s, RLWIMI, tmp, src, 8, 16, 23);   /* tmp = 0000 00dc */
+
+    if (flags & TCG_BSWAP_OS) {
+        tcg_out_ext16s(s, dst, tmp);
+    } else {
+        tcg_out_mov(s, TCG_TYPE_REG, dst, tmp);
+    }
 }
 
-static void tcg_out_bswap32(TCGContext *s, TCGReg dst, TCGReg src)
+static void tcg_out_bswap32(TCGContext *s, TCGReg dst, TCGReg src, int flags)
 {
     TCGReg tmp = dst == src ? TCG_REG_R0 : dst;
 
-    /* Stolen from gcc's builtin_bswap32.             src = abcd */
-    tcg_out_rlw(s, RLWINM, tmp, src, 8, 0, 31);    /* tmp = bcda */
-    tcg_out_rlw(s, RLWIMI, tmp, src, 24, 0, 7);    /* tmp = dcda */
-    tcg_out_rlw(s, RLWIMI, tmp, src, 24, 16, 23);  /* tmp = dcba */
-    tcg_out_mov(s, TCG_TYPE_REG, dst, tmp);
+    /* Stolen from gcc's builtin_bswap32.             src = xxxx abcd */
+    tcg_out_rlw(s, RLWINM, tmp, src, 8, 0, 31);    /* tmp = 0000 bcda */
+    tcg_out_rlw(s, RLWIMI, tmp, src, 24, 0, 7);    /* tmp = 0000 dcda */
+    tcg_out_rlw(s, RLWIMI, tmp, src, 24, 16, 23);  /* tmp = 0000 dcba */
+
+    if (flags & TCG_BSWAP_OS) {
+        tcg_out_ext32s(s, dst, tmp);
+    } else {
+        tcg_out_mov(s, TCG_TYPE_REG, dst, tmp);
+    }
 }
 
 static void tcg_out_bswap64(TCGContext *s, TCGReg dst, TCGReg src)
@@ -2820,11 +2830,13 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_bswap16_i32:
     case INDEX_op_bswap16_i64:
-        tcg_out_bswap16(s, args[0], args[1]);
+        tcg_out_bswap16(s, args[0], args[1], args[2]);
         break;
     case INDEX_op_bswap32_i32:
+        tcg_out_bswap32(s, args[0], args[1], 0);
+        break;
     case INDEX_op_bswap32_i64:
-        tcg_out_bswap32(s, args[0], args[1]);
+        tcg_out_bswap32(s, args[0], args[1], args[2]);
         break;
     case INDEX_op_bswap64_i64:
         tcg_out_bswap64(s, args[0], args[1]);
