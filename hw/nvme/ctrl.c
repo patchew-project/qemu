@@ -451,9 +451,13 @@ static void nvme_irq_assert(NvmeCtrl *n, NvmeCQueue *cq)
             msix_notify(&(n->parent_obj), cq->vector);
         } else {
             trace_pci_nvme_irq_pin();
-            assert(cq->vector < 32);
-            n->irq_status |= 1 << cq->vector;
-            nvme_irq_check(n);
+            if (!cq->irq_asserted) {
+                cq->irq_asserted = true;
+                assert(cq->vector < 32);
+                n->irq_asserted_cnt[cq->vector]++;
+                n->irq_status |= 1 << cq->vector;
+                nvme_irq_check(n);
+            }
         }
     } else {
         trace_pci_nvme_irq_masked();
@@ -466,9 +470,15 @@ static void nvme_irq_deassert(NvmeCtrl *n, NvmeCQueue *cq)
         if (msix_enabled(&(n->parent_obj))) {
             return;
         } else {
-            assert(cq->vector < 32);
-            n->irq_status &= ~(1 << cq->vector);
-            nvme_irq_check(n);
+            if (cq->irq_asserted) {
+                cq->irq_asserted = false;
+                assert(cq->vector < 32);
+                assert(n->irq_asserted_cnt[cq->vector]);
+                if (n->irq_asserted_cnt[cq->vector]-- == 1) {
+                    n->irq_status &= ~(1 << cq->vector);
+                }
+                nvme_irq_check(n);
+            }
         }
     }
 }

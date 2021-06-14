@@ -352,6 +352,7 @@ typedef struct NvmeCQueue {
     uint32_t    head;
     uint32_t    tail;
     uint32_t    vector;
+    bool        irq_asserted;
     uint32_t    size;
     uint64_t    dma_addr;
     QEMUTimer   *timer;
@@ -404,6 +405,7 @@ typedef struct NvmeCtrl {
     uint32_t    max_q_ents;
     uint8_t     outstanding_aers;
     uint32_t    irq_status;
+    uint16_t    irq_asserted_cnt[32];
     uint64_t    host_timestamp;                 /* Timestamp sent by the host */
     uint64_t    timestamp_set_qemu_clock_ms;    /* QEMU clock time */
     uint64_t    starttime_ms;
