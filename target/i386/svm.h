@@ -136,6 +136,7 @@
 #define SVM_NPTEXIT_GPT     (1ULL << 33)
 
 #define SVM_VMRUN_INTERCEPT (1ULL << 32)
+#define SVM_CR0_RESERVED_MASK 0xffffffff00000000U
 
 struct QEMU_PACKED vmcb_control_area {
 	uint16_t intercept_cr_read;
