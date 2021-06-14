@@ -1331,6 +1331,9 @@ uint64_t dup_const(unsigned vece, uint64_t c);
         : (qemu_build_not_reached_always(), 0))                    \
      : dup_const(VECE, C))
 
+/* Replicate a value of size @vece from @in to all the lanes in @out */
+void gen_dup_i32(unsigned vece, TCGv_i32 out, TCGv_i32 in);
+void gen_dup_i64(unsigned vece, TCGv_i64 out, TCGv_i64 in);
 
 /*
  * Memory helpers that will be used by TCG generated code.
