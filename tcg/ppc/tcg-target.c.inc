@@ -413,6 +413,10 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
 #define SRAD   XO31(794)
 #define SRADI  XO31(413<<1)
 
+#define BRH    XO31(219)
+#define BRW    XO31(155)
+#define BRD    XO31(187)
+
 #define TW     XO31( 4)
 #define TRAP   (TW | TO(31))
 
@@ -748,6 +752,11 @@ static inline void tcg_out_ext16s(TCGContext *s, TCGReg dst, TCGReg src)
     tcg_out32(s, EXTSH | RA(dst) | RS(src));
 }
 
+static inline void tcg_out_ext16u(TCGContext *s, TCGReg dst, TCGReg src)
+{
+    tcg_out32(s, ANDI | SAI(src, dst, 0xffff));
+}
+
 static inline void tcg_out_ext32s(TCGContext *s, TCGReg dst, TCGReg src)
 {
     tcg_out32(s, EXTSW | RA(dst) | RS(src));
@@ -792,6 +801,16 @@ static void tcg_out_bswap16(TCGContext *s, TCGReg dst, TCGReg src, int flags)
 {
     TCGReg tmp = dst == src ? TCG_REG_R0 : dst;
 
+    if (have_isa_3_10) {
+        tcg_out32(s, BRH | RA(dst) | RS(src));
+        if (flags & TCG_BSWAP_OS) {
+            tcg_out_ext16s(s, dst, dst);
+        } else if ((flags & (TCG_BSWAP_IZ | TCG_BSWAP_OZ)) == TCG_BSWAP_OZ) {
+            tcg_out_ext16u(s, dst, dst);
+        }
+        return;
+    }
+
                                                    /* src = xxxx abcd */
     tcg_out_rlw(s, RLWINM, tmp, src, 24, 24, 31);  /* tmp = 0000 000c */
     tcg_out_rlw(s, RLWIMI, tmp, src, 8, 16, 23);   /* tmp = 0000 00dc */
@@ -806,6 +825,16 @@ static void tcg_out_bswap16(TCGContext *s, TCGReg dst, TCGReg src, int flags)
 static void tcg_out_bswap32(TCGContext *s, TCGReg dst, TCGReg src, int flags)
 {
     TCGReg tmp = dst == src ? TCG_REG_R0 : dst;
+
+    if (have_isa_3_10) {
+        tcg_out32(s, BRW | RA(dst) | RS(src));
+        if (flags & TCG_BSWAP_OS) {
+            tcg_out_ext32s(s, dst, src);
+        } else if ((flags & (TCG_BSWAP_IZ | TCG_BSWAP_OZ)) == TCG_BSWAP_OZ) {
+            tcg_out_ext32u(s, dst, dst);
+        }
+        return;
+    }
 
     /* Stolen from gcc's builtin_bswap32.             src = xxxx abcd */
     tcg_out_rlw(s, RLWINM, tmp, src, 8, 0, 31);    /* tmp = 0000 bcda */
@@ -823,6 +852,11 @@ static void tcg_out_bswap64(TCGContext *s, TCGReg dst, TCGReg src)
 {
     TCGReg t0 = dst == src ? TCG_REG_R0 : dst;
     TCGReg t1 = dst == src ? dst : TCG_REG_R0;
+
+    if (have_isa_3_10) {
+        tcg_out32(s, BRD | RA(dst) | RS(src));
+        return;
+    }
 
                                                    /* src = abcd efgh */
     tcg_out_rlw(s, RLWINM, t0, src, 8, 0, 31);     /* t0  = 0000 fghe */
