@@ -132,11 +132,20 @@
 # @growable: Whether writes beyond the EOF should grow the block node
 #            accordingly. (default: false)
 #
+# @allow-other: By default (if this is false), only qemu's user is allowed
+#               access to this export.  That cannot be changed even with
+#               chmod or chown.
+#               This option will allow other users access to the export with the
+#               FUSE mount options "allow_other,default_permissions".
+#               (default_permissions enables standard UNIX permission checks.)
+#               (since 6.1; default: false)
+#
 # Since: 6.0
 ##
 { 'struct': 'BlockExportOptionsFuse',
   'data': { 'mountpoint': 'str',
-            '*growable': 'bool' },
+            '*growable': 'bool',
+            '*allow-other': 'bool' },
   'if': 'defined(CONFIG_FUSE)' }
 
 ##

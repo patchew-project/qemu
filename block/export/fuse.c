@@ -46,6 +46,7 @@ typedef struct FuseExport {
     char *mountpoint;
     bool writable;
     bool growable;
+    bool allow_other;
 } FuseExport;
 
 static GHashTable *exports;
@@ -117,6 +118,7 @@ static int fuse_export_create(BlockExport *blk_exp,
     exp->mountpoint = g_strdup(args->mountpoint);
     exp->writable = blk_exp_args->writable;
     exp->growable = args->growable;
+    exp->allow_other = args->allow_other;
 
     ret = setup_fuse_export(exp, args->mountpoint, errp);
     if (ret < 0) {
@@ -150,11 +152,22 @@ static int setup_fuse_export(FuseExport *exp, const char *mountpoint,
 {
     const char *fuse_argv[4];
     char *mount_opts;
+    const char *allow_other;
     struct fuse_args fuse_args;
     int ret;
 
-    /* Needs to match what fuse_init() sets.  Only max_read must be supplied. */
-    mount_opts = g_strdup_printf("max_read=%zu", FUSE_MAX_BOUNCE_BYTES);
+    if (exp->allow_other) {
+        allow_other = ",allow_other,default_permissions";
+    } else {
+        allow_other = "";
+    }
+
+    /*
+     * max_read needs to match what fuse_init() sets.
+     * max_write need not be supplied.
+     */
+    mount_opts = g_strdup_printf("max_read=%zu%s", FUSE_MAX_BOUNCE_BYTES,
+                                 allow_other);
 
     fuse_argv[0] = ""; /* Dummy program name */
     fuse_argv[1] = "-o";
