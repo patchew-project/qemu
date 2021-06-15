@@ -1403,13 +1403,15 @@ static void qmp_chardev_open_socket(Chardev *chr,
         }
         object_ref(OBJECT(s->tls_creds));
         if (is_listen) {
-            if (s->tls_creds->endpoint != QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
+            if (!qcrypto_tls_creds_check_endpoint(s->tls_creds,
+                                        QCRYPTO_TLS_CREDS_ENDPOINT_SERVER)) {
                 error_setg(errp, "%s",
                            "Expected TLS credentials for server endpoint");
                 return;
             }
         } else {
-            if (s->tls_creds->endpoint != QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT) {
+            if (!qcrypto_tls_creds_check_endpoint(s->tls_creds,
+                                        QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT)) {
                 error_setg(errp, "%s",
                            "Expected TLS credentials for client endpoint");
                 return;
