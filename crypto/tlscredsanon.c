@@ -26,8 +26,9 @@
 #include "qom/object_interfaces.h"
 #include "trace.h"
 
-
 #ifdef CONFIG_GNUTLS
+
+#include <gnutls/gnutls.h>
 
 
 static int

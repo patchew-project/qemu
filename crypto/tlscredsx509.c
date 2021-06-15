@@ -27,11 +27,9 @@
 #include "qom/object_interfaces.h"
 #include "trace.h"
 
-
 #ifdef CONFIG_GNUTLS
-
+#include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
-
 
 static int
 qcrypto_tls_creds_check_cert_times(gnutls_x509_crt_t cert,
