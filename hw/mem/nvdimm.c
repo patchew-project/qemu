@@ -96,6 +96,29 @@ static void nvdimm_set_uuid(Object *obj, Visitor *v, const char *name,
     g_free(value);
 }
 
+static void nvdimm_get_device_node(Object *obj, Visitor *v,
+                                         const char *name, void *opaque,
+                                         Error **errp)
+{
+    NVDIMMDevice *nvdimm = NVDIMM(obj);
+    uint8_t value = nvdimm->device_node;
+
+    visit_type_uint8(v, name, &value, errp);
+}
+
+static void nvdimm_set_device_node(Object *obj, Visitor *v,
+                                         const char *name, void *opaque,
+                                         Error **errp)
+{
+    NVDIMMDevice *nvdimm = NVDIMM(obj);
+    uint8_t value;
+
+    if (!visit_type_uint8(v, name, &value, errp)) {
+        return;
+    }
+
+    nvdimm->device_node = value;
+}
 
 static void nvdimm_init(Object *obj)
 {
@@ -105,6 +128,11 @@ static void nvdimm_init(Object *obj)
 
     object_property_add(obj, NVDIMM_UUID_PROP, "QemuUUID", nvdimm_get_uuid,
                         nvdimm_set_uuid, NULL, NULL);
+
+    object_property_add(obj, NVDIMM_DEVICE_NODE, "uint8",
+                        nvdimm_get_device_node,
+                        nvdimm_set_device_node,
+                        NULL, NULL);
 }
 
 static void nvdimm_finalize(Object *obj)
