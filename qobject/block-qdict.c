@@ -224,7 +224,6 @@ void qdict_array_split(QDict *src, QList **dst)
     for (i = 0; i < UINT_MAX; i++) {
         QObject *subqobj;
         bool is_subqdict;
-        QDict *subqdict;
         char indexstr[32], prefix[32];
         size_t snprintf_ret;
 
@@ -249,14 +248,16 @@ void qdict_array_split(QDict *src, QList **dst)
         }
 
         if (is_subqdict) {
+            QDict *subqdict = NULL;
+
             qdict_extract_subqdict(src, &subqdict, prefix);
             assert(qdict_size(subqdict) > 0);
+            qlist_append_obj(*dst, QOBJECT(subqdict));
         } else {
             qobject_ref(subqobj);
             qdict_del(src, indexstr);
+            qlist_append_obj(*dst, subqobj);
         }
-
-        qlist_append_obj(*dst, subqobj ?: QOBJECT(subqdict));
     }
 }
 
