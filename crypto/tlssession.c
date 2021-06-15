@@ -640,3 +640,9 @@ qcrypto_tls_session_get_peer_name(QCryptoTLSSession *sess)
 }
 
 #endif
+
+bool qcrypto_tls_session_check_role(QCryptoTLSCreds *creds,
+                                    QCryptoTLSCredsEndpoint endpoint)
+{
+    return qcrypto_tls_creds_check_endpoint(creds, endpoint);
+}

@@ -163,6 +163,19 @@ void qcrypto_tls_session_free(QCryptoTLSSession *sess);
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(QCryptoTLSSession, qcrypto_tls_session_free)
 
 /**
+ * qcrypto_tls_session_check_role:
+ * @creds: pointer to a TLS credentials object
+ * @endpoint: role of the TLS session, client or server
+ *
+ * Check whether the session object operates according to
+ * the role of the @endpoint argument.
+ *
+ * Returns true if the session is setup for the endpoint role, false otherwise
+ */
+bool qcrypto_tls_session_check_role(QCryptoTLSCreds *creds,
+                                    QCryptoTLSCredsEndpoint endpoint);
+
+/**
  * qcrypto_tls_session_check_credentials:
  * @sess: the TLS session object
  * @errp: pointer to a NULL-initialized error object
