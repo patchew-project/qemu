@@ -49,7 +49,7 @@ migration_tls_get_creds(MigrationState *s,
                    s->parameters.tls_creds);
         return NULL;
     }
-    if (ret->endpoint != endpoint) {
+    if (!qcrypto_tls_creds_check_endpoint(ret, endpoint)) {
         error_setg(errp,
                    "Expected TLS credentials for a %s endpoint",
                    endpoint == QCRYPTO_TLS_CREDS_ENDPOINT_CLIENT ?
