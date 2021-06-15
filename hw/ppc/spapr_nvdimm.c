@@ -142,7 +142,8 @@ static int spapr_dt_nvdimm(SpaprMachineState *spapr, void *fdt,
     _FDT((fdt_setprop_string(fdt, child_offset, "compatible", "ibm,pmemory")));
     _FDT((fdt_setprop_string(fdt, child_offset, "device_type", "ibm,pmemory")));
 
-    spapr_numa_write_associativity_dt(spapr, fdt, child_offset, node);
+    spapr_numa_write_nvdimm_assoc_dt(spapr, fdt, child_offset, node,
+                                     nvdimm->device_node);
 
     buf = qemu_uuid_unparse_strdup(&nvdimm->uuid);
     _FDT((fdt_setprop_string(fdt, child_offset, "ibm,unit-guid", buf)));
