@@ -27,11 +27,21 @@
 #include "qom/object_interfaces.h"
 #include "trace.h"
 
+#ifdef CONFIG_GNUTLS
+#include <gnutls/gnutls.h>
+#include <gnutls/x509.h>
+#endif
+
+struct QCryptoTLSCredsX509 {
+    QCryptoTLSCreds parent_obj;
+#ifdef CONFIG_GNUTLS
+    gnutls_certificate_credentials_t data;
+#endif
+    bool sanityCheck;
+    char *passwordid;
+};
 
 #ifdef CONFIG_GNUTLS
-
-#include <gnutls/x509.h>
-
 
 static int
 qcrypto_tls_creds_check_cert_times(gnutls_x509_crt_t cert,
