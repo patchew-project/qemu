@@ -12,6 +12,9 @@
 #include "hw/ppc/spapr_xive.h"  /* For SpaprXive */
 #include "hw/ppc/xics.h"        /* For ICSState */
 #include "hw/ppc/spapr_tpm_proxy.h"
+#ifdef CONFIG_VOF
+#include "hw/ppc/vof.h"
+#endif
 
 struct SpaprVioBus;
 struct SpaprPhbState;
@@ -180,6 +183,9 @@ struct SpaprMachineState {
     uint64_t kernel_addr;
     uint32_t initrd_base;
     long initrd_size;
+#ifdef CONFIG_VOF
+    Vof *vof;
+#endif
     uint64_t rtc_offset; /* Now used only during incoming migration */
     struct PPCTimebase tb;
     bool has_graphics;
@@ -558,7 +564,9 @@ struct SpaprMachineState {
 /* Client Architecture support */
 #define KVMPPC_H_CAS            (KVMPPC_HCALL_BASE + 0x2)
 #define KVMPPC_H_UPDATE_DT      (KVMPPC_HCALL_BASE + 0x3)
-#define KVMPPC_HCALL_MAX        KVMPPC_H_UPDATE_DT
+/* 0x4 was used for KVMPPC_H_UPDATE_PHANDLE in SLOF */
+#define KVMPPC_H_VOF_CLIENT     (KVMPPC_HCALL_BASE + 0x5)
+#define KVMPPC_HCALL_MAX        KVMPPC_H_VOF_CLIENT
 
 /*
  * The hcall range 0xEF00 to 0xEF80 is reserved for use in facilitating
@@ -956,4 +964,19 @@ bool spapr_check_pagesize(SpaprMachineState *spapr, hwaddr pagesize,
 void spapr_set_all_lpcrs(target_ulong value, target_ulong mask);
 hwaddr spapr_get_rtas_addr(void);
 bool spapr_memory_hot_unplug_supported(SpaprMachineState *spapr);
+
+#ifdef CONFIG_VOF
+void spapr_vof_reset(SpaprMachineState *spapr, void *fdt,
+                     target_ulong *stack_ptr, Error **errp);
+void spapr_vof_quiesce(MachineState *ms);
+bool spapr_vof_setprop(MachineState *ms, const char *path, const char *propname,
+                       void *val, int vallen);
+target_ulong spapr_h_vof_client(PowerPCCPU *cpu, SpaprMachineState *spapr,
+                                target_ulong opcode, target_ulong *args);
+target_ulong spapr_vof_client_architecture_support(MachineState *ms,
+                                                   CPUState *cs,
+                                                   target_ulong ovec_addr);
+void spapr_vof_client_dt_finalize(SpaprMachineState *spapr, void *fdt);
+#endif
+
 #endif /* HW_SPAPR_H */

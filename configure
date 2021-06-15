@@ -445,6 +445,7 @@ fuse="auto"
 fuse_lseek="auto"
 multiprocess="auto"
 slirp_smbd="$default_feature"
+vof="no"
 
 malloc_trim="auto"
 gio="$default_feature"
@@ -1561,6 +1562,10 @@ for opt do
   ;;
   --disable-slirp-smbd) slirp_smbd=no
   ;;
+  --enable-vof) vof=yes
+  ;;
+  --disable-vof) vof=no
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1940,6 +1945,7 @@ disabled with --disable-FEATURE, default is enabled if available
   multiprocess    Out of process device emulation support
   gio             libgio support
   slirp-smbd      use smbd (at path --smbd=*) in slirp networking
+  vof             Virtual Open Firmware support (powerpc/pseries, experimental)
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -5554,6 +5560,9 @@ fi
 if test "$slirp_smbd" = "yes" ; then
   echo "CONFIG_SLIRP_SMBD=y" >> $config_host_mak
   echo "CONFIG_SMBD_COMMAND=\"$smbd\"" >> $config_host_mak
+fi
+if test "$vof" = "yes" ; then
+  echo "CONFIG_VOF=y" >> $config_host_mak
 fi
 if test "$vde" = "yes" ; then
   echo "CONFIG_VDE=y" >> $config_host_mak
