@@ -1310,6 +1310,25 @@ static Rom *find_rom(hwaddr addr, size_t size)
     return NULL;
 }
 
+hwaddr rom_find_highest_addr(hwaddr base, size_t size)
+{
+    Rom *rom;
+    hwaddr lowest = base;
+
+    QTAILQ_FOREACH(rom, &roms, next) {
+        if (rom->addr < base) {
+            continue;
+        }
+        if (rom->addr + rom->romsize > base + size) {
+            continue;
+        }
+        if (rom->addr + rom->romsize > lowest) {
+            lowest = rom->addr + rom->romsize;
+        }
+    }
+    return lowest;
+}
+
 /*
  * Copies memory from registered ROMs to dest. Any memory that is contained in
  * a ROM between addr and addr + size is copied. Note that this can involve

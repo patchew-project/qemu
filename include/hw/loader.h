@@ -349,4 +349,14 @@ int rom_add_option(const char *file, int32_t bootindex);
  * overflow on real hardware too. */
 #define UBOOT_MAX_GUNZIP_BYTES (64 << 20)
 
+/**
+ * rom_find_highest_addr: return highest address of ROM in region
+ *
+ * This function is used to find the highest ROM address (or loaded
+ * blob) so we can advise where true heap memory may be.
+ *
+ * Returns: highest found address in region
+ */
+hwaddr rom_find_highest_addr(hwaddr base, size_t size);
+
 #endif
