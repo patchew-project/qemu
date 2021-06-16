@@ -21,15 +21,10 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/error.h"
-
-#include "exec/memory.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/aml-build.h"
-#include "hw/acpi/utils.h"
 #include "hw/i386/pc.h"
 #include "target/i386/cpu.h"
-
 #include "acpi-build.h"
 #include "acpi-common.h"
 
