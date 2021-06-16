@@ -179,8 +179,8 @@ int fuse_send_reply_iov_nofree(fuse_req_t req, int error, struct iovec *iov,
         .unique = req->unique,
         .error = error,
     };
-
-    if (error <= -1000 || error > 0) {
+    /* error = 1 has been used to signal client to wait for notificaiton */
+    if (error <= -1000 || error > 1) {
         fuse_log(FUSE_LOG_ERR, "fuse: bad error value: %i\n", error);
         out.error = -ERANGE;
     }
@@ -288,6 +288,12 @@ static int send_reply_ok(fuse_req_t req, const void *arg, size_t argsize)
 int fuse_reply_err(fuse_req_t req, int err)
 {
     return send_reply(req, -err, NULL, 0);
+}
+
+int fuse_reply_wait(fuse_req_t req)
+{
+    /* TODO: This is a hack. Fix it */
+    return send_reply(req, 1, NULL, 0);
 }
 
 void fuse_reply_none(fuse_req_t req)
@@ -2143,6 +2149,34 @@ static void do_destroy(fuse_req_t req, fuse_ino_t nodeid,
     }
 
     send_reply_ok(req, NULL, 0);
+}
+
+static int send_notify_iov(struct fuse_session *se, int notify_code,
+                           struct iovec *iov, int count)
+{
+    struct fuse_out_header out;
+    if (!se->got_init) {
+        return -ENOTCONN;
+    }
+    out.unique = 0;
+    out.error = notify_code;
+    iov[0].iov_base = &out;
+    iov[0].iov_len = sizeof(struct fuse_out_header);
+    return fuse_send_msg(se, NULL, iov, count);
+}
+
+int fuse_lowlevel_notify_lock(struct fuse_session *se, uint64_t unique,
+                  int32_t error)
+{
+    struct fuse_notify_lock_out outarg = {0};
+    struct iovec iov[2];
+
+    outarg.unique = unique;
+    outarg.error = -error;
+
+    iov[1].iov_base = &outarg;
+    iov[1].iov_len = sizeof(outarg);
+    return send_notify_iov(se, FUSE_NOTIFY_LOCK, iov, 2);
 }
 
 int fuse_lowlevel_notify_store(struct fuse_session *se, fuse_ino_t ino,
