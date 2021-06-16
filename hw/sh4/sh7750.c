@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/irq.h"
 #include "hw/sh4/sh.h"
 #include "sysemu/sysemu.h"
@@ -32,6 +33,8 @@
 #include "hw/sh4/sh_intc.h"
 #include "hw/timer/tmu012.h"
 #include "exec/exec-all.h"
+#include "hw/char/renesas_sci.h"
+#include "hw/qdev-properties.h"
 
 #define NB_DEVICES 4
 
@@ -751,6 +754,44 @@ static const MemoryRegionOps sh7750_mmct_ops = {
     .write = sh7750_mmct_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
+
+static void sh_serial_init(MemoryRegion *sysmem,
+                           hwaddr base, int feat,
+                           uint32_t freq, Chardev *chr,
+                           qemu_irq eri_source,
+                           qemu_irq rxi_source,
+                           qemu_irq txi_source,
+                           qemu_irq tei_source,
+                           qemu_irq bri_source)
+{
+    RenesasSCIBaseState *sci;
+    char ckname[16];
+
+    switch(feat) {
+    case 0: /* SCI */
+        sci = RENESAS_SCI_BASE(qdev_new(TYPE_RENESAS_SCI));
+        snprintf(ckname, sizeof(ckname), "pck_sci");
+        break;
+    case SH_SERIAL_FEAT_SCIF:
+        sci = RENESAS_SCI_BASE(qdev_new(TYPE_RENESAS_SCIF));
+        snprintf(ckname, sizeof(ckname), "pck_scif");
+        break;
+    }
+    qdev_prop_set_chr(DEVICE(sci), "chardev", chr);
+    qdev_prop_set_uint32(DEVICE(sci), "register-size", SCI_REGWIDTH_32);
+    qdev_prop_set_uint64(DEVICE(sci), "input-freq", freq);
+    sysbus_connect_irq(SYS_BUS_DEVICE(sci), 0, eri_source);
+    sysbus_connect_irq(SYS_BUS_DEVICE(sci), 1, rxi_source);
+    sysbus_connect_irq(SYS_BUS_DEVICE(sci), 2, txi_source);
+    if (tei_source)
+        sysbus_connect_irq(SYS_BUS_DEVICE(sci), 3, tei_source);
+    if (bri_source)
+        sysbus_connect_irq(SYS_BUS_DEVICE(sci), 3, bri_source);
+    sysbus_realize(SYS_BUS_DEVICE(sci), &error_abort);
+    sysbus_mmio_map(SYS_BUS_DEVICE(sci), 0, base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(sci), 1, P4ADDR(base));
+    sysbus_mmio_map(SYS_BUS_DEVICE(sci), 2, A7ADDR(base));
+}
 
 SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
 {
