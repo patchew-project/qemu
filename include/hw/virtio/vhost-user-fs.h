@@ -40,7 +40,7 @@ struct VHostUserFS {
     VirtQueue **req_vqs;
     VirtQueue *hiprio_vq;
     int32_t bootindex;
-
+    bool notify_enabled;
     /*< public >*/
 };
 
