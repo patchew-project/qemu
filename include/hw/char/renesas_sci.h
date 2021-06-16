@@ -16,12 +16,18 @@
 #include "qom/object.h"
 
 #define TYPE_RENESAS_SCI_BASE "renesas-sci-base"
+#define TYPE_RENESAS_SCI "renesas-sci"
 #define TYPE_RENESAS_SCIA "renesas-scia"
+#define TYPE_RENESAS_SCIF "renesas-scif"
 
 OBJECT_DECLARE_TYPE(RenesasSCIBaseState, RenesasSCIBaseClass,
                     RENESAS_SCI_BASE)
+OBJECT_DECLARE_TYPE(RenesasSCIState, RenesasSCIClass,
+                    RENESAS_SCI)
 OBJECT_DECLARE_TYPE(RenesasSCIAState, RenesasSCIAClass,
                     RENESAS_SCIA)
+OBJECT_DECLARE_TYPE(RenesasSCIFState, RenesasSCIFClass,
+                    RENESAS_SCIF)
 
 enum {
     ERI = 0,
@@ -32,6 +38,7 @@ enum {
 };
 
 enum {
+    RXTOUT,
     RXNEXT,
     TXEMPTY,
     TXEND,
@@ -49,13 +56,14 @@ typedef struct RenesasSCIBaseState {
     SysBusDevice parent_obj;
 
     MemoryRegion memory;
+    MemoryRegion memory_p4;
+    MemoryRegion memory_a7;
     QEMUTimer *event_timer;
 
     /*< public >*/
     uint64_t input_freq;
     int64_t etu;
     int64_t trtime;
-    int64_t tx_start_time;
     Fifo8 rxfifo;
     int regshift;
     uint32_t unit;
@@ -65,6 +73,7 @@ typedef struct RenesasSCIBaseState {
         int64_t time;
         int64_t (*handler)(struct RenesasSCIBaseState *sci);
     } event[NR_SCI_EVENT];
+    uint16_t read_Xsr;
 
     /* common SCI register */
     uint8_t smr;
@@ -74,12 +83,32 @@ typedef struct RenesasSCIBaseState {
     uint16_t Xsr;
 } RenesasSCIBaseState;
 
+struct RenesasSCIState {
+    RenesasSCIBaseState parent_obj;
+
+    /* SCI specific register */
+    uint8_t sptr;
+};
+
 struct RenesasSCIAState {
     RenesasSCIBaseState parent_obj;
 
     /* SCIa specific register */
     uint8_t scmr;
     uint8_t semr;
+};
+
+struct RenesasSCIFState {
+    RenesasSCIBaseState parent_obj;
+
+    /* SCIF specific register */
+    uint16_t fcr;
+    uint16_t sptr;
+    uint16_t lsr;
+
+    /* private */
+    int64_t tx_fifo_top_t;
+    int txremain;
 };
 
 typedef struct RenesasSCIBaseClass {
@@ -90,11 +119,23 @@ typedef struct RenesasSCIBaseClass {
     int (*divrate)(struct RenesasSCIBaseState *sci);
 } RenesasSCIBaseClass;
 
+typedef struct RenesasSCIClass {
+    RenesasSCIBaseClass parent;
+
+    void (*p_irq_fn)(struct RenesasSCIBaseState *sci, int request);
+} RenesasSCIClass;
+
 typedef struct RenesasSCIAClass {
     RenesasSCIBaseClass parent;
 
     void (*p_irq_fn)(struct RenesasSCIBaseState *sci, int request);
     int (*p_divrate)(struct RenesasSCIBaseState *sci);
 } RenesasSCIAClass;
+
+typedef struct RenesasSCIFClass {
+    RenesasSCIBaseClass parent;
+
+    void (*p_irq_fn)(struct RenesasSCIBaseState *sci, int request);
+} RenesasSCIFClass;
 
 #endif
