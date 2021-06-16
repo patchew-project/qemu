@@ -1021,7 +1021,7 @@ static void test_acpi_piix4_tcg_nohpet(void)
     free_test_data(&data);
 }
 
-static void test_acpi_q35_tcg_numamem(void)
+static void test_acpi_q35_kvm_numamem(void)
 {
     test_data data;
 
@@ -1029,7 +1029,9 @@ static void test_acpi_q35_tcg_numamem(void)
     data.machine = MACHINE_Q35;
     data.variant = ".numamem";
     test_acpi_one(" -object memory-backend-ram,id=ram0,size=128M"
-                  " -numa node -numa node,memdev=ram0", &data);
+                  " -numa node -numa node,memdev=ram0"
+                  " -machine kernel-irqchip=on -smp 1,maxcpus=288"
+                   , &data);
     free_test_data(&data);
 }
 
@@ -1536,7 +1538,6 @@ int main(int argc, char *argv[])
         qtest_add_func("acpi/piix4/memhp", test_acpi_piix4_tcg_memhp);
         qtest_add_func("acpi/q35/memhp", test_acpi_q35_tcg_memhp);
         qtest_add_func("acpi/piix4/numamem", test_acpi_piix4_tcg_numamem);
-        qtest_add_func("acpi/q35/numamem", test_acpi_q35_tcg_numamem);
         qtest_add_func("acpi/piix4/nosmm", test_acpi_piix4_tcg_nosmm);
         qtest_add_func("acpi/piix4/smm-compat",
                        test_acpi_piix4_tcg_smm_compat);
@@ -1560,6 +1561,9 @@ int main(int argc, char *argv[])
         qtest_add_func("acpi/microvm/oem-fields", test_acpi_oem_fields_microvm);
         if (strcmp(arch, "x86_64") == 0) {
             qtest_add_func("acpi/microvm/pcie", test_acpi_microvm_pcie_tcg);
+        }
+        if (qtest_has_kvm()) {
+            qtest_add_func("acpi/q35/numamem", test_acpi_q35_kvm_numamem);
         }
     } else if (strcmp(arch, "aarch64") == 0) {
         qtest_add_func("acpi/virt", test_acpi_virt_tcg);
