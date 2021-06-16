@@ -26,6 +26,8 @@
 
 static int CalculatingState = DIRTY_RATE_STATUS_UNSTARTED;
 static struct DirtyRateStat DirtyStat;
+static QemuMutex dirtyrate_lock;
+static DirtyRateMeasureMode dirtyrate_mode = DIRTY_RATE_MEASURE_MODE_NONE;
 
 static int64_t set_sample_page_period(int64_t msec, int64_t initial_time)
 {
@@ -70,6 +72,7 @@ static int dirtyrate_set_state(int *state, int old_state, int new_state)
 
 static struct DirtyRateInfo *query_dirty_rate_info(void)
 {
+    qemu_mutex_lock(&dirtyrate_lock);
     int64_t dirty_rate = DirtyStat.dirty_rate;
     struct DirtyRateInfo *info = g_malloc0(sizeof(DirtyRateInfo));
 
@@ -83,6 +86,8 @@ static struct DirtyRateInfo *query_dirty_rate_info(void)
     info->calc_time = DirtyStat.calc_time;
     info->sample_pages = DirtyStat.sample_pages;
 
+    qemu_mutex_unlock(&dirtyrate_lock);
+
     trace_query_dirty_rate_info(DirtyRateStatus_str(CalculatingState));
 
     return info;
@@ -91,6 +96,7 @@ static struct DirtyRateInfo *query_dirty_rate_info(void)
 static void init_dirtyrate_stat(int64_t start_time,
                                 struct DirtyRateConfig config)
 {
+    qemu_mutex_lock(&dirtyrate_lock);
     DirtyStat.dirty_rate = -1;
     DirtyStat.start_time = start_time;
     DirtyStat.calc_time = config.sample_period_seconds;
@@ -108,6 +114,12 @@ static void init_dirtyrate_stat(int64_t start_time,
     default:
         break;
     }
+    qemu_mutex_unlock(&dirtyrate_lock);
+}
+
+static void cleanup_dirtyrate_stat(struct DirtyRateConfig config)
+{
+    /* TODO */
 }
 
 static void update_dirtyrate_stat(struct RamblockDirtyInfo *info)
@@ -379,7 +391,6 @@ void *get_dirtyrate_thread(void *arg)
 {
     struct DirtyRateConfig config = *(struct DirtyRateConfig *)arg;
     int ret;
-    int64_t start_time;
     rcu_register_thread();
 
     ret = dirtyrate_set_state(&CalculatingState, DIRTY_RATE_STATUS_UNSTARTED,
@@ -388,9 +399,6 @@ void *get_dirtyrate_thread(void *arg)
         error_report("change dirtyrate state failed.");
         return NULL;
     }
-
-    start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME) / 1000;
-    init_dirtyrate_stat(start_time, config);
 
     calculate_dirtyrate(config);
 
@@ -410,6 +418,7 @@ void qmp_calc_dirty_rate(int64_t calc_time, bool has_sample_pages,
     static struct DirtyRateConfig config;
     QemuThread thread;
     int ret;
+    int64_t start_time;
 
     /*
      * If the dirty rate is already being measured, don't attempt to start.
@@ -450,6 +459,23 @@ void qmp_calc_dirty_rate(int64_t calc_time, bool has_sample_pages,
     config.sample_period_seconds = calc_time;
     config.sample_pages_per_gigabytes = sample_pages;
     config.mode = DIRTY_RATE_MEASURE_MODE_PAGE_SAMPLING;
+
+    if (unlikely(dirtyrate_mode == DIRTY_RATE_MEASURE_MODE_NONE)) {
+        /* first time to calculate dirty rate */
+        qemu_mutex_init(&dirtyrate_lock);
+    }
+
+    cleanup_dirtyrate_stat(config);
+
+    /*
+     * update dirty rate mode so that we can figure out what mode has
+     * been used in last calculation
+     **/
+    dirtyrate_mode = DIRTY_RATE_MEASURE_MODE_PAGE_SAMPLING;
+
+    start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME) / 1000;
+    init_dirtyrate_stat(start_time, config);
+
     qemu_thread_create(&thread, "get_dirtyrate", get_dirtyrate_thread,
                        (void *)&config, QEMU_THREAD_DETACHED);
 }
