@@ -4080,9 +4080,9 @@ void vnc_display_open(const char *id, Error **errp)
         }
         object_ref(OBJECT(vd->tlscreds));
 
-        if (vd->tlscreds->endpoint != QCRYPTO_TLS_CREDS_ENDPOINT_SERVER) {
-            error_setg(errp,
-                       "Expecting TLS credentials with a server endpoint");
+        if (!qcrypto_tls_session_check_role(vd->tlscreds,
+                                            QCRYPTO_TLS_CREDS_ENDPOINT_SERVER,
+                                            errp)) {
             goto fail;
         }
     }
