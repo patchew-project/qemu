@@ -379,6 +379,17 @@ static void spapr_numa_FORM1_write_rtas_dt(SpaprMachineState *spapr,
  */
 void spapr_numa_write_rtas_dt(SpaprMachineState *spapr, void *fdt, int rtas)
 {
+    SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
+
+    /*
+     * pre-6.1 machine types were writing RTAS information before
+     * CAS. Check if that's case before changing their existing
+     * behavior.
+     */
+    if (spapr_ovec_empty(spapr->ov5_cas) && !smc->pre_6_1_numa_affinity) {
+        return;
+    }
+
     spapr_numa_FORM1_write_rtas_dt(spapr, fdt, rtas);
 }
 
