@@ -1971,9 +1971,6 @@ static struct lo_inode_plock *lookup_create_plock_ctx(struct lo_data *lo,
     plock =
         g_hash_table_lookup(inode->posix_locks, GUINT_TO_POINTER(lock_owner));
 
-    fuse_log(FUSE_LOG_DEBUG, "lookup_create_plock_ctx():"
-             " Inserted element in posix_locks hash table"
-             " with value pointer %p\n", plock);
     if (plock) {
         return plock;
     }
@@ -1997,6 +1994,10 @@ static struct lo_inode_plock *lookup_create_plock_ctx(struct lo_data *lo,
     plock->fd = fd;
     g_hash_table_insert(inode->posix_locks, GUINT_TO_POINTER(plock->lock_owner),
                         plock);
+    fuse_log(FUSE_LOG_DEBUG, "lookup_create_plock_ctx():"
+             " Inserted element in posix_locks hash table"
+             " with value pointer %p\n", plock);
+
     return plock;
 }
 
@@ -2133,7 +2134,21 @@ out:
     if (!async_lock) {
         fuse_reply_err(req, saverr);
     } else {
-        fuse_lowlevel_notify_lock(se, unique, saverr);
+        /*
+         * Before attempting to send any message through
+         * the thread should check if the queue actually
+         * exists
+         */
+        if (!se->in_cleanup) {
+            fuse_lowlevel_notify_lock(se, unique, saverr);
+        } else {
+            /* Release the locks */
+            lock->l_type = F_UNLCK;
+            lock->l_whence = SEEK_SET;
+            /* Unlock whole file */
+            lock->l_start = lock->l_len = 0;
+            fcntl(ofd, F_OFD_SETLKW, lock);
+        }
     }
 }
 

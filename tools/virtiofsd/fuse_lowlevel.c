@@ -1905,6 +1905,7 @@ static void do_init(fuse_req_t req, fuse_ino_t nodeid,
     se->conn.proto_minor = arg->minor;
     se->conn.capable = 0;
     se->conn.want = 0;
+    se->in_cleanup = 0;
 
     memset(&outarg, 0, sizeof(outarg));
     outarg.major = FUSE_KERNEL_VERSION;
@@ -2397,6 +2398,7 @@ void fuse_session_process_buf_int(struct fuse_session *se,
             fuse_log(FUSE_LOG_DEBUG, "%s: reinit\n", __func__);
             se->got_destroy = 1;
             se->got_init = 0;
+            se->in_cleanup = 0;
             if (se->op.destroy) {
                 se->op.destroy(se->userdata);
             }

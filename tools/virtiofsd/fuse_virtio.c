@@ -839,11 +839,14 @@ static void fv_queue_cleanup_thread(struct fv_VuDev *vud, int qidx)
         if (eventfd_write(ourqi->kill_fd, 1)) {
             fuse_log(FUSE_LOG_ERR, "Eventfd_read for queue: %m\n");
         }
+
         ret = pthread_join(ourqi->thread, NULL);
+
         if (ret) {
             fuse_log(FUSE_LOG_ERR, "%s: Failed to join thread idx %d err"
                      " %d\n", __func__, qidx, ret);
         }
+
         close(ourqi->kill_fd);
     }
     pthread_mutex_destroy(&ourqi->vq_lock);
@@ -929,6 +932,13 @@ static void fv_queue_set_started(VuDev *dev, int qidx, bool started)
          * the queue thread doesn't block in virtio_send_msg().
          */
         vu_dispatch_unlock(vud);
+        /*
+         * Indicate to any thread that was blocked and wakes up
+         * that we are in the thread cleanup process
+         */
+        if (!vud->se->in_cleanup) {
+            vud->se->in_cleanup = 1;
+        }
         fv_queue_cleanup_thread(vud, qidx);
         vu_dispatch_wrlock(vud);
     }
