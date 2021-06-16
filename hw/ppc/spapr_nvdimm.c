@@ -92,7 +92,6 @@ bool spapr_nvdimm_validate(HotplugHandler *hotplug_dev, NVDIMMDevice *nvdimm,
     return true;
 }
 
-
 void spapr_add_nvdimm(DeviceState *dev, uint64_t slot)
 {
     SpaprDrc *drc;
@@ -126,6 +125,7 @@ static int spapr_dt_nvdimm(SpaprMachineState *spapr, void *fdt,
     uint64_t lsize = nvdimm->label_size;
     uint64_t size = object_property_get_int(OBJECT(nvdimm), PC_DIMM_SIZE_PROP,
                                             NULL);
+    int device_node = nvdimm->device_node != -1 ? nvdimm->device_node : node;
 
     drc = spapr_drc_by_id(TYPE_SPAPR_DRC_PMEM, slot);
     g_assert(drc);
@@ -142,7 +142,8 @@ static int spapr_dt_nvdimm(SpaprMachineState *spapr, void *fdt,
     _FDT((fdt_setprop_string(fdt, child_offset, "compatible", "ibm,pmemory")));
     _FDT((fdt_setprop_string(fdt, child_offset, "device_type", "ibm,pmemory")));
 
-    spapr_numa_write_associativity_dt(spapr, fdt, child_offset, node);
+    spapr_numa_write_nvdimm_assoc_dt(spapr, fdt, child_offset,
+                                     node, device_node);
 
     buf = qemu_uuid_unparse_strdup(&nvdimm->uuid);
     _FDT((fdt_setprop_string(fdt, child_offset, "ibm,unit-guid", buf)));

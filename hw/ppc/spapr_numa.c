@@ -266,6 +266,26 @@ void spapr_numa_write_associativity_dt(SpaprMachineState *spapr, void *fdt,
                       sizeof(spapr->numa_assoc_array[nodeid]))));
 }
 
+void spapr_numa_write_nvdimm_assoc_dt(SpaprMachineState *spapr, void *fdt,
+                                      int offset, int nodeid,
+                                      int device_node)
+{
+    uint32_t *nvdimm_assoc_array = spapr->numa_assoc_array[nodeid];
+
+    /*
+     * 'device-node' is the secondary domain for NVDIMMs when
+     * using FORM2. The secondary domain for FORM2 in QEMU
+     * is 0x3.
+     */
+    if (spapr_ovec_test(spapr->ov5_cas, OV5_FORM2_AFFINITY)) {
+        nvdimm_assoc_array[0x3] = cpu_to_be32(device_node);
+    }
+
+    _FDT((fdt_setprop(fdt, offset, "ibm,associativity",
+                      nvdimm_assoc_array,
+                      sizeof(spapr->numa_assoc_array[nodeid]))));
+}
+
 static uint32_t *spapr_numa_get_vcpu_assoc(SpaprMachineState *spapr,
                                            PowerPCCPU *cpu)
 {
