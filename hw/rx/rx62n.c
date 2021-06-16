@@ -199,7 +199,7 @@ static void register_sci(RX62NState *s, int unit)
     int i, irqbase;
 
     object_initialize_child(OBJECT(s), "sci[*]",
-                            &s->sci[unit], TYPE_RENESAS_SCI);
+                            &s->sci[unit], TYPE_RENESAS_SCIA);
     sci = SYS_BUS_DEVICE(&s->sci[unit]);
     qdev_prop_set_chr(DEVICE(sci), "chardev", serial_hd(unit));
     qdev_prop_set_uint64(DEVICE(sci), "input-freq", s->pclk_freq_hz);
