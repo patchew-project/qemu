@@ -22,7 +22,7 @@ i386_ss.add(when: 'CONFIG_ACPI_HW_REDUCED', if_true: files('generic_event_device
 i386_ss.add(when: 'CONFIG_PC', if_true: files(
   'pc.c',
   'pc_sysfw.c',
-  'acpi-build.c',
+  'acpi-pc.c',
   'port92.c'))
 
 subdir('kvm')
