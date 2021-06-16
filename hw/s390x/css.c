@@ -1335,7 +1335,7 @@ static void copy_schib_to_guest(SCHIB *dest, const SCHIB *src)
     }
 }
 
-static void copy_esw_to_guest(ESW *dest, const ESW *src)
+void copy_esw_to_guest(ESW *dest, const ESW *src)
 {
     dest->sublog = cpu_to_be32(src->sublog);
     dest->erw = cpu_to_be32(src->erw);
@@ -1647,6 +1647,17 @@ static void build_irb_sense_data(SubchDev *sch, IRB *irb)
     memcpy(irb->ecw, sch->sense_data, sizeof(sch->sense_data));
     for (i = 0; i < ARRAY_SIZE(irb->ecw); i++) {
         irb->ecw[i] = be32_to_cpu(irb->ecw[i]);
+    }
+}
+
+void build_irb_passthrough(SubchDev *sch, IRB *irb)
+{
+    /* Copy ESW from hardware */
+    irb->esw = sch->esw;
+
+    if (irb->esw.erw & ESW_ERW_SENSE) {
+        /* Copy ECW from hardware */
+        build_irb_sense_data(sch, irb);
     }
 }
 
