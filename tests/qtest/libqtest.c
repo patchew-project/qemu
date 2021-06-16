@@ -920,6 +920,26 @@ const char *qtest_get_arch(void)
     return end + 1;
 }
 
+bool qtest_has_kvm(void)
+{
+    int i;
+    bool ret = false;
+    const char *arch = qtest_get_arch();
+    const char *kvm_targets_str = CONFIG_KVM_TARGETS;
+    gchar **targets = g_strsplit(kvm_targets_str, " ", -1);
+
+    for (i = 0; targets[i]; i++) {
+        if (!strncmp(targets[i], arch, strlen(arch))) {
+            if (access("/dev/kvm", R_OK | W_OK)) {
+                ret = true;
+                break;
+            }
+        }
+    }
+    g_strfreev(targets);
+    return ret;
+}
+
 bool qtest_get_irq(QTestState *s, int num)
 {
     /* dummy operation in order to make sure irq is up to date */

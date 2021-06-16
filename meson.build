@@ -75,6 +75,7 @@ elif cpu in ['mips', 'mips64']
 else
   kvm_targets = []
 endif
+config_host_data.set_quoted('CONFIG_KVM_TARGETS', ' ,'.join(kvm_targets))
 
 accelerator_targets = { 'CONFIG_KVM': kvm_targets }
 if cpu in ['x86', 'x86_64', 'arm', 'aarch64']

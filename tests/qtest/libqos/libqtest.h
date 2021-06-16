@@ -589,6 +589,13 @@ bool qtest_big_endian(QTestState *s);
 const char *qtest_get_arch(void);
 
 /**
+ * qtest_has_kvm:
+ *
+ * Returns: True if the QEMU executable under test supports KVM
+ */
+bool qtest_has_kvm(void);
+
+/**
  * qtest_add_func:
  * @str: Test case path.
  * @fn: Test case function
