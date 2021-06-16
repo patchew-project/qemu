@@ -49,6 +49,7 @@
 OBJECT_DECLARE_TYPE(NVDIMMDevice, NVDIMMClass, NVDIMM)
 
 #define NVDIMM_LABEL_SIZE_PROP "label-size"
+#define NVDIMM_DEVICE_NODE  "device-node"
 #define NVDIMM_UUID_PROP       "uuid"
 #define NVDIMM_UNARMED_PROP    "unarmed"
 
@@ -89,6 +90,17 @@ struct NVDIMMDevice {
      * The PPC64 - spapr requires each nvdimm device have a uuid.
      */
     QemuUUID uuid;
+
+   /*
+    * The spapr-nvdimm (PPC64 NVDIMM) driver supports two modes of
+    * operation: regular memory and persistent memory. When using the
+    * device as regular memory, the NUMA nodeid that comes from
+    * PC_DIMM_NODEPROP is to be used. When used as persistent memory,
+    * the guest should consider the 'device-node' instead since it
+    * indicates the locality of the device to an established NUMA
+    * node, which is more relevant to this type of usage.
+    */
+    int device_node;
 };
 
 struct NVDIMMClass {
