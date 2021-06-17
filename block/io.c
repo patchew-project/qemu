@@ -35,6 +35,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
+#include "qemu/range.h"
 #include "sysemu/replay.h"
 
 /* Maximum bounce buffer for copy-on-read and write zeroes, in bytes */
@@ -1862,6 +1863,7 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     bool need_flush = false;
     int head = 0;
     int tail = 0;
+    BdrvBlockStatusCache *bsc = &bs->block_status_cache;
 
     int max_write_zeroes = MIN_NON_ZERO(bs->bl.max_pwrite_zeroes, INT_MAX);
     int alignment = MAX(bs->bl.pwrite_zeroes_alignment,
@@ -1877,6 +1879,16 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     if ((flags & ~bs->supported_zero_flags) & BDRV_REQ_NO_FALLBACK) {
         return -ENOTSUP;
     }
+
+    /* Invalidate the cached block-status data range if this write overlaps */
+    qemu_co_mutex_lock(&bsc->lock);
+    if (bsc->valid &&
+        ranges_overlap(offset, bytes, bsc->data_start,
+                       bsc->data_end - bsc->data_start))
+    {
+        bsc->valid = false;
+    }
+    qemu_co_mutex_unlock(&bsc->lock);
 
     assert(alignment % bs->bl.request_alignment == 0);
     head = offset % alignment;
@@ -2394,6 +2406,7 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
     int64_t aligned_offset, aligned_bytes;
     uint32_t align;
     bool has_filtered_child;
+    BdrvBlockStatusCache *bsc = &bs->block_status_cache;
 
     assert(pnum);
     *pnum = 0;
@@ -2442,9 +2455,59 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
     aligned_bytes = ROUND_UP(offset + bytes, align) - aligned_offset;
 
     if (bs->drv->bdrv_co_block_status) {
-        ret = bs->drv->bdrv_co_block_status(bs, want_zero, aligned_offset,
-                                            aligned_bytes, pnum, &local_map,
-                                            &local_file);
+        bool from_cache = false;
+
+        /*
+         * Use the block-status cache only for protocol nodes: Format
+         * drivers are generally quick to inquire the status, but protocol
+         * drivers often need to get information from outside of qemu, so
+         * we do not have control over the actual implementation.  There
+         * have been cases where inquiring the status took an unreasonably
+         * long time, and we can do nothing in qemu to fix it.
+         * This is especially problematic for images with large data areas,
+         * because finding the few holes in them and giving them special
+         * treatment does not gain much performance.  Therefore, we try to
+         * cache the last-identified data region.
+         *
+         * Second, limiting ourselves to protocol nodes allows us to assume
+         * the block status for data regions to be DATA | OFFSET_VALID, and
+         * that the host offset is the same as the guest offset.
+         *
+         * Note that it is possible that external writers zero parts of
+         * the cached regions without the cache being invalidated, and so
+         * we may report zeroes as data.  This is not catastrophic,
+         * however, because reporting zeroes as data is fine.
+         */
+        if (QLIST_EMPTY(&bs->children)) {
+            qemu_co_mutex_lock(&bsc->lock);
+            if (bsc->valid &&
+                aligned_offset >= bsc->data_start &&
+                aligned_offset < bsc->data_end)
+            {
+                ret = BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID;
+                local_file = bs;
+                local_map = aligned_offset;
+
+                *pnum = bsc->data_end - aligned_offset;
+
+                from_cache = true;
+            }
+            qemu_co_mutex_unlock(&bsc->lock);
+        }
+
+        if (!from_cache) {
+            ret = bs->drv->bdrv_co_block_status(bs, want_zero, aligned_offset,
+                                                aligned_bytes, pnum, &local_map,
+                                                &local_file);
+
+            if (ret == (BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID)) {
+                qemu_co_mutex_lock(&bsc->lock);
+                bsc->data_start = aligned_offset;
+                bsc->data_end = aligned_offset + *pnum;
+                bsc->valid = true;
+                qemu_co_mutex_unlock(&bsc->lock);
+            }
+        }
     } else {
         /* Default code for filters */
 
@@ -2974,6 +3037,7 @@ int coroutine_fn bdrv_co_pdiscard(BdrvChild *child, int64_t offset,
     int max_pdiscard, ret;
     int head, tail, align;
     BlockDriverState *bs = child->bs;
+    BdrvBlockStatusCache *bsc = &bs->block_status_cache;
 
     if (!bs || !bs->drv || !bdrv_is_inserted(bs)) {
         return -ENOMEDIUM;
@@ -2996,6 +3060,16 @@ int coroutine_fn bdrv_co_pdiscard(BdrvChild *child, int64_t offset,
     if (!bs->drv->bdrv_co_pdiscard && !bs->drv->bdrv_aio_pdiscard) {
         return 0;
     }
+
+    /* Invalidate the cached block-status data range if this discard overlaps */
+    qemu_co_mutex_lock(&bsc->lock);
+    if (bsc->valid &&
+        ranges_overlap(offset, bytes, bsc->data_start,
+                       bsc->data_end - bsc->data_start))
+    {
+        bsc->valid = false;
+    }
+    qemu_co_mutex_unlock(&bsc->lock);
 
     /* Discard is advisory, but some devices track and coalesce
      * unaligned requests, so we must pass everything down rather than

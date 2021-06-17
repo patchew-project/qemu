@@ -398,6 +398,8 @@ BlockDriverState *bdrv_new(void)
 
     qemu_co_queue_init(&bs->flush_queue);
 
+    qemu_co_mutex_init(&bs->block_status_cache.lock);
+
     for (i = 0; i < bdrv_drain_all_count; i++) {
         bdrv_drained_begin(bs);
     }

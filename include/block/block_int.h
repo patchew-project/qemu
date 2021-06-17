@@ -832,6 +832,23 @@ struct BdrvChild {
     QLIST_ENTRY(BdrvChild) next_parent;
 };
 
+/*
+ * Allows bdrv_co_block_status() to cache one data region for a
+ * protocol node.
+ *
+ * @lock: Lock for accessing this object's fields
+ * @valid: Whether the cache is valid
+ * @data_start: Offset where we know (or strongly assume) is data
+ * @data_end: Offset where the data region ends (which is not necessarily
+ *            the start of a zeroed region)
+ */
+typedef struct BdrvBlockStatusCache {
+    CoMutex lock;
+    bool valid;
+    int64_t data_start;
+    int64_t data_end;
+} BdrvBlockStatusCache;
+
 struct BlockDriverState {
     /* Protected by big QEMU lock or read-only after opening.  No special
      * locking needed during I/O...
@@ -997,6 +1014,8 @@ struct BlockDriverState {
 
     /* BdrvChild links to this node may never be frozen */
     bool never_freeze;
+
+    BdrvBlockStatusCache block_status_cache;
 };
 
 struct BlockBackendRootState {
