@@ -2090,6 +2090,7 @@ libio = static_library('io', io_ss.sources() + genh,
 io = declare_dependency(link_whole: libio, dependencies: [crypto, qom])
 
 libmigration = static_library('migration', sources: migration_files + genh,
+                              dependencies: [gnutls],
                               name_suffix: 'fa',
                               build_by_default: false)
 migration = declare_dependency(link_with: libmigration,
@@ -2160,7 +2161,7 @@ common_all = static_library('common',
                             build_by_default: false,
                             sources: common_all.sources() + genh,
                             implicit_include_directories: false,
-                            dependencies: common_all.dependencies(),
+                            dependencies: common_all.dependencies() + [gnutls],
                             name_suffix: 'fa')
 
 feature_to_c = find_program('scripts/feature_to_c.sh')
