@@ -1702,7 +1702,7 @@ static int coroutine_fn nbd_client_co_block_status(
         .type = NBD_CMD_BLOCK_STATUS,
         .from = offset,
         .len = MIN(QEMU_ALIGN_DOWN(INT_MAX, bs->bl.request_alignment),
-                   MIN(bytes, s->info.size - offset)),
+                   s->info.size - offset),
         .flags = NBD_CMD_FLAG_REQ_ONE,
     };
 
