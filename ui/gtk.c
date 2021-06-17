@@ -2268,6 +2268,21 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
         gtk_menu_item_activate(GTK_MENU_ITEM(s->grab_on_hover_item));
     }
     gd_clipboard_init(s);
+
+    if (opts->u.gtk.has_monitor) {
+        int n_monitor;
+        n_monitor = gdk_display_get_n_monitors(window_display);
+
+        if ((opts->u.gtk.monitor <= n_monitor) &&
+            (opts->u.gtk.monitor > 0)) {
+            GdkScreen *gdk_screen;
+            gdk_screen = gdk_display_get_default_screen(window_display);
+            gtk_window_fullscreen_on_monitor(GTK_WINDOW(s->window), gdk_screen,
+                                             (opts->u.gtk.monitor - 1));
+        } else {
+            fprintf(stderr, "Invalid GTK monitor argument\n");
+        }
+    }
 }
 
 static void early_gtk_display_init(DisplayOptions *opts)
