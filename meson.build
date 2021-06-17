@@ -2090,6 +2090,7 @@ libio = static_library('io', io_ss.sources() + genh,
 io = declare_dependency(link_whole: libio, dependencies: [crypto, qom])
 
 libmigration = static_library('migration', sources: migration_files + genh,
+                              dependencies: [gnutls],
                               name_suffix: 'fa',
                               build_by_default: false)
 migration = declare_dependency(link_with: libmigration,
