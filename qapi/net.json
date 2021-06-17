@@ -460,10 +460,11 @@
 # Since: 2.7
 #
 #        @vhost-vdpa since 5.1
+#        @vmnet since 6.1
 ##
 { 'enum': 'NetClientDriver',
   'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde',
-            'bridge', 'hubport', 'netmap', 'vhost-user', 'vhost-vdpa' ] }
+            'bridge', 'hubport', 'netmap', 'vhost-user', 'vhost-vdpa', 'vmnet' ] }
 
 ##
 # @Netdev:
