@@ -385,6 +385,7 @@ snappy="auto"
 bzip2="auto"
 lzfse="auto"
 zstd="auto"
+qcow2_zstd_default="no"
 guest_agent="$default_feature"
 guest_agent_with_vss="no"
 guest_agent_ntddscsi="no"
@@ -1318,6 +1319,10 @@ for opt do
   ;;
   --enable-zstd) zstd="enabled"
   ;;
+  --disable-qcow2-zstd-default) qcow2_zstd_default="disabled"
+  ;;
+  --enable-qcow2-zstd-default) qcow2_zstd_default="enabled"
+  ;;
   --enable-guest-agent) guest_agent="yes"
   ;;
   --disable-guest-agent) guest_agent="no"
@@ -1903,6 +1908,8 @@ disabled with --disable-FEATURE, default is enabled if available
                   (for reading lzfse-compressed dmg images)
   zstd            support for zstd compression library
                   (for migration compression and qcow2 cluster compression)
+  qcow2-zstd-default  Use zstd by default for qcow2 image creation
+                  (requires zstd enabled)
   seccomp         seccomp support
   coroutine-pool  coroutine freelist (better performance)
   glusterfs       GlusterFS backend
@@ -6424,7 +6431,8 @@ if test "$skip_meson" = no; then
         -Dcurl=$curl -Dglusterfs=$glusterfs -Dbzip2=$bzip2 -Dlibiscsi=$libiscsi \
         -Dlibnfs=$libnfs -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
         -Drbd=$rbd -Dlzo=$lzo -Dsnappy=$snappy -Dlzfse=$lzfse \
-        -Dzstd=$zstd -Dseccomp=$seccomp -Dvirtfs=$virtfs -Dcap_ng=$cap_ng \
+        -Dzstd=$zstd -Dqcow2_zstd_default=$qcow2_zstd_default \
+        -Dseccomp=$seccomp -Dvirtfs=$virtfs -Dcap_ng=$cap_ng \
         -Dattr=$attr -Ddefault_devices=$default_devices \
         -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
         -Dvhost_user_blk_server=$vhost_user_blk_server -Dmultiprocess=$multiprocess \

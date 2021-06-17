@@ -3540,17 +3540,36 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
         }
     }
 
-    if (qcow2_opts->has_compression_type &&
-        qcow2_opts->compression_type != QCOW2_COMPRESSION_TYPE_ZLIB) {
-
-        ret = -EINVAL;
-
-        if (version < 3) {
+    if (version < 3) {
+        if (qcow2_opts->has_compression_type &&
+            qcow2_opts->compression_type != QCOW2_COMPRESSION_TYPE_ZLIB)
+        {
+            ret = -EINVAL;
             error_setg(errp, "Non-zlib compression type is only supported with "
                        "compatibility level 1.1 and above (use version=v3 or "
                        "greater)");
             goto out;
         }
+    } else {
+        if (qcow2_opts->has_compression_type) {
+            compression_type = qcow2_opts->compression_type;
+#ifdef CONFIG_QCOW2_ZSTD_DEFAULT
+        } else {
+            compression_type = QCOW2_COMPRESSION_TYPE_ZSTD;
+#endif
+        }
+
+#ifndef CONFIG_ZSTD
+        assert(compression_type == QCOW2_COMPRESSION_TYPE_ZLIB);
+#endif
+    }
+
+    if (qcow2_opts->has_compression_type &&
+        qcow2_opts->compression_type != QCOW2_COMPRESSION_TYPE_ZLIB) {
+
+        ret = -EINVAL;
+
+        compression_type = qcow2_opts->compression_type;
 
         switch (qcow2_opts->compression_type) {
 #ifdef CONFIG_ZSTD
@@ -3562,7 +3581,6 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
             goto out;
         }
 
-        compression_type = qcow2_opts->compression_type;
     }
 
     /* Create BlockBackend to write to the image */
