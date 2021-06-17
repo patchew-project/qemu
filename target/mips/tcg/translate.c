@@ -33,6 +33,7 @@
 
 #include "target/mips/trace.h"
 #include "trace-tcg.h"
+#include "trace.h"
 #include "exec/translator.h"
 #include "exec/log.h"
 #include "qemu/qemu-print.h"
