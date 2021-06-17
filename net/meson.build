@@ -40,7 +40,7 @@ softmmu_ss.add(when: 'CONFIG_VHOST_NET_VDPA', if_true: files('vhost-vdpa.c'))
 
 vmnet_files = files(
   'vmnet-common.m',
-  'vmnet-bridged.c',
+  'vmnet-bridged.m',
   'vmnet-host.c',
   'vmnet-shared.c'
 )
