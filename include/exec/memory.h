@@ -55,7 +55,7 @@ static inline void fuzz_dma_read_cb(size_t addr,
 }
 #endif
 
-extern bool global_dirty_log;
+extern bool global_dirty_tracking;
 
 typedef struct MemoryRegionOps MemoryRegionOps;
 
