@@ -2145,6 +2145,12 @@ static void lo_open(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
         return;
     }
 
+    /* File creation is handled by lo_create() */
+    if (fi->flags & (O_CREAT | O_TMPFILE)) {
+        fuse_reply_err(req, EINVAL);
+        return;
+    }
+
     err = lo_do_open(lo, inode, -1, fi);
     lo_inode_put(lo, &inode);
     if (err) {
