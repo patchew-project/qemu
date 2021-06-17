@@ -156,14 +156,15 @@ static void primary_vm_do_failover(void)
 
     /*
      * Wake up COLO thread which may blocked in recv() or send(),
-     * The s->rp_state.from_dst_file and s->to_dst_file may use the
-     * same fd, but we still shutdown the fd for twice, it is harmless.
+     * The s->to_dst_file may use the same fd, but we still shutdown
+     * the fd for twice, it is harmless.
      */
     if (s->to_dst_file) {
         qemu_file_shutdown(s->to_dst_file);
     }
     if (s->rp_state.from_dst_file) {
         qemu_file_shutdown(s->rp_state.from_dst_file);
+        s->rp_state.from_dst_file = NULL;
     }
 
     old_state = failover_set_state(FAILOVER_STATUS_ACTIVE,
