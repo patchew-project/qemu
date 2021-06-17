@@ -90,17 +90,12 @@ static void virtio_gpu_gl_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 
 static void virtio_gpu_gl_reset(VirtIODevice *vdev)
 {
-    VirtIOGPU *g = VIRTIO_GPU(vdev);
     VirtIOGPUGL *gl = VIRTIO_GPU_GL(vdev);
 
     virtio_gpu_reset(vdev);
 
     if (gl->renderer_inited) {
-        if (g->parent_obj.renderer_blocked) {
-            gl->renderer_reset = true;
-        } else {
-            virtio_gpu_virgl_reset(g);
-        }
+        gl->renderer_reset = true;
     }
 }
 
