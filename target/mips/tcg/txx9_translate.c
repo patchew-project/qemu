@@ -7,7 +7,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "translate.h"
+#include "tcg/translate.h"
 
 bool decode_ext_txx9(DisasContext *ctx, uint32_t insn)
 {

@@ -38,7 +38,7 @@
 #include "exec/log.h"
 #include "qemu/qemu-print.h"
 #include "fpu_helper.h"
-#include "translate.h"
+#include "tcg/translate.h"
 
 /*
  * Many sysemu-only helpers are not reachable for user-only.

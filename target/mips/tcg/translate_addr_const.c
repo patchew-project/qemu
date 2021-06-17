@@ -12,7 +12,7 @@
  */
 #include "qemu/osdep.h"
 #include "tcg/tcg-op.h"
-#include "translate.h"
+#include "tcg/translate.h"
 
 bool gen_lsa(DisasContext *ctx, int rd, int rt, int rs, int sa)
 {

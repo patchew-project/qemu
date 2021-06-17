@@ -18,7 +18,7 @@
 #include "qemu/osdep.h"
 #include "tcg/tcg-op.h"
 #include "exec/helper-gen.h"
-#include "translate.h"
+#include "tcg/translate.h"
 
 /*
  *
