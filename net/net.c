@@ -1002,8 +1002,10 @@ static int (* const net_client_init_fun[NET_CLIENT_DRIVER__MAX])(
         [NET_CLIENT_DRIVER_L2TPV3]    = net_init_l2tpv3,
 #endif
 #ifdef CONFIG_VMNET
-        [NET_CLIENT_DRIVER_VMNET] = net_init_vmnet,
-#endif
+        [NET_CLIENT_DRIVER_VMNET_HOST] = net_init_vmnet_host,
+        [NET_CLIENT_DRIVER_VMNET_SHARED] = net_init_vmnet_shared,
+        [NET_CLIENT_DRIVER_VMNET_BRIDGED] = net_init_vmnet_bridged,
+#endif /* CONFIG_VMNET */
 };
 
 
@@ -1091,7 +1093,9 @@ void show_netdevs(void)
         "vhost-vdpa",
 #endif
 #ifdef CONFIG_VMNET
-        "vmnet",
+        "vmnet-host",
+        "vmnet-shared",
+        "vmnet-bridged",
 #endif
     };
 

@@ -15,7 +15,19 @@
 
 #include <vmnet/vmnet.h>
 
-int net_init_vmnet(const Netdev *netdev, const char *name,
+int net_init_vmnet_host(const Netdev *netdev, const char *name,
+                    NetClientState *peer, Error **errp) {
+  error_setg(errp, "vmnet is not implemented yet");
+  return -1;
+}
+
+int net_init_vmnet_shared(const Netdev *netdev, const char *name,
+                    NetClientState *peer, Error **errp) {
+  error_setg(errp, "vmnet is not implemented yet");
+  return -1;
+}
+
+int net_init_vmnet_bridged(const Netdev *netdev, const char *name,
                     NetClientState *peer, Error **errp) {
   error_setg(errp, "vmnet is not implemented yet");
   return -1;

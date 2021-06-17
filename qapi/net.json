@@ -453,6 +453,89 @@
     '*queues':       'int' } }
 
 ##
+# @NetdevVmnetHostOptions:
+#
+# vmnet (host mode) network backend.
+#
+# Allows the vmnet interface to communicate with
+# other vmnet interfaces that are in host mode and also with the native host.
+#
+# @dhcpstart: The starting IPv4 address to use for the interface. Must be in the
+#             private IP range (RFC 1918). Must be specified along
+#             with @dhcpend and @subnetmask.
+#             This address is used as the gateway address. The subsequent address
+#             up to and including dhcpend are  placed in the DHCP pool.
+#
+# @dhcpend: The DHCP IPv4 range end address to use for the interface. Must be in
+#           the private IP range (RFC 1918). Must be specified along
+#           with @dhcpstart and @subnetmask.
+#
+# @subnetmask: The IPv4 subnet mask to use on the interface. Must be specified
+#              along with @dhcpstart and @subnetmask.
+#
+#
+# Since: 6.1,
+##
+{ 'struct': 'NetdevVmnetHostOptions',
+  'data': {
+    '*dhcpstart':   'str',
+    '*dhcpend':     'str',
+    '*subnetmask':  'str'
+  },
+  'if': 'defined(CONFIG_VMNET)' }
+
+##
+# @NetdevVmnetSharedOptions:
+#
+# vmnet (shared mode) network backend.
+#
+# Allows traffic originating from the vmnet interface to reach the
+# Internet through a network address translator (NAT). The vmnet interface
+# can also communicate with the native host. By default, the vmnet interface
+# is able to communicate with other shared mode interfaces. If a subnet range
+# is specified, the vmnet interface can communicate with other shared mode
+# interfaces on the same subnet.
+#
+# @dhcpstart: The starting IPv4 address to use for the interface. Must be in the
+#             private IP range (RFC 1918). Must be specified along
+#             with @dhcpend and @subnetmask.
+#             This address is used as the gateway address. The subsequent address
+#             up to and including dhcpend are  placed in the DHCP pool.
+#
+# @dhcpend: The DHCP IPv4 range end address to use for the interface. Must be in
+#           the private IP range (RFC 1918). Must be specified along
+#           with @dhcpstart and @subnetmask.
+#
+# @subnetmask: The IPv4 subnet mask to use on the interface. Must be specified
+#              along with @dhcpstart and @subnetmask.
+#
+#
+# Since: 6.1,
+##
+{ 'struct': 'NetdevVmnetSharedOptions',
+  'data': {
+    '*dhcpstart':    'str',
+    '*dhcpend':      'str',
+    '*subnetmask':   'str'
+  },
+  'if': 'defined(CONFIG_VMNET)' }
+
+##
+# @NetdevVmnetBridgedOptions:
+#
+# vmnet (bridged mode) network backend.
+#
+# Bridges the vmnet interface with a physical network interface.
+#
+# @ifname: The name of the physical interface to be bridged.
+#
+# Since: 6.1
+##
+{ 'struct': 'NetdevVmnetBridgedOptions',
+  'data': { 'ifname': 'str' },
+  'if': 'defined(CONFIG_VMNET)' }
+
+##
 # @NetClientDriver:
 #
 # Available netdev drivers.
@@ -460,11 +543,16 @@
 # Since: 2.7
 #
 #        @vhost-vdpa since 5.1
-#        @vmnet since 6.1
+#        @vmnet-host since 6.1
+#        @vmnet-shared since 6.1
+#        @vmnet-bridged since 6.1
 ##
 { 'enum': 'NetClientDriver',
   'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde',
-            'bridge', 'hubport', 'netmap', 'vhost-user', 'vhost-vdpa', 'vmnet' ] }
+            'bridge', 'hubport', 'netmap', 'vhost-user', 'vhost-vdpa',
+            { 'name': 'vmnet-host', 'if': 'defined(CONFIG_VMNET)' },
+            { 'name': 'vmnet-shared', 'if': 'defined(CONFIG_VMNET)' },
+            { 'name': 'vmnet-bridged', 'if': 'defined(CONFIG_VMNET)' }] }
 
 ##
 # @Netdev:
@@ -478,6 +566,9 @@
 # Since: 1.2
 #
 #        'l2tpv3' - since 2.1
+#        'vmnet-host' - since 6.1
+#        'vmnet-shared' - since 6.1
+#        'vmnet-bridged' - since 6.1
 ##
 { 'union': 'Netdev',
   'base': { 'id': 'str', 'type': 'NetClientDriver' },
@@ -493,7 +584,10 @@
     'hubport':  'NetdevHubPortOptions',
     'netmap':   'NetdevNetmapOptions',
     'vhost-user': 'NetdevVhostUserOptions',
-    'vhost-vdpa': 'NetdevVhostVDPAOptions' } }
+    'vhost-vdpa': 'NetdevVhostVDPAOptions',
+    'vmnet-host': 'NetdevVmnetHostOptions',
+    'vmnet-shared': 'NetdevVmnetSharedOptions',
+    'vmnet-bridged': 'NetdevVmnetBridgedOptions' } }
 
 ##
 # @RxState:
