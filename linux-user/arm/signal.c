@@ -167,7 +167,14 @@ static inline int valid_user_regs(CPUARMState *regs)
 
 static bool v2_frame(void)
 {
-    return get_osversion() >= 0x020612;
+    /*
+     * We do not create fdpic trampolines for v1 frames.
+     * Thus we force v2 frames, regardless of what uname says.
+     * Support for fdpic dates from Linux 4.14, so this is not
+     * really a behaviour change.
+     */
+    int is_fdpic = info_is_fdpic(((TaskState *)thread_cpu->opaque)->info);
+    return is_fdpic || get_osversion() >= 0x020612;
 }
 
 static void
