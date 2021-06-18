@@ -228,7 +228,7 @@ const generic_fuzz_config predefined_configs[] = {
         .name = "es1370",
         .args = "-machine q35 -nodefaults "
         "-device es1370,audiodev=snd0 -audiodev none,id=snd0 -nodefaults",
-        .objects = "es1370*",
+        .objects = "es1370* ES1370",
     },{
         .name = "sb16",
         .args = "-machine q35 -nodefaults "
