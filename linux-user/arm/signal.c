@@ -165,6 +165,11 @@ static inline int valid_user_regs(CPUARMState *regs)
     return 1;
 }
 
+static bool v2_frame(void)
+{
+    return get_osversion() >= 0x020612;
+}
+
 static void
 setup_sigcontext(struct target_sigcontext *sc, /*struct _fpstate *fpstate,*/
                  CPUARMState *env, abi_ulong mask)
@@ -422,7 +427,7 @@ sigsegv:
 void setup_frame(int usig, struct target_sigaction *ka,
                  target_sigset_t *set, CPUARMState *regs)
 {
-    if (get_osversion() >= 0x020612) {
+    if (v2_frame()) {
         setup_frame_v2(usig, ka, set, regs);
     } else {
         setup_frame_v1(usig, ka, set, regs);
@@ -516,7 +521,7 @@ void setup_rt_frame(int usig, struct target_sigaction *ka,
                     target_siginfo_t *info,
                     target_sigset_t *set, CPUARMState *env)
 {
-    if (get_osversion() >= 0x020612) {
+    if (v2_frame()) {
         setup_rt_frame_v2(usig, ka, info, set, env);
     } else {
         setup_rt_frame_v1(usig, ka, info, set, env);
@@ -734,7 +739,7 @@ badframe:
 
 long do_sigreturn(CPUARMState *env)
 {
-    if (get_osversion() >= 0x020612) {
+    if (v2_frame()) {
         return do_sigreturn_v2(env);
     } else {
         return do_sigreturn_v1(env);
@@ -823,7 +828,7 @@ badframe:
 
 long do_rt_sigreturn(CPUARMState *env)
 {
-    if (get_osversion() >= 0x020612) {
+    if (v2_frame()) {
         return do_rt_sigreturn_v2(env);
     } else {
         return do_rt_sigreturn_v1(env);
