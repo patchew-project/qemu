@@ -982,8 +982,13 @@ class QAPISchema:
                 for f in features]
 
     def _make_enum_members(self, values, info):
-        return [QAPISchemaEnumMember(v['name'], info,
-                                     QAPISchemaIfCond(v.get('if')))
+        def _get_if(v):
+            ifcond = v.get('if')
+            if isinstance(ifcond, QAPISchemaIfCond):
+                return ifcond
+            else:
+                return QAPISchemaIfCond(ifcond)
+        return [QAPISchemaEnumMember(v['name'], info, _get_if(v))
                 for v in values]
 
     def _make_implicit_enum_type(self, name, info, ifcond, values):
@@ -1103,7 +1108,7 @@ class QAPISchema:
                                           QAPISchemaIfCond(value.get('if')),
                                           info)
                 for (key, value) in data.items()]
-            enum = [{'name': v.name, 'if': v.ifcond.ifcond} for v in variants]
+            enum = [{'name': v.name, 'if': v.ifcond} for v in variants]
             typ = self._make_implicit_enum_type(name, info, ifcond, enum)
             tag_member = QAPISchemaObjectTypeMember('type', info, typ, False)
             members = [tag_member]
