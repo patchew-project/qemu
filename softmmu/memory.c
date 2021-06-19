@@ -509,22 +509,24 @@ static MemTxResult memory_region_write_with_attrs_accessor(MemoryRegion *mr,
     return mr->ops->write_with_attrs(mr->opaque, addr, tmp, size, attrs);
 }
 
+typedef MemTxResult MemoryRegionAccessFn(MemoryRegion *mr,
+                                         hwaddr addr,
+                                         uint64_t *value,
+                                         unsigned size,
+                                         signed shift,
+                                         uint64_t mask,
+                                         MemTxAttrs attrs);
+
 static MemTxResult access_with_adjusted_size(hwaddr addr,
-                                      uint64_t *value,
-                                      unsigned size,
-                                      unsigned access_size_min,
-                                      unsigned access_size_max,
-                                      MemTxResult (*access_fn)
-                                                  (MemoryRegion *mr,
-                                                   hwaddr addr,
-                                                   uint64_t *value,
-                                                   unsigned size,
-                                                   signed shift,
-                                                   uint64_t mask,
-                                                   MemTxAttrs attrs),
-                                      MemoryRegion *mr,
-                                      MemTxAttrs attrs)
+                                             uint64_t *value,
+                                             unsigned size,
+                                             MemoryRegion *mr,
+                                             MemTxAttrs attrs,
+                                             bool write)
 {
+    unsigned access_size_min = mr->ops->impl.min_access_size;
+    unsigned access_size_max = mr->ops->impl.max_access_size;
+    MemoryRegionAccessFn *access_fn;
     uint64_t access_mask;
     unsigned access_size;
     unsigned i;
@@ -535,6 +537,14 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
     }
     if (!access_size_max) {
         access_size_max = 4;
+    }
+
+    if (write) {
+        access_fn = (mr->ops->write ? memory_region_write_accessor
+                     : memory_region_write_with_attrs_accessor);
+    } else {
+        access_fn = (mr->ops->read ? memory_region_read_accessor
+                     : memory_region_read_with_attrs_accessor);
     }
 
     /* FIXME: support unaligned access? */
@@ -1423,19 +1433,7 @@ MemTxResult memory_region_dispatch_read(MemoryRegion *mr,
     }
 
     *pval = 0;
-    if (mr->ops->read) {
-        r = access_with_adjusted_size(addr, pval, size,
-                                      mr->ops->impl.min_access_size,
-                                      mr->ops->impl.max_access_size,
-                                      memory_region_read_accessor,
-                                      mr, attrs);
-    } else {
-        r = access_with_adjusted_size(addr, pval, size,
-                                      mr->ops->impl.min_access_size,
-                                      mr->ops->impl.max_access_size,
-                                      memory_region_read_with_attrs_accessor,
-                                      mr, attrs);
-    }
+    r = access_with_adjusted_size(addr, pval, size, mr, attrs, false);
     adjust_endianness(mr, pval, op);
     return r;
 }
@@ -1486,20 +1484,7 @@ MemTxResult memory_region_dispatch_write(MemoryRegion *mr,
         return MEMTX_OK;
     }
 
-    if (mr->ops->write) {
-        return access_with_adjusted_size(addr, &data, size,
-                                         mr->ops->impl.min_access_size,
-                                         mr->ops->impl.max_access_size,
-                                         memory_region_write_accessor, mr,
-                                         attrs);
-    } else {
-        return
-            access_with_adjusted_size(addr, &data, size,
-                                      mr->ops->impl.min_access_size,
-                                      mr->ops->impl.max_access_size,
-                                      memory_region_write_with_attrs_accessor,
-                                      mr, attrs);
-    }
+    return access_with_adjusted_size(addr, &data, size, mr, attrs, true);
 }
 
 void memory_region_init_io(MemoryRegion *mr,
