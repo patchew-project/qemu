@@ -115,7 +115,7 @@ slirp
   ~ (/qemu)?(/.*slirp.*)
 
 tcg
-  ~ (/qemu)?(/accel/tcg/.*|/replay/.*|/(.*/)?softmmu.*)
+  ~ (/qemu)?(/accel/tcg/.*|/replay/.*|tcg/*\.?)
 
 trace
   ~ (/qemu)?(/.*trace.*\.[ch])
@@ -128,6 +128,9 @@ usb
 
 user
   ~ (/qemu)?(/linux-user/.*|/bsd-user/.*|/user-exec\.c|/thunk\.c|/include/exec/user/.*)
+
+sysemu
+  ~ (/qemu)?(/softmmu/.*|/accel/(hvf|kvm)/.*)
 
 util
   ~ (/qemu)?(/util/.*|/include/qemu/.*)
