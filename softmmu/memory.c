@@ -1408,29 +1408,6 @@ bool memory_region_access_valid(MemoryRegion *mr,
     return true;
 }
 
-static MemTxResult memory_region_dispatch_read1(MemoryRegion *mr,
-                                                hwaddr addr,
-                                                uint64_t *pval,
-                                                unsigned size,
-                                                MemTxAttrs attrs)
-{
-    *pval = 0;
-
-    if (mr->ops->read) {
-        return access_with_adjusted_size(addr, pval, size,
-                                         mr->ops->impl.min_access_size,
-                                         mr->ops->impl.max_access_size,
-                                         memory_region_read_accessor,
-                                         mr, attrs);
-    } else {
-        return access_with_adjusted_size(addr, pval, size,
-                                         mr->ops->impl.min_access_size,
-                                         mr->ops->impl.max_access_size,
-                                         memory_region_read_with_attrs_accessor,
-                                         mr, attrs);
-    }
-}
-
 MemTxResult memory_region_dispatch_read(MemoryRegion *mr,
                                         hwaddr addr,
                                         uint64_t *pval,
@@ -1445,7 +1422,20 @@ MemTxResult memory_region_dispatch_read(MemoryRegion *mr,
         return MEMTX_DECODE_ERROR;
     }
 
-    r = memory_region_dispatch_read1(mr, addr, pval, size, attrs);
+    *pval = 0;
+    if (mr->ops->read) {
+        r = access_with_adjusted_size(addr, pval, size,
+                                      mr->ops->impl.min_access_size,
+                                      mr->ops->impl.max_access_size,
+                                      memory_region_read_accessor,
+                                      mr, attrs);
+    } else {
+        r = access_with_adjusted_size(addr, pval, size,
+                                      mr->ops->impl.min_access_size,
+                                      mr->ops->impl.max_access_size,
+                                      memory_region_read_with_attrs_accessor,
+                                      mr, attrs);
+    }
     adjust_endianness(mr, pval, op);
     return r;
 }
