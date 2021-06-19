@@ -548,6 +548,26 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
     }
 
     /* FIXME: support unaligned access? */
+    /*
+     * Check for a small access.
+     */
+    if (unlikely(size < access_size_min)) {
+        /*
+         * Logically, we cannot support short writes without a read-modify
+         * cycle, and many mmio registers have side-effects on read.
+         * In practice, this appears to be either (1) model error,
+         * or (2) guest error via the fuzzer.
+         */
+        if (write) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: Invalid short write: %s "
+                          "hwaddr: 0x%" HWADDR_PRIx " size: %u "
+                          "min: %u max: %u\n", __func__,
+                          memory_region_name(mr), addr, size,
+                          access_size_min, access_size_max);
+            return MEMTX_ERROR;
+        }
+    }
+
     access_size = MAX(MIN(size, access_size_max), access_size_min);
     access_mask = MAKE_64BIT_MASK(0, access_size * 8);
     if (memory_region_big_endian(mr)) {
