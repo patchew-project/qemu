@@ -1916,6 +1916,14 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
         tlb_addr &= ~TLB_INVALID_MASK;
     }
 
+    /* Handle access that spans two pages. */
+    if (size > 1
+        && unlikely((addr & ~TARGET_PAGE_MASK) + size - 1
+                    >= TARGET_PAGE_SIZE)) {
+        return load_helper_unaligned(env, addr, oi, retaddr, op,
+                                     code_read, byte_load);
+    }
+
     /* Handle anything that isn't just a straight memory access.  */
     if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
         CPUIOTLBEntry *iotlbentry;
@@ -1955,14 +1963,6 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
             return load_memop(haddr, op ^ MO_BSWAP);
         }
         return load_memop(haddr, op);
-    }
-
-    /* Handle slow unaligned access (it spans two pages or IO).  */
-    if (size > 1
-        && unlikely((addr & ~TARGET_PAGE_MASK) + size - 1
-                    >= TARGET_PAGE_SIZE)) {
-        return load_helper_unaligned(env, addr, oi, retaddr, op,
-                                     code_read, byte_load);
     }
 
     haddr = (void *)((uintptr_t)addr + entry->addend);
@@ -2421,6 +2421,16 @@ store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
         tlb_addr = tlb_addr_write(entry) & ~TLB_INVALID_MASK;
     }
 
+    /* Handle access that spans two pages. */
+    if (size > 1
+        && unlikely((addr & ~TARGET_PAGE_MASK) + size - 1
+                     >= TARGET_PAGE_SIZE)) {
+    do_unaligned_access:
+        store_helper_unaligned(env, addr, val, retaddr, size,
+                               mmu_idx, memop_big_endian(op));
+        return;
+    }
+
     /* Handle anything that isn't just a straight memory access.  */
     if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
         CPUIOTLBEntry *iotlbentry;
@@ -2471,16 +2481,6 @@ store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
         } else {
             store_memop(haddr, val, op);
         }
-        return;
-    }
-
-    /* Handle slow unaligned access (it spans two pages or IO).  */
-    if (size > 1
-        && unlikely((addr & ~TARGET_PAGE_MASK) + size - 1
-                     >= TARGET_PAGE_SIZE)) {
-    do_unaligned_access:
-        store_helper_unaligned(env, addr, val, retaddr, size,
-                               mmu_idx, memop_big_endian(op));
         return;
     }
 
