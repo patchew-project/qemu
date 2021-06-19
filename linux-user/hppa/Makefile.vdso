@@ -1,0 +1,4 @@
+vdso.so: vdso.S vdso.ld Makefile.vdso
+	hppa-linux-gnu-gcc -nostdlib -shared -Wl,-T,vdso.ld \
+	  -Wl,-h,linux-vdso.so.1 -Wl,--build-id=none \
+	  -Wl,--hash-style=both vdso.S -o $@
