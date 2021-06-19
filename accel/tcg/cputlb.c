@@ -1854,35 +1854,36 @@ load_memop(const void *haddr, MemOp op)
 static inline uint64_t QEMU_ALWAYS_INLINE
 load_helper_unaligned(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
                       uintptr_t retaddr, MemOp op, bool code_read,
-                      FullLoadHelper *full_load)
+                      FullLoadHelper *byte_load)
 {
+    uintptr_t mmu_idx = get_mmuidx(oi);
     size_t size = memop_size(op);
-    target_ulong addr1, addr2;
-    uint64_t res;
-    uint64_t r1, r2;
-    unsigned shift;
+    uint64_t val = 0;
+    int i;
 
-    addr1 = addr & ~((target_ulong)size - 1);
-    addr2 = addr1 + size;
-    r1 = full_load(env, addr1, oi, retaddr);
-    r2 = full_load(env, addr2, oi, retaddr);
-    shift = (addr & (size - 1)) * 8;
-
+    /* XXX: not efficient, but simple. */
+    oi = make_memop_idx(MO_UB, mmu_idx);
     if (memop_big_endian(op)) {
-        /* Big-endian combine.  */
-        res = (r1 << shift) | (r2 >> ((size * 8) - shift));
+        for (i = 0; i < size; ++i) {
+            /* Big-endian load.  */
+            uint64_t val8 = byte_load(env, addr + i, oi, retaddr);
+            val = (val << 8) | val8;
+        }
     } else {
-        /* Little-endian combine.  */
-        res = (r1 >> shift) | (r2 << ((size * 8) - shift));
+        for (i = 0; i < size; ++i) {
+            /* Little-endian load.  */
+            uint64_t val8 = byte_load(env, addr + i, oi, retaddr);
+            val |= val8 << (i * 8);
+        }
     }
 
-    return res & MAKE_64BIT_MASK(0, size * 8);
+    return val;
 }
 
 static inline uint64_t QEMU_ALWAYS_INLINE
 load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
             uintptr_t retaddr, MemOp op, bool code_read,
-            FullLoadHelper *full_load)
+            FullLoadHelper *byte_load)
 {
     uintptr_t mmu_idx = get_mmuidx(oi);
     uintptr_t index = tlb_index(env, mmu_idx, addr);
@@ -1920,10 +1921,10 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
         CPUIOTLBEntry *iotlbentry;
         bool need_swap;
 
-        /* For anything that is unaligned, recurse through full_load.  */
+        /* For anything that is unaligned, recurse through byte_load.  */
         if ((addr & (size - 1)) != 0) {
             return load_helper_unaligned(env, addr, oi, retaddr, op,
-                                         code_read, full_load);
+                                         code_read, byte_load);
         }
 
         iotlbentry = &env_tlb(env)->d[mmu_idx].iotlb[index];
@@ -1961,7 +1962,7 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
         && unlikely((addr & ~TARGET_PAGE_MASK) + size - 1
                     >= TARGET_PAGE_SIZE)) {
         return load_helper_unaligned(env, addr, oi, retaddr, op,
-                                     code_read, full_load);
+                                     code_read, byte_load);
     }
 
     haddr = (void *)((uintptr_t)addr + entry->addend);
@@ -1978,8 +1979,9 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
  * We don't bother with this widened value for SOFTMMU_CODE_ACCESS.
  */
 
-static uint64_t full_ldub_mmu(CPUArchState *env, target_ulong addr,
-                              TCGMemOpIdx oi, uintptr_t retaddr)
+static uint64_t __attribute__((noinline))
+full_ldub_mmu(CPUArchState *env, target_ulong addr,
+              TCGMemOpIdx oi, uintptr_t retaddr)
 {
     return load_helper(env, addr, oi, retaddr, MO_UB, false, full_ldub_mmu);
 }
@@ -1993,8 +1995,7 @@ tcg_target_ulong helper_ret_ldub_mmu(CPUArchState *env, target_ulong addr,
 static uint64_t full_le_lduw_mmu(CPUArchState *env, target_ulong addr,
                                  TCGMemOpIdx oi, uintptr_t retaddr)
 {
-    return load_helper(env, addr, oi, retaddr, MO_LEUW, false,
-                       full_le_lduw_mmu);
+    return load_helper(env, addr, oi, retaddr, MO_LEUW, false, full_ldub_mmu);
 }
 
 tcg_target_ulong helper_le_lduw_mmu(CPUArchState *env, target_ulong addr,
@@ -2006,8 +2007,7 @@ tcg_target_ulong helper_le_lduw_mmu(CPUArchState *env, target_ulong addr,
 static uint64_t full_be_lduw_mmu(CPUArchState *env, target_ulong addr,
                                  TCGMemOpIdx oi, uintptr_t retaddr)
 {
-    return load_helper(env, addr, oi, retaddr, MO_BEUW, false,
-                       full_be_lduw_mmu);
+    return load_helper(env, addr, oi, retaddr, MO_BEUW, false, full_ldub_mmu);
 }
 
 tcg_target_ulong helper_be_lduw_mmu(CPUArchState *env, target_ulong addr,
@@ -2019,8 +2019,7 @@ tcg_target_ulong helper_be_lduw_mmu(CPUArchState *env, target_ulong addr,
 static uint64_t full_le_ldul_mmu(CPUArchState *env, target_ulong addr,
                                  TCGMemOpIdx oi, uintptr_t retaddr)
 {
-    return load_helper(env, addr, oi, retaddr, MO_LEUL, false,
-                       full_le_ldul_mmu);
+    return load_helper(env, addr, oi, retaddr, MO_LEUL, false, full_ldub_mmu);
 }
 
 tcg_target_ulong helper_le_ldul_mmu(CPUArchState *env, target_ulong addr,
@@ -2032,8 +2031,7 @@ tcg_target_ulong helper_le_ldul_mmu(CPUArchState *env, target_ulong addr,
 static uint64_t full_be_ldul_mmu(CPUArchState *env, target_ulong addr,
                                  TCGMemOpIdx oi, uintptr_t retaddr)
 {
-    return load_helper(env, addr, oi, retaddr, MO_BEUL, false,
-                       full_be_ldul_mmu);
+    return load_helper(env, addr, oi, retaddr, MO_BEUL, false, full_ldub_mmu);
 }
 
 tcg_target_ulong helper_be_ldul_mmu(CPUArchState *env, target_ulong addr,
@@ -2045,15 +2043,13 @@ tcg_target_ulong helper_be_ldul_mmu(CPUArchState *env, target_ulong addr,
 uint64_t helper_le_ldq_mmu(CPUArchState *env, target_ulong addr,
                            TCGMemOpIdx oi, uintptr_t retaddr)
 {
-    return load_helper(env, addr, oi, retaddr, MO_LEQ, false,
-                       helper_le_ldq_mmu);
+    return load_helper(env, addr, oi, retaddr, MO_LEQ, false, full_ldub_mmu);
 }
 
 uint64_t helper_be_ldq_mmu(CPUArchState *env, target_ulong addr,
                            TCGMemOpIdx oi, uintptr_t retaddr)
 {
-    return load_helper(env, addr, oi, retaddr, MO_BEQ, false,
-                       helper_be_ldq_mmu);
+    return load_helper(env, addr, oi, retaddr, MO_BEQ, false, full_ldub_mmu);
 }
 
 /*
@@ -2732,8 +2728,9 @@ void cpu_stq_le_data(CPUArchState *env, target_ulong ptr, uint64_t val)
 
 /* Code access functions.  */
 
-static uint64_t full_ldub_code(CPUArchState *env, target_ulong addr,
-                               TCGMemOpIdx oi, uintptr_t retaddr)
+static uint64_t __attribute__((noinline))
+full_ldub_code(CPUArchState *env, target_ulong addr,
+               TCGMemOpIdx oi, uintptr_t retaddr)
 {
     return load_helper(env, addr, oi, retaddr, MO_8, true, full_ldub_code);
 }
@@ -2744,38 +2741,20 @@ uint32_t cpu_ldub_code(CPUArchState *env, abi_ptr addr)
     return full_ldub_code(env, addr, oi, 0);
 }
 
-static uint64_t full_lduw_code(CPUArchState *env, target_ulong addr,
-                               TCGMemOpIdx oi, uintptr_t retaddr)
-{
-    return load_helper(env, addr, oi, retaddr, MO_TEUW, true, full_lduw_code);
-}
-
 uint32_t cpu_lduw_code(CPUArchState *env, abi_ptr addr)
 {
     TCGMemOpIdx oi = make_memop_idx(MO_TEUW, cpu_mmu_index(env, true));
-    return full_lduw_code(env, addr, oi, 0);
-}
-
-static uint64_t full_ldl_code(CPUArchState *env, target_ulong addr,
-                              TCGMemOpIdx oi, uintptr_t retaddr)
-{
-    return load_helper(env, addr, oi, retaddr, MO_TEUL, true, full_ldl_code);
+    return load_helper(env, addr, oi, 0, MO_TEUW, true, full_ldub_code);
 }
 
 uint32_t cpu_ldl_code(CPUArchState *env, abi_ptr addr)
 {
     TCGMemOpIdx oi = make_memop_idx(MO_TEUL, cpu_mmu_index(env, true));
-    return full_ldl_code(env, addr, oi, 0);
-}
-
-static uint64_t full_ldq_code(CPUArchState *env, target_ulong addr,
-                              TCGMemOpIdx oi, uintptr_t retaddr)
-{
-    return load_helper(env, addr, oi, retaddr, MO_TEQ, true, full_ldq_code);
+    return load_helper(env, addr, oi, 0, MO_TEUL, true, full_ldub_code);
 }
 
 uint64_t cpu_ldq_code(CPUArchState *env, abi_ptr addr)
 {
     TCGMemOpIdx oi = make_memop_idx(MO_TEQ, cpu_mmu_index(env, true));
-    return full_ldq_code(env, addr, oi, 0);
+    return load_helper(env, addr, oi, 0, MO_TEQ, true, full_ldub_code);
 }
