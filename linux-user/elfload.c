@@ -154,6 +154,9 @@ static uint32_t get_elf_hwcap(void)
 #define ELF_CLASS      ELFCLASS64
 #define ELF_ARCH       EM_X86_64
 
+#define HAVE_VDSO 1
+#include "vdso.c.inc"
+
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
     regs->rax = 0;
