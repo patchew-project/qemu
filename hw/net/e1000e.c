@@ -145,7 +145,7 @@ e1000e_io_read(void *opaque, hwaddr addr, unsigned size)
         return s->ioaddr;
     case E1000_IODATA:
         if (e1000e_io_get_reg_index(s, &idx)) {
-            val = e1000e_core_read(&s->core, idx, sizeof(val));
+            val = e1000e_core_read(&s->core, idx, size);
             trace_e1000e_io_read_data(idx, val);
             return val;
         }
@@ -171,7 +171,7 @@ e1000e_io_write(void *opaque, hwaddr addr,
     case E1000_IODATA:
         if (e1000e_io_get_reg_index(s, &idx)) {
             trace_e1000e_io_write_data(idx, val);
-            e1000e_core_write(&s->core, idx, val, sizeof(val));
+            e1000e_core_write(&s->core, idx, val, size);
         }
         return;
     default:
