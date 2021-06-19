@@ -42,10 +42,7 @@ hexagon_ss.add(semantics_generated)
 # Step 2
 # We use Python scripts to generate the following files
 #     shortcode_generated.h.inc
-#     helper_protos_generated.h.inc
-#     tcg_funcs_generated.c.inc
 #     tcg_func_table_generated.c.inc
-#     helper_funcs_generated.c.inc
 #     printinsn_generated.h.inc
 #     op_regs_generated.h.inc
 #     op_attribs_generated.h.inc
@@ -60,24 +57,6 @@ shortcode_generated = custom_target(
 )
 hexagon_ss.add(shortcode_generated)
 
-helper_protos_generated = custom_target(
-    'helper_protos_generated.h.inc',
-    output: 'helper_protos_generated.h.inc',
-    depends: [semantics_generated],
-    depend_files: [hex_common_py, attribs_def, gen_tcg_h],
-    command: [python, files('gen_helper_protos.py'), semantics_generated, attribs_def, gen_tcg_h, '@OUTPUT@'],
-)
-hexagon_ss.add(helper_protos_generated)
-
-tcg_funcs_generated = custom_target(
-    'tcg_funcs_generated.c.inc',
-    output: 'tcg_funcs_generated.c.inc',
-    depends: [semantics_generated],
-    depend_files: [hex_common_py, attribs_def, gen_tcg_h],
-    command: [python, files('gen_tcg_funcs.py'), semantics_generated, attribs_def, gen_tcg_h, '@OUTPUT@'],
-)
-hexagon_ss.add(tcg_funcs_generated)
-
 tcg_func_table_generated = custom_target(
     'tcg_func_table_generated.c.inc',
     output: 'tcg_func_table_generated.c.inc',
@@ -86,15 +65,6 @@ tcg_func_table_generated = custom_target(
     command: [python, files('gen_tcg_func_table.py'), semantics_generated, attribs_def, '@OUTPUT@'],
 )
 hexagon_ss.add(tcg_func_table_generated)
-
-helper_funcs_generated = custom_target(
-    'helper_funcs_generated.c.inc',
-    output: 'helper_funcs_generated.c.inc',
-    depends: [semantics_generated],
-    depend_files: [hex_common_py, attribs_def, gen_tcg_h],
-    command: [python, files('gen_helper_funcs.py'), semantics_generated, attribs_def, gen_tcg_h, '@OUTPUT@'],
-)
-hexagon_ss.add(helper_funcs_generated)
 
 printinsn_generated = custom_target(
     'printinsn_generated.h.inc',
@@ -219,5 +189,43 @@ idef_generated_tcg = custom_target(
     depend_files: [hex_common_py],
     command: [idef_parser, '@INPUT@', '@OUTPUT0@', '@OUTPUT1@', '@OUTPUT2@'],
 )
+
+idef_generated_list = idef_generated_tcg[2].full_path()
+
+hexagon_ss.add(idef_generated_tcg)
+
+#
+# Step 5
+# We use Python scripts to generate the following files
+#     helper_protos_generated.h.inc
+#     helper_funcs_generated.c.inc
+#     tcg_funcs_generated.c.inc
+#
+helper_protos_generated = custom_target(
+    'helper_protos_generated.h.inc',
+    output: 'helper_protos_generated.h.inc',
+    depends: [semantics_generated, idef_generated_tcg],
+    depend_files: [hex_common_py, attribs_def, gen_tcg_h],
+    command: [python, files('gen_helper_protos.py'), semantics_generated, attribs_def, gen_tcg_h, idef_generated_list, '@OUTPUT@'],
+)
+hexagon_ss.add(helper_protos_generated)
+
+helper_funcs_generated = custom_target(
+    'helper_funcs_generated.c.inc',
+    output: 'helper_funcs_generated.c.inc',
+    depends: [semantics_generated, idef_generated_tcg],
+    depend_files: [hex_common_py, attribs_def, gen_tcg_h],
+    command: [python, files('gen_helper_funcs.py'), semantics_generated, attribs_def, gen_tcg_h, idef_generated_list, '@OUTPUT@'],
+)
+hexagon_ss.add(helper_funcs_generated)
+
+tcg_funcs_generated = custom_target(
+    'tcg_funcs_generated.c.inc',
+    output: 'tcg_funcs_generated.c.inc',
+    depends: [semantics_generated, idef_generated_tcg],
+    depend_files: [hex_common_py, attribs_def, gen_tcg_h],
+    command: [python, files('gen_tcg_funcs.py'), semantics_generated, attribs_def, gen_tcg_h, idef_generated_list, '@OUTPUT@'],
+)
+hexagon_ss.add(tcg_funcs_generated)
 
 target_arch += {'hexagon': hexagon_ss}

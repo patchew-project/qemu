@@ -192,11 +192,12 @@ def main():
     hex_common.read_semantics_file(sys.argv[1])
     hex_common.read_attribs_file(sys.argv[2])
     hex_common.read_overrides_file(sys.argv[3])
+    hex_common.read_idef_parser_enabled_file(sys.argv[4])
     hex_common.calculate_attribs()
     tagregs = hex_common.get_tagregs()
     tagimms = hex_common.get_tagimms()
 
-    with open(sys.argv[4], 'w') as f:
+    with open(sys.argv[5], 'w') as f:
         for tag in hex_common.tags:
             ## Skip the priv instructions
             if ( "A_PRIV" in hex_common.attribdict[tag] ) :
@@ -212,6 +213,8 @@ def main():
             if ( tag == "Y6_diag1" ) :
                 continue
             if ( hex_common.skip_qemu_helper(tag) ):
+                continue
+            if ( hex_common.is_idef_parser_enabled(tag) ):
                 continue
 
             gen_helper_function(f, tag, tagregs, tagimms)
