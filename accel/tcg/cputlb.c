@@ -1852,6 +1852,34 @@ load_memop(const void *haddr, MemOp op)
 }
 
 static inline uint64_t QEMU_ALWAYS_INLINE
+load_helper_unaligned(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
+                      uintptr_t retaddr, MemOp op, bool code_read,
+                      FullLoadHelper *full_load)
+{
+    size_t size = memop_size(op);
+    target_ulong addr1, addr2;
+    uint64_t res;
+    uint64_t r1, r2;
+    unsigned shift;
+
+    addr1 = addr & ~((target_ulong)size - 1);
+    addr2 = addr1 + size;
+    r1 = full_load(env, addr1, oi, retaddr);
+    r2 = full_load(env, addr2, oi, retaddr);
+    shift = (addr & (size - 1)) * 8;
+
+    if (memop_big_endian(op)) {
+        /* Big-endian combine.  */
+        res = (r1 << shift) | (r2 >> ((size * 8) - shift));
+    } else {
+        /* Little-endian combine.  */
+        res = (r1 >> shift) | (r2 << ((size * 8) - shift));
+    }
+
+    return res & MAKE_64BIT_MASK(0, size * 8);
+}
+
+static inline uint64_t QEMU_ALWAYS_INLINE
 load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
             uintptr_t retaddr, MemOp op, bool code_read,
             FullLoadHelper *full_load)
@@ -1866,7 +1894,6 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
         code_read ? MMU_INST_FETCH : MMU_DATA_LOAD;
     unsigned a_bits = get_alignment_bits(get_memop(oi));
     void *haddr;
-    uint64_t res;
     size_t size = memop_size(op);
 
     /* Handle CPU specific unaligned behaviour */
@@ -1895,7 +1922,8 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
 
         /* For anything that is unaligned, recurse through full_load.  */
         if ((addr & (size - 1)) != 0) {
-            goto do_unaligned_access;
+            return load_helper_unaligned(env, addr, oi, retaddr, op,
+                                         code_read, full_load);
         }
 
         iotlbentry = &env_tlb(env)->d[mmu_idx].iotlb[index];
@@ -1932,24 +1960,8 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
     if (size > 1
         && unlikely((addr & ~TARGET_PAGE_MASK) + size - 1
                     >= TARGET_PAGE_SIZE)) {
-        target_ulong addr1, addr2;
-        uint64_t r1, r2;
-        unsigned shift;
-    do_unaligned_access:
-        addr1 = addr & ~((target_ulong)size - 1);
-        addr2 = addr1 + size;
-        r1 = full_load(env, addr1, oi, retaddr);
-        r2 = full_load(env, addr2, oi, retaddr);
-        shift = (addr & (size - 1)) * 8;
-
-        if (memop_big_endian(op)) {
-            /* Big-endian combine.  */
-            res = (r1 << shift) | (r2 >> ((size * 8) - shift));
-        } else {
-            /* Little-endian combine.  */
-            res = (r1 >> shift) | (r2 << ((size * 8) - shift));
-        }
-        return res & MAKE_64BIT_MASK(0, size * 8);
+        return load_helper_unaligned(env, addr, oi, retaddr, op,
+                                     code_read, full_load);
     }
 
     haddr = (void *)((uintptr_t)addr + entry->addend);
