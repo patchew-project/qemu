@@ -1,5 +1,6 @@
 FROM fedora:33
 ENV PACKAGES \
+    bison \
     bzip2 \
     ccache \
     diffutils \
@@ -7,6 +8,7 @@ ENV PACKAGES \
     flex \
     gcc \
     git \
+    glib2-devel \
     libtasn1-devel.i686 \
     libzstd-devel.i686 \
     make \

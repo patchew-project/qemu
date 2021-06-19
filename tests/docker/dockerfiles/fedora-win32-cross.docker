@@ -2,6 +2,7 @@ FROM fedora:33
 
 # Please keep this list sorted alphabetically
 ENV PACKAGES \
+    bison \
     bc \
     bzip2 \
     ccache \
@@ -11,6 +12,7 @@ ENV PACKAGES \
     gcc \
     gettext \
     git \
+    glib2-devel \
     hostname \
     make \
     meson \

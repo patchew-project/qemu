@@ -1,5 +1,6 @@
 FROM ubuntu:20.04
-ENV PACKAGES bison \
+ENV PACKAGES \
+    bison \
     bsdmainutils \
     ccache \
     clang-10\
@@ -21,6 +22,7 @@ ENV PACKAGES bison \
     libepoxy-dev \
     libfdt-dev \
     libgbm-dev \
+    libglib2.0-dev \
     libgtk-3-dev \
     libibverbs-dev \
     libiscsi-dev \

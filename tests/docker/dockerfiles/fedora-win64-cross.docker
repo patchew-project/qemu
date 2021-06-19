@@ -2,6 +2,7 @@ FROM fedora:33
 
 # Please keep this list sorted alphabetically
 ENV PACKAGES \
+    bison \
     bc \
     bzip2 \
     ccache \
@@ -10,6 +11,7 @@ ENV PACKAGES \
     flex \
     gcc \
     gettext \
+    glib2-devel \
     git \
     hostname \
     make \
