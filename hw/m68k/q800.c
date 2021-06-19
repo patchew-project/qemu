@@ -174,26 +174,13 @@ static void main_cpu_reset(void *opaque)
     CPUState *cs = CPU(cpu);
 
     cpu_reset(cs);
-    cpu->env.aregs[7] = ldl_phys(cs->as, 0);
-    cpu->env.pc = ldl_phys(cs->as, 4);
+    cpu->env.aregs[7] = 0x1000;
+    cpu->env.pc = MACROM_ADDR;
 }
 
 static uint8_t fake_mac_rom[] = {
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-
-    /* offset: 0xa - mac_reset */
-
-    /* via2[vDirB] |= VIA2B_vPower */
-    0x20, 0x7C, 0x50, 0xF0, 0x24, 0x00, /* moveal VIA2_BASE+vDirB,%a0 */
-    0x10, 0x10,                         /* moveb %a0@,%d0 */
-    0x00, 0x00, 0x00, 0x04,             /* orib #4,%d0 */
-    0x10, 0x80,                         /* moveb %d0,%a0@ */
-
-    /* via2[vBufB] &= ~VIA2B_vPower */
-    0x20, 0x7C, 0x50, 0xF0, 0x20, 0x00, /* moveal VIA2_BASE+vBufB,%a0 */
-    0x10, 0x10,                         /* moveb %a0@,%d0 */
-    0x02, 0x00, 0xFF, 0xFB,             /* andib #-5,%d0 */
-    0x10, 0x80,                         /* moveb %d0,%a0@ */
+    0x41, 0xf9, 0x50, 0x00, 0x00, 0x00,  /* lea 0x50000000,%a0 */
+    0x30, 0x28, 0x11, 0xff,              /* movew %a0@(4607),%d0 */
 
     /* while (true) ; */
     0x60, 0xFE                          /* bras [self] */
@@ -202,24 +189,11 @@ static uint8_t fake_mac_rom[] = {
 static void q800_init(MachineState *machine)
 {
     M68kCPU *cpu = NULL;
-    int linux_boot;
-    int32_t kernel_size;
-    uint64_t elf_entry;
-    char *filename;
-    int bios_size;
-    ram_addr_t initrd_base;
-    int32_t initrd_size;
     MemoryRegion *rom;
     MemoryRegion *io;
     const int io_slice_nb = (IO_SIZE / IO_SLICE) - 1;
     int i;
     ram_addr_t ram_size = machine->ram_size;
-    const char *kernel_filename = machine->kernel_filename;
-    const char *initrd_filename = machine->initrd_filename;
-    const char *kernel_cmdline = machine->kernel_cmdline;
-    const char *bios_name = machine->firmware ?: MACROM_FILENAME;
-    hwaddr parameters_base;
-    CPUState *cs;
     DeviceState *dev;
     DeviceState *via_dev;
     DeviceState *escc_orgate;
@@ -230,8 +204,6 @@ static void q800_init(MachineState *machine)
     NubusBus *nubus;
     DeviceState *glue;
     DriveInfo *dinfo;
-
-    linux_boot = (kernel_filename != NULL);
 
     if (ram_size > 1 * GiB) {
         error_report("Too much memory for this machine: %" PRId64 " MiB, "
@@ -392,96 +364,11 @@ static void q800_init(MachineState *machine)
     qdev_prop_set_uint8(dev, "depth", graphic_depth);
     qdev_realize_and_unref(dev, BUS(nubus), &error_fatal);
 
-    cs = CPU(cpu);
-    if (linux_boot) {
-        uint64_t high;
-        kernel_size = load_elf(kernel_filename, NULL, NULL, NULL,
-                               &elf_entry, NULL, &high, NULL, 1,
-                               EM_68K, 0, 0);
-        if (kernel_size < 0) {
-            error_report("could not load kernel '%s'", kernel_filename);
-            exit(1);
-        }
-        stl_phys(cs->as, 4, elf_entry); /* reset initial PC */
-        parameters_base = (high + 1) & ~1;
-
-        BOOTINFO1(cs->as, parameters_base, BI_MACHTYPE, MACH_MAC);
-        BOOTINFO1(cs->as, parameters_base, BI_FPUTYPE, FPU_68040);
-        BOOTINFO1(cs->as, parameters_base, BI_MMUTYPE, MMU_68040);
-        BOOTINFO1(cs->as, parameters_base, BI_CPUTYPE, CPU_68040);
-        BOOTINFO1(cs->as, parameters_base, BI_MAC_CPUID, CPUB_68040);
-        BOOTINFO1(cs->as, parameters_base, BI_MAC_MODEL, MAC_MODEL_Q800);
-        BOOTINFO1(cs->as, parameters_base,
-                  BI_MAC_MEMSIZE, ram_size >> 20); /* in MB */
-        BOOTINFO2(cs->as, parameters_base, BI_MEMCHUNK, 0, ram_size);
-        BOOTINFO1(cs->as, parameters_base, BI_MAC_VADDR, VIDEO_BASE);
-        BOOTINFO1(cs->as, parameters_base, BI_MAC_VDEPTH, graphic_depth);
-        BOOTINFO1(cs->as, parameters_base, BI_MAC_VDIM,
-                  (graphic_height << 16) | graphic_width);
-        BOOTINFO1(cs->as, parameters_base, BI_MAC_VROW,
-                  (graphic_width * graphic_depth + 7) / 8);
-        BOOTINFO1(cs->as, parameters_base, BI_MAC_SCCBASE, SCC_BASE);
-
-        rom = g_malloc(sizeof(*rom));
-        memory_region_init_ram_ptr(rom, NULL, "m68k_fake_mac.rom",
-                                   sizeof(fake_mac_rom), fake_mac_rom);
-        memory_region_set_readonly(rom, true);
-        memory_region_add_subregion(get_system_memory(), MACROM_ADDR, rom);
-
-        if (kernel_cmdline) {
-            BOOTINFOSTR(cs->as, parameters_base, BI_COMMAND_LINE,
-                        kernel_cmdline);
-        }
-
-        /* load initrd */
-        if (initrd_filename) {
-            initrd_size = get_image_size(initrd_filename);
-            if (initrd_size < 0) {
-                error_report("could not load initial ram disk '%s'",
-                             initrd_filename);
-                exit(1);
-            }
-
-            initrd_base = (ram_size - initrd_size) & TARGET_PAGE_MASK;
-            load_image_targphys(initrd_filename, initrd_base,
-                                ram_size - initrd_base);
-            BOOTINFO2(cs->as, parameters_base, BI_RAMDISK, initrd_base,
-                      initrd_size);
-        } else {
-            initrd_base = 0;
-            initrd_size = 0;
-        }
-        BOOTINFO0(cs->as, parameters_base, BI_LAST);
-    } else {
-        uint8_t *ptr;
-        /* allocate and load BIOS */
-        rom = g_malloc(sizeof(*rom));
-        memory_region_init_rom(rom, NULL, "m68k_mac.rom", MACROM_SIZE,
-                               &error_abort);
-        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-        memory_region_add_subregion(get_system_memory(), MACROM_ADDR, rom);
-
-        /* Load MacROM binary */
-        if (filename) {
-            bios_size = load_image_targphys(filename, MACROM_ADDR, MACROM_SIZE);
-            g_free(filename);
-        } else {
-            bios_size = -1;
-        }
-
-        /* Remove qtest_enabled() check once firmware files are in the tree */
-        if (!qtest_enabled()) {
-            if (bios_size < 0 || bios_size > MACROM_SIZE) {
-                error_report("could not load MacROM '%s'", bios_name);
-                exit(1);
-            }
-
-            ptr = rom_ptr(MACROM_ADDR, MACROM_SIZE);
-            stl_phys(cs->as, 0, ldl_p(ptr));    /* reset initial SP */
-            stl_phys(cs->as, 4,
-                     MACROM_ADDR + ldl_p(ptr + 4)); /* reset initial PC */
-        }
-    }
+    rom = g_malloc(sizeof(*rom));
+    memory_region_init_ram_ptr(rom, NULL, "m68k_fake_mac.rom",
+                               sizeof(fake_mac_rom), fake_mac_rom);
+    memory_region_set_readonly(rom, true);
+    memory_region_add_subregion(get_system_memory(), MACROM_ADDR, rom);
 }
 
 static void q800_machine_class_init(ObjectClass *oc, void *data)
