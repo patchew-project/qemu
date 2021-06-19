@@ -2163,8 +2163,8 @@ static const MemoryRegionOps megasas_mmio_ops = {
     .write = megasas_mmio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
-        .min_access_size = 8,
-        .max_access_size = 8,
+        .min_access_size = 4,
+        .max_access_size = 4,
     }
 };
 
