@@ -45,23 +45,6 @@ void QEMU_NORETURN HELPER(raise_exception)(CPUHexagonState *env, uint32_t excp)
     do_raise_exception_err(env, excp, 0);
 }
 
-static void log_reg_write(CPUHexagonState *env, int rnum,
-                          target_ulong val, uint32_t slot)
-{
-    HEX_DEBUG_LOG("log_reg_write[%d] = " TARGET_FMT_ld " (0x" TARGET_FMT_lx ")",
-                  rnum, val, val);
-    if (val == env->gpr[rnum]) {
-        HEX_DEBUG_LOG(" NO CHANGE");
-    }
-    HEX_DEBUG_LOG("\n");
-
-    env->new_value[rnum] = val;
-    if (HEX_DEBUG) {
-        /* Do this so HELPER(debug_commit_end) will know */
-        env->reg_written[rnum] = 1;
-    }
-}
-
 static void log_pred_write(CPUHexagonState *env, int pnum, target_ulong val)
 {
     HEX_DEBUG_LOG("log_pred_write[%d] = " TARGET_FMT_ld
@@ -77,46 +60,6 @@ static void log_pred_write(CPUHexagonState *env, int pnum, target_ulong val)
     }
 }
 
-static void log_store32(CPUHexagonState *env, target_ulong addr,
-                        target_ulong val, int width, int slot)
-{
-    HEX_DEBUG_LOG("log_store%d(0x" TARGET_FMT_lx
-                  ", %" PRId32 " [0x08%" PRIx32 "])\n",
-                  width, addr, val, val);
-    env->mem_log_stores[slot].va = addr;
-    env->mem_log_stores[slot].width = width;
-    env->mem_log_stores[slot].data32 = val;
-}
-
-static void log_store64(CPUHexagonState *env, target_ulong addr,
-                        int64_t val, int width, int slot)
-{
-    HEX_DEBUG_LOG("log_store%d(0x" TARGET_FMT_lx
-                  ", %" PRId64 " [0x016%" PRIx64 "])\n",
-                   width, addr, val, val);
-    env->mem_log_stores[slot].va = addr;
-    env->mem_log_stores[slot].width = width;
-    env->mem_log_stores[slot].data64 = val;
-}
-
-static void write_new_pc(CPUHexagonState *env, target_ulong addr)
-{
-    HEX_DEBUG_LOG("write_new_pc(0x" TARGET_FMT_lx ")\n", addr);
-
-    /*
-     * If more than one branch is taken in a packet, only the first one
-     * is actually done.
-     */
-    if (env->branch_taken) {
-        HEX_DEBUG_LOG("INFO: multiple branches taken in same packet, "
-                      "ignoring the second one\n");
-    } else {
-        fCHECK_PCALIGN(addr);
-        env->branch_taken = 1;
-        env->next_PC = addr;
-    }
-}
-
 /* Handy place to set a breakpoint */
 void HELPER(debug_start_packet)(CPUHexagonState *env)
 {
@@ -126,11 +69,6 @@ void HELPER(debug_start_packet)(CPUHexagonState *env)
     for (int i = 0; i < TOTAL_PER_THREAD_REGS; i++) {
         env->reg_written[i] = 0;
     }
-}
-
-static int32_t new_pred_value(CPUHexagonState *env, int pnum)
-{
-    return env->new_pred_value[pnum];
 }
 
 /* Checks for bookkeeping errors between disassembly context and runtime */
@@ -378,57 +316,6 @@ int32_t HELPER(vacsh_pred)(CPUHexagonState *env,
         PeV = deposit32(PeV, i * 2 + 1, 1, (xv > sv));
     }
     return PeV;
-}
-
-/*
- * mem_noshuf
- * Section 5.5 of the Hexagon V67 Programmer's Reference Manual
- *
- * If the load is in slot 0 and there is a store in slot1 (that
- * wasn't cancelled), we have to do the store first.
- */
-static void check_noshuf(CPUHexagonState *env, uint32_t slot)
-{
-    if (slot == 0 && env->pkt_has_store_s1 &&
-        ((env->slot_cancelled & (1 << 1)) == 0)) {
-        HELPER(commit_store)(env, 1);
-    }
-}
-
-static uint8_t mem_load1(CPUHexagonState *env, uint32_t slot,
-                         target_ulong vaddr)
-{
-    uint8_t retval;
-    check_noshuf(env, slot);
-    get_user_u8(retval, vaddr);
-    return retval;
-}
-
-static uint16_t mem_load2(CPUHexagonState *env, uint32_t slot,
-                          target_ulong vaddr)
-{
-    uint16_t retval;
-    check_noshuf(env, slot);
-    get_user_u16(retval, vaddr);
-    return retval;
-}
-
-static uint32_t mem_load4(CPUHexagonState *env, uint32_t slot,
-                          target_ulong vaddr)
-{
-    uint32_t retval;
-    check_noshuf(env, slot);
-    get_user_u32(retval, vaddr);
-    return retval;
-}
-
-static uint64_t mem_load8(CPUHexagonState *env, uint32_t slot,
-                          target_ulong vaddr)
-{
-    uint64_t retval;
-    check_noshuf(env, slot);
-    get_user_u64(retval, vaddr);
-    return retval;
 }
 
 /* Floating point */
@@ -1170,12 +1057,6 @@ float64 HELPER(dfmpyhh)(CPUHexagonState *env, float64 RxxV,
     RxxV = internal_mpyhh(RssV, RttV, RxxV, &env->fp_status);
     arch_fpop_end(env);
     return RxxV;
-}
-
-static void cancel_slot(CPUHexagonState *env, uint32_t slot)
-{
-    HEX_DEBUG_LOG("Slot %d cancelled\n", slot);
-    env->slot_cancelled |= (1 << slot);
 }
 
 /* These macros can be referenced in the generated helper functions */

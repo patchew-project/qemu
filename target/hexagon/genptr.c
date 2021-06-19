@@ -274,61 +274,6 @@ static inline void gen_write_ctrl_reg_pair(DisasContext *ctx, int reg_num,
     }
 }
 
-static TCGv gen_get_byte(TCGv result, int N, TCGv src, bool sign)
-{
-    if (sign) {
-        tcg_gen_sextract_tl(result, src, N * 8, 8);
-    } else {
-        tcg_gen_extract_tl(result, src, N * 8, 8);
-    }
-    return result;
-}
-
-static TCGv gen_get_byte_i64(TCGv result, int N, TCGv_i64 src, bool sign)
-{
-    TCGv_i64 res64 = tcg_temp_new_i64();
-    if (sign) {
-        tcg_gen_sextract_i64(res64, src, N * 8, 8);
-    } else {
-        tcg_gen_extract_i64(res64, src, N * 8, 8);
-    }
-    tcg_gen_extrl_i64_i32(result, res64);
-    tcg_temp_free_i64(res64);
-
-    return result;
-}
-
-static inline TCGv gen_get_half(TCGv result, int N, TCGv src, bool sign)
-{
-    if (sign) {
-        tcg_gen_sextract_tl(result, src, N * 16, 16);
-    } else {
-        tcg_gen_extract_tl(result, src, N * 16, 16);
-    }
-    return result;
-}
-
-static inline void gen_set_half(int N, TCGv result, TCGv src)
-{
-    tcg_gen_deposit_tl(result, result, src, N * 16, 16);
-}
-
-static inline void gen_set_half_i64(int N, TCGv_i64 result, TCGv src)
-{
-    TCGv_i64 src64 = tcg_temp_new_i64();
-    tcg_gen_extu_i32_i64(src64, src);
-    tcg_gen_deposit_i64(result, result, src64, N * 16, 16);
-    tcg_temp_free_i64(src64);
-}
-
-static void gen_set_byte_i64(int N, TCGv_i64 result, TCGv src)
-{
-    TCGv_i64 src64 = tcg_temp_new_i64();
-    tcg_gen_extu_i32_i64(src64, src);
-    tcg_gen_deposit_i64(result, result, src64, N * 8, 8);
-    tcg_temp_free_i64(src64);
-}
-
 static inline void gen_load_locked4u(TCGv dest, TCGv vaddr, int mem_index)
 {
     tcg_gen_qemu_ld32u(dest, vaddr, mem_index);
@@ -417,40 +362,16 @@ void gen_store1(TCGv_env cpu_env, TCGv vaddr, TCGv src, DisasContext *ctx,
     gen_store32(ctx, vaddr, src, 1, slot);
 }
 
-static inline void gen_store1i(TCGv_env cpu_env, TCGv vaddr, int32_t src,
-                               DisasContext *ctx, int slot)
-{
-    TCGv tmp = tcg_const_tl(src);
-    gen_store1(cpu_env, vaddr, tmp, ctx, slot);
-    tcg_temp_free(tmp);
-}
-
 void gen_store2(TCGv_env cpu_env, TCGv vaddr, TCGv src, DisasContext *ctx,
                 unsigned slot)
 {
     gen_store32(ctx, vaddr, src, 2, slot);
 }
 
-static inline void gen_store2i(TCGv_env cpu_env, TCGv vaddr, int32_t src,
-                               DisasContext *ctx, int slot)
-{
-    TCGv tmp = tcg_const_tl(src);
-    gen_store2(cpu_env, vaddr, tmp, ctx, slot);
-    tcg_temp_free(tmp);
-}
-
 void gen_store4(TCGv_env cpu_env, TCGv vaddr, TCGv src, DisasContext *ctx,
                 unsigned slot)
 {
     gen_store32(ctx, vaddr, src, 4, slot);
-}
-
-static inline void gen_store4i(TCGv_env cpu_env, TCGv vaddr, int32_t src,
-                               DisasContext *ctx, int slot)
-{
-    TCGv tmp = tcg_const_tl(src);
-    gen_store4(cpu_env, vaddr, tmp, ctx, slot);
-    tcg_temp_free(tmp);
 }
 
 void gen_store8(TCGv_env cpu_env, TCGv vaddr, TCGv_i64 src, DisasContext *ctx,
@@ -460,25 +381,6 @@ void gen_store8(TCGv_env cpu_env, TCGv vaddr, TCGv_i64 src, DisasContext *ctx,
     tcg_gen_movi_tl(hex_store_width[slot], 8);
     tcg_gen_mov_i64(hex_store_val64[slot], src);
     ctx->store_width[slot] = 8;
-}
-
-static inline void gen_store8i(TCGv_env cpu_env, TCGv vaddr, int64_t src,
-                               DisasContext *ctx, int slot)
-{
-    TCGv_i64 tmp = tcg_const_i64(src);
-    gen_store8(cpu_env, vaddr, tmp, ctx, slot);
-    tcg_temp_free_i64(tmp);
-}
-
-static TCGv gen_8bitsof(TCGv result, TCGv value)
-{
-    TCGv zero = tcg_const_tl(0);
-    TCGv ones = tcg_const_tl(0xff);
-    tcg_gen_movcond_tl(TCG_COND_NE, result, value, zero, ones, zero);
-    tcg_temp_free(zero);
-    tcg_temp_free(ones);
-
-    return result;
 }
 
 void gen_set_usr_field(int field, TCGv val)
