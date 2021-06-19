@@ -199,6 +199,17 @@ bool imgsrc_read(void *dst, off_t offset, size_t len,
 void *imgsrc_read_alloc(off_t offset, size_t len,
                         const ImageSource *img, Error **errp);
 
+/**
+ * imgsrc_mmap: Map from ImageSource
+ *
+ * If @src has a file descriptor, pass on to target_mmap.  Otherwise,
+ * this is "mapping" from a host buffer, which resolves to memcpy.
+ * Therefore, flags must be MAP_PRIVATE | MAP_FIXED; the argument is
+ * retained for clarity.
+ */
+abi_long imgsrc_mmap(abi_ulong start, abi_ulong len, int prot,
+                     int flags, const ImageSource *src, abi_ulong offset);
+
 /* Read a good amount of data initially, to hopefully get all the
    program headers loaded.  */
 #define BPRM_BUF_SIZE  1024
