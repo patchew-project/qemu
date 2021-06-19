@@ -1929,12 +1929,6 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
         CPUIOTLBEntry *iotlbentry;
         bool need_swap;
 
-        /* For anything that is unaligned, recurse through byte_load.  */
-        if ((addr & (size - 1)) != 0) {
-            return load_helper_unaligned(env, addr, oi, retaddr, op,
-                                         code_read, byte_load);
-        }
-
         iotlbentry = &env_tlb(env)->d[mmu_idx].iotlb[index];
 
         /* Handle watchpoints.  */
@@ -2425,7 +2419,6 @@ store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
     if (size > 1
         && unlikely((addr & ~TARGET_PAGE_MASK) + size - 1
                      >= TARGET_PAGE_SIZE)) {
-    do_unaligned_access:
         store_helper_unaligned(env, addr, val, retaddr, size,
                                mmu_idx, memop_big_endian(op));
         return;
@@ -2435,11 +2428,6 @@ store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
     if (unlikely(tlb_addr & ~TARGET_PAGE_MASK)) {
         CPUIOTLBEntry *iotlbentry;
         bool need_swap;
-
-        /* For anything that is unaligned, recurse through byte stores.  */
-        if ((addr & (size - 1)) != 0) {
-            goto do_unaligned_access;
-        }
 
         iotlbentry = &env_tlb(env)->d[mmu_idx].iotlb[index];
 
