@@ -1930,7 +1930,7 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
         iotlbentry = &env_tlb(env)->d[mmu_idx].iotlb[index];
 
         /* Handle watchpoints.  */
-        if (unlikely(tlb_addr & TLB_WATCHPOINT)) {
+        if (!code_read && unlikely(tlb_addr & TLB_WATCHPOINT)) {
             /* On watchpoint hit, this will longjmp out.  */
             cpu_check_watchpoint(env_cpu(env), addr, size,
                                  iotlbentry->attrs, BP_MEM_READ, retaddr);
