@@ -1966,7 +1966,8 @@ static abi_ulong loader_build_fdpic_loadmap(struct image_info *info, abi_ulong s
 static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
                                    struct elfhdr *exec,
                                    struct image_info *info,
-                                   struct image_info *interp_info)
+                                   struct image_info *interp_info,
+                                   struct image_info *vdso_info)
 {
     abi_ulong sp;
     abi_ulong u_argc, u_argv, u_envp, u_auxv;
@@ -2038,8 +2039,12 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     }
 
     size = (DLINFO_ITEMS + 1) * 2;
-    if (k_platform)
+    if (k_platform) {
         size += 2;
+    }
+    if (vdso_info) {
+        size += 4;
+    }
 #ifdef DLINFO_ARCH_ITEMS
     size += DLINFO_ARCH_ITEMS * 2;
 #endif
@@ -2115,6 +2120,10 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
 
     if (u_platform) {
         NEW_AUX_ENT(AT_PLATFORM, u_platform);
+    }
+    if (vdso_info) {
+        NEW_AUX_ENT(AT_SYSINFO, vdso_info->entry);
+        NEW_AUX_ENT(AT_SYSINFO_EHDR, vdso_info->load_addr);
     }
     NEW_AUX_ENT (AT_NULL, 0);
 #undef NEW_AUX_ENT
@@ -2942,6 +2951,53 @@ static void load_elf_interp(const char *filename, struct image_info *info,
     load_elf_image(filename, &src, info, &ehdr, NULL);
 }
 
+#ifndef HAVE_VDSO
+#define HAVE_VDSO 0
+static uint8_t vdso_image[] = { };
+static uint32_t vdso_relocs[] = { };
+#define vdso_sigreturn 0
+#define vdso_rt_sigreturn 0
+#endif
+
+static void load_elf_vdso(struct image_info *info)
+{
+    ImageSource src;
+    struct elfhdr ehdr;
+    abi_ulong load_bias, load_addr;
+
+    src.fd = -1;
+    src.cache = vdso_image;
+    src.cache_size = sizeof(vdso_image);
+
+    load_elf_image("<internal-vdso>", &src, info, &ehdr, NULL);
+    load_addr = info->load_addr;
+    load_bias = info->load_bias;
+
+    /*
+     * We need to relocate the VDSO image.  The one built into the kernel
+     * is built for a fixed address.  The one built for QEMU is not, since
+     * that requires close control of the guest address space.
+     * We pre-processed the image to locate all of the addresses that need
+     * to be updated.
+     */
+    for (size_t i = 0, n = ARRAY_SIZE(vdso_relocs); i < n; i++) {
+        abi_ulong *addr = g2h_untagged(load_addr + vdso_relocs[i]);
+        *addr = tswapal(tswapal(*addr) + load_bias);
+    }
+
+    /* Install signal trampolines, if present. */
+    if (vdso_sigreturn) {
+        default_sigreturn = load_addr + vdso_sigreturn;
+    }
+    if (vdso_rt_sigreturn) {
+        default_rt_sigreturn = load_addr + vdso_rt_sigreturn;
+    }
+
+    /* Mark the VDSO writable segment read-only. */
+    target_mprotect(info->start_data, info->end_data - info->start_data,
+                    PROT_READ);
+}
+
 static int symfind(const void *s0, const void *s1)
 {
     target_ulong addr = *(target_ulong *)s0;
@@ -3146,7 +3202,7 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
      * and let elf_load_image do any swapping that may be required.
      */
     struct elfhdr ehdr;
-    struct image_info interp_info;
+    struct image_info interp_info, vdso_info;
     char *elf_interpreter = NULL;
     char *scratch;
 
@@ -3216,10 +3272,12 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
     }
 
     /*
-     * TODO: load a vdso, which would also contain the signal trampolines.
-     * Otherwise, allocate a private page to hold them.
+     * Load a vdso if available, which will amongst other things contain the
+     * signal trampolines.  Otherwise, allocate a separate page for them.
      */
-    if (TARGET_ARCH_HAS_SIGTRAMP_PAGE) {
+    if (HAVE_VDSO) {
+        load_elf_vdso(&vdso_info);
+    } else if (TARGET_ARCH_HAS_SIGTRAMP_PAGE) {
         abi_ulong tramp_page = target_mmap(0, TARGET_PAGE_SIZE,
                                            PROT_READ | PROT_WRITE,
                                            MAP_PRIVATE | MAP_ANON, -1, 0);
@@ -3227,8 +3285,9 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
         target_mprotect(tramp_page, TARGET_PAGE_SIZE, PROT_READ | PROT_EXEC);
     }
 
-    bprm->p = create_elf_tables(bprm->p, bprm->argc, bprm->envc, &ehdr,
-                                info, (elf_interpreter ? &interp_info : NULL));
+    bprm->p = create_elf_tables(bprm->p, bprm->argc, bprm->envc, &ehdr, info,
+                                elf_interpreter ? &interp_info : NULL,
+                                HAVE_VDSO ? &vdso_info : NULL);
     info->start_stack = bprm->p;
 
     /* If we have an interpreter, set that as the program's entry point.
