@@ -185,7 +185,7 @@ static const MemoryRegionOps mmio_ops = {
     .write = e1000e_mmio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
-        .min_access_size = 4,
+        .min_access_size = 1,
         .max_access_size = 4,
     },
 };
@@ -195,7 +195,7 @@ static const MemoryRegionOps io_ops = {
     .write = e1000e_io_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
-        .min_access_size = 4,
+        .min_access_size = 1,
         .max_access_size = 4,
     },
 };
