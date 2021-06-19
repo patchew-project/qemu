@@ -7,6 +7,7 @@ ENV PACKAGES \
     ccache \
     diffutils \
     findutils \
+    flex \
     gcc \
     gettext \
     git \

@@ -7,6 +7,7 @@ ENV PACKAGES \
     bzip2 \
     ccache \
     cyrus-sasl-devel \
+    flex \
     gcc \
     gcc-c++ \
     mkisofs \

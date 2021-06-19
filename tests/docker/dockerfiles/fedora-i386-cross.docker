@@ -4,6 +4,7 @@ ENV PACKAGES \
     ccache \
     diffutils \
     findutils \
+    flex \
     gcc \
     git \
     libtasn1-devel.i686 \

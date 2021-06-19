@@ -12,6 +12,7 @@ ENV PACKAGES \
 	ccache \
 	coreutils \
 	curl-dev \
+	flex \
 	g++ \
 	gcc \
 	git \
