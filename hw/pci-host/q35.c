@@ -268,7 +268,7 @@ static const TypeInfo q35_host_info = {
 
 static uint64_t blackhole_read(void *ptr, hwaddr reg, unsigned size)
 {
-    return 0xffffffff;
+    return UINT64_MAX;
 }
 
 static void blackhole_write(void *opaque, hwaddr addr, uint64_t val,
@@ -282,10 +282,9 @@ static const MemoryRegionOps blackhole_ops = {
     .write = blackhole_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
-    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid.max_access_size = 8,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 8,
 };
 
 /* PCIe MMCFG */
