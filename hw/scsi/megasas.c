@@ -2207,7 +2207,7 @@ static const MemoryRegionOps megasas_queue_ops = {
     .write = megasas_queue_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
-        .min_access_size = 8,
+        .min_access_size = 1,
         .max_access_size = 8,
     }
 };
