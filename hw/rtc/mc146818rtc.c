@@ -155,9 +155,24 @@ static uint32_t rtc_periodic_clock_ticks(RTCState *s)
 {
     int period_code;
 
-    if (!(s->cmos_data[RTC_REG_B] & REG_B_PIE)) {
-        return 0;
-     }
+    /*
+     * Quoting the data sheet "MC146818A Advance Information", 1984,
+     * page 16:
+     *
+     * <quote>
+     * PF - The periodic interrupt flag (PF) is a read-only bit which is
+     * set to a "1" when a particular edge is detected on the selected tap
+     * of the divider chain.  The RS3 to RS0 bits establish the periodic
+     * rate.  PF is set to "1" independent of the state of the PIE bit.
+     * PF initiates an ~IRQ signal and sets the IRQF bit when PIE is also
+     * a "1".  The PF bit is cleared by a ~RESET or a software read of
+     * Register C.
+     * </quote>
+     *
+     * As such, we always run the timer irrespective if the state of
+     * either bit so as to always set PF at regular intervals regardless
+     * of when software reads it.
+     */
 
     period_code = s->cmos_data[RTC_REG_A] & 0x0f;
 
