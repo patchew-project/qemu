@@ -529,7 +529,7 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
     MemoryRegionAccessFn *access_fn;
     uint64_t access_mask;
     unsigned access_size;
-    unsigned i;
+    signed access_sh;
     MemTxResult r = MEMTX_OK;
 
     if (!access_size_min) {
@@ -547,7 +547,6 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
                      : memory_region_read_with_attrs_accessor);
     }
 
-    /* FIXME: support unaligned access? */
     /*
      * Check for a small access.
      */
@@ -557,6 +556,10 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
          * cycle, and many mmio registers have side-effects on read.
          * In practice, this appears to be either (1) model error,
          * or (2) guest error via the fuzzer.
+         *
+         * TODO: Are all short reads also guest or model errors, because
+         * of said side effects?  Or is this valid read-for-effect then
+         * discard the (complete) result via narrow destination register?
          */
         if (write) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: Invalid short write: %s "
@@ -566,22 +569,134 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,
                           access_size_min, access_size_max);
             return MEMTX_ERROR;
         }
+
+        /*
+         * If the original access is aligned, we can always extract
+         * from a single larger load.
+         */
+        access_size = access_size_min;
+        if (likely((addr & (size - 1)) == 0)) {
+            goto extract;
+        }
+
+        /*
+         * TODO: We could search for a larger load that happens to
+         * cover the unaligned load, but at some point we will always
+         * require two operations.  Extract from two loads.
+         */
+        goto extract2;
     }
 
+    /*
+     * Check for size in range.
+     */
+    if (likely(size <= access_size_max)) {
+        /*
+         * If the access is aligned or if the model supports
+         * unaligned accesses, use one operation directly.
+         */
+        if (likely((addr & (size - 1)) == 0) || mr->ops->impl.unaligned) {
+            access_size = size;
+            access_sh = 0;
+            goto direct;
+        }
+    }
+
+    /*
+     * It is certain that we require multiple operations.
+     * If the access is aligned (or the model supports unaligned),
+     * then we will perform N accesses which exactly cover the
+     * operation requested.
+     */
     access_size = MAX(MIN(size, access_size_max), access_size_min);
+    if (unlikely(addr & (access_size - 1))) {
+        unsigned lsb = addr & -addr;
+        if (lsb >= access_size_min) {
+            /*
+             * The model supports small enough loads that we can
+             * exactly match the operation requested.  For reads,
+             * this is preferable to touching more than requested.
+             * For writes, this is mandatory.
+             */
+            access_size = lsb;
+        } else if (write) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: Invalid unaligned write: %s "
+                          "hwaddr: 0x%" HWADDR_PRIx " size: %u "
+                          "min: %u max: %u\n", __func__,
+                          memory_region_name(mr), addr, size,
+                          access_size_min, access_size_max);
+            return MEMTX_ERROR;
+        } else if (size <= access_size_max) {
+            /* As per above, we can use two loads to implement. */
+            access_size = size;
+            goto extract2;
+        } else {
+            /*
+             * TODO: becaseu access_size_max is small, this case requires
+             * more than 2 loads to assemble and extract.  Bail out.
+             */
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: Unhandled unaligned read: %s "
+                          "hwaddr: 0x%" HWADDR_PRIx " size: %u "
+                          "min: %u max: %u\n", __func__,
+                          memory_region_name(mr), addr, size,
+                          access_size_min, access_size_max);
+            return MEMTX_ERROR;
+        }
+    }
+
     access_mask = MAKE_64BIT_MASK(0, access_size * 8);
     if (memory_region_big_endian(mr)) {
-        for (i = 0; i < size; i += access_size) {
+        for (unsigned i = 0; i < size; i += access_size) {
             r |= access_fn(mr, addr + i, value, access_size,
-                        (size - access_size - i) * 8, access_mask, attrs);
+                           (size - access_size - i) * 8, access_mask, attrs);
         }
     } else {
-        for (i = 0; i < size; i += access_size) {
+        for (unsigned i = 0; i < size; i += access_size) {
             r |= access_fn(mr, addr + i, value, access_size, i * 8,
-                        access_mask, attrs);
+                           access_mask, attrs);
         }
     }
     return r;
+
+ extract2:
+    /*
+     * Extract from one or two loads to produce the result.
+     * Validate that we need two loads before performing them.
+     */
+    access_sh = addr & (access_size - 1);
+    if (access_sh + size > access_size) {
+        addr &= ~(access_size - 1);
+        if (memory_region_big_endian(mr)) {
+            access_sh = (access_size - access_sh) * 8;
+            r |= access_fn(mr, addr, value, access_size, access_sh, -1, attrs);
+            access_sh -= access_size * 8;
+            r |= access_fn(mr, addr, value, access_size, access_sh, -1, attrs);
+        } else {
+            access_sh = (access_sh - access_size) * 8;
+            r |= access_fn(mr, addr, value, access_size, access_sh, -1, attrs);
+            access_sh += access_size * 8;
+            r |= access_fn(mr, addr, value, access_size, access_sh, -1, attrs);
+        }
+        *value &= MAKE_64BIT_MASK(0, size * 8);
+        return r;
+    }
+
+ extract:
+    /*
+     * Extract from one larger load to produce the result.
+     */
+    access_sh = addr & (access_size - 1);
+    addr &= ~(access_size - 1);
+    if (memory_region_big_endian(mr)) {
+        access_sh = access_size - size - access_sh;
+    }
+    /* Note that with this interface, right shift is negative. */
+    access_sh *= -8;
+
+ direct:
+    access_mask = MAKE_64BIT_MASK(0, size * 8);
+    return access_fn(mr, addr, value, access_size, access_sh,
+                     access_mask, attrs);
 }
 
 static AddressSpace *memory_region_to_address_space(MemoryRegion *mr)
