@@ -516,13 +516,9 @@ static void t_gen_swapr(TCGv d, TCGv s)
 
 static void t_gen_cc_jmp(TCGv pc_true, TCGv pc_false)
 {
-    TCGLabel *l1 = gen_new_label();
-
     /* Conditional jmp.  */
-    tcg_gen_mov_tl(env_pc, pc_false);
-    tcg_gen_brcondi_tl(TCG_COND_EQ, env_btaken, 0, l1);
-    tcg_gen_mov_tl(env_pc, pc_true);
-    gen_set_label(l1);
+    tcg_gen_movcond_tl(TCG_COND_NE, env_pc, env_btaken, tcg_constant_tl(0),
+                       pc_true, pc_false);
 }
 
 static inline bool use_goto_tb(DisasContext *dc, target_ulong dest)
