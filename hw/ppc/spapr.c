@@ -921,7 +921,7 @@ static void spapr_dt_rtas(SpaprMachineState *spapr, void *fdt)
      * is off-by-one.
      */
     _FDT(fdt_setprop_cell(fdt, rtas, "rtas-size", RTAS_ERROR_LOG_MAX +
-			  ms->smp.max_cpus * sizeof(uint64_t)*2 + sizeof(uint64_t)));
+              ms->smp.max_cpus * sizeof(uint64_t)*2 + sizeof(uint64_t)));
     _FDT(fdt_setprop_cell(fdt, rtas, "rtas-error-log-max",
                           RTAS_ERROR_LOG_MAX));
     _FDT(fdt_setprop_cell(fdt, rtas, "rtas-event-scan-rate",
