@@ -3330,6 +3330,9 @@ static void cris_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
             gen_goto_tb(dc, 1, npc);
             break;
         case DISAS_JUMP:
+            /* indirect chain to the next TB */
+            tcg_gen_lookup_and_goto_ptr();
+            break;
         case DISAS_UPDATE:
             /* indicate that the hash table must be used to find the next TB */
             tcg_gen_exit_tb(NULL, 0);
