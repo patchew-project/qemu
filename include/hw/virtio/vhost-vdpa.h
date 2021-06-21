@@ -21,6 +21,7 @@ typedef struct VhostVDPAHostNotifier {
 
 typedef struct vhost_vdpa {
     int device_fd;
+    int index;
     uint32_t msg_type;
     MemoryListener listener;
     struct vhost_dev *dev;
