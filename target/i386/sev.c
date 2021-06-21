@@ -23,6 +23,7 @@
 #include "qemu/base64.h"
 #include "qemu/module.h"
 #include "qemu/uuid.h"
+#include "crypto/hash.h"
 #include "sysemu/kvm.h"
 #include "sev_i386.h"
 #include "sysemu/sysemu.h"
@@ -82,6 +83,29 @@ typedef struct __attribute__((__packed__)) SevInfoBlock {
     /* SEV-ES Reset Vector Address */
     uint32_t reset_addr;
 } SevInfoBlock;
+
+#define SEV_HASH_TABLE_RV_GUID  "7255371f-3a3b-4b04-927b-1da6efa8d454"
+typedef struct __attribute__((__packed__)) SevHashTableDescriptor {
+    /* SEV hash table area guest address */
+    uint32_t base;
+    /* SEV hash table area size (in bytes) */
+    uint32_t size;
+} SevHashTableDescriptor;
+
+/* hard code sha256 digest size */
+#define HASH_SIZE 32
+
+typedef struct __attribute__((__packed__)) SevHashTableEntry {
+    uint8_t guid[16];
+    uint16_t len;
+    uint8_t hash[HASH_SIZE];
+} SevHashTableEntry;
+
+typedef struct __attribute__((__packed__)) SevHashTable {
+    uint8_t guid[16];
+    uint16_t len;
+    SevHashTableEntry entries[];
+} SevHashTable;
 
 static SevGuestState *sev_guest;
 static Error *sev_mig_blocker;
@@ -1075,6 +1099,103 @@ int sev_es_save_reset_vector(void *flash_ptr, uint64_t flash_size)
     }
 
     return 0;
+}
+
+static const uint8_t sev_hash_table_header_guid[] =
+        UUID_LE(0x9438d606, 0x4f22, 0x4cc9, 0xb4, 0x79, 0xa7, 0x93,
+                0xd4, 0x11, 0xfd, 0x21);
+
+static const uint8_t sev_kernel_entry_guid[] =
+        UUID_LE(0x4de79437, 0xabd2, 0x427f, 0xb8, 0x35, 0xd5, 0xb1,
+                0x72, 0xd2, 0x04, 0x5b);
+static const uint8_t sev_initrd_entry_guid[] =
+        UUID_LE(0x44baf731, 0x3a2f, 0x4bd7, 0x9a, 0xf1, 0x41, 0xe2,
+                0x91, 0x69, 0x78, 0x1d);
+static const uint8_t sev_cmdline_entry_guid[] =
+        UUID_LE(0x97d02dd8, 0xbd20, 0x4c94, 0xaa, 0x78, 0xe7, 0x71,
+                0x4d, 0x36, 0xab, 0x2a);
+
+static void fill_sev_hash_table_entry(SevHashTableEntry *e, const uint8_t *guid,
+                                      const uint8_t *hash, size_t hash_len)
+{
+    memcpy(e->guid, guid, sizeof(e->guid));
+    e->len = sizeof(*e);
+    memcpy(e->hash, hash, hash_len);
+}
+
+/*
+ * Add the hashes of the linux kernel/initrd/cmdline to an encrypted guest page
+ * which is included in SEV's initial memory measurement.
+ */
+bool sev_add_kernel_loader_hashes(KernelLoaderContext *ctx, Error **errp)
+{
+    uint8_t *data;
+    SevHashTableDescriptor *area;
+    SevHashTable *ht;
+    SevHashTableEntry *e;
+    uint8_t hash_buf[HASH_SIZE];
+    uint8_t *hash = hash_buf;
+    size_t hash_len = sizeof(hash_buf);
+    int ht_index = 0;
+    int aligned_len;
+
+    if (!pc_system_ovmf_table_find(SEV_HASH_TABLE_RV_GUID, &data, NULL)) {
+        error_setg(errp, "SEV: kernel specified but OVMF has no hash table guid");
+        return false;
+    }
+    area = (SevHashTableDescriptor *)data;
+
+    ht = qemu_map_ram_ptr(NULL, area->base);
+
+    /* Populate the hashes table header */
+    memcpy(ht->guid, sev_hash_table_header_guid, sizeof(ht->guid));
+    ht->len = sizeof(*ht);
+
+    /* Calculate hash of kernel command-line */
+    if (qcrypto_hash_bytes(QCRYPTO_HASH_ALG_SHA256, ctx->cmdline_data,
+                           ctx->cmdline_size,
+                           &hash, &hash_len, errp) < 0) {
+        return false;
+    }
+    e = &ht->entries[ht_index++];
+    fill_sev_hash_table_entry(e, sev_cmdline_entry_guid, hash, hash_len);
+
+    /* Calculate hash of initrd */
+    if (ctx->initrd_data) {
+        if (qcrypto_hash_bytes(QCRYPTO_HASH_ALG_SHA256, ctx->initrd_data,
+                               ctx->initrd_size, &hash, &hash_len, errp) < 0) {
+            return false;
+        }
+        e = &ht->entries[ht_index++];
+        fill_sev_hash_table_entry(e, sev_initrd_entry_guid, hash, hash_len);
+    }
+
+    /* Calculate hash of the kernel */
+    struct iovec iov[2] = {
+        { .iov_base = ctx->setup_data, .iov_len = ctx->setup_size },
+        { .iov_base = ctx->kernel_data, .iov_len = ctx->kernel_size }
+    };
+    if (qcrypto_hash_bytesv(QCRYPTO_HASH_ALG_SHA256, iov, 2,
+                            &hash, &hash_len, errp) < 0) {
+        return false;
+    }
+    e = &ht->entries[ht_index++];
+    fill_sev_hash_table_entry(e, sev_kernel_entry_guid, hash, hash_len);
+
+    /* now we have all the possible entries, finalize the hashes table */
+    ht->len += ht_index * sizeof(*e);
+    /* SEV len has to be 16 byte aligned */
+    aligned_len = ROUND_UP(ht->len, 16);
+    if (aligned_len != ht->len) {
+        /* zero the excess data so the measurement can be reliably calculated */
+        memset(&ht->entries[ht_index], 0, aligned_len - ht->len);
+    }
+
+    if (sev_encrypt_flash((uint8_t *)ht, aligned_len, errp) < 0) {
+        return false;
+    }
+
+    return true;
 }
 
 static void
