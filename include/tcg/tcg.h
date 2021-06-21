@@ -430,6 +430,18 @@ typedef enum {
     TCG_COND_GTU    = 8 | 4 | 0 | 1,
 } TCGCond;
 
+/*
+ * Flags for the bswap opcodes.
+ * If IZ, the input is zero-extended, otherwise unknown.
+ * If OZ or OS, the output is zero- or sign-extended respectively,
+ * otherwise the high bits are undefined.
+ */
+enum {
+    TCG_BSWAP_IZ = 1,
+    TCG_BSWAP_OZ = 2,
+    TCG_BSWAP_OS = 4,
+};
+
 /* Invert the sense of the comparison.  */
 static inline TCGCond tcg_invert_cond(TCGCond c)
 {
