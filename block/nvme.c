@@ -1030,7 +1030,7 @@ try_map:
         r = qemu_vfio_dma_map(s->vfio,
                               qiov->iov[i].iov_base,
                               len, true, &iova);
-        if (r == -ENOMEM && retry) {
+        if ((r == -ENOMEM || r == -ENOSPC) && retry) {
             retry = false;
             trace_nvme_dma_flush_queue_wait(s);
             if (s->dma_map_count) {
