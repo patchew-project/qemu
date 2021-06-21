@@ -245,4 +245,17 @@ static inline int prot_for_access_type(MMUAccessType access_type)
     g_assert_not_reached();
 }
 
+/*
+ * These correspond to the mmu_idx values computed in
+ * hreg_compute_hflags_value. See the tables therein
+ */
+static inline bool mmuidx_pr(int idx) { return !(idx & 1); }
+/*
+ * This macro is only correct for non Book-E MMUs. We can add an if clause
+ * to check for mmu model, but since those don't have the bug, we decided to
+ * keep the code clean.
+ */
+static inline bool mmuidx_real(int idx) { return idx & 2; }
+static inline bool mmuidx_hv(int idx) { return idx & 4; }
+
 #endif /* PPC_INTERNAL_H */
