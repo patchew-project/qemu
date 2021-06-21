@@ -9,3 +9,4 @@ TESTS+=pack
 TESTS+=mvo
 TESTS+=mvc
 TESTS+=signal
+TESTS+=trap
