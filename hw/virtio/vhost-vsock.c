@@ -108,8 +108,21 @@ static uint64_t vhost_vsock_get_features(VirtIODevice *vdev,
                                          uint64_t requested_features,
                                          Error **errp)
 {
-    /* No feature bits used yet */
+    VHostVSockCommon *vvc = VHOST_VSOCK_COMMON(vdev);
+
+    if (virtio_has_feature(vvc->vhost_dev.features, VIRTIO_VSOCK_F_SEQPACKET)) {
+        virtio_add_feature(&requested_features, VIRTIO_VSOCK_F_SEQPACKET);
+    }
+
     return requested_features;
+}
+
+static void vhost_vsock_set_features(VirtIODevice *vdev, uint64_t features)
+{
+    VHostVSockCommon *vvc = VHOST_VSOCK_COMMON(vdev);
+    const VhostOps *vhost_ops = vvc->vhost_dev.vhost_ops;
+
+    vhost_ops->vhost_set_features(&vvc->vhost_dev, features);
 }
 
 static const VMStateDescription vmstate_virtio_vhost_vsock = {
@@ -224,6 +237,7 @@ static void vhost_vsock_class_init(ObjectClass *klass, void *data)
     vdc->realize = vhost_vsock_device_realize;
     vdc->unrealize = vhost_vsock_device_unrealize;
     vdc->get_features = vhost_vsock_get_features;
+    vdc->set_features = vhost_vsock_set_features;
     vdc->get_config = vhost_vsock_get_config;
     vdc->set_status = vhost_vsock_set_status;
 }
