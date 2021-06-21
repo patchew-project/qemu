@@ -3370,7 +3370,8 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
 
     n->max_ncs = MAX(n->nic_conf.peers.queues, 1);
 
-    /* Figure out the datapath queue pairs since the bakcend could
+    /*
+     * Figure out the datapath queue pairs since the bakcend could
      * provide control queue via peers as well.
      */
     if (n->nic_conf.peers.queues) {
