@@ -909,7 +909,35 @@ static void init_usable_iova_ranges(void)
     }
 }
 
-static void add_memory_region(MemoryRegion *system_memory, MemoryRegion *ram,
+static hwaddr allowed_round_up(hwaddr base, hwaddr size)
+{
+    hwaddr base_aligned = ROUND_UP(base, 1 * GiB), addr;
+    uint32_t index;
+
+    for (index = 0; index < nb_iova_ranges; index++) {
+        hwaddr min_iova, max_iova;
+
+        min_iova = usable_iova_ranges[index].start;
+        max_iova = usable_iova_ranges[index].end;
+
+        if (max_iova < base_aligned) {
+            continue;
+        }
+
+        addr = MAX(ROUND_UP(min_iova, 1 * GiB), base_aligned);
+        if (addr > max_iova) {
+            continue;
+        }
+
+        if (max_iova - addr >= size) {
+            return addr;
+        }
+    }
+
+    return 0;
+}
+
+static hwaddr add_memory_region(MemoryRegion *system_memory, MemoryRegion *ram,
                                 hwaddr base, hwaddr size, hwaddr offset)
 {
     hwaddr start, region_size, resv_start, resv_end;
@@ -926,7 +954,7 @@ static void add_memory_region(MemoryRegion *system_memory, MemoryRegion *ram,
 
         assert(size >= region_size);
         if (size == region_size) {
-            return;
+            return start + region_size;
         }
 
         /*
@@ -935,7 +963,7 @@ static void add_memory_region(MemoryRegion *system_memory, MemoryRegion *ram,
          * would also be pointless.
          */
         if (index + 1 == nb_iova_ranges) {
-            return;
+            break;
         }
 
         resv_start = start + region_size;
@@ -946,6 +974,8 @@ static void add_memory_region(MemoryRegion *system_memory, MemoryRegion *ram,
 
         offset += region_size;
     }
+
+    return 0;
 }
 
 void pc_memory_init(PCMachineState *pcms,
@@ -961,6 +991,7 @@ void pc_memory_init(PCMachineState *pcms,
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
     X86MachineState *x86ms = X86_MACHINE(pcms);
+    hwaddr maxram_start = 4 * GiB + x86ms->above_4g_mem_size;
 
     assert(machine->ram_size == x86ms->below_4g_mem_size +
                                 x86ms->above_4g_mem_size);
@@ -981,8 +1012,13 @@ void pc_memory_init(PCMachineState *pcms,
 
     e820_add_entry(0, x86ms->below_4g_mem_size, E820_RAM);
     if (x86ms->above_4g_mem_size > 0) {
-        add_memory_region(system_memory, machine->ram, 4 * GiB,
+        maxram_start = add_memory_region(system_memory, machine->ram, 4 * GiB,
                           x86ms->above_4g_mem_size, x86ms->below_4g_mem_size);
+        if (!maxram_start) {
+            error_report("unsupported amount of memory: %"PRIu64,
+                         x86ms->above_4g_mem_size);
+            exit(EXIT_FAILURE);
+        }
     }
 
     if (!pcmc->has_reserved_memory &&
@@ -1001,6 +1037,7 @@ void pc_memory_init(PCMachineState *pcms,
     if (pcmc->has_reserved_memory &&
         (machine->ram_size < machine->maxram_size)) {
         ram_addr_t device_mem_size = machine->maxram_size - machine->ram_size;
+        hwaddr device_mem_base;
 
         if (machine->ram_slots > ACPI_MAX_RAM_SLOTS) {
             error_report("unsupported amount of memory slots: %"PRIu64,
@@ -1015,8 +1052,14 @@ void pc_memory_init(PCMachineState *pcms,
             exit(EXIT_FAILURE);
         }
 
-        machine->device_memory->base =
-            ROUND_UP(0x100000000ULL + x86ms->above_4g_mem_size, 1 * GiB);
+        device_mem_base = allowed_round_up(maxram_start, device_mem_size);
+        if (!device_mem_base) {
+            error_report("unable to find device memory base for %"PRIu64
+                         " - %"PRIu64, maxram_start, device_mem_size);
+            exit(EXIT_FAILURE);
+        }
+
+        machine->device_memory->base = device_mem_base;
 
         if (pcmc->enforce_aligned_dimm) {
             /* size device region assuming 1G page max alignment per slot */
