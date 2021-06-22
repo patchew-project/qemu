@@ -151,6 +151,63 @@ void pc_guest_info_init(PCMachineState *pcms);
 #define PCI_HOST_BELOW_4G_MEM_SIZE     "below-4g-mem-size"
 #define PCI_HOST_ABOVE_4G_MEM_SIZE     "above-4g-mem-size"
 
+struct GPARange {
+    uint64_t start;
+    uint64_t end;
+#define range_len(r) ((r).end - (r).start + 1)
+
+    const char *name;
+};
+
+extern uint32_t nb_iova_ranges;
+extern struct GPARange usable_iova_ranges[];
+
+static inline void next_iova_range_index(uint32_t i, hwaddr base, hwaddr size,
+                                         hwaddr *start, hwaddr *region_size,
+                                         uint32_t *index, struct GPARange **r)
+{
+    struct GPARange *range;
+
+    while (i < nb_iova_ranges) {
+        range = &usable_iova_ranges[i];
+        if (range->end >= base) {
+            break;
+        }
+        i++;
+    }
+
+    *index = i;
+    /* index is out of bounds or no region left to process */
+    if (i >= nb_iova_ranges || !size) {
+        return;
+    }
+
+    *start = MAX(range->start, base);
+    *region_size = MIN(range->end - *start + 1, size);
+    *r = range;
+}
+
+/*
+ * for_each_usable_range() - iterates over usable IOVA regions
+ *
+ * @i:      range index within usable_iova_ranges
+ * @base:   requested address we want to use
+ * @size:   total size of the region with @base
+ * @r:      range indexed by @i within usable_iova_ranges
+ * @s:      calculated usable iova address base
+ * @i_size: calculated usable iova region size starting @s
+ *
+ * Use this iterator to walk through usable GPA ranges. Platforms
+ * such as AMD with IOMMU capable hardware restrict certain address
+ * ranges for Hyper Transport. This iterator helper lets user avoid
+ * using those said reserved ranges.
+ */
+#define for_each_usable_range(i, base, size, r, s, i_size) \
+    for (s = 0, i_size = 0, r = NULL, \
+         next_iova_range_index(0, base, size, &s, &i_size, &i, &r); \
+         i < nb_iova_ranges && size != 0; \
+         size -= i_size, \
+         next_iova_range_index(i + 1, base, size, &s, &i_size, &i, &r))
 
 void pc_pci_as_mapping_init(Object *owner, MemoryRegion *system_memory,
                             MemoryRegion *pci_address_space);

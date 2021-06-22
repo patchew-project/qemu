@@ -91,6 +91,7 @@
 #include "qapi/qmp/qerror.h"
 #include "e820_memory_layout.h"
 #include "fw_cfg.h"
+#include "target/i386/cpu.h"
 #include "trace.h"
 #include CONFIG_DEVICES
 
@@ -860,6 +861,93 @@ void xen_load_linux(PCMachineState *pcms)
     x86ms->fw_cfg = fw_cfg;
 }
 
+struct GPARange usable_iova_ranges[] = {
+    { .start = 4 * GiB, .end = UINT64_MAX, .name = "ram-above-4g" },
+
+/*
+ * AMD systems with an IOMMU have an additional hole close to the
+ * 1Tb, which are special GPAs that cannot be DMA mapped. Depending
+ * on kernel version, VFIO may or may not let you DMA map those ranges.
+ * Starting v5.4 we validate it, and can't create guests on AMD machines
+ * with certain memory sizes. The range is:
+ *
+ * FD_0000_0000h - FF_FFFF_FFFFh
+ *
+ * The ranges represent the following:
+ *
+ * Base Address   Top Address  Use
+ *
+ * FD_0000_0000h FD_F7FF_FFFFh Reserved interrupt address space
+ * FD_F800_0000h FD_F8FF_FFFFh Interrupt/EOI IntCtl
+ * FD_F900_0000h FD_F90F_FFFFh Legacy PIC IACK
+ * FD_F910_0000h FD_F91F_FFFFh System Management
+ * FD_F920_0000h FD_FAFF_FFFFh Reserved Page Tables
+ * FD_FB00_0000h FD_FBFF_FFFFh Address Translation
+ * FD_FC00_0000h FD_FDFF_FFFFh I/O Space
+ * FD_FE00_0000h FD_FFFF_FFFFh Configuration
+ * FE_0000_0000h FE_1FFF_FFFFh Extended Configuration/Device Messages
+ * FE_2000_0000h FF_FFFF_FFFFh Reserved
+ *
+ * See AMD IOMMU spec, section 2.1.2 "IOMMU Logical Topology",
+ * Table 3: Special Address Controls (GPA) for more information.
+ */
+#define DEFAULT_NR_USABLE_IOVAS 1
+#define AMD_MAX_PHYSADDR_BELOW_1TB  0xfcffffffff
+    { .start = 1 * TiB, .end = UINT64_MAX, .name = "ram-above-1t" },
+};
+
+ uint32_t nb_iova_ranges = DEFAULT_NR_USABLE_IOVAS;
+
+static void init_usable_iova_ranges(void)
+{
+    uint32_t eax, vendor[3];
+
+    host_cpuid(0x0, 0, &eax, &vendor[0], &vendor[2], &vendor[1]);
+    if (IS_AMD_VENDOR(vendor)) {
+        usable_iova_ranges[0].end = AMD_MAX_PHYSADDR_BELOW_1TB;
+        nb_iova_ranges++;
+    }
+}
+
+static void add_memory_region(MemoryRegion *system_memory, MemoryRegion *ram,
+                                hwaddr base, hwaddr size, hwaddr offset)
+{
+    hwaddr start, region_size, resv_start, resv_end;
+    struct GPARange *range;
+    MemoryRegion *region;
+    uint32_t index;
+
+    for_each_usable_range(index, base, size, range, start, region_size) {
+        region = g_malloc(sizeof(*region));
+        memory_region_init_alias(region, NULL, range->name, ram,
+                                 offset, region_size);
+        memory_region_add_subregion(system_memory, start, region);
+        e820_add_entry(start, region_size, E820_RAM);
+
+        assert(size >= region_size);
+        if (size == region_size) {
+            return;
+        }
+
+        /*
+         * There's memory left to create a region for, so there should be
+         * another valid IOVA range left.  Creating the reserved region
+         * would also be pointless.
+         */
+        if (index + 1 == nb_iova_ranges) {
+            return;
+        }
+
+        resv_start = start + region_size;
+        resv_end = usable_iova_ranges[index + 1].start;
+
+        /* Create a reserved region in the IOVA hole. */
+        e820_add_entry(resv_start, resv_end - resv_start, E820_RESERVED);
+
+        offset += region_size;
+    }
+}
+
 void pc_memory_init(PCMachineState *pcms,
                     MemoryRegion *system_memory,
                     MemoryRegion *rom_memory,
@@ -867,7 +955,7 @@ void pc_memory_init(PCMachineState *pcms,
 {
     int linux_boot, i;
     MemoryRegion *option_rom_mr;
-    MemoryRegion *ram_below_4g, *ram_above_4g;
+    MemoryRegion *ram_below_4g;
     FWCfgState *fw_cfg;
     MachineState *machine = MACHINE(pcms);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
@@ -876,6 +964,8 @@ void pc_memory_init(PCMachineState *pcms,
 
     assert(machine->ram_size == x86ms->below_4g_mem_size +
                                 x86ms->above_4g_mem_size);
+
+    init_usable_iova_ranges();
 
     linux_boot = (machine->kernel_filename != NULL);
 
@@ -888,16 +978,11 @@ void pc_memory_init(PCMachineState *pcms,
     memory_region_init_alias(ram_below_4g, NULL, "ram-below-4g", machine->ram,
                              0, x86ms->below_4g_mem_size);
     memory_region_add_subregion(system_memory, 0, ram_below_4g);
+
     e820_add_entry(0, x86ms->below_4g_mem_size, E820_RAM);
     if (x86ms->above_4g_mem_size > 0) {
-        ram_above_4g = g_malloc(sizeof(*ram_above_4g));
-        memory_region_init_alias(ram_above_4g, NULL, "ram-above-4g",
-                                 machine->ram,
-                                 x86ms->below_4g_mem_size,
-                                 x86ms->above_4g_mem_size);
-        memory_region_add_subregion(system_memory, 0x100000000ULL,
-                                    ram_above_4g);
-        e820_add_entry(0x100000000ULL, x86ms->above_4g_mem_size, E820_RAM);
+        add_memory_region(system_memory, machine->ram, 4 * GiB,
+                          x86ms->above_4g_mem_size, x86ms->below_4g_mem_size);
     }
 
     if (!pcmc->has_reserved_memory &&
