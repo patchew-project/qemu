@@ -57,6 +57,7 @@
 #include "hw/acpi/pcihp.h"
 #include "hw/i386/fw_cfg.h"
 #include "hw/i386/ich9.h"
+#include "hw/i386/pc.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci-host/q35.h"
 #include "hw/i386/x86-iommu.h"
@@ -1872,6 +1873,23 @@ build_tpm_tcpa(GArray *table_data, BIOSLinker *linker, GArray *tcpalog,
 #define HOLE_640K_START  (640 * KiB)
 #define HOLE_640K_END   (1 * MiB)
 
+static hwaddr add_srat_memory(hwaddr base, hwaddr size, GArray *table_data,
+                              int pxm)
+{
+    AcpiSratMemoryAffinity *numamem;
+    hwaddr start, region_size;
+    struct GPARange *range;
+    uint32_t index;
+
+    for_each_usable_range(index, base, size, range, start, region_size) {
+        numamem = acpi_data_push(table_data, sizeof *numamem);
+        build_srat_memory(numamem, start, region_size, pxm,
+                          MEM_AFFINITY_ENABLED);
+    }
+
+    return start + region_size;
+}
+
 static void
 build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
 {
@@ -1967,9 +1985,7 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
         }
 
         if (mem_len > 0) {
-            numamem = acpi_data_push(table_data, sizeof *numamem);
-            build_srat_memory(numamem, mem_base, mem_len, i - 1,
-                              MEM_AFFINITY_ENABLED);
+            next_base = add_srat_memory(mem_base, mem_len, table_data, i - 1);
         }
     }
 
