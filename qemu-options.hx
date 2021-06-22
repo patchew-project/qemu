@@ -196,25 +196,31 @@ SRST
 ERST
 
 DEF("smp", HAS_ARG, QEMU_OPTION_smp,
-    "-smp [cpus=]n[,maxcpus=cpus][,cores=cores][,threads=threads][,dies=dies][,sockets=sockets]\n"
+    "-smp [cpus=]n[,maxcpus=cpus][,cores=cores][,threads=threads][,dies=dies][,sockets=sockets][,expose=on|off]\n"
     "                set the number of CPUs to 'n' [default=1]\n"
     "                maxcpus= maximum number of total cpus, including\n"
     "                offline CPUs for hotplug, etc\n"
     "                cores= number of CPU cores on one socket (for PC, it's on one die)\n"
     "                threads= number of threads on one CPU core\n"
     "                dies= number of CPU dies on one socket (for PC only)\n"
-    "                sockets= number of discrete sockets in the system\n",
+    "                sockets= number of discrete sockets in the system\n"
+    "                expose=on|off controls support for exposing cpu topology\n"
+    "                to the guest (default=off)\n",
         QEMU_ARCH_ALL)
 SRST
-``-smp [cpus=]n[,cores=cores][,threads=threads][,dies=dies][,sockets=sockets][,maxcpus=maxcpus]``
+``-smp [cpus=]n[,cores=cores][,threads=threads][,dies=dies][,sockets=sockets][,maxcpus=maxcpus][,expose=on|off]``
     Simulate an SMP system with n CPUs. On the PC target, up to 255 CPUs
-    are supported. On Sparc32 target, Linux limits the number of usable
-    CPUs to 4. For the PC target, the number of cores per die, the
-    number of threads per cores, the number of dies per packages and the
-    total number of sockets can be specified. Missing values will be
-    computed. If any on the three values is given, the total number of
-    CPUs n can be omitted. maxcpus specifies the maximum number of
+    are supported. On the Sparc32 target, Linux limits the number of usable
+    CPUs to 4. For the PC target, the number of cores per die, the number
+    of threads per core, the number of dies per package and the total number
+    of sockets can be specified. maxcpus specifies the maximum number of
     hotpluggable CPUs.
+
+    With "expose=off" or not explicitly specified, missing values will be
+    computed, and the total number of CPUs n can be omitted if any on the
+    three values is given. Otherwise with "expose=on", much more detailed
+    configuration is required: cpus/sockets/cores/threads must be given,
+    while maxcpus is optional.
 ERST
 
 DEF("numa", HAS_ARG, QEMU_OPTION_numa,
