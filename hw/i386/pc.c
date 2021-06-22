@@ -720,6 +720,13 @@ void pc_smp_parse(MachineState *ms, QemuOpts *opts)
         unsigned dies = qemu_opt_get_number(opts, "dies", 1);
         unsigned cores   = qemu_opt_get_number(opts, "cores", 0);
         unsigned threads = qemu_opt_get_number(opts, "threads", 0);
+        bool expose      = qemu_opt_get_bool(opts, "expose", false);
+
+        if (expose) {
+            error_report("expose=on: exposing cpu topology to the guest"
+                         "is not supported yet");
+            exit(1);
+        }
 
         /* compute missing values, prefer sockets over cores over threads */
         if (cpus == 0 || sockets == 0) {
