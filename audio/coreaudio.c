@@ -26,6 +26,7 @@
 #include <CoreAudio/CoreAudio.h>
 #include <pthread.h>            /* pthread_X */
 
+#include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "audio.h"
 
@@ -530,9 +531,7 @@ static OSStatus handle_voice_change(
     OSStatus status;
     coreaudioVoiceOut *core = in_client_data;
 
-    if (coreaudio_lock(core, __func__)) {
-        abort();
-    }
+    qemu_mutex_lock_iothread();
 
     if (core->outputDeviceID) {
         fini_out_device(core);
@@ -543,7 +542,7 @@ static OSStatus handle_voice_change(
         update_device_playback_state(core);
     }
 
-    coreaudio_unlock (core, __func__);
+    qemu_mutex_unlock_iothread();
     return status;
 }
 
@@ -561,11 +560,7 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
     err = pthread_mutex_init(&core->mutex, NULL);
     if (err) {
         dolog("Could not create mutex\nReason: %s\n", strerror (err));
-        goto mutex_error;
-    }
-
-    if (coreaudio_lock(core, __func__)) {
-        goto lock_error;
+        return -1;
     }
 
     obt_as = *as;
@@ -584,37 +579,21 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
     if (status != kAudioHardwareNoError) {
         coreaudio_playback_logerr (status,
                                    "Could not listen to voice property change\n");
-        goto listener_error;
+        return -1;
     }
 
     if (init_out_device(core)) {
-        goto device_error;
+        status = AudioObjectRemovePropertyListener(kAudioObjectSystemObject,
+                                                   &voice_addr,
+                                                   handle_voice_change,
+                                                   core);
+        if (status != kAudioHardwareNoError) {
+            coreaudio_playback_logerr(status,
+                                      "Could not remove voice property change listener\n");
+        }
     }
 
-    coreaudio_unlock(core, __func__);
     return 0;
-
-device_error:
-    status = AudioObjectRemovePropertyListener(kAudioObjectSystemObject,
-                                               &voice_addr,
-                                               handle_voice_change,
-                                               core);
-    if (status != kAudioHardwareNoError) {
-        coreaudio_playback_logerr(status,
-                                  "Could not remove voice property change listener\n");
-    }
-
-listener_error:
-    coreaudio_unlock(core, __func__);
-
-lock_error:
-    err = pthread_mutex_destroy(&core->mutex);
-    if (err) {
-        dolog("Could not destroy mutex\nReason: %s\n", strerror (err));
-    }
-
-mutex_error:
-    return -1;
 }
 
 static void coreaudio_fini_out (HWVoiceOut *hw)
@@ -622,10 +601,6 @@ static void coreaudio_fini_out (HWVoiceOut *hw)
     OSStatus status;
     int err;
     coreaudioVoiceOut *core = (coreaudioVoiceOut *) hw;
-
-    if (coreaudio_lock(core, __func__)) {
-        abort();
-    }
 
     status = AudioObjectRemovePropertyListener(kAudioObjectSystemObject,
                                                &voice_addr,
@@ -636,8 +611,6 @@ static void coreaudio_fini_out (HWVoiceOut *hw)
     }
 
     fini_out_device(core);
-
-    coreaudio_unlock(core, __func__);
 
     /* destroy mutex */
     err = pthread_mutex_destroy(&core->mutex);
@@ -650,14 +623,8 @@ static void coreaudio_enable_out(HWVoiceOut *hw, bool enable)
 {
     coreaudioVoiceOut *core = (coreaudioVoiceOut *) hw;
 
-    if (coreaudio_lock(core, __func__)) {
-        abort();
-    }
-
     core->enabled = enable;
     update_device_playback_state(core);
-
-    coreaudio_unlock(core, __func__);
 }
 
 static void *coreaudio_audio_init(Audiodev *dev)
