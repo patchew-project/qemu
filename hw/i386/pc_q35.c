@@ -357,10 +357,12 @@ DEFINE_Q35_MACHINE(v6_1, "pc-q35-6.1", NULL,
 
 static void pc_q35_6_0_machine_options(MachineClass *m)
 {
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
     pc_q35_6_1_machine_options(m);
     m->alias = NULL;
     compat_props_add(m->compat_props, hw_compat_6_0, hw_compat_6_0_len);
     compat_props_add(m->compat_props, pc_compat_6_0, pc_compat_6_0_len);
+    pcmc->enforce_valid_iova = false;
 }
 
 DEFINE_Q35_MACHINE(v6_0, "pc-q35-6.0", NULL,

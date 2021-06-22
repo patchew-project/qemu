@@ -902,9 +902,13 @@ struct GPARange usable_iova_ranges[] = {
 
  uint32_t nb_iova_ranges = DEFAULT_NR_USABLE_IOVAS;
 
-static void init_usable_iova_ranges(void)
+static void init_usable_iova_ranges(PCMachineClass *pcmc)
 {
     uint32_t eax, vendor[3];
+
+    if (!pcmc->enforce_valid_iova) {
+        return;
+    }
 
     host_cpuid(0x0, 0, &eax, &vendor[0], &vendor[2], &vendor[1]);
     if (IS_AMD_VENDOR(vendor)) {
@@ -1000,7 +1004,7 @@ void pc_memory_init(PCMachineState *pcms,
     assert(machine->ram_size == x86ms->below_4g_mem_size +
                                 x86ms->above_4g_mem_size);
 
-    init_usable_iova_ranges();
+    init_usable_iova_ranges(pcmc);
 
     linux_boot = (machine->kernel_filename != NULL);
 
@@ -1685,6 +1689,23 @@ static void pc_machine_set_hpet(Object *obj, bool value, Error **errp)
     pcms->hpet_enabled = value;
 }
 
+static bool pc_machine_get_enforce_valid_iova(Object *obj, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
+
+    return pcmc->enforce_valid_iova;
+}
+
+static void pc_machine_set_enforce_valid_iova(Object *obj, bool value,
+                                                  Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
+
+    pcmc->enforce_valid_iova = value;
+}
+
 static void pc_machine_get_max_ram_below_4g(Object *obj, Visitor *v,
                                             const char *name, void *opaque,
                                             Error **errp)
@@ -1851,6 +1872,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     pcmc->has_reserved_memory = true;
     pcmc->kvmclock_enabled = true;
     pcmc->enforce_aligned_dimm = true;
+    pcmc->enforce_valid_iova = true;
     /* BIOS ACPI tables: 128K. Other BIOS datastructures: less than 4K reported
      * to be used at the moment, 32K should be enough for a while.  */
     pcmc->acpi_data_size = 0x20000 + 0x8000;
@@ -1913,6 +1935,9 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
         NULL, NULL);
     object_class_property_set_description(oc, PC_MACHINE_MAX_FW_SIZE,
         "Maximum combined firmware size");
+
+    object_class_property_add_bool(oc, PC_MACHINE_ENFORCE_VALID_IOVA,
+        pc_machine_get_enforce_valid_iova, pc_machine_set_enforce_valid_iova);
 }
 
 static const TypeInfo pc_machine_info = {
