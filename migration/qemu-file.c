@@ -419,8 +419,10 @@ static int add_to_iovec(QEMUFile *f, const uint8_t *buf, size_t size,
         if (may_free) {
             set_bit(f->iovcnt, f->may_free);
         }
-        f->iov[f->iovcnt].iov_base = (uint8_t *)buf;
-        f->iov[f->iovcnt++].iov_len = size;
+        if (f->iovcnt < MAX_IOV_SIZE) {
+            f->iov[f->iovcnt].iov_base = (uint8_t *)buf;
+            f->iov[f->iovcnt++].iov_len = size;
+        }
     }
 
     if (f->iovcnt >= MAX_IOV_SIZE) {
