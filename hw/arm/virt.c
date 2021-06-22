@@ -77,6 +77,8 @@
 #include "hw/virtio/virtio-iommu.h"
 #include "hw/char/pl011.h"
 #include "qemu/guest-random.h"
+#include "qapi/qmp/qerror.h"
+#include "sysemu/replay.h"
 
 #define DEFINE_VIRT_MACHINE_LATEST(major, minor, latest) \
     static void virt_##major##_##minor##_class_init(ObjectClass *oc, \
@@ -2584,6 +2586,116 @@ static int virt_kvm_type(MachineState *ms, const char *type_str)
     return fixed_ipa ? 0 : requested_pa_size;
 }
 
+/*
+ * virt_smp_parse - Parses the -smp command line for ARM machines.
+ *
+ * When support for exposing cpu topology to the guest is disabled,
+ * this function shares the same parsing logic with smp_parse().
+ * While when the exposure is enabled, an accurate virtual cpu topology
+ * is important, so we required that cpus/sockets/cores/threads must be
+ * provided, while maxcpus can be optional.
+ */
+static void virt_smp_parse(MachineState *ms, QemuOpts *opts)
+{
+    if (opts) {
+        unsigned cpus = qemu_opt_get_number(opts, "cpus", 0);
+        unsigned sockets = qemu_opt_get_number(opts, "sockets", 0);
+        unsigned cores = qemu_opt_get_number(opts, "cores", 0);
+        unsigned threads = qemu_opt_get_number(opts, "threads", 0);
+        unsigned maxcpus = qemu_opt_get_number(opts, "maxcpus", 0);
+        bool expose = qemu_opt_get_bool(opts, "expose", false);
+
+        if (expose) {
+            if (cpus == 0) {
+                error_report("expose=on: cpus must be specified");
+                exit(1);
+            }
+            if (sockets == 0) {
+                error_report("expose=on: sockets must be specified");
+                exit(1);
+            }
+            if (cores == 0) {
+                error_report("expose=on: cores must be specified");
+                exit(1);
+            }
+            if (threads == 0) {
+                error_report("expose=on: threads must be specified");
+                exit(1);
+            }
+        } else {
+            /*
+             * An accurate cpu topology configuration is not required in this
+             * case, so we compute the missing values preferring sockets over
+             * cores over threads.
+             */
+            if (cpus == 0 || sockets == 0) {
+                cores = cores > 0 ? cores : 1;
+                threads = threads > 0 ? threads : 1;
+                if (cpus == 0) {
+                    sockets = sockets > 0 ? sockets : 1;
+                    cpus = cores * threads * sockets;
+                } else {
+                    maxcpus = maxcpus > 0 ? maxcpus : cpus;
+                    sockets = maxcpus / (cores * threads);
+                }
+            } else if (cores == 0) {
+                threads = threads > 0 ? threads : 1;
+                cores = cpus / (sockets * threads);
+                cores = cores > 0 ? cores : 1;
+            } else if (threads == 0) {
+                threads = cpus / (cores * sockets);
+                threads = threads > 0 ? threads : 1;
+            }
+        }
+
+        maxcpus = maxcpus > 0 ? maxcpus : cpus;
+
+        if (sockets * cores * threads < cpus) {
+            error_report("cpu topology: "
+                         "sockets (%u) * cores (%u) * threads (%u) < "
+                         "smp_cpus (%u)",
+                         sockets, cores, threads, cpus);
+            exit(1);
+        }
+
+        if (maxcpus < cpus) {
+            error_report("maxcpus must be equal to or greater than smp");
+            exit(1);
+        }
+
+        if (sockets * cores * threads != maxcpus) {
+            error_report("Invalid CPU topology: "
+                         "sockets (%u) * cores (%u) * threads (%u) "
+                         "!= maxcpus (%u)",
+                         sockets, cores, threads, maxcpus);
+            exit(1);
+        }
+
+        /*
+         * Given that cpu hotplug is not supported yet, require that maxcpus
+         * must be equal to smp cpus if we are going to expose cpu topology
+         * to the guest.
+         */
+        if (expose == true && maxcpus != cpus) {
+            error_report("cpu hotplug is not supported yet, maxcpus must be"
+                         "equal to smp");
+        }
+
+        ms->smp.cpus = cpus;
+        ms->smp.sockets = sockets;
+        ms->smp.cores = cores;
+        ms->smp.threads = threads;
+        ms->smp.max_cpus = maxcpus;
+        ms->expose_cpu_topology = expose;
+    }
+
+    if (ms->smp.cpus > 1) {
+        Error *blocker = NULL;
+        error_setg(&blocker, QERR_REPLAY_NOT_SUPPORTED, "smp");
+        replay_add_blocker(blocker);
+    }
+}
+
 static void virt_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -2611,6 +2723,7 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     mc->cpu_index_to_instance_props = virt_cpu_index_to_props;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a15");
     mc->get_default_cpu_node_id = virt_get_default_cpu_node_id;
+    mc->smp_parse = virt_smp_parse;
     mc->kvm_type = virt_kvm_type;
     assert(!mc->get_hotplug_handler);
     mc->get_hotplug_handler = virt_machine_get_hotplug_handler;
