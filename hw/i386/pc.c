@@ -644,8 +644,12 @@ void pc_cmos_init(PCMachineState *pcms,
         val = 65535;
     rtc_set_memory(s, 0x34, val);
     rtc_set_memory(s, 0x35, val >> 8);
-    /* memory above 4GiB */
-    val = x86ms->above_4g_mem_size / 65536;
+    /* memory above 4GiB but below 1Tib (where applicable) */
+    if (!x86ms->above_1t_mem_size) {
+        val = x86ms->above_4g_mem_size / 65536;
+    } else {
+        val = (x86ms->above_4g_mem_size - x86ms->above_1t_mem_size) / 65536;
+    }
     rtc_set_memory(s, 0x5b, val);
     rtc_set_memory(s, 0x5c, val >> 8);
     rtc_set_memory(s, 0x5d, val >> 16);
@@ -1018,6 +1022,12 @@ void pc_memory_init(PCMachineState *pcms,
             error_report("unsupported amount of memory: %"PRIu64,
                          x86ms->above_4g_mem_size);
             exit(EXIT_FAILURE);
+        }
+
+        if (nb_iova_ranges != DEFAULT_NR_USABLE_IOVAS) {
+            x86ms->above_1t_maxram_start = maxram_start;
+            if (maxram_start > AMD_MAX_PHYSADDR_BELOW_1TB)
+                x86ms->above_1t_mem_size = maxram_start - 1 * TiB;
         }
     }
 
