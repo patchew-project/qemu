@@ -1141,7 +1141,7 @@ void pc_memory_init(PCMachineState *pcms,
  * The 64bit pci hole starts after "above 4G RAM" and
  * potentially the space reserved for memory hotplug.
  */
-uint64_t pc_pci_hole64_start(void)
+uint64_t pc_pci_hole64_start(uint64_t size)
 {
     PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
     PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
@@ -1155,10 +1155,23 @@ uint64_t pc_pci_hole64_start(void)
             hole64_start += memory_region_size(&ms->device_memory->mr);
         }
     } else {
-        hole64_start = 0x100000000ULL + x86ms->above_4g_mem_size;
+        if (!x86ms->above_1t_mem_size) {
+            hole64_start = 0x100000000ULL + x86ms->above_4g_mem_size;
+        } else {
+            hole64_start = x86ms->above_1t_maxram_start;
+        }
     }
+    hole64_start = allowed_round_up(hole64_start, size);
 
     return ROUND_UP(hole64_start, 1 * GiB);
+}
+
+uint64_t pc_pci_hole64_start_aligned(uint64_t start, uint64_t size)
+{
+    if (nb_iova_ranges == DEFAULT_NR_USABLE_IOVAS) {
+        return start;
+    }
+    return allowed_round_up(start, size);
 }
 
 DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus)

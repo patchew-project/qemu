@@ -163,8 +163,10 @@ static uint64_t i440fx_pcihost_get_pci_hole64_start_value(Object *obj)
     pci_bus_get_w64_range(h->bus, &w64);
     value = range_is_empty(&w64) ? 0 : range_lob(&w64);
     if (!value && s->pci_hole64_fix) {
-        value = pc_pci_hole64_start();
+        value = pc_pci_hole64_start(s->pci_hole64_size);
     }
+    /* This returns @value when not on AMD */
+    value = pc_pci_hole64_start_aligned(value, s->pci_hole64_size);
     return value;
 }
 

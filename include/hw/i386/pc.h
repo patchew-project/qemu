@@ -217,7 +217,8 @@ void pc_memory_init(PCMachineState *pcms,
                     MemoryRegion *system_memory,
                     MemoryRegion *rom_memory,
                     MemoryRegion **ram_memory);
-uint64_t pc_pci_hole64_start(void);
+uint64_t pc_pci_hole64_start(uint64_t size);
+uint64_t pc_pci_hole64_start_aligned(uint64_t value, uint64_t size);
 DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus);
 void pc_basic_device_init(struct PCMachineState *pcms,
                           ISABus *isa_bus, qemu_irq *gsi,
