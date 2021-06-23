@@ -416,6 +416,9 @@ static int add_to_iovec(QEMUFile *f, const uint8_t *buf, size_t size,
     {
         f->iov[f->iovcnt - 1].iov_len += size;
     } else {
+        if (f->iovcnt >= MAX_IOV_SIZE) {
+            goto fflush;
+        }
         if (may_free) {
             set_bit(f->iovcnt, f->may_free);
         }
@@ -423,12 +426,12 @@ static int add_to_iovec(QEMUFile *f, const uint8_t *buf, size_t size,
         f->iov[f->iovcnt++].iov_len = size;
     }
 
-    if (f->iovcnt >= MAX_IOV_SIZE) {
-        qemu_fflush(f);
-        return 1;
+    if (f->iovcnt < MAX_IOV_SIZE) {
+        return 0;
     }
-
-    return 0;
+fflush:
+    qemu_fflush();
+    return 1;
 }
 
 static void add_buf_to_iovec(QEMUFile *f, size_t len)
