@@ -51,6 +51,6 @@ def generate_image(filename, host, cross=None, trailer=None):
    atomic_write(filename, content)
 
 try:
-   pass
+   generate_image("centos8.docker", "centos-8")
 except Exception as ex:
    print(str(ex), file=sys.stderr)
