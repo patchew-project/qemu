@@ -863,11 +863,13 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=arch:arm
         :avocado: tags=machine:orangepi-pc
         :avocado: tags=device:sd
+        :avocado: tags=u-boot
         """
 
-        # This test download a 275 MiB compressed image and expand it
-        # to 1036 MiB, but the underlying filesystem is 1552 MiB...
-        # As we expand it to 2 GiB we are safe.
+        # This test download a 275 MiB compressed image and inflate it
+        # to 1036 MiB, but 1/ the underlying filesystem is 1552 MiB,
+        # 2/ U-Boot loads TFTP filenames from the last sector below
+        # 2 GiB, so we need to expand the image further more to 2 GiB.
 
         image_url = ('https://archive.armbian.com/orangepipc/archive/'
                      'Armbian_20.08.1_Orangepipc_bionic_current_5.8.5.img.xz')
@@ -876,7 +878,7 @@ class BootLinuxConsole(LinuxKernelTest):
         image_path_xz = self.fetch_asset(image_url, asset_hash=image_hash,
                                          algorithm='sha256')
         image_path = archive.extract(image_path_xz, self.workdir)
-        image_pow2ceil_expand(image_path)
+        image_expand(image_path, 2 * 1024 * 1024 * 1024)
 
         self.vm.set_console()
         self.vm.add_args('-drive', 'file=' + image_path + ',if=sd,format=raw',
