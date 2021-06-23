@@ -37,14 +37,18 @@ def pow2ceil(x):
     return 1 if x == 0 else 2**(x - 1).bit_length()
 
 """
+Expand file size
+"""
+def image_expand(path, size):
+    if size != os.path.getsize(path):
+        with open(path, 'ab+') as fd:
+            fd.truncate(size)
+
+"""
 Expand file size to next power of 2
 """
 def image_pow2ceil_expand(path):
-        size = os.path.getsize(path)
-        size_aligned = pow2ceil(size)
-        if size != size_aligned:
-            with open(path, 'ab+') as fd:
-                fd.truncate(size_aligned)
+    image_expand(path, pow2ceil(os.path.getsize(path)))
 
 class LinuxKernelTest(Test):
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
