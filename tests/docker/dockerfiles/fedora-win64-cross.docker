@@ -25,6 +25,7 @@ ENV PACKAGES \
     mingw64-libtasn1 \
     mingw64-pixman \
     mingw64-pkg-config \
+    msitools \
     perl \
     perl-Test-Harness \
     python3 \

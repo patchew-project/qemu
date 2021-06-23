@@ -163,6 +163,7 @@ cross-win32-system:
   artifacts:
     paths:
       - build/qemu-setup*.exe
+      - build/qemu-ga*.msi
 
 cross-win64-system:
   extends: .cross_system_build_job
@@ -173,6 +174,7 @@ cross-win64-system:
   artifacts:
     paths:
       - build/qemu-setup*.exe
+      - build/qemu-ga*.msi
 
 cross-amd64-xen-only:
   extends: .cross_accel_build_job

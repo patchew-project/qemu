@@ -13,9 +13,10 @@
     - make -j$(expr $(nproc) + 1) all check-build $MAKE_CHECK_ARGS
     - if grep -q "EXESUF=.exe" config-host.mak;
       then scripts/copy-dlls;
-      make installer;
+      make installer msi;
       version="$(git describe --match v[0-9]*)";
       mv -v qemu-setup*.exe qemu-setup-${version}.exe;
+      mv -v qga/*.msi $(basename qga/*.msi .msi)-${version}.msi;
       fi
 
 # Job to cross-build specific accelerators.
