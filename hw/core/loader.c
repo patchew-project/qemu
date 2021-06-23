@@ -1310,6 +1310,80 @@ static Rom *find_rom(hwaddr addr, size_t size)
     return NULL;
 }
 
+typedef struct RomSec {
+    hwaddr base;
+    int se; /* start/end flag */
+} RomSec;
+
+
+static gint sort_secs(gconstpointer a, gconstpointer b)
+{
+    RomSec *ra = (RomSec *) a;
+    RomSec *rb = (RomSec *) b;
+
+    if (ra->base == rb->base) {
+        return ra->se > rb->se ? -1 : 1;
+    }
+    return ra->base > rb->base ? 1 : -1;
+}
+
+RomGap rom_find_largest_gap_between(hwaddr base, size_t size)
+{
+    Rom *rom;
+    RomSec *cand;
+    RomGap res = {0, 0};
+    hwaddr gapstart = base;
+    GList *it, *secs = NULL;
+    int count = 0;
+
+    QTAILQ_FOREACH(rom, &roms, next) {
+        /* ignore real rom blobs */
+        if (rom->mr || rom->fw_file) {
+            continue;
+        }
+        /* ignore anything finishing bellow base */
+        if (rom->addr + rom->romsize < base) {
+            continue;
+        }
+        /* ignore anything starting above the region */
+        if (rom->addr > base + size) {
+            continue;
+        }
+
+        /* Save the start and end of each relevant ROM */
+        cand = g_new(RomSec, 1);
+        cand->base = rom->addr;
+        cand->se = 1;
+        secs = g_list_append(secs, cand);
+
+        if (rom->addr + rom->romsize < base + size) {
+            cand = g_new(RomSec, 1);
+            cand->base = rom->addr + rom->romsize;
+            cand->se = -1;
+            secs = g_list_append(secs, cand);
+        }
+    }
+
+    secs = g_list_sort(secs, sort_secs);
+
+    for (it = g_list_first(secs); it; it = g_list_next(it)) {
+        cand = (RomSec *) it->data;
+        if (count == 0 && count + cand->se == 1) {
+            size_t gap = cand->base - gapstart;
+            if (gap > res.size) {
+                res.base = gapstart;
+                res.size = gap;
+            }
+        } else if (count == 1 && count + cand->se == 0) {
+            gapstart = cand->base;
+        }
+        count += cand->se;
+    }
+
+    g_list_free_full(secs, g_free);
+    return res;
+}
+
 /*
  * Copies memory from registered ROMs to dest. Any memory that is contained in
  * a ROM between addr and addr + size is copied. Note that this can involve
