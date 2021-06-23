@@ -1,0 +1,56 @@
+#!/bin/sh
+#
+# copy dlls needed by windows binaries to $srcdir/dll/{w32,w64}
+# the nsis installer scripts expects them there
+#
+# TODO: rewrite in python and integrate into scripts/nsis.py
+#
+
+if test ! -f config-host.mak; then
+    echo "must be started in builddir"
+    exit 1
+fi
+
+eval $(egrep '(CONFIG_WIN32|QEMU_GA_MSI_MINGW_DLL_PATH|SRC_PATH)' config-host.mak)
+
+if test "$CONFIG_WIN32" != "y"; then
+    echo "not a windows build"
+    exit 1
+fi
+
+if test "$QEMU_GA_MSI_MINGW_DLL_PATH" = ""; then
+    echo "unknown dll path"
+    exit 1
+fi
+
+case "$QEMU_GA_MSI_MINGW_DLL_PATH" in
+    *-w32-*)
+	DESTDIR="$SRC_PATH/dll/w32"
+	;;
+    *-w64-*)
+	DESTDIR="$SRC_PATH/dll/w64"
+	;;
+    *)
+	echo "can't figure w32 vs. w64"
+	exit 1
+	;;
+esac
+
+function check_windows_binary_deps() {
+    local file="$1"
+    local dlls dll
+
+    dlls=$(objdump -p "$file" | awk '/DLL Name/ { print $3 }')
+    for dll in $dlls; do
+	test -f "$QEMU_GA_MSI_MINGW_DLL_PATH/$dll" || continue
+	test -f "$DESTDIR/$dll" && continue
+	echo "copy $dll"
+	cp "$QEMU_GA_MSI_MINGW_DLL_PATH/$dll" "$DESTDIR/$dll"
+	check_windows_binary_deps "$DESTDIR/$dll"
+    done
+}
+
+mkdir -p "$DESTDIR"
+for file in *.exe; do
+    check_windows_binary_deps $file
+done
