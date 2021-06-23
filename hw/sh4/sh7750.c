@@ -30,8 +30,10 @@
 #include "sh7750_regs.h"
 #include "sh7750_regnames.h"
 #include "hw/sh4/sh_intc.h"
-#include "hw/timer/tmu012.h"
+#include "hw/timer/renesas_timer.h"
 #include "exec/exec-all.h"
+#include "qapi/error.h"
+#include "hw/qdev-properties.h"
 
 #define NB_DEVICES 4
 
@@ -752,6 +754,30 @@ static const MemoryRegionOps sh7750_mmct_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static void tmu012_init(MemoryRegion *sysmem, hwaddr base,
+                        int unit, uint64_t freq,
+                        qemu_irq ch0_irq, qemu_irq ch1_irq,
+                        qemu_irq ch2_irq0, qemu_irq ch2_irq1)
+{
+    RenesasTMUState *tmu;
+
+    tmu = RENESAS_TMU(qdev_new(TYPE_RENESAS_TMU));
+    qdev_prop_set_uint32(DEVICE(tmu), "unit", unit);
+    qdev_prop_set_uint64(DEVICE(tmu), "input-freq", freq);
+
+    sysbus_realize(SYS_BUS_DEVICE(tmu), &error_abort);
+    sysbus_connect_irq(SYS_BUS_DEVICE(tmu), 0, ch0_irq);
+    sysbus_connect_irq(SYS_BUS_DEVICE(tmu), 1, ch1_irq);
+    if (unit == 0) {
+        /* ch2_irq1 is not used. */
+        sysbus_connect_irq(SYS_BUS_DEVICE(tmu), 2, ch2_irq0);
+    }
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(tmu), 0, base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(tmu), 1, P4ADDR(base));
+    sysbus_mmio_map(SYS_BUS_DEVICE(tmu), 2, A7ADDR(base));
+}
+
 SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
 {
     SH7750State *s;
@@ -817,7 +843,7 @@ SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
                    s->intc.irqs[SCIF_BRI]);
 
     tmu012_init(sysmem, 0x1fd80000,
-		TMU012_FEAT_TOCR | TMU012_FEAT_3CHAN | TMU012_FEAT_EXTCLK,
+                0,
 		s->periph_freq,
 		s->intc.irqs[TMU0],
 		s->intc.irqs[TMU1],
@@ -840,7 +866,7 @@ SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
         sh_intc_register_sources(&s->intc,
 				 _INTC_ARRAY(vectors_tmu34),
 				 NULL, 0);
-        tmu012_init(sysmem, 0x1e100000, 0, s->periph_freq,
+        tmu012_init(sysmem, 0x1e100000, 1, s->periph_freq,
 		    s->intc.irqs[TMU3],
 		    s->intc.irqs[TMU4],
 		    NULL, NULL);
