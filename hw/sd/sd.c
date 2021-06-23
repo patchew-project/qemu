@@ -1250,7 +1250,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         }
         switch (sd->state) {
         case sd_transfer_state:
-            sd->multi_blk_cnt = req.arg;
+            sd->multi_blk_cnt = req.arg & 0xFFFF;
             return sd_r1;
 
         default:
