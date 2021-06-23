@@ -27,6 +27,9 @@ DOCKER_TESTS := $(notdir $(shell \
 ENGINE := auto
 
 DOCKER_SCRIPT=$(SRC_PATH)/tests/docker/docker.py --engine $(ENGINE)
+REFRESH_SCRIPT=$(SRC_PATH)/tests/docker/dockerfiles-refresh.py
+# To be set to /path/to/checkout/of/libvirt-ci.git/lcitool
+LCITOOL=
 
 TESTS ?= %
 IMAGES ?= %
@@ -220,6 +223,7 @@ docker:
 	@echo '    docker-image:        Build all images.'
 	@echo '    docker-image-IMAGE:  Build image "IMAGE".'
 	@echo '    docker-run:          For manually running a "TEST" with "IMAGE".'
+	@echo '    docker-refresh:      Re-generate dockerfiles after updating libvirt-ci'
 	@echo
 	@echo 'Available container images:'
 	@echo '    $(DOCKER_IMAGES)'
@@ -302,3 +306,11 @@ docker-run-%:
 
 docker-clean:
 	$(call quiet-command, $(DOCKER_SCRIPT) clean)
+
+docker-refresh:
+	@if [ -z "$(LCITOOL)" ] ; \
+	then \
+	    echo "No lcitool path specified. Use 'make docker-refresh LCITOOL=/path/to/libvirt-ci.git/lcitool'"; \
+	    exit 1; \
+	fi
+	$(call quiet-command, $(REFRESH_SCRIPT) $(LCITOOL) $(SRC_PATH))

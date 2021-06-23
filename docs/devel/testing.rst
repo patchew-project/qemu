@@ -372,8 +372,38 @@ Along with many other images, the ``centos8`` image is defined in a Dockerfile
 in ``tests/docker/dockerfiles/``, called ``centos8.docker``. ``make docker-help``
 command will list all the available images.
 
-To add a new image, simply create a new ``.docker`` file under the
-``tests/docker/dockerfiles/`` directory.
+Most of the existing Dockerfiles were written by hand, simply by creating a
+a new ``.docker`` file under the ``tests/docker/dockerfiles/`` directory.
+This has led to an inconsistent set of packages being present across the
+different containers.
+
+Thus going forward, QEMU is aiming to automatically generate the Dockerfiles
+using the ``lcitool`` program provided by the ``libvirt-ci`` project:
+
+  https://gitlab.com/libvirt/libvirt-ci
+
+In that project, there is a ``qemu.yml`` file defining the list of build
+pre-requisites needed by QEMU. This is processed together with the
+``mappings.yml`` file to compute the distro specific list of package names.
+The package names are then fed into a generator which emits a well structured
+dockerfile. The set of dockerfiles which are auto-generated is defined in
+the ``tests/docker/dockerfiles-refresh.py`` script.
+
+When preparing a patch series that changes dockerfiles managed by ``libvirt-ci``
+tools, the following steps should be takenL
+
+ * Fork the ``libvirt-ci`` project on gitlab
+
+ * Prepare changes to its ``qemu.yml`` file and optionally ``mappings.yml``
+   to define the packages to be added to QEMU's dockerfiles.
+
+ * In QEMU run ``make docker-refresh LCITOOL=/path/to/libvirt-ci/lcitool``
+   to re-create the dockerfiles in ``tests/docker/dockerfiles``
+
+ * Submit your changes to QEMU in the normal manner
+
+ * Submit ``libvirt-ci`` changes as a merge request, linking to the
+   QEMU patch series that uses them.
 
 A ``.pre`` script can be added beside the ``.docker`` file, which will be
 executed before building the image under the build context directory. This is
