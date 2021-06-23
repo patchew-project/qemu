@@ -2131,23 +2131,16 @@ static void sd_realize(DeviceState *dev, Error **errp)
         blk_size = blk_getlength(sd->blk);
         if (blk_size > 0 && !is_power_of_2(blk_size)) {
             int64_t blk_size_aligned = pow2ceil(blk_size);
-            char *blk_size_str;
+            g_autofree char *blk_size_s = size_to_str(blk_size);
+            g_autofree char *blk_size_aligned_s = size_to_str(blk_size_aligned);
 
-            blk_size_str = size_to_str(blk_size);
-            error_setg(errp, "Invalid SD card size: %s", blk_size_str);
-            g_free(blk_size_str);
-
-            blk_size_str = size_to_str(blk_size_aligned);
-            error_append_hint(errp,
-                              "SD card size has to be a power of 2, e.g. %s.\n"
-                              "You can resize disk images with"
-                              " 'qemu-img resize <imagefile> <new-size>'\n"
-                              "(note that this will lose data if you make the"
-                              " image smaller than it currently is).\n",
-                              blk_size_str);
-            g_free(blk_size_str);
-
-            return;
+            warn_report("SD card size is not a power of 2 (%s). It might work"
+                        " but is not supported by QEMU. If possible, resize"
+                        " your disk image to %s with:",
+                        blk_size_s, blk_size_aligned_s);
+            warn_report(" 'qemu-img resize <imagefile> <new-size>'");
+            warn_report("(note that this will lose data if you make the"
+                        " image smaller than it currently is).");
         }
 
         ret = blk_set_perm(sd->blk, BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE,
