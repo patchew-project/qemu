@@ -31,24 +31,12 @@ except CmdNotFoundError:
     P7ZIP_AVAILABLE = False
 
 """
-Round up to next power of 2
-"""
-def pow2ceil(x):
-    return 1 if x == 0 else 2**(x - 1).bit_length()
-
-"""
 Expand file size
 """
 def image_expand(path, size):
     if size != os.path.getsize(path):
         with open(path, 'ab+') as fd:
             fd.truncate(size)
-
-"""
-Expand file size to next power of 2
-"""
-def image_pow2ceil_expand(path):
-    image_expand(path, pow2ceil(os.path.getsize(path)))
 
 class LinuxKernelTest(Test):
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
