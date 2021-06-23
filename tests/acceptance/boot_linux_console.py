@@ -911,7 +911,12 @@ class BootLinuxConsole(LinuxKernelTest):
         :avocado: tags=device:sd
         :avocado: tags=os:netbsd
         """
-        # This test download a 304MB compressed image and expand it to 2GB
+        # This test download a 304MB compressed image and expand it to 2GB,
+        # which is the minimum card size required by the NetBSD installer:
+        # https://wiki.netbsd.org/ports/evbarm/raspberry_pi/#index7h2
+        # "A 2 GB card is the smallest workable size that the installation
+        # image will fit on."
+        NETBSD_SDCARD_MINSIZE = 2 * 1024 * 1024 * 1024
         deb_url = ('http://snapshot.debian.org/archive/debian/'
                    '20200108T145233Z/pool/main/u/u-boot/'
                    'u-boot-sunxi_2020.01%2Bdfsg-1_armhf.deb')
@@ -929,7 +934,7 @@ class BootLinuxConsole(LinuxKernelTest):
         image_path_gz = self.fetch_asset(image_url, asset_hash=image_hash)
         image_path = os.path.join(self.workdir, 'armv7.img')
         archive.gzip_uncompress(image_path_gz, image_path)
-        image_pow2ceil_expand(image_path)
+        image_expand(image_path, NETBSD_SDCARD_MINSIZE)
         image_drive_args = 'if=sd,format=raw,snapshot=on,file=' + image_path
 
         # dd if=u-boot-sunxi-with-spl.bin of=armv7.img bs=1K seek=8 conv=notrunc
