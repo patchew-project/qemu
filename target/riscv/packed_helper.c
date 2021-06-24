@@ -1078,3 +1078,118 @@ static inline void do_clo16(CPURISCVState *env, void *vd, void *va, uint8_t i)
 }
 
 RVPR2(clo16, 1, 2);
+
+/* SIMD 8-bit Miscellaneous Instructions */
+static inline void do_smin8(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    int8_t *d = vd, *a = va, *b = vb;
+
+    d[i] = (a[i] < b[i]) ? a[i] : b[i];
+}
+
+RVPR(smin8, 1, 1);
+
+static inline void do_umin8(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    uint8_t *d = vd, *a = va, *b = vb;
+
+    d[i] = (a[i] < b[i]) ? a[i] : b[i];
+}
+
+RVPR(umin8, 1, 1);
+
+static inline void do_smax8(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    int8_t *d = vd, *a = va, *b = vb;
+
+    d[i] = (a[i] > b[i]) ? a[i] : b[i];
+}
+
+RVPR(smax8, 1, 1);
+
+static inline void do_umax8(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    uint8_t *d = vd, *a = va, *b = vb;
+
+    d[i] = (a[i] > b[i]) ? a[i] : b[i];
+}
+
+RVPR(umax8, 1, 1);
+
+static inline void do_sclip8(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    int8_t *d = vd, *a = va;
+    uint8_t shift = *(uint8_t *)vb & 0x7;
+
+    d[i] = sat64(env, a[i], shift);
+}
+
+RVPR(sclip8, 1, 1);
+
+static inline void do_uclip8(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    int8_t *d = vd, *a = va;
+    uint8_t shift = *(uint8_t *)vb & 0x7;
+
+    if (a[i] < 0) {
+        d[i] = 0;
+        env->vxsat = 0x1;
+    } else {
+        d[i] = satu64(env, a[i], shift);
+    }
+}
+
+RVPR(uclip8, 1, 1);
+
+static inline void do_kabs8(CPURISCVState *env, void *vd, void *va, uint8_t i)
+{
+    int8_t *d = vd, *a = va;
+
+    if (a[i] == INT8_MIN) {
+        d[i] = INT8_MAX;
+        env->vxsat = 0x1;
+    } else {
+        d[i] = abs(a[i]);
+    }
+}
+
+RVPR2(kabs8, 1, 1);
+
+static inline void do_clrs8(CPURISCVState *env, void *vd, void *va, uint8_t i)
+{
+    int8_t *d = vd, *a = va;
+    d[i] = clrsb32(a[i]) - 24;
+}
+
+RVPR2(clrs8, 1, 1);
+
+static inline void do_clz8(CPURISCVState *env, void *vd, void *va, uint8_t i)
+{
+    int8_t *d = vd, *a = va;
+    d[i] = (a[i] < 0) ? 0 : (clz32(a[i]) - 24);
+}
+
+RVPR2(clz8, 1, 1);
+
+static inline void do_clo8(CPURISCVState *env, void *vd, void *va, uint8_t i)
+{
+    int8_t *d = vd, *a = va;
+    d[i] = (a[i] >= 0) ? 0 : (clo32(a[i]) - 24);
+}
+
+RVPR2(clo8, 1, 1);
+
+static inline void do_swap8(CPURISCVState *env, void *vd, void *va, uint8_t i)
+{
+    int8_t *d = vd, *a = va;
+    d[H1(i)] = a[H1(i + 1)];
+    d[H1(i + 1)] = a[H1(i)];
+}
+
+RVPR2(swap8, 2, 1);
