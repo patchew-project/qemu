@@ -352,3 +352,76 @@ static inline void do_ukstsa16(CPURISCVState *env, void *vd, void *va,
 }
 
 RVPR(ukstsa16, 2, 2);
+
+/* 8-bit Addition & Subtraction Instructions */
+static inline void do_radd8(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    int8_t *d = vd, *a = va, *b = vb;
+    d[i] = hadd32(a[i], b[i]);
+}
+
+RVPR(radd8, 1, 1);
+
+static inline void do_uradd8(CPURISCVState *env, void *vd, void *va,
+                                  void *vb, uint8_t i)
+{
+    uint8_t *d = vd, *a = va, *b = vb;
+    d[i] = haddu32(a[i], b[i]);
+}
+
+RVPR(uradd8, 1, 1);
+
+static inline void do_kadd8(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    int8_t *d = vd, *a = va, *b = vb;
+    d[i] = sadd8(env, 0, a[i], b[i]);
+}
+
+RVPR(kadd8, 1, 1);
+
+static inline void do_ukadd8(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    uint8_t *d = vd, *a = va, *b = vb;
+    d[i] = saddu8(env, 0, a[i], b[i]);
+}
+
+RVPR(ukadd8, 1, 1);
+
+static inline void do_rsub8(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    int8_t *d = vd, *a = va, *b = vb;
+    d[i] = hsub32(a[i], b[i]);
+}
+
+RVPR(rsub8, 1, 1);
+
+static inline void do_ursub8(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    uint8_t *d = vd, *a = va, *b = vb;
+    d[i] = hsubu64(a[i], b[i]);
+}
+
+RVPR(ursub8, 1, 1);
+
+static inline void do_ksub8(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    int8_t *d = vd, *a = va, *b = vb;
+    d[i] = ssub8(env, 0, a[i], b[i]);
+}
+
+RVPR(ksub8, 1, 1);
+
+static inline void do_uksub8(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    uint8_t *d = vd, *a = va, *b = vb;
+    d[i] = ssubu8(env, 0, a[i], b[i]);
+}
+
+RVPR(uksub8, 1, 1);
