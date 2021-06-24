@@ -128,3 +128,62 @@ GEN_RVP_R_OOL(rsub8);
 GEN_RVP_R_OOL(ursub8);
 GEN_RVP_R_OOL(ksub8);
 GEN_RVP_R_OOL(uksub8);
+
+/* 16-bit Shift Instructions */
+GEN_RVP_R_OOL(sra16);
+GEN_RVP_R_OOL(srl16);
+GEN_RVP_R_OOL(sll16);
+GEN_RVP_R_OOL(sra16_u);
+GEN_RVP_R_OOL(srl16_u);
+GEN_RVP_R_OOL(ksll16);
+GEN_RVP_R_OOL(kslra16);
+GEN_RVP_R_OOL(kslra16_u);
+
+static bool
+rvp_shifti_ool(DisasContext *ctx, arg_shift *a,
+               void (* fn)(TCGv, TCGv_ptr, TCGv, TCGv))
+{
+    TCGv src1, dst, shift;
+
+    src1 = tcg_temp_new();
+    dst = tcg_temp_new();
+
+    gen_get_gpr(src1, a->rs1);
+    shift = tcg_const_tl(a->shamt);
+    fn(dst, cpu_env, src1, shift);
+    gen_set_gpr(a->rd, dst);
+
+    tcg_temp_free(src1);
+    tcg_temp_free(dst);
+    tcg_temp_free(shift);
+    return true;
+}
+
+static inline bool
+rvp_shifti(DisasContext *ctx, arg_shift *a,
+           void (* vecop)(TCGv, TCGv, target_long),
+           void (* op)(TCGv, TCGv_ptr, TCGv, TCGv))
+{
+    if (!has_ext(ctx, RVP)) {
+        return false;
+    }
+
+    if (a->rd && a->rs1 && vecop) {
+        vecop(cpu_gpr[a->rd], cpu_gpr[a->rs1], a->shamt);
+        return true;
+    }
+    return rvp_shifti_ool(ctx, a, op);
+}
+
+#define GEN_RVP_SHIFTI(NAME, VECOP, OP)                  \
+static bool trans_##NAME(DisasContext *s, arg_shift *a)  \
+{                                                        \
+    return rvp_shifti(s, a, VECOP, OP);                  \
+}
+
+GEN_RVP_SHIFTI(srai16, tcg_gen_vec_sar16i_tl, gen_helper_sra16);
+GEN_RVP_SHIFTI(srli16, tcg_gen_vec_shr16i_tl, gen_helper_srl16);
+GEN_RVP_SHIFTI(slli16, tcg_gen_vec_shl16i_tl, gen_helper_sll16);
+GEN_RVP_SHIFTI(srai16_u, NULL, gen_helper_sra16_u);
+GEN_RVP_SHIFTI(srli16_u, NULL, gen_helper_srl16_u);
+GEN_RVP_SHIFTI(kslli16, NULL, gen_helper_ksll16);
