@@ -40,12 +40,6 @@ config SH_TIMER
     bool
     select PTIMER
 
-config RENESAS_TMR
-    bool
-
-config RENESAS_CMT
-    bool
-
 config RENESAS_TIMER
     bool
     select PTIMER
