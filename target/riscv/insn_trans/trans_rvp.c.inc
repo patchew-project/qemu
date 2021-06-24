@@ -949,3 +949,87 @@ static bool trans_msubr32(DisasContext *ctx, arg_r *a)
     tcg_temp_free_i32(w3);
     return true;
 }
+
+/*
+ *** RV64 Only Instructions
+ */
+/* RV64 Only) SIMD 32-bit Add/Subtract Instructions */
+#define GEN_RVP64_R_INLINE(NAME, VECOP, OP)              \
+static bool trans_##NAME(DisasContext *s, arg_r *a)      \
+{                                                        \
+    REQUIRE_64BIT(s);                                    \
+    return r_inline(s, a, VECOP, OP);                    \
+}
+
+GEN_RVP64_R_INLINE(add32, tcg_gen_vec_add32_tl, tcg_gen_add_tl);
+GEN_RVP64_R_INLINE(sub32, tcg_gen_vec_sub32_tl, tcg_gen_sub_tl);
+
+static bool
+r_64_ool(DisasContext *ctx, arg_r *a,
+         void (* fn)(TCGv_i64, TCGv_ptr, TCGv_i64, TCGv_i64))
+{
+    TCGv t1, t2;
+    TCGv_i64 src1, src2, dst;
+
+    if (!has_ext(ctx, RVP)) {
+        return false;
+    }
+
+    src1 = tcg_temp_new_i64();
+    src2 = tcg_temp_new_i64();
+    dst = tcg_temp_new_i64();
+
+    t1 = tcg_temp_new();
+    t2 = tcg_temp_new();
+    gen_get_gpr(t1, a->rs1);
+    tcg_gen_ext_tl_i64(src1, t1);
+    gen_get_gpr(t2, a->rs2);
+    tcg_gen_ext_tl_i64(src2, t2);
+
+    fn(dst, cpu_env, src1, src2);
+    tcg_gen_trunc_i64_tl(t1, dst);
+    gen_set_gpr(a->rd, t1);
+
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
+    tcg_temp_free_i64(src1);
+    tcg_temp_free_i64(src2);
+    tcg_temp_free_i64(dst);
+    return true;
+}
+
+#define GEN_RVP64_R_OOL(NAME)                          \
+static bool trans_##NAME(DisasContext *s, arg_r *a)    \
+{                                                      \
+    REQUIRE_64BIT(s);                                  \
+    return r_64_ool(s, a, gen_helper_##NAME);          \
+}
+
+GEN_RVP64_R_OOL(radd32);
+GEN_RVP64_R_OOL(uradd32);
+GEN_RVP64_R_OOL(kadd32);
+GEN_RVP64_R_OOL(ukadd32);
+GEN_RVP64_R_OOL(rsub32);
+GEN_RVP64_R_OOL(ursub32);
+GEN_RVP64_R_OOL(ksub32);
+GEN_RVP64_R_OOL(uksub32);
+GEN_RVP64_R_OOL(cras32);
+GEN_RVP64_R_OOL(rcras32);
+GEN_RVP64_R_OOL(urcras32);
+GEN_RVP64_R_OOL(kcras32);
+GEN_RVP64_R_OOL(ukcras32);
+GEN_RVP64_R_OOL(crsa32);
+GEN_RVP64_R_OOL(rcrsa32);
+GEN_RVP64_R_OOL(urcrsa32);
+GEN_RVP64_R_OOL(kcrsa32);
+GEN_RVP64_R_OOL(ukcrsa32);
+GEN_RVP64_R_OOL(stas32);
+GEN_RVP64_R_OOL(rstas32);
+GEN_RVP64_R_OOL(urstas32);
+GEN_RVP64_R_OOL(kstas32);
+GEN_RVP64_R_OOL(ukstas32);
+GEN_RVP64_R_OOL(stsa32);
+GEN_RVP64_R_OOL(rstsa32);
+GEN_RVP64_R_OOL(urstsa32);
+GEN_RVP64_R_OOL(kstsa32);
+GEN_RVP64_R_OOL(ukstsa32);
