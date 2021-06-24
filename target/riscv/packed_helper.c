@@ -1969,3 +1969,78 @@ uint64_t helper_smal(CPURISCVState *env, uint64_t a, target_ulong b)
     }
     return result;
 }
+
+/* Partial-SIMD Miscellaneous Instructions */
+static inline void do_sclip32(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    int32_t *d = vd, *a = va;
+    uint8_t shift = *(uint8_t *)vb & 0x1f;
+
+    d[i] = sat64(env, a[i], shift);
+}
+
+RVPR(sclip32, 1, 4);
+
+static inline void do_uclip32(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    int32_t *d = vd, *a = va;
+    uint8_t shift = *(uint8_t *)vb & 0x1f;
+
+    if (a[i] < 0) {
+        d[i] = 0;
+        env->vxsat = 0x1;
+    } else {
+        d[i] = satu64(env, a[i], shift);
+    }
+}
+
+RVPR(uclip32, 1, 4);
+
+static inline void do_clrs32(CPURISCVState *env, void *vd, void *va, uint8_t i)
+{
+    int32_t *d = vd, *a = va;
+    d[i] = clrsb32(a[i]);
+}
+
+RVPR2(clrs32, 1, 4);
+
+static inline void do_clz32(CPURISCVState *env, void *vd, void *va, uint8_t i)
+{
+    int32_t *d = vd, *a = va;
+    d[i] = clz32(a[i]);
+}
+
+RVPR2(clz32, 1, 4);
+
+static inline void do_clo32(CPURISCVState *env, void *vd, void *va, uint8_t i)
+{
+    int32_t *d = vd, *a = va;
+    d[i] = clo32(a[i]);
+}
+
+RVPR2(clo32, 1, 4);
+
+static inline void do_pbsad(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    target_ulong *d = vd;
+    uint8_t *a = va, *b = vb;
+    *d += abs(a[i] - b[i]);
+}
+
+RVPR(pbsad, 1, 1);
+
+static inline void do_pbsada(CPURISCVState *env, void *vd, void *va,
+                             void *vb, void *vc, uint8_t i)
+{
+    target_ulong *d = vd, *c = vc;
+    uint8_t *a = va, *b = vb;
+    if (i == 0) {
+        *d += *c;
+    }
+    *d += abs(a[i] - b[i]);
+}
+
+RVPR_ACC(pbsada, 1, 1);

@@ -502,3 +502,12 @@ static bool trans_##NAME(DisasContext *s, arg_r *a)    \
 }
 
 GEN_RVP_R_D64_S64_OOL(smal);
+
+/* Partial-SIMD Miscellaneous Instructions */
+GEN_RVP_SHIFTI(sclip32, NULL, gen_helper_sclip32);
+GEN_RVP_SHIFTI(uclip32, NULL, gen_helper_uclip32);
+GEN_RVP_R2_OOL(clrs32);
+GEN_RVP_R2_OOL(clz32);
+GEN_RVP_R2_OOL(clo32);
+GEN_RVP_R_OOL(pbsad);
+GEN_RVP_R_ACC_OOL(pbsada);
