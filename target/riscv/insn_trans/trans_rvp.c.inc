@@ -1131,3 +1131,16 @@ GEN_RVP64_R_OOL(smtt32);
 GEN_RVP64_R_ACC_OOL(kmabb32);
 GEN_RVP64_R_ACC_OOL(kmabt32);
 GEN_RVP64_R_ACC_OOL(kmatt32);
+
+/* (RV64 Only) 32-bit Parallel Multiply & Add Instructions */
+GEN_RVP64_R_OOL(kmda32);
+GEN_RVP64_R_OOL(kmxda32);
+GEN_RVP64_R_ACC_OOL(kmaxda32);
+GEN_RVP64_R_ACC_OOL(kmads32);
+GEN_RVP64_R_ACC_OOL(kmadrs32);
+GEN_RVP64_R_ACC_OOL(kmaxds32);
+GEN_RVP64_R_ACC_OOL(kmsda32);
+GEN_RVP64_R_ACC_OOL(kmsxda32);
+GEN_RVP64_R_OOL(smds32);
+GEN_RVP64_R_OOL(smdrs32);
+GEN_RVP64_R_OOL(smxds32);
