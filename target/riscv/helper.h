@@ -1266,3 +1266,8 @@ DEF_HELPER_2(zunpkd820, tl, env, tl)
 DEF_HELPER_2(zunpkd830, tl, env, tl)
 DEF_HELPER_2(zunpkd831, tl, env, tl)
 DEF_HELPER_2(zunpkd832, tl, env, tl)
+
+DEF_HELPER_3(pkbb16, tl, env, tl, tl)
+DEF_HELPER_3(pkbt16, tl, env, tl, tl)
+DEF_HELPER_3(pktt16, tl, env, tl, tl)
+DEF_HELPER_3(pktb16, tl, env, tl, tl)

@@ -1314,3 +1314,48 @@ do_zunpkd832(CPURISCVState *env, void *vd, void *va, uint8_t i)
 }
 
 RVPR2(zunpkd832, 4, 1);
+
+/*
+ *** Partial-SIMD Data Processing Instructions
+ */
+
+/* 16-bit Packing Instructions */
+static inline void do_pkbb16(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    uint16_t *d = vd, *a = va, *b = vb;
+    d[H2(i + 1)] = a[H2(i)];
+    d[H2(i)] = b[H2(i)];
+}
+
+RVPR(pkbb16, 2, 2);
+
+static inline void do_pkbt16(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    uint16_t *d = vd, *a = va, *b = vb;
+    d[H2(i + 1)] = a[H2(i)];
+    d[H2(i)] = b[H2(i + 1)];
+}
+
+RVPR(pkbt16, 2, 2);
+
+static inline void do_pktt16(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    uint16_t *d = vd, *a = va, *b = vb;
+    d[H2(i + 1)] = a[H2(i + 1)];
+    d[H2(i)] = b[H2(i + 1)];
+}
+
+RVPR(pktt16, 2, 2);
+
+static inline void do_pktb16(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    uint16_t *d = vd, *a = va, *b = vb;
+    d[H2(i + 1)] = a[H2(i + 1)];
+    d[H2(i)] = b[H2(i)];
+}
+
+RVPR(pktb16, 2, 2);
