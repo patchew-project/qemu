@@ -657,3 +657,15 @@ GEN_RVP_R_D64_ACC_OOL(kmar64);
 GEN_RVP_R_D64_ACC_OOL(kmsr64);
 GEN_RVP_R_D64_ACC_OOL(ukmar64);
 GEN_RVP_R_D64_ACC_OOL(ukmsr64);
+
+/* Signed 16-bit Multiply with 64-bit Add/Subtract Instructions */
+GEN_RVP_R_D64_ACC_OOL(smalbb);
+GEN_RVP_R_D64_ACC_OOL(smalbt);
+GEN_RVP_R_D64_ACC_OOL(smaltt);
+GEN_RVP_R_D64_ACC_OOL(smalda);
+GEN_RVP_R_D64_ACC_OOL(smalxda);
+GEN_RVP_R_D64_ACC_OOL(smalds);
+GEN_RVP_R_D64_ACC_OOL(smaldrs);
+GEN_RVP_R_D64_ACC_OOL(smalxds);
+GEN_RVP_R_D64_ACC_OOL(smslda);
+GEN_RVP_R_D64_ACC_OOL(smslxda);
