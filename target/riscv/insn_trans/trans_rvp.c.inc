@@ -669,3 +669,15 @@ GEN_RVP_R_D64_ACC_OOL(smaldrs);
 GEN_RVP_R_D64_ACC_OOL(smalxds);
 GEN_RVP_R_D64_ACC_OOL(smslda);
 GEN_RVP_R_D64_ACC_OOL(smslxda);
+
+/*
+ *** Non-SIMD Instructions
+ */
+/* Non-SIMD Q15 saturation ALU Instructions */
+GEN_RVP_R_OOL(kaddh);
+GEN_RVP_R_OOL(ksubh);
+GEN_RVP_R_OOL(khmbb);
+GEN_RVP_R_OOL(khmbt);
+GEN_RVP_R_OOL(khmtt);
+GEN_RVP_R_OOL(ukaddh);
+GEN_RVP_R_OOL(uksubh);

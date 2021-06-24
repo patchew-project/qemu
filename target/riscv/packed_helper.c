@@ -2526,3 +2526,81 @@ static inline void do_smslxda(CPURISCVState *env, void *vd, void *va,
 }
 
 RVPR64_ACC(smslxda, 2, 2);
+
+/* Q15 saturation instructions */
+static inline void do_kaddh(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    target_long *d = vd;
+    int32_t *a = va, *b = vb;
+
+    *d = sat64(env, (int64_t)a[H4(i)] + b[H4(i)], 15);
+}
+
+RVPR(kaddh, 2, 4);
+
+static inline void do_ksubh(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    target_long *d = vd;
+    int32_t *a = va, *b = vb;
+
+    *d = sat64(env, (int64_t)a[H4(i)] - b[H4(i)], 15);
+}
+
+RVPR(ksubh, 2, 4);
+
+static inline void do_khmbb(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    target_long *d = vd;
+    int16_t *a = va, *b = vb;
+
+    *d = sat64(env, (int64_t)a[H2(i)] * b[H2(i)] >> 15, 15);
+}
+
+RVPR(khmbb, 4, 2);
+
+static inline void do_khmbt(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    target_long *d = vd;
+    int16_t *a = va, *b = vb;
+
+    *d = sat64(env, (int64_t)a[H2(i)] * b[H2(i + 1)] >> 15, 15);
+}
+
+RVPR(khmbt, 4, 2);
+
+static inline void do_khmtt(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    target_long *d = vd;
+    int16_t *a = va, *b = vb;
+
+    *d = sat64(env, (int64_t)a[H2(i + 1)] * b[H2(i + 1)] >> 15, 15);
+}
+
+RVPR(khmtt, 4, 2);
+
+static inline void do_ukaddh(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    target_long *d = vd;
+    uint32_t *a = va, *b = vb;
+
+    *d = (int16_t)satu64(env, saddu32(env, 0, a[H4(i)], b[H4(i)]), 16);
+}
+
+RVPR(ukaddh, 2, 4);
+
+static inline void do_uksubh(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    target_long *d = vd;
+    uint32_t *a = va, *b = vb;
+
+    *d = (int16_t)satu64(env, ssubu32(env, 0, a[H4(i)], b[H4(i)]), 16);
+}
+
+RVPR(uksubh, 2, 4);
