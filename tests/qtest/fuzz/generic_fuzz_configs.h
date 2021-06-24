@@ -218,7 +218,7 @@ const generic_fuzz_config predefined_configs[] = {
         .name = "ac97",
         .args = "-machine q35 -nodefaults "
         "-device ac97,audiodev=snd0 -audiodev none,id=snd0 -nodefaults",
-        .objects = "ac97*",
+        .objects = "ac97* AC97",
     },{
         .name = "cs4231a",
         .args = "-machine q35 -nodefaults "
