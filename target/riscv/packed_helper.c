@@ -2220,3 +2220,158 @@ static inline void do_uksub64(CPURISCVState *env, void *vd, void *va,
 }
 
 RVPR64_64_64(uksub64, 1, 8);
+
+/* 32-bit Multiply with 64-bit Add/Subtract Instructions */
+static inline uint64_t
+rvpr64_acc(CPURISCVState *env, target_ulong a,
+           target_ulong b, uint64_t c,
+           uint8_t step, uint8_t size, PackedFn4i *fn)
+{
+    int i, passes = sizeof(target_ulong) / size;
+    uint64_t result = 0;
+
+    for (i = 0; i < passes; i += step) {
+        fn(env, &result, &a, &b, &c, i);
+    }
+    return result;
+}
+
+#define RVPR64_ACC(NAME, STEP, SIZE)                                     \
+uint64_t HELPER(NAME)(CPURISCVState *env, target_ulong a,                \
+                      target_ulong b, uint64_t c)                        \
+{                                                                        \
+    return rvpr64_acc(env, a, b, c, STEP, SIZE, (PackedFn4i *)do_##NAME);\
+}
+
+static inline void do_smar64(CPURISCVState *env, void *vd, void *va,
+                             void *vb, void *vc, uint8_t i)
+{
+    int32_t *a = va, *b = vb;
+    int64_t *d = vd, *c = vc;
+    if (i == 0) {
+        *d = *c;
+    }
+    *d += (int64_t)a[H4(i)] * b[H4(i)];
+}
+
+RVPR64_ACC(smar64, 1, 4);
+
+static inline void do_smsr64(CPURISCVState *env, void *vd, void *va,
+                             void *vb, void *vc, uint8_t i)
+{
+    int32_t *a = va, *b = vb;
+    int64_t *d = vd, *c = vc;
+    if (i == 0) {
+        *d = *c;
+    }
+    *d -= (int64_t)a[H4(i)] * b[H4(i)];
+}
+
+RVPR64_ACC(smsr64, 1, 4);
+
+static inline void do_umar64(CPURISCVState *env, void *vd, void *va,
+                             void *vb, void *vc, uint8_t i)
+{
+    uint32_t *a = va, *b = vb;
+    uint64_t *d = vd, *c = vc;
+    if (i == 0) {
+        *d = *c;
+    }
+    *d += (uint64_t)a[H4(i)] * b[H4(i)];
+}
+
+RVPR64_ACC(umar64, 1, 4);
+
+static inline void do_umsr64(CPURISCVState *env, void *vd, void *va,
+                             void *vb, void *vc, uint8_t i)
+{
+    uint32_t *a = va, *b = vb;
+    uint64_t *d = vd, *c = vc;
+    if (i == 0) {
+        *d = *c;
+    }
+    *d -= (uint64_t)a[H4(i)] * b[H4(i)];
+}
+
+RVPR64_ACC(umsr64, 1, 4);
+
+static inline void do_kmar64(CPURISCVState *env, void *vd, void *va,
+                             void *vb, void *vc, uint8_t i)
+{
+    int32_t *a = va, *b = vb;
+    int64_t *d = vd, *c = vc;
+    int64_t m0 =  (int64_t)a[H4(i)] * b[H4(i)];
+    if (!riscv_cpu_is_32bit(env)) {
+        int64_t m1 =  (int64_t)a[H4(i + 1)] * b[H4(i + 1)];
+        if (a[H4(i)] == INT32_MIN && b[H4(i)] == INT32_MIN &&
+            a[H4(i + 1)] == INT32_MIN && b[H4(i + 1)] == INT32_MIN) {
+            if (*c >= 0) {
+                *d = INT64_MAX;
+                env->vxsat = 1;
+            } else {
+                *d = sadd64(env, 0, *c + m0, m1);
+            }
+        } else {
+            *d = sadd64(env, 0, *c, m0 + m1);
+        }
+    } else {
+        *d = sadd64(env, 0, *c, m0);
+    }
+}
+
+RVPR64_ACC(kmar64, 1, sizeof(target_ulong));
+
+static inline void do_kmsr64(CPURISCVState *env, void *vd, void *va,
+                             void *vb, void *vc, uint8_t i)
+{
+    int32_t *a = va, *b = vb;
+    int64_t *d = vd, *c = vc;
+
+    int64_t m0 =  (int64_t)a[H4(i)] * b[H4(i)];
+    if (!riscv_cpu_is_32bit(env)) {
+        int64_t m1 =  (int64_t)a[H4(i + 1)] * b[H4(i + 1)];
+        if (a[H4(i)] == INT32_MIN && b[H4(i)] == INT32_MIN &&
+            a[H4(i + 1)] == INT32_MIN && b[H4(i + 1)] == INT32_MIN) {
+            if (*c <= 0) {
+                *d = INT64_MIN;
+                env->vxsat = 1;
+            } else {
+                *d = ssub64(env, 0, *c - m0, m1);
+            }
+        } else {
+            *d = ssub64(env, 0, *c, m0 + m1);
+        }
+    } else {
+        *d = ssub64(env, 0, *c, m0);
+    }
+}
+
+RVPR64_ACC(kmsr64, 1, sizeof(target_ulong));
+
+static inline void do_ukmar64(CPURISCVState *env, void *vd, void *va,
+                              void *vb, void *vc, uint8_t i)
+{
+    uint32_t *a = va, *b = vb;
+    uint64_t *d = vd, *c = vc;
+
+    if (i == 0) {
+        *d = *c;
+    }
+    *d = saddu64(env, 0, *d, (uint64_t)a[H4(i)] * b[H4(i)]);
+}
+
+RVPR64_ACC(ukmar64, 1, 4);
+
+static inline void do_ukmsr64(CPURISCVState *env, void *vd, void *va,
+                              void *vb, void *vc, uint8_t i)
+{
+    uint32_t *a = va, *b = vb;
+    uint64_t *d = vd, *c = vc;
+
+    if (i == 0) {
+        *d = *c;
+    }
+    *d = ssubu64(env, 0, *d, (uint64_t)a[i] * b[i]);
+}
+
+RVPR64_ACC(ukmsr64, 1, 4);
