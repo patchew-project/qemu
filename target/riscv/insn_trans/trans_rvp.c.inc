@@ -708,3 +708,244 @@ GEN_RVP_R_OOL(minw);
 GEN_RVP_R_OOL(maxw);
 GEN_RVP_R_D64_OOL(mulr64);
 GEN_RVP_R_D64_OOL(mulsr64);
+
+/* Non-SIMD Miscellaneous Instructions */
+GEN_RVP_R_OOL(ave);
+GEN_RVP_R_OOL(sra_u);
+GEN_RVP_SHIFTI(srai_u, NULL, gen_helper_sra_u);
+GEN_RVP_R_OOL(bitrev);
+GEN_RVP_SHIFTI(bitrevi, NULL, gen_helper_bitrev);
+
+static bool
+r_s64_ool(DisasContext *ctx, arg_r *a,
+          void (* fn)(TCGv, TCGv_ptr, TCGv_i64, TCGv))
+{
+    TCGv_i64 src1;
+    TCGv src2, dst;
+
+    if (!has_ext(ctx, RVP) || !ctx->ext_psfoperand) {
+        return false;
+    }
+
+    src1 = tcg_temp_new_i64();
+    src2 = tcg_temp_new();
+    dst = tcg_temp_new();
+
+    if (is_32bit(ctx)) {
+        TCGv t0, t1;
+        t0 = tcg_temp_new();
+        t1 = tcg_temp_new();
+        gen_get_gpr(t0, a->rs1);
+        gen_get_gpr(t1, a->rs1 + 1);
+        tcg_gen_concat_tl_i64(src1, t0, t1);
+        tcg_temp_free(t0);
+        tcg_temp_free(t1);
+    } else {
+        TCGv t0;
+        t0 = tcg_temp_new();
+        gen_get_gpr(t0, a->rs1);
+        tcg_gen_ext_tl_i64(src1, t0);
+        tcg_temp_free(t0);
+    }
+    gen_get_gpr(src2, a->rs2);
+    fn(dst, cpu_env, src1, src2);
+    gen_set_gpr(a->rd, dst);
+
+    tcg_temp_free_i64(src1);
+    tcg_temp_free(src2);
+    tcg_temp_free(dst);
+    return true;
+}
+
+#define GEN_RVP_R_S64_OOL(NAME)                        \
+static bool trans_##NAME(DisasContext *s, arg_r *a)    \
+{                                                      \
+    return r_s64_ool(s, a, gen_helper_##NAME);         \
+}
+
+GEN_RVP_R_S64_OOL(wext);
+
+static bool rvp_shifti_s64_ool(DisasContext *ctx, arg_shift *a,
+                               void (* fn)(TCGv, TCGv_ptr, TCGv_i64, TCGv))
+{
+    TCGv_i64 src1;
+    TCGv shift, dst;
+
+    if (!has_ext(ctx, RVP) || !ctx->ext_psfoperand) {
+        return false;
+    }
+
+    src1 = tcg_temp_new_i64();
+    dst = tcg_temp_new();
+
+    if (is_32bit(ctx)) {
+        TCGv t0, t1;
+        t0 = tcg_temp_new();
+        t1 = tcg_temp_new();
+        gen_get_gpr(t0, a->rs1);
+        gen_get_gpr(t1, a->rs1 + 1);
+        tcg_gen_concat_tl_i64(src1, t0, t1);
+        tcg_temp_free(t0);
+        tcg_temp_free(t1);
+    } else {
+        TCGv t0;
+        t0 = tcg_temp_new();
+        gen_get_gpr(t0, a->rs1);
+        tcg_gen_ext_tl_i64(src1, t0);
+        tcg_temp_free(t0);
+    }
+    shift = tcg_const_tl(a->shamt);
+    fn(dst, cpu_env, src1, shift);
+    gen_set_gpr(a->rd, dst);
+
+    tcg_temp_free_i64(src1);
+    tcg_temp_free(shift);
+    tcg_temp_free(dst);
+    return true;
+}
+
+#define GEN_RVP_SHIFTI_S64_OOL(NAME, OP)                    \
+static bool trans_##NAME(DisasContext *s, arg_shift *a)     \
+{                                                           \
+    return rvp_shifti_s64_ool(s, a, gen_helper_##OP);       \
+}
+
+GEN_RVP_SHIFTI_S64_OOL(wexti, wext);
+
+typedef void gen_helper_rvp_r4(TCGv, TCGv_ptr, TCGv, TCGv, TCGv);
+
+static bool r4_ool(DisasContext *ctx, arg_r4 *a, gen_helper_rvp_r4 *fn)
+{
+    TCGv src1, src2, src3, dst;
+    if (!has_ext(ctx, RVP)) {
+        return false;
+    }
+
+    src1 = tcg_temp_new();
+    src2 = tcg_temp_new();
+    src3 = tcg_temp_new();
+    dst = tcg_temp_new();
+
+    gen_get_gpr(src1, a->rs1);
+    gen_get_gpr(src2, a->rs2);
+    gen_get_gpr(src3, a->rs3);
+    fn(dst, cpu_env, src1, src2, src3);
+    gen_set_gpr(a->rd, dst);
+
+    tcg_temp_free(src1);
+    tcg_temp_free(src2);
+    tcg_temp_free(src3);
+    tcg_temp_free(dst);
+    return true;
+}
+
+#define GEN_RVP_R4_OOL(NAME)                           \
+static bool trans_##NAME(DisasContext *s, arg_r4 *a)   \
+{                                                      \
+    return r4_ool(s, a, gen_helper_##NAME);            \
+}
+
+GEN_RVP_R4_OOL(bpick);
+
+static bool trans_insb(DisasContext *ctx, arg_shift *a)
+{
+    TCGv src1, dst, b0;
+    uint8_t shift;
+    if (!has_ext(ctx, RVP)) {
+        return false;
+    }
+    if (is_32bit(ctx)) {
+        shift = a->shamt & 0x3;
+    } else {
+        shift = a->shamt;
+    }
+    src1 = tcg_temp_new();
+    dst = tcg_temp_new();
+    b0 = tcg_temp_new();
+
+    gen_get_gpr(src1, a->rs1);
+    gen_get_gpr(dst, a->rd);
+
+    tcg_gen_andi_tl(b0, src1, 0xff);
+    tcg_gen_deposit_tl(dst, dst, b0, shift * 8, 8);
+    gen_set_gpr(a->rd, dst);
+
+    tcg_temp_free(src1);
+    tcg_temp_free(dst);
+    tcg_temp_free(b0);
+    return true;
+}
+
+static bool trans_maddr32(DisasContext *ctx, arg_r *a)
+{
+    TCGv src1, src2, dst;
+    TCGv_i32 w1, w2, w3;
+    if (!has_ext(ctx, RVP)) {
+        return false;
+    }
+
+    src1 = tcg_temp_new();
+    src2 = tcg_temp_new();
+    dst = tcg_temp_new();
+    w1 = tcg_temp_new_i32();
+    w2 = tcg_temp_new_i32();
+    w3 = tcg_temp_new_i32();
+
+    gen_get_gpr(src1, a->rs1);
+    gen_get_gpr(src2, a->rs2);
+    gen_get_gpr(dst, a->rd);
+
+    tcg_gen_trunc_tl_i32(w1, src1);
+    tcg_gen_trunc_tl_i32(w2, src2);
+    tcg_gen_trunc_tl_i32(w3, dst);
+
+    tcg_gen_mul_i32(w1, w1, w2);
+    tcg_gen_add_i32(w3, w3, w1);
+    tcg_gen_ext_i32_tl(dst, w3);
+    gen_set_gpr(a->rd, dst);
+
+    tcg_temp_free(src1);
+    tcg_temp_free(src2);
+    tcg_temp_free(dst);
+    tcg_temp_free_i32(w1);
+    tcg_temp_free_i32(w2);
+    tcg_temp_free_i32(w3);
+    return true;
+}
+
+static bool trans_msubr32(DisasContext *ctx, arg_r *a)
+{
+    TCGv src1, src2, dst;
+    TCGv_i32 w1, w2, w3;
+    if (!has_ext(ctx, RVP)) {
+        return false;
+    }
+
+    src1 = tcg_temp_new();
+    src2 = tcg_temp_new();
+    dst = tcg_temp_new();
+    w1 = tcg_temp_new_i32();
+    w2 = tcg_temp_new_i32();
+    w3 = tcg_temp_new_i32();
+
+    gen_get_gpr(src1, a->rs1);
+    gen_get_gpr(src2, a->rs2);
+    gen_get_gpr(dst, a->rd);
+
+    tcg_gen_trunc_tl_i32(w1, src1);
+    tcg_gen_trunc_tl_i32(w2, src2);
+    tcg_gen_trunc_tl_i32(w3, dst);
+
+    tcg_gen_mul_i32(w1, w1, w2);
+    tcg_gen_sub_i32(w3, w3, w1);
+    tcg_gen_ext_i32_tl(dst, w3);
+    gen_set_gpr(a->rd, dst);
+
+    tcg_temp_free(src1);
+    tcg_temp_free(src2);
+    tcg_temp_free(dst);
+    tcg_temp_free_i32(w1);
+    tcg_temp_free_i32(w2);
+    tcg_temp_free_i32(w3);
+    return true;
+}
