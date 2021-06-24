@@ -403,6 +403,7 @@ cfi_debug="false"
 seccomp="auto"
 glusterfs="auto"
 gtk="auto"
+wayland="auto"
 tls_priority="NORMAL"
 gnutls="$default_feature"
 nettle="$default_feature"
@@ -1372,6 +1373,10 @@ for opt do
   ;;
   --enable-gtk) gtk="enabled"
   ;;
+  --disable-wayland) wayland="disabled"
+  ;;
+  --enable-wayland) wayland="enabled"
+  ;;
   --tls-priority=*) tls_priority="$optarg"
   ;;
   --disable-gnutls) gnutls="no"
@@ -1845,6 +1850,7 @@ disabled with --disable-FEATURE, default is enabled if available
   sdl             SDL UI
   sdl-image       SDL Image support for icons
   gtk             gtk UI
+  wayland         Wayland UI
   vte             vte support for the gtk UI
   curses          curses UI
   iconv           font glyph conversion support
@@ -3614,6 +3620,11 @@ if $pkg_config gbm; then
     gbm_cflags="$($pkg_config --cflags gbm)"
     gbm_libs="$($pkg_config --libs gbm)"
     gbm="yes"
+fi
+
+if $pkg_config wayland-client; then
+    wayland_cflags="$($pkg_config --cflags wayland-client)"
+    wayland_libs="$($pkg_config --libs wayland-client)"
 fi
 
 if test "$opengl" != "no" ; then
@@ -5875,6 +5886,11 @@ if test "$gbm" = "yes" ; then
     echo "GBM_CFLAGS=$gbm_cflags" >> $config_host_mak
 fi
 
+if test "$wayland" = "enabled" ; then
+    echo "CONFIG_WAYLAND=y" >> $config_host_mak
+    echo "WAYLAND_LIBS=$wayland_libs" >> $config_host_mak
+    echo "WAYLAND_CFLAGS=$wayland_cflags" >> $config_host_mak
+fi
 
 if test "$avx2_opt" = "yes" ; then
   echo "CONFIG_AVX2_OPT=y" >> $config_host_mak
@@ -6437,6 +6453,7 @@ if test "$skip_meson" = no; then
         -Dkvm=$kvm -Dhax=$hax -Dwhpx=$whpx -Dhvf=$hvf -Dnvmm=$nvmm \
         -Dxen=$xen -Dxen_pci_passthrough=$xen_pci_passthrough -Dtcg=$tcg \
         -Dcocoa=$cocoa -Dgtk=$gtk -Dmpath=$mpath -Dsdl=$sdl -Dsdl_image=$sdl_image \
+        -Dwayland=$wayland \
         -Dvnc=$vnc -Dvnc_sasl=$vnc_sasl -Dvnc_jpeg=$vnc_jpeg -Dvnc_png=$vnc_png \
         -Dgettext=$gettext -Dxkbcommon=$xkbcommon -Du2f=$u2f -Dvirtiofsd=$virtiofsd \
         -Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt -Dbrlapi=$brlapi \

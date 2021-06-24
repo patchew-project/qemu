@@ -1057,6 +1057,20 @@
 { 'struct'  : 'DisplayEGLHeadless',
   'data'    : { '*rendernode' : 'str' } }
 
+##
+# @DisplayWayland:
+#
+# Wayland display options.
+#
+# @rendernode: Which DRM render node should be used. Default is the first
+#              available node on the host.
+#
+# Since: 3.1
+#
+##
+{ 'struct'  : 'DisplayWayland',
+  'data'    : { '*rendernode' : 'str' } }
+
  ##
  # @DisplayGLMode:
  #
@@ -1108,6 +1122,8 @@
 #                DRI device. Graphical display need to be paired with
 #                VNC or Spice. (Since 3.1)
 #
+# @wayland: The Wayland user interface.
+#
 # @curses: Display video output via curses.  For graphics device
 #          models which support a text mode, QEMU can display this
 #          output using a curses/ncurses interface. Nothing is
@@ -1128,7 +1144,7 @@
 { 'enum'    : 'DisplayType',
   'data'    : [ 'default', 'none', 'gtk', 'sdl',
                 'egl-headless', 'curses', 'cocoa',
-                'spice-app'] }
+                'wayland', 'spice-app'] }
 
 ##
 # @DisplayOptions:
@@ -1154,6 +1170,7 @@
   'discriminator' : 'type',
   'data'    : { 'gtk'            : 'DisplayGTK',
                 'curses'         : 'DisplayCurses',
+                'wayland'        : 'DisplayWayland',
                 'egl-headless'   : 'DisplayEGLHeadless'} }
 
 ##

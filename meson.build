@@ -855,6 +855,29 @@ if gtkx11.found()
   x11 = dependency('x11', method: 'pkg-config', required: gtkx11.found(),
                    kwargs: static_kwargs)
 endif
+
+wayland = not_found
+if not get_option('wayland').auto()
+  wlclientdep = dependency('wayland-client', version: '>= 1.18.90',
+                           method: 'pkg-config',
+                           required: get_option('wayland'),
+                           kwargs: static_kwargs)
+  wlprotocolsdep = dependency('wayland-protocols', version: '>= 1.14.91',
+                              method: 'pkg-config',
+                              required: get_option('wayland'),
+                              kwargs: static_kwargs)
+
+  if not wlprotocolsdep.found()
+    wlproto_dir = subproject('wayland-protocols').get_variable('wayland_protocols_srcdir')
+  else
+    wlproto_dir = wlprotocolsdep.get_pkgconfig_variable('pkgdatadir')
+  endif
+
+  wayland = declare_dependency(dependencies: [wlclientdep, wlprotocolsdep],
+                               compile_args: config_host['WAYLAND_CFLAGS'].split(),
+                               link_args: config_host['WAYLAND_LIBS'].split())
+endif
+
 vnc = not_found
 png = not_found
 jpeg = not_found
@@ -1146,6 +1169,7 @@ if glusterfs.found()
   config_host_data.set('CONFIG_GLUSTERFS_IOCB_HAS_STAT', glusterfs_iocb_has_stat)
 endif
 config_host_data.set('CONFIG_GTK', gtk.found())
+config_host_data.set('CONFIG_WAYLAND', wayland.found())
 config_host_data.set('CONFIG_LIBATTR', have_old_libattr)
 config_host_data.set('CONFIG_LIBCAP_NG', libcap_ng.found())
 config_host_data.set('CONFIG_EBPF', libbpf.found())
@@ -2687,6 +2711,7 @@ summary_info += {'SDL support':       sdl.found()}
 summary_info += {'SDL image support': sdl_image.found()}
 # TODO: add back version
 summary_info += {'GTK support':       gtk.found()}
+summary_info += {'Wayland support':   wayland.found()}
 summary_info += {'pixman':            pixman.found()}
 # TODO: add back version
 summary_info += {'VTE support':       config_host.has_key('CONFIG_VTE')}
