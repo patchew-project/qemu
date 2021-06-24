@@ -217,3 +217,72 @@ GEN_RVP_R_OOL(scmplt8);
 GEN_RVP_R_OOL(scmple8);
 GEN_RVP_R_OOL(ucmplt8);
 GEN_RVP_R_OOL(ucmple8);
+
+/* SIMD 16-bit Multiply Instructions */
+static void set_pair_regs(DisasContext *ctx, TCGv_i64 dst, int rd)
+{
+    TCGv t1, t2;
+
+    t1 = tcg_temp_new();
+    t2 = tcg_temp_new();
+
+    if (is_32bit(ctx)) {
+        TCGv_i32 lo, hi;
+
+        lo = tcg_temp_new_i32();
+        hi = tcg_temp_new_i32();
+        tcg_gen_extr_i64_i32(lo, hi, dst);
+
+        tcg_gen_ext_i32_tl(t1, lo);
+        tcg_gen_ext_i32_tl(t2, hi);
+
+        gen_set_gpr(rd, t1);
+        gen_set_gpr(rd + 1, t2);
+        tcg_temp_free_i32(lo);
+        tcg_temp_free_i32(hi);
+    } else {
+        tcg_gen_trunc_i64_tl(t1, dst);
+        gen_set_gpr(rd, t1);
+    }
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
+}
+
+static inline bool
+r_d64_ool(DisasContext *ctx, arg_r *a,
+          void (* fn)(TCGv_i64, TCGv_ptr, TCGv, TCGv))
+{
+    TCGv t1, t2;
+    TCGv_i64 t3;
+
+    if (!has_ext(ctx, RVP) || !ctx->ext_psfoperand) {
+        return false;
+    }
+
+    t1 = tcg_temp_new();
+    t2 = tcg_temp_new();
+    t3 = tcg_temp_new_i64();
+
+    gen_get_gpr(t1, a->rs1);
+    gen_get_gpr(t2, a->rs2);
+    fn(t3, cpu_env, t1, t2);
+    set_pair_regs(ctx, t3, a->rd);
+
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
+    tcg_temp_free_i64(t3);
+    return true;
+}
+
+#define GEN_RVP_R_D64_OOL(NAME)                        \
+static bool trans_##NAME(DisasContext *s, arg_r *a)    \
+{                                                      \
+    return r_d64_ool(s, a, gen_helper_##NAME);         \
+}
+
+GEN_RVP_R_D64_OOL(smul16);
+GEN_RVP_R_D64_OOL(smulx16);
+GEN_RVP_R_D64_OOL(umul16);
+GEN_RVP_R_D64_OOL(umulx16);
+GEN_RVP_R_OOL(khm16);
+GEN_RVP_R_OOL(khmx16);
