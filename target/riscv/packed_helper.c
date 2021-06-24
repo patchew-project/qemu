@@ -1359,3 +1359,112 @@ static inline void do_pktb16(CPURISCVState *env, void *vd, void *va,
 }
 
 RVPR(pktb16, 2, 2);
+
+/* Most Significant Word “32x32” Multiply & Add Instructions */
+static inline void do_smmul(CPURISCVState *env, void *vd, void *va,
+                            void *vb, uint8_t i)
+{
+    int32_t *d = vd, *a = va, *b = vb;
+    d[i] = (int64_t)a[i] * b[i] >> 32;
+}
+
+RVPR(smmul, 1, 4);
+
+static inline void do_smmul_u(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    int32_t *d = vd, *a = va, *b = vb;
+    d[i] = ((int64_t)a[i] * b[i] + (uint32_t)INT32_MIN) >> 32;
+}
+
+RVPR(smmul_u, 1, 4);
+
+typedef void PackedFn4i(CPURISCVState *, void *, void *,
+                        void *, void *, uint8_t);
+
+static inline target_ulong
+rvpr_acc(CPURISCVState *env, target_ulong a,
+         target_ulong b, target_ulong c,
+         uint8_t step, uint8_t size, PackedFn4i *fn)
+{
+    int i, passes = sizeof(target_ulong) / size;
+    target_ulong result = 0;
+
+    for (i = 0; i < passes; i += step) {
+        fn(env, &result, &a, &b, &c, i);
+    }
+    return result;
+}
+
+#define RVPR_ACC(NAME, STEP, SIZE)                                     \
+target_ulong HELPER(NAME)(CPURISCVState *env, target_ulong a,          \
+                          target_ulong b, target_ulong c)              \
+{                                                                      \
+    return rvpr_acc(env, a, b, c, STEP, SIZE, (PackedFn4i *)do_##NAME);\
+}
+
+static inline void do_kmmac(CPURISCVState *env, void *vd, void *va,
+                            void *vb, void *vc, uint8_t i)
+{
+    int32_t *d = vd, *a = va, *b = vb, *c = vc;
+    d[i] = sadd32(env, 0, ((int64_t)a[i] * b[i]) >> 32, c[i]);
+}
+
+RVPR_ACC(kmmac, 1, 4);
+
+static inline void do_kmmac_u(CPURISCVState *env, void *vd, void *va,
+                              void *vb, void *vc, uint8_t i)
+{
+    int32_t *d = vd, *a = va, *b = vb, *c = vc;
+    d[i] = sadd32(env, 0, ((int64_t)a[i] * b[i] +
+                           (uint32_t)INT32_MIN) >> 32, c[i]);
+}
+
+RVPR_ACC(kmmac_u, 1, 4);
+
+static inline void do_kmmsb(CPURISCVState *env, void *vd, void *va,
+                            void *vb, void *vc, uint8_t i)
+{
+    int32_t *d = vd, *a = va, *b = vb, *c = vc;
+    d[i] = ssub32(env, 0, c[i], (int64_t)a[i] * b[i] >> 32);
+}
+
+RVPR_ACC(kmmsb, 1, 4);
+
+static inline void do_kmmsb_u(CPURISCVState *env, void *vd, void *va,
+                              void *vb, void *vc, uint8_t i)
+{
+    int32_t *d = vd, *a = va, *b = vb, *c = vc;
+    d[i] = ssub32(env, 0, c[i], ((int64_t)a[i] * b[i] +
+                                 (uint32_t)INT32_MIN) >> 32);
+}
+
+RVPR_ACC(kmmsb_u, 1, 4);
+
+static inline void do_kwmmul(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    int32_t *d = vd, *a = va, *b = vb;
+    if (a[i] == INT32_MIN && b[i] == INT32_MIN) {
+        env->vxsat = 0x1;
+        d[i] = INT32_MAX;
+    } else {
+        d[i] = (int64_t)a[i] * b[i] >> 31;
+    }
+}
+
+RVPR(kwmmul, 1, 4);
+
+static inline void do_kwmmul_u(CPURISCVState *env, void *vd, void *va,
+                               void *vb, uint8_t i)
+{
+    int32_t *d = vd, *a = va, *b = vb;
+    if (a[i] == INT32_MIN && b[i] == INT32_MIN) {
+        env->vxsat = 0x1;
+        d[i] = INT32_MAX;
+    } else {
+        d[i] = ((int64_t)a[i] * b[i] + (1ull << 30)) >> 31;
+    }
+}
+
+RVPR(kwmmul_u, 1, 4);

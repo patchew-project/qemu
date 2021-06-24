@@ -369,3 +369,47 @@ GEN_RVP_R_OOL(pkbb16);
 GEN_RVP_R_OOL(pkbt16);
 GEN_RVP_R_OOL(pktt16);
 GEN_RVP_R_OOL(pktb16);
+
+/* Most Significant Word “32x32” Multiply & Add Instructions */
+GEN_RVP_R_OOL(smmul);
+GEN_RVP_R_OOL(smmul_u);
+
+/* Function to accumulate destination register */
+static inline bool r_acc_ool(DisasContext *ctx, arg_r *a,
+                             void (* fn)(TCGv, TCGv_ptr, TCGv, TCGv, TCGv))
+{
+    TCGv src1, src2, src3, dst;
+    if (!has_ext(ctx, RVP)) {
+        return false;
+    }
+
+    src1 = tcg_temp_new();
+    src2 = tcg_temp_new();
+    src3 = tcg_temp_new();
+    dst = tcg_temp_new();
+
+    gen_get_gpr(src1, a->rs1);
+    gen_get_gpr(src2, a->rs2);
+    gen_get_gpr(src3, a->rd);
+    fn(dst, cpu_env, src1, src2, src3);
+    gen_set_gpr(a->rd, dst);
+
+    tcg_temp_free(src1);
+    tcg_temp_free(src2);
+    tcg_temp_free(src3);
+    tcg_temp_free(dst);
+    return true;
+}
+
+#define GEN_RVP_R_ACC_OOL(NAME)                        \
+static bool trans_##NAME(DisasContext *s, arg_r *a)    \
+{                                                      \
+    return r_acc_ool(s, a, gen_helper_##NAME);         \
+}
+
+GEN_RVP_R_ACC_OOL(kmmac);
+GEN_RVP_R_ACC_OOL(kmmac_u);
+GEN_RVP_R_ACC_OOL(kmmsb);
+GEN_RVP_R_ACC_OOL(kmmsb_u);
+GEN_RVP_R_OOL(kwmmul);
+GEN_RVP_R_OOL(kwmmul_u);
