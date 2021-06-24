@@ -431,3 +431,23 @@ GEN_RVP_R_ACC_OOL(kmmawb2);
 GEN_RVP_R_ACC_OOL(kmmawb2_u);
 GEN_RVP_R_ACC_OOL(kmmawt2);
 GEN_RVP_R_ACC_OOL(kmmawt2_u);
+
+/* Signed 16-bit Multiply with 32-bit Add/Subtract Instructions */
+GEN_RVP_R_OOL(smbb16);
+GEN_RVP_R_OOL(smbt16);
+GEN_RVP_R_OOL(smtt16);
+GEN_RVP_R_OOL(kmda);
+GEN_RVP_R_OOL(kmxda);
+GEN_RVP_R_OOL(smds);
+GEN_RVP_R_OOL(smdrs);
+GEN_RVP_R_OOL(smxds);
+GEN_RVP_R_ACC_OOL(kmabb);
+GEN_RVP_R_ACC_OOL(kmabt);
+GEN_RVP_R_ACC_OOL(kmatt);
+GEN_RVP_R_ACC_OOL(kmada);
+GEN_RVP_R_ACC_OOL(kmaxda);
+GEN_RVP_R_ACC_OOL(kmads);
+GEN_RVP_R_ACC_OOL(kmadrs);
+GEN_RVP_R_ACC_OOL(kmaxds);
+GEN_RVP_R_ACC_OOL(kmsda);
+GEN_RVP_R_ACC_OOL(kmsxda);
