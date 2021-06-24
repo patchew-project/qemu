@@ -3561,3 +3561,24 @@ static inline void do_kdmatt16(CPURISCVState *env, void *vd, void *va,
 }
 
 RVPR_ACC(kdmatt16, 2, 2);
+
+/* (RV64 Only) 32-bit Multiply Instructions */
+static inline void do_smbt32(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    int64_t *d = vd;
+    int32_t *a = va, *b = vb;
+    *d = (int64_t)a[H4(2 * i)] * b[H4(2 * i + 1)];
+}
+
+RVPR64_64_64(smbt32, 1, 8);
+
+static inline void do_smtt32(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    int64_t *d = vd;
+    int32_t *a = va, *b = vb;
+    *d = (int64_t)a[H4(2 * i + 1)] * b[H4(2 * i + 1)];
+}
+
+RVPR64_64_64(smtt32, 1, 8);
