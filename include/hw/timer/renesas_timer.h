@@ -30,6 +30,7 @@ enum {
 
 enum {
     CMT_NR_IRQ = 1 * TIMER_CH_CMT,
+    TMU_NR_IRQ = 1 * TIMER_CH_TMU,
 };
 
 enum {
