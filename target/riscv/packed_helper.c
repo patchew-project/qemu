@@ -3795,3 +3795,16 @@ static inline void do_smxds32(CPURISCVState *env, void *vd, void *va,
 }
 
 RVPR64_64_64(smxds32, 1, 8);
+
+/* (RV64 Only) Non-SIMD 32-bit Shift Instructions */
+static inline void do_sraiw_u(CPURISCVState *env, void *vd, void *va,
+                              void *vb, uint8_t i)
+{
+    int64_t *d = vd;
+    int32_t *a = va;
+    uint8_t shift = *(uint8_t *)vb;
+
+    *d = vssra32(env, 0, a[H4(i)], shift);
+}
+
+RVPR64_64_64(sraiw_u, 1, 8);
