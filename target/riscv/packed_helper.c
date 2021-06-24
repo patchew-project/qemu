@@ -1193,3 +1193,124 @@ static inline void do_swap8(CPURISCVState *env, void *vd, void *va, uint8_t i)
 }
 
 RVPR2(swap8, 2, 1);
+
+/* 8-bit Unpacking Instructions */
+static inline void
+do_sunpkd810(CPURISCVState *env, void *vd, void *va, uint8_t i)
+{
+    int8_t *a = va;
+    int16_t *d = vd;
+
+    d[H2(i / 2)] = a[H1(i)];
+    d[H2(i / 2 + 1)] = a[H1(i + 1)];
+}
+
+RVPR2(sunpkd810, 4, 1);
+
+static inline void
+do_sunpkd820(CPURISCVState *env, void *vd, void *va, uint8_t i)
+{
+    int8_t *a = va;
+    int16_t *d = vd;
+
+    d[H2(i / 2)] = a[H1(i)];
+    d[H2(i / 2 + 1)] = a[H1(i + 2)];
+}
+
+RVPR2(sunpkd820, 4, 1);
+
+static inline void
+do_sunpkd830(CPURISCVState *env, void *vd, void *va, uint8_t i)
+{
+    int8_t *a = va;
+    int16_t *d = vd;
+
+    d[H2(i / 2)] = a[H1(i)];
+    d[H2(i / 2 + 1)] = a[H1(i + 3)];
+}
+
+RVPR2(sunpkd830, 4, 1);
+
+static inline void
+do_sunpkd831(CPURISCVState *env, void *vd, void *va, uint8_t i)
+{
+    int8_t *a = va;
+    int16_t *d = vd;
+
+    d[H2(i / 2)] = a[H1(i) + 1];
+    d[H2(i / 2 + 1)] = a[H1(i + 3)];
+}
+
+RVPR2(sunpkd831, 4, 1);
+
+static inline void
+do_sunpkd832(CPURISCVState *env, void *vd, void *va, uint8_t i)
+{
+    int8_t *a = va;
+    int16_t *d = vd;
+
+    d[H2(i / 2)] = a[H1(i) + 2];
+    d[H2(i / 2 + 1)] = a[H1(i + 3)];
+}
+
+RVPR2(sunpkd832, 4, 1);
+
+static inline void
+do_zunpkd810(CPURISCVState *env, void *vd, void *va, uint8_t i)
+{
+    uint8_t *a = va;
+    uint16_t *d = vd;
+
+    d[H2(i / 2)] = a[H1(i)];
+    d[H2(i / 2 + 1)] = a[H1(i + 1)];
+}
+
+RVPR2(zunpkd810, 4, 1);
+
+static inline void
+do_zunpkd820(CPURISCVState *env, void *vd, void *va, uint8_t i)
+{
+    uint8_t *a = va;
+    uint16_t *d = vd;
+
+    d[H2(i / 2)] = a[H1(i)];
+    d[H2(i / 2 + 1)] = a[H1(i + 2)];
+}
+
+RVPR2(zunpkd820, 4, 1);
+
+static inline void
+do_zunpkd830(CPURISCVState *env, void *vd, void *va, uint8_t i)
+{
+    uint8_t *a = va;
+    uint16_t *d = vd;
+
+    d[H2(i / 2)] = a[H1(i)];
+    d[H2(i / 2 + 1)] = a[H1(i + 3)];
+}
+
+RVPR2(zunpkd830, 4, 1);
+
+static inline void
+do_zunpkd831(CPURISCVState *env, void *vd, void *va, uint8_t i)
+{
+    uint8_t *a = va;
+    uint16_t *d = vd;
+
+    d[H2(i / 2)] = a[H1(i) + 1];
+    d[H2(i / 2 + 1)] = a[H1(i + 3)];
+}
+
+RVPR2(zunpkd831, 4, 1);
+
+static inline void
+do_zunpkd832(CPURISCVState *env, void *vd, void *va, uint8_t i)
+{
+    uint8_t *a = va;
+    uint16_t *d = vd;
+
+    d[H2(i / 2)] = a[H1(i) + 2];
+    d[H2(i / 2 + 1)] = a[H1(i + 3)];
+}
+
+RVPR2(zunpkd832, 4, 1);
