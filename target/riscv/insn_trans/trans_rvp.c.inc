@@ -1147,3 +1147,9 @@ GEN_RVP64_R_OOL(smxds32);
 
 /* (RV64 Only) Non-SIMD 32-bit Shift Instructions */
 GEN_RVP64_SHIFTI(sraiw_u, gen_helper_sraiw_u);
+
+/* (RV64 Only) 32-bit Packing Instructions */
+GEN_RVP64_R_OOL(pkbb32);
+GEN_RVP64_R_OOL(pkbt32);
+GEN_RVP64_R_OOL(pktt32);
+GEN_RVP64_R_OOL(pktb32);

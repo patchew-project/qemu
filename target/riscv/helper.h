@@ -1474,3 +1474,8 @@ DEF_HELPER_3(smdrs32, i64, env, i64, i64)
 DEF_HELPER_3(smxds32, i64, env, i64, i64)
 
 DEF_HELPER_3(sraiw_u, i64, env, i64, i64)
+
+DEF_HELPER_3(pkbb32, i64, env, i64, i64)
+DEF_HELPER_3(pkbt32, i64, env, i64, i64)
+DEF_HELPER_3(pktt32, i64, env, i64, i64)
+DEF_HELPER_3(pktb32, i64, env, i64, i64)
