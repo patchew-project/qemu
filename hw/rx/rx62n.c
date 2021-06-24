@@ -163,13 +163,13 @@ static void register_tmr(RX62NState *s, int unit)
     int i, irqbase;
 
     object_initialize_child(OBJECT(s), "tmr[*]",
-                            &s->tmr[unit], TYPE_RENESAS_TMR);
+                            &s->tmr[unit], TYPE_RENESAS_TMU);
     tmr = SYS_BUS_DEVICE(&s->tmr[unit]);
     qdev_prop_set_uint64(DEVICE(tmr), "input-freq", s->pclk_freq_hz);
     sysbus_realize(tmr, &error_abort);
 
-    irqbase = RX62N_TMR_IRQ + TMR_NR_IRQ * unit;
-    for (i = 0; i < TMR_NR_IRQ; i++) {
+    irqbase = RX62N_TMR_IRQ + TMU_NR_IRQ * unit;
+    for (i = 0; i < TMU_NR_IRQ; i++) {
         sysbus_connect_irq(tmr, i, s->irq[irqbase + i]);
     }
     sysbus_mmio_map(tmr, 0, RX62N_TMR_BASE + unit * 0x10);

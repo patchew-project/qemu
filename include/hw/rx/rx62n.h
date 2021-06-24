@@ -26,7 +26,6 @@
 
 #include "target/rx/cpu.h"
 #include "hw/intc/rx_icu.h"
-#include "hw/timer/renesas_tmr.h"
 #include "hw/timer/renesas_timer.h"
 #include "hw/char/renesas_sci.h"
 #include "qemu/units.h"
@@ -55,7 +54,7 @@ struct RX62NState {
 
     RXCPU cpu;
     RXICUState icu;
-    RTMRState tmr[RX62N_NR_TMR];
+    RenesasTMUState tmr[RX62N_NR_TMR];
     RenesasCMTState cmt[RX62N_NR_CMT];
     RSCIState sci[RX62N_NR_SCI];
 
