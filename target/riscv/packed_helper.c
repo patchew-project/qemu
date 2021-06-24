@@ -3367,3 +3367,58 @@ static inline void do_kslra32_u(CPURISCVState *env, void *vd, void *va,
 }
 
 RVPR64_64_64(kslra32_u, 1, 4);
+
+/* (RV64 Only) SIMD 32-bit Miscellaneous Instructions */
+static inline void do_smin32(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    int32_t *d = vd, *a = va, *b = vb;
+
+    d[i] = (a[i] < b[i]) ? a[i] : b[i];
+}
+
+RVPR64_64_64(smin32, 1, 4);
+
+static inline void do_umin32(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    uint32_t *d = vd, *a = va, *b = vb;
+
+    d[i] = (a[i] < b[i]) ? a[i] : b[i];
+}
+
+RVPR64_64_64(umin32, 1, 4);
+
+static inline void do_smax32(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    int32_t *d = vd, *a = va, *b = vb;
+
+    d[i] = (a[i] > b[i]) ? a[i] : b[i];
+}
+
+RVPR64_64_64(smax32, 1, 4);
+
+static inline void do_umax32(CPURISCVState *env, void *vd, void *va,
+                             void *vb, uint8_t i)
+{
+    uint32_t *d = vd, *a = va, *b = vb;
+
+    d[i] = (a[i] > b[i]) ? a[i] : b[i];
+}
+
+RVPR64_64_64(umax32, 1, 4);
+
+static inline void do_kabs32(CPURISCVState *env, void *vd, void *va, uint8_t i)
+{
+    int32_t *d = vd, *a = va;
+
+    if (a[i] == INT32_MIN) {
+        d[i] = INT32_MAX;
+        env->vxsat = 0x1;
+    } else {
+        d[i] = abs(a[i]);
+    }
+}
+
+RVPR2(kabs32, 1, 4);
