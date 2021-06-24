@@ -516,3 +516,77 @@ GEN_RVP_R_ACC_OOL(pbsada);
 GEN_RVP_R_ACC_OOL(smaqa);
 GEN_RVP_R_ACC_OOL(umaqa);
 GEN_RVP_R_ACC_OOL(smaqa_su);
+
+/*
+ *** 64-bit Profile Instructions
+ */
+/* 64-bit Addition & Subtraction Instructions */
+static bool
+r_d64_s64_s64_ool(DisasContext *ctx, arg_r *a,
+                  void (* fn)(TCGv_i64, TCGv_ptr, TCGv_i64, TCGv_i64))
+{
+    TCGv t1, t2;
+    TCGv_i64 src1, src2, dst;
+
+    if (!has_ext(ctx, RVP) || !ctx->ext_psfoperand) {
+        return false;
+    }
+
+    src1 = tcg_temp_new_i64();
+    src2 = tcg_temp_new_i64();
+    dst = tcg_temp_new_i64();
+
+    if (is_32bit(ctx)) {
+        TCGv a0, a1, b0, b1;
+        a0 = tcg_temp_new();
+        a1 = tcg_temp_new();
+        b0 = tcg_temp_new();
+        b1 = tcg_temp_new();
+
+        gen_get_gpr(a0, a->rs1);
+        gen_get_gpr(a1, a->rs1 + 1);
+        tcg_gen_concat_tl_i64(src1, a0, a1);
+        gen_get_gpr(b0, a->rs2);
+        gen_get_gpr(b1, a->rs2 + 1);
+        tcg_gen_concat_tl_i64(src2, b0, b1);
+
+        tcg_temp_free(a0);
+        tcg_temp_free(a1);
+        tcg_temp_free(b0);
+        tcg_temp_free(b1);
+    } else {
+        t1 = tcg_temp_new();
+        t2 = tcg_temp_new();
+        gen_get_gpr(t1, a->rs1);
+        tcg_gen_ext_tl_i64(src1, t1);
+        gen_get_gpr(t2, a->rs2);
+        tcg_gen_ext_tl_i64(src2, t2);
+        tcg_temp_free(t1);
+        tcg_temp_free(t2);
+    }
+
+    fn(dst, cpu_env, src1, src2);
+    set_pair_regs(ctx, dst, a->rd);
+
+    tcg_temp_free_i64(src1);
+    tcg_temp_free_i64(src2);
+    tcg_temp_free_i64(dst);
+    return true;
+}
+
+#define GEN_RVP_R_D64_S64_S64_OOL(NAME)                   \
+static bool trans_##NAME(DisasContext *s, arg_r *a)       \
+{                                                         \
+    return r_d64_s64_s64_ool(s, a, gen_helper_##NAME);    \
+}
+
+GEN_RVP_R_D64_S64_S64_OOL(add64);
+GEN_RVP_R_D64_S64_S64_OOL(radd64);
+GEN_RVP_R_D64_S64_S64_OOL(uradd64);
+GEN_RVP_R_D64_S64_S64_OOL(kadd64);
+GEN_RVP_R_D64_S64_S64_OOL(ukadd64);
+GEN_RVP_R_D64_S64_S64_OOL(sub64);
+GEN_RVP_R_D64_S64_S64_OOL(rsub64);
+GEN_RVP_R_D64_S64_S64_OOL(ursub64);
+GEN_RVP_R_D64_S64_S64_OOL(ksub64);
+GEN_RVP_R_D64_S64_S64_OOL(uksub64);
