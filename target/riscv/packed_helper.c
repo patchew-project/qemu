@@ -1944,3 +1944,28 @@ static inline void do_kmsxda(CPURISCVState *env, void *vd, void *va,
 }
 
 RVPR_ACC(kmsxda, 1, 4);
+
+/* Signed 16-bit Multiply with 64-bit Add/Subtract Instructions */
+static inline void do_smal(CPURISCVState *env, void *vd, void *va,
+                           void *vb, uint8_t i)
+{
+    int64_t *d = vd, *a = va;
+    int16_t *b = vb;
+
+    if (i == 0) {
+        *d = *a;
+    }
+
+    *d += b[H2(i)] * b[H2(i + 1)];
+}
+
+uint64_t helper_smal(CPURISCVState *env, uint64_t a, target_ulong b)
+{
+    int i;
+    int64_t result = 0;
+
+    for (i = 0; i < sizeof(target_ulong) / 2; i += 2) {
+        do_smal(env, &result, &a, &b, i);
+    }
+    return result;
+}
