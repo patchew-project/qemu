@@ -1126,3 +1126,8 @@ GEN_RVP64_R_ACC_OOL(kdmatt16);
 /* (RV64 Only) 32-bit Multiply Instructions */
 GEN_RVP64_R_OOL(smbt32);
 GEN_RVP64_R_OOL(smtt32);
+
+/* (RV64 Only) 32-bit Multiply & Add Instructions */
+GEN_RVP64_R_ACC_OOL(kmabb32);
+GEN_RVP64_R_ACC_OOL(kmabt32);
+GEN_RVP64_R_ACC_OOL(kmatt32);

@@ -1456,3 +1456,7 @@ DEF_HELPER_4(kdmatt16, tl, env, tl, tl, tl)
 
 DEF_HELPER_3(smbt32, i64, env, i64, i64)
 DEF_HELPER_3(smtt32, i64, env, i64, i64)
+
+DEF_HELPER_4(kmabb32, tl, env, tl, tl, tl)
+DEF_HELPER_4(kmabt32, tl, env, tl, tl, tl)
+DEF_HELPER_4(kmatt32, tl, env, tl, tl, tl)
