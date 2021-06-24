@@ -1988,14 +1988,30 @@ void audio_create_pdos(Audiodev *dev)
         break
 
         CASE(NONE, none, );
+#if defined(CONFIG_AUDIO_ALSA)
         CASE(ALSA, alsa, Alsa);
+#endif
+#if defined(CONFIG_AUDIO_COREAUDIO)
         CASE(COREAUDIO, coreaudio, Coreaudio);
+#endif
+#if defined(CONFIG_AUDIO_DSOUND)
         CASE(DSOUND, dsound, );
+#endif
+#if defined(CONFIG_AUDIO_JACK)
         CASE(JACK, jack, Jack);
+#endif
+#if defined(CONFIG_AUDIO_OSS)
         CASE(OSS, oss, Oss);
+#endif
+#if defined(CONFIG_AUDIO_PA)
         CASE(PA, pa, Pa);
+#endif
+#if defined(CONFIG_AUDIO_SDL)
         CASE(SDL, sdl, Sdl);
+#endif
+#if defined(CONFIG_SPICE)
         CASE(SPICE, spice, );
+#endif
         CASE(WAV, wav, );
 
     case AUDIODEV_DRIVER__MAX:

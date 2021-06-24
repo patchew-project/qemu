@@ -386,8 +386,17 @@
 # Since: 4.0
 ##
 { 'enum': 'AudiodevDriver',
-  'data': [ 'none', 'alsa', 'coreaudio', 'dsound', 'jack', 'oss', 'pa',
-            'sdl', 'spice', 'wav' ] }
+  'data': [
+    { 'name': 'none' },
+    { 'name': 'alsa', 'if': 'defined(CONFIG_AUDIO_ALSA)' },
+    { 'name': 'coreaudio', 'if': 'defined(CONFIG_AUDIO_COREAUDIO)' },
+    { 'name': 'dsound', 'if': 'defined(CONFIG_AUDIO_DSOUND)' },
+    { 'name': 'jack', 'if': 'defined(CONFIG_AUDIO_JACK)' },
+    { 'name': 'oss', 'if': 'defined(CONFIG_AUDIO_OSS)' },
+    { 'name': 'pa', 'if': 'defined(CONFIG_AUDIO_PA)' },
+    { 'name': 'sdl', 'if': 'defined(CONFIG_AUDIO_SDL)' },
+    { 'name': 'spice', 'if': 'defined(CONFIG_SPICE)' },
+    { 'name': 'wav' } ] }
 
 ##
 # @Audiodev:
@@ -410,12 +419,20 @@
   'discriminator': 'driver',
   'data': {
     'none':      'AudiodevGenericOptions',
-    'alsa':      'AudiodevAlsaOptions',
-    'coreaudio': 'AudiodevCoreaudioOptions',
-    'dsound':    'AudiodevDsoundOptions',
-    'jack':      'AudiodevJackOptions',
-    'oss':       'AudiodevOssOptions',
-    'pa':        'AudiodevPaOptions',
-    'sdl':       'AudiodevSdlOptions',
-    'spice':     'AudiodevGenericOptions',
+    'alsa':      { 'type': 'AudiodevAlsaOptions',
+                   'if': 'defined(CONFIG_AUDIO_ALSA)' },
+    'coreaudio': { 'type': 'AudiodevCoreaudioOptions',
+                   'if': 'defined(CONFIG_AUDIO_COREAUDIO)' },
+    'dsound':    { 'type': 'AudiodevDsoundOptions',
+                   'if': 'defined(CONFIG_AUDIO_DSOUND)' },
+    'jack':      { 'type': 'AudiodevJackOptions',
+                   'if': 'defined(CONFIG_AUDIO_JACK)' },
+    'oss':       { 'type': 'AudiodevOssOptions',
+                   'if': 'defined(CONFIG_AUDIO_OSS)' },
+    'pa':        { 'type': 'AudiodevPaOptions',
+                   'if': 'defined(CONFIG_AUDIO_PA)' },
+    'sdl':       { 'type': 'AudiodevSdlOptions',
+                   'if': 'defined(CONFIG_AUDIO_SDL)' },
+    'spice':     { 'type': 'AudiodevGenericOptions',
+                   'if': 'defined(CONFIG_SPICE)' },
     'wav':       'AudiodevWavOptions' } }
