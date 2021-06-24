@@ -2044,3 +2044,47 @@ static inline void do_pbsada(CPURISCVState *env, void *vd, void *va,
 }
 
 RVPR_ACC(pbsada, 1, 1);
+
+/* 8-bit Multiply with 32-bit Add Instructions */
+static inline void do_smaqa(CPURISCVState *env, void *vd, void *va,
+                            void *vb, void *vc, uint8_t i)
+{
+    int8_t *a = va, *b = vb;
+    int32_t *d = vd, *c = vc;
+
+    d[H4(i)] = c[H4(i)] + a[H1(i * 4)] * b[H1(i * 4)] +
+               a[H1(i * 4 + 1)] * b[H1(i * 4 + 1)] +
+               a[H1(i * 4 + 2)] * b[H1(i * 4 + 2)] +
+               a[H1(i * 4 + 3)] * b[H1(i * 4 + 3)];
+}
+
+RVPR_ACC(smaqa, 1, 4);
+
+static inline void do_umaqa(CPURISCVState *env, void *vd, void *va,
+                            void *vb, void *vc, uint8_t i)
+{
+    uint8_t *a = va, *b = vb;
+    uint32_t *d = vd, *c = vc;
+
+    d[H4(i)] = c[H4(i)] + a[H1(i * 4)] * b[H1(i * 4)] +
+               a[H1(i * 4 + 1)] * b[H1(i * 4 + 1)] +
+               a[H1(i * 4 + 2)] * b[H1(i * 4 + 2)] +
+               a[H1(i * 4 + 3)] * b[H1(i * 4 + 3)];
+}
+
+RVPR_ACC(umaqa, 1, 4);
+
+static inline void do_smaqa_su(CPURISCVState *env, void *vd, void *va,
+                               void *vb, void *vc, uint8_t i)
+{
+    int8_t *a = va;
+    uint8_t *b = vb;
+    int32_t *d = vd, *c = vc;
+
+    d[H4(i)] = c[H4(i)] + a[H1(i * 4)] * b[H1(i * 4)] +
+               a[H1(i * 4 + 1)] * b[H1(i * 4 + 1)] +
+               a[H1(i * 4 + 2)] * b[H1(i * 4 + 2)] +
+               a[H1(i * 4 + 3)] * b[H1(i * 4 + 3)];
+}
+
+RVPR_ACC(smaqa_su, 1, 4);
