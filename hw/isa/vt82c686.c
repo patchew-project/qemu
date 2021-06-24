@@ -14,6 +14,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/registerfields.h"
 #include "hw/isa/vt82c686.h"
 #include "hw/pci/pci.h"
 #include "hw/qdev-properties.h"
@@ -38,6 +39,16 @@
 #define TYPE_VIA_PM "via-pm"
 OBJECT_DECLARE_SIMPLE_TYPE(ViaPMState, VIA_PM)
 
+REG8(PM_GEN_CFG0,                   0x40)
+REG8(PM_GEN_CFG1,                   0x41)
+FIELD(PM_GEN_CFG1, ACPI_IO_ENABLE,  7, 1)
+REG32(PM_IO_BASE,                   0x48)
+FIELD(PM_IO_BASE, ADDR,             7, 9)
+REG32(SMBUS_IO_BASE,                0x90)
+FIELD(SMBUS_IO_BASE, ADDR,          4, 12)
+REG8(SMBUS_HOST_CONFIG,             0xd2)
+FIELD(SMBUS_HOST_CONFIG, ENABLE,    0, 1)
+
 struct ViaPMState {
     PCIDevice dev;
     MemoryRegion io;
@@ -48,21 +59,24 @@ struct ViaPMState {
 
 static void pm_io_space_update(ViaPMState *s)
 {
-    uint32_t pmbase = pci_get_long(s->dev.config + 0x48) & 0xff80UL;
+    uint32_t pmbase = pci_get_long(s->dev.config + A_PM_IO_BASE);
 
     memory_region_transaction_begin();
-    memory_region_set_address(&s->io, pmbase);
-    memory_region_set_enabled(&s->io, s->dev.config[0x41] & BIT(7));
+    memory_region_set_address(&s->io, pmbase & R_PM_IO_BASE_ADDR_MASK);
+    memory_region_set_enabled(&s->io, FIELD_EX32(s->dev.config[A_PM_GEN_CFG1],
+                                      PM_GEN_CFG1, ACPI_IO_ENABLE));
     memory_region_transaction_commit();
 }
 
 static void smb_io_space_update(ViaPMState *s)
 {
-    uint32_t smbase = pci_get_long(s->dev.config + 0x90) & 0xfff0UL;
+    uint32_t smbase = pci_get_long(s->dev.config + A_SMBUS_IO_BASE);
 
     memory_region_transaction_begin();
-    memory_region_set_address(&s->smb.io, smbase);
-    memory_region_set_enabled(&s->smb.io, s->dev.config[0xd2] & BIT(0));
+    memory_region_set_address(&s->smb.io, smbase & R_SMBUS_IO_BASE_ADDR_MASK);
+    memory_region_set_enabled(&s->smb.io,
+                              FIELD_EX32(s->dev.config[A_SMBUS_HOST_CONFIG],
+                                         SMBUS_HOST_CONFIG, ENABLE));
     memory_region_transaction_commit();
 }
 
@@ -98,19 +112,21 @@ static void pm_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int len)
 
     trace_via_pm_write(addr, val, len);
     pci_default_write_config(d, addr, val, len);
-    if (ranges_overlap(addr, len, 0x48, 4)) {
-        uint32_t v = pci_get_long(s->dev.config + 0x48);
-        pci_set_long(s->dev.config + 0x48, (v & 0xff80UL) | 1);
+    if (ranges_overlap(addr, len, A_PM_IO_BASE, 4)) {
+        uint32_t v = pci_get_long(s->dev.config + A_PM_IO_BASE);
+        pci_set_long(s->dev.config + A_PM_IO_BASE,
+                     (v & R_PM_IO_BASE_ADDR_MASK) | 1);
     }
-    if (range_covers_byte(addr, len, 0x41)) {
+    if (range_covers_byte(addr, len, A_PM_GEN_CFG1)) {
         pm_io_space_update(s);
     }
-    if (ranges_overlap(addr, len, 0x90, 4)) {
-        uint32_t v = pci_get_long(s->dev.config + 0x90);
-        pci_set_long(s->dev.config + 0x90, (v & 0xfff0UL) | 1);
+    if (ranges_overlap(addr, len, A_SMBUS_IO_BASE, 4)) {
+        uint32_t v = pci_get_long(s->dev.config + A_SMBUS_IO_BASE);
+        pci_set_long(s->dev.config + A_SMBUS_IO_BASE,
+                     (v & R_SMBUS_IO_BASE_ADDR_MASK) | 1);
     }
-    if (range_covers_byte(addr, len, 0xd2)) {
-        s->dev.config[0xd2] &= 0xf;
+    if (range_covers_byte(addr, len, A_SMBUS_HOST_CONFIG)) {
+        s->dev.config[A_SMBUS_HOST_CONFIG] &= 0xf;
         smb_io_space_update(s);
     }
 }
@@ -176,9 +192,9 @@ static void via_pm_reset(DeviceState *d)
     memset(s->dev.config + PCI_CONFIG_HEADER_SIZE, 0,
            PCI_CONFIG_SPACE_SIZE - PCI_CONFIG_HEADER_SIZE);
     /* Power Management IO base */
-    pci_set_long(s->dev.config + 0x48, 1);
+    pci_set_long(s->dev.config + A_PM_IO_BASE, 1);
     /* SMBus IO base */
-    pci_set_long(s->dev.config + 0x90, 1);
+    pci_set_long(s->dev.config + A_SMBUS_IO_BASE, 1);
 
     acpi_pm1_evt_reset(&s->ar);
     acpi_pm1_cnt_reset(&s->ar);
