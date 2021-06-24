@@ -187,3 +187,19 @@ GEN_RVP_SHIFTI(slli16, tcg_gen_vec_shl16i_tl, gen_helper_sll16);
 GEN_RVP_SHIFTI(srai16_u, NULL, gen_helper_sra16_u);
 GEN_RVP_SHIFTI(srli16_u, NULL, gen_helper_srl16_u);
 GEN_RVP_SHIFTI(kslli16, NULL, gen_helper_ksll16);
+
+/* SIMD 8-bit Shift Instructions */
+GEN_RVP_R_OOL(sra8);
+GEN_RVP_R_OOL(srl8);
+GEN_RVP_R_OOL(sll8);
+GEN_RVP_R_OOL(sra8_u);
+GEN_RVP_R_OOL(srl8_u);
+GEN_RVP_R_OOL(ksll8);
+GEN_RVP_R_OOL(kslra8);
+GEN_RVP_R_OOL(kslra8_u);
+GEN_RVP_SHIFTI(srai8, tcg_gen_vec_sar8i_tl, gen_helper_sra8);
+GEN_RVP_SHIFTI(srli8, tcg_gen_vec_shr8i_tl, gen_helper_srl8);
+GEN_RVP_SHIFTI(slli8, tcg_gen_vec_shl8i_tl, gen_helper_sll8);
+GEN_RVP_SHIFTI(srai8_u, NULL, gen_helper_sra8_u);
+GEN_RVP_SHIFTI(srli8_u, NULL, gen_helper_srl8_u);
+GEN_RVP_SHIFTI(kslli8, NULL, gen_helper_ksll8);
