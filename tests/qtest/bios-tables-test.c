@@ -1079,6 +1079,18 @@ static void test_acpi_q35_tcg_nohpet(void)
     free_test_data(&data);
 }
 
+static void test_acpi_q35_tcg_dmar(void)
+{
+    test_data data;
+
+    memset(&data, 0, sizeof(data));
+    data.machine = MACHINE_Q35;
+    data.variant = ".dmar";
+    test_acpi_one("-machine kernel-irqchip=split -accel kvm"
+                  " -device intel-iommu,intremap=on,device-iotlb=on", &data);
+    free_test_data(&data);
+}
+
 static void test_acpi_piix4_tcg_numamem(void)
 {
     test_data data;
@@ -1565,6 +1577,7 @@ int main(int argc, char *argv[])
         }
         if (has_kvm) {
             qtest_add_func("acpi/q35/numamem", test_acpi_q35_kvm_numamem);
+            qtest_add_func("acpi/q35/dmar", test_acpi_q35_tcg_dmar);
         }
     } else if (strcmp(arch, "aarch64") == 0) {
         qtest_add_func("acpi/virt", test_acpi_virt_tcg);
