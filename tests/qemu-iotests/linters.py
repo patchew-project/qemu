@@ -115,3 +115,16 @@ def run_linters(
             print(p.stdout)
 
     return ret
+
+
+def main() -> int:
+    """
+    Used by the Python CI system as an entry point to run these linters.
+    """
+    directory = os.path.dirname(os.path.realpath(__file__))
+    files = get_test_files(directory)
+    return run_linters(files, directory)
+
+
+if __name__ == '__main__':
+    sys.exit(main())
