@@ -66,6 +66,7 @@ def get_test_files(directory: str = '.') -> List[str]:
 
 def run_linters(
     files: List[str],
+    directory: str = '.',
     env: Optional[Mapping[str, str]] = None,
 ) -> None:
 
@@ -76,6 +77,7 @@ def run_linters(
     # fixed (in tests, at least)
     subprocess.run(
         ('python3', '-m', 'pylint', '--score=n', '--notes=FIXME,XXX', *files),
+        cwd=directory,
         env=env,
         check=False,
     )
@@ -103,6 +105,7 @@ def run_linters(
                 '--namespace-packages',
                 filename,
             ),
+            cwd=directory,
             env=env,
             check=False,
             stdout=subprocess.PIPE,
