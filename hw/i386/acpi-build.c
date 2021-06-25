@@ -1380,11 +1380,11 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
 #endif
     int i;
     VMBusBridge *vmbus_bridge = vmbus_bridge_find();
+    AcpiTable table = { .sig = "DSDT", .rev = 1, .oem_id = x86ms->oem_id,
+                        .oem_table_id = x86ms->oem_table_id };
 
+    acpi_init_table(&table, table_data);
     dsdt = init_aml_allocator();
-
-    /* Reserve space for header */
-    acpi_data_push(dsdt->buf, sizeof(AcpiTableHeader));
 
     build_dbg_aml(dsdt);
     if (misc->is_piix4) {
@@ -1816,9 +1816,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
 
     /* copy AML table into ACPI tables blob and patch header there */
     g_array_append_vals(table_data, dsdt->buf->data, dsdt->buf->len);
-    build_header(linker, table_data,
-        (void *)(table_data->data + table_data->len - dsdt->buf->len),
-                 "DSDT", dsdt->buf->len, 1, x86ms->oem_id, x86ms->oem_table_id);
+    acpi_table_composed(linker, &table);
     free_aml_allocator();
 }
 
