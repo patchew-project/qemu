@@ -107,6 +107,99 @@ Note:
    may result guest data corruption (e.g. breakage of guest file
    system).
 
+Target node
+-----------
+
+Linux kernel version 5.1 brings in support for the volatile-use of
+persistent memory as a hotplugged memory region (KMEM DAX).
+When this feature is enabled, persistent memory can be seen as a
+separate memory-only NUMA node(s). This newly-added memory can be
+selected by its unique NUMA node.
+Add 'target-node' option for nvdimm device to indicate this NUMA node.
+It can be extended after all existing NUMA nodes.
+
+An example of configuration is presented below.
+
+Using the following QEMU command:
+ -object memory-backend-file,id=nvmem1,share=on,mem-path=/dev/dax0.0,size=3G,align=2M
+ -device nvdimm,id=nvdimm1,memdev=mem1,label-size=128K,targe-node=1
+
+The below operations are in Guest.
+
+To list available NUMA nodes using numactl:
+ # numactl -H
+ available: 1 nodes (0)
+ node 0 cpus: 0 1 2 3 4 5 6 7
+ node 0 size: 5933 MB
+ node 0 free: 5457 MB
+ node distances:
+ node   0
+   0:  10
+
+To create a namespace in Device-DAX mode as a standard memory from
+all the available capacity of NVDIMM:
+
+ # ndctl create-namespace --mode=devdax --map=mem
+ {
+   "dev":"namespace0.0",
+   "mode":"devdax",
+   "map":"mem",
+   "size":"3.00 GiB (3.22 GB)",
+   "uuid":"4e4d8293-dd3b-4e43-8ad9-7f3d2a8d1680",
+   "daxregion":{
+     "id":0,
+     "size":"3.00 GiB (3.22 GB)",
+     "align":2097152,
+     "devices":[
+       {
+         "chardev":"dax0.0",
+         "size":"3.00 GiB (3.22 GB)",
+         "target_node":1,
+         "mode":"devdax"
+       }
+     ]
+   },
+   "align":2097152
+ }
+
+To list DAX devices:
+ # daxctl list -u
+ {
+   "chardev":"dax0.0",
+   "size":"3.00 GiB (3.22 GB)",
+   "target_node":1,
+   "mode":"devdax"
+ }
+
+To reconfigure DAX device from devdax mode to a system-ram mode:
+ # daxctl reconfigure-device dax0.0 --mode=system-ram
+ [
+   {
+     "chardev":"dax0.0",
+     "size":3217031168,
+     "target_node":1,
+     "mode":"system-ram",
+     "movable":false
+   }
+ ]
+
+After this operation, persistent memory is configured as a separate NUMA node
+and can be used as a volatile memory.
+The new NUMA node is Node 1:
+ # numactl -H
+ available: 2 nodes (0-1)
+ node 0 cpus: 0 1 2 3 4 5 6 7
+ node 0 size: 5933 MB
+ node 0 free: 5339 MB
+ node 1 cpus:
+ node 1 size: 2816 MB
+ node 1 free: 2815 MB
+ node distances:
+ node   0   1
+   0:  10  20
+   1:  20  10
+
+
 Hotplug
 -------
 

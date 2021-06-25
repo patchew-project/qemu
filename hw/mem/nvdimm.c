@@ -27,10 +27,14 @@
 #include "qemu/pmem.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
+#include "hw/boards.h"
 #include "hw/mem/nvdimm.h"
 #include "hw/qdev-properties.h"
 #include "hw/mem/memory-device.h"
 #include "sysemu/hostmem.h"
+
+unsigned long nvdimm_target_nodes[BITS_TO_LONGS(MAX_NODES)];
+int nvdimm_max_target_node;
 
 static void nvdimm_get_label_size(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
@@ -95,7 +99,6 @@ static void nvdimm_set_uuid(Object *obj, Visitor *v, const char *name,
 
     g_free(value);
 }
-
 
 static void nvdimm_init(Object *obj)
 {
@@ -181,6 +184,23 @@ static MemoryRegion *nvdimm_md_get_memory_region(MemoryDeviceState *md,
 static void nvdimm_realize(PCDIMMDevice *dimm, Error **errp)
 {
     NVDIMMDevice *nvdimm = NVDIMM(dimm);
+    MachineState *ms = MACHINE(qdev_get_machine());
+    int nb_numa_nodes = ms->numa_state->num_nodes;
+
+    if (nvdimm->target_node >= MAX_NODES) {
+        error_setg(errp, "'NVDIMM property " NVDIMM_TARGET_NODE_PROP
+                   " has value %" PRIu32
+                   "' which exceeds the max number of numa nodes: %d",
+                   nvdimm->target_node, MAX_NODES);
+        return;
+    }
+
+    if (nvdimm->target_node >= nb_numa_nodes) {
+        set_bit(nvdimm->target_node, nvdimm_target_nodes);
+        if (nvdimm->target_node > nvdimm_max_target_node) {
+            nvdimm_max_target_node = nvdimm->target_node;
+        }
+    }
 
     if (!nvdimm->nvdimm_mr) {
         nvdimm_prepare_memory_region(nvdimm, errp);
@@ -229,6 +249,7 @@ static void nvdimm_write_label_data(NVDIMMDevice *nvdimm, const void *buf,
 
 static Property nvdimm_properties[] = {
     DEFINE_PROP_BOOL(NVDIMM_UNARMED_PROP, NVDIMMDevice, unarmed, false),
+    DEFINE_PROP_INT32(NVDIMM_TARGET_NODE_PROP, NVDIMMDevice, target_node, -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
