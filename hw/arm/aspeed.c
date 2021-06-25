@@ -677,6 +677,10 @@ static void g220a_bmc_i2c_init(AspeedMachineState *bmc)
 static void rainier_bmc_i2c_init(AspeedMachineState *bmc)
 {
     AspeedSoCState *soc = &bmc->soc;
+    I2CSlave *i2c_mux;
+
+    smbus_eeprom_init_one(aspeed_i2c_get_bus(&soc->i2c, 0), 0x51,
+                          g_malloc0(32 * 1024));
 
     /* The rainier expects a TMP275 but a TMP105 is compatible */
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 4), TYPE_TMP105,
@@ -685,11 +689,25 @@ static void rainier_bmc_i2c_init(AspeedMachineState *bmc)
                      0x49);
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 4), TYPE_TMP105,
                      0x4a);
+    i2c_mux = i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 4),
+                                      "pca9546", 0x70);
+    smbus_eeprom_init_one(pca954x_i2c_get_bus(i2c_mux, 0), 0x50,
+                          g_malloc0(64 * 1024));
+    smbus_eeprom_init_one(pca954x_i2c_get_bus(i2c_mux, 1), 0x51,
+                          g_malloc0(64 * 1024));
+    smbus_eeprom_init_one(pca954x_i2c_get_bus(i2c_mux, 2), 0x52,
+                          g_malloc0(64 * 1024));
 
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 5), TYPE_TMP105,
                      0x48);
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 5), TYPE_TMP105,
                      0x49);
+    i2c_mux = i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 5),
+                                      "pca9546", 0x70);
+    smbus_eeprom_init_one(pca954x_i2c_get_bus(i2c_mux, 0), 0x50,
+                          g_malloc0(64 * 1024));
+    smbus_eeprom_init_one(pca954x_i2c_get_bus(i2c_mux, 1), 0x51,
+                          g_malloc0(64 * 1024));
 
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 6), TYPE_TMP105,
                      0x48);
@@ -697,6 +715,16 @@ static void rainier_bmc_i2c_init(AspeedMachineState *bmc)
                      0x4a);
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 6), TYPE_TMP105,
                      0x4b);
+    i2c_mux = i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 6),
+                                      "pca9546", 0x70);
+    smbus_eeprom_init_one(pca954x_i2c_get_bus(i2c_mux, 0), 0x50,
+                          g_malloc0(64 * 1024));
+    smbus_eeprom_init_one(pca954x_i2c_get_bus(i2c_mux, 1), 0x51,
+                          g_malloc0(64 * 1024));
+    smbus_eeprom_init_one(pca954x_i2c_get_bus(i2c_mux, 2), 0x50,
+                          g_malloc0(64 * 1024));
+    smbus_eeprom_init_one(pca954x_i2c_get_bus(i2c_mux, 3), 0x51,
+                          g_malloc0(64 * 1024));
 
     /* Bus 7: TODO dps310@76 */
     /* Bus 7: TODO max31785@52 */
@@ -704,11 +732,19 @@ static void rainier_bmc_i2c_init(AspeedMachineState *bmc)
     /* Bus 7: TODO si7021-a20@20 */
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 7), TYPE_TMP105,
                      0x48);
+    smbus_eeprom_init_one(aspeed_i2c_get_bus(&soc->i2c, 7), 0x50,
+                          g_malloc0(64 * 1024));
+    smbus_eeprom_init_one(aspeed_i2c_get_bus(&soc->i2c, 7), 0x51,
+                          g_malloc0(64 * 1024));
 
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 8), TYPE_TMP105,
                      0x48);
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 8), TYPE_TMP105,
                      0x4a);
+    smbus_eeprom_init_one(aspeed_i2c_get_bus(&soc->i2c, 8), 0x50,
+                          g_malloc0(64 * 1024));
+    smbus_eeprom_init_one(aspeed_i2c_get_bus(&soc->i2c, 8), 0x51,
+                          g_malloc0(64 * 1024));
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 8), "pca9552", 0x61);
     /* Bus 8: ucd90320@11 */
     /* Bus 8: ucd90320@b */
@@ -716,14 +752,34 @@ static void rainier_bmc_i2c_init(AspeedMachineState *bmc)
 
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 9), "tmp423", 0x4c);
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 9), "tmp423", 0x4d);
+    smbus_eeprom_init_one(aspeed_i2c_get_bus(&soc->i2c, 9), 0x50,
+                          g_malloc0(128 * 1024));
 
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 10), "tmp423", 0x4c);
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 10), "tmp423", 0x4d);
+    smbus_eeprom_init_one(aspeed_i2c_get_bus(&soc->i2c, 10), 0x50,
+                          g_malloc0(128 * 1024));
 
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 11), TYPE_TMP105,
                      0x48);
     i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 11), TYPE_TMP105,
                      0x49);
+    i2c_mux = i2c_slave_create_simple(aspeed_i2c_get_bus(&soc->i2c, 11),
+                                      "pca9546", 0x70);
+    smbus_eeprom_init_one(pca954x_i2c_get_bus(i2c_mux, 0), 0x50,
+                          g_malloc0(64 * 1024));
+    smbus_eeprom_init_one(pca954x_i2c_get_bus(i2c_mux, 1), 0x51,
+                          g_malloc0(64 * 1024));
+
+
+    smbus_eeprom_init_one(aspeed_i2c_get_bus(&soc->i2c, 13), 0x50,
+                          g_malloc0(64 * 1024));
+
+    smbus_eeprom_init_one(aspeed_i2c_get_bus(&soc->i2c, 14), 0x50,
+                          g_malloc0(64 * 1024));
+
+    smbus_eeprom_init_one(aspeed_i2c_get_bus(&soc->i2c, 15), 0x50,
+                          g_malloc0(64 * 1024));
 }
 
 static bool aspeed_get_mmio_exec(Object *obj, Error **errp)
