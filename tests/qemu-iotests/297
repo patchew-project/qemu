@@ -21,7 +21,7 @@ import re
 import shutil
 import subprocess
 import sys
-from typing import List
+from typing import List, Mapping, Optional
 
 import iotests
 
@@ -64,24 +64,16 @@ def get_test_files(directory: str = '.') -> List[str]:
     ]
 
 
-def run_linters():
-    files = get_test_files()
-
-    iotests.logger.debug('Files to be checked:')
-    iotests.logger.debug(', '.join(sorted(files)))
+def run_linters(
+    files: List[str],
+    env: Optional[Mapping[str, str]] = None,
+) -> None:
 
     print('=== pylint ===')
     sys.stdout.flush()
 
     # Todo notes are fine, but fixme's or xxx's should probably just be
     # fixed (in tests, at least)
-    env = os.environ.copy()
-    qemu_module_path = os.path.join(os.path.dirname(__file__),
-                                    '..', '..', 'python')
-    try:
-        env['PYTHONPATH'] += os.pathsep + qemu_module_path
-    except KeyError:
-        env['PYTHONPATH'] = qemu_module_path
     subprocess.run(
         ('python3', '-m', 'pylint', '--score=n', '--notes=FIXME,XXX', *files),
         env=env,
@@ -95,7 +87,6 @@ def run_linters():
     # will interpret all given files as belonging together (i.e., they
     # may not both define the same classes, etc.; most notably, they
     # must not both define the __main__ module).
-    env['MYPYPATH'] = env['PYTHONPATH']
     for filename in files:
         p = subprocess.run(
             (
@@ -128,7 +119,22 @@ def main() -> None:
         if shutil.which(linter) is None:
             iotests.notrun(f'{linter} not found')
 
-    run_linters()
+    files = get_test_files()
+
+    iotests.logger.debug('Files to be checked:')
+    iotests.logger.debug(', '.join(sorted(files)))
+
+    env = os.environ.copy()
+    qemu_module_path = os.path.join(os.path.dirname(__file__),
+                                    '..', '..', 'python')
+    try:
+        env['PYTHONPATH'] += os.pathsep + qemu_module_path
+    except KeyError:
+        env['PYTHONPATH'] = qemu_module_path
+
+    env['MYPYPATH'] = env['PYTHONPATH']
+
+    run_linters(files, env=env)
 
 
 iotests.script_main(main)
