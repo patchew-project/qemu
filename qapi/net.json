@@ -7,6 +7,7 @@
 ##
 
 { 'include': 'common.json' }
+{ 'include': 'sockets.json' }
 
 ##
 # @set_link:
@@ -696,3 +697,80 @@
 ##
 { 'event': 'FAILOVER_NEGOTIATED',
   'data': {'device-id': 'str'} }
+
+##
+# @IPFlowSpec:
+#
+# IP flow specification.
+#
+# @protocol: Transport layer protocol like TCP/UDP, etc. The protocol is the
+#            string instead of enum, because it can be passed to getprotobyname(3)
+#            and avoid duplication with /etc/protocols.
+#
+# @object-name: The @object-name means a qemu object with network packet
+#               processing function, for example colo-compare, filtr-redirector
+#               filtr-mirror, etc. VM can running with multi network packet
+#               processing function objects. They can control different network
+#               data paths from netdev or chardev. So it needs the object-name
+#               to set the effective module.
+#
+# @source: Source address and port.
+#
+# @destination: Destination address and port.
+#
+# Since: 6.1
+##
+{ 'struct': 'IPFlowSpec',
+  'data': { '*protocol': 'str', 'object-name': 'str',
+    '*source': 'InetSocketAddressBase',
+    '*destination': 'InetSocketAddressBase' } }
+
+##
+# @passthrough-filter-add:
+#
+# Add passthrough entry IPFlowSpec to a qemu object with network packet
+# processing function, for example filtr-mirror, COLO-compare, etc.
+# The object-name is necessary. The protocol and source/destination IP and
+# source/destination ports are optional. if only inputs part of the
+# information, it will match all traffic.
+#
+# Returns: Nothing on success
+#
+# Since: 6.1
+#
+# Example:
+#
+# -> { "execute": "passthrough-filter-add",
+#      "arguments": { "protocol": "tcp", "object-name": "object0",
+#      "source": {"host": "192.168.1.1", "port": "1234"},
+#      "destination": {"host": "192.168.1.2", "port": "4321"} } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'passthrough-filter-add', 'boxed': true,
+     'data': 'IPFlowSpec' }
+
+##
+# @passthrough-filter-del:
+#
+# Delete passthrough entry IPFlowSpec to a qemu object with network packet
+# processing function, for example filtr-mirror, COLO-compare, etc.
+# The object-name is necessary. The protocol and source/destination IP and
+# source/destination ports are optional. if only inputs part of the
+# information, only the exact same rule will be deleted.
+#
+# Returns: Nothing on success
+#
+# Since: 6.1
+#
+# Example:
+#
+# -> { "execute": "passthrough-filter-del",
+#      "arguments": { "protocol": "tcp", "object-name": "object0",
+#      "source": {"host": "192.168.1.1", "port": "1234"},
+#      "destination": {"host": "192.168.1.2", "port": "4321"} } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'passthrough-filter-del', 'boxed': true,
+     'data': 'IPFlowSpec' }
