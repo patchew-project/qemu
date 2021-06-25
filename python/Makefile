@@ -1,4 +1,6 @@
-.PHONY: help pipenv check-pipenv check clean distclean develop
+.PHONY: help pipenv venv check-venv check-pipenv check clean distclean develop
+
+QEMU_VENV_DIR=~/.cache/qemu-pyvenv
 
 help:
 	@echo "python packaging help:"
@@ -15,6 +17,11 @@ help:
 	@echo "    Requires: Python 3.6-3.10 and tox."
 	@echo "    Hint (Fedora): 'sudo dnf install python3-tox python3.10'"
 	@echo ""
+	@echo "make check-venv:"
+	@echo "    Run tests in a venv against your default python3 version."
+	@echo "    These tests use the newest dependencies."
+	@echo "    Requires: Python 3.x"
+	@echo ""
 	@echo "make develop:    Install deps for 'make check', and"
 	@echo "                 the qemu libs in editable/development mode."
 	@echo ""
@@ -22,6 +29,9 @@ help:
 	@echo ""
 	@echo "make pipenv"
 	@echo "    Creates pipenv's virtual environment (.venv)"
+	@echo ""
+	@echo "make venv"
+	@echo "    Creates a simple venv for check-venv. ($(QEMU_VENV_DIR))"
 	@echo ""
 	@echo "make clean:      remove package build output."
 	@echo ""
@@ -37,8 +47,27 @@ pipenv: .venv
 check-pipenv: pipenv
 	@pipenv run make check
 
+venv: $(QEMU_VENV_DIR) $(QEMU_VENV_DIR)/bin/activate
+$(QEMU_VENV_DIR) $(QEMU_VENV_DIR)/bin/activate: setup.cfg
+	@echo "VENV $(QEMU_VENV_DIR)"
+	@python3 -m venv $(QEMU_VENV_DIR)
+	@(							\
+		echo "ACTIVATE $(QEMU_VENV_DIR)";		\
+		. $(QEMU_VENV_DIR)/bin/activate;		\
+		echo "INSTALL qemu[devel] $(QEMU_VENV_DIR)";	\
+		make develop 1>/dev/null;			\
+	)
+	@touch $(QEMU_VENV_DIR)
+
+check-venv: venv
+	@(							\
+		echo "ACTIVATE $(QEMU_VENV_DIR)";		\
+		. $(QEMU_VENV_DIR)/bin/activate;		\
+		make check;					\
+	)
+
 develop:
-	pip3 install -e .[devel]
+	pip3 install --disable-pip-version-check -e .[devel]
 
 check:
 	@avocado --config avocado.cfg run tests/
@@ -50,4 +79,4 @@ clean:
 	python3 setup.py clean --all
 
 distclean: clean
-	rm -rf qemu.egg-info/ .venv/ .tox/ dist/
+	rm -rf qemu.egg-info/ .venv/ .tox/ $(QEMU_VENV_DIR) dist/
