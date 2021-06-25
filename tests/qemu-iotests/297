@@ -21,6 +21,7 @@ import re
 import shutil
 import subprocess
 import sys
+from typing import List
 
 import iotests
 
@@ -56,9 +57,15 @@ def is_python_file(filename: str, directory: str = '.') -> bool:
             return False
 
 
+def get_test_files(directory: str = '.') -> List[str]:
+    return [
+        f for f in (set(os.listdir(directory)) - set(SKIP_FILES))
+        if is_python_file(f, directory)
+    ]
+
+
 def run_linters():
-    files = [filename for filename in (set(os.listdir('.')) - set(SKIP_FILES))
-             if is_python_file(filename)]
+    files = get_test_files()
 
     iotests.logger.debug('Files to be checked:')
     iotests.logger.debug(', '.join(sorted(files)))
