@@ -49,6 +49,7 @@ help:
 pipenv: .venv
 .venv: Pipfile.lock
 	@PIPENV_VENV_IN_PROJECT=1 pipenv sync --dev --keep-outdated
+	rm -f pyproject.toml
 	@touch .venv
 
 check-pipenv: pipenv
@@ -84,6 +85,7 @@ check-tox:
 
 clean:
 	python3 setup.py clean --all
+	rm -f pyproject.toml
 
 distclean: clean
 	rm -rf qemu.egg-info/ .venv/ .tox/ $(QEMU_VENV_DIR) dist/
