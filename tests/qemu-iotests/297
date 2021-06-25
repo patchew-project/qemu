@@ -39,14 +39,16 @@ SKIP_FILES = (
 )
 
 
-def is_python_file(filename):
-    if not os.path.isfile(filename):
+def is_python_file(filename: str, directory: str = '.') -> bool:
+    filepath = os.path.join(directory, filename)
+
+    if not os.path.isfile(filepath):
         return False
 
     if filename.endswith('.py'):
         return True
 
-    with open(filename) as f:
+    with open(filepath) as f:
         try:
             first_line = f.readline()
             return re.match('^#!.*python', first_line) is not None
