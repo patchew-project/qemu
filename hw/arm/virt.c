@@ -846,8 +846,8 @@ static void create_gpio_keys(char *fdt, DeviceState *pl061_dev,
                            "gpios", phandle, 3, 0);
 }
 
-#define SECURE_GPIO_POWEROFF 0
-#define SECURE_GPIO_RESET    1
+#define SECURE_GPIO_POWEROFF 1
+#define SECURE_GPIO_RESET    2
 
 static void create_secure_gpio_pwr(char *fdt, DeviceState *pl061_dev,
                                    uint32_t phandle)
