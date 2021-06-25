@@ -37,11 +37,14 @@ help:
 	@echo "make venv"
 	@echo "    Creates a simple venv for check-venv. ($(QEMU_VENV_DIR))"
 	@echo ""
-	@echo "make clean:      remove package build output."
+	@echo "make clean:"
+	@echo "    Remove package build output."
 	@echo ""
-	@echo "make distclean:  remove venv files, qemu package forwarder,"
-	@echo "                 built distribution files, and everything"
-	@echo "                 from 'make clean'."
+	@echo "make distclean:"
+	@echo "    remove pipenv/venv files, qemu package forwarder,"
+	@echo "    built distribution files, and everything from 'make clean'."
+	@echo ""
+	@echo -e "Have a nice day ^_^\n"
 
 pipenv: .venv
 .venv: Pipfile.lock
