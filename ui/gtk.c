@@ -2189,6 +2189,8 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
     GdkDisplay *window_display;
     GtkIconTheme *theme;
     char *dir;
+    int monitor_n;
+    bool monitor_status = false;
 
     if (!gtkinit) {
         fprintf(stderr, "gtk initialization failed\n");
@@ -2268,6 +2270,34 @@ static void gtk_display_init(DisplayState *ds, DisplayOptions *opts)
         gtk_menu_item_activate(GTK_MENU_ITEM(s->grab_on_hover_item));
     }
     gd_clipboard_init(s);
+
+    if (opts->u.gtk.has_full_screen_on_monitor) {
+        monitor_n = gdk_display_get_n_monitors(window_display);
+
+        if (opts->u.gtk.full_screen_on_monitor <= monitor_n &&
+            opts->u.gtk.full_screen_on_monitor > 0) {
+            gtk_window_fullscreen_on_monitor(GTK_WINDOW(s->window),
+                gdk_display_get_default_screen(window_display),
+                opts->u.gtk.full_screen_on_monitor - 1);
+
+            if (gdk_display_get_monitor(window_display,
+                                        opts->u.gtk.full_screen_on_monitor
+                                        - 1) != NULL) {
+                monitor_status = true;
+            }
+        }
+        if (monitor_status == false) {
+            /*
+             * Calling GDK API to read the number of monitors again in case
+             * monitor added or removed since last read.
+             */
+            monitor_n = gdk_display_get_n_monitors(window_display);
+            warn_report("Failed to enable full screen on monitor %" PRId64 ". "
+                        "Current total number of monitors is %d, "
+                        "please verify full-screen-on-monitor option value.",
+                        opts->u.gtk.full_screen_on_monitor, monitor_n);
+        }
+    }
 }
 
 static void early_gtk_display_init(DisplayOptions *opts)

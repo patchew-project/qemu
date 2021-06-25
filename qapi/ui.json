@@ -1035,13 +1035,17 @@
 #               assuming the guest will resize the display to match
 #               the window size then.  Otherwise it defaults to "off".
 #               Since 3.1
-#
+# @full-screen-on-monitor: Monitor number to display QEMU in full screen.
+#                          Monitor number started from index 1. If total number
+#                          of monitors is 3, possible values for this option are
+#                          1, 2 or 3.
 # Since: 2.12
 #
 ##
 { 'struct'  : 'DisplayGTK',
-  'data'    : { '*grab-on-hover' : 'bool',
-                '*zoom-to-fit'   : 'bool'  } }
+  'data'    : { '*grab-on-hover'          : 'bool',
+                '*zoom-to-fit'            : 'bool',
+                '*full-screen-on-monitor' : 'int' } }
 
 ##
 # @DisplayEGLHeadless:
