@@ -636,6 +636,11 @@ static void dwc2_enable_chan(DWC2State *s,  uint32_t index)
     }
 
     if (eptype == USB_ENDPOINT_XFER_CONTROL && pid == TSIZ_SC_MC_PID_SETUP) {
+        if (epnum != 0) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "epnum should be 0 for the control endpoint\n");
+            epnum = 0;
+        }
         pid = USB_TOKEN_SETUP;
     } else {
         pid = epdir ? USB_TOKEN_IN : USB_TOKEN_OUT;
