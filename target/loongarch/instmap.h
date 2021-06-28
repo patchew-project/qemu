@@ -67,6 +67,38 @@ enum {
     LA_OPC_TRPICK_W  = (0x003 << 21) | (0x1 << 15)
 };
 
+/* floating point opcodes*/
+enum {
+    LA_OPC_FABS_S    = (0x004501 << 10),
+    LA_OPC_FABS_D    = (0x004502 << 10),
+    LA_OPC_FNEG_S    = (0x004505 << 10),
+    LA_OPC_FNEG_D    = (0x004506 << 10),
+    LA_OPC_FCLASS_S  = (0x00450D << 10),
+    LA_OPC_FCLASS_D  = (0x00450E << 10),
+    LA_OPC_FSQRT_S   = (0x004511 << 10),
+    LA_OPC_FSQRT_D   = (0x004512 << 10),
+    LA_OPC_FRECIP_S  = (0x004515 << 10),
+    LA_OPC_FRECIP_D  = (0x004516 << 10),
+    LA_OPC_FRSQRT_S  = (0x004519 << 10),
+    LA_OPC_FRSQRT_D  = (0x00451A << 10),
+    LA_OPC_FADD_S    = (0x00201 << 15),
+    LA_OPC_FADD_D    = (0x00202 << 15),
+    LA_OPC_FSUB_S    = (0x00205 << 15),
+    LA_OPC_FSUB_D    = (0x00206 << 15),
+    LA_OPC_FMUL_S    = (0x00209 << 15),
+    LA_OPC_FMUL_D    = (0x0020A << 15),
+    LA_OPC_FDIV_S    = (0x0020D << 15),
+    LA_OPC_FDIV_D    = (0x0020E << 15),
+    LA_OPC_FMAX_S    = (0x00211 << 15),
+    LA_OPC_FMAX_D    = (0x00212 << 15),
+    LA_OPC_FMIN_S    = (0x00215 << 15),
+    LA_OPC_FMIN_D    = (0x00216 << 15),
+    LA_OPC_FMAXA_S   = (0x00219 << 15),
+    LA_OPC_FMAXA_D   = (0x0021A << 15),
+    LA_OPC_FMINA_S   = (0x0021D << 15),
+    LA_OPC_FMINA_D   = (0x0021E << 15)
+};
+
 /* 12 bit immediate opcodes */
 enum {
     LA_OPC_SLTI      = (0x008 << 22),

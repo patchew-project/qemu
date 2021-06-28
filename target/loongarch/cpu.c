@@ -19,6 +19,7 @@
 #include "cpu-csr.h"
 #include "cpu-qom.h"
 #include "internal.h"
+#include "fpu_helper.h"
 
 static const char * const excp_names[EXCP_LAST + 1] = {
     [EXCP_INTE] = "Interrupt error",
@@ -305,6 +306,7 @@ static void loongarch_cpu_reset(DeviceState *dev)
     env->insn_flags = env->cpu_model->INSN_FLAGS;
 
     compute_hflags(env);
+    restore_fp_status(env);
     restore_pamask(env);
     cs->exception_index = EXCP_NONE;
 }
