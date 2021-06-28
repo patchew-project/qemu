@@ -78,4 +78,24 @@ enum {
     LA_OPC_XORI      = (0x00F << 22)
 };
 
+/* load/store opcodes */
+enum {
+    LA_OPC_LD_B      = (0x0A0 << 22),
+    LA_OPC_LD_H      = (0x0A1 << 22),
+    LA_OPC_LD_W      = (0x0A2 << 22),
+    LA_OPC_LD_D      = (0x0A3 << 22),
+    LA_OPC_ST_B      = (0x0A4 << 22),
+    LA_OPC_ST_H      = (0x0A5 << 22),
+    LA_OPC_ST_W      = (0x0A6 << 22),
+    LA_OPC_ST_D      = (0x0A7 << 22),
+    LA_OPC_LD_BU     = (0x0A8 << 22),
+    LA_OPC_LD_HU     = (0x0A9 << 22),
+    LA_OPC_LD_WU     = (0x0AA << 22),
+
+    LA_OPC_LDPTR_W   = (0x24 << 24),
+    LA_OPC_STPTR_W   = (0x25 << 24),
+    LA_OPC_LDPTR_D   = (0x26 << 24),
+    LA_OPC_STPTR_D   = (0x27 << 24)
+};
+
 #endif

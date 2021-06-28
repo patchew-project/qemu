@@ -732,3 +732,449 @@ static bool trans_bstrpick_w(DisasContext *ctx, arg_bstrpick_w *a)
                          a->rd, a->rj, a->lsbw, a->msbw - a->lsbw);
     return true;
 }
+
+/* Fixed point load/store instruction translation */
+static bool trans_ld_b(DisasContext *ctx, arg_ld_b *a)
+{
+    gen_loongarch_ld(ctx, LA_OPC_LD_B, a->rd, a->rj, a->si12);
+    return true;
+}
+
+static bool trans_ld_h(DisasContext *ctx, arg_ld_h *a)
+{
+    gen_loongarch_ld(ctx, LA_OPC_LD_H, a->rd, a->rj, a->si12);
+    return true;
+}
+
+static bool trans_ld_w(DisasContext *ctx, arg_ld_w *a)
+{
+    gen_loongarch_ld(ctx, LA_OPC_LD_W, a->rd, a->rj, a->si12);
+    return true;
+}
+
+static bool trans_ld_d(DisasContext *ctx, arg_ld_d *a)
+{
+    gen_loongarch_ld(ctx, LA_OPC_LD_D, a->rd, a->rj, a->si12);
+    return true;
+}
+static bool trans_st_b(DisasContext *ctx, arg_st_b *a)
+{
+    gen_loongarch_st(ctx, LA_OPC_ST_B, a->rd, a->rj, a->si12);
+    return true;
+}
+
+static bool trans_st_h(DisasContext *ctx, arg_st_h *a)
+{
+    gen_loongarch_st(ctx, LA_OPC_ST_H, a->rd, a->rj, a->si12);
+    return true;
+}
+
+static bool trans_st_w(DisasContext *ctx, arg_st_w *a)
+{
+    gen_loongarch_st(ctx, LA_OPC_ST_W, a->rd, a->rj, a->si12);
+    return true;
+}
+
+static bool trans_st_d(DisasContext *ctx, arg_st_d *a)
+{
+    gen_loongarch_st(ctx, LA_OPC_ST_D, a->rd, a->rj, a->si12);
+    return true;
+}
+static bool trans_ld_bu(DisasContext *ctx, arg_ld_bu *a)
+{
+    gen_loongarch_ld(ctx, LA_OPC_LD_BU, a->rd, a->rj, a->si12);
+    return true;
+}
+
+static bool trans_ld_hu(DisasContext *ctx, arg_ld_hu *a)
+{
+    gen_loongarch_ld(ctx, LA_OPC_LD_HU, a->rd, a->rj, a->si12);
+    return true;
+}
+
+static bool trans_ld_wu(DisasContext *ctx, arg_ld_wu *a)
+{
+    gen_loongarch_ld(ctx, LA_OPC_LD_WU, a->rd, a->rj, a->si12);
+    return true;
+}
+
+static bool trans_ldx_b(DisasContext *ctx, arg_ldx_b *a)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    int mem_idx = ctx->mem_idx;
+
+    gen_op_addr_add(ctx, t0, cpu_gpr[a->rj], cpu_gpr[a->rk]);
+    tcg_gen_qemu_ld_tl(t1, t0, mem_idx, MO_SB);
+    gen_store_gpr(t1, a->rd);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    return true;
+}
+
+static bool trans_ldx_h(DisasContext *ctx, arg_ldx_h *a)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    int mem_idx = ctx->mem_idx;
+
+    gen_op_addr_add(ctx, t0, cpu_gpr[a->rj], cpu_gpr[a->rk]);
+    tcg_gen_qemu_ld_tl(t1, t0, mem_idx, MO_TESW | ctx->default_tcg_memop_mask);
+    gen_store_gpr(t1, a->rd);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    return true;
+}
+
+static bool trans_ldx_w(DisasContext *ctx, arg_ldx_w *a)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    int mem_idx = ctx->mem_idx;
+
+    gen_op_addr_add(ctx, t0, cpu_gpr[a->rj], cpu_gpr[a->rk]);
+    tcg_gen_qemu_ld_tl(t1, t0, mem_idx, MO_TESL | ctx->default_tcg_memop_mask);
+    gen_store_gpr(t1, a->rd);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    return true;
+}
+
+static bool trans_ldx_d(DisasContext *ctx, arg_ldx_d *a)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    int mem_idx = ctx->mem_idx;
+
+    gen_op_addr_add(ctx, t0, cpu_gpr[a->rj], cpu_gpr[a->rk]);
+    tcg_gen_qemu_ld_tl(t1, t0, mem_idx, MO_TEQ | ctx->default_tcg_memop_mask);
+    gen_store_gpr(t1, a->rd);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    return true;
+}
+
+static bool trans_stx_b(DisasContext *ctx, arg_stx_b *a)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    int mem_idx = ctx->mem_idx;
+
+    gen_op_addr_add(ctx, t0, cpu_gpr[a->rj], cpu_gpr[a->rk]);
+    gen_load_gpr(t1, a->rd);
+    tcg_gen_qemu_st_tl(t1, t0, mem_idx, MO_8);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    return true;
+}
+
+static bool trans_stx_h(DisasContext *ctx, arg_stx_h *a)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    int mem_idx = ctx->mem_idx;
+
+    gen_op_addr_add(ctx, t0, cpu_gpr[a->rj], cpu_gpr[a->rk]);
+    gen_load_gpr(t1, a->rd);
+    tcg_gen_qemu_st_tl(t1, t0, mem_idx, MO_TEUW |
+                       ctx->default_tcg_memop_mask);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    return true;
+}
+
+static bool trans_stx_w(DisasContext *ctx, arg_stx_w *a)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    int mem_idx = ctx->mem_idx;
+
+    gen_op_addr_add(ctx, t0, cpu_gpr[a->rj], cpu_gpr[a->rk]);
+    gen_load_gpr(t1, a->rd);
+    tcg_gen_qemu_st_tl(t1, t0, mem_idx, MO_TEUL |
+                       ctx->default_tcg_memop_mask);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    return true;
+}
+
+static bool trans_stx_d(DisasContext *ctx, arg_stx_d *a)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    int mem_idx = ctx->mem_idx;
+
+    gen_op_addr_add(ctx, t0, cpu_gpr[a->rj], cpu_gpr[a->rk]);
+    gen_load_gpr(t1, a->rd);
+    tcg_gen_qemu_st_tl(t1, t0, mem_idx, MO_TEQ |
+                       ctx->default_tcg_memop_mask);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    return true;
+}
+
+static bool trans_ldx_bu(DisasContext *ctx, arg_ldx_bu *a)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    int mem_idx = ctx->mem_idx;
+
+    gen_op_addr_add(ctx, t0, cpu_gpr[a->rj], cpu_gpr[a->rk]);
+    tcg_gen_qemu_ld_tl(t1, t0, mem_idx, MO_UB);
+    gen_store_gpr(t1, a->rd);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    return true;
+}
+
+static bool trans_ldx_hu(DisasContext *ctx, arg_ldx_hu *a)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    int mem_idx = ctx->mem_idx;
+
+    gen_op_addr_add(ctx, t0, cpu_gpr[a->rj], cpu_gpr[a->rk]);
+    tcg_gen_qemu_ld_tl(t1, t0, mem_idx, MO_TEUW |
+                       ctx->default_tcg_memop_mask);
+    gen_store_gpr(t1, a->rd);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    return true;
+}
+
+static bool trans_ldx_wu(DisasContext *ctx, arg_ldx_wu *a)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    int mem_idx = ctx->mem_idx;
+
+    gen_op_addr_add(ctx, t0, cpu_gpr[a->rj], cpu_gpr[a->rk]);
+    tcg_gen_qemu_ld_tl(t1, t0, mem_idx, MO_TEUL |
+                       ctx->default_tcg_memop_mask);
+    gen_store_gpr(t1, a->rd);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    return true;
+}
+
+static bool trans_preld(DisasContext *ctx, arg_preld *a)
+{
+    /* Treat as NOP. */
+    return true;
+}
+
+static bool trans_preldx(DisasContext *ctx, arg_preldx *a)
+{
+    /* Treat as NOP. */
+    return true;
+}
+
+static bool trans_dbar(DisasContext *ctx, arg_dbar * a)
+{
+    gen_loongarch_sync(a->whint);
+    return true;
+}
+
+static bool trans_ibar(DisasContext *ctx, arg_ibar *a)
+{
+    /*
+     * IBAR is a no-op in QEMU,
+     * however we need to end the translation block
+     */
+    ctx->base.is_jmp = DISAS_STOP;
+    return true;
+}
+
+static bool trans_ldptr_w(DisasContext *ctx, arg_ldptr_w *a)
+{
+    gen_loongarch_ld(ctx, LA_OPC_LDPTR_W, a->rd, a->rj, a->si14 << 2);
+    return true;
+}
+
+static bool trans_stptr_w(DisasContext *ctx, arg_stptr_w *a)
+{
+    gen_loongarch_st(ctx, LA_OPC_STPTR_W, a->rd, a->rj, a->si14 << 2);
+    return true;
+}
+
+static bool trans_ldptr_d(DisasContext *ctx, arg_ldptr_d *a)
+{
+    gen_loongarch_ld(ctx, LA_OPC_LDPTR_D, a->rd, a->rj, a->si14 << 2);
+    return true;
+}
+
+static bool trans_stptr_d(DisasContext *ctx, arg_stptr_d *a)
+{
+    gen_loongarch_st(ctx, LA_OPC_STPTR_D, a->rd, a->rj, a->si14 << 2);
+    return true;
+}
+
+#define ASRTGT                                \
+    do {                                      \
+        TCGv t1 = tcg_temp_new();             \
+        TCGv t2 = tcg_temp_new();             \
+        gen_load_gpr(t1, a->rj);              \
+        gen_load_gpr(t2, a->rk);              \
+        gen_helper_asrtgt_d(cpu_env, t1, t2); \
+        tcg_temp_free(t1);                    \
+        tcg_temp_free(t2);                    \
+    } while (0)
+
+#define ASRTLE                                \
+    do {                                      \
+        TCGv t1 = tcg_temp_new();             \
+        TCGv t2 = tcg_temp_new();             \
+        gen_load_gpr(t1, a->rj);              \
+        gen_load_gpr(t2, a->rk);              \
+        gen_helper_asrtle_d(cpu_env, t1, t2); \
+        tcg_temp_free(t1);                    \
+        tcg_temp_free(t2);                    \
+    } while (0)
+
+#define DECL_ARG(name)   \
+    arg_ ## name arg = { \
+        .rd = a->rd,     \
+        .rj = a->rj,     \
+        .rk = a->rk,     \
+    };
+
+static bool trans_ldgt_b(DisasContext *ctx, arg_ldgt_b *a)
+{
+    ASRTGT;
+    DECL_ARG(ldx_b)
+    trans_ldx_b(ctx, &arg);
+    return true;
+}
+
+static bool trans_ldgt_h(DisasContext *ctx, arg_ldgt_h *a)
+{
+    ASRTGT;
+    DECL_ARG(ldx_h)
+    trans_ldx_h(ctx, &arg);
+    return true;
+}
+
+static bool trans_ldgt_w(DisasContext *ctx, arg_ldgt_w *a)
+{
+    ASRTGT;
+    DECL_ARG(ldx_w)
+    trans_ldx_w(ctx, &arg);
+    return true;
+}
+
+static bool trans_ldgt_d(DisasContext *ctx, arg_ldgt_d *a)
+{
+    ASRTGT;
+    DECL_ARG(ldx_d)
+    trans_ldx_d(ctx, &arg);
+    return true;
+}
+
+static bool trans_ldle_b(DisasContext *ctx, arg_ldle_b *a)
+{
+    ASRTLE;
+    DECL_ARG(ldx_b)
+    trans_ldx_b(ctx, &arg);
+    return true;
+}
+
+static bool trans_ldle_h(DisasContext *ctx, arg_ldle_h *a)
+{
+    ASRTLE;
+    DECL_ARG(ldx_h)
+    trans_ldx_h(ctx, &arg);
+    return true;
+}
+
+static bool trans_ldle_w(DisasContext *ctx, arg_ldle_w *a)
+{
+    ASRTLE;
+    DECL_ARG(ldx_w)
+    trans_ldx_w(ctx, &arg);
+    return true;
+}
+
+static bool trans_ldle_d(DisasContext *ctx, arg_ldle_d *a)
+{
+    ASRTLE;
+    DECL_ARG(ldx_d)
+    trans_ldx_d(ctx, &arg);
+    return true;
+}
+
+static bool trans_stgt_b(DisasContext *ctx, arg_stgt_b *a)
+{
+    ASRTGT;
+    DECL_ARG(stx_b)
+    trans_stx_b(ctx, &arg);
+    return true;
+}
+
+static bool trans_stgt_h(DisasContext *ctx, arg_stgt_h *a)
+{
+    ASRTGT;
+    DECL_ARG(stx_h)
+    trans_stx_h(ctx, &arg);
+    return true;
+}
+
+static bool trans_stgt_w(DisasContext *ctx, arg_stgt_w *a)
+{
+    ASRTGT;
+    DECL_ARG(stx_w)
+    trans_stx_w(ctx, &arg);
+    return true;
+}
+
+static bool trans_stgt_d(DisasContext *ctx, arg_stgt_d *a)
+{
+    ASRTGT;
+    DECL_ARG(stx_d)
+    trans_stx_d(ctx, &arg);
+    return true;
+}
+
+static bool trans_stle_b(DisasContext *ctx, arg_stle_b *a)
+{
+    ASRTLE;
+    DECL_ARG(stx_b)
+    trans_stx_b(ctx, &arg);
+    return true;
+}
+
+static bool trans_stle_h(DisasContext *ctx, arg_stle_h *a)
+{
+    ASRTLE;
+    DECL_ARG(stx_h)
+    trans_stx_h(ctx, &arg);
+    return true;
+}
+
+static bool trans_stle_w(DisasContext *ctx, arg_stle_w *a)
+{
+    ASRTLE;
+    DECL_ARG(stx_w)
+    trans_stx_w(ctx, &arg);
+    return true;
+}
+
+static bool trans_stle_d(DisasContext *ctx, arg_stle_d *a)
+{
+    ASRTLE;
+    DECL_ARG(stx_d)
+    trans_stx_d(ctx, &arg);
+    return true;
+}
+
+#undef DECL_ARG

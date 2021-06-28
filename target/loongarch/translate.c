@@ -292,6 +292,35 @@ static void loongarch_tr_init_disas_context(DisasContextBase *dcbase,
     ctx->default_tcg_memop_mask = MO_UNALN;
 }
 
+/* loongarch sync */
+static void gen_loongarch_sync(int stype)
+{
+    TCGBar tcg_mo = TCG_BAR_SC;
+
+    switch (stype) {
+    case 0x4: /* SYNC_WMB */
+        tcg_mo |= TCG_MO_ST_ST;
+        break;
+    case 0x10: /* SYNC_MB */
+        tcg_mo |= TCG_MO_ALL;
+        break;
+    case 0x11: /* SYNC_ACQUIRE */
+        tcg_mo |= TCG_MO_LD_LD | TCG_MO_LD_ST;
+        break;
+    case 0x12: /* SYNC_RELEASE */
+        tcg_mo |= TCG_MO_ST_ST | TCG_MO_LD_ST;
+        break;
+    case 0x13: /* SYNC_RMB */
+        tcg_mo |= TCG_MO_LD_LD;
+        break;
+    default:
+        tcg_mo |= TCG_MO_ALL;
+        break;
+    }
+
+    tcg_gen_mb(tcg_mo);
+}
+
 /* loongarch arithmetic */
 static void gen_loongarch_arith(DisasContext *ctx, uint32_t opc,
                                 int rd, int rj, int rk)
@@ -1148,6 +1177,89 @@ fail:
         return;
     }
     gen_store_gpr(t0, rd);
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+}
+
+/* loongarch load */
+static void gen_loongarch_ld(DisasContext *ctx, uint32_t opc,
+                             int rd, int base, int offset)
+{
+    int mem_idx = ctx->mem_idx;
+
+    TCGv t0 = tcg_temp_new();
+    gen_base_offset_addr(ctx, t0, base, offset);
+
+    switch (opc) {
+    case LA_OPC_LD_WU:
+        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TEUL |
+                           ctx->default_tcg_memop_mask);
+        gen_store_gpr(t0, rd);
+        break;
+    case LA_OPC_LDPTR_D:
+    case LA_OPC_LD_D:
+        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TEQ |
+                           ctx->default_tcg_memop_mask);
+        gen_store_gpr(t0, rd);
+        break;
+    case LA_OPC_LDPTR_W:
+    case LA_OPC_LD_W:
+        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TESL |
+                           ctx->default_tcg_memop_mask);
+        gen_store_gpr(t0, rd);
+        break;
+    case LA_OPC_LD_H:
+        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TESW |
+                           ctx->default_tcg_memop_mask);
+        gen_store_gpr(t0, rd);
+        break;
+    case LA_OPC_LD_HU:
+        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_TEUW |
+                           ctx->default_tcg_memop_mask);
+        gen_store_gpr(t0, rd);
+        break;
+    case LA_OPC_LD_B:
+        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_SB);
+        gen_store_gpr(t0, rd);
+        break;
+    case LA_OPC_LD_BU:
+        tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_UB);
+        gen_store_gpr(t0, rd);
+        break;
+    }
+    tcg_temp_free(t0);
+}
+
+/* loongarch store */
+static void gen_loongarch_st(DisasContext *ctx, uint32_t opc, int rd,
+                             int base, int offset)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    int mem_idx = ctx->mem_idx;
+
+    gen_base_offset_addr(ctx, t0, base, offset);
+    gen_load_gpr(t1, rd);
+
+    switch (opc) {
+    case LA_OPC_STPTR_D:
+    case LA_OPC_ST_D:
+        tcg_gen_qemu_st_tl(t1, t0, mem_idx, MO_TEQ |
+                           ctx->default_tcg_memop_mask);
+        break;
+    case LA_OPC_STPTR_W:
+    case LA_OPC_ST_W:
+        tcg_gen_qemu_st_tl(t1, t0, mem_idx, MO_TEUL |
+                           ctx->default_tcg_memop_mask);
+        break;
+    case LA_OPC_ST_H:
+        tcg_gen_qemu_st_tl(t1, t0, mem_idx, MO_TEUW |
+                           ctx->default_tcg_memop_mask);
+        break;
+    case LA_OPC_ST_B:
+        tcg_gen_qemu_st_tl(t1, t0, mem_idx, MO_8);
+        break;
+    }
     tcg_temp_free(t0);
     tcg_temp_free(t1);
 }
