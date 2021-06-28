@@ -2055,3 +2055,157 @@ static bool trans_frint_d(DisasContext *ctx, arg_frint_d *a)
     gen_loongarch_fp_conv(ctx, LA_OPC_FRINT_D, a->fj, a->fd);
     return true;
 }
+
+/* Floating point move instruction translation */
+static bool trans_fmov_s(DisasContext *ctx, arg_fmov_s *a)
+{
+    TCGv_i32 fp0 = tcg_temp_new_i32();
+    gen_load_fpr32(ctx, fp0, a->fj);
+    gen_store_fpr32(ctx, fp0, a->fd);
+    tcg_temp_free_i32(fp0);
+    return true;
+}
+
+static bool trans_fmov_d(DisasContext *ctx, arg_fmov_d *a)
+{
+    TCGv_i64 fp0 = tcg_temp_new_i64();
+    gen_load_fpr64(ctx, fp0, a->fj);
+    gen_store_fpr64(ctx, fp0, a->fd);
+    tcg_temp_free_i64(fp0);
+    return true;
+}
+
+static bool trans_fsel(DisasContext *ctx, arg_fsel *a)
+{
+    TCGv_i64 fj = tcg_temp_new_i64();
+    TCGv_i64 fk = tcg_temp_new_i64();
+    TCGv_i64 fd = tcg_temp_new_i64();
+    TCGv_i32 ca = tcg_const_i32(a->ca);
+    check_fpu_enabled(ctx);
+    gen_load_fpr64(ctx, fj, a->fj);
+    gen_load_fpr64(ctx, fk, a->fk);
+    gen_helper_fsel(fd, cpu_env, fj, fk, ca);
+    gen_store_fpr64(ctx, fd, a->fd);
+    tcg_temp_free_i64(fj);
+    tcg_temp_free_i64(fk);
+    tcg_temp_free_i64(fd);
+    tcg_temp_free_i32(ca);
+    return true;
+}
+
+static bool trans_movgr2fr_w(DisasContext *ctx, arg_movgr2fr_w *a)
+{
+    gen_loongarch_fp_mov(ctx, LA_OPC_GR2FR_W, a->rj, a->fd);
+    return true;
+}
+
+static bool trans_movgr2fr_d(DisasContext *ctx, arg_movgr2fr_d *a)
+{
+    gen_loongarch_fp_mov(ctx, LA_OPC_GR2FR_D, a->rj, a->fd);
+    return true;
+}
+
+static bool trans_movgr2frh_w(DisasContext *ctx, arg_movgr2frh_w *a)
+{
+    gen_loongarch_fp_mov(ctx, LA_OPC_GR2FRH_W, a->rj, a->fd);
+    return true;
+}
+
+static bool trans_movfr2gr_s(DisasContext *ctx, arg_movfr2gr_s *a)
+{
+    gen_loongarch_fp_mov(ctx, LA_OPC_FR2GR_S, a->fj, a->rd);
+    return true;
+}
+
+static bool trans_movfr2gr_d(DisasContext *ctx, arg_movfr2gr_d *a)
+{
+    gen_loongarch_fp_mov(ctx, LA_OPC_FR2GR_D, a->fj, a->rd);
+    return true;
+}
+
+static bool trans_movfrh2gr_s(DisasContext *ctx, arg_movfrh2gr_s *a)
+{
+    gen_loongarch_fp_mov(ctx, LA_OPC_FRH2GR_S, a->fj, a->rd);
+    return true;
+}
+
+static bool trans_movgr2fcsr(DisasContext *ctx, arg_movgr2fcsr *a)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv_i32 fs_tmp = tcg_const_i32(a->fcsrd);
+
+    check_fpu_enabled(ctx);
+    gen_load_gpr(t0, a->rj);
+    save_cpu_state(ctx, 0);
+    gen_helper_movgr2fcsr(cpu_env, t0, fs_tmp);
+    /* Stop translation as we may have changed hflags */
+    ctx->base.is_jmp = DISAS_STOP;
+
+    tcg_temp_free(t0);
+    tcg_temp_free_i32(fs_tmp);
+    return true;
+}
+
+static bool trans_movfcsr2gr(DisasContext *ctx, arg_movfcsr2gr *a)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv_i32 reg = tcg_const_i32(a->fcsrs);
+    gen_helper_movfcsr2gr(t0, cpu_env, reg);
+    gen_store_gpr(t0, a->rd);
+    tcg_temp_free(t0);
+    tcg_temp_free_i32(reg);
+    return true;
+}
+
+static bool trans_movfr2cf(DisasContext *ctx, arg_movfr2cf *a)
+{
+    TCGv_i64 fp0 = tcg_temp_new_i64();
+    TCGv_i32 cd  = tcg_const_i32(a->cd);
+
+    check_fpu_enabled(ctx);
+    gen_load_fpr64(ctx, fp0, a->fj);
+    gen_helper_movreg2cf(cpu_env, cd, fp0);
+
+    tcg_temp_free_i64(fp0);
+    tcg_temp_free_i32(cd);
+    return true;
+}
+
+static bool trans_movcf2fr(DisasContext *ctx, arg_movcf2fr *a)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv_i32 cj = tcg_const_i32(a->cj);
+
+    check_fpu_enabled(ctx);
+    gen_helper_movcf2reg(t0, cpu_env, cj);
+    gen_store_fpr64(ctx, t0, a->fd);
+
+    tcg_temp_free(t0);
+    tcg_temp_free_i32(cj);
+    return true;
+}
+
+static bool trans_movgr2cf(DisasContext *ctx, arg_movgr2cf *a)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv_i32 cd = tcg_const_i32(a->cd);
+
+    check_fpu_enabled(ctx);
+    gen_load_gpr(t0, a->rj);
+    gen_helper_movreg2cf(cpu_env, cd, t0);
+
+    tcg_temp_free(t0);
+    tcg_temp_free_i32(cd);
+    return true;
+}
+
+static bool trans_movcf2gr(DisasContext *ctx, arg_movcf2gr *a)
+{
+    TCGv_i32 cj = tcg_const_i32(a->cj);
+
+    check_fpu_enabled(ctx);
+    gen_helper_movcf2reg(cpu_gpr[a->rd], cpu_env, cj);
+
+    tcg_temp_free_i32(cj);
+    return true;
+}

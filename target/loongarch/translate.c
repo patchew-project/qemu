@@ -2087,6 +2087,66 @@ static void gen_loongarch_fp_conv(DisasContext *ctx, uint32_t opc,
     }
 }
 
+/* floating point move */
+static void gen_loongarch_fp_mov(DisasContext *ctx, uint32_t opc,
+                                 int src, int dest)
+{
+    TCGv t0 = tcg_temp_new();
+    check_fpu_enabled(ctx);
+    switch (opc) {
+    case LA_OPC_GR2FR_W:
+        {
+            gen_load_gpr(t0, src);
+            TCGv_i32 fp0 = tcg_temp_new_i32();
+            tcg_gen_trunc_tl_i32(fp0, t0);
+            gen_store_fpr32(ctx, fp0, dest);
+            tcg_temp_free_i32(fp0);
+        }
+        break;
+    case LA_OPC_GR2FR_D:
+        gen_load_gpr(t0, src);
+        gen_store_fpr64(ctx, t0, dest);
+        break;
+    case LA_OPC_GR2FRH_W:
+        {
+            gen_load_gpr(t0, src);
+            TCGv_i32 fp0 = tcg_temp_new_i32();
+            tcg_gen_trunc_tl_i32(fp0, t0);
+            gen_store_fpr32h(ctx, fp0, dest);
+            tcg_temp_free_i32(fp0);
+        }
+        break;
+    case LA_OPC_FR2GR_D:
+        gen_load_fpr64(ctx, t0, src);
+        gen_store_gpr(t0, dest);
+        break;
+    case LA_OPC_FRH2GR_S:
+        {
+            TCGv_i32 fp0 = tcg_temp_new_i32();
+            gen_load_fpr32h(ctx, fp0, src);
+            tcg_gen_ext_i32_tl(t0, fp0);
+            tcg_temp_free_i32(fp0);
+            gen_store_gpr(t0, dest);
+        }
+        break;
+    case LA_OPC_FR2GR_S:
+        {
+            TCGv_i32 fp0 = tcg_temp_new_i32();
+            gen_load_fpr32(ctx, fp0, src);
+            tcg_gen_ext_i32_tl(t0, fp0);
+            tcg_temp_free_i32(fp0);
+            gen_store_gpr(t0, dest);
+        }
+        break;
+    default:
+        generate_exception_end(ctx, EXCP_INE);
+        goto out;
+    }
+
+ out:
+    tcg_temp_free(t0);
+}
+
 static void loongarch_tr_tb_start(DisasContextBase *dcbase, CPUState *cs)
 {
 }
