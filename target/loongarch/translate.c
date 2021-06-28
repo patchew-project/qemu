@@ -747,6 +747,113 @@ static void gen_loongarch_alsl(DisasContext *ctx, int opc, int rd,
     return;
 }
 
+/*loongarch shifts */
+static void gen_loongarch_shift(DisasContext *ctx, uint32_t opc,
+                                int rd, int rj, int rk)
+{
+    TCGv t0, t1;
+
+    if (rd == 0) {
+        /* Treat as NOP. */
+        return;
+    }
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+    gen_load_gpr(t0, rj);
+    gen_load_gpr(t1, rk);
+    switch (opc) {
+    case LA_OPC_SLL_W:
+        tcg_gen_andi_tl(t0, t0, 0x1f);
+        tcg_gen_shl_tl(t0, t1, t0);
+        tcg_gen_ext32s_tl(cpu_gpr[rd], t0);
+        break;
+    case LA_OPC_SRA_W:
+        tcg_gen_andi_tl(t0, t0, 0x1f);
+        tcg_gen_sar_tl(cpu_gpr[rd], t1, t0);
+        break;
+    case LA_OPC_SRL_W:
+        tcg_gen_ext32u_tl(t1, t1);
+        tcg_gen_andi_tl(t0, t0, 0x1f);
+        tcg_gen_shr_tl(t0, t1, t0);
+        tcg_gen_ext32s_tl(cpu_gpr[rd], t0);
+        break;
+    case LA_OPC_ROTR_W:
+        {
+            TCGv_i32 t2 = tcg_temp_new_i32();
+            TCGv_i32 t3 = tcg_temp_new_i32();
+            tcg_gen_trunc_tl_i32(t2, t0);
+            tcg_gen_trunc_tl_i32(t3, t1);
+            tcg_gen_andi_i32(t2, t2, 0x1f);
+            tcg_gen_rotr_i32(t2, t3, t2);
+            tcg_gen_ext_i32_tl(cpu_gpr[rd], t2);
+            tcg_temp_free_i32(t2);
+            tcg_temp_free_i32(t3);
+        }
+        break;
+    case LA_OPC_SLL_D:
+        tcg_gen_andi_tl(t0, t0, 0x3f);
+        tcg_gen_shl_tl(cpu_gpr[rd], t1, t0);
+        break;
+    case LA_OPC_SRA_D:
+        tcg_gen_andi_tl(t0, t0, 0x3f);
+        tcg_gen_sar_tl(cpu_gpr[rd], t1, t0);
+        break;
+    case LA_OPC_SRL_D:
+        tcg_gen_andi_tl(t0, t0, 0x3f);
+        tcg_gen_shr_tl(cpu_gpr[rd], t1, t0);
+        break;
+    case LA_OPC_ROTR_D:
+        tcg_gen_andi_tl(t0, t0, 0x3f);
+        tcg_gen_rotr_tl(cpu_gpr[rd], t1, t0);
+        break;
+    }
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+}
+
+/* loongarch shifts with immediate operand */
+static void gen_loongarch_shift_imm(DisasContext *ctx, uint32_t opc,
+                                    int rd, int rj, int16_t imm)
+{
+    target_ulong uimm = ((uint16_t)imm) & 0x1f;
+    TCGv t0;
+
+    if (rd == 0) {
+        /* Treat as NOP. */
+        return;
+    }
+
+    t0 = tcg_temp_new();
+    gen_load_gpr(t0, rj);
+    switch (opc) {
+    case LA_OPC_SRAI_W:
+        tcg_gen_sari_tl(cpu_gpr[rd], t0, uimm);
+        break;
+    case LA_OPC_SRLI_W:
+        if (uimm != 0) {
+            tcg_gen_ext32u_tl(t0, t0);
+            tcg_gen_shri_tl(cpu_gpr[rd], t0, uimm);
+        } else {
+            tcg_gen_ext32s_tl(cpu_gpr[rd], t0);
+        }
+        break;
+    case LA_OPC_ROTRI_W:
+        if (uimm != 0) {
+            TCGv_i32 t1 = tcg_temp_new_i32();
+
+            tcg_gen_trunc_tl_i32(t1, t0);
+            tcg_gen_rotri_i32(t1, t1, uimm);
+            tcg_gen_ext_i32_tl(cpu_gpr[rd], t1);
+            tcg_temp_free_i32(t1);
+        } else {
+            tcg_gen_ext32s_tl(cpu_gpr[rd], t0);
+        }
+        break;
+    }
+    tcg_temp_free(t0);
+}
+
 static void loongarch_tr_tb_start(DisasContextBase *dcbase, CPUState *cs)
 {
 }

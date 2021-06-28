@@ -365,3 +365,137 @@ static bool trans_xori(DisasContext *ctx, arg_xori *a)
     gen_loongarch_logic_imm(ctx, LA_OPC_XORI, a->rd, a->rj, a->ui12);
     return true;
 }
+
+/* Fixed point shift operation instruction translation */
+static bool trans_sll_w(DisasContext *ctx, arg_sll_w *a)
+{
+    gen_loongarch_shift(ctx, LA_OPC_SLL_W, a->rd, a->rk, a->rj);
+    return true;
+}
+
+static bool trans_srl_w(DisasContext *ctx, arg_srl_w *a)
+{
+    gen_loongarch_shift(ctx, LA_OPC_SRL_W, a->rd, a->rk, a->rj);
+    return true;
+}
+
+static bool trans_sra_w(DisasContext *ctx, arg_sra_w *a)
+{
+    gen_loongarch_shift(ctx, LA_OPC_SRA_W, a->rd, a->rk, a->rj);
+    return true;
+}
+
+static bool trans_sll_d(DisasContext *ctx, arg_sll_d *a)
+{
+    check_loongarch_64(ctx);
+    gen_loongarch_shift(ctx, LA_OPC_SLL_D, a->rd, a->rk, a->rj);
+    return true;
+}
+static bool trans_srl_d(DisasContext *ctx, arg_srl_d *a)
+{
+    check_loongarch_64(ctx);
+    gen_loongarch_shift(ctx, LA_OPC_SRL_D, a->rd, a->rk, a->rj);
+    return true;
+}
+
+static bool trans_sra_d(DisasContext *ctx, arg_sra_d *a)
+{
+    check_loongarch_64(ctx);
+    gen_loongarch_shift(ctx, LA_OPC_SRA_D, a->rd, a->rk, a->rj);
+    return true;
+}
+
+static bool trans_rotr_w(DisasContext *ctx, arg_rotr_w *a)
+{
+    gen_loongarch_shift(ctx, LA_OPC_ROTR_W, a->rd, a->rk, a->rj);
+    return true;
+}
+
+static bool trans_rotr_d(DisasContext *ctx, arg_rotr_d *a)
+{
+    check_loongarch_64(ctx);
+    gen_loongarch_shift(ctx, LA_OPC_ROTR_D, a->rd, a->rk, a->rj);
+    return true;
+}
+
+static bool trans_slli_w(DisasContext *ctx, arg_slli_w *a)
+{
+    if (a->rd == 0) {
+        /* Nop */
+        return true;
+    }
+
+    TCGv t0 = tcg_temp_new();
+
+    gen_load_gpr(t0, a->rj);
+    tcg_gen_shli_tl(t0, t0, a->ui5);
+    tcg_gen_ext32s_tl(cpu_gpr[a->rd], t0);
+
+    tcg_temp_free(t0);
+    return true;
+}
+
+static bool trans_slli_d(DisasContext *ctx, arg_slli_d *a)
+{
+    if (a->rd == 0) {
+        /* Nop */
+        return true;
+    }
+
+    TCGv t0 = tcg_temp_new();
+
+    gen_load_gpr(t0, a->rj);
+    tcg_gen_shli_tl(cpu_gpr[a->rd], t0, a->ui6);
+
+    tcg_temp_free(t0);
+    return true;
+}
+
+static bool trans_srli_w(DisasContext *ctx, arg_srli_w *a)
+{
+    gen_loongarch_shift_imm(ctx, LA_OPC_SRLI_W, a->rd, a->rj, a->ui5);
+    return true;
+}
+
+static bool trans_srli_d(DisasContext *ctx, arg_srli_d *a)
+{
+    TCGv t0 = tcg_temp_new();
+
+    gen_load_gpr(t0, a->rj);
+    tcg_gen_shri_tl(cpu_gpr[a->rd], t0, a->ui6);
+
+    tcg_temp_free(t0);
+    return true;
+}
+
+static bool trans_srai_w(DisasContext *ctx, arg_srai_w *a)
+{
+    gen_loongarch_shift_imm(ctx, LA_OPC_SRAI_W, a->rd, a->rj, a->ui5);
+    return true;
+}
+
+static bool trans_srai_d(DisasContext *ctx, arg_srai_d *a)
+{
+    TCGv t0 = tcg_temp_new();
+    check_loongarch_64(ctx);
+    gen_load_gpr(t0, a->rj);
+    tcg_gen_sari_tl(cpu_gpr[a->rd], t0, a->ui6);
+    tcg_temp_free(t0);
+    return true;
+}
+
+static bool trans_rotri_w(DisasContext *ctx, arg_rotri_w *a)
+{
+    gen_loongarch_shift_imm(ctx, LA_OPC_ROTRI_W, a->rd, a->rj, a->ui5);
+    return true;
+}
+
+static bool trans_rotri_d(DisasContext *ctx, arg_rotri_d *a)
+{
+    TCGv t0 = tcg_temp_new();
+    check_loongarch_64(ctx);
+    gen_load_gpr(t0, a->rj);
+    tcg_gen_rotri_tl(cpu_gpr[a->rd], t0, a->ui6);
+    tcg_temp_free(t0);
+    return true;
+}

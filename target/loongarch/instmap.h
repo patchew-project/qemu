@@ -21,6 +21,14 @@ enum {
     LA_OPC_AND       = (0x00029 << 15),
     LA_OPC_OR        = (0x0002A << 15),
     LA_OPC_XOR       = (0x0002B << 15),
+    LA_OPC_SLL_W     = (0x0002E << 15),
+    LA_OPC_SRL_W     = (0x0002F << 15),
+    LA_OPC_SRA_W     = (0x00030 << 15),
+    LA_OPC_SLL_D     = (0x00031 << 15),
+    LA_OPC_SRL_D     = (0x00032 << 15),
+    LA_OPC_SRA_D     = (0x00033 << 15),
+    LA_OPC_ROTR_W    = (0x00036 << 15),
+    LA_OPC_ROTR_D    = (0x00037 << 15),
     LA_OPC_MUL_W     = (0x00038 << 15),
     LA_OPC_MULH_W    = (0x00039 << 15),
     LA_OPC_MULH_WU   = (0x0003A << 15),
@@ -35,6 +43,9 @@ enum {
     LA_OPC_MOD_D     = (0x00045 << 15),
     LA_OPC_DIV_DU    = (0x00046 << 15),
     LA_OPC_MOD_DU    = (0x00047 << 15),
+    LA_OPC_SRLI_W    = (0x00089 << 15),
+    LA_OPC_SRAI_W    = (0x00091 << 15),
+    LA_OPC_ROTRI_W   = (0x00099 << 15),
 
     LA_OPC_ALSL_W    = (0x0002 << 17),
     LA_OPC_ALSL_D    = (0x0016 << 17)
@@ -51,3 +62,5 @@ enum {
     LA_OPC_ORI       = (0x00E << 22),
     LA_OPC_XORI      = (0x00F << 22)
 };
+
+#endif
