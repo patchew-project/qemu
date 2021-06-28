@@ -74,7 +74,7 @@
     || defined(TARGET_M68K) || defined(TARGET_CRIS) \
     || defined(TARGET_S390X) || defined(TARGET_OPENRISC) \
     || defined(TARGET_NIOS2) || defined(TARGET_RISCV) \
-    || defined(TARGET_XTENSA)
+    || defined(TARGET_XTENSA) || defined(TARGET_LOONGARCH64)
 
 #define TARGET_IOC_SIZEBITS	14
 #define TARGET_IOC_DIRBITS	2
@@ -2129,7 +2129,8 @@ struct target_stat64  {
     abi_ulong __unused5;
 };
 
-#elif defined(TARGET_OPENRISC) || defined(TARGET_NIOS2) || defined(TARGET_RISCV)
+#elif defined(TARGET_OPENRISC) || defined(TARGET_NIOS2) || \
+      defined(TARGET_RISCV) || defined(TARGET_LOONGARCH64)
 
 /* These are the asm-generic versions of the stat and stat64 structures */
 
@@ -2327,7 +2328,8 @@ struct target_statfs64 {
 };
 #elif (defined(TARGET_PPC64) || defined(TARGET_X86_64) || \
        defined(TARGET_SPARC64) || defined(TARGET_AARCH64) || \
-       defined(TARGET_RISCV)) && !defined(TARGET_ABI32)
+       defined(TRAGET_RISCV) || defined(TARGET_LOONGARCH64)) && \
+       !defined(TARGET_ABI32)
 struct target_statfs {
 	abi_long f_type;
 	abi_long f_bsize;
