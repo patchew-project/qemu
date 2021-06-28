@@ -184,4 +184,17 @@ enum {
     LA_OPC_STPTR_D   = (0x27 << 24)
 };
 
+/* Branch opcodes */
+enum {
+    LA_OPC_BEQZ      = (0x10 << 26),
+    LA_OPC_BNEZ      = (0x11 << 26),
+    LA_OPC_B         = (0x14 << 26),
+    LA_OPC_BEQ       = (0x16 << 26),
+    LA_OPC_BNE       = (0x17 << 26),
+    LA_OPC_BLT       = (0x18 << 26),
+    LA_OPC_BGE       = (0x19 << 26),
+    LA_OPC_BLTU      = (0x1A << 26),
+    LA_OPC_BGEU      = (0x1B << 26)
+};
+
 #endif

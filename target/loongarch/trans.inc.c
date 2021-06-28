@@ -2314,3 +2314,113 @@ static bool trans_fstle_d(DisasContext *ctx, arg_fstle_d *a)
     gen_loongarch_fldst_extra(ctx, LA_OPC_FSTLE_D, 0, a->fd, a->rj, a->rk);
     return true;
 }
+
+/* Branch Instructions translation */
+static bool trans_beqz(DisasContext *ctx, arg_beqz *a)
+{
+    gen_loongarch_jump(ctx, LA_OPC_BEQZ, 4, a->rj, 0, a->offs21 << 2);
+    return true;
+}
+
+static bool trans_bnez(DisasContext *ctx, arg_bnez *a)
+{
+    gen_loongarch_jump(ctx, LA_OPC_BNEZ, 4, a->rj, 0, a->offs21 << 2);
+    return true;
+}
+
+static bool trans_bceqz(DisasContext *ctx, arg_bceqz *a)
+{
+    TCGv_i32 cj = tcg_const_i32(a->cj);
+    TCGv v0 = tcg_temp_new();
+    TCGv v1 = tcg_const_i64(0);
+
+    gen_helper_movcf2reg(v0, cpu_env, cj);
+    tcg_gen_setcond_tl(TCG_COND_EQ, bcond, v0, v1);
+    ctx->hflags |= LOONGARCH_HFLAG_BC;
+    ctx->btarget = ctx->base.pc_next + (a->offs21 << 2);
+
+    tcg_temp_free_i32(cj);
+    tcg_temp_free(v0);
+    tcg_temp_free(v1);
+    return true;
+}
+
+static bool trans_bcnez(DisasContext *ctx, arg_bcnez *a)
+{
+    TCGv_i32 cj = tcg_const_i32(a->cj);
+    TCGv v0 = tcg_temp_new();
+    TCGv v1 = tcg_const_i64(0);
+
+    gen_helper_movcf2reg(v0, cpu_env, cj);
+    tcg_gen_setcond_tl(TCG_COND_NE, bcond, v0, v1);
+    ctx->hflags |= LOONGARCH_HFLAG_BC;
+    ctx->btarget = ctx->base.pc_next + (a->offs21 << 2);
+
+    tcg_temp_free_i32(cj);
+    tcg_temp_free(v0);
+    tcg_temp_free(v1);
+    return true;
+}
+
+static bool trans_b(DisasContext *ctx, arg_b *a)
+{
+    gen_loongarch_jump(ctx, LA_OPC_B, 4, 0, 0, a->offs << 2);
+    return true;
+}
+
+static bool trans_bl(DisasContext *ctx, arg_bl *a)
+{
+    ctx->btarget = ctx->base.pc_next + (a->offs << 2);
+    tcg_gen_movi_tl(cpu_gpr[1], ctx->base.pc_next + 4);
+    ctx->hflags |= LOONGARCH_HFLAG_B;
+    gen_branch(ctx, 4);
+    return true;
+}
+
+static bool trans_blt(DisasContext *ctx, arg_blt *a)
+{
+    gen_loongarch_jump(ctx, LA_OPC_BLT, 4, a->rj, a->rd, a->offs16 << 2);
+    return true;
+}
+
+static bool trans_bge(DisasContext *ctx, arg_bge *a)
+{
+    gen_loongarch_jump(ctx, LA_OPC_BGE, 4, a->rj, a->rd, a->offs16 << 2);
+    return true;
+}
+
+static bool trans_bltu(DisasContext *ctx, arg_bltu *a)
+{
+    gen_loongarch_jump(ctx, LA_OPC_BLTU, 4, a->rj, a->rd, a->offs16 << 2);
+    return true;
+}
+
+static bool trans_bgeu(DisasContext *ctx, arg_bgeu *a)
+{
+    gen_loongarch_jump(ctx, LA_OPC_BGEU, 4, a->rj, a->rd, a->offs16 << 2);
+    return true;
+}
+
+static bool trans_beq(DisasContext *ctx, arg_beq *a)
+{
+    gen_loongarch_jump(ctx, LA_OPC_BEQ, 4, a->rj, a->rd, a->offs16 << 2);
+    return true;
+}
+
+static bool trans_bne(DisasContext *ctx, arg_bne *a)
+{
+    gen_loongarch_jump(ctx, LA_OPC_BNE, 4, a->rj, a->rd, a->offs16 << 2);
+    return true;
+}
+
+static bool trans_jirl(DisasContext *ctx, arg_jirl *a)
+{
+    gen_base_offset_addr(ctx, btarget, a->rj, a->offs16 << 2);
+    if (a->rd != 0) {
+        tcg_gen_movi_tl(cpu_gpr[a->rd], ctx->base.pc_next + 4);
+    }
+    ctx->hflags |= LOONGARCH_HFLAG_BR;
+    gen_branch(ctx, 4);
+
+    return true;
+}

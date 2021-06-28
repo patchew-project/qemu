@@ -2263,6 +2263,102 @@ static void gen_loongarch_fldst_extra(DisasContext *ctx, uint32_t opc,
     tcg_temp_free(t0);
 }
 
+static void gen_loongarch_jump(DisasContext *ctx, uint32_t opc,
+                               int insn_bytes,
+                               int rj, int rd, int32_t offset)
+{
+    target_ulong btgt = -1;
+    int bcond_flag = 0;
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+
+    if (ctx->hflags & LOONGARCH_HFLAG_BMASK) {
+        generate_exception_end(ctx, EXCP_INE);
+        goto out;
+    }
+
+    /* Load needed operands */
+    switch (opc) {
+    case LA_OPC_BLT:
+    case LA_OPC_BGE:
+    case LA_OPC_BLTU:
+    case LA_OPC_BGEU:
+        gen_load_gpr(t0, rj);
+        gen_load_gpr(t1, rd);
+        bcond_flag = 1;
+        btgt = ctx->base.pc_next + offset;
+        break;
+    case LA_OPC_BEQZ:
+    case LA_OPC_B:
+    case LA_OPC_BEQ:
+    case LA_OPC_BNEZ:
+    case LA_OPC_BNE:
+        /* Compare two registers */
+        if (rj != rd) {
+            gen_load_gpr(t0, rj);
+            gen_load_gpr(t1, rd);
+            bcond_flag = 1;
+        }
+        btgt = ctx->base.pc_next + offset;
+        break;
+    default:
+        generate_exception_end(ctx, EXCP_INE);
+        goto out;
+    }
+    if (bcond_flag == 0) {
+        /* No condition to be computed */
+        switch (opc) {
+        case LA_OPC_BEQZ:
+        case LA_OPC_B:
+        case LA_OPC_BEQ:
+            ctx->hflags |= LOONGARCH_HFLAG_B;
+            break;
+        case LA_OPC_BNEZ:
+        case LA_OPC_BNE:
+            /* Treat as NOP. */
+            goto out;
+        default:
+            generate_exception_end(ctx, EXCP_INE);
+            goto out;
+        }
+    } else {
+        switch (opc) {
+        case LA_OPC_BLT:
+            tcg_gen_setcond_tl(TCG_COND_LT, bcond, t0, t1);
+            goto not_likely;
+        case LA_OPC_BGE:
+            tcg_gen_setcond_tl(TCG_COND_GE, bcond, t0, t1);
+            goto not_likely;
+        case LA_OPC_BLTU:
+            tcg_gen_setcond_tl(TCG_COND_LTU, bcond, t0, t1);
+            goto not_likely;
+        case LA_OPC_BGEU:
+            tcg_gen_setcond_tl(TCG_COND_GEU, bcond, t0, t1);
+            goto not_likely;
+        case LA_OPC_BEQZ:
+        case LA_OPC_B:
+        case LA_OPC_BEQ:
+            tcg_gen_setcond_tl(TCG_COND_EQ, bcond, t0, t1);
+            goto not_likely;
+        case LA_OPC_BNEZ:
+        case LA_OPC_BNE:
+            tcg_gen_setcond_tl(TCG_COND_NE, bcond, t0, t1);
+            goto not_likely;
+        not_likely:
+            ctx->hflags |= LOONGARCH_HFLAG_BC;
+            break;
+        default:
+            generate_exception_end(ctx, EXCP_INE);
+            goto out;
+        }
+    }
+    ctx->btarget = btgt;
+
+ out:
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+}
+
 static void loongarch_tr_tb_start(DisasContextBase *dcbase, CPUState *cs)
 {
 }
