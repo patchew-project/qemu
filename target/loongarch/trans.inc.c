@@ -2209,3 +2209,108 @@ static bool trans_movcf2gr(DisasContext *ctx, arg_movcf2gr *a)
     tcg_temp_free_i32(cj);
     return true;
 }
+
+/* Floating point load/store instruction translation */
+static bool trans_fld_s(DisasContext *ctx, arg_fld_s *a)
+{
+    gen_loongarch_fldst(ctx, LA_OPC_FLD_S, a->fd, a->rj, a->si12);
+    return true;
+}
+
+static bool trans_fst_s(DisasContext *ctx, arg_fst_s *a)
+{
+    gen_loongarch_fldst(ctx, LA_OPC_FST_S, a->fd, a->rj, a->si12);
+    return true;
+}
+
+static bool trans_fld_d(DisasContext *ctx, arg_fld_d *a)
+{
+    gen_loongarch_fldst(ctx, LA_OPC_FLD_D, a->fd, a->rj, a->si12);
+    return true;
+}
+
+static bool trans_fst_d(DisasContext *ctx, arg_fst_d *a)
+{
+    gen_loongarch_fldst(ctx, LA_OPC_FST_D, a->fd, a->rj, a->si12);
+    return true;
+}
+
+static bool trans_fldx_s(DisasContext *ctx, arg_fldx_s *a)
+{
+    gen_loongarch_fldst_extra(ctx, LA_OPC_FLDX_S, a->fd, 0, a->rj, a->rk);
+    return true;
+}
+
+static bool trans_fldx_d(DisasContext *ctx, arg_fldx_d *a)
+{
+    gen_loongarch_fldst_extra(ctx, LA_OPC_FLDX_D, a->fd, 0, a->rj, a->rk);
+    return true;
+}
+
+static bool trans_fstx_s(DisasContext *ctx, arg_fstx_s *a)
+{
+    gen_loongarch_fldst_extra(ctx, LA_OPC_FSTX_S, 0, a->fd, a->rj, a->rk);
+    return true;
+}
+
+static bool trans_fstx_d(DisasContext *ctx, arg_fstx_d *a)
+{
+    gen_loongarch_fldst_extra(ctx, LA_OPC_FSTX_D, 0, a->fd, a->rj, a->rk);
+    return true;
+}
+
+static bool trans_fldgt_s(DisasContext *ctx, arg_fldgt_s *a)
+{
+    ASRTGT;
+    gen_loongarch_fldst_extra(ctx, LA_OPC_FLDGT_S, a->fd, 0, a->rj, a->rk);
+    return true;
+}
+
+static bool trans_fldgt_d(DisasContext *ctx, arg_fldgt_d *a)
+{
+    ASRTGT;
+    gen_loongarch_fldst_extra(ctx, LA_OPC_FLDGT_D, a->fd, 0, a->rj, a->rk);
+    return true;
+}
+
+static bool trans_fldle_s(DisasContext *ctx, arg_fldle_s *a)
+{
+    ASRTLE;
+    gen_loongarch_fldst_extra(ctx, LA_OPC_FLDLE_S, a->fd, 0, a->rj, a->rk);
+    return true;
+}
+
+static bool trans_fldle_d(DisasContext *ctx, arg_fldle_d *a)
+{
+    ASRTLE;
+    gen_loongarch_fldst_extra(ctx, LA_OPC_FLDLE_D, a->fd, 0, a->rj, a->rk);
+    return true;
+}
+
+static bool trans_fstgt_s(DisasContext *ctx, arg_fstgt_s *a)
+{
+    ASRTGT;
+    gen_loongarch_fldst_extra(ctx, LA_OPC_FSTGT_S, 0, a->fd, a->rj, a->rk);
+    return true;
+}
+
+static bool trans_fstgt_d(DisasContext *ctx, arg_fstgt_d *a)
+{
+    ASRTGT;
+    gen_loongarch_fldst_extra(ctx, LA_OPC_FSTGT_D, 0, a->fd, a->rj, a->rk);
+    return true;
+}
+
+static bool trans_fstle_s(DisasContext *ctx, arg_fstle_s *a)
+{
+    ASRTLE;
+    gen_loongarch_fldst_extra(ctx, LA_OPC_FSTLE_S, 0, a->fd, a->rj, a->rk);
+    return true;
+}
+
+static bool trans_fstle_d(DisasContext *ctx, arg_fstle_d *a)
+{
+    ASRTLE;
+    gen_loongarch_fldst_extra(ctx, LA_OPC_FSTLE_D, 0, a->fd, a->rj, a->rk);
+    return true;
+}

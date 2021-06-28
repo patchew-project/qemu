@@ -147,6 +147,19 @@ enum {
 
 /* load/store opcodes */
 enum {
+    LA_OPC_FLDX_S    = (0x07060 << 15),
+    LA_OPC_FLDX_D    = (0x07068 << 15),
+    LA_OPC_FSTX_S    = (0x07070 << 15),
+    LA_OPC_FSTX_D    = (0x07078 << 15),
+    LA_OPC_FLDGT_S   = (0x070E8 << 15),
+    LA_OPC_FLDGT_D   = (0x070E9 << 15),
+    LA_OPC_FLDLE_S   = (0x070EA << 15),
+    LA_OPC_FLDLE_D   = (0x070EB << 15),
+    LA_OPC_FSTGT_S   = (0x070EC << 15),
+    LA_OPC_FSTGT_D   = (0x070ED << 15),
+    LA_OPC_FSTLE_S   = (0x070EE << 15),
+    LA_OPC_FSTLE_D   = (0x070EF << 15),
+
     LA_OPC_LD_B      = (0x0A0 << 22),
     LA_OPC_LD_H      = (0x0A1 << 22),
     LA_OPC_LD_W      = (0x0A2 << 22),
@@ -158,6 +171,10 @@ enum {
     LA_OPC_LD_BU     = (0x0A8 << 22),
     LA_OPC_LD_HU     = (0x0A9 << 22),
     LA_OPC_LD_WU     = (0x0AA << 22),
+    LA_OPC_FLD_S     = (0x0AC << 22),
+    LA_OPC_FST_S     = (0x0AD << 22),
+    LA_OPC_FLD_D     = (0x0AE << 22),
+    LA_OPC_FST_D     = (0x0AF << 22),
 
     LA_OPC_LL_W      = (0x20 << 24),
     LA_OPC_LL_D      = (0x22 << 24),

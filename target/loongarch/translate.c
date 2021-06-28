@@ -2147,6 +2147,122 @@ static void gen_loongarch_fp_mov(DisasContext *ctx, uint32_t opc,
     tcg_temp_free(t0);
 }
 
+/* floating point load/store */
+static void gen_loongarch_fp_ldst(DisasContext *ctx, uint32_t opc,
+                                  int ft, TCGv t0)
+{
+    switch (opc) {
+    case LA_OPC_FLD_S:
+        {
+            TCGv_i32 fp0 = tcg_temp_new_i32();
+            tcg_gen_qemu_ld_i32(fp0, t0, ctx->mem_idx, MO_TESL |
+                                ctx->default_tcg_memop_mask);
+            gen_store_fpr32(ctx, fp0, ft);
+            tcg_temp_free_i32(fp0);
+        }
+        break;
+    case LA_OPC_FST_S:
+        {
+            TCGv_i32 fp0 = tcg_temp_new_i32();
+            gen_load_fpr32(ctx, fp0, ft);
+            tcg_gen_qemu_st_i32(fp0, t0, ctx->mem_idx, MO_TEUL |
+                                ctx->default_tcg_memop_mask);
+            tcg_temp_free_i32(fp0);
+        }
+        break;
+    case LA_OPC_FLD_D:
+        {
+            TCGv_i64 fp0 = tcg_temp_new_i64();
+            tcg_gen_qemu_ld_i64(fp0, t0, ctx->mem_idx, MO_TEQ |
+                                ctx->default_tcg_memop_mask);
+            gen_store_fpr64(ctx, fp0, ft);
+            tcg_temp_free_i64(fp0);
+        }
+        break;
+    case LA_OPC_FST_D:
+        {
+            TCGv_i64 fp0 = tcg_temp_new_i64();
+            gen_load_fpr64(ctx, fp0, ft);
+            tcg_gen_qemu_st_i64(fp0, t0, ctx->mem_idx, MO_TEQ |
+                                ctx->default_tcg_memop_mask);
+            tcg_temp_free_i64(fp0);
+        }
+        break;
+    default:
+        generate_exception_end(ctx, EXCP_INE);
+        break;
+    }
+}
+
+static void gen_loongarch_fldst(DisasContext *ctx, uint32_t op, int fd,
+                                int rj, int16_t imm)
+{
+    TCGv t0 = tcg_temp_new();
+    check_fpu_enabled(ctx);
+    gen_base_offset_addr(ctx, t0, rj, imm);
+    gen_loongarch_fp_ldst(ctx, op, fd, t0);
+    tcg_temp_free(t0);
+}
+
+static void gen_loongarch_fldst_extra(DisasContext *ctx, uint32_t opc,
+                                      int fld, int fst, int base, int index)
+{
+    TCGv t0 = tcg_temp_new();
+
+    if (base == 0) {
+        gen_load_gpr(t0, index);
+    } else if (index == 0) {
+        gen_load_gpr(t0, base);
+    } else {
+        gen_op_addr_add(ctx, t0, cpu_gpr[base], cpu_gpr[index]);
+    }
+
+    switch (opc) {
+    case LA_OPC_FLDX_S:
+    case LA_OPC_FLDGT_S:
+    case LA_OPC_FLDLE_S:
+        {
+            TCGv_i32 fp0 = tcg_temp_new_i32();
+            tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESL);
+            tcg_gen_trunc_tl_i32(fp0, t0);
+            gen_store_fpr32(ctx, fp0, fld);
+            tcg_temp_free_i32(fp0);
+        }
+        break;
+    case LA_OPC_FLDX_D:
+    case LA_OPC_FLDGT_D:
+    case LA_OPC_FLDLE_D:
+        {
+            TCGv_i64 fp0 = tcg_temp_new_i64();
+            tcg_gen_qemu_ld_i64(fp0, t0, ctx->mem_idx, MO_TEQ);
+            gen_store_fpr64(ctx, fp0, fld);
+            tcg_temp_free_i64(fp0);
+        }
+        break;
+    case LA_OPC_FSTX_S:
+    case LA_OPC_FSTGT_S:
+    case LA_OPC_FSTLE_S:
+        {
+            TCGv_i32 fp0 = tcg_temp_new_i32();
+            gen_load_fpr32(ctx, fp0, fst);
+            tcg_gen_qemu_st_i32(fp0, t0, ctx->mem_idx, MO_TEUL);
+            tcg_temp_free_i32(fp0);
+        }
+        break;
+    case LA_OPC_FSTX_D:
+    case LA_OPC_FSTGT_D:
+    case LA_OPC_FSTLE_D:
+        {
+            TCGv_i64 fp0 = tcg_temp_new_i64();
+            gen_load_fpr64(ctx, fp0, fst);
+            tcg_gen_qemu_st_i64(fp0, t0, ctx->mem_idx, MO_TEQ);
+            tcg_temp_free_i64(fp0);
+        }
+        break;
+    }
+    tcg_temp_free(t0);
+}
+
 static void loongarch_tr_tb_start(DisasContextBase *dcbase, CPUState *cs)
 {
 }
