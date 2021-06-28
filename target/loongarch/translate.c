@@ -1181,6 +1181,21 @@ fail:
     tcg_temp_free(t1);
 }
 
+#define OP_LD_ATOMIC(insn, fname)                                    \
+static inline void op_ld_##insn(TCGv ret, TCGv arg1, int mem_idx,    \
+                                DisasContext *ctx)                   \
+{                                                                    \
+    TCGv t0 = tcg_temp_new();                                        \
+    tcg_gen_mov_tl(t0, arg1);                                        \
+    tcg_gen_qemu_##fname(ret, arg1, ctx->mem_idx);                   \
+    tcg_gen_st_tl(t0, cpu_env, offsetof(CPULoongArchState, lladdr)); \
+    tcg_gen_st_tl(ret, cpu_env, offsetof(CPULoongArchState, llval)); \
+    tcg_temp_free(t0);                                               \
+}
+OP_LD_ATOMIC(ll, ld32s);
+OP_LD_ATOMIC(lld, ld64);
+#undef OP_LD_ATOMIC
+
 /* loongarch load */
 static void gen_loongarch_ld(DisasContext *ctx, uint32_t opc,
                              int rd, int base, int offset)
@@ -1226,6 +1241,14 @@ static void gen_loongarch_ld(DisasContext *ctx, uint32_t opc,
         tcg_gen_qemu_ld_tl(t0, t0, mem_idx, MO_UB);
         gen_store_gpr(t0, rd);
         break;
+    case LA_OPC_LL_W:
+        op_ld_ll(t0, t0, mem_idx, ctx);
+        gen_store_gpr(t0, rd);
+        break;
+    case LA_OPC_LL_D:
+        op_ld_lld(t0, t0, mem_idx, ctx);
+        gen_store_gpr(t0, rd);
+        break;
     }
     tcg_temp_free(t0);
 }
@@ -1262,6 +1285,37 @@ static void gen_loongarch_st(DisasContext *ctx, uint32_t opc, int rd,
     }
     tcg_temp_free(t0);
     tcg_temp_free(t1);
+}
+
+/* loongarch st cond */
+static void gen_loongarch_st_cond(DisasContext *ctx, int rd, int base,
+                                  int offset, MemOp tcg_mo, bool eva)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv addr = tcg_temp_new();
+    TCGv val = tcg_temp_new();
+    TCGLabel *l1 = gen_new_label();
+    TCGLabel *done = gen_new_label();
+
+    /* compare the address against that of the preceding LL */
+    gen_base_offset_addr(ctx, addr, base, offset);
+    tcg_gen_brcond_tl(TCG_COND_EQ, addr, cpu_lladdr, l1);
+    tcg_gen_movi_tl(t0, 0);
+    gen_store_gpr(t0, rd);
+    tcg_gen_br(done);
+
+    gen_set_label(l1);
+    /* generate cmpxchg */
+    gen_load_gpr(val, rd);
+    tcg_gen_atomic_cmpxchg_tl(t0, cpu_lladdr, cpu_llval, val,
+                              eva ? LOONGARCH_HFLAG_UM : ctx->mem_idx, tcg_mo);
+    tcg_gen_setcond_tl(TCG_COND_EQ, t0, t0, cpu_llval);
+    gen_store_gpr(t0, rd);
+
+    gen_set_label(done);
+    tcg_temp_free(t0);
+    tcg_temp_free(addr);
+    tcg_temp_free(val);
 }
 
 static void loongarch_tr_tb_start(DisasContextBase *dcbase, CPUState *cs)

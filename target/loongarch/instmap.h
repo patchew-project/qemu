@@ -92,6 +92,8 @@ enum {
     LA_OPC_LD_HU     = (0x0A9 << 22),
     LA_OPC_LD_WU     = (0x0AA << 22),
 
+    LA_OPC_LL_W      = (0x20 << 24),
+    LA_OPC_LL_D      = (0x22 << 24),
     LA_OPC_LDPTR_W   = (0x24 << 24),
     LA_OPC_STPTR_W   = (0x25 << 24),
     LA_OPC_LDPTR_D   = (0x26 << 24),
