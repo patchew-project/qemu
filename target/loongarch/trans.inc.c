@@ -1871,3 +1871,18 @@ static bool trans_fclass_d(DisasContext *ctx, arg_fclass_d *a)
     gen_loongarch_fp_arith(ctx, LA_OPC_FCLASS_D, 0, a->fj, a->fd);
     return true;
 }
+
+/* Floating point compare instruction translation */
+static bool trans_fcmp_cond_s(DisasContext *ctx, arg_fcmp_cond_s *a)
+{
+    check_fpu_enabled(ctx);
+    gen_loongarch_fp_cmp_s(ctx, a->fcond, a->fk, a->fj, a->cd);
+    return true;
+}
+
+static bool trans_fcmp_cond_d(DisasContext *ctx, arg_fcmp_cond_d *a)
+{
+    check_fpu_enabled(ctx);
+    gen_loongarch_fp_cmp_d(ctx, a->fcond, a->fk, a->fj, a->cd);
+    return true;
+}

@@ -1679,6 +1679,96 @@ static void gen_loongarch_fp_arith(DisasContext *ctx, uint32_t opc,
     }
 }
 
+#define FP_CMP(fmt, bits, STORE)                                              \
+static inline void gen_loongarch_fp_cmp_ ## fmt(DisasContext *ctx, int fcond, \
+                                                int fk, int fj, int cd)       \
+{                                                                             \
+    TCGv_i ## bits fp0 = tcg_temp_new_i ## bits();                            \
+    TCGv_i ## bits fp1 = tcg_temp_new_i ## bits();                            \
+    TCGv_i32 fcc = tcg_const_i32(cd);                                         \
+    check_fpu_enabled(ctx);                                                   \
+    gen_load_fpr ## bits(ctx, fp0, fj);                                       \
+    gen_load_fpr ## bits(ctx, fp1, fk);                                       \
+    switch (fcond) {                                                          \
+    case  0:                                                                  \
+        gen_helper_fp_cmp_caf_ ## fmt(fp0, cpu_env, fp0, fp1);                \
+        break;                                                                \
+    case  1:                                                                  \
+        gen_helper_fp_cmp_saf_ ## fmt(fp0, cpu_env, fp0, fp1);                \
+        break;                                                                \
+    case  2:                                                                  \
+        gen_helper_fp_cmp_clt_ ## fmt(fp0, cpu_env, fp0, fp1);                \
+        break;                                                                \
+    case  3:                                                                  \
+        gen_helper_fp_cmp_slt_ ## fmt(fp0, cpu_env, fp0, fp1);                \
+        break;                                                                \
+    case  4:                                                                  \
+        gen_helper_fp_cmp_ceq_ ## fmt(fp0, cpu_env, fp0, fp1);                \
+        break;                                                                \
+    case  5:                                                                  \
+        gen_helper_fp_cmp_seq_ ## fmt(fp0, cpu_env, fp0, fp1);                \
+        break;                                                                \
+    case  6:                                                                  \
+        gen_helper_fp_cmp_cle_ ## fmt(fp0, cpu_env, fp0, fp1);                \
+        break;                                                                \
+    case  7:                                                                  \
+        gen_helper_fp_cmp_sle_ ## fmt(fp0, cpu_env, fp0, fp1);                \
+        break;                                                                \
+    case  8:                                                                  \
+        gen_helper_fp_cmp_cun_ ## fmt(fp0, cpu_env, fp0, fp1);                \
+        break;                                                                \
+    case  9:                                                                  \
+        gen_helper_fp_cmp_sun_ ## fmt(fp0, cpu_env, fp0, fp1);                \
+        break;                                                                \
+    case 10:                                                                  \
+        gen_helper_fp_cmp_cult_ ## fmt(fp0, cpu_env, fp0, fp1);               \
+        break;                                                                \
+    case 11:                                                                  \
+        gen_helper_fp_cmp_sult_ ## fmt(fp0, cpu_env, fp0, fp1);               \
+        break;                                                                \
+    case 12:                                                                  \
+        gen_helper_fp_cmp_cueq_ ## fmt(fp0, cpu_env, fp0, fp1);               \
+        break;                                                                \
+    case 13:                                                                  \
+        gen_helper_fp_cmp_sueq_ ## fmt(fp0, cpu_env, fp0, fp1);               \
+        break;                                                                \
+    case 14:                                                                  \
+        gen_helper_fp_cmp_cule_ ## fmt(fp0, cpu_env, fp0, fp1);               \
+        break;                                                                \
+    case 15:                                                                  \
+        gen_helper_fp_cmp_sule_ ## fmt(fp0, cpu_env, fp0, fp1);               \
+        break;                                                                \
+    case 16:                                                                  \
+        gen_helper_fp_cmp_cne_ ## fmt(fp0, cpu_env, fp0, fp1);                \
+        break;                                                                \
+    case 17:                                                                  \
+        gen_helper_fp_cmp_sne_ ## fmt(fp0, cpu_env, fp0, fp1);                \
+        break;                                                                \
+    case 20:                                                                  \
+        gen_helper_fp_cmp_cor_ ## fmt(fp0, cpu_env, fp0, fp1);                \
+        break;                                                                \
+    case 21:                                                                  \
+        gen_helper_fp_cmp_sor_ ## fmt(fp0, cpu_env, fp0, fp1);                \
+        break;                                                                \
+    case 24:                                                                  \
+        gen_helper_fp_cmp_cune_ ## fmt(fp0, cpu_env, fp0, fp1);               \
+        break;                                                                \
+    case 25:                                                                  \
+        gen_helper_fp_cmp_sune_ ## fmt(fp0, cpu_env, fp0, fp1);               \
+        break;                                                                \
+    default:                                                                  \
+        abort();                                                              \
+    }                                                                         \
+    STORE;                                                                    \
+    tcg_temp_free_i ## bits(fp0);                                             \
+    tcg_temp_free_i ## bits(fp1);                                             \
+    tcg_temp_free_i32(fcc);                                                   \
+}
+
+FP_CMP(d, 64, gen_helper_movreg2cf_i64(cpu_env, fcc, fp0))
+FP_CMP(s, 32, gen_helper_movreg2cf_i32(cpu_env, fcc, fp0))
+#undef FP_CMP
+
 static void loongarch_tr_tb_start(DisasContextBase *dcbase, CPUState *cs)
 {
 }
