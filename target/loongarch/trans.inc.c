@@ -1333,3 +1333,114 @@ TRANS_AM_DB_D(ammin_db_du, fetch_umin)    /* trans_ammin_db_du */
 #undef TRANS_AM_DB
 #undef TRANS_AM_DB_W
 #undef TRANS_AM_DB_D
+
+/* Fixed point extra instruction translation */
+static bool trans_crc_w_b_w(DisasContext *ctx, arg_crc_w_b_w *a)
+{
+    gen_crc32(ctx, a->rd, a->rj, a->rk, 1, 0);
+    return true;
+}
+
+static bool trans_crc_w_h_w(DisasContext *ctx, arg_crc_w_h_w *a)
+{
+    gen_crc32(ctx, a->rd, a->rj, a->rk, 2, 0);
+    return true;
+}
+
+static bool trans_crc_w_w_w(DisasContext *ctx, arg_crc_w_w_w *a)
+{
+    gen_crc32(ctx, a->rd, a->rj, a->rk, 4, 0);
+    return true;
+}
+
+static bool trans_crc_w_d_w(DisasContext *ctx, arg_crc_w_d_w *a)
+{
+    gen_crc32(ctx, a->rd, a->rj, a->rk, 8, 0);
+    return true;
+}
+static bool trans_crcc_w_b_w(DisasContext *ctx, arg_crcc_w_b_w *a)
+{
+    gen_crc32(ctx, a->rd, a->rj, a->rk, 1, 1);
+    return true;
+}
+
+static bool trans_crcc_w_h_w(DisasContext *ctx, arg_crcc_w_h_w *a)
+{
+    gen_crc32(ctx, a->rd, a->rj, a->rk, 2, 1);
+    return true;
+}
+
+static bool trans_crcc_w_w_w(DisasContext *ctx, arg_crcc_w_w_w *a)
+{
+    gen_crc32(ctx, a->rd, a->rj, a->rk, 4, 1);
+    return true;
+}
+
+static bool trans_crcc_w_d_w(DisasContext *ctx, arg_crcc_w_d_w *a)
+{
+    gen_crc32(ctx, a->rd, a->rj, a->rk, 8, 1);
+    return true;
+}
+
+static bool trans_break(DisasContext *ctx, arg_break *a)
+{
+    generate_exception_end(ctx, EXCP_BREAK);
+    return true;
+}
+
+static bool trans_syscall(DisasContext *ctx, arg_syscall *a)
+{
+    generate_exception_end(ctx, EXCP_SYSCALL);
+    return true;
+}
+
+static bool trans_asrtle_d(DisasContext *ctx, arg_asrtle_d * a)
+{
+    TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
+    gen_load_gpr(t1, a->rj);
+    gen_load_gpr(t2, a->rk);
+    gen_helper_asrtle_d(cpu_env, t1, t2);
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
+    return true;
+}
+
+static bool trans_asrtgt_d(DisasContext *ctx, arg_asrtgt_d * a)
+{
+    TCGv t1 = tcg_temp_new();
+    TCGv t2 = tcg_temp_new();
+    gen_load_gpr(t1, a->rj);
+    gen_load_gpr(t2, a->rk);
+    gen_helper_asrtgt_d(cpu_env, t1, t2);
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
+    return true;
+}
+
+static bool trans_rdtimel_w(DisasContext *ctx, arg_rdtimel_w *a)
+{
+    /* Nop */
+    return true;
+}
+
+static bool trans_rdtimeh_w(DisasContext *ctx, arg_rdtimeh_w *a)
+{
+    /* Nop */
+    return true;
+}
+
+static bool trans_rdtime_d(DisasContext *ctx, arg_rdtime_d *a)
+{
+    /* Nop */
+    return true;
+}
+
+static bool trans_cpucfg(DisasContext *ctx, arg_cpucfg *a)
+{
+    TCGv t0 = tcg_temp_new();
+    gen_load_gpr(t0, a->rj);
+    gen_helper_cpucfg(cpu_gpr[a->rd], cpu_env, t0);
+    tcg_temp_free(t0);
+    return true;
+}
