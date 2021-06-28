@@ -320,8 +320,7 @@ static void handleAnyDeviceErrors(Error * err)
 - (void) setAbsoluteEnabled:(BOOL)tIsAbsoluteEnabled;
 /* The state surrounding mouse grabbing is potentially confusing.
  * isAbsoluteEnabled tracks qemu_input_is_absolute() [ie "is the emulated
- *   pointing device an absolute-position one?"], but is only updated on
- *   next refresh.
+ *   pointing device an absolute-position one?"].
  * isMouseGrabbed tracks whether GUI events are directed to the guest;
  *   it controls whether special keys like Cmd get sent to the guest,
  *   and whether we capture the mouse when in non-absolute mode.
@@ -1850,6 +1849,20 @@ static void cocoa_clipboard_request(QemuClipboardInfo *info,
     }
 }
 
+static void cocoa_notify_mouse_mode_change(Notifier *notify, void *data)
+{
+    dispatch_async(dispatch_get_main_queue(), ^{
+        bool is_absolute = qemu_input_is_absolute();
+        if (is_absolute && [cocoaView isMouseGrabbed]) {
+            [cocoaView ungrabMouse];
+        }
+        [cocoaView setAbsoluteEnabled:is_absolute];
+    });
+}
+
+static Notifier mouse_mode_notifier =
+    { .notify = cocoa_notify_mouse_mode_change };
+
 /*
  * The startup process for the OSX/Cocoa UI is complicated, because
  * OSX insists that the UI runs on the initial main thread, and so we
@@ -1997,17 +2010,6 @@ static void cocoa_refresh(DisplayChangeListener *dcl)
     COCOA_DEBUG("qemu_cocoa: cocoa_refresh\n");
     graphic_hw_update(NULL);
 
-    if (qemu_input_is_absolute()) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            if (![cocoaView isAbsoluteEnabled]) {
-                if ([cocoaView isMouseGrabbed]) {
-                    [cocoaView ungrabMouse];
-                }
-            }
-            [cocoaView setAbsoluteEnabled:YES];
-        });
-    }
-
     if (cbchangecount != [[NSPasteboard generalPasteboard] changeCount]) {
         qemu_clipboard_info_unref(cbinfo);
         cbinfo = qemu_clipboard_info_new(&cbpeer, QEMU_CLIPBOARD_SELECTION_CLIPBOARD);
@@ -2048,6 +2050,9 @@ static void cocoa_display_init(DisplayState *ds, DisplayOptions *opts)
     qemu_event_init(&cbevent, false);
     cbowner = [[QemuCocoaPasteboardTypeOwner alloc] init];
     qemu_clipboard_peer_register(&cbpeer);
+
+    cocoa_notify_mouse_mode_change(NULL, NULL);
+    qemu_add_mouse_mode_change_notifier(&mouse_mode_notifier);
 }
 
 static QemuDisplay qemu_display_cocoa = {
