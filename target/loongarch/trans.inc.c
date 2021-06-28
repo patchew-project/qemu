@@ -1886,3 +1886,172 @@ static bool trans_fcmp_cond_d(DisasContext *ctx, arg_fcmp_cond_d *a)
     gen_loongarch_fp_cmp_d(ctx, a->fcond, a->fk, a->fj, a->cd);
     return true;
 }
+
+/* Floating point conversion instruction */
+static bool trans_fcvt_s_d(DisasContext *ctx, arg_fcvt_s_d *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FCVT_S_D, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_fcvt_d_s(DisasContext *ctx, arg_fcvt_d_s *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FCVT_D_S, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_ftintrm_w_s(DisasContext *ctx, arg_ftintrm_l_s *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FTINTRM_W_S, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_ftintrm_w_d(DisasContext *ctx, arg_ftintrm_l_d *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FTINTRM_W_D, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_ftintrm_l_s(DisasContext *ctx, arg_ftintrm_l_s *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FTINTRM_L_S, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_ftintrm_l_d(DisasContext *ctx, arg_ftintrm_l_d *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FTINTRM_L_D, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_ftintrp_w_s(DisasContext *ctx, arg_ftintrp_w_s *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FTINTRP_W_S, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_ftintrp_w_d(DisasContext *ctx, arg_ftintrp_w_d *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FTINTRP_W_D, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_ftintrp_l_s(DisasContext *ctx, arg_ftintrp_l_s *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FTINTRP_L_S, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_ftintrp_l_d(DisasContext *ctx, arg_ftintrp_l_d *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FTINTRP_L_D, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_ftintrz_w_s(DisasContext *ctx, arg_ftintrz_w_s *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FTINTRZ_W_S, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_ftintrz_w_d(DisasContext *ctx, arg_ftintrz_w_d *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FTINTRZ_W_D, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_ftintrz_l_s(DisasContext *ctx, arg_ftintrz_l_s *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FTINTRZ_L_S, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_ftintrz_l_d(DisasContext *ctx, arg_ftintrz_l_d *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FTINTRZ_L_D, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_ftintrne_w_s(DisasContext *ctx, arg_ftintrne_w_s *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FTINTRNE_W_S, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_ftintrne_w_d(DisasContext *ctx, arg_ftintrne_w_d *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FTINTRNE_W_D, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_ftintrne_l_s(DisasContext *ctx, arg_ftintrne_l_s *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FTINTRNE_L_S, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_ftintrne_l_d(DisasContext *ctx, arg_ftintrne_l_d *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FTINTRNE_L_D, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_ftint_w_s(DisasContext *ctx, arg_ftint_w_s *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FTINT_W_S, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_ftint_w_d(DisasContext *ctx, arg_ftint_w_d *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FTINT_W_D, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_ftint_l_s(DisasContext *ctx, arg_ftint_l_s *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FTINT_L_S, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_ftint_l_d(DisasContext *ctx, arg_ftint_l_d *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FTINT_L_D, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_ffint_s_w(DisasContext *ctx, arg_ffint_s_w *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FFINT_S_W, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_ffint_s_l(DisasContext *ctx, arg_ffint_s_l *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FFINT_S_L, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_ffint_d_w(DisasContext *ctx, arg_ffint_d_w *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FFINT_D_W, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_ffint_d_l(DisasContext *ctx, arg_ffint_d_l *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FFINT_D_L, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_frint_s(DisasContext *ctx, arg_frint_s *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FRINT_S, a->fj, a->fd);
+    return true;
+}
+
+static bool trans_frint_d(DisasContext *ctx, arg_frint_d *a)
+{
+    gen_loongarch_fp_conv(ctx, LA_OPC_FRINT_D, a->fj, a->fd);
+    return true;
+}

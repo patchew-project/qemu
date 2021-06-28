@@ -1769,6 +1769,324 @@ FP_CMP(d, 64, gen_helper_movreg2cf_i64(cpu_env, fcc, fp0))
 FP_CMP(s, 32, gen_helper_movreg2cf_i32(cpu_env, fcc, fp0))
 #undef FP_CMP
 
+/* loongarch floating-point conversion */
+static void gen_loongarch_fp_conv(DisasContext *ctx, uint32_t opc,
+                                  int fj, int fd)
+{
+    check_fpu_enabled(ctx);
+    switch (opc) {
+    case LA_OPC_FCVT_S_D:
+        {
+            TCGv_i32 fp32 = tcg_temp_new_i32();
+            TCGv_i64 fp64 = tcg_temp_new_i64();
+
+            gen_load_fpr64(ctx, fp64, fj);
+            gen_helper_fp_cvt_s_d(fp32, cpu_env, fp64);
+            tcg_temp_free_i64(fp64);
+            gen_store_fpr32(ctx, fp32, fd);
+            tcg_temp_free_i32(fp32);
+        }
+        break;
+    case LA_OPC_FCVT_D_S:
+        {
+            TCGv_i32 fp32 = tcg_temp_new_i32();
+            TCGv_i64 fp64 = tcg_temp_new_i64();
+
+            gen_load_fpr32(ctx, fp32, fj);
+            gen_helper_fp_cvt_d_s(fp64, cpu_env, fp32);
+            tcg_temp_free_i32(fp32);
+            gen_store_fpr64(ctx, fp64, fd);
+            tcg_temp_free_i64(fp64);
+        }
+        break;
+    case LA_OPC_FTINTRM_W_S:
+        {
+            TCGv_i32 fp0 = tcg_temp_new_i32();
+
+            gen_load_fpr32(ctx, fp0, fj);
+            gen_helper_fp_tintrm_w_s(fp0, cpu_env, fp0);
+            gen_store_fpr32(ctx, fp0, fd);
+            tcg_temp_free_i32(fp0);
+        }
+        break;
+    case LA_OPC_FTINTRM_W_D:
+        {
+            TCGv_i32 fp32 = tcg_temp_new_i32();
+            TCGv_i64 fp64 = tcg_temp_new_i64();
+
+            gen_load_fpr64(ctx, fp64, fj);
+            gen_helper_fp_tintrm_w_d(fp32, cpu_env, fp64);
+            tcg_temp_free_i64(fp64);
+            gen_store_fpr32(ctx, fp32, fd);
+            tcg_temp_free_i32(fp32);
+        }
+        break;
+    case LA_OPC_FTINTRM_L_S:
+        {
+            TCGv_i32 fp32 = tcg_temp_new_i32();
+            TCGv_i64 fp64 = tcg_temp_new_i64();
+
+            gen_load_fpr32(ctx, fp32, fj);
+            gen_helper_fp_tintrm_l_s(fp64, cpu_env, fp32);
+            tcg_temp_free_i32(fp32);
+            gen_store_fpr64(ctx, fp64, fd);
+            tcg_temp_free_i64(fp64);
+        }
+        break;
+    case LA_OPC_FTINTRM_L_D:
+        {
+            TCGv_i64 fp0 = tcg_temp_new_i64();
+
+            gen_load_fpr64(ctx, fp0, fj);
+            gen_helper_fp_tintrm_l_d(fp0, cpu_env, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free_i64(fp0);
+        }
+        break;
+    case LA_OPC_FTINTRP_W_S:
+        {
+            TCGv_i32 fp0 = tcg_temp_new_i32();
+
+            gen_load_fpr32(ctx, fp0, fj);
+            gen_helper_fp_tintrp_w_s(fp0, cpu_env, fp0);
+            gen_store_fpr32(ctx, fp0, fd);
+            tcg_temp_free_i32(fp0);
+        }
+        break;
+    case LA_OPC_FTINTRP_W_D:
+        {
+            TCGv_i32 fp32 = tcg_temp_new_i32();
+            TCGv_i64 fp64 = tcg_temp_new_i64();
+
+            gen_load_fpr64(ctx, fp64, fj);
+            gen_helper_fp_tintrp_w_d(fp32, cpu_env, fp64);
+            tcg_temp_free_i64(fp64);
+            gen_store_fpr32(ctx, fp32, fd);
+            tcg_temp_free_i32(fp32);
+        }
+        break;
+    case LA_OPC_FTINTRP_L_S:
+        {
+            TCGv_i32 fp32 = tcg_temp_new_i32();
+            TCGv_i64 fp64 = tcg_temp_new_i64();
+
+            gen_load_fpr32(ctx, fp32, fj);
+            gen_helper_fp_tintrp_l_s(fp64, cpu_env, fp32);
+            tcg_temp_free_i32(fp32);
+            gen_store_fpr64(ctx, fp64, fd);
+            tcg_temp_free_i64(fp64);
+        }
+        break;
+    case LA_OPC_FTINTRP_L_D:
+        {
+            TCGv_i64 fp0 = tcg_temp_new_i64();
+
+            gen_load_fpr64(ctx, fp0, fj);
+            gen_helper_fp_tintrp_l_d(fp0, cpu_env, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free_i64(fp0);
+        }
+        break;
+    case LA_OPC_FTINTRZ_W_S:
+        {
+            TCGv_i32 fp0 = tcg_temp_new_i32();
+
+            gen_load_fpr32(ctx, fp0, fj);
+            gen_helper_fp_tintrz_w_s(fp0, cpu_env, fp0);
+            gen_store_fpr32(ctx, fp0, fd);
+            tcg_temp_free_i32(fp0);
+        }
+        break;
+    case LA_OPC_FTINTRZ_W_D:
+        {
+            TCGv_i32 fp32 = tcg_temp_new_i32();
+            TCGv_i64 fp64 = tcg_temp_new_i64();
+
+            gen_load_fpr64(ctx, fp64, fj);
+            gen_helper_fp_tintrz_w_d(fp32, cpu_env, fp64);
+            tcg_temp_free_i64(fp64);
+            gen_store_fpr32(ctx, fp32, fd);
+            tcg_temp_free_i32(fp32);
+        }
+        break;
+    case LA_OPC_FTINTRZ_L_S:
+        {
+            TCGv_i32 fp32 = tcg_temp_new_i32();
+            TCGv_i64 fp64 = tcg_temp_new_i64();
+
+            gen_load_fpr32(ctx, fp32, fj);
+            gen_helper_fp_tintrz_l_s(fp64, cpu_env, fp32);
+            tcg_temp_free_i32(fp32);
+            gen_store_fpr64(ctx, fp64, fd);
+            tcg_temp_free_i64(fp64);
+        }
+        break;
+    case LA_OPC_FTINTRZ_L_D:
+        {
+            TCGv_i64 fp0 = tcg_temp_new_i64();
+
+            gen_load_fpr64(ctx, fp0, fj);
+            gen_helper_fp_tintrz_l_d(fp0, cpu_env, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free_i64(fp0);
+        }
+        break;
+    case LA_OPC_FTINTRNE_W_S:
+        {
+            TCGv_i32 fp0 = tcg_temp_new_i32();
+
+            gen_load_fpr32(ctx, fp0, fj);
+            gen_helper_fp_tintrne_w_s(fp0, cpu_env, fp0);
+            gen_store_fpr32(ctx, fp0, fd);
+            tcg_temp_free_i32(fp0);
+        }
+        break;
+    case LA_OPC_FTINTRNE_W_D:
+        {
+            TCGv_i32 fp32 = tcg_temp_new_i32();
+            TCGv_i64 fp64 = tcg_temp_new_i64();
+
+            gen_load_fpr64(ctx, fp64, fj);
+            gen_helper_fp_tintrne_w_d(fp32, cpu_env, fp64);
+            tcg_temp_free_i64(fp64);
+            gen_store_fpr32(ctx, fp32, fd);
+            tcg_temp_free_i32(fp32);
+        }
+        break;
+    case LA_OPC_FTINTRNE_L_S:
+        {
+            TCGv_i32 fp32 = tcg_temp_new_i32();
+            TCGv_i64 fp64 = tcg_temp_new_i64();
+
+            gen_load_fpr32(ctx, fp32, fj);
+            gen_helper_fp_tintrne_l_s(fp64, cpu_env, fp32);
+            tcg_temp_free_i32(fp32);
+            gen_store_fpr64(ctx, fp64, fd);
+            tcg_temp_free_i64(fp64);
+        }
+        break;
+    case LA_OPC_FTINTRNE_L_D:
+        {
+            TCGv_i64 fp0 = tcg_temp_new_i64();
+
+            gen_load_fpr64(ctx, fp0, fj);
+            gen_helper_fp_tintrne_l_d(fp0, cpu_env, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free_i64(fp0);
+        }
+        break;
+    case LA_OPC_FTINT_W_S:
+        {
+            TCGv_i32 fp0 = tcg_temp_new_i32();
+
+            gen_load_fpr32(ctx, fp0, fj);
+            gen_helper_fp_tint_w_s(fp0, cpu_env, fp0);
+            gen_store_fpr32(ctx, fp0, fd);
+            tcg_temp_free_i32(fp0);
+        }
+        break;
+    case LA_OPC_FTINT_W_D:
+        {
+            TCGv_i32 fp32 = tcg_temp_new_i32();
+            TCGv_i64 fp64 = tcg_temp_new_i64();
+
+            gen_load_fpr64(ctx, fp64, fj);
+            gen_helper_fp_tint_w_d(fp32, cpu_env, fp64);
+            tcg_temp_free_i64(fp64);
+            gen_store_fpr32(ctx, fp32, fd);
+            tcg_temp_free_i32(fp32);
+        }
+        break;
+    case LA_OPC_FTINT_L_S:
+        {
+            TCGv_i32 fp32 = tcg_temp_new_i32();
+            TCGv_i64 fp64 = tcg_temp_new_i64();
+
+            gen_load_fpr32(ctx, fp32, fj);
+            gen_helper_fp_tint_l_s(fp64, cpu_env, fp32);
+            tcg_temp_free_i32(fp32);
+            gen_store_fpr64(ctx, fp64, fd);
+            tcg_temp_free_i64(fp64);
+        }
+        break;
+    case LA_OPC_FTINT_L_D:
+        {
+            TCGv_i64 fp0 = tcg_temp_new_i64();
+
+            gen_load_fpr64(ctx, fp0, fj);
+            gen_helper_fp_tint_l_d(fp0, cpu_env, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free_i64(fp0);
+        }
+        break;
+    case LA_OPC_FFINT_S_W:
+        {
+            TCGv_i32 fp0 = tcg_temp_new_i32();
+
+            gen_load_fpr32(ctx, fp0, fj);
+            gen_helper_fp_fint_s_w(fp0, cpu_env, fp0);
+            gen_store_fpr32(ctx, fp0, fd);
+            tcg_temp_free_i32(fp0);
+        }
+        break;
+    case LA_OPC_FFINT_S_L:
+        {
+            TCGv_i32 fp32 = tcg_temp_new_i32();
+            TCGv_i64 fp64 = tcg_temp_new_i64();
+
+            gen_load_fpr64(ctx, fp64, fj);
+            gen_helper_fp_fint_s_l(fp32, cpu_env, fp64);
+            tcg_temp_free_i64(fp64);
+            gen_store_fpr32(ctx, fp32, fd);
+            tcg_temp_free_i32(fp32);
+        }
+        break;
+    case LA_OPC_FFINT_D_W:
+        {
+            TCGv_i32 fp32 = tcg_temp_new_i32();
+            TCGv_i64 fp64 = tcg_temp_new_i64();
+
+            gen_load_fpr32(ctx, fp32, fj);
+            gen_helper_fp_fint_d_w(fp64, cpu_env, fp32);
+            tcg_temp_free_i32(fp32);
+            gen_store_fpr64(ctx, fp64, fd);
+            tcg_temp_free_i64(fp64);
+        }
+        break;
+    case LA_OPC_FFINT_D_L:
+        {
+            TCGv_i64 fp0 = tcg_temp_new_i64();
+
+            gen_load_fpr64(ctx, fp0, fj);
+            gen_helper_fp_fint_d_l(fp0, cpu_env, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free_i64(fp0);
+        }
+        break;
+    case LA_OPC_FRINT_S:
+        {
+            TCGv_i32 fp0 = tcg_temp_new_i32();
+            gen_load_fpr32(ctx, fp0, fj);
+            gen_helper_fp_rint_s(fp0, cpu_env, fp0);
+            gen_store_fpr32(ctx, fp0, fd);
+            tcg_temp_free_i32(fp0);
+        }
+        break;
+    case LA_OPC_FRINT_D:
+        {
+            TCGv_i64 fp0 = tcg_temp_new_i64();
+            gen_load_fpr64(ctx, fp0, fj);
+            gen_helper_fp_rint_d(fp0, cpu_env, fp0);
+            gen_store_fpr64(ctx, fp0, fd);
+            tcg_temp_free_i64(fp0);
+        }
+        break;
+    default:
+        generate_exception_end(ctx, EXCP_INE);
+        return;
+    }
+}
+
 static void loongarch_tr_tb_start(DisasContextBase *dcbase, CPUState *cs)
 {
 }
