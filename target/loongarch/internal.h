@@ -29,9 +29,33 @@ struct loongarch_def_t {
 extern const struct loongarch_def_t loongarch_defs[];
 extern const int loongarch_defs_number;
 
+void loongarch_cpu_do_interrupt(CPUState *cpu);
+bool loongarch_cpu_exec_interrupt(CPUState *cpu, int int_req);
 void loongarch_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
 
 #define cpu_signal_handler cpu_loongarch_signal_handler
+
+static inline bool cpu_loongarch_hw_interrupts_enabled(CPULoongArchState *env)
+{
+    bool ret = 0;
+
+    ret = env->CSR_CRMD & (1 << CSR_CRMD_IE_SHIFT);
+
+    return ret;
+}
+
+static inline bool cpu_loongarch_hw_interrupts_pending(CPULoongArchState *env)
+{
+    int32_t pending;
+    int32_t status;
+    bool r;
+
+    pending = env->CSR_ESTAT & CSR_ESTAT_IPMASK;
+    status  = env->CSR_ECFG & CSR_ECFG_IPMASK;
+
+    r = (pending & status) != 0;
+    return r;
+}
 
 void loongarch_tcg_init(void);
 
