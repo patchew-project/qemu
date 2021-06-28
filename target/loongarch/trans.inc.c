@@ -499,3 +499,236 @@ static bool trans_rotri_d(DisasContext *ctx, arg_rotri_d *a)
     tcg_temp_free(t0);
     return true;
 }
+
+/* Fixed point bit operation instruction translation */
+static bool trans_ext_w_h(DisasContext *ctx, arg_ext_w_h *a)
+{
+    gen_loongarch_bshfl(ctx, LA_OPC_EXT_WH, a->rj, a->rd);
+    return true;
+}
+
+static bool trans_ext_w_b(DisasContext *ctx, arg_ext_w_b *a)
+{
+    gen_loongarch_bshfl(ctx, LA_OPC_EXT_WB, a->rj, a->rd);
+    return true;
+}
+
+static bool trans_clo_w(DisasContext *ctx, arg_clo_w *a)
+{
+    gen_loongarch_cl(ctx, LA_OPC_CLO_W, a->rd, a->rj);
+    return true;
+}
+
+static bool trans_clz_w(DisasContext *ctx, arg_clz_w *a)
+{
+    gen_loongarch_cl(ctx, LA_OPC_CLZ_W, a->rd, a->rj);
+    return true;
+}
+
+static bool trans_cto_w(DisasContext *ctx, arg_cto_w *a)
+{
+    TCGv t0 = tcg_temp_new();
+
+    gen_load_gpr(t0, a->rj);
+    gen_helper_cto_w(cpu_gpr[a->rd], cpu_env, t0);
+
+    tcg_temp_free(t0);
+    return true;
+}
+
+static bool trans_ctz_w(DisasContext *ctx, arg_ctz_w *a)
+{
+    TCGv t0 = tcg_temp_new();
+
+    gen_load_gpr(t0, a->rj);
+    gen_helper_ctz_w(cpu_gpr[a->rd], cpu_env, t0);
+
+    tcg_temp_free(t0);
+    return true;
+}
+static bool trans_clo_d(DisasContext *ctx, arg_clo_d *a)
+{
+    check_loongarch_64(ctx);
+    gen_loongarch_cl(ctx, LA_OPC_CLO_D, a->rd, a->rj);
+    return true;
+}
+
+static bool trans_clz_d(DisasContext *ctx, arg_clz_d *a)
+{
+    check_loongarch_64(ctx);
+    gen_loongarch_cl(ctx, LA_OPC_CLZ_D, a->rd, a->rj);
+    return true;
+}
+
+static bool trans_cto_d(DisasContext *ctx, arg_cto_d *a)
+{
+    TCGv t0 = tcg_temp_new();
+
+    gen_load_gpr(t0, a->rj);
+    gen_helper_cto_d(cpu_gpr[a->rd], cpu_env, t0);
+
+    tcg_temp_free(t0);
+    return true;
+}
+
+static bool trans_ctz_d(DisasContext *ctx, arg_ctz_d *a)
+{
+    TCGv t0 = tcg_temp_new();
+
+    gen_load_gpr(t0, a->rj);
+    gen_helper_ctz_d(cpu_gpr[a->rd], cpu_env, t0);
+
+    tcg_temp_free(t0);
+    return true;
+}
+
+static bool trans_revb_2h(DisasContext *ctx, arg_revb_2h *a)
+{
+    gen_loongarch_bshfl(ctx, LA_OPC_REVB_2H, a->rj, a->rd);
+    return true;
+}
+
+static bool trans_revb_4h(DisasContext *ctx, arg_revb_4h *a)
+{
+    check_loongarch_64(ctx);
+    gen_loongarch_bshfl(ctx, LA_OPC_REVB_4H, a->rj, a->rd);
+    return true;
+}
+
+static bool trans_revb_2w(DisasContext *ctx, arg_revb_2w *a)
+{
+    handle_rev32(ctx, a->rj, a->rd);
+    return true;
+}
+
+static bool trans_revb_d(DisasContext *ctx, arg_revb_d *a)
+{
+    handle_rev64(ctx, a->rj, a->rd);
+    return true;
+}
+static bool trans_revh_2w(DisasContext *ctx, arg_revh_2w *a)
+{
+    handle_rev16(ctx, a->rj, a->rd);
+    return true;
+}
+
+static bool trans_revh_d(DisasContext *ctx, arg_revh_d *a)
+{
+    check_loongarch_64(ctx);
+    gen_loongarch_bshfl(ctx, LA_OPC_REVH_D, a->rj, a->rd);
+    return true;
+}
+
+static bool trans_bitrev_4b(DisasContext *ctx, arg_bitrev_4b *a)
+{
+    gen_loongarch_bitswap(ctx, LA_OPC_BREV_4B, a->rd, a->rj);
+    return true;
+}
+
+static bool trans_bitrev_8b(DisasContext *ctx, arg_bitrev_8b *a)
+{
+    check_loongarch_64(ctx);
+    gen_loongarch_bitswap(ctx, LA_OPC_BREV_8B, a->rd, a->rj);
+    return true;
+}
+
+static bool trans_bitrev_w(DisasContext *ctx, arg_bitrev_w *a)
+{
+    TCGv t0 = tcg_temp_new();
+    gen_load_gpr(t0, a->rj);
+    gen_helper_bitrev_w(cpu_gpr[a->rd], cpu_env, t0);
+    tcg_temp_free(t0);
+    return true;
+}
+
+static bool trans_bitrev_d(DisasContext *ctx, arg_bitrev_d *a)
+{
+    TCGv t0 = tcg_temp_new();
+    gen_load_gpr(t0, a->rj);
+    gen_helper_bitrev_d(cpu_gpr[a->rd], cpu_env, t0);
+    tcg_temp_free(t0);
+    return true;
+}
+
+static bool trans_bytepick_w(DisasContext *ctx, arg_bytepick_w *a)
+{
+    gen_loongarch_align(ctx, 32, a->rd, a->rj, a->rk, a->sa2);
+    return true;
+}
+
+static bool trans_bytepick_d(DisasContext *ctx, arg_bytepick_d *a)
+{
+    check_loongarch_64(ctx);
+    gen_loongarch_align(ctx, 64, a->rd, a->rj, a->rk, a->sa3);
+    return true;
+}
+
+static bool trans_maskeqz(DisasContext *ctx, arg_maskeqz *a)
+{
+    gen_loongarch_cond_zero(ctx, LA_OPC_MASKEQZ, a->rd, a->rj, a->rk);
+    return true;
+}
+
+static bool trans_masknez(DisasContext *ctx, arg_masknez *a)
+{
+    gen_loongarch_cond_zero(ctx, LA_OPC_MASKNEZ, a->rd, a->rj, a->rk);
+    return true;
+}
+
+static bool trans_bstrins_d(DisasContext *ctx, arg_bstrins_d *a)
+{
+    int lsb = a->lsbd;
+    int msb = a->msbd;
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+
+    if (lsb > msb) {
+        return false;
+    }
+
+    gen_load_gpr(t1, a->rj);
+    gen_load_gpr(t0, a->rd);
+    tcg_gen_deposit_tl(t0, t0, t1, lsb, msb - lsb + 1);
+    gen_store_gpr(t0, a->rd);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    return true;
+}
+
+static bool trans_bstrpick_d(DisasContext *ctx, arg_bstrpick_d *a)
+{
+    int lsb = a->lsbd;
+    int msb = a->msbd;
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+
+    if (lsb > msb) {
+        return false;
+    }
+
+    gen_load_gpr(t1, a->rj);
+    gen_load_gpr(t0, a->rd);
+    tcg_gen_extract_tl(t0, t1, lsb, msb - lsb + 1);
+    gen_store_gpr(t0, a->rd);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    return true;
+}
+
+static bool trans_bstrins_w(DisasContext *ctx, arg_bstrins_w *a)
+{
+    gen_loongarch_bitops(ctx, LA_OPC_TRINS_W, a->rd, a->rj, a->lsbw, a->msbw);
+    return true;
+}
+
+static bool trans_bstrpick_w(DisasContext *ctx, arg_bstrpick_w *a)
+{
+    if (a->lsbw > a->msbw) {
+        return false;
+    }
+    gen_loongarch_bitops(ctx, LA_OPC_TRPICK_W,
+                         a->rd, a->rj, a->lsbw, a->msbw - a->lsbw);
+    return true;
+}

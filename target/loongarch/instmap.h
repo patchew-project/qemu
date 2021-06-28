@@ -11,12 +11,26 @@
 
 /* fixed point opcodes */
 enum {
+    LA_OPC_CLO_W     = (0x000004 << 10),
+    LA_OPC_CLZ_W     = (0x000005 << 10),
+    LA_OPC_CLO_D     = (0x000008 << 10),
+    LA_OPC_CLZ_D     = (0x000009 << 10),
+    LA_OPC_REVB_2H   = (0x00000C << 10),
+    LA_OPC_REVB_4H   = (0x00000D << 10),
+    LA_OPC_REVH_D    = (0x000011 << 10),
+    LA_OPC_BREV_4B   = (0x000012 << 10),
+    LA_OPC_BREV_8B   = (0x000013 << 10),
+    LA_OPC_EXT_WH    = (0x000016 << 10),
+    LA_OPC_EXT_WB    = (0x000017 << 10),
+
     LA_OPC_ADD_W     = (0x00020 << 15),
     LA_OPC_ADD_D     = (0x00021 << 15),
     LA_OPC_SUB_W     = (0x00022 << 15),
     LA_OPC_SUB_D     = (0x00023 << 15),
     LA_OPC_SLT       = (0x00024 << 15),
     LA_OPC_SLTU      = (0x00025 << 15),
+    LA_OPC_MASKEQZ   = (0x00026 << 15),
+    LA_OPC_MASKNEZ   = (0x00027 << 15),
     LA_OPC_NOR       = (0x00028 << 15),
     LA_OPC_AND       = (0x00029 << 15),
     LA_OPC_OR        = (0x0002A << 15),
@@ -48,8 +62,9 @@ enum {
     LA_OPC_ROTRI_W   = (0x00099 << 15),
 
     LA_OPC_ALSL_W    = (0x0002 << 17),
-    LA_OPC_ALSL_D    = (0x0016 << 17)
-
+    LA_OPC_ALSL_D    = (0x0016 << 17),
+    LA_OPC_TRINS_W   = (0x003 << 21) | (0x0 << 15),
+    LA_OPC_TRPICK_W  = (0x003 << 21) | (0x1 << 15)
 };
 
 /* 12 bit immediate opcodes */

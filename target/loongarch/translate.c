@@ -854,6 +854,304 @@ static void gen_loongarch_shift_imm(DisasContext *ctx, uint32_t opc,
     tcg_temp_free(t0);
 }
 
+/* loongarch bit shift */
+static void gen_loongarch_bshfl(DisasContext *ctx, uint32_t opc,
+                                int rj, int rd)
+{
+    TCGv t0;
+
+    if (rd == 0) {
+        /* Treat as NOP. */
+        return;
+    }
+
+    t0 = tcg_temp_new();
+    gen_load_gpr(t0, rj);
+    switch (opc) {
+    case LA_OPC_REVB_2H:
+        {
+            TCGv t1 = tcg_temp_new();
+            TCGv t2 = tcg_const_tl(0x00FF00FF);
+            tcg_gen_shri_tl(t1, t0, 8);
+            tcg_gen_and_tl(t1, t1, t2);
+            tcg_gen_and_tl(t0, t0, t2);
+            tcg_gen_shli_tl(t0, t0, 8);
+            tcg_gen_or_tl(t0, t0, t1);
+            tcg_temp_free(t2);
+            tcg_temp_free(t1);
+            tcg_gen_ext32s_tl(cpu_gpr[rd], t0);
+        }
+        break;
+    case LA_OPC_EXT_WB:
+        tcg_gen_ext8s_tl(cpu_gpr[rd], t0);
+        break;
+    case LA_OPC_EXT_WH:
+        tcg_gen_ext16s_tl(cpu_gpr[rd], t0);
+        break;
+    case LA_OPC_REVB_4H:
+        {
+            TCGv t1 = tcg_temp_new();
+            TCGv t2 = tcg_const_tl(0x00FF00FF00FF00FFULL);
+            tcg_gen_shri_tl(t1, t0, 8);
+            tcg_gen_and_tl(t1, t1, t2);
+            tcg_gen_and_tl(t0, t0, t2);
+            tcg_gen_shli_tl(t0, t0, 8);
+            tcg_gen_or_tl(cpu_gpr[rd], t0, t1);
+            tcg_temp_free(t2);
+            tcg_temp_free(t1);
+        }
+        break;
+    case LA_OPC_REVH_D:
+        {
+            TCGv t1 = tcg_temp_new();
+            TCGv t2 = tcg_const_tl(0x0000FFFF0000FFFFULL);
+            tcg_gen_shri_tl(t1, t0, 16);
+            tcg_gen_and_tl(t1, t1, t2);
+            tcg_gen_and_tl(t0, t0, t2);
+            tcg_gen_shli_tl(t0, t0, 16);
+            tcg_gen_or_tl(t0, t0, t1);
+            tcg_gen_shri_tl(t1, t0, 32);
+            tcg_gen_shli_tl(t0, t0, 32);
+            tcg_gen_or_tl(cpu_gpr[rd], t0, t1);
+            tcg_temp_free(t2);
+            tcg_temp_free(t1);
+        }
+        break;
+    default:
+        gen_reserved_instruction(ctx);
+        tcg_temp_free(t0);
+        return;
+    }
+    tcg_temp_free(t0);
+}
+
+/* loongarch clo/clz */
+static void gen_loongarch_cl(DisasContext *ctx, uint32_t opc,
+                             int rd, int rj)
+{
+    TCGv t0;
+
+    if (rd == 0) {
+        /* Treat as NOP. */
+        return;
+    }
+    t0 = cpu_gpr[rd];
+    gen_load_gpr(t0, rj);
+
+    switch (opc) {
+    case LA_OPC_CLO_W:
+    case LA_OPC_CLO_D:
+        tcg_gen_not_tl(t0, t0);
+        break;
+    }
+
+    switch (opc) {
+    case LA_OPC_CLO_W:
+    case LA_OPC_CLZ_W:
+        tcg_gen_ext32u_tl(t0, t0);
+        tcg_gen_clzi_tl(t0, t0, TARGET_LONG_BITS);
+        tcg_gen_subi_tl(t0, t0, TARGET_LONG_BITS - 32);
+        break;
+    case LA_OPC_CLO_D:
+    case LA_OPC_CLZ_D:
+        tcg_gen_clzi_i64(t0, t0, 64);
+        break;
+    }
+}
+
+static void handle_rev64(DisasContext *ctx,
+                         unsigned int rj, unsigned int rd)
+{
+    tcg_gen_bswap64_i64(cpu_gpr[rd], cpu_gpr[rj]);
+}
+
+static void handle_rev32(DisasContext *ctx,
+                         unsigned int rj, unsigned int rd)
+{
+    TCGv_i64 tcg_rd = tcg_temp_new_i64();
+    gen_load_gpr(tcg_rd, rd);
+
+    TCGv_i64 tcg_tmp = tcg_temp_new_i64();
+    TCGv_i64 tcg_rj  = tcg_temp_new_i64();
+    gen_load_gpr(tcg_rj, rj);
+
+    tcg_gen_ext32u_i64(tcg_tmp, tcg_rj);
+    tcg_gen_bswap32_i64(tcg_rd, tcg_tmp);
+    tcg_gen_shri_i64(tcg_tmp, tcg_rj, 32);
+    tcg_gen_bswap32_i64(tcg_tmp, tcg_tmp);
+    tcg_gen_concat32_i64(cpu_gpr[rd], tcg_rd, tcg_tmp);
+
+    tcg_temp_free_i64(tcg_tmp);
+    tcg_temp_free_i64(tcg_rd);
+    tcg_temp_free_i64(tcg_rj);
+}
+
+static void handle_rev16(DisasContext *ctx, unsigned int rj, unsigned int rd)
+{
+    TCGv_i64 tcg_rd = tcg_temp_new_i64();
+    TCGv_i64 tcg_rj = tcg_temp_new_i64();
+    gen_load_gpr(tcg_rd, rd);
+    gen_load_gpr(tcg_rj, rj);
+    TCGv_i64 tcg_tmp = tcg_temp_new_i64();
+    TCGv_i64 mask = tcg_const_i64(0x0000ffff0000ffffull);
+
+    tcg_gen_shri_i64(tcg_tmp, tcg_rj, 16);
+    tcg_gen_and_i64(tcg_rd, tcg_rj, mask);
+    tcg_gen_and_i64(tcg_tmp, tcg_tmp, mask);
+    tcg_gen_shli_i64(tcg_rd, tcg_rd, 16);
+    tcg_gen_or_i64(cpu_gpr[rd], tcg_rd, tcg_tmp);
+
+    tcg_temp_free_i64(mask);
+    tcg_temp_free_i64(tcg_tmp);
+    tcg_temp_free_i64(tcg_rd);
+    tcg_temp_free_i64(tcg_rj);
+}
+
+/* loongarch bit swap */
+static void gen_loongarch_bitswap(DisasContext *ctx, int opc, int rd, int rj)
+{
+    TCGv t0;
+    if (rd == 0) {
+        /* Treat as NOP. */
+        return;
+    }
+    t0 = tcg_temp_new();
+    gen_load_gpr(t0, rj);
+    switch (opc) {
+    case LA_OPC_BREV_4B:
+        gen_helper_loongarch_bitswap(cpu_gpr[rd], t0);
+        break;
+    case LA_OPC_BREV_8B:
+        gen_helper_loongarch_dbitswap(cpu_gpr[rd], t0);
+        break;
+    }
+    tcg_temp_free(t0);
+}
+
+/* loongarch align bits */
+static void gen_loongarch_align_bits(DisasContext *ctx, int wordsz, int rd,
+                                     int rj, int rk, int bits)
+{
+    TCGv t0;
+    if (rd == 0) {
+        /* Treat as NOP. */
+        return;
+    }
+    t0 = tcg_temp_new();
+    if (bits == 0 || bits == wordsz) {
+        if (bits == 0) {
+            gen_load_gpr(t0, rk);
+        } else {
+            gen_load_gpr(t0, rj);
+        }
+        switch (wordsz) {
+        case 32:
+            tcg_gen_ext32s_tl(cpu_gpr[rd], t0);
+            break;
+        case 64:
+            tcg_gen_mov_tl(cpu_gpr[rd], t0);
+            break;
+        }
+    } else {
+        TCGv t1 = tcg_temp_new();
+        gen_load_gpr(t0, rk);
+        gen_load_gpr(t1, rj);
+        switch (wordsz) {
+        case 32:
+            {
+                TCGv_i64 t2 = tcg_temp_new_i64();
+                tcg_gen_concat_tl_i64(t2, t1, t0);
+                tcg_gen_shri_i64(t2, t2, 32 - bits);
+                gen_move_low32(cpu_gpr[rd], t2);
+                tcg_temp_free_i64(t2);
+            }
+            break;
+        case 64:
+            tcg_gen_shli_tl(t0, t0, bits);
+            tcg_gen_shri_tl(t1, t1, 64 - bits);
+            tcg_gen_or_tl(cpu_gpr[rd], t1, t0);
+            break;
+        }
+        tcg_temp_free(t1);
+    }
+    tcg_temp_free(t0);
+}
+
+/* loongarch align */
+static void gen_loongarch_align(DisasContext *ctx, int wordsz, int rd,
+                                int rj, int rk, int bp)
+{
+    gen_loongarch_align_bits(ctx, wordsz, rd, rj, rk, bp * 8);
+}
+
+/* loongarch cond set zero */
+static void gen_loongarch_cond_zero(DisasContext *ctx, uint32_t opc,
+                                    int rd, int rj, int rk)
+{
+    TCGv t0, t1, t2;
+
+    if (rd == 0) {
+        /* Treat as NOP. */
+        return;
+    }
+
+    t0 = tcg_temp_new();
+    gen_load_gpr(t0, rk);
+    t1 = tcg_const_tl(0);
+    t2 = tcg_temp_new();
+    gen_load_gpr(t2, rj);
+    switch (opc) {
+    case LA_OPC_MASKEQZ:
+        tcg_gen_movcond_tl(TCG_COND_NE, cpu_gpr[rd], t0, t1, t2, t1);
+        break;
+    case LA_OPC_MASKNEZ:
+        tcg_gen_movcond_tl(TCG_COND_EQ, cpu_gpr[rd], t0, t1, t2, t1);
+        break;
+    }
+    tcg_temp_free(t2);
+    tcg_temp_free(t1);
+    tcg_temp_free(t0);
+}
+
+/* loongarch bit ops */
+static void gen_loongarch_bitops(DisasContext *ctx, uint32_t opc, int rd,
+                                 int rj, int lsb, int msb)
+{
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+
+    gen_load_gpr(t1, rj);
+    switch (opc) {
+    case LA_OPC_TRPICK_W:
+        if (lsb + msb > 31) {
+            goto fail;
+        }
+        if (msb != 31) {
+            tcg_gen_extract_tl(t0, t1, lsb, msb + 1);
+        } else {
+            tcg_gen_ext32s_tl(t0, t1);
+        }
+        break;
+    case LA_OPC_TRINS_W:
+        if (lsb > msb) {
+            goto fail;
+        }
+        gen_load_gpr(t0, rd);
+        tcg_gen_deposit_tl(t0, t0, t1, lsb, msb - lsb + 1);
+        tcg_gen_ext32s_tl(t0, t0);
+        break;
+    default:
+fail:
+        gen_reserved_instruction(ctx);
+        tcg_temp_free(t0);
+        tcg_temp_free(t1);
+        return;
+    }
+    gen_store_gpr(t0, rd);
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+}
+
 static void loongarch_tr_tb_start(DisasContextBase *dcbase, CPUState *cs)
 {
 }
