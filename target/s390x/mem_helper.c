@@ -431,10 +431,9 @@ static uint32_t do_helper_nc(CPUS390XState *env, uint32_t l, uint64_t dest,
     return c != 0;
 }
 
-uint32_t HELPER(nc)(CPUS390XState *env, uint32_t l, uint64_t dest,
-                    uint64_t src)
+void HELPER(nc)(CPUS390XState *env, uint32_t l, uint64_t dest, uint64_t src)
 {
-    return do_helper_nc(env, l, dest, src, GETPC());
+    env->cc_op = do_helper_nc(env, l, dest, src, GETPC());
 }
 
 /* xor on array */
@@ -472,10 +471,9 @@ static uint32_t do_helper_xc(CPUS390XState *env, uint32_t l, uint64_t dest,
     return c != 0;
 }
 
-uint32_t HELPER(xc)(CPUS390XState *env, uint32_t l, uint64_t dest,
-                    uint64_t src)
+void HELPER(xc)(CPUS390XState *env, uint32_t l, uint64_t dest, uint64_t src)
 {
-    return do_helper_xc(env, l, dest, src, GETPC());
+    env->cc_op = do_helper_xc(env, l, dest, src, GETPC());
 }
 
 /* or on array */
@@ -506,10 +504,9 @@ static uint32_t do_helper_oc(CPUS390XState *env, uint32_t l, uint64_t dest,
     return c != 0;
 }
 
-uint32_t HELPER(oc)(CPUS390XState *env, uint32_t l, uint64_t dest,
-                    uint64_t src)
+void HELPER(oc)(CPUS390XState *env, uint32_t l, uint64_t dest, uint64_t src)
 {
-    return do_helper_oc(env, l, dest, src, GETPC());
+    env->cc_op = do_helper_oc(env, l, dest, src, GETPC());
 }
 
 /* memmove */
@@ -680,14 +677,13 @@ static uint32_t do_helper_clc(CPUS390XState *env, uint32_t l, uint64_t s1,
     return cc;
 }
 
-uint32_t HELPER(clc)(CPUS390XState *env, uint32_t l, uint64_t s1, uint64_t s2)
+void HELPER(clc)(CPUS390XState *env, uint32_t l, uint64_t s1, uint64_t s2)
 {
-    return do_helper_clc(env, l, s1, s2, GETPC());
+    env->cc_op = do_helper_clc(env, l, s1, s2, GETPC());
 }
 
 /* compare logical under mask */
-uint32_t HELPER(clm)(CPUS390XState *env, uint32_t r1, uint32_t mask,
-                     uint64_t addr)
+void HELPER(clm)(CPUS390XState *env, uint32_t r1, uint32_t mask, uint64_t addr)
 {
     uintptr_t ra = GETPC();
     uint32_t cc = 0;
@@ -715,7 +711,7 @@ uint32_t HELPER(clm)(CPUS390XState *env, uint32_t r1, uint32_t mask,
     }
 
     HELPER_LOG("\n");
-    return cc;
+    env->cc_op = cc;
 }
 
 static inline uint64_t get_address(CPUS390XState *env, int reg)
@@ -915,7 +911,7 @@ uint64_t HELPER(clst)(CPUS390XState *env, uint64_t c, uint64_t s1, uint64_t s2)
 }
 
 /* move page */
-uint32_t HELPER(mvpg)(CPUS390XState *env, uint64_t r0, uint32_t r1, uint32_t r2)
+void HELPER(mvpg)(CPUS390XState *env, uint64_t r0, uint32_t r1, uint32_t r2)
 {
     const uint64_t src = get_address(env, r2) & TARGET_PAGE_MASK;
     const uint64_t dst = get_address(env, r1) & TARGET_PAGE_MASK;
@@ -941,7 +937,8 @@ uint32_t HELPER(mvpg)(CPUS390XState *env, uint64_t r0, uint32_t r1, uint32_t r2)
                             MMU_DATA_LOAD, mmu_idx, ra);
     if (exc) {
         if (cco) {
-            return 2;
+            env->cc_op = 2;
+            return;
         }
         goto inject_exc;
     }
@@ -949,12 +946,15 @@ uint32_t HELPER(mvpg)(CPUS390XState *env, uint64_t r0, uint32_t r1, uint32_t r2)
                             MMU_DATA_STORE, mmu_idx, ra);
     if (exc) {
         if (cco && exc != PGM_PROTECTION) {
-            return 1;
+            env->cc_op = 1;
+            return;
         }
         goto inject_exc;
     }
     access_memmove(env, &desta, &srca, ra);
-    return 0; /* data moved */
+    env->cc_op = 0; /* data moved */
+    return;
+
 inject_exc:
 #if !defined(CONFIG_USER_ONLY)
     if (exc != PGM_ADDRESSING) {
@@ -970,7 +970,7 @@ inject_exc:
 }
 
 /* string copy */
-uint32_t HELPER(mvst)(CPUS390XState *env, uint32_t r1, uint32_t r2)
+void HELPER(mvst)(CPUS390XState *env, uint32_t r1, uint32_t r2)
 {
     const int mmu_idx = cpu_mmu_index(env, false);
     const uint64_t d = get_address(env, r1);
@@ -999,12 +999,13 @@ uint32_t HELPER(mvst)(CPUS390XState *env, uint32_t r1, uint32_t r2)
         access_set_byte(env, &desta, i, v, ra);
         if (v == c) {
             set_address_zero(env, r1, d + i);
-            return 1;
+            env->cc_op = 1;
+            return;
         }
     }
     set_address_zero(env, r1, d + len);
     set_address_zero(env, r2, s + len);
-    return 3;
+    env->cc_op = 3;
 }
 
 /* load access registers r1 to r3 from memory at a2 */
@@ -1108,7 +1109,7 @@ static inline uint32_t do_mvcl(CPUS390XState *env,
 }
 
 /* move long */
-uint32_t HELPER(mvcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
+void HELPER(mvcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
 {
     const int mmu_idx = cpu_mmu_index(env, false);
     uintptr_t ra = GETPC();
@@ -1135,7 +1136,8 @@ uint32_t HELPER(mvcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
     if (unlikely(!destlen || cc == 3)) {
         set_address_zero(env, r2, src);
         set_address_zero(env, r1, dest);
-        return cc;
+        env->cc_op = cc;
+        return;
     } else if (!srclen) {
         set_address_zero(env, r2, src);
     }
@@ -1178,12 +1180,11 @@ uint32_t HELPER(mvcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
             cpu_loop_exit_restore(cs, ra);
         }
     }
-    return cc;
+    env->cc_op = cc;
 }
 
 /* move long extended */
-uint32_t HELPER(mvcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
-                       uint32_t r3)
+void HELPER(mvcle)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
 {
     uintptr_t ra = GETPC();
     uint64_t destlen = get_length(env, r1 + 1);
@@ -1200,12 +1201,11 @@ uint32_t HELPER(mvcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
     set_address(env, r1, dest);
     set_address(env, r3, src);
 
-    return cc;
+    env->cc_op = cc;
 }
 
 /* move long unicode */
-uint32_t HELPER(mvclu)(CPUS390XState *env, uint32_t r1, uint64_t a2,
-                       uint32_t r3)
+void HELPER(mvclu)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
 {
     uintptr_t ra = GETPC();
     uint64_t destlen = get_length(env, r1 + 1);
@@ -1222,7 +1222,7 @@ uint32_t HELPER(mvclu)(CPUS390XState *env, uint32_t r1, uint64_t a2,
     set_address(env, r1, dest);
     set_address(env, r3, src);
 
-    return cc;
+    env->cc_op = cc;
 }
 
 /* compare logical long helper */
@@ -1279,7 +1279,7 @@ static inline uint32_t do_clcl(CPUS390XState *env,
 
 
 /* compare logical long */
-uint32_t HELPER(clcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
+void HELPER(clcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
 {
     uintptr_t ra = GETPC();
     uint64_t src1len = extract64(env->regs[r1 + 1], 0, 24);
@@ -1296,12 +1296,11 @@ uint32_t HELPER(clcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
     set_address(env, r1, src1);
     set_address(env, r2, src3);
 
-    return cc;
+    env->cc_op = cc;
 }
 
 /* compare logical long extended memcompare insn with padding */
-uint32_t HELPER(clcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
-                       uint32_t r3)
+void HELPER(clcle)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
 {
     uintptr_t ra = GETPC();
     uint64_t src1len = get_length(env, r1 + 1);
@@ -1318,12 +1317,11 @@ uint32_t HELPER(clcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
     set_address(env, r1, src1);
     set_address(env, r3, src3);
 
-    return cc;
+    env->cc_op = cc;
 }
 
 /* compare logical long unicode memcompare insn with padding */
-uint32_t HELPER(clclu)(CPUS390XState *env, uint32_t r1, uint64_t a2,
-                       uint32_t r3)
+void HELPER(clclu)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
 {
     uintptr_t ra = GETPC();
     uint64_t src1len = get_length(env, r1 + 1);
@@ -1340,7 +1338,7 @@ uint32_t HELPER(clclu)(CPUS390XState *env, uint32_t r1, uint64_t a2,
     set_address(env, r1, src1);
     set_address(env, r3, src3);
 
-    return cc;
+    env->cc_op = cc;
 }
 
 /* checksum */
@@ -1572,19 +1570,19 @@ static inline uint32_t do_unpkau(CPUS390XState *env, uint64_t dest,
     return cc;
 }
 
-uint32_t HELPER(unpka)(CPUS390XState *env, uint64_t dest, uint32_t destlen,
-                       uint64_t src)
+void HELPER(unpka)(CPUS390XState *env, uint64_t dest, uint32_t destlen,
+                   uint64_t src)
 {
-    return do_unpkau(env, dest, destlen, 1, src, GETPC());
+    env->cc_op = do_unpkau(env, dest, destlen, 1, src, GETPC());
 }
 
-uint32_t HELPER(unpku)(CPUS390XState *env, uint64_t dest, uint32_t destlen,
-                       uint64_t src)
+void HELPER(unpku)(CPUS390XState *env, uint64_t dest, uint32_t destlen,
+                   uint64_t src)
 {
-    return do_unpkau(env, dest, destlen, 2, src, GETPC());
+    env->cc_op = do_unpkau(env, dest, destlen, 2, src, GETPC());
 }
 
-uint32_t HELPER(tp)(CPUS390XState *env, uint64_t dest, uint32_t destlen)
+void HELPER(tp)(CPUS390XState *env, uint64_t dest, uint32_t destlen)
 {
     uintptr_t ra = GETPC();
     uint32_t cc = 0;
@@ -1604,7 +1602,7 @@ uint32_t HELPER(tp)(CPUS390XState *env, uint64_t dest, uint32_t destlen)
         }
     }
 
-    return cc;
+    env->cc_op = cc;
 }
 
 static uint32_t do_helper_tr(CPUS390XState *env, uint32_t len, uint64_t array,
@@ -1694,10 +1692,10 @@ static uint32_t do_helper_trt_fwd(CPUS390XState *env, uint32_t len,
     return do_helper_trt(env, len, array, trans, 1, ra);
 }
 
-uint32_t HELPER(trt)(CPUS390XState *env, uint32_t len, uint64_t array,
+void HELPER(trt)(CPUS390XState *env, uint32_t len, uint64_t array,
                      uint64_t trans)
 {
-    return do_helper_trt(env, len, array, trans, 1, GETPC());
+    env->cc_op = do_helper_trt(env, len, array, trans, 1, GETPC());
 }
 
 static uint32_t do_helper_trt_bkwd(CPUS390XState *env, uint32_t len,
@@ -1707,15 +1705,15 @@ static uint32_t do_helper_trt_bkwd(CPUS390XState *env, uint32_t len,
     return do_helper_trt(env, len, array, trans, -1, ra);
 }
 
-uint32_t HELPER(trtr)(CPUS390XState *env, uint32_t len, uint64_t array,
-                      uint64_t trans)
+void HELPER(trtr)(CPUS390XState *env, uint32_t len, uint64_t array,
+                  uint64_t trans)
 {
-    return do_helper_trt(env, len, array, trans, -1, GETPC());
+    env->cc_op = do_helper_trt(env, len, array, trans, -1, GETPC());
 }
 
 /* Translate one/two to one/two */
-uint32_t HELPER(trXX)(CPUS390XState *env, uint32_t r1, uint32_t r2,
-                      uint32_t tst, uint32_t sizes)
+void HELPER(trXX)(CPUS390XState *env, uint32_t r1, uint32_t r2,
+                  uint32_t tst, uint32_t sizes)
 {
     uintptr_t ra = GETPC();
     int dsize = (sizes & 1) ? 1 : 2;
@@ -1764,7 +1762,7 @@ uint32_t HELPER(trXX)(CPUS390XState *env, uint32_t r1, uint32_t r2,
     set_length(env, r1 + 1, len);
     set_address(env, r2, src);
 
-    return cc;
+    env->cc_op = cc;
 }
 
 void HELPER(cdsg)(CPUS390XState *env, uint64_t addr,
@@ -2002,15 +2000,15 @@ static uint32_t do_csst(CPUS390XState *env, uint32_t r3, uint64_t a1,
     tcg_s390_program_interrupt(env, PGM_SPECIFICATION, ra);
 }
 
-uint32_t HELPER(csst)(CPUS390XState *env, uint32_t r3, uint64_t a1, uint64_t a2)
+void HELPER(csst)(CPUS390XState *env, uint32_t r3, uint64_t a1, uint64_t a2)
 {
-    return do_csst(env, r3, a1, a2, false);
+    env->cc_op = do_csst(env, r3, a1, a2, false);
 }
 
-uint32_t HELPER(csst_parallel)(CPUS390XState *env, uint32_t r3, uint64_t a1,
-                               uint64_t a2)
+void HELPER(csst_parallel)(CPUS390XState *env, uint32_t r3, uint64_t a1,
+                           uint64_t a2)
 {
-    return do_csst(env, r3, a1, a2, true);
+    env->cc_op = do_csst(env, r3, a1, a2, true);
 }
 
 #if !defined(CONFIG_USER_ONLY)
@@ -2119,7 +2117,7 @@ void HELPER(stctl)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
     }
 }
 
-uint32_t HELPER(testblock)(CPUS390XState *env, uint64_t real_addr)
+void HELPER(testblock)(CPUS390XState *env, uint64_t real_addr)
 {
     uintptr_t ra = GETPC();
     int i;
@@ -2130,13 +2128,14 @@ uint32_t HELPER(testblock)(CPUS390XState *env, uint64_t real_addr)
         cpu_stq_mmuidx_ra(env, real_addr + i, 0, MMU_REAL_IDX, ra);
     }
 
-    return 0;
+    env->cc_op = 0;
 }
 
-uint32_t HELPER(tprot)(CPUS390XState *env, uint64_t a1, uint64_t a2)
+void HELPER(tprot)(CPUS390XState *env, uint64_t a1, uint64_t a2)
 {
     S390CPU *cpu = env_archcpu(env);
     CPUState *cs = env_cpu(env);
+    int cc;
 
     /*
      * TODO: we currently don't handle all access protection types
@@ -2144,7 +2143,8 @@ uint32_t HELPER(tprot)(CPUS390XState *env, uint64_t a1, uint64_t a2)
      */
     if (!s390_cpu_virt_mem_check_write(cpu, a1, 0, 1)) {
         /* Fetching permitted; storing permitted */
-        return 0;
+        env->cc_op = 0;
+        return;
     }
 
     if (env->int_pgm_code == PGM_PROTECTION) {
@@ -2152,7 +2152,8 @@ uint32_t HELPER(tprot)(CPUS390XState *env, uint64_t a1, uint64_t a2)
         cs->exception_index = -1;
         if (!s390_cpu_virt_mem_check_read(cpu, a1, 0, 1)) {
             /* Fetching permitted; storing not permitted */
-            return 1;
+            env->cc_op = 1;
+            return;
         }
     }
 
@@ -2160,17 +2161,21 @@ uint32_t HELPER(tprot)(CPUS390XState *env, uint64_t a1, uint64_t a2)
     case PGM_PROTECTION:
         /* Fetching not permitted; storing not permitted */
         cs->exception_index = -1;
-        return 2;
+        cc = 2;
+        break;
     case PGM_ADDRESSING:
     case PGM_TRANS_SPEC:
         /* exceptions forwarded to the guest */
         s390_cpu_virt_mem_handle_exc(cpu, GETPC());
-        return 0;
+        cc = 0;
+        break;
+    default:
+        /* Translation not available */
+        cs->exception_index = -1;
+        cc = 3;
+        break;
     }
-
-    /* Translation not available */
-    cs->exception_index = -1;
-    return 3;
+    env->cc_op = cc;
 }
 
 /* insert storage key extended */
@@ -2225,7 +2230,7 @@ void HELPER(sske)(CPUS390XState *env, uint64_t r1, uint64_t r2)
 }
 
 /* reset reference bit extended */
-uint32_t HELPER(rrbe)(CPUS390XState *env, uint64_t r2)
+void HELPER(rrbe)(CPUS390XState *env, uint64_t r2)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
     static S390SKeysState *ss;
@@ -2233,7 +2238,8 @@ uint32_t HELPER(rrbe)(CPUS390XState *env, uint64_t r2)
     uint8_t re, key;
 
     if (r2 > ms->ram_size) {
-        return 0;
+        env->cc_op = 0;
+        return;
     }
 
     if (unlikely(!ss)) {
@@ -2242,19 +2248,22 @@ uint32_t HELPER(rrbe)(CPUS390XState *env, uint64_t r2)
     }
 
     if (skeyclass->get_skeys(ss, r2 / TARGET_PAGE_SIZE, 1, &key)) {
-        return 0;
+        env->cc_op = 0;
+        return;
     }
 
     re = key & (SK_R | SK_C);
     key &= ~SK_R;
 
     if (skeyclass->set_skeys(ss, r2 / TARGET_PAGE_SIZE, 1, &key)) {
-        return 0;
+        env->cc_op = 0;
+        return;
     }
-   /*
-    * As we can only flush by virtual address and not all the entries
-    * that point to a physical address we have to flush the whole TLB.
-    */
+
+    /*
+     * As we can only flush by virtual address and not all the entries
+     * that point to a physical address we have to flush the whole TLB.
+     */
     tlb_flush_all_cpus_synced(env_cpu(env));
 
     /*
@@ -2265,11 +2274,10 @@ uint32_t HELPER(rrbe)(CPUS390XState *env, uint64_t r2)
      * 2  Reference bit one; change bit zero
      * 3  Reference bit one; change bit one
      */
-
-    return re >> 1;
+    env->cc_op = re >> 1;
 }
 
-uint32_t HELPER(mvcs)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
+void HELPER(mvcs)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
 {
     const uint8_t psw_as = (env->psw.mask & PSW_MASK_ASC) >> PSW_SHIFT_ASC;
     S390Access srca, desta;
@@ -2285,22 +2293,23 @@ uint32_t HELPER(mvcs)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
     }
 
     l = wrap_length32(env, l);
-    if (l > 256) {
-        /* max 256 */
-        l = 256;
-        cc = 3;
-    } else if (!l) {
-        return cc;
-    }
+    if (l != 0) {
+        if (l > 256) {
+            /* max 256 */
+            l = 256;
+            cc = 3;
+        }
 
-    /* TODO: Access key handling */
-    srca = access_prepare(env, a2, l, MMU_DATA_LOAD, MMU_PRIMARY_IDX, ra);
-    desta = access_prepare(env, a1, l, MMU_DATA_STORE, MMU_SECONDARY_IDX, ra);
-    access_memmove(env, &desta, &srca, ra);
-    return cc;
+        /* TODO: Access key handling */
+        srca = access_prepare(env, a2, l, MMU_DATA_LOAD, MMU_PRIMARY_IDX, ra);
+        desta = access_prepare(env, a1, l, MMU_DATA_STORE,
+                               MMU_SECONDARY_IDX, ra);
+        access_memmove(env, &desta, &srca, ra);
+    }
+    env->cc_op = cc;
 }
 
-uint32_t HELPER(mvcp)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
+void HELPER(mvcp)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
 {
     const uint8_t psw_as = (env->psw.mask & PSW_MASK_ASC) >> PSW_SHIFT_ASC;
     S390Access srca, desta;
@@ -2316,19 +2325,21 @@ uint32_t HELPER(mvcp)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
     }
 
     l = wrap_length32(env, l);
-    if (l > 256) {
-        /* max 256 */
-        l = 256;
-        cc = 3;
-    } else if (!l) {
-        return cc;
-    }
+    if (l != 0) {
+        if (l > 256) {
+            /* max 256 */
+            l = 256;
+            cc = 3;
+        }
 
-    /* TODO: Access key handling */
-    srca = access_prepare(env, a2, l, MMU_DATA_LOAD, MMU_SECONDARY_IDX, ra);
-    desta = access_prepare(env, a1, l, MMU_DATA_STORE, MMU_PRIMARY_IDX, ra);
-    access_memmove(env, &desta, &srca, ra);
-    return cc;
+        /* TODO: Access key handling */
+        srca = access_prepare(env, a2, l, MMU_DATA_LOAD,
+                              MMU_SECONDARY_IDX, ra);
+        desta = access_prepare(env, a1, l, MMU_DATA_STORE,
+                               MMU_PRIMARY_IDX, ra);
+        access_memmove(env, &desta, &srca, ra);
+    }
+    env->cc_op = cc;
 }
 
 void HELPER(idte)(CPUS390XState *env, uint64_t r1, uint64_t r2, uint32_t m4)
@@ -2594,8 +2605,8 @@ void HELPER(ex)(CPUS390XState *env, uint32_t ilen, uint64_t r1, uint64_t addr)
     env->ex_value = insn | ilen;
 }
 
-uint32_t HELPER(mvcos)(CPUS390XState *env, uint64_t dest, uint64_t src,
-                       uint64_t len)
+void HELPER(mvcos)(CPUS390XState *env, uint64_t dest, uint64_t src,
+                   uint64_t len)
 {
     const uint8_t psw_key = (env->psw.mask & PSW_MASK_KEY) >> PSW_SHIFT_KEY;
     const uint8_t psw_as = (env->psw.mask & PSW_MASK_ASC) >> PSW_SHIFT_ASC;
@@ -2675,7 +2686,7 @@ uint32_t HELPER(mvcos)(CPUS390XState *env, uint64_t dest, uint64_t src,
         access_memmove(env, &desta, &srca, ra);
     }
 
-    return cc;
+    env->cc_op = cc;
 }
 
 /* Decode a Unicode character.  A return value < 0 indicates success, storing
@@ -2952,40 +2963,40 @@ static inline uint32_t convert_unicode(CPUS390XState *env, uint32_t r1,
     return cc;
 }
 
-uint32_t HELPER(cu12)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t m3)
+void HELPER(cu12)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t m3)
 {
-    return convert_unicode(env, r1, r2, m3, GETPC(),
-                           decode_utf8, encode_utf16);
+    env->cc_op = convert_unicode(env, r1, r2, m3, GETPC(),
+                                 decode_utf8, encode_utf16);
 }
 
-uint32_t HELPER(cu14)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t m3)
+void HELPER(cu14)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t m3)
 {
-    return convert_unicode(env, r1, r2, m3, GETPC(),
-                           decode_utf8, encode_utf32);
+    env->cc_op = convert_unicode(env, r1, r2, m3, GETPC(),
+                                 decode_utf8, encode_utf32);
 }
 
-uint32_t HELPER(cu21)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t m3)
+void HELPER(cu21)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t m3)
 {
-    return convert_unicode(env, r1, r2, m3, GETPC(),
-                           decode_utf16, encode_utf8);
+    env->cc_op = convert_unicode(env, r1, r2, m3, GETPC(),
+                                 decode_utf16, encode_utf8);
 }
 
-uint32_t HELPER(cu24)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t m3)
+void HELPER(cu24)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t m3)
 {
-    return convert_unicode(env, r1, r2, m3, GETPC(),
-                           decode_utf16, encode_utf32);
+    env->cc_op = convert_unicode(env, r1, r2, m3, GETPC(),
+                                 decode_utf16, encode_utf32);
 }
 
-uint32_t HELPER(cu41)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t m3)
+void HELPER(cu41)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t m3)
 {
-    return convert_unicode(env, r1, r2, m3, GETPC(),
-                           decode_utf32, encode_utf8);
+    env->cc_op = convert_unicode(env, r1, r2, m3, GETPC(),
+                                 decode_utf32, encode_utf8);
 }
 
-uint32_t HELPER(cu42)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t m3)
+void HELPER(cu42)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t m3)
 {
-    return convert_unicode(env, r1, r2, m3, GETPC(),
-                           decode_utf32, encode_utf16);
+    env->cc_op = convert_unicode(env, r1, r2, m3, GETPC(),
+                                 decode_utf32, encode_utf16);
 }
 
 void probe_write_access(CPUS390XState *env, uint64_t addr, uint64_t len,

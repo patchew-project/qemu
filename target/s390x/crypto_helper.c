@@ -18,8 +18,8 @@
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 
-uint32_t HELPER(msa)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t r3,
-                     uint32_t type)
+void HELPER(msa)(CPUS390XState *env, uint32_t r1, uint32_t r2,
+                 uint32_t r3, uint32_t type)
 {
     const uintptr_t ra = GETPC();
     const uint8_t mod = env->regs[0] & 0x80ULL;
@@ -57,5 +57,5 @@ uint32_t HELPER(msa)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t r3,
         g_assert_not_reached();
     }
 
-    return 0;
+    env->cc_op = 0;
 }

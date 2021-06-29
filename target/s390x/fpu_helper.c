@@ -366,30 +366,30 @@ uint64_t HELPER(lexb)(CPUS390XState *env, uint64_t ah, uint64_t al,
 }
 
 /* 32-bit FP compare */
-uint32_t HELPER(ceb)(CPUS390XState *env, uint64_t f1, uint64_t f2)
+void HELPER(ceb)(CPUS390XState *env, uint64_t f1, uint64_t f2)
 {
     FloatRelation cmp = float32_compare_quiet(f1, f2, &env->fpu_status);
     handle_exceptions(env, false, GETPC());
-    return float_comp_to_cc(env, cmp);
+    env->cc_op = float_comp_to_cc(env, cmp);
 }
 
 /* 64-bit FP compare */
-uint32_t HELPER(cdb)(CPUS390XState *env, uint64_t f1, uint64_t f2)
+void HELPER(cdb)(CPUS390XState *env, uint64_t f1, uint64_t f2)
 {
     FloatRelation cmp = float64_compare_quiet(f1, f2, &env->fpu_status);
     handle_exceptions(env, false, GETPC());
-    return float_comp_to_cc(env, cmp);
+    env->cc_op = float_comp_to_cc(env, cmp);
 }
 
 /* 128-bit FP compare */
-uint32_t HELPER(cxb)(CPUS390XState *env, uint64_t ah, uint64_t al,
-                     uint64_t bh, uint64_t bl)
+void HELPER(cxb)(CPUS390XState *env, uint64_t ah, uint64_t al,
+                 uint64_t bh, uint64_t bl)
 {
     FloatRelation cmp = float128_compare_quiet(make_float128(ah, al),
                                                make_float128(bh, bl),
                                                &env->fpu_status);
     handle_exceptions(env, false, GETPC());
-    return float_comp_to_cc(env, cmp);
+    env->cc_op = float_comp_to_cc(env, cmp);
 }
 
 int s390_swap_bfp_rounding_mode(CPUS390XState *env, int m3)
@@ -706,30 +706,30 @@ uint64_t HELPER(fixb)(CPUS390XState *env, uint64_t ah, uint64_t al,
 }
 
 /* 32-bit FP compare and signal */
-uint32_t HELPER(keb)(CPUS390XState *env, uint64_t f1, uint64_t f2)
+void HELPER(keb)(CPUS390XState *env, uint64_t f1, uint64_t f2)
 {
     FloatRelation cmp = float32_compare(f1, f2, &env->fpu_status);
     handle_exceptions(env, false, GETPC());
-    return float_comp_to_cc(env, cmp);
+    env->cc_op = float_comp_to_cc(env, cmp);
 }
 
 /* 64-bit FP compare and signal */
-uint32_t HELPER(kdb)(CPUS390XState *env, uint64_t f1, uint64_t f2)
+void HELPER(kdb)(CPUS390XState *env, uint64_t f1, uint64_t f2)
 {
     FloatRelation cmp = float64_compare(f1, f2, &env->fpu_status);
     handle_exceptions(env, false, GETPC());
-    return float_comp_to_cc(env, cmp);
+    env->cc_op = float_comp_to_cc(env, cmp);
 }
 
 /* 128-bit FP compare and signal */
-uint32_t HELPER(kxb)(CPUS390XState *env, uint64_t ah, uint64_t al,
-                     uint64_t bh, uint64_t bl)
+void HELPER(kxb)(CPUS390XState *env, uint64_t ah, uint64_t al,
+                 uint64_t bh, uint64_t bl)
 {
     FloatRelation cmp = float128_compare(make_float128(ah, al),
                                          make_float128(bh, bl),
                                          &env->fpu_status);
     handle_exceptions(env, false, GETPC());
-    return float_comp_to_cc(env, cmp);
+    env->cc_op = float_comp_to_cc(env, cmp);
 }
 
 /* 32-bit FP multiply and add */
@@ -801,21 +801,21 @@ DEF_FLOAT_DCMASK(float64)
 DEF_FLOAT_DCMASK(float128)
 
 /* test data class 32-bit */
-uint32_t HELPER(tceb)(CPUS390XState *env, uint64_t f1, uint64_t m2)
+void HELPER(tceb)(CPUS390XState *env, uint64_t f1, uint64_t m2)
 {
-    return (m2 & float32_dcmask(env, f1)) != 0;
+    env->cc_op = (m2 & float32_dcmask(env, f1)) != 0;
 }
 
 /* test data class 64-bit */
-uint32_t HELPER(tcdb)(CPUS390XState *env, uint64_t v1, uint64_t m2)
+void HELPER(tcdb)(CPUS390XState *env, uint64_t v1, uint64_t m2)
 {
-    return (m2 & float64_dcmask(env, v1)) != 0;
+    env->cc_op = (m2 & float64_dcmask(env, v1)) != 0;
 }
 
 /* test data class 128-bit */
-uint32_t HELPER(tcxb)(CPUS390XState *env, uint64_t ah, uint64_t al, uint64_t m2)
+void HELPER(tcxb)(CPUS390XState *env, uint64_t ah, uint64_t al, uint64_t m2)
 {
-    return (m2 & float128_dcmask(env, make_float128(ah, al))) != 0;
+    env->cc_op = (m2 & float128_dcmask(env, make_float128(ah, al))) != 0;
 }
 
 /* square root 32-bit */

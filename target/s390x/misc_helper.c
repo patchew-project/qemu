@@ -101,7 +101,7 @@ uint64_t HELPER(stck)(CPUS390XState *env)
 
 #ifndef CONFIG_USER_ONLY
 /* SCLP service call */
-uint32_t HELPER(servc)(CPUS390XState *env, uint64_t r1, uint64_t r2)
+void HELPER(servc)(CPUS390XState *env, uint64_t r1, uint64_t r2)
 {
     qemu_mutex_lock_iothread();
     int r = sclp_service_call(env, r1, r2);
@@ -109,7 +109,7 @@ uint32_t HELPER(servc)(CPUS390XState *env, uint64_t r1, uint64_t r2)
     if (r < 0) {
         tcg_s390_program_interrupt(env, -r, GETPC());
     }
-    return r;
+    env->cc_op = r;
 }
 
 void HELPER(diag)(CPUS390XState *env, uint32_t r1, uint32_t r3, uint32_t num)
@@ -202,7 +202,7 @@ void tcg_s390_tod_updated(CPUState *cs, run_on_cpu_data opaque)
 }
 
 /* Set Clock */
-uint32_t HELPER(sck)(CPUS390XState *env, uint64_t tod_low)
+void HELPER(sck)(CPUS390XState *env, uint64_t tod_low)
 {
     S390TODState *td = s390_get_todstate();
     S390TODClass *tdc = S390_TOD_GET_CLASS(td);
@@ -214,7 +214,7 @@ uint32_t HELPER(sck)(CPUS390XState *env, uint64_t tod_low)
     qemu_mutex_lock_iothread();
     tdc->set(td, &tod, &error_abort);
     qemu_mutex_unlock_iothread();
-    return 0;
+    env->cc_op = 0;
 }
 
 /* Set Tod Programmable Field */
@@ -250,7 +250,7 @@ void HELPER(spt)(CPUS390XState *env, uint64_t time)
 }
 
 /* Store System Information */
-uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0, uint64_t r0, uint64_t r1)
+void HELPER(stsi)(CPUS390XState *env, uint64_t a0, uint64_t r0, uint64_t r1)
 {
     const uintptr_t ra = GETPC();
     const uint32_t sel1 = r0 & STSI_R0_SEL1_MASK;
@@ -263,7 +263,8 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0, uint64_t r0, uint64_t r1)
 
     if ((r0 & STSI_R0_FC_MASK) > STSI_R0_FC_LEVEL_3) {
         /* invalid function code: no other checks are performed */
-        return 3;
+        env->cc_op = 3;
+        return;
     }
 
     if ((r0 & STSI_R0_RESERVED_MASK) || (r1 & STSI_R1_RESERVED_MASK)) {
@@ -273,7 +274,8 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0, uint64_t r0, uint64_t r1)
     if ((r0 & STSI_R0_FC_MASK) == STSI_R0_FC_CURRENT) {
         /* query the current level: no further checks are performed */
         env->regs[0] = STSI_R0_FC_LEVEL_3;
-        return 0;
+        env->cc_op = 0;
+        return;
     }
 
     if (a0 & ~TARGET_PAGE_MASK) {
@@ -394,11 +396,11 @@ uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0, uint64_t r0, uint64_t r1)
         }
     }
 
-    return cc;
+    env->cc_op = cc;
 }
 
-uint32_t HELPER(sigp)(CPUS390XState *env, uint64_t order_code, uint32_t r1,
-                      uint32_t r3)
+void HELPER(sigp)(CPUS390XState *env, uint64_t order_code, uint32_t r1,
+                  uint32_t r3)
 {
     int cc;
 
@@ -407,7 +409,7 @@ uint32_t HELPER(sigp)(CPUS390XState *env, uint64_t order_code, uint32_t r1,
     cc = handle_sigp(env, order_code & SIGP_ORDER_MASK, r1, r3);
     qemu_mutex_unlock_iothread();
 
-    return cc;
+    env->cc_op = cc;
 }
 #endif
 
@@ -503,7 +505,7 @@ void HELPER(stsch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
     qemu_mutex_unlock_iothread();
 }
 
-uint32_t HELPER(tpi)(CPUS390XState *env, uint64_t addr)
+void HELPER(tpi)(CPUS390XState *env, uint64_t addr)
 {
     const uintptr_t ra = GETPC();
     S390CPU *cpu = env_archcpu(env);
@@ -519,7 +521,8 @@ uint32_t HELPER(tpi)(CPUS390XState *env, uint64_t addr)
     io = qemu_s390_flic_dequeue_io(flic, env->cregs[6]);
     if (!io) {
         qemu_mutex_unlock_iothread();
-        return 0;
+        env->cc_op = 0;
+        return;
     }
 
     if (addr) {
@@ -539,7 +542,8 @@ uint32_t HELPER(tpi)(CPUS390XState *env, uint64_t addr)
             qemu_mutex_unlock_iothread();
             g_free(io);
             s390_cpu_virt_mem_handle_exc(cpu, ra);
-            return 0;
+            env->cc_op = 0;
+            return;
         }
     } else {
         /* no protection applies */
@@ -553,7 +557,8 @@ uint32_t HELPER(tpi)(CPUS390XState *env, uint64_t addr)
 
     g_free(io);
     qemu_mutex_unlock_iothread();
-    return 1;
+    env->cc_op = 1;
+    return;
 }
 
 void HELPER(tsch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
@@ -669,7 +674,7 @@ void HELPER(stfl)(CPUS390XState *env)
 }
 #endif
 
-uint32_t HELPER(stfle)(CPUS390XState *env, uint64_t addr)
+void HELPER(stfle)(CPUS390XState *env, uint64_t addr)
 {
     const uintptr_t ra = GETPC();
     const int count_bytes = ((env->regs[0] & 0xff) + 1) * 8;
@@ -693,7 +698,7 @@ uint32_t HELPER(stfle)(CPUS390XState *env, uint64_t addr)
     }
 
     env->regs[0] = deposit64(env->regs[0], 0, 8, (max_bytes / 8) - 1);
-    return count_bytes >= max_bytes ? 0 : 3;
+    env->cc_op = count_bytes >= max_bytes ? 0 : 3;
 }
 
 #ifndef CONFIG_USER_ONLY
