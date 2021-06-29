@@ -74,6 +74,7 @@ struct SCSIDevice
     BlockConf conf;
     SCSISense unit_attention;
     bool sense_is_ua;
+    bool req_has_ua;
     uint8_t sense[SCSI_SENSE_BUF_SIZE];
     uint32_t sense_len;
     QTAILQ_HEAD(, SCSIRequest) requests;

@@ -722,7 +722,13 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
           * If we already have a pending unit attention condition,
           * report this one before triggering another one.
           */
-         !(buf[0] == REQUEST_SENSE && d->sense_is_ua))) {
+         !(buf[0] == REQUEST_SENSE && d->sense_is_ua)) &&
+         /*
+          * If we already have a req register ua ops,
+          * other req can not register.
+          */
+         !d->req_has_ua) {
+        d->req_has_ua = true;
         ops = &reqops_unit_attention;
     } else if (lun != d->lun ||
                buf[0] == REPORT_LUNS ||
@@ -822,7 +828,7 @@ static void scsi_clear_unit_attention(SCSIRequest *req)
           ua->ascq == SENSE_CODE(REPORTED_LUNS_CHANGED).ascq)) {
         return;
     }
-
+    req->dev->req_has_ua = false;
     *ua = SENSE_CODE(NO_SENSE);
 }
 
