@@ -356,7 +356,10 @@ static OSStatus audioDeviceIOProc(
 static OSStatus init_out_device(coreaudioVoiceOut *core)
 {
     OSStatus status;
+    AudioDeviceID deviceID;
     AudioValueRange frameRange;
+    UInt32 audioDevicePropertyBufferFrameSize;
+    AudioDeviceIOProcID ioprocid;
 
     AudioStreamBasicDescription streamBasicDescription = {
         .mBitsPerChannel = core->hw.info.bits,
@@ -369,20 +372,19 @@ static OSStatus init_out_device(coreaudioVoiceOut *core)
         .mSampleRate = core->hw.info.freq
     };
 
-    status = coreaudio_get_voice(&core->outputDeviceID);
+    status = coreaudio_get_voice(&deviceID);
     if (status != kAudioHardwareNoError) {
         coreaudio_playback_logerr (status,
                                    "Could not get default output Device\n");
         return status;
     }
-    if (core->outputDeviceID == kAudioDeviceUnknown) {
+    if (deviceID == kAudioDeviceUnknown) {
         dolog ("Could not initialize playback - Unknown Audiodevice\n");
         return status;
     }
 
     /* get minimum and maximum buffer frame sizes */
-    status = coreaudio_get_framesizerange(core->outputDeviceID,
-                                          &frameRange);
+    status = coreaudio_get_framesizerange(deviceID, &frameRange);
     if (status == kAudioHardwareBadObjectError) {
         return 0;
     }
@@ -393,31 +395,31 @@ static OSStatus init_out_device(coreaudioVoiceOut *core)
     }
 
     if (frameRange.mMinimum > core->frameSizeSetting) {
-        core->audioDevicePropertyBufferFrameSize = (UInt32) frameRange.mMinimum;
+        audioDevicePropertyBufferFrameSize = (UInt32) frameRange.mMinimum;
         dolog ("warning: Upsizing Buffer Frames to %f\n", frameRange.mMinimum);
     } else if (frameRange.mMaximum < core->frameSizeSetting) {
-        core->audioDevicePropertyBufferFrameSize = (UInt32) frameRange.mMaximum;
+        audioDevicePropertyBufferFrameSize = (UInt32) frameRange.mMaximum;
         dolog ("warning: Downsizing Buffer Frames to %f\n", frameRange.mMaximum);
     } else {
-        core->audioDevicePropertyBufferFrameSize = core->frameSizeSetting;
+        audioDevicePropertyBufferFrameSize = core->frameSizeSetting;
     }
 
     /* set Buffer Frame Size */
-    status = coreaudio_set_framesize(core->outputDeviceID,
-                                     &core->audioDevicePropertyBufferFrameSize);
+    status = coreaudio_set_framesize(deviceID,
+                                     &audioDevicePropertyBufferFrameSize);
     if (status == kAudioHardwareBadObjectError) {
         return 0;
     }
     if (status != kAudioHardwareNoError) {
         coreaudio_playback_logerr (status,
                                     "Could not set device buffer frame size %" PRIu32 "\n",
-                                    (uint32_t)core->audioDevicePropertyBufferFrameSize);
+                                    (uint32_t)audioDevicePropertyBufferFrameSize);
         return status;
     }
 
     /* get Buffer Frame Size */
-    status = coreaudio_get_framesize(core->outputDeviceID,
-                                     &core->audioDevicePropertyBufferFrameSize);
+    status = coreaudio_get_framesize(deviceID,
+                                     &audioDevicePropertyBufferFrameSize);
     if (status == kAudioHardwareBadObjectError) {
         return 0;
     }
@@ -426,11 +428,9 @@ static OSStatus init_out_device(coreaudioVoiceOut *core)
                                     "Could not get device buffer frame size\n");
         return status;
     }
-    core->hw.samples = core->bufferCount * core->audioDevicePropertyBufferFrameSize;
 
     /* set Samplerate */
-    status = coreaudio_set_streamformat(core->outputDeviceID,
-                                        &streamBasicDescription);
+    status = coreaudio_set_streamformat(deviceID, &streamBasicDescription);
     if (status == kAudioHardwareBadObjectError) {
         return 0;
     }
@@ -438,7 +438,6 @@ static OSStatus init_out_device(coreaudioVoiceOut *core)
         coreaudio_playback_logerr (status,
                                    "Could not set samplerate %lf\n",
                                    streamBasicDescription.mSampleRate);
-        core->outputDeviceID = kAudioDeviceUnknown;
         return status;
     }
 
@@ -452,19 +451,23 @@ static OSStatus init_out_device(coreaudioVoiceOut *core)
      * Therefore, the specified callback must be designed to avoid a deadlock
      * with the callers of AudioObjectGetPropertyData.
      */
-    core->ioprocid = NULL;
-    status = AudioDeviceCreateIOProcID(core->outputDeviceID,
+    ioprocid = NULL;
+    status = AudioDeviceCreateIOProcID(deviceID,
                                        audioDeviceIOProc,
                                        &core->hw,
-                                       &core->ioprocid);
+                                       &ioprocid);
     if (status == kAudioHardwareBadDeviceError) {
         return 0;
     }
-    if (status != kAudioHardwareNoError || core->ioprocid == NULL) {
+    if (status != kAudioHardwareNoError || ioprocid == NULL) {
         coreaudio_playback_logerr (status, "Could not set IOProc\n");
-        core->outputDeviceID = kAudioDeviceUnknown;
         return status;
     }
+
+    core->outputDeviceID = deviceID;
+    core->audioDevicePropertyBufferFrameSize = audioDevicePropertyBufferFrameSize;
+    core->hw.samples = core->bufferCount * core->audioDevicePropertyBufferFrameSize;
+    core->ioprocid = ioprocid;
 
     return 0;
 }
@@ -551,7 +554,7 @@ static OSStatus handle_voice_change(
     }
 
     status = init_out_device(core);
-    if (!status) {
+    if (core->outputDeviceID) {
         update_device_playback_state(core);
     }
 
