@@ -34,3 +34,6 @@ clock_disconnect(const char *clk) "'%s'"
 clock_set(const char *clk, uint64_t old, uint64_t new) "'%s', %"PRIu64"Hz->%"PRIu64"Hz"
 clock_propagate(const char *clk) "'%s'"
 clock_update(const char *clk, const char *src, uint64_t hz, int cb) "'%s', src='%s', val=%"PRIu64"Hz cb=%d"
+
+# irq.c
+irq_tracker(const char *call_function, const char *target_function, int number, int level) ": callFunction = %s, targetFunction = %s, n = %i, level = %i"

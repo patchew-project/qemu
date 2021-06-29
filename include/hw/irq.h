@@ -5,40 +5,58 @@
 
 #define TYPE_IRQ "irq"
 
-void qemu_set_irq(qemu_irq irq, int level);
+/*Tracking irq define*/
 
-static inline void qemu_irq_raise(qemu_irq irq)
-{
-    qemu_set_irq(irq, 1);
-}
+#define qemu_set_irq(irq, level) \
+    qemu_set_irq_with_trace(irq, level, __func__)
 
-static inline void qemu_irq_lower(qemu_irq irq)
-{
+#define qemu_irq_raise(irq) \
+    qemu_set_irq(irq, 1)
+
+#define qemu_irq_lower(irq) \
     qemu_set_irq(irq, 0);
-}
 
-static inline void qemu_irq_pulse(qemu_irq irq)
-{
-    qemu_set_irq(irq, 1);
-    qemu_set_irq(irq, 0);
-}
+#define qemu_irq_pulse(irq) \
+    do { \
+        qemu_set_irq(irq, 1); \
+        qemu_set_irq(irq, 0); \
+    } while (0)
+
+#define qemu_allocate_irqs(handler, opaque, n) \
+    qemu_allocate_irqs_with_trace(handler, opaque, n, #handler)
+
+#define qemu_allocate_irq(handler, opaque, n) \
+    qemu_allocate_irq_with_trace(handler, opaque, n, #handler)
+
+#define qemu_extend_irqs(old, n_old, handler, opaque, n) \
+    qemu_extend_irqs_with_trace(old, n_old, handler, opaque, n, __func__)
+
+/*Tracking irq define*/
+
+/*Tracking irq function*/
+
+void qemu_set_irq_with_trace(qemu_irq irq, int level, const char *callFunc);
 
 /* Returns an array of N IRQs. Each IRQ is assigned the argument handler and
  * opaque data.
  */
-qemu_irq *qemu_allocate_irqs(qemu_irq_handler handler, void *opaque, int n);
+qemu_irq *qemu_allocate_irqs_with_trace(qemu_irq_handler handler, void *opaque,
+                                        int n, const char *targetFunc);
 
 /*
  * Allocates a single IRQ. The irq is assigned with a handler, an opaque
  * data and the interrupt number.
  */
-qemu_irq qemu_allocate_irq(qemu_irq_handler handler, void *opaque, int n);
-
+qemu_irq qemu_allocate_irq_with_trace(qemu_irq_handler handler, void *opaque,
+                                      int n, const char *targetFunc);
 /* Extends an Array of IRQs. Old IRQs have their handlers and opaque data
  * preserved. New IRQs are assigned the argument handler and opaque data.
  */
-qemu_irq *qemu_extend_irqs(qemu_irq *old, int n_old, qemu_irq_handler handler,
-                                void *opaque, int n);
+qemu_irq *qemu_extend_irqs_with_trace(qemu_irq *old, int n_old,
+                                      qemu_irq_handler handler, void *opaque,
+                                      int n, const char *targetFunc);
+
+/*Tracking irq function*/
 
 void qemu_free_irqs(qemu_irq *s, int n);
 void qemu_free_irq(qemu_irq irq);

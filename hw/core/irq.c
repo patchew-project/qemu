@@ -26,6 +26,9 @@
 #include "hw/irq.h"
 #include "qom/object.h"
 
+
+#include "trace.h"
+
 DECLARE_INSTANCE_CHECKER(struct IRQState, IRQ,
                          TYPE_IRQ)
 
@@ -35,18 +38,24 @@ struct IRQState {
     qemu_irq_handler handler;
     void *opaque;
     int n;
+    const char *targetFunc;
 };
 
-void qemu_set_irq(qemu_irq irq, int level)
+void qemu_set_irq_with_trace(qemu_irq irq, int level, const char *callFunc)
 {
     if (!irq)
         return;
 
+    const char *targetFunc = irq->targetFunc;
+    trace_irq_tracker(callFunc, targetFunc, irq->n, level);
     irq->handler(irq->opaque, irq->n, level);
 }
 
-qemu_irq *qemu_extend_irqs(qemu_irq *old, int n_old, qemu_irq_handler handler,
-                           void *opaque, int n)
+/*Tracking irq function*/
+
+qemu_irq *qemu_extend_irqs_with_trace(qemu_irq *old, int n_old,
+                                      qemu_irq_handler handler, void *opaque,
+                                      int n, const char *targetFunc)
 {
     qemu_irq *s;
     int i;
@@ -56,17 +65,19 @@ qemu_irq *qemu_extend_irqs(qemu_irq *old, int n_old, qemu_irq_handler handler,
     }
     s = old ? g_renew(qemu_irq, old, n + n_old) : g_new(qemu_irq, n);
     for (i = n_old; i < n + n_old; i++) {
-        s[i] = qemu_allocate_irq(handler, opaque, i);
+        s[i] = qemu_allocate_irq_with_trace(handler, opaque, i, targetFunc);
     }
     return s;
 }
 
-qemu_irq *qemu_allocate_irqs(qemu_irq_handler handler, void *opaque, int n)
+qemu_irq *qemu_allocate_irqs_with_trace(qemu_irq_handler handler, void *opaque,
+                                        int n, const char *targetFunc)
 {
-    return qemu_extend_irqs(NULL, 0, handler, opaque, n);
+    return qemu_extend_irqs_with_trace(NULL, 0, handler, opaque, n, targetFunc);
 }
 
-qemu_irq qemu_allocate_irq(qemu_irq_handler handler, void *opaque, int n)
+qemu_irq qemu_allocate_irq_with_trace(qemu_irq_handler handler, void *opaque,
+                                      int n, const char *targetFunc)
 {
     struct IRQState *irq;
 
@@ -74,9 +85,12 @@ qemu_irq qemu_allocate_irq(qemu_irq_handler handler, void *opaque, int n)
     irq->handler = handler;
     irq->opaque = opaque;
     irq->n = n;
+    irq->targetFunc = targetFunc;
 
     return irq;
 }
+
+/*Tracking irq function*/
 
 void qemu_free_irqs(qemu_irq *s, int n)
 {

@@ -557,6 +557,20 @@ BusState *qdev_get_child_bus(DeviceState *dev, const char *name);
 
 /*** Device API.  ***/
 
+/*Tracking irq define*/
+
+#define qdev_init_gpio_in(dev, handler, n) \
+    qdev_init_gpio_in_with_trace(dev, handler, n, #handler)
+
+#define qdev_init_gpio_in_named_with_opaque(dev, handler, opaque, name, n) \
+    qdev_init_gpio_in_named_with_opaque_with_trace(dev, handler, opaque, name, \
+                                              n, #handler)
+
+#define qdev_init_gpio_in_named(dev, handler, name, n) \
+    qdev_init_gpio_in_named_with_trace(dev, handler, name, n, #handler)
+
+/*Tracking irq define*/
+
 /**
  * qdev_init_gpio_in: create an array of anonymous input GPIO lines
  * @dev: Device to create input GPIOs for
@@ -574,7 +588,8 @@ BusState *qdev_get_child_bus(DeviceState *dev, const char *name);
  * See qdev_get_gpio_in() for how code that uses such a device can get
  * hold of an input GPIO line to manipulate it.
  */
-void qdev_init_gpio_in(DeviceState *dev, qemu_irq_handler handler, int n);
+void qdev_init_gpio_in_with_trace(DeviceState *dev, qemu_irq_handler handler,
+                                  int n, const char *target);
 /**
  * qdev_init_gpio_out: create an array of anonymous output GPIO lines
  * @dev: Device to create output GPIOs for
@@ -622,11 +637,10 @@ void qdev_init_gpio_out_named(DeviceState *dev, qemu_irq *pins,
  * @name: Name of the GPIO input (must be unique for this device)
  * @n: Number of GPIO lines in this input set
  */
-void qdev_init_gpio_in_named_with_opaque(DeviceState *dev,
+void qdev_init_gpio_in_named_with_opaque_with_trace(DeviceState *dev,
                                          qemu_irq_handler handler,
-                                         void *opaque,
-                                         const char *name, int n);
-
+                                         void *opaque, const char *name,
+                                         int n, const char *target);
 /**
  * qdev_init_gpio_in_named: create an array of input GPIO lines
  *   for the specified device
@@ -634,11 +648,13 @@ void qdev_init_gpio_in_named_with_opaque(DeviceState *dev,
  * Like qdev_init_gpio_in_named_with_opaque(), but the opaque pointer
  * passed to the handler is @dev (which is the most commonly desired behaviour).
  */
-static inline void qdev_init_gpio_in_named(DeviceState *dev,
+static inline void qdev_init_gpio_in_named_with_trace(DeviceState *dev,
                                            qemu_irq_handler handler,
-                                           const char *name, int n)
+                                           const char *name, int n,
+                                           const char *target)
 {
-    qdev_init_gpio_in_named_with_opaque(dev, handler, dev, name, n);
+    qdev_init_gpio_in_named_with_opaque_with_trace(dev, handler, dev,
+                                                   name, n, target);
 }
 
 /**

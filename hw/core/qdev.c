@@ -450,17 +450,20 @@ static NamedGPIOList *qdev_get_named_gpio_list(DeviceState *dev,
     return ngl;
 }
 
-void qdev_init_gpio_in_named_with_opaque(DeviceState *dev,
+/*Tracking irq function*/
+
+void qdev_init_gpio_in_named_with_opaque_with_trace(DeviceState *dev,
                                          qemu_irq_handler handler,
-                                         void *opaque,
-                                         const char *name, int n)
+                                         void *opaque, const char *name,
+                                         int n, const char *target)
 {
     int i;
     NamedGPIOList *gpio_list = qdev_get_named_gpio_list(dev, name);
 
     assert(gpio_list->num_out == 0 || !name);
-    gpio_list->in = qemu_extend_irqs(gpio_list->in, gpio_list->num_in, handler,
-                                     opaque, n);
+    gpio_list->in = qemu_extend_irqs_with_trace(gpio_list->in,
+                                                gpio_list->num_in, handler,
+                                                opaque, n, target);
 
     if (!name) {
         name = "unnamed-gpio-in";
@@ -476,10 +479,13 @@ void qdev_init_gpio_in_named_with_opaque(DeviceState *dev,
     gpio_list->num_in += n;
 }
 
-void qdev_init_gpio_in(DeviceState *dev, qemu_irq_handler handler, int n)
+void qdev_init_gpio_in_with_trace(DeviceState *dev, qemu_irq_handler handler,
+                                  int n, const char *target)
 {
-    qdev_init_gpio_in_named(dev, handler, NULL, n);
+    qdev_init_gpio_in_named_with_trace(dev, handler, NULL, n, target);
 }
+
+/*Tracking irq function*/
 
 void qdev_init_gpio_out_named(DeviceState *dev, qemu_irq *pins,
                               const char *name, int n)
