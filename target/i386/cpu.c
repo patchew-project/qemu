@@ -381,7 +381,13 @@ static void encode_topo_cpuid8000001e(X86CPU *cpu, X86CPUTopoInfo *topo_info,
      *  NOTE: CoreId is already part of apic_id. Just use it. We can
      *  use all the 8 bits to represent the core_id here.
      */
-    *ebx = ((topo_info->threads_per_core - 1) << 8) | (topo_ids.core_id & 0xFF);
+    uint32_t core_id = topo_ids.core_id;
+
+    if (IS_AMD_CPU(&cpu->env)) {
+        core_id = topo_ids.core_id + topo_ids.die_id * topo_info->cores_per_die;
+    }
+
+    *ebx = ((topo_info->threads_per_core - 1) << 8) | (core_id & 0xFF);
 
     /*
      * CPUID_Fn8000001E_ECX [Node Identifiers] (NodeId)
