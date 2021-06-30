@@ -126,6 +126,12 @@ other options have been processed.  This will either have no effect (if
 if they were not given.  The property is therefore useless and should not be
 specified.
 
+``-no-quit`` (since 6.1.0)
+''''''''''''''''''''''''''
+
+The ``-no-quit`` is a synonym for ``-display ...,window_close=off`` which
+should be used instead.
+
 
 QEMU Machine Protocol (QMP) commands
 ------------------------------------
