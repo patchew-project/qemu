@@ -68,6 +68,9 @@
 #define GICD_CTLR_E1NWF             (1U << 7)
 #define GICD_CTLR_RWP               (1U << 31)
 
+#define GICD_TYPER_LPIS_OFFSET         17
+#define GICD_TYPER_IDBITS_OFFSET       19
+#define GICD_TYPER_IDBITS_MASK       0x1f
 /* 16 bits EventId */
 #define GICD_TYPER_IDBITS            0xf
 
@@ -123,6 +126,9 @@
 #define GICR_TYPER_COMMONLPIAFF      (0x3 << 24)
 #define GICR_TYPER_AFFINITYVALUE     (0xFFFFFFFFULL << 32)
 
+#define GICR_WAKER_ProcessorSleep    (1U << 1)
+#define GICR_WAKER_ChildrenAsleep    (1U << 2)
+
 FIELD(GICR_PROPBASER, IDBITS, 0, 5)
 FIELD(GICR_PROPBASER, INNERCACHE, 7, 3)
 FIELD(GICR_PROPBASER, SHAREABILITY, 10, 2)
@@ -136,9 +142,6 @@ FIELD(GICR_PENDBASER, SHAREABILITY, 10, 2)
 FIELD(GICR_PENDBASER, PHYADDR, 16, 36)
 FIELD(GICR_PENDBASER, OUTERCACHE, 56, 3)
 FIELD(GICR_PENDBASER, PTZ, 62, 1)
-
-#define GICR_WAKER_ProcessorSleep    (1U << 1)
-#define GICR_WAKER_ChildrenAsleep    (1U << 2)
 
 #define ICC_CTLR_EL1_CBPR           (1U << 0)
 #define ICC_CTLR_EL1_EOIMODE        (1U << 1)
