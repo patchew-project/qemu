@@ -2310,8 +2310,8 @@ static void rx_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
     tcg_gen_insn_start(ctx->base.pc_next);
 }
 
-static bool rx_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
-                                    const CPUBreakpoint *bp)
+static int rx_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
+                                  int bp_flags)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
@@ -2319,8 +2319,8 @@ static bool rx_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
     tcg_gen_movi_i32(cpu_pc, ctx->base.pc_next);
     gen_helper_debug(cpu_env);
     ctx->base.is_jmp = DISAS_NORETURN;
-    ctx->base.pc_next += 1;
-    return true;
+
+    return 1; /* minimum instruction length */
 }
 
 static void rx_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)

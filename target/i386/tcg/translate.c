@@ -8583,23 +8583,16 @@ static void i386_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
     tcg_gen_insn_start(dc->base.pc_next, dc->cc_op);
 }
 
-static bool i386_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cpu,
-                                     const CPUBreakpoint *bp)
+static int i386_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cpu,
+                                    int bp_flags)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
     /* If RF is set, suppress an internally generated breakpoint.  */
     int flags = dc->base.tb->flags & HF_RF_MASK ? BP_GDB : BP_ANY;
-    if (bp->flags & flags) {
+    if (bp_flags & flags) {
         gen_debug(dc);
-        /* The address covered by the breakpoint must be included in
-           [tb->pc, tb->pc + tb->size) in order to for it to be
-           properly cleared -- thus we increment the PC here so that
-           the generic logic setting tb->size later does the right thing.  */
-        dc->base.pc_next += 1;
-        return true;
-    } else {
-        return false;
     }
+    return 1; /* minimum instruction length */
 }
 
 static void i386_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)

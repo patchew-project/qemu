@@ -3119,8 +3119,8 @@ static void cris_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
     tcg_gen_insn_start(dc->delayed_branch == 1 ? dc->ppc | 1 : dc->pc);
 }
 
-static bool cris_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cpu,
-                                     const CPUBreakpoint *bp)
+static int cris_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cpu,
+                                    int bp_flags)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
 
@@ -3128,14 +3128,8 @@ static bool cris_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cpu,
     tcg_gen_movi_tl(env_pc, dc->pc);
     t_gen_raise_exception(EXCP_DEBUG);
     dc->base.is_jmp = DISAS_NORETURN;
-    /*
-     * The address covered by the breakpoint must be included in
-     * [tb->pc, tb->pc + tb->size) in order to for it to be
-     * properly cleared -- thus we increment the PC here so that
-     * the logic setting tb->size below does the right thing.
-     */
-    dc->pc += 2;
-    return true;
+
+    return 2; /* minimum instruction length */
 }
 
 static void cris_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)

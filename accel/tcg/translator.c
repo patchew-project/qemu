@@ -50,7 +50,6 @@ bool translator_use_goto_tb(DisasContextBase *db, target_ulong dest)
 void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
                      CPUState *cpu, TranslationBlock *tb, int max_insns)
 {
-    int bp_insn = 0;
     bool plugin_enabled;
 
     /* Initialize DisasContext */
@@ -91,18 +90,34 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
             CPUBreakpoint *bp;
             QTAILQ_FOREACH(bp, &cpu->breakpoints, entry) {
                 if (bp->pc == db->pc_next) {
-                    if (ops->breakpoint_check(db, cpu, bp)) {
-                        bp_insn = 1;
-                        break;
+                    int len = ops->breakpoint_check(db, cpu, bp->flags);
+
+                    /*
+                     * The breakpoint_check hook may use DISAS_TOO_MANY
+                     * to indicate that only one more instruction is to
+                     * be executed.  Otherwise it should use DISAS_NORETURN
+                     * when generating an exception, but may use a
+                     * DISAS_TARGET_* value for Something Else.
+                     */
+                    if (db->is_jmp > DISAS_TOO_MANY) {
+                        /*
+                         * The address covered by the breakpoint must be
+                         * included in [tb->pc, tb->pc + tb->size) in order
+                         * to for it to be properly cleared.  Thus we
+                         * increment the PC here so that the logic setting
+                         * tb->size below does the right thing.
+                         */
+                        tcg_debug_assert(len > 0);
+                        db->pc_next += len;
+
+                        /*
+                         * The breakpoint definitely hit, so decrement the
+                         * number of instructions completed for icount.
+                         */
+                        db->num_insns--;
+                        goto done;
                     }
                 }
-            }
-            /* The breakpoint_check hook may use DISAS_TOO_MANY to indicate
-               that only one more instruction is to be executed.  Otherwise
-               it should use DISAS_NORETURN when generating an exception,
-               but may use a DISAS_TARGET_* value for Something Else.  */
-            if (db->is_jmp > DISAS_TOO_MANY) {
-                break;
             }
         }
 
@@ -142,9 +157,10 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
         }
     }
 
+ done:
     /* Emit code to exit the TB, as indicated by db->is_jmp.  */
     ops->tb_stop(db, cpu);
-    gen_tb_end(db->tb, db->num_insns - bp_insn);
+    gen_tb_end(db->tb, db->num_insns);
 
     if (plugin_enabled) {
         plugin_gen_tb_end(cpu);

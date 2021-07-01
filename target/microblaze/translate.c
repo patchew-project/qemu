@@ -1674,21 +1674,13 @@ static void mb_tr_insn_start(DisasContextBase *dcb, CPUState *cs)
     dc->insn_start = tcg_last_op();
 }
 
-static bool mb_tr_breakpoint_check(DisasContextBase *dcb, CPUState *cs,
-                                   const CPUBreakpoint *bp)
+static int mb_tr_breakpoint_check(DisasContextBase *dcb, CPUState *cs,
+                                  int bp_flags)
 {
     DisasContext *dc = container_of(dcb, DisasContext, base);
 
     gen_raise_exception_sync(dc, EXCP_DEBUG);
-
-    /*
-     * The address covered by the breakpoint must be included in
-     * [tb->pc, tb->pc + tb->size) in order to for it to be
-     * properly cleared -- thus we increment the PC here so that
-     * the logic setting tb->size below does the right thing.
-     */
-    dc->base.pc_next += 4;
-    return true;
+    return 4; /* minimum instruction length */
 }
 
 static void mb_tr_translate_insn(DisasContextBase *dcb, CPUState *cs)
