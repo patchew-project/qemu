@@ -456,6 +456,31 @@ class QMP(AsyncProtocol[Message], Events):
 
     @upper_half
     @require(Runstate.RUNNING)
+    async def _raw(
+            self,
+            msg: Union[Message, Mapping[str, object], bytes]
+    ) -> Message:
+        """
+        Issue a fairly raw `Message` to the QMP server and await a reply.
+
+        An AQMP execution ID will be assigned, so it isn't *truly* raw.
+
+        :param msg:
+            A Message to send to the server. It may be a `Message`, any
+            Mapping (including Dict), or raw bytes.
+
+        :return: Execution reply from the server.
+        :raise ExecInterruptedError:
+            When the reply could not be retrieved because the connection
+            was lost, or some other problem.
+        """
+        # 1. convert generic Mapping or bytes to a QMP Message
+        # 2. copy Message objects so that we assign an ID only to the copy.
+        msg = Message(msg)
+        return await self._execute(msg)
+
+    @upper_half
+    @require(Runstate.RUNNING)
     async def execute_msg(self, msg: Message) -> object:
         """
         Execute a QMP command and return its value.
