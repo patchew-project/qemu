@@ -33,13 +33,8 @@ void translator_loop_temp_check(DisasContextBase *db)
 
 bool translator_use_goto_tb(DisasContextBase *db, target_ulong dest)
 {
-    /* Suppress goto_tb if requested. */
-    if (tb_cflags(db->tb) & CF_NO_GOTO_TB) {
-        return false;
-    }
-
-    /* Suppress goto_tb in the case of single-steping.  */
-    if (db->singlestep_enabled) {
+    /* Suppress goto_tb if requested, or required by breakpoints. */
+    if (tb_cflags(db->tb) & (CF_NO_GOTO_TB | CF_BP_MASK)) {
         return false;
     }
 
@@ -51,6 +46,7 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
                      CPUState *cpu, TranslationBlock *tb, int max_insns)
 {
     uint32_t cflags = tb_cflags(tb);
+    int bp_flags = 0;
     bool plugin_enabled;
 
     /* Initialize DisasContext */
@@ -60,7 +56,23 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
     db->is_jmp = DISAS_NEXT;
     db->num_insns = 0;
     db->max_insns = max_insns;
-    db->singlestep_enabled = cpu->singlestep_enabled;
+    db->singlestep_enabled = false;
+
+    switch (cflags & CF_BP_MASK) {
+    case CF_BP_NONE:
+        break;
+    case CF_BP_SSTEP:
+        db->singlestep_enabled = true;
+        break;
+    case CF_BP_GDB:
+        bp_flags = BP_GDB;
+        break;
+    case CF_BP_CPU:
+        bp_flags = BP_CPU;
+        break;
+    default:
+        g_assert_not_reached();
+    }
 
     ops->init_disas_context(db, cpu);
     tcg_debug_assert(db->is_jmp == DISAS_NEXT);  /* no early exit */
@@ -85,39 +97,34 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
         }
 
         /* Pass breakpoint hits to target for further processing */
-        if (!db->singlestep_enabled
-            && unlikely(!QTAILQ_EMPTY(&cpu->breakpoints))) {
-            CPUBreakpoint *bp;
-            QTAILQ_FOREACH(bp, &cpu->breakpoints, entry) {
-                if (bp->pc == db->pc_next) {
-                    int len = ops->breakpoint_check(db, cpu, bp->flags);
+        if (unlikely(bp_flags)) {
+            int len = ops->breakpoint_check(db, cpu, bp_flags);
 
-                    /*
-                     * The breakpoint_check hook may use DISAS_TOO_MANY
-                     * to indicate that only one more instruction is to
-                     * be executed.  Otherwise it should use DISAS_NORETURN
-                     * when generating an exception, but may use a
-                     * DISAS_TARGET_* value for Something Else.
-                     */
-                    if (db->is_jmp > DISAS_TOO_MANY) {
-                        /*
-                         * The address covered by the breakpoint must be
-                         * included in [tb->pc, tb->pc + tb->size) in order
-                         * to for it to be properly cleared.  Thus we
-                         * increment the PC here so that the logic setting
-                         * tb->size below does the right thing.
-                         */
-                        tcg_debug_assert(len > 0);
-                        db->pc_next += len;
+            /*
+             * When there is a bp hit, we're going to execute a maximum
+             * of one instruction.  The breakpoint_check hook may use
+             * DISAS_NEXT or DISAS_TOO_MANY to indicate that the current
+             * instruction should be translated.  Anything else is taken
+             * to mean that an exception has been raised and that zero
+             * instructions will be executed.
+             */
+            if (db->is_jmp > DISAS_TOO_MANY) {
+                /*
+                 * The address covered by the breakpoint must be
+                 * included in [tb->pc, tb->pc + tb->size) in order
+                 * to for it to be properly cleared.  Thus we
+                 * increment the PC here so that the logic setting
+                 * tb->size below does the right thing.
+                 */
+                tcg_debug_assert(len > 0);
+                db->pc_next += len;
 
-                        /*
-                         * The breakpoint definitely hit, so decrement the
-                         * number of instructions completed for icount.
-                         */
-                        db->num_insns--;
-                        goto done;
-                    }
-                }
+                /*
+                 * The breakpoint definitely hit, so decrement the
+                 * number of instructions completed for icount.
+                 */
+                db->num_insns--;
+                goto done;
             }
         }
 
