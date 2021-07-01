@@ -22,12 +22,14 @@ tutorial on managing QMP events.
 # the COPYING file in the top-level directory.
 
 from .error import AQMPError, MultiException
+from .message import Message
 from .protocol import ConnectError, Runstate
 
 
 # The order of these fields impact the Sphinx documentation order.
 __all__ = (
-    # Classes
+    # Classes, most to least important
+    'Message',
     'Runstate',
 
     # Exceptions, most generic to most explicit
