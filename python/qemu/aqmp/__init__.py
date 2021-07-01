@@ -25,7 +25,7 @@ from .error import AQMPError, MultiException
 from .events import EventListener
 from .message import Message
 from .protocol import ConnectError, Runstate
-from .qmp_protocol import QMP
+from .qmp_protocol import QMP, ExecInterruptedError, ExecuteError
 
 
 # The order of these fields impact the Sphinx documentation order.
@@ -39,6 +39,8 @@ __all__ = (
     # Exceptions, most generic to most explicit
     'AQMPError',
     'ConnectError',
+    'ExecuteError',
+    'ExecInterruptedError',
 
     # Niche topics
     'MultiException',
