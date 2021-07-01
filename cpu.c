@@ -38,6 +38,7 @@
 #include "exec/translate-all.h"
 #include "exec/log.h"
 #include "hw/core/accel-cpu.h"
+#include "trace/trace-root.h"
 
 uintptr_t qemu_host_page_size;
 intptr_t qemu_host_page_mask;
@@ -267,6 +268,8 @@ int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, int flags,
     if (breakpoint) {
         *breakpoint = bp;
     }
+
+    trace_breakpoint_insert(cpu->cpu_index, pc, flags);
     return 0;
 }
 
@@ -285,11 +288,12 @@ int cpu_breakpoint_remove(CPUState *cpu, vaddr pc, int flags)
 }
 
 /* Remove a specific breakpoint by reference.  */
-void cpu_breakpoint_remove_by_ref(CPUState *cpu, CPUBreakpoint *breakpoint)
+void cpu_breakpoint_remove_by_ref(CPUState *cpu, CPUBreakpoint *bp)
 {
-    QTAILQ_REMOVE(&cpu->breakpoints, breakpoint, entry);
+    QTAILQ_REMOVE(&cpu->breakpoints, bp, entry);
 
-    g_free(breakpoint);
+    trace_breakpoint_remove(cpu->cpu_index, bp->pc, bp->flags);
+    g_free(bp);
 }
 
 /* Remove all matching breakpoints. */
@@ -313,6 +317,7 @@ void cpu_single_step(CPUState *cpu, int enabled)
         if (kvm_enabled()) {
             kvm_update_guest_debug(cpu, 0);
         }
+        trace_breakpoint_singlestep(cpu->cpu_index, enabled);
     }
 }
 
