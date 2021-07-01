@@ -12,6 +12,7 @@ from typing import (
     Coroutine,
     Optional,
     TypeVar,
+    cast,
 )
 
 
@@ -57,6 +58,20 @@ def is_closing(writer: asyncio.StreamWriter) -> bool:
     return transport.is_closing()
 
 
+async def flush(writer: asyncio.StreamWriter) -> None:
+    """
+    Utility function to ensure a StreamWriter is *fully* drained.
+
+    `asyncio.StreamWriter.drain` only promises we will return to below
+    the "high-water mark". This function ensures we flush the entire
+    buffer.
+    """
+    transport = cast(asyncio.WriteTransport, writer.transport)
+
+    while transport.get_write_buffer_size() > 0:
+        await writer.drain()
+
+
 async def wait_closed(writer: asyncio.StreamWriter) -> None:
     """
     Python 3.6-compatible `asyncio.StreamWriter.wait_closed` wrapper.
@@ -75,3 +90,42 @@ async def wait_closed(writer: asyncio.StreamWriter) -> None:
             await asyncio.sleep(0.0)
         while transport.get_write_buffer_size() > 0:
             await asyncio.sleep(0.0)
+
+
+async def wait_task_done(task: Optional['asyncio.Future[Any]']) -> None:
+    """
+    Await a task to finish, but do not consume its result.
+
+    :param task: The task to await completion for.
+    """
+    while True:
+        if task and not task.done():
+            await asyncio.sleep(0)  # Yield
+        else:
+            break
+
+
+def upper_half(func: T) -> T:
+    """
+    Do-nothing decorator that annotates a method as an "upper-half" method.
+
+    These methods must not call bottom-half functions directly, but can
+    schedule them to run.
+    """
+    return func
+
+
+def bottom_half(func: T) -> T:
+    """
+    Do-nothing decorator that annotates a method as a "bottom-half" method.
+
+    These methods must take great care to handle their own exceptions whenever
+    possible. If they go unhandled, they will cause termination of the loop.
+
+    These methods do not, in general, have the ability to directly
+    report information to a caller's context and will usually be
+    collected as a Task result instead.
+
+    They must not call upper-half functions directly.
+    """
+    return func
