@@ -3,10 +3,14 @@ Miscellaneous Utilities
 
 This module primarily provides compatibility wrappers for Python 3.6 to
 provide some features that otherwise become available in Python 3.7+.
+
+It additionally provides `pretty_traceback()`, used for formatting
+tracebacks for inclusion in the logging stream.
 """
 
 import asyncio
 import sys
+import traceback
 from typing import (
     Any,
     Coroutine,
@@ -103,6 +107,34 @@ async def wait_task_done(task: Optional['asyncio.Future[Any]']) -> None:
             await asyncio.sleep(0)  # Yield
         else:
             break
+
+
+def pretty_traceback(prefix: str = "  | ") -> str:
+    """
+    Formats the current traceback, indented to provide visual distinction.
+
+    This is useful for printing a traceback within a traceback for
+    debugging purposes when encapsulating errors to deliver them up the
+    stack; when those errors are printed, this helps provide a nice
+    visual grouping to quickly identify the parts of the error that
+    belong to the inner exception.
+
+    :param prefix: The prefix to append to each line of the traceback.
+    :return: A string, formatted something like the following::
+
+      | Traceback (most recent call last):
+      |   File "foobar.py", line 42, in arbitrary_example
+      |     foo.baz()
+      | ArbitraryError: [Errno 42] Something bad happened!
+    """
+    output = "".join(traceback.format_exception(*sys.exc_info()))
+
+    exc_lines = []
+    for line in output.split('\n'):
+        exc_lines.append(prefix + line)
+
+    # The last line is always empty, omit it
+    return "\n".join(exc_lines[:-1])
 
 
 def upper_half(func: T) -> T:
