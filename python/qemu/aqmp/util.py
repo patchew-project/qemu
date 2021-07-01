@@ -109,6 +109,26 @@ async def wait_task_done(task: Optional['asyncio.Future[Any]']) -> None:
             break
 
 
+def asyncio_run(coro: Coroutine[Any, Any, T]) -> T:
+    """
+    Python 3.6-compatible `asyncio.run` wrapper.
+
+    :param coro: A coroutine to execute now.
+    :return: The return value from the coroutine.
+    """
+    # Python 3.7+
+    if hasattr(asyncio, 'run'):
+        # pylint: disable=no-member
+        return asyncio.run(coro)  # type: ignore
+
+    # Python 3.6
+    loop = asyncio.get_event_loop()
+    ret = loop.run_until_complete(coro)
+    loop.close()
+
+    return ret
+
+
 def pretty_traceback(prefix: str = "  | ") -> str:
     """
     Formats the current traceback, indented to provide visual distinction.
