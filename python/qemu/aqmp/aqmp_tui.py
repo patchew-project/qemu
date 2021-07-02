@@ -11,6 +11,8 @@ import asyncio
 import logging
 import signal
 
+from pygments import lexers
+from pygments import token as Token
 import urwid
 import urwid_readline
 
@@ -20,6 +22,16 @@ from .util import create_task, pretty_traceback
 
 
 UPDATE_MSG = 'UPDATE_MSG'
+
+palette = [
+    (Token.Punctuation, '', '', '', 'h15,bold', 'g7'),
+    (Token.Text, '', '', '', '', 'g7'),
+    (Token.Name.Tag, '', '', '', 'bold,#f88', 'g7'),
+    (Token.Literal.Number.Integer, '', '', '', '#fa0', 'g7'),
+    (Token.Literal.String.Double, '', '', '', '#6f6', 'g7'),
+    (Token.Keyword.Constant, '', '', '', '#6af', 'g7'),
+    ('background', '', 'black', '', '', 'g7'),
+]
 
 
 class StatusBar(urwid.Text):
@@ -115,7 +127,11 @@ class HistoryWindow(urwid.Frame):
         urwid.connect_signal(self.master, UPDATE_MSG, self.cb_add_to_history)
 
     def cb_add_to_history(self, msg):
-        self.history.add_to_history(msg)
+        formatted = []
+        lexer = lexers.JsonLexer()  # pylint: disable=no-member
+        for token in lexer.get_tokens(msg):
+            formatted.append(token)
+        self.history.add_to_history(formatted)
 
 
 class Window(urwid.Frame):
@@ -139,6 +155,7 @@ class App(QMP):
         self.address = address
         self.aloop = asyncio.get_event_loop()
         self.loop = None
+        self.screen = urwid.raw_display.Screen()
         super().__init__()
 
         # Gracefully handle SIGTERM and SIGINT signals
@@ -210,10 +227,14 @@ class App(QMP):
             self.window.footer.set_text('Server shutdown')
 
     def run(self):
+        self.screen.set_terminal_properties(256)
+
         self.aloop.set_debug(True)
         event_loop = urwid.AsyncioEventLoop(loop=self.aloop)
-        self.loop = urwid.MainLoop(self.window,
+        self.loop = urwid.MainLoop(urwid.AttrMap(self.window, 'background'),
                                    unhandled_input=self.unhandled_input,
+                                   screen=self.screen,
+                                   palette=palette,
                                    handle_mouse=True,
                                    event_loop=event_loop)
 
