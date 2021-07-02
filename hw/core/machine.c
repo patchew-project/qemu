@@ -763,6 +763,7 @@ static void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
         } else {
             maxcpus = maxcpus > 0 ? maxcpus : cpus;
             sockets = maxcpus / (cores * threads);
+            sockets = sockets > 0 ? sockets : 1;
         }
     } else if (cores == 0) {
         threads = threads > 0 ? threads : 1;
