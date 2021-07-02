@@ -1027,10 +1027,10 @@ static void machine_initfn(Object *obj)
     /* default to mc->default_cpus */
     ms->smp.cpus = mc->default_cpus;
     ms->smp.max_cpus = mc->default_cpus;
-    ms->smp.cores = 1;
-    ms->smp.dies = 1;
-    ms->smp.threads = 1;
     ms->smp.sockets = 1;
+    ms->smp.dies = 1;
+    ms->smp.cores = 1;
+    ms->smp.threads = 1;
 }
 
 static void machine_finalize(Object *obj)
