@@ -721,34 +721,35 @@ static void pc_smp_parse(MachineState *ms, SMPConfiguration *config, Error **err
 
     /* compute missing values, prefer sockets over cores over threads */
     dies = dies > 0 ? dies : 1;
+    maxcpus = maxcpus > 0 ? maxcpus : cpus;
 
-    if (cpus == 0 || sockets == 0) {
+    if (cpus == 0) {
+        sockets = sockets > 0 ? sockets : 1;
         cores = cores > 0 ? cores : 1;
         threads = threads > 0 ? threads : 1;
-        if (cpus == 0) {
-            sockets = sockets > 0 ? sockets : 1;
-            cpus = cores * threads * dies * sockets;
-        } else {
-            maxcpus = maxcpus > 0 ? maxcpus : cpus;
-            sockets = maxcpus / (dies * cores * threads);
-            sockets = sockets > 0 ? sockets : 1;
-        }
+        cpus = sockets * dies * cores * threads;
+        maxcpus = maxcpus > 0 ? maxcpus : cpus;
+    } else if (sockets == 0) {
+        cores = cores > 0 ? cores : 1;
+        threads = threads > 0 ? threads : 1;
+        sockets = maxcpus / (dies * cores * threads);
+        sockets = sockets > 0 ? sockets : 1;
     } else if (cores == 0) {
         threads = threads > 0 ? threads : 1;
-        cores = cpus / (sockets * dies * threads);
+        cores = maxcpus / (sockets * dies * threads);
         cores = cores > 0 ? cores : 1;
     } else if (threads == 0) {
-        threads = cpus / (cores * dies * sockets);
+        threads = maxcpus / (sockets * dies * cores);
         threads = threads > 0 ? threads : 1;
-    } else if (sockets * dies * cores * threads < cpus) {
+    }
+
+    if (sockets * dies * cores * threads < cpus) {
         error_setg(errp, "cpu topology: "
-                   "sockets (%u) * dies (%u) * cores (%u) * threads (%u) < "
-                   "smp_cpus (%u)",
+                   "sockets (%u) * dies (%u) * cores (%u) * threads (%u) "
+                   "< smp_cpus (%u)",
                    sockets, dies, cores, threads, cpus);
         return;
     }
-
-    maxcpus = maxcpus > 0 ? maxcpus : cpus;
 
     if (maxcpus < cpus) {
         error_setg(errp, "maxcpus must be equal to or greater than smp");
@@ -765,10 +766,10 @@ static void pc_smp_parse(MachineState *ms, SMPConfiguration *config, Error **err
     }
 
     ms->smp.cpus = cpus;
-    ms->smp.cores = cores;
-    ms->smp.threads = threads;
     ms->smp.sockets = sockets;
     ms->smp.dies = dies;
+    ms->smp.cores = cores;
+    ms->smp.threads = threads;
     ms->smp.max_cpus = maxcpus;
 }
 

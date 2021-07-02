@@ -754,33 +754,35 @@ static void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
     }
 
     /* compute missing values, prefer sockets over cores over threads */
-    if (cpus == 0 || sockets == 0) {
+    maxcpus = maxcpus > 0 ? maxcpus : cpus;
+
+    if (cpus == 0) {
+        sockets = sockets > 0 ? sockets : 1;
         cores = cores > 0 ? cores : 1;
         threads = threads > 0 ? threads : 1;
-        if (cpus == 0) {
-            sockets = sockets > 0 ? sockets : 1;
-            cpus = cores * threads * sockets;
-        } else {
-            maxcpus = maxcpus > 0 ? maxcpus : cpus;
-            sockets = maxcpus / (cores * threads);
-            sockets = sockets > 0 ? sockets : 1;
-        }
+        cpus = sockets * cores * threads;
+        maxcpus = maxcpus > 0 ? maxcpus : cpus;
+    } else if (sockets == 0) {
+        cores = cores > 0 ? cores : 1;
+        threads = threads > 0 ? threads : 1;
+        sockets = maxcpus / (cores * threads);
+        sockets = sockets > 0 ? sockets : 1;
     } else if (cores == 0) {
         threads = threads > 0 ? threads : 1;
-        cores = cpus / (sockets * threads);
+        cores = maxcpus / (sockets * threads);
         cores = cores > 0 ? cores : 1;
     } else if (threads == 0) {
-        threads = cpus / (cores * sockets);
+        threads = maxcpus / (sockets * cores);
         threads = threads > 0 ? threads : 1;
-    } else if (sockets * cores * threads < cpus) {
+    }
+
+    if (sockets * cores * threads < cpus) {
         error_setg(errp, "cpu topology: "
-                   "sockets (%u) * cores (%u) * threads (%u) < "
-                   "smp_cpus (%u)",
+                   "sockets (%u) * cores (%u) * threads (%u) "
+                   "< smp_cpus (%u)",
                    sockets, cores, threads, cpus);
         return;
     }
-
-    maxcpus = maxcpus > 0 ? maxcpus : cpus;
 
     if (maxcpus < cpus) {
         error_setg(errp, "maxcpus must be equal to or greater than smp");
@@ -797,9 +799,9 @@ static void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
     }
 
     ms->smp.cpus = cpus;
+    ms->smp.sockets = sockets;
     ms->smp.cores = cores;
     ms->smp.threads = threads;
-    ms->smp.sockets = sockets;
     ms->smp.max_cpus = maxcpus;
 }
 
