@@ -22,6 +22,8 @@ int ppc_hash32_handle_mmu_fault(PowerPCCPU *cpu, vaddr address, int rw,
  * Block Address Translation (BAT) definitions
  */
 
+#define BATU32_BEPIU            0xf0000000
+#define BATU32_BEPIL            0x0ffe0000
 #define BATU32_BEPI             0xfffe0000
 #define BATU32_BL               0x00001ffc
 #define BATU32_VS               0x00000002
