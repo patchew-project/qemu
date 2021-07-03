@@ -909,3 +909,189 @@ some additional tasks, hooking io requests.
   .. option:: prealloc-size
 
     How much to preallocate (in bytes), default 128M.
+
+Image locking protocol
+~~~~~~~~~~~~~~~~~~~~~~
+
+QEMU holds rd locks and never rw locks. Instead, GETLK fcntl is used with F_WRLCK
+to handle permissions as described below.
+QEMU process may rd-lock the following bytes of the image with corresponding
+meaning:
+
+Permission bytes. If permission byte is rd-locked, it means that some process
+uses corresponding permission on that file.
+
+Byte    Operation
+100     read
+          Lock holder can read
+101     write
+          Lock holder can write
+102     write-unchanged
+          Lock holder can write same data if it sure, that this write doesn't
+          break concurrent readers. This is mostly used internally in Qemu
+          and it wouldn't be good idea to exploit it somehow.
+103     resize
+          Lock holder can resize the file. "write" permission is also required
+          for resizing, so lock byte 103 only if you also lock byte 101.
+104     graph-mod
+          Undefined. QEMU may sometimes locks this byte, but external programs
+          should not. QEMU will stop locking this byte in future
+
+Unshare bytes. If permission byte is rd-locked, it means that some process
+does not allow the others use corresponding options on that file.
+
+Byte    Operation
+200     read
+          Lock holder don't allow read operation to other processes.
+201     write
+          Lock holder don't allow write operation to other processes. This
+          still allows others to do write-uncahnged operations. Better not
+          exploit outside of Qemu.
+202     write-unchanged
+          Lock holder don't allow write-unchanged operation to other processes.
+203     resize
+          Lock holder don't allow resizing the file by other processes.
+204     graph-mod
+          Undefined. QEMU may sometimes locks this byte, but external programs
+          should not. QEMU will stop locking this byte in future
+
+Handling the permissions works as follows: assume we want to open the file to do
+some operations and in the same time want to disallow some operation to other
+processes. So, we want to lock some of the bytes described above. We operate as
+follows:
+
+1. rd-lock all needed bytes, both "permission" bytes and "unshare" bytes.
+
+2. For each "unshare" byte we rd-locked, do GETLK that "tries" to wr-lock
+corresponding "permission" byte. So, we check is there any other process that
+uses the permission we want to unshare. If it exists we fail.
+
+3. For each "permission" byte we rd-locked, do GETLK that "tries" to wr-lock
+corresponding "unshare" byte. So, we check is there any other process that
+unshares the permission we want to have. If it exists we fail.
+
+Important notice: Qemu may fallback to POSIX file locks only if OFD locks
+unavailable. Other programs should behave similarly: use POSIX file locks
+only if OFD locks unavailable and if you are OK with drawbacks of POSIX
+file locks (for example, they are lost on close() of any file descriptor
+for that file).
+
+Image locking examples
+~~~~~~~~~~~~~~~~~~~~~~
+
+Read-only, allow others to write
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+So, we want to read and don't care what other users do with the image. We only
+need to lock byte 100. Operation is as follows:
+
+1. rd-lock byte 100
+
+.. highlight:: c
+
+    struct flock fl = {
+        .l_whence = SEEK_SET,
+        .l_start  = 100,
+        .l_len    = 1,
+        .l_type   = F_RDLCK,
+    };
+    ret = fcntl(fd, F_OFD_SETLK, &fl);
+    if (ret == -1) {
+        /* Error */
+    }
+
+2. try wr-lock byte 200, to check that no one is against our read access
+
+.. highlight:: c
+
+    struct flock fl = {
+        .l_whence = SEEK_SET,
+        .l_start  = 200,
+        .l_len    = 1,
+        .l_type   = F_WRLCK,
+    };
+    ret = fcntl(fd, F_OFD_GETLK, &fl);
+    if (ret != -1 && fl.l_type == F_UNLCK) {
+        /*
+         * We are lucky, nobody against. So, now we have RO access
+         * that we want.
+         */
+    } else {
+        /* Error, or RO access is blocked by someone. We don't have access */
+    }
+
+3. Now we can operate read the data.
+
+4. When finished, release the lock:
+
+.. highlight:: c
+
+    struct flock fl = {
+        .l_whence = SEEK_SET,
+        .l_start  = 100,
+        .l_len    = 1,
+        .l_type   = F_UNLCK,
+    };
+    ret = fcntl(fd, F_OFD_SETLK, &fl);
+
+RW, allow others to read only
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+We want to read and write, and don't want others to modify the image.
+So, let's lock bytes 100, 101, 201. Operation is as follows:
+
+1. rd-lock bytes 100 (read), 101 (write), 201 (don't allow others to write)
+
+.. highlight:: c
+
+    for byte in (100, 101, 201) {
+        struct flock fl = {
+            .l_whence = SEEK_SET,
+            .l_start  = byte,
+            .l_len    = 1,
+            .l_type   = F_RDLCK,
+        };
+        ret = fcntl(fd, F_OFD_SETLK, &fl);
+        if (ret == -1) {
+            /* Error */
+        }
+    }
+
+2. try wr-lock bytes 200 (to check that no one is against our read access),
+   201 (no one against our write access), 101 (there are no writers currently)
+
+.. highlight:: c
+
+    for byte in (200, 201, 101) {
+        struct flock fl = {
+            .l_whence = SEEK_SET,
+            .l_start  = byte,
+            .l_len    = 1,
+            .l_type   = F_WRLCK,
+        };
+        ret = fcntl(fd, F_OFD_GETLK, &fl);
+        if (ret != -1 && fl.l_type == F_UNLCK) {
+            /* We are lucky, nobody against. */
+        } else {
+            /*
+             * Error, or feature we want is blocked by someone.
+             * We don't have access.
+             */
+        }
+    }
+
+3. Now we can read and write.
+
+4. When finished, release locks:
+
+.. highlight:: c
+
+    for byte in (100, 101, 201) {
+        struct flock fl = {
+            .l_whence = SEEK_SET,
+            .l_start  = byte,
+            .l_len    = 1,
+            .l_type   = F_UNLCK,
+        };
+        fcntl(fd, F_OFD_SETLK, &fl);
+    }
