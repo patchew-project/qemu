@@ -90,14 +90,14 @@ static const uint16_t host_to_mips_errno[] = {
 #endif
 };
 
-static int errno_mips(int err)
+static int errno_mips(int host_errno)
 {
-    if (err < 0 || err >= ARRAY_SIZE(host_to_mips_errno)) {
+    if (host_errno < 0 || host_errno >= ARRAY_SIZE(host_to_mips_errno)) {
         return EINVAL;
-    } else if (host_to_mips_errno[err]) {
-        return host_to_mips_errno[err];
+    } else if (host_to_mips_errno[host_errno]) {
+        return host_to_mips_errno[host_errno];
     } else {
-        return err;
+        return host_errno;
     }
 }
 
