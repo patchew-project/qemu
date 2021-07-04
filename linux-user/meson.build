@@ -9,6 +9,7 @@ linux_user_ss.add(files(
   'signal.c',
   'strace.c',
   'syscall.c',
+  'target_errno.c',
   'uaccess.c',
   'uname.c',
 ))
