@@ -100,10 +100,46 @@ static void uhi_errno_init(void)
      * Unified Hosting Interface (rev 1.1.6)
      * Appendix A. "Error values"
      */
+    uhi_errno_insert(EPERM,         1);
+    uhi_errno_insert(ENOENT,        2);
+    uhi_errno_insert(EINTR,         4);
+    uhi_errno_insert(EIO,           5);
+    uhi_errno_insert(ENXIO,         6);
+    uhi_errno_insert(EBADF,         9);
+    uhi_errno_insert(EAGAIN,        11);
+    uhi_errno_insert(EWOULDBLOCK,   11);
+    uhi_errno_insert(ENOMEM,        12);
+    uhi_errno_insert(EACCES,        13);
+    uhi_errno_insert(EBUSY,         16);
+    uhi_errno_insert(EEXIST,        17);
+    uhi_errno_insert(EXDEV,         18);
+    uhi_errno_insert(ENOTDIR,       20);
+    uhi_errno_insert(EISDIR,        21);
+    uhi_errno_insert(EINVAL,        22);
+    uhi_errno_insert(ENFILE,        23);
+    uhi_errno_insert(EMFILE,        24);
+#ifdef ETXTBSY
+    uhi_errno_insert(ETXTBSY,       26);
+#endif
+    uhi_errno_insert(EFBIG,         27);
+    uhi_errno_insert(ENOSPC,        28);
+    uhi_errno_insert(ESPIPE,        29);
+    uhi_errno_insert(EROFS,         30);
+    uhi_errno_insert(EMLINK,        31);
+    uhi_errno_insert(EPIPE,         32);
+    uhi_errno_insert(ERANGE,        34);
+    uhi_errno_insert(ENOSR,         63);
+    uhi_errno_insert(EBADMSG,       77);
     uhi_errno_insert(ENAMETOOLONG,  91);
 #ifdef ELOOP
     uhi_errno_insert(ELOOP,         92);
 #endif
+    uhi_errno_insert(ECONNRESET,    104);
+    uhi_errno_insert(ENOBUFS,       105);
+    uhi_errno_insert(ENETUNREACH,   114);
+    uhi_errno_insert(ENETDOWN,      115);
+    uhi_errno_insert(ETIMEDOUT,     116);
+    uhi_errno_insert(ENOTCONN,      128);
 #ifdef EOVERFLOW
     uhi_errno_insert(EOVERFLOW,     139);
 #endif
@@ -126,6 +162,8 @@ static int errno_mips(int host_errno)
                                      NULL, &uhi_errno)) {
         return GPOINTER_TO_INT(uhi_errno);
     }
+    qemu_log("semihosting: Illegal UHI errno: %d\n", host_errno);
+
     return EINVAL; /* Not reachable per the specification */
 }
 
