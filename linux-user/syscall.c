@@ -509,8 +509,10 @@ static inline int next_free_host_timer(void)
 
 #define ERRNO_TABLE_SIZE 1200
 
-/* target_to_host_errno_table[] is initialized from
- * host_to_target_errno_table[] in syscall_init(). */
+/*
+ * target_to_host_errno_table[] is initialized from
+ * host_to_target_errno_table[] in target_to_host_errno_table_init().
+ */
 static uint16_t target_to_host_errno_table[ERRNO_TABLE_SIZE] = {
 };
 
@@ -636,6 +638,17 @@ static uint16_t host_to_target_errno_table[ERRNO_TABLE_SIZE] = {
     [EHWPOISON]         = TARGET_EHWPOISON,
 #endif
 };
+
+static void target_to_host_errno_table_init(void)
+{
+    /*
+     * Build target_to_host_errno_table[] table
+     * from host_to_target_errno_table[].
+     */
+    for (int i = 0; i < ERRNO_TABLE_SIZE; i++) {
+        target_to_host_errno_table[host_to_target_errno_table[i]] = i;
+    }
+}
 
 static inline int host_to_target_errno(int err)
 {
@@ -7102,7 +7115,6 @@ void syscall_init(void)
     IOCTLEntry *ie;
     const argtype *arg_type;
     int size;
-    int i;
 
     thunk_init(STRUCT_MAX);
 
@@ -7112,11 +7124,7 @@ void syscall_init(void)
 #undef STRUCT
 #undef STRUCT_SPECIAL
 
-    /* Build target_to_host_errno_table[] table from
-     * host_to_target_errno_table[]. */
-    for (i = 0; i < ERRNO_TABLE_SIZE; i++) {
-        target_to_host_errno_table[host_to_target_errno_table[i]] = i;
-    }
+    target_to_host_errno_table_init();
 
     /* we patch the ioctl size if necessary. We rely on the fact that
        no ioctl has all the bits at '1' in the size field */
