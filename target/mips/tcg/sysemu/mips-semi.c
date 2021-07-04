@@ -1,6 +1,8 @@
 /*
  * Unified Hosting Interface syscalls.
  *
+ * Specifications: MD01069 Reference Manual (rev 1.1.6, 06 Jul 2015)
+ *
  * Copyright (c) 2015 Imagination Technologies
  *
  * This library is free software; you can redistribute it and/or
@@ -74,14 +76,17 @@ enum UHIOpenFlags {
     UHIOpen_EXCL   = 0x800
 };
 
-/* Errno values taken from asm-mips/errno.h */
+/*
+ * Unified Hosting Interface (rev 1.1.6)
+ * Appendix A. "Error values"
+ */
 static const uint16_t host_to_mips_errno[] = {
-    [ENAMETOOLONG] = 78,
+    [ENAMETOOLONG] = 91,
 #ifdef EOVERFLOW
-    [EOVERFLOW]    = 79,
+    [EOVERFLOW]    = 139,
 #endif
 #ifdef ELOOP
-    [ELOOP]        = 90,
+    [ELOOP]        = 92,
 #endif
 };
 
