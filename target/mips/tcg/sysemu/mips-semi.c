@@ -4,6 +4,7 @@
  * Specifications: MD01069 Reference Manual (rev 1.1.6, 06 Jul 2015)
  *
  * Copyright (c) 2015 Imagination Technologies
+ * Copyright (c) 2021 Philippe Mathieu-Daudé
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -76,29 +77,56 @@ enum UHIOpenFlags {
     UHIOpen_EXCL   = 0x800
 };
 
-/*
- * Unified Hosting Interface (rev 1.1.6)
- * Appendix A. "Error values"
- */
-static const uint16_t host_to_mips_errno[] = {
-    [ENAMETOOLONG] = 91,
-#ifdef EOVERFLOW
-    [EOVERFLOW]    = 139,
-#endif
+static GHashTable *uhi_errno_hash_table;
+
+static void uhi_errno_insert(int host_errno, int uhi_errno)
+{
+    gboolean ret = TRUE;
+
+    assert(uhi_errno_hash_table != NULL);
+    ret = g_hash_table_insert(uhi_errno_hash_table,
+                              GINT_TO_POINTER(host_errno),
+                              GINT_TO_POINTER(uhi_errno));
+    assert(ret == TRUE);
+}
+
+static void uhi_errno_init(void)
+{
+    gboolean ret = TRUE;
+
+    uhi_errno_hash_table = g_hash_table_new(NULL, NULL);
+
+    /*
+     * Unified Hosting Interface (rev 1.1.6)
+     * Appendix A. "Error values"
+     */
+    uhi_errno_insert(ENAMETOOLONG,  91);
 #ifdef ELOOP
-    [ELOOP]        = 92,
+    uhi_errno_insert(ELOOP,         92);
 #endif
-};
+#ifdef EOVERFLOW
+    uhi_errno_insert(EOVERFLOW,     139);
+#endif
+    assert(ret == TRUE);
+}
 
 static int errno_mips(int host_errno)
 {
-    if (host_errno < 0 || host_errno >= ARRAY_SIZE(host_to_mips_errno)) {
-        return EINVAL;
-    } else if (host_to_mips_errno[host_errno]) {
-        return host_to_mips_errno[host_errno];
-    } else {
-        return host_errno;
+    gpointer uhi_errno;
+
+    if (uhi_errno_hash_table == NULL) {
+        uhi_errno_init();
     }
+
+    if (host_errno == 0) {
+        return 0;
+    }
+    if (g_hash_table_lookup_extended(uhi_errno_hash_table,
+                                     GINT_TO_POINTER(host_errno),
+                                     NULL, &uhi_errno)) {
+        return GPOINTER_TO_INT(uhi_errno);
+    }
+    return EINVAL; /* Not reachable per the specification */
 }
 
 static int copy_stat_to_target(CPUMIPSState *env, const struct stat *src,
