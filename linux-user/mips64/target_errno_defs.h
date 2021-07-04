@@ -1,0 +1,4 @@
+#ifndef MIPS64_TARGET_ERRNO_H
+#define MIPS64_TARGET_ERRNO_H
+
+#endif

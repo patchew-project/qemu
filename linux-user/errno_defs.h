@@ -164,4 +164,7 @@
  */
 #define TARGET_QEMU_ESIGRETURN 513     /* Return from signal */
 
+/* Override with target specific definitions of errnos (keep last). */
+#include "target_errno_defs.h"
+
 #endif

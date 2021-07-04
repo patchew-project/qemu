@@ -1,0 +1,4 @@
+#ifndef ALPHA_TARGET_ERRNO_H
+#define ALPHA_TARGET_ERRNO_H
+
+#endif

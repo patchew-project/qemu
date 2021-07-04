@@ -1,0 +1,6 @@
+#ifndef XTENSA_TARGET_ERRNO_H
+#define XTENSA_TARGET_ERRNO_H
+
+/* FIXME */
+
+#endif
