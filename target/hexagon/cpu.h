@@ -26,6 +26,7 @@ typedef struct CPUHexagonState CPUHexagonState;
 #include "qemu-common.h"
 #include "exec/cpu-defs.h"
 #include "hex_regs.h"
+#include "mmvec/mmvec.h"
 
 #define NUM_PREGS 4
 #define TOTAL_PER_THREAD_REGS 64
@@ -34,6 +35,7 @@ typedef struct CPUHexagonState CPUHexagonState;
 #define STORES_MAX 2
 #define REG_WRITES_MAX 32
 #define PRED_WRITES_MAX 5                   /* 4 insns + endloop */
+#define VSTORES_MAX 2
 
 #define TYPE_HEXAGON_CPU "hexagon-cpu"
 
@@ -51,6 +53,13 @@ typedef struct {
     uint32_t data32;
     uint64_t data64;
 } MemLog;
+
+typedef struct {
+    target_ulong va;
+    int size;
+    MMVector mask QEMU_ALIGNED(16);
+    MMVector data QEMU_ALIGNED(16);
+} VStoreLog;
 
 #define EXEC_STATUS_OK          0x0000
 #define EXEC_STATUS_STOP        0x0002
@@ -98,7 +107,31 @@ struct CPUHexagonState {
     uint64_t     llsc_val_i64;
 
     target_ulong is_gather_store_insn;
-    target_ulong gather_issued;
+    bool gather_issued;
+
+    MMVector VRegs[NUM_VREGS] QEMU_ALIGNED(16);
+    MMVector future_VRegs[NUM_VREGS] QEMU_ALIGNED(16);
+    MMVector tmp_VRegs[NUM_VREGS] QEMU_ALIGNED(16);
+
+    VRegMask VRegs_updated_tmp;
+    VRegMask VRegs_updated;
+    VRegMask VRegs_select;
+
+    MMQReg QRegs[NUM_QREGS] QEMU_ALIGNED(16);
+    MMQReg future_QRegs[NUM_QREGS] QEMU_ALIGNED(16);
+    QRegMask QRegs_updated;
+
+    /* Temporaries used within instructions */
+    MMVector zero_vector QEMU_ALIGNED(16);
+    MMVectorPair VddV QEMU_ALIGNED(16),
+                 VuuV QEMU_ALIGNED(16),
+                 VvvV QEMU_ALIGNED(16),
+                 VxxV QEMU_ALIGNED(16);
+
+    VStoreLog vstore[VSTORES_MAX];
+    target_ulong vstore_pending[VSTORES_MAX];
+    bool vtcm_pending;
+    VTCMStoreLog vtcm_log;
 };
 
 #define HEXAGON_CPU_CLASS(klass) \
