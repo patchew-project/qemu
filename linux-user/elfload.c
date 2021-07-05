@@ -1426,13 +1426,41 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 #ifdef TARGET_RISCV
 
 #define ELF_START_MMAP 0x80000000
-#define ELF_ARCH  EM_RISCV
+#define ELF_ARCH EM_RISCV
 
 #ifdef TARGET_RISCV32
 #define ELF_CLASS ELFCLASS32
 #else
 #define ELF_CLASS ELFCLASS64
 #endif
+
+#define ELF_HWCAP get_elf_hwcap()
+
+static uint32_t get_elf_hwcap(void)
+{
+    RISCVCPU *cpu = RISCV_CPU(thread_cpu);
+    uint32_t hwcap = 0;
+
+#define MISA_BIT(EXT) (1 << (EXT - 'A'))
+#define GET_EXT(EXT)				\
+    do {					\
+        if (cpu->env.misa & MISA_BIT(EXT)) {	\
+            hwcap |= MISA_BIT(EXT);		\
+        }					\
+    } while (0)
+
+    GET_EXT('I');
+    GET_EXT('M');
+    GET_EXT('A');
+    GET_EXT('F');
+    GET_EXT('D');
+    GET_EXT('C');
+
+#undef MISA_BIT
+#undef GET_EXT
+
+    return hwcap;
+}
 
 static inline void init_thread(struct target_pt_regs *regs,
                                struct image_info *infop)
