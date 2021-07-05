@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import argparse
 import atexit
 import bz2
 from collections import OrderedDict
@@ -41,6 +42,19 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 from qemu.machine import qtest
 from qemu.qmp import QMPMessage
 
+
+def optstr2dict(opts: str) -> Dict[str, str]:
+    if not opts:
+        return {}
+
+    return {arr[0]: arr[1] for arr in
+            (opt.split('=', 1) for opt in opts.strip().split(','))}
+
+
+def dict2optstr(opts: Dict[str, str]) -> str:
+    return ','.join(f'{k}={v}' for k, v in opts.items())
+
+
 # Use this logger for logging messages directly from the iotests module
 logger = logging.getLogger('qemu.iotests')
 logger.addHandler(logging.NullHandler())
@@ -56,6 +70,8 @@ faulthandler.enable()
 qemu_img_args = [os.environ.get('QEMU_IMG_PROG', 'qemu-img')]
 if os.environ.get('QEMU_IMG_OPTIONS'):
     qemu_img_args += os.environ['QEMU_IMG_OPTIONS'].strip().split(' ')
+
+imgopts = optstr2dict(os.environ.get('IMGOPTS', ''))
 
 qemu_io_args = [os.environ.get('QEMU_IO_PROG', 'qemu-io')]
 if os.environ.get('QEMU_IO_OPTIONS'):
@@ -121,11 +137,41 @@ def qemu_tool_pipe_and_status(tool: str, args: Sequence[str],
                                {-subp.returncode}: {cmd}\n')
         return (output, subp.returncode)
 
+def qemu_img_create_prepare_args(args: List[str]) -> List[str]:
+    if not args or args[0] != 'create':
+        return list(args)
+    args = args[1:]
+
+    p = argparse.ArgumentParser(allow_abbrev=False)
+    # -o option may be specified several times
+    p.add_argument('-o', action='append', default=[])
+    p.add_argument('-f')
+    parsed, remaining = p.parse_known_args(args)
+
+    opts = optstr2dict(','.join(parsed.o))
+
+    compat = 'compat' in opts and opts['compat'][0] == '0'
+    for k, v in imgopts.items():
+        if k in opts:
+            continue
+        if k == 'compression_type' and (compat or parsed.f != 'qcow2'):
+            continue
+        opts[k] = v
+
+    result = ['create']
+    if parsed.f is not None:
+        result += ['-f', parsed.f]
+    if opts:
+        result += ['-o', dict2optstr(opts)]
+    result += remaining
+
+    return result
+
 def qemu_img_pipe_and_status(*args: str) -> Tuple[str, int]:
     """
     Run qemu-img and return both its output and its exit code
     """
-    full_args = qemu_img_args + list(args)
+    full_args = qemu_img_args + qemu_img_create_prepare_args(list(args))
     return qemu_tool_pipe_and_status('qemu-img', full_args)
 
 def qemu_img(*args: str) -> int:
