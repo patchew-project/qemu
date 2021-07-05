@@ -25,6 +25,8 @@
 #include "arch.h"
 #include "hex_arch_types.h"
 #include "fma_emu.h"
+#include "mmvec/mmvec.h"
+#include "mmvec/macros.h"
 
 #define SF_BIAS        127
 #define SF_MANTBITS    23
@@ -162,6 +164,50 @@ void HELPER(commit_store)(CPUHexagonState *env, int slot_num)
     }
 }
 
+void HELPER(commit_hvx_stores)(CPUHexagonState *env)
+{
+    int i;
+
+    /* Normal (possibly masked) vector store */
+    for (i = 0; i < VSTORES_MAX; i++) {
+        if (env->vstore_pending[i]) {
+            env->vstore_pending[i] = 0;
+            target_ulong va = env->vstore[i].va;
+            int size = env->vstore[i].size;
+            for (int j = 0; j < size; j++) {
+                if (env->vstore[i].mask.ub[j]) {
+                    put_user_u8(env->vstore[i].data.ub[j], va + j);
+                }
+            }
+        }
+    }
+
+    /* Scatter store */
+    if (env->vtcm_pending) {
+        env->vtcm_pending = false;
+        if (env->vtcm_log.op) {
+            /* Need to perform the scatter read/modify/write at commit time */
+            if (env->vtcm_log.op_size == 2) {
+                SCATTER_OP_WRITE_TO_MEM(uint16_t);
+            } else if (env->vtcm_log.op_size == 4) {
+                /* Word Scatter += */
+                SCATTER_OP_WRITE_TO_MEM(uint32_t);
+            } else {
+                g_assert_not_reached();
+            }
+        } else {
+            for (i = 0; i < env->vtcm_log.size; i++) {
+                if (env->vtcm_log.mask.ub[i] != 0) {
+                    put_user_u8(env->vtcm_log.data.ub[i], env->vtcm_log.va[i]);
+                    env->vtcm_log.mask.ub[i] = 0;
+                    env->vtcm_log.data.ub[i] = 0;
+                }
+
+            }
+        }
+    }
+}
+
 static void print_store(CPUHexagonState *env, int slot)
 {
     if (!(env->slot_cancelled & (1 << slot))) {
@@ -240,9 +286,10 @@ void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
     HEX_DEBUG_LOG("Next PC = " TARGET_FMT_lx "\n", env->next_PC);
     HEX_DEBUG_LOG("Exec counters: pkt = " TARGET_FMT_lx
                   ", insn = " TARGET_FMT_lx
-                  "\n",
+                  ", hvx = " TARGET_FMT_lx "\n",
                   env->gpr[HEX_REG_QEMU_PKT_CNT],
-                  env->gpr[HEX_REG_QEMU_INSN_CNT]);
+                  env->gpr[HEX_REG_QEMU_INSN_CNT],
+                  env->gpr[HEX_REG_QEMU_HVX_CNT]);
 
 }
 
