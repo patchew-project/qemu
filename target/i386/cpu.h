@@ -464,6 +464,8 @@ typedef enum X86Seg {
 #define MSR_EFER_SVME  (1 << 12)
 #define MSR_EFER_FFXSR (1 << 14)
 
+#define MSR_EFER_RESERVED 0xffffffffffff02e0
+
 #define MSR_STAR                        0xc0000081
 #define MSR_LSTAR                       0xc0000082
 #define MSR_CSTAR                       0xc0000083
