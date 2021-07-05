@@ -67,6 +67,9 @@ struct Packet {
     bool pkt_has_store_s0;
     bool pkt_has_store_s1;
 
+    bool pkt_has_hvx;
+    bool pkt_has_vhist;
+
     Insn insn[INSTRUCTIONS_MAX];
 };
 
