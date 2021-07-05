@@ -452,6 +452,9 @@
 #                       procedure starts. The VM RAM is saved with running VM.
 #                       (since 6.0)
 #
+# @auto-quit: If enabled, QEMU process will exit after a successful migration.
+#             (since 6.1)
+#
 # Since: 1.2
 ##
 { 'enum': 'MigrationCapability',
@@ -459,7 +462,8 @@
            'compress', 'events', 'postcopy-ram', 'x-colo', 'release-ram',
            'block', 'return-path', 'pause-before-switchover', 'multifd',
            'dirty-bitmaps', 'postcopy-blocktime', 'late-block-activate',
-           'x-ignore-shared', 'validate-uuid', 'background-snapshot'] }
+           'x-ignore-shared', 'validate-uuid', 'background-snapshot',
+           'auto-quit'] }
 
 ##
 # @MigrationCapabilityStatus:

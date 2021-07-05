@@ -2567,6 +2567,15 @@ bool migrate_background_snapshot(void)
     return s->enabled_capabilities[MIGRATION_CAPABILITY_BACKGROUND_SNAPSHOT];
 }
 
+bool migrate_auto_quit(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_AUTO_QUIT];
+}
+
 /* migration thread support */
 /*
  * Something bad happened to the RP stream, mark an error
@@ -3539,7 +3548,10 @@ static void migration_iteration_finish(MigrationState *s)
     case MIGRATION_STATUS_COMPLETED:
         migration_calculate_complete(s);
         runstate_set(RUN_STATE_POSTMIGRATE);
-        qemu_system_shutdown_request(SHUTDOWN_CAUSE_MIGRATION_COMPLETED);
+
+        if (migrate_auto_quit()) {
+            qemu_system_shutdown_request(SHUTDOWN_CAUSE_MIGRATION_COMPLETED);
+        }
         break;
 
     case MIGRATION_STATUS_ACTIVE:
