@@ -19,6 +19,7 @@
 #include "cpu.h"
 #include "internal.h"
 #include "tcg/tcg-op.h"
+#include "tcg/tcg-op-gvec.h"
 #include "insn.h"
 #include "opcodes.h"
 #include "translate.h"
@@ -472,6 +473,101 @@ static TCGv gen_8bitsof(TCGv result, TCGv value)
     tcg_temp_free(ones);
 
     return result;
+}
+
+static intptr_t vreg_src_off(DisasContext *ctx, int num)
+{
+    intptr_t offset = offsetof(CPUHexagonState, VRegs[num]);
+
+    if (test_bit(num, ctx->vregs_select)) {
+        offset = offsetof(CPUHexagonState, future_VRegs[num]);
+    }
+    if (test_bit(num, ctx->vregs_updated_tmp)) {
+        offset = offsetof(CPUHexagonState, tmp_VRegs[num]);
+    }
+    return offset;
+}
+
+static void gen_log_vreg_write(intptr_t srcoff, int num,
+                               VRegWriteType type, int slot_num,
+                               bool is_predicated, bool has_vhist)
+{
+    TCGLabel *label_end = NULL;
+    intptr_t dstoff;
+
+    if (is_predicated) {
+        TCGv cancelled = tcg_temp_local_new();
+        label_end = gen_new_label();
+
+        /* Don't do anything if the slot was cancelled */
+        tcg_gen_extract_tl(cancelled, hex_slot_cancelled, slot_num, 1);
+        tcg_gen_brcondi_tl(TCG_COND_NE, cancelled, 0, label_end);
+        tcg_temp_free(cancelled);
+    }
+
+    if (type != EXT_TMP) {
+        tcg_gen_ori_tl(hex_VRegs_updated, hex_VRegs_updated, 1 << num);
+    }
+    if (has_vhist && type == EXT_NEW) {
+        tcg_gen_ori_tl(hex_VRegs_select, hex_VRegs_select, 1 << num);
+    }
+    if (has_vhist && type == EXT_TMP) {
+        tcg_gen_ori_tl(hex_VRegs_updated_tmp, hex_VRegs_updated_tmp, 1 << num);
+    }
+
+    dstoff = offsetof(CPUHexagonState, future_VRegs[num]);
+    if (dstoff != srcoff) {
+        tcg_gen_gvec_mov(MO_64, dstoff, srcoff,
+                         sizeof(MMVector), sizeof(MMVector));
+    }
+
+    if (type == EXT_TMP) {
+        dstoff = offsetof(CPUHexagonState, tmp_VRegs[num]);
+        tcg_gen_gvec_mov(MO_64, dstoff, srcoff,
+                         sizeof(MMVector), sizeof(MMVector));
+    }
+
+    if (is_predicated) {
+        gen_set_label(label_end);
+    }
+}
+
+static void gen_log_vreg_write_pair(intptr_t srcoff, int num,
+                                    VRegWriteType type, int slot_num,
+                                    bool is_predicated, bool has_vhist)
+{
+    gen_log_vreg_write(srcoff, num ^ 0, type, slot_num,
+                       is_predicated, has_vhist);
+    srcoff += sizeof(MMVector);
+    gen_log_vreg_write(srcoff, num ^ 1, type, slot_num,
+                       is_predicated, has_vhist);
+}
+
+static void gen_log_qreg_write(intptr_t srcoff, int num, int vnew,
+                               int slot_num, bool is_predicated)
+{
+    TCGLabel *label_end = NULL;
+    intptr_t dstoff;
+
+    if (is_predicated) {
+        TCGv cancelled = tcg_temp_local_new();
+        label_end = gen_new_label();
+
+        /* Don't do anything if the slot was cancelled */
+        tcg_gen_extract_tl(cancelled, hex_slot_cancelled, slot_num, 1);
+        tcg_gen_brcondi_tl(TCG_COND_NE, cancelled, 0, label_end);
+        tcg_temp_free(cancelled);
+    }
+
+    dstoff = offsetof(CPUHexagonState, future_QRegs[num]);
+    if (dstoff != srcoff) {
+        tcg_gen_gvec_mov(MO_64, dstoff, srcoff, sizeof(MMQReg), sizeof(MMQReg));
+    }
+
+    if (is_predicated) {
+        tcg_gen_ori_tl(hex_QRegs_updated, hex_QRegs_updated, 1 << num);
+        gen_set_label(label_end);
+    }
 }
 
 #include "tcg_funcs_generated.c.inc"
