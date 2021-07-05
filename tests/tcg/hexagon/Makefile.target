@@ -38,11 +38,13 @@ HEX_TESTS += brev
 HEX_TESTS += load_unpack
 HEX_TESTS += load_align
 HEX_TESTS += vector_add_int
+HEX_TESTS += scatter_gather
 HEX_TESTS += atomics
 HEX_TESTS += fpstuff
 HEX_TESTS += hvx_misc
 
 TESTS += $(HEX_TESTS)
 
+scatter_gather: CFLAGS += -mhvx
 vector_add_int: CFLAGS += -mhvx -fvectorize
 hvx_misc: CFLAGS += -mhvx
