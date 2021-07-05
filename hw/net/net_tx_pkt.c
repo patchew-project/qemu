@@ -592,6 +592,14 @@ static bool net_tx_pkt_do_sw_fragmentation(struct NetTxPkt *pkt,
         fragment_len = net_tx_pkt_fetch_fragment(pkt, &src_idx, &src_offset,
             fragment, &dst_idx);
 
+        if (dst_idx == NET_MAX_FRAG_SG_LIST && fragment_len > 0) {
+            /*
+             * The packet is too fragmented for our infrastructure
+             * (not enough iovec), don't even try to send.
+             */
+            return false;
+        }
+
         more_frags = (fragment_offset + fragment_len < pkt->payload_len);
 
         eth_setup_ip4_fragmentation(l2_iov_base, l2_iov_len, l3_iov_base,

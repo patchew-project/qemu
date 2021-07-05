@@ -2041,6 +2041,7 @@ S: Maintained
 F: hw/net/vmxnet*
 F: hw/scsi/vmw_pvscsi*
 F: tests/qtest/vmxnet3-test.c
+F: tests/qtest/fuzz-vmxnet3-test.c
 
 Rocker
 M: Jiri Pirko <jiri@resnulli.us>
