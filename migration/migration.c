@@ -3539,6 +3539,7 @@ static void migration_iteration_finish(MigrationState *s)
     case MIGRATION_STATUS_COMPLETED:
         migration_calculate_complete(s);
         runstate_set(RUN_STATE_POSTMIGRATE);
+        qemu_system_shutdown_request(SHUTDOWN_CAUSE_MIGRATION_COMPLETED);
         break;
 
     case MIGRATION_STATUS_ACTIVE:
