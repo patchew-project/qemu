@@ -30,6 +30,38 @@ static void hvf_cpu_max_instance_init(X86CPU *cpu)
         hvf_get_supported_cpuid(0xC0000000, 0, R_EAX);
 }
 
+static void hvf_cpu_xsave_init(void)
+{
+    int i;
+
+    /*
+     * The allocated storage must be large enough for all of the
+     * possible XSAVE state components.
+     */
+    assert(hvf_get_supported_cpuid(0xd, 0, R_ECX) <= 4096);
+
+    /* x87 state is in the legacy region of the XSAVE area. */
+    x86_ext_save_areas[XSTATE_FP_BIT].offset = 0;
+    /* SSE state is in the legacy region of the XSAVE area. */
+    x86_ext_save_areas[XSTATE_SSE_BIT].offset = 0;
+
+    for (i = XSTATE_SSE_BIT + 1; i < XSAVE_STATE_AREA_COUNT; i++) {
+        ExtSaveArea *esa = &x86_ext_save_areas[i];
+
+        if (esa->size) {
+            int sz = hvf_get_supported_cpuid(0xd, i, R_EAX);
+
+            if (sz != 0) {
+                assert(esa->size == sz);
+
+                esa->offset = hvf_get_supported_cpuid(0xd, i, R_EBX);
+                fprintf(stderr, "%s: state area %d: offset 0x%x, size 0x%x\n",
+                        __func__, i, esa->offset, esa->size);
+            }
+        }
+    }
+}
+
 static void hvf_cpu_instance_init(CPUState *cs)
 {
     X86CPU *cpu = X86_CPU(cs);
@@ -42,6 +74,8 @@ static void hvf_cpu_instance_init(CPUState *cs)
     if (cpu->max_features) {
         hvf_cpu_max_instance_init(cpu);
     }
+
+    hvf_cpu_xsave_init();
 }
 
 static void hvf_cpu_accel_class_init(ObjectClass *oc, void *data)
