@@ -24,6 +24,7 @@ extern const uint8_t rLPS_table_64x4[64][4];
 extern const uint8_t AC_next_state_MPS_64[64];
 extern const uint8_t AC_next_state_LPS_64[64];
 
+uint32_t count_leading_ones_2(uint16_t src);
 uint64_t interleave(uint32_t odd, uint32_t even);
 uint64_t deinterleave(uint64_t src);
 int32_t conv_round(int32_t a, int n);

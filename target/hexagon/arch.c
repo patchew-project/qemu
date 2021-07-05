@@ -118,6 +118,15 @@ const uint8_t AC_next_state_LPS_64[64] = {
     37, 38, 38, 63
 };
 
+uint32_t count_leading_ones_2(uint16_t src)
+{
+    int ret;
+    for (ret = 0; src & 0x8000; src <<= 1) {
+        ret++;
+    }
+    return ret;
+}
+
 #define BITS_MASK_8 0x5555555555555555ULL
 #define PAIR_MASK_8 0x3333333333333333ULL
 #define NYBL_MASK_8 0x0f0f0f0f0f0f0f0fULL
