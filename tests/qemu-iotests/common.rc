@@ -438,6 +438,14 @@ _make_test_img()
             backing_file=$param
             continue
         elif $opts_param; then
+            if [[ "$param" == *"compat=0"* ]]; then
+                # If user specified zstd compression type in IMGOPTS, this will
+                # just not work. So, let's imply forcing zlib compression when
+                # test creates image in old version of the format.
+                # Similarly works qemu_img_create_prepare_args() in iotests.py
+                optstr=$(echo "$optstr" | $SED -e 's/compression_type=\w\+//')
+                optstr=$(_optstr_add "$optstr" "compression_type=zlib")
+            fi
             optstr=$(_optstr_add "$optstr" "$param")
             opts_param=false
             continue
