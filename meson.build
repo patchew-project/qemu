@@ -2375,6 +2375,26 @@ foreach target : target_dirs
                link_args: link_args,
                gui_app: exe['gui'])
 
+# set QEMU's icon on Mac OS
+if targetos == 'darwin'
+    newiconpart1 = custom_target('Icon for ' + exe_name + ' - part 1',
+          depends : emulator,
+          input : emulator,
+          output : 'new icon for ' + exe_name + ' - 1',
+          command : ['Rez', '-append',
+           meson.source_root() + '/pc-bios/qemu.rsrc', '-o',
+           meson.current_build_dir() / exe['name']],
+          build_by_default : true)
+
+    custom_target('Icon for ' + exe_name + ' - part 2',
+          depends : newiconpart1,
+          input : emulator,
+          output : 'new icon for ' + exe_name + ' - 2',
+          command : ['SetFile', '-a', 'C',
+           meson.current_build_dir() / exe['name']],
+          build_by_default : true)
+endif
+
     if exe_sign
       emulators += {exe['name'] : custom_target(exe['name'],
                    depends: emulator,
