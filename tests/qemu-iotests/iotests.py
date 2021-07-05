@@ -224,9 +224,18 @@ def qemu_img_verbose(*args):
                          % (-exitcode, ' '.join(qemu_img_args + list(args))))
     return exitcode
 
+def filter_img_create(text: str) -> str:
+    return re.sub('(compression_type=)(zlib|zstd)', r'\1COMPRESSION_TYPE',
+                  text)
+
 def qemu_img_pipe(*args: str) -> str:
     '''Run qemu-img and return its output'''
-    return qemu_img_pipe_and_status(*args)[0]
+    output =  qemu_img_pipe_and_status(*args)[0]
+
+    if args[0] == 'create':
+        return filter_img_create(output)
+
+    return output
 
 def qemu_img_log(*args):
     result = qemu_img_pipe(*args)
@@ -479,6 +488,8 @@ def filter_img_info(output, filename):
                       'uuid: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX',
                       line)
         line = re.sub('cid: [0-9]+', 'cid: XXXXXXXXXX', line)
+        line = re.sub('(compression type: )(zlib|zstd)', r'\1COMPRESSION_TYPE',
+                      line)
         lines.append(line)
     return '\n'.join(lines)
 
