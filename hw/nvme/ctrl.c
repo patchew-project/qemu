@@ -6516,11 +6516,13 @@ static void nvme_exit(PCIDevice *pci_dev)
 
     for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
         ns = nvme_ns(n, i);
-        if (!ns) {
-            continue;
+        if (ns) {
+            ns->attached--;
         }
+    }
 
-        nvme_ns_cleanup(ns);
+    if (n->subsys) {
+        nvme_subsys_unregister_ctrl(n->subsys, n);
     }
 
     if (n->subsys) {

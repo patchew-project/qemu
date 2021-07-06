@@ -444,13 +444,29 @@ void nvme_ns_cleanup(NvmeNamespace *ns)
 static void nvme_ns_realize(DeviceState *dev, Error **errp)
 {
     NvmeNamespace *ns = NVME_NS(dev);
-    BusState *s = qdev_get_parent_bus(dev);
-    NvmeCtrl *n = NVME(s->parent);
-    NvmeSubsystem *subsys = n->subsys;
+    BusState *qbus = qdev_get_parent_bus(dev);
+    NvmeBus *bus = NVME_BUS(qbus);
+    NvmeCtrl *n = NULL;
+    NvmeSubsystem *subsys = NULL;
     uint32_t nsid = ns->params.nsid;
     int i;
 
-    if (!n->subsys) {
+    if (bus->is_subsys) {
+        subsys = NVME_SUBSYS(qbus->parent);
+    } else {
+        n = NVME(qbus->parent);
+        subsys = n->subsys;
+    }
+
+    if (subsys) {
+        /*
+         * If this namespace belongs to a subsystem (through a link on the
+         * controller device), reparent the device.
+         */
+        if (!qdev_set_parent_bus(dev, &subsys->bus.parent_bus, errp)) {
+            return;
+        }
+    } else {
         if (ns->params.detached) {
             error_setg(errp, "detached requires that the nvme device is "
                        "linked to an nvme-subsys device");
@@ -470,7 +486,7 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
 
     if (!nsid) {
         for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
-            if (nvme_ns(n, i) || nvme_subsys_ns(subsys, i)) {
+            if (nvme_subsys_ns(subsys, i) || nvme_ns(n, i)) {
                 continue;
             }
 
@@ -483,7 +499,7 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
             return;
         }
     } else {
-        if (nvme_ns(n, nsid) || nvme_subsys_ns(subsys, nsid)) {
+        if (nvme_subsys_ns(subsys, nsid) || nvme_ns(n, nsid)) {
             error_setg(errp, "namespace id '%d' already allocated", nsid);
             return;
         }
@@ -509,7 +525,9 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    nvme_attach_ns(n, ns);
+    if (n) {
+        nvme_attach_ns(n, ns);
+    }
 }
 
 static Property nvme_ns_props[] = {
