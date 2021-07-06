@@ -313,7 +313,7 @@ get_sigframe(struct target_sigaction *ka, CPUX86State *env, size_t frame_size)
 void setup_frame(int sig, struct target_sigaction *ka,
                  target_sigset_t *set, CPUX86State *env)
 {
-    abi_ulong frame_addr;
+    abi_ulong frame_addr, retcode_addr;
     struct sigframe *frame;
     int i;
 
@@ -335,19 +335,19 @@ void setup_frame(int sig, struct target_sigaction *ka,
     /* Set up to return from userspace.  If provided, use a stub
        already in userspace.  */
     if (ka->sa_flags & TARGET_SA_RESTORER) {
-        __put_user(ka->sa_restorer, &frame->pretcode);
+        retcode_addr = ka->sa_restorer;
     } else {
-        uint16_t val16;
-        abi_ulong retcode_addr;
-        retcode_addr = frame_addr + offsetof(struct sigframe, retcode);
-        __put_user(retcode_addr, &frame->pretcode);
-        /* This is popl %eax ; movl $,%eax ; int $0x80 */
-        val16 = 0xb858;
-        __put_user(val16, (uint16_t *)(frame->retcode+0));
+        /*
+         * This is popl %eax ; movl $,%eax ; int $0x80.
+         * This is no longer used, but is retained for ABI compatibility.
+         */
+        __put_user(0xb858, (uint16_t *)(frame->retcode+0));
         __put_user(TARGET_NR_sigreturn, (int *)(frame->retcode+2));
-        val16 = 0x80cd;
-        __put_user(val16, (uint16_t *)(frame->retcode+6));
+        __put_user(0x80cd, (uint16_t *)(frame->retcode+6));
+
+        retcode_addr = default_sigreturn;
     }
+    __put_user(retcode_addr, &frame->pretcode);
 
     /* Set up registers for signal handler */
     env->regs[R_ESP] = frame_addr;
@@ -373,7 +373,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
                     target_siginfo_t *info,
                     target_sigset_t *set, CPUX86State *env)
 {
-    abi_ulong frame_addr;
+    abi_ulong frame_addr, retcode_addr;
 #ifndef TARGET_X86_64
     abi_ulong addr;
 #endif
@@ -412,22 +412,23 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
     /* Set up to return from userspace.  If provided, use a stub
        already in userspace.  */
     if (ka->sa_flags & TARGET_SA_RESTORER) {
-        __put_user(ka->sa_restorer, &frame->pretcode);
+        retcode_addr = ka->sa_restorer;
     } else {
 #ifdef TARGET_X86_64
         /* For x86_64, SA_RESTORER is required ABI.  */
         goto give_sigsegv;
 #else
-        uint16_t val16;
-        addr = frame_addr + offsetof(struct rt_sigframe, retcode);
-        __put_user(addr, &frame->pretcode);
-        /* This is movl $,%eax ; int $0x80 */
+        /*
+         * This is movl $,%eax ; int $0x80
+         * This is no longer used, but is retained for ABI compatibility.
+         */
         __put_user(0xb8, (char *)(frame->retcode+0));
         __put_user(TARGET_NR_rt_sigreturn, (int *)(frame->retcode+1));
-        val16 = 0x80cd;
-        __put_user(val16, (uint16_t *)(frame->retcode+5));
+        __put_user(0x80cd, (uint16_t *)(frame->retcode+5));
+        retcode_addr = default_rt_sigreturn;
 #endif
     }
+    __put_user(retcode_addr, &frame->pretcode);
 
     /* Set up registers for signal handler */
     env->regs[R_ESP] = frame_addr;

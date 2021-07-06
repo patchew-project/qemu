@@ -276,12 +276,24 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUX86State *en
     (*regs)[15] = env->regs[R_ESP];
     (*regs)[16] = env->segs[R_SS].selector & 0xffff;
 }
-#endif
+
+/*
+ * i386 is the only target which supplies AT_SYSINFO for the vdso.
+ * All others only supply AT_SYSINFO_EHDR.
+ */
+#define DLINFO_ARCH_ITEMS 1
+#define ARCH_DLINFO       NEW_AUX_ENT(AT_SYSINFO, vdso_info->entry);
+
+#include "vdso.c.inc"
+
+#define vdso_image_info()    &vdso_image_info
+
+#endif /* TARGET_X86_64 */
 
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE       4096
 
-#endif
+#endif /* TARGET_I386 */
 
 #ifdef TARGET_ARM
 
