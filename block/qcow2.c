@@ -962,6 +962,7 @@ static bool read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
 }
 
 typedef struct Qcow2ReopenState {
+    bool had_data_file;
     Qcow2Cache *l2_table_cache;
     Qcow2Cache *refcount_block_cache;
     int l2_slice_size; /* Number of entries in a slice of the L2 table */
@@ -1932,6 +1933,8 @@ static int qcow2_reopen_prepare(BDRVReopenState *state,
     r = g_new0(Qcow2ReopenState, 1);
     state->opaque = r;
 
+    r->had_data_file = has_data_file(state->bs);
+
     ret = qcow2_update_options_prepare(state->bs, r, state->options,
                                        state->flags, errp);
     if (ret < 0) {
@@ -1966,7 +1969,18 @@ fail:
 
 static void qcow2_reopen_commit(BDRVReopenState *state)
 {
+    BDRVQcow2State *s = state->bs->opaque;
+    Qcow2ReopenState *r = state->opaque;
+
     qcow2_update_options_commit(state->bs, state->opaque);
+    if (!r->had_data_file && s->data_file != state->bs->file) {
+        /*
+         * If s->data_file is just a second pointer to bs->file (which is the
+         * case without an external data file), it may need to be updated.
+         */
+        s->data_file = state->bs->file;
+        assert(!has_data_file(state->bs));
+    }
     g_free(state->opaque);
 }
 
