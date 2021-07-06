@@ -133,6 +133,14 @@
 #define RAW_LOCK_PERM_BASE             100
 #define RAW_LOCK_SHARED_BASE           200
 
+/*
+ * qemu_lock_fd_test always returns 0 when fd is not open for writing and
+ * exclusive is true on macOS 11.3.1.
+ */
+#ifdef __APPLE__
+#define RAW_LOCK_WRITES
+#endif
+
 typedef struct BDRVRawState {
     int fd;
     bool use_lock;
@@ -651,7 +659,11 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
                                                false);
 
     s->open_flags = open_flags;
+#ifdef RAW_LOCK_WRITES
+    raw_parse_flags(bdrv_flags, &s->open_flags, s->use_lock);
+#else
     raw_parse_flags(bdrv_flags, &s->open_flags, false);
+#endif
 
     s->fd = -1;
     fd = qemu_open(filename, s->open_flags, errp);
@@ -1017,6 +1029,11 @@ static int raw_reconfigure_getfd(BlockDriverState *bs, int flags,
     bool has_writers = perm &
         (BLK_PERM_WRITE | BLK_PERM_WRITE_UNCHANGED | BLK_PERM_RESIZE);
     int fcntl_flags = O_APPEND | O_NONBLOCK;
+#ifdef RAW_LOCK_WRITES
+    if (s->use_lock) {
+        has_writers = true;
+    }
+#endif
 #ifdef O_NOATIME
     fcntl_flags |= O_NOATIME;
 #endif
