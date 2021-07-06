@@ -1098,6 +1098,7 @@ for opt do
   --enable-cap-ng) cap_ng="enabled"
   ;;
   --disable-tcg) tcg="disabled"
+                 plugins="no"
   ;;
   --enable-tcg) tcg="enabled"
   ;;
@@ -1509,7 +1510,11 @@ for opt do
   ;;
   --disable-xkbcommon) xkbcommon="disabled"
   ;;
-  --enable-plugins) plugins="yes"
+  --enable-plugins) if test "$tcg" = "enabled"; then
+                        plugins="yes"
+                    else
+                        error_exit "Can't enable plugins on non-TCG builds"
+                    fi
   ;;
   --disable-plugins) plugins="no"
   ;;
