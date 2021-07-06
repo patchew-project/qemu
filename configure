@@ -707,6 +707,11 @@ MINGW32*)
   else
     audio_drv_list=""
   fi
+  if "$plugins" = "yes"; then
+      error_exit "TCG plugins not currently supported on Windows platforms"
+  else
+      plugins="no"
+  fi
   supported_os="yes"
   pie="no"
 ;;
