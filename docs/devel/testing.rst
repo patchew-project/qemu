@@ -760,6 +760,13 @@ in the current directory, tagged as "quick", run:
 
   avocado run -t quick .
 
+It is also possible to run tests based on tags using the
+``make check-acceptance`` command and the ``TAGS`` environment variable:
+
+.. code::
+
+   TAGS=quick make check-acceptance
+
 The ``avocado_qemu.Test`` base test class
 -----------------------------------------
 
