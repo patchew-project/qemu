@@ -525,9 +525,13 @@ static const char *get_elf_platform(void)
 #define ELF_CLASS       ELFCLASS64
 #ifdef TARGET_WORDS_BIGENDIAN
 # define ELF_PLATFORM    "aarch64_be"
+# include "vdso-be.c.inc"
 #else
 # define ELF_PLATFORM    "aarch64"
+# include "vdso-le.c.inc"
 #endif
+
+#define vdso_image_info()    &vdso_image_info
 
 static inline void init_thread(struct target_pt_regs *regs,
                                struct image_info *infop)
