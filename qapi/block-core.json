@@ -4115,7 +4115,7 @@
 { 'command': 'blockdev-add', 'data': 'BlockdevOptions', 'boxed': true }
 
 ##
-# @x-blockdev-reopen:
+# @blockdev-reopen:
 #
 # Reopens one or more block devices using the given set of options.
 # Any option not specified will be reset to its default value regardless
@@ -4153,9 +4153,9 @@
 # image does not have a default backing file name as part of its
 # metadata.
 #
-# Since: 4.0
+# Since: 6.0
 ##
-{ 'command': 'x-blockdev-reopen',
+{ 'command': 'blockdev-reopen',
   'data': { 'options': ['BlockdevOptions'] } }
 
 ##
