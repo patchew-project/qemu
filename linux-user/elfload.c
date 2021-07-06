@@ -517,6 +517,30 @@ static const char *get_elf_platform(void)
 #undef END
 }
 
+#ifdef TARGET_WORDS_BIGENDIAN
+# include "vdso-arm-be.c.inc"
+# include "vdso-thm-be.c.inc"
+#else
+# include "vdso-arm-le.c.inc"
+# include "vdso-thm-le.c.inc"
+#endif
+
+static const VdsoImageInfo *vdso_image_info(void)
+{
+    ARMCPU *cpu = ARM_CPU(thread_cpu);
+
+    /*
+     * The only cpus we support that do *not* have arm mode are m-profile.
+     * It's not really possible to run Linux on these, but this config is
+     * useful for testing gcc.  In any case, choose the vdso image that
+     * will work for the target cpu.
+     */
+    return (cpu_isar_feature(aa32_a32, cpu)
+            ? &vdso_arm_image_info
+            : &vdso_thm_image_info);
+}
+#define vdso_image_info vdso_image_info
+
 #else
 /* 64 bit ARM definitions */
 #define ELF_START_MMAP 0x80000000
