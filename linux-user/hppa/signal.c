@@ -40,7 +40,6 @@ struct target_ucontext {
 };
 
 struct target_rt_sigframe {
-    abi_uint tramp[9];
     target_siginfo_t info;
     struct target_ucontext uc;
     /* hidden location of upper halves of pa2.0 64-bit gregs */
@@ -138,14 +137,9 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
 
     setup_sigcontext(&frame->uc.tuc_mcontext, env);
 
-    __put_user(0x34190000, frame->tramp + 0); /* ldi 0,%r25 */
-    __put_user(0x3414015a, frame->tramp + 1); /* ldi __NR_rt_sigreturn,%r20 */
-    __put_user(0xe4008200, frame->tramp + 2); /* be,l 0x100(%sr2,%r0) */
-    __put_user(0x08000240, frame->tramp + 3); /* nop */
-
     unlock_user_struct(frame, frame_addr, 1);
 
-    env->gr[2] = h2g(frame->tramp);
+    env->gr[2] = default_rt_sigreturn;
     env->gr[30] = sp;
     env->gr[26] = sig;
     env->gr[25] = h2g(&frame->info);
