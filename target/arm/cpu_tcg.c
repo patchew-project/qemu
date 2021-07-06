@@ -73,6 +73,8 @@ static void arm926_initfn(Object *obj)
     cpu->isar.mvfr0 = FIELD_DP32(cpu->isar.mvfr0, MVFR0, FPSHVEC, 1);
     cpu->isar.mvfr0 = FIELD_DP32(cpu->isar.mvfr0, MVFR0, FPSP, 1);
     cpu->isar.mvfr0 = FIELD_DP32(cpu->isar.mvfr0, MVFR0, FPDP, 1);
+    /* Similarly, we need to set STATE0 for A32 support.  */
+    cpu->isar.id_pfr0 = FIELD_DP32(cpu->isar.id_pfr0, ID_PFR0, STATE0, 1);
 }
 
 static void arm946_initfn(Object *obj)
@@ -86,6 +88,9 @@ static void arm946_initfn(Object *obj)
     cpu->midr = 0x41059461;
     cpu->ctr = 0x0f004006;
     cpu->reset_sctlr = 0x00000078;
+
+    /* We need to set STATE0 for A32 support. */
+    cpu->isar.id_pfr0 = FIELD_DP32(cpu->isar.id_pfr0, ID_PFR0, STATE0, 1);
 }
 
 static void arm1026_initfn(Object *obj)
@@ -115,6 +120,8 @@ static void arm1026_initfn(Object *obj)
     cpu->isar.mvfr0 = FIELD_DP32(cpu->isar.mvfr0, MVFR0, FPSHVEC, 1);
     cpu->isar.mvfr0 = FIELD_DP32(cpu->isar.mvfr0, MVFR0, FPSP, 1);
     cpu->isar.mvfr0 = FIELD_DP32(cpu->isar.mvfr0, MVFR0, FPDP, 1);
+    /* Similarly, we need to set STATE0 for A32 support.  */
+    cpu->isar.id_pfr0 = FIELD_DP32(cpu->isar.id_pfr0, ID_PFR0, STATE0, 1);
 
     {
         /* The 1026 had an IFAR at c6,c0,0,1 rather than the ARMv6 c6,c0,0,2 */
