@@ -3155,6 +3155,9 @@ static bool virtio_net_guest_notifier_pending(VirtIODevice *vdev, int idx)
     if (idx != VIRTIO_CONFIG_IRQ_IDX) {
         return vhost_net_virtqueue_pending(get_vhost_net(nc->peer), idx);
     }
+    if (idx == VIRTIO_CONFIG_IRQ_IDX) {
+        return vhost_net_config_pending(get_vhost_net(nc->peer), idx);
+   }
     return false;
 }
 
@@ -3167,6 +3170,9 @@ static void virtio_net_guest_notifier_mask(VirtIODevice *vdev, int idx,
     if (idx != VIRTIO_CONFIG_IRQ_IDX) {
         vhost_net_virtqueue_mask(get_vhost_net(nc->peer), vdev, idx, mask);
     }
+    if (idx == VIRTIO_CONFIG_IRQ_IDX) {
+        vhost_net_config_mask(get_vhost_net(nc->peer), vdev, mask);
+     }
 }
 
 static void virtio_net_set_config_size(VirtIONet *n, uint64_t host_features)
