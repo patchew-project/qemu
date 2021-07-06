@@ -437,6 +437,13 @@ abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr,
 int do_sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
 abi_long do_swapcontext(CPUArchState *env, abi_ulong uold_ctx,
                         abi_ulong unew_ctx, abi_long ctx_size);
+
+/* Fallback addresses into sigtramp page. */
+extern abi_ulong default_sigreturn;
+extern abi_ulong default_rt_sigreturn;
+
+void setup_sigtramp(abi_ulong tramp_page);
+
 /**
  * block_signals: block all signals while handling this guest syscall
  *
