@@ -2837,9 +2837,9 @@ static void load_elf_image(const char *image_name, const ImageSource *src,
              */
             if (eppnt->p_filesz != 0) {
                 vaddr_len = TARGET_ELF_PAGELENGTH(eppnt->p_filesz + vaddr_po);
-                error = target_mmap(vaddr_ps, vaddr_len, elf_prot,
+                error = imgsrc_mmap(vaddr_ps, vaddr_len, elf_prot,
                                     MAP_PRIVATE | MAP_FIXED,
-                                    src->fd, eppnt->p_offset - vaddr_po);
+                                    src, eppnt->p_offset - vaddr_po);
 
                 if (error == -1) {
                     goto exit_mmap;
