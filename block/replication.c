@@ -166,7 +166,12 @@ static void replication_child_perm(BlockDriverState *bs, BdrvChild *c,
                                    uint64_t perm, uint64_t shared,
                                    uint64_t *nperm, uint64_t *nshared)
 {
-    *nperm = BLK_PERM_CONSISTENT_READ;
+    if (role & BDRV_CHILD_PRIMARY) {
+        *nperm = BLK_PERM_CONSISTENT_READ;
+    } else {
+        *nperm = 0;
+    }
+
     if ((bs->open_flags & (BDRV_O_INACTIVE | BDRV_O_RDWR)) == BDRV_O_RDWR) {
         *nperm |= BLK_PERM_WRITE;
     }
@@ -340,17 +345,7 @@ static void secondary_do_checkpoint(BDRVReplicationState *s, Error **errp)
         return;
     }
 
-    BlockBackend *blk = blk_new(qemu_get_current_aio_context(),
-                                BLK_PERM_WRITE, BLK_PERM_ALL);
-    blk_insert_bs(blk, s->hidden_disk->bs, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        blk_unref(blk);
-        return;
-    }
-
-    ret = blk_make_empty(blk, errp);
-    blk_unref(blk);
+    ret = bdrv_make_empty(s->hidden_disk, errp);
     if (ret < 0) {
         return;
     }
@@ -365,27 +360,35 @@ static void reopen_backing_file(BlockDriverState *bs, bool writable,
                                 Error **errp)
 {
     BDRVReplicationState *s = bs->opaque;
+    BdrvChild *hidden_disk, *secondary_disk;
     BlockReopenQueue *reopen_queue = NULL;
 
+    /*
+     * s->hidden_disk and s->secondary_disk may not be set yet, as they will
+     * only be set after the children are writable.
+     */
+    hidden_disk = bs->file->bs->backing;
+    secondary_disk = hidden_disk->bs->backing;
+
     if (writable) {
-        s->orig_hidden_read_only = bdrv_is_read_only(s->hidden_disk->bs);
-        s->orig_secondary_read_only = bdrv_is_read_only(s->secondary_disk->bs);
+        s->orig_hidden_read_only = bdrv_is_read_only(hidden_disk->bs);
+        s->orig_secondary_read_only = bdrv_is_read_only(secondary_disk->bs);
     }
 
-    bdrv_subtree_drained_begin(s->hidden_disk->bs);
-    bdrv_subtree_drained_begin(s->secondary_disk->bs);
+    bdrv_subtree_drained_begin(hidden_disk->bs);
+    bdrv_subtree_drained_begin(secondary_disk->bs);
 
     if (s->orig_hidden_read_only) {
         QDict *opts = qdict_new();
         qdict_put_bool(opts, BDRV_OPT_READ_ONLY, !writable);
-        reopen_queue = bdrv_reopen_queue(reopen_queue, s->hidden_disk->bs,
+        reopen_queue = bdrv_reopen_queue(reopen_queue, hidden_disk->bs,
                                          opts, true);
     }
 
     if (s->orig_secondary_read_only) {
         QDict *opts = qdict_new();
         qdict_put_bool(opts, BDRV_OPT_READ_ONLY, !writable);
-        reopen_queue = bdrv_reopen_queue(reopen_queue, s->secondary_disk->bs,
+        reopen_queue = bdrv_reopen_queue(reopen_queue, secondary_disk->bs,
                                          opts, true);
     }
 
@@ -393,8 +396,8 @@ static void reopen_backing_file(BlockDriverState *bs, bool writable,
         bdrv_reopen_multiple(reopen_queue, errp);
     }
 
-    bdrv_subtree_drained_end(s->hidden_disk->bs);
-    bdrv_subtree_drained_end(s->secondary_disk->bs);
+    bdrv_subtree_drained_end(hidden_disk->bs);
+    bdrv_subtree_drained_end(secondary_disk->bs);
 }
 
 static void backup_job_cleanup(BlockDriverState *bs)
@@ -451,6 +454,7 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
     BlockDriverState *bs = rs->opaque;
     BDRVReplicationState *s;
     BlockDriverState *top_bs;
+    BdrvChild *active_disk, *hidden_disk, *secondary_disk;
     int64_t active_length, hidden_length, disk_length;
     AioContext *aio_context;
     Error *local_err = NULL;
@@ -488,32 +492,32 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
     case REPLICATION_MODE_PRIMARY:
         break;
     case REPLICATION_MODE_SECONDARY:
-        s->active_disk = bs->file;
-        if (!s->active_disk || !s->active_disk->bs ||
-                                    !s->active_disk->bs->backing) {
+        active_disk = bs->file;
+        if (!active_disk || !active_disk->bs ||
+                                    !active_disk->bs->backing) {
             error_setg(errp, "Active disk doesn't have backing file");
             aio_context_release(aio_context);
             return;
         }
 
-        s->hidden_disk = s->active_disk->bs->backing;
-        if (!s->hidden_disk->bs || !s->hidden_disk->bs->backing) {
+        hidden_disk = active_disk->bs->backing;
+        if (!hidden_disk->bs || !hidden_disk->bs->backing) {
             error_setg(errp, "Hidden disk doesn't have backing file");
             aio_context_release(aio_context);
             return;
         }
 
-        s->secondary_disk = s->hidden_disk->bs->backing;
-        if (!s->secondary_disk->bs || !bdrv_has_blk(s->secondary_disk->bs)) {
+        secondary_disk = hidden_disk->bs->backing;
+        if (!secondary_disk->bs || !bdrv_has_blk(secondary_disk->bs)) {
             error_setg(errp, "The secondary disk doesn't have block backend");
             aio_context_release(aio_context);
             return;
         }
 
         /* verify the length */
-        active_length = bdrv_getlength(s->active_disk->bs);
-        hidden_length = bdrv_getlength(s->hidden_disk->bs);
-        disk_length = bdrv_getlength(s->secondary_disk->bs);
+        active_length = bdrv_getlength(active_disk->bs);
+        hidden_length = bdrv_getlength(hidden_disk->bs);
+        disk_length = bdrv_getlength(secondary_disk->bs);
         if (active_length < 0 || hidden_length < 0 || disk_length < 0 ||
             active_length != hidden_length || hidden_length != disk_length) {
             error_setg(errp, "Active disk, hidden disk, secondary disk's length"
@@ -523,10 +527,10 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
         }
 
         /* Must be true, or the bdrv_getlength() calls would have failed */
-        assert(s->active_disk->bs->drv && s->hidden_disk->bs->drv);
+        assert(active_disk->bs->drv && hidden_disk->bs->drv);
 
-        if (!s->active_disk->bs->drv->bdrv_make_empty ||
-            !s->hidden_disk->bs->drv->bdrv_make_empty) {
+        if (!active_disk->bs->drv->bdrv_make_empty ||
+            !hidden_disk->bs->drv->bdrv_make_empty) {
             error_setg(errp,
                        "Active disk or hidden disk doesn't support make_empty");
             aio_context_release(aio_context);
@@ -535,6 +539,28 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
 
         /* reopen the backing file in r/w mode */
         reopen_backing_file(bs, true, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            aio_context_release(aio_context);
+            return;
+        }
+
+        s->active_disk = active_disk;
+
+        bdrv_ref(hidden_disk->bs);
+        s->hidden_disk = bdrv_attach_child(bs, hidden_disk->bs, "hidden disk",
+                                           &child_of_bds, BDRV_CHILD_DATA,
+                                           &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            aio_context_release(aio_context);
+            return;
+        }
+
+        bdrv_ref(secondary_disk->bs);
+        s->secondary_disk = bdrv_attach_child(bs, secondary_disk->bs,
+                                              "secondary disk", &child_of_bds,
+                                              BDRV_CHILD_DATA, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             aio_context_release(aio_context);
@@ -646,7 +672,9 @@ static void replication_done(void *opaque, int ret)
         s->stage = BLOCK_REPLICATION_DONE;
 
         s->active_disk = NULL;
+        bdrv_unref_child(bs, s->secondary_disk);
         s->secondary_disk = NULL;
+        bdrv_unref_child(bs, s->hidden_disk);
         s->hidden_disk = NULL;
         s->error = 0;
     } else {
