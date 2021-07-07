@@ -921,7 +921,7 @@ static void run_block_job(BlockJob *job, Error **errp)
     if (!job_is_completed(&job->job)) {
         ret = job_complete_sync(&job->job, errp);
     } else {
-        ret = job->job.ret;
+        ret = job_get_ret(&job->job);
     }
     job_unref(&job->job);
     aio_context_release(aio_context);

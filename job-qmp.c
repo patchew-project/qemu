@@ -42,7 +42,7 @@ static Job *find_job(const char *id, AioContext **aio_context, Error **errp)
         return NULL;
     }
 
-    *aio_context = job->aio_context;
+    *aio_context = job_get_aiocontext(job);
     aio_context_acquire(*aio_context);
 
     return job;
@@ -122,7 +122,7 @@ void qmp_job_finalize(const char *id, Error **errp)
      * automatically acquires the new one), so make sure we release the correct
      * one.
      */
-    aio_context = job->aio_context;
+    aio_context = job_get_aiocontext(job);
     job_unref(job);
     aio_context_release(aio_context);
 }
@@ -146,21 +146,23 @@ static JobInfo *job_query_single(Job *job, Error **errp)
     JobInfo *info;
     uint64_t progress_current;
     uint64_t progress_total;
+    Error *job_err;
 
     assert(!job_is_internal(job));
     progress_get_snapshot(&job->progress, &progress_current,
                           &progress_total);
+    job_err = job_get_err(job);
 
     info = g_new(JobInfo, 1);
     *info = (JobInfo) {
         .id                 = g_strdup(job->id),
         .type               = job_type(job),
-        .status             = job->status,
+        .status             = job_get_status(job),
         .current_progress   = progress_current,
         .total_progress     = progress_total,
-        .has_error          = !!job->err,
-        .error              = job->err ? \
-                              g_strdup(error_get_pretty(job->err)) : NULL,
+        .has_error          = !!job_err,
+        .error              = job_err ? \
+                              g_strdup(error_get_pretty(job_err)) : NULL,
     };
 
     return info;
@@ -178,7 +180,7 @@ JobInfoList *qmp_query_jobs(Error **errp)
         if (job_is_internal(job)) {
             continue;
         }
-        aio_context = job->aio_context;
+        aio_context = job_get_aiocontext(job);
         aio_context_acquire(aio_context);
         value = job_query_single(job, errp);
         aio_context_release(aio_context);

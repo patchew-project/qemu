@@ -303,6 +303,39 @@ void job_txn_unref(JobTxn *txn);
  */
 void job_txn_add_job(JobTxn *txn, Job *job);
 
+/** Returns the @ret field of a given Job. */
+int job_get_ret(Job *job);
+
+/** Returns the AioContext of a given Job. */
+AioContext *job_get_aiocontext(Job *job);
+
+/** Sets the AioContext of a given Job. */
+void job_set_aiocontext(Job *job, AioContext *aio);
+
+/** Returns if a given Job is busy. */
+bool job_is_busy(Job *job);
+
+/** Returns the Error of a given Job. */
+Error *job_get_err(Job *job);
+
+/** Returns if a Job has a pause_count > 0. */
+bool job_should_pause(Job *job);
+
+/** Sets the user_paused flag of a given Job to true. */
+void job_set_user_paused(Job *job);
+
+/** Sets the cancelled flag of a given Job. */
+void job_set_cancelled(Job *job, bool cancel);
+
+/** Returns if a given Job is paused. */
+bool job_is_paused(Job *job);
+
+/** Returns if a given Job is force cancelled. */
+bool job_is_force_cancel(Job *job);
+
+/** Returns the statis of a given Job. */
+JobStatus job_get_status(Job *job);
+
 /**
  * Create a new long-running job and return it.
  *

@@ -147,7 +147,7 @@ void blockdev_mark_auto_del(BlockBackend *blk)
 
     for (job = block_job_next(NULL); job; job = block_job_next(job)) {
         if (block_job_has_bdrv(job, blk_bs(blk))) {
-            AioContext *aio_context = job->job.aio_context;
+            AioContext *aio_context = job_get_aiocontext(&job->job);
             aio_context_acquire(aio_context);
 
             job_cancel(&job->job, false);

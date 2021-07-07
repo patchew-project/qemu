@@ -112,7 +112,7 @@ static bool child_job_drained_poll(BdrvChild *c)
     /* An inactive or completed job doesn't have any pending requests. Jobs
      * with !job->busy are either already paused or have a pause point after
      * being reentered, so no job driver code will run before they pause. */
-    if (!job->busy || job_is_completed(job)) {
+    if (!job_is_busy(job) || job_is_completed(job)) {
         return false;
     }
 
@@ -161,14 +161,14 @@ static void child_job_set_aio_ctx(BdrvChild *c, AioContext *ctx,
         bdrv_set_aio_context_ignore(sibling->bs, ctx, ignore);
     }
 
-    job->job.aio_context = ctx;
+    job_set_aiocontext(&job->job, ctx);
 }
 
 static AioContext *child_job_get_parent_aio_context(BdrvChild *c)
 {
     BlockJob *job = c->opaque;
 
-    return job->job.aio_context;
+    return job_get_aiocontext(&job->job);
 }
 
 static const BdrvChildClass child_job = {
@@ -222,18 +222,19 @@ int block_job_add_bdrv(BlockJob *job, const char *name, BlockDriverState *bs,
 {
     BdrvChild *c;
     bool need_context_ops;
+    AioContext *ctx = job_get_aiocontext(&job->job);
 
     bdrv_ref(bs);
 
-    need_context_ops = bdrv_get_aio_context(bs) != job->job.aio_context;
+    need_context_ops = bdrv_get_aio_context(bs) != ctx;
 
-    if (need_context_ops && job->job.aio_context != qemu_get_aio_context()) {
-        aio_context_release(job->job.aio_context);
+    if (need_context_ops && ctx != qemu_get_aio_context()) {
+        aio_context_release(ctx);
     }
     c = bdrv_root_attach_child(bs, name, &child_job, 0, perm, shared_perm, job,
                                errp);
-    if (need_context_ops && job->job.aio_context != qemu_get_aio_context()) {
-        aio_context_acquire(job->job.aio_context);
+    if (need_context_ops && ctx != qemu_get_aio_context()) {
+        aio_context_acquire(ctx);
     }
     if (c == NULL) {
         return -EPERM;
@@ -303,37 +304,41 @@ int64_t block_job_ratelimit_get_delay(BlockJob *job, uint64_t n)
     return ratelimit_calculate_delay(&job->limit, n);
 }
 
-BlockJobInfo *block_job_query(BlockJob *job, Error **errp)
+BlockJobInfo *block_job_query(BlockJob *blkjob, Error **errp)
 {
     BlockJobInfo *info;
     uint64_t progress_current, progress_total;
+    int job_ret;
+    Job *job = &blkjob->job;
 
-    if (block_job_is_internal(job)) {
+    if (block_job_is_internal(blkjob)) {
         error_setg(errp, "Cannot query QEMU internal jobs");
         return NULL;
     }
 
-    progress_get_snapshot(&job->job.progress, &progress_current,
+    progress_get_snapshot(&job->progress, &progress_current,
                           &progress_total);
 
     info = g_new0(BlockJobInfo, 1);
-    info->type      = g_strdup(job_type_str(&job->job));
-    info->device    = g_strdup(job->job.id);
-    info->busy      = qatomic_read(&job->job.busy);
-    info->paused    = job->job.pause_count > 0;
+    info->type      = g_strdup(job_type_str(job));
+    info->device    = g_strdup(job->id);
+    info->busy      = job_is_busy(job);
+    info->paused    = job_should_pause(job);
     info->offset    = progress_current;
     info->len       = progress_total;
-    info->speed     = job->speed;
-    info->io_status = job->iostatus;
-    info->ready     = job_is_ready(&job->job),
-    info->status    = job->job.status;
-    info->auto_finalize = job->job.auto_finalize;
-    info->auto_dismiss  = job->job.auto_dismiss;
-    if (job->job.ret) {
+    info->speed     = blkjob->speed;
+    info->io_status = blkjob->iostatus;
+    info->ready     = job_is_ready(job);
+    info->status    = job_get_status(job);
+    info->auto_finalize = job->auto_finalize;
+    info->auto_dismiss = job->auto_dismiss;
+    job_ret = job_get_ret(job);
+    if (job_ret) {
+        Error *job_err = job_get_err(job);
         info->has_error = true;
-        info->error = job->job.err ?
-                        g_strdup(error_get_pretty(job->job.err)) :
-                        g_strdup(strerror(-job->job.ret));
+        info->error = job_err ?
+                        g_strdup(error_get_pretty(job_err)) :
+                        g_strdup(strerror(-job_ret));
     }
     return info;
 }
@@ -367,26 +372,27 @@ static void block_job_event_cancelled(Notifier *n, void *opaque)
 
 static void block_job_event_completed(Notifier *n, void *opaque)
 {
-    BlockJob *job = opaque;
+    BlockJob *blkjob = opaque;
     const char *msg = NULL;
     uint64_t progress_current, progress_total;
+    Job *job = &blkjob->job;
 
-    if (block_job_is_internal(job)) {
+    if (block_job_is_internal(blkjob)) {
         return;
     }
 
-    if (job->job.ret < 0) {
-        msg = error_get_pretty(job->job.err);
+    if (job_get_ret(job) < 0) {
+        msg = error_get_pretty(job_get_err(job));
     }
 
-    progress_get_snapshot(&job->job.progress, &progress_current,
+    progress_get_snapshot(&job->progress, &progress_current,
                           &progress_total);
 
-    qapi_event_send_block_job_completed(job_type(&job->job),
-                                        job->job.id,
+    qapi_event_send_block_job_completed(job_type(job),
+                                        job->id,
                                         progress_total,
                                         progress_current,
-                                        job->speed,
+                                        blkjob->speed,
                                         !!msg,
                                         msg);
 }
@@ -498,7 +504,7 @@ void block_job_iostatus_reset(BlockJob *job)
     if (job->iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
         return;
     }
-    assert(job->job.user_paused && job->job.pause_count > 0);
+    assert(job_user_paused(&job->job) && job_should_pause(&job->job));
     job->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
 }
 
@@ -538,10 +544,10 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
                                         action);
     }
     if (action == BLOCK_ERROR_ACTION_STOP) {
-        if (!job->job.user_paused) {
+        if (!job_user_paused(&job->job)) {
             job_pause(&job->job);
             /* make the pause user visible, which will be resumed from QMP. */
-            job->job.user_paused = true;
+            job_set_user_paused(&job->job);
         }
         block_job_iostatus_set_err(job, error);
     }

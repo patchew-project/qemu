@@ -94,6 +94,46 @@ static void __attribute__((__constructor__)) job_init(void)
     qemu_mutex_init(&job_mutex);
 }
 
+AioContext *job_get_aiocontext(Job *job)
+{
+    return job->aio_context;
+}
+
+void job_set_aiocontext(Job *job, AioContext *aio)
+{
+    job->aio_context = aio;
+}
+
+bool job_is_busy(Job *job)
+{
+    return qatomic_read(&job->busy);
+}
+
+int job_get_ret(Job *job)
+{
+    return job->ret;
+}
+
+Error *job_get_err(Job *job)
+{
+    return job->err;
+}
+
+JobStatus job_get_status(Job *job)
+{
+    return job->status;
+}
+
+void job_set_cancelled(Job *job, bool cancel)
+{
+    job->cancelled = cancel;
+}
+
+bool job_is_force_cancel(Job *job)
+{
+    return job->force_cancel;
+}
+
 JobTxn *job_txn_new(void)
 {
     JobTxn *txn = g_new0(JobTxn, 1);
@@ -269,9 +309,14 @@ static bool job_started(Job *job)
     return job->co;
 }
 
-static bool job_should_pause(Job *job)
+bool job_should_pause(Job *job)
 {
     return job->pause_count > 0;
+}
+
+bool job_is_paused(Job *job)
+{
+    return job->paused;
 }
 
 Job *job_next(Job *job)
@@ -589,6 +634,11 @@ void job_user_pause(Job *job, Error **errp)
 bool job_user_paused(Job *job)
 {
     return job->user_paused;
+}
+
+void job_set_user_paused(Job *job)
+{
+    job->user_paused = true;
 }
 
 void job_user_resume(Job *job, Error **errp)

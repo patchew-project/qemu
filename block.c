@@ -5721,7 +5721,7 @@ XDbgBlockGraph *bdrv_get_xdbg_block_graph(Error **errp)
         GSList *el;
 
         xdbg_graph_add_node(gr, job, X_DBG_BLOCK_GRAPH_NODE_TYPE_BLOCK_JOB,
-                           job->job.id);
+                            job->job.id);
         for (el = job->nodes; el; el = el->next) {
             xdbg_graph_add_edge(gr, job, (BdrvChild *)el->data);
         }

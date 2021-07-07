@@ -636,7 +636,7 @@ static int mirror_exit_common(Job *job)
     BlockDriverState *target_bs;
     BlockDriverState *mirror_top_bs;
     Error *local_err = NULL;
-    bool abort = job->ret < 0;
+    bool abort = job_get_ret(job) < 0;
     int ret = 0;
 
     if (s->prepared) {
@@ -930,7 +930,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
         while (!job_is_cancelled(&s->common.job) && !s->should_complete) {
             job_yield(&s->common.job);
         }
-        s->common.job.cancelled = false;
+        job_set_cancelled(&s->common.job, false);
         goto immediate_exit;
     }
 
@@ -1065,7 +1065,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
              * completion.
              */
             assert(QLIST_EMPTY(&bs->tracked_requests));
-            s->common.job.cancelled = false;
+            job_set_cancelled(&s->common.job, false);
             need_drain = false;
             break;
         }
@@ -1079,7 +1079,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
         trace_mirror_before_sleep(s, cnt, s->synced, delay_ns);
         job_sleep_ns(&s->common.job, delay_ns);
         if (job_is_cancelled(&s->common.job) &&
-            (!s->synced || s->common.job.force_cancel))
+            (!s->synced || job_is_force_cancel(&s->common.job)))
         {
             break;
         }
@@ -1092,8 +1092,8 @@ immediate_exit:
          * or it was cancelled prematurely so that we do not guarantee that
          * the target is a copy of the source.
          */
-        assert(ret < 0 || ((s->common.job.force_cancel || !s->synced) &&
-               job_is_cancelled(&s->common.job)));
+        assert(ret < 0 || ((job_is_force_cancel(&s->common.job) || !s->synced)
+               && job_is_cancelled(&s->common.job)));
         assert(need_drain);
         mirror_wait_for_all_io(s);
     }
@@ -1150,7 +1150,7 @@ static void mirror_complete(Job *job, Error **errp)
     s->should_complete = true;
 
     /* If the job is paused, it will be re-entered when it is resumed */
-    if (!job->paused) {
+    if (!job_is_paused(job)) {
         job_enter(job);
     }
 }
@@ -1171,7 +1171,8 @@ static bool mirror_drained_poll(BlockJob *job)
      * from one of our own drain sections, to avoid a deadlock waiting for
      * ourselves.
      */
-    if (!s->common.job.paused && !s->common.job.cancelled && !s->in_drain) {
+    if (!job_is_paused(&s->common.job) && !job_is_cancelled(&s->common.job) &&
+        !s->in_drain) {
         return true;
     }
 
