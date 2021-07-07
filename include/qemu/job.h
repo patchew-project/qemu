@@ -40,24 +40,40 @@ typedef struct JobTxn JobTxn;
  * Long-running operation.
  */
 typedef struct Job {
-    /** The ID of the job. May be NULL for internal jobs. */
+    /**
+     * The ID of the job. May be NULL for internal jobs.
+     * Set it in job_create and just read.
+     */
     char *id;
 
-    /** The type of this job. */
+    /**
+     * The type of this job.
+     * Set it in job_create and just read.
+     */
     const JobDriver *driver;
 
-    /** Reference count of the block job */
+    /**
+     * Reference count of the block job.
+     * Protected by job_mutex.
+     */
     int refcnt;
 
-    /** Current state; See @JobStatus for details. */
+    /**
+     * Current state; See @JobStatus for details.
+     * Protected by job_mutex.
+     */
     JobStatus status;
 
-    /** AioContext to run the job coroutine in */
+    /**
+     * AioContext to run the job coroutine in.
+     * Atomic.
+     */
     AioContext *aio_context;
 
     /**
      * The coroutine that executes the job.  If not NULL, it is reentered when
      * busy is false and the job is cancelled.
+     * Set it in job_create and just read.
      */
     Coroutine *co;
 
@@ -70,13 +86,15 @@ typedef struct Job {
     /**
      * Counter for pause request. If non-zero, the block job is either paused,
      * or if busy == true will pause itself as soon as possible.
+     * Protected by job_mutex.
      */
     int pause_count;
 
     /**
      * Set to false by the job while the coroutine has yielded and may be
      * re-entered by job_enter(). There may still be I/O or event loop activity
-     * pending. Accessed under block_job_mutex (in blockjob.c).
+     * pending.
+     * Protected by job_mutex.
      *
      * When the job is deferred to the main loop, busy is true as long as the
      * bottom half is still pending.
@@ -86,12 +104,14 @@ typedef struct Job {
     /**
      * Set to true by the job while it is in a quiescent state, where
      * no I/O or event loop activity is pending.
+     * Protected by job_mutex.
      */
     bool paused;
 
     /**
      * Set to true if the job is paused by user.  Can be unpaused with the
      * block-job-resume QMP command.
+     * Protected by job_mutex.
      */
     bool user_paused;
 
@@ -100,22 +120,33 @@ typedef struct Job {
      * always be tested just before toggling the busy flag from false
      * to true.  After a job has been cancelled, it should only yield
      * if #aio_poll will ("sooner or later") reenter the coroutine.
+     * Protected by job_mutex.
      */
     bool cancelled;
 
     /**
      * Set to true if the job should abort immediately without waiting
      * for data to be in sync.
+     * Protected by job_mutex.
      */
     bool force_cancel;
 
-    /** Set to true when the job has deferred work to the main loop. */
+    /**
+     * Set to true when the job has deferred work to the main loop.
+     * Protected by job_mutex.
+     */
     bool deferred_to_main_loop;
 
-    /** True if this job should automatically finalize itself */
+    /**
+     * True if this job should automatically finalize itself.
+     * Set it in job_create and just read.
+     */
     bool auto_finalize;
 
-    /** True if this job should automatically dismiss itself */
+    /**
+     * True if this job should automatically dismiss itself.
+     * Set it in job_create and just read.
+     */
     bool auto_dismiss;
 
     ProgressMeter progress;
@@ -124,6 +155,7 @@ typedef struct Job {
      * Return code from @run and/or @prepare callback(s).
      * Not final until the job has reached the CONCLUDED status.
      * 0 on success, -errno on failure.
+     * Protected by job_mutex.
      */
     int ret;
 
@@ -131,37 +163,68 @@ typedef struct Job {
      * Error object for a failed job.
      * If job->ret is nonzero and an error object was not set, it will be set
      * to strerror(-job->ret) during job_completed.
+     * Protected by job_mutex.
      */
     Error *err;
 
-    /** The completion function that will be called when the job completes.  */
+    /**
+     * The completion function that will be called when the job completes.
+     * Set it in job_create and just read.
+     */
     BlockCompletionFunc *cb;
 
-    /** The opaque value that is passed to the completion function.  */
+    /**
+     * The opaque value that is passed to the completion function.
+     * Set it in job_create and just read.
+     */
     void *opaque;
 
-    /** Notifiers called when a cancelled job is finalised */
+    /**
+     * Notifiers called when a cancelled job is finalised.
+     * Protected by job_mutex.
+     */
     NotifierList on_finalize_cancelled;
 
-    /** Notifiers called when a successfully completed job is finalised */
+    /**
+     * Notifiers called when a successfully completed job is finalised.
+     * Protected by job_mutex.
+     */
     NotifierList on_finalize_completed;
 
-    /** Notifiers called when the job transitions to PENDING */
+    /**
+     * Notifiers called when the job transitions to PENDING.
+     * Protected by job_mutex.
+     */
     NotifierList on_pending;
 
-    /** Notifiers called when the job transitions to READY */
+    /**
+     * Notifiers called when the job transitions to READY.
+     * Protected by job_mutex.
+     */
     NotifierList on_ready;
 
-    /** Notifiers called when the job coroutine yields or terminates */
+    /**
+     * Notifiers called when the job coroutine yields or terminates.
+     * Protected by job_mutex.
+     */
     NotifierList on_idle;
 
-    /** Element of the list of jobs */
+    /**
+     * Element of the list of jobs.
+     * Protected by job_mutex.
+     */
     QLIST_ENTRY(Job) job_list;
 
-    /** Transaction this job is part of */
+    /**
+     * Transaction this job is part of.
+     * Protected by job_mutex.
+     */
     JobTxn *txn;
 
-    /** Element of the list of jobs in a job transaction */
+    /**
+     * Element of the list of jobs in a job transaction.
+     * Protected by job_mutex.
+     */
     QLIST_ENTRY(Job) txn_list;
 } Job;
 
