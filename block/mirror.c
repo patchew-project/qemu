@@ -1150,9 +1150,11 @@ static void mirror_complete(Job *job, Error **errp)
     s->should_complete = true;
 
     /* If the job is paused, it will be re-entered when it is resumed */
+    job_lock();
     if (!job_is_paused(job)) {
-        job_enter(job);
+        job_enter_locked(job);
     }
+    job_unlock();
 }
 
 static void coroutine_fn mirror_pause(Job *job)
@@ -1171,10 +1173,13 @@ static bool mirror_drained_poll(BlockJob *job)
      * from one of our own drain sections, to avoid a deadlock waiting for
      * ourselves.
      */
-    if (!job_is_paused(&s->common.job) && !job_is_cancelled(&s->common.job) &&
-        !s->in_drain) {
+    job_lock();
+    if (!job_is_paused(&s->common.job) &&
+        !job_is_cancelled_locked(&s->common.job) && !s->in_drain) {
+        job_unlock();
         return true;
     }
+    job_unlock();
 
     return !!s->in_flight;
 }

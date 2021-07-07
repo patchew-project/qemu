@@ -42,15 +42,16 @@
  * The first includes functions used by the monitor.  The monitor is
  * peculiar in that it accesses the block job list with block_job_get, and
  * therefore needs consistency across block_job_get and the actual operation
- * (e.g. block_job_set_speed).  The consistency is achieved with
- * aio_context_acquire/release.  These functions are declared in blockjob.h.
+ * (e.g. block_job_set_speed).  To achieve this consistency, the caller
+ * calls block_job_lock/block_job_unlock itself around the whole operation.
+ * These functions are declared in blockjob.h.
  *
  * The second includes functions used by the block job drivers and sometimes
- * by the core block layer.  These do not care about locking, because the
- * whole coroutine runs under the AioContext lock, and are declared in
- * blockjob_int.h.
+ * by the core block layer. These delegate the locking to the callee instead,
+ * and are declared in blockjob_int.h.
  */
 
+/* Does not need job_mutex. Value is never modified */
 static bool is_block_job(Job *job)
 {
     return job_type(job) == JOB_TYPE_BACKUP ||
@@ -59,6 +60,7 @@ static bool is_block_job(Job *job)
            job_type(job) == JOB_TYPE_STREAM;
 }
 
+/* Called with job_mutex *not* held. */
 BlockJob *block_job_next(BlockJob *bjob)
 {
     Job *job = bjob ? &bjob->job : NULL;
@@ -70,6 +72,7 @@ BlockJob *block_job_next(BlockJob *bjob)
     return job ? container_of(job, BlockJob, job) : NULL;
 }
 
+/* Called with job_mutex held. */
 BlockJob *block_job_get(const char *id)
 {
     Job *job = job_get(id);
@@ -97,24 +100,31 @@ static char *child_job_get_parent_desc(BdrvChild *c)
     return g_strdup_printf("%s job '%s'", job_type_str(&job->job), job->job.id);
 }
 
+/* Called with job_mutex *not* held. */
 static void child_job_drained_begin(BdrvChild *c)
 {
     BlockJob *job = c->opaque;
+    job_lock();
     job_pause(&job->job);
+    job_unlock();
 }
 
+/* Called with job_mutex *not* held. */
 static bool child_job_drained_poll(BdrvChild *c)
 {
     BlockJob *bjob = c->opaque;
     Job *job = &bjob->job;
     const BlockJobDriver *drv = block_job_driver(bjob);
 
+    job_lock();
     /* An inactive or completed job doesn't have any pending requests. Jobs
      * with !job->busy are either already paused or have a pause point after
      * being reentered, so no job driver code will run before they pause. */
-    if (!job_is_busy(job) || job_is_completed(job)) {
+    if (!job_is_busy(job) || job_is_completed_locked(job)) {
+        job_unlock();
         return false;
     }
+    job_unlock();
 
     /* Otherwise, assume that it isn't fully stopped yet, but allow the job to
      * override this assumption. */
@@ -125,10 +135,13 @@ static bool child_job_drained_poll(BdrvChild *c)
     }
 }
 
+/* Called with job_mutex *not* held. */
 static void child_job_drained_end(BdrvChild *c, int *drained_end_counter)
 {
     BlockJob *job = c->opaque;
+    job_lock();
     job_resume(&job->job);
+    job_unlock();
 }
 
 static bool child_job_can_set_aio_ctx(BdrvChild *c, AioContext *ctx,
@@ -246,11 +259,15 @@ int block_job_add_bdrv(BlockJob *job, const char *name, BlockDriverState *bs,
     return 0;
 }
 
+/* Called with job_mutex held. Temporarly releases the lock. */
 static void block_job_on_idle(Notifier *n, void *opaque)
 {
+    job_unlock();
     aio_wait_kick();
+    job_lock();
 }
 
+/* Does not need job_mutex. Value is never modified */
 bool block_job_is_internal(BlockJob *job)
 {
     return (job->job.id == NULL);
@@ -267,6 +284,7 @@ static bool job_timer_pending(Job *job)
     return timer_pending(&job->sleep_timer);
 }
 
+/* Called with job_mutex held. May temporarly release the lock. */
 bool block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 {
     const BlockJobDriver *drv = block_job_driver(job);
@@ -286,7 +304,9 @@ bool block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
     job->speed = speed;
 
     if (drv->set_speed) {
+        job_unlock();
         drv->set_speed(job, speed);
+        job_lock();
     }
 
     if (speed && speed <= old_speed) {
@@ -304,6 +324,7 @@ int64_t block_job_ratelimit_get_delay(BlockJob *job, uint64_t n)
     return ratelimit_calculate_delay(&job->limit, n);
 }
 
+/* Called with block_job_mutex *not* held. */
 BlockJobInfo *block_job_query(BlockJob *blkjob, Error **errp)
 {
     BlockJobInfo *info;
@@ -319,6 +340,7 @@ BlockJobInfo *block_job_query(BlockJob *blkjob, Error **errp)
     progress_get_snapshot(&job->progress, &progress_current,
                           &progress_total);
 
+    job_lock();
     info = g_new0(BlockJobInfo, 1);
     info->type      = g_strdup(job_type_str(job));
     info->device    = g_strdup(job->id);
@@ -328,11 +350,11 @@ BlockJobInfo *block_job_query(BlockJob *blkjob, Error **errp)
     info->len       = progress_total;
     info->speed     = blkjob->speed;
     info->io_status = blkjob->iostatus;
-    info->ready     = job_is_ready(job);
+    info->ready     = job_is_ready_locked(job);
     info->status    = job_get_status(job);
     info->auto_finalize = job->auto_finalize;
     info->auto_dismiss = job->auto_dismiss;
-    job_ret = job_get_ret(job);
+    job_ret = job_get_ret_locked(job);
     if (job_ret) {
         Error *job_err = job_get_err(job);
         info->has_error = true;
@@ -340,9 +362,11 @@ BlockJobInfo *block_job_query(BlockJob *blkjob, Error **errp)
                         g_strdup(error_get_pretty(job_err)) :
                         g_strdup(strerror(-job_ret));
     }
+    job_unlock();
     return info;
 }
 
+/* Called with job_mutex held. */
 static void block_job_iostatus_set_err(BlockJob *job, int error)
 {
     if (job->iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
@@ -351,6 +375,7 @@ static void block_job_iostatus_set_err(BlockJob *job, int error)
     }
 }
 
+/* Called with job_mutex held. */
 static void block_job_event_cancelled(Notifier *n, void *opaque)
 {
     BlockJob *job = opaque;
@@ -370,6 +395,7 @@ static void block_job_event_cancelled(Notifier *n, void *opaque)
                                         job->speed);
 }
 
+/* Called with job_mutex held. */
 static void block_job_event_completed(Notifier *n, void *opaque)
 {
     BlockJob *blkjob = opaque;
@@ -381,7 +407,7 @@ static void block_job_event_completed(Notifier *n, void *opaque)
         return;
     }
 
-    if (job_get_ret(job) < 0) {
+    if (job_get_ret_locked(job) < 0) {
         msg = error_get_pretty(job_get_err(job));
     }
 
@@ -397,6 +423,7 @@ static void block_job_event_completed(Notifier *n, void *opaque)
                                         msg);
 }
 
+/* Called with job_mutex held. */
 static void block_job_event_pending(Notifier *n, void *opaque)
 {
     BlockJob *job = opaque;
@@ -409,6 +436,7 @@ static void block_job_event_pending(Notifier *n, void *opaque)
                                       job->job.id);
 }
 
+/* Called with job_mutex held. */
 static void block_job_event_ready(Notifier *n, void *opaque)
 {
     BlockJob *job = opaque;
@@ -430,10 +458,11 @@ static void block_job_event_ready(Notifier *n, void *opaque)
 
 
 /*
- * API for block job drivers and the block layer.  These functions are
- * declared in blockjob_int.h.
+ * API for block job drivers and the block layer, who do not know about
+ * job_mutex.  These functions are declared in blockjob_int.h.
  */
 
+/* Called with block_job_mutex *not* held, but temporarly releases it. */
 void *block_job_create(const char *job_id, const BlockJobDriver *driver,
                        JobTxn *txn, BlockDriverState *bs, uint64_t perm,
                        uint64_t shared_perm, int64_t speed, int flags,
@@ -472,6 +501,8 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     job->ready_notifier.notify = block_job_event_ready;
     job->idle_notifier.notify = block_job_on_idle;
 
+    job_lock();
+
     notifier_list_add(&job->job.on_finalize_cancelled,
                       &job->finalize_cancelled_notifier);
     notifier_list_add(&job->job.on_finalize_completed,
@@ -482,7 +513,11 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
 
     error_setg(&job->blocker, "block device is in use by block job: %s",
                job_type_str(&job->job));
+
+    job_unlock();
+    /* calls drain and friends, that already take the lock */
     block_job_add_bdrv(job, "main node", bs, 0, BLK_PERM_ALL, &error_abort);
+    job_lock();
 
     bdrv_op_unblock(bs, BLOCK_OP_TYPE_DATAPLANE, job->blocker);
 
@@ -493,27 +528,35 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
 
     if (!block_job_set_speed(job, speed, errp)) {
         job_early_fail(&job->job);
+        job_unlock();
         return NULL;
     }
 
+    job_unlock();
     return job;
 }
 
+/* Called with job_mutex *not* held. */
 void block_job_iostatus_reset(BlockJob *job)
 {
+    job_lock();
     if (job->iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
+        job_unlock();
         return;
     }
     assert(job_user_paused(&job->job) && job_should_pause(&job->job));
     job->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
+    job_unlock();
 }
 
+/* Called with job_mutex *not* held. */
 void block_job_user_resume(Job *job)
 {
     BlockJob *bjob = container_of(job, BlockJob, job);
     block_job_iostatus_reset(bjob);
 }
 
+/* Called with job_mutex *not* held. */
 BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
                                         int is_read, int error)
 {
@@ -544,12 +587,14 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
                                         action);
     }
     if (action == BLOCK_ERROR_ACTION_STOP) {
+        job_lock();
         if (!job_user_paused(&job->job)) {
             job_pause(&job->job);
             /* make the pause user visible, which will be resumed from QMP. */
             job_set_user_paused(&job->job);
         }
         block_job_iostatus_set_err(job, error);
+        job_unlock();
     }
     return action;
 }

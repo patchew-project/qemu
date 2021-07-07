@@ -898,17 +898,19 @@ static void common_block_job_cb(void *opaque, int ret)
     }
 }
 
+/* Called with job_mutex held. Releases it temporarly */
 static void run_block_job(BlockJob *job, Error **errp)
 {
     uint64_t progress_current, progress_total;
     AioContext *aio_context = blk_get_aio_context(job->blk);
     int ret = 0;
 
-    aio_context_acquire(aio_context);
     job_ref(&job->job);
     do {
         float progress = 0.0f;
+        job_unlock();
         aio_poll(aio_context, true);
+        job_lock();
 
         progress_get_snapshot(&job->job.progress, &progress_current,
                               &progress_total);
@@ -916,15 +918,15 @@ static void run_block_job(BlockJob *job, Error **errp)
             progress = (float)progress_current / progress_total * 100.f;
         }
         qemu_progress_print(progress, 0);
-    } while (!job_is_ready(&job->job) && !job_is_completed(&job->job));
+    } while (!job_is_ready_locked(&job->job) &&
+             !job_is_completed_locked(&job->job));
 
-    if (!job_is_completed(&job->job)) {
+    if (!job_is_completed_locked(&job->job)) {
         ret = job_complete_sync(&job->job, errp);
     } else {
-        ret = job_get_ret(&job->job);
+        ret = job_get_ret_locked(&job->job);
     }
     job_unref(&job->job);
-    aio_context_release(aio_context);
 
     /* publish completion progress only when success */
     if (!ret) {
@@ -1076,9 +1078,12 @@ static int img_commit(int argc, char **argv)
         bdrv_ref(bs);
     }
 
+    job_lock();
     job = block_job_get("commit");
     assert(job);
     run_block_job(job, &local_err);
+    job_unlock();
+
     if (local_err) {
         goto unref_backing;
     }

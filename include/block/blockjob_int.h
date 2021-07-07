@@ -53,6 +53,7 @@ struct BlockJobDriver {
      */
     void (*attached_aio_context)(BlockJob *job, AioContext *new_context);
 
+    /* Called with job mutex *not* held. */
     void (*set_speed)(BlockJob *job, int64_t speed);
 };
 

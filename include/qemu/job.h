@@ -49,6 +49,8 @@ typedef struct Job {
     /**
      * The type of this job.
      * Set it in job_create and just read.
+     * All calls to the driver function must be not locked by job_mutex,
+     * to avoid deadlocks.
      */
     const JobDriver *driver;
 
