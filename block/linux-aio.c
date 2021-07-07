@@ -28,6 +28,9 @@
  */
 #define MAX_EVENTS 1024
 
+/* Maximum number of requests in a batch. (default value) */
+#define DEFAULT_MAX_BATCH 32
+
 struct qemu_laiocb {
     Coroutine *co;
     LinuxAioState *ctx;
@@ -351,6 +354,7 @@ static int laio_do_submit(int fd, struct qemu_laiocb *laiocb, off_t offset,
     LinuxAioState *s = laiocb->ctx;
     struct iocb *iocbs = &laiocb->iocb;
     QEMUIOVector *qiov = laiocb->qiov;
+    int64_t max_batch = s->aio_context->aio_max_batch ?: DEFAULT_MAX_BATCH;
 
     switch (type) {
     case QEMU_AIO_WRITE:
@@ -371,7 +375,7 @@ static int laio_do_submit(int fd, struct qemu_laiocb *laiocb, off_t offset,
     s->io_q.in_queue++;
     if (!s->io_q.blocked &&
         (!s->io_q.plugged ||
-         s->io_q.in_flight + s->io_q.in_queue >= MAX_EVENTS)) {
+         s->io_q.in_queue >= max_batch)) {
         ioq_submit(s);
     }
 
