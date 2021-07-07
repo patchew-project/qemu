@@ -369,6 +369,12 @@ static int raw_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     return bdrv_get_info(bs->file->bs, bdi);
 }
 
+static ImageInfoSpecific *raw_get_specific_info(BlockDriverState *bs,
+                                                Error **errp)
+{
+    return bdrv_get_specific_info(bs->file->bs, errp);
+}
+
 static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     if (bs->probed) {
@@ -603,6 +609,7 @@ BlockDriver bdrv_raw = {
     .has_variable_length  = true,
     .bdrv_measure         = &raw_measure,
     .bdrv_get_info        = &raw_get_info,
+    .bdrv_get_specific_info = &raw_get_specific_info,
     .bdrv_refresh_limits  = &raw_refresh_limits,
     .bdrv_probe_blocksizes = &raw_probe_blocksizes,
     .bdrv_probe_geometry  = &raw_probe_geometry,
