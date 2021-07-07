@@ -142,6 +142,7 @@ void cprexec(strList *args, Error **errp)
         return;
     }
     walkenv(FD_PREFIX, preserve_fd, 0);
+    vhost_dev_reset_all();
     qemu_system_exec_request(args);
 }
 
