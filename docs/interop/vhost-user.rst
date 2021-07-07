@@ -1,3 +1,5 @@
+.. _vhost_user_proto:
+
 ===================
 Vhost-user Protocol
 ===================
@@ -6,7 +8,7 @@ Vhost-user Protocol
 :Licence: This work is licensed under the terms of the GNU GPL,
           version 2 or later. See the COPYING file in the top-level
           directory.
-
+          
 .. contents:: Table of Contents
 
 Introduction
