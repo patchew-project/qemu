@@ -2194,9 +2194,10 @@ static void qemu_parse_config_group(const char *group, QDict *qdict,
     if (qobject_type(crumpled) != QTYPE_QDICT) {
         assert(qobject_type(crumpled) == QTYPE_QLIST);
         error_setg(errp, "Lists cannot be at top level of a configuration section");
-        return;
+    } else {
+        qemu_record_config_group(group, qobject_to(QDict, crumpled), false, errp);
     }
-    qemu_record_config_group(group, qobject_to(QDict, crumpled), false, errp);
+    qobject_unref(crumpled);
 }
 
 static void qemu_read_default_config_file(Error **errp)
