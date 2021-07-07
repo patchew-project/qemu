@@ -2665,6 +2665,10 @@ void qmp_x_exit_preconfig(Error **errp)
     qemu_create_cli_devices();
     qemu_machine_creation_done();
 
+    if (only_cpr_capable && !qemu_chr_cpr_capable(errp)) {
+        ;    /* not reached due to error_fatal */
+    }
+
     if (loadvm) {
         Error *local_err = NULL;
         if (!load_snapshot(loadvm, NULL, false, NULL, &local_err)) {
@@ -2674,7 +2678,12 @@ void qmp_x_exit_preconfig(Error **errp)
         }
     }
     if (replay_mode != REPLAY_MODE_NONE) {
-        replay_vmstate_init();
+        if (only_cpr_capable) {
+            error_setg(errp, "replay is not compatible with -only-cpr-capable");
+            /* not reached due to error_fatal */
+        } else {
+            replay_vmstate_init();
+        }
     }
 
     if (incoming) {
@@ -3427,6 +3436,9 @@ void qemu_init(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_only_migratable:
                 only_migratable = 1;
+                break;
+            case QEMU_OPTION_only_cpr_capable:
+                only_cpr_capable = true;
                 break;
             case QEMU_OPTION_nodefaults:
                 has_defaults = 0;

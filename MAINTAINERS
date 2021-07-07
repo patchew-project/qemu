@@ -2868,6 +2868,7 @@ F: migration/cpr.c
 F: qapi/cpr.json
 F: include/qemu/env.h
 F: util/env.c
+F: stubs/cpr.c
 
 Record/replay
 M: Pavel Dovgalyuk <pavel.dovgaluk@ispras.ru>

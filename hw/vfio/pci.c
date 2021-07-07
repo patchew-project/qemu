@@ -265,6 +265,11 @@ static int vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
 
     if (!pin) {
         return 0;
+    } else if (only_cpr_capable) {
+        error_setg(errp,
+                   "%s: vfio-pci INTX is not compatible with -only-cpr-capable",
+                   vdev->vbasedev.name);
+        return -1;
     }
 
     vfio_disable_interrupts(vdev);
