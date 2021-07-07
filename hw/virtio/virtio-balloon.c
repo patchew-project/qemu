@@ -30,6 +30,7 @@
 #include "trace.h"
 #include "qemu/error-report.h"
 #include "migration/misc.h"
+#include "migration/postcopy-ram.h"
 
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
@@ -692,6 +693,28 @@ virtio_balloon_free_page_hint_notify(NotifierWithReturn *n, void *data)
     return 0;
 }
 
+
+static int virtio_balloon_postcopy_notify(NotifierWithReturn *n, void *opaque)
+{
+    VirtIOBalloon *dev = container_of(n, VirtIOBalloon, postcopy_notifier);
+    PostcopyNotifyData *pnd = opaque;
+
+    /* We register the notifier only with 'free-page-hint=on' for now. */
+    g_assert(virtio_has_feature(dev->host_features,
+                                VIRTIO_BALLOON_F_FREE_PAGE_HINT));
+
+    /*
+     * Pages hinted via qemu_guest_free_page_hint() are cleared from the dirty
+     * bitmap and will not get migrated, especially also not when the postcopy
+     * destination starts using them and requests migration from the source; the
+     * faulting thread will stall until postcopy migration finishes and
+     * all threads are woken up.
+     */
+    error_setg(pnd->errp,
+               "virtio-balloon: 'free-page-hint' does not support postcopy");
+    return -ENOENT;
+}
+
 static size_t virtio_balloon_config_size(VirtIOBalloon *s)
 {
     uint64_t features = s->host_features;
@@ -911,6 +934,7 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
         s->free_page_vq = virtio_add_queue(vdev, VIRTQUEUE_MAX_SIZE,
                                            virtio_balloon_handle_free_page_vq);
         precopy_add_notifier(&s->free_page_hint_notify);
+        postcopy_add_notifier(&s->postcopy_notifier);
 
         object_ref(OBJECT(s->iothread));
         s->free_page_bh = aio_bh_new(iothread_get_aio_context(s->iothread),
@@ -935,6 +959,7 @@ static void virtio_balloon_device_unrealize(DeviceState *dev)
         object_unref(OBJECT(s->iothread));
         virtio_balloon_free_page_stop(s);
         precopy_remove_notifier(&s->free_page_hint_notify);
+        postcopy_remove_notifier(&s->postcopy_notifier);
     }
     balloon_stats_destroy_timer(s);
     qemu_remove_balloon_handler(s);
@@ -1008,6 +1033,7 @@ static void virtio_balloon_instance_init(Object *obj)
     qemu_cond_init(&s->free_page_cond);
     s->free_page_hint_cmd_id = VIRTIO_BALLOON_FREE_PAGE_HINT_CMD_ID_MIN;
     s->free_page_hint_notify.notify = virtio_balloon_free_page_hint_notify;
+    s->postcopy_notifier.notify = virtio_balloon_postcopy_notify;
 
     object_property_add(obj, "guest-stats", "guest statistics",
                         balloon_stats_get_all, NULL, NULL, s);

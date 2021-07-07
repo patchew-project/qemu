@@ -65,6 +65,7 @@ struct VirtIOBalloon {
      */
     bool block_iothread;
     NotifierWithReturn free_page_hint_notify;
+    NotifierWithReturn postcopy_notifier;
     int64_t stats_last_update;
     int64_t stats_poll_interval;
     uint32_t host_features;
