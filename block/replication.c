@@ -35,7 +35,6 @@ typedef enum {
 typedef struct BDRVReplicationState {
     ReplicationMode mode;
     ReplicationStage stage;
-    BdrvChild *active_disk;
     BlockJob *commit_job;
     BdrvChild *hidden_disk;
     BdrvChild *secondary_disk;
@@ -307,10 +306,14 @@ out:
     return ret;
 }
 
-static void secondary_do_checkpoint(BDRVReplicationState *s, Error **errp)
+static void secondary_do_checkpoint(BlockDriverState *bs, Error **errp)
 {
+    BDRVReplicationState *s = bs->opaque;
+    BdrvChild *active_disk;
     Error *local_err = NULL;
     int ret;
+
+    active_disk = bs->file;
 
     if (!s->backup_job) {
         error_setg(errp, "Backup job was cancelled unexpectedly");
@@ -323,13 +326,13 @@ static void secondary_do_checkpoint(BDRVReplicationState *s, Error **errp)
         return;
     }
 
-    if (!s->active_disk->bs->drv) {
+    if (!active_disk->bs->drv) {
         error_setg(errp, "Active disk %s is ejected",
-                   s->active_disk->bs->node_name);
+                   active_disk->bs->node_name);
         return;
     }
 
-    ret = bdrv_make_empty(s->active_disk, errp);
+    ret = bdrv_make_empty(active_disk, errp);
     if (ret < 0) {
         return;
     }
@@ -451,6 +454,7 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
     BlockDriverState *bs = rs->opaque;
     BDRVReplicationState *s;
     BlockDriverState *top_bs;
+    BdrvChild *active_disk;
     int64_t active_length, hidden_length, disk_length;
     AioContext *aio_context;
     Error *local_err = NULL;
@@ -488,15 +492,14 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
     case REPLICATION_MODE_PRIMARY:
         break;
     case REPLICATION_MODE_SECONDARY:
-        s->active_disk = bs->file;
-        if (!s->active_disk || !s->active_disk->bs ||
-                                    !s->active_disk->bs->backing) {
+        active_disk = bs->file;
+        if (!active_disk || !active_disk->bs || !active_disk->bs->backing) {
             error_setg(errp, "Active disk doesn't have backing file");
             aio_context_release(aio_context);
             return;
         }
 
-        s->hidden_disk = s->active_disk->bs->backing;
+        s->hidden_disk = active_disk->bs->backing;
         if (!s->hidden_disk->bs || !s->hidden_disk->bs->backing) {
             error_setg(errp, "Hidden disk doesn't have backing file");
             aio_context_release(aio_context);
@@ -511,7 +514,7 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
         }
 
         /* verify the length */
-        active_length = bdrv_getlength(s->active_disk->bs);
+        active_length = bdrv_getlength(active_disk->bs);
         hidden_length = bdrv_getlength(s->hidden_disk->bs);
         disk_length = bdrv_getlength(s->secondary_disk->bs);
         if (active_length < 0 || hidden_length < 0 || disk_length < 0 ||
@@ -523,9 +526,9 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
         }
 
         /* Must be true, or the bdrv_getlength() calls would have failed */
-        assert(s->active_disk->bs->drv && s->hidden_disk->bs->drv);
+        assert(active_disk->bs->drv && s->hidden_disk->bs->drv);
 
-        if (!s->active_disk->bs->drv->bdrv_make_empty ||
+        if (!active_disk->bs->drv->bdrv_make_empty ||
             !s->hidden_disk->bs->drv->bdrv_make_empty) {
             error_setg(errp,
                        "Active disk or hidden disk doesn't support make_empty");
@@ -579,7 +582,7 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
     s->stage = BLOCK_REPLICATION_RUNNING;
 
     if (s->mode == REPLICATION_MODE_SECONDARY) {
-        secondary_do_checkpoint(s, errp);
+        secondary_do_checkpoint(bs, errp);
     }
 
     s->error = 0;
@@ -608,7 +611,7 @@ static void replication_do_checkpoint(ReplicationState *rs, Error **errp)
     }
 
     if (s->mode == REPLICATION_MODE_SECONDARY) {
-        secondary_do_checkpoint(s, errp);
+        secondary_do_checkpoint(bs, errp);
     }
     aio_context_release(aio_context);
 }
@@ -645,7 +648,6 @@ static void replication_done(void *opaque, int ret)
     if (ret == 0) {
         s->stage = BLOCK_REPLICATION_DONE;
 
-        s->active_disk = NULL;
         s->secondary_disk = NULL;
         s->hidden_disk = NULL;
         s->error = 0;
@@ -659,11 +661,13 @@ static void replication_stop(ReplicationState *rs, bool failover, Error **errp)
 {
     BlockDriverState *bs = rs->opaque;
     BDRVReplicationState *s;
+    BdrvChild *active_disk;
     AioContext *aio_context;
 
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
     s = bs->opaque;
+    active_disk = bs->file;
 
     if (s->stage == BLOCK_REPLICATION_DONE ||
         s->stage == BLOCK_REPLICATION_FAILOVER) {
@@ -698,7 +702,7 @@ static void replication_stop(ReplicationState *rs, bool failover, Error **errp)
         }
 
         if (!failover) {
-            secondary_do_checkpoint(s, errp);
+            secondary_do_checkpoint(bs, errp);
             s->stage = BLOCK_REPLICATION_DONE;
             aio_context_release(aio_context);
             return;
@@ -706,7 +710,7 @@ static void replication_stop(ReplicationState *rs, bool failover, Error **errp)
 
         s->stage = BLOCK_REPLICATION_FAILOVER;
         s->commit_job = commit_active_start(
-                            NULL, s->active_disk->bs, s->secondary_disk->bs,
+                            NULL, active_disk->bs, s->secondary_disk->bs,
                             JOB_INTERNAL, 0, BLOCKDEV_ON_ERROR_REPORT,
                             NULL, replication_done, bs, true, errp);
         break;
