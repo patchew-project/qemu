@@ -2864,6 +2864,7 @@ M: Mark Kanda <mark.kanda@oracle.com>
 S: Maintained
 F: include/migration/cpr.h
 F: migration/cpr.c
+F: qapi/cpr.json
 
 Record/replay
 M: Pavel Dovgalyuk <pavel.dovgaluk@ispras.ru>

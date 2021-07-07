@@ -1,0 +1,74 @@
+# -*- Mode: Python -*-
+#
+# Copyright (c) 2021 Oracle and/or its affiliates.
+#
+# This work is licensed under the terms of the GNU GPL, version 2.
+# See the COPYING file in the top-level directory.
+
+##
+# = CPR
+##
+
+{ 'include': 'common.json' }
+
+##
+# @CprMode:
+#
+# @reboot: checkpoint can be cprload'ed after a host kexec reboot.
+#
+# Since: 6.1
+##
+{ 'enum': 'CprMode',
+  'data': [ 'reboot' ] }
+
+
+##
+# @CprInfo:
+#
+# @modes: @CprMode list
+#
+# Since: 6.1
+##
+{ 'struct': 'CprInfo',
+  'data': { 'modes': [ 'CprMode' ] } }
+
+##
+# @cprinfo:
+#
+# Returns the modes supported by @cprsave.
+#
+# Returns: @CprInfo
+#
+# Since: 6.1
+#
+##
+{ 'command': 'cprinfo',
+  'returns': 'CprInfo' }
+
+##
+# @cprsave:
+#
+# Create a checkpoint of the virtual machine device state in @file.
+# Guest RAM and guest block device blocks are not saved.
+#
+# @file: name of checkpoint file
+# @mode: @CprMode mode
+#
+# Since: 6.1
+##
+{ 'command': 'cprsave',
+  'data': { 'file': 'str',
+            'mode': 'CprMode' } }
+
+##
+# @cprload:
+#
+# Start virtual machine from checkpoint file that was created earlier using
+# the cprsave command.
+#
+# @file: name of checkpoint file
+#
+# Since: 6.1
+##
+{ 'command': 'cprload',
+  'data': { 'file': 'str' } }

@@ -37,9 +37,11 @@
 #include "qapi/qapi-commands-machine.h"
 #include "qapi/qapi-commands-misc.h"
 #include "qapi/qapi-commands-ui.h"
+#include "qapi/qapi-commands-cpr.h"
 #include "qapi/qmp/qerror.h"
 #include "hw/mem/memory-device.h"
 #include "hw/acpi/acpi_dev_interface.h"
+#include "migration/cpr.h"
 
 NameInfo *qmp_query_name(Error **errp)
 {
@@ -151,6 +153,35 @@ void qmp_cont(Error **errp)
     } else {
         vm_start();
     }
+}
+
+CprInfo *qmp_cprinfo(Error **errp)
+{
+    CprInfo *cprinfo;
+    CprModeList *mode, *mode_list = NULL;
+    CprMode i;
+
+    cprinfo = g_malloc0(sizeof(*cprinfo));
+
+    for (i = 0; i < CPR_MODE__MAX; i++) {
+        mode = g_malloc0(sizeof(*mode));
+        mode->value = i;
+        mode->next = mode_list;
+        mode_list = mode;
+    }
+
+    cprinfo->modes = mode_list;
+    return cprinfo;
+}
+
+void qmp_cprsave(const char *file, CprMode mode, Error **errp)
+{
+    cprsave(file, mode, errp);
+}
+
+void qmp_cprload(const char *file, Error **errp)
+{
+    cprload(file, errp);
 }
 
 void qmp_system_wakeup(Error **errp)
