@@ -195,6 +195,7 @@ static const BdrvChildClass child_job = {
     .get_parent_aio_context = child_job_get_parent_aio_context,
 };
 
+/* Called with BQL held.  */
 void block_job_remove_all_bdrv(BlockJob *job)
 {
     /*
@@ -216,6 +217,7 @@ void block_job_remove_all_bdrv(BlockJob *job)
     }
 }
 
+/* Called with BQL held.  */
 bool block_job_has_bdrv(BlockJob *job, BlockDriverState *bs)
 {
     GSList *el;
@@ -230,6 +232,7 @@ bool block_job_has_bdrv(BlockJob *job, BlockDriverState *bs)
     return false;
 }
 
+/* Called with BQL held.  */
 int block_job_add_bdrv(BlockJob *job, const char *name, BlockDriverState *bs,
                        uint64_t perm, uint64_t shared_perm, Error **errp)
 {

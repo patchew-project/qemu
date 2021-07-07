@@ -1857,6 +1857,7 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
 {
     bool is_none_mode;
     BlockDriverState *base;
+    AioContext *aio_context;
 
     if ((mode == MIRROR_SYNC_MODE_INCREMENTAL) ||
         (mode == MIRROR_SYNC_MODE_BITMAP)) {
@@ -1866,11 +1867,16 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
     }
     is_none_mode = mode == MIRROR_SYNC_MODE_NONE;
     base = mode == MIRROR_SYNC_MODE_TOP ? bdrv_backing_chain_next(bs) : NULL;
+
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
     mirror_start_job(job_id, bs, creation_flags, target, replaces,
                      speed, granularity, buf_size, backing_mode, zero_target,
                      on_source_error, on_target_error, unmap, NULL, NULL,
                      &mirror_job_driver, is_none_mode, base, false,
                      filter_node_name, true, copy_mode, errp);
+    aio_context_release(aio_context);
+
 }
 
 BlockJob *commit_active_start(const char *job_id, BlockDriverState *bs,

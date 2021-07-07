@@ -206,7 +206,6 @@ void hmp_commit(Monitor *mon, const QDict *qdict)
         ret = blk_commit_all();
     } else {
         BlockDriverState *bs;
-        AioContext *aio_context;
 
         blk = blk_by_name(device);
         if (!blk) {
@@ -219,12 +218,7 @@ void hmp_commit(Monitor *mon, const QDict *qdict)
         }
 
         bs = bdrv_skip_implicit_filters(blk_bs(blk));
-        aio_context = bdrv_get_aio_context(bs);
-        aio_context_acquire(aio_context);
-
         ret = bdrv_commit(bs);
-
-        aio_context_release(aio_context);
     }
     if (ret < 0) {
         error_report("'commit' error for '%s': %s", device, strerror(-ret));

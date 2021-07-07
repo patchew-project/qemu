@@ -220,7 +220,6 @@ static int job_txn_apply(Job *job, int fn(Job *))
      * break AIO_WAIT_WHILE from within fn.
      */
     job_ref(job);
-    aio_context_release(job->aio_context);
 
     QLIST_FOREACH_SAFE(other_job, &txn->jobs, txn_list, next) {
         inner_ctx = other_job->aio_context;
@@ -232,11 +231,6 @@ static int job_txn_apply(Job *job, int fn(Job *))
         }
     }
 
-    /*
-     * Note that job->aio_context might have been changed by calling fn, so we
-     * can't use a local variable to cache it.
-     */
-    aio_context_acquire(job->aio_context);
     job_unref(job);
     return rc;
 }
@@ -515,8 +509,11 @@ void job_unref(Job *job)
         assert(!job->txn);
 
         if (job->driver->free) {
+            AioContext *ctx = job_get_aiocontext(job);
             job_unlock();
+            aio_context_acquire(ctx);
             job->driver->free(job);
+            aio_context_release(ctx);
             job_lock();
         }
 
