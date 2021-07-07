@@ -375,6 +375,10 @@ Job *job_get(const char *id)
 {
     Job *job;
 
+    if (!id) {
+        return NULL;
+    }
+
     QLIST_FOREACH(job, &jobs, job_list) {
         if (job->id && !strcmp(id, job->id)) {
             return job;
@@ -406,12 +410,15 @@ void *job_create(const char *job_id, const JobDriver *driver, JobTxn *txn,
             error_setg(errp, "Invalid job ID '%s'", job_id);
             return NULL;
         }
-        if (job_get(job_id)) {
-            error_setg(errp, "Job ID '%s' already in use", job_id);
-            return NULL;
-        }
     } else if (!(flags & JOB_INTERNAL)) {
         error_setg(errp, "An explicit job ID is required");
+        return NULL;
+    }
+
+    job_lock();
+    if (job_get(job_id)) {
+        error_setg(errp, "Job ID '%s' already in use", job_id);
+        job_unlock();
         return NULL;
     }
 
@@ -434,6 +441,7 @@ void *job_create(const char *job_id, const JobDriver *driver, JobTxn *txn,
     notifier_list_init(&job->on_finalize_completed);
     notifier_list_init(&job->on_pending);
     notifier_list_init(&job->on_ready);
+    notifier_list_init(&job->on_idle);
 
     job_state_transition(job, JOB_STATUS_CREATED);
     aio_timer_init(qemu_get_aio_context(), &job->sleep_timer,
