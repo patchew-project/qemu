@@ -366,7 +366,7 @@ ERST
     {
         .name       = "cprsave",
         .args_type  = "file:s,mode:s",
-        .params     = "file 'reboot'",
+        .params     = "file 'restart'|'reboot'",
         .help       = "create a checkpoint of the VM in file",
         .cmd        = hmp_cprsave,
     },
@@ -379,6 +379,24 @@ If *mode* is 'reboot', the checkpoint remains valid after a host kexec
 reboot, and guest ram must be backed by persistant shared memory.  To
 resume from the checkpoint, issue the quit command, reboot the system,
 and issue the cprload command.
+
+If *mode* is 'restart', the checkpoint remains valid after restarting qemu,
+and guest ram must be allocated with the memfd-alloc machine option.  To
+resume from the checkpoint, issue the cprexec command to restart, and issue
+the cprload command.
+ERST
+
+    {
+        .name       = "cprexec",
+        .args_type  = "command:S",
+        .params     = "command",
+        .help       = "Restart qemu by directly exec'ing command",
+        .cmd        = hmp_cprexec,
+    },
+
+SRST
+``cprexec`` *command*
+Restart qemu by directly exec'ing *command*, replacing the qemu process.
 ERST
 
     {
