@@ -16,10 +16,12 @@
 #
 # @reboot: checkpoint can be cprload'ed after a host kexec reboot.
 #
+# @restart: checkpoint can be cprload'ed after restarting qemu.
+#
 # Since: 6.1
 ##
 { 'enum': 'CprMode',
-  'data': [ 'reboot' ] }
+  'data': [ 'reboot', 'restart' ] }
 
 
 ##
@@ -59,6 +61,18 @@
 { 'command': 'cprsave',
   'data': { 'file': 'str',
             'mode': 'CprMode' } }
+
+##
+# @cprexec:
+#
+# Restart qemu.
+#
+# @argv: arguments to exec
+#
+# Since: 6.1
+##
+{ 'command': 'cprexec',
+  'data': { 'argv': [ 'str' ] } }
 
 ##
 # @cprload:

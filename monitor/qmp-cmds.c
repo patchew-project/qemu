@@ -179,6 +179,11 @@ void qmp_cprsave(const char *file, CprMode mode, Error **errp)
     cprsave(file, mode, errp);
 }
 
+void qmp_cprexec(strList *args, Error **errp)
+{
+    cprexec(args, errp);
+}
+
 void qmp_cprload(const char *file, Error **errp)
 {
     cprload(file, errp);
