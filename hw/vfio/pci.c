@@ -2654,6 +2654,27 @@ static void vfio_put_device(VFIOPCIDevice *vdev)
     vfio_put_base_device(&vdev->vbasedev);
 }
 
+static void save_event_fd(VFIOPCIDevice *vdev, const char *name, int nr,
+                            EventNotifier *ev)
+{
+    char envname[256];
+    int fd = event_notifier_get_fd(ev);
+    const char *vfname = vdev->vbasedev.name;
+
+    if (fd >= 0) {
+        snprintf(envname, sizeof(envname), "%s_%s_%d", vfname, name, nr);
+        setenv_fd(envname, fd);
+    }
+}
+
+static int load_event_fd(VFIOPCIDevice *vdev, const char *name, int nr)
+{
+    char envname[256];
+    const char *vfname = vdev->vbasedev.name;
+    snprintf(envname, sizeof(envname), "%s_%s_%d", vfname, name, nr);
+    return getenv_fd(envname);
+}
+
 static void vfio_err_notifier_handler(void *opaque)
 {
     VFIOPCIDevice *vdev = opaque;
@@ -2685,7 +2706,13 @@ static void vfio_err_notifier_handler(void *opaque)
 static void vfio_register_err_notifier(VFIOPCIDevice *vdev)
 {
     Error *err = NULL;
-    int32_t fd;
+    int32_t fd = load_event_fd(vdev, "err", 0);
+
+    if (fd >= 0) {
+        event_notifier_init_fd(&vdev->err_notifier, fd);
+        qemu_set_fd_handler(fd, vfio_err_notifier_handler, NULL, vdev);
+        return;
+    }
 
     if (!vdev->pci_aer) {
         return;
@@ -2746,7 +2773,14 @@ static void vfio_register_req_notifier(VFIOPCIDevice *vdev)
     struct vfio_irq_info irq_info = { .argsz = sizeof(irq_info),
                                       .index = VFIO_PCI_REQ_IRQ_INDEX };
     Error *err = NULL;
-    int32_t fd;
+    int32_t fd = load_event_fd(vdev, "req", 0);
+
+    if (fd >= 0) {
+        event_notifier_init_fd(&vdev->req_notifier, fd);
+        qemu_set_fd_handler(fd, vfio_req_notifier_handler, NULL, vdev);
+        vdev->req_enabled = true;
+        return;
+    }
 
     if (!(vdev->features & VFIO_FEATURE_ENABLE_REQ)) {
         return;
@@ -3295,13 +3329,90 @@ static void vfio_merge_config(VFIOPCIDevice *vdev)
     g_free(phys_config);
 }
 
+static int vfio_pci_pre_save(void *opaque)
+{
+    VFIOPCIDevice *vdev = opaque;
+    PCIDevice *pdev = &vdev->pdev;
+    int i;
+
+    if (vfio_pci_read_config(pdev, PCI_INTERRUPT_PIN, 1)) {
+        error_report("%s: cpr does not support vfio-pci INTX",
+                     vdev->vbasedev.name);
+    }
+
+    for (i = 0; i < vdev->nr_vectors; i++) {
+        VFIOMSIVector *vector = &vdev->msi_vectors[i];
+        if (vector->use) {
+            save_event_fd(vdev, "interrupt", i, &vector->interrupt);
+            if (vector->virq >= 0) {
+                save_event_fd(vdev, "kvm_interrupt", i,
+                                &vector->kvm_interrupt);
+            }
+        }
+    }
+    save_event_fd(vdev, "err", 0, &vdev->err_notifier);
+    save_event_fd(vdev, "req", 0, &vdev->req_notifier);
+    return 0;
+}
+
+static void vfio_claim_vectors(VFIOPCIDevice *vdev, int nr_vectors, bool msix)
+{
+    int i, fd;
+    bool pending = false;
+    PCIDevice *pdev = &vdev->pdev;
+
+    vdev->nr_vectors = nr_vectors;
+    vdev->msi_vectors = g_new0(VFIOMSIVector, nr_vectors);
+    vdev->interrupt = msix ? VFIO_INT_MSIX : VFIO_INT_MSI;
+
+    for (i = 0; i < nr_vectors; i++) {
+        VFIOMSIVector *vector = &vdev->msi_vectors[i];
+
+        fd = load_event_fd(vdev, "interrupt", i);
+        if (fd >= 0) {
+            vfio_vector_init(vdev, i, fd);
+            qemu_set_fd_handler(fd, vfio_msi_interrupt, NULL, vector);
+        }
+
+        fd = load_event_fd(vdev, "kvm_interrupt", i);
+        if (fd >= 0) {
+            vfio_add_kvm_msi_virq(vdev, vector, i, msix, fd);
+        }
+
+        if (msix && msix_is_pending(pdev, i) && msix_is_masked(pdev, i)) {
+            set_bit(i, vdev->msix->pending);
+            pending = true;
+        }
+    }
+
+    if (msix) {
+        memory_region_set_enabled(&pdev->msix_pba_mmio, pending);
+    }
+}
+
 static int vfio_pci_post_load(void *opaque, int version_id)
 {
     VFIOPCIDevice *vdev = opaque;
     PCIDevice *pdev = &vdev->pdev;
+    int nr_vectors;
     bool enabled;
 
     vfio_merge_config(vdev);
+
+    if (msix_enabled(pdev)) {
+        nr_vectors = vdev->msix->entries;
+        vfio_claim_vectors(vdev, nr_vectors, true);
+        msix_init_vector_notifiers(pdev, vfio_msix_vector_use,
+                                   vfio_msix_vector_release, NULL);
+
+    } else if (msi_enabled(pdev)) {
+        nr_vectors = msi_nr_vectors_allocated(pdev);
+        vfio_claim_vectors(vdev, nr_vectors, false);
+
+    } else if (vfio_pci_read_config(pdev, PCI_INTERRUPT_PIN, 1)) {
+        error_report("%s: cpr does not support vfio-pci INTX",
+                     vdev->vbasedev.name);
+    }
 
     pdev->reused = false;
     enabled = pci_get_word(pdev->config + PCI_COMMAND) & PCI_COMMAND_MASTER;
@@ -3321,8 +3432,11 @@ static const VMStateDescription vfio_pci_vmstate = {
     .version_id = 0,
     .minimum_version_id = 0,
     .post_load = vfio_pci_post_load,
+    .pre_save = vfio_pci_pre_save,
     .needed = vfio_pci_needed,
     .fields = (VMStateField[]) {
+        VMSTATE_PCI_DEVICE(pdev, VFIOPCIDevice),
+        VMSTATE_MSIX_TEST(pdev, VFIOPCIDevice, vfio_msix_present),
         VMSTATE_END_OF_LIST()
     }
 };
