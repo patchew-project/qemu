@@ -412,16 +412,15 @@ static int qemu_config_foreach(FILE *fp, QEMUConfigCB *cb, void *opaque,
         goto out;
     }
     if (ferror(fp)) {
-        loc_pop(&loc);
         error_setg_errno(errp, errno, "Cannot read config file");
-        return res;
+        goto out;
     }
     res = count;
-out:
     if (qdict) {
         cb(group, qdict, opaque, errp);
-        qobject_unref(qdict);
     }
+out:
+    qobject_unref(qdict);
     loc_pop(&loc);
     return res;
 }
