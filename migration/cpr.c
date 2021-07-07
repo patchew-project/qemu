@@ -29,6 +29,7 @@
 #include "sysemu/xen.h"
 #include "hw/vfio/vfio-common.h"
 #include "hw/virtio/vhost.h"
+#include "qemu/env.h"
 
 QEMUFile *qf_file_open(const char *path, int flags, int mode,
                               const char *name, Error **errp)
@@ -106,6 +107,26 @@ err:
     }
 done:
     return;
+}
+
+static int preserve_fd(const char *name, const char *val, void *handle)
+{
+    qemu_clr_cloexec(atoi(val));
+    return 0;
+}
+
+void cprexec(strList *args, Error **errp)
+{
+    if (xen_enabled()) {
+        error_setg(errp, "xen does not support cprexec");
+        return;
+    }
+    if (!runstate_check(RUN_STATE_SAVE_VM)) {
+        error_setg(errp, "runstate is not save-vm");
+        return;
+    }
+    walkenv(FD_PREFIX, preserve_fd, 0);
+    qemu_system_exec_request(args);
 }
 
 void cprload(const char *file, Error **errp)

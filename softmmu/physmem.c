@@ -65,6 +65,7 @@
 #include "qemu/pmem.h"
 
 #include "qemu/memfd.h"
+#include "qemu/env.h"
 #include "migration/vmstate.h"
 
 #include "qemu/range.h"
@@ -1986,7 +1987,7 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
         } else {
             name = memory_region_name(new_block->mr);
             if (ms->memfd_alloc) {
-                int mfd = -1;          /* placeholder until next patch */
+                int mfd = getenv_fd(name);
                 mr->align = QEMU_VMALLOC_ALIGN;
                 if (mfd < 0) {
                     mfd = qemu_memfd_create(name, maxlen + mr->align,
@@ -1994,7 +1995,9 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
                     if (mfd < 0) {
                         return;
                     }
+                    setenv_fd(name, mfd);
                 }
+                qemu_clr_cloexec(mfd);
                 new_block->flags |= RAM_SHARED;
                 addr = file_ram_alloc(new_block, maxlen, mfd,
                                       false, false, 0, errp);
@@ -2246,6 +2249,7 @@ void qemu_ram_free(RAMBlock *block)
     }
 
     qemu_mutex_lock_ramlist();
+    unsetenv_fd(memory_region_name(block->mr));
     QLIST_REMOVE_RCU(block, next);
     ram_list.mru_block = NULL;
     /* Write list before version */
