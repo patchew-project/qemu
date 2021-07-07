@@ -2023,6 +2023,23 @@ bool memory_region_present(MemoryRegion *container, hwaddr addr);
  */
 bool memory_region_is_mapped(MemoryRegion *mr);
 
+typedef int (*qemu_flat_walk_cb)(MemoryRegionSection *s,
+                                 void *handle,
+                                 Error **errp);
+
+/**
+ * as_flat_walk: walk the ranges in the address space flat view and call @func
+ * for each.  Return 0 on success, else return non-zero with a message in
+ * @errp.
+ *
+ * @as: target address space
+ * @func: callback function
+ * @handle: passed to @func
+ * @errp: passed to @func
+ */
+int as_flat_walk(AddressSpace *as, qemu_flat_walk_cb func,
+                 void *handle, Error **errp);
+
 /**
  * memory_region_find: translate an address/size relative to a
  * MemoryRegion into a #MemoryRegionSection.
