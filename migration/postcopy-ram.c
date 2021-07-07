@@ -69,7 +69,7 @@ void postcopy_remove_notifier(NotifierWithReturn *n)
 
 int postcopy_notify(enum PostcopyNotifyReason reason, Error **errp)
 {
-    struct PostcopyNotifyData pnd;
+    PostcopyNotifyData pnd;
     pnd.reason = reason;
     pnd.errp = errp;
 

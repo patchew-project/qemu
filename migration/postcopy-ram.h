@@ -125,10 +125,10 @@ enum PostcopyNotifyReason {
     POSTCOPY_NOTIFY_INBOUND_END,
 };
 
-struct PostcopyNotifyData {
+typedef struct PostcopyNotifyData {
     enum PostcopyNotifyReason reason;
     Error **errp;
-};
+} PostcopyNotifyData;
 
 void postcopy_add_notifier(NotifierWithReturn *nn);
 void postcopy_remove_notifier(NotifierWithReturn *n);
