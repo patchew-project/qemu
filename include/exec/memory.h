@@ -2649,6 +2649,14 @@ bool ram_block_discard_is_disabled(void);
  */
 bool ram_block_discard_is_required(void);
 
+/**
+ * qemu_ram_volatile: return true if any memory regions are writable and not
+ * backed by shared memory.
+ *
+ * @errp: returned error message identifying the bad region.
+ */
+bool qemu_ram_volatile(Error **errp);
+
 #endif
 
 #endif
