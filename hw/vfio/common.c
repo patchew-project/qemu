@@ -31,6 +31,7 @@
 #include "exec/memory.h"
 #include "exec/ram_addr.h"
 #include "hw/hw.h"
+#include "qemu/env.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qemu/range.h"
@@ -440,6 +441,10 @@ static int vfio_dma_unmap(VFIOContainer *container,
         return vfio_dma_unmap_bitmap(container, iova, size, iotlb);
     }
 
+    if (container->reused) {
+        return 0;
+    }
+
     while (ioctl(container->fd, VFIO_IOMMU_UNMAP_DMA, &unmap)) {
         /*
          * The type1 backend has an off-by-one bug in the kernel (71a7d3d78e3c
@@ -463,6 +468,11 @@ static int vfio_dma_unmap(VFIOContainer *container,
         return -errno;
     }
 
+    if (unmap.size != size) {
+        warn_report("VFIO_UNMAP_DMA(0x%lx, 0x%lx) only unmaps 0x%llx",
+                     iova, size, unmap.size);
+    }
+
     return 0;
 }
 
@@ -476,6 +486,10 @@ static int vfio_dma_map(VFIOContainer *container, hwaddr iova,
         .iova = iova,
         .size = size,
     };
+
+    if (container->reused) {
+        return 0;
+    }
 
     if (!readonly) {
         map.flags |= VFIO_DMA_MAP_FLAG_WRITE;
@@ -1603,6 +1617,10 @@ static int vfio_init_container(VFIOContainer *container, int group_fd,
     if (iommu_type < 0) {
         return iommu_type;
     }
+    if (container->reused) {
+        container->iommu_type = iommu_type;
+        return 0;
+    }
 
     ret = ioctl(group_fd, VFIO_GROUP_SET_CONTAINER, &container->fd);
     if (ret) {
@@ -1703,6 +1721,8 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
 {
     VFIOContainer *container;
     int ret, fd;
+    bool reused;
+    char name[40];
     VFIOAddressSpace *space;
 
     space = vfio_get_address_space(as);
@@ -1739,16 +1759,31 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
         return ret;
     }
 
+    snprintf(name, sizeof(name), "vfio_container_for_group_%d", group->groupid);
+    fd = getenv_fd(name);
+    reused = (fd >= 0);
+
     QLIST_FOREACH(container, &space->containers, next) {
-        if (!ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &container->fd)) {
-            group->container = container;
-            QLIST_INSERT_HEAD(&container->group_list, group, container_next);
-            vfio_kvm_device_add_group(group);
-            return 0;
+        if (container->fd == fd ||
+            !ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &container->fd)) {
+            break;
         }
     }
 
-    fd = qemu_open_old("/dev/vfio/vfio", O_RDWR);
+    if (container) {
+        group->container = container;
+        QLIST_INSERT_HEAD(&container->group_list, group, container_next);
+        if (!reused) {
+            vfio_kvm_device_add_group(group);
+            setenv_fd(name, container->fd);
+        }
+        return 0;
+    }
+
+    if (!reused) {
+        fd = qemu_open_old("/dev/vfio/vfio", O_RDWR);
+    }
+
     if (fd < 0) {
         error_setg_errno(errp, errno, "failed to open /dev/vfio/vfio");
         ret = -errno;
@@ -1766,6 +1801,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     container = g_malloc0(sizeof(*container));
     container->space = space;
     container->fd = fd;
+    container->reused = reused;
     container->error = NULL;
     container->dirty_pages_supported = false;
     QLIST_INIT(&container->giommu_list);
@@ -1893,6 +1929,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     }
 
     container->initialized = true;
+    setenv_fd(name, fd);
 
     return 0;
 listener_release_exit:
@@ -1920,6 +1957,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
 
     QLIST_REMOVE(group, container_next);
     group->container = NULL;
+    unsetenv_fdv("vfio_container_for_group_%d", group->groupid);
 
     /*
      * Explicitly release the listener first before unset container,
@@ -1978,7 +2016,12 @@ VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
     group = g_malloc0(sizeof(*group));
 
     snprintf(path, sizeof(path), "/dev/vfio/%d", groupid);
-    group->fd = qemu_open_old(path, O_RDWR);
+
+    group->fd = getenv_fd(path);
+    if (group->fd < 0) {
+        group->fd = qemu_open_old(path, O_RDWR);
+    }
+
     if (group->fd < 0) {
         error_setg_errno(errp, errno, "failed to open %s", path);
         goto free_group_exit;
@@ -2012,6 +2055,8 @@ VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
 
     QLIST_INSERT_HEAD(&vfio_group_list, group, next);
 
+    setenv_fd(path, group->fd);
+
     return group;
 
 close_fd_exit:
@@ -2036,6 +2081,7 @@ void vfio_put_group(VFIOGroup *group)
     vfio_disconnect_container(group);
     QLIST_REMOVE(group, next);
     trace_vfio_put_group(group->fd);
+    unsetenv_fdv("/dev/vfio/%d", group->groupid);
     close(group->fd);
     g_free(group);
 
@@ -2049,8 +2095,14 @@ int vfio_get_device(VFIOGroup *group, const char *name,
 {
     struct vfio_device_info dev_info = { .argsz = sizeof(dev_info) };
     int ret, fd;
+    bool reused;
 
-    fd = ioctl(group->fd, VFIO_GROUP_GET_DEVICE_FD, name);
+    fd = getenv_fd(name);
+    reused = (fd >= 0);
+    if (!reused) {
+        fd = ioctl(group->fd, VFIO_GROUP_GET_DEVICE_FD, name);
+    }
+
     if (fd < 0) {
         error_setg_errno(errp, errno, "error getting device from group %d",
                          group->groupid);
@@ -2095,6 +2147,8 @@ int vfio_get_device(VFIOGroup *group, const char *name,
     vbasedev->num_irqs = dev_info.num_irqs;
     vbasedev->num_regions = dev_info.num_regions;
     vbasedev->flags = dev_info.flags;
+    vbasedev->reused = reused;
+    setenv_fd(name, fd);
 
     trace_vfio_get_device(name, dev_info.flags, dev_info.num_regions,
                           dev_info.num_irqs);
@@ -2111,6 +2165,7 @@ void vfio_put_base_device(VFIODevice *vbasedev)
     QLIST_REMOVE(vbasedev, next);
     vbasedev->group = NULL;
     trace_vfio_put_base_device(vbasedev->fd);
+    unsetenv_fd(vbasedev->name);
     close(vbasedev->fd);
 }
 

@@ -31,6 +31,13 @@
 #include "hw/virtio/vhost.h"
 #include "qemu/env.h"
 
+static CprMode cpr_active_mode = CPR_MODE_NONE;
+
+CprMode cpr_mode(void)
+{
+    return cpr_active_mode;
+}
+
 QEMUFile *qf_file_open(const char *path, int flags, int mode,
                               const char *name, Error **errp)
 {
@@ -92,6 +99,7 @@ void cprsave(const char *file, CprMode mode, Error **errp)
     }
     vm_stop(RUN_STATE_SAVE_VM);
 
+    cpr_active_mode = mode;
     ret = qemu_save_device_state(f);
     qemu_fclose(f);
     if (ret < 0) {
@@ -105,6 +113,7 @@ err:
     if (saved_vm_running) {
         vm_start();
     }
+    cpr_active_mode = CPR_MODE_NONE;
 done:
     return;
 }
@@ -123,6 +132,13 @@ void cprexec(strList *args, Error **errp)
     }
     if (!runstate_check(RUN_STATE_SAVE_VM)) {
         error_setg(errp, "runstate is not save-vm");
+        return;
+    }
+    if (cpr_active_mode != CPR_MODE_RESTART) {
+        error_setg(errp, "cprexec requires cprsave with restart mode");
+        return;
+    }
+    if (vfio_cprsave(errp)) {
         return;
     }
     walkenv(FD_PREFIX, preserve_fd, 0);
@@ -155,6 +171,10 @@ void cprload(const char *file, Error **errp)
     qemu_fclose(f);
     if (ret < 0) {
         error_setg(errp, "Error %d while loading VM state", ret);
+        return;
+    }
+
+    if (vfio_cprload(errp)) {
         return;
     }
 

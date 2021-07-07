@@ -10,6 +10,9 @@
 
 #include "qapi/qapi-types-cpr.h"
 
+#define CPR_MODE_NONE ((CprMode)(-1))
+
+CprMode cpr_mode(void);
 void cprsave(const char *file, CprMode mode, Error **errp);
 void cprexec(strList *args, Error **errp);
 void cprload(const char *file, Error **errp);
