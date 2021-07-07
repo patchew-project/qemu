@@ -71,21 +71,21 @@ void hmp_handle_error(Monitor *mon, Error *err)
 }
 
 /*
- * Produce a strList from a comma separated list.
- * A NULL or empty input string return NULL.
+ * Produce a strList from a character delimited string.
+ * A NULL or empty input string returns NULL.
  */
-static strList *strList_from_comma_list(const char *in)
+static strList *strList_from_string(const char *in, char delim)
 {
     strList *res = NULL;
     strList **tail = &res;
 
     while (in && in[0]) {
-        char *comma = strchr(in, ',');
+        char *next = strchr(in, delim);
         char *value;
 
-        if (comma) {
-            value = g_strndup(in, comma - in);
-            in = comma + 1; /* skip the , */
+        if (next) {
+            value = g_strndup(in, next - in);
+            in = next + 1; /* skip the delim */
         } else {
             value = g_strdup(in);
             in = NULL;
@@ -1170,7 +1170,7 @@ void hmp_announce_self(Monitor *mon, const QDict *qdict)
                                             migrate_announce_params());
 
     qapi_free_strList(params->interfaces);
-    params->interfaces = strList_from_comma_list(interfaces_str);
+    params->interfaces = strList_from_string(interfaces_str, ',');
     params->has_interfaces = params->interfaces != NULL;
     params->id = g_strdup(id);
     params->has_id = !!params->id;
