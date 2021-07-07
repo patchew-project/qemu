@@ -32,6 +32,10 @@
 #include "trace/trace-root.h"
 #include "qapi/qapi-events-job.h"
 
+/* job_mutex protexts the jobs list, but also the job operations. */
+static QemuMutex job_mutex;
+
+/* Protected by job_mutex */
 static QLIST_HEAD(, Job) jobs = QLIST_HEAD_INITIALIZER(jobs);
 
 /* Job State Transition Table */
@@ -64,27 +68,22 @@ bool JobVerbTable[JOB_VERB__MAX][JOB_STATUS__MAX] = {
 /* Transactional group of jobs */
 struct JobTxn {
 
-    /* Is this txn being cancelled? */
+    /* Is this txn being cancelled? Atomic.*/
     bool aborting;
 
-    /* List of jobs */
+    /* List of jobs. Protected by job_mutex. */
     QLIST_HEAD(, Job) jobs;
 
-    /* Reference count */
+    /* Reference count. Atomic. */
     int refcnt;
 };
 
-/* Right now, this mutex is only needed to synchronize accesses to job->busy
- * and job->sleep_timer, such as concurrent calls to job_do_yield and
- * job_enter. */
-static QemuMutex job_mutex;
-
-static void job_lock(void)
+void job_lock(void)
 {
     qemu_mutex_lock(&job_mutex);
 }
 
-static void job_unlock(void)
+void job_unlock(void)
 {
     qemu_mutex_unlock(&job_mutex);
 }
@@ -109,9 +108,20 @@ bool job_is_busy(Job *job)
     return qatomic_read(&job->busy);
 }
 
-int job_get_ret(Job *job)
+/* Called with job_mutex held. */
+int job_get_ret_locked(Job *job)
 {
     return job->ret;
+}
+
+/* Called with job_mutex *not* held. */
+int job_get_ret(Job *job)
+{
+    int ret;
+    job_lock();
+    ret = job_get_ret_locked(job);
+    job_unlock();
+    return ret;
 }
 
 Error *job_get_err(Job *job)
@@ -255,34 +265,57 @@ const char *job_type_str(const Job *job)
     return JobType_str(job_type(job));
 }
 
-bool job_is_cancelled(Job *job)
+/* Called with job_mutex held. */
+bool job_is_cancelled_locked(Job *job)
 {
     return job->cancelled;
 }
 
+/* Called with job_mutex *not* held. */
+bool job_is_cancelled(Job *job)
+{
+    bool ret;
+    job_lock();
+    ret = job_is_cancelled_locked(job);
+    job_unlock();
+    return ret;
+}
+
+/* Called with job_mutex held. */
+bool job_is_ready_locked(Job *job)
+{
+    switch (job->status) {
+    case JOB_STATUS_UNDEFINED:
+    case JOB_STATUS_CREATED:
+    case JOB_STATUS_RUNNING:
+    case JOB_STATUS_PAUSED:
+    case JOB_STATUS_WAITING:
+    case JOB_STATUS_PENDING:
+    case JOB_STATUS_ABORTING:
+    case JOB_STATUS_CONCLUDED:
+    case JOB_STATUS_NULL:
+        return false;
+    case JOB_STATUS_READY:
+    case JOB_STATUS_STANDBY:
+        return true;
+    default:
+        g_assert_not_reached();
+    }
+    return false;
+}
+
+/* Called with job_mutex *not* held. */
 bool job_is_ready(Job *job)
 {
-    switch (job->status) {
-    case JOB_STATUS_UNDEFINED:
-    case JOB_STATUS_CREATED:
-    case JOB_STATUS_RUNNING:
-    case JOB_STATUS_PAUSED:
-    case JOB_STATUS_WAITING:
-    case JOB_STATUS_PENDING:
-    case JOB_STATUS_ABORTING:
-    case JOB_STATUS_CONCLUDED:
-    case JOB_STATUS_NULL:
-        return false;
-    case JOB_STATUS_READY:
-    case JOB_STATUS_STANDBY:
-        return true;
-    default:
-        g_assert_not_reached();
-    }
-    return false;
+    bool ret;
+    job_lock();
+    ret = job_is_ready_locked(job);
+    job_unlock();
+    return ret;
 }
 
-bool job_is_completed(Job *job)
+/* Called with job_mutex held. */
+bool job_is_completed_locked(Job *job)
 {
     switch (job->status) {
     case JOB_STATUS_UNDEFINED:
@@ -304,6 +337,17 @@ bool job_is_completed(Job *job)
     return false;
 }
 
+/* Called with job_mutex *not* held. */
+bool job_is_completed(Job *job)
+{
+    bool ret;
+    job_lock();
+    ret = job_is_completed_locked(job);
+    job_unlock();
+    return ret;
+}
+
+/* Does not need job_mutex. Value is never modified */
 static bool job_started(Job *job)
 {
     return job->co;
@@ -503,9 +547,18 @@ void job_enter_cond(Job *job, bool(*fn)(Job *job))
     aio_co_enter(job->aio_context, job->co);
 }
 
-void job_enter(Job *job)
+/* Called with job_mutex held. */
+void job_enter_locked(Job *job)
 {
     job_enter_cond(job, NULL);
+}
+
+/* Called with job_mutex *not* held. */
+void job_enter(Job *job)
+{
+    job_lock();
+    job_enter_locked(job, NULL);
+    job_unlock();
 }
 
 /* Yield, and schedule a timer to reenter the coroutine after @ns nanoseconds.
@@ -684,12 +737,14 @@ void job_dismiss(Job **jobptr, Error **errp)
     *jobptr = NULL;
 }
 
+/* Called with job_mutex held. */
 void job_early_fail(Job *job)
 {
     assert(job->status == JOB_STATUS_CREATED);
     job_do_dismiss(job);
 }
 
+/* Called with job_mutex held. */
 static void job_conclude(Job *job)
 {
     job_state_transition(job, JOB_STATUS_CONCLUDED);

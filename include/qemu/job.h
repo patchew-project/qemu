@@ -305,6 +305,7 @@ void job_txn_add_job(JobTxn *txn, Job *job);
 
 /** Returns the @ret field of a given Job. */
 int job_get_ret(Job *job);
+int job_get_ret_locked(Job *job);
 
 /** Returns the AioContext of a given Job. */
 AioContext *job_get_aiocontext(Job *job);
@@ -335,6 +336,24 @@ bool job_is_force_cancel(Job *job);
 
 /** Returns the statis of a given Job. */
 JobStatus job_get_status(Job *job);
+
+/**
+ * job_lock:
+ *
+ * Take the mutex protecting the list of jobs and their status.
+ * Most functions called by the monitor need to call job_lock
+ * and job_unlock manually.  On the other hand, function called
+ * by the block jobs themselves and by the block layer will take the
+ * lock for you.
+ */
+void job_lock(void);
+
+/**
+ * job_unlock:
+ *
+ * Release the mutex protecting the list of jobs and their status.
+ */
+void job_unlock(void);
 
 /**
  * Create a new long-running job and return it.
@@ -424,6 +443,7 @@ void job_start(Job *job);
  * Continue the specified job by entering the coroutine.
  */
 void job_enter(Job *job);
+void job_enter_locked(Job *job);
 
 /**
  * @job: The job that is ready to pause.
@@ -462,12 +482,15 @@ bool job_is_internal(Job *job);
 
 /** Returns whether the job is scheduled for cancellation. */
 bool job_is_cancelled(Job *job);
+bool job_is_cancelled_locked(Job *job);
 
 /** Returns whether the job is in a completed state. */
 bool job_is_completed(Job *job);
+bool job_is_completed_locked(Job *job);
 
 /** Returns whether the job is ready to be completed. */
 bool job_is_ready(Job *job);
+bool job_is_ready_locked(Job *job);
 
 /**
  * Request @job to pause at the next pause point. Must be paired with
