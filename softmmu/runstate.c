@@ -355,6 +355,7 @@ static NotifierList wakeup_notifiers =
 static NotifierList shutdown_notifiers =
     NOTIFIER_LIST_INITIALIZER(shutdown_notifiers);
 static uint32_t wakeup_reason_mask = ~(1 << QEMU_WAKEUP_REASON_NONE);
+static char **exec_argv;
 
 ShutdownCause qemu_shutdown_requested_get(void)
 {
@@ -369,6 +370,11 @@ ShutdownCause qemu_reset_requested_get(void)
 static int qemu_shutdown_requested(void)
 {
     return qatomic_xchg(&shutdown_requested, SHUTDOWN_CAUSE_NONE);
+}
+
+static int qemu_exec_requested(void)
+{
+    return exec_argv != NULL;
 }
 
 static void qemu_kill_report(void)
@@ -645,6 +651,32 @@ void qemu_system_shutdown_request(ShutdownCause reason)
     qemu_notify_event();
 }
 
+static char **make_argv(strList *args)
+{
+    strList *arg;
+    char **argv;
+    int n = 1, i = 0;
+
+    for (arg = args; arg != NULL; arg = arg->next) {
+        n++;
+    }
+
+    argv = g_malloc(n * sizeof(char *));
+    for (arg = args; arg != NULL; arg = arg->next) {
+        argv[i++] = g_strdup(arg->value);
+    }
+    argv[i] = NULL;
+
+    return argv;
+}
+
+void qemu_system_exec_request(strList *args)
+{
+    exec_argv = make_argv(args);
+    shutdown_requested = 1;
+    qemu_notify_event();
+}
+
 static void qemu_system_powerdown(void)
 {
     qapi_event_send_powerdown();
@@ -693,6 +725,11 @@ static bool main_loop_should_exit(void)
     }
     request = qemu_shutdown_requested();
     if (request) {
+
+        if (qemu_exec_requested()) {
+            execvp(exec_argv[0], exec_argv);
+            error_setg_errno(&error_fatal, errno, "execvp failed");
+        }
         qemu_kill_report();
         qemu_system_shutdown(request);
         if (shutdown_action == SHUTDOWN_ACTION_PAUSE) {
