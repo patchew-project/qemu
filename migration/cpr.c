@@ -138,6 +138,9 @@ void cprexec(strList *args, Error **errp)
         error_setg(errp, "cprexec requires cprsave with restart mode");
         return;
     }
+    if (!qemu_chr_cpr_capable(errp)) {
+        return;
+    }
     if (vfio_cprsave(errp)) {
         return;
     }

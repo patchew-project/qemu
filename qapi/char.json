@@ -204,12 +204,15 @@
 # @logfile: The name of a logfile to save output
 # @logappend: true to append instead of truncate
 #             (default to false to truncate)
+# @close-on-cpr: if true, close device's fd on cprsave. defaults to false.
+#                since 6.1.
 #
 # Since: 2.6
 ##
 { 'struct': 'ChardevCommon',
   'data': { '*logfile': 'str',
-            '*logappend': 'bool' } }
+            '*logappend': 'bool',
+            '*close-on-cpr': 'bool' } }
 
 ##
 # @ChardevFile:
