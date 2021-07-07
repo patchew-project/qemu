@@ -106,11 +106,13 @@ void cpu_loop(CPUS390XState *env)
 
             case PGM_DATA:
                 n = (env->fpc >> 8) & 0xff;
-                if (n == 0xff) {
-                    /* compare-and-trap */
+                if (n == 0) {
                     goto do_sigill_opn;
-                } else {
-                    /* An IEEE exception, simulated or otherwise.  */
+                }
+
+                sig = TARGET_SIGFPE;
+                if ((n & 0x03) == 0) {
+                    /* An IEEE exception, simulated or otherwise. */
                     if (n & 0x80) {
                         n = TARGET_FPE_FLTINV;
                     } else if (n & 0x40) {
@@ -121,13 +123,12 @@ void cpu_loop(CPUS390XState *env)
                         n = TARGET_FPE_FLTUND;
                     } else if (n & 0x08) {
                         n = TARGET_FPE_FLTRES;
-                    } else {
-                        /* ??? Quantum exception; BFP, DFP error.  */
-                        goto do_sigill_opn;
                     }
-                    sig = TARGET_SIGFPE;
-                    goto do_signal_pc;
+                } else {
+                    /* compare-and-trap */
+                    n = 0;
                 }
+                goto do_signal_pc;
 
             default:
                 fprintf(stderr, "Unhandled program exception: %#x\n", n);
