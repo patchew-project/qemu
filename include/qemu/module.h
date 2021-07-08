@@ -73,4 +73,29 @@ bool module_load_one(const char *prefix, const char *lib_name, bool mayfail);
 void module_load_qom_one(const char *type);
 void module_load_qom_all(void);
 
+/*
+ * module info annotation macros
+ *
+ * scripts/modinfo-collect.py will collect module info,
+ * using the preprocessor and -DQEMU_MODINFO
+ */
+#ifdef QEMU_MODINFO
+# define modinfo(kind, value) \
+    MODINFO_START kind value MODINFO_END
+#else
+# define modinfo(kind, value)
+#endif
+
+/* module implements QOM type <name> */
+#define module_obj(name) modinfo(obj, name)
+
+/* module has a dependency on <name> */
+#define module_dep(name) modinfo(dep, name)
+
+/* module is for target architecture <name> */
+#define module_arch(name) modinfo(arch, name)
+
+/* module registers QemuOpts <name> */
+#define module_opts(name) modinfo(opts, name)
+
 #endif
