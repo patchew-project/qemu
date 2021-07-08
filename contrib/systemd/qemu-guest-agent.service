@@ -1,5 +1,6 @@
 [Unit]
 Description=QEMU Guest Agent
+Documentation=https://wiki.qemu.org/Features/GuestAgent
 BindsTo=dev-virtio\x2dports-org.qemu.guest_agent.0.device
 After=dev-virtio\x2dports-org.qemu.guest_agent.0.device
 
