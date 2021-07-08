@@ -58,12 +58,12 @@ void check_aligned_anonymous_unfixed_mmaps(void)
 	int i;
 
 	fprintf(stdout, "%s", __func__);
-	for (i = 0; i < 0x1fff; i++)
+	for (i = 0; i < 0x1ff; i++)
 	{
 		size_t len;
 
 		len = pagesize + (pagesize * i & 7);
-		p1 = mmap(NULL, len, PROT_READ, 
+		p1 = mmap(NULL, len, PROT_READ,
 			  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 		p2 = mmap(NULL, len, PROT_READ, 
 			  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -142,7 +142,7 @@ void check_aligned_anonymous_unfixed_colliding_mmaps(void)
 	int i;
 
 	fprintf(stdout, "%s", __func__);
-	for (i = 0; i < 0x2fff; i++)
+	for (i = 0; i < 0x2ff; i++)
 	{
 		int nlen;
 		p1 = mmap(NULL, pagesize, PROT_READ, 
