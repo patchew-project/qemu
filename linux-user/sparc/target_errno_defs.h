@@ -1,6 +1,8 @@
 #ifndef SPARC_TARGET_ERRNO_DEFS_H
 #define SPARC_TARGET_ERRNO_DEFS_H
 
+#include "../generic/target_errno_defs.h"
+
 /* Target errno definitions taken from asm-sparc/errno.h */
 #undef TARGET_EWOULDBLOCK
 #define TARGET_EWOULDBLOCK     TARGET_EAGAIN /* Operation would block */
