@@ -1,73 +1,26 @@
 #ifndef BSWAP_H
 #define BSWAP_H
 
-#ifdef CONFIG_MACHINE_BSWAP_H
-# include <sys/endian.h>
-# include <machine/bswap.h>
-#elif defined(__FreeBSD__)
-# include <sys/endian.h>
-#elif defined(__HAIKU__)
-# include <endian.h>
-#elif defined(CONFIG_BYTESWAP_H)
-# include <byteswap.h>
-#define BSWAP_FROM_BYTESWAP
-# else
-#define BSWAP_FROM_FALLBACKS
-#endif /* ! CONFIG_MACHINE_BSWAP_H */
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #include "fpu/softfloat-types.h"
 
-#ifdef BSWAP_FROM_BYTESWAP
 static inline uint16_t bswap16(uint16_t x)
 {
-    return bswap_16(x);
+    return __builtin_bswap16(x);
 }
 
 static inline uint32_t bswap32(uint32_t x)
 {
-    return bswap_32(x);
+    return __builtin_bswap32(x);
 }
 
 static inline uint64_t bswap64(uint64_t x)
 {
-    return bswap_64(x);
+    return __builtin_bswap64(x);
 }
-#endif
-
-#ifdef BSWAP_FROM_FALLBACKS
-static inline uint16_t bswap16(uint16_t x)
-{
-    return (((x & 0x00ff) << 8) |
-            ((x & 0xff00) >> 8));
-}
-
-static inline uint32_t bswap32(uint32_t x)
-{
-    return (((x & 0x000000ffU) << 24) |
-            ((x & 0x0000ff00U) <<  8) |
-            ((x & 0x00ff0000U) >>  8) |
-            ((x & 0xff000000U) >> 24));
-}
-
-static inline uint64_t bswap64(uint64_t x)
-{
-    return (((x & 0x00000000000000ffULL) << 56) |
-            ((x & 0x000000000000ff00ULL) << 40) |
-            ((x & 0x0000000000ff0000ULL) << 24) |
-            ((x & 0x00000000ff000000ULL) <<  8) |
-            ((x & 0x000000ff00000000ULL) >>  8) |
-            ((x & 0x0000ff0000000000ULL) >> 24) |
-            ((x & 0x00ff000000000000ULL) >> 40) |
-            ((x & 0xff00000000000000ULL) >> 56));
-}
-#endif
-
-#undef BSWAP_FROM_BYTESWAP
-#undef BSWAP_FROM_FALLBACKS
 
 static inline void bswap16s(uint16_t *s)
 {
