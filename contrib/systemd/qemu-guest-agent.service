@@ -5,7 +5,7 @@ BindsTo=dev-virtio\x2dports-org.qemu.guest_agent.0.device
 After=dev-virtio\x2dports-org.qemu.guest_agent.0.device
 
 [Service]
-ExecStart=-/usr/bin/qemu-ga
+ExecStart=/usr/bin/qemu-ga
 Restart=always
 RestartSec=0
 
