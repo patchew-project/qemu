@@ -25,6 +25,7 @@
 #include "qapi/qapi-types-misc-target.h"
 #include "standard-headers/asm-x86/kvm_para.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/runstate-action.h"
 #include "sysemu/kvm.h"
 #include "sysemu/kvm_int.h"
 #include "sysemu/tdx.h"
@@ -362,6 +363,19 @@ static void tdx_guest_init(Object *obj)
     TdxGuest *tdx = TDX_GUEST(obj);
 
     qemu_mutex_init(&tdx->lock);
+
+    /*
+     * TDX module spec version 344425-002US doesn't support reset of vcpu by
+     * VMM.  VM needs to be destroyed and created again to emulate
+     * REBOOT_ACTION_RESET.  For simplicity, put its responsibility to
+     * management system like libvirt.
+     *
+     * Management system should
+     *  - set reboot_action to REBOOT_ACTION_SHUTDOWN
+     *  - set shutdown_action to SHUTDOWN_ACTION_PAUSE
+     *  - subscribe VM state and on reboot, destroy qemu and start new qemu
+     */
+    reboot_action = REBOOT_ACTION_SHUTDOWN;
 
     tdx->debug = false;
     object_property_add_bool(obj, "debug", tdx_guest_get_debug,
