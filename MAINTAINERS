@@ -2768,7 +2768,7 @@ F: tests/unit/test-crypto-*
 F: tests/bench/benchmark-crypto-*
 F: tests/unit/crypto-tls-*
 F: tests/unit/pkix_asn1_tab.c
-F: qemu.sasl
+F: contrib/qemu.sasl
 
 Coroutines
 M: Stefan Hajnoczi <stefanha@redhat.com>
