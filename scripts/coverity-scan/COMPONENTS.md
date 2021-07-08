@@ -114,8 +114,17 @@ scsi
 slirp
   ~ (/qemu)?(/.*slirp.*)
 
+hvf
+  ~ (/qemu)?(.*/hvf.*)
+
+kvm
+  ~ (/qemu)?(.*/kvm.*)
+
 tcg
   ~ (/qemu)?(/accel/tcg/.*|/replay/.*|/(.*/)?softmmu.*)
+
+xen
+  ~ (/qemu)?(.*/xen.*)
 
 trace
   ~ (/qemu)?(/.*trace.*\.[ch])
@@ -131,9 +140,6 @@ user
 
 util
   ~ (/qemu)?(/util/.*|/include/qemu/.*)
-
-xen
-  ~ (/qemu)?(.*/xen.*)
 
 virtiofsd
   ~ (/qemu)?(/tools/virtiofsd/.*)
