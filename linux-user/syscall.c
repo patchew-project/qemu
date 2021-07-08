@@ -509,6 +509,11 @@ static inline int next_free_host_timer(void)
 
 #define ERRNO_TABLE_SIZE 1200
 
+static inline bool errno_exists(int err)
+{
+    return err >= 0 && err < ERRNO_TABLE_SIZE;
+}
+
 /* target_to_host_errno_table[] is initialized from
  * host_to_target_errno_table[] in syscall_init(). */
 static uint16_t target_to_host_errno_table[ERRNO_TABLE_SIZE] = {
@@ -672,7 +677,7 @@ const char *target_strerror(int err)
         return "Successful exit from sigreturn";
     }
 
-    if ((err >= ERRNO_TABLE_SIZE) || (err < 0)) {
+    if (!errno_exists(err)) {
         return NULL;
     }
     return strerror(target_to_host_errno(err));
