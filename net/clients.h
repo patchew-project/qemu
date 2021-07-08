@@ -63,4 +63,9 @@ int net_init_vhost_user(const Netdev *netdev, const char *name,
 
 int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
                         NetClientState *peer, Error **errp);
+
+#ifdef CONFIG_VMNET
+int net_init_vmnet_macos(const Netdev *netdev, const char *name,
+                        NetClientState *peer, Error **errp);
+#endif
 #endif /* QEMU_NET_CLIENTS_H */

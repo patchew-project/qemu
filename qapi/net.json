@@ -453,6 +453,115 @@
     '*queues':       'int' } }
 
 ##
+# @VmnetOperatingMode:
+#
+# The operating modes in which a vmnet netdev can run
+# Only available on macOS
+#
+# @host: the guest may communicate with the host
+#        and other guest network interfaces
+#
+# @shared: the guest may reach the Internet through a NAT,
+#          and may communicate with the host and other guest
+#          network interfaces
+#
+# @bridged: the guest's traffic is bridged with a
+#           physical network interface of the host
+#
+# Since: 6.0
+##
+{ 'enum': 'VmnetOperatingMode',
+  'data': [ 'host', 'shared', 'bridged' ],
+  'if': 'defined(CONFIG_VMNET)' }
+
+##
+# @NetdevVmnetModeOptionsBridged:
+#
+# Options for the vmnet-macos netdev
+# that are only available in 'bridged' mode
+# Only available on macOS
+#
+# @ifname: the physical network interface to bridge with
+#          (defaults to en0 if not specified)
+#
+# Since: 6.0
+##
+{ 'struct': 'NetdevVmnetModeOptionsBridged',
+  'data': { '*ifname':  'str' },
+  'if': 'defined(CONFIG_VMNET)' }
+
+##
+# @NetdevVmnetModeOptionsHostOrShared:
+#
+# Options for the vmnet-macos netdev
+# that are only available in 'host' or 'shared' mode
+# Only available on macOS
+#
+# @dhcp-start-address: the gateway address to use for the interface.
+#                      The range to dhcp_end_address is placed in the DHCP pool.
+#                      (only valid with mode=host|shared)
+#                      (must be specified with dhcp-end-address and
+#                       dhcp-subnet-mask)
+#                      (allocated automatically if unset)
+#
+# @dhcp-end-address: the DHCP IPv4 range end address to use for the interface.
+#                      (only valid with mode=host|shared)
+#                      (must be specified with dhcp-start-address and
+#                       dhcp-subnet-mask)
+#                      (allocated automatically if unset)
+#
+# @dhcp-subnet-mask: the IPv4 subnet mask (string) to use on the interface.
+#                    (only valid with mode=host|shared)
+#                    (must be specified with dhcp-start-address and
+#                     dhcp-end-address)
+#                    (allocated automatically if unset)
+#
+# Since: 6.0
+##
+{ 'struct': 'NetdevVmnetModeOptionsHostOrShared',
+  'data': {
+    '*dhcp-start-address': 'str' ,
+    '*dhcp-end-address':   'str',
+    '*dhcp-subnet-mask':   'str' },
+  'if': 'defined(CONFIG_VMNET)' }
+
+##
+# @NetdevVmnetModeOptions:
+#
+# Options specific to different operating modes of a vmnet netdev
+# Only available on macOS
+#
+# @mode: the operating mode vmnet should run in
+#
+# Since: 6.0
+##
+{ 'union': 'NetdevVmnetModeOptions',
+  'base': { 'mode': 'VmnetOperatingMode' },
+  'discriminator': 'mode',
+  'data': {
+    'bridged':      'NetdevVmnetModeOptionsBridged',
+    'host':         'NetdevVmnetModeOptionsHostOrShared',
+    'shared':       'NetdevVmnetModeOptionsHostOrShared' },
+  'if': 'defined(CONFIG_VMNET)' }
+
+##
+# @NetdevVmnetOptions:
+#
+# vmnet network backend
+# Only available on macOS
+#
+# @options: a structure specifying the mode and mode-specific options
+#           (once QAPI supports a union type as a branch to another union type,
+#            this structure can be changed to a union, and the contents of
+#            NetdevVmnetModeOptions moved here)
+#
+# Since: 6.0
+##
+{ 'struct': 'NetdevVmnetOptions',
+  'data': {'options': 'NetdevVmnetModeOptions' },
+  'if': 'defined(CONFIG_VMNET)' }
+
+##
 # @NetClientDriver:
 #
 # Available netdev drivers.
@@ -460,10 +569,13 @@
 # Since: 2.7
 #
 #        @vhost-vdpa since 5.1
+#
+#        @vmnet-macos since 6.0 (only available on macOS)
 ##
 { 'enum': 'NetClientDriver',
   'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde',
-            'bridge', 'hubport', 'netmap', 'vhost-user', 'vhost-vdpa' ] }
+            'bridge', 'hubport', 'netmap', 'vhost-user', 'vhost-vdpa',
+            { 'name': 'vmnet-macos', 'if': 'defined(CONFIG_VMNET)' } ] }
 
 ##
 # @Netdev:
@@ -477,6 +589,8 @@
 # Since: 1.2
 #
 #        'l2tpv3' - since 2.1
+#
+#        'vmnet-macos' since 6.0 (only available on macOS)
 ##
 { 'union': 'Netdev',
   'base': { 'id': 'str', 'type': 'NetClientDriver' },
@@ -492,7 +606,9 @@
     'hubport':  'NetdevHubPortOptions',
     'netmap':   'NetdevNetmapOptions',
     'vhost-user': 'NetdevVhostUserOptions',
-    'vhost-vdpa': 'NetdevVhostVDPAOptions' } }
+    'vhost-vdpa': 'NetdevVhostVDPAOptions',
+    'vmnet-macos': { 'type': 'NetdevVmnetOptions',
+                     'if': 'defined(CONFIG_VMNET)' } } }
 
 ##
 # @RxState:

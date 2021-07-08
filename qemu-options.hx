@@ -2606,6 +2606,15 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "-netdev vhost-vdpa,id=str,vhostdev=/path/to/dev\n"
     "                configure a vhost-vdpa network,Establish a vhost-vdpa netdev\n"
 #endif
+#ifdef CONFIG_VMNET
+    "-netdev vmnet-macos,id=str,mode=bridged[,ifname=ifname]\n"
+    "         configure a macOS-provided vmnet network in \"physical interface bridge\" mode\n"
+    "         the physical interface to bridge with defaults to en0 if unspecified\n"
+    "-netdev vmnet-macos,id=str,mode=host|shared\n"
+    "                     [,dhcp_start_address=addr,dhcp_end_address=addr,dhcp_subnet_mask=mask]\n"
+    "         configure a macOS-provided vmnet network in \"host\" or \"shared\" mode\n"
+    "         the DHCP configuration will be set automatically if unspecified\n"
+#endif
     "-netdev hubport,id=str,hubid=n[,netdev=nd]\n"
     "                configure a hub port on the hub with ID 'n'\n", QEMU_ARCH_ALL)
 DEF("nic", HAS_ARG, QEMU_OPTION_nic,
