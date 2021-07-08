@@ -3,6 +3,7 @@ Description=QEMU Guest Agent
 Documentation=https://wiki.qemu.org/Features/GuestAgent
 BindsTo=dev-virtio\x2dports-org.qemu.guest_agent.0.device
 After=dev-virtio\x2dports-org.qemu.guest_agent.0.device
+IgnoreOnIsolate=True
 
 [Service]
 ExecStart=/usr/bin/qemu-ga
@@ -10,3 +11,4 @@ Restart=always
 RestartSec=0
 
 [Install]
+WantedBy=dev-virtio\x2dports-org.qemu.guest_agent.0.device
