@@ -413,6 +413,7 @@ Aml *aml_concatenate(Aml *source1, Aml *source2, Aml *target);
 Aml *aml_object_type(Aml *object);
 
 void build_append_int_noprefix(GArray *table, uint64_t value, int size);
+void build_append_byte(GArray *array, uint8_t val);
 
 typedef struct AcpiTable {
     const char *sig;
