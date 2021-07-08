@@ -121,7 +121,7 @@ kvm
   ~ (/qemu)?(.*/kvm.*)
 
 tcg
-  ~ (/qemu)?(/accel/tcg/.*|/replay/.*|/(.*/)?softmmu.*)
+  ~ (/qemu)?(/accel/tcg/.*|/replay/.*|tcg/*\.?)
 
 xen
   ~ (/qemu)?(.*/xen.*)
@@ -137,6 +137,9 @@ usb
 
 user
   ~ (/qemu)?(/linux-user/.*|/bsd-user/.*|/user-exec\.c|/thunk\.c|/include/exec/user/.*)
+
+sysemu
+  ~ (/qemu)?(/softmmu/.*|/accel/.*)
 
 util
   ~ (/qemu)?(/util/.*|/include/qemu/.*)
