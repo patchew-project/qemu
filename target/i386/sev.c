@@ -813,6 +813,29 @@ sev_read_file_base64(const char *filename, guchar **data, gsize *len)
 }
 
 static int
+sev_snp_launch_start(SevGuestState *sev)
+{
+    int ret = 1;
+    int fw_error, rc;
+    struct kvm_sev_snp_launch_start *start = &sev->snp_config.start;
+
+    trace_kvm_sev_snp_launch_start(start->policy);
+
+    rc = sev_ioctl(sev->sev_fd, KVM_SEV_SNP_LAUNCH_START, start, &fw_error);
+    if (rc < 0) {
+        error_report("%s: SNP_LAUNCH_START ret=%d fw_error=%d '%s'",
+                __func__, ret, fw_error, fw_error_to_str(fw_error));
+        goto out;
+    }
+
+    sev_set_guest_state(sev, SEV_STATE_LAUNCH_UPDATE);
+    ret = 0;
+
+out:
+    return ret;
+}
+
+static int
 sev_launch_start(SevGuestState *sev)
 {
     gsize sz;
@@ -1105,7 +1128,12 @@ int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
         goto err;
     }
 
-    ret = sev_launch_start(sev);
+    if (sev_snp_enabled()) {
+        ret = sev_snp_launch_start(sev);
+    } else {
+        ret = sev_launch_start(sev);
+    }
+
     if (ret) {
         error_setg(errp, "%s: failed to create encryption context", __func__);
         goto err;
