@@ -602,23 +602,16 @@ static void gen_sro(TCGv ret, TCGv arg1, TCGv arg2)
 
 static bool gen_grevi(DisasContext *ctx, arg_grevi *a)
 {
-    TCGv source1 = tcg_temp_new();
-    TCGv source2;
-
-    gen_get_gpr(source1, a->rs1);
+    TCGv dest = gpr_dst(ctx, a->rd);
+    TCGv src1 = gpr_src(ctx, a->rs1);
 
     if (a->shamt == (TARGET_LONG_BITS - 8)) {
         /* rev8, byte swaps */
-        tcg_gen_bswap_tl(source1, source1);
+        tcg_gen_bswap_tl(dest, src1);
     } else {
-        source2 = tcg_temp_new();
-        tcg_gen_movi_tl(source2, a->shamt);
-        gen_helper_grev(source1, source1, source2);
-        tcg_temp_free(source2);
+        TCGv src2 = tcg_constant_tl(a->shamt);
+        gen_helper_grev(dest, src1, src2);
     }
-
-    gen_set_gpr(a->rd, source1);
-    tcg_temp_free(source1);
     return true;
 }
 
