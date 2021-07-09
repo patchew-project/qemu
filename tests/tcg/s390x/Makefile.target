@@ -9,6 +9,7 @@ TESTS+=exrl-trtr
 TESTS+=pack
 TESTS+=mvo
 TESTS+=mvc
+TESTS+=trap
 
 # This triggers failures on s390x hosts about 4% of the time
 run-signals: signals
