@@ -423,16 +423,13 @@ static bool trans_slli_uw(DisasContext *ctx, arg_slli_uw *a)
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
 
-    TCGv source1 = tcg_temp_new();
-    gen_get_gpr(source1, a->rs1);
+    TCGv dest = gpr_dst(ctx, a->rd);
+    TCGv src1 = gpr_src(ctx, a->rs1);
 
     if (a->shamt < 32) {
-        tcg_gen_deposit_z_tl(source1, source1, a->shamt, 32);
+        tcg_gen_deposit_z_tl(dest, src1, a->shamt, 32);
     } else {
-        tcg_gen_shli_tl(source1, source1, a->shamt);
+        tcg_gen_shli_tl(dest, src1, a->shamt);
     }
-
-    gen_set_gpr(a->rd, source1);
-    tcg_temp_free(source1);
     return true;
 }
