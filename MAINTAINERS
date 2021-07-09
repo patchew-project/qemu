@@ -2143,6 +2143,13 @@ F: docs/interop/vhost-user-gpu.rst
 F: contrib/vhost-user-gpu
 F: hw/display/vhost-user-*
 
+vhost-user-i2c
+M: Viresh Kumar <viresh.kumar@linaro.org>
+S: Supported
+F: hw/virtio/vhost-user-i2c.c
+F: hw/virtio/vhost-user-i2c-pci.c
+F: include/hw/virtio/vhost-user-i2c.h
+
 Cirrus VGA
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Odd Fixes
