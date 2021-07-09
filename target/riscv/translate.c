@@ -484,42 +484,40 @@ static void gen_mulw(TCGv ret, TCGv arg1, TCGv arg2)
 static bool gen_arith_div_w(DisasContext *ctx, arg_r *a,
                             void(*func)(TCGv, TCGv, TCGv))
 {
-    TCGv source1, source2;
-    source1 = tcg_temp_new();
-    source2 = tcg_temp_new();
+    TCGv dest = gpr_dst(ctx, a->rd);
+    TCGv src1 = gpr_src(ctx, a->rs1);
+    TCGv src2 = gpr_src(ctx, a->rs2);
+    TCGv ext1 = tcg_temp_new();
+    TCGv ext2 = tcg_temp_new();
 
-    gen_get_gpr(source1, a->rs1);
-    gen_get_gpr(source2, a->rs2);
-    tcg_gen_ext32s_tl(source1, source1);
-    tcg_gen_ext32s_tl(source2, source2);
+    tcg_gen_ext32s_tl(ext1, src1);
+    tcg_gen_ext32s_tl(ext2, src2);
 
-    (*func)(source1, source1, source2);
+    (*func)(dest, ext1, ext2);
+    tcg_temp_free(ext1);
+    tcg_temp_free(ext2);
 
-    tcg_gen_ext32s_tl(source1, source1);
-    gen_set_gpr(a->rd, source1);
-    tcg_temp_free(source1);
-    tcg_temp_free(source2);
+    tcg_gen_ext32s_tl(dest, dest);
     return true;
 }
 
 static bool gen_arith_div_uw(DisasContext *ctx, arg_r *a,
                             void(*func)(TCGv, TCGv, TCGv))
 {
-    TCGv source1, source2;
-    source1 = tcg_temp_new();
-    source2 = tcg_temp_new();
+    TCGv dest = gpr_dst(ctx, a->rd);
+    TCGv src1 = gpr_src(ctx, a->rs1);
+    TCGv src2 = gpr_src(ctx, a->rs2);
+    TCGv ext1 = tcg_temp_new();
+    TCGv ext2 = tcg_temp_new();
 
-    gen_get_gpr(source1, a->rs1);
-    gen_get_gpr(source2, a->rs2);
-    tcg_gen_ext32u_tl(source1, source1);
-    tcg_gen_ext32u_tl(source2, source2);
+    tcg_gen_ext32u_tl(ext1, src1);
+    tcg_gen_ext32u_tl(ext2, src2);
 
-    (*func)(source1, source1, source2);
+    (*func)(dest, ext1, ext2);
+    tcg_temp_free(ext1);
+    tcg_temp_free(ext2);
 
-    tcg_gen_ext32s_tl(source1, source1);
-    gen_set_gpr(a->rd, source1);
-    tcg_temp_free(source1);
-    tcg_temp_free(source2);
+    tcg_gen_ext32s_tl(dest, dest);
     return true;
 }
 
