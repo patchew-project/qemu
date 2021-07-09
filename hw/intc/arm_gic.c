@@ -1294,12 +1294,14 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
 
         for (i = 0; i < 8; i++) {
             if (value & (1 << i)) {
+                int cm = (irq < GIC_INTERNAL) ? (1 << cpu) : ALL_CPU_MASK;
+
                 if (s->security_extn && !attrs.secure &&
                     !GIC_DIST_TEST_GROUP(irq + i, 1 << cpu)) {
                     continue; /* Ignore Non-secure access of Group0 IRQ */
                 }
 
-                GIC_DIST_SET_PENDING(irq + i, GIC_DIST_TARGET(irq + i));
+                GIC_DIST_SET_PENDING(irq + i, cm);
             }
         }
     } else if (offset < 0x300) {
@@ -1317,11 +1319,10 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
                 continue; /* Ignore Non-secure access of Group0 IRQ */
             }
 
-            /* ??? This currently clears the pending bit for all CPUs, even
-               for per-CPU interrupts.  It's unclear whether this is the
-               corect behavior.  */
             if (value & (1 << i)) {
-                GIC_DIST_CLEAR_PENDING(irq + i, ALL_CPU_MASK);
+                int cm = (irq < GIC_INTERNAL) ? (1 << cpu) : ALL_CPU_MASK;
+
+                GIC_DIST_CLEAR_PENDING(irq + i, cm);
             }
         }
     } else if (offset < 0x380) {
