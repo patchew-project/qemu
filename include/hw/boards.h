@@ -332,6 +332,7 @@ struct MachineState {
     AccelState *accelerator;
     CPUArchIdList *possible_cpus;
     CpuTopology smp;
+    SgxEPC sgx_epc;
     struct NVDIMMState *nvdimms_state;
     struct NumaState *numa_state;
 };

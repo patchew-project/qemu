@@ -122,8 +122,14 @@ SRST
         -m 512M
 ERST
 
-HXCOMM Deprecated by -machine
-DEF("M", HAS_ARG, QEMU_OPTION_M, "", QEMU_ARCH_ALL)
+DEF("M", HAS_ARG, QEMU_OPTION_M,
+    "                sgx-epc.id.0=epcid,sgx-epc.memdev.0=memid\n",
+    QEMU_ARCH_ALL)
+
+SRST
+``sgx-epc.id.0=@var{epcid},sgx-epc.memdev.0=@var{memid}``
+    Define an SGX EPC section.
+ERST
 
 DEF("cpu", HAS_ARG, QEMU_OPTION_cpu,
     "-cpu cpu        select CPU ('-cpu help' for list)\n", QEMU_ARCH_ALL)

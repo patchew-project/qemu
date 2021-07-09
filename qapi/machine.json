@@ -1195,6 +1195,23 @@
 }
 
 ##
+# @SgxEPC:
+#
+# Sgx EPC cmdline information
+#
+# @id: device's ID
+#
+# @memdev: memory backend linked with device
+#
+# Since: 6.1
+##
+{ 'struct': 'SgxEPC',
+  'data': { 'id': [ 'str' ],
+            'memdev': [ 'str' ]
+          }
+}
+
+##
 # @MemoryDeviceInfo:
 #
 # Union containing information about a memory device

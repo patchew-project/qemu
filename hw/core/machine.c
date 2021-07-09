@@ -21,6 +21,7 @@
 #include "qapi/qapi-visit-common.h"
 #include "qapi/qapi-visit-machine.h"
 #include "qapi/visitor.h"
+#include "qapi/clone-visitor.h"
 #include "hw/sysbus.h"
 #include "sysemu/cpus.h"
 #include "sysemu/sysemu.h"
@@ -851,6 +852,35 @@ out_free:
     qapi_free_SMPConfiguration(config);
 }
 
+static void machine_get_sgx_epc(Object *obj, Visitor *v, const char *name,
+                                void *opaque, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+    SgxEPC *sgx = &(SgxEPC){
+        .id = ms->sgx_epc.id,
+        .memdev = ms->sgx_epc.memdev,
+    };
+
+    if (!visit_type_SgxEPC(v, name, &sgx, errp)) {
+        return;
+    }
+}
+
+static void machine_set_sgx_epc(Object *obj, Visitor *v, const char *name,
+                                void *opaque, Error **errp)
+{
+    MachineState *ms = MACHINE(obj);
+    SgxEPC *sgx;
+
+    if (!visit_type_SgxEPC(v, name, &sgx, errp)) {
+        return;
+    }
+
+    ms->sgx_epc.id = QAPI_CLONE(strList, sgx->id);
+    ms->sgx_epc.memdev = QAPI_CLONE(strList, sgx->memdev);
+    qapi_free_SgxEPC(sgx);
+}
+
 static void machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -956,6 +986,12 @@ static void machine_class_init(ObjectClass *oc, void *data)
     object_class_property_set_description(oc, "memory-backend",
                                           "Set RAM backend"
                                           "Valid value is ID of hostmem based backend");
+
+    object_class_property_add(oc, "sgx-epc", "SgxEPC",
+        machine_get_sgx_epc, machine_set_sgx_epc,
+        NULL, NULL);
+    object_class_property_set_description(oc, "sgx-epc",
+        "SGX EPC device");
 }
 
 static void machine_class_base_init(ObjectClass *oc, void *data)
