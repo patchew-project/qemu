@@ -141,8 +141,6 @@ $QEMU_IMG bitmap --remove "$TEST_IMG" b1
 _img_info --format-specific | _filter_irrelevant_img_info
 $QEMU_IMG convert --bitmaps -O qcow2 "$TEST_IMG" "$TEST_IMG.copy" &&
     echo "unexpected success"
-# Bug - even though we failed at conversion, we left a file around with
-# a bitmap marked as not corrupt
 TEST_IMG=$TEST_IMG.copy _img_info --format-specific \
     | _filter_irrelevant_img_info
 
