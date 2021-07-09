@@ -584,9 +584,16 @@ sev_enabled(void)
 }
 
 bool
+sev_snp_enabled(void)
+{
+    return sev_guest->snp;
+}
+
+bool
 sev_es_enabled(void)
 {
-    return sev_enabled() && (sev_guest->policy & SEV_POLICY_ES);
+    return sev_snp_enabled() ||
+           (sev_enabled() && (sev_guest->policy & SEV_POLICY_ES));
 }
 
 uint64_t
@@ -1008,6 +1015,7 @@ int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
     uint32_t ebx;
     uint32_t host_cbitpos;
     struct sev_user_data_status status = {};
+    void *init_args = NULL;
 
     if (!sev) {
         return 0;
@@ -1061,7 +1069,17 @@ int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
     sev->api_major = status.api_major;
     sev->api_minor = status.api_minor;
 
-    if (sev_es_enabled()) {
+    if (sev_snp_enabled()) {
+        if (!kvm_kernel_irqchip_allowed()) {
+            error_report("%s: SEV-SNP guests require in-kernel irqchip support",
+                         __func__);
+            goto err;
+        }
+
+        cmd = KVM_SEV_SNP_INIT;
+        init_args = (void *)&sev->snp_config.init;
+
+    } else if (sev_es_enabled()) {
         if (!kvm_kernel_irqchip_allowed()) {
             error_report("%s: SEV-ES guests require in-kernel irqchip support",
                          __func__);
@@ -1080,7 +1098,7 @@ int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
     }
 
     trace_kvm_sev_init();
-    ret = sev_ioctl(sev->sev_fd, cmd, NULL, &fw_error);
+    ret = sev_ioctl(sev->sev_fd, cmd, init_args, &fw_error);
     if (ret) {
         error_setg(errp, "%s: failed to initialize ret=%d fw_error=%d '%s'",
                    __func__, ret, fw_error, fw_error_to_str(fw_error));
