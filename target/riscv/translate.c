@@ -760,18 +760,14 @@ static bool gen_arith(DisasContext *ctx, arg_r *a,
 static bool gen_shift(DisasContext *ctx, arg_r *a,
                         void(*func)(TCGv, TCGv, TCGv))
 {
-    TCGv source1 = tcg_temp_new();
-    TCGv source2 = tcg_temp_new();
+    TCGv dest = gpr_dst(ctx, a->rd);
+    TCGv src1 = gpr_src(ctx, a->rs1);
+    TCGv src2 = gpr_src(ctx, a->rs2);
+    TCGv ext2 = tcg_temp_new();
 
-    gen_get_gpr(source1, a->rs1);
-    gen_get_gpr(source2, a->rs2);
-
-    tcg_gen_andi_tl(source2, source2, TARGET_LONG_BITS - 1);
-    (*func)(source1, source1, source2);
-
-    gen_set_gpr(a->rd, source1);
-    tcg_temp_free(source1);
-    tcg_temp_free(source2);
+    tcg_gen_andi_tl(ext2, src2, TARGET_LONG_BITS - 1);
+    (*func)(dest, src1, ext2);
+    tcg_temp_free(ext2);
     return true;
 }
 
@@ -787,58 +783,46 @@ static uint32_t opcode_at(DisasContextBase *dcbase, target_ulong pc)
 static bool gen_shifti(DisasContext *ctx, arg_shift *a,
                        void(*func)(TCGv, TCGv, TCGv))
 {
+    TCGv dest, src1, src2;
+
     if (a->shamt >= TARGET_LONG_BITS) {
         return false;
     }
 
-    TCGv source1 = tcg_temp_new();
-    TCGv source2 = tcg_temp_new();
+    dest = gpr_dst(ctx, a->rd);
+    src1 = gpr_src(ctx, a->rs1);
+    src2 = tcg_constant_tl(a->shamt);
 
-    gen_get_gpr(source1, a->rs1);
-
-    tcg_gen_movi_tl(source2, a->shamt);
-    (*func)(source1, source1, source2);
-
-    gen_set_gpr(a->rd, source1);
-    tcg_temp_free(source1);
-    tcg_temp_free(source2);
+    (*func)(dest, src1, src2);
     return true;
 }
 
 static bool gen_shiftw(DisasContext *ctx, arg_r *a,
                        void(*func)(TCGv, TCGv, TCGv))
 {
-    TCGv source1 = tcg_temp_new();
-    TCGv source2 = tcg_temp_new();
+    TCGv dest = gpr_dst(ctx, a->rd);
+    TCGv src1 = gpr_src(ctx, a->rs1);
+    TCGv src2 = gpr_src(ctx, a->rs2);
+    TCGv ext2 = tcg_temp_new();
 
-    gen_get_gpr(source1, a->rs1);
-    gen_get_gpr(source2, a->rs2);
+    tcg_gen_andi_tl(ext2, src2, 31);
+    (*func)(dest, src1, ext2);
+    tcg_gen_ext32s_tl(dest, dest);
 
-    tcg_gen_andi_tl(source2, source2, 31);
-    (*func)(source1, source1, source2);
-    tcg_gen_ext32s_tl(source1, source1);
-
-    gen_set_gpr(a->rd, source1);
-    tcg_temp_free(source1);
-    tcg_temp_free(source2);
+    tcg_temp_free(ext2);
     return true;
 }
 
 static bool gen_shiftiw(DisasContext *ctx, arg_shift *a,
                         void(*func)(TCGv, TCGv, TCGv))
 {
-    TCGv source1 = tcg_temp_new();
-    TCGv source2 = tcg_temp_new();
+    TCGv dest = gpr_dst(ctx, a->rd);
+    TCGv src1 = gpr_src(ctx, a->rs1);
+    TCGv src2 = tcg_constant_tl(a->shamt);
 
-    gen_get_gpr(source1, a->rs1);
-    tcg_gen_movi_tl(source2, a->shamt);
+    (*func)(dest, src1, src2);
+    tcg_gen_ext32s_tl(dest, dest);
 
-    (*func)(source1, source1, source2);
-    tcg_gen_ext32s_tl(source1, source1);
-
-    gen_set_gpr(a->rd, source1);
-    tcg_temp_free(source1);
-    tcg_temp_free(source2);
     return true;
 }
 
