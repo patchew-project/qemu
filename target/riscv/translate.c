@@ -65,6 +65,8 @@ typedef struct DisasContext {
     uint16_t mlen;
     bool vl_eq_vlmax;
     CPUState *cs;
+    TCGv zero;
+    TCGv sink;
 } DisasContext;
 
 static inline bool has_ext(DisasContext *ctx, uint32_t ext)
@@ -184,6 +186,14 @@ static inline void gen_get_gpr(TCGv t, int reg_num)
     }
 }
 
+static TCGv gpr_src(DisasContext *ctx, int reg_num)
+{
+    if (reg_num == 0) {
+        return ctx->zero;
+    }
+    return cpu_gpr[reg_num];
+}
+
 /* Wrapper for setting reg values - need to check of reg is zero since
  * cpu_gpr[0] is not actually allocated. this is more for safety purposes,
  * since we usually avoid calling the OP_TYPE_gen function if we see a write to
@@ -194,6 +204,17 @@ static inline void gen_set_gpr(int reg_num_dst, TCGv t)
     if (reg_num_dst != 0) {
         tcg_gen_mov_tl(cpu_gpr[reg_num_dst], t);
     }
+}
+
+static TCGv gpr_dst(DisasContext *ctx, int reg_num)
+{
+    if (reg_num == 0) {
+        if (ctx->sink == NULL) {
+            ctx->sink = tcg_temp_new();
+        }
+        return ctx->sink;
+    }
+    return cpu_gpr[reg_num];
 }
 
 static void gen_mulhsu(TCGv ret, TCGv arg1, TCGv arg2)
@@ -424,33 +445,21 @@ static int ex_rvc_shifti(DisasContext *ctx, int imm)
 static bool gen_arith_imm_fn(DisasContext *ctx, arg_i *a,
                              void (*func)(TCGv, TCGv, target_long))
 {
-    TCGv source1;
-    source1 = tcg_temp_new();
+    TCGv dest = gpr_dst(ctx, a->rd);
+    TCGv src1 = gpr_src(ctx, a->rs1);
 
-    gen_get_gpr(source1, a->rs1);
-
-    (*func)(source1, source1, a->imm);
-
-    gen_set_gpr(a->rd, source1);
-    tcg_temp_free(source1);
+    (*func)(dest, src1, a->imm);
     return true;
 }
 
 static bool gen_arith_imm_tl(DisasContext *ctx, arg_i *a,
                              void (*func)(TCGv, TCGv, TCGv))
 {
-    TCGv source1, source2;
-    source1 = tcg_temp_new();
-    source2 = tcg_temp_new();
+    TCGv dest = gpr_dst(ctx, a->rd);
+    TCGv src1 = gpr_src(ctx, a->rs1);
+    TCGv src2 = tcg_constant_tl(a->imm);
 
-    gen_get_gpr(source1, a->rs1);
-    tcg_gen_movi_tl(source2, a->imm);
-
-    (*func)(source1, source1, source2);
-
-    gen_set_gpr(a->rd, source1);
-    tcg_temp_free(source1);
-    tcg_temp_free(source2);
+    (*func)(dest, src1, src2);
     return true;
 }
 
@@ -740,18 +749,11 @@ static void gen_add_uw(TCGv ret, TCGv arg1, TCGv arg2)
 static bool gen_arith(DisasContext *ctx, arg_r *a,
                       void(*func)(TCGv, TCGv, TCGv))
 {
-    TCGv source1, source2;
-    source1 = tcg_temp_new();
-    source2 = tcg_temp_new();
+    TCGv dest = gpr_dst(ctx, a->rd);
+    TCGv src1 = gpr_src(ctx, a->rs1);
+    TCGv src2 = gpr_src(ctx, a->rs2);
 
-    gen_get_gpr(source1, a->rs1);
-    gen_get_gpr(source2, a->rs2);
-
-    (*func)(source1, source1, source2);
-
-    gen_set_gpr(a->rd, source1);
-    tcg_temp_free(source1);
-    tcg_temp_free(source2);
+    (*func)(dest, src1, src2);
     return true;
 }
 
@@ -853,14 +855,10 @@ static void gen_clz(TCGv ret, TCGv arg1)
 static bool gen_unary(DisasContext *ctx, arg_r2 *a,
                       void(*func)(TCGv, TCGv))
 {
-    TCGv source = tcg_temp_new();
+    TCGv dest = gpr_dst(ctx, a->rd);
+    TCGv src1 = gpr_src(ctx, a->rs1);
 
-    gen_get_gpr(source, a->rs1);
-
-    (*func)(source, source);
-
-    gen_set_gpr(a->rd, source);
-    tcg_temp_free(source);
+    (*func)(dest, src1);
     return true;
 }
 
@@ -934,8 +932,12 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->cs = cs;
 }
 
-static void riscv_tr_tb_start(DisasContextBase *db, CPUState *cpu)
+static void riscv_tr_tb_start(DisasContextBase *dcbase, CPUState *cpu)
 {
+    DisasContext *ctx = container_of(dcbase, DisasContext, base);
+
+    ctx->sink = NULL;
+    ctx->zero = tcg_constant_tl(0);
 }
 
 static void riscv_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
@@ -953,6 +955,11 @@ static void riscv_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 
     decode_opc(env, ctx, opcode16);
     ctx->base.pc_next = ctx->pc_succ_insn;
+
+    if (ctx->sink) {
+        tcg_temp_free(ctx->sink);
+        ctx->sink = NULL;
+    }
 
     if (ctx->base.is_jmp == DISAS_NEXT) {
         target_ulong page_start;
