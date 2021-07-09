@@ -1,0 +1,59 @@
+.shared_windows_runners:
+  tags:
+  - shared-windows
+  - windows
+  - windows-1809
+
+msys2-build:
+  extends: .shared_windows_runners
+  stage: build
+  before_script:
+  - Invoke-WebRequest
+    "https://github.com/msys2/msys2-installer/releases/download/nightly-x86_64/msys2-base-x86_64-latest.sfx.exe"
+    -outfile "msys2.exe"
+  - .\msys2.exe -y -oC:\
+  - del msys2.exe
+  - ((Get-Content -path C:\msys64\etc\\post-install\\07-pacman-key.post -Raw)
+      -replace '--refresh-keys', '--version') |
+     Set-Content -Path C:\msys64\etc\\post-install\\07-pacman-key.post
+  - C:\msys64\usr\bin\bash -lc "sed -i 's/^CheckSpace/#CheckSpace/g' /etc/pacman.conf"
+  - C:\msys64\usr\bin\bash -lc 'pacman --noconfirm -Syuu'  # Core update
+  - C:\msys64\usr\bin\bash -lc 'pacman --noconfirm -Syuu'  # Normal update
+  - C:\msys64\usr\bin\bash -lc "pacman -Sy --noconfirm --needed
+      diffutils git grep make pkg-config sed
+      mingw-w64-x86_64-capstone
+      mingw-w64-x86_64-curl
+      mingw-w64-x86_64-cyrus-sasl
+      mingw-w64-x86_64-gcc
+      mingw-w64-x86_64-glib2
+      mingw-w64-x86_64-gnutls
+      mingw-w64-x86_64-gtk3
+      mingw-w64-x86_64-libgcrypt
+      mingw-w64-x86_64-libjpeg-turbo
+      mingw-w64-x86_64-libnfs
+      mingw-w64-x86_64-libpng
+      mingw-w64-x86_64-libssh
+      mingw-w64-x86_64-libtasn1
+      mingw-w64-x86_64-libusb
+      mingw-w64-x86_64-libxml2
+      mingw-w64-x86_64-lzo2
+      mingw-w64-x86_64-make
+      mingw-w64-x86_64-nettle
+      mingw-w64-x86_64-ninja
+      mingw-w64-x86_64-pixman
+      mingw-w64-x86_64-pkgconf
+      mingw-w64-x86_64-python
+      mingw-w64-x86_64-SDL2
+      mingw-w64-x86_64-SDL2_image
+      mingw-w64-x86_64-snappy
+      mingw-w64-x86_64-usbredir
+      mingw-w64-x86_64-zstd "
+  - taskkill /F /FI "MODULES eq msys-2.0.dll"
+  script:
+  - $env:CHERE_INVOKING = 'yes'  # Preserve the current working directory
+  - $env:MSYSTEM = 'MINGW64'     # Start a 64 bit Mingw environment
+  - C:\msys64\usr\bin\bash -lc './configure --target-list=x86_64-softmmu
+      --enable-capstone=system --disable-fdt'
+  - C:\msys64\usr\bin\bash -lc "sed -i '/^ROMS=/d' build/config-host.mak"
+  - C:\msys64\usr\bin\bash -lc 'make -j2'
+  - C:\msys64\usr\bin\bash -lc 'make V=1 check'
