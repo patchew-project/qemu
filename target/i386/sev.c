@@ -884,6 +884,30 @@ out:
 }
 
 static int
+sev_snp_launch_update(SevGuestState *sev, uint8_t *addr, uint64_t len, int type)
+{
+    int ret, fw_error;
+    struct kvm_sev_snp_launch_update update = {};
+
+    if (!addr || !len) {
+        return 1;
+    }
+
+    update.uaddr = (__u64)(unsigned long)addr;
+    update.len = len;
+    update.page_type = type;
+    trace_kvm_sev_snp_launch_update(addr, len, type);
+    ret = sev_ioctl(sev->sev_fd, KVM_SEV_SNP_LAUNCH_UPDATE,
+                    &update, &fw_error);
+    if (ret) {
+        error_report("%s: SNP_LAUNCH_UPDATE ret=%d fw_error=%d '%s'",
+                __func__, ret, fw_error, fw_error_to_str(fw_error));
+    }
+
+    return ret;
+}
+
+static int
 sev_launch_update_data(SevGuestState *sev, uint8_t *addr, uint64_t len)
 {
     int ret, fw_error;
@@ -1161,7 +1185,14 @@ sev_encrypt_flash(uint8_t *ptr, uint64_t len, Error **errp)
 
     /* if SEV is in update state then encrypt the data else do nothing */
     if (sev_check_state(sev_guest, SEV_STATE_LAUNCH_UPDATE)) {
-        int ret = sev_launch_update_data(sev_guest, ptr, len);
+        int ret;
+
+        if (sev_snp_enabled()) {
+            ret = sev_snp_launch_update(sev_guest, ptr, len,
+                                        KVM_SEV_SNP_PAGE_TYPE_NORMAL);
+        } else {
+            ret = sev_launch_update_data(sev_guest, ptr, len);
+        }
         if (ret < 0) {
             error_setg(errp, "failed to encrypt pflash rom");
             return ret;
