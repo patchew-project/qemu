@@ -37,6 +37,11 @@
 #define TYPE_SEV_GUEST "sev-guest"
 OBJECT_DECLARE_SIMPLE_TYPE(SevGuestState, SEV_GUEST)
 
+struct snp_launch_config {
+    struct kvm_snp_init init;
+    struct kvm_sev_snp_launch_start start;
+    struct kvm_sev_snp_launch_finish finish;
+};
 
 /**
  * SevGuestState:
@@ -58,6 +63,8 @@ struct SevGuestState {
     char *session_file;
     uint32_t cbitpos;
     uint32_t reduced_phys_bits;
+    char *launch_config_file;
+    bool snp;
 
     /* runtime state */
     uint32_t handle;
@@ -72,10 +79,13 @@ struct SevGuestState {
     uint32_t reset_cs;
     uint32_t reset_ip;
     bool reset_data_valid;
+
+    struct snp_launch_config snp_config;
 };
 
 #define DEFAULT_GUEST_POLICY    0x1 /* disable debug */
 #define DEFAULT_SEV_DEVICE      "/dev/sev"
+#define DEFAULT_SEV_SNP_POLICY  0x30000
 
 #define SEV_INFO_BLOCK_GUID     "00f771de-1a7e-4fcb-890e-68c77e2fb44e"
 typedef struct __attribute__((__packed__)) SevInfoBlock {
@@ -299,6 +309,212 @@ sev_guest_set_sev_device(Object *obj, const char *value, Error **errp)
 }
 
 static void
+sev_guest_set_snp(Object *obj, bool value, Error **errp)
+{
+    SevGuestState *sev = SEV_GUEST(obj);
+
+    sev->snp = value;
+}
+
+static bool
+sev_guest_get_snp(Object *obj, Error **errp)
+{
+    SevGuestState *sev = SEV_GUEST(obj);
+
+    return sev->snp;
+}
+
+
+static char *
+sev_guest_get_launch_config_file(Object *obj, Error **errp)
+{
+    SevGuestState *s = SEV_GUEST(obj);
+
+    return g_strdup(s->launch_config_file);
+}
+
+static int
+config_read_uint64(GKeyFile *f, const char *key, uint64_t *value, Error **errp)
+{
+    g_autoptr(GError) error = NULL;
+    g_autofree gchar *str = NULL;
+    uint64_t res;
+
+    str = g_key_file_get_string(f, "SEV-SNP", key, &error);
+    if (!str) {
+        /* key not found */
+        return 0;
+    }
+
+    res = g_ascii_strtoull(str, NULL, 16);
+    if (res == G_MAXUINT64) {
+        error_setg(errp, "Failed to convert %s", str);
+        return 1;
+    }
+
+    *value = res;
+    return 0;
+}
+
+static int
+config_read_bool(GKeyFile *f, const char *key, bool *value, Error **errp)
+{
+    g_autoptr(GError) error = NULL;
+    gboolean val;
+
+    val = g_key_file_get_boolean(f, "SEV-SNP", key, &error);
+    if (!val && g_error_matches(error, G_KEY_FILE_ERROR,
+                                 G_KEY_FILE_ERROR_INVALID_VALUE)) {
+        error_setg(errp, "%s", error->message);
+        return 1;
+    }
+
+    *value = val;
+    return 0;
+}
+
+static int
+config_read_blob(GKeyFile *f, const char *key, uint8_t *blob, uint32_t len,
+                 Error **errp)
+{
+    g_autoptr(GError) error = NULL;
+    g_autofree guchar *data = NULL;
+    g_autofree gchar *base64 = NULL;
+    gsize size;
+
+    base64 = g_key_file_get_string(f, "SEV-SNP", key, &error);
+    if (!base64) {
+        /* key not found */
+        return 0;
+    }
+
+    /* lets decode the value string */
+    data = g_base64_decode(base64, &size);
+    if (!data) {
+        error_setg(errp, "failed to decode '%s'", key);
+        return 1;
+    }
+
+    /* verify the length */
+    if (len != size) {
+        error_setg(errp, "invalid length for key '%s' (expected %d got %ld)",
+                   key, len, size);
+        return 1;
+    }
+
+    memcpy(blob, data, size);
+    return 0;
+}
+
+static int
+snp_parse_launch_config(SevGuestState *sev, const char *file, Error **errp)
+{
+    g_autoptr(GError) error = NULL;
+    g_autoptr(GKeyFile) key_file = g_key_file_new();
+    struct kvm_sev_snp_launch_start *start = &sev->snp_config.start;
+    struct kvm_snp_init *init = &sev->snp_config.init;
+    struct kvm_sev_snp_launch_finish *finish = &sev->snp_config.finish;
+    uint8_t *id_block = NULL, *id_auth = NULL;
+
+    if (!g_key_file_load_from_file(key_file, file, G_KEY_FILE_NONE, &error)) {
+        error_setg(errp, "Error loading config file: %s", error->message);
+        return 1;
+    }
+
+    /* Check the group first */
+    if (!g_key_file_has_group(key_file, "SEV-SNP")) {
+        error_setg(errp, "Error parsing config file, group SEV-SNP not found");
+        return 1;
+    }
+
+    /* Get the init_flags used in KVM_SNP_INIT */
+    if (config_read_uint64(key_file, "init_flags",
+                           (uint64_t *)&init->flags, errp)) {
+        goto err;
+    }
+
+    /* Get the policy used in LAUNCH_START */
+    if (config_read_uint64(key_file, "policy",
+                           (uint64_t *)&start->policy, errp)) {
+        goto err;
+    }
+
+    /* Get IMI_EN used in LAUNCH_START */
+    if (config_read_bool(key_file, "imi_en", (bool *)&start->imi_en, errp)) {
+        goto err;
+    }
+
+    /* Get MA_EN used in LAUNCH_START */
+    if (config_read_bool(key_file, "imi_en", (bool *)&start->ma_en, errp)) {
+        goto err;
+    }
+
+    /* Get GOSVW used in LAUNCH_START */
+    if (config_read_blob(key_file, "gosvw", (uint8_t *)&start->gosvw,
+                         sizeof(start->gosvw), errp)) {
+        goto err;
+    }
+
+    /* Get ID block used in LAUNCH_FINISH */
+    if (g_key_file_has_key(key_file, "SEV-SNP", "id_block", &error)) {
+
+        id_block = g_malloc(KVM_SEV_SNP_ID_BLOCK_SIZE);
+
+        if (config_read_blob(key_file, "id_block", id_block,
+                             KVM_SEV_SNP_ID_BLOCK_SIZE, errp)) {
+            goto err;
+        }
+
+        finish->id_block_uaddr = (unsigned long)id_block;
+        finish->id_block_en = 1;
+    }
+
+    /* Get authentication block used in LAUNCH_FINISH */
+    if (g_key_file_has_key(key_file, "SEV-SNP", "id_auth", &error)) {
+
+        id_auth = g_malloc(KVM_SEV_SNP_ID_AUTH_SIZE);
+
+        if (config_read_blob(key_file, "auth_block", id_auth,
+                             KVM_SEV_SNP_ID_AUTH_SIZE, errp)) {
+            goto err;
+        }
+
+        finish->id_auth_uaddr = (unsigned long)id_auth;
+
+        /* Get AUTH_KEY_EN used in LAUNCH_FINISH */
+        if (config_read_bool(key_file, "auth_key_en",
+                             (bool *)&finish->auth_key_en, errp)) {
+            goto err;
+        }
+    }
+
+    /* Get host_data used in LAUNCH_FINISH */
+    if (config_read_blob(key_file, "host_data", (uint8_t *)&finish->host_data,
+                         sizeof(finish->host_data), errp)) {
+        goto err;
+    }
+
+    return 0;
+
+err:
+    g_free(id_block);
+    g_free(id_auth);
+    return 1;
+}
+
+static void
+sev_guest_set_launch_config_file(Object *obj, const char *value, Error **errp)
+{
+    SevGuestState *s = SEV_GUEST(obj);
+
+    if (snp_parse_launch_config(s, value, errp)) {
+        return;
+    }
+
+    s->launch_config_file = g_strdup(value);
+}
+
+static void
 sev_guest_class_init(ObjectClass *oc, void *data)
 {
     object_class_property_add_str(oc, "sev-device",
@@ -316,6 +532,16 @@ sev_guest_class_init(ObjectClass *oc, void *data)
                                   sev_guest_set_session_file);
     object_class_property_set_description(oc, "session-file",
             "guest owners session parameters (encoded with base64)");
+    object_class_property_add_bool(oc, "snp",
+                                   sev_guest_get_snp,
+                                   sev_guest_set_snp);
+    object_class_property_set_description(oc, "snp",
+            "enable SEV-SNP support");
+    object_class_property_add_str(oc, "launch-config",
+                                  sev_guest_get_launch_config_file,
+                                  sev_guest_set_launch_config_file);
+    object_class_property_set_description(oc, "launch-config",
+            "the file provides the SEV-SNP guest launch parameters");
 }
 
 static void
@@ -325,6 +551,7 @@ sev_guest_instance_init(Object *obj)
 
     sev->sev_device = g_strdup(DEFAULT_SEV_DEVICE);
     sev->policy = DEFAULT_GUEST_POLICY;
+    sev->snp_config.start.policy = DEFAULT_SEV_SNP_POLICY;
     object_property_add_uint32_ptr(obj, "policy", &sev->policy,
                                    OBJ_PROP_FLAG_READWRITE);
     object_property_add_uint32_ptr(obj, "handle", &sev->handle,

@@ -749,6 +749,10 @@
 # @reduced-phys-bits: number of bits in physical addresses that become
 #                     unavailable when SEV is enabled
 #
+# @snp: SEV-SNP is enabled (default: 0)
+#
+# @launch-config: launch config file to use
+#
 # Since: 2.12
 ##
 { 'struct': 'SevGuestProperties',
@@ -758,6 +762,8 @@
             '*policy': 'uint32',
             '*handle': 'uint32',
             '*cbitpos': 'uint32',
+            '*snp': 'bool',
+            '*launch-config': 'str',
             'reduced-phys-bits': 'uint32' } }
 
 ##
