@@ -1,0 +1,5 @@
+{
+  "description": "QEMU vhost-user-rng",
+  "type": "bridge",
+  "binary": "@libexecdir@/vhost-user-rng"
+}
