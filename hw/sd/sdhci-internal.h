@@ -316,16 +316,16 @@ extern const VMStateDescription sdhci_vmstate;
  * - 3.3v and 1.8v voltages
  * - SDMA/ADMA1/ADMA2
  * - high-speed
+ * - 64-bit system bus
  * max host controller R/W buffers size: 512B
  * max clock frequency for SDclock: 52 MHz
  * timeout clock frequency: 52 MHz
  *
  * does not support:
  * - 3.0v voltage
- * - 64-bit system bus
  * - suspend/resume
  */
-#define SDHC_CAPAB_REG_DEFAULT 0x057834b4
+#define SDHC_CAPAB_REG_DEFAULT 0x157834b4
 
 #define DEFINE_SDHCI_COMMON_PROPERTIES(_state) \
     DEFINE_PROP_UINT8("sd-spec-version", _state, sd_spec_version, 2), \
