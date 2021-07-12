@@ -1011,7 +1011,9 @@ void hmp_info_msix(Monitor *mon, const QDict *qdict)
 {
     const char *name = qdict_get_str(qdict, "dev");
     DeviceState *dev = find_device_state(name, NULL);
+    bool info = qdict_get_try_bool(qdict, "info", false);
     PCIDevice *pci_dev;
+    PCIDeviceClass *pc;
     Error *err = NULL;
 
     if (!dev) {
@@ -1026,6 +1028,15 @@ void hmp_info_msix(Monitor *mon, const QDict *qdict)
 
     pci_dev = PCI_DEVICE(dev);
     msix_dump_info(mon, pci_dev, &err);
+
+    if (info) {
+        pc = PCI_DEVICE_GET_CLASS(pci_dev);
+        if (pc->msix_info) {
+            pc->msix_info(mon, pci_dev, &err);
+        } else {
+            error_setg(&err, "Device specific info not supported");
+        }
+    }
 
 exit:
     hmp_handle_error(mon, err);

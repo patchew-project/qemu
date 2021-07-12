@@ -129,6 +129,8 @@ typedef void PCIMapIORegionFunc(PCIDevice *pci_dev, int region_num,
                                 pcibus_t addr, pcibus_t size, int type);
 typedef void PCIUnregisterFunc(PCIDevice *pci_dev);
 
+typedef void PCIMSIXInfoFunc(Monitor *mon, PCIDevice *dev, Error **errp);
+
 typedef struct PCIIORegion {
     pcibus_t addr; /* current PCI mapping address. -1 means not mapped */
 #define PCI_BAR_UNMAPPED (~(pcibus_t)0)
@@ -224,6 +226,7 @@ struct PCIDeviceClass {
     PCIUnregisterFunc *exit;
     PCIConfigReadFunc *config_read;
     PCIConfigWriteFunc *config_write;
+    PCIMSIXInfoFunc *msix_info;
 
     uint16_t vendor_id;
     uint16_t device_id;
