@@ -973,7 +973,6 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
 {
     int ret;
     g_autofree char *export_name = NULL;
-    g_autofree bool *bitmaps = NULL;
     NBDExportMetaContexts local_meta = {0};
     uint32_t nb_queries;
     size_t i;
@@ -1007,9 +1006,6 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
                             "export '%s' not present", sane_name);
     }
     meta->bitmaps = g_new0(bool, meta->exp->nr_export_bitmaps);
-    if (client->opt == NBD_OPT_LIST_META_CONTEXT) {
-        bitmaps = meta->bitmaps;
-    }
 
     ret = nbd_opt_read(client, &nb_queries, sizeof(nb_queries), false, errp);
     if (ret <= 0) {
