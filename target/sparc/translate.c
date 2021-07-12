@@ -5854,8 +5854,8 @@ static void sparc_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
     }
 }
 
-static bool sparc_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
-                                      const CPUBreakpoint *bp)
+static int sparc_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
+                                     int bp_flags)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
 
@@ -5865,9 +5865,8 @@ static bool sparc_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
     gen_helper_debug(cpu_env);
     tcg_gen_exit_tb(NULL, 0);
     dc->base.is_jmp = DISAS_NORETURN;
-    /* update pc_next so that the current instruction is included in tb->size */
-    dc->base.pc_next += 4;
-    return true;
+
+    return 4; /* minimum instruction length */
 }
 
 static void sparc_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
