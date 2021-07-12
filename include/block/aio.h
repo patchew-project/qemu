@@ -54,7 +54,7 @@ typedef void IOHandler(void *opaque);
 struct Coroutine;
 struct ThreadPool;
 struct LinuxAioState;
-struct LuringState;
+typedef struct LuringState LuringState;
 
 /* Is polling disabled? */
 bool aio_poll_disabled(AioContext *ctx);
@@ -209,7 +209,7 @@ struct AioContext {
      * State for Linux io_uring.  Uses aio_context_acquire/release for
      * locking.
      */
-    struct LuringState *linux_io_uring;
+    LuringState *linux_io_uring;
 
     /* State for file descriptor monitoring using Linux io_uring */
     struct io_uring fdmon_io_uring;
@@ -513,10 +513,10 @@ struct LinuxAioState *aio_setup_linux_aio(AioContext *ctx, Error **errp);
 struct LinuxAioState *aio_get_linux_aio(AioContext *ctx);
 
 /* Setup the LuringState bound to this AioContext */
-struct LuringState *aio_setup_linux_io_uring(AioContext *ctx, Error **errp);
+LuringState *aio_setup_linux_io_uring(AioContext *ctx, Error **errp);
 
 /* Return the LuringState bound to this AioContext */
-struct LuringState *aio_get_linux_io_uring(AioContext *ctx);
+LuringState *aio_get_linux_io_uring(AioContext *ctx);
 /**
  * aio_timer_new_with_attrs:
  * @ctx: the aio context
