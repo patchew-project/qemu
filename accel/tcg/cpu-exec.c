@@ -780,7 +780,6 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
 
 int cpu_exec(CPUState *cpu)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
     int ret;
     SyncClocks sc = { 0 };
 
@@ -819,14 +818,12 @@ int cpu_exec(CPUState *cpu)
          * so we only perform the workaround for clang.
          */
         cpu = current_cpu;
-        cc = CPU_GET_CLASS(cpu);
 #else
         /*
          * Non-buggy compilers preserve these locals; assert that
          * they have the correct value.
          */
         g_assert(cpu == current_cpu);
-        g_assert(cc == CPU_GET_CLASS(cpu));
 #endif
 
 #ifndef CONFIG_SOFTMMU
