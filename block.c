@@ -6846,6 +6846,7 @@ void bdrv_set_aio_context_ignore(BlockDriverState *bs,
     GSList *parents_to_process = NULL;
     GSList *entry;
     BdrvChild *child, *parent;
+    int drained_end_counter = 0;
 
     g_assert(qemu_get_current_aio_context() == qemu_get_aio_context());
 
@@ -6907,7 +6908,7 @@ void bdrv_set_aio_context_ignore(BlockDriverState *bs,
         aio_context_release(old_context);
     }
 
-    bdrv_drained_end(bs);
+    bdrv_drained_end_no_poll(bs, &drained_end_counter);
 
     if (qemu_get_aio_context() != old_context) {
         aio_context_acquire(old_context);
@@ -6915,6 +6916,7 @@ void bdrv_set_aio_context_ignore(BlockDriverState *bs,
     if (qemu_get_aio_context() != new_context) {
         aio_context_release(new_context);
     }
+    BDRV_POLL_WHILE(bs, qatomic_read(&drained_end_counter) > 0);
 }
 
 static bool bdrv_parent_can_set_aio_context(BdrvChild *c, AioContext *ctx,
