@@ -31,6 +31,9 @@
 #include "sysemu/runstate.h"
 #include "standard-headers/linux/virtio_ids.h"
 #include CONFIG_DEVICES
+#include "monitor/hmp.h"
+#include "monitor/monitor.h"
+#include "qapi/qmp/qdict.h"
 
 static QTAILQ_HEAD(, VirtIODevice) virtio_list;
 
@@ -3919,6 +3922,32 @@ VirtioInfoList *qmp_x_debug_query_virtio(Error **errp)
     return list;
 }
 
+void hmp_virtio_query(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    VirtioInfoList *list = qmp_x_debug_query_virtio(&err);
+    VirtioInfoList *node;
+
+    if (err != NULL) {
+        hmp_handle_error(mon, err);
+        return;
+    }
+
+    if (list == NULL) {
+        monitor_printf(mon, "No VirtIO devices\n");
+        return;
+    }
+
+    node = list;
+    while (node) {
+        monitor_printf(mon, "%s [%s]\n", node->value->path,
+                       VirtioType_str(node->value->type));
+        node = node->next;
+    }
+
+    qapi_free_VirtioInfoList(list);
+}
+
 static VirtIODevice *virtio_device_find(const char *path)
 {
     VirtIODevice *vdev;
@@ -3972,8 +4001,48 @@ VirtQueueStatus *qmp_x_debug_virtio_queue_status(const char *path,
     return status;
 }
 
+void hmp_virtio_queue_status(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    const char *path = qdict_get_try_str(qdict, "path");
+    int queue = qdict_get_int(qdict, "queue");
+    VirtQueueStatus *s = qmp_x_debug_virtio_queue_status(path, queue, &err);
+
+    if (err != NULL) {
+        hmp_handle_error(mon, err);
+        return;
+    }
+
+    monitor_printf(mon, "%s:\n", path);
+    monitor_printf(mon, "  device_type:          %s\n",
+                   VirtioType_str(s->device_type));
+    monitor_printf(mon, "  index:                %d\n", s->queue_index);
+    monitor_printf(mon, "  inuse:                %d\n", s->inuse);
+    monitor_printf(mon, "  last_avail_idx:       %d (%"PRId64" %% %"PRId64")\n",
+                   s->last_avail_idx, s->last_avail_idx % s->vring_num,
+                   s->vring_num);
+    monitor_printf(mon, "  shadow_avail_idx:     %d (%"PRId64" %% %"PRId64")\n",
+                   s->shadow_avail_idx, s->shadow_avail_idx % s->vring_num,
+                   s->vring_num);
+    monitor_printf(mon, "  used_idx:             %d (%"PRId64" %% %"PRId64")\n",
+                   s->used_idx, s->used_idx % s->vring_num, s->vring_num);
+    monitor_printf(mon, "  signalled_used:       %d (%"PRId64" %% %"PRId64")\n",
+                   s->signalled_used, s->signalled_used % s->vring_num,
+                   s->vring_num);
+    monitor_printf(mon, "  signalled_used_valid: %d\n", s->signalled_used_valid);
+    monitor_printf(mon, "  VRing:\n");
+    monitor_printf(mon, "    num:         %"PRId64"\n", s->vring_num);
+    monitor_printf(mon, "    num_default: %"PRId64"\n", s->vring_num_default);
+    monitor_printf(mon, "    align:       %"PRId64"\n", s->vring_align);
+    monitor_printf(mon, "    desc:        0x%016"PRIx64"\n", s->vring_desc);
+    monitor_printf(mon, "    avail:       0x%016"PRIx64"\n", s->vring_avail);
+    monitor_printf(mon, "    used:        0x%016"PRIx64"\n", s->vring_used);
+
+    qapi_free_VirtQueueStatus(s);
+}
+
 #define CONVERT_FEATURES(type, map)                \
-    ({                                           \
+    ({                                             \
         type *list = NULL;                         \
         type *node;                                \
         for (i = 0; map[i].virtio_bit != -1; i++) {\
@@ -4104,6 +4173,93 @@ VirtioStatus *qmp_x_debug_virtio_status(const char* path, Error **errp)
     status->num_vqs = virtio_get_num_queues(vdev);
 
     return status;
+}
+
+#define DUMP_FEATURES(type, field)                                         \
+    do {                                                                   \
+        type##FeatureList * list = features->u.field.features;              \
+        if (list) {                                                        \
+            monitor_printf(mon, "                    ");                   \
+            while (list) {                                                 \
+                monitor_printf(mon, "%s", type##Feature_str(list->value)); \
+                list = list->next;                                         \
+                if (list != NULL) {                                        \
+                    monitor_printf(mon, ", ");                             \
+                }                                                          \
+            }                                                              \
+            monitor_printf(mon, "\n");                                     \
+        }                                                                  \
+    } while (0)
+
+static void hmp_virtio_dump_features(Monitor *mon,
+                                     VirtioDeviceFeatures *features)
+{
+    VirtioTransportFeatureList *transport_list = features->transport;
+    while (transport_list) {
+        monitor_printf(mon, "%s",
+                       VirtioTransportFeature_str(transport_list->value));
+        transport_list = transport_list->next;
+        if (transport_list != NULL) {
+            monitor_printf(mon, ", ");
+        }
+    }
+    monitor_printf(mon, "\n");
+    switch (features->type) {
+    case VIRTIO_TYPE_VIRTIO_SERIAL:
+        DUMP_FEATURES(VirtioSerial, virtio_serial);
+        break;
+    case VIRTIO_TYPE_VIRTIO_BLK:
+        DUMP_FEATURES(VirtioBlk, virtio_blk);
+        break;
+    case VIRTIO_TYPE_VIRTIO_GPU:
+        DUMP_FEATURES(VirtioGpu, virtio_gpu);
+        break;
+    case VIRTIO_TYPE_VIRTIO_NET:
+        DUMP_FEATURES(VirtioNet, virtio_net);
+        break;
+    case VIRTIO_TYPE_VIRTIO_SCSI:
+        DUMP_FEATURES(VirtioScsi, virtio_scsi);
+        break;
+    case VIRTIO_TYPE_VIRTIO_BALLOON:
+        DUMP_FEATURES(VirtioBalloon, virtio_balloon);
+        break;
+    case VIRTIO_TYPE_VIRTIO_IOMMU:
+        DUMP_FEATURES(VirtioIommu, virtio_iommu);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    if (features->has_unknown_features) {
+        monitor_printf(mon, "                    "
+                            "unknown-features(0x%016"PRIx64")\n",
+                       features->unknown_features);
+    }
+}
+
+void hmp_virtio_status(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    const char *path = qdict_get_try_str(qdict, "path");
+    VirtioStatus *s = qmp_x_debug_virtio_status(path, &err);
+
+    if (err != NULL) {
+        hmp_handle_error(mon, err);
+        return;
+    }
+
+    monitor_printf(mon, "%s:\n", path);
+    monitor_printf(mon, "  Device Id:        %"PRId64"\n", s->device_id);
+    monitor_printf(mon, "  Guest features:   ");
+    hmp_virtio_dump_features(mon, s->guest_features);
+    monitor_printf(mon, "  Host features:    ");
+    hmp_virtio_dump_features(mon, s->host_features);
+    monitor_printf(mon, "  Backend features: ");
+    hmp_virtio_dump_features(mon, s->backend_features);
+    monitor_printf(mon, "  Endianness:       %s\n",
+                   VirtioStatusEndianness_str(s->device_endian));
+    monitor_printf(mon, "  VirtQueues:       %d\n", s->num_vqs);
+
+    qapi_free_VirtioStatus(s);
 }
 
 static VirtioRingDescFlagsList *qmp_decode_vring_desc_flags(uint16_t flags)
@@ -4239,6 +4395,52 @@ done:
     }
 
     return element;
+}
+
+void hmp_virtio_queue_element(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    const char *path = qdict_get_try_str(qdict, "path");
+    int queue = qdict_get_int(qdict, "queue");
+    int index = qdict_get_try_int(qdict, "index", -1);
+    VirtioQueueElement *element;
+    VirtioRingDescList *list;
+
+    element = qmp_x_debug_virtio_queue_element(path, queue, index != -1,
+                                               index, &err);
+    if (err != NULL) {
+        hmp_handle_error(mon, err);
+        return;
+    }
+
+    monitor_printf(mon, "index:  %d\n", element->index);
+    monitor_printf(mon, "ndescs: %d\n", element->ndescs);
+    monitor_printf(mon, "descs:  ");
+
+    list = element->descs;
+    while (list) {
+        monitor_printf(mon, "addr 0x%"PRIx64" len %d", list->value->addr,
+                       list->value->len);
+        if (list->value->flags) {
+            VirtioRingDescFlagsList *flag = list->value->flags;
+            monitor_printf(mon, " (");
+            while (flag) {
+                monitor_printf(mon, "%s", VirtioRingDescFlags_str(flag->value));
+                flag = flag->next;
+                if (flag) {
+                    monitor_printf(mon, ", ");
+                }
+            }
+            monitor_printf(mon, ")");
+        }
+        list = list->next;
+        if (list) {
+            monitor_printf(mon, ", ");
+        }
+    }
+    monitor_printf(mon, "\n");
+
+    qapi_free_VirtioQueueElement(element);
 }
 
 static const TypeInfo virtio_device_info = {

@@ -1973,6 +1973,7 @@ if have_system
   hx_headers += [
     ['hmp-commands.hx', 'hmp-commands.h'],
     ['hmp-commands-info.hx', 'hmp-commands-info.h'],
+    ['hmp-commands-virtio.hx', 'hmp-commands-virtio.h'],
   ]
 endif
 foreach d : hx_headers
