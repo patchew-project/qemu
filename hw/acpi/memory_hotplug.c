@@ -8,6 +8,7 @@
 #include "qapi/error.h"
 #include "qapi/qapi-events-acpi.h"
 #include "qapi/qapi-events-machine.h"
+#include "qapi/qapi-events-qdev.h"
 
 #define MEMORY_SLOTS_NUMBER          "MDNR"
 #define MEMORY_HOTPLUG_IO_REGION     "HPMR"
@@ -181,9 +182,18 @@ static void acpi_memory_hotplug_write(void *opaque, hwaddr addr, uint64_t data,
 
                 trace_mhp_acpi_pc_dimm_delete_failed(mem_st->selector);
 
+                /*
+                 * Send both MEM_UNPLUG_ERROR and DEVICE_UNPLUG_ERROR
+                 * while the deprecation of MEM_UNPLUG_ERROR is
+                 * pending.
+                 */
                 if (dev->id) {
                     qapi_event_send_mem_unplug_error(dev->id, error_pretty);
                 }
+
+                qapi_event_send_device_unplug_error(!!dev->id, dev->id,
+                                                    dev->canonical_path,
+                                                    true, error_pretty);
 
                 error_free(local_err);
                 break;
