@@ -261,6 +261,13 @@ static coroutine_fn int replication_co_writev(BlockDriverState *bs,
     int64_t n;
 
     assert(!flags);
+    assert(top->perm & BLK_PERM_WRITE);
+    if (s->mode == REPLICATION_MODE_SECONDARY &&
+        s->stage != BLOCK_REPLICATION_NONE &&
+        s->stage != BLOCK_REPLICATION_DONE) {
+        assert(base->perm & BLK_PERM_WRITE);
+    }
+
     ret = replication_get_io_status(s);
     if (ret < 0) {
         goto out;
@@ -317,6 +324,9 @@ static void secondary_do_checkpoint(BlockDriverState *bs, Error **errp)
     BdrvChild *active_disk = bs->file;
     Error *local_err = NULL;
     int ret;
+
+    assert(active_disk->perm & BLK_PERM_WRITE);
+    assert(s->hidden_disk->perm & BLK_PERM_WRITE);
 
     if (!s->backup_job) {
         error_setg(errp, "Backup job was cancelled unexpectedly");
