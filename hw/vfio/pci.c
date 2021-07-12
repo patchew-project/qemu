@@ -1499,6 +1499,14 @@ static void vfio_msix_early_setup(VFIOPCIDevice *vdev, Error **errp)
         if (vdev->vendor_id == PCI_VENDOR_ID_CHELSIO &&
             (vdev->device_id & 0xff00) == 0x5800) {
             msix->pba_offset = 0x1000;
+        /*
+         * BAIDU KUNLUN Virtual Function devices are encoded as 0x3685 for
+         * KUNLUN AI processor. The KUNLUN hardware returns an incorrect
+         * value for the VF PBA offset. The correct value is 0xb400.
+         */
+        } else if (vdev->vendor_id == PCI_VENDOR_ID_BAIDU &&
+                   vdev->device_id == PCI_DEVICE_ID_KUNLUN_VF) {
+            msix->pba_offset = 0xb400;
         } else if (vdev->msix_relo == OFF_AUTOPCIBAR_OFF) {
             error_setg(errp, "hardware reports invalid configuration, "
                        "MSIX PBA outside of specified BAR");
