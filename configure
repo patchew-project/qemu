@@ -3927,6 +3927,22 @@ if compile_prog "" "" ; then
   atomic64=yes
 fi
 
+# Test for clang atomic misalignment warning vs ABI structure misalignment.
+# E.g. i386 only aligns structures to 4 bytes by default.
+if test "$atomic64" = "yes" ; then
+cat > $TMPC << EOF
+#include <stdint.h>
+struct X { uint64_t x; };
+uint64_t foo(struct X *p) { return __atomic_exchange_n(&p->x, 0, 0); }
+EOF
+  if ! compile_prog "-Werror" "" ; then
+    if cc_has_warning_flag "-Wno-atomic-alignment" ; then
+      glib_cflags="-Wno-atomic-alignment $glib_cflags"
+      CONFIGURE_CFLAGS="$CONFIGURE_CFLAGS -Wno-atomic-alignment"
+    fi
+  fi
+fi
+
 #########################################
 # See if --dynamic-list is supported by the linker
 ld_dynamic_list="no"
