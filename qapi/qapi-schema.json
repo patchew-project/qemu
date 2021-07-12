@@ -91,5 +91,6 @@
 { 'include': 'misc.json' }
 { 'include': 'misc-target.json' }
 { 'include': 'audio.json' }
+{ 'include': 'virtio.json' }
 { 'include': 'acpi.json' }
 { 'include': 'pci.json' }
