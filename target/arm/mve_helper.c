@@ -1579,9 +1579,8 @@ static inline int64_t do_sqrshl48_d(int64_t src, int64_t shift,
         }
         return src >> -shift;
     } else if (shift < 48) {
-        int64_t val = src << shift;
-        int64_t extval = sextract64(val, 0, 48);
-        if (!sat || val == extval) {
+        int64_t extval = sextract64(src << shift, 0, 48);
+        if (!sat || src == (extval >> shift)) {
             return extval;
         }
     } else if (!sat || src == 0) {
@@ -1589,7 +1588,7 @@ static inline int64_t do_sqrshl48_d(int64_t src, int64_t shift,
     }
 
     *sat = 1;
-    return (1ULL << 47) - (src >= 0);
+    return sextract64((1ULL << 47) - (src >= 0), 0, 48);
 }
 
 /* Operate on 64-bit values, but saturate at 48 bits */
@@ -1612,9 +1611,8 @@ static inline uint64_t do_uqrshl48_d(uint64_t src, int64_t shift,
             return extval;
         }
     } else if (shift < 48) {
-        uint64_t val = src << shift;
-        uint64_t extval = extract64(val, 0, 48);
-        if (!sat || val == extval) {
+        uint64_t extval = extract64(src << shift, 0, 48);
+        if (!sat || src == (extval >> shift)) {
             return extval;
         }
     } else if (!sat || src == 0) {
