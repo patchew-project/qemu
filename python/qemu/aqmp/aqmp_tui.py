@@ -12,6 +12,8 @@ import logging
 from logging import Handler
 import signal
 
+from pygments import lexers
+from pygments import token as Token
 import urwid
 import urwid_readline
 
@@ -33,6 +35,11 @@ palette = [
     (Token.Literal.Number.Integer, '', '', '', '#fa0', 'g7'),
     (Token.Literal.String.Double, '', '', '', '#6f6', 'g7'),
     (Token.Keyword.Constant, '', '', '', '#6af', 'g7'),
+    ('DEBUG', '', '', '', '#ddf', 'g7'),
+    ('INFO', '', '', '', 'g100', 'g7'),
+    ('WARNING', '', '', '', '#ff6', 'g7'),
+    ('ERROR', '', '', '', '#a00', 'g7'),
+    ('CRITICAL', '', '', '', '#a00', 'g7'),
     ('background', '', 'black', '', '', 'g7'),
 ]
 
@@ -133,7 +140,7 @@ class HistoryWindow(urwid.Frame):
         formatted = []
         if level:
             msg = f'[{level}]: {msg}'
-            formatted.append(msg)
+            formatted.append((level, msg))
         else:
             lexer = lexers.JsonLexer()  # pylint: disable=no-member
             for token in lexer.get_tokens(msg):
@@ -162,6 +169,7 @@ class App(QMP):
         self.address = address
         self.aloop = None
         self.loop = None
+        self.screen = urwid.raw_display.Screen()
         super().__init__()
 
     def add_to_history(self, msg, level=None):
@@ -249,8 +257,10 @@ class App(QMP):
             self.aloop.add_signal_handler(sig, self.kill_app)
 
         event_loop = urwid.AsyncioEventLoop(loop=self.aloop)
-        self.loop = urwid.MainLoop(self.window,
+        self.loop = urwid.MainLoop(urwid.AttrMap(self.window, 'background'),
                                    unhandled_input=self.unhandled_input,
+                                   screen=self.screen,
+                                   palette=palette,
                                    handle_mouse=True,
                                    event_loop=event_loop)
 
