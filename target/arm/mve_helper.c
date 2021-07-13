@@ -1276,19 +1276,23 @@ DO_2SHIFT_S(vrshli_s, DO_VRSHLS)
                                 void *vm, uint32_t shift)               \
     {                                                                   \
         uint64_t *d = vd, *m = vm;                                      \
-        uint16_t mask;                                                  \
+        uint16_t mask = mve_element_mask(env);                          \
         uint64_t shiftmask;                                             \
         unsigned e;                                                     \
         if (shift == 0 || shift == ESIZE * 8) {                         \
             /*                                                          \
              * Only VSLI can shift by 0; only VSRI can shift by <dt>.   \
              * The generic logic would give the right answer for 0 but  \
-             * fails for <dt>.                                          \
+             * fails for <dt>. In both cases, we must not shift the     \
+             * input but just copy it to the destination, honouring     \
+             * the predicate mask.                                      \
              */                                                         \
+            for (e = 0; e < 16 / 8; e++, mask >>= 8) {                  \
+                mergemask(&d[H8(e)], m[H8(e)], mask);                   \
+            }                                                           \
             goto done;                                                  \
         }                                                               \
         assert(shift < ESIZE * 8);                                      \
-        mask = mve_element_mask(env);                                   \
         /* ESIZE / 2 gives the MO_* value if ESIZE is in [1,2,4] */     \
         shiftmask = dup_const(ESIZE / 2, MASKFN(ESIZE * 8, shift));     \
         for (e = 0; e < 16 / 8; e++, mask >>= 8) {                      \
