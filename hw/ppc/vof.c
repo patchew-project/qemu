@@ -517,7 +517,7 @@ static uint32_t vof_instance_to_package(Vof *vof, uint32_t ihandle)
 static uint32_t vof_package_to_path(const void *fdt, uint32_t phandle,
                                     uint32_t buf, uint32_t len)
 {
-    uint32_t ret = -1;
+    int ret = -1;
     char tmp[VOF_MAX_PATH] = "";
 
     ret = phandle_to_path(fdt, phandle, tmp, sizeof(tmp));
@@ -529,13 +529,13 @@ static uint32_t vof_package_to_path(const void *fdt, uint32_t phandle,
 
     trace_vof_package_to_path(phandle, tmp, ret);
 
-    return ret;
+    return (uint32_t) ret;
 }
 
 static uint32_t vof_instance_to_path(void *fdt, Vof *vof, uint32_t ihandle,
                                      uint32_t buf, uint32_t len)
 {
-    uint32_t ret = -1;
+    int ret = -1;
     uint32_t phandle = vof_instance_to_package(vof, ihandle);
     char tmp[VOF_MAX_PATH] = "";
 
@@ -549,7 +549,7 @@ static uint32_t vof_instance_to_path(void *fdt, Vof *vof, uint32_t ihandle,
     }
     trace_vof_instance_to_path(ihandle, phandle, tmp, ret);
 
-    return ret;
+    return (uint32_t) ret;
 }
 
 static uint32_t vof_write(Vof *vof, uint32_t ihandle, uint32_t buf,
@@ -965,11 +965,15 @@ int vof_client_call(MachineState *ms, Vof *vof, void *fdt,
     }
 
     nret = be32_to_cpu(args_be.nret);
+    if (nret > ARRAY_SIZE(args_be.args) - nargs) {
+        return -EINVAL;
+    }
     ret = vof_client_handle(ms, fdt, vof, service, args, nargs, rets, nret);
     if (!nret) {
         return 0;
     }
 
+    /* @nrets includes the value which this function returns */
     args_be.args[nargs] = cpu_to_be32(ret);
     for (i = 1; i < nret; ++i) {
         args_be.args[nargs + i] = cpu_to_be32(rets[i - 1]);
