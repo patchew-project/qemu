@@ -624,6 +624,10 @@ DO_2OP_SCALAR(VMLA_S, vmlas)
 DO_2OP_SCALAR(VMLA_U, vmlau)
 DO_2OP_SCALAR(VMLAS_S, vmlass)
 DO_2OP_SCALAR(VMLAS_U, vmlasu)
+DO_2OP_SCALAR(VQDMLAH, vqdmlah)
+DO_2OP_SCALAR(VQRDMLAH, vqrdmlah)
+DO_2OP_SCALAR(VQDMLASH, vqdmlash)
+DO_2OP_SCALAR(VQRDMLASH, vqrdmlash)
 
 static bool trans_VQDMULLB_scalar(DisasContext *s, arg_2scalar *a)
 {
