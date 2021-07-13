@@ -140,22 +140,27 @@ void HELPER(debug_check_store_width)(CPUHexagonState *env, int slot, int check)
 
 void HELPER(commit_store)(CPUHexagonState *env, int slot_num)
 {
-    switch (env->mem_log_stores[slot_num].width) {
+    uint8_t width = env->mem_log_stores[slot_num].width;
+    target_ulong va = env->mem_log_stores[slot_num].va;
+
+#ifdef CONFIG_USER_ONLY
+    g_assert(width == 1 || width == 2 || width == 4 || width == 8);
+    /* We perform this check elsewhere in system mode */
+    probe_write(env, va, width, MMU_USER_IDX, 0);
+#endif
+
+    switch (width) {
     case 1:
-        put_user_u8(env->mem_log_stores[slot_num].data32,
-                    env->mem_log_stores[slot_num].va);
+        put_user_u8(env->mem_log_stores[slot_num].data32, va);
         break;
     case 2:
-        put_user_u16(env->mem_log_stores[slot_num].data32,
-                     env->mem_log_stores[slot_num].va);
+        put_user_u16(env->mem_log_stores[slot_num].data32, va);
         break;
     case 4:
-        put_user_u32(env->mem_log_stores[slot_num].data32,
-                     env->mem_log_stores[slot_num].va);
+        put_user_u32(env->mem_log_stores[slot_num].data32, va);
         break;
     case 8:
-        put_user_u64(env->mem_log_stores[slot_num].data64,
-                     env->mem_log_stores[slot_num].va);
+        put_user_u64(env->mem_log_stores[slot_num].data64, va);
         break;
     default:
         g_assert_not_reached();
