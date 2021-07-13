@@ -760,6 +760,20 @@ in the current directory, tagged as "quick", run:
 
   avocado run -t quick .
 
+It is also possible to run tests based on tags using the
+``make check-acceptance`` command and the ``AVOCADO_TAGS`` environment
+variable:
+
+.. code::
+
+   AVOCADO_TAGS=quick make check-acceptance
+
+Note that tags separated with commas have an AND behavior, while tags
+separated by spaces have an OR behavior. For more information on Avocado
+tags, see:
+
+ https://avocado-framework.readthedocs.io/en/latest/guides/user/chapters/tags.html
+
 The ``avocado_qemu.Test`` base test class
 -----------------------------------------
 
