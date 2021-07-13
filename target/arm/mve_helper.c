@@ -100,9 +100,11 @@ static void mve_advance_vpt(CPUARMState *env)
     /* Advance the VPT and ECI state if necessary */
     uint32_t vpr = env->v7m.vpr;
     unsigned mask01, mask23;
+    int eci = ECI_NONE;
 
     if ((env->condexec_bits & 0xf) == 0) {
-        env->condexec_bits = (env->condexec_bits == (ECI_A0A1A2B0 << 4)) ?
+        eci = env->condexec_bits >> 4;
+        env->condexec_bits = (eci == ECI_A0A1A2B0) ?
             (ECI_A0 << 4) : (ECI_NONE << 4);
     }
 
@@ -111,17 +113,32 @@ static void mve_advance_vpt(CPUARMState *env)
         return;
     }
 
+    /* Invert P0 bits if needed, but only for beats we actually executed */
     mask01 = FIELD_EX32(vpr, V7M_VPR, MASK01);
     mask23 = FIELD_EX32(vpr, V7M_VPR, MASK23);
     if (mask01 > 8) {
-        /* high bit set, but not 0b1000: invert the relevant half of P0 */
-        vpr ^= 0xff;
+        if (eci == ECI_NONE) {
+            /* high bit set, but not 0b1000: invert the relevant half of P0 */
+            vpr ^= 0xff;
+        } else if (eci == ECI_A0) {
+            /* Invert only the beat 1 P0 bits, as we didn't execute beat 0 */
+            vpr ^= 0xf0;
+        } /* otherwise we didn't execute either beat 0 or beat 1 */
     }
     if (mask23 > 8) {
-        /* high bit set, but not 0b1000: invert the relevant half of P0 */
-        vpr ^= 0xff00;
+        if (eci != ECI_A0A1A2 && eci != ECI_A0A1A2B0) {
+            /* high bit set, but not 0b1000: invert the relevant half of P0 */
+            vpr ^= 0xff00;
+        } else {
+            /* We didn't execute beat 2, only invert the beat 3 P0 bits */
+            vpr ^= 0xf000;
+        }
     }
-    vpr = FIELD_DP32(vpr, V7M_VPR, MASK01, mask01 << 1);
+    /* Only update MASK01 if beat 1 executed */
+    if (eci == ECI_NONE || eci == ECI_A0) {
+        vpr = FIELD_DP32(vpr, V7M_VPR, MASK01, mask01 << 1);
+    }
+    /* Beat 3 always executes, so update MASK23 */
     vpr = FIELD_DP32(vpr, V7M_VPR, MASK23, mask23 << 1);
     env->v7m.vpr = vpr;
 }
