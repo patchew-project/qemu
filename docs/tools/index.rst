@@ -15,5 +15,6 @@ Contents:
    qemu-nbd
    qemu-pr-helper
    qemu-trace-stap
+   vhost-user-rng
    virtfs-proxy-helper
    virtiofsd
