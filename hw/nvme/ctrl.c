@@ -5938,7 +5938,6 @@ static uint64_t nvme_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
     NvmeCtrl *n = (NvmeCtrl *)opaque;
     uint8_t *ptr = (uint8_t *)&n->bar;
-    uint64_t val = 0;
 
     trace_pci_nvme_mmio_read(addr, size);
 
@@ -5964,14 +5963,15 @@ static uint64_t nvme_mmio_read(void *opaque, hwaddr addr, unsigned size)
             (NVME_PMRCAP_PMRWBM(n->bar.pmrcap) & 0x02)) {
             memory_region_msync(&n->pmr.dev->mr, 0, n->pmr.dev->size);
         }
-        memcpy(&val, ptr + addr, size);
-    } else {
-        NVME_GUEST_ERR(pci_nvme_ub_mmiord_invalid_ofs,
-                       "MMIO read beyond last register,"
-                       " offset=0x%"PRIx64", returning 0", addr);
+
+        return ldn_he_p(ptr + addr, size);
     }
 
-    return val;
+    NVME_GUEST_ERR(pci_nvme_ub_mmiord_invalid_ofs,
+                   "MMIO read beyond last register,"
+                   " offset=0x%"PRIx64", returning 0", addr);
+
+    return 0;
 }
 
 static void nvme_process_db(NvmeCtrl *n, hwaddr addr, int val)
