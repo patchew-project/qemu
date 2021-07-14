@@ -38,6 +38,7 @@
 #include "hw/virtio/virtio-bus.h"
 #include "qapi/visitor.h"
 #include "sysemu/replay.h"
+#include "monitor/monitor.h"
 
 #define VIRTIO_PCI_REGION_SIZE(dev)     VIRTIO_PCI_CONFIG_OFF(msix_present(dev))
 
@@ -1587,6 +1588,26 @@ static void virtio_pci_modern_io_region_unmap(VirtIOPCIProxy *proxy,
                                 &region->mr);
 }
 
+static void virtio_pci_dc_msix_info(Monitor *mon, PCIDevice *dev,
+                                    Error **errp)
+{
+    DeviceState *qdev = DEVICE(dev);
+    VirtIOPCIProxy *proxy = to_virtio_pci_proxy_fast(qdev);
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+    int num = virtio_get_num_queues(vdev);
+    int i;
+
+    monitor_printf(mon, "virtio pci vector info:\n");
+
+    monitor_printf(mon, "config: %d\n", virtio_get_config_vector(vdev));
+
+    for (i = 0; i < num; i++)
+        monitor_printf(mon, "queue %d: %u\n",
+                       i, virtio_get_vector(vdev, i));
+
+    monitor_printf(mon, "\n");
+}
+
 static void virtio_pci_pre_plugged(DeviceState *d, Error **errp)
 {
     VirtIOPCIProxy *proxy = VIRTIO_PCI(d);
@@ -2004,6 +2025,7 @@ static void virtio_pci_class_init(ObjectClass *klass, void *data)
     k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
     k->revision = VIRTIO_PCI_ABI_VERSION;
     k->class_id = PCI_CLASS_OTHERS;
+    k->msix_info = virtio_pci_dc_msix_info;
     device_class_set_parent_realize(dc, virtio_pci_dc_realize,
                                     &vpciklass->parent_dc_realize);
     dc->reset = virtio_pci_reset;

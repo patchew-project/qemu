@@ -268,6 +268,8 @@ int virtio_set_status(VirtIODevice *vdev, uint8_t val);
 void virtio_reset(void *opaque);
 void virtio_update_irq(VirtIODevice *vdev);
 int virtio_set_features(VirtIODevice *vdev, uint64_t val);
+uint16_t virtio_get_vector(VirtIODevice *vdev, int n);
+uint16_t virtio_get_config_vector(VirtIODevice *vdev);
 
 /* Base devices.  */
 typedef struct VirtIOBlkConf VirtIOBlkConf;
