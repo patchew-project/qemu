@@ -21,6 +21,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
+#include "hw/acpi/acpi-build-oem.h"
 #include "hw/acpi/ghes.h"
 #include "hw/acpi/aml-build.h"
 #include "qemu/error-report.h"
@@ -360,7 +361,7 @@ static void build_ghes_v2(GArray *table_data, int source_id, BIOSLinker *linker)
 
 /* Build Hardware Error Source Table */
 void acpi_build_hest(GArray *table_data, BIOSLinker *linker,
-                     const char *oem_id, const char *oem_table_id)
+                     AcpiBuildOem *bld_oem)
 {
     uint64_t hest_start = table_data->len;
 
@@ -373,7 +374,7 @@ void acpi_build_hest(GArray *table_data, BIOSLinker *linker,
     build_ghes_v2(table_data, ACPI_HEST_SRC_ID_SEA, linker);
 
     build_header(linker, table_data, (void *)(table_data->data + hest_start),
-                 "HEST", table_data->len - hest_start, 1, oem_id, oem_table_id);
+                 "HEST", table_data->len - hest_start, 1, bld_oem);
 }
 
 void acpi_ghes_add_fw_cfg(AcpiGhesState *ags, FWCfgState *s,

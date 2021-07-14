@@ -1205,7 +1205,7 @@ static char *x86_machine_get_oem_id(Object *obj, Error **errp)
 {
     X86MachineState *x86ms = X86_MACHINE(obj);
 
-    return g_strdup(x86ms->oem_id);
+    return g_strdup(x86ms->bld_oem.oem_id);
 }
 
 static void x86_machine_set_oem_id(Object *obj, const char *value, Error **errp)
@@ -1213,21 +1213,20 @@ static void x86_machine_set_oem_id(Object *obj, const char *value, Error **errp)
     X86MachineState *x86ms = X86_MACHINE(obj);
     size_t len = strlen(value);
 
-    if (len > 6) {
+    if (len > ACPI_BUILD_OEM_ID_SIZE) {
         error_setg(errp,
                    "User specified "X86_MACHINE_OEM_ID" value is bigger than "
                    "6 bytes in size");
         return;
     }
-
-    strncpy(x86ms->oem_id, value, 6);
+    ACPI_BUILD_OEM_SET_ID(&x86ms->bld_oem, value);
 }
 
 static char *x86_machine_get_oem_table_id(Object *obj, Error **errp)
 {
     X86MachineState *x86ms = X86_MACHINE(obj);
 
-    return g_strdup(x86ms->oem_table_id);
+    return g_strdup(x86ms->bld_oem.oem_table_id);
 }
 
 static void x86_machine_set_oem_table_id(Object *obj, const char *value,
@@ -1236,14 +1235,13 @@ static void x86_machine_set_oem_table_id(Object *obj, const char *value,
     X86MachineState *x86ms = X86_MACHINE(obj);
     size_t len = strlen(value);
 
-    if (len > 8) {
+    if (len > ACPI_BUILD_OEM_TABLE_ID_SIZE) {
         error_setg(errp,
                    "User specified "X86_MACHINE_OEM_TABLE_ID
-                   " value is bigger than "
-                   "8 bytes in size");
+                   " value is bigger than 8 bytes in size");
         return;
     }
-    strncpy(x86ms->oem_table_id, value, 8);
+    ACPI_BUILD_OEM_SET_TABLE_ID(&x86ms->bld_oem, value);
 }
 
 static void x86_machine_get_bus_lock_ratelimit(Object *obj, Visitor *v,
@@ -1270,9 +1268,8 @@ static void x86_machine_initfn(Object *obj)
     x86ms->smm = ON_OFF_AUTO_AUTO;
     x86ms->acpi = ON_OFF_AUTO_AUTO;
     x86ms->pci_irq_mask = ACPI_BUILD_PCI_IRQS;
-    x86ms->oem_id = g_strndup(ACPI_BUILD_APPNAME6, 6);
-    x86ms->oem_table_id = g_strndup(ACPI_BUILD_APPNAME8, 8);
     x86ms->bus_lock_ratelimit = 0;
+    ACPI_BUILD_OEM_INIT_DEFAULT(&x86ms->bld_oem);
 }
 
 static void x86_machine_class_init(ObjectClass *oc, void *data)

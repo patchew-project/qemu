@@ -9,6 +9,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/acpi/acpi-build-oem.h"
 #include "hw/acpi/ghes.h"
 
 int acpi_ghes_record_errors(uint8_t source_id, uint64_t physical_address)

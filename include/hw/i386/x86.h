@@ -27,6 +27,7 @@
 #include "hw/isa/isa.h"
 #include "hw/i386/ioapic.h"
 #include "qom/object.h"
+#include "hw/acpi/acpi-build-oem.h"
 
 struct X86MachineClass {
     /*< private >*/
@@ -66,8 +67,7 @@ struct X86MachineState {
     OnOffAuto smm;
     OnOffAuto acpi;
 
-    char *oem_id;
-    char *oem_table_id;
+    AcpiBuildOem bld_oem;
     /*
      * Address space used by IOAPIC device. All IOAPIC interrupts
      * will be translated to MSI messages in the address space.

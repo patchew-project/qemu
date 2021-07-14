@@ -24,11 +24,12 @@
 #include "sysemu/reset.h"
 
 void vmgenid_build_acpi(VmGenIdState *vms, GArray *table_data, GArray *guid,
-                        BIOSLinker *linker, const char *oem_id)
+                        BIOSLinker *linker, AcpiBuildOem *bld_oem)
 {
     Aml *ssdt, *dev, *scope, *method, *addr, *if_ctx;
     uint32_t vgia_offset;
     QemuUUID guid_le;
+    AcpiBuildOem tmp_bld_oem;
 
     /* Fill in the GUID values.  These need to be converted to little-endian
      * first, since that's what the guest expects
@@ -116,9 +117,10 @@ void vmgenid_build_acpi(VmGenIdState *vms, GArray *table_data, GArray *guid,
         ACPI_BUILD_TABLE_FILE, vgia_offset, sizeof(uint32_t),
         VMGENID_GUID_FW_CFG_FILE, 0);
 
+    ACPI_BUILD_OEM_INIT(&tmp_bld_oem, bld_oem->oem_id, "VMGENID");
     build_header(linker, table_data,
         (void *)(table_data->data + table_data->len - ssdt->buf->len),
-        "SSDT", ssdt->buf->len, 1, oem_id, "VMGENID");
+        "SSDT", ssdt->buf->len, 1, &tmp_bld_oem);
     free_aml_allocator();
 }
 
