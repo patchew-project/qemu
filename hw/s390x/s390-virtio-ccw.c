@@ -84,14 +84,37 @@ out:
 static void s390_init_cpus(MachineState *machine)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
-    int i;
+    const CPUArchId *slot;
+    int i, n = 1;
 
     /* initialize possible_cpus */
     mc->possible_cpu_arch_ids(machine);
 
     s390_topology_setup(machine);
-    for (i = 0; i < machine->smp.cpus; i++) {
+
+    /* Create CPU0 */
+    s390x_new_cpu(machine->cpu_type, 0, &error_fatal);
+
+    /* For NUMA configuration create defined nodes */
+    if (machine->numa_state->num_nodes) {
+        for (i = 1; i < machine->smp.max_cpus; i++) {
+            slot = &machine->possible_cpus->cpus[i];
+            if (slot->props.node_id) {
+                s390x_new_cpu(machine->cpu_type, i, &error_fatal);
+                n++;
+            }
+        }
+    }
+
+    /* create all remaining CPUs */
+    for (i = 1; n < machine->smp.cpus && i < machine->smp.max_cpus; i++) {
+        slot = &machine->possible_cpus->cpus[i];
+        /* For NUMA configuration skip defined nodes */
+        if (machine->numa_state->num_nodes && slot->props.node_id) {
+            continue;
+        }
         s390x_new_cpu(machine->cpu_type, i, &error_fatal);
+        n++;
     }
 }
 
@@ -530,6 +553,7 @@ static const CPUArchIdList *s390_possible_cpu_arch_ids(MachineState *ms)
 {
     int i;
     unsigned int max_cpus = ms->smp.max_cpus;
+    S390CcwMachineState *s390ms = S390_CCW_MACHINE(ms);
 
     if (ms->possible_cpus) {
         g_assert(ms->possible_cpus && ms->possible_cpus->len == max_cpus);
@@ -540,11 +564,20 @@ static const CPUArchIdList *s390_possible_cpu_arch_ids(MachineState *ms)
                                   sizeof(CPUArchId) * max_cpus);
     ms->possible_cpus->len = max_cpus;
     for (i = 0; i < ms->possible_cpus->len; i++) {
-        ms->possible_cpus->cpus[i].type = ms->cpu_type;
-        ms->possible_cpus->cpus[i].vcpus_count = 1;
-        ms->possible_cpus->cpus[i].arch_id = i;
-        ms->possible_cpus->cpus[i].props.has_core_id = true;
-        ms->possible_cpus->cpus[i].props.core_id = i;
+        CPUArchId *slot = &ms->possible_cpus->cpus[i];
+
+        slot->type = ms->cpu_type;
+        slot->vcpus_count = 1;
+        slot->arch_id = i;
+
+        slot->props.core_id = i;
+        slot->props.has_core_id = true;
+        slot->props.socket_id = i / ms->smp.cores;
+        slot->props.has_socket_id = true;
+        slot->props.book_id = slot->props.socket_id / ms->smp.sockets;
+        slot->props.has_book_id = true;
+        slot->props.drawer_id = slot->props.book_id / s390ms->books;
+        slot->props.has_drawer_id = true;
     }
 
     return ms->possible_cpus;
@@ -635,6 +668,11 @@ static void s390_smp_parse(MachineState *ms, QemuOpts *opts)
     s390ms->books = books;
 }
 
+static int64_t s390x_get_default_cpu_node_id(const MachineState *ms, int idx)
+{
+    return idx / ms->smp.cores;
+}
+
 static void ccw_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -666,6 +704,7 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     nc->nmi_monitor_handler = s390_nmi;
     mc->default_ram_id = "s390.ram";
     mc->smp_parse = s390_smp_parse;
+    mc->get_default_cpu_node_id = s390x_get_default_cpu_node_id;
 }
 
 static inline bool machine_get_aes_key_wrap(Object *obj, Error **errp)
