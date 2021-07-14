@@ -23,11 +23,6 @@ static GRand *rng;
 static int limit;
 static bool sys;
 
-static uint64_t dmem_accesses;
-static uint64_t dmisses;
-
-static uint64_t imem_accesses;
-static uint64_t imisses;
 
 enum EvictionPolicy {
     LRU,
@@ -90,13 +85,22 @@ typedef struct {
     uint64_t imisses;
 } InsnData;
 
+typedef struct {
+    uint64_t dmem_accesses;
+    uint64_t dmisses;
+    uint64_t imem_accesses;
+    uint64_t imisses;
+} CoreStats;
+
 void (*update_hit)(Cache *cache, int set, int blk);
 void (*update_miss)(Cache *cache, int set, int blk);
 
 void (*metadata_init)(Cache *cache);
 void (*metadata_destroy)(Cache *cache);
 
-Cache *dcache, *icache;
+static int cores;
+CoreStats *stats;
+Cache **dcaches, **icaches;
 
 static int pow_of_two(int num)
 {
@@ -233,10 +237,6 @@ static bool bad_cache_params(int blksize, int assoc, int cachesize)
 
 static Cache *cache_init(int blksize, int assoc, int cachesize)
 {
-    if (bad_cache_params(blksize, assoc, cachesize)) {
-        return NULL;
-    }
-
     Cache *cache;
     int i;
     uint64_t blk_mask;
@@ -261,6 +261,24 @@ static Cache *cache_init(int blksize, int assoc, int cachesize)
     }
 
     return cache;
+}
+
+static Cache **caches_init(int blksize, int assoc, int cachesize)
+{
+    Cache **caches;
+    int i;
+
+    if (bad_cache_params(blksize, assoc, cachesize)) {
+        return NULL;
+    }
+
+    caches = g_new(Cache *, cores);
+
+    for (i = 0; i < cores; i++) {
+        caches[i] = cache_init(blksize, assoc, cachesize);
+    }
+
+    return caches;
 }
 
 static int get_invalid_block(Cache *cache, uint64_t set)
@@ -353,6 +371,7 @@ static void vcpu_mem_access(unsigned int vcpu_index, qemu_plugin_meminfo_t info,
 {
     uint64_t effective_addr;
     struct qemu_plugin_hwaddr *hwaddr;
+    int cache_idx;
     InsnData *insn;
 
     hwaddr = qemu_plugin_get_hwaddr(info, vaddr);
@@ -363,17 +382,24 @@ static void vcpu_mem_access(unsigned int vcpu_index, qemu_plugin_meminfo_t info,
     effective_addr = hwaddr ? qemu_plugin_hwaddr_phys_addr(hwaddr) : vaddr;
 
     g_mutex_lock(&mtx);
-    if (dcache == NULL) {
+    cache_idx = vcpu_index % cores;
+    if (dcaches[cache_idx] == NULL) {
         g_mutex_unlock(&mtx);
         return;
     }
 
-    if (!access_cache(dcache, effective_addr)) {
+    if (!access_cache(dcaches[cache_idx], effective_addr)) {
         insn = (InsnData *) userdata;
         insn->dmisses++;
-        dmisses++;
+        if (cores > 1) {
+            stats[cores].dmisses++;
+        }
+        stats[cache_idx].dmisses++;
     }
-    dmem_accesses++;
+    if (cores > 1) {
+        stats[cores].dmem_accesses++;
+    }
+    stats[cache_idx].dmem_accesses++;
     g_mutex_unlock(&mtx);
 }
 
@@ -381,21 +407,29 @@ static void vcpu_insn_exec(unsigned int vcpu_index, void *userdata)
 {
     uint64_t insn_addr;
     InsnData *insn;
+    uint64_t cache_idx;
 
     g_mutex_lock(&mtx);
     insn_addr = ((InsnData *) userdata)->addr;
 
-    if (icache == NULL) {
+    cache_idx = vcpu_index % cores;
+    if (icaches[cache_idx] == NULL) {
         g_mutex_unlock(&mtx);
         return;
     }
 
-    if (!access_cache(icache, insn_addr)) {
+    if (!access_cache(icaches[cache_idx], insn_addr)) {
         insn = (InsnData *) userdata;
         insn->imisses++;
-        imisses++;
+        if (cores > 1) {
+            stats[cores].imisses++;
+        }
+        stats[cache_idx].imisses++;
     }
-    imem_accesses++;
+    if (cores > 1) {
+        stats[cores].imem_accesses++;
+    }
+    stats[cache_idx].imem_accesses++;
     g_mutex_unlock(&mtx);
 }
 
@@ -475,6 +509,22 @@ static void cache_free(Cache *cache)
     g_free(cache);
 }
 
+/*
+ * caches_free(): free an array of Cache structs.
+ * @caches: caches to free
+ *
+ * Calling cache_free for each cache in @caches, and then NULL-ify them so that
+ * we mark them as freed, other async callbacks can check to see whether a cache
+ * is freed already or not by checking against NULL.
+ */
+static void caches_free(Cache **caches)
+{
+    for (int i = 0; i < cores; i++) {
+        cache_free(caches[i]);
+        caches[i] = NULL;
+    }
+}
+
 static int dcmp(gconstpointer a, gconstpointer b)
 {
     InsnData *insn_a = (InsnData *) a;
@@ -493,19 +543,38 @@ static int icmp(gconstpointer a, gconstpointer b)
 
 static void log_stats()
 {
-    g_autoptr(GString) rep = g_string_new("");
-    g_string_append_printf(rep,
-        "Data accesses: %lu, Misses: %lu\nMiss rate: %lf%%\n\n",
-        dmem_accesses,
-        dmisses,
-        ((double) dmisses / (double) dmem_accesses) * 100.0);
+    int i, iters;
+    CoreStats cs;
+    double dmiss_rate, imiss_rate;
 
-    g_string_append_printf(rep,
-        "Instruction accesses: %lu, Misses: %lu\nMiss rate: %lf%%\n\n",
-        imem_accesses,
-        imisses,
-        ((double) imisses / (double) imem_accesses) * 100.0);
+    g_autoptr(GString) rep = g_string_new("core #, data accesses, data misses,"
+                                          " dmiss rate, insn accesses,"
+                                          " insn misses, imiss rate\n");
 
+    /* Only iterate and print a sum row if cores > 1 */
+    iters = cores == 1 ? 1 : cores + 1;
+    for (i = 0; i < iters; i++) {
+        cs = stats[i];
+        dmiss_rate = ((double) cs.dmisses) / (cs.dmem_accesses) * 100.0;
+        imiss_rate = ((double) cs.imisses) / (cs.imem_accesses) * 100.0;
+
+        if (i == cores) {
+            g_string_append_printf(rep, "%-8s", "sum");
+        } else {
+            g_string_append_printf(rep, "%-8d", i);
+        }
+
+        g_string_append_printf(rep, "%-14lu %-12lu %9.4lf%%  %-14lu %-12lu"
+                               " %9.4lf%%\n",
+                               cs.dmem_accesses,
+                               cs.dmisses,
+                               cs.dmem_accesses ? dmiss_rate : 0.0,
+                               cs.imem_accesses,
+                               cs.imisses,
+                               cs.imem_accesses ? imiss_rate : 0.0);
+    }
+
+    g_string_append(rep, "\n");
     qemu_plugin_outs(rep->str);
 }
 
@@ -553,14 +622,13 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
     log_stats();
     log_top_insns();
 
-    cache_free(dcache);
-    dcache = NULL;
-
-    cache_free(icache);
-    icache = NULL;
+    caches_free(dcaches);
+    caches_free(icaches);
 
     g_hash_table_destroy(miss_ht);
     miss_ht = NULL;
+
+    g_free(stats);
 
     g_mutex_unlock(&mtx);
 }
@@ -608,6 +676,8 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
 
     policy = LRU;
 
+    cores = sys ? qemu_plugin_n_vcpus() : 1;
+
     for (i = 0; i < argc; i++) {
         char *opt = argv[i];
         if (g_str_has_prefix(opt, "iblksize=")) {
@@ -624,6 +694,8 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
             dcachesize = g_ascii_strtoll(opt + 11, NULL, 10);
         } else if (g_str_has_prefix(opt, "limit=")) {
             limit = g_ascii_strtoll(opt + 6, NULL, 10);
+        } else if (g_str_has_prefix(opt, "cores=")) {
+            cores = g_ascii_strtoll(opt + 6, NULL, 10);
         } else if (g_str_has_prefix(opt, "evict=")) {
             gchar *p = opt + 6;
             if (g_strcmp0(p, "rand") == 0) {
@@ -644,21 +716,27 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
 
     policy_init();
 
-    dcache = cache_init(dblksize, dassoc, dcachesize);
-    if (!dcache) {
+    dcaches = caches_init(dblksize, dassoc, dcachesize);
+    if (!dcaches) {
         const char *err = cache_config_error(dblksize, dassoc, dcachesize);
         fprintf(stderr, "dcache cannot be constructed from given parameters\n");
         fprintf(stderr, "%s\n", err);
         return -1;
     }
 
-    icache = cache_init(iblksize, iassoc, icachesize);
-    if (!icache) {
+    icaches = caches_init(iblksize, iassoc, icachesize);
+    if (!icaches) {
         const char *err = cache_config_error(iblksize, iassoc, icachesize);
         fprintf(stderr, "icache cannot be constructed from given parameters\n");
         fprintf(stderr, "%s\n", err);
         return -1;
     }
+
+    /*
+     * plus one to save the sum in. If only one core is used then no need to
+     * get an auxiliary struct.
+     */
+    stats = g_new0(CoreStats, cores == 1 ? 1 : cores + 1);
 
     qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans);
     qemu_plugin_register_atexit_cb(id, plugin_exit, NULL);
