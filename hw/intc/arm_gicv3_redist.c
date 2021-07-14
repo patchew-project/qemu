@@ -564,7 +564,7 @@ void gicv3_redist_send_sgi(GICv3CPUState *cs, int grp, int irq, bool ns)
         return;
     }
 
-    if (ns && !(cs->gic->gicd_ctlr & GICD_CTLR_DS)) {
+    if (!ns && !(cs->gic->gicd_ctlr & GICD_CTLR_DS)) {
         /* If security is enabled we must test the NSACR bits */
         int nsaccess = gicr_ns_access(cs, irq);
 
