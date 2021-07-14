@@ -2126,7 +2126,6 @@ static void insert_stsi_15_1_4(const MachineState *ms, void *p)
     sysib->length = len;
 }
 
-#define SCLP_READ_SCP_INFO_MNEST 2
 static void insert_stsi_15_1_x(S390CPU *cpu, int sel2, __u64 addr, uint8_t ar)
 {
     const MachineState *machine = MACHINE(qdev_get_machine());
