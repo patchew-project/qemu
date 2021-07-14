@@ -541,7 +541,7 @@ static int icmp(gconstpointer a, gconstpointer b)
     return insn_a->imisses < insn_b->imisses ? 1 : -1;
 }
 
-static void log_stats()
+static void log_stats(void)
 {
     int i, iters;
     CoreStats cs;
@@ -578,7 +578,7 @@ static void log_stats()
     qemu_plugin_outs(rep->str);
 }
 
-static void log_top_insns()
+static void log_top_insns(void)
 {
     int i;
     GList *curr, *miss_insns;
@@ -633,7 +633,7 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
     g_mutex_unlock(&mtx);
 }
 
-static void policy_init()
+static void policy_init(void)
 {
     switch (policy) {
     case LRU:
