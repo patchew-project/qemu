@@ -1811,6 +1811,12 @@ bool memory_region_is_ram_device(MemoryRegion *mr)
     return mr->ram_device;
 }
 
+bool memory_region_is_mapped_shared(MemoryRegion *mr)
+{
+    return memory_access_is_direct(mr, false) &&
+           (mr->ram_block->flags & RAM_SHARED);
+}
+
 uint8_t memory_region_get_dirty_log_mask(MemoryRegion *mr)
 {
     uint8_t mask = mr->dirty_log_mask;

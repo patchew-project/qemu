@@ -2764,6 +2764,17 @@ static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
 }
 
 /**
+ * memory_region_is_mapped_shared: check whether a memory region is
+ * mmap(MAP_SHARED)
+ *
+ * Returns %true is a memory region is mmap(MAP_SHARED). This is always false
+ * on memory regions that do not support memory_region_get_ram_ptr().
+ *
+ * @mr: the memory region being queried
+ */
+bool memory_region_is_mapped_shared(MemoryRegion *mr);
+
+/**
  * address_space_read: read from an address space.
  *
  * Return a MemTxResult indicating whether the operation succeeded
