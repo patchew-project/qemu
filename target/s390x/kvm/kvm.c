@@ -52,6 +52,7 @@
 #include "hw/s390x/s390-virtio-ccw.h"
 #include "hw/s390x/s390-virtio-hcall.h"
 #include "hw/s390x/pv.h"
+#include "hw/s390x/cpu-topology.h"
 
 #ifndef DEBUG_KVM
 #define DEBUG_KVM  0
@@ -1893,6 +1894,223 @@ static void insert_stsi_3_2_2(S390CPU *cpu, __u64 addr, uint8_t ar)
     }
 }
 
+static int stsi_15_container(void *p, int nl, int id)
+{
+    SysIBTl_container *tle = (SysIBTl_container *)p;
+
+    tle->nl = nl;
+    tle->id = id;
+
+    return sizeof(*tle);
+}
+
+static int stsi_15_cpus(void *p, S390TopologyCores *cd)
+{
+    SysIBTl_cpu *tle = (SysIBTl_cpu *)p;
+
+    tle->nl = 0;
+    tle->dedicated = cd->dedicated;
+    tle->polarity = cd->polarity;
+    tle->type = cd->cputype;
+    tle->origin = cd->origin;
+    tle->mask = cd->mask;
+
+    return sizeof(*tle);
+}
+
+static int set_socket(const MachineState *ms, void *p,
+                      S390TopologySocket *socket, int level, int off)
+{
+    BusChild *kid;
+    int l, len = 0;
+
+    len += stsi_15_container(p, 1, off * ms->smp.sockets + socket->socket_id);
+    p += len;
+
+    QTAILQ_FOREACH_REVERSE(kid, &socket->bus->children, sibling) {
+        l = stsi_15_cpus(p, S390_TOPOLOGY_CORES(kid->child));
+        p += l;
+        len += l;
+    }
+    return len;
+}
+
+static int set_book(const MachineState *ms, void *p,
+                    S390TopologyBook *book, int level, int off)
+{
+    S390CcwMachineState *s390ms = S390_CCW_MACHINE(ms);
+    BusChild *kid;
+    int l, len = 0;
+    int offset = 0;
+
+    if (level >= 3) {
+        len += stsi_15_container(p, 2, off * s390ms->books + book->book_id);
+        p += len;
+    } else {
+        offset = off * s390ms->books + book->book_id;
+    }
+
+    QTAILQ_FOREACH_REVERSE(kid, &book->bus->children, sibling) {
+        l = set_socket(ms, p, S390_TOPOLOGY_SOCKET(kid->child), level,
+                       offset);
+        p += l;
+        len += l;
+    }
+
+    return len;
+}
+
+static int set_drawer(const MachineState *ms, void *p,
+                      S390TopologyDrawer *drawer, int level)
+{
+    BusChild *kid;
+    int l, len = 0;
+    int offset = 0;
+
+    if (level >= 4) {
+        len += stsi_15_container(p, 3, drawer->drawer_id);
+        p += len;
+    } else {
+        offset = drawer->drawer_id;
+    }
+
+    QTAILQ_FOREACH_REVERSE(kid, &drawer->bus->children, sibling) {
+        l = set_book(ms, p, S390_TOPOLOGY_BOOK(kid->child), level, offset);
+        p += l;
+        len += l;
+    }
+
+    return len;
+}
+
+static void insert_stsi_15_1_2(const MachineState *ms, void *p)
+{
+    S390CcwMachineState *s390ms = S390_CCW_MACHINE(ms);
+    S390TopologyDrawer *drawer;
+    S390TopologyNode *node;
+    SysIB_151x *sysib;
+    BusChild *kid;
+    int level = 2;
+    int len, l, nb_sockets;
+
+    sysib = (SysIB_151x *)p;
+    sysib->mnest = level;
+    nb_sockets = ms->smp.sockets * s390ms->books * s390ms->drawers;
+    sysib->mag[TOPOLOGY_NR_MAG2] = nb_sockets;
+    sysib->mag[TOPOLOGY_NR_MAG1] = ms->smp.cores;
+
+    node = s390_get_topology();
+    len = sizeof(SysIB_151x);
+    p += len;
+
+    QTAILQ_FOREACH_REVERSE(kid, &node->bus->children, sibling) {
+        drawer = S390_TOPOLOGY_DRAWER(kid->child);
+        l = set_drawer(ms, p, drawer, level);
+        p += l;
+        len += l;
+    }
+
+    sysib->length = len;
+}
+
+static void insert_stsi_15_1_3(const MachineState *ms, void *p)
+{
+    S390CcwMachineState *s390ms = S390_CCW_MACHINE(ms);
+    S390TopologyDrawer *drawer;
+    S390TopologyNode *node;
+    SysIB_151x *sysib;
+    BusChild *kid;
+    int level = 3;
+    int len, l;
+
+    sysib = (SysIB_151x *)p;
+    sysib->mnest = level;
+    sysib->mag[TOPOLOGY_NR_MAG3] = s390ms->books * s390ms->drawers;
+    sysib->mag[TOPOLOGY_NR_MAG2] = ms->smp.sockets;
+    sysib->mag[TOPOLOGY_NR_MAG1] = ms->smp.cores;
+
+    node = s390_get_topology();
+    len = sizeof(SysIB_151x);
+    p += len;
+
+    QTAILQ_FOREACH_REVERSE(kid, &node->bus->children, sibling) {
+        drawer = S390_TOPOLOGY_DRAWER(kid->child);
+        l = set_drawer(ms, p, drawer, level);
+        p += l;
+        len += l;
+    }
+
+    sysib->length = len;
+}
+
+static void insert_stsi_15_1_4(const MachineState *ms, void *p)
+{
+    S390CcwMachineState *s390ms = S390_CCW_MACHINE(ms);
+    S390TopologyDrawer *drawer;
+    S390TopologyNode *node;
+    SysIB_151x *sysib;
+    BusChild *kid;
+    int level = 4;
+    int len, l;
+
+    sysib = (SysIB_151x *)p;
+    sysib->mnest = level;
+    sysib->mag[TOPOLOGY_NR_MAG4] = s390ms->drawers;
+    sysib->mag[TOPOLOGY_NR_MAG3] = s390ms->books;
+    sysib->mag[TOPOLOGY_NR_MAG2] = ms->smp.sockets;
+    sysib->mag[TOPOLOGY_NR_MAG1] = ms->smp.cores;
+
+    node = s390_get_topology();
+    len = sizeof(SysIB_151x);
+    p += len;
+
+    QTAILQ_FOREACH_REVERSE(kid, &node->bus->children, sibling) {
+        drawer = S390_TOPOLOGY_DRAWER(kid->child);
+        l = set_drawer(ms, p, drawer, level);
+        p += l;
+        len += l;
+    }
+
+    sysib->length = len;
+}
+
+#define SCLP_READ_SCP_INFO_MNEST 2
+static void insert_stsi_15_1_x(S390CPU *cpu, int sel2, __u64 addr, uint8_t ar)
+{
+    const MachineState *machine = MACHINE(qdev_get_machine());
+    void *p;
+
+    if (sel2 > SCLP_READ_SCP_INFO_MNEST) {
+        setcc(cpu, 3);
+        return;
+    }
+
+    p = g_malloc0(4096);
+
+    switch (sel2) {
+    case 2:
+        insert_stsi_15_1_2(machine, p);
+        break;
+    case 3:
+        insert_stsi_15_1_3(machine, p);
+        break;
+    case 4:
+        insert_stsi_15_1_4(machine, p);
+        break;
+    default:
+        setcc(cpu, 3);
+        return;
+    }
+
+    if (s390_is_pv()) {
+        s390_cpu_pv_mem_write(cpu, 0, p, 4096);
+    } else {
+        s390_cpu_virt_mem_write(cpu, addr, ar, p, 4096);
+    }
+    setcc(cpu, 0);
+    g_free(p);
+}
+
 static int handle_stsi(S390CPU *cpu)
 {
     CPUState *cs = CPU(cpu);
@@ -1905,6 +2123,10 @@ static int handle_stsi(S390CPU *cpu)
         }
         /* Only sysib 3.2.2 needs post-handling for now. */
         insert_stsi_3_2_2(cpu, run->s390_stsi.addr, run->s390_stsi.ar);
+        return 0;
+    case 15:
+        insert_stsi_15_1_x(cpu, run->s390_stsi.sel2, run->s390_stsi.addr,
+                           run->s390_stsi.ar);
         return 0;
     default:
         return 0;
