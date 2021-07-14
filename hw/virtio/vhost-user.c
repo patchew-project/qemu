@@ -2295,11 +2295,23 @@ vhost_user_crypto_close_session(struct vhost_dev *dev, uint64_t session_id)
 static bool vhost_user_mem_section_filter(struct vhost_dev *dev,
                                           MemoryRegionSection *section)
 {
-    bool result;
+    /* An fd is required so we can pass it to the device backend process */
+    if (memory_region_get_fd(section->mr) < 0) {
+        return false;
+    }
 
-    result = memory_region_get_fd(section->mr) >= 0;
-
-    return result;
+    /*
+     * It must be mmap(MAP_SHARED) so memory stores from the device backend
+     * process are visible to us and vice versa.
+     */
+    if (!memory_region_is_mapped_shared(section->mr)) {
+        static bool warned;
+        warn_report_once_cond(&warned, "Found vhost-user memory region "
+                "without MAP_SHARED (did you forget -object "
+                "memory-*,share=on?)");
+        return false;
+    }
+    return true;
 }
 
 static int vhost_user_get_inflight_fd(struct vhost_dev *dev,
