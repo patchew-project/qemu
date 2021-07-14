@@ -69,6 +69,8 @@ immextre = re.compile(r'f(MUST_)?IMMEXT[(]([UuSsRr])')
 def calculate_attribs():
     add_qemu_macro_attrib('fREAD_PC', 'A_IMPLICIT_READS_PC')
     add_qemu_macro_attrib('fTRAP', 'A_IMPLICIT_READS_PC')
+    add_qemu_macro_attrib('fLOAD', 'A_IMPLICIT_READS_PC')
+    add_qemu_macro_attrib('fSTORE', 'A_IMPLICIT_READS_PC')
     add_qemu_macro_attrib('fWRITE_P0', 'A_WRITES_PRED_REG')
     add_qemu_macro_attrib('fWRITE_P1', 'A_WRITES_PRED_REG')
     add_qemu_macro_attrib('fWRITE_P2', 'A_WRITES_PRED_REG')
