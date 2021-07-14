@@ -901,4 +901,5 @@ typedef S390CPU ArchCPU;
 
 #include "exec/cpu-all.h"
 
+int s390_handle_ptf(S390CPU *cpu, uint8_t r1, uintptr_t ra);
 #endif

@@ -12,6 +12,7 @@
 
 #include "hw/qdev-core.h"
 #include "qom/object.h"
+#include "include/hw/sysbus.h"
 
 #define S390_TOPOLOGY_CPU_TYPE    0x03
 
@@ -87,5 +88,12 @@ S390TopologyNode *s390_init_topology(void);
 S390TopologyNode *s390_get_topology(void);
 void s390_topology_setup(MachineState *ms);
 void s390_topology_new_cpu(int core_id);
+
+#define S390_PTF_REASON_NONE (0x00 << 8)
+#define S390_PTF_REASON_DONE (0x01 << 8)
+#define S390_PTF_REASON_BUSY (0x02 << 8)
+extern int s390_topology_changed(void);
+
+#define S390_TOPO_FC_MASK 0xffUL
 
 #endif

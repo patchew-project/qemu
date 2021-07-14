@@ -30,6 +30,7 @@ struct S390CcwMachineState {
     uint8_t loadparm[8];
     int drawers;
     int books;
+    int topology_changed;
 };
 
 struct S390CcwMachineClass {

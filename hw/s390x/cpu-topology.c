@@ -19,12 +19,25 @@
 #include "qemu/typedefs.h"
 #include "hw/s390x/s390-virtio-ccw.h"
 
+int s390_topology_changed(void)
+{
+    const MachineState *ms = MACHINE(qdev_get_machine());
+    S390CcwMachineState *s390ms = S390_CCW_MACHINE(ms);
+
+    if (s390ms->topology_changed) {
+        s390ms->topology_changed = 0;
+        return 1;
+    }
+    return 0;
+}
+
 static S390TopologyCores *s390_create_cores(S390TopologySocket *socket,
                                             int origin)
 {
     DeviceState *dev;
     S390TopologyCores *cores;
     const MachineState *ms = MACHINE(qdev_get_machine());
+    S390CcwMachineState *s390ms = S390_CCW_MACHINE(ms);
 
     if (socket->bus->num_children >= ms->smp.cores) {
         return NULL;
@@ -36,6 +49,7 @@ static S390TopologyCores *s390_create_cores(S390TopologySocket *socket,
     cores = S390_TOPOLOGY_CORES(dev);
     cores->origin = origin;
     socket->cnt += 1;
+    s390ms->topology_changed = 1;
 
     return cores;
 }
@@ -45,6 +59,7 @@ static S390TopologySocket *s390_create_socket(S390TopologyBook *book, int id)
     DeviceState *dev;
     S390TopologySocket *socket;
     const MachineState *ms = MACHINE(qdev_get_machine());
+    S390CcwMachineState *s390ms = S390_CCW_MACHINE(ms);
 
     if (book->bus->num_children >= ms->smp.sockets) {
         return NULL;
@@ -56,6 +71,7 @@ static S390TopologySocket *s390_create_socket(S390TopologyBook *book, int id)
     socket = S390_TOPOLOGY_SOCKET(dev);
     socket->socket_id = id;
     book->cnt++;
+    s390ms->topology_changed = 1;
 
     return socket;
 }
@@ -77,6 +93,7 @@ static S390TopologyBook *s390_create_book(S390TopologyDrawer *drawer, int id)
     book = S390_TOPOLOGY_BOOK(dev);
     book->book_id = id;
     drawer->cnt++;
+    s390ms->topology_changed = 1;
 
     return book;
 }
@@ -98,6 +115,7 @@ static S390TopologyDrawer *s390_create_drawer(S390TopologyNode *node, int id)
     drawer = S390_TOPOLOGY_DRAWER(dev);
     drawer->drawer_id = id;
     node->cnt++;
+    s390ms->topology_changed = 1;
 
     return drawer;
 }
@@ -210,6 +228,7 @@ void s390_topology_new_cpu(int core_id)
     bit = 63 - (core_id - origin);
     set_bit(bit, &cores->mask);
     cores->origin = origin;
+    s390ms->topology_changed = 1;
 }
 
 /*

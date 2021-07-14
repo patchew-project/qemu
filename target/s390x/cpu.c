@@ -35,6 +35,7 @@
 #include "fpu/softfloat-helpers.h"
 #include "disas/capstone.h"
 #include "sysemu/tcg.h"
+#include "hw/s390x/cpu-topology.h"
 
 #define CR0_RESET       0xE0UL
 #define CR14_RESET      0xC2000000UL;
@@ -154,6 +155,9 @@ static void s390_cpu_reset(CPUState *s, cpu_reset_type type)
 
         env->pfault_token = -1UL;
         env->bpbc = false;
+#if !defined(CONFIG_USER_ONLY)
+        s390_topology_changed();
+#endif
         break;
     default:
         g_assert_not_reached();
