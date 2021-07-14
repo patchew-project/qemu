@@ -591,12 +591,17 @@ static void s390_smp_parse(MachineState *ms, QemuOpts *opts)
     unsigned cpus    = qemu_opt_get_number(opts, "cpus", 1);
     unsigned sockets = qemu_opt_get_number(opts, "sockets", 1);
     unsigned cores   = qemu_opt_get_number(opts, "cores", 1);
+    unsigned drawers = qemu_opt_get_number(opts, "drawers", 1);
+    unsigned books   = qemu_opt_get_number(opts, "books", 1);
+    S390CcwMachineState *s390ms = S390_CCW_MACHINE(ms);
 
     if (opts) {
-        if (cpus == 0 || sockets == 0 || cores == 0) {
+        if (cpus == 0 || drawers == 0 || books == 0 || sockets == 0 ||
+            cores == 0) {
             error_report("cpu topology: "
-                         "sockets (%u), cores (%u) or number of CPU(%u) "
-                         "can not be zero", sockets, cores, cpus);
+                         "drawers (%u) books (%u) sockets (%u), cores (%u) "
+                         "or number of CPU(%u) can not be zero", drawers,
+                         books, sockets, cores, cpus);
             exit(1);
         }
     }
@@ -608,12 +613,13 @@ static void s390_smp_parse(MachineState *ms, QemuOpts *opts)
     }
 
     if (!qemu_opt_find(opts, "cores")) {
-        cores = ms->smp.max_cpus / sockets;
+        cores = ms->smp.max_cpus / (drawers * books * sockets);
     }
 
-    if (sockets * cores != ms->smp.max_cpus) {
-        error_report("Invalid CPU topology: sockets (%u) * cores (%u) "
-                     "!= maxcpus (%u)", sockets, cores, ms->smp.max_cpus);
+    if (drawers * books * sockets * cores != ms->smp.max_cpus) {
+        error_report("Invalid CPU topology: drawers (%u) books (%u) "
+                     "sockets (%u) * cores (%u) != maxcpus (%u)",
+                     drawers, books, sockets, cores, ms->smp.max_cpus);
         exit(1);
     }
 
@@ -621,6 +627,8 @@ static void s390_smp_parse(MachineState *ms, QemuOpts *opts)
     ms->smp.cpus = cpus;
     ms->smp.cores = cores;
     ms->smp.sockets = sockets;
+    s390ms->drawers = drawers;
+    s390ms->books = books;
 }
 
 static void ccw_machine_class_init(ObjectClass *oc, void *data)

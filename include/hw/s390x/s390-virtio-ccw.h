@@ -28,6 +28,8 @@ struct S390CcwMachineState {
     bool dea_key_wrap;
     bool pv;
     uint8_t loadparm[8];
+    int drawers;
+    int books;
 };
 
 struct S390CcwMachineClass {

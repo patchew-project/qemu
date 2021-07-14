@@ -883,6 +883,8 @@
   'data': { '*node-id': 'int',
             '*socket-id': 'int',
             '*die-id': 'int',
+            '*drawer-id': 'int',
+            '*book-id': 'int',
             '*core-id': 'int',
             '*thread-id': 'int'
   }
