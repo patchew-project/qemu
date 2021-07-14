@@ -91,3 +91,8 @@ MSIMessage msix_get_message(PCIDevice *dev, unsigned int vector)
 {
     g_assert_not_reached();
 }
+
+void msix_dump_info(Monitor *mon, PCIDevice *dev, Error **errp)
+{
+     monitor_printf(mon, "PCI devices not supported\n");
+}
