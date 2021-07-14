@@ -223,9 +223,10 @@ ERST
 
     {
         .name       = "msix",
-        .args_type  = "dev:s",
-        .params     = "dev",
-        .help       = "dump MSI-X information",
+        .args_type  = "info:-d,dev:s",
+        .params     = "[-d] dev",
+        .help       = "dump MSI-X information; "
+                      "(-d: show device specific info)",
         .cmd        = hmp_info_msix,
     },
 
