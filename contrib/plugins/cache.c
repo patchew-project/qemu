@@ -363,6 +363,11 @@ static void vcpu_mem_access(unsigned int vcpu_index, qemu_plugin_meminfo_t info,
     effective_addr = hwaddr ? qemu_plugin_hwaddr_phys_addr(hwaddr) : vaddr;
 
     g_mutex_lock(&mtx);
+    if (dcache == NULL) {
+        g_mutex_unlock(&mtx);
+        return;
+    }
+
     if (!access_cache(dcache, effective_addr)) {
         insn = (InsnData *) userdata;
         insn->dmisses++;
@@ -379,6 +384,11 @@ static void vcpu_insn_exec(unsigned int vcpu_index, void *userdata)
 
     g_mutex_lock(&mtx);
     insn_addr = ((InsnData *) userdata)->addr;
+
+    if (icache == NULL) {
+        g_mutex_unlock(&mtx);
+        return;
+    }
 
     if (!access_cache(icache, insn_addr)) {
         insn = (InsnData *) userdata;
@@ -406,12 +416,24 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
             effective_addr = (uint64_t) qemu_plugin_insn_vaddr(insn);
         }
 
+        g_mutex_lock(&mtx);
+
+        /*
+         * is the plugin_exit callback called? If so, any further callback
+         * registration is useless as it won't get accounted for after calling
+         * plugin_exit once already, and also will use miss_ht after it's freed
+         */
+        if (miss_ht == NULL) {
+            g_mutex_unlock(&mtx);
+            return;
+        }
+
         /*
          * Instructions might get translated multiple times, we do not create
          * new entries for those instructions. Instead, we fetch the same
          * entry from the hash table and register it for the callback again.
          */
-        g_mutex_lock(&mtx);
+
         data = g_hash_table_lookup(miss_ht, GUINT_TO_POINTER(effective_addr));
         if (data == NULL) {
             data = g_new0(InsnData, 1);
@@ -527,13 +549,20 @@ static void log_top_insns()
 
 static void plugin_exit(qemu_plugin_id_t id, void *p)
 {
+    g_mutex_lock(&mtx);
     log_stats();
     log_top_insns();
 
     cache_free(dcache);
+    dcache = NULL;
+
     cache_free(icache);
+    icache = NULL;
 
     g_hash_table_destroy(miss_ht);
+    miss_ht = NULL;
+
+    g_mutex_unlock(&mtx);
 }
 
 static void policy_init()
