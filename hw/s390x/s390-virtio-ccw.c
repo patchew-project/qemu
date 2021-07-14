@@ -582,6 +582,47 @@ static ram_addr_t s390_fixup_ram_size(ram_addr_t sz)
     return newsz;
 }
 
+/*
+ * In S390CCW machine we do not support threads for now,
+ * only sockets and cores.
+ */
+static void s390_smp_parse(MachineState *ms, QemuOpts *opts)
+{
+    unsigned cpus    = qemu_opt_get_number(opts, "cpus", 1);
+    unsigned sockets = qemu_opt_get_number(opts, "sockets", 1);
+    unsigned cores   = qemu_opt_get_number(opts, "cores", 1);
+
+    if (opts) {
+        if (cpus == 0 || sockets == 0 || cores == 0) {
+            error_report("cpu topology: "
+                         "sockets (%u), cores (%u) or number of CPU(%u) "
+                         "can not be zero", sockets, cores, cpus);
+            exit(1);
+        }
+    }
+
+    ms->smp.max_cpus = qemu_opt_get_number(opts, "maxcpus", cpus);
+    if (ms->smp.max_cpus < cpus) {
+        error_report("maxcpus must be equal to or greater than smp");
+        exit(1);
+    }
+
+    if (!qemu_opt_find(opts, "cores")) {
+        cores = ms->smp.max_cpus / sockets;
+    }
+
+    if (sockets * cores != ms->smp.max_cpus) {
+        error_report("Invalid CPU topology: sockets (%u) * cores (%u) "
+                     "!= maxcpus (%u)", sockets, cores, ms->smp.max_cpus);
+        exit(1);
+    }
+
+    ms->smp.threads = 1;
+    ms->smp.cpus = cpus;
+    ms->smp.cores = cores;
+    ms->smp.sockets = sockets;
+}
+
 static void ccw_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -612,6 +653,7 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     hc->unplug_request = s390_machine_device_unplug_request;
     nc->nmi_monitor_handler = s390_nmi;
     mc->default_ram_id = "s390.ram";
+    mc->smp_parse = s390_smp_parse;
 }
 
 static inline bool machine_get_aes_key_wrap(Object *obj, Error **errp)
