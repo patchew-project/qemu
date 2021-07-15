@@ -5523,7 +5523,13 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     case 0x8000000A:
         if (env->features[FEAT_8000_0001_ECX] & CPUID_EXT3_SVM) {
             *eax = 0x00000001; /* SVM Revision */
-            *ebx = 0x00000010; /* nr of ASIDs */
+            /* nr of ASIDs */
+            if (kvm_enabled()) {
+                *ebx = kvm_arch_get_supported_cpuid(cs->kvm_state,
+                                                    0x8000000A, 0, R_EBX);
+            } else {
+                *ebx = 0x00000010;
+            }
             *ecx = 0;
             *edx = env->features[FEAT_SVM]; /* optional features */
         } else {
