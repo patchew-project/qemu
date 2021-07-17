@@ -2950,6 +2950,7 @@ static bool avr_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
     gen_breakpoint(ctx);
+    ctx->base.pc_next += 2; /* advance by minimum insn len so tb->size != 0 */
     return true;
 }
 
