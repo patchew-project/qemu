@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu.h"
+#include "user-internals.h"
 #include "cpu_loop-common.h"
 #include "sighandling.h"
 #include "internal.h"

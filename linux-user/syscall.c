@@ -127,6 +127,7 @@
 #include "uname.h"
 
 #include "qemu.h"
+#include "user-internals.h"
 #include "strace.h"
 #include "sighandling.h"
 #include "loader.h"
