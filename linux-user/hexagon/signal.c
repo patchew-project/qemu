@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "qemu.h"
 #include "signal-common.h"
+#include "sighandling.h"
 #include "linux-user/trace.h"
 
 struct target_sigcontext {

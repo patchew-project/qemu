@@ -22,6 +22,7 @@
 #include "qemu/error-report.h"
 #include "qemu.h"
 #include "cpu_loop-common.h"
+#include "sighandling.h"
 #include "elf.h"
 #include "semihosting/common-semi.h"
 

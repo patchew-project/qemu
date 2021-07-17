@@ -19,6 +19,7 @@
 #include "qemu/osdep.h"
 #include "qemu.h"
 #include "signal-common.h"
+#include "sighandling.h"
 #include "linux-user/trace.h"
 
 /* from the Linux kernel - /arch/x86/include/uapi/asm/sigcontext.h */
