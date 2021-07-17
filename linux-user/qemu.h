@@ -3,9 +3,6 @@
 
 #include "cpu.h"
 #include "exec/cpu_ldst.h"
-
-#undef DEBUG_REMAP
-
 #include "exec/user/abitypes.h"
 
 #include "syscall_defs.h"

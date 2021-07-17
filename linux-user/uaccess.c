@@ -5,6 +5,8 @@
 #include "qemu.h"
 #include "user-internals.h"
 
+#undef DEBUG_REMAP
+
 void *lock_user(int type, abi_ulong guest_addr, ssize_t len, bool copy)
 {
     void *host_addr;
