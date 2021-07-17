@@ -24,6 +24,7 @@
 #include "qemu.h"
 #include "strace.h"
 #include "sighandling.h"
+#include "loader.h"
 #include "trace.h"
 #include "signal-common.h"
 
