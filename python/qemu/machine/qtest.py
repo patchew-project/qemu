@@ -114,7 +114,6 @@ class QEMUQtestMachine(QEMUMachine):
                  args: Sequence[str] = (),
                  name: Optional[str] = None,
                  base_temp_dir: str = "/var/tmp",
-                 socket_scm_helper: Optional[str] = None,
                  sock_dir: Optional[str] = None):
         # pylint: disable=too-many-arguments
 
@@ -123,7 +122,6 @@ class QEMUQtestMachine(QEMUMachine):
         if sock_dir is None:
             sock_dir = base_temp_dir
         super().__init__(binary, args, name=name, base_temp_dir=base_temp_dir,
-                         socket_scm_helper=socket_scm_helper,
                          sock_dir=sock_dir)
         self._qtest: Optional[QEMUQtestProtocol] = None
         self._qtest_path = os.path.join(sock_dir, name + "-qtest.sock")
