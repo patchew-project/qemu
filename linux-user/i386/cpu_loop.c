@@ -22,6 +22,7 @@
 #include "qemu.h"
 #include "cpu_loop-common.h"
 #include "sighandling.h"
+#include "user-mmap.h"
 
 /***********************************************************/
 /* CPUX86 core interface */
