@@ -16192,7 +16192,7 @@ static bool mips_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
      * properly cleared -- thus we increment the PC here so that
      * the logic setting tb->size below does the right thing.
      */
-    ctx->base.pc_next += 4;
+    ctx->base.pc_next += 2;
     return true;
 }
 
