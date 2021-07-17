@@ -2944,14 +2944,13 @@ static void avr_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
     tcg_gen_insn_start(ctx->npc);
 }
 
-static bool avr_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
-                                    const CPUBreakpoint *bp)
+static int avr_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
+                                   int bp_flags)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
     gen_breakpoint(ctx);
-    ctx->base.pc_next += 2; /* advance by minimum insn len so tb->size != 0 */
-    return true;
+    return 2; /* minimum instruction length */
 }
 
 static void avr_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)

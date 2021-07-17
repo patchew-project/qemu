@@ -92,11 +92,15 @@ typedef struct DisasContextBase {
  * @breakpoint_check:
  *      When called, the breakpoint has already been checked to match the PC,
  *      but the target may decide the breakpoint missed the address
- *      (e.g., due to conditions encoded in their flags).  Return true to
- *      indicate that the breakpoint did hit, in which case no more breakpoints
- *      are checked.  If the breakpoint did hit, emit any code required to
- *      signal the exception, and set db->is_jmp as necessary to terminate
- *      the main loop.
+ *      (e.g., due to conditions encoded in their flags), in which case
+ *      db->is_jmp may be left as DISAS_NEXT or DISAS_TOO_MANY to indicate
+ *      that the insn should be translated.  Anything other than those two
+ *      will be taken to indicate an exception has been raised, but in most
+ *      cases db->is_jmp should be set to DISAS_NORETURN.
+ *
+ *      Return the minimum instruction size that should be applied to the TB.
+ *      The size of any TB cannot be zero, as that breaks the math used to
+ *      invalidate TBs.
  *
  * @translate_insn:
  *      Disassemble one instruction and set db->pc_next for the start
@@ -113,8 +117,7 @@ typedef struct TranslatorOps {
     void (*init_disas_context)(DisasContextBase *db, CPUState *cpu);
     void (*tb_start)(DisasContextBase *db, CPUState *cpu);
     void (*insn_start)(DisasContextBase *db, CPUState *cpu);
-    bool (*breakpoint_check)(DisasContextBase *db, CPUState *cpu,
-                             const CPUBreakpoint *bp);
+    int (*breakpoint_check)(DisasContextBase *db, CPUState *cpu, int flags);
     void (*translate_insn)(DisasContextBase *db, CPUState *cpu);
     void (*tb_stop)(DisasContextBase *db, CPUState *cpu);
     void (*disas_log)(const DisasContextBase *db, CPUState *cpu);
