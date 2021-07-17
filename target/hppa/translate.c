@@ -4159,14 +4159,13 @@ static void hppa_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
     tcg_gen_insn_start(ctx->iaoq_f, ctx->iaoq_b);
 }
 
-static bool hppa_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
-                                      const CPUBreakpoint *bp)
+static int hppa_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
+                                    int bp_flags)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
     gen_excp(ctx, EXCP_DEBUG);
-    ctx->base.pc_next += 4;
-    return true;
+    return 4; /* minimum instruction length */
 }
 
 static void hppa_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)

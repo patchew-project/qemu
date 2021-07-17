@@ -6552,8 +6552,8 @@ static void s390x_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 {
 }
 
-static bool s390x_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
-                                      const CPUBreakpoint *bp)
+static int s390x_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
+                                     int bp_flags)
 {
     DisasContext *dc = container_of(dcbase, DisasContext, base);
 
@@ -6567,12 +6567,8 @@ static bool s390x_tr_breakpoint_check(DisasContextBase *dcbase, CPUState *cs,
 
     dc->base.is_jmp = DISAS_PC_STALE;
     dc->do_debug = true;
-    /* The address covered by the breakpoint must be included in
-       [tb->pc, tb->pc + tb->size) in order to for it to be
-       properly cleared -- thus we increment the PC here so that
-       the logic setting tb->size does the right thing.  */
-    dc->base.pc_next += 2;
-    return true;
+
+    return 2; /* minimum instruction length */
 }
 
 static void s390x_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
