@@ -502,8 +502,15 @@ struct TranslationBlock {
 #define CF_USE_ICOUNT    0x00020000
 #define CF_INVALID       0x00040000 /* TB is stale. Set with @jmp_lock held */
 #define CF_PARALLEL      0x00080000 /* Generate code for a parallel context */
+#define CF_BP_MASK       0x00300000 /* See below */
+#define CF_BP_SHIFT      20
 #define CF_CLUSTER_MASK  0xff000000 /* Top 8 bits are cluster ID */
 #define CF_CLUSTER_SHIFT 24
+
+#define CF_BP_NONE       (0 << CF_BP_SHIFT) /* TB does not interact with BPs */
+#define CF_BP_SSTEP      (1 << CF_BP_SHIFT) /* gdbstub single-step in effect */
+#define CF_BP_GDB        (2 << CF_BP_SHIFT) /* gdbstub breakpoint at tb->pc */
+#define CF_BP_CPU        (3 << CF_BP_SHIFT) /* arch breakpoint at tb->pc */
 
     /* Per-vCPU dynamic tracing state used to generate this TB */
     uint32_t trace_vcpu_dstate;

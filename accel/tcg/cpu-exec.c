@@ -222,6 +222,65 @@ static inline void log_cpu_exec(target_ulong pc, CPUState *cpu,
     }
 }
 
+static uint32_t cflags_for_breakpoints(CPUState *cpu, target_ulong pc,
+                                       uint32_t cflags)
+{
+    uint32_t bflags = 0;
+
+    if (unlikely(cpu->singlestep_enabled)) {
+        bflags = CF_BP_SSTEP;
+    } else {
+        bool match_page = false;
+        CPUBreakpoint *bp;
+
+        QTAILQ_FOREACH(bp, &cpu->breakpoints, entry) {
+            /* Note exact pc matches */
+            if (pc == bp->pc) {
+                if (bp->flags & BP_GDB) {
+                    bflags = CF_BP_GDB;
+                    break;
+                }
+                if (bp->flags & BP_CPU) {
+                    bflags = CF_BP_CPU;
+                    break;
+                }
+            }
+            /* Note page matches */
+            if (((pc ^ bp->pc) & TARGET_PAGE_MASK) == 0) {
+                match_page = true;
+            }
+        }
+
+        if (likely(!bflags)) {
+            if (likely(!match_page)) {
+                return cflags;
+            }
+
+            /*
+             * Within the same page as a breakpoint, single-step,
+             * returning to helper_lookup_tb_ptr after each looking
+             * for the actual breakpoint.
+             *
+             * TODO: Perhaps better to record all of the TBs associated
+             * with a given virtual page that contains a breakpoint, and
+             * then invalidate them when a new overlapping breakpoint is
+             * set on the page.  Non-overlapping TBs would not be
+             * invalidated, nor would any TB need to be invalidated as
+             * breakpoints are removed.
+             */
+            bflags = CF_NO_GOTO_TB;
+        }
+    }
+
+    /*
+     * Reduce the TB to one insn.
+     * In the case of a BP hit, we will be raising an exception anyway.
+     * In the case of a page hit, return to helper_lookup_tb_ptr after
+     * every insn to look for the breakpoint.
+     */
+    return (cflags & ~CF_COUNT_MASK) | 1 | bflags;
+}
+
 /**
  * helper_lookup_tb_ptr: quick check for next tb
  * @env: current cpu state
@@ -235,11 +294,13 @@ const void *HELPER(lookup_tb_ptr)(CPUArchState *env)
     CPUState *cpu = env_cpu(env);
     TranslationBlock *tb;
     target_ulong cs_base, pc;
-    uint32_t flags;
+    uint32_t flags, cflags;
 
     cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
 
-    tb = tb_lookup(cpu, pc, cs_base, flags, curr_cflags(cpu));
+    cflags = cflags_for_breakpoints(cpu, pc, curr_cflags(cpu));
+
+    tb = tb_lookup(cpu, pc, cs_base, flags, cflags);
     if (tb == NULL) {
         return tcg_code_gen_epilogue;
     }
@@ -346,6 +407,8 @@ void cpu_exec_step_atomic(CPUState *cpu)
         cflags &= ~CF_PARALLEL;
         /* After 1 insn, return and release the exclusive lock. */
         cflags |= CF_NO_GOTO_TB | CF_NO_GOTO_PTR | 1;
+        /* Raise any post-instruction debug exceptions. */
+        cflags = cflags_for_breakpoints(cpu, pc, cflags);
 
         tb = tb_lookup(cpu, pc, cs_base, flags, cflags);
         if (tb == NULL) {
@@ -524,6 +587,7 @@ static inline TranslationBlock *tb_find(CPUState *cpu,
     } else {
         cpu->cflags_next_tb = -1;
     }
+    cflags = cflags_for_breakpoints(cpu, pc, cflags);
 
     tb = tb_lookup(cpu, pc, cs_base, flags, cflags);
     if (tb == NULL) {
