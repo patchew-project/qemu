@@ -67,6 +67,8 @@ typedef struct VirtualVteConsole {
     Chardev *chr;
     QEMUTimer *kbd_timer;
     Fifo8 out_fifo;
+    int64_t be_last_write;
+    bool be_can_write;
     bool echo;
 } VirtualVteConsole;
 #endif

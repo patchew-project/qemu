@@ -1711,8 +1711,20 @@ static const TypeInfo char_gd_vc_type_info = {
     .class_init = char_gd_vc_class_init,
 };
 
+static uint32_t gd_vc_send_backoff(uint32_t elapsed)
+{
+    if (elapsed <= 500) {
+        return 1000;
+    } else if (elapsed >= 50000) {
+        return 100000;
+    }
+
+    return elapsed * 2;
+}
+
 static void gd_vc_send_chars(VirtualConsole *vc)
 {
+    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     uint32_t len, avail;
     const uint8_t *buf;
 
@@ -1721,21 +1733,39 @@ static void gd_vc_send_chars(VirtualConsole *vc)
     if (len > avail) {
         len = avail;
     }
-    while (len > 0) {
+    if (len > 0) {
         uint32_t size;
 
-        buf = fifo8_pop_buf(&vc->vte.out_fifo, len, &size);
-        qemu_chr_be_write(vc->vte.chr, (uint8_t *)buf, size);
-        len -= size;
-        avail -= size;
+        do {
+            buf = fifo8_pop_buf(&vc->vte.out_fifo, len, &size);
+            qemu_chr_be_write(vc->vte.chr, (uint8_t *)buf, size);
+            len -= size;
+            avail -= size;
+        } while (len > 0);
+
+        vc->vte.be_can_write = true;
+        vc->vte.be_last_write = now;
     }
     /*
      * characters are pending: we send them a bit later (XXX:
      * horrible, should change char device API)
      */
     if (avail > 0) {
-        timer_mod(vc->vte.kbd_timer,
-                  qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 1);
+        if (vc->vte.be_can_write) {
+            uint64_t elapsed = (now - vc->vte.be_last_write) / SCALE_US;
+
+            if (elapsed < 1920000) {
+                timer_mod(vc->vte.kbd_timer,
+                          now / SCALE_US + gd_vc_send_backoff(elapsed));
+            } else {
+                /* no progress since 1.92s */
+                vc->vte.be_can_write = false;
+                fifo8_reset(&vc->vte.out_fifo);
+            }
+        } else {
+            /* the chardev frontend hasn't accepted chars in a long time */
+            fifo8_reset(&vc->vte.out_fifo);
+        }
     }
 }
 
@@ -1794,7 +1824,8 @@ static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
     vc->vte.echo = vcd->echo;
     vc->vte.chr = chr;
     fifo8_create(&vc->vte.out_fifo, 16);
-    vc->vte.kbd_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
+    vc->vte.be_can_write = false;
+    vc->vte.kbd_timer = timer_new_us(QEMU_CLOCK_VIRTUAL,
                                      gd_vc_timer_send_chars, vc);
     vcd->console = vc;
 
