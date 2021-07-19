@@ -27,10 +27,51 @@
 #include "qemu/pmem.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
+#include "hw/boards.h"
 #include "hw/mem/nvdimm.h"
 #include "hw/qdev-properties.h"
 #include "hw/mem/memory-device.h"
 #include "sysemu/hostmem.h"
+
+unsigned long nvdimm_target_nodes[BITS_TO_LONGS(MAX_NODES)];
+int nvdimm_max_target_node;
+
+void nvdimm_pre_plug(NVDIMMDevice *nvdimm, MachineState *machine,
+                     Error **errp)
+{
+    int node;
+
+    node = object_property_get_uint(OBJECT(nvdimm), PC_DIMM_NODE_PROP,
+                                    &error_abort);
+    if (node && (nvdimm->target_node != -1)) {
+        error_setg(errp, "Both property '" PC_DIMM_NODE_PROP
+                   "' and '" NVDIMM_TARGET_NODE_PROP
+                   "' cannot be set!");
+        return;
+    }
+
+    if (nvdimm->target_node != -1) {
+        if (nvdimm->target_node >= MAX_NODES) {
+            error_setg(errp, "'NVDIMM property " NVDIMM_TARGET_NODE_PROP
+                       " has value %" PRIu32
+                       "' which exceeds the max number of numa nodes: %d",
+                       nvdimm->target_node, MAX_NODES);
+            return;
+        }
+        if (nvdimm->target_node >= machine->numa_state->num_nodes) {
+            set_bit(nvdimm->target_node, nvdimm_target_nodes);
+            if (nvdimm->target_node > nvdimm_max_target_node) {
+                nvdimm_max_target_node = nvdimm->target_node;
+            }
+        }
+    } else {
+        /*
+         * If the 'target-node' option is not set,
+         * the value of 'node' is used as target node.
+         */
+        nvdimm->target_node = node;
+    }
+}
 
 static void nvdimm_get_label_size(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
@@ -95,7 +136,6 @@ static void nvdimm_set_uuid(Object *obj, Visitor *v, const char *name,
 
     g_free(value);
 }
-
 
 static void nvdimm_init(Object *obj)
 {
@@ -229,6 +269,7 @@ static void nvdimm_write_label_data(NVDIMMDevice *nvdimm, const void *buf,
 
 static Property nvdimm_properties[] = {
     DEFINE_PROP_BOOL(NVDIMM_UNARMED_PROP, NVDIMMDevice, unarmed, false),
+    DEFINE_PROP_UINT32(NVDIMM_TARGET_NODE_PROP, NVDIMMDevice, target_node, -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 

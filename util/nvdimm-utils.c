@@ -1,5 +1,7 @@
 #include "qemu/osdep.h"
 #include "qemu/nvdimm-utils.h"
+#include "qapi/error.h"
+#include "hw/boards.h"
 #include "hw/mem/nvdimm.h"
 
 static int nvdimm_device_list(Object *obj, void *opaque)
@@ -27,4 +29,24 @@ GSList *nvdimm_get_device_list(void)
 
     object_child_foreach(qdev_get_machine(), nvdimm_device_list, &list);
     return list;
+}
+
+int nvdimm_check_target_nodes(void)
+{
+    MachineState *ms = MACHINE(qdev_get_machine());
+    int nb_numa_nodes = ms->numa_state->num_nodes;
+    int node;
+
+    if (!nvdimm_max_target_node) {
+        return -1;
+    }
+
+    for (node = nb_numa_nodes; node <= nvdimm_max_target_node; node++) {
+        if (!test_bit(node, nvdimm_target_nodes)) {
+            error_report("nvdimm target-node: Node ID missing: %d", node);
+            exit(1);
+        }
+    }
+
+    return nvdimm_max_target_node;
 }

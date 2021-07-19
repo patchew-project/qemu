@@ -51,6 +51,7 @@ OBJECT_DECLARE_TYPE(NVDIMMDevice, NVDIMMClass, NVDIMM)
 #define NVDIMM_LABEL_SIZE_PROP "label-size"
 #define NVDIMM_UUID_PROP       "uuid"
 #define NVDIMM_UNARMED_PROP    "unarmed"
+#define NVDIMM_TARGET_NODE_PROP "target-node"
 
 struct NVDIMMDevice {
     /* private */
@@ -89,6 +90,14 @@ struct NVDIMMDevice {
      * The PPC64 - spapr requires each nvdimm device have a uuid.
      */
     QemuUUID uuid;
+
+    /*
+     * Support for the volatile-use of persistent memory as normal RAM.
+     * This newly-added memory can be selected by its unique NUMA node.
+     * This node can be extended to a new node after all existing NUMA
+     * nodes.
+     */
+    uint32_t target_node;
 };
 
 struct NVDIMMClass {
@@ -148,14 +157,20 @@ struct NVDIMMState {
 };
 typedef struct NVDIMMState NVDIMMState;
 
+extern unsigned long nvdimm_target_nodes[];
+extern int nvdimm_max_target_node;
+
 void nvdimm_init_acpi_state(NVDIMMState *state, MemoryRegion *io,
                             struct AcpiGenericAddress dsm_io,
                             FWCfgState *fw_cfg, Object *owner);
-void nvdimm_build_srat(GArray *table_data);
+int nvdimm_build_srat(GArray *table_data);
 void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
                        BIOSLinker *linker, NVDIMMState *state,
                        uint32_t ram_slots, const char *oem_id,
                        const char *oem_table_id);
 void nvdimm_plug(NVDIMMState *state);
 void nvdimm_acpi_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev);
+int nvdimm_check_target_nodes(void);
+void nvdimm_pre_plug(NVDIMMDevice *dimm, MachineState *machine,
+                     Error **errp);
 #endif

@@ -228,8 +228,8 @@ nvdimm_build_structure_spa(GArray *structures, DeviceState *dev)
                                              NULL);
     uint64_t size = object_property_get_uint(OBJECT(dev), PC_DIMM_SIZE_PROP,
                                              NULL);
-    uint32_t node = object_property_get_uint(OBJECT(dev), PC_DIMM_NODE_PROP,
-                                             NULL);
+    int target_node = object_property_get_uint(OBJECT(dev), NVDIMM_TARGET_NODE_PROP,
+                                               NULL);
     int slot = object_property_get_int(OBJECT(dev), PC_DIMM_SLOT_PROP,
                                        NULL);
 
@@ -251,7 +251,7 @@ nvdimm_build_structure_spa(GArray *structures, DeviceState *dev)
                                        valid*/);
 
     /* NUMA node. */
-    nfit_spa->proximity_domain = cpu_to_le32(node);
+    nfit_spa->proximity_domain = cpu_to_le32(target_node);
     /* the region reported as PMEM. */
     memcpy(nfit_spa->type_guid, nvdimm_nfit_spa_uuid,
            sizeof(nvdimm_nfit_spa_uuid));
@@ -1337,8 +1337,9 @@ static void nvdimm_build_ssdt(GArray *table_offsets, GArray *table_data,
     free_aml_allocator();
 }
 
-void nvdimm_build_srat(GArray *table_data)
+int nvdimm_build_srat(GArray *table_data)
 {
+    int max_target_node = nvdimm_check_target_nodes();
     GSList *device_list = nvdimm_get_device_list();
 
     for (; device_list; device_list = device_list->next) {
@@ -1346,17 +1347,20 @@ void nvdimm_build_srat(GArray *table_data)
         DeviceState *dev = device_list->data;
         Object *obj = OBJECT(dev);
         uint64_t addr, size;
-        int node;
+        int target_node;
 
-        node = object_property_get_int(obj, PC_DIMM_NODE_PROP, &error_abort);
+        target_node = object_property_get_uint(obj, NVDIMM_TARGET_NODE_PROP,
+                                               &error_abort);
         addr = object_property_get_uint(obj, PC_DIMM_ADDR_PROP, &error_abort);
         size = object_property_get_uint(obj, PC_DIMM_SIZE_PROP, &error_abort);
 
         numamem = acpi_data_push(table_data, sizeof *numamem);
-        build_srat_memory(numamem, addr, size, node,
+        build_srat_memory(numamem, addr, size, target_node,
                           MEM_AFFINITY_ENABLED | MEM_AFFINITY_NON_VOLATILE);
     }
     g_slist_free(device_list);
+
+   return max_target_node;
 }
 
 void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,

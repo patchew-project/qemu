@@ -1896,6 +1896,7 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
     AcpiSratMemoryAffinity *numamem;
 
     int i;
+    int max_node = 0;
     int srat_start, numa_start, slots;
     uint64_t mem_len, mem_base, next_base;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
@@ -1991,7 +1992,7 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
     }
 
     if (machine->nvdimms_state->is_enabled) {
-        nvdimm_build_srat(table_data);
+        max_node = nvdimm_build_srat(table_data);
     }
 
     slots = (table_data->len - numa_start) / sizeof *numamem;
@@ -2009,9 +2010,16 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
      * providing _PXM method if necessary.
      */
     if (hotplugabble_address_space_size) {
+        if (max_node < 0) {
+            max_node = pcms->numa_nodes - 1;
+        } else {
+            max_node = max_node > pcms->numa_nodes - 1 ?
+                       max_node : pcms->numa_nodes - 1;
+        }
+
         numamem = acpi_data_push(table_data, sizeof *numamem);
         build_srat_memory(numamem, machine->device_memory->base,
-                          hotplugabble_address_space_size, pcms->numa_nodes - 1,
+                          hotplugabble_address_space_size, max_node,
                           MEM_AFFINITY_HOTPLUGGABLE | MEM_AFFINITY_ENABLED);
     }
 
