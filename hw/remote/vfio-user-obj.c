@@ -37,6 +37,8 @@
 #include "qemu/notify.h"
 #include "qapi/error.h"
 #include "sysemu/sysemu.h"
+#include "hw/qdev-core.h"
+#include "hw/pci/pci.h"
 
 #include "libvfio-user/include/libvfio-user.h"
 
@@ -62,6 +64,8 @@ struct VfuObject {
     Notifier machine_done;
 
     vfu_ctx_t *vfu_ctx;
+
+    PCIDevice *pci_dev;
 };
 
 static void vfu_object_set_socket(Object *obj, const char *str, Error **errp)
@@ -89,6 +93,8 @@ static void vfu_object_set_devid(Object *obj, const char *str, Error **errp)
 static void vfu_object_machine_done(Notifier *notifier, void *data)
 {
     VfuObject *o = container_of(notifier, VfuObject, machine_done);
+    DeviceState *dev = NULL;
+    int ret;
 
     o->vfu_ctx = vfu_create_ctx(VFU_TRANS_SOCK, o->socket, 0,
                                 o, VFU_DEV_TYPE_PCI);
@@ -97,6 +103,28 @@ static void vfu_object_machine_done(Notifier *notifier, void *data)
                    strerror(errno));
         return;
     }
+
+    dev = qdev_find_recursive(sysbus_get_default(), o->devid);
+    if (dev == NULL) {
+        error_setg(&error_abort, "vfu: Device %s not found", o->devid);
+        return;
+    }
+    o->pci_dev = PCI_DEVICE(dev);
+
+    ret = vfu_pci_init(o->vfu_ctx, VFU_PCI_TYPE_CONVENTIONAL,
+                       PCI_HEADER_TYPE_NORMAL, 0);
+    if (ret < 0) {
+        error_setg(&error_abort,
+                   "vfu: Failed to attach PCI device %s to context - %s",
+                   o->devid, strerror(errno));
+        return;
+    }
+
+    vfu_pci_set_id(o->vfu_ctx,
+                   pci_get_word(o->pci_dev->config + PCI_VENDOR_ID),
+                   pci_get_word(o->pci_dev->config + PCI_DEVICE_ID),
+                   pci_get_word(o->pci_dev->config + PCI_SUBSYSTEM_VENDOR_ID),
+                   pci_get_word(o->pci_dev->config + PCI_SUBSYSTEM_ID));
 }
 
 static void vfu_object_init(Object *obj)
