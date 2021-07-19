@@ -1195,6 +1195,16 @@ void qmp_netdev_del(const char *id, Error **errp)
     }
 }
 
+void qmp_passthrough_filter_add(IPFlowSpec *spec, Error **errp)
+{
+    /* TODO implement setup passthrough rule */
+}
+
+void qmp_passthrough_filter_del(IPFlowSpec *spec, Error **errp)
+{
+    /* TODO implement delete passthrough rule */
+}
+
 static void netfilter_print_info(Monitor *mon, NetFilterState *nf)
 {
     char *str;
