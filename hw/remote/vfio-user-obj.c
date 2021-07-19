@@ -35,6 +35,7 @@
 #include "trace.h"
 #include "sysemu/runstate.h"
 #include "qemu/notify.h"
+#include "qemu/thread.h"
 #include "qapi/error.h"
 #include "sysemu/sysemu.h"
 #include "hw/qdev-core.h"
@@ -66,6 +67,8 @@ struct VfuObject {
     vfu_ctx_t *vfu_ctx;
 
     PCIDevice *pci_dev;
+
+    QemuThread vfu_ctx_thread;
 };
 
 static void vfu_object_set_socket(Object *obj, const char *str, Error **errp)
@@ -88,6 +91,44 @@ static void vfu_object_set_devid(Object *obj, const char *str, Error **errp)
     o->devid = g_strdup(str);
 
     trace_vfu_prop("devid", str);
+}
+
+static void *vfu_object_ctx_run(void *opaque)
+{
+    VfuObject *o = opaque;
+    int ret;
+
+    ret = vfu_realize_ctx(o->vfu_ctx);
+    if (ret < 0) {
+        error_setg(&error_abort, "vfu: Failed to realize device %s- %s",
+                   o->devid, strerror(errno));
+        return NULL;
+    }
+
+    ret = vfu_attach_ctx(o->vfu_ctx);
+    if (ret < 0) {
+        error_setg(&error_abort,
+                   "vfu: Failed to attach device %s to context - %s",
+                   o->devid, strerror(errno));
+        return NULL;
+    }
+
+    do {
+        ret = vfu_run_ctx(o->vfu_ctx);
+        if (ret < 0) {
+            if (errno == EINTR) {
+                ret = 0;
+            } else if (errno == ENOTCONN) {
+                object_unparent(OBJECT(o));
+                break;
+            } else {
+                error_setg(&error_abort, "vfu: Failed to run device %s - %s",
+                           o->devid, strerror(errno));
+            }
+        }
+    } while (ret == 0);
+
+    return NULL;
 }
 
 static void vfu_object_machine_done(Notifier *notifier, void *data)
@@ -125,6 +166,9 @@ static void vfu_object_machine_done(Notifier *notifier, void *data)
                    pci_get_word(o->pci_dev->config + PCI_DEVICE_ID),
                    pci_get_word(o->pci_dev->config + PCI_SUBSYSTEM_VENDOR_ID),
                    pci_get_word(o->pci_dev->config + PCI_SUBSYSTEM_ID));
+
+    qemu_thread_create(&o->vfu_ctx_thread, "VFU ctx runner", vfu_object_ctx_run,
+                       o, QEMU_THREAD_JOINABLE);
 }
 
 static void vfu_object_init(Object *obj)
