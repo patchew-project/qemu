@@ -60,6 +60,8 @@ void sgx_memory_backend_reset(HostMemoryBackend *backend, int fd,
                               Error **errp)
 {
     MemoryRegion *mr = &backend->mr;
+    void *ptr;
+    uint64_t sz;
 
     mr->enabled = false;
 
@@ -69,6 +71,14 @@ void sgx_memory_backend_reset(HostMemoryBackend *backend, int fd,
     }
 
     sgx_epc_backend_memory_alloc(backend, errp);
+
+    ptr = memory_region_get_ram_ptr(&backend->mr);
+    sz = memory_region_size(&backend->mr);
+
+    if (backend->prealloc) {
+        os_mem_prealloc(memory_region_get_fd(&backend->mr), ptr, sz,
+                        backend->prealloc_threads, errp);
+    }
 }
 
 static void sgx_epc_backend_instance_init(Object *obj)
