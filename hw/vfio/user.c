@@ -905,3 +905,15 @@ int vfio_user_set_irqs(VFIODevice *vbasedev, struct vfio_irq_set *irq)
 
     return 0;
 }
+
+void vfio_user_reset(VFIODevice *vbasedev)
+{
+    vfio_user_hdr_t msg;
+
+    vfio_user_request_msg(&msg, VFIO_USER_DEVICE_RESET, sizeof(msg), 0);
+
+    vfio_user_send_recv(vbasedev->proxy, &msg, NULL, 0);
+    if (msg.flags & VFIO_USER_ERROR) {
+        error_printf("reset reply error %d\n", msg.error_reply);
+    }
+}

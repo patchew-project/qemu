@@ -254,4 +254,5 @@ void vfio_user_set_reqhandler(VFIODevice *vbasdev,
                                              VFIOUserFDs *fds),
                                              void *reqarg);
 int vfio_user_set_irqs(VFIODevice *vbasedev, struct vfio_irq_set *irq);
+void vfio_user_reset(VFIODevice *vbasedev);
 #endif /* VFIO_USER_H */
