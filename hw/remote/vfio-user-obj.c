@@ -27,11 +27,18 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 
+#include <errno.h>
+
 #include "qom/object.h"
 #include "qom/object_interfaces.h"
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "sysemu/runstate.h"
+#include "qemu/notify.h"
+#include "qapi/error.h"
+#include "sysemu/sysemu.h"
+
+#include "libvfio-user/include/libvfio-user.h"
 
 #define TYPE_VFU_OBJECT "vfio-user"
 OBJECT_DECLARE_TYPE(VfuObject, VfuObjectClass, VFU_OBJECT)
@@ -51,6 +58,10 @@ struct VfuObject {
 
     char *socket;
     char *devid;
+
+    Notifier machine_done;
+
+    vfu_ctx_t *vfu_ctx;
 };
 
 static void vfu_object_set_socket(Object *obj, const char *str, Error **errp)
@@ -75,9 +86,23 @@ static void vfu_object_set_devid(Object *obj, const char *str, Error **errp)
     trace_vfu_prop("devid", str);
 }
 
+static void vfu_object_machine_done(Notifier *notifier, void *data)
+{
+    VfuObject *o = container_of(notifier, VfuObject, machine_done);
+
+    o->vfu_ctx = vfu_create_ctx(VFU_TRANS_SOCK, o->socket, 0,
+                                o, VFU_DEV_TYPE_PCI);
+    if (o->vfu_ctx == NULL) {
+        error_setg(&error_abort, "vfu: Failed to create context - %s",
+                   strerror(errno));
+        return;
+    }
+}
+
 static void vfu_object_init(Object *obj)
 {
     VfuObjectClass *k = VFU_OBJECT_GET_CLASS(obj);
+    VfuObject *o = VFU_OBJECT(obj);
 
     /* Add test for remote machine and PCI device */
 
@@ -88,6 +113,9 @@ static void vfu_object_init(Object *obj)
     }
 
     k->nr_devs++;
+
+    o->machine_done.notify = vfu_object_machine_done;
+    qemu_add_machine_init_done_notifier(&o->machine_done);
 }
 
 static void vfu_object_finalize(Object *obj)
@@ -96,6 +124,8 @@ static void vfu_object_finalize(Object *obj)
     VfuObject *o = VFU_OBJECT(obj);
 
     k->nr_devs--;
+
+    vfu_destroy_ctx(o->vfu_ctx);
 
     g_free(o->socket);
     g_free(o->devid);
