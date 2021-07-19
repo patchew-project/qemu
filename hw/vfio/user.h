@@ -217,6 +217,19 @@ struct vfio_user_dma_rw {
     char data[];
 };
 
+/*
+ * VFIO_USER_DEVICE_SET_IRQS
+ * imported from struct vfio_irq_set
+ */
+struct vfio_user_irq_set {
+    vfio_user_hdr_t hdr;
+    uint32_t argsz;
+    uint32_t flags;
+    uint32_t index;
+    uint32_t start;
+    uint32_t count;
+};
+
 void vfio_user_recv(void *opaque);
 void vfio_user_send_reply(VFIOProxy *proxy, char *buf, int ret);
 VFIOProxy *vfio_user_connect_dev(char *sockname, Error **errp);
@@ -240,4 +253,5 @@ void vfio_user_set_reqhandler(VFIODevice *vbasdev,
                               int (*handler)(void *opaque, char *buf,
                                              VFIOUserFDs *fds),
                                              void *reqarg);
+int vfio_user_set_irqs(VFIODevice *vbasedev, struct vfio_irq_set *irq);
 #endif /* VFIO_USER_H */

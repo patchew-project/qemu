@@ -71,7 +71,11 @@ void vfio_disable_irqindex(VFIODevice *vbasedev, int index)
         .count = 0,
     };
 
-    ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, &irq_set);
+    if (vbasedev->proxy != NULL) {
+        vfio_user_set_irqs(vbasedev, &irq_set);
+    } else {
+        ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, &irq_set);
+    }
 }
 
 void vfio_unmask_single_irqindex(VFIODevice *vbasedev, int index)
@@ -84,7 +88,11 @@ void vfio_unmask_single_irqindex(VFIODevice *vbasedev, int index)
         .count = 1,
     };
 
-    ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, &irq_set);
+    if (vbasedev->proxy != NULL) {
+        vfio_user_set_irqs(vbasedev, &irq_set);
+    } else {
+        ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, &irq_set);
+    }
 }
 
 void vfio_mask_single_irqindex(VFIODevice *vbasedev, int index)
@@ -97,7 +105,11 @@ void vfio_mask_single_irqindex(VFIODevice *vbasedev, int index)
         .count = 1,
     };
 
-    ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, &irq_set);
+    if (vbasedev->proxy != NULL) {
+        vfio_user_set_irqs(vbasedev, &irq_set);
+    } else {
+        ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, &irq_set);
+    }
 }
 
 static inline const char *action_to_str(int action)
@@ -178,8 +190,12 @@ int vfio_set_irq_signaling(VFIODevice *vbasedev, int index, int subindex,
     pfd = (int32_t *)&irq_set->data;
     *pfd = fd;
 
-    if (ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, irq_set)) {
-        ret = -errno;
+    if (vbasedev->proxy != NULL) {
+        ret = vfio_user_set_irqs(vbasedev, irq_set);
+    } else {
+        if (ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, irq_set)) {
+            ret = -errno;
+        }
     }
     g_free(irq_set);
 
