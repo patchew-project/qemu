@@ -230,6 +230,20 @@ struct vfio_user_irq_set {
     uint32_t count;
 };
 
+/* imported from struct vfio_iommu_type1_dirty_bitmap_get */
+struct vfio_user_bitmap_range {
+    uint64_t iova;
+    uint64_t size;
+    struct vfio_user_bitmap bitmap;
+};
+
+/* imported from struct vfio_iommu_type1_dirty_bitmap */
+struct vfio_user_dirty_pages {
+    vfio_user_hdr_t hdr;
+    uint32_t argsz;
+    uint32_t flags;
+};
+
 void vfio_user_recv(void *opaque);
 void vfio_user_send_reply(VFIOProxy *proxy, char *buf, int ret);
 VFIOProxy *vfio_user_connect_dev(char *sockname, Error **errp);
@@ -255,4 +269,7 @@ void vfio_user_set_reqhandler(VFIODevice *vbasdev,
                                              void *reqarg);
 int vfio_user_set_irqs(VFIODevice *vbasedev, struct vfio_irq_set *irq);
 void vfio_user_reset(VFIODevice *vbasedev);
+int vfio_user_dirty_bitmap(VFIOProxy *proxy,
+                           struct vfio_iommu_type1_dirty_bitmap *bitmap,
+                           struct vfio_iommu_type1_dirty_bitmap_get *range);
 #endif /* VFIO_USER_H */

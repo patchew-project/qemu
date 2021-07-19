@@ -917,3 +917,48 @@ void vfio_user_reset(VFIODevice *vbasedev)
         error_printf("reset reply error %d\n", msg.error_reply);
     }
 }
+
+int vfio_user_dirty_bitmap(VFIOProxy *proxy,
+                           struct vfio_iommu_type1_dirty_bitmap *cmd,
+                           struct vfio_iommu_type1_dirty_bitmap_get *dbitmap)
+{
+    g_autofree struct {
+        struct vfio_user_dirty_pages msg;
+        struct vfio_user_bitmap_range range;
+    } *msgp = NULL;
+    int msize, rsize;
+
+    /*
+     * If just the command is sent, the returned bitmap isn't needed.
+     * The bitmap structs are different from the ioctl() versions,
+     * ioctl() returns the bitmap in a local VA
+     */
+    if (dbitmap != NULL) {
+        msize = sizeof(*msgp);
+        rsize = msize + dbitmap->bitmap.size;
+        msgp = g_malloc0(rsize);
+        msgp->range.iova = dbitmap->iova;
+        msgp->range.size = dbitmap->size;
+        msgp->range.bitmap.pgsize = dbitmap->bitmap.pgsize;
+        msgp->range.bitmap.size = dbitmap->bitmap.size;
+    } else {
+        msize = rsize = sizeof(struct vfio_user_dirty_pages);
+        msgp = g_malloc0(rsize);
+    }
+
+    vfio_user_request_msg(&msgp->msg.hdr, VFIO_USER_DIRTY_PAGES, msize, 0);
+    msgp->msg.argsz = msize - sizeof(msgp->msg.hdr);
+    msgp->msg.flags = cmd->flags;
+
+    vfio_user_send_recv(proxy, &msgp->msg.hdr, NULL, rsize);
+    if (msgp->msg.hdr.flags & VFIO_USER_ERROR) {
+        return -msgp->msg.hdr.error_reply;
+    }
+
+    if (dbitmap != NULL) {
+        memcpy(dbitmap->bitmap.data, &msgp->range.bitmap.data,
+               dbitmap->bitmap.size);
+    }
+
+    return 0;
+}

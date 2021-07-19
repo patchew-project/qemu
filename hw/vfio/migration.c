@@ -27,6 +27,7 @@
 #include "pci.h"
 #include "trace.h"
 #include "hw/hw.h"
+#include "user.h"
 
 /*
  * Flags to be used as unique delimiters for VFIO devices in the migration
@@ -49,10 +50,18 @@ static int64_t bytes_transferred;
 static inline int vfio_mig_access(VFIODevice *vbasedev, void *val, int count,
                                   off_t off, bool iswrite)
 {
+    VFIORegion *region = &vbasedev->migration->region;
     int ret;
 
-    ret = iswrite ? pwrite(vbasedev->fd, val, count, off) :
-                    pread(vbasedev->fd, val, count, off);
+    if (vbasedev->proxy != NULL) {
+        ret = iswrite ?
+            vfio_user_region_write(vbasedev, region->nr, off, count, val) :
+            vfio_user_region_read(vbasedev, region->nr, off, count, val);
+    } else {
+        off += region->fd_offset;
+        ret = iswrite ? pwrite(vbasedev->fd, val, count, off) :
+                        pread(vbasedev->fd, val, count, off);
+    }
     if (ret < count) {
         error_report("vfio_mig_%s %d byte %s: failed at offset 0x%"
                      HWADDR_PRIx", err: %s", iswrite ? "write" : "read", count,
@@ -111,9 +120,7 @@ static int vfio_migration_set_state(VFIODevice *vbasedev, uint32_t mask,
                                     uint32_t value)
 {
     VFIOMigration *migration = vbasedev->migration;
-    VFIORegion *region = &migration->region;
-    off_t dev_state_off = region->fd_offset +
-                          VFIO_MIG_STRUCT_OFFSET(device_state);
+    off_t dev_state_off = VFIO_MIG_STRUCT_OFFSET(device_state);
     uint32_t device_state;
     int ret;
 
@@ -201,13 +208,13 @@ static int vfio_save_buffer(QEMUFile *f, VFIODevice *vbasedev, uint64_t *size)
     int ret;
 
     ret = vfio_mig_read(vbasedev, &data_offset, sizeof(data_offset),
-                      region->fd_offset + VFIO_MIG_STRUCT_OFFSET(data_offset));
+                        VFIO_MIG_STRUCT_OFFSET(data_offset));
     if (ret < 0) {
         return ret;
     }
 
     ret = vfio_mig_read(vbasedev, &data_size, sizeof(data_size),
-                        region->fd_offset + VFIO_MIG_STRUCT_OFFSET(data_size));
+                        VFIO_MIG_STRUCT_OFFSET(data_size));
     if (ret < 0) {
         return ret;
     }
@@ -233,8 +240,7 @@ static int vfio_save_buffer(QEMUFile *f, VFIODevice *vbasedev, uint64_t *size)
             }
             buf_allocated = true;
 
-            ret = vfio_mig_read(vbasedev, buf, sec_size,
-                                region->fd_offset + data_offset);
+            ret = vfio_mig_read(vbasedev, buf, sec_size, data_offset);
             if (ret < 0) {
                 g_free(buf);
                 return ret;
@@ -269,7 +275,7 @@ static int vfio_load_buffer(QEMUFile *f, VFIODevice *vbasedev,
 
     do {
         ret = vfio_mig_read(vbasedev, &data_offset, sizeof(data_offset),
-                      region->fd_offset + VFIO_MIG_STRUCT_OFFSET(data_offset));
+                            VFIO_MIG_STRUCT_OFFSET(data_offset));
         if (ret < 0) {
             return ret;
         }
@@ -309,8 +315,8 @@ static int vfio_load_buffer(QEMUFile *f, VFIODevice *vbasedev,
             qemu_get_buffer(f, buf, sec_size);
 
             if (buf_alloc) {
-                ret = vfio_mig_write(vbasedev, buf, sec_size,
-                        region->fd_offset + data_offset);
+
+                ret = vfio_mig_write(vbasedev, buf, sec_size, data_offset);
                 g_free(buf);
 
                 if (ret < 0) {
@@ -322,7 +328,7 @@ static int vfio_load_buffer(QEMUFile *f, VFIODevice *vbasedev,
         }
 
         ret = vfio_mig_write(vbasedev, &report_size, sizeof(report_size),
-                        region->fd_offset + VFIO_MIG_STRUCT_OFFSET(data_size));
+                             VFIO_MIG_STRUCT_OFFSET(data_size));
         if (ret < 0) {
             return ret;
         }
@@ -334,12 +340,11 @@ static int vfio_load_buffer(QEMUFile *f, VFIODevice *vbasedev,
 static int vfio_update_pending(VFIODevice *vbasedev)
 {
     VFIOMigration *migration = vbasedev->migration;
-    VFIORegion *region = &migration->region;
     uint64_t pending_bytes = 0;
     int ret;
 
     ret = vfio_mig_read(vbasedev, &pending_bytes, sizeof(pending_bytes),
-                    region->fd_offset + VFIO_MIG_STRUCT_OFFSET(pending_bytes));
+                        VFIO_MIG_STRUCT_OFFSET(pending_bytes));
     if (ret < 0) {
         migration->pending_bytes = 0;
         return ret;
