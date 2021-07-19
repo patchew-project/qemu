@@ -177,9 +177,14 @@ static void acpi_memory_hotplug_write(void *opaque, hwaddr addr, uint64_t data,
             /* call pc-dimm unplug cb */
             hotplug_handler_unplug(hotplug_ctrl, dev, &local_err);
             if (local_err) {
+                const char *error_pretty = error_get_pretty(local_err);
+
                 trace_mhp_acpi_pc_dimm_delete_failed(mem_st->selector);
-                qapi_event_send_mem_unplug_error(dev->id,
-                                                 error_get_pretty(local_err));
+
+                if (dev->id) {
+                    qapi_event_send_mem_unplug_error(dev->id, error_pretty);
+                }
+
                 error_free(local_err);
                 break;
             }
