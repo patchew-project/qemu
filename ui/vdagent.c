@@ -782,6 +782,7 @@ static void vdagent_chr_fini(Object *obj)
     VDAgentChardev *vd = QEMU_VDAGENT_CHARDEV(obj);
 
     buffer_free(&vd->outbuf);
+    qemu_clipboard_peer_unregister(&vd->cbpeer);
 }
 
 static const TypeInfo vdagent_chr_type_info = {
