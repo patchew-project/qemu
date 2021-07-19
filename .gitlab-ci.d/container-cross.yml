@@ -50,13 +50,11 @@ armhf-debian-cross-container:
 # We never want to build hexagon in the CI system and by default we
 # always want to refer to the master registry where it lives.
 hexagon-cross-container:
+  extends: .job_workflow
   image: docker:stable
   stage: containers
-  rules:
-    - if: '$CI_PROJECT_NAMESPACE == "qemu-project"'
-      when: never
-    - when: always
   variables:
+    QEMU_CI_MANUAL_JOB: 1
     NAME: debian-hexagon-cross
     GIT_DEPTH: 1
   services:
@@ -143,6 +141,7 @@ s390x-debian-cross-container:
   stage: containers-layer2
   needs: ['amd64-debian10-container']
   variables:
+    QEMU_CI_DEFAULT_JOB: 1
     NAME: debian-s390x-cross
 
 sh4-debian-cross-container:
@@ -179,11 +178,13 @@ cris-fedora-cross-container:
 i386-fedora-cross-container:
   extends: .container_job_template
   variables:
+    QEMU_CI_DEFAULT_JOB: 1
     NAME: fedora-i386-cross
 
 win32-fedora-cross-container:
   extends: .container_job_template
   variables:
+    QEMU_CI_DEFAULT_JOB: 1
     NAME: fedora-win32-cross
 
 win64-fedora-cross-container:

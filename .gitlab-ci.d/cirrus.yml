@@ -11,6 +11,7 @@
 # special care, because we can't just override it at the GitLab CI job
 # definition level or we risk breaking it completely.
 .cirrus_build_job:
+  extends: .job_workflow
   stage: build
   image: registry.gitlab.com/libvirt/libvirt-ci/cirrus-run:master
   needs: []
@@ -39,8 +40,6 @@
       <.gitlab-ci.d/cirrus/build.yml >.gitlab-ci.d/cirrus/$NAME.yml
     - cat .gitlab-ci.d/cirrus/$NAME.yml
     - cirrus-run -v --show-build-log always .gitlab-ci.d/cirrus/$NAME.yml
-  rules:
-    - if: "$CIRRUS_GITHUB_REPO && $CIRRUS_API_TOKEN"
 
 x64-freebsd-12-build:
   extends: .cirrus_build_job
@@ -61,6 +60,7 @@ x64-freebsd-12-build:
 x64-freebsd-13-build:
   extends: .cirrus_build_job
   variables:
+    QEMU_CI_DEFAULT_JOB: 1
     NAME: freebsd-13
     CIRRUS_VM_INSTANCE_TYPE: freebsd_instance
     CIRRUS_VM_IMAGE_SELECTOR: image_family
@@ -74,6 +74,7 @@ x64-freebsd-13-build:
 x64-macos-11-base-build:
   extends: .cirrus_build_job
   variables:
+    QEMU_CI_DEFAULT_JOB: 1
     NAME: macos-11
     CIRRUS_VM_INSTANCE_TYPE: osx_instance
     CIRRUS_VM_IMAGE_SELECTOR: image

@@ -54,3 +54,93 @@ workflow:
     # covering: external, chat, webide, merge_request_event,
     # external_pull_request_event, parent_pipeline, trigger, or pipeline)
     - when: never
+
+
+# This defines rules used to control individual job execution
+#
+# By default only a small subset of jobs are run, to give a
+# basic sanity check of the build. The set of default jobs
+# are identified by existance of a special variable:
+#
+#  - QEMU_CI_DEFAULT_JOB: 1
+#
+# To trigger remaining non-default jobs, push to a branch
+# called 'ci-XXXXX', or set a git push option. e.g. one of:
+#
+#  $ git push ci-somefeature
+#  $ git push -o "ci.variable=QEMU_CI=1" somefeature
+#
+# Jobs can be marked to never run automatically using the
+# variable:
+#
+#  - QEMU_CI_MANUAL_JOB: 1
+#
+# Jobs that provide acceptance (functional/integration) tests
+# are designated using
+#
+#  - QEMU_CI_ACCEPTANCE_JOB: 1
+#
+# These are not run unless pushing to the 'staging' branch of
+# the main repo. They can be optionally run in other scenarios
+# by pushing to a branch 'ci-acceptance-XXX', or by setting an
+# additional git push option, together with the previously
+# CI configurations. e.g. one of:
+#
+#  $ git push ci-acceptance-somefeature
+#  $ git push -o "ci.variable=QEMU_CI_ACEPTANCE=1" ci-somefeature
+#  $ git push -o "ci.variable=QEMU_CI_ACEPTANCE=1" -o "ci.variable=QEMU_CI=1" somefeature
+#
+.job_workflow:
+  rules:
+    # Skip any cirrus job if either repo or api token are missing
+    - if: '$CIRRUS_VM_INSTANCE_TYPE && ($CIRRUS_GITHUB_REPO == null || $CIRRUS_API_TOKEN == null)'
+      when: never
+
+    # Any jobs marked as manual, never get automatically run in any scenario
+    - if: '$QEMU_CI_MANUAL_JOB'
+      when: manual
+      allow_failure: true
+
+    # Run all jobs for main repo staging branch, including acceptance jobs
+    - if: '$CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH == "staging"'
+      when: always
+
+    # If pushing to a branch with name prefix 'ci-acceptance-', then run
+    # acceptance tests, in addition to other jobs
+    - if: '$CI_COMMIT_BRANCH =~ /^ci-acceptance-/ && $QEMU_CI_ACCEPTANCE_JOB'
+      when: always
+
+    # If user requested acceptance tests using 'git push' option to
+    # set QEMU_CI_ACCEPTANCE=1, with branch ci-XXXX
+    - if: '$CI_COMMIT_BRANCH =~ /^ci-/ && $QEMU_CI_ACCEPTANCE_JOB && $QEMU_CI_ACCEPTANCE'
+      when: always
+
+    # If user requested acceptance tests using 'git push' option to
+    # set QEMU_CI_ACCEPTANCE=1, with varaible QEMU_CI=1
+    - if: '$QEMU_CI && $QEMU_CI_ACCEPTANCE_JOB && $QEMU_CI_ACCEPTANCE'
+      when: always
+
+    # Otherwise never run acceptance tests, but allow manual trigger
+    - if: '$QEMU_CI_ACCEPTANCE_JOB'
+      when: manual
+      allow_failure: true
+
+    # If pushing to a branch with name prefix 'ci-', then run all jobs
+    - if: '$CI_COMMIT_BRANCH =~ /^ci-/'
+      when: always
+
+    # If user requested CI using 'git push -o ci.variable="QEMU_CI=1"',
+    # then run all jobs
+    - if: '$QEMU_CI'
+      when: always
+
+    # If user pushed in any other way, only default the small
+    # number of default jobs needed to sanity check basic build
+    - if: '$QEMU_CI_DEFAULT_JOB == "1"'
+      when: always
+
+    # Any other scenario, let the jobs be manually triggered.
+    # Set to be non-fatal, so that pending manual jobs don't
+    # affect overall pipeline status
+    - when: manual
+      allow_failure: true

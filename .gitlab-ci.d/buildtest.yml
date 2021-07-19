@@ -40,6 +40,7 @@ build-system-ubuntu:
   needs:
     job: amd64-ubuntu2004-container
   variables:
+    QEMU_CI_DEFAULT_JOB: 1
     IMAGE: ubuntu2004
     CONFIGURE_ARGS: --enable-docs --enable-fdt=system --enable-slirp=system
     TARGETS: aarch64-softmmu alpha-softmmu cris-softmmu hppa-softmmu
@@ -56,6 +57,7 @@ check-system-ubuntu:
     - job: build-system-ubuntu
       artifacts: true
   variables:
+    QEMU_CI_DEFAULT_JOB: 1
     IMAGE: ubuntu2004
     MAKE_CHECK_ARGS: check
 
@@ -73,6 +75,7 @@ build-system-debian:
   needs:
     job: amd64-debian-container
   variables:
+    QEMU_CI_DEFAULT_JOB: 1
     IMAGE: debian-amd64
     CONFIGURE_ARGS: --enable-fdt=system
     TARGETS: arm-softmmu avr-softmmu i386-softmmu mipsel-softmmu
@@ -89,6 +92,7 @@ check-system-debian:
     - job: build-system-debian
       artifacts: true
   variables:
+    QEMU_CI_DEFAULT_JOB: 1
     IMAGE: debian-amd64
     MAKE_CHECK_ARGS: check
 
@@ -106,6 +110,7 @@ build-system-fedora:
   needs:
     job: amd64-fedora-container
   variables:
+    QEMU_CI_DEFAULT_JOB: 1
     IMAGE: fedora
     CONFIGURE_ARGS: --disable-gcrypt --enable-nettle --enable-docs
              --enable-fdt=system --enable-slirp=system --enable-capstone=system
@@ -123,6 +128,7 @@ check-system-fedora:
     - job: build-system-fedora
       artifacts: true
   variables:
+    QEMU_CI_DEFAULT_JOB: 1
     IMAGE: fedora
     MAKE_CHECK_ARGS: check
 
@@ -140,6 +146,7 @@ build-system-centos:
   needs:
     job: amd64-centos8-container
   variables:
+    QEMU_CI_DEFAULT_JOB: 1
     IMAGE: centos8
     CONFIGURE_ARGS: --disable-nettle --enable-gcrypt --enable-fdt=system
                     --enable-modules --enable-trace-backends=dtrace
@@ -157,6 +164,7 @@ check-system-centos:
     - job: build-system-centos
       artifacts: true
   variables:
+    QEMU_CI_DEFAULT_JOB: 1
     IMAGE: centos8
     MAKE_CHECK_ARGS: check
 
@@ -325,6 +333,7 @@ build-user-static:
   needs:
     job: amd64-debian-user-cross-container
   variables:
+    QEMU_CI_DEFAULT_JOB: 1
     IMAGE: debian-all-test-cross
     CONFIGURE_ARGS: --disable-tools --disable-system --static
     MAKE_CHECK_ARGS: check-tcg
@@ -634,6 +643,7 @@ build-without-default-features:
     MAKE_CHECK_ARGS: check-unit
 
 build-libvhost-user:
+  extends: .job_workflow
   stage: build
   image: $CI_REGISTRY_IMAGE/qemu/fedora:latest
   needs:
@@ -653,6 +663,7 @@ build-tools-and-docs-debian:
   needs:
     job: amd64-debian-container
   variables:
+    QEMU_CI_DEFAULT_JOB: 1
     IMAGE: debian-amd64
     MAKE_CHECK_ARGS: check-unit check-softfloat ctags TAGS cscope
     CONFIGURE_ARGS: --disable-system --disable-user --enable-docs --enable-tools
@@ -664,10 +675,13 @@ build-tools-and-docs-debian:
 # Prepare for GitLab pages deployment. Anything copied into the
 # "public" directory will be deployed to $USER.gitlab.io/$PROJECT
 pages:
+  extends: .native_build_job_template
   image: $CI_REGISTRY_IMAGE/qemu/debian-amd64:latest
   stage: test
   needs:
     - job: build-tools-and-docs-debian
+  variables:
+    QEMU_CI_DEFAULT_JOB: 1
   script:
     - mkdir -p public
     # HTML-ised source tree
