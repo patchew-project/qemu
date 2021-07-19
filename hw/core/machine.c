@@ -743,6 +743,7 @@ void machine_set_cpu_numa_node(MachineState *machine,
 
 static void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
 {
+    MachineClass *mc = MACHINE_GET_CLASS(ms);
     unsigned cpus    = config->has_cpus ? config->cpus : 0;
     unsigned sockets = config->has_sockets ? config->sockets : 0;
     unsigned dies    = config->has_dies ? config->dies : 1;
@@ -761,7 +762,7 @@ static void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
         return;
     }
 
-    if (dies > 1) {
+    if (!mc->smp_dies_supported && dies > 1) {
         error_setg(errp, "dies not supported by this machine's CPU topology");
         return;
     }
@@ -772,23 +773,25 @@ static void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
         threads = threads > 0 ? threads : 1;
         if (cpus == 0) {
             sockets = sockets > 0 ? sockets : 1;
-            cpus = cores * threads * sockets;
+            cpus = sockets * dies * cores * threads;
         } else {
             maxcpus = maxcpus > 0 ? maxcpus : cpus;
-            sockets = maxcpus / (cores * threads);
+            sockets = maxcpus / (dies * cores * threads);
         }
     } else if (cores == 0) {
         threads = threads > 0 ? threads : 1;
-        cores = cpus / (sockets * threads);
+        cores = cpus / (sockets * dies * threads);
         cores = cores > 0 ? cores : 1;
     } else if (threads == 0) {
-        threads = cpus / (cores * sockets);
+        threads = cpus / (sockets * dies * cores);
         threads = threads > 0 ? threads : 1;
-    } else if (sockets * cores * threads < cpus) {
+    } else if (sockets * dies * cores * threads < cpus) {
+        g_autofree char *dies_msg = g_strdup_printf(
+            mc->smp_dies_supported ? " * dies (%u)" : "", dies);
         error_setg(errp, "cpu topology: "
-                   "sockets (%u) * cores (%u) * threads (%u) < "
+                   "sockets (%u)%s * cores (%u) * threads (%u) < "
                    "smp_cpus (%u)",
-                   sockets, cores, threads, cpus);
+                   sockets, dies_msg, cores, threads, cpus);
         return;
     }
 
@@ -799,17 +802,20 @@ static void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
         return;
     }
 
-    if (sockets * cores * threads != maxcpus) {
+    if (sockets * dies * cores * threads != maxcpus) {
+        g_autofree char *dies_msg = g_strdup_printf(
+            mc->smp_dies_supported ? " * dies (%u)" : "", dies);
         error_setg(errp, "Invalid CPU topology: "
-                   "sockets (%u) * cores (%u) * threads (%u) "
+                   "sockets (%u)%s * cores (%u) * threads (%u) "
                    "!= maxcpus (%u)",
-                   sockets, cores, threads,
+                   sockets, dies_msg, cores, threads,
                    maxcpus);
         return;
     }
 
     ms->smp.cpus = cpus;
     ms->smp.sockets = sockets;
+    ms->smp.dies = dies;
     ms->smp.cores = cores;
     ms->smp.threads = threads;
     ms->smp.max_cpus = maxcpus;
