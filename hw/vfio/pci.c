@@ -3328,6 +3328,29 @@ static void register_vfio_pci_dev_type(void)
 
 type_init(register_vfio_pci_dev_type)
 
+/*
+ * Emulated devices don't use host hot reset
+ */
+static int vfio_user_pci_no_reset(VFIODevice *vbasedev)
+{
+    error_printf("vfio-user - no hot reset\n");
+    return 0;
+}
+
+static void vfio_user_pci_not_needed(VFIODevice *vbasedev)
+{
+    vbasedev->needs_reset = false;
+}
+
+static VFIODeviceOps vfio_user_pci_ops = {
+    .vfio_compute_needs_reset = vfio_user_pci_not_needed,
+    .vfio_hot_reset_multi = vfio_user_pci_no_reset,
+    .vfio_eoi = vfio_intx_eoi,
+    .vfio_get_object = vfio_pci_get_object,
+    .vfio_save_config = vfio_pci_save_config,
+    .vfio_load_config = vfio_pci_load_config,
+};
+
 static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
 {
     ERRP_GUARD();
@@ -3354,6 +3377,14 @@ static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
         error_propagate(errp, err);
         goto error;
     }
+
+    vbasedev->name = g_strdup_printf("VFIO user <%s>", udev->sock_name);
+    vbasedev->dev = DEVICE(vdev);
+    vbasedev->fd = -1;
+    vbasedev->type = VFIO_DEVICE_TYPE_PCI;
+    vbasedev->no_mmap = false;
+    vbasedev->ops = &vfio_user_pci_ops;
+
     return;
 
  error:
