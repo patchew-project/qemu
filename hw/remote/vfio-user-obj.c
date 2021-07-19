@@ -36,6 +36,7 @@
 #include "sysemu/runstate.h"
 #include "qemu/notify.h"
 #include "qemu/thread.h"
+#include "qemu/main-loop.h"
 #include "qapi/error.h"
 #include "sysemu/sysemu.h"
 #include "hw/qdev-core.h"
@@ -131,6 +132,35 @@ static void *vfu_object_ctx_run(void *opaque)
     return NULL;
 }
 
+static ssize_t vfu_object_cfg_access(vfu_ctx_t *vfu_ctx, char * const buf,
+                                     size_t count, loff_t offset,
+                                     const bool is_write)
+{
+    VfuObject *o = vfu_get_private(vfu_ctx);
+    uint32_t val = 0;
+    int i;
+
+    qemu_mutex_lock_iothread();
+
+    for (i = 0; i < count; i++) {
+        if (is_write) {
+            val = *((uint8_t *)(buf + i));
+            trace_vfu_cfg_write((offset + i), val);
+            pci_default_write_config(PCI_DEVICE(o->pci_dev),
+                                     (offset + i), val, 1);
+        } else {
+            val = pci_default_read_config(PCI_DEVICE(o->pci_dev),
+                                          (offset + i), 1);
+            *((uint8_t *)(buf + i)) = (uint8_t)val;
+            trace_vfu_cfg_read((offset + i), val);
+        }
+    }
+
+    qemu_mutex_unlock_iothread();
+
+    return count;
+}
+
 static void vfu_object_machine_done(Notifier *notifier, void *data)
 {
     VfuObject *o = container_of(notifier, VfuObject, machine_done);
@@ -166,6 +196,17 @@ static void vfu_object_machine_done(Notifier *notifier, void *data)
                    pci_get_word(o->pci_dev->config + PCI_DEVICE_ID),
                    pci_get_word(o->pci_dev->config + PCI_SUBSYSTEM_VENDOR_ID),
                    pci_get_word(o->pci_dev->config + PCI_SUBSYSTEM_ID));
+
+    ret = vfu_setup_region(o->vfu_ctx, VFU_PCI_DEV_CFG_REGION_IDX,
+                           pci_config_size(o->pci_dev), &vfu_object_cfg_access,
+                           VFU_REGION_FLAG_RW | VFU_REGION_FLAG_ALWAYS_CB,
+                           NULL, 0, -1, 0);
+    if (ret < 0) {
+        error_setg(&error_abort,
+                   "vfu: Failed to setup config space handlers for %s- %s",
+                   o->devid, strerror(errno));
+        return;
+    }
 
     qemu_thread_create(&o->vfu_ctx_thread, "VFU ctx runner", vfu_object_ctx_run,
                        o, QEMU_THREAD_JOINABLE);
