@@ -212,6 +212,99 @@ static int dma_unregister(vfu_ctx_t *vfu_ctx, vfu_dma_info_t *info)
     return 0;
 }
 
+static ssize_t vfu_object_bar_rw(PCIDevice *pci_dev, hwaddr addr, size_t count,
+                                 char * const buf, const bool is_write,
+                                 uint8_t type)
+{
+    AddressSpace *as = NULL;
+    MemTxResult res;
+
+    if (type == PCI_BASE_ADDRESS_SPACE_MEMORY) {
+        as = pci_device_iommu_address_space(pci_dev);
+    } else {
+        as = &address_space_io;
+    }
+
+    trace_vfu_bar_rw_enter(is_write ? "Write" : "Read", (uint64_t)addr);
+
+    res = address_space_rw(as, addr, MEMTXATTRS_UNSPECIFIED, (void *)buf,
+                           (hwaddr)count, is_write);
+    if (res != MEMTX_OK) {
+        warn_report("vfu: failed to %s 0x%"PRIx64"",
+                    is_write ? "write to" : "read from",
+                    addr);
+        return -1;
+    }
+
+    trace_vfu_bar_rw_exit(is_write ? "Write" : "Read", (uint64_t)addr);
+
+    return count;
+}
+
+/**
+ * VFU_OBJECT_BAR_HANDLER - macro for defining handlers for PCI BARs.
+ *
+ * To create handler for BAR number 2, VFU_OBJECT_BAR_HANDLER(2) would
+ * define vfu_object_bar2_handler
+ */
+#define VFU_OBJECT_BAR_HANDLER(BAR_NO)                                         \
+    static ssize_t vfu_object_bar##BAR_NO##_handler(vfu_ctx_t *vfu_ctx,        \
+                                        char * const buf, size_t count,        \
+                                        loff_t offset, const bool is_write)    \
+    {                                                                          \
+        VfuObject *o = vfu_get_private(vfu_ctx);                               \
+        hwaddr addr = (hwaddr)(pci_get_long(o->pci_dev->config +               \
+                                            PCI_BASE_ADDRESS_0 +               \
+                                            (4 * BAR_NO)) + offset);           \
+                                                                               \
+        return vfu_object_bar_rw(o->pci_dev, addr, count, buf, is_write,       \
+                                 o->pci_dev->io_regions[BAR_NO].type);         \
+    }                                                                          \
+
+VFU_OBJECT_BAR_HANDLER(0)
+VFU_OBJECT_BAR_HANDLER(1)
+VFU_OBJECT_BAR_HANDLER(2)
+VFU_OBJECT_BAR_HANDLER(3)
+VFU_OBJECT_BAR_HANDLER(4)
+VFU_OBJECT_BAR_HANDLER(5)
+
+static vfu_region_access_cb_t *vfu_object_bar_handlers[PCI_NUM_REGIONS] = {
+    &vfu_object_bar0_handler,
+    &vfu_object_bar1_handler,
+    &vfu_object_bar2_handler,
+    &vfu_object_bar3_handler,
+    &vfu_object_bar4_handler,
+    &vfu_object_bar5_handler,
+};
+
+/**
+ * vfu_object_register_bars - Identify active BAR regions of pdev and setup
+ *                            callbacks to handle read/write accesses
+ */
+static void vfu_object_register_bars(vfu_ctx_t *vfu_ctx, PCIDevice *pdev)
+{
+    uint32_t orig_val, new_val;
+    int i, size;
+
+    for (i = 0; i < PCI_NUM_REGIONS; i++) {
+        orig_val = pci_default_read_config(pdev,
+                                           PCI_BASE_ADDRESS_0 + (4 * i), 4);
+        new_val = 0xffffffff;
+        pci_default_write_config(pdev,
+                                 PCI_BASE_ADDRESS_0 + (4 * i), new_val, 4);
+        new_val = pci_default_read_config(pdev,
+                                          PCI_BASE_ADDRESS_0 + (4 * i), 4);
+        size = (~(new_val & 0xFFFFFFF0)) + 1;
+        pci_default_write_config(pdev, PCI_BASE_ADDRESS_0 + (4 * i),
+                                 orig_val, 4);
+        if (size) {
+            vfu_setup_region(vfu_ctx, VFU_PCI_DEV_BAR0_REGION_IDX + i, size,
+                             vfu_object_bar_handlers[i], VFU_REGION_FLAG_RW,
+                             NULL, 0, -1, 0);
+        }
+    }
+}
+
 static void vfu_object_machine_done(Notifier *notifier, void *data)
 {
     VfuObject *o = container_of(notifier, VfuObject, machine_done);
@@ -265,6 +358,8 @@ static void vfu_object_machine_done(Notifier *notifier, void *data)
                    o->devid);
         return;
     }
+
+    vfu_object_register_bars(o->vfu_ctx, o->pci_dev);
 
     qemu_thread_create(&o->vfu_ctx_thread, "VFU ctx runner", vfu_object_ctx_run,
                        o, QEMU_THREAD_JOINABLE);
