@@ -508,6 +508,27 @@ int vfio_user_validate_version(VFIODevice *vbasedev, Error **errp)
     return 0;
 }
 
+int vfio_user_get_info(VFIODevice *vbasedev)
+{
+    struct vfio_user_device_info msg;
+
+    memset(&msg, 0, sizeof(msg));
+    vfio_user_request_msg(&msg.hdr, VFIO_USER_DEVICE_GET_INFO, sizeof(msg), 0);
+    msg.argsz = sizeof(struct vfio_device_info);
+
+    vfio_user_send_recv(vbasedev->proxy, &msg.hdr, NULL, 0);
+    if (msg.hdr.flags & VFIO_USER_ERROR) {
+        return -msg.hdr.error_reply;
+    }
+
+    vbasedev->num_irqs = msg.num_irqs;
+    vbasedev->num_regions = msg.num_regions;
+    vbasedev->flags = msg.flags;
+    vbasedev->reset_works = !!(msg.flags & VFIO_DEVICE_FLAGS_RESET);
+    return 0;
+
+}
+
 static QLIST_HEAD(, VFIOProxy) vfio_user_sockets =
     QLIST_HEAD_INITIALIZER(vfio_user_sockets);
 
@@ -593,4 +614,23 @@ void vfio_user_disconnect(VFIOProxy *proxy)
     }
 
     g_free(proxy);
+}
+
+int vfio_user_get_irq_info(VFIODevice *vbasedev, struct vfio_irq_info *info)
+{
+    struct vfio_user_irq_info msg;
+
+    memset(&msg, 0, sizeof(msg));
+    vfio_user_request_msg(&msg.hdr, VFIO_USER_DEVICE_GET_IRQ_INFO,
+                          sizeof(msg), 0);
+    msg.argsz = info->argsz;
+    msg.index = info->index;
+
+    vfio_user_send_recv(vbasedev->proxy, &msg.hdr, NULL, 0);
+    if (msg.hdr.flags & VFIO_USER_ERROR) {
+        return -msg.hdr.error_reply;
+    }
+
+    memcpy(info, &msg.argsz, sizeof(*info));
+    return 0;
 }

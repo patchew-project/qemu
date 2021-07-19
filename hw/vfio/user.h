@@ -122,9 +122,36 @@ typedef struct VFIOProxy {
 
 #define VFIO_PROXY_CLIENT       0x1
 
+/*
+ * VFIO_USER_DEVICE_GET_INFO
+ * imported from struct_device_info
+ */
+struct vfio_user_device_info {
+    vfio_user_hdr_t hdr;
+    uint32_t argsz;
+    uint32_t flags;
+    uint32_t num_regions;
+    uint32_t num_irqs;
+    uint32_t cap_offset;
+};
+
+/*
+ * VFIO_USER_DEVICE_GET_IRQ_INFO
+ * imported from struct vfio_irq_info
+ */
+struct vfio_user_irq_info {
+    vfio_user_hdr_t hdr;
+    uint32_t argsz;
+    uint32_t flags;
+    uint32_t index;
+    uint32_t count;
+};
+
 void vfio_user_recv(void *opaque);
 void vfio_user_send_reply(VFIOProxy *proxy, char *buf, int ret);
 VFIOProxy *vfio_user_connect_dev(char *sockname, Error **errp);
 void vfio_user_disconnect(VFIOProxy *proxy);
 int vfio_user_validate_version(VFIODevice *vbasedev, Error **errp);
+int vfio_user_get_info(VFIODevice *vbasedev);
+int vfio_user_get_irq_info(VFIODevice *vbasedev, struct vfio_irq_info *info);
 #endif /* VFIO_USER_H */
