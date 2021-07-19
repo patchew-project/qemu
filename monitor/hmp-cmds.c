@@ -1638,6 +1638,69 @@ void hmp_netdev_del(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
+static IPFlowSpec *hmp_parse_IPFlowSpec(Monitor *mon, const QDict *qdict)
+{
+    IPFlowSpec *spec = g_new0(IPFlowSpec, 1);
+    g_autofree char *src = NULL, *dst = NULL;
+
+    spec->protocol = g_strdup(qdict_get_try_str(qdict, "protocol"));
+    spec->object_name = g_strdup(qdict_get_try_str(qdict, "object-name"));
+    src = g_strdup(qdict_get_try_str(qdict, "src"));
+    dst = g_strdup(qdict_get_try_str(qdict, "dst"));
+
+    if (src) {
+        spec->source = g_new0(InetSocketAddressBase, 1);
+
+        if (inet_parse_base(spec->source, src, NULL)) {
+            monitor_printf(mon, "Incorrect passthrough src address\n");
+            goto err;
+        }
+    }
+
+    if (dst) {
+        spec->destination = g_new0(InetSocketAddressBase, 1);
+
+        if (inet_parse_base(spec->destination, dst, NULL)) {
+            monitor_printf(mon, "Incorrect passthrough dst address\n");
+            goto err;
+        }
+    }
+
+    return spec;
+
+err:
+    g_free(spec->source);
+    g_free(spec->destination);
+    g_free(spec);
+    return NULL;
+}
+
+void hmp_passthrough_filter_add(Monitor *mon, const QDict *qdict)
+{
+    IPFlowSpec *spec;
+    Error *err = NULL;
+
+    spec = hmp_parse_IPFlowSpec(mon, qdict);
+    if (spec) {
+        qmp_passthrough_filter_add(spec, &err);
+    }
+
+    hmp_handle_error(mon, err);
+}
+
+void hmp_passthrough_filter_del(Monitor *mon, const QDict *qdict)
+{
+    IPFlowSpec *spec;
+    Error *err = NULL;
+
+    spec = hmp_parse_IPFlowSpec(mon, qdict);
+    if (spec) {
+        qmp_passthrough_filter_del(spec, &err);
+    }
+
+    hmp_handle_error(mon, err);
+}
+
 void hmp_object_add(Monitor *mon, const QDict *qdict)
 {
     const char *options = qdict_get_str(qdict, "object");
