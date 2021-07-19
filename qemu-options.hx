@@ -227,7 +227,9 @@ SRST
     from those which are given. Historically preference was given to the
     coarsest topology parameters when computing missing values (ie sockets
     preferred over cores, which were preferred over threads), however, this
-    behaviour is considered liable to change.
+    behaviour is considered liable to change. The historical preference of
+    sockets over cores over threads works before 6.2, and a new preference
+    of cores over sockets over threads starts to work since 6.2 on.
 ERST
 
 DEF("numa", HAS_ARG, QEMU_OPTION_numa,
