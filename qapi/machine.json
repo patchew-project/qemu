@@ -1195,6 +1195,32 @@
 }
 
 ##
+# @SgxEPC:
+#
+# Sgx EPC cmdline information
+#
+# @memdev: memory backend linked with device
+#
+# Since: 6.1
+##
+{ 'struct': 'SgxEPC',
+  'data': { 'memdev': 'str' }
+}
+
+##
+# @SgxEPCProperties:
+#
+# Properties for SgxEPC objects.
+#
+# @sgx-epc: sgx epc section properties.
+#
+# Since: 6.1
+##
+{ 'struct': 'SgxEPCProperties',
+  'data': { 'sgx-epc': ['SgxEPC'] }
+}
+
+##
 # @MemoryDeviceInfo:
 #
 # Union containing information about a memory device
