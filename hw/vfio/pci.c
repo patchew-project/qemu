@@ -1619,11 +1619,17 @@ static void vfio_bar_prepare(VFIOPCIDevice *vdev, int nr)
     }
 
     /* Determine what type of BAR this is for registration */
-    ret = pread(vdev->vbasedev.fd, &pci_bar, sizeof(pci_bar),
-                vdev->config_offset + PCI_BASE_ADDRESS_0 + (4 * nr));
-    if (ret != sizeof(pci_bar)) {
-        error_report("vfio: Failed to read BAR %d (%m)", nr);
-        return;
+    if (vdev->vbasedev.proxy != NULL) {
+        /* during setup, config space was initialized from remote */
+        memcpy(&pci_bar, vdev->pdev.config + PCI_BASE_ADDRESS_0 + (4 * nr),
+               sizeof(pci_bar));
+    } else {
+        ret = pread(vdev->vbasedev.fd, &pci_bar, sizeof(pci_bar),
+                    vdev->config_offset + PCI_BASE_ADDRESS_0 + (4 * nr));
+        if (ret != sizeof(pci_bar)) {
+            error_report("vfio: Failed to read BAR %d (%m)", nr);
+            return;
+        }
     }
 
     pci_bar = le32_to_cpu(pci_bar);
@@ -3441,6 +3447,22 @@ static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
 
     /* QEMU can also add or extend BARs */
     memset(vdev->emulated_config_bits + PCI_BASE_ADDRESS_0, 0xff, 6 * 4);
+
+    /*
+     * Local QEMU overrides aren't allowed
+     * They must be done in the device process
+     */
+    if (pdev->cap_present & QEMU_PCI_CAP_MULTIFUNCTION) {
+        error_setg(errp, "Multi-function must be specified by device process");
+        goto error;
+    }
+    if (pdev->romfile) {
+        error_setg(errp, "Romfile must be specified by device process");
+        goto error;
+    }
+
+    vfio_bars_prepare(vdev);
+
 
     return;
 
