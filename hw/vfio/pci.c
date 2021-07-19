@@ -816,8 +816,14 @@ static void vfio_pci_load_rom(VFIOPCIDevice *vdev)
     memset(vdev->rom, 0xff, size);
 
     while (size) {
-        bytes = pread(vdev->vbasedev.fd, vdev->rom + off,
-                      size, vdev->rom_offset + off);
+        if (vdev->vbasedev.proxy != NULL) {
+            bytes = vfio_user_region_read(&vdev->vbasedev,
+                                          VFIO_PCI_ROM_REGION_INDEX,
+                                          off, size, vdev->rom + off);
+        } else {
+            bytes = pread(vdev->vbasedev.fd, vdev->rom + off,
+                          size, vdev->rom_offset + off);
+        }
         if (bytes == 0) {
             break;
         } else if (bytes > 0) {
@@ -936,12 +942,28 @@ static void vfio_pci_size_rom(VFIOPCIDevice *vdev)
      * Use the same size ROM BAR as the physical device.  The contents
      * will get filled in later when the guest tries to read it.
      */
-    if (pread(fd, &orig, 4, offset) != 4 ||
-        pwrite(fd, &size, 4, offset) != 4 ||
-        pread(fd, &size, 4, offset) != 4 ||
-        pwrite(fd, &orig, 4, offset) != 4) {
-        error_report("%s(%s) failed: %m", __func__, vdev->vbasedev.name);
-        return;
+    if (vdev->vbasedev.proxy != NULL) {
+        if (vfio_user_region_read(&vdev->vbasedev, VFIO_PCI_CONFIG_REGION_INDEX,
+                                  PCI_ROM_ADDRESS, 4, &orig) != 4 ||
+            vfio_user_region_write(&vdev->vbasedev,
+                                   VFIO_PCI_CONFIG_REGION_INDEX,
+                                   PCI_ROM_ADDRESS, 4, &size) != 4 ||
+            vfio_user_region_read(&vdev->vbasedev, VFIO_PCI_CONFIG_REGION_INDEX,
+                                  PCI_ROM_ADDRESS, 4, &size) != 4 ||
+            vfio_user_region_write(&vdev->vbasedev,
+                                   VFIO_PCI_CONFIG_REGION_INDEX,
+                                   PCI_ROM_ADDRESS, 4, &orig) != 4) {
+            error_report("%s(%s) failed: %m", __func__, vdev->vbasedev.name);
+            return;
+        }
+    } else {
+        if (pread(fd, &orig, 4, offset) != 4 ||
+            pwrite(fd, &size, 4, offset) != 4 ||
+            pread(fd, &size, 4, offset) != 4 ||
+            pwrite(fd, &orig, 4, offset) != 4) {
+            error_report("%s(%s) failed: %m", __func__, vdev->vbasedev.name);
+            return;
+        }
     }
 
     size = ~(le32_to_cpu(size) & PCI_ROM_ADDRESS_MASK) + 1;
