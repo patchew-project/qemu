@@ -679,3 +679,103 @@ int vfio_user_region_write(VFIODevice *vbasedev, uint32_t index,
 
     return count;
 }
+
+int vfio_user_dma_map(VFIOProxy *proxy, struct vfio_iommu_type1_dma_map *map,
+                      VFIOUserFDs *fds)
+{
+    struct vfio_user_dma_map msg;
+    int ret;
+
+    vfio_user_request_msg(&msg.hdr, VFIO_USER_DMA_MAP, sizeof(msg), 0);
+    msg.argsz = map->argsz;
+    msg.flags = map->flags;
+    msg.offset = map->vaddr;
+    msg.iova = map->iova;
+    msg.size = map->size;
+
+    vfio_user_send_recv(proxy, &msg.hdr, fds, 0);
+    ret = (msg.hdr.flags & VFIO_USER_ERROR) ? -msg.hdr.error_reply : 0;
+    return ret;
+}
+
+int vfio_user_dma_unmap(VFIOProxy *proxy,
+                        struct vfio_iommu_type1_dma_unmap *unmap,
+                        struct vfio_bitmap *bitmap)
+{
+    g_autofree struct {
+        struct vfio_user_dma_unmap msg;
+        struct vfio_user_bitmap bitmap;
+    } *msgp = NULL;
+    int msize, rsize;
+
+    if (bitmap == NULL && (unmap->flags &
+                           VFIO_DMA_UNMAP_FLAG_GET_DIRTY_BITMAP)) {
+        error_printf("vfio_user_dma_unmap mismatched flags and bitmap\n");
+        return -EINVAL;
+    }
+
+    /*
+     * If a dirty bitmap is returned, allocate extra space for it
+     * otherwise, just send the unmap request
+     */
+    if (bitmap != NULL) {
+        msize = sizeof(*msgp);
+        rsize = msize + bitmap->size;
+        msgp = g_malloc0(rsize);
+        msgp->bitmap.pgsize = bitmap->pgsize;
+        msgp->bitmap.size = bitmap->size;
+    } else {
+        msize = rsize = sizeof(struct vfio_user_dma_unmap);
+        msgp = g_malloc0(rsize);
+    }
+
+    vfio_user_request_msg(&msgp->msg.hdr, VFIO_USER_DMA_UNMAP, msize, 0);
+    msgp->msg.argsz = unmap->argsz;
+    msgp->msg.flags = unmap->flags;
+    msgp->msg.iova = unmap->iova;
+    msgp->msg.size = unmap->size;
+
+    vfio_user_send_recv(proxy, &msgp->msg.hdr, NULL, rsize);
+    if (msgp->msg.hdr.flags & VFIO_USER_ERROR) {
+        return -msgp->msg.hdr.error_reply;
+    }
+
+    if (bitmap != NULL) {
+        memcpy(bitmap->data, &msgp->bitmap.data, bitmap->size);
+    }
+
+    return 0;
+}
+
+int vfio_user_get_region_info(VFIODevice *vbasedev, int index,
+                              struct vfio_region_info *info, VFIOUserFDs *fds)
+{
+    g_autofree struct vfio_user_region_info *msgp = NULL;
+    int size;
+
+    /* data returned can be larger than vfio_region_info */
+    if (info->argsz < sizeof(*info)) {
+        error_printf("vfio_user_get_region_info argsz too small\n");
+        return -EINVAL;
+    }
+    if (fds != NULL && fds->send_fds != 0) {
+        error_printf("vfio_user_get_region_info can't send FDs\n");
+        return -EINVAL;
+    }
+
+    size = info->argsz + sizeof(vfio_user_hdr_t);
+    msgp = g_malloc0(size);
+
+    vfio_user_request_msg(&msgp->hdr, VFIO_USER_DEVICE_GET_REGION_INFO,
+                          sizeof(*msgp), 0);
+    msgp->argsz = info->argsz;
+    msgp->index = info->index;
+
+    vfio_user_send_recv(vbasedev->proxy, &msgp->hdr, fds, size);
+    if (msgp->hdr.flags & VFIO_USER_ERROR) {
+        return -msgp->hdr.error_reply;
+    }
+
+    memcpy(info, &msgp->argsz, info->argsz);
+    return 0;
+}

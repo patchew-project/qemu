@@ -121,6 +121,7 @@ typedef struct VFIOProxy {
 } VFIOProxy;
 
 #define VFIO_PROXY_CLIENT       0x1
+#define VFIO_PROXY_SECURE       0x2
 
 /*
  * VFIO_USER_DEVICE_GET_INFO
@@ -159,6 +160,52 @@ struct vfio_user_region_rw {
     char data[];
 };
 
+/*
+ * VFIO_USER_DMA_MAP
+ * imported from struct vfio_iommu_type1_dma_map
+ */
+struct vfio_user_dma_map {
+    vfio_user_hdr_t hdr;
+    uint32_t argsz;
+    uint32_t flags;
+    uint64_t offset;    /* FD offset */
+    uint64_t iova;
+    uint64_t size;
+};
+
+/*imported from struct vfio_bitmap */
+struct vfio_user_bitmap {
+    uint64_t pgsize;
+    uint64_t size;
+    char data[];
+};
+
+/*
+ * VFIO_USER_DMA_UNMAP
+ * imported from struct vfio_iommu_type1_dma_unmap
+ */
+struct vfio_user_dma_unmap {
+    vfio_user_hdr_t hdr;
+    uint32_t argsz;
+    uint32_t flags;
+    uint64_t iova;
+    uint64_t size;
+};
+
+/*
+ * VFIO_USER_DEVICE_GET_REGION_INFO
+ * imported from struct_vfio_region_info
+ */
+struct vfio_user_region_info {
+    vfio_user_hdr_t hdr;
+    uint32_t argsz;
+    uint32_t flags;
+    uint32_t index;
+    uint32_t cap_offset;
+    uint64_t size;
+    uint64_t offset;
+};
+
 void vfio_user_recv(void *opaque);
 void vfio_user_send_reply(VFIOProxy *proxy, char *buf, int ret);
 VFIOProxy *vfio_user_connect_dev(char *sockname, Error **errp);
@@ -170,4 +217,11 @@ int vfio_user_region_read(VFIODevice *vbasedev, uint32_t index, uint64_t offset,
                           uint32_t count, void *data);
 int vfio_user_region_write(VFIODevice *vbasedev, uint32_t index,
                            uint64_t offset, uint32_t count, void *data);
+int vfio_user_dma_map(VFIOProxy *proxy, struct vfio_iommu_type1_dma_map *map,
+                      VFIOUserFDs *fds);
+int vfio_user_dma_unmap(VFIOProxy *proxy,
+                        struct vfio_iommu_type1_dma_unmap *unmap,
+                        struct vfio_bitmap *bitmap);
+int vfio_user_get_region_info(VFIODevice *vbasedev, int index,
+                              struct vfio_region_info *info, VFIOUserFDs *fds);
 #endif /* VFIO_USER_H */

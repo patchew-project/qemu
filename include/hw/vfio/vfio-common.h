@@ -146,6 +146,8 @@ typedef struct VFIODevice {
     Error *migration_blocker;
     OnOffAuto pre_copy_dirty_page_tracking;
     VFIOProxy *proxy;
+    struct vfio_region_info **regions;
+    int *regfds;
 } VFIODevice;
 
 struct VFIODeviceOps {
