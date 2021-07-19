@@ -18,6 +18,26 @@
 #include "qapi/error.h"
 #include "exec/address-spaces.h"
 
+SGXInfo *sgx_get_info(void)
+{
+    SGXInfo *info = NULL;
+    MachineState *ms = MACHINE(qdev_get_machine());
+    X86MachineState *x86ms = X86_MACHINE(qdev_get_machine());
+
+    if (x86ms->sgx_epc_list) {
+        PCMachineState *pcms = PC_MACHINE(ms);
+        SGXEPCState *sgx_epc = &pcms->sgx_epc;
+        info = g_new0(SGXInfo, 1);
+
+        info->sgx = true;
+        info->sgx1 = true;
+        info->sgx2 = true;
+        info->flc = true;
+        info->section_size = sgx_epc->size;
+    }
+    return info;
+}
+
 int sgx_epc_get_section(int section_nr, uint64_t *addr, uint64_t *size)
 {
     PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
