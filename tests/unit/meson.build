@@ -44,6 +44,7 @@ tests = {
   'test-uuid': [],
   'ptimer-test': ['ptimer-test-stubs.c', meson.source_root() / 'hw/core/ptimer.c'],
   'test-qapi-util': [],
+  'test-smp-parse': [qom, meson.source_root() / 'hw/core/machine-smp.c'],
 }
 
 if have_system or have_tools
