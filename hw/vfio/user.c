@@ -42,6 +42,11 @@ static void vfio_user_request_msg(vfio_user_hdr_t *hdr, uint16_t cmd,
 static void vfio_user_send_recv(VFIOProxy *proxy, vfio_user_hdr_t *msg,
                                 VFIOUserFDs *fds, int rsize);
 
+uint64_t vfio_user_max_xfer(void)
+{
+    return max_xfer_size;
+}
+
 static void vfio_user_shutdown(VFIOProxy *proxy)
 {
     qio_channel_shutdown(proxy->ioc, QIO_CHANNEL_SHUTDOWN_READ, NULL);
@@ -236,7 +241,7 @@ void vfio_user_recv(void *opaque)
         *reply->msg = msg;
         data = (char *)reply->msg + sizeof(msg);
     } else {
-        if (msg.size > max_xfer_size) {
+        if (msg.size > max_xfer_size + sizeof(struct vfio_user_dma_rw)) {
             error_setg(&local_err, "vfio_user_recv request larger than max");
             goto fatal;
         }
@@ -778,4 +783,18 @@ int vfio_user_get_region_info(VFIODevice *vbasedev, int index,
 
     memcpy(info, &msgp->argsz, info->argsz);
     return 0;
+}
+
+void vfio_user_set_reqhandler(VFIODevice *vbasedev,
+                              int (*handler)(void *opaque, char *buf,
+                                             VFIOUserFDs *fds),
+                              void *reqarg)
+{
+    VFIOProxy *proxy = vbasedev->proxy;
+
+    proxy->request = handler;
+    proxy->reqarg = reqarg;
+    qio_channel_set_aio_fd_handler(proxy->ioc,
+                                   iothread_get_aio_context(vfio_user_iothread),
+                                   vfio_user_recv, NULL, vbasedev);
 }

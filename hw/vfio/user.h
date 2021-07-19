@@ -206,6 +206,17 @@ struct vfio_user_region_info {
     uint64_t offset;
 };
 
+/*
+ * VFIO_USER_DMA_READ
+ * VFIO_USER_DMA_WRITE
+ */
+struct vfio_user_dma_rw {
+    vfio_user_hdr_t hdr;
+    uint64_t offset;
+    uint32_t count;
+    char data[];
+};
+
 void vfio_user_recv(void *opaque);
 void vfio_user_send_reply(VFIOProxy *proxy, char *buf, int ret);
 VFIOProxy *vfio_user_connect_dev(char *sockname, Error **errp);
@@ -224,4 +235,9 @@ int vfio_user_dma_unmap(VFIOProxy *proxy,
                         struct vfio_bitmap *bitmap);
 int vfio_user_get_region_info(VFIODevice *vbasedev, int index,
                               struct vfio_region_info *info, VFIOUserFDs *fds);
+uint64_t vfio_user_max_xfer(void);
+void vfio_user_set_reqhandler(VFIODevice *vbasdev,
+                              int (*handler)(void *opaque, char *buf,
+                                             VFIOUserFDs *fds),
+                                             void *reqarg);
 #endif /* VFIO_USER_H */
