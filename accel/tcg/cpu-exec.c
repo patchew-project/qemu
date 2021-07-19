@@ -272,6 +272,14 @@ static uint32_t cflags_for_breakpoints(CPUState *cpu, target_ulong pc,
         }
     }
 
+    if (unlikely(cpu->singlestep_enabled)) {
+        /*
+         * Record gdb single-step.  We should be exiting the TB by raising
+         * EXCP_DEBUG, but to simplify other tests, disable chaining too.
+         */
+        bflags = CF_NO_GOTO_TB | CF_NO_GOTO_PTR | CF_SINGLE_STEP | 1;
+    }
+
     if (unlikely(bflags)) {
         cflags = (cflags & ~CF_COUNT_MASK) | bflags;
     }
@@ -409,7 +417,11 @@ void cpu_exec_step_atomic(CPUState *cpu)
          * We only arrive in cpu_exec_step_atomic after beginning execution
          * of an insn that includes an atomic operation we can't handle.
          * Any breakpoint for this insn will have been recognized earlier.
+         * But do record single-stepping.
          */
+        if (unlikely(cpu->singlestep_enabled)) {
+            cflags |= CF_SINGLE_STEP;
+        }
 
         tb = tb_lookup(cpu, pc, cs_base, flags, cflags);
         if (tb == NULL) {
