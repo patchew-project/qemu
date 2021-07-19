@@ -3340,6 +3340,13 @@ F: semihosting/
 F: include/semihosting/
 F: tests/tcg/multiarch/arm-compat-semi/
 
+libvfio-user Library
+M: Thanos Makatos <thanos.makatos@nutanix.com>
+M: John Levon <john.levon@nutanix.com>
+T: https://github.com/nutanix/libvfio-user.git
+S: Maintained
+F: libvfio-user/*
+
 Multi-process QEMU
 M: Elena Ufimtseva <elena.ufimtseva@oracle.com>
 M: Jagannathan Raman <jag.raman@oracle.com>

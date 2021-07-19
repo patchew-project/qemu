@@ -1894,6 +1894,41 @@ if get_option('cfi') and slirp_opt == 'system'
          + ' Please configure with --enable-slirp=git')
 endif
 
+vfiouser = not_found
+if have_system and multiprocess_allowed
+  have_internal = fs.exists(meson.current_source_dir() / 'libvfio-user/Makefile')
+
+  if not have_internal
+    error('libvfio-user source not found - please pull git submodule')
+  endif
+
+  vfiouser_files = [
+    'libvfio-user/lib/dma.c',
+    'libvfio-user/lib/irq.c',
+    'libvfio-user/lib/libvfio-user.c',
+    'libvfio-user/lib/migration.c',
+    'libvfio-user/lib/pci.c',
+    'libvfio-user/lib/pci_caps.c',
+    'libvfio-user/lib/tran_sock.c',
+  ]
+
+  vfiouser_inc = include_directories('libvfio-user/include', 'libvfio-user/lib')
+
+  json_c = dependency('json-c', required: false)
+  if not json_c.found()
+    json_c = dependency('libjson-c')
+  endif
+
+  libvfiouser = static_library('vfiouser',
+                               build_by_default: false,
+                               sources: vfiouser_files,
+                               dependencies: json_c,
+                               include_directories: vfiouser_inc)
+
+  vfiouser = declare_dependency(link_with: libvfiouser,
+                                include_directories: vfiouser_inc)
+endif
+
 fdt = not_found
 fdt_opt = get_option('fdt')
 if have_system

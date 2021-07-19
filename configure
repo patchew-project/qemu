@@ -4300,6 +4300,17 @@ but not implemented on your system"
 fi
 
 ##########################################
+# check for multiprocess
+
+case "$multiprocess" in
+  auto | enabled )
+    if test "$git_submodules_action" != "ignore"; then
+      git_submodules="${git_submodules} libvfio-user"
+    fi
+    ;;
+esac
+
+##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
 
