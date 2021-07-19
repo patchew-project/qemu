@@ -15,6 +15,7 @@
 #include "qemu/event_notifier.h"
 #include "qemu/thread-posix.h"
 #include "hw/remote/mpqemu-link.h"
+#include "libvfio-user/include/libvfio-user.h"
 
 #define REMOTE_IOHUB_NB_PIRQS    PCI_DEVFN_MAX
 
@@ -30,6 +31,7 @@ typedef struct RemoteIOHubState {
     unsigned int irq_level[REMOTE_IOHUB_NB_PIRQS];
     ResampleToken token[REMOTE_IOHUB_NB_PIRQS];
     QemuMutex irq_level_lock[REMOTE_IOHUB_NB_PIRQS];
+    vfu_ctx_t *vfu_ctx[REMOTE_IOHUB_NB_PIRQS];
 } RemoteIOHubState;
 
 int remote_iohub_map_irq(PCIDevice *pci_dev, int intx);

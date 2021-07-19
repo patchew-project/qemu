@@ -41,6 +41,9 @@
 #include "sysemu/sysemu.h"
 #include "hw/qdev-core.h"
 #include "hw/pci/pci.h"
+#include "hw/boards.h"
+#include "hw/remote/iohub.h"
+#include "hw/remote/machine.h"
 
 #include "libvfio-user/include/libvfio-user.h"
 
@@ -305,6 +308,26 @@ static void vfu_object_register_bars(vfu_ctx_t *vfu_ctx, PCIDevice *pdev)
     }
 }
 
+static int vfu_object_setup_irqs(vfu_ctx_t *vfu_ctx, PCIDevice *pci_dev)
+{
+    RemoteMachineState *machine = REMOTE_MACHINE(current_machine);
+    RemoteIOHubState *iohub = &machine->iohub;
+    int pirq, intx, ret;
+
+    ret = vfu_setup_device_nr_irqs(vfu_ctx, VFU_DEV_INTX_IRQ, 1);
+    if (ret < 0) {
+        return ret;
+    }
+
+    intx = pci_get_byte(pci_dev->config + PCI_INTERRUPT_PIN) - 1;
+
+    pirq = remote_iohub_map_irq(pci_dev, intx);
+
+    iohub->vfu_ctx[pirq] = vfu_ctx;
+
+    return 0;
+}
+
 static void vfu_object_machine_done(Notifier *notifier, void *data)
 {
     VfuObject *o = container_of(notifier, VfuObject, machine_done);
@@ -360,6 +383,13 @@ static void vfu_object_machine_done(Notifier *notifier, void *data)
     }
 
     vfu_object_register_bars(o->vfu_ctx, o->pci_dev);
+
+    ret = vfu_object_setup_irqs(o->vfu_ctx, o->pci_dev);
+    if (ret < 0) {
+        error_setg(&error_abort, "vfu: Failed to setup interrupts for %s",
+                   o->devid);
+        return;
+    }
 
     qemu_thread_create(&o->vfu_ctx_thread, "VFU ctx runner", vfu_object_ctx_run,
                        o, QEMU_THREAD_JOINABLE);
