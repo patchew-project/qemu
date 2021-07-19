@@ -1,0 +1,56 @@
+
+# This defines global scenarios for controlling execution of the
+# entire pipeline. The pipelines are set to run when
+#
+#  - Pushing to a non-default branch
+#  - Triggered via REST API
+#  - Triggered via Web UI
+#  - Regular scheduled run
+#
+workflow:
+  rules:
+    # For the main repo, prior to merging a patch series, CI is run
+    # on the "staging" branch. The result gates whether the series
+    # is then pushed to the default branch.
+    #
+    # For user forks, the default branch is typically unused or
+    # otherwise just tracks the main repo default branch in an
+    # adhoc manner. Work is typically done on feature branches
+    # instead.
+    #
+    # In neither case do we wish to run CI pipelines for the
+    # default branch
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: never
+
+    # For the main repo, tags represent official releases.
+    # The branch associated with the release will have passed
+    # a CI pipeline already
+    #
+    # For user forks, tags are often added by tools like
+    # git-publish at the same time as pushing the branch.
+    #
+    # In neither case do we wish to run CI pipelines for tags
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_TAG'
+      when: never
+
+    # Run CI on any git pushes to remaining non-dfault branches
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH'
+      when: always
+
+    # Run CI on any regular scheduled pipelines (ie nightly builds)
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: always
+
+    # Run CI if user invokes a pipeline using explicit REST API call
+    - if: '$CI_PIPELINE_SOURCE == "api"'
+      when: always
+
+    # Run CI if user invokes a pipeline using Web UI
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      when: always
+
+    # Don't run CI in any other scenario ($CI_PIPELINE_SOURCE values
+    # covering: external, chat, webide, merge_request_event,
+    # external_pull_request_event, parent_pipeline, trigger, or pipeline)
+    - when: never
