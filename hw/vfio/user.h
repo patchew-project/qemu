@@ -64,6 +64,13 @@ struct vfio_user_version {
     char capabilities[];
 };
 
+
+#define VFIO_USER_CAP           "capabilities"
+
+/* "capabilities" members */
+#define VFIO_USER_CAP_MAX_FDS   "max_msg_fds"
+#define VFIO_USER_CAP_MAX_XFER  "max_data_xfer_size"
+
 #define VFIO_USER_DEF_MAX_FDS   8
 #define VFIO_USER_MAX_MAX_FDS   16
 
@@ -119,4 +126,5 @@ void vfio_user_recv(void *opaque);
 void vfio_user_send_reply(VFIOProxy *proxy, char *buf, int ret);
 VFIOProxy *vfio_user_connect_dev(char *sockname, Error **errp);
 void vfio_user_disconnect(VFIOProxy *proxy);
+int vfio_user_validate_version(VFIODevice *vbasedev, Error **errp);
 #endif /* VFIO_USER_H */
