@@ -1095,6 +1095,11 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
     return 0;
 }
 
+static bool log_enabled(uint64_t features)
+{
+    return !!(features & (0x1ULL << VHOST_F_LOG_ALL));
+}
+
 static int vhost_user_set_vring_addr(struct vhost_dev *dev,
                                      struct vhost_vring_addr *addr)
 {
@@ -1105,8 +1110,19 @@ static int vhost_user_set_vring_addr(struct vhost_dev *dev,
         .hdr.size = sizeof(msg.payload.addr),
     };
 
+    bool reply_supported = virtio_has_feature(dev->protocol_features,
+                                              VHOST_USER_PROTOCOL_F_REPLY_ACK);
+
+    if (reply_supported && log_enabled(msg.hdr.flags)) {
+        msg.hdr.flags |= VHOST_USER_NEED_REPLY_MASK;
+    }
+
     if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
         return -1;
+    }
+
+    if (msg.hdr.flags & VHOST_USER_NEED_REPLY_MASK) {
+        return process_message_reply(dev, &msg);
     }
 
     return 0;
@@ -1288,7 +1304,8 @@ static int vhost_user_set_vring_call(struct vhost_dev *dev,
     return vhost_set_vring_file(dev, VHOST_USER_SET_VRING_CALL, file);
 }
 
-static int vhost_user_set_u64(struct vhost_dev *dev, int request, uint64_t u64)
+static int vhost_user_set_u64(struct vhost_dev *dev, int request, uint64_t u64,
+                              bool need_reply)
 {
     VhostUserMsg msg = {
         .hdr.request = request,
@@ -1297,8 +1314,20 @@ static int vhost_user_set_u64(struct vhost_dev *dev, int request, uint64_t u64)
         .hdr.size = sizeof(msg.payload.u64),
     };
 
+    if (need_reply) {
+        bool reply_supported = virtio_has_feature(dev->protocol_features,
+                                          VHOST_USER_PROTOCOL_F_REPLY_ACK);
+        if (reply_supported) {
+            msg.hdr.flags |= VHOST_USER_NEED_REPLY_MASK;
+        }
+    }
+
     if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
         return -1;
+    }
+
+    if (msg.hdr.flags & VHOST_USER_NEED_REPLY_MASK) {
+        return process_message_reply(dev, &msg);
     }
 
     return 0;
@@ -1307,13 +1336,15 @@ static int vhost_user_set_u64(struct vhost_dev *dev, int request, uint64_t u64)
 static int vhost_user_set_features(struct vhost_dev *dev,
                                    uint64_t features)
 {
-    return vhost_user_set_u64(dev, VHOST_USER_SET_FEATURES, features);
+    return vhost_user_set_u64(dev, VHOST_USER_SET_FEATURES, features,
+                              log_enabled(features));
 }
 
 static int vhost_user_set_protocol_features(struct vhost_dev *dev,
                                             uint64_t features)
 {
-    return vhost_user_set_u64(dev, VHOST_USER_SET_PROTOCOL_FEATURES, features);
+    return vhost_user_set_u64(dev, VHOST_USER_SET_PROTOCOL_FEATURES, features,
+                              false);
 }
 
 static int vhost_user_get_u64(struct vhost_dev *dev, int request, uint64_t *u64)
