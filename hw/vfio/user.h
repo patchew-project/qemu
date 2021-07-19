@@ -147,6 +147,18 @@ struct vfio_user_irq_info {
     uint32_t count;
 };
 
+/*
+ * VFIO_USER_REGION_READ
+ * VFIO_USER_REGION_WRITE
+ */
+struct vfio_user_region_rw {
+    vfio_user_hdr_t hdr;
+    uint64_t offset;
+    uint32_t region;
+    uint32_t count;
+    char data[];
+};
+
 void vfio_user_recv(void *opaque);
 void vfio_user_send_reply(VFIOProxy *proxy, char *buf, int ret);
 VFIOProxy *vfio_user_connect_dev(char *sockname, Error **errp);
@@ -154,4 +166,8 @@ void vfio_user_disconnect(VFIOProxy *proxy);
 int vfio_user_validate_version(VFIODevice *vbasedev, Error **errp);
 int vfio_user_get_info(VFIODevice *vbasedev);
 int vfio_user_get_irq_info(VFIODevice *vbasedev, struct vfio_irq_info *info);
+int vfio_user_region_read(VFIODevice *vbasedev, uint32_t index, uint64_t offset,
+                          uint32_t count, void *data);
+int vfio_user_region_write(VFIODevice *vbasedev, uint32_t index,
+                           uint64_t offset, uint32_t count, void *data);
 #endif /* VFIO_USER_H */

@@ -3424,6 +3424,19 @@ static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
         error_propagate(errp, err);
         goto error;
     }
+    /* Get a copy of config space */
+    ret = vfio_user_region_read(vbasedev, VFIO_PCI_CONFIG_REGION_INDEX, 0,
+                                MIN(pci_config_size(pdev), vdev->config_size),
+                                pdev->config);
+    if (ret < 0) {
+        goto error;
+    }
+
+    /* vfio emulates a lot for us, but some bits need extra love */
+    vdev->emulated_config_bits = g_malloc0(vdev->config_size);
+
+    /* QEMU can also add or extend BARs */
+    memset(vdev->emulated_config_bits + PCI_BASE_ADDRESS_0, 0xff, 6 * 4);
 
     return;
 
