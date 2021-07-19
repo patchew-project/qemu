@@ -144,7 +144,7 @@ static void gd_owner_change(GtkClipboard *clipboard,
 {
     GtkDisplayState *gd = data;
     QemuClipboardSelection s = gd_find_selection(gd, clipboard);
-    QemuClipboardInfo *info;
+    g_autoptr(QemuClipboardInfo) info = NULL;
 
     if (gd->cbowner[s]) {
         /* ignore notifications about our own grabs */
@@ -158,13 +158,13 @@ static void gd_owner_change(GtkClipboard *clipboard,
         if (gtk_clipboard_wait_is_text_available(clipboard)) {
             info->types[QEMU_CLIPBOARD_TYPE_TEXT].available = true;
         }
-
-        qemu_clipboard_update(info);
-        qemu_clipboard_info_unref(info);
         break;
     default:
+        info = qemu_clipboard_info_new(NULL, s);
+        gd->cbowner[s] = false;
         break;
     }
+    qemu_clipboard_update(info);
 }
 
 void gd_clipboard_init(GtkDisplayState *gd)
