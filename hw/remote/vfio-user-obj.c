@@ -161,6 +161,57 @@ static ssize_t vfu_object_cfg_access(vfu_ctx_t *vfu_ctx, char * const buf,
     return count;
 }
 
+static void dma_register(vfu_ctx_t *vfu_ctx, vfu_dma_info_t *info)
+{
+    MemoryRegion *subregion = NULL;
+    g_autofree char *name = NULL;
+    static unsigned int suffix;
+    struct iovec *iov = &info->iova;
+
+    if (!info->vaddr) {
+        return;
+    }
+
+    name = g_strdup_printf("remote-mem-%u", suffix++);
+
+    subregion = g_new0(MemoryRegion, 1);
+
+    qemu_mutex_lock_iothread();
+
+    memory_region_init_ram_ptr(subregion, NULL, name,
+                               iov->iov_len, info->vaddr);
+
+    memory_region_add_subregion(get_system_memory(), (hwaddr)iov->iov_base,
+                                subregion);
+
+    qemu_mutex_unlock_iothread();
+
+    trace_vfu_dma_register((uint64_t)iov->iov_base, iov->iov_len);
+}
+
+static int dma_unregister(vfu_ctx_t *vfu_ctx, vfu_dma_info_t *info)
+{
+    MemoryRegion *mr = NULL;
+    ram_addr_t offset;
+
+    mr = memory_region_from_host(info->vaddr, &offset);
+    if (!mr) {
+        return 0;
+    }
+
+    qemu_mutex_lock_iothread();
+
+    memory_region_del_subregion(get_system_memory(), mr);
+
+    object_unparent((OBJECT(mr)));
+
+    qemu_mutex_unlock_iothread();
+
+    trace_vfu_dma_unregister((uint64_t)info->iova.iov_base);
+
+    return 0;
+}
+
 static void vfu_object_machine_done(Notifier *notifier, void *data)
 {
     VfuObject *o = container_of(notifier, VfuObject, machine_done);
@@ -205,6 +256,13 @@ static void vfu_object_machine_done(Notifier *notifier, void *data)
         error_setg(&error_abort,
                    "vfu: Failed to setup config space handlers for %s- %s",
                    o->devid, strerror(errno));
+        return;
+    }
+
+    ret = vfu_setup_device_dma(o->vfu_ctx, &dma_register, &dma_unregister);
+    if (ret < 0) {
+        error_setg(&error_abort, "vfu: Failed to setup DMA handlers for %s",
+                   o->devid);
         return;
     }
 
