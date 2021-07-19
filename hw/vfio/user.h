@@ -70,6 +70,10 @@ struct vfio_user_version {
 /* "capabilities" members */
 #define VFIO_USER_CAP_MAX_FDS   "max_msg_fds"
 #define VFIO_USER_CAP_MAX_XFER  "max_data_xfer_size"
+#define VFIO_USER_CAP_MIGR      "migration"
+
+/* "migration" member */
+#define VFIO_USER_CAP_PGSIZE    "pgsize"
 
 #define VFIO_USER_DEF_MAX_FDS   8
 #define VFIO_USER_MAX_MAX_FDS   16
