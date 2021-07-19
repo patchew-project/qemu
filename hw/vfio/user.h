@@ -117,4 +117,6 @@ typedef struct VFIOProxy {
 
 void vfio_user_recv(void *opaque);
 void vfio_user_send_reply(VFIOProxy *proxy, char *buf, int ret);
+VFIOProxy *vfio_user_connect_dev(char *sockname, Error **errp);
+void vfio_user_disconnect(VFIOProxy *proxy);
 #endif /* VFIO_USER_H */

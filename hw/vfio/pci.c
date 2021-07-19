@@ -3332,16 +3332,32 @@ static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
 {
     ERRP_GUARD();
     VFIOUserPCIDevice *udev = VFIO_USER_PCI(pdev);
+    VFIOPCIDevice *vdev = VFIO_PCI_BASE(pdev);
+    VFIODevice *vbasedev = &vdev->vbasedev;
+    VFIOProxy *proxy;
+    Error *err = NULL;
 
     if (!udev->sock_name) {
         error_setg(errp, "No socket specified");
         error_append_hint(errp, "Use -device vfio-user-pci,socket=<name>\n");
         return;
     }
+    proxy = vfio_user_connect_dev(udev->sock_name, &err);
+    if (!proxy) {
+        error_setg(errp, "Remote proxy not found");
+        return;
+    }
+    vbasedev->proxy = proxy;
 }
 
 static void vfio_user_instance_finalize(Object *obj)
 {
+    VFIOPCIDevice *vdev = VFIO_PCI_BASE(obj);
+    VFIODevice *vbasedev = &vdev->vbasedev;
+
+    vfio_put_device(vdev);
+
+    vfio_user_disconnect(vbasedev->proxy);
 }
 
 static Property vfio_user_pci_dev_properties[] = {
