@@ -19,6 +19,7 @@
 #include "target/i386/cpu.h"
 #include "exec/address-spaces.h"
 #include "sysemu/reset.h"
+#include "sysemu/hw_accel.h"
 
 uint32_t epc_num;
 
@@ -97,12 +98,30 @@ static void sgx_epc_initialization(DeviceState *dev)
     sgx_epc->size += memory_device_get_region_size(md, &errp);
 }
 
+static bool check_reset_from_guest(void)
+{
+    CPUState *cs = first_cpu;
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
+
+    cpu_synchronize_state(cs);
+
+    if (env->cr[0] & CR0_PE_MASK) {
+        return true;
+    }
+
+    return false;
+}
+
 static void sgx_epc_reset(void *opaque)
 {
     DeviceState *dev = opaque;
     SGXEPCDevice *epc = SGX_EPC(dev);
     Error *errp = NULL;
     int fd;
+
+    if (!check_reset_from_guest())
+        return;
 
     if (!epc->hostmem) {
         error_setg(&errp, "'" SGX_EPC_MEMDEV_PROP "' property is not set");
