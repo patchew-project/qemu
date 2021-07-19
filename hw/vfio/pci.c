@@ -256,11 +256,16 @@ static void vfio_irqchip_change(Notifier *notify, void *data)
 
 static int vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
 {
-    uint8_t pin = vfio_pci_read_config(&vdev->pdev, PCI_INTERRUPT_PIN, 1);
+    uint8_t pin;
     Error *err = NULL;
     int32_t fd;
     int ret;
 
+    if (vdev->vbasedev.proxy != NULL) {
+        pin = vdev->pdev.config[PCI_INTERRUPT_PIN];
+    } else {
+        pin = vfio_pci_read_config(&vdev->pdev, PCI_INTERRUPT_PIN, 1);
+    }
 
     if (!pin) {
         return 0;
@@ -1258,10 +1263,15 @@ static int vfio_msi_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
     int ret, entries;
     Error *err = NULL;
 
-    if (pread(vdev->vbasedev.fd, &ctrl, sizeof(ctrl),
-              vdev->config_offset + pos + PCI_CAP_FLAGS) != sizeof(ctrl)) {
-        error_setg_errno(errp, errno, "failed reading MSI PCI_CAP_FLAGS");
-        return -errno;
+    if (vdev->vbasedev.proxy != NULL) {
+        /* during setup, config space was initialized from remote */
+        memcpy(&ctrl, vdev->pdev.config + pos + PCI_CAP_FLAGS, sizeof(ctrl));
+    } else {
+        if (pread(vdev->vbasedev.fd, &ctrl, sizeof(ctrl),
+                  vdev->config_offset + pos + PCI_CAP_FLAGS) != sizeof(ctrl)) {
+            error_setg_errno(errp, errno, "failed reading MSI PCI_CAP_FLAGS");
+            return -errno;
+        }
     }
     ctrl = le16_to_cpu(ctrl);
 
@@ -3562,9 +3572,50 @@ static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
         goto error;
     }
 
+    vfio_bars_register(vdev);
+
+    ret = vfio_add_capabilities(vdev, errp);
+    if (ret) {
+        goto out_teardown;
+    }
+
+    /* QEMU emulates all of MSI & MSIX */
+    if (pdev->cap_present & QEMU_PCI_CAP_MSIX) {
+        memset(vdev->emulated_config_bits + pdev->msix_cap, 0xff,
+               MSIX_CAP_LENGTH);
+    }
+
+    if (pdev->cap_present & QEMU_PCI_CAP_MSI) {
+        memset(vdev->emulated_config_bits + pdev->msi_cap, 0xff,
+               vdev->msi_cap_size);
+    }
+
+    if (vdev->pdev.config[PCI_INTERRUPT_PIN] != 0) {
+        vdev->intx.mmap_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
+                                             vfio_intx_mmap_enable, vdev);
+        pci_device_set_intx_routing_notifier(&vdev->pdev,
+                                             vfio_intx_routing_notifier);
+        vdev->irqchip_change_notifier.notify = vfio_irqchip_change;
+        kvm_irqchip_add_change_notifier(&vdev->irqchip_change_notifier);
+        ret = vfio_intx_enable(vdev, errp);
+        if (ret) {
+            goto out_deregister;
+        }
+    }
+
+    vfio_register_err_notifier(vdev);
+    vfio_register_req_notifier(vdev);
+
     return;
 
+out_deregister:
+    pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
+    kvm_irqchip_remove_change_notifier(&vdev->irqchip_change_notifier);
+out_teardown:
+    vfio_teardown_msi(vdev);
+    vfio_bars_exit(vdev);
  error:
+    vfio_user_disconnect(proxy);
     error_prepend(errp, VFIO_MSG_PREFIX, vdev->vbasedev.name);
 }
 

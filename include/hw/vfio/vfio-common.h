@@ -56,6 +56,7 @@ typedef struct VFIORegion {
     uint32_t nr_mmaps;
     VFIOMmap *mmaps;
     uint8_t nr; /* cache the region number for debug */
+    int remfd; /* fd if exported from remote process */
 } VFIORegion;
 
 typedef struct VFIOMigration {

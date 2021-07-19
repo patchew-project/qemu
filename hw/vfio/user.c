@@ -574,6 +574,16 @@ VFIOProxy *vfio_user_connect_dev(char *sockname, Error **errp)
     return proxy;
 }
 
+static void vfio_user_cb(void *opaque)
+{
+    VFIOProxy *proxy = opaque;
+
+    qemu_mutex_lock(&proxy->lock);
+    proxy->state = CLOSED;
+    qemu_mutex_unlock(&proxy->lock);
+    qemu_cond_signal(&proxy->close_cv);
+}
+
 void vfio_user_disconnect(VFIOProxy *proxy)
 {
     VFIOUserReply *r1, *r2;
@@ -600,6 +610,16 @@ void vfio_user_disconnect(VFIOProxy *proxy)
         QTAILQ_REMOVE(&proxy->free, r1, next);
         g_free(r1);
     }
+
+    /*
+     * Make sure the iothread isn't blocking anywhere
+     * with a ref to this proxy by waiting for a BH
+     * handler to run after the proxy fd handlers were
+     * deleted above.
+     */
+    proxy->close_wait = 1;
+    aio_bh_schedule_oneshot(iothread_get_aio_context(vfio_user_iothread),
+                            vfio_user_cb, proxy);
 
     /* drop locks so the iothread can make progress */
     qemu_mutex_unlock_iothread();
