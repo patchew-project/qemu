@@ -15,9 +15,47 @@ RUN git clone --single-branch \
         https://github.com/bkoppelmann/tricore-binutils.git \
         /usr/src/binutils && \
     cd /usr/src/binutils && chmod +x missing && \
-    CFLAGS=-w ./configure --prefix=/usr --disable-nls --target=tricore && \
-    make && make install && \
-    rm -rf /usr/src/binutils
+    CFLAGS=-w ./configure --prefix=/usr/local --disable-nls --target=tricore && \
+    make && make install
 
-# This image isn't designed for building QEMU but building tests
-ENV QEMU_CONFIGURE_OPTS --disable-system --disable-user
+FROM debian:buster-slim
+# Duplicate deb line as deb-src
+RUN cat /etc/apt/sources.list | sed "s/^deb\ /deb-src /" >> /etc/apt/sources.list
+# Install QEMU build deps for use in CI
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive apt install -yy eatmydata && \
+    DEBIAN_FRONTEND=noninteractive eatmydata apt install -yy \
+       build-essential \
+       git \
+       libglib2.0-dev \
+       libpixman-1-dev \
+       ninja-build \
+       python3 \
+       pkg-config
+       bzip2 \
+       ca-certificates \
+       ccache \
+       diffutils \
+       findutils \
+       g++ \
+       gcc \
+       git \
+       libcapstone-dev \
+       libfdt-dev \
+       libglib2.0-dev \
+       libpixman-1-dev \
+       libtest-harness-perl \
+       locales \
+       make \
+       ninja-build \
+       perl-base \
+       pkgconf \
+       python3-pip \
+       python3-setuptools \
+       python3-wheel
+COPY --from=0 /usr/local /usr/local
+ENV PATH $PATH:/usr/local/bin/
+
+# This image can only build a very minimal QEMU as well as the tests
+ENV DEF_TARGET_LIST tricore-softmmu
+ENV QEMU_CONFIGURE_OPTS --disable-user --disable-tools
