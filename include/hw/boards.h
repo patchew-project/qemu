@@ -247,6 +247,7 @@ struct MachineClass {
     bool nvdimm_supported;
     bool numa_mem_supported;
     bool smp_dies_supported;
+    bool smp_prefer_sockets;
     bool auto_enable_numa;
     const char *default_ram_id;
 

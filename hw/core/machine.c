@@ -744,6 +744,22 @@ void machine_set_cpu_numa_node(MachineState *machine,
     }
 }
 
+/*
+ * smp_parse - Generic function used to parse the given SMP configuration
+ *
+ * The topology parameters must be specified equal to or great than one
+ * or just omitted, explicit configuration like "cpus=0" is not allowed.
+ * The omitted parameters will be calculated based on the provided ones.
+ *
+ * maxcpus will default to the value of cpus if omitted and will be used
+ * to compute the missing sockets/cores/threads. cpus will be calculated
+ * from the computed parametrs if omitted.
+ *
+ * In calculation of omitted arch-netural sockets/cores/threads, we prefer
+ * sockets over cores over threads before 6.2, while prefer cores over
+ * sockets over threads since 6.2 on. The arch-specific dies will directly
+ * default to 1 if omitted.
+ */
 static void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
 {
     MachineClass *mc = MACHINE_GET_CLASS(ms);
@@ -772,19 +788,36 @@ static void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
 
     maxcpus = maxcpus > 0 ? maxcpus : cpus;
 
-    /* compute missing values, prefer sockets over cores over threads */
-    if (sockets == 0) {
-        cores = cores > 0 ? cores : 1;
-        threads = threads > 0 ? threads : 1;
-        sockets = maxcpus / (dies * cores * threads);
-        sockets = sockets > 0 ? sockets : 1;
-    } else if (cores == 0) {
-        threads = threads > 0 ? threads : 1;
-        cores = maxcpus / (sockets * dies * threads);
-        cores = cores > 0 ? cores : 1;
-    } else if (threads == 0) {
-        threads = maxcpus / (sockets * dies * cores);
-        threads = threads > 0 ? threads : 1;
+    /* prefer sockets over cores over threads before 6.2 */
+    if (mc->smp_prefer_sockets) {
+        if (sockets == 0) {
+            cores = cores > 0 ? cores : 1;
+            threads = threads > 0 ? threads : 1;
+            sockets = maxcpus / (dies * cores * threads);
+            sockets = sockets > 0 ? sockets : 1;
+        } else if (cores == 0) {
+            threads = threads > 0 ? threads : 1;
+            cores = maxcpus / (sockets * dies * threads);
+            cores = cores > 0 ? cores : 1;
+        } else if (threads == 0) {
+            threads = maxcpus / (sockets * dies * cores);
+            threads = threads > 0 ? threads : 1;
+        }
+    /* prefer cores over sockets over threads since 6.2 */
+    } else {
+        if (cores == 0) {
+            sockets = sockets > 0 ? sockets : 1;
+            threads = threads > 0 ? threads : 1;
+            cores = maxcpus / (sockets * dies * threads);
+            cores = cores > 0 ? cores : 1;
+        } else if (sockets == 0) {
+            threads = threads > 0 ? threads : 1;
+            sockets = maxcpus / (dies * cores * threads);
+            sockets = sockets > 0 ? sockets : 1;
+        } else if (threads == 0) {
+            threads = maxcpus / (sockets * dies * cores);
+            threads = threads > 0 ? threads : 1;
+        }
     }
 
     /* use the computed parameters to calculate the omitted cpus */
