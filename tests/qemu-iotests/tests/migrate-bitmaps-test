@@ -19,12 +19,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import os
-import iotests
-import time
 import itertools
 import operator
+import os
 import re
+
+import iotests
 from iotests import qemu_img, qemu_img_create, Timeout
 
 
@@ -62,9 +62,10 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
             params['persistent'] = True
 
         result = vm.qmp('block-dirty-bitmap-add', **params)
-        self.assert_qmp(result, 'return', {});
+        self.assert_qmp(result, 'return', {})
 
-    def get_bitmap_hash(self, vm):
+    @classmethod
+    def get_bitmap_hash(cls, vm):
         result = vm.qmp('x-debug-block-dirty-bitmap-sha256',
                         node='drive0', name='bitmap0')
         return result['return']['sha256']
@@ -73,10 +74,10 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
         result = vm.qmp('x-debug-block-dirty-bitmap-sha256',
                         node='drive0', name='bitmap0')
         if sha256:
-            self.assert_qmp(result, 'return/sha256', sha256);
+            self.assert_qmp(result, 'return/sha256', sha256)
         else:
             self.assert_qmp(result, 'error/desc',
-                            "Dirty bitmap 'bitmap0' not found");
+                            "Dirty bitmap 'bitmap0' not found")
 
     def do_test_migration_resume_source(self, persistent, migrate_bitmaps):
         granularity = 512
@@ -106,7 +107,7 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
                 break
         while True:
             result = self.vm_a.qmp('query-status')
-            if (result['return']['status'] == 'postmigrate'):
+            if result['return']['status'] == 'postmigrate':
                 break
 
         # test that bitmap is still here
@@ -216,25 +217,7 @@ class TestDirtyBitmapMigration(iotests.QMPTestCase):
 
 def inject_test_case(klass, name, method, *args, **kwargs):
     mc = operator.methodcaller(method, *args, **kwargs)
-    setattr(klass, 'test_' + method + name, lambda self: mc(self))
-
-for cmb in list(itertools.product((True, False), repeat=5)):
-    name = ('_' if cmb[0] else '_not_') + 'persistent_'
-    name += ('_' if cmb[1] else '_not_') + 'migbitmap_'
-    name += '_online' if cmb[2] else '_offline'
-    name += '_shared' if cmb[3] else '_nonshared'
-    if (cmb[4]):
-        name += '__pre_shutdown'
-
-    inject_test_case(TestDirtyBitmapMigration, name, 'do_test_migration',
-                     *list(cmb))
-
-for cmb in list(itertools.product((True, False), repeat=2)):
-    name = ('_' if cmb[0] else '_not_') + 'persistent_'
-    name += ('_' if cmb[1] else '_not_') + 'migbitmap'
-
-    inject_test_case(TestDirtyBitmapMigration, name,
-                     'do_test_migration_resume_source', *list(cmb))
+    setattr(klass, 'test_' + method + name, mc)
 
 
 class TestDirtyBitmapBackingMigration(iotests.QMPTestCase):
@@ -270,7 +253,8 @@ class TestDirtyBitmapBackingMigration(iotests.QMPTestCase):
         self.assert_qmp(result, 'return', {})
 
         # Check that the bitmaps are there
-        for node in self.vm.qmp('query-named-block-nodes', flat=True)['return']:
+        nodes = self.vm.qmp('query-named-block-nodes', flat=True)['return']
+        for node in nodes:
             if 'node0' in node['node-name']:
                 self.assert_qmp(node, 'dirty-bitmaps[0]/name', 'bmap0')
 
@@ -287,7 +271,7 @@ class TestDirtyBitmapBackingMigration(iotests.QMPTestCase):
         """
         Continue the source after migration.
         """
-        result = self.vm.qmp('migrate', uri=f'exec: cat > /dev/null')
+        result = self.vm.qmp('migrate', uri='exec: cat > /dev/null')
         self.assert_qmp(result, 'return', {})
 
         with Timeout(10, 'Migration timeout'):
@@ -297,6 +281,30 @@ class TestDirtyBitmapBackingMigration(iotests.QMPTestCase):
         self.assert_qmp(result, 'return', {})
 
 
+def main():
+    for cmb in list(itertools.product((True, False), repeat=5)):
+        name = ('_' if cmb[0] else '_not_') + 'persistent_'
+        name += ('_' if cmb[1] else '_not_') + 'migbitmap_'
+        name += '_online' if cmb[2] else '_offline'
+        name += '_shared' if cmb[3] else '_nonshared'
+        if cmb[4]:
+            name += '__pre_shutdown'
+
+        inject_test_case(TestDirtyBitmapMigration, name, 'do_test_migration',
+                         *list(cmb))
+
+    for cmb in list(itertools.product((True, False), repeat=2)):
+        name = ('_' if cmb[0] else '_not_') + 'persistent_'
+        name += ('_' if cmb[1] else '_not_') + 'migbitmap'
+
+        inject_test_case(TestDirtyBitmapMigration, name,
+                         'do_test_migration_resume_source', *list(cmb))
+
+    iotests.main(
+        supported_fmts=['qcow2'],
+        supported_protocols=['file']
+    )
+
+
 if __name__ == '__main__':
-    iotests.main(supported_fmts=['qcow2'],
-                 supported_protocols=['file'])
+    main()
