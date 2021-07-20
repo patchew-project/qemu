@@ -1075,7 +1075,8 @@ def notrun(reason):
     # Each test in qemu-iotests has a number ("seq")
     seq = os.path.basename(sys.argv[0])
 
-    open('%s/%s.notrun' % (output_dir, seq), 'w').write(reason + '\n')
+    with open('%s/%s.notrun' % (output_dir, seq), 'w') as outfile:
+        outfile.write(reason + '\n')
     logger.warning("%s not run: %s", seq, reason)
     sys.exit(0)
 
@@ -1088,8 +1089,8 @@ def case_notrun(reason):
     # Each test in qemu-iotests has a number ("seq")
     seq = os.path.basename(sys.argv[0])
 
-    open('%s/%s.casenotrun' % (output_dir, seq), 'a').write(
-        '    [case not run] ' + reason + '\n')
+    with open('%s/%s.casenotrun' % (output_dir, seq), 'a') as outfile:
+        outfile.write('    [case not run] ' + reason + '\n')
 
 def _verify_image_format(supported_fmts: Sequence[str] = (),
                          unsupported_fmts: Sequence[str] = ()) -> None:
