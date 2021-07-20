@@ -115,6 +115,9 @@ class TestDirtyBitmapPostcopyMigration(iotests.QMPTestCase):
         self.vm_a_events = []
         self.vm_b_events = []
 
+        self.discards1_sha256: str
+        self.all_discards_sha256: str
+
     def start_postcopy(self):
         """ Run migration until RESUME event on target. Return this event. """
         for i in range(nb_bitmaps):
