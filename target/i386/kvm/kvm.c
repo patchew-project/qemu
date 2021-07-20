@@ -1423,7 +1423,6 @@ static int hyperv_init_vcpu(X86CPU *cpu)
         ret = migrate_add_blocker(hv_passthrough_mig_blocker, &local_err);
         if (local_err) {
             error_report_err(local_err);
-            error_free(hv_passthrough_mig_blocker);
             return ret;
         }
     }
@@ -1438,7 +1437,6 @@ static int hyperv_init_vcpu(X86CPU *cpu)
         ret = migrate_add_blocker(hv_no_nonarch_cs_mig_blocker, &local_err);
         if (local_err) {
             error_report_err(local_err);
-            error_free(hv_no_nonarch_cs_mig_blocker);
             return ret;
         }
     }
@@ -1878,7 +1876,6 @@ int kvm_arch_init_vcpu(CPUState *cs)
             r = migrate_add_blocker(invtsc_mig_blocker, &local_err);
             if (local_err) {
                 error_report_err(local_err);
-                error_free(invtsc_mig_blocker);
                 return r;
             }
         }
