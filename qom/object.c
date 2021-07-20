@@ -10,6 +10,7 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include "qemu/module.h"
 #include "qemu/osdep.h"
 #include "hw/qdev-core.h"
 #include "qapi/error.h"
@@ -1031,8 +1032,16 @@ ObjectClass *module_object_class_by_name(const char *typename)
     oc = object_class_by_name(typename);
 #ifdef CONFIG_MODULES
     if (!oc) {
+        const char *module_name = module_get_name_from_obj(typename);
         module_load_qom_one(typename);
         oc = object_class_by_name(typename);
+        if (!oc && module_name) {
+            if (!module_is_loaded(module_name)) {
+                fprintf(stderr, "%s module is missing, install the "
+                                "package or config the library path "
+                                "correctly.\n", module_name);
+            }
+        }
     }
 #endif
     return oc;
