@@ -1,5 +1,6 @@
 FROM docker.io/library/ubuntu:20.04
 ENV PACKAGES \
+    bison \
     bc \
     bsdmainutils \
     bzip2 \
@@ -11,6 +12,7 @@ ENV PACKAGES \
     diffutils \
     exuberant-ctags \
     findutils \
+    flex \
     g++ \
     gcc \
     gcovr \

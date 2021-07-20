@@ -11,6 +11,7 @@ ENV PACKAGES \
     diffutils \
     exuberant-ctags \
     findutils \
+    flex \
     g++ \
     gcc \
     gcovr \

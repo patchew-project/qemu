@@ -19,6 +19,7 @@ ENV PACKAGES \
     device-mapper-multipath-devel \
     diffutils \
     findutils \
+    flex \
     gcc \
     gcc-c++ \
     genisoimage \
