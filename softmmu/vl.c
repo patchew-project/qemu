@@ -1535,19 +1535,19 @@ static void machine_help_func(const QDict *qdict)
 
 static void
 machine_parse_property_opt(QemuOptsList *opts_list, const char *propname,
-                           const char *arg, Error **errp)
+                           const char *arg)
 {
     QDict *opts, *prop;
     bool help = false;
 
-    prop = keyval_parse(arg, opts_list->implied_opt_name, &help, errp);
+    prop = keyval_parse(arg, opts_list->implied_opt_name, &help, &error_fatal);
     if (help) {
         qemu_opts_print_help(opts_list, true);
         return;
     }
     opts = qdict_new();
     qdict_put(opts, propname, prop);
-    keyval_merge(machine_opts_dict, opts, errp);
+    keyval_merge(machine_opts_dict, opts, &error_fatal);
     qobject_unref(opts);
 }
 
@@ -3321,7 +3321,8 @@ void qemu_init(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_smp:
-                machine_parse_property_opt(qemu_find_opts("smp-opts"), "smp", optarg, &error_fatal);
+                machine_parse_property_opt(qemu_find_opts("smp-opts"),
+                                           "smp", optarg);
                 break;
             case QEMU_OPTION_vnc:
                 vnc_parse(optarg);
