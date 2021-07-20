@@ -288,8 +288,6 @@ void qemu_get_guest_memory_mapping(MemoryMappingList *list,
                                    Error **errp)
 {
     CPUState *cpu, *first_paging_enabled_cpu;
-    GuestPhysBlock *block;
-    ram_addr_t offset, length;
 
     first_paging_enabled_cpu = find_paging_enabled_cpu(first_cpu);
     if (first_paging_enabled_cpu) {
@@ -309,11 +307,7 @@ void qemu_get_guest_memory_mapping(MemoryMappingList *list,
      * If the guest doesn't use paging, the virtual address is equal to physical
      * address.
      */
-    QTAILQ_FOREACH(block, &guest_phys_blocks->head, next) {
-        offset = block->target_start;
-        length = block->target_end - block->target_start;
-        create_new_memory_mapping(list, offset, offset, length);
-    }
+    qemu_get_guest_simple_memory_mapping(list, guest_phys_blocks);
 }
 
 void qemu_get_guest_simple_memory_mapping(MemoryMappingList *list,
