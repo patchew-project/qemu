@@ -40,13 +40,8 @@ SKIP_FILES = (
 )
 
 
-def is_python_file(filename: str, directory: str = '.') -> bool:
-    filepath = os.path.join(directory, filename)
-
-    if not os.path.isfile(filepath):
-        return False
-
-    if filename.endswith('.py'):
+def is_python_file(filepath: str) -> bool:
+    if filepath.endswith('.py'):
         return True
 
     with open(filepath) as f:
@@ -58,10 +53,20 @@ def is_python_file(filename: str, directory: str = '.') -> bool:
 
 
 def get_test_files(directory: str = '.') -> List[str]:
-    return [
-        f for f in (set(os.listdir(directory)) - set(SKIP_FILES))
-        if is_python_file(f, directory)
-    ]
+    files = []
+
+    iotests.logger.debug("get_test_files(%s)", directory)
+    for dirent in os.scandir(directory):
+        if dirent.name in SKIP_FILES:
+            continue
+
+        relpath = os.path.join(directory, dirent.name)
+        if dirent.is_dir():
+            files.extend(get_test_files(relpath))
+        elif is_python_file(relpath):
+            files.append(relpath)
+
+    return files
 
 
 def run_linters():
