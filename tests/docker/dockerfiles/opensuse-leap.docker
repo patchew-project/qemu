@@ -5,6 +5,7 @@ ENV PACKAGES \
     Mesa-devel \
     alsa-lib-devel \
     bc \
+    bison \
     brlapi-devel \
     bzip2 \
     ca-certificates \
