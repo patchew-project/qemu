@@ -345,6 +345,7 @@ tsan="no"
 fortify_source="$default_feature"
 strip_opt="yes"
 tcg_interpreter="false"
+tcg_builtin="false"
 bigendian="no"
 mingw32="no"
 gcov="no"
@@ -1120,6 +1121,8 @@ for opt do
   ;;
   --enable-tcg) tcg="enabled"
   ;;
+  --enable-tcg-builtin) tcg_builtin="true"
+  ;;
   --disable-malloc-trim) malloc_trim="disabled"
   ;;
   --enable-malloc-trim) malloc_trim="enabled"
@@ -1817,6 +1820,7 @@ Advanced options (experts only):
                            Default:trace-<pid>
   --disable-slirp          disable SLIRP userspace network connectivity
   --enable-tcg-interpreter enable TCI (TCG with bytecode interpreter, experimental and slow)
+  --enable-tcg-builtin     force TCG builtin even with --enable-modules
   --enable-malloc-trim     enable libc malloc_trim() for memory optimization
   --oss-lib                path to OSS library
   --cpu=CPU                Build for host CPU [$cpu]
@@ -2318,7 +2322,11 @@ if test "$solaris" = "yes" ; then
   fi
 fi
 
-if test "$tcg" = "enabled"; then
+if test "$tcg" = "disabled"; then
+    debug_tcg="no"
+    tcg_interpreter="false"
+    tcg_builtin="false"
+else
     git_submodules="$git_submodules tests/fp/berkeley-testfloat-3"
     git_submodules="$git_submodules tests/fp/berkeley-softfloat-3"
 fi
@@ -5229,7 +5237,7 @@ if test "$skip_meson" = no; then
         -Dvhost_user_blk_server=$vhost_user_blk_server -Dmultiprocess=$multiprocess \
         -Dfuse=$fuse -Dfuse_lseek=$fuse_lseek -Dguest_agent_msi=$guest_agent_msi -Dbpf=$bpf\
         $(if test "$default_features" = no; then echo "-Dauto_features=disabled"; fi) \
-	-Dtcg_interpreter=$tcg_interpreter \
+        -Dtcg_interpreter=$tcg_interpreter -Dtcg_builtin=$tcg_builtin \
         $cross_arg \
         "$PWD" "$source_path"
 

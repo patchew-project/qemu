@@ -93,9 +93,13 @@ if cpu in ['x86', 'x86_64']
 endif
 
 modular_tcg = []
+is_tcg_modular = false
 # Darwin does not support references to thread-local variables in modules
 if targetos != 'darwin'
   modular_tcg = ['i386-softmmu', 'x86_64-softmmu']
+  is_tcg_modular = config_host.has_key('CONFIG_MODULES') \
+                   and get_option('tcg').enabled() \
+                   and not get_option('tcg_builtin')
 endif
 
 edk2_targets = [ 'arm-softmmu', 'aarch64-softmmu', 'i386-softmmu', 'x86_64-softmmu' ]
@@ -279,6 +283,9 @@ if not get_option('tcg').disabled()
 
   accelerators += 'CONFIG_TCG'
   config_host += { 'CONFIG_TCG': 'y' }
+  if is_tcg_modular
+    config_host += { 'CONFIG_TCG_MODULAR': 'y' }
+  endif
 endif
 
 if 'CONFIG_KVM' not in accelerators and get_option('kvm').enabled()
@@ -1567,7 +1574,7 @@ foreach target : target_dirs
       elif sym == 'CONFIG_XEN' and have_xen_pci_passthrough
         config_target += { 'CONFIG_XEN_PCI_PASSTHROUGH': 'y' }
       endif
-      if target in modular_tcg
+      if target in modular_tcg and is_tcg_modular
         config_target += { 'CONFIG_TCG_MODULAR': 'y' }
       else
         config_target += { 'CONFIG_TCG_BUILTIN': 'y' }
@@ -2976,6 +2983,8 @@ summary_info += {'TCG support':       config_all.has_key('CONFIG_TCG')}
 if config_all.has_key('CONFIG_TCG')
   if get_option('tcg_interpreter')
     summary_info += {'TCG backend':   'TCI (TCG with bytecode interpreter, experimental and slow)'}
+  elif is_tcg_modular
+    summary_info += {'TCG backend':   'module (@0@)'.format(cpu)}
   else
     summary_info += {'TCG backend':   'native (@0@)'.format(cpu)}
   endif
