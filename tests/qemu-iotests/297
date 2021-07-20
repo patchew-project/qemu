@@ -73,19 +73,22 @@ def run_linters(
     files: List[str],
     directory: str = '.',
     env: Optional[Mapping[str, str]] = None,
-) -> None:
+) -> int:
+    ret = 0
 
     print('=== pylint ===')
     sys.stdout.flush()
 
     # Todo notes are fine, but fixme's or xxx's should probably just be
     # fixed (in tests, at least)
-    subprocess.run(
+    p = subprocess.run(
         ('python3', '-m', 'pylint', '--score=n', '--notes=FIXME,XXX', *files),
         cwd=directory,
         env=env,
         check=False,
+        universal_newlines=True,
     )
+    ret += p.returncode
 
     print('=== mypy ===')
     sys.stdout.flush()
@@ -118,8 +121,11 @@ def run_linters(
             universal_newlines=True
         )
 
+        ret += p.returncode
         if p.returncode != 0:
             print(p.stdout)
+
+    return ret
 
 
 def main() -> None:
