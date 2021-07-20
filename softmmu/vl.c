@@ -1539,7 +1539,6 @@ machine_parse_property_opt(QemuOptsList *opts_list, const char *propname,
 {
     QDict *opts, *prop;
     bool help = false;
-    ERRP_GUARD();
 
     prop = keyval_parse(arg, opts_list->implied_opt_name, &help, errp);
     if (help) {
