@@ -119,6 +119,8 @@ static const QemuModinfo module_info_stub[] = { {
 static const QemuModinfo *module_info = module_info_stub;
 static const char *module_arch;
 
+static GHashTable *loaded_modules;
+
 void module_init_info(const QemuModinfo *info)
 {
     module_info = info;
@@ -206,13 +208,10 @@ static int module_load_file(const char *fname, bool mayfail, bool export_symbols
 out:
     return ret;
 }
-#endif
 
 bool module_load_one(const char *prefix, const char *lib_name, bool mayfail)
 {
     bool success = false;
-
-#ifdef CONFIG_MODULES
     char *fname = NULL;
 #ifdef CONFIG_MODULE_UPGRADES
     char *version_dir;
@@ -223,7 +222,6 @@ bool module_load_one(const char *prefix, const char *lib_name, bool mayfail)
     int i = 0, n_dirs = 0;
     int ret;
     bool export_symbols = false;
-    static GHashTable *loaded_modules;
     const QemuModinfo *modinfo;
     const char **sl;
 
@@ -307,11 +305,8 @@ bool module_load_one(const char *prefix, const char *lib_name, bool mayfail)
         g_free(dirs[i]);
     }
 
-#endif
     return success;
 }
-
-#ifdef CONFIG_MODULES
 
 static bool module_loaded_qom_all;
 
@@ -377,11 +372,59 @@ void qemu_load_module_for_opts(const char *group)
     }
 }
 
+bool module_is_loaded(const char *name)
+{
+    if (!loaded_modules || !g_hash_table_contains(loaded_modules, name)) {
+        return false;
+    }
+
+    return true;
+}
+
+const char *module_get_name_from_obj(const char *obj)
+{
+    const QemuModinfo *modinfo;
+    const char **sl;
+
+    if (!obj) {
+        return NULL;
+    }
+
+    for (modinfo = module_info; modinfo->name != NULL; modinfo++) {
+        if (!modinfo->objs) {
+            continue;
+        }
+
+        for (sl = modinfo->objs; *sl != NULL; sl++) {
+            if (strcmp(obj, *sl) == 0) {
+                return modinfo->name;
+            }
+        }
+    }
+
+    return NULL;
+}
+
 #else
 
 void module_allow_arch(const char *arch) {}
 void qemu_load_module_for_opts(const char *group) {}
 void module_load_qom_one(const char *type) {}
 void module_load_qom_all(void) {}
+
+bool module_load_one(const char *prefix, const char *lib_name, bool mayfail)
+{
+    return false;
+}
+
+bool module_is_loaded(const char *name)
+{
+    return false;
+}
+
+char *module_get_name_from_obj(const char *obj)
+{
+    return NULL;
+}
 
 #endif
