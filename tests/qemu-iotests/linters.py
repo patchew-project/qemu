@@ -86,37 +86,33 @@ def run_linters(
     print('=== mypy ===')
     sys.stdout.flush()
 
-    # We have to call mypy separately for each file.  Otherwise, it
-    # will interpret all given files as belonging together (i.e., they
-    # may not both define the same classes, etc.; most notably, they
-    # must not both define the __main__ module).
-    for filename in files:
-        p = subprocess.run(
-            (
-                'python3', '-m', 'mypy',
-                '--warn-unused-configs',
-                '--disallow-subclassing-any',
-                '--disallow-any-generics',
-                '--disallow-incomplete-defs',
-                '--disallow-untyped-decorators',
-                '--no-implicit-optional',
-                '--warn-redundant-casts',
-                '--warn-unused-ignores',
-                '--no-implicit-reexport',
-                '--namespace-packages',
-                filename,
-            ),
-            cwd=directory,
-            env=env,
-            check=False,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            universal_newlines=True
-        )
+    p = subprocess.run(
+        (
+            'python3', '-m', 'mypy',
+            '--warn-unused-configs',
+            '--disallow-subclassing-any',
+            '--disallow-any-generics',
+            '--disallow-incomplete-defs',
+            '--disallow-untyped-decorators',
+            '--no-implicit-optional',
+            '--warn-redundant-casts',
+            '--warn-unused-ignores',
+            '--no-implicit-reexport',
+            '--namespace-packages',
+            '--scripts-are-modules',
+            *files,
+        ),
+        cwd=directory,
+        env=env,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        universal_newlines=True
+    )
 
-        ret += p.returncode
-        if p.returncode != 0:
-            print(p.stdout)
+    ret += p.returncode
+    if p.returncode != 0:
+        print(p.stdout)
 
     return ret
 
