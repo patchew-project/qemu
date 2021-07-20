@@ -680,12 +680,12 @@ static int interface_get_command(QXLInstance *sin, struct QXLCommandExt *ext)
                     msg < (void *)qxl->vga.vram_ptr ||
                     msg > ((void *)qxl->vga.vram_ptr + qxl->vga.vram_size))) {
                 if (!qxl->migration_blocker) {
-                    Error *local_err = NULL;
+                    Error *err = NULL;
+
                     error_setg(&qxl->migration_blocker,
                                "qxl: guest bug: command not in ram bar");
-                    migrate_add_blocker(qxl->migration_blocker, &local_err);
-                    if (local_err) {
-                        error_report_err(local_err);
+                    if (migrate_add_blocker(qxl->migration_blocker, &err) < 0) {
+                        error_report_err(err);
                     }
                 }
             }
