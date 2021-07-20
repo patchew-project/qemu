@@ -5310,7 +5310,6 @@ int main(int argc, char **argv)
 {
     const img_cmd_t *cmd;
     const char *cmdname;
-    Error *local_error = NULL;
     int c;
     static const struct option long_options[] = {
         {"help", no_argument, 0, 'h'},
@@ -5328,10 +5327,7 @@ int main(int argc, char **argv)
     module_call_init(MODULE_INIT_TRACE);
     qemu_init_exec_dir(argv[0]);
 
-    if (qemu_init_main_loop(&local_error)) {
-        error_report_err(local_error);
-        exit(EXIT_FAILURE);
-    }
+    qemu_init_main_loop(&error_fatal);
 
     qcrypto_init(&error_fatal);
 
