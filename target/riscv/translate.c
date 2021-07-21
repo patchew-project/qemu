@@ -131,33 +131,6 @@ static void generate_exception_mtval(DisasContext *ctx, int excp)
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
-static void gen_exception_debug(void)
-{
-    TCGv_i32 helper_tmp = tcg_const_i32(EXCP_DEBUG);
-    gen_helper_raise_exception(cpu_env, helper_tmp);
-    tcg_temp_free_i32(helper_tmp);
-}
-
-/* Wrapper around tcg_gen_exit_tb that handles single stepping */
-static void exit_tb(DisasContext *ctx)
-{
-    if (ctx->base.singlestep_enabled) {
-        gen_exception_debug();
-    } else {
-        tcg_gen_exit_tb(NULL, 0);
-    }
-}
-
-/* Wrapper around tcg_gen_lookup_and_goto_ptr that handles single stepping */
-static void lookup_and_goto_ptr(DisasContext *ctx)
-{
-    if (ctx->base.singlestep_enabled) {
-        gen_exception_debug();
-    } else {
-        tcg_gen_lookup_and_goto_ptr();
-    }
-}
-
 static void gen_exception_illegal(DisasContext *ctx)
 {
     generate_exception(ctx, RISCV_EXCP_ILLEGAL_INST);
@@ -176,7 +149,7 @@ static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
         tcg_gen_exit_tb(ctx->base.tb, n);
     } else {
         tcg_gen_movi_tl(cpu_pc, dest);
-        lookup_and_goto_ptr(ctx);
+        tcg_gen_lookup_and_goto_ptr();
     }
 }
 

@@ -42,7 +42,7 @@ static bool trans_vsetvl(DisasContext *ctx, arg_vsetvl *a)
     gen_helper_vsetvl(dst, cpu_env, s1, s2);
     gen_set_gpr(a->rd, dst);
     tcg_gen_movi_tl(cpu_pc, ctx->pc_succ_insn);
-    lookup_and_goto_ptr(ctx);
+    tcg_gen_lookup_and_goto_ptr();
     ctx->base.is_jmp = DISAS_NORETURN;
 
     tcg_temp_free(s1);
