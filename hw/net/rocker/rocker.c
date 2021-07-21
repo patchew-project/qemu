@@ -174,7 +174,7 @@ static int tx_consume(Rocker *r, DescInfo *info)
     }
 
     pport = rocker_get_pport_by_tx_ring(r, desc_get_ring(info));
-    if (!fp_port_from_pport(pport, &port)) {
+    if (!fp_port_from_pport(r, pport, &port)) {
         return -ROCKER_EINVAL;
     }
 
@@ -287,7 +287,7 @@ static int cmd_get_port_settings(Rocker *r,
     }
 
     pport = rocker_tlv_get_le32(tlvs[ROCKER_TLV_CMD_PORT_SETTINGS_PPORT]);
-    if (!fp_port_from_pport(pport, &port)) {
+    if (!fp_port_from_pport(r, pport, &port)) {
         return -ROCKER_EINVAL;
     }
     fp_port = r->fp_port[port];
@@ -357,7 +357,7 @@ static int cmd_set_port_settings(Rocker *r,
     }
 
     pport = rocker_tlv_get_le32(tlvs[ROCKER_TLV_CMD_PORT_SETTINGS_PPORT]);
-    if (!fp_port_from_pport(pport, &port)) {
+    if (!fp_port_from_pport(r, pport, &port)) {
         return -ROCKER_EINVAL;
     }
     fp_port = r->fp_port[port];
@@ -538,7 +538,7 @@ int rocker_event_mac_vlan_seen(Rocker *r, uint32_t pport, uint8_t *addr,
     int pos;
     int err;
 
-    if (!fp_port_from_pport(pport, &port)) {
+    if (!fp_port_from_pport(r, pport, &port)) {
         return -ROCKER_EINVAL;
     }
     fp_port = r->fp_port[port];
@@ -690,7 +690,7 @@ int rocker_port_eg(Rocker *r, uint32_t pport,
     FpPort *fp_port;
     uint32_t port;
 
-    if (!fp_port_from_pport(pport, &port)) {
+    if (!fp_port_from_pport(r, pport, &port)) {
         return -ROCKER_EINVAL;
     }
 
