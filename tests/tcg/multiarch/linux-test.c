@@ -439,10 +439,14 @@ static void sig_alarm(int sig)
     alarm_count++;
 }
 
+/* Count the number of times handler is called */
+static int sig_segv_called;
+
 static void sig_segv(int sig, siginfo_t *info, void *puc)
 {
     if (sig != SIGSEGV)
         error("signal");
+    sig_segv_called++;
     longjmp(jmp_env, 1);
 }
 
@@ -490,6 +494,10 @@ static void test_signal(void)
          * call to abort() instead of forcing a SIGSEGV.
          */
         *(volatile uint8_t *)0 = 0;
+    }
+
+    if (sig_segv_called == 0) {
+        error("SIGSEGV handler not called");
     }
 
     act.sa_handler = SIG_DFL;
