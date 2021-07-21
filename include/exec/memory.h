@@ -94,6 +94,7 @@ struct MemoryRegionSection {
 };
 
 typedef struct IOMMUTLBEntry IOMMUTLBEntry;
+typedef struct IOMMUTLBEntryUnaligned IOMMUTLBEntryUnaligned;
 
 /* See address_space_translate: bit 0 is read, bit 1 is write.  */
 typedef enum {
@@ -110,6 +111,15 @@ struct IOMMUTLBEntry {
     hwaddr           iova;
     hwaddr           translated_addr;
     hwaddr           addr_mask;  /* 0xfff = 4k translation */
+    IOMMUAccessFlags perm;
+};
+
+/* IOMMUTLBEntryUnaligned may be not page-aligned */
+struct IOMMUTLBEntryUnaligned {
+    AddressSpace    *target_as;
+    hwaddr           iova;
+    hwaddr           translated_addr;
+    hwaddr           len;
     IOMMUAccessFlags perm;
 };
 
@@ -2653,8 +2663,10 @@ void address_space_cache_destroy(MemoryRegionCache *cache);
 /* address_space_get_iotlb_entry: translate an address into an IOTLB
  * entry. Should be called from an RCU critical section.
  */
-IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
-                                            bool is_write, MemTxAttrs attrs);
+IOMMUTLBEntryUnaligned address_space_get_iotlb_entry(AddressSpace *as,
+                                                     hwaddr addr,
+                                                     bool is_write,
+                                                     MemTxAttrs attrs);
 
 /* address_space_translate: translate an address range into an address space
  * into a MemoryRegion and an address range into that section.  Should be

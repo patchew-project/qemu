@@ -1010,7 +1010,7 @@ static int vhost_memory_region_lookup(struct vhost_dev *hdev,
 
 int vhost_device_iotlb_miss(struct vhost_dev *dev, uint64_t iova, int write)
 {
-    IOMMUTLBEntry iotlb;
+    IOMMUTLBEntryUnaligned iotlb;
     uint64_t uaddr, len;
     int ret = -EFAULT;
 
@@ -1031,8 +1031,8 @@ int vhost_device_iotlb_miss(struct vhost_dev *dev, uint64_t iova, int write)
             goto out;
         }
 
-        len = MIN(iotlb.addr_mask + 1, len);
-        iova = iova & ~iotlb.addr_mask;
+        len = MIN(iotlb.len, len);
+        iova = iotlb.iova;
 
         ret = vhost_backend_update_device_iotlb(dev, iova, uaddr,
                                                 len, iotlb.perm);

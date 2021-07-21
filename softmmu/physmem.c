@@ -143,6 +143,8 @@ typedef struct subpage_t {
 
 #define PHYS_SECTION_UNASSIGNED 0
 
+#define PAGE_MASK_NOT_BEHIND_IOMMU ((hwaddr)-1)
+
 static void io_mem_init(void);
 static void memory_map_init(void);
 static void tcg_log_global_after_sync(MemoryListener *listener);
@@ -470,7 +472,9 @@ unassigned:
  * @page_mask_out: page mask for the translated address. This
  *            should only be meaningful for IOMMU translated
  *            addresses, since there may be huge pages that this bit
- *            would tell. It can be @NULL if we don't care about it.
+ *            would tell. If the returned memory region section isn't
+ *            behind an IOMMU, PAGE_MASK_NOT_BEHIND_IOMMU is return.
+ *            It can be @NULL if we don't care about it.
  * @is_write: whether the translation operation is for write
  * @is_mmio: whether this can be MMIO, set true if it can
  * @target_as: the address space targeted by the IOMMU
@@ -508,16 +512,18 @@ static MemoryRegionSection flatview_do_translate(FlatView *fv,
                                              target_as, attrs);
     }
     if (page_mask_out) {
-        /* Not behind an IOMMU, use default page size. */
-        *page_mask_out = ~TARGET_PAGE_MASK;
+        /* return a magic value if not behind an IOMMU */
+        *page_mask_out = PAGE_MASK_NOT_BEHIND_IOMMU;
     }
 
     return *section;
 }
 
 /* Called from RCU critical section */
-IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
-                                            bool is_write, MemTxAttrs attrs)
+IOMMUTLBEntryUnaligned address_space_get_iotlb_entry(AddressSpace *as,
+                                                     hwaddr addr,
+                                                     bool is_write,
+                                                     MemTxAttrs attrs)
 {
     MemoryRegionSection section;
     hwaddr xlat, page_mask;
@@ -535,21 +541,36 @@ IOMMUTLBEntry address_space_get_iotlb_entry(AddressSpace *as, hwaddr addr,
         goto iotlb_fail;
     }
 
+    /*
+     * If the section isn't behind an IOMMU, return the whole section as an
+     * IOMMU TLB entry.
+     */
+    if (page_mask == PAGE_MASK_NOT_BEHIND_IOMMU) {
+        return (IOMMUTLBEntryUnaligned) {
+            .target_as = as,
+            .iova = section.offset_within_address_space,
+            .translated_addr = section.offset_within_address_space,
+            .len = section.size,
+            /* IOTLBs are for DMAs, and DMA only allows on RAMs. */
+            .perm = IOMMU_RW,
+        };
+    }
+
     /* Convert memory region offset into address space offset */
     xlat += section.offset_within_address_space -
         section.offset_within_region;
 
-    return (IOMMUTLBEntry) {
+    return (IOMMUTLBEntryUnaligned) {
         .target_as = as,
         .iova = addr & ~page_mask,
         .translated_addr = xlat & ~page_mask,
-        .addr_mask = page_mask,
+        .len = page_mask + 1,
         /* IOTLBs are for DMAs, and DMA only allows on RAMs. */
         .perm = IOMMU_RW,
     };
 
 iotlb_fail:
-    return (IOMMUTLBEntry) {0};
+    return (IOMMUTLBEntryUnaligned) {0};
 }
 
 /* Called from RCU critical section */
