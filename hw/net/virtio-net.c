@@ -3256,6 +3256,10 @@ static void virtio_net_handle_migration_primary(VirtIONet *n, MigrationState *s)
     if (migration_in_setup(s) && !should_be_hidden) {
         if (failover_unplug_primary(n, dev)) {
             vmstate_unregister(VMSTATE_IF(dev), qdev_get_vmsd(dev), dev);
+            if (PCI_DEVICE(dev)->has_rom) {
+                PCI_DEVICE(dev)->has_rom = false;
+                vmstate_unregister_ram(&PCI_DEVICE(dev)->rom, dev);
+            }
             qapi_event_send_unplug_primary(dev->id);
             qatomic_set(&n->failover_primary_hidden, true);
         } else {
