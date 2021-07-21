@@ -240,6 +240,7 @@ typedef enum X86Seg {
 #define CR4_OSFXSR_SHIFT 9
 #define CR4_OSFXSR_MASK (1U << CR4_OSFXSR_SHIFT)
 #define CR4_OSXMMEXCPT_MASK  (1U << 10)
+#define CR4_UMIP_MASK   (1U << 11)
 #define CR4_LA57_MASK   (1U << 12)
 #define CR4_VMXE_MASK   (1U << 13)
 #define CR4_SMXE_MASK   (1U << 14)
@@ -250,6 +251,36 @@ typedef enum X86Seg {
 #define CR4_SMAP_MASK   (1U << 21)
 #define CR4_PKE_MASK   (1U << 22)
 #define CR4_PKS_MASK   (1U << 24)
+
+#define CR4_RESERVED_MASK \
+(~(target_ulong)(CR4_VME_MASK | CR4_PVI_MASK | CR4_TSD_MASK \
+                | CR4_DE_MASK | CR4_PSE_MASK | CR4_PAE_MASK \
+                | CR4_MCE_MASK | CR4_PGE_MASK | CR4_PCE_MASK \
+                | CR4_OSFXSR_MASK | CR4_OSXMMEXCPT_MASK |CR4_UMIP_MASK \
+                | CR4_FSGSBASE_MASK | CR4_PCIDE_MASK | CR4_OSXSAVE_MASK \
+                | CR4_SMEP_MASK | CR4_SMAP_MASK | CR4_PKE_MASK | CR4_PKS_MASK))
+
+#define cr4_reserved_bits(env) \
+({ \
+    uint64_t __reserved_bits = CR4_RESERVED_MASK; \
+    if (!env->features[FEAT_XSAVE]) \
+        __reserved_bits |= CR4_OSXSAVE_MASK; \
+    if (!(env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_SMEP)) \
+        __reserved_bits |= CR4_SMEP_MASK; \
+    if (!(env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_SMAP)) \
+        __reserved_bits |= CR4_SMAP_MASK; \
+    if (!(env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_FSGSBASE)) \
+        __reserved_bits |= CR4_FSGSBASE_MASK; \
+    if (!(env->features[FEAT_7_0_ECX] & CPUID_7_0_ECX_PKU)) \
+        __reserved_bits |= CR4_PKE_MASK; \
+    if (!(env->features[FEAT_7_0_ECX] & CPUID_7_0_ECX_LA57)) \
+        __reserved_bits |= CR4_LA57_MASK; \
+    if (!(env->features[FEAT_7_0_ECX] & CPUID_7_0_ECX_UMIP)) \
+        __reserved_bits |= CR4_UMIP_MASK; \
+    if (!(env->features[FEAT_7_0_ECX] & CPUID_7_0_ECX_PKS)) \
+        __reserved_bits |= CR4_PKS_MASK; \
+    __reserved_bits; \
+})
 
 #define DR6_BD          (1 << 13)
 #define DR6_BS          (1 << 14)
