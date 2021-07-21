@@ -4954,12 +4954,7 @@ static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
         tcg_gen_exit_tb(ctx->base.tb, n);
     } else {
         gen_save_pc(dest);
-        if (ctx->base.singlestep_enabled) {
-            save_cpu_state(ctx, 0);
-            gen_helper_raise_exception_debug(cpu_env);
-        } else {
-            tcg_gen_lookup_and_goto_ptr();
-        }
+        tcg_gen_lookup_and_goto_ptr();
     }
 }
 
@@ -11929,10 +11924,6 @@ static void gen_branch(DisasContext *ctx, int insn_bytes)
             } else {
                 tcg_gen_mov_tl(cpu_PC, btarget);
             }
-            if (ctx->base.singlestep_enabled) {
-                save_cpu_state(ctx, 0);
-                gen_helper_raise_exception_debug(cpu_env);
-            }
             tcg_gen_lookup_and_goto_ptr();
             break;
         default:
@@ -16257,28 +16248,23 @@ static void mips_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
 {
     DisasContext *ctx = container_of(dcbase, DisasContext, base);
 
-    if (ctx->base.singlestep_enabled && ctx->base.is_jmp != DISAS_NORETURN) {
-        save_cpu_state(ctx, ctx->base.is_jmp != DISAS_EXIT);
-        gen_helper_raise_exception_debug(cpu_env);
-    } else {
-        switch (ctx->base.is_jmp) {
-        case DISAS_STOP:
-            gen_save_pc(ctx->base.pc_next);
-            tcg_gen_lookup_and_goto_ptr();
-            break;
-        case DISAS_NEXT:
-        case DISAS_TOO_MANY:
-            save_cpu_state(ctx, 0);
-            gen_goto_tb(ctx, 0, ctx->base.pc_next);
-            break;
-        case DISAS_EXIT:
-            tcg_gen_exit_tb(NULL, 0);
-            break;
-        case DISAS_NORETURN:
-            break;
-        default:
-            g_assert_not_reached();
-        }
+    switch (ctx->base.is_jmp) {
+    case DISAS_STOP:
+        gen_save_pc(ctx->base.pc_next);
+        tcg_gen_lookup_and_goto_ptr();
+        break;
+    case DISAS_NEXT:
+    case DISAS_TOO_MANY:
+        save_cpu_state(ctx, 0);
+        gen_goto_tb(ctx, 0, ctx->base.pc_next);
+        break;
+    case DISAS_EXIT:
+        tcg_gen_exit_tb(NULL, 0);
+        break;
+    case DISAS_NORETURN:
+        break;
+    default:
+        g_assert_not_reached();
     }
 }
 
