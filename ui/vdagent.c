@@ -47,7 +47,6 @@ struct VDAgentChardev {
 
     /* clipboard */
     QemuClipboardPeer cbpeer;
-    QemuClipboardInfo *cbinfo[QEMU_CLIPBOARD_SELECTION__COUNT];
     uint32_t cbpending[QEMU_CLIPBOARD_SELECTION__COUNT];
 };
 typedef struct VDAgentChardev VDAgentChardev;
@@ -384,9 +383,7 @@ static void vdagent_clipboard_notify(Notifier *notifier, void *data)
     QemuClipboardType type;
     bool self_update = info->owner == &vd->cbpeer;
 
-    if (info != vd->cbinfo[s]) {
-        qemu_clipboard_info_unref(vd->cbinfo[s]);
-        vd->cbinfo[s] = qemu_clipboard_info_ref(info);
+    if (info != qemu_clipboard_info(s)) {
         vd->cbpending[s] = 0;
         if (!self_update) {
             vdagent_send_clipboard_grab(vd, info);
@@ -464,6 +461,7 @@ static void vdagent_clipboard_recv_grab(VDAgentChardev *vd, uint8_t s, uint32_t 
 static void vdagent_clipboard_recv_request(VDAgentChardev *vd, uint8_t s, uint32_t size, void *data)
 {
     QemuClipboardType type;
+    QemuClipboardInfo *info;
 
     if (size < sizeof(uint32_t)) {
         return;
@@ -475,13 +473,14 @@ static void vdagent_clipboard_recv_request(VDAgentChardev *vd, uint8_t s, uint32
     default:
         return;
     }
-    if (vd->cbinfo[s] && vd->cbinfo[s]->types[type].available &&
-        vd->cbinfo[s]->owner != &vd->cbpeer) {
-        if (vd->cbinfo[s]->types[type].data) {
-            vdagent_send_clipboard_data(vd, vd->cbinfo[s], type);
+
+    info = qemu_clipboard_info(s);
+    if (info && info->types[type].available && info->owner != &vd->cbpeer) {
+        if (info->types[type].data) {
+            vdagent_send_clipboard_data(vd, info, type);
         } else {
             vd->cbpending[s] |= (1 << type);
-            qemu_clipboard_request(vd->cbinfo[s], type);
+            qemu_clipboard_request(info, type);
         }
     }
 }
@@ -489,6 +488,7 @@ static void vdagent_clipboard_recv_request(VDAgentChardev *vd, uint8_t s, uint32
 static void vdagent_clipboard_recv_data(VDAgentChardev *vd, uint8_t s, uint32_t size, void *data)
 {
     QemuClipboardType type;
+    QemuClipboardInfo *info;
 
     if (size < sizeof(uint32_t)) {
         return;
@@ -502,14 +502,20 @@ static void vdagent_clipboard_recv_data(VDAgentChardev *vd, uint8_t s, uint32_t 
     }
     data += 4;
     size -= 4;
-    qemu_clipboard_set_data(&vd->cbpeer, vd->cbinfo[s], type, size, data, true);
+
+    info = qemu_clipboard_info(s);
+    if (info->owner == &vd->cbpeer) {
+        qemu_clipboard_set_data(&vd->cbpeer, info, type, size, data, true);
+    }
 }
 
 static void vdagent_clipboard_recv_release(VDAgentChardev *vd, uint8_t s)
 {
+    QemuClipboardInfo *cur;
     g_autoptr(QemuClipboardInfo) info = NULL;
 
-    if (vd->cbinfo[s] && vd->cbinfo[s]->owner == &vd->cbpeer) {
+    cur = qemu_clipboard_info(s);
+    if (cur && cur->owner == &vd->cbpeer) {
         /* set empty clipboard info */
         info = qemu_clipboard_info_new(NULL, s);
         qemu_clipboard_update(info);
