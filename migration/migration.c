@@ -2882,12 +2882,15 @@ static int await_return_path_close_on_source(MigrationState *ms)
      * rp_thread will exit, however if there's an error we need to cause
      * it to exit.
      */
-    if (qemu_file_get_error(ms->to_dst_file) && ms->rp_state.from_dst_file) {
+    if (qemu_file_get_error(ms->to_dst_file)) {
         /*
          * shutdown(2), if we have it, will cause it to unblock if it's stuck
-         * waiting for the destination.
+         * waiting for the destination.  We do shutdown on to_dst_file should
+         * also shutdown the from_dst_file as they're in a pair. We explicilty
+         * don't operate on from_dst_file because it's potentially racy
+         * (rp_thread could have reset it in parallel).
          */
-        qemu_file_shutdown(ms->rp_state.from_dst_file);
+        qemu_file_shutdown(ms->to_dst_file);
         mark_source_rp_bad(ms);
     }
     trace_await_return_path_close_on_source_joining();
