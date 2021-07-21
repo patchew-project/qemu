@@ -2337,6 +2337,7 @@ foreach d, list : modules
                                        output: d + '-' + m + '.modinfo',
                                        input: module_ss.sources(),
                                        capture: true,
+                                       depends: genh,
                                        command: [modinfo_collect, '@INPUT@'])
       endif
     else
