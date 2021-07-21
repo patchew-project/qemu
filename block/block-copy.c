@@ -114,7 +114,10 @@ typedef struct BlockCopyState {
     /*
      * BdrvChild objects are not owned or managed by block-copy. They are
      * provided by block-copy user and user is responsible for appropriate
-     * permissions on these children.
+     * permissions on these children. Note also that block-copy will
+     * automatically add BDRV_REQ_WRITE_UNCHANGED flag to write operations if
+     * target child has BLK_PERM_WRITE_UNCHANGED permission but doesn't have
+     * BLK_PERM_WRITE permission.
      */
     BdrvChild *source;
     BdrvChild *target;
@@ -508,6 +511,7 @@ static int coroutine_fn block_copy_do_copy(BlockCopyState *s,
     int ret;
     int64_t nbytes = MIN(offset + bytes, s->len) - offset;
     void *bounce_buffer = NULL;
+    BdrvRequestFlags write_flags = s->write_flags;
 
     assert(offset >= 0 && bytes > 0 && INT64_MAX - offset >= bytes);
     assert(QEMU_IS_ALIGNED(offset, s->cluster_size));
@@ -517,9 +521,15 @@ static int coroutine_fn block_copy_do_copy(BlockCopyState *s,
            offset + bytes == QEMU_ALIGN_UP(s->len, s->cluster_size));
     assert(nbytes < INT_MAX);
 
+    if ((s->target->perm & (BLK_PERM_WRITE | BLK_PERM_WRITE_UNCHANGED)) ==
+        BLK_PERM_WRITE_UNCHANGED)
+    {
+        write_flags |= BDRV_REQ_WRITE_UNCHANGED;
+    }
+
     switch (*method) {
     case COPY_WRITE_ZEROES:
-        ret = bdrv_co_pwrite_zeroes(s->target, offset, nbytes, s->write_flags &
+        ret = bdrv_co_pwrite_zeroes(s->target, offset, nbytes, write_flags &
                                     ~BDRV_REQ_WRITE_COMPRESSED);
         if (ret < 0) {
             trace_block_copy_write_zeroes_fail(s, offset, ret);
@@ -530,7 +540,7 @@ static int coroutine_fn block_copy_do_copy(BlockCopyState *s,
     case COPY_RANGE_SMALL:
     case COPY_RANGE_FULL:
         ret = bdrv_co_copy_range(s->source, offset, s->target, offset, nbytes,
-                                 0, s->write_flags);
+                                 0, write_flags);
         if (ret >= 0) {
             /* Successful copy-range, increase chunk size.  */
             *method = COPY_RANGE_FULL;
@@ -563,7 +573,7 @@ static int coroutine_fn block_copy_do_copy(BlockCopyState *s,
         }
 
         ret = bdrv_co_pwrite(s->target, offset, nbytes, bounce_buffer,
-                             s->write_flags);
+                             write_flags);
         if (ret < 0) {
             trace_block_copy_write_fail(s, offset, ret);
             *error_is_read = false;
