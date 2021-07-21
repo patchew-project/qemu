@@ -108,9 +108,10 @@ int fp_port_set_settings(FpPort *port, uint32_t speed,
     return ROCKER_OK;
 }
 
-bool fp_port_from_pport(uint32_t pport, uint32_t *port)
+bool fp_port_from_pport(Rocker *r, uint32_t pport, uint32_t *port)
 {
-    if (pport < 1 || pport > ROCKER_FP_PORTS_MAX) {
+    if (pport < 1 || pport > ROCKER_FP_PORTS_MAX ||
+        pport >= rocker_fp_ports(r)) {
         return false;
     }
     *port = pport - 1;
