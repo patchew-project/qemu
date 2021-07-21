@@ -214,6 +214,7 @@ LoongArch TCG CPUS
 M: Song Gao <gaosong@loongson.cn>
 S: Maintained
 F: target/loongarch/
+F: linux-user/loongarch64/
 F: disas/loongarch.c
 
 M68K TCG CPUs
