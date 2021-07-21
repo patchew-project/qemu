@@ -34,6 +34,14 @@ typedef struct BackupBlockJob {
     BlockDriverState *cbw;
     BlockDriverState *source_bs;
     BlockDriverState *target_bs;
+    BlockBackend *source_blk;
+    BlockBackend *target_blk;
+    /*
+     * Note that if backup runs with filter (immutable-source parameter is
+     * false), @cbw is set but @source_blk and @target_blk are NULL.
+     * Otherwise if backup runs without filter (immutable-source paramter is
+     * true), @cbw is NULL but @source_blk and @target_blk are set.
+     */
 
     BdrvDirtyBitmap *sync_bitmap;
 
@@ -102,7 +110,17 @@ static void backup_clean(Job *job)
 {
     BackupBlockJob *s = container_of(job, BackupBlockJob, common.job);
     block_job_remove_all_bdrv(&s->common);
-    bdrv_cbw_drop(s->cbw);
+    if (s->cbw) {
+        assert(!s->source_blk && !s->target_blk);
+        bdrv_cbw_drop(s->cbw);
+    } else {
+        block_copy_state_free(s->bcs);
+        s->bcs = NULL;
+        blk_unref(s->source_blk);
+        s->source_blk = NULL;
+        blk_unref(s->target_blk);
+        s->target_blk = NULL;
+    }
 }
 
 void backup_do_checkpoint(BlockJob *job, Error **errp)
@@ -356,6 +374,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
                   BitmapSyncMode bitmap_mode,
                   bool compress,
                   const char *filter_node_name,
+                  bool immutable_source,
                   BackupPerf *perf,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
@@ -368,6 +387,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     int64_t cluster_size;
     BlockDriverState *cbw = NULL;
     BlockCopyState *bcs = NULL;
+    BlockBackend *source_blk = NULL, *target_blk = NULL;
 
     assert(bs);
     assert(target);
@@ -375,6 +395,12 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     /* QMP interface protects us from these cases */
     assert(sync_mode != MIRROR_SYNC_MODE_INCREMENTAL);
     assert(sync_bitmap || sync_mode != MIRROR_SYNC_MODE_BITMAP);
+
+    if (immutable_source && filter_node_name) {
+        error_setg(errp, "immutable-source and filter-node-name should not "
+                   "be set simultaneously");
+        return NULL;
+    }
 
     if (bs == target) {
         error_setg(errp, "Source and target cannot be the same");
@@ -450,9 +476,40 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         goto error;
     }
 
-    cbw = bdrv_cbw_append(bs, target, filter_node_name, &bcs, errp);
-    if (!cbw) {
-        goto error;
+    if (immutable_source) {
+        BdrvDirtyBitmap *copy_bitmap;
+
+        source_blk = blk_new_with_bs(bs, BLK_PERM_CONSISTENT_READ,
+                                        BLK_PERM_WRITE_UNCHANGED |
+                                        BLK_PERM_CONSISTENT_READ, errp);
+        if (!source_blk) {
+            goto error;
+        }
+
+        target_blk  = blk_new_with_bs(target, BLK_PERM_WRITE,
+                                      BLK_PERM_CONSISTENT_READ, errp);
+        if (!target_blk) {
+            goto error;
+        }
+
+        /*
+         * initalize block-copy state and copy bitmap in a way copy-before-write
+         * filter do it, to have same code path later.
+         */
+        bcs = block_copy_state_new(blk_root(source_blk), blk_root(target_blk),
+                                   false, false, errp);
+        if (!bcs) {
+            goto error;
+        }
+
+        copy_bitmap = block_copy_dirty_bitmap(bcs);
+        bdrv_set_dirty_bitmap(copy_bitmap, 0,
+                              bdrv_dirty_bitmap_size(copy_bitmap));
+    } else {
+        cbw = bdrv_cbw_append(bs, target, filter_node_name, &bcs, errp);
+        if (!cbw) {
+            goto error;
+        }
     }
 
     cluster_size = block_copy_cluster_size(bcs);
@@ -464,7 +521,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     }
 
     /* job->len is fixed, so we can't allow resize */
-    job = block_job_create(job_id, &backup_job_driver, txn, cbw,
+    job = block_job_create(job_id, &backup_job_driver, txn, cbw ?: bs,
                            0, BLK_PERM_ALL,
                            speed, creation_flags, cb, opaque, errp);
     if (!job) {
@@ -474,6 +531,8 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     job->cbw = cbw;
     job->source_bs = bs;
     job->target_bs = target;
+    job->source_blk = source_blk;
+    job->target_blk = target_blk;
     job->on_source_error = on_source_error;
     job->on_target_error = on_target_error;
     job->sync_mode = sync_mode;
@@ -501,6 +560,8 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     if (cbw) {
         bdrv_cbw_drop(cbw);
     }
+    blk_unref(source_blk);
+    blk_unref(target_blk);
 
     return NULL;
 }
