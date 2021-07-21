@@ -13,6 +13,15 @@ void qemu_clipboard_peer_register(QemuClipboardPeer *peer)
 
 void qemu_clipboard_peer_unregister(QemuClipboardPeer *peer)
 {
+    int i;
+
+    for (i = 0; i < QEMU_CLIPBOARD_SELECTION__COUNT; i++) {
+        if (cbinfo[i] && cbinfo[i]->owner == peer) {
+            /* release owned grabs */
+            g_autoptr(QemuClipboardInfo) info = qemu_clipboard_info_new(NULL, i);
+            qemu_clipboard_update(info);
+        }
+    }
     notifier_remove(&peer->update);
 }
 
