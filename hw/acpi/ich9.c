@@ -281,6 +281,7 @@ static void pm_reset(void *opaque)
     pm->smi_en_wmask = ~0;
 
     if (pm->use_acpi_hotplug_bridge) {
+        /* on root PCIE bus, we always use native or SHPC based hotplug */
         acpi_pcihp_reset(&pm->acpi_pci_hotplug, true);
     }
 

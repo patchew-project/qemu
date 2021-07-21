@@ -136,6 +136,11 @@ static void acpi_pcihp_disable_root_bus(void)
         return;
     }
 
+    if (!host) {
+        root_hp_disabled = true;
+        return;
+    }
+
     bus = PCI_HOST_BRIDGE(host)->bus;
     if (bus) {
         /* setting the hotplug handler to NULL makes the bus non-hotpluggable */
