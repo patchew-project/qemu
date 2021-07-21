@@ -830,14 +830,67 @@ static inline bool migration_bitmap_clear_dirty(RAMState *rs,
     return ret;
 }
 
+static void dirty_bitmap_exclude_section(MemoryRegionSection *section,
+                                         void *opaque)
+{
+    const hwaddr offset = section->offset_within_region;
+    const hwaddr size = int128_get64(section->size);
+    const unsigned long start = offset >> TARGET_PAGE_BITS;
+    const unsigned long npages = size >> TARGET_PAGE_BITS;
+    RAMBlock *rb = section->mr->ram_block;
+    uint64_t *cleared_bits = opaque;
+
+    /* Clear the discarded part from our bitmap. */
+    *cleared_bits += bitmap_count_one_with_offset(rb->bmap, start, npages);
+    bitmap_clear(rb->bmap, start, npages);
+}
+
+/*
+ * Exclude all dirty pages that fall into a discarded range as managed by a
+ * RamDiscardManager responsible for the mapped memory region of the RAMBlock.
+ *
+ * Discarded pages ("logically unplugged") have undefined content and must
+ * never be migrated, because even reading these pages for migrating might
+ * result in undesired behavior.
+ *
+ * Returns the number of cleared bits in the dirty bitmap.
+ *
+ * Note: The result is only stable while migration (precopy/postcopy).
+ */
+static uint64_t ramblock_dirty_bitmap_exclude_discarded_pages(RAMBlock *rb)
+{
+    uint64_t cleared_bits = 0;
+
+    if (rb->mr && memory_region_has_ram_discard_manager(rb->mr)) {
+        RamDiscardManager *rdm = memory_region_get_ram_discard_manager(rb->mr);
+        MemoryRegionSection section = {
+            .mr = rb->mr,
+            .offset_within_region = 0,
+            .size = int128_make64(qemu_ram_get_used_length(rb)),
+        };
+
+        ram_discard_manager_replay_discarded(rdm, &section,
+                                             dirty_bitmap_exclude_section,
+                                             &cleared_bits);
+    }
+    return cleared_bits;
+}
+
 /* Called with RCU critical section */
 static void ramblock_sync_dirty_bitmap(RAMState *rs, RAMBlock *rb)
 {
     uint64_t new_dirty_pages =
         cpu_physical_memory_sync_dirty_bitmap(rb, 0, rb->used_length);
+    uint64_t cleared_pages = 0;
 
-    rs->migration_dirty_pages += new_dirty_pages;
-    rs->num_dirty_pages_period += new_dirty_pages;
+    if (new_dirty_pages) {
+        cleared_pages = ramblock_dirty_bitmap_exclude_discarded_pages(rb);
+    }
+
+    rs->migration_dirty_pages += new_dirty_pages - cleared_pages;
+    if (new_dirty_pages > cleared_pages) {
+        rs->num_dirty_pages_period += new_dirty_pages - cleared_pages;
+    }
 }
 
 /**
@@ -2601,7 +2654,7 @@ static int ram_state_init(RAMState **rsp)
     return 0;
 }
 
-static void ram_list_init_bitmaps(void)
+static void ram_list_init_bitmaps(RAMState *rs)
 {
     MigrationState *ms = migrate_get_current();
     RAMBlock *block;
@@ -2636,6 +2689,10 @@ static void ram_list_init_bitmaps(void)
             bitmap_set(block->bmap, 0, pages);
             block->clear_bmap_shift = shift;
             block->clear_bmap = bitmap_new(clear_bmap_size(pages, shift));
+
+            /* Exclude all discarded pages we never want to migrate. */
+            pages = ramblock_dirty_bitmap_exclude_discarded_pages(block);
+            rs->migration_dirty_pages -= pages;
         }
     }
 }
@@ -2647,7 +2704,7 @@ static void ram_init_bitmaps(RAMState *rs)
     qemu_mutex_lock_ramlist();
 
     WITH_RCU_READ_LOCK_GUARD() {
-        ram_list_init_bitmaps();
+        ram_list_init_bitmaps(rs);
         /* We don't use dirty log with background snapshots */
         if (!migrate_background_snapshot()) {
             memory_global_dirty_log_start();
@@ -4076,6 +4133,10 @@ int ram_dirty_bitmap_reload(MigrationState *s, RAMBlock *block)
      */
     bitmap_complement(block->bmap, block->bmap, nbits);
 
+    /* Exclude all discarded pages we never want to migrate. */
+    ramblock_dirty_bitmap_exclude_discarded_pages(block);
+
+    /* We'll recalculate migration_dirty_pages in ram_state_resume_prepare(). */
     trace_ram_dirty_bitmap_reload_complete(block->idstr);
 
     /*
