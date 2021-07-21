@@ -876,6 +876,29 @@ static uint64_t ramblock_dirty_bitmap_exclude_discarded_pages(RAMBlock *rb)
     return cleared_bits;
 }
 
+/*
+ * Check if a page falls into a discarded range as managed by a
+ * RamDiscardManager responsible for the mapped memory region of the RAMBlock.
+ * Pages inside discarded ranges are never migrated and postcopy has to
+ * place zeropages instead.
+ *
+ * Note: The result is only stable while migration (precopy/postcopy).
+ */
+bool ramblock_page_is_discarded(RAMBlock *rb, ram_addr_t offset)
+{
+    if (rb->mr && memory_region_has_ram_discard_manager(rb->mr)) {
+        RamDiscardManager *rdm = memory_region_get_ram_discard_manager(rb->mr);
+        MemoryRegionSection section = {
+            .mr = rb->mr,
+            .offset_within_region = offset,
+            .size = int128_get64(TARGET_PAGE_SIZE),
+        };
+
+        return !ram_discard_manager_is_populated(rdm, &section);
+    }
+    return false;
+}
+
 /* Called with RCU critical section */
 static void ramblock_sync_dirty_bitmap(RAMState *rs, RAMBlock *rb)
 {
