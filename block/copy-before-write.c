@@ -257,6 +257,43 @@ void bdrv_cbw_drop(BlockDriverState *bs)
     bdrv_unref(bs);
 }
 
+/*
+ * Detect is bs a fleecing node in some fleecing sceheme like:
+ *
+ * copy-before-write -- target --> fleecing-node
+ *   |                               |
+ *   | file                          | backing
+ * active-node  <---------------------
+ *
+ * In this case, fleecing-node can (and should) safely share writes on its
+ * backing child.
+ */
+bool bdrv_is_fleecing_node(BlockDriverState *bs)
+{
+    BdrvChild *parent;
+    BlockDriverState *parent_bs;
+    BDRVCopyBeforeWriteState *s;
+
+    QLIST_FOREACH(parent, &bs->parents, next_parent) {
+        if (parent->klass != &child_of_bds) {
+            continue;
+        }
+
+        parent_bs = parent->opaque;
+        if (parent_bs->drv != &bdrv_cbw_filter) {
+            continue;
+        }
+
+        s = parent_bs->opaque;
+
+        if (s->target && s->target->bs == bs && cbw_is_fleecing(parent_bs)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static void cbw_init(void)
 {
     bdrv_register(&bdrv_cbw_filter);

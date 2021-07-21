@@ -50,6 +50,7 @@
 #include "qemu/cutils.h"
 #include "qemu/id.h"
 #include "block/coroutines.h"
+#include "block/copy-before-write.h"
 
 #ifdef CONFIG_BSD
 #include <sys/ioctl.h>
@@ -2507,7 +2508,7 @@ static void bdrv_default_perms_for_cow(BlockDriverState *bs, BdrvChild *c,
      * writable and resizable backing file.
      * TODO Require !(perm & BLK_PERM_CONSISTENT_READ), too?
      */
-    if (shared & BLK_PERM_WRITE) {
+    if (shared & BLK_PERM_WRITE || bdrv_is_fleecing_node(bs)) {
         shared = BLK_PERM_WRITE | BLK_PERM_RESIZE;
     } else {
         shared = 0;

@@ -35,5 +35,6 @@ BlockDriverState *bdrv_cbw_append(BlockDriverState *source,
                                   BlockCopyState **bcs,
                                   Error **errp);
 void bdrv_cbw_drop(BlockDriverState *bs);
+bool bdrv_is_fleecing_node(BlockDriverState *bs);
 
 #endif /* COPY_BEFORE_WRITE_H */
