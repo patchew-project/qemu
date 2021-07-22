@@ -535,7 +535,7 @@ static void sum_stats(void)
     }
 }
 
-static void log_stats()
+static void log_stats(void)
 {
     int i, iters;
 
@@ -559,7 +559,7 @@ static void log_stats()
     qemu_plugin_outs(rep->str);
 }
 
-static void log_top_insns()
+static void log_top_insns(void)
 {
     int i;
     GList *curr, *miss_insns;
@@ -610,7 +610,7 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
     g_free(stats);
 }
 
-static void policy_init()
+static void policy_init(void)
 {
     switch (policy) {
     case LRU:
