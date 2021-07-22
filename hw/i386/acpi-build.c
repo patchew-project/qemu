@@ -364,7 +364,7 @@ static void build_append_pcihp_notify_entry(Aml *method, int slot)
     int32_t devfn = PCI_DEVFN(slot, 0);
 
     if_ctx = aml_if(aml_and(aml_arg(0), aml_int(0x1U << slot), NULL));
-    aml_append(if_ctx, aml_notify(aml_name("S%.02X", devfn), aml_arg(1)));
+    aml_append(if_ctx, aml_notify(aml_name("^S%.03X", devfn), aml_arg(1)));
     aml_append(method, if_ctx);
 }
 
@@ -389,18 +389,26 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
         PCIDeviceClass *pc;
         PCIDevice *pdev = bus->devices[devfn];
         int slot = PCI_SLOT(devfn);
+        int func = PCI_FUNC(devfn);
+        /* ACPI spec: 1.0b: Table 6-2 _ADR Object Bus Types, PCI type */
+        int adr = slot << 16 | func;
         bool hotplug_enabled_dev;
         bool bridge_in_acpi;
         bool cold_plugged_bridge;
 
         if (!pdev) {
-            if (bsel) { /* add hotplug slots for non present devices */
+            /*
+             * add hotplug slots for non present devices.
+             * hotplug is supported only for non-multifunction device
+             * so generate device description only for function 0
+             */
+            if (bsel && !PCI_FUNC(devfn)) {
                 if (pci_bus_is_express(bus) && slot > 0) {
                     break;
                 }
-                dev = aml_device("S%.02X", PCI_DEVFN(slot, 0));
+                dev = aml_device("S%.03X", devfn);
                 aml_append(dev, aml_name_decl("_SUN", aml_int(slot)));
-                aml_append(dev, aml_name_decl("_ADR", aml_int(slot << 16)));
+                aml_append(dev, aml_name_decl("_ADR", aml_int(adr)));
                 method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
                 aml_append(method,
                     aml_call2("PCEJ", aml_name("BSEL"), aml_name("_SUN"))
@@ -436,9 +444,18 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
             continue;
         }
 
+        /*
+         * allow describing coldplugged bridges in ACPI even if they are not
+         * on function 0, as they are not unpluggale, for all other devices
+         * generate description only for function 0 per slot
+         */
+        if (PCI_FUNC(devfn) && !bridge_in_acpi) {
+            continue;
+        }
+
         /* start to compose PCI slot descriptor */
-        dev = aml_device("S%.02X", PCI_DEVFN(slot, 0));
-        aml_append(dev, aml_name_decl("_ADR", aml_int(slot << 16)));
+        dev = aml_device("S%.03X", devfn);
+        aml_append(dev, aml_name_decl("_ADR", aml_int(adr)));
 
         if (bsel) {
             /*
@@ -529,7 +546,7 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
                     continue;
                 }
 
-                aml_append(method, aml_name("^S%.02X.PCNT",
+                aml_append(method, aml_name("^S%.03X.PCNT",
                                             sec->parent_dev->devfn));
             }
         }
