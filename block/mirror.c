@@ -1089,9 +1089,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
         }
         trace_mirror_before_sleep(s, cnt, s->synced, delay_ns);
         job_sleep_ns(&s->common.job, delay_ns);
-        if (job_is_cancelled(&s->common.job) &&
-            (!s->synced || s->common.job.force_cancel))
-        {
+        if (job_is_cancelled(&s->common.job) && s->common.job.force_cancel) {
             break;
         }
         s->last_pause_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
@@ -1103,7 +1101,7 @@ immediate_exit:
          * or it was cancelled prematurely so that we do not guarantee that
          * the target is a copy of the source.
          */
-        assert(ret < 0 || ((s->common.job.force_cancel || !s->synced) &&
+        assert(ret < 0 || (s->common.job.force_cancel &&
                job_is_cancelled(&s->common.job)));
         assert(need_drain);
         mirror_wait_for_all_io(s);
@@ -1189,14 +1187,27 @@ static bool mirror_drained_poll(BlockJob *job)
     return !!s->in_flight;
 }
 
-static void mirror_cancel(Job *job, bool force)
+static bool mirror_cancel(Job *job, bool force)
 {
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common.job);
     BlockDriverState *target = blk_bs(s->target);
 
-    if (force || !job_is_ready(job)) {
+    /*
+     * Before the job is READY, we treat any cancellation like a
+     * force-cancellation.
+     */
+    force = force || !job_is_ready(job);
+
+    if (force) {
         bdrv_cancel_in_flight(target);
     }
+    return force;
+}
+
+static bool commit_active_cancel(Job *job, bool force)
+{
+    /* Same as above in mirror_cancel() */
+    return force || !job_is_ready(job);
 }
 
 static const BlockJobDriver mirror_job_driver = {
@@ -1226,6 +1237,7 @@ static const BlockJobDriver commit_active_job_driver = {
         .abort                  = mirror_abort,
         .pause                  = mirror_pause,
         .complete               = mirror_complete,
+        .cancel                 = commit_active_cancel,
     },
     .drained_poll           = mirror_drained_poll,
 };
