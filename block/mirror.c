@@ -995,7 +995,7 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
             mirror_wait_for_any_operation(s, true);
         }
 
-        if (s->ret < 0) {
+        if (s->ret < 0 || job_is_cancelled(&s->common.job)) {
             ret = s->ret;
             goto immediate_exit;
         }
@@ -1081,17 +1081,12 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
             break;
         }
 
-        ret = 0;
-
         if (s->synced && !should_complete) {
             delay_ns = (s->in_flight == 0 &&
                         cnt == 0 ? BLOCK_JOB_SLICE_TIME : 0);
         }
         trace_mirror_before_sleep(s, cnt, s->synced, delay_ns);
         job_sleep_ns(&s->common.job, delay_ns);
-        if (job_is_cancelled(&s->common.job)) {
-            break;
-        }
         s->last_pause_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     }
 
