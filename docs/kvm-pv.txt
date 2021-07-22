@@ -1,0 +1,92 @@
+KVM paravirtualized features
+============================
+
+
+1. Description
+===============
+In some cases when implementing a hardware interface in software is slow, KVM
+implements its own paravirtualized interfaces.
+
+2. Setup
+=========
+KVM PV features are represented as CPU flags. The following features are enabled
+by default for any CPU model when KVM is enabled:
+  kvmclock
+  kvm-nopiodelay
+  kvm-asyncpf
+  kvm-steal-time
+  kvm-pv-eoi
+  kvmclock-stable-bit
+
+'kvm-msi-ext-dest-id' feature is enabled by default in x2apic mode with split
+irqchip (e.g. "-machine ...,kernel-irqchip=split -cpu ...,x2apic").
+
+Note: when cpu model 'host' is used, QEMU passes through all KVM PV features
+exposed by KVM to the guest.
+
+3. Existing features
+====================
+
+3.1. kvmclock
+================
+This feature exposes KVM specific PV clocksource to the guest.
+
+3.2. kvm-nopiodelay
+===================
+The guest doesn't need to perform delays on PIO operations.
+
+3.3. kvm-mmu
+============
+This feature is deprecated.
+
+3.4. kvm-asyncpf
+================
+Enables asynchronous page fault mechanism. Note: since Linux-5.10 the feature is
+deprecated and not enabled by KVM. Use "kvm-asyncpf-int" instead.
+
+3.5. kvm-steal-time
+===================
+Enables stolen (when guest vCPU is not running) time accounting.
+
+3.6. kvm-pv-eoi
+===============
+Enables paravirtualized end-of-interrupt signaling.
+
+3.7. kvm-pv-unhalt
+==================
+Enables paravirtualized spinlocks support.
+
+3.8. kvm-pv-tlb-flush
+=====================
+Enables paravirtualized TLB flush mechanism.
+
+3.9. kvm-pv-ipi
+===============
+Enables paravirtualized IPI mechanism.
+
+3.10. kvm-poll-control
+======================
+Enables host-side polling on HLT control from the guest.
+
+3.11. kvm-pv-sched-yield
+========================
+Enables paravirtualized sched yield feature.
+
+3.12. kvm-asyncpf-int
+=====================
+Enables interrupt based asynchronous page fault mechanism.
+
+3.13. kvm-msi-ext-dest-id
+=========================
+Support 'Extended Destination ID' for external interrupts. The feature allows
+to use up to 32768 CPUs without IRQ remapping (but other limits may apply making
+the number of supported vCPUs for a given configuration lower).
+
+3.14. kvmclock-stable-bit
+=========================
+Tells the guest that guest visible TSC value can be fully trusted for kvmclock
+computations and no warps are expected.
+
+4. Useful links
+================
+Please refer to Documentation/virt/kvm in Linux for additional detail.
