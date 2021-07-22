@@ -829,6 +829,20 @@ static void machine_set_smp(Object *obj, Visitor *v, const char *name,
         return;
     }
 
+    /*
+     * The topology parameters must be specified equal to or great than one
+     * or just omitted, explicit configuration like "cpus=0" is not allowed.
+     */
+    if ((config->has_cpus && config->cpus == 0) ||
+        (config->has_sockets && config->sockets == 0) ||
+        (config->has_dies && config->dies == 0) ||
+        (config->has_cores && config->cores == 0) ||
+        (config->has_threads && config->threads == 0) ||
+        (config->has_maxcpus && config->maxcpus == 0)) {
+        error_setg(errp, "parameters must be equal to or greater than one if provided");
+        goto out_free;
+    }
+
     mc->smp_parse(ms, config, errp);
     if (errp) {
         goto out_free;
