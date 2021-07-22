@@ -217,6 +217,11 @@ const char *job_type_str(const Job *job)
 
 bool job_is_cancelled(Job *job)
 {
+    return job->cancelled && job->force_cancel;
+}
+
+bool job_cancel_requested(Job *job)
+{
     return job->cancelled;
 }
 
@@ -650,7 +655,7 @@ static void job_conclude(Job *job)
 
 static void job_update_rc(Job *job)
 {
-    if (!job->ret && job_is_cancelled(job)) {
+    if (!job->ret && job_cancel_requested(job)) {
         job->ret = -ECANCELED;
     }
     if (job->ret) {
@@ -704,7 +709,7 @@ static int job_finalize_single(Job *job)
 
     /* Emit events only if we actually started */
     if (job_started(job)) {
-        if (job_is_cancelled(job)) {
+        if (job_cancel_requested(job)) {
             job_event_cancelled(job);
         } else {
             job_event_completed(job);
@@ -1015,7 +1020,7 @@ void job_complete(Job *job, Error **errp)
     if (job_apply_verb(job, JOB_VERB_COMPLETE, errp)) {
         return;
     }
-    if (job_is_cancelled(job) || !job->driver->complete) {
+    if (job_cancel_requested(job) || !job->driver->complete) {
         error_setg(errp, "The active block job '%s' cannot be completed",
                    job->id);
         return;
@@ -1043,7 +1048,7 @@ int job_finish_sync(Job *job, void (*finish)(Job *, Error **errp), Error **errp)
     AIO_WAIT_WHILE(job->aio_context,
                    (job_enter(job), !job_is_completed(job)));
 
-    ret = (job_is_cancelled(job) && job->ret == 0) ? -ECANCELED : job->ret;
+    ret = (job_cancel_requested(job) && job->ret == 0) ? -ECANCELED : job->ret;
     job_unref(job);
     return ret;
 }
