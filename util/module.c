@@ -206,13 +206,10 @@ static int module_load_file(const char *fname, bool mayfail, bool export_symbols
 out:
     return ret;
 }
-#endif
 
 bool module_load_one(const char *prefix, const char *lib_name, bool mayfail)
 {
     bool success = false;
-
-#ifdef CONFIG_MODULES
     char *fname = NULL;
 #ifdef CONFIG_MODULE_UPGRADES
     char *version_dir;
@@ -300,6 +297,9 @@ bool module_load_one(const char *prefix, const char *lib_name, bool mayfail)
 
     if (!success) {
         g_hash_table_remove(loaded_modules, module_name);
+        fprintf(stderr, "%s module is missing, install the "
+                        "package or config the library path "
+                        "correctly.\n", module_name);
         g_free(module_name);
     }
 
@@ -307,11 +307,8 @@ bool module_load_one(const char *prefix, const char *lib_name, bool mayfail)
         g_free(dirs[i]);
     }
 
-#endif
     return success;
 }
-
-#ifdef CONFIG_MODULES
 
 static bool module_loaded_qom_all;
 
@@ -383,5 +380,10 @@ void module_allow_arch(const char *arch) {}
 void qemu_load_module_for_opts(const char *group) {}
 void module_load_qom_one(const char *type) {}
 void module_load_qom_all(void) {}
+
+bool module_load_one(const char *prefix, const char *lib_name, bool mayfail)
+{
+    return false;
+}
 
 #endif
