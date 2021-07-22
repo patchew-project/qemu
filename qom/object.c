@@ -73,14 +73,18 @@ struct TypeImpl
 };
 
 static Type type_interface;
+G_LOCK_DEFINE (GHashTable_mutex);
 
 static GHashTable *type_table_get(void)
 {
     static GHashTable *type_table;
+    G_LOCK ( GHashTable_mutex);	
 
     if (type_table == NULL) {
         type_table = g_hash_table_new(g_str_hash, g_str_equal);
     }
+
+    G_UNLOCK ( GHashTable_mutex);	
 
     return type_table;
 }
