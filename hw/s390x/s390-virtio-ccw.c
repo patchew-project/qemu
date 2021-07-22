@@ -404,6 +404,49 @@ static void s390_pv_prepare_reset(S390CcwMachineState *ms)
     s390_pv_prep_reset();
 }
 
+int s390_handle_ptf(S390CPU *cpu, uint8_t r1, uintptr_t ra)
+{
+    S390CcwMachineState *ms = S390_CCW_MACHINE(qdev_get_machine());
+    CPUS390XState *env = &cpu->env;
+    uint64_t reg = env->regs[r1];
+    uint8_t fc = reg & S390_TOPO_FC_MASK;
+
+    if (!s390_has_feat(S390_FEAT_CONFIGURATION_TOPOLOGY)) {
+        s390_program_interrupt(env, PGM_OPERAND, ra);
+        return 0;
+    }
+
+    if (env->psw.mask & PSW_MASK_PSTATE) {
+        s390_program_interrupt(env, PGM_PRIVILEGED, ra);
+        return 0;
+    }
+
+    if (reg & ~S390_TOPO_FC_MASK) {
+        s390_program_interrupt(env, PGM_SPECIFICATION, ra);
+        return 0;
+    }
+
+    switch (fc) {
+    case 0:    /* Horizontal polarization is already set */
+        env->regs[r1] = S390_PTF_REASON_DONE;
+        return 2;
+    case 1:    /* Vertical polarization is not supported */
+        env->regs[r1] = S390_PTF_REASON_NONE;
+        return 2;
+    case 2:    /* Report if a topology change report is pending */
+        if (ms->topology_change_report_pending) {
+            ms->topology_change_report_pending = false;
+            return 1;
+        }
+        return 0;
+    default:
+        s390_program_interrupt(env, PGM_SPECIFICATION, ra);
+        break;
+    }
+
+    return 0;
+}
+
 static void s390_machine_reset(MachineState *machine)
 {
     S390CcwMachineState *ms = S390_CCW_MACHINE(machine);
@@ -433,6 +476,8 @@ static void s390_machine_reset(MachineState *machine)
         run_on_cpu(cs, s390_do_cpu_ipl, RUN_ON_CPU_NULL);
         break;
     case S390_RESET_MODIFIED_CLEAR:
+        /* clear topology_change_report pending condition on subsystem reset */
+        ms->topology_change_report_pending = false;
         /*
          * Susbsystem reset needs to be done before we unshare memory
          * and lose access to VIRTIO structures in guest memory.
