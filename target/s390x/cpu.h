@@ -564,6 +564,50 @@ typedef union SysIB {
 } SysIB;
 QEMU_BUILD_BUG_ON(sizeof(SysIB) != 4096);
 
+/* CPU type Topology List Entry */
+typedef struct SysIBTl_cpu {
+        uint8_t nl;
+        uint8_t reserved0[3];
+        uint8_t reserved1:5;
+        uint8_t dedicated:1;
+        uint8_t polarity:2;
+        uint8_t type;
+        uint16_t origin;
+        uint64_t mask;
+} QEMU_PACKED SysIBTl_cpu;
+
+/* Container type Topology List Entry */
+typedef struct SysIBTl_container {
+        uint8_t nl;
+        uint8_t reserved[6];
+        uint8_t id;
+} QEMU_PACKED SysIBTl_container;
+
+/* Generic Topology List Entry */
+typedef union SysIBTl_entry {
+        uint8_t nl;
+        SysIBTl_container container;
+        SysIBTl_cpu cpu;
+} QEMU_PACKED SysIBTl_entry;
+
+#define TOPOLOGY_NR_MAG  6
+#define TOPOLOGY_NR_MAG6 0
+#define TOPOLOGY_NR_MAG5 1
+#define TOPOLOGY_NR_MAG4 2
+#define TOPOLOGY_NR_MAG3 3
+#define TOPOLOGY_NR_MAG2 4
+#define TOPOLOGY_NR_MAG1 5
+/* Configuration topology */
+typedef struct SysIB_151x {
+    uint8_t  res0[2];
+    uint16_t length;
+    uint8_t  mag[TOPOLOGY_NR_MAG];
+    uint8_t  res1;
+    uint8_t  mnest;
+    uint32_t res2;
+    SysIBTl_entry tle[0];
+} QEMU_PACKED SysIB_151x;
+
 /* MMU defines */
 #define ASCE_ORIGIN           (~0xfffULL) /* segment table origin             */
 #define ASCE_SUBSPACE         0x200       /* subspace group control           */
