@@ -2668,7 +2668,11 @@ static coroutine_fn void nbd_trip(void *opaque)
         ret = nbd_handle_request(client, &request, req->data, &local_err);
     }
     if (ret < 0) {
-        error_prepend(&local_err, "Failed to send reply: ");
+        if (errno != EPIPE) {
+            error_prepend(&local_err, "Failed to send reply: ");
+        } else {
+            local_err = NULL;
+        }
         goto disconnect;
     }
 
