@@ -690,18 +690,6 @@ void qemu_cpu_kick(CPUState *cpu);
 bool cpu_is_stopped(CPUState *cpu);
 
 /**
- * do_run_on_cpu:
- * @cpu: The vCPU to run on.
- * @func: The function to be executed.
- * @data: Data to pass to the function.
- * @mutex: Mutex to release while waiting for @func to run.
- *
- * Used internally in the implementation of run_on_cpu.
- */
-void do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data,
-                   QemuMutex *mutex);
-
-/**
  * run_on_cpu:
  * @cpu: The vCPU to run on.
  * @func: The function to be executed.

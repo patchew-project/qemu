@@ -382,6 +382,32 @@ void qemu_init_cpu_loop(void)
     qemu_thread_get_self(&io_thread);
 }
 
+static void
+do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data,
+              QemuMutex *mutex)
+{
+    struct qemu_work_item wi;
+
+    if (qemu_cpu_is_self(cpu)) {
+        func(cpu, data);
+        return;
+    }
+
+    wi.func = func;
+    wi.data = data;
+    wi.done = false;
+    wi.free = false;
+    wi.exclusive = false;
+
+    queue_work_on_cpu(cpu, &wi);
+    while (!qatomic_mb_read(&wi.done)) {
+        CPUState *self_cpu = current_cpu;
+
+        qemu_cond_wait(&qemu_work_cond, mutex);
+        current_cpu = self_cpu;
+    }
+}
+
 void run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data)
 {
     do_run_on_cpu(cpu, func, data, &qemu_global_mutex);
