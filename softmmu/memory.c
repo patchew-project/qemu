@@ -1079,10 +1079,20 @@ static void address_space_update_topology(AddressSpace *as)
     address_space_set_flatview(as);
 }
 
+static void memory_region_transaction_push(void)
+{
+    memory_region_transaction_depth++;
+}
+
+static void memory_region_transaction_pop(void)
+{
+    memory_region_transaction_depth--;
+}
+
 void memory_region_transaction_begin(void)
 {
     qemu_flush_coalesced_mmio_buffer();
-    ++memory_region_transaction_depth;
+    memory_region_transaction_push();
 }
 
 void memory_region_transaction_commit(void)
@@ -1092,7 +1102,7 @@ void memory_region_transaction_commit(void)
     assert(memory_region_transaction_depth);
     assert(qemu_mutex_iothread_locked());
 
-    --memory_region_transaction_depth;
+    memory_region_transaction_pop();
     if (!memory_region_transaction_depth) {
         if (memory_region_update_pending) {
             flatviews_reset();
