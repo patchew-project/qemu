@@ -66,6 +66,10 @@
 
 static QemuMutex qemu_global_mutex;
 
+static void qemu_mutex_unlock_iothread_prepare(void)
+{
+}
+
 bool cpu_is_stopped(CPUState *cpu)
 {
     return cpu->stopped || !runstate_is_running();
@@ -523,16 +527,19 @@ void qemu_mutex_unlock_iothread(void)
 {
     g_assert(qemu_mutex_iothread_locked());
     iothread_locked = false;
+    qemu_mutex_unlock_iothread_prepare();
     qemu_mutex_unlock(&qemu_global_mutex);
 }
 
 void qemu_cond_wait_iothread(QemuCond *cond)
 {
+    qemu_mutex_unlock_iothread_prepare();
     qemu_cond_wait(cond, &qemu_global_mutex);
 }
 
 void qemu_cond_timedwait_iothread(QemuCond *cond, int ms)
 {
+    qemu_mutex_unlock_iothread_prepare();
     qemu_cond_timedwait(cond, &qemu_global_mutex, ms);
 }
 
