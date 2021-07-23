@@ -383,8 +383,7 @@ void qemu_init_cpu_loop(void)
 }
 
 static void
-do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data,
-              QemuMutex *mutex)
+do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data)
 {
     struct qemu_work_item wi;
 
@@ -403,14 +402,14 @@ do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data,
     while (!qatomic_mb_read(&wi.done)) {
         CPUState *self_cpu = current_cpu;
 
-        qemu_cond_wait(&qemu_work_cond, mutex);
+        qemu_cond_wait_iothread(&qemu_work_cond);
         current_cpu = self_cpu;
     }
 }
 
 void run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data)
 {
-    do_run_on_cpu(cpu, func, data, &qemu_global_mutex);
+    do_run_on_cpu(cpu, func, data);
 }
 
 static void qemu_cpu_stop(CPUState *cpu, bool exit)
