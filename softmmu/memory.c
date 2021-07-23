@@ -170,6 +170,12 @@ struct MemoryRegionIoeventfd {
     EventNotifier *e;
 };
 
+/* Returns whether there's any pending memory updates */
+static bool memory_region_has_pending_update(void)
+{
+    return memory_region_update_pending || ioeventfd_update_pending;
+}
+
 static bool memory_region_ioeventfd_before(MemoryRegionIoeventfd *a,
                                            MemoryRegionIoeventfd *b)
 {
@@ -1756,12 +1762,25 @@ static void memory_region_finalize(Object *obj)
      * and cause an infinite loop.
      */
     mr->enabled = false;
-    memory_region_transaction_begin();
+
+    /*
+     * Use push()/pop() instead of begin()/commit() to make sure below block
+     * won't trigger any topology update (which should never happen, but it's
+     * still a safety belt).
+     */
+    memory_region_transaction_push();
     while (!QTAILQ_EMPTY(&mr->subregions)) {
         MemoryRegion *subregion = QTAILQ_FIRST(&mr->subregions);
         memory_region_del_subregion(mr, subregion);
     }
-    memory_region_transaction_commit();
+    memory_region_transaction_pop();
+
+    /*
+     * Make sure we're either in a nested transaction or there must have no
+     * pending updates due to memory_region_del_subregion() above.
+     */
+    assert(memory_region_transaction_depth ||
+           !memory_region_has_pending_update());
 
     mr->destructor(mr);
     memory_region_clear_coalescing(mr);
