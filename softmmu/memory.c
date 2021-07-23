@@ -1114,8 +1114,7 @@ void memory_region_transaction_commit(void)
     assert(memory_region_transaction_depth);
     assert(qemu_mutex_iothread_locked());
 
-    memory_region_transaction_pop();
-    if (!memory_region_transaction_depth) {
+    if (memory_region_transaction_depth == 1) {
         if (memory_region_update_pending) {
             flatviews_reset();
 
@@ -1134,7 +1133,14 @@ void memory_region_transaction_commit(void)
             }
             ioeventfd_update_pending = false;
         }
-   }
+    }
+
+    /*
+     * Pop the depth at last, so that memory_region_transaction_depth will
+     * still be non-zero during committing.  This can help us to do some sanity
+     * check within the process of committing.
+     */
+    memory_region_transaction_pop();
 }
 
 static void memory_region_destructor_none(MemoryRegion *mr)
