@@ -474,16 +474,23 @@ for opt do
   ;;
   --disable-debug-info) debug_info="no"
   ;;
-  --cross-cc-*[!a-zA-Z0-9_-]*=*) error_exit "Passed bad --cross-cc-FOO option"
-  ;;
-  --cross-cc-cflags-*) cc_arch=${opt#--cross-cc-cflags-}; cc_arch=${cc_arch%%=*}
-                      eval "cross_cc_cflags_${cc_arch}=\$optarg"
-                      cross_cc_vars="$cross_cc_vars cross_cc_cflags_${cc_arch}"
-  ;;
-  --cross-cc-*) cc_arch=${opt#--cross-cc-}; cc_arch=${cc_arch%%=*}
-                cc_archs="$cc_archs $cc_arch"
-                eval "cross_cc_${cc_arch}=\$optarg"
-                cross_cc_vars="$cross_cc_vars cross_cc_${cc_arch}"
+  --cross-cc-*=*)
+    optname=$(expr "x$opt" : 'x\([^=]*\)=.*')
+    case "$optname" in
+    *[!a-zA-Z0-9_-]*) error_exit "Passed bad $optname option"
+    ;;
+    esac
+    case "$opt" in
+    --cross-cc-cflags-*) cc_arch=${opt#--cross-cc-cflags-}; cc_arch=${cc_arch%%=*}
+                         eval "cross_cc_cflags_${cc_arch}=\$optarg"
+                         cross_cc_vars="$cross_cc_vars cross_cc_cflags_${cc_arch}"
+    ;;
+    --cross-cc-*) cc_arch=${opt#--cross-cc-}; cc_arch=${cc_arch%%=*}
+                  cc_archs="$cc_archs $cc_arch"
+                  eval "cross_cc_${cc_arch}=\$optarg"
+                  cross_cc_vars="$cross_cc_vars cross_cc_${cc_arch}"
+    ;;
+    esac
   ;;
   esac
 done
