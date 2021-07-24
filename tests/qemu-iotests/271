@@ -866,7 +866,7 @@ echo
 
 _concurrent_io()
 {
-# Allocate three subclusters in the same cluster.
+# Allocate two subclusters in the same cluster.
 # This works because handle_dependencies() checks whether the requests
 # allocate the same cluster, even if the COW regions don't overlap (in
 # this case they don't).
@@ -876,7 +876,6 @@ break write_aio A
 aio_write -P 10 30k 2k
 wait_break A
 aio_write -P 11 20k 2k
-aio_write -P 12 40k 2k
 resume A
 aio_flush
 EOF
@@ -888,7 +887,6 @@ cat <<EOF
 open -o driver=$IMGFMT $TEST_IMG
 read -q -P 10 30k 2k
 read -q -P 11 20k 2k
-read -q -P 12 40k 2k
 EOF
 }
 
