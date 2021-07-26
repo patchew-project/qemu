@@ -12,9 +12,10 @@
           mips64-softmmu ppc-softmmu sh4-softmmu xtensa-softmmu"
     - make -j$(expr $(nproc) + 1) all check-build $MAKE_CHECK_ARGS
     - if grep -q "EXESUF=.exe" config-host.mak;
-      then make installer;
+      then make installer msi;
       version="$(git describe --match v[0-9]*)";
       mv -v qemu-setup*.exe qemu-setup-${version}.exe;
+      mv -v qga/*.msi $(basename qga/*.msi .msi)-${version}.msi;
       fi
 
 # Job to cross-build specific accelerators.
