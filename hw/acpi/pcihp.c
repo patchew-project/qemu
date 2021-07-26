@@ -116,6 +116,12 @@ static void acpi_set_pci_info(void)
     bsel_is_set = true;
 
     if (!host) {
+        /*
+         * This function can be eventually called from
+         * qemu_devices_reset() -> acpi_pcihp_reset() even
+         * for architectures other than i386. Hence, we need
+         * to ignore null values for host here.
+         */
         return;
     }
 
@@ -135,6 +141,8 @@ static void acpi_pcihp_disable_root_bus(void)
     if (root_hp_disabled) {
         return;
     }
+
+    assert(host);
 
     bus = PCI_HOST_BRIDGE(host)->bus;
     if (bus) {

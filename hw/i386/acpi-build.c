@@ -321,9 +321,7 @@ static void acpi_get_pci_holes(Range *hole, Range *hole64)
 
     pci_host = acpi_get_i386_pci_host();
 
-    if (!pci_host) {
-        return;
-    }
+    assert(pci_host);
 
     range_set_bounds1(hole,
                       object_property_get_uint(pci_host,
@@ -1769,9 +1767,9 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
 
         pci_host = acpi_get_i386_pci_host();
 
-        if (pci_host) {
-            bus = PCI_HOST_BRIDGE(pci_host)->bus;
-        }
+        assert(pci_host);
+
+        bus = PCI_HOST_BRIDGE(pci_host)->bus;
 
         if (bus) {
             Aml *scope = aml_scope("PCI0");
@@ -2389,9 +2387,8 @@ static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
     QObject *o;
 
     pci_host = acpi_get_i386_pci_host();
-    if (!pci_host) {
-        return false;
-    }
+
+    assert(pci_host);
 
     o = object_property_get_qobject(pci_host, PCIE_HOST_MCFG_BASE, NULL);
     if (!o) {
