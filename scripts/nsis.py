@@ -7,6 +7,7 @@
 import argparse
 import glob
 import os
+import sys
 import shutil
 import subprocess
 import tempfile
@@ -19,16 +20,35 @@ def signcode(path):
     subprocess.run([cmd, path])
 
 
+def copydlls(binary, srcdir, dstdir):
+    cmdline = [ "objdump", "-p", binary ]
+    result = subprocess.run(cmdline, stdout = subprocess.PIPE,
+                            universal_newlines = True)
+    if result.returncode != 0:
+        sys.exit(result.returncode)
+    for line in result.stdout.split('\n'):
+        if line.find('DLL Name') != -1:
+            dll = line.split()[2]
+            src = os.path.join(srcdir, dll)
+            dst = os.path.join(dstdir, dll)
+            if os.path.isfile(src) and not os.path.isfile(dst):
+                print("nsis.py: copy " + src)
+                shutil.copyfile(src, dst)
+                copydlls(src, srcdir, dstdir)
+
+
 def main():
     parser = argparse.ArgumentParser(description="QEMU NSIS build helper.")
     parser.add_argument("outfile")
     parser.add_argument("prefix")
     parser.add_argument("srcdir")
     parser.add_argument("cpu")
+    parser.add_argument("dllsrc")
     parser.add_argument("nsisargs", nargs="*")
     args = parser.parse_args()
 
     destdir = tempfile.mkdtemp()
+    dlldir = tempfile.mkdtemp()
     try:
         subprocess.run(["make", "install", "DESTDIR=" + destdir + os.path.sep])
         with open(
@@ -52,6 +72,7 @@ def main():
 
         for exe in glob.glob(os.path.join(destdir + args.prefix, "*.exe")):
             signcode(exe)
+            copydlls(exe, args.dllsrc, dlldir)
 
         makensis = [
             "makensis",
@@ -59,19 +80,17 @@ def main():
             "-NOCD",
             "-DSRCDIR=" + args.srcdir,
             "-DBINDIR=" + destdir + args.prefix,
+            "-DDLLDIR=" + dlldir,
         ]
-        dlldir = "w32"
         if args.cpu == "x86_64":
-            dlldir = "w64"
             makensis += ["-DW64"]
-        if os.path.exists(os.path.join(args.srcdir, "dll")):
-            makensis += ["-DDLLDIR={0}/dll/{1}".format(args.srcdir, dlldir)]
 
         makensis += ["-DOUTFILE=" + args.outfile] + args.nsisargs
         subprocess.run(makensis)
         signcode(args.outfile)
     finally:
         shutil.rmtree(destdir)
+        shutil.rmtree(dlldir)
 
 
 if __name__ == "__main__":

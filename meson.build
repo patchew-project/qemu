@@ -2790,6 +2790,7 @@ if host_machine.system() == 'windows'
     get_option('prefix'),
     meson.current_source_dir(),
     host_machine.cpu(),
+    config_host['QEMU_GA_MSI_MINGW_DLL_PATH'],
     '--',
     '-DDISPLAYVERSION=' + meson.project_version(),
   ]
