@@ -281,6 +281,11 @@ static void pm_reset(void *opaque)
     pm->smi_en_wmask = ~0;
 
     if (pm->use_acpi_hotplug_bridge) {
+        /*
+         * PCI Express root buses do not support hot-plug, for
+         * details see docs/pcie.txt. Hence, the second argument
+         * is unconditionally true.
+         */
         acpi_pcihp_reset(&pm->acpi_pci_hotplug, true);
     }
 
