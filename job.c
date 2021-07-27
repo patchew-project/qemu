@@ -716,10 +716,10 @@ static int job_finalize_single(Job *job)
     return 0;
 }
 
-static void job_cancel_async(Job *job, bool force)
+static void job_cancel_async(Job *job)
 {
     if (job->driver->cancel) {
-        job->driver->cancel(job, force);
+        job->driver->cancel(job);
     }
     if (job->user_paused) {
         /* Do not call job_enter here, the caller will handle it.  */
@@ -731,8 +731,6 @@ static void job_cancel_async(Job *job, bool force)
         job->pause_count--;
     }
     job->cancelled = true;
-    /* To prevent 'force == false' overriding a previous 'force == true' */
-    job->force_cancel |= force;
 }
 
 static void job_completed_txn_abort(Job *job)
@@ -763,7 +761,7 @@ static void job_completed_txn_abort(Job *job)
         if (other_job != job) {
             ctx = other_job->aio_context;
             aio_context_acquire(ctx);
-            job_cancel_async(other_job, false);
+            job_cancel_async(other_job);
             aio_context_release(ctx);
         }
     }
@@ -932,13 +930,13 @@ void job_start(Job *job)
     aio_co_enter(job->aio_context, job->co);
 }
 
-void job_cancel(Job *job, bool force)
+void job_cancel(Job *job)
 {
     if (job->status == JOB_STATUS_CONCLUDED) {
         job_do_dismiss(job);
         return;
     }
-    job_cancel_async(job, force);
+    job_cancel_async(job);
     if (!job_started(job)) {
         job_completed(job);
     } else if (job->deferred_to_main_loop) {
@@ -948,12 +946,12 @@ void job_cancel(Job *job, bool force)
     }
 }
 
-void job_user_cancel(Job *job, bool force, Error **errp)
+void job_user_cancel(Job *job, Error **errp)
 {
     if (job_apply_verb(job, JOB_VERB_CANCEL, errp)) {
         return;
     }
-    job_cancel(job, force);
+    job_cancel(job);
 }
 
 /* A wrapper around job_cancel() taking an Error ** parameter so it may be
@@ -961,7 +959,7 @@ void job_user_cancel(Job *job, bool force, Error **errp)
  * pointer casts there. */
 static void job_cancel_err(Job *job, Error **errp)
 {
-    job_cancel(job, false);
+    job_cancel(job);
 }
 
 int job_cancel_sync(Job *job)

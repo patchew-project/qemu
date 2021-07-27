@@ -331,7 +331,7 @@ static void coroutine_fn backup_set_speed(BlockJob *job, int64_t speed)
     }
 }
 
-static void backup_cancel(Job *job, bool force)
+static void backup_cancel(Job *job)
 {
     BackupBlockJob *s = container_of(job, BackupBlockJob, common.job);
 

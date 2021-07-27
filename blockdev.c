@@ -150,7 +150,7 @@ void blockdev_mark_auto_del(BlockBackend *blk)
             AioContext *aio_context = job->job.aio_context;
             aio_context_acquire(aio_context);
 
-            job_cancel(&job->job, false);
+            job_cancel(&job->job);
 
             aio_context_release(aio_context);
         }
@@ -3374,7 +3374,7 @@ void qmp_block_job_cancel(const char *device,
          */
         job_complete_ex(&job->job, false, errp);
     } else {
-        job_user_cancel(&job->job, force, errp);
+        job_user_cancel(&job->job, errp);
     }
 out:
     aio_context_release(aio_context);

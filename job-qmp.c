@@ -58,7 +58,7 @@ void qmp_job_cancel(const char *id, Error **errp)
     }
 
     trace_qmp_job_cancel(job);
-    job_user_cancel(job, true, errp);
+    job_user_cancel(job, errp);
     aio_context_release(aio_context);
 }
 

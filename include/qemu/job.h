@@ -103,12 +103,6 @@ typedef struct Job {
      */
     bool cancelled;
 
-    /**
-     * Set to true if the job should abort immediately without waiting
-     * for data to be in sync.
-     */
-    bool force_cancel;
-
     /** Set to true when the job has deferred work to the main loop. */
     bool deferred_to_main_loop;
 
@@ -254,7 +248,7 @@ struct JobDriver {
     /**
      * If the callback is not NULL, it will be invoked in job_cancel_async
      */
-    void (*cancel)(Job *job, bool force);
+    void (*cancel)(Job *job);
 
 
     /** Called when the job is freed */
@@ -496,16 +490,16 @@ void job_complete(Job *job, Error **errp);
 void job_complete_ex(Job *job, bool do_graph_change, Error **errp);
 
 /**
- * Asynchronously cancel the specified @job. If @force is true, the job should
+ * Asynchronously cancel the specified @job.
  * be cancelled immediately without waiting for a consistent state.
  */
-void job_cancel(Job *job, bool force);
+void job_cancel(Job *job);
 
 /**
  * Cancels the specified job like job_cancel(), but may refuse to do so if the
  * operation isn't meaningful in the current state of the job.
  */
-void job_user_cancel(Job *job, bool force, Error **errp);
+void job_user_cancel(Job *job, Error **errp);
 
 /**
  * Synchronously cancel the @job.  The completion callback is called

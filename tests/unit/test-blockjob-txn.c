@@ -125,7 +125,7 @@ static void test_single_job(int expected)
     job_start(&job->job);
 
     if (expected == -ECANCELED) {
-        job_cancel(&job->job, false);
+        job_cancel(&job->job);
     }
 
     while (result == -EINPROGRESS) {
@@ -171,10 +171,10 @@ static void test_pair_jobs(int expected1, int expected2)
     job_txn_unref(txn);
 
     if (expected1 == -ECANCELED) {
-        job_cancel(&job1->job, false);
+        job_cancel(&job1->job);
     }
     if (expected2 == -ECANCELED) {
-        job_cancel(&job2->job, false);
+        job_cancel(&job2->job);
     }
 
     while (result1 == -EINPROGRESS || result2 == -EINPROGRESS) {
@@ -227,7 +227,7 @@ static void test_pair_jobs_fail_cancel_race(void)
     job_start(&job1->job);
     job_start(&job2->job);
 
-    job_cancel(&job1->job, false);
+    job_cancel(&job1->job);
 
     /* Now make job2 finish before the main loop kicks jobs.  This simulates
      * the race between a pending kick and another job completing.
