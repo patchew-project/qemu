@@ -59,6 +59,11 @@
  * VIRTIO_GPU_CMD_RESOURCE_CREATE_BLOB
  */
 #define VIRTIO_GPU_F_RESOURCE_BLOB       3
+/*
+ * VIRTIO_GPU_CMD_CREATE_CONTEXT with
+ * context_init
+ */
+#define VIRTIO_GPU_F_CONTEXT_INIT        4
 
 enum virtio_gpu_ctrl_type {
 	VIRTIO_GPU_UNDEFINED = 0,
@@ -129,7 +134,7 @@ struct virtio_gpu_ctrl_hdr {
 	uint32_t flags;
 	uint64_t fence_id;
 	uint32_t ctx_id;
-	uint32_t padding;
+	uint32_t info;
 };
 
 /* data passed in the cursor vq */
@@ -272,7 +277,7 @@ struct virtio_gpu_resource_create_3d {
 struct virtio_gpu_ctx_create {
 	struct virtio_gpu_ctrl_hdr hdr;
 	uint32_t nlen;
-	uint32_t padding;
+	uint32_t context_init;
 	char debug_name[64];
 };
 
