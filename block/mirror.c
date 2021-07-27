@@ -44,6 +44,11 @@ typedef struct MirrorBlockJob {
     BlockDriverState *base;
     BlockDriverState *base_overlay;
 
+    /*
+     * Do final graph changes. True at start, may be changed by
+     * mirror_complete().
+     */
+    bool do_graph_change;
     /* The name of the graph node to replace */
     char *replaces;
     /* The BDS to replace */
@@ -648,7 +653,7 @@ static int mirror_exit_common(Job *job)
     BlockDriverState *target_bs;
     BlockDriverState *mirror_top_bs;
     Error *local_err = NULL;
-    bool abort = job->ret < 0;
+    bool do_graph_change = s->do_graph_change && job->ret >= 0;
     int ret = 0;
 
     if (s->prepared) {
@@ -689,7 +694,7 @@ static int mirror_exit_common(Job *job)
     bs_opaque->stop = true;
     bdrv_child_refresh_perms(mirror_top_bs, mirror_top_bs->backing,
                              &error_abort);
-    if (!abort && s->backing_mode == MIRROR_SOURCE_BACKING_CHAIN) {
+    if (do_graph_change && s->backing_mode == MIRROR_SOURCE_BACKING_CHAIN) {
         BlockDriverState *backing = s->is_none_mode ? src : s->base;
         BlockDriverState *unfiltered_target = bdrv_skip_filters(target_bs);
 
@@ -701,7 +706,7 @@ static int mirror_exit_common(Job *job)
                 ret = -EPERM;
             }
         }
-    } else if (!abort && s->backing_mode == MIRROR_OPEN_BACKING_CHAIN) {
+    } else if (do_graph_change && s->backing_mode == MIRROR_OPEN_BACKING_CHAIN) {
         assert(!bdrv_backing_chain_next(target_bs));
         ret = bdrv_open_backing_file(bdrv_skip_filters(target_bs), NULL,
                                      "backing", &local_err);
@@ -716,7 +721,7 @@ static int mirror_exit_common(Job *job)
         aio_context_acquire(replace_aio_context);
     }
 
-    if (s->should_complete && !abort) {
+    if (s->should_complete && do_graph_change) {
         BlockDriverState *to_replace = s->to_replace ?: src;
         bool ro = bdrv_is_read_only(to_replace);
 
@@ -1124,7 +1129,7 @@ immediate_exit:
     return ret;
 }
 
-static void mirror_complete(Job *job, Error **errp)
+static void mirror_complete(Job *job, bool do_graph_change, Error **errp)
 {
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common.job);
 
@@ -1134,8 +1139,10 @@ static void mirror_complete(Job *job, Error **errp)
         return;
     }
 
+    s->do_graph_change = do_graph_change;
+
     /* block all operations on to_replace bs */
-    if (s->replaces) {
+    if (s->do_graph_change && s->replaces) {
         AioContext *replace_aio_context;
 
         s->to_replace = bdrv_find_node(s->replaces);
@@ -1737,6 +1744,7 @@ static BlockJob *mirror_start_job(
     blk_set_allow_aio_context_change(s->target, true);
     blk_set_disable_request_queuing(s->target, true);
 
+    s->do_graph_change = true;
     s->replaces = g_strdup(replaces);
     s->on_source_error = on_source_error;
     s->on_target_error = on_target_error;

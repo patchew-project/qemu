@@ -211,7 +211,7 @@ struct JobDriver {
      * Optional callback for job types whose completion must be triggered
      * manually.
      */
-    void (*complete)(Job *job, Error **errp);
+    void (*complete)(Job *job, bool do_graph_change, Error **errp);
 
     /**
      * If the callback is not NULL, prepare will be invoked when all the jobs
@@ -491,6 +491,9 @@ void job_transition_to_ready(Job *job);
 
 /** Asynchronously complete the specified @job. */
 void job_complete(Job *job, Error **errp);
+
+/** Asynchronously complete the specified @job. */
+void job_complete_ex(Job *job, bool do_graph_change, Error **errp);
 
 /**
  * Asynchronously cancel the specified @job. If @force is true, the job should

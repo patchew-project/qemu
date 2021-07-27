@@ -987,7 +987,7 @@ int job_complete_sync(Job *job, Error **errp)
     return job_finish_sync(job, job_complete, errp);
 }
 
-void job_complete(Job *job, Error **errp)
+void job_complete_ex(Job *job, bool do_graph_change, Error **errp)
 {
     /* Should not be reachable via external interface for internal jobs */
     assert(job->id);
@@ -1000,7 +1000,12 @@ void job_complete(Job *job, Error **errp)
         return;
     }
 
-    job->driver->complete(job, errp);
+    job->driver->complete(job, true, errp);
+}
+
+void job_complete(Job *job, Error **errp)
+{
+    job_complete_ex(job, false, errp);
 }
 
 int job_finish_sync(Job *job, void (*finish)(Job *, Error **errp), Error **errp)

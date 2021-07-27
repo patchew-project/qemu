@@ -165,7 +165,7 @@ typedef struct CancelJob {
     bool should_complete;
 } CancelJob;
 
-static void cancel_job_complete(Job *job, Error **errp)
+static void cancel_job_complete(Job *job, bool do_graph_change, Error **errp)
 {
     CancelJob *s = container_of(job, CancelJob, common.job);
     s->should_complete = true;
@@ -382,7 +382,7 @@ typedef struct YieldingJob {
     bool should_complete;
 } YieldingJob;
 
-static void yielding_job_complete(Job *job, Error **errp)
+static void yielding_job_complete(Job *job, bool do_graph_change, Error **errp)
 {
     YieldingJob *s = container_of(job, YieldingJob, common.job);
     s->should_complete = true;
