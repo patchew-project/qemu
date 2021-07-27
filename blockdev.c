@@ -3366,7 +3366,16 @@ void qmp_block_job_cancel(const char *device,
     }
 
     trace_qmp_block_job_cancel(job);
-    job_user_cancel(&job->job, force, errp);
+    if (!force && job_is_ready(&job->job)) {
+        /*
+         * Hack to support old mirror soft-cancel. Please add new API to do
+         * complete with disabled graph-change, deprecate soft-cancel and
+         * finally drop this code.
+         */
+        job_complete_ex(&job->job, false, errp);
+    } else {
+        job_user_cancel(&job->job, force, errp);
+    }
 out:
     aio_context_release(aio_context);
 }
