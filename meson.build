@@ -483,6 +483,7 @@ if not get_option('virglrenderer').auto() or have_system
                      method: 'pkg-config',
                      required: get_option('virglrenderer'),
                      kwargs: static_kwargs)
+  add_project_arguments('-DVIRGL_RENDERER_UNSTABLE_APIS', language : 'c')
 endif
 curl = not_found
 if not get_option('curl').auto() or have_block
