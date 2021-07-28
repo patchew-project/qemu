@@ -621,7 +621,7 @@ int virtio_gpu_virgl_init(VirtIOGPU *g)
 {
     int ret;
 
-    ret = virgl_renderer_init(g, 0, &virtio_gpu_3d_cbs);
+    ret = virgl_renderer_init(g, VIRGL_RENDERER_VENUS, &virtio_gpu_3d_cbs);
     if (ret != 0) {
         return ret;
     }
