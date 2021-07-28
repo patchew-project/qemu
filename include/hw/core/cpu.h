@@ -243,7 +243,15 @@ typedef union {
 
 typedef void (*run_on_cpu_func)(CPUState *cpu, run_on_cpu_data data);
 
-struct qemu_work_item;
+struct qemu_work_item {
+    QSIMPLEQ_ENTRY(qemu_work_item) node;
+    run_on_cpu_func func;
+    run_on_cpu_data data;
+    bool free, exclusive, done;
+};
+
+void queue_work_on_cpu(CPUState *cpu, struct qemu_work_item *wi);
+extern QemuCond qemu_work_cond;
 
 #define CPU_UNSET_NUMA_NODE_ID -1
 #define CPU_TRACE_DSTATE_MAX_EVENTS 32

@@ -27,7 +27,7 @@
 static QemuMutex qemu_cpu_list_lock;
 static QemuCond exclusive_cond;
 static QemuCond exclusive_resume;
-static QemuCond qemu_work_cond;
+QemuCond qemu_work_cond;
 
 /* >= 1 if a thread is inside start_exclusive/end_exclusive.  Written
  * under qemu_cpu_list_lock, read with atomic operations.
@@ -114,14 +114,7 @@ CPUState *qemu_get_cpu(int index)
 /* current CPU in the current thread. It is only valid inside cpu_exec() */
 __thread CPUState *current_cpu;
 
-struct qemu_work_item {
-    QSIMPLEQ_ENTRY(qemu_work_item) node;
-    run_on_cpu_func func;
-    run_on_cpu_data data;
-    bool free, exclusive, done;
-};
-
-static void queue_work_on_cpu(CPUState *cpu, struct qemu_work_item *wi)
+void queue_work_on_cpu(CPUState *cpu, struct qemu_work_item *wi)
 {
     qemu_mutex_lock(&cpu->work_mutex);
     QSIMPLEQ_INSERT_TAIL(&cpu->work_list, wi, node);
