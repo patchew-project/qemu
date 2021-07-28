@@ -176,6 +176,12 @@ static bool memory_region_has_pending_update(void)
     return memory_region_update_pending || ioeventfd_update_pending;
 }
 
+bool memory_region_has_pending_transaction(void)
+{
+    return memory_region_transaction_depth ||
+        memory_region_has_pending_update();
+}
+
 static bool memory_region_ioeventfd_before(MemoryRegionIoeventfd *a,
                                            MemoryRegionIoeventfd *b)
 {

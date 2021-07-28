@@ -31,6 +31,7 @@
 #include "qapi/qapi-events-run-state.h"
 #include "qapi/qmp/qerror.h"
 #include "exec/gdbstub.h"
+#include "exec/memory-internal.h"
 #include "sysemu/hw_accel.h"
 #include "exec/exec-all.h"
 #include "qemu/thread.h"
@@ -65,6 +66,11 @@
 #endif /* CONFIG_LINUX */
 
 static QemuMutex qemu_global_mutex;
+
+static void qemu_mutex_unlock_iothread_prepare(void)
+{
+    assert(!memory_region_has_pending_transaction());
+}
 
 bool cpu_is_stopped(CPUState *cpu)
 {
@@ -520,16 +526,19 @@ void qemu_mutex_unlock_iothread(void)
 {
     g_assert(qemu_mutex_iothread_locked());
     iothread_locked = false;
+    qemu_mutex_unlock_iothread_prepare();
     qemu_mutex_unlock(&qemu_global_mutex);
 }
 
 void qemu_cond_wait_iothread(QemuCond *cond)
 {
+    qemu_mutex_unlock_iothread_prepare();
     qemu_cond_wait(cond, &qemu_global_mutex);
 }
 
 void qemu_cond_timedwait_iothread(QemuCond *cond, int ms)
 {
+    qemu_mutex_unlock_iothread_prepare();
     qemu_cond_timedwait(cond, &qemu_global_mutex, ms);
 }
 
