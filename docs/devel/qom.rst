@@ -302,6 +302,27 @@ This is equivalent to the following:
    :caption: Expansion from declaring a simple type
 
    typedef struct MyDevice MyDevice;
+   G_DEFINE_AUTOPTR_CLEANUP_FUNC(MyDevice, object_unref)
+   #define MY_DEVICE(void *obj)
+           OBJECT_CHECK(MyDevice, obj, TYPE_MY_DEVICE)
+
+The 'struct MyDevice' needs to be declared separately.
+
+If the type requires virtual functions to be declared in a class
+struct, then the alternative `OBJECT_DECLARE_TYPE()` macro can be
+used:
+
+.. code-block:: c
+   :caption: Declaring a type with custom class struct
+
+   OBJECT_DECLARE_TYPE(MyDevice, my_device, MY_DEVICE, DEVICE)
+
+This is equivalent to the following:
+
+.. code-block:: c
+   :caption: Expansion from declaring a type with custom class struct
+
+   typedef struct MyDevice MyDevice;
    typedef struct MyDeviceClass MyDeviceClass;
 
    G_DEFINE_AUTOPTR_CLEANUP_FUNC(MyDevice, object_unref)
@@ -312,16 +333,6 @@ This is equivalent to the following:
            OBJECT_CLASS_CHECK(MyDeviceClass, klass, TYPE_MY_DEVICE)
    #define MY_DEVICE(void *obj)
            OBJECT_CHECK(MyDevice, obj, TYPE_MY_DEVICE)
-
-   struct MyDeviceClass {
-       DeviceClass parent_class;
-   };
-
-The 'struct MyDevice' needs to be declared separately.
-If the type requires virtual functions to be declared in the class
-struct, then the alternative `OBJECT_DECLARE_TYPE()` macro can be
-used. This does the same as `OBJECT_DECLARE_SIMPLE_TYPE()`, but without
-the 'struct MyDeviceClass' definition.
 
 Type definition macros
 ----------------------
