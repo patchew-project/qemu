@@ -3337,3 +3337,74 @@ DO_VCVT_RMODE(vcvt_rm_sh, 2, uint16_t, helper_vfp_toshh)
 DO_VCVT_RMODE(vcvt_rm_uh, 2, uint16_t, helper_vfp_touhh)
 DO_VCVT_RMODE(vcvt_rm_ss, 4, uint32_t, helper_vfp_tosls)
 DO_VCVT_RMODE(vcvt_rm_us, 4, uint32_t, helper_vfp_touls)
+
+/*
+ * VCVT between halfprec and singleprec. As usual for halfprec
+ * conversions, FZ16 is ignored and AHP is observed.
+ */
+#define DO_VCVT_SH(OP, TOP)                                             \
+    void HELPER(glue(mve_, OP))(CPUARMState *env, void *vd, void *vm)   \
+    {                                                                   \
+        uint16_t *d = vd;                                               \
+        uint32_t *m = vm;                                               \
+        uint16_t r;                                                     \
+        uint16_t mask = mve_element_mask(env);                          \
+        bool ieee = !(env->vfp.xregs[ARM_VFP_FPSCR] & FPCR_AHP);        \
+        unsigned e;                                                     \
+        float_status *fpst;                                             \
+        float_status scratch_fpst;                                      \
+        float_status *base_fpst = &env->vfp.standard_fp_status;         \
+        bool old_fz = get_flush_to_zero(base_fpst);                     \
+        set_flush_to_zero(false, base_fpst);                            \
+        for (e = 0; e < 16 / 4; e++, mask >>= 4) {                      \
+            if ((mask & MAKE_64BIT_MASK(0, 4)) == 0) {                  \
+                continue;                                               \
+            }                                                           \
+            fpst = base_fpst;                                           \
+            if (!(mask & 1)) {                                          \
+                /* We need the result but without updating flags */     \
+                scratch_fpst = *fpst;                                   \
+                fpst = &scratch_fpst;                                   \
+            }                                                           \
+            r = float32_to_float16(m[H4(e)], ieee, fpst);               \
+            mergemask(&d[H2(e * 2 + TOP)], r, mask >> (TOP * 2));       \
+        }                                                               \
+        set_flush_to_zero(old_fz, base_fpst);                           \
+        mve_advance_vpt(env);                                           \
+    }
+
+#define DO_VCVT_HS(OP, TOP)                                             \
+    void HELPER(glue(mve_, OP))(CPUARMState *env, void *vd, void *vm)   \
+    {                                                                   \
+        uint32_t *d = vd;                                               \
+        uint16_t *m = vm;                                               \
+        uint32_t r;                                                     \
+        uint16_t mask = mve_element_mask(env);                          \
+        bool ieee = !(env->vfp.xregs[ARM_VFP_FPSCR] & FPCR_AHP);        \
+        unsigned e;                                                     \
+        float_status *fpst;                                             \
+        float_status scratch_fpst;                                      \
+        float_status *base_fpst = &env->vfp.standard_fp_status;         \
+        bool old_fiz = get_flush_inputs_to_zero(base_fpst);             \
+        set_flush_inputs_to_zero(false, base_fpst);                     \
+        for (e = 0; e < 16 / 4; e++, mask >>= 4) {                      \
+            if ((mask & MAKE_64BIT_MASK(0, 4)) == 0) {                  \
+                continue;                                               \
+            }                                                           \
+            fpst = base_fpst;                                           \
+            if (!(mask & (1 << (TOP * 2)))) {                           \
+                /* We need the result but without updating flags */     \
+                scratch_fpst = *fpst;                                   \
+                fpst = &scratch_fpst;                                   \
+            }                                                           \
+            r = float16_to_float32(m[H2(e * 2 + TOP)], ieee, fpst);     \
+            mergemask(&d[H4(e)], r, mask);                              \
+        }                                                               \
+        set_flush_inputs_to_zero(old_fiz, base_fpst);                   \
+        mve_advance_vpt(env);                                           \
+    }
+
+DO_VCVT_SH(vcvtb_sh, 0)
+DO_VCVT_SH(vcvtt_sh, 1)
+DO_VCVT_HS(vcvtb_hs, 0)
+DO_VCVT_HS(vcvtt_hs, 1)
