@@ -2860,6 +2860,31 @@ DO_2OP_FP(vmaxnms, 4, uint32_t, float32_maxnum)
 DO_2OP_FP(vminnmh, 2, uint16_t, float16_minnum)
 DO_2OP_FP(vminnms, 4, uint32_t, float32_minnum)
 
+static inline float16 float16_maxnuma(float16 a, float16 b, float_status *s)
+{
+    return float16_maxnum(float16_abs(a), float16_abs(b), s);
+}
+
+static inline float32 float32_maxnuma(float32 a, float32 b, float_status *s)
+{
+    return float32_maxnum(float32_abs(a), float32_abs(b), s);
+}
+
+static inline float16 float16_minnuma(float16 a, float16 b, float_status *s)
+{
+    return float16_minnum(float16_abs(a), float16_abs(b), s);
+}
+
+static inline float32 float32_minnuma(float32 a, float32 b, float_status *s)
+{
+    return float32_minnum(float32_abs(a), float32_abs(b), s);
+}
+
+DO_2OP_FP(vmaxnmah, 2, uint16_t, float16_maxnuma)
+DO_2OP_FP(vmaxnmas, 4, uint32_t, float32_maxnuma)
+DO_2OP_FP(vminnmah, 2, uint16_t, float16_minnuma)
+DO_2OP_FP(vminnmas, 4, uint32_t, float32_minnuma)
+
 #define DO_VCADD_FP(OP, ESIZE, TYPE, FN0, FN1)                          \
     void HELPER(glue(mve_, OP))(CPUARMState *env,                       \
                                 void *vd, void *vn, void *vm)           \
