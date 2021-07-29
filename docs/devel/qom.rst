@@ -3,6 +3,7 @@ The QEMU Object Model (QOM)
 ===========================
 
 .. highlight:: c
+.. default-role:: any
 
 The QEMU Object Model provides a framework for registering user creatable
 types and instantiating objects from those types.  QOM provides the following
@@ -42,8 +43,8 @@ features:
 
    type_init(my_device_register_types)
 
-In the above example, we create a simple type that is described by #TypeInfo.
-#TypeInfo describes information about the type including what it inherits
+In the above example, we create a simple type that is described by `TypeInfo`.
+`TypeInfo` describes information about the type including what it inherits
 from, the instance and class size, and constructor/destructor hooks.
 
 Alternatively several static types could be registered using helper macro
@@ -66,13 +67,13 @@ DEFINE_TYPES()
 
    DEFINE_TYPES(device_types_info)
 
-Every type has an #ObjectClass associated with it.  #ObjectClass derivatives
+Every type has an `ObjectClass` associated with it.  `ObjectClass` derivatives
 are instantiated dynamically but there is only ever one instance for any
-given type.  The #ObjectClass typically holds a table of function pointers
+given type.  The `ObjectClass` typically holds a table of function pointers
 for the virtual methods implemented by this type.
 
-Using object_new(), a new #Object derivative will be instantiated.  You can
-cast an #Object to a subclass (or base-class) type using
+Using object_new(), a new `Object` derivative will be instantiated.  You can
+cast an `Object` to a subclass (or base-class) type using
 object_dynamic_cast().  You typically want to define macro wrappers around
 OBJECT_CHECK() and OBJECT_CLASS_CHECK() to make it easier to convert to a
 specific type:
@@ -111,7 +112,7 @@ The effect of this is that classes automatically inherit any virtual
 function pointers that the parent class has already initialized.  All
 other fields will be zero filled.
 
-Once all of the parent classes have been initialized, #TypeInfo::class_init
+Once all of the parent classes have been initialized, `TypeInfo`::class_init
 is called to let the class being instantiated provide default initialize for
 its virtual functions.  Here is how the above example might be modified
 to introduce an overridden virtual function:
@@ -135,7 +136,7 @@ to introduce an overridden virtual function:
    };
 
 Introducing new virtual methods requires a class to define its own
-struct and to add a .class_size member to the #TypeInfo.  Each method
+struct and to add a .class_size member to the `TypeInfo`.  Each method
 will also have a wrapper function to call it easily:
 
 .. code-block:: c
@@ -188,12 +189,12 @@ strongly-typed first argument.
 If it does not operate on an object instance, it is dubbed
 *class method*.
 
-Methods cannot be overloaded. That is, the #ObjectClass and method name
+Methods cannot be overloaded. That is, the `ObjectClass` and method name
 uniquely identity the function to be called; the signature does not vary
 except for trailing varargs.
 
 Methods are always *virtual*. Overriding a method in
-#TypeInfo.class_init of a subclass leads to any user of the class obtained
+`TypeInfo`.class_init of a subclass leads to any user of the class obtained
 via OBJECT_GET_CLASS() accessing the overridden function.
 The original function is not automatically invoked. It is the responsibility
 of the overriding class to determine whether and when to invoke the method
@@ -273,8 +274,8 @@ Alternatively, object_class_by_name() can be used to obtain the class and
 its non-overridden methods for a specific type. This would correspond to
 ``MyClass::method(...)`` in C++.
 
-The first example of such a QOM method was #CPUClass.reset,
-another example is #DeviceClass.realize.
+The first example of such a QOM method was ``CPUClass.reset``,
+another example is ``DeviceClass.realize``.
 
 Standard type declaration and definition macros
 ===============================================
