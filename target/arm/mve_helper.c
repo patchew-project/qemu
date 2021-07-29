@@ -3046,3 +3046,37 @@ DO_VCMLA(vcmla180h, 2, uint16_t, 2, float16_chs, DO_VCMLAH)
 DO_VCMLA(vcmla180s, 4, uint32_t, 2, float32_chs, DO_VCMLAS)
 DO_VCMLA(vcmla270h, 2, uint16_t, 3, float16_chs, DO_VCMLAH)
 DO_VCMLA(vcmla270s, 4, uint32_t, 3, float32_chs, DO_VCMLAS)
+
+#define DO_2OP_FP_SCALAR(OP, ESIZE, TYPE, FN)                           \
+    void HELPER(glue(mve_, OP))(CPUARMState *env,                       \
+                                void *vd, void *vn, uint32_t rm)        \
+    {                                                                   \
+        TYPE *d = vd, *n = vn;                                          \
+        TYPE r, m = rm;                                                 \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned e;                                                     \
+        float_status *fpst;                                             \
+        float_status scratch_fpst;                                      \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
+            if ((mask & MAKE_64BIT_MASK(0, ESIZE)) == 0) {              \
+                continue;                                               \
+            }                                                           \
+            fpst = (ESIZE == 2) ? &env->vfp.standard_fp_status_f16 :    \
+                &env->vfp.standard_fp_status;                           \
+            if (!(mask & 1)) {                                          \
+                /* We need the result but without updating flags */     \
+                scratch_fpst = *fpst;                                   \
+                fpst = &scratch_fpst;                                   \
+            }                                                           \
+            r = FN(n[H##ESIZE(e)], m, fpst);                            \
+            mergemask(&d[H##ESIZE(e)], r, mask);                        \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
+DO_2OP_FP_SCALAR(vfadd_scalarh, 2, uint16_t, float16_add)
+DO_2OP_FP_SCALAR(vfadd_scalars, 4, uint32_t, float32_add)
+DO_2OP_FP_SCALAR(vfsub_scalarh, 2, uint16_t, float16_sub)
+DO_2OP_FP_SCALAR(vfsub_scalars, 4, uint32_t, float32_sub)
+DO_2OP_FP_SCALAR(vfmul_scalarh, 2, uint16_t, float16_mul)
+DO_2OP_FP_SCALAR(vfmul_scalars, 4, uint32_t, float32_mul)
