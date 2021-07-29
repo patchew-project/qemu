@@ -267,12 +267,12 @@ static void s390_cpu_reset_full(DeviceState *dev)
 static const struct TCGCPUOps s390_tcg_ops = {
     .initialize = s390x_translate_init,
     .tlb_fill = s390_cpu_tlb_fill,
+    .do_unaligned_access = s390x_cpu_do_unaligned_access,
 
 #if !defined(CONFIG_USER_ONLY)
     .cpu_exec_interrupt = s390_cpu_exec_interrupt,
     .do_interrupt = s390_cpu_do_interrupt,
     .debug_excp_handler = s390x_cpu_debug_excp_handler,
-    .do_unaligned_access = s390x_cpu_do_unaligned_access,
 #endif /* !CONFIG_USER_ONLY */
 };
 #endif /* CONFIG_TCG */
