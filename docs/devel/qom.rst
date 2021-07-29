@@ -20,9 +20,6 @@ features:
 
    #define TYPE_MY_DEVICE "my-device"
 
-   // No new virtual functions: we can reuse the typedef for the
-   // superclass.
-   typedef DeviceClass MyDeviceClass;
    typedef struct MyDevice
    {
        DeviceState parent;
