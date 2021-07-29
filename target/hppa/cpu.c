@@ -71,7 +71,6 @@ static void hppa_cpu_disas_set_info(CPUState *cs, disassemble_info *info)
     info->print_insn = print_insn_hppa;
 }
 
-#ifndef CONFIG_USER_ONLY
 static void hppa_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
                                          MMUAccessType access_type,
                                          int mmu_idx, uintptr_t retaddr)
@@ -80,15 +79,18 @@ static void hppa_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
     CPUHPPAState *env = &cpu->env;
 
     cs->exception_index = EXCP_UNALIGN;
+#ifdef CONFIG_USER_ONLY
+    env->cr[CR_IOR] = addr;
+#else
     if (env->psw & PSW_Q) {
         /* ??? Needs tweaking for hppa64.  */
         env->cr[CR_IOR] = addr;
         env->cr[CR_ISR] = addr >> 32;
     }
+#endif
 
     cpu_loop_exit_restore(cs, retaddr);
 }
-#endif /* CONFIG_USER_ONLY */
 
 static void hppa_cpu_realizefn(DeviceState *dev, Error **errp)
 {
@@ -146,10 +148,10 @@ static const struct TCGCPUOps hppa_tcg_ops = {
     .synchronize_from_tb = hppa_cpu_synchronize_from_tb,
     .cpu_exec_interrupt = hppa_cpu_exec_interrupt,
     .tlb_fill = hppa_cpu_tlb_fill,
+    .do_unaligned_access = hppa_cpu_do_unaligned_access,
 
 #ifndef CONFIG_USER_ONLY
     .do_interrupt = hppa_cpu_do_interrupt,
-    .do_unaligned_access = hppa_cpu_do_unaligned_access,
 #endif /* !CONFIG_USER_ONLY */
 };
 
