@@ -158,12 +158,24 @@ done_syscall:
             break;
         case EXCP_TLBL:
         case EXCP_TLBS:
-        case EXCP_AdEL:
-        case EXCP_AdES:
             info.si_signo = TARGET_SIGSEGV;
             info.si_errno = 0;
-            /* XXX: check env->error_code */
-            info.si_code = TARGET_SEGV_MAPERR;
+            info.si_code = (env->error_code & EXCP_TLB_NOMATCH
+                            ? TARGET_SEGV_MAPERR : TARGET_SEGV_ACCERR);
+            info._sifields._sigfault._addr = env->CP0_BadVAddr;
+            queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
+            break;
+        case EXCP_AdEL:
+        case EXCP_AdES:
+            /*
+             * Note that on real hw AdE is also raised for access to a
+             * kernel address from user mode instead of a TLB error.
+             * For simplicity, we do not distinguish this in the user
+             * version of mips_cpu_tlb_fill so only unaligned comes here.
+             */
+            info.si_signo = TARGET_SIGBUS;
+            info.si_errno = 0;
+            info.si_code = TARGET_BUS_ADRALN;
             info._sifields._sigfault._addr = env->CP0_BadVAddr;
             queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
             break;

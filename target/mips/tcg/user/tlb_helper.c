@@ -26,24 +26,23 @@ static void raise_mmu_exception(CPUMIPSState *env, target_ulong address,
                                 MMUAccessType access_type)
 {
     CPUState *cs = env_cpu(env);
+    int error_code = 0;
+    int flags;
 
-    env->error_code = 0;
     if (access_type == MMU_INST_FETCH) {
-        env->error_code |= EXCP_INST_NOTAVAIL;
+        error_code |= EXCP_INST_NOTAVAIL;
     }
 
-    /* Reference to kernel address from user mode or supervisor mode */
-    /* Reference to supervisor address from user mode */
-    if (access_type == MMU_DATA_STORE) {
-        cs->exception_index = EXCP_AdES;
-    } else {
-        cs->exception_index = EXCP_AdEL;
+    flags = page_get_flags(address);
+    if (!(flags & PAGE_VALID)) {
+        error_code |= EXCP_TLB_NOMATCH;
     }
 
-    /* Raise exception */
-    if (!(env->hflags & MIPS_HFLAG_DM)) {
-        env->CP0_BadVAddr = address;
-    }
+    cs->exception_index = (access_type == MMU_DATA_STORE
+                           ? EXCP_TLBS : EXCP_TLBL);
+
+    env->error_code = error_code;
+    env->CP0_BadVAddr = address;
 }
 
 bool mips_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
