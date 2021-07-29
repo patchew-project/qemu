@@ -2899,3 +2899,39 @@ DO_VCADD_FP(vfcadd90h, 2, uint16_t, float16_sub, float16_add)
 DO_VCADD_FP(vfcadd90s, 4, uint32_t, float32_sub, float32_add)
 DO_VCADD_FP(vfcadd270h, 2, uint16_t, float16_add, float16_sub)
 DO_VCADD_FP(vfcadd270s, 4, uint32_t, float32_add, float32_sub)
+
+#define DO_VFMA(OP, ESIZE, TYPE, FN)                                    \
+    void HELPER(glue(mve_, OP))(CPUARMState *env,                       \
+                                void *vd, void *vn, void *vm)           \
+    {                                                                   \
+        TYPE *d = vd, *n = vn, *m = vm;                                 \
+        TYPE r;                                                         \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned e;                                                     \
+        float_status *fpst;                                             \
+        float_status scratch_fpst;                                      \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
+            if ((mask & MAKE_64BIT_MASK(0, ESIZE)) == 0) {              \
+                continue;                                               \
+            }                                                           \
+            fpst = (ESIZE == 2) ? &env->vfp.standard_fp_status_f16 :    \
+                &env->vfp.standard_fp_status;                           \
+            if (!(mask & 1)) {                                          \
+                /* We need the result but without updating flags */     \
+                scratch_fpst = *fpst;                                   \
+                fpst = &scratch_fpst;                                   \
+            }                                                           \
+            r = FN(n[H##ESIZE(e)], m[H##ESIZE(e)], d[H##ESIZE(e)],      \
+                   0, fpst);                                            \
+            mergemask(&d[H##ESIZE(e)], r, mask);                        \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
+#define DO_VFMS16(N, M, D, F, S) float16_muladd(float16_chs(N), M, D, F, S)
+#define DO_VFMS32(N, M, D, F, S) float32_muladd(float32_chs(N), M, D, F, S)
+
+DO_VFMA(vfmah, 2, uint16_t, float16_muladd)
+DO_VFMA(vfmas, 4, uint32_t, float32_muladd)
+DO_VFMA(vfmsh, 2, uint16_t, DO_VFMS16)
+DO_VFMA(vfmss, 4, uint32_t, DO_VFMS32)
