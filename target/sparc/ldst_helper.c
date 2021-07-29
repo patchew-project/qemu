@@ -1963,6 +1963,14 @@ void QEMU_NORETURN sparc_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
     SPARCCPU *cpu = SPARC_CPU(cs);
     CPUSPARCState *env = &cpu->env;
 
+#ifdef TARGET_SPARC64
+    /* FIXME: ASI field in SFSR must be set */
+    env->dmmu.sfsr = SFSR_VALID_BIT; /* Fault status register */
+    env->dmmu.sfar = addr;           /* Fault address register */
+#else
+    env->mmuregs[4] = addr;
+#endif
+
     cpu_raise_exception_ra(env, TT_UNALIGNED, retaddr);
 }
 #endif
