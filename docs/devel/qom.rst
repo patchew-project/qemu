@@ -69,21 +69,10 @@ are instantiated dynamically but there is only ever one instance for any
 given type.  The `ObjectClass` typically holds a table of function pointers
 for the virtual methods implemented by this type.
 
-Using `object_new()`, a new `Object` derivative will be instantiated.  You can
-cast an `Object` to a subclass (or base-class) type using
-`object_dynamic_cast()`.  You typically want to define macro wrappers around
-`OBJECT_CHECK()` and `OBJECT_CLASS_CHECK()` to make it easier to convert to a
-specific type:
-
-.. code-block:: c
-   :caption: Typecasting macros
-
-   #define MY_DEVICE_GET_CLASS(obj) \
-      OBJECT_GET_CLASS(MyDeviceClass, obj, TYPE_MY_DEVICE)
-   #define MY_DEVICE_CLASS(klass) \
-      OBJECT_CLASS_CHECK(MyDeviceClass, klass, TYPE_MY_DEVICE)
-   #define MY_DEVICE(obj) \
-      OBJECT_CHECK(MyDevice, obj, TYPE_MY_DEVICE)
+Using `object_new()`, a new `Object` derivative will be
+instantiated.  You can cast an `Object` to a subclass (or
+base-class) type using `object_dynamic_cast()` or :ref:`typecast
+wrappers <typecasting>`.
 
 In case the ObjectClass implementation can be built as module a
 module_obj() line must be added to make sure qemu loads the module
@@ -92,6 +81,31 @@ when the object is needed.
 .. code-block:: c
 
    module_obj(TYPE_MY_DEVICE);
+
+.. _typecasting:
+
+Typecasting
+===========
+
+The `OBJECT_DECLARE macros <OBJECT_DECLARE>` automatically define
+typecasting functions having signatures like these:
+
+.. code-block:: c
+
+   static inline MyDevice *MY_DEVICE(const void *obj);
+   static inline MyDeviceClass *MY_DEVICE_GET_CLASS(const void *obj);
+   static inline MyDeviceClass *MY_DEVICE_CLASS(const void *klass);
+
+These typecasting functions are wrappers around `OBJECT_CHECK`,
+`OBJECT_GET_CLASS`, and `OBJECT_CLASS_CHECK`.  Example usage:
+
+.. code-block:: c
+
+    Object *obj = object_new("my-device");
+    MyDevice *my_dev = MY_DEVICE(obj);
+    DeviceState *dev = DEVICE(my_dev);
+    MyDeviceClass *mdc = MY_DEVICE_GET_CLASS(my_dev);
+    DeviceClass *dc = DEVICE_CLASS(mdc);
 
 Class Initialization
 ====================
@@ -281,6 +295,8 @@ A lot of the code outlined above follows a standard pattern and naming
 convention. To reduce the amount of boilerplate code that needs to be
 written for a new type there are two sets of macros to generate the
 common parts in a standard format.
+
+.. _OBJECT_DECLARE:
 
 Type declaration macros
 -----------------------
