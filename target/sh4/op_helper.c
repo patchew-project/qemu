@@ -23,7 +23,6 @@
 #include "exec/cpu_ldst.h"
 #include "fpu/softfloat.h"
 
-#ifndef CONFIG_USER_ONLY
 
 void superh_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
                                     MMUAccessType access_type,
@@ -45,8 +44,6 @@ void superh_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
     }
     cpu_loop_exit_restore(cs, retaddr);
 }
-
-#endif
 
 void helper_ldtlb(CPUSH4State *env)
 {
