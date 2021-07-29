@@ -385,6 +385,6 @@ the `OBJECT_DEFINE_ABSTRACT_TYPE()` macro can be used instead:
 
 
 API Reference
--------------
+=============
 
 .. kernel-doc:: include/qom/object.h
