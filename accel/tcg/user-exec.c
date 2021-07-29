@@ -27,6 +27,7 @@
 #include "exec/helper-proto.h"
 #include "qemu/atomic128.h"
 #include "trace/trace-root.h"
+#include "tcg/tcg-ldst.h"
 
 #undef EAX
 #undef ECX
@@ -866,14 +867,20 @@ static void validate_memop(MemOpIdx oi, MemOp expected)
 #endif
 }
 
-static void cpu_unaligned_access(CPUState *cpu, vaddr addr,
-                                 MMUAccessType access_type,
-                                 int mmu_idx, uintptr_t ra)
+static void QEMU_NORETURN
+cpu_unaligned_access(CPUState *cpu, vaddr addr, MMUAccessType access_type,
+                     int mmu_idx, uintptr_t ra)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
     cc->tcg_ops->do_unaligned_access(cpu, addr, access_type, mmu_idx, ra);
     g_assert_not_reached();
+}
+
+void helper_unaligned_mmu(CPUArchState *env, target_ulong addr,
+                          uint32_t access_type, uintptr_t ra)
+{
+    cpu_unaligned_access(env_cpu(env), addr, access_type, MMU_USER_IDX, ra);
 }
 
 static void *cpu_mmu_lookup(CPUArchState *env, target_ulong addr,
