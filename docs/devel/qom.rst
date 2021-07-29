@@ -48,7 +48,7 @@ In the above example, we create a simple type that is described by `TypeInfo`.
 from, the instance and class size, and constructor/destructor hooks.
 
 Alternatively several static types could be registered using helper macro
-DEFINE_TYPES()
+`DEFINE_TYPES()`:
 
 .. code-block:: c
 
@@ -72,10 +72,10 @@ are instantiated dynamically but there is only ever one instance for any
 given type.  The `ObjectClass` typically holds a table of function pointers
 for the virtual methods implemented by this type.
 
-Using object_new(), a new `Object` derivative will be instantiated.  You can
+Using `object_new()`, a new `Object` derivative will be instantiated.  You can
 cast an `Object` to a subclass (or base-class) type using
-object_dynamic_cast().  You typically want to define macro wrappers around
-OBJECT_CHECK() and OBJECT_CLASS_CHECK() to make it easier to convert to a
+`object_dynamic_cast()`.  You typically want to define macro wrappers around
+`OBJECT_CHECK()` and `OBJECT_CLASS_CHECK()` to make it easier to convert to a
 specific type:
 
 .. code-block:: c
@@ -195,7 +195,7 @@ except for trailing varargs.
 
 Methods are always *virtual*. Overriding a method in
 `TypeInfo`.class_init of a subclass leads to any user of the class obtained
-via OBJECT_GET_CLASS() accessing the overridden function.
+via `OBJECT_GET_CLASS()` accessing the overridden function.
 The original function is not automatically invoked. It is the responsibility
 of the overriding class to determine whether and when to invoke the method
 being overridden.
@@ -270,7 +270,7 @@ class, which someone might choose to change at some point.
        .class_init = derived_class_init,
    };
 
-Alternatively, object_class_by_name() can be used to obtain the class and
+Alternatively, `object_class_by_name()` can be used to obtain the class and
 its non-overridden methods for a specific type. This would correspond to
 ``MyClass::method(...)`` in C++.
 
@@ -285,9 +285,9 @@ convention. To reduce the amount of boilerplate code that needs to be
 written for a new type there are two sets of macros to generate the
 common parts in a standard format.
 
-A type is declared using the OBJECT_DECLARE macro family. In types
+A type is declared using the ``OBJECT_DECLARE`` macro family. In types
 which do not require any virtual functions in the class, the
-OBJECT_DECLARE_SIMPLE_TYPE macro is suitable, and is commonly placed
+`OBJECT_DECLARE_SIMPLE_TYPE` macro is suitable, and is commonly placed
 in the header file:
 
 .. code-block:: c
@@ -319,12 +319,12 @@ This is equivalent to the following:
 
 The 'struct MyDevice' needs to be declared separately.
 If the type requires virtual functions to be declared in the class
-struct, then the alternative OBJECT_DECLARE_TYPE() macro can be
-used. This does the same as OBJECT_DECLARE_SIMPLE_TYPE(), but without
+struct, then the alternative `OBJECT_DECLARE_TYPE()` macro can be
+used. This does the same as `OBJECT_DECLARE_SIMPLE_TYPE()`, but without
 the 'struct MyDeviceClass' definition.
 
-To implement the type, the OBJECT_DEFINE macro family is available.
-In the simple case the OBJECT_DEFINE_TYPE macro is suitable:
+To implement the type, the ``OBJECT_DEFINE`` macro family is available.
+In the simple case the `OBJECT_DEFINE_TYPE()` macro is suitable:
 
 .. code-block:: c
    :caption: Defining a simple type
@@ -362,7 +362,7 @@ system, and the three standard methods now need to be implemented
 along with any other logic required for the type.
 
 If the type needs to implement one or more interfaces, then the
-OBJECT_DEFINE_TYPE_WITH_INTERFACES() macro can be used instead.
+`OBJECT_DEFINE_TYPE_WITH_INTERFACES()` macro can be used instead.
 This accepts an array of interface type names.
 
 .. code-block:: c
@@ -374,7 +374,7 @@ This accepts an array of interface type names.
                                       { NULL })
 
 If the type is not intended to be instantiated, then then
-the OBJECT_DEFINE_ABSTRACT_TYPE() macro can be used instead:
+the `OBJECT_DEFINE_ABSTRACT_TYPE()` macro can be used instead:
 
 .. code-block:: c
    :caption: Defining a simple abstract type
