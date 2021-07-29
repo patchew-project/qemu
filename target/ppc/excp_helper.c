@@ -1503,6 +1503,8 @@ void ppc_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
     CPUPPCState *env = cs->env_ptr;
     uint32_t insn;
 
+    env->spr[SPR_DAR] = vaddr;
+
     /* Restore state and reload the insn we executed, for filling in DSISR.  */
     cpu_restore_state(cs, retaddr, true);
     insn = cpu_ldl_code(env, env->nip);
