@@ -242,6 +242,21 @@ void xtensa_cpu_list(void)
     }
 }
 
+void xtensa_cpu_do_unaligned_access(CPUState *cs,
+                                    vaddr addr, MMUAccessType access_type,
+                                    int mmu_idx, uintptr_t retaddr)
+{
+    XtensaCPU *cpu = XTENSA_CPU(cs);
+    CPUXtensaState *env = &cpu->env;
+
+    assert(xtensa_option_enabled(env->config,
+                                 XTENSA_OPTION_UNALIGNED_EXCEPTION));
+    cpu_restore_state(CPU(cpu), retaddr, true);
+    HELPER(exception_cause_vaddr)(env,
+                                  env->pc, LOAD_STORE_ALIGNMENT_CAUSE,
+                                  addr);
+}
+
 #ifdef CONFIG_USER_ONLY
 
 bool xtensa_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
@@ -262,21 +277,6 @@ bool xtensa_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
 }
 
 #else /* !CONFIG_USER_ONLY */
-
-void xtensa_cpu_do_unaligned_access(CPUState *cs,
-                                    vaddr addr, MMUAccessType access_type,
-                                    int mmu_idx, uintptr_t retaddr)
-{
-    XtensaCPU *cpu = XTENSA_CPU(cs);
-    CPUXtensaState *env = &cpu->env;
-
-    assert(xtensa_option_enabled(env->config,
-                                 XTENSA_OPTION_UNALIGNED_EXCEPTION));
-    cpu_restore_state(CPU(cpu), retaddr, true);
-    HELPER(exception_cause_vaddr)(env,
-                                  env->pc, LOAD_STORE_ALIGNMENT_CAUSE,
-                                  addr);
-}
 
 bool xtensa_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                          MMUAccessType access_type, int mmu_idx,
