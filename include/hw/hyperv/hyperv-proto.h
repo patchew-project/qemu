@@ -101,9 +101,9 @@ struct hyperv_signal_event_input {
  */
 struct hyperv_message_header {
     uint32_t message_type;
-    uint8_t  payload_size;
-    uint8_t  message_flags; /* HV_MESSAGE_FLAG_XX */
     uint8_t  _reserved[2];
+    uint8_t  message_flags; /* HV_MESSAGE_FLAG_XX */
+    uint8_t  payload_size;
     uint64_t sender;
 };
 
