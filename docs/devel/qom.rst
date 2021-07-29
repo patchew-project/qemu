@@ -303,8 +303,10 @@ This is equivalent to the following:
 
    typedef struct MyDevice MyDevice;
    G_DEFINE_AUTOPTR_CLEANUP_FUNC(MyDevice, object_unref)
-   #define MY_DEVICE(void *obj)
-           OBJECT_CHECK(MyDevice, obj, TYPE_MY_DEVICE)
+   static inline MyDevice *MY_DEVICE(void *obj)
+   {
+       return OBJECT_CHECK(MyDevice, obj, TYPE_MY_DEVICE);
+   }
 
 The 'struct MyDevice' needs to be declared separately.
 
@@ -327,12 +329,18 @@ This is equivalent to the following:
 
    G_DEFINE_AUTOPTR_CLEANUP_FUNC(MyDevice, object_unref)
 
-   #define MY_DEVICE_GET_CLASS(void *obj) \
-           OBJECT_GET_CLASS(MyDeviceClass, obj, TYPE_MY_DEVICE)
-   #define MY_DEVICE_CLASS(void *klass) \
-           OBJECT_CLASS_CHECK(MyDeviceClass, klass, TYPE_MY_DEVICE)
-   #define MY_DEVICE(void *obj)
-           OBJECT_CHECK(MyDevice, obj, TYPE_MY_DEVICE)
+   static inline MyDeviceClass *MY_DEVICE_GET_CLASS(void *obj)
+   {
+       return OBJECT_GET_CLASS(MyDeviceClass, obj, TYPE_MY_DEVICE);
+   }
+   static inline MyDeviceClass *MY_DEVICE_CLASS(void *klass)
+   {
+       return OBJECT_CLASS_CHECK(MyDeviceClass, klass, TYPE_MY_DEVICE);
+   }
+   static inline MyDevice *MY_DEVICE(void *obj)
+   {
+       return OBJECT_CHECK(MyDevice, obj, TYPE_MY_DEVICE);
+   }
 
 Type definition macros
 ----------------------
