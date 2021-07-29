@@ -285,6 +285,9 @@ convention. To reduce the amount of boilerplate code that needs to be
 written for a new type there are two sets of macros to generate the
 common parts in a standard format.
 
+Type declaration macros
+-----------------------
+
 A type is declared using the ``OBJECT_DECLARE`` macro family. In types
 which do not require any virtual functions in the class, the
 `OBJECT_DECLARE_SIMPLE_TYPE` macro is suitable, and is commonly placed
@@ -322,6 +325,9 @@ If the type requires virtual functions to be declared in the class
 struct, then the alternative `OBJECT_DECLARE_TYPE()` macro can be
 used. This does the same as `OBJECT_DECLARE_SIMPLE_TYPE()`, but without
 the 'struct MyDeviceClass' definition.
+
+Type definition macros
+----------------------
 
 To implement the type, the ``OBJECT_DEFINE`` macro family is available.
 In the simple case the `OBJECT_DEFINE_TYPE()` macro is suitable:
