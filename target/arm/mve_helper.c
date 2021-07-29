@@ -2935,3 +2935,89 @@ DO_VFMA(vfmah, 2, uint16_t, float16_muladd)
 DO_VFMA(vfmas, 4, uint32_t, float32_muladd)
 DO_VFMA(vfmsh, 2, uint16_t, DO_VFMS16)
 DO_VFMA(vfmss, 4, uint32_t, DO_VFMS32)
+
+#define DO_VCMLA(OP, ESIZE, TYPE, ROT, CHS, FN)                         \
+    void HELPER(glue(mve_, OP))(CPUARMState *env,                       \
+                                void *vd, void *vn, void *vm)           \
+    {                                                                   \
+        TYPE *d = vd, *n = vn, *m = vm;                                 \
+        TYPE r0, r1, e1, e2, e3, e4;                                    \
+        uint16_t mask = mve_element_mask(env);                          \
+        unsigned e;                                                     \
+        float_status *fpst0, *fpst1;                                    \
+        float_status scratch_fpst;                                      \
+        /* We loop through pairs of elements at a time */               \
+        for (e = 0; e < 16 / ESIZE; e += 2, mask >>= ESIZE * 2) {       \
+            if ((mask & MAKE_64BIT_MASK(0, ESIZE * 2)) == 0) {          \
+                continue;                                               \
+            }                                                           \
+            fpst0 = (ESIZE == 2) ? &env->vfp.standard_fp_status_f16 :   \
+                &env->vfp.standard_fp_status;                           \
+            fpst1 = fpst0;                                              \
+            if (!(mask & 1)) {                                          \
+                scratch_fpst = *fpst0;                                  \
+                fpst0 = &scratch_fpst;                                  \
+            }                                                           \
+            if (!(mask & (1 << ESIZE))) {                               \
+                scratch_fpst = *fpst1;                                  \
+                fpst1 = &scratch_fpst;                                  \
+            }                                                           \
+            switch (ROT) {                                              \
+            case 0:                                                     \
+                e1 = m[H##ESIZE(e)];                                    \
+                e2 = n[H##ESIZE(e)];                                    \
+                e3 = m[H##ESIZE(e + 1)];                                \
+                e4 = n[H##ESIZE(e)];                                    \
+                break;                                                  \
+            case 1:                                                     \
+                e1 = CHS(m[H##ESIZE(e + 1)]);                           \
+                e2 = n[H##ESIZE(e + 1)];                                \
+                e3 = m[H##ESIZE(e)];                                    \
+                e4 = n[H##ESIZE(e + 1)];                                \
+                break;                                                  \
+            case 2:                                                     \
+                e1 = CHS(m[H##ESIZE(e)]);                               \
+                e2 = n[H##ESIZE(e)];                                    \
+                e3 = CHS(m[H##ESIZE(e + 1)]);                           \
+                e4 = n[H##ESIZE(e)];                                    \
+                break;                                                  \
+            case 3:                                                     \
+                e1 = m[H##ESIZE(e + 1)];                                \
+                e2 = n[H##ESIZE(e + 1)];                                \
+                e3 = CHS(m[H##ESIZE(e)]);                               \
+                e4 = n[H##ESIZE(e + 1)];                                \
+                break;                                                  \
+            default:                                                    \
+                g_assert_not_reached();                                 \
+            }                                                           \
+            r0 = FN(e2, e1, d[H##ESIZE(e)], fpst0);                     \
+            r1 = FN(e4, e3, d[H##ESIZE(e + 1)], fpst1);                 \
+            mergemask(&d[H##ESIZE(e)], r0, mask);                       \
+            mergemask(&d[H##ESIZE(e + 1)], r1, mask >> ESIZE);          \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
+#define DO_VCMULH(N, M, D, S) float16_mul(N, M, S)
+#define DO_VCMULS(N, M, D, S) float32_mul(N, M, S)
+
+#define DO_VCMLAH(N, M, D, S) float16_muladd(N, M, D, 0, S)
+#define DO_VCMLAS(N, M, D, S) float32_muladd(N, M, D, 0, S)
+
+DO_VCMLA(vcmul0h, 2, uint16_t, 0, float16_chs, DO_VCMULH)
+DO_VCMLA(vcmul0s, 4, uint32_t, 0, float32_chs, DO_VCMULS)
+DO_VCMLA(vcmul90h, 2, uint16_t, 1, float16_chs, DO_VCMULH)
+DO_VCMLA(vcmul90s, 4, uint32_t, 1, float32_chs, DO_VCMULS)
+DO_VCMLA(vcmul180h, 2, uint16_t, 2, float16_chs, DO_VCMULH)
+DO_VCMLA(vcmul180s, 4, uint32_t, 2, float32_chs, DO_VCMULS)
+DO_VCMLA(vcmul270h, 2, uint16_t, 3, float16_chs, DO_VCMULH)
+DO_VCMLA(vcmul270s, 4, uint32_t, 3, float32_chs, DO_VCMULS)
+
+DO_VCMLA(vcmla0h, 2, uint16_t, 0, float16_chs, DO_VCMLAH)
+DO_VCMLA(vcmla0s, 4, uint32_t, 0, float32_chs, DO_VCMLAS)
+DO_VCMLA(vcmla90h, 2, uint16_t, 1, float16_chs, DO_VCMLAH)
+DO_VCMLA(vcmla90s, 4, uint32_t, 1, float32_chs, DO_VCMLAS)
+DO_VCMLA(vcmla180h, 2, uint16_t, 2, float16_chs, DO_VCMLAH)
+DO_VCMLA(vcmla180s, 4, uint32_t, 2, float32_chs, DO_VCMLAS)
+DO_VCMLA(vcmla270h, 2, uint16_t, 3, float16_chs, DO_VCMLAH)
+DO_VCMLA(vcmla270s, 4, uint32_t, 3, float32_chs, DO_VCMLAS)
