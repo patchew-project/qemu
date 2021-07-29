@@ -2859,3 +2859,43 @@ DO_2OP_FP(vmaxnmh, 2, uint16_t, float16_maxnum)
 DO_2OP_FP(vmaxnms, 4, uint32_t, float32_maxnum)
 DO_2OP_FP(vminnmh, 2, uint16_t, float16_minnum)
 DO_2OP_FP(vminnms, 4, uint32_t, float32_minnum)
+
+#define DO_VCADD_FP(OP, ESIZE, TYPE, FN0, FN1)                          \
+    void HELPER(glue(mve_, OP))(CPUARMState *env,                       \
+                                void *vd, void *vn, void *vm)           \
+    {                                                                   \
+        TYPE *d = vd, *n = vn, *m = vm;                                 \
+        TYPE r[16 / ESIZE];                                             \
+        uint16_t tm, mask = mve_element_mask(env);                      \
+        unsigned e;                                                     \
+        float_status *fpst;                                             \
+        float_status scratch_fpst;                                      \
+        /* Calculate all results first to avoid overwriting inputs */   \
+        for (e = 0, tm = mask; e < 16 / ESIZE; e++, tm >>= ESIZE) {     \
+            if ((tm & MAKE_64BIT_MASK(0, ESIZE)) == 0) {                \
+                r[e] = 0;                                               \
+                continue;                                               \
+            }                                                           \
+            fpst = (ESIZE == 2) ? &env->vfp.standard_fp_status_f16 :    \
+                &env->vfp.standard_fp_status;                           \
+            if (!(tm & 1)) {                                            \
+                /* We need the result but without updating flags */     \
+                scratch_fpst = *fpst;                                   \
+                fpst = &scratch_fpst;                                   \
+            }                                                           \
+            if (!(e & 1)) {                                             \
+                r[e] = FN0(n[H##ESIZE(e)], m[H##ESIZE(e + 1)], fpst);   \
+            } else {                                                    \
+                r[e] = FN1(n[H##ESIZE(e)], m[H##ESIZE(e - 1)], fpst);   \
+            }                                                           \
+        }                                                               \
+        for (e = 0; e < 16 / ESIZE; e++, mask >>= ESIZE) {              \
+            mergemask(&d[H##ESIZE(e)], r[e], mask);                     \
+        }                                                               \
+        mve_advance_vpt(env);                                           \
+    }
+
+DO_VCADD_FP(vfcadd90h, 2, uint16_t, float16_sub, float16_add)
+DO_VCADD_FP(vfcadd90s, 4, uint32_t, float32_sub, float32_add)
+DO_VCADD_FP(vfcadd270h, 2, uint16_t, float16_add, float16_sub)
+DO_VCADD_FP(vfcadd270s, 4, uint32_t, float32_add, float32_sub)
