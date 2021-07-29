@@ -2835,3 +2835,27 @@ DO_VMAXMINA(vminaw, 4, int32_t, uint32_t, DO_MIN)
 
 DO_2OP_FP(vfaddh, 2, uint16_t, float16_add)
 DO_2OP_FP(vfadds, 4, uint32_t, float32_add)
+
+DO_2OP_FP(vfsubh, 2, uint16_t, float16_sub)
+DO_2OP_FP(vfsubs, 4, uint32_t, float32_sub)
+
+DO_2OP_FP(vfmulh, 2, uint16_t, float16_mul)
+DO_2OP_FP(vfmuls, 4, uint32_t, float32_mul)
+
+static inline float16 float16_abd(float16 a, float16 b, float_status *s)
+{
+    return float16_abs(float16_sub(a, b, s));
+}
+
+static inline float32 float32_abd(float32 a, float32 b, float_status *s)
+{
+    return float32_abs(float32_sub(a, b, s));
+}
+
+DO_2OP_FP(vfabdh, 2, uint16_t, float16_abd)
+DO_2OP_FP(vfabds, 4, uint32_t, float32_abd)
+
+DO_2OP_FP(vmaxnmh, 2, uint16_t, float16_maxnum)
+DO_2OP_FP(vmaxnms, 4, uint32_t, float32_maxnum)
+DO_2OP_FP(vminnmh, 2, uint16_t, float16_minnum)
+DO_2OP_FP(vminnms, 4, uint32_t, float32_minnum)
