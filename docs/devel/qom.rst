@@ -304,7 +304,7 @@ This is equivalent to the following:
    typedef struct MyDevice MyDevice;
    typedef struct MyDeviceClass MyDeviceClass;
 
-   G_DEFINE_AUTOPTR_CLEANUP_FUNC(MyDeviceClass, object_unref)
+   G_DEFINE_AUTOPTR_CLEANUP_FUNC(MyDevice, object_unref)
 
    #define MY_DEVICE_GET_CLASS(void *obj) \
            OBJECT_GET_CLASS(MyDeviceClass, obj, TYPE_MY_DEVICE)
