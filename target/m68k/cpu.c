@@ -522,6 +522,7 @@ static const struct TCGCPUOps m68k_tcg_ops = {
     .do_interrupt = m68k_cpu_do_interrupt,
     .do_transaction_failed = m68k_cpu_transaction_failed,
 #endif /* !CONFIG_USER_ONLY */
+    TCG_CPU_OPS_COMMON,
 };
 
 static void m68k_cpu_class_init(ObjectClass *c, void *data)

@@ -192,6 +192,7 @@ static const struct TCGCPUOps rx_tcg_ops = {
 #ifndef CONFIG_USER_ONLY
     .do_interrupt = rx_cpu_do_interrupt,
 #endif /* !CONFIG_USER_ONLY */
+    TCG_CPU_OPS_COMMON,
 };
 
 static void rx_cpu_class_init(ObjectClass *klass, void *data)

@@ -79,6 +79,7 @@ static const struct TCGCPUOps x86_tcg_ops = {
     .debug_excp_handler = breakpoint_handler,
     .debug_check_breakpoint = x86_debug_check_breakpoint,
 #endif /* !CONFIG_USER_ONLY */
+    TCG_CPU_OPS_COMMON,
 };
 
 static void tcg_cpu_init_ops(AccelCPUClass *accel_cpu, CPUClass *cc)

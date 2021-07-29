@@ -107,6 +107,13 @@ struct TCGCPUOps {
 #endif /* CONFIG_SOFTMMU */
 #endif /* NEED_CPU_H */
 
+    void (*exec_realizefn)(CPUState *cpu, Error **errp);
+    void (*exec_unrealizefn)(CPUState *cpu);
 };
+
+#define TCG_CPU_OPS_COMMON \
+    .exec_realizefn = tcg_exec_realizefn, \
+    .exec_unrealizefn = tcg_exec_unrealizefn
+
 
 #endif /* TCG_CPU_OPS_H */

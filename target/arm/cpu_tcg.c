@@ -913,6 +913,7 @@ static const struct TCGCPUOps arm_v7m_tcg_ops = {
     .debug_check_watchpoint = arm_debug_check_watchpoint,
     .debug_check_breakpoint = arm_debug_check_breakpoint,
 #endif /* !CONFIG_USER_ONLY */
+    TCG_CPU_OPS_COMMON,
 };
 #endif /* CONFIG_TCG */
 

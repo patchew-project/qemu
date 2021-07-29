@@ -151,6 +151,7 @@ static const struct TCGCPUOps hppa_tcg_ops = {
     .do_interrupt = hppa_cpu_do_interrupt,
     .do_unaligned_access = hppa_cpu_do_unaligned_access,
 #endif /* !CONFIG_USER_ONLY */
+    TCG_CPU_OPS_COMMON,
 };
 
 static void hppa_cpu_class_init(ObjectClass *oc, void *data)

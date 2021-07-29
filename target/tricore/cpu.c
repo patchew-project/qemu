@@ -154,6 +154,7 @@ static const struct TCGCPUOps tricore_tcg_ops = {
     .initialize = tricore_tcg_init,
     .synchronize_from_tb = tricore_cpu_synchronize_from_tb,
     .tlb_fill = tricore_cpu_tlb_fill,
+    TCG_CPU_OPS_COMMON,
 };
 
 static void tricore_cpu_class_init(ObjectClass *c, void *data)

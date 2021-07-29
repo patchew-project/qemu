@@ -273,6 +273,7 @@ static const struct TCGCPUOps hexagon_tcg_ops = {
     .initialize = hexagon_translate_init,
     .synchronize_from_tb = hexagon_cpu_synchronize_from_tb,
     .tlb_fill = hexagon_tlb_fill,
+    TCG_CPU_OPS_COMMON,
 };
 
 static void hexagon_cpu_class_init(ObjectClass *c, void *data)

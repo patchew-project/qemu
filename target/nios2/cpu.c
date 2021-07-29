@@ -226,6 +226,7 @@ static const struct TCGCPUOps nios2_tcg_ops = {
     .do_interrupt = nios2_cpu_do_interrupt,
     .do_unaligned_access = nios2_cpu_do_unaligned_access,
 #endif /* !CONFIG_USER_ONLY */
+    TCG_CPU_OPS_COMMON,
 };
 
 static void nios2_cpu_class_init(ObjectClass *oc, void *data)

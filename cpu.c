@@ -40,6 +40,10 @@
 #include "hw/core/accel-cpu.h"
 #include "trace/trace-root.h"
 
+#ifdef CONFIG_TCG
+#include "hw/core/tcg-cpu-ops.h"
+#endif /* CONFIG_TCG */
+
 uintptr_t qemu_host_page_size;
 intptr_t qemu_host_page_mask;
 
@@ -129,20 +133,17 @@ const VMStateDescription vmstate_cpu_common = {
 
 void cpu_exec_realizefn(CPUState *cpu, Error **errp)
 {
-#ifndef CONFIG_USER_ONLY
     CPUClass *cc = CPU_GET_CLASS(cpu);
-#endif
 
     cpu_list_add(cpu);
     if (!accel_cpu_realizefn(cpu, errp)) {
         return;
     }
-#ifdef CONFIG_TCG
+
     /* NB: errp parameter is unused currently */
-    if (tcg_enabled()) {
-        tcg_exec_realizefn(cpu, errp);
+    if (cc->tcg_ops) {
+        cc->tcg_ops->exec_realizefn(cpu, errp);
     }
-#endif /* CONFIG_TCG */
 
 #ifdef CONFIG_USER_ONLY
     assert(qdev_get_vmsd(DEVICE(cpu)) == NULL ||
@@ -159,9 +160,9 @@ void cpu_exec_realizefn(CPUState *cpu, Error **errp)
 
 void cpu_exec_unrealizefn(CPUState *cpu)
 {
-#ifndef CONFIG_USER_ONLY
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
+#ifndef CONFIG_USER_ONLY
     if (cc->sysemu_ops->legacy_vmsd != NULL) {
         vmstate_unregister(NULL, cc->sysemu_ops->legacy_vmsd, cpu);
     }
@@ -169,12 +170,10 @@ void cpu_exec_unrealizefn(CPUState *cpu)
         vmstate_unregister(NULL, &vmstate_cpu_common, cpu);
     }
 #endif
-#ifdef CONFIG_TCG
-    /* NB: errp parameter is unused currently */
-    if (tcg_enabled()) {
-        tcg_exec_unrealizefn(cpu);
+
+    if (cc->tcg_ops) {
+        cc->tcg_ops->exec_unrealizefn(cpu);
     }
-#endif /* CONFIG_TCG */
 
     cpu_list_remove(cpu);
 }

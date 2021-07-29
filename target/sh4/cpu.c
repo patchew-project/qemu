@@ -244,6 +244,7 @@ static const struct TCGCPUOps superh_tcg_ops = {
     .do_unaligned_access = superh_cpu_do_unaligned_access,
     .io_recompile_replay_branch = superh_io_recompile_replay_branch,
 #endif /* !CONFIG_USER_ONLY */
+    TCG_CPU_OPS_COMMON,
 };
 
 static void superh_cpu_class_init(ObjectClass *oc, void *data)

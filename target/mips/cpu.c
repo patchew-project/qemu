@@ -548,6 +548,7 @@ static const struct TCGCPUOps mips_tcg_ops = {
     .do_unaligned_access = mips_cpu_do_unaligned_access,
     .io_recompile_replay_branch = mips_io_recompile_replay_branch,
 #endif /* !CONFIG_USER_ONLY */
+    TCG_CPU_OPS_COMMON,
 };
 #endif /* CONFIG_TCG */
 

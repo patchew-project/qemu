@@ -871,6 +871,7 @@ static const struct TCGCPUOps sparc_tcg_ops = {
     .do_transaction_failed = sparc_cpu_do_transaction_failed,
     .do_unaligned_access = sparc_cpu_do_unaligned_access,
 #endif /* !CONFIG_USER_ONLY */
+    TCG_CPU_OPS_COMMON,
 };
 #endif /* CONFIG_TCG */
 

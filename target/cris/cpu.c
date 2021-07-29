@@ -221,6 +221,7 @@ static const struct TCGCPUOps crisv32_tcg_ops = {
 #ifndef CONFIG_USER_ONLY
     .do_interrupt = cris_cpu_do_interrupt,
 #endif /* !CONFIG_USER_ONLY */
+    TCG_CPU_OPS_COMMON,
 };
 
 static void crisv8_cpu_class_init(ObjectClass *oc, void *data)
