@@ -367,11 +367,11 @@ static const struct TCGCPUOps mb_tcg_ops = {
     .synchronize_from_tb = mb_cpu_synchronize_from_tb,
     .cpu_exec_interrupt = mb_cpu_exec_interrupt,
     .tlb_fill = mb_cpu_tlb_fill,
+    .do_unaligned_access = mb_cpu_do_unaligned_access,
 
 #ifndef CONFIG_USER_ONLY
     .do_interrupt = mb_cpu_do_interrupt,
     .do_transaction_failed = mb_cpu_transaction_failed,
-    .do_unaligned_access = mb_cpu_do_unaligned_access,
 #endif /* !CONFIG_USER_ONLY */
 };
 
