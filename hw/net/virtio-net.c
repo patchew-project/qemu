@@ -891,6 +891,39 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
     Error *err = NULL;
     int i;
 
+    /*
+     * If the guest driver doesn't support the STANDBY feature, by default
+     * we keep the virtio-net device and don't hotplug the VFIO device,
+     * but in some cases, user can prefer to use the VFIO device rather
+     * than the virtio-net one. We can't unplug the virtio-net device
+     * (because on migration it is expected on the destination side)
+     * but we can force the guest driver to be disabled. Then, we can
+     * hotplug the VFIO device that will be unplugged before the migration
+     * like in the normal failover migration but without the failover device.
+     */
+    if (n->failover && !n->failover_default) {
+        if (!virtio_has_feature(features, VIRTIO_NET_F_STANDBY)) {
+            /* disable the first queue to disable the driver */
+            virtio_queue_disable(vdev, 0);
+            /*
+             * as the virtio-net driver is disable we can plug back the
+             * failover primary device
+             */
+            qatomic_set(&n->failover_primary_hidden, false);
+            failover_add_primary(n, &err);
+            if (err) {
+                warn_report_err(err);
+            }
+            return;
+        } else {
+          /*
+           * if the driver renegotiates features, we need to re-enable
+           * the queue
+           */
+          virtio_queue_enable(vdev, 0);
+        }
+    }
+
     if (n->mtu_bypass_backend &&
             !virtio_has_feature(vdev->backend_features, VIRTIO_NET_F_MTU)) {
         features &= ~(1ULL << VIRTIO_NET_F_MTU);
@@ -3625,6 +3658,7 @@ static Property virtio_net_properties[] = {
     DEFINE_PROP_INT32("speed", VirtIONet, net_conf.speed, SPEED_UNKNOWN),
     DEFINE_PROP_STRING("duplex", VirtIONet, net_conf.duplex_str),
     DEFINE_PROP_BOOL("failover", VirtIONet, failover, false),
+    DEFINE_PROP_BOOL("failover-default", VirtIONet, failover_default, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
