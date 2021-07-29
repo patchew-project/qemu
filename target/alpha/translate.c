@@ -293,14 +293,14 @@ static inline void gen_qemu_lds(TCGv t0, TCGv t1, int flags)
 
 static inline void gen_qemu_ldl_l(TCGv t0, TCGv t1, int flags)
 {
-    tcg_gen_qemu_ld_i64(t0, t1, flags, MO_LESL);
+    tcg_gen_qemu_ld_i64(t0, t1, flags, MO_LESL | MO_ALIGN);
     tcg_gen_mov_i64(cpu_lock_addr, t1);
     tcg_gen_mov_i64(cpu_lock_value, t0);
 }
 
 static inline void gen_qemu_ldq_l(TCGv t0, TCGv t1, int flags)
 {
-    tcg_gen_qemu_ld_i64(t0, t1, flags, MO_LEQ);
+    tcg_gen_qemu_ld_i64(t0, t1, flags, MO_LEQ | MO_ALIGN);
     tcg_gen_mov_i64(cpu_lock_addr, t1);
     tcg_gen_mov_i64(cpu_lock_value, t0);
 }
@@ -2840,12 +2840,12 @@ static DisasJumpType translate_one(DisasContext *ctx, uint32_t insn)
     case 0x2E:
         /* STL_C */
         ret = gen_store_conditional(ctx, ra, rb, disp16,
-                                    ctx->mem_idx, MO_LESL);
+                                    ctx->mem_idx, MO_LESL | MO_ALIGN);
         break;
     case 0x2F:
         /* STQ_C */
         ret = gen_store_conditional(ctx, ra, rb, disp16,
-                                    ctx->mem_idx, MO_LEQ);
+                                    ctx->mem_idx, MO_LEQ | MO_ALIGN);
         break;
     case 0x30:
         /* BR */
