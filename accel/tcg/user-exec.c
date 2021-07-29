@@ -1204,7 +1204,7 @@ uint64_t cpu_ldq_code(CPUArchState *env, abi_ptr ptr)
  * @prot may be PAGE_READ, PAGE_WRITE, or PAGE_READ|PAGE_WRITE.
  */
 static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
-                               TCGMemOpIdx oi, int size, int prot,
+                               MemOpIdx oi, int size, int prot,
                                uintptr_t retaddr)
 {
     MemOp mop = get_memop(oi);
