@@ -87,6 +87,7 @@ for the following architecture extensions:
 - LOB (Low Overhead loops and Branch future)
 - M (Main Extension)
 - MPU (Memory Protection Unit Extension)
+- MVE (M-Profile Vector Extension)
 - PXN (Privileged Execute Never)
 - RAS (Reliability, Serviceability and Availability): "minimum RAS Extension" only
 - S (Security Extension)
