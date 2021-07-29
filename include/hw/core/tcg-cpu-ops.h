@@ -60,6 +60,13 @@ struct TCGCPUOps {
     /** @debug_excp_handler: Callback for handling debug exceptions */
     void (*debug_excp_handler)(CPUState *cpu);
 
+    /**
+     * @do_unaligned_access: Callback for unaligned access handling
+     */
+    void (*do_unaligned_access)(CPUState *cpu, vaddr addr,
+                                MMUAccessType access_type,
+                                int mmu_idx, uintptr_t retaddr);
+
 #ifdef NEED_CPU_H
 #ifdef CONFIG_SOFTMMU
     /**
@@ -70,13 +77,6 @@ struct TCGCPUOps {
                                   unsigned size, MMUAccessType access_type,
                                   int mmu_idx, MemTxAttrs attrs,
                                   MemTxResult response, uintptr_t retaddr);
-    /**
-     * @do_unaligned_access: Callback for unaligned access handling
-     */
-    void (*do_unaligned_access)(CPUState *cpu, vaddr addr,
-                                MMUAccessType access_type,
-                                int mmu_idx, uintptr_t retaddr);
-
     /**
      * @adjust_watchpoint_address: hack for cpu_check_watchpoint used by ARM
      */
