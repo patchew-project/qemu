@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 
+#include "elf.h"
 #include "hw/boards.h"
 #include "hw/char/serial.h"
 #include "hw/ide/pci.h"
@@ -546,10 +547,39 @@ static void boston_mach_init(MachineState *machine)
             exit(1);
         }
     } else if (machine->kernel_filename) {
-        fit_err = load_fit(&boston_fit_loader, machine->kernel_filename, s);
-        if (fit_err) {
-            error_report("unable to load FIT image");
-            exit(1);
+        uint64_t kernel_entry, kernel_low, kernel_high, kernel_size;
+
+        kernel_size = load_elf(machine->kernel_filename, NULL,
+                           cpu_mips_kseg0_to_phys, NULL,
+                           (uint64_t *)&kernel_entry,
+                           (uint64_t *)&kernel_low, (uint64_t *)&kernel_high,
+                           NULL, 0, EM_MIPS, 1, 0);
+
+        if (kernel_size) {
+            hwaddr dtb_paddr = QEMU_ALIGN_UP(kernel_high, 64 * KiB);
+            hwaddr dtb_vaddr = cpu_mips_phys_to_kseg0(NULL, dtb_paddr);
+
+            s->kernel_entry = kernel_entry;
+            if (machine->dtb) {
+                int dt_size;
+                const void *dtb_file_data, *dtb_load_data;
+
+                dtb_file_data = load_device_tree(machine->dtb, &dt_size);
+                dtb_load_data = boston_fdt_filter(s, dtb_file_data, NULL, &dtb_vaddr);
+
+                /* Calculate real fdt size after filter */
+                dt_size = fdt_totalsize(dtb_load_data);
+                rom_add_blob_fixed("dtb", dtb_load_data, dt_size, dtb_paddr);
+                g_free((void *) dtb_file_data);
+                g_free((void *) dtb_load_data);
+            }
+        } else {
+            /* Try to load file as FIT */
+            fit_err = load_fit(&boston_fit_loader, machine->kernel_filename, s);
+            if (fit_err) {
+                error_report("unable to load kernel image");
+                exit(1);
+            }
         }
 
         gen_firmware(memory_region_get_ram_ptr(flash) + 0x7c00000,
