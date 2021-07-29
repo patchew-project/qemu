@@ -2244,6 +2244,16 @@ void virtio_queue_set_rings(VirtIODevice *vdev, int n, hwaddr desc,
     virtio_init_region_cache(vdev, n);
 }
 
+void virtio_queue_disable(VirtIODevice *vdev, int n)
+{
+    vdev->vq[n].vring.num = 0;
+}
+
+void virtio_queue_enable(VirtIODevice *vdev, int n)
+{
+    vdev->vq[n].vring.num = vdev->vq[n].vring.num_default;
+}
+
 void virtio_queue_set_num(VirtIODevice *vdev, int n, int num)
 {
     /* Don't allow guest to flip queue between existent and

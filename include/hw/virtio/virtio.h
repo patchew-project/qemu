@@ -251,6 +251,8 @@ void virtio_config_modern_writel(VirtIODevice *vdev,
                                  uint32_t addr, uint32_t data);
 void virtio_queue_set_addr(VirtIODevice *vdev, int n, hwaddr addr);
 hwaddr virtio_queue_get_addr(VirtIODevice *vdev, int n);
+void virtio_queue_enable(VirtIODevice *vdev, int n);
+void virtio_queue_disable(VirtIODevice *vdev, int n);
 void virtio_queue_set_num(VirtIODevice *vdev, int n, int num);
 int virtio_queue_get_num(VirtIODevice *vdev, int n);
 int virtio_queue_get_max_num(VirtIODevice *vdev, int n);
