@@ -114,6 +114,9 @@ static QemuEvent cbevent;
 typedef void (^CodeBlock)(void);
 typedef bool (^BoolCodeBlock)(void);
 
+static CFMachPortRef eventsTap = NULL;
+static CFRunLoopSourceRef eventsTapSource = NULL;
+
 static void with_iothread_lock(CodeBlock block)
 {
     bool locked = qemu_mutex_iothread_locked();
@@ -332,9 +335,26 @@ static void handleAnyDeviceErrors(Error * err)
 - (float) cdy;
 - (QEMUScreen) gscreen;
 - (void) raiseAllKeys;
+- (void) setFullGrab;
 @end
 
 QemuCocoaView *cocoaView;
+
+// Part of the full keyboard grab system
+static CGEventRef handleTapEvent(CGEventTapProxy proxy, CGEventType type,
+CGEventRef cgEvent, void *userInfo)
+{
+    QemuCocoaView *cocoaView = (QemuCocoaView*) userInfo;
+    NSEvent* event = [NSEvent eventWithCGEvent:cgEvent];
+    if ([cocoaView isMouseGrabbed] && [cocoaView handleEvent:event]) {
+        COCOA_DEBUG("Global events tap: qemu handled the event, capturing!\n");
+        return NULL;
+    }
+    COCOA_DEBUG("Global events tap: qemu did not handle the event, letting it"
+                " through...\n");
+
+    return cgEvent;
+}
 
 @implementation QemuCocoaView
 - (id)initWithFrame:(NSRect)frameRect
@@ -361,6 +381,12 @@ QemuCocoaView *cocoaView;
     }
 
     qkbd_state_free(kbd);
+    if (eventsTap) {
+        CFRelease(eventsTap);
+    }
+    if (eventsTapSource) {
+        CFRelease(eventsTapSource);
+    }
     [super dealloc];
 }
 
@@ -1086,6 +1112,50 @@ QemuCocoaView *cocoaView;
         qkbd_state_lift_all_keys(kbd);
     });
 }
+
+// Inserts the event tap.
+// This enables us to receive keyboard events that Mac OS would
+// otherwise not let us see - like Command-Option-Esc.
+- (void) setFullGrab
+{
+    COCOA_DEBUG("QemuCocoaView: setFullGrab\n");
+    NSString *advice = @"Try enabling access to assistive devices";
+    CGEventMask mask = CGEventMaskBit(kCGEventKeyDown) |
+    CGEventMaskBit(kCGEventKeyUp) | CGEventMaskBit(kCGEventFlagsChanged);
+    eventsTap = CGEventTapCreate(kCGHIDEventTap, kCGHeadInsertEventTap,
+                                 kCGEventTapOptionDefault, mask, handleTapEvent,
+                                 self);
+    if (!eventsTap) {
+        @throw [NSException
+                 exceptionWithName:@"Tap failure"
+                reason:[NSString stringWithFormat:@"%@\n%@", @"Could not "
+                        "create event tap.", advice]
+                userInfo:nil];
+    } else {
+        COCOA_DEBUG("Global events tap created! Will capture system key"
+                    " combos.\n");
+    }
+
+    eventsTapSource =
+    CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventsTap, 0);
+    if (!eventsTapSource ) {
+        @throw [NSException
+                 exceptionWithName:@"Tap failure"
+                 reason:@"Could not obtain current CFRunLoop source."
+                userInfo:nil];
+    }
+    CFRunLoopRef runLoop = CFRunLoopGetCurrent();
+    if (!runLoop) {
+           @throw [NSException
+                 exceptionWithName:@"Tap failure"
+                 reason:@"Could not obtain current CFRunLoop."
+                userInfo:nil];
+    }
+
+    CFRunLoopAddSource(runLoop, eventsTapSource, kCFRunLoopDefaultMode);
+    CFRelease(eventsTapSource);
+}
+
 @end
 
 
@@ -1117,6 +1187,7 @@ QemuCocoaView *cocoaView;
 - (IBAction) do_about_menu_item: (id) sender;
 - (void)make_about_window;
 - (void)adjustSpeed:(id)sender;
+- (IBAction)doFullGrab:(id)sender;
 @end
 
 @implementation QemuCocoaAppController
@@ -1569,6 +1640,35 @@ QemuCocoaView *cocoaView;
     COCOA_DEBUG("cpu throttling at %d%c\n", cpu_throttle_get_percentage(), '%');
 }
 
+// The action method to the 'Options->Full Keyboard Grab' menu item
+- (IBAction)doFullGrab:(id) sender
+{
+    @try
+    {
+        // Set the state of the menu item
+        // if already checked
+        if ([sender state] == NSControlStateValueOn) {
+            // remove runloop source
+            CFRunLoopSourceInvalidate(eventsTapSource);
+            if (!eventsTap) {
+                CFRelease(eventsTap);
+            }
+            [sender setState: NSControlStateValueOff];
+        }
+
+        // if not already checked
+        else {
+            [cocoaView setFullGrab];
+            [sender setState: NSControlStateValueOn];
+        }
+    }
+    @catch(NSException *e) {
+        NSBeep();
+        NSLog(@"Exception in doFullGrab: %@", [e reason]);
+        QEMU_Alert([e reason]);
+    }
+}
+
 @end
 
 @interface QemuApplication : NSApplication
@@ -1652,6 +1752,18 @@ static void create_initial_menus(void)
         [menu addItem: menuItem];
     }
     menuItem = [[[NSMenuItem alloc] initWithTitle:@"Speed" action:nil keyEquivalent:@""] autorelease];
+    [menuItem setSubmenu:menu];
+    [[NSApp mainMenu] addItem:menuItem];
+
+    // Options menu
+    menu = [[NSMenu alloc] initWithTitle:@"Options"];
+
+    [menu addItem: [[[NSMenuItem alloc] initWithTitle:
+                         @"Full Keyboard Grab" action:@selector(doFullGrab:)
+                                        keyEquivalent:@""] autorelease]];
+
+    menuItem = [[[NSMenuItem alloc] initWithTitle:@"Options" action:nil
+                                    keyEquivalent:@""] autorelease];
     [menuItem setSubmenu:menu];
     [[NSApp mainMenu] addItem:menuItem];
 
