@@ -3121,6 +3121,7 @@ static void lo_setxattr(fuse_req_t req, fuse_ino_t ino, const char *in_name,
     bool switched_creds = false;
     bool cap_fsetid_dropped = false;
     struct lo_cred old = {};
+    bool open_inode;
 
     if (block_xattr(lo, in_name)) {
         fuse_reply_err(req, EOPNOTSUPP);
@@ -3155,7 +3156,24 @@ static void lo_setxattr(fuse_req_t req, fuse_ino_t ino, const char *in_name,
     fuse_log(FUSE_LOG_DEBUG, "lo_setxattr(ino=%" PRIu64
              ", name=%s value=%s size=%zd)\n", ino, name, value, size);
 
+    /*
+     * We can only open regular files or directories.  If the inode is
+     * something else, we have to enter /proc/self/fd and use
+     * setxattr() on the link's filename there.
+     */
+    open_inode = S_ISREG(inode->filetype) || S_ISDIR(inode->filetype);
     sprintf(procname, "%i", inode->fd);
+    if (open_inode) {
+        fd = openat(lo->proc_self_fd, procname, O_RDONLY);
+        if (fd < 0) {
+            saverr = errno;
+            goto out;
+        }
+    } else {
+        /* fchdir should not fail here */
+        FCHDIR_NOFAIL(lo->proc_self_fd);
+    }
+
     /*
      * If we are setting posix access acl and if SGID needs to be
      * cleared, then switch to caller's gid and drop CAP_FSETID
@@ -3176,26 +3194,24 @@ static void lo_setxattr(fuse_req_t req, fuse_ino_t ino, const char *in_name,
         }
         switched_creds = true;
     }
-    if (S_ISREG(inode->filetype) || S_ISDIR(inode->filetype)) {
-        fd = openat(lo->proc_self_fd, procname, O_RDONLY);
-        if (fd < 0) {
-            saverr = errno;
-            goto out;
-        }
+    if (open_inode) {
+        assert(fd >= 0);
         ret = fsetxattr(fd, name, value, size, flags);
         saverr = ret == -1 ? errno : 0;
     } else {
-        /* fchdir should not fail here */
-        FCHDIR_NOFAIL(lo->proc_self_fd);
         ret = setxattr(procname, name, value, size, flags);
         saverr = ret == -1 ? errno : 0;
-        FCHDIR_NOFAIL(lo->root.fd);
     }
     if (switched_creds) {
         if (cap_fsetid_dropped)
             lo_restore_cred_gain_cap(&old, false, "FSETID");
         else
             lo_restore_cred(&old, false);
+    }
+
+    if (!open_inode) {
+        /* Change CWD back, fchdir should not fail here */
+        FCHDIR_NOFAIL(lo->root.fd);
     }
 
 out:
