@@ -73,6 +73,7 @@ static const int syscall_allowlist[] = {
     SCMP_SYS(mprotect),
     SCMP_SYS(mremap),
     SCMP_SYS(munmap),
+    SCMP_SYS(name_to_handle_at),
     SCMP_SYS(newfstatat),
     SCMP_SYS(statx),
     SCMP_SYS(open),
