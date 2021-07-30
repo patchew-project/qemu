@@ -180,7 +180,8 @@ struct lo_data {
     int announce_submounts;
     bool use_statx;
     struct lo_inode root;
-    GHashTable *inodes; /* protected by lo->mutex */
+    GHashTable *inodes_by_ids; /* protected by lo->mutex */
+    GHashTable *inodes_by_handle; /* protected by lo->mutex */
     struct lo_map ino_map; /* protected by lo->mutex */
     struct lo_map dirp_map; /* protected by lo->mutex */
     struct lo_map fd_map; /* protected by lo->mutex */
@@ -263,8 +264,9 @@ static struct {
 /* That we loaded cap-ng in the current thread from the saved */
 static __thread bool cap_loaded = 0;
 
-static struct lo_inode *lo_find(struct lo_data *lo, struct stat *st,
-                                uint64_t mnt_id);
+static struct lo_inode *lo_find(struct lo_data *lo,
+                                const struct lo_fhandle *fhandle,
+                                struct stat *st, uint64_t mnt_id);
 static int xattr_map_client(const struct lo_data *lo, const char *client_name,
                             char **out_name);
 
@@ -1064,18 +1066,40 @@ out_err:
     fuse_reply_err(req, saverr);
 }
 
-static struct lo_inode *lo_find(struct lo_data *lo, struct stat *st,
-                                uint64_t mnt_id)
+static struct lo_inode *lo_find(struct lo_data *lo,
+                                const struct lo_fhandle *fhandle,
+                                struct stat *st, uint64_t mnt_id)
 {
-    struct lo_inode *p;
-    struct lo_key key = {
+    struct lo_inode *p = NULL;
+    struct lo_key ids_key = {
         .ino = st->st_ino,
         .dev = st->st_dev,
         .mnt_id = mnt_id,
     };
 
     pthread_mutex_lock(&lo->mutex);
-    p = g_hash_table_lookup(lo->inodes, &key);
+    if (fhandle) {
+        p = g_hash_table_lookup(lo->inodes_by_handle, fhandle);
+    }
+    if (!p) {
+        p = g_hash_table_lookup(lo->inodes_by_ids, &ids_key);
+        /*
+         * When we had to fall back to looking up an inode by its
+         * inode ID, ensure that we hit an entry that has a valid file
+         * descriptor.  Having an FD open means that the inode cannot
+         * really be deleted until the FD is closed, so that the inode
+         * ID remains valid until we evict our lo_inode.
+         * With no FD open (and just a file handle), the inode can be
+         * deleted while we still have our lo_inode, and so the inode
+         * ID may be reused by a completely different new inode.  We
+         * then must look up the lo_inode by file handle, because this
+         * handle contains a generation ID to differentiate between
+         * the old and the new inode.
+         */
+        if (p && p->fd == -1) {
+            p = NULL;
+        }
+    }
     if (p) {
         assert(p->nlookup > 0);
         p->nlookup++;
@@ -1215,7 +1239,7 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         e->attr_flags |= FUSE_ATTR_SUBMOUNT;
     }
 
-    inode = lo_find(lo, &e->attr, mnt_id);
+    inode = lo_find(lo, NULL, &e->attr, mnt_id);
     if (inode) {
         close(newfd);
     } else {
@@ -1245,7 +1269,7 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         }
         pthread_mutex_lock(&lo->mutex);
         inode->fuse_ino = lo_add_inode_mapping(req, inode);
-        g_hash_table_insert(lo->inodes, &inode->key, inode);
+        g_hash_table_insert(lo->inodes_by_ids, &inode->key, inode);
         pthread_mutex_unlock(&lo->mutex);
     }
     e->ino = inode->fuse_ino;
@@ -1609,7 +1633,7 @@ static struct lo_inode *lookup_name(fuse_req_t req, fuse_ino_t parent,
         goto out;
     }
 
-    inode = lo_find(lo, &attr, mnt_id);
+    inode = lo_find(lo, NULL, &attr, mnt_id);
 
 out:
     lo_inode_put(lo, &dir);
@@ -1776,7 +1800,7 @@ static void unref_inode(struct lo_data *lo, struct lo_inode *inode, uint64_t n)
     inode->nlookup -= n;
     if (!inode->nlookup) {
         lo_map_remove(&lo->ino_map, inode->fuse_ino);
-        g_hash_table_remove(lo->inodes, &inode->key);
+        g_hash_table_remove(lo->inodes_by_ids, &inode->key);
         if (lo->posix_lock) {
             if (g_hash_table_size(inode->posix_locks)) {
                 fuse_log(FUSE_LOG_WARNING, "Hash table is not empty\n");
@@ -3603,7 +3627,7 @@ static void lo_destroy(void *userdata)
         GHashTableIter iter;
         gpointer key, value;
 
-        g_hash_table_iter_init(&iter, lo->inodes);
+        g_hash_table_iter_init(&iter, lo->inodes_by_ids);
         if (!g_hash_table_iter_next(&iter, &key, &value)) {
             break;
         }
@@ -4129,10 +4153,34 @@ static gboolean lo_key_equal(gconstpointer a, gconstpointer b)
     return la->ino == lb->ino && la->dev == lb->dev && la->mnt_id == lb->mnt_id;
 }
 
+static guint lo_fhandle_hash(gconstpointer key)
+{
+    const struct lo_fhandle *fh = key;
+    guint hash;
+    size_t i;
+
+    /* Basically g_str_hash() */
+    hash = 5381;
+    for (i = 0; i < sizeof(fh->padding); i++) {
+        hash += hash * 33 + (unsigned char)fh->padding[i];
+    }
+    hash += hash * 33 + fh->mount_id;
+
+    return hash;
+}
+
+static gboolean lo_fhandle_equal(gconstpointer a, gconstpointer b)
+{
+    return !memcmp(a, b, sizeof(struct lo_fhandle));
+}
+
 static void fuse_lo_data_cleanup(struct lo_data *lo)
 {
-    if (lo->inodes) {
-        g_hash_table_destroy(lo->inodes);
+    if (lo->inodes_by_ids) {
+        g_hash_table_destroy(lo->inodes_by_ids);
+    }
+    if (lo->inodes_by_ids) {
+        g_hash_table_destroy(lo->inodes_by_handle);
     }
 
     if (lo->root.posix_locks) {
@@ -4189,7 +4237,8 @@ int main(int argc, char *argv[])
     qemu_init_exec_dir(argv[0]);
 
     pthread_mutex_init(&lo.mutex, NULL);
-    lo.inodes = g_hash_table_new(lo_key_hash, lo_key_equal);
+    lo.inodes_by_ids = g_hash_table_new(lo_key_hash, lo_key_equal);
+    lo.inodes_by_handle = g_hash_table_new(lo_fhandle_hash, lo_fhandle_equal);
     lo.root.fd = -1;
     lo.root.fuse_ino = FUSE_ROOT_ID;
     lo.cache = CACHE_AUTO;
