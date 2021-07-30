@@ -116,6 +116,7 @@ typedef bool (^BoolCodeBlock)(void);
 
 static CFMachPortRef eventsTap = NULL;
 static CFRunLoopSourceRef eventsTapSource = NULL;
+static bool swap_command_option_keys = false;
 
 static void with_iothread_lock(CodeBlock block)
 {
@@ -810,12 +811,22 @@ CGEventRef cgEvent, void *userInfo)
         qkbd_state_key_event(kbd, Q_KEY_CODE_CTRL_R, false);
     }
     if (!(modifiers & NSEventModifierFlagOption)) {
-        qkbd_state_key_event(kbd, Q_KEY_CODE_ALT, false);
-        qkbd_state_key_event(kbd, Q_KEY_CODE_ALT_R, false);
+        if (swap_command_option_keys) {
+            qkbd_state_key_event(kbd, Q_KEY_CODE_META_L, false);
+            qkbd_state_key_event(kbd, Q_KEY_CODE_META_R, false);
+        } else {
+            qkbd_state_key_event(kbd, Q_KEY_CODE_ALT, false);
+            qkbd_state_key_event(kbd, Q_KEY_CODE_ALT_R, false);
+        }
     }
     if (!(modifiers & NSEventModifierFlagCommand)) {
-        qkbd_state_key_event(kbd, Q_KEY_CODE_META_L, false);
-        qkbd_state_key_event(kbd, Q_KEY_CODE_META_R, false);
+        if (swap_command_option_keys) {
+            qkbd_state_key_event(kbd, Q_KEY_CODE_ALT, false);
+            qkbd_state_key_event(kbd, Q_KEY_CODE_ALT_R, false);
+        } else {
+            qkbd_state_key_event(kbd, Q_KEY_CODE_META_L, false);
+            qkbd_state_key_event(kbd, Q_KEY_CODE_META_R, false);
+        }
     }
 
     switch ([event type]) {
@@ -847,13 +858,22 @@ CGEventRef cgEvent, void *userInfo)
 
                 case kVK_Option:
                     if (!!(modifiers & NSEventModifierFlagOption)) {
-                        [self toggleKey:Q_KEY_CODE_ALT];
+                        if (swap_command_option_keys) {
+                            [self toggleKey:Q_KEY_CODE_META_L];
+                        } else {
+                            [self toggleKey:Q_KEY_CODE_ALT];
+                        }
+
                     }
                     break;
 
                 case kVK_RightOption:
                     if (!!(modifiers & NSEventModifierFlagOption)) {
-                        [self toggleKey:Q_KEY_CODE_ALT_R];
+                        if (swap_command_option_keys) {
+                            [self toggleKey:Q_KEY_CODE_META_R];
+                        } else {
+                            [self toggleKey:Q_KEY_CODE_ALT_R];
+                        }
                     }
                     break;
 
@@ -861,14 +881,22 @@ CGEventRef cgEvent, void *userInfo)
                 case kVK_Command:
                     if (isMouseGrabbed &&
                         !!(modifiers & NSEventModifierFlagCommand)) {
-                        [self toggleKey:Q_KEY_CODE_META_L];
+                        if (swap_command_option_keys) {
+                            [self toggleKey:Q_KEY_CODE_ALT];
+                        } else {
+                            [self toggleKey:Q_KEY_CODE_META_L];
+                        }
                     }
                     break;
 
                 case kVK_RightCommand:
                     if (isMouseGrabbed &&
                         !!(modifiers & NSEventModifierFlagCommand)) {
-                        [self toggleKey:Q_KEY_CODE_META_R];
+                        if (swap_command_option_keys) {
+                            [self toggleKey:Q_KEY_CODE_ALT_R];
+                        } else {
+                            [self toggleKey:Q_KEY_CODE_META_R];
+                        }
                     }
                     break;
             }
@@ -1188,6 +1216,7 @@ CGEventRef cgEvent, void *userInfo)
 - (void)make_about_window;
 - (void)adjustSpeed:(id)sender;
 - (IBAction)doFullGrab:(id)sender;
+- (IBAction)doSwapCommandOptionKeys:(id)sender;
 @end
 
 @implementation QemuCocoaAppController
@@ -1669,6 +1698,22 @@ CGEventRef cgEvent, void *userInfo)
     }
 }
 
+// The action method to the "Options->Swap Command and Option Keys" menu item
+- (IBAction)doSwapCommandOptionKeys:(id)sender
+{
+    // If the menu item is not checked
+    if ([sender state] == NSControlStateValueOff) {
+        swap_command_option_keys = true;
+        [sender setState: NSControlStateValueOn];
+    }
+
+    // If the menu item is checked
+    else {
+        swap_command_option_keys = false;
+        [sender setState: NSControlStateValueOff];
+    }
+}
+
 @end
 
 @interface QemuApplication : NSApplication
@@ -1760,6 +1805,11 @@ static void create_initial_menus(void)
 
     [menu addItem: [[[NSMenuItem alloc] initWithTitle:
                          @"Full Keyboard Grab" action:@selector(doFullGrab:)
+                                        keyEquivalent:@""] autorelease]];
+
+    [menu addItem: [[[NSMenuItem alloc] initWithTitle:
+                                                 @"Swap Command and Option Keys"
+                                               action:@selector(doSwapCommandOptionKeys:)
                                         keyEquivalent:@""] autorelease]];
 
     menuItem = [[[NSMenuItem alloc] initWithTitle:@"Options" action:nil
