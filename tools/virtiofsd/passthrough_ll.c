@@ -178,6 +178,28 @@ struct lo_data {
     int user_posix_acl, posix_acl;
 };
 
+/**
+ * Represents a file descriptor that may either be owned by this
+ * TempFd, or only referenced (i.e. the ownership belongs to some
+ * other object, and the value has just been copied into this TempFd).
+ *
+ * The purpose of this encapsulation is to be used as g_auto(TempFd)
+ * to automatically clean up owned file descriptors when this object
+ * goes out of scope.
+ *
+ * Use temp_fd_steal() to get an owned file descriptor that will not
+ * be closed when the TempFd goes out of scope.
+ */
+typedef struct {
+    int fd;
+    bool owned; /* fd owned by this object? */
+} TempFd;
+
+#define TEMP_FD_INIT ((TempFd) { .fd = -1, .owned = false })
+
+static void temp_fd_clear(TempFd *temp_fd);
+G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(TempFd, temp_fd_clear);
+
 static const struct fuse_opt lo_opts[] = {
     { "sandbox=namespace",
       offsetof(struct lo_data, sandbox),
@@ -253,6 +275,33 @@ static bool is_empty(const char *name)
 static struct lo_data *lo_data(fuse_req_t req)
 {
     return (struct lo_data *)fuse_req_userdata(req);
+}
+
+/**
+ * Clean-up function for TempFds
+ */
+static void temp_fd_clear(TempFd *temp_fd)
+{
+    if (temp_fd->owned) {
+        close(temp_fd->fd);
+        *temp_fd = TEMP_FD_INIT;
+    }
+}
+
+/**
+ * Return an owned fd from *temp_fd that will not be closed when
+ * *temp_fd goes out of scope.
+ *
+ * (TODO: Remove __attribute__ once this is used.)
+ */
+static __attribute__((unused)) int temp_fd_steal(TempFd *temp_fd)
+{
+    if (temp_fd->owned) {
+        temp_fd->owned = false;
+        return temp_fd->fd;
+    } else {
+        return dup(temp_fd->fd);
+    }
 }
 
 /*
