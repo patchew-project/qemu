@@ -14156,8 +14156,7 @@ static void decode_opc_special_legacy(CPUMIPSState *env, DisasContext *ctx)
     switch (op1) {
     case OPC_MOVN:         /* Conditional move */
     case OPC_MOVZ:
-        check_insn(ctx, ISA_MIPS4 | ISA_MIPS_R1 |
-                   INSN_LOONGSON2E | INSN_LOONGSON2F);
+        check_insn(ctx, ISA_MIPS4 | ISA_MIPS_R1 | INSN_LOONGSON2F);
         gen_cond_move(ctx, op1, rd, rs, rt);
         break;
     case OPC_MFHI:          /* Move from HI/LO */
