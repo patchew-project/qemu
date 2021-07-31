@@ -1123,15 +1123,21 @@ static int qemu_rdma_reg_whole_ram_blocks(RDMAContext *rdma)
     RDMALocalBlocks *local = &rdma->local_ram_blocks;
 
     for (i = 0; i < local->nb_blocks; i++) {
+        int access = IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE;
+
+on_demand:
         local->block[i].mr =
             ibv_reg_mr(rdma->pd,
                     local->block[i].local_host_addr,
-                    local->block[i].length,
-                    IBV_ACCESS_LOCAL_WRITE |
-                    IBV_ACCESS_REMOTE_WRITE
+                    local->block[i].length, access
                     );
         if (!local->block[i].mr) {
-            perror("Failed to register local dest ram block!");
+            if (!(access & IBV_ACCESS_ON_DEMAND) && errno == ENOTSUP) {
+                access |= IBV_ACCESS_ON_DEMAND;
+                trace_qemu_rdma_register_odp_mr(local->block[i].block_name);
+                goto on_demand;
+            }
+            perror("Failed to register local dest ram block!\n");
             break;
         }
         rdma->total_registrations++;
@@ -1215,15 +1221,18 @@ static int qemu_rdma_register_and_get_keys(RDMAContext *rdma,
      */
     if (!block->pmr[chunk]) {
         uint64_t len = chunk_end - chunk_start;
+        int access = rkey ? IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE : 0;
 
         trace_qemu_rdma_register_and_get_keys(len, chunk_start);
 
-        block->pmr[chunk] = ibv_reg_mr(rdma->pd,
-                chunk_start, len,
-                (rkey ? (IBV_ACCESS_LOCAL_WRITE |
-                        IBV_ACCESS_REMOTE_WRITE) : 0));
-
+on_demand:
+        block->pmr[chunk] = ibv_reg_mr(rdma->pd, chunk_start, len, access);
         if (!block->pmr[chunk]) {
+            if (!(access & IBV_ACCESS_ON_DEMAND) && errno == ENOTSUP) {
+                access |= IBV_ACCESS_ON_DEMAND;
+                trace_qemu_rdma_register_odp_mr(block->block_name);
+                goto on_demand;
+            }
             perror("Failed to register chunk!");
             fprintf(stderr, "Chunk details: block: %d chunk index %d"
                             " start %" PRIuPTR " end %" PRIuPTR
