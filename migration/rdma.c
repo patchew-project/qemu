@@ -1117,6 +1117,30 @@ static int qemu_rdma_alloc_qp(RDMAContext *rdma)
     return 0;
 }
 
+/*
+ * ibv_advise_mr to avoid RNR NAK error as far as possible.
+ * The responder mr registering with ODP will sent RNR NAK back to
+ * the requester in the face of the page fault.
+ */
+static void qemu_rdma_advise_prefetch_write_mr(struct ibv_pd *pd, uint64_t addr,
+                                               uint32_t len,  uint32_t lkey,
+                                               const char *name, bool wr)
+{
+    int ret;
+    int advice = wr ? IBV_ADVISE_MR_ADVICE_PREFETCH_WRITE :
+                 IBV_ADVISE_MR_ADVICE_PREFETCH;
+    struct ibv_sge sg_list = {.lkey = lkey, .addr = addr, .length = len};
+
+    ret = ibv_advise_mr(pd, advice,
+                        IB_UVERBS_ADVISE_MR_FLAG_FLUSH, &sg_list, 1);
+    /* ignore the error */
+    if (ret) {
+        trace_qemu_rdma_advise_mr(name, len, addr, strerror(errno));
+    } else {
+        trace_qemu_rdma_advise_mr(name, len, addr, "successed");
+    }
+}
+
 static int qemu_rdma_reg_whole_ram_blocks(RDMAContext *rdma)
 {
     int i;
@@ -1140,6 +1164,17 @@ on_demand:
             perror("Failed to register local dest ram block!\n");
             break;
         }
+
+        if (access & IBV_ACCESS_ON_DEMAND) {
+            qemu_rdma_advise_prefetch_write_mr(rdma->pd,
+                                               (uintptr_t)
+                                               local->block[i].local_host_addr,
+                                               local->block[i].length,
+                                               local->block[i].mr->lkey,
+                                               local->block[i].block_name,
+                                               true);
+        }
+
         rdma->total_registrations++;
     }
 
@@ -1243,6 +1278,11 @@ on_demand:
                             (uintptr_t)block->local_host_addr,
                             rdma->total_registrations);
             return -1;
+        }
+        if (access & IBV_ACCESS_ON_DEMAND) {
+            qemu_rdma_advise_prefetch_write_mr(rdma->pd, (uintptr_t)chunk_start,
+                                               len, block->pmr[chunk]->lkey,
+                                               block->block_name, rkey);
         }
         rdma->total_registrations++;
     }
