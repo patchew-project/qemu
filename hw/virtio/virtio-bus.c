@@ -85,6 +85,8 @@ void virtio_bus_device_plugged(VirtIODevice *vdev, Error **errp)
     if (klass->get_dma_as != NULL && has_iommu) {
         virtio_add_feature(&vdev->host_features, VIRTIO_F_IOMMU_PLATFORM);
         vdev->dma_as = klass->get_dma_as(qbus->parent);
+    } else if (klass->get_dma_as != NULL) {
+        vdev->dma_as = klass->get_dma_as(qbus->parent);
     } else {
         vdev->dma_as = &address_space_memory;
     }
