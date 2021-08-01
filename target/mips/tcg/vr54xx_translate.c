@@ -25,6 +25,12 @@
  * MACCHI       Multiply, accumulate, and move HI
  * MACCHIU      Unsigned multiply, accumulate, and move HI
  * MACCU        Unsigned multiply, accumulate, and move LO
+ * MULHI        Multiply and move HI
+ * MULHIU       Unsigned multiply and move HI
+ * MULS         Multiply, negate, and move LO
+ * MULSHI       Multiply, negate, and move HI
+ * MULSHIU      Unsigned multiply, negate, and move HI
+ * MULSU        Unsigned multiply, negate, and move LO
  */
 
 typedef void gen_helper_mult_acc_t(TCGv, TCGv_ptr, TCGv, TCGv);
@@ -57,3 +63,9 @@ MULT_ACC(MACC,      gen_helper_macc);
 MULT_ACC(MACCHI,    gen_helper_macchi);
 MULT_ACC(MACCHIU,   gen_helper_macchiu);
 MULT_ACC(MACCU,     gen_helper_maccu);
+MULT_ACC(MULHI,     gen_helper_mulhi);
+MULT_ACC(MULHIU,    gen_helper_mulhiu);
+MULT_ACC(MULS,      gen_helper_muls);
+MULT_ACC(MULSHI,    gen_helper_mulshi);
+MULT_ACC(MULSHIU,   gen_helper_mulshiu);
+MULT_ACC(MULSU,     gen_helper_mulsu);
