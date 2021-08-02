@@ -14,6 +14,7 @@
 #include "qemu/osdep.h"
 
 #include "block/block.h"
+#include "block/block-parent.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/iothread.h"
 #include "block/export.h"
@@ -362,3 +363,46 @@ BlockExportInfoList *qmp_query_block_exports(Error **errp)
 
     return head;
 }
+
+static int blk_exp_find_child(const char *parent_id, const char *child_name,
+                              BlockDriverState *child_bs,
+                              BdrvChild **child, Error **errp)
+{
+    BlockExport *exp;
+
+    exp = blk_exp_find(parent_id);
+    if (exp == NULL) {
+        return 0;
+    }
+
+    if (child_name && strcmp(child_name, "root")) {
+        error_setg(errp, "Block export may have only 'root' child");
+        return -EINVAL;
+    }
+
+    if (!exp->blk || !blk_root(exp->blk)) {
+        error_setg(errp, "Export '%s' does not have a block driver child",
+                   parent_id);
+        return -EINVAL;
+    }
+
+    if (child_bs && blk_bs(exp->blk) != child_bs) {
+        error_setg(errp, "Export '%s' root child doesn't match", parent_id);
+        return -EINVAL;
+    }
+
+    *child = blk_root(exp->blk);
+    return 1;
+}
+
+BlockParentClass block_parent_export = {
+    .name = "block export",
+    .find_child = blk_exp_find_child,
+};
+
+static void export_init(void)
+{
+    block_parent_class_register(&block_parent_export);
+}
+
+block_init(export_init);
