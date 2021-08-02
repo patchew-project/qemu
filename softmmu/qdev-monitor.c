@@ -819,7 +819,12 @@ void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp)
     object_unref(OBJECT(dev));
 }
 
-static DeviceState *find_device_state(const char *id, Error **errp)
+/*
+ * Returns: 1 when found, @dev set
+ *          0 not found, @dev and @errp untouched
+ *         <0 error, or id is ambiguous, @errp set
+ */
+static int find_device_state(const char *id, DeviceState **dev, Error **errp)
 {
     Object *obj;
 
@@ -835,17 +840,16 @@ static DeviceState *find_device_state(const char *id, Error **errp)
     }
 
     if (!obj) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", id);
-        return NULL;
+        return 0;
     }
 
     if (!object_dynamic_cast(obj, TYPE_DEVICE)) {
         error_setg(errp, "%s is not a hotpluggable device", id);
-        return NULL;
+        return -EINVAL;
     }
 
-    return DEVICE(obj);
+    *dev = DEVICE(obj);
+    return 1;
 }
 
 void qdev_unplug(DeviceState *dev, Error **errp)
@@ -894,16 +898,25 @@ void qdev_unplug(DeviceState *dev, Error **errp)
 
 void qmp_device_del(const char *id, Error **errp)
 {
-    DeviceState *dev = find_device_state(id, errp);
-    if (dev != NULL) {
-        if (dev->pending_deleted_event) {
-            error_setg(errp, "Device %s is already in the "
-                             "process of unplug", id);
-            return;
-        }
+    int ret;
+    DeviceState *dev;
 
-        qdev_unplug(dev, errp);
+    ret = find_device_state(id, &dev, errp);
+    if (ret <= 0) {
+        if (ret == 0) {
+            error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                      "Device '%s' not found", id);
+        }
+        return;
     }
+
+    if (dev->pending_deleted_event) {
+        error_setg(errp, "Device %s is already in the "
+                         "process of unplug", id);
+        return;
+    }
+
+    qdev_unplug(dev, errp);
 }
 
 void hmp_device_add(Monitor *mon, const QDict *qdict)
@@ -925,11 +938,16 @@ void hmp_device_del(Monitor *mon, const QDict *qdict)
 
 BlockBackend *blk_by_qdev_id(const char *id, Error **errp)
 {
+    int ret;
     DeviceState *dev;
     BlockBackend *blk;
 
-    dev = find_device_state(id, errp);
-    if (dev == NULL) {
+    ret = find_device_state(id, &dev, errp);
+    if (ret <= 0) {
+        if (ret == 0) {
+            error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                      "Device '%s' not found", id);
+        }
         return NULL;
     }
 
