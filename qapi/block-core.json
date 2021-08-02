@@ -5433,3 +5433,81 @@
 { 'command': 'blockdev-snapshot-delete-internal-sync',
   'data': { 'device': 'str', '*id': 'str', '*name': 'str'},
   'returns': 'SnapshotInfo' }
+
+##
+# @BlockdevReplaceParentsMode:
+#
+# Alternative (to directly set @parent) way to chose parents in
+# @blockdev-replace
+#
+# @exactly-one: Exactly one parent should match a condition, otherwise
+#               @blockdev-replace fails.
+#
+# @all: All matching parents are taken into account. If replacing lead
+#       to loops in block graph, @blockdev-replace fails.
+#
+# @auto: Same as @all, but automatically skip replacing parents if it
+#        leads to loops in block graph.
+#
+# Since: 6.2
+##
+{ 'enum': 'BlockdevReplaceParentsMode',
+  'data': ['exactly-one', 'all', 'auto'] }
+
+##
+# @BlockdevReplace:
+#
+# Declaration of one replacement.
+#
+# @parent: id of parent. It may be qdev or block export or simple
+#          node-name. If id is ambiguous (for example node-name of
+#          some BDS equals to block export name), blockdev-replace
+#          fails. If not specified, blockdev-replace goes through
+#          @parents-mode scenario, see below. Note, that @parent and
+#          @parents-mode can't be specified simultaneously.
+#          If @parent is specified, only one edge is selected. If
+#          several edges match the condition, blockdev-replace fails.
+#
+# @edge: name of the child. If omitted, any child name matches.
+#
+# @child: node-name of the child. If omitted, any child matches.
+#         Must be present if @parent is not specified.
+#
+# @parents-mode: declares how to select edge (or edges) when @parent
+#                is omitted. Default is 'one'.
+#
+# Since: 6.2
+#
+# Examples:
+#
+# 1. Change root node of some device.
+#
+# Note, that @edge name is omitted, as
+# devices always has only one child. As well, no need in specifying
+# old @child.
+#
+# -> { "parent": "device0", "new-child": "some-node-name" }
+#
+# 2. Insert copy-before-write filter.
+#
+# Assume, after blockdev-add we have block-node 'source', with several
+# writing parents and one copy-before-write 'filter' parent. And we want
+# to actually insert the filter. We do:
+#
+# -> { "child": "source", "parent-mode": "auto", "new-child": "filter" }
+#
+# All parents of source would be switched to 'filter' node, except for
+# 'filter' node itself (otherwise, it will make a loop in block-graph).
+##
+{ 'struct': 'BlockdevReplace',
+  'data': { '*parent': 'str', '*edge': 'str', '*child': 'str',
+            '*parents-mode': 'BlockdevReplaceParentsMode',
+            'new-child': 'str' } }
+
+##
+# @blockdev-replace:
+#
+# Do one or several replacements transactionally.
+##
+{ 'command': 'blockdev-replace',
+  'data': { 'replacements': ['BlockdevReplace'] } }

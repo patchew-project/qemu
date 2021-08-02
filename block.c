@@ -41,6 +41,7 @@
 #include "qapi/qmp/qnull.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi/qobject-output-visitor.h"
+#include "qapi/qapi-commands-block.h"
 #include "qapi/qapi-visit-block-core.h"
 #include "sysemu/block-backend.h"
 #include "qemu/notify.h"
@@ -7715,6 +7716,87 @@ BlockDriverState *bdrv_skip_filters(BlockDriverState *bs)
 BlockDriverState *bdrv_backing_chain_next(BlockDriverState *bs)
 {
     return bdrv_skip_filters(bdrv_cow_bs(bdrv_skip_filters(bs)));
+}
+
+void qmp_blockdev_replace(BlockdevReplaceList *list, Error **errp)
+{
+    int ret;
+    Transaction *tran = tran_new();
+    g_autoptr(GHashTable) found = NULL;
+    g_autoptr(GSList) refresh_list = NULL;
+    g_autoptr(GSList) touched_list = NULL;
+    GSList *x;
+
+    for ( ; list; list = list->next) {
+        BlockdevReplace *repl = list->value;
+        BlockDriverState *child_bs = NULL, *new_child_bs;
+        BlockdevReplaceParentsMode mode;
+        BdrvChild *child;
+
+        if (repl->has_child) {
+            child_bs = bdrv_find_node(repl->child);
+            if (!child_bs) {
+                error_setg(errp, "Node '%s' not found", repl->child);
+                goto fail;
+            }
+        }
+
+        new_child_bs = bdrv_find_node(repl->new_child);
+        if (!new_child_bs) {
+            error_setg(errp, "Node '%s' not found", repl->new_child);
+            goto fail;
+        }
+
+        if (repl->has_parent) {
+            if (repl->has_parents_mode) {
+                error_setg(errp, "parent and parents-mode field must "
+                           "not be set simultaneously.");
+                goto fail;
+            }
+
+            child = block_find_child(repl->parent, repl->edge, child_bs, errp);
+            if (!child) {
+                goto fail;
+            }
+
+            touched_list = g_slist_prepend(touched_list, child->bs);
+            touched_list = g_slist_prepend(touched_list, new_child_bs);
+            bdrv_replace_child_tran(child, new_child_bs, tran);
+            continue;
+        }
+
+        if (!repl->has_child) {
+            error_setg(errp, "At least one of parent and child fields "
+                       "should be specified.");
+            goto fail;
+        }
+
+        mode = repl->has_parents_mode ? repl->parents_mode :
+            BLOCKDEV_REPLACE_PARENTS_MODE_EXACTLY_ONE;
+
+        touched_list = g_slist_prepend(touched_list, child_bs);
+        touched_list = g_slist_prepend(touched_list, new_child_bs);
+        ret = bdrv_replace_node_noperm(child_bs, new_child_bs,
+            mode == BLOCKDEV_REPLACE_PARENTS_MODE_AUTO,
+            repl->edge,
+            mode == BLOCKDEV_REPLACE_PARENTS_MODE_EXACTLY_ONE,
+            tran, errp);
+        if (ret < 0) {
+            goto fail;
+        }
+    }
+
+    for (x = touched_list; x; x = x->next) {
+        refresh_list = bdrv_topological_dfs(refresh_list, found, x->data);
+    }
+
+    ret = bdrv_list_refresh_perms(refresh_list, NULL, tran, errp);
+
+    tran_finalize(tran, ret);
+    return;
+
+fail:
+    tran_abort(tran);
 }
 
 static void block_c_init(void)
