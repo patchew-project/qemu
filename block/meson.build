@@ -10,6 +10,7 @@ block_ss.add(files(
   'blkverify.c',
   'block-backend.c',
   'block-copy.c',
+  'block-parent.c',
   'commit.c',
   'copy-on-read.c',
   'preallocate.c',
