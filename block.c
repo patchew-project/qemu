@@ -26,6 +26,7 @@
 #include "qemu/osdep.h"
 #include "block/trace.h"
 #include "block/block_int.h"
+#include "block/block-parent.h"
 #include "block/blockjob.h"
 #include "block/fuse.h"
 #include "block/nbd.h"
@@ -7501,6 +7502,47 @@ int bdrv_make_empty(BdrvChild *c, Error **errp)
     return 0;
 }
 
+static int bdrv_find_child(const char *parent_id, const char *child_name,
+                           BlockDriverState *child_bs, BdrvChild **child,
+                           Error **errp)
+{
+    BdrvChild *c, *found = NULL;
+    BlockDriverState *bs;
+
+    bs = bdrv_find_node(parent_id);
+    if (!bs) {
+        return 0;
+    }
+
+    QLIST_FOREACH(c, &bs->children, next) {
+        if ((!child_name || strcmp(c->name, child_name) == 0) &&
+            (!child_bs || child_bs == c->bs))
+        {
+            if (found) {
+                error_setg(errp, "node '%s' has more than one matching child",
+                           parent_id);
+                return -EINVAL;
+            } else {
+                found = c;
+            }
+        }
+    }
+
+    if (!found) {
+        error_setg(errp, "node '%s' exists but it doesn't have matching child",
+                   parent_id);
+        return -EINVAL;
+    }
+
+    *child = found;
+    return 1;
+}
+
+BlockParentClass block_parent_bdrv = {
+    .name = "block driver",
+    .find_child = bdrv_find_child,
+};
+
 /*
  * Return the child that @bs acts as an overlay for, and from which data may be
  * copied in COW or COR operations.  Usually this is the backing file.
@@ -7653,3 +7695,10 @@ BlockDriverState *bdrv_backing_chain_next(BlockDriverState *bs)
 {
     return bdrv_skip_filters(bdrv_cow_bs(bdrv_skip_filters(bs)));
 }
+
+static void block_c_init(void)
+{
+    block_parent_class_register(&block_parent_bdrv);
+}
+
+block_init(block_c_init);
