@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "block/block-parent.h"
 #include "hw/sysbus.h"
 #include "monitor/hmp.h"
 #include "monitor/monitor.h"
@@ -1023,3 +1024,44 @@ bool qmp_command_available(const QmpCommand *cmd, Error **errp)
     }
     return true;
 }
+
+static int qdev_find_child(const char *parent_id, const char *child_name,
+                           BlockDriverState *child_bs,
+                           BdrvChild **child, Error **errp)
+{
+    int ret;
+    DeviceState *dev;
+    BlockBackend *blk;
+
+    ret = find_device_state(parent_id, &dev, errp);
+    if (ret <= 0) {
+        return ret;
+    }
+
+    blk = blk_by_dev(dev);
+    if (!blk || !blk_root(blk)) {
+        error_setg(errp, "Device '%s' does not have a block device backend",
+                   parent_id);
+        return -EINVAL;
+    }
+
+    if (child_bs && blk_bs(blk) != child_bs) {
+        error_setg(errp, "Root child of device '%s' doesn't match", parent_id);
+        return -EINVAL;
+    }
+
+    *child = blk_root(blk);
+    return 1;
+}
+
+BlockParentClass block_parent_qdev = {
+    .name = "qdev",
+    .find_child = qdev_find_child,
+};
+
+static void qdev_monitor_init(void)
+{
+    block_parent_class_register(&block_parent_qdev);
+}
+
+block_init(qdev_monitor_init);
