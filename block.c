@@ -4894,13 +4894,22 @@ static void bdrv_remove_filter_or_cow_child(BlockDriverState *bs,
 
 static int bdrv_replace_node_noperm(BlockDriverState *from,
                                     BlockDriverState *to,
-                                    bool auto_skip, Transaction *tran,
+                                    bool auto_skip,
+                                    const char *edge_name,
+                                    bool exactly_one,
+                                    Transaction *tran,
                                     Error **errp)
 {
     BdrvChild *c, *next;
+    bool found = false;
+
+    assert(!(auto_skip && exactly_one));
 
     QLIST_FOREACH_SAFE(c, &from->parents, next_parent, next) {
         assert(c->bs == from);
+        if (edge_name && strcmp(edge_name, c->name)) {
+            continue;
+        }
         if (!should_update_child(c, to)) {
             if (auto_skip) {
                 continue;
@@ -4914,7 +4923,17 @@ static int bdrv_replace_node_noperm(BlockDriverState *from,
                        c->name, from->node_name);
             return -EPERM;
         }
+        if (exactly_one && found) {
+            error_setg(errp, "More than one matching parents found");
+            return -EINVAL;
+        }
+        found = true;
         bdrv_replace_child_tran(c, to, tran);
+    }
+
+    if (exactly_one && !found) {
+        error_setg(errp, "No one matching parents found");
+        return -EINVAL;
     }
 
     return 0;
@@ -4966,7 +4985,8 @@ static int bdrv_replace_node_common(BlockDriverState *from,
      * permissions based on new graph. If we fail, we'll roll-back the
      * replacement.
      */
-    ret = bdrv_replace_node_noperm(from, to, auto_skip, tran, errp);
+    ret = bdrv_replace_node_noperm(from, to, auto_skip, NULL, false,
+                                   tran, errp);
     if (ret < 0) {
         goto out;
     }
@@ -5035,7 +5055,8 @@ int bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
         goto out;
     }
 
-    ret = bdrv_replace_node_noperm(bs_top, bs_new, true, tran, errp);
+    ret = bdrv_replace_node_noperm(bs_top, bs_new, true, NULL, false,
+                                   tran, errp);
     if (ret < 0) {
         goto out;
     }
