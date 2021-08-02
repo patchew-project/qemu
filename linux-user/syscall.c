@@ -137,6 +137,9 @@
 #ifndef CLONE_IO
 #define CLONE_IO                0x80000000      /* Clone io context */
 #endif
+#ifndef CLONE_PIDFD
+#define CLONE_PIDFD             0x00001000      /* set if a pidfd should be placed in parent */
+#endif
 
 /* We can't directly call the host clone syscall, because this will
  * badly confuse libc (breaking mutexes, for example). So we must
@@ -163,7 +166,8 @@
 /* Flags for fork which we can implement within QEMU itself */
 #define CLONE_OPTIONAL_FORK_FLAGS               \
     (CLONE_SETTLS | CLONE_PARENT_SETTID |       \
-     CLONE_CHILD_CLEARTID | CLONE_CHILD_SETTID)
+     CLONE_CHILD_CLEARTID | CLONE_CHILD_SETTID | \
+     CLONE_PIDFD)
 
 /* Flags for thread creation which we can implement within QEMU itself */
 #define CLONE_OPTIONAL_THREAD_FLAGS                             \
@@ -488,6 +492,39 @@ _syscall4(int, sys_prlimit64, pid_t, pid, int, resource,
           struct host_rlimit64 *, old_limit)
 #endif
 
+#if defined __NR_clone2
+#define __NR_sys_clone2 __NR_clone2
+_syscall6(int, sys_clone2, int, flags, void *, child_stack, size_t, stack_size,
+          int *, ptid, int *, ctid, void *, newtls);
+#else
+#define __NR_sys_clone __NR_clone
+#if defined __cris__ || defined __s390x__
+_syscall5(int, sys_clone, void *, child_stack, int, flags, int *, ptid,
+          void *, newtls, int *, ctid);
+#elif defined __microblaze__
+_syscall6(int, sys_clone, int, flags, void *, child_stack, size_t, stack_size,
+          int *, ptid, void *, newtls, int *, ctid);
+#else
+/*
+ * Note: ctid and newtls are swapped on some architectures, but both are
+ * passed as NULL only for now.
+ */
+_syscall5(int, sys_clone, int, flags, void *, child_stack, int *, ptid,
+          int *, ctid, void *, newtls);
+#endif
+#endif
+static int sys_clone_pidfd(int flags, int *pidfd)
+{
+#ifdef __NR_clone2
+    return sys_clone2(flags, NULL, 0, pidfd, NULL, NULL);
+#elif defined __cris__ || defined __s390x__
+    return sys_clone(NULL, flags, pidfd, NULL, NULL);
+#elif defined __microblaze__
+    return sys_clone(flags, NULL, 0, pidfd, NULL, NULL);
+#else
+    return sys_clone(flags, NULL, pidfd, NULL, NULL);
+#endif
+}
 
 #if defined(TARGET_NR_timer_create)
 /* Maximum of 32 active POSIX timers allowed at any one time. */
@@ -6346,12 +6383,17 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
     CPUState *new_cpu;
     CPUArchState *new_env;
     sigset_t sigmask;
+    int pidfd;
 
     flags &= ~CLONE_IGNORED_FLAGS;
 
     /* Emulate vfork() with fork() */
     if (flags & CLONE_VFORK)
         flags &= ~(CLONE_VFORK | CLONE_VM);
+
+    /* Only basic fork-like clone is supported with CLONE_PIDFD for now. */
+    if (flags & CLONE_PIDFD && flags & ~(CLONE_PIDFD|CSIGNAL))
+        return -TARGET_EINVAL;
 
     if (flags & CLONE_VM) {
         TaskState *parent_ts = (TaskState *)cpu->opaque;
@@ -6451,7 +6493,11 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         }
 
         fork_start();
-        ret = fork();
+        if (flags & CLONE_PIDFD) {
+            ret = sys_clone_pidfd(flags, &pidfd);
+        } else {
+            ret = fork();
+        }
         if (ret == 0) {
             /* Child Process.  */
             cpu_clone_regs_child(env, newsp, flags);
@@ -6474,6 +6520,8 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         } else {
             cpu_clone_regs_parent(env, flags);
             fork_end(0);
+            if (flags & CLONE_PIDFD)
+                put_user_u32(pidfd, parent_tidptr);
         }
     }
     return ret;
