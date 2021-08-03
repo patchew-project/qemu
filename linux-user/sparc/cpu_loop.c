@@ -272,6 +272,17 @@ void cpu_loop (CPUSPARCState *env)
                 queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
             }
             break;
+        case TT_UNALIGNED:
+            info.si_signo = TARGET_SIGBUS;
+            info.si_errno = 0;
+            info.si_code = TARGET_BUS_ADRALN;
+#ifdef TARGET_SPARC64
+            info._sifields._sigfault._addr = env->dmmu.sfar;
+#else
+            info._sifields._sigfault._addr = env->mmuregs[4];
+#endif
+            queue_signal(env, info.si_signo, QEMU_SI_FAULT, &info);
+            break;
         case EXCP_DEBUG:
             info.si_signo = TARGET_SIGTRAP;
             info.si_errno = 0;
