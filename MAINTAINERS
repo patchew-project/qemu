@@ -3423,11 +3423,11 @@ F: tests/tcg/Makefile
 F: tests/tcg/Makefile.include
 
 Acceptance (Integration) Testing with the Avocado framework
-W: https://trello.com/b/6Qi1pxVn/avocado-qemu
-R: Cleber Rosa <crosa@redhat.com>
+M: Cleber Rosa <crosa@redhat.com>
 R: Philippe Mathieu-Daudé <philmd@redhat.com>
 R: Wainer dos Santos Moschetta <wainersm@redhat.com>
-S: Odd Fixes
+S: Maintained
+F: tests/Makefile.include
 F: tests/acceptance/
 
 Documentation
