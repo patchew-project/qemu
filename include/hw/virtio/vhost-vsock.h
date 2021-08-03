@@ -23,6 +23,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(VHostVSock, VHOST_VSOCK)
 typedef struct {
     uint64_t guest_cid;
     char *vhostfd;
+    bool enable_dgram;
 } VHostVSockConf;
 
 struct VHostVSock {
@@ -32,5 +33,8 @@ struct VHostVSock {
 
     /*< public >*/
 };
+
+#define MAX_VQS_WITHOUT_DGRAM 2
+#define MAX_VQS_WITH_DGRAM 4
 
 #endif /* QEMU_VHOST_VSOCK_H */

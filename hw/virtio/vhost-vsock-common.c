@@ -17,6 +17,8 @@
 #include "hw/virtio/vhost-vsock.h"
 #include "qemu/iov.h"
 #include "monitor/monitor.h"
+#include <sys/ioctl.h>
+#include <linux/vhost.h>
 
 int vhost_vsock_common_start(VirtIODevice *vdev)
 {
@@ -196,9 +198,39 @@ int vhost_vsock_common_post_load(void *opaque, int version_id)
     return 0;
 }
 
-void vhost_vsock_common_realize(VirtIODevice *vdev, const char *name)
+static int vhost_vsock_get_max_qps(bool enable_dgram)
+{
+    uint64_t features;
+    int ret;
+    int fd = -1;
+
+    if (!enable_dgram)
+        return MAX_VQS_WITHOUT_DGRAM;
+
+    fd = qemu_open_old("/dev/vhost-vsock", O_RDONLY);
+    if (fd == -1) {
+        error_report("vhost-vsock: failed to open device. %s", strerror(errno));
+        return -1;
+    }
+
+    ret = ioctl(fd, VHOST_GET_FEATURES, &features);
+    if (ret) {
+        error_report("vhost-vsock: failed to read  device. %s", strerror(errno));
+        qemu_close(fd);
+        return ret;
+    }
+
+    qemu_close(fd);
+    if (features & (1 << VIRTIO_VSOCK_F_DGRAM))
+        return MAX_VQS_WITH_DGRAM;
+
+    return MAX_VQS_WITHOUT_DGRAM;
+}
+
+void vhost_vsock_common_realize(VirtIODevice *vdev, const char *name, bool enable_dgram)
 {
     VHostVSockCommon *vvc = VHOST_VSOCK_COMMON(vdev);
+    int nvqs = MAX_VQS_WITHOUT_DGRAM;
 
     virtio_init(vdev, name, VIRTIO_ID_VSOCK,
                 sizeof(struct virtio_vsock_config));
@@ -209,12 +241,24 @@ void vhost_vsock_common_realize(VirtIODevice *vdev, const char *name)
     vvc->trans_vq = virtio_add_queue(vdev, VHOST_VSOCK_QUEUE_SIZE,
                                        vhost_vsock_common_handle_output);
 
+    nvqs = vhost_vsock_get_max_qps(enable_dgram);
+
+    if (nvqs < 0)
+        nvqs = MAX_VQS_WITHOUT_DGRAM;
+
+    if (nvqs == MAX_VQS_WITH_DGRAM) {
+        vvc->dgram_recv_vq = virtio_add_queue(vdev, VHOST_VSOCK_QUEUE_SIZE,
+                                              vhost_vsock_common_handle_output);
+        vvc->dgram_trans_vq = virtio_add_queue(vdev, VHOST_VSOCK_QUEUE_SIZE,
+                                               vhost_vsock_common_handle_output);
+    }
+
     /* The event queue belongs to QEMU */
     vvc->event_vq = virtio_add_queue(vdev, VHOST_VSOCK_QUEUE_SIZE,
                                        vhost_vsock_common_handle_output);
 
-    vvc->vhost_dev.nvqs = ARRAY_SIZE(vvc->vhost_vqs);
-    vvc->vhost_dev.vqs = vvc->vhost_vqs;
+    vvc->vhost_dev.nvqs = nvqs;
+    vvc->vhost_dev.vqs = g_new0(struct vhost_virtqueue, vvc->vhost_dev.nvqs);
 
     vvc->post_load_timer = NULL;
 }
@@ -227,6 +271,14 @@ void vhost_vsock_common_unrealize(VirtIODevice *vdev)
 
     virtio_delete_queue(vvc->recv_vq);
     virtio_delete_queue(vvc->trans_vq);
+    if (vvc->vhost_dev.nvqs == MAX_VQS_WITH_DGRAM) {
+        virtio_delete_queue(vvc->dgram_recv_vq);
+        virtio_delete_queue(vvc->dgram_trans_vq);
+    }
+
+    if (vvc->vhost_dev.vqs)
+        g_free(vvc->vhost_dev.vqs);
+
     virtio_delete_queue(vvc->event_vq);
     virtio_cleanup(vdev);
 }
