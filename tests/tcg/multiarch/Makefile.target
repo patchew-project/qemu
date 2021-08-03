@@ -10,7 +10,11 @@ MULTIARCH_SRC=$(SRC_PATH)/tests/tcg/multiarch
 # Set search path for all sources
 VPATH 		+= $(MULTIARCH_SRC)
 MULTIARCH_SRCS   =$(notdir $(wildcard $(MULTIARCH_SRC)/*.c))
-MULTIARCH_TESTS  =$(filter-out float_helpers, $(MULTIARCH_SRCS:.c=))
+MULTIARCH_SKIP=float_helpers
+ifeq ($(CONFIG_LINUX),)
+MULTIARCH_SKIP+=linux-test
+endif
+MULTIARCH_TESTS  =$(filter-out $(MULTIARCH_SKIP),$(MULTIARCH_SRCS:.c=))
 
 #
 # The following are any additional rules needed to build things
