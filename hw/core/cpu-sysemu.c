@@ -20,8 +20,11 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "exec/memory.h"
 #include "hw/core/cpu.h"
 #include "hw/core/sysemu-cpu-ops.h"
+#include "hw/qdev-properties.h"
+#include "cpu-common.h"
 
 bool cpu_paging_enabled(const CPUState *cpu)
 {
@@ -142,4 +145,25 @@ GuestPanicInformation *cpu_get_crash_info(CPUState *cpu)
         res = cc->sysemu_ops->get_crash_info(cpu);
     }
     return res;
+}
+
+/*
+ * This can't go in hw/core/cpu-common.c because that file is compiled only
+ * once for both user-mode and system builds.
+ */
+static Property cpu_sysemu_props[] = {
+    /*
+     * Create a memory property for softmmu CPU object, so users can wire
+     * up its memory. The default if no link is set up is to use the
+     * system address space.
+     */
+    DEFINE_PROP_LINK("memory", CPUState, memory, TYPE_MEMORY_REGION,
+                     MemoryRegion *),
+    DEFINE_PROP_BOOL("start-powered-off", CPUState, start_powered_off, false),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+void cpu_class_init_props(DeviceClass *dc)
+{
+    device_class_set_props(dc, cpu_sysemu_props);
 }
