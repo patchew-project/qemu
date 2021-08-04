@@ -9,8 +9,7 @@ modifying QEMU's source code.
    :maxdepth: 2
    :includehidden:
 
-   code-of-conduct
-   conflict-resolution
+   section-community-governance
    build-system
    style
    kconfig
