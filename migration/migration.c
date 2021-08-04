@@ -3568,6 +3568,10 @@ static void migration_update_counters(MigrationState *s,
     transferred = current_bytes - s->iteration_initial_bytes;
     time_spent = current_time - s->iteration_start_time;
     bandwidth = (double)transferred / time_spent;
+    if (memcrypt_enabled() &&
+        s->parameters.downtime_limit < 1000) {
+        s->parameters.downtime_limit = 1000;
+    }
     s->threshold_size = bandwidth * s->parameters.downtime_limit;
 
     s->mbps = (((double) transferred * 8.0) /
