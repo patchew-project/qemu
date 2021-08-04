@@ -40,6 +40,10 @@
 #define TYPE_SEV_GUEST "sev-guest"
 OBJECT_DECLARE_SIMPLE_TYPE(SevGuestState, SEV_GUEST)
 
+struct shared_region {
+    unsigned long gfn_start, gfn_end;
+    QTAILQ_ENTRY(shared_region) list;
+};
 
 /**
  * SevGuestState:
@@ -83,6 +87,8 @@ struct SevGuestState {
     uint32_t reset_cs;
     uint32_t reset_ip;
     bool reset_data_valid;
+
+    QTAILQ_HEAD(, shared_region) shared_regions_list;
 };
 
 #define DEFAULT_GUEST_POLICY    0x1 /* disable debug */
@@ -996,6 +1002,7 @@ int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
     add_migration_state_change_notifier(&sev_migration_state_notify);
 
     cgs_class->memory_encryption_ops = &sev_memory_encryption_ops;
+    QTAILQ_INIT(&sev->shared_regions_list);
 
     cgs->ready = true;
 
@@ -1497,6 +1504,104 @@ int sev_load_incoming_page(QEMUFile *f, uint8_t *ptr)
     }
 
     return sev_receive_update_data(f, ptr);
+}
+
+int sev_remove_shared_regions_list(unsigned long start, unsigned long end)
+{
+    SevGuestState *s = sev_guest;
+    struct shared_region *pos;
+
+    QTAILQ_FOREACH(pos, &s->shared_regions_list, list) {
+        unsigned long l, r;
+        unsigned long curr_gfn_end = pos->gfn_end;
+
+        /*
+         * Find if any intersection exists ?
+         * left bound for intersecting segment
+         */
+        l = MAX(start, pos->gfn_start);
+        /* right bound for intersecting segment */
+        r = MIN(end, pos->gfn_end);
+        if (l <= r) {
+            if (pos->gfn_start == l && pos->gfn_end == r) {
+                QTAILQ_REMOVE(&s->shared_regions_list, pos, list);
+            } else if (l == pos->gfn_start) {
+                pos->gfn_start = r;
+            } else if (r == pos->gfn_end) {
+                pos->gfn_end = l;
+            } else {
+                /* Do a de-merge -- split linked list nodes */
+                struct shared_region *shrd_region;
+
+                pos->gfn_end = l;
+                shrd_region = g_malloc0(sizeof(*shrd_region));
+                if (!shrd_region) {
+                    return 0;
+                }
+                shrd_region->gfn_start = r;
+                shrd_region->gfn_end = curr_gfn_end;
+                QTAILQ_INSERT_AFTER(&s->shared_regions_list, pos,
+                                    shrd_region, list);
+            }
+        }
+        if (end <= curr_gfn_end) {
+            break;
+        }
+    }
+    return 0;
+}
+
+int sev_add_shared_regions_list(unsigned long start, unsigned long end)
+{
+    struct shared_region *shrd_region;
+    struct shared_region *pos;
+    SevGuestState *s = sev_guest;
+
+    if (QTAILQ_EMPTY(&s->shared_regions_list)) {
+        shrd_region = g_malloc0(sizeof(*shrd_region));
+        if (!shrd_region) {
+            return -1;
+        }
+        shrd_region->gfn_start = start;
+        shrd_region->gfn_end = end;
+        QTAILQ_INSERT_TAIL(&s->shared_regions_list, shrd_region, list);
+        return 0;
+    }
+
+    /*
+     * shared regions list is a sorted list in ascending order
+     * of guest PA's and also merges consecutive range of guest PA's
+     */
+    QTAILQ_FOREACH(pos, &s->shared_regions_list, list) {
+        /* handle duplicate overlapping regions */
+        if (start >= pos->gfn_start && end <= pos->gfn_end) {
+            return 0;
+        }
+        if (pos->gfn_end < start) {
+            continue;
+        }
+        /* merge consecutive guest PA(s) -- forward merge */
+        if (pos->gfn_start <= start && pos->gfn_end >= start) {
+            pos->gfn_end = end;
+            return 0;
+        }
+        break;
+    }
+    /*
+     * Add a new node
+     */
+    shrd_region = g_malloc0(sizeof(*shrd_region));
+    if (!shrd_region) {
+        return -1;
+    }
+    shrd_region->gfn_start = start;
+    shrd_region->gfn_end = end;
+    if (pos) {
+        QTAILQ_INSERT_BEFORE(pos, shrd_region, list);
+    } else {
+        QTAILQ_INSERT_TAIL(&s->shared_regions_list, shrd_region, list);
+    }
+    return 1;
 }
 
 static void

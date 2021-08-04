@@ -29,5 +29,8 @@ int sev_inject_launch_secret(const char *hdr, const char *secret,
 
 int sev_es_save_reset_vector(void *flash_ptr, uint64_t flash_size);
 void sev_es_set_reset_vector(CPUState *cpu);
+int sev_remove_shared_regions_list(unsigned long gfn_start,
+                                   unsigned long gfn_end);
+int sev_add_shared_regions_list(unsigned long gfn_start, unsigned long gfn_end);
 
 #endif
