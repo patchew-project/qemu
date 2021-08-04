@@ -31,13 +31,77 @@
 #include "block/block_int.h"
 #include "block/qdict.h"
 #include "block/block-copy.h"
+#include "block/reqlist.h"
 
 #include "block/copy-before-write.h"
 
 typedef struct BDRVCopyBeforeWriteState {
     BlockCopyState *bcs;
     BdrvChild *target;
+    CoMutex lock;
+
+    BdrvDirtyBitmap *access_bitmap;
+    BdrvDirtyBitmap *done_bitmap;
+
+    BlockReqList frozen_read_reqs;
 } BDRVCopyBeforeWriteState;
+
+static BlockReq *add_read_req(BDRVCopyBeforeWriteState *s, uint64_t offset,
+                              uint64_t bytes)
+{
+    BlockReq *req = g_new(BlockReq, 1);
+
+    reqlist_init_req(&s->frozen_read_reqs, req, offset, bytes);
+
+    return req;
+}
+
+static void drop_read_req(BDRVCopyBeforeWriteState *s, BlockReq *req)
+{
+    reqlist_remove_req(req);
+    g_free(req);
+}
+
+/*
+ * Convenient function for thous who want to do fleecing read.
+ *
+ * If requested region starts in "done" area, i.e. data is already copied to
+ * copy-before-write target node, req is set to NULL, pnum is set to available
+ * bytes to read from target. User is free to read @pnum bytes from target.
+ * Still, user is responsible for concurrent discards on target.
+ *
+ * If requests region starts in "not done" area, i.e. we have to read from
+ * source node directly, than @pnum bytes of source node are frozen and
+ * guaranteed not be rewritten until user calls cbw_snapshot_read_unlock().
+ */
+int cbw_snapshot_read_lock(BlockDriverState *bs, int64_t offset,
+                           int64_t bytes, const BlockReq **req, int64_t *pnum)
+{
+    BDRVCopyBeforeWriteState *s = bs->opaque;
+    bool done;
+
+    QEMU_LOCK_GUARD(&s->lock);
+
+    if (bdrv_dirty_bitmap_next_zero(s->access_bitmap, offset, bytes) != -1) {
+        return -EACCES;
+    }
+
+    bdrv_dirty_bitmap_status(s->done_bitmap, offset, bytes, &done, pnum);
+    if (!done) {
+        *req = add_read_req(s, offset, *pnum);
+    }
+
+    return 0;
+}
+
+void cbw_snapshot_read_unlock(BlockDriverState *bs, const BlockReq *req)
+{
+    BDRVCopyBeforeWriteState *s = bs->opaque;
+
+    QEMU_LOCK_GUARD(&s->lock);
+
+    drop_read_req(s, (BlockReq *)req);
+}
 
 static coroutine_fn int cbw_co_preadv(
         BlockDriverState *bs, uint64_t offset, uint64_t bytes,
@@ -50,6 +114,7 @@ static coroutine_fn int cbw_do_copy_before_write(BlockDriverState *bs,
         uint64_t offset, uint64_t bytes, BdrvRequestFlags flags)
 {
     BDRVCopyBeforeWriteState *s = bs->opaque;
+    int ret;
     uint64_t off, end;
     int64_t cluster_size = block_copy_cluster_size(s->bcs);
 
@@ -60,7 +125,17 @@ static coroutine_fn int cbw_do_copy_before_write(BlockDriverState *bs,
     off = QEMU_ALIGN_DOWN(offset, cluster_size);
     end = QEMU_ALIGN_UP(offset + bytes, cluster_size);
 
-    return block_copy(s->bcs, off, end - off, true);
+    ret = block_copy(s->bcs, off, end - off, true);
+    if (ret < 0) {
+        return ret;
+    }
+
+    WITH_QEMU_LOCK_GUARD(&s->lock) {
+        bdrv_set_dirty_bitmap(s->done_bitmap, off, end - off);
+        reqlist_wait_all(&s->frozen_read_reqs, off, end - off, &s->lock);
+    }
+
+    return 0;
 }
 
 static int coroutine_fn cbw_co_pdiscard(BlockDriverState *bs,
@@ -148,7 +223,11 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
     BDRVCopyBeforeWriteState *s = bs->opaque;
-    BdrvDirtyBitmap *bitmap = NULL;
+    BdrvDirtyBitmap *bcs_bitmap, *bitmap = NULL;
+    bool ok;
+
+    qemu_co_mutex_init(&s->lock);
+    QLIST_INIT(&s->frozen_read_reqs);
 
     bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
                                BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
@@ -202,6 +281,23 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
         return -EINVAL;
     }
 
+    bcs_bitmap = block_copy_dirty_bitmap(s->bcs);
+
+    /* done_bitmap starts empty */
+    s->done_bitmap =
+        bdrv_create_dirty_bitmap(bs, block_copy_cluster_size(s->bcs), NULL,
+                                 errp);
+    bdrv_disable_dirty_bitmap(s->done_bitmap);
+    /* access_bitmap starts equal to bcs_bitmap */
+    s->access_bitmap =
+        bdrv_create_dirty_bitmap(bs, block_copy_cluster_size(s->bcs), NULL,
+                                 errp);
+    bdrv_disable_dirty_bitmap(s->access_bitmap);
+    ok = bdrv_dirty_bitmap_merge_internal(s->access_bitmap, bcs_bitmap, NULL,
+                                          true);
+    /* Merge fails iff bitmaps has different size */
+    assert(ok);
+
     return 0;
 }
 
@@ -211,6 +307,9 @@ static void cbw_close(BlockDriverState *bs)
 
     block_copy_state_free(s->bcs);
     s->bcs = NULL;
+
+    bdrv_release_dirty_bitmap(s->access_bitmap);
+    bdrv_release_dirty_bitmap(s->done_bitmap);
 }
 
 BlockDriver bdrv_cbw_filter = {

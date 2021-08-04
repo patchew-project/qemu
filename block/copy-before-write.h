@@ -28,6 +28,7 @@
 
 #include "block/block_int.h"
 #include "block/block-copy.h"
+#include "block/reqlist.h"
 
 BlockDriverState *bdrv_cbw_append(BlockDriverState *source,
                                   BlockDriverState *target,
@@ -35,5 +36,9 @@ BlockDriverState *bdrv_cbw_append(BlockDriverState *source,
                                   BlockCopyState **bcs,
                                   Error **errp);
 void bdrv_cbw_drop(BlockDriverState *bs);
+
+int cbw_snapshot_read_lock(BlockDriverState *bs, int64_t offset,
+                           int64_t bytes, const BlockReq **req, int64_t *pnum);
+void cbw_snapshot_read_unlock(BlockDriverState *bs, const BlockReq *req);
 
 #endif /* COPY_BEFORE_WRITE_H */
