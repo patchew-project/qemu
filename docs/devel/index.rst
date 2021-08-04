@@ -13,19 +13,11 @@ modifying QEMU's source code.
    section-development
    section-testing-debugging
    section-tcg
+   section-subsystems
    control-flow-integrity
-   loads-stores
-   memory
-   migration
-   atomics
    decodetree
-   bitops
-   ui
-   reset
    s390-dasd-ipl
-   clocks
    qom
-   modules
    block-coroutine-wrapper
    multi-process
    ebpf_rss
