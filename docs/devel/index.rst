@@ -14,11 +14,4 @@ modifying QEMU's source code.
    section-testing-debugging
    section-tcg
    section-subsystems
-   control-flow-integrity
-   decodetree
-   s390-dasd-ipl
-   qom
-   block-coroutine-wrapper
-   multi-process
-   ebpf_rss
-   vfio-migration
+   section-misc
