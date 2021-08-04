@@ -2074,6 +2074,14 @@ static bool encrypted_test_list(RAMState *rs, RAMBlock *block,
         return false;
     }
 
+    if (!strcmp(memory_region_name(block->mr), "system.flash0")) {
+        return true;
+    }
+
+    if (!strcmp(memory_region_name(block->mr), "system.flash1")) {
+        return false;
+    }
+
     /*
      * Translate page in ram_addr_t address space to GPA address
      * space using memory region.
