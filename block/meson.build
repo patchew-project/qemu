@@ -18,6 +18,7 @@ block_ss.add(files(
   'crypto.c',
   'dirty-bitmap.c',
   'filter-compress.c',
+  'fleecing.c',
   'io.c',
   'mirror.c',
   'nbd.c',
