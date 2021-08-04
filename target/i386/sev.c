@@ -142,6 +142,7 @@ static struct ConfidentialGuestMemoryEncryptionOps sev_memory_encryption_ops = {
     .save_setup = sev_save_setup,
     .save_outgoing_page = sev_save_outgoing_page,
     .load_incoming_page = sev_load_incoming_page,
+    .is_gfn_in_unshared_region = sev_is_gfn_in_unshared_region,
     .save_outgoing_shared_regions_list = sev_save_outgoing_shared_regions_list,
     .load_incoming_shared_regions_list = sev_load_incoming_shared_regions_list,
 };
@@ -1645,6 +1646,19 @@ int sev_load_incoming_shared_regions_list(QEMUFile *f)
         status = qemu_get_be32(f);
     }
     return 0;
+}
+
+bool sev_is_gfn_in_unshared_region(unsigned long gfn)
+{
+    SevGuestState *s = sev_guest;
+    struct shared_region *pos;
+
+    QTAILQ_FOREACH(pos, &s->shared_regions_list, list) {
+        if (gfn >= pos->gfn_start && gfn < pos->gfn_end) {
+            return false;
+        }
+    }
+    return true;
 }
 
 static void

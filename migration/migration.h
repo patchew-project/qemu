@@ -391,5 +391,6 @@ bool migration_rate_limit(void);
 void migration_cancel(void);
 
 void populate_vfio_info(MigrationInfo *info);
+bool memcrypt_enabled(void);
 
 #endif
