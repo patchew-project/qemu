@@ -205,6 +205,12 @@ def cgen_ifcond(ifcond: Union[str, List[str]]) -> str:
     return '(' + ') && ('.join(ifcond) + ')'
 
 
+def docgen_ifcond(ifcond: Union[str, List[str]]) -> str:
+    if not ifcond:
+        return ''
+    return ' and '.join(ifcond)
+
+
 def gen_if(cond: str) -> str:
     if not cond:
         return ''
