@@ -103,6 +103,17 @@ void cbw_snapshot_read_unlock(BlockDriverState *bs, const BlockReq *req)
     drop_read_req(s, (BlockReq *)req);
 }
 
+void cbw_snapshot_discard(BlockDriverState *bs, int64_t offset, int64_t bytes)
+{
+    BDRVCopyBeforeWriteState *s = bs->opaque;
+
+    WITH_QEMU_LOCK_GUARD(&s->lock) {
+        bdrv_reset_dirty_bitmap(s->access_bitmap, offset, bytes);
+    }
+
+    block_copy_reset(s->bcs, offset, bytes);
+}
+
 static coroutine_fn int cbw_co_preadv(
         BlockDriverState *bs, uint64_t offset, uint64_t bytes,
         QEMUIOVector *qiov, int flags)
