@@ -1399,6 +1399,24 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
         error_setg(&err, "The block-bitmap-mapping parameter can only be set "
                    "through QMP");
         break;
+    case MIGRATION_PARAMETER_SEV_PDH:
+        p->has_sev_pdh = true;
+        p->sev_pdh = g_new0(StrOrNull, 1);
+        p->sev_pdh->type = QTYPE_QSTRING;
+        visit_type_str(v, param, &p->sev_pdh->u.s, &err);
+        break;
+    case MIGRATION_PARAMETER_SEV_PLAT_CERT:
+        p->has_sev_plat_cert = true;
+        p->sev_plat_cert = g_new0(StrOrNull, 1);
+        p->sev_plat_cert->type = QTYPE_QSTRING;
+        visit_type_str(v, param, &p->sev_plat_cert->u.s, &err);
+        break;
+    case MIGRATION_PARAMETER_SEV_AMD_CERT:
+        p->has_sev_amd_cert = true;
+        p->sev_amd_cert = g_new0(StrOrNull, 1);
+        p->sev_amd_cert->type = QTYPE_QSTRING;
+        visit_type_str(v, param, &p->sev_amd_cert->u.s, &err);
+        break;
     default:
         assert(0);
     }

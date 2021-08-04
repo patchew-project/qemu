@@ -907,6 +907,12 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->announce_rounds = s->parameters.announce_rounds;
     params->has_announce_step = true;
     params->announce_step = s->parameters.announce_step;
+    params->has_sev_pdh = true;
+    params->sev_pdh = g_strdup(s->parameters.sev_pdh);
+    params->has_sev_plat_cert = true;
+    params->sev_plat_cert = g_strdup(s->parameters.sev_plat_cert);
+    params->has_sev_amd_cert = true;
+    params->sev_amd_cert = g_strdup(s->parameters.sev_amd_cert);
 
     if (s->parameters.has_block_bitmap_mapping) {
         params->has_block_bitmap_mapping = true;
@@ -1563,6 +1569,18 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
         dest->has_block_bitmap_mapping = true;
         dest->block_bitmap_mapping = params->block_bitmap_mapping;
     }
+    if (params->has_sev_pdh) {
+        assert(params->sev_pdh->type == QTYPE_QSTRING);
+        dest->sev_pdh = g_strdup(params->sev_pdh->u.s);
+    }
+    if (params->has_sev_plat_cert) {
+        assert(params->sev_plat_cert->type == QTYPE_QSTRING);
+        dest->sev_plat_cert = g_strdup(params->sev_plat_cert->u.s);
+    }
+    if (params->has_sev_amd_cert) {
+        assert(params->sev_amd_cert->type == QTYPE_QSTRING);
+        dest->sev_amd_cert = g_strdup(params->sev_amd_cert->u.s);
+    }
 }
 
 static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
@@ -1685,6 +1703,21 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
             QAPI_CLONE(BitmapMigrationNodeAliasList,
                        params->block_bitmap_mapping);
     }
+    if (params->has_sev_pdh) {
+        g_free(s->parameters.sev_pdh);
+        assert(params->sev_pdh->type == QTYPE_QSTRING);
+        s->parameters.sev_pdh = g_strdup(params->sev_pdh->u.s);
+    }
+    if (params->has_sev_plat_cert) {
+        g_free(s->parameters.sev_plat_cert);
+        assert(params->sev_plat_cert->type == QTYPE_QSTRING);
+        s->parameters.sev_plat_cert = g_strdup(params->sev_plat_cert->u.s);
+    }
+    if (params->has_sev_amd_cert) {
+        g_free(s->parameters.sev_amd_cert);
+        assert(params->sev_amd_cert->type == QTYPE_QSTRING);
+        s->parameters.sev_amd_cert = g_strdup(params->sev_amd_cert->u.s);
+    }
 }
 
 void qmp_migrate_set_parameters(MigrateSetParameters *params, Error **errp)
@@ -1704,6 +1737,27 @@ void qmp_migrate_set_parameters(MigrateSetParameters *params, Error **errp)
         qobject_unref(params->tls_hostname->u.n);
         params->tls_hostname->type = QTYPE_QSTRING;
         params->tls_hostname->u.s = strdup("");
+    }
+    /* TODO Rewrite "" to null instead */
+    if (params->has_sev_pdh
+        && params->sev_pdh->type == QTYPE_QNULL) {
+        qobject_unref(params->sev_pdh->u.n);
+        params->sev_pdh->type = QTYPE_QSTRING;
+        params->sev_pdh->u.s = strdup("");
+    }
+    /* TODO Rewrite "" to null instead */
+    if (params->has_sev_plat_cert
+        && params->sev_plat_cert->type == QTYPE_QNULL) {
+        qobject_unref(params->sev_plat_cert->u.n);
+        params->sev_plat_cert->type = QTYPE_QSTRING;
+        params->sev_plat_cert->u.s = strdup("");
+    }
+    /* TODO Rewrite "" to null instead */
+    if (params->has_sev_amd_cert
+        && params->sev_amd_cert->type == QTYPE_QNULL) {
+        qobject_unref(params->sev_amd_cert->u.n);
+        params->sev_amd_cert->type = QTYPE_QSTRING;
+        params->sev_amd_cert->u.s = strdup("");
     }
 
     migrate_params_test_apply(params, &tmp);
@@ -4233,6 +4287,9 @@ static void migration_instance_finalize(Object *obj)
     qemu_mutex_destroy(&ms->qemu_file_lock);
     g_free(params->tls_hostname);
     g_free(params->tls_creds);
+    g_free(params->sev_pdh);
+    g_free(params->sev_plat_cert);
+    g_free(params->sev_amd_cert);
     qemu_sem_destroy(&ms->wait_unplug_sem);
     qemu_sem_destroy(&ms->rate_limit_sem);
     qemu_sem_destroy(&ms->pause_sem);
@@ -4279,6 +4336,10 @@ static void migration_instance_init(Object *obj)
     params->has_announce_max = true;
     params->has_announce_rounds = true;
     params->has_announce_step = true;
+
+    params->sev_pdh = g_strdup("");
+    params->sev_plat_cert = g_strdup("");
+    params->sev_amd_cert = g_strdup("");
 
     qemu_sem_init(&ms->postcopy_pause_sem, 0);
     qemu_sem_init(&ms->postcopy_pause_rp_sem, 0);
