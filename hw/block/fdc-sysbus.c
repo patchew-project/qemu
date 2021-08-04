@@ -137,6 +137,7 @@ static const TypeInfo sysbus_fdc_common_typeinfo = {
     .class_init    = sysbus_fdc_common_class_init,
     .class_size    = sizeof(FDCtrlSysBusClass),
 };
+module_obj(TYPE_SYSBUS_FDC);
 
 static Property sysbus_fdc_properties[] = {
     DEFINE_PROP_SIGNED("fdtypeA", FDCtrlSysBus, state.qdev_for_drives[0].type,
@@ -164,6 +165,7 @@ static const TypeInfo sysbus_fdc_typeinfo = {
     .parent        = TYPE_SYSBUS_FDC,
     .class_init    = sysbus_fdc_class_init,
 };
+module_obj("sysbus-fdc");
 
 static Property sun4m_fdc_properties[] = {
     DEFINE_PROP_SIGNED("fdtype", FDCtrlSysBus, state.qdev_for_drives[0].type,
@@ -190,6 +192,7 @@ static const TypeInfo sun4m_fdc_typeinfo = {
     .parent        = TYPE_SYSBUS_FDC,
     .class_init    = sun4m_fdc_class_init,
 };
+module_obj("sun-fdtwo");
 
 static void sysbus_fdc_register_types(void)
 {
@@ -199,3 +202,4 @@ static void sysbus_fdc_register_types(void)
 }
 
 type_init(sysbus_fdc_register_types)
+module_dep("hw-block-fdc");

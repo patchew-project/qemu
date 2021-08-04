@@ -74,6 +74,7 @@ static const TypeInfo floppy_bus_info = {
     .parent = TYPE_BUS,
     .instance_size = sizeof(FloppyBus),
 };
+module_obj(TYPE_FLOPPY_BUS);
 
 static void floppy_bus_create(FDCtrl *fdc, FloppyBus *bus, DeviceState *dev)
 {
@@ -564,6 +565,7 @@ static const TypeInfo floppy_drive_info = {
     .instance_size = sizeof(FloppyDrive),
     .class_init = floppy_drive_class_init,
 };
+module_obj(TYPE_FLOPPY_DRIVE);
 
 /********************************************************/
 /* Intel 82078 floppy disk controller emulation          */

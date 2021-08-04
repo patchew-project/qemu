@@ -259,6 +259,7 @@ static const TypeInfo isa_fdc_info = {
     .class_init    = isabus_fdc_class_init,
     .instance_init = isabus_fdc_instance_init,
 };
+module_obj(TYPE_ISA_FDC);
 
 static void isa_fdc_register_types(void)
 {
@@ -266,3 +267,4 @@ static void isa_fdc_register_types(void)
 }
 
 type_init(isa_fdc_register_types)
+module_dep("hw-block-fdc");
