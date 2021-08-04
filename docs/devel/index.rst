@@ -11,19 +11,15 @@ modifying QEMU's source code.
 
    section-community-governance
    section-development
-   testing
-   fuzzing
+   section-testing-debugging
    control-flow-integrity
    loads-stores
    memory
    migration
    atomics
-   ci
-   qtest
    decodetree
    tcg
    tcg-icount
-   tracing
    multi-thread-tcg
    tcg-plugins
    bitops
