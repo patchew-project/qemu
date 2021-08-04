@@ -14,3 +14,6 @@ kvm_sev_attestation_report(const char *mnonce, const char *data) "mnonce %s data
 kvm_sev_send_start(uint64_t pdh, int l1, uint64_t plat, int l2, uint64_t amd, int l3) "pdh 0x%" PRIx64 " len %d plat 0x%" PRIx64 " len %d amd 0x%" PRIx64 " len %d"
 kvm_sev_send_update_data(void *src, void *dst, int len) "guest %p trans %p len %d"
 kvm_sev_send_finish(void) ""
+kvm_sev_receive_start(int policy, void *session, void *pdh) "policy 0x%x session %p pdh %p"
+kvm_sev_receive_update_data(void *src, void *dst, int len, void *hdr, int hdr_len) "guest %p trans %p len %d hdr %p hdr_len %d"
+kvm_sev_receive_finish(void) ""
