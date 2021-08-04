@@ -20,6 +20,7 @@
 
 #ifndef CONFIG_USER_ONLY
 
+#include <qapi/qapi-types-migration.h>
 #include "qom/object.h"
 
 #define TYPE_CONFIDENTIAL_GUEST_SUPPORT "confidential-guest-support"
@@ -53,8 +54,34 @@ struct ConfidentialGuestSupport {
     bool ready;
 };
 
+/**
+ * The functions registers with ConfidentialGuestMemoryEncryptionOps will be
+ * used during the encrypted guest migration.
+ */
+struct ConfidentialGuestMemoryEncryptionOps {
+    /* Initialize the platform specific state before starting the migration */
+    int (*save_setup)(MigrationParameters *p);
+
+    /* Write the encrypted page and metadata associated with it */
+    int (*save_outgoing_page)(QEMUFile *f, uint8_t *ptr, uint32_t size,
+                              uint64_t *bytes_sent);
+
+    /* Load the incoming encrypted page into guest memory */
+    int (*load_incoming_page)(QEMUFile *f, uint8_t *ptr);
+
+    /* Check if gfn is in shared/unencrypted region */
+    bool (*is_gfn_in_unshared_region)(unsigned long gfn);
+
+    /* Write the shared regions list */
+    int (*save_outgoing_shared_regions_list)(QEMUFile *f);
+
+    /* Load the shared regions list */
+    int (*load_incoming_shared_regions_list)(QEMUFile *f);
+};
+
 typedef struct ConfidentialGuestSupportClass {
     ObjectClass parent;
+    struct ConfidentialGuestMemoryEncryptionOps *memory_encryption_ops;
 } ConfidentialGuestSupportClass;
 
 #endif /* !CONFIG_USER_ONLY */
