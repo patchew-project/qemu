@@ -24,6 +24,7 @@
 #include "qemu/module.h"
 #include "qemu/uuid.h"
 #include "sysemu/kvm.h"
+#include "sysemu/sev.h"
 #include "sev_i386.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/runstate.h"
@@ -68,6 +69,12 @@ struct SevGuestState {
     int sev_fd;
     SevState state;
     gchar *measurement;
+    guchar *remote_pdh;
+    size_t remote_pdh_len;
+    guchar *remote_plat_cert;
+    size_t remote_plat_cert_len;
+    guchar *amd_cert;
+    size_t amd_cert_len;
 
     uint32_t reset_cs;
     uint32_t reset_ip;
@@ -115,6 +122,12 @@ static const char *const sev_fw_errlist[] = {
 };
 
 #define SEV_FW_MAX_ERROR      ARRAY_SIZE(sev_fw_errlist)
+
+#define SEV_FW_BLOB_MAX_SIZE            0x4000          /* 16KB */
+
+static struct ConfidentialGuestMemoryEncryptionOps sev_memory_encryption_ops = {
+    .save_setup = sev_save_setup,
+};
 
 static int
 sev_ioctl(int fd, int cmd, void *data, int *error)
@@ -772,6 +785,50 @@ sev_vm_state_change(void *opaque, bool running, RunState state)
     }
 }
 
+static inline bool check_blob_length(size_t value)
+{
+    if (value > SEV_FW_BLOB_MAX_SIZE) {
+        error_report("invalid length max=%d got=%ld",
+                     SEV_FW_BLOB_MAX_SIZE, value);
+        return false;
+    }
+
+    return true;
+}
+
+int sev_save_setup(MigrationParameters *p)
+{
+    SevGuestState *s = sev_guest;
+    const char *pdh = p->sev_pdh;
+    const char *plat_cert = p->sev_plat_cert;
+    const char *amd_cert = p->sev_amd_cert;
+
+    s->remote_pdh = g_base64_decode(pdh, &s->remote_pdh_len);
+    if (!check_blob_length(s->remote_pdh_len)) {
+        goto error;
+    }
+
+    s->remote_plat_cert = g_base64_decode(plat_cert,
+                                          &s->remote_plat_cert_len);
+    if (!check_blob_length(s->remote_plat_cert_len)) {
+        goto error;
+    }
+
+    s->amd_cert = g_base64_decode(amd_cert, &s->amd_cert_len);
+    if (!check_blob_length(s->amd_cert_len)) {
+        goto error;
+    }
+
+    return 0;
+
+error:
+    g_free(s->remote_pdh);
+    g_free(s->remote_plat_cert);
+    g_free(s->amd_cert);
+
+    return 1;
+}
+
 int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
 {
     SevGuestState *sev
@@ -781,6 +838,8 @@ int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
     uint32_t ebx;
     uint32_t host_cbitpos;
     struct sev_user_data_status status = {};
+    ConfidentialGuestSupportClass *cgs_class =
+        (ConfidentialGuestSupportClass *) object_get_class(OBJECT(cgs));
 
     if (!sev) {
         return 0;
@@ -869,6 +928,8 @@ int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
     ram_block_notifier_add(&sev_ram_notifier);
     qemu_add_machine_init_done_notifier(&sev_machine_done_notify);
     qemu_add_vm_change_state_handler(sev_vm_state_change, sev);
+
+    cgs_class->memory_encryption_ops = &sev_memory_encryption_ops;
 
     cgs->ready = true;
 
