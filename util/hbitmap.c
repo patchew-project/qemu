@@ -301,6 +301,42 @@ bool hbitmap_next_dirty_area(const HBitmap *hb, int64_t start, int64_t end,
     return true;
 }
 
+void hbitmap_status(const HBitmap *hb, int64_t start, int64_t count,
+                    bool *is_dirty, int64_t *pnum)
+{
+    int64_t next_dirty, next_zero;
+
+    assert(start >= 0);
+    assert(count > 0);
+    assert(start + count <= hb->orig_size);
+
+    next_dirty = hbitmap_next_dirty(hb, start, count);
+    if (next_dirty == -1) {
+        *pnum = count;
+        *is_dirty = false;
+        return;
+    }
+
+    if (next_dirty > start) {
+        *pnum = next_dirty - start;
+        *is_dirty = false;
+        return;
+    }
+
+    assert(next_dirty == start);
+
+    next_zero = hbitmap_next_zero(hb, start, count);
+    if (next_zero == -1) {
+        *pnum = next_zero - start;
+        *is_dirty = true;
+        return;
+    }
+
+    assert(next_zero > start);
+    *pnum = next_zero - start;
+    *is_dirty = false;
+}
+
 bool hbitmap_empty(const HBitmap *hb)
 {
     return hb->count == 0;

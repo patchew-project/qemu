@@ -340,6 +340,17 @@ bool hbitmap_next_dirty_area(const HBitmap *hb, int64_t start, int64_t end,
                              int64_t max_dirty_count,
                              int64_t *dirty_start, int64_t *dirty_count);
 
+/*
+ * bdrv_dirty_bitmap_status:
+ * @hb: The HBitmap to operate on
+ * @start: the offset to start from
+ * @end: end of requested area
+ * @is_dirty: is bitmap dirty at @offset
+ * @pnum: how many bits has same value starting from @offset
+ */
+void hbitmap_status(const HBitmap *hb, int64_t offset, int64_t bytes,
+                    bool *is_dirty, int64_t *pnum);
+
 /**
  * hbitmap_iter_next:
  * @hbi: HBitmapIter to operate on.
