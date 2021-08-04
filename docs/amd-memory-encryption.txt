@@ -126,7 +126,51 @@ TODO
 
 Live Migration
 ----------------
-TODO
+AMD SEV encrypts the memory of VMs and because a different key is used
+in each VM, the hypervisor will be unable to simply copy the
+ciphertext from one VM to another to migrate the VM. Instead the AMD SEV Key
+Management API provides sets of function which the hypervisor can use
+to package a guest page for migration, while maintaining the confidentiality
+provided by AMD SEV.
+
+SEV guest VMs have the concept of private and shared memory. The private
+memory is encrypted with the guest-specific key, while shared memory may
+be encrypted with the hypervisor key. The migration APIs provided by the
+SEV API spec should be used for migrating the private pages.
+
+The KVM_HC_MAP_GPA_RANGE hypercall is used by the SEV guest to notify a
+change in the page encryption status to the hypervisor. The hypercall
+is invoked when the encryption attribute is changed from encrypted -> decrypted
+and vice versa. By default all guest pages are considered encrypted.
+
+This hypercall exits to qemu via KVM_EXIT_HYPERCALL to manage the guest
+shared regions and integrate with the qemu's migration code. The shared
+region list can be used to check if the given guest page is private or shared.
+
+Before initiating the migration, we need to know the targets machine's public
+Diffie-Hellman key (PDH) and certificate chain. It can be retrieved
+with the 'query-sev-capabilities' QMP command or using the sev-tool. The
+migrate-set-parameter can be used to pass the target machine's PDH and
+certificate chain.
+
+During the migration flow, the SEND_START is called on the source hypervisor
+to create an outgoing encryption context. The SEV guest policy dictates whether
+the certificate passed through the migrate-sev-set-info command will be
+validated. SEND_UPDATE_DATA is called to encrypt the guest private pages.
+After migration is completed, SEND_FINISH is called to destroy the encryption
+context and make the VM non-runnable to protect it against cloning.
+
+On the target machine, RECEIVE_START is called first to create an
+incoming encryption context. The RECEIVE_UPDATE_DATA is called to copy
+the received encrypted page into guest memory. After migration has
+completed, RECEIVE_FINISH is called to make the VM runnable.
+
+For more information about the migration see SEV API Appendix A
+Usage flow (Live migration section).
+
+NOTE:
+To protect against the memory clone SEV APIs are designed to make the VM
+unrunnable in case of the migration failure.
 
 References
 -----------------
