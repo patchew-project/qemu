@@ -26,7 +26,7 @@ typedef struct BlockCopyCallState BlockCopyCallState;
 
 BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
                                      bool use_copy_range, bool compress,
-                                     Error **errp);
+                                     BdrvDirtyBitmap *bitmap, Error **errp);
 
 void block_copy_set_copy_opts(BlockCopyState *s, bool use_copy_range,
                               bool compress);
