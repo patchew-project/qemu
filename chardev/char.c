@@ -1005,12 +1005,17 @@ Chardev *qemu_chardev_new(const char *id, const char *typename,
                           GMainContext *gcontext,
                           Error **errp)
 {
-    Chardev *chr;
+    g_autoptr(Chardev) chr = NULL;
     g_autofree char *genid = NULL;
 
     if (!id) {
         genid = id_generate(ID_CHR);
         id = genid;
+    }
+
+    if (qemu_chr_find(id)) {
+        error_setg(errp, "Chardev with id '%s' already exists", id);
+        return NULL;
     }
 
     chr = chardev_new(id, typename, backend, gcontext, false, errp);
@@ -1020,12 +1025,10 @@ Chardev *qemu_chardev_new(const char *id, const char *typename,
 
     if (!object_property_try_add_child(get_chardevs_root(), id, OBJECT(chr),
                                        errp)) {
-        object_unref(OBJECT(chr));
         return NULL;
     }
-    object_unref(OBJECT(chr));
 
-    return chr;
+    return chr; /* returns a shared/unowned reference */
 }
 
 ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
@@ -1034,26 +1037,16 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     ERRP_GUARD();
     const ChardevClass *cc;
     ChardevReturn *ret;
-    g_autoptr(Chardev) chr = NULL;
-
-    if (qemu_chr_find(id)) {
-        error_setg(errp, "Chardev with id '%s' already exists", id);
-        return NULL;
-    }
+    Chardev *chr = NULL;
 
     cc = char_get_class(ChardevBackendKind_str(backend->type), errp);
     if (!cc) {
         goto err;
     }
 
-    chr = chardev_new(id, object_class_get_name(OBJECT_CLASS(cc)),
-                      backend, NULL, false, errp);
+    chr = qemu_chardev_new(id, object_class_get_name(OBJECT_CLASS(cc)),
+                           backend, NULL, errp);
     if (!chr) {
-        goto err;
-    }
-
-    if (!object_property_try_add_child(get_chardevs_root(), id, OBJECT(chr),
-                                       errp)) {
         goto err;
     }
 
