@@ -29,7 +29,31 @@
 #include "qemu/osdep.h"
 #include "hw/isa/isa.h"
 #include "hw/block/fdc.h"
+#include "qapi/error.h"
+#include "sysemu/blockdev.h"
 #include "fdc-internal.h"
+
+void fdctrl_init_drives(FloppyBus *bus, DriveInfo **fds)
+{
+    DeviceState *dev;
+    int i;
+
+    for (i = 0; i < MAX_FD; i++) {
+        if (fds[i]) {
+            dev = qdev_new("floppy");
+            qdev_prop_set_uint32(dev, "unit", i);
+            qdev_prop_set_enum(dev, "drive-type", FLOPPY_DRIVE_TYPE_AUTO);
+            qdev_prop_set_drive_err(dev, "drive", blk_by_legacy_dinfo(fds[i]),
+                                    &error_fatal);
+            qdev_realize_and_unref(dev, &bus->bus, &error_fatal);
+        }
+    }
+}
+
+void isa_fdc_init_drives(ISADevice *fdc, DriveInfo **fds)
+{
+    fdctrl_init_drives(&ISA_FDC(fdc)->state.bus, fds);
+}
 
 FloppyDriveType isa_fdc_get_drive_type(ISADevice *fdc, int i)
 {

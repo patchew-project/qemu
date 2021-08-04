@@ -57,11 +57,6 @@ static void fdctrl_external_reset_isa(DeviceState *d)
     fdctrl_reset(s, 0);
 }
 
-void isa_fdc_init_drives(ISADevice *fdc, DriveInfo **fds)
-{
-    fdctrl_init_drives(&ISA_FDC(fdc)->state.bus, fds);
-}
-
 static const MemoryRegionPortio fdc_portio_list[] = {
     { 1, 5, 1, .read = fdctrl_read, .write = fdctrl_write },
     { 7, 1, 1, .read = fdctrl_read, .write = fdctrl_write },
