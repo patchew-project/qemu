@@ -32,26 +32,12 @@
 #include "fdc-internal.h"
 #include "trace.h"
 
-#define TYPE_SYSBUS_FDC "base-sysbus-fdc"
-typedef struct FDCtrlSysBusClass FDCtrlSysBusClass;
-typedef struct FDCtrlSysBus FDCtrlSysBus;
-DECLARE_OBJ_CHECKERS(FDCtrlSysBus, FDCtrlSysBusClass,
-                     SYSBUS_FDC, TYPE_SYSBUS_FDC)
-
 struct FDCtrlSysBusClass {
     /*< private >*/
     SysBusDeviceClass parent_class;
     /*< public >*/
 
     bool use_strict_io;
-};
-
-struct FDCtrlSysBus {
-    /*< private >*/
-    SysBusDevice parent_obj;
-    /*< public >*/
-
-    struct FDCtrl state;
 };
 
 static uint64_t fdctrl_read_mem(void *opaque, hwaddr reg, unsigned ize)
@@ -92,26 +78,6 @@ static void fdctrl_external_reset_sysbus(DeviceState *d)
 static void fdctrl_handle_tc(void *opaque, int irq, int level)
 {
     trace_fdctrl_tc_pulse(level);
-}
-
-void fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
-                        hwaddr mmio_base, DriveInfo **fds)
-{
-    FDCtrl *fdctrl;
-    DeviceState *dev;
-    SysBusDevice *sbd;
-    FDCtrlSysBus *sys;
-
-    dev = qdev_new("sysbus-fdc");
-    sys = SYSBUS_FDC(dev);
-    fdctrl = &sys->state;
-    fdctrl->dma_chann = dma_chann; /* FIXME */
-    sbd = SYS_BUS_DEVICE(dev);
-    sysbus_realize_and_unref(sbd, &error_fatal);
-    sysbus_connect_irq(sbd, 0, irq);
-    sysbus_mmio_map(sbd, 0, mmio_base);
-
-    fdctrl_init_drives(&sys->state.bus, fds);
 }
 
 void sun4m_fdctrl_init(qemu_irq irq, hwaddr io_base,

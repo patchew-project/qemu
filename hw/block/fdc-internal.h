@@ -30,6 +30,7 @@
 #include "hw/block/block.h"
 #include "hw/block/fdc.h"
 #include "hw/isa/isa.h"
+#include "hw/sysbus.h"
 #include "qapi/qapi-types-block.h"
 
 typedef struct FDCtrl FDCtrl;
@@ -157,6 +158,20 @@ struct FDCtrlISABus {
     struct FDCtrl state;
     int32_t bootindexA;
     int32_t bootindexB;
+};
+
+#define TYPE_SYSBUS_FDC "base-sysbus-fdc"
+typedef struct FDCtrlSysBusClass FDCtrlSysBusClass;
+typedef struct FDCtrlSysBus FDCtrlSysBus;
+DECLARE_OBJ_CHECKERS(FDCtrlSysBus, FDCtrlSysBusClass,
+                     SYSBUS_FDC, TYPE_SYSBUS_FDC)
+
+struct FDCtrlSysBus {
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
+    struct FDCtrl state;
 };
 
 extern const FDFormat fd_formats[];

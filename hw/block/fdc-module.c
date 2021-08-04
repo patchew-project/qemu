@@ -29,9 +29,30 @@
 #include "qemu/osdep.h"
 #include "hw/isa/isa.h"
 #include "hw/block/fdc.h"
+#include "hw/sysbus.h"
 #include "qapi/error.h"
 #include "sysemu/blockdev.h"
 #include "fdc-internal.h"
+
+void fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
+                        hwaddr mmio_base, DriveInfo **fds)
+{
+    FDCtrl *fdctrl;
+    DeviceState *dev;
+    SysBusDevice *sbd;
+    FDCtrlSysBus *sys;
+
+    dev = qdev_new("sysbus-fdc");
+    sys = SYSBUS_FDC(dev);
+    fdctrl = &sys->state;
+    fdctrl->dma_chann = dma_chann; /* FIXME */
+    sbd = SYS_BUS_DEVICE(dev);
+    sysbus_realize_and_unref(sbd, &error_fatal);
+    sysbus_connect_irq(sbd, 0, irq);
+    sysbus_mmio_map(sbd, 0, mmio_base);
+
+    fdctrl_init_drives(&sys->state.bus, fds);
+}
 
 void fdctrl_init_drives(FloppyBus *bus, DriveInfo **fds)
 {
