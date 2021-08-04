@@ -38,5 +38,6 @@ int sev_add_shared_regions_list(unsigned long gfn_start, unsigned long gfn_end);
 int sev_save_outgoing_shared_regions_list(QEMUFile *f);
 int sev_load_incoming_shared_regions_list(QEMUFile *f);
 bool sev_is_gfn_in_unshared_region(unsigned long gfn);
+void sev_del_migrate_blocker(void);
 
 #endif

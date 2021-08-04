@@ -791,6 +791,12 @@ sev_launch_finish(SevGuestState *sev)
     }
 }
 
+void
+sev_del_migrate_blocker(void)
+{
+    migrate_del_blocker(sev_mig_blocker);
+}
+
 static int
 sev_receive_finish(SevGuestState *s)
 {
