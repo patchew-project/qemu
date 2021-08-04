@@ -589,7 +589,7 @@ static void tcg_iommu_unmap_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
     if (!notifier->active) {
         return;
     }
-    tlb_flush(notifier->cpu);
+    tcg.tlb_flush(notifier->cpu);
     notifier->active = false;
     /* We leave the notifier struct on the list to avoid reallocating it later.
      * Generally the number of IOMMUs a CPU deals with will be small.
@@ -796,7 +796,7 @@ int cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
     if (len <= in_page) {
         tlb_flush_page(cpu, addr);
     } else {
-        tlb_flush(cpu);
+        tcg.tlb_flush(cpu);
     }
 
     if (watchpoint)
@@ -2652,7 +2652,7 @@ static void tcg_commit(MemoryListener *listener)
      */
     d = address_space_to_dispatch(cpuas->as);
     qatomic_rcu_set(&cpuas->memory_dispatch, d);
-    tlb_flush(cpuas->cpu);
+    tcg.tlb_flush(cpuas->cpu);
 }
 
 static void memory_map_init(void)

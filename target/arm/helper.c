@@ -674,7 +674,7 @@ static void dacr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
     ARMCPU *cpu = env_archcpu(env);
 
     raw_write(env, ri, value);
-    tlb_flush(CPU(cpu)); /* Flush TLB as domain not tracked in TLB */
+    tcg.tlb_flush(CPU(cpu)); /* Flush TLB as domain not tracked in TLB */
 }
 
 static void fcse_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
@@ -685,7 +685,7 @@ static void fcse_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
         /* Unlike real hardware the qemu TLB uses virtual addresses,
          * not modified virtual addresses, so this causes a TLB flush.
          */
-        tlb_flush(CPU(cpu));
+        tcg.tlb_flush(CPU(cpu));
         raw_write(env, ri, value);
     }
 }
@@ -701,7 +701,7 @@ static void contextidr_write(CPUARMState *env, const ARMCPRegInfo *ri,
          * format) this register includes the ASID, so do a TLB flush.
          * For PMSA it is purely a process ID and no action is needed.
          */
-        tlb_flush(CPU(cpu));
+        tcg.tlb_flush(CPU(cpu));
     }
     raw_write(env, ri, value);
 }
@@ -758,7 +758,7 @@ static void tlbiall_write(CPUARMState *env, const ARMCPRegInfo *ri,
     if (tlb_force_broadcast(env)) {
         tlb_flush_all_cpus_synced(cs);
     } else {
-        tlb_flush(cs);
+        tcg.tlb_flush(cs);
     }
 }
 
@@ -785,7 +785,7 @@ static void tlbiasid_write(CPUARMState *env, const ARMCPRegInfo *ri,
     if (tlb_force_broadcast(env)) {
         tlb_flush_all_cpus_synced(cs);
     } else {
-        tlb_flush(cs);
+        tcg.tlb_flush(cs);
     }
 }
 
@@ -3826,7 +3826,7 @@ static void pmsav7_write(CPUARMState *env, const ARMCPRegInfo *ri,
     }
 
     u32p += env->pmsav7.rnr[M_REG_NS];
-    tlb_flush(CPU(cpu)); /* Mappings may have changed - purge! */
+    tcg.tlb_flush(CPU(cpu)); /* Mappings may have changed - purge! */
     *u32p = value;
 }
 
@@ -3968,7 +3968,7 @@ static void vmsa_ttbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
         /* With LPAE the TTBCR could result in a change of ASID
          * via the TTBCR.A1 bit, so do a TLB flush.
          */
-        tlb_flush(CPU(cpu));
+        tcg.tlb_flush(CPU(cpu));
     }
     /* Preserve the high half of TCR_EL1, set via TTBCR2.  */
     value = deposit64(tcr->raw_tcr, 0, 32, value);
@@ -3994,7 +3994,7 @@ static void vmsa_tcr_el12_write(CPUARMState *env, const ARMCPRegInfo *ri,
     TCR *tcr = raw_ptr(env, ri);
 
     /* For AArch64 the A1 bit could result in a change of ASID, so TLB flush. */
-    tlb_flush(CPU(cpu));
+    tcg.tlb_flush(CPU(cpu));
     tcr->raw_tcr = value;
 }
 
@@ -4005,7 +4005,7 @@ static void vmsa_ttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     if (cpreg_field_is_64bit(ri) &&
         extract64(raw_read(env, ri) ^ value, 48, 16) != 0) {
         ARMCPU *cpu = env_archcpu(env);
-        tlb_flush(CPU(cpu));
+        tcg.tlb_flush(CPU(cpu));
     }
     raw_write(env, ri, value);
 }
@@ -5021,7 +5021,7 @@ static void sctlr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     raw_write(env, ri, value);
 
     /* This may enable/disable the MMU, so do a TLB flush.  */
-    tlb_flush(CPU(cpu));
+    tcg.tlb_flush(CPU(cpu));
 
     if (ri->type & ARM_CP_SUPPRESS_TB_END) {
         /*
@@ -5560,7 +5560,7 @@ static void do_hcr_write(CPUARMState *env, uint64_t value, uint64_t valid_mask)
      * HCR_DCT enables tagging on (disabled) stage1 translation
      */
     if ((env->cp15.hcr_el2 ^ value) & (HCR_VM | HCR_PTW | HCR_DC | HCR_DCT)) {
-        tlb_flush(CPU(cpu));
+        tcg.tlb_flush(CPU(cpu));
     }
     env->cp15.hcr_el2 = value;
 
