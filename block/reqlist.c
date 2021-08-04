@@ -68,6 +68,12 @@ bool coroutine_fn reqlist_wait_one(BlockReqList *reqs, int64_t offset,
     return true;
 }
 
+void coroutine_fn reqlist_wait_all(BlockReqList *reqs, int64_t offset,
+                                   int64_t bytes, CoMutex *lock)
+{
+    while (reqlist_wait_one(reqs, offset, bytes, lock)) { }
+}
+
 /*
  * Shrink request and wake all waiting coroutines (may be some of them are not
  * intersecting with shrunk request).
