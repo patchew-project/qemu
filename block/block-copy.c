@@ -315,21 +315,11 @@ static uint32_t block_copy_max_transfer(BdrvChild *source, BdrvChild *target)
                                      target->bs->bl.max_transfer));
 }
 
-BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
-                                     int64_t cluster_size, bool use_copy_range,
-                                     bool compress, Error **errp)
+/* Function should be called prior any actual copy request */
+void block_copy_set_copy_opts(BlockCopyState *s, bool use_copy_range,
+                              bool compress)
 {
-    BlockCopyState *s;
-    BdrvDirtyBitmap *copy_bitmap;
     bool is_fleecing;
-
-    copy_bitmap = bdrv_create_dirty_bitmap(source->bs, cluster_size, NULL,
-                                           errp);
-    if (!copy_bitmap) {
-        return NULL;
-    }
-    bdrv_disable_dirty_bitmap(copy_bitmap);
-
     /*
      * If source is in backing chain of target assume that target is going to be
      * used for "image fleecing", i.e. it should represent a kind of snapshot of
@@ -344,24 +334,12 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
      * For more information see commit f8d59dfb40bb and test
      * tests/qemu-iotests/222
      */
-    is_fleecing = bdrv_chain_contains(target->bs, source->bs);
+    is_fleecing = bdrv_chain_contains(s->target->bs, s->source->bs);
 
-    s = g_new(BlockCopyState, 1);
-    *s = (BlockCopyState) {
-        .source = source,
-        .target = target,
-        .copy_bitmap = copy_bitmap,
-        .cluster_size = cluster_size,
-        .len = bdrv_dirty_bitmap_size(copy_bitmap),
-        .write_flags = (is_fleecing ? BDRV_REQ_SERIALISING : 0) |
-            (compress ? BDRV_REQ_WRITE_COMPRESSED : 0),
-        .mem = shres_create(BLOCK_COPY_MAX_MEM),
-        .max_transfer = QEMU_ALIGN_DOWN(
-                                    block_copy_max_transfer(source, target),
-                                    cluster_size),
-    };
+    s->write_flags = (is_fleecing ? BDRV_REQ_SERIALISING : 0) |
+        (compress ? BDRV_REQ_WRITE_COMPRESSED : 0);
 
-    if (s->max_transfer < cluster_size) {
+    if (s->max_transfer < s->cluster_size) {
         /*
          * copy_range does not respect max_transfer. We don't want to bother
          * with requests smaller than block-copy cluster size, so fallback to
@@ -379,6 +357,36 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
          */
         s->method = use_copy_range ? COPY_RANGE_SMALL : COPY_READ_WRITE;
     }
+}
+
+BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
+                                     int64_t cluster_size, bool use_copy_range,
+                                     bool compress, Error **errp)
+{
+    BlockCopyState *s;
+    BdrvDirtyBitmap *copy_bitmap;
+
+    copy_bitmap = bdrv_create_dirty_bitmap(source->bs, cluster_size, NULL,
+                                           errp);
+    if (!copy_bitmap) {
+        return NULL;
+    }
+    bdrv_disable_dirty_bitmap(copy_bitmap);
+
+    s = g_new(BlockCopyState, 1);
+    *s = (BlockCopyState) {
+        .source = source,
+        .target = target,
+        .copy_bitmap = copy_bitmap,
+        .cluster_size = cluster_size,
+        .len = bdrv_dirty_bitmap_size(copy_bitmap),
+        .mem = shres_create(BLOCK_COPY_MAX_MEM),
+        .max_transfer = QEMU_ALIGN_DOWN(
+                                    block_copy_max_transfer(source, target),
+                                    cluster_size),
+    };
+
+    block_copy_set_copy_opts(s, use_copy_range, compress);
 
     ratelimit_init(&s->rate_limit);
     qemu_co_mutex_init(&s->lock);
