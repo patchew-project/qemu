@@ -135,10 +135,15 @@ static const char *const sev_fw_errlist[] = {
 
 #define SEV_FW_BLOB_MAX_SIZE            0x4000          /* 16KB */
 
+#define SHARED_REGION_LIST_CONT     0x1
+#define SHARED_REGION_LIST_END      0x2
+
 static struct ConfidentialGuestMemoryEncryptionOps sev_memory_encryption_ops = {
     .save_setup = sev_save_setup,
     .save_outgoing_page = sev_save_outgoing_page,
     .load_incoming_page = sev_load_incoming_page,
+    .save_outgoing_shared_regions_list = sev_save_outgoing_shared_regions_list,
+    .load_incoming_shared_regions_list = sev_load_incoming_shared_regions_list,
 };
 
 static int
@@ -1602,6 +1607,44 @@ int sev_add_shared_regions_list(unsigned long start, unsigned long end)
         QTAILQ_INSERT_TAIL(&s->shared_regions_list, shrd_region, list);
     }
     return 1;
+}
+
+int sev_save_outgoing_shared_regions_list(QEMUFile *f)
+{
+    SevGuestState *s = sev_guest;
+    struct shared_region *pos;
+
+    QTAILQ_FOREACH(pos, &s->shared_regions_list, list) {
+        qemu_put_be32(f, SHARED_REGION_LIST_CONT);
+        qemu_put_be32(f, pos->gfn_start);
+        qemu_put_be32(f, pos->gfn_end);
+    }
+
+    qemu_put_be32(f, SHARED_REGION_LIST_END);
+    return 0;
+}
+
+int sev_load_incoming_shared_regions_list(QEMUFile *f)
+{
+    SevGuestState *s = sev_guest;
+    struct shared_region *shrd_region;
+    int status;
+
+    status = qemu_get_be32(f);
+    while (status == SHARED_REGION_LIST_CONT) {
+
+        shrd_region = g_malloc0(sizeof(*shrd_region));
+        if (!shrd_region) {
+            return 0;
+        }
+        shrd_region->gfn_start = qemu_get_be32(f);
+        shrd_region->gfn_end = qemu_get_be32(f);
+
+        QTAILQ_INSERT_TAIL(&s->shared_regions_list, shrd_region, list);
+
+        status = qemu_get_be32(f);
+    }
+    return 0;
 }
 
 static void
