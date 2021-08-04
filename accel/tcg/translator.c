@@ -14,6 +14,7 @@
 #include "exec/exec-all.h"
 #include "exec/gen-icount.h"
 #include "exec/log.h"
+#include "exec/translate-all.h"
 #include "exec/translator.h"
 #include "exec/plugin-gen.h"
 #include "sysemu/replay.h"
@@ -47,6 +48,10 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
 {
     uint32_t cflags = tb_cflags(tb);
     bool plugin_enabled;
+    bool stop = false;
+#ifdef CONFIG_USER_ONLY
+    target_ulong page_addr = -1;
+#endif
 
     /* Initialize DisasContext */
     db->tb = tb;
@@ -71,6 +76,21 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
     plugin_enabled = plugin_gen_tb_start(cpu, tb, cflags & CF_MEMI_ONLY);
 
     while (true) {
+#ifdef CONFIG_USER_ONLY
+        /*
+         * Make the page containing the next instruction non-writable in order
+         * to get a consistent translation if another thread is modifying the
+         * code while translate_insn() fetches the instruction bytes piecemeal.
+         * Writer threads will wait for mmap_lock() in page_unprotect().
+         */
+        if ((db->pc_next & TARGET_PAGE_MASK) != page_addr) {
+            page_addr = db->pc_next & TARGET_PAGE_MASK;
+            page_protect(page_addr);
+        }
+#endif
+        if (stop) {
+            break;
+        }
         db->num_insns++;
         ops->insn_start(db, cpu);
         tcg_debug_assert(db->is_jmp == DISAS_NEXT);  /* no early exit */
@@ -95,7 +115,8 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
 
         /* Stop translation if translate_insn so indicated.  */
         if (db->is_jmp != DISAS_NEXT) {
-            break;
+            stop = true;
+            continue;
         }
 
         /*
@@ -110,7 +131,8 @@ void translator_loop(const TranslatorOps *ops, DisasContextBase *db,
            or we have executed all of the allowed instructions.  */
         if (tcg_op_buf_full() || db->num_insns >= db->max_insns) {
             db->is_jmp = DISAS_TOO_MANY;
-            break;
+            stop = true;
+            continue;
         }
     }
 
