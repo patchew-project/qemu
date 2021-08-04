@@ -88,8 +88,8 @@ expects.
 LAUNCH_FINISH finalizes the guest launch and destroys the cryptographic
 context.
 
-See SEV KM API Spec [1] 'Launching a guest' usage flow (Appendix A) for the
-complete flow chart.
+See Secure Encrypted Virtualization Key Management API spec section
+'Launching a guest' usage flow  (Appendix A) for the complete flow chart.
 
 To launch a SEV guest
 
