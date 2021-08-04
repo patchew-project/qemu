@@ -62,6 +62,7 @@ struct SMMUv3State {
 
     qemu_irq     irq[4];
     QemuMutex mutex;
+    bool disable_cached_iotlb; /* Whether disable/enable cached iotlb */
 };
 
 typedef enum {

@@ -19,6 +19,7 @@
 #include "qemu/osdep.h"
 #include "qemu/bitops.h"
 #include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-core.h"
@@ -682,19 +683,21 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
     page_mask = (1ULL << (tt->granule_sz)) - 1;
     aligned_addr = addr & ~page_mask;
 
-    cached_entry = smmu_iotlb_lookup(bs, cfg, tt, aligned_addr);
-    if (cached_entry) {
-        if ((flag & IOMMU_WO) && !(cached_entry->entry.perm & IOMMU_WO)) {
-            status = SMMU_TRANS_ERROR;
-            if (event.record_trans_faults) {
-                event.type = SMMU_EVT_F_PERMISSION;
-                event.u.f_permission.addr = addr;
-                event.u.f_permission.rnw = flag & 0x1;
+    if (s->disable_cached_iotlb) {
+        cached_entry = smmu_iotlb_lookup(bs, cfg, tt, aligned_addr);
+        if (cached_entry) {
+            if ((flag & IOMMU_WO) && !(cached_entry->entry.perm & IOMMU_WO)) {
+                status = SMMU_TRANS_ERROR;
+                if (event.record_trans_faults) {
+                    event.type = SMMU_EVT_F_PERMISSION;
+                    event.u.f_permission.addr = addr;
+                    event.u.f_permission.rnw = flag & 0x1;
+                }
+            } else {
+                status = SMMU_TRANS_SUCCESS;
             }
-        } else {
-            status = SMMU_TRANS_SUCCESS;
+            goto epilogue;
         }
-        goto epilogue;
     }
 
     cached_entry = g_new0(SMMUTLBEntry, 1);
@@ -742,7 +745,9 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
         }
         status = SMMU_TRANS_ERROR;
     } else {
-        smmu_iotlb_insert(bs, cfg, cached_entry);
+        if (s->disable_cached_iotlb) {
+            smmu_iotlb_insert(bs, cfg, cached_entry);
+        }
         status = SMMU_TRANS_SUCCESS;
     }
 
@@ -855,8 +860,9 @@ static void smmuv3_inv_notifiers_iova(SMMUState *s, int asid, dma_addr_t iova,
     }
 }
 
-static void smmuv3_s1_range_inval(SMMUState *s, Cmd *cmd)
+static void smmuv3_s1_range_inval(SMMUv3State *s, Cmd *cmd)
 {
+    SMMUState *bs = ARM_SMMU(s);
     dma_addr_t end, addr = CMD_ADDR(cmd);
     uint8_t type = CMD_TYPE(cmd);
     uint16_t vmid = CMD_VMID(cmd);
@@ -876,7 +882,9 @@ static void smmuv3_s1_range_inval(SMMUState *s, Cmd *cmd)
     if (!tg) {
         trace_smmuv3_s1_range_inval(vmid, asid, addr, tg, 1, ttl, leaf);
         smmuv3_inv_notifiers_iova(s, asid, addr, tg, 1);
-        smmu_iotlb_inv_iova(s, asid, addr, tg, 1, ttl);
+        if (s->disable_cached_iotlb) {
+            smmu_iotlb_inv_iova(s, asid, addr, tg, 1, ttl);
+        }
         return;
     }
 
@@ -885,17 +893,23 @@ static void smmuv3_s1_range_inval(SMMUState *s, Cmd *cmd)
     num_pages = (num + 1) * BIT_ULL(scale);
     granule = tg * 2 + 10;
 
-    /* Split invalidations into ^2 range invalidations */
-    end = addr + (num_pages << granule) - 1;
-
-    while (addr != end + 1) {
-        uint64_t mask = dma_aligned_pow2_mask(addr, end, 64);
-
-        num_pages = (mask + 1) >> granule;
+    if (s->disable_cached_iotlb) {
         trace_smmuv3_s1_range_inval(vmid, asid, addr, tg, num_pages, ttl, leaf);
         smmuv3_inv_notifiers_iova(s, asid, addr, tg, num_pages);
-        smmu_iotlb_inv_iova(s, asid, addr, tg, num_pages, ttl);
-        addr += mask + 1;
+    } else {
+        /* Split invalidations into ^2 range invalidations */
+        end = addr + (num_pages << granule) - 1;
+
+        while (addr != end + 1) {
+            uint64_t mask = dma_aligned_pow2_mask(addr, end, 64);
+
+            num_pages = (mask + 1) >> granule;
+            trace_smmuv3_s1_range_inval(vmid, asid, addr,
+                                        tg, num_pages, ttl, leaf);
+            smmuv3_inv_notifiers_iova(s, asid, addr, tg, num_pages);
+            smmu_iotlb_inv_iova(s, asid, addr, tg, num_pages, ttl);
+            addr += mask + 1;
+        }
     }
 }
 
@@ -1028,18 +1042,22 @@ static int smmuv3_cmdq_consume(SMMUv3State *s)
 
             trace_smmuv3_cmdq_tlbi_nh_asid(asid);
             smmu_inv_notifiers_all(&s->smmu_state);
-            smmu_iotlb_inv_asid(bs, asid);
+            if (s->disable_cached_iotlb) {
+                smmu_iotlb_inv_asid(bs, asid);
+            }
             break;
         }
         case SMMU_CMD_TLBI_NH_ALL:
         case SMMU_CMD_TLBI_NSNH_ALL:
             trace_smmuv3_cmdq_tlbi_nh();
             smmu_inv_notifiers_all(&s->smmu_state);
-            smmu_iotlb_inv_all(bs);
+            if (s->disable_cached_iotlb) {
+                smmu_iotlb_inv_all(bs);
+            }
             break;
         case SMMU_CMD_TLBI_NH_VAA:
         case SMMU_CMD_TLBI_NH_VA:
-            smmuv3_s1_range_inval(bs, &cmd);
+            smmuv3_s1_range_inval(s, &cmd);
             break;
         case SMMU_CMD_TLBI_EL3_ALL:
         case SMMU_CMD_TLBI_EL3_VA:
@@ -1506,6 +1524,12 @@ static void smmuv3_instance_init(Object *obj)
     /* Nothing much to do here as of now */
 }
 
+static Property smmuv3_properties[] = {
+    DEFINE_PROP_BOOL("disable_cached_iotlb", SMMUv3State,
+                     disable_cached_iotlb, true),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void smmuv3_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1515,6 +1539,7 @@ static void smmuv3_class_init(ObjectClass *klass, void *data)
     device_class_set_parent_reset(dc, smmu_reset, &c->parent_reset);
     c->parent_realize = dc->realize;
     dc->realize = smmu_realize;
+    device_class_set_props(dc, smmuv3_properties);
 }
 
 static int smmuv3_notify_flag_changed(IOMMUMemoryRegion *iommu,
