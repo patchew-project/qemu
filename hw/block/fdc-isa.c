@@ -49,21 +49,6 @@
 #include "qom/object.h"
 #include "fdc-internal.h"
 
-OBJECT_DECLARE_SIMPLE_TYPE(FDCtrlISABus, ISA_FDC)
-
-struct FDCtrlISABus {
-    /*< private >*/
-    ISADevice parent_obj;
-    /*< public >*/
-
-    uint32_t iobase;
-    uint32_t irq;
-    uint32_t dma;
-    struct FDCtrl state;
-    int32_t bootindexA;
-    int32_t bootindexB;
-};
-
 static void fdctrl_external_reset_isa(DeviceState *d)
 {
     FDCtrlISABus *isa = ISA_FDC(d);
@@ -115,13 +100,6 @@ static void isabus_fdc_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-}
-
-FloppyDriveType isa_fdc_get_drive_type(ISADevice *fdc, int i)
-{
-    FDCtrlISABus *isa = ISA_FDC(fdc);
-
-    return isa->state.drives[i].drive;
 }
 
 static void isa_fdc_get_drive_max_chs(FloppyDriveType type, uint8_t *maxc,

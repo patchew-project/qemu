@@ -29,6 +29,7 @@
 #include "exec/ioport.h"
 #include "hw/block/block.h"
 #include "hw/block/fdc.h"
+#include "hw/isa/isa.h"
 #include "qapi/qapi-types-block.h"
 
 typedef struct FDCtrl FDCtrl;
@@ -141,6 +142,21 @@ struct FDCtrl {
     uint8_t timer0;
     uint8_t timer1;
     PortioList portio_list;
+};
+
+OBJECT_DECLARE_SIMPLE_TYPE(FDCtrlISABus, ISA_FDC)
+
+struct FDCtrlISABus {
+    /*< private >*/
+    ISADevice parent_obj;
+    /*< public >*/
+
+    uint32_t iobase;
+    uint32_t irq;
+    uint32_t dma;
+    struct FDCtrl state;
+    int32_t bootindexA;
+    int32_t bootindexB;
 };
 
 extern const FDFormat fd_formats[];
