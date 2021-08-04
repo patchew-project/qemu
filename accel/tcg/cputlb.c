@@ -2771,6 +2771,7 @@ uint64_t cpu_ldq_code(CPUArchState *env, abi_ptr addr)
 static void tcg_module_ops_tlb(void)
 {
     tcg.tlb_flush = tlb_flush;
+    tcg.tlb_flush_page = tlb_flush_page;
 }
 
 type_init(tcg_module_ops_tlb);

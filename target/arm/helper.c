@@ -772,7 +772,7 @@ static void tlbimva_write(CPUARMState *env, const ARMCPRegInfo *ri,
     if (tlb_force_broadcast(env)) {
         tlb_flush_page_all_cpus_synced(cs, value);
     } else {
-        tlb_flush_page(cs, value);
+        tcg.tlb_flush_page(cs, value);
     }
 }
 
@@ -799,7 +799,7 @@ static void tlbimvaa_write(CPUARMState *env, const ARMCPRegInfo *ri,
     if (tlb_force_broadcast(env)) {
         tlb_flush_page_all_cpus_synced(cs, value);
     } else {
-        tlb_flush_page(cs, value);
+        tcg.tlb_flush_page(cs, value);
     }
 }
 
