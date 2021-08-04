@@ -1468,6 +1468,23 @@ static void pc_machine_set_vmport(Object *obj, Visitor *v, const char *name,
     visit_type_OnOffAuto(v, name, &pcms->vmport, errp);
 }
 
+static void pc_machine_get_floppy(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+    OnOffAuto floppy = pcms->floppy;
+
+    visit_type_OnOffAuto(v, name, &floppy, errp);
+}
+
+static void pc_machine_set_floppy(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    visit_type_OnOffAuto(v, name, &pcms->floppy, errp);
+}
+
 static bool pc_machine_get_smbus(Object *obj, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
@@ -1750,6 +1767,12 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
         NULL, NULL);
     object_class_property_set_description(oc, PC_MACHINE_VMPORT,
         "Enable vmport (pc & q35)");
+
+    object_class_property_add(oc, PC_MACHINE_FLOPPY, "OnOffAuto",
+        pc_machine_get_floppy, pc_machine_set_floppy,
+        NULL, NULL);
+    object_class_property_set_description(oc, PC_MACHINE_FLOPPY,
+        "Enable floppy (pc only)");
 
     object_class_property_add_bool(oc, PC_MACHINE_SMBUS,
         pc_machine_get_smbus, pc_machine_set_smbus);

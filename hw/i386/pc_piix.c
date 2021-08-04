@@ -235,8 +235,14 @@ static void pc_init1(MachineState *machine,
         pcms->vmport = xen_enabled() ? ON_OFF_AUTO_OFF : ON_OFF_AUTO_ON;
     }
 
+    if (pcms->floppy == ON_OFF_AUTO_AUTO) {
+        pcms->floppy = MACHINE_CLASS(pcmc)->no_floppy
+            ? ON_OFF_AUTO_OFF : ON_OFF_AUTO_ON;
+    }
+
     /* init basic PC hardware */
-    pc_basic_device_init(pcms, isa_bus, x86ms->gsi, &rtc_state, true,
+    pc_basic_device_init(pcms, isa_bus, x86ms->gsi, &rtc_state,
+                         pcms->floppy == ON_OFF_AUTO_ON,
                          0x4);
 
     pc_nic_init(pcmc, isa_bus, pci_bus);
