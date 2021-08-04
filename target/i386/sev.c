@@ -919,12 +919,17 @@ int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
         goto err;
     }
 
-    ret = sev_launch_start(sev);
-    if (ret) {
-        error_setg(errp, "%s: failed to create encryption context", __func__);
-        goto err;
+    /*
+     * The LAUNCH context is used for new guest, if its an incoming guest
+     * then RECEIVE context will be created after the connection is established.
+     */
+    if (!runstate_check(RUN_STATE_INMIGRATE)) {
+        ret = sev_launch_start(sev);
+        if (ret) {
+            error_report("%s: failed to create encryption context", __func__);
+            goto err;
+        }
     }
-
     ram_block_notifier_add(&sev_ram_notifier);
     qemu_add_machine_init_done_notifier(&sev_machine_done_notify);
     qemu_add_vm_change_state_handler(sev_vm_state_change, sev);
