@@ -34,7 +34,7 @@
 #include "hw/boards.h"
 #include "hw/ide/internal.h"
 #include "hw/ide/ahci_internal.h"
-#include "hw/intc/arm_gicv3_common.h"
+#include "hw/intc/arm_gicv3_its_common.h"
 #include "hw/loader.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/qdev-properties.h"
@@ -58,12 +58,26 @@
 #define ARCH_TIMER_NS_EL1_IRQ  14
 #define ARCH_TIMER_NS_EL2_IRQ  10
 
+/*
+ * Enumeration of the possible values of sbsa-ref version
+ * property. These are arbitrary QEMU-internal values.
+ * values are :-
+ * DEFAULT = without ITS memory map
+ * SBSA_GIC_ITS = with ITS memory map between distributor & redistributor
+ *                regions. This is the current version supported.
+ */
+typedef enum SbsaRefVersion {
+    SBSA_DEFAULT,
+    SBSA_ITS,
+} SbsaRefVersion;
+
 enum {
     SBSA_FLASH,
     SBSA_MEM,
     SBSA_CPUPERIPHS,
     SBSA_GIC_DIST,
     SBSA_GIC_REDIST,
+    SBSA_GIC_ITS,
     SBSA_SECURE_EC,
     SBSA_GWDT,
     SBSA_GWDT_REFRESH,
@@ -91,6 +105,7 @@ struct SBSAMachineState {
     void *fdt;
     int fdt_size;
     int psci_conduit;
+    SbsaRefVersion version;
     DeviceState *gic;
     PFlashCFI01 *flash[2];
 };
@@ -105,8 +120,11 @@ static const MemMapEntry sbsa_ref_memmap[] = {
     [SBSA_SECURE_MEM] =         { 0x20000000, 0x20000000 },
     /* Space reserved for CPU peripheral devices */
     [SBSA_CPUPERIPHS] =         { 0x40000000, 0x00040000 },
+    /* GIC components reserved space Start */
     [SBSA_GIC_DIST] =           { 0x40060000, 0x00010000 },
-    [SBSA_GIC_REDIST] =         { 0x40080000, 0x04000000 },
+    [SBSA_GIC_ITS] =            { 0x40070000, 0x00020000 },
+    [SBSA_GIC_REDIST] =         { 0x400B0000, 0x04000000 },
+    /* GIC components reserved space End */
     [SBSA_SECURE_EC] =          { 0x50000000, 0x00001000 },
     [SBSA_GWDT_REFRESH] =       { 0x50010000, 0x00001000 },
     [SBSA_GWDT_CONTROL] =       { 0x50011000, 0x00001000 },
@@ -377,7 +395,20 @@ static void create_secure_ram(SBSAMachineState *sms,
     memory_region_add_subregion(secure_sysmem, base, secram);
 }
 
-static void create_gic(SBSAMachineState *sms)
+static void create_its(SBSAMachineState *sms)
+{
+    DeviceState *dev;
+
+    dev = qdev_new(TYPE_ARM_GICV3_ITS);
+    SysBusDevice *s = SYS_BUS_DEVICE(dev);
+
+    object_property_set_link(OBJECT(dev), "parent-gicv3", OBJECT(sms->gic),
+                             &error_abort);
+    sysbus_realize_and_unref(s, &error_fatal);
+    sysbus_mmio_map(s, 0, sbsa_ref_memmap[SBSA_GIC_ITS].base);
+}
+
+static void create_gic(SBSAMachineState *sms, MemoryRegion *mem)
 {
     unsigned int smp_cpus = MACHINE(sms)->smp.cpus;
     SysBusDevice *gicbusdev;
@@ -403,6 +434,10 @@ static void create_gic(SBSAMachineState *sms)
 
     qdev_prop_set_uint32(sms->gic, "len-redist-region-count", 1);
     qdev_prop_set_uint32(sms->gic, "redist-region-count[0]", redist0_count);
+
+    object_property_set_link(OBJECT(sms->gic), "sysmem", OBJECT(mem),
+                                 &error_fatal);
+    qdev_prop_set_bit(sms->gic, "has-lpi", true);
 
     gicbusdev = SYS_BUS_DEVICE(sms->gic);
     sysbus_realize_and_unref(gicbusdev, &error_fatal);
@@ -450,6 +485,7 @@ static void create_gic(SBSAMachineState *sms)
         sysbus_connect_irq(gicbusdev, i + 3 * smp_cpus,
                            qdev_get_gpio_in(cpudev, ARM_CPU_VFIQ));
     }
+    create_its(sms);
 }
 
 static void create_uart(const SBSAMachineState *sms, int uart,
@@ -755,7 +791,7 @@ static void sbsa_ref_init(MachineState *machine)
 
     create_secure_ram(sms, secure_sysmem);
 
-    create_gic(sms);
+    create_gic(sms, sysmem);
 
     create_uart(sms, SBSA_UART, sysmem, serial_hd(0));
     create_uart(sms, SBSA_SECURE_UART, secure_sysmem, serial_hd(1));
@@ -825,10 +861,39 @@ sbsa_ref_get_default_cpu_node_id(const MachineState *ms, int idx)
     return idx % ms->numa_state->num_nodes;
 }
 
+static char *sbsa_get_version(Object *obj, Error **errp)
+{
+    SBSAMachineState *sms = SBSA_MACHINE(obj);
+
+    switch (sms->version) {
+    case SBSA_DEFAULT:
+        return g_strdup("default");
+    case SBSA_ITS:
+        return g_strdup("sbsaits");
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void sbsa_set_version(Object *obj, const char *value, Error **errp)
+{
+    SBSAMachineState *sms = SBSA_MACHINE(obj);
+
+    if (!strcmp(value, "sbsaits")) {
+        sms->version = SBSA_ITS;
+    } else if (!strcmp(value, "default")) {
+        sms->version = SBSA_DEFAULT;
+    } else {
+        error_setg(errp, "Invalid version value");
+        error_append_hint(errp, "Valid values are default, sbsaits.\n");
+    }
+}
+
 static void sbsa_ref_instance_init(Object *obj)
 {
     SBSAMachineState *sms = SBSA_MACHINE(obj);
 
+    sms->version = SBSA_ITS;
     sbsa_flash_create(sms);
 }
 
@@ -850,6 +915,12 @@ static void sbsa_ref_class_init(ObjectClass *oc, void *data)
     mc->possible_cpu_arch_ids = sbsa_ref_possible_cpu_arch_ids;
     mc->cpu_index_to_instance_props = sbsa_ref_cpu_index_to_props;
     mc->get_default_cpu_node_id = sbsa_ref_get_default_cpu_node_id;
+
+    object_class_property_add_str(oc, "version", sbsa_get_version,
+                                  sbsa_set_version);
+    object_class_property_set_description(oc, "version",
+                                          "Set the Version type. "
+                                          "Valid values are default & sbsaits");
 }
 
 static const TypeInfo sbsa_ref_info = {
