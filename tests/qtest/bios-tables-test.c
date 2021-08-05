@@ -1381,6 +1381,45 @@ static void test_acpi_piix4_tcg_acpi_hmat(void)
     test_acpi_tcg_acpi_hmat(MACHINE_PC);
 }
 
+static void test_acpi_erst(const char *machine)
+{
+    test_data data;
+
+    memset(&data, 0, sizeof(data));
+    data.machine = machine;
+    /*data.variant = ".acpierst";*/
+    test_acpi_one(" -object memory-backend-file,id=erstnvram,"
+                    "mem-path=tests/acpi-erst.XXXXXX,size=0x10000,share=on"
+                    " -device acpi-erst,memdev=erstnvram",
+                  &data);
+    free_test_data(&data);
+}
+
+static void test_acpi_piix4_erst(void)
+{
+    test_acpi_erst(MACHINE_PC);
+}
+
+static void test_acpi_q35_erst(void)
+{
+    test_acpi_erst(MACHINE_Q35);
+}
+
+static void test_acpi_microvm_erst(void)
+{
+    test_data data;
+
+    test_acpi_microvm_prepare(&data);
+    data.variant = ".pcie";
+    data.tcg_only = true; /* need constant host-phys-bits */
+    test_acpi_one(" -machine microvm,acpi=on,ioapic2=off,rtc=off,pcie=on "
+                    "-object memory-backend-file,id=erstnvram,"
+                    "mem-path=tests/acpi-erst.XXXXXX,size=0x10000,share=on "
+                    "-device acpi-erst,memdev=erstnvram",
+                  &data);
+    free_test_data(&data);
+}
+
 static void test_acpi_virt_tcg(void)
 {
     test_data data = {
@@ -1566,7 +1605,11 @@ int main(int argc, char *argv[])
         qtest_add_func("acpi/microvm/oem-fields", test_acpi_oem_fields_microvm);
         if (strcmp(arch, "x86_64") == 0) {
             qtest_add_func("acpi/microvm/pcie", test_acpi_microvm_pcie_tcg);
+            qtest_add_func("acpi/microvm/acpierst", test_acpi_microvm_erst);
         }
+        qtest_add_func("acpi/piix4/acpierst", test_acpi_piix4_erst);
+        qtest_add_func("acpi/q35/acpierst", test_acpi_q35_erst);
+
     } else if (strcmp(arch, "aarch64") == 0) {
         qtest_add_func("acpi/virt", test_acpi_virt_tcg);
         qtest_add_func("acpi/virt/numamem", test_acpi_virt_tcg_numamem);
