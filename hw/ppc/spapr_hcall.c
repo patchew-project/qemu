@@ -1405,6 +1405,59 @@ static target_ulong h_update_dt(PowerPCCPU *cpu, SpaprMachineState *spapr,
     return H_SUCCESS;
 }
 
+static target_ulong deregister_sns(PowerPCCPU *cpu, SpaprMachineState *spapr)
+{
+    spapr->sns_addr = -1;
+    spapr->sns_len = 0;
+    spapr_irq_free(spapr, SPAPR_IRQ_SNS, 1);
+
+    return H_SUCCESS;
+}
+
+static target_ulong h_reg_sns(PowerPCCPU *cpu, SpaprMachineState *spapr,
+                              target_ulong opcode, target_ulong *args)
+{
+    target_ulong addr = args[0];
+    target_ulong len = args[1];
+
+    if (addr == -1) {
+        return deregister_sns(cpu, spapr);
+    }
+
+    /*
+     * If SNS area is already registered, can't register again before
+     * deregistering it first.
+     */
+    if (spapr->sns_addr == -1) {
+        return H_PARAMETER;
+    }
+
+    if (!QEMU_IS_ALIGNED(addr, 4096)) {
+        return H_PARAMETER;
+    }
+
+    if (len < 256) {
+        return H_P2;
+    }
+
+    /* TODO: SNS area is not allowed to cross a page boundary */
+
+    /* KVM_PPC_SET_SNS ioctl */
+    if (kvmppc_set_sns_reg(addr, len)) {
+        return H_PARAMETER;
+    }
+
+    /* Record SNS addr and len */
+    spapr->sns_addr = addr;
+    spapr->sns_len = len;
+
+    /* Register irq source for sending ESN notification */
+    spapr_irq_claim(spapr, SPAPR_IRQ_SNS, false, &error_fatal);
+    args[1] = SPAPR_IRQ_SNS; /* irq no in R5 */
+
+    return H_SUCCESS;
+}
+
 static spapr_hcall_fn papr_hypercall_table[(MAX_HCALL_OPCODE / 4) + 1];
 static spapr_hcall_fn kvmppc_hypercall_table[KVMPPC_HCALL_MAX - KVMPPC_HCALL_BASE + 1];
 static spapr_hcall_fn svm_hypercall_table[(SVM_HCALL_MAX - SVM_HCALL_BASE) / 4 + 1];
@@ -1545,6 +1598,9 @@ static void hypercall_register_types(void)
     spapr_register_hypercall(KVMPPC_H_CAS, h_client_architecture_support);
 
     spapr_register_hypercall(KVMPPC_H_UPDATE_DT, h_update_dt);
+
+    /* SNS memory area registration */
+    spapr_register_hypercall(H_REG_SNS, h_reg_sns);
 }
 
 type_init(hypercall_register_types)

@@ -252,6 +252,8 @@ struct SpaprMachineState {
     uint32_t numa_assoc_array[MAX_NODES + NVGPU_MAX_NUM][NUMA_ASSOC_SIZE];
 
     Error *fwnmi_migration_blocker;
+    uint64_t sns_addr;
+    uint64_t sns_len;
 };
 
 #define H_SUCCESS         0
@@ -549,6 +551,7 @@ struct SpaprMachineState {
 #define H_SCM_UNBIND_MEM        0x3F0
 #define H_SCM_UNBIND_ALL        0x3FC
 #define H_SCM_HEALTH            0x400
+#define H_REG_SNS               0x41C
 #define H_RPT_INVALIDATE        0x448
 
 #define MAX_HCALL_OPCODE        H_RPT_INVALIDATE

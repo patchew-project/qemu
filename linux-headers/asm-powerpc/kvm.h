@@ -470,6 +470,12 @@ struct kvm_ppc_cpu_char {
 #define KVM_PPC_CPU_BEHAV_BNDS_CHK_SPEC_BAR	(1ULL << 61)
 #define KVM_PPC_CPU_BEHAV_FLUSH_COUNT_CACHE	(1ull << 58)
 
+/* For KVM_PPC_SET_SNS */
+struct kvm_ppc_sns_reg {
+	__u64 addr;
+	__u64 len;
+};
+
 /* Per-vcpu XICS interrupt controller state */
 #define KVM_REG_PPC_ICP_STATE	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x8c)
 

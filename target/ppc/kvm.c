@@ -2047,6 +2047,11 @@ void kvmppc_enable_h_rpt_invalidate(void)
     kvmppc_enable_hcall(kvm_state, H_RPT_INVALIDATE);
 }
 
+void kvmppc_enable_h_reg_sns(void)
+{
+    kvmppc_enable_hcall(kvm_state, H_REG_SNS);
+}
+
 void kvmppc_set_papr(PowerPCCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
@@ -2958,4 +2963,13 @@ void kvmppc_set_reg_tb_offset(PowerPCCPU *cpu, int64_t tb_offset)
 bool kvm_arch_cpu_check_are_resettable(void)
 {
     return true;
+}
+
+int kvmppc_set_sns_reg(target_ulong addr, target_ulong len)
+{
+    struct kvm_ppc_sns_reg sns_reg;
+
+    sns_reg.addr = addr;
+    sns_reg.len = len;
+    return kvm_vm_ioctl(kvm_state, KVM_PPC_SET_SNS, &sns_reg);
 }

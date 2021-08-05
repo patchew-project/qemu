@@ -2830,6 +2830,9 @@ static void spapr_machine_init(MachineState *machine)
 
         /* Enable H_PAGE_INIT */
         kvmppc_enable_h_page_init();
+
+        /* Enable H_REG_SNS */
+        kvmppc_enable_h_reg_sns();
     }
 
     /* map RAM */

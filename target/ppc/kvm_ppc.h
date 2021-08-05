@@ -25,6 +25,7 @@ void kvmppc_enable_set_mode_hcall(void);
 void kvmppc_enable_clear_ref_mod_hcalls(void);
 void kvmppc_enable_h_page_init(void);
 void kvmppc_enable_h_rpt_invalidate(void);
+void kvmppc_enable_h_reg_sns(void);
 void kvmppc_set_papr(PowerPCCPU *cpu);
 int kvmppc_set_compat(PowerPCCPU *cpu, uint32_t compat_pvr);
 void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy);
@@ -87,6 +88,7 @@ void kvmppc_set_reg_ppc_online(PowerPCCPU *cpu, unsigned int online);
 void kvmppc_set_reg_tb_offset(PowerPCCPU *cpu, int64_t tb_offset);
 
 int kvm_handle_nmi(PowerPCCPU *cpu, struct kvm_run *run);
+int kvmppc_set_sns_reg(target_ulong addr, target_ulong len);
 
 #else
 
@@ -155,6 +157,10 @@ static inline void kvmppc_enable_h_page_init(void)
 static inline void kvmppc_enable_h_rpt_invalidate(void)
 {
     g_assert_not_reached();
+}
+
+static inline void kvmppc_enable_h_reg_sns(void)
+{
 }
 
 static inline void kvmppc_set_papr(PowerPCCPU *cpu)
@@ -430,6 +436,10 @@ static inline bool kvmppc_pvr_workaround_required(PowerPCCPU *cpu)
     return false;
 }
 
+int kvmppc_set_sns_reg(target_ulong addr, target_ulong len)
+{
+    return -ENOSYS;
+}
 #endif
 
 #ifndef CONFIG_KVM
