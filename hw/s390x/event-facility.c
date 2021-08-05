@@ -328,6 +328,7 @@ static void write_event_mask(SCLPEventFacility *ef, SCCB *sccb)
 /* qemu object creation and initialization functions */
 
 #define TYPE_SCLP_EVENTS_BUS "s390-sclp-events-bus"
+OBJECT_DECLARE_SIMPLE_TYPE(SCLPEventsBus, SCLP_EVENT_BUS)
 
 static const TypeInfo sclp_events_bus_info = {
     .name = TYPE_SCLP_EVENTS_BUS,
