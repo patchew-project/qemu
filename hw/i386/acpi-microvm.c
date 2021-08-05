@@ -30,6 +30,7 @@
 #include "hw/acpi/bios-linker-loader.h"
 #include "hw/acpi/generic_event_device.h"
 #include "hw/acpi/utils.h"
+#include "hw/acpi/erst.h"
 #include "hw/i386/fw_cfg.h"
 #include "hw/i386/microvm.h"
 #include "hw/pci/pci.h"
@@ -159,6 +160,7 @@ static void acpi_build_microvm(AcpiBuildTables *tables,
     X86MachineState *x86ms = X86_MACHINE(mms);
     GArray *table_offsets;
     GArray *tables_blob = tables->table_data;
+    Object *erst_dev;
     unsigned dsdt, xsdt;
     AcpiFadtData pmfadt = {
         /* ACPI 5.0: 4.1 Hardware-Reduced ACPI */
@@ -207,6 +209,13 @@ static void acpi_build_microvm(AcpiBuildTables *tables,
     acpi_build_madt(tables_blob, tables->linker, X86_MACHINE(machine),
                     ACPI_DEVICE_IF(x86ms->acpi_dev), x86ms->oem_id,
                     x86ms->oem_table_id);
+
+    erst_dev = find_erst_dev();
+    if (erst_dev) {
+        acpi_add_table(table_offsets, tables_blob);
+        build_erst(tables_blob, tables->linker, erst_dev,
+                   x86ms->oem_id, x86ms->oem_table_id);
+    }
 
     xsdt = tables_blob->len;
     build_xsdt(tables_blob, tables->linker, table_offsets, x86ms->oem_id,
