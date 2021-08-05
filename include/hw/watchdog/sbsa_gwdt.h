@@ -19,10 +19,6 @@
 #define TYPE_WDT_SBSA "sbsa_gwdt"
 #define SBSA_GWDT(obj) \
     OBJECT_CHECK(SBSA_GWDTState, (obj), TYPE_WDT_SBSA)
-#define SBSA_GWDT_CLASS(klass) \
-    OBJECT_CLASS_CHECK(SBSA_GWDTClass, (klass), TYPE_WDT_SBSA)
-#define SBSA_GWDT_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(SBSA_GWDTClass, (obj), TYPE_WDT_SBSA)
 
 /* SBSA Generic Watchdog register definitions */
 /* refresh frame */
