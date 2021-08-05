@@ -38,6 +38,7 @@
 #include "hw/ppc/spapr_cpu_core.h"
 #include "hw/hw.h"
 #include "hw/ppc/ppc.h"
+#include "hw/irq.h"
 #include "migration/qemu-file-types.h"
 #include "sysemu/watchdog.h"
 #include "trace.h"
@@ -1657,6 +1658,16 @@ static int kvm_handle_debug(PowerPCCPU *cpu, struct kvm_run *run)
     return DEBUG_RETURN_GUEST;
 }
 
+#if defined(TARGET_PPC64)
+static void kvmppc_handle_esn(PowerPCCPU *cpu)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+
+    fprintf(stderr, "%s: ESN exit\n", __func__);
+    qemu_irq_pulse(spapr_qirq(spapr, SPAPR_IRQ_SNS));
+}
+#endif
+
 int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
@@ -1685,6 +1696,11 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
         run->papr_hcall.ret = spapr_hypercall(cpu,
                                               run->papr_hcall.nr,
                                               run->papr_hcall.args);
+        ret = 0;
+        break;
+
+    case KVM_EXIT_ESN:
+        kvmppc_handle_esn(cpu);
         ret = 0;
         break;
 #endif
