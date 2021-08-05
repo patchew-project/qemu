@@ -85,6 +85,9 @@ source_suffix = '.rst'
 # The master toctree document.
 master_doc = 'index'
 
+# Interpret `this` to be a cross-reference to "anything".
+default_role = 'any'
+
 # General information about the project.
 project = u'QEMU'
 copyright = u'2021, The QEMU Project Developers'
