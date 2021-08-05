@@ -332,6 +332,7 @@ static void write_event_mask(SCLPEventFacility *ef, SCCB *sccb)
 static const TypeInfo sclp_events_bus_info = {
     .name = TYPE_SCLP_EVENTS_BUS,
     .parent = TYPE_BUS,
+    .instance_size = sizeof(SCLPEventsBus),
 };
 
 static void command_handler(SCLPEventFacility *ef, SCCB *sccb, uint64_t code)
