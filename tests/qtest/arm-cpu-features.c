@@ -472,6 +472,9 @@ static void test_query_cpu_model_expansion(const void *data)
         assert_has_feature_enabled(qts, "max", "sve128");
         assert_has_feature_enabled(qts, "cortex-a57", "pmu");
         assert_has_feature_enabled(qts, "cortex-a57", "aarch64");
+        assert_has_feature_enabled(qts, "a64fx", "pmu");
+        assert_has_feature_enabled(qts, "a64fx", "aarch64");
+        assert_has_feature_enabled(qts, "a64fx", "sve");
 
         sve_tests_default(qts, "max");
         pauth_tests_default(qts, "max");
