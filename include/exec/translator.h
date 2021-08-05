@@ -23,6 +23,7 @@
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
 #include "exec/plugin-gen.h"
+#include "exec/translate-all.h"
 #include "tcg/tcg.h"
 
 
@@ -74,6 +75,17 @@ typedef struct DisasContextBase {
     int num_insns;
     int max_insns;
     bool singlestep_enabled;
+#ifdef CONFIG_USER_ONLY
+    /*
+     * Guest address of the last byte of the last protected page.
+     *
+     * Pages containing the translated instructions are made non-writable in
+     * order to achieve consistency in case another thread is modifying the
+     * code while translate_insn() fetches the instruction bytes piecemeal.
+     * Such writer threads are blocked on mmap_lock() in page_unprotect().
+     */
+    target_ulong page_protect_end;
+#endif
 } DisasContextBase;
 
 /**
@@ -155,10 +167,33 @@ bool translator_use_goto_tb(DisasContextBase *db, target_ulong dest);
  * the relevant information at translation time.
  */
 
+static inline void translator_page_protect(DisasContextBase *dcbase,
+                                           target_ulong pc)
+{
+#ifdef CONFIG_USER_ONLY
+    dcbase->page_protect_end = pc | ~TARGET_PAGE_MASK;
+    page_protect(pc & TARGET_PAGE_MASK);
+#endif
+}
+
+static inline void translator_maybe_page_protect(DisasContextBase *dcbase,
+                                                 target_ulong pc, size_t len)
+{
+#ifdef CONFIG_USER_ONLY
+    target_ulong end = pc + len - 1;
+
+    if (end > dcbase->page_protect_end) {
+        translator_page_protect(dcbase, end);
+    }
+#endif
+}
+
 #define GEN_TRANSLATOR_LD(fullname, type, load_fn, swap_fn)             \
     static inline type                                                  \
-    fullname ## _swap(CPUArchState *env, abi_ptr pc, bool do_swap)      \
+    fullname ## _swap(CPUArchState *env, DisasContextBase *dcbase,      \
+                      abi_ptr pc, bool do_swap)                         \
     {                                                                   \
+        translator_maybe_page_protect(dcbase, pc, sizeof(type));        \
         type ret = load_fn(env, pc);                                    \
         if (do_swap) {                                                  \
             ret = swap_fn(ret);                                         \
@@ -167,9 +202,10 @@ bool translator_use_goto_tb(DisasContextBase *db, target_ulong dest);
         return ret;                                                     \
     }                                                                   \
                                                                         \
-    static inline type fullname(CPUArchState *env, abi_ptr pc)          \
+    static inline type fullname(CPUArchState *env,                      \
+                                DisasContextBase *dcbase, abi_ptr pc)   \
     {                                                                   \
-        return fullname ## _swap(env, pc, false);                       \
+        return fullname ## _swap(env, dcbase, pc, false);               \
     }
 
 GEN_TRANSLATOR_LD(translator_ldub, uint8_t, cpu_ldub_code, /* no swap */)
