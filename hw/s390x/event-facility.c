@@ -532,7 +532,7 @@ BusState *sclp_get_event_facility_bus(void)
     SCLPEventsBus *sbus;
 
     busobj = object_resolve_path_type("", TYPE_SCLP_EVENTS_BUS, NULL);
-    sbus = OBJECT_CHECK(SCLPEventsBus, busobj, TYPE_SCLP_EVENTS_BUS);
+    sbus = SCLP_EVENT_BUS(busobj);
     if (!sbus) {
         return NULL;
     }
