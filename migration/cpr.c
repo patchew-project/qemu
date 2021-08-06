@@ -7,6 +7,7 @@
 
 #include "qemu/osdep.h"
 #include "exec/memory.h"
+#include "hw/vfio/vfio-common.h"
 #include "io/channel-buffer.h"
 #include "io/channel-file.h"
 #include "migration.h"
@@ -108,7 +109,9 @@ void qmp_cpr_exec(strList *args, Error **errp)
         error_setg(errp, "cpr-exec requires cpr-save with restart mode");
         return;
     }
-
+    if (cpr_vfio_save(errp)) {
+        return;
+    }
     cpr_walk_fd(preserve_fd, 0);
     if (cpr_state_save(errp)) {
         return;
@@ -145,6 +148,11 @@ void qmp_cpr_load(const char *filename, Error **errp)
     qemu_fclose(f);
     if (ret < 0) {
         error_setg(errp, "Error %d while loading VM state", ret);
+        goto out;
+    }
+
+    if (cpr_active_mode == CPR_MODE_RESTART &&
+        cpr_vfio_load(errp)) {
         goto out;
     }
 

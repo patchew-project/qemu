@@ -2904,6 +2904,7 @@ CPR
 M: Steve Sistare <steven.sistare@oracle.com>
 M: Mark Kanda <mark.kanda@oracle.com>
 S: Maintained
+F: hw/vfio/cpr.c
 F: include/migration/cpr.h
 F: migration/cpr.c
 F: qapi/cpr.json

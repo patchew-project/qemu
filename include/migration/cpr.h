@@ -25,4 +25,7 @@ int cpr_state_load(Error **errp);
 CprMode cpr_state_mode(void);
 void cpr_state_print(void);
 
+int cpr_vfio_save(Error **errp);
+int cpr_vfio_load(Error **errp);
+
 #endif
