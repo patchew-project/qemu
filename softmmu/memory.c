@@ -2809,6 +2809,32 @@ void memory_global_dirty_log_stop(void)
     memory_global_dirty_log_do_stop();
 }
 
+static int check_volatile(RAMBlock *rb, void *opaque)
+{
+    MemoryRegion *mr = rb->mr;
+
+    if (mr &&
+        memory_region_is_ram(mr) &&
+        !memory_region_is_ram_device(mr) &&
+        !memory_region_is_rom(mr) &&
+        (rb->fd == -1 || !qemu_ram_is_shared(rb))) {
+        *(const char **)opaque = memory_region_name(mr);
+        return -1;
+    }
+    return 0;
+}
+
+int qemu_check_ram_volatile(Error **errp)
+{
+    char *name;
+
+    if (qemu_ram_foreach_block(check_volatile, &name)) {
+        error_setg(errp, "Memory region %s is volatile", name);
+        return -1;
+    }
+    return 0;
+}
+
 static void listener_add_address_space(MemoryListener *listener,
                                        AddressSpace *as)
 {
