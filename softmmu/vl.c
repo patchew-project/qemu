@@ -76,6 +76,7 @@
 #include "hw/i386/pc.h"
 #include "migration/misc.h"
 #include "migration/snapshot.h"
+#include "migration/cpr.h"
 #include "sysemu/tpm.h"
 #include "sysemu/dma.h"
 #include "hw/audio/soundhw.h"
@@ -3613,6 +3614,8 @@ void qemu_init(int argc, char **argv, char **envp)
 
     qemu_validate_options(machine_opts_dict);
     qemu_process_sugar_options();
+
+    cpr_state_load(&error_fatal);
 
     /*
      * These options affect everything else and should be processed
