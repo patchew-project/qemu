@@ -1,0 +1,56 @@
+# -*- Mode: Python -*-
+#
+# Copyright (c) 2021 Oracle and/or its affiliates.
+#
+# This work is licensed under the terms of the GNU GPL, version 2.
+# See the COPYING file in the top-level directory.
+
+##
+# = CPR - CheckPoint and Restart
+##
+
+{ 'include': 'common.json' }
+
+##
+# @CprMode:
+#
+# @reboot: checkpoint can be cpr-load'ed after a host kexec reboot.
+#
+# Since: 6.2
+##
+{ 'enum': 'CprMode',
+  'data': [ 'reboot' ] }
+
+##
+# @cpr-save:
+#
+# Create a checkpoint of the virtual machine device state in @filename.
+# Unlike snapshot-save, this command completes synchronously, saves state
+# to an ordinary file, and does not save guest RAM or guest block device
+# blocks.  The caller must not modify guest block devices between cpr-save
+# and cpr-load.
+#
+# For reboot mode, all guest RAM objects must be non-volatile across reboot,
+# and created with the share=on parameter.
+#
+# @filename: name of checkpoint file
+# @mode: @CprMode mode
+#
+# Since: 6.2
+##
+{ 'command': 'cpr-save',
+  'data': { 'filename': 'str',
+            'mode': 'CprMode' } }
+
+##
+# @cpr-load:
+#
+# Start virtual machine from checkpoint file that was created earlier using
+# the cpr-save command.
+#
+# @filename: name of checkpoint file
+#
+# Since: 6.2
+##
+{ 'command': 'cpr-load',
+  'data': { 'filename': 'str' } }
