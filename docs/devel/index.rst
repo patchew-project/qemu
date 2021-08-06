@@ -12,14 +12,12 @@ modifying QEMU's source code.
    section-community-governance
    section-development
    section-testing-debugging
+   section-api
    section-tcg
    section-subsystems
    control-flow-integrity
    s390-dasd-ipl
-   qom
    block-coroutine-wrapper
    multi-process
    ebpf_rss
    vfio-migration
-   qapi-code-gen
-   writing-qmp-commands
