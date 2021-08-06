@@ -14,4 +14,15 @@
 
 CprMode cpr_mode(void);
 
+typedef int (*cpr_walk_fd_cb)(const char *name, int id, int fd, void *opaque);
+
+void cpr_save_fd(const char *name, int id, int fd);
+void cpr_delete_fd(const char *name, int id);
+int cpr_find_fd(const char *name, int id);
+int cpr_walk_fd(cpr_walk_fd_cb cb, void *handle);
+int cpr_state_save(Error **errp);
+int cpr_state_load(Error **errp);
+CprMode cpr_state_mode(void);
+void cpr_state_print(void);
+
 #endif
