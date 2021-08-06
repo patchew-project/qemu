@@ -14,6 +14,7 @@
 #include "colo.h"
 #include "net/filter.h"
 #include "net/net.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qom/object.h"
 #include "qemu/main-loop.h"
@@ -387,6 +388,14 @@ static void colo_rewriter_cleanup(NetFilterState *nf)
 static void colo_rewriter_setup(NetFilterState *nf, Error **errp)
 {
     RewriterState *s = FILTER_REWRITER(nf);
+
+    if (!s->vnet_hdr &&
+        qemu_opts_foreach(qemu_find_opts("device"),
+                         vnet_driver_check, nf->netdev_id, NULL)) {
+        error_setg(errp, "filter rewriter needs 'vnet_hdr_support' "
+                   "when network driver is virtio-net");
+        return;
+    }
 
     s->connection_track_table = g_hash_table_new_full(connection_key_hash,
                                                       connection_key_equal,

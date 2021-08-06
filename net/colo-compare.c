@@ -838,6 +838,23 @@ static int compare_chr_can_read(void *opaque)
     return COMPARE_READ_LEN_MAX;
 }
 
+/* check vnet_hdr_support flag through COLO filter modules */
+static int colo_vnet_driver_check(void *opaque, QemuOpts *opts, Error **errp)
+{
+    const char *colo_obj_type;
+
+    colo_obj_type = qemu_opt_get(opts, "qom-type");
+
+    if (strcmp(colo_obj_type, "filter-mirror") == 0 ||
+        strcmp(colo_obj_type, "filter-redirector") == 0 ||
+        strcmp(colo_obj_type, "filter-rewriter") == 0) {
+        if (qemu_opt_get(opts, "vnet_hdr_support")) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /*
  * Called from the main thread on the primary for packets
  * arriving over the socket from the primary.
@@ -1286,6 +1303,14 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
 
     if (find_and_check_chardev(&chr, s->outdev, errp) ||
         !qemu_chr_fe_init(&s->chr_out, chr, errp)) {
+        return;
+    }
+
+    if (!s->vnet_hdr &&
+        qemu_opts_foreach(qemu_find_opts("object"),
+                          colo_vnet_driver_check, NULL, NULL)) {
+        error_setg(errp, "colo compare needs 'vnet_hdr_support' "
+                   "when colo filter modules work on virtio-net");
         return;
     }
 
