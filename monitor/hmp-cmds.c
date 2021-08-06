@@ -33,6 +33,7 @@
 #include "qapi/qapi-commands-block.h"
 #include "qapi/qapi-commands-char.h"
 #include "qapi/qapi-commands-control.h"
+#include "qapi/qapi-commands-cpr.h"
 #include "qapi/qapi-commands-machine.h"
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/qapi-commands-misc.h"
@@ -1175,6 +1176,33 @@ void hmp_announce_self(Monitor *mon, const QDict *qdict)
     params->has_id = !!params->id;
     qmp_announce_self(params, NULL);
     qapi_free_AnnounceParameters(params);
+}
+
+void hmp_cpr_save(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    const char *mode;
+    int val;
+
+    mode = qdict_get_try_str(qdict, "mode");
+    val = qapi_enum_parse(&CprMode_lookup, mode, -1, &err);
+
+    if (val == -1) {
+        goto out;
+    }
+
+    qmp_cpr_save(qdict_get_try_str(qdict, "filename"), val, &err);
+
+out:
+    hmp_handle_error(mon, err);
+}
+
+void hmp_cpr_load(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+
+    qmp_cpr_load(qdict_get_try_str(qdict, "filename"), &err);
+    hmp_handle_error(mon, err);
 }
 
 void hmp_migrate_cancel(Monitor *mon, const QDict *qdict)
