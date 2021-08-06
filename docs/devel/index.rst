@@ -12,16 +12,12 @@ modifying QEMU's source code.
    section-community-governance
    section-development
    section-testing-debugging
+   section-tcg
    control-flow-integrity
    loads-stores
    memory
    migration
    atomics
-   decodetree
-   tcg
-   tcg-icount
-   multi-thread-tcg
-   tcg-plugins
    bitops
    ui
    reset
