@@ -662,7 +662,7 @@ static void test_propagate_mirror(void)
     g_assert(bdrv_get_aio_context(target) == ctx);
     g_assert(bdrv_get_aio_context(filter) == ctx);
 
-    job_cancel_sync_all();
+    job_cancel_sync_all(true);
 
     aio_context_acquire(ctx);
     blk_set_aio_context(blk, main_ctx, &error_abort);

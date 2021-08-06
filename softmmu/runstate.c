@@ -812,7 +812,7 @@ void qemu_cleanup(void)
     vm_shutdown();
     replay_finish();
 
-    job_cancel_sync_all();
+    job_cancel_sync_all(true);
     bdrv_close_all();
 
     /* vhost-user must be cleaned up before chardevs.  */
