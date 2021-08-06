@@ -10,9 +10,7 @@ modifying QEMU's source code.
    :includehidden:
 
    section-community-governance
-   build-system
-   style
-   kconfig
+   section-development
    testing
    fuzzing
    control-flow-integrity
@@ -20,11 +18,9 @@ modifying QEMU's source code.
    memory
    migration
    atomics
-   stable-process
    ci
    qtest
    decodetree
-   secure-coding-practices
    tcg
    tcg-icount
    tracing
