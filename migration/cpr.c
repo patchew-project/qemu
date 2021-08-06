@@ -8,6 +8,7 @@
 #include "qemu/osdep.h"
 #include "exec/memory.h"
 #include "hw/vfio/vfio-common.h"
+#include "hw/virtio/vhost.h"
 #include "io/channel-buffer.h"
 #include "io/channel-file.h"
 #include "migration.h"
@@ -116,6 +117,7 @@ void qmp_cpr_exec(strList *args, Error **errp)
     if (cpr_state_save(errp)) {
         return;
     }
+    vhost_dev_reset_all();
     qemu_system_exec_request(args);
 }
 
