@@ -443,6 +443,11 @@ vmxnet3_setup_tx_offloads(VMXNET3State *s)
         net_tx_pkt_build_vheader(s->tx_pkt, false, false, 0);
         break;
 
+    case VMXNET3_OM_ENCAP:
+        VMW_PKPRN("Encapsulation offload requested, but not available\n");
+        return false;
+        break;
+
     case VMXNET3_OM_CSUM:
         net_tx_pkt_build_vheader(s->tx_pkt, false, true, 0);
         VMW_PKPRN("L4 CSO requested\n");

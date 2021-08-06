@@ -273,6 +273,7 @@ struct Vmxnet3_TxDesc {
 
 /* TxDesc.OM values */
 #define VMXNET3_OM_NONE        0
+#define VMXNET3_OM_ENCAP       1
 #define VMXNET3_OM_CSUM        2
 #define VMXNET3_OM_TSO        3
 
