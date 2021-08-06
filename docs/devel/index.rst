@@ -15,9 +15,4 @@ modifying QEMU's source code.
    section-api
    section-tcg
    section-subsystems
-   control-flow-integrity
-   s390-dasd-ipl
-   block-coroutine-wrapper
-   multi-process
-   ebpf_rss
-   vfio-migration
+   section-misc
