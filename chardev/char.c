@@ -36,6 +36,7 @@
 #include "qemu/help_option.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
+#include "migration/cpr.h"
 #include "qemu/id.h"
 #include "qemu/coroutine.h"
 #include "qemu/yank.h"
@@ -240,7 +241,10 @@ static void qemu_char_open(Chardev *chr, ChardevBackend *backend,
     /* Any ChardevCommon member would work */
     ChardevCommon *common = backend ? backend->u.null.data : NULL;
 
+    chr->reopen_on_cpr = (common && common->reopen_on_cpr);
+
     if (common && common->has_logfile) {
+        g_autofree char *fdname = g_strdup_printf("%s_log", chr->label);
         int flags = O_WRONLY | O_CREAT;
         if (common->has_logappend &&
             common->logappend) {
@@ -248,7 +252,13 @@ static void qemu_char_open(Chardev *chr, ChardevBackend *backend,
         } else {
             flags |= O_TRUNC;
         }
-        chr->logfd = qemu_open_old(common->logfile, flags, 0666);
+        chr->logfd = cpr_find_fd(fdname, 0);
+        if (chr->logfd < 0) {
+            chr->logfd = qemu_open_old(common->logfile, flags, 0666);
+            if (!chr->reopen_on_cpr) {
+                cpr_save_fd(fdname, 0, chr->logfd);
+            }
+        }
         if (chr->logfd < 0) {
             error_setg_errno(errp, errno,
                              "Unable to open logfile %s",
@@ -300,11 +310,13 @@ static void char_finalize(Object *obj)
     if (chr->be) {
         chr->be->chr = NULL;
     }
-    g_free(chr->filename);
-    g_free(chr->label);
     if (chr->logfd != -1) {
+        g_autofree char *fdname = g_strdup_printf("%s_log", chr->label);
+        cpr_delete_fd(fdname, 0);
         close(chr->logfd);
     }
+    g_free(chr->filename);
+    g_free(chr->label);
     qemu_mutex_destroy(&chr->chr_write_lock);
 }
 
@@ -504,6 +516,8 @@ void qemu_chr_parse_common(QemuOpts *opts, ChardevCommon *backend)
 
     backend->has_logappend = true;
     backend->logappend = qemu_opt_get_bool(opts, "logappend", false);
+
+    backend->reopen_on_cpr = qemu_opt_get_bool(opts, "reopen-on-cpr", false);
 }
 
 static const ChardevClass *char_get_class(const char *driver, Error **errp)
@@ -945,6 +959,9 @@ QemuOptsList qemu_chardev_opts = {
         },{
             .name = "abstract",
             .type = QEMU_OPT_BOOL,
+        },{
+            .name = "reopen-on-cpr",
+            .type = QEMU_OPT_BOOL,
 #endif
         },
         { /* end of list */ }
@@ -1218,6 +1235,26 @@ GSource *qemu_chr_timeout_add_ms(Chardev *chr, guint ms,
     g_source_attach(source, chr->gcontext);
 
     return source;
+}
+
+static int chr_cpr_capable(Object *obj, void *opaque)
+{
+    Chardev *chr = (Chardev *)obj;
+    Error **errp = opaque;
+
+    if (qemu_chr_has_feature(chr, QEMU_CHAR_FEATURE_CPR) ||
+        chr->reopen_on_cpr) {
+        return 0;
+    }
+    error_setg(errp,
+               "chardev %s -> %s is not capable of cpr. See reopen-on-cpr",
+               chr->label, chr->filename);
+    return -1;
+}
+
+bool qemu_chr_is_cpr_capable(Error **errp)
+{
+    return !object_child_foreach(get_chardevs_root(), chr_cpr_capable, errp);
 }
 
 void qemu_chr_cleanup(void)
