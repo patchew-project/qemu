@@ -39,6 +39,7 @@
 
 #include "chardev/char-io.h"
 #include "qom/object.h"
+#include "sysemu/sysemu.h"
 
 /***********************************************************/
 /* TCP Net console */
@@ -1463,6 +1464,9 @@ static void qmp_chardev_open_socket(Chardev *chr,
 
     if (!s->tls_creds && !s->is_websock) {
         qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_CPR);
+    } else if (only_cpr_capable) {
+        error_setg(errp, "error: socket %s is not cpr capable due to %s option",
+                   chr->label, (s->tls_creds ? "TLS" : "websocket"));
     }
 
     /* be isn't opened until we get a connection */
