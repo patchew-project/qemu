@@ -119,6 +119,7 @@ void qmp_cpr_exec(strList *args, Error **errp)
         return;
     }
     vhost_dev_reset_all();
+    qemu_term_exit();
     qemu_system_exec_request(args);
 }
 

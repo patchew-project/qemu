@@ -295,5 +295,6 @@ void resume_mux_open(void);
 void qemu_chr_parse_vc(QemuOpts *opts, ChardevBackend *backend, Error **errp);
 
 bool qemu_chr_is_cpr_capable(Error **errp);
+void qemu_term_exit(void);
 
 #endif
