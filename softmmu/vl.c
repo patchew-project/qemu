@@ -2406,6 +2406,7 @@ static void create_default_memdev(MachineState *ms, const char *path)
         object_property_set_str(obj, "mem-path", path, &error_fatal);
     }
     object_property_set_int(obj, "size", ms->ram_size, &error_fatal);
+    object_property_set_bool(obj, "share", ms->memfd_alloc, &error_fatal);
     object_property_add_child(object_get_objects_root(), mc->default_ram_id,
                               obj);
     /* Ensure backend's memory region name is equal to mc->default_ram_id */

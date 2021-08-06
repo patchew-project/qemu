@@ -30,6 +30,7 @@ DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
     "                vmport=on|off|auto controls emulation of vmport (default: auto)\n"
     "                dump-guest-core=on|off include guest memory in a core dump (default=on)\n"
     "                mem-merge=on|off controls memory merge support (default: on)\n"
+    "                memfd-alloc=on|off controls allocating anonymous guest RAM using memfd_create (default: off)\n"
     "                aes-key-wrap=on|off controls support for AES key wrapping (default=on)\n"
     "                dea-key-wrap=on|off controls support for DEA key wrapping (default=on)\n"
     "                suppress-vmdesc=on|off disables self-describing migration (default=off)\n"
@@ -75,6 +76,11 @@ SRST
         Enables or disables memory merge support. This feature, when
         supported by the host, de-duplicates identical memory pages
         among VMs instances (enabled by default).
+
+    ``memfd-alloc=on|off``
+        Enables or disables allocation of anonymous guest RAM using
+        memfd_create.  Any associated memory-backend objects are created with
+        share=on.  The memfd-alloc default is off.
 
     ``aes-key-wrap=on|off``
         Enables or disables AES key wrapping support on s390-ccw hosts.
