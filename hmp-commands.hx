@@ -353,7 +353,7 @@ ERST
     {
         .name       = "cpr-save",
         .args_type  = "filename:s,mode:s",
-        .params     = "filename 'reboot'",
+        .params     = "filename 'reboot'|'restart'",
         .help       = "create a checkpoint of the VM in file",
         .cmd        = hmp_cpr_save,
     },
@@ -366,6 +366,25 @@ If *mode* is 'reboot', the checkpoint remains valid after a host kexec
 reboot, and guest ram must be backed by persistent shared memory.  To
 resume from the checkpoint, issue the quit command, reboot the system,
 and issue the cpr-load command.
+
+If *mode* is 'restart', the checkpoint remains valid after restarting qemu
+using a subsequent cpr-exec.  All guest RAM objects must be shared.  The
+share=on property is required for memory created with an explicit -object
+option, and the memfd-alloc machine property is required for memory that is
+implicitly created.  To resume from the checkpoint, issue the cpr-load command.
+ERST
+
+    {
+        .name       = "cpr-exec",
+        .args_type  = "command:S",
+        .params     = "command",
+        .help       = "Restart qemu by directly exec'ing command",
+        .cmd        = hmp_cpr_exec,
+    },
+
+SRST
+``cpr-exec`` *command*
+Restart qemu by directly exec'ing *command*, replacing the qemu process.
 ERST
 
     {

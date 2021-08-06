@@ -1172,6 +1172,17 @@ out:
     hmp_handle_error(mon, err);
 }
 
+void hmp_cpr_exec(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    const char *command = qdict_get_try_str(qdict, "command");
+    strList *args = strList_from_string(command, ' ');
+
+    qmp_cpr_exec(args, &err);
+    qapi_free_strList(args);
+    hmp_handle_error(mon, err);
+}
+
 void hmp_cpr_load(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
