@@ -1349,6 +1349,7 @@ static void monitor_read(void *opaque, const uint8_t *buf, int size)
         for (i = 0; i < size; i++) {
             readline_handle_byte(mon->rs, buf[i]);
         }
+        monitor_accept_input(&mon->common);
     } else {
         if (size == 0 || buf[size - 1] != 0) {
             monitor_printf(&mon->common, "corrupted command\n");

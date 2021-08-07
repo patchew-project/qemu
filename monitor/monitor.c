@@ -519,11 +519,26 @@ int monitor_suspend(Monitor *mon)
     return 0;
 }
 
-static void monitor_accept_input(void *opaque)
+static void monitor_accept_input_bh(void *opaque)
 {
     Monitor *mon = opaque;
 
     qemu_chr_fe_accept_input(&mon->chr);
+}
+
+void monitor_accept_input(Monitor *mon)
+{
+    if (!qatomic_mb_read(&mon->suspend_cnt)) {
+        AioContext *ctx;
+
+        if (mon->use_io_thread) {
+            ctx = iothread_get_aio_context(mon_iothread);
+        } else {
+            ctx = qemu_get_aio_context();
+        }
+
+        aio_bh_schedule_oneshot(ctx, monitor_accept_input_bh, mon);
+    }
 }
 
 void monitor_resume(Monitor *mon)
@@ -547,7 +562,7 @@ void monitor_resume(Monitor *mon)
             readline_show_prompt(hmp_mon->rs);
         }
 
-        aio_bh_schedule_oneshot(ctx, monitor_accept_input, mon);
+        aio_bh_schedule_oneshot(ctx, monitor_accept_input_bh, mon);
     }
 
     trace_monitor_suspend(mon, -1);
