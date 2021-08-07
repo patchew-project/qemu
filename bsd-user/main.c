@@ -49,9 +49,9 @@
 #include "target_arch_cpu.h"
 
 int singlestep;
-uintptr_t guest_base;
 static const char *cpu_model;
 static const char *cpu_type;
+unsigned long guest_base;
 bool have_guest_base;
 #if (TARGET_LONG_BITS == 32) && (HOST_LONG_BITS == 64)
 /*
@@ -440,7 +440,7 @@ int main(int argc, char **argv)
     g_free(target_environ);
 
     if (qemu_loglevel_mask(CPU_LOG_PAGE)) {
-        qemu_log("guest_base  %p\n", (void *)guest_base);
+        qemu_log("guest_base  0x%lx\n", guest_base);
         log_page_dump("binary load");
 
         qemu_log("start_brk   0x" TARGET_ABI_FMT_lx "\n", info->start_brk);
