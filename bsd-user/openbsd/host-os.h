@@ -20,4 +20,6 @@
 #ifndef __HOST_OS_H_
 #define __HOST_OS_H_
 
+#define HOST_DEFAULT_BSD_TYPE target_openbsd
+
 #endif /*!__HOST_OS_H_ */
