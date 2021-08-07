@@ -49,12 +49,29 @@
 #include "target_arch_cpu.h"
 
 int singlestep;
-unsigned long mmap_min_addr;
 uintptr_t guest_base;
 static const char *cpu_model;
 static const char *cpu_type;
 bool have_guest_base;
+#if (TARGET_LONG_BITS == 32) && (HOST_LONG_BITS == 64)
+/*
+ * When running 32-on-64 we should make sure we can fit all of the possible
+ * guest address space into a contiguous chunk of virtual host memory.
+ *
+ * This way we will never overlap with our own libraries or binaries or stack
+ * or anything else that QEMU maps.
+ */
+# ifdef TARGET_MIPS
+/* MIPS only supports 31 bits of virtual address space for user space */
+unsigned long reserved_va = 0x77000000;
+# elif defined(TARGET_PPC64)
+unsigned long reserved_va = 0xfffff000;
+# else
+unsigned long reserved_va = 0xf7000000;
+# endif
+#else
 unsigned long reserved_va;
+#endif
 
 static const char *interp_prefix = CONFIG_QEMU_INTERP_PREFIX;
 const char *qemu_uname_release;
@@ -398,6 +415,10 @@ int main(int argc, char **argv)
 
     target_environ = envlist_to_environ(envlist, NULL);
     envlist_free(envlist);
+
+    if (reserved_va) {
+            mmap_next_start = reserved_va;
+    }
 
     /*
      * Now that page sizes are configured we can do
