@@ -139,17 +139,88 @@ abi_ulong loader_build_argptr(int envc, int argc, abi_ulong sp,
     return sp;
 }
 
+static bool is_there(const char *candidate)
+{
+    struct stat fin;
+
+    /* XXX work around access(2) false positives for superuser */
+    if (access(candidate, X_OK) == 0 && stat(candidate, &fin) == 0 &&
+            S_ISREG(fin.st_mode) && (getuid() != 0 ||
+                (fin.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0)) {
+        return true;
+    }
+
+    return false;
+}
+
+static bool find_in_path(char *path, const char *filename, char *retpath,
+                         size_t rpsize)
+{
+    const char *d;
+
+    while ((d = strsep(&path, ":")) != NULL) {
+        if (*d == '\0') {
+            d = ".";
+        }
+        if (snprintf(retpath, rpsize, "%s/%s", d, filename) >= (int)rpsize) {
+            continue;
+        }
+        if (is_there((const char *)retpath)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 int loader_exec(const char *filename, char **argv, char **envp,
                 struct target_pt_regs *regs, struct image_info *infop,
                 struct bsd_binprm *bprm)
 {
+    char *p, *path = NULL, fullpath[PATH_MAX];
     int retval, i;
 
     bprm->p = TARGET_PAGE_SIZE * MAX_ARG_PAGES;
     for (i = 0; i < MAX_ARG_PAGES; i++) {       /* clear page-table */
         bprm->page[i] = NULL;
     }
-    retval = open(filename, O_RDONLY);
+
+    if (strchr(filename, '/') != NULL) {
+        path = realpath(filename, fullpath);
+        if (path == NULL) {
+            /* Failed to resolve. */
+            return -1;
+        }
+        if (!is_there(path)) {
+            return -1;
+        }
+        retval = open(path, O_RDONLY);
+        bprm->fullpath = g_strdup(path);
+    } else {
+        p = getenv("PATH");
+        if (p == NULL) {
+            return -1;
+        }
+
+        path = g_strdup(p);
+        if (path == NULL) {
+            fprintf(stderr, "Out of memory\n");
+            return -1;
+        }
+
+        if (!find_in_path(path, filename, fullpath, sizeof(fullpath))) {
+            return -1;
+        }
+        retval = open(fullpath, O_RDONLY);
+        bprm->fullpath = g_strdup(fullpath);
+
+        g_free(path);
+    }
+
+    /* bprm->fullpath must be populated. */
+    if (bprm->fullpath == NULL) {
+        fprintf(stderr, "Out of memory\n");
+        return -1;
+    }
     if (retval < 0) {
         return retval;
     }
