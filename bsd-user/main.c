@@ -405,8 +405,10 @@ int main(int argc, char **argv)
         accel_init_interfaces(ac);
         ac->init_machine(NULL);
     }
+
     cpu = cpu_create(cpu_type);
     env = cpu->env_ptr;
+    cpu_reset(cpu);
     thread_cpu = cpu;
 
     if (getenv("QEMU_STRACE")) {
