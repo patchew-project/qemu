@@ -51,6 +51,8 @@
 int singlestep;
 unsigned long mmap_min_addr;
 uintptr_t guest_base;
+static const char *cpu_model;
+static const char *cpu_type;
 bool have_guest_base;
 unsigned long reserved_va;
 
@@ -197,8 +199,6 @@ static void save_proc_pathname(char *argv0)
 int main(int argc, char **argv)
 {
     const char *filename;
-    const char *cpu_model;
-    const char *cpu_type;
     const char *log_file = NULL;
     const char *log_mask = NULL;
     struct target_pt_regs regs1, *regs = &regs1;
