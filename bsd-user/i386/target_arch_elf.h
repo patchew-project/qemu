@@ -25,10 +25,12 @@ static const char *get_elf_platform(void)
 {
     static char elf_platform[] = "i386";
     int family = object_property_get_int(OBJECT(thread_cpu), "family", NULL);
-    if (family > 6)
+    if (family > 6) {
         family = 6;
-    if (family >= 3)
+    }
+    if (family >= 3) {
         elf_platform[1] = '0' + family;
+    }
     return elf_platform;
 }
 
@@ -46,7 +48,7 @@ static uint32_t get_elf_hwcap(void)
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
-#define elf_check_arch(x) ( ((x) == EM_386) || ((x) == EM_486) )
+#define elf_check_arch(x) (((x) == EM_386) || ((x) == EM_486))
 
 /*
  * These are used to set parameters in the core dumps.
@@ -55,18 +57,21 @@ static uint32_t get_elf_hwcap(void)
 #define ELF_DATA        ELFDATA2LSB
 #define ELF_ARCH        EM_386
 
-static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
+static inline void init_thread(struct target_pt_regs *regs,
+                               struct image_info *infop)
 {
     regs->esp = infop->start_stack;
     regs->eip = infop->entry;
 
-    /* SVR4/i386 ABI (pages 3-31, 3-32) says that when the program
-       starts %edx contains a pointer to a function which might be
-       registered using `atexit'.  This provides a mean for the
-       dynamic linker to call DT_FINI functions for shared libraries
-       that have been loaded before the code runs.
-
-       A value of 0 tells we have no such handler.  */
+    /*
+     * SVR4/i386 ABI (pages 3-31, 3-32) says that when the program starts %edx
+     * contains a pointer to a function which might be registered using
+     * `atexit'.  This provides a mean for the dynamic linker to call DT_FINI
+     * functions for shared libraries that have been loaded before the code
+     * runs.
+     *
+     * A value of 0 tells we have no such handler.
+     */
     regs->edx = 0;
 }
 
