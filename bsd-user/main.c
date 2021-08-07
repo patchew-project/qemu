@@ -205,7 +205,7 @@ int main(int argc, char **argv)
     struct target_pt_regs regs1, *regs = &regs1;
     struct image_info info1, *info = &info1;
     struct bsd_binprm bprm;
-    TaskState ts1, *ts = &ts1;
+    TaskState *ts;
     CPUArchState *env;
     CPUState *cpu;
     int optind, rv;
@@ -407,31 +407,7 @@ int main(int argc, char **argv)
      */
     guest_base = HOST_PAGE_ALIGN(guest_base);
 
-    /*
-     * Read in mmap_min_addr kernel parameter.  This value is used
-     * When loading the ELF image to determine whether guest_base
-     * is needed.
-     *
-     * When user has explicitly set the quest base, we skip this
-     * test.
-     */
-    if (!have_guest_base) {
-        FILE *fp;
-
-        fp = fopen("/proc/sys/vm/mmap_min_addr", "r");
-        if (fp != NULL) {
-            unsigned long tmp;
-            if (fscanf(fp, "%lu", &tmp) == 1) {
-                mmap_min_addr = tmp;
-                qemu_log_mask(CPU_LOG_PAGE, "host mmap_min_addr=0x%lx\n",
-                              mmap_min_addr);
-            }
-            fclose(fp);
-        }
-    }
-
-    if (loader_exec(filename, argv+optind, target_environ, regs, info,
-                    &bprm) != 0) {
+    if (loader_exec(filename, argv+optind, target_environ, regs, info, &bprm)) {
         printf("Error loading %s\n", filename);
         _exit(1);
     }
@@ -459,21 +435,11 @@ int main(int argc, char **argv)
         qemu_log("entry       0x" TARGET_ABI_FMT_lx "\n", info->entry);
     }
 
-    target_set_brk(info->brk);
-    syscall_init();
-    signal_init();
-
-    /*
-     * Now that we've loaded the binary, GUEST_BASE is fixed.  Delay
-     * generating the prologue until now so that the prologue can take
-     * the real value of GUEST_BASE into account.
-     */
-    tcg_prologue_init(tcg_ctx);
-
     /* build Task State */
-    memset(ts, 0, sizeof(TaskState));
+    ts = g_new0(TaskState, 1);
     init_task_state(ts);
     ts->info = info;
+    ts->bprm = &bprm;
     cpu->opaque = ts;
 
     target_set_brk(info->brk);
