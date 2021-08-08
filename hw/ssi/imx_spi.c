@@ -167,6 +167,8 @@ static void imx_spi_flush_txfifo(IMXSPIState *s)
     DPRINTF("Begin: TX Fifo Size = %d, RX Fifo Size = %d\n",
             fifo32_num_used(&s->tx_fifo), fifo32_num_used(&s->rx_fifo));
 
+    qemu_set_irq(s->cs_lines[imx_spi_selected_channel(s)], 0);
+
     while (!fifo32_is_empty(&s->tx_fifo)) {
         int tx_burst = 0;
 
@@ -385,13 +387,6 @@ static void imx_spi_write(void *opaque, hwaddr offset, uint64_t value,
     case ECSPI_CONREG:
         s->regs[ECSPI_CONREG] = value;
 
-        burst = EXTRACT(s->regs[ECSPI_CONREG], ECSPI_CONREG_BURST_LENGTH) + 1;
-        if (burst % 8) {
-            qemu_log_mask(LOG_UNIMP,
-                          "[%s]%s: burst length %d not supported: rounding up to next multiple of 8\n",
-                          TYPE_IMX_SPI, __func__, burst);
-        }
-
         if (!imx_spi_is_enabled(s)) {
             /* device is disabled, so this is a soft reset */
             imx_spi_soft_reset(s);
@@ -404,9 +399,11 @@ static void imx_spi_write(void *opaque, hwaddr offset, uint64_t value,
 
             /* We are in master mode */
 
-            for (i = 0; i < ECSPI_NUM_CS; i++) {
-                qemu_set_irq(s->cs_lines[i],
-                             i == imx_spi_selected_channel(s) ? 0 : 1);
+            burst = EXTRACT(s->regs[ECSPI_CONREG], ECSPI_CONREG_BURST_LENGTH);
+            if (burst == 0) {
+                for (i = 0; i < ECSPI_NUM_CS; i++) {
+                    qemu_set_irq(s->cs_lines[i], 1);
+                }
             }
 
             if ((value & change_mask & ECSPI_CONREG_SMC) &&
