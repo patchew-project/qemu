@@ -247,8 +247,8 @@ static bool trans_parallel_compare(DisasContext *ctx, arg_rtype *a,
         return true;
     }
 
-    c0 = tcg_const_tl(0);
-    c1 = tcg_const_tl(0xffffffff);
+    c0 = tcg_constant_tl(0);
+    c1 = tcg_constant_tl(0xffffffff);
     ax = tcg_temp_new_i64();
     bx = tcg_temp_new_i64();
     t0 = tcg_temp_new_i64();
@@ -279,8 +279,6 @@ static bool trans_parallel_compare(DisasContext *ctx, arg_rtype *a,
     tcg_temp_free(t0);
     tcg_temp_free(bx);
     tcg_temp_free(ax);
-    tcg_temp_free(c1);
-    tcg_temp_free(c0);
 
     return true;
 }
