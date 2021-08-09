@@ -92,15 +92,53 @@ static void update_PMC_PM_CYC(CPUPPCState *env, int sprn,
     env->spr[sprn] += get_cycles(icount_delta);
 }
 
+static int get_stall_ratio(uint8_t stall_event)
+{
+    int stall_ratio = 0;
+
+    switch (stall_event) {
+    case 0xA:
+        stall_ratio = 25;
+        break;
+    case 0x6:
+    case 0x16:
+    case 0x1C:
+        stall_ratio = 5;
+        break;
+    default:
+        break;
+    }
+
+    return stall_ratio;
+}
+
+static void update_PMC_PM_STALL(CPUPPCState *env, int sprn,
+                                uint64_t icount_delta,
+                                uint8_t stall_event)
+{
+    int stall_ratio = get_stall_ratio(stall_event);
+    uint64_t cycles = muldiv64(get_cycles(icount_delta), stall_ratio, 100);
+
+    env->spr[sprn] += cycles;
+}
+
 static void update_programmable_PMC_reg(CPUPPCState *env, int sprn,
                                         uint64_t icount_delta)
 {
-    switch (get_PMC_event(env, sprn)) {
+    uint8_t event = get_PMC_event(env, sprn);
+
+    switch (event) {
     case 0x2:
         update_PMC_PM_INST_CMPL(env, sprn, icount_delta);
         break;
     case 0x1E:
         update_PMC_PM_CYC(env, sprn, icount_delta);
+        break;
+    case 0xA:
+    case 0x6:
+    case 0x16:
+    case 0x1C:
+        update_PMC_PM_STALL(env, sprn, icount_delta, event);
         break;
     default:
         return;
@@ -163,6 +201,34 @@ static int64_t get_CYC_timeout(CPUPPCState *env, int sprn)
     return muldiv64(remaining_cyc, NANOSECONDS_PER_SECOND, PPC_CPU_FREQ);
 }
 
+static int64_t get_stall_timeout(CPUPPCState *env, int sprn,
+                                 uint8_t stall_event)
+{
+    uint64_t remaining_cyc;
+    int stall_multiplier;
+
+    if (env->spr[sprn] == 0) {
+        return icount_to_ns(COUNTER_NEGATIVE_VAL);
+    }
+
+    if (env->spr[sprn] >= COUNTER_NEGATIVE_VAL) {
+        return 0;
+    }
+
+    remaining_cyc = COUNTER_NEGATIVE_VAL - env->spr[sprn];
+
+    /*
+     * Consider that for this stall event we'll advance the counter
+     * in a lower rate, thus requiring more cycles to overflow.
+     * E.g. for PM_CMPLU_STALL (0xA), ratio 25, it'll require
+     * 100/25 = 4 times the same amount of cycles to overflow.
+     */
+    stall_multiplier = 100 / get_stall_ratio(stall_event);
+    remaining_cyc *= stall_multiplier;
+
+    return muldiv64(remaining_cyc, NANOSECONDS_PER_SECOND, PPC_CPU_FREQ);
+}
+
 static bool pmc_counter_negative_enabled(CPUPPCState *env, int sprn)
 {
     bool PMC14_running = !(env->spr[SPR_POWER_MMCR0] & MMCR0_FC14);
@@ -191,6 +257,7 @@ static bool pmc_counter_negative_enabled(CPUPPCState *env, int sprn)
 static int64_t get_counter_neg_timeout(CPUPPCState *env, int sprn)
 {
     int64_t timeout = -1;
+    uint8_t event;
 
     if (!pmc_counter_negative_enabled(env, sprn)) {
         return -1;
@@ -205,12 +272,22 @@ static int64_t get_counter_neg_timeout(CPUPPCState *env, int sprn)
     case SPR_POWER_PMC2:
     case SPR_POWER_PMC3:
     case SPR_POWER_PMC4:
-        switch (get_PMC_event(env, sprn)) {
+        event = get_PMC_event(env, sprn);
+
+        switch (event) {
         case 0x2:
             timeout = get_INST_CMPL_timeout(env, sprn);
             break;
         case 0x1E:
             timeout = get_CYC_timeout(env, sprn);
+            break;
+        case 0xA:
+        case 0x6:
+        case 0x16:
+        case 0x1c:
+            timeout = get_stall_timeout(env, sprn, event);
+            break;
+        default:
             break;
         }
 
