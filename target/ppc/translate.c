@@ -176,6 +176,7 @@ struct DisasContext {
     bool tm_enabled;
     bool gtse;
     ppc_spr_t *spr_cb; /* Needed to check rights for mfspr/mtspr */
+    target_ulong *spr; /* Needed to check rights for mfspr/mtspr */
     int singlestep_enabled;
     uint32_t flags;
     uint64_t insns_flags;
@@ -573,6 +574,46 @@ void spr_write_ureg(DisasContext *ctx, int sprn, int gprn)
 {
     gen_store_spr(sprn + 0x10, cpu_gpr[gprn]);
 }
+
+/* User special write access to PMU SPRs  */
+void spr_write_pmu_ureg(DisasContext *ctx, int sprn, int gprn)
+{
+    TCGv t0, t1;
+    int effective_sprn = sprn + 0x10;
+
+    if (((ctx->spr[SPR_POWER_MMCR0] & MMCR0_PMCC) >> 18) == 0) {
+        /* Hypervisor Emulation Assistance interrupt */
+        gen_hvpriv_exception(ctx, POWERPC_EXCP_INVAL_SPR);
+        return;
+    }
+
+    switch (effective_sprn) {
+    case SPR_POWER_MMCR0:
+        t0 = tcg_temp_new();
+        t1 = tcg_temp_new();
+
+        /*
+         * Filter out all bits but FC, PMAO, and PMAE, according
+         * to ISA v3.1, in 10.4.4 Monitor Mode Control Register 0,
+         * fourth paragraph.
+         */
+        tcg_gen_andi_tl(t0, cpu_gpr[gprn],
+                        MMCR0_FC | MMCR0_PMAO | MMCR0_PMAE);
+        gen_load_spr(t1, SPR_POWER_MMCR0);
+        tcg_gen_andi_tl(t1, t1, ~(MMCR0_FC | MMCR0_PMAO | MMCR0_PMAE));
+        /* Keep all other bits intact */
+        tcg_gen_or_tl(t1, t1, t0);
+        gen_store_spr(effective_sprn, t1);
+
+        tcg_temp_free(t0);
+        tcg_temp_free(t1);
+        break;
+    default:
+        gen_store_spr(effective_sprn, cpu_gpr[gprn]);
+        break;
+    }
+}
+
 #endif
 
 /* SPR common to all non-embedded PowerPC */
@@ -8563,6 +8604,7 @@ static void ppc_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     uint32_t hflags = ctx->base.tb->flags;
 
     ctx->spr_cb = env->spr_cb;
+    ctx->spr = env->spr;
     ctx->pr = (hflags >> HFLAGS_PR) & 1;
     ctx->mem_idx = (hflags >> HFLAGS_DMMU_IDX) & 7;
     ctx->dr = (hflags >> HFLAGS_DR) & 1;

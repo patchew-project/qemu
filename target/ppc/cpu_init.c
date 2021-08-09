@@ -6868,47 +6868,47 @@ static void register_book3s_pmu_sup_sprs(CPUPPCState *env)
 static void register_book3s_pmu_user_sprs(CPUPPCState *env)
 {
     spr_register(env, SPR_POWER_UMMCR0, "UMMCR0",
-                 &spr_read_pmu_ureg, SPR_NOACCESS,
+                 &spr_read_pmu_ureg, &spr_write_pmu_ureg,
                  &spr_read_ureg, &spr_write_ureg,
                  0x00000000);
     spr_register(env, SPR_POWER_UMMCR1, "UMMCR1",
-                 &spr_read_pmu_ureg, SPR_NOACCESS,
+                 &spr_read_pmu_ureg, &spr_write_pmu_ureg,
                  &spr_read_ureg, &spr_write_ureg,
                  0x00000000);
     spr_register(env, SPR_POWER_UMMCRA, "UMMCRA",
-                 &spr_read_pmu_ureg, SPR_NOACCESS,
+                 &spr_read_pmu_ureg, &spr_write_pmu_ureg,
                  &spr_read_ureg, &spr_write_ureg,
                  0x00000000);
     spr_register(env, SPR_POWER_UPMC1, "UPMC1",
-                 &spr_read_pmu_ureg, SPR_NOACCESS,
+                 &spr_read_pmu_ureg, &spr_write_pmu_ureg,
                  &spr_read_ureg, &spr_write_ureg,
                  0x00000000);
     spr_register(env, SPR_POWER_UPMC2, "UPMC2",
-                 &spr_read_pmu_ureg, SPR_NOACCESS,
+                 &spr_read_pmu_ureg, &spr_write_pmu_ureg,
                  &spr_read_ureg, &spr_write_ureg,
                  0x00000000);
     spr_register(env, SPR_POWER_UPMC3, "UPMC3",
-                 &spr_read_pmu_ureg, SPR_NOACCESS,
+                 &spr_read_pmu_ureg, &spr_write_pmu_ureg,
                  &spr_read_ureg, &spr_write_ureg,
                  0x00000000);
     spr_register(env, SPR_POWER_UPMC4, "UPMC4",
-                 &spr_read_pmu_ureg, SPR_NOACCESS,
+                 &spr_read_pmu_ureg, &spr_write_pmu_ureg,
                  &spr_read_ureg, &spr_write_ureg,
                  0x00000000);
     spr_register(env, SPR_POWER_UPMC5, "UPMC5",
-                 &spr_read_pmu_ureg, SPR_NOACCESS,
+                 &spr_read_pmu_ureg, &spr_write_pmu_ureg,
                  &spr_read_ureg, &spr_write_ureg,
                  0x00000000);
     spr_register(env, SPR_POWER_UPMC6, "UPMC6",
-                 &spr_read_pmu_ureg, SPR_NOACCESS,
+                 &spr_read_pmu_ureg, &spr_write_pmu_ureg,
                  &spr_read_ureg, &spr_write_ureg,
                  0x00000000);
     spr_register(env, SPR_POWER_USIAR, "USIAR",
-                 &spr_read_pmu_ureg, SPR_NOACCESS,
+                 &spr_read_pmu_ureg, &spr_write_pmu_ureg,
                  &spr_read_ureg, &spr_write_ureg,
                  0x00000000);
     spr_register(env, SPR_POWER_USDAR, "USDAR",
-                 &spr_read_pmu_ureg, SPR_NOACCESS,
+                 &spr_read_pmu_ureg, &spr_write_pmu_ureg,
                  &spr_read_ureg, &spr_write_ureg,
                  0x00000000);
 }
@@ -6976,8 +6976,8 @@ static void register_power8_pmu_sup_sprs(CPUPPCState *env)
 static void register_power8_pmu_user_sprs(CPUPPCState *env)
 {
     spr_register(env, SPR_POWER_UMMCR2, "UMMCR2",
-                 &spr_read_pmu_ureg, SPR_NOACCESS,
-                 &spr_read_pmu_ureg, &spr_write_ureg,
+                 &spr_read_pmu_ureg, &spr_write_pmu_ureg,
+                 &spr_read_pmu_ureg, &spr_write_pmu_ureg,
                  0x00000000);
     spr_register(env, SPR_POWER_USIER, "USIER",
                  &spr_read_generic, SPR_NOACCESS,
