@@ -1605,6 +1605,34 @@ static void pnv_chip_power10_instance_init(Object *obj)
     object_initialize_child(obj, "occ",  &chip10->occ, TYPE_PNV10_OCC);
 }
 
+
+static void pnv_chip_power10_quad_realize(Pnv10Chip *chip10, Error **errp)
+{
+    PnvChip *chip = PNV_CHIP(chip10);
+    int i;
+
+    chip10->nr_quads = DIV_ROUND_UP(chip->nr_cores, 4);
+    chip10->quads = g_new0(PnvQuad, chip10->nr_quads);
+
+    for (i = 0; i < chip10->nr_quads; i++) {
+        char eq_name[32];
+        PnvQuad *eq = &chip10->quads[i];
+        PnvCore *pnv_core = chip->cores[i * 4];
+        int core_id = CPU_CORE(pnv_core)->core_id;
+
+        snprintf(eq_name, sizeof(eq_name), "eq[%d]", core_id);
+        object_initialize_child_with_props(OBJECT(chip), eq_name, eq,
+                                           sizeof(*eq), TYPE_PNV_QUAD,
+                                           &error_fatal, NULL);
+
+        object_property_set_int(OBJECT(eq), "id", core_id, &error_fatal);
+        qdev_realize(DEVICE(eq), NULL, &error_fatal);
+
+        pnv_xscom_add_subregion(chip, PNV10_XSCOM_EQ_BASE(eq->id),
+                                &eq->xscom_regs);
+    }
+}
+
 static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
 {
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(dev);
@@ -1621,6 +1649,12 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(chip), 0, PNV10_XSCOM_BASE(chip));
 
     pcc->parent_realize(dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    pnv_chip_power10_quad_realize(chip10, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
