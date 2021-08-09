@@ -115,14 +115,20 @@ static void update_programmable_PMC_reg(CPUPPCState *env, int sprn,
  */
 static void update_PMCs(CPUPPCState *env, uint64_t icount_delta)
 {
+    bool PMC14_running = !(env->spr[SPR_POWER_MMCR0] & MMCR0_FC14);
+    bool PMC56_running = !(env->spr[SPR_POWER_MMCR0] & MMCR0_FC56);
     int sprn;
 
-    for (sprn = SPR_POWER_PMC1; sprn < SPR_POWER_PMC5; sprn++) {
-        update_programmable_PMC_reg(env, sprn, icount_delta);
+    if (PMC14_running) {
+        for (sprn = SPR_POWER_PMC1; sprn < SPR_POWER_PMC5; sprn++) {
+            update_programmable_PMC_reg(env, sprn, icount_delta);
+        }
     }
 
-    update_PMC_PM_INST_CMPL(env, SPR_POWER_PMC5, icount_delta);
-    update_PMC_PM_CYC(env, SPR_POWER_PMC6, icount_delta);
+    if (PMC56_running) {
+        update_PMC_PM_INST_CMPL(env, SPR_POWER_PMC5, icount_delta);
+        update_PMC_PM_CYC(env, SPR_POWER_PMC6, icount_delta);
+    }
 }
 
 static int64_t get_INST_CMPL_timeout(CPUPPCState *env, int sprn)
@@ -159,16 +165,21 @@ static int64_t get_CYC_timeout(CPUPPCState *env, int sprn)
 
 static bool pmc_counter_negative_enabled(CPUPPCState *env, int sprn)
 {
+    bool PMC14_running = !(env->spr[SPR_POWER_MMCR0] & MMCR0_FC14);
+    bool PMC56_running = !(env->spr[SPR_POWER_MMCR0] & MMCR0_FC56);
+
     switch (sprn) {
     case SPR_POWER_PMC1:
-        return env->spr[SPR_POWER_MMCR0] & MMCR0_PMC1CE;
+        return env->spr[SPR_POWER_MMCR0] & MMCR0_PMC1CE && PMC14_running;
 
     case SPR_POWER_PMC2:
     case SPR_POWER_PMC3:
     case SPR_POWER_PMC4:
+        return env->spr[SPR_POWER_MMCR0] & MMCR0_PMCjCE && PMC14_running;
+
     case SPR_POWER_PMC5:
     case SPR_POWER_PMC6:
-        return env->spr[SPR_POWER_MMCR0] & MMCR0_PMCjCE;
+        return env->spr[SPR_POWER_MMCR0] & MMCR0_PMCjCE && PMC56_running;
 
     default:
         break;
