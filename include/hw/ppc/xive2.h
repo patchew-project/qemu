@@ -35,6 +35,7 @@ typedef struct Xive2Router {
  */
 
 #define XIVE2_GEN1_TIMA_OS      0x00000001
+#define XIVE2_VP_SAVE_RESTORE   0x00000002
 
 typedef struct Xive2RouterClass {
     SysBusDeviceClass parent;
