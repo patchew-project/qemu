@@ -342,6 +342,14 @@ typedef struct ppc_v3_pate_t {
 #define MSR_RI   1  /* Recoverable interrupt                        1        */
 #define MSR_LE   0  /* Little-endian mode                           1 hflags */
 
+/* PMU bits */
+#define MMCR0_FC    PPC_BIT(32)         /* Freeze Counters  */
+#define MMCR0_PMAO  PPC_BIT(56)         /* Perf Monitor Alert Ocurred */
+#define MMCR0_PMAE  PPC_BIT(37)         /* Perf Monitor Alert Enable */
+#define MMCR0_EBE   PPC_BIT(43)         /* Perf Monitor EBB Enable */
+#define MMCR0_FCECE PPC_BIT(38)         /* FC on Enabled Cond or Event */
+#define MMCR0_PMCC  PPC_BITMASK(44, 45) /* PMC Control */
+
 /* LPCR bits */
 #define LPCR_VPM0         PPC_BIT(0)
 #define LPCR_VPM1         PPC_BIT(1)
