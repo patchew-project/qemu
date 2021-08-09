@@ -351,6 +351,7 @@ typedef struct ppc_v3_pate_t {
 #define MMCR0_FCECE PPC_BIT(38)         /* FC on Enabled Cond or Event */
 #define MMCR0_PMCC  PPC_BITMASK(44, 45) /* PMC Control */
 #define MMCR0_PMC1CE PPC_BIT(48)
+#define MMCR0_PMCjCE PPC_BIT(49)
 
 #define MMCR1_PMC1SEL_SHIFT (63 - 39)
 #define MMCR1_PMC1SEL PPC_BITMASK(32, 39)
