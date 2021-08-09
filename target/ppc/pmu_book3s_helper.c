@@ -52,6 +52,20 @@ static uint8_t get_PMC_event(CPUPPCState *env, int sprn)
         break;
     case SPR_POWER_PMC4:
         event = MMCR1_PMC4SEL & env->spr[SPR_POWER_MMCR1];
+
+        /*
+         * Event 0xFA for PMC4SEL is described as follows in
+         * PowerISA v3.1:
+         *
+         * "The thread has completed an instruction when the RUN bit of
+         * the thread’s CTRL register contained 1"
+         *
+         * Our closest equivalent for this event at this moment is plain
+         * INST_CMPL (event 0x2)
+         */
+        if (event == 0xFA) {
+            event = 0x2;
+        }
         break;
     case SPR_POWER_PMC5:
         event = 0x2;
