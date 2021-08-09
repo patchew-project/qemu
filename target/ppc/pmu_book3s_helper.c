@@ -17,11 +17,16 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 
+/*
+ * Set arbitrarily based on clock-frequency values used in PNV
+ * and SPAPR code.
+ */
+#define PPC_CPU_FREQ 1000000000
 
 static uint64_t get_cycles(uint64_t icount_delta)
 {
-    /* Placeholder value */
-    return icount_delta * 4;
+    return muldiv64(icount_to_ns(icount_delta), PPC_CPU_FREQ,
+                    NANOSECONDS_PER_SECOND);
 }
 
 static void update_PMC_PM_INST_CMPL(CPUPPCState *env, int sprn,
