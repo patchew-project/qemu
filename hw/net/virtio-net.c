@@ -935,12 +935,23 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
         memset(n->vlans, 0xff, MAX_VLAN >> 3);
     }
 
-    if (virtio_has_feature(features, VIRTIO_NET_F_STANDBY)) {
-        qapi_event_send_failover_negotiated(n->netclient_name);
-        qatomic_set(&n->failover_primary_hidden, false);
-        failover_add_primary(n, &err);
-        if (err) {
-            warn_report_err(err);
+    /*
+     * if the virtio-net driver has the STANDBY feature, we can plug the primary
+     * if not but is not the default failover device,
+     * we need to plug the primary alone and the virtio-net driver will
+     * be disabled in the validate_features() function but validate_features()
+     * is only available with virtio 1.0 spec
+     */
+    if (n->failover) {
+        if (virtio_has_feature(features, VIRTIO_NET_F_STANDBY) ||
+           (virtio_has_feature(features, VIRTIO_F_VERSION_1) &&
+            !n->failover_default)) {
+            qapi_event_send_failover_negotiated(n->netclient_name);
+            qatomic_set(&n->failover_primary_hidden, false);
+            failover_add_primary(n, &err);
+            if (err) {
+                warn_report_err(err);
+            }
         }
     }
 }
@@ -3625,8 +3636,33 @@ static Property virtio_net_properties[] = {
     DEFINE_PROP_INT32("speed", VirtIONet, net_conf.speed, SPEED_UNKNOWN),
     DEFINE_PROP_STRING("duplex", VirtIONet, net_conf.duplex_str),
     DEFINE_PROP_BOOL("failover", VirtIONet, failover, false),
+    DEFINE_PROP_BOOL("failover-default", VirtIONet, failover_default, true),
     DEFINE_PROP_END_OF_LIST(),
 };
+
+/* validate_features() is only available with VIRTIO_F_VERSION_1 */
+static int failover_validate_features(VirtIODevice *vdev)
+{
+    VirtIONet *n = VIRTIO_NET(vdev);
+
+    /*
+     * If the guest driver doesn't support the STANDBY feature, by default
+     * we keep the virtio-net device and don't hotplug the VFIO device,
+     * but in some cases, user can prefer to use the VFIO device rather
+     * than the virtio-net one. We can't unplug the virtio-net device
+     * (because on migration it is expected on the destination side)
+     * but we can force the guest driver to be disabled. In this case, We can
+     * hotplug the VFIO device that will be unplugged before the migration
+     * like in the normal failover migration but without the failover device.
+     */
+    if (n->failover && !n->failover_default &&
+        !virtio_vdev_has_feature(vdev, VIRTIO_NET_F_STANDBY)) {
+        /* disable virtio-net */
+        return -ENODEV;
+    }
+
+    return 0;
+}
 
 static void virtio_net_class_init(ObjectClass *klass, void *data)
 {
@@ -3651,6 +3687,7 @@ static void virtio_net_class_init(ObjectClass *klass, void *data)
     vdc->post_load = virtio_net_post_load_virtio;
     vdc->vmsd = &vmstate_virtio_net_device;
     vdc->primary_unplug_pending = primary_unplug_pending;
+    vdc->validate_features = failover_validate_features;
 }
 
 static const TypeInfo virtio_net_info = {

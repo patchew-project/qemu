@@ -208,6 +208,7 @@ struct VirtIONet {
     /* primary failover device is hidden*/
     bool failover_primary_hidden;
     bool failover;
+    bool failover_default;
     DeviceListener primary_listener;
     Notifier migration_state;
     VirtioNetRssData rss_data;
