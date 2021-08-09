@@ -10,6 +10,7 @@ guest hardware that is specific to QEMU.
    ppc-xive
    ppc-spapr-xive
    ppc-spapr-numa
+   ppc-tcg-pmu-ebb
    acpi_hw_reduced_hotplug
    tpm
    acpi_hest_ghes
