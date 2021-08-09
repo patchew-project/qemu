@@ -1176,9 +1176,11 @@ struct CPUPPCState {
     uint64_t tm_dscr;
     uint64_t tm_tar;
 
-    /* PMU registers icount state */
-    uint64_t pmc5_base_icount;
-    uint64_t pmc6_base_icount;
+    /*
+     * PMU icount base value used by the PMU to calculate
+     * instructions and cycles.
+     */
+    uint64_t pmu_base_icount;
 };
 
 #define SET_FIT_PERIOD(a_, b_, c_, d_)          \
