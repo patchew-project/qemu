@@ -111,23 +111,52 @@ static void update_PMCs(CPUPPCState *env, uint64_t icount_delta)
     update_PMC_PM_CYC(env, SPR_POWER_PMC6, icount_delta);
 }
 
+static int64_t get_INST_CMPL_timeout(CPUPPCState *env, int sprn)
+{
+    int64_t remaining_insns;
+
+    if (env->spr[sprn] == 0) {
+        return icount_to_ns(COUNTER_NEGATIVE_VAL);
+    }
+
+    if (env->spr[sprn] >= COUNTER_NEGATIVE_VAL) {
+        return 0;
+    }
+
+    remaining_insns = COUNTER_NEGATIVE_VAL - env->spr[sprn];
+    return icount_to_ns(remaining_insns);
+}
+
+static int64_t get_CYC_timeout(CPUPPCState *env, int sprn)
+{
+    int64_t remaining_cyc;
+
+    if (env->spr[sprn] == 0) {
+        return icount_to_ns(COUNTER_NEGATIVE_VAL);
+    }
+
+    if (env->spr[sprn] >= COUNTER_NEGATIVE_VAL) {
+        return 0;
+    }
+
+    remaining_cyc = COUNTER_NEGATIVE_VAL - env->spr[sprn];
+    return muldiv64(remaining_cyc, NANOSECONDS_PER_SECOND, PPC_CPU_FREQ);
+}
+
 static void set_PMU_excp_timer(CPUPPCState *env)
 {
-    uint64_t timeout, now, remaining_val;
+    uint64_t timeout, now;
 
     if (!(env->spr[SPR_POWER_MMCR0] & MMCR0_PMC1CE)) {
         return;
     }
 
-    remaining_val = COUNTER_NEGATIVE_VAL - env->spr[SPR_POWER_PMC1];
-
     switch (get_PMC_event(env, SPR_POWER_PMC1)) {
     case 0x2:
-        timeout = icount_to_ns(remaining_val);
+        timeout = get_INST_CMPL_timeout(env, SPR_POWER_PMC1);
         break;
     case 0x1e:
-        timeout = muldiv64(remaining_val, NANOSECONDS_PER_SECOND,
-                           PPC_CPU_FREQ);
+        timeout = get_CYC_timeout(env, SPR_POWER_PMC1);
         break;
     default:
         return;
