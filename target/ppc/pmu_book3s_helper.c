@@ -17,32 +17,27 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 
-static uint64_t get_insns(void)
-{
-    return (uint64_t)icount_get_raw();
-}
 
-static uint64_t get_cycles(uint64_t insns)
+static uint64_t get_cycles(uint64_t icount_delta)
 {
     /* Placeholder value */
-    return insns * 4;
+    return icount_delta * 4;
 }
 
 static void update_PMC_PM_INST_CMPL(CPUPPCState *env, int sprn,
-                                    uint64_t curr_icount)
+                                    uint64_t icount_delta)
 {
-    env->spr[sprn] += curr_icount - env->pmu_base_icount;
+    env->spr[sprn] += icount_delta;
 }
 
 static void update_PMC_PM_CYC(CPUPPCState *env, int sprn,
-                              uint64_t curr_icount)
+                              uint64_t icount_delta)
 {
-    uint64_t insns = curr_icount - env->pmu_base_icount;
-    env->spr[sprn] += get_cycles(insns);
+    env->spr[sprn] += get_cycles(icount_delta);
 }
 
 static void update_programmable_PMC_reg(CPUPPCState *env, int sprn,
-                                        uint64_t curr_icount)
+                                        uint64_t icount_delta)
 {
     int event;
 
@@ -68,10 +63,10 @@ static void update_programmable_PMC_reg(CPUPPCState *env, int sprn,
 
     switch (event) {
     case 0x2:
-        update_PMC_PM_INST_CMPL(env, sprn, curr_icount);
+        update_PMC_PM_INST_CMPL(env, sprn, icount_delta);
         break;
     case 0x1E:
-        update_PMC_PM_CYC(env, sprn, curr_icount);
+        update_PMC_PM_CYC(env, sprn, icount_delta);
         break;
     default:
         return;
@@ -84,21 +79,21 @@ static void update_programmable_PMC_reg(CPUPPCState *env, int sprn,
  * There is no need to update the base icount of each PMC since
  * the PMU is not running.
  */
-static void update_PMCs_on_freeze(CPUPPCState *env)
+static void update_PMCs(CPUPPCState *env, uint64_t icount_delta)
 {
-    uint64_t curr_icount = get_insns();
     int sprn;
 
     for (sprn = SPR_POWER_PMC1; sprn < SPR_POWER_PMC5; sprn++) {
-        update_programmable_PMC_reg(env, sprn, curr_icount);
+        update_programmable_PMC_reg(env, sprn, icount_delta);
     }
 
-    update_PMC_PM_INST_CMPL(env, SPR_POWER_PMC5, curr_icount);
-    update_PMC_PM_CYC(env, SPR_POWER_PMC6, curr_icount);
+    update_PMC_PM_INST_CMPL(env, SPR_POWER_PMC5, icount_delta);
+    update_PMC_PM_CYC(env, SPR_POWER_PMC6, icount_delta);
 }
 
 void helper_store_mmcr0(CPUPPCState *env, target_ulong value)
 {
+    uint64_t curr_icount = (uint64_t)icount_get_raw();
     bool curr_FC = env->spr[SPR_POWER_MMCR0] & MMCR0_FC;
     bool new_FC = value & MMCR0_FC;
 
@@ -115,9 +110,18 @@ void helper_store_mmcr0(CPUPPCState *env, target_ulong value)
      */
     if (curr_FC != new_FC) {
         if (!curr_FC) {
-            update_PMCs_on_freeze(env);
+            uint64_t icount_delta = (curr_icount - env->pmu_base_icount);
+
+            /* Exclude both mtsprs() that opened and closed the timer */
+            icount_delta -= 2;
+
+            /*
+             * Update the counter with the instructions run
+             * until the freeze.
+             */
+            update_PMCs(env, icount_delta);
         } else {
-            env->pmu_base_icount = get_insns();
+            env->pmu_base_icount = curr_icount;
         }
     }
 
