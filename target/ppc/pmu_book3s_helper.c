@@ -28,6 +28,56 @@ static uint64_t get_cycles(uint64_t insns)
     return insns * 4;
 }
 
+static void update_PMC_PM_INST_CMPL(CPUPPCState *env, int sprn,
+                                    uint64_t curr_icount)
+{
+    env->spr[sprn] += curr_icount - env->pmu_base_icount;
+}
+
+static void update_PMC_PM_CYC(CPUPPCState *env, int sprn,
+                              uint64_t curr_icount)
+{
+    uint64_t insns = curr_icount - env->pmu_base_icount;
+    env->spr[sprn] += get_cycles(insns);
+}
+
+static void update_programmable_PMC_reg(CPUPPCState *env, int sprn,
+                                        uint64_t curr_icount)
+{
+    int event;
+
+    switch (sprn) {
+    case SPR_POWER_PMC1:
+        event = MMCR1_PMC1SEL & env->spr[SPR_POWER_MMCR1];
+        event = event >> MMCR1_PMC1SEL_SHIFT;
+        break;
+    case SPR_POWER_PMC2:
+        event = MMCR1_PMC2SEL & env->spr[SPR_POWER_MMCR1];
+        event = event >> MMCR1_PMC2SEL_SHIFT;
+        break;
+    case SPR_POWER_PMC3:
+        event = MMCR1_PMC3SEL & env->spr[SPR_POWER_MMCR1];
+        event = event >> MMCR1_PMC3SEL_SHIFT;
+        break;
+    case SPR_POWER_PMC4:
+        event = MMCR1_PMC4SEL & env->spr[SPR_POWER_MMCR1];
+        break;
+    default:
+        return;
+    }
+
+    switch (event) {
+    case 0x2:
+        update_PMC_PM_INST_CMPL(env, sprn, curr_icount);
+        break;
+    case 0x1E:
+        update_PMC_PM_CYC(env, sprn, curr_icount);
+        break;
+    default:
+        return;
+    }
+}
+
 /*
  * Set all PMCs values after a PMU freeze via MMCR0_FC.
  *
@@ -37,10 +87,14 @@ static uint64_t get_cycles(uint64_t insns)
 static void update_PMCs_on_freeze(CPUPPCState *env)
 {
     uint64_t curr_icount = get_insns();
+    int sprn;
 
-    env->spr[SPR_POWER_PMC5] += curr_icount - env->pmu_base_icount;
-    env->spr[SPR_POWER_PMC6] += get_cycles(curr_icount -
-                                           env->pmu_base_icount);
+    for (sprn = SPR_POWER_PMC1; sprn < SPR_POWER_PMC5; sprn++) {
+        update_programmable_PMC_reg(env, sprn, curr_icount);
+    }
+
+    update_PMC_PM_INST_CMPL(env, SPR_POWER_PMC5, curr_icount);
+    update_PMC_PM_CYC(env, SPR_POWER_PMC6, curr_icount);
 }
 
 void helper_store_mmcr0(CPUPPCState *env, target_ulong value)
