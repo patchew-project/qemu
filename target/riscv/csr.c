@@ -1422,11 +1422,11 @@ RISCVException riscv_csrrw(CPURISCVState *env, int csrno,
     RISCVException ret;
     target_ulong old_value;
     RISCVCPU *cpu = env_archcpu(env);
+    int read_only = get_field(csrno, 0xC00) == 3;
 
     /* check privileges and return -1 if check fails */
 #if !defined(CONFIG_USER_ONLY)
     int effective_priv = env->priv;
-    int read_only = get_field(csrno, 0xC00) == 3;
 
     if (riscv_has_ext(env, RVH) &&
         env->priv == PRV_S &&
@@ -1442,6 +1442,10 @@ RISCVException riscv_csrrw(CPURISCVState *env, int csrno,
     if ((write_mask && read_only) ||
         (!env->debugger && (effective_priv < get_field(csrno, 0x300)))) {
         return RISCV_EXCP_ILLEGAL_INST;
+    }
+#else
+    if (write_mask && read_only) {
+        return -RISCV_EXCP_ILLEGAL_INST;
     }
 #endif
 
