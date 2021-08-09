@@ -2701,6 +2701,26 @@ static void gen_darn(DisasContext *ctx)
         }
     }
 }
+
+/* rfebb */
+static void gen_rfebb(DisasContext *ctx)
+{
+    TCGv target = tcg_temp_new();
+    TCGv bescr = tcg_temp_new();
+
+    gen_load_spr(target, SPR_EBBRR);
+    tcg_gen_mov_tl(cpu_nip, target);
+
+    gen_load_spr(bescr, SPR_BESCR);
+    tcg_gen_ori_tl(bescr, bescr, BESCR_GE);
+    gen_store_spr(SPR_BESCR, bescr);
+
+    ctx->base.is_jmp = DISAS_EXIT;
+
+    tcg_temp_free(target);
+    tcg_temp_free(bescr);
+}
+
 #endif
 
 /***                             Integer rotate                            ***/
@@ -7724,6 +7744,7 @@ GEN_HANDLER(popcntd, 0x1F, 0x1A, 0x0F, 0x0000F801, PPC_POPCNTWD),
 GEN_HANDLER(cntlzd, 0x1F, 0x1A, 0x01, 0x00000000, PPC_64B),
 GEN_HANDLER_E(cnttzd, 0x1F, 0x1A, 0x11, 0x00000000, PPC_NONE, PPC2_ISA300),
 GEN_HANDLER_E(darn, 0x1F, 0x13, 0x17, 0x001CF801, PPC_NONE, PPC2_ISA300),
+GEN_HANDLER_E(rfebb, 0x13, 0x12, 0x04, 0x03FFF001, PPC_NONE, PPC2_ISA207S),
 GEN_HANDLER_E(prtyd, 0x1F, 0x1A, 0x05, 0x0000F801, PPC_NONE, PPC2_ISA205),
 GEN_HANDLER_E(bpermd, 0x1F, 0x1C, 0x07, 0x00000001, PPC_NONE, PPC2_PERM_ISA206),
 #endif
