@@ -129,8 +129,9 @@ enum {
     /* ISA 3.00 additions */
     POWERPC_EXCP_HVIRT    = 101,
     POWERPC_EXCP_SYSCALL_VECTORED = 102, /* scv exception                     */
+    POWERPC_EXCP_EBB = 103, /* Event-based branch exception                  */
     /* EOL                                                                   */
-    POWERPC_EXCP_NB       = 103,
+    POWERPC_EXCP_NB       = 104,
     /* QEMU exceptions: special cases we want to stop translation            */
     POWERPC_EXCP_SYSCALL_USER = 0x203, /* System call in user mode only      */
 };
@@ -1201,6 +1202,11 @@ struct CPUPPCState {
      * instructions and cycles.
      */
     uint64_t pmu_base_icount;
+
+    /*
+     * Timer used to fire performance monitor alerts and interrupts.
+     */
+    QEMUTimer *pmu_intr_timer;
 };
 
 #define SET_FIT_PERIOD(a_, b_, c_, d_)          \
@@ -2408,6 +2414,7 @@ enum {
     PPC_INTERRUPT_HMI,            /* Hypervisor Maintenance interrupt    */
     PPC_INTERRUPT_HDOORBELL,      /* Hypervisor Doorbell interrupt        */
     PPC_INTERRUPT_HVIRT,          /* Hypervisor virtualization interrupt  */
+    PPC_INTERRUPT_PMC,            /* Performance Monitor Counter interrupt */
 };
 
 /* Processor Compatibility mask (PCR) */

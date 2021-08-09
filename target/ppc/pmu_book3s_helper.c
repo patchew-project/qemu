@@ -10,12 +10,15 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include "pmu_book3s_helper.h"
+
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
+#include "hw/ppc/ppc.h"
 
 /*
  * Set arbitrarily based on clock-frequency values used in PNV
@@ -94,6 +97,41 @@ static void update_PMCs(CPUPPCState *env, uint64_t icount_delta)
 
     update_PMC_PM_INST_CMPL(env, SPR_POWER_PMC5, icount_delta);
     update_PMC_PM_CYC(env, SPR_POWER_PMC6, icount_delta);
+}
+
+static void cpu_ppc_pmu_timer_cb(void *opaque)
+{
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
+    uint64_t mmcr0;
+
+    mmcr0 = env->spr[SPR_POWER_MMCR0];
+    if (env->spr[SPR_POWER_MMCR0] & MMCR0_EBE) {
+        /* freeeze counters if needed */
+        if (mmcr0 & MMCR0_FCECE) {
+            mmcr0 &= ~MMCR0_FCECE;
+            mmcr0 |= MMCR0_FC;
+        }
+
+        /* Clear PMAE and set PMAO */
+        if (mmcr0 & MMCR0_PMAE) {
+            mmcr0 &= ~MMCR0_PMAE;
+            mmcr0 |= MMCR0_PMAO;
+        }
+        env->spr[SPR_POWER_MMCR0] = mmcr0;
+
+        /* Fire the PMC hardware exception */
+        ppc_set_irq(cpu, PPC_INTERRUPT_PMC, 1);
+    }
+}
+
+void cpu_ppc_pmu_timer_init(CPUPPCState *env)
+{
+    PowerPCCPU *cpu = env_archcpu(env);
+    QEMUTimer *timer;
+
+    timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &cpu_ppc_pmu_timer_cb, cpu);
+    env->pmu_intr_timer = timer;
 }
 
 void helper_store_mmcr0(CPUPPCState *env, target_ulong value)
