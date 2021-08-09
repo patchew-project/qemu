@@ -14,6 +14,7 @@ ppc_ss.add(when: 'CONFIG_TCG', if_true: files(
   'int_helper.c',
   'mem_helper.c',
   'misc_helper.c',
+  'pmu_book3s_helper.c',
   'timebase_helper.c',
   'translate.c',
 ))
