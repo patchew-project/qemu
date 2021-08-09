@@ -385,6 +385,12 @@ void spr_read_generic(DisasContext *ctx, int gprn, int sprn)
     spr_load_dump_spr(sprn);
 }
 
+void spr_read_pmu_generic(DisasContext *ctx, int gprn, int sprn)
+{
+    /* For now it's just a call to spr_read_generic() */
+    spr_read_generic(ctx, gprn, sprn);
+}
+
 static void spr_store_dump_spr(int sprn)
 {
 #ifdef PPC_DUMP_SPR_ACCESSES
@@ -398,6 +404,12 @@ void spr_write_generic(DisasContext *ctx, int sprn, int gprn)
 {
     gen_store_spr(sprn, cpu_gpr[gprn]);
     spr_store_dump_spr(sprn);
+}
+
+void spr_write_pmu_generic(DisasContext *ctx, int sprn, int gprn)
+{
+    /* For now it's just a call to spr_write_generic() */
+    spr_write_generic(ctx, sprn, gprn);
 }
 
 #if !defined(CONFIG_USER_ONLY)
