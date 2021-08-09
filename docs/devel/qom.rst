@@ -309,7 +309,7 @@ This is equivalent to the following:
            OBJECT_GET_CLASS(MyDeviceClass, obj, TYPE_MY_DEVICE)
    #define MY_DEVICE_CLASS(void *klass) \
            OBJECT_CLASS_CHECK(MyDeviceClass, klass, TYPE_MY_DEVICE)
-   #define MY_DEVICE(void *obj)
+   #define MY_DEVICE(void *obj) \
            OBJECT_CHECK(MyDevice, obj, TYPE_MY_DEVICE)
 
    struct MyDeviceClass {
