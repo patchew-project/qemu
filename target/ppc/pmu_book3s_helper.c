@@ -173,7 +173,7 @@ void cpu_ppc_pmu_timer_init(CPUPPCState *env)
     env->pmu_intr_timer = timer;
 }
 
-static bool mmcr0_counter_neg_cond_enabled(uint64_t mmcr0)
+static bool counter_negative_cond_enabled(uint64_t mmcr0)
 {
     return mmcr0 & MMCR0_PMC1CE;
 }
@@ -219,9 +219,41 @@ void helper_store_mmcr0(CPUPPCState *env, target_ulong value)
              * Start performance monitor alert timer for counter negative
              * events, if needed.
              */
-            if (mmcr0_counter_neg_cond_enabled(env->spr[SPR_POWER_MMCR0])) {
+            if (counter_negative_cond_enabled(env->spr[SPR_POWER_MMCR0])) {
                 set_PMU_excp_timer(env);
             }
         }
+    }
+}
+
+void helper_store_pmc(CPUPPCState *env, uint32_t sprn, uint64_t value)
+{
+    bool pmu_frozen = env->spr[SPR_POWER_MMCR0] & MMCR0_FC;
+    uint64_t curr_icount, icount_delta;
+
+    if (pmu_frozen) {
+        env->spr[sprn] = value;
+        return;
+    }
+
+    curr_icount = (uint64_t)icount_get_raw();
+    icount_delta = curr_icount - env->pmu_base_icount;
+
+    /* Update the counter with the events counted so far */
+    update_PMCs(env, icount_delta);
+
+    /* Set the counter to the desirable value after update_PMCs() */
+    env->spr[sprn] = value;
+
+    /*
+     * Delete the current timer and restart a new one with the
+     * updated values.
+     */
+    timer_del(env->pmu_intr_timer);
+
+    env->pmu_base_icount = curr_icount;
+
+    if (counter_negative_cond_enabled(env->spr[SPR_POWER_MMCR0])) {
+        set_PMU_excp_timer(env);
     }
 }

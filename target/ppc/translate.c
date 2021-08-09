@@ -409,10 +409,24 @@ void spr_write_generic(DisasContext *ctx, int sprn, int gprn)
 
 void spr_write_pmu_generic(DisasContext *ctx, int sprn, int gprn)
 {
+    TCGv_i32 t_sprn;
+
     switch (sprn) {
     case SPR_POWER_MMCR0:
         gen_icount_io_start(ctx);
         gen_helper_store_mmcr0(cpu_env, cpu_gpr[gprn]);
+        break;
+    case SPR_POWER_PMC1:
+    case SPR_POWER_PMC2:
+    case SPR_POWER_PMC3:
+    case SPR_POWER_PMC4:
+    case SPR_POWER_PMC5:
+    case SPR_POWER_PMC6:
+        gen_icount_io_start(ctx);
+
+        t_sprn = tcg_const_i32(sprn);
+        gen_helper_store_pmc(cpu_env, t_sprn, cpu_gpr[gprn]);
+        tcg_temp_free_i32(t_sprn);
         break;
     default:
         spr_write_generic(ctx, sprn, gprn);
@@ -585,6 +599,7 @@ void spr_write_ureg(DisasContext *ctx, int sprn, int gprn)
 void spr_write_pmu_ureg(DisasContext *ctx, int sprn, int gprn)
 {
     TCGv t0, t1;
+    TCGv_i32 t_sprn;
     int effective_sprn = sprn + 0x10;
 
     if (((ctx->spr[SPR_POWER_MMCR0] & MMCR0_PMCC) >> 18) == 0) {
@@ -615,6 +630,18 @@ void spr_write_pmu_ureg(DisasContext *ctx, int sprn, int gprn)
 
         tcg_temp_free(t0);
         tcg_temp_free(t1);
+        break;
+    case SPR_POWER_PMC1:
+    case SPR_POWER_PMC2:
+    case SPR_POWER_PMC3:
+    case SPR_POWER_PMC4:
+    case SPR_POWER_PMC5:
+    case SPR_POWER_PMC6:
+        gen_icount_io_start(ctx);
+
+        t_sprn = tcg_const_i32(effective_sprn);
+        gen_helper_store_pmc(cpu_env, t_sprn, cpu_gpr[gprn]);
+        tcg_temp_free_i32(t_sprn);
         break;
     default:
         gen_store_spr(effective_sprn, cpu_gpr[gprn]);
