@@ -21,7 +21,7 @@ if sphinx_build.found()
   run_command('mkdir', ['-p', tmpdir / 'sphinx'])
   run_command('touch', [tmpdir / 'sphinx/index.rst'])
   sphinx_build_test_out = run_command(SPHINX_ARGS + [
-    '-c', meson.current_source_dir(),
+    '-q', '-c', meson.current_source_dir(),
     '-b', 'html', tmpdir / 'sphinx',
     tmpdir / 'sphinx/out'])
   build_docs = (sphinx_build_test_out.returncode() == 0)
@@ -98,8 +98,9 @@ if build_docs
                               input: this_manual,
                               install: build_docs,
                               install_dir: install_dirs,
-                              command: [SPHINX_ARGS, '-b', 'man', '-d', private_dir,
-                                        input_dir, meson.current_build_dir()])
+                              command: [SPHINX_ARGS, '-q', '-b', 'man',
+                                        '-d', private_dir, input_dir
+                                        meson.current_build_dir()])
 
   alias_target('sphinxdocs', sphinxdocs)
   alias_target('html', sphinxdocs)
