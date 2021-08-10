@@ -1660,40 +1660,24 @@ static int object_parse_property_opt(Object *obj,
     return 0;
 }
 
-/* *Non*recursively replace underscores with dashes in QDict keys.  */
-static void keyval_dashify(QDict *qdict, Error **errp)
+static const char *find_option_alias(QDict *qdict, const char *key,
+                                     const char *alias, const char **value)
 {
-    const QDictEntry *ent, *next;
-    char *p;
-
-    for (ent = qdict_first(qdict); ent; ent = next) {
-        g_autofree char *new_key = NULL;
-
-        next = qdict_next(qdict, ent);
-        if (!strchr(ent->key, '_')) {
-            continue;
-        }
-        new_key = g_strdup(ent->key);
-        for (p = new_key; *p; p++) {
-            if (*p == '_') {
-                *p = '-';
-            }
-        }
-        if (qdict_haskey(qdict, new_key)) {
-            error_setg(errp, "Conflict between '%s' and '%s'", ent->key, new_key);
-            return;
-        }
-        qobject_ref(ent->value);
-        qdict_put_obj(qdict, new_key, ent->value);
-        qdict_del(qdict, ent->key);
+    *value = qdict_get_try_str(qdict, key);
+    if (*value) {
+        return key;
     }
+    *value = qdict_get_try_str(qdict, alias);
+    if (*value) {
+        return alias;
+    }
+    return NULL;
 }
 
 static void qemu_apply_legacy_machine_options(QDict *qdict)
 {
+    const char *key;
     const char *value;
-
-    keyval_dashify(qdict, &error_fatal);
 
     /* Legacy options do not correspond to MachineState properties.  */
     value = qdict_get_try_str(qdict, "accel");
@@ -1702,27 +1686,27 @@ static void qemu_apply_legacy_machine_options(QDict *qdict)
         qdict_del(qdict, "accel");
     }
 
-    value = qdict_get_try_str(qdict, "igd-passthru");
-    if (value) {
+    key = find_option_alias(qdict, "igd-passthru", "igd_passthru", &value);
+    if (key) {
         object_register_sugar_prop(ACCEL_CLASS_NAME("xen"), "igd-passthru", value,
                                    false);
-        qdict_del(qdict, "igd-passthru");
+        qdict_del(qdict, key);
     }
 
-    value = qdict_get_try_str(qdict, "kvm-shadow-mem");
-    if (value) {
+    key = find_option_alias(qdict, "kvm-shadow-mem", "kvm_shadow_mem", &value);
+    if (key) {
         object_register_sugar_prop(ACCEL_CLASS_NAME("kvm"), "kvm-shadow-mem", value,
                                    false);
-        qdict_del(qdict, "kvm-shadow-mem");
+        qdict_del(qdict, key);
     }
 
-    value = qdict_get_try_str(qdict, "kernel-irqchip");
-    if (value) {
+    key = find_option_alias(qdict, "kernel-irqchip", "kernel_irqchip", &value);
+    if (key) {
         object_register_sugar_prop(ACCEL_CLASS_NAME("kvm"), "kernel-irqchip", value,
                                    false);
         object_register_sugar_prop(ACCEL_CLASS_NAME("whpx"), "kernel-irqchip", value,
                                    false);
-        qdict_del(qdict, "kernel-irqchip");
+        qdict_del(qdict, key);
     }
 }
 
