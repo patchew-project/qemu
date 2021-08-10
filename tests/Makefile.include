@@ -23,7 +23,6 @@ endif
 	@echo " $(MAKE) check-clean          Clean the tests and related data"
 	@echo
 	@echo "The following are useful for CI builds"
-	@echo " $(MAKE) check-build          Build most test binaris"
 	@echo " $(MAKE) get-vm-images        Downloads all images used by acceptance tests, according to configured targets (~350 MB each, 1.5 GB max)"
 	@echo
 	@echo
@@ -147,8 +146,6 @@ check-block: $(SRC_PATH)/tests/check-block.sh qemu-img$(EXESUF) \
 		$(filter qemu-system-%, $(ninja-targets))
 	@$<
 endif
-
-check-build: $(QEMU_IOTESTS_HELPERS-y)
 
 check-clean:
 	rm -rf $(TESTS_VENV_DIR) $(TESTS_RESULTS_DIR)
