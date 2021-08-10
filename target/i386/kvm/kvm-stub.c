@@ -12,6 +12,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "kvm_i386.h"
+#include "qapi/error.h"
 
 #ifndef __OPTIMIZE__
 bool kvm_has_smm(void)
@@ -43,4 +44,13 @@ bool kvm_hv_vpindex_settable(void)
 bool kvm_hyperv_expand_features(X86CPU *cpu, Error **errp)
 {
     abort();
+}
+
+typedef struct CpuidEntryList CpuidEntryList;
+CpuidEntryList *qmp_query_x86_cpuid(Error **errp);
+
+CpuidEntryList *qmp_query_x86_cpuid(Error **errp)
+{
+    error_setg(errp, "Not implemented in --disable-kvm configuration");
+    return NULL;
 }
