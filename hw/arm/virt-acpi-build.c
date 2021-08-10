@@ -563,6 +563,78 @@ build_gtdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
                  vms->oem_table_id);
 }
 
+#define ACPI_DBG2_PL011_UART_LENGTH 0x1000
+
+/* DBG2 */
+static void
+build_dbg2(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
+{
+    int addr_offset, addrsize_offset, namespace_offset, namespace_length;
+    const MemMapEntry *uart_memmap = &vms->memmap[VIRT_UART];
+    struct AcpiGenericAddress *base_address;
+    int dbg2_start = table_data->len;
+    AcpiDbg2Device *dbg2dev;
+    char name[] = "COM0";
+    AcpiDbg2Table *dbg2;
+    uint32_t *addr_size;
+    uint8_t *namespace;
+
+    dbg2 = acpi_data_push(table_data, sizeof *dbg2);
+    dbg2->info_offset = sizeof *dbg2;
+    dbg2->info_count = 1;
+
+    /* debug device info structure */
+
+    dbg2dev = acpi_data_push(table_data, sizeof(AcpiDbg2Device));
+
+    dbg2dev->revision = 0;
+    namespace_length = sizeof name;
+    dbg2dev->length = sizeof *dbg2dev + sizeof(struct AcpiGenericAddress) +
+                      4 + namespace_length;
+    dbg2dev->register_count = 1;
+
+    addr_offset = sizeof *dbg2dev;
+    addrsize_offset = addr_offset + sizeof(struct AcpiGenericAddress);
+    namespace_offset = addrsize_offset + 4;
+
+    dbg2dev->namepath_length = cpu_to_le16(namespace_length);
+    dbg2dev->namepath_offset = cpu_to_le16(namespace_offset);
+    dbg2dev->oem_data_length = cpu_to_le16(0);
+    dbg2dev->oem_data_offset = cpu_to_le16(0); /* No OEM data is present */
+    dbg2dev->port_type = cpu_to_le16(ACPI_DBG2_SERIAL_PORT);
+    dbg2dev->port_subtype = cpu_to_le16(ACPI_DBG2_ARM_PL011);
+
+    dbg2dev->base_address_offset = cpu_to_le16(addr_offset);
+    dbg2dev->address_size_offset = cpu_to_le16(addrsize_offset);
+
+    /*
+     * variable length content:
+     * BaseAddressRegister[1]
+     * AddressSize[1]
+     * NamespaceString[1]
+     */
+
+    base_address = acpi_data_push(table_data,
+                                  sizeof(struct AcpiGenericAddress));
+
+    base_address->space_id = AML_SYSTEM_MEMORY;
+    base_address->bit_width = 8;
+    base_address->bit_offset = 0;
+    base_address->access_width = 1;
+    base_address->address = cpu_to_le64(uart_memmap->base);
+
+    addr_size = acpi_data_push(table_data, sizeof *addr_size);
+    *addr_size = cpu_to_le32(ACPI_DBG2_PL011_UART_LENGTH);
+
+    namespace = acpi_data_push(table_data, namespace_length);
+    memcpy(namespace, name, namespace_length);
+
+    build_header(linker, table_data,
+                 (void *)(table_data->data + dbg2_start), "DBG2",
+                 table_data->len - dbg2_start, 3, vms->oem_id,
+                 vms->oem_table_id);
+}
+
 /* MADT */
 static void
 build_madt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
@@ -790,7 +862,7 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
     dsdt = tables_blob->len;
     build_dsdt(tables_blob, tables->linker, vms);
 
-    /* FADT MADT GTDT MCFG SPCR pointed to by RSDT */
+    /* FADT MADT GTDT MCFG SPCR DBG2 pointed to by RSDT */
     acpi_add_table(table_offsets, tables_blob);
     build_fadt_rev5(tables_blob, tables->linker, vms, dsdt);
 
@@ -812,6 +884,9 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
 
     acpi_add_table(table_offsets, tables_blob);
     build_spcr(tables_blob, tables->linker, vms);
+
+    acpi_add_table(table_offsets, tables_blob);
+    build_dbg2(tables_blob, tables->linker, vms);
 
     if (vms->ras) {
         build_ghes_error_table(tables->hardware_errors, tables->linker);

@@ -618,4 +618,54 @@ struct AcpiIortRC {
 } QEMU_PACKED;
 typedef struct AcpiIortRC AcpiIortRC;
 
+/* DBG2 */
+
+/* Types for port_type field above */
+
+#define ACPI_DBG2_SERIAL_PORT       0x8000
+#define ACPI_DBG2_1394_PORT         0x8001
+#define ACPI_DBG2_USB_PORT          0x8002
+#define ACPI_DBG2_NET_PORT          0x8003
+
+/* Subtypes for port_subtype field above */
+
+#define ACPI_DBG2_16550_COMPATIBLE  0x0000
+#define ACPI_DBG2_16550_SUBSET      0x0001
+#define ACPI_DBG2_ARM_PL011         0x0003
+#define ACPI_DBG2_ARM_SBSA_32BIT    0x000D
+#define ACPI_DBG2_ARM_SBSA_GENERIC  0x000E
+#define ACPI_DBG2_ARM_DCC           0x000F
+#define ACPI_DBG2_BCM2835           0x0010
+
+#define ACPI_DBG2_1394_STANDARD     0x0000
+
+#define ACPI_DBG2_USB_XHCI          0x0000
+#define ACPI_DBG2_USB_EHCI          0x0001
+
+/* Debug Device Information Subtable */
+
+struct AcpiDbg2Device {
+    uint8_t  revision;
+    uint16_t length;
+    uint8_t  register_count; /* Number of base_address registers */
+    uint16_t namepath_length;
+    uint16_t namepath_offset;
+    uint16_t oem_data_length;
+    uint16_t oem_data_offset;
+    uint16_t port_type;
+    uint16_t port_subtype;
+    uint8_t  reserved[2];
+    uint16_t base_address_offset;
+    uint16_t address_size_offset;
+}  QEMU_PACKED;
+typedef struct AcpiDbg2Device AcpiDbg2Device;
+
+struct AcpiDbg2Table {
+    ACPI_TABLE_HEADER_DEF /* ACPI common table header */
+    uint32_t info_offset; /* offset to the first debug struct */
+    uint32_t info_count;  /* number of debug device info struct entries */
+    uint8_t  dbg2_device_info[];
+} QEMU_PACKED;
+typedef struct AcpiDbg2Table AcpiDbg2Table;
+
 #endif
