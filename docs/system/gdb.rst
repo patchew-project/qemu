@@ -15,7 +15,8 @@ The ``-s`` option will make QEMU listen for an incoming connection
 from gdb on TCP port 1234, and ``-S`` will make QEMU not start the
 guest until you tell it to from gdb. (If you want to specify which
 TCP port to use or to use something other than TCP for the gdbstub
-connection, use the ``-gdb dev`` option instead of ``-s``.)
+connection, use the ``-gdb dev`` option instead of ``-s``. See
+`Using unix sockets`_ for an example.)
 
 .. parsed-literal::
 
@@ -168,3 +169,24 @@ The memory mode can be checked by sending the following command:
 
 ``maintenance packet Qqemu.PhyMemMode:0``
     This will change it back to normal memory mode.
+
+Using unix sockets
+^^^^^^^^^^^^^^^^^^
+
+An alternate method for connecting gdb to the QEMU gdbstub are unix
+sockets (if supported by your operating system). This is useful when
+running several tests in parallel and/or you do not have a free TCP
+port a priori (e.g. when running automated tests).
+First create a chardev with the appropriate options, then
+instruct the gdbserver to use that device::
+
+.. parsed-literal::
+
+   |qemu_system| -chardev socket,path=/tmp/gdb-socket,server=on,wait=off,id=gdb0 -gdb chardev:gdb0 -S ...
+
+Start gdb as before, but this time connect using the path to
+the socket::
+
+   (gdb) target remote /tmp/gdb-socket
+
+Note gdb version 9.0 or newer is required.
