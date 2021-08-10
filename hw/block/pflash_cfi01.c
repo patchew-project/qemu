@@ -83,6 +83,8 @@ struct PFlashCFI01 {
     uint64_t counter;
     unsigned int writeblock_size;
     MemoryRegion mem;
+    MemoryRegion mem_outer;
+    char outer_name[64];
     char *name;
     void *storage;
     VMChangeStateEntry *vmstate;
@@ -434,7 +436,6 @@ static inline void pflash_data_write(PFlashCFI01 *pfl, hwaddr offset,
         }
         break;
     }
-
 }
 
 static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
@@ -656,8 +657,44 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
 }
 
 
-static MemTxResult pflash_mem_read_with_attrs(void *opaque, hwaddr addr, uint64_t *value,
-                                              unsigned len, MemTxAttrs attrs)
+static MemTxResult pflash_outer_read_with_attrs(void *opaque, hwaddr addr,
+                                                uint64_t *value, unsigned len,
+                                                MemTxAttrs attrs)
+{
+    PFlashCFI01 *pfl = opaque;
+
+    trace_pflash_outer_read(pfl->name, addr, len);
+    *value = 0;
+    return MEMTX_OK;
+}
+
+static MemTxResult pflash_outer_write_with_attrs(void *opaque, hwaddr addr,
+                                                 uint64_t value, unsigned len,
+                                                 MemTxAttrs attrs)
+{
+    PFlashCFI01 *pfl = opaque;
+
+    trace_pflash_outer_write(pfl->name, addr, len);
+    if (pfl->ro) {
+        return MEMTX_ERROR;
+    } else {
+        warn_report_once("%s: "
+                         "attempt to write outside of the backing block device "
+                         "(offset " TARGET_FMT_plx ") ignored",
+                         pfl->name, addr);
+        return MEMTX_OK;
+    }
+}
+
+static const MemoryRegionOps pflash_cfi01_outer_ops = {
+    .read_with_attrs = pflash_outer_read_with_attrs,
+    .write_with_attrs = pflash_outer_write_with_attrs,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
+static MemTxResult pflash_mem_read_with_attrs(void *opaque, hwaddr addr,
+                                              uint64_t *value, unsigned len,
+                                              MemTxAttrs attrs)
 {
     PFlashCFI01 *pfl = opaque;
     bool be = !!(pfl->features & (1 << PFLASH_BE));
@@ -670,8 +707,9 @@ static MemTxResult pflash_mem_read_with_attrs(void *opaque, hwaddr addr, uint64_
     return MEMTX_OK;
 }
 
-static MemTxResult pflash_mem_write_with_attrs(void *opaque, hwaddr addr, uint64_t value,
-                                               unsigned len, MemTxAttrs attrs)
+static MemTxResult pflash_mem_write_with_attrs(void *opaque, hwaddr addr,
+                                               uint64_t value, unsigned len,
+                                               MemTxAttrs attrs)
 {
     PFlashCFI01 *pfl = opaque;
     bool be = !!(pfl->features & (1 << PFLASH_BE));
@@ -800,7 +838,7 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
 {
     ERRP_GUARD();
     PFlashCFI01 *pfl = PFLASH_CFI01(dev);
-    uint64_t total_len;
+    uint64_t outer_len, inner_len;
     int ret;
 
     if (pfl->sector_len == 0) {
@@ -816,35 +854,60 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    total_len = pfl->sector_len * pfl->nb_blocs;
-
-    memory_region_init_rom_device(
-        &pfl->mem, OBJECT(dev),
-        &pflash_cfi01_ops,
-        pfl,
-        pfl->name, total_len, errp);
-    if (*errp) {
-        return;
-    }
-
-    pfl->storage = memory_region_get_ram_ptr(&pfl->mem);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->mem);
+    outer_len = pfl->sector_len * pfl->nb_blocs;
 
     if (pfl->blk) {
         uint64_t perm;
+
         pfl->ro = !blk_supports_write_perm(pfl->blk);
         perm = BLK_PERM_CONSISTENT_READ | (pfl->ro ? 0 : BLK_PERM_WRITE);
         ret = blk_set_perm(pfl->blk, perm, BLK_PERM_ALL, errp);
         if (ret < 0) {
             return;
         }
+
+        inner_len = blk_getlength(pfl->blk);
+
+        if (inner_len > outer_len) {
+            error_setg(errp, "%s: "
+                       "block backend provides %" PRIu64 " bytes, "
+                       "device limited to %" PRIu64 " bytes",
+                       pfl->name, inner_len, outer_len);
+            return;
+        }
     } else {
         pfl->ro = false;
+        inner_len = outer_len;
     }
 
+    trace_pflash_realize(pfl->name, pfl->ro, inner_len, outer_len);
+
+    snprintf(pfl->outer_name, sizeof(pfl->outer_name),
+             "%s container", pfl->name);
+    memory_region_init_io(&pfl->mem_outer, OBJECT(dev),
+                          &pflash_cfi01_outer_ops,
+                          pfl, pfl->outer_name, outer_len);
+
+    memory_region_init_rom_device(&pfl->mem, OBJECT(dev),
+                                  &pflash_cfi01_ops,
+                                  pfl, pfl->name, inner_len, errp);
+    if (*errp) {
+        return;
+    }
+
+    memory_region_add_subregion(&pfl->mem_outer, 0, &pfl->mem);
+
+    pfl->storage = memory_region_get_ram_ptr(&pfl->mem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->mem_outer);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->mem);
+
     if (pfl->blk) {
-        if (!blk_check_size_and_read_all(pfl->blk, pfl->storage, total_len,
-                                         errp)) {
+        int ret = blk_pread(pfl->blk, 0, pfl->storage, inner_len);
+
+        if (ret < 0) {
+            error_setg_errno(errp, -ret,
+                             "cannot read %" PRIu64 " "
+                             "bytes from block backend", inner_len);
             vmstate_unregister_ram(&pfl->mem, DEVICE(pfl));
             return;
         }
