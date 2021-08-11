@@ -291,6 +291,7 @@ static void ibex_plic_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->user_creatable = true;
     dc->reset = ibex_plic_reset;
     device_class_set_props(dc, ibex_plic_properties);
     dc->realize = ibex_plic_realize;
