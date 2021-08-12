@@ -1,0 +1,116 @@
+
+# This defines rules used to control individual job execution
+# See docs/devel/ci-jobs.rst for an explanation of the various
+# variables and branch naming conventions applied here.
+#
+.job_rules:
+  rules:
+    # ======================================================================
+    # Rules that apply regardless of whether the primary qemu repo or a fork
+    # ======================================================================
+
+    # Skip any cirrus job if either repo or api token are missing
+    # as we won't be able to talk to cirrus
+    - if: '$CIRRUS_VM_INSTANCE_TYPE && ($CIRRUS_GITHUB_REPO == null || $CIRRUS_API_TOKEN == null)'
+      when: never
+
+    # Any jobs marked as manual, never get automatically run in any scenario
+    # and don't contribute to pipeline status
+    - if: '$QEMU_JOB_MANUAL'
+      when: manual
+      allow_failure: true
+
+    # For the main repo, tags represent official releases.
+    # The branch associated with the release will have passed
+    # a CI pipeline already
+    #
+    # For user forks, tags are tyically added by tools like
+    # git-publish at the same time as pushing the branch prior
+    # to sending out for review
+    #
+    # In neither case do we wish to run CI pipelines for tags
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_TAG'
+      when: never
+
+
+    # ==================================================
+    # Rules to control what happens in primary qemu repo
+    # ==================================================
+
+    # The 'pages' job must never run on a non-default branch as we don't
+    # want to publish the website from pre-merged content
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH && $CI_JOB_NAME == "pages"'
+      when: never
+
+    # Run all jobs for main repo staging branch
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH == "staging"'
+      when: on_success
+
+    # Run jobs needed to support website publishing on the main branch
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $QEMU_JOB_PUBLISH'
+      when: on_success
+
+    # Prevent jobs from running on pushes to any other branch / tag
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_PROJECT_NAMESPACE == "qemu-project" && $CI_COMMIT_BRANCH != "staging"'
+      when: never
+
+
+    # Remainining pipeline sources follow the same rules as for fork repos
+
+
+
+    # ====================================
+    # Rules for running jobs in user forks
+    # ====================================
+
+    # Part 1: gating jobs
+    # -------------------
+
+    # If on a branch with name prefix 'ci-acceptance-', then run
+    # everything, just as a gating job on 'staging' branch would
+    - if: '$CI_COMMIT_BRANCH =~ /^ci-gating-/'
+      when: on_success
+
+    # If user set QEMU_CI_GATING=1, then run everything just as
+    # a gating job on 'staging' branch would
+    - if: '$QEMU_CI_GATING'
+      when: on_success
+
+    # Otherwise never run jobs marked as gating, but allow manual trigger
+    # without affecting pipeline status
+    - if: '$QEMU_JOB_GATING'
+      when: manual
+      allow_failure: true
+
+
+    # =============================================
+    # Part 2: opt-in for all CI, except gating jobs
+    # =============================================
+
+    # If pushing to a branch with name prefix 'ci-all', then run all jobs
+    - if: '$CI_COMMIT_BRANCH =~ /^ci-all/'
+      when: on_success
+
+    # If user QEMU_CI_ALL=1, then run all jobs
+    - if: '$QEMU_CI_ALL'
+      when: on_success
+
+
+    # ===============================
+    # Part 3: the minimal set of jobs
+    # ===============================
+
+    # If pushing to a branch with name prefix 'ci-min', then run
+    # only a minimal set of jobs
+    - if: '$CI_COMMIT_BRANCH =~ /^ci-min/ && $QEMU_JOB_MINIMAL'
+      when: on_success
+
+    # If user set QEMU_CI=1, then run only a minimal set of jobs
+    - if: '$QEMU_CI && $QEMU_JOB_MINIMAL'
+      when: on_success
+
+    # Any other scenario, let the jobs be manually triggered only.
+    # Set to be non-fatal, so that pending manual jobs don't
+    # affect overall pipeline status
+    - when: manual
+      allow_failure: true

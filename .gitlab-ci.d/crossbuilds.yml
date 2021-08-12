@@ -48,6 +48,7 @@ cross-i386-system:
   needs:
     job: i386-fedora-cross-container
   variables:
+    QEMU_JOB_MINIMAL: 1
     IMAGE: fedora-i386-cross
     MAKE_CHECK_ARGS: check-qtest
 
@@ -129,6 +130,7 @@ cross-s390x-system:
   needs:
     job: s390x-debian-cross-container
   variables:
+    QEMU_JOB_MINIMAL: 1
     IMAGE: debian-s390x-cross
 
 cross-s390x-user:
@@ -159,6 +161,7 @@ cross-win32-system:
   needs:
     job: win32-fedora-cross-container
   variables:
+    QEMU_JOB_MINIMAL: 1
     IMAGE: fedora-win32-cross
     CROSS_SKIP_TARGETS: alpha-softmmu avr-softmmu hppa-softmmu m68k-softmmu
                         microblazeel-softmmu mips64el-softmmu nios2-softmmu

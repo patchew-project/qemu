@@ -15,10 +15,6 @@
 #
 # QEMU CI jobs are based on templates. Some templates provide
 # user-configurable options, modifiable via configuration variables.
-#
-# See https://qemu-project.gitlab.io/qemu/devel/ci.html#custom-ci-cd-variables
-# for more information.
-#
 
 include:
   - local: '/.gitlab-ci.d/qemu-project.yml'

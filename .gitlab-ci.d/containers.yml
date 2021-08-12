@@ -17,6 +17,8 @@ amd64-debian-container:
   stage: containers-layer2
   needs: ['amd64-debian10-container']
   variables:
+    QEMU_JOB_MINIMAL: 1
+    QEMU_JOB_PUBLISH: 1
     NAME: debian-amd64
 
 amd64-ubuntu1804-container:
@@ -27,6 +29,7 @@ amd64-ubuntu1804-container:
 amd64-ubuntu2004-container:
   extends: .container_job_template
   variables:
+    QEMU_JOB_MINIMAL: 1
     NAME: ubuntu2004
 
 amd64-ubuntu-container:
@@ -42,4 +45,5 @@ amd64-opensuse-leap-container:
 python-container:
   extends: .container_job_template
   variables:
+    QEMU_JOB_MINIMAL: 1
     NAME: python
