@@ -1345,15 +1345,34 @@ static void arm_cpu_finalizefn(Object *obj)
 #endif
 }
 
+static void a64fx_cpu_set_sve(ARMCPU *cpu)
+{
+    /* Suppport of A64FX's vector length are 128,256 and 512bit only */
+    bitmap_zero(cpu->sve_vq_map, ARM_MAX_VQ);
+    bitmap_zero(cpu->sve_vq_init, ARM_MAX_VQ);
+    set_bit(0, cpu->sve_vq_map); /* 128bit */
+    set_bit(0, cpu->sve_vq_init);
+    set_bit(1, cpu->sve_vq_map); /* 256bit */
+    set_bit(1, cpu->sve_vq_init);
+    set_bit(3, cpu->sve_vq_map); /* 512bit */
+    set_bit(3, cpu->sve_vq_init);
+
+    cpu->sve_max_vq = find_last_bit(cpu->sve_vq_map, ARM_MAX_VQ) + 1;
+}
+
 void arm_cpu_finalize_features(ARMCPU *cpu, Error **errp)
 {
     Error *local_err = NULL;
 
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
-        arm_cpu_sve_finalize(cpu, &local_err);
-        if (local_err != NULL) {
-            error_propagate(errp, local_err);
-            return;
+        if (arm_feature(&cpu->env, ARM_FEATURE_A64FX)) {
+            a64fx_cpu_set_sve(cpu);
+        } else {
+            arm_cpu_sve_finalize(cpu, &local_err);
+            if (local_err != NULL) {
+                error_propagate(errp, local_err);
+                return;
+            }
         }
 
         /*
