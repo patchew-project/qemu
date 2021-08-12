@@ -262,7 +262,8 @@ Syntax::
                'data': MEMBERS,
                '*base': STRING,
                '*if': COND,
-               '*features': FEATURES }
+               '*features': FEATURES,
+               '*aliases': ALIASES }
     MEMBERS = { MEMBER, ... }
     MEMBER = STRING : TYPE-REF
            | STRING : { 'type': TYPE-REF,
@@ -312,6 +313,9 @@ the schema`_ below for more on this.
 The optional 'features' member specifies features.  See Features_
 below for more on this.
 
+The optional 'aliases' member specifies aliases.  See Aliases_ below
+for more on this.
+
 
 Union types
 -----------
@@ -321,13 +325,15 @@ Syntax::
     UNION = { 'union': STRING,
               'data': BRANCHES,
               '*if': COND,
-              '*features': FEATURES }
+              '*features': FEATURES,
+              '*aliases': ALIASES }
           | { 'union': STRING,
               'data': BRANCHES,
               'base': ( MEMBERS | STRING ),
               'discriminator': STRING,
               '*if': COND,
-              '*features': FEATURES }
+              '*features': FEATURES,
+              '*aliases': ALIASES }
     BRANCHES = { BRANCH, ... }
     BRANCH = STRING : TYPE-REF
            | STRING : { 'type': TYPE-REF, '*if': COND }
@@ -436,6 +442,9 @@ the schema`_ below for more on this.
 
 The optional 'features' member specifies features.  See Features_
 below for more on this.
+
+The optional 'aliases' member specifies aliases.  See Aliases_ below
+for more on this.
 
 
 Alternate types
@@ -886,6 +895,95 @@ generator is unable to check it at this point.
 The conditions apply to introspection as well, i.e. introspection
 shows a conditional entity only when the condition is satisfied in
 this particular build.
+
+
+Aliases
+-------
+
+Object types, including structs and unions, can contain alias
+definitions.
+
+Aliases define alternative member names that may be used in wire input
+to provide a value for a member in the same object or in a nested
+object.
+
+Syntax::
+
+    ALIASES = [ ALIAS, ... ]
+    ALIAS = { '*name': STRING,
+              'source': [ STRING, ... ] }
+
+If ``name`` is present, then the single member referred to by ``source``
+is made accessible with the name given by ``name`` in the type where the
+alias definition is specified.
+
+If ``name`` is not present, then this is a wildcard alias and all
+members in the object referred to by ``source`` are made accessible in
+the type where the alias definition is specified with the same name as
+they have in ``source``.
+
+``source`` is a non-empty list of member names representing the path to
+an object member. The first name is resolved in the same object.  Each
+subsequent member is resolved in the object named by the preceding
+member.
+
+Do not use optional objects in the path of a wildcard alias unless there
+is no semantic difference between an empty object and an absent object.
+Absent objects are implicitly turned into empty ones if an alias could
+apply and provide a value in the nested object, which is always the case
+for wildcard aliases.
+
+Example: Alternative name for a member in the same object ::
+
+ { 'struct': 'File',
+   'data': { 'path': 'str' },
+   'aliases': [ { 'name': 'filename', 'source': ['path'] } ] }
+
+The member ``path`` may instead be given through its alias ``filename``
+in input.
+
+Example: Alias for a member in a nested object ::
+
+ { 'struct': 'A',
+   'data': { 'zahl': 'int' } }
+ { 'struct': 'B',
+   'data': { 'drei': 'A' } }
+ { 'struct': 'C',
+   'data': { 'zwei': 'B' } }
+ { 'struct': 'D',
+   'data': { 'eins': 'C' },
+   'aliases': [ { 'name': 'number',
+                  'source': ['eins', 'zwei', 'drei', 'zahl' ] },
+                { 'name': 'the_B',
+                  'source': ['eins','zwei'] } ] }
+
+With this definition, each of the following inputs for ``D`` mean the
+same::
+
+ { 'eins': { 'zwei': { 'drei': { 'zahl': 42 } } } }
+
+ { 'the_B': { 'drei': { 'zahl': 42 } } }
+
+ { 'number': 42 }
+
+Example: Flattening a simple union with a wildcard alias that maps all
+members of ``data`` to the top level ::
+
+ { 'union': 'SocketAddress',
+   'data': {
+     'inet': 'InetSocketAddress',
+     'unix': 'UnixSocketAddress' },
+   'aliases': [ { 'source': ['data'] } ] }
+
+Aliases are transitive: ``source`` may refer to another alias name.  In
+this case, the alias is effectively an alternative name for the source
+of the other alias.
+
+In order to accommodate unions where variants differ in structure, it
+is allowed to use a path that doesn't necessarily match an existing
+member in every variant; in this case, the alias remains unused.  The
+QAPI generator checks that there is at least one branch for which an
+alias could match.
 
 
 Documentation comments

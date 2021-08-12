@@ -25,6 +25,7 @@ from .common import (
 from .gen import QAPISchemaModularCVisitor, ifcontext
 from .schema import (
     QAPISchema,
+    QAPISchemaAlias,
     QAPISchemaEnumMember,
     QAPISchemaFeature,
     QAPISchemaObjectType,
@@ -332,7 +333,8 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
                           features: List[QAPISchemaFeature],
                           base: Optional[QAPISchemaObjectType],
                           members: List[QAPISchemaObjectTypeMember],
-                          variants: Optional[QAPISchemaVariants]) -> None:
+                          variants: Optional[QAPISchemaVariants],
+                          aliases: List[QAPISchemaAlias]) -> None:
         # Nothing to do for the special empty builtin
         if name == 'q_empty':
             return
