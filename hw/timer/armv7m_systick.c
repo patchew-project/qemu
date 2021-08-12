@@ -29,8 +29,6 @@
 #define SYSCALIB_NOREF (1U << 31)
 #define SYSCALIB_SKEW (1U << 30)
 
-int system_clock_scale;
-
 static void systick_set_period_from_clock(SysTickState *s)
 {
     /*
