@@ -1,0 +1,2 @@
+alias-recursive.json: In struct 'AliasStruct0':
+alias-recursive.json:1: alias 'baz' resolving to 'bar' makes 'bar' an alias for itself

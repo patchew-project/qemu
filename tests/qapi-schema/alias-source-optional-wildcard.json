@@ -1,0 +1,5 @@
+{ 'struct': 'Nested',
+  'data': { 'foo': 'int' } }
+{ 'struct': 'AliasStruct0',
+  'data': { '*nested': 'Nested' },
+  'aliases': [ { 'source': ['nested'] } ] }

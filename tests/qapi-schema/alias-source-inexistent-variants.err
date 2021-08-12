@@ -1,0 +1,2 @@
+alias-source-inexistent-variants.json: In union 'AliasStruct0':
+alias-source-inexistent-variants.json:7: alias 'test' has a source path that does not exist in any variant of union type 'AliasStruct0'

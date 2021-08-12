@@ -1,0 +1,12 @@
+{ 'enum': 'Variants',
+  'data': [ 'a', 'b' ] }
+{ 'struct': 'Variant0',
+  'data': { 'foo': 'int' } }
+{ 'struct': 'Variant1',
+  'data': { 'bar': 'int' } }
+{ 'union': 'AliasStruct0',
+  'base': { 'type': 'Variants' },
+  'discriminator': 'type',
+  'data': { 'a': 'Variant0',
+            'b': 'Variant1' },
+  'aliases': [ { 'name': 'test', 'source': ['baz'] } ] }

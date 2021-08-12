@@ -952,6 +952,214 @@ static void test_visitor_in_list_union_number(TestInputVisitorData *data,
     g_string_free(gstr_list, true);
 }
 
+static void test_visitor_in_alias_struct_local(TestInputVisitorData *data,
+                                               const void *unused)
+{
+    AliasStruct1 *tmp = NULL;
+    Error *err = NULL;
+    Visitor *v;
+
+    /* Can still specify the real member name with alias support */
+    v = visitor_input_test_init(data, "{ 'foo': 42 }");
+    visit_type_AliasStruct1(v, NULL, &tmp, &error_abort);
+    g_assert_cmpint(tmp->foo, ==, 42);
+    qapi_free_AliasStruct1(tmp);
+
+    /* The alias is a working alternative */
+    v = visitor_input_test_init(data, "{ 'bar': 42 }");
+    visit_type_AliasStruct1(v, NULL, &tmp, &error_abort);
+    g_assert_cmpint(tmp->foo, ==, 42);
+    qapi_free_AliasStruct1(tmp);
+
+    /* But you can't use both at the same time */
+    v = visitor_input_test_init(data, "{ 'foo': 5, 'bar': 42 }");
+    visit_type_AliasStruct1(v, NULL, &tmp, &err);
+    error_free_or_abort(&err);
+}
+
+static void test_visitor_in_alias_struct_nested(TestInputVisitorData *data,
+                                                const void *unused)
+{
+    AliasStruct2 *tmp = NULL;
+    Error *err = NULL;
+    Visitor *v;
+
+    /* Can still specify the real member names with alias support */
+    v = visitor_input_test_init(data, "{ 'nested': { 'foo': 42 } }");
+    visit_type_AliasStruct2(v, NULL, &tmp, &error_abort);
+    g_assert_cmpint(tmp->nested->foo, ==, 42);
+    qapi_free_AliasStruct2(tmp);
+
+    /* The inner alias is a working alternative */
+    v = visitor_input_test_init(data, "{ 'nested': { 'bar': 42 } }");
+    visit_type_AliasStruct2(v, NULL, &tmp, &error_abort);
+    g_assert_cmpint(tmp->nested->foo, ==, 42);
+    qapi_free_AliasStruct2(tmp);
+
+    /* So is the outer alias */
+    v = visitor_input_test_init(data, "{ 'bar': 42 }");
+    visit_type_AliasStruct2(v, NULL, &tmp, &error_abort);
+    g_assert_cmpint(tmp->nested->foo, ==, 42);
+    qapi_free_AliasStruct2(tmp);
+
+    /* You can't use more than one option at the same time */
+    v = visitor_input_test_init(data, "{ 'bar': 5, 'nested': { 'foo': 42 } }");
+    visit_type_AliasStruct2(v, NULL, &tmp, &err);
+    error_free_or_abort(&err);
+
+    v = visitor_input_test_init(data, "{ 'bar': 5, 'nested': { 'bar': 42 } }");
+    visit_type_AliasStruct2(v, NULL, &tmp, &err);
+    error_free_or_abort(&err);
+
+    v = visitor_input_test_init(data, "{ 'nested': { 'foo': 42, 'bar': 42 } }");
+    visit_type_AliasStruct2(v, NULL, &tmp, &err);
+    error_free_or_abort(&err);
+
+    v = visitor_input_test_init(data, "{ 'bar': 5, "
+                                      "  'nested': { 'foo': 42, 'bar': 42 } }");
+    visit_type_AliasStruct2(v, NULL, &tmp, &err);
+    error_free_or_abort(&err);
+}
+
+static void test_visitor_in_alias_wildcard(TestInputVisitorData *data,
+                                           const void *unused)
+{
+    AliasStruct3 *tmp = NULL;
+    Error *err = NULL;
+    Visitor *v;
+
+    /* Can still specify the real member names with alias support */
+    v = visitor_input_test_init(data, "{ 'nested': { 'foo': 42 } }");
+    visit_type_AliasStruct3(v, NULL, &tmp, &error_abort);
+    g_assert_cmpint(tmp->nested->foo, ==, 42);
+    qapi_free_AliasStruct3(tmp);
+
+    /* The wildcard alias makes it work on the top level */
+    v = visitor_input_test_init(data, "{ 'foo': 42 }");
+    visit_type_AliasStruct3(v, NULL, &tmp, &error_abort);
+    g_assert_cmpint(tmp->nested->foo, ==, 42);
+    qapi_free_AliasStruct3(tmp);
+
+    /* It makes the inner alias available, too */
+    v = visitor_input_test_init(data, "{ 'bar': 42 }");
+    visit_type_AliasStruct3(v, NULL, &tmp, &error_abort);
+    g_assert_cmpint(tmp->nested->foo, ==, 42);
+    qapi_free_AliasStruct3(tmp);
+
+    /* You can't use more than one option at the same time */
+    v = visitor_input_test_init(data, "{ 'foo': 42, 'nested': { 'foo': 42 } }");
+    visit_type_AliasStruct3(v, NULL, &tmp, &err);
+    error_free_or_abort(&err);
+
+    v = visitor_input_test_init(data, "{ 'bar': 42, 'nested': { 'foo': 42 } }");
+    visit_type_AliasStruct3(v, NULL, &tmp, &err);
+    error_free_or_abort(&err);
+
+    v = visitor_input_test_init(data, "{ 'foo': 42, 'nested': { 'bar': 42 } }");
+    visit_type_AliasStruct3(v, NULL, &tmp, &err);
+    error_free_or_abort(&err);
+
+    v = visitor_input_test_init(data, "{ 'bar': 42, 'nested': { 'bar': 42 } }");
+    visit_type_AliasStruct3(v, NULL, &tmp, &err);
+    error_free_or_abort(&err);
+
+    v = visitor_input_test_init(data, "{ 'foo': 42, 'bar': 42 }");
+    visit_type_AliasStruct3(v, NULL, &tmp, &err);
+    error_free_or_abort(&err);
+}
+
+static void test_visitor_in_alias_flat_union(TestInputVisitorData *data,
+                                             const void *unused)
+{
+    AliasFlatUnion *tmp = NULL;
+    Error *err = NULL;
+    Visitor *v;
+
+    /* Can still specify the real member name with alias support */
+    v = visitor_input_test_init(data, "{ 'tag': 'drei' }");
+    visit_type_AliasFlatUnion(v, NULL, &tmp, &error_abort);
+    g_assert_cmpint(tmp->tag, ==, FEATURE_ENUM1_DREI);
+    qapi_free_AliasFlatUnion(tmp);
+
+    /* Use alias for a base member (the discriminator even) */
+    v = visitor_input_test_init(data, "{ 'variant': 'zwei' }");
+    visit_type_AliasFlatUnion(v, NULL, &tmp, &error_abort);
+    g_assert_cmpint(tmp->tag, ==, FEATURE_ENUM1_ZWEI);
+    qapi_free_AliasFlatUnion(tmp);
+
+    /* Use alias for a variant member */
+    v = visitor_input_test_init(data, "{ 'tag': 'eins', 'bar': 42 }");
+    visit_type_AliasFlatUnion(v, NULL, &tmp, &error_abort);
+    g_assert_cmpint(tmp->tag, ==, FEATURE_ENUM1_EINS);
+    g_assert_cmpint(tmp->u.eins.foo, ==, 42);
+    qapi_free_AliasFlatUnion(tmp);
+
+    /* Both together */
+    v = visitor_input_test_init(data, "{ 'variant': 'eins', 'bar': 42 }");
+    visit_type_AliasFlatUnion(v, NULL, &tmp, &error_abort);
+    g_assert_cmpint(tmp->tag, ==, FEATURE_ENUM1_EINS);
+    g_assert_cmpint(tmp->u.eins.foo, ==, 42);
+    qapi_free_AliasFlatUnion(tmp);
+
+    /* You can't use more than one option at the same time for each alias */
+    v = visitor_input_test_init(data, "{ 'variant': 'zwei', 'tag': 'drei' }");
+    visit_type_AliasFlatUnion(v, NULL, &tmp, &err);
+    error_free_or_abort(&err);
+
+    v = visitor_input_test_init(data, "{ 'tag': 'eins', 'foo': 6, 'bar': 9 }");
+    visit_type_AliasFlatUnion(v, NULL, &tmp, &err);
+    error_free_or_abort(&err);
+}
+
+static void test_visitor_in_alias_simple_union(TestInputVisitorData *data,
+                                               const void *unused)
+{
+    AliasSimpleUnion *tmp = NULL;
+    Error *err = NULL;
+    Visitor *v;
+
+    /* Can still specify the real member name with alias support */
+    v = visitor_input_test_init(data, "{ 'type': 'eins', "
+                                      "  'data': { 'foo': 42 } }");
+    visit_type_AliasSimpleUnion(v, NULL, &tmp, &error_abort);
+    g_assert_cmpint(tmp->type, ==, ALIAS_SIMPLE_UNION_KIND_EINS);
+    g_assert_cmpint(tmp->u.eins.data->foo, ==, 42);
+    qapi_free_AliasSimpleUnion(tmp);
+
+    /* 'type' can be aliased */
+    v = visitor_input_test_init(data, "{ 'tag': 'eins', "
+                                      "  'data': { 'foo': 42 } }");
+    visit_type_AliasSimpleUnion(v, NULL, &tmp, &error_abort);
+    g_assert_cmpint(tmp->type, ==, ALIAS_SIMPLE_UNION_KIND_EINS);
+    g_assert_cmpint(tmp->u.eins.data->foo, ==, 42);
+    qapi_free_AliasSimpleUnion(tmp);
+
+    /* The wildcard alias makes it work on the top level */
+    v = visitor_input_test_init(data, "{ 'type': 'eins', 'foo': 42 }");
+    visit_type_AliasSimpleUnion(v, NULL, &tmp, &error_abort);
+    g_assert_cmpint(tmp->type, ==, ALIAS_SIMPLE_UNION_KIND_EINS);
+    g_assert_cmpint(tmp->u.eins.data->foo, ==, 42);
+    qapi_free_AliasSimpleUnion(tmp);
+
+    /* It makes the inner alias available, too */
+    v = visitor_input_test_init(data, "{ 'type': 'eins', 'bar': 42 }");
+    visit_type_AliasSimpleUnion(v, NULL, &tmp, &error_abort);
+    g_assert_cmpint(tmp->type, ==, ALIAS_SIMPLE_UNION_KIND_EINS);
+    g_assert_cmpint(tmp->u.eins.data->foo, ==, 42);
+    qapi_free_AliasSimpleUnion(tmp);
+
+    /* You can't use more than one option at the same time for each alias */
+    v = visitor_input_test_init(data, "{ 'type': 'eins', 'tag': 'eins' }");
+    visit_type_AliasSimpleUnion(v, NULL, &tmp, &err);
+    error_free_or_abort(&err);
+
+    v = visitor_input_test_init(data, "{ 'type': 'eins', "
+                                      "  'bar': 123, "
+                                      "  'data': { 'foo': 312 } }");
+    visit_type_AliasSimpleUnion(v, NULL, &tmp, &err);
+    error_free_or_abort(&err);
+}
+
 static void input_visitor_test_add(const char *testpath,
                                    const void *user_data,
                                    void (*test_func)(TestInputVisitorData *data,
@@ -1350,6 +1558,16 @@ int main(int argc, char **argv)
                            NULL, test_visitor_in_list_union_string);
     input_visitor_test_add("/visitor/input/list_union/number",
                            NULL, test_visitor_in_list_union_number);
+    input_visitor_test_add("/visitor/input/alias/struct-local",
+                           NULL, test_visitor_in_alias_struct_local);
+    input_visitor_test_add("/visitor/input/alias/struct-nested",
+                           NULL, test_visitor_in_alias_struct_nested);
+    input_visitor_test_add("/visitor/input/alias/wildcard",
+                           NULL, test_visitor_in_alias_wildcard);
+    input_visitor_test_add("/visitor/input/alias/flat-union",
+                           NULL, test_visitor_in_alias_flat_union);
+    input_visitor_test_add("/visitor/input/alias/simple-union",
+                           NULL, test_visitor_in_alias_simple_union);
     input_visitor_test_add("/visitor/input/fail/struct",
                            NULL, test_visitor_in_fail_struct);
     input_visitor_test_add("/visitor/input/fail/struct-nested",

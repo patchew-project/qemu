@@ -3,6 +3,22 @@ test_env.set('PYTHONPATH', meson.source_root() / 'scripts')
 test_env.set('PYTHONIOENCODING', 'utf-8')
 
 schemas = [
+  'alias-bad-type.json',
+  'aliases-bad-type.json',
+  'alias-missing-source.json',
+  'alias-name-bad-type.json',
+  'alias-name-conflict.json',
+  'alias-recursive.json',
+  'alias-source-bad-type.json',
+  'alias-source-elem-bad-type.json',
+  'alias-source-empty.json',
+  'alias-source-inexistent.json',
+  'alias-source-inexistent-variants.json',
+  'alias-source-non-object-path.json',
+  'alias-source-non-object-wildcard.json',
+  'alias-source-optional-wildcard.json',
+  'alias-source-optional-wildcard-indirect.json',
+  'alias-unknown-key.json',
   'alternate-any.json',
   'alternate-array.json',
   'alternate-base.json',
