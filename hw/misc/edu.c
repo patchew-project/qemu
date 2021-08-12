@@ -27,6 +27,7 @@
 #include "hw/pci/pci.h"
 #include "hw/hw.h"
 #include "hw/pci/msi.h"
+#include "hw/pci/msix.h"
 #include "qemu/timer.h"
 #include "qom/object.h"
 #include "qemu/main-loop.h" /* iothread mutex */
@@ -77,6 +78,11 @@ struct EduState {
     uint64_t dma_mask;
 };
 
+static bool edu_msix_enabled(EduState *edu)
+{
+    return msix_enabled(&edu->pdev);
+}
+
 static bool edu_msi_enabled(EduState *edu)
 {
     return msi_enabled(&edu->pdev);
@@ -86,7 +92,9 @@ static void edu_raise_irq(EduState *edu, uint32_t val)
 {
     edu->irq_status |= val;
     if (edu->irq_status) {
-        if (edu_msi_enabled(edu)) {
+        if (edu_msix_enabled(edu)) {
+            msix_notify(&edu->pdev, 0);
+        } else if (edu_msi_enabled(edu)) {
             msi_notify(&edu->pdev, 0);
         } else {
             pci_set_irq(&edu->pdev, 1);
@@ -369,6 +377,10 @@ static void pci_edu_realize(PCIDevice *pdev, Error **errp)
     if (msi_init(pdev, 0, 1, true, false, errp)) {
         return;
     }
+    if (msix_init_exclusive_bar(pdev, 1, 1, errp)) {
+        return;
+    }
+    msix_vector_use(pdev, 0);
 
     timer_init_ms(&edu->dma_timer, QEMU_CLOCK_VIRTUAL, edu_dma_timer, edu);
 
@@ -397,6 +409,7 @@ static void pci_edu_uninit(PCIDevice *pdev)
 
     timer_del(&edu->dma_timer);
     msi_uninit(pdev);
+    msix_uninit_exclusive_bar(pdev);
 }
 
 static void edu_instance_init(Object *obj)
