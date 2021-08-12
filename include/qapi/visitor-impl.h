@@ -119,6 +119,18 @@ struct Visitor
     /* Optional */
     bool (*deprecated)(Visitor *v, const char *name);
 
+    /*
+     * Optional; intended for input visitors. If not given, aliases are
+     * ignored.
+     */
+    void (*define_alias)(Visitor *v, const char *name, const char **source);
+
+    /* Must be set if define_alias is set */
+    void (*start_alias_scope)(Visitor *v);
+
+    /* Must be set if define_alias is set */
+    void (*end_alias_scope)(Visitor *v);
+
     /* Must be set */
     VisitorType type;
 

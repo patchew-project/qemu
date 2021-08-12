@@ -153,6 +153,28 @@ bool visit_deprecated(Visitor *v, const char *name)
     return true;
 }
 
+void visit_define_alias(Visitor *v, const char *name, const char **source)
+{
+    assert(source[0] != NULL);
+    if (v->define_alias) {
+        v->define_alias(v, name, source);
+    }
+}
+
+void visit_start_alias_scope(Visitor *v)
+{
+    if (v->start_alias_scope) {
+        v->start_alias_scope(v);
+    }
+}
+
+void visit_end_alias_scope(Visitor *v)
+{
+    if (v->end_alias_scope) {
+        v->end_alias_scope(v);
+    }
+}
+
 bool visit_is_input(Visitor *v)
 {
     return v->type == VISITOR_INPUT;
