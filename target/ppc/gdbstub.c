@@ -391,10 +391,16 @@ const char *ppc_gdb_get_dynamic_xml(CPUState *cs, const char *xml_name)
 
 static bool avr_need_swap(CPUPPCState *env)
 {
-#ifdef HOST_WORDS_BIGENDIAN
-    return msr_le;
+    bool le;
+#if defined(CONFIG_USER_ONLY)
+    le = false;
 #else
-    return !msr_le;
+    le = msr_le;
+#endif
+#ifdef HOST_WORDS_BIGENDIAN
+    return le;
+#else
+    return !le;
 #endif
 }
 
