@@ -743,7 +743,7 @@ void machine_set_cpu_numa_node(MachineState *machine,
     }
 }
 
-static void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
+static bool smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
 {
     unsigned cpus    = config->has_cpus ? config->cpus : 0;
     unsigned sockets = config->has_sockets ? config->sockets : 0;
@@ -752,7 +752,7 @@ static void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
 
     if (config->has_dies && config->dies != 0 && config->dies != 1) {
         error_setg(errp, "dies not supported by this machine's CPU topology");
-        return;
+        return true;
     }
 
     /* compute missing values, prefer sockets over cores over threads */
@@ -778,14 +778,14 @@ static void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
                    "sockets (%u) * cores (%u) * threads (%u) < "
                    "smp_cpus (%u)",
                    sockets, cores, threads, cpus);
-        return;
+        return true;
     }
 
     ms->smp.max_cpus = config->has_maxcpus ? config->maxcpus : cpus;
 
     if (ms->smp.max_cpus < cpus) {
         error_setg(errp, "maxcpus must be equal to or greater than smp");
-        return;
+        return true;
     }
 
     if (sockets * cores * threads != ms->smp.max_cpus) {
@@ -794,13 +794,15 @@ static void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
                    "!= maxcpus (%u)",
                    sockets, cores, threads,
                    ms->smp.max_cpus);
-        return;
+        return true;
     }
 
     ms->smp.cpus = cpus;
     ms->smp.cores = cores;
     ms->smp.threads = threads;
     ms->smp.sockets = sockets;
+
+    return false;
 }
 
 static void machine_get_smp(Object *obj, Visitor *v, const char *name,

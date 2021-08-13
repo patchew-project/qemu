@@ -712,7 +712,7 @@ void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
  * This function is very similar to smp_parse()
  * in hw/core/machine.c but includes CPU die support.
  */
-static void pc_smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
+static bool pc_smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
 {
     unsigned cpus    = config->has_cpus ? config->cpus : 0;
     unsigned sockets = config->has_sockets ? config->sockets : 0;
@@ -743,14 +743,14 @@ static void pc_smp_parse(MachineState *ms, SMPConfiguration *config, Error **err
                    "sockets (%u) * dies (%u) * cores (%u) * threads (%u) < "
                    "smp_cpus (%u)",
                    sockets, dies, cores, threads, cpus);
-        return;
+        return true;
     }
 
     ms->smp.max_cpus = config->has_maxcpus ? config->maxcpus : cpus;
 
     if (ms->smp.max_cpus < cpus) {
         error_setg(errp, "maxcpus must be equal to or greater than smp");
-        return;
+        return true;
     }
 
     if (sockets * dies * cores * threads != ms->smp.max_cpus) {
@@ -759,7 +759,7 @@ static void pc_smp_parse(MachineState *ms, SMPConfiguration *config, Error **err
                    "!= maxcpus (%u)",
                    sockets, dies, cores, threads,
                    ms->smp.max_cpus);
-        return;
+        return true;
     }
 
     ms->smp.cpus = cpus;
@@ -767,6 +767,8 @@ static void pc_smp_parse(MachineState *ms, SMPConfiguration *config, Error **err
     ms->smp.threads = threads;
     ms->smp.sockets = sockets;
     ms->smp.dies = dies;
+
+    return false;
 }
 
 static
