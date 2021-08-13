@@ -402,10 +402,6 @@ int nvme_ns_setup(NvmeNamespace *ns, Error **errp)
         return -1;
     }
 
-    if (nvme_ns_init_blk(ns, errp)) {
-        return -1;
-    }
-
     if (nvme_ns_init(ns, errp)) {
         return -1;
     }
@@ -481,6 +477,15 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
         }
     }
 
+    if (nvme_ns_init_blk(ns, errp)) {
+        return;
+    }
+
+    if (!ns->size) {
+        QSLIST_INSERT_HEAD(&subsys->unallocated_namespaces, ns, entry);
+        return;
+    }
+
     if (nvme_ns_setup(ns, errp)) {
         return;
     }
@@ -519,6 +524,7 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
 
                 if (ctrl) {
                     nvme_attach_ns(ctrl, ns);
+                    ctrl->id_ctrl.unvmcap -= le64_to_cpu(ns->size);
                 }
             }
 

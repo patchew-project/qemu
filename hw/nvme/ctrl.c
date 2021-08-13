@@ -219,6 +219,7 @@ static const uint32_t nvme_cse_acs[256] = {
     [NVME_ADM_CMD_SET_FEATURES]     = NVME_CMD_EFF_CSUPP,
     [NVME_ADM_CMD_GET_FEATURES]     = NVME_CMD_EFF_CSUPP,
     [NVME_ADM_CMD_ASYNC_EV_REQ]     = NVME_CMD_EFF_CSUPP,
+    [NVME_ADM_CMD_NS_MANAGEMENT]    = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_NIC,
     [NVME_ADM_CMD_NS_ATTACHMENT]    = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_NIC,
     [NVME_ADM_CMD_FORMAT_NVM]       = NVME_CMD_EFF_CSUPP | NVME_CMD_EFF_LBCC,
 };
@@ -4445,6 +4446,30 @@ static uint16_t nvme_identify_ctrl_csi(NvmeCtrl *n, NvmeRequest *req)
     return nvme_c2h(n, id, sizeof(id), req);
 }
 
+static uint16_t nvme_identify_ns_common(NvmeCtrl *n, NvmeRequest *req)
+{
+    NvmeIdNs id_ns = {};
+
+    id_ns.nsfeat |= (0x4 | 0x10);
+    id_ns.dpc = 0x1f;
+
+    NvmeLBAF lbaf[16] = {
+        [0] = {.ds = 9},
+        [1] = {.ds = 9, .ms = 8},
+        [2] = {.ds = 9, .ms = 16},
+        [3] = {.ds = 9, .ms = 64},
+        [4] = {.ds = 12},
+        [5] = {.ds = 12, .ms = 8},
+        [6] = {.ds = 12, .ms = 16},
+        [7] = {.ds = 12, .ms = 64},
+    };
+
+    memcpy(&id_ns.lbaf, &lbaf, sizeof(lbaf));
+    id_ns.nlbaf = 7;
+
+    return nvme_c2h(n, (uint8_t *)&id_ns, sizeof(NvmeIdNs), req);
+}
+
 static uint16_t nvme_identify_ns(NvmeCtrl *n, NvmeRequest *req, bool active)
 {
     NvmeNamespace *ns;
@@ -4453,8 +4478,10 @@ static uint16_t nvme_identify_ns(NvmeCtrl *n, NvmeRequest *req, bool active)
 
     trace_pci_nvme_identify_ns(nsid);
 
-    if (!nvme_nsid_valid(n, nsid) || nsid == NVME_NSID_BROADCAST) {
+    if (!nvme_nsid_valid(n, nsid)) {
         return NVME_INVALID_NSID | NVME_DNR;
+    } else if (nsid == NVME_NSID_BROADCAST) {
+        return nvme_identify_ns_common(n, req);
     }
 
     ns = nvme_ns(n, nsid);
@@ -5184,6 +5211,195 @@ static void nvme_select_iocs_ns(NvmeCtrl *n, NvmeNamespace *ns)
     }
 }
 
+static int nvme_blk_truncate(BlockBackend *blk, size_t len, Error **errp)
+{
+    int ret;
+    uint64_t perm, shared_perm;
+
+    blk_get_perm(blk, &perm, &shared_perm);
+
+    ret = blk_set_perm(blk, perm | BLK_PERM_RESIZE, shared_perm, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = blk_truncate(blk, len, false, PREALLOC_MODE_OFF, 0, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = blk_set_perm(blk, perm, shared_perm, errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return 0;
+}
+
+static uint32_t nvme_allocate_nsid(NvmeCtrl *n)
+{
+    uint32_t nsid = 0;
+    for (int i = 1; i <= NVME_MAX_NAMESPACES; i++) {
+        if (nvme_ns(n, i) || nvme_subsys_ns(n->subsys, i)) {
+            continue;
+        }
+
+        nsid = i;
+        return nsid;
+    }
+    return nsid;
+}
+
+static uint16_t nvme_namespace_create(NvmeCtrl *n, NvmeRequest *req)
+{
+   uint32_t ret;
+   NvmeIdNs id_ns_host;
+   NvmeSubsystem *subsys = n->subsys;
+   Error *err = NULL;
+   uint8_t flbas_host;
+   uint64_t ns_size;
+   int lba_index;
+   NvmeNamespace *ns;
+   NvmeCtrl *ctrl;
+   NvmeIdNs *id_ns;
+
+    ret = nvme_h2c(n, (uint8_t *)&id_ns_host, sizeof(id_ns_host), req);
+    if (ret) {
+        return ret;
+    }
+
+    if (id_ns_host.ncap < id_ns_host.nsze) {
+        return NVME_THIN_PROVISION_NO_SUPP | NVME_DNR;
+    } else if (id_ns_host.ncap > id_ns_host.nsze) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    if (!id_ns_host.nsze) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    if (QSLIST_EMPTY(&subsys->unallocated_namespaces)) {
+        return NVME_NS_ID_UNAVAILABLE;
+    }
+
+    ns = QSLIST_FIRST(&subsys->unallocated_namespaces);
+    id_ns = &ns->id_ns;
+    flbas_host = (id_ns_host.flbas) & (0xF);
+
+    if (flbas_host > id_ns->nlbaf) {
+        return NVME_INVALID_FORMAT | NVME_DNR;
+    }
+
+    ret = nvme_ns_setup(ns, &err);
+    if (ret) {
+        return ret;
+    }
+
+    id_ns->flbas = id_ns_host.flbas;
+    id_ns->dps = id_ns_host.dps;
+    id_ns->nmic = id_ns_host.nmic;
+
+    lba_index = NVME_ID_NS_FLBAS_INDEX(id_ns->flbas);
+    ns_size = id_ns_host.nsze * ((1 << id_ns->lbaf[lba_index].ds) +
+                (id_ns->lbaf[lba_index].ms));
+    id_ns->nvmcap = ns_size;
+
+    if (ns_size > n->id_ctrl.unvmcap) {
+        return NVME_NS_INSUFF_CAP;
+    }
+
+    ret = nvme_blk_truncate(ns->blkconf.blk, id_ns->nvmcap, &err);
+    if (ret) {
+        return ret;
+    }
+
+    ns->size = blk_getlength(ns->blkconf.blk);
+    nvme_ns_init_format(ns);
+
+    ns->params.nsid = nvme_allocate_nsid(n);
+    if (!ns->params.nsid) {
+        return NVME_NS_ID_UNAVAILABLE;
+    }
+    subsys->namespaces[ns->params.nsid] = ns;
+
+    for (int cntlid = 0; cntlid < ARRAY_SIZE(n->subsys->ctrls); cntlid++) {
+        ctrl = nvme_subsys_ctrl(n->subsys, cntlid);
+        if (ctrl) {
+            ctrl->id_ctrl.unvmcap -= le64_to_cpu(ns->size);
+        }
+    }
+
+    stl_le_p(&req->cqe.result, ns->params.nsid);
+    QSLIST_REMOVE_HEAD(&subsys->unallocated_namespaces, entry);
+    return NVME_SUCCESS;
+}
+
+static void nvme_namespace_delete(NvmeCtrl *n, NvmeNamespace *ns, uint32_t nsid)
+{
+    NvmeCtrl *ctrl;
+    NvmeSubsystem *subsys = n->subsys;
+
+    subsys->namespaces[nsid] = NULL;
+    QSLIST_INSERT_HEAD(&subsys->unallocated_namespaces, ns, entry);
+
+    for (int cntlid = 0; cntlid < ARRAY_SIZE(n->subsys->ctrls); cntlid++) {
+        ctrl = nvme_subsys_ctrl(n->subsys, cntlid);
+        if (ctrl) {
+            ctrl->id_ctrl.unvmcap += le64_to_cpu(ns->size);
+            if (nvme_ns(ctrl, nsid)) {
+                nvme_detach_ns(ctrl, ns, nsid);
+            }
+            nvme_ns_attr_changed_aer(ctrl, nsid);
+        }
+    }
+}
+
+static uint16_t nvme_ns_management(NvmeCtrl *n, NvmeRequest *req)
+{
+   uint32_t dw10 = le32_to_cpu(req->cmd.cdw10);
+   uint8_t sel = dw10 & 0x7;
+   uint32_t nsid = le32_to_cpu(req->cmd.nsid);
+   NvmeNamespace *ns;
+
+    if (!n->subsys) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    switch (sel) {
+    case NVME_NS_MANAGEMENT_CREATE:
+        if (nsid) {
+            return NVME_INVALID_FIELD | NVME_DNR;
+        }
+        return nvme_namespace_create(n, req);
+    case NVME_NS_MANAGEMENT_DELETE:
+        if (nsid != NVME_NSID_BROADCAST && !nvme_nsid_valid(n, nsid)) {
+            return NVME_INVALID_NSID | NVME_DNR;
+        }
+        if (nsid == NVME_NSID_BROADCAST) {
+            uint32_t i;
+
+            for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
+                ns = nvme_subsys_ns(n->subsys, i);
+                if (!ns) {
+                    continue;
+                }
+                nvme_namespace_delete(n, ns, i);
+            }
+            return NVME_SUCCESS;
+        } else {
+            ns = nvme_subsys_ns(n->subsys, nsid);
+            if (!ns) {
+                return NVME_INVALID_FIELD | NVME_DNR;
+            }
+            nvme_namespace_delete(n, ns, nsid);
+            return NVME_SUCCESS;
+        }
+
+    default:
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+}
+
 static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
 {
     NvmeNamespace *ns;
@@ -5239,22 +5455,14 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
             if (!nvme_ns(ctrl, nsid)) {
                 return NVME_NS_NOT_ATTACHED | NVME_DNR;
             }
-
-            ctrl->namespaces[nsid] = NULL;
-            ns->attached--;
-
-            nvme_update_dmrsl(ctrl);
+            nvme_detach_ns(ctrl, ns, nsid);
         }
 
         /*
          * Add namespace id to the changed namespace id list for event clearing
          * via Get Log Page command.
          */
-        if (!test_and_set_bit(nsid, ctrl->changed_nsids)) {
-            nvme_enqueue_event(ctrl, NVME_AER_TYPE_NOTICE,
-                               NVME_AER_INFO_NOTICE_NS_ATTR_CHANGED,
-                               NVME_LOG_CHANGED_NSLIST);
-        }
+        nvme_ns_attr_changed_aer(ctrl, nsid);
     }
 
     return NVME_SUCCESS;
@@ -5487,6 +5695,8 @@ static uint16_t nvme_admin_cmd(NvmeCtrl *n, NvmeRequest *req)
         return nvme_get_feature(n, req);
     case NVME_ADM_CMD_ASYNC_EV_REQ:
         return nvme_aer(n, req);
+    case NVME_ADM_CMD_NS_MANAGEMENT:
+        return nvme_ns_management(n, req);
     case NVME_ADM_CMD_NS_ATTACHMENT:
         return nvme_ns_attachment(n, req);
     case NVME_ADM_CMD_FORMAT_NVM:
@@ -6471,6 +6681,8 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
 
     if (n->subsys) {
         id->cmic |= NVME_CMIC_MULTI_CTRL;
+        id->tnvmcap = n->subsys->params.tnvmcap * GiB;
+        id->unvmcap = n->subsys->params.tnvmcap * GiB;
     }
 
     NVME_CAP_SET_MQES(cap, 0x7ff);
@@ -6516,6 +6728,22 @@ void nvme_attach_ns(NvmeCtrl *n, NvmeNamespace *ns)
 
     n->dmrsl = MIN_NON_ZERO(n->dmrsl,
                             BDRV_REQUEST_MAX_BYTES / nvme_l2b(ns, 1));
+}
+
+void nvme_detach_ns(NvmeCtrl *n, NvmeNamespace *ns, uint32_t nsid)
+{
+    n->namespaces[nsid] = NULL;
+    ns->attached--;
+    nvme_update_dmrsl(n);
+}
+
+void nvme_ns_attr_changed_aer(NvmeCtrl *n, uint32_t nsid)
+{
+    if (!test_and_set_bit(nsid, n->changed_nsids)) {
+        nvme_enqueue_event(n, NVME_AER_TYPE_NOTICE,
+                           NVME_AER_INFO_NOTICE_NS_ATTR_CHANGED,
+                           NVME_LOG_CHANGED_NSLIST);
+    }
 }
 
 static void nvme_realize(PCIDevice *pci_dev, Error **errp)

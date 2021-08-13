@@ -51,9 +51,11 @@ typedef struct NvmeSubsystem {
 
     NvmeCtrl      *ctrls[NVME_MAX_CONTROLLERS];
     NvmeNamespace *namespaces[NVME_MAX_NAMESPACES + 1];
+    QSLIST_HEAD(, NvmeNamespace) unallocated_namespaces;
 
     struct {
         char *nqn;
+        uint64_t tnvmcap;
     } params;
 } NvmeSubsystem;
 
@@ -130,7 +132,7 @@ typedef struct NvmeNamespace {
     uint16_t     status;
     int          attached;
 
-    QTAILQ_ENTRY(NvmeNamespace) entry;
+    QSLIST_ENTRY(NvmeNamespace) entry;
 
     NvmeIdNsZoned   *id_ns_zoned;
     NvmeZone        *zone_array;
@@ -495,6 +497,8 @@ static inline uint16_t nvme_cid(NvmeRequest *req)
 }
 
 void nvme_attach_ns(NvmeCtrl *n, NvmeNamespace *ns);
+void nvme_detach_ns(NvmeCtrl *n, NvmeNamespace *ns, uint32_t nsid);
+void nvme_ns_attr_changed_aer(NvmeCtrl *n, uint32_t nsid);
 uint16_t nvme_bounce_data(NvmeCtrl *n, uint8_t *ptr, uint32_t len,
                           NvmeTxDirection dir, NvmeRequest *req);
 uint16_t nvme_bounce_mdata(NvmeCtrl *n, uint8_t *ptr, uint32_t len,
