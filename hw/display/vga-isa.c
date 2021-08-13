@@ -61,6 +61,15 @@ static void vga_isa_realizefn(DeviceState *dev, Error **errp)
     MemoryRegion *vga_io_memory;
     const MemoryRegionPortio *vga_ports, *vbe_ports;
 
+    /*
+     * some machines register VGA by default, so instead of aborting
+     * it, show a message and ignore this device.
+     */
+    if (qemu_ram_block_by_name("vga.vram")) {
+        error_report("vga.vram is already registered, ignoring this device");
+        return;
+    }
+
     s->global_vmstate = true;
     vga_common_init(s, OBJECT(dev));
     s->legacy_address_space = isa_address_space(isadev);
