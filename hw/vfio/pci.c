@@ -47,6 +47,8 @@
 
 static void vfio_disable_interrupts(VFIOPCIDevice *vdev);
 static void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled);
+static void vfio_add_kvm_msix_virq(VFIOPCIDevice *vdev,
+                                   VFIOMSIVector *vector, int nr);
 
 /*
  * Disabling BAR mmaping can be slow, but toggling it around INTx can
@@ -347,6 +349,11 @@ static void vfio_msi_interrupt(void *opaque)
         get_msg = msix_get_message;
         notify = msix_notify;
 
+        if (unlikely(vector->need_switch)) {
+            vfio_add_kvm_msix_virq(vdev, vector, nr);
+            vector->need_switch = false;
+        }
+
         /* A masked vector firing needs to use the PBA, enable it */
         if (msix_is_masked(&vdev->pdev, nr)) {
             set_bit(nr, vdev->msix->pending);
@@ -438,6 +445,25 @@ static void vfio_add_kvm_msi_virq(VFIOPCIDevice *vdev, VFIOMSIVector *vector,
     vector->virq = virq;
 }
 
+static void
+vfio_add_kvm_msix_virq(VFIOPCIDevice *vdev, VFIOMSIVector *vector, int nr)
+{
+    Error *err = NULL;
+    int fd;
+
+    vfio_add_kvm_msi_virq(vdev, vector, nr, true);
+    if (vector->virq < 0) {
+        return;
+    }
+
+    fd = event_notifier_get_fd(&vector->kvm_interrupt);
+    if (vfio_set_irq_signaling(&vdev->vbasedev,
+                               VFIO_PCI_MSIX_IRQ_INDEX, nr,
+                               VFIO_IRQ_SET_ACTION_TRIGGER, fd, &err)) {
+        error_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
+    }
+}
+
 static void vfio_remove_kvm_msi_virq(VFIOMSIVector *vector)
 {
     kvm_irqchip_remove_irqfd_notifier_gsi(kvm_state, &vector->kvm_interrupt,
@@ -490,7 +516,11 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
         }
     } else {
         if (msg) {
-            vfio_add_kvm_msi_virq(vdev, vector, nr, true);
+            if (unlikely(vdev->defer_set_virq)) {
+                vector->need_switch = true;
+            } else {
+                vfio_add_kvm_msi_virq(vdev, vector, nr, true);
+            }
         }
     }
 
@@ -564,6 +594,11 @@ static void vfio_msix_vector_release(PCIDevice *pdev, unsigned int nr)
             error_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
         }
     }
+}
+
+static void inline vfio_msix_defer_set_virq(VFIOPCIDevice *vdev, bool defer)
+{
+    vdev->defer_set_virq = defer;
 }
 
 static void vfio_msix_enable(VFIOPCIDevice *vdev)
@@ -2466,7 +2501,9 @@ static int vfio_pci_load_config(VFIODevice *vbasedev, QEMUFile *f)
     if (msi_enabled(pdev)) {
         vfio_msi_enable(vdev);
     } else if (msix_enabled(pdev)) {
+        vfio_msix_defer_set_virq(vdev, true);
         vfio_msix_enable(vdev);
+        vfio_msix_defer_set_virq(vdev, false);
     }
 
     return ret;

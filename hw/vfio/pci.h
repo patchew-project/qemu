@@ -95,6 +95,7 @@ typedef struct VFIOMSIVector {
     struct VFIOPCIDevice *vdev; /* back pointer to device */
     int virq;
     bool use;
+    bool need_switch; /* switch to kvm interrupt ? */
 } VFIOMSIVector;
 
 enum {
@@ -171,6 +172,7 @@ struct VFIOPCIDevice {
     bool no_kvm_ioeventfd;
     bool no_vfio_ioeventfd;
     bool enable_ramfb;
+    bool defer_set_virq;
     VFIODisplay *dpy;
     Notifier irqchip_change_notifier;
 };
