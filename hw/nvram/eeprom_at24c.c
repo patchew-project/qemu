@@ -12,9 +12,11 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/i2c/i2c.h"
+#include "hw/nvram/eeprom_at24c.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "sysemu/block-backend.h"
+#include "sysemu/blockdev.h"
 #include "qom/object.h"
 
 /* #define DEBUG_AT24C */
@@ -205,3 +207,19 @@ static void at24c_eeprom_register(void)
 }
 
 type_init(at24c_eeprom_register)
+
+void at24c_eeprom_init_one(I2CBus *i2c_bus, int bus, uint8_t addr,
+                           uint32_t rsize, int unit_number)
+{
+    I2CSlave *i2c_dev = i2c_slave_new("at24c-eeprom", addr);
+    DeviceState *dev = DEVICE(i2c_dev);
+    BlockInterfaceType type = IF_NONE;
+    DriveInfo *dinfo;
+
+    dinfo = drive_get(type, bus, unit_number);
+    if (dinfo) {
+        qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(dinfo));
+    }
+    qdev_prop_set_uint32(dev, "rom-size", rsize);
+    i2c_slave_realize_and_unref(i2c_dev, i2c_bus, &error_abort);
+}
