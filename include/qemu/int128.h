@@ -153,11 +153,6 @@ static inline void int128_subfrom(Int128 *a, Int128 b)
     *a -= b;
 }
 
-static inline Int128 bswap128(Int128 a)
-{
-    return int128_make128(bswap64(int128_gethi(a)), bswap64(int128_getlo(a)));
-}
-
 #else /* !CONFIG_INT128 */
 
 typedef struct Int128 Int128;
@@ -338,4 +333,15 @@ static inline void int128_subfrom(Int128 *a, Int128 b)
 }
 
 #endif /* CONFIG_INT128 */
+
+static inline Int128 bswap128(Int128 a)
+{
+    return int128_make128(bswap64(int128_gethi(a)), bswap64(int128_getlo(a)));
+}
+
+static inline void bswap128s(Int128 *s)
+{
+    *s = bswap128(*s);
+}
+
 #endif /* INT128_H */
