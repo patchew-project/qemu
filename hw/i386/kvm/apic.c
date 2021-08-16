@@ -125,6 +125,11 @@ static void kvm_apic_vapic_base_update(APICCommonState *s)
         .vapic_addr = s->vapic_paddr,
     };
     int ret;
+    CPUState *cpu = CPU(s->cpu);
+
+    if (cpu->mirror_vcpu) {
+        return;
+    }
 
     ret = kvm_vcpu_ioctl(CPU(s->cpu), KVM_SET_VAPIC_ADDR, &vapid_addr);
     if (ret < 0) {
@@ -139,6 +144,11 @@ static void kvm_apic_put(CPUState *cs, run_on_cpu_data data)
     APICCommonState *s = data.host_ptr;
     struct kvm_lapic_state kapic;
     int ret;
+    CPUState *cpu = CPU(s->cpu);
+
+    if (cpu->mirror_vcpu) {
+        return;
+    }
 
     kvm_put_apicbase(s->cpu, s->apicbase);
     kvm_put_apic_state(s, &kapic);
@@ -227,6 +237,11 @@ static void kvm_apic_reset(APICCommonState *s)
 static void kvm_apic_realize(DeviceState *dev, Error **errp)
 {
     APICCommonState *s = APIC_COMMON(dev);
+    CPUState *cpu = CPU(s->cpu);
+
+    if (cpu->mirror_vcpu) {
+        return;
+    }
 
     memory_region_init_io(&s->io_memory, OBJECT(s), &kvm_apic_io_ops, s,
                           "kvm-apic-msi", APIC_SPACE_SIZE);
