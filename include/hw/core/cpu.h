@@ -402,6 +402,9 @@ struct CPUState {
     /* shared by kvm, hax and hvf */
     bool vcpu_dirty;
 
+    /* does this cpu belong to mirror VM */
+    bool mirror_vcpu;
+
     /* Used to keep track of an outstanding cpu throttle thread for migration
      * autoconverge
      */
