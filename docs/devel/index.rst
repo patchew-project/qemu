@@ -44,3 +44,4 @@ modifying QEMU's source code.
    vfio-migration
    qapi-code-gen
    writing-qmp-commands
+   vfio-user
