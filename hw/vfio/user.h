@@ -86,6 +86,7 @@ int vfio_user_region_read(VFIODevice *vbasedev, uint32_t index, uint64_t offset,
                           uint32_t count, void *data);
 int vfio_user_region_write(VFIODevice *vbasedev, uint32_t index,
                            uint64_t offset, uint32_t count, void *data);
+void vfio_user_reset(VFIODevice *vbasedev);
 void vfio_user_drain_reqs(VFIOProxy *proxy);
 
 #endif /* VFIO_USER_H */

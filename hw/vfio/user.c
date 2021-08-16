@@ -1045,3 +1045,15 @@ int vfio_user_region_write(VFIODevice *vbasedev, uint32_t index,
 
     return count;
 }
+
+void vfio_user_reset(VFIODevice *vbasedev)
+{
+    VFIOUserHdr msg;
+
+    vfio_user_request_msg(&msg, VFIO_USER_DEVICE_RESET, sizeof(msg), 0);
+
+    vfio_user_send_recv(vbasedev->proxy, &msg, NULL, 0, 0);
+    if (msg.flags & VFIO_USER_ERROR) {
+        error_printf("reset reply error %d\n", msg.error_reply);
+    }
+}
