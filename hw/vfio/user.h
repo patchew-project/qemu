@@ -72,5 +72,7 @@ void vfio_user_set_reqhandler(VFIODevice *vbasdev,
 void vfio_user_send_reply(VFIOProxy *proxy, char *buf, int ret);
 int vfio_user_validate_version(VFIODevice *vbasedev, Error **errp);
 int vfio_user_get_info(VFIODevice *vbasedev);
+int vfio_user_get_region_info(VFIODevice *vbasedev, int index,
+                              struct vfio_region_info *info, VFIOUserFDs *fds);
 
 #endif /* VFIO_USER_H */

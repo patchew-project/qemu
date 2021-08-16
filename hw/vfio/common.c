@@ -40,6 +40,7 @@
 #include "trace.h"
 #include "qapi/error.h"
 #include "migration/migration.h"
+#include "hw/vfio/user.h"
 
 VFIOGroupList vfio_group_list =
     QLIST_HEAD_INITIALIZER(vfio_group_list);
@@ -1514,6 +1515,16 @@ bool vfio_get_info_dma_avail(struct vfio_iommu_type1_info *info,
     return true;
 }
 
+static int vfio_get_region_info_remfd(VFIODevice *vbasedev, int index)
+{
+    struct vfio_region_info *info;
+
+    if (vbasedev->regions == NULL || vbasedev->regions[index] == NULL) {
+        vfio_get_region_info(vbasedev, index, &info);
+    }
+    return vbasedev->regfds != NULL ? vbasedev->regfds[index] : -1;
+}
+
 static int vfio_setup_region_sparse_mmaps(VFIORegion *region,
                                           struct vfio_region_info *info)
 {
@@ -1567,6 +1578,7 @@ int vfio_region_setup(Object *obj, VFIODevice *vbasedev, VFIORegion *region,
     region->size = info->size;
     region->fd_offset = info->offset;
     region->nr = index;
+    region->remfd = vfio_get_region_info_remfd(vbasedev, index);
 
     if (region->size) {
         region->mem = g_new0(MemoryRegion, 1);
@@ -1610,6 +1622,7 @@ int vfio_region_mmap(VFIORegion *region)
 {
     int i, prot = 0;
     char *name;
+    int fd;
 
     if (!region->mem) {
         return 0;
@@ -1618,9 +1631,11 @@ int vfio_region_mmap(VFIORegion *region)
     prot |= region->flags & VFIO_REGION_INFO_FLAG_READ ? PROT_READ : 0;
     prot |= region->flags & VFIO_REGION_INFO_FLAG_WRITE ? PROT_WRITE : 0;
 
+    fd = region->remfd != -1 ? region->remfd : region->vbasedev->fd;
+
     for (i = 0; i < region->nr_mmaps; i++) {
         region->mmaps[i].mmap = mmap(NULL, region->mmaps[i].size, prot,
-                                     MAP_SHARED, region->vbasedev->fd,
+                                     MAP_SHARED, fd,
                                      region->fd_offset +
                                      region->mmaps[i].offset);
         if (region->mmaps[i].mmap == MAP_FAILED) {
@@ -2397,6 +2412,23 @@ int vfio_get_device(VFIOGroup *group, const char *name,
 
 void vfio_put_base_device(VFIODevice *vbasedev)
 {
+    if (vbasedev->regions != NULL) {
+        int i;
+
+        for (i = 0; i < vbasedev->num_regions; i++) {
+            if (vbasedev->regfds != NULL && vbasedev->regfds[i] != -1) {
+                close(vbasedev->regfds[i]);
+            }
+            g_free(vbasedev->regions[i]);
+        }
+        g_free(vbasedev->regions);
+        vbasedev->regions = NULL;
+        if (vbasedev->regfds != NULL) {
+            g_free(vbasedev->regfds);
+            vbasedev->regfds = NULL;
+        }
+    }
+
     if (!vbasedev->group) {
         return;
     }
@@ -2410,6 +2442,24 @@ int vfio_get_region_info(VFIODevice *vbasedev, int index,
                          struct vfio_region_info **info)
 {
     size_t argsz = sizeof(struct vfio_region_info);
+    int fd = -1;
+    int ret;
+
+    /* create region cache */
+    if (vbasedev->regions == NULL) {
+        vbasedev->regions = g_new0(struct vfio_region_info *,
+                                   vbasedev->num_regions);
+        if (vbasedev->proxy != NULL) {
+            vbasedev->regfds = g_new0(int, vbasedev->num_regions);
+        }
+    }
+    /* check cache */
+    if (vbasedev->regions[index] != NULL) {
+        *info = g_malloc0(vbasedev->regions[index]->argsz);
+        memcpy(*info, vbasedev->regions[index],
+               vbasedev->regions[index]->argsz);
+        return 0;
+    }
 
     *info = g_malloc0(argsz);
 
@@ -2417,7 +2467,17 @@ int vfio_get_region_info(VFIODevice *vbasedev, int index,
 retry:
     (*info)->argsz = argsz;
 
-    if (ioctl(vbasedev->fd, VFIO_DEVICE_GET_REGION_INFO, *info)) {
+    if (vbasedev->proxy != NULL) {
+        VFIOUserFDs fds = { 0, 1, &fd};
+
+        ret = vfio_user_get_region_info(vbasedev, index, *info, &fds);
+    } else {
+        ret = ioctl(vbasedev->fd, VFIO_DEVICE_GET_REGION_INFO, *info);
+        if (ret < 0) {
+            ret = -errno;
+        }
+    }
+    if (ret != 0) {
         g_free(*info);
         *info = NULL;
         return -errno;
@@ -2426,8 +2486,20 @@ retry:
     if ((*info)->argsz > argsz) {
         argsz = (*info)->argsz;
         *info = g_realloc(*info, argsz);
+        if (fd != -1) {
+            close(fd);
+            fd = -1;
+        }
 
         goto retry;
+    }
+
+    /* fill cache */
+    vbasedev->regions[index] = g_malloc0(argsz);
+    memcpy(vbasedev->regions[index], *info, argsz);
+    *vbasedev->regions[index] = **info;
+    if (vbasedev->regfds != NULL) {
+        vbasedev->regfds[index] = fd;
     }
 
     return 0;
