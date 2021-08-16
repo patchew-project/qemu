@@ -61,6 +61,42 @@ static void *kvm_vcpu_thread_fn(void *arg)
     return NULL;
 }
 
+static void *kvm_mirror_vcpu_thread_fn(void *arg)
+{
+    CPUState *cpu = arg;
+    int r;
+
+    rcu_register_thread();
+
+    qemu_mutex_lock_iothread();
+    qemu_thread_get_self(cpu->thread);
+    cpu->thread_id = qemu_get_thread_id();
+    cpu->can_do_io = 1;
+
+    r = kvm_init_mirror_vcpu(cpu, &error_fatal);
+    kvm_init_cpu_signals(cpu);
+
+    /* signal CPU creation */
+    cpu_thread_signal_created(cpu);
+    qemu_guest_random_seed_thread_part2(cpu->random_seed);
+
+    do {
+        if (cpu_can_run(cpu)) {
+            r = kvm_mirror_cpu_exec(cpu);
+            if (r == EXCP_DEBUG) {
+                cpu_handle_guest_debug(cpu);
+            }
+        }
+        qemu_wait_io_event(cpu);
+    } while (!cpu->unplug || cpu_can_run(cpu));
+
+    kvm_destroy_vcpu(cpu);
+    qemu_mutex_unlock_iothread();
+    cpu_thread_signal_destroyed(cpu);
+    rcu_unregister_thread();
+    return NULL;
+}
+
 static void kvm_start_vcpu_thread(CPUState *cpu)
 {
     char thread_name[VCPU_THREAD_NAME_SIZE];
@@ -70,8 +106,13 @@ static void kvm_start_vcpu_thread(CPUState *cpu)
     qemu_cond_init(cpu->halt_cond);
     snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/KVM",
              cpu->cpu_index);
-    qemu_thread_create(cpu->thread, thread_name, kvm_vcpu_thread_fn,
-                       cpu, QEMU_THREAD_JOINABLE);
+    if (!cpu->mirror_vcpu) {
+        qemu_thread_create(cpu->thread, thread_name, kvm_vcpu_thread_fn,
+                            cpu, QEMU_THREAD_JOINABLE);
+    } else {
+        qemu_thread_create(cpu->thread, thread_name, kvm_mirror_vcpu_thread_fn,
+                           cpu, QEMU_THREAD_JOINABLE);
+    }
 }
 
 static void kvm_accel_ops_class_init(ObjectClass *oc, void *data)

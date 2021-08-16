@@ -4154,6 +4154,48 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
     return 0;
 }
 
+int kvm_arch_mirror_put_registers(CPUState *cpu, int level)
+{
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    int ret;
+
+    assert(cpu_is_stopped(cpu) || qemu_cpu_is_self(cpu));
+
+    /* must be before kvm_put_nested_state so that EFER.SVME is set */
+    ret = kvm_put_sregs(x86_cpu);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (level == KVM_PUT_FULL_STATE) {
+        /*
+         * We don't check for kvm_arch_set_tsc_khz() errors here,
+         * because TSC frequency mismatch shouldn't abort migration,
+         * unless the user explicitly asked for a more strict TSC
+         * setting (e.g. using an explicit "tsc-freq" option).
+         */
+        kvm_arch_set_tsc_khz(cpu);
+    }
+
+    ret = kvm_getput_regs(x86_cpu, 1);
+    if (ret < 0) {
+        return ret;
+    }
+    ret = kvm_put_xsave(x86_cpu);
+    if (ret < 0) {
+        return ret;
+    }
+    ret = kvm_put_xcrs(x86_cpu);
+    if (ret < 0) {
+        return ret;
+    }
+    ret = kvm_put_debugregs(x86_cpu);
+    if (ret < 0) {
+        return ret;
+    }
+    return 0;
+}
+
 int kvm_arch_get_registers(CPUState *cs)
 {
     X86CPU *cpu = X86_CPU(cs);

@@ -2294,6 +2294,55 @@ bool kvm_vcpu_id_is_valid(int vcpu_id)
     return vcpu_id >= 0 && vcpu_id < kvm_max_vcpu_id(s);
 }
 
+int kvm_init_mirror_vcpu(CPUState *cpu, Error **errp)
+{
+    KVMState *s = kvm_state;
+    long mmap_size;
+    int ret;
+
+    ret =  kvm_mirror_vm_ioctl(s, KVM_CREATE_VCPU, kvm_arch_vcpu_id(cpu));
+    if (ret < 0) {
+        error_setg_errno(errp, -ret,
+                         "kvm_init_mirror_vcpu: kvm_get_vcpu failed");
+        goto err;
+    }
+
+    cpu->kvm_fd = ret;
+    cpu->kvm_state = s;
+    cpu->vcpu_dirty = true;
+
+    mmap_size = kvm_ioctl(s, KVM_GET_VCPU_MMAP_SIZE, 0);
+    if (mmap_size < 0) {
+        ret = mmap_size;
+        error_setg_errno(errp, -mmap_size,
+                         "kvm_init_mirror_vcpu: KVM_GET_VCPU_MMAP_SIZE failed");
+        goto err;
+    }
+
+    cpu->kvm_run = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED,
+                        cpu->kvm_fd, 0);
+    if (cpu->kvm_run == MAP_FAILED) {
+        ret = -errno;
+        error_setg_errno(errp, ret,
+                         "kvm_init_mirror_vcpu: mmap'ing vcpu state failed");
+    }
+
+    if (s->coalesced_mmio && !s->coalesced_mmio_ring) {
+        s->coalesced_mmio_ring =
+            (void *)cpu->kvm_run + s->coalesced_mmio * PAGE_SIZE;
+    }
+
+    ret = kvm_arch_init_vcpu(cpu);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret,
+                         "kvm_init_vcpu: kvm_arch_init_vcpu failed (%lu)",
+                         kvm_arch_vcpu_id(cpu));
+    }
+
+err:
+    return ret;
+}
+
 static int kvm_init(MachineState *ms)
 {
     MachineClass *mc = MACHINE_GET_CLASS(ms);
@@ -2717,7 +2766,11 @@ void kvm_cpu_synchronize_state(CPUState *cpu)
 
 static void do_kvm_cpu_synchronize_post_reset(CPUState *cpu, run_on_cpu_data arg)
 {
-    kvm_arch_put_registers(cpu, KVM_PUT_RESET_STATE);
+    if (!cpu->mirror_vcpu) {
+        kvm_arch_put_registers(cpu, KVM_PUT_RESET_STATE);
+    } else {
+        kvm_arch_mirror_put_registers(cpu, KVM_PUT_RESET_STATE);
+    }
     cpu->vcpu_dirty = false;
 }
 
@@ -2728,7 +2781,11 @@ void kvm_cpu_synchronize_post_reset(CPUState *cpu)
 
 static void do_kvm_cpu_synchronize_post_init(CPUState *cpu, run_on_cpu_data arg)
 {
-    kvm_arch_put_registers(cpu, KVM_PUT_FULL_STATE);
+    if (!cpu->mirror_vcpu) {
+        kvm_arch_put_registers(cpu, KVM_PUT_FULL_STATE);
+    } else {
+        kvm_arch_mirror_put_registers(cpu, KVM_PUT_FULL_STATE);
+    }
     cpu->vcpu_dirty = false;
 }
 
@@ -2925,6 +2982,136 @@ int kvm_cpu_exec(CPUState *cpu)
             kvm_dirty_ring_reap(kvm_state);
             qemu_mutex_unlock_iothread();
             ret = 0;
+            break;
+        case KVM_EXIT_SYSTEM_EVENT:
+            switch (run->system_event.type) {
+            case KVM_SYSTEM_EVENT_SHUTDOWN:
+                qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+                ret = EXCP_INTERRUPT;
+                break;
+            case KVM_SYSTEM_EVENT_RESET:
+                qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+                ret = EXCP_INTERRUPT;
+                break;
+            case KVM_SYSTEM_EVENT_CRASH:
+                kvm_cpu_synchronize_state(cpu);
+                qemu_mutex_lock_iothread();
+                qemu_system_guest_panicked(cpu_get_crash_info(cpu));
+                qemu_mutex_unlock_iothread();
+                ret = 0;
+                break;
+            default:
+                DPRINTF("kvm_arch_handle_exit\n");
+                ret = kvm_arch_handle_exit(cpu, run);
+                break;
+            }
+            break;
+        default:
+            DPRINTF("kvm_arch_handle_exit\n");
+            ret = kvm_arch_handle_exit(cpu, run);
+            break;
+        }
+    } while (ret == 0);
+
+    cpu_exec_end(cpu);
+    qemu_mutex_lock_iothread();
+
+    if (ret < 0) {
+        cpu_dump_state(cpu, stderr, CPU_DUMP_CODE);
+        vm_stop(RUN_STATE_INTERNAL_ERROR);
+    }
+
+    qatomic_set(&cpu->exit_request, 0);
+    return ret;
+}
+
+int kvm_mirror_cpu_exec(CPUState *cpu)
+{
+    struct kvm_run *run = cpu->kvm_run;
+    int ret, run_ret = 0;
+
+    DPRINTF("kvm_mirror_cpu_exec()\n");
+    assert(cpu->mirror_vcpu == TRUE);
+
+    qemu_mutex_unlock_iothread();
+    cpu_exec_start(cpu);
+
+    do {
+        MemTxAttrs attrs;
+
+        if (cpu->vcpu_dirty) {
+            kvm_arch_mirror_put_registers(cpu, KVM_PUT_RUNTIME_STATE);
+            cpu->vcpu_dirty = false;
+        }
+
+        kvm_arch_pre_run(cpu, run);
+        if (qatomic_read(&cpu->exit_request)) {
+            DPRINTF("interrupt exit requested\n");
+            /*
+             * KVM requires us to reenter the kernel after IO exits to complete
+             * instruction emulation. This self-signal will ensure that we
+             * leave ASAP again.
+             */
+            kvm_cpu_kick_self();
+        }
+
+        /*
+         * Read cpu->exit_request before KVM_RUN reads run->immediate_exit.
+         * Matching barrier in kvm_eat_signals.
+         */
+        smp_rmb();
+
+        run_ret = kvm_vcpu_ioctl(cpu, KVM_RUN, 0);
+
+        attrs = kvm_arch_post_run(cpu, run);
+
+        if (run_ret < 0) {
+            if (run_ret == -EINTR || run_ret == -EAGAIN) {
+                DPRINTF("io window exit\n");
+                kvm_eat_signals(cpu);
+                ret = EXCP_INTERRUPT;
+                break;
+            }
+            fprintf(stderr, "error: kvm run failed %s\n",
+                    strerror(-run_ret));
+            ret = -1;
+            break;
+        }
+
+        trace_kvm_run_exit(cpu->cpu_index, run->exit_reason);
+        switch (run->exit_reason) {
+        case KVM_EXIT_IO:
+            DPRINTF("handle_io\n");
+            /* Called outside BQL */
+            kvm_handle_io(run->io.port, attrs,
+                          (uint8_t *)run + run->io.data_offset,
+                          run->io.direction,
+                          run->io.size,
+                          run->io.count);
+           ret = 0;
+            break;
+        case KVM_EXIT_MMIO:
+            DPRINTF("handle_mmio\n");
+            /* Called outside BQL */
+            address_space_rw(&address_space_memory,
+                             run->mmio.phys_addr, attrs,
+                             run->mmio.data,
+                             run->mmio.len,
+                             run->mmio.is_write);
+            ret = 0;
+            break;
+        case KVM_EXIT_SHUTDOWN:
+            DPRINTF("shutdown\n");
+            qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+            ret = EXCP_INTERRUPT;
+            break;
+        case KVM_EXIT_UNKNOWN:
+            fprintf(stderr, "KVM: unknown exit, hardware reason %" PRIx64 "\n",
+                    (uint64_t)run->hw.hardware_exit_reason);
+            ret = -1;
+            break;
+        case KVM_EXIT_INTERNAL_ERROR:
+            ret = kvm_handle_internal_error(cpu, run);
             break;
         case KVM_EXIT_SYSTEM_EVENT:
             switch (run->system_event.type) {

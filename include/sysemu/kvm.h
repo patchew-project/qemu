@@ -352,6 +352,7 @@ int kvm_arch_get_registers(CPUState *cpu);
 #define KVM_PUT_FULL_STATE      3
 
 int kvm_arch_put_registers(CPUState *cpu, int level);
+int kvm_arch_mirror_put_registers(CPUState *cpu, int level);
 
 int kvm_arch_init(MachineState *ms, KVMState *s);
 
