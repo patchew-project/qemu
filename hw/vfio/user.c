@@ -23,9 +23,16 @@
 #include "io/channel-socket.h"
 #include "io/channel-util.h"
 #include "sysemu/iothread.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qjson.h"
+#include "qapi/qmp/qnull.h"
+#include "qapi/qmp/qstring.h"
+#include "qapi/qmp/qnum.h"
 #include "user.h"
 
 static uint64_t max_xfer_size = VFIO_USER_DEF_MAX_XFER;
+static uint64_t max_send_fds = VFIO_USER_DEF_MAX_FDS;
+static int wait_time = 1000;   /* wait 1 sec for replies */
 static IOThread *vfio_user_iothread;
 
 static void vfio_user_shutdown(VFIOProxy *proxy);
@@ -34,7 +41,14 @@ static void vfio_user_send_locked(VFIOProxy *proxy, VFIOUserHdr *msg,
                                   VFIOUserFDs *fds);
 static void vfio_user_send(VFIOProxy *proxy, VFIOUserHdr *msg,
                            VFIOUserFDs *fds);
+static void vfio_user_request_msg(VFIOUserHdr *hdr, uint16_t cmd,
+                                  uint32_t size, uint32_t flags);
+static void vfio_user_send_recv(VFIOProxy *proxy, VFIOUserHdr *msg,
+                                VFIOUserFDs *fds, int rsize, int flags);
 
+/* vfio_user_send_recv flags */
+#define NOWAIT          0x1  /* do not wait for reply */
+#define NOIOLOCK        0x2  /* do not drop iolock */
 
 /*
  * Functions called by main, CPU, or iothread threads
@@ -333,6 +347,79 @@ static void vfio_user_cb(void *opaque)
  * Functions called by main or CPU threads
  */
 
+static void vfio_user_send_recv(VFIOProxy *proxy, VFIOUserHdr *msg,
+                                VFIOUserFDs *fds, int rsize, int flags)
+{
+    VFIOUserReply *reply;
+    bool iolock = 0;
+
+    if (msg->flags & VFIO_USER_NO_REPLY) {
+        error_printf("vfio_user_send_recv on async message\n");
+        return;
+    }
+
+    /*
+     * We may block later, so use a per-proxy lock and let
+     * the iothreads run while we sleep unless told no to
+     */
+    QEMU_LOCK_GUARD(&proxy->lock);
+    if (!(flags & NOIOLOCK)) {
+        iolock = qemu_mutex_iothread_locked();
+        if (iolock) {
+            qemu_mutex_unlock_iothread();
+        }
+    }
+
+    reply = QTAILQ_FIRST(&proxy->free);
+    if (reply != NULL) {
+        QTAILQ_REMOVE(&proxy->free, reply, next);
+        reply->complete = 0;
+    } else {
+        reply = g_malloc0(sizeof(*reply));
+        qemu_cond_init(&reply->cv);
+    }
+    reply->msg = msg;
+    reply->fds = fds;
+    reply->id = msg->id;
+    reply->rsize = rsize ? rsize : msg->size;
+    QTAILQ_INSERT_TAIL(&proxy->pending, reply, next);
+
+    vfio_user_send_locked(proxy, msg, fds);
+    if (!(msg->flags & VFIO_USER_ERROR)) {
+        if (!(flags & NOWAIT)) {
+            while (reply->complete == 0) {
+                if (!qemu_cond_timedwait(&reply->cv, &proxy->lock, wait_time)) {
+                    msg->flags |= VFIO_USER_ERROR;
+                    msg->error_reply = ETIMEDOUT;
+                    break;
+                }
+            }
+            QTAILQ_INSERT_HEAD(&proxy->free, reply, next);
+        } else {
+            reply->nowait = 1;
+            proxy->last_nowait = reply;
+        }
+    } else {
+        QTAILQ_INSERT_HEAD(&proxy->free, reply, next);
+    }
+
+    if (iolock) {
+        qemu_mutex_lock_iothread();
+    }
+}
+
+static void vfio_user_request_msg(VFIOUserHdr *hdr, uint16_t cmd,
+                                  uint32_t size, uint32_t flags)
+{
+    static uint16_t next_id;
+
+    hdr->id = qatomic_fetch_inc(&next_id);
+    hdr->command = cmd;
+    hdr->size = size;
+    hdr->flags = (flags & ~VFIO_USER_TYPE) | VFIO_USER_REQUEST;
+    hdr->error_reply = 0;
+}
+
 static QLIST_HEAD(, VFIOProxy) vfio_user_sockets =
     QLIST_HEAD_INITIALIZER(vfio_user_sockets);
 
@@ -446,4 +533,184 @@ void vfio_user_disconnect(VFIOProxy *proxy)
     }
 
     g_free(proxy);
+}
+
+struct cap_entry {
+    const char *name;
+    int (*check)(QObject *qobj, Error **errp);
+};
+
+static int caps_parse(QDict *qdict, struct cap_entry caps[], Error **errp)
+{
+    QObject *qobj;
+    struct cap_entry *p;
+
+    for (p = caps; p->name != NULL; p++) {
+        qobj = qdict_get(qdict, p->name);
+        if (qobj != NULL) {
+            if (p->check(qobj, errp)) {
+                return -1;
+            }
+            qdict_del(qdict, p->name);
+        }
+    }
+
+    /* warning, for now */
+    if (qdict_size(qdict) != 0) {
+        error_printf("spurious capabilities\n");
+    }
+    return 0;
+}
+
+static int check_pgsize(QObject *qobj, Error **errp)
+{
+    QNum *qn = qobject_to(QNum, qobj);
+    uint64_t pgsize;
+
+    if (qn == NULL || !qnum_get_try_uint(qn, &pgsize)) {
+        error_setg(errp, "malformed %s", VFIO_USER_CAP_PGSIZE);
+        return -1;
+    }
+    return pgsize == 4096 ? 0 : -1;
+}
+
+static struct cap_entry caps_migr[] = {
+    { VFIO_USER_CAP_PGSIZE, check_pgsize },
+    { NULL }
+};
+
+static int check_max_fds(QObject *qobj, Error **errp)
+{
+    QNum *qn = qobject_to(QNum, qobj);
+
+    if (qn == NULL || !qnum_get_try_uint(qn, &max_send_fds) ||
+        max_send_fds > VFIO_USER_MAX_MAX_FDS) {
+        error_setg(errp, "malformed %s", VFIO_USER_CAP_MAX_FDS);
+        return -1;
+    }
+    return 0;
+}
+
+static int check_max_xfer(QObject *qobj, Error **errp)
+{
+    QNum *qn = qobject_to(QNum, qobj);
+
+    if (qn == NULL || !qnum_get_try_uint(qn, &max_xfer_size) ||
+        max_xfer_size > VFIO_USER_MAX_MAX_XFER) {
+        error_setg(errp, "malformed %s", VFIO_USER_CAP_MAX_XFER);
+        return -1;
+    }
+    return 0;
+}
+
+static int check_migr(QObject *qobj, Error **errp)
+{
+    QDict *qdict = qobject_to(QDict, qobj);
+
+    if (qdict == NULL || caps_parse(qdict, caps_migr, errp)) {
+        error_setg(errp, "malformed %s", VFIO_USER_CAP_MAX_FDS);
+        return -1;
+    }
+    return 0;
+}
+
+static struct cap_entry caps_cap[] = {
+    { VFIO_USER_CAP_MAX_FDS, check_max_fds },
+    { VFIO_USER_CAP_MAX_XFER, check_max_xfer },
+    { VFIO_USER_CAP_MIGR, check_migr },
+    { NULL }
+};
+
+static int check_cap(QObject *qobj, Error **errp)
+{
+   QDict *qdict = qobject_to(QDict, qobj);
+
+    if (qdict == NULL || caps_parse(qdict, caps_cap, errp)) {
+        error_setg(errp, "malformed %s", VFIO_USER_CAP);
+        return -1;
+    }
+    return 0;
+}
+
+static struct cap_entry ver_0_0[] = {
+    { VFIO_USER_CAP, check_cap },
+    { NULL }
+};
+
+static int caps_check(int minor, const char *caps, Error **errp)
+{
+    QObject *qobj;
+    QDict *qdict;
+    int ret;
+
+    qobj = qobject_from_json(caps, NULL);
+    if (qobj == NULL) {
+        error_setg(errp, "malformed capabilities %s", caps);
+        return -1;
+    }
+    qdict = qobject_to(QDict, qobj);
+    if (qdict == NULL) {
+        error_setg(errp, "capabilities %s not an object", caps);
+        qobject_unref(qobj);
+        return -1;
+    }
+    ret = caps_parse(qdict, ver_0_0, errp);
+
+    qobject_unref(qobj);
+    return ret;
+}
+
+static GString *caps_json(void)
+{
+    QDict *dict = qdict_new();
+    QDict *capdict = qdict_new();
+    QDict *migdict = qdict_new();
+    GString *str;
+
+    qdict_put_int(migdict, VFIO_USER_CAP_PGSIZE, 4096);
+    qdict_put_obj(capdict, VFIO_USER_CAP_MIGR, QOBJECT(migdict));
+
+    qdict_put_int(capdict, VFIO_USER_CAP_MAX_FDS, VFIO_USER_MAX_MAX_FDS);
+    qdict_put_int(capdict, VFIO_USER_CAP_MAX_XFER, VFIO_USER_DEF_MAX_XFER);
+
+    qdict_put_obj(dict, VFIO_USER_CAP, QOBJECT(capdict));
+
+    str = qobject_to_json(QOBJECT(dict));
+    qobject_unref(dict);
+    return str;
+}
+
+int vfio_user_validate_version(VFIODevice *vbasedev, Error **errp)
+{
+    g_autofree VFIOUserVersion *msgp;
+    GString *caps;
+    int size, caplen;
+
+    caps = caps_json();
+    caplen = caps->len + 1;
+    size = sizeof(*msgp) + caplen;
+    msgp = g_malloc0(size);
+
+    vfio_user_request_msg(&msgp->hdr, VFIO_USER_VERSION, size, 0);
+    msgp->major = VFIO_USER_MAJOR_VER;
+    msgp->minor = VFIO_USER_MINOR_VER;
+    memcpy(&msgp->capabilities, caps->str, caplen);
+    g_string_free(caps, true);
+
+    vfio_user_send_recv(vbasedev->proxy, &msgp->hdr, NULL, 0, 0);
+    if (msgp->hdr.flags & VFIO_USER_ERROR) {
+        error_setg_errno(errp, msgp->hdr.error_reply, "version reply");
+        return -1;
+    }
+
+    if (msgp->major != VFIO_USER_MAJOR_VER ||
+        msgp->minor > VFIO_USER_MINOR_VER) {
+        error_setg(errp, "incompatible server version");
+        return -1;
+    }
+    if (caps_check(msgp->minor, (char *)msgp + sizeof(*msgp), errp) != 0) {
+        return -1;
+    }
+
+    return 0;
 }

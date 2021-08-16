@@ -70,5 +70,6 @@ void vfio_user_set_reqhandler(VFIODevice *vbasdev,
                                              VFIOUserFDs *fds),
                                              void *reqarg);
 void vfio_user_send_reply(VFIOProxy *proxy, char *buf, int ret);
+int vfio_user_validate_version(VFIODevice *vbasedev, Error **errp);
 
 #endif /* VFIO_USER_H */
