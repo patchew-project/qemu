@@ -369,9 +369,17 @@ static int kvm_set_user_memory_region(KVMMemoryListener *kml, KVMSlot *slot, boo
         if (ret < 0) {
             goto err;
         }
+        ret = kvm_mirror_vm_ioctl(s, KVM_SET_USER_MEMORY_REGION, &mem);
+        if (ret < 0) {
+            goto err;
+        }
     }
     mem.memory_size = slot->memory_size;
     ret = kvm_vm_ioctl(s, KVM_SET_USER_MEMORY_REGION, &mem);
+    if (ret < 0) {
+        goto err;
+    }
+    ret = kvm_mirror_vm_ioctl(s, KVM_SET_USER_MEMORY_REGION, &mem);
     slot->old_flags = mem.flags;
 err:
     trace_kvm_set_user_memory(mem.slot, mem.flags, mem.guest_phys_addr,
@@ -2606,9 +2614,31 @@ static int kvm_init(MachineState *ms)
 
     kvm_state = s;
 
+    if (ms->smp.mirror_vcpus) {
+        do {
+            ret = kvm_ioctl(s, KVM_CREATE_VM, type);
+        } while (ret == -EINTR);
+
+        if (ret < 0) {
+            fprintf(stderr, "ioctl(KVM_CREATE_VM mirror vm) failed: %d %s\n",
+                    -ret, strerror(-ret));
+            goto err;
+        }
+        s->mirror_vm_fd = ret;
+    }
+
     ret = kvm_arch_init(ms, s);
     if (ret < 0) {
         goto err;
+    }
+
+    if (s->mirror_vm_fd &&
+        kvm_vm_check_extension(s, KVM_CAP_VM_COPY_ENC_CONTEXT_FROM)) {
+        ret = kvm_mirror_vm_enable_cap(s, KVM_CAP_VM_COPY_ENC_CONTEXT_FROM,
+                                       0, s->vmfd);
+        if (ret < 0) {
+            goto err;
+        }
     }
 
     if (s->kernel_irqchip_split == ON_OFF_AUTO_AUTO) {
