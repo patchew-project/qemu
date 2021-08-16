@@ -448,6 +448,7 @@ const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms)
 {
     X86MachineState *x86ms = X86_MACHINE(ms);
     unsigned int max_cpus = ms->smp.max_cpus;
+    unsigned int mirror_vcpus_start_at = max_cpus - ms->smp.mirror_vcpus;
     X86CPUTopoInfo topo_info;
     int i;
 
@@ -475,6 +476,7 @@ const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms)
             x86_cpu_apic_id_from_index(x86ms, i);
         x86_topo_ids_from_apicid(ms->possible_cpus->cpus[i].arch_id,
                                  &topo_info, &topo_ids);
+        ms->possible_cpus->cpus[i].mirror_vcpu = i >= mirror_vcpus_start_at;
         ms->possible_cpus->cpus[i].props.has_socket_id = true;
         ms->possible_cpus->cpus[i].props.socket_id = topo_ids.pkg_id;
         if (ms->smp.dies > 1) {
