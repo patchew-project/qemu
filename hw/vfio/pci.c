@@ -403,7 +403,11 @@ static int vfio_enable_vectors(VFIOPCIDevice *vdev, bool msix)
         fds[i] = fd;
     }
 
-    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_SET_IRQS, irq_set);
+    if (vdev->vbasedev.proxy != NULL) {
+        ret = vfio_user_set_irqs(&vdev->vbasedev, irq_set);
+    } else {
+        ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_SET_IRQS, irq_set);
+    }
 
     g_free(irq_set);
 
@@ -2675,7 +2679,13 @@ static void vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
 
     irq_info.index = VFIO_PCI_ERR_IRQ_INDEX;
 
-    ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_IRQ_INFO, &irq_info);
+    if (vbasedev->proxy != NULL) {
+        ret = vfio_user_get_irq_info(vbasedev, &irq_info);
+    } else {
+        ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_IRQ_INFO, &irq_info);
+    }
+
+
     if (ret) {
         /* This can fail for an old kernel or legacy PCI dev */
         trace_vfio_populate_device_get_irq_info_failure(strerror(errno));
@@ -2794,8 +2804,16 @@ static void vfio_register_req_notifier(VFIOPCIDevice *vdev)
         return;
     }
 
-    if (ioctl(vdev->vbasedev.fd,
-              VFIO_DEVICE_GET_IRQ_INFO, &irq_info) < 0 || irq_info.count < 1) {
+    if (vdev->vbasedev.proxy != NULL) {
+        if (vfio_user_get_irq_info(&vdev->vbasedev, &irq_info) < 0) {
+            return;
+        }
+    } else {
+        if (ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_IRQ_INFO, &irq_info) < 0) {
+            return;
+        }
+    }
+    if (irq_info.count < 1) {
         return;
     }
 
@@ -3556,6 +3574,11 @@ static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
             goto out_deregister;
         }
     }
+
+    vfio_register_err_notifier(vdev);
+    vfio_register_req_notifier(vdev);
+
+    return;
 
 out_deregister:
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
