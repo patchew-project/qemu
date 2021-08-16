@@ -11,6 +11,8 @@
  *
  */
 
+#include "user-protocol.h"
+
 typedef struct {
     int send_fds;
     int recv_fds;
@@ -19,6 +21,7 @@ typedef struct {
 
 typedef struct VFIOUserReply {
     QTAILQ_ENTRY(VFIOUserReply) next;
+    VFIOUserHdr *msg;
     VFIOUserFDs *fds;
     uint32_t rsize;
     uint32_t id;
@@ -62,5 +65,10 @@ typedef struct VFIOProxy {
 
 VFIOProxy *vfio_user_connect_dev(SocketAddress *addr, Error **errp);
 void vfio_user_disconnect(VFIOProxy *proxy);
+void vfio_user_set_reqhandler(VFIODevice *vbasdev,
+                              int (*handler)(void *opaque, char *buf,
+                                             VFIOUserFDs *fds),
+                                             void *reqarg);
+void vfio_user_send_reply(VFIOProxy *proxy, char *buf, int ret);
 
 #endif /* VFIO_USER_H */

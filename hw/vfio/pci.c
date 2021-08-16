@@ -3333,6 +3333,11 @@ type_init(register_vfio_pci_dev_type)
  * vfio-user routines.
  */
 
+static int vfio_user_pci_process_req(void *opaque, char *buf, VFIOUserFDs *fds)
+{
+    return 0;
+}
+
 /*
  * Emulated devices don't use host hot reset
  */
@@ -3386,6 +3391,7 @@ static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
         return;
     }
     vbasedev->proxy = proxy;
+    vfio_user_set_reqhandler(vbasedev, vfio_user_pci_process_req, vdev);
 
     if (udev->secure_dma) {
         proxy->flags |= VFIO_PROXY_SECURE;
