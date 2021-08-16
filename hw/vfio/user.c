@@ -767,3 +767,46 @@ int vfio_user_get_region_info(VFIODevice *vbasedev, int index,
     memcpy(info, &msgp->argsz, info->argsz);
     return 0;
 }
+
+int vfio_user_region_read(VFIODevice *vbasedev, uint32_t index, uint64_t offset,
+                                 uint32_t count, void *data)
+{
+    g_autofree VFIOUserRegionRW *msgp = NULL;
+    int size = sizeof(*msgp) + count;
+
+    msgp = g_malloc0(size);
+    vfio_user_request_msg(&msgp->hdr, VFIO_USER_REGION_READ, sizeof(*msgp), 0);
+    msgp->offset = offset;
+    msgp->region = index;
+    msgp->count = count;
+
+    vfio_user_send_recv(vbasedev->proxy, &msgp->hdr, NULL, size, 0);
+    if (msgp->hdr.flags & VFIO_USER_ERROR) {
+        return -msgp->hdr.error_reply;
+    } else if (msgp->count > count) {
+        return -E2BIG;
+    } else {
+        memcpy(data, &msgp->data, msgp->count);
+    }
+
+    return msgp->count;
+}
+
+int vfio_user_region_write(VFIODevice *vbasedev, uint32_t index,
+                           uint64_t offset, uint32_t count, void *data)
+{
+    g_autofree VFIOUserRegionRW *msgp = NULL;
+    int size = sizeof(*msgp) + count;
+
+    msgp = g_malloc0(size);
+    vfio_user_request_msg(&msgp->hdr, VFIO_USER_REGION_WRITE, size,
+                          VFIO_USER_NO_REPLY);
+    msgp->offset = offset;
+    msgp->region = index;
+    msgp->count = count;
+    memcpy(&msgp->data, data, count);
+
+    vfio_user_send(vbasedev->proxy, &msgp->hdr, NULL);
+
+    return count;
+}

@@ -74,5 +74,9 @@ int vfio_user_validate_version(VFIODevice *vbasedev, Error **errp);
 int vfio_user_get_info(VFIODevice *vbasedev);
 int vfio_user_get_region_info(VFIODevice *vbasedev, int index,
                               struct vfio_region_info *info, VFIOUserFDs *fds);
+int vfio_user_region_read(VFIODevice *vbasedev, uint32_t index, uint64_t offset,
+                          uint32_t count, void *data);
+int vfio_user_region_write(VFIODevice *vbasedev, uint32_t index,
+                           uint64_t offset, uint32_t count, void *data);
 
 #endif /* VFIO_USER_H */
