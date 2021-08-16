@@ -87,6 +87,9 @@ int vfio_user_region_read(VFIODevice *vbasedev, uint32_t index, uint64_t offset,
 int vfio_user_region_write(VFIODevice *vbasedev, uint32_t index,
                            uint64_t offset, uint32_t count, void *data);
 void vfio_user_reset(VFIODevice *vbasedev);
+int vfio_user_dirty_bitmap(VFIOProxy *proxy,
+                           struct vfio_iommu_type1_dirty_bitmap *bitmap,
+                           struct vfio_iommu_type1_dirty_bitmap_get *range);
 void vfio_user_drain_reqs(VFIOProxy *proxy);
 
 #endif /* VFIO_USER_H */

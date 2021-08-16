@@ -1303,10 +1303,19 @@ static void vfio_set_dirty_page_tracking(VFIOContainer *container, bool start)
         dirty.flags = VFIO_IOMMU_DIRTY_PAGES_FLAG_STOP;
     }
 
-    ret = ioctl(container->fd, VFIO_IOMMU_DIRTY_PAGES, &dirty);
-    if (ret) {
-        error_report("Failed to set dirty tracking flag 0x%x errno: %d",
-                     dirty.flags, errno);
+    if (container->proxy != NULL) {
+        ret = vfio_user_dirty_bitmap(container->proxy, &dirty, NULL);
+        if (ret) {
+            error_report("Failed to set dirty tracking flag 0x%x errno: %d",
+                         dirty.flags, -ret);
+        }
+    } else {
+        ret = ioctl(container->fd, VFIO_IOMMU_DIRTY_PAGES, &dirty);
+        if (ret) {
+            error_report("Failed to set dirty tracking flag 0x%x errno: %d",
+                         dirty.flags, errno);
+            ret = -errno;
+        }
     }
 }
 
@@ -1356,7 +1365,11 @@ static int vfio_get_dirty_bitmap(VFIOContainer *container, uint64_t iova,
         goto err_out;
     }
 
-    ret = ioctl(container->fd, VFIO_IOMMU_DIRTY_PAGES, dbitmap);
+    if (container->proxy != NULL) {
+        ret = vfio_user_dirty_bitmap(container->proxy, dbitmap, range);
+    } else {
+        ret = ioctl(container->fd, VFIO_IOMMU_DIRTY_PAGES, dbitmap);
+    }
     if (ret) {
         error_report("Failed to get dirty bitmap for iova: 0x%"PRIx64
                 " size: 0x%"PRIx64" err: %d", (uint64_t)range->iova,
