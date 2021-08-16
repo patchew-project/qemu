@@ -33,6 +33,7 @@
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
 #include "qom/object.h"
+#include "qapi/error.h"
 
 #define TYPE_ISA_VGA "isa-vga"
 OBJECT_DECLARE_SIMPLE_TYPE(ISAVGAState, ISA_VGA)
@@ -60,6 +61,15 @@ static void vga_isa_realizefn(DeviceState *dev, Error **errp)
     VGACommonState *s = &d->state;
     MemoryRegion *vga_io_memory;
     const MemoryRegionPortio *vga_ports, *vbe_ports;
+
+    /*
+     * make sure this device is not being added twice, if so
+     * exit without crashing qemu
+     */
+    if (qemu_ram_block_by_name("vga.vram")) {
+        error_setg(errp, "vga.vram is already registered");
+        return;
+    }
 
     s->global_vmstate = true;
     vga_common_init(s, OBJECT(dev));
