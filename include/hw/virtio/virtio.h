@@ -159,7 +159,6 @@ struct VirtioDeviceClass {
      */
     int (*post_load)(VirtIODevice *vdev);
     const VMStateDescription *vmsd;
-    bool (*primary_unplug_pending)(void *opaque);
 };
 
 void virtio_instance_init_common(Object *proxy_obj, void *data,

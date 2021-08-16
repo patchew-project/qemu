@@ -36,10 +36,8 @@
 #include "qapi/qapi-types-migration.h"
 #include "qapi/qapi-events-migration.h"
 #include "hw/virtio/virtio-access.h"
-#include "migration/migration.h"
 #include "migration/misc.h"
 #include "standard-headers/linux/ethtool.h"
-#include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
 #include "monitor/qdev.h"
@@ -3188,127 +3186,6 @@ void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
     n->netclient_type = g_strdup(type);
 }
 
-static bool failover_unplug_primary(VirtIONet *n, DeviceState *dev)
-{
-    HotplugHandler *hotplug_ctrl;
-    PCIDevice *pci_dev;
-    Error *err = NULL;
-
-    hotplug_ctrl = qdev_get_hotplug_handler(dev);
-    if (hotplug_ctrl) {
-        pci_dev = PCI_DEVICE(dev);
-        pci_dev->partially_hotplugged = true;
-        hotplug_handler_unplug_request(hotplug_ctrl, dev, &err);
-        if (err) {
-            error_report_err(err);
-            return false;
-        }
-    } else {
-        return false;
-    }
-    return true;
-}
-
-static bool failover_replug_primary(VirtIONet *n, DeviceState *dev,
-                                    Error **errp)
-{
-    Error *err = NULL;
-    HotplugHandler *hotplug_ctrl;
-    PCIDevice *pdev = PCI_DEVICE(dev);
-    BusState *primary_bus;
-
-    if (!pdev->partially_hotplugged) {
-        return true;
-    }
-    primary_bus = dev->parent_bus;
-    if (!primary_bus) {
-        error_setg(errp, "virtio_net: couldn't find primary bus");
-        return false;
-    }
-    qdev_set_parent_bus(dev, primary_bus, &error_abort);
-    hotplug_ctrl = qdev_get_hotplug_handler(dev);
-    if (hotplug_ctrl) {
-        hotplug_handler_pre_plug(hotplug_ctrl, dev, &err);
-        if (err) {
-            goto out;
-        }
-        hotplug_handler_plug(hotplug_ctrl, dev, &err);
-    }
-    pdev->partially_hotplugged = false;
-
-out:
-    error_propagate(errp, err);
-    return !err;
-}
-
-static void virtio_net_handle_migration_primary(VirtIONet *n, MigrationState *s)
-{
-    Error *err = NULL;
-    DeviceState *dev = failover_find_primary_device(n);
-
-    if (!dev) {
-        return;
-    }
-
-    if (migration_in_setup(s)) {
-        if (failover_unplug_primary(n, dev)) {
-            vmstate_unregister(VMSTATE_IF(dev), qdev_get_vmsd(dev), dev);
-            qapi_event_send_unplug_primary(dev->id);
-        } else {
-            warn_report("couldn't unplug primary device");
-        }
-    } else if (migration_has_failed(s)) {
-        /* We already unplugged the device let's plug it back */
-        if (!failover_replug_primary(n, dev, &err)) {
-            if (err) {
-                error_report_err(err);
-            }
-        }
-    }
-}
-
-static void virtio_net_migration_state_notifier(Notifier *notifier, void *data)
-{
-    MigrationState *s = data;
-    VirtIONet *n = container_of(notifier, VirtIONet, migration_state);
-    virtio_net_handle_migration_primary(n, s);
-}
-
-static bool failover_hide_primary_device(DeviceListener *listener,
-                                         QemuOpts *device_opts, Error **errp)
-{
-    VirtIONet *n = container_of(listener, VirtIONet, primary_listener);
-    const char *standby_id;
-
-    if (!device_opts) {
-        return false;
-    }
-    standby_id = qemu_opt_get(device_opts, "failover_pair_id");
-    if (standby_id == NULL) {
-        return false;
-    }
-    if (device_opts->id == NULL) {
-        error_setg(errp, "Device with failover_pair_id don't have id");
-        return true;
-    }
-    if (g_strcmp0(standby_id, n->netclient_name) != 0) {
-        return false;
-    }
-
-    if (runstate_check(RUN_STATE_PRELAUNCH)) {
-        /* hide the failover primary on src on startup */
-        return true;
-    }
-
-    if (runstate_check(RUN_STATE_INMIGRATE) &&
-        migration_incoming_get_current()->state == MIGRATION_STATUS_NONE) {
-        /* hide the failover primary on dest on startup */
-        return true;
-    }
-
-    return false;
-}
-
 static void virtio_net_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -3343,10 +3220,6 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     }
 
     if (n->failover) {
-        n->primary_listener.hide_device = failover_hide_primary_device;
-        device_listener_register(&n->primary_listener);
-        n->migration_state.notify = virtio_net_migration_state_notifier;
-        add_migration_state_change_notifier(&n->migration_state);
         n->host_features |= (1ULL << VIRTIO_NET_F_STANDBY);
     }
 
@@ -3492,11 +3365,6 @@ static void virtio_net_device_unrealize(DeviceState *dev)
     g_free(n->mac_table.macs);
     g_free(n->vlans);
 
-    if (n->failover) {
-        device_listener_unregister(&n->primary_listener);
-        remove_migration_state_change_notifier(&n->migration_state);
-    }
-
     max_queues = n->multiqueue ? n->max_queues : 1;
     for (i = 0; i < max_queues; i++) {
         virtio_net_del_queue(n, i);
@@ -3539,28 +3407,6 @@ static int virtio_net_pre_save(void *opaque)
     return 0;
 }
 
-static bool primary_unplug_pending(void *opaque)
-{
-    DeviceState *dev = opaque;
-    DeviceState *primary;
-    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
-    VirtIONet *n = VIRTIO_NET(vdev);
-
-    if (!virtio_vdev_has_feature(vdev, VIRTIO_NET_F_STANDBY)) {
-        return false;
-    }
-    primary = failover_find_primary_device(n);
-    return primary ? primary->pending_deleted_event : false;
-}
-
-static bool dev_unplug_pending(void *opaque)
-{
-    DeviceState *dev = opaque;
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(dev);
-
-    return vdc->primary_unplug_pending(dev);
-}
-
 static const VMStateDescription vmstate_virtio_net = {
     .name = "virtio-net",
     .minimum_version_id = VIRTIO_NET_VM_VERSION,
@@ -3570,7 +3416,6 @@ static const VMStateDescription vmstate_virtio_net = {
         VMSTATE_END_OF_LIST()
     },
     .pre_save = virtio_net_pre_save,
-    .dev_unplug_pending = dev_unplug_pending,
 };
 
 static Property virtio_net_properties[] = {
@@ -3662,7 +3507,6 @@ static void virtio_net_class_init(ObjectClass *klass, void *data)
     vdc->legacy_features |= (0x1 << VIRTIO_NET_F_GSO);
     vdc->post_load = virtio_net_post_load_virtio;
     vdc->vmsd = &vmstate_virtio_net_device;
-    vdc->primary_unplug_pending = primary_unplug_pending;
 }
 
 static const TypeInfo virtio_net_info = {
