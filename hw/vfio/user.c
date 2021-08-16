@@ -54,6 +54,11 @@ static void vfio_user_send_recv(VFIOProxy *proxy, VFIOUserHdr *msg,
  * Functions called by main, CPU, or iothread threads
  */
 
+uint64_t vfio_user_max_xfer(void)
+{
+    return max_xfer_size;
+}
+
 static void vfio_user_shutdown(VFIOProxy *proxy)
 {
     qio_channel_shutdown(proxy->ioc, QIO_CHANNEL_SHUTDOWN_READ, NULL);
@@ -251,7 +256,7 @@ void vfio_user_recv(void *opaque)
         *reply->msg = msg;
         data = (char *)reply->msg + sizeof(msg);
     } else {
-        if (msg.size > max_xfer_size) {
+        if (msg.size > max_xfer_size + sizeof(VFIOUserDMARW)) {
             error_setg(&local_err, "vfio_user_recv request larger than max");
             goto fatal;
         }

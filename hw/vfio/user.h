@@ -65,6 +65,7 @@ typedef struct VFIOProxy {
 
 VFIOProxy *vfio_user_connect_dev(SocketAddress *addr, Error **errp);
 void vfio_user_disconnect(VFIOProxy *proxy);
+uint64_t vfio_user_max_xfer(void);
 void vfio_user_set_reqhandler(VFIODevice *vbasdev,
                               int (*handler)(void *opaque, char *buf,
                                              VFIOUserFDs *fds),

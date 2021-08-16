@@ -3406,9 +3406,70 @@ type_init(register_vfio_pci_dev_type)
  * vfio-user routines.
  */
 
+static int vfio_user_dma_read(VFIOPCIDevice *vdev, VFIOUserDMARW *msg)
+{
+    PCIDevice *pdev = &vdev->pdev;
+    char *buf;
+    int size = msg->count + sizeof(VFIOUserDMARW);
+
+    if (msg->hdr.flags & VFIO_USER_NO_REPLY) {
+        return -EINVAL;
+    }
+    if (msg->count > vfio_user_max_xfer()) {
+        return -E2BIG;
+    }
+
+    buf = g_malloc0(size);
+    memcpy(buf, msg, sizeof(*msg));
+
+    pci_dma_read(pdev, msg->offset, buf + sizeof(*msg), msg->count);
+
+    vfio_user_send_reply(vdev->vbasedev.proxy, buf, size);
+    g_free(buf);
+    return 0;
+}
+
+static int vfio_user_dma_write(VFIOPCIDevice *vdev,
+                               VFIOUserDMARW *msg)
+{
+    PCIDevice *pdev = &vdev->pdev;
+    char *buf = (char *)msg + sizeof(*msg);
+
+    /* make sure transfer count isn't larger than the message data */
+    if (msg->count > msg->hdr.size - sizeof(*msg)) {
+        return -E2BIG;
+    }
+
+    pci_dma_write(pdev, msg->offset, buf, msg->count);
+
+    if ((msg->hdr.flags & VFIO_USER_NO_REPLY) == 0) {
+        vfio_user_send_reply(vdev->vbasedev.proxy, (char *)msg,
+                             sizeof(msg->hdr));
+    }
+    return 0;
+}
+
 static int vfio_user_pci_process_req(void *opaque, char *buf, VFIOUserFDs *fds)
 {
-    return 0;
+    VFIOPCIDevice *vdev = opaque;
+    VFIOUserHdr *hdr = (VFIOUserHdr *)buf;
+    int ret;
+
+    if (fds->recv_fds != 0) {
+        return -EINVAL;
+    }
+    switch (hdr->command) {
+    case VFIO_USER_DMA_READ:
+        ret = vfio_user_dma_read(vdev, (VFIOUserDMARW *)hdr);
+        break;
+    case VFIO_USER_DMA_WRITE:
+        ret = vfio_user_dma_write(vdev, (VFIOUserDMARW *)hdr);
+        break;
+    default:
+        error_printf("vfio_user_process_req unknown cmd %d\n", hdr->command);
+        ret = -ENOSYS;
+    }
+    return ret;
 }
 
 /*
