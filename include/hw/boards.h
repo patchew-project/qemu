@@ -286,6 +286,7 @@ typedef struct CpuTopology {
     unsigned int threads;
     unsigned int sockets;
     unsigned int max_cpus;
+    unsigned int mirror_vcpus;
 } CpuTopology;
 
 /**

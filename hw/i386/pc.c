@@ -719,6 +719,7 @@ static void pc_smp_parse(MachineState *ms, SMPConfiguration *config, Error **err
     unsigned dies    = config->has_dies ? config->dies : 1;
     unsigned cores   = config->has_cores ? config->cores : 0;
     unsigned threads = config->has_threads ? config->threads : 0;
+    unsigned mirror_vcpus = config->has_mirrorvcpus ? config->mirrorvcpus : 0;
 
     /* compute missing values, prefer sockets over cores over threads */
     if (cpus == 0 || sockets == 0) {
@@ -753,6 +754,11 @@ static void pc_smp_parse(MachineState *ms, SMPConfiguration *config, Error **err
         return;
     }
 
+    if (mirror_vcpus > ms->smp.max_cpus) {
+        error_setg(errp, "mirror vcpus must be less than max cpus");
+        return;
+    }
+
     if (sockets * dies * cores * threads != ms->smp.max_cpus) {
         error_setg(errp, "Invalid CPU topology deprecated: "
                    "sockets (%u) * dies (%u) * cores (%u) * threads (%u) "
@@ -767,6 +773,7 @@ static void pc_smp_parse(MachineState *ms, SMPConfiguration *config, Error **err
     ms->smp.threads = threads;
     ms->smp.sockets = sockets;
     ms->smp.dies = dies;
+    ms->smp.mirror_vcpus = mirror_vcpus;
 }
 
 static

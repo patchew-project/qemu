@@ -710,6 +710,9 @@ static QemuOptsList qemu_smp_opts = {
         }, {
             .name = "maxcpus",
             .type = QEMU_OPT_NUMBER,
+        }, {
+            .name = "mirrorvcpus",
+            .type = QEMU_OPT_NUMBER,
         },
         { /*End of list */ }
     },

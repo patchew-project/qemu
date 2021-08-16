@@ -749,6 +749,7 @@ static void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
     unsigned sockets = config->has_sockets ? config->sockets : 0;
     unsigned cores   = config->has_cores ? config->cores : 0;
     unsigned threads = config->has_threads ? config->threads : 0;
+    unsigned mirror_vcpus = config->has_mirrorvcpus ? config->mirrorvcpus : 0;
 
     if (config->has_dies && config->dies != 0 && config->dies != 1) {
         error_setg(errp, "dies not supported by this machine's CPU topology");
@@ -788,6 +789,11 @@ static void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
         return;
     }
 
+    if (mirror_vcpus > ms->smp.max_cpus) {
+        error_setg(errp, "mirror vcpus must be less than max cpus");
+        return;
+    }
+
     if (sockets * cores * threads != ms->smp.max_cpus) {
         error_setg(errp, "Invalid CPU topology: "
                    "sockets (%u) * cores (%u) * threads (%u) "
@@ -801,6 +807,7 @@ static void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
     ms->smp.cores = cores;
     ms->smp.threads = threads;
     ms->smp.sockets = sockets;
+    ms->smp.mirror_vcpus = mirror_vcpus;
 }
 
 static void machine_get_smp(Object *obj, Visitor *v, const char *name,

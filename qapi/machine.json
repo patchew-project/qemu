@@ -1303,6 +1303,8 @@
 #
 # @maxcpus: maximum number of hotpluggable virtual CPUs in the virtual machine
 #
+# @mirrorvcpus: maximum number of mirror virtual CPUs in the virtual machine
+#
 # Since: 6.1
 ##
 { 'struct': 'SMPConfiguration', 'data': {
@@ -1311,4 +1313,5 @@
      '*dies': 'int',
      '*cores': 'int',
      '*threads': 'int',
-     '*maxcpus': 'int' } }
+     '*maxcpus': 'int',
+     '*mirrorvcpus': 'int' } }
