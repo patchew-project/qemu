@@ -3369,6 +3369,7 @@ static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
     VFIODevice *vbasedev = &vdev->vbasedev;
     SocketAddress addr;
     VFIOProxy *proxy;
+    int ret;
     Error *err = NULL;
 
     /*
@@ -3409,6 +3410,18 @@ static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
     vbasedev->type = VFIO_DEVICE_TYPE_PCI;
     vbasedev->no_mmap = false;
     vbasedev->ops = &vfio_user_pci_ops;
+
+    ret = vfio_user_get_info(&vdev->vbasedev);
+    if (ret) {
+        error_setg_errno(errp, -ret, "get info failure");
+        goto error;
+    }
+
+    vfio_populate_device(vdev, &err);
+    if (err) {
+        error_propagate(errp, err);
+        goto error;
+    }
 
 error:
     vfio_user_disconnect(proxy);

@@ -714,3 +714,23 @@ int vfio_user_validate_version(VFIODevice *vbasedev, Error **errp)
 
     return 0;
 }
+
+int vfio_user_get_info(VFIODevice *vbasedev)
+{
+    VFIOUserDeviceInfo msg;
+
+    memset(&msg, 0, sizeof(msg));
+    vfio_user_request_msg(&msg.hdr, VFIO_USER_DEVICE_GET_INFO, sizeof(msg), 0);
+    msg.argsz = sizeof(struct vfio_device_info);
+
+    vfio_user_send_recv(vbasedev->proxy, &msg.hdr, NULL, 0, 0);
+    if (msg.hdr.flags & VFIO_USER_ERROR) {
+        return -msg.hdr.error_reply;
+    }
+
+    vbasedev->num_irqs = msg.num_irqs;
+    vbasedev->num_regions = msg.num_regions;
+    vbasedev->flags = msg.flags;
+    vbasedev->reset_works = !!(msg.flags & VFIO_DEVICE_FLAGS_RESET);
+    return 0;
+}
