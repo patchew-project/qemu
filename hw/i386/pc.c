@@ -962,6 +962,9 @@ void pc_memory_init(PCMachineState *pcms,
                                         option_rom_mr,
                                         1);
 
+    /* Reduce x86 boot cpu count taking into account mirror vcpus */
+    x86ms->boot_cpus -= machine->smp.mirror_vcpus;
+
     fw_cfg = fw_cfg_arch_create(machine,
                                 x86ms->boot_cpus, x86ms->apic_id_limit);
 
