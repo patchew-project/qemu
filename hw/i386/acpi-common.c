@@ -91,6 +91,11 @@ void acpi_build_madt(GArray *table_data, BIOSLinker *linker,
     madt->flags = cpu_to_le32(1);
 
     for (i = 0; i < apic_ids->len; i++) {
+        if (apic_ids->cpus[i].mirror_vcpu) {
+            /* don't build objects for mirror vCPUs */
+            continue;
+        }
+
         adevc->madt_cpu(adev, i, apic_ids, table_data);
         if (apic_ids->cpus[i].arch_id > 254) {
             x2apic_mode = true;
