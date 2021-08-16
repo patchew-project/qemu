@@ -255,6 +255,8 @@ int kvm_ioctl(KVMState *s, int type, ...);
 
 int kvm_vm_ioctl(KVMState *s, int type, ...);
 
+int kvm_mirror_vm_ioctl(KVMState *s, int type, ...);
+
 int kvm_vcpu_ioctl(CPUState *cpu, int type, ...);
 
 /**
@@ -432,6 +434,18 @@ int kvm_vm_check_extension(KVMState *s, unsigned int extension);
         size_t n = MIN(ARRAY_SIZE(args_tmp), ARRAY_SIZE(cap.args));  \
         memcpy(cap.args, args_tmp, n * sizeof(cap.args[0]));         \
         kvm_vm_ioctl(s, KVM_ENABLE_CAP, &cap);                       \
+    })
+
+#define kvm_mirror_vm_enable_cap(s, capability, cap_flags, ...)      \
+    ({                                                               \
+        struct kvm_enable_cap cap = {                                \
+            .cap = capability,                                       \
+            .flags = cap_flags,                                      \
+        };                                                           \
+        uint64_t args_tmp[] = { __VA_ARGS__ };                       \
+        size_t n = MIN(ARRAY_SIZE(args_tmp), ARRAY_SIZE(cap.args));  \
+        memcpy(cap.args, args_tmp, n * sizeof(cap.args[0]));         \
+        kvm_mirror_vm_ioctl(s, KVM_ENABLE_CAP, &cap);                \
     })
 
 #define kvm_vcpu_enable_cap(cpu, capability, cap_flags, ...)         \

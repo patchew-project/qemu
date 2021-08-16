@@ -149,6 +149,7 @@ struct KVMState
     uint64_t kvm_dirty_ring_bytes;  /* Size of the per-vcpu dirty ring */
     uint32_t kvm_dirty_ring_size;   /* Number of dirty GFNs per ring */
     struct KVMDirtyRingReaper reaper;
+    int mirror_vm_fd;
 };
 
 KVMState *kvm_state;
@@ -2997,6 +2998,28 @@ int kvm_vm_ioctl(KVMState *s, int type, ...)
 
     trace_kvm_vm_ioctl(type, arg);
     ret = ioctl(s->vmfd, type, arg);
+    if (ret == -1) {
+        ret = -errno;
+    }
+    return ret;
+}
+
+int kvm_mirror_vm_ioctl(KVMState *s, int type, ...)
+{
+    int ret;
+    void *arg;
+    va_list ap;
+
+    if (!s->mirror_vm_fd) {
+        return 0;
+    }
+
+    va_start(ap, type);
+    arg = va_arg(ap, void *);
+    va_end(ap);
+
+    trace_kvm_vm_ioctl(type, arg);
+    ret = ioctl(s->mirror_vm_fd, type, arg);
     if (ret == -1) {
         ret = -errno;
     }
