@@ -408,6 +408,47 @@ static void vfio_user_send_recv(VFIOProxy *proxy, VFIOUserHdr *msg,
     }
 }
 
+void vfio_user_drain_reqs(VFIOProxy *proxy)
+{
+    VFIOUserReply *reply;
+    bool iolock = 0;
+
+    /*
+     * Any DMA map/unmap requests sent in the middle
+     * of a memory region transaction were sent async.
+     * Wait for them here.
+     */
+    QEMU_LOCK_GUARD(&proxy->lock);
+    if (proxy->last_nowait != NULL) {
+        iolock = qemu_mutex_iothread_locked();
+        if (iolock) {
+            qemu_mutex_unlock_iothread();
+        }
+
+        reply = proxy->last_nowait;
+        reply->nowait = 0;
+        while (reply->complete == 0) {
+            if (!qemu_cond_timedwait(&reply->cv, &proxy->lock, wait_time)) {
+                error_printf("vfio_drain_reqs - timed out\n");
+                break;
+            }
+        }
+
+        if (reply->msg->flags & VFIO_USER_ERROR) {
+            error_printf("vfio_user_rcv error reply on async request ");
+            error_printf("command %x error %s\n", reply->msg->command,
+                         strerror(reply->msg->error_reply));
+        }
+        proxy->last_nowait = NULL;
+        g_free(reply->msg);
+        QTAILQ_INSERT_HEAD(&proxy->free, reply, next);
+    }
+
+    if (iolock) {
+        qemu_mutex_lock_iothread();
+    }
+}
+
 static void vfio_user_request_msg(VFIOUserHdr *hdr, uint16_t cmd,
                                   uint32_t size, uint32_t flags)
 {
@@ -710,6 +751,89 @@ int vfio_user_validate_version(VFIODevice *vbasedev, Error **errp)
     }
     if (caps_check(msgp->minor, (char *)msgp + sizeof(*msgp), errp) != 0) {
         return -1;
+    }
+
+    return 0;
+}
+
+int vfio_user_dma_map(VFIOProxy *proxy, struct vfio_iommu_type1_dma_map *map,
+                      VFIOUserFDs *fds, bool will_commit)
+{
+    VFIOUserDMAMap *msgp = g_malloc(sizeof(*msgp));
+    int ret, flags;
+
+    /* commit will wait, so send async without dropping BQL */
+    flags = will_commit ? (NOIOLOCK | NOWAIT) : 0;
+
+    vfio_user_request_msg(&msgp->hdr, VFIO_USER_DMA_MAP, sizeof(*msgp), 0);
+    msgp->argsz = map->argsz;
+    msgp->flags = map->flags;
+    msgp->offset = map->vaddr;
+    msgp->iova = map->iova;
+    msgp->size = map->size;
+
+    vfio_user_send_recv(proxy, &msgp->hdr, fds, 0, flags);
+    ret = (msgp->hdr.flags & VFIO_USER_ERROR) ? -msgp->hdr.error_reply : 0;
+
+    if (!(flags & NOWAIT)) {
+        g_free(msgp);
+    }
+    return ret;
+}
+
+int vfio_user_dma_unmap(VFIOProxy *proxy,
+                        struct vfio_iommu_type1_dma_unmap *unmap,
+                        struct vfio_bitmap *bitmap, bool will_commit)
+{
+    struct {
+        VFIOUserDMAUnmap msg;
+        VFIOUserBitmap bitmap;
+    } *msgp = NULL;
+    int msize, rsize, flags;
+
+    if (bitmap == NULL && (unmap->flags &
+                           VFIO_DMA_UNMAP_FLAG_GET_DIRTY_BITMAP)) {
+        error_printf("vfio_user_dma_unmap mismatched flags and bitmap\n");
+        return -EINVAL;
+    }
+
+    /* can't drop BQL until commit */
+    flags = will_commit ? NOIOLOCK : 0;
+
+    /*
+     * If a dirty bitmap is returned, allocate extra space for it
+     * otherwise, just send the unmap request
+     */
+    if (bitmap != NULL) {
+        msize = sizeof(*msgp);
+        rsize = msize + bitmap->size;
+        msgp = g_malloc0(rsize);
+        msgp->bitmap.pgsize = bitmap->pgsize;
+        msgp->bitmap.size = bitmap->size;
+    } else {
+        /* can only send async if no bitmap returned */
+        flags |= will_commit ? NOWAIT : 0;
+        msize = rsize = sizeof(VFIOUserDMAUnmap);
+        msgp = g_malloc0(rsize);
+    }
+
+    vfio_user_request_msg(&msgp->msg.hdr, VFIO_USER_DMA_UNMAP, msize, flags);
+    msgp->msg.argsz = unmap->argsz;
+    msgp->msg.flags = unmap->flags;
+    msgp->msg.iova = unmap->iova;
+    msgp->msg.size = unmap->size;
+
+    vfio_user_send_recv(proxy, &msgp->msg.hdr, NULL, rsize, flags);
+    if (msgp->msg.hdr.flags & VFIO_USER_ERROR) {
+        g_free(msgp);
+        return -msgp->msg.hdr.error_reply;
+    }
+
+    if (bitmap != NULL) {
+        memcpy(bitmap->data, &msgp->bitmap.data, bitmap->size);
+    }
+    if (!(flags & NOWAIT)) {
+        g_free(msgp);
     }
 
     return 0;
