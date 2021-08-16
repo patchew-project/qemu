@@ -194,6 +194,14 @@ static int sam460ex_load_device_tree(hwaddr addr,
         _FDT(fdt_nop_node(fdt, offset));
     }
 
+    /* Ethernet interfaces are not emulated */
+    offset = fdt_node_offset_by_compatible(fdt, -1, "ibm,emac-460ex");
+    while (offset >= 0) {
+        _FDT(fdt_setprop_string(fdt, offset, "status", "disabled"));
+        offset = fdt_node_offset_by_compatible(fdt, offset, "ibm,emac-460ex");
+    }
+
+
     /* set serial port clocks */
     offset = fdt_node_offset_by_compatible(fdt, -1, "ns16550");
     while (offset >= 0) {
