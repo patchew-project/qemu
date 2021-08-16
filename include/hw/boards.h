@@ -89,6 +89,7 @@ MemoryRegion *machine_consume_memdev(MachineState *machine,
  * @type - QOM class name of possible @cpu object
  * @props - CPU object properties, initialized by board
  * #vcpus_count - number of threads provided by @cpu object
+ * @mirror_vcpu - is this a mirror VCPU
  */
 typedef struct CPUArchId {
     uint64_t arch_id;
@@ -96,6 +97,7 @@ typedef struct CPUArchId {
     CpuInstanceProperties props;
     Object *cpu;
     const char *type;
+    bool mirror_vcpu;
 } CPUArchId;
 
 /**
