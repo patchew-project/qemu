@@ -86,7 +86,12 @@ static uint64_t cpu_hotplug_rd(void *opaque, hwaddr addr, unsigned size)
     case ACPI_CPU_CMD_DATA2_OFFSET_R:
         switch (cpu_st->command) {
         case CPHP_GET_NEXT_CPU_WITH_EVENT_CMD:
-           val = 0;
+           /* Disabling modern CPUHP interface for mirror vCPU support */
+           if (!cpu_st->mirror_vcpu_enabled) {
+               val = 0;
+           } else {
+               val = -1ULL;
+           }
            break;
         case CPHP_GET_CPU_ID_CMD:
            val = cdev->arch_id >> 32;
@@ -226,6 +231,10 @@ void cpu_hotplug_hw_init(MemoryRegion *as, Object *owner,
     state->dev_count = id_list->len;
     state->devs = g_new0(typeof(*state->devs), state->dev_count);
     for (i = 0; i < id_list->len; i++) {
+        /* Disabling modern CPUHP interface for mirror vCPU support */
+        if (id_list->cpus[i].mirror_vcpu) {
+            state->mirror_vcpu_enabled = TRUE;
+        }
         state->devs[i].cpu =  CPU(id_list->cpus[i].cpu);
         state->devs[i].arch_id = id_list->cpus[i].arch_id;
     }
