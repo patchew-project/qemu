@@ -82,6 +82,8 @@ static Property pci_props[] = {
                     QEMU_PCIE_LNKSTA_DLLLA_BITNR, true),
     DEFINE_PROP_BIT("x-pcie-extcap-init", PCIDevice, cap_present,
                     QEMU_PCIE_EXTCAP_INIT_BITNR, true),
+    DEFINE_PROP_BOOL("unplug-on-migration", PCIDevice,
+                     unplug_on_migration, false),
     DEFINE_PROP_STRING("failover_pair_id", PCIDevice,
                        failover_pair_id),
     DEFINE_PROP_UINT32("acpi-index",  PCIDevice, acpi_index, 0),
@@ -110,6 +112,45 @@ static bool bus_unplug_pending(void *opaque)
     return false;
 }
 
+static int pci_dev_replug_on_migration(void *opaque, QemuOpts *opts,
+                                       Error **errp)
+{
+    Error *err = NULL;
+    const char *bus_name = opaque;
+    const char *opt;
+    DeviceState *dev;
+
+    if (g_strcmp0(qemu_opt_get(opts, "bus"), bus_name)) {
+        return 0;
+    }
+
+    opt = qemu_opt_get(opts, "unplug-on-migration");
+    if (g_strcmp0(opt, "on") && g_strcmp0(opt, "true")) {
+        return 0;
+    }
+    dev = qdev_device_add(opts, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return 1;
+    }
+    object_unref(OBJECT(dev));
+    return 0;
+}
+
+static int bus_post_load(void *opaque, int version_id)
+{
+    Error *err = NULL;
+    PCIBus *bus = opaque;
+
+    if (qemu_opts_foreach(qemu_find_opts("device"),
+                          pci_dev_replug_on_migration, bus->qbus.name, &err)) {
+        error_report_err(err);
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_pcibus = {
     .name = "PCIBUS",
     .version_id = 1,
@@ -122,6 +163,7 @@ static const VMStateDescription vmstate_pcibus = {
         VMSTATE_END_OF_LIST()
     },
     .dev_unplug_pending = bus_unplug_pending,
+    .post_load = bus_post_load,
 };
 
 static void pci_init_bus_master(PCIDevice *pci_dev)
@@ -1200,7 +1242,7 @@ static void pci_qdev_unrealize(DeviceState *dev)
     PCIDevice *pci_dev = PCI_DEVICE(dev);
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
 
-    if (pci_dev->failover_pair_id) {
+    if (pci_dev->unplug_on_migration) {
         remove_migration_state_change_notifier(&pci_dev->migration_state);
     }
 
@@ -2268,6 +2310,15 @@ static bool pci_dev_hide_device(DeviceListener *listener,
         return false;
     }
 
+    opt = qemu_opt_get(device_opts, "unplug-on-migration");
+    if (g_strcmp0(opt, "on") == 0 || g_strcmp0(opt, "true") == 0) {
+        if (runstate_check(RUN_STATE_INMIGRATE)) {
+            return migration_incoming_get_current()->state !=
+                   MIGRATION_STATUS_ACTIVE;
+        }
+        return false;
+    }
+
     return false;
 }
 
@@ -2293,6 +2344,10 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
         pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
     }
 
+    if (pci_dev->failover_pair_id) {
+        pci_dev->unplug_on_migration = true;
+    }
+
     pci_dev = do_pci_register_device(pci_dev,
                                      object_get_typename(OBJECT(qdev)),
                                      pci_dev->devfn, errp);
@@ -2309,12 +2364,6 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
     }
 
     if (pci_dev->failover_pair_id) {
-        if (!pci_bus_is_express(pci_get_bus(pci_dev))) {
-            error_setg(errp, "failover primary device must be on "
-                             "PCIExpress bus");
-            pci_qdev_unrealize(DEVICE(pci_dev));
-            return;
-        }
         class_id = pci_get_word(pci_dev->config + PCI_CLASS_DEVICE);
         if (class_id != PCI_CLASS_NETWORK_ETHERNET) {
             error_setg(errp, "failover primary device is not an "
@@ -2322,10 +2371,19 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
             pci_qdev_unrealize(DEVICE(pci_dev));
             return;
         }
+    }
+
+    if (pci_dev->unplug_on_migration) {
+        if (!pci_bus_is_express(pci_get_bus(pci_dev))) {
+            error_setg(errp, "Unplugged device on migration must be on "
+                             "PCIExpress bus");
+            pci_qdev_unrealize(DEVICE(pci_dev));
+            return;
+        }
         if ((pci_dev->cap_present & QEMU_PCI_CAP_MULTIFUNCTION)
             || (PCI_FUNC(pci_dev->devfn) != 0)) {
-            error_setg(errp, "failover: primary device must be in its own "
-                              "PCI slot");
+            error_setg(errp, "Unplugged device on migration must be in its "
+                              "own PCI slot");
             pci_qdev_unrealize(DEVICE(pci_dev));
             return;
         }
