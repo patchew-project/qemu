@@ -171,8 +171,11 @@ static DeviceState *pl330_create(uint32_t base, qemu_or_irq *orgate,
     SysBusDevice *busdev;
     DeviceState *dev;
     int i;
+    MemoryRegion *sysmem = get_system_memory();
 
     dev = qdev_new("pl330");
+    object_property_set_link(OBJECT(dev), "memory",
+                                    OBJECT(sysmem), &error_fatal);
     qdev_prop_set_uint8(dev, "num_events", nevents);
     qdev_prop_set_uint8(dev, "num_chnls",  8);
     qdev_prop_set_uint8(dev, "num_periph_req",  nreq);
