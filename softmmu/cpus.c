@@ -101,6 +101,9 @@ bool all_cpu_threads_idle(void)
     CPUState *cpu;
 
     CPU_FOREACH(cpu) {
+        if (cpu->mirror_vcpu) {
+            continue;
+        }
         if (!cpu_thread_is_idle(cpu)) {
             return false;
         }
@@ -136,6 +139,9 @@ void cpu_synchronize_all_states(void)
     CPUState *cpu;
 
     CPU_FOREACH(cpu) {
+        if (cpu->mirror_vcpu) {
+            continue;
+        }
         cpu_synchronize_state(cpu);
     }
 }
@@ -145,6 +151,9 @@ void cpu_synchronize_all_post_reset(void)
     CPUState *cpu;
 
     CPU_FOREACH(cpu) {
+        if (cpu->mirror_vcpu) {
+            continue;
+        }
         cpu_synchronize_post_reset(cpu);
     }
 }
@@ -154,6 +163,9 @@ void cpu_synchronize_all_post_init(void)
     CPUState *cpu;
 
     CPU_FOREACH(cpu) {
+        if (cpu->mirror_vcpu) {
+            continue;
+        }
         cpu_synchronize_post_init(cpu);
     }
 }
@@ -163,6 +175,9 @@ void cpu_synchronize_all_pre_loadvm(void)
     CPUState *cpu;
 
     CPU_FOREACH(cpu) {
+        if (cpu->mirror_vcpu) {
+            continue;
+        }
         cpu_synchronize_pre_loadvm(cpu);
     }
 }
@@ -531,6 +546,9 @@ static bool all_vcpus_paused(void)
     CPUState *cpu;
 
     CPU_FOREACH(cpu) {
+        if (cpu->mirror_vcpu) {
+            continue;
+        }
         if (!cpu->stopped) {
             return false;
         }
@@ -545,6 +563,9 @@ void pause_all_vcpus(void)
 
     qemu_clock_enable(QEMU_CLOCK_VIRTUAL, false);
     CPU_FOREACH(cpu) {
+        if (cpu->mirror_vcpu) {
+            continue;
+        }
         if (qemu_cpu_is_self(cpu)) {
             qemu_cpu_stop(cpu, true);
         } else {
@@ -561,6 +582,9 @@ void pause_all_vcpus(void)
     while (!all_vcpus_paused()) {
         qemu_cond_wait(&qemu_pause_cond, &qemu_global_mutex);
         CPU_FOREACH(cpu) {
+            if (cpu->mirror_vcpu) {
+                continue;
+            }
             qemu_cpu_kick(cpu);
         }
     }
@@ -587,6 +611,9 @@ void resume_all_vcpus(void)
 
     qemu_clock_enable(QEMU_CLOCK_VIRTUAL, true);
     CPU_FOREACH(cpu) {
+        if (cpu->mirror_vcpu) {
+            continue;
+        }
         cpu_resume(cpu);
     }
 }
