@@ -2651,6 +2651,7 @@ static void ram_list_init_bitmaps(void)
             shift = CLEAR_BITMAP_SHIFT_MIN;
         }
 
+        RCU_READ_LOCK_GUARD();
         RAMBLOCK_FOREACH_NOT_IGNORED(block) {
             pages = block->max_length >> TARGET_PAGE_BITS;
             /*
@@ -2672,20 +2673,14 @@ static void ram_list_init_bitmaps(void)
 
 static void ram_init_bitmaps(RAMState *rs)
 {
-    /* For memory_global_dirty_log_start below.  */
-    qemu_mutex_lock_iothread();
-    qemu_mutex_lock_ramlist();
+    ram_list_init_bitmaps();
 
-    WITH_RCU_READ_LOCK_GUARD() {
-        ram_list_init_bitmaps();
-        /* We don't use dirty log with background snapshots */
-        if (!migrate_background_snapshot()) {
-            memory_global_dirty_log_start();
-            migration_bitmap_sync_precopy(rs);
-        }
+    /* We don't use dirty log with background snapshots */
+    if (!migrate_background_snapshot()) {
+        qemu_mutex_lock_iothread();
+        memory_global_dirty_log_start();
+        qemu_mutex_unlock_iothread();
     }
-    qemu_mutex_unlock_ramlist();
-    qemu_mutex_unlock_iothread();
 }
 
 static int ram_init_all(RAMState **rsp)
