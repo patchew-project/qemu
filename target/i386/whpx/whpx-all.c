@@ -1600,6 +1600,7 @@ static void whpx_log_sync(MemoryListener *listener,
 }
 
 static MemoryListener whpx_memory_listener = {
+    .name = "whpx",
     .begin = whpx_transaction_begin,
     .commit = whpx_transaction_commit,
     .region_add = whpx_region_add,
