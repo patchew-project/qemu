@@ -1347,7 +1347,7 @@ int monitor_fdset_dup_fd_add(int64_t fdset_id, int flags)
         }
 
         if (fd == -1) {
-            errno = EACCES;
+            errno = EBADFD;
             return -1;
         }
 
