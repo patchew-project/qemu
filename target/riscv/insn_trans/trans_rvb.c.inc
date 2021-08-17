@@ -568,12 +568,24 @@ static bool trans_grevw(DisasContext *ctx, arg_grevw *a)
     return gen_shift(ctx, a, EXT_ZERO, gen_helper_grev);
 }
 
+static void gen_greviw(TCGv dest, TCGv src, target_long shamt)
+{
+#if TARGET_LONG_BITS == 64
+    if (shamt == 32 - 8) {
+        /* rev4, byte swaps */
+        tcg_gen_bswap32_i64(dest, src, TCG_BSWAP_IZ | TCG_BSWAP_OS);
+        return;
+    }
+#endif
+    gen_helper_grev(dest, src, tcg_constant_tl(shamt));
+}
+
 static bool trans_greviw(DisasContext *ctx, arg_greviw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
     ctx->w = true;
-    return gen_shift_imm_tl(ctx, a, EXT_ZERO, gen_helper_grev);
+    return gen_shift_imm_fn(ctx, a, EXT_ZERO, gen_greviw);
 }
 
 static bool trans_gorcw(DisasContext *ctx, arg_gorcw *a)
