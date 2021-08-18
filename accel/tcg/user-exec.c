@@ -57,17 +57,123 @@ static void QEMU_NORETURN cpu_exit_tb_from_sighandler(CPUState *cpu,
     cpu_loop_exit_noexc(cpu);
 }
 
-/* 'pc' is the host PC at which the exception was raised. 'address' is
-   the effective address of the memory exception. 'is_write' is 1 if a
-   write caused the exception and otherwise 0'. 'old_set' is the
-   signal set which should be restored */
-static inline int handle_cpu_signal(uintptr_t pc, siginfo_t *info,
-                                    int is_write, sigset_t *old_set)
+static bool handle_cpu_sigsegv(CPUState *cpu, uintptr_t pc, uintptr_t addr,
+                               int si_code, MMUAccessType access_type,
+                               sigset_t *old_set)
+{
+    trace_sigsegv(pc, addr, access_type, *(unsigned long *)old_set);
+
+    /* XXX: locking issue */
+    /*
+     * Note that it is important that we don't call page_unprotect() unless
+     * this is really a "write to nonwriteable page" fault, because
+     * page_unprotect() assumes that if it is called for an access to
+     * a page that's writeable this means we had two threads racing and
+     * another thread got there first and already made the page writeable;
+     * so we will retry the access. If we were to call page_unprotect()
+     * for some other kind of fault that should really be passed to the
+     * guest, we'd end up in an infinite loop of retrying the faulting
+     * access.
+     */
+    if (access_type == MMU_DATA_STORE
+        && si_code == SEGV_ACCERR
+        && h2g_valid(addr)) {
+        switch (page_unprotect(h2g_nocheck(addr), pc)) {
+        case 0:
+            /*
+             * Fault not caused by a page marked unwritable to protect
+             * cached translations, must be the guest binary's problem.
+             */
+            break;
+        case 1:
+            /*
+             * Fault caused by protection of cached translation; TBs
+             * invalidated, so resume execution.  Retain helper_retaddr
+             * for a possible second fault.
+             */
+            return true;
+        case 2:
+            /*
+             * Fault caused by protection of cached translation, and the
+             * currently executing TB was modified and must be exited
+             * immediately.  Clear helper_retaddr for next execution.
+             */
+            clear_helper_retaddr();
+            cpu_exit_tb_from_sighandler(cpu, old_set);
+            /* NORETURN */
+        default:
+            g_assert_not_reached();
+        }
+    }
+
+    /*
+     * Convert forcefully to guest address space, invalid addresses
+     * are still valid segv ones.
+     */
+    addr = h2g_nocheck(addr);
+
+    /*
+     * There is no way the target can handle this other than raising
+     * an exception.  Undo signal and retaddr state prior to longjmp.
+     */
+    sigprocmask(SIG_SETMASK, old_set, NULL);
+    clear_helper_retaddr();
+
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    cc->tcg_ops->tlb_fill(cpu, addr, 0, access_type, MMU_USER_IDX, false, pc);
+    g_assert_not_reached();
+}
+
+static bool handle_cpu_sigbus(CPUState *cpu, uintptr_t pc, uintptr_t addr,
+                              int si_code, MMUAccessType access_type,
+                              sigset_t *old_set)
+{
+    trace_sigbus(pc, addr, access_type, *(unsigned long *)old_set);
+
+    if (si_code == BUS_ADRALN) {
+        /*
+         * We're expecting host alignment faults to correspond
+         * directly to guest alignment faults, and thus the host
+         * address must correspond to a guest address.
+         */
+        addr = h2g(addr);
+
+        /* Undo signal and retaddr state prior to longjmp. */
+        sigprocmask(SIG_SETMASK, old_set, NULL);
+        clear_helper_retaddr();
+
+        cpu_unaligned_access(cpu, addr, access_type, MMU_USER_IDX, pc);
+    }
+
+    /*
+     * Otherwise this is probably BUS_ADRERR or suchlike, which
+     * can be easily triggered by the guest playing with mmap
+     * and accessing past the end of the file.
+     *
+     * Use PC to unwind to the current guest address and then
+     * return false to pass on the host signal to the guest.
+     */
+    cpu_restore_state(cpu, pc, true);
+    return false;
+}
+
+/**
+ * handle_cpu_signal:
+ * @pc: the host PC at which the exception was raised,
+ * @address: the effective address of the memory exception,
+ * @is_write: true if a write caused the exception,
+ * @old_set: signal set which should be restored.
+ *
+ * Return true if the signal has been handled by the vcpu,
+ * false if the signal should be sent on to the guest.
+ */
+static bool handle_cpu_signal(uintptr_t pc, siginfo_t *info,
+                              bool is_write, sigset_t *old_set)
 {
     CPUState *cpu = current_cpu;
-    CPUClass *cc;
-    unsigned long address = (unsigned long)info->si_addr;
+    uintptr_t addr = (uintptr_t)info->si_addr;
     MMUAccessType access_type = is_write ? MMU_DATA_STORE : MMU_DATA_LOAD;
+    int code;
 
     switch (helper_retaddr) {
     default:
@@ -119,7 +225,8 @@ static inline int handle_cpu_signal(uintptr_t pc, siginfo_t *info,
         break;
     }
 
-    /* For synchronous signals we expect to be coming from the vCPU
+    /*
+     * For synchronous signals we expect to be coming from the vCPU
      * thread (so current_cpu should be valid) and either from running
      * code or during translation which can fault as we cross pages.
      *
@@ -132,62 +239,15 @@ static inline int handle_cpu_signal(uintptr_t pc, siginfo_t *info,
         abort();
     }
 
-    trace_sigsegv(pc, address, is_write, *(unsigned long *)old_set);
-
-    /* XXX: locking issue */
-    /* Note that it is important that we don't call page_unprotect() unless
-     * this is really a "write to nonwriteable page" fault, because
-     * page_unprotect() assumes that if it is called for an access to
-     * a page that's writeable this means we had two threads racing and
-     * another thread got there first and already made the page writeable;
-     * so we will retry the access. If we were to call page_unprotect()
-     * for some other kind of fault that should really be passed to the
-     * guest, we'd end up in an infinite loop of retrying the faulting
-     * access.
-     */
-    if (is_write && info->si_signo == SIGSEGV && info->si_code == SEGV_ACCERR &&
-        h2g_valid(address)) {
-        switch (page_unprotect(h2g(address), pc)) {
-        case 0:
-            /* Fault not caused by a page marked unwritable to protect
-             * cached translations, must be the guest binary's problem.
-             */
-            break;
-        case 1:
-            /* Fault caused by protection of cached translation; TBs
-             * invalidated, so resume execution.  Retain helper_retaddr
-             * for a possible second fault.
-             */
-            return 1;
-        case 2:
-            /* Fault caused by protection of cached translation, and the
-             * currently executing TB was modified and must be exited
-             * immediately.  Clear helper_retaddr for next execution.
-             */
-            clear_helper_retaddr();
-            cpu_exit_tb_from_sighandler(cpu, old_set);
-            /* NORETURN */
-
-        default:
-            g_assert_not_reached();
-        }
+    code = info->si_code;
+    switch (info->si_signo) {
+    case SIGSEGV:
+        return handle_cpu_sigsegv(cpu, pc, addr, code, access_type, old_set);
+    case SIGBUS:
+        return handle_cpu_sigbus(cpu, pc, addr, code, access_type, old_set);
+    default:
+        g_assert_not_reached();
     }
-
-    /* Convert forcefully to guest address space, invalid addresses
-       are still valid segv ones */
-    address = h2g_nocheck(address);
-
-    /*
-     * There is no way the target can handle this other than raising
-     * an exception.  Undo signal and retaddr state prior to longjmp.
-     */
-    sigprocmask(SIG_SETMASK, old_set, NULL);
-    clear_helper_retaddr();
-
-    cc = CPU_GET_CLASS(cpu);
-    cc->tcg_ops->tlb_fill(cpu, address, 0, access_type,
-                          MMU_USER_IDX, false, pc);
-    g_assert_not_reached();
 }
 
 static int probe_access_internal(CPUArchState *env, target_ulong addr,
