@@ -6644,7 +6644,7 @@ static abi_long do_prctl(CPUArchState *env, abi_long option, abi_long arg2,
      * We only implement PR_UNALIGN_SIGBUS, and only for those targets
      * who have had their translator updated to insert MO_ALIGN.
      */
-#if 0
+#if defined(TARGET_ALPHA)
     case PR_GET_UNALIGN:
         {
             CPUState *cs = env_cpu(env);
