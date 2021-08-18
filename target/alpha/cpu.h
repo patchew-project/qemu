@@ -287,7 +287,6 @@ void alpha_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
                                    uintptr_t retaddr) QEMU_NORETURN;
 
 #define cpu_list alpha_cpu_list
-#define cpu_signal_handler cpu_alpha_signal_handler
 
 typedef CPUAlphaState CPUArchState;
 typedef AlphaCPU ArchCPU;
@@ -442,11 +441,6 @@ void alpha_translate_init(void);
 #define CPU_RESOLVING_TYPE TYPE_ALPHA_CPU
 
 void alpha_cpu_list(void);
-/* you can call this signal handler from your SIGBUS and SIGSEGV
-   signal handlers to inform the virtual CPU of exceptions. non zero
-   is returned if the signal was handled by the virtual CPU.  */
-int cpu_alpha_signal_handler(int host_signum, void *pinfo,
-                             void *puc);
 bool alpha_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                         MMUAccessType access_type, int mmu_idx,
                         bool probe, uintptr_t retaddr);
