@@ -27,6 +27,7 @@
 #include "exec/helper-proto.h"
 #include "qemu/atomic128.h"
 #include "trace/trace-root.h"
+#include "tcg/tcg-ldst.h"
 #include "internal.h"
 
 #undef EAX
@@ -865,6 +866,18 @@ static void validate_memop(MemOpIdx oi, MemOp expected)
     MemOp have = get_memop(oi) & (MO_SIZE | MO_BSWAP);
     assert(have == expected);
 #endif
+}
+
+void helper_unaligned_ld(CPUArchState *env, target_ulong addr)
+{
+    cpu_unaligned_access(env_cpu(env), addr, MMU_DATA_LOAD,
+                         MMU_USER_IDX, GETPC());
+}
+
+void helper_unaligned_st(CPUArchState *env, target_ulong addr)
+{
+    cpu_unaligned_access(env_cpu(env), addr, MMU_DATA_STORE,
+                         MMU_USER_IDX, GETPC());
 }
 
 static void *cpu_mmu_lookup(CPUArchState *env, target_ulong addr,
