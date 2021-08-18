@@ -7,6 +7,7 @@
 #include "qapi/qmp/qlist.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"
+#include "qemu/option_int.h"
 #include "qemu/config-file.h"
 
 static QemuOptsList *vm_config_groups[48];
@@ -39,6 +40,53 @@ QemuOptsList *qemu_find_opts(const char *group)
     }
 
     return ret;
+}
+
+struct QemuOptsSortEntry {
+    QemuOpts *opts;
+    int priority;
+} __attribute__ ((__aligned__(sizeof(void *))));
+typedef struct QemuOptsSortEntry QemuOptsSortEntry;
+
+static int qemu_opts_cmp_fn(const void *opts_1, const void *opts_2)
+{
+    QemuOptsSortEntry *entry1, *entry2;
+
+    entry1 = (QemuOptsSortEntry *)opts_1;
+    entry2 = (QemuOptsSortEntry *)opts_2;
+
+    return entry1->priority - entry2->priority;
+}
+
+void qemu_sort_opts(const char *group, qemu_opts_pri_fn fn)
+{
+    QemuOptsSortEntry *entries, *entry;
+    QemuOpts *opts, *next_opts;
+    int i = 0, count = 0;
+    QemuOptsList *list;
+
+    list = find_list(vm_config_groups, group, &error_abort);
+
+    QTAILQ_FOREACH(opts, &list->head, next) {
+        count++;
+    }
+
+    entries = g_new0(QemuOptsSortEntry, count);
+    QTAILQ_FOREACH_SAFE(opts, &list->head, next, next_opts) {
+        entry = &entries[i++];
+        entry->opts = opts;
+        entry->priority = fn(opts);
+        /* Temporarily remove them; will add them back later */
+        QTAILQ_REMOVE(&list->head, opts, next);
+    }
+
+    qsort(entries, count, sizeof(QemuOptsSortEntry), qemu_opts_cmp_fn);
+
+    for (i = 0; i < count; i++) {
+        QTAILQ_INSERT_TAIL(&list->head, entries[i].opts, next);
+    }
+
+    g_free(entries);
 }
 
 QemuOpts *qemu_find_opts_singleton(const char *group)
