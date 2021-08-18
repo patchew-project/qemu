@@ -1499,6 +1499,7 @@ void ppc_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
     CPUPPCState *env = cs->env_ptr;
 
     switch (env->mmu_model) {
+#ifndef CONFIG_USER_ONLY
     case POWERPC_MMU_SOFT_4xx:
     case POWERPC_MMU_SOFT_4xx_Z:
         env->spr[SPR_40x_DEAR] = vaddr;
@@ -1507,6 +1508,7 @@ void ppc_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
     case POWERPC_MMU_BOOKE206:
         env->spr[SPR_BOOKE_DEAR] = vaddr;
         break;
+#endif
     default:
         env->spr[SPR_DAR] = vaddr;
         break;
