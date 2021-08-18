@@ -137,6 +137,10 @@ void cpu_loop(CPUARMState *env)
             case 0x11: /* Synchronous Tag Check Fault */
                 info.si_code = TARGET_SEGV_MTESERR;
                 break;
+            case 0x21: /* Alignment fault */
+                info.si_signo = TARGET_SIGBUS;
+                info.si_code = TARGET_BUS_ADRALN;
+                break;
             default:
                 g_assert_not_reached();
             }
