@@ -6640,6 +6640,25 @@ static abi_long do_prctl(CPUArchState *env, abi_long option, abi_long arg2,
         }
         return do_prctl_get_tagged_addr_ctrl(env);
 
+    /*
+     * We only implement PR_UNALIGN_SIGBUS, and only for those targets
+     * who have had their translator updated to insert MO_ALIGN.
+     */
+#if 0
+    case PR_GET_UNALIGN:
+        {
+            CPUState *cs = env_cpu(env);
+            uint32_t res = PR_UNALIGN_NOPRINT;
+            if (cs->prctl_unalign_sigbus) {
+                res |= PR_UNALIGN_SIGBUS;
+            }
+            return put_user_u32(res, arg2);
+        }
+    case PR_SET_UNALIGN:
+        env_cpu(env)->prctl_unalign_sigbus = arg2 & PR_UNALIGN_SIGBUS;
+        return 0;
+#endif
+
     case PR_GET_DUMPABLE:
     case PR_SET_DUMPABLE:
     case PR_GET_KEEPCAPS:
@@ -6682,8 +6701,6 @@ static abi_long do_prctl(CPUArchState *env, abi_long option, abi_long arg2,
     case PR_SET_THP_DISABLE:
     case PR_GET_TSC:
     case PR_SET_TSC:
-    case PR_GET_UNALIGN:
-    case PR_SET_UNALIGN:
     default:
         /* Disable to prevent the target disabling stuff we need. */
         return -TARGET_EINVAL;
