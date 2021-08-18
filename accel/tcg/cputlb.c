@@ -2110,7 +2110,6 @@ static inline uint64_t cpu_load_helper(CPUArchState *env, abi_ptr addr,
     meminfo = trace_mem_get_info(op, mmu_idx, false);
     trace_guest_mem_before_exec(env_cpu(env), addr, meminfo);
 
-    op &= ~MO_SIGN;
     oi = make_memop_idx(op, mmu_idx);
     ret = full_load(env, addr, oi, retaddr);
 
@@ -2128,8 +2127,7 @@ uint32_t cpu_ldub_mmuidx_ra(CPUArchState *env, abi_ptr addr,
 int cpu_ldsb_mmuidx_ra(CPUArchState *env, abi_ptr addr,
                        int mmu_idx, uintptr_t ra)
 {
-    return (int8_t)cpu_load_helper(env, addr, mmu_idx, ra, MO_SB,
-                                   full_ldub_mmu);
+    return (int8_t)cpu_ldub_mmuidx_ra(env, addr, mmu_idx, ra);
 }
 
 uint32_t cpu_lduw_be_mmuidx_ra(CPUArchState *env, abi_ptr addr,
@@ -2141,8 +2139,7 @@ uint32_t cpu_lduw_be_mmuidx_ra(CPUArchState *env, abi_ptr addr,
 int cpu_ldsw_be_mmuidx_ra(CPUArchState *env, abi_ptr addr,
                           int mmu_idx, uintptr_t ra)
 {
-    return (int16_t)cpu_load_helper(env, addr, mmu_idx, ra, MO_BESW,
-                                    full_be_lduw_mmu);
+    return (int16_t)cpu_lduw_be_mmuidx_ra(env, addr, mmu_idx, ra);
 }
 
 uint32_t cpu_ldl_be_mmuidx_ra(CPUArchState *env, abi_ptr addr,
@@ -2166,8 +2163,7 @@ uint32_t cpu_lduw_le_mmuidx_ra(CPUArchState *env, abi_ptr addr,
 int cpu_ldsw_le_mmuidx_ra(CPUArchState *env, abi_ptr addr,
                           int mmu_idx, uintptr_t ra)
 {
-    return (int16_t)cpu_load_helper(env, addr, mmu_idx, ra, MO_LESW,
-                                    full_le_lduw_mmu);
+    return (int16_t)cpu_lduw_le_mmuidx_ra(env, addr, mmu_idx, ra);
 }
 
 uint32_t cpu_ldl_le_mmuidx_ra(CPUArchState *env, abi_ptr addr,
