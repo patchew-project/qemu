@@ -28,9 +28,15 @@
 
 extern int arm_arch;
 
+#ifdef CONFIG_DEBUG_TCG
+#define use_armv5t_instructions (arm_arch >= 5)
+#define use_armv6_instructions  (arm_arch >= 6)
+#define use_armv7_instructions  (arm_arch >= 7)
+#else
 #define use_armv5t_instructions (__ARM_ARCH >= 5 || arm_arch >= 5)
 #define use_armv6_instructions  (__ARM_ARCH >= 6 || arm_arch >= 6)
 #define use_armv7_instructions  (__ARM_ARCH >= 7 || arm_arch >= 7)
+#endif
 
 #undef TCG_TARGET_STACK_GROWSUP
 #define TCG_TARGET_INSN_UNIT_SIZE 4
@@ -83,7 +89,7 @@ typedef enum {
 #else
 extern bool use_idiv_instructions;
 #endif
-#ifdef __ARM_NEON__
+#if defined(__ARM_NEON__) && !defined(CONFIG_DEBUG_TCG)
 #define use_neon_instructions  1
 #else
 extern bool use_neon_instructions;

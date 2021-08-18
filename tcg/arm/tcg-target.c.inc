@@ -2455,6 +2455,38 @@ static void tcg_target_init(TCGContext *s)
         }
     }
 
+    /*
+     * For debugging/testing purposes, allow the ISA to be reduced
+     * (but not extended) from the set detected above.
+     */
+#ifdef CONFIG_DEBUG_TCG
+    {
+        char *opt = g_strdup(getenv("QEMU_TCG_DEBUG"));
+        if (opt) {
+            for (char *o = strtok(opt, ","); o ; o = strtok(NULL, ",")) {
+                if (o[0] == 'v' &&
+                    o[1] >= '4' &&
+                    o[1] <= '0' + arm_arch &&
+                    o[2] == 0) {
+                    arm_arch = o[1] - '0';
+                    continue;
+                }
+                if (strcmp(o, "!neon") == 0) {
+                    use_neon_instructions = false;
+                    continue;
+                }
+                if (strcmp(o, "help") == 0) {
+                    printf("QEMU_TCG_DEBUG=<opt>{,<opt>} where <opt> is\n"
+                           "  v<N>   select ARMv<N>\n"
+                           "  !neon  disable ARM NEON\n");
+                    exit(0);
+                }
+            }
+            g_free(opt);
+        }
+    }
+#endif
+
     tcg_target_available_regs[TCG_TYPE_I32] = ALL_GENERAL_REGS;
 
     tcg_target_call_clobber_regs = 0;
