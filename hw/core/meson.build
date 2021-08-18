@@ -43,3 +43,7 @@ specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: files(
   'machine-qmp-cmds.c',
   'numa.c',
 ))
+
+specific_ss.add(when: 'CONFIG_USER_ONLY', if_true: files(
+  'cpu-user.c'
+))
