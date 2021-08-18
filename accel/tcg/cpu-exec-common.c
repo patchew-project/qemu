@@ -21,6 +21,8 @@
 #include "sysemu/cpus.h"
 #include "sysemu/tcg.h"
 #include "exec/exec-all.h"
+#include "hw/core/tcg-cpu-ops.h"
+#include "internal.h"
 
 bool tcg_allowed;
 
@@ -80,4 +82,14 @@ void cpu_loop_exit_atomic(CPUState *cpu, uintptr_t pc)
 {
     cpu->exception_index = EXCP_ATOMIC;
     cpu_loop_exit_restore(cpu, pc);
+}
+
+void cpu_unaligned_access(CPUState *cpu, vaddr addr,
+                          MMUAccessType access_type,
+                          int mmu_idx, uintptr_t retaddr)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    assert(cc->tcg_ops->do_unaligned_access != NULL);
+    cc->tcg_ops->do_unaligned_access(cpu, addr, access_type, mmu_idx, retaddr);
 }
