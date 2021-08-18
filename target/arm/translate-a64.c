@@ -14754,6 +14754,7 @@ static void aarch64_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     CPUARMState *env = cpu->env_ptr;
     uint32_t insn;
 
+    /* Singlestep exceptions have the highest priority. */
     if (s->ss_active && !s->pstate_ss) {
         /* Singlestep state is Active-pending.
          * If we're in this state at the start of a TB then either
@@ -14768,6 +14769,17 @@ static void aarch64_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
         assert(s->base.num_insns == 1);
         gen_swstep_exception(s, 0, 0);
         s->base.is_jmp = DISAS_NORETURN;
+        return;
+    }
+
+    if (s->base.pc_next & 3) {
+        /*
+         * PC alignment fault.  This has priority over the instruction abort
+         * that we would receive from a translation fault via arm_ldl_code.
+         */
+        gen_exception_insn(s, s->base.pc_next, EXCP_UDEF,
+                           syn_pcalignment(), default_exception_el(s));
+        s->base.pc_next = QEMU_ALIGN_UP(s->base.pc_next, 4);
         return;
     }
 

@@ -9452,19 +9452,8 @@ static void arm_tr_insn_start(DisasContextBase *dcbase, CPUState *cpu)
     dc->insn_start = tcg_last_op();
 }
 
-static bool arm_pre_translate_insn(DisasContext *dc)
+static bool arm_check_ss_active(DisasContext *dc)
 {
-#ifdef CONFIG_USER_ONLY
-    /* Intercept jump to the magic kernel page.  */
-    if (dc->base.pc_next >= 0xffff0000) {
-        /* We always get here via a jump, so know we are not in a
-           conditional execution block.  */
-        gen_exception_internal(EXCP_KERNEL_TRAP);
-        dc->base.is_jmp = DISAS_NORETURN;
-        return true;
-    }
-#endif
-
     if (dc->ss_active && !dc->pstate_ss) {
         /* Singlestep state is Active-pending.
          * If we're in this state at the start of a TB then either
@@ -9485,6 +9474,21 @@ static bool arm_pre_translate_insn(DisasContext *dc)
     return false;
 }
 
+static bool arm_check_kernelpage(DisasContext *dc)
+{
+#ifdef CONFIG_USER_ONLY
+    /* Intercept jump to the magic kernel page.  */
+    if (dc->base.pc_next >= 0xffff0000) {
+        /* We always get here via a jump, so know we are not in a
+           conditional execution block.  */
+        gen_exception_internal(EXCP_KERNEL_TRAP);
+        dc->base.is_jmp = DISAS_NORETURN;
+        return true;
+    }
+#endif
+    return false;
+}
+
 static void arm_post_translate_insn(DisasContext *dc)
 {
     if (dc->condjmp && !dc->base.is_jmp) {
@@ -9500,7 +9504,25 @@ static void arm_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     CPUARMState *env = cpu->env_ptr;
     unsigned int insn;
 
-    if (arm_pre_translate_insn(dc)) {
+    /* Singlestep exceptions have the highest priority. */
+    if (arm_check_ss_active(dc)) {
+        dc->base.pc_next += 4;
+        return;
+    }
+
+    if (dc->base.pc_next & 3) {
+        /*
+         * PC alignment fault.  This has priority over the instruction abort
+         * that we would receive from a translation fault via arm_ldl_code
+         * (or the execution of the kernelpage entrypoint).
+         */
+        gen_exception_insn(dc, dc->base.pc_next, EXCP_UDEF,
+                           syn_pcalignment(), default_exception_el(dc));
+        dc->base.pc_next = QEMU_ALIGN_UP(dc->base.pc_next, 4);
+        return;
+    }
+
+    if (arm_check_kernelpage(dc)) {
         dc->base.pc_next += 4;
         return;
     }
@@ -9570,7 +9592,7 @@ static void thumb_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     uint32_t insn;
     bool is_16bit;
 
-    if (arm_pre_translate_insn(dc)) {
+    if (arm_check_ss_active(dc) || arm_check_kernelpage(dc)) {
         dc->base.pc_next += 2;
         return;
     }
