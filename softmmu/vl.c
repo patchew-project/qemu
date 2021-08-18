@@ -126,6 +126,7 @@
 #include "qapi/qmp/qerror.h"
 #include "sysemu/iothread.h"
 #include "qemu/guest-random.h"
+#include "migration/vmstate.h"
 
 #include "config-host.h"
 
@@ -2627,6 +2628,35 @@ static void qemu_init_board(void)
     }
 }
 
+/* Return the priority of the device option; zero is the default priority */
+static int qemu_opts_device_priority(QemuOpts *opts)
+{
+    const char *driver;
+    DeviceClass *dc;
+
+    driver = qemu_opt_get(opts, "driver");
+    if (!driver) {
+        return 0;
+    }
+
+    dc = qdev_get_device_class(&driver, NULL);
+    if (!dc) {
+        return 0;
+    }
+
+    if (!dc->vmsd) {
+        return 0;
+    }
+
+    /*
+     * Currently we rely on vmsd priority because that's solving the same
+     * problem for device realization ordering but just for migration.  In the
+     * future, we can move it out of vmsd, but that's not urgently needed.
+     * Return the negative of it so it'll be sorted with descendant order.
+     */
+    return -dc->vmsd->priority;
+}
+
 static void qemu_create_cli_devices(void)
 {
     soundhw_init();
@@ -2642,6 +2672,11 @@ static void qemu_create_cli_devices(void)
 
     /* init generic devices */
     rom_set_order_override(FW_CFG_ORDER_OVERRIDE_DEVICE);
+    /*
+     * Sort all the -device parameters; e.g., platform devices like vIOMMU
+     * should be initialized earlier.
+     */
+    qemu_sort_opts("device", qemu_opts_device_priority);
     qemu_opts_foreach(qemu_find_opts("device"),
                       device_init_func, NULL, &error_fatal);
     rom_reset_order_override();
