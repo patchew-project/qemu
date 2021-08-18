@@ -747,27 +747,37 @@ static inline void rewind_if_in_safe_syscall(void *puc)
 static void host_signal_handler(int host_signum, siginfo_t *info,
                                 void *puc)
 {
-    CPUArchState *env = thread_cpu->env_ptr;
-    CPUState *cpu = env_cpu(env);
+    CPUState *cpu = thread_cpu;
+    CPUArchState *env = cpu->env_ptr;
     TaskState *ts = cpu->opaque;
-
     int sig;
     target_siginfo_t tinfo;
     ucontext_t *uc = puc;
     struct emulated_sigtable *k;
+    bool must_exit = false;
 
-    /* the CPU emulator uses some host signals to detect exceptions,
-       we forward to it some signals */
+    /*
+     * The CPU emulator uses some host signals to detect exceptions,
+     * we forward to it some signals.
+     */
     if ((host_signum == SIGSEGV || host_signum == SIGBUS)
         && info->si_code > 0) {
-        if (cpu_signal_handler(host_signum, info, puc))
+        if (cpu_signal_handler(host_signum, info, puc)) {
             return;
+        }
+        /*
+         * E.g. SIGBUS, without BUS_ADRALN, which we want to pass on.
+         * We have unwound the TB to PC, so must use cpu_loop_exit below.
+         */
+        must_exit = true;
     }
 
     /* get target signal number */
     sig = host_to_target_signal(host_signum);
-    if (sig < 1 || sig > TARGET_NSIG)
+    if (sig < 1 || sig > TARGET_NSIG) {
+        assert(!must_exit);
         return;
+    }
     trace_user_host_signal(env, host_signum, sig);
 
     rewind_if_in_safe_syscall(puc);
@@ -778,7 +788,8 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
     k->pending = sig;
     ts->signal_pending = 1;
 
-    /* Block host signals until target signal handler entered. We
+    /*
+     * Block host signals until target signal handler entered. We
      * can't block SIGSEGV or SIGBUS while we're executing guest
      * code in case the guest code provokes one in the window between
      * now and it getting out to the main loop. Signals will be
@@ -796,8 +807,13 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
     sigdelset(&uc->uc_sigmask, SIGSEGV);
     sigdelset(&uc->uc_sigmask, SIGBUS);
 
-    /* interrupt the virtual CPU as soon as possible */
-    cpu_exit(thread_cpu);
+    /* Interrupt the virtual CPU as soon as possible. */
+    if (must_exit) {
+        cpu->exception_index = EXCP_INTERRUPT;
+        cpu_loop_exit(cpu);
+    } else {
+        cpu_exit(cpu);
+    }
 }
 
 /* do_sigaltstack() returns target values and errnos. */
