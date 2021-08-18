@@ -27,6 +27,7 @@
 #include "exec/helper-proto.h"
 #include "qemu/atomic128.h"
 #include "trace/trace-root.h"
+#include "trace.h"
 #include "tcg/tcg-ldst.h"
 #include "internal.h"
 
@@ -44,8 +45,6 @@
 #endif
 
 __thread uintptr_t helper_retaddr;
-
-//#define DEBUG_SIGNAL
 
 /* exit the current TB from a signal handler. The host registers are
    restored in a state compatible with the CPU emulator
@@ -133,10 +132,8 @@ static inline int handle_cpu_signal(uintptr_t pc, siginfo_t *info,
         abort();
     }
 
-#if defined(DEBUG_SIGNAL)
-    printf("qemu: SIGSEGV pc=0x%08lx address=%08lx w=%d oldset=0x%08lx\n",
-           pc, address, is_write, *(unsigned long *)old_set);
-#endif
+    trace_sigsegv(pc, address, is_write, *(unsigned long *)old_set);
+
     /* XXX: locking issue */
     /* Note that it is important that we don't call page_unprotect() unless
      * this is really a "write to nonwriteable page" fault, because
