@@ -27,7 +27,6 @@
 #include "exec/helper-proto.h"
 #include "qemu/atomic128.h"
 #include "trace/trace-root.h"
-#include "trace/mem.h"
 #include "internal.h"
 
 #undef EAX
@@ -856,10 +855,9 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 uint32_t cpu_ldub_data(CPUArchState *env, abi_ptr ptr)
 {
     MemOpIdx oi = make_memop_idx(MO_UB, MMU_USER_IDX);
-    uint16_t meminfo = trace_mem_get_info(oi, false);
     uint32_t ret;
 
-    trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
+    trace_guest_ld_before_exec(env_cpu(env), ptr, oi);
     ret = ldub_p(g2h(env_cpu(env), ptr));
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, oi, QEMU_PLUGIN_MEM_R);
     return ret;
@@ -873,10 +871,9 @@ int cpu_ldsb_data(CPUArchState *env, abi_ptr ptr)
 uint32_t cpu_lduw_be_data(CPUArchState *env, abi_ptr ptr)
 {
     MemOpIdx oi = make_memop_idx(MO_BEUW, MMU_USER_IDX);
-    uint16_t meminfo = trace_mem_get_info(oi, false);
     uint32_t ret;
 
-    trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
+    trace_guest_ld_before_exec(env_cpu(env), ptr, oi);
     ret = lduw_be_p(g2h(env_cpu(env), ptr));
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, oi, QEMU_PLUGIN_MEM_R);
     return ret;
@@ -890,10 +887,9 @@ int cpu_ldsw_be_data(CPUArchState *env, abi_ptr ptr)
 uint32_t cpu_ldl_be_data(CPUArchState *env, abi_ptr ptr)
 {
     MemOpIdx oi = make_memop_idx(MO_BEUL, MMU_USER_IDX);
-    uint16_t meminfo = trace_mem_get_info(oi, false);
     uint32_t ret;
 
-    trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
+    trace_guest_ld_before_exec(env_cpu(env), ptr, oi);
     ret = ldl_be_p(g2h(env_cpu(env), ptr));
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, oi, QEMU_PLUGIN_MEM_R);
     return ret;
@@ -902,10 +898,9 @@ uint32_t cpu_ldl_be_data(CPUArchState *env, abi_ptr ptr)
 uint64_t cpu_ldq_be_data(CPUArchState *env, abi_ptr ptr)
 {
     MemOpIdx oi = make_memop_idx(MO_BEQ, MMU_USER_IDX);
-    uint16_t meminfo = trace_mem_get_info(oi, false);
     uint64_t ret;
 
-    trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
+    trace_guest_ld_before_exec(env_cpu(env), ptr, oi);
     ret = ldq_be_p(g2h(env_cpu(env), ptr));
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, oi, QEMU_PLUGIN_MEM_R);
     return ret;
@@ -914,10 +909,9 @@ uint64_t cpu_ldq_be_data(CPUArchState *env, abi_ptr ptr)
 uint32_t cpu_lduw_le_data(CPUArchState *env, abi_ptr ptr)
 {
     MemOpIdx oi = make_memop_idx(MO_LEUW, MMU_USER_IDX);
-    uint16_t meminfo = trace_mem_get_info(oi, false);
     uint32_t ret;
 
-    trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
+    trace_guest_ld_before_exec(env_cpu(env), ptr, oi);
     ret = lduw_le_p(g2h(env_cpu(env), ptr));
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, oi, QEMU_PLUGIN_MEM_R);
     return ret;
@@ -931,10 +925,9 @@ int cpu_ldsw_le_data(CPUArchState *env, abi_ptr ptr)
 uint32_t cpu_ldl_le_data(CPUArchState *env, abi_ptr ptr)
 {
     MemOpIdx oi = make_memop_idx(MO_LEUL, MMU_USER_IDX);
-    uint16_t meminfo = trace_mem_get_info(oi, false);
     uint32_t ret;
 
-    trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
+    trace_guest_ld_before_exec(env_cpu(env), ptr, oi);
     ret = ldl_le_p(g2h(env_cpu(env), ptr));
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, oi, QEMU_PLUGIN_MEM_R);
     return ret;
@@ -943,10 +936,9 @@ uint32_t cpu_ldl_le_data(CPUArchState *env, abi_ptr ptr)
 uint64_t cpu_ldq_le_data(CPUArchState *env, abi_ptr ptr)
 {
     MemOpIdx oi = make_memop_idx(MO_LEQ, MMU_USER_IDX);
-    uint16_t meminfo = trace_mem_get_info(oi, false);
     uint64_t ret;
 
-    trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
+    trace_guest_ld_before_exec(env_cpu(env), ptr, oi);
     ret = ldq_le_p(g2h(env_cpu(env), ptr));
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, oi, QEMU_PLUGIN_MEM_R);
     return ret;
@@ -1040,9 +1032,8 @@ uint64_t cpu_ldq_le_data_ra(CPUArchState *env, abi_ptr ptr, uintptr_t retaddr)
 void cpu_stb_data(CPUArchState *env, abi_ptr ptr, uint32_t val)
 {
     MemOpIdx oi = make_memop_idx(MO_UB, MMU_USER_IDX);
-    uint16_t meminfo = trace_mem_get_info(oi, true);
 
-    trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
+    trace_guest_st_before_exec(env_cpu(env), ptr, oi);
     stb_p(g2h(env_cpu(env), ptr), val);
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, oi, QEMU_PLUGIN_MEM_W);
 }
@@ -1050,9 +1041,8 @@ void cpu_stb_data(CPUArchState *env, abi_ptr ptr, uint32_t val)
 void cpu_stw_be_data(CPUArchState *env, abi_ptr ptr, uint32_t val)
 {
     MemOpIdx oi = make_memop_idx(MO_BEUW, MMU_USER_IDX);
-    uint16_t meminfo = trace_mem_get_info(oi, true);
 
-    trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
+    trace_guest_st_before_exec(env_cpu(env), ptr, oi);
     stw_be_p(g2h(env_cpu(env), ptr), val);
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, oi, QEMU_PLUGIN_MEM_W);
 }
@@ -1060,9 +1050,8 @@ void cpu_stw_be_data(CPUArchState *env, abi_ptr ptr, uint32_t val)
 void cpu_stl_be_data(CPUArchState *env, abi_ptr ptr, uint32_t val)
 {
     MemOpIdx oi = make_memop_idx(MO_BEUL, MMU_USER_IDX);
-    uint16_t meminfo = trace_mem_get_info(oi, true);
 
-    trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
+    trace_guest_st_before_exec(env_cpu(env), ptr, oi);
     stl_be_p(g2h(env_cpu(env), ptr), val);
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, oi, QEMU_PLUGIN_MEM_W);
 }
@@ -1070,9 +1059,8 @@ void cpu_stl_be_data(CPUArchState *env, abi_ptr ptr, uint32_t val)
 void cpu_stq_be_data(CPUArchState *env, abi_ptr ptr, uint64_t val)
 {
     MemOpIdx oi = make_memop_idx(MO_BEQ, MMU_USER_IDX);
-    uint16_t meminfo = trace_mem_get_info(oi, true);
 
-    trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
+    trace_guest_st_before_exec(env_cpu(env), ptr, oi);
     stq_be_p(g2h(env_cpu(env), ptr), val);
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, oi, QEMU_PLUGIN_MEM_W);
 }
@@ -1080,9 +1068,8 @@ void cpu_stq_be_data(CPUArchState *env, abi_ptr ptr, uint64_t val)
 void cpu_stw_le_data(CPUArchState *env, abi_ptr ptr, uint32_t val)
 {
     MemOpIdx oi = make_memop_idx(MO_LEUW, MMU_USER_IDX);
-    uint16_t meminfo = trace_mem_get_info(oi, true);
 
-    trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
+    trace_guest_st_before_exec(env_cpu(env), ptr, oi);
     stw_le_p(g2h(env_cpu(env), ptr), val);
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, oi, QEMU_PLUGIN_MEM_W);
 }
@@ -1090,9 +1077,8 @@ void cpu_stw_le_data(CPUArchState *env, abi_ptr ptr, uint32_t val)
 void cpu_stl_le_data(CPUArchState *env, abi_ptr ptr, uint32_t val)
 {
     MemOpIdx oi = make_memop_idx(MO_LEUL, MMU_USER_IDX);
-    uint16_t meminfo = trace_mem_get_info(oi, true);
 
-    trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
+    trace_guest_st_before_exec(env_cpu(env), ptr, oi);
     stl_le_p(g2h(env_cpu(env), ptr), val);
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, oi, QEMU_PLUGIN_MEM_W);
 }
@@ -1100,9 +1086,8 @@ void cpu_stl_le_data(CPUArchState *env, abi_ptr ptr, uint32_t val)
 void cpu_stq_le_data(CPUArchState *env, abi_ptr ptr, uint64_t val)
 {
     MemOpIdx oi = make_memop_idx(MO_LEQ, MMU_USER_IDX);
-    uint16_t meminfo = trace_mem_get_info(oi, true);
 
-    trace_guest_mem_before_exec(env_cpu(env), ptr, meminfo);
+    trace_guest_st_before_exec(env_cpu(env), ptr, oi);
     stq_le_p(g2h(env_cpu(env), ptr), val);
     qemu_plugin_vcpu_mem_cb(env_cpu(env), ptr, oi, QEMU_PLUGIN_MEM_W);
 }
