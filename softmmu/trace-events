@@ -29,3 +29,6 @@ runstate_set(int current_state, const char *current_state_str, int new_state, co
 system_wakeup_request(int reason) "reason=%d"
 qemu_system_shutdown_request(int reason) "reason=%d"
 qemu_system_powerdown_request(void) ""
+
+# qdev-monitor.c
+qdev_device_add(const char *driver, const char *id) "driver '%s' id '%s'"

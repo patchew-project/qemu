@@ -40,6 +40,7 @@
 #include "qemu/cutils.h"
 #include "hw/qdev-properties.h"
 #include "hw/clock.h"
+#include "trace.h"
 
 /*
  * Aliases were a bad idea from the start.  Let's keep them
@@ -674,6 +675,7 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
         dev->opts = NULL;
         goto err_del_dev;
     }
+    trace_qdev_device_add(driver, qemu_opts_id(opts));
     return dev;
 
 err_del_dev:
