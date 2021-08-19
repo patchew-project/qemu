@@ -777,13 +777,15 @@ static void zdma_realize(DeviceState *dev, Error **errp)
         };
     }
 
-    if (s->dma_mr) {
-        s->dma_as = g_malloc0(sizeof(AddressSpace));
-        address_space_init(s->dma_as, s->dma_mr, NULL);
-    } else {
-        s->dma_as = &address_space_memory;
-    }
+    s->dma_as = address_space_create(s->dma_mr ?: get_system_memory(), NULL);
     s->attr = MEMTXATTRS_UNSPECIFIED;
+}
+
+static void zdma_unrealize(DeviceState *dev)
+{
+    XlnxZDMA *s = XLNX_ZDMA(dev);
+
+    address_space_destroy(s->dma_as);
 }
 
 static void zdma_init(Object *obj)
@@ -827,6 +829,7 @@ static void zdma_class_init(ObjectClass *klass, void *data)
 
     dc->reset = zdma_reset;
     dc->realize = zdma_realize;
+    dc->unrealize = zdma_unrealize;
     device_class_set_props(dc, zdma_props);
     dc->vmsd = &vmstate_zdma;
 }

@@ -648,13 +648,7 @@ static void xlnx_csu_dma_realize(DeviceState *dev, Error **errp)
     s->src_timer = ptimer_init(xlnx_csu_dma_src_timeout_hit,
                                s, PTIMER_POLICY_DEFAULT);
 
-    if (s->dma_mr) {
-        s->dma_as = g_malloc0(sizeof(AddressSpace));
-        address_space_init(s->dma_as, s->dma_mr, NULL);
-    } else {
-        s->dma_as = &address_space_memory;
-    }
-
+    s->dma_as = address_space_create(s->dma_mr ?: get_system_memory(), NULL);
     s->attr = MEMTXATTRS_UNSPECIFIED;
 
     s->r_size_last_word = 0;
@@ -665,6 +659,7 @@ static void xlnx_csu_dma_unrealize(DeviceState *dev)
     XlnxCSUDMA *s = XLNX_CSU_DMA(dev);
 
     ptimer_free(s->src_timer);
+    address_space_destroy(s->dma_as);
 }
 
 static const VMStateDescription vmstate_xlnx_csu_dma = {
