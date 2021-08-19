@@ -786,6 +786,11 @@ static inline AddressSpace *pci_get_address_space(PCIDevice *dev)
     return &dev->bus_master_as;
 }
 
+static inline MemoryRegion *pci_dma_memory_region(PCIDevice *dev)
+{
+    return &dev->bus_master_container_region;
+}
+
 /**
  * pci_dma_rw: Read from or write to an address space from PCI device.
  *
