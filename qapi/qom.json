@@ -241,6 +241,11 @@
 # @notify_dev: name of the character device backend to be used to communicate
 #              with the remote colo-frame (only for Xen COLO)
 #
+# @netdev: id of the network device backend to colo-compare, although
+#          colo-compare doesn't depend on network device directly, this
+#          parameter help colo-compare know what network driver it is
+#          working on
+#
 # @compare_timeout: the maximum time to hold a packet from @primary_in for
 #                   comparison with an incoming packet on @secondary_in in
 #                   milliseconds (default: 3000)
@@ -264,6 +269,7 @@
             'outdev': 'str',
             'iothread': 'str',
             '*notify_dev': 'str',
+            '*netdev': 'str',
             '*compare_timeout': 'uint64',
             '*expired_scan_cycle': 'uint32',
             '*max_queue_size': 'uint32',

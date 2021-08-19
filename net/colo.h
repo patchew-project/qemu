@@ -18,6 +18,9 @@
 #include "qemu/jhash.h"
 #include "qemu/timer.h"
 #include "net/eth.h"
+#include "qemu/option.h"
+#include "qemu/option_int.h"
+#include "qemu/config-file.h"
 
 #define HASHTABLE_MAX_SIZE 16384
 
@@ -104,5 +107,6 @@ Packet *packet_new(const void *data, int size, int vnet_hdr_len);
 Packet *packet_new_nocopy(void *data, int size, int vnet_hdr_len);
 void packet_destroy(void *opaque, void *user_data);
 void packet_destroy_partial(void *opaque, void *user_data);
+int vnet_driver_check(void *opaque, QemuOpts *opts, Error **errp);
 
 #endif /* NET_COLO_H */

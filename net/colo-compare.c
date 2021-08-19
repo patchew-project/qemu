@@ -110,6 +110,7 @@ struct CompareState {
     char *sec_indev;
     char *outdev;
     char *notify_dev;
+    char *netdev;
     CharBackend chr_pri_in;
     CharBackend chr_sec_in;
     CharBackend chr_out;
@@ -838,6 +839,28 @@ static int compare_chr_can_read(void *opaque)
     return COMPARE_READ_LEN_MAX;
 }
 
+static int colo_set_default_netdev(void *opaque, QemuOpts *opts, Error **errp)
+{
+    const char *colo_obj_type, *netdev_from_filter;
+    char **netdev = (char **)opaque;
+
+    colo_obj_type = qemu_opt_get(opts, "qom-type");
+
+    if (colo_obj_type &&
+        (strcmp(colo_obj_type, "filter-mirror") == 0 ||
+         strcmp(colo_obj_type, "filter-redirector") == 0 ||
+         strcmp(colo_obj_type, "filter-rewriter") == 0)) {
+        netdev_from_filter = qemu_opt_get(opts, "netdev");
+        if (*netdev == NULL) {
+            *netdev = g_strdup(netdev_from_filter);
+        } else if (strcmp(*netdev, netdev_from_filter) != 0) {
+            warn_report("%s is using a different netdev from other COLO "
+                        "component", colo_obj_type);
+        }
+    }
+    return 0;
+}
+
 /*
  * Called from the main thread on the primary for packets
  * arriving over the socket from the primary.
@@ -1048,6 +1071,21 @@ static void compare_set_vnet_hdr(Object *obj,
     CompareState *s = COLO_COMPARE(obj);
 
     s->vnet_hdr = value;
+}
+
+static char *compare_get_netdev(Object *obj, Error **errp)
+{
+    CompareState *s = COLO_COMPARE(obj);
+
+    return g_strdup(s->netdev);
+}
+
+static void compare_set_netdev(Object *obj, const char *value, Error **errp)
+{
+    CompareState *s = COLO_COMPARE(obj);
+
+    g_free(s->netdev);
+    s->netdev = g_strdup(value);
 }
 
 static char *compare_get_notify_dev(Object *obj, Error **errp)
@@ -1274,6 +1312,12 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
         max_queue_size = MAX_QUEUE_SIZE;
     }
 
+    if (!s->netdev) {
+        /* Set default netdev as the first colo netfilter found */
+        qemu_opts_foreach(qemu_find_opts("object"),
+                          colo_set_default_netdev, &s->netdev, NULL);
+    }
+
     if (find_and_check_chardev(&chr, s->pri_indev, errp) ||
         !qemu_chr_fe_init(&s->chr_pri_in, chr, errp)) {
         return;
@@ -1287,6 +1331,16 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
     if (find_and_check_chardev(&chr, s->outdev, errp) ||
         !qemu_chr_fe_init(&s->chr_out, chr, errp)) {
         return;
+    }
+
+    if (!s->vnet_hdr &&
+        qemu_opts_foreach(qemu_find_opts("device"),
+                          vnet_driver_check, s->netdev, NULL)) {
+        /*
+         * colo compare needs 'vnet_hdr_support' when it works on virtio-net,
+         * add 'vnet_hdr_support' automatically
+         */
+        s->vnet_hdr = true;
     }
 
     net_socket_rs_init(&s->pri_rs, compare_pri_rs_finalize, s->vnet_hdr);
@@ -1400,6 +1454,9 @@ static void colo_compare_init(Object *obj)
     s->vnet_hdr = false;
     object_property_add_bool(obj, "vnet_hdr_support", compare_get_vnet_hdr,
                              compare_set_vnet_hdr);
+    /* colo compare can't varify that netdev is correct */
+    object_property_add_str(obj, "netdev", compare_get_netdev,
+                            compare_set_netdev);
 }
 
 void colo_compare_cleanup(void)

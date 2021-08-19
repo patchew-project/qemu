@@ -12,6 +12,7 @@
 #include "qemu/osdep.h"
 #include "net/filter.h"
 #include "net/net.h"
+#include "net/colo.h"
 #include "qapi/error.h"
 #include "qom/object.h"
 #include "qemu/main-loop.h"
@@ -224,6 +225,16 @@ static void filter_mirror_setup(NetFilterState *nf, Error **errp)
         return;
     }
 
+    if (!s->vnet_hdr &&
+        qemu_opts_foreach(qemu_find_opts("device"),
+                          vnet_driver_check, nf->netdev_id, NULL)) {
+        /*
+         * filter mirror needs 'vnet_hdr_support' when colo filter modules
+         * work on virtio-net, add 'vnet_hdr_support' automatically
+         */
+        s->vnet_hdr = true;
+    }
+
     qemu_chr_fe_init(&s->chr_out, chr, errp);
 }
 
@@ -250,6 +261,16 @@ static void filter_redirector_setup(NetFilterState *nf, Error **errp)
                        "for filter redirector");
             return;
         }
+    }
+
+    if (!s->vnet_hdr &&
+        qemu_opts_foreach(qemu_find_opts("device"),
+                          vnet_driver_check, nf->netdev_id, NULL)) {
+        /*
+         * filter redirector needs 'vnet_hdr_support' when colo filter modules
+         * work on virtio-net, add 'vnet_hdr_support' automatically
+         */
+        s->vnet_hdr = true;
     }
 
     net_socket_rs_init(&s->rs, redirector_rs_finalize, s->vnet_hdr);
