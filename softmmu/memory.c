@@ -2941,6 +2941,10 @@ AddressSpace *address_space_create(MemoryRegion *root, const char *name)
 {
     AddressSpace *as;
 
+    if (root == get_system_memory()) {
+        return &address_space_memory;
+    }
+
     as = g_new(AddressSpace, 1);
     address_space_init(as, root, name);
 
@@ -2960,6 +2964,10 @@ static void do_address_space_destroy(AddressSpace *as)
 void address_space_destroy(AddressSpace *as)
 {
     MemoryRegion *root = as->root;
+
+    if (as == &address_space_memory) {
+        return;
+    }
 
     /* Flush out anything from MemoryListeners listening in on this */
     memory_region_transaction_begin();
