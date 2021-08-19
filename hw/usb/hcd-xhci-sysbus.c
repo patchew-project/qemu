@@ -43,14 +43,17 @@ static void xhci_sysbus_realize(DeviceState *dev, Error **errp)
     s->irq = g_new0(qemu_irq, s->xhci.numintrs);
     qdev_init_gpio_out_named(dev, s->irq, SYSBUS_DEVICE_GPIO_IRQ,
                              s->xhci.numintrs);
-    if (s->xhci.dma_mr) {
-        s->xhci.as =  g_malloc0(sizeof(AddressSpace));
-        address_space_init(s->xhci.as, s->xhci.dma_mr, NULL);
-    } else {
-        s->xhci.as = &address_space_memory;
-    }
+    s->xhci.as = address_space_create(s->xhci.dma_mr ?: get_system_memory(),
+                                      NULL);
 
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->xhci.mem);
+}
+
+static void xhci_sysbus_unrealize(DeviceState *dev)
+{
+    XHCISysbusState *s = XHCI_SYSBUS(dev);
+
+    address_space_destroy(s->xhci.as);
 }
 
 static void xhci_sysbus_instance_init(Object *obj)
@@ -103,6 +106,7 @@ static void xhci_sysbus_class_init(ObjectClass *klass, void *data)
 
     dc->reset = xhci_sysbus_reset;
     dc->realize = xhci_sysbus_realize;
+    dc->unrealize = xhci_sysbus_unrealize;
     dc->vmsd = &vmstate_xhci_sysbus;
     device_class_set_props(dc, xhci_sysbus_props);
 }
