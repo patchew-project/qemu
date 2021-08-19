@@ -116,6 +116,8 @@ static void usb_xhci_pci_realize(struct PCIDevice *dev, Error **errp)
     dev->config[0x60] = 0x30; /* release number */
 
     object_property_set_link(OBJECT(&s->xhci), "host", OBJECT(s), &error_fatal);
+    object_property_set_link(OBJECT(dev), "dma",
+                             OBJECT(pci_dma_memory_region(dev)), &error_fatal);
     s->xhci.intr_update = xhci_pci_intr_update;
     s->xhci.intr_raise = xhci_pci_intr_raise;
     if (!qdev_realize(DEVICE(&s->xhci), NULL, errp)) {
@@ -161,7 +163,6 @@ static void usb_xhci_pci_realize(struct PCIDevice *dev, Error **errp)
                   &s->xhci.mem, 0, OFF_MSIX_PBA,
                   0x90, NULL);
     }
-    s->xhci.as = pci_get_address_space(dev);
 }
 
 static void usb_xhci_pci_exit(PCIDevice *dev)

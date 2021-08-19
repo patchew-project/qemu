@@ -219,6 +219,8 @@ static void microvm_devices_init(MicrovmMachineState *mms)
         qdev_prop_set_uint32(dev, "slots", XHCI_MAXSLOTS);
         qdev_prop_set_uint32(dev, "p2", 8);
         qdev_prop_set_uint32(dev, "p3", 8);
+        object_property_set_link(OBJECT(dev), "dma",
+                                 OBJECT(get_system_memory()), &error_fatal);
         sysbus_realize(SYS_BUS_DEVICE(dev), &error_fatal);
         sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, MICROVM_XHCI_BASE);
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
