@@ -194,7 +194,7 @@ by the ``tls-authz`` and ``sasl-authz`` options.
 The ``pretty=on|off`` switch has no effect for HMP monitors and
 its use is rejected.
 
-``-drive file=json:{...{'driver':'file'}}`` (removed 6.0)
+``-drive file=json:{...{'driver':'file'}}`` (removed in 6.0)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 The 'file' driver for drives is no longer appropriate for character or host
@@ -593,7 +593,7 @@ error when ``-u`` is not used.
 Command line options
 --------------------
 
-``-smp`` (invalid topologies) (removed 5.2)
+``-smp`` (invalid topologies) (removed in 5.2)
 '''''''''''''''''''''''''''''''''''''''''''
 
 CPU topology properties should describe whole machine topology including
@@ -606,7 +606,7 @@ Support for invalid topologies is removed, the user must ensure
 topologies described with -smp include all possible cpus, i.e.
 *sockets* * *cores* * *threads* = *maxcpus*.
 
-``-numa`` node (without memory specified) (removed 5.2)
+``-numa`` node (without memory specified) (removed in 5.2)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Splitting RAM by default between NUMA nodes had the same issues as ``mem``
@@ -647,20 +647,7 @@ as ignored. Currently, users are responsible for making sure the backing storage
 specified with ``-mem-path`` can actually provide the guest RAM configured with
 ``-m`` and QEMU fails to start up if RAM allocation is unsuccessful.
 
-``-smp`` (invalid topologies) (removed 5.2)
-'''''''''''''''''''''''''''''''''''''''''''
-
-CPU topology properties should describe whole machine topology including
-possible CPUs.
-
-However, historically it was possible to start QEMU with an incorrect topology
-where *n* <= *sockets* * *cores* * *threads* < *maxcpus*,
-which could lead to an incorrect topology enumeration by the guest.
-Support for invalid topologies is removed, the user must ensure
-topologies described with -smp include all possible cpus, i.e.
-*sockets* * *cores* * *threads* = *maxcpus*.
-
-``-machine enforce-config-section=on|off`` (removed 5.2)
+``-machine enforce-config-section=on|off`` (removed in 5.2)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 The ``enforce-config-section`` property was replaced by the
