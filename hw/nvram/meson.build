@@ -9,5 +9,13 @@ softmmu_ss.add(when: 'CONFIG_AT24C', if_true: files('eeprom_at24c.c'))
 softmmu_ss.add(when: 'CONFIG_MAC_NVRAM', if_true: files('mac_nvram.c'))
 softmmu_ss.add(when: 'CONFIG_NPCM7XX', if_true: files('npcm7xx_otp.c'))
 softmmu_ss.add(when: 'CONFIG_NRF51_SOC', if_true: files('nrf51_nvm.c'))
+softmmu_ss.add(when: 'CONFIG_XLNX_EFUSE', if_true: files('xlnx-efuse.c'))
+softmmu_ss.add(when: 'CONFIG_XLNX_EFUSE_VERSAL', if_true: files(
+                                                   'xlnx-versal-efuse-cache.c',
+                                                   'xlnx-versal-efuse-ctrl.c'))
+if 'CONFIG_XLNX_BBRAM' in config_all or \
+   'CONFIG_XLNX_EFUSE' in config_all
+  softmmu_ss.add(files('xlnx-efuse-crc.c'))
+endif
 
 specific_ss.add(when: 'CONFIG_PSERIES', if_true: files('spapr_nvram.c'))
