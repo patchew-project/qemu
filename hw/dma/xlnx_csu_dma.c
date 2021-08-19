@@ -660,6 +660,13 @@ static void xlnx_csu_dma_realize(DeviceState *dev, Error **errp)
     s->r_size_last_word = 0;
 }
 
+static void xlnx_csu_dma_unrealize(DeviceState *dev)
+{
+    XlnxCSUDMA *s = XLNX_CSU_DMA(dev);
+
+    ptimer_free(s->src_timer);
+}
+
 static const VMStateDescription vmstate_xlnx_csu_dma = {
     .name = TYPE_XLNX_CSU_DMA,
     .version_id = 0,
@@ -700,6 +707,7 @@ static void xlnx_csu_dma_class_init(ObjectClass *klass, void *data)
 
     dc->reset = xlnx_csu_dma_reset;
     dc->realize = xlnx_csu_dma_realize;
+    dc->unrealize = xlnx_csu_dma_unrealize;
     dc->vmsd = &vmstate_xlnx_csu_dma;
     device_class_set_props(dc, xlnx_csu_dma_properties);
 
