@@ -24,7 +24,7 @@
 #include "qemu/qemu-print.h"
 #include "qom/object.h"
 #include "trace.h"
-
+#include "exec/address-spaces.h"
 #include "exec/memory-internal.h"
 #include "exec/ram_addr.h"
 #include "sysemu/kvm.h"
@@ -2923,7 +2923,9 @@ void address_space_remove_listeners(AddressSpace *as)
 
 void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
 {
-    memory_region_ref(root);
+    if (root != get_system_memory()) {
+        memory_region_ref(root);
+    }
     as->root = root;
     as->current_map = NULL;
     as->ioeventfd_nb = 0;
