@@ -727,12 +727,12 @@ void cpu_address_space_init(CPUState *cpu, int asidx,
                             const char *prefix, MemoryRegion *mr)
 {
     CPUAddressSpace *newas;
-    AddressSpace *as = g_new0(AddressSpace, 1);
+    AddressSpace *as;
     char *as_name;
 
     assert(mr);
     as_name = g_strdup_printf("%s-%d", prefix, cpu->cpu_index);
-    address_space_init(as, mr, as_name);
+    as = address_space_create(mr, as_name);
     g_free(as_name);
 
     /* Target code should have set num_ases before calling us */
