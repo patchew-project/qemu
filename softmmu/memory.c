@@ -2937,6 +2937,16 @@ void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name)
     address_space_update_ioeventfds(as);
 }
 
+AddressSpace *address_space_create(MemoryRegion *root, const char *name)
+{
+    AddressSpace *as;
+
+    as = g_new(AddressSpace, 1);
+    address_space_init(as, root, name);
+
+    return as;
+}
+
 static void do_address_space_destroy(AddressSpace *as)
 {
     assert(QTAILQ_EMPTY(&as->listeners));

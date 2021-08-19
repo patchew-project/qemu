@@ -2419,6 +2419,20 @@ MemTxResult memory_region_dispatch_write(MemoryRegion *mr,
 void address_space_init(AddressSpace *as, MemoryRegion *root, const char *name);
 
 /**
+ * address_space_create: Create and initializes an address space
+ *
+ * @root: a #MemoryRegion that routes addresses for the address space
+ * @name: an address space name.  The name is only used for debugging
+ *        output.
+ *
+ * Returns pointer to initialized #AddressSpace.
+ *
+ * The caller is responsible for releasing the pointer returned
+ * with address_space_destroy() after use.
+ */
+AddressSpace *address_space_create(MemoryRegion *root, const char *name);
+
+/**
  * address_space_destroy: destroy an address space
  *
  * Releases all resources associated with an address space.  After an address space
