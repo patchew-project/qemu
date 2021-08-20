@@ -39,6 +39,8 @@ struct SMMUv3State {
     uint32_t features;
     uint8_t sid_size;
     uint8_t sid_split;
+    uint32_t num_sid;
+    uint16_t *sid_map;
 
     uint32_t idr[6];
     uint32_t iidr;
