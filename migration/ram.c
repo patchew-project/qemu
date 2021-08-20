@@ -2043,7 +2043,11 @@ static int ram_save_host_page(RAMState *rs, PageSearchStatus *pss,
         qemu_ram_pagesize(pss->block) >> TARGET_PAGE_BITS;
     unsigned long hostpage_boundary =
         QEMU_ALIGN_UP(pss->page + 1, pagesize_bits);
+    /* Set RDMA boundary default 256*4K=1M that driver delivery more effective*/
+    unsigned long rdma_boundary =
+        QEMU_ALIGN_UP(pss->page + 1, 256);
     unsigned long start_page = pss->page;
+    bool use_rdma = migrate_use_rdma();
     int res;
 
     if (ramblock_is_ignored(pss->block)) {
@@ -2069,7 +2073,7 @@ static int ram_save_host_page(RAMState *rs, PageSearchStatus *pss,
             }
         }
         pss->page = migration_bitmap_find_dirty(rs, pss->block, pss->page);
-    } while ((pss->page < hostpage_boundary) &&
+    } while ((pss->page < (use_rdma ? rdma_boundary : hostpage_boundary)) &&
              offset_in_ramblock(pss->block,
                                 ((ram_addr_t)pss->page) << TARGET_PAGE_BITS));
     /* The offset we leave with is the min boundary of host page and block */
