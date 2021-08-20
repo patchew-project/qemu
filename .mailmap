@@ -69,6 +69,7 @@ Yongbok Kim <yongbok.kim@mips.com> <yongbok.kim@imgtec.com>
 # git author config, or had utf8/latin1 encoding issues.
 Aaron Lindsay <aaron@os.amperecomputing.com>
 Alexey Gerasimenko <x1917x@gmail.com>
+Alex Chen <alex.chen@huawei.com>
 Alex Ivanov <void@aleksoft.net>
 Andreas Färber <afaerber@suse.de>
 Bandan Das <bsd@redhat.com>
@@ -76,6 +77,7 @@ Benjamin MARSILI <mlspirat42@gmail.com>
 Benoît Canet <benoit.canet@gmail.com>
 Benoît Canet <benoit.canet@irqsave.net>
 Benoît Canet <benoit.canet@nodalink.com>
+Bibo Mao <maobibo@loongson.cn>
 Boqun Feng <boqun.feng@gmail.com>
 Boqun Feng <boqun.feng@intel.com>
 Brad Smith <brad@comstyle.com>
@@ -99,9 +101,12 @@ Gautham R. Shenoy <ego@in.ibm.com>
 Gautham R. Shenoy <ego@linux.vnet.ibm.com>
 Gonglei (Arei) <arei.gonglei@huawei.com>
 Guang Wang <wang.guang55@zte.com.cn>
+Guoyi Tu <tu.guoyi@h3c.com>
+Haibin Zhang <haibinzhang@tencent.com>
 Hailiang Zhang <zhang.zhanghailiang@huawei.com>
 Hanna Reitz <hreitz@redhat.com> <mreitz@redhat.com>
 Hervé Poussineau <hpoussin@reactos.org>
+Hyman Huang <huangy81@chinatelecom.cn>
 Jakub Jermář <jakub@jermar.eu>
 Jakub Jermář <jakub.jermar@kernkonzept.com>
 Jean-Christophe Dubois <jcd@tribudubois.net>
@@ -113,6 +118,7 @@ Jun Li <junmuzi@gmail.com>
 Laurent Vivier <Laurent@lvivier.info>
 Leandro Lupori <leandro.lupori@gmail.com>
 Li Guang <lig.fnst@cn.fujitsu.com>
+Lichang Zhao <zhaolichang@huawei.com>
 Liming Wang <walimisdev@gmail.com>
 linzhecheng <linzc@zju.edu.cn>
 Liran Schour <lirans@il.ibm.com>
@@ -171,6 +177,7 @@ Xiong Zhang <xiong.y.zhang@intel.com>
 Yin Yin <yin.yin@cs2c.com.cn>
 Yu-Chen Lin <npes87184@gmail.com>
 Yu-Chen Lin <npes87184@gmail.com> <yuchenlin@synology.com>
+Yuanjun Gong <ruc_gongyuanjun@163.com>
 YunQiang Su <syq@debian.org>
 YunQiang Su <ysu@wavecomp.com>
 Yuri Pudgorodskiy <yur@virtuozzo.com>
