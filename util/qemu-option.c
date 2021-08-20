@@ -37,6 +37,8 @@
 #include "qemu/id.h"
 #include "qemu/help_option.h"
 
+static QTAILQ_HEAD(, QemuOpts) hidden_devices =
+                               QTAILQ_HEAD_INITIALIZER(hidden_devices);
 /*
  * Extracts the name of an option from the parameter string (@p points at the
  * first byte of the option name)
@@ -1223,4 +1225,84 @@ QemuOptsList *qemu_opts_append(QemuOptsList *dst,
     }
 
     return dst;
+}
+
+/* create a copy of an opts */
+static QemuOpts *qemu_opts_duplicate(QemuOpts *opts)
+{
+    QemuOpts *new;
+    QemuOpt *opt;
+
+    new = g_malloc0(sizeof(*new));
+    new->id = g_strdup(opts->id);
+    new->list = opts->list;
+
+    QTAILQ_INIT(&new->head);
+
+    QTAILQ_FOREACH_REVERSE(opt, &opts->head, next) {
+        QemuOpt *new_opt = g_malloc0(sizeof(*new_opt));
+
+        new_opt->name = g_strdup(opt->name);
+        new_opt->str = g_strdup(opt->str);
+        new_opt->opts = new;
+        QTAILQ_INSERT_TAIL(&new->head, new_opt, next);
+    }
+
+    QTAILQ_INSERT_TAIL(&new->list->head, new, next);
+
+    return new;
+}
+
+/*
+ * For each member of the hidded device list,
+ * call @func(@opaque, name, value, @errp).
+ * @func() may store an Error through @errp, but must return non-zero then.
+ * When @func() returns non-zero, break the loop and return that value.
+ * Return zero when the loop completes.
+ */
+int qemu_opts_hidden_device_foreach(qemu_opts_loopfunc func,
+                                    void *opaque, Error **errp)
+{
+    QemuOpts *hidden;
+    int rc = 0;
+
+    QTAILQ_FOREACH(hidden, &hidden_devices, next) {
+        rc = func(opaque, hidden, errp);
+        if (rc) {
+            break;
+        }
+    }
+    return rc;
+}
+
+/* scan the list of hidden devices to find opts for the one with id @id */
+QemuOpts *qemu_opts_hidden_device_find(const char *id)
+{
+    QemuOpts *hidden;
+
+    QTAILQ_FOREACH(hidden, &hidden_devices, next) {
+        if (g_strcmp0(id, hidden->id) == 0) {
+            return hidden;
+        }
+    }
+
+    return NULL;
+}
+
+/* add the @opts to the list of hidden devices */
+void qemu_opts_store_hidden_device(QemuOpts *opts)
+{
+    QemuOpts *copy;
+
+    if (qemu_opts_hidden_device_find(opts->id)) {
+        return;
+    }
+
+    /*
+     * we need to duplicate opts because qmp_device_add() calls
+     * qemu_opts_del(opts) if the device is not added,
+     * and this is what happens when it is hidden
+     */
+    copy = qemu_opts_duplicate(opts);
+    QTAILQ_INSERT_TAIL(&hidden_devices, copy, next);
 }

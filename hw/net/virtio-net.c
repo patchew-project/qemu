@@ -831,8 +831,7 @@ static char *failover_find_primary_device_id(VirtIONet *n)
     FailoverId fid;
 
     fid.n = n;
-    if (!qemu_opts_foreach(qemu_find_opts("device"),
-                           failover_set_primary, &fid, &err)) {
+    if (!qemu_opts_hidden_device_foreach(failover_set_primary, &fid, &err)) {
         return NULL;
     }
     return fid.id;
@@ -874,7 +873,7 @@ static void failover_add_primary(VirtIONet *n, Error **errp)
                           " failover_pair_id=%s\n", n->netclient_name);
         return;
     }
-    opts = qemu_opts_find(qemu_find_opts("device"), id);
+    opts = qemu_opts_hidden_device_find(id);
     g_assert(opts); /* cannot be NULL because id was found using opts list */
     dev = qdev_device_add(opts, &err);
     if (err) {

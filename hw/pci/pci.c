@@ -142,8 +142,8 @@ static int bus_post_load(void *opaque, int version_id)
     Error *err = NULL;
     PCIBus *bus = opaque;
 
-    if (qemu_opts_foreach(qemu_find_opts("device"),
-                          pci_dev_replug_on_migration, bus->qbus.name, &err)) {
+    if (qemu_opts_hidden_device_foreach(pci_dev_replug_on_migration,
+                                        bus->qbus.name, &err)) {
         error_report_err(err);
         return -EINVAL;
     }

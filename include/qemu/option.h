@@ -150,4 +150,8 @@ QDict *keyval_parse(const char *params, const char *implied_key,
                     bool *help, Error **errp);
 void keyval_merge(QDict *old, const QDict *new, Error **errp);
 
+int qemu_opts_hidden_device_foreach(qemu_opts_loopfunc func,
+                                    void *opaque, Error **errp);
+QemuOpts *qemu_opts_hidden_device_find(const char *id);
+void qemu_opts_store_hidden_device(QemuOpts *opts);
 #endif

@@ -218,6 +218,7 @@ bool qdev_should_hide_device(QemuOpts *opts, Error **errp)
     QTAILQ_FOREACH(listener, &device_listeners, link) {
         if (listener->hide_device) {
             if (listener->hide_device(listener, opts, errp)) {
+                qemu_opts_store_hidden_device(opts);
                 return true;
             }
         }
