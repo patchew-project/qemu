@@ -3288,6 +3288,13 @@ static bool failover_hide_primary_device(DeviceListener *listener,
         return false;
     }
     standby_id = qemu_opt_get(device_opts, "failover_pair_id");
+    if (standby_id == NULL) {
+        return false;
+    }
+    if (device_opts->id == NULL) {
+        error_setg(errp, "Device with failover_pair_id don't have id");
+        return true;
+    }
     if (g_strcmp0(standby_id, n->netclient_name) != 0) {
         return false;
     }
