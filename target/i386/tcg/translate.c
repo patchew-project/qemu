@@ -3521,9 +3521,6 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
         case 0x171: /* shift xmm, im */
         case 0x172:
         case 0x173:
-            if (b1 >= 2) {
-                goto unknown_op;
-            }
             val = x86_ldub_code(env, s);
             if (is_xmm) {
                 tcg_gen_movi_tl(s->T0, val);
@@ -3772,9 +3769,6 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
             rm = modrm & 7;
             reg = ((modrm >> 3) & 7) | REX_R(s);
             mod = (modrm >> 6) & 3;
-            if (b1 >= 2) {
-                goto unknown_op;
-            }
 
             sse_fn_epp = sse_op_table6[b].op[b1];
             if (!sse_fn_epp) {
@@ -4202,9 +4196,6 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
             rm = modrm & 7;
             reg = ((modrm >> 3) & 7) | REX_R(s);
             mod = (modrm >> 6) & 3;
-            if (b1 >= 2) {
-                goto unknown_op;
-            }
 
             sse_fn_eppi = sse_op_table7[b].op[b1];
             if (!sse_fn_eppi) {
