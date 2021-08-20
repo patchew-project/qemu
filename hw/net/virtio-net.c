@@ -36,8 +36,10 @@
 #include "qapi/qapi-types-migration.h"
 #include "qapi/qapi-events-migration.h"
 #include "hw/virtio/virtio-access.h"
+#include "migration/migration.h"
 #include "migration/misc.h"
 #include "standard-headers/linux/ethtool.h"
+#include "sysemu/runstate.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
 #include "monitor/qdev.h"
@@ -937,7 +939,6 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
 
     if (virtio_has_feature(features, VIRTIO_NET_F_STANDBY)) {
         qapi_event_send_failover_negotiated(n->netclient_name);
-        qatomic_set(&n->failover_primary_hidden, false);
         failover_add_primary(n, &err);
         if (err) {
             warn_report_err(err);
@@ -3225,7 +3226,6 @@ static bool failover_replug_primary(VirtIONet *n, DeviceState *dev,
         return false;
     }
     qdev_set_parent_bus(dev, primary_bus, &error_abort);
-    qatomic_set(&n->failover_primary_hidden, false);
     hotplug_ctrl = qdev_get_hotplug_handler(dev);
     if (hotplug_ctrl) {
         hotplug_handler_pre_plug(hotplug_ctrl, dev, &err);
@@ -3243,7 +3243,6 @@ out:
 
 static void virtio_net_handle_migration_primary(VirtIONet *n, MigrationState *s)
 {
-    bool should_be_hidden;
     Error *err = NULL;
     DeviceState *dev = failover_find_primary_device(n);
 
@@ -3251,13 +3250,10 @@ static void virtio_net_handle_migration_primary(VirtIONet *n, MigrationState *s)
         return;
     }
 
-    should_be_hidden = qatomic_read(&n->failover_primary_hidden);
-
-    if (migration_in_setup(s) && !should_be_hidden) {
+    if (migration_in_setup(s)) {
         if (failover_unplug_primary(n, dev)) {
             vmstate_unregister(VMSTATE_IF(dev), qdev_get_vmsd(dev), dev);
             qapi_event_send_unplug_primary(dev->id);
-            qatomic_set(&n->failover_primary_hidden, true);
         } else {
             warn_report("couldn't unplug primary device");
         }
@@ -3299,8 +3295,18 @@ static bool failover_hide_primary_device(DeviceListener *listener,
         return false;
     }
 
-    /* failover_primary_hidden is set during feature negotiation */
-    return qatomic_read(&n->failover_primary_hidden);
+    if (runstate_check(RUN_STATE_PRELAUNCH)) {
+        /* hide the failover primary on src on startup */
+        return true;
+    }
+
+    if (runstate_check(RUN_STATE_INMIGRATE) &&
+        migration_incoming_get_current()->state == MIGRATION_STATUS_NONE) {
+        /* hide the failover primary on dest on startup */
+        return true;
+    }
+
+    return false;
 }
 
 static void virtio_net_device_realize(DeviceState *dev, Error **errp)
@@ -3338,7 +3344,6 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
 
     if (n->failover) {
         n->primary_listener.hide_device = failover_hide_primary_device;
-        qatomic_set(&n->failover_primary_hidden, true);
         device_listener_register(&n->primary_listener);
         n->migration_state.notify = virtio_net_migration_state_notifier;
         add_migration_state_change_notifier(&n->migration_state);
