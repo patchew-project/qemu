@@ -25,6 +25,7 @@ import shutil
 import signal
 import socket
 import subprocess
+import sys
 import tempfile
 from types import TracebackType
 from typing import (
@@ -284,7 +285,8 @@ class QEMUMachine:
 
     def _load_io_log(self) -> None:
         if self._qemu_log_path is not None:
-            with open(self._qemu_log_path, "r") as iolog:
+            with open(self._qemu_log_path, "r",
+                      encoding=sys.stdout.encoding) as iolog:
                 self._iolog = iolog.read()
 
     @property
@@ -565,7 +567,7 @@ class QEMUMachine:
 
     @classmethod
     def _qmp_args(cls, _conv_keys: bool = True, **args: Any) -> Dict[str, Any]:
-        qmp_args = dict()
+        qmp_args = {}
         for key, value in args.items():
             if _conv_keys:
                 qmp_args[key.replace('_', '-')] = value
