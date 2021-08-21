@@ -577,4 +577,39 @@ int qemu_plugin_n_max_vcpus(void);
  */
 void qemu_plugin_outs(const char *string);
 
+
+/**
+ * read_reg() read a register
+ * @reg: Number of the register
+ *
+ * Returns the value of the register
+ */
+uint64_t read_reg(int reg);
+
+/**
+ * write_reg() - write to a register
+ * @reg: number of the register
+ * @val: value written to register
+ */
+void write_reg(int reg, uint64_t val);
+
+/**
+ * plugin_flush_tb() - Flush the tb cache
+ */
+void plugin_flush_tb(void);
+
+/**
+ * plugin_rw_memory_cpu() - Function to read from and write to a guest address.
+ * @address: baseaddress of the memory section
+ * @buffer: buffer managed by caller the value should be written to
+ * @buf_size: size of the buffer and memory size read/written.
+ * @write: 1 if write, 0 if read
+ */
+int plugin_rw_memory_cpu(uint64_t address, uint8_t buffer[], size_t buf_size, char write);
+
+/**
+ * plugin_single_step() - Function to change single step behaviour from the plugin.
+ */
+void plugin_single_step(int enable);
+
 #endif /* QEMU_PLUGIN_API_H */
