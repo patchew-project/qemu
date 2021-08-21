@@ -9,6 +9,7 @@
 #include "cpu.h"
 #include "internals.h"
 #include "exec/exec-all.h"
+#include "exec/helper-proto.h"
 
 static inline uint32_t merge_syn_data_abort(uint32_t template_syn,
                                             unsigned int target_el,
@@ -121,6 +122,29 @@ void arm_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
 
     fi.type = ARMFault_Alignment;
     arm_deliver_fault(cpu, vaddr, access_type, mmu_idx, &fi);
+}
+
+void helper_exception_pc_alignment(CPUARMState *env, target_ulong pc)
+{
+    int target_el = exception_target_el(env);
+
+    if (target_el == 2 || arm_el_is_aa64(env, target_el)) {
+        /*
+         * To aarch64 and aarch32 el2, pc alignment has a
+         * special exception class.
+         */
+        env->exception.vaddress = pc;
+        env->exception.fsr = 0;
+        raise_exception(env, EXCP_PREFETCH_ABORT, syn_pcalignment(), target_el);
+    } else {
+        /*
+         * To aarch32 el1, pc alignment is like data alignment
+         * except with a prefetch abort.
+         */
+        ARMMMUFaultInfo fi = { .type = ARMFault_Alignment };
+        arm_deliver_fault(env_archcpu(env), pc, MMU_INST_FETCH,
+                          cpu_mmu_index(env, true), &fi);
+    }
 }
 
 #if !defined(CONFIG_USER_ONLY)
