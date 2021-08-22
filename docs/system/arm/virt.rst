@@ -87,9 +87,9 @@ mte
   Arm Memory Tagging Extensions. The default is ``off``.
 
 highmem
-  Set ``on``/``off`` to enable/disable placing devices and RAM in physical
-  address space above 32 bits. The default is ``on`` for machine types
-  later than ``virt-2.12``.
+  Set ``on``/``off`` to enable/disable placing devices in physical address
+  space above 32 bits. RAM in excess of 3GiB will always be placed above
+  32 bits. The default is ``on`` for machine types later than ``virt-2.12``.
 
 gic-version
   Specify the version of the Generic Interrupt Controller (GIC) to provide.
