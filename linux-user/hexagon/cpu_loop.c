@@ -21,13 +21,13 @@
 #include "qemu/osdep.h"
 #include "qemu.h"
 #include "cpu_loop-common.h"
+#include "signal-common.h"
 #include "internal.h"
 
 void cpu_loop(CPUHexagonState *env)
 {
     CPUState *cs = env_cpu(env);
-    int trapnr, signum, sigcode;
-    target_ulong sigaddr;
+    int trapnr;
     target_ulong syscallnum;
     target_ulong ret;
 
@@ -36,10 +36,6 @@ void cpu_loop(CPUHexagonState *env)
         trapnr = cpu_exec(cs);
         cpu_exec_end(cs);
         process_queued_cpu_work(cs);
-
-        signum = 0;
-        sigcode = 0;
-        sigaddr = 0;
 
         switch (trapnr) {
         case EXCP_INTERRUPT:
@@ -66,8 +62,8 @@ void cpu_loop(CPUHexagonState *env)
         case HEX_EXCP_FETCH_NO_UPAGE:
         case HEX_EXCP_PRIV_NO_UREAD:
         case HEX_EXCP_PRIV_NO_UWRITE:
-            signum = TARGET_SIGSEGV;
-            sigcode = TARGET_SEGV_MAPERR;
+            /* FIXME: need to store vaddr in hexagon_tlb_fill */
+            force_sigsegv_for_addr(0);
             break;
         case EXCP_ATOMIC:
             cpu_exec_step_atomic(cs);
@@ -76,16 +72,6 @@ void cpu_loop(CPUHexagonState *env)
             EXCP_DUMP(env, "\nqemu: unhandled CPU exception %#x - aborting\n",
                      trapnr);
             exit(EXIT_FAILURE);
-        }
-
-        if (signum) {
-            target_siginfo_t info = {
-                .si_signo = signum,
-                .si_errno = 0,
-                .si_code = sigcode,
-                ._sifields._sigfault._addr = sigaddr
-            };
-            queue_signal(env, info.si_signo, QEMU_SI_KILL, &info);
         }
 
         process_pending_signals(env);
