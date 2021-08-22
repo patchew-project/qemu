@@ -663,6 +663,24 @@ void force_sig_fault(int sig, int code, abi_ulong addr)
     queue_signal(env, sig, QEMU_SI_FAULT, &info);
 }
 
+/*
+ * Force a synchronously taken SIGSEGV signal for @addr.
+ * Distinguish between SEGV_MAPERR and SEGV_ACCERR here,
+ * in preference to doing that for each target.
+ */
+void force_sigsegv_for_addr(abi_ulong addr)
+{
+    /*
+     * MAPERR indicates the page is not present at all.
+     * Otherwise, it must have been a permission problem.
+     */
+    int si_code = TARGET_SEGV_MAPERR;
+    if (page_get_flags(addr) & PAGE_VALID) {
+        si_code = TARGET_SEGV_ACCERR;
+    }
+    force_sig_fault(TARGET_SIGSEGV, si_code, addr);
+}
+
 /* Force a SIGSEGV if we couldn't write to memory trying to set
  * up the signal frame. oldsig is the signal we were trying to handle
  * at the point of failure.
