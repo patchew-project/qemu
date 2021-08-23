@@ -2773,7 +2773,22 @@ static inline bool flatview_access_allowed(MemoryRegion *mr, MemTxAttrs attrs,
                                            hwaddr addr, hwaddr len,
                                            MemTxResult *result)
 {
-    return true;
+    if (unlikely(attrs.bus_perm == MEMTXPERM_RAM_DEVICE)) {
+        if (memory_region_is_ram(mr) || memory_region_is_ram_device(mr)) {
+            return true;
+        }
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "Invalid access to non-RAM device at "
+                      "addr 0x%" HWADDR_PRIX ", size %" HWADDR_PRIu ", "
+                      "region '%s'\n", addr, len, memory_region_name(mr));
+        if (result) {
+            *result |= MEMTX_BUS_ERROR;
+        }
+        return false;
+    } else {
+        /* MEMTXPERM_UNRESTRICTED and MEMTXPERM_UNSPECIFIED cases */
+        return true;
+    }
 }
 
 /* Called within RCU critical section.  */
