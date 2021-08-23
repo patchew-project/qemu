@@ -857,7 +857,7 @@ static void smmuv3_inv_notifiers_iova(SMMUState *s, int asid, dma_addr_t iova,
 
 static void smmuv3_s1_range_inval(SMMUState *s, Cmd *cmd)
 {
-    dma_addr_t end, addr = CMD_ADDR(cmd);
+    dma_addr_t addr = CMD_ADDR(cmd);
     uint8_t type = CMD_TYPE(cmd);
     uint16_t vmid = CMD_VMID(cmd);
     uint8_t scale = CMD_SCALE(cmd);
@@ -866,7 +866,6 @@ static void smmuv3_s1_range_inval(SMMUState *s, Cmd *cmd)
     bool leaf = CMD_LEAF(cmd);
     uint8_t tg = CMD_TG(cmd);
     uint64_t num_pages;
-    uint8_t granule;
     int asid = -1;
 
     if (type == SMMU_CMD_TLBI_NH_VA) {
@@ -880,23 +879,10 @@ static void smmuv3_s1_range_inval(SMMUState *s, Cmd *cmd)
         return;
     }
 
-    /* RIL in use */
-
     num_pages = (num + 1) * BIT_ULL(scale);
-    granule = tg * 2 + 10;
-
-    /* Split invalidations into ^2 range invalidations */
-    end = addr + (num_pages << granule) - 1;
-
-    while (addr != end + 1) {
-        uint64_t mask = dma_aligned_pow2_mask(addr, end, 64);
-
-        num_pages = (mask + 1) >> granule;
-        trace_smmuv3_s1_range_inval(vmid, asid, addr, tg, num_pages, ttl, leaf);
-        smmuv3_inv_notifiers_iova(s, asid, addr, tg, num_pages);
-        smmu_iotlb_inv_iova(s, asid, addr, tg, num_pages, ttl);
-        addr += mask + 1;
-    }
+    trace_smmuv3_s1_range_inval(vmid, asid, addr, tg, num_pages, ttl, leaf);
+    smmuv3_inv_notifiers_iova(s, asid, addr, tg, num_pages);
+    smmu_iotlb_inv_iova(s, asid, addr, tg, num_pages, ttl);
 }
 
 static gboolean

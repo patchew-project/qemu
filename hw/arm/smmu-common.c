@@ -142,8 +142,8 @@ static gboolean smmu_hash_remove_by_asid_iova(gpointer key, gpointer value,
     if (info->asid >= 0 && info->asid != SMMU_IOTLB_ASID(iotlb_key)) {
         return false;
     }
-    return ((info->iova & ~entry->addr_mask) == entry->iova) ||
-           ((entry->iova & ~info->mask) == info->iova);
+    return (entry->iova >= info->iova) &&
+           ((entry->iova + entry->addr_mask) < (info->iova + info->range));
 }
 
 inline void
@@ -167,7 +167,7 @@ smmu_iotlb_inv_iova(SMMUState *s, int asid, dma_addr_t iova,
 
     SMMUIOTLBPageInvInfo info = {
         .asid = asid, .iova = iova,
-        .mask = (num_pages * 1 << granule) - 1};
+        .range = num_pages * 1 << granule};
 
     g_hash_table_foreach_remove(s->iotlb,
                                 smmu_hash_remove_by_asid_iova,
