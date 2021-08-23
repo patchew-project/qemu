@@ -136,6 +136,21 @@ bool monitor_cur_is_qmp(void)
 }
 
 /**
+ * If @mon is a QMP monitor, return the connection_nr, otherwise -1.
+ */
+int monitor_get_connection_nr(const Monitor *mon)
+{
+    MonitorQMP *qmp_mon;
+
+    if (!monitor_is_qmp(mon)) {
+        return -1;
+    }
+
+    qmp_mon = container_of(mon, MonitorQMP, common);
+    return qatomic_read(&qmp_mon->connection_nr);
+}
+
+/**
  * Is @mon is using readline?
  * Note: not all HMP monitors use readline, e.g., gdbserver has a
  * non-interactive HMP monitor, so readline is not used there.

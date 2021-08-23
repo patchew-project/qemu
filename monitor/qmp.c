@@ -141,6 +141,8 @@ static void monitor_qmp_dispatch(MonitorQMP *mon, QObject *req)
     QDict *rsp;
     QDict *error;
 
+    int conn_nr_before = qatomic_read(&mon->connection_nr);
+
     rsp = qmp_dispatch(mon->commands, req, qmp_oob_enabled(mon),
                        &mon->common);
 
@@ -156,7 +158,17 @@ static void monitor_qmp_dispatch(MonitorQMP *mon, QObject *req)
         }
     }
 
-    monitor_qmp_respond(mon, rsp);
+    /*
+     * qmp_dispatch might have yielded and waited for a BH, in which case there
+     * is a chance a new client connected in the meantime - if this happened,
+     * the command will not have been executed, but we also need to ensure that
+     * we don't send back a corresponding response on a line that no longer
+     * belongs to this request.
+     */
+    if (conn_nr_before == qatomic_read(&mon->connection_nr)) {
+        monitor_qmp_respond(mon, rsp);
+    }
+
     qobject_unref(rsp);
 }
 
@@ -444,6 +456,7 @@ static void monitor_qmp_event(void *opaque, QEMUChrEvent event)
 
     switch (event) {
     case CHR_EVENT_OPENED:
+        qatomic_inc_fetch(&mon->connection_nr);
         mon->commands = &qmp_cap_negotiation_commands;
         monitor_qmp_caps_reset(mon);
         data = qmp_greeting(mon);

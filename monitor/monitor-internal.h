@@ -144,6 +144,13 @@ typedef struct {
     QemuMutex qmp_queue_lock;
     /* Input queue that holds all the parsed QMP requests */
     GQueue *qmp_requests;
+
+    /*
+     * A sequential number that gets incremented on every new CHR_EVENT_OPENED.
+     * Used to avoid leftover responses in BHs from being sent to the wrong
+     * client. Access with atomics.
+     */
+    int connection_nr;
 } MonitorQMP;
 
 /**

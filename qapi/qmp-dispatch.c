@@ -120,16 +120,28 @@ typedef struct QmpDispatchBH {
     QObject **ret;
     Error **errp;
     Coroutine *co;
+    int conn_nr;
 } QmpDispatchBH;
 
 static void do_qmp_dispatch_bh(void *opaque)
 {
     QmpDispatchBH *data = opaque;
 
-    assert(monitor_cur() == NULL);
-    monitor_set_cur(qemu_coroutine_self(), data->cur_mon);
-    data->cmd->fn(data->args, data->ret, data->errp);
-    monitor_set_cur(qemu_coroutine_self(), NULL);
+    /*
+     * A QMP monitor tracks it's client with a connection number, if this
+     * changes during the scheduling delay of this BH, we must not execute the
+     * command. Otherwise a badly placed 'qmp_capabilities' might affect the
+     * connection state of a client it was never meant for.
+     */
+    if (data->conn_nr == monitor_get_connection_nr(data->cur_mon)) {
+        assert(monitor_cur() == NULL);
+        monitor_set_cur(qemu_coroutine_self(), data->cur_mon);
+        data->cmd->fn(data->args, data->ret, data->errp);
+        monitor_set_cur(qemu_coroutine_self(), NULL);
+    } else {
+        error_setg(data->errp, "active monitor connection changed");
+    }
+
     aio_co_wake(data->co);
 }
 
@@ -243,6 +255,7 @@ QDict *qmp_dispatch(const QmpCommandList *cmds, QObject *request,
             .ret        = &ret,
             .errp       = &err,
             .co         = qemu_coroutine_self(),
+            .conn_nr    = monitor_get_connection_nr(cur_mon),
         };
         aio_bh_schedule_oneshot(qemu_get_aio_context(), do_qmp_dispatch_bh,
                                 &data);
