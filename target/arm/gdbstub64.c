@@ -47,7 +47,7 @@ int aarch64_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
     CPUARMState *env = &cpu->env;
     uint64_t tmp;
 
-    tmp = ldq_p(mem_buf);
+    tmp = gdb_read_reg64(mem_buf);
 
     if (n < 31) {
         /* Core integer register.  */
