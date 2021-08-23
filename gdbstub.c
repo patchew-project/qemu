@@ -62,6 +62,17 @@
 static int phy_memory_mode;
 #endif
 
+#ifdef HOST_WORDS_BIGENDIAN
+const bool gdb_host_bigendian = true;
+#else
+const bool gdb_host_bigendian = false;
+#endif
+#ifdef TARGET_WORDS_BIGENDIAN
+bool gdb_target_bigendian = true;
+#else
+bool gdb_target_bigendian = false;
+#endif
+
 static inline int target_memory_rw_debug(CPUState *cpu, target_ulong addr,
                                          uint8_t *buf, int len, bool is_write)
 {

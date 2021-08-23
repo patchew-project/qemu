@@ -84,9 +84,17 @@ void gdb_register_coprocessor(CPUState *cpu,
                               gdb_get_reg_cb get_reg, gdb_set_reg_cb set_reg,
                               int num_regs, const char *xml, int g_pos);
 
+extern const bool gdb_host_bigendian;
+extern bool gdb_target_bigendian;
+
+/* The GDB remote protocol transfers values in target byte order. */
+static inline bool gdb_bswap_needed(void)
+{
+    return gdb_host_bigendian != gdb_target_bigendian;
+}
+
 /*
- * The GDB remote protocol transfers values in target byte order. As
- * the gdbstub may be batching up several register values we always
+ * As the gdbstub may be batching up several register values we always
  * append to the array.
  */
 
@@ -98,21 +106,21 @@ static inline int gdb_get_reg8(GByteArray *buf, uint8_t val)
 
 static inline int gdb_get_reg16(GByteArray *buf, uint16_t val)
 {
-    uint16_t to_word = tswap16(val);
+    uint16_t to_word = gdb_bswap_needed() ? bswap16(val) : val;
     g_byte_array_append(buf, (uint8_t *) &to_word, 2);
     return 2;
 }
 
 static inline int gdb_get_reg32(GByteArray *buf, uint32_t val)
 {
-    uint32_t to_long = tswap32(val);
+    uint32_t to_long = gdb_bswap_needed() ? bswap32(val) : val;
     g_byte_array_append(buf, (uint8_t *) &to_long, 4);
     return 4;
 }
 
 static inline int gdb_get_reg64(GByteArray *buf, uint64_t val)
 {
-    uint64_t to_quad = tswap64(val);
+    uint64_t to_quad = gdb_bswap_needed() ? bswap64(val) : val;
     g_byte_array_append(buf, (uint8_t *) &to_quad, 8);
     return 8;
 }
@@ -121,17 +129,20 @@ static inline int gdb_get_reg128(GByteArray *buf, uint64_t val_hi,
                                  uint64_t val_lo)
 {
     uint64_t to_quad;
-#ifdef TARGET_WORDS_BIGENDIAN
-    to_quad = tswap64(val_hi);
-    g_byte_array_append(buf, (uint8_t *) &to_quad, 8);
-    to_quad = tswap64(val_lo);
-    g_byte_array_append(buf, (uint8_t *) &to_quad, 8);
-#else
-    to_quad = tswap64(val_lo);
-    g_byte_array_append(buf, (uint8_t *) &to_quad, 8);
-    to_quad = tswap64(val_hi);
-    g_byte_array_append(buf, (uint8_t *) &to_quad, 8);
-#endif
+
+    if (gdb_bswap_needed()) {
+        if (gdb_target_bigendian) {
+            to_quad = bswap64(val_hi);
+            g_byte_array_append(buf, (uint8_t *) &to_quad, 8);
+            to_quad = bswap64(val_lo);
+            g_byte_array_append(buf, (uint8_t *) &to_quad, 8);
+        } else {
+            to_quad = bswap64(val_lo);
+            g_byte_array_append(buf, (uint8_t *) &to_quad, 8);
+            to_quad = bswap64(val_hi);
+            g_byte_array_append(buf, (uint8_t *) &to_quad, 8);
+        }
+    }
     return 16;
 }
 
@@ -157,13 +168,38 @@ static inline uint8_t * gdb_get_reg_ptr(GByteArray *buf, int len)
     return buf->data + buf->len - len;
 }
 
+static inline uint8_t gdb_read_reg8(uint8_t *mem_buf)
+{
+    return *mem_buf;
+}
+
+static inline uint16_t gdb_read_reg16(uint8_t *mem_buf)
+{
+    uint16_t val = lduw_p(mem_buf);
+    return gdb_bswap_needed() ? bswap16(val) : val;
+}
+
+static inline uint32_t gdb_read_reg32(uint8_t *mem_buf)
+{
+    uint32_t val = ldl_p(mem_buf);
+    return gdb_bswap_needed() ? bswap32(val) : val;
+}
+
+static inline uint64_t gdb_read_reg64(uint8_t *mem_buf)
+{
+    uint64_t val = ldq_p(mem_buf);
+    return gdb_bswap_needed() ? bswap64(val) : val;
+}
+
 #if TARGET_LONG_BITS == 64
 #define gdb_get_regl(buf, val) gdb_get_reg64(buf, val)
-#define ldtul_p(addr) ldq_p(addr)
+#define gdb_read_regl(mem_buf) gdb_read_reg64(mem_buf)
 #else
 #define gdb_get_regl(buf, val) gdb_get_reg32(buf, val)
-#define ldtul_p(addr) ldl_p(addr)
+#define gdb_read_regl(mem_buf) gdb_read_reg32(mem_buf)
 #endif
+/* ldtul_p is deprecated */
+#define ldtul_p(mem_buf)       gdb_read_regl(mem_buf)
 
 #endif
 

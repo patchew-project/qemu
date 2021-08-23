@@ -3954,9 +3954,12 @@ SRST
 ERST
 
 DEF("gdb", HAS_ARG, QEMU_OPTION_gdb, \
-    "-gdb dev        accept gdb connection on 'dev'. (QEMU defaults to starting\n"
+    "-gdb [dev=]device[,endianness=default|little|big]\n"
+    "                accept gdb connection on 'dev'. (QEMU defaults to starting\n"
     "                the guest without waiting for gdb to connect; use -S too\n"
-    "                if you want it to not start execution.)\n",
+    "                if you want it to not start execution.) The 'endianness'\n"
+    "                specifies the endianness mode of the target which supports\n"
+    "                switchable endianness.\n",
     QEMU_ARCH_ALL)
 SRST
 ``-gdb dev``

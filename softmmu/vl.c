@@ -1405,6 +1405,48 @@ static void qemu_create_default_devices(void)
     }
 }
 
+static QemuOptsList qemu_gdb_opts = {
+    .name = "gdb",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_gdb_opts.head),
+    .implied_opt_name = "dev",
+    .desc = {
+        {
+            .name = "dev",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "endianness",
+            .type = QEMU_OPT_STRING,
+        },
+        { /* end of list */ }
+    },
+};
+
+static void configure_gdb(QemuOpts *opts)
+{
+    const char *dev = qemu_opt_get(opts, "dev");
+    const char *endianness = qemu_opt_get(opts, "endianness");
+
+    if (dev) {
+        add_device_config(DEV_GDB, dev);
+    }
+
+    if (endianness && strcmp(endianness, "default")) {
+#ifdef TARGET_SWICHABLE_ENDIANNESS
+        if (!strcmp(endianness, "little")) {
+            gdb_target_bigendian = false;
+        } else if (!strcmp(endianness, "big")) {
+            gdb_target_bigendian = true;
+        } else {
+            error_report("unknown endianness %s", endianness);
+        }
+#else
+        error_report("endianness is not switchable for current target");
+        exit(1);
+#endif
+    }
+}
+
 static int serial_parse(const char *devname)
 {
     int index = num_serial_hds;
@@ -2761,6 +2803,7 @@ void qemu_init(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_semihosting_config_opts);
     qemu_add_opts(&qemu_fw_cfg_opts);
     qemu_add_opts(&qemu_action_opts);
+    qemu_add_opts(&qemu_gdb_opts);
     module_call_init(MODULE_INIT_OPTS);
 
     error_init(argv[0]);
@@ -3014,7 +3057,12 @@ void qemu_init(int argc, char **argv, char **envp)
                 add_device_config(DEV_GDB, "tcp::" DEFAULT_GDBSTUB_PORT);
                 break;
             case QEMU_OPTION_gdb:
-                add_device_config(DEV_GDB, optarg);
+                opts = qemu_opts_parse_noisily(qemu_find_opts("gdb"),
+                                               optarg, true);
+                if (!opts) {
+                    exit(EXIT_FAILURE);
+                }
+                configure_gdb(opts);
                 break;
             case QEMU_OPTION_L:
                 if (is_help_option(optarg)) {
