@@ -14,6 +14,13 @@
 #ifndef MEMATTRS_H
 #define MEMATTRS_H
 
+/* Permission to restrict bus memory accesses. See MemTxAttrs::bus_perm */
+enum {
+    MEMTXPERM_UNSPECIFIED   = 0,
+    MEMTXPERM_UNRESTRICTED  = 1,
+    MEMTXPERM_RAM_DEVICE    = 2,
+};
+
 /* Every memory transaction has associated with it a set of
  * attributes. Some of these are generic (such as the ID of
  * the bus master); some are specific to a particular kind of
@@ -35,6 +42,19 @@ typedef struct MemTxAttrs {
     unsigned int secure:1;
     /* Memory access is usermode (unprivileged) */
     unsigned int user:1;
+    /*
+     * Bus memory access permission.
+     *
+     * Some devices (such DMA) might be restricted to only access
+     * some type of device, such RAM devices. By default memory
+     * accesses are unspecified (MEMTXPERM_UNSPECIFIED), but could be
+     * unrestricted (MEMTXPERM_UNRESTRICTED, similar to an allow list)
+     * or restricted to a type of devices (similar to a deny list).
+     * Currently only RAM devices can be restricted (MEMTXPERM_RAM_DEVICE).
+     *
+     * Memory accesses to restricted addresses return MEMTX_BUS_ERROR.
+     */
+    unsigned int bus_perm:2;
     /* Requester ID (for MSI for example) */
     unsigned int requester_id:16;
     /* Invert endianness for this page */
@@ -66,6 +86,7 @@ typedef struct MemTxAttrs {
 #define MEMTX_OK 0
 #define MEMTX_ERROR             (1U << 0) /* device returned an error */
 #define MEMTX_DECODE_ERROR      (1U << 1) /* nothing at that address */
+#define MEMTX_BUS_ERROR         (1U << 2) /* bus returned an error */
 typedef uint32_t MemTxResult;
 
 #endif
