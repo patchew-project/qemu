@@ -42,10 +42,10 @@ int riscv_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         /* discard writes to x0 */
         return sizeof(target_ulong);
     } else if (n < 32) {
-        env->gpr[n] = ldtul_p(mem_buf);
+        env->gpr[n] = gdb_read_regl(mem_buf);
         return sizeof(target_ulong);
     } else if (n == 32) {
-        env->pc = ldtul_p(mem_buf);
+        env->pc = gdb_read_regl(mem_buf);
         return sizeof(target_ulong);
     }
     return 0;
@@ -81,11 +81,11 @@ static int riscv_gdb_get_fpu(CPURISCVState *env, GByteArray *buf, int n)
 static int riscv_gdb_set_fpu(CPURISCVState *env, uint8_t *mem_buf, int n)
 {
     if (n < 32) {
-        env->fpr[n] = ldq_p(mem_buf); /* always 64-bit */
+        env->fpr[n] = gdb_read_reg64(mem_buf); /* always 64-bit */
         return sizeof(uint64_t);
     /* there is hole between ft11 and fflags in fpu.xml */
     } else if (n < 36 && n > 32) {
-        target_ulong val = ldtul_p(mem_buf);
+        target_ulong val = gdb_read_regl(mem_buf);
         int result;
         /*
          * CSR_FFLAGS is at index 1 in csr_register, and gdb says it is FP
@@ -118,7 +118,7 @@ static int riscv_gdb_get_csr(CPURISCVState *env, GByteArray *buf, int n)
 static int riscv_gdb_set_csr(CPURISCVState *env, uint8_t *mem_buf, int n)
 {
     if (n < CSR_TABLE_SIZE) {
-        target_ulong val = ldtul_p(mem_buf);
+        target_ulong val = gdb_read_regl(mem_buf);
         int result;
 
         result = riscv_csrrw_debug(env, n, NULL, val, -1);
@@ -145,7 +145,7 @@ static int riscv_gdb_set_virtual(CPURISCVState *cs, uint8_t *mem_buf, int n)
 {
     if (n == 0) {
 #ifndef CONFIG_USER_ONLY
-        cs->priv = ldtul_p(mem_buf) & 0x3;
+        cs->priv = gdb_read_regl(mem_buf) & 0x3;
         if (cs->priv == PRV_H) {
             cs->priv = PRV_S;
         }
