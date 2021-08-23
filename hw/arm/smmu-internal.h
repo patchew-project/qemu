@@ -101,7 +101,7 @@ uint64_t iova_level_offset(uint64_t iova, int inputsize,
 typedef struct SMMUIOTLBPageInvInfo {
     int asid;
     uint64_t iova;
-    uint64_t mask;
+    uint64_t range;
 } SMMUIOTLBPageInvInfo;
 
 typedef struct SMMUSIDRange {
