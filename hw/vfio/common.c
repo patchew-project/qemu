@@ -859,10 +859,13 @@ static void vfio_unregister_ram_discard_listener(VFIOContainer *container,
     g_free(vrdl);
 }
 
+#define VFIO_IOMMU_MIN_PAGE_ALIGN(addr, pgsize) ROUND_UP((addr), (pgsize))
+
 static void vfio_listener_region_add(MemoryListener *listener,
                                      MemoryRegionSection *section)
 {
     VFIOContainer *container = container_of(listener, VFIOContainer, listener);
+    uint64_t vfio_iommu_min_page_size, vfio_iommu_min_page_mask;
     hwaddr iova, end;
     Int128 llend, llsize;
     void *vaddr;
@@ -879,17 +882,21 @@ static void vfio_listener_region_add(MemoryListener *listener,
         return;
     }
 
+    vfio_iommu_min_page_size = 1 << ctz64(container->pgsizes);
+    vfio_iommu_min_page_mask = ~(vfio_iommu_min_page_size - 1);
+
     if (unlikely((section->offset_within_address_space &
-                  ~qemu_real_host_page_mask) !=
-                 (section->offset_within_region & ~qemu_real_host_page_mask))) {
+                  ~vfio_iommu_min_page_mask) !=
+                 (section->offset_within_region & ~vfio_iommu_min_page_mask))) {
         error_report("%s received unaligned region", __func__);
         return;
     }
 
-    iova = REAL_HOST_PAGE_ALIGN(section->offset_within_address_space);
+    iova = VFIO_IOMMU_MIN_PAGE_ALIGN(section->offset_within_address_space,
+                                     vfio_iommu_min_page_size);
     llend = int128_make64(section->offset_within_address_space);
     llend = int128_add(llend, section->size);
-    llend = int128_and(llend, int128_exts64(qemu_real_host_page_mask));
+    llend = int128_and(llend, int128_exts64(vfio_iommu_min_page_mask));
 
     if (int128_ge(int128_make64(iova), llend)) {
         if (memory_region_is_ram_device(section->mr)) {
@@ -897,7 +904,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
                 memory_region_name(section->mr),
                 section->offset_within_address_space,
                 int128_getlo(section->size),
-                qemu_real_host_page_size);
+                vfio_iommu_min_page_size);
         }
         return;
     }
@@ -1102,6 +1109,7 @@ static void vfio_listener_region_del(MemoryListener *listener,
                                      MemoryRegionSection *section)
 {
     VFIOContainer *container = container_of(listener, VFIOContainer, listener);
+    uint64_t vfio_iommu_min_page_size, vfio_iommu_min_page_mask;
     hwaddr iova, end;
     Int128 llend, llsize;
     int ret;
@@ -1115,9 +1123,12 @@ static void vfio_listener_region_del(MemoryListener *listener,
         return;
     }
 
+    vfio_iommu_min_page_size = 1 << ctz64(container->pgsizes);
+    vfio_iommu_min_page_mask = ~(vfio_iommu_min_page_size - 1);
+
     if (unlikely((section->offset_within_address_space &
-                  ~qemu_real_host_page_mask) !=
-                 (section->offset_within_region & ~qemu_real_host_page_mask))) {
+                  ~vfio_iommu_min_page_mask) !=
+                 (section->offset_within_region & ~vfio_iommu_min_page_mask))) {
         error_report("%s received unaligned region", __func__);
         return;
     }
@@ -1145,10 +1156,11 @@ static void vfio_listener_region_del(MemoryListener *listener,
          */
     }
 
-    iova = REAL_HOST_PAGE_ALIGN(section->offset_within_address_space);
+    iova = VFIO_IOMMU_MIN_PAGE_ALIGN(section->offset_within_address_space,
+                                     vfio_iommu_min_page_size);
     llend = int128_make64(section->offset_within_address_space);
     llend = int128_add(llend, section->size);
-    llend = int128_and(llend, int128_exts64(qemu_real_host_page_mask));
+    llend = int128_and(llend, int128_exts64(vfio_iommu_min_page_mask));
 
     if (int128_ge(int128_make64(iova), llend)) {
         return;
