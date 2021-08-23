@@ -15,3 +15,11 @@ config NMC93XX_EEPROM
 
 config CHRP_NVRAM
     bool
+
+config XLNX_EFUSE
+    bool
+
+config XLNX_EFUSE_VERSAL
+    bool
+    default y if XLNX_VERSAL
+    select XLNX_EFUSE
