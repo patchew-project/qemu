@@ -23,3 +23,8 @@ config XLNX_EFUSE_VERSAL
     bool
     default y if XLNX_VERSAL
     select XLNX_EFUSE
+
+config XLNX_EFUSE_ZYNQMP
+    bool
+    default y if XLNX_ZYNQMP
+    select XLNX_EFUSE
