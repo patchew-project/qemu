@@ -52,26 +52,34 @@ static inline uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c)
     return (__int128_t)a * b / c;
 }
 
-static inline void divu128(uint64_t *plow, uint64_t *phigh, uint64_t divisor)
+static inline void divu128(uint64_t *plow, uint64_t *phigh, uint64_t *prem,
+                           uint64_t divisor)
 {
     __uint128_t dividend = ((__uint128_t)*phigh << 64) | *plow;
     __uint128_t result = dividend / divisor;
     *plow = result;
-    *phigh = dividend % divisor;
+    *phigh = result >> 64;
+    if (prem) {
+        *prem = dividend % divisor;
+    }
 }
 
-static inline void divs128(int64_t *plow, int64_t *phigh, int64_t divisor)
+static inline void divs128(uint64_t *plow, int64_t *phigh, int64_t *prem,
+                           int64_t divisor)
 {
     __int128_t dividend = ((__int128_t)*phigh << 64) | *plow;
     __int128_t result = dividend / divisor;
     *plow = result;
-    *phigh = dividend % divisor;
+    *phigh = result >> 64;
+    if (prem) {
+        *prem = dividend % divisor;
+    }
 }
 #else
 void muls64(uint64_t *plow, uint64_t *phigh, int64_t a, int64_t b);
 void mulu64(uint64_t *plow, uint64_t *phigh, uint64_t a, uint64_t b);
-void divu128(uint64_t *plow, uint64_t *phigh, uint64_t divisor);
-void divs128(int64_t *plow, int64_t *phigh, int64_t divisor);
+void divu128(uint64_t *plow, uint64_t *phigh, uint64_t *prem, uint64_t divisor);
+void divs128(uint64_t *plow, int64_t *phigh, int64_t *prem, int64_t divisor);
 
 static inline uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c)
 {
