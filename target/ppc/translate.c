@@ -401,6 +401,19 @@ void spr_write_generic(DisasContext *ctx, int sprn, int gprn)
     spr_store_dump_spr(sprn);
 }
 
+#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+void spr_write_MMCR0_generic(DisasContext *ctx, int sprn, int gprn)
+{
+    gen_icount_io_start(ctx);
+    gen_helper_store_mmcr0(cpu_env, cpu_gpr[gprn]);
+}
+#else
+void spr_write_MMCR0_generic(DisasContext *ctx, int sprn, int gprn)
+{
+    spr_write_generic(ctx, sprn, gprn);
+}
+#endif
+
 #if !defined(CONFIG_USER_ONLY)
 void spr_write_generic32(DisasContext *ctx, int sprn, int gprn)
 {
@@ -609,6 +622,8 @@ void spr_write_MMCR0_ureg(DisasContext *ctx, int sprn, int gprn)
     t0 = tcg_temp_new();
     t1 = tcg_temp_new();
 
+    gen_icount_io_start(ctx);
+
     /*
      * Filter out all bits but FC, PMAO, and PMAE, according
      * to ISA v3.1, in 10.4.4 Monitor Mode Control Register 0,
@@ -620,7 +635,7 @@ void spr_write_MMCR0_ureg(DisasContext *ctx, int sprn, int gprn)
     tcg_gen_andi_tl(t1, t1, ~(MMCR0_FC | MMCR0_PMAO | MMCR0_PMAE));
     /* Keep all other bits intact */
     tcg_gen_or_tl(t1, t1, t0);
-    gen_store_spr(SPR_POWER_MMCR0, t1);
+    gen_helper_store_mmcr0(cpu_env, t1);
 
     tcg_temp_free(t0);
     tcg_temp_free(t1);
