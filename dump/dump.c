@@ -29,6 +29,7 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "hw/misc/vmcoreinfo.h"
+#include "migration/blocker.h"
 
 #ifdef TARGET_X86_64
 #include "win_dump.h"
@@ -101,6 +102,7 @@ static int dump_cleanup(DumpState *s)
             qemu_mutex_unlock_iothread();
         }
     }
+    migrate_del_blocker(s->dump_migration_blocker);
 
     return 0;
 }
@@ -1857,6 +1859,19 @@ static void dump_init(DumpState *s, int fd, bool has_format,
         }
     }
 
+    if (!s->dump_migration_blocker) {
+        error_setg(&s->dump_migration_blocker,
+                   "Live migration disabled: dump-guest-memory in progress");
+    }
+
+    /*
+     * Allows even for -only-migratable, but forbid migration during the
+     * process of dump guest memory.
+     */
+    if (migrate_add_blocker_internal(s->dump_migration_blocker, errp)) {
+        goto cleanup;
+    }
+
     return;
 
 cleanup:
@@ -1926,11 +1941,6 @@ void qmp_dump_guest_memory(bool paging, const char *file,
     DumpState *s;
     Error *local_err = NULL;
     bool detach_p = false;
-
-    if (runstate_check(RUN_STATE_INMIGRATE)) {
-        error_setg(errp, "Dump not allowed during incoming migration.");
-        return;
-    }
 
     /* if there is a dump in background, we should wait until the dump
      * finished */

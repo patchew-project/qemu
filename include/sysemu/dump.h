@@ -195,6 +195,7 @@ typedef struct DumpState {
                                   * finished. */
     uint8_t *guest_note;         /* ELF note content */
     size_t guest_note_size;
+    Error *dump_migration_blocker; /* Blocker for live migration */
 } DumpState;
 
 uint16_t cpu_to_dump16(DumpState *s, uint16_t val);
