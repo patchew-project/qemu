@@ -358,6 +358,9 @@ typedef struct ppc_v3_pate_t {
 #define MMCR1_PMC3SEL PPC_BITMASK(48, 55)
 #define MMCR1_PMC4SEL PPC_BITMASK(56, 63)
 
+/* PMU uses CTRL_RUN to sample PM_RUN_INST_CMPL */
+#define CTRL_RUN PPC_BIT(63)
+
 /* LPCR bits */
 #define LPCR_VPM0         PPC_BIT(0)
 #define LPCR_VPM1         PPC_BIT(1)
