@@ -358,6 +358,14 @@ static inline uint64_t revbit64(uint64_t x)
 }
 
 /**
+ * Return the absolute value of a 64-bit integer
+ */
+static inline int64_t abs64(int64_t v)
+{
+    return v < 0 ? -v : v;
+}
+
+/**
  * sadd32_overflow - addition with overflow indication
  * @x, @y: addends
  * @ret: Output for sum
