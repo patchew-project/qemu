@@ -2053,15 +2053,8 @@ void migrate_init(MigrationState *s)
     s->threshold_size = 0;
 }
 
-int migrate_add_blocker(Error *reason, Error **errp)
+int migrate_add_blocker_internal(Error *reason, Error **errp)
 {
-    if (only_migratable) {
-        error_propagate_prepend(errp, error_copy(reason),
-                                "disallowing migration blocker "
-                                "(--only-migratable) for: ");
-        return -EACCES;
-    }
-
     if (migration_is_idle()) {
         migration_blockers = g_slist_prepend(migration_blockers, reason);
         return 0;
@@ -2071,6 +2064,18 @@ int migrate_add_blocker(Error *reason, Error **errp)
                             "disallowing migration blocker "
                             "(migration in progress) for: ");
     return -EBUSY;
+}
+
+int migrate_add_blocker(Error *reason, Error **errp)
+{
+    if (only_migratable) {
+        error_propagate_prepend(errp, error_copy(reason),
+                                "disallowing migration blocker "
+                                "(--only-migratable) for: ");
+        return -EACCES;
+    }
+
+    return migrate_add_blocker_internal(reason, errp);
 }
 
 void migrate_del_blocker(Error *reason)
