@@ -79,6 +79,7 @@ static void set_counter(MOS6522State *s, MOS6522Timer *ti, unsigned int val)
     trace_mos6522_set_counter(1 + ti->index, val);
     ti->load_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     ti->counter_value = val;
+    ti->oneshot_fired = false;
     if (ti->index == 0) {
         mos6522_timer1_update(s, ti, ti->load_time);
     } else {
@@ -133,7 +134,8 @@ static void mos6522_timer1_update(MOS6522State *s, MOS6522Timer *ti,
         return;
     }
     ti->next_irq_time = get_next_irq_time(s, ti, current_time);
-    if ((s->ier & T1_INT) == 0 || (s->acr & T1MODE) != T1MODE_CONT) {
+    if ((s->ier & T1_INT) == 0 ||
+        ((s->acr & T1MODE) == T1MODE_ONESHOT && ti->oneshot_fired)) {
         timer_del(ti->timer);
     } else {
         timer_mod(ti->timer, ti->next_irq_time);
@@ -147,7 +149,7 @@ static void mos6522_timer2_update(MOS6522State *s, MOS6522Timer *ti,
         return;
     }
     ti->next_irq_time = get_next_irq_time(s, ti, current_time);
-    if ((s->ier & T2_INT) == 0) {
+    if ((s->ier & T2_INT) == 0 || (s->acr & T2MODE) || ti->oneshot_fired) {
         timer_del(ti->timer);
     } else {
         timer_mod(ti->timer, ti->next_irq_time);
@@ -159,6 +161,7 @@ static void mos6522_timer1_expired(void *opaque)
     MOS6522State *s = opaque;
     MOS6522Timer *ti = &s->timers[0];
 
+    ti->oneshot_fired = true;
     mos6522_timer1_update(s, ti, ti->next_irq_time);
     s->ifr |= T1_INT;
     mos6522_update_irq(s);
@@ -169,6 +172,7 @@ static void mos6522_timer2_expired(void *opaque)
     MOS6522State *s = opaque;
     MOS6522Timer *ti = &s->timers[1];
 
+    ti->oneshot_fired = true;
     mos6522_timer2_update(s, ti, ti->next_irq_time);
     s->ifr |= T2_INT;
     mos6522_update_irq(s);
@@ -198,10 +202,12 @@ uint64_t mos6522_read(void *opaque, hwaddr addr, unsigned size)
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     if (now >= s->timers[0].next_irq_time) {
+        s->timers[0].oneshot_fired = true;
         mos6522_timer1_update(s, &s->timers[0], now);
         s->ifr |= T1_INT;
     }
     if (now >= s->timers[1].next_irq_time) {
+        s->timers[1].oneshot_fired = true;
         mos6522_timer2_update(s, &s->timers[1], now);
         s->ifr |= T2_INT;
     }
@@ -279,6 +285,7 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
     MOS6522State *s = opaque;
     MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
+    int64_t now;
 
     trace_mos6522_write(addr, val);
 
@@ -318,9 +325,6 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
         s->timers[1].latch = (s->timers[1].latch & 0xff00) | val;
         break;
     case VIA_REG_T2CH:
-        /* To ensure T2 generates an interrupt on zero crossing with the
-           common timer code, write the value directly from the latch to
-           the counter */
         s->timers[1].latch = (s->timers[1].latch & 0xff) | (val << 8);
         s->ifr &= ~T2_INT;
         set_counter(s, &s->timers[1], s->timers[1].latch);
@@ -330,8 +334,9 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
         break;
     case VIA_REG_ACR:
         s->acr = val;
-        mos6522_timer1_update(s, &s->timers[0],
-                              qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
+        now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+        mos6522_timer1_update(s, &s->timers[0], now);
+        mos6522_timer2_update(s, &s->timers[1], now);
         break;
     case VIA_REG_PCR:
         s->pcr = val;
