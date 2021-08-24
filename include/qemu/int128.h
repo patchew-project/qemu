@@ -163,23 +163,28 @@ static inline Int128 bswap128(Int128 a)
 typedef struct Int128 Int128;
 
 struct Int128 {
+#ifdef HOST_WORDS_BIGENDIAN
+    int64_t hi;
+    uint64_t lo;
+#else
     uint64_t lo;
     int64_t hi;
+#endif
 };
 
 static inline Int128 int128_make64(uint64_t a)
 {
-    return (Int128) { a, 0 };
+    return (Int128) { .lo = a, .hi = 0 };
 }
 
 static inline Int128 int128_makes64(int64_t a)
 {
-    return (Int128) { a, a >> 63 };
+    return (Int128) { .lo = a, .hi = a >> 63 };
 }
 
 static inline Int128 int128_make128(uint64_t lo, uint64_t hi)
 {
-    return (Int128) { lo, hi };
+    return (Int128) { .lo = lo, .hi = hi };
 }
 
 static inline uint64_t int128_get64(Int128 a)
@@ -210,22 +215,22 @@ static inline Int128 int128_one(void)
 
 static inline Int128 int128_2_64(void)
 {
-    return (Int128) { 0, 1 };
+    return int128_make128(0, 1);
 }
 
 static inline Int128 int128_exts64(int64_t a)
 {
-    return (Int128) { .lo = a, .hi = (a < 0) ? -1 : 0 };
+    return int128_make128(a, (a < 0) ? -1 : 0);
 }
 
 static inline Int128 int128_and(Int128 a, Int128 b)
 {
-    return (Int128) { a.lo & b.lo, a.hi & b.hi };
+    return int128_make128(a.lo & b.lo, a.hi & b.hi);
 }
 
 static inline Int128 int128_or(Int128 a, Int128 b)
 {
-    return (Int128) { a.lo | b.lo, a.hi | b.hi };
+    return int128_make128(a.lo | b.lo, a.hi | b.hi);
 }
 
 static inline Int128 int128_rshift(Int128 a, int n)
