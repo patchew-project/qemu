@@ -175,6 +175,7 @@ struct DisasContext {
     bool spe_enabled;
     bool tm_enabled;
     bool gtse;
+    bool pmcc_clear;
     ppc_spr_t *spr_cb; /* Needed to check rights for mfspr/mtspr */
     int singlestep_enabled;
     uint32_t flags;
@@ -523,6 +524,41 @@ void spr_read_ureg(DisasContext *ctx, int gprn, int sprn)
 void spr_write_ureg(DisasContext *ctx, int sprn, int gprn)
 {
     gen_store_spr(sprn + 0x10, cpu_gpr[gprn]);
+}
+#endif
+
+#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+/*
+ * User write function for PMU group A regs. PowerISA v3.1
+ * defines Group A sprs as:
+ *
+ * "The non-privileged read/write Performance Monitor registers
+ * (i.e., the PMCs, MMCR0, MMCR2, and MMCRA at SPR numbers
+ * 771-776, 779, 769, and 770, respectively)"
+ *
+ * These SPRs have a common user write access control via
+ * MMCR0 bits 44 and 45 (PMCC).
+ */
+void spr_write_PMU_groupA_ureg(DisasContext *ctx, int sprn, int gprn)
+{
+    /*
+     * For group A PMU sprs, if PMCC = 0b00, PowerISA v3.1
+     * dictates that:
+     *
+     * "If an attempt is made to write to an SPR in group A in
+     * problem state, a Hypervisor Emulation Assistance
+     * interrupt will occur."
+     */
+    if (ctx->pmcc_clear) {
+        gen_hvpriv_exception(ctx, POWERPC_EXCP_INVAL_SPR);
+        return;
+    }
+    spr_write_ureg(ctx, sprn, gprn);
+}
+#else
+void spr_write_PMU_groupA_ureg(DisasContext *ctx, int sprn, int gprn)
+{
+    spr_noaccess(ctx, gprn, sprn);
 }
 #endif
 
@@ -8539,6 +8575,7 @@ static void ppc_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->vsx_enabled = (hflags >> HFLAGS_VSX) & 1;
     ctx->tm_enabled = (hflags >> HFLAGS_TM) & 1;
     ctx->gtse = (hflags >> HFLAGS_GTSE) & 1;
+    ctx->pmcc_clear = (hflags >> HFLAGS_PMCCCLEAR) & 1;
 
     ctx->singlestep_enabled = 0;
     if ((hflags >> HFLAGS_SE) & 1) {
