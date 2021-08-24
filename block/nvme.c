@@ -240,6 +240,7 @@ static NVMeQueuePair *nvme_create_queue_pair(BDRVNVMeState *s,
     r = qemu_vfio_dma_map(s->vfio, q->prp_list_pages, bytes,
                           false, &prp_list_iova, errp);
     if (r) {
+        error_prepend(errp, "Cannot map buffer for DMA: ");
         goto fail;
     }
     q->free_req_head = -1;
