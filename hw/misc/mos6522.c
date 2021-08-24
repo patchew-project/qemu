@@ -63,15 +63,16 @@ static unsigned int get_counter(MOS6522State *s, MOS6522Timer *ti)
     if (ti->index == 0) {
         /* the timer goes down from latch to -1 (period of latch + 2) */
         if (d <= (ti->counter_value + 1)) {
-            counter = (ti->counter_value - d) & 0xffff;
+            counter = ti->counter_value - d;
         } else {
-            counter = (d - (ti->counter_value + 1)) % (ti->latch + 2);
-            counter = (ti->latch - counter) & 0xffff;
+            int64_t d_post_reload = d - (ti->counter_value + 2);
+            /* XXX this calculation assumes that ti->latch has not changed */
+            counter = ti->latch - (d_post_reload % (ti->latch + 2));
         }
     } else {
-        counter = (ti->counter_value - d) & 0xffff;
+        counter = ti->counter_value - d;
     }
-    return counter;
+    return counter & 0xffff;
 }
 
 static void set_counter(MOS6522State *s, MOS6522Timer *ti, unsigned int val)
@@ -103,11 +104,13 @@ static int64_t get_next_irq_time(MOS6522State *s, MOS6522Timer *ti,
 
     /* the timer goes down from latch to -1 (period of latch + 2) */
     if (d <= (ti->counter_value + 1)) {
-        counter = (ti->counter_value - d) & 0xffff;
+        counter = ti->counter_value - d;
     } else {
-        counter = (d - (ti->counter_value + 1)) % (ti->latch + 2);
-        counter = (ti->latch - counter) & 0xffff;
+        int64_t d_post_reload = d - (ti->counter_value + 2);
+        /* XXX this calculation assumes that ti->latch has not changed */
+        counter = ti->latch - (d_post_reload % (ti->latch + 2));
     }
+    counter &= 0xffff;
 
     /* Note: we consider the irq is raised on 0 */
     if (counter == 0xffff) {
