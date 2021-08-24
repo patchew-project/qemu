@@ -63,17 +63,6 @@ static uint64_t get_counter_value(MOS6522State *s, MOS6522Timer *ti)
     }
 }
 
-static uint64_t get_load_time(MOS6522State *s, MOS6522Timer *ti)
-{
-    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
-
-    if (ti->index == 0) {
-        return mdc->get_timer1_load_time(s, ti);
-    } else {
-        return mdc->get_timer2_load_time(s, ti);
-    }
-}
-
 static unsigned int get_counter(MOS6522State *s, MOS6522Timer *ti)
 {
     int64_t d;
@@ -98,7 +87,7 @@ static unsigned int get_counter(MOS6522State *s, MOS6522Timer *ti)
 static void set_counter(MOS6522State *s, MOS6522Timer *ti, unsigned int val)
 {
     trace_mos6522_set_counter(1 + ti->index, val);
-    ti->load_time = get_load_time(s, ti);
+    ti->load_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     ti->counter_value = val;
     if (ti->index == 0) {
         mos6522_timer1_update(s, ti, ti->load_time);
@@ -206,13 +195,6 @@ static uint64_t mos6522_get_counter_value(MOS6522State *s, MOS6522Timer *ti)
 {
     return muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - ti->load_time,
                     ti->frequency, NANOSECONDS_PER_SECOND);
-}
-
-static uint64_t mos6522_get_load_time(MOS6522State *s, MOS6522Timer *ti)
-{
-    uint64_t load_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-
-    return load_time;
 }
 
 static void mos6522_portA_write(MOS6522State *s)
@@ -518,8 +500,6 @@ static void mos6522_class_init(ObjectClass *oc, void *data)
     mdc->update_irq = mos6522_update_irq;
     mdc->get_timer1_counter_value = mos6522_get_counter_value;
     mdc->get_timer2_counter_value = mos6522_get_counter_value;
-    mdc->get_timer1_load_time = mos6522_get_load_time;
-    mdc->get_timer2_load_time = mos6522_get_load_time;
 }
 
 static const TypeInfo mos6522_type_info = {
