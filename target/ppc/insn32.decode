@@ -124,3 +124,8 @@ SETNBCR         011111 ..... ..... ----- 0111100000 -   @X_bi
 ## Vector Bit Manipulation Instruction
 
 VCFUGED         000100 ..... ..... ..... 10101001101    @VX
+
+### rfebb
+&RFEBB          s:uint8_t
+@RFEBB          ......-------------- s:1 .......... -   &RFEBB
+RFEBB           010011-------------- .   0010010010 -   @RFEBB
