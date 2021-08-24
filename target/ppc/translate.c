@@ -592,8 +592,46 @@ void spr_write_PMU_groupA_ureg(DisasContext *ctx, int sprn, int gprn)
     }
     spr_write_ureg(ctx, sprn, gprn);
 }
+
+void spr_write_MMCR0_ureg(DisasContext *ctx, int sprn, int gprn)
+{
+    TCGv t0, t1;
+
+    /*
+     * MMCR0 is a Group A SPR. The same write access control
+     * done in spr_write_PMU_groupA_ureg() applies.
+     */
+    if (ctx->pmcc_clear) {
+        gen_hvpriv_exception(ctx, POWERPC_EXCP_INVAL_SPR);
+        return;
+    }
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+
+    /*
+     * Filter out all bits but FC, PMAO, and PMAE, according
+     * to ISA v3.1, in 10.4.4 Monitor Mode Control Register 0,
+     * fourth paragraph.
+     */
+    tcg_gen_andi_tl(t0, cpu_gpr[gprn],
+                    MMCR0_FC | MMCR0_PMAO | MMCR0_PMAE);
+    gen_load_spr(t1, SPR_POWER_MMCR0);
+    tcg_gen_andi_tl(t1, t1, ~(MMCR0_FC | MMCR0_PMAO | MMCR0_PMAE));
+    /* Keep all other bits intact */
+    tcg_gen_or_tl(t1, t1, t0);
+    gen_store_spr(SPR_POWER_MMCR0, t1);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+}
 #else
 void spr_write_PMU_groupA_ureg(DisasContext *ctx, int sprn, int gprn)
+{
+    spr_noaccess(ctx, gprn, sprn);
+}
+
+void spr_write_MMCR0_ureg(DisasContext *ctx, int sprn, int gprn)
 {
     spr_noaccess(ctx, gprn, sprn);
 }
