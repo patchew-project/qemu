@@ -52,23 +52,13 @@ static void mos6522_update_irq(MOS6522State *s)
     }
 }
 
-static uint64_t get_counter_value(MOS6522State *s, MOS6522Timer *ti)
-{
-    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
-
-    if (ti->index == 0) {
-        return mdc->get_timer1_counter_value(s, ti);
-    } else {
-        return mdc->get_timer2_counter_value(s, ti);
-    }
-}
-
 static unsigned int get_counter(MOS6522State *s, MOS6522Timer *ti)
 {
     int64_t d;
     unsigned int counter;
 
-    d = get_counter_value(s, ti);
+    d = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - ti->load_time,
+                 ti->frequency, NANOSECONDS_PER_SECOND);
 
     if (ti->index == 0) {
         /* the timer goes down from latch to -1 (period of latch + 2) */
@@ -189,12 +179,6 @@ static void mos6522_set_sr_int(MOS6522State *s)
     trace_mos6522_set_sr_int();
     s->ifr |= SR_INT;
     mos6522_update_irq(s);
-}
-
-static uint64_t mos6522_get_counter_value(MOS6522State *s, MOS6522Timer *ti)
-{
-    return muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - ti->load_time,
-                    ti->frequency, NANOSECONDS_PER_SECOND);
 }
 
 static void mos6522_portA_write(MOS6522State *s)
@@ -498,8 +482,6 @@ static void mos6522_class_init(ObjectClass *oc, void *data)
     mdc->portB_write = mos6522_portB_write;
     mdc->portA_write = mos6522_portA_write;
     mdc->update_irq = mos6522_update_irq;
-    mdc->get_timer1_counter_value = mos6522_get_counter_value;
-    mdc->get_timer2_counter_value = mos6522_get_counter_value;
 }
 
 static const TypeInfo mos6522_type_info = {
