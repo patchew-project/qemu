@@ -52,26 +52,58 @@ static void mos6522_update_irq(MOS6522State *s)
     }
 }
 
+static void mos6522_timer_raise_irq(MOS6522State *s, MOS6522Timer *ti)
+{
+    if (ti->state == irq) {
+        return;
+    }
+    ti->state = irq;
+    if (ti->index == 0) {
+        s->ifr |= T1_INT;
+    } else {
+        s->ifr |= T2_INT;
+    }
+    mos6522_update_irq(s);
+}
+
 static unsigned int get_counter(MOS6522State *s, MOS6522Timer *ti, int64_t now)
 {
     int64_t d;
     unsigned int counter;
+    bool reload;
 
+    /*
+     * Timer 1 counts down from the latch value to -1 (period of latch + 2),
+     * then raises its interrupt and reloads.
+     * Timer 2 counts down from the latch value to -1, then raises its
+     * interrupt and continues to -2 and so on without any further interrupts.
+     * (In reality, the first count should be measured from the falling edge
+     * of the "phase two" clock, making its period N + 1.5. The subsequent
+     * counts have period N + 2. This detail has been ignored here.)
+     */
     d = muldiv64(now - ti->load_time,
                  ti->frequency, NANOSECONDS_PER_SECOND);
 
-    if (ti->index == 0) {
-        /* the timer goes down from latch to -1 (period of latch + 2) */
-        if (d <= (ti->counter_value + 1)) {
-            counter = ti->counter_value - d;
-        } else {
-            int64_t d_post_reload = d - (ti->counter_value + 2);
-            /* XXX this calculation assumes that ti->latch has not changed */
-            counter = ti->latch - (d_post_reload % (ti->latch + 2));
-        }
-    } else {
-        counter = ti->counter_value - d;
+    reload = (d >= ti->counter_value + 2);
+
+    if (ti->index == 0 && reload) {
+        int64_t more_reloads;
+
+        d -= ti->counter_value + 2;
+        more_reloads = d / (ti->latch + 2);
+        d -= more_reloads * (ti->latch + 2);
+        ti->load_time += muldiv64(ti->counter_value + 2 +
+                                  more_reloads * (ti->latch + 2),
+                                  NANOSECONDS_PER_SECOND, ti->frequency);
+        ti->counter_value = ti->latch;
     }
+
+    counter = ti->counter_value - d;
+
+    if (reload) {
+        mos6522_timer_raise_irq(s, ti);
+    }
+
     return counter & 0xffff;
 }
 
@@ -80,7 +112,7 @@ static void set_counter(MOS6522State *s, MOS6522Timer *ti, unsigned int val)
     trace_mos6522_set_counter(1 + ti->index, val);
     ti->load_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     ti->counter_value = val;
-    ti->oneshot_fired = false;
+    ti->state = decrement;
     if (ti->index == 0) {
         mos6522_timer1_update(s, ti, ti->load_time);
     } else {
@@ -91,38 +123,15 @@ static void set_counter(MOS6522State *s, MOS6522Timer *ti, unsigned int val)
 static int64_t get_next_irq_time(MOS6522State *s, MOS6522Timer *ti,
                                  int64_t now)
 {
-    int64_t d, next_time;
-    unsigned int counter;
+    int64_t next_time;
 
     if (ti->frequency == 0) {
         return INT64_MAX;
     }
 
-    /* current counter value */
-    d = muldiv64(now - ti->load_time,
-                 ti->frequency, NANOSECONDS_PER_SECOND);
-
-    /* the timer goes down from latch to -1 (period of latch + 2) */
-    if (d <= (ti->counter_value + 1)) {
-        counter = ti->counter_value - d;
-    } else {
-        int64_t d_post_reload = d - (ti->counter_value + 2);
-        /* XXX this calculation assumes that ti->latch has not changed */
-        counter = ti->latch - (d_post_reload % (ti->latch + 2));
-    }
-    counter &= 0xffff;
-
-    /* Note: we consider the irq is raised on 0 */
-    if (counter == 0xffff) {
-        next_time = d + ti->latch + 1;
-    } else if (counter == 0) {
-        next_time = d + ti->latch + 2;
-    } else {
-        next_time = d + counter;
-    }
-    trace_mos6522_get_next_irq_time(ti->latch, d, next_time - d);
-    next_time = muldiv64(next_time, NANOSECONDS_PER_SECOND, ti->frequency) +
-                         ti->load_time;
+    next_time = ti->load_time + muldiv64(ti->counter_value + 2,
+                                         NANOSECONDS_PER_SECOND, ti->frequency);
+    trace_mos6522_get_next_irq_time(ti->latch, ti->load_time, next_time);
     return next_time;
 }
 
@@ -132,12 +141,10 @@ static void mos6522_timer1_update(MOS6522State *s, MOS6522Timer *ti,
     if (!ti->timer) {
         return;
     }
+    get_counter(s, ti, now);
     ti->next_irq_time = get_next_irq_time(s, ti, now);
-    if (ti->next_irq_time <= now) {
-        ti->next_irq_time = now + 1;
-    }
     if ((s->ier & T1_INT) == 0 ||
-        ((s->acr & T1MODE) == T1MODE_ONESHOT && ti->oneshot_fired)) {
+        ((s->acr & T1MODE) == T1MODE_ONESHOT && ti->state >= irq)) {
         timer_del(ti->timer);
     } else {
         timer_mod(ti->timer, ti->next_irq_time);
@@ -150,11 +157,9 @@ static void mos6522_timer2_update(MOS6522State *s, MOS6522Timer *ti,
     if (!ti->timer) {
         return;
     }
+    get_counter(s, ti, now);
     ti->next_irq_time = get_next_irq_time(s, ti, now);
-    if (ti->next_irq_time <= now) {
-        ti->next_irq_time = now + 1;
-    }
-    if ((s->ier & T2_INT) == 0 || (s->acr & T2MODE) || ti->oneshot_fired) {
+    if ((s->ier & T2_INT) == 0 || (s->acr & T2MODE) || ti->state >= irq) {
         timer_del(ti->timer);
     } else {
         timer_mod(ti->timer, ti->next_irq_time);
@@ -167,10 +172,7 @@ static void mos6522_timer1_expired(void *opaque)
     MOS6522Timer *ti = &s->timers[0];
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
-    ti->oneshot_fired = true;
     mos6522_timer1_update(s, ti, now);
-    s->ifr |= T1_INT;
-    mos6522_update_irq(s);
 }
 
 static void mos6522_timer2_expired(void *opaque)
@@ -179,10 +181,7 @@ static void mos6522_timer2_expired(void *opaque)
     MOS6522Timer *ti = &s->timers[1];
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
-    ti->oneshot_fired = true;
     mos6522_timer2_update(s, ti, now);
-    s->ifr |= T2_INT;
-    mos6522_update_irq(s);
 }
 
 static void mos6522_set_sr_int(MOS6522State *s)
@@ -208,18 +207,6 @@ uint64_t mos6522_read(void *opaque, hwaddr addr, unsigned size)
     uint32_t val;
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
-    if (now >= s->timers[0].next_irq_time) {
-        s->timers[0].oneshot_fired = true;
-        mos6522_timer1_update(s, &s->timers[0], now);
-        s->ifr |= T1_INT;
-        mos6522_update_irq(s);
-    }
-    if (now >= s->timers[1].next_irq_time) {
-        s->timers[1].oneshot_fired = true;
-        mos6522_timer2_update(s, &s->timers[1], now);
-        s->ifr |= T2_INT;
-        mos6522_update_irq(s);
-    }
     switch (addr) {
     case VIA_REG_B:
         val = s->b;
@@ -238,8 +225,11 @@ uint64_t mos6522_read(void *opaque, hwaddr addr, unsigned size)
         break;
     case VIA_REG_T1CL:
         val = get_counter(s, &s->timers[0], now) & 0xff;
-        s->ifr &= ~T1_INT;
-        mos6522_update_irq(s);
+        if (s->timers[0].state >= irq) {
+            s->timers[0].state = irq_cleared;
+            s->ifr &= ~T1_INT;
+            mos6522_update_irq(s);
+        }
         break;
     case VIA_REG_T1CH:
         val = get_counter(s, &s->timers[0], now) >> 8;
@@ -252,8 +242,11 @@ uint64_t mos6522_read(void *opaque, hwaddr addr, unsigned size)
         break;
     case VIA_REG_T2CL:
         val = get_counter(s, &s->timers[1], now) & 0xff;
-        s->ifr &= ~T2_INT;
-        mos6522_update_irq(s);
+        if (s->timers[1].state >= irq) {
+            s->timers[1].state = irq_cleared;
+            s->ifr &= ~T2_INT;
+            mos6522_update_irq(s);
+        }
         break;
     case VIA_REG_T2CH:
         val = get_counter(s, &s->timers[1], now) >> 8;
@@ -293,7 +286,7 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
     MOS6522State *s = opaque;
     MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
-    int64_t now;
+    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     trace_mos6522_write(addr, val);
 
@@ -316,6 +309,7 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
         s->dira = val;
         break;
     case VIA_REG_T1CL:
+        get_counter(s, &s->timers[0], now);
         s->timers[0].latch = (s->timers[0].latch & 0xff00) | val;
         break;
     case VIA_REG_T1CH:
@@ -324,12 +318,15 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
         set_counter(s, &s->timers[0], s->timers[0].latch);
         break;
     case VIA_REG_T1LL:
+        get_counter(s, &s->timers[0], now);
         s->timers[0].latch = (s->timers[0].latch & 0xff00) | val;
         break;
     case VIA_REG_T1LH:
+        get_counter(s, &s->timers[0], now);
         s->timers[0].latch = (s->timers[0].latch & 0xff) | (val << 8);
         break;
     case VIA_REG_T2CL:
+        get_counter(s, &s->timers[1], now);
         s->timers[1].latch = (s->timers[1].latch & 0xff00) | val;
         break;
     case VIA_REG_T2CH:
@@ -342,7 +339,6 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
         break;
     case VIA_REG_ACR:
         s->acr = val;
-        now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         mos6522_timer1_update(s, &s->timers[0], now);
         mos6522_timer2_update(s, &s->timers[1], now);
         break;
@@ -350,7 +346,18 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
         s->pcr = val;
         break;
     case VIA_REG_IFR:
-        /* reset bits */
+        if (val & T1_INT) {
+            get_counter(s, &s->timers[0], now);
+            if ((s->ifr & T1_INT) && s->timers[0].state == irq) {
+                s->timers[0].state = irq_cleared;
+            }
+        }
+        if (val & T2_INT) {
+            get_counter(s, &s->timers[1], now);
+            if ((s->ifr & T2_INT) && s->timers[1].state == irq) {
+                s->timers[1].state = irq_cleared;
+            }
+        }
         s->ifr &= ~val;
         mos6522_update_irq(s);
         break;
@@ -364,7 +371,6 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
         }
         mos6522_update_irq(s);
         /* if IER is modified starts needed timers */
-        now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         mos6522_timer1_update(s, &s->timers[0], now);
         mos6522_timer2_update(s, &s->timers[1], now);
         break;

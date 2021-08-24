@@ -73,6 +73,12 @@
 #define VIA_REG_IER     0x0e
 #define VIA_REG_ANH     0x0f
 
+enum timer_state {
+    decrement,
+    irq,
+    irq_cleared,
+};
+
 /**
  * MOS6522Timer:
  * @counter_value: counter value at load time
@@ -85,7 +91,7 @@ typedef struct MOS6522Timer {
     int64_t next_irq_time;
     uint64_t frequency;
     QEMUTimer *timer;
-    bool oneshot_fired;
+    enum timer_state state;
 } MOS6522Timer;
 
 /**
