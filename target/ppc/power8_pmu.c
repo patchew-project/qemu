@@ -252,9 +252,8 @@ static void start_cycle_count_session(CPUPPCState *env)
     }
 }
 
-static void cpu_ppc_pmu_timer_cb(void *opaque)
+static void fire_PMC_interrupt(PowerPCCPU *cpu)
 {
-    PowerPCCPU *cpu = opaque;
     CPUPPCState *env = &cpu->env;
 
     if (!(env->spr[SPR_POWER_MMCR0] & MMCR0_EBE)) {
@@ -282,6 +281,13 @@ static void cpu_ppc_pmu_timer_cb(void *opaque)
 
     /* Fire the PMC hardware exception */
     ppc_set_irq(cpu, PPC_INTERRUPT_PMC, 1);
+}
+
+static void cpu_ppc_pmu_timer_cb(void *opaque)
+{
+    PowerPCCPU *cpu = opaque;
+
+    fire_PMC_interrupt(cpu);
 }
 
 void cpu_ppc_pmu_timer_init(CPUPPCState *env)
@@ -377,6 +383,8 @@ static bool pmc_counting_insns(CPUPPCState *env, int sprn,
 /* This helper assumes that the PMC is running. */
 void helper_insns_inc(CPUPPCState *env, uint32_t num_insns)
 {
+    bool overflow_triggered = false;
+    PowerPCCPU *cpu;
     int sprn;
 
     for (sprn = SPR_POWER_PMC1; sprn <= SPR_POWER_PMC5; sprn++) {
@@ -390,7 +398,18 @@ void helper_insns_inc(CPUPPCState *env, uint32_t num_insns)
             } else {
                 env->spr[sprn] += num_insns;
             }
+
+            if (env->spr[sprn] >= COUNTER_NEGATIVE_VAL &&
+                pmc_counter_negative_enabled(env, sprn)) {
+                overflow_triggered = true;
+                env->spr[sprn] = COUNTER_NEGATIVE_VAL;
+            }
         }
+    }
+
+    if (overflow_triggered) {
+        cpu = env_archcpu(env);
+        fire_PMC_interrupt(cpu);
     }
 }
 
