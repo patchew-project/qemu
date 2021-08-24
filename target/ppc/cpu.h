@@ -349,6 +349,8 @@ typedef struct ppc_v3_pate_t {
 #define MMCR0_EBE   PPC_BIT(43)         /* Perf Monitor EBB Enable */
 #define MMCR0_FCECE PPC_BIT(38)         /* FC on Enabled Cond or Event */
 #define MMCR0_PMCC  PPC_BITMASK(44, 45) /* PMC Control */
+#define MMCR0_FC14 PPC_BIT(58)
+#define MMCR0_FC56 PPC_BIT(59)
 
 #define MMCR1_PMC1SEL_SHIFT (63 - 39)
 #define MMCR1_PMC1SEL PPC_BITMASK(32, 39)
