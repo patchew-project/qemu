@@ -33,6 +33,8 @@ static void update_PMC_PM_CYC(CPUPPCState *env, int sprn,
     env->spr[sprn] += time_delta;
 }
 
+#define COUNTER_NEGATIVE_VAL 0x80000000
+
 static uint8_t get_PMC_event(CPUPPCState *env, int sprn)
 {
     int event = 0x0;
@@ -116,30 +118,88 @@ static void update_cycles_PMCs(CPUPPCState *env)
     }
 }
 
+static int64_t get_CYC_timeout(CPUPPCState *env, int sprn)
+{
+    int64_t remaining_cyc;
+
+    if (env->spr[sprn] >= COUNTER_NEGATIVE_VAL) {
+        return 0;
+    }
+
+    remaining_cyc = COUNTER_NEGATIVE_VAL - env->spr[sprn];
+    return remaining_cyc;
+}
+
+static bool counter_negative_cond_enabled(uint64_t mmcr0)
+{
+    return mmcr0 & MMCR0_PMC1CE;
+}
+
+/*
+ * A cycle count session consists of the basic operations we
+ * need to do to support PM_CYC events: redefine a new base_time
+ * to be used to calculate PMC values and start overflow timers.
+ */
+static void start_cycle_count_session(CPUPPCState *env)
+{
+    uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    uint64_t timeout;
+
+    env->pmu_base_time = now;
+
+    /*
+     * Always delete existing overflow timers when starting a
+     * new cycle counting session.
+     */
+    timer_del(env->pmu_intr_timers[0]);
+
+    if (!counter_negative_cond_enabled(env->spr[SPR_POWER_MMCR0])) {
+        return;
+    }
+
+    if (!pmc_is_running(env, SPR_POWER_PMC1)) {
+        return;
+    }
+
+    if (!(env->spr[SPR_POWER_MMCR0] & MMCR0_PMC1CE)) {
+        return;
+    }
+
+    switch (get_PMC_event(env, SPR_POWER_PMC1)) {
+    case 0xF0:
+    case 0x1E:
+        timeout = get_CYC_timeout(env, SPR_POWER_PMC1);
+        break;
+    default:
+        return;
+    }
+
+    timer_mod(env->pmu_intr_timers[0], now + timeout);
+}
+
 static void cpu_ppc_pmu_timer_cb(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
     CPUPPCState *env = &cpu->env;
-    uint64_t mmcr0;
 
-    mmcr0 = env->spr[SPR_POWER_MMCR0];
-    if (env->spr[SPR_POWER_MMCR0] & MMCR0_EBE) {
-        /* freeeze counters if needed */
-        if (mmcr0 & MMCR0_FCECE) {
-            mmcr0 &= ~MMCR0_FCECE;
-            mmcr0 |= MMCR0_FC;
-        }
-
-        /* Clear PMAE and set PMAO */
-        if (mmcr0 & MMCR0_PMAE) {
-            mmcr0 &= ~MMCR0_PMAE;
-            mmcr0 |= MMCR0_PMAO;
-        }
-        env->spr[SPR_POWER_MMCR0] = mmcr0;
-
-        /* Fire the PMC hardware exception */
-        ppc_set_irq(cpu, PPC_INTERRUPT_PMC, 1);
+    if (!(env->spr[SPR_POWER_MMCR0] & MMCR0_EBE)) {
+        return;
     }
+
+    if (env->spr[SPR_POWER_MMCR0] & MMCR0_FCECE) {
+        env->spr[SPR_POWER_MMCR0] &= ~MMCR0_FCECE;
+        env->spr[SPR_POWER_MMCR0] |= MMCR0_FC;
+    }
+
+    update_cycles_PMCs(env);
+
+    if (env->spr[SPR_POWER_MMCR0] & MMCR0_PMAE) {
+        env->spr[SPR_POWER_MMCR0] &= ~MMCR0_PMAE;
+        env->spr[SPR_POWER_MMCR0] |= MMCR0_PMAO;
+    }
+
+    /* Fire the PMC hardware exception */
+    ppc_set_irq(cpu, PPC_INTERRUPT_PMC, 1);
 }
 
 void cpu_ppc_pmu_timer_init(CPUPPCState *env)
@@ -182,7 +242,7 @@ void helper_store_mmcr0(CPUPPCState *env, target_ulong value)
         if (!curr_FC) {
             update_cycles_PMCs(env);
         } else {
-            env->pmu_base_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+            start_cycle_count_session(env);
         }
     }
 }
