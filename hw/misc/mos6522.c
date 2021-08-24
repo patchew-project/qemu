@@ -208,11 +208,13 @@ uint64_t mos6522_read(void *opaque, hwaddr addr, unsigned size)
         s->timers[0].oneshot_fired = true;
         mos6522_timer1_update(s, &s->timers[0], now);
         s->ifr |= T1_INT;
+        mos6522_update_irq(s);
     }
     if (now >= s->timers[1].next_irq_time) {
         s->timers[1].oneshot_fired = true;
         mos6522_timer2_update(s, &s->timers[1], now);
         s->ifr |= T2_INT;
+        mos6522_update_irq(s);
     }
     switch (addr) {
     case VIA_REG_B:
@@ -237,7 +239,6 @@ uint64_t mos6522_read(void *opaque, hwaddr addr, unsigned size)
         break;
     case VIA_REG_T1CH:
         val = get_counter(s, &s->timers[0]) >> 8;
-        mos6522_update_irq(s);
         break;
     case VIA_REG_T1LL:
         val = s->timers[0].latch & 0xff;
