@@ -427,10 +427,15 @@ static void vfio_add_kvm_msi_virq(VFIOPCIDevice *vdev, VFIOMSIVector *vector,
         return;
     }
 
-    virq = kvm_irqchip_add_msi_route(kvm_state, vector_n, &vdev->pdev, false);
+    virq = kvm_irqchip_add_msi_route(kvm_state, vector_n, &vdev->pdev,
+                                     vdev->defer_add_virq);
     if (virq < 0) {
         event_notifier_cleanup(&vector->kvm_interrupt);
         return;
+    }
+
+    if (vdev->defer_add_virq) {
+        goto out;
     }
 
     if (kvm_irqchip_add_irqfd_notifier_gsi(kvm_state, &vector->kvm_interrupt,
@@ -440,6 +445,7 @@ static void vfio_add_kvm_msi_virq(VFIOPCIDevice *vdev, VFIOMSIVector *vector,
         return;
     }
 
+out:
     vector->virq = virq;
 }
 
@@ -577,6 +583,36 @@ static void vfio_msix_vector_release(PCIDevice *pdev, unsigned int nr)
     }
 }
 
+static void vfio_commit_kvm_msi_virq(VFIOPCIDevice *vdev)
+{
+    int i;
+    VFIOMSIVector *vector;
+    bool commited = false;
+
+    for (i = 0; i < vdev->nr_vectors; i++) {
+        vector = &vdev->msi_vectors[i];
+
+        if (vector->virq < 0) {
+            continue;
+        }
+
+        /* Commit cached route entries to KVM core first if not yet */
+        if (!commited) {
+            kvm_irqchip_commit_routes(kvm_state);
+            commited = true;
+        }
+
+        if (kvm_irqchip_add_irqfd_notifier_gsi(kvm_state,
+                                               &vector->kvm_interrupt,
+                                               NULL, vector->virq) < 0) {
+            kvm_irqchip_release_virq(kvm_state, vector->virq);
+            event_notifier_cleanup(&vector->kvm_interrupt);
+            vector->virq = -1;
+            return;
+        }
+    }
+}
+
 static void vfio_msix_enable(VFIOPCIDevice *vdev)
 {
     PCIDevice *pdev = &vdev->pdev;
@@ -624,6 +660,7 @@ static void vfio_msix_enable(VFIOPCIDevice *vdev)
     if (!pdev->msix_function_masked && vdev->defer_add_virq) {
         int ret;
         vfio_disable_irqindex(&vdev->vbasedev, VFIO_PCI_MSIX_IRQ_INDEX);
+        vfio_commit_kvm_msi_virq(vdev);
         ret = vfio_enable_vectors(vdev, true);
         if (ret) {
             error_report("vfio: failed to enable vectors, %d", ret);
@@ -662,6 +699,10 @@ retry:
          * default to userspace handling if unavailable.
          */
         vfio_add_kvm_msi_virq(vdev, vector, i, false);
+    }
+
+    if (vdev->defer_add_virq){
+        vfio_commit_kvm_msi_virq(vdev);
     }
 
     /* Set interrupt type prior to possible interrupts */
@@ -2473,13 +2514,13 @@ static int vfio_pci_load_config(VFIODevice *vbasedev, QEMUFile *f)
     vfio_pci_write_config(pdev, PCI_COMMAND,
                           pci_get_word(pdev->config + PCI_COMMAND), 2);
 
+    vdev->defer_add_virq = true;
     if (msi_enabled(pdev)) {
         vfio_msi_enable(vdev);
     } else if (msix_enabled(pdev)) {
-        vdev->defer_add_virq = true;
         vfio_msix_enable(vdev);
-        vdev->defer_add_virq = false;
     }
+    vdev->defer_add_virq = false;
 
     return ret;
 }
