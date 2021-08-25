@@ -4724,7 +4724,7 @@ void kvm_arch_init_irq_routing(KVMState *s)
         /* If the ioapic is in QEMU and the lapics are in KVM, reserve
            MSI routes for signaling interrupts to the local apics. */
         for (i = 0; i < IOAPIC_NUM_PINS; i++) {
-            if (kvm_irqchip_add_msi_route(s, 0, NULL) < 0) {
+            if (kvm_irqchip_add_msi_route(s, 0, NULL, false) < 0) {
                 error_report("Could not enable split IRQ mode.");
                 exit(1);
             }

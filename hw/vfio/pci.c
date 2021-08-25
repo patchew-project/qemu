@@ -427,7 +427,7 @@ static void vfio_add_kvm_msi_virq(VFIOPCIDevice *vdev, VFIOMSIVector *vector,
         return;
     }
 
-    virq = kvm_irqchip_add_msi_route(kvm_state, vector_n, &vdev->pdev);
+    virq = kvm_irqchip_add_msi_route(kvm_state, vector_n, &vdev->pdev, false);
     if (virq < 0) {
         event_notifier_cleanup(&vector->kvm_interrupt);
         return;

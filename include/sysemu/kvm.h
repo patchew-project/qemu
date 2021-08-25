@@ -473,9 +473,11 @@ void kvm_init_cpu_signals(CPUState *cpu);
  *          message.
  * @dev:    Owner PCI device to add the route. If @dev is specified
  *          as @NULL, an empty MSI message will be inited.
+ * @defer_commit:   Defer to commit new route to the KVM core.
  * @return: virq (>=0) when success, errno (<0) when failed.
  */
-int kvm_irqchip_add_msi_route(KVMState *s, int vector, PCIDevice *dev);
+int kvm_irqchip_add_msi_route(KVMState *s, int vector, PCIDevice *dev,
+                              bool defer_commit);
 int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg,
                                  PCIDevice *dev);
 void kvm_irqchip_commit_routes(KVMState *s);
