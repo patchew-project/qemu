@@ -372,6 +372,10 @@ static int vfio_enable_vectors(VFIOPCIDevice *vdev, bool msix)
     int ret = 0, i, argsz;
     int32_t *fds;
 
+    if (!vdev->nr_vectors) {
+        return 0;
+    }
+
     argsz = sizeof(*irq_set) + (vdev->nr_vectors * sizeof(*fds));
 
     irq_set = g_malloc0(argsz);
@@ -495,6 +499,11 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
         }
     }
 
+    if (vdev->defer_add_virq) {
+        vdev->nr_vectors = MAX(vdev->nr_vectors, nr + 1);
+        goto clear_pending;
+    }
+
     /*
      * We don't want to have the host allocate all possible MSI vectors
      * for a device if they're not in use, so we shutdown and incrementally
@@ -524,6 +533,7 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
         }
     }
 
+clear_pending:
     /* Disable PBA emulation when nothing more is pending. */
     clear_bit(nr, vdev->msix->pending);
     if (find_first_bit(vdev->msix->pending,
@@ -608,6 +618,16 @@ static void vfio_msix_enable(VFIOPCIDevice *vdev)
     if (msix_set_vector_notifiers(pdev, vfio_msix_vector_use,
                                   vfio_msix_vector_release, NULL)) {
         error_report("vfio: msix_set_vector_notifiers failed");
+        return;
+    }
+
+    if (!pdev->msix_function_masked && vdev->defer_add_virq) {
+        int ret;
+        vfio_disable_irqindex(&vdev->vbasedev, VFIO_PCI_MSIX_IRQ_INDEX);
+        ret = vfio_enable_vectors(vdev, true);
+        if (ret) {
+            error_report("vfio: failed to enable vectors, %d", ret);
+        }
     }
 
     trace_vfio_msix_enable(vdev->vbasedev.name);
@@ -2456,7 +2476,9 @@ static int vfio_pci_load_config(VFIODevice *vbasedev, QEMUFile *f)
     if (msi_enabled(pdev)) {
         vfio_msi_enable(vdev);
     } else if (msix_enabled(pdev)) {
+        vdev->defer_add_virq = true;
         vfio_msix_enable(vdev);
+        vdev->defer_add_virq = false;
     }
 
     return ret;
