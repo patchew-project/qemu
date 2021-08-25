@@ -25,6 +25,9 @@
 #             'disconnect' to disconnect existing clients
 #             'keep' to maintain existing clients
 #
+# @display: In case of VNC, the id of the display where the password
+#           should be changed. Defaults to the first.
+#
 # Returns: - Nothing on success
 #          - If Spice is not enabled, DeviceNotFound
 #
@@ -38,7 +41,8 @@
 #
 ##
 { 'command': 'set_password',
-  'data': {'protocol': 'str', 'password': 'str', '*connected': 'str'} }
+  'data': {'protocol': 'str', 'password': 'str', '*connected': 'str',
+           '*display': 'str'} }
 
 ##
 # @expire_password:
@@ -53,6 +57,9 @@
 #        - 'never' to cancel password expiration
 #        - '+INT' where INT is the number of seconds from now (integer)
 #        - 'INT' where INT is the absolute time in seconds
+#
+# @display: In case of VNC, the id of the display where the password
+#           should be set to expire. Defaults to the first.
 #
 # Returns: - Nothing on success
 #          - If @protocol is 'spice' and Spice is not active, DeviceNotFound
@@ -71,7 +78,8 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'expire_password', 'data': {'protocol': 'str', 'time': 'str'} }
+{ 'command': 'expire_password',
+  'data': {'protocol': 'str', 'time': 'str', '*display': 'str'} }
 
 ##
 # @screendump:

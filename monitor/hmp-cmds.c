@@ -1451,10 +1451,20 @@ void hmp_set_password(Monitor *mon, const QDict *qdict)
 {
     const char *protocol  = qdict_get_str(qdict, "protocol");
     const char *password  = qdict_get_str(qdict, "password");
+    const char *display = qdict_get_try_str(qdict, "display");
     const char *connected = qdict_get_try_str(qdict, "connected");
     Error *err = NULL;
 
-    qmp_set_password(protocol, password, !!connected, connected, &err);
+    if (display && strncmp(display, "id=", 3)) {
+        connected = display;
+        display = NULL;
+    } else if (display) {
+        /* skip "id=" */
+        display = display + 3;
+    }
+
+    qmp_set_password(protocol, password, !!connected, connected, !!display,
+                     display, &err);
     hmp_handle_error(mon, err);
 }
 
@@ -1462,9 +1472,15 @@ void hmp_expire_password(Monitor *mon, const QDict *qdict)
 {
     const char *protocol  = qdict_get_str(qdict, "protocol");
     const char *whenstr = qdict_get_str(qdict, "time");
+    const char *display = qdict_get_try_str(qdict, "display");
     Error *err = NULL;
 
-    qmp_expire_password(protocol, whenstr, &err);
+    if (display && !strncmp(display, "id=", 3)) {
+        /* skip "id=" */
+        display = display + 3;
+    }
+
+    qmp_expire_password(protocol, whenstr, !!display, display, &err);
     hmp_handle_error(mon, err);
 }
 
