@@ -592,8 +592,7 @@ int msix_set_vector_notifiers(PCIDevice *dev,
     dev->msix_vector_release_notifier = release_notifier;
     dev->msix_vector_poll_notifier = poll_notifier;
 
-    if ((dev->config[dev->msix_cap + MSIX_CONTROL_OFFSET] &
-        (MSIX_ENABLE_MASK | MSIX_MASKALL_MASK)) == MSIX_ENABLE_MASK) {
+    if (!dev->msix_function_masked) {
         for (vector = 0; vector < dev->msix_entries_nr; vector++) {
             ret = msix_set_notifier_for_vector(dev, vector);
             if (ret < 0) {
@@ -612,6 +611,7 @@ undo:
     }
     dev->msix_vector_use_notifier = NULL;
     dev->msix_vector_release_notifier = NULL;
+    dev->msix_vector_poll_notifier = NULL;
     return ret;
 }
 
@@ -622,8 +622,7 @@ void msix_unset_vector_notifiers(PCIDevice *dev)
     assert(dev->msix_vector_use_notifier &&
            dev->msix_vector_release_notifier);
 
-    if ((dev->config[dev->msix_cap + MSIX_CONTROL_OFFSET] &
-        (MSIX_ENABLE_MASK | MSIX_MASKALL_MASK)) == MSIX_ENABLE_MASK) {
+    if (!dev->msix_function_masked) {
         for (vector = 0; vector < dev->msix_entries_nr; vector++) {
             msix_unset_notifier_for_vector(dev, vector);
         }
