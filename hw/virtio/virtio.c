@@ -2255,6 +2255,7 @@ void virtio_queue_set_num(VirtIODevice *vdev, int n, int num)
         return;
     }
     vdev->vq[n].vring.num = num;
+    virtio_queue_update_rings(vdev, n);
 }
 
 VirtQueue *virtio_vector_first_queue(VirtIODevice *vdev, uint16_t vector)
