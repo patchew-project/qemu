@@ -47,6 +47,7 @@
 
 static void vfio_disable_interrupts(VFIOPCIDevice *vdev);
 static void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled);
+static void vfio_msi_disable_common(VFIOPCIDevice *vdev, bool enable_intx);
 
 /*
  * Disabling BAR mmaping can be slow, but toggling it around INTx can
@@ -650,29 +651,17 @@ retry:
     if (ret) {
         if (ret < 0) {
             error_report("vfio: Error: Failed to setup MSI fds: %m");
-        } else if (ret != vdev->nr_vectors) {
+        } else {
             error_report("vfio: Error: Failed to enable %d "
                          "MSI vectors, retry with %d", vdev->nr_vectors, ret);
         }
 
-        for (i = 0; i < vdev->nr_vectors; i++) {
-            VFIOMSIVector *vector = &vdev->msi_vectors[i];
-            if (vector->virq >= 0) {
-                vfio_remove_kvm_msi_virq(vector);
-            }
-            qemu_set_fd_handler(event_notifier_get_fd(&vector->interrupt),
-                                NULL, NULL, NULL);
-            event_notifier_cleanup(&vector->interrupt);
-        }
+        vfio_msi_disable_common(vdev, false);
 
-        g_free(vdev->msi_vectors);
-        vdev->msi_vectors = NULL;
-
-        if (ret > 0 && ret != vdev->nr_vectors) {
+        if (ret > 0) {
             vdev->nr_vectors = ret;
             goto retry;
         }
-        vdev->nr_vectors = 0;
 
         /*
          * Failing to setup MSI doesn't really fall within any specification.
@@ -680,7 +669,6 @@ retry:
          * out to fall back to INTx for this device.
          */
         error_report("vfio: Error: Failed to enable MSI");
-        vdev->interrupt = VFIO_INT_NONE;
 
         return;
     }
@@ -688,7 +676,7 @@ retry:
     trace_vfio_msi_enable(vdev->vbasedev.name, vdev->nr_vectors);
 }
 
-static void vfio_msi_disable_common(VFIOPCIDevice *vdev)
+static void vfio_msi_disable_common(VFIOPCIDevice *vdev, bool enable_intx)
 {
     Error *err = NULL;
     int i;
@@ -710,9 +698,11 @@ static void vfio_msi_disable_common(VFIOPCIDevice *vdev)
     vdev->nr_vectors = 0;
     vdev->interrupt = VFIO_INT_NONE;
 
-    vfio_intx_enable(vdev, &err);
-    if (err) {
-        error_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
+    if (enable_intx) {
+        vfio_intx_enable(vdev, &err);
+        if (err) {
+            error_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
+        }
     }
 }
 
@@ -737,7 +727,7 @@ static void vfio_msix_disable(VFIOPCIDevice *vdev)
         vfio_disable_irqindex(&vdev->vbasedev, VFIO_PCI_MSIX_IRQ_INDEX);
     }
 
-    vfio_msi_disable_common(vdev);
+    vfio_msi_disable_common(vdev, true);
 
     memset(vdev->msix->pending, 0,
            BITS_TO_LONGS(vdev->msix->entries) * sizeof(unsigned long));
@@ -748,7 +738,7 @@ static void vfio_msix_disable(VFIOPCIDevice *vdev)
 static void vfio_msi_disable(VFIOPCIDevice *vdev)
 {
     vfio_disable_irqindex(&vdev->vbasedev, VFIO_PCI_MSI_IRQ_INDEX);
-    vfio_msi_disable_common(vdev);
+    vfio_msi_disable_common(vdev, true);
 
     trace_vfio_msi_disable(vdev->vbasedev.name);
 }
