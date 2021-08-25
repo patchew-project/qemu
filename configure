@@ -296,7 +296,6 @@ curl="auto"
 iconv="auto"
 curses="auto"
 docs="auto"
-fdt="auto"
 netmap="no"
 sdl="auto"
 sdl_image="auto"
@@ -1212,14 +1211,6 @@ for opt do
   ;;
   --enable-curl) curl="enabled"
   ;;
-  --disable-fdt) fdt="disabled"
-  ;;
-  --enable-fdt) fdt="enabled"
-  ;;
-  --enable-fdt=git) fdt="internal"
-  ;;
-  --enable-fdt=system) fdt="system"
-  ;;
   --disable-linux-aio) linux_aio="no"
   ;;
   --enable-linux-aio) linux_aio="yes"
@@ -1890,7 +1881,6 @@ disabled with --disable-FEATURE, default is enabled if available
   brlapi          BrlAPI (Braile)
   curl            curl connectivity
   membarrier      membarrier system call (for Linux 4.14+ or Windows)
-  fdt             fdt device tree
   kvm             KVM acceleration support
   hax             HAX acceleration support
   hvf             Hypervisor.framework acceleration support
@@ -3438,16 +3428,6 @@ iovec=no
 if compile_prog "" "" ; then
   iovec=yes
 fi
-
-##########################################
-# fdt probe
-
-case "$fdt" in
-  auto | enabled | internal)
-    # Simpler to always update submodule, even if not needed.
-    git_submodules="${git_submodules} dtc"
-    ;;
-esac
 
 ##########################################
 # opengl probe (for sdl2, gtk)
@@ -5199,7 +5179,7 @@ if test "$skip_meson" = no; then
         -Dlibusb=$libusb -Dsmartcard=$smartcard -Dusb_redir=$usb_redir -Dvte=$vte \
         -Dvnc=$vnc -Dvnc_sasl=$vnc_sasl -Dvnc_jpeg=$vnc_jpeg -Dvnc_png=$vnc_png \
         -Dgettext=$gettext -Dxkbcommon=$xkbcommon -Du2f=$u2f -Dvirtiofsd=$virtiofsd \
-        -Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt -Dbrlapi=$brlapi \
+        -Dcapstone=$capstone -Dslirp=$slirp -Dbrlapi=$brlapi \
         -Dcurl=$curl -Dglusterfs=$glusterfs -Dbzip2=$bzip2 -Dlibiscsi=$libiscsi \
         -Dlibnfs=$libnfs -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
         -Drbd=$rbd -Dlzo=$lzo -Dsnappy=$snappy -Dlzfse=$lzfse -Dlibxml2=$libxml2 \
