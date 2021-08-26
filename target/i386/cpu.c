@@ -5619,6 +5619,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
     case 0x8000001F:
         *eax = sev_enabled() ? 0x2 : 0;
         *eax |= sev_es_enabled() ? 0x8 : 0;
+        *eax |= sev_snp_enabled() ? 0x10 : 0;
         *ebx = sev_get_cbit_position();
         *ebx |= sev_get_reduced_phys_bits() << 6;
         *ecx = 0;
