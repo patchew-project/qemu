@@ -776,6 +776,64 @@
             '*handle': 'uint32' } }
 
 ##
+# @SevSnpGuestProperties:
+#
+# Properties for sev-snp-guest objects. Many of these are direct arguments
+# for the SEV-SNP KVM interfaces documented in the linux kernel source
+# documentation under 'amd-memory-encryption.rst'. Additional documentation
+# is also available in the QEMU source tree under
+# 'amd-memory-encryption.rst'.
+#
+# In addition to those files, please see the SEV-SNP Firmware Specification
+# (Rev 0.9) documentation for the SNP_INIT and
+# SNP_LAUNCH_{START,UPDATE,FINISH} firmware interfaces, which the KVM
+# interfaces are written against.
+#
+# @init-flags: as documented for the 'flags' parameter of the
+#              KVM_SNP_INIT KVM command (default: 0)
+#
+# @policy: as documented for the 'policy' parameter of the
+#          KVM_SNP_LAUNCH_START KVM command (default: 0x30000)
+#
+# @guest-visible-workarounds: 16-byte, base64-encoded blob to report
+#                             hypervisor-defined workarounds, as documented
+#                             for the 'gosvm' parameter of the
+#                             KVM_SNP_LAUNCH_START KVM command.
+#                             (default: all-zero)
+#
+# @id-block: 8-byte, base64-encoded blob to provide the ID Block
+#            structure documented in SEV-SNP spec, as documented for the
+#            'id_block_uaddr' parameter of the KVM_SNP_LAUNCH_FINISH
+#            command (default: all-zero)
+#
+# @id-auth: 4096-byte, base64-encoded blob to provide the ID Authentication
+#           Information Structure documented in SEV-SNP spec, as documented
+#           for the 'id_auth_uaddr' parameter of the KVM_SNP_LAUNCH_FINISH
+#           command (default: all-zero)
+#
+# @auth-key-enabled: true if 'id-auth' blob contains the Author Key
+#                    documented in the SEV-SNP spec, as documented for the
+#                    'auth_key_en' parameter of the KVM_SNP_LAUNCH_FINISH
+#                    command (default: false)
+#
+# @host-data: 32-byte, base64-encoded user-defined blob to provide to the
+#             guest, as documented for the 'host_data' parameter of the
+#             KVM_SNP_LAUNCH_FINISH command (default: all-zero)
+#
+# Since: 6.2
+##
+{ 'struct': 'SevSnpGuestProperties',
+  'base': 'SevCommonProperties',
+  'data': {
+            '*init-flags': 'uint64',
+            '*policy': 'uint64',
+            '*guest-visible-workarounds': 'str',
+            '*id-block': 'str',
+            '*id-auth': 'str',
+            '*auth-key-enabled': 'bool',
+            '*host-data': 'str' } }
+
+##
 # @ObjectType:
 #
 # Since: 6.0
@@ -816,6 +874,7 @@
     'secret',
     'secret_keyring',
     'sev-guest',
+    'sev-snp-guest',
     's390-pv-guest',
     'throttle-group',
     'tls-creds-anon',
@@ -873,6 +932,7 @@
       'secret':                     'SecretProperties',
       'secret_keyring':             'SecretKeyringProperties',
       'sev-guest':                  'SevGuestProperties',
+      'sev-snp-guest':              'SevSnpGuestProperties',
       'throttle-group':             'ThrottleGroupProperties',
       'tls-creds-anon':             'TlsCredsAnonProperties',
       'tls-creds-psk':              'TlsCredsPskProperties',

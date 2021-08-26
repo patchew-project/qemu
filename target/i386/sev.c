@@ -38,7 +38,8 @@
 OBJECT_DECLARE_SIMPLE_TYPE(SevCommonState, SEV_COMMON)
 #define TYPE_SEV_GUEST "sev-guest"
 OBJECT_DECLARE_SIMPLE_TYPE(SevGuestState, SEV_GUEST)
-
+#define TYPE_SEV_SNP_GUEST "sev-snp-guest"
+OBJECT_DECLARE_SIMPLE_TYPE(SevSnpGuestState, SEV_SNP_GUEST)
 
 /**
  * SevGuestState:
@@ -82,8 +83,23 @@ struct SevGuestState {
     char *session_file;
 };
 
+struct SevSnpGuestState {
+    SevCommonState sev_common;
+
+    /* configuration parameters */
+    char *guest_visible_workarounds;
+    char *id_block;
+    char *id_auth;
+    char *host_data;
+
+    struct kvm_snp_init kvm_init_conf;
+    struct kvm_sev_snp_launch_start kvm_start_conf;
+    struct kvm_sev_snp_launch_finish kvm_finish_conf;
+};
+
 #define DEFAULT_GUEST_POLICY    0x1 /* disable debug */
 #define DEFAULT_SEV_DEVICE      "/dev/sev"
+#define DEFAULT_SEV_SNP_POLICY  0x30000
 
 #define SEV_INFO_BLOCK_GUID     "00f771de-1a7e-4fcb-890e-68c77e2fb44e"
 typedef struct __attribute__((__packed__)) SevInfoBlock {
@@ -362,6 +378,232 @@ static const TypeInfo sev_guest_info = {
     .instance_size = sizeof(SevGuestState),
     .instance_init = sev_guest_instance_init,
     .class_init = sev_guest_class_init,
+};
+
+static void
+sev_snp_guest_get_init_flags(Object *obj, Visitor *v, const char *name,
+                             void *opaque, Error **errp)
+{
+    visit_type_uint64(v, name,
+                      (uint64_t *)&SEV_SNP_GUEST(obj)->kvm_init_conf.flags,
+                      errp);
+}
+
+static void
+sev_snp_guest_set_init_flags(Object *obj, Visitor *v, const char *name,
+                             void *opaque, Error **errp)
+{
+    visit_type_uint64(v, name,
+                      (uint64_t *)&SEV_SNP_GUEST(obj)->kvm_init_conf.flags,
+                      errp);
+}
+
+static void
+sev_snp_guest_get_policy(Object *obj, Visitor *v, const char *name,
+                         void *opaque, Error **errp)
+{
+    visit_type_uint64(v, name,
+                      (uint64_t *)&SEV_SNP_GUEST(obj)->kvm_start_conf.policy,
+                      errp);
+}
+
+static void
+sev_snp_guest_set_policy(Object *obj, Visitor *v, const char *name,
+                         void *opaque, Error **errp)
+{
+    visit_type_uint64(v, name,
+                      (uint64_t *)&SEV_SNP_GUEST(obj)->kvm_start_conf.policy,
+                      errp);
+}
+
+static char *
+sev_snp_guest_get_guest_visible_workarounds(Object *obj, Error **errp)
+{
+    return g_strdup(SEV_SNP_GUEST(obj)->guest_visible_workarounds);
+}
+
+static void
+sev_snp_guest_set_guest_visible_workarounds(Object *obj, const char *value,
+                                            Error **errp)
+{
+    SevSnpGuestState *sev_snp_guest = SEV_SNP_GUEST(obj);
+    struct kvm_sev_snp_launch_start *start = &sev_snp_guest->kvm_start_conf;
+    g_autofree guchar *blob;
+    gsize len;
+
+    if (sev_snp_guest->guest_visible_workarounds) {
+        g_free(sev_snp_guest->guest_visible_workarounds);
+    }
+
+    /* store the base64 str so we don't need to re-encode in getter */
+    sev_snp_guest->guest_visible_workarounds = g_strdup(value);
+
+    blob = g_base64_decode(sev_snp_guest->guest_visible_workarounds, &len);
+    if (len > sizeof(start->gosvw)) {
+        error_setg(errp, "parameter length of %lu exceeds max of %lu",
+                   len, sizeof(start->gosvw));
+        return;
+    }
+
+    memcpy(start->gosvw, blob, len);
+}
+
+static char *
+sev_snp_guest_get_id_block(Object *obj, Error **errp)
+{
+    SevSnpGuestState *sev_snp_guest = SEV_SNP_GUEST(obj);
+
+    return g_strdup(sev_snp_guest->id_block);
+}
+
+static void
+sev_snp_guest_set_id_block(Object *obj, const char *value, Error **errp)
+{
+    SevSnpGuestState *sev_snp_guest = SEV_SNP_GUEST(obj);
+    struct kvm_sev_snp_launch_finish *finish = &sev_snp_guest->kvm_finish_conf;
+    gsize len;
+
+    if (sev_snp_guest->id_block) {
+        g_free(sev_snp_guest->id_block);
+        g_free((guchar *)finish->id_block_uaddr);
+    }
+
+    /* store the base64 str so we don't need to re-encode in getter */
+    sev_snp_guest->id_block = g_strdup(value);
+
+    finish->id_block_uaddr = (uint64_t)g_base64_decode(sev_snp_guest->id_block, &len);
+    if (len > KVM_SEV_SNP_ID_BLOCK_SIZE) {
+        error_setg(errp, "parameter length of %lu exceeds max of %u",
+                   len, KVM_SEV_SNP_ID_BLOCK_SIZE);
+        return;
+    }
+    finish->id_block_en = 1;
+}
+
+static char *
+sev_snp_guest_get_id_auth(Object *obj, Error **errp)
+{
+    SevSnpGuestState *sev_snp_guest = SEV_SNP_GUEST(obj);
+
+    return g_strdup(sev_snp_guest->id_auth);
+}
+
+static void
+sev_snp_guest_set_id_auth(Object *obj, const char *value, Error **errp)
+{
+    SevSnpGuestState *sev_snp_guest = SEV_SNP_GUEST(obj);
+    struct kvm_sev_snp_launch_finish *finish = &sev_snp_guest->kvm_finish_conf;
+    gsize len;
+
+    if (sev_snp_guest->id_auth) {
+        g_free(sev_snp_guest->id_auth);
+        g_free((guchar *)finish->id_auth_uaddr);
+    }
+
+    /* store the base64 str so we don't need to re-encode in getter */
+    sev_snp_guest->id_auth = g_strdup(value);
+
+    finish->id_auth_uaddr = (uint64_t)g_base64_decode(sev_snp_guest->id_auth, &len);
+    if (len > KVM_SEV_SNP_ID_AUTH_SIZE) {
+        error_setg(errp, "parameter length of %lu exceeds max of %u",
+                   len, KVM_SEV_SNP_ID_AUTH_SIZE);
+        return;
+    }
+}
+
+static bool
+sev_snp_guest_get_auth_key_en(Object *obj, Error **errp)
+{
+    SevSnpGuestState *sev_snp_guest = SEV_SNP_GUEST(obj);
+
+    return !!sev_snp_guest->kvm_finish_conf.auth_key_en;
+}
+
+static void
+sev_snp_guest_set_auth_key_en(Object *obj, bool value, Error **errp)
+{
+    SevSnpGuestState *sev_snp_guest = SEV_SNP_GUEST(obj);
+
+    sev_snp_guest->kvm_finish_conf.auth_key_en = value;
+}
+
+static char *
+sev_snp_guest_get_host_data(Object *obj, Error **errp)
+{
+    SevSnpGuestState *sev_snp_guest = SEV_SNP_GUEST(obj);
+
+    return g_strdup(sev_snp_guest->host_data);
+}
+
+static void
+sev_snp_guest_set_host_data(Object *obj, const char *value, Error **errp)
+{
+    SevSnpGuestState *sev_snp_guest = SEV_SNP_GUEST(obj);
+    struct kvm_sev_snp_launch_finish *finish = &sev_snp_guest->kvm_finish_conf;
+    g_autofree guchar *blob;
+    gsize len;
+
+    if (sev_snp_guest->host_data) {
+        g_free(sev_snp_guest->host_data);
+    }
+
+    /* store the base64 str so we don't need to re-encode in getter */
+    sev_snp_guest->host_data = g_strdup(value);
+
+    blob = g_base64_decode(sev_snp_guest->host_data, &len);
+    if (len > sizeof(finish->host_data)) {
+        error_setg(errp, "parameter length of %lu exceeds max of %lu",
+                   len, sizeof(finish->host_data));
+        return;
+    }
+
+    memcpy(finish->host_data, blob, len);
+}
+
+static void
+sev_snp_guest_class_init(ObjectClass *oc, void *data)
+{
+    object_class_property_add(oc, "init-flags", "uint64",
+                              sev_snp_guest_get_init_flags,
+                              sev_snp_guest_set_init_flags, NULL, NULL);
+    object_class_property_set_description(oc, "init-flags",
+        "guest initialization flags");
+    object_class_property_add(oc, "policy", "uint64",
+                              sev_snp_guest_get_policy,
+                              sev_snp_guest_set_policy, NULL, NULL);
+    object_class_property_add_str(oc, "guest-visible-workarounds",
+                                  sev_snp_guest_get_guest_visible_workarounds,
+                                  sev_snp_guest_set_guest_visible_workarounds);
+    object_class_property_add_str(oc, "id-block",
+                                  sev_snp_guest_get_id_block,
+                                  sev_snp_guest_set_id_block);
+    object_class_property_add_str(oc, "id-auth",
+                                  sev_snp_guest_get_id_auth,
+                                  sev_snp_guest_set_id_auth);
+    object_class_property_add_bool(oc, "auth-key-enabled",
+                                   sev_snp_guest_get_auth_key_en,
+                                   sev_snp_guest_set_auth_key_en);
+    object_class_property_add_str(oc, "host-data",
+                                  sev_snp_guest_get_host_data,
+                                  sev_snp_guest_set_host_data);
+}
+
+static void
+sev_snp_guest_instance_init(Object *obj)
+{
+    SevSnpGuestState *sev_snp_guest = SEV_SNP_GUEST(obj);
+
+    /* default init/start/finish params for kvm */
+    sev_snp_guest->kvm_start_conf.policy = DEFAULT_SEV_SNP_POLICY;
+}
+
+/* guest info specific to sev-snp */
+static const TypeInfo sev_snp_guest_info = {
+    .parent = TYPE_SEV_COMMON,
+    .name = TYPE_SEV_SNP_GUEST,
+    .instance_size = sizeof(SevSnpGuestState),
+    .class_init = sev_snp_guest_class_init,
+    .instance_init = sev_snp_guest_instance_init,
 };
 
 bool
@@ -1130,6 +1372,7 @@ sev_register_types(void)
 {
     type_register_static(&sev_common_info);
     type_register_static(&sev_guest_info);
+    type_register_static(&sev_snp_guest_info);
 }
 
 type_init(sev_register_types);
