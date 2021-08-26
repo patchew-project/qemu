@@ -180,7 +180,7 @@ typedef struct XHCIState {
     USBBus bus;
     MemoryRegion mem;
     MemoryRegion *dma_mr;
-    AddressSpace *as;
+    AddressSpace as;
     MemoryRegion mem_cap;
     MemoryRegion mem_oper;
     MemoryRegion mem_runtime;

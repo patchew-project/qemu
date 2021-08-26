@@ -36,6 +36,11 @@ static void xhci_sysbus_realize(DeviceState *dev, Error **errp)
 {
     XHCISysbusState *s = XHCI_SYSBUS(dev);
 
+    if (!s->xhci.dma_mr) {
+        error_setg(errp, TYPE_XHCI_SYSBUS " 'dma' link not set");
+        return;
+    }
+
     object_property_set_link(OBJECT(&s->xhci), "host", OBJECT(s), NULL);
     if (!qdev_realize(DEVICE(&s->xhci), NULL, errp)) {
         return;
@@ -43,13 +48,7 @@ static void xhci_sysbus_realize(DeviceState *dev, Error **errp)
     s->irq = g_new0(qemu_irq, s->xhci.numintrs);
     qdev_init_gpio_out_named(dev, s->irq, SYSBUS_DEVICE_GPIO_IRQ,
                              s->xhci.numintrs);
-    if (s->xhci.dma_mr) {
-        s->xhci.as =  g_malloc0(sizeof(AddressSpace));
-        address_space_init(s->xhci.as, s->xhci.dma_mr, NULL);
-    } else {
-        s->xhci.as = &address_space_memory;
-    }
-
+    address_space_init(&s->xhci.as, s->xhci.dma_mr, "usb-xhci-dma");
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->xhci.mem);
 }
 
