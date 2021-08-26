@@ -18,4 +18,95 @@
 #ifndef HEXAGON_GEN_TCG_HVX_H
 #define HEXAGON_GEN_TCG_HVX_H
 
+/*
+ * Histogram instructions
+ *
+ * Note that these instructions operate directly on the vector registers
+ * and therefore happen after commit.
+ *
+ * The generate_<tag> function is called twice
+ *     The first time is during the normal TCG generation
+ *         ctx->pre_commit is true
+ *         In the masked cases, we save the mask to the qtmp temporary
+ *         Otherwise, there is nothing to do
+ *     The second call is at the end of gen_commit_packet
+ *         ctx->pre_commit is false
+ *         Generate the call to the helper
+ */
+#define fGEN_TCG_V6_vhist(SHORTCODE) \
+    if (!ctx->pre_commit) { \
+        gen_helper_vhist(cpu_env); \
+    }
+#define fGEN_TCG_V6_vhistq(SHORTCODE) \
+    do { \
+        if (ctx->pre_commit) { \
+            intptr_t dstoff = offsetof(CPUHexagonState, qtmp); \
+            tcg_gen_gvec_mov(MO_64, dstoff, QvV_off, \
+                             sizeof(MMVector), sizeof(MMVector)); \
+        } else { \
+            gen_helper_vhistq(cpu_env); \
+        } \
+    } while (0)
+#define fGEN_TCG_V6_vwhist256(SHORTCODE) \
+    if (!ctx->pre_commit) { \
+        gen_helper_vwhist256(cpu_env); \
+    }
+#define fGEN_TCG_V6_vwhist256q(SHORTCODE) \
+    do { \
+        if (ctx->pre_commit) { \
+            intptr_t dstoff = offsetof(CPUHexagonState, qtmp); \
+            tcg_gen_gvec_mov(MO_64, dstoff, QvV_off, \
+                             sizeof(MMVector), sizeof(MMVector)); \
+        } else { \
+            gen_helper_vwhist256q(cpu_env); \
+        } \
+    } while (0)
+#define fGEN_TCG_V6_vwhist256_sat(SHORTCODE) \
+    if (!ctx->pre_commit) { \
+        gen_helper_vwhist256_sat(cpu_env); \
+    }
+#define fGEN_TCG_V6_vwhist256q_sat(SHORTCODE) \
+    do { \
+        if (ctx->pre_commit) { \
+            intptr_t dstoff = offsetof(CPUHexagonState, qtmp); \
+            tcg_gen_gvec_mov(MO_64, dstoff, QvV_off, \
+                             sizeof(MMVector), sizeof(MMVector)); \
+        } else { \
+            gen_helper_vwhist256q_sat(cpu_env); \
+        } \
+    } while (0)
+#define fGEN_TCG_V6_vwhist128(SHORTCODE) \
+    if (!ctx->pre_commit) { \
+        gen_helper_vwhist128(cpu_env); \
+    }
+#define fGEN_TCG_V6_vwhist128q(SHORTCODE) \
+    do { \
+        if (ctx->pre_commit) { \
+            intptr_t dstoff = offsetof(CPUHexagonState, qtmp); \
+            tcg_gen_gvec_mov(MO_64, dstoff, QvV_off, \
+                             sizeof(MMVector), sizeof(MMVector)); \
+        } else { \
+            gen_helper_vwhist128q(cpu_env); \
+        } \
+    } while (0)
+#define fGEN_TCG_V6_vwhist128m(SHORTCODE) \
+    if (!ctx->pre_commit) { \
+        TCGv tcgv_uiV = tcg_const_tl(uiV); \
+        gen_helper_vwhist128m(cpu_env, tcgv_uiV); \
+        tcg_temp_free(tcgv_uiV); \
+    }
+#define fGEN_TCG_V6_vwhist128qm(SHORTCODE) \
+    do { \
+        if (ctx->pre_commit) { \
+            intptr_t dstoff = offsetof(CPUHexagonState, qtmp); \
+            tcg_gen_gvec_mov(MO_64, dstoff, QvV_off, \
+                             sizeof(MMVector), sizeof(MMVector)); \
+        } else { \
+            TCGv tcgv_uiV = tcg_const_tl(uiV); \
+            gen_helper_vwhist128qm(cpu_env, tcgv_uiV); \
+            tcg_temp_free(tcgv_uiV); \
+        } \
+    } while (0)
+
+
 #endif
