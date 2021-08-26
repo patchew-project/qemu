@@ -81,3 +81,9 @@ sev_get_attestation_report(const char *mnonce, Error **errp)
     error_setg(errp, "SEV is not available in this QEMU");
     return NULL;
 }
+
+bool
+sev_snp_enabled(void)
+{
+    return false;
+}
