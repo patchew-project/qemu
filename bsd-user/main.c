@@ -72,13 +72,6 @@ void gemu_log(const char *fmt, ...)
     va_end(ap);
 }
 
-#if defined(TARGET_I386)
-int cpu_get_pic_interrupt(CPUX86State *env)
-{
-    return -1;
-}
-#endif
-
 void fork_start(void)
 {
 }
@@ -93,11 +86,6 @@ void fork_end(int child)
 #ifdef TARGET_I386
 /***********************************************************/
 /* CPUX86 core interface */
-
-uint64_t cpu_get_tsc(CPUX86State *env)
-{
-    return cpu_get_host_ticks();
-}
 
 static void write_dt(void *ptr, unsigned long addr, unsigned long limit,
                      int flags)
