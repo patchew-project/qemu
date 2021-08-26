@@ -153,6 +153,36 @@ static const char *const sev_fw_errlist[] = {
 
 #define SEV_FW_MAX_ERROR      ARRAY_SIZE(sev_fw_errlist)
 
+/* <linux/kvm.h> doesn't expose this, so re-use the max from kvm.c */
+#define KVM_MAX_CPUID_ENTRIES 100
+
+typedef struct KvmCpuidInfo {
+    struct kvm_cpuid2 cpuid;
+    struct kvm_cpuid_entry2 entries[KVM_MAX_CPUID_ENTRIES];
+} KvmCpuidInfo;
+
+#define SNP_CPUID_FUNCTION_MAXCOUNT 64
+#define SNP_CPUID_FUNCTION_UNKNOWN 0xFFFFFFFF
+
+typedef struct {
+    uint32_t eax_in;
+    uint32_t ecx_in;
+    uint64_t xcr0_in;
+    uint64_t xss_in;
+    uint32_t eax;
+    uint32_t ebx;
+    uint32_t ecx;
+    uint32_t edx;
+    uint64_t reserved;
+} __attribute__((packed)) SnpCpuidFunc;
+
+typedef struct {
+    uint32_t count;
+    uint32_t reserved1;
+    uint64_t reserved2;
+    SnpCpuidFunc entries[SNP_CPUID_FUNCTION_MAXCOUNT];
+} __attribute__((packed)) SnpCpuidInfo;
+
 static int
 sev_ioctl(int fd, int cmd, void *data, int *error)
 {
@@ -1141,6 +1171,117 @@ detect_first_overlap(uint64_t start, uint64_t end, Range *range_list,
     return overlap;
 }
 
+static int
+sev_snp_cpuid_info_fill(SnpCpuidInfo *snp_cpuid_info,
+                        const KvmCpuidInfo *kvm_cpuid_info)
+{
+    size_t i;
+
+    memset(snp_cpuid_info, 0, sizeof(*snp_cpuid_info));
+
+    for (i = 0; kvm_cpuid_info->entries[i].function != 0xFFFFFFFF; i++) {
+        const struct kvm_cpuid_entry2 *kvm_cpuid_entry;
+        SnpCpuidFunc *snp_cpuid_entry;
+
+        kvm_cpuid_entry = &kvm_cpuid_info->entries[i];
+        snp_cpuid_entry = &snp_cpuid_info->entries[i];
+
+        snp_cpuid_entry->eax_in = kvm_cpuid_entry->function;
+        if (kvm_cpuid_entry->flags == KVM_CPUID_FLAG_SIGNIFCANT_INDEX) {
+            snp_cpuid_entry->ecx_in = kvm_cpuid_entry->index;
+        }
+        snp_cpuid_entry->eax = kvm_cpuid_entry->eax;
+        snp_cpuid_entry->ebx = kvm_cpuid_entry->ebx;
+        snp_cpuid_entry->ecx = kvm_cpuid_entry->ecx;
+        snp_cpuid_entry->edx = kvm_cpuid_entry->edx;
+
+        if (snp_cpuid_entry->eax_in == 0xD &&
+            (snp_cpuid_entry->ecx_in == 0x0 || snp_cpuid_entry->ecx_in == 0x1)) {
+            snp_cpuid_entry->ebx = 0x240;
+        }
+    }
+
+    if (i > SNP_CPUID_FUNCTION_MAXCOUNT) {
+        error_report("SEV-SNP: CPUID count '%lu' exceeds max '%u'",
+                     i, SNP_CPUID_FUNCTION_MAXCOUNT);
+        return -1;
+    }
+
+    snp_cpuid_info->count = i;
+
+    return 0;
+}
+
+static void
+sev_snp_cpuid_report_mismatches(SnpCpuidInfo *old,
+                                SnpCpuidInfo *new)
+{
+    size_t i;
+
+    for (i = 0; i < old->count; i++) {
+        SnpCpuidFunc *old_func, *new_func;
+
+        old_func = &old->entries[i];
+        new_func = &new->entries[i];
+
+        if (memcmp(old_func, new_func, sizeof(SnpCpuidFunc))) {
+            error_report("SEV-SNP: CPUID validation failed for function %x, index: %x.\n"
+                         "provided: eax:0x%08x, ebx: 0x%08x, ecx: 0x%08x, edx: 0x%08x\n"
+                         "expected: eax:0x%08x, ebx: 0x%08x, ecx: 0x%08x, edx: 0x%08x",
+                         old_func->eax_in, old_func->ecx_in,
+                         old_func->eax, old_func->ebx, old_func->ecx, old_func->edx,
+                         new_func->eax, new_func->ebx, new_func->ecx, new_func->edx);
+        }
+    }
+}
+
+static int
+sev_snp_launch_update_cpuid(uint32_t cpuid_addr, uint32_t cpuid_len)
+{
+    KvmCpuidInfo kvm_cpuid_info;
+    SnpCpuidInfo snp_cpuid_info;
+    CPUState *cs = first_cpu;
+    MemoryRegion *mr = NULL;
+    void *snp_cpuid_hva;
+    int ret;
+
+    snp_cpuid_hva = gpa2hva(&mr, cpuid_addr, cpuid_len, NULL);
+    if (!snp_cpuid_hva) {
+        error_report("SEV-SNP: unable to access CPUID memory range at GPA %d",
+                     cpuid_addr);
+        return 1;
+    }
+
+    /* get the cpuid list from KVM */
+    memset(&kvm_cpuid_info.entries, 0xFF,
+           KVM_MAX_CPUID_ENTRIES * sizeof(struct kvm_cpuid_entry2));
+    kvm_cpuid_info.cpuid.nent = KVM_MAX_CPUID_ENTRIES;
+
+    ret = kvm_vcpu_ioctl(cs, KVM_GET_CPUID2, &kvm_cpuid_info);
+    if (ret) {
+        error_report("SEV-SNP: unable to query CPUID values for CPU: '%s'",
+                     strerror(-ret));
+    }
+
+    ret = sev_snp_cpuid_info_fill(&snp_cpuid_info, &kvm_cpuid_info);
+    if (ret) {
+        error_report("SEV-SNP: failed to generate CPUID table information");
+        exit(1);
+    }
+
+    memcpy(snp_cpuid_hva, &snp_cpuid_info, sizeof(snp_cpuid_info));
+
+    ret = sev_snp_launch_update_gpa(cpuid_addr, cpuid_len,
+                                    KVM_SEV_SNP_PAGE_TYPE_CPUID);
+    if (ret) {
+        sev_snp_cpuid_report_mismatches(&snp_cpuid_info, snp_cpuid_hva);
+        error_report("SEV-SNP: failed update CPUID page");
+        exit(1);
+    }
+
+    return 0;
+}
+
 static void snp_ovmf_boot_block_setup(void)
 {
     SevSnpBootInfoBlock *info;
@@ -1176,10 +1317,9 @@ static void snp_ovmf_boot_block_setup(void)
     }
 
     /* Populate the cpuid page */
-    ret = sev_snp_launch_update_gpa(info->cpuid_addr, info->cpuid_len,
-                                    KVM_SEV_SNP_PAGE_TYPE_CPUID);
+    ret = sev_snp_launch_update_cpuid(info->cpuid_addr, info->cpuid_len);
     if (ret) {
-        error_report("SEV-SNP: failed to insert cpuid page GPA 0x%x",
+        error_report("SEV-SNP: failed to populate cpuid tables GPA 0x%x",
                      info->cpuid_addr);
         exit(1);
     }
