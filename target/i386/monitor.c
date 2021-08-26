@@ -692,20 +692,37 @@ void hmp_info_sev(Monitor *mon, const QDict *qdict)
 {
     SevInfo *info = sev_get_info();
 
-    if (info && info->enabled) {
-        monitor_printf(mon, "handle: %d\n", info->handle);
+    if (!info || !info->enabled) {
+        monitor_printf(mon, "SEV is not enabled\n");
+        goto out;
+    }
+
+    if (sev_snp_enabled()) {
         monitor_printf(mon, "state: %s\n", SevState_str(info->state));
         monitor_printf(mon, "build: %d\n", info->build_id);
         monitor_printf(mon, "api version: %d.%d\n",
                        info->api_major, info->api_minor);
         monitor_printf(mon, "debug: %s\n",
-                       info->policy & SEV_POLICY_NODBG ? "off" : "on");
-        monitor_printf(mon, "key-sharing: %s\n",
-                       info->policy & SEV_POLICY_NOKS ? "off" : "on");
+                       info->u.sev_snp.policy & SEV_SNP_POLICY_DBG ? "on"
+                                                                   : "off");
+        monitor_printf(mon, "SMT allowed: %s\n",
+                       info->u.sev_snp.policy & SEV_SNP_POLICY_SMT ? "on"
+                                                                   : "off");
+        monitor_printf(mon, "SEV type: %s\n", SevGuestType_str(info->sev_type));
     } else {
-        monitor_printf(mon, "SEV is not enabled\n");
+        monitor_printf(mon, "handle: %d\n", info->u.sev.handle);
+        monitor_printf(mon, "state: %s\n", SevState_str(info->state));
+        monitor_printf(mon, "build: %d\n", info->build_id);
+        monitor_printf(mon, "api version: %d.%d\n",
+                       info->api_major, info->api_minor);
+        monitor_printf(mon, "debug: %s\n",
+                       info->u.sev.policy & SEV_POLICY_NODBG ? "off" : "on");
+        monitor_printf(mon, "key-sharing: %s\n",
+                       info->u.sev.policy & SEV_POLICY_NOKS ? "off" : "on");
+        monitor_printf(mon, "SEV type: %s\n", SevGuestType_str(info->sev_type));
     }
 
+out:
     qapi_free_SevInfo(info);
 }
 

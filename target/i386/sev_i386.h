@@ -28,6 +28,9 @@
 #define SEV_POLICY_DOMAIN       0x10
 #define SEV_POLICY_SEV          0x20
 
+#define SEV_SNP_POLICY_SMT      0x10000
+#define SEV_SNP_POLICY_DBG      0x80000
+
 extern bool sev_es_enabled(void);
 extern bool sev_snp_enabled(void);
 extern uint64_t sev_get_me_mask(void);
