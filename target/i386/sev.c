@@ -33,6 +33,7 @@
 #include "monitor/monitor.h"
 #include "exec/confidential-guest-support.h"
 #include "hw/i386/pc.h"
+#include "qemu/range.h"
 
 #define TYPE_SEV_COMMON "sev-common"
 OBJECT_DECLARE_SIMPLE_TYPE(SevCommonState, SEV_COMMON)
@@ -106,6 +107,19 @@ typedef struct __attribute__((__packed__)) SevInfoBlock {
     /* SEV-ES Reset Vector Address */
     uint32_t reset_addr;
 } SevInfoBlock;
+
+#define SEV_SNP_BOOT_BLOCK_GUID "bd39c0c2-2f8e-4243-83e8-1b74cebcb7d9"
+typedef struct __attribute__((__packed__)) SevSnpBootInfoBlock {
+    /* Prevalidate range address */
+    uint32_t pre_validated_start;
+    uint32_t pre_validated_end;
+    /* Secrets page address */
+    uint32_t secrets_addr;
+    uint32_t secrets_len;
+    /* CPUID page address */
+    uint32_t cpuid_addr;
+    uint32_t cpuid_len;
+} SevSnpBootInfoBlock;
 
 static Error *sev_mig_blocker;
 
@@ -1086,6 +1100,162 @@ static Notifier sev_machine_done_notify = {
     .notify = sev_launch_get_measure,
 };
 
+static int
+sev_snp_launch_update_gpa(uint32_t hwaddr, uint32_t size, uint8_t type)
+{
+    void *hva;
+    MemoryRegion *mr = NULL;
+    SevSnpGuestState *sev_snp_guest =
+        SEV_SNP_GUEST(MACHINE(qdev_get_machine())->cgs);
+
+    hva = gpa2hva(&mr, hwaddr, size, NULL);
+    if (!hva) {
+        error_report("SEV-SNP failed to get HVA for GPA 0x%x", hwaddr);
+        return 1;
+    }
+
+    return sev_snp_launch_update(sev_snp_guest, hwaddr, hva, size, type);
+}
+
+static bool
+detect_first_overlap(uint64_t start, uint64_t end, Range *range_list,
+                     size_t range_count, Range *overlap_range)
+{
+    int i;
+    bool overlap = false;
+    Range new;
+
+    assert(overlap_range);
+    range_make_empty(overlap_range);
+    range_init_nofail(&new, start, end - start + 1);
+
+    for (i = 0; i < range_count; i++) {
+        if (range_overlaps_range(&new, &range_list[i]) &&
+            (range_is_empty(overlap_range) ||
+             range_lob(&range_list[i]) < range_lob(overlap_range))) {
+            *overlap_range = range_list[i];
+            overlap = true;
+        }
+    }
+
+    return overlap;
+}
+
+static void snp_ovmf_boot_block_setup(void)
+{
+    SevSnpBootInfoBlock *info;
+    uint32_t start, end, sz;
+    int ret;
+    Range validated_ranges[2];
+
+    /*
+     * Extract the SNP boot block for the SEV-SNP guests by locating the
+     * SNP_BOOT GUID. The boot block contains the information such as location
+     * of secrets and CPUID page, additionaly it may contain the range of
+     * memory that need to be pre-validated for the boot.
+     */
+    if (!pc_system_ovmf_table_find(SEV_SNP_BOOT_BLOCK_GUID,
+        (uint8_t **)&info, NULL)) {
+        error_report("SEV-SNP: failed to find the SNP boot block");
+        exit(1);
+    }
+
+    trace_kvm_sev_snp_ovmf_boot_block_info(info->secrets_addr,
+                                           info->secrets_len, info->cpuid_addr,
+                                           info->cpuid_len,
+                                           info->pre_validated_start,
+                                           info->pre_validated_end);
+
+    /* Populate the secrets page */
+    ret = sev_snp_launch_update_gpa(info->secrets_addr, info->secrets_len,
+                                    KVM_SEV_SNP_PAGE_TYPE_SECRETS);
+    if (ret) {
+        error_report("SEV-SNP: failed to insert secret page GPA 0x%x",
+                     info->secrets_addr);
+        exit(1);
+    }
+
+    /* Populate the cpuid page */
+    ret = sev_snp_launch_update_gpa(info->cpuid_addr, info->cpuid_len,
+                                    KVM_SEV_SNP_PAGE_TYPE_CPUID);
+    if (ret) {
+        error_report("SEV-SNP: failed to insert cpuid page GPA 0x%x",
+                     info->cpuid_addr);
+        exit(1);
+    }
+
+    /*
+     * Pre-validate the range using the LAUNCH_UPDATE_DATA, if the
+     * pre-validation range contains the CPUID and Secret page GPA then skip
+     * it. This is because SEV-SNP firmware pre-validates those pages as part
+     * of adding secrets and cpuid LAUNCH_UPDATE type.
+     */
+    range_init_nofail(&validated_ranges[0], info->secrets_addr, info->secrets_len);
+    range_init_nofail(&validated_ranges[1], info->cpuid_addr, info->cpuid_len);
+    start = info->pre_validated_start;
+    end = info->pre_validated_end;
+
+    while (start < end) {
+        Range overlap_range;
+
+        /* Check if the requested range overlaps with Secrets and CPUID page */
+        if (detect_first_overlap(start, end, validated_ranges, 2,
+                                 &overlap_range)) {
+            if (start < range_lob(&overlap_range)) {
+                sz = range_lob(&overlap_range) - start;
+                if (sev_snp_launch_update_gpa(start, sz,
+                    KVM_SEV_SNP_PAGE_TYPE_UNMEASURED)) {
+                    error_report("SEV-SNP: failed to validate gpa 0x%x sz %d",
+                                 start, sz);
+                    exit(1);
+                }
+            }
+
+            start = range_upb(&overlap_range) + 1;
+            continue;
+        }
+
+        /* Validate the remaining range */
+        if (sev_snp_launch_update_gpa(start, end - start,
+            KVM_SEV_SNP_PAGE_TYPE_UNMEASURED)) {
+            error_report("SEV-SNP: failed to validate gpa 0x%x sz %d",
+                         start, end - start);
+            exit(1);
+        }
+
+        start = end;
+    }
+}
+
+static void
+sev_snp_launch_finish(SevSnpGuestState *sev_snp)
+{
+    int ret, error;
+    Error *local_err = NULL;
+    struct kvm_sev_snp_launch_finish *finish = &sev_snp->kvm_finish_conf;
+
+    trace_kvm_sev_snp_launch_finish();
+    ret = sev_ioctl(SEV_COMMON(sev_snp)->sev_fd, KVM_SEV_SNP_LAUNCH_FINISH, finish, &error);
+    if (ret) {
+        error_report("%s: SNP_LAUNCH_FINISH ret=%d fw_error=%d '%s'",
+                     __func__, ret, error, fw_error_to_str(error));
+        exit(1);
+    }
+
+    sev_set_guest_state(SEV_COMMON(sev_snp), SEV_STATE_RUNNING);
+
+    /* add migration blocker */
+    error_setg(&sev_mig_blocker,
+               "SEV: Migration is not implemented");
+    ret = migrate_add_blocker(sev_mig_blocker, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        error_free(sev_mig_blocker);
+        exit(1);
+    }
+}
+
+
 static void
 sev_launch_finish(SevGuestState *sev_guest)
 {
@@ -1115,7 +1285,12 @@ sev_vm_state_change(void *opaque, bool running, RunState state)
 
     if (running) {
         if (!sev_check_state(sev_common, SEV_STATE_RUNNING)) {
-            sev_launch_finish(SEV_GUEST(sev_common));
+            if (sev_snp_enabled()) {
+                snp_ovmf_boot_block_setup();
+                sev_snp_launch_finish(SEV_SNP_GUEST(sev_common));
+            } else {
+                sev_launch_finish(SEV_GUEST(sev_common));
+            }
         }
     }
 }
@@ -1230,7 +1405,17 @@ int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp)
     }
 
     ram_block_notifier_add(&sev_ram_notifier);
-    qemu_add_machine_init_done_notifier(&sev_machine_done_notify);
+
+    /*
+     * The machine done notify event is used by the SEV guest to get the
+     * measurement of the encrypted images. When SEV-SNP is enabled then
+     * measurement is part of the attestation report and the measurement
+     * command does not exist. So skip registering the notifier.
+     */
+    if (!sev_snp_enabled()) {
+        qemu_add_machine_init_done_notifier(&sev_machine_done_notify);
+    }
+
     qemu_add_vm_change_state_handler(sev_vm_state_change, sev_common);
 
     cgs->ready = true;
