@@ -678,7 +678,8 @@ static bool qemu_vfio_verify_mappings(QEMUVFIOState *s)
 }
 
 static int
-qemu_vfio_find_fixed_iova(QEMUVFIOState *s, size_t size, uint64_t *iova)
+qemu_vfio_find_fixed_iova(QEMUVFIOState *s, size_t size, uint64_t *iova,
+                          Error **errp)
 {
     int i;
 
@@ -696,11 +697,14 @@ qemu_vfio_find_fixed_iova(QEMUVFIOState *s, size_t size, uint64_t *iova)
             return 0;
         }
     }
+    error_setg(errp, "fixed iova range not found");
+
     return -ENOMEM;
 }
 
 static int
-qemu_vfio_find_temp_iova(QEMUVFIOState *s, size_t size, uint64_t *iova)
+qemu_vfio_find_temp_iova(QEMUVFIOState *s, size_t size, uint64_t *iova,
+                         Error **errp)
 {
     int i;
 
@@ -718,6 +722,8 @@ qemu_vfio_find_temp_iova(QEMUVFIOState *s, size_t size, uint64_t *iova)
             return 0;
         }
     }
+    error_setg(errp, "temporary iova range not found");
+
     return -ENOMEM;
 }
 
@@ -762,7 +768,7 @@ int qemu_vfio_dma_map(QEMUVFIOState *s, void *host, size_t size,
             goto out;
         }
         if (!temporary) {
-            if (qemu_vfio_find_fixed_iova(s, size, &iova0)) {
+            if (qemu_vfio_find_fixed_iova(s, size, &iova0, errp) < 0) {
                 ret = -ENOMEM;
                 goto out;
             }
@@ -776,7 +782,7 @@ int qemu_vfio_dma_map(QEMUVFIOState *s, void *host, size_t size,
             }
             qemu_vfio_dump_mappings(s);
         } else {
-            if (qemu_vfio_find_temp_iova(s, size, &iova0)) {
+            if (qemu_vfio_find_temp_iova(s, size, &iova0, errp)) {
                 ret = -ENOMEM;
                 goto out;
             }
