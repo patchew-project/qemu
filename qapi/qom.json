@@ -735,11 +735,28 @@
   'data': { '*filename': 'str' } }
 
 ##
+# @SevCommonProperties:
+#
+# Properties common to objects that are derivatives of sev-common.
+#
+# @sev-device: SEV device to use (default: "/dev/sev")
+#
+# @cbitpos: C-bit location in page table entry (default: 0)
+#
+# @reduced-phys-bits: number of bits in physical addresses that become
+#                     unavailable when SEV is enabled
+#
+# Since: 2.12
+##
+{ 'struct': 'SevCommonProperties',
+  'data': { '*sev-device': 'str',
+            '*cbitpos': 'uint32',
+            'reduced-phys-bits': 'uint32' } }
+
+##
 # @SevGuestProperties:
 #
 # Properties for sev-guest objects.
-#
-# @sev-device: SEV device to use (default: "/dev/sev")
 #
 # @dh-cert-file: guest owners DH certificate (encoded with base64)
 #
@@ -749,21 +766,14 @@
 #
 # @handle: SEV firmware handle (default: 0)
 #
-# @cbitpos: C-bit location in page table entry (default: 0)
-#
-# @reduced-phys-bits: number of bits in physical addresses that become
-#                     unavailable when SEV is enabled
-#
 # Since: 2.12
 ##
 { 'struct': 'SevGuestProperties',
-  'data': { '*sev-device': 'str',
-            '*dh-cert-file': 'str',
+  'base': 'SevCommonProperties',
+  'data': { '*dh-cert-file': 'str',
             '*session-file': 'str',
             '*policy': 'uint32',
-            '*handle': 'uint32',
-            '*cbitpos': 'uint32',
-            'reduced-phys-bits': 'uint32' } }
+            '*handle': 'uint32' } }
 
 ##
 # @ObjectType:
