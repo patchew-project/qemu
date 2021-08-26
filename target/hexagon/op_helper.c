@@ -27,6 +27,8 @@
 #include "arch.h"
 #include "hex_arch_types.h"
 #include "fma_emu.h"
+#include "mmvec/mmvec.h"
+#include "mmvec/macros.h"
 
 #define SF_BIAS        127
 #define SF_MANTBITS    23
@@ -164,6 +166,52 @@ void HELPER(commit_store)(CPUHexagonState *env, int slot_num)
     }
 }
 
+void HELPER(commit_hvx_stores)(CPUHexagonState *env)
+{
+    uintptr_t ra = GETPC();
+    int i;
+
+    /* Normal (possibly masked) vector store */
+    for (i = 0; i < VSTORES_MAX; i++) {
+        if (env->vstore_pending[i]) {
+            env->vstore_pending[i] = 0;
+            target_ulong va = env->vstore[i].va;
+            int size = env->vstore[i].size;
+            for (int j = 0; j < size; j++) {
+                if (test_bit(j, env->vstore[i].mask)) {
+                    cpu_stb_data_ra(env, va + j, env->vstore[i].data.ub[j], ra);
+                }
+            }
+        }
+    }
+
+    /* Scatter store */
+    if (env->vtcm_pending) {
+        env->vtcm_pending = false;
+        if (env->vtcm_log.op) {
+            /* Need to perform the scatter read/modify/write at commit time */
+            if (env->vtcm_log.op_size == 2) {
+                SCATTER_OP_WRITE_TO_MEM(uint16_t);
+            } else if (env->vtcm_log.op_size == 4) {
+                /* Word Scatter += */
+                SCATTER_OP_WRITE_TO_MEM(uint32_t);
+            } else {
+                g_assert_not_reached();
+            }
+        } else {
+            for (i = 0; i < env->vtcm_log.size; i++) {
+                if (test_bit(i, env->vtcm_log.mask)) {
+                    cpu_stb_data_ra(env, env->vtcm_log.va[i],
+                                    env->vtcm_log.data.ub[i], ra);
+                    clear_bit(i, env->vtcm_log.mask);
+                    env->vtcm_log.data.ub[i] = 0;
+                }
+
+            }
+        }
+    }
+}
+
 static void print_store(CPUHexagonState *env, int slot)
 {
     if (!(env->slot_cancelled & (1 << slot))) {
@@ -242,9 +290,10 @@ void HELPER(debug_commit_end)(CPUHexagonState *env, int has_st0, int has_st1)
     HEX_DEBUG_LOG("Next PC = " TARGET_FMT_lx "\n", env->next_PC);
     HEX_DEBUG_LOG("Exec counters: pkt = " TARGET_FMT_lx
                   ", insn = " TARGET_FMT_lx
-                  "\n",
+                  ", hvx = " TARGET_FMT_lx "\n",
                   env->gpr[HEX_REG_QEMU_PKT_CNT],
-                  env->gpr[HEX_REG_QEMU_INSN_CNT]);
+                  env->gpr[HEX_REG_QEMU_INSN_CNT],
+                  env->gpr[HEX_REG_QEMU_HVX_CNT]);
 
 }
 
@@ -1163,6 +1212,188 @@ float64 HELPER(dfmpyhh)(CPUHexagonState *env, float64 RxxV,
     RxxV = internal_mpyhh(RssV, RttV, RxxV, &env->fp_status);
     arch_fpop_end(env);
     return RxxV;
+}
+
+/* Histogram instructions */
+
+static inline MMVector vhist_input(CPUHexagonState *env)
+{
+    /*
+     * There isn't a 1-1 mapping of register numbers for tmp_VRegs
+     * They are allocated on an as-needed basis during translation.
+     *
+     * The rules for histogram instructions are that there can only
+     * be one tmp register assigned in the packet.
+     * So, we check that there is only one bit in the mask, and
+     * this means the tmp we need will be at index 0.
+     */
+    VRegMask vsel = env->VRegs_updated_tmp;
+    g_assert(ctpop32(vsel) == 1);
+    env->VRegs_updated_tmp = 0;
+    return env->tmp_VRegs[0];
+}
+
+void HELPER(vhist)(CPUHexagonState *env)
+{
+    MMVector input = vhist_input(env);
+
+    for (int lane = 0; lane < 8; lane++) {
+        for (int i = 0; i < sizeof(MMVector) / 8; ++i) {
+            unsigned char value = input.ub[(sizeof(MMVector) / 8) * lane + i];
+            unsigned char regno = value >> 3;
+            unsigned char element = value & 7;
+
+            env->VRegs[regno].uh[(sizeof(MMVector) / 16) * lane + element]++;
+        }
+    }
+}
+
+void HELPER(vhistq)(CPUHexagonState *env)
+{
+    MMVector input = vhist_input(env);
+
+    for (int lane = 0; lane < 8; lane++) {
+        for (int i = 0; i < sizeof(MMVector) / 8; ++i) {
+            unsigned char value = input.ub[(sizeof(MMVector) / 8) * lane + i];
+            unsigned char regno = value >> 3;
+            unsigned char element = value & 7;
+
+            if (fGETQBIT(env->qtmp, sizeof(MMVector) / 8 * lane + i)) {
+                env->VRegs[regno].uh[
+                    (sizeof(MMVector) / 16) * lane + element]++;
+            }
+        }
+    }
+}
+
+void HELPER(vwhist256)(CPUHexagonState *env)
+{
+    MMVector input = vhist_input(env);
+
+    for (int i = 0; i < (sizeof(MMVector) / 2); i++) {
+        unsigned int bucket = fGETUBYTE(0, input.h[i]);
+        unsigned int weight = fGETUBYTE(1, input.h[i]);
+        unsigned int vindex = (bucket >> 3) & 0x1F;
+        unsigned int elindex = ((i >> 0) & (~7)) | ((bucket >> 0) & 7);
+
+        env->VRegs[vindex].uh[elindex] =
+            env->VRegs[vindex].uh[elindex] + weight;
+    }
+}
+
+void HELPER(vwhist256q)(CPUHexagonState *env)
+{
+    MMVector input = vhist_input(env);
+
+    for (int i = 0; i < (sizeof(MMVector) / 2); i++) {
+        unsigned int bucket = fGETUBYTE(0, input.h[i]);
+        unsigned int weight = fGETUBYTE(1, input.h[i]);
+        unsigned int vindex = (bucket >> 3) & 0x1F;
+        unsigned int elindex = ((i >> 0) & (~7)) | ((bucket >> 0) & 7);
+
+        if (fGETQBIT(env->qtmp, 2 * i)) {
+            env->VRegs[vindex].uh[elindex] =
+                env->VRegs[vindex].uh[elindex] + weight;
+        }
+    }
+}
+
+void HELPER(vwhist256_sat)(CPUHexagonState *env)
+{
+    MMVector input = vhist_input(env);
+
+    for (int i = 0; i < (sizeof(MMVector) / 2); i++) {
+        unsigned int bucket = fGETUBYTE(0, input.h[i]);
+        unsigned int weight = fGETUBYTE(1, input.h[i]);
+        unsigned int vindex = (bucket >> 3) & 0x1F;
+        unsigned int elindex = ((i >> 0) & (~7)) | ((bucket >> 0) & 7);
+
+        env->VRegs[vindex].uh[elindex] =
+            fVSATUH(env->VRegs[vindex].uh[elindex] + weight);
+    }
+}
+
+void HELPER(vwhist256q_sat)(CPUHexagonState *env)
+{
+    MMVector input = vhist_input(env);
+
+    for (int i = 0; i < (sizeof(MMVector) / 2); i++) {
+        unsigned int bucket = fGETUBYTE(0, input.h[i]);
+        unsigned int weight = fGETUBYTE(1, input.h[i]);
+        unsigned int vindex = (bucket >> 3) & 0x1F;
+        unsigned int elindex = ((i >> 0) & (~7)) | ((bucket >> 0) & 7);
+
+        if (fGETQBIT(env->qtmp, 2 * i)) {
+            env->VRegs[vindex].uh[elindex] =
+                fVSATUH(env->VRegs[vindex].uh[elindex] + weight);
+        }
+    }
+}
+
+void HELPER(vwhist128)(CPUHexagonState *env)
+{
+    MMVector input = vhist_input(env);
+
+    for (int i = 0; i < (sizeof(MMVector) / 2); i++) {
+        unsigned int bucket = fGETUBYTE(0, input.h[i]);
+        unsigned int weight = fGETUBYTE(1, input.h[i]);
+        unsigned int vindex = (bucket >> 3) & 0x1F;
+        unsigned int elindex = ((i >> 1) & (~3)) | ((bucket >> 1) & 3);
+
+        env->VRegs[vindex].uw[elindex] =
+            env->VRegs[vindex].uw[elindex] + weight;
+    }
+}
+
+void HELPER(vwhist128q)(CPUHexagonState *env)
+{
+    MMVector input = vhist_input(env);
+
+    for (int i = 0; i < (sizeof(MMVector) / 2); i++) {
+        unsigned int bucket = fGETUBYTE(0, input.h[i]);
+        unsigned int weight = fGETUBYTE(1, input.h[i]);
+        unsigned int vindex = (bucket >> 3) & 0x1F;
+        unsigned int elindex = ((i >> 1) & (~3)) | ((bucket >> 1) & 3);
+
+        if (fGETQBIT(env->qtmp, 2 * i)) {
+            env->VRegs[vindex].uw[elindex] =
+                env->VRegs[vindex].uw[elindex] + weight;
+        }
+    }
+}
+
+void HELPER(vwhist128m)(CPUHexagonState *env, int32_t uiV)
+{
+    MMVector input = vhist_input(env);
+
+    for (int i = 0; i < (sizeof(MMVector) / 2); i++) {
+        unsigned int bucket = fGETUBYTE(0, input.h[i]);
+        unsigned int weight = fGETUBYTE(1, input.h[i]);
+        unsigned int vindex = (bucket >> 3) & 0x1F;
+        unsigned int elindex = ((i >> 1) & (~3)) | ((bucket >> 1) & 3);
+
+        if ((bucket & 1) == uiV) {
+            env->VRegs[vindex].uw[elindex] =
+                env->VRegs[vindex].uw[elindex] + weight;
+        }
+    }
+}
+
+void HELPER(vwhist128qm)(CPUHexagonState *env, int32_t uiV)
+{
+    MMVector input = vhist_input(env);
+
+    for (int i = 0; i < (sizeof(MMVector) / 2); i++) {
+        unsigned int bucket = fGETUBYTE(0, input.h[i]);
+        unsigned int weight = fGETUBYTE(1, input.h[i]);
+        unsigned int vindex = (bucket >> 3) & 0x1F;
+        unsigned int elindex = ((i >> 1) & (~3)) | ((bucket >> 1) & 3);
+
+        if (((bucket & 1) == uiV) && fGETQBIT(env->qtmp, 2 * i)) {
+            env->VRegs[vindex].uw[elindex] =
+                env->VRegs[vindex].uw[elindex] + weight;
+        }
+    }
 }
 
 static void cancel_slot(CPUHexagonState *env, uint32_t slot)
