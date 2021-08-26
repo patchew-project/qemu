@@ -101,6 +101,23 @@ Options
     Enable/disable extended attributes (xattr) on files and directories.  The
     default is ``no_xattr``.
 
+  * block_xattr=<list-of-xattrs> -
+    Block xattrs specified in the colon separated list. When an xattr
+    is blocked getxattr/setxattr/removexattr return error code
+    EOPNOTSUPP, and listxattr removes the xattr from list if there is one.
+
+    xattr name should belong to one of the four namespsaces, namely
+    security, system, trusted and user.
+
+    e.g. -o block_xattr=security.selinux:user.foo
+
+    One could also specify just a xattr name prefix followed by "*" to
+    signify any xattr name matching prefix will be blocked.
+
+    e.g -o block_xattr=user.foo*
+
+    This will block any xattr name starting with "user.foo"
+
   * posix_acl|no_posix_acl -
     Enable/disable posix acl support.  Posix ACLs are disabled by default.
 

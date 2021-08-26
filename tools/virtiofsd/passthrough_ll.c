@@ -142,6 +142,12 @@ typedef struct xattr_map_entry {
     unsigned int flags;
 } XattrMapEntry;
 
+struct xattr_block_entry {
+    /* true if name is prefix otherwise false */
+    bool prefix;
+    char *name;
+};
+
 struct lo_data {
     pthread_mutex_t mutex;
     int sandbox;
@@ -176,8 +182,9 @@ struct lo_data {
     /* If set, virtiofsd is responsible for setting umask during creation */
     bool change_umask;
     int user_posix_acl, posix_acl;
-    char **blocked_xattrs;
+    struct xattr_block_entry *blocked_xattrs;
     size_t num_blocked_xattrs;
+    char *block_xattr_str;
 };
 
 static const struct fuse_opt lo_opts[] = {
@@ -212,6 +219,7 @@ static const struct fuse_opt lo_opts[] = {
     { "no_killpriv_v2", offsetof(struct lo_data, user_killpriv_v2), 0 },
     { "posix_acl", offsetof(struct lo_data, user_posix_acl), 1 },
     { "no_posix_acl", offsetof(struct lo_data, user_posix_acl), 0 },
+    { "block_xattr=%s", offsetof(struct lo_data, block_xattr_str), 0 },
     FUSE_OPT_END
 };
 static bool use_syslog = false;
@@ -2817,20 +2825,85 @@ static int xattr_map_server(const struct lo_data *lo, const char *server_name,
 static int add_blocked_xattr(struct lo_data *lo, const char *name)
 {
     size_t nr_elems = lo->num_blocked_xattrs + 1;
+    struct xattr_block_entry *xbe;
+    char *ptr;
 
     lo->blocked_xattrs = reallocarray(lo->blocked_xattrs, nr_elems,
-                                      sizeof(char *));
+                                      sizeof(struct xattr_block_entry));
     if (!lo->blocked_xattrs) {
         fuse_log(FUSE_LOG_ERR, "failed to grow blocked xattrs array: %m\n");
         return 1;
     }
 
-    lo->blocked_xattrs[nr_elems - 1] = strdup(name);
-    if (!lo->blocked_xattrs[nr_elems - 1]) {
+    xbe = &lo->blocked_xattrs[nr_elems - 1];
+    xbe->prefix = false;
+
+    ptr = strchr(name, '*');
+    if (ptr) {
+        xbe->prefix = true;
+        *ptr = '\0';
+    }
+
+    xbe->name = strdup(name);
+    if (!xbe->name) {
         fuse_log(FUSE_LOG_ERR, "strdup(%s) failed: %m\n", name);
         return 1;
     }
+
     lo->num_blocked_xattrs++;
+    return 0;
+}
+
+/* Returns true on success, false on error */
+static bool valid_block_xattr(char *name)
+{
+    char *ptr;
+
+    if (!g_str_has_prefix(name, "user.") &&
+        !g_str_has_prefix(name, "system.") &&
+        !g_str_has_prefix(name, "security.") &&
+        !g_str_has_prefix(name, "trusted.")) {
+        return false;
+    }
+
+    ptr = strchr(name, '*');
+    if (!ptr) {
+        return true;
+    }
+
+    /* if there is a '*' in name, it should be last char */
+    if (*++ptr != '\0') {
+        return false;
+    }
+    return true;
+}
+
+/* Returns 0 on success, 1 on error */
+static int parse_block_xattr(struct lo_data *lo, char *block_xattr_str)
+{
+    char *token, *parse_str;
+
+    /* strtok() modifies the string passed. So work on the copy */
+    parse_str = strdup(block_xattr_str);
+    if (!parse_str) {
+        fuse_log(FUSE_LOG_ERR, "Failed strdup(%s):%m\n", block_xattr_str);
+        return 1;
+    }
+
+    while ((token = strtok(parse_str, ":"))) {
+        parse_str = NULL;
+        if (!valid_block_xattr(token)) {
+            fuse_log(FUSE_LOG_ERR, "Invalid xattr to block: %s\n", token);
+            return 1;
+        }
+        if (add_blocked_xattr(lo, token)) {
+            fuse_log(FUSE_LOG_ERR, "Failed to add blocked xattr %s\n",
+                     token);
+            free(parse_str);
+            return 1;
+        }
+    }
+    free(parse_str);
     return 0;
 }
 
@@ -2843,7 +2916,7 @@ static void free_blocked_xattrs(struct lo_data *lo)
     }
 
     for (i = 0; i < lo->num_blocked_xattrs; i++) {
-        free(lo->blocked_xattrs[i]);
+        free(lo->blocked_xattrs[i].name);
     }
 
     free(lo->blocked_xattrs);
@@ -2854,14 +2927,22 @@ static void free_blocked_xattrs(struct lo_data *lo)
 static bool block_xattr(struct lo_data *lo, const char *name)
 {
     size_t i;
+    struct xattr_block_entry *xbe;
 
     if (!lo->num_blocked_xattrs) {
         return false;
     }
 
     for (i = 0; i < lo->num_blocked_xattrs; i++) {
-        if (!strcmp(name, lo->blocked_xattrs[i])) {
-            return true;
+        xbe = &lo->blocked_xattrs[i];
+        if (xbe->prefix) {
+            if (g_str_has_prefix(name, xbe->name)) {
+                return true;
+            }
+        } else {
+            if (!strcmp(name, xbe->name)) {
+                return true;
+            }
         }
     }
 
@@ -4066,6 +4147,12 @@ int main(int argc, char *argv[])
     } else if (lo.timeout < 0) {
         fuse_log(FUSE_LOG_ERR, "timeout is negative (%lf)\n", lo.timeout);
         exit(1);
+    }
+
+    if (lo.block_xattr_str) {
+        if (parse_block_xattr(&lo, lo.block_xattr_str)) {
+            exit(1);
+        }
     }
 
     if (lo.user_posix_acl == 1 && !lo.xattr) {
