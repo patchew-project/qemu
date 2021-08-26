@@ -947,6 +947,35 @@ out:
 }
 
 static int
+sev_snp_launch_update(SevSnpGuestState *sev_snp_guest, hwaddr gpa, uint8_t *addr,
+                      uint64_t len, int type)
+{
+    int ret, fw_error;
+    struct kvm_sev_snp_launch_update update = {0};
+
+    if (!addr || !len) {
+        error_report("%s: SNP_LAUNCH_UPDATE called with invalid address / length: %lx / %lx",
+                __func__, gpa, len);
+        return 1;
+    }
+
+    update.uaddr = (__u64)(unsigned long)addr;
+    update.start_gfn = gpa >> TARGET_PAGE_BITS;
+    update.len = len;
+    update.page_type = type;
+    trace_kvm_sev_snp_launch_update(addr, len, type);
+    ret = sev_ioctl(SEV_COMMON(sev_snp_guest)->sev_fd,
+                    KVM_SEV_SNP_LAUNCH_UPDATE,
+                    &update, &fw_error);
+    if (ret) {
+        error_report("%s: SNP_LAUNCH_UPDATE ret=%d fw_error=%d '%s'",
+                __func__, ret, fw_error, fw_error_to_str(fw_error));
+    }
+
+    return ret;
+}
+
+static int
 sev_launch_update_data(SevGuestState *sev_guest, uint8_t *addr, uint64_t len)
 {
     int ret, fw_error;
@@ -1213,7 +1242,7 @@ err:
 }
 
 int
-sev_encrypt_flash(uint8_t *ptr, uint64_t len, Error **errp)
+sev_encrypt_flash(hwaddr gpa, uint8_t *ptr, uint64_t len, Error **errp)
 {
     SevCommonState *sev_common = SEV_COMMON(MACHINE(qdev_get_machine())->cgs);
 
@@ -1223,7 +1252,14 @@ sev_encrypt_flash(uint8_t *ptr, uint64_t len, Error **errp)
 
     /* if SEV is in update state then encrypt the data else do nothing */
     if (sev_check_state(sev_common, SEV_STATE_LAUNCH_UPDATE)) {
-        int ret = sev_launch_update_data(SEV_GUEST(sev_common), ptr, len);
+        int ret;
+
+        if (sev_snp_enabled()) {
+            ret = sev_snp_launch_update(SEV_SNP_GUEST(sev_common), gpa, ptr,
+                                        len, KVM_SEV_SNP_PAGE_TYPE_NORMAL);
+        } else {
+            ret = sev_launch_update_data(SEV_GUEST(sev_common), ptr, len);
+        }
         if (ret < 0) {
             error_setg(errp, "failed to encrypt pflash rom");
             return ret;

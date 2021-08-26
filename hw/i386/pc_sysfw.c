@@ -149,6 +149,7 @@ static void pc_system_flash_map(PCMachineState *pcms,
     void *flash_ptr;
     int flash_size;
     int ret;
+    hwaddr gpa;
 
     assert(PC_MACHINE_GET_CLASS(pcms)->pci_enabled);
 
@@ -182,11 +183,11 @@ static void pc_system_flash_map(PCMachineState *pcms,
         }
 
         total_size += size;
+        gpa = 0x100000000ULL - total_size; /* where the flash is mapped */
         qdev_prop_set_uint32(DEVICE(system_flash), "num-blocks",
                              size / FLASH_SECTOR_SIZE);
         sysbus_realize_and_unref(SYS_BUS_DEVICE(system_flash), &error_fatal);
-        sysbus_mmio_map(SYS_BUS_DEVICE(system_flash), 0,
-                        0x100000000ULL - total_size);
+        sysbus_mmio_map(SYS_BUS_DEVICE(system_flash), 0, gpa);
 
         if (i == 0) {
             flash_mem = pflash_cfi01_get_memory(system_flash);
@@ -208,7 +209,7 @@ static void pc_system_flash_map(PCMachineState *pcms,
                     exit(1);
                 }
 
-                sev_encrypt_flash(flash_ptr, flash_size, &error_fatal);
+                sev_encrypt_flash(gpa, flash_ptr, flash_size, &error_fatal);
             }
         }
     }
