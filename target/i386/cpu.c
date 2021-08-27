@@ -3684,9 +3684,10 @@ static const X86CPUDefinition builtin_x86_defs[] = {
             },
             {
                 .version = 4,
-                .note = "no split lock detect",
+                .note = "no split lock detect, no core-capability",
                 .props = (PropValue[]) {
                     { "split-lock-detect", "off" },
+                    { "core-capability", "off" },
                     { /* end of list */ },
                 },
             },
