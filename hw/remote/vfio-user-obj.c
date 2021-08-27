@@ -36,6 +36,7 @@
 #include "sysemu/runstate.h"
 #include "qemu/notify.h"
 #include "qemu/thread.h"
+#include "qemu/main-loop.h"
 #include "qapi/error.h"
 #include "sysemu/sysemu.h"
 #include "libvfio-user.h"
@@ -144,6 +145,38 @@ retry_attach:
     return NULL;
 }
 
+static ssize_t vfu_object_cfg_access(vfu_ctx_t *vfu_ctx, char * const buf,
+                                     size_t count, loff_t offset,
+                                     const bool is_write)
+{
+    VfuObject *o = vfu_get_private(vfu_ctx);
+    uint32_t pci_access_width = sizeof(uint32_t);
+    size_t bytes = count;
+    uint32_t val = 0;
+    char *ptr = buf;
+    int len;
+
+    while (bytes > 0) {
+        len = (bytes > pci_access_width) ? pci_access_width : bytes;
+        if (is_write) {
+            memcpy(&val, ptr, len);
+            pci_default_write_config(PCI_DEVICE(o->pci_dev),
+                                     offset, val, len);
+            trace_vfu_cfg_write(offset, val);
+        } else {
+            val = pci_default_read_config(PCI_DEVICE(o->pci_dev),
+                                          offset, len);
+            memcpy(ptr, &val, len);
+            trace_vfu_cfg_read(offset, val);
+        }
+        offset += len;
+        ptr += len;
+        bytes -= len;
+    }
+
+    return count;
+}
+
 static void vfu_object_machine_done(Notifier *notifier, void *data)
 {
     VfuObject *o = container_of(notifier, VfuObject, machine_done);
@@ -178,6 +211,17 @@ static void vfu_object_machine_done(Notifier *notifier, void *data)
     if (ret < 0) {
         error_setg(&error_abort,
                    "vfu: Failed to attach PCI device %s to context - %s",
+                   o->devid, strerror(errno));
+        return;
+    }
+
+    ret = vfu_setup_region(o->vfu_ctx, VFU_PCI_DEV_CFG_REGION_IDX,
+                           pci_config_size(o->pci_dev), &vfu_object_cfg_access,
+                           VFU_REGION_FLAG_RW | VFU_REGION_FLAG_ALWAYS_CB,
+                           NULL, 0, -1, 0);
+    if (ret < 0) {
+        error_setg(&error_abort,
+                   "vfu: Failed to setup config space handlers for %s- %s",
                    o->devid, strerror(errno));
         return;
     }
