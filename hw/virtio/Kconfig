@@ -4,6 +4,11 @@ config VHOST
 config VIRTIO
     bool
 
+config VIRTIO_PONG
+    bool
+    default y
+    depends on VIRTIO
+
 config VIRTIO_RNG
     bool
     default y

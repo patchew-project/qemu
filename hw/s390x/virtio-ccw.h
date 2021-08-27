@@ -31,6 +31,8 @@
 #include "hw/virtio/virtio-gpu.h"
 #include "hw/virtio/virtio-input.h"
 
+#include "hw/virtio/virtio-pong.h"
+
 #include "hw/s390x/s390_flic.h"
 #include "hw/s390x/css.h"
 #include "ccw-device.h"
@@ -175,6 +177,17 @@ struct VirtIORNGCcw {
     VirtioCcwDevice parent_obj;
     VirtIORNG vdev;
 };
+
+/* virtio-pong-ccw */
+
+#define TYPE_VIRTIO_PONG_CCW "virtio-pong-ccw"
+#define VIRTIO_PONG_CCW(obj) \
+        OBJECT_CHECK(VirtIOPONGCcw, (obj), TYPE_VIRTIO_PONG_CCW)
+
+typedef struct VirtIOPONGCcw {
+    VirtioCcwDevice parent_obj;
+    VirtIOPONG vdev;
+} VirtIOPONGCcw;
 
 /* virtio-crypto-ccw */
 
