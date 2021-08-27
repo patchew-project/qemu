@@ -104,11 +104,16 @@
 #define AST2600_SDRAM_HANDSHAKE   TO_REG(0x100)
 #define AST2600_HPLL_PARAM        TO_REG(0x200)
 #define AST2600_HPLL_EXT          TO_REG(0x204)
+#define AST2600_APLL_PARAM        TO_REG(0x210)
 #define AST2600_MPLL_EXT          TO_REG(0x224)
 #define AST2600_EPLL_EXT          TO_REG(0x244)
 #define AST2600_CLK_SEL           TO_REG(0x300)
 #define AST2600_CLK_SEL2          TO_REG(0x304)
 #define AST2600_CLK_SEL3          TO_REG(0x308)
+#define AST2600_CLK_SEL4          TO_REG(0x310)
+#define AST2600_CLK_SEL5          TO_REG(0x314)
+#define AST2600_UARTCLK_PARAM     TO_REG(0x338)
+#define AST2600_HUARTCLK_PARAM    TO_REG(0x33C)
 #define AST2600_HW_STRAP1         TO_REG(0x500)
 #define AST2600_HW_STRAP1_CLR     TO_REG(0x504)
 #define AST2600_HW_STRAP1_PROT    TO_REG(0x508)
@@ -658,9 +663,15 @@ static const uint32_t ast2600_a1_resets[ASPEED_AST2600_SCU_NR_REGS] = {
     [AST2600_CLK_STOP_CTRL2]    = 0xFFF0FFF0,
     [AST2600_SDRAM_HANDSHAKE]   = 0x00000000,
     [AST2600_HPLL_PARAM]        = 0x1000405F,
+    [AST2600_APLL_PARAM]        = 0x1000405F,
     [AST2600_CHIP_ID0]          = 0x1234ABCD,
     [AST2600_CHIP_ID1]          = 0x88884444,
-
+    [AST2600_CLK_SEL2]          = 0x00700000,
+    [AST2600_CLK_SEL3]          = 0x00000000,
+    [AST2600_CLK_SEL4]          = 0xF3F40000,
+    [AST2600_CLK_SEL5]          = 0x30000000,
+    [AST2600_UARTCLK_PARAM]     = 0x00014506,
+    [AST2600_HUARTCLK_PARAM]    = 0x000145C0,
 };
 
 static void aspeed_ast2600_scu_reset(DeviceState *dev)
