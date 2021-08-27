@@ -35,6 +35,7 @@
 #include "trace.h"
 #include "sysemu/runstate.h"
 #include "qemu/notify.h"
+#include "qemu/thread.h"
 #include "qapi/error.h"
 #include "sysemu/sysemu.h"
 #include "libvfio-user.h"
@@ -65,6 +66,8 @@ struct VfuObject {
     vfu_ctx_t *vfu_ctx;
 
     PCIDevice *pci_dev;
+
+    int vfu_poll_fd;
 };
 
 static void vfu_object_set_socket(Object *obj, const char *str, Error **errp)
@@ -89,13 +92,67 @@ static void vfu_object_set_devid(Object *obj, const char *str, Error **errp)
     trace_vfu_prop("devid", str);
 }
 
+static void vfu_object_ctx_run(void *opaque)
+{
+    VfuObject *o = opaque;
+    int ret = -1;
+
+    while (ret != 0) {
+        ret = vfu_run_ctx(o->vfu_ctx);
+        if (ret < 0) {
+            if (errno == EINTR) {
+                continue;
+            } else if (errno == ENOTCONN) {
+                qemu_set_fd_handler(o->vfu_poll_fd, NULL, NULL, NULL);
+                o->vfu_poll_fd = -1;
+                object_unparent(OBJECT(o));
+                break;
+            } else {
+                error_setg(&error_abort, "vfu: Failed to run device %s - %s",
+                           o->devid, strerror(errno));
+                 break;
+            }
+        }
+    }
+}
+
+static void *vfu_object_attach_ctx(void *opaque)
+{
+    VfuObject *o = opaque;
+    int ret;
+
+retry_attach:
+    ret = vfu_attach_ctx(o->vfu_ctx);
+    if (ret < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+        goto retry_attach;
+    } else if (ret < 0) {
+        error_setg(&error_abort,
+                   "vfu: Failed to attach device %s to context - %s",
+                   o->devid, strerror(errno));
+        return NULL;
+    }
+
+    o->vfu_poll_fd = vfu_get_poll_fd(o->vfu_ctx);
+    if (o->vfu_poll_fd < 0) {
+        error_setg(&error_abort, "vfu: Failed to get poll fd %s", o->devid);
+        return NULL;
+    }
+
+    qemu_set_fd_handler(o->vfu_poll_fd, vfu_object_ctx_run,
+                        NULL, o);
+
+    return NULL;
+}
+
 static void vfu_object_machine_done(Notifier *notifier, void *data)
 {
     VfuObject *o = container_of(notifier, VfuObject, machine_done);
     DeviceState *dev = NULL;
+    QemuThread thread;
     int ret;
 
-    o->vfu_ctx = vfu_create_ctx(VFU_TRANS_SOCK, o->socket, 0,
+    o->vfu_ctx = vfu_create_ctx(VFU_TRANS_SOCK, o->socket,
+                                LIBVFIO_USER_FLAG_ATTACH_NB,
                                 o, VFU_DEV_TYPE_PCI);
     if (o->vfu_ctx == NULL) {
         error_setg(&error_abort, "vfu: Failed to create context - %s",
@@ -124,6 +181,16 @@ static void vfu_object_machine_done(Notifier *notifier, void *data)
                    o->devid, strerror(errno));
         return;
     }
+
+    ret = vfu_realize_ctx(o->vfu_ctx);
+    if (ret < 0) {
+        error_setg(&error_abort, "vfu: Failed to realize device %s- %s",
+                   o->devid, strerror(errno));
+        return;
+    }
+
+    qemu_thread_create(&thread, o->socket, vfu_object_attach_ctx, o,
+                       QEMU_THREAD_DETACHED);
 }
 
 static void vfu_object_init(Object *obj)
@@ -147,6 +214,8 @@ static void vfu_object_init(Object *obj)
 
     o->machine_done.notify = vfu_object_machine_done;
     qemu_add_machine_init_done_notifier(&o->machine_done);
+
+    o->vfu_poll_fd = -1;
 }
 
 static void vfu_object_finalize(Object *obj)
