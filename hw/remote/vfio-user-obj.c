@@ -38,6 +38,8 @@
 #include "qapi/error.h"
 #include "sysemu/sysemu.h"
 #include "libvfio-user.h"
+#include "hw/qdev-core.h"
+#include "hw/pci/pci.h"
 
 #define TYPE_VFU_OBJECT "vfio-user"
 OBJECT_DECLARE_TYPE(VfuObject, VfuObjectClass, VFU_OBJECT)
@@ -61,6 +63,8 @@ struct VfuObject {
     Notifier machine_done;
 
     vfu_ctx_t *vfu_ctx;
+
+    PCIDevice *pci_dev;
 };
 
 static void vfu_object_set_socket(Object *obj, const char *str, Error **errp)
@@ -88,12 +92,36 @@ static void vfu_object_set_devid(Object *obj, const char *str, Error **errp)
 static void vfu_object_machine_done(Notifier *notifier, void *data)
 {
     VfuObject *o = container_of(notifier, VfuObject, machine_done);
+    DeviceState *dev = NULL;
+    int ret;
 
     o->vfu_ctx = vfu_create_ctx(VFU_TRANS_SOCK, o->socket, 0,
                                 o, VFU_DEV_TYPE_PCI);
     if (o->vfu_ctx == NULL) {
         error_setg(&error_abort, "vfu: Failed to create context - %s",
                    strerror(errno));
+        return;
+    }
+
+    dev = qdev_find_recursive(sysbus_get_default(), o->devid);
+    if (dev == NULL) {
+        error_setg(&error_abort, "vfu: Device %s not found", o->devid);
+        return;
+    }
+
+    if (!object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
+        error_setg(&error_abort, "vfu: %s not a PCI devices", o->devid);
+        return;
+    }
+
+    o->pci_dev = PCI_DEVICE(dev);
+
+    ret = vfu_pci_init(o->vfu_ctx, VFU_PCI_TYPE_CONVENTIONAL,
+                       PCI_HEADER_TYPE_NORMAL, 0);
+    if (ret < 0) {
+        error_setg(&error_abort,
+                   "vfu: Failed to attach PCI device %s to context - %s",
+                   o->devid, strerror(errno));
         return;
     }
 }
