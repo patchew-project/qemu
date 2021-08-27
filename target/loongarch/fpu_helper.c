@@ -436,3 +436,113 @@ uint64_t helper_fmuladd_d(CPULoongArchState *env, uint64_t fj,
     update_fcsr0(env, GETPC());
     return fd;
 }
+
+/* fcmp_cXXX_s */
+uint64_t helper_fcmp_c_s(CPULoongArchState *env, uint64_t fj,
+                         uint64_t fk, uint32_t flags)
+{
+    uint32_t t0, t1;
+    uint64_t cmp = 0;
+    t0 = (uint32_t)fj;
+    t1 = (uint32_t)fk;
+
+    if (flags) {
+        if (flags & FCMP_LT) {
+            cmp |= float32_lt_quiet(t0, t1, &env->fp_status);
+        }
+        if (flags & FCMP_EQ) {
+            cmp |= float32_eq_quiet(t0, t1, &env->fp_status);
+        }
+        if (flags & FCMP_GT) {
+            cmp |= float32_lt_quiet(t1, t0, &env->fp_status);
+        }
+        if (flags & FCMP_UN) {
+            cmp |= float32_unordered_quiet(t1, t0, &env->fp_status);
+        }
+    } else {
+        cmp = (float32_unordered_quiet(t1, t0, &env->fp_status), 0);
+    }
+    update_fcsr0(env, GETPC());
+    return cmp;
+}
+
+/* fcmp_sXXX_s */
+uint64_t helper_fcmp_s_s(CPULoongArchState *env, uint64_t fj,
+                         uint64_t fk, uint32_t flags)
+{
+    uint32_t t0, t1;
+    uint64_t cmp = 0;
+    t0 = (uint32_t)fj;
+    t1 = (uint32_t)fk;
+
+    if (flags) {
+        if (flags & FCMP_LT) {
+            cmp |= float32_lt(t0, t1, &env->fp_status);
+        }
+        if (flags & FCMP_EQ) {
+            cmp |= float32_eq(t0, t1, &env->fp_status);
+        }
+        if (flags & FCMP_GT) {
+            cmp |= float32_lt(t1, t0, &env->fp_status);
+        }
+        if (flags & FCMP_UN) {
+            cmp |= float32_unordered(t1, t0, &env->fp_status);
+        }
+    } else {
+        cmp = (float32_unordered(t1, t0, &env->fp_status), 0);
+    }
+    update_fcsr0(env, GETPC());
+    return cmp;
+}
+
+/* fcmp_cXXX_d */
+uint64_t helper_fcmp_c_d(CPULoongArchState *env, uint64_t fj,
+                         uint64_t fk, uint32_t flags)
+{
+    uint64_t cmp = 0;
+
+    if (flags) {
+        if (flags & FCMP_LT) {
+            cmp |= float64_lt_quiet(fj, fk, &env->fp_status);
+        }
+        if (flags & FCMP_EQ) {
+            cmp |= float64_eq_quiet(fj, fk, &env->fp_status);
+        }
+        if (flags & FCMP_GT) {
+            cmp |= float64_lt_quiet(fk, fj, &env->fp_status);
+        }
+        if (flags & FCMP_UN) {
+            cmp |= float64_unordered_quiet(fk, fj, &env->fp_status);
+        }
+    } else {
+        cmp = (float64_unordered_quiet(fk, fj, &env->fp_status), 0);
+    }
+    update_fcsr0(env, GETPC());
+    return cmp;
+}
+
+/* fcmp_sXXX_d */
+uint64_t helper_fcmp_s_d(CPULoongArchState *env, uint64_t fj,
+                         uint64_t fk, uint32_t flags)
+{
+    uint64_t cmp = 0;
+
+    if (flags) {
+        if (flags & FCMP_LT) {
+            cmp |= float64_lt(fj, fk, &env->fp_status);
+        }
+        if (flags & FCMP_EQ) {
+            cmp |= float64_eq(fj, fk, &env->fp_status);
+        }
+        if (flags & FCMP_GT) {
+            cmp |= float64_lt(fk, fj, &env->fp_status);
+        }
+        if (flags & FCMP_UN) {
+            cmp |= float64_unordered(fk, fj, &env->fp_status);
+        }
+    } else {
+        cmp = (float64_unordered(fk, fj, &env->fp_status), 0);
+    }
+    update_fcsr0(env, GETPC());
+    return cmp;
+}
