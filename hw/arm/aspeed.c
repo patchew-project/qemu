@@ -14,6 +14,7 @@
 #include "hw/arm/boot.h"
 #include "hw/arm/aspeed.h"
 #include "hw/arm/aspeed_soc.h"
+#include "hw/char/serial.h"
 #include "hw/i2c/i2c_mux_pca954x.h"
 #include "hw/i2c/smbus_eeprom.h"
 #include "hw/misc/pca9552.h"
@@ -21,6 +22,7 @@
 #include "hw/misc/led.h"
 #include "hw/qdev-properties.h"
 #include "sysemu/block-backend.h"
+#include "sysemu/sysemu.h"
 #include "hw/loader.h"
 #include "qemu/error-report.h"
 #include "qemu/units.h"
@@ -351,6 +353,10 @@ static void aspeed_machine_init(MachineState *machine)
                                 ASPEED_SCU_PROT_KEY, &error_abort);
     }
     qdev_realize(DEVICE(&bmc->soc), NULL, &error_abort);
+
+    serial_mm_init(get_system_memory(), sc->memmap[amc->serial_dev], 2,
+                   sc->get_irq(&bmc->soc, amc->serial_dev), 38400,
+                   serial_hd(0), DEVICE_LITTLE_ENDIAN);
 
     memory_region_add_subregion(get_system_memory(),
                                 sc->memmap[ASPEED_DEV_SDRAM],
@@ -804,6 +810,7 @@ static void aspeed_machine_class_init(ObjectClass *oc, void *data)
     mc->no_parallel = 1;
     mc->default_ram_id = "ram";
     amc->macs_mask = ASPEED_MAC0_ON;
+    amc->serial_dev = ASPEED_DEV_UART5;
 
     aspeed_machine_class_props_init(oc);
 }
