@@ -1046,6 +1046,8 @@ int main(int argc, char **argv)
             .bitmaps              = bitmaps,
             .has_allocation_depth = alloc_depth,
             .allocation_depth     = alloc_depth,
+            .has_shared           = true,
+            .shared               = shared != 1,
         },
     };
     blk_exp_add(export_opts, &error_fatal);

@@ -221,6 +221,10 @@ void qmp_nbd_server_add(NbdServerAddOptions *arg, Error **errp)
         QAPI_LIST_PREPEND(export_opts->u.nbd.bitmaps, g_strdup(arg->bitmap));
     }
 
+    /* nbd-server-add always permits parallel clients */
+    export_opts->u.nbd.has_shared = true;
+    export_opts->u.nbd.shared = true;
+
     /*
      * nbd-server-add doesn't complain when a read-only device should be
      * exported as writable, but simply downgrades it. This is an error with
