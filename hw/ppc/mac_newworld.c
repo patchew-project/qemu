@@ -526,8 +526,14 @@ static void ppc_core99_init(MachineState *machine)
 
         if (g_file_get_contents(filename, &ndrv_file, &ndrv_size, NULL)) {
             fw_cfg_add_file(fw_cfg, "ndrv/qemu_vga.ndrv", ndrv_file, ndrv_size);
+        } else {
+            printf("Warning: failed to load driver %s. This may cause video"
+                   " problems.\n");
         }
         g_free(filename);
+    } else {
+        printf("Warning: driver %s not found. This may cause video problems.\n",
+               NDRV_VGA_FILENAME);
     }
 
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
