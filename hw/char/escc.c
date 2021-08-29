@@ -281,12 +281,11 @@ static void escc_reset_chn(ESCCChannelState *s)
     s->wregs[W_MISC2] = MISC2_PLLDIS;
     /* Enable most interrupts */
     s->wregs[W_EXTINT] = EXTINT_DCD | EXTINT_SYNCINT | EXTINT_CTSINT |
-        EXTINT_TXUNDRN | EXTINT_BRKINT;
+                         EXTINT_TXUNDRN | EXTINT_BRKINT;
+    s->rregs[R_STATUS] &= ~(STATUS_RXAV | STATUS_ZERO);
+    s->rregs[R_STATUS] |= STATUS_TXEMPTY | STATUS_TXUNDRN;
     if (s->disabled) {
-        s->rregs[R_STATUS] = STATUS_TXEMPTY | STATUS_DCD | STATUS_SYNC |
-            STATUS_CTS | STATUS_TXUNDRN;
-    } else {
-        s->rregs[R_STATUS] = STATUS_TXEMPTY | STATUS_TXUNDRN;
+        s->rregs[R_STATUS] |= STATUS_DCD | STATUS_CTS;
     }
     s->rregs[R_SPEC] = SPEC_BITS8 | SPEC_ALLSENT;
 
