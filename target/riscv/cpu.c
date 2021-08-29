@@ -553,6 +553,12 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
             }
             set_vext_version(env, vext_version);
         }
+        if (cpu->cfg.ext_j) {
+#ifndef CONFIG_USER_ONLY
+            /* mmte is supposed to have pm.current hardwired to 1 */
+            env->mmte |= (PM_EXT_INITIAL | MMTE_M_PM_CURRENT);
+#endif
+        }
 
         set_misa(env, target_misa);
     }
