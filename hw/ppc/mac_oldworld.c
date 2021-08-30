@@ -367,8 +367,14 @@ static void ppc_heathrow_init(MachineState *machine)
 
         if (g_file_get_contents(filename, &ndrv_file, &ndrv_size, NULL)) {
             fw_cfg_add_file(fw_cfg, "ndrv/qemu_vga.ndrv", ndrv_file, ndrv_size);
+        } else {
+            warn_report("failed to load driver %s. This may cause video "
+                        "problems.", NDRV_VGA_FILENAME);
         }
         g_free(filename);
+    } else {
+        warn_report("driver %s not found. This may cause video problems.",
+                    NDRV_VGA_FILENAME);
     }
 
     qemu_register_boot_set(fw_cfg_boot_set, fw_cfg);
