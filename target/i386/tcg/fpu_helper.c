@@ -2947,7 +2947,7 @@ void helper_xsetbv(CPUX86State *env, uint32_t ecx, uint64_t mask)
 #define SSE_RC_CHOP         0x6000
 #define SSE_FZ              0x8000
 
-void update_mxcsr_status(CPUX86State *env)
+static void update_mxcsr_status(CPUX86State *env)
 {
     uint32_t mxcsr = env->mxcsr;
     int rnd_type;
@@ -3043,6 +3043,7 @@ void helper_movq(CPUX86State *env, void *d, void *s)
 static void tcgi386_module_ops_fpu(void)
 {
     tcg_i386.update_fp_status = update_fp_status;
+    tcg_i386.update_mxcsr_status = update_mxcsr_status;
 }
 
 type_init(tcgi386_module_ops_fpu);

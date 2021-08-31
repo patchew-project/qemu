@@ -372,7 +372,7 @@ static int cpu_post_load(void *opaque, int version_id)
     if (tcg_enabled()) {
         target_ulong dr7;
         tcg_i386.update_fp_status(env);
-        update_mxcsr_status(env);
+        tcg_i386.update_mxcsr_status(env);
 
         cpu_breakpoint_remove_all(cs, BP_CPU);
         cpu_watchpoint_remove_all(cs, BP_CPU);
