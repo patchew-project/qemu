@@ -29,6 +29,10 @@ static void tb_invalidate_phys_range_stub(tb_page_addr_t start, tb_page_addr_t e
 {
 }
 
+static void tb_check_watchpoint_stub(CPUState *cpu, uintptr_t retaddr)
+{
+}
+
 struct TCGModuleOps tcg = {
     .tlb_flush = update_cpu_stub,
     .tlb_flush_page = tlb_flush_page_stub,
@@ -40,4 +44,5 @@ struct TCGModuleOps tcg = {
     .tcg_exec_unrealizefn = update_cpu_stub,
     .tb_flush = update_cpu_stub,
     .tb_invalidate_phys_range = tb_invalidate_phys_range_stub,
+    .tb_check_watchpoint = tb_check_watchpoint_stub,
 };

@@ -1910,7 +1910,7 @@ static bool tb_invalidate_phys_page(tb_page_addr_t addr, uintptr_t pc)
 #endif
 
 /* user-mode: call with mmap_lock held */
-void tb_check_watchpoint(CPUState *cpu, uintptr_t retaddr)
+static void tb_check_watchpoint(CPUState *cpu, uintptr_t retaddr)
 {
     TranslationBlock *tb;
 
@@ -2439,6 +2439,7 @@ static void tcg_module_ops_tb(void)
 {
     tcg.tb_flush = tb_flush;
     tcg.tb_invalidate_phys_range = tb_invalidate_phys_range;
+    tcg.tb_check_watchpoint = tb_check_watchpoint;
 }
 
 type_init(tcg_module_ops_tb);

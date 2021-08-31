@@ -15,7 +15,7 @@ struct TCGModuleOps {
     void (*tcg_exec_realizefn)(CPUState *cpu, Error **errp);
     void (*tb_flush)(CPUState *cpu);
     void (*tb_invalidate_phys_range)(tb_page_addr_t start, tb_page_addr_t end);
-
+    void (*tb_check_watchpoint)(CPUState *cpu, uintptr_t retaddr);
 };
 extern struct TCGModuleOps tcg;
 
