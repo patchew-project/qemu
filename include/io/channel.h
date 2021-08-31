@@ -104,6 +104,7 @@ struct QIOChannelClass {
                          size_t niov,
                          int *fds,
                          size_t nfds,
+                         int flags,
                          Error **errp);
     ssize_t (*io_readv)(QIOChannel *ioc,
                         const struct iovec *iov,
@@ -260,6 +261,7 @@ ssize_t qio_channel_writev_full(QIOChannel *ioc,
                                 size_t niov,
                                 int *fds,
                                 size_t nfds,
+                                int flags,
                                 Error **errp);
 
 /**
@@ -325,6 +327,7 @@ int qio_channel_readv_all(QIOChannel *ioc,
  * @ioc: the channel object
  * @iov: the array of memory regions to write data from
  * @niov: the length of the @iov array
+ * @flags: optional sending flags
  * @errp: pointer to a NULL-initialized error object
  *
  * Write data to the IO channel, reading it from the
@@ -339,10 +342,14 @@ int qio_channel_readv_all(QIOChannel *ioc,
  *
  * Returns: 0 if all bytes were written, or -1 on error
  */
-int qio_channel_writev_all(QIOChannel *ioc,
-                           const struct iovec *iov,
-                           size_t niov,
-                           Error **erp);
+int qio_channel_writev_all_flags(QIOChannel *ioc,
+                                 const struct iovec *iov,
+                                 size_t niov,
+                                 int flags,
+                                 Error **errp);
+
+#define qio_channel_writev_all(ioc, iov, niov, errp) \
+    qio_channel_writev_all_flags(ioc, iov, niov, 0, errp)
 
 /**
  * qio_channel_readv:
@@ -364,15 +371,21 @@ ssize_t qio_channel_readv(QIOChannel *ioc,
  * @ioc: the channel object
  * @iov: the array of memory regions to write data from
  * @niov: the length of the @iov array
+ * @flags: optional sending flags
  * @errp: pointer to a NULL-initialized error object
  *
  * Behaves as qio_channel_writev_full() but does not support
  * sending of file handles.
  */
-ssize_t qio_channel_writev(QIOChannel *ioc,
-                           const struct iovec *iov,
-                           size_t niov,
-                           Error **errp);
+ssize_t qio_channel_writev_flags(QIOChannel *ioc,
+                                 const struct iovec *iov,
+                                 size_t niov,
+                                 int flags,
+                                 Error **errp);
+
+#define qio_channel_writev(ioc, iov, niov, errp) \
+    qio_channel_writev_flags(ioc, iov, niov, 0, errp)
+
 
 /**
  * qio_channel_read:
@@ -395,16 +408,21 @@ ssize_t qio_channel_read(QIOChannel *ioc,
  * @ioc: the channel object
  * @buf: the memory regions to send data from
  * @buflen: the length of @buf
+ * @flags: optional sending flags
  * @errp: pointer to a NULL-initialized error object
  *
  * Behaves as qio_channel_writev_full() but does not support
  * sending of file handles, and only supports writing from a
  * single memory region.
  */
-ssize_t qio_channel_write(QIOChannel *ioc,
-                          const char *buf,
-                          size_t buflen,
-                          Error **errp);
+ssize_t qio_channel_write_flags(QIOChannel *ioc,
+                                const char *buf,
+                                size_t buflen,
+                                int flags,
+                                Error **errp);
+
+#define qio_channel_write(ioc, buf, buflen, errp) \
+     qio_channel_write_flags(ioc, buf, buflen, 0, errp)
 
 /**
  * qio_channel_read_all_eof:
@@ -453,6 +471,7 @@ int qio_channel_read_all(QIOChannel *ioc,
  * @ioc: the channel object
  * @buf: the memory region to write data into
  * @buflen: the number of bytes to @buf
+ * @flags: optional sending flags
  * @errp: pointer to a NULL-initialized error object
  *
  * Writes @buflen bytes from @buf, possibly blocking or (if the
@@ -462,10 +481,14 @@ int qio_channel_read_all(QIOChannel *ioc,
  *
  * Returns: 0 if all bytes were written, or -1 on error
  */
-int qio_channel_write_all(QIOChannel *ioc,
-                          const char *buf,
-                          size_t buflen,
-                          Error **errp);
+int qio_channel_write_all_flags(QIOChannel *ioc,
+                                const char *buf,
+                                size_t buflen,
+                                int flags,
+                                Error **errp);
+
+#define qio_channel_write_all(ioc, buf, buflen, errp) \
+    qio_channel_write_all_flags(ioc, buf, buflen, 0, errp)
 
 /**
  * qio_channel_set_blocking:
@@ -853,6 +876,7 @@ int qio_channel_writev_full_all(QIOChannel *ioc,
                                 const struct iovec *iov,
                                 size_t niov,
                                 int *fds, size_t nfds,
+                                int flags,
                                 Error **errp);
 
 #endif /* QIO_CHANNEL_H */
