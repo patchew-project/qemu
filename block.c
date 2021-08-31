@@ -2383,6 +2383,12 @@ void bdrv_get_cumulative_perm(BlockDriverState *bs, uint64_t *perm,
         cumulative_shared_perms &= c->shared_perm;
     }
 
+    /* Discard write permission if vvfat block device is read-only */
+    const char *format = bdrv_get_format_name(bs);
+    if (format != NULL && strncmp(format, "vvfat", 5) == 0 && bdrv_is_read_only(bs)) {
+        cumulative_perms &= ~BLK_PERM_WRITE;
+    }
+
     *perm = cumulative_perms;
     *shared_perm = cumulative_shared_perms;
 }
