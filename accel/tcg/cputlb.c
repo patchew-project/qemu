@@ -2773,6 +2773,9 @@ static void tcg_module_ops_tlb(void)
     tcg.tlb_flush = tlb_flush;
     tcg.tlb_flush_page = tlb_flush_page;
     tcg.tlb_reset_dirty = tlb_reset_dirty;
+#ifdef CONFIG_PLUGIN
+    tcg.tlb_plugin_lookup = tlb_plugin_lookup;
+#endif
 }
 
 type_init(tcg_module_ops_tlb);

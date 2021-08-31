@@ -8,6 +8,8 @@ struct TCGModuleOps {
     void (*tlb_flush_page)(CPUState *cpu, target_ulong addr);
 #if defined(CONFIG_SOFTMMU)
     void (*tlb_reset_dirty)(CPUState *cpu, ram_addr_t start1, ram_addr_t length);
+    bool (*tlb_plugin_lookup)(CPUState *cpu, target_ulong addr, int mmu_idx,
+                              bool is_store, struct qemu_plugin_hwaddr *data);
 #endif
 };
 extern struct TCGModuleOps tcg;
