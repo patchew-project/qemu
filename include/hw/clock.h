@@ -319,12 +319,8 @@ static inline uint64_t clock_ns_to_ticks(const Clock *clk, uint64_t ns)
     if (clk->period == 0) {
         return 0;
     }
-    /*
-     * BUG: when CONFIG_INT128 is not defined, the current implementation of
-     * divu128 does not return a valid truncated quotient, so the result will
-     * be wrong.
-     */
-    divu128(&lo, &hi, clk->period);
+
+    divu128(&lo, &hi, NULL, clk->period);
     return lo;
 }
 
