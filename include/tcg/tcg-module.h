@@ -14,6 +14,8 @@ struct TCGModuleOps {
     void (*tcg_exec_unrealizefn)(CPUState *cpu);
     void (*tcg_exec_realizefn)(CPUState *cpu, Error **errp);
     void (*tb_flush)(CPUState *cpu);
+    void (*tb_invalidate_phys_range)(tb_page_addr_t start, tb_page_addr_t end);
+
 };
 extern struct TCGModuleOps tcg;
 

@@ -1777,7 +1777,7 @@ tb_invalidate_phys_page_range__locked(struct page_collection *pages,
  *
  * Called with mmap_lock held for user-mode emulation.
  */
-void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end)
+static void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end)
 {
     struct page_collection *pages;
     tb_page_addr_t next;
@@ -2438,6 +2438,7 @@ int page_unprotect(target_ulong address, uintptr_t pc)
 static void tcg_module_ops_tb(void)
 {
     tcg.tb_flush = tb_flush;
+    tcg.tb_invalidate_phys_range = tb_invalidate_phys_range;
 }
 
 type_init(tcg_module_ops_tb);

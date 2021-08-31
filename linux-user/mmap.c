@@ -630,7 +630,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
     if (qemu_loglevel_mask(CPU_LOG_PAGE)) {
         log_page_dump(__func__);
     }
-    tb_invalidate_phys_range(start, start + len);
+    tcg.tb_invalidate_phys_range(start, start + len);
     mmap_unlock();
     return start;
 fail:
@@ -734,7 +734,7 @@ int target_munmap(abi_ulong start, abi_ulong len)
 
     if (ret == 0) {
         page_set_flags(start, start + len, 0);
-        tb_invalidate_phys_range(start, start + len);
+        tcg.tb_invalidate_phys_range(start, start + len);
     }
     mmap_unlock();
     return ret;
@@ -824,7 +824,7 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
         page_set_flags(new_addr, new_addr + new_size,
                        prot | PAGE_VALID | PAGE_RESET);
     }
-    tb_invalidate_phys_range(new_addr, new_addr + new_size);
+    tcg.tb_invalidate_phys_range(new_addr, new_addr + new_size);
     mmap_unlock();
     return new_addr;
 }
