@@ -219,7 +219,7 @@ const char *parse_cpu_option(const char *cpu_option)
 }
 
 #if defined(CONFIG_USER_ONLY)
-void tb_invalidate_phys_addr(target_ulong addr)
+void tb_invalidate_phys_addr(tb_page_addr_t addr)
 {
     mmap_lock();
     tb_invalidate_phys_page_range(addr, addr + 1);
