@@ -2534,7 +2534,7 @@ static void do_xsave_fpu(CPUX86State *env, target_ulong ptr, uintptr_t ra)
 
 static void do_xsave_mxcsr(CPUX86State *env, target_ulong ptr, uintptr_t ra)
 {
-    update_mxcsr_from_sse_status(env);
+    tcg_i386.update_mxcsr_from_sse_status(env);
     cpu_stl_data_ra(env, ptr + XO(legacy.mxcsr), env->mxcsr, ra);
     cpu_stl_data_ra(env, ptr + XO(legacy.mxcsr_mask), 0x0000ffff, ra);
 }
@@ -2985,7 +2985,7 @@ static void update_mxcsr_status(CPUX86State *env)
     set_flush_to_zero((mxcsr & SSE_FZ) ? 1 : 0, &env->sse_status);
 }
 
-void update_mxcsr_from_sse_status(CPUX86State *env)
+static void update_mxcsr_from_sse_status(CPUX86State *env)
 {
     uint8_t flags = get_float_exception_flags(&env->sse_status);
     /*
@@ -3044,6 +3044,7 @@ static void tcgi386_module_ops_fpu(void)
 {
     tcg_i386.update_fp_status = update_fp_status;
     tcg_i386.update_mxcsr_status = update_mxcsr_status;
+    tcg_i386.update_mxcsr_from_sse_status = update_mxcsr_from_sse_status;
 }
 
 type_init(tcgi386_module_ops_fpu);

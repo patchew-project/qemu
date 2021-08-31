@@ -1,5 +1,3 @@
-i386_softmmu_ss.add(when: 'CONFIG_TCG', if_false: files('tcg-stub.c'))
-
 files_ss = ss.source_set()
 files_ss.add(when: 'CONFIG_TCG', if_true: files(
   'bpt_helper.c',
