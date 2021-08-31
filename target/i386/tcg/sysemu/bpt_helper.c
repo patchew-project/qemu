@@ -121,7 +121,7 @@ static void hw_breakpoint_remove(CPUX86State *env, int index)
     }
 }
 
-void cpu_x86_update_dr7(CPUX86State *env, uint32_t new_dr7)
+static void cpu_x86_update_dr7(CPUX86State *env, uint32_t new_dr7)
 {
     target_ulong old_dr7 = env->dr[7];
     int iobpt = 0;
@@ -296,3 +296,10 @@ void helper_bpt_io(CPUX86State *env, uint32_t port,
         raise_exception(env, EXCP01_DB);
     }
 }
+
+static void tcgi386_module_ops_bpt_sys(void)
+{
+    tcg_i386.cpu_x86_update_dr7 = cpu_x86_update_dr7;
+}
+
+type_init(tcgi386_module_ops_bpt_sys);
