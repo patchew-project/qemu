@@ -2874,7 +2874,7 @@ void helper_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
         }
         if (env->pkru != old_pkru) {
             CPUState *cs = env_cpu(env);
-            tlb_flush(cs);
+            tcg.tlb_flush(cs);
         }
     }
 }

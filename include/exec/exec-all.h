@@ -25,6 +25,7 @@
 #include "exec/cpu_ldst.h"
 #endif
 #include "sysemu/cpu-timers.h"
+#include "tcg/tcg-module.h"
 
 /* allow to see translation results - the slowdown should be negligible, so we leave it */
 #define DEBUG_DISAS
@@ -335,9 +336,6 @@ static inline void tlb_flush_page_all_cpus(CPUState *src, target_ulong addr)
 }
 static inline void tlb_flush_page_all_cpus_synced(CPUState *src,
                                                   target_ulong addr)
-{
-}
-static inline void tlb_flush(CPUState *cpu)
 {
 }
 static inline void tlb_flush_all_cpus(CPUState *src_cpu)
