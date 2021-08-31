@@ -794,7 +794,7 @@ int cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
 
     in_page = -(addr | TARGET_PAGE_MASK);
     if (len <= in_page) {
-        tlb_flush_page(cpu, addr);
+        tcg.tlb_flush_page(cpu, addr);
     } else {
         tcg.tlb_flush(cpu);
     }
@@ -825,7 +825,7 @@ void cpu_watchpoint_remove_by_ref(CPUState *cpu, CPUWatchpoint *watchpoint)
 {
     QTAILQ_REMOVE(&cpu->watchpoints, watchpoint, entry);
 
-    tlb_flush_page(cpu, watchpoint->vaddr);
+    tcg.tlb_flush_page(cpu, watchpoint->vaddr);
 
     g_free(watchpoint);
 }

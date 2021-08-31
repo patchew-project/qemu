@@ -328,9 +328,6 @@ static inline void tlb_init(CPUState *cpu)
 static inline void tlb_destroy(CPUState *cpu)
 {
 }
-static inline void tlb_flush_page(CPUState *cpu, target_ulong addr)
-{
-}
 static inline void tlb_flush_page_all_cpus(CPUState *src, target_ulong addr)
 {
 }
