@@ -17,4 +17,4 @@ if get_option('tcg_interpreter')
   specific_ss.add(files('tci.c'))
 endif
 
-specific_ss.add_all(when: 'CONFIG_TCG', if_true: tcg_ss)
+tcg_module_ss.add_all(when: 'CONFIG_TCG', if_true: tcg_ss)
