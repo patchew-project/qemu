@@ -1,6 +1,12 @@
 specific_ss.add(files(
   'tcg-module.c',
 ))
+specific_ss.add(when: 'TARGET_I386', if_true: files(
+  'tcg-module-i386.c',
+))
+specific_ss.add(when: 'TARGET_X86_64', if_true: files(
+  'tcg-module-i386.c',
+))
 
 specific_ss.add(when: 'CONFIG_TCG', if_true: files(
   'cpu-exec-common.c',

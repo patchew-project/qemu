@@ -672,7 +672,7 @@ uint32_t helper_fnstcw(CPUX86State *env)
     return env->fpuc;
 }
 
-void update_fp_status(CPUX86State *env)
+static void update_fp_status(CPUX86State *env)
 {
     FloatRoundMode rnd_mode;
     FloatX80RoundPrec rnd_prec;
@@ -3039,3 +3039,10 @@ void helper_movq(CPUX86State *env, void *d, void *s)
 
 #define SHIFT 1
 #include "ops_sse.h"
+
+static void tcgi386_module_ops_fpu(void)
+{
+    tcg_i386.update_fp_status = update_fp_status;
+}
+
+type_init(tcgi386_module_ops_fpu);

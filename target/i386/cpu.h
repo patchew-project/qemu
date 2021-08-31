@@ -1802,6 +1802,7 @@ struct X86CPU {
     int32_t hv_max_vps;
 };
 
+#include "tcg/tcg-module-i386.h"
 
 #ifndef CONFIG_USER_ONLY
 extern const VMStateDescription vmstate_x86_cpu;
@@ -2127,7 +2128,6 @@ static inline bool cpu_vmx_maybe_enabled(CPUX86State *env)
 int get_pg_mode(CPUX86State *env);
 
 /* fpu_helper.c */
-void update_fp_status(CPUX86State *env);
 void update_mxcsr_status(CPUX86State *env);
 void update_mxcsr_from_sse_status(CPUX86State *env);
 
@@ -2143,7 +2143,7 @@ static inline void cpu_set_fpuc(CPUX86State *env, uint16_t fpuc)
 {
      env->fpuc = fpuc;
      if (tcg_enabled()) {
-        update_fp_status(env);
+        tcg_i386.update_fp_status(env);
      }
 }
 
