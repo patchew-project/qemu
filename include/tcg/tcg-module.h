@@ -13,6 +13,7 @@ struct TCGModuleOps {
 #endif
     void (*tcg_exec_unrealizefn)(CPUState *cpu);
     void (*tcg_exec_realizefn)(CPUState *cpu, Error **errp);
+    void (*tb_flush)(CPUState *cpu);
 };
 extern struct TCGModuleOps tcg;
 

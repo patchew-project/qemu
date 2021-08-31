@@ -364,7 +364,7 @@ static void plugin_flush_destroy(CPUState *cpu, run_on_cpu_data arg)
     struct qemu_plugin_reset_data *data = arg.host_ptr;
 
     g_assert(cpu_in_exclusive_context(cpu));
-    tb_flush(cpu);
+    tcg.tb_flush(cpu);
     plugin_reset_destroy(data);
 }
 

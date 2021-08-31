@@ -4513,7 +4513,7 @@ static inline abi_ulong do_shmat(CPUArchState *cpu_env,
      */
     if (!(cpu->tcg_cflags & CF_PARALLEL)) {
         cpu->tcg_cflags |= CF_PARALLEL;
-        tb_flush(cpu);
+        tcg.tb_flush(cpu);
     }
 
     if (shmaddr)
@@ -6376,7 +6376,7 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
          */
         if (!(cpu->tcg_cflags & CF_PARALLEL)) {
             cpu->tcg_cflags |= CF_PARALLEL;
-            tb_flush(cpu);
+            tcg.tb_flush(cpu);
         }
 
         /* we create a new CPU instance. */

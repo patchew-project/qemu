@@ -610,7 +610,7 @@ static RISCVException write_misa(CPURISCVState *env, int csrno,
 
     /* flush translation cache */
     if (val != env->misa) {
-        tb_flush(env_cpu(env));
+        tcg.tb_flush(env_cpu(env));
     }
 
     env->misa = val;

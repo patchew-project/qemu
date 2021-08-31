@@ -292,7 +292,7 @@ static target_ulong h_page_init(PowerPCCPU *cpu, SpaprMachineState *spapr,
         if (kvm_enabled()) {
             kvmppc_icbi_range(cpu, pdst, len);
         } else {
-            tb_flush(CPU(cpu));
+            tcg.tb_flush(CPU(cpu));
         }
     }
 

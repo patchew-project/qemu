@@ -58,7 +58,7 @@ static int cpu_common_post_load(void *opaque, int version_id)
      * memory we've translated code from. So we must flush all TBs,
      * which will now be stale.
      */
-    tb_flush(cpu);
+    tcg.tb_flush(cpu);
 
     return 0;
 }

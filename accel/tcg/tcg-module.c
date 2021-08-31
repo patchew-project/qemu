@@ -34,4 +34,5 @@ struct TCGModuleOps tcg = {
 #endif
     .tcg_exec_realizefn = tcg_exec_realizefn_stub,
     .tcg_exec_unrealizefn = update_cpu_stub,
+    .tb_flush = update_cpu_stub,
 };

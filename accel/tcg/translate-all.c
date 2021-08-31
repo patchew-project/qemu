@@ -1003,7 +1003,7 @@ done:
     }
 }
 
-void tb_flush(CPUState *cpu)
+static void tb_flush(CPUState *cpu)
 {
     if (tcg_enabled()) {
         unsigned tb_flush_count = qatomic_mb_read(&tb_ctx.tb_flush_count);
@@ -2463,3 +2463,10 @@ int page_unprotect(target_ulong address, uintptr_t pc)
     return 0;
 }
 #endif /* CONFIG_USER_ONLY */
+
+static void tcg_module_ops_tb(void)
+{
+    tcg.tb_flush = tb_flush;
+}
+
+type_init(tcg_module_ops_tb);

@@ -55,7 +55,7 @@ void helper_tbis(CPUAlphaState *env, uint64_t p)
 
 void helper_tb_flush(CPUAlphaState *env)
 {
-    tb_flush(env_cpu(env));
+    tcg.tb_flush(env_cpu(env));
 }
 
 void helper_halt(uint64_t restart)

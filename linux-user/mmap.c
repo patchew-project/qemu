@@ -461,7 +461,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int target_prot,
         CPUState *cpu = thread_cpu;
         if (!(cpu->tcg_cflags & CF_PARALLEL)) {
             cpu->tcg_cflags |= CF_PARALLEL;
-            tb_flush(cpu);
+            tcg.tb_flush(cpu);
         }
     }
 

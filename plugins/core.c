@@ -514,7 +514,7 @@ void qemu_plugin_user_exit(void)
         }
     }
 
-    tb_flush(current_cpu);
+    tcg.tb_flush(current_cpu);
 
     CPU_FOREACH(cpu) {
         qemu_plugin_disable_mem_helpers(cpu);
