@@ -26,8 +26,10 @@
 #include "io/channel-watch.h"
 #include "trace.h"
 #include "qapi/clone-visitor.h"
+#include <linux/errqueue.h>
 
 #define SOCKET_MAX_FDS 16
+#define SOCKET_ERRQ_THRESH 16384
 
 SocketAddress *
 qio_channel_socket_get_local_address(QIOChannelSocket *ioc,
@@ -55,6 +57,8 @@ qio_channel_socket_new(void)
 
     sioc = QIO_CHANNEL_SOCKET(object_new(TYPE_QIO_CHANNEL_SOCKET));
     sioc->fd = -1;
+    sioc->zerocopy_enabled = false;
+    sioc->errq_pending = 0;
 
     ioc = QIO_CHANNEL(sioc);
     qio_channel_set_feature(ioc, QIO_CHANNEL_FEATURE_SHUTDOWN);
@@ -520,6 +524,54 @@ static ssize_t qio_channel_socket_readv(QIOChannel *ioc,
     return ret;
 }
 
+static void qio_channel_socket_errq_proc(QIOChannelSocket *sioc,
+                                         Error **errp)
+{
+    int fd = sioc->fd;
+    int ret;
+    struct msghdr msg = {};
+    struct sock_extended_err *serr;
+    struct cmsghdr *cm;
+
+    do {
+        ret = recvmsg(fd, &msg, MSG_ERRQUEUE);
+        if (ret <= 0) {
+            if (ret == 0 || errno == EAGAIN) {
+                /* Nothing on errqueue */
+                 sioc->errq_pending = 0;
+                 break;
+            }
+            if (errno == EINTR) {
+                continue;
+            }
+
+            error_setg_errno(errp, errno,
+                             "Unable to read errqueue");
+            break;
+        }
+
+        cm = CMSG_FIRSTHDR(&msg);
+        if (cm->cmsg_level != SOL_IP &&
+            cm->cmsg_type != IP_RECVERR) {
+            error_setg_errno(errp, EPROTOTYPE,
+                             "Wrong cmsg in errqueue");
+            break;
+        }
+
+        serr = (void *) CMSG_DATA(cm);
+        if (serr->ee_errno != 0) {
+            error_setg_errno(errp, serr->ee_errno,
+                             "Error on socket");
+            break;
+        }
+        if (serr->ee_origin != SO_EE_ORIGIN_ZEROCOPY) {
+            error_setg_errno(errp, serr->ee_origin,
+                             "Error not from zerocopy");
+            break;
+        }
+    } while (true);
+}
+
 static ssize_t qio_channel_socket_writev(QIOChannel *ioc,
                                          const struct iovec *iov,
                                          size_t niov,
@@ -571,6 +623,14 @@ static ssize_t qio_channel_socket_writev(QIOChannel *ioc,
                          "Unable to write to socket");
         return -1;
     }
+
+    if ((flags & MSG_ZEROCOPY) && sioc->zerocopy_enabled) {
+        sioc->errq_pending += niov;
+        if (sioc->errq_pending > SOCKET_ERRQ_THRESH) {
+            qio_channel_socket_errq_proc(sioc, errp);
+        }
+    }
+
     return ret;
 }
 #else /* WIN32 */
@@ -690,6 +750,21 @@ qio_channel_socket_set_delay(QIOChannel *ioc,
 
 
 static void
+qio_channel_socket_set_zerocopy(QIOChannel *ioc,
+                                bool enabled)
+{
+    QIOChannelSocket *sioc = QIO_CHANNEL_SOCKET(ioc);
+    int v = enabled ? 1 : 0;
+    int ret;
+
+    ret = qemu_setsockopt(sioc->fd, SOL_SOCKET, SO_ZEROCOPY, &v, sizeof(v));
+    if (ret >= 0) {
+        sioc->zerocopy_enabled = true;
+    }
+}
+
+
+static void
 qio_channel_socket_set_cork(QIOChannel *ioc,
                             bool enabled)
 {
@@ -789,6 +864,7 @@ static void qio_channel_socket_class_init(ObjectClass *klass,
     ioc_klass->io_set_delay = qio_channel_socket_set_delay;
     ioc_klass->io_create_watch = qio_channel_socket_create_watch;
     ioc_klass->io_set_aio_fd_handler = qio_channel_socket_set_aio_fd_handler;
+    ioc_klass->io_set_zerocopy = qio_channel_socket_set_zerocopy;
 }
 
 static const TypeInfo qio_channel_socket_info = {

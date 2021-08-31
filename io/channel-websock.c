@@ -1194,6 +1194,14 @@ static void qio_channel_websock_set_delay(QIOChannel *ioc,
     qio_channel_set_delay(tioc->master, enabled);
 }
 
+static void qio_channel_websock_set_zerocopy(QIOChannel *ioc,
+                                             bool enabled)
+{
+    QIOChannelWebsock *tioc = QIO_CHANNEL_WEBSOCK(ioc);
+
+    qio_channel_set_zerocopy(tioc->master, enabled);
+}
+
 static void qio_channel_websock_set_cork(QIOChannel *ioc,
                                          bool enabled)
 {
@@ -1318,6 +1326,7 @@ static void qio_channel_websock_class_init(ObjectClass *klass,
     ioc_klass->io_close = qio_channel_websock_close;
     ioc_klass->io_shutdown = qio_channel_websock_shutdown;
     ioc_klass->io_create_watch = qio_channel_websock_create_watch;
+    ioc_klass->io_set_zerocopy = qio_channel_websock_set_zerocopy;
 }
 
 static const TypeInfo qio_channel_websock_info = {

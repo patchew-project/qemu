@@ -350,6 +350,16 @@ static void qio_channel_tls_set_delay(QIOChannel *ioc,
     qio_channel_set_delay(tioc->master, enabled);
 }
 
+
+static void qio_channel_tls_set_zerocopy(QIOChannel *ioc,
+                                         bool enabled)
+{
+    QIOChannelTLS *tioc = QIO_CHANNEL_TLS(ioc);
+
+    qio_channel_set_zerocopy(tioc->master, enabled);
+}
+
+
 static void qio_channel_tls_set_cork(QIOChannel *ioc,
                                      bool enabled)
 {
@@ -416,6 +426,7 @@ static void qio_channel_tls_class_init(ObjectClass *klass,
     ioc_klass->io_shutdown = qio_channel_tls_shutdown;
     ioc_klass->io_create_watch = qio_channel_tls_create_watch;
     ioc_klass->io_set_aio_fd_handler = qio_channel_tls_set_aio_fd_handler;
+    ioc_klass->io_set_zerocopy = qio_channel_tls_set_zerocopy;
 }
 
 static const TypeInfo qio_channel_tls_info = {

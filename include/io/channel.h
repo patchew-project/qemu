@@ -137,6 +137,8 @@ struct QIOChannelClass {
                                   IOHandler *io_read,
                                   IOHandler *io_write,
                                   void *opaque);
+    void (*io_set_zerocopy)(QIOChannel *ioc,
+                            bool enabled);
 };
 
 /* General I/O handling functions */
@@ -569,6 +571,33 @@ int qio_channel_shutdown(QIOChannel *ioc,
  */
 void qio_channel_set_delay(QIOChannel *ioc,
                            bool enabled);
+
+/**
+ * qio_channel_set_zerocopy:
+ * @ioc: the channel object
+ * @enabled: the new flag state
+ *
+ * Controls whether the underlying transport is
+ * permitted to use zerocopy to avoid copying the
+ * sending buffer in kernel. If @enabled is true, then the
+ * writes may avoid buffer copy in kernel. If @enabled
+ * is false, writes will cause the kernel to always
+ * copy the buffer contents before sending.
+ *
+ * In order to use make a write with zerocopy feature,
+ * it's also necessary to sent each packet with
+ * MSG_ZEROCOPY flag. With this, it's possible to
+ * to select only writes that would benefit from the
+ * use of zerocopy feature, i.e. the ones with larger
+ * buffers.
+ *
+ * This feature was added in Linux 4.14, so older
+ * versions will fail on enabling. This is not an
+ * issue, since it will fall-back to default copying
+ * approach.
+ */
+void qio_channel_set_zerocopy(QIOChannel *ioc,
+                              bool enabled);
 
 /**
  * qio_channel_set_cork:
