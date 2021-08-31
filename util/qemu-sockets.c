@@ -1345,13 +1345,20 @@ socket_sockaddr_to_address_unix(struct sockaddr_storage *sa,
     SocketAddress *addr;
     struct sockaddr_un *su = (struct sockaddr_un *)sa;
 
-    assert(salen >= sizeof(su->sun_family) + 1 &&
-           salen <= sizeof(struct sockaddr_un));
+    /* there's a corner case when trailing \0 does not fit into
+     * sockaddr_un. Compare length with sizeof(sockaddr_storage),
+     * not with sizeof(sockaddr_un), since this is what we actually
+     * provide, to ensure we had no truncation and a room for
+     * the trailing \0 which we add below.
+     * When salen == sizeof(sun_family) it is unnamed socket,
+     * and when first byte of sun_path is \0, it is abstract. */
+    assert(salen >= sizeof(su->sun_family) &&
+           salen <= sizeof(struct sockaddr_storage));
 
     addr = g_new0(SocketAddress, 1);
     addr->type = SOCKET_ADDRESS_TYPE_UNIX;
 #ifdef CONFIG_LINUX
-    if (!su->sun_path[0]) {
+    if (salen > sizeof(su->sun_family) && !su->sun_path[0]) {
         /* Linux abstract socket */
         addr->u.q_unix.path = g_strndup(su->sun_path + 1,
                                         salen - sizeof(su->sun_family) - 1);
@@ -1363,7 +1370,7 @@ socket_sockaddr_to_address_unix(struct sockaddr_storage *sa,
     }
 #endif
 
-    addr->u.q_unix.path = g_strndup(su->sun_path, sizeof(su->sun_path));
+    addr->u.q_unix.path = g_strndup(su->sun_path, salen - sizeof(su->sun_family));
     return addr;
 }
 #endif /* WIN32 */
