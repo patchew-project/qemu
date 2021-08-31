@@ -1,3 +1,7 @@
+specific_ss.add(files(
+  'tcg-module.c',
+))
+
 specific_ss.add(when: 'CONFIG_TCG', if_true: files(
   'cpu-exec-common.c',
 ))
