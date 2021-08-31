@@ -2252,7 +2252,7 @@ target_ulong helper_lsl(CPUX86State *env, target_ulong selector1)
     int rpl, dpl, cpl, type;
 
     selector = selector1 & 0xffff;
-    eflags = cpu_cc_compute_all(env, CC_OP);
+    eflags = tcg_i386.cpu_cc_compute_all(env, CC_OP);
     if ((selector & 0xfffc) == 0) {
         goto fail;
     }
@@ -2299,7 +2299,7 @@ target_ulong helper_lar(CPUX86State *env, target_ulong selector1)
     int rpl, dpl, cpl, type;
 
     selector = selector1 & 0xffff;
-    eflags = cpu_cc_compute_all(env, CC_OP);
+    eflags = tcg_i386.cpu_cc_compute_all(env, CC_OP);
     if ((selector & 0xfffc) == 0) {
         goto fail;
     }
@@ -2348,7 +2348,7 @@ void helper_verr(CPUX86State *env, target_ulong selector1)
     int rpl, dpl, cpl;
 
     selector = selector1 & 0xffff;
-    eflags = cpu_cc_compute_all(env, CC_OP);
+    eflags = tcg_i386.cpu_cc_compute_all(env, CC_OP);
     if ((selector & 0xfffc) == 0) {
         goto fail;
     }
@@ -2386,7 +2386,7 @@ void helper_verw(CPUX86State *env, target_ulong selector1)
     int rpl, dpl, cpl;
 
     selector = selector1 & 0xffff;
-    eflags = cpu_cc_compute_all(env, CC_OP);
+    eflags = tcg_i386.cpu_cc_compute_all(env, CC_OP);
     if ((selector & 0xfffc) == 0) {
         goto fail;
     }

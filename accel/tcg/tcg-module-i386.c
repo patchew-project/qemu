@@ -17,6 +17,11 @@ static void cpu_x86_update_dr7_stub(CPUX86State *env, uint32_t new_dr7)
 {
 }
 
+static uint32_t cpu_cc_compute_all_stub(CPUX86State *env1, int op)
+{
+    return 0;
+}
+
 struct TCGI386ModuleOps tcg_i386 = {
     .update_fp_status = i386_update_cpu_stub,
     .update_mxcsr_status = i386_update_cpu_stub,
@@ -24,4 +29,5 @@ struct TCGI386ModuleOps tcg_i386 = {
     .x86_register_ferr_irq = x86_register_ferr_irq_stub,
     .cpu_set_ignne = i386_update_stub,
     .cpu_x86_update_dr7 = cpu_x86_update_dr7_stub,
+    .cpu_cc_compute_all = cpu_cc_compute_all_stub,
 };

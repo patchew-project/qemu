@@ -8,6 +8,7 @@ struct TCGI386ModuleOps {
     void (*x86_register_ferr_irq)(qemu_irq irq);
     void (*cpu_set_ignne)(void);
     void (*cpu_x86_update_dr7)(CPUX86State *env, uint32_t new_dr7);
+    uint32_t (*cpu_cc_compute_all)(CPUX86State *env1, int op);
 };
 extern struct TCGI386ModuleOps tcg_i386;
 

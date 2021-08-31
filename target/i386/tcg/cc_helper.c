@@ -220,7 +220,7 @@ target_ulong helper_cc_compute_all(target_ulong dst, target_ulong src1,
     }
 }
 
-uint32_t cpu_cc_compute_all(CPUX86State *env, int op)
+static uint32_t cpu_cc_compute_all(CPUX86State *env, int op)
 {
     return helper_cc_compute_all(CC_DST, CC_SRC, CC_SRC2, op);
 }
@@ -387,3 +387,10 @@ void helper_sti_vm(CPUX86State *env)
     }
 }
 #endif
+
+static void tcgi386_module_ops_cc(void)
+{
+    tcg_i386.cpu_cc_compute_all = cpu_cc_compute_all;
+}
+
+type_init(tcgi386_module_ops_cc);
