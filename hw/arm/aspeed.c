@@ -804,6 +804,7 @@ static void aspeed_machine_class_init(ObjectClass *oc, void *data)
     mc->no_parallel = 1;
     mc->default_ram_id = "ram";
     amc->macs_mask = ASPEED_MAC0_ON;
+    amc->serial_hd0 = ASPEED_DEV_UART5;
 
     aspeed_machine_class_props_init(oc);
 }
