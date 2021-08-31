@@ -17,6 +17,7 @@ struct TCGModuleOps {
     void (*tb_invalidate_phys_range)(tb_page_addr_t start, tb_page_addr_t end);
     void (*tb_check_watchpoint)(CPUState *cpu, uintptr_t retaddr);
     bool (*cpu_restore_state)(CPUState *cpu, uintptr_t searched_pc, bool will_exit);
+    uint32_t (*curr_cflags)(CPUState *cpu);
 };
 extern struct TCGModuleOps tcg;
 

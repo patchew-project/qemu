@@ -563,7 +563,7 @@ static inline uint32_t tb_cflags(const TranslationBlock *tb)
 }
 
 /* current cflags for hashing/comparison */
-uint32_t curr_cflags(CPUState *cpu);
+// FIXME: docs
 
 /* TranslationBlock invalidate API */
 #if defined(CONFIG_USER_ONLY)

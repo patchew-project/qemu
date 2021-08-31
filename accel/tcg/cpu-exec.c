@@ -145,7 +145,7 @@ static void init_delay_params(SyncClocks *sc, const CPUState *cpu)
 }
 #endif /* CONFIG USER ONLY */
 
-uint32_t curr_cflags(CPUState *cpu)
+static uint32_t curr_cflags(CPUState *cpu)
 {
     uint32_t cflags = cpu->tcg_cflags;
 
@@ -1036,6 +1036,7 @@ static void tcg_module_ops_exec(void)
 {
     tcg.tcg_exec_realizefn = tcg_exec_realizefn;
     tcg.tcg_exec_unrealizefn = tcg_exec_unrealizefn;
+    tcg.curr_cflags = curr_cflags;
 }
 
 type_init(tcg_module_ops_exec);

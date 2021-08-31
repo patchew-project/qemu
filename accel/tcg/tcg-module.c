@@ -38,6 +38,11 @@ static bool cpu_restore_state_stub(CPUState *cpu, uintptr_t searched_pc, bool wi
     return false;
 }
 
+static uint32_t curr_cflags_stub(CPUState *cpu)
+{
+    return 0;
+}
+
 struct TCGModuleOps tcg = {
     .tlb_flush = update_cpu_stub,
     .tlb_flush_page = tlb_flush_page_stub,
@@ -51,4 +56,5 @@ struct TCGModuleOps tcg = {
     .tb_invalidate_phys_range = tb_invalidate_phys_range_stub,
     .tb_check_watchpoint = tb_check_watchpoint_stub,
     .cpu_restore_state = cpu_restore_state_stub,
+    .curr_cflags = curr_cflags_stub,
 };
