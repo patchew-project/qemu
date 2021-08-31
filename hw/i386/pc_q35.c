@@ -266,7 +266,7 @@ static void pc_q35_init(MachineState *machine)
     }
 
     if (tcg_enabled()) {
-        x86_register_ferr_irq(x86ms->gsi[13]);
+        tcg_i386.x86_register_ferr_irq(x86ms->gsi[13]);
     }
 
     assert(pcms->vmport != ON_OFF_AUTO__MAX);

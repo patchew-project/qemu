@@ -23,7 +23,7 @@
 
 static qemu_irq ferr_irq;
 
-void x86_register_ferr_irq(qemu_irq irq)
+static void x86_register_ferr_irq(qemu_irq irq)
 {
     ferr_irq = irq;
 }
@@ -55,3 +55,10 @@ void cpu_set_ignne(void)
      */
     qemu_irq_lower(ferr_irq);
 }
+
+static void tcgi386_module_ops_fpu_sys(void)
+{
+    tcg_i386.x86_register_ferr_irq = x86_register_ferr_irq;
+}
+
+type_init(tcgi386_module_ops_fpu_sys);

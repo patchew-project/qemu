@@ -224,7 +224,7 @@ static void pc_init1(MachineState *machine,
     }
 
     if (tcg_enabled()) {
-        x86_register_ferr_irq(x86ms->gsi[13]);
+        tcg_i386.x86_register_ferr_irq(x86ms->gsi[13]);
     }
 
     pc_vga_init(isa_bus, pcmc->pci_enabled ? pci_bus : NULL);

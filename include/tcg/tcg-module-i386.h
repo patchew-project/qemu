@@ -5,7 +5,7 @@ struct TCGI386ModuleOps {
     void (*update_fp_status)(CPUX86State *env);
     void (*update_mxcsr_status)(CPUX86State *env);
     void (*update_mxcsr_from_sse_status)(CPUX86State *env);
-
+    void (*x86_register_ferr_irq)(qemu_irq irq);
 };
 extern struct TCGI386ModuleOps tcg_i386;
 
