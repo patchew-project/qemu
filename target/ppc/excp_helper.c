@@ -1498,7 +1498,7 @@ void ppc_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
     uint32_t insn;
 
     /* Restore state and reload the insn we executed, for filling in DSISR.  */
-    cpu_restore_state(cs, retaddr, true);
+    tcg.cpu_restore_state(cs, retaddr, true);
     insn = cpu_ldl_code(env, env->nip);
 
     cs->exception_index = POWERPC_EXCP_ALIGN;

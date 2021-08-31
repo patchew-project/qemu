@@ -34,7 +34,7 @@ void alpha_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
     uint64_t pc;
     uint32_t insn;
 
-    cpu_restore_state(cs, retaddr, true);
+    tcg.cpu_restore_state(cs, retaddr, true);
 
     pc = env->pc;
     insn = cpu_ldl_code(env, pc);

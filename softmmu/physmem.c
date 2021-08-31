@@ -947,7 +947,7 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
                     cpu->cflags_next_tb = 1 | curr_cflags(cpu);
                     mmap_unlock();
                     if (ra) {
-                        cpu_restore_state(cpu, ra, true);
+                        tcg.cpu_restore_state(cpu, ra, true);
                     }
                     cpu_loop_exit_noexc(cpu);
                 }

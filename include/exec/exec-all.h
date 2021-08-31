@@ -60,7 +60,7 @@ void restore_state_to_opc(CPUArchState *env, TranslationBlock *tb,
  * code. If the searched_pc is not in translated code no state is
  * restored and the function returns false.
  */
-bool cpu_restore_state(CPUState *cpu, uintptr_t searched_pc, bool will_exit);
+// FIXME: docs
 
 void QEMU_NORETURN cpu_loop_exit_noexc(CPUState *cpu);
 void QEMU_NORETURN cpu_loop_exit(CPUState *cpu);

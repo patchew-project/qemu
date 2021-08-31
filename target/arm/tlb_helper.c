@@ -117,7 +117,7 @@ void arm_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
     ARMMMUFaultInfo fi = {};
 
     /* now we have a real cpu fault */
-    cpu_restore_state(cs, retaddr, true);
+    tcg.cpu_restore_state(cs, retaddr, true);
 
     fi.type = ARMFault_Alignment;
     arm_deliver_fault(cpu, vaddr, access_type, mmu_idx, &fi);
@@ -140,7 +140,7 @@ void arm_cpu_do_transaction_failed(CPUState *cs, hwaddr physaddr,
     ARMMMUFaultInfo fi = {};
 
     /* now we have a real cpu fault */
-    cpu_restore_state(cs, retaddr, true);
+    tcg.cpu_restore_state(cs, retaddr, true);
 
     fi.ea = arm_extabort_type(response);
     fi.type = ARMFault_SyncExternal;
@@ -166,7 +166,7 @@ bool arm_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     fi.level = 3;
 
     /* now we have a real cpu fault */
-    cpu_restore_state(cs, retaddr, true);
+    tcg.cpu_restore_state(cs, retaddr, true);
     arm_deliver_fault(cpu, address, access_type, mmu_idx, &fi);
 #else
     hwaddr phys_addr;
@@ -207,7 +207,7 @@ bool arm_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
         return false;
     } else {
         /* now we have a real cpu fault */
-        cpu_restore_state(cs, retaddr, true);
+        tcg.cpu_restore_state(cs, retaddr, true);
         arm_deliver_fault(cpu, address, access_type, mmu_idx, &fi);
     }
 #endif

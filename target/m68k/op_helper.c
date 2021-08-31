@@ -468,7 +468,7 @@ void m68k_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
     M68kCPU *cpu = M68K_CPU(cs);
     CPUM68KState *env = &cpu->env;
 
-    cpu_restore_state(cs, retaddr, true);
+    tcg.cpu_restore_state(cs, retaddr, true);
 
     if (m68k_feature(env, M68K_FEATURE_M68040)) {
         env->mmu.mmusr = 0;
@@ -1076,7 +1076,7 @@ void HELPER(chk)(CPUM68KState *env, int32_t val, int32_t ub)
         CPUState *cs = env_cpu(env);
 
         /* Recover PC and CC_OP for the beginning of the insn.  */
-        cpu_restore_state(cs, GETPC(), true);
+        tcg.cpu_restore_state(cs, GETPC(), true);
 
         /* flags have been modified by gen_flush_flags() */
         env->cc_op = CC_OP_FLAGS;
@@ -1108,7 +1108,7 @@ void HELPER(chk2)(CPUM68KState *env, int32_t val, int32_t lb, int32_t ub)
         CPUState *cs = env_cpu(env);
 
         /* Recover PC and CC_OP for the beginning of the insn.  */
-        cpu_restore_state(cs, GETPC(), true);
+        tcg.cpu_restore_state(cs, GETPC(), true);
 
         /* flags have been modified by gen_flush_flags() */
         env->cc_op = CC_OP_FLAGS;

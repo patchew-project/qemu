@@ -378,7 +378,7 @@ static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
     return 0;
 }
 
-bool cpu_restore_state(CPUState *cpu, uintptr_t host_pc, bool will_exit)
+static bool cpu_restore_state(CPUState *cpu, uintptr_t host_pc, bool will_exit)
 {
     /*
      * The host_pc has to be in the rx region of the code buffer.
@@ -2440,6 +2440,7 @@ static void tcg_module_ops_tb(void)
     tcg.tb_flush = tb_flush;
     tcg.tb_invalidate_phys_range = tb_invalidate_phys_range;
     tcg.tb_check_watchpoint = tb_check_watchpoint;
+    tcg.cpu_restore_state = cpu_restore_state;
 }
 
 type_init(tcg_module_ops_tb);

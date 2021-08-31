@@ -33,6 +33,11 @@ static void tb_check_watchpoint_stub(CPUState *cpu, uintptr_t retaddr)
 {
 }
 
+static bool cpu_restore_state_stub(CPUState *cpu, uintptr_t searched_pc, bool will_exit)
+{
+    return false;
+}
+
 struct TCGModuleOps tcg = {
     .tlb_flush = update_cpu_stub,
     .tlb_flush_page = tlb_flush_page_stub,
@@ -45,4 +50,5 @@ struct TCGModuleOps tcg = {
     .tb_flush = update_cpu_stub,
     .tb_invalidate_phys_range = tb_invalidate_phys_range_stub,
     .tb_check_watchpoint = tb_check_watchpoint_stub,
+    .cpu_restore_state = cpu_restore_state_stub,
 };
