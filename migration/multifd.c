@@ -103,9 +103,10 @@ static int nocomp_send_prepare(MultiFDSendParams *p, uint32_t used,
  * @used: number of pages used
  * @errp: pointer to an error
  */
-static int nocomp_send_write(MultiFDSendParams *p, uint32_t used, Error **errp)
+static int nocomp_send_write(MultiFDSendParams *p, uint32_t used, int flags,
+                             Error **errp)
 {
-    return qio_channel_writev_all(p->c, p->pages->iov, used, errp);
+    return qio_channel_writev_all_flags(p->c, p->pages->iov, used, flags, errp);
 }
 
 /**
@@ -675,7 +676,8 @@ static void *multifd_send_thread(void *opaque)
             }
 
             if (used) {
-                ret = multifd_send_state->ops->send_write(p, used, &local_err);
+                ret = multifd_send_state->ops->send_write(p, used, MSG_ZEROCOPY,
+                                                          &local_err);
                 if (ret != 0) {
                     break;
                 }
@@ -815,6 +817,7 @@ static bool multifd_channel_connect(MultiFDSendParams *p,
         } else {
             /* update for tls qio channel */
             p->c = ioc;
+            qio_channel_set_zerocopy(ioc, true);
             qemu_thread_create(&p->thread, p->name, multifd_send_thread, p,
                                    QEMU_THREAD_JOINABLE);
        }

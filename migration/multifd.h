@@ -157,7 +157,8 @@ typedef struct {
     /* Prepare the send packet */
     int (*send_prepare)(MultiFDSendParams *p, uint32_t used, Error **errp);
     /* Write the send packet */
-    int (*send_write)(MultiFDSendParams *p, uint32_t used, Error **errp);
+    int (*send_write)(MultiFDSendParams *p, uint32_t used, int flags,
+                      Error **errp);
     /* Setup for receiving side */
     int (*recv_setup)(MultiFDRecvParams *p, Error **errp);
     /* Cleanup for receiving side */

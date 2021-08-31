@@ -160,12 +160,13 @@ static int zlib_send_prepare(MultiFDSendParams *p, uint32_t used, Error **errp)
  * @used: number of pages used
  * @errp: pointer to an error
  */
-static int zlib_send_write(MultiFDSendParams *p, uint32_t used, Error **errp)
+static int zlib_send_write(MultiFDSendParams *p, uint32_t used, int flags,
+                           Error **errp)
 {
     struct zlib_data *z = p->data;
 
-    return qio_channel_write_all(p->c, (void *)z->zbuff, p->next_packet_size,
-                                 errp);
+    return qio_channel_write_all_flags(p->c, (void *)z->zbuff,
+                                       p->next_packet_size, flags, errp);
 }
 
 /**
