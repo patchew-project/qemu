@@ -94,7 +94,7 @@ endif
 
 modular_tcg = []
 # Darwin does not support references to thread-local variables in modules
-if false #targetos != 'darwin'
+if targetos != 'darwin'
   modular_tcg = ['i386-softmmu', 'x86_64-softmmu']
 endif
 
