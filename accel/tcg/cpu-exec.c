@@ -981,7 +981,7 @@ int cpu_exec(CPUState *cpu)
     return ret;
 }
 
-void tcg_exec_realizefn(CPUState *cpu, Error **errp)
+static void tcg_exec_realizefn(CPUState *cpu, Error **errp)
 {
     static bool tcg_target_initialized;
     CPUClass *cc = CPU_GET_CLASS(cpu);
@@ -999,7 +999,7 @@ void tcg_exec_realizefn(CPUState *cpu, Error **errp)
 }
 
 /* undo the initializations in reverse order */
-void tcg_exec_unrealizefn(CPUState *cpu)
+static void tcg_exec_unrealizefn(CPUState *cpu)
 {
 #ifndef CONFIG_USER_ONLY
     tcg_iommu_free_notifier_list(cpu);
@@ -1031,3 +1031,11 @@ void dump_drift_info(void)
 }
 
 #endif /* !CONFIG_USER_ONLY */
+
+static void tcg_module_ops_exec(void)
+{
+    tcg.tcg_exec_realizefn = tcg_exec_realizefn;
+    tcg.tcg_exec_unrealizefn = tcg_exec_unrealizefn;
+}
+
+type_init(tcg_module_ops_exec);

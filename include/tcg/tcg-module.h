@@ -11,6 +11,8 @@ struct TCGModuleOps {
     bool (*tlb_plugin_lookup)(CPUState *cpu, target_ulong addr, int mmu_idx,
                               bool is_store, struct qemu_plugin_hwaddr *data);
 #endif
+    void (*tcg_exec_unrealizefn)(CPUState *cpu);
+    void (*tcg_exec_realizefn)(CPUState *cpu, Error **errp);
 };
 extern struct TCGModuleOps tcg;
 

@@ -140,7 +140,7 @@ void cpu_exec_realizefn(CPUState *cpu, Error **errp)
 #ifdef CONFIG_TCG
     /* NB: errp parameter is unused currently */
     if (tcg_enabled()) {
-        tcg_exec_realizefn(cpu, errp);
+        tcg.tcg_exec_realizefn(cpu, errp);
     }
 #endif /* CONFIG_TCG */
 
@@ -172,7 +172,7 @@ void cpu_exec_unrealizefn(CPUState *cpu)
 #ifdef CONFIG_TCG
     /* NB: errp parameter is unused currently */
     if (tcg_enabled()) {
-        tcg_exec_unrealizefn(cpu);
+        tcg.tcg_exec_unrealizefn(cpu);
     }
 #endif /* CONFIG_TCG */
 

@@ -440,8 +440,6 @@ void dump_opcount_info(void);
 #ifdef CONFIG_TCG
 /* accel/tcg/cpu-exec.c */
 int cpu_exec(CPUState *cpu);
-void tcg_exec_realizefn(CPUState *cpu, Error **errp);
-void tcg_exec_unrealizefn(CPUState *cpu);
 #endif /* CONFIG_TCG */
 
 /* Returns: 0 on success, -1 on error */

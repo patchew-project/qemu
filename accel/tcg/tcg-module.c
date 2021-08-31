@@ -21,6 +21,10 @@ static bool tlb_plugin_lookup_stub(CPUState *cpu, target_ulong addr, int mmu_idx
 }
 #endif
 
+static void tcg_exec_realizefn_stub(CPUState *cpu, Error **errp)
+{
+}
+
 struct TCGModuleOps tcg = {
     .tlb_flush = update_cpu_stub,
     .tlb_flush_page = tlb_flush_page_stub,
@@ -28,4 +32,6 @@ struct TCGModuleOps tcg = {
     .tlb_reset_dirty = tlb_reset_dirty_stub,
     .tlb_plugin_lookup = tlb_plugin_lookup_stub,
 #endif
+    .tcg_exec_realizefn = tcg_exec_realizefn_stub,
+    .tcg_exec_unrealizefn = update_cpu_stub,
 };
