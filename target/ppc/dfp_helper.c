@@ -547,8 +547,8 @@ uint32_t helper_##op(CPUPPCState *env, ppc_fprp_t *a, uint32_t dcm)      \
     return dfp.crbf;                                                     \
 }
 
-DFP_HELPER_TSTDC(dtstdc, 64)
-DFP_HELPER_TSTDC(dtstdcq, 128)
+DFP_HELPER_TSTDC(DTSTDC, 64)
+DFP_HELPER_TSTDC(DTSTDCQ, 128)
 
 #define DFP_HELPER_TSTDG(op, size)                                       \
 uint32_t helper_##op(CPUPPCState *env, ppc_fprp_t *a, uint32_t dcm)      \
@@ -602,8 +602,8 @@ uint32_t helper_##op(CPUPPCState *env, ppc_fprp_t *a, uint32_t dcm)      \
     return dfp.crbf;                                                     \
 }
 
-DFP_HELPER_TSTDG(dtstdg, 64)
-DFP_HELPER_TSTDG(dtstdgq, 128)
+DFP_HELPER_TSTDG(DTSTDG, 64)
+DFP_HELPER_TSTDG(DTSTDGQ, 128)
 
 #define DFP_HELPER_TSTEX(op, size)                                       \
 uint32_t helper_##op(CPUPPCState *env, ppc_fprp_t *a, ppc_fprp_t *b)     \
