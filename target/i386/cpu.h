@@ -1836,7 +1836,6 @@ int cpu_x86_support_mca_broadcast(CPUX86State *env);
 int cpu_get_pic_interrupt(CPUX86State *s);
 /* MSDOS compatibility mode FPU exception support */
 void fpu_check_raise_ferr_irq(CPUX86State *s);
-void cpu_set_ignne(void);
 void cpu_clear_ignne(void);
 
 /* mpx_helper.c */

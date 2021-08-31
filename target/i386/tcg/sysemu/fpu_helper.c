@@ -42,7 +42,7 @@ void cpu_clear_ignne(void)
     env->hflags2 &= ~HF2_IGNNE_MASK;
 }
 
-void cpu_set_ignne(void)
+static void cpu_set_ignne(void)
 {
     CPUX86State *env = &X86_CPU(first_cpu)->env;
     env->hflags2 |= HF2_IGNNE_MASK;
@@ -59,6 +59,7 @@ void cpu_set_ignne(void)
 static void tcgi386_module_ops_fpu_sys(void)
 {
     tcg_i386.x86_register_ferr_irq = x86_register_ferr_irq;
+    tcg_i386.cpu_set_ignne = cpu_set_ignne;
 }
 
 type_init(tcgi386_module_ops_fpu_sys);

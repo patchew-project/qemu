@@ -389,7 +389,7 @@ static void ioportF0_write(void *opaque, hwaddr addr, uint64_t data,
                            unsigned size)
 {
     if (tcg_enabled()) {
-        cpu_set_ignne();
+        tcg_i386.cpu_set_ignne();
     }
 }
 
