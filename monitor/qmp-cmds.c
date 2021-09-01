@@ -164,7 +164,8 @@ void qmp_system_wakeup(Error **errp)
 }
 
 void qmp_set_password(const char *protocol, const char *password,
-                      bool has_connected, const char *connected, Error **errp)
+                      bool has_connected, const char *connected,
+                      bool has_display, const char *display, Error **errp)
 {
     int disconnect_if_connected = 0;
     int fail_if_connected = 0;
@@ -197,7 +198,7 @@ void qmp_set_password(const char *protocol, const char *password,
         }
         /* Note that setting an empty password will not disable login through
          * this interface. */
-        rc = vnc_display_password(NULL, password);
+        rc = vnc_display_password(has_display ? display : NULL, password);
     } else {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "protocol",
                    "'vnc' or 'spice'");
@@ -210,7 +211,7 @@ void qmp_set_password(const char *protocol, const char *password,
 }
 
 void qmp_expire_password(const char *protocol, const char *whenstr,
-                         Error **errp)
+                         bool has_display, const char *display, Error **errp)
 {
     time_t when;
     int rc;
@@ -231,7 +232,7 @@ void qmp_expire_password(const char *protocol, const char *whenstr,
         }
         rc = qemu_spice.set_pw_expire(when);
     } else if (strcmp(protocol, "vnc") == 0) {
-        rc = vnc_display_pw_expire(NULL, when);
+        rc = vnc_display_pw_expire(has_display ? display : NULL, when);
     } else {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "protocol",
                    "'vnc' or 'spice'");
