@@ -46,6 +46,7 @@ struct PropertyInfo {
 
 extern const PropertyInfo qdev_prop_bit;
 extern const PropertyInfo qdev_prop_bit64;
+extern const PropertyInfo qdev_prop_read_only_bit64;
 extern const PropertyInfo qdev_prop_bool;
 extern const PropertyInfo qdev_prop_enum;
 extern const PropertyInfo qdev_prop_uint8;
@@ -101,6 +102,10 @@ extern const PropertyInfo qdev_prop_link;
     DEFINE_PROP(_name, _state, _field, qdev_prop_bool, bool, \
                 .set_default = true,                         \
                 .defval.u    = (bool)_defval)
+
+#define DEFINE_PROP_READ_ONLY_BIT64(_name, _state, _field, _bit)            \
+    DEFINE_PROP(_name, _state, _field, qdev_prop_read_only_bit64, uint64_t, \
+                .bitnr = (_bit))
 
 #define PROP_ARRAY_LEN_PREFIX "len-"
 

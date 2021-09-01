@@ -231,6 +231,38 @@ const PropertyInfo qdev_prop_bit64 = {
     .set_default_value = set_default_value_bool,
 };
 
+/* Read-only Bit64 */
+
+static void prop_set_read_only_bit64(Object *obj, Visitor *v, const char *name,
+                                     void *opaque, Error **errp)
+{
+    return;
+}
+
+static uint64_t qdev_get_prop_read_only_mask64(Property *prop)
+{
+    assert(prop->info == &qdev_prop_read_only_bit64);
+    return 0x1ull << prop->bitnr;
+}
+
+static void prop_get_read_only_bit64(Object *obj, Visitor *v, const char *name,
+                                     void *opaque, Error **errp)
+{
+    Property *prop = opaque;
+    uint64_t *p = object_field_prop_ptr(obj, prop);
+    bool value = (*p & qdev_get_prop_read_only_mask64(prop)) != 0;
+
+    visit_type_bool(v, name, &value, errp);
+}
+
+const PropertyInfo qdev_prop_read_only_bit64 = {
+    .name  = "bool",
+    .description = "on/off",
+    .get   = prop_get_read_only_bit64,
+    .set   = prop_set_read_only_bit64,
+    .set_default_value = set_default_value_bool,
+};
+
 /* --- bool --- */
 
 static void get_bool(Object *obj, Visitor *v, const char *name, void *opaque,
