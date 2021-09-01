@@ -21,21 +21,19 @@ int download_url(const char *name, const char *url)
 
     file = fopen(name, "wb");
     if (!file) {
-        err = 1;
-        goto out_curl;
+        goto fail;
     }
 
-    curl_easy_setopt(curl, CURLOPT_URL, url);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, NULL);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, file);
-    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);
-    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0);
+    if (curl_easy_setopt(curl, CURLOPT_URL, url) != CURLE_OK ||
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, NULL) != CURLE_OK ||
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, file) != CURLE_OK ||
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1) != CURLE_OK ||
+        curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0) != CURLE_OK) {
+        goto fail;
+    }
 
     if (curl_easy_perform(curl) != CURLE_OK) {
-        err = 1;
-        fclose(file);
-        unlink(name);
-        goto out_curl;
+        goto fail;
     }
 
     err = fclose(file);
@@ -44,4 +42,12 @@ out_curl:
     curl_easy_cleanup(curl);
 
     return err;
+
+fail:
+    err = 1;
+    if (file) {
+        fclose(file);
+        unlink(name);
+    }
+    goto out_curl;
 }
