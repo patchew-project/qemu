@@ -3284,17 +3284,11 @@ static void mtree_info_flatview(bool dispatch_tree, bool owner)
     g_hash_table_unref(views);
 }
 
-void mtree_info(bool flatview, bool dispatch_tree, bool owner, bool disabled)
+static void mtree_info_as(bool dispatch_tree, bool owner, bool disabled)
 {
     MemoryRegionListHead ml_head;
     MemoryRegionList *ml, *ml2;
     AddressSpace *as;
-
-    if (flatview) {
-        mtree_info_flatview(dispatch_tree, owner);
-
-        return;
-    }
 
     QTAILQ_INIT(&ml_head);
 
@@ -3313,6 +3307,15 @@ void mtree_info(bool flatview, bool dispatch_tree, bool owner, bool disabled)
 
     QTAILQ_FOREACH_SAFE(ml, &ml_head, mrqueue, ml2) {
         g_free(ml);
+    }
+}
+
+void mtree_info(bool flatview, bool dispatch_tree, bool owner, bool disabled)
+{
+    if (flatview) {
+        mtree_info_flatview(dispatch_tree, owner);
+    } else {
+        mtree_info_as(dispatch_tree, owner, disabled);
     }
 }
 
