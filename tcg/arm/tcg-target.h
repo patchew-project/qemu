@@ -115,7 +115,7 @@ extern bool use_neon_instructions;
 #endif
 
 /* used for function call generation */
-#define TCG_TARGET_STACK_ALIGN		8
+#define TCG_TARGET_STACK_ALIGN          16
 #define TCG_TARGET_CALL_ALIGN_ARGS	1
 #define TCG_TARGET_CALL_STACK_OFFSET	0
 
