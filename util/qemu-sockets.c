@@ -1345,13 +1345,11 @@ socket_sockaddr_to_address_unix(struct sockaddr_storage *sa,
     SocketAddress *addr;
     struct sockaddr_un *su = (struct sockaddr_un *)sa;
 
-    assert(salen >= sizeof(su->sun_family) + 1 &&
-           salen <= sizeof(struct sockaddr_un));
-
     addr = g_new0(SocketAddress, 1);
     addr->type = SOCKET_ADDRESS_TYPE_UNIX;
+    salen -= offsetof(struct sockaddr_un, sun_path);
 #ifdef CONFIG_LINUX
-    if (!su->sun_path[0]) {
+    if (salen > 0 && !su->sun_path[0]) {
         /* Linux abstract socket */
         addr->u.q_unix.path = g_strndup(su->sun_path + 1,
                                         salen - sizeof(su->sun_family) - 1);
@@ -1363,7 +1361,7 @@ socket_sockaddr_to_address_unix(struct sockaddr_storage *sa,
     }
 #endif
 
-    addr->u.q_unix.path = g_strndup(su->sun_path, sizeof(su->sun_path));
+    addr->u.q_unix.path = g_strndup(su->sun_path, salen);
     return addr;
 }
 #endif /* WIN32 */
