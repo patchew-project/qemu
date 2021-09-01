@@ -127,7 +127,7 @@ struct KVMState
     /* The man page (and posix) say ioctl numbers are signed int, but
      * they're not.  Linux, glibc and *BSD all treat ioctl numbers as
      * unsigned, and treating them as signed here can break things */
-    unsigned irq_set_ioctl;
+    unsigned long irq_set_ioctl;
     unsigned int sigmask_len;
     GHashTable *gsimap;
 #ifdef KVM_CAP_IRQ_ROUTING
@@ -2967,7 +2967,7 @@ int kvm_cpu_exec(CPUState *cpu)
     return ret;
 }
 
-int kvm_ioctl(KVMState *s, int type, ...)
+int kvm_ioctl(KVMState *s, unsigned long type, ...)
 {
     int ret;
     void *arg;
@@ -2985,7 +2985,7 @@ int kvm_ioctl(KVMState *s, int type, ...)
     return ret;
 }
 
-int kvm_vm_ioctl(KVMState *s, int type, ...)
+int kvm_vm_ioctl(KVMState *s, unsigned long type, ...)
 {
     int ret;
     void *arg;
@@ -3003,7 +3003,7 @@ int kvm_vm_ioctl(KVMState *s, int type, ...)
     return ret;
 }
 
-int kvm_vcpu_ioctl(CPUState *cpu, int type, ...)
+int kvm_vcpu_ioctl(CPUState *cpu, unsigned long type, ...)
 {
     int ret;
     void *arg;
@@ -3021,7 +3021,7 @@ int kvm_vcpu_ioctl(CPUState *cpu, int type, ...)
     return ret;
 }
 
-int kvm_device_ioctl(int fd, int type, ...)
+int kvm_device_ioctl(int fd, unsigned long type, ...)
 {
     int ret;
     void *arg;
