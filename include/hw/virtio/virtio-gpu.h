@@ -143,11 +143,11 @@ struct VirtIOGPUBaseClass {
     void (*gl_flushed)(VirtIOGPUBase *g);
 };
 
-#define VIRTIO_GPU_BASE_PROPERTIES(_state, _conf)                       \
-    DEFINE_PROP_UINT32("max_outputs", _state, _conf.max_outputs, 1),    \
-    DEFINE_PROP_BIT("edid", _state, _conf.flags, \
-                    VIRTIO_GPU_FLAG_EDID_ENABLED, true), \
-    DEFINE_PROP_UINT32("xres", _state, _conf.xres, 1024), \
+#define VIRTIO_GPU_BASE_PROPERTIES(_state, _conf, _guest_field)           \
+    DEFINE_PROP_UINT32("max_outputs", _state, _conf.max_outputs, 1),      \
+    DEFINE_VIRTIO_FEATURE_BIT("edid", _state, _conf.flags, _guest_field,  \
+                              VIRTIO_GPU_FLAG_EDID_ENABLED, true),        \
+    DEFINE_PROP_UINT32("xres", _state, _conf.xres, 1024),                 \
     DEFINE_PROP_UINT32("yres", _state, _conf.yres, 768)
 
 typedef struct VGPUDMABuf {

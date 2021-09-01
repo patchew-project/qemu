@@ -1387,11 +1387,13 @@ static const VMStateDescription vmstate_virtio_gpu = {
 };
 
 static Property virtio_gpu_properties[] = {
-    VIRTIO_GPU_BASE_PROPERTIES(VirtIOGPU, parent_obj.conf),
+    VIRTIO_GPU_BASE_PROPERTIES(VirtIOGPU, parent_obj.conf,
+                               parent_obj.parent_obj.guest_features),
     DEFINE_PROP_SIZE("max_hostmem", VirtIOGPU, conf_max_hostmem,
                      256 * MiB),
-    DEFINE_PROP_BIT("blob", VirtIOGPU, parent_obj.conf.flags,
-                    VIRTIO_GPU_FLAG_BLOB_ENABLED, false),
+    DEFINE_VIRTIO_FEATURE_BIT("blob", VirtIOGPU, parent_obj.conf.flags,
+                              parent_obj.parent_obj.guest_features,
+                              VIRTIO_GPU_FLAG_BLOB_ENABLED, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -566,7 +566,8 @@ vhost_user_gpu_device_realize(DeviceState *qdev, Error **errp)
 }
 
 static Property vhost_user_gpu_properties[] = {
-    VIRTIO_GPU_BASE_PROPERTIES(VhostUserGPU, parent_obj.conf),
+    VIRTIO_GPU_BASE_PROPERTIES(VhostUserGPU, parent_obj.conf,
+                               parent_obj.parent_obj.guest_features),
     DEFINE_PROP_END_OF_LIST(),
 };
 
