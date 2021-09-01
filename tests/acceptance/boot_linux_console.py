@@ -1143,6 +1143,31 @@ class BootLinuxConsole(LinuxKernelTest):
         self.wait_for_console_pattern("SMP: Total of 2 processors activated")
         self.wait_for_console_pattern("No filesystem could mount root")
 
+    def test_arm_ast2600_fuji_openbmc(self):
+        """
+        :avocado: tags=arch:arm
+        :avocado: tags=machine:fuji-bmc
+        """
+
+        image_url = ('https://github.com/peterdelevoryas/openbmc/releases/download/'
+                     'fuji-v0.1-alpha/fuji.mtd')
+        image_hash = '36dd945a2ee34694684b5f3e7351517598bb39d8b6899c71bbd23791b42e082e'
+        image_path = self.fetch_asset(image_url, asset_hash=image_hash,
+                                      algorithm='sha256')
+
+        self.vm.set_console()
+        self.vm.add_args('-drive', 'file=' + image_path + ',if=mtd,format=raw',
+                         '-net', 'nic')
+        self.vm.launch()
+
+        self.wait_for_console_pattern("U-Boot 2019.04")
+        self.wait_for_console_pattern("## Loading kernel from FIT Image at 20100000")
+        self.wait_for_console_pattern("Starting kernel ...")
+        self.wait_for_console_pattern("Booting Linux on physical CPU 0xf00")
+        self.wait_for_console_pattern(
+                "aspeed-smc 1e620000.spi: read control register: 203b0041")
+        self.wait_for_console_pattern("ftgmac100 1e690000.ftgmac eth0: irq ")
+
     def test_m68k_mcf5208evb(self):
         """
         :avocado: tags=arch:m68k
