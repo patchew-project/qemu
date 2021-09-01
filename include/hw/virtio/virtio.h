@@ -277,19 +277,32 @@ typedef struct virtio_input_conf virtio_input_conf;
 typedef struct VirtIOSCSIConf VirtIOSCSIConf;
 typedef struct VirtIORNGConf VirtIORNGConf;
 
-#define DEFINE_VIRTIO_COMMON_FEATURES(_state, _field) \
-    DEFINE_PROP_BIT64("indirect_desc", _state, _field,    \
-                      VIRTIO_RING_F_INDIRECT_DESC, true), \
-    DEFINE_PROP_BIT64("event_idx", _state, _field,        \
-                      VIRTIO_RING_F_EVENT_IDX, true),     \
-    DEFINE_PROP_BIT64("notify_on_empty", _state, _field,  \
-                      VIRTIO_F_NOTIFY_ON_EMPTY, true), \
-    DEFINE_PROP_BIT64("any_layout", _state, _field, \
-                      VIRTIO_F_ANY_LAYOUT, true), \
-    DEFINE_PROP_BIT64("iommu_platform", _state, _field, \
-                      VIRTIO_F_IOMMU_PLATFORM, false), \
-    DEFINE_PROP_BIT64("packed", _state, _field, \
-                      VIRTIO_F_RING_PACKED, false)
+#define DEFINE_VIRTIO_FEATURE_BIT(_name, _state, _host_field, _guest_field,    \
+                                  _bit, _defval)                               \
+    DEFINE_PROP_BIT(_name, _state, _host_field, _bit, _defval),                \
+    DEFINE_PROP_READ_ONLY_BIT64("acknowledged_by_guest_" _name, _state,        \
+                                _guest_field, _bit)
+
+#define DEFINE_VIRTIO_FEATURE_BIT64(_name, _state, _host_field, _guest_field,  \
+                                    _bit, _defval)                             \
+    DEFINE_PROP_BIT64(_name, _state, _host_field, _bit, _defval),              \
+    DEFINE_PROP_READ_ONLY_BIT64("acknowledged_by_guest_" _name, _state,        \
+                                _guest_field, _bit)
+
+#define DEFINE_VIRTIO_COMMON_FEATURES(_state, _host_field, _guest_field)       \
+    DEFINE_VIRTIO_FEATURE_BIT64("indirect_desc", _state, _host_field,          \
+                                _guest_field, VIRTIO_RING_F_INDIRECT_DESC,     \
+                                true),                                         \
+    DEFINE_VIRTIO_FEATURE_BIT64("event_idx", _state, _host_field,              \
+                                _guest_field, VIRTIO_RING_F_EVENT_IDX, true),  \
+    DEFINE_VIRTIO_FEATURE_BIT64("notify_on_empty", _state, _host_field,        \
+                                _guest_field, VIRTIO_F_NOTIFY_ON_EMPTY, true), \
+    DEFINE_VIRTIO_FEATURE_BIT64("any_layout", _state, _host_field,             \
+                                _guest_field, VIRTIO_F_ANY_LAYOUT, true),      \
+    DEFINE_VIRTIO_FEATURE_BIT64("iommu_platform", _state, _host_field,         \
+                                _guest_field, VIRTIO_F_IOMMU_PLATFORM, false), \
+    DEFINE_VIRTIO_FEATURE_BIT64("packed", _state, _host_field,                 \
+                                _guest_field,  VIRTIO_F_RING_PACKED, false)
 
 hwaddr virtio_queue_get_desc_addr(VirtIODevice *vdev, int n);
 bool virtio_queue_enabled_legacy(VirtIODevice *vdev, int n);
