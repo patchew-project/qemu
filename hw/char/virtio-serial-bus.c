@@ -1159,8 +1159,9 @@ static const VMStateDescription vmstate_virtio_console = {
 static Property virtio_serial_properties[] = {
     DEFINE_PROP_UINT32("max_ports", VirtIOSerial, serial.max_virtserial_ports,
                                                   31),
-    DEFINE_PROP_BIT64("emergency-write", VirtIOSerial, host_features,
-                      VIRTIO_CONSOLE_F_EMERG_WRITE, true),
+    DEFINE_VIRTIO_FEATURE_BIT64("emergency-write", VirtIOSerial, host_features,
+                                parent_obj.guest_features,
+                                VIRTIO_CONSOLE_F_EMERG_WRITE, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
