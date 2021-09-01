@@ -23,6 +23,7 @@
 #include "qemu/error-report.h"
 #include "qemu/rcu.h"
 #include "qemu/main-loop.h"
+#include "qemu/coroutine-pool-timer.h"
 
 typedef ObjectClass IOThreadClass;
 
@@ -42,6 +43,7 @@ DECLARE_CLASS_CHECKERS(IOThreadClass, IOTHREAD,
 static void *iothread_run(void *opaque)
 {
     IOThread *iothread = opaque;
+    CoroutinePoolTimer co_pool_timer;
 
     rcu_register_thread();
     /*
@@ -52,6 +54,8 @@ static void *iothread_run(void *opaque)
     qemu_set_current_aio_context(iothread->ctx);
     iothread->thread_id = qemu_get_thread_id();
     qemu_sem_post(&iothread->init_done_sem);
+
+    coroutine_pool_timer_init(&co_pool_timer, iothread->ctx);
 
     while (iothread->running) {
         /*
@@ -73,6 +77,8 @@ static void *iothread_run(void *opaque)
             g_main_loop_run(iothread->main_loop);
         }
     }
+
+    coroutine_pool_timer_cleanup(&co_pool_timer);
 
     g_main_context_pop_thread_default(iothread->worker_context);
     rcu_unregister_thread();

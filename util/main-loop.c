@@ -33,6 +33,7 @@
 #include "qemu/error-report.h"
 #include "qemu/queue.h"
 #include "qemu/compiler.h"
+#include "qemu/coroutine-pool-timer.h"
 
 #ifndef _WIN32
 #include <sys/wait.h>
@@ -131,6 +132,7 @@ static int qemu_signal_init(Error **errp)
 
 static AioContext *qemu_aio_context;
 static QEMUBH *qemu_notify_bh;
+static CoroutinePoolTimer main_loop_co_pool_timer;
 
 static void notify_event_cb(void *opaque)
 {
@@ -181,6 +183,9 @@ int qemu_init_main_loop(Error **errp)
     g_source_set_name(src, "io-handler");
     g_source_attach(src, NULL);
     g_source_unref(src);
+
+    coroutine_pool_timer_init(&main_loop_co_pool_timer, qemu_aio_context);
+
     return 0;
 }
 
