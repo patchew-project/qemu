@@ -87,6 +87,17 @@ the number of supported vCPUs for a given configuration lower).
 Tells the guest that guest visible TSC value can be fully trusted for kvmclock
 computations and no warps are expected.
 
-4. Useful links
+4. Supplementary features
+=========================
+
+4.1. kvm-pv-enforce-cpuid
+=========================
+By default, KVM allows the guest to use all currently supported PV features even
+when they were not announced in guest visible CPUIDs. 'kvm-pv-enforce-cpuid'
+feature alters this behavior and limits the supported feature set to the
+exposed features only.
+
+
+5. Useful links
 ================
 Please refer to Documentation/virt/kvm in Linux for additional detail.
