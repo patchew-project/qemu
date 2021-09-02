@@ -195,6 +195,7 @@ static bool gen_r3(DisasContext *ctx, arg_fmt_rdrjrk *a,
 #include "insn_trans/trans_bit.c"
 #include "insn_trans/trans_memory.c"
 #include "insn_trans/trans_atomic.c"
+#include "insn_trans/trans_extra.c"
 
 static void loongarch_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
