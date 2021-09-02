@@ -205,6 +205,9 @@ static const char *valid_cpus[] = {
     ARM_CPU_TYPE_NAME("max"),
 };
 
+static const uint16_t smmuv3_peri_sidmap[] = {
+};
+
 static bool cpu_type_valid(const char *cpu)
 {
     int i;
@@ -1245,6 +1248,15 @@ static void create_smmu(const VirtMachineState *vms,
 
     object_property_set_link(OBJECT(dev), "primary-bus", OBJECT(bus),
                              &error_abort);
+
+    qdev_prop_set_uint32(dev, "len-peri-sid-map",
+                         ARRAY_SIZE(smmuv3_peri_sidmap));
+
+    for (i = 0; i < ARRAY_SIZE(smmuv3_peri_sidmap); i++) {
+        g_autofree char *propname = g_strdup_printf("peri-sid-map[%d]", i);
+        qdev_prop_set_uint16(dev, propname, smmuv3_peri_sidmap[i]);
+    }
+
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
     for (i = 0; i < NUM_SMMU_IRQS; i++) {
@@ -2757,6 +2769,8 @@ static void virt_instance_init(Object *obj)
     vms->mte = false;
 
     vms->irqmap = a15irqmap;
+
+    vms->peri_sidmap = smmuv3_peri_sidmap;
 
     virt_flash_create(vms);
 
