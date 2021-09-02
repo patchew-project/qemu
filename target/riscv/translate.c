@@ -173,8 +173,27 @@ static void lookup_and_goto_ptr(DisasContext *ctx)
     }
 }
 
+/*
+ * Wrappers for getting reg values.
+ *
+ * The $zero register does not have cpu_gpr[0] allocated -- we supply the
+ * constant zero as a source, and an uninitialized sink as destination.
+ *
+ * Further, we may provide an extension for word operations.
+ */
+static TCGv temp_new(DisasContext *ctx)
+{
+    assert(ctx->ntemp < ARRAY_SIZE(ctx->temp));
+    return ctx->temp[ctx->ntemp++] = tcg_temp_new();
+}
+
 static void gen_exception_illegal(DisasContext *ctx)
 {
+    TCGv tmp = temp_new(ctx);
+
+    tcg_gen_movi_tl(tmp, ctx->opcode);
+    tcg_gen_st_tl(tmp, cpu_env, offsetof(CPURISCVState, bins));
+
     generate_exception(ctx, RISCV_EXCP_ILLEGAL_INST);
 }
 
@@ -193,20 +212,6 @@ static void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
         tcg_gen_movi_tl(cpu_pc, dest);
         lookup_and_goto_ptr(ctx);
     }
-}
-
-/*
- * Wrappers for getting reg values.
- *
- * The $zero register does not have cpu_gpr[0] allocated -- we supply the
- * constant zero as a source, and an uninitialized sink as destination.
- *
- * Further, we may provide an extension for word operations.
- */
-static TCGv temp_new(DisasContext *ctx)
-{
-    assert(ctx->ntemp < ARRAY_SIZE(ctx->temp));
-    return ctx->temp[ctx->ntemp++] = tcg_temp_new();
 }
 
 static TCGv get_gpr(DisasContext *ctx, int reg_num, DisasExtend ext)

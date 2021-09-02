@@ -967,6 +967,15 @@ void riscv_cpu_do_interrupt(CPUState *cs)
             write_tval  = true;
             tval = env->badaddr;
             break;
+        case RISCV_EXCP_ILLEGAL_INST:
+            if (riscv_feature(env, RISCV_FEATURE_MTVAL_INST)) {
+                /* The stval/mtval register can optionally also be used to
+                 * return the faulting instruction bits on an illegal
+                 * instruction exception.
+                 */
+                tval = env->bins;
+            }
+            break;
         default:
             break;
         }

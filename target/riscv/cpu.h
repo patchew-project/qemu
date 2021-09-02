@@ -77,7 +77,8 @@ enum {
     RISCV_FEATURE_MMU,
     RISCV_FEATURE_PMP,
     RISCV_FEATURE_EPMP,
-    RISCV_FEATURE_MISA
+    RISCV_FEATURE_MISA,
+    RISCV_FEATURE_MTVAL_INST,
 };
 
 #define PRIV_VERSION_1_10_0 0x00011000
@@ -130,6 +131,8 @@ struct CPURISCVState {
     target_ulong frm;
 
     target_ulong badaddr;
+    target_ulong bins;
+
     target_ulong guest_phys_fault_addr;
 
     target_ulong priv_ver;
