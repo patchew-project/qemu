@@ -72,6 +72,7 @@ enum {
     VIRT_UART,
     VIRT_MMIO,
     VIRT_RTC,
+    VIRT_DMA,
     VIRT_FW_CFG,
     VIRT_PCIE,
     VIRT_PCIE_MMIO,
@@ -168,6 +169,7 @@ struct VirtMachineState {
     char *oem_id;
     char *oem_table_id;
     const uint16_t *peri_sidmap;
+    DeviceState *smmuv3;
 };
 
 #define VIRT_ECAM_ID(high) (high ? VIRT_HIGH_PCIE_ECAM : VIRT_PCIE_ECAM)
