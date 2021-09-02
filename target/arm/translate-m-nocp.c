@@ -92,6 +92,8 @@ static bool trans_VLLDM_VLSTM(DisasContext *s, arg_VLLDM_VLSTM *a)
         gen_helper_v7m_vlstm(cpu_env, fptr);
     }
     tcg_temp_free_i32(fptr);
+    /* VLLDM or VLSTM helpers might have updated vpr or ltpsize */
+    s->mve_no_pred = false;
 
     clear_eci_state(s);
 
@@ -326,6 +328,7 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
     case ARM_VFP_FPSCR:
         tmp = loadfn(s, opaque, true);
         gen_helper_vfp_set_fpscr(cpu_env, tmp);
+        s->mve_no_pred = false;
         tcg_temp_free_i32(tmp);
         gen_lookup_tb(s);
         break;
@@ -397,6 +400,7 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
         store_cpu_field(control, v7m.control[M_REG_S]);
         tcg_gen_andi_i32(tmp, tmp, ~FPCR_NZCV_MASK);
         gen_helper_vfp_set_fpscr(cpu_env, tmp);
+        s->mve_no_pred = false;
         tcg_temp_free_i32(tmp);
         tcg_temp_free_i32(sfpa);
         break;
@@ -409,6 +413,7 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
         }
         tmp = loadfn(s, opaque, true);
         store_cpu_field(tmp, v7m.vpr);
+        s->mve_no_pred = false;
         break;
     case ARM_VFP_P0:
     {
@@ -418,6 +423,7 @@ static bool gen_M_fp_sysreg_write(DisasContext *s, int regno,
         tcg_gen_deposit_i32(vpr, vpr, tmp,
                             R_V7M_VPR_P0_SHIFT, R_V7M_VPR_P0_LENGTH);
         store_cpu_field(vpr, v7m.vpr);
+        s->mve_no_pred = false;
         tcg_temp_free_i32(tmp);
         break;
     }
@@ -500,6 +506,7 @@ static bool gen_M_fp_sysreg_read(DisasContext *s, int regno,
         store_cpu_field(control, v7m.control[M_REG_S]);
         fpscr = load_cpu_field(v7m.fpdscr[M_REG_NS]);
         gen_helper_vfp_set_fpscr(cpu_env, fpscr);
+        s->mve_no_pred = false;
         tcg_temp_free_i32(fpscr);
         lookup_tb = true;
         break;
@@ -549,6 +556,7 @@ static bool gen_M_fp_sysreg_read(DisasContext *s, int regno,
         zero = tcg_const_i32(0);
         tcg_gen_movcond_i32(TCG_COND_EQ, fpscr, sfpa, zero, fpdscr, fpscr);
         gen_helper_vfp_set_fpscr(cpu_env, fpscr);
+        s->mve_no_pred = false;
         tcg_temp_free_i32(zero);
         tcg_temp_free_i32(sfpa);
         tcg_temp_free_i32(fpdscr);

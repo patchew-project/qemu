@@ -8464,6 +8464,7 @@ static bool trans_DLS(DisasContext *s, arg_DLS *a)
         /* DLSTP: set FPSCR.LTPSIZE */
         tmp = tcg_const_i32(a->size);
         store_cpu_field(tmp, v7m.ltpsize);
+        s->mve_no_pred = false;
     }
     return true;
 }
@@ -8529,6 +8530,7 @@ static bool trans_WLS(DisasContext *s, arg_WLS *a)
         assert(ok);
         tmp = tcg_const_i32(a->size);
         store_cpu_field(tmp, v7m.ltpsize);
+        s->mve_no_pred = false;
     }
     gen_jmp_tb(s, s->base.pc_next, 1);
 
@@ -8711,6 +8713,7 @@ static bool trans_VCTP(DisasContext *s, arg_VCTP *a)
     gen_helper_mve_vctp(cpu_env, masklen);
     tcg_temp_free_i32(masklen);
     tcg_temp_free_i32(rn_shifted);
+    s->mve_no_pred = false;
     mve_update_eci(s);
     return true;
 }
@@ -9370,6 +9373,7 @@ static void arm_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
         dc->v7m_new_fp_ctxt_needed =
             EX_TBFLAG_M32(tb_flags, NEW_FP_CTXT_NEEDED);
         dc->v7m_lspact = EX_TBFLAG_M32(tb_flags, LSPACT);
+        dc->mve_no_pred = EX_TBFLAG_M32(tb_flags, MVE_NO_PRED) && dc->eci == 0;
     } else {
         dc->debug_target_el = EX_TBFLAG_ANY(tb_flags, DEBUG_TARGET_EL);
         dc->sctlr_b = EX_TBFLAG_A32(tb_flags, SCTLR__B);

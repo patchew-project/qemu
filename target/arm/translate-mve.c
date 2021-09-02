@@ -810,7 +810,11 @@ DO_LOGIC(VORR, gen_helper_mve_vorr)
 DO_LOGIC(VORN, gen_helper_mve_vorn)
 DO_LOGIC(VEOR, gen_helper_mve_veor)
 
-DO_LOGIC(VPSEL, gen_helper_mve_vpsel)
+static bool trans_VPSEL(DisasContext *s, arg_2op *a)
+{
+    s->mve_no_pred = false;
+    return do_2op(s, a, gen_helper_mve_vpsel);
+}
 
 #define DO_2OP(INSN, FN) \
     static bool trans_##INSN(DisasContext *s, arg_2op *a)       \
@@ -1366,6 +1370,7 @@ static bool trans_VPNOT(DisasContext *s, arg_VPNOT *a)
     }
 
     gen_helper_mve_vpnot(cpu_env);
+    s->mve_no_pred = false;
     mve_update_eci(s);
     return true;
 }
@@ -1852,6 +1857,7 @@ static bool do_vcmp(DisasContext *s, arg_vcmp *a, MVEGenCmpFn *fn)
         /* VPT */
         gen_vpst(s, a->mask);
     }
+    s->mve_no_pred = false;
     mve_update_eci(s);
     return true;
 }
@@ -1883,6 +1889,7 @@ static bool do_vcmp_scalar(DisasContext *s, arg_vcmp_scalar *a,
         /* VPT */
         gen_vpst(s, a->mask);
     }
+    s->mve_no_pred = false;
     mve_update_eci(s);
     return true;
 }

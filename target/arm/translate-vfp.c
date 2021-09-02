@@ -128,6 +128,8 @@ static void gen_preserve_fp_state(DisasContext *s)
          * any further FP insns in this TB.
          */
         s->v7m_lspact = false;
+        /* Helper might have updated vpr or ltpsize */
+        s->mve_no_pred = false;
     }
 }
 
@@ -164,6 +166,7 @@ static void gen_update_fp_context(DisasContext *s)
 
         fpscr = load_cpu_field(v7m.fpdscr[s->v8m_secure]);
         gen_helper_vfp_set_fpscr(cpu_env, fpscr);
+        s->mve_no_pred = false;
         tcg_temp_free_i32(fpscr);
         if (dc_isar_feature(aa32_mve, s)) {
             TCGv_i32 z32 = tcg_const_i32(0);

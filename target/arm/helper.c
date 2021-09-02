@@ -13673,6 +13673,25 @@ static inline void assert_hflags_rebuild_correctly(CPUARMState *env)
 #endif
 }
 
+static bool mve_no_predication(CPUARMState *env)
+{
+    /*
+     * Return true if there is definitely no predication of MVE
+     * instructions for any reason. (Returning false even if there
+     * isn't any predication is OK; generated code will just be
+     * a little worse.)
+     * We do not account here for partial insn execution due to
+     * ECI bits as those are already in the TB flags elsewhere.
+     */
+    if (env->v7m.vpr) {
+        return false;
+    }
+    if (env->v7m.ltpsize < 4) {
+        return false;
+    }
+    return true;
+}
+
 void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                           target_ulong *cs_base, uint32_t *pflags)
 {
@@ -13711,6 +13730,10 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
             bool is_secure = env->v7m.fpccr[M_REG_S] & R_V7M_FPCCR_S_MASK;
             if (env->v7m.fpccr[is_secure] & R_V7M_FPCCR_LSPACT_MASK) {
                 DP_TBFLAG_M32(flags, LSPACT, 1);
+            }
+
+            if (mve_no_predication(env)) {
+                DP_TBFLAG_M32(flags, MVE_NO_PRED, 1);
             }
         } else {
             /*
