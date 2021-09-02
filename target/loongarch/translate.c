@@ -206,6 +206,7 @@ static bool gen_f2(DisasContext *ctx, arg_fmt_fdfj *a,
 #include "insn_trans/trans_atomic.c"
 #include "insn_trans/trans_extra.c"
 #include "insn_trans/trans_farith.c"
+#include "insn_trans/trans_fcmp.c"
 
 static void loongarch_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {

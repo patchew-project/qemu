@@ -11,6 +11,11 @@
 
 #include "exec/translator.h"
 
+#define FCMP_LT   0x0001  /* fp0 < fp1 */
+#define FCMP_EQ   0x0010  /* fp0 = fp1 */
+#define FCMP_GT   0x0100  /* fp1 < fp0 */
+#define FCMP_UN   0x1000  /* unordered */
+
 #define TRANS(NAME, FUNC, ...) \
     static bool trans_##NAME(DisasContext *ctx, arg_##NAME * a) \
     { return FUNC(ctx, a, __VA_ARGS__); }
