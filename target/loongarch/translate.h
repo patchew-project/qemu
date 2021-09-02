@@ -44,4 +44,6 @@ extern TCGv cpu_gpr[32], cpu_pc;
 extern TCGv_i32 cpu_fscr0;
 extern TCGv_i64 cpu_fpr[32];
 
+int ieee_ex_to_loongarch(int xcpt);
+
 #endif

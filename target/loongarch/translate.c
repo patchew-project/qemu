@@ -16,6 +16,7 @@
 #include "exec/translator.h"
 #include "exec/log.h"
 #include "qemu/qemu-print.h"
+#include "fpu/softfloat.h"
 #include "translate.h"
 #include "internals.h"
 
@@ -190,12 +191,21 @@ static bool gen_r3(DisasContext *ctx, arg_fmt_rdrjrk *a,
     return true;
 }
 
+/* fmt fd fj */
+static bool gen_f2(DisasContext *ctx, arg_fmt_fdfj *a,
+                   void (*func)(TCGv, TCGv_env, TCGv))
+{
+    func(cpu_fpr[a->fd], cpu_env, cpu_fpr[a->fj]);
+    return true;
+}
+
 #include "insn_trans/trans_arith.c"
 #include "insn_trans/trans_shift.c"
 #include "insn_trans/trans_bit.c"
 #include "insn_trans/trans_memory.c"
 #include "insn_trans/trans_atomic.c"
 #include "insn_trans/trans_extra.c"
+#include "insn_trans/trans_farith.c"
 
 static void loongarch_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
