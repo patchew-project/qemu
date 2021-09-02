@@ -209,6 +209,7 @@ static bool gen_f2(DisasContext *ctx, arg_fmt_fdfj *a,
 #include "insn_trans/trans_fcmp.c"
 #include "insn_trans/trans_fcnv.c"
 #include "insn_trans/trans_fmov.c"
+#include "insn_trans/trans_fmemory.c"
 
 static void loongarch_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
