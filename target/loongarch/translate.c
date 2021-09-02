@@ -34,11 +34,6 @@ void generate_exception(DisasContext *ctx, int excp)
     ctx->base.is_jmp = DISAS_NORETURN;
 }
 
-static inline bool use_goto_tb(DisasContext *ctx, target_ulong dest)
-{
-    return true;
-}
-
 static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
 {
     if (translator_use_goto_tb(&ctx->base, dest)) {
@@ -63,6 +58,12 @@ static void loongarch_tr_init_disas_context(DisasContextBase *dcbase,
     /* Bound the number of insns to execute to those left on the page.  */
     bound = -(ctx->base.pc_first | TARGET_PAGE_MASK) / 4;
     ctx->base.max_insns = MIN(ctx->base.max_insns, bound);
+
+    ctx->dst_ext = EXT_NONE;
+    ctx->ntemp = 0;
+    memset(ctx->temp, 0, sizeof(ctx->temp));
+
+    ctx->zero = tcg_constant_tl(0);
 }
 
 static void loongarch_tr_tb_start(DisasContextBase *dcbase, CPUState *cs)
@@ -76,6 +77,92 @@ static void loongarch_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
     tcg_gen_insn_start(ctx->base.pc_next);
 }
 
+/*
+ * Wrappers for getting reg values.
+ *
+ * The $zero register does not have cpu_gpr[0] allocated -- we supply the
+ * constant zero as a source, and an uninitialized sink as destination.
+ *
+ * Further, we may provide an extension for word operations.
+ */
+static TCGv temp_new(DisasContext *ctx)
+{
+    assert(ctx->ntemp < ARRAY_SIZE(ctx->temp));
+    return ctx->temp[ctx->ntemp++] = tcg_temp_new();
+}
+
+static TCGv gpr_src(DisasContext *ctx, int reg_num, DisasExtend ext)
+{
+    TCGv t;
+
+    if (reg_num == 0) {
+        return ctx->zero;
+    }
+
+    switch (ext) {
+    case EXT_NONE:
+        return cpu_gpr[reg_num];
+    case EXT_SIGN:
+        t = temp_new(ctx);
+        tcg_gen_ext32s_tl(t, cpu_gpr[reg_num]);
+        return t;
+    case EXT_ZERO:
+        t = temp_new(ctx);
+        tcg_gen_ext32u_tl(t, cpu_gpr[reg_num]);
+        return t;
+    }
+    g_assert_not_reached();
+}
+
+static TCGv gpr_dst(DisasContext *ctx, int reg_num)
+{
+    if (reg_num == 0 || ctx->dst_ext) {
+        return temp_new(ctx);
+    }
+    return cpu_gpr[reg_num];
+}
+
+static void gen_set_gpr(DisasContext *ctx, int reg_num, TCGv t)
+{
+    if (reg_num != 0) {
+        switch (ctx->dst_ext) {
+        case EXT_NONE:
+            tcg_gen_mov_tl(cpu_gpr[reg_num], t);
+            break;
+        case EXT_SIGN:
+            tcg_gen_ext32s_tl(cpu_gpr[reg_num], t);
+            break;
+        case EXT_ZERO:
+            tcg_gen_ext32u_tl(cpu_gpr[reg_num], t);
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    }
+}
+
+#include "decode-insns.c.inc"
+
+/* fmt rd rj rk */
+static bool gen_r3(DisasContext *ctx, arg_fmt_rdrjrk *a,
+                   DisasExtend src1_ext, DisasExtend src2_ext,
+                   DisasExtend dst_ext, void (*func)(TCGv, TCGv, TCGv))
+{
+    ctx->dst_ext = dst_ext;
+    TCGv dest = gpr_dst(ctx, a->rd);
+    TCGv src1 = gpr_src(ctx, a->rj, src1_ext);
+    TCGv src2 = gpr_src(ctx, a->rk, src2_ext);
+
+    func(dest, src1, src2);
+
+    if (ctx->dst_ext) {
+        gen_set_gpr(ctx, a->rd, dest);
+    }
+    return true;
+}
+
+#include "insn_trans/trans_arith.c"
+
 static void loongarch_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
 {
     CPULoongArchState *env = cs->env_ptr;
@@ -88,6 +175,14 @@ static void loongarch_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
                       ctx->base.pc_next, ctx->opcode);
         generate_exception(ctx, EXCP_INE);
     }
+
+    ctx->dst_ext = EXT_NONE;
+
+    for (int i = ctx->ntemp - 1; i >= 0; --i) {
+        tcg_temp_free(ctx->temp[i]);
+        ctx->temp[i] = NULL;
+    }
+    ctx->ntemp = 0;
 
     ctx->base.pc_next += 4;
 }
