@@ -121,6 +121,8 @@
 #define W_SYNC2   7
 #define W_TXBUF   8
 #define W_MINTR   9
+#define MINTR_VIS      0x01
+#define MINTR_NV       0x02
 #define MINTR_STATUSHI 0x10
 #define MINTR_SOFTIACK 0x20
 #define MINTR_RST_MASK 0xc0
@@ -139,6 +141,7 @@
 #define MISC2_LCL_LOOP 0x10
 #define MISC2_PLLCMD0  0x20
 #define MISC2_PLLCMD1  0x40
+#define MISC2_PLLCMD2  0x80
 #define MISC2_PLLDIS   0x30
 #define W_EXTINT 15
 #define EXTINT_DCD     0x08
@@ -350,30 +353,35 @@ static void escc_soft_reset_chn(ESCCChannelState *s)
 
 static void escc_hard_reset_chn(ESCCChannelState *s)
 {
-    int i;
-
     s->reg = 0;
-    for (i = 0; i < ESCC_SERIAL_REGS; i++) {
-        s->rregs[i] = 0;
-        s->wregs[i] = 0;
-    }
+    s->wregs[W_CMD] = 0;
+    s->wregs[W_INTR] &= ~(INTR_INTALL | INTR_TXINT | INTR_RXINT1ST |
+                          INTR_RXINTALL | INTR_WTDMA_EN | INTR_WTDMA_RQ);
+    s->wregs[W_RXCTRL] &= ~RXCTRL_RXEN;
     /* 1X divisor, 1 stop bit, no parity */
     s->wregs[W_TXCTRL1] = TXCTRL1_1STOP;
-    s->wregs[W_MINTR] = MINTR_RST_ALL;
-    /* Synch mode tx clock = TRxC */
+    s->wregs[W_TXCTRL2] &= ~(TXCTRL2_RTS | TXCTRL2_CRCPLY | TXCTRL2_TXEN |
+                             TXCTRL2_SNDBRK | TXCTRL2_DTR);
+    s->wregs[W_MINTR] &= MINTR_VIS | MINTR_NV;
+    s->wregs[W_MINTR] |= MINTR_RST_B | MINTR_RST_A;
+    s->wregs[W_MISC1] = 0;
     s->wregs[W_CLOCK] = CLOCK_TRXC;
     /* PLL disabled */
-    s->wregs[W_MISC2] = MISC2_PLLDIS;
+    s->wregs[W_MISC2] &= MISC2_PLLCMD1 | MISC2_PLLCMD2;
+    s->wregs[W_MISC2] |= MISC2_LCL_LOOP | MISC2_PLLCMD0;
     /* Enable most interrupts */
     s->wregs[W_EXTINT] = EXTINT_DCD | EXTINT_SYNCINT | EXTINT_CTSINT |
                          EXTINT_TXUNDRN | EXTINT_BRKINT;
+
+    s->rregs[R_STATUS] &= ~(STATUS_RXAV | STATUS_ZERO);
+    s->rregs[R_STATUS] |= STATUS_TXEMPTY | STATUS_TXUNDRN;
     if (s->disabled) {
-        s->rregs[R_STATUS] = STATUS_TXEMPTY | STATUS_DCD | STATUS_SYNC |
-                             STATUS_CTS | STATUS_TXUNDRN;
-    } else {
-        s->rregs[R_STATUS] = STATUS_TXEMPTY | STATUS_TXUNDRN;
+        s->rregs[R_STATUS] |= STATUS_DCD | STATUS_SYNC | STATUS_CTS;
     }
-    s->rregs[R_SPEC] = SPEC_BITS8 | SPEC_ALLSENT;
+    s->rregs[R_SPEC] &= SPEC_ALLSENT;
+    s->rregs[R_SPEC] |= SPEC_BITS8;
+    s->rregs[R_INTR] = 0;
+    s->rregs[R_MISC] &= ~MISC_2CLKMISS;
 
     s->rx = s->tx = 0;
     s->rxint = s->txint = 0;
