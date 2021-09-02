@@ -291,7 +291,8 @@ static void escc_reset_chn(ESCCChannelState *s)
 
 static void escc_soft_reset_chn(ESCCChannelState *s)
 {
-    s->reg = 0;
+    escc_reset_chn(s);
+
     s->wregs[W_CMD] = 0;
     s->wregs[W_INTR] &= ~(INTR_INTALL | INTR_TXINT | INTR_RXINT1ST |
                           INTR_RXINTALL | INTR_WTDMA_EN | INTR_WTDMA_RQ);
@@ -318,17 +319,12 @@ static void escc_soft_reset_chn(ESCCChannelState *s)
     s->rregs[R_SPEC] |= SPEC_BITS8;
     s->rregs[R_INTR] = 0;
     s->rregs[R_MISC] &= ~MISC_2CLKMISS;
-
-    s->rx = s->tx = 0;
-    s->rxint = s->txint = 0;
-    s->rxint_under_svc = s->txint_under_svc = 0;
-    s->e0_mode = s->led_mode = s->caps_lock_mode = s->num_lock_mode = 0;
-    clear_queue(s);
 }
 
 static void escc_hard_reset_chn(ESCCChannelState *s)
 {
-    s->reg = 0;
+    escc_reset_chn(s);
+
     s->wregs[W_CMD] = 0;
     s->wregs[W_INTR] &= ~(INTR_INTALL | INTR_TXINT | INTR_RXINT1ST |
                           INTR_RXINTALL | INTR_WTDMA_EN | INTR_WTDMA_RQ);
@@ -357,12 +353,6 @@ static void escc_hard_reset_chn(ESCCChannelState *s)
     s->rregs[R_SPEC] |= SPEC_BITS8;
     s->rregs[R_INTR] = 0;
     s->rregs[R_MISC] &= ~MISC_2CLKMISS;
-
-    s->rx = s->tx = 0;
-    s->rxint = s->txint = 0;
-    s->rxint_under_svc = s->txint_under_svc = 0;
-    s->e0_mode = s->led_mode = s->caps_lock_mode = s->num_lock_mode = 0;
-    clear_queue(s);
 }
 
 static void escc_reset(DeviceState *d)
