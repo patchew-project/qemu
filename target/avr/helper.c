@@ -25,6 +25,7 @@
 #include "exec/address-spaces.h"
 #include "exec/helper-proto.h"
 
+#ifndef CONFIG_USER_ONLY
 bool avr_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     bool ret = false;
@@ -91,6 +92,7 @@ void avr_cpu_do_interrupt(CPUState *cs)
 
     cs->exception_index = -1;
 }
+#endif /* !CONFIG_USER_ONLY */
 
 int avr_cpu_memory_rw_debug(CPUState *cs, vaddr addr, uint8_t *buf,
                             int len, bool is_write)
