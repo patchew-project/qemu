@@ -1639,6 +1639,17 @@ out:
     return ret;
 }
 
+static inline void populate_range(RAMBlock *block, ram_addr_t offset,
+                                  ram_addr_t size)
+{
+    for (; offset < size; offset += block->page_size) {
+        char tmp = *((char *)block->host + offset);
+
+        /* Don't optimize the read out */
+        asm volatile("" : "+r" (tmp));
+    }
+}
+
 /*
  * ram_block_populate_pages: populate memory in the RAM block by reading
  *   an integer from the beginning of each page.
@@ -1650,15 +1661,7 @@ out:
  */
 static void ram_block_populate_pages(RAMBlock *block)
 {
-    char *ptr = (char *) block->host;
-
-    for (ram_addr_t offset = 0; offset < block->used_length;
-            offset += qemu_real_host_page_size) {
-        char tmp = *(ptr + offset);
-
-        /* Don't optimize the read out */
-        asm volatile("" : "+r" (tmp));
-    }
+    populate_range(block, 0, block->used_length);
 }
 
 /*
