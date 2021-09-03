@@ -194,6 +194,7 @@ struct VirtIONet {
     NICConf nic_conf;
     DeviceState *qdev;
     int multiqueue;
+    uint16_t max_ncs;
     uint16_t max_qps;
     uint16_t curr_qps;
     size_t config_size;
