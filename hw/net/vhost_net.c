@@ -337,7 +337,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
         if (i < data_qps) {
             peer = qemu_get_peer(ncs, i);
         } else { /* Control Virtqueue */
-            peer = qemu_get_peer(ncs, n->max_queues);
+            peer = qemu_get_peer(ncs, n->max_qps);
         }
 
         net = get_vhost_net(peer);
@@ -362,7 +362,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
         if (i < data_qps) {
             peer = qemu_get_peer(ncs, i);
         } else {
-            peer = qemu_get_peer(ncs, n->max_queues);
+            peer = qemu_get_peer(ncs, n->max_qps);
         }
         r = vhost_net_start_one(get_vhost_net(peer), dev);
 
@@ -412,7 +412,7 @@ void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs,
         if (i < data_qps) {
             peer = qemu_get_peer(ncs, i);
         } else {
-            peer = qemu_get_peer(ncs, n->max_queues);
+            peer = qemu_get_peer(ncs, n->max_qps);
         }
         vhost_net_stop_one(get_vhost_net(peer), dev);
     }
