@@ -1189,18 +1189,12 @@ void vfio_pci_write_config(PCIDevice *pdev,
         }
     } else if (ranges_overlap(addr, len, PCI_BASE_ADDRESS_0, 24) ||
         range_covers_byte(addr, len, PCI_COMMAND)) {
-        pcibus_t old_addr[PCI_NUM_REGIONS - 1];
         int bar;
-
-        for (bar = 0; bar < PCI_ROM_SLOT; bar++) {
-            old_addr[bar] = pdev->io_regions[bar].addr;
-        }
 
         pci_default_write_config(pdev, addr, val, len);
 
         for (bar = 0; bar < PCI_ROM_SLOT; bar++) {
-            if (old_addr[bar] != pdev->io_regions[bar].addr &&
-                vdev->bars[bar].region.size > 0 &&
+            if (vdev->bars[bar].region.size > 0 &&
                 vdev->bars[bar].region.size < qemu_real_host_page_size) {
                 vfio_sub_page_bar_update_mapping(pdev, bar);
             }
