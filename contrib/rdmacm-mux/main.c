@@ -227,8 +227,8 @@ static RdmaCmMuxErrCode add_fd_ifid_pair(int fd, __be64 gid_ifid)
                            RDMACM_MUX_ERR_CODE_EACCES;
     }
 
-    g_hash_table_insert(server.umad_agent.gid2fd, g_memdup(&gid_ifid,
-                        sizeof(gid_ifid)), g_memdup(&fd, sizeof(fd)));
+    g_hash_table_insert(server.umad_agent.gid2fd, g_memdup2_qemu(&gid_ifid,
+                        sizeof(gid_ifid)), g_memdup2_qemu(&fd, sizeof(fd)));
 
     pthread_rwlock_unlock(&server.lock);
 
@@ -250,7 +250,7 @@ static RdmaCmMuxErrCode delete_fd_ifid_pair(int fd, __be64 gid_ifid)
         return RDMACM_MUX_ERR_CODE_ENOTFOUND;
     }
 
-    g_hash_table_remove(server.umad_agent.gid2fd, g_memdup(&gid_ifid,
+    g_hash_table_remove(server.umad_agent.gid2fd, g_memdup2_qemu(&gid_ifid,
                         sizeof(gid_ifid)));
     pthread_rwlock_unlock(&server.lock);
 
@@ -267,8 +267,8 @@ static void hash_tbl_save_fd_comm_id_pair(int fd, uint32_t comm_id,
 
     pthread_rwlock_wrlock(&server.lock);
     g_hash_table_insert(server.umad_agent.commid2fd,
-                        g_memdup(&comm_id, sizeof(comm_id)),
-                        g_memdup(&fde, sizeof(fde)));
+                        g_memdup2_qemu(&comm_id, sizeof(comm_id)),
+                        g_memdup2_qemu(&fde, sizeof(fde)));
     pthread_rwlock_unlock(&server.lock);
 }
 
