@@ -345,6 +345,30 @@ void helper_store_mmcr0(CPUPPCState *env, target_ulong value)
         } else {
             start_cycle_count_session(env);
         }
+    } else {
+        /*
+         * No change in MMCR0_FC state, but if the PMU is running and
+         * a change in the counter negative overflow bits is made,
+         * we need to restart a new cycle count session to restart
+         * the appropriate overflow timers.
+         */
+        if (curr_FC) {
+            return;
+        }
+
+        bool pmc1ce_curr = curr_value & MMCR0_PMC1CE;
+        bool pmc1ce_new  = value & MMCR0_PMC1CE;
+        bool pmcjce_curr = curr_value & MMCR0_PMCjCE;
+        bool pmcjce_new  = value & MMCR0_PMCjCE;
+
+        if (pmc1ce_curr == pmc1ce_new && pmcjce_curr == pmcjce_new) {
+            return;
+        }
+
+        /* Update the counter with the events counted so far */
+        update_cycles_PMCs(env);
+
+        start_cycle_count_session(env);
     }
 }
 
