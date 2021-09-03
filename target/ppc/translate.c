@@ -4434,6 +4434,14 @@ static void pmu_count_insns(DisasContext *ctx)
         return;
     }
 
+    /*
+     * The PMU insns_inc() helper stops the internal PMU timer if a
+     * counter overflows happens. In that case, if the guest is
+     * running with icount and we do not handle it beforehand,
+     * the helper can trigger a 'bad icount read'.
+     */
+    gen_icount_io_start(ctx);
+
     gen_helper_insns_inc(cpu_env, tcg_constant_i32(ctx->base.num_insns));
 }
 #else
