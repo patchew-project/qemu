@@ -351,6 +351,8 @@ typedef struct ppc_v3_pate_t {
 #define MMCR0_PMCC  PPC_BITMASK(44, 45) /* PMC Control */
 /* MMCR0 userspace r/w mask */
 #define MMCR0_UREG_MASK (MMCR0_FC | MMCR0_PMAO | MMCR0_PMAE)
+#define MMCR0_FC14 PPC_BIT(58) /* MMCR0 Freeze Counters 1-4 bit */
+#define MMCR0_FC56 PPC_BIT(59) /* MMCR0 Freeze Counters 5-6 bit */
 
 #define MMCR1_EVT_SIZE 8
 /* extract64() does a right shift before extracting */
