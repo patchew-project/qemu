@@ -175,6 +175,7 @@ struct DisasContext {
     bool spe_enabled;
     bool tm_enabled;
     bool gtse;
+    bool pmcc_clear;
     ppc_spr_t *spr_cb; /* Needed to check rights for mfspr/mtspr */
     int singlestep_enabled;
     uint32_t flags;
@@ -561,7 +562,56 @@ void spr_write_ureg(DisasContext *ctx, int sprn, int gprn)
 {
     gen_store_spr(sprn + 0x10, cpu_gpr[gprn]);
 }
-#endif
+
+void spr_write_MMCR0_ureg(DisasContext *ctx, int sprn, int gprn)
+{
+    TCGv t0, t1;
+
+    /*
+     * For group A PMU sprs, if PMCC = 0b00, PowerISA v3.1
+     * dictates that:
+     *
+     * "If an attempt is made to write to an SPR in group A in
+     * problem state, a Hypervisor Emulation Assistance
+     * interrupt will occur."
+     *
+     * MMCR0 is a Group A SPR and can't be written by userspace
+     * if PMCC = 0b00.
+     */
+    if (ctx->pmcc_clear) {
+        gen_hvpriv_exception(ctx, POWERPC_EXCP_INVAL_SPR);
+        return;
+    }
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+
+    /*
+     * Filter out all bits but FC, PMAO, and PMAE, according
+     * to ISA v3.1, in 10.4.4 Monitor Mode Control Register 0,
+     * fourth paragraph.
+     */
+    tcg_gen_andi_tl(t0, cpu_gpr[gprn], MMCR0_UREG_MASK);
+    gen_load_spr(t1, SPR_POWER_MMCR0);
+    tcg_gen_andi_tl(t1, t1, ~(MMCR0_UREG_MASK));
+    /* Keep all other bits intact */
+    tcg_gen_or_tl(t1, t1, t0);
+    gen_store_spr(SPR_POWER_MMCR0, t1);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+}
+#else
+void spr_write_ureg(DisasContext *ctx, int sprn, int gprn)
+{
+    spr_noaccess(ctx, gprn, sprn);
+}
+
+void spr_write_MMCR0_ureg(DisasContext *ctx, int sprn, int gprn)
+{
+    spr_noaccess(ctx, gprn, sprn);
+}
+#endif /* defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY) */
 
 /* SPR common to all non-embedded PowerPC */
 /* DECR */
@@ -8576,6 +8626,7 @@ static void ppc_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->vsx_enabled = (hflags >> HFLAGS_VSX) & 1;
     ctx->tm_enabled = (hflags >> HFLAGS_TM) & 1;
     ctx->gtse = (hflags >> HFLAGS_GTSE) & 1;
+    ctx->pmcc_clear = (hflags >> HFLAGS_PMCCCLEAR) & 1;
 
     ctx->singlestep_enabled = 0;
     if ((hflags >> HFLAGS_SE) & 1) {
