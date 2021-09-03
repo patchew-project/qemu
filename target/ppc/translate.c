@@ -402,6 +402,18 @@ void spr_write_generic(DisasContext *ctx, int sprn, int gprn)
     spr_store_dump_spr(sprn);
 }
 
+void spr_write_CTRL(DisasContext *ctx, int sprn, int gprn)
+{
+    spr_write_generic(ctx, sprn, gprn);
+
+    /*
+     * Write in SPR_CTRL must force a new translation block,
+     * allowing the PMU to calculate the run latch events with
+     * more accuracy.
+     */
+    ctx->base.is_jmp = DISAS_EXIT_UPDATE;
+}
+
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
 void spr_write_MMCR0(DisasContext *ctx, int sprn, int gprn)
 {
