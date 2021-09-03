@@ -153,16 +153,16 @@ with arguments:
 .. code::
 
   # test with qcow2 format
-  ./check -qcow2
+  ./check --qcow2
   # or test a different protocol
-  ./check -nbd
+  ./check --nbd
 
 It's also possible to list test numbers explicitly:
 
 .. code::
 
   # run selected cases with qcow2 format
-  ./check -qcow2 001 030 153
+  ./check --qcow2 001 030 153
 
 Cache mode can be selected with the "-c" option, which may help reveal bugs
 that are specific to certain cache mode.
@@ -229,7 +229,7 @@ Debugging a test case
 The following options to the ``check`` script can be useful when debugging
 a failing test:
 
-* ``-gdb`` wraps every QEMU invocation in a ``gdbserver``, which waits for a
+* ``--gdb`` wraps every QEMU invocation in a ``gdbserver``, which waits for a
   connection from a gdb client.  The options given to ``gdbserver`` (e.g. the
   address on which to listen for connections) are taken from the ``$GDB_OPTIONS``
   environment variable.  By default (if ``$GDB_OPTIONS`` is empty), it listens on
@@ -237,10 +237,10 @@ a failing test:
   It is possible to connect to it for example with
   ``gdb -iex "target remote $addr"``, where ``$addr`` is the address
   ``gdbserver`` listens on.
-  If the ``-gdb`` option is not used, ``$GDB_OPTIONS`` is ignored,
+  If the ``--gdb`` option is not used, ``$GDB_OPTIONS`` is ignored,
   regardless of whether it is set or not.
 
-* ``-valgrind`` attaches a valgrind instance to QEMU. If it detects
+* ``--valgrind`` attaches a valgrind instance to QEMU. If it detects
   warnings, it will print and save the log in
   ``$TEST_DIR/<valgrind_pid>.valgrind``.
   The final command line will be ``valgrind --log-file=$TEST_DIR/
