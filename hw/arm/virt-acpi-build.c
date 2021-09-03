@@ -885,7 +885,7 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
 
 static void acpi_ram_update(MemoryRegion *mr, GArray *data)
 {
-    uint32_t size = acpi_data_len(data);
+    unsigned size = acpi_data_len(data);
 
     /* Make sure RAM size is correct - in case it got changed
      * e.g. by migration */

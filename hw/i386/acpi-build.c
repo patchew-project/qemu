@@ -2658,7 +2658,7 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
 
 static void acpi_ram_update(MemoryRegion *mr, GArray *data)
 {
-    uint32_t size = acpi_data_len(data);
+    unsigned size = acpi_data_len(data);
 
     /* Make sure RAM size is correct - in case it got changed e.g. by migration */
     memory_region_ram_resize(mr, size, &error_abort);
@@ -2781,7 +2781,7 @@ void acpi_setup(void)
          * Though RSDP is small, its contents isn't immutable, so
          * we'll update it along with the rest of tables on guest access.
          */
-        uint32_t rsdp_size = acpi_data_len(tables.rsdp);
+        unsigned rsdp_size = acpi_data_len(tables.rsdp);
 
         build_state->rsdp = g_memdup(tables.rsdp->data, rsdp_size);
         fw_cfg_add_file_callback(x86ms->fw_cfg, ACPI_BUILD_RSDP_FILE,
