@@ -117,6 +117,14 @@ static void update_cycles_PMCs(CPUPPCState *env)
     if (PMC6_running) {
         update_PMC_PM_CYC(env, SPR_POWER_PMC6, time_delta);
     }
+
+    /*
+     * Update base_time for future calculations if we updated
+     * the PMCs while the PMU was running.
+     */
+    if (!(env->spr[SPR_POWER_MMCR0] & MMCR0_FC)) {
+        env->pmu_base_time = now;
+    }
 }
 
 static int64_t get_CYC_timeout(CPUPPCState *env, int sprn)
@@ -414,6 +422,25 @@ void helper_insns_inc(CPUPPCState *env, uint32_t num_insns)
         cpu = env_archcpu(env);
         fire_PMC_interrupt(cpu);
     }
+}
+
+void helper_store_pmc(CPUPPCState *env, uint32_t sprn, uint64_t value)
+{
+    bool pmu_frozen = env->spr[SPR_POWER_MMCR0] & MMCR0_FC;
+
+    if (pmu_frozen) {
+        env->spr[sprn] = value;
+        return;
+    }
+
+    /*
+     * Update counters with the events counted so far, define
+     * the new value of the PMC and start a new cycle count
+     * session.
+     */
+    update_cycles_PMCs(env);
+    env->spr[sprn] = value;
+    start_cycle_count_session(env);
 }
 
 #endif /* defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY) */
