@@ -820,10 +820,9 @@ static void pr_ops(void)
 static void plugin_gen_inject(const struct qemu_plugin_tb *plugin_tb)
 {
     TCGOp *op;
-    int insn_idx;
+    int insn_idx = -1;
 
     pr_ops();
-    insn_idx = -1;
     QSIMPLEQ_FOREACH(op, &tcg_ctx->plugin_ops, plugin_link) {
         enum plugin_gen_from from = op->args[0];
         enum plugin_gen_cb type = op->args[1];
@@ -834,6 +833,7 @@ static void plugin_gen_inject(const struct qemu_plugin_tb *plugin_tb)
             type == PLUGIN_GEN_ENABLE_MEM_HELPER) {
             insn_idx++;
         }
+        g_assert(from == PLUGIN_GEN_FROM_TB || insn_idx >= 0);
         plugin_inject_cb(plugin_tb, op, insn_idx);
     }
     pr_ops();
