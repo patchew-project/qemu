@@ -355,6 +355,7 @@ typedef struct ppc_v3_pate_t {
 #define MMCR0_FC14 PPC_BIT(58) /* MMCR0 Freeze Counters 1-4 bit */
 #define MMCR0_FC56 PPC_BIT(59) /* MMCR0 Freeze Counters 5-6 bit */
 #define MMCR0_PMC1CE PPC_BIT(48) /* MMCR0 PMC1 Condition Enabled */
+#define MMCR0_PMCjCE PPC_BIT(49) /* MMCR0 PMCj Condition Enabled */
 
 #define MMCR1_EVT_SIZE 8
 /* extract64() does a right shift before extracting */

@@ -131,9 +131,81 @@ static int64_t get_CYC_timeout(CPUPPCState *env, int sprn)
     return remaining_cyc;
 }
 
+static bool pmc_counter_negative_enabled(CPUPPCState *env, int sprn)
+{
+    if (!pmc_is_running(env, sprn)) {
+        return false;
+    }
+
+    switch (sprn) {
+    case SPR_POWER_PMC1:
+        return env->spr[SPR_POWER_MMCR0] & MMCR0_PMC1CE;
+
+    case SPR_POWER_PMC2:
+    case SPR_POWER_PMC3:
+    case SPR_POWER_PMC4:
+    case SPR_POWER_PMC5:
+    case SPR_POWER_PMC6:
+        return env->spr[SPR_POWER_MMCR0] & MMCR0_PMCjCE;
+
+    default:
+        break;
+    }
+
+    return false;
+}
+
+static int64_t get_counter_neg_timeout(CPUPPCState *env, int sprn)
+{
+    int64_t timeout = -1;
+
+    if (!pmc_counter_negative_enabled(env, sprn)) {
+        return -1;
+    }
+
+    if (env->spr[sprn] >= COUNTER_NEGATIVE_VAL) {
+        return 0;
+    }
+
+    switch (sprn) {
+    case SPR_POWER_PMC1:
+    case SPR_POWER_PMC2:
+    case SPR_POWER_PMC3:
+    case SPR_POWER_PMC4:
+        switch (get_PMC_event(env, sprn)) {
+        case 0xF0:
+            if (sprn == SPR_POWER_PMC1) {
+                timeout = get_CYC_timeout(env, sprn);
+            }
+            break;
+        case 0x1E:
+            timeout = get_CYC_timeout(env, sprn);
+            break;
+        }
+
+        break;
+    case SPR_POWER_PMC6:
+        timeout = get_CYC_timeout(env, sprn);
+        break;
+    default:
+        break;
+    }
+
+    return timeout;
+}
+
 static bool counter_negative_cond_enabled(uint64_t mmcr0)
 {
-    return mmcr0 & MMCR0_PMC1CE;
+    return mmcr0 & (MMCR0_PMC1CE | MMCR0_PMCjCE);
+}
+
+static void pmu_delete_timers(CPUPPCState *env)
+{
+    int i;
+
+    for (i = 0; i < PMU_TIMERS_LEN; i++) {
+        timer_del(env->pmu_intr_timers[i]);
+    }
 }
 
 /*
@@ -144,7 +216,8 @@ static bool counter_negative_cond_enabled(uint64_t mmcr0)
 static void start_cycle_count_session(CPUPPCState *env)
 {
     uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    uint64_t timeout;
+    int64_t timeout;
+    int i;
 
     env->pmu_base_time = now;
 
@@ -152,30 +225,32 @@ static void start_cycle_count_session(CPUPPCState *env)
      * Always delete existing overflow timers when starting a
      * new cycle counting session.
      */
-    timer_del(env->pmu_intr_timers[0]);
+    pmu_delete_timers(env);
 
     if (!counter_negative_cond_enabled(env->spr[SPR_POWER_MMCR0])) {
         return;
     }
 
-    if (!pmc_is_running(env, SPR_POWER_PMC1)) {
-        return;
+    /*
+     * Scroll through all programmable PMCs start counter overflow
+     * timers for PM_CYC events, if needed.
+     */
+    for (i = SPR_POWER_PMC1; i < SPR_POWER_PMC5; i++) {
+        timeout = get_counter_neg_timeout(env, i);
+
+        if (timeout == -1) {
+            continue;
+        }
+
+        timer_mod(env->pmu_intr_timers[i - SPR_POWER_PMC1],
+                                       now + timeout);
     }
 
-    if (!(env->spr[SPR_POWER_MMCR0] & MMCR0_PMC1CE)) {
-        return;
+    /* Check for counter neg timeout in PMC6 */
+    timeout = get_counter_neg_timeout(env, SPR_POWER_PMC6);
+    if (timeout != -1) {
+        timer_mod(env->pmu_intr_timers[PMU_TIMERS_LEN - 1], now + timeout);
     }
-
-    switch (get_PMC_event(env, SPR_POWER_PMC1)) {
-    case 0xF0:
-    case 0x1E:
-        timeout = get_CYC_timeout(env, SPR_POWER_PMC1);
-        break;
-    default:
-        return;
-    }
-
-    timer_mod(env->pmu_intr_timers[0], now + timeout);
 }
 
 static void cpu_ppc_pmu_timer_cb(void *opaque)
@@ -193,6 +268,13 @@ static void cpu_ppc_pmu_timer_cb(void *opaque)
 
         /* Changing MMCR0_FC demands a new hflags compute */
         hreg_compute_hflags(env);
+
+        /*
+         * Delete all pending timers if we need to freeze
+         * the PMC. We'll restart them when the PMC starts
+         * running again.
+         */
+        pmu_delete_timers(env);
     }
 
     update_cycles_PMCs(env);
