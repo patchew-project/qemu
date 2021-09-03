@@ -1140,7 +1140,7 @@ static char *memory_region_escape_name(const char *name)
         bytes += memory_region_need_escape(*p) ? 4 : 1;
     }
     if (bytes == p - name) {
-       return g_memdup(name, bytes + 1);
+        return g_memdup2_qemu(name, bytes + 1);
     }
 
     escaped = g_malloc(bytes + 1);
