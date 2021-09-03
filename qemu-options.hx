@@ -976,6 +976,9 @@ SRST
     Please also refer to the wiki page for general scenarios of VT-d
     emulation in QEMU: https://wiki.qemu.org/Features/VT-d.
 
+``-device virtio-iommu``
+    Enable a paravirtual IOMMU, that manages DMA isolation and remapping
+    for all PCI devices, but does not support interrupt remapping.
 ERST
 
 DEF("name", HAS_ARG, QEMU_OPTION_name,
