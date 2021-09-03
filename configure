@@ -291,34 +291,14 @@ for opt do
   esac
 done
 
-brlapi="auto"
-curl="auto"
-iconv="auto"
-curses="auto"
-docs="auto"
 fdt="auto"
 netmap="no"
 sdl="auto"
-sdl_image="auto"
 coreaudio="auto"
-virtiofsd="auto"
-virtfs="auto"
-libudev="auto"
-mpath="auto"
-vnc="auto"
-sparse="auto"
 vde="$default_feature"
-vnc_sasl="auto"
-vnc_jpeg="auto"
-vnc_png="auto"
-xkbcommon="auto"
 xen=${default_feature:+disabled}
 xen_ctrl_version="$default_feature"
-xen_pci_passthrough="auto"
 linux_aio="$default_feature"
-linux_io_uring="auto"
-cap_ng="auto"
-attr="auto"
 xfs="$default_feature"
 tcg="enabled"
 membarrier="$default_feature"
@@ -328,15 +308,8 @@ vhost_crypto="$default_feature"
 vhost_scsi="$default_feature"
 vhost_vsock="$default_feature"
 vhost_user="no"
-vhost_user_blk_server="auto"
 vhost_user_fs="$default_feature"
 vhost_vdpa="$default_feature"
-bpf="auto"
-kvm="auto"
-hax="auto"
-hvf="auto"
-whpx="auto"
-nvmm="auto"
 rdma="$default_feature"
 pvrdma="$default_feature"
 gprof="no"
@@ -362,7 +335,6 @@ bsd="no"
 linux="no"
 solaris="no"
 profiler="no"
-cocoa="auto"
 softmmu="yes"
 linux_user="no"
 bsd_user="no"
@@ -374,45 +346,23 @@ trace_backends="log"
 trace_file="trace"
 spice="$default_feature"
 spice_protocol="auto"
-rbd="auto"
-smartcard="auto"
-u2f="auto"
-libusb="auto"
-usb_redir="auto"
 opengl="$default_feature"
 cpuid_h="no"
 avx2_opt="$default_feature"
 capstone="auto"
-lzo="auto"
-snappy="auto"
-bzip2="auto"
-lzfse="auto"
-zstd="auto"
 guest_agent="$default_feature"
 guest_agent_with_vss="no"
 guest_agent_ntddscsi="no"
-guest_agent_msi="auto"
 vss_win32_sdk="$default_feature"
 win_sdk="no"
 want_tools="$default_feature"
-libiscsi="auto"
-libnfs="auto"
 coroutine=""
 coroutine_pool="$default_feature"
 debug_stack_usage="no"
 crypto_afalg="no"
 cfi="false"
 cfi_debug="false"
-seccomp="auto"
-glusterfs="auto"
-gtk="auto"
 tls_priority="NORMAL"
-gnutls="auto"
-nettle="auto"
-gcrypt="auto"
-auth_pam="auto"
-vte="auto"
-virglrenderer="auto"
 tpm="$default_feature"
 libssh="$default_feature"
 live_block_migration=${default_feature:-yes}
@@ -428,25 +378,17 @@ vdi=${default_feature:-yes}
 vvfat=${default_feature:-yes}
 qed=${default_feature:-yes}
 parallels=${default_feature:-yes}
-libxml2="auto"
 debug_mutex="no"
-libpmem="auto"
 default_devices="true"
 plugins="$default_feature"
 fuzzing="no"
 rng_none="no"
 secret_keyring="$default_feature"
-libdaxctl="auto"
 meson=""
 ninja=""
 skip_meson=no
-gettext="auto"
-fuse="auto"
-fuse_lseek="auto"
-multiprocess="auto"
 slirp_smbd="$default_feature"
 
-malloc_trim="auto"
 gio="$default_feature"
 
 # parse CC options second
@@ -982,37 +924,9 @@ for opt do
   ;;
   --enable-sdl) sdl="enabled"
   ;;
-  --disable-sdl-image) sdl_image="disabled"
-  ;;
-  --enable-sdl-image) sdl_image="enabled"
-  ;;
   --disable-qom-cast-debug) qom_cast_debug="no"
   ;;
   --enable-qom-cast-debug) qom_cast_debug="yes"
-  ;;
-  --disable-virtfs) virtfs="disabled"
-  ;;
-  --enable-virtfs) virtfs="enabled"
-  ;;
-  --disable-libudev) libudev="disabled"
-  ;;
-  --enable-libudev) libudev="enabled"
-  ;;
-  --disable-virtiofsd) virtiofsd="disabled"
-  ;;
-  --enable-virtiofsd) virtiofsd="enabled"
-  ;;
-  --disable-mpath) mpath="disabled"
-  ;;
-  --enable-mpath) mpath="enabled"
-  ;;
-  --disable-vnc) vnc="disabled"
-  ;;
-  --enable-vnc) vnc="enabled"
-  ;;
-  --disable-gettext) gettext="disabled"
-  ;;
-  --enable-gettext) gettext="enabled"
   ;;
   --oss-lib=*) oss_lib="$optarg"
   ;;
@@ -1046,23 +960,7 @@ for opt do
   ;;
   --disable-tsan) tsan="no"
   ;;
-  --enable-sparse) sparse="enabled"
-  ;;
-  --disable-sparse) sparse="disabled"
-  ;;
   --disable-strip) strip_opt="no"
-  ;;
-  --disable-vnc-sasl) vnc_sasl="disabled"
-  ;;
-  --enable-vnc-sasl) vnc_sasl="enabled"
-  ;;
-  --disable-vnc-jpeg) vnc_jpeg="disabled"
-  ;;
-  --enable-vnc-jpeg) vnc_jpeg="enabled"
-  ;;
-  --disable-vnc-png) vnc_png="disabled"
-  ;;
-  --enable-vnc-png) vnc_png="enabled"
   ;;
   --disable-slirp) slirp="disabled"
   ;;
@@ -1084,50 +982,14 @@ for opt do
   ;;
   --enable-xen) xen="enabled"
   ;;
-  --disable-xen-pci-passthrough) xen_pci_passthrough="disabled"
-  ;;
-  --enable-xen-pci-passthrough) xen_pci_passthrough="enabled"
-  ;;
-  --disable-brlapi) brlapi="disabled"
-  ;;
-  --enable-brlapi) brlapi="enabled"
-  ;;
-  --disable-kvm) kvm="disabled"
-  ;;
-  --enable-kvm) kvm="enabled"
-  ;;
-  --disable-hax) hax="disabled"
-  ;;
-  --enable-hax) hax="enabled"
-  ;;
-  --disable-hvf) hvf="disabled"
-  ;;
-  --enable-hvf) hvf="enabled"
-  ;;
-  --disable-nvmm) nvmm="disabled"
-  ;;
-  --enable-nvmm) nvmm="enabled"
-  ;;
-  --disable-whpx) whpx="disabled"
-  ;;
-  --enable-whpx) whpx="enabled"
-  ;;
   --disable-tcg-interpreter) tcg_interpreter="false"
   ;;
   --enable-tcg-interpreter) tcg_interpreter="true"
-  ;;
-  --disable-cap-ng)  cap_ng="disabled"
-  ;;
-  --enable-cap-ng) cap_ng="enabled"
   ;;
   --disable-tcg) tcg="disabled"
                  plugins="no"
   ;;
   --enable-tcg) tcg="enabled"
-  ;;
-  --disable-malloc-trim) malloc_trim="disabled"
-  ;;
-  --enable-malloc-trim) malloc_trim="enabled"
   ;;
   --disable-spice) spice="no"
   ;;
@@ -1141,19 +1003,7 @@ for opt do
   ;;
   --enable-spice-protocol) spice_protocol="yes"
   ;;
-  --disable-libiscsi) libiscsi="disabled"
-  ;;
-  --enable-libiscsi) libiscsi="enabled"
-  ;;
-  --disable-libnfs) libnfs="disabled"
-  ;;
-  --enable-libnfs) libnfs="enabled"
-  ;;
   --enable-profiler) profiler="yes"
-  ;;
-  --disable-cocoa) cocoa="disabled"
-  ;;
-  --enable-cocoa) cocoa="enabled"
   ;;
   --disable-system) softmmu="no"
   ;;
@@ -1202,18 +1052,6 @@ for opt do
   ;;
   --disable-cfi-debug) cfi_debug="false"
   ;;
-  --disable-curses) curses="disabled"
-  ;;
-  --enable-curses) curses="enabled"
-  ;;
-  --disable-iconv) iconv="disabled"
-  ;;
-  --enable-iconv) iconv="enabled"
-  ;;
-  --disable-curl) curl="disabled"
-  ;;
-  --enable-curl) curl="enabled"
-  ;;
   --disable-fdt) fdt="disabled"
   ;;
   --enable-fdt) fdt="enabled"
@@ -1226,21 +1064,9 @@ for opt do
   ;;
   --enable-linux-aio) linux_aio="yes"
   ;;
-  --disable-linux-io-uring) linux_io_uring="disabled"
-  ;;
-  --enable-linux-io-uring) linux_io_uring="enabled"
-  ;;
-  --disable-attr) attr="disabled"
-  ;;
-  --enable-attr) attr="enabled"
-  ;;
   --disable-membarrier) membarrier="no"
   ;;
   --enable-membarrier) membarrier="yes"
-  ;;
-  --disable-bpf) bpf="disabled"
-  ;;
-  --enable-bpf) bpf="enabled"
   ;;
   --disable-blobs) blobs="false"
   ;;
@@ -1258,10 +1084,6 @@ for opt do
   ;;
   --disable-crypto-afalg) crypto_afalg="no"
   ;;
-  --disable-docs) docs="disabled"
-  ;;
-  --enable-docs) docs="enabled"
-  ;;
   --disable-vhost-net) vhost_net="no"
   ;;
   --enable-vhost-net) vhost_net="yes"
@@ -1278,10 +1100,6 @@ for opt do
   ;;
   --enable-vhost-vsock) vhost_vsock="yes"
   ;;
-  --disable-vhost-user-blk-server) vhost_user_blk_server="disabled"
-  ;;
-  --enable-vhost-user-blk-server) vhost_user_blk_server="enabled"
-  ;;
   --disable-vhost-user-fs) vhost_user_fs="no"
   ;;
   --enable-vhost-user-fs) vhost_user_fs="yes"
@@ -1290,59 +1108,13 @@ for opt do
   ;;
   --enable-opengl) opengl="yes"
   ;;
-  --disable-rbd) rbd="disabled"
-  ;;
-  --enable-rbd) rbd="enabled"
-  ;;
   --disable-xfsctl) xfs="no"
   ;;
   --enable-xfsctl) xfs="yes"
   ;;
-  --disable-smartcard) smartcard="disabled"
-  ;;
-  --enable-smartcard) smartcard="enabled"
-  ;;
-  --disable-u2f) u2f="disabled"
-  ;;
-  --enable-u2f) u2f="enabled"
-  ;;
-  --disable-libusb) libusb="disabled"
-  ;;
-  --enable-libusb) libusb="enabled"
-  ;;
-  --disable-usb-redir) usb_redir="disabled"
-  ;;
-  --enable-usb-redir) usb_redir="enabled"
-  ;;
-  --disable-zlib-test)
-  ;;
-  --disable-lzo) lzo="disabled"
-  ;;
-  --enable-lzo) lzo="enabled"
-  ;;
-  --disable-snappy) snappy="disabled"
-  ;;
-  --enable-snappy) snappy="enabled"
-  ;;
-  --disable-bzip2) bzip2="disabled"
-  ;;
-  --enable-bzip2) bzip2="enabled"
-  ;;
-  --enable-lzfse) lzfse="enabled"
-  ;;
-  --disable-lzfse) lzfse="disabled"
-  ;;
-  --disable-zstd) zstd="disabled"
-  ;;
-  --enable-zstd) zstd="enabled"
-  ;;
   --enable-guest-agent) guest_agent="yes"
   ;;
   --disable-guest-agent) guest_agent="no"
-  ;;
-  --enable-guest-agent-msi) guest_agent_msi="enabled"
-  ;;
-  --disable-guest-agent-msi) guest_agent_msi="disabled"
   ;;
   --with-vss-sdk) vss_win32_sdk=""
   ;;
@@ -1360,12 +1132,6 @@ for opt do
   ;;
   --disable-tools) want_tools="no"
   ;;
-  --enable-seccomp) seccomp="enabled"
-  ;;
-  --disable-seccomp) seccomp="disabled"
-  ;;
-  --disable-glusterfs) glusterfs="disabled"
-  ;;
   --disable-avx2) avx2_opt="no"
   ;;
   --enable-avx2) avx2_opt="yes"
@@ -1373,9 +1139,6 @@ for opt do
   --disable-avx512f) avx512f_opt="no"
   ;;
   --enable-avx512f) avx512f_opt="yes"
-  ;;
-
-  --enable-glusterfs) glusterfs="enabled"
   ;;
   --disable-virtio-blk-data-plane|--enable-virtio-blk-data-plane)
       echo "$0: $opt is obsolete, virtio-blk data-plane is always on" >&2
@@ -1386,27 +1149,7 @@ for opt do
   --enable-uuid|--disable-uuid)
       echo "$0: $opt is obsolete, UUID support is always built" >&2
   ;;
-  --disable-gtk) gtk="disabled"
-  ;;
-  --enable-gtk) gtk="enabled"
-  ;;
   --tls-priority=*) tls_priority="$optarg"
-  ;;
-  --disable-gnutls) gnutls="disabled"
-  ;;
-  --enable-gnutls) gnutls="enabled"
-  ;;
-  --disable-nettle) nettle="disabled"
-  ;;
-  --enable-nettle) nettle="enabled"
-  ;;
-  --disable-gcrypt) gcrypt="disabled"
-  ;;
-  --enable-gcrypt) gcrypt="enabled"
-  ;;
-  --disable-auth-pam) auth_pam="disabled"
-  ;;
-  --enable-auth-pam) auth_pam="enabled"
   ;;
   --enable-rdma) rdma="yes"
   ;;
@@ -1415,14 +1158,6 @@ for opt do
   --enable-pvrdma) pvrdma="yes"
   ;;
   --disable-pvrdma) pvrdma="no"
-  ;;
-  --disable-vte) vte="disabled"
-  ;;
-  --enable-vte) vte="enabled"
-  ;;
-  --disable-virglrenderer) virglrenderer="disabled"
-  ;;
-  --enable-virglrenderer) virglrenderer="enabled"
   ;;
   --disable-tpm) tpm="no"
   ;;
@@ -1439,10 +1174,6 @@ for opt do
   --disable-numa) numa="no"
   ;;
   --enable-numa) numa="yes"
-  ;;
-  --disable-libxml2) libxml2="disabled"
-  ;;
-  --enable-libxml2) libxml2="enabled"
   ;;
   --disable-tcmalloc) tcmalloc="no"
   ;;
@@ -1525,14 +1256,6 @@ for opt do
   ;;
   --disable-debug-mutex) debug_mutex=no
   ;;
-  --enable-libpmem) libpmem="enabled"
-  ;;
-  --disable-libpmem) libpmem="disabled"
-  ;;
-  --enable-xkbcommon) xkbcommon="enabled"
-  ;;
-  --disable-xkbcommon) xkbcommon="disabled"
-  ;;
   --enable-plugins) if test "$mingw32" = "yes"; then
                         error_exit "TCG plugins not currently supported on Windows platforms"
                     else
@@ -1558,22 +1281,6 @@ for opt do
   --enable-keyring) secret_keyring="yes"
   ;;
   --disable-keyring) secret_keyring="no"
-  ;;
-  --enable-libdaxctl) libdaxctl="enabled"
-  ;;
-  --disable-libdaxctl) libdaxctl="disabled"
-  ;;
-  --enable-fuse) fuse="enabled"
-  ;;
-  --disable-fuse) fuse="disabled"
-  ;;
-  --enable-fuse-lseek) fuse_lseek="enabled"
-  ;;
-  --disable-fuse-lseek) fuse_lseek="disabled"
-  ;;
-  --enable-multiprocess) multiprocess="enabled"
-  ;;
-  --disable-multiprocess) multiprocess="disabled"
   ;;
   --enable-gio) gio=yes
   ;;
@@ -5229,25 +4936,10 @@ if test "$skip_meson" = no; then
         -Db_pie=$(if test "$pie" = yes; then echo true; else echo false; fi) \
         ${staticpic:+-Db_staticpic=$staticpic} \
         -Db_coverage=$(if test "$gcov" = yes; then echo true; else echo false; fi) \
-        -Db_lto=$lto -Dcfi=$cfi -Dcfi_debug=$cfi_debug \
-        -Dmalloc=$malloc -Dmalloc_trim=$malloc_trim -Dsparse=$sparse \
-        -Dkvm=$kvm -Dhax=$hax -Dwhpx=$whpx -Dhvf=$hvf -Dnvmm=$nvmm \
-        -Dxen=$xen -Dxen_pci_passthrough=$xen_pci_passthrough -Dtcg=$tcg \
-        -Dcocoa=$cocoa -Dgtk=$gtk -Dmpath=$mpath -Dsdl=$sdl -Dsdl_image=$sdl_image \
-        -Dlibusb=$libusb -Dsmartcard=$smartcard -Dusb_redir=$usb_redir -Dvte=$vte \
-        -Dvnc=$vnc -Dvnc_sasl=$vnc_sasl -Dvnc_jpeg=$vnc_jpeg -Dvnc_png=$vnc_png \
-        -Dgettext=$gettext -Dxkbcommon=$xkbcommon -Du2f=$u2f -Dvirtiofsd=$virtiofsd \
-        -Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt -Dbrlapi=$brlapi \
-        -Dcurl=$curl -Dglusterfs=$glusterfs -Dbzip2=$bzip2 -Dlibiscsi=$libiscsi \
-        -Dlibnfs=$libnfs -Diconv=$iconv -Dcurses=$curses -Dlibudev=$libudev\
-        -Drbd=$rbd -Dlzo=$lzo -Dsnappy=$snappy -Dlzfse=$lzfse -Dlibxml2=$libxml2 \
-        -Dlibdaxctl=$libdaxctl -Dlibpmem=$libpmem -Dlinux_io_uring=$linux_io_uring \
-        -Dgnutls=$gnutls -Dnettle=$nettle -Dgcrypt=$gcrypt -Dauth_pam=$auth_pam \
-        -Dzstd=$zstd -Dseccomp=$seccomp -Dvirtfs=$virtfs -Dcap_ng=$cap_ng \
-        -Dattr=$attr -Ddefault_devices=$default_devices -Dvirglrenderer=$virglrenderer \
-        -Ddocs=$docs -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
-        -Dvhost_user_blk_server=$vhost_user_blk_server -Dmultiprocess=$multiprocess \
-        -Dfuse=$fuse -Dfuse_lseek=$fuse_lseek -Dguest_agent_msi=$guest_agent_msi -Dbpf=$bpf\
+        -Db_lto=$lto -Dcfi=$cfi -Dcfi_debug=$cfi_debug -Dmalloc=$malloc \
+        -Ddefault_devices=$default_devices -Dxen=$xen -Dtcg=$tcg -Dsdl=$sdl \
+        -Dcapstone=$capstone -Dslirp=$slirp -Dfdt=$fdt \
+        -Dsphinx_build=$sphinx_build -Dinstall_blobs=$blobs \
         $(if test "$default_feature" = no; then echo "-Dauto_features=disabled"; fi) \
         -Dtcg_interpreter=$tcg_interpreter $meson_options \
         $cross_arg \
