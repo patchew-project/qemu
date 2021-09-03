@@ -31,10 +31,62 @@ static void update_PMC_PM_CYC(CPUPPCState *env, int sprn,
     env->spr[sprn] += time_delta;
 }
 
+static void update_programmable_PMC_reg(CPUPPCState *env, int sprn,
+                                        uint64_t time_delta)
+{
+    uint8_t event, evt_extr;
+
+    switch (sprn) {
+    case SPR_POWER_PMC1:
+        evt_extr = MMCR1_PMC1EVT_EXTR;
+        break;
+    case SPR_POWER_PMC2:
+        evt_extr = MMCR1_PMC2EVT_EXTR;
+        break;
+    case SPR_POWER_PMC3:
+        evt_extr = MMCR1_PMC3EVT_EXTR;
+        break;
+    case SPR_POWER_PMC4:
+        evt_extr = MMCR1_PMC4EVT_EXTR;
+        break;
+    default:
+        return;
+    }
+
+    event = extract64(env->spr[SPR_POWER_MMCR1], evt_extr, MMCR1_EVT_SIZE);
+
+    /*
+     * MMCR0_PMC1SEL = 0xF0 is the architected PowerISA v3.1 event
+     * that counts cycles using PMC1.
+     *
+     * IBM POWER chips also has support for an implementation dependent
+     * event, 0x1E, that enables cycle counting on PMCs 1-4. The
+     * Linux kernel makes extensive use of 0x1E, so let's also support
+     * it.
+     */
+    switch (event) {
+    case 0xF0:
+        if (sprn == SPR_POWER_PMC1) {
+            update_PMC_PM_CYC(env, sprn, time_delta);
+        }
+        break;
+    case 0x1E:
+        update_PMC_PM_CYC(env, sprn, time_delta);
+        break;
+    default:
+        return;
+    }
+}
+
 static void update_cycles_PMCs(CPUPPCState *env)
 {
     uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     uint64_t time_delta = now - env->pmu_base_time;
+    int sprn;
+
+    for (sprn = SPR_POWER_PMC1; sprn < SPR_POWER_PMC5; sprn++) {
+        update_programmable_PMC_reg(env, sprn, time_delta);
+    }
 
     update_PMC_PM_CYC(env, SPR_POWER_PMC6, time_delta);
 }
