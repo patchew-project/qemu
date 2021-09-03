@@ -123,7 +123,7 @@ void qemu_clipboard_set_data(QemuClipboardPeer *peer,
     }
 
     g_free(info->types[type].data);
-    info->types[type].data = g_memdup(data, size);
+    info->types[type].data = g_memdup2_qemu(data, size);
     info->types[type].size = size;
     info->types[type].available = true;
 
