@@ -618,4 +618,64 @@ struct AcpiIortRC {
 } QEMU_PACKED;
 typedef struct AcpiIortRC AcpiIortRC;
 
+/*
+ * Virtual I/O Translation Table
+ */
+struct AcpiViot {
+    ACPI_TABLE_HEADER_DEF
+    uint16_t node_count;
+    uint16_t node_offset;
+    uint8_t reserved[8];
+} QEMU_PACKED;
+typedef struct AcpiViot AcpiViot;
+
+#define ACPI_VIOT_NODE_HEADER_DEF   /* Fields common to all nodes */ \
+    uint8_t type;          \
+    uint8_t reserved;      \
+    uint16_t length;
+
+/* Values for node Type above */
+enum {
+    ACPI_VIOT_NODE_PCI_RANGE = 0x01,
+    ACPI_VIOT_NODE_MMIO = 0x02,
+    ACPI_VIOT_NODE_VIRTIO_IOMMU_PCI = 0x03,
+    ACPI_VIOT_NODE_VIRTIO_IOMMU_MMIO = 0x04,
+};
+
+struct AcpiViotPciRange {
+    ACPI_VIOT_NODE_HEADER_DEF
+    uint32_t endpoint_start;
+    uint16_t segment_start;
+    uint16_t segment_end;
+    uint16_t bdf_start;
+    uint16_t bdf_end;
+    uint16_t output_node;
+    uint8_t reserved1[6];
+} QEMU_PACKED;
+typedef struct AcpiViotPciRange AcpiViotPciRange;
+
+struct AcpiViotMmio {
+    ACPI_VIOT_NODE_HEADER_DEF
+    uint32_t endpoint;
+    uint64_t base_address;
+    uint16_t output_node;
+    uint8_t reserved1[6];
+} QEMU_PACKED;
+typedef struct AcpiViotMmio AcpiViotMmio;
+
+struct AcpiViotVirtioIommuPci {
+    ACPI_VIOT_NODE_HEADER_DEF
+    uint16_t segment;
+    uint16_t bdf;
+    uint8_t reserved1[8];
+} QEMU_PACKED;
+typedef struct AcpiViotVirtioIommuPci AcpiViotVirtioIommuPci;
+
+struct AcpiViotVirtioIommuMmio {
+    ACPI_VIOT_NODE_HEADER_DEF
+    uint8_t reserved1[4];
+    uint64_t base_address;
+} QEMU_PACKED;
+typedef struct AcpiViotVirtioIommuMmio AcpiViotVirtioIommuMmio;
+
 #endif
