@@ -129,8 +129,9 @@ enum {
     /* ISA 3.00 additions */
     POWERPC_EXCP_HVIRT    = 101,
     POWERPC_EXCP_SYSCALL_VECTORED = 102, /* scv exception                     */
+    POWERPC_EXCP_EBB = 103, /* Event-based branch exception                  */
     /* EOL                                                                   */
-    POWERPC_EXCP_NB       = 103,
+    POWERPC_EXCP_NB       = 104,
     /* QEMU exceptions: special cases we want to stop translation            */
     POWERPC_EXCP_SYSCALL_USER = 0x203, /* System call in user mode only      */
 };
@@ -1053,6 +1054,8 @@ struct ppc_radix_page_info {
 #define PPC_CPU_OPCODES_LEN          0x40
 #define PPC_CPU_INDIRECT_OPCODES_LEN 0x20
 
+#define PMU_TIMERS_LEN 5
+
 struct CPUPPCState {
     /* Most commonly used resources during translated code execution first */
     target_ulong gpr[32];  /* general purpose registers */
@@ -1214,6 +1217,12 @@ struct CPUPPCState {
      * running cycles.
      */
     uint64_t pmu_base_time;
+
+    /*
+     * Timers used to fire performance monitor alerts and
+     * interrupts. All PMCs but PMC5 has a timer.
+     */
+    QEMUTimer *pmu_intr_timers[PMU_TIMERS_LEN];
 };
 
 #define SET_FIT_PERIOD(a_, b_, c_, d_)          \
@@ -2430,6 +2439,7 @@ enum {
     PPC_INTERRUPT_HMI,            /* Hypervisor Maintenance interrupt    */
     PPC_INTERRUPT_HDOORBELL,      /* Hypervisor Doorbell interrupt        */
     PPC_INTERRUPT_HVIRT,          /* Hypervisor virtualization interrupt  */
+    PPC_INTERRUPT_PMC,            /* Performance Monitor Counter interrupt */
 };
 
 /* Processor Compatibility mask (PCR) */
