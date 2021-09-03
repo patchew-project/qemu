@@ -2706,7 +2706,8 @@ bool address_space_access_valid(AddressSpace *as, hwaddr addr, hwaddr len,
  *
  * May map a subset of the requested range, given by and returned in @plen.
  * May return %NULL and set *@plen to zero(0), if resources needed to perform
- * the mapping are exhausted.
+ * the mapping are exhausted or if the physical memory region is not accessible
+ * for the requested memory attributes.
  * Use only for reads OR writes - not for read-modify-write operations.
  * Use cpu_register_map_client() to know when retrying the map operation is
  * likely to succeed.

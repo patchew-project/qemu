@@ -3188,15 +3188,19 @@ void *address_space_map(AddressSpace *as,
         /* Avoid unbounded allocations */
         l = MIN(l, TARGET_PAGE_SIZE);
         bounce.buffer = qemu_memalign(TARGET_PAGE_SIZE, l);
+
+        if (!is_write) {
+            if (flatview_read(fv, addr, attrs, bounce.buffer, l) != MEMTX_OK) {
+                qemu_vfree(bounce.buffer);
+                *plen = 0;
+                return NULL;
+            }
+        }
+
         bounce.addr = addr;
         bounce.len = l;
-
-        memory_region_ref(mr);
         bounce.mr = mr;
-        if (!is_write) {
-            flatview_read(fv, addr, MEMTXATTRS_UNSPECIFIED,
-                               bounce.buffer, l);
-        }
+        memory_region_ref(mr);
 
         *plen = l;
         return bounce.buffer;
