@@ -349,8 +349,10 @@ GEN_TRANS_SHADD(3)
 
 static void gen_clzw(TCGv ret, TCGv arg1)
 {
-    tcg_gen_clzi_tl(ret, arg1, 64);
-    tcg_gen_subi_tl(ret, ret, 32);
+    TCGv t = tcg_temp_new();
+    tcg_gen_shli_tl(t, arg1, 32);
+    tcg_gen_clzi_tl(ret, t, 32);
+    tcg_temp_free(t);
 }
 
 static bool trans_clzw(DisasContext *ctx, arg_clzw *a)
