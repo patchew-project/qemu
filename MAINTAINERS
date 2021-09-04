@@ -2289,11 +2289,13 @@ F: qapi/audio.json
 
 ALSA Audio backend
 M: Gerd Hoffmann <kraxel@redhat.com>
+R: Christian Schoenebeck <qemu_oss@crudebyte.com>
 S: Odd Fixes
 F: audio/alsaaudio.c
 
 Core Audio framework backend
 M: Gerd Hoffmann <kraxel@redhat.com>
+R: Christian Schoenebeck <qemu_oss@crudebyte.com>
 S: Odd Fixes
 F: audio/coreaudio.c
 
@@ -2304,6 +2306,7 @@ F: audio/dsound*
 
 JACK Audio Connection Kit backend
 M: Gerd Hoffmann <kraxel@redhat.com>
+R: Christian Schoenebeck <qemu_oss@crudebyte.com>
 S: Odd Fixes
 F: audio/jackaudio.c
 
