@@ -344,6 +344,11 @@ based on the attributes used for the memory transaction, or need
 to be able to respond that the access should provoke a bus error
 rather than completing successfully; those devices can use the
 ->read_with_attrs() and ->write_with_attrs() callbacks instead.
+The requirement for a device's MemoryRegionOps is that at least
+one callback for read and one for write are provided. If both
+->read() and ->read_with_attrs() are provided, the plain ->read()
+version takes precedence over the with_attrs() version. So does
+the write callback.
 
 In addition various constraints can be supplied to control how these
 callbacks are called:
