@@ -1704,6 +1704,8 @@ static unsigned int virtqueue_packed_drop_all(VirtQueue *vq)
     VirtIODevice *vdev = vq->vdev;
     VRingPackedDesc desc;
 
+    RCU_READ_LOCK_GUARD();
+
     caches = vring_get_region_caches(vq);
     if (!caches) {
         return 0;
