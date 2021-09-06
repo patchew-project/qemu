@@ -186,6 +186,13 @@ void virtio_delete_queue(VirtQueue *vq);
 
 void virtqueue_push(VirtQueue *vq, const VirtQueueElement *elem,
                     unsigned int len);
+/**
+ * virtqueue_flush:
+ * @vq: The #VirtQueue
+ * @count: Number of elements to flush
+ *
+ * Must be called within RCU critical section.
+ */
 void virtqueue_flush(VirtQueue *vq, unsigned int count);
 void virtqueue_detach_element(VirtQueue *vq, const VirtQueueElement *elem,
                               unsigned int len);
