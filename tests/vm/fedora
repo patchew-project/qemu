@@ -23,11 +23,11 @@ class FedoraVM(basevm.BaseVM):
     name = "fedora"
     arch = "x86_64"
 
-    base = "https://archives.fedoraproject.org/pub/archive/fedora/linux/releases/30/"
-    link = base + "Server/x86_64/iso/Fedora-Server-netinst-x86_64-30-1.2.iso"
+    base = "https://archives.fedoraproject.org/pub/fedora/linux/releases/32/"
+    link = base + "Server/x86_64/iso/Fedora-Server-netinst-x86_64-32-1.6.iso"
     repo = base + "Server/x86_64/os/"
     full = base + "Everything/x86_64/os/"
-    csum = "5e4eac4566d8c572bfb3bcf54b7d6c82006ec3c6c882a2c9235c6d3494d7b100"
+    csum = "7f4afd2a26c718f9f15e4bbfd9c2e8849f81036d2a82a4e81fa4a313a833da9c"
     size = "20G"
     pkgs = [
         # tools
@@ -106,7 +106,7 @@ class FedoraVM(basevm.BaseVM):
         self.console_wait_send("1) [ ] Standard Part",     "1\n")
         self.console_wait_send("1) [x] Standard Part",     "c\n")
 
-        self.console_wait_send("7) [!] Root password",     "7\n")
+        self.console_wait_send("7) [x] Root password",     "7\n")
         self.console_wait("Password:")
         self.console_send("%s\n" % self._config["root_pass"])
         self.console_wait("Password (confirm):")
@@ -116,7 +116,6 @@ class FedoraVM(basevm.BaseVM):
         self.console_wait_send("1) [ ] Create user",       "1\n")
         self.console_wait_send("3) User name",             "3\n")
         self.console_wait_send("ENTER:", "%s\n" % self._config["guest_user"])
-        self.console_wait_send("4) [ ] Use password",      "4\n")
         self.console_wait_send("5) Password",              "5\n")
         self.console_wait("Password:")
         self.console_send("%s\n" % self._config["guest_pass"])
