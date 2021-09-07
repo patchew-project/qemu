@@ -92,6 +92,8 @@ version = "0.1.0"
 dependencies = [
  "common",
  "hostname",
+ "nix",
+ "winapi",
 ]
 
 [[package]]
