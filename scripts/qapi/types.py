@@ -13,8 +13,15 @@ This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
 """
 
-from typing import List, Optional
+from pathlib import Path
+from typing import (
+    Dict,
+    List,
+    Optional,
+    Set,
+)
 
+from .cabi import CABI, CABIEnum, gen_object_cabi
 from .common import c_enum_const, c_name, mcgen
 from .gen import QAPISchemaModularCVisitor, ifcontext
 from .schema import (
@@ -22,6 +29,7 @@ from .schema import (
     QAPISchemaEnumMember,
     QAPISchemaFeature,
     QAPISchemaIfCond,
+    QAPISchemaModule,
     QAPISchemaObjectType,
     QAPISchemaObjectTypeMember,
     QAPISchemaType,
@@ -265,6 +273,13 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
         super().__init__(
             prefix, 'qapi-types', ' * Schema-defined QAPI types',
             ' * Built-in QAPI types', __doc__)
+        self._cabi_functions: List[str] = []
+        self._cabi_functions_called: Set[str] = set()
+        self._cabi: Dict[str, CABI] = {}
+
+    def _cabi_add(self, cabis: List[CABI]) -> None:
+        for cabi in cabis:
+            self._cabi.setdefault(cabi.name, cabi)
 
     def _begin_builtin_module(self) -> None:
         self._genc.preamble_add(mcgen('''
@@ -295,6 +310,43 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
         # gen_object() is recursive, ensure it doesn't visit the empty type
         objects_seen.add(schema.the_empty_object_type.name)
 
+    def _get_qapi_cabi_fn(self, name: str) -> str:
+        fn_name = 'qapi_cabi'
+        if QAPISchemaModule.is_builtin_module(name):
+            fn_name += '_builtin'
+        elif name != self._main_module:
+            name = Path(name).stem
+            fn_name += '_' + c_name(name)
+        return fn_name
+
+    def visit_include(self, name: str, info: Optional[QAPISourceInfo]) -> None:
+        super().visit_include(name, info)
+        cabi_fn = self._get_qapi_cabi_fn(name)
+        if cabi_fn not in self._cabi_functions_called:
+            self._cabi_functions.append(cabi_fn)
+
+    def visit_module_end(self, name: str) -> None:
+        cabi_gen = "".join(f'    {fn}();\n' for fn in self._cabi_functions)
+        self._cabi_functions_called |= set(self._cabi_functions)
+        self._cabi_functions = []
+        cabi_gen += "".join([c.gen_c() for _, c in sorted(self._cabi.items())])
+        self._cabi = {}
+        fn_name = self._get_qapi_cabi_fn(name)
+        self._genh.add(mcgen('''
+
+#ifdef QAPI_CABI
+void %(fn_name)s(void);
+#endif
+''', fn_name=fn_name))
+        self._genc.add(mcgen('''
+
+#ifdef QAPI_CABI
+void %(fn_name)s(void) {
+%(cabi_gen)s
+}
+#endif
+''', fn_name=fn_name, cabi_gen=cabi_gen))
+
     def _gen_type_cleanup(self, name: str) -> None:
         self._genh.add(gen_type_cleanup_decl(name))
         self._genc.add(gen_type_cleanup(name))
@@ -309,6 +361,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
         with ifcontext(ifcond, self._genh, self._genc):
             self._genh.preamble_add(gen_enum(name, members, prefix))
             self._genc.add(gen_enum_lookup(name, members, prefix))
+        self._cabi_add([CABIEnum(name, ifcond, members, prefix)])
 
     def visit_array_type(self,
                          name: str,
@@ -334,6 +387,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
         with ifcontext(ifcond, self._genh):
             self._genh.preamble_add(gen_fwd_object_or_array(name))
         self._genh.add(gen_object(name, ifcond, base, members, variants))
+        self._cabi_add(gen_object_cabi(name, ifcond, base, members, variants))
         with ifcontext(ifcond, self._genh, self._genc):
             if base and not base.is_implicit():
                 self._genh.add(gen_upcast(name, base))
@@ -353,6 +407,8 @@ class QAPISchemaGenTypeVisitor(QAPISchemaModularCVisitor):
             self._genh.preamble_add(gen_fwd_object_or_array(name))
         self._genh.add(gen_object(name, ifcond, None,
                                   [variants.tag_member], variants))
+        self._cabi_add(gen_object_cabi(name, ifcond, None,
+                                       [variants.tag_member], variants))
         with ifcontext(ifcond, self._genh, self._genc):
             self._gen_type_cleanup(name)
 
