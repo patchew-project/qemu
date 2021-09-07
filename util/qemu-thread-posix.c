@@ -537,7 +537,16 @@ static void *qemu_thread_start(void *args)
     QEMU_TSAN_ANNOTATE_THREAD_NAME(qemu_thread_args->name);
     g_free(qemu_thread_args->name);
     g_free(qemu_thread_args);
+
+    /*
+     * Work around GCC 11 false positives.  Ideally glibc would use
+     * _Pragma itself, for now do it.  See
+     * https://sourceware.org/bugzilla/show_bug.cgi?id=26647
+     */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
     pthread_cleanup_push(qemu_thread_atexit_notify, NULL);
+#pragma GCC diagnostic pop
     r = start_routine(arg);
     pthread_cleanup_pop(1);
     return r;
