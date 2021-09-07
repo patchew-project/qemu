@@ -29,6 +29,34 @@ The `Repology`_ site is a useful resource to identify
 currently shipped versions of software in various operating systems,
 though it does not cover all distros listed below.
 
+Supported host CPUs
+-------------------
+
+Those host CPUs have a native TCG backend and are regularly tested:
+
+  .. list-table::
+   :header-rows: 1
+
+   * - CPU Family
+     - Accelerators
+   * - ARM
+     - kvm, xen
+   * - MIPS
+     - kvm
+   * - PPC
+     - kvm
+   * - RISC-V
+     -
+   * - s390x
+     - kvm
+   * - SPARC
+     -
+   * - x86
+     - kvm, xen, hax, hvf (64 bit only), nvmm, whpx (64 bit only)
+
+Other architectures are not actively maintained. They use the slow and
+experimental TCG interpreter. They may be removed in future releases.
+
 Linux OS, macOS, FreeBSD, NetBSD, OpenBSD
 -----------------------------------------
 
