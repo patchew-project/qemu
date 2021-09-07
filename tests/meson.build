@@ -45,7 +45,10 @@ test_qapi_files = custom_target('Test QAPI files',
                                 depend_files: qapi_gen_depends)
 
 if with_rust
-  test_qapi_rs_outputs = ['test-qapi-ffi-types.rs']
+  test_qapi_rs_outputs = [
+    'test-qapi-ffi-types.rs',
+    'test-qapi-types.rs',
+  ]
   test_qapi_rs = custom_target('Test QAPI Rust binding',
                                output: test_qapi_rs_outputs,
                                input: test_qapi_inputs,
@@ -65,6 +68,21 @@ if with_rust
                                          'build-bin',
                                          'qapi-cabi-rs',
                                          '--', '--cfg', 'QAPI_CABI'])
+  libtest_rs = custom_target('Test Rust library',
+                             build_by_default: true,
+                             output: ['libqemu_tests.args', 'libqemu_tests.a'],
+                             build_always_stale: true,
+                             depends: [test_qapi_rs],
+                             command: [cargo_wrapper,
+                                       meson.current_build_dir(),
+                                       meson.current_source_dir(),
+                                       meson.build_root(),
+                                       rs_build_type,
+                                       rust_target_triple,
+                                       'build-lib'])
+  libtest_rs = declare_dependency(
+    link_args: '@' + libtest_rs[0].full_path(),
+    sources: libtest_rs)
 endif
 
 # meson doesn't like generated output in other directories

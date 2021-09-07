@@ -7,6 +7,10 @@ publish = false
 [dependencies]
 common = { path = "../rust/common" }
 
+[lib]
+path = "lib.rs"
+crate-type = ["staticlib"]
+
 [[bin]]
 name = "qapi-cabi-rs"
 path = "qapi-cabi.rs"
