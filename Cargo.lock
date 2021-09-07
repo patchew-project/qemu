@@ -61,3 +61,10 @@ dependencies = [
  "libc",
  "memoffset",
 ]
+
+[[package]]
+name = "qemu-tests"
+version = "0.0.1"
+dependencies = [
+ "common",
+]

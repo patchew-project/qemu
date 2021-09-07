@@ -118,6 +118,7 @@ cargo_wrapper = [
   find_program('scripts/cargo_wrapper.py'),
   '--configh', meson.current_build_dir() / 'config-host.h'
 ]
+diff_commands = find_program('scripts/diff_commands.py')
 
 if with_rust
   rust_target_triple = get_option('with_rust_target')
@@ -212,7 +213,9 @@ iokit = []
 emulator_link_args = []
 nvmm =not_found
 hvf = not_found
+exe_suffix = ''
 if targetos == 'windows'
+  exe_suffix = '.exe'
   socket = cc.find_library('ws2_32')
   winmm = cc.find_library('winmm')
 

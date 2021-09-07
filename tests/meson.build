@@ -52,6 +52,19 @@ if with_rust
                                command: [ qapi_gen, '-o', meson.current_build_dir(),
                                           '-r', '-b', '-p', 'test-', '@INPUT0@' ],
                                depend_files: qapi_gen_depends)
+  qapi_cabi_rs = custom_target('qapi-cabi-rs',
+                               output: ['qapi-cabi-rs' + exe_suffix],
+                               build_always_stale: true,
+                               depends: [test_qapi_rs],
+                               command: [cargo_wrapper,
+                                         meson.current_build_dir(),
+                                         meson.current_source_dir(),
+                                         meson.build_root(),
+                                         rs_build_type,
+                                         rust_target_triple,
+                                         'build-bin',
+                                         'qapi-cabi-rs',
+                                         '--', '--cfg', 'QAPI_CABI'])
 endif
 
 # meson doesn't like generated output in other directories
@@ -75,10 +88,18 @@ testqapi = declare_dependency(link_with: libtestqapi,
                               dependencies: [qemuutil],
                               sources: [genh, test_qapi_headers])
 
-executable('qapi-cabi',
-           files('qapi-cabi.c'),
-           dependencies: testqapi,
-           c_args: ['-DQAPI_CABI'])
+qapi_cabi = executable('qapi-cabi',
+                       files('qapi-cabi.c'),
+                       dependencies: testqapi,
+                       c_args: ['-DQAPI_CABI'])
+
+if with_rust
+  test('Test QAPI CABI diff',
+       diff_commands,
+       args: [qapi_cabi.full_path(), qapi_cabi_rs.full_path()],
+       depends: [qapi_cabi, qapi_cabi_rs],
+       suite: ['qapi'])
+endif
 
 test_deps = {
   'test-qht-par': qht_bench,
