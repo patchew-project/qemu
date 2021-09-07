@@ -34,6 +34,9 @@ class FedoraVM(basevm.BaseVM):
         'git-core',
         'gcc', 'binutils', 'make', 'ninja-build',
 
+        # Rust
+        'cargo', 'rust',
+
         # perl
         'perl-Test-Harness',
 
