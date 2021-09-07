@@ -54,8 +54,17 @@ foreach o: test_qapi_files.to_list() + test_qapi_files_extra.to_list()
   test_qapi_sources += o
 endforeach
 
-libtestqapi = static_library('testqapi', sources: [genh, test_qapi_sources])
-testqapi = declare_dependency(link_with: libtestqapi, sources: [genh, test_qapi_headers])
+libtestqapi = static_library('testqapi',
+                             sources: [genh, test_qapi_sources],
+                             c_args: ['-DQAPI_CABI'])
+testqapi = declare_dependency(link_with: libtestqapi,
+                              dependencies: [qemuutil],
+                              sources: [genh, test_qapi_headers])
+
+executable('qapi-cabi',
+           files('qapi-cabi.c'),
+           dependencies: testqapi,
+           c_args: ['-DQAPI_CABI'])
 
 test_deps = {
   'test-qht-par': qht_bench,
