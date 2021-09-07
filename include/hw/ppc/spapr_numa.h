@@ -25,5 +25,6 @@ int spapr_numa_fixup_cpu_dt(SpaprMachineState *spapr, void *fdt,
 int spapr_numa_write_assoc_lookup_arrays(SpaprMachineState *spapr, void *fdt,
                                          int offset);
 unsigned int spapr_numa_initial_nvgpu_numa_id(MachineState *machine);
+void spapr_numa_check_FORM1_constraints(MachineState *machine);
 
 #endif /* HW_SPAPR_NUMA_H */

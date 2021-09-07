@@ -1202,9 +1202,15 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
      * If the guest chooses FORM2 we need to reset the associativity
      * information - it is being defaulted to FORM1 during
      * spapr_machine_reset().
+     *
+     * If we're sure that we'll be using FORM1, verify now if we have
+     * a configuration or condition that is not available for FORM1
+     * (namely asymmetric NUMA topologies and empty NUMA nodes).
      */
     if (spapr_ovec_test(spapr->ov5_cas, OV5_FORM2_AFFINITY)) {
         spapr_numa_associativity_reset(spapr);
+    } else {
+        spapr_numa_check_FORM1_constraints(MACHINE(spapr));
     }
 
     /*
