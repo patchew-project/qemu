@@ -128,6 +128,9 @@ class QAPISchemaVisitor:
     def visit_module(self, name):
         pass
 
+    def visit_module_end(self, name) -> None:
+        pass
+
     def visit_needed(self, entity):
         # Default to visiting everything
         return True
@@ -207,6 +210,7 @@ class QAPISchemaModule:
         for entity in self._entity_list:
             if visitor.visit_needed(entity):
                 entity.visit(visitor)
+        visitor.visit_module_end(self.name)
 
 
 class QAPISchemaInclude(QAPISchemaEntity):
