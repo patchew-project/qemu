@@ -9,7 +9,7 @@ import re
 import subprocess
 from typing import NamedTuple, Optional
 
-from .common import POINTER_SUFFIX
+from .common import POINTER_SUFFIX, mcgen
 from .gen import QAPIGen
 from .schema import QAPISchemaModule, QAPISchemaVisitor
 
@@ -51,6 +51,64 @@ def rs_name(name: str, protect: bool = True) -> str:
         name = 'Qapi' + name
 
     return name
+
+
+def rs_type(c_type: str,
+            qapi_ns: Optional[str] = 'qapi::',
+            optional: Optional[bool] = False,
+            box: bool = False) -> str:
+    (is_pointer, _, is_list, c_type) = rs_ctype_parse(c_type)
+    # accepts QAPI types ('any', 'str', ...) as we translate
+    # qapiList to Rust FFI types here.
+    to_rs = {
+        'any': 'QObject',
+        'bool': 'bool',
+        'char': 'i8',
+        'double': 'f64',
+        'int': 'i64',
+        'int16': 'i16',
+        'int16_t': 'i16',
+        'int32': 'i32',
+        'int32_t': 'i32',
+        'int64': 'i64',
+        'int64_t': 'i64',
+        'int8': 'i8',
+        'int8_t': 'i8',
+        'null': 'QNull',
+        'number': 'f64',
+        'size': 'u64',
+        'str': 'String',
+        'uint16': 'u16',
+        'uint16_t': 'u16',
+        'uint32': 'u32',
+        'uint32_t': 'u32',
+        'uint64': 'u64',
+        'uint64_t': 'u64',
+        'uint8': 'u8',
+        'uint8_t': 'u8',
+        'String': 'QapiString',
+    }
+    if is_pointer:
+        to_rs.update({
+            'char': 'String',
+        })
+
+    if is_list:
+        c_type = c_type[:-4]
+
+    to_rs = to_rs.get(c_type)
+    if to_rs:
+        ret = to_rs
+    else:
+        ret = qapi_ns + c_type
+
+    if is_list:
+        ret = 'Vec<%s>' % ret
+    elif is_pointer and not to_rs and box:
+        ret = 'Box<%s>' % ret
+    if optional:
+        ret = 'Option<%s>' % ret
+    return ret
 
 
 class CType(NamedTuple):
@@ -138,6 +196,40 @@ def to_camel_case(value: str) -> str:
 
 def to_snake_case(value: str) -> str:
     return snake_case.sub(r'_\1', value).lower()
+
+
+def to_qemu_none(c_type: str, name: str) -> str:
+    (is_pointer, _, is_list, _) = rs_ctype_parse(c_type)
+
+    if is_pointer:
+        if c_type == 'char':
+            return mcgen('''
+    let %(name)s_ = CString::new(%(name)s).unwrap();
+    let %(name)s = %(name)s_.as_ptr();
+''', name=name)
+        if is_list:
+            return mcgen('''
+    let %(name)s_ = NewPtr(%(name)s).to_qemu_none();
+    let %(name)s = %(name)s_.0.0;
+''', name=name)
+        return mcgen('''
+    let %(name)s_ = %(name)s.to_qemu_none();
+    let %(name)s = %(name)s_.0;
+''', name=name)
+    return ''
+
+
+def from_qemu(var_name: str, c_type: str, full: Optional[bool] = False) -> str:
+    (is_pointer, _, is_list, c_type) = rs_ctype_parse(c_type)
+    ptr = '{} as *{} _'.format(var_name, 'mut' if full else 'const')
+    if is_list:
+        ptr = 'NewPtr({})'.format(ptr)
+    if is_pointer:
+        ret = 'from_qemu_{}({})'.format('full' if full else 'none', ptr)
+        if c_type != 'char' and not is_list:
+            ret = 'Box::new(%s)' % ret
+        return ret
+    return var_name
 
 
 class QAPIGenRs(QAPIGen):

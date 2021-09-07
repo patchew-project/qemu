@@ -17,6 +17,7 @@ from .error import QAPIError
 from .events import gen_events
 from .introspect import gen_introspect
 from .rs_ffi import gen_rs_ffitypes
+from .rs_types import gen_rs_types
 from .schema import QAPISchema
 from .types import gen_types
 from .visit import gen_visit
@@ -52,6 +53,7 @@ def generate(schema_file: str,
     schema = QAPISchema(schema_file)
     if rust:
         gen_rs_ffitypes(schema, output_dir, prefix)
+        gen_rs_types(schema, output_dir, prefix)
     else:
         gen_types(schema, output_dir, prefix, builtins)
         gen_visit(schema, output_dir, prefix, builtins)
