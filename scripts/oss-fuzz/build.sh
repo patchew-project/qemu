@@ -73,7 +73,7 @@ if ! make "-j$(nproc)" qemu-fuzz-i386; then
           "\nFor example: CC=clang CXX=clang++ $0"
 fi
 
-if [ "$GITLAB_CI" != "true" ]; then
+if [ -z ${GITLAB_CI+x} ]; then
     for i in $(ldd ./qemu-fuzz-i386 | cut -f3 -d' '); do
         cp "$i" "$DEST_DIR/lib/"
     done
