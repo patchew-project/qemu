@@ -47,7 +47,7 @@ static void build_prepend_byte(GArray *array, uint8_t val)
     g_array_prepend_val(array, val);
 }
 
-static void build_append_byte(GArray *array, uint8_t val)
+void build_append_byte(GArray *array, uint8_t val)
 {
     g_array_append_val(array, val);
 }
