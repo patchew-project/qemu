@@ -7,6 +7,7 @@
 from typing import List, Optional
 
 from .common import c_enum_const, c_name, mcgen
+from .rs import rs_name, to_snake_case
 from .schema import (
     QAPISchemaEnumMember,
     QAPISchemaIfCond,
@@ -22,6 +23,9 @@ class CABI:
         self.ifcond = ifcond
 
     def gen_c(self) -> str:
+        raise NotImplementedError()
+
+    def gen_rs(self) -> str:
         raise NotImplementedError()
 
 
@@ -47,6 +51,19 @@ class CABIEnum(CABI):
 """, name=self.name, cname=c_name(self.name), last=last)
         ret += self.ifcond.gen_endif()
         return ret
+
+    def gen_rs(self) -> str:
+        return mcgen("""
+%(cfg)s
+{
+    println!("%(name)s enum: sizeof={}", ::std::mem::size_of::<%(rs_name)s>());
+    println!(" max={}", %(rs_name)s::_MAX as u32);
+    println!();
+}
+""",
+                     name=self.name,
+                     rs_name=rs_name(self.name),
+                     cfg=self.ifcond.rsgen())
 
 
 class CABIStruct(CABI):
@@ -84,6 +101,21 @@ class CABIStruct(CABI):
         ret += self.ifcond.gen_endif()
         return ret
 
+    def gen_rs(self) -> str:
+        ret = mcgen("""
+%(cfg)s
+{
+    println!("%(name)s struct: sizeof={}",
+        ::std::mem::size_of::<%(rs_name)s>());
+""", name=self.name, rs_name=rs_name(self.name), cfg=self.ifcond.rsgen())
+        for member in self.members:
+            ret += member.gen_rs()
+        ret += mcgen("""
+    println!();
+}
+""")
+        return ret
+
 
 class CABIStructMember:
     def __init__(self, struct: CABIStruct, name: str,
@@ -103,6 +135,24 @@ class CABIStructMember:
             offsetof(struct %(sname)s, %(cmember)s));
 """, member=self.name, sname=self.struct.name, cmember=cmember)
         ret += self.ifcond.gen_endif()
+        return ret
+
+    def gen_rs(self) -> str:
+        ret = ''
+        if self.ifcond:
+            ret += self.ifcond.rsgen()
+        protect = not self.prefix or self.prefix[-1] == '.'
+        rsmember = self.prefix + to_snake_case(rs_name(self.name, protect))
+        ret += mcgen("""
+unsafe {
+    println!(" %(member)s member: sizeof={} offset={}",
+        ::std::mem::size_of_val(
+            &(*::std::ptr::null::<%(sname)s>()).%(rsmember)s
+        ),
+        &(*(::std::ptr::null::<%(sname)s>())).%(rsmember)s as *const _ as usize
+    );
+}
+""", member=self.name, sname=rs_name(self.struct.name), rsmember=rsmember)
         return ret
 
 
