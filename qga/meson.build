@@ -21,6 +21,18 @@ qga_qapi_files = custom_target('QGA QAPI files',
                                command: [ qapi_gen, '-o', 'qga', '-p', 'qga-', '@INPUT0@' ],
                                depend_files: qapi_gen_depends)
 
+i = 0
+srcs = [files('qapi-cabi.c')]
+foreach output: qga_qapi_outputs
+  if output.startswith('qga-qapi-types') or output.startswith('qga-qapi-visit')
+    srcs += qga_qapi_files[i]
+  endif
+  i += 1
+endforeach
+qga_qapi_cabi = executable('qapi-cabi', srcs,
+                           dependencies: [qemuutil],
+                           c_args: ['-DQAPI_CABI'])
+
 qga_ss = ss.source_set()
 qga_ss.add(qga_qapi_files.to_list())
 qga_ss.add(files(
