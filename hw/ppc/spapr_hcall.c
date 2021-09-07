@@ -11,6 +11,7 @@
 #include "helper_regs.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_cpu_core.h"
+#include "hw/ppc/spapr_numa.h"
 #include "mmu-hash64.h"
 #include "cpu-models.h"
 #include "trace.h"
@@ -1196,6 +1197,15 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
 
     spapr->cas_pre_isa3_guest = !spapr_ovec_test(ov1_guest, OV1_PPC_3_00);
     spapr_ovec_cleanup(ov1_guest);
+
+    /*
+     * If the guest chooses FORM2 we need to reset the associativity
+     * information - it is being defaulted to FORM1 during
+     * spapr_machine_reset().
+     */
+    if (spapr_ovec_test(spapr->ov5_cas, OV5_FORM2_AFFINITY)) {
+        spapr_numa_associativity_reset(spapr);
+    }
 
     /*
      * Ensure the guest asks for an interrupt mode we support;
