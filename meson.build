@@ -108,6 +108,29 @@ endif
 
 bzip2 = find_program('bzip2', required: install_edk2_blobs)
 
+cargo = find_program('cargo', required: get_option('with_rust'))
+with_rust = cargo.found()
+
+if with_rust
+  rust_target_triple = get_option('with_rust_target')
+  if meson.is_cross_build()
+    # more default target mappings may be added over time
+    if rust_target_triple == '' and targetos == 'windows'
+      rust_target_triple = host_machine.cpu() + '-pc-windows-gnu'
+    endif
+    if rust_target_triple == ''
+      error('cross-compiling, but no Rust target-triple defined.')
+    endif
+  endif
+endif
+config_host_data.set('CONFIG_WITH_RUST', with_rust)
+
+if get_option('optimization') in ['0', '1', 'g']
+  rs_build_type = 'debug'
+else
+  rs_build_type = 'release'
+endif
+
 ##################
 # Compiler flags #
 ##################
@@ -2915,6 +2938,10 @@ if targetos == 'windows'
   if 'WIN_SDK' in config_host
     summary_info += {'Windows SDK':   config_host['WIN_SDK']}
   endif
+endif
+summary_info += {'Rust support':      with_rust}
+if with_rust and rust_target_triple != ''
+  summary_info += {'Rust target':     rust_target_triple}
 endif
 summary_info += {'CFLAGS':            ' '.join(get_option('c_args')
                                                + ['-O' + get_option('optimization')]
