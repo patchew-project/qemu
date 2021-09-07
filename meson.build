@@ -110,6 +110,10 @@ bzip2 = find_program('bzip2', required: install_edk2_blobs)
 
 cargo = find_program('cargo', required: get_option('with_rust'))
 with_rust = cargo.found()
+cargo_wrapper = [
+  find_program('scripts/cargo_wrapper.py'),
+  '--configh', meson.current_build_dir() / 'config-host.h'
+]
 
 if with_rust
   rust_target_triple = get_option('with_rust_target')
