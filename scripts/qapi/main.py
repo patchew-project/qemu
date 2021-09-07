@@ -16,6 +16,7 @@ from .common import must_match
 from .error import QAPIError
 from .events import gen_events
 from .introspect import gen_introspect
+from .rs_ffi import gen_rs_ffitypes
 from .schema import QAPISchema
 from .types import gen_types
 from .visit import gen_visit
@@ -32,7 +33,8 @@ def generate(schema_file: str,
              output_dir: str,
              prefix: str,
              unmask: bool = False,
-             builtins: bool = False) -> None:
+             builtins: bool = False,
+             rust: bool = False) -> None:
     """
     Generate C code for the given schema into the target directory.
 
@@ -41,17 +43,21 @@ def generate(schema_file: str,
     :param prefix: Optional C-code prefix for symbol names.
     :param unmask: Expose non-ABI names through introspection?
     :param builtins: Generate code for built-in types?
+    :param rust: Generate Rust binding code?
 
     :raise QAPIError: On failures.
     """
     assert invalid_prefix_char(prefix) is None
 
     schema = QAPISchema(schema_file)
-    gen_types(schema, output_dir, prefix, builtins)
-    gen_visit(schema, output_dir, prefix, builtins)
-    gen_commands(schema, output_dir, prefix)
-    gen_events(schema, output_dir, prefix)
-    gen_introspect(schema, output_dir, prefix, unmask)
+    if rust:
+        gen_rs_ffitypes(schema, output_dir, prefix)
+    else:
+        gen_types(schema, output_dir, prefix, builtins)
+        gen_visit(schema, output_dir, prefix, builtins)
+        gen_commands(schema, output_dir, prefix)
+        gen_events(schema, output_dir, prefix)
+        gen_introspect(schema, output_dir, prefix, unmask)
 
 
 def main() -> int:
@@ -74,6 +80,8 @@ def main() -> int:
     parser.add_argument('-u', '--unmask-non-abi-names', action='store_true',
                         dest='unmask',
                         help="expose non-ABI names in introspection")
+    parser.add_argument('-r', '--rust', action='store_true',
+                        help="generate Rust binding code")
     parser.add_argument('schema', action='store')
     args = parser.parse_args()
 
@@ -88,7 +96,8 @@ def main() -> int:
                  output_dir=args.output_dir,
                  prefix=args.prefix,
                  unmask=args.unmask,
-                 builtins=args.builtins)
+                 builtins=args.builtins,
+                 rust=args.rust)
     except QAPIError as err:
         print(f"{sys.argv[0]}: {str(err)}", file=sys.stderr)
         return 1
