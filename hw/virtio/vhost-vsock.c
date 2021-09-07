@@ -114,8 +114,10 @@ static uint64_t vhost_vsock_get_features(VirtIODevice *vdev,
                                          Error **errp)
 {
     VHostVSockCommon *vvc = VHOST_VSOCK_COMMON(vdev);
+    VHostVSock *vsock = VHOST_VSOCK(vdev);
 
-    virtio_add_feature(&requested_features, VIRTIO_VSOCK_F_SEQPACKET);
+    requested_features |= vsock->features;
+
     return vhost_get_features(&vvc->vhost_dev, feature_bits,
                                 requested_features);
 }
@@ -218,6 +220,8 @@ static void vhost_vsock_device_unrealize(DeviceState *dev)
 static Property vhost_vsock_properties[] = {
     DEFINE_PROP_UINT64("guest-cid", VHostVSock, conf.guest_cid, 0),
     DEFINE_PROP_STRING("vhostfd", VHostVSock, conf.vhostfd),
+    DEFINE_PROP_BIT64("seqpacket", VHostVSock, features,
+                      VIRTIO_VSOCK_F_SEQPACKET, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
