@@ -58,6 +58,7 @@ qga_rs = declare_dependency()
 if with_rust
   qga_qapi_rs_outputs = [
     'qga-qapi-ffi-types.rs',
+    'qga-qapi-types.rs',
   ]
 
   qapi_gen_rs_files = custom_target('QGA QAPI Rust bindings',
