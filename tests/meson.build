@@ -31,14 +31,28 @@ test_qapi_outputs = [
   'test-qapi-visit.h',
 ]
 
+test_qapi_inputs = files(
+  'qapi-schema/qapi-schema-test.json',
+  'qapi-schema/include/sub-module.json',
+  'qapi-schema/sub-sub-module.json'
+)
+
 test_qapi_files = custom_target('Test QAPI files',
                                 output: test_qapi_outputs,
-                                input: files('qapi-schema/qapi-schema-test.json',
-                                             'qapi-schema/include/sub-module.json',
-                                             'qapi-schema/sub-sub-module.json'),
+                                input: test_qapi_inputs,
                                 command: [ qapi_gen, '-o', meson.current_build_dir(),
                                            '-b', '-p', 'test-', '@INPUT0@' ],
                                 depend_files: qapi_gen_depends)
+
+if with_rust
+  test_qapi_rs_outputs = ['test-qapi-ffi-types.rs']
+  test_qapi_rs = custom_target('Test QAPI Rust binding',
+                               output: test_qapi_rs_outputs,
+                               input: test_qapi_inputs,
+                               command: [ qapi_gen, '-o', meson.current_build_dir(),
+                                          '-r', '-b', '-p', 'test-', '@INPUT0@' ],
+                               depend_files: qapi_gen_depends)
+endif
 
 # meson doesn't like generated output in other directories
 # perhaps change qapi_gen to replace / with _, like Meson itself does?
