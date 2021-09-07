@@ -108,7 +108,11 @@ endif
 
 bzip2 = find_program('bzip2', required: install_edk2_blobs)
 
-cargo = find_program('cargo', required: get_option('with_rust'))
+cargo = find_program('cargo',
+                     required: get_option('with_rust'),
+                     # require --offline support (1.36), but fixed (1.42)
+                     version: '>= 1.42')
+
 with_rust = cargo.found()
 cargo_wrapper = [
   find_program('scripts/cargo_wrapper.py'),
@@ -126,6 +130,7 @@ if with_rust
       error('cross-compiling, but no Rust target-triple defined.')
     endif
   endif
+  subdir('.cargo')
 endif
 config_host_data.set('CONFIG_WITH_RUST', with_rust)
 

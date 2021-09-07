@@ -78,6 +78,7 @@ def get_cargo_rustc(
         target_dir,
         "--manifest-path",
         manifest_path,
+        "--offline",
     ]
     cargo_cmd += cargo_rustc_args
     if args.target_triple:

@@ -2068,6 +2068,14 @@ if test -z "$ninja"; then
     fi
 fi
 
+case "$with_rust" in
+  auto|enabled)
+    if test -e "${source_path}/.git"; then
+      git_submodules="${git_submodules} rust/vendored"
+    fi
+    ;;
+esac
+
 # Check that the C compiler works. Doing this here before testing
 # the host CPU ensures that we had a valid CC to autodetect the
 # $cpu var (and we should bail right here if that's not the case).
