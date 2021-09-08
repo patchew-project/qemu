@@ -106,6 +106,21 @@ void cpu_dump_state(CPUState *cpu, FILE *f, int flags)
     if (cc->dump_state) {
         cpu_synchronize_state(cpu);
         cc->dump_state(cpu, f, flags);
+    } else if (cc->format_state) {
+        g_autoptr(GString) buf = g_string_new("");
+        cpu_synchronize_state(cpu);
+        cc->format_state(cpu, buf, flags);
+        qemu_fprintf(f, "%s", buf->str);
+    }
+}
+
+void cpu_format_state(CPUState *cpu, GString *buf, int flags)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    if (cc->format_state) {
+        cpu_synchronize_state(cpu);
+        cc->format_state(cpu, buf, flags);
     }
 }
 

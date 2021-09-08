@@ -91,7 +91,8 @@ struct SysemuCPUOps;
  * @reset_dump_flags: #CPUDumpFlags to use for reset logging.
  * @has_work: Callback for checking if there is work to do.
  * @memory_rw_debug: Callback for GDB memory access.
- * @dump_state: Callback for dumping state.
+ * @dump_state: Callback for dumping state. Deprecated, use @format_state.
+ * @format_state: Callback for formatting state.
  * @get_arch_id: Callback for getting architecture-dependent CPU ID.
  * @set_pc: Callback for setting the Program Counter register. This
  *       should have the semantics used by the target architecture when
@@ -136,6 +137,7 @@ struct CPUClass {
     int (*memory_rw_debug)(CPUState *cpu, vaddr addr,
                            uint8_t *buf, int len, bool is_write);
     void (*dump_state)(CPUState *cpu, FILE *, int flags);
+    void (*format_state)(CPUState *cpu, GString *buf, int flags);
     int64_t (*get_arch_id)(CPUState *cpu);
     void (*set_pc)(CPUState *cpu, vaddr value);
     int (*gdb_read_register)(CPUState *cpu, GByteArray *buf, int reg);
@@ -536,6 +538,15 @@ enum CPUDumpFlags {
  * Dumps CPU state.
  */
 void cpu_dump_state(CPUState *cpu, FILE *f, int flags);
+
+/**
+ * cpu_format_state:
+ * @cpu: The CPU whose state is to be formatted.
+ * @buf: buffer to format state into
+ *
+ * Formats the CPU state.
+ */
+void cpu_format_state(CPUState *cpu, GString *buf, int flags);
 
 #ifndef CONFIG_USER_ONLY
 /**
