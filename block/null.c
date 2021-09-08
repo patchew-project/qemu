@@ -99,6 +99,13 @@ static int null_file_open(BlockDriverState *bs, QDict *options, int flags,
     return ret;
 }
 
+static bool null_taints_security_policy(BlockDriverState *bs)
+{
+    BDRVNullState *s = bs->opaque;
+
+    return !s->read_zeroes;
+}
+
 static int64_t null_getlength(BlockDriverState *bs)
 {
     BDRVNullState *s = bs->opaque;
@@ -283,6 +290,7 @@ static BlockDriver bdrv_null_co = {
     .bdrv_parse_filename    = null_co_parse_filename,
     .bdrv_getlength         = null_getlength,
     .bdrv_get_allocated_file_size = null_allocated_file_size,
+    .bdrv_taints_security_policy = null_taints_security_policy,
 
     .bdrv_co_preadv         = null_co_preadv,
     .bdrv_co_pwritev        = null_co_pwritev,
