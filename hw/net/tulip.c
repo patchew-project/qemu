@@ -1025,6 +1025,7 @@ static void tulip_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, tulip_properties);
     dc->reset = tulip_qdev_reset;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
+    dc->taints_security_policy = true;
 }
 
 static const TypeInfo tulip_info = {
