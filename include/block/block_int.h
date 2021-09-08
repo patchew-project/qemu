@@ -169,7 +169,11 @@ struct BlockDriver {
     int (*bdrv_file_open)(BlockDriverState *bs, QDict *options, int flags,
                           Error **errp);
     void (*bdrv_close)(BlockDriverState *bs);
-
+    /*
+     * Return %true if the driver is withing QEMU security policy boundary,
+     * %false otherwise. See: https://www.qemu.org/contribute/security-process/
+     */
+    bool (*bdrv_taints_security_policy)(BlockDriverState *bs);
 
     int coroutine_fn (*bdrv_co_create)(BlockdevCreateOptions *opts,
                                        Error **errp);

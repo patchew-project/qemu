@@ -49,6 +49,7 @@
 #include "qemu/timer.h"
 #include "qemu/cutils.h"
 #include "qemu/id.h"
+#include "qemu-common.h"
 #include "block/coroutines.h"
 
 #ifdef CONFIG_BSD
@@ -1585,6 +1586,11 @@ static int bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv,
         if (drv->bdrv_co_drain_begin) {
             drv->bdrv_co_drain_begin(bs);
         }
+    }
+
+    if (drv->bdrv_taints_security_policy) {
+        qemu_security_policy_taint(drv->bdrv_taints_security_policy(bs),
+                                   "Block protocol '%s'", drv->format_name);
     }
 
     return 0;
