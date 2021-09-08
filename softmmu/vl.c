@@ -2388,6 +2388,9 @@ static int do_configure_accelerator(void *opaque, QemuOpts *opts, Error **errp)
         return 0;
     }
 
+    qemu_security_policy_taint(!ac->secure_policy_supported,
+                               "%s accelerator", acc);
+
     return 1;
 }
 

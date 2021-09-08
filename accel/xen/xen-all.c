@@ -198,6 +198,7 @@ static void xen_accel_class_init(ObjectClass *oc, void *data)
     ac->setup_post = xen_setup_post;
     ac->allowed = &xen_allowed;
     ac->compat_props = g_ptr_array_new();
+    ac->secure_policy_supported = true;
 
     compat_props_add(ac->compat_props, compat, G_N_ELEMENTS(compat));
 

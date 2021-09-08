@@ -45,6 +45,11 @@ typedef struct AccelClass {
 #endif
     bool *allowed;
     /*
+     * Whether the accelerator is withing QEMU security policy boundary.
+     * See: https://www.qemu.org/contribute/security-process/
+     */
+    bool secure_policy_supported;
+    /*
      * Array of global properties that would be applied when specific
      * accelerator is chosen. It works like MachineClass.compat_props
      * but it's for accelerators not machines. Accelerator-provided
