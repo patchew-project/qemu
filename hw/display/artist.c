@@ -1482,6 +1482,7 @@ static void artist_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_artist;
     dc->reset = artist_reset;
     device_class_set_props(dc, artist_properties);
+    dc->taints_security_policy = true;
 }
 
 static const TypeInfo artist_info = {

@@ -1024,6 +1024,7 @@ static void ati_vga_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, ati_vga_properties);
     dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
+    dc->taints_security_policy = true;
 
     k->class_id = PCI_CLASS_DISPLAY_VGA;
     k->vendor_id = PCI_VENDOR_ID_ATI;
