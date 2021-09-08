@@ -64,6 +64,7 @@ static void sdhci_pci_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_REDHAT_SDHCI;
     k->class_id = PCI_CLASS_SYSTEM_SDHCI;
     device_class_set_props(dc, sdhci_pci_properties);
+    dc->taints_security_policy = true;
 
     sdhci_common_class_init(klass, data);
 }
