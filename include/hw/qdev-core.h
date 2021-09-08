@@ -122,6 +122,12 @@ struct DeviceClass {
      */
     bool user_creatable;
     bool hotpluggable;
+    /*
+     * %false if the device is within the QEMU security policy boundary,
+     * %true if there is no guarantee this device can be used safely.
+     * See: https://www.qemu.org/contribute/security-process/
+     */
+    bool taints_security_policy;
 
     /* callbacks */
     /*

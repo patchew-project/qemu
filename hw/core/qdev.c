@@ -31,6 +31,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qapi/visitor.h"
 #include "qemu/error-report.h"
+#include "qemu-common.h"
 #include "qemu/option.h"
 #include "hw/hotplug.h"
 #include "hw/irq.h"
@@ -257,6 +258,13 @@ bool qdev_hotplug_allowed(DeviceState *dev, Error **errp)
     MachineClass *mc;
     Object *m_obj = qdev_get_machine();
 
+    if (qemu_security_policy_is_strict()
+            && DEVICE_GET_CLASS(dev)->taints_security_policy) {
+        error_setg(errp, "Device '%s' can not be hotplugged when"
+                         " 'strict' security policy is in place",
+                   object_get_typename(OBJECT(dev)));
+    }
+
     if (object_dynamic_cast(m_obj, TYPE_MACHINE)) {
         machine = MACHINE(m_obj);
         mc = MACHINE_GET_CLASS(machine);
@@ -385,6 +393,9 @@ bool qdev_realize(DeviceState *dev, BusState *bus, Error **errp)
     } else {
         assert(!DEVICE_GET_CLASS(dev)->bus_type);
     }
+    qemu_security_policy_taint(DEVICE_GET_CLASS(dev)->taints_security_policy,
+                               "device type %s",
+                               object_get_typename(OBJECT(dev)));
 
     return object_property_set_bool(OBJECT(dev), "realized", true, errp);
 }
