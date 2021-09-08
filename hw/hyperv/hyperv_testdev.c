@@ -310,6 +310,7 @@ static void hv_test_dev_class_init(ObjectClass *klass, void *data)
 
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->realize = hv_test_dev_realizefn;
+    dc->taints_security_policy = true;
 }
 
 static const TypeInfo hv_test_dev_info = {
