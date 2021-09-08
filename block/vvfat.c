@@ -3199,6 +3199,11 @@ static void vvfat_close(BlockDriverState *bs)
     }
 }
 
+static bool vvfat_taints_security_policy(BlockDriverState *bs)
+{
+    return true;
+}
+
 static const char *const vvfat_strong_runtime_opts[] = {
     "dir",
     "fat-type",
@@ -3219,6 +3224,7 @@ static BlockDriver bdrv_vvfat = {
     .bdrv_refresh_limits    = vvfat_refresh_limits,
     .bdrv_close             = vvfat_close,
     .bdrv_child_perm        = vvfat_child_perm,
+    .bdrv_taints_security_policy = vvfat_taints_security_policy,
 
     .bdrv_co_preadv         = vvfat_co_preadv,
     .bdrv_co_pwritev        = vvfat_co_pwritev,
