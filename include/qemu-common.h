@@ -139,4 +139,23 @@ void page_size_init(void);
  * returned. */
 bool dump_in_progress(void);
 
+/**
+ * qemu_security_policy_taint:
+ * @tainting whether any security policy is tainted (compromised).
+ * @fmt: taint reason format string
+ * ...: list of arguments to interpolate into @fmt, like printf().
+ *
+ * Allow unsafe code path to taint the global security policy.
+ * See #SecurityPolicy.
+ */
+void qemu_security_policy_taint(bool tainting, const char *fmt, ...)
+        GCC_FMT_ATTR(2, 3);
+
+/**
+ * qemu_security_policy_is_strict:
+ *
+ * Return %true if the global security policy is 'strict', %false otherwise.
+ */
+bool qemu_security_policy_is_strict(void);
+
 #endif

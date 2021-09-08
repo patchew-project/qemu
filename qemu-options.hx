@@ -4298,6 +4298,23 @@ SRST
 
 ERST
 
+DEF("security-policy", HAS_ARG, QEMU_OPTION_security_policy, \
+    "-security-policy none|warn|strict\n" \
+    "                 action when security policy is tainted [default=none]\n",
+    QEMU_ARCH_ALL)
+SRST
+``-security-policy policy``
+    The policy controls what QEMU will do when an unsecure feature is
+    used, tainting the process security. The default is ``none`` (do
+    nothing). Other possible actions are: ``warn`` (display a warning
+    and keep going) or ``strict`` (exits QEMU before launching a VM).
+
+    Examples:
+
+    ``-security-policy warn``; \ ``-security-policy strict``
+
+ERST
+
 DEF("echr", HAS_ARG, QEMU_OPTION_echr, \
     "-echr chr       set terminal escape character instead of ctrl-a\n",
     QEMU_ARCH_ALL)

@@ -638,3 +638,19 @@
 { 'struct': 'MemoryFailureFlags',
   'data': { 'action-required': 'bool',
             'recursive': 'bool'} }
+
+##
+# @SecurityPolicy:
+#
+# An enumeration of the actions taken when the security policy is tainted.
+#
+# @none: do nothing.
+#
+# @warn: display a warning.
+#
+# @strict: prohibit QEMU to start a VM.
+#
+# Since: 6.2
+##
+{ 'enum': 'SecurityPolicy',
+  'data': [ 'none', 'warn', 'strict' ] }

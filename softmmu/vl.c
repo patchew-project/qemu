@@ -489,6 +489,20 @@ static QemuOptsList qemu_action_opts = {
     },
 };
 
+static QemuOptsList qemu_security_policy_opts = {
+    .name = "security-policy",
+    .implied_opt_name = "policy",
+    .merge_lists = true,
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_security_policy_opts.head),
+    .desc = {
+        {
+            .name = "policy",
+            .type = QEMU_OPT_STRING,
+        },
+        { /* end of list */ }
+    },
+};
+
 const char *qemu_get_vm_name(void)
 {
     return qemu_name;
@@ -599,6 +613,52 @@ static int cleanup_add_fd(void *opaque, QemuOpts *opts, Error **errp)
     return 0;
 }
 #endif
+
+static SecurityPolicy security_policy = SECURITY_POLICY_NONE;
+
+bool qemu_security_policy_is_strict(void)
+{
+    return security_policy == SECURITY_POLICY_STRICT;
+}
+
+static int select_security_policy(const char *p)
+{
+    int policy;
+    char *qapi_value;
+
+    qapi_value = g_ascii_strdown(p, -1);
+    policy = qapi_enum_parse(&SecurityPolicy_lookup, qapi_value, -1, NULL);
+    g_free(qapi_value);
+    if (policy < 0) {
+        return -1;
+    }
+    security_policy = policy;
+
+    return 0;
+}
+
+void qemu_security_policy_taint(bool tainting, const char *fmt, ...)
+{
+    va_list ap;
+    g_autofree char *efmt = NULL;
+
+    if (security_policy == SECURITY_POLICY_NONE || !tainting) {
+        return;
+    }
+
+    va_start(ap, fmt);
+    if (security_policy == SECURITY_POLICY_STRICT) {
+        efmt = g_strdup_printf("%s taints QEMU security policy, exiting.", fmt);
+        error_vreport(efmt, ap);
+        exit(EXIT_FAILURE);
+    } else if (security_policy == SECURITY_POLICY_WARN) {
+        efmt = g_strdup_printf("%s taints QEMU security policy.", fmt);
+        warn_vreport(efmt, ap);
+    } else {
+        g_assert_not_reached();
+    }
+    va_end(ap);
+}
 
 /***********************************************************/
 /* QEMU Block devices */
@@ -2764,6 +2824,7 @@ void qemu_init(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_semihosting_config_opts);
     qemu_add_opts(&qemu_fw_cfg_opts);
     qemu_add_opts(&qemu_action_opts);
+    qemu_add_opts(&qemu_security_policy_opts);
     module_call_init(MODULE_INIT_OPTS);
 
     error_init(argv[0]);
@@ -3227,6 +3288,12 @@ void qemu_init(int argc, char **argv, char **envp)
             case QEMU_OPTION_watchdog_action:
                 if (select_watchdog_action(optarg) == -1) {
                     error_report("unknown -watchdog-action parameter");
+                    exit(1);
+                }
+                break;
+            case QEMU_OPTION_security_policy:
+                if (select_security_policy(optarg) == -1) {
+                    error_report("unknown -security-policy parameter");
                     exit(1);
                 }
                 break;
