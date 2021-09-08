@@ -204,3 +204,31 @@ MemdevList *qmp_query_memdev(Error **errp)
     object_child_foreach(obj, query_memdev, &list);
     return list;
 }
+
+RegisterInfo *qmp_x_query_registers(bool has_cpu, int64_t cpu, Error **errp)
+{
+    RegisterInfo *info = g_new0(RegisterInfo, 1);
+    g_autoptr(GString) buf = g_string_new("");
+    CPUState *cs = NULL, *tmp;
+
+    if (has_cpu) {
+        CPU_FOREACH(tmp) {
+            if (cpu == tmp->cpu_index) {
+                cs = tmp;
+            }
+        }
+        if (!cs) {
+            error_setg(errp, "CPU %"PRId64" not available", cpu);
+            return NULL;
+        }
+        cpu_format_state(cs, buf, CPU_DUMP_FPU);
+    } else {
+        CPU_FOREACH(cs) {
+            g_string_append_printf(buf, "\nCPU#%d\n", cs->cpu_index);
+            cpu_format_state(cs, buf, CPU_DUMP_FPU);
+        }
+    }
+
+    info->state = g_steal_pointer(&buf->str);
+    return info;
+}

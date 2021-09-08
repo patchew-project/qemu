@@ -1312,3 +1312,40 @@
      '*cores': 'int',
      '*threads': 'int',
      '*maxcpus': 'int' } }
+
+##
+# @RegisterParams:
+#
+# Information about the CPU to query state of
+#
+# @cpu: the CPU number to query. If omitted, queries all CPUs
+#
+# Since: 6.2.0
+#
+##
+{ 'struct': 'RegisterParams', 'data': {'*cpu': 'int' } }
+
+##
+# @RegisterInfo:
+#
+# Information about the CPU state
+#
+# @state: the CPU state in an architecture specific format
+#
+# Since: 6.2.0
+#
+##
+{ 'struct': 'RegisterInfo', 'data': {'state': 'str' } }
+
+##
+# @x-query-registers:
+#
+# Return information on the CPU registers
+#
+# Returns: the CPU state
+#
+# Since: 6.2.0
+##
+{ 'command': 'x-query-registers',
+  'data': 'RegisterParams',
+  'returns': 'RegisterInfo' }
