@@ -28,6 +28,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/char/serial.h"
 #include "target/riscv/cpu.h"
+#include "target/riscv/pmu.h"
 #include "hw/riscv/riscv_hart.h"
 #include "hw/riscv/virt.h"
 #include "hw/riscv/boot.h"
@@ -41,6 +42,7 @@
 #include "hw/pci/pci.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/display/ramfb.h"
+#include <libfdt.h>
 
 static const MemMapEntry virt_memmap[] = {
     [VIRT_DEBUG] =       {        0x0,         0x100 },
@@ -183,14 +185,14 @@ static void create_fdt(RISCVVirtState *s, const MemMapEntry *memmap,
     int i, cpu, socket;
     MachineState *mc = MACHINE(s);
     uint64_t addr, size;
-    uint32_t *clint_cells, *plic_cells;
+    uint32_t *clint_cells, *plic_cells, *pmu_int_cells;
     unsigned long clint_addr, plic_addr;
     uint32_t plic_phandle[MAX_NODES];
     uint32_t cpu_phandle, intc_phandle, test_phandle;
     uint32_t phandle = 1, plic_mmio_phandle = 1;
     uint32_t plic_pcie_phandle = 1, plic_virtio_phandle = 1;
     char *mem_name, *cpu_name, *core_name, *intc_name;
-    char *name, *clint_name, *plic_name, *clust_name;
+    char *name, *clint_name, *plic_name, *clust_name, *pmu_name;
     hwaddr flashsize = virt_memmap[VIRT_FLASH].size / 2;
     hwaddr flashbase = virt_memmap[VIRT_FLASH].base;
     static const char * const clint_compat[2] = {
@@ -239,6 +241,7 @@ static void create_fdt(RISCVVirtState *s, const MemMapEntry *memmap,
 
         plic_cells = g_new0(uint32_t, s->soc[socket].num_harts * 4);
         clint_cells = g_new0(uint32_t, s->soc[socket].num_harts * 4);
+        pmu_int_cells = g_new0(uint32_t, s->soc[socket].num_harts * 2);
 
         for (cpu = s->soc[socket].num_harts - 1; cpu >= 0; cpu--) {
             cpu_phandle = phandle++;
@@ -281,6 +284,9 @@ static void create_fdt(RISCVVirtState *s, const MemMapEntry *memmap,
             plic_cells[cpu * 4 + 2] = cpu_to_be32(intc_phandle);
             plic_cells[cpu * 4 + 3] = cpu_to_be32(IRQ_S_EXT);
 
+            pmu_int_cells[cpu * 2 + 0] = cpu_to_be32(intc_phandle);
+            pmu_int_cells[cpu * 2 + 1] = cpu_to_be32(IRQ_PMU_OVF);
+
             core_name = g_strdup_printf("%s/core%d", clust_name, cpu);
             qemu_fdt_add_subnode(fdt, core_name);
             qemu_fdt_setprop_cell(fdt, core_name, "cpu", cpu_phandle);
@@ -289,6 +295,21 @@ static void create_fdt(RISCVVirtState *s, const MemMapEntry *memmap,
             g_free(intc_name);
             g_free(cpu_name);
         }
+
+        pmu_name = g_strdup_printf("/soc/pmu");
+        qemu_fdt_add_subnode(fdt, pmu_name);
+        qemu_fdt_setprop_string(fdt, pmu_name, "compatible", "riscv,pmu");
+        RISCVCPU cpu = s->soc[0].harts[0];
+        if (cpu.cfg.ext_sscof) {
+            qemu_fdt_setprop_cell(fdt, pmu_name, "#interrupt-cells", 1);
+        qemu_fdt_setprop(fdt, pmu_name, "interrupts-extended",
+                         pmu_int_cells,
+                             s->soc[socket].num_harts * sizeof(uint32_t) * 2);
+        }
+
+        riscv_pmu_generate_fdt_node(fdt, pmu_name);
+        g_free(pmu_int_cells);
+        g_free(pmu_name);
 
         addr = memmap[VIRT_DRAM].base + riscv_socket_mem_offset(mc, socket);
         size = riscv_socket_mem_size(mc, socket);
