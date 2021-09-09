@@ -545,7 +545,6 @@ static CPUCacheInfo legacy_l3_cache = {
 
 #define INTEL_PT_MAX_SUBLEAF                0x1
 #define INTEL_PT_DEFAULT_ADDR_RANGES_NUM    0x2
-#define INTEL_PT_ADDR_RANGES_NUM_MASK       0x7
 /* Support ART(0,3,6,9) */
 #define INTEL_PT_DEFAULT_MTC_BITMAP         0x0249
 /* Support 0,2^(0~11) */
