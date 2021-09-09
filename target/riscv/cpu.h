@@ -293,9 +293,9 @@ struct RISCVCPU {
         bool ext_u;
         bool ext_h;
         bool ext_v;
-        bool ext_pmu;
         bool ext_ifencei;
         bool ext_icsr;
+        uint16_t ext_pmu;
 
         char *priv_spec;
         char *user_spec;
