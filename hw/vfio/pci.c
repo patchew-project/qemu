@@ -512,11 +512,13 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
      * increase them as needed.
      */
     if (vdev->nr_vectors < nr + 1) {
-        vfio_disable_irqindex(&vdev->vbasedev, VFIO_PCI_MSIX_IRQ_INDEX);
         vdev->nr_vectors = nr + 1;
-        ret = vfio_enable_vectors(vdev, true);
-        if (ret) {
-            error_report("vfio: failed to enable vectors, %d", ret);
+        if (!vdev->defer_kvm_irq_routing) {
+            vfio_disable_irqindex(&vdev->vbasedev, VFIO_PCI_MSIX_IRQ_INDEX);
+            ret = vfio_enable_vectors(vdev, true);
+            if (ret) {
+                error_report("vfio: failed to enable vectors, %d", ret);
+            }
         }
     } else {
         Error *err = NULL;
@@ -608,6 +610,9 @@ static void vfio_commit_kvm_msi_virq(VFIOPCIDevice *vdev)
 
 static void vfio_msix_enable(VFIOPCIDevice *vdev)
 {
+    PCIDevice *pdev = &vdev->pdev;
+    int ret;
+
     vfio_disable_interrupts(vdev);
 
     vdev->msi_vectors = g_new0(VFIOMSIVector, vdev->msix->entries);
@@ -630,11 +635,22 @@ static void vfio_msix_enable(VFIOPCIDevice *vdev)
     vfio_msix_vector_do_use(&vdev->pdev, 0, NULL, NULL);
     vfio_msix_vector_release(&vdev->pdev, 0);
 
-    if (msix_set_vector_notifiers(&vdev->pdev, vfio_msix_vector_use,
-                                  vfio_msix_vector_release, NULL)) {
+    vdev->defer_kvm_irq_routing = true;
+
+    ret = msix_set_vector_notifiers(&vdev->pdev, vfio_msix_vector_use,
+                                    vfio_msix_vector_release, NULL);
+    if (ret < 0) {
         error_report("vfio: msix_set_vector_notifiers failed");
+    } else if (!pdev->msix_function_masked) {
+        vfio_commit_kvm_msi_virq(vdev);
+        vfio_disable_irqindex(&vdev->vbasedev, VFIO_PCI_MSIX_IRQ_INDEX);
+        ret = vfio_enable_vectors(vdev, true);
+        if (ret) {
+            error_report("vfio: failed to enable vectors, %d", ret);
+        }
     }
 
+    vdev->defer_kvm_irq_routing = false;
     trace_vfio_msix_enable(vdev->vbasedev.name);
 }
 
@@ -643,6 +659,7 @@ static void vfio_msi_enable(VFIOPCIDevice *vdev)
     int ret, i;
 
     vfio_disable_interrupts(vdev);
+    vdev->defer_kvm_irq_routing = true;
 
     vdev->nr_vectors = msi_nr_vectors_allocated(&vdev->pdev);
 retry:
@@ -668,6 +685,8 @@ retry:
          */
         vfio_add_kvm_msi_virq(vdev, vector, i, false);
     }
+
+    vfio_commit_kvm_msi_virq(vdev);
 
     /* Set interrupt type prior to possible interrupts */
     vdev->interrupt = VFIO_INT_MSI;
@@ -695,9 +714,11 @@ retry:
          */
         error_report("vfio: Error: Failed to enable MSI");
 
+        vdev->defer_kvm_irq_routing = false;
         return;
     }
 
+    vdev->defer_kvm_irq_routing = false;
     trace_vfio_msi_enable(vdev->vbasedev.name, vdev->nr_vectors);
 }
 
