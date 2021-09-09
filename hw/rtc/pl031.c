@@ -24,6 +24,8 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "trace.h"
+#include "qemu/timer.h"
+#include "qapi/qapi-events-misc-target.h"
 
 #define RTC_DR      0x00    /* Data read register */
 #define RTC_MR      0x04    /* Match register */
@@ -138,6 +140,7 @@ static void pl031_write(void * opaque, hwaddr offset,
     switch (offset) {
     case RTC_LR:
         s->tick_offset += value - pl031_get_count(s);
+        qapi_event_send_rtc_change(s->tick_offset - s->original_tick_offset);
         pl031_set_alarm(s);
         break;
     case RTC_MR:
@@ -190,6 +193,7 @@ static void pl031_init(Object *obj)
     qemu_get_timedate(&tm, 0);
     s->tick_offset = mktimegm(&tm) -
         qemu_clock_get_ns(rtc_clock) / NANOSECONDS_PER_SECOND;
+    s->original_tick_offset = s->tick_offset;
 
     s->timer = timer_new_ns(rtc_clock, pl031_interrupt, s);
 }
@@ -287,6 +291,24 @@ static const VMStateDescription vmstate_pl031_tick_offset = {
     }
 };
 
+static bool pl031_original_tick_offset_needed(void *opaque)
+{
+    PL031State *s = opaque;
+
+    return s->migrate_original_tick_offset;
+}
+
+static const VMStateDescription vmstate_pl031_original_tick_offset = {
+    .name = "pl031/original-tick-offset",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = pl031_original_tick_offset_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(original_tick_offset, PL031State),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_pl031 = {
     .name = "pl031",
     .version_id = 1,
@@ -305,6 +327,7 @@ static const VMStateDescription vmstate_pl031 = {
     },
     .subsections = (const VMStateDescription*[]) {
         &vmstate_pl031_tick_offset,
+        &vmstate_pl031_original_tick_offset,
         NULL
     }
 };
@@ -320,6 +343,8 @@ static Property pl031_properties[] = {
      */
     DEFINE_PROP_BOOL("migrate-tick-offset",
                      PL031State, migrate_tick_offset, true),
+    DEFINE_PROP_BOOL("migrate-original-tick-offset",
+                     PL031State, migrate_original_tick_offset, true),
     DEFINE_PROP_END_OF_LIST()
 };
 

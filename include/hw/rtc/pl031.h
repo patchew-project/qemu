@@ -37,6 +37,8 @@ struct PL031State {
     uint32_t tick_offset;
     bool tick_offset_migrated;
     bool migrate_tick_offset;
+    uint32_t original_tick_offset;
+    bool migrate_original_tick_offset;
 
     uint32_t mr;
     uint32_t lr;
