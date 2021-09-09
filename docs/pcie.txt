@@ -57,12 +57,14 @@ Place only the following kinds of devices directly on the Root Complex:
     (4) Extra Root Complexes (pxb-pcie), if multiple PCI Express Root Buses
         are needed.
 
+    (5) Root complex event collector (pcie-rcec).
+
    pcie.0 bus
-   ----------------------------------------------------------------------------
-        |                |                    |                  |
-   -----------   ------------------   -------------------   --------------
-   | PCI Dev |   | PCIe Root Port |   | PCIe-PCI Bridge |   |  pxb-pcie  |
-   -----------   ------------------   -------------------   --------------
+   ------------------------------------------------------------------------------------
+        |                |                    |                  |                |
+   -----------   ------------------   -------------------   --------------   -------------
+   | PCI Dev |   | PCIe Root Port |   | PCIe-PCI Bridge |   |  pxb-pcie  |   | PCIe RCEC |
+   -----------   ------------------   -------------------   --------------   -------------
 
 2.1.1 To plug a device into pcie.0 as a Root Complex Integrated Endpoint use:
           -device <dev>[,bus=pcie.0]
@@ -72,6 +74,10 @@ Place only the following kinds of devices directly on the Root Complex:
       connected to the pcie.1 bus:
           -device ioh3420,id=root_port1[,bus=pcie.1][,chassis=x][,slot=y][,addr=z]                                     \
           -device pcie-pci-bridge,id=pcie_pci_bridge1,bus=pcie.1
+2.1.3 To plug a PCIe RCEC into pcie.0 use:
+          -device pcie-rcec
+      PCIe RCEC must always be the first device on the root bus, pcie.0. So any RCiEP
+      devices plugged into pcie.0 must appear after the rcec in the command line.
 
 
 2.2 PCI Express only hierarchy
