@@ -47,7 +47,7 @@ int rx_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     case 24:
         return gdb_get_regl(mem_buf, env->fpsw);
     case 25:
-        return 0;
+        return gdb_get_reg64(mem_buf, env->acc);
     }
     return 0;
 }
@@ -103,6 +103,7 @@ int rx_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         env->fpsw = ldl_p(mem_buf);
         break;
     case 25:
+        env->acc = ldq_p(mem_buf);
         return 8;
     default:
         return 0;
