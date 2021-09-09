@@ -22,6 +22,7 @@
 #include "qemu/ctype.h"
 #include "qemu/log.h"
 #include "cpu.h"
+#include "pmu.h"
 #include "internals.h"
 #include "exec/exec-all.h"
 #include "qapi/error.h"
@@ -559,6 +560,16 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
         set_misa(env, target_misa);
     }
 
+    if (cpu->cfg.ext_pmu) {
+        if (!riscv_pmu_init(cpu, cpu->cfg.ext_pmu) && cpu->cfg.ext_sscof) {
+            cpu->pmu_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                          riscv_pmu_timer_cb, cpu);
+            if (!cpu->pmu_timer) {
+                cpu->cfg.ext_sscof = false;
+            }
+        }
+     }
+
     riscv_cpu_register_gdb_regs_for_features(cs);
 
     qemu_init_vcpu(cs);
@@ -590,6 +601,7 @@ static Property riscv_cpu_properties[] = {
     DEFINE_PROP_BOOL("x-h", RISCVCPU, cfg.ext_h, false),
     DEFINE_PROP_BOOL("x-v", RISCVCPU, cfg.ext_v, false),
     DEFINE_PROP_UINT16("pmu", RISCVCPU, cfg.ext_pmu, 16),
+    DEFINE_PROP_BOOL("sscof", RISCVCPU, cfg.ext_sscof, false),
     DEFINE_PROP_BOOL("Zifencei", RISCVCPU, cfg.ext_ifencei, true),
     DEFINE_PROP_BOOL("Zicsr", RISCVCPU, cfg.ext_icsr, true),
     DEFINE_PROP_STRING("priv_spec", RISCVCPU, cfg.priv_spec),
