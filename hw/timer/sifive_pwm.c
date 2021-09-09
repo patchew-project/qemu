@@ -25,6 +25,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "trace.h"
 #include "hw/irq.h"
 #include "hw/timer/sifive_pwm.h"
 #include "hw/qdev-properties.h"
