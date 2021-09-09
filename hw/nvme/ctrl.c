@@ -6546,8 +6546,15 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
 
     /* setup a namespace if the controller drive property was given */
     if (n->namespace.blkconf.blk) {
+        int i;
         ns = &n->namespace;
-        ns->params.nsid = 1;
+        for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
+            if (nvme_ns(n, i) || nvme_subsys_ns(n->subsys, i)) {
+                continue;
+            }
+            ns->params.nsid = i;
+            break;
+        }
 
         if (nvme_ns_setup(ns, errp)) {
             return;
