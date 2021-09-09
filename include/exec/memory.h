@@ -2768,7 +2768,7 @@ static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
  *
  * Return a MemTxResult indicating whether the operation succeeded
  * or failed (eg unassigned memory, device rejected the transaction,
- * IOMMU fault).  Called within RCU critical section.
+ * IOMMU fault).
  *
  * @as: #AddressSpace to be accessed
  * @addr: address within that address space
