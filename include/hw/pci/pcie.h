@@ -147,4 +147,6 @@ void pcie_cap_slot_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
                              Error **errp);
 void pcie_cap_slot_unplug_request_cb(HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp);
+int pcie_endpoint_cap_common_init(PCIDevice *dev, uint8_t offset,
+                                         uint8_t cap_size, uint8_t type);
 #endif /* QEMU_PCIE_H */
