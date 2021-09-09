@@ -747,6 +747,24 @@ void pcie_cap_slot_push_attention_button(PCIDevice *dev)
     pcie_cap_slot_event(dev, PCI_EXP_HP_EV_ABP);
 }
 
+void pcie_rcec_ep_map(PCIDevice *dev)
+{
+    int devnum = PCI_SLOT(dev->devfn);
+    uint32_t ep_bitmap;
+    PCIDevice *rcec;
+    uint16_t cap;
+
+    /* RCEC is always expected to be at 00:01.0 */
+    rcec = pci_find_device(pci_get_bus(dev), 0, PCI_DEVFN(1,0));
+    if (!rcec)
+        return;
+
+    pcie_cap_deverr_init(dev);
+    cap = pcie_find_capability(rcec, PCI_EXT_CAP_ID_RCEC);
+    ep_bitmap = pci_get_long(rcec->config + cap + 0x4);
+    pci_set_long(rcec->config + cap + 0x4, ep_bitmap | 1 << devnum);
+}
+
 /* root control/capabilities/status. PME isn't emulated for now */
 void pcie_cap_root_init(PCIDevice *dev)
 {

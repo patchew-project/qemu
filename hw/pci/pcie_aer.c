@@ -166,6 +166,15 @@ int pcie_aer_init(PCIDevice *dev, uint8_t cap_ver, uint16_t offset,
         /* nothing */
         break;
     }
+
+    /*
+     * If this is a RCiEP, map it into the RCEC's endpoint association bitmap
+     * capability
+     */
+    if (pci_bus_is_express(pci_get_bus(dev))
+        && pci_bus_is_root(pci_get_bus(dev)))
+	    pcie_rcec_ep_map(dev);
+
     return 0;
 }
 
