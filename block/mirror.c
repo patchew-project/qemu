@@ -169,9 +169,16 @@ static void coroutine_fn mirror_wait_on_conflicts(MirrorOp *self,
                     continue;
                 }
 
-                self->waiting_for_op = op;
+                if (self) {
+                    self->waiting_for_op = op;
+                }
+
                 qemu_co_queue_wait(&op->waiting_requests, NULL);
-                self->waiting_for_op = NULL;
+
+                if (self) {
+                    self->waiting_for_op = NULL;
+                }
+
                 break;
             }
         }
