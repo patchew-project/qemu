@@ -19,6 +19,47 @@
 /* Moved from hw/ppc/spapr_pci_nvlink2.c */
 #define SPAPR_GPU_NUMA_ID           (cpu_to_be32(1))
 
+/*
+ * NUMA FORM1 macros. FORM1_DIST_REF_POINTS was taken from
+ * MAX_DISTANCE_REF_POINTS in arch/powerpc/mm/numa.h from Linux
+ * kernel source. It represents the amount of associativity domains
+ * for non-CPU resources.
+ *
+ * FORM1_NUMA_ASSOC_SIZE is the base array size of an ibm,associativity
+ * array for any non-CPU resource.
+ */
+#define FORM1_DIST_REF_POINTS            4
+#define FORM1_NUMA_ASSOC_SIZE            (FORM1_DIST_REF_POINTS + 1)
+
+/*
+ * Retrieves max_dist_ref_points of the current NUMA affinity.
+ */
+static int get_max_dist_ref_points(SpaprMachineState *spapr)
+{
+    /* No FORM2 affinity implemented yet */
+    return FORM1_DIST_REF_POINTS;
+}
+
+/*
+ * Retrieves numa_assoc_size of the current NUMA affinity.
+ */
+static int get_numa_assoc_size(SpaprMachineState *spapr)
+{
+    /* No FORM2 affinity implemented yet */
+    return FORM1_NUMA_ASSOC_SIZE;
+}
+
+/*
+ * Retrieves vcpu_assoc_size of the current NUMA affinity.
+ *
+ * vcpu_assoc_size is the size of ibm,associativity array
+ * for CPUs, which has an extra element (vcpu_id) in the end.
+ */
+static int get_vcpu_assoc_size(SpaprMachineState *spapr)
+{
+    return get_numa_assoc_size(spapr) + 1;
+}
+
 static bool spapr_numa_is_symmetrical(MachineState *ms)
 {
     int src, dst;
@@ -96,7 +137,7 @@ static void spapr_numa_define_FORM1_domains(SpaprMachineState *spapr)
      * considered a match with associativity domains of node 0.
      */
     for (i = 1; i < nb_numa_nodes; i++) {
-        for (j = 1; j < MAX_DISTANCE_REF_POINTS; j++) {
+        for (j = 1; j < FORM1_DIST_REF_POINTS; j++) {
             spapr->FORM1_assoc_array[i][j] = cpu_to_be32(i);
         }
     }
@@ -134,7 +175,7 @@ static void spapr_numa_define_FORM1_domains(SpaprMachineState *spapr)
              *
              * The Linux kernel will assume that the distance between src and
              * dst, in this case of no match, is 10 (local distance) doubled
-             * for each NUMA it didn't match. We have MAX_DISTANCE_REF_POINTS
+             * for each NUMA it didn't match. We have FORM1_DIST_REF_POINTS
              * levels (4), so this gives us 10*2*2*2*2 = 160.
              *
              * This logic can be seen in the Linux kernel source code, as of
@@ -168,13 +209,13 @@ static void spapr_numa_FORM1_affinity_init(SpaprMachineState *spapr,
     int i, j, max_nodes_with_gpus;
 
     /* init FORM1_assoc_array */
-    for (i = 0; i < MAX_NODES + NVGPU_MAX_NUM; i++) {
-        spapr->FORM1_assoc_array[i] = g_new0(uint32_t, NUMA_ASSOC_SIZE);
+    for (i = 0; i < NUMA_NODES_MAX_NUM; i++) {
+        spapr->FORM1_assoc_array[i] = g_new0(uint32_t, FORM1_NUMA_ASSOC_SIZE);
     }
 
     /*
      * For all associativity arrays: first position is the size,
-     * position MAX_DISTANCE_REF_POINTS is always the numa_id,
+     * position FORM1_DIST_REF_POINTS is always the numa_id,
      * represented by the index 'i'.
      *
      * This will break on sparse NUMA setups, when/if QEMU starts
@@ -182,8 +223,8 @@ static void spapr_numa_FORM1_affinity_init(SpaprMachineState *spapr,
      * 'i' will be a valid node_id set by the user.
      */
     for (i = 0; i < nb_numa_nodes; i++) {
-        spapr->FORM1_assoc_array[i][0] = cpu_to_be32(MAX_DISTANCE_REF_POINTS);
-        spapr->FORM1_assoc_array[i][MAX_DISTANCE_REF_POINTS] = cpu_to_be32(i);
+        spapr->FORM1_assoc_array[i][0] = cpu_to_be32(FORM1_DIST_REF_POINTS);
+        spapr->FORM1_assoc_array[i][FORM1_DIST_REF_POINTS] = cpu_to_be32(i);
     }
 
     /*
@@ -197,15 +238,15 @@ static void spapr_numa_FORM1_affinity_init(SpaprMachineState *spapr,
     max_nodes_with_gpus = nb_numa_nodes + NVGPU_MAX_NUM;
 
     for (i = nb_numa_nodes; i < max_nodes_with_gpus; i++) {
-        spapr->FORM1_assoc_array[i][0] = cpu_to_be32(MAX_DISTANCE_REF_POINTS);
+        spapr->FORM1_assoc_array[i][0] = cpu_to_be32(FORM1_DIST_REF_POINTS);
 
-        for (j = 1; j < MAX_DISTANCE_REF_POINTS; j++) {
+        for (j = 1; j < FORM1_DIST_REF_POINTS; j++) {
             uint32_t gpu_assoc = smc->pre_5_1_assoc_refpoints ?
                                  SPAPR_GPU_NUMA_ID : cpu_to_be32(i);
             spapr->FORM1_assoc_array[i][j] = gpu_assoc;
         }
 
-        spapr->FORM1_assoc_array[i][MAX_DISTANCE_REF_POINTS] = cpu_to_be32(i);
+        spapr->FORM1_assoc_array[i][FORM1_DIST_REF_POINTS] = cpu_to_be32(i);
     }
 
     /*
@@ -255,16 +296,17 @@ void spapr_numa_associativity_reset(SpaprMachineState *spapr)
 void spapr_numa_write_associativity_dt(SpaprMachineState *spapr, void *fdt,
                                        int offset, int nodeid)
 {
-    /* Hardcode the size of FORM1 associativity array for now */
     _FDT((fdt_setprop(fdt, offset, "ibm,associativity",
                       spapr->numa_assoc_array[nodeid],
-                      NUMA_ASSOC_SIZE * sizeof(uint32_t))));
+                      get_numa_assoc_size(spapr) * sizeof(uint32_t))));
 }
 
 static uint32_t *spapr_numa_get_vcpu_assoc(SpaprMachineState *spapr,
                                            PowerPCCPU *cpu)
 {
-    uint32_t *vcpu_assoc = g_new(uint32_t, VCPU_ASSOC_SIZE);
+    int max_distance_ref_points = get_max_dist_ref_points(spapr);
+    int vcpu_assoc_size = get_vcpu_assoc_size(spapr);
+    uint32_t *vcpu_assoc = g_new(uint32_t, vcpu_assoc_size);
     int index = spapr_get_vcpu_id(cpu);
 
     /*
@@ -273,10 +315,10 @@ static uint32_t *spapr_numa_get_vcpu_assoc(SpaprMachineState *spapr,
      * 0, put cpu_id last, then copy the remaining associativity
      * domains.
      */
-    vcpu_assoc[0] = cpu_to_be32(MAX_DISTANCE_REF_POINTS + 1);
-    vcpu_assoc[VCPU_ASSOC_SIZE - 1] = cpu_to_be32(index);
+    vcpu_assoc[0] = cpu_to_be32(max_distance_ref_points + 1);
+    vcpu_assoc[vcpu_assoc_size - 1] = cpu_to_be32(index);
     memcpy(vcpu_assoc + 1, spapr->numa_assoc_array[cpu->node_id] + 1,
-           (VCPU_ASSOC_SIZE - 2) * sizeof(uint32_t));
+           (vcpu_assoc_size - 2) * sizeof(uint32_t));
 
     return vcpu_assoc;
 }
@@ -285,12 +327,13 @@ int spapr_numa_fixup_cpu_dt(SpaprMachineState *spapr, void *fdt,
                             int offset, PowerPCCPU *cpu)
 {
     g_autofree uint32_t *vcpu_assoc = NULL;
+    int vcpu_assoc_size = get_vcpu_assoc_size(spapr);
 
     vcpu_assoc = spapr_numa_get_vcpu_assoc(spapr, cpu);
 
     /* Advertise NUMA via ibm,associativity */
     return fdt_setprop(fdt, offset, "ibm,associativity", vcpu_assoc,
-                       VCPU_ASSOC_SIZE * sizeof(uint32_t));
+                       vcpu_assoc_size * sizeof(uint32_t));
 }
 
 
@@ -298,17 +341,18 @@ int spapr_numa_write_assoc_lookup_arrays(SpaprMachineState *spapr, void *fdt,
                                          int offset)
 {
     MachineState *machine = MACHINE(spapr);
+    int max_distance_ref_points = get_max_dist_ref_points(spapr);
     int nb_numa_nodes = machine->numa_state->num_nodes;
     int nr_nodes = nb_numa_nodes ? nb_numa_nodes : 1;
     uint32_t *int_buf, *cur_index, buf_len;
     int ret, i;
 
     /* ibm,associativity-lookup-arrays */
-    buf_len = (nr_nodes * MAX_DISTANCE_REF_POINTS + 2) * sizeof(uint32_t);
+    buf_len = (nr_nodes * max_distance_ref_points + 2) * sizeof(uint32_t);
     cur_index = int_buf = g_malloc0(buf_len);
     int_buf[0] = cpu_to_be32(nr_nodes);
      /* Number of entries per associativity list */
-    int_buf[1] = cpu_to_be32(MAX_DISTANCE_REF_POINTS);
+    int_buf[1] = cpu_to_be32(max_distance_ref_points);
     cur_index += 2;
     for (i = 0; i < nr_nodes; i++) {
         /*
@@ -317,8 +361,8 @@ int spapr_numa_write_assoc_lookup_arrays(SpaprMachineState *spapr, void *fdt,
          */
         uint32_t *associativity = spapr->numa_assoc_array[i];
         memcpy(cur_index, ++associativity,
-               sizeof(uint32_t) * MAX_DISTANCE_REF_POINTS);
-        cur_index += MAX_DISTANCE_REF_POINTS;
+               sizeof(uint32_t) * max_distance_ref_points);
+        cur_index += max_distance_ref_points;
     }
     ret = fdt_setprop(fdt, offset, "ibm,associativity-lookup-arrays", int_buf,
                       (cur_index - int_buf) * sizeof(uint32_t));
@@ -406,6 +450,7 @@ static target_ulong h_home_node_associativity(PowerPCCPU *cpu,
     target_ulong procno = args[1];
     PowerPCCPU *tcpu;
     int idx, assoc_idx;
+    int vcpu_assoc_size = get_vcpu_assoc_size(spapr);
 
     /* only support procno from H_REGISTER_VPA */
     if (flags != 0x1) {
@@ -424,7 +469,7 @@ static target_ulong h_home_node_associativity(PowerPCCPU *cpu,
      * 12 associativity domains for vcpus. Assert and bail if that's
      * not the case.
      */
-    G_STATIC_ASSERT((VCPU_ASSOC_SIZE - 1) <= 12);
+    g_assert((vcpu_assoc_size - 1) <= 12);
 
     vcpu_assoc = spapr_numa_get_vcpu_assoc(spapr, tcpu);
     /* assoc_idx starts at 1 to skip associativity size */
@@ -445,9 +490,9 @@ static target_ulong h_home_node_associativity(PowerPCCPU *cpu,
          * macro. The ternary will fill the remaining registers with -1
          * after we went through vcpu_assoc[].
          */
-        a = assoc_idx < VCPU_ASSOC_SIZE ?
+        a = assoc_idx < vcpu_assoc_size ?
             be32_to_cpu(vcpu_assoc[assoc_idx++]) : -1;
-        b = assoc_idx < VCPU_ASSOC_SIZE ?
+        b = assoc_idx < vcpu_assoc_size ?
             be32_to_cpu(vcpu_assoc[assoc_idx++]) : -1;
 
         args[idx] = ASSOCIATIVITY(a, b);
