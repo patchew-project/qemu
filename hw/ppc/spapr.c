@@ -1786,6 +1786,20 @@ static int spapr_post_load(void *opaque, int version_id)
         return err;
     }
 
+    /*
+     * NUMA affinity selection is made in CAS time. There is no reliable
+     * way of telling whether the guest already went through CAS before
+     * migration due to how spapr_ov5_cas_needed works: a FORM1 guest can
+     * be migrated with ov5_cas empty regardless of going through CAS
+     * first.
+     *
+     * One solution is to call numa_associativity_reset(). The downside
+     * is that a guest migrated before CAS will reset it again when going
+     * through it, but since it's a lightweight operation it's worth being
+     * a little redundant to be safe.
+     */
+     spapr_numa_associativity_reset(spapr);
+
     return err;
 }
 

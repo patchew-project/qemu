@@ -97,7 +97,7 @@ static void spapr_numa_define_FORM1_domains(SpaprMachineState *spapr)
      */
     for (i = 1; i < nb_numa_nodes; i++) {
         for (j = 1; j < MAX_DISTANCE_REF_POINTS; j++) {
-            spapr->numa_assoc_array[i][j] = cpu_to_be32(i);
+            spapr->FORM1_assoc_array[i][j] = cpu_to_be32(i);
         }
     }
 
@@ -149,8 +149,8 @@ static void spapr_numa_define_FORM1_domains(SpaprMachineState *spapr)
              * and going up to 0x1.
              */
             for (i = n_level; i > 0; i--) {
-                assoc_src = spapr->numa_assoc_array[src][i];
-                spapr->numa_assoc_array[dst][i] = assoc_src;
+                assoc_src = spapr->FORM1_assoc_array[src][i];
+                spapr->FORM1_assoc_array[dst][i] = assoc_src;
             }
         }
     }
@@ -167,6 +167,11 @@ static void spapr_numa_FORM1_affinity_init(SpaprMachineState *spapr,
     int nb_numa_nodes = machine->numa_state->num_nodes;
     int i, j, max_nodes_with_gpus;
 
+    /* init FORM1_assoc_array */
+    for (i = 0; i < MAX_NODES + NVGPU_MAX_NUM; i++) {
+        spapr->FORM1_assoc_array[i] = g_new0(uint32_t, NUMA_ASSOC_SIZE);
+    }
+
     /*
      * For all associativity arrays: first position is the size,
      * position MAX_DISTANCE_REF_POINTS is always the numa_id,
@@ -177,8 +182,8 @@ static void spapr_numa_FORM1_affinity_init(SpaprMachineState *spapr,
      * 'i' will be a valid node_id set by the user.
      */
     for (i = 0; i < nb_numa_nodes; i++) {
-        spapr->numa_assoc_array[i][0] = cpu_to_be32(MAX_DISTANCE_REF_POINTS);
-        spapr->numa_assoc_array[i][MAX_DISTANCE_REF_POINTS] = cpu_to_be32(i);
+        spapr->FORM1_assoc_array[i][0] = cpu_to_be32(MAX_DISTANCE_REF_POINTS);
+        spapr->FORM1_assoc_array[i][MAX_DISTANCE_REF_POINTS] = cpu_to_be32(i);
     }
 
     /*
@@ -192,15 +197,15 @@ static void spapr_numa_FORM1_affinity_init(SpaprMachineState *spapr,
     max_nodes_with_gpus = nb_numa_nodes + NVGPU_MAX_NUM;
 
     for (i = nb_numa_nodes; i < max_nodes_with_gpus; i++) {
-        spapr->numa_assoc_array[i][0] = cpu_to_be32(MAX_DISTANCE_REF_POINTS);
+        spapr->FORM1_assoc_array[i][0] = cpu_to_be32(MAX_DISTANCE_REF_POINTS);
 
         for (j = 1; j < MAX_DISTANCE_REF_POINTS; j++) {
             uint32_t gpu_assoc = smc->pre_5_1_assoc_refpoints ?
                                  SPAPR_GPU_NUMA_ID : cpu_to_be32(i);
-            spapr->numa_assoc_array[i][j] = gpu_assoc;
+            spapr->FORM1_assoc_array[i][j] = gpu_assoc;
         }
 
-        spapr->numa_assoc_array[i][MAX_DISTANCE_REF_POINTS] = cpu_to_be32(i);
+        spapr->FORM1_assoc_array[i][MAX_DISTANCE_REF_POINTS] = cpu_to_be32(i);
     }
 
     /*
@@ -227,14 +232,33 @@ void spapr_numa_associativity_init(SpaprMachineState *spapr,
                                    MachineState *machine)
 {
     spapr_numa_FORM1_affinity_init(spapr, machine);
+
+    /*
+     * Default to FORM1 affinity until CAS. We'll call affinity_reset()
+     * during CAS when we're sure about which NUMA affinity the guest
+     * is going to use.
+     *
+     * This step is a failsafe - guests in the wild were able to read
+     * FORM1 affinity info before CAS for a long time. Since affinity_reset()
+     * is just a pointer switch between data that was already populated
+     * here, this is an acceptable overhead to be on the safer side.
+     */
+    spapr->numa_assoc_array = spapr->FORM1_assoc_array;
+}
+
+void spapr_numa_associativity_reset(SpaprMachineState *spapr)
+{
+    /* No FORM2 affinity implemented yet */
+    spapr->numa_assoc_array = spapr->FORM1_assoc_array;
 }
 
 void spapr_numa_write_associativity_dt(SpaprMachineState *spapr, void *fdt,
                                        int offset, int nodeid)
 {
+    /* Hardcode the size of FORM1 associativity array for now */
     _FDT((fdt_setprop(fdt, offset, "ibm,associativity",
                       spapr->numa_assoc_array[nodeid],
-                      sizeof(spapr->numa_assoc_array[nodeid]))));
+                      NUMA_ASSOC_SIZE * sizeof(uint32_t))));
 }
 
 static uint32_t *spapr_numa_get_vcpu_assoc(SpaprMachineState *spapr,

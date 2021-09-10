@@ -249,7 +249,8 @@ struct SpaprMachineState {
     unsigned gpu_numa_id;
     SpaprTpmProxy *tpm_proxy;
 
-    uint32_t numa_assoc_array[MAX_NODES + NVGPU_MAX_NUM][NUMA_ASSOC_SIZE];
+    uint32_t *FORM1_assoc_array[MAX_NODES + NVGPU_MAX_NUM];
+    uint32_t **numa_assoc_array;
 
     Error *fwnmi_migration_blocker;
 };
