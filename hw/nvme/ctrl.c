@@ -3893,6 +3893,10 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req)
         return ns->status;
     }
 
+    if (NVME_CMD_FLAGS_FUSE(req->cmd.flags)) {
+        return NVME_INVALID_FIELD;
+    }
+
     req->ns = ns;
 
     switch (req->cmd.opcode) {
