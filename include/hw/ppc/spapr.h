@@ -133,6 +133,7 @@ struct SpaprMachineClass {
     hwaddr rma_limit;          /* clamp the RMA to this size */
     bool pre_5_1_assoc_refpoints;
     bool pre_5_2_numa_associativity;
+    bool pre_6_2_numa_affinity;
 
     bool (*phb_placement)(SpaprMachineState *spapr, uint32_t index,
                           uint64_t *buid, hwaddr *pio,
@@ -238,6 +239,7 @@ struct SpaprMachineState {
     SpaprTpmProxy *tpm_proxy;
 
     uint32_t *FORM1_assoc_array[NUMA_NODES_MAX_NUM];
+    uint32_t *FORM2_assoc_array[NUMA_NODES_MAX_NUM];
     uint32_t **numa_assoc_array;
 
     Error *fwnmi_migration_blocker;
