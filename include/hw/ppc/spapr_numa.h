@@ -24,7 +24,8 @@
  */
 void spapr_numa_associativity_init(SpaprMachineState *spapr,
                                    MachineState *machine);
-void spapr_numa_associativity_reset(SpaprMachineState *spapr);
+void spapr_numa_associativity_reset(SpaprMachineState *spapr,
+                                    bool post_CAS_check);
 void spapr_numa_write_rtas_dt(SpaprMachineState *spapr, void *fdt, int rtas);
 void spapr_numa_write_associativity_dt(SpaprMachineState *spapr, void *fdt,
                                        int offset, int nodeid);

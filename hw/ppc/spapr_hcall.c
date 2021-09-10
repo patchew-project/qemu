@@ -1202,7 +1202,7 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
      * Reset numa_assoc_array now that we know which NUMA affinity
      * the guest will use.
      */
-    spapr_numa_associativity_reset(spapr);
+    spapr_numa_associativity_reset(spapr, true);
 
     /*
      * Ensure the guest asks for an interrupt mode we support;

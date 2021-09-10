@@ -1798,7 +1798,7 @@ static int spapr_post_load(void *opaque, int version_id)
      * through it, but since it's a lightweight operation it's worth being
      * a little redundant to be safe.
      */
-     spapr_numa_associativity_reset(spapr);
+     spapr_numa_associativity_reset(spapr, false);
 
     return err;
 }
@@ -2786,39 +2786,6 @@ static void spapr_machine_init(MachineState *machine)
 
     /* init CPUs */
     spapr_init_cpus(spapr);
-
-    /*
-     * check we don't have a memory-less/cpu-less NUMA node
-     * Firmware relies on the existing memory/cpu topology to provide the
-     * NUMA topology to the kernel.
-     * And the linux kernel needs to know the NUMA topology at start
-     * to be able to hotplug CPUs later.
-     */
-    if (machine->numa_state->num_nodes) {
-        for (i = 0; i < machine->numa_state->num_nodes; ++i) {
-            /* check for memory-less node */
-            if (machine->numa_state->nodes[i].node_mem == 0) {
-                CPUState *cs;
-                int found = 0;
-                /* check for cpu-less node */
-                CPU_FOREACH(cs) {
-                    PowerPCCPU *cpu = POWERPC_CPU(cs);
-                    if (cpu->node_id == i) {
-                        found = 1;
-                        break;
-                    }
-                }
-                /* memory-less and cpu-less node */
-                if (!found) {
-                    error_report(
-                       "Memory-less/cpu-less nodes are not supported (node %d)",
-                                 i);
-                    exit(1);
-                }
-            }
-        }
-
-    }
 
     spapr->gpu_numa_id = spapr_numa_initial_nvgpu_numa_id(machine);
 
