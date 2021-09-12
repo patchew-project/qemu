@@ -24,6 +24,8 @@
 #define NUBUS_FIRST_SLOT      0x0
 #define NUBUS_LAST_SLOT       0xf
 
+#define NUBUS_IRQS            16
+
 #define TYPE_NUBUS_DEVICE "nubus-device"
 OBJECT_DECLARE_SIMPLE_TYPE(NubusDevice, NUBUS_DEVICE)
 
@@ -43,6 +45,8 @@ struct NubusBus {
     MemoryRegion slot_io;
 
     uint32_t slot_available_mask;
+
+    qemu_irq irqs[NUBUS_IRQS];
 };
 
 #define NUBUS_DECL_ROM_MAX_SIZE    0xffff
@@ -57,6 +61,8 @@ struct NubusDevice {
     char *romfile;
     MemoryRegion decl_rom;
 };
+
+void nubus_set_irq(NubusDevice *nd, int level);
 
 struct NubusBridge {
     SysBusDevice parent_obj;
