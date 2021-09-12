@@ -1165,6 +1165,10 @@ static void vhost_user_host_notifier_remove(struct vhost_dev *dev,
 
     if (n->addr && n->set) {
         virtio_queue_set_host_notifier_mr(vdev, queue_idx, &n->mr, false);
+        /* Wait VM threads accessing old flatview which contains notifier. */
+        drain_call_rcu();
+        munmap(n->addr, qemu_real_host_page_size);
+        n->addr = NULL;
         n->set = false;
     }
 }
@@ -1502,12 +1506,7 @@ static int vhost_user_slave_handle_vring_host_notifier(struct vhost_dev *dev,
 
     n = &user->notifier[queue_idx];
 
-    if (n->addr) {
-        virtio_queue_set_host_notifier_mr(vdev, queue_idx, &n->mr, false);
-        object_unparent(OBJECT(&n->mr));
-        munmap(n->addr, page_size);
-        n->addr = NULL;
-    }
+    vhost_user_host_notifier_remove(dev, queue_idx);
 
     if (area->u64 & VHOST_USER_VRING_NOFD_MASK) {
         return 0;
@@ -2484,11 +2483,17 @@ void vhost_user_cleanup(VhostUserState *user)
     for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
         if (user->notifier[i].addr) {
             object_unparent(OBJECT(&user->notifier[i].mr));
+        }
+    }
+    memory_region_transaction_commit();
+    /* Wait VM threads accessing old flatview which contains notifier. */
+    drain_call_rcu();
+    for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
+        if (user->notifier[i].addr) {
             munmap(user->notifier[i].addr, qemu_real_host_page_size);
             user->notifier[i].addr = NULL;
         }
     }
-    memory_region_transaction_commit();
     user->chr = NULL;
 }
 
