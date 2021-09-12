@@ -39,12 +39,17 @@ struct NubusBus {
     uint32_t slot_available_mask;
 };
 
+#define NUBUS_DECL_ROM_MAX_SIZE    0xffff
+
 struct NubusDevice {
     DeviceState qdev;
 
     int32_t slot;
     MemoryRegion super_slot_mem;
     MemoryRegion slot_mem;
+
+    char *romfile;
+    MemoryRegion decl_rom;
 };
 
 #endif
