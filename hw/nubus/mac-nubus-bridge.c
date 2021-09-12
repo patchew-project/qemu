@@ -16,21 +16,20 @@
 static void mac_nubus_bridge_init(Object *obj)
 {
     MacNubusBridge *s = MAC_NUBUS_BRIDGE(obj);
+    NubusBridge *nb = NUBUS_BRIDGE(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    s->bus = NUBUS_BUS(qbus_create(TYPE_NUBUS_BUS, DEVICE(s), NULL));
-
     /* Macintosh only has slots 0x9 to 0xe available */
-    s->bus->slot_available_mask = 0x7e00;
+    nb->bus->slot_available_mask = 0x7e00;
 
     /* Aliases for slots 0x9 to 0xe */
     memory_region_init_alias(&s->super_slot_alias, obj, "super-slot-alias",
-                             &s->bus->nubus_mr,
+                             &nb->bus->nubus_mr,
                              9 * NUBUS_SUPER_SLOT_SIZE,
                              6 * NUBUS_SUPER_SLOT_SIZE);
 
     memory_region_init_alias(&s->slot_alias, obj, "slot-alias",
-                             &s->bus->nubus_mr,
+                             &nb->bus->nubus_mr,
                              NUBUS_SLOT_BASE + 9 * NUBUS_SLOT_SIZE,
                              6 * NUBUS_SLOT_SIZE);
 
