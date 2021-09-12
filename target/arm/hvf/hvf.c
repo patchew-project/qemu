@@ -1177,7 +1177,8 @@ int hvf_vcpu_exec(CPUState *cpu)
         cpu_synchronize_state(cpu);
         if (hvf_handle_psci_call(cpu)) {
             trace_hvf_unknown_hvf(env->xregs[0]);
-            hvf_raise_exception(cpu, EXCP_UDEF, syn_uncategorized());
+            /* SMCCC 1.3 section 5.2 says every unknown HVC call returns -1 */
+            env->xregs[0] = -1;
         }
         break;
     case EC_AA64_SMC:
@@ -1186,7 +1187,9 @@ int hvf_vcpu_exec(CPUState *cpu)
             advance_pc = true;
         } else {
             trace_hvf_unknown_smc(env->xregs[0]);
-            hvf_raise_exception(cpu, EXCP_UDEF, syn_uncategorized());
+            /* SMCCC 1.3 section 5.2 says every unknown SMC call returns -1 */
+            env->xregs[0] = -1;
+            advance_pc = true;
         }
         break;
     default:
