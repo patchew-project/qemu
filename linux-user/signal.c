@@ -405,6 +405,15 @@ static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
             tinfo->_sifields._sigpoll._fd = info->si_fd;
             si_type = QEMU_SI_POLL;
             break;
+        case TARGET_SIGSEGV:
+        case TARGET_SIGBUS:
+            /*
+             * Remap the host address into the target space.
+             * Even an invalid guest address is still valid for a fault.
+             */
+            tinfo->_sifields._sigfault._addr = h2g_nocheck(info->si_addr);
+            si_type = QEMU_SI_FAULT;
+            break;
         default:
             /* Assume a sigqueue()/mq_notify()/rt_sigqueueinfo() source. */
             tinfo->_sifields._rt._pid = info->si_pid;
