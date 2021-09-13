@@ -24,6 +24,7 @@
 #include "qemu.h"
 #include "trace.h"
 #include "signal-common.h"
+#include "host-signal.h"
 
 static struct target_sigaction sigact_table[TARGET_NSIG];
 
@@ -753,59 +754,85 @@ static inline void rewind_if_in_safe_syscall(void *puc)
 }
 #endif
 
-static void host_signal_handler(int host_signum, siginfo_t *info,
-                                void *puc)
+static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
 {
     CPUArchState *env = thread_cpu->env_ptr;
     CPUState *cpu = env_cpu(env);
     TaskState *ts = cpu->opaque;
-
-    int sig;
+    bool sync_sig = false;
     target_siginfo_t tinfo;
     ucontext_t *uc = puc;
     struct emulated_sigtable *k;
+    uintptr_t pc = 0;
+    int guest_sig;
 
-    /* the CPU emulator uses some host signals to detect exceptions,
-       we forward to it some signals */
-    if ((host_signum == SIGSEGV || host_signum == SIGBUS)
-        && info->si_code > 0) {
-        if (cpu_signal_handler(host_signum, info, puc))
+    /*
+     * Non-spoofed SIGSEGV and SIGBUS are synchronous, and need special
+     * handling wrt signal blocking and unwinding.  SIGSEGV may need to
+     * remove write-protection and restart the instruction.
+     */
+    if ((host_sig == SIGSEGV || host_sig == SIGBUS) && info->si_code > 0) {
+        pc = adjust_signal_pc(host_signal_pc(uc));
+        if (host_sig == SIGSEGV &&
+            info->si_code == SEGV_ACCERR &&
+            host_sigsegv_write(info, uc) &&
+            handle_sigsegv_accerr_write(cpu, &uc->uc_sigmask, pc,
+                                        (uintptr_t)info->si_addr)) {
             return;
+        }
+        sync_sig = true;
+    } else {
+        rewind_if_in_safe_syscall(puc);
+
+        /*
+         * Block host signals until target signal handler entered.
+         * We can't block SIGSEGV or SIGBUS while we're executing
+         * guest code in case the guest code provokes one in the
+         * window between now and it getting out to the main loop.
+         * Signals will be unblocked again in process_pending_signals().
+         *
+         * WARNING: we cannot use sigfillset() here because the uc_sigmask
+         * field is a kernel sigset_t, which is much smaller than the
+         * libc sigset_t which sigfillset() operates on. Using sigfillset()
+         * would write 0xff bytes off the end of the structure and trash
+         * data on the struct.
+         * We can't use sizeof(uc->uc_sigmask) either, because the libc
+         * headers define the struct field with the wrong (too large) type.
+         */
+        memset(&uc->uc_sigmask, 0xff, SIGSET_T_SIZE);
+        sigdelset(&uc->uc_sigmask, SIGSEGV);
+        sigdelset(&uc->uc_sigmask, SIGBUS);
     }
 
     /* get target signal number */
-    sig = host_to_target_signal(host_signum);
-    if (sig < 1 || sig > TARGET_NSIG)
+    guest_sig = host_to_target_signal(host_sig);
+    if (guest_sig < 1 || guest_sig > TARGET_NSIG) {
         return;
-    trace_user_host_signal(env, host_signum, sig);
-
-    rewind_if_in_safe_syscall(puc);
+    }
+    trace_user_host_signal(env, host_sig, guest_sig);
 
     host_to_target_siginfo_noswap(&tinfo, info);
-    k = &ts->sigtab[sig - 1];
+    k = &ts->sigtab[guest_sig - 1];
     k->info = tinfo;
-    k->pending = sig;
+    k->pending = guest_sig;
     ts->signal_pending = 1;
 
-    /* Block host signals until target signal handler entered. We
-     * can't block SIGSEGV or SIGBUS while we're executing guest
-     * code in case the guest code provokes one in the window between
-     * now and it getting out to the main loop. Signals will be
-     * unblocked again in process_pending_signals().
-     *
-     * WARNING: we cannot use sigfillset() here because the uc_sigmask
-     * field is a kernel sigset_t, which is much smaller than the
-     * libc sigset_t which sigfillset() operates on. Using sigfillset()
-     * would write 0xff bytes off the end of the structure and trash
-     * data on the struct.
-     * We can't use sizeof(uc->uc_sigmask) either, because the libc
-     * headers define the struct field with the wrong (too large) type.
+    /*
+     * For synchronous signals, unwind the cpu state to the faulting
+     * insn and then exit back to the main loop so that the signal
+     * is delivered immediately.
      */
-    memset(&uc->uc_sigmask, 0xff, SIGSET_T_SIZE);
-    sigdelset(&uc->uc_sigmask, SIGSEGV);
-    sigdelset(&uc->uc_sigmask, SIGBUS);
+    if (sync_sig) {
+        clear_helper_retaddr();
+        sigprocmask(SIG_SETMASK, &uc->uc_sigmask, NULL);
+        cpu->exception_index = EXCP_INTERRUPT;
+        cpu_loop_exit_restore(cpu, pc);
+    }
 
-    /* interrupt the virtual CPU as soon as possible */
+    /*
+     * Interrupt the virtual CPU as soon as possible, but for now
+     * return to continue with the current TB.
+     */
     cpu_exit(thread_cpu);
 }
 
