@@ -876,7 +876,7 @@ static void __cpu_ppc_store_decr(PowerPCCPU *cpu, uint64_t *nextp,
     bool negative;
 
     /* Truncate value to decr_width and sign extend for simplicity */
-    value &= ((1ULL << nr_bits) - 1);
+    value &= MAKE_64BIT_MASK(0, nr_bits);
     negative = !!(value & (1ULL << (nr_bits - 1)));
     if (negative) {
         value |= (0xFFFFFFFFULL << nr_bits);
