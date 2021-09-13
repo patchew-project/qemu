@@ -664,6 +664,14 @@ static inline tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env,
 }
 
 /**
+ * adjust_signal_pc:
+ * @pc: raw pc from the host signal ucontext_t.
+ *
+ * Return the pc to pass to cpu_restore_state.
+ */
+uintptr_t adjust_signal_pc(uintptr_t pc);
+
+/**
  * cpu_signal_handler
  * @signum: host signal number
  * @pinfo: host siginfo_t

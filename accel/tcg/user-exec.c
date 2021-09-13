@@ -57,18 +57,14 @@ static void QEMU_NORETURN cpu_exit_tb_from_sighandler(CPUState *cpu,
     cpu_loop_exit_noexc(cpu);
 }
 
-/* 'pc' is the host PC at which the exception was raised. 'address' is
-   the effective address of the memory exception. 'is_write' is 1 if a
-   write caused the exception and otherwise 0'. 'old_set' is the
-   signal set which should be restored */
-static inline int handle_cpu_signal(uintptr_t pc, siginfo_t *info,
-                                    int is_write, sigset_t *old_set)
+/**
+ * adjust_signal_pc:
+ * @pc: raw pc from the host signal ucontext_t.
+ *
+ * Return the pc to pass to cpu_restore_state.
+ */
+uintptr_t adjust_signal_pc(uintptr_t pc)
 {
-    CPUState *cpu = current_cpu;
-    CPUClass *cc;
-    unsigned long address = (unsigned long)info->si_addr;
-    MMUAccessType access_type = is_write ? MMU_DATA_STORE : MMU_DATA_LOAD;
-
     switch (helper_retaddr) {
     default:
         /*
@@ -77,8 +73,7 @@ static inline int handle_cpu_signal(uintptr_t pc, siginfo_t *info,
          * pointer into the generated code that will unwind to the
          * correct guest pc.
          */
-        pc = helper_retaddr;
-        break;
+        return helper_retaddr;
 
     case 0:
         /*
@@ -97,8 +92,7 @@ static inline int handle_cpu_signal(uintptr_t pc, siginfo_t *info,
          * Therefore, adjust to compensate for what will be done later
          * by cpu_restore_state_from_tb.
          */
-        pc += GETPC_ADJ;
-        break;
+        return pc + GETPC_ADJ;
 
     case 1:
         /*
@@ -113,11 +107,31 @@ static inline int handle_cpu_signal(uintptr_t pc, siginfo_t *info,
          *
          * Like tb_gen_code, release the memory lock before cpu_loop_exit.
          */
-        pc = 0;
-        access_type = MMU_INST_FETCH;
         mmap_unlock();
-        break;
+        return 0;
     }
+}
+
+/* 'pc' is the host PC at which the exception was raised. 'address' is
+   the effective address of the memory exception. 'is_write' is 1 if a
+   write caused the exception and otherwise 0'. 'old_set' is the
+   signal set which should be restored */
+static inline int handle_cpu_signal(uintptr_t pc, siginfo_t *info,
+                                    int is_write, sigset_t *old_set)
+{
+    CPUState *cpu = current_cpu;
+    CPUClass *cc;
+    unsigned long address = (unsigned long)info->si_addr;
+    MMUAccessType access_type;
+
+    if (is_write) {
+        access_type = MMU_DATA_STORE;
+    } else if (helper_retaddr == 1) {
+        access_type = MMU_INST_FETCH;
+    } else {
+        access_type = MMU_DATA_LOAD;
+    }
+    pc = adjust_signal_pc(pc);
 
     /* For synchronous signals we expect to be coming from the vCPU
      * thread (so current_cpu should be valid) and either from running
