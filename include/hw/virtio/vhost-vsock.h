@@ -33,4 +33,7 @@ struct VHostVSock {
     /*< public >*/
 };
 
+#define VHOST_VSOCK_NVQS 2
+#define VHOST_VSOCK_NVQS_DGRAM 4
+
 #endif /* QEMU_VHOST_VSOCK_H */

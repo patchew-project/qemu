@@ -20,9 +20,12 @@
 #include "hw/qdev-properties.h"
 #include "hw/virtio/vhost-vsock.h"
 #include "monitor/monitor.h"
+#include <sys/ioctl.h>
+#include <linux/vhost.h>
 
 const int feature_bits[] = {
     VIRTIO_VSOCK_F_SEQPACKET,
+    VIRTIO_VSOCK_F_DGRAM,
     VHOST_INVALID_FEATURE_BIT
 };
 
@@ -116,6 +119,9 @@ static uint64_t vhost_vsock_get_features(VirtIODevice *vdev,
     VHostVSockCommon *vvc = VHOST_VSOCK_COMMON(vdev);
 
     virtio_add_feature(&requested_features, VIRTIO_VSOCK_F_SEQPACKET);
+    if (vvc->vhost_dev.nvqs == VHOST_VSOCK_NVQS_DGRAM) {
+        virtio_add_feature(&requested_features, VIRTIO_VSOCK_F_DGRAM);
+    }
     return vhost_get_features(&vvc->vhost_dev, feature_bits,
                                 requested_features);
 }
@@ -132,13 +138,34 @@ static const VMStateDescription vmstate_virtio_vhost_vsock = {
     .post_load = vhost_vsock_common_post_load,
 };
 
+static bool vhost_vsock_dgram_supported(int vhostfd, Error **errp)
+{
+    uint64_t features;
+    int ret;
+
+    ret = ioctl(vhostfd, VHOST_GET_FEATURES, &features);
+    if (ret) {
+        error_setg(errp, "vhost-vsock: failed to read device freatures. %s",
+                     strerror(errno));
+        return false;
+    }
+
+    if (features & (1 << VIRTIO_VSOCK_F_DGRAM)) {
+        return true;
+    }
+
+    return false;
+}
+
 static void vhost_vsock_device_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_GUARD();
     VHostVSockCommon *vvc = VHOST_VSOCK_COMMON(dev);
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostVSock *vsock = VHOST_VSOCK(dev);
     int vhostfd;
     int ret;
+    bool enable_dgram;
 
     /* Refuse to use reserved CID numbers */
     if (vsock->conf.guest_cid <= 2) {
@@ -175,7 +202,11 @@ static void vhost_vsock_device_realize(DeviceState *dev, Error **errp)
         qemu_set_nonblock(vhostfd);
     }
 
-    vhost_vsock_common_realize(vdev, "vhost-vsock");
+    enable_dgram = vhost_vsock_dgram_supported(vhostfd, errp);
+    if (*errp) {
+        goto err_dgram;
+    }
+    vhost_vsock_common_realize(vdev, "vhost-vsock", enable_dgram);
 
     ret = vhost_dev_init(&vvc->vhost_dev, (void *)(uintptr_t)vhostfd,
                          VHOST_BACKEND_TYPE_KERNEL, 0, errp);
@@ -197,6 +228,7 @@ err_vhost_dev:
     vhostfd = -1;
 err_virtio:
     vhost_vsock_common_unrealize(vdev);
+err_dgram:
     if (vhostfd >= 0) {
         close(vhostfd);
     }
