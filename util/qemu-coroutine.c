@@ -21,14 +21,19 @@
 #include "block/aio.h"
 
 enum {
-    POOL_BATCH_SIZE = 64,
+    /*
+     * qemu_coroutine_pool_periodic_resize() keeps at least this many
+     * coroutines around.
+     */
+    ALLOC_POOL_MIN = 64,
 };
 
+
 /** Free list to speed up creation */
-static QSLIST_HEAD(, Coroutine) release_pool = QSLIST_HEAD_INITIALIZER(pool);
-static unsigned int release_pool_size;
 static __thread QSLIST_HEAD(, Coroutine) alloc_pool = QSLIST_HEAD_INITIALIZER(pool);
 static __thread unsigned int alloc_pool_size;
+static __thread unsigned int num_coroutines;
+static __thread unsigned int max_coroutines_this_slice;
 static __thread Notifier coroutine_pool_cleanup_notifier;
 
 static void coroutine_pool_cleanup(Notifier *n, void *value)
@@ -48,26 +53,19 @@ Coroutine *qemu_coroutine_create(CoroutineEntry *entry, void *opaque)
 
     if (CONFIG_COROUTINE_POOL) {
         co = QSLIST_FIRST(&alloc_pool);
-        if (!co) {
-            if (release_pool_size > POOL_BATCH_SIZE) {
-                /* Slow path; a good place to register the destructor, too.  */
-                if (!coroutine_pool_cleanup_notifier.notify) {
-                    coroutine_pool_cleanup_notifier.notify = coroutine_pool_cleanup;
-                    qemu_thread_atexit_add(&coroutine_pool_cleanup_notifier);
-                }
-
-                /* This is not exact; there could be a little skew between
-                 * release_pool_size and the actual size of release_pool.  But
-                 * it is just a heuristic, it does not need to be perfect.
-                 */
-                alloc_pool_size = qatomic_xchg(&release_pool_size, 0);
-                QSLIST_MOVE_ATOMIC(&alloc_pool, &release_pool);
-                co = QSLIST_FIRST(&alloc_pool);
-            }
-        }
         if (co) {
             QSLIST_REMOVE_HEAD(&alloc_pool, pool_next);
             alloc_pool_size--;
+        } else {
+            if (!coroutine_pool_cleanup_notifier.notify) {
+                coroutine_pool_cleanup_notifier.notify = coroutine_pool_cleanup;
+                qemu_thread_atexit_add(&coroutine_pool_cleanup_notifier);
+            }
+        }
+
+        num_coroutines++;
+        if (num_coroutines > max_coroutines_this_slice) {
+            max_coroutines_this_slice = num_coroutines;
         }
     }
 
@@ -86,19 +84,27 @@ static void coroutine_delete(Coroutine *co)
     co->caller = NULL;
 
     if (CONFIG_COROUTINE_POOL) {
-        if (release_pool_size < POOL_BATCH_SIZE * 2) {
-            QSLIST_INSERT_HEAD_ATOMIC(&release_pool, co, pool_next);
-            qatomic_inc(&release_pool_size);
-            return;
-        }
-        if (alloc_pool_size < POOL_BATCH_SIZE) {
-            QSLIST_INSERT_HEAD(&alloc_pool, co, pool_next);
-            alloc_pool_size++;
-            return;
-        }
+        num_coroutines--;
+        QSLIST_INSERT_HEAD(&alloc_pool, co, pool_next);
+        alloc_pool_size++;
+        return;
     }
 
     qemu_coroutine_delete(co);
+}
+
+void qemu_coroutine_pool_periodic_resize(void)
+{
+    unsigned pool_size_target =
+        MAX(ALLOC_POOL_MIN, max_coroutines_this_slice) - num_coroutines;
+    max_coroutines_this_slice = num_coroutines;
+
+    while (alloc_pool_size > pool_size_target) {
+        Coroutine *co = QSLIST_FIRST(&alloc_pool);
+        QSLIST_REMOVE_HEAD(&alloc_pool, pool_next);
+        qemu_coroutine_delete(co);
+        alloc_pool_size--;
+    }
 }
 
 void qemu_aio_coroutine_enter(AioContext *ctx, Coroutine *co)
