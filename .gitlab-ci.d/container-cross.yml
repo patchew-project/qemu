@@ -134,7 +134,6 @@ ppc64el-debian-cross-container:
 riscv64-debian-cross-container:
   extends: .container_job_template
   stage: containers-layer2
-  needs: ['amd64-debian10-container']
   variables:
     NAME: debian-riscv64-cross
 
