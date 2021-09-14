@@ -781,6 +781,16 @@ bool cpu_exists(int64_t id);
 CPUState *cpu_by_arch_id(int64_t id);
 
 /**
+ * cpu_get_arch_id:
+ * @cpu: the CPU to query
+ *
+ * Get the guest exposed CPU ID for @cpu
+ *
+ * Returns: The guest exposed CPU ID
+ */
+int64_t cpu_get_arch_id(CPUState *cpu);
+
+/**
  * cpu_interrupt:
  * @cpu: The CPU to set an interrupt on.
  * @mask: The interrupts to set.

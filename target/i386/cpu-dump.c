@@ -20,6 +20,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "qemu/qemu-print.h"
+#include "qapi/error.h"
 #ifndef CONFIG_USER_ONLY
 #include "hw/i386/apic_internal.h"
 #endif
@@ -179,24 +180,26 @@ static inline const char *dm2str(uint32_t dm)
     return str[dm];
 }
 
-static void dump_apic_lvt(const char *name, uint32_t lvt, bool is_timer)
+static void format_apic_lvt(const char *name, uint32_t lvt, bool is_timer,
+                            GString *buf)
 {
     uint32_t dm = (lvt & APIC_LVT_DELIV_MOD) >> APIC_LVT_DELIV_MOD_SHIFT;
-    qemu_printf("%s\t 0x%08x %s %-5s %-6s %-7s %-12s %-6s",
-                name, lvt,
-                lvt & APIC_LVT_INT_POLARITY ? "active-lo" : "active-hi",
-                lvt & APIC_LVT_LEVEL_TRIGGER ? "level" : "edge",
-                lvt & APIC_LVT_MASKED ? "masked" : "",
-                lvt & APIC_LVT_DELIV_STS ? "pending" : "",
-                !is_timer ?
-                    "" : lvt & APIC_LVT_TIMER_PERIODIC ?
-                            "periodic" : lvt & APIC_LVT_TIMER_TSCDEADLINE ?
-                                            "tsc-deadline" : "one-shot",
+    g_string_append_printf(buf, "%s\t 0x%08x %s %-5s %-6s %-7s %-12s %-6s",
+                           name, lvt,
+                           lvt & APIC_LVT_INT_POLARITY ?
+                           "active-lo" : "active-hi",
+                           lvt & APIC_LVT_LEVEL_TRIGGER ? "level" : "edge",
+                           lvt & APIC_LVT_MASKED ? "masked" : "",
+                           lvt & APIC_LVT_DELIV_STS ? "pending" : "",
+                           !is_timer ?
+                           "" : lvt & APIC_LVT_TIMER_PERIODIC ?
+                           "periodic" : lvt & APIC_LVT_TIMER_TSCDEADLINE ?
+                           "tsc-deadline" : "one-shot",
                 dm2str(dm));
     if (dm != APIC_DM_NMI) {
-        qemu_printf(" (vec %u)\n", lvt & APIC_VECTOR_MASK);
+        g_string_append_printf(buf, " (vec %u)\n", lvt & APIC_VECTOR_MASK);
     } else {
-        qemu_printf("\n");
+        g_string_append_printf(buf, "\n");
     }
 }
 
@@ -228,7 +231,7 @@ static inline void mask2str(char *str, uint32_t val, uint8_t size)
 
 #define MAX_LOGICAL_APIC_ID_MASK_SIZE 16
 
-static void dump_apic_icr(APICCommonState *s, CPUX86State *env)
+static void format_apic_icr(APICCommonState *s, CPUX86State *env, GString *buf)
 {
     uint32_t icr = s->icr[0], icr2 = s->icr[1];
     uint8_t dest_shorthand = \
@@ -238,16 +241,16 @@ static void dump_apic_icr(APICCommonState *s, CPUX86State *env)
     uint32_t dest_field;
     bool x2apic;
 
-    qemu_printf("ICR\t 0x%08x %s %s %s %s\n",
-                icr,
-                logical_mod ? "logical" : "physical",
-                icr & APIC_ICR_TRIGGER_MOD ? "level" : "edge",
-                icr & APIC_ICR_LEVEL ? "assert" : "de-assert",
-                shorthand2str(dest_shorthand));
+    g_string_append_printf(buf, "ICR\t 0x%08x %s %s %s %s\n",
+                           icr,
+                           logical_mod ? "logical" : "physical",
+                           icr & APIC_ICR_TRIGGER_MOD ? "level" : "edge",
+                           icr & APIC_ICR_LEVEL ? "assert" : "de-assert",
+                           shorthand2str(dest_shorthand));
 
-    qemu_printf("ICR2\t 0x%08x", icr2);
+    g_string_append_printf(buf, "ICR2\t 0x%08x", icr2);
     if (dest_shorthand != 0) {
-        qemu_printf("\n");
+        g_string_append_printf(buf, "\n");
         return;
     }
     x2apic = env->features[FEAT_1_ECX] & CPUID_EXT_X2APIC;
@@ -255,96 +258,100 @@ static void dump_apic_icr(APICCommonState *s, CPUX86State *env)
 
     if (!logical_mod) {
         if (x2apic) {
-            qemu_printf(" cpu %u (X2APIC ID)\n", dest_field);
+            g_string_append_printf(buf, " cpu %u (X2APIC ID)\n", dest_field);
         } else {
-            qemu_printf(" cpu %u (APIC ID)\n",
-                        dest_field & APIC_LOGDEST_XAPIC_ID);
+            g_string_append_printf(buf, " cpu %u (APIC ID)\n",
+                                   dest_field & APIC_LOGDEST_XAPIC_ID);
         }
         return;
     }
 
     if (s->dest_mode == 0xf) { /* flat mode */
         mask2str(apic_id_str, icr2 >> APIC_ICR_DEST_SHIFT, 8);
-        qemu_printf(" mask %s (APIC ID)\n", apic_id_str);
+        g_string_append_printf(buf, " mask %s (APIC ID)\n", apic_id_str);
     } else if (s->dest_mode == 0) { /* cluster mode */
         if (x2apic) {
             mask2str(apic_id_str, dest_field & APIC_LOGDEST_X2APIC_ID, 16);
-            qemu_printf(" cluster %u mask %s (X2APIC ID)\n",
-                        dest_field >> APIC_LOGDEST_X2APIC_SHIFT, apic_id_str);
+            g_string_append_printf(buf, " cluster %u mask %s (X2APIC ID)\n",
+                                   dest_field >> APIC_LOGDEST_X2APIC_SHIFT,
+                                   apic_id_str);
         } else {
             mask2str(apic_id_str, dest_field & APIC_LOGDEST_XAPIC_ID, 4);
-            qemu_printf(" cluster %u mask %s (APIC ID)\n",
-                        dest_field >> APIC_LOGDEST_XAPIC_SHIFT, apic_id_str);
+            g_string_append_printf(buf, " cluster %u mask %s (APIC ID)\n",
+                                   dest_field >> APIC_LOGDEST_XAPIC_SHIFT,
+                                   apic_id_str);
         }
     }
 }
 
-static void dump_apic_interrupt(const char *name, uint32_t *ireg_tab,
-                                uint32_t *tmr_tab)
+static void format_apic_interrupt(const char *name, uint32_t *ireg_tab,
+                                  uint32_t *tmr_tab, GString *buf)
 {
     int i, empty = true;
 
-    qemu_printf("%s\t ", name);
+    g_string_append_printf(buf, "%s\t ", name);
     for (i = 0; i < 256; i++) {
         if (apic_get_bit(ireg_tab, i)) {
-            qemu_printf("%u%s ", i,
-                        apic_get_bit(tmr_tab, i) ? "(level)" : "");
+            g_string_append_printf(buf, "%u%s ", i,
+                                   apic_get_bit(tmr_tab, i) ? "(level)" : "");
             empty = false;
         }
     }
-    qemu_printf("%s\n", empty ? "(none)" : "");
+    g_string_append_printf(buf, "%s\n", empty ? "(none)" : "");
 }
 
-void x86_cpu_dump_local_apic_state(CPUState *cs, int flags)
+GString *x86_cpu_format_local_apic_state(CPUState *cs, int flags, Error **errp)
 {
+    g_autoptr(GString) buf = g_string_new("");
     X86CPU *cpu = X86_CPU(cs);
     APICCommonState *s = APIC_COMMON(cpu->apic_state);
     if (!s) {
-        qemu_printf("local apic state not available\n");
-        return;
+        error_setg(errp, "local apic state not available");
+        return NULL;
     }
     uint32_t *lvt = s->lvt;
 
-    qemu_printf("dumping local APIC state for CPU %-2u\n\n",
-                CPU(cpu)->cpu_index);
-    dump_apic_lvt("LVT0", lvt[APIC_LVT_LINT0], false);
-    dump_apic_lvt("LVT1", lvt[APIC_LVT_LINT1], false);
-    dump_apic_lvt("LVTPC", lvt[APIC_LVT_PERFORM], false);
-    dump_apic_lvt("LVTERR", lvt[APIC_LVT_ERROR], false);
-    dump_apic_lvt("LVTTHMR", lvt[APIC_LVT_THERMAL], false);
-    dump_apic_lvt("LVTT", lvt[APIC_LVT_TIMER], true);
+    g_string_append_printf(buf, "dumping local APIC state for CPU %-2u\n\n",
+                           CPU(cpu)->cpu_index);
+    format_apic_lvt("LVT0", lvt[APIC_LVT_LINT0], false, buf);
+    format_apic_lvt("LVT1", lvt[APIC_LVT_LINT1], false, buf);
+    format_apic_lvt("LVTPC", lvt[APIC_LVT_PERFORM], false, buf);
+    format_apic_lvt("LVTERR", lvt[APIC_LVT_ERROR], false, buf);
+    format_apic_lvt("LVTTHMR", lvt[APIC_LVT_THERMAL], false, buf);
+    format_apic_lvt("LVTT", lvt[APIC_LVT_TIMER], true, buf);
 
-    qemu_printf("Timer\t DCR=0x%x (divide by %u) initial_count = %u"
-                " current_count = %u\n",
-                s->divide_conf & APIC_DCR_MASK,
-                divider_conf(s->divide_conf),
-                s->initial_count, apic_get_current_count(s));
+    g_string_append_printf(buf,
+                           "Timer\t DCR=0x%x (divide by %u) initial_count = %u"
+                           " current_count = %u\n",
+                           s->divide_conf & APIC_DCR_MASK,
+                           divider_conf(s->divide_conf),
+                           s->initial_count, apic_get_current_count(s));
 
-    qemu_printf("SPIV\t 0x%08x APIC %s, focus=%s, spurious vec %u\n",
-                s->spurious_vec,
-                s->spurious_vec & APIC_SPURIO_ENABLED ? "enabled" : "disabled",
-                s->spurious_vec & APIC_SPURIO_FOCUS ? "on" : "off",
-                s->spurious_vec & APIC_VECTOR_MASK);
+    g_string_append_printf(buf,
+                           "SPIV\t 0x%08x APIC %s, focus=%s, spurious vec %u\n",
+                           s->spurious_vec,
+                           s->spurious_vec & APIC_SPURIO_ENABLED ?
+                           "enabled" : "disabled",
+                           s->spurious_vec & APIC_SPURIO_FOCUS ? "on" : "off",
+                           s->spurious_vec & APIC_VECTOR_MASK);
 
-    dump_apic_icr(s, &cpu->env);
+    format_apic_icr(s, &cpu->env, buf);
 
-    qemu_printf("ESR\t 0x%08x\n", s->esr);
+    g_string_append_printf(buf, "ESR\t 0x%08x\n", s->esr);
 
-    dump_apic_interrupt("ISR", s->isr, s->tmr);
-    dump_apic_interrupt("IRR", s->irr, s->tmr);
+    format_apic_interrupt("ISR", s->isr, s->tmr, buf);
+    format_apic_interrupt("IRR", s->irr, s->tmr, buf);
 
-    qemu_printf("\nAPR 0x%02x TPR 0x%02x DFR 0x%02x LDR 0x%02x",
-                s->arb_id, s->tpr, s->dest_mode, s->log_dest);
+    g_string_append_printf(buf, "\nAPR 0x%02x TPR 0x%02x DFR 0x%02x LDR 0x%02x",
+                           s->arb_id, s->tpr, s->dest_mode, s->log_dest);
     if (s->dest_mode == 0) {
-        qemu_printf("(cluster %u: id %u)",
-                    s->log_dest >> APIC_LOGDEST_XAPIC_SHIFT,
-                    s->log_dest & APIC_LOGDEST_XAPIC_ID);
+        g_string_append_printf(buf, "(cluster %u: id %u)",
+                               s->log_dest >> APIC_LOGDEST_XAPIC_SHIFT,
+                               s->log_dest & APIC_LOGDEST_XAPIC_ID);
     }
-    qemu_printf(" PPR 0x%02x\n", apic_get_ppr(s));
-}
-#else
-void x86_cpu_dump_local_apic_state(CPUState *cs, int flags)
-{
+    g_string_append_printf(buf, " PPR 0x%02x\n", apic_get_ppr(s));
+
+    return g_steal_pointer(&buf);
 }
 #endif /* !CONFIG_USER_ONLY */
 

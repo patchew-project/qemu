@@ -49,6 +49,13 @@ CPUState *cpu_by_arch_id(int64_t id)
     return NULL;
 }
 
+int64_t cpu_get_arch_id(CPUState *cpu)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    return cc->get_arch_id(cpu);
+}
+
 bool cpu_exists(int64_t id)
 {
     return !!cpu_by_arch_id(id);

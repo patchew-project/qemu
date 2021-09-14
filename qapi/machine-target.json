@@ -353,7 +353,8 @@
 ##
 { 'struct': 'TargetHumanReadableText',
   'data': { 'human-readable-text': 'str' },
-  'if': 'TARGET_S390X' }
+  'if': { 'any': ['TARGET_S390X',
+                  'TARGET_I386' ] } }
 
 ##
 # @x-query-cmma:
@@ -368,6 +369,22 @@
   'data': { 'addr': 'int', '*count': 'int' },
   'returns': 'TargetHumanReadableText',
   'if': 'TARGET_S390X' }
+
+##
+# @x-query-lapic:
+#
+# @apic-id: the local APIC ID to report
+#
+# Query local APIC state.
+#
+# Returns: local APIC state
+#
+# Since: 6.2
+##
+{ 'command': 'x-query-lapic',
+  'data': { 'apic-id': 'int' },
+  'returns': 'TargetHumanReadableText',
+  'if': 'TARGET_I386' }
 
 ##
 # @x-query-skeys:
