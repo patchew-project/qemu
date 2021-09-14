@@ -9,5 +9,6 @@ found at::
    https://wiki.qemu.org/Testing/CI
 
 .. include:: ci-definitions.rst
+.. include:: ci-plan.rst
 .. include:: ci-jobs.rst
 .. include:: ci-runners.rst
