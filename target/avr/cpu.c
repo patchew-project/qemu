@@ -145,43 +145,44 @@ static ObjectClass *avr_cpu_class_by_name(const char *cpu_model)
     return oc;
 }
 
-static void avr_cpu_dump_state(CPUState *cs, FILE *f, int flags)
+static void avr_cpu_format_state(CPUState *cs, GString *buf, int flags)
 {
     AVRCPU *cpu = AVR_CPU(cs);
     CPUAVRState *env = &cpu->env;
     int i;
 
-    qemu_fprintf(f, "\n");
-    qemu_fprintf(f, "PC:    %06x\n", env->pc_w * 2); /* PC points to words */
-    qemu_fprintf(f, "SP:      %04x\n", env->sp);
-    qemu_fprintf(f, "rampD:     %02x\n", env->rampD >> 16);
-    qemu_fprintf(f, "rampX:     %02x\n", env->rampX >> 16);
-    qemu_fprintf(f, "rampY:     %02x\n", env->rampY >> 16);
-    qemu_fprintf(f, "rampZ:     %02x\n", env->rampZ >> 16);
-    qemu_fprintf(f, "EIND:      %02x\n", env->eind >> 16);
-    qemu_fprintf(f, "X:       %02x%02x\n", env->r[27], env->r[26]);
-    qemu_fprintf(f, "Y:       %02x%02x\n", env->r[29], env->r[28]);
-    qemu_fprintf(f, "Z:       %02x%02x\n", env->r[31], env->r[30]);
-    qemu_fprintf(f, "SREG:    [ %c %c %c %c %c %c %c %c ]\n",
-                 env->sregI ? 'I' : '-',
-                 env->sregT ? 'T' : '-',
-                 env->sregH ? 'H' : '-',
-                 env->sregS ? 'S' : '-',
-                 env->sregV ? 'V' : '-',
-                 env->sregN ? '-' : 'N', /* Zf has negative logic */
-                 env->sregZ ? 'Z' : '-',
-                 env->sregC ? 'I' : '-');
-    qemu_fprintf(f, "SKIP:    %02x\n", env->skip);
+    g_string_append_printf(buf, "\n");
+    /* PC points to words */
+    g_string_append_printf(buf, "PC:    %06x\n", env->pc_w * 2);
+    g_string_append_printf(buf, "SP:      %04x\n", env->sp);
+    g_string_append_printf(buf, "rampD:     %02x\n", env->rampD >> 16);
+    g_string_append_printf(buf, "rampX:     %02x\n", env->rampX >> 16);
+    g_string_append_printf(buf, "rampY:     %02x\n", env->rampY >> 16);
+    g_string_append_printf(buf, "rampZ:     %02x\n", env->rampZ >> 16);
+    g_string_append_printf(buf, "EIND:      %02x\n", env->eind >> 16);
+    g_string_append_printf(buf, "X:       %02x%02x\n", env->r[27], env->r[26]);
+    g_string_append_printf(buf, "Y:       %02x%02x\n", env->r[29], env->r[28]);
+    g_string_append_printf(buf, "Z:       %02x%02x\n", env->r[31], env->r[30]);
+    g_string_append_printf(buf, "SREG:    [ %c %c %c %c %c %c %c %c ]\n",
+                           env->sregI ? 'I' : '-',
+                           env->sregT ? 'T' : '-',
+                           env->sregH ? 'H' : '-',
+                           env->sregS ? 'S' : '-',
+                           env->sregV ? 'V' : '-',
+                           env->sregN ? '-' : 'N', /* Zf has negative logic */
+                           env->sregZ ? 'Z' : '-',
+                           env->sregC ? 'I' : '-');
+    g_string_append_printf(buf, "SKIP:    %02x\n", env->skip);
 
-    qemu_fprintf(f, "\n");
+    g_string_append_printf(buf, "\n");
     for (i = 0; i < ARRAY_SIZE(env->r); i++) {
-        qemu_fprintf(f, "R[%02d]:  %02x   ", i, env->r[i]);
+        g_string_append_printf(buf, "R[%02d]:  %02x   ", i, env->r[i]);
 
         if ((i % 8) == 7) {
-            qemu_fprintf(f, "\n");
+            g_string_append_printf(buf, "\n");
         }
     }
-    qemu_fprintf(f, "\n");
+    g_string_append_printf(buf, "\n");
 }
 
 #include "hw/core/sysemu-cpu-ops.h"
@@ -215,7 +216,7 @@ static void avr_cpu_class_init(ObjectClass *oc, void *data)
     cc->class_by_name = avr_cpu_class_by_name;
 
     cc->has_work = avr_cpu_has_work;
-    cc->dump_state = avr_cpu_dump_state;
+    cc->format_state = avr_cpu_format_state;
     cc->set_pc = avr_cpu_set_pc;
     cc->memory_rw_debug = avr_cpu_memory_rw_debug;
     dc->vmsd = &vms_avr_cpu;
