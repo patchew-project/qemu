@@ -1327,3 +1327,15 @@
 { 'command': 'x-query-registers',
   'data': {'*cpu': 'int' },
   'returns': 'HumanReadableText' }
+
+##
+# @x-query-roms:
+#
+# Query information on the registered ROMS
+#
+# Returns: registered ROMs
+#
+# Since: 6.2
+##
+{ 'command': 'x-query-roms',
+  'returns': 'HumanReadableText' }
