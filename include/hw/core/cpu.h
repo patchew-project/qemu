@@ -92,6 +92,7 @@ struct SysemuCPUOps;
  * @has_work: Callback for checking if there is work to do.
  * @memory_rw_debug: Callback for GDB memory access.
  * @format_state: Callback for formatting state.
+ * @format_tlb: Callback for formatting memory mappings
  * @get_arch_id: Callback for getting architecture-dependent CPU ID.
  * @set_pc: Callback for setting the Program Counter register. This
  *       should have the semantics used by the target architecture when
@@ -136,6 +137,7 @@ struct CPUClass {
     int (*memory_rw_debug)(CPUState *cpu, vaddr addr,
                            uint8_t *buf, int len, bool is_write);
     void (*format_state)(CPUState *cpu, GString *buf, int flags);
+    void (*format_tlb)(CPUState *cpu, GString *buf);
     int64_t (*get_arch_id)(CPUState *cpu);
     void (*set_pc)(CPUState *cpu, vaddr value);
     int (*gdb_read_register)(CPUState *cpu, GByteArray *buf, int reg);
@@ -545,6 +547,15 @@ void cpu_dump_state(CPUState *cpu, FILE *f, int flags);
  * Formats the CPU state.
  */
 void cpu_format_state(CPUState *cpu, GString *buf, int flags);
+
+/**
+ * cpu_format_tlb:
+ * @cpu: The CPU whose memory mappings are to be formatted.
+ * @buf: buffer to format state into
+ *
+ * Formats the memory mappings
+ */
+void cpu_format_tlb(CPUState *cpu, GString *buf);
 
 #ifndef CONFIG_USER_ONLY
 /**

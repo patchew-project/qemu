@@ -123,6 +123,15 @@ void cpu_format_state(CPUState *cpu, GString *buf, int flags)
     }
 }
 
+void cpu_format_tlb(CPUState *cpu, GString *buf)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    if (cc->format_tlb) {
+        cc->format_tlb(cpu, buf);
+    }
+}
+
 void cpu_reset(CPUState *cpu)
 {
     device_cold_reset(DEVICE(cpu));
