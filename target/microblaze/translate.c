@@ -1848,54 +1848,55 @@ void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb, int max_insns)
     translator_loop(&mb_tr_ops, &dc.base, cpu, tb, max_insns);
 }
 
-void mb_cpu_dump_state(CPUState *cs, FILE *f, int flags)
+void mb_cpu_format_state(CPUState *cs, GString *buf, int flags)
 {
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
     CPUMBState *env = &cpu->env;
     uint32_t iflags;
     int i;
 
-    qemu_fprintf(f, "pc=0x%08x msr=0x%05x mode=%s(saved=%s) eip=%d ie=%d\n",
-                 env->pc, env->msr,
-                 (env->msr & MSR_UM) ? "user" : "kernel",
-                 (env->msr & MSR_UMS) ? "user" : "kernel",
-                 (bool)(env->msr & MSR_EIP),
-                 (bool)(env->msr & MSR_IE));
+    g_string_append_printf(buf, "pc=0x%08x msr=0x%05x mode=%s(saved=%s) "
+                           "eip=%d ie=%d\n",
+                           env->pc, env->msr,
+                           (env->msr & MSR_UM) ? "user" : "kernel",
+                           (env->msr & MSR_UMS) ? "user" : "kernel",
+                           (bool)(env->msr & MSR_EIP),
+                           (bool)(env->msr & MSR_IE));
 
     iflags = env->iflags;
-    qemu_fprintf(f, "iflags: 0x%08x", iflags);
+    g_string_append_printf(buf, "iflags: 0x%08x", iflags);
     if (iflags & IMM_FLAG) {
-        qemu_fprintf(f, " IMM(0x%08x)", env->imm);
+        g_string_append_printf(buf, " IMM(0x%08x)", env->imm);
     }
     if (iflags & BIMM_FLAG) {
-        qemu_fprintf(f, " BIMM");
+        g_string_append_printf(buf, " BIMM");
     }
     if (iflags & D_FLAG) {
-        qemu_fprintf(f, " D(btarget=0x%08x)", env->btarget);
+        g_string_append_printf(buf, " D(btarget=0x%08x)", env->btarget);
     }
     if (iflags & DRTI_FLAG) {
-        qemu_fprintf(f, " DRTI");
+        g_string_append_printf(buf, " DRTI");
     }
     if (iflags & DRTE_FLAG) {
-        qemu_fprintf(f, " DRTE");
+        g_string_append_printf(buf, " DRTE");
     }
     if (iflags & DRTB_FLAG) {
-        qemu_fprintf(f, " DRTB");
+        g_string_append_printf(buf, " DRTB");
     }
     if (iflags & ESR_ESS_FLAG) {
-        qemu_fprintf(f, " ESR_ESS(0x%04x)", iflags & ESR_ESS_MASK);
+        g_string_append_printf(buf, " ESR_ESS(0x%04x)", iflags & ESR_ESS_MASK);
     }
 
-    qemu_fprintf(f, "\nesr=0x%04x fsr=0x%02x btr=0x%08x edr=0x%x\n"
-                 "ear=0x" TARGET_FMT_lx " slr=0x%x shr=0x%x\n",
-                 env->esr, env->fsr, env->btr, env->edr,
-                 env->ear, env->slr, env->shr);
+    g_string_append_printf(buf, "\nesr=0x%04x fsr=0x%02x btr=0x%08x edr=0x%x\n"
+                           "ear=0x" TARGET_FMT_lx " slr=0x%x shr=0x%x\n",
+                           env->esr, env->fsr, env->btr, env->edr,
+                           env->ear, env->slr, env->shr);
 
     for (i = 0; i < 32; i++) {
-        qemu_fprintf(f, "r%2.2d=%08x%c",
-                     i, env->regs[i], i % 4 == 3 ? '\n' : ' ');
+        g_string_append_printf(buf, "r%2.2d=%08x%c",
+                               i, env->regs[i], i % 4 == 3 ? '\n' : ' ');
     }
-    qemu_fprintf(f, "\n");
+    g_string_append_printf(buf, "\n");
 }
 
 void mb_tcg_init(void)
