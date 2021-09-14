@@ -25,66 +25,67 @@
 #include "qemu/qemu-print.h"
 #include "sysemu/tcg.h"
 
-void s390_cpu_dump_state(CPUState *cs, FILE *f, int flags)
+void s390_cpu_format_state(CPUState *cs, GString *buf, int flags)
 {
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
     int i;
 
-    qemu_fprintf(f, "PSW=mask %016" PRIx64 " addr %016" PRIx64,
-                 s390_cpu_get_psw_mask(env), env->psw.addr);
+    g_string_append_printf(buf, "PSW=mask %016" PRIx64 " addr %016" PRIx64,
+                           s390_cpu_get_psw_mask(env), env->psw.addr);
     if (!tcg_enabled()) {
-        qemu_fprintf(f, "\n");
+        g_string_append_printf(buf, "\n");
     } else if (env->cc_op > 3) {
-        qemu_fprintf(f, " cc %15s\n", cc_name(env->cc_op));
+        g_string_append_printf(buf, " cc %15s\n", cc_name(env->cc_op));
     } else {
-        qemu_fprintf(f, " cc %02x\n", env->cc_op);
+        g_string_append_printf(buf, " cc %02x\n", env->cc_op);
     }
 
     for (i = 0; i < 16; i++) {
-        qemu_fprintf(f, "R%02d=%016" PRIx64, i, env->regs[i]);
+        g_string_append_printf(buf, "R%02d=%016" PRIx64, i, env->regs[i]);
         if ((i % 4) == 3) {
-            qemu_fprintf(f, "\n");
+            g_string_append_printf(buf, "\n");
         } else {
-            qemu_fprintf(f, " ");
+            g_string_append_printf(buf, " ");
         }
     }
 
     if (flags & CPU_DUMP_FPU) {
         if (s390_has_feat(S390_FEAT_VECTOR)) {
             for (i = 0; i < 32; i++) {
-                qemu_fprintf(f, "V%02d=%016" PRIx64 "%016" PRIx64 "%c",
-                             i, env->vregs[i][0], env->vregs[i][1],
-                             i % 2 ? '\n' : ' ');
+                g_string_append_printf(buf,
+                                       "V%02d=%016" PRIx64 "%016" PRIx64 "%c",
+                                       i, env->vregs[i][0], env->vregs[i][1],
+                                       i % 2 ? '\n' : ' ');
             }
         } else {
             for (i = 0; i < 16; i++) {
-                qemu_fprintf(f, "F%02d=%016" PRIx64 "%c",
-                             i, *get_freg(env, i),
-                             (i % 4) == 3 ? '\n' : ' ');
+                g_string_append_printf(buf, "F%02d=%016" PRIx64 "%c",
+                                       i, *get_freg(env, i),
+                                       (i % 4) == 3 ? '\n' : ' ');
             }
         }
     }
 
 #ifndef CONFIG_USER_ONLY
     for (i = 0; i < 16; i++) {
-        qemu_fprintf(f, "C%02d=%016" PRIx64, i, env->cregs[i]);
+        g_string_append_printf(buf, "C%02d=%016" PRIx64, i, env->cregs[i]);
         if ((i % 4) == 3) {
-            qemu_fprintf(f, "\n");
+            g_string_append_printf(buf, "\n");
         } else {
-            qemu_fprintf(f, " ");
+            g_string_append_printf(buf, " ");
         }
     }
 #endif
 
 #ifdef DEBUG_INLINE_BRANCHES
     for (i = 0; i < CC_OP_MAX; i++) {
-        qemu_fprintf(f, "  %15s = %10ld\t%10ld\n", cc_name(i),
-                     inline_branch_miss[i], inline_branch_hit[i]);
+        g_string_append_printf(buf, "  %15s = %10ld\t%10ld\n", cc_name(i),
+                               inline_branch_miss[i], inline_branch_hit[i]);
     }
 #endif
 
-    qemu_fprintf(f, "\n");
+    g_string_append_printf(buf, "\n");
 }
 
 const char *cc_name(enum cc_op cc_op)
