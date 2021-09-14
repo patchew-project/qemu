@@ -169,6 +169,7 @@ struct M68kCPU {
 void m68k_cpu_do_interrupt(CPUState *cpu);
 bool m68k_cpu_exec_interrupt(CPUState *cpu, int int_req);
 void m68k_cpu_format_state(CPUState *cpu, GString *buf, int flags);
+void m68k_cpu_format_tlb(CPUState *cpu, GString *buf);
 hwaddr m68k_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 int m68k_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int m68k_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
@@ -611,7 +612,5 @@ static inline void cpu_get_tb_cpu_state(CPUM68KState *env, target_ulong *pc,
         *flags |= TB_FLAGS_TRACE;
     }
 }
-
-void dump_mmu(CPUM68KState *env);
 
 #endif

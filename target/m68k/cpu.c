@@ -537,6 +537,9 @@ static void m68k_cpu_class_init(ObjectClass *c, void *data)
     cc->class_by_name = m68k_cpu_class_by_name;
     cc->has_work = m68k_cpu_has_work;
     cc->format_state = m68k_cpu_format_state;
+#ifndef CONFIG_USER_ONLY
+    cc->format_tlb = m68k_cpu_format_tlb;
+#endif
     cc->set_pc = m68k_cpu_set_pc;
     cc->gdb_read_register = m68k_cpu_gdb_read_register;
     cc->gdb_write_register = m68k_cpu_gdb_write_register;
