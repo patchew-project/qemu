@@ -37,6 +37,7 @@
 #include "qapi/qapi-commands-misc.h"
 #include "qapi/qapi-commands-ui.h"
 #include "qapi/qmp/qerror.h"
+#include "exec/ramlist.h"
 #include "hw/mem/memory-device.h"
 #include "hw/acpi/acpi_dev_interface.h"
 #include "hw/rdma/rdma.h"
@@ -414,6 +415,16 @@ HumanReadableText *qmp_x_query_rdma(Error **errp)
 
     object_child_foreach_recursive(object_get_root(),
                                    qmp_x_query_rdma_foreach, buf);
+
+    ret = g_new0(HumanReadableText, 1);
+    ret->human_readable_text = g_steal_pointer(&buf->str);
+    return ret;
+}
+
+HumanReadableText *qmp_x_query_ramblock(Error **errp)
+{
+    HumanReadableText *ret;
+    g_autoptr(GString) buf = ram_block_format();
 
     ret = g_new0(HumanReadableText, 1);
     ret->human_readable_text = g_steal_pointer(&buf->str);
