@@ -98,7 +98,7 @@ static target_ulong read_p3_0(CPUHexagonState *env)
     return control_reg;
 }
 
-static void print_reg(FILE *f, CPUHexagonState *env, int regnum)
+static void format_reg(GString *buf, CPUHexagonState *env, int regnum)
 {
     target_ulong value;
 
@@ -109,13 +109,14 @@ static void print_reg(FILE *f, CPUHexagonState *env, int regnum)
                             : env->gpr[regnum];
     }
 
-    qemu_fprintf(f, "  %s = 0x" TARGET_FMT_lx "\n",
-                 hexagon_regnames[regnum], value);
+    g_string_append_printf(buf, "  %s = 0x" TARGET_FMT_lx "\n",
+                           hexagon_regnames[regnum], value);
 }
 
-static void hexagon_dump(CPUHexagonState *env, FILE *f)
+static void hexagon_format_state(CPUState *cs, GString *buf, int flags)
 {
-    HexagonCPU *cpu = env_archcpu(env);
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+    CPUHexagonState *env = &cpu->env;
 
     if (cpu->lldb_compat) {
         /*
@@ -128,45 +129,37 @@ static void hexagon_dump(CPUHexagonState *env, FILE *f)
         env->last_pc_dumped = env->gpr[HEX_REG_PC];
     }
 
-    qemu_fprintf(f, "General Purpose Registers = {\n");
+    g_string_append_printf(buf, "General Purpose Registers = {\n");
     for (int i = 0; i < 32; i++) {
-        print_reg(f, env, i);
+        format_reg(buf, env, i);
     }
-    print_reg(f, env, HEX_REG_SA0);
-    print_reg(f, env, HEX_REG_LC0);
-    print_reg(f, env, HEX_REG_SA1);
-    print_reg(f, env, HEX_REG_LC1);
-    print_reg(f, env, HEX_REG_M0);
-    print_reg(f, env, HEX_REG_M1);
-    print_reg(f, env, HEX_REG_USR);
-    print_reg(f, env, HEX_REG_P3_0);
-    print_reg(f, env, HEX_REG_GP);
-    print_reg(f, env, HEX_REG_UGP);
-    print_reg(f, env, HEX_REG_PC);
+    format_reg(buf, env, HEX_REG_SA0);
+    format_reg(buf, env, HEX_REG_LC0);
+    format_reg(buf, env, HEX_REG_SA1);
+    format_reg(buf, env, HEX_REG_LC1);
+    format_reg(buf, env, HEX_REG_M0);
+    format_reg(buf, env, HEX_REG_M1);
+    format_reg(buf, env, HEX_REG_USR);
+    format_reg(buf, env, HEX_REG_P3_0);
+    format_reg(buf, env, HEX_REG_GP);
+    format_reg(buf, env, HEX_REG_UGP);
+    format_reg(buf, env, HEX_REG_PC);
 #ifdef CONFIG_USER_ONLY
     /*
      * Not modelled in user mode, print junk to minimize the diff's
      * with LLDB output
      */
-    qemu_fprintf(f, "  cause = 0x000000db\n");
-    qemu_fprintf(f, "  badva = 0x00000000\n");
-    qemu_fprintf(f, "  cs0 = 0x00000000\n");
-    qemu_fprintf(f, "  cs1 = 0x00000000\n");
+    g_string_append_printf(buf, "  cause = 0x000000db\n");
+    g_string_append_printf(buf, "  badva = 0x00000000\n");
+    g_string_append_printf(buf, "  cs0 = 0x00000000\n");
+    g_string_append_printf(buf, "  cs1 = 0x00000000\n");
 #else
-    print_reg(f, env, HEX_REG_CAUSE);
-    print_reg(f, env, HEX_REG_BADVA);
-    print_reg(f, env, HEX_REG_CS0);
-    print_reg(f, env, HEX_REG_CS1);
+    format_reg(buf, env, HEX_REG_CAUSE);
+    format_reg(buf, env, HEX_REG_BADVA);
+    format_reg(buf, env, HEX_REG_CS0);
+    format_reg(buf, env, HEX_REG_CS1);
 #endif
-    qemu_fprintf(f, "}\n");
-}
-
-static void hexagon_dump_state(CPUState *cs, FILE *f, int flags)
-{
-    HexagonCPU *cpu = HEXAGON_CPU(cs);
-    CPUHexagonState *env = &cpu->env;
-
-    hexagon_dump(env, f);
+    g_string_append_printf(buf, "}\n");
 }
 
 static void hexagon_cpu_set_pc(CPUState *cs, vaddr value)
@@ -283,7 +276,7 @@ static void hexagon_cpu_class_init(ObjectClass *c, void *data)
 
     cc->class_by_name = hexagon_cpu_class_by_name;
     cc->has_work = hexagon_cpu_has_work;
-    cc->dump_state = hexagon_dump_state;
+    cc->format_state = hexagon_format_state;
     cc->set_pc = hexagon_cpu_set_pc;
     cc->gdb_read_register = hexagon_gdb_read_register;
     cc->gdb_write_register = hexagon_gdb_write_register;
