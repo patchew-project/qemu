@@ -110,7 +110,7 @@ void cpu_dump_state(CPUState *cpu, FILE *f, int flags)
 {
     g_autoptr(GString) buf = g_string_new("");
     cpu_format_state(cpu, buf, flags);
-    qemu_fprintf(f, "%s", buf->str);
+    fprintf(f, "%s", buf->str);
 }
 
 void cpu_format_state(CPUState *cpu, GString *buf, int flags)

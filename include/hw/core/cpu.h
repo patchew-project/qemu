@@ -531,7 +531,7 @@ enum CPUDumpFlags {
 /**
  * cpu_dump_state:
  * @cpu: The CPU whose state is to be dumped.
- * @f: If non-null, dump to this stream, else to current print sink.
+ * @f: dump to this stream
  *
  * Dumps CPU state.
  */
