@@ -604,9 +604,6 @@ struct TCGContext {
 
     /* descriptor of the instruction being translated */
     struct qemu_plugin_insn *plugin_insn;
-
-    /* list to quickly access the injected ops */
-    QSIMPLEQ_HEAD(, TCGOp) plugin_ops;
 #endif
 
     GHashTable *const_table[TCG_TYPE_COUNT];
