@@ -1055,7 +1055,7 @@ int xtensa_get_physical_addr(CPUXtensaState *env, bool update_tlb,
     }
 }
 
-static void dump_tlb(CPUXtensaState *env, bool dtlb)
+static void dump_tlb(CPUXtensaState *env, bool dtlb, GString *buf)
 {
     unsigned wi, ei;
     const xtensa_tlb *conf =
@@ -1094,34 +1094,40 @@ static void dump_tlb(CPUXtensaState *env, bool dtlb)
 
                 if (print_header) {
                     print_header = false;
-                    qemu_printf("Way %u (%d %s)\n", wi, sz, sz_text);
-                    qemu_printf("\tVaddr       Paddr       ASID  Attr RWX Cache\n"
-                                "\t----------  ----------  ----  ---- --- -------\n");
+                    g_string_append_printf(buf, "Way %u (%d %s)\n",
+                                           wi, sz, sz_text);
+                    g_string_append_printf(buf, "\tVaddr       Paddr       "
+                                           "ASID  Attr RWX Cache\n"
+                                           "\t----------  ----------  ----  "
+                                           "---- --- -------\n");
                 }
-                qemu_printf("\t0x%08x  0x%08x  0x%02x  0x%02x %c%c%c %-7s\n",
-                            entry->vaddr,
-                            entry->paddr,
-                            entry->asid,
-                            entry->attr,
-                            (access & PAGE_READ) ? 'R' : '-',
-                            (access & PAGE_WRITE) ? 'W' : '-',
-                            (access & PAGE_EXEC) ? 'X' : '-',
-                            cache_text[cache_idx] ?
-                            cache_text[cache_idx] : "Invalid");
+                g_string_append_printf(buf, "\t0x%08x  0x%08x  0x%02x  "
+                                       "0x%02x %c%c%c %-7s\n",
+                                       entry->vaddr,
+                                       entry->paddr,
+                                       entry->asid,
+                                       entry->attr,
+                                       (access & PAGE_READ) ? 'R' : '-',
+                                       (access & PAGE_WRITE) ? 'W' : '-',
+                                       (access & PAGE_EXEC) ? 'X' : '-',
+                                       cache_text[cache_idx] ?
+                                       cache_text[cache_idx] : "Invalid");
             }
         }
     }
 }
 
 static void dump_mpu(CPUXtensaState *env,
-                     const xtensa_mpu_entry *entry, unsigned n)
+                     const xtensa_mpu_entry *entry, unsigned n, GString *buf)
 {
     unsigned i;
 
-    qemu_printf("\t%s  Vaddr       Attr        Ring0  Ring1  System Type    CPU cache\n"
-                "\t%s  ----------  ----------  -----  -----  -------------  ---------\n",
-                env ? "En" : "  ",
-                env ? "--" : "  ");
+    g_string_append_printf(buf, "\t%s  Vaddr       Attr        "
+                           "Ring0  Ring1  System Type    CPU cache\n"
+                           "\t%s  ----------  ----------  -----  -----  "
+                           "-------------  ---------\n",
+                           env ? "En" : "  ",
+                           env ? "--" : "  ");
 
     for (i = 0; i < n; ++i) {
         uint32_t attr = entry[i].attr;
@@ -1130,63 +1136,73 @@ static void dump_mpu(CPUXtensaState *env,
         unsigned type = mpu_attr_to_type(attr);
         char cpu_cache = (type & XTENSA_MPU_TYPE_CPU_CACHE) ? '-' : ' ';
 
-        qemu_printf("\t %c  0x%08x  0x%08x   %c%c%c    %c%c%c   ",
-                    env ?
-                    ((env->sregs[MPUENB] & (1u << i)) ? '+' : '-') : ' ',
-                    entry[i].vaddr, attr,
-                    (access0 & PAGE_READ) ? 'R' : '-',
-                    (access0 & PAGE_WRITE) ? 'W' : '-',
-                    (access0 & PAGE_EXEC) ? 'X' : '-',
-                    (access1 & PAGE_READ) ? 'R' : '-',
-                    (access1 & PAGE_WRITE) ? 'W' : '-',
-                    (access1 & PAGE_EXEC) ? 'X' : '-');
+        g_string_append_printf(buf, "\t %c  0x%08x  0x%08x   "
+                               "%c%c%c    %c%c%c   ",
+                               env ? ((env->sregs[MPUENB] & (1u << i)) ?
+                                      '+' : '-') : ' ',
+                               entry[i].vaddr, attr,
+                               (access0 & PAGE_READ) ? 'R' : '-',
+                               (access0 & PAGE_WRITE) ? 'W' : '-',
+                               (access0 & PAGE_EXEC) ? 'X' : '-',
+                               (access1 & PAGE_READ) ? 'R' : '-',
+                               (access1 & PAGE_WRITE) ? 'W' : '-',
+                               (access1 & PAGE_EXEC) ? 'X' : '-');
 
         switch (type & XTENSA_MPU_SYSTEM_TYPE_MASK) {
         case XTENSA_MPU_SYSTEM_TYPE_DEVICE:
-            qemu_printf("Device %cB %3s\n",
-                        (type & XTENSA_MPU_TYPE_B) ? ' ' : 'n',
-                        (type & XTENSA_MPU_TYPE_INT) ? "int" : "");
+            g_string_append_printf(buf, "Device %cB %3s\n",
+                                   (type & XTENSA_MPU_TYPE_B) ? ' ' : 'n',
+                                   (type & XTENSA_MPU_TYPE_INT) ? "int" : "");
             break;
         case XTENSA_MPU_SYSTEM_TYPE_NC:
-            qemu_printf("Sys NC %cB      %c%c%c\n",
-                        (type & XTENSA_MPU_TYPE_B) ? ' ' : 'n',
-                        (type & XTENSA_MPU_TYPE_CPU_R) ? 'r' : cpu_cache,
-                        (type & XTENSA_MPU_TYPE_CPU_W) ? 'w' : cpu_cache,
-                        (type & XTENSA_MPU_TYPE_CPU_C) ? 'c' : cpu_cache);
+            g_string_append_printf(buf, "Sys NC %cB      %c%c%c\n",
+                                   (type & XTENSA_MPU_TYPE_B) ? ' ' : 'n',
+                                   (type & XTENSA_MPU_TYPE_CPU_R) ?
+                                   'r' : cpu_cache,
+                                   (type & XTENSA_MPU_TYPE_CPU_W) ?
+                                   'w' : cpu_cache,
+                                   (type & XTENSA_MPU_TYPE_CPU_C) ?
+                                   'c' : cpu_cache);
             break;
         case XTENSA_MPU_SYSTEM_TYPE_C:
-            qemu_printf("Sys  C %c%c%c     %c%c%c\n",
-                        (type & XTENSA_MPU_TYPE_SYS_R) ? 'R' : '-',
-                        (type & XTENSA_MPU_TYPE_SYS_W) ? 'W' : '-',
-                        (type & XTENSA_MPU_TYPE_SYS_C) ? 'C' : '-',
-                        (type & XTENSA_MPU_TYPE_CPU_R) ? 'r' : cpu_cache,
-                        (type & XTENSA_MPU_TYPE_CPU_W) ? 'w' : cpu_cache,
-                        (type & XTENSA_MPU_TYPE_CPU_C) ? 'c' : cpu_cache);
+            g_string_append_printf(buf, "Sys  C %c%c%c     %c%c%c\n",
+                                   (type & XTENSA_MPU_TYPE_SYS_R) ? 'R' : '-',
+                                   (type & XTENSA_MPU_TYPE_SYS_W) ? 'W' : '-',
+                                   (type & XTENSA_MPU_TYPE_SYS_C) ? 'C' : '-',
+                                   (type & XTENSA_MPU_TYPE_CPU_R) ?
+                                   'r' : cpu_cache,
+                                   (type & XTENSA_MPU_TYPE_CPU_W) ?
+                                   'w' : cpu_cache,
+                                   (type & XTENSA_MPU_TYPE_CPU_C) ?
+                                   'c' : cpu_cache);
             break;
         default:
-            qemu_printf("Unknown\n");
+            g_string_append_printf(buf, "Unknown\n");
             break;
         }
     }
 }
 
-void dump_mmu(CPUXtensaState *env)
+void xtensa_cpu_format_tlb(CPUState *cpu, GString *buf)
 {
+    CPUXtensaState *env = cpu->env_ptr;
+
     if (xtensa_option_bits_enabled(env->config,
                 XTENSA_OPTION_BIT(XTENSA_OPTION_REGION_PROTECTION) |
                 XTENSA_OPTION_BIT(XTENSA_OPTION_REGION_TRANSLATION) |
                 XTENSA_OPTION_BIT(XTENSA_OPTION_MMU))) {
 
-        qemu_printf("ITLB:\n");
-        dump_tlb(env, false);
-        qemu_printf("\nDTLB:\n");
-        dump_tlb(env, true);
+        g_string_append_printf(buf, "ITLB:\n");
+        dump_tlb(env, false, buf);
+        g_string_append_printf(buf, "\nDTLB:\n");
+        dump_tlb(env, true, buf);
     } else if (xtensa_option_enabled(env->config, XTENSA_OPTION_MPU)) {
-        qemu_printf("Foreground map:\n");
-        dump_mpu(env, env->mpu_fg, env->config->n_mpu_fg_segments);
-        qemu_printf("\nBackground map:\n");
-        dump_mpu(NULL, env->config->mpu_bg, env->config->n_mpu_bg_segments);
+        g_string_append_printf(buf, "Foreground map:\n");
+        dump_mpu(env, env->mpu_fg, env->config->n_mpu_fg_segments, buf);
+        g_string_append_printf(buf, "\nBackground map:\n");
+        dump_mpu(NULL, env->config->mpu_bg,
+                 env->config->n_mpu_bg_segments, buf);
     } else {
-        qemu_printf("No TLB for this CPU core\n");
+        g_string_append_printf(buf, "No TLB for this CPU core\n");
     }
 }
