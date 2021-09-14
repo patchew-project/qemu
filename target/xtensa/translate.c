@@ -1325,14 +1325,14 @@ void gen_intermediate_code(CPUState *cpu, TranslationBlock *tb, int max_insns)
     translator_loop(&xtensa_translator_ops, &dc.base, cpu, tb, max_insns);
 }
 
-void xtensa_cpu_dump_state(CPUState *cs, FILE *f, int flags)
+void xtensa_cpu_format_state(CPUState *cs, GString *buf, int flags)
 {
     XtensaCPU *cpu = XTENSA_CPU(cs);
     CPUXtensaState *env = &cpu->env;
     xtensa_isa isa = env->config->isa;
     int i, j;
 
-    qemu_fprintf(f, "PC=%08x\n\n", env->pc);
+    g_string_append_printf(buf, "PC=%08x\n\n", env->pc);
 
     for (i = j = 0; i < xtensa_isa_num_sysregs(isa); ++i) {
         const uint32_t *reg =
@@ -1340,55 +1340,56 @@ void xtensa_cpu_dump_state(CPUState *cs, FILE *f, int flags)
         int regno = xtensa_sysreg_number(isa, i);
 
         if (regno >= 0) {
-            qemu_fprintf(f, "%12s=%08x%c",
-                         xtensa_sysreg_name(isa, i),
-                         reg[regno],
-                         (j++ % 4) == 3 ? '\n' : ' ');
+            g_string_append_printf(buf, "%12s=%08x%c",
+                                   xtensa_sysreg_name(isa, i),
+                                   reg[regno],
+                                   (j++ % 4) == 3 ? '\n' : ' ');
         }
     }
 
-    qemu_fprintf(f, (j % 4) == 0 ? "\n" : "\n\n");
+    g_string_append_printf(buf, (j % 4) == 0 ? "\n" : "\n\n");
 
     for (i = 0; i < 16; ++i) {
-        qemu_fprintf(f, " A%02d=%08x%c",
-                     i, env->regs[i], (i % 4) == 3 ? '\n' : ' ');
+        g_string_append_printf(buf, " A%02d=%08x%c",
+                               i, env->regs[i], (i % 4) == 3 ? '\n' : ' ');
     }
 
     xtensa_sync_phys_from_window(env);
-    qemu_fprintf(f, "\n");
+    g_string_append_printf(buf, "\n");
 
     for (i = 0; i < env->config->nareg; ++i) {
-        qemu_fprintf(f, "AR%02d=%08x ", i, env->phys_regs[i]);
+        g_string_append_printf(buf, "AR%02d=%08x ", i, env->phys_regs[i]);
         if (i % 4 == 3) {
             bool ws = (env->sregs[WINDOW_START] & (1 << (i / 4))) != 0;
             bool cw = env->sregs[WINDOW_BASE] == i / 4;
 
-            qemu_fprintf(f, "%c%c\n", ws ? '<' : ' ', cw ? '=' : ' ');
+            g_string_append_printf(buf, "%c%c\n",
+                                   ws ? '<' : ' ', cw ? '=' : ' ');
         }
     }
 
     if ((flags & CPU_DUMP_FPU) &&
         xtensa_option_enabled(env->config, XTENSA_OPTION_FP_COPROCESSOR)) {
-        qemu_fprintf(f, "\n");
+        g_string_append_printf(buf, "\n");
 
         for (i = 0; i < 16; ++i) {
-            qemu_fprintf(f, "F%02d=%08x (%-+15.8e)%c", i,
-                         float32_val(env->fregs[i].f32[FP_F32_LOW]),
-                         *(float *)(env->fregs[i].f32 + FP_F32_LOW),
-                         (i % 2) == 1 ? '\n' : ' ');
+            g_string_append_printf(buf, "F%02d=%08x (%-+15.8e)%c", i,
+                                   float32_val(env->fregs[i].f32[FP_F32_LOW]),
+                                   *(float *)(env->fregs[i].f32 + FP_F32_LOW),
+                                   (i % 2) == 1 ? '\n' : ' ');
         }
     }
 
     if ((flags & CPU_DUMP_FPU) &&
         xtensa_option_enabled(env->config, XTENSA_OPTION_DFP_COPROCESSOR) &&
         !xtensa_option_enabled(env->config, XTENSA_OPTION_DFPU_SINGLE_ONLY)) {
-        qemu_fprintf(f, "\n");
+        g_string_append_printf(buf, "\n");
 
         for (i = 0; i < 16; ++i) {
-            qemu_fprintf(f, "F%02d=%016"PRIx64" (%-+24.16le)%c", i,
-                         float64_val(env->fregs[i].f64),
-                         *(double *)(&env->fregs[i].f64),
-                         (i % 2) == 1 ? '\n' : ' ');
+            g_string_append_printf(buf, "F%02d=%016"PRIx64" (%-+24.16le)%c", i,
+                                   float64_val(env->fregs[i].f64),
+                                   *(double *)(&env->fregs[i].f64),
+                                   (i % 2) == 1 ? '\n' : ' ');
         }
     }
 }
