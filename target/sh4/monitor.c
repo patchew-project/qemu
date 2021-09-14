@@ -53,18 +53,3 @@ void superh_cpu_format_tlb(CPUState *cpu, GString *buf)
         print_tlb(buf, i, &env->utlb[i]);
     }
 }
-
-void hmp_info_tlb(Monitor *mon, const QDict *qdict)
-{
-    g_autoptr(GString) buf = g_string_new("");
-    CPUState *cpu = mon_get_cpu(mon);
-
-    if (!cpu) {
-        monitor_printf(mon, "No CPU available\n");
-        return;
-    }
-
-    cpu_format_tlb(cpu, buf);
-
-    monitor_printf(mon, "%s", buf->str);
-}

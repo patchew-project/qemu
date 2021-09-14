@@ -27,22 +27,6 @@
 #include "monitor/hmp-target.h"
 #include "monitor/hmp.h"
 
-
-void hmp_info_tlb(Monitor *mon, const QDict *qdict)
-{
-    g_autoptr(GString) buf = g_string_new("");
-    CPUState *cpu = mon_get_cpu(mon);
-
-    if (!cpu) {
-        monitor_printf(mon, "No CPU available\n");
-        return;
-    }
-
-    cpu_format_tlb(cpu, buf);
-
-    monitor_printf(mon, "%s", buf->str);
-}
-
 #ifndef TARGET_SPARC64
 static target_long monitor_get_psr(Monitor *mon, const struct MonitorDef *md,
                                    int val)
