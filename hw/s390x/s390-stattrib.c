@@ -17,6 +17,7 @@
 #include "qemu/error-report.h"
 #include "exec/ram_addr.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-machine-target.h"
 #include "qapi/qmp/qdict.h"
 
 /* 512KiB cover 2GB of guest memory */
@@ -67,41 +68,62 @@ void hmp_migrationmode(Monitor *mon, const QDict *qdict)
     }
 }
 
-void hmp_info_cmma(Monitor *mon, const QDict *qdict)
+TargetHumanReadableText *qmp_x_query_cmma(int64_t addr,
+                                          bool has_count,
+                                          int64_t count,
+                                          Error **errp)
 {
+    TargetHumanReadableText *ret;
+    g_autoptr(GString) buf = g_string_new("");
     S390StAttribState *sas = s390_get_stattrib_device();
     S390StAttribClass *sac = S390_STATTRIB_GET_CLASS(sas);
-    uint64_t addr = qdict_get_int(qdict, "addr");
-    uint64_t buflen = qdict_get_try_int(qdict, "count", 8);
-    uint8_t *vals;
+    g_autofree uint8_t *vals = NULL;
     int cx, len;
 
-    vals = g_try_malloc(buflen);
+    vals = g_try_malloc(count);
     if (!vals) {
-        monitor_printf(mon, "Error: %s\n", strerror(errno));
+        error_setg_errno(errp, errno, "cannot allocate CMMA attribute values");
+        return NULL;
+    }
+
+    len = sac->peek_stattr(sas, addr / TARGET_PAGE_SIZE, count, vals);
+    if (len < 0) {
+        error_setg_errno(errp, -len, "cannot peek at CMMA attribute values");
+        return NULL;
+    }
+
+    g_string_append_printf(buf, "  CMMA attributes, "
+                           "pages %" PRIu64 "+%d (0x%" PRIx64 "):\n",
+                           addr / TARGET_PAGE_SIZE, len,
+                           addr & ~TARGET_PAGE_MASK);
+    for (cx = 0; cx < len; cx++) {
+        if (cx % 8 == 7) {
+            g_string_append_printf(buf, "%02x\n", vals[cx]);
+        } else {
+            g_string_append_printf(buf, "%02x", vals[cx]);
+        }
+    }
+    g_string_append_printf(buf, "\n");
+
+    ret = g_new0(TargetHumanReadableText, 1);
+    ret->human_readable_text = g_steal_pointer(&buf->str);
+    return ret;
+}
+
+void hmp_info_cmma(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    g_autoptr(TargetHumanReadableText) info = NULL;
+    uint64_t addr = qdict_get_int(qdict, "addr");
+    uint64_t count = qdict_get_try_int(qdict, "count", 8);
+
+    info = qmp_x_query_cmma(addr, true, count, &err);
+    if (err) {
+        error_report_err(err);
         return;
     }
 
-    len = sac->peek_stattr(sas, addr / TARGET_PAGE_SIZE, buflen, vals);
-    if (len < 0) {
-        monitor_printf(mon, "Error: %s", strerror(-len));
-        goto out;
-    }
-
-    monitor_printf(mon, "  CMMA attributes, "
-                   "pages %" PRIu64 "+%d (0x%" PRIx64 "):\n",
-                   addr / TARGET_PAGE_SIZE, len, addr & ~TARGET_PAGE_MASK);
-    for (cx = 0; cx < len; cx++) {
-        if (cx % 8 == 7) {
-            monitor_printf(mon, "%02x\n", vals[cx]);
-        } else {
-            monitor_printf(mon, "%02x", vals[cx]);
-        }
-    }
-    monitor_printf(mon, "\n");
-
-out:
-    g_free(vals);
+    monitor_printf(mon, "%s", info->human_readable_text);
 }
 
 /* Migration support: */

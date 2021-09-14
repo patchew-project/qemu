@@ -356,6 +356,20 @@
   'if': 'TARGET_S390X' }
 
 ##
+# @x-query-cmma:
+#
+# Query the values of the CMMA storage attributes for a range of pages
+#
+# Returns: CMMA storage attribute values
+#
+# Since: 6.2
+##
+{ 'command': 'x-query-cmma',
+  'data': { 'addr': 'int', '*count': 'int' },
+  'returns': 'TargetHumanReadableText',
+  'if': 'TARGET_S390X' }
+
+##
 # @x-query-skeys:
 #
 # Query the value of a storage key
