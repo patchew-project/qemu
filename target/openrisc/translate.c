@@ -1723,16 +1723,16 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
     translator_loop(&openrisc_tr_ops, &ctx.base, cs, tb, max_insns);
 }
 
-void openrisc_cpu_dump_state(CPUState *cs, FILE *f, int flags)
+void openrisc_cpu_format_state(CPUState *cs, GString *buf, int flags)
 {
     OpenRISCCPU *cpu = OPENRISC_CPU(cs);
     CPUOpenRISCState *env = &cpu->env;
     int i;
 
-    qemu_fprintf(f, "PC=%08x\n", env->pc);
+    g_string_append_printf(buf, "PC=%08x\n", env->pc);
     for (i = 0; i < 32; ++i) {
-        qemu_fprintf(f, "R%02d=%08x%c", i, cpu_get_gpr(env, i),
-                     (i % 4) == 3 ? '\n' : ' ');
+        g_string_append_printf(buf, "R%02d=%08x%c", i, cpu_get_gpr(env, i),
+                               (i % 4) == 3 ? '\n' : ' ');
     }
 }
 
