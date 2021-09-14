@@ -937,19 +937,19 @@ static const char *book3e_tsize_to_str[32] = {
     "1T", "2T"
 };
 
-static void mmubooke_dump_mmu(CPUPPCState *env)
+static void mmubooke_dump_mmu(CPUPPCState *env, GString *buf)
 {
     ppcemb_tlb_t *entry;
     int i;
 
     if (kvm_enabled() && !env->kvm_sw_tlb) {
-        qemu_printf("Cannot access KVM TLB\n");
+        g_string_append_printf(buf, "Cannot access KVM TLB\n");
         return;
     }
 
-    qemu_printf("\nTLB:\n");
-    qemu_printf("Effective          Physical           Size PID   Prot     "
-                "Attr\n");
+    g_string_append_printf(buf, "\nTLB:\n");
+    g_string_append_printf(buf, "Effective          Physical           "
+                           "Size PID   Prot     Attr\n");
 
     entry = &env->tlb.tlbe[0];
     for (i = 0; i < env->nb_tlb; i++, entry++) {
@@ -973,22 +973,24 @@ static void mmubooke_dump_mmu(CPUPPCState *env)
         } else {
             snprintf(size_buf, sizeof(size_buf), "%3" PRId64 "k", size / KiB);
         }
-        qemu_printf("0x%016" PRIx64 " 0x%016" PRIx64 " %s %-5u %08x %08x\n",
-                    (uint64_t)ea, (uint64_t)pa, size_buf, (uint32_t)entry->PID,
-                    entry->prot, entry->attr);
+        g_string_append_printf(buf, "0x%016" PRIx64 " 0x%016" PRIx64
+                               " %s %-5u %08x %08x\n",
+                               (uint64_t)ea, (uint64_t)pa, size_buf,
+                               (uint32_t)entry->PID,
+                               entry->prot, entry->attr);
     }
 
 }
 
 static void mmubooke206_dump_one_tlb(CPUPPCState *env, int tlbn, int offset,
-                                     int tlbsize)
+                                     int tlbsize, GString *buf)
 {
     ppcmas_tlb_t *entry;
     int i;
 
-    qemu_printf("\nTLB%d:\n", tlbn);
-    qemu_printf("Effective          Physical           Size TID   TS SRWX"
-                " URWX WIMGE U0123\n");
+    g_string_append_printf(buf, "\nTLB%d:\n", tlbn);
+    g_string_append_printf(buf, "Effective          Physical           "
+                           "Size TID   TS SRWX URWX WIMGE U0123\n");
 
     entry = &env->tlb.tlbm[offset];
     for (i = 0; i < tlbsize; i++, entry++) {
@@ -1004,37 +1006,38 @@ static void mmubooke206_dump_one_tlb(CPUPPCState *env, int tlbn, int offset,
         ea = entry->mas2 & ~(size - 1);
         pa = entry->mas7_3 & ~(size - 1);
 
-        qemu_printf("0x%016" PRIx64 " 0x%016" PRIx64 " %4s %-5u %1u  S%c%c%c"
-                    "U%c%c%c %c%c%c%c%c U%c%c%c%c\n",
-                    (uint64_t)ea, (uint64_t)pa,
-                    book3e_tsize_to_str[tsize],
-                    (entry->mas1 & MAS1_TID_MASK) >> MAS1_TID_SHIFT,
-                    (entry->mas1 & MAS1_TS) >> MAS1_TS_SHIFT,
-                    entry->mas7_3 & MAS3_SR ? 'R' : '-',
-                    entry->mas7_3 & MAS3_SW ? 'W' : '-',
-                    entry->mas7_3 & MAS3_SX ? 'X' : '-',
-                    entry->mas7_3 & MAS3_UR ? 'R' : '-',
-                    entry->mas7_3 & MAS3_UW ? 'W' : '-',
-                    entry->mas7_3 & MAS3_UX ? 'X' : '-',
-                    entry->mas2 & MAS2_W ? 'W' : '-',
-                    entry->mas2 & MAS2_I ? 'I' : '-',
-                    entry->mas2 & MAS2_M ? 'M' : '-',
-                    entry->mas2 & MAS2_G ? 'G' : '-',
-                    entry->mas2 & MAS2_E ? 'E' : '-',
-                    entry->mas7_3 & MAS3_U0 ? '0' : '-',
-                    entry->mas7_3 & MAS3_U1 ? '1' : '-',
-                    entry->mas7_3 & MAS3_U2 ? '2' : '-',
-                    entry->mas7_3 & MAS3_U3 ? '3' : '-');
+        g_string_append_printf(buf, "0x%016" PRIx64 " 0x%016" PRIx64
+                               " %4s %-5u %1u  S%c%c%c"
+                               "U%c%c%c %c%c%c%c%c U%c%c%c%c\n",
+                               (uint64_t)ea, (uint64_t)pa,
+                               book3e_tsize_to_str[tsize],
+                               (entry->mas1 & MAS1_TID_MASK) >> MAS1_TID_SHIFT,
+                               (entry->mas1 & MAS1_TS) >> MAS1_TS_SHIFT,
+                               entry->mas7_3 & MAS3_SR ? 'R' : '-',
+                               entry->mas7_3 & MAS3_SW ? 'W' : '-',
+                               entry->mas7_3 & MAS3_SX ? 'X' : '-',
+                               entry->mas7_3 & MAS3_UR ? 'R' : '-',
+                               entry->mas7_3 & MAS3_UW ? 'W' : '-',
+                               entry->mas7_3 & MAS3_UX ? 'X' : '-',
+                               entry->mas2 & MAS2_W ? 'W' : '-',
+                               entry->mas2 & MAS2_I ? 'I' : '-',
+                               entry->mas2 & MAS2_M ? 'M' : '-',
+                               entry->mas2 & MAS2_G ? 'G' : '-',
+                               entry->mas2 & MAS2_E ? 'E' : '-',
+                               entry->mas7_3 & MAS3_U0 ? '0' : '-',
+                               entry->mas7_3 & MAS3_U1 ? '1' : '-',
+                               entry->mas7_3 & MAS3_U2 ? '2' : '-',
+                               entry->mas7_3 & MAS3_U3 ? '3' : '-');
     }
 }
 
-static void mmubooke206_dump_mmu(CPUPPCState *env)
+static void mmubooke206_dump_mmu(CPUPPCState *env, GString *buf)
 {
     int offset = 0;
     int i;
 
     if (kvm_enabled() && !env->kvm_sw_tlb) {
-        qemu_printf("Cannot access KVM TLB\n");
+        g_string_append_printf(buf, "Cannot access KVM TLB\n");
         return;
     }
 
@@ -1045,12 +1048,12 @@ static void mmubooke206_dump_mmu(CPUPPCState *env)
             continue;
         }
 
-        mmubooke206_dump_one_tlb(env, i, offset, size);
+        mmubooke206_dump_one_tlb(env, i, offset, size, buf);
         offset += size;
     }
 }
 
-static void mmu6xx_dump_BATs(CPUPPCState *env, int type)
+static void mmu6xx_dump_BATs(CPUPPCState *env, int type, GString *buf)
 {
     target_ulong *BATlt, *BATut, *BATu, *BATl;
     target_ulong BEPIl, BEPIu, bl;
@@ -1073,51 +1076,59 @@ static void mmu6xx_dump_BATs(CPUPPCState *env, int type)
         BEPIu = *BATu & 0xF0000000;
         BEPIl = *BATu & 0x0FFE0000;
         bl = (*BATu & 0x00001FFC) << 15;
-        qemu_printf("%s BAT%d BATu " TARGET_FMT_lx
-                    " BATl " TARGET_FMT_lx "\n\t" TARGET_FMT_lx " "
-                    TARGET_FMT_lx " " TARGET_FMT_lx "\n",
-                    type == ACCESS_CODE ? "code" : "data", i,
-                    *BATu, *BATl, BEPIu, BEPIl, bl);
+        g_string_append_printf(buf, "%s BAT%d BATu " TARGET_FMT_lx
+                               " BATl " TARGET_FMT_lx "\n\t" TARGET_FMT_lx " "
+                               TARGET_FMT_lx " " TARGET_FMT_lx "\n",
+                               type == ACCESS_CODE ? "code" : "data", i,
+                               *BATu, *BATl, BEPIu, BEPIl, bl);
     }
 }
 
-static void mmu6xx_dump_mmu(CPUPPCState *env)
+static void mmu6xx_dump_mmu(CPUPPCState *env, GString *buf)
 {
     PowerPCCPU *cpu = env_archcpu(env);
     ppc6xx_tlb_t *tlb;
     target_ulong sr;
     int type, way, entry, i;
 
-    qemu_printf("HTAB base = 0x%"HWADDR_PRIx"\n", ppc_hash32_hpt_base(cpu));
-    qemu_printf("HTAB mask = 0x%"HWADDR_PRIx"\n", ppc_hash32_hpt_mask(cpu));
+    g_string_append_printf(buf, "HTAB base = 0x%"HWADDR_PRIx"\n",
+                           ppc_hash32_hpt_base(cpu));
+    g_string_append_printf(buf, "HTAB mask = 0x%"HWADDR_PRIx"\n",
+                           ppc_hash32_hpt_mask(cpu));
 
-    qemu_printf("\nSegment registers:\n");
+    g_string_append_printf(buf, "\nSegment registers:\n");
     for (i = 0; i < 32; i++) {
         sr = env->sr[i];
         if (sr & 0x80000000) {
-            qemu_printf("%02d T=%d Ks=%d Kp=%d BUID=0x%03x "
-                        "CNTLR_SPEC=0x%05x\n", i,
-                        sr & 0x80000000 ? 1 : 0, sr & 0x40000000 ? 1 : 0,
-                        sr & 0x20000000 ? 1 : 0, (uint32_t)((sr >> 20) & 0x1FF),
-                        (uint32_t)(sr & 0xFFFFF));
+            g_string_append_printf(buf, "%02d T=%d Ks=%d Kp=%d BUID=0x%03x "
+                                   "CNTLR_SPEC=0x%05x\n", i,
+                                   sr & 0x80000000 ? 1 : 0,
+                                   sr & 0x40000000 ? 1 : 0,
+                                   sr & 0x20000000 ? 1 : 0,
+                                   (uint32_t)((sr >> 20) & 0x1FF),
+                                   (uint32_t)(sr & 0xFFFFF));
         } else {
-            qemu_printf("%02d T=%d Ks=%d Kp=%d N=%d VSID=0x%06x\n", i,
-                        sr & 0x80000000 ? 1 : 0, sr & 0x40000000 ? 1 : 0,
-                        sr & 0x20000000 ? 1 : 0, sr & 0x10000000 ? 1 : 0,
-                        (uint32_t)(sr & 0x00FFFFFF));
+            g_string_append_printf(buf, "%02d T=%d Ks=%d Kp=%d N=%d "
+                                   "VSID=0x%06x\n", i,
+                                   sr & 0x80000000 ? 1 : 0,
+                                   sr & 0x40000000 ? 1 : 0,
+                                   sr & 0x20000000 ? 1 : 0,
+                                   sr & 0x10000000 ? 1 : 0,
+                                   (uint32_t)(sr & 0x00FFFFFF));
         }
     }
 
-    qemu_printf("\nBATs:\n");
-    mmu6xx_dump_BATs(env, ACCESS_INT);
-    mmu6xx_dump_BATs(env, ACCESS_CODE);
+    g_string_append_printf(buf, "\nBATs:\n");
+    mmu6xx_dump_BATs(env, ACCESS_INT, buf);
+    mmu6xx_dump_BATs(env, ACCESS_CODE, buf);
 
     if (env->id_tlbs != 1) {
-        qemu_printf("ERROR: 6xx MMU should have separated TLB"
-                    " for code and data\n");
+        g_string_append_printf(buf, "ERROR: 6xx MMU should have separated TLB"
+                               " for code and data\n");
     }
 
-    qemu_printf("\nTLBs                       [EPN    EPN + SIZE]\n");
+    g_string_append_printf(buf,
+                           "\nTLBs                       [EPN    EPN + SIZE]\n");
 
     for (type = 0; type < 2; type++) {
         for (way = 0; way < env->nb_ways; way++) {
@@ -1126,48 +1137,52 @@ static void mmu6xx_dump_mmu(CPUPPCState *env)
                  entry++) {
 
                 tlb = &env->tlb.tlb6[entry];
-                qemu_printf("%s TLB %02d/%02d way:%d %s ["
-                            TARGET_FMT_lx " " TARGET_FMT_lx "]\n",
-                            type ? "code" : "data", entry % env->nb_tlb,
-                            env->nb_tlb, way,
-                            pte_is_valid(tlb->pte0) ? "valid" : "inval",
-                            tlb->EPN, tlb->EPN + TARGET_PAGE_SIZE);
+                g_string_append_printf(buf, "%s TLB %02d/%02d way:%d %s ["
+                                       TARGET_FMT_lx " " TARGET_FMT_lx "]\n",
+                                       type ? "code" : "data",
+                                       entry % env->nb_tlb,
+                                       env->nb_tlb, way,
+                                       pte_is_valid(tlb->pte0) ?
+                                       "valid" : "inval",
+                                       tlb->EPN, tlb->EPN + TARGET_PAGE_SIZE);
             }
         }
     }
 }
 
-void dump_mmu(CPUPPCState *env)
+void ppc_cpu_format_tlb(CPUState *cpu, GString *buf)
 {
+    CPUPPCState *env = cpu->env_ptr;
+
     switch (env->mmu_model) {
     case POWERPC_MMU_BOOKE:
-        mmubooke_dump_mmu(env);
+        mmubooke_dump_mmu(env, buf);
         break;
     case POWERPC_MMU_BOOKE206:
-        mmubooke206_dump_mmu(env);
+        mmubooke206_dump_mmu(env, buf);
         break;
     case POWERPC_MMU_SOFT_6xx:
     case POWERPC_MMU_SOFT_74xx:
-        mmu6xx_dump_mmu(env);
+        mmu6xx_dump_mmu(env, buf);
         break;
 #if defined(TARGET_PPC64)
     case POWERPC_MMU_64B:
     case POWERPC_MMU_2_03:
     case POWERPC_MMU_2_06:
     case POWERPC_MMU_2_07:
-        dump_slb(env_archcpu(env));
+        dump_slb(env_archcpu(env), buf);
         break;
     case POWERPC_MMU_3_00:
         if (ppc64_v3_radix(env_archcpu(env))) {
-            qemu_log_mask(LOG_UNIMP, "%s: the PPC64 MMU is unsupported\n",
-                          __func__);
+            g_string_append_printf(buf, "PPC64 MMU not supported\n");
         } else {
-            dump_slb(env_archcpu(env));
+            dump_slb(env_archcpu(env), buf);
         }
         break;
 #endif
     default:
-        qemu_log_mask(LOG_UNIMP, "%s: unimplemented\n", __func__);
+        g_string_append_printf(buf, "MMU model %d not supported\n",
+                               env->mmu_model);
     }
 }
 

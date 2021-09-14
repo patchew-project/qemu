@@ -80,7 +80,7 @@ static ppc_slb_t *slb_lookup(PowerPCCPU *cpu, target_ulong eaddr)
     return NULL;
 }
 
-void dump_slb(PowerPCCPU *cpu)
+void dump_slb(PowerPCCPU *cpu, GString *buf)
 {
     CPUPPCState *env = &cpu->env;
     int i;
@@ -88,15 +88,15 @@ void dump_slb(PowerPCCPU *cpu)
 
     cpu_synchronize_state(CPU(cpu));
 
-    qemu_printf("SLB\tESID\t\t\tVSID\n");
+    g_string_append_printf(buf, "SLB\tESID\t\t\tVSID\n");
     for (i = 0; i < cpu->hash64_opts->slb_size; i++) {
         slbe = env->slb[i].esid;
         slbv = env->slb[i].vsid;
         if (slbe == 0 && slbv == 0) {
             continue;
         }
-        qemu_printf("%d\t0x%016" PRIx64 "\t0x%016" PRIx64 "\n",
-                    i, slbe, slbv);
+        g_string_append_printf(buf, "%d\t0x%016" PRIx64 "\t0x%016" PRIx64 "\n",
+                               i, slbe, slbv);
     }
 }
 
