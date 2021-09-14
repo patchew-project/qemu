@@ -42,76 +42,81 @@ const char regnames[32][3] = {
     "t8", "t9", "k0", "k1", "gp", "sp", "s8", "ra",
 };
 
-static void fpu_dump_fpr(fpr_t *fpr, FILE *f, bool is_fpu64)
+static void fpu_dump_fpr(fpr_t *fpr, GString *buf, bool is_fpu64)
 {
     if (is_fpu64) {
-        qemu_fprintf(f, "w:%08x d:%016" PRIx64 " fd:%13g fs:%13g psu: %13g\n",
-                     fpr->w[FP_ENDIAN_IDX], fpr->d,
-                     (double)fpr->fd,
-                     (double)fpr->fs[FP_ENDIAN_IDX],
-                     (double)fpr->fs[!FP_ENDIAN_IDX]);
+        g_string_append_printf(buf, "w:%08x d:%016" PRIx64
+                               " fd:%13g fs:%13g psu: %13g\n",
+                               fpr->w[FP_ENDIAN_IDX], fpr->d,
+                               (double)fpr->fd,
+                               (double)fpr->fs[FP_ENDIAN_IDX],
+                               (double)fpr->fs[!FP_ENDIAN_IDX]);
     } else {
         fpr_t tmp;
 
         tmp.w[FP_ENDIAN_IDX] = fpr->w[FP_ENDIAN_IDX];
         tmp.w[!FP_ENDIAN_IDX] = (fpr + 1)->w[FP_ENDIAN_IDX];
-        qemu_fprintf(f, "w:%08x d:%016" PRIx64 " fd:%13g fs:%13g psu:%13g\n",
-                     tmp.w[FP_ENDIAN_IDX], tmp.d,
-                     (double)tmp.fd,
-                     (double)tmp.fs[FP_ENDIAN_IDX],
-                     (double)tmp.fs[!FP_ENDIAN_IDX]);
+        g_string_append_printf(buf, "w:%08x d:%016" PRIx64
+                               " fd:%13g fs:%13g psu:%13g\n",
+                               tmp.w[FP_ENDIAN_IDX], tmp.d,
+                               (double)tmp.fd,
+                               (double)tmp.fs[FP_ENDIAN_IDX],
+                               (double)tmp.fs[!FP_ENDIAN_IDX]);
     }
 }
 
-static void fpu_dump_state(CPUMIPSState *env, FILE *f, int flags)
+static void fpu_format_state(CPUMIPSState *env, GString *buf, int flags)
 {
     int i;
     bool is_fpu64 = !!(env->hflags & MIPS_HFLAG_F64);
 
-    qemu_fprintf(f,
-                 "CP1 FCR0 0x%08x  FCR31 0x%08x  SR.FR %d  fp_status 0x%02x\n",
-                 env->active_fpu.fcr0, env->active_fpu.fcr31, is_fpu64,
-                 get_float_exception_flags(&env->active_fpu.fp_status));
+    g_string_append_printf(buf,
+                           "CP1 FCR0 0x%08x  FCR31 0x%08x  SR.FR %d "
+                           " fp_status 0x%02x\n",
+                           env->active_fpu.fcr0, env->active_fpu.fcr31,
+                           is_fpu64, get_float_exception_flags(
+                               &env->active_fpu.fp_status));
     for (i = 0; i < 32; (is_fpu64) ? i++ : (i += 2)) {
-        qemu_fprintf(f, "%3s: ", fregnames[i]);
-        fpu_dump_fpr(&env->active_fpu.fpr[i], f, is_fpu64);
+        g_string_append_printf(buf, "%3s: ", fregnames[i]);
+        fpu_dump_fpr(&env->active_fpu.fpr[i], buf, is_fpu64);
     }
 }
 
-static void mips_cpu_dump_state(CPUState *cs, FILE *f, int flags)
+static void mips_cpu_format_state(CPUState *cs, GString *buf, int flags)
 {
     MIPSCPU *cpu = MIPS_CPU(cs);
     CPUMIPSState *env = &cpu->env;
     int i;
 
-    qemu_fprintf(f, "pc=0x" TARGET_FMT_lx " HI=0x" TARGET_FMT_lx
-                 " LO=0x" TARGET_FMT_lx " ds %04x "
-                 TARGET_FMT_lx " " TARGET_FMT_ld "\n",
-                 env->active_tc.PC, env->active_tc.HI[0], env->active_tc.LO[0],
-                 env->hflags, env->btarget, env->bcond);
+    g_string_append_printf(buf, "pc=0x" TARGET_FMT_lx " HI=0x" TARGET_FMT_lx
+                           " LO=0x" TARGET_FMT_lx " ds %04x "
+                           TARGET_FMT_lx " " TARGET_FMT_ld "\n",
+                           env->active_tc.PC, env->active_tc.HI[0],
+                           env->active_tc.LO[0],
+                           env->hflags, env->btarget, env->bcond);
     for (i = 0; i < 32; i++) {
         if ((i & 3) == 0) {
-            qemu_fprintf(f, "GPR%02d:", i);
+            g_string_append_printf(buf, "GPR%02d:", i);
         }
-        qemu_fprintf(f, " %s " TARGET_FMT_lx,
-                     regnames[i], env->active_tc.gpr[i]);
+        g_string_append_printf(buf, " %s " TARGET_FMT_lx,
+                               regnames[i], env->active_tc.gpr[i]);
         if ((i & 3) == 3) {
-            qemu_fprintf(f, "\n");
+            g_string_append_printf(buf, "\n");
         }
     }
 
-    qemu_fprintf(f, "CP0 Status  0x%08x Cause   0x%08x EPC    0x"
-                 TARGET_FMT_lx "\n",
-                 env->CP0_Status, env->CP0_Cause, env->CP0_EPC);
-    qemu_fprintf(f, "    Config0 0x%08x Config1 0x%08x LLAddr 0x%016"
-                 PRIx64 "\n",
-                 env->CP0_Config0, env->CP0_Config1, env->CP0_LLAddr);
-    qemu_fprintf(f, "    Config2 0x%08x Config3 0x%08x\n",
-                 env->CP0_Config2, env->CP0_Config3);
-    qemu_fprintf(f, "    Config4 0x%08x Config5 0x%08x\n",
-                 env->CP0_Config4, env->CP0_Config5);
+    g_string_append_printf(buf, "CP0 Status  0x%08x Cause   0x%08x EPC    0x"
+                           TARGET_FMT_lx "\n",
+                           env->CP0_Status, env->CP0_Cause, env->CP0_EPC);
+    g_string_append_printf(buf, "    Config0 0x%08x Config1 0x%08x LLAddr "
+                           "0x%016" PRIx64 "\n",
+                           env->CP0_Config0, env->CP0_Config1, env->CP0_LLAddr);
+    g_string_append_printf(buf, "    Config2 0x%08x Config3 0x%08x\n",
+                           env->CP0_Config2, env->CP0_Config3);
+    g_string_append_printf(buf, "    Config4 0x%08x Config5 0x%08x\n",
+                           env->CP0_Config4, env->CP0_Config5);
     if ((flags & CPU_DUMP_FPU) && (env->hflags & MIPS_HFLAG_FPU)) {
-        fpu_dump_state(env, f, flags);
+        fpu_format_state(env, buf, flags);
     }
 }
 
@@ -564,7 +569,7 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
 
     cc->class_by_name = mips_cpu_class_by_name;
     cc->has_work = mips_cpu_has_work;
-    cc->dump_state = mips_cpu_dump_state;
+    cc->format_state = mips_cpu_format_state;
     cc->set_pc = mips_cpu_set_pc;
     cc->gdb_read_register = mips_cpu_gdb_read_register;
     cc->gdb_write_register = mips_cpu_gdb_write_register;
