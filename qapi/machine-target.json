@@ -341,3 +341,30 @@
                    'TARGET_I386',
                    'TARGET_S390X',
                    'TARGET_MIPS' ] } }
+
+
+##
+# @TargetHumanReadableText:
+#
+# @human-readable-text: Formatted output intended for humans.
+#
+# Since: 6.2.0
+#
+##
+{ 'struct': 'TargetHumanReadableText',
+  'data': { 'human-readable-text': 'str' },
+  'if': 'TARGET_S390X' }
+
+##
+# @x-query-skeys:
+#
+# Query the value of a storage key
+#
+# Returns: storage key value
+#
+# Since: 6.2
+##
+{ 'command': 'x-query-skeys',
+  'data': { 'addr': 'int' },
+  'returns': 'TargetHumanReadableText',
+  'if': 'TARGET_S390X' }

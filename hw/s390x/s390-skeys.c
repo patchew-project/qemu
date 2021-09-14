@@ -15,6 +15,7 @@
 #include "hw/s390x/storage-keys.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-misc-target.h"
+#include "qapi/qapi-commands-machine-target.h"
 #include "qapi/qmp/qdict.h"
 #include "qemu/error-report.h"
 #include "sysemu/memory_mapping.h"
@@ -73,34 +74,54 @@ static void write_keys(FILE *f, uint8_t *keys, uint64_t startgfn,
     }
 }
 
-void hmp_info_skeys(Monitor *mon, const QDict *qdict)
+TargetHumanReadableText *qmp_x_query_skeys(int64_t addr, Error **errp)
 {
+    TargetHumanReadableText *ret;
+    g_autoptr(GString) buf = g_string_new("");
     S390SKeysState *ss = s390_get_skeys_device();
     S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
-    uint64_t addr = qdict_get_int(qdict, "addr");
     uint8_t key;
     int r;
 
     /* Quick check to see if guest is using storage keys*/
     if (!skeyclass->skeys_are_enabled(ss)) {
-        monitor_printf(mon, "Error: This guest is not using storage keys\n");
-        return;
+        error_setg(errp, "this guest is not using storage keys");
+        return NULL;
     }
 
     if (!address_space_access_valid(&address_space_memory,
                                     addr & TARGET_PAGE_MASK, TARGET_PAGE_SIZE,
                                     false, MEMTXATTRS_UNSPECIFIED)) {
-        monitor_printf(mon, "Error: The given address is not valid\n");
-        return;
+        error_setg(errp, "the given address is not valid");
+        return NULL;
     }
 
     r = skeyclass->get_skeys(ss, addr / TARGET_PAGE_SIZE, 1, &key);
     if (r < 0) {
-        monitor_printf(mon, "Error: %s\n", strerror(-r));
+        error_setg_errno(errp, r, "unable to query storage keys");
+        return NULL;
+    }
+
+    g_string_append_printf(buf, "  key: 0x%X\n", key);
+
+    ret = g_new0(TargetHumanReadableText, 1);
+    ret->human_readable_text = g_steal_pointer(&buf->str);
+    return ret;
+}
+
+void hmp_info_skeys(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    g_autoptr(TargetHumanReadableText) info = NULL;
+    uint64_t addr = qdict_get_int(qdict, "addr");
+
+    info = qmp_x_query_skeys(addr, &err);
+    if (err) {
+        error_report_err(err);
         return;
     }
 
-    monitor_printf(mon, "  key: 0x%X\n", key);
+    monitor_printf(mon, "%s", info->human_readable_text);
 }
 
 void hmp_dump_skeys(Monitor *mon, const QDict *qdict)
