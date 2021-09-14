@@ -371,43 +371,54 @@ target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev)
     return 0;
 }
 
-void dump_mmu(CPUSPARCState *env)
+void sparc_cpu_format_tlb(CPUState *cpu, GString *buf)
 {
-    CPUState *cs = env_cpu(env);
+    CPUSPARCState *env = cpu->env_ptr;
     target_ulong va, va1, va2;
     unsigned int n, m, o;
     hwaddr pa;
     uint32_t pde;
 
-    qemu_printf("Root ptr: " TARGET_FMT_plx ", ctx: %d\n",
-                (hwaddr)env->mmuregs[1] << 4, env->mmuregs[2]);
+    g_string_append_printf(buf, "Root ptr: " TARGET_FMT_plx ", ctx: %d\n",
+                           (hwaddr)env->mmuregs[1] << 4, env->mmuregs[2]);
     for (n = 0, va = 0; n < 256; n++, va += 16 * 1024 * 1024) {
         pde = mmu_probe(env, va, 2);
         if (pde) {
-            pa = cpu_get_phys_page_debug(cs, va);
-            qemu_printf("VA: " TARGET_FMT_lx ", PA: " TARGET_FMT_plx
-                        " PDE: " TARGET_FMT_lx "\n", va, pa, pde);
+            pa = cpu_get_phys_page_debug(cpu, va);
+            g_string_append_printf(buf, "VA: " TARGET_FMT_lx
+                                   ", PA: " TARGET_FMT_plx
+                                   " PDE: " TARGET_FMT_lx "\n", va, pa, pde);
             for (m = 0, va1 = va; m < 64; m++, va1 += 256 * 1024) {
                 pde = mmu_probe(env, va1, 1);
                 if (pde) {
-                    pa = cpu_get_phys_page_debug(cs, va1);
-                    qemu_printf(" VA: " TARGET_FMT_lx ", PA: "
-                                TARGET_FMT_plx " PDE: " TARGET_FMT_lx "\n",
-                                va1, pa, pde);
+                    pa = cpu_get_phys_page_debug(cpu, va1);
+                    g_string_append_printf(buf, " VA: " TARGET_FMT_lx
+                                           ", PA: " TARGET_FMT_plx
+                                           " PDE: " TARGET_FMT_lx "\n",
+                                           va1, pa, pde);
                     for (o = 0, va2 = va1; o < 64; o++, va2 += 4 * 1024) {
                         pde = mmu_probe(env, va2, 0);
                         if (pde) {
-                            pa = cpu_get_phys_page_debug(cs, va2);
-                            qemu_printf("  VA: " TARGET_FMT_lx ", PA: "
-                                        TARGET_FMT_plx " PTE: "
-                                        TARGET_FMT_lx "\n",
-                                        va2, pa, pde);
+                            pa = cpu_get_phys_page_debug(cpu, va2);
+                            g_string_append_printf(buf, "  VA: " TARGET_FMT_lx
+                                                   ", PA: " TARGET_FMT_plx
+                                                   " PTE: " TARGET_FMT_lx "\n",
+                                                   va2, pa, pde);
                         }
                     }
                 }
             }
         }
     }
+}
+
+void dump_mmu(CPUSPARCState *env)
+{
+    CPUState *cs = env_cpu(env);
+    g_autoptr(GString) buf = g_string_new("");
+
+    sparc_cpu_format_tlb(cs, buf);
+    qemu_printf("%s", buf->str);
 }
 
 /* Gdb expects all registers windows to be flushed in ram. This function handles

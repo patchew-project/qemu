@@ -572,6 +572,7 @@ extern const VMStateDescription vmstate_sparc_cpu;
 
 void sparc_cpu_do_interrupt(CPUState *cpu);
 void sparc_cpu_format_state(CPUState *cpu, GString *buf, int flags);
+void sparc_cpu_format_tlb(CPUState *cpu, GString *buf);
 hwaddr sparc_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 int sparc_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int sparc_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);

@@ -898,6 +898,7 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
     cc->has_work = sparc_cpu_has_work;
     cc->format_state = sparc_cpu_format_state;
 #if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
+    cc->format_tlb = sparc_cpu_format_tlb;
     cc->memory_rw_debug = sparc_cpu_memory_rw_debug;
 #endif
     cc->set_pc = sparc_cpu_set_pc;
