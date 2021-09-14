@@ -6765,6 +6765,9 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
     cc->parse_features = x86_cpu_parse_featurestr;
     cc->has_work = x86_cpu_has_work;
     cc->format_state = x86_cpu_format_state;
+#ifndef CONFIG_USER_ONLY
+    cc->format_tlb = x86_cpu_format_tlb;
+#endif
     cc->set_pc = x86_cpu_set_pc;
     cc->gdb_read_register = x86_cpu_gdb_read_register;
     cc->gdb_write_register = x86_cpu_gdb_write_register;

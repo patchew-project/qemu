@@ -1826,6 +1826,7 @@ void x86_cpu_get_memory_mapping(CPUState *cpu, MemoryMappingList *list,
                                 Error **errp);
 
 void x86_cpu_format_state(CPUState *cs, GString *buf, int flags);
+void x86_cpu_format_tlb(CPUState *cpu, GString *buf);
 
 hwaddr x86_cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
                                          MemTxAttrs *attrs);
