@@ -451,7 +451,7 @@ bool alpha_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     return false;
 }
 
-void alpha_cpu_dump_state(CPUState *cs, FILE *f, int flags)
+void alpha_cpu_format_state(CPUState *cs, GString *buf, int flags)
 {
     static const char linux_reg_names[31][4] = {
         "v0",  "t0",  "t1", "t2",  "t3", "t4", "t5", "t6",
@@ -463,25 +463,29 @@ void alpha_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     CPUAlphaState *env = &cpu->env;
     int i;
 
-    qemu_fprintf(f, "PC      " TARGET_FMT_lx " PS      %02x\n",
-                 env->pc, extract32(env->flags, ENV_FLAG_PS_SHIFT, 8));
+    g_string_append_printf(buf,
+                           "PC      " TARGET_FMT_lx " PS      %02x\n",
+                           env->pc,
+                           extract32(env->flags, ENV_FLAG_PS_SHIFT, 8));
     for (i = 0; i < 31; i++) {
-        qemu_fprintf(f, "%-8s" TARGET_FMT_lx "%c",
-                     linux_reg_names[i], cpu_alpha_load_gr(env, i),
-                     (i % 3) == 2 ? '\n' : ' ');
+        g_string_append_printf(buf, "%-8s" TARGET_FMT_lx "%c",
+                               linux_reg_names[i], cpu_alpha_load_gr(env, i),
+                               (i % 3) == 2 ? '\n' : ' ');
     }
 
-    qemu_fprintf(f, "lock_a  " TARGET_FMT_lx " lock_v  " TARGET_FMT_lx "\n",
-                 env->lock_addr, env->lock_value);
+    g_string_append_printf(buf, "lock_a  " TARGET_FMT_lx
+                           " lock_v  " TARGET_FMT_lx "\n",
+                           env->lock_addr, env->lock_value);
 
     if (flags & CPU_DUMP_FPU) {
         for (i = 0; i < 31; i++) {
-            qemu_fprintf(f, "f%-7d%016" PRIx64 "%c", i, env->fir[i],
-                         (i % 3) == 2 ? '\n' : ' ');
+            g_string_append_printf(buf, "f%-7d%016" PRIx64 "%c", i, env->fir[i],
+                                   (i % 3) == 2 ? '\n' : ' ');
         }
-        qemu_fprintf(f, "fpcr    %016" PRIx64 "\n", cpu_alpha_load_fpcr(env));
+        g_string_append_printf(buf, "fpcr    %016" PRIx64 "\n",
+                               cpu_alpha_load_fpcr(env));
     }
-    qemu_fprintf(f, "\n");
+    g_string_append_printf(buf, "\n");
 }
 
 /* This should only be called from translate, via gen_excp.
