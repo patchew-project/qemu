@@ -11,6 +11,16 @@ For an in-depth introduction to the QAPI framework, please refer to
 docs/devel/qapi-code-gen.txt. For documentation about the QMP protocol,
 start with docs/interop/qmp-intro.txt.
 
+Historically QEMU has permitted new monitor commands to be implemented in HMP
+only, QMP only, or both, depending on whether they needed to be accessible to
+human operators, machines, or both. When both QMP and HMP are implemented it
+is expected the HMP implementation is a shim around the QMP implementation.
+Going forward, the expectation is that new commands are implemented in QMP
+only, or both QMP and HMP. No further commands are to be added to HMP only.
+The long term goal is that all HMP commands will be implemented in terms of
+their QMP equivalent, enabling internals of QEMU to be fully isolated from
+the HMP implementation. Refer to the later topic on modelling data in QAPI
+for further guidance on commands that would have traditionally been HMP only.
 
 Overview
 --------
