@@ -260,6 +260,9 @@ static void superh_cpu_class_init(ObjectClass *oc, void *data)
     cc->class_by_name = superh_cpu_class_by_name;
     cc->has_work = superh_cpu_has_work;
     cc->format_state = superh_cpu_format_state;
+#ifndef CONFIG_USER_ONLY
+    cc->format_tlb = superh_cpu_format_tlb;
+#endif
     cc->set_pc = superh_cpu_set_pc;
     cc->gdb_read_register = superh_cpu_gdb_read_register;
     cc->gdb_write_register = superh_cpu_gdb_write_register;

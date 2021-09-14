@@ -27,32 +27,44 @@
 #include "monitor/hmp-target.h"
 #include "monitor/hmp.h"
 
-static void print_tlb(Monitor *mon, int idx, tlb_t *tlb)
+static void print_tlb(GString *buf, int idx, tlb_t *tlb)
 {
-    monitor_printf(mon, " tlb%i:\t"
-                   "asid=%hhu vpn=%x\tppn=%x\tsz=%hhu size=%u\t"
-                   "v=%hhu shared=%hhu cached=%hhu prot=%hhu "
-                   "dirty=%hhu writethrough=%hhu\n",
-                   idx,
-                   tlb->asid, tlb->vpn, tlb->ppn, tlb->sz, tlb->size,
-                   tlb->v, tlb->sh, tlb->c, tlb->pr,
-                   tlb->d, tlb->wt);
+    g_string_append_printf(buf,  " tlb%i:\t"
+                           "asid=%hhu vpn=%x\tppn=%x\tsz=%hhu size=%u\t"
+                           "v=%hhu shared=%hhu cached=%hhu prot=%hhu "
+                           "dirty=%hhu writethrough=%hhu\n",
+                           idx,
+                           tlb->asid, tlb->vpn, tlb->ppn, tlb->sz, tlb->size,
+                           tlb->v, tlb->sh, tlb->c, tlb->pr,
+                           tlb->d, tlb->wt);
+}
+
+void superh_cpu_format_tlb(CPUState *cpu, GString *buf)
+{
+    CPUArchState *env = cpu->env_ptr;
+    size_t i;
+
+    g_string_append_printf(buf,  "ITLB:\n");
+    for (i = 0 ; i < ITLB_SIZE ; i++) {
+        print_tlb(buf, i, &env->itlb[i]);
+    }
+    g_string_append_printf(buf,  "UTLB:\n");
+    for (i = 0 ; i < UTLB_SIZE ; i++) {
+        print_tlb(buf, i, &env->utlb[i]);
+    }
 }
 
 void hmp_info_tlb(Monitor *mon, const QDict *qdict)
 {
-    CPUArchState *env = mon_get_cpu_env(mon);
-    int i;
+    g_autoptr(GString) buf = g_string_new("");
+    CPUState *cpu = mon_get_cpu(mon);
 
-    if (!env) {
+    if (!cpu) {
         monitor_printf(mon, "No CPU available\n");
         return;
     }
 
-    monitor_printf (mon, "ITLB:\n");
-    for (i = 0 ; i < ITLB_SIZE ; i++)
-        print_tlb (mon, i, &env->itlb[i]);
-    monitor_printf (mon, "UTLB:\n");
-    for (i = 0 ; i < UTLB_SIZE ; i++)
-        print_tlb (mon, i, &env->utlb[i]);
+    cpu_format_tlb(cpu, buf);
+
+    monitor_printf(mon, "%s", buf->str);
 }
