@@ -9043,7 +9043,7 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->class_by_name = ppc_cpu_class_by_name;
     cc->has_work = ppc_cpu_has_work;
-    cc->dump_state = ppc_cpu_dump_state;
+    cc->format_state = ppc_cpu_format_state;
     cc->set_pc = ppc_cpu_set_pc;
     cc->gdb_read_register = ppc_cpu_gdb_read_register;
     cc->gdb_write_register = ppc_cpu_gdb_write_register;
@@ -9104,7 +9104,7 @@ static void ppc_cpu_register_types(void)
 #endif
 }
 
-void ppc_cpu_dump_state(CPUState *cs, FILE *f, int flags)
+void ppc_cpu_format_state(CPUState *cs, GString *buf, int flags)
 {
 #define RGPL  4
 #define RFPL  4
@@ -9113,39 +9113,41 @@ void ppc_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     CPUPPCState *env = &cpu->env;
     int i;
 
-    qemu_fprintf(f, "NIP " TARGET_FMT_lx "   LR " TARGET_FMT_lx " CTR "
-                 TARGET_FMT_lx " XER " TARGET_FMT_lx " CPU#%d\n",
-                 env->nip, env->lr, env->ctr, cpu_read_xer(env),
-                 cs->cpu_index);
-    qemu_fprintf(f, "MSR " TARGET_FMT_lx " HID0 " TARGET_FMT_lx "  HF "
-                 "%08x iidx %d didx %d\n",
-                 env->msr, env->spr[SPR_HID0], env->hflags,
-                 cpu_mmu_index(env, true), cpu_mmu_index(env, false));
+    g_string_append_printf(buf,
+                           "NIP " TARGET_FMT_lx "   LR " TARGET_FMT_lx " CTR "
+                           TARGET_FMT_lx " XER " TARGET_FMT_lx " CPU#%d\n",
+                           env->nip, env->lr, env->ctr, cpu_read_xer(env),
+                           cs->cpu_index);
+    g_string_append_printf(buf,
+                           "MSR " TARGET_FMT_lx " HID0 " TARGET_FMT_lx "  HF "
+                           "%08x iidx %d didx %d\n",
+                           env->msr, env->spr[SPR_HID0], env->hflags,
+                           cpu_mmu_index(env, true), cpu_mmu_index(env, false));
 #if !defined(NO_TIMER_DUMP)
-    qemu_fprintf(f, "TB %08" PRIu32 " %08" PRIu64
+    g_string_append_printf(buf, "TB %08" PRIu32 " %08" PRIu64
 #if !defined(CONFIG_USER_ONLY)
-                 " DECR " TARGET_FMT_lu
+                           " DECR " TARGET_FMT_lu
 #endif
-                 "\n",
-                 cpu_ppc_load_tbu(env), cpu_ppc_load_tbl(env)
+                           "\n",
+                           cpu_ppc_load_tbu(env), cpu_ppc_load_tbl(env)
 #if !defined(CONFIG_USER_ONLY)
-                 , cpu_ppc_load_decr(env)
+                           , cpu_ppc_load_decr(env)
 #endif
         );
 #endif
     for (i = 0; i < 32; i++) {
         if ((i & (RGPL - 1)) == 0) {
-            qemu_fprintf(f, "GPR%02d", i);
+            g_string_append_printf(buf, "GPR%02d", i);
         }
-        qemu_fprintf(f, " %016" PRIx64, ppc_dump_gpr(env, i));
+        g_string_append_printf(buf, " %016" PRIx64, ppc_dump_gpr(env, i));
         if ((i & (RGPL - 1)) == (RGPL - 1)) {
-            qemu_fprintf(f, "\n");
+            g_string_append_printf(buf, "\n");
         }
     }
-    qemu_fprintf(f, "CR ");
+    g_string_append_printf(buf, "CR ");
     for (i = 0; i < 8; i++)
-        qemu_fprintf(f, "%01x", env->crf[i]);
-    qemu_fprintf(f, "  [");
+        g_string_append_printf(buf, "%01x", env->crf[i]);
+    g_string_append_printf(buf, "  [");
     for (i = 0; i < 8; i++) {
         char a = '-';
         if (env->crf[i] & 0x08) {
@@ -9155,75 +9157,97 @@ void ppc_cpu_dump_state(CPUState *cs, FILE *f, int flags)
         } else if (env->crf[i] & 0x02) {
             a = 'E';
         }
-        qemu_fprintf(f, " %c%c", a, env->crf[i] & 0x01 ? 'O' : ' ');
+        g_string_append_printf(buf, " %c%c", a, env->crf[i] & 0x01 ? 'O' : ' ');
     }
-    qemu_fprintf(f, " ]             RES " TARGET_FMT_lx "\n",
-                 env->reserve_addr);
+    g_string_append_printf(buf, " ]             RES " TARGET_FMT_lx "\n",
+                           env->reserve_addr);
 
     if (flags & CPU_DUMP_FPU) {
         for (i = 0; i < 32; i++) {
             if ((i & (RFPL - 1)) == 0) {
-                qemu_fprintf(f, "FPR%02d", i);
+                g_string_append_printf(buf, "FPR%02d", i);
             }
-            qemu_fprintf(f, " %016" PRIx64, *cpu_fpr_ptr(env, i));
+            g_string_append_printf(buf, " %016" PRIx64, *cpu_fpr_ptr(env, i));
             if ((i & (RFPL - 1)) == (RFPL - 1)) {
-                qemu_fprintf(f, "\n");
+                g_string_append_printf(buf, "\n");
             }
         }
-        qemu_fprintf(f, "FPSCR " TARGET_FMT_lx "\n", env->fpscr);
+        g_string_append_printf(buf, "FPSCR " TARGET_FMT_lx "\n", env->fpscr);
     }
 
 #if !defined(CONFIG_USER_ONLY)
-    qemu_fprintf(f, " SRR0 " TARGET_FMT_lx "  SRR1 " TARGET_FMT_lx
-                 "    PVR " TARGET_FMT_lx " VRSAVE " TARGET_FMT_lx "\n",
-                 env->spr[SPR_SRR0], env->spr[SPR_SRR1],
-                 env->spr[SPR_PVR], env->spr[SPR_VRSAVE]);
+    g_string_append_printf(buf, " SRR0 " TARGET_FMT_lx "  SRR1 " TARGET_FMT_lx
+                           "    PVR " TARGET_FMT_lx " VRSAVE " TARGET_FMT_lx
+                           "\n",
+                           env->spr[SPR_SRR0], env->spr[SPR_SRR1],
+                           env->spr[SPR_PVR], env->spr[SPR_VRSAVE]);
 
-    qemu_fprintf(f, "SPRG0 " TARGET_FMT_lx " SPRG1 " TARGET_FMT_lx
-                 "  SPRG2 " TARGET_FMT_lx "  SPRG3 " TARGET_FMT_lx "\n",
-                 env->spr[SPR_SPRG0], env->spr[SPR_SPRG1],
-                 env->spr[SPR_SPRG2], env->spr[SPR_SPRG3]);
+    g_string_append_printf(buf, "SPRG0 " TARGET_FMT_lx " SPRG1 " TARGET_FMT_lx
+                           "  SPRG2 " TARGET_FMT_lx "  SPRG3 " TARGET_FMT_lx
+                           "\n",
+                           env->spr[SPR_SPRG0], env->spr[SPR_SPRG1],
+                           env->spr[SPR_SPRG2], env->spr[SPR_SPRG3]);
 
-    qemu_fprintf(f, "SPRG4 " TARGET_FMT_lx " SPRG5 " TARGET_FMT_lx
-                 "  SPRG6 " TARGET_FMT_lx "  SPRG7 " TARGET_FMT_lx "\n",
-                 env->spr[SPR_SPRG4], env->spr[SPR_SPRG5],
-                 env->spr[SPR_SPRG6], env->spr[SPR_SPRG7]);
+    g_string_append_printf(buf, "SPRG4 " TARGET_FMT_lx " SPRG5 " TARGET_FMT_lx
+                           "  SPRG6 " TARGET_FMT_lx "  SPRG7 " TARGET_FMT_lx
+                           "\n",
+                           env->spr[SPR_SPRG4], env->spr[SPR_SPRG5],
+                           env->spr[SPR_SPRG6], env->spr[SPR_SPRG7]);
 
 #if defined(TARGET_PPC64)
     if (env->excp_model == POWERPC_EXCP_POWER7 ||
         env->excp_model == POWERPC_EXCP_POWER8 ||
         env->excp_model == POWERPC_EXCP_POWER9 ||
         env->excp_model == POWERPC_EXCP_POWER10)  {
-        qemu_fprintf(f, "HSRR0 " TARGET_FMT_lx " HSRR1 " TARGET_FMT_lx "\n",
-                     env->spr[SPR_HSRR0], env->spr[SPR_HSRR1]);
+        g_string_append_printf(buf, "HSRR0 " TARGET_FMT_lx
+                               " HSRR1 " TARGET_FMT_lx "\n",
+                               env->spr[SPR_HSRR0], env->spr[SPR_HSRR1]);
     }
 #endif
     if (env->excp_model == POWERPC_EXCP_BOOKE) {
-        qemu_fprintf(f, "CSRR0 " TARGET_FMT_lx " CSRR1 " TARGET_FMT_lx
-                     " MCSRR0 " TARGET_FMT_lx " MCSRR1 " TARGET_FMT_lx "\n",
-                     env->spr[SPR_BOOKE_CSRR0], env->spr[SPR_BOOKE_CSRR1],
-                     env->spr[SPR_BOOKE_MCSRR0], env->spr[SPR_BOOKE_MCSRR1]);
+        g_string_append_printf(buf, "CSRR0 " TARGET_FMT_lx
+                               " CSRR1 " TARGET_FMT_lx
+                               " MCSRR0 " TARGET_FMT_lx
+                               " MCSRR1 " TARGET_FMT_lx "\n",
+                               env->spr[SPR_BOOKE_CSRR0],
+                               env->spr[SPR_BOOKE_CSRR1],
+                               env->spr[SPR_BOOKE_MCSRR0],
+                               env->spr[SPR_BOOKE_MCSRR1]);
 
-        qemu_fprintf(f, "  TCR " TARGET_FMT_lx "   TSR " TARGET_FMT_lx
-                     "    ESR " TARGET_FMT_lx "   DEAR " TARGET_FMT_lx "\n",
-                     env->spr[SPR_BOOKE_TCR], env->spr[SPR_BOOKE_TSR],
-                     env->spr[SPR_BOOKE_ESR], env->spr[SPR_BOOKE_DEAR]);
+        g_string_append_printf(buf, "  TCR " TARGET_FMT_lx
+                               "   TSR " TARGET_FMT_lx
+                               "    ESR " TARGET_FMT_lx
+                               "   DEAR " TARGET_FMT_lx "\n",
+                               env->spr[SPR_BOOKE_TCR],
+                               env->spr[SPR_BOOKE_TSR],
+                               env->spr[SPR_BOOKE_ESR],
+                               env->spr[SPR_BOOKE_DEAR]);
 
-        qemu_fprintf(f, "  PIR " TARGET_FMT_lx " DECAR " TARGET_FMT_lx
-                     "   IVPR " TARGET_FMT_lx "   EPCR " TARGET_FMT_lx "\n",
-                     env->spr[SPR_BOOKE_PIR], env->spr[SPR_BOOKE_DECAR],
-                     env->spr[SPR_BOOKE_IVPR], env->spr[SPR_BOOKE_EPCR]);
+        g_string_append_printf(buf, "  PIR " TARGET_FMT_lx
+                               " DECAR " TARGET_FMT_lx
+                               "   IVPR " TARGET_FMT_lx
+                               "   EPCR " TARGET_FMT_lx "\n",
+                               env->spr[SPR_BOOKE_PIR],
+                               env->spr[SPR_BOOKE_DECAR],
+                               env->spr[SPR_BOOKE_IVPR],
+                               env->spr[SPR_BOOKE_EPCR]);
 
-        qemu_fprintf(f, " MCSR " TARGET_FMT_lx " SPRG8 " TARGET_FMT_lx
-                     "    EPR " TARGET_FMT_lx "\n",
-                     env->spr[SPR_BOOKE_MCSR], env->spr[SPR_BOOKE_SPRG8],
-                     env->spr[SPR_BOOKE_EPR]);
+        g_string_append_printf(buf, " MCSR " TARGET_FMT_lx
+                               " SPRG8 " TARGET_FMT_lx
+                               "    EPR " TARGET_FMT_lx "\n",
+                               env->spr[SPR_BOOKE_MCSR],
+                               env->spr[SPR_BOOKE_SPRG8],
+                               env->spr[SPR_BOOKE_EPR]);
 
         /* FSL-specific */
-        qemu_fprintf(f, " MCAR " TARGET_FMT_lx "  PID1 " TARGET_FMT_lx
-                     "   PID2 " TARGET_FMT_lx "    SVR " TARGET_FMT_lx "\n",
-                     env->spr[SPR_Exxx_MCAR], env->spr[SPR_BOOKE_PID1],
-                     env->spr[SPR_BOOKE_PID2], env->spr[SPR_E500_SVR]);
+        g_string_append_printf(buf, " MCAR " TARGET_FMT_lx
+                               "  PID1 " TARGET_FMT_lx
+                               "   PID2 " TARGET_FMT_lx
+                               "    SVR " TARGET_FMT_lx "\n",
+                               env->spr[SPR_Exxx_MCAR],
+                               env->spr[SPR_BOOKE_PID1],
+                               env->spr[SPR_BOOKE_PID2],
+                               env->spr[SPR_E500_SVR]);
 
         /*
          * IVORs are left out as they are large and do not change often --
@@ -9233,12 +9257,13 @@ void ppc_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 
 #if defined(TARGET_PPC64)
     if (env->flags & POWERPC_FLAG_CFAR) {
-        qemu_fprintf(f, " CFAR " TARGET_FMT_lx"\n", env->cfar);
+        g_string_append_printf(buf, " CFAR " TARGET_FMT_lx"\n", env->cfar);
     }
 #endif
 
     if (env->spr_cb[SPR_LPCR].name) {
-        qemu_fprintf(f, " LPCR " TARGET_FMT_lx "\n", env->spr[SPR_LPCR]);
+        g_string_append_printf(buf,
+                               " LPCR " TARGET_FMT_lx "\n", env->spr[SPR_LPCR]);
     }
 
     switch (env->mmu_model) {
@@ -9254,29 +9279,42 @@ void ppc_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     case POWERPC_MMU_3_00:
 #endif
         if (env->spr_cb[SPR_SDR1].name) { /* SDR1 Exists */
-            qemu_fprintf(f, " SDR1 " TARGET_FMT_lx " ", env->spr[SPR_SDR1]);
+            g_string_append_printf(buf, " SDR1 " TARGET_FMT_lx " ",
+                                   env->spr[SPR_SDR1]);
         }
         if (env->spr_cb[SPR_PTCR].name) { /* PTCR Exists */
-            qemu_fprintf(f, " PTCR " TARGET_FMT_lx " ", env->spr[SPR_PTCR]);
+            g_string_append_printf(buf, " PTCR " TARGET_FMT_lx " ",
+                                   env->spr[SPR_PTCR]);
         }
-        qemu_fprintf(f, "  DAR " TARGET_FMT_lx "  DSISR " TARGET_FMT_lx "\n",
-                     env->spr[SPR_DAR], env->spr[SPR_DSISR]);
+        g_string_append_printf(buf, "  DAR " TARGET_FMT_lx "  DSISR "
+                               TARGET_FMT_lx "\n",
+                               env->spr[SPR_DAR], env->spr[SPR_DSISR]);
         break;
     case POWERPC_MMU_BOOKE206:
-        qemu_fprintf(f, " MAS0 " TARGET_FMT_lx "  MAS1 " TARGET_FMT_lx
-                     "   MAS2 " TARGET_FMT_lx "   MAS3 " TARGET_FMT_lx "\n",
-                     env->spr[SPR_BOOKE_MAS0], env->spr[SPR_BOOKE_MAS1],
-                     env->spr[SPR_BOOKE_MAS2], env->spr[SPR_BOOKE_MAS3]);
+        g_string_append_printf(buf, " MAS0 " TARGET_FMT_lx
+                               "  MAS1 " TARGET_FMT_lx
+                               "   MAS2 " TARGET_FMT_lx
+                               "   MAS3 " TARGET_FMT_lx "\n",
+                               env->spr[SPR_BOOKE_MAS0],
+                               env->spr[SPR_BOOKE_MAS1],
+                               env->spr[SPR_BOOKE_MAS2],
+                               env->spr[SPR_BOOKE_MAS3]);
 
-        qemu_fprintf(f, " MAS4 " TARGET_FMT_lx "  MAS6 " TARGET_FMT_lx
-                     "   MAS7 " TARGET_FMT_lx "    PID " TARGET_FMT_lx "\n",
-                     env->spr[SPR_BOOKE_MAS4], env->spr[SPR_BOOKE_MAS6],
-                     env->spr[SPR_BOOKE_MAS7], env->spr[SPR_BOOKE_PID]);
+        g_string_append_printf(buf, " MAS4 " TARGET_FMT_lx
+                               "  MAS6 " TARGET_FMT_lx
+                               "   MAS7 " TARGET_FMT_lx
+                               "    PID " TARGET_FMT_lx "\n",
+                               env->spr[SPR_BOOKE_MAS4],
+                               env->spr[SPR_BOOKE_MAS6],
+                               env->spr[SPR_BOOKE_MAS7],
+                               env->spr[SPR_BOOKE_PID]);
 
-        qemu_fprintf(f, "MMUCFG " TARGET_FMT_lx " TLB0CFG " TARGET_FMT_lx
-                     " TLB1CFG " TARGET_FMT_lx "\n",
-                     env->spr[SPR_MMUCFG], env->spr[SPR_BOOKE_TLB0CFG],
-                     env->spr[SPR_BOOKE_TLB1CFG]);
+        g_string_append_printf(buf, "MMUCFG " TARGET_FMT_lx
+                               " TLB0CFG " TARGET_FMT_lx
+                               " TLB1CFG " TARGET_FMT_lx "\n",
+                               env->spr[SPR_MMUCFG],
+                               env->spr[SPR_BOOKE_TLB0CFG],
+                               env->spr[SPR_BOOKE_TLB1CFG]);
         break;
     default:
         break;
