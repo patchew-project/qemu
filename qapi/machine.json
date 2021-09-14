@@ -1338,6 +1338,18 @@
   'returns': 'HumanReadableText' }
 
 ##
+# @x-query-rdma:
+#
+# Query RDMA state
+#
+# Returns: RDMA state
+#
+# Since: 6.2
+##
+{ 'command': 'x-query-rdma',
+  'returns': 'HumanReadableText' }
+
+##
 # @x-query-registers:
 #
 # @cpu: the CPU number to query. If omitted, queries all CPUs
