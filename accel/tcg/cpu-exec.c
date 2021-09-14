@@ -1051,4 +1051,21 @@ HumanReadableText *qmp_x_query_jit(Error **errp)
     return ret;
 }
 
+HumanReadableText *qmp_x_query_opcount(Error **errp)
+{
+    HumanReadableText *ret;
+    g_autoptr(GString) buf = g_string_new("");
+
+    if (!tcg_enabled()) {
+        error_setg(errp, "JIT information is only available with accel=tcg");
+        return NULL;
+    }
+
+    dump_opcount_info(buf);
+
+    ret = g_new0(HumanReadableText, 1);
+    ret->human_readable_text = g_steal_pointer(&buf->str);
+    return ret;
+}
+
 #endif /* !CONFIG_USER_ONLY */
