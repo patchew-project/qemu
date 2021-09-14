@@ -855,7 +855,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
     translator_loop(&nios2_tr_ops, &dc.base, cs, tb, max_insns);
 }
 
-void nios2_cpu_dump_state(CPUState *cs, FILE *f, int flags)
+void nios2_cpu_format_state(CPUState *cs, GString *buf, int flags)
 {
     Nios2CPU *cpu = NIOS2_CPU(cs);
     CPUNios2State *env = &cpu->env;
@@ -865,22 +865,22 @@ void nios2_cpu_dump_state(CPUState *cs, FILE *f, int flags)
         return;
     }
 
-    qemu_fprintf(f, "IN: PC=%x %s\n",
-                 env->regs[R_PC], lookup_symbol(env->regs[R_PC]));
+    g_string_append_printf(buf, "IN: PC=%x %s\n",
+                           env->regs[R_PC], lookup_symbol(env->regs[R_PC]));
 
     for (i = 0; i < NUM_CORE_REGS; i++) {
-        qemu_fprintf(f, "%9s=%8.8x ", regnames[i], env->regs[i]);
+        g_string_append_printf(buf, "%9s=%8.8x ", regnames[i], env->regs[i]);
         if ((i + 1) % 4 == 0) {
-            qemu_fprintf(f, "\n");
+            g_string_append_printf(buf, "\n");
         }
     }
 #if !defined(CONFIG_USER_ONLY)
-    qemu_fprintf(f, " mmu write: VPN=%05X PID %02X TLBACC %08X\n",
-                 env->mmu.pteaddr_wr & CR_PTEADDR_VPN_MASK,
-                 (env->mmu.tlbmisc_wr & CR_TLBMISC_PID_MASK) >> 4,
-                 env->mmu.tlbacc_wr);
+    g_string_append_printf(buf, " mmu write: VPN=%05X PID %02X TLBACC %08X\n",
+                           env->mmu.pteaddr_wr & CR_PTEADDR_VPN_MASK,
+                           (env->mmu.tlbmisc_wr & CR_TLBMISC_PID_MASK) >> 4,
+                           env->mmu.tlbacc_wr);
 #endif
-    qemu_fprintf(f, "\n\n");
+    g_string_append_printf(buf, "\n\n");
 }
 
 void nios2_tcg_init(void)
