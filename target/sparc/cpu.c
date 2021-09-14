@@ -597,11 +597,11 @@ void sparc_cpu_list(void)
                 "fpu_version mmu_version nwindows\n");
 }
 
-static void cpu_print_cc(FILE *f, uint32_t cc)
+static void cpu_print_cc(GString *buf, uint32_t cc)
 {
-    qemu_fprintf(f, "%c%c%c%c", cc & PSR_NEG ? 'N' : '-',
-                 cc & PSR_ZERO ? 'Z' : '-', cc & PSR_OVF ? 'V' : '-',
-                 cc & PSR_CARRY ? 'C' : '-');
+    g_string_append_printf(buf, "%c%c%c%c", cc & PSR_NEG ? 'N' : '-',
+                           cc & PSR_ZERO ? 'Z' : '-', cc & PSR_OVF ? 'V' : '-',
+                           cc & PSR_CARRY ? 'C' : '-');
 }
 
 #ifdef TARGET_SPARC64
@@ -610,34 +610,36 @@ static void cpu_print_cc(FILE *f, uint32_t cc)
 #define REGS_PER_LINE 8
 #endif
 
-void sparc_cpu_dump_state(CPUState *cs, FILE *f, int flags)
+void sparc_cpu_format_state(CPUState *cs, GString *buf, int flags)
 {
     SPARCCPU *cpu = SPARC_CPU(cs);
     CPUSPARCState *env = &cpu->env;
     int i, x;
 
-    qemu_fprintf(f, "pc: " TARGET_FMT_lx "  npc: " TARGET_FMT_lx "\n", env->pc,
-                 env->npc);
+    g_string_append_printf(buf,
+                           "pc: " TARGET_FMT_lx "  npc: " TARGET_FMT_lx "\n",
+                           env->pc, env->npc);
 
     for (i = 0; i < 8; i++) {
         if (i % REGS_PER_LINE == 0) {
-            qemu_fprintf(f, "%%g%d-%d:", i, i + REGS_PER_LINE - 1);
+            g_string_append_printf(buf, "%%g%d-%d:", i, i + REGS_PER_LINE - 1);
         }
-        qemu_fprintf(f, " " TARGET_FMT_lx, env->gregs[i]);
+        g_string_append_printf(buf, " " TARGET_FMT_lx, env->gregs[i]);
         if (i % REGS_PER_LINE == REGS_PER_LINE - 1) {
-            qemu_fprintf(f, "\n");
+            g_string_append_printf(buf, "\n");
         }
     }
     for (x = 0; x < 3; x++) {
         for (i = 0; i < 8; i++) {
             if (i % REGS_PER_LINE == 0) {
-                qemu_fprintf(f, "%%%c%d-%d: ",
+                g_string_append_printf(buf, "%%%c%d-%d: ",
                              x == 0 ? 'o' : (x == 1 ? 'l' : 'i'),
                              i, i + REGS_PER_LINE - 1);
             }
-            qemu_fprintf(f, TARGET_FMT_lx " ", env->regwptr[i + x * 8]);
+            g_string_append_printf(buf, TARGET_FMT_lx " ",
+                                   env->regwptr[i + x * 8]);
             if (i % REGS_PER_LINE == REGS_PER_LINE - 1) {
-                qemu_fprintf(f, "\n");
+                g_string_append_printf(buf, "\n");
             }
         }
     }
@@ -645,42 +647,47 @@ void sparc_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     if (flags & CPU_DUMP_FPU) {
         for (i = 0; i < TARGET_DPREGS; i++) {
             if ((i & 3) == 0) {
-                qemu_fprintf(f, "%%f%02d: ", i * 2);
+                g_string_append_printf(buf, "%%f%02d: ", i * 2);
             }
-            qemu_fprintf(f, " %016" PRIx64, env->fpr[i].ll);
+            g_string_append_printf(buf, " %016" PRIx64, env->fpr[i].ll);
             if ((i & 3) == 3) {
-                qemu_fprintf(f, "\n");
+                g_string_append_printf(buf, "\n");
             }
         }
     }
 
 #ifdef TARGET_SPARC64
-    qemu_fprintf(f, "pstate: %08x ccr: %02x (icc: ", env->pstate,
+    g_string_append_printf(buf, "pstate: %08x ccr: %02x (icc: ", env->pstate,
                  (unsigned)cpu_get_ccr(env));
-    cpu_print_cc(f, cpu_get_ccr(env) << PSR_CARRY_SHIFT);
-    qemu_fprintf(f, " xcc: ");
-    cpu_print_cc(f, cpu_get_ccr(env) << (PSR_CARRY_SHIFT - 4));
-    qemu_fprintf(f, ") asi: %02x tl: %d pil: %x gl: %d\n", env->asi, env->tl,
-                 env->psrpil, env->gl);
-    qemu_fprintf(f, "tbr: " TARGET_FMT_lx " hpstate: " TARGET_FMT_lx " htba: "
-                 TARGET_FMT_lx "\n", env->tbr, env->hpstate, env->htba);
-    qemu_fprintf(f, "cansave: %d canrestore: %d otherwin: %d wstate: %d "
-                 "cleanwin: %d cwp: %d\n",
-                 env->cansave, env->canrestore, env->otherwin, env->wstate,
-                 env->cleanwin, env->nwindows - 1 - env->cwp);
-    qemu_fprintf(f, "fsr: " TARGET_FMT_lx " y: " TARGET_FMT_lx " fprs: "
-                 TARGET_FMT_lx "\n", env->fsr, env->y, env->fprs);
+    cpu_print_cc(buf, cpu_get_ccr(env) << PSR_CARRY_SHIFT);
+    g_string_append_printf(buf, " xcc: ");
+    cpu_print_cc(buf, cpu_get_ccr(env) << (PSR_CARRY_SHIFT - 4));
+    g_string_append_printf(buf, ") asi: %02x tl: %d pil: %x gl: %d\n",
+                           env->asi, env->tl, env->psrpil, env->gl);
+    g_string_append_printf(buf, "tbr: " TARGET_FMT_lx " hpstate: "
+                           TARGET_FMT_lx " htba: " TARGET_FMT_lx "\n",
+                           env->tbr, env->hpstate, env->htba);
+    g_string_append_printf(buf, "cansave: %d canrestore: %d "
+                           "otherwin: %d wstate: %d "
+                           "cleanwin: %d cwp: %d\n",
+                           env->cansave, env->canrestore,
+                           env->otherwin, env->wstate,
+                           env->cleanwin, env->nwindows - 1 - env->cwp);
+    g_string_append_printf(buf, "fsr: " TARGET_FMT_lx " y: "
+                           TARGET_FMT_lx " fprs: " TARGET_FMT_lx "\n",
+                           env->fsr, env->y, env->fprs);
 
 #else
-    qemu_fprintf(f, "psr: %08x (icc: ", cpu_get_psr(env));
-    cpu_print_cc(f, cpu_get_psr(env));
-    qemu_fprintf(f, " SPE: %c%c%c) wim: %08x\n", env->psrs ? 'S' : '-',
-                 env->psrps ? 'P' : '-', env->psret ? 'E' : '-',
-                 env->wim);
-    qemu_fprintf(f, "fsr: " TARGET_FMT_lx " y: " TARGET_FMT_lx "\n",
-                 env->fsr, env->y);
+    g_string_append_printf(buf, "psr: %08x (icc: ", cpu_get_psr(env));
+    cpu_print_cc(buf, cpu_get_psr(env));
+    g_string_append_printf(buf, " SPE: %c%c%c) wim: %08x\n",
+                           env->psrs ? 'S' : '-',
+                           env->psrps ? 'P' : '-', env->psret ? 'E' : '-',
+                           env->wim);
+    g_string_append_printf(buf, "fsr: " TARGET_FMT_lx " y: " TARGET_FMT_lx "\n",
+                           env->fsr, env->y);
 #endif
-    qemu_fprintf(f, "\n");
+    g_string_append_printf(buf, "\n");
 }
 
 static void sparc_cpu_set_pc(CPUState *cs, vaddr value)
@@ -889,7 +896,7 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
     cc->class_by_name = sparc_cpu_class_by_name;
     cc->parse_features = sparc_cpu_parse_features;
     cc->has_work = sparc_cpu_has_work;
-    cc->dump_state = sparc_cpu_dump_state;
+    cc->format_state = sparc_cpu_format_state;
 #if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
     cc->memory_rw_debug = sparc_cpu_memory_rw_debug;
 #endif
