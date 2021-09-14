@@ -108,17 +108,9 @@ static int cpu_common_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg)
 
 void cpu_dump_state(CPUState *cpu, FILE *f, int flags)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
-
-    if (cc->dump_state) {
-        cpu_synchronize_state(cpu);
-        cc->dump_state(cpu, f, flags);
-    } else if (cc->format_state) {
-        g_autoptr(GString) buf = g_string_new("");
-        cpu_synchronize_state(cpu);
-        cc->format_state(cpu, buf, flags);
-        qemu_fprintf(f, "%s", buf->str);
-    }
+    g_autoptr(GString) buf = g_string_new("");
+    cpu_format_state(cpu, buf, flags);
+    qemu_fprintf(f, "%s", buf->str);
 }
 
 void cpu_format_state(CPUState *cpu, GString *buf, int flags)
