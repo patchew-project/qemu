@@ -86,7 +86,7 @@ enum {
     MODE_UU = 3,
 };
 
-void tricore_cpu_dump_state(CPUState *cs, FILE *f, int flags)
+void tricore_cpu_format_state(CPUState *cs, GString *buf, int flags)
 {
     TriCoreCPU *cpu = TRICORE_CPU(cs);
     CPUTriCoreState *env = &cpu->env;
@@ -95,26 +95,26 @@ void tricore_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 
     psw = psw_read(env);
 
-    qemu_fprintf(f, "PC: " TARGET_FMT_lx, env->PC);
-    qemu_fprintf(f, " PSW: " TARGET_FMT_lx, psw);
-    qemu_fprintf(f, " ICR: " TARGET_FMT_lx, env->ICR);
-    qemu_fprintf(f, "\nPCXI: " TARGET_FMT_lx, env->PCXI);
-    qemu_fprintf(f, " FCX: " TARGET_FMT_lx, env->FCX);
-    qemu_fprintf(f, " LCX: " TARGET_FMT_lx, env->LCX);
+    g_string_append_printf(buf, "PC: " TARGET_FMT_lx, env->PC);
+    g_string_append_printf(buf, " PSW: " TARGET_FMT_lx, psw);
+    g_string_append_printf(buf, " ICR: " TARGET_FMT_lx, env->ICR);
+    g_string_append_printf(buf, "\nPCXI: " TARGET_FMT_lx, env->PCXI);
+    g_string_append_printf(buf, " FCX: " TARGET_FMT_lx, env->FCX);
+    g_string_append_printf(buf, " LCX: " TARGET_FMT_lx, env->LCX);
 
     for (i = 0; i < 16; ++i) {
         if ((i & 3) == 0) {
-            qemu_fprintf(f, "\nGPR A%02d:", i);
+            g_string_append_printf(buf, "\nGPR A%02d:", i);
         }
-        qemu_fprintf(f, " " TARGET_FMT_lx, env->gpr_a[i]);
+        g_string_append_printf(buf, " " TARGET_FMT_lx, env->gpr_a[i]);
     }
     for (i = 0; i < 16; ++i) {
         if ((i & 3) == 0) {
-            qemu_fprintf(f, "\nGPR D%02d:", i);
+            g_string_append_printf(buf, "\nGPR D%02d:", i);
         }
-        qemu_fprintf(f, " " TARGET_FMT_lx, env->gpr_d[i]);
+        g_string_append_printf(buf, " " TARGET_FMT_lx, env->gpr_d[i]);
     }
-    qemu_fprintf(f, "\n");
+    g_string_append_printf(buf, "\n");
 }
 
 /*

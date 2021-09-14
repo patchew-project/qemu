@@ -174,7 +174,7 @@ static void tricore_cpu_class_init(ObjectClass *c, void *data)
     cc->gdb_num_core_regs = 44;
     cc->gdb_arch_name = tricore_gdb_arch_name;
 
-    cc->dump_state = tricore_cpu_dump_state;
+    cc->format_state = tricore_cpu_format_state;
     cc->set_pc = tricore_cpu_set_pc;
     cc->sysemu_ops = &tricore_sysemu_ops;
     cc->tcg_ops = &tricore_tcg_ops;
