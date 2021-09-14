@@ -125,7 +125,7 @@ static int bdsp_s(DisasContext *ctx, int d)
 /* Include the auto-generated decoder. */
 #include "decode-insns.c.inc"
 
-void rx_cpu_dump_state(CPUState *cs, FILE *f, int flags)
+void rx_cpu_format_state(CPUState *cs, GString *buf, int flags)
 {
     RXCPU *cpu = RX_CPU(cs);
     CPURXState *env = &cpu->env;
@@ -133,12 +133,14 @@ void rx_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     uint32_t psw;
 
     psw = rx_cpu_pack_psw(env);
-    qemu_fprintf(f, "pc=0x%08x psw=0x%08x\n",
-                 env->pc, psw);
+    g_string_append_printf(buf, "pc=0x%08x psw=0x%08x\n",
+                           env->pc, psw);
     for (i = 0; i < 16; i += 4) {
-        qemu_fprintf(f, "r%d=0x%08x r%d=0x%08x r%d=0x%08x r%d=0x%08x\n",
-                     i, env->regs[i], i + 1, env->regs[i + 1],
-                     i + 2, env->regs[i + 2], i + 3, env->regs[i + 3]);
+        g_string_append_printf(buf,
+                               "r%d=0x%08x r%d=0x%08x r%d=0x%08x r%d=0x%08x\n",
+                               i, env->regs[i], i + 1, env->regs[i + 1],
+                               i + 2, env->regs[i + 2], i + 3,
+                               env->regs[i + 3]);
     }
 }
 
