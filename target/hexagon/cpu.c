@@ -169,11 +169,6 @@ static void hexagon_dump_state(CPUState *cs, FILE *f, int flags)
     hexagon_dump(env, f);
 }
 
-void hexagon_debug(CPUHexagonState *env)
-{
-    hexagon_dump(env, stdout);
-}
-
 static void hexagon_cpu_set_pc(CPUState *cs, vaddr value)
 {
     HexagonCPU *cpu = HEXAGON_CPU(cs);
