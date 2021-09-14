@@ -242,7 +242,7 @@ static ObjectClass *riscv_cpu_class_by_name(const char *cpu_model)
     return oc;
 }
 
-static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
+static void riscv_cpu_format_state(CPUState *cs, GString *buf, int flags)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
@@ -250,71 +250,98 @@ static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
 
 #if !defined(CONFIG_USER_ONLY)
     if (riscv_has_ext(env, RVH)) {
-        qemu_fprintf(f, " %s %d\n", "V      =  ", riscv_cpu_virt_enabled(env));
+        g_string_append_printf(buf, " %s %d\n", "V      =  ",
+                               riscv_cpu_virt_enabled(env));
     }
 #endif
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "pc      ", env->pc);
+    g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                           "pc      ", env->pc);
 #ifndef CONFIG_USER_ONLY
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mhartid ", env->mhartid);
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mstatus ", (target_ulong)env->mstatus);
+    g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                           "mhartid ", env->mhartid);
+    g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                           "mstatus ", (target_ulong)env->mstatus);
     if (riscv_cpu_is_32bit(env)) {
-        qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mstatush ",
-                     (target_ulong)(env->mstatus >> 32));
+        g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n", "mstatush ",
+                               (target_ulong)(env->mstatus >> 32));
     }
     if (riscv_has_ext(env, RVH)) {
-        qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "hstatus ", env->hstatus);
-        qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "vsstatus ",
-                     (target_ulong)env->vsstatus);
+        g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                               "hstatus ", env->hstatus);
+        g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                               "vsstatus ", (target_ulong)env->vsstatus);
     }
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mip     ", env->mip);
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mie     ", env->mie);
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mideleg ", env->mideleg);
+    g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                           "mip     ", env->mip);
+    g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                           "mie     ", env->mie);
+    g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                           "mideleg ", env->mideleg);
     if (riscv_has_ext(env, RVH)) {
-        qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "hideleg ", env->hideleg);
+        g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                               "hideleg ", env->hideleg);
     }
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "medeleg ", env->medeleg);
+    g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                           "medeleg ", env->medeleg);
     if (riscv_has_ext(env, RVH)) {
-        qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "hedeleg ", env->hedeleg);
+        g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                               "hedeleg ", env->hedeleg);
     }
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mtvec   ", env->mtvec);
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "stvec   ", env->stvec);
+    g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                           "mtvec   ", env->mtvec);
+    g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                           "stvec   ", env->stvec);
     if (riscv_has_ext(env, RVH)) {
-        qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "vstvec  ", env->vstvec);
+        g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                               "vstvec  ", env->vstvec);
     }
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mepc    ", env->mepc);
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "sepc    ", env->sepc);
+    g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                           "mepc    ", env->mepc);
+    g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                           "sepc    ", env->sepc);
     if (riscv_has_ext(env, RVH)) {
-        qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "vsepc   ", env->vsepc);
+        g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                               "vsepc   ", env->vsepc);
     }
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mcause  ", env->mcause);
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "scause  ", env->scause);
+    g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                           "mcause  ", env->mcause);
+    g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                           "scause  ", env->scause);
     if (riscv_has_ext(env, RVH)) {
-        qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "vscause ", env->vscause);
+        g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                               "vscause ", env->vscause);
     }
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mtval   ", env->mtval);
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "stval   ", env->stval);
+    g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                           "mtval   ", env->mtval);
+    g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                           "stval   ", env->stval);
     if (riscv_has_ext(env, RVH)) {
-        qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "htval ", env->htval);
-        qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mtval2 ", env->mtval2);
+        g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                               "htval ", env->htval);
+        g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                               "mtval2 ", env->mtval2);
     }
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mscratch", env->mscratch);
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "sscratch", env->sscratch);
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "satp    ", env->satp);
+    g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                           "mscratch", env->mscratch);
+    g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                           "sscratch", env->sscratch);
+    g_string_append_printf(buf, " %s " TARGET_FMT_lx "\n",
+                           "satp    ", env->satp);
 #endif
 
     for (i = 0; i < 32; i++) {
-        qemu_fprintf(f, " %s " TARGET_FMT_lx,
-                     riscv_int_regnames[i], env->gpr[i]);
+        g_string_append_printf(buf, " %s " TARGET_FMT_lx,
+                               riscv_int_regnames[i], env->gpr[i]);
         if ((i & 3) == 3) {
-            qemu_fprintf(f, "\n");
+            g_string_append_printf(buf, "\n");
         }
     }
     if (flags & CPU_DUMP_FPU) {
         for (i = 0; i < 32; i++) {
-            qemu_fprintf(f, " %s %016" PRIx64,
-                         riscv_fpr_regnames[i], env->fpr[i]);
+            g_string_append_printf(buf, " %s %016" PRIx64,
+                                   riscv_fpr_regnames[i], env->fpr[i]);
             if ((i & 3) == 3) {
-                qemu_fprintf(f, "\n");
+                g_string_append_printf(buf, "\n");
             }
         }
     }
@@ -667,7 +694,7 @@ static void riscv_cpu_class_init(ObjectClass *c, void *data)
 
     cc->class_by_name = riscv_cpu_class_by_name;
     cc->has_work = riscv_cpu_has_work;
-    cc->dump_state = riscv_cpu_dump_state;
+    cc->format_state = riscv_cpu_format_state;
     cc->set_pc = riscv_cpu_set_pc;
     cc->gdb_read_register = riscv_cpu_gdb_read_register;
     cc->gdb_write_register = riscv_cpu_gdb_write_register;
