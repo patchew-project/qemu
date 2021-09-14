@@ -67,6 +67,7 @@
 #include "block/block-hmp-cmds.h"
 #include "qapi/qapi-commands-char.h"
 #include "qapi/qapi-commands-control.h"
+#include "qapi/qapi-commands-machine.h"
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/qapi-commands-misc.h"
 #include "qapi/qapi-commands-qom.h"
@@ -301,23 +302,29 @@ int monitor_get_cpu_index(Monitor *mon)
 static void hmp_info_registers(Monitor *mon, const QDict *qdict)
 {
     bool all_cpus = qdict_get_try_bool(qdict, "cpustate_all", false);
-    CPUState *cs;
+    bool has_cpu = !all_cpus;
+    int64_t cpu = 0;
+    Error *err = NULL;
+    g_autoptr(HumanReadableText) info = NULL;
 
-    if (all_cpus) {
-        CPU_FOREACH(cs) {
-            monitor_printf(mon, "\nCPU#%d\n", cs->cpu_index);
-            cpu_dump_state(cs, NULL, CPU_DUMP_FPU);
-        }
-    } else {
-        cs = mon_get_cpu(mon);
+    if (has_cpu) {
+        CPUState *cs = mon_get_cpu(mon);
 
         if (!cs) {
             monitor_printf(mon, "No CPU available\n");
             return;
         }
 
-        cpu_dump_state(cs, NULL, CPU_DUMP_FPU);
+        cpu = cs->cpu_index;
     }
+
+    info = qmp_x_query_registers(has_cpu, cpu, &err);
+    if (err) {
+        error_report_err(err);
+        return;
+    }
+
+    monitor_printf(mon, "%s", info->human_readable_text);
 }
 
 static void hmp_info_sync_profile(Monitor *mon, const QDict *qdict)
