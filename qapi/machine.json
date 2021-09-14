@@ -1401,6 +1401,21 @@
   'returns': 'HumanReadableText' }
 
 ##
+# @x-query-tlb:
+#
+# @cpu: the CPU number to query
+#
+# Return information on the CPU memory mappings
+#
+# Returns: memory mappings in an architecture-specific format
+#
+# Since: 6.2
+##
+{ 'command': 'x-query-tlb',
+  'data': {'cpu': 'int' },
+  'returns': 'HumanReadableText' }
+
+##
 # @x-query-usb:
 #
 # Query information on the USB devices

@@ -938,17 +938,22 @@ static void hmp_info_mtree(Monitor *mon, const QDict *qdict)
 
 static void hmp_info_tlb(Monitor *mon, const QDict *qdict)
 {
-    g_autoptr(GString) buf = g_string_new("");
-    CPUState *cpu = mon_get_cpu(mon);
+    CPUState *cs = mon_get_cpu(mon);
+    Error *err = NULL;
+    g_autoptr(HumanReadableText) info = NULL;
 
-    if (!cpu) {
+    if (!cs) {
         monitor_printf(mon, "No CPU available\n");
         return;
     }
 
-    cpu_format_tlb(cpu, buf);
+    info = qmp_x_query_tlb(cs->cpu_index, &err);
+    if (err) {
+        error_report_err(err);
+        return;
+    }
 
-    monitor_printf(mon, "%s", buf->str);
+    monitor_printf(mon, "%s", info->human_readable_text);
 }
 
 static void hmp_info_profile(Monitor *mon, const QDict *qdict)

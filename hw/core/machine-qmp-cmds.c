@@ -235,6 +235,28 @@ HumanReadableText *qmp_x_query_registers(bool has_cpu, int64_t cpu,
     return ret;
 }
 
+HumanReadableText *qmp_x_query_tlb(int64_t cpu, Error **errp)
+{
+    HumanReadableText *ret;
+    g_autoptr(GString) buf = g_string_new("");
+    CPUState *cs = NULL, *tmp;
+
+    CPU_FOREACH(tmp) {
+        if (cpu == tmp->cpu_index) {
+            cs = tmp;
+        }
+    }
+    if (!cs) {
+        error_setg(errp, "CPU %"PRId64" not available", cpu);
+        return NULL;
+    }
+    cpu_format_tlb(cs, buf);
+
+    ret = g_new0(HumanReadableText, 1);
+    ret->human_readable_text = g_steal_pointer(&buf->str);
+    return ret;
+}
+
 HumanReadableText *qmp_x_query_numa(Error **errp)
 {
     HumanReadableText *ret;
