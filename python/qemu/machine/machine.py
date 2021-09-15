@@ -291,7 +291,8 @@ class QEMUMachine:
 
     def _load_io_log(self) -> None:
         if self._qemu_log_path is not None:
-            with open(self._qemu_log_path, "r") as iolog:
+            with open(self._qemu_log_path, "r",
+                      encoding='utf-8') as iolog:
                 self._iolog = iolog.read()
 
     @property
