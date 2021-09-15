@@ -1091,6 +1091,41 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUMBState *env
 
 static void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
+    static const uint8_t kuser_page[128] = {
+        /* __kuser_helper_version */
+        [0x00] = 0x02, 0x00, 0x00, 0x00,
+
+        /* __kuser_cmpxchg */
+        [0x04] = 0xfa, 0x6f, 0x3b, 0x00,  /* trap 31 */
+                 0x3a, 0x28, 0x00, 0xf8,  /* ret */
+
+        /* __kuser_sigtramp */
+        [0x40] = 0xc4, 0x22, 0x80, 0x00,  /* movi r2, __NR_rt_sigreturn */
+                 0x3a, 0x68, 0x3b, 0x00,  /* trap 0 */
+    };
+
+    abi_ulong pg;
+    uint8_t *ph;
+
+    pg = target_mmap(TARGET_PAGE_SIZE, TARGET_PAGE_SIZE,
+                     PROT_READ | PROT_WRITE,
+                     MAP_ANON | MAP_PRIVATE | MAP_FIXED, -1, 0);
+
+    /*
+     * If the mmap doesn't give us exactly page 1, there's nothing
+     * we can do, and it's unlikely that the program will be able
+     * to continue.  FIXME: Error out now?
+     */
+    if (pg == TARGET_PAGE_SIZE) {
+        ph = lock_user(VERIFY_WRITE, pg, sizeof(kuser_page), 0);
+        memcpy(ph, kuser_page, sizeof(kuser_page));
+        unlock_user(ph, pg, sizeof(kuser_page));
+        target_mprotect(TARGET_PAGE_SIZE, TARGET_PAGE_SIZE,
+                        PROT_READ | PROT_EXEC);
+    } else {
+        target_munmap(pg, TARGET_PAGE_SIZE);
+    }
+
     regs->ea = infop->entry;
     regs->sp = infop->start_stack;
     regs->estatus = 0x3;
