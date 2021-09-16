@@ -172,6 +172,8 @@ struct lo_data {
 
     /* An O_PATH file descriptor to /proc/self/fd/ */
     int proc_self_fd;
+    /* A read-only FILE pointer for /proc/self/mountinfo */
+    FILE *mountinfo_fp;
     int user_killpriv_v2, killpriv_v2;
     /* If set, virtiofsd is responsible for setting umask during creation */
     bool change_umask;
@@ -3718,11 +3720,49 @@ static void setup_chroot(struct lo_data *lo)
 static void setup_sandbox(struct lo_data *lo, struct fuse_session *se,
                           bool enable_syslog)
 {
+    int proc_self, mountinfo_fd;
+    int saverr;
+
+    /*
+     * Open /proc/self before we pivot to the new root so we can still
+     * open /proc/self/mountinfo afterwards
+     */
+    proc_self = open("/proc/self", O_PATH);
+    if (proc_self < 0) {
+        fuse_log(FUSE_LOG_WARNING, "Failed to open /proc/self: %m; "
+                 "will not be able to use file handles\n");
+    }
+
     if (lo->sandbox == SANDBOX_NAMESPACE) {
         setup_namespaces(lo, se);
         setup_mounts(lo->source);
     } else {
         setup_chroot(lo);
+    }
+
+    /*
+     * Opening /proc/self/mountinfo before the umount2() call in
+     * setup_mounts() leads to the file appearing empty.  That is why
+     * we defer opening it until here.
+     */
+    lo->mountinfo_fp = NULL;
+    if (proc_self >= 0) {
+        mountinfo_fd = openat(proc_self, "mountinfo", O_RDONLY);
+        if (mountinfo_fd < 0) {
+            saverr = errno;
+        } else if (mountinfo_fd >= 0) {
+            lo->mountinfo_fp = fdopen(mountinfo_fd, "r");
+            if (!lo->mountinfo_fp) {
+                saverr = errno;
+                close(mountinfo_fd);
+            }
+        }
+        if (!lo->mountinfo_fp) {
+            fuse_log(FUSE_LOG_WARNING, "Failed to open /proc/self/mountinfo: "
+                     "%s; will not be able to use file handles\n",
+                     strerror(saverr));
+        }
+        close(proc_self);
     }
 
     setup_seccomp(enable_syslog);
