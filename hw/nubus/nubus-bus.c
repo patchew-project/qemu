@@ -84,7 +84,7 @@ static void nubus_init(Object *obj)
                           nubus, "nubus-slots",
                           NUBUS_SLOT_NB * NUBUS_SLOT_SIZE);
 
-    nubus->current_slot = NUBUS_FIRST_SLOT;
+    nubus->slot_available_mask = MAKE_64BIT_MASK(0, 16);
 }
 
 static void nubus_class_init(ObjectClass *oc, void *data)
