@@ -647,7 +647,8 @@ static struct lo_inode *lo_inode(fuse_req_t req, fuse_ino_t ino)
     return elem->inode;
 }
 
-static int lo_inode_fd(const struct lo_inode *inode, TempFd *tfd)
+static int lo_inode_fd(struct lo_data *lo, const struct lo_inode *inode,
+                       TempFd *tfd)
 {
     *tfd = (TempFd) {
         .fd = inode->fd,
@@ -665,15 +666,16 @@ static int lo_inode_fd(const struct lo_inode *inode, TempFd *tfd)
 static int lo_fd(fuse_req_t req, fuse_ino_t ino, TempFd *tfd)
 {
     struct lo_inode *inode = lo_inode(req, ino);
+    struct lo_data *lo = lo_data(req);
     int res;
 
     if (!inode) {
         return -EBADF;
     }
 
-    res = lo_inode_fd(inode, tfd);
+    res = lo_inode_fd(lo, inode, tfd);
 
-    lo_inode_put(lo_data(req), &inode);
+    lo_inode_put(lo, &inode);
     return res;
 }
 
@@ -881,7 +883,7 @@ static void lo_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
             temp_fd_copy(&rw_fd, &path_fd);
         }
     } else {
-        res = lo_inode_fd(inode, &path_fd);
+        res = lo_inode_fd(lo, inode, &path_fd);
     }
     if (res < 0) {
         saverr = -res;
@@ -1128,7 +1130,7 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         name = ".";
     }
 
-    res = lo_inode_fd(dir, &dir_path_fd);
+    res = lo_inode_fd(lo, dir, &dir_path_fd);
     if (res < 0) {
         saverr = -res;
         goto out;
@@ -1383,7 +1385,7 @@ static void lo_mknod_symlink(fuse_req_t req, fuse_ino_t parent,
         return;
     }
 
-    res = lo_inode_fd(dir, &dir_path_fd);
+    res = lo_inode_fd(lo, dir, &dir_path_fd);
     if (res < 0) {
         saverr = -res;
         goto out;
@@ -1469,13 +1471,13 @@ static void lo_link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
         goto out;
     }
 
-    res = lo_inode_fd(inode, &path_fd);
+    res = lo_inode_fd(lo, inode, &path_fd);
     if (res < 0) {
         saverr = -res;
         goto out;
     }
 
-    res = lo_inode_fd(parent_inode, &parent_path_fd);
+    res = lo_inode_fd(lo, parent_inode, &parent_path_fd);
     if (res < 0) {
         saverr = -res;
         goto out;
@@ -1535,7 +1537,7 @@ static struct lo_inode *lookup_name(fuse_req_t req, fuse_ino_t parent,
         goto out;
     }
 
-    res = lo_inode_fd(dir, &dir_path_fd);
+    res = lo_inode_fd(lo, dir, &dir_path_fd);
     if (res < 0) {
         goto out;
     }
@@ -1627,13 +1629,13 @@ static void lo_rename(fuse_req_t req, fuse_ino_t parent, const char *name,
         goto out;
     }
 
-    res = lo_inode_fd(parent_inode, &parent_path_fd);
+    res = lo_inode_fd(lo, parent_inode, &parent_path_fd);
     if (res < 0) {
         fuse_reply_err(req, -res);
         goto out;
     }
 
-    res = lo_inode_fd(newparent_inode, &newparent_path_fd);
+    res = lo_inode_fd(lo, newparent_inode, &newparent_path_fd);
     if (res < 0) {
         fuse_reply_err(req, -res);
         goto out;
@@ -2181,7 +2183,7 @@ static void lo_create(fuse_req_t req, fuse_ino_t parent, const char *name,
         return;
     }
 
-    err = lo_inode_fd(parent_inode, &parent_path_fd);
+    err = lo_inode_fd(lo, parent_inode, &parent_path_fd);
     if (err < 0) {
         err = -err;
         goto out;
@@ -3135,7 +3137,7 @@ static void lo_getxattr(fuse_req_t req, fuse_ino_t ino, const char *in_name,
     } else {
         g_auto(TempFd) path_fd = TEMP_FD_INIT;
 
-        ret = lo_inode_fd(inode, &path_fd);
+        ret = lo_inode_fd(lo, inode, &path_fd);
         if (ret < 0) {
             saverr = -ret;
             goto out;
@@ -3215,7 +3217,7 @@ static void lo_listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
     } else {
         g_auto(TempFd) path_fd = TEMP_FD_INIT;
 
-        ret = lo_inode_fd(inode, &path_fd);
+        ret = lo_inode_fd(lo, inode, &path_fd);
         if (ret < 0) {
             saverr = -ret;
             goto out;
@@ -3371,7 +3373,7 @@ static void lo_setxattr(fuse_req_t req, fuse_ino_t ino, const char *in_name,
             goto out;
         }
     } else {
-        ret = lo_inode_fd(inode, &path_fd);
+        ret = lo_inode_fd(lo, inode, &path_fd);
         if (ret < 0) {
             saverr = -ret;
             goto out;
@@ -3486,7 +3488,7 @@ static void lo_removexattr(fuse_req_t req, fuse_ino_t ino, const char *in_name)
     } else {
         g_auto(TempFd) path_fd = TEMP_FD_INIT;
 
-        ret = lo_inode_fd(inode, &path_fd);
+        ret = lo_inode_fd(lo, inode, &path_fd);
         if (ret < 0) {
             saverr = -ret;
             goto out;
