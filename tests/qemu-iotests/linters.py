@@ -100,6 +100,9 @@ def run_linters(
                 '--warn-unused-ignores',
                 '--no-implicit-reexport',
                 '--namespace-packages',
+                # Until we can use mypy >= 0.920, see
+                # https://github.com/python/mypy/issues/9852
+                '--no-incremental',
                 filename,
             ),
             cwd=directory,
