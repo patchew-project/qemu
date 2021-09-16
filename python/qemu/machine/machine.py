@@ -19,6 +19,7 @@ which provides facilities for managing the lifetime of a QEMU VM.
 
 import errno
 from itertools import chain
+import locale
 import logging
 import os
 import shutil
@@ -290,8 +291,14 @@ class QEMUMachine:
         return self._subp.pid
 
     def _load_io_log(self) -> None:
+        # Assume that the output encoding of QEMU's terminal output
+        # is defined by our locale. If indeterminate, use a platform default.
+        _, encoding = locale.getlocale()
+        if encoding is None:
+            encoding = locale.getpreferredencoding(do_setlocale=False)
         if self._qemu_log_path is not None:
-            with open(self._qemu_log_path, "r") as iolog:
+            with open(self._qemu_log_path, "r",
+                      encoding=encoding) as iolog:
                 self._iolog = iolog.read()
 
     @property
