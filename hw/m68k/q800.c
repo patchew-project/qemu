@@ -397,7 +397,7 @@ static void q800_init(MachineState *machine)
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, NUBUS_SLOT_BASE +
                                             9 * NUBUS_SLOT_SIZE);
 
-    nubus = MAC_NUBUS_BRIDGE(dev)->bus;
+    nubus = NUBUS_BRIDGE(dev)->bus;
 
     /* framebuffer in nubus slot #9 */
 
