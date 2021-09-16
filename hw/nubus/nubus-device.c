@@ -160,35 +160,6 @@ static void nubus_device_realize(DeviceState *dev, Error **errp)
     NubusDevice *nd = NUBUS_DEVICE(dev);
     char *name;
     hwaddr slot_offset;
-    uint16_t s;
-
-    if (nd->slot == -1) {
-        /* No slot specified, find first available free slot */
-        s = ctz32(nubus->slot_available_mask);
-        if (s != 32) {
-            nd->slot = s;
-        } else {
-            error_setg(errp, "Cannot register nubus card, no free slot "
-                             "available");
-            return;
-        }
-    } else {
-        /* Slot specified, make sure the slot is available */
-        if (!(nubus->slot_available_mask & BIT(nd->slot))) {
-            error_setg(errp, "Cannot register nubus card, slot %d is "
-                             "unavailable or already occupied", nd->slot);
-            return;
-        }
-    }
-
-    if (nd->slot < NUBUS_FIRST_SLOT || nd->slot > NUBUS_LAST_SLOT) {
-        error_setg(errp, "Cannot register nubus card, slot must be "
-                         "between %d and %d", NUBUS_FIRST_SLOT,
-                         NUBUS_LAST_SLOT);
-        return;
-    }
-
-    nubus->slot_available_mask &= ~BIT(nd->slot);
 
     /* Super */
     slot_offset = (nd->slot - 6) * NUBUS_SUPER_SLOT_SIZE;
