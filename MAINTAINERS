@@ -364,6 +364,7 @@ Guest CPU Cores (KVM)
 ---------------------
 Overall KVM CPUs
 M: Paolo Bonzini <pbonzini@redhat.com>
+R: Ani Sinha <ani@anisinha.ca>
 L: kvm@vger.kernel.org
 S: Supported
 F: */*/kvm*
