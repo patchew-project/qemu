@@ -206,6 +206,8 @@ struct lo_data {
     /* Maps (integer) mount IDs to lo_mount_fd objects */
     GHashTable *mount_fds;
     pthread_rwlock_t mount_fds_lock;
+
+    int inode_file_handles;
 };
 
 /**
@@ -262,6 +264,10 @@ static const struct fuse_opt lo_opts[] = {
     { "no_killpriv_v2", offsetof(struct lo_data, user_killpriv_v2), 0 },
     { "posix_acl", offsetof(struct lo_data, user_posix_acl), 1 },
     { "no_posix_acl", offsetof(struct lo_data, user_posix_acl), 0 },
+    { "inode_file_handles", offsetof(struct lo_data, inode_file_handles), 1 },
+    { "no_inode_file_handles",
+      offsetof(struct lo_data, inode_file_handles),
+      0 },
     FUSE_OPT_END
 };
 static bool use_syslog = false;
@@ -359,8 +365,15 @@ static void free_lo_mount_fd(gpointer data)
  *
  * Pass @drop_mount_fd_ref == true if and only if this handle has a
  * strong reference to an lo_mount_fd object in the mount_fds hash
- * table.  That is always the case for file handles stored in lo_inode
- * objects.
+ * table, i.e. if this file handle has been returned by a
+ * get_file_handle() call where *can_open_handle was returned to be
+ * true.  (That is always the case for file handles stored in lo_inode
+ * objects, because those file handles must be open-able.)
+ *
+ * Conversely, pass @drop_mount_fd_ref == false if and only if this
+ * file handle has been returned by a get_file_handle() call where
+ * either NULL was passed for @can_open_handle, or where
+ * *can_open_handle was returned to be false.
  */
 static void release_file_handle(struct lo_data *lo, struct lo_fhandle *fh,
                                 bool drop_mount_fd_ref)
@@ -397,6 +410,196 @@ static void release_file_handle(struct lo_data *lo, struct lo_fhandle *fh,
     }
 
     g_free(fh);
+}
+
+/**
+ * Generate a file handle for the given dirfd/name combination.
+ *
+ * If mount_fds does not yet contain an entry for the handle's mount
+ * ID, (re)open dirfd/name in O_RDONLY mode and add it to mount_fds
+ * as the FD for that mount ID.  (That is the file that we have
+ * generated a handle for, so it should be representative for the
+ * mount ID.  However, to be sure (and to rule out races), we use
+ * statx() to verify that our assumption is correct.)
+ *
+ * Opening a mount FD can fail in various ways, and independently of
+ * whether generating a file handle was possible.  Many callers only
+ * care about getting a file handle for a lookup, though, and so do
+ * not necessarily need it to be usable.  (You need a valid mount FD
+ * for the handle to be usable.)
+ * *can_open_handle will be set to true if the file handle can be
+ * opened (i.e., we have a mount FD for it), and to false otherwise.
+ * By passing NULL for @can_open_handle, the caller indicates that
+ * they do not care about the handle being open-able, and so
+ * generating a mount FD will be skipped altogether.
+ *
+ * File handles must be freed with release_file_handle().
+ */
+static struct lo_fhandle *get_file_handle(struct lo_data *lo,
+                                          int dirfd, const char *name,
+                                          bool *can_open_handle)
+{
+    /* We need statx() to verify the mount ID */
+#if defined(CONFIG_STATX) && defined(STATX_MNT_ID)
+    int root_path_fd = -1;
+    int mount_fd = -1;
+    struct lo_fhandle *fh = NULL;
+    struct lo_mount_fd *mfd;
+    int ret;
+
+    if (!lo->use_statx || !lo->inode_file_handles || !lo->mountinfo_fp) {
+        goto fail_handle;
+    }
+
+    fh = g_new0(struct lo_fhandle, 1);
+
+    fh->handle.handle_bytes = sizeof(fh->padding) - sizeof(fh->handle);
+    ret = name_to_handle_at(dirfd, name, &fh->handle, &fh->mount_id,
+                            AT_EMPTY_PATH);
+    if (ret < 0) {
+        goto fail_handle;
+    }
+
+    if (!can_open_handle) {
+        /* No need to generate a mount FD if the caller does not care */
+        return fh;
+    }
+
+    if (pthread_rwlock_rdlock(&lo->mount_fds_lock)) {
+        goto fail_mount_fd;
+    }
+
+    mfd = g_hash_table_lookup(lo->mount_fds, GINT_TO_POINTER(fh->mount_id));
+    if (mfd) {
+        g_atomic_int_inc(&mfd->refcount);
+    } else {
+        char *mi_line = NULL;
+        size_t mi_line_len = 0;
+        char *mount_root = NULL;
+        struct statx stx;
+        char procname[64];
+
+        pthread_rwlock_unlock(&lo->mount_fds_lock);
+
+        rewind(lo->mountinfo_fp);
+        while (!mount_root) {
+            ssize_t read_count;
+            int scan_count;
+            int mount_id;
+
+            read_count = getline(&mi_line, &mi_line_len, lo->mountinfo_fp);
+            if (read_count < 0) {
+                break;
+            }
+
+            scan_count = sscanf(mi_line, "%d %*d %*d:%*d %*s %ms",
+                                &mount_id, &mount_root);
+            if (scan_count != 2 || mount_id != fh->mount_id) {
+                free(mount_root);
+                mount_root = NULL;
+            }
+        }
+        free(mi_line);
+
+        if (!mount_root) {
+            goto fail_mount_fd;
+        }
+
+        root_path_fd = open(mount_root, O_PATH);
+        free(mount_root);
+        if (root_path_fd < 0) {
+            goto fail_mount_fd;
+        }
+
+        ret = statx(root_path_fd, "", AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW,
+                    STATX_TYPE | STATX_MNT_ID, &stx);
+        if (ret < 0) {
+            if (errno == ENOSYS) {
+                lo->use_statx = false;
+                fuse_log(FUSE_LOG_WARNING,
+                         "statx() does not work: Will not be able to use file "
+                         "handles for inodes\n");
+            }
+            goto fail_mount_fd;
+        }
+        if (!(stx.stx_mask & STATX_MNT_ID) || stx.stx_mnt_id != fh->mount_id) {
+            /*
+             * Perhaps a TOCTTOU problem.  Just return a non-openable file
+             * handle this time and retry for the next handle that we want to
+             * generate for this mount.
+             */
+            goto fail_mount_fd;
+        }
+        if (!(stx.stx_mask & STATX_TYPE) ||
+            !(S_ISREG(stx.stx_mode) || S_ISDIR(stx.stx_mode)))
+        {
+            /*
+             * We must not open special files with anything but O_PATH, so we
+             * cannot use this file for mount_fds.  (Note that filesystems can
+             * have special files as their root node, so this case can happen.)
+             * Just return a failure in such a case and let the lo_inode have
+             * an O_PATH fd instead of a file handle.
+             */
+            goto fail_mount_fd;
+        }
+
+        /* Now that we know this fd is safe to open, do it */
+        snprintf(procname, sizeof(procname), "%i", root_path_fd);
+        mount_fd = openat(lo->proc_self_fd, procname, O_RDONLY);
+        if (mount_fd < 0) {
+            goto fail_mount_fd;
+        }
+
+        if (pthread_rwlock_wrlock(&lo->mount_fds_lock)) {
+            goto fail_mount_fd;
+        }
+
+        /* Check again, might have changed */
+        if (!g_hash_table_contains(lo->mount_fds,
+                                   GINT_TO_POINTER(fh->mount_id))) {
+            mfd = g_new(struct lo_mount_fd, 1);
+
+            *mfd = (struct lo_mount_fd) {
+                .fd = mount_fd,
+                .refcount = 1,
+            };
+            mount_fd = -1; /* reference moved to *mfd */
+
+            g_hash_table_insert(lo->mount_fds,
+                                GINT_TO_POINTER(fh->mount_id),
+                                mfd);
+        }
+    }
+    pthread_rwlock_unlock(&lo->mount_fds_lock);
+
+    assert(can_open_handle != NULL);
+    *can_open_handle = true;
+
+    goto out;
+
+fail_handle:
+    release_file_handle(lo, fh, false);
+    fh = NULL;
+
+fail_mount_fd:
+    if (can_open_handle) {
+        *can_open_handle = false;
+    }
+
+out:
+    if (root_path_fd >= 0) {
+        close(root_path_fd);
+    }
+    if (mount_fd >= 0) {
+        close(mount_fd);
+    }
+    return fh;
+#else /* defined(CONFIG_STATX) && defined(STATX_MNT_ID) */
+    if (can_open_handle) {
+        *can_open_handle = false;
+    }
+    return NULL;
+#endif
 }
 
 /**
@@ -1244,6 +1447,11 @@ static int do_statx(struct lo_data *lo, int dirfd, const char *pathname,
             return -1;
         }
         lo->use_statx = false;
+        if (lo->inode_file_handles) {
+            fuse_log(FUSE_LOG_WARNING,
+                     "statx() does not work: Will not be able to use file "
+                     "handles for inodes\n");
+        }
         /* fallback */
     }
 #endif
@@ -1273,6 +1481,8 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
     struct lo_data *lo = lo_data(req);
     struct lo_inode *inode = NULL;
     struct lo_inode *dir = lo_inode(req, parent);
+    struct lo_fhandle *fh = NULL;
+    bool can_open_handle = false;
 
     if (inodep) {
         *inodep = NULL; /* in case there is an error */
@@ -1302,13 +1512,26 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         goto out;
     }
 
-    newfd = openat(dir_path_fd.fd, name, O_PATH | O_NOFOLLOW);
-    if (newfd == -1) {
-        goto out_err;
+    fh = get_file_handle(lo, dir_path_fd.fd, name, &can_open_handle);
+    if (!fh || !can_open_handle) {
+        /*
+         * If we will not be able to open the file handle again
+         * (can_open_handle is false), open an FD that we can put into
+         * lo_inode (in case we need to create a new lo_inode).
+         */
+        newfd = openat(dir_path_fd.fd, name, O_PATH | O_NOFOLLOW);
+        if (newfd == -1) {
+            goto out_err;
+        }
     }
 
-    res = do_statx(lo, newfd, "", &e->attr, AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW,
-                   &mnt_id);
+    if (newfd >= 0) {
+        res = do_statx(lo, newfd, "", &e->attr,
+                       AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW, &mnt_id);
+    } else {
+        res = do_statx(lo, dir_path_fd.fd, name, &e->attr,
+                       AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW, &mnt_id);
+    }
     if (res == -1) {
         goto out_err;
     }
@@ -1318,9 +1541,19 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         e->attr_flags |= FUSE_ATTR_SUBMOUNT;
     }
 
-    inode = lo_find(lo, NULL, &e->attr, mnt_id);
+    /*
+     * Note that fh is always NULL if lo->inode_file_handles is false,
+     * and so we will never do a lookup by file handle here, and
+     * lo->inodes_by_handle will always remain empty.  We only need
+     * this map when we do not have an O_PATH fd open for every
+     * lo_inode, though, so if inode_file_handles is false, we do not
+     * need that map anyway.
+     */
+    inode = lo_find(lo, fh, &e->attr, mnt_id);
     if (inode) {
-        close(newfd);
+        if (newfd != -1) {
+            close(newfd);
+        }
     } else {
         inode = calloc(1, sizeof(struct lo_inode));
         if (!inode) {
@@ -1338,6 +1571,10 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
 
         inode->nlookup = 1;
         inode->fd = newfd;
+        if (can_open_handle) {
+            inode->fhandle = fh;
+            fh = NULL; /* owned by the lo_inode now */
+        }
         inode->key.ino = e->attr.st_ino;
         inode->key.dev = e->attr.st_dev;
         inode->key.mnt_id = mnt_id;
@@ -1349,6 +1586,9 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
         pthread_mutex_lock(&lo->mutex);
         inode->fuse_ino = lo_add_inode_mapping(req, inode);
         g_hash_table_insert(lo->inodes_by_ids, &inode->key, inode);
+        if (inode->fhandle) {
+            g_hash_table_insert(lo->inodes_by_handle, inode->fhandle, inode);
+        }
         pthread_mutex_unlock(&lo->mutex);
     }
     e->ino = inode->fuse_ino;
@@ -1362,6 +1602,8 @@ static int lo_do_lookup(fuse_req_t req, fuse_ino_t parent, const char *name,
 
     lo_inode_put(lo, &dir);
 
+    release_file_handle(lo, fh, can_open_handle);
+
     fuse_log(FUSE_LOG_DEBUG, "  %lli/%s -> %lli\n", (unsigned long long)parent,
              name, (unsigned long long)e->ino);
 
@@ -1373,6 +1615,7 @@ out:
     if (newfd != -1) {
         close(newfd);
     }
+    release_file_handle(lo, fh, can_open_handle);
     lo_inode_put(lo, &inode);
     lo_inode_put(lo, &dir);
     return saverr;
@@ -1695,6 +1938,7 @@ static struct lo_inode *lookup_name(fuse_req_t req, fuse_ino_t parent,
     int res;
     uint64_t mnt_id;
     struct stat attr;
+    struct lo_fhandle *fh;
     struct lo_data *lo = lo_data(req);
     struct lo_inode *dir = lo_inode(req, parent);
     struct lo_inode *inode = NULL;
@@ -1708,13 +1952,17 @@ static struct lo_inode *lookup_name(fuse_req_t req, fuse_ino_t parent,
         goto out;
     }
 
+    fh = get_file_handle(lo, dir_path_fd.fd, name, NULL);
+    /* Ignore errors, this is just an optional key for the lookup */
+
     res = do_statx(lo, dir_path_fd.fd, name, &attr, AT_SYMLINK_NOFOLLOW,
                    &mnt_id);
     if (res == -1) {
         goto out;
     }
 
-    inode = lo_find(lo, NULL, &attr, mnt_id);
+    inode = lo_find(lo, fh, &attr, mnt_id);
+    release_file_handle(lo, fh, false);
 
 out:
     lo_inode_put(lo, &dir);
@@ -1882,6 +2130,9 @@ static void unref_inode(struct lo_data *lo, struct lo_inode *inode, uint64_t n)
     if (!inode->nlookup) {
         lo_map_remove(&lo->ino_map, inode->fuse_ino);
         g_hash_table_remove(lo->inodes_by_ids, &inode->key);
+        if (inode->fhandle) {
+            g_hash_table_remove(lo->inodes_by_handle, inode->fhandle);
+        }
         if (lo->posix_lock) {
             if (g_hash_table_size(inode->posix_locks)) {
                 fuse_log(FUSE_LOG_WARNING, "Hash table is not empty\n");
@@ -3978,8 +4229,11 @@ static void setup_mounts(const char *source)
 /*
  * Only keep capabilities in allowlist that are needed for file system operation
  * The (possibly NULL) modcaps_in string passed in is free'd before exit.
+ *
+ * Passing true for cap_dac_read_search adds CAP_DAC_READ_SEARCH to the
+ * allowlist.
  */
-static void setup_capabilities(char *modcaps_in)
+static void setup_capabilities(char *modcaps_in, bool cap_dac_read_search)
 {
     char *modcaps = modcaps_in;
     pthread_mutex_lock(&cap.mutex);
@@ -4009,6 +4263,17 @@ static void setup_capabilities(char *modcaps_in)
             CAP_SETFCAP,
             -1)) {
         fuse_log(FUSE_LOG_ERR, "%s: capng_updatev failed\n", __func__);
+        exit(1);
+    }
+
+    /*
+     * If we need CAP_DAC_READ_SEARCH (for file handles), add that, too.
+     */
+    if (cap_dac_read_search &&
+        capng_update(CAPNG_ADD, CAPNG_PERMITTED | CAPNG_EFFECTIVE,
+                     CAP_DAC_READ_SEARCH)) {
+        fuse_log(FUSE_LOG_ERR, "%s: capng_update failed for "
+                 "CAP_DAC_READ_SEARCH\n", __func__);
         exit(1);
     }
 
@@ -4158,7 +4423,7 @@ static void setup_sandbox(struct lo_data *lo, struct fuse_session *se,
     }
 
     setup_seccomp(enable_syslog);
-    setup_capabilities(g_strdup(lo->modcaps));
+    setup_capabilities(g_strdup(lo->modcaps), lo->inode_file_handles);
 }
 
 /* Set the maximum number of open file descriptors */
@@ -4497,6 +4762,14 @@ int main(int argc, char *argv[])
     }
 
     lo.use_statx = true;
+
+#if !defined(CONFIG_STATX) || !defined(STATX_MNT_ID)
+    if (lo.inode_file_handles) {
+        fuse_log(FUSE_LOG_WARNING,
+                 "No statx() or mount ID support: Will not be able to use file "
+                 "handles for inodes\n");
+    }
+#endif
 
     se = fuse_session_new(&args, &lo_oper, sizeof(lo_oper), &lo);
     if (se == NULL) {
