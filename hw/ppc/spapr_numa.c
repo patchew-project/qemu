@@ -499,7 +499,7 @@ static void spapr_numa_FORM2_write_rtas_tables(SpaprMachineState *spapr,
 {
     MachineState *ms = MACHINE(spapr);
     NodeInfo *numa_info = ms->numa_state->nodes;
-    int nb_numa_nodes = ms->numa_state->num_nodes;
+    int nb_numa_nodes = ms->numa_state->num_nodes ?: 1;
     int distance_table_entries = nb_numa_nodes * nb_numa_nodes;
     g_autofree uint32_t *lookup_index_table = NULL;
     g_autofree uint32_t *distance_table = NULL;
@@ -539,6 +539,17 @@ static void spapr_numa_FORM2_write_rtas_tables(SpaprMachineState *spapr,
 
     for (src = 0; src < nb_numa_nodes; src++) {
         for (dst = 0; dst < nb_numa_nodes; dst++) {
+            /*
+             * We need to be explicit with the local distance
+             * value to cover the case where the user didn't added any
+             * NUMA nodes, but QEMU adds the default NUMA node without
+             * adding the numa_info to retrieve the info from.
+             */
+            if (src == dst) {
+                node_distances[i++] = 10;
+                continue;
+            }
+
             node_distances[i++] = numa_info[src].distance[dst];
         }
     }
