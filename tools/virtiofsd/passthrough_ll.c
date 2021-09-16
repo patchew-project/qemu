@@ -3123,6 +3123,7 @@ static void lo_setxattr(fuse_req_t req, fuse_ino_t ino, const char *in_name,
     bool switched_creds = false;
     bool cap_fsetid_dropped = false;
     struct lo_cred old = {};
+    bool changed_cwd = false;
 
     if (block_xattr(lo, in_name)) {
         fuse_reply_err(req, EOPNOTSUPP);
@@ -3159,6 +3160,24 @@ static void lo_setxattr(fuse_req_t req, fuse_ino_t ino, const char *in_name,
 
     sprintf(procname, "%i", inode->fd);
     /*
+     * We can only open regular files or directories.  If the inode is
+     * something else, we have to enter /proc/self/fd and use
+     * setxattr() on the link's filename there.
+     */
+    if (S_ISREG(inode->filetype) || S_ISDIR(inode->filetype)) {
+        fd = openat(lo->proc_self_fd, procname, O_RDONLY);
+        if (fd < 0) {
+            saverr = errno;
+            goto out;
+        }
+    } else {
+        /* fchdir should not fail here */
+        FCHDIR_NOFAIL(lo->proc_self_fd);
+        /* Set flag so the clean-up path will chdir back */
+        changed_cwd = true;
+    }
+
+    /*
      * If we are setting posix access acl and if SGID needs to be
      * cleared, then switch to caller's gid and drop CAP_FSETID
      * and that should make sure host kernel clears SGID.
@@ -3178,20 +3197,12 @@ static void lo_setxattr(fuse_req_t req, fuse_ino_t ino, const char *in_name,
         }
         switched_creds = true;
     }
-    if (S_ISREG(inode->filetype) || S_ISDIR(inode->filetype)) {
-        fd = openat(lo->proc_self_fd, procname, O_RDONLY);
-        if (fd < 0) {
-            saverr = errno;
-            goto out;
-        }
+    if (fd >= 0) {
         ret = fsetxattr(fd, name, value, size, flags);
         saverr = ret == -1 ? errno : 0;
     } else {
-        /* fchdir should not fail here */
-        FCHDIR_NOFAIL(lo->proc_self_fd);
         ret = setxattr(procname, name, value, size, flags);
         saverr = ret == -1 ? errno : 0;
-        FCHDIR_NOFAIL(lo->root.fd);
     }
     if (switched_creds) {
         if (cap_fsetid_dropped)
@@ -3201,6 +3212,11 @@ static void lo_setxattr(fuse_req_t req, fuse_ino_t ino, const char *in_name,
     }
 
 out:
+    if (changed_cwd) {
+        /* Change CWD back, fchdir should not fail here */
+        FCHDIR_NOFAIL(lo->root.fd);
+    }
+
     if (fd >= 0) {
         close(fd);
     }
