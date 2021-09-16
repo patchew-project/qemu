@@ -5,6 +5,7 @@
 #include "qom/object.h"
 #include "qemu/notify.h"
 #include "qemu/error-report.h"
+#include "qemu/lockable.h"
 #include "qapi/qapi-types-ui.h"
 
 #ifdef CONFIG_OPENGL
@@ -171,6 +172,8 @@ typedef struct QemuDmaBuf {
     void      *sync;
     int       fence_fd;
     bool      allow_fences;
+    bool      draw_submitted;
+    QemuMutex mutex;
 } QemuDmaBuf;
 
 typedef struct DisplayState DisplayState;

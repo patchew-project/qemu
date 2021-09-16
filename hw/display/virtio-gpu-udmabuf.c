@@ -186,6 +186,9 @@ static VGPUDMABuf
     dmabuf->buf.fourcc = qemu_pixman_to_drm_format(fb->format);
     dmabuf->buf.fd = res->dmabuf_fd;
     dmabuf->buf.allow_fences = true;
+    dmabuf->buf.draw_submitted = false;
+
+    qemu_mutex_init(&dmabuf->buf.mutex);
 
     dmabuf->scanout_id = scanout_id;
     QTAILQ_INSERT_HEAD(&g->dmabuf.bufs, dmabuf, next);
