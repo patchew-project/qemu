@@ -2264,6 +2264,7 @@ static void vc_chr_open(Chardev *chr,
     }
 
     s->chr = chr;
+    object_ref(chr);
     drv->console = s;
 
     if (display_state) {
