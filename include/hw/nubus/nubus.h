@@ -15,13 +15,14 @@
 #include "qemu/units.h"
 
 #define NUBUS_SUPER_SLOT_SIZE 0x10000000U
-#define NUBUS_SUPER_SLOT_NB   0x9
+#define NUBUS_SUPER_SLOT_NB   0xf
 
+#define NUBUS_SLOT_BASE       (NUBUS_SUPER_SLOT_SIZE * NUBUS_SUPER_SLOT_NB)
 #define NUBUS_SLOT_SIZE       0x01000000
-#define NUBUS_SLOT_NB         0xF
+#define NUBUS_SLOT_NB         0xf
 
 #define NUBUS_FIRST_SLOT      0x0
-#define NUBUS_LAST_SLOT       0xF
+#define NUBUS_LAST_SLOT       0xf
 
 #define TYPE_NUBUS_DEVICE "nubus-device"
 OBJECT_DECLARE_SIMPLE_TYPE(NubusDevice, NUBUS_DEVICE)
@@ -33,6 +34,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(NubusBus, NUBUS_BUS)
 
 struct NubusBus {
     BusState qbus;
+
+    AddressSpace nubus_as;
+    MemoryRegion nubus_mr;
 
     MemoryRegion super_slot_io;
     MemoryRegion slot_io;
