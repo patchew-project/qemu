@@ -19,7 +19,7 @@
 #define NUBUS_SLOT_SIZE       0x01000000
 #define NUBUS_SLOT_NB         0xF
 
-#define NUBUS_FIRST_SLOT      0x9
+#define NUBUS_FIRST_SLOT      0x0
 #define NUBUS_LAST_SLOT       0xF
 
 #define TYPE_NUBUS_DEVICE "nubus-device"
@@ -36,7 +36,7 @@ struct NubusBus {
     MemoryRegion super_slot_io;
     MemoryRegion slot_io;
 
-    int current_slot;
+    uint32_t slot_available_mask;
 };
 
 struct NubusDevice {
