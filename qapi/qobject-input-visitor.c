@@ -30,6 +30,50 @@
 #include "qemu/cutils.h"
 #include "qemu/option.h"
 
+/*
+ * Describes an alias that is relevant for the current StackObject,
+ * either because it aliases a member of the currently visited object
+ * or because it aliases a member of a nested object.
+ *
+ * When processing a nested object, all InputVisitorAlias objects that
+ * are relevant for the nested object are propagated, i.e. copied with
+ * the name of the nested object removed from @source.
+ */
+typedef struct InputVisitorAlias {
+    /* StackObject in which the alias was defined */
+    struct StackObject *alias_so;
+
+    /*
+     * Alias name as defined for @alias_so.
+     * NULL means that this is a wildcard alias, i.e. all members of
+     * @src get an alias in @alias_so with the same name.
+     */
+    const char *name;
+
+    /*
+     * NULL-terminated array representing a path to the source member
+     * that the alias refers to.
+     *
+     * Must contain at least one non-NULL element if @alias is not NULL.
+     *
+     * If it contains no non-NULL element, @alias_so must be different
+     * from the StackObject which contains this InputVisitorAlias in
+     * its aliases list.  In this case, all elements in the currently
+     * visited object have an alias with the same name in @alias_so.
+     */
+    const char **src;
+
+    /*
+     * The alias remains valid as long as the StackObject which
+     * contains this InputVisitorAlias in its aliases list has
+     * StackObject.alias_scope_nesting >= InputVisitorAlias.scope_nesting
+     * or until the whole StackObject is removed.
+     */
+    int scope_nesting;
+
+    QSIMPLEQ_ENTRY(InputVisitorAlias) next;
+} InputVisitorAlias;
+
 typedef struct StackObject {
     const char *name;            /* Name of @obj in its parent, if any */
     QObject *obj;                /* QDict or QList being visited */
@@ -38,6 +82,14 @@ typedef struct StackObject {
     GHashTable *h;              /* If @obj is QDict: unvisited keys */
     const QListEntry *entry;    /* If @obj is QList: unvisited tail */
     unsigned index;             /* If @obj is QList: list index of @entry */
+
+    /*
+     * Aliases for members in the visited object or nested objects.
+     * Ordered so that the more locally defined alias comes first.
+     */
+    QSIMPLEQ_HEAD(, InputVisitorAlias) aliases;
+
+    int alias_scope_nesting;    /* Number of open alias scopes */
 
     QSLIST_ENTRY(StackObject) node; /* parent */
 } StackObject;
@@ -205,6 +257,45 @@ static const char *qobject_input_get_keyval(QObjectInputVisitor *qiv,
     return qstring_get_str(qstr);
 }
 
+/*
+ * Propagate aliases from the parent StackObject @src to its direct
+ * child StackObject @dst, which is representing the child struct @name.
+ *
+ * Every alias whose source path begins with @dst->name and which still
+ * applies in @dst (i.e. it is either a wildcard alias or has at least
+ * one more source path element) is propagated to @dst with the first
+ * element (i.e. @dst->name) removed from the source path.
+ */
+static void propagate_aliases(StackObject *dst, StackObject *src)
+{
+    InputVisitorAlias *a;
+    InputVisitorAlias *propagated_alias;
+
+    QSIMPLEQ_FOREACH(a, &src->aliases, next) {
+        if (!a->src[0] || strcmp(a->src[0], dst->name)) {
+            continue;
+        }
+
+        /*
+         * If this is not a wildcard alias, but a->src[1] is NULL,
+         * then it referred to a->name in src and doesn't apply inside
+         * dst any more.
+         */
+        if (a->name && !a->src[1]) {
+            continue;
+        }
+
+        propagated_alias = g_new(InputVisitorAlias, 1);
+        *propagated_alias = (InputVisitorAlias) {
+            .name       = a->name,
+            .alias_so   = a->alias_so,
+            .src        = &a->src[1],
+        };
+
+        QSIMPLEQ_INSERT_TAIL(&dst->aliases, propagated_alias, next);
+    }
+}
+
 static const QListEntry *qobject_input_push(QObjectInputVisitor *qiv,
                                             const char *name,
                                             QObject *obj, void *qapi)
@@ -219,6 +310,7 @@ static const QListEntry *qobject_input_push(QObjectInputVisitor *qiv,
     tos->name = name;
     tos->obj = obj;
     tos->qapi = qapi;
+    QSIMPLEQ_INIT(&tos->aliases);
 
     if (qdict) {
         h = g_hash_table_new(g_str_hash, g_str_equal);
@@ -228,6 +320,9 @@ static const QListEntry *qobject_input_push(QObjectInputVisitor *qiv,
             g_hash_table_insert(h, (void *)qdict_entry_key(entry), NULL);
         }
         tos->h = h;
+        if (!QSLIST_EMPTY(&qiv->stack)) {
+            propagate_aliases(tos, QSLIST_FIRST(&qiv->stack));
+        }
     } else {
         assert(qlist);
         tos->entry = qlist_first(qlist);
@@ -259,8 +354,15 @@ static bool qobject_input_check_struct(Visitor *v, Error **errp)
 
 static void qobject_input_stack_object_free(StackObject *tos)
 {
+    InputVisitorAlias *a;
+
     if (tos->h) {
         g_hash_table_unref(tos->h);
+    }
+
+    while ((a = QSIMPLEQ_FIRST(&tos->aliases))) {
+        QSIMPLEQ_REMOVE_HEAD(&tos->aliases, next);
+        g_free(a);
     }
 
     g_free(tos);
@@ -274,6 +376,54 @@ static void qobject_input_pop(Visitor *v, void **obj)
     assert(tos && tos->qapi == obj);
     QSLIST_REMOVE_HEAD(&qiv->stack, node);
     qobject_input_stack_object_free(tos);
+}
+
+static void qobject_input_start_alias_scope(Visitor *v)
+{
+    QObjectInputVisitor *qiv = to_qiv(v);
+    StackObject *tos = QSLIST_FIRST(&qiv->stack);
+
+    tos->alias_scope_nesting++;
+}
+
+static void qobject_input_end_alias_scope(Visitor *v)
+{
+    QObjectInputVisitor *qiv = to_qiv(v);
+    StackObject *tos = QSLIST_FIRST(&qiv->stack);
+    InputVisitorAlias *a, *next;
+
+    assert(tos->alias_scope_nesting > 0);
+    tos->alias_scope_nesting--;
+
+    QSIMPLEQ_FOREACH_SAFE(a, &tos->aliases, next, next) {
+        if (a->scope_nesting > tos->alias_scope_nesting) {
+            QSIMPLEQ_REMOVE(&tos->aliases, a, InputVisitorAlias, next);
+            g_free(a);
+        }
+    }
+}
+
+static void qobject_input_define_alias(Visitor *v, const char *name,
+                                       const char **source)
+{
+    QObjectInputVisitor *qiv = to_qiv(v);
+    StackObject *tos = QSLIST_FIRST(&qiv->stack);
+    InputVisitorAlias *alias = g_new(InputVisitorAlias, 1);
+
+    /*
+     * The source path can become empty during alias propagation for
+     * wildcard aliases, but not when defining an alias (it would map
+     * all names onto themselves, which doesn't make sense).
+     */
+    assert(source[0]);
+
+    *alias = (InputVisitorAlias) {
+        .name       = name,
+        .alias_so   = tos,
+        .src        = source,
+    };
+
+    QSIMPLEQ_INSERT_HEAD(&tos->aliases, alias, next);
 }
 
 static bool qobject_input_start_struct(Visitor *v, const char *name, void **obj,
@@ -717,6 +867,9 @@ static QObjectInputVisitor *qobject_input_visitor_base_new(QObject *obj)
     v->visitor.start_alternate = qobject_input_start_alternate;
     v->visitor.optional = qobject_input_optional;
     v->visitor.deprecated_accept = qobject_input_deprecated_accept;
+    v->visitor.define_alias = qobject_input_define_alias;
+    v->visitor.start_alias_scope = qobject_input_start_alias_scope;
+    v->visitor.end_alias_scope = qobject_input_end_alias_scope;
     v->visitor.free = qobject_input_free;
 
     v->root = qobject_ref(obj);
