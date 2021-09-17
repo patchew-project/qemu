@@ -156,6 +156,39 @@ out:
     return rc;
 }
 
+int clp_immediate_cmd(S390CPU *cpu, uint8_t r1, uint8_t r2, uint8_t i3,
+                      uintptr_t ra)
+{
+    CPUS390XState *env = &cpu->env;
+
+    switch (r2) {
+    case 0: /* Command Check */
+        switch (i3 & 0x07) {
+        case CLP_LPS_PCI: /* PCI */
+            if (!s390_has_feat(S390_FEAT_ZPCI)) {
+                setcc(cpu, 3);
+                return 0;
+            }
+            /* fallthrough */
+        case CLP_LPS_BASE: /* Base LP */
+            setcc(cpu, 0);
+            return 0;
+        }
+        setcc(cpu, 3);
+        return 0;
+    case 1: /* Command Query */
+        env->regs[r1] = CLP_QUERY_LP_BASE;
+        if (s390_has_feat(S390_FEAT_ZPCI)) {
+            env->regs[r1] |= CLP_QUERY_LP_BASE >> CLP_LPS_PCI;
+        }
+        setcc(cpu, 0);
+        return 0;
+    }
+
+    s390_program_interrupt(env, PGM_SPECIFICATION, ra);
+    return 0;
+}
+
 int clp_service_call(S390CPU *cpu, uint8_t r2, uintptr_t ra)
 {
     ClpReqHdr *reqh;

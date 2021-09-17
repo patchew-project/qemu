@@ -1342,7 +1342,13 @@ static uint64_t get_base_disp_rsy(S390CPU *cpu, struct kvm_run *run,
 
 static int kvm_clp_service_call(S390CPU *cpu, struct kvm_run *run)
 {
+    uint8_t r1 = (run->s390_sieic.ipb & 0x00f00000) >> 20;
     uint8_t r2 = (run->s390_sieic.ipb & 0x000f0000) >> 16;
+    uint8_t i3 = (run->s390_sieic.ipb & 0xff000000) >> 24;
+
+    if (i3 & 0x80) {
+        return clp_immediate_cmd(cpu, r1, r2, i3, RA_IGNORED);
+    }
 
     if (s390_has_feat(S390_FEAT_ZPCI)) {
         return clp_service_call(cpu, r2, RA_IGNORED);
