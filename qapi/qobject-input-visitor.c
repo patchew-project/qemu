@@ -109,6 +109,9 @@ struct QObjectInputVisitor {
     QObject *root;
     bool keyval;                /* Assume @root made with keyval_parse() */
 
+    /* For visiting objects where all members are from aliases */
+    QDict *empty_qdict;
+
     /* Stack of objects being visited (all entries will be either
      * QDict or QList). */
     QSLIST_HEAD(, StackObject) stack;
@@ -181,9 +184,194 @@ static const char *full_name(QObjectInputVisitor *qiv, const char *name)
     return full_name_so(qiv, name, false, tos);
 }
 
+static bool find_object_member(QObjectInputVisitor *qiv,
+                               StackObject **so, const char **name,
+                               bool *is_alias_prefix, Error **errp);
+
+/*
+ * Check whether the member @name in the object visited by @so can be
+ * specified in the input by using the alias described by @a (which
+ * must be an alias contained in so->aliases).
+ *
+ * If @name is only a prefix of the alias source, but doesn't match
+ * immediately, false is returned and *is_alias_prefix is set to true
+ * if it is non-NULL.  In all other cases, *is_alias_prefix is left
+ * unchanged.
+ */
+static bool alias_source_matches(QObjectInputVisitor *qiv,
+                                 StackObject *so, InputVisitorAlias *a,
+                                 const char *name, bool *is_alias_prefix)
+{
+    if (a->src[0] == NULL) {
+        assert(a->name == NULL);
+        return true;
+    }
+
+    if (!strcmp(a->src[0], name)) {
+        if (a->name && a->src[1] == NULL) {
+            /*
+             * We're matching an exact member, the source for this alias is
+             * immediately in @so.
+             */
+            return true;
+        } else if (is_alias_prefix) {
+            /*
+             * We're only looking at a prefix of the source path for the alias.
+             * If the input contains no object of the requested name, we will
+             * implicitly create an empty one so that the alias can still be
+             * used.
+             *
+             * We want to create the implicit object only if the alias is
+             * actually used, but we can't tell here for wildcard aliases (only
+             * a later visitor call will determine this). This means that
+             * wildcard aliases must never have optional keys in their source
+             * path. The QAPI generator checks this condition.
+             */
+            const char *alias_name = a->name;
+            StackObject *alias_so = a->alias_so;
+            if (!a->name || find_object_member(qiv, &alias_so, &alias_name,
+                                               NULL, NULL)) {
+                *is_alias_prefix = true;
+            }
+        }
+    }
+
+    return false;
+}
+
+/*
+ * Find the place in the input where the value for the object member
+ * @name in @so is specified, considering applicable aliases.
+ *
+ * If a value could be found, true is returned and @so and @name are
+ * updated to identify the key name and StackObject where the value
+ * can be found in the input.  (This is either unchanged or the
+ * alias_so/name of an alias.)  The value of @is_alias_prefix on
+ * return is undefined in this case.
+ *
+ * If no value could be found in the input, false is returned and @so
+ * and @name are set to NULL.  This is not an error and @errp remains
+ * unchanged.  If @is_alias_prefix is non-NULL, it is set to true if
+ * the given name is a prefix of the source path of an alias for which
+ * a value may be present in the input.  It is set to false otherwise.
+ *
+ * If an error occurs (e.g. two values are specified for the member
+ * through different names), false is returned and @errp is set.  The
+ * value of @is_alias_prefix is set to false and @name is set to NULL
+ * on return in this case.
+ */
+static bool find_object_member(QObjectInputVisitor *qiv,
+                               StackObject **so, const char **name,
+                               bool *is_alias_prefix, Error **errp)
+{
+    QDict *qdict = qobject_to(QDict, (*so)->obj);
+    const char *found_name = NULL;
+    StackObject *found_so = NULL;
+    bool found_is_wildcard = false;
+    InputVisitorAlias *a;
+
+    if (is_alias_prefix) {
+        *is_alias_prefix = false;
+    }
+
+    /* Directly present in the container */
+    if (qdict_haskey(qdict, *name)) {
+        found_name = *name;
+        found_so = *so;
+    }
+
+    /*
+     * Find aliases whose source path matches @name in this StackObject. We can
+     * then get the value with the key a->name from a->alias_so.
+     */
+    QSIMPLEQ_FOREACH(a, &(*so)->aliases, next) {
+        /*
+         * For single-member aliases, an alias name is specified in the
+         * alias definition. For wildcard aliases, the alias has the same
+         * name as the member in the source object, i.e. *name.
+         */
+        const char *alias_name = a->name ?: *name;
+        StackObject *alias_so = a->alias_so;
+
+        if (!alias_source_matches(qiv, *so, a, *name, is_alias_prefix)) {
+            continue;
+        }
+
+        /*
+         * Check whether the alias is present in the input
+         * (potentially through chained aliases) and update @alias_so
+         * and @alias_name accordingly if so.
+         *
+         * The QAPI generator makes sure that aliases cannot form loops,
+         * so the recursion is guaranteed to terminate.
+         */
+        if (!find_object_member(qiv, &alias_so, &alias_name, NULL, NULL)) {
+            continue;
+        }
+
+        /* Conflict: The input has multiple values for the member */
+        if (found_name) {
+            g_autofree char *name1 =
+                g_strdup(full_name_so(qiv, found_name, false, found_so));
+            g_autofree char *name2 =
+                g_strdup(full_name_so(qiv, alias_name, false, alias_so));
+            Error *local_err = NULL;
+
+            error_setg(&local_err, "Value for parameter '%s' is specified "
+                       "both as '%s' and '%s'",
+                       full_name_so(qiv, *name, false, *so), name1, name2);
+
+            if (!a->name) {
+                /*
+                 * Less local wildcard alias: Assume the value belongs
+                 * elsewhere and ignore it, but store the error in case
+                 * it stays unused.
+                 */
+                g_hash_table_replace(alias_so->h, (void *) alias_name,
+                                     local_err);
+                continue;
+            } else if (found_is_wildcard) {
+                /*
+                 * Override a previously found wildcard alias with a
+                 * single-member alias. Store the error in case the
+                 * value for the wildcard alias isn't used elsewhere.
+                 */
+                g_hash_table_replace(found_so->h, (void *) found_name,
+                                     local_err);
+            } else {
+                /* Any other conflict is definitely an error */
+                error_propagate(errp, local_err);
+                if (is_alias_prefix) {
+                    *is_alias_prefix = false;
+                }
+                *name = NULL;
+                return false;
+            }
+        }
+
+        found_name = alias_name;
+        found_so = alias_so;
+        found_is_wildcard = !a->name;
+    }
+
+    *so = found_so;
+    *name = found_name;
+
+    if (!found_name) {
+        return false;
+    }
+
+    /*
+     * Every source can be used only once. If a value in the input
+     * would end up being used twice through aliases, we'll fail the
+     * second access.
+     */
+    return g_hash_table_contains(found_so->h, found_name);
+}
+
 static QObject *qobject_input_try_get_object(QObjectInputVisitor *qiv,
                                              const char *name,
-                                             bool consume)
+                                             bool consume, Error **errp)
 {
     StackObject *tos;
     QObject *qobj;
@@ -201,10 +389,31 @@ static QObject *qobject_input_try_get_object(QObjectInputVisitor *qiv,
     assert(qobj);
 
     if (qobject_type(qobj) == QTYPE_QDICT) {
-        assert(name);
-        ret = qdict_get(qobject_to(QDict, qobj), name);
-        if (tos->h && consume && ret) {
-            bool removed = g_hash_table_remove(tos->h, name);
+        StackObject *so = tos;
+        const char *key = name;
+        bool is_alias_prefix;
+
+        assert(key);
+        if (!find_object_member(qiv, &so, &key, &is_alias_prefix, errp)) {
+            if (is_alias_prefix) {
+                /*
+                 * The member is not present in the input, but
+                 * something inside of it might still be given through
+                 * an alias. Pretend there was an empty object in the
+                 * input.
+                 */
+                if (!qiv->empty_qdict) {
+                    qiv->empty_qdict = qdict_new();
+                }
+                return QOBJECT(qiv->empty_qdict);
+            } else {
+                return NULL;
+            }
+        }
+        ret = qdict_get(qobject_to(QDict, so->obj), key);
+        assert(ret != NULL);
+        if (so->h && consume) {
+            bool removed = g_hash_table_remove(so->h, key);
             assert(removed);
         }
     } else {
@@ -230,9 +439,10 @@ static QObject *qobject_input_get_object(QObjectInputVisitor *qiv,
                                          const char *name,
                                          bool consume, Error **errp)
 {
-    QObject *obj = qobject_input_try_get_object(qiv, name, consume);
+    ERRP_GUARD();
+    QObject *obj = qobject_input_try_get_object(qiv, name, consume, errp);
 
-    if (!obj) {
+    if (!obj && !*errp) {
         error_setg(errp, QERR_MISSING_PARAMETER, full_name(qiv, name));
     }
     return obj;
@@ -823,13 +1033,16 @@ static bool qobject_input_type_size_keyval(Visitor *v, const char *name,
 static void qobject_input_optional(Visitor *v, const char *name, bool *present)
 {
     QObjectInputVisitor *qiv = to_qiv(v);
-    QObject *qobj = qobject_input_try_get_object(qiv, name, false);
+    Error *local_err = NULL;
+    QObject *qobj = qobject_input_try_get_object(qiv, name, false, &local_err);
 
-    if (!qobj) {
+    /* If there was an error, let the caller try and run into the error */
+    if (!qobj && !local_err) {
         *present = false;
         return;
     }
 
+    error_free(local_err);
     *present = true;
 }
 
@@ -862,6 +1075,7 @@ static void qobject_input_free(Visitor *v)
         qobject_input_stack_object_free(tos);
     }
 
+    qobject_unref(qiv->empty_qdict);
     qobject_unref(qiv->root);
     if (qiv->errname) {
         g_string_free(qiv->errname, TRUE);
