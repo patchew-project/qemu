@@ -440,7 +440,7 @@ class QAPISchemaObjectType(QAPISchemaType):
         for m in self.local_members:
             m.check(schema)
             m.check_clash(self.info, seen)
-        members = seen.values()
+        members = list(seen.values())
 
         if self.variants:
             self.variants.check(schema, seen)
