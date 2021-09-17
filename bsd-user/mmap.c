@@ -387,7 +387,7 @@ abi_ulong mmap_find_vma(abi_ulong start, abi_ulong size)
 abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
                      int flags, int fd, off_t offset)
 {
-    abi_ulong ret, end, real_start, real_end, retaddr, host_offset, host_len;
+    abi_ulong addr, ret, end, real_start, real_end, retaddr, host_offset, host_len;
 
     mmap_lock();
 #ifdef DEBUG_MMAP
@@ -597,6 +597,14 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
                 }
             }
             goto the_end;
+        }
+
+        /* Reject the mapping if any page within the range is mapped */
+        if (flags & MAP_EXCL) {
+            for (addr = start; addr < end; addr++) {
+                if (page_get_flags(addr) != 0)
+                    goto fail;
+            }
         }
 
         /* handle the start of the mapping */
