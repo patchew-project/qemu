@@ -329,8 +329,6 @@ void hmp_info_roms(Monitor *mon, const QDict *qdict);
     rom_add_blob(_f, _b, _l, _l, _a, NULL, NULL, NULL, NULL, true)
 #define rom_add_file_mr(_f, _mr, _i)            \
     rom_add_file(_f, NULL, 0, _i, false, _mr, NULL)
-#define rom_add_file_as(_f, _as, _i)            \
-    rom_add_file(_f, NULL, 0, _i, false, NULL, _as)
 #define rom_add_file_fixed_as(_f, _a, _i, _as)          \
     rom_add_file(_f, NULL, _a, _i, false, NULL, _as)
 #define rom_add_blob_fixed_as(_f, _b, _l, _a, _as)      \
