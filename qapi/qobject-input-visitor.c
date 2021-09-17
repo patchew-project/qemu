@@ -79,7 +79,14 @@ typedef struct StackObject {
     QObject *obj;                /* QDict or QList being visited */
     void *qapi; /* sanity check that caller uses same pointer */
 
-    GHashTable *h;              /* If @obj is QDict: unvisited keys */
+    /*
+     * If @obj is QDict:
+     * Keys are the unvisited keys. Values are Error objects to be
+     * returned in qobject_input_check_struct() if the value was not
+     * consumed, or NULL for a default error.
+     */
+    GHashTable *h;
+
     const QListEntry *entry;    /* If @obj is QList: unvisited tail */
     unsigned index;             /* If @obj is QList: list index of @entry */
 
@@ -318,7 +325,8 @@ static const QListEntry *qobject_input_push(QObjectInputVisitor *qiv,
     QSIMPLEQ_INIT(&tos->aliases);
 
     if (qdict) {
-        h = g_hash_table_new(g_str_hash, g_str_equal);
+        h = g_hash_table_new_full(g_str_hash, g_str_equal, NULL,
+                                  (GDestroyNotify) error_free);
         for (entry = qdict_first(qdict);
              entry;
              entry = qdict_next(qdict, entry)) {
@@ -345,13 +353,19 @@ static bool qobject_input_check_struct(Visitor *v, Error **errp)
     StackObject *tos = QSLIST_FIRST(&qiv->stack);
     GHashTableIter iter;
     const char *key;
+    Error *err;
 
     assert(tos && !tos->entry);
 
     g_hash_table_iter_init(&iter, tos->h);
-    if (g_hash_table_iter_next(&iter, (void **)&key, NULL)) {
-        error_setg(errp, "Parameter '%s' is unexpected",
-                   full_name(qiv, key));
+    if (g_hash_table_iter_next(&iter, (void **)&key, (void **)&err)) {
+        if (err) {
+            g_hash_table_steal(tos->h, key);
+            error_propagate(errp, err);
+        } else {
+            error_setg(errp, "Parameter '%s' is unexpected",
+                       full_name(qiv, key));
+        }
         return false;
     }
     return true;
