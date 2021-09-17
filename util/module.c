@@ -131,16 +131,24 @@ void module_allow_arch(const char *arch)
 
 static bool module_check_arch(const QemuModinfo *modinfo)
 {
-    if (modinfo->arch) {
+    const char **arch;
+
+    if (modinfo->archs) {
         if (!module_arch) {
             /* no arch set -> ignore all */
             return false;
         }
-        if (strcmp(module_arch, modinfo->arch) != 0) {
-            /* mismatch */
-            return false;
+
+        for (arch = modinfo->archs; *arch != NULL; arch++) {
+            if (strcmp(module_arch, *arch) == 0) {
+                return true;
+            }
         }
+
+        /* mismatch */
+        return false;
     }
+
     return true;
 }
 
@@ -245,7 +253,7 @@ bool module_load_one(const char *prefix, const char *lib_name, bool mayfail)
     g_hash_table_add(loaded_modules, module_name);
 
     for (modinfo = module_info; modinfo->name != NULL; modinfo++) {
-        if (modinfo->arch) {
+        if (modinfo->archs) {
             if (strcmp(modinfo->name, module_name) == 0) {
                 if (!module_check_arch(modinfo)) {
                     return false;

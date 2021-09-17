@@ -50,6 +50,16 @@ def main(args):
         print("MODINFO_START arch \"%s\" MODINFO_END" % arch)
     with open('compile_commands.json') as f:
         compile_commands = json.load(f)
+
+    try:
+        arch_idx = args.index('--archs')
+        archs = args[arch_idx + 1:]
+        args = args[:arch_idx]
+        for arch in archs:
+            print("MODINFO_START arch \"%s\" MODINFO_END" % arch)
+    except ValueError:
+        pass
+
     for src in args:
         print("MODINFO_DEBUG src %s" % src)
         command = find_command(src, target, compile_commands)

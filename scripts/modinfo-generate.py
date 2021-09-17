@@ -33,7 +33,7 @@ def parse_line(line):
     return (kind, data)
 
 def generate(name, lines):
-    arch = ""
+    archs = []
     objs = []
     deps = []
     opts = []
@@ -47,14 +47,13 @@ def generate(name, lines):
             elif kind == 'opts':
                 opts.append(data)
             elif kind == 'arch':
-                arch = data;
+                archs.append(data);
             else:
                 print("unknown:", kind)
                 exit(1)
 
     print("    .name = \"%s\"," % name)
-    if arch != "":
-        print("    .arch = %s," % arch)
+    print_array("archs", archs)
     print_array("objs", objs)
     print_array("deps", deps)
     print_array("opts", opts)

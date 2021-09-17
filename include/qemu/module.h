@@ -144,7 +144,7 @@ void module_allow_arch(const char *arch);
 typedef struct QemuModinfo QemuModinfo;
 struct QemuModinfo {
     const char *name;
-    const char *arch;
+    const char **archs;
     const char **objs;
     const char **deps;
     const char **opts;

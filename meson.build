@@ -2343,11 +2343,19 @@ foreach d, list : modules
         # unique when it comes to lookup in compile_commands.json.
         # Depnds on a mesion version with
         # https://github.com/mesonbuild/meson/pull/8900
-        modinfo_files += custom_target(d + '-' + m + '.modinfo',
-                                       output: d + '-' + m + '.modinfo',
-                                       input: module_ss.sources() + genh,
-                                       capture: true,
-                                       command: [modinfo_collect, module_ss.sources()])
+        if modules_arch.has_key(m)
+          modinfo_files += custom_target(d + '-' + m + '.modinfo',
+                                        output: d + '-' + m + '.modinfo',
+                                        input: module_ss.sources() + genh,
+                                        capture: true,
+                                        command: [modinfo_collect, module_ss.sources(), '--archs', modules_arch[m]])
+        else
+          modinfo_files += custom_target(d + '-' + m + '.modinfo',
+                                        output: d + '-' + m + '.modinfo',
+                                        input: module_ss.sources() + genh,
+                                        capture: true,
+                                        command: [modinfo_collect, module_ss.sources()])
+        endif
       endif
     else
       if d == 'block'
