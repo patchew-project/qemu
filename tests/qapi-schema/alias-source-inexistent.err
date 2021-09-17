@@ -1,0 +1,2 @@
+alias-source-inexistent.json: In struct 'AliasStruct0':
+alias-source-inexistent.json:1: alias 'bar' has inexistent source

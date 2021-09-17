@@ -77,6 +77,16 @@ void qmp_test_command_cond_features3(Error **errp)
 {
 }
 
+void qmp_test_aliases0(bool has_as0, AliasStruct0 *as0,
+                       bool has_as1, AliasStruct1 *as1,
+                       bool has_as2, AliasStruct2 *as2,
+                       bool has_as3, AliasStruct3 *as3,
+                       bool has_afu, AliasFlatUnion *afu,
+                       bool has_asu, AliasSimpleUnion *asu,
+                       Error **errp)
+{
+}
+
 UserDefTwo *qmp_user_def_cmd2(UserDefOne *ud1a,
                               bool has_udb1, UserDefOne *ud1b,
                               Error **errp)

@@ -1,0 +1,4 @@
+{ 'struct': 'AliasStruct0',
+  'data': { 'foo': 'int',
+            'bar': 'int' },
+  'aliases': [ { 'name': 'bar', 'source': ['foo'] } ] }

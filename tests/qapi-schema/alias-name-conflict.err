@@ -1,0 +1,2 @@
+alias-name-conflict.json: In struct 'AliasStruct0':
+alias-name-conflict.json:1: alias 'bar' collides with member 'bar'

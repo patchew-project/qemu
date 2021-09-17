@@ -1,0 +1,2 @@
+alias-source-optional-wildcard.json: In struct 'AliasStruct0':
+alias-source-optional-wildcard.json:3: wildcard alias has optional object member 'nested' in its source path

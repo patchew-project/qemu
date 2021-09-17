@@ -1,0 +1,2 @@
+alias-source-non-object-wildcard.json: In struct 'AliasStruct0':
+alias-source-non-object-wildcard.json:1: wildcard alias has non-object 'foo' in its source path

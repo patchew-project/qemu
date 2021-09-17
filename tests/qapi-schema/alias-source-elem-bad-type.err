@@ -1,0 +1,2 @@
+alias-source-elem-bad-type.json: In struct 'AliasStruct0':
+alias-source-elem-bad-type.json:1: element in alias 'bar' member 'source' requires a string name

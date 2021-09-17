@@ -1,0 +1,2 @@
+alias-source-non-object-path.json: In struct 'AliasStruct0':
+alias-source-non-object-path.json:1: alias 'bar' has non-object 'foo' in its source path

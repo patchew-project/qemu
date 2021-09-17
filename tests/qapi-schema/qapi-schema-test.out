@@ -453,6 +453,50 @@ event TEST_EVENT_FEATURES0 FeatureStruct1
 event TEST_EVENT_FEATURES1 None
     boxed=False
     feature deprecated
+object AliasStruct0
+    member foo: int optional=False
+object AliasStruct1
+    member foo: int optional=False
+    alias bar -> foo
+object AliasStruct2
+    member nested: AliasStruct1 optional=False
+    alias bar -> nested.foo
+object AliasStruct3
+    member nested: AliasStruct1 optional=False
+    alias * -> nested.*
+object q_obj_AliasFlatUnion-base
+    member tag: FeatureEnum1 optional=False
+object AliasFlatUnion
+    base q_obj_AliasFlatUnion-base
+    alias variant -> tag
+    alias bar -> foo
+    tag tag
+    case eins: FeatureStruct1
+    case zwei: q_empty
+    case drei: q_empty
+object q_obj_AliasStruct1-wrapper
+    member data: AliasStruct1 optional=False
+object q_obj_AliasStruct3-wrapper
+    member data: AliasStruct3 optional=False
+enum AliasSimpleUnionKind
+    member eins
+    member drei
+object AliasSimpleUnion
+    member type: AliasSimpleUnionKind optional=False
+    alias * -> data.*
+    alias tag -> type
+    tag type
+    case eins: q_obj_AliasStruct1-wrapper
+    case drei: q_obj_AliasStruct3-wrapper
+object q_obj_test-aliases0-arg
+    member as0: AliasStruct0 optional=True
+    member as1: AliasStruct1 optional=True
+    member as2: AliasStruct2 optional=True
+    member as3: AliasStruct3 optional=True
+    member afu: AliasFlatUnion optional=True
+    member asu: AliasSimpleUnion optional=True
+command test-aliases0 q_obj_test-aliases0-arg -> None
+    gen=True success_response=True boxed=False oob=False preconfig=False
 module include/sub-module.json
 include sub-sub-module.json
 object SecondArrayRef
