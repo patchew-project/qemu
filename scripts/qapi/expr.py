@@ -447,6 +447,51 @@ def check_features(features: Optional[object],
         check_if(feat, info, source)
 
 
+def check_aliases(aliases: Optional[object],
+                  info: QAPISourceInfo) -> None:
+    """
+    Normalize and validate the ``aliases`` member.
+
+    :param aliases: The aliases member value to validate.
+    :param info: QAPI schema source file information.
+
+    :raise QAPISemError: When ``aliases`` fails validation.
+    :return: None, ``aliases`` is normalized in-place as needed.
+    """
+
+    if aliases is None:
+        return
+    if not isinstance(aliases, list):
+        raise QAPISemError(info, "'aliases' must be an array")
+    for a in aliases:
+        if not isinstance(a, dict):
+            raise QAPISemError(info, "'aliases' members must be objects")
+        check_keys(a, info, "'aliases' member", ['source'], ['name'])
+
+        if 'name' in a:
+            source = "alias member 'name'"
+            check_name_is_str(a['name'], info, source)
+
+            permissive = a['name'] in info.pragma.member_name_exceptions
+            check_name_lower(a['name'], info, source,
+                             permit_upper=permissive,
+                             permit_underscore=permissive)
+            desc = "alias '%s'" % a['name']
+        else:
+            desc = "wildcard alias"
+
+        if not isinstance(a['source'], list):
+            raise QAPISemError(
+                info, f"{desc} member 'source' must be an array")
+        if not a['source']:
+            raise QAPISemError(
+                info, f"{desc} member 'source' must not be empty")
+
+        source = f"element in {desc} member 'source'"
+        for s in a['source']:
+            check_name_is_str(s, info, source)
+
+
 def check_enum(expr: _JSONObject, info: QAPISourceInfo) -> None:
     """
     Normalize and validate this expression as an ``enum`` definition.
@@ -500,6 +545,7 @@ def check_struct(expr: _JSONObject, info: QAPISourceInfo) -> None:
 
     check_type(members, info, "'data'", allow_dict=name)
     check_type(expr.get('base'), info, "'base'")
+    check_aliases(expr.get('aliases'), info)
 
 
 def check_union(expr: _JSONObject, info: QAPISourceInfo) -> None:
@@ -525,6 +571,8 @@ def check_union(expr: _JSONObject, info: QAPISourceInfo) -> None:
         if not base:
             raise QAPISemError(info, "'discriminator' requires 'base'")
         check_name_is_str(discriminator, info, "'discriminator'")
+
+    check_aliases(expr.get('aliases'), info)
 
     if not isinstance(members, dict):
         raise QAPISemError(info, "'data' must be an object")
@@ -665,7 +713,8 @@ def check_exprs(exprs: List[_JSONObject]) -> List[_JSONObject]:
         elif meta == 'union':
             check_keys(expr, info, meta,
                        ['union', 'data'],
-                       ['base', 'discriminator', 'if', 'features'])
+                       ['base', 'discriminator', 'if', 'features',
+                        'aliases'])
             normalize_members(expr.get('base'))
             normalize_members(expr['data'])
             check_union(expr, info)
@@ -676,7 +725,8 @@ def check_exprs(exprs: List[_JSONObject]) -> List[_JSONObject]:
             check_alternate(expr, info)
         elif meta == 'struct':
             check_keys(expr, info, meta,
-                       ['struct', 'data'], ['base', 'if', 'features'])
+                       ['struct', 'data'],
+                       ['base', 'if', 'features', 'aliases'])
             normalize_members(expr['data'])
             check_struct(expr, info)
         elif meta == 'command':

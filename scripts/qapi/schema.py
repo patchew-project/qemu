@@ -145,7 +145,7 @@ class QAPISchemaVisitor:
         pass
 
     def visit_object_type(self, name, info, ifcond, features,
-                          base, members, variants):
+                          base, members, variants, aliases):
         pass
 
     def visit_object_type_flat(self, name, info, ifcond, features,
@@ -391,7 +391,7 @@ class QAPISchemaArrayType(QAPISchemaType):
 
 class QAPISchemaObjectType(QAPISchemaType):
     def __init__(self, name, info, doc, ifcond, features,
-                 base, local_members, variants):
+                 base, local_members, variants, aliases=None):
         # struct has local_members, optional base, and no variants
         # flat union has base, variants, and no local_members
         # simple union has local_members, variants, and no base
@@ -409,6 +409,9 @@ class QAPISchemaObjectType(QAPISchemaType):
         self.local_members = local_members
         self.variants = variants
         self.members = None
+        self.aliases = aliases or []
+        for a in self.aliases:
+            a.set_defined_in(name)
 
     def check(self, schema):
         # This calls another type T's .check() exactly when the C
@@ -440,11 +443,17 @@ class QAPISchemaObjectType(QAPISchemaType):
         for m in self.local_members:
             m.check(schema)
             m.check_clash(self.info, seen)
+
+        # Make a copy before aliases are added to @seen
         members = list(seen.values())
 
         if self.variants:
             self.variants.check(schema, seen)
             self.variants.check_clash(self.info, seen)
+
+        for a in self.aliases:
+            a.check_clash(self.info, seen)
+            self.check_path(a, a.source, members)
 
         self.members = members  # mark completed
 
@@ -456,6 +465,68 @@ class QAPISchemaObjectType(QAPISchemaType):
         assert not self.variants       # not implemented
         for m in self.members:
             m.check_clash(info, seen)
+
+    def check_path(self, alias, path, members=None, local_aliases_seen=()):
+        assert isinstance(path, list)
+
+        if not path:
+            return
+
+        for a in self.aliases:
+            if a.name == path[0]:
+                if a in local_aliases_seen:
+                    raise QAPISemError(
+                        self.info,
+                        "%s resolving to '%s' makes '%s' an alias for itself"
+                        % (a.describe(self.info), a.source[0], a.source[0]))
+
+                self.check_path(alias, a.source + path[1:], members,
+                                (*local_aliases_seen, a))
+                return
+
+        if members is None:
+            assert self.members is not None
+            members = self.members
+        else:
+            assert isinstance(members, list)
+
+        for m in members:
+            if m.name == path[0]:
+                # Wildcard aliases can only accept object types in the whole
+                # path; for single-member aliases, the last element can be
+                # any type
+                nested_path = path[1:]
+                need_obj = (alias.name is None) or nested_path
+                if need_obj and not isinstance(m.type, QAPISchemaObjectType):
+                    raise QAPISemError(
+                        self.info,
+                        "%s has non-object '%s' in its source path"
+                        % (alias.describe(self.info), m.name))
+                if alias.name is None and m.optional:
+                    raise QAPISemError(
+                        self.info,
+                        "%s has optional object %s in its source path"
+                        % (alias.describe(self.info), m.describe(self.info)))
+                if nested_path:
+                    m.type.check_path(alias, nested_path)
+                return
+
+        # It is sufficient that the path is valid in at least one variant
+        if self.variants:
+            for v in self.variants.variants:
+                try:
+                    v.type.check_path(alias, path)
+                    return
+                except QAPISemError:
+                    pass
+            raise QAPISemError(
+                self.info,
+                "%s has a source path that does not exist in any variant of %s"
+                % (alias.describe(self.info), self.describe()))
+
+        raise QAPISemError(
+            self.info,
+            "%s has inexistent source" % alias.describe(self.info))
 
     def connect_doc(self, doc=None):
         super().connect_doc(doc)
@@ -501,7 +572,7 @@ class QAPISchemaObjectType(QAPISchemaType):
         super().visit(visitor)
         visitor.visit_object_type(
             self.name, self.info, self.ifcond, self.features,
-            self.base, self.local_members, self.variants)
+            self.base, self.local_members, self.variants, self.aliases)
         visitor.visit_object_type_flat(
             self.name, self.info, self.ifcond, self.features,
             self.members, self.variants)
@@ -666,7 +737,7 @@ class QAPISchemaVariants:
 
 
 class QAPISchemaMember:
-    """ Represents object members, enum members and features """
+    """ Represents object members, enum members, features and aliases """
     role = 'member'
 
     def __init__(self, name, info, ifcond=None):
@@ -730,6 +801,29 @@ class QAPISchemaEnumMember(QAPISchemaMember):
 
 class QAPISchemaFeature(QAPISchemaMember):
     role = 'feature'
+
+
+class QAPISchemaAlias(QAPISchemaMember):
+    role = 'alias'
+
+    def __init__(self, name, info, source):
+        assert name is None or isinstance(name, str)
+        assert source
+        for member in source:
+            assert isinstance(member, str)
+
+        super().__init__(name or '*', info)
+        self.name = name
+        self.source = source
+
+    def check_clash(self, info, seen):
+        if self.name:
+            super().check_clash(info, seen)
+
+    def describe(self, info):
+        if not self.name:
+            return "wildcard alias"
+        return super().describe(info)
 
 
 class QAPISchemaObjectTypeMember(QAPISchemaMember):
@@ -999,6 +1093,12 @@ class QAPISchema:
                                   QAPISchemaIfCond(f.get('if')))
                 for f in features]
 
+    def _make_aliases(self, aliases, info):
+        if aliases is None:
+            return []
+        return [QAPISchemaAlias(a.get('name'), info, a['source'])
+                for a in aliases]
+
     def _make_enum_members(self, values, info):
         return [QAPISchemaEnumMember(v['name'], info,
                                      QAPISchemaIfCond(v.get('if')))
@@ -1075,11 +1175,12 @@ class QAPISchema:
         base = expr.get('base')
         data = expr['data']
         ifcond = QAPISchemaIfCond(expr.get('if'))
+        aliases = self._make_aliases(expr.get('aliases'), info)
         features = self._make_features(expr.get('features'), info)
         self._def_entity(QAPISchemaObjectType(
             name, info, doc, ifcond, features, base,
             self._make_members(data, info),
-            None))
+            None, aliases))
 
     def _make_variant(self, case, typ, ifcond, info):
         return QAPISchemaVariant(case, info, typ, ifcond)
@@ -1098,6 +1199,7 @@ class QAPISchema:
         data = expr['data']
         base = expr.get('base')
         ifcond = QAPISchemaIfCond(expr.get('if'))
+        aliases = self._make_aliases(expr.get('aliases'), info)
         features = self._make_features(expr.get('features'), info)
         tag_name = expr.get('discriminator')
         tag_member = None
@@ -1126,7 +1228,8 @@ class QAPISchema:
             QAPISchemaObjectType(name, info, doc, ifcond, features,
                                  base, members,
                                  QAPISchemaVariants(
-                                     tag_name, info, tag_member, variants)))
+                                     tag_name, info, tag_member, variants),
+                                 aliases))
 
     def _def_alternate_type(self, expr, info, doc):
         name = expr['alternate']
