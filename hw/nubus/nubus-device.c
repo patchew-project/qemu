@@ -26,7 +26,7 @@ static void nubus_device_realize(DeviceState *dev, Error **errp)
     int ret;
 
     /* Super */
-    slot_offset = (nd->slot - 6) * NUBUS_SUPER_SLOT_SIZE;
+    slot_offset = nd->slot * NUBUS_SUPER_SLOT_SIZE;
 
     name = g_strdup_printf("nubus-super-slot-%x", nd->slot);
     memory_region_init(&nd->super_slot_mem, OBJECT(dev), name,

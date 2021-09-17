@@ -21,8 +21,19 @@ static void mac_nubus_bridge_init(Object *obj)
     /* Macintosh only has slots 0x9 to 0xe available */
     s->bus->slot_available_mask = MAKE_64BIT_MASK(9, 6);
 
-    sysbus_init_mmio(sbd, &s->bus->super_slot_io);
-    sysbus_init_mmio(sbd, &s->bus->slot_io);
+    /* Aliases for slots 0x9 to 0xe */
+    memory_region_init_alias(&s->super_slot_alias, obj, "super-slot-alias",
+                             &s->bus->nubus_mr,
+                             9 * NUBUS_SUPER_SLOT_SIZE,
+                             6 * NUBUS_SUPER_SLOT_SIZE);
+
+    memory_region_init_alias(&s->slot_alias, obj, "slot-alias",
+                             &s->bus->nubus_mr,
+                             NUBUS_SLOT_BASE + 9 * NUBUS_SLOT_SIZE,
+                             6 * NUBUS_SLOT_SIZE);
+
+    sysbus_init_mmio(sbd, &s->super_slot_alias);
+    sysbus_init_mmio(sbd, &s->slot_alias);
 }
 
 static void mac_nubus_bridge_class_init(ObjectClass *klass, void *data)
