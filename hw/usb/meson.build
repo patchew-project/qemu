@@ -54,6 +54,18 @@ if cacard.found()
   usbsmartcard_ss.add(when: 'CONFIG_USB_SMARTCARD',
                       if_true: [cacard, files('ccid-card-emulated.c', 'ccid-card-passthru.c')])
   hw_usb_modules += {'smartcard': usbsmartcard_ss}
+
+  archs = []
+  foreach target: target_dirs
+    if target.endswith('-softmmu')
+      cfg_target = config_target_mak[target]
+      if cfg_target.has_key('CONFIG_USB_SMARTCARD') and cfg_target['CONFIG_USB_SMARTCARD'] == 'y'
+        archs += [cfg_target['TARGET_NAME']]
+      endif
+    endif
+  endforeach
+
+  modules_arch += {'smartcard': archs}
 endif
 
 # U2F
@@ -69,6 +81,18 @@ if usbredir.found()
   usbredir_ss.add(when: 'CONFIG_USB',
                   if_true: [usbredir, files('redirect.c', 'quirks.c')])
   hw_usb_modules += {'redirect': usbredir_ss}
+
+  archs = []
+  foreach target: target_dirs
+    if target.endswith('-softmmu')
+      cfg_target = config_target_mak[target]
+      if cfg_target.has_key('CONFIG_USB') and cfg_target['CONFIG_USB'] == 'y'
+        archs += [cfg_target['TARGET_NAME']]
+      endif
+    endif
+  endforeach
+
+  modules_arch += {'redirect': archs}
 endif
 
 # usb pass-through
@@ -77,6 +101,18 @@ if libusb.found()
   usbhost_ss.add(when: ['CONFIG_USB', libusb],
                  if_true: files('host-libusb.c'))
   hw_usb_modules += {'host': usbhost_ss}
+
+  archs = []
+  foreach target: target_dirs
+    if target.endswith('-softmmu')
+      cfg_target = config_target_mak[target]
+      if cfg_target.has_key('CONFIG_USB') and cfg_target['CONFIG_USB'] == 'y'
+        archs += [cfg_target['TARGET_NAME']]
+      endif
+    endif
+  endforeach
+
+  modules_arch += {'host': archs}
 endif
 
 softmmu_ss.add(when: ['CONFIG_USB', 'CONFIG_XEN', libusb], if_true: files('xen-usb.c'))

@@ -2071,6 +2071,7 @@ tcg_module_ss = ss.source_set()
 
 modules = {}
 target_modules = {}
+modules_arch = {}
 hw_arch = {}
 target_arch = {}
 target_softmmu_arch = {}

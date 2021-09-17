@@ -43,6 +43,18 @@ if config_all_devices.has_key('CONFIG_QXL')
   qxl_ss.add(when: 'CONFIG_QXL', if_true: [files('qxl.c', 'qxl-logger.c', 'qxl-render.c'),
                                            pixman, spice])
   hw_display_modules += {'qxl': qxl_ss}
+
+  archs = []
+  foreach target: target_dirs
+    if target.endswith('-softmmu')
+      cfg_target = config_target_mak[target]
+      if cfg_target.has_key('CONFIG_QXL') and cfg_target['CONFIG_QXL'] == 'y'
+        archs += [cfg_target['TARGET_NAME']]
+      endif
+    endif
+  endforeach
+
+  modules_arch += {'qxl': archs}
 endif
 
 softmmu_ss.add(when: 'CONFIG_DPCD', if_true: files('dpcd.c'))
@@ -65,6 +77,18 @@ if config_all_devices.has_key('CONFIG_VIRTIO_GPU')
   virtio_gpu_gl_ss.add(when: ['CONFIG_VIRTIO_GPU', virgl, opengl],
                        if_true: [files('virtio-gpu-gl.c', 'virtio-gpu-virgl.c'), pixman, virgl])
   hw_display_modules += {'virtio-gpu-gl': virtio_gpu_gl_ss}
+
+  archs = []
+  foreach target: target_dirs
+    if target.endswith('-softmmu')
+      cfg_target = config_target_mak[target]
+      if cfg_target.has_key('CONFIG_VIRTIO_GPU') and cfg_target['CONFIG_VIRTIO_GPU'] == 'y'
+        archs += [cfg_target['TARGET_NAME']]
+      endif
+    endif
+  endforeach
+
+  modules_arch += {'virtio-gpu': archs, 'virtio-gpu-gl': archs}
 endif
 
 if config_all_devices.has_key('CONFIG_VIRTIO_PCI')
@@ -79,6 +103,18 @@ if config_all_devices.has_key('CONFIG_VIRTIO_PCI')
   virtio_gpu_pci_gl_ss.add(when: ['CONFIG_VIRTIO_GPU', 'CONFIG_VIRTIO_PCI', virgl, opengl],
                            if_true: [files('virtio-gpu-pci-gl.c'), pixman])
   hw_display_modules += {'virtio-gpu-pci-gl': virtio_gpu_pci_gl_ss}
+
+  archs = []
+  foreach target: target_dirs
+    if target.endswith('-softmmu')
+      cfg_target = config_target_mak[target]
+      if cfg_target.has_key('CONFIG_VIRTIO_PCI') and cfg_target['CONFIG_VIRTIO_PCI'] == 'y'
+        archs += [cfg_target['TARGET_NAME']]
+      endif
+    endif
+  endforeach
+
+  modules_arch += {'virtio-gpu-pci': archs, 'virtio-gpu-pci-gl': archs}
 endif
 
 if config_all_devices.has_key('CONFIG_VIRTIO_VGA')
@@ -93,6 +129,18 @@ if config_all_devices.has_key('CONFIG_VIRTIO_VGA')
   virtio_vga_gl_ss.add(when: ['CONFIG_VIRTIO_VGA', virgl, opengl],
                        if_true: [files('virtio-vga-gl.c'), pixman])
   hw_display_modules += {'virtio-vga-gl': virtio_vga_gl_ss}
+
+  archs = []
+  foreach target: target_dirs
+    if target.endswith('-softmmu')
+      cfg_target = config_target_mak[target]
+      if cfg_target.has_key('CONFIG_VIRTIO_VGA') and cfg_target['CONFIG_VIRTIO_VGA'] == 'y'
+        archs += [cfg_target['TARGET_NAME']]
+      endif
+    endif
+  endforeach
+
+  modules_arch += {'virtio-vga': archs, 'virtio-vga-gl': archs}
 endif
 
 specific_ss.add(when: 'CONFIG_OMAP', if_true: files('omap_lcdc.c'))
