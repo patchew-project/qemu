@@ -1273,7 +1273,8 @@ static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
 
         ret = hdev_get_max_segments(s->fd, &st);
         if (ret > 0) {
-            bs->bl.max_iov = ret;
+            /* The maximum segment size allowed by the kernel is UIO_MAXIOV = 1024. */
+            bs->bl.max_iov = MIN(ret, bs->bl.max_iov);
         }
     }
 }
