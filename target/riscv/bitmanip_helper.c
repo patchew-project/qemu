@@ -205,3 +205,43 @@ target_ulong HELPER(unshflw)(target_ulong rs1, target_ulong rs2)
 {
     return do_unshfl(rs1, rs2, 32);
 }
+
+static target_ulong do_xperm(target_ulong rs1,
+                             target_ulong rs2,
+                             int sz_log2,
+                             int bits)
+{
+    target_ulong pos = 0;
+    target_ulong r = 0;
+    target_ulong sz = 1LL << sz_log2;
+    target_ulong mask = (1LL << sz) - 1;
+    int i;
+    for (i = 0; i < bits; i += sz) {
+        pos = ((rs2 >> i) & mask) << sz_log2;
+        if (pos < bits) {
+            r |= ((rs1 >> pos) & mask) << i;
+        }
+    }
+
+    return r;
+}
+
+target_ulong HELPER(xperm_n)(target_ulong rs1, target_ulong rs2)
+{
+    return do_xperm(rs1, rs2, 2, TARGET_LONG_BITS);
+}
+
+target_ulong HELPER(xperm_b)(target_ulong rs1, target_ulong rs2)
+{
+    return do_xperm(rs1, rs2, 3, TARGET_LONG_BITS);
+}
+
+target_ulong HELPER(xperm_h)(target_ulong rs1, target_ulong rs2)
+{
+    return do_xperm(rs1, rs2, 4, TARGET_LONG_BITS);
+}
+
+target_ulong HELPER(xperm_w)(target_ulong rs1, target_ulong rs2)
+{
+    return do_xperm(rs1, rs2, 5, TARGET_LONG_BITS);
+}

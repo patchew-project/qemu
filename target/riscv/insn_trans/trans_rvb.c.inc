@@ -351,6 +351,24 @@ static bool trans_unshfli(DisasContext *ctx, arg_unshfli *a)
     return gen_shift_imm_tl(ctx, a, EXT_NONE, gen_helper_unshfl);
 }
 
+static bool trans_xperm_n(DisasContext *ctx, arg_xperm_n *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_arith(ctx, a, EXT_NONE, gen_helper_xperm_n);
+}
+
+static bool trans_xperm_b(DisasContext *ctx, arg_xperm_b *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_arith(ctx, a, EXT_NONE, gen_helper_xperm_b);
+}
+
+static bool trans_xperm_h(DisasContext *ctx, arg_xperm_h *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_arith(ctx, a, EXT_NONE, gen_helper_xperm_h);
+}
+
 #define GEN_TRANS_CLMUL(NAME)                               \
 static bool trans_##NAME(DisasContext *ctx, arg_##NAME * a) \
 {                                                           \
@@ -748,4 +766,12 @@ static bool trans_unshflw(DisasContext *ctx, arg_unshflw *a)
     REQUIRE_EXT(ctx, RVB);
     ctx->w = true;
     return gen_arith(ctx, a, EXT_ZERO, gen_helper_unshflw);
+}
+
+static bool trans_xperm_w(DisasContext *ctx, arg_xperm_w *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_EXT(ctx, RVB);
+    ctx->w = true;
+    return gen_arith(ctx, a, EXT_NONE, gen_helper_xperm_w);
 }
