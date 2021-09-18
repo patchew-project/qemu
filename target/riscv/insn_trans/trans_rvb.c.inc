@@ -484,12 +484,32 @@ static bool trans_sloiw(DisasContext *ctx, arg_sloiw *a)
     return gen_shift_imm_tl(ctx, a, EXT_NONE, gen_slo);
 }
 
+static void gen_srow(TCGv ret, TCGv arg1, TCGv arg2)
+{
+    TCGv_i32 t1 = tcg_temp_new_i32();
+    TCGv_i32 t2 = tcg_temp_new_i32();
+
+    /* truncate to 32-bits */
+    tcg_gen_trunc_tl_i32(t1, arg1);
+    tcg_gen_trunc_tl_i32(t2, arg2);
+
+    tcg_gen_not_i32(t1, t1);
+    tcg_gen_shr_i32(t1, t1, t2);
+    tcg_gen_not_i32(t1, t1);
+
+    /* sign-extend 64-bits */
+    tcg_gen_ext_i32_tl(ret, t1);
+
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t2);
+}
+
 static bool trans_srow(DisasContext *ctx, arg_srow *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
     ctx->w = true;
-    return gen_shift(ctx, a, EXT_ZERO, gen_sro);
+    return gen_shift(ctx, a, EXT_ZERO, gen_srow);
 }
 
 static bool trans_sroiw(DisasContext *ctx, arg_sroiw *a)
@@ -497,7 +517,7 @@ static bool trans_sroiw(DisasContext *ctx, arg_sroiw *a)
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
     ctx->w = true;
-    return gen_shift_imm_tl(ctx, a, EXT_ZERO, gen_sro);
+    return gen_shift_imm_tl(ctx, a, EXT_ZERO, gen_srow);
 }
 
 static void gen_rorw(TCGv ret, TCGv arg1, TCGv arg2)
