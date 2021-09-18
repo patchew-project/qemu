@@ -272,3 +272,58 @@ target_ulong HELPER(bfpw)(target_ulong rs1, target_ulong rs2)
 {
     return do_bfp(rs1, rs2, 32);
 }
+
+#define DO_CRC(NAME, VALUE)                                  \
+static target_ulong do_##NAME(target_ulong rs1,              \
+                              int nbits)                     \
+{                                                            \
+    int i;                                                   \
+    target_ulong x = rs1;                                    \
+    for (i = 0; i < nbits; i++) {                            \
+        x = (x >> 1) ^ ((VALUE) & ~((x & 1) - 1));           \
+    }                                                        \
+    return x;                                                \
+}
+
+DO_CRC(crc32, 0xEDB88320)
+DO_CRC(crc32c, 0x82F63B78)
+
+target_ulong HELPER(crc32_b)(target_ulong rs1)
+{
+    return do_crc32(rs1, 8);
+}
+
+target_ulong HELPER(crc32_h)(target_ulong rs1)
+{
+    return do_crc32(rs1, 16);
+}
+
+target_ulong HELPER(crc32_w)(target_ulong rs1)
+{
+    return do_crc32(rs1, 32);
+}
+
+target_ulong HELPER(crc32_d)(target_ulong rs1)
+{
+    return do_crc32(rs1, 64);
+}
+
+target_ulong HELPER(crc32c_b)(target_ulong rs1)
+{
+    return do_crc32c(rs1, 8);
+}
+
+target_ulong HELPER(crc32c_h)(target_ulong rs1)
+{
+    return do_crc32c(rs1, 16);
+}
+
+target_ulong HELPER(crc32c_w)(target_ulong rs1)
+{
+    return do_crc32c(rs1, 32);
+}
+
+target_ulong HELPER(crc32c_d)(target_ulong rs1)
+{
+    return do_crc32c(rs1, 64);
+}

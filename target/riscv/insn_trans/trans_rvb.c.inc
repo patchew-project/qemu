@@ -386,6 +386,22 @@ GEN_TRANS_CLMUL(clmul)
 GEN_TRANS_CLMUL(clmulh)
 GEN_TRANS_CLMUL(clmulr)
 
+#define GEN_TRANS_CRC(NAME)                                 \
+static bool trans_##NAME(DisasContext *ctx, arg_##NAME * a) \
+{                                                           \
+    REQUIRE_EXT(ctx, RVB);                                  \
+    return gen_unary(ctx, a, EXT_NONE, gen_helper_##NAME);  \
+}                                                           \
+
+GEN_TRANS_CRC(crc32_b)
+GEN_TRANS_CRC(crc32_h)
+GEN_TRANS_CRC(crc32_w)
+GEN_TRANS_CRC(crc32_d)
+GEN_TRANS_CRC(crc32c_b)
+GEN_TRANS_CRC(crc32c_h)
+GEN_TRANS_CRC(crc32c_w)
+GEN_TRANS_CRC(crc32c_d)
+
 static void gen_cmix(TCGv ret, TCGv arg1, TCGv arg2, TCGv arg3)
 {
     tcg_gen_and_tl(arg1, arg1, arg2);
