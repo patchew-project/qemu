@@ -88,3 +88,38 @@ target_ulong HELPER(gorcw)(target_ulong rs1, target_ulong rs2)
 {
     return do_gorc(rs1, rs2, 32);
 }
+
+#define DO_CLMULA(NAME, NUM, BODY)                          \
+static target_ulong do_##NAME(target_ulong rs1,             \
+                              target_ulong rs2,             \
+                              int bits)                     \
+{                                                           \
+    target_ulong x = 0;                                     \
+    int i;                                                  \
+                                                            \
+    for (i = NUM; i < bits; i++) {                          \
+        if ((rs2 >> i) & 1) {                               \
+            x ^= BODY;                                      \
+        }                                                   \
+    }                                                       \
+    return x;                                               \
+}
+
+DO_CLMULA(clmul, 0, (rs1 << i))
+DO_CLMULA(clmulh, 1, (rs1 >> (bits - i)))
+DO_CLMULA(clmulr, 0, (rs1 >> (bits - i - 1)))
+
+target_ulong HELPER(clmul)(target_ulong rs1, target_ulong rs2)
+{
+    return do_clmul(rs1, rs2, TARGET_LONG_BITS);
+}
+
+target_ulong HELPER(clmulh)(target_ulong rs1, target_ulong rs2)
+{
+    return do_clmulh(rs1, rs2, TARGET_LONG_BITS);
+}
+
+target_ulong HELPER(clmulr)(target_ulong rs1, target_ulong rs2)
+{
+    return do_clmulr(rs1, rs2, TARGET_LONG_BITS);
+}

@@ -321,6 +321,17 @@ static bool trans_gorci(DisasContext *ctx, arg_gorci *a)
     return gen_shift_imm_tl(ctx, a, EXT_ZERO, gen_helper_gorc);
 }
 
+#define GEN_TRANS_CLMUL(NAME)                               \
+static bool trans_##NAME(DisasContext *ctx, arg_##NAME * a) \
+{                                                           \
+    REQUIRE_EXT(ctx, RVB);                                  \
+    return gen_arith(ctx, a, EXT_NONE, gen_helper_##NAME);  \
+}
+
+GEN_TRANS_CLMUL(clmul)
+GEN_TRANS_CLMUL(clmulh)
+GEN_TRANS_CLMUL(clmulr)
+
 #define GEN_SHADD(SHAMT)                                       \
 static void gen_sh##SHAMT##add(TCGv ret, TCGv arg1, TCGv arg2) \
 {                                                              \
