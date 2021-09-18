@@ -805,3 +805,24 @@ static bool trans_bfpw(DisasContext *ctx, arg_bfpw *a)
     ctx->w = true;
     return gen_arith(ctx, a, EXT_NONE, gen_helper_bfpw);
 }
+
+static bool trans_bmatflip(DisasContext *ctx, arg_bmatflip *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_EXT(ctx, RVB);
+    return gen_unary(ctx, a, EXT_NONE, gen_helper_bmatflip);
+}
+
+static bool trans_bmatxor(DisasContext *ctx, arg_bmatxor *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_EXT(ctx, RVB);
+    return gen_arith(ctx, a, EXT_NONE, gen_helper_bmatxor);
+}
+
+static bool trans_bmator(DisasContext *ctx, arg_bmator *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_EXT(ctx, RVB);
+    return gen_arith(ctx, a, EXT_NONE, gen_helper_bmator);
+}

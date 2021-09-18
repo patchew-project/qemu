@@ -327,3 +327,78 @@ target_ulong HELPER(crc32c_d)(target_ulong rs1)
 {
     return do_crc32c(rs1, 64);
 }
+
+static target_ulong do_bmatflip(target_ulong rs1,
+                                int bits)
+{
+    target_ulong x = rs1;
+    for (int i = 0; i < 3; i++) {
+        x = do_shfl(x, 31, bits);
+    }
+    return x;
+}
+
+static target_ulong do_bmatxor(target_ulong rs1,
+                               target_ulong rs2,
+                               int bits)
+{
+    int i;
+    uint8_t u[8];
+    uint8_t v[8];
+    uint64_t x = 0;
+
+    target_ulong rs2t = do_bmatflip(rs2, bits);
+
+    for (i = 0; i < 8; i++) {
+        u[i] = rs1 >> (i * 8);
+        v[i] = rs2t >> (i * 8);
+    }
+
+    for (int i = 0; i < 64; i++) {
+        if (__builtin_popcount(u[i / 8] & v[i % 8]) & 1) {
+            x |= 1LL << i;
+        }
+    }
+
+    return x;
+}
+
+static target_ulong do_bmator(target_ulong rs1,
+                              target_ulong rs2,
+                              int bits)
+{
+    int i;
+    uint8_t u[8];
+    uint8_t v[8];
+    uint64_t x = 0;
+
+    target_ulong rs2t = do_bmatflip(rs2, bits);
+
+    for (i = 0; i < 8; i++) {
+        u[i] = rs1 >> (i * 8);
+        v[i] = rs2t >> (i * 8);
+    }
+
+    for (int i = 0; i < 64; i++) {
+        if ((u[i / 8] & v[i % 8]) != 0) {
+            x |= 1LL << i;
+        }
+    }
+
+    return x;
+}
+
+target_ulong HELPER(bmatflip)(target_ulong rs1)
+{
+    return do_bmatflip(rs1, TARGET_LONG_BITS);
+}
+
+target_ulong HELPER(bmatxor)(target_ulong rs1, target_ulong rs2)
+{
+    return do_bmatxor(rs1, rs2, TARGET_LONG_BITS);
+}
+
+target_ulong HELPER(bmator)(target_ulong rs1, target_ulong rs2)
+{
+    return do_bmator(rs1, rs2, TARGET_LONG_BITS);
+}

@@ -84,6 +84,9 @@ DEF_HELPER_FLAGS_1(crc32c_b, TCG_CALL_NO_RWG_SE, tl, tl)
 DEF_HELPER_FLAGS_1(crc32c_h, TCG_CALL_NO_RWG_SE, tl, tl)
 DEF_HELPER_FLAGS_1(crc32c_w, TCG_CALL_NO_RWG_SE, tl, tl)
 DEF_HELPER_FLAGS_1(crc32c_d, TCG_CALL_NO_RWG_SE, tl, tl)
+DEF_HELPER_FLAGS_2(bmatxor, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+DEF_HELPER_FLAGS_2(bmator, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+DEF_HELPER_FLAGS_1(bmatflip, TCG_CALL_NO_RWG_SE, tl, tl)
 
 /* Special functions */
 DEF_HELPER_2(csrr, tl, env, int)
