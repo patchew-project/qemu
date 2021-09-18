@@ -22,8 +22,9 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "chardev/char.h"
+#include "qapi/error.h"
 #include "hw/char/mchp_pfsoc_mmuart.h"
+#include "hw/qdev-properties.h"
 
 static uint64_t mchp_pfsoc_mmuart_read(void *opaque, hwaddr addr, unsigned size)
 {
@@ -63,23 +64,69 @@ static const MemoryRegionOps mchp_pfsoc_mmuart_ops = {
     },
 };
 
-MchpPfSoCMMUartState *mchp_pfsoc_mmuart_create(MemoryRegion *sysmem,
-    hwaddr base, qemu_irq irq, Chardev *chr)
+static void mchp_pfsoc_mmuart_init(Object *obj)
 {
-    MchpPfSoCMMUartState *s;
-
-    s = g_new0(MchpPfSoCMMUartState, 1);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    MchpPfSoCMMUartState *s = MCHP_PFSOC_UART(obj);
 
     memory_region_init_io(&s->iomem, NULL, &mchp_pfsoc_mmuart_ops, s,
                           "mchp.pfsoc.mmuart", 0x1000);
+    sysbus_init_mmio(sbd, &s->iomem);
 
-    s->base = base;
-    s->irq = irq;
+    object_initialize_child(obj, "serial-mm", &s->serial_mm, TYPE_SERIAL_MM);
+    object_property_add_alias(obj, "chardev", OBJECT(&s->serial_mm), "chardev");
+}
 
-    s->serial = serial_mm_init(sysmem, base, 2, irq, 399193, chr,
-                               DEVICE_LITTLE_ENDIAN);
+static void mchp_pfsoc_mmuart_realize(DeviceState *dev, Error **errp)
+{
+    MchpPfSoCMMUartState *s = MCHP_PFSOC_UART(dev);
 
-    memory_region_add_subregion(sysmem, base + 0x20, &s->iomem);
+    qdev_prop_set_uint8(DEVICE(&s->serial_mm), "regshift", 2);
+    qdev_prop_set_uint32(DEVICE(&s->serial_mm), "baudbase", 399193);
+    qdev_prop_set_uint8(DEVICE(&s->serial_mm), "endianness",
+                        DEVICE_LITTLE_ENDIAN);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->serial_mm), errp)) {
+        return;
+    }
+    sysbus_pass_irq(SYS_BUS_DEVICE(dev), SYS_BUS_DEVICE(&s->serial_mm));
+    memory_region_add_subregion(&s->iomem, 0x20,
+                sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->serial_mm), 0));
+}
 
-    return s;
+static void mchp_pfsoc_mmuart_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->realize = mchp_pfsoc_mmuart_realize;
+}
+
+static const TypeInfo mchp_pfsoc_mmuart_info = {
+    .name          = TYPE_MCHP_PFSOC_UART,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(MchpPfSoCMMUartState),
+    .instance_init = mchp_pfsoc_mmuart_init,
+    .class_init    = mchp_pfsoc_mmuart_class_init,
+};
+
+static void mchp_pfsoc_mmuart_register_types(void)
+{
+    type_register_static(&mchp_pfsoc_mmuart_info);
+}
+
+type_init(mchp_pfsoc_mmuart_register_types)
+
+MchpPfSoCMMUartState *mchp_pfsoc_mmuart_create(MemoryRegion *sysmem,
+                                               hwaddr base,
+                                               qemu_irq irq, Chardev *chr)
+{
+    DeviceState *dev = qdev_new(TYPE_MCHP_PFSOC_UART);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+
+    qdev_prop_set_chr(dev, "chardev", chr);
+    sysbus_realize(sbd, &error_fatal);
+
+    memory_region_add_subregion(sysmem, base, sysbus_mmio_get_region(sbd, 0));
+    sysbus_connect_irq(sbd, 0, irq);
+
+    return MCHP_PFSOC_UART(dev);
 }
