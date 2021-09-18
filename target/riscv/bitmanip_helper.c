@@ -124,6 +124,43 @@ target_ulong HELPER(clmulr)(target_ulong rs1, target_ulong rs2)
     return do_clmulr(rs1, rs2, TARGET_LONG_BITS);
 }
 
+static target_ulong do_fsl(target_ulong rs1,
+                           target_ulong rs2,
+                           target_ulong rs3,
+                           int bits)
+{
+    int shamt = rs2 & ((2 * bits) - 1);
+    target_ulong a = rs1, b = rs3;
+
+    if (shamt >= bits) {
+        shamt -= bits;
+        a = rs3;
+        b = rs1;
+    }
+
+    return shamt ? (a << shamt) | (b >> (bits - shamt)) : a;
+}
+
+target_ulong HELPER(fsl)(target_ulong rs1, target_ulong rs2, target_ulong rs3)
+{
+    return do_fsl(rs1, rs2, rs3, TARGET_LONG_BITS);
+}
+
+target_ulong HELPER(fsr)(target_ulong rs1, target_ulong rs2, target_ulong rs3)
+{
+    return do_fsl(rs1, -rs2, rs3, TARGET_LONG_BITS);
+}
+
+target_ulong HELPER(fslw)(target_ulong rs1, target_ulong rs2, target_ulong rs3)
+{
+    return do_fsl(rs1, rs2, rs3, 32);
+}
+
+target_ulong HELPER(fsrw)(target_ulong rs1, target_ulong rs2, target_ulong rs3)
+{
+    return do_fsl(rs1, -rs2, rs3, 32);
+}
+
 static target_ulong shuffle_stage(target_ulong src,
                                   uint64_t maskl,
                                   uint64_t maskr,

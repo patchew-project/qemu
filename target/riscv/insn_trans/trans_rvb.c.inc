@@ -428,6 +428,18 @@ static bool trans_cmov(DisasContext *ctx, arg_cmov *a)
     return gen_quat(ctx, a, EXT_NONE, gen_cmov);
 }
 
+static bool trans_fsl(DisasContext *ctx, arg_fsl *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_quat(ctx, a, EXT_NONE, gen_helper_fsl);
+}
+
+static bool trans_fsr(DisasContext *ctx, arg_fsr *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_quat(ctx, a, EXT_NONE, gen_helper_fsr);
+}
+
 #define GEN_SHADD(SHAMT)                                       \
 static void gen_sh##SHAMT##add(TCGv ret, TCGv arg1, TCGv arg2) \
 {                                                              \
@@ -826,4 +838,20 @@ static bool trans_bmator(DisasContext *ctx, arg_bmator *a)
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
     return gen_arith(ctx, a, EXT_NONE, gen_helper_bmator);
+}
+
+static bool trans_fslw(DisasContext *ctx, arg_fslw *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_EXT(ctx, RVB);
+    ctx->w = true;
+    return gen_quat(ctx, a, EXT_ZERO, gen_helper_fslw);
+}
+
+static bool trans_fsrw(DisasContext *ctx, arg_fsrw *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_EXT(ctx, RVB);
+    ctx->w = true;
+    return gen_quat(ctx, a, EXT_ZERO, gen_helper_fsrw);
 }
