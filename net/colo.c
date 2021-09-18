@@ -243,3 +243,23 @@ bool connection_has_tracked(GHashTable *connection_track_table,
 
     return conn ? true : false;
 }
+
+/* check the network driver related to COLO, return 1 if it is virtio-net */
+int vnet_driver_check(void *opaque, QemuOpts *opts, Error **errp)
+{
+    const char *driver_type, *netdev_from_driver;
+    char *netdev_from_filter = (char *)opaque;
+
+    driver_type = qemu_opt_get(opts, "driver");
+    netdev_from_driver = qemu_opt_get(opts, "netdev");
+
+    if (!driver_type || !netdev_from_driver || !netdev_from_filter) {
+        return 0;
+    }
+
+    if (g_str_has_prefix(driver_type, "virtio-net") &&
+        strcmp(netdev_from_driver, netdev_from_filter) == 0) {
+        return 1;
+    }
+    return 0;
+}

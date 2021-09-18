@@ -388,6 +388,16 @@ static void colo_rewriter_setup(NetFilterState *nf, Error **errp)
 {
     RewriterState *s = FILTER_REWRITER(nf);
 
+    if (!s->vnet_hdr &&
+        qemu_opts_foreach(qemu_find_opts("device"),
+                          vnet_driver_check, nf->netdev_id, NULL)) {
+        /*
+         * filter rewriter needs 'vnet_hdr_support' when colo filter modules
+         * work on virtio-net, add 'vnet_hdr_support' automatically
+         */
+        s->vnet_hdr = true;
+    }
+
     s->connection_track_table = g_hash_table_new_full(connection_key_hash,
                                                       connection_key_equal,
                                                       g_free,
