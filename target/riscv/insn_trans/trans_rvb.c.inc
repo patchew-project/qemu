@@ -369,6 +369,12 @@ static bool trans_xperm_h(DisasContext *ctx, arg_xperm_h *a)
     return gen_arith(ctx, a, EXT_NONE, gen_helper_xperm_h);
 }
 
+static bool trans_bfp(DisasContext *ctx, arg_bfp *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_arith(ctx, a, EXT_NONE, gen_helper_bfp);
+}
+
 #define GEN_TRANS_CLMUL(NAME)                               \
 static bool trans_##NAME(DisasContext *ctx, arg_##NAME * a) \
 {                                                           \
@@ -774,4 +780,12 @@ static bool trans_xperm_w(DisasContext *ctx, arg_xperm_w *a)
     REQUIRE_EXT(ctx, RVB);
     ctx->w = true;
     return gen_arith(ctx, a, EXT_NONE, gen_helper_xperm_w);
+}
+
+static bool trans_bfpw(DisasContext *ctx, arg_bfpw *a)
+{
+    REQUIRE_64BIT(ctx);
+    REQUIRE_EXT(ctx, RVB);
+    ctx->w = true;
+    return gen_arith(ctx, a, EXT_NONE, gen_helper_bfpw);
 }
