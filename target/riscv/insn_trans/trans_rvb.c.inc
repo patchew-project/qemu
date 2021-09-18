@@ -332,6 +332,32 @@ GEN_TRANS_CLMUL(clmul)
 GEN_TRANS_CLMUL(clmulh)
 GEN_TRANS_CLMUL(clmulr)
 
+static void gen_cmix(TCGv ret, TCGv arg1, TCGv arg2, TCGv arg3)
+{
+    tcg_gen_and_tl(arg1, arg1, arg2);
+    tcg_gen_not_tl(arg2, arg2);
+    tcg_gen_and_tl(arg3, arg3, arg2);
+    tcg_gen_or_tl(ret, arg1, arg3);
+}
+
+static void gen_cmov(TCGv ret, TCGv arg1, TCGv arg2, TCGv arg3)
+{
+    TCGv zero = tcg_const_tl(0);
+    tcg_gen_movcond_tl(TCG_COND_NE, ret, arg2, zero, arg1, arg3);
+}
+
+static bool trans_cmix(DisasContext *ctx, arg_cmix *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_quat(ctx, a, EXT_NONE, gen_cmix);
+}
+
+static bool trans_cmov(DisasContext *ctx, arg_cmov *a)
+{
+    REQUIRE_EXT(ctx, RVB);
+    return gen_quat(ctx, a, EXT_NONE, gen_cmov);
+}
+
 #define GEN_SHADD(SHAMT)                                       \
 static void gen_sh##SHAMT##add(TCGv ret, TCGv arg1, TCGv arg2) \
 {                                                              \

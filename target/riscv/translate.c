@@ -395,6 +395,20 @@ static bool gen_arith(DisasContext *ctx, arg_r *a, DisasExtend ext,
     return true;
 }
 
+static bool gen_quat(DisasContext *ctx, arg_r4 *a, DisasExtend ext,
+                     void (*func)(TCGv, TCGv, TCGv, TCGv))
+{
+    TCGv dest = dest_gpr(ctx, a->rd);
+    TCGv src1 = get_gpr(ctx, a->rs1, ext);
+    TCGv src2 = get_gpr(ctx, a->rs2, ext);
+    TCGv src3 = get_gpr(ctx, a->rs3, ext);
+
+    func(dest, src1, src2, src3);
+
+    gen_set_gpr(ctx, a->rd, dest);
+    return true;
+}
+
 static bool gen_shift_imm_fn(DisasContext *ctx, arg_shift *a, DisasExtend ext,
                              void (*func)(TCGv, TCGv, target_long))
 {
