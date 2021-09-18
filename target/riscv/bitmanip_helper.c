@@ -123,3 +123,85 @@ target_ulong HELPER(clmulr)(target_ulong rs1, target_ulong rs2)
 {
     return do_clmulr(rs1, rs2, TARGET_LONG_BITS);
 }
+
+static target_ulong shuffle_stage(target_ulong src,
+                                  uint64_t maskl,
+                                  uint64_t maskr,
+                                  int n)
+{
+    target_ulong x = src & ~(maskl | maskr);
+    x |= ((src << n) & maskl) | ((src >> n) & maskr);
+    return x;
+}
+
+static target_ulong do_shfl(target_ulong rs1,
+                            target_ulong rs2,
+                            int bits)
+{
+    target_ulong x = rs1;
+    int shamt = rs2 & ((bits - 1) >> 1);
+
+    if (shamt & 16) {
+        x = shuffle_stage(x, 0x0000ffff00000000LL, 0x00000000ffff0000LL, 16);
+    }
+    if (shamt & 8) {
+        x = shuffle_stage(x, 0x00ff000000ff0000LL, 0x0000ff000000ff00LL, 8);
+    }
+    if (shamt & 4) {
+        x = shuffle_stage(x, 0x0f000f000f000f00LL, 0x00f000f000f000f0LL, 4);
+    }
+    if (shamt & 2) {
+        x = shuffle_stage(x, 0x3030303030303030LL, 0x0c0c0c0c0c0c0c0cLL, 2);
+    }
+    if (shamt & 1) {
+        x = shuffle_stage(x, 0x4444444444444444LL, 0x2222222222222222LL, 1);
+    }
+
+    return x;
+}
+
+static target_ulong do_unshfl(target_ulong rs1,
+                              target_ulong rs2,
+                              int bits)
+{
+    target_ulong x = rs1;
+    int shamt = rs2 & ((bits - 1) >> 1);
+
+    if (shamt & 1) {
+        x = shuffle_stage(x, 0x4444444444444444LL, 0x2222222222222222LL, 1);
+    }
+    if (shamt & 2) {
+        x = shuffle_stage(x, 0x3030303030303030LL, 0x0c0c0c0c0c0c0c0cLL, 2);
+    }
+    if (shamt & 4) {
+        x = shuffle_stage(x, 0x0f000f000f000f00LL, 0x00f000f000f000f0LL, 4);
+    }
+    if (shamt & 8) {
+        x = shuffle_stage(x, 0x00ff000000ff0000LL, 0x0000ff000000ff00LL, 8);
+    }
+    if (shamt & 16) {
+        x = shuffle_stage(x, 0x0000ffff00000000LL, 0x00000000ffff0000LL, 16);
+    }
+
+    return x;
+}
+
+target_ulong HELPER(shfl)(target_ulong rs1, target_ulong rs2)
+{
+    return do_shfl(rs1, rs2, TARGET_LONG_BITS);
+}
+
+target_ulong HELPER(unshfl)(target_ulong rs1, target_ulong rs2)
+{
+    return do_unshfl(rs1, rs2, TARGET_LONG_BITS);
+}
+
+target_ulong HELPER(shflw)(target_ulong rs1, target_ulong rs2)
+{
+    return do_shfl(rs1, rs2, 32);
+}
+
+target_ulong HELPER(unshflw)(target_ulong rs1, target_ulong rs2)
+{
+    return do_unshfl(rs1, rs2, 32);
+}
