@@ -57,7 +57,7 @@ python = import('python').find_installation()
 
 supported_oses = ['windows', 'freebsd', 'netbsd', 'openbsd', 'darwin', 'sunos', 'linux']
 supported_cpus = ['ppc', 'ppc64', 's390x', 'riscv32', 'riscv64', 'x86', 'x86_64',
-  'arm', 'aarch64', 'mips', 'mips64', 'sparc', 'sparc64']
+  'arm', 'aarch64', 'loongarch64', 'mips', 'mips64', 'sparc', 'sparc64']
 
 cpu = host_machine.cpu_family()
 targetos = host_machine.system()
@@ -269,6 +269,8 @@ if not get_option('tcg').disabled()
     tcg_arch = 's390'
   elif config_host['ARCH'] in ['x86_64', 'x32']
     tcg_arch = 'i386'
+  elif config_host['ARCH'] == 'loongarch64'
+    tcg_arch = 'loongarch'
   elif config_host['ARCH'] == 'ppc64'
     tcg_arch = 'ppc'
   elif config_host['ARCH'] in ['riscv32', 'riscv64']
