@@ -297,6 +297,7 @@ static int lasi_get_irq(unsigned long hpa)
 DeviceState *lasi_init(MemoryRegion *address_space)
 {
     DeviceState *dev;
+    SysBusDevice *sbd;
     LasiState *s;
 
     dev = qdev_new(TYPE_LASI_CHIP);
@@ -340,7 +341,14 @@ DeviceState *lasi_init(MemoryRegion *address_space)
     /* PS/2 Keyboard/Mouse */
     qemu_irq ps2kbd_irq = qemu_allocate_irq(lasi_set_irq, s,
             lasi_get_irq(LASI_PS2KBD_HPA));
-    lasips2_init(address_space, LASI_PS2KBD_HPA,  ps2kbd_irq);
+
+    sbd = SYS_BUS_DEVICE(qdev_new(TYPE_LASIPS2));
+    sysbus_realize_and_unref(sbd, &error_fatal);
+    memory_region_add_subregion(address_space, LASI_PS2KBD_HPA,
+                                sysbus_mmio_get_region(sbd, 0));
+    memory_region_add_subregion(address_space, LASI_PS2MOU_HPA,
+                                sysbus_mmio_get_region(sbd, 1));
+    sysbus_connect_irq(sbd, 0, ps2kbd_irq);
 
     return dev;
 }

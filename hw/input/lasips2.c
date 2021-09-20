@@ -243,28 +243,46 @@ static void ps2dev_update_irq(void *opaque, int level)
     lasips2_update_irq(port->parent);
 }
 
-void lasips2_init(MemoryRegion *address_space,
-                  hwaddr base, qemu_irq irq)
+static void lasips2_init(Object *obj)
 {
-    LASIPS2State *s;
+    LASIPS2State *s = LASIPS2(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    s = g_malloc0(sizeof(LASIPS2State));
-
-    s->irq = irq;
+    sysbus_init_irq(sbd, &s->irq);
     s->mouse.id = 1;
     s->kbd.parent = s;
     s->mouse.parent = s;
-
-    vmstate_register(NULL, base, &vmstate_lasips2, s);
 
     s->kbd.dev = ps2_kbd_init(ps2dev_update_irq, &s->kbd);
     s->mouse.dev = ps2_mouse_init(ps2dev_update_irq, &s->mouse);
 
     memory_region_init_io(&s->kbd.reg, NULL, &lasips2_reg_ops, &s->kbd,
                           "lasips2-kbd", 0x100);
-    memory_region_add_subregion(address_space, base, &s->kbd.reg);
+    sysbus_init_mmio(sbd, &s->kbd.reg);
 
     memory_region_init_io(&s->mouse.reg, NULL, &lasips2_reg_ops, &s->mouse,
                           "lasips2-mouse", 0x100);
-    memory_region_add_subregion(address_space, base + 0x100, &s->mouse.reg);
+    sysbus_init_mmio(sbd, &s->mouse.reg);
 }
+
+static void lasips2_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+
+    dc->vmsd = &vmstate_lasips2;
+}
+
+static const TypeInfo lasips2_info = {
+    .name          = TYPE_LASIPS2,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(LASIPS2State),
+    .instance_init = lasips2_init,
+    .class_init    = lasips2_class_init,
+};
+
+static void lasips2_register_types(void)
+{
+    type_register_static(&lasips2_info);
+}
+
+type_init(lasips2_register_types)
