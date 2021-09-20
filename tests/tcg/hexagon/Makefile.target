@@ -37,7 +37,10 @@ HEX_TESTS += circ
 HEX_TESTS += brev
 HEX_TESTS += load_unpack
 HEX_TESTS += load_align
+HEX_TESTS += vector_add_int
 HEX_TESTS += atomics
 HEX_TESTS += fpstuff
 
 TESTS += $(HEX_TESTS)
+
+vector_add_int: CFLAGS += -mhvx -fvectorize
