@@ -457,6 +457,42 @@ static void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGReg arg1,
     tcg_out32(s, encode_djsk16_insn(op, arg1, arg2, 0));
 }
 
+static void tcg_out_call_int(TCGContext *s, const tcg_insn_unit *arg, bool tail)
+{
+    TCGReg link = tail ? TCG_REG_ZERO : TCG_REG_RA;
+    ptrdiff_t offset = tcg_pcrel_diff(s, arg);
+    int ret;
+
+    tcg_debug_assert((offset & 2) == 0);
+    if (offset == sextreg(offset, 0, 28)) {
+        /* short jump: +/- 256MiB */
+        if (tail) {
+            tcg_out_opc_b(s, offset >> 2);
+        } else {
+            tcg_out_opc_bl(s, offset >> 2);
+        }
+    } else if (TCG_TARGET_REG_BITS == 32 || offset == (int32_t)offset) {
+        /* long jump: +/- 2GiB */
+        tcg_out_opc_pcaddu12i(s, TCG_REG_TMP0, 0);
+        tcg_out_opc_jirl(s, link, TCG_REG_TMP0, 0);
+        ret = reloc_call(s->code_ptr - 2, arg);
+        tcg_debug_assert(ret == true);
+    } else if (TCG_TARGET_REG_BITS == 64) {
+        /* far jump: 64-bit */
+        tcg_target_long imm = sextreg((tcg_target_long)arg, 0, 12);
+        tcg_target_long base = (tcg_target_long)arg - imm;
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_TMP0, base);
+        tcg_out_opc_jirl(s, link, TCG_REG_TMP0, imm >> 2);
+    } else {
+        g_assert_not_reached();
+    }
+}
+
+static void tcg_out_call(TCGContext *s, const tcg_insn_unit *arg)
+{
+    tcg_out_call_int(s, arg, false);
+}
+
 /*
  * Entry-points
  */
@@ -779,6 +815,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
 
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_mov_i64:
+    case INDEX_op_call:     /* Always emitted via tcg_out_call.  */
     default:
         g_assert_not_reached();
     }
