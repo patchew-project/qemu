@@ -23,6 +23,11 @@
 #if !defined(CONFIG_USER_ONLY) || !defined(TARGET_AARCH64)
 
 #if !defined(CONFIG_USER_ONLY) && defined(CONFIG_TCG)
+static bool arm_v7m_cpu_has_work(CPUState *cs)
+{
+    return cs->interrupt_request & CPU_INTERRUPT_HARD;
+}
+
 static bool arm_v7m_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 {
     CPUClass *cc = CPU_GET_CLASS(cs);
@@ -920,6 +925,7 @@ static void arm_v7m_class_init(ObjectClass *oc, void *data)
 
     acc->info = data;
 #ifdef CONFIG_TCG
+    cc->has_work = arm_v7m_cpu_has_work;
     cc->tcg_ops = &arm_v7m_tcg_ops;
 #endif /* CONFIG_TCG */
 
