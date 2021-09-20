@@ -1451,10 +1451,43 @@ void hmp_set_password(Monitor *mon, const QDict *qdict)
 {
     const char *protocol  = qdict_get_str(qdict, "protocol");
     const char *password  = qdict_get_str(qdict, "password");
+    const char *display = qdict_get_try_str(qdict, "display");
     const char *connected = qdict_get_try_str(qdict, "connected");
     Error *err = NULL;
+    DisplayProtocol proto;
 
-    qmp_set_password(protocol, password, !!connected, connected, &err);
+    SetPasswordOptions opts = {
+        .password = g_strdup(password),
+        .u.vnc.display = NULL,
+    };
+
+    proto = qapi_enum_parse(&DisplayProtocol_lookup, protocol,
+                            DISPLAY_PROTOCOL_VNC, &err);
+    if (err) {
+        hmp_handle_error(mon, err);
+        return;
+    }
+    opts.protocol = proto;
+
+    if (proto == DISPLAY_PROTOCOL_VNC) {
+        if ((opts.u.vnc.has_display = !!display)) {
+            opts.u.vnc.display = g_strdup(display);
+        }
+    } else if (proto == DISPLAY_PROTOCOL_SPICE) {
+        if ((opts.u.spice.has_connected = !!connected)) {
+            opts.u.spice.connected =
+                qapi_enum_parse(&SetPasswordAction_lookup, connected,
+                                SET_PASSWORD_ACTION_KEEP, &err);
+            if (err) {
+                hmp_handle_error(mon, err);
+                return;
+            }
+        }
+    }
+
+    qmp_set_password(&opts, &err);
+    g_free(opts.password);
+    g_free(opts.u.vnc.display);
     hmp_handle_error(mon, err);
 }
 
@@ -1462,9 +1495,32 @@ void hmp_expire_password(Monitor *mon, const QDict *qdict)
 {
     const char *protocol  = qdict_get_str(qdict, "protocol");
     const char *whenstr = qdict_get_str(qdict, "time");
+    const char *display = qdict_get_try_str(qdict, "display");
     Error *err = NULL;
+    DisplayProtocol proto;
 
-    qmp_expire_password(protocol, whenstr, &err);
+    ExpirePasswordOptions opts = {
+        .time = g_strdup(whenstr),
+        .u.vnc.display = NULL,
+    };
+
+    proto = qapi_enum_parse(&DisplayProtocol_lookup, protocol,
+                            DISPLAY_PROTOCOL_VNC, &err);
+    if (err) {
+        hmp_handle_error(mon, err);
+        return;
+    }
+    opts.protocol = proto;
+
+    if (proto == DISPLAY_PROTOCOL_VNC) {
+        if ((opts.u.vnc.has_display = !!display)) {
+            opts.u.vnc.display = g_strdup(display);
+        }
+    }
+
+    qmp_expire_password(&opts, &err);
+    g_free(opts.time);
+    g_free(opts.u.vnc.display);
     hmp_handle_error(mon, err);
 }
 

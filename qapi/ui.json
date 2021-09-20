@@ -10,20 +10,21 @@
 { 'include': 'sockets.json' }
 
 ##
+# @DisplayProtocol:
+#
+# Display protocols which support changing password options.
+#
+# Since: 6.2
+#
+##
+{ 'enum': 'DisplayProtocol',
+  'data': [ { 'name': 'vnc', 'if': 'CONFIG_VNC' },
+            { 'name': 'spice', 'if': 'CONFIG_SPICE' } ] }
+
+##
 # @set_password:
 #
 # Sets the password of a remote display session.
-#
-# @protocol: - 'vnc' to modify the VNC server password
-#            - 'spice' to modify the Spice server password
-#
-# @password: the new password
-#
-# @connected: how to handle existing clients when changing the
-#             password.  If nothing is specified, defaults to 'keep'
-#             'fail' to fail the command if clients are connected
-#             'disconnect' to disconnect existing clients
-#             'keep' to maintain existing clients
 #
 # Returns: - Nothing on success
 #          - If Spice is not enabled, DeviceNotFound
@@ -37,32 +38,100 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'set_password',
-  'data': {'protocol': 'str', 'password': 'str', '*connected': 'str'} }
+{ 'command': 'set_password', 'boxed': true, 'data': 'SetPasswordOptions' }
+
+##
+# @SetPasswordOptions:
+#
+# Data required to set a new password on a display server protocol.
+#
+# @protocol: - 'vnc' to modify the VNC server password
+#            - 'spice' to modify the Spice server password
+#
+# @password: the new password
+#
+# Since: 6.2
+#
+##
+{ 'union': 'SetPasswordOptions',
+  'base': { 'protocol': 'DisplayProtocol',
+            'password': 'str' },
+  'discriminator': 'protocol',
+  'data': { 'vnc': 'SetPasswordOptionsVnc',
+            'spice': 'SetPasswordOptionsSpice' } }
+
+##
+# @SetPasswordAction:
+#
+# An action to take on changing a password on a connection with active clients.
+#
+# @fail: fail the command if clients are connected
+#
+# @disconnect: disconnect existing clients
+#
+# @keep: maintain existing clients
+#
+# Since: 6.2
+#
+##
+{ 'enum': 'SetPasswordAction',
+  'data': [ 'fail', 'disconnect', 'keep' ] }
+
+##
+# @SetPasswordActionVnc:
+#
+# See @SetPasswordAction. VNC only supports the keep action. 'connection'
+# should just be omitted for VNC, this is kept for backwards compatibility.
+#
+# @keep: maintain existing clients
+#
+# Since: 6.2
+#
+##
+{ 'enum': 'SetPasswordActionVnc',
+  'data': [ 'keep' ] }
+
+##
+# @SetPasswordOptionsSpice:
+#
+# Options for set_password specific to the VNC procotol.
+#
+# @connected: How to handle existing clients when changing the
+#             password. If nothing is specified, defaults to 'keep'.
+#
+# Since: 6.2
+#
+##
+{ 'struct': 'SetPasswordOptionsSpice',
+  'data': { '*connected': 'SetPasswordAction' } }
+
+##
+# @SetPasswordOptionsVnc:
+#
+# Options for set_password specific to the VNC procotol.
+#
+# @display: The id of the display where the password should be changed.
+#           Defaults to the first.
+#
+# @connected: How to handle existing clients when changing the
+#             password. Will always be 'keep' for VNC, parameter is
+#             deprecated and should be omitted.
+#
+# Since: 6.2
+#
+##
+{ 'struct': 'SetPasswordOptionsVnc',
+  'data': { '*display': 'str', '*connected': 'SetPasswordActionVnc' } }
 
 ##
 # @expire_password:
 #
 # Expire the password of a remote display server.
 #
-# @protocol: the name of the remote display protocol 'vnc' or 'spice'
-#
-# @time: when to expire the password.
-#
-#        - 'now' to expire the password immediately
-#        - 'never' to cancel password expiration
-#        - '+INT' where INT is the number of seconds from now (integer)
-#        - 'INT' where INT is the absolute time in seconds
-#
 # Returns: - Nothing on success
 #          - If @protocol is 'spice' and Spice is not active, DeviceNotFound
 #
 # Since: 0.14
-#
-# Notes: Time is relative to the server and currently there is no way to
-#        coordinate server time with client time.  It is not recommended to
-#        use the absolute time version of the @time parameter unless you're
-#        sure you are on the same machine as the QEMU instance.
 #
 # Example:
 #
@@ -71,7 +140,50 @@
 # <- { "return": {} }
 #
 ##
-{ 'command': 'expire_password', 'data': {'protocol': 'str', 'time': 'str'} }
+{ 'command': 'expire_password', 'boxed': true, 'data': 'ExpirePasswordOptions' }
+
+##
+# @ExpirePasswordOptions:
+#
+# Data required to set password expiration on a display server protocol.
+#
+# @protocol: - 'vnc' to modify the VNC server expiration
+#            - 'spice' to modify the Spice server expiration
+
+# @time: when to expire the password.
+#
+#        - 'now' to expire the password immediately
+#        - 'never' to cancel password expiration
+#        - '+INT' where INT is the number of seconds from now (integer)
+#        - 'INT' where INT is the absolute time in seconds
+#
+# Notes: Time is relative to the server and currently there is no way to
+#        coordinate server time with client time.  It is not recommended to
+#        use the absolute time version of the @time parameter unless you're
+#        sure you are on the same machine as the QEMU instance.
+#
+# Since: 6.2
+#
+##
+{ 'union': 'ExpirePasswordOptions',
+  'base': { 'protocol': 'DisplayProtocol',
+            'time': 'str' },
+  'discriminator': 'protocol',
+  'data': { 'vnc': 'ExpirePasswordOptionsVnc' } }
+
+##
+# @ExpirePasswordOptionsVnc:
+#
+# Options for expire_password specific to the VNC procotol.
+#
+# @display: The id of the display where the expiration should be changed.
+#           Defaults to the first.
+#
+# Since: 6.2
+#
+##
+{ 'struct': 'ExpirePasswordOptionsVnc',
+  'data': { '*display': 'str' } }
 
 ##
 # @screendump:
