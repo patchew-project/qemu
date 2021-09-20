@@ -166,6 +166,11 @@ void HELPER(commit_store)(CPUHexagonState *env, int slot_num)
     }
 }
 
+void HELPER(gather_store)(CPUHexagonState *env, uint32_t addr, int slot)
+{
+    mem_gather_store(env, addr, slot);
+}
+
 void HELPER(commit_hvx_stores)(CPUHexagonState *env)
 {
     uintptr_t ra = GETPC();
