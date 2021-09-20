@@ -164,3 +164,87 @@ static bool tcg_target_const_match(int64_t val, TCGType type, int ct)
     }
     return 0;
 }
+
+/*
+ * Relocations
+ */
+
+/*
+ * Relocation records defined in LoongArch ELF psABI v1.00 is way too much
+ * complicated; a whopping stack machine is needed to stuff the fields, at
+ * the very least one SOP_PUSH and one SOP_POP (of the correct format) are
+ * needed.
+ *
+ * Hence, define our own simpler relocation types. Numbers are chosen as to
+ * not collide with potential future additions to the true ELF relocation
+ * type enum.
+ */
+
+/* Field Sk16; suitable for conditional jumps */
+#define R_LOONGARCH_SK16    256
+/* Field Sd10k16; suitable for B and BL */
+#define R_LOONGARCH_SD10K16 257
+
+static bool reloc_sk16(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
+{
+    const tcg_insn_unit *src_rx = tcg_splitwx_to_rx(src_rw);
+    intptr_t offset = (intptr_t)target - (intptr_t)src_rx;
+
+    tcg_debug_assert((offset & 2) == 0);
+    offset >>= 2;
+    if (offset == sextreg(offset, 0, 16)) {
+        *src_rw |= (offset << 10) & 0x3fffc00;
+        return true;
+    }
+
+    return false;
+}
+
+static bool reloc_sd10k16(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
+{
+    const tcg_insn_unit *src_rx = tcg_splitwx_to_rx(src_rw);
+    intptr_t offset = (intptr_t)target - (intptr_t)src_rx;
+
+    tcg_debug_assert((offset & 2) == 0);
+    offset >>= 2;
+    if (offset == sextreg(offset, 0, 26)) {
+        *src_rw |= (offset >> 16) & 0x3ff; /* slot d10 */
+        *src_rw |= ((offset & 0xffff) << 10) & 0x3fffc00; /* slot k16 */
+        return true;
+    }
+
+    return false;
+}
+
+static bool reloc_call(tcg_insn_unit *src_rw, const tcg_insn_unit *target)
+{
+    const tcg_insn_unit *src_rx = tcg_splitwx_to_rx(src_rw);
+    intptr_t offset = (intptr_t)target - (intptr_t)src_rx;
+    int32_t lo = sextreg(offset, 0, 12);
+    int32_t hi = offset - lo;
+
+    tcg_debug_assert((offset & 2) == 0);
+    if (offset == hi + lo) {
+        hi >>= 12;
+        src_rw[0] |= (hi << 5) & 0x1ffffe0; /* pcaddu12i's Sj20 imm */
+        lo >>= 2;
+        src_rw[1] |= (lo << 10) & 0x3fffc00; /* jirl's Sk16 imm */
+        return true;
+    }
+
+    return false;
+}
+
+static bool patch_reloc(tcg_insn_unit *code_ptr, int type,
+                        intptr_t value, intptr_t addend)
+{
+    tcg_debug_assert(addend == 0);
+    switch (type) {
+    case R_LOONGARCH_SK16:
+        return reloc_sk16(code_ptr, (tcg_insn_unit *)value);
+    case R_LOONGARCH_SD10K16:
+        return reloc_sd10k16(code_ptr, (tcg_insn_unit *)value);
+    default:
+        g_assert_not_reached();
+    }
+}
