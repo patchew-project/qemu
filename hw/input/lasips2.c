@@ -33,24 +33,6 @@
 #include "hw/irq.h"
 
 
-struct LASIPS2State;
-typedef struct LASIPS2Port {
-    struct LASIPS2State *parent;
-    MemoryRegion reg;
-    void *dev;
-    uint8_t id;
-    uint8_t control;
-    uint8_t buf;
-    bool loopback_rbne;
-    bool irq;
-} LASIPS2Port;
-
-typedef struct LASIPS2State {
-    LASIPS2Port kbd;
-    LASIPS2Port mouse;
-    qemu_irq irq;
-} LASIPS2State;
-
 static const VMStateDescription vmstate_lasips2 = {
     .name = "lasips2",
     .version_id = 0,
