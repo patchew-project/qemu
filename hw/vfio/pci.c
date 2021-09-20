@@ -423,11 +423,23 @@ static void vfio_add_kvm_msi_virq(VFIOPCIDevice *vdev, VFIOMSIVector *vector,
         return;
     }
 
-    virq = kvm_irqchip_add_msi_route(kvm_state, vector_n, &vdev->pdev);
+    virq = kvm_irqchip_add_deferred_msi_route(kvm_state, vector_n, &vdev->pdev);
     if (virq < 0) {
         event_notifier_cleanup(&vector->kvm_interrupt);
         return;
     }
+
+    if (vdev->defer_kvm_irq_routing) {
+        /*
+         * Hold the allocated virq in vector->virq temporarily, will
+         * reset it to -1 when we fail to add the corresponding irqfd
+         * in vfio_commit_kvm_msi_virq().
+         */
+        vector->virq = virq;
+        return;
+    }
+
+    kvm_irqchip_commit_routes(kvm_state);
 
     if (kvm_irqchip_add_irqfd_notifier_gsi(kvm_state, &vector->kvm_interrupt,
                                        NULL, virq) < 0) {
@@ -563,6 +575,35 @@ static void vfio_msix_vector_release(PCIDevice *pdev, unsigned int nr)
         if (vfio_set_irq_signaling(&vdev->vbasedev, VFIO_PCI_MSIX_IRQ_INDEX, nr,
                                    VFIO_IRQ_SET_ACTION_TRIGGER, fd, &err)) {
             error_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
+        }
+    }
+}
+
+/* TODO: invoked when enclabe msi/msix vectors */
+static __attribute__((unused)) void vfio_commit_kvm_msi_virq(VFIOPCIDevice *vdev)
+{
+    int i;
+    VFIOMSIVector *vector;
+
+    if (!vdev->defer_kvm_irq_routing || !vdev->nr_vectors) {
+        return;
+    }
+
+    kvm_irqchip_commit_routes(kvm_state);
+
+    for (i = 0; i < vdev->nr_vectors; i++) {
+        vector = &vdev->msi_vectors[i];
+
+        if (!vector->use || vector->virq < 0) {
+            continue;
+        }
+
+        if (kvm_irqchip_add_irqfd_notifier_gsi(kvm_state,
+                                               &vector->kvm_interrupt,
+                                               NULL, vector->virq) < 0) {
+            kvm_irqchip_release_virq(kvm_state, vector->virq);
+            event_notifier_cleanup(&vector->kvm_interrupt);
+            vector->virq = -1;
         }
     }
 }
