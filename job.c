@@ -217,6 +217,11 @@ const char *job_type_str(const Job *job)
 
 bool job_is_cancelled(Job *job)
 {
+    return job->cancelled && job->force_cancel;
+}
+
+bool job_cancel_requested(Job *job)
+{
     return job->cancelled;
 }
 
@@ -788,7 +793,7 @@ static void job_completed_txn_abort(Job *job)
         ctx = other_job->aio_context;
         aio_context_acquire(ctx);
         if (!job_is_completed(other_job)) {
-            assert(job_is_cancelled(other_job));
+            assert(job_cancel_requested(other_job));
             job_finish_sync(other_job, NULL, NULL);
         }
         job_finalize_single(other_job);
@@ -1027,7 +1032,7 @@ void job_complete(Job *job, Error **errp)
     if (job_apply_verb(job, JOB_VERB_COMPLETE, errp)) {
         return;
     }
-    if (job_is_cancelled(job) || !job->driver->complete) {
+    if (job_cancel_requested(job) || !job->driver->complete) {
         error_setg(errp, "The active block job '%s' cannot be completed",
                    job->id);
         return;
