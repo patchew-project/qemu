@@ -1121,12 +1121,6 @@ static inline bool is_a64(CPUARMState *env)
     return env->aarch64;
 }
 
-/* you can call this signal handler from your SIGBUS and SIGSEGV
-   signal handlers to inform the virtual CPU of exceptions. non zero
-   is returned if the signal was handled by the virtual CPU.  */
-int cpu_arm_signal_handler(int host_signum, void *pinfo,
-                           void *puc);
-
 /**
  * pmu_op_start/finish
  * @env: CPUARMState
@@ -3015,7 +3009,6 @@ bool write_cpustate_to_list(ARMCPU *cpu, bool kvm_sync);
 #define ARM_CPU_TYPE_NAME(name) (name ARM_CPU_TYPE_SUFFIX)
 #define CPU_RESOLVING_TYPE TYPE_ARM_CPU
 
-#define cpu_signal_handler cpu_arm_signal_handler
 #define cpu_list arm_cpu_list
 
 /* ARM has the following "translation regimes" (as the ARM ARM calls them):
