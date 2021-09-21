@@ -659,6 +659,8 @@ elif check_define __arm__ ; then
   cpu="arm"
 elif check_define __aarch64__ ; then
   cpu="aarch64"
+elif check_define __loongarch64 ; then
+  cpu="loongarch64"
 else
   cpu=$(uname -m)
 fi
@@ -667,7 +669,7 @@ ARCH=
 # Normalise host CPU name and set ARCH.
 # Note that this case should only have supported host CPUs, not guests.
 case "$cpu" in
-  ppc|ppc64|s390x|sparc64|x32|riscv32|riscv64)
+  ppc|ppc64|s390x|sparc64|x32|riscv32|riscv64|loongarch64)
   ;;
   ppc64le)
     ARCH="ppc64"
@@ -4968,6 +4970,9 @@ if test "$linux" = "yes" ; then
     ;;
   aarch64)
     linux_arch=arm64
+    ;;
+  loongarch*)
+    linux_arch=loongarch
     ;;
   mips64)
     linux_arch=mips
