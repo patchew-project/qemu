@@ -33,4 +33,7 @@ struct VHostVSock {
     /*< public >*/
 };
 
+#define MAX_VQS_WITHOUT_DGRAM 2
+#define MAX_VQS_WITH_DGRAM 4
+
 #endif /* QEMU_VHOST_VSOCK_H */
