@@ -8,3 +8,9 @@ bsd_user_ss.add(files(
   'syscall.c',
   'uaccess.c',
 ))
+
+# Pull in the OS-specific build glue, if any
+if fs.exists(targetos)
+   subdir(targetos)
+endif
+
