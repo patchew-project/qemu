@@ -1312,3 +1312,59 @@
      '*cores': 'int',
      '*threads': 'int',
      '*maxcpus': 'int' } }
+
+##
+# @MachineInitPhase:
+#
+# Enumeration of machine initialization phases.
+#
+# @no-machine: machine does not exist
+#
+# @machine-created: machine is created, but its accelerator is not
+#
+# @accel-created: accelerator is created, but the machine properties have not
+#                 been validated and machine initialization is not done yet
+#
+# @initialized: machine is initialized, thus creating any embedded devices and
+#               validating machine properties. Devices created at this time are
+#               considered to be cold-plugged.
+#
+# @ready: QEMU is ready to start CPUs and devices created at this time are
+#         considered to be hot-plugged. The monitor is not restricted to
+#         "preconfig" commands.
+#
+# Since: 6.2
+##
+{ 'enum': 'MachineInitPhase',
+  'data': [ 'no-machine', 'machine-created', 'accel-created', 'initialized',
+            'ready' ] }
+
+##
+# @MachineInitPhaseStatus:
+#
+# Information about machine initialization phase
+#
+# @phase: the machine initialization phase
+#
+# Since: 6.2
+##
+{ 'struct': 'MachineInitPhaseStatus',
+  'data': { 'phase': 'MachineInitPhase' } }
+
+##
+# @query-machine-phase:
+#
+# Return machine initialization phase
+#
+# Since: 6.2
+#
+# Returns: MachineInitPhaseStatus
+#
+# Example:
+#
+# -> { "execute": "query-machine-phase" }
+# <- { "return": { "phase": "initialized" } }
+#
+##
+{ 'command': 'query-machine-phase', 'returns': 'MachineInitPhaseStatus',
+             'allow-preconfig': true }

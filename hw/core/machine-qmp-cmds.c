@@ -204,3 +204,12 @@ MemdevList *qmp_query_memdev(Error **errp)
     object_child_foreach(obj, query_memdev, &list);
     return list;
 }
+
+MachineInitPhaseStatus *qmp_query_machine_phase(Error **errp)
+{
+    MachineInitPhaseStatus *status = g_malloc0(sizeof(*status));
+
+    status->phase = phase_get();
+
+    return status;
+}

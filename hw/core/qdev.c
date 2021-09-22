@@ -1150,6 +1150,11 @@ void phase_advance(MachineInitPhase phase)
     machine_phase = phase;
 }
 
+MachineInitPhase phase_get(void)
+{
+    return machine_phase;
+}
+
 static const TypeInfo device_type_info = {
     .name = TYPE_DEVICE,
     .parent = TYPE_OBJECT,
