@@ -1078,6 +1078,23 @@ static target_ulong h_int_set_source_config(PowerPCCPU *cpu,
     if (spapr_xive_in_kernel(xive)) {
         Error *local_err = NULL;
 
+        /*
+         * Initialize the vCPU IPIs from the vCPU context to allocate
+         * the backing HW IPI on the local chip. This improves
+         * distribution of the IPIs in the system and when the vCPUs
+         * are pinned, it reduces rerouting between interrupt
+         * controllers for better performance.
+         */
+        if (lisn < SPAPR_XIRQ_BASE) {
+            XiveSource *xsrc = &xive->source;
+
+            kvmppc_xive_source_reset_one(xsrc, lisn, &local_err);
+            if (local_err) {
+                error_report_err(local_err);
+                return H_HARDWARE;
+            }
+        }
+
         kvmppc_xive_set_source_config(xive, lisn, &new_eas, &local_err);
         if (local_err) {
             error_report_err(local_err);

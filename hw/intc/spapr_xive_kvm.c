@@ -254,7 +254,12 @@ static int kvmppc_xive_source_reset(XiveSource *xsrc, Error **errp)
     SpaprXive *xive = SPAPR_XIVE(xsrc->xive);
     int i;
 
-    for (i = 0; i < xsrc->nr_irqs; i++) {
+    /*
+     * vCPU IPIs are initialized at the KVM level when configured by
+     * H_INT_SET_SOURCE_CONFIG.
+     */
+
+    for (i = SPAPR_XIRQ_BASE; i < xsrc->nr_irqs; i++) {
         int ret;
 
         if (!xive_eas_is_valid(&xive->eat[i])) {
@@ -330,6 +335,27 @@ uint64_t kvmppc_xive_esb_rw(XiveSource *xsrc, int srcno, uint32_t offset,
     }
 }
 
+static bool xive_source_is_initialized(SpaprXive *xive, int lisn)
+{
+    assert(lisn < xive->nr_irqs);
+
+    if (!xive_eas_is_valid(&xive->eat[lisn])) {
+        return false;
+    }
+
+    /*
+     * vCPU IPIs are initialized at the KVM level when configured by
+     * H_INT_SET_SOURCE_CONFIG, in which case, we should have a valid
+     * target (server, priority) in the END.
+     */
+    if (lisn < SPAPR_XIRQ_BASE) {
+        return !!xive_get_field64(EAS_END_INDEX, xive->eat[lisn].w);
+    }
+
+    /* Device sources */
+    return true;
+}
+
 static void kvmppc_xive_source_get_state(XiveSource *xsrc)
 {
     SpaprXive *xive = SPAPR_XIVE(xsrc->xive);
@@ -338,7 +364,7 @@ static void kvmppc_xive_source_get_state(XiveSource *xsrc)
     for (i = 0; i < xsrc->nr_irqs; i++) {
         uint8_t pq;
 
-        if (!xive_eas_is_valid(&xive->eat[i])) {
+        if (!xive_source_is_initialized(xive, i)) {
             continue;
         }
 
@@ -521,7 +547,7 @@ static void kvmppc_xive_change_state_handler(void *opaque, bool running,
             uint8_t pq;
             uint8_t old_pq;
 
-            if (!xive_eas_is_valid(&xive->eat[i])) {
+            if (!xive_source_is_initialized(xive, i)) {
                 continue;
             }
 
@@ -549,7 +575,7 @@ static void kvmppc_xive_change_state_handler(void *opaque, bool running,
     for (i = 0; i < xsrc->nr_irqs; i++) {
         uint8_t pq;
 
-        if (!xive_eas_is_valid(&xive->eat[i])) {
+        if (!xive_source_is_initialized(xive, i)) {
             continue;
         }
 
@@ -654,7 +680,7 @@ int kvmppc_xive_post_load(SpaprXive *xive, int version_id)
 
     /* Restore the EAT */
     for (i = 0; i < xive->nr_irqs; i++) {
-        if (!xive_eas_is_valid(&xive->eat[i])) {
+        if (!xive_source_is_initialized(xive, i)) {
             continue;
         }
 
