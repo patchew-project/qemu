@@ -1368,3 +1368,26 @@
 ##
 { 'command': 'query-machine-phase', 'returns': 'MachineInitPhaseStatus',
              'allow-preconfig': true }
+
+##
+# @x-machine-init:
+#
+# Enter machine initialized phase
+#
+# Since: 6.2
+#
+# Returns: If successful, nothing
+#
+# Notes: This command will trigger QEMU to execute initialization steps
+#        that are required to enter the machine initialized phase. The command
+#        is available only if the -preconfig command line option was passed and
+#        if the machine is currently in the accel-created phase. To exit the
+#        machine initialized phase use the x-exit-preconfig command.
+#
+# Example:
+#
+# -> { "execute": "x-machine-init" }
+# <- { "return": {} }
+#
+##
+{ 'command': 'x-machine-init', 'allow-preconfig': true }

@@ -123,6 +123,7 @@
 #include "qapi/qapi-visit-qom.h"
 #include "qapi/qapi-commands-ui.h"
 #include "qapi/qmp/qdict.h"
+#include "qapi/qapi-commands-machine.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/iothread.h"
 #include "qemu/guest-random.h"
@@ -2610,9 +2611,15 @@ static void qemu_init_displays(void)
     }
 }
 
-static void qemu_init_board(void)
+void qmp_x_machine_init(Error **errp)
 {
     MachineClass *machine_class = MACHINE_GET_CLASS(current_machine);
+
+    if (phase_check(MACHINE_INIT_PHASE_INITIALIZED)) {
+        error_setg(errp, "The command is permitted only before "
+                         "the machine is initialized");
+        return;
+    }
 
     if (machine_class->default_ram_id && current_machine->ram_size &&
         numa_uses_legacy_mem() && !current_machine->ram_memdev_id) {
@@ -2692,12 +2699,16 @@ static void qemu_machine_creation_done(void)
 
 void qmp_x_exit_preconfig(Error **errp)
 {
-    if (phase_check(MACHINE_INIT_PHASE_INITIALIZED)) {
-        error_setg(errp, "The command is permitted only before machine initialization");
+    if (phase_check(MACHINE_INIT_PHASE_READY)) {
+        error_setg(errp, "The command is permitted only before "
+                         "the machine is ready");
         return;
     }
 
-    qemu_init_board();
+    if (!phase_check(MACHINE_INIT_PHASE_INITIALIZED)) {
+        qmp_x_machine_init(errp);
+    }
+
     qemu_create_cli_devices();
     qemu_machine_creation_done();
 
