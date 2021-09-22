@@ -269,8 +269,13 @@ static DeviceClass *qdev_get_device_class(const char **driver, Error **errp)
         return NULL;
     }
 
-    if (object_class_dynamic_cast(oc, TYPE_SYS_BUS_DEVICE)) {
-        /* sysbus devices need to be allowed by the machine */
+    if (object_class_dynamic_cast(oc, TYPE_SYS_BUS_DEVICE) &&
+        phase_check(MACHINE_INIT_PHASE_READY)) {
+        /*
+         * Sysbus devices need to be allowed by the machine.
+         * We only check that after the machine is ready in order to let
+         * us add any user_creatable sysbus device during machine creation.
+         */
         MachineClass *mc = MACHINE_CLASS(object_get_class(qdev_get_machine()));
         if (!machine_class_is_dynamic_sysbus_dev_allowed(mc, *driver)) {
             error_setg(errp, "'%s' is not an allowed pluggable sysbus device "
