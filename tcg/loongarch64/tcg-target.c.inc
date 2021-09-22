@@ -247,6 +247,93 @@ static void tcg_out_mb(TCGContext *s, TCGArg a0)
     tcg_out_opc_dbar(s, 0);
 }
 
+static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
+{
+    if (ret == arg) {
+        return true;
+    }
+    switch (type) {
+    case TCG_TYPE_I32:
+    case TCG_TYPE_I64:
+        /*
+         * Conventional register-register move used in LoongArch is
+         * `or dst, src, zero`.
+         */
+        tcg_out_opc_or(s, ret, arg, TCG_REG_ZERO);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return true;
+}
+
+static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
+                         tcg_target_long val)
+{
+    if (type == TCG_TYPE_I32) {
+        val = (int32_t)val;
+    }
+
+    /* Single-instruction cases.  */
+    tcg_target_long low = sextreg(val, 0, 12);
+    if (low == val) {
+        /* val fits in simm12: addi.w rd, zero, val */
+        tcg_out_opc_addi_w(s, rd, TCG_REG_ZERO, val);
+        return;
+    }
+    if (0x800 <= val && val <= 0xfff) {
+        /* val fits in uimm12: ori rd, zero, val */
+        tcg_out_opc_ori(s, rd, TCG_REG_ZERO, val);
+        return;
+    }
+
+    /* Test for PC-relative values that can be loaded faster.  */
+    intptr_t pc_offset = tcg_pcrel_diff(s, (void *)val);
+    if (pc_offset == sextreg(pc_offset, 0, 22) && (pc_offset & 3) == 0) {
+        tcg_out_opc_pcaddu2i(s, rd, pc_offset >> 2);
+        return;
+    }
+    if (pc_offset == (int32_t)pc_offset) {
+        tcg_target_long lo = sextreg(pc_offset, 0, 12);
+        tcg_target_long hi = pc_offset - lo;
+        tcg_out_opc_pcaddu12i(s, rd, hi >> 12);
+        tcg_out_opc_addi_d(s, rd, rd, lo);
+        return;
+    }
+
+    /*
+     * Slow path: at most lu12i.w + ori + cu32i.d + cu52i.d.
+     *
+     * Chop upper bits into 3 immediate-field-sized segments respectively.
+     */
+    tcg_target_long upper = sextreg(val, 12, 20);
+    tcg_target_long higher = sextreg(val, 32, 20);
+    tcg_target_long top = sextreg(val, 52, 12);
+
+    tcg_out_opc_lu12i_w(s, rd, upper);
+    if (low != 0) {
+        tcg_out_opc_ori(s, rd, rd, low & 0xfff);
+    }
+
+    if (sextreg(val, 0, 32) == val) {
+        /*
+         * Fits in 32-bits, upper bits are already properly sign-extended by
+         * lu12i.w.
+         */
+        return;
+    }
+    tcg_out_opc_cu32i_d(s, rd, higher);
+
+    if (sextreg(val, 0, 52) == val) {
+        /*
+         * Fits in 52-bits, upper bits are already properly sign-extended by
+         * cu32i.d.
+         */
+        return;
+    }
+    tcg_out_opc_cu52i_d(s, rd, rd, top);
+}
+
 /*
  * Entry-points
  */
@@ -262,6 +349,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_mb(s, a0);
         break;
 
+    case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
+    case INDEX_op_mov_i64:
     default:
         g_assert_not_reached();
     }
