@@ -848,6 +848,23 @@ void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp)
     if (!dev) {
         qemu_opts_del(opts);
         return;
+    } else if (!phase_check(MACHINE_INIT_PHASE_READY)) {
+        /*
+         * Always delete the related opts in case the device was created
+         * before handling of cli -device arguments:
+         * We do not want a device added by the qmp command to be handled
+         * again by the cli -device creation code. This does not break
+         * the ID uniqueness because it is checked in qdev_device_add().
+         *
+         * Note: We check the phase in order to keep the legacy behavior:
+         * in the machine ready phase case, the QemuOpts remains in the list
+         * (and the dev->opts field is kept).
+         * If it happens it was done only to ensure the ID uniqueness and
+         * the QemuOpts is never used after this point: then we could
+         * remove QemuOpts in any phase.
+         */
+        dev->opts = NULL;
+        qemu_opts_del(opts);
     }
     object_unref(OBJECT(dev));
 }
