@@ -2163,6 +2163,28 @@ void memory_region_add_subregion_overlap(MemoryRegion *mr,
                                          int priority);
 
 /**
+ * memory_region_try_add_subregion: Add a subregion to a container
+ *                                  with error handling.
+ *
+ * Behaves like memory_region_add_subregion_overlap(), but errors are
+ * reported if the subregion cannot be added.
+ *
+ * @mr: the region to contain the new subregion; must be a container
+ *      initialized with memory_region_init().
+ * @offset: the offset relative to @mr where @subregion is added.
+ * @subregion: the subregion to be added.
+ * @priority: used for resolving overlaps; highest priority wins.
+ * @errp: pointer to Error*, to store an error if it happens.
+ *
+ * Returns: True in case of success, false otherwise.
+ */
+bool memory_region_try_add_subregion(MemoryRegion *mr,
+                                     hwaddr offset,
+                                     MemoryRegion *subregion,
+                                     int priority,
+                                     Error **errp);
+
+/**
  * memory_region_get_ram_addr: Get the ram address associated with a memory
  *                             region
  *

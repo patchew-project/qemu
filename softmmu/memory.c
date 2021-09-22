@@ -2513,22 +2513,28 @@ done:
     memory_region_transaction_commit();
 }
 
-static void memory_region_add_subregion_common(MemoryRegion *mr,
-                                               hwaddr offset,
-                                               MemoryRegion *subregion)
+bool memory_region_try_add_subregion(MemoryRegion *mr,
+                                     hwaddr offset,
+                                     MemoryRegion *subregion,
+                                     int priority,
+                                     Error **errp)
 {
-    assert(!subregion->container);
+    if (subregion->container) {
+        error_setg(errp, "The memory region is already in another region");
+        return false;
+    }
+    subregion->priority = priority;
     subregion->container = mr;
     subregion->addr = offset;
     memory_region_update_container_subregions(subregion);
+    return true;
 }
 
 void memory_region_add_subregion(MemoryRegion *mr,
                                  hwaddr offset,
                                  MemoryRegion *subregion)
 {
-    subregion->priority = 0;
-    memory_region_add_subregion_common(mr, offset, subregion);
+    memory_region_try_add_subregion(mr, offset, subregion, 0, &error_abort);
 }
 
 void memory_region_add_subregion_overlap(MemoryRegion *mr,
@@ -2536,8 +2542,8 @@ void memory_region_add_subregion_overlap(MemoryRegion *mr,
                                          MemoryRegion *subregion,
                                          int priority)
 {
-    subregion->priority = priority;
-    memory_region_add_subregion_common(mr, offset, subregion);
+    memory_region_try_add_subregion(mr, offset, subregion, priority,
+                                    &error_abort);
 }
 
 void memory_region_del_subregion(MemoryRegion *mr,
