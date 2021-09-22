@@ -40,6 +40,7 @@
 #include "qemu/cutils.h"
 #include "hw/qdev-properties.h"
 #include "hw/clock.h"
+#include "hw/boards.h"
 
 /*
  * Aliases were a bad idea from the start.  Let's keep them
@@ -266,6 +267,16 @@ static DeviceClass *qdev_get_device_class(const char **driver, Error **errp)
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "driver",
                    "a pluggable device type");
         return NULL;
+    }
+
+    if (object_class_dynamic_cast(oc, TYPE_SYS_BUS_DEVICE)) {
+        /* sysbus devices need to be allowed by the machine */
+        MachineClass *mc = MACHINE_CLASS(object_get_class(qdev_get_machine()));
+        if (!machine_class_is_dynamic_sysbus_dev_allowed(mc, *driver)) {
+            error_setg(errp, "'%s' is not an allowed pluggable sysbus device "
+                             " type for the machine", *driver);
+            return NULL;
+        }
     }
 
     return dc;
