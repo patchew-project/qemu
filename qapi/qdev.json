@@ -125,3 +125,24 @@
 ##
 { 'event': 'DEVICE_DELETED',
   'data': { '*device': 'str', 'path': 'str' } }
+
+##
+# @x-sysbus-mmio-map:
+#
+# Map a sysbus device mmio onto the main system bus.
+#
+# @device: the device's QOM path
+#
+# @mmio: The mmio number to be mapped (defaults to 0).
+#
+# @addr: The base address for the mapping.
+#
+# Since: 6.2
+#
+# Returns: Nothing on success
+#
+##
+
+{ 'command': 'x-sysbus-mmio-map',
+  'data': {'device': 'str', '*mmio': 'uint8', 'addr': 'uint64'},
+  'allow-preconfig' : true }

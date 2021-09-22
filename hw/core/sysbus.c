@@ -23,6 +23,7 @@
 #include "hw/sysbus.h"
 #include "monitor/monitor.h"
 #include "exec/address-spaces.h"
+#include "qapi/qapi-commands-qdev.h"
 
 static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent);
 static char *sysbus_get_fw_dev_path(DeviceState *dev);
@@ -152,6 +153,46 @@ static void sysbus_mmio_map_common(SysBusDevice *dev, int n, hwaddr addr,
                                     addr,
                                     dev->mmio[n].memory);
     }
+}
+
+void qmp_x_sysbus_mmio_map(const char *device, bool has_mmio, uint8_t mmio,
+                           uint64_t addr, Error **errp)
+{
+    Object *obj = object_resolve_path_type(device, TYPE_SYS_BUS_DEVICE, NULL);
+    SysBusDevice *dev;
+
+    if (phase_get() != MACHINE_INIT_PHASE_INITIALIZED) {
+        error_setg(errp, "The command is permitted only when "
+                         "the machine is in initialized phase");
+        return;
+    }
+
+    if (obj == NULL) {
+        error_setg(errp, "Device '%s' not found", device);
+        return;
+    }
+
+    dev = SYS_BUS_DEVICE(obj);
+    if (!has_mmio) {
+        mmio = 0;
+    }
+    if (mmio >= dev->num_mmio) {
+        error_setg(errp, "MMIO index '%u' is out of range", mmio);
+        return;
+    }
+
+    if (dev->mmio[mmio].addr != (hwaddr)-1) {
+        error_setg(errp, "MMIO index '%u' is already mapped", mmio);
+        return;
+    }
+
+    if (!memory_region_try_add_subregion(get_system_memory(), addr,
+                                         dev->mmio[mmio].memory, 0,
+                                         errp)) {
+        return;
+    }
+
+    dev->mmio[mmio].addr = addr;
 }
 
 void sysbus_mmio_unmap(SysBusDevice *dev, int n)
