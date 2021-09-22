@@ -87,6 +87,7 @@ static void virtio_mem_pci_size_change_notify(Notifier *notifier, void *data)
     VirtIOMEMPCI *pci_mem = container_of(notifier, VirtIOMEMPCI,
                                          size_change_notifier);
     DeviceState *dev = DEVICE(pci_mem);
+    const char * qom_path = object_get_canonical_path(OBJECT(dev));
     const uint64_t * const size_p = data;
     const char *id = NULL;
 
@@ -94,7 +95,7 @@ static void virtio_mem_pci_size_change_notify(Notifier *notifier, void *data)
         id = g_strdup(dev->id);
     }
 
-    qapi_event_send_memory_device_size_change(!!id, id, *size_p);
+    qapi_event_send_memory_device_size_change(!!id, id, *size_p, qom_path);
 }
 
 static void virtio_mem_pci_class_init(ObjectClass *klass, void *data)
