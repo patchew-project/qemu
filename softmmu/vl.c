@@ -2692,7 +2692,7 @@ static void qemu_machine_creation_done(void)
 
 void qmp_x_exit_preconfig(Error **errp)
 {
-    if (phase_check(PHASE_MACHINE_INITIALIZED)) {
+    if (phase_check(MACHINE_INIT_PHASE_INITIALIZED)) {
         error_setg(errp, "The command is permitted only before machine initialization");
         return;
     }
@@ -3665,14 +3665,14 @@ void qemu_init(int argc, char **argv, char **envp)
     qemu_apply_legacy_machine_options(machine_opts_dict);
     qemu_apply_machine_options(machine_opts_dict);
     qobject_unref(machine_opts_dict);
-    phase_advance(PHASE_MACHINE_CREATED);
+    phase_advance(MACHINE_INIT_PHASE_MACHINE_CREATED);
 
     /*
      * Note: uses machine properties such as kernel-irqchip, must run
      * after qemu_apply_machine_options.
      */
     configure_accelerators(argv[0]);
-    phase_advance(PHASE_ACCEL_CREATED);
+    phase_advance(MACHINE_INIT_PHASE_ACCEL_CREATED);
 
     /*
      * Beware, QOM objects created before this point miss global and

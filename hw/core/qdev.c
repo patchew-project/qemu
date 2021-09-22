@@ -904,7 +904,7 @@ static void device_initfn(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
 
-    if (phase_check(PHASE_MACHINE_READY)) {
+    if (phase_check(MACHINE_INIT_PHASE_READY)) {
         dev->hotplugged = 1;
         qdev_hot_added = true;
     }

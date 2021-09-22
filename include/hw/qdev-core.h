@@ -841,30 +841,30 @@ bool qdev_should_hide_device(QemuOpts *opts);
 
 typedef enum MachineInitPhase {
     /* current_machine is NULL.  */
-    PHASE_NO_MACHINE,
+    MACHINE_INIT_PHASE_NO_MACHINE,
 
     /* current_machine is not NULL, but current_machine->accel is NULL.  */
-    PHASE_MACHINE_CREATED,
+    MACHINE_INIT_PHASE_MACHINE_CREATED,
 
     /*
      * current_machine->accel is not NULL, but the machine properties have
      * not been validated and machine_class->init has not yet been called.
      */
-    PHASE_ACCEL_CREATED,
+    MACHINE_INIT_PHASE_ACCEL_CREATED,
 
     /*
      * machine_class->init has been called, thus creating any embedded
      * devices and validating machine properties.  Devices created at
      * this time are considered to be cold-plugged.
      */
-    PHASE_MACHINE_INITIALIZED,
+    MACHINE_INIT_PHASE_INITIALIZED,
 
     /*
      * QEMU is ready to start CPUs and devices created at this time
      * are considered to be hot-plugged.  The monitor is not restricted
      * to "preconfig" commands.
      */
-    PHASE_MACHINE_READY,
+    MACHINE_INIT_PHASE_READY,
 } MachineInitPhase;
 
 extern bool phase_check(MachineInitPhase phase);
