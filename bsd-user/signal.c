@@ -19,6 +19,14 @@
 #include "qemu/osdep.h"
 
 #include "qemu.h"
+/*
+ * Queue a signal so that it will be send to the virtual CPU as soon as
+ * possible.
+ */
+int queue_signal(CPUArchState *env, int sig, target_siginfo_t *info)
+{
+    return 1;
+}
 
 void signal_init(void)
 {
