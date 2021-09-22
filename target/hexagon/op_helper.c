@@ -377,6 +377,39 @@ int32_t HELPER(vacsh_pred)(CPUHexagonState *env,
     return PeV;
 }
 
+static void probe_store(CPUHexagonState *env, int slot, int mmu_idx)
+{
+    if (!(env->slot_cancelled & (1 << slot))) {
+        size1u_t width = env->mem_log_stores[slot].width;
+        target_ulong va = env->mem_log_stores[slot].va;
+        uintptr_t ra = GETPC();
+        probe_write(env, va, width, mmu_idx, ra);
+    }
+}
+
+void HELPER(probe_pkt_stores)(CPUHexagonState *env, int mask, int mmu_idx)
+{
+    bool has_st0        = (mask >> 0) & 1;
+    bool has_st1        = (mask >> 1) & 1;
+    bool has_dczeroa    = (mask >> 2) & 1;
+
+    if (has_st0 && !has_dczeroa) {
+        probe_store(env, 0, mmu_idx);
+    }
+    if (has_st1 && !has_dczeroa) {
+        probe_store(env, 1, mmu_idx);
+    }
+    if (has_dczeroa) {
+        /* Probe 32 bytes starting at (dczero_addr & ~0x1f) */
+        target_ulong va = env->dczero_addr & ~0x1f;
+        uintptr_t ra = GETPC();
+        probe_write(env, va +  0, 8, mmu_idx, ra);
+        probe_write(env, va +  8, 8, mmu_idx, ra);
+        probe_write(env, va + 16, 8, mmu_idx, ra);
+        probe_write(env, va + 24, 8, mmu_idx, ra);
+    }
+}
+
 /*
  * mem_noshuf
  * Section 5.5 of the Hexagon V67 Programmer's Reference Manual
