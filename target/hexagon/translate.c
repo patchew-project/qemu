@@ -471,9 +471,34 @@ static void update_exec_counters(DisasContext *ctx, Packet *pkt)
 
 static void gen_commit_packet(DisasContext *ctx, Packet *pkt)
 {
+    /*
+     * If there is more than one store in a packet, make sure they are all OK
+     * before proceeding with the rest of the packet commit.
+     *
+     * Note that we don't call the probe helper for packets with only one
+     * store.  Therefore, we call process_store_log before anything else
+     * involved in committing the packet.
+     */
+    if ((pkt->pkt_has_store_s0 && pkt->pkt_has_store_s1) ||
+        pkt->pkt_has_dczeroa) {
+        TCGv has_st0 = tcg_const_tl(pkt->pkt_has_store_s0);
+        TCGv has_st1 = tcg_const_tl(pkt->pkt_has_store_s1);
+        TCGv has_dczeroa = tcg_const_tl(pkt->pkt_has_dczeroa);
+        TCGv mem_idx = tcg_const_tl(ctx->mem_idx);
+
+        gen_helper_probe_pkt_stores(cpu_env, has_st0, has_st1,
+                                    has_dczeroa, mem_idx);
+
+        tcg_temp_free(has_st0);
+        tcg_temp_free(has_st1);
+        tcg_temp_free(has_dczeroa);
+        tcg_temp_free(mem_idx);
+    }
+
+    process_store_log(ctx, pkt);
+
     gen_reg_writes(ctx);
     gen_pred_writes(ctx, pkt);
-    process_store_log(ctx, pkt);
     process_dczeroa(ctx, pkt);
     update_exec_counters(ctx, pkt);
     if (HEX_DEBUG) {
