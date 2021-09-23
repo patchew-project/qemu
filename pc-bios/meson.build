@@ -10,8 +10,9 @@ if install_edk2_blobs
     'edk2-x86_64-secure-code.fd',
   ]
 
+  roms = []
   foreach f : fds
-    custom_target(f,
+    roms += custom_target(f,
                   build_by_default: have_system,
                   output: f,
                   input: '@0@.bz2'.format(f),
