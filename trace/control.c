@@ -313,13 +313,8 @@ bool trace_init_backends(void)
     return true;
 }
 
-void trace_opt_parse(const char *optarg)
+void trace_opt_parse_opts(QemuOpts *opts)
 {
-    QemuOpts *opts = qemu_opts_parse_noisily(qemu_find_opts("trace"),
-                                             optarg, true);
-    if (!opts) {
-        exit(1);
-    }
     if (qemu_opt_get(opts, "enable")) {
         trace_enable_events(qemu_opt_get(opts, "enable"));
     }
@@ -328,6 +323,17 @@ void trace_opt_parse(const char *optarg)
     g_free(trace_opts_file);
     trace_opts_file = g_strdup(qemu_opt_get(opts, "file"));
     qemu_opts_del(opts);
+}
+
+void trace_opt_parse(const char *optarg)
+{
+    QemuOpts *opts = qemu_opts_parse_noisily(qemu_find_opts("trace"),
+                                             optarg, true);
+    if (!opts) {
+        exit(1);
+    }
+
+    trace_opt_parse_opts(opts);
 }
 
 uint32_t trace_get_vcpu_event_count(void)

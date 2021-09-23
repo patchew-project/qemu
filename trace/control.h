@@ -252,6 +252,13 @@ extern QemuOptsList qemu_trace_opts;
 void trace_opt_parse(const char *optarg);
 
 /**
+ * Same as trace_opt_parse, but accept QemuOpts instead of options string.
+ *
+ * Releases @opts at the end.
+ */
+void trace_opt_parse_opts(QemuOpts *opts);
+
+/**
  * trace_get_vcpu_event_count:
  *
  * Return the number of known vcpu-specific events
