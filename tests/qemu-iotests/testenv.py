@@ -16,6 +16,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import importlib.util
+import logging
 import os
 import sys
 import tempfile
@@ -25,7 +27,7 @@ import collections
 import random
 import subprocess
 import glob
-from typing import List, Dict, Any, Optional, ContextManager
+from typing import List, Dict, Any, Optional, ContextManager, cast
 
 DEF_GDB_OPTIONS = 'localhost:12345'
 
@@ -111,6 +113,22 @@ class TestEnv(ContextManager['TestEnv']):
 
         # Path where qemu goodies live in this source tree.
         qemu_srctree_path = Path(__file__, '../../../python').resolve()
+
+        # warn if we happen to be able to find 'qemu' packages from an
+        # unexpected location (i.e. the package is already installed in
+        # the user's environment)
+        qemu_spec = importlib.util.find_spec('qemu.qmp')
+        if qemu_spec:
+            spec_path = Path(cast(str, qemu_spec.origin))
+            try:
+                _ = spec_path.relative_to(qemu_srctree_path)
+            except ValueError:
+                self._logger.warning(
+                    "WARNING: 'qemu' package will be imported from outside "
+                    "the source tree!")
+                self._logger.warning(
+                    "Importing from: '%s'",
+                    spec_path.parents[1])
 
         self.pythonpath = os.getenv('PYTHONPATH')
         self.pythonpath = os.pathsep.join(filter(None, (
@@ -231,6 +249,7 @@ class TestEnv(ContextManager['TestEnv']):
 
         self.build_root = os.path.join(self.build_iotests, '..', '..')
 
+        self._logger = logging.getLogger('qemu.iotests')
         self.init_directories()
         self.init_binaries()
 
