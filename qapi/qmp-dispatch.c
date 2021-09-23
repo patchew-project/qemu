@@ -26,6 +26,9 @@
 #include "qemu/coroutine.h"
 #include "qemu/main-loop.h"
 
+#include "trace.h"
+#include "trace/trace-monitor.h"
+
 CompatPolicy compat_policy;
 
 Visitor *qobject_input_visitor_new_qmp(QObject *obj)
@@ -133,6 +136,12 @@ static void do_qmp_dispatch_bh(void *opaque)
     aio_co_wake(data->co);
 }
 
+static void do_trace_qmp(const char *what, QObject *obj)
+{
+    g_autoptr(GString) req_json = qobject_to_json(obj);
+    trace_qmp(what, req_json->str);
+}
+
 /*
  * Runs outside of coroutine context for OOB commands, but in coroutine
  * context for everything else.
@@ -175,6 +184,11 @@ QDict *qmp_dispatch(const QmpCommandList *cmds, QObject *request,
         error_set(&err, ERROR_CLASS_COMMAND_NOT_FOUND,
                   "The command %s has not been found", command);
         goto out;
+    }
+    if (!trace_event_get_state_backends(TRACE_HANDLE_QMP_COMMAND) &&
+        trace_event_get_state_backends(TRACE_QMP) && cmd->tracing)
+    {
+        do_trace_qmp(">>", request);
     }
     if (cmd->options & QCO_DEPRECATED) {
         switch (compat_policy.deprecated_input) {
@@ -280,6 +294,12 @@ out:
 
     if (id) {
         qdict_put_obj(rsp, "id", qobject_ref(id));
+    }
+
+    if (!trace_event_get_state_backends(TRACE_MONITOR_QMP_RESPOND) &&
+        trace_event_get_state_backends(TRACE_QMP) && cmd->tracing)
+    {
+        do_trace_qmp("<<", QOBJECT(rsp));
     }
 
     return rsp;

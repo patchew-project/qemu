@@ -11,6 +11,7 @@
 #include "qapi/error.h"
 #include "qapi/qapi-commands-trace.h"
 #include "control-vcpu.h"
+#include "monitor/monitor.h"
 
 
 static CPUState *get_cpu(bool has_vcpu, int vcpu, Error **errp)
@@ -77,6 +78,14 @@ TraceEventInfoList *qmp_trace_event_get_state(const char *name,
     bool is_pattern = trace_event_is_pattern(name);
     CPUState *cpu;
 
+    if (!strncmp(name, "qmp:", 4)) {
+        if (!monitor_qmp_is_tracing_enabled(name + 4)) {
+            return NULL;
+        }
+
+        return qmp_trace_event_get_state("qmp", has_vcpu, vcpu, errp);
+    }
+
     /* Check provided vcpu */
     cpu = get_cpu(has_vcpu, vcpu, &err);
     if (err) {
@@ -138,6 +147,17 @@ void qmp_trace_event_set_state(const char *name, bool enable,
     TraceEvent *ev;
     bool is_pattern = trace_event_is_pattern(name);
     CPUState *cpu;
+
+    if (!strncmp(name, "qmp:", 4)) {
+        monitor_qmp_set_tracing(name + 4, enable);
+
+        if (enable || !monitor_qmp_is_tracing_enabled(NULL)) {
+            qmp_trace_event_set_state("qmp", enable, has_ignore_unavailable,
+                                      ignore_unavailable, has_vcpu, vcpu, errp);
+        }
+
+        return;
+    }
 
     /* Check provided vcpu */
     cpu = get_cpu(has_vcpu, vcpu, &err);

@@ -2722,6 +2722,25 @@ void qmp_x_exit_preconfig(Error **errp)
     }
 }
 
+static void trace_opt_parse_with_qmp(const char *optarg)
+{
+    const char *pattern;
+    QemuOpts *opts = qemu_opts_parse_noisily(qemu_find_opts("trace"),
+                                             optarg, true);
+    if (!opts) {
+        exit(1);
+    }
+
+    pattern = qemu_opt_get(opts, "enable");
+    if (pattern && !strncmp(pattern, "qmp:", 4)) {
+        monitor_qmp_set_tracing(pattern + 4, true);
+        qemu_opt_del_all(opts, "enable");
+        qemu_opt_set(opts, "enable", "qmp", &error_abort);
+    }
+
+    trace_opt_parse_opts(opts);
+}
+
 void qemu_init(int argc, char **argv, char **envp)
 {
     QemuOpts *opts;
@@ -3480,7 +3499,7 @@ void qemu_init(int argc, char **argv, char **envp)
                 xen_domid_restrict = true;
                 break;
             case QEMU_OPTION_trace:
-                trace_opt_parse(optarg);
+                trace_opt_parse_with_qmp(optarg);
                 break;
             case QEMU_OPTION_plugin:
                 qemu_plugin_opt_parse(optarg, &plugin_list);
