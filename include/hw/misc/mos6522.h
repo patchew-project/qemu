@@ -50,8 +50,10 @@
 #define T1_INT             0x40    /* Timer 1 interrupt */
 
 /* Bits in ACR */
+#define T2MODE             0x20    /* Timer 2 mode */
 #define T1MODE             0xc0    /* Timer 1 mode */
 #define T1MODE_CONT        0x40    /*  continuous interrupts */
+#define T1MODE_ONESHOT     0x00    /*  timed interrupt */
 
 /* VIA registers */
 #define VIA_REG_B       0x00

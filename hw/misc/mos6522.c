@@ -148,7 +148,8 @@ static void mos6522_timer1_update(MOS6522State *s, MOS6522Timer *ti,
     }
     get_counter(s, ti, now);
     ti->next_irq_time = get_next_irq_time(s, ti, now);
-    if ((s->ier & T1_INT) == 0 || (s->acr & T1MODE) != T1MODE_CONT) {
+    if ((s->ier & T1_INT) == 0 ||
+        ((s->acr & T1MODE) == T1MODE_ONESHOT && ti->state >= irq)) {
         timer_del(ti->timer);
     } else {
         timer_mod(ti->timer, ti->next_irq_time);
@@ -163,7 +164,7 @@ static void mos6522_timer2_update(MOS6522State *s, MOS6522Timer *ti,
     }
     get_counter(s, ti, now);
     ti->next_irq_time = get_next_irq_time(s, ti, now);
-    if ((s->ier & T2_INT) == 0) {
+    if ((s->ier & T2_INT) == 0 || (s->acr & T2MODE) || ti->state >= irq) {
         timer_del(ti->timer);
     } else {
         timer_mod(ti->timer, ti->next_irq_time);
@@ -345,6 +346,7 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
     case VIA_REG_ACR:
         s->acr = val;
         mos6522_timer1_update(s, &s->timers[0], now);
+        mos6522_timer2_update(s, &s->timers[1], now);
         break;
     case VIA_REG_PCR:
         s->pcr = val;
