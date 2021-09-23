@@ -21,7 +21,7 @@
 
 import os
 import iotests
-from iotests import qemu_img
+from iotests import change_log_level, qemu_img
 
 # Import qemu after iotests.py has amended sys.path
 # pylint: disable=wrong-import-order
@@ -100,9 +100,10 @@ class TestMirrorTopPerms(iotests.QMPTestCase):
         self.vm_b.add_blockdev(f'file,node-name=drive0,filename={source}')
         self.vm_b.add_device('virtio-blk,drive=drive0,share-rw=on')
         try:
-            self.vm_b.launch()
-            print('ERROR: VM B launched successfully, this should not have '
-                  'happened')
+            with change_log_level('qemu.aqmp'):
+                self.vm_b.launch()
+                print('ERROR: VM B launched successfully, '
+                      'this should not have happened')
         except (qemu.qmp.QMPConnectError, ConnectError):
             assert 'Is another process using the image' in self.vm_b.get_log()
 
