@@ -154,7 +154,7 @@ static void mos6522_timer2_update(MOS6522State *s, MOS6522Timer *ti,
     }
 }
 
-static void mos6522_timer1(void *opaque)
+static void mos6522_timer1_expired(void *opaque)
 {
     MOS6522State *s = opaque;
     MOS6522Timer *ti = &s->timers[0];
@@ -164,7 +164,7 @@ static void mos6522_timer1(void *opaque)
     mos6522_update_irq(s);
 }
 
-static void mos6522_timer2(void *opaque)
+static void mos6522_timer2_expired(void *opaque)
 {
     MOS6522State *s = opaque;
     MOS6522Timer *ti = &s->timers[1];
@@ -445,8 +445,10 @@ static void mos6522_init(Object *obj)
         s->timers[i].index = i;
     }
 
-    s->timers[0].timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, mos6522_timer1, s);
-    s->timers[1].timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, mos6522_timer2, s);
+    s->timers[0].timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                      mos6522_timer1_expired, s);
+    s->timers[1].timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                      mos6522_timer2_expired, s);
 }
 
 static void mos6522_finalize(Object *obj)
