@@ -71,6 +71,7 @@ struct QemuOptsList {
 
 const char *qemu_opt_get(QemuOpts *opts, const char *name);
 char *qemu_opt_get_del(QemuOpts *opts, const char *name);
+void qemu_opt_del_all(QemuOpts *opts, const char *name);
 /**
  * qemu_opt_has_help_opt:
  * @opts: options to search for a help request

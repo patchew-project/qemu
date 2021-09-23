@@ -244,7 +244,7 @@ static void qemu_opt_del(QemuOpt *opt)
 /* qemu_opt_set allows many settings for the same option.
  * This function deletes all settings for an option.
  */
-static void qemu_opt_del_all(QemuOpts *opts, const char *name)
+void qemu_opt_del_all(QemuOpts *opts, const char *name)
 {
     QemuOpt *opt, *next_opt;
 
