@@ -24,6 +24,7 @@
 #define TEST_IMAGE_SIZE         (64 * 1024 * 1024)
 #define QVIRTIO_BLK_TIMEOUT_US  (30 * 1000 * 1000)
 #define PCI_SLOT_HP             0x06
+#define PIDFILE_RETRIES         5
 
 typedef struct {
     pid_t pid;
@@ -885,7 +886,8 @@ static void start_vhost_user_blk(GString *cmd_line, int vus_instances,
                                  int num_queues)
 {
     const char *vhost_user_blk_bin = qtest_qemu_storage_daemon_binary();
-    int i;
+    int i, retries;
+    char *daemon_pidfile_path;
     gchar *img_path;
     GString *storage_daemon_command = g_string_new(NULL);
     QemuStorageDaemonState *qsd;
@@ -897,6 +899,9 @@ static void start_vhost_user_blk(GString *cmd_line, int vus_instances,
     g_string_append_printf(cmd_line,
             " -object memory-backend-memfd,id=mem,size=256M,share=on "
             " -M memory-backend=mem -m 256M ");
+
+    daemon_pidfile_path = g_strdup_printf("/tmp/daemon-%d", getpid());
+    g_assert_cmpint((uintptr_t) daemon_pidfile_path, !=, (uintptr_t) NULL);
 
     for (i = 0; i < vus_instances; i++) {
         int fd;
@@ -914,6 +919,9 @@ static void start_vhost_user_blk(GString *cmd_line, int vus_instances,
                                i + 1, sock_path);
     }
 
+    g_string_append_printf(storage_daemon_command, "--pidfile %s ",
+                           daemon_pidfile_path);
+
     g_test_message("starting vhost-user backend: %s",
                    storage_daemon_command->str);
     pid_t pid = fork();
@@ -930,7 +938,24 @@ static void start_vhost_user_blk(GString *cmd_line, int vus_instances,
         execlp("/bin/sh", "sh", "-c", storage_daemon_command->str, NULL);
         exit(1);
     }
+
+    /*
+     * Ensure the storage-daemon has come up properly before allowing the
+     * test to proceed.
+     */
+    retries = 0;
+    while (access(daemon_pidfile_path, F_OK) != 0) {
+        g_assert_cmpint(retries, <, PIDFILE_RETRIES);
+
+        retries++;
+        g_usleep(1000);
+    }
+
     g_string_free(storage_daemon_command, true);
+    if (access(daemon_pidfile_path, F_OK) == 0) {
+        unlink(daemon_pidfile_path);
+    }
+    g_free(daemon_pidfile_path);
 
     qsd = g_new(QemuStorageDaemonState, 1);
     qsd->pid = pid;
