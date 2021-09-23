@@ -536,3 +536,13 @@ void monitor_init_qmp(Chardev *chr, bool pretty, Error **errp)
         monitor_list_append(&mon->common);
     }
 }
+
+void monitor_qmp_set_tracing(const char *pattern, bool enable)
+{
+    qmp_commands_set_tracing(&qmp_commands, pattern, enable);
+}
+
+bool monitor_qmp_is_tracing_enabled(const char *pattern)
+{
+    return qmp_commands_is_tracing_enabled(&qmp_commands, pattern);
+}

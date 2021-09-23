@@ -54,4 +54,7 @@ int64_t monitor_fdset_dup_fd_find(int dup_fd);
 void monitor_register_hmp(const char *name, bool info,
                           void (*cmd)(Monitor *mon, const QDict *qdict));
 
+bool monitor_qmp_is_tracing_enabled(const char *pattern);
+void monitor_qmp_set_tracing(const char *pattern, bool enable);
+
 #endif /* MONITOR_H */
