@@ -38,6 +38,7 @@ typedef struct QmpCommand
     QTAILQ_ENTRY(QmpCommand) node;
     bool enabled;
     const char *disable_reason;
+    bool tracing;
 } QmpCommand;
 
 typedef QTAILQ_HEAD(QmpCommandList, QmpCommand) QmpCommandList;
@@ -63,5 +64,18 @@ typedef void (*qmp_cmd_callback_fn)(const QmpCommand *cmd, void *opaque);
 
 void qmp_for_each_command(const QmpCommandList *cmds, qmp_cmd_callback_fn fn,
                           void *opaque);
+
+/*
+ * Enable or disable tracing for commands matching the pattern.
+ * Pattern matching is handled by g_pattern_match_simple().
+ */
+void qmp_commands_set_tracing(QmpCommandList *cmds, const char *pattern,
+                              bool enable);
+
+/*
+ * Return true if tracing is enabled for any command matching the pattern.
+ * If pattern is NULL, return true if tracing is enabled for any command.
+ */
+bool qmp_commands_is_tracing_enabled(QmpCommandList *cmds, const char *pattern);
 
 #endif

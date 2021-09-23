@@ -67,6 +67,33 @@ void qmp_enable_command(QmpCommandList *cmds, const char *name)
     qmp_toggle_command(cmds, name, true, NULL);
 }
 
+void qmp_commands_set_tracing(QmpCommandList *cmds, const char *pattern,
+                              bool enable)
+{
+    QmpCommand *cmd;
+
+    QTAILQ_FOREACH(cmd, cmds, node) {
+        if (g_pattern_match_simple(pattern, cmd->name)) {
+            cmd->tracing = true;
+        }
+    }
+}
+
+bool qmp_commands_is_tracing_enabled(QmpCommandList *cmds, const char *pattern)
+{
+    QmpCommand *cmd;
+
+    QTAILQ_FOREACH(cmd, cmds, node) {
+        if (cmd->tracing &&
+            (!pattern || g_pattern_match_simple(pattern, cmd->name)))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 bool qmp_command_is_enabled(const QmpCommand *cmd)
 {
     return cmd->enabled;
