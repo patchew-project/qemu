@@ -16,7 +16,7 @@ static void mac_nubus_bridge_init(Object *obj)
     MacNubusState *s = MAC_NUBUS_BRIDGE(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    s->bus = NUBUS_BUS(qbus_create(TYPE_NUBUS_BUS, DEVICE(s), NULL));
+    s->bus = NUBUS_BUS(qbus_new(TYPE_NUBUS_BUS, DEVICE(s), NULL));
 
     sysbus_init_mmio(sbd, &s->bus->super_slot_io);
     sysbus_init_mmio(sbd, &s->bus->slot_io);
