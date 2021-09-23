@@ -247,6 +247,115 @@ static void tcg_out_mb(TCGContext *s, TCGArg a0)
     tcg_out_opc_dbar(s, 0);
 }
 
+static bool tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
+{
+    if (ret == arg) {
+        return true;
+    }
+    switch (type) {
+    case TCG_TYPE_I32:
+    case TCG_TYPE_I64:
+        /*
+         * Conventional register-register move used in LoongArch is
+         * `or dst, src, zero`.
+         */
+        tcg_out_opc_or(s, ret, arg, TCG_REG_ZERO);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return true;
+}
+
+static bool imm_part_needs_loading(bool high_bits_are_ones,
+                                   tcg_target_long part)
+{
+    if (high_bits_are_ones) {
+        return part != -1;
+    } else {
+        return part != 0;
+    }
+}
+
+static void tcg_out_movi(TCGContext *s, TCGType type, TCGReg rd,
+                         tcg_target_long val)
+{
+    if (type == TCG_TYPE_I32) {
+        val = (int32_t)val;
+    }
+
+    /* Single-instruction cases.  */
+    tcg_target_long low = sextreg(val, 0, 12);
+    if (low == val) {
+        /* val fits in simm12: addi.w rd, zero, val */
+        tcg_out_opc_addi_w(s, rd, TCG_REG_ZERO, val);
+        return;
+    }
+    if (0x800 <= val && val <= 0xfff) {
+        /* val fits in uimm12: ori rd, zero, val */
+        tcg_out_opc_ori(s, rd, TCG_REG_ZERO, val);
+        return;
+    }
+
+    /* Test for PC-relative values that can be loaded faster.  */
+    intptr_t pc_offset = tcg_pcrel_diff(s, (void *)val);
+    if (pc_offset == sextreg(pc_offset, 0, 22) && (pc_offset & 3) == 0) {
+        tcg_out_opc_pcaddu2i(s, rd, pc_offset >> 2);
+        return;
+    }
+
+    if (pc_offset == (int32_t)pc_offset) {
+        /* Load using pcalau12i + ori.  */
+        tcg_target_long pc_hi = (val - pc_offset) >> 12;
+        tcg_target_long val_hi = val >> 12;
+        tcg_target_long offset_hi = val_hi - pc_hi;
+        tcg_debug_assert(offset_hi == sextreg(offset_hi, 0, 20));
+        tcg_out_opc_pcalau12i(s, rd, offset_hi);
+        if (low != 0) {
+            tcg_out_opc_ori(s, rd, rd, low & 0xfff);
+        }
+        return;
+    }
+
+    /*
+     * Slow path: at most lu12i.w + ori + cu32i.d + cu52i.d.
+     *
+     * Chop upper bits into 3 immediate-field-sized segments respectively.
+     */
+    tcg_target_long upper = sextreg(val, 12, 20);
+    tcg_target_long higher = sextreg(val, 32, 20);
+    tcg_target_long top = sextreg(val, 52, 12);
+    bool rd_written = false;
+    bool rd_high_bits_are_ones = false;
+
+    if (upper != 0) {
+        tcg_out_opc_lu12i_w(s, rd, upper);
+        rd_written = true;
+        rd_high_bits_are_ones = upper < 0;
+    }
+    if (low != 0) {
+        tcg_out_opc_ori(s, rd, rd_written ? rd : TCG_REG_ZERO, low & 0xfff);
+        rd_written = true;
+    }
+
+    if (imm_part_needs_loading(rd_high_bits_are_ones, higher)) {
+        if (!rd_written) {
+            /*
+             * cu32i.d only has 1 input register, yet rd is still untouched
+             * by now. We must zero it here.
+             */
+            tcg_out_opc_or(s, rd, TCG_REG_ZERO, TCG_REG_ZERO);
+        }
+        tcg_out_opc_cu32i_d(s, rd, higher);
+        rd_written = true;
+        rd_high_bits_are_ones = higher < 0;
+    }
+
+    if (imm_part_needs_loading(rd_high_bits_are_ones, top)) {
+        tcg_out_opc_cu52i_d(s, rd, rd_written ? rd : TCG_REG_ZERO, top);
+    }
+}
+
 /*
  * Entry-points
  */
@@ -262,6 +371,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_mb(s, a0);
         break;
 
+    case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
+    case INDEX_op_mov_i64:
     default:
         g_assert_not_reached();
     }
