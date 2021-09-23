@@ -108,12 +108,16 @@ class TestEnv(ContextManager['TestEnv']):
              SAMPLE_IMG_DIR
              OUTPUT_DIR
         """
+
+        # Path where qemu goodies live in this source tree.
+        qemu_srctree_path = Path(__file__, '../../../python').resolve()
+
         self.pythonpath = os.getenv('PYTHONPATH')
-        if self.pythonpath:
-            self.pythonpath = self.source_iotests + os.pathsep + \
-                self.pythonpath
-        else:
-            self.pythonpath = self.source_iotests
+        self.pythonpath = os.pathsep.join(filter(None, (
+            self.source_iotests,
+            str(qemu_srctree_path),
+            self.pythonpath,
+        )))
 
         self.test_dir = os.getenv('TEST_DIR',
                                   os.path.join(os.getcwd(), 'scratch'))
