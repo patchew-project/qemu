@@ -403,8 +403,8 @@ version_id.  And the function ``load_state_old()`` (if present) is able to
 load state from minimum_version_id_old to minimum_version_id.  This
 function is deprecated and will be removed when no more users are left.
 
-There are *_V* forms of many ``VMSTATE_`` macros to load fields for version dependent fields,
-e.g.
+There are *_V* forms of many ``VMSTATE_`` macros to load fields for
+version dependent fields, e.g.
 
 .. code:: c
 
@@ -819,9 +819,9 @@ Postcopy now works with hugetlbfs backed memory:
 Postcopy with shared memory
 ---------------------------
 
-Postcopy migration with shared memory needs explicit support from the other
-processes that share memory and from QEMU. There are restrictions on the type of
-memory that userfault can support shared.
+Postcopy migration with shared memory needs explicit support from the
+other processes that share memory and from QEMU. There are restrictions
+on the type of memory that userfault can support shared.
 
 The Linux kernel userfault support works on ``/dev/shm`` memory and on ``hugetlbfs``
 (although the kernel doesn't provide an equivalent to ``madvise(MADV_DONTNEED)``
