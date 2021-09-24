@@ -28,6 +28,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qapi/qapi-events-qdev.h"
+#include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/visitor.h"
 #include "qemu/error-report.h"
@@ -211,7 +212,7 @@ void device_listener_unregister(DeviceListener *listener)
     QTAILQ_REMOVE(&device_listeners, listener, link);
 }
 
-bool qdev_should_hide_device(QemuOpts *opts)
+bool qdev_should_hide_device(const QDict *opts)
 {
     DeviceListener *listener;
 
@@ -955,7 +956,7 @@ static void device_finalize(Object *obj)
         dev->canonical_path = NULL;
     }
 
-    qemu_opts_del(dev->opts);
+    qobject_unref(dev->opts);
     g_free(dev->id);
 }
 

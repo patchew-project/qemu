@@ -180,7 +180,7 @@ struct DeviceState {
     char *canonical_path;
     bool realized;
     bool pending_deleted_event;
-    QemuOpts *opts;
+    QDict *opts;
     int hotplugged;
     bool allow_unplug_during_migration;
     BusState *parent_bus;
@@ -202,7 +202,7 @@ struct DeviceListener {
      * hide a failover device depending for example on the device
      * opts.
      */
-    bool (*hide_device)(DeviceListener *listener, QemuOpts *device_opts);
+    bool (*hide_device)(DeviceListener *listener, const QDict *device_opts);
     QTAILQ_ENTRY(DeviceListener) link;
 };
 
@@ -831,13 +831,13 @@ void device_listener_unregister(DeviceListener *listener);
 
 /**
  * @qdev_should_hide_device:
- * @opts: QemuOpts as passed on cmdline.
+ * @opts: options QDict
  *
  * Check if a device should be added.
  * When a device is added via qdev_device_add() this will be called,
  * and return if the device should be added now or not.
  */
-bool qdev_should_hide_device(QemuOpts *opts);
+bool qdev_should_hide_device(const QDict *opts);
 
 typedef enum MachineInitPhase {
     /* current_machine is NULL.  */

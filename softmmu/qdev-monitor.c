@@ -196,34 +196,6 @@ static void qdev_print_devinfos(bool show_no_user)
     g_slist_free(list);
 }
 
-static int set_property(void *opaque, const char *name, const char *value,
-                        Error **errp)
-{
-    Object *obj = opaque;
-    QString *val;
-    Visitor *v;
-    int ret;
-
-    if (strcmp(name, "driver") == 0)
-        return 0;
-    if (strcmp(name, "bus") == 0)
-        return 0;
-
-    val = qstring_from_str(value);
-    v = qobject_input_visitor_new_keyval(QOBJECT(val));
-
-    if (!object_property_set(obj, name, v, errp)) {
-        ret = -1;
-        goto out;
-    }
-
-    ret = 0;
-out:
-    visit_free(v);
-    qobject_unref(val);
-    return ret;
-}
-
 static const char *find_typename_by_alias(const char *alias)
 {
     int i;
@@ -611,15 +583,17 @@ void qdev_set_id(DeviceState *dev, char *id, Error **errp)
     }
 }
 
-DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
+static DeviceState *qdev_device_add_from_qdict(const QDict *opts,
+                                               bool from_json, Error **errp)
 {
     ERRP_GUARD();
     DeviceClass *dc;
     const char *driver, *path;
+    char *id;
     DeviceState *dev = NULL;
     BusState *bus = NULL;
 
-    driver = qemu_opt_get(opts, "driver");
+    driver = qdict_get_try_str(opts, "driver");
     if (!driver) {
         error_setg(errp, QERR_MISSING_PARAMETER, "driver");
         return NULL;
@@ -632,7 +606,7 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
     }
 
     /* find bus */
-    path = qemu_opt_get(opts, "bus");
+    path = qdict_get_try_str(opts, "bus");
     if (path != NULL) {
         bus = qbus_find(path, errp);
         if (!bus) {
@@ -652,8 +626,8 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
         }
     }
 
-    if (qemu_opt_get(opts, "failover_pair_id")) {
-        if (!opts->id) {
+    if (qdict_haskey(opts, "failover_pair_id")) {
+        if (!qdict_haskey(opts, "id")) {
             error_setg(errp, "Device with failover_pair_id don't have id");
             return NULL;
         }
@@ -692,19 +666,25 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
         }
     }
 
-    qdev_set_id(dev, g_strdup(qemu_opts_id(opts)), errp);
+    id = g_strdup(qdict_get_try_str(opts, "id"));
+    qdev_set_id(dev, id, errp);
     if (*errp) {
         goto err_del_dev;
     }
 
     /* set properties */
-    if (qemu_opt_foreach(opts, set_property, dev, errp)) {
+    dev->opts = qdict_clone_shallow(opts);
+    qdict_del(dev->opts, "driver");
+    qdict_del(dev->opts, "bus");
+    qdict_del(dev->opts, "id");
+
+    object_set_properties_from_keyval(&dev->parent_obj, dev->opts, from_json,
+                                      errp);
+    if (*errp) {
         goto err_del_dev;
     }
 
-    dev->opts = opts;
     if (!qdev_realize(DEVICE(dev), bus, errp)) {
-        dev->opts = NULL;
         goto err_del_dev;
     }
     return dev;
@@ -717,6 +697,19 @@ err_del_dev:
     return NULL;
 }
 
+/* Takes ownership of @opts on success */
+DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
+{
+    QDict *qdict = qemu_opts_to_qdict(opts, NULL);
+    DeviceState *ret;
+
+    ret = qdev_device_add_from_qdict(qdict, false, errp);
+    if (ret) {
+        qemu_opts_del(opts);
+    }
+    qobject_unref(qdict);
+    return ret;
+}
 
 #define qdev_printf(fmt, ...) monitor_printf(mon, "%*s" fmt, indent, "", ## __VA_ARGS__)
 static void qbus_print(Monitor *mon, BusState *bus, int indent);
