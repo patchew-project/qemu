@@ -23,6 +23,7 @@ from avocado_qemu import wait_for_console_pattern
 from avocado.utils import process
 from avocado.utils import archive
 from avocado.utils.path import find_command, CmdNotFoundError
+from avocado.utils.software_manager import SoftwareManager
 
 P7ZIP_AVAILABLE = True
 try:
@@ -54,42 +55,19 @@ class LinuxKernelTest(Test):
                                  failure_message='Kernel panic - not syncing',
                                  vm=vm)
 
-    def extract_from_deb(self, deb, path):
+    def extract_from_pkg(self, pkg, path):
         """
-        Extracts a file from a deb package into the test workdir
+        Extracts a file from a DEB or RPM package into the test workdir
 
-        :param deb: path to the deb archive
-        :param path: path within the deb archive of the file to be extracted
+        :param pkg: path to the DEB or RPM package
+        :param path: path within the DEB or RPM archive of the file to
+                          be extracted
         :returns: path of the extracted file
         """
-        cwd = os.getcwd()
-        os.chdir(self.workdir)
-        file_path = process.run("ar t %s" % deb).stdout_text.split()[2]
-        process.run("ar x %s %s" % (deb, file_path))
-        archive.extract(file_path, self.workdir)
-        os.chdir(cwd)
-        # Return complete path to extracted file.  Because callers to
-        # extract_from_deb() specify 'path' with a leading slash, it is
-        # necessary to use os.path.relpath() as otherwise os.path.join()
-        # interprets it as an absolute path and drops the self.workdir part.
+        SoftwareManager.extract_from_package(pkg, self.workdir)
         return os.path.normpath(os.path.join(self.workdir,
                                              os.path.relpath(path, '/')))
 
-    def extract_from_rpm(self, rpm, path):
-        """
-        Extracts a file from an RPM package into the test workdir.
-
-        :param rpm: path to the rpm archive
-        :param path: path within the rpm archive of the file to be extracted
-                     needs to be a relative path (starting with './') because
-                     cpio(1), which is used to extract the file, expects that.
-        :returns: path of the extracted file
-        """
-        cwd = os.getcwd()
-        os.chdir(self.workdir)
-        process.run("rpm2cpio %s | cpio -id %s" % (rpm, path), shell=True)
-        os.chdir(cwd)
-        return os.path.normpath(os.path.join(self.workdir, path))
 
 class BootLinuxConsole(LinuxKernelTest):
     """
@@ -128,7 +106,7 @@ class BootLinuxConsole(LinuxKernelTest):
                    'linux-image-2.6.32-5-4kc-malta_2.6.32-48_mips.deb')
         deb_hash = 'a8cfc28ad8f45f54811fc6cf74fc43ffcfe0ba04'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
-        kernel_path = self.extract_from_deb(deb_path,
+        kernel_path = self.extract_from_pkg(deb_path,
                                             '/boot/vmlinux-2.6.32-5-4kc-malta')
 
         self.vm.set_console()
@@ -160,7 +138,7 @@ class BootLinuxConsole(LinuxKernelTest):
                    'linux-image-2.6.32-5-5kc-malta_2.6.32-48_mipsel.deb')
         deb_hash = '1aaec92083bf22fda31e0d27fa8d9a388e5fc3d5'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
-        kernel_path = self.extract_from_deb(deb_path,
+        kernel_path = self.extract_from_pkg(deb_path,
                                             '/boot/vmlinux-2.6.32-5-5kc-malta')
 
         self.vm.set_console()
@@ -181,7 +159,7 @@ class BootLinuxConsole(LinuxKernelTest):
                    'linux-image-3.16.0-6-loongson-2e_3.16.56-1+deb8u1_mipsel.deb')
         deb_hash = 'd04d446045deecf7b755ef576551de0c4184dd44'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
-        kernel_path = self.extract_from_deb(deb_path,
+        kernel_path = self.extract_from_pkg(deb_path,
                                             '/boot/vmlinux-3.16.0-6-loongson-2e')
 
         self.vm.set_console()
@@ -203,7 +181,7 @@ class BootLinuxConsole(LinuxKernelTest):
                    'linux-image-4.5.0-2-4kc-malta_4.5.5-1_mips.deb')
         deb_hash = 'a3c84f3e88b54e06107d65a410d1d1e8e0f340f8'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
-        kernel_path = self.extract_from_deb(deb_path,
+        kernel_path = self.extract_from_pkg(deb_path,
                                             '/boot/vmlinux-4.5.0-2-4kc-malta')
         initrd_url = ('https://github.com/groeck/linux-build-test/raw/'
                       '8584a59ed9e5eb5ee7ca91f6d74bbb06619205b8/rootfs/'
@@ -454,8 +432,8 @@ class BootLinuxConsole(LinuxKernelTest):
                    'raspberrypi-kernel_1.20190215-1_armhf.deb')
         deb_hash = 'cd284220b32128c5084037553db3c482426f3972'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
-        kernel_path = self.extract_from_deb(deb_path, '/boot/kernel7.img')
-        dtb_path = self.extract_from_deb(deb_path, '/boot/bcm2709-rpi-2-b.dtb')
+        kernel_path = self.extract_from_pkg(deb_path, '/boot/kernel7.img')
+        dtb_path = self.extract_from_pkg(deb_path, '/boot/bcm2709-rpi-2-b.dtb')
 
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
@@ -494,8 +472,8 @@ class BootLinuxConsole(LinuxKernelTest):
                    'raspberrypi-kernel_1.20190215-1_armhf.deb')
         deb_hash = 'cd284220b32128c5084037553db3c482426f3972'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
-        kernel_path = self.extract_from_deb(deb_path, '/boot/kernel7.img')
-        dtb_path = self.extract_from_deb(deb_path, '/boot/bcm2709-rpi-2-b.dtb')
+        kernel_path = self.extract_from_pkg(deb_path, '/boot/kernel7.img')
+        dtb_path = self.extract_from_pkg(deb_path, '/boot/bcm2709-rpi-2-b.dtb')
 
         initrd_url = ('https://github.com/groeck/linux-build-test/raw/'
                       '2eb0a73b5d5a28df3170c546ddaaa9757e1e0848/rootfs/'
@@ -537,10 +515,10 @@ class BootLinuxConsole(LinuxKernelTest):
                    'linux-image-4.19.0-6-armmp_4.19.67-2+deb10u1_armhf.deb')
         deb_hash = 'fa9df4a0d38936cb50084838f2cb933f570d7d82'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
-        kernel_path = self.extract_from_deb(deb_path,
+        kernel_path = self.extract_from_pkg(deb_path,
                                             '/boot/vmlinuz-4.19.0-6-armmp')
         dtb_path = '/usr/lib/linux-image-4.19.0-6-armmp/exynos4210-smdkv310.dtb'
-        dtb_path = self.extract_from_deb(deb_path, dtb_path)
+        dtb_path = self.extract_from_pkg(deb_path, dtb_path)
 
         initrd_url = ('https://github.com/groeck/linux-build-test/raw/'
                       '2eb0a73b5d5a28df3170c546ddaaa9757e1e0848/rootfs/'
@@ -577,10 +555,10 @@ class BootLinuxConsole(LinuxKernelTest):
                    'linux-5.10.16-sunxi/linux-image-current-sunxi_21.02.2_armhf.deb')
         deb_hash = '9fa84beda245cabf0b4fa84cf6eaa7738ead1da0'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
-        kernel_path = self.extract_from_deb(deb_path,
+        kernel_path = self.extract_from_pkg(deb_path,
                                             '/boot/vmlinuz-5.10.16-sunxi')
         dtb_path = '/usr/lib/linux-image-current-sunxi/sun4i-a10-cubieboard.dtb'
-        dtb_path = self.extract_from_deb(deb_path, dtb_path)
+        dtb_path = self.extract_from_pkg(deb_path, dtb_path)
         initrd_url = ('https://github.com/groeck/linux-build-test/raw/'
                       '2eb0a73b5d5a28df3170c546ddaaa9757e1e0848/rootfs/'
                       'arm/rootfs-armv5.cpio.gz')
@@ -618,10 +596,10 @@ class BootLinuxConsole(LinuxKernelTest):
                    'linux-5.10.16-sunxi/linux-image-current-sunxi_21.02.2_armhf.deb')
         deb_hash = '9fa84beda245cabf0b4fa84cf6eaa7738ead1da0'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
-        kernel_path = self.extract_from_deb(deb_path,
+        kernel_path = self.extract_from_pkg(deb_path,
                                             '/boot/vmlinuz-5.10.16-sunxi')
         dtb_path = '/usr/lib/linux-image-current-sunxi/sun4i-a10-cubieboard.dtb'
-        dtb_path = self.extract_from_deb(deb_path, dtb_path)
+        dtb_path = self.extract_from_pkg(deb_path, dtb_path)
         rootfs_url = ('https://github.com/groeck/linux-build-test/raw/'
                       '2eb0a73b5d5a28df3170c546ddaaa9757e1e0848/rootfs/'
                       'arm/rootfs-armv5.ext2.gz')
@@ -748,10 +726,10 @@ class BootLinuxConsole(LinuxKernelTest):
                    'linux-5.10.16-sunxi/linux-image-current-sunxi_21.02.2_armhf.deb')
         deb_hash = '9fa84beda245cabf0b4fa84cf6eaa7738ead1da0'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
-        kernel_path = self.extract_from_deb(deb_path,
+        kernel_path = self.extract_from_pkg(deb_path,
                                             '/boot/vmlinuz-5.10.16-sunxi')
         dtb_path = '/usr/lib/linux-image-current-sunxi/sun8i-h3-orangepi-pc.dtb'
-        dtb_path = self.extract_from_deb(deb_path, dtb_path)
+        dtb_path = self.extract_from_pkg(deb_path, dtb_path)
 
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
@@ -774,10 +752,10 @@ class BootLinuxConsole(LinuxKernelTest):
                    'linux-5.10.16-sunxi/linux-image-current-sunxi_21.02.2_armhf.deb')
         deb_hash = '9fa84beda245cabf0b4fa84cf6eaa7738ead1da0'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
-        kernel_path = self.extract_from_deb(deb_path,
+        kernel_path = self.extract_from_pkg(deb_path,
                                             '/boot/vmlinuz-5.10.16-sunxi')
         dtb_path = '/usr/lib/linux-image-current-sunxi/sun8i-h3-orangepi-pc.dtb'
-        dtb_path = self.extract_from_deb(deb_path, dtb_path)
+        dtb_path = self.extract_from_pkg(deb_path, dtb_path)
         initrd_url = ('https://github.com/groeck/linux-build-test/raw/'
                       '2eb0a73b5d5a28df3170c546ddaaa9757e1e0848/rootfs/'
                       'arm/rootfs-armv7a.cpio.gz')
@@ -818,10 +796,10 @@ class BootLinuxConsole(LinuxKernelTest):
                    'linux-5.10.16-sunxi/linux-image-current-sunxi_21.02.2_armhf.deb')
         deb_hash = '9fa84beda245cabf0b4fa84cf6eaa7738ead1da0'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
-        kernel_path = self.extract_from_deb(deb_path,
+        kernel_path = self.extract_from_pkg(deb_path,
                                             '/boot/vmlinuz-5.10.16-sunxi')
         dtb_path = '/usr/lib/linux-image-current-sunxi/sun8i-h3-orangepi-pc.dtb'
-        dtb_path = self.extract_from_deb(deb_path, dtb_path)
+        dtb_path = self.extract_from_pkg(deb_path, dtb_path)
         rootfs_url = ('http://storage.kernelci.org/images/rootfs/buildroot/'
                       'kci-2019.02/armel/base/rootfs.ext2.xz')
         rootfs_hash = '692510cb625efda31640d1de0a8d60e26040f061'
@@ -924,7 +902,7 @@ class BootLinuxConsole(LinuxKernelTest):
         # OrangePi "PC" device tree blob with 'setenv fdtfile' in U-Boot prompt,
         # before to boot NetBSD.
         uboot_path = '/usr/lib/u-boot/orangepi_plus/u-boot-sunxi-with-spl.bin'
-        uboot_path = self.extract_from_deb(deb_path, uboot_path)
+        uboot_path = self.extract_from_pkg(deb_path, uboot_path)
         image_url = ('https://cdn.netbsd.org/pub/NetBSD/NetBSD-9.0/'
                      'evbarm-earmv7hf/binary/gzimg/armv7.img.gz')
         image_hash = '2babb29d36d8360adcb39c09e31060945259917a'
@@ -1044,7 +1022,7 @@ class BootLinuxConsole(LinuxKernelTest):
                    '/l/linux/kernel-image-5.3.0-1-m68k-di_5.3.7-1_m68k.udeb')
         deb_hash = '044954bb9be4160a3ce81f8bc1b5e856b75cccd1'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
-        kernel_path = self.extract_from_deb(deb_path,
+        kernel_path = self.extract_from_pkg(deb_path,
                                             '/boot/vmlinux-5.3.0-1-m68k')
 
         self.vm.set_console()
@@ -1133,8 +1111,8 @@ class BootLinuxConsole(LinuxKernelTest):
         deb_hash = 'db40d32fe39255d05482bea48d72467b67d6225bb2a2a4d6f618cb8976f1e09e'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash,
                                     algorithm='sha256')
-        kernel_path = self.extract_from_deb(deb_path, '/boot/vmlinuz-5.10.0-3-armmp')
-        dtb_path = self.extract_from_deb(deb_path,
+        kernel_path = self.extract_from_pkg(deb_path, '/boot/vmlinuz-5.10.0-3-armmp')
+        dtb_path = self.extract_from_pkg(deb_path,
                 '/usr/lib/linux-image-5.10.0-3-armmp/aspeed-bmc-opp-tacoma.dtb')
 
         self.vm.set_console()
