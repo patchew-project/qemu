@@ -78,9 +78,6 @@ static bool tcg_cpu_has_work(CPUState *cpu)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
-    if (cc->has_work) {
-        return cc->has_work(cpu);
-    }
     if (cc->tcg_ops->has_work) {
         return cc->tcg_ops->has_work(cpu);
     }
