@@ -54,6 +54,9 @@ class RxGdbSimMachine(Test):
         :avocado: tags=arch:rx
         :avocado: tags=machine:gdbsim-r5f562n7
         :avocado: tags=endian:little
+
+        # https://gitlab.com/qemu-project/qemu/-/issues/507
+        :avocado: tags=issue:507
         """
         dtb_url = ('https://acc.dl.osdn.jp/users/23/23887/rx-virt.dtb')
         dtb_hash = '7b4e4e2c71905da44e86ce47adee2210b026ac18'

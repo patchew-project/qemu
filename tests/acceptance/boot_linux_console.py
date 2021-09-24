@@ -485,6 +485,9 @@ class BootLinuxConsole(LinuxKernelTest):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:raspi2b
+
+        # https://gitlab.com/qemu-project/qemu/-/issues/636
+        :avocado: tags=issue:636
         """
         deb_url = ('http://archive.raspberrypi.org/debian/'
                    'pool/main/r/raspberrypi-firmware/'

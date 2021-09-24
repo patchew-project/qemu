@@ -1147,6 +1147,34 @@ variable as shown on the code snippet below to skip the test:
   def test(self):
       do_something()
 
+Disabling tests
+---------------
+
+If you want to have a test temporarily disabled (from ``make
+check-acceptance``), you can add an Avocado ``issue`` tag to the test.  Example::
+
+  class Feature(Test):
+
+      def test(self):
+        """
+        :avocado: tags=issue
+        """
+        do_something()
+
+Rather than simply adding an ``issue`` tag, it may be helpful to point
+to an actual issue on the project's issue tracker::
+
+  class Feature(Test):
+
+      def test(self):
+        """
+        Reason for disabling this test is documented and tracked at
+        https://gitlab.com/qemu-project/qemu/-/issues/9999
+
+        :avocado: tags=issue:9999
+        """
+        do_something()
+
 Uninstalling Avocado
 --------------------
 
