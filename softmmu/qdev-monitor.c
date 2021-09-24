@@ -812,7 +812,8 @@ void hmp_info_qdm(Monitor *mon, const QDict *qdict)
     qdev_print_devinfos(true);
 }
 
-void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp)
+static void monitor_device_add(QDict *qdict, QObject **ret_data,
+                               bool from_json, Error **errp)
 {
     QemuOpts *opts;
     DeviceState *dev;
@@ -825,7 +826,9 @@ void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp)
         qemu_opts_del(opts);
         return;
     }
-    dev = qdev_device_add(opts, errp);
+    qemu_opts_del(opts);
+
+    dev = qdev_device_add_from_qdict(qdict, from_json, errp);
 
     /*
      * Drain all pending RCU callbacks. This is done because
@@ -838,11 +841,12 @@ void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp)
      */
     drain_call_rcu();
 
-    if (!dev) {
-        qemu_opts_del(opts);
-        return;
-    }
     object_unref(OBJECT(dev));
+}
+
+void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp)
+{
+    monitor_device_add(qdict, ret_data, true, errp);
 }
 
 static DeviceState *find_device_state(const char *id, Error **errp)
@@ -936,7 +940,7 @@ void hmp_device_add(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
 
-    qmp_device_add((QDict *)qdict, NULL, &err);
+    monitor_device_add((QDict *)qdict, NULL, false, &err);
     hmp_handle_error(mon, err);
 }
 
