@@ -158,9 +158,10 @@ struct Nios2CPUClass {
 struct CPUNios2State {
     uint32_t regs[NUM_CORE_REGS];
 
-#if !defined(CONFIG_USER_ONLY)
+#ifdef CONFIG_USER_ONLY
+    int trap_code;
+#else
     Nios2MMU mmu;
-
     uint32_t irq_pending;
 #endif
 };
