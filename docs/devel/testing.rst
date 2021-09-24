@@ -740,6 +740,18 @@ may be invoked by running:
 
   tests/venv/bin/avocado run $OPTION1 $OPTION2 tests/acceptance/
 
+Running tests in parallel
+-------------------------
+
+The current ``make check-acceptance`` target continues to use the
+Avocado runner implementation simply known as "runner".  But, it's now
+possible to opt-in and choose the "nrunner" implementation, which,
+among other things, allows for parallel execution of tests:
+
+.. code::
+
+  make AVOCADO_RUNNER=nrunner check-acceptance
+
 Manual Installation
 -------------------
 
