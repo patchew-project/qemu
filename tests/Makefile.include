@@ -17,6 +17,7 @@ ifneq ($(filter $(all-check-targets), check-softfloat),)
 	@echo " $(MAKE) check-softfloat      Run FPU emulation tests"
 endif
 	@echo " $(MAKE) check-acceptance     Run acceptance (functional) tests for currently configured targets"
+	@echo " $(MAKE) check-acceptance     List acceptance (functional) tests for currently configured targets"
 	@echo
 	@echo " $(MAKE) check-report.tap     Generates an aggregated TAP test report"
 	@echo " $(MAKE) check-venv           Creates a Python venv for tests"
@@ -134,6 +135,13 @@ check-acceptance: check-venv $(TESTS_RESULTS_DIR) get-vm-images
             $(AVOCADO_TAGS) \
             $(if $(GITLAB_CI),,--failfast) tests/acceptance, \
             "AVOCADO", "tests/acceptance")
+
+list-acceptance: check-venv
+	$(call quiet-command, \
+            $(TESTS_VENV_DIR)/bin/python -m avocado list \
+            --filter-by-tags-include-empty --filter-by-tags-include-empty-key \
+            $(AVOCADO_TAGS) tests/acceptance, \
+            "AVOCADO", "list tests/acceptance")
 
 # Consolidated targets
 
