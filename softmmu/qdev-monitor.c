@@ -593,26 +593,27 @@ static BusState *qbus_find(const char *path, Error **errp)
 }
 
 /* Takes ownership of @id, will be freed when deleting the device */
-void qdev_set_id(DeviceState *dev, char *id)
+void qdev_set_id(DeviceState *dev, char *id, Error **errp)
 {
     if (id) {
         dev->id = id;
     }
 
     if (dev->id) {
-        object_property_add_child(qdev_get_peripheral(), dev->id,
-                                  OBJECT(dev));
+        object_property_try_add_child(qdev_get_peripheral(), dev->id,
+                                      OBJECT(dev), errp);
     } else {
         static int anon_count;
         gchar *name = g_strdup_printf("device[%d]", anon_count++);
-        object_property_add_child(qdev_get_peripheral_anon(), name,
-                                  OBJECT(dev));
+        object_property_try_add_child(qdev_get_peripheral_anon(), name,
+                                      OBJECT(dev), errp);
         g_free(name);
     }
 }
 
 DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
 {
+    ERRP_GUARD();
     DeviceClass *dc;
     const char *driver, *path;
     DeviceState *dev = NULL;
@@ -691,7 +692,10 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
         }
     }
 
-    qdev_set_id(dev, g_strdup(qemu_opts_id(opts)));
+    qdev_set_id(dev, g_strdup(qemu_opts_id(opts)), errp);
+    if (*errp) {
+        goto err_del_dev;
+    }
 
     /* set properties */
     if (qemu_opt_foreach(opts, set_property, dev, errp)) {
