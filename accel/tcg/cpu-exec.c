@@ -993,6 +993,10 @@ void tcg_exec_realizefn(CPUState *cpu, Error **errp)
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
     if (!tcg_target_initialized) {
+        /* Mandatory non-NULL handlers */
+        g_assert(cc->tcg_ops->initialize);
+        g_assert(cc->tcg_ops->has_work);
+
         cc->tcg_ops->initialize();
         tcg_target_initialized = true;
     }
