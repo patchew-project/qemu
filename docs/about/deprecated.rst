@@ -160,6 +160,17 @@ Use ``-display sdl`` instead.
 
 Use ``-display curses`` instead.
 
+Stable non-JSON ``-device`` and ``-object`` syntax (since 6.2)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+If you rely on a stable interface for ``-device`` and ``-object`` that doesn't
+change incompatibly between QEMU versions (e.g. because you are using the QEMU
+command line as a machine interface in scripts rather than interactively), use
+JSON syntax for these options instead.
+
+There is no intention to remove support for non-JSON syntax entirely, but
+future versions may change the way to spell some options.
+
 
 Plugin argument passing through ``arg=<string>`` (since 6.1)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
