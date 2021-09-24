@@ -251,11 +251,6 @@ void cpu_interrupt(CPUState *cpu, int mask)
 
 bool cpu_has_work(CPUState *cpu)
 {
-    CPUClass *cc = CPU_GET_CLASS(cpu);
-
-    if (cc->has_work && cc->has_work(cpu)) {
-        return true;
-    }
     if (cpus_accel->has_work && cpus_accel->has_work(cpu)) {
         return true;
     }
