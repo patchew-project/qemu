@@ -177,7 +177,7 @@ void setup_rt_frame(int sig, struct target_sigaction *ka,
 
     /* Set up to return from userspace; jump to fixed address sigreturn
        trampoline on kuser page.  */
-    env->regs[R_RA] = (unsigned long) (0x1044);
+    env->regs[R_RA] = default_rt_sigreturn;
 
     /* Set up registers for signal handler */
     env->regs[R_SP] = (unsigned long) frame;
