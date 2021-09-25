@@ -312,19 +312,28 @@ static void qemu_s390_inject_crw_mchk(S390FLICState *fs)
 
 bool qemu_s390_flic_has_service(QEMUS390FLICState *flic)
 {
-    /* called without lock via cc->has_work, will be validated under lock */
+    /*
+     * Called without lock via TCGCPUOps::has_work,
+     * will be validated under lock.
+     */
     return !!(flic->pending & FLIC_PENDING_SERVICE);
 }
 
 bool qemu_s390_flic_has_io(QEMUS390FLICState *flic, uint64_t cr6)
 {
-    /* called without lock via cc->has_work, will be validated under lock */
+    /*
+     * Called without lock via TCGCPUOps::has_work,
+     * will be validated under lock.
+     */
     return !!(flic->pending & CR6_TO_PENDING_IO(cr6));
 }
 
 bool qemu_s390_flic_has_crw_mchk(QEMUS390FLICState *flic)
 {
-    /* called without lock via cc->has_work, will be validated under lock */
+    /*
+     * Called without lock via TCGCPUOps::has_work,
+     * will be validated under lock.
+     */
     return !!(flic->pending & FLIC_PENDING_MCHK_CR);
 }
 
