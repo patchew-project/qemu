@@ -604,7 +604,10 @@ void cpu_remove_sync(CPUState *cpu)
 void cpus_register_accel(const AccelOpsClass *ops)
 {
     assert(ops != NULL);
-    assert(ops->create_vcpu_thread != NULL); /* mandatory */
+
+    /* Mandatory non-NULL handlers */
+    assert(ops->create_vcpu_thread != NULL);
+
     cpus_accel = ops;
 }
 
@@ -626,7 +629,7 @@ void qemu_init_vcpu(CPUState *cpu)
     }
 
     /* accelerators all implement the AccelOpsClass */
-    g_assert(cpus_accel != NULL && cpus_accel->create_vcpu_thread != NULL);
+    g_assert(cpus_accel != NULL);
     cpus_accel->create_vcpu_thread(cpu);
 
     while (!cpu->created) {
