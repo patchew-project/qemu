@@ -78,10 +78,7 @@ static bool tcg_cpu_has_work(CPUState *cpu)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
-    if (cc->tcg_ops->has_work) {
-        return cc->tcg_ops->has_work(cpu);
-    }
-    return false;
+    return cc->tcg_ops->has_work(cpu);
 }
 
 /* mask must never be zero, except for A20 change call */
