@@ -32,6 +32,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/guest-random.h"
 #include "exec/exec-all.h"
+#include "hw/core/tcg-cpu-ops.h"
 
 #include "tcg-accel-ops.h"
 #include "tcg-accel-ops-mttcg.h"
@@ -79,6 +80,9 @@ static bool tcg_cpu_has_work(CPUState *cpu)
 
     if (cc->has_work) {
         return cc->has_work(cpu);
+    }
+    if (cc->tcg_ops->has_work) {
+        return cc->tcg_ops->has_work(cpu);
     }
     return false;
 }
