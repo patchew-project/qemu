@@ -67,6 +67,11 @@ config IVSHMEM_DEVICE
     default y if PCI_DEVICES
     depends on PCI && LINUX && IVSHMEM && MSI_NONBROKEN
 
+config DYNAMIC_MDEV
+    bool
+    default y if PCI_DEVICES
+    depends on PCI && LINUX && MSI_NONBROKEN
+
 config ECCMEMCTL
     bool
     select ECC
