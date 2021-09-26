@@ -288,6 +288,7 @@ static void aer915_class_init(ObjectClass *klass, void *data)
     k->recv = aer915_recv;
     k->send = aer915_send;
     dc->vmsd = &vmstate_aer915_state;
+    set_bit(DEVICE_CATEGORY_SENSOR, dc->categories);
 }
 
 static const TypeInfo aer915_info = {

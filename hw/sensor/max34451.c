@@ -751,6 +751,8 @@ static void max34451_class_init(ObjectClass *klass, void *data)
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
     PMBusDeviceClass *k = PMBUS_DEVICE_CLASS(klass);
+
+    set_bit(DEVICE_CATEGORY_SENSOR, dc->categories);
     dc->desc = "Maxim MAX34451 16-Channel V/I monitor";
     dc->vmsd = &vmstate_max34451;
     k->write_data = max34451_write_data;

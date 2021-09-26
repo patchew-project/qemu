@@ -343,6 +343,7 @@ static void tmp421_class_init(ObjectClass *klass, void *data)
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
     TMP421Class *sc = TMP421_CLASS(klass);
 
+    set_bit(DEVICE_CATEGORY_SENSOR, dc->categories);
     dc->realize = tmp421_realize;
     k->event = tmp421_event;
     k->recv = tmp421_rx;
