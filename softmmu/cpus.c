@@ -251,10 +251,7 @@ void cpu_interrupt(CPUState *cpu, int mask)
 
 bool cpu_has_work(CPUState *cpu)
 {
-    if (cpus_accel->has_work && cpus_accel->has_work(cpu)) {
-        return true;
-    }
-    return false;
+    return cpus_accel->has_work(cpu);
 }
 
 static int do_vm_stop(RunState state, bool send_stop)
@@ -613,6 +610,7 @@ void cpus_register_accel(const AccelOpsClass *ops)
 
     /* Mandatory non-NULL handlers */
     assert(ops->create_vcpu_thread != NULL);
+    assert(ops->has_work != NULL);
 
     cpus_accel = ops;
 }
