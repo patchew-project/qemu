@@ -109,5 +109,7 @@ ENV PACKAGES \
     zlib-devel
 ENV QEMU_CONFIGURE_OPTS --python=/usr/bin/python3.6
 
-RUN zypper update -y && zypper --non-interactive install -y $PACKAGES
+RUN zypper refresh && \
+    zypper update -y && \
+    zypper --non-interactive install -y $PACKAGES
 RUN rpm -q $PACKAGES | sort > /packages.txt
