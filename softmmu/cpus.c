@@ -258,6 +258,9 @@ bool cpu_has_work(CPUState *cpu)
     if (cc->has_work && cc->has_work(cpu)) {
         return true;
     }
+    if (cpus_accel->has_work && cpus_accel->has_work(cpu)) {
+        return true;
+    }
     return false;
 }
 
