@@ -187,6 +187,11 @@ static QemuOptsList machine_opts = {
             .type = QEMU_OPT_STRING,
             .help = "Linux kernel device tree file",
         },{
+            .name = "dtbi",
+            .type = QEMU_OPT_STRING,
+            .help = "Linux kernel device tree file to merge with the "
+                    "generated device tree",
+        },{
             .name = "dumpdtb",
             .type = QEMU_OPT_STRING,
             .help = "Dump current dtb to a file and quit",
