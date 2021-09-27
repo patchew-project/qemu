@@ -47,6 +47,37 @@ void nvme_subsys_unregister_ctrl(NvmeSubsystem *subsys, NvmeState *n)
     n->cntlid = -1;
 }
 
+int nvme_subsys_register_ns(NvmeSubsystem *subsys, NvmeNamespace *ns,
+                            Error **errp)
+{
+    int i;
+
+    if (!ns->nsid) {
+        for (i = 1; i <= NVME_MAX_NAMESPACES; i++) {
+            if (!subsys->namespaces[i]) {
+                ns->nsid = i;
+                break;
+            }
+        }
+
+        if (!ns->nsid) {
+            error_setg(errp, "no free namespace identifiers");
+            return -1;
+        }
+    } else if (ns->nsid > NVME_MAX_NAMESPACES) {
+        error_setg(errp, "invalid namespace identifier '%d'", ns->nsid);
+        return -1;
+    } else if (subsys->namespaces[ns->nsid]) {
+        error_setg(errp, "namespace identifier '%d' already allocated",
+                   ns->nsid);
+        return -1;
+    }
+
+    subsys->namespaces[ns->nsid] = ns;
+
+    return 0;
+}
+
 static void get_controllers(Object *obj, Visitor *v, const char *name,
                             void *opaque, Error **errp)
 {

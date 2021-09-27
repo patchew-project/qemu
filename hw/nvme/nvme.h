@@ -19,6 +19,8 @@
 #define HW_NVME_INTERNAL_H
 
 #include "qemu/uuid.h"
+#include "qemu/notify.h"
+#include "qapi/qapi-builtin-visit.h"
 #include "hw/pci/pci.h"
 #include "hw/block/block.h"
 
@@ -44,6 +46,16 @@ OBJECT_DECLARE_SIMPLE_TYPE(NvmeBus, NVME_BUS)
 typedef struct NvmeBus {
     BusState parent_bus;
 } NvmeBus;
+
+#define TYPE_NVME_NAMESPACE "x-nvme-ns"
+OBJECT_DECLARE_TYPE(NvmeNamespace, NvmeNamespaceClass, NVME_NAMESPACE)
+
+struct NvmeNamespaceClass {
+    ObjectClass parent_class;
+
+    int (*check_params)(NvmeNamespace *ns, Error **errp);
+    int (*configure)(NvmeNamespace *ns, Error **errp);
+};
 
 #define TYPE_NVME_SUBSYSTEM "x-nvme-subsystem"
 OBJECT_DECLARE_SIMPLE_TYPE(NvmeSubsystem, NVME_SUBSYSTEM)
@@ -75,6 +87,8 @@ typedef struct NvmeSubsystemDevice {
 int nvme_subsys_register_ctrl(NvmeSubsystem *subsys, NvmeState *n,
                               Error **errp);
 void nvme_subsys_unregister_ctrl(NvmeSubsystem *subsys, NvmeState *n);
+int nvme_subsys_register_ns(NvmeSubsystem *subsys, NvmeNamespace *ns,
+                            Error **errp);
 
 static inline NvmeState *nvme_subsys_ctrl(NvmeSubsystem *subsys,
                                           uint32_t cntlid)
@@ -190,6 +204,11 @@ enum NvmeNamespaceFlags {
 };
 
 typedef struct NvmeNamespace {
+    Object parent_obj;
+    bool   realized;
+
+    NvmeSubsystem *subsys;
+
     uint32_t nsid;
     uint8_t  csi;
     QemuUUID uuid;
@@ -197,6 +216,7 @@ typedef struct NvmeNamespace {
         uint64_t v;
         uint8_t  a[8];
     } eui64;
+    NvmeNGUID nguid;
 
     unsigned long flags;
 
@@ -211,6 +231,8 @@ typedef struct NvmeNamespace {
     NvmeNamespaceNvm   nvm;
     NvmeNamespaceZoned zoned;
 } NvmeNamespace;
+
+bool nvme_ns_prop_writable(Object *obj, const char *name, Error **errp);
 
 #define NVME_NAMESPACE_NVM(ns) (&(ns)->nvm)
 #define NVME_NAMESPACE_ZONED(ns) (&(ns)->zoned)

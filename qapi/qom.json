@@ -663,6 +663,23 @@
             '*uuid': 'str' } }
 
 ##
+# @NvmeNamespaceProperties:
+#
+# Properties for x-nvme-ns objects.
+#
+# @subsys: nvme controller to attach to
+#
+# @nsid: namespace identifier to assign
+#
+# Since: 6.1
+##
+{ 'struct': 'NvmeNamespaceProperties',
+  'data': { 'subsys': 'str',
+            '*nsid': 'str',
+            '*eui64': 'str',
+            '*uuid': 'str' } }
+
+##
 # @PrManagerHelperProperties:
 #
 # Properties for pr-manager-helper objects.

@@ -13,9 +13,13 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
+#include "qemu/ctype.h"
 #include "qemu/units.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+#include "qapi/qapi-builtin-visit.h"
+#include "qom/object_interfaces.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/block-backend.h"
 
@@ -632,8 +636,220 @@ static const TypeInfo nvme_nsdev_info = {
     .instance_init = nvme_nsdev_instance_init,
 };
 
+bool nvme_ns_prop_writable(Object *obj, const char *name, Error **errp)
+{
+    NvmeNamespace *ns = NVME_NAMESPACE(obj);
+
+    if (ns->realized) {
+        error_setg(errp, "attempt to set immutable property '%s' on "
+                   "active namespace", name);
+        return false;
+    }
+
+    return true;
+}
+
+static char *nvme_ns_get_nsid(Object *obj, Error **errp)
+{
+    NvmeNamespace *ns = NVME_NAMESPACE(obj);
+
+    return g_strdup_printf("%d\n", ns->nsid);
+}
+
+static void nvme_ns_set_nsid(Object *obj, const char *v, Error **errp)
+{
+    NvmeNamespace *ns = NVME_NAMESPACE(obj);
+    unsigned long nsid;
+
+    if (!nvme_ns_prop_writable(obj, "nsid", errp)) {
+        return;
+    }
+
+    if (!strcmp(v, "auto")) {
+        ns->nsid = 0;
+        return;
+    }
+
+    if (qemu_strtoul(v, NULL, 0, &nsid) < 0 || nsid > NVME_MAX_NAMESPACES) {
+        error_setg(errp, "invalid namespace identifier");
+        return;
+    }
+
+    ns->nsid = nsid;
+}
+
+static char *nvme_ns_get_uuid(Object *obj, Error **errp)
+{
+    NvmeNamespace *ns = NVME_NAMESPACE(obj);
+
+    char *str = g_malloc(UUID_FMT_LEN + 1);
+
+    qemu_uuid_unparse(&ns->uuid, str);
+
+    return str;
+}
+
+static void nvme_ns_set_uuid(Object *obj, const char *v, Error **errp)
+{
+    NvmeNamespace *ns = NVME_NAMESPACE(obj);
+
+    if (!nvme_ns_prop_writable(obj, "uuid", errp)) {
+        return;
+    }
+
+    if (!strcmp(v, "auto")) {
+        qemu_uuid_generate(&ns->uuid);
+    } else if (qemu_uuid_parse(v, &ns->uuid) < 0) {
+        error_setg(errp, "invalid uuid");
+    }
+}
+
+static char *nvme_ns_get_eui64(Object *obj, Error **errp)
+{
+    NvmeNamespace *ns = NVME_NAMESPACE(obj);
+
+    const int len = 2 * 8 + 7 + 1; /* "aa:bb:cc:dd:ee:ff:gg:hh\0" */
+    char *str = g_malloc(len);
+
+    snprintf(str, len, "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
+             ns->eui64.a[0], ns->eui64.a[1], ns->eui64.a[2], ns->eui64.a[3],
+             ns->eui64.a[4], ns->eui64.a[5], ns->eui64.a[6], ns->eui64.a[7]);
+
+    return str;
+}
+
+static void nvme_ns_set_eui64(Object *obj, const char *v, Error **errp)
+{
+    NvmeNamespace *ns = NVME_NAMESPACE(obj);
+
+    int i, pos;
+
+    if (!nvme_ns_prop_writable(obj, "eui64", errp)) {
+        return;
+    }
+
+    if (!strcmp(v, "auto")) {
+        ns->eui64.a[0] = 0x52;
+        ns->eui64.a[1] = 0x54;
+        ns->eui64.a[2] = 0x00;
+
+        for (i = 0; i < 5; ++i) {
+            ns->eui64.a[3 + i] = g_random_int();
+        }
+
+        return;
+    }
+
+    for (i = 0, pos = 0; i < 8; i++, pos += 3) {
+        long octet;
+
+        if (!(qemu_isxdigit(v[pos]) && qemu_isxdigit(v[pos + 1]))) {
+            goto invalid;
+        }
+
+        if (i == 7) {
+            if (v[pos + 2] != '\0') {
+                goto invalid;
+            }
+        } else {
+            if (!(v[pos + 2] == ':' || v[pos + 2] == '-')) {
+                goto invalid;
+            }
+        }
+
+        if (qemu_strtol(v + pos, NULL, 16, &octet) < 0 || octet > 0xff) {
+            goto invalid;
+        }
+
+        ns->eui64.a[i] = octet;
+    }
+
+    return;
+
+invalid:
+    error_setg(errp, "invalid ieee extended unique identifier");
+}
+
+static void nvme_ns_set_identifiers_if_unset(NvmeNamespace *ns)
+{
+    ns->nguid.eui = ns->eui64.v;
+}
+
+static void nvme_ns_complete(UserCreatable *uc, Error **errp)
+{
+    NvmeNamespace *ns = NVME_NAMESPACE(uc);
+    NvmeNamespaceClass *nc = NVME_NAMESPACE_GET_CLASS(ns);
+
+    nvme_ns_set_identifiers_if_unset(ns);
+
+    ns->flags |= NVME_NS_SHARED;
+
+    if (nc->check_params && nc->check_params(ns, errp)) {
+        return;
+    }
+
+    if (nvme_subsys_register_ns(ns->subsys, ns, errp)) {
+        return;
+    }
+
+    if (nc->configure && nc->configure(ns, errp)) {
+        return;
+    }
+
+    ns->realized = true;
+}
+
+static void nvme_ns_class_init(ObjectClass *oc, void *data)
+{
+    ObjectProperty *op;
+    UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
+
+    ucc->complete = nvme_ns_complete;
+
+    op = object_class_property_add_str(oc, "nsid", nvme_ns_get_nsid,
+                                       nvme_ns_set_nsid);
+    object_property_set_default_str(op, "auto");
+    object_class_property_set_description(oc, "nsid", "namespace identifier "
+                                          "(\"auto\": assigned by controller "
+                                          "or subsystem; default: \"auto\")");
+
+    object_class_property_add_link(oc, "subsys", TYPE_NVME_SUBSYSTEM,
+                                   offsetof(NvmeNamespace, subsys),
+                                   object_property_allow_set_link, 0);
+    object_class_property_set_description(oc, "subsys", "link to "
+                                          "x-nvme-subsystem object");
+
+    op = object_class_property_add_str(oc, "uuid", nvme_ns_get_uuid,
+                                       nvme_ns_set_uuid);
+    object_property_set_default_str(op, "auto");
+    object_class_property_set_description(oc, "uuid", "namespace uuid "
+                                          "(\"auto\" for random value; "
+                                          "default: \"auto\")");
+
+    op = object_class_property_add_str(oc, "eui64", nvme_ns_get_eui64,
+                                       nvme_ns_set_eui64);
+    object_property_set_default_str(op, "auto");
+    object_class_property_set_description(oc, "eui64", "IEEE Extended Unique "
+                                          "Identifier (\"auto\" for random "
+                                          "value; default: \"auto\")");
+}
+
+static const TypeInfo nvme_ns_info = {
+    .name = TYPE_NVME_NAMESPACE,
+    .parent = TYPE_OBJECT,
+    .abstract = true,
+    .class_size = sizeof(NvmeNamespaceClass),
+    .class_init = nvme_ns_class_init,
+    .instance_size = sizeof(NvmeNamespace),
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_USER_CREATABLE },
+        { },
+    },
+};
+
 static void register_types(void)
 {
+    type_register_static(&nvme_ns_info);
     type_register_static(&nvme_nsdev_info);
 }
 
