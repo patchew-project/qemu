@@ -40,24 +40,29 @@ typedef struct NvmeBus {
     BusState parent_bus;
 } NvmeBus;
 
-#define TYPE_NVME_SUBSYS "nvme-subsys"
-#define NVME_SUBSYS(obj) \
-    OBJECT_CHECK(NvmeSubsystem, (obj), TYPE_NVME_SUBSYS)
-
 typedef struct NvmeSubsystem {
-    DeviceState parent_obj;
-    NvmeBus     bus;
     uint8_t     subnqn[256];
 
     NvmeCtrl      *ctrls[NVME_MAX_CONTROLLERS];
     NvmeNamespace *namespaces[NVME_MAX_NAMESPACES + 1];
+} NvmeSubsystem;
+
+#define TYPE_NVME_SUBSYSTEM_DEVICE "nvme-subsys"
+OBJECT_DECLARE_SIMPLE_TYPE(NvmeSubsystemDevice, NVME_SUBSYSTEM_DEVICE)
+
+typedef struct NvmeSubsystemDevice {
+    DeviceState parent_obj;
+    NvmeBus     bus;
+
+    NvmeSubsystem subsys;
 
     struct {
         char *nqn;
     } params;
-} NvmeSubsystem;
+} NvmeSubsystemDevice;
 
-int nvme_subsys_register_ctrl(NvmeCtrl *n, Error **errp);
+int nvme_subsys_register_ctrl(NvmeSubsystem *subsys, NvmeCtrl *n,
+                              Error **errp);
 void nvme_subsys_unregister_ctrl(NvmeSubsystem *subsys, NvmeCtrl *n);
 
 static inline NvmeCtrl *nvme_subsys_ctrl(NvmeSubsystem *subsys,
@@ -436,7 +441,8 @@ typedef struct NvmeCtrl {
 #define NVME_CHANGED_NSID_SIZE  (NVME_MAX_NAMESPACES + 1)
     DECLARE_BITMAP(changed_nsids, NVME_CHANGED_NSID_SIZE);
 
-    NvmeSubsystem   *subsys;
+    NvmeSubsystem       *subsys;
+    NvmeSubsystemDevice *subsys_dev;
 
     NvmeNamespaceDevice namespace;
     NvmeNamespace   *namespaces[NVME_MAX_NAMESPACES + 1];

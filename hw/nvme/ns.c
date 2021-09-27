@@ -509,7 +509,7 @@ static void nvme_nsdev_realize(DeviceState *dev, Error **errp)
          * If this namespace belongs to a subsystem (through a link on the
          * controller device), reparent the device.
          */
-        if (!qdev_set_parent_bus(dev, &subsys->bus.parent_bus, errp)) {
+        if (!qdev_set_parent_bus(dev, &n->subsys_dev->bus.parent_bus, errp)) {
             return;
         }
     }

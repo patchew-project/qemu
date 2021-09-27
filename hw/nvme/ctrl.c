@@ -6539,7 +6539,7 @@ static int nvme_init_subsys(NvmeCtrl *n, Error **errp)
         return 0;
     }
 
-    cntlid = nvme_subsys_register_ctrl(n, errp);
+    cntlid = nvme_subsys_register_ctrl(n->subsys, n, errp);
     if (cntlid < 0) {
         return -1;
     }
@@ -6566,6 +6566,10 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
 {
     NvmeCtrl *n = NVME(pci_dev);
     Error *local_err = NULL;
+
+    if (n->subsys_dev) {
+        n->subsys = &n->subsys_dev->subsys;
+    }
 
     nvme_check_constraints(n, &local_err);
     if (local_err) {
@@ -6637,8 +6641,8 @@ static Property nvme_props[] = {
     DEFINE_BLOCK_PROPERTIES(NvmeCtrl, namespace.blkconf),
     DEFINE_PROP_LINK("pmrdev", NvmeCtrl, pmr.dev, TYPE_MEMORY_BACKEND,
                      HostMemoryBackend *),
-    DEFINE_PROP_LINK("subsys", NvmeCtrl, subsys, TYPE_NVME_SUBSYS,
-                     NvmeSubsystem *),
+    DEFINE_PROP_LINK("subsys", NvmeCtrl, subsys_dev, TYPE_NVME_SUBSYSTEM_DEVICE,
+                     NvmeSubsystemDevice *),
     DEFINE_PROP_STRING("serial", NvmeCtrl, params.serial),
     DEFINE_PROP_UINT32("cmb_size_mb", NvmeCtrl, params.cmb_size_mb, 0),
     DEFINE_PROP_UINT32("num_queues", NvmeCtrl, params.num_queues, 0),
