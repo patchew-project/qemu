@@ -1269,6 +1269,11 @@ typedef struct QEMU_PACKED NvmeLBAFE {
 
 #define NVME_NSID_BROADCAST 0xffffffff
 
+typedef struct QEMU_PACKED NvmeNGUID {
+    uint8_t     vspexid[8];
+    uint64_t    eui;
+} NvmeNGUID;
+
 typedef struct QEMU_PACKED NvmeIdNs {
     uint64_t    nsze;
     uint64_t    ncap;
@@ -1300,7 +1305,7 @@ typedef struct QEMU_PACKED NvmeIdNs {
     uint32_t    mcl;
     uint8_t     msrc;
     uint8_t     rsvd81[23];
-    uint8_t     nguid[16];
+    NvmeNGUID   nguid;
     uint64_t    eui64;
     NvmeLBAF    lbaf[16];
     uint8_t     rsvd192[192];
