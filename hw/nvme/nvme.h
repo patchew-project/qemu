@@ -155,6 +155,7 @@ enum {
 typedef struct NvmeNamespaceNvm {
     NvmeIdNs id_ns;
 
+    BlockBackend *blk;
     int64_t size;
     int64_t moff;
 
@@ -192,6 +193,11 @@ typedef struct NvmeNamespace {
 
 #define NVME_NAMESPACE_NVM(ns) (&(ns)->nvm)
 #define NVME_NAMESPACE_ZONED(ns) (&(ns)->zoned)
+
+static inline BlockBackend *nvme_blk(NvmeNamespace *ns)
+{
+    return NVME_NAMESPACE_NVM(ns)->blk;
+}
 
 static inline uint32_t nvme_nsid(NvmeNamespace *ns)
 {
