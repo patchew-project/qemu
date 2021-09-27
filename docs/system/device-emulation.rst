@@ -85,6 +85,7 @@ Emulated Devices
    devices/ivshmem.rst
    devices/net.rst
    devices/nvme.rst
+   devices/nvme-experimental.rst
    devices/usb.rst
    devices/vhost-user.rst
    devices/virtio-pmem.rst
