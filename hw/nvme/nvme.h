@@ -38,8 +38,11 @@ typedef struct NvmeNamespace NvmeNamespace;
 #define TYPE_NVME_STATE "nvme-state"
 OBJECT_DECLARE_SIMPLE_TYPE(NvmeState, NVME_STATE)
 
-#define TYPE_NVME_DEVICE "nvme"
+#define TYPE_NVME_DEVICE "x-nvme-ctrl"
 OBJECT_DECLARE_SIMPLE_TYPE(NvmeCtrl, NVME_DEVICE)
+
+#define TYPE_NVME_DEVICE_LEGACY "nvme"
+OBJECT_DECLARE_SIMPLE_TYPE(NvmeCtrlLegacyDevice, NVME_DEVICE_LEGACY)
 
 #define TYPE_NVME_BUS "nvme-bus"
 OBJECT_DECLARE_SIMPLE_TYPE(NvmeBus, NVME_BUS)
@@ -400,6 +403,10 @@ typedef struct NvmeState {
 
 typedef struct NvmeCtrl {
     NvmeState parent_obj;
+} NvmeCtrl;
+
+typedef struct NvmeCtrlLegacyDevice {
+    NvmeState parent_obj;
 
     NvmeBus bus;
 
@@ -407,7 +414,7 @@ typedef struct NvmeCtrl {
     NvmeNamespaceDevice namespace;
 
     NvmeSubsystemDevice *subsys_dev;
-} NvmeCtrl;
+} NvmeCtrlLegacyDevice;
 
 static inline NvmeNamespace *nvme_ns(NvmeState *n, uint32_t nsid)
 {

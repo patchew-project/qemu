@@ -6529,18 +6529,13 @@ static void nvme_init_ctrl(NvmeState *n, PCIDevice *pci_dev)
 
 static int nvme_init_subsys(NvmeState *n, Error **errp)
 {
-    int cntlid;
-
     if (!n->subsys) {
         return 0;
     }
 
-    cntlid = nvme_subsys_register_ctrl(n->subsys, n, errp);
-    if (cntlid < 0) {
+    if (nvme_subsys_register_ctrl(n->subsys, n, errp)) {
         return -1;
     }
-
-    n->cntlid = cntlid;
 
     return 0;
 }
@@ -6560,8 +6555,39 @@ void nvme_attach_ns(NvmeState *n, NvmeNamespace *ns)
 
 static void nvme_realize(PCIDevice *pci_dev, Error **errp)
 {
-    NvmeCtrl *ctrl = NVME_DEVICE(pci_dev);
-    NvmeState *n = NVME_STATE(ctrl);
+    NvmeState *n = NVME_STATE(pci_dev);
+    const int SN_LEN = 12;
+
+    if (!n->params.serial) {
+        int i;
+
+        n->params.serial = g_malloc0(SN_LEN + 1);
+
+        for (i = 0; i < SN_LEN; i++) {
+             n->params.serial[i] = g_random_int_range(0x41, 0x5A);
+        }
+    }
+
+    if (nvme_check_constraints(n, errp)) {
+        return;
+    }
+
+    nvme_init_state(n);
+    if (nvme_init_pci(n, pci_dev, errp)) {
+        return;
+    }
+
+    if (nvme_init_subsys(n, errp)) {
+        return;
+    }
+
+    nvme_init_ctrl(n, pci_dev);
+}
+
+static void nvme_legacy_realize(PCIDevice *pci_dev, Error **errp)
+{
+    NvmeState *n = NVME_STATE(pci_dev);
+    NvmeCtrlLegacyDevice *ctrl = NVME_DEVICE_LEGACY(n);
 
     if (ctrl->subsys_dev) {
         if (ctrl->namespace.blkconf.blk) {
@@ -6588,6 +6614,7 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
     if (nvme_init_subsys(n, errp)) {
         return;
     }
+
     nvme_init_ctrl(n, pci_dev);
 
     /* setup a namespace if the controller drive property was given */
@@ -6643,27 +6670,47 @@ static void nvme_exit(PCIDevice *pci_dev)
 static Property nvme_state_props[] = {
     DEFINE_PROP_LINK("pmrdev", NvmeState, pmr.dev, TYPE_MEMORY_BACKEND,
                      HostMemoryBackend *),
-    DEFINE_PROP_LINK("subsys", NvmeState, subsys_dev,
-                     TYPE_NVME_SUBSYSTEM_DEVICE, NvmeSubsystemDevice *),
     DEFINE_PROP_STRING("serial", NvmeState, params.serial),
-    DEFINE_PROP_UINT32("cmb_size_mb", NvmeState, params.cmb_size_mb, 0),
-    DEFINE_PROP_UINT32("num_queues", NvmeState, params.num_queues, 0),
-    DEFINE_PROP_UINT32("max_ioqpairs", NvmeState, params.max_ioqpairs, 64),
-    DEFINE_PROP_UINT16("msix_qsize", NvmeState, params.msix_qsize, 65),
     DEFINE_PROP_UINT8("aerl", NvmeState, params.aerl, 3),
-    DEFINE_PROP_UINT32("aer_max_queued", NvmeState, params.aer_max_queued, 64),
     DEFINE_PROP_UINT8("mdts", NvmeState, params.mdts, 7),
-    DEFINE_PROP_UINT8("vsl", NvmeState, params.vsl, 7),
-    DEFINE_PROP_BOOL("use-intel-id", NvmeState, params.use_intel_id, false),
     DEFINE_PROP_BOOL("legacy-cmb", NvmeState, params.legacy_cmb, false),
-    DEFINE_PROP_UINT8("zoned.zasl", NvmeState, params.zasl, 0),
-    DEFINE_PROP_BOOL("zoned.auto_transition", NvmeState,
-                     params.auto_transition_zones, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
 static Property nvme_props[] = {
-    DEFINE_BLOCK_PROPERTIES(NvmeCtrl, namespace.blkconf),
+    DEFINE_PROP_LINK("subsys", NvmeState, subsys, TYPE_NVME_SUBSYSTEM,
+                     NvmeSubsystem *),
+
+    DEFINE_PROP_UINT16("cntlid", NvmeState, cntlid, 0),
+    DEFINE_PROP_UINT32("cmb-size-mb", NvmeState, params.cmb_size_mb, 0),
+    DEFINE_PROP_UINT32("max-aen-retention", NvmeState, params.aer_max_queued, 64),
+    DEFINE_PROP_UINT32("max-ioqpairs", NvmeState, params.max_ioqpairs, 64),
+    DEFINE_PROP_UINT16("msix-vectors", NvmeState, params.msix_qsize, 2048),
+
+    /* nvm command set specific properties */
+    DEFINE_PROP_UINT8("nvm-vsl", NvmeState, params.vsl, 7),
+
+    /* zoned command set specific properties */
+    DEFINE_PROP_UINT8("zoned-zasl", NvmeState, params.zasl, 0),
+    DEFINE_PROP_BOOL("zoned-auto-transition-zones", NvmeState,
+                     params.auto_transition_zones, true),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static Property nvme_legacy_props[] = {
+    DEFINE_BLOCK_PROPERTIES(NvmeCtrlLegacyDevice, namespace.blkconf),
+    DEFINE_PROP_LINK("subsys", NvmeCtrlLegacyDevice, subsys_dev,
+                     TYPE_NVME_SUBSYSTEM_DEVICE, NvmeSubsystemDevice *),
+    DEFINE_PROP_UINT32("cmb_size_mb", NvmeState, params.cmb_size_mb, 0),
+    DEFINE_PROP_UINT32("num_queues", NvmeState, params.num_queues, 0),
+    DEFINE_PROP_UINT32("aer_max_queued", NvmeState, params.aer_max_queued, 64),
+    DEFINE_PROP_UINT32("max_ioqpairs", NvmeState, params.max_ioqpairs, 64),
+    DEFINE_PROP_UINT16("msix_qsize", NvmeState, params.msix_qsize, 65),
+    DEFINE_PROP_BOOL("use-intel-id", NvmeState, params.use_intel_id, false),
+    DEFINE_PROP_UINT8("vsl", NvmeState, params.vsl, 7),
+    DEFINE_PROP_UINT8("zoned.zasl", NvmeState, params.zasl, 0),
+    DEFINE_PROP_BOOL("zoned.auto_transition", NvmeState,
+                     params.auto_transition_zones, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -6719,7 +6766,6 @@ static void nvme_state_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
 
-    pc->realize = nvme_realize;
     pc->exit = nvme_exit;
     pc->class_id = PCI_CLASS_STORAGE_EXPRESS;
     pc->revision = 2;
@@ -6753,16 +6799,11 @@ static const TypeInfo nvme_state_info = {
 static void nvme_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
+    PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
+
+    pc->realize = nvme_realize;
+
     device_class_set_props(dc, nvme_props);
-}
-
-static void nvme_instance_init(Object *obj)
-{
-    NvmeCtrl *ctrl = NVME_DEVICE(obj);
-
-    device_add_bootindex_property(obj, &ctrl->namespace.blkconf.bootindex,
-                                  "bootindex", "/namespace@1,0",
-                                  DEVICE(obj));
 }
 
 static const TypeInfo nvme_info = {
@@ -6770,8 +6811,33 @@ static const TypeInfo nvme_info = {
     .parent = TYPE_NVME_STATE,
     .class_init = nvme_class_init,
     .instance_size = sizeof(NvmeCtrl),
-    .instance_init = nvme_instance_init,
-    .class_init = nvme_class_init,
+};
+
+static void nvme_legacy_instance_init(Object *obj)
+{
+    NvmeCtrlLegacyDevice *ctrl = NVME_DEVICE_LEGACY(obj);
+
+    device_add_bootindex_property(obj, &ctrl->namespace.blkconf.bootindex,
+                                  "bootindex", "/namespace@1,0",
+                                  DEVICE(obj));
+}
+
+static void nvme_legacy_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+    PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
+
+    pc->realize = nvme_legacy_realize;
+
+    device_class_set_props(dc, nvme_legacy_props);
+}
+
+static const TypeInfo nvme_legacy_info = {
+    .name = TYPE_NVME_DEVICE_LEGACY,
+    .parent = TYPE_NVME_STATE,
+    .class_init = nvme_legacy_class_init,
+    .instance_size = sizeof(NvmeCtrlLegacyDevice),
+    .instance_init = nvme_legacy_instance_init,
 };
 
 static const TypeInfo nvme_bus_info = {
@@ -6780,11 +6846,12 @@ static const TypeInfo nvme_bus_info = {
     .instance_size = sizeof(NvmeBus),
 };
 
-static void nvme_register_types(void)
+static void register_types(void)
 {
     type_register_static(&nvme_state_info);
     type_register_static(&nvme_info);
+    type_register_static(&nvme_legacy_info);
     type_register_static(&nvme_bus_info);
 }
 
-type_init(nvme_register_types)
+type_init(register_types)

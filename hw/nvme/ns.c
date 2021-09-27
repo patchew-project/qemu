@@ -262,7 +262,7 @@ static void nvme_nsdev_realize(DeviceState *dev, Error **errp)
     NvmeNamespaceDevice *nsdev = NVME_NAMESPACE_DEVICE(dev);
     NvmeNamespace *ns = NULL;
     BusState *s = qdev_get_parent_bus(dev);
-    NvmeCtrl *ctrl = NVME_DEVICE(s->parent);
+    NvmeCtrlLegacyDevice *ctrl = NVME_DEVICE_LEGACY(s->parent);
     NvmeState *n = NVME_STATE(ctrl);
     NvmeSubsystem *subsys = n->subsys;
     uint32_t nsid = nsdev->params.nsid;

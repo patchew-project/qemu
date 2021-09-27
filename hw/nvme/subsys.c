@@ -16,20 +16,29 @@
 int nvme_subsys_register_ctrl(NvmeSubsystem *subsys, NvmeState *n,
                               Error **errp)
 {
-    int cntlid, nsid;
+    int nsid;
 
-    for (cntlid = 0; cntlid < ARRAY_SIZE(subsys->ctrls); cntlid++) {
-        if (!subsys->ctrls[cntlid]) {
-            break;
+    if (!n->cntlid) {
+        int cntlid;
+
+        for (cntlid = 0; cntlid < ARRAY_SIZE(subsys->ctrls); cntlid++) {
+            if (!subsys->ctrls[cntlid]) {
+                break;
+            }
         }
-    }
 
-    if (cntlid == ARRAY_SIZE(subsys->ctrls)) {
-        error_setg(errp, "no more free controller id");
+        if (cntlid == ARRAY_SIZE(subsys->ctrls)) {
+            error_setg(errp, "no more free controller identifiers");
+            return -1;
+        }
+
+        n->cntlid = cntlid;
+    } else if (subsys->ctrls[n->cntlid]) {
+        error_setg(errp, "controller identifier already assigned");
         return -1;
     }
 
-    subsys->ctrls[cntlid] = n;
+    subsys->ctrls[n->cntlid] = n;
 
     for (nsid = 1; nsid < ARRAY_SIZE(subsys->namespaces); nsid++) {
         NvmeNamespace *ns = subsys->namespaces[nsid];
@@ -38,7 +47,7 @@ int nvme_subsys_register_ctrl(NvmeSubsystem *subsys, NvmeState *n,
         }
     }
 
-    return cntlid;
+    return 0;
 }
 
 void nvme_subsys_unregister_ctrl(NvmeSubsystem *subsys, NvmeState *n)
