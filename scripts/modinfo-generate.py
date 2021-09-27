@@ -48,6 +48,8 @@ def generate(name, lines):
                 opts.append(data)
             elif kind == 'arch':
                 arch = data;
+            elif kind == 'need':
+                pass # ignore
             else:
                 print("unknown:", kind)
                 exit(1)
