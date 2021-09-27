@@ -248,7 +248,7 @@ static void nvme_dif_rw_check_cb(void *opaque, int ret)
     NvmeRequest *req = ctx->req;
     NvmeNamespace *ns = req->ns;
     NvmeNamespaceNvm *nvm = NVME_NAMESPACE_NVM(ns);
-    NvmeCtrl *n = nvme_ctrl(req);
+    NvmeState *n = nvme_state(req);
     NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
     uint64_t slba = le64_to_cpu(rw->slba);
     uint8_t prinfo = NVME_RW_PRINFO(le16_to_cpu(rw->control));
@@ -357,7 +357,7 @@ out:
     nvme_dif_rw_cb(ctx, ret);
 }
 
-uint16_t nvme_dif_rw(NvmeCtrl *n, NvmeRequest *req)
+uint16_t nvme_dif_rw(NvmeState *n, NvmeRequest *req)
 {
     NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
     NvmeNamespace *ns = req->ns;

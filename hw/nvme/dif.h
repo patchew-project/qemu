@@ -48,6 +48,6 @@ uint16_t nvme_dif_check(NvmeNamespaceNvm *nvm, uint8_t *buf, size_t len,
                         uint8_t *mbuf, size_t mlen, uint8_t prinfo,
                         uint64_t slba, uint16_t apptag,
                         uint16_t appmask, uint32_t *reftag);
-uint16_t nvme_dif_rw(NvmeCtrl *n, NvmeRequest *req);
+uint16_t nvme_dif_rw(NvmeState *n, NvmeRequest *req);
 
 #endif /* HW_NVME_DIF_H */

@@ -493,7 +493,7 @@ static void nvme_nsdev_realize(DeviceState *dev, Error **errp)
     NvmeNamespaceDevice *nsdev = NVME_NAMESPACE_DEVICE(dev);
     NvmeNamespace *ns = &nsdev->ns;
     BusState *s = qdev_get_parent_bus(dev);
-    NvmeCtrl *n = NVME(s->parent);
+    NvmeState *n = NVME_STATE(s->parent);
     NvmeSubsystem *subsys = n->subsys;
     uint32_t nsid = nsdev->params.nsid;
     int i;
@@ -552,7 +552,7 @@ static void nvme_nsdev_realize(DeviceState *dev, Error **errp)
 
         if (nsdev->params.shared) {
             for (i = 0; i < ARRAY_SIZE(subsys->ctrls); i++) {
-                NvmeCtrl *ctrl = subsys->ctrls[i];
+                NvmeState *ctrl = subsys->ctrls[i];
 
                 if (ctrl) {
                     nvme_attach_ns(ctrl, ns);

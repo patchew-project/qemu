@@ -11,7 +11,7 @@
 
 #include "nvme.h"
 
-int nvme_subsys_register_ctrl(NvmeSubsystem *subsys, NvmeCtrl *n, Error **errp)
+int nvme_subsys_register_ctrl(NvmeSubsystem *subsys, NvmeState *n, Error **errp)
 {
     int cntlid, nsid;
 
@@ -38,7 +38,7 @@ int nvme_subsys_register_ctrl(NvmeSubsystem *subsys, NvmeCtrl *n, Error **errp)
     return cntlid;
 }
 
-void nvme_subsys_unregister_ctrl(NvmeSubsystem *subsys, NvmeCtrl *n)
+void nvme_subsys_unregister_ctrl(NvmeSubsystem *subsys, NvmeState *n)
 {
     subsys->ctrls[n->cntlid] = NULL;
     n->cntlid = -1;
