@@ -1338,6 +1338,10 @@ enum NvmeCsi {
 
 #define NVME_SET_CSI(vec, csi) (vec |= (uint8_t)(1 << (csi)))
 
+enum NvmeIdNsZonedOzcs {
+    NVME_ID_NS_ZONED_OZCS_CROSS_READ = 1 << 0,
+};
+
 typedef struct QEMU_PACKED NvmeIdNsZoned {
     uint16_t    zoc;
     uint16_t    ozcs;

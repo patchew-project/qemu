@@ -167,6 +167,8 @@ static int nvme_ns_init_blk(NvmeNamespace *ns, Error **errp)
 
 static int nvme_zns_check_calc_geometry(NvmeNamespace *ns, Error **errp)
 {
+    NvmeNamespaceZoned *zoned = NVME_NAMESPACE_ZONED(ns);
+
     uint64_t zone_size, zone_cap;
 
     /* Make sure that the values of ZNS properties are sane */
@@ -200,12 +202,12 @@ static int nvme_zns_check_calc_geometry(NvmeNamespace *ns, Error **errp)
      * Save the main zone geometry values to avoid
      * calculating them later again.
      */
-    ns->zone_size = zone_size / ns->lbasz;
-    ns->zone_capacity = zone_cap / ns->lbasz;
-    ns->num_zones = le64_to_cpu(ns->id_ns.nsze) / ns->zone_size;
+    zoned->zone_size = zone_size / ns->lbasz;
+    zoned->zone_capacity = zone_cap / ns->lbasz;
+    zoned->num_zones = le64_to_cpu(ns->id_ns.nsze) / zoned->zone_size;
 
     /* Do a few more sanity checks of ZNS properties */
-    if (!ns->num_zones) {
+    if (!zoned->num_zones) {
         error_setg(errp,
                    "insufficient drive capacity, must be at least the size "
                    "of one zone (%"PRIu64"B)", zone_size);
@@ -215,68 +217,70 @@ static int nvme_zns_check_calc_geometry(NvmeNamespace *ns, Error **errp)
     return 0;
 }
 
-static void nvme_zns_init_state(NvmeNamespace *ns)
+static void nvme_zns_init_state(NvmeNamespaceZoned *zoned)
 {
-    uint64_t start = 0, zone_size = ns->zone_size;
-    uint64_t capacity = ns->num_zones * zone_size;
+    uint64_t start = 0, zone_size = zoned->zone_size;
+    uint64_t capacity = zoned->num_zones * zone_size;
     NvmeZone *zone;
     int i;
 
-    ns->zone_array = g_new0(NvmeZone, ns->num_zones);
-    if (ns->params.zd_extension_size) {
-        ns->zd_extensions = g_malloc0(ns->params.zd_extension_size *
-                                      ns->num_zones);
+    zoned->zone_array = g_new0(NvmeZone, zoned->num_zones);
+    if (zoned->zd_extension_size) {
+        zoned->zd_extensions = g_malloc0(zoned->zd_extension_size *
+                                         zoned->num_zones);
     }
 
-    QTAILQ_INIT(&ns->exp_open_zones);
-    QTAILQ_INIT(&ns->imp_open_zones);
-    QTAILQ_INIT(&ns->closed_zones);
-    QTAILQ_INIT(&ns->full_zones);
+    QTAILQ_INIT(&zoned->exp_open_zones);
+    QTAILQ_INIT(&zoned->imp_open_zones);
+    QTAILQ_INIT(&zoned->closed_zones);
+    QTAILQ_INIT(&zoned->full_zones);
 
-    zone = ns->zone_array;
-    for (i = 0; i < ns->num_zones; i++, zone++) {
+    zone = zoned->zone_array;
+    for (i = 0; i < zoned->num_zones; i++, zone++) {
         if (start + zone_size > capacity) {
             zone_size = capacity - start;
         }
         zone->d.zt = NVME_ZONE_TYPE_SEQ_WRITE;
-        nvme_zns_set_zs(zone, NVME_ZONE_STATE_EMPTY);
+        nvme_zns_set_state(zone, NVME_ZONE_STATE_EMPTY);
         zone->d.za = 0;
-        zone->d.zcap = ns->zone_capacity;
+        zone->d.zcap = zoned->zone_capacity;
         zone->d.zslba = start;
         zone->d.wp = start;
         zone->w_ptr = start;
         start += zone_size;
     }
 
-    ns->zone_size_log2 = 0;
-    if (is_power_of_2(ns->zone_size)) {
-        ns->zone_size_log2 = 63 - clz64(ns->zone_size);
+    zoned->zone_size_log2 = 0;
+    if (is_power_of_2(zoned->zone_size)) {
+        zoned->zone_size_log2 = 63 - clz64(zoned->zone_size);
     }
 }
 
 static void nvme_zns_init(NvmeNamespace *ns)
 {
-    NvmeIdNsZoned *id_ns_z;
+    NvmeNamespaceZoned *zoned = NVME_NAMESPACE_ZONED(ns);
+    NvmeIdNsZoned *id_ns_z = &zoned->id_ns;
     int i;
 
-    nvme_zns_init_state(ns);
-
-    id_ns_z = g_malloc0(sizeof(NvmeIdNsZoned));
+    nvme_zns_init_state(zoned);
 
     /* MAR/MOR are zeroes-based, FFFFFFFFFh means no limit */
-    id_ns_z->mar = cpu_to_le32(ns->params.max_active_zones - 1);
-    id_ns_z->mor = cpu_to_le32(ns->params.max_open_zones - 1);
+    id_ns_z->mar = cpu_to_le32(zoned->max_active_zones - 1);
+    id_ns_z->mor = cpu_to_le32(zoned->max_open_zones - 1);
     id_ns_z->zoc = 0;
-    id_ns_z->ozcs = ns->params.cross_zone_read ? 0x01 : 0x00;
+
+    if (zoned->flags & NVME_NS_ZONED_CROSS_READ) {
+        id_ns_z->ozcs |= NVME_ID_NS_ZONED_OZCS_CROSS_READ;
+    }
 
     for (i = 0; i <= ns->id_ns.nlbaf; i++) {
-        id_ns_z->lbafe[i].zsze = cpu_to_le64(ns->zone_size);
+        id_ns_z->lbafe[i].zsze = cpu_to_le64(zoned->zone_size);
         id_ns_z->lbafe[i].zdes =
-            ns->params.zd_extension_size >> 6; /* Units of 64B */
+            zoned->zd_extension_size >> 6; /* Units of 64B */
     }
 
     ns->csi = NVME_CSI_ZONED;
-    ns->id_ns.nsze = cpu_to_le64(ns->num_zones * ns->zone_size);
+    ns->id_ns.nsze = cpu_to_le64(zoned->num_zones * zoned->zone_size);
     ns->id_ns.ncap = ns->id_ns.nsze;
     ns->id_ns.nuse = ns->id_ns.ncap;
 
@@ -287,64 +291,62 @@ static void nvme_zns_init(NvmeNamespace *ns)
      * we can only support DULBE if the zone size is a multiple of the
      * calculated NPDG.
      */
-    if (ns->zone_size % (ns->id_ns.npdg + 1)) {
+    if (zoned->zone_size % (ns->id_ns.npdg + 1)) {
         warn_report("the zone size (%"PRIu64" blocks) is not a multiple of "
                     "the calculated deallocation granularity (%d blocks); "
                     "DULBE support disabled",
-                    ns->zone_size, ns->id_ns.npdg + 1);
+                    zoned->zone_size, ns->id_ns.npdg + 1);
 
         ns->id_ns.nsfeat &= ~0x4;
     }
-
-    ns->id_ns_zoned = id_ns_z;
 }
 
-static void nvme_zns_clear_zone(NvmeNamespace *ns, NvmeZone *zone)
+static void nvme_zns_clear_zone(NvmeNamespaceZoned *zoned, NvmeZone *zone)
 {
     uint8_t state;
 
     zone->w_ptr = zone->d.wp;
-    state = nvme_zns_zs(zone);
+    state = nvme_zns_state(zone);
     if (zone->d.wp != zone->d.zslba ||
         (zone->d.za & NVME_ZA_ZD_EXT_VALID)) {
         if (state != NVME_ZONE_STATE_CLOSED) {
             trace_pci_nvme_clear_ns_close(state, zone->d.zslba);
-            nvme_zns_set_zs(zone, NVME_ZONE_STATE_CLOSED);
+            nvme_zns_set_state(zone, NVME_ZONE_STATE_CLOSED);
         }
-        nvme_zns_aor_inc_active(ns);
-        QTAILQ_INSERT_HEAD(&ns->closed_zones, zone, entry);
+        nvme_zns_aor_inc_active(zoned);
+        QTAILQ_INSERT_HEAD(&zoned->closed_zones, zone, entry);
     } else {
         trace_pci_nvme_clear_ns_reset(state, zone->d.zslba);
-        nvme_zns_set_zs(zone, NVME_ZONE_STATE_EMPTY);
+        nvme_zns_set_state(zone, NVME_ZONE_STATE_EMPTY);
     }
 }
 
 /*
  * Close all the zones that are currently open.
  */
-static void nvme_zns_shutdown(NvmeNamespace *ns)
+static void nvme_zns_shutdown(NvmeNamespaceZoned *zoned)
 {
     NvmeZone *zone, *next;
 
-    QTAILQ_FOREACH_SAFE(zone, &ns->closed_zones, entry, next) {
-        QTAILQ_REMOVE(&ns->closed_zones, zone, entry);
-        nvme_zns_aor_dec_active(ns);
-        nvme_zns_clear_zone(ns, zone);
+    QTAILQ_FOREACH_SAFE(zone, &zoned->closed_zones, entry, next) {
+        QTAILQ_REMOVE(&zoned->closed_zones, zone, entry);
+        nvme_zns_aor_dec_active(zoned);
+        nvme_zns_clear_zone(zoned, zone);
     }
-    QTAILQ_FOREACH_SAFE(zone, &ns->imp_open_zones, entry, next) {
-        QTAILQ_REMOVE(&ns->imp_open_zones, zone, entry);
-        nvme_zns_aor_dec_open(ns);
-        nvme_zns_aor_dec_active(ns);
-        nvme_zns_clear_zone(ns, zone);
+    QTAILQ_FOREACH_SAFE(zone, &zoned->imp_open_zones, entry, next) {
+        QTAILQ_REMOVE(&zoned->imp_open_zones, zone, entry);
+        nvme_zns_aor_dec_open(zoned);
+        nvme_zns_aor_dec_active(zoned);
+        nvme_zns_clear_zone(zoned, zone);
     }
-    QTAILQ_FOREACH_SAFE(zone, &ns->exp_open_zones, entry, next) {
-        QTAILQ_REMOVE(&ns->exp_open_zones, zone, entry);
-        nvme_zns_aor_dec_open(ns);
-        nvme_zns_aor_dec_active(ns);
-        nvme_zns_clear_zone(ns, zone);
+    QTAILQ_FOREACH_SAFE(zone, &zoned->exp_open_zones, entry, next) {
+        QTAILQ_REMOVE(&zoned->exp_open_zones, zone, entry);
+        nvme_zns_aor_dec_open(zoned);
+        nvme_zns_aor_dec_active(zoned);
+        nvme_zns_clear_zone(zoned, zone);
     }
 
-    assert(ns->nr_open_zones == 0);
+    assert(zoned->nr_open_zones == 0);
 }
 
 static int nvme_ns_check_constraints(NvmeNamespace *ns, Error **errp)
@@ -411,9 +413,20 @@ int nvme_ns_setup(NvmeNamespace *ns, Error **errp)
         return -1;
     }
     if (ns->params.zoned) {
+        NvmeNamespaceZoned *zoned = NVME_NAMESPACE_ZONED(ns);
+
         if (nvme_zns_check_calc_geometry(ns, errp) != 0) {
             return -1;
         }
+
+        /* copy device parameters */
+        zoned->zd_extension_size = ns->params.zd_extension_size;
+        zoned->max_open_zones = ns->params.max_open_zones;
+        zoned->max_active_zones = ns->params.max_open_zones;
+        if (ns->params.cross_zone_read) {
+            zoned->flags |= NVME_NS_ZONED_CROSS_READ;
+        }
+
         nvme_zns_init(ns);
     }
 
@@ -428,17 +441,18 @@ void nvme_ns_drain(NvmeNamespace *ns)
 void nvme_ns_shutdown(NvmeNamespace *ns)
 {
     blk_flush(ns->blkconf.blk);
-    if (ns->params.zoned) {
-        nvme_zns_shutdown(ns);
+    if (nvme_ns_zoned(ns)) {
+        nvme_zns_shutdown(NVME_NAMESPACE_ZONED(ns));
     }
 }
 
 void nvme_ns_cleanup(NvmeNamespace *ns)
 {
-    if (ns->params.zoned) {
-        g_free(ns->id_ns_zoned);
-        g_free(ns->zone_array);
-        g_free(ns->zd_extensions);
+    if (nvme_ns_zoned(ns)) {
+        NvmeNamespaceZoned *zoned = NVME_NAMESPACE_ZONED(ns);
+
+        g_free(zoned->zone_array);
+        g_free(zoned->zd_extensions);
     }
 }
 

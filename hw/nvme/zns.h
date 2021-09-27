@@ -1,5 +1,5 @@
-#ifndef HW_NVME_ZONED_H
-#define HW_NVME_ZONED_H
+#ifndef HW_NVME_ZNS_H
+#define HW_NVME_ZNS_H
 
 #include "qemu/units.h"
 
@@ -7,20 +7,20 @@
 
 #define NVME_DEFAULT_ZONE_SIZE   (128 * MiB)
 
-static inline NvmeZoneState nvme_zns_zs(NvmeZone *zone)
+static inline NvmeZoneState nvme_zns_state(NvmeZone *zone)
 {
     return zone->d.zs >> 4;
 }
 
-static inline void nvme_zns_set_zs(NvmeZone *zone, NvmeZoneState state)
+static inline void nvme_zns_set_state(NvmeZone *zone, NvmeZoneState state)
 {
     zone->d.zs = state << 4;
 }
 
-static inline uint64_t nvme_zns_read_boundary(NvmeNamespace *ns,
+static inline uint64_t nvme_zns_read_boundary(NvmeNamespaceZoned *zoned,
                                               NvmeZone *zone)
 {
-    return zone->d.zslba + ns->zone_size;
+    return zone->d.zslba + zoned->zone_size;
 }
 
 static inline uint64_t nvme_zns_write_boundary(NvmeZone *zone)
@@ -30,68 +30,70 @@ static inline uint64_t nvme_zns_write_boundary(NvmeZone *zone)
 
 static inline bool nvme_zns_wp_valid(NvmeZone *zone)
 {
-    uint8_t st = nvme_zns_zs(zone);
+    uint8_t st = nvme_zns_state(zone);
 
     return st != NVME_ZONE_STATE_FULL &&
            st != NVME_ZONE_STATE_READ_ONLY &&
            st != NVME_ZONE_STATE_OFFLINE;
 }
 
-static inline uint32_t nvme_zns_zidx(NvmeNamespace *ns, uint64_t slba)
+static inline uint32_t nvme_zns_zidx(NvmeNamespaceZoned *zoned,
+                                     uint64_t slba)
 {
-    return ns->zone_size_log2 > 0 ? slba >> ns->zone_size_log2 :
-                                    slba / ns->zone_size;
+    return zoned->zone_size_log2 > 0 ?
+        slba >> zoned->zone_size_log2 : slba / zoned->zone_size;
 }
 
-static inline NvmeZone *nvme_zns_get_by_slba(NvmeNamespace *ns, uint64_t slba)
+static inline NvmeZone *nvme_zns_get_by_slba(NvmeNamespaceZoned *zoned,
+                                             uint64_t slba)
 {
-    uint32_t zone_idx = nvme_zns_zidx(ns, slba);
+    uint32_t zone_idx = nvme_zns_zidx(zoned, slba);
 
-    assert(zone_idx < ns->num_zones);
-    return &ns->zone_array[zone_idx];
+    assert(zone_idx < zoned->num_zones);
+    return &zoned->zone_array[zone_idx];
 }
 
-static inline uint8_t *nvme_zns_zde(NvmeNamespace *ns, uint32_t zone_idx)
+static inline uint8_t *nvme_zns_zde(NvmeNamespaceZoned *zoned,
+                                    uint32_t zone_idx)
 {
-    return &ns->zd_extensions[zone_idx * ns->params.zd_extension_size];
+    return &zoned->zd_extensions[zone_idx * zoned->zd_extension_size];
 }
 
-static inline void nvme_zns_aor_inc_open(NvmeNamespace *ns)
+static inline void nvme_zns_aor_inc_open(NvmeNamespaceZoned *zoned)
 {
-    assert(ns->nr_open_zones >= 0);
-    if (ns->params.max_open_zones) {
-        ns->nr_open_zones++;
-        assert(ns->nr_open_zones <= ns->params.max_open_zones);
+    assert(zoned->nr_open_zones >= 0);
+    if (zoned->max_open_zones) {
+        zoned->nr_open_zones++;
+        assert(zoned->nr_open_zones <= zoned->max_open_zones);
     }
 }
 
-static inline void nvme_zns_aor_dec_open(NvmeNamespace *ns)
+static inline void nvme_zns_aor_dec_open(NvmeNamespaceZoned *zoned)
 {
-    if (ns->params.max_open_zones) {
-        assert(ns->nr_open_zones > 0);
-        ns->nr_open_zones--;
+    if (zoned->max_open_zones) {
+        assert(zoned->nr_open_zones > 0);
+        zoned->nr_open_zones--;
     }
-    assert(ns->nr_open_zones >= 0);
+    assert(zoned->nr_open_zones >= 0);
 }
 
-static inline void nvme_zns_aor_inc_active(NvmeNamespace *ns)
+static inline void nvme_zns_aor_inc_active(NvmeNamespaceZoned *zoned)
 {
-    assert(ns->nr_active_zones >= 0);
-    if (ns->params.max_active_zones) {
-        ns->nr_active_zones++;
-        assert(ns->nr_active_zones <= ns->params.max_active_zones);
+    assert(zoned->nr_active_zones >= 0);
+    if (zoned->max_active_zones) {
+        zoned->nr_active_zones++;
+        assert(zoned->nr_active_zones <= zoned->max_active_zones);
     }
 }
 
-static inline void nvme_zns_aor_dec_active(NvmeNamespace *ns)
+static inline void nvme_zns_aor_dec_active(NvmeNamespaceZoned *zoned)
 {
-    if (ns->params.max_active_zones) {
-        assert(ns->nr_active_zones > 0);
-        ns->nr_active_zones--;
-        assert(ns->nr_active_zones >= ns->nr_open_zones);
+    if (zoned->max_active_zones) {
+        assert(zoned->nr_active_zones > 0);
+        zoned->nr_active_zones--;
+        assert(zoned->nr_active_zones >= zoned->nr_open_zones);
     }
-    assert(ns->nr_active_zones >= 0);
+    assert(zoned->nr_active_zones >= 0);
 }
 
-
-#endif /* HW_NVME_ZONED_H */
+#endif /* HW_NVME_ZNS_H */

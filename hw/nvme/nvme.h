@@ -84,12 +84,6 @@ static inline NvmeNamespace *nvme_subsys_ns(NvmeSubsystem *subsys,
 #define NVME_NS(obj) \
     OBJECT_CHECK(NvmeNamespace, (obj), TYPE_NVME_NS)
 
-typedef struct NvmeZone {
-    NvmeZoneDescr   d;
-    uint64_t        w_ptr;
-    QTAILQ_ENTRY(NvmeZone) entry;
-} NvmeZone;
-
 typedef struct NvmeNamespaceParams {
     bool     detached;
     bool     shared;
@@ -116,6 +110,43 @@ typedef struct NvmeNamespaceParams {
     uint32_t zd_extension_size;
 } NvmeNamespaceParams;
 
+typedef struct NvmeZone {
+    NvmeZoneDescr   d;
+    uint64_t        w_ptr;
+    QTAILQ_ENTRY(NvmeZone) entry;
+} NvmeZone;
+
+enum {
+    NVME_NS_ZONED_CROSS_READ = 1 << 0,
+};
+
+typedef struct NvmeNamespaceZoned {
+    NvmeIdNsZoned id_ns;
+
+    uint32_t num_zones;
+    NvmeZone *zone_array;
+
+    uint64_t zone_size;
+    uint32_t zone_size_log2;
+
+    uint64_t zone_capacity;
+
+    uint32_t zd_extension_size;
+    uint8_t  *zd_extensions;
+
+    uint32_t max_open_zones;
+    int32_t  nr_open_zones;
+    uint32_t max_active_zones;
+    int32_t  nr_active_zones;
+
+    unsigned long flags;
+
+    QTAILQ_HEAD(, NvmeZone) exp_open_zones;
+    QTAILQ_HEAD(, NvmeZone) imp_open_zones;
+    QTAILQ_HEAD(, NvmeZone) closed_zones;
+    QTAILQ_HEAD(, NvmeZone) full_zones;
+} NvmeNamespaceZoned;
+
 typedef struct NvmeNamespace {
     DeviceState  parent_obj;
     BlockConf    blkconf;
@@ -132,26 +163,16 @@ typedef struct NvmeNamespace {
 
     QTAILQ_ENTRY(NvmeNamespace) entry;
 
-    NvmeIdNsZoned   *id_ns_zoned;
-    NvmeZone        *zone_array;
-    QTAILQ_HEAD(, NvmeZone) exp_open_zones;
-    QTAILQ_HEAD(, NvmeZone) imp_open_zones;
-    QTAILQ_HEAD(, NvmeZone) closed_zones;
-    QTAILQ_HEAD(, NvmeZone) full_zones;
-    uint32_t        num_zones;
-    uint64_t        zone_size;
-    uint64_t        zone_capacity;
-    uint32_t        zone_size_log2;
-    uint8_t         *zd_extensions;
-    int32_t         nr_open_zones;
-    int32_t         nr_active_zones;
-
     NvmeNamespaceParams params;
 
     struct {
         uint32_t err_rec;
     } features;
+
+    NvmeNamespaceZoned zoned;
 } NvmeNamespace;
+
+#define NVME_NAMESPACE_ZONED(ns) (&(ns)->zoned)
 
 static inline uint32_t nvme_nsid(NvmeNamespace *ns)
 {
@@ -187,6 +208,11 @@ int nvme_ns_setup(NvmeNamespace *ns, Error **errp);
 void nvme_ns_drain(NvmeNamespace *ns);
 void nvme_ns_shutdown(NvmeNamespace *ns);
 void nvme_ns_cleanup(NvmeNamespace *ns);
+
+static inline bool nvme_ns_zoned(NvmeNamespace *ns)
+{
+    return ns->csi == NVME_CSI_ZONED;
+}
 
 typedef struct NvmeAsyncEvent {
     QTAILQ_ENTRY(NvmeAsyncEvent) entry;
