@@ -147,15 +147,32 @@ typedef struct NvmeNamespaceZoned {
     QTAILQ_HEAD(, NvmeZone) full_zones;
 } NvmeNamespaceZoned;
 
+enum {
+    NVME_NS_NVM_EXTENDED_LBA = 1 << 0,
+    NVME_NS_NVM_PI_FIRST     = 1 << 1,
+};
+
+typedef struct NvmeNamespaceNvm {
+    NvmeIdNs id_ns;
+
+    int64_t size;
+    int64_t moff;
+
+    NvmeLBAF lbaf;
+    size_t   lbasz;
+    uint32_t discard_granularity;
+
+    uint16_t mssrl;
+    uint32_t mcl;
+    uint8_t  msrc;
+
+    unsigned long flags;
+} NvmeNamespaceNvm;
+
 typedef struct NvmeNamespace {
     DeviceState  parent_obj;
     BlockConf    blkconf;
     int32_t      bootindex;
-    int64_t      size;
-    int64_t      moff;
-    NvmeIdNs     id_ns;
-    NvmeLBAF     lbaf;
-    size_t       lbasz;
     const uint32_t *iocs;
     uint8_t      csi;
     uint16_t     status;
@@ -169,9 +186,11 @@ typedef struct NvmeNamespace {
         uint32_t err_rec;
     } features;
 
+    NvmeNamespaceNvm   nvm;
     NvmeNamespaceZoned zoned;
 } NvmeNamespace;
 
+#define NVME_NAMESPACE_NVM(ns) (&(ns)->nvm)
 #define NVME_NAMESPACE_ZONED(ns) (&(ns)->zoned)
 
 static inline uint32_t nvme_nsid(NvmeNamespace *ns)
@@ -183,24 +202,24 @@ static inline uint32_t nvme_nsid(NvmeNamespace *ns)
     return 0;
 }
 
-static inline size_t nvme_l2b(NvmeNamespace *ns, uint64_t lba)
+static inline size_t nvme_l2b(NvmeNamespaceNvm *nvm, uint64_t lba)
 {
-    return lba << ns->lbaf.ds;
+    return lba << nvm->lbaf.ds;
 }
 
-static inline size_t nvme_m2b(NvmeNamespace *ns, uint64_t lba)
+static inline size_t nvme_m2b(NvmeNamespaceNvm *nvm, uint64_t lba)
 {
-    return ns->lbaf.ms * lba;
+    return nvm->lbaf.ms * lba;
 }
 
-static inline int64_t nvme_moff(NvmeNamespace *ns, uint64_t lba)
+static inline int64_t nvme_moff(NvmeNamespaceNvm *nvm, uint64_t lba)
 {
-    return ns->moff + nvme_m2b(ns, lba);
+    return nvm->moff + nvme_m2b(nvm, lba);
 }
 
-static inline bool nvme_ns_ext(NvmeNamespace *ns)
+static inline bool nvme_ns_ext(NvmeNamespaceNvm *nvm)
 {
-    return !!NVME_ID_NS_FLBAS_EXTENDED(ns->id_ns.flbas);
+    return !!NVME_ID_NS_FLBAS_EXTENDED(nvm->id_ns.flbas);
 }
 
 void nvme_ns_init_format(NvmeNamespace *ns);

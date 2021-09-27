@@ -28,14 +28,15 @@
 
 void nvme_ns_init_format(NvmeNamespace *ns)
 {
-    NvmeIdNs *id_ns = &ns->id_ns;
+    NvmeNamespaceNvm *nvm = NVME_NAMESPACE_NVM(ns);
+    NvmeIdNs *id_ns = &nvm->id_ns;
     BlockDriverInfo bdi;
     int npdg, nlbas, ret;
 
-    ns->lbaf = id_ns->lbaf[NVME_ID_NS_FLBAS_INDEX(id_ns->flbas)];
-    ns->lbasz = 1 << ns->lbaf.ds;
+    nvm->lbaf = id_ns->lbaf[NVME_ID_NS_FLBAS_INDEX(id_ns->flbas)];
+    nvm->lbasz = 1 << nvm->lbaf.ds;
 
-    nlbas = ns->size / (ns->lbasz + ns->lbaf.ms);
+    nlbas = nvm->size / (nvm->lbasz + nvm->lbaf.ms);
 
     id_ns->nsze = cpu_to_le64(nlbas);
 
@@ -43,13 +44,13 @@ void nvme_ns_init_format(NvmeNamespace *ns)
     id_ns->ncap = id_ns->nsze;
     id_ns->nuse = id_ns->ncap;
 
-    ns->moff = (int64_t)nlbas << ns->lbaf.ds;
+    nvm->moff = (int64_t)nlbas << nvm->lbaf.ds;
 
-    npdg = ns->blkconf.discard_granularity / ns->lbasz;
+    npdg = nvm->discard_granularity / nvm->lbasz;
 
     ret = bdrv_get_info(blk_bs(ns->blkconf.blk), &bdi);
-    if (ret >= 0 && bdi.cluster_size > ns->blkconf.discard_granularity) {
-        npdg = bdi.cluster_size / ns->lbasz;
+    if (ret >= 0 && bdi.cluster_size > nvm->discard_granularity) {
+        npdg = bdi.cluster_size / nvm->lbasz;
     }
 
     id_ns->npda = id_ns->npdg = npdg - 1;
@@ -57,8 +58,9 @@ void nvme_ns_init_format(NvmeNamespace *ns)
 
 static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
 {
+    NvmeNamespaceNvm *nvm = NVME_NAMESPACE_NVM(ns);
     static uint64_t ns_count;
-    NvmeIdNs *id_ns = &ns->id_ns;
+    NvmeIdNs *id_ns = &nvm->id_ns;
     uint8_t ds;
     uint16_t ms;
     int i;
@@ -66,7 +68,7 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
     ns->csi = NVME_CSI_NVM;
     ns->status = 0x0;
 
-    ns->id_ns.dlfeat = 0x1;
+    nvm->id_ns.dlfeat = 0x1;
 
     /* support DULBE and I/O optimization fields */
     id_ns->nsfeat |= (0x4 | 0x10);
@@ -82,12 +84,12 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
     }
 
     /* simple copy */
-    id_ns->mssrl = cpu_to_le16(ns->params.mssrl);
-    id_ns->mcl = cpu_to_le32(ns->params.mcl);
-    id_ns->msrc = ns->params.msrc;
+    id_ns->mssrl = cpu_to_le16(nvm->mssrl);
+    id_ns->mcl = cpu_to_le32(nvm->mcl);
+    id_ns->msrc = nvm->msrc;
     id_ns->eui64 = cpu_to_be64(ns->params.eui64);
 
-    ds = 31 - clz32(ns->blkconf.logical_block_size);
+    ds = 31 - clz32(nvm->lbasz);
     ms = ns->params.ms;
 
     id_ns->mc = NVME_ID_NS_MC_EXTENDED | NVME_ID_NS_MC_SEPARATE;
@@ -140,6 +142,7 @@ lbaf_found:
 
 static int nvme_ns_init_blk(NvmeNamespace *ns, Error **errp)
 {
+    NvmeNamespaceNvm *nvm = NVME_NAMESPACE_NVM(ns);
     bool read_only;
 
     if (!blkconf_blocksizes(&ns->blkconf, errp)) {
@@ -156,9 +159,14 @@ static int nvme_ns_init_blk(NvmeNamespace *ns, Error **errp)
             MAX(ns->blkconf.logical_block_size, MIN_DISCARD_GRANULARITY);
     }
 
-    ns->size = blk_getlength(ns->blkconf.blk);
-    if (ns->size < 0) {
-        error_setg_errno(errp, -ns->size, "could not get blockdev size");
+    nvm->lbasz = ns->blkconf.logical_block_size;
+    nvm->discard_granularity = ns->blkconf.discard_granularity;
+    nvm->lbaf.ds = 31 - clz32(nvm->lbasz);
+    nvm->lbaf.ms = ns->params.ms;
+
+    nvm->size = blk_getlength(ns->blkconf.blk);
+    if (nvm->size < 0) {
+        error_setg_errno(errp, -nvm->size, "could not get blockdev size");
         return -1;
     }
 
@@ -167,6 +175,7 @@ static int nvme_ns_init_blk(NvmeNamespace *ns, Error **errp)
 
 static int nvme_zns_check_calc_geometry(NvmeNamespace *ns, Error **errp)
 {
+    NvmeNamespaceNvm *nvm = NVME_NAMESPACE_NVM(ns);
     NvmeNamespaceZoned *zoned = NVME_NAMESPACE_ZONED(ns);
 
     uint64_t zone_size, zone_cap;
@@ -187,14 +196,14 @@ static int nvme_zns_check_calc_geometry(NvmeNamespace *ns, Error **errp)
                    "zone size %"PRIu64"B", zone_cap, zone_size);
         return -1;
     }
-    if (zone_size < ns->lbasz) {
+    if (zone_size < nvm->lbasz) {
         error_setg(errp, "zone size %"PRIu64"B too small, "
-                   "must be at least %zuB", zone_size, ns->lbasz);
+                   "must be at least %zuB", zone_size, nvm->lbasz);
         return -1;
     }
-    if (zone_cap < ns->lbasz) {
+    if (zone_cap < nvm->lbasz) {
         error_setg(errp, "zone capacity %"PRIu64"B too small, "
-                   "must be at least %zuB", zone_cap, ns->lbasz);
+                   "must be at least %zuB", zone_cap, nvm->lbasz);
         return -1;
     }
 
@@ -202,9 +211,9 @@ static int nvme_zns_check_calc_geometry(NvmeNamespace *ns, Error **errp)
      * Save the main zone geometry values to avoid
      * calculating them later again.
      */
-    zoned->zone_size = zone_size / ns->lbasz;
-    zoned->zone_capacity = zone_cap / ns->lbasz;
-    zoned->num_zones = le64_to_cpu(ns->id_ns.nsze) / zoned->zone_size;
+    zoned->zone_size = zone_size / nvm->lbasz;
+    zoned->zone_capacity = zone_cap / nvm->lbasz;
+    zoned->num_zones = le64_to_cpu(nvm->id_ns.nsze) / zoned->zone_size;
 
     /* Do a few more sanity checks of ZNS properties */
     if (!zoned->num_zones) {
@@ -258,6 +267,7 @@ static void nvme_zns_init_state(NvmeNamespaceZoned *zoned)
 
 static void nvme_zns_init(NvmeNamespace *ns)
 {
+    NvmeNamespaceNvm *nvm = NVME_NAMESPACE_NVM(ns);
     NvmeNamespaceZoned *zoned = NVME_NAMESPACE_ZONED(ns);
     NvmeIdNsZoned *id_ns_z = &zoned->id_ns;
     int i;
@@ -273,16 +283,16 @@ static void nvme_zns_init(NvmeNamespace *ns)
         id_ns_z->ozcs |= NVME_ID_NS_ZONED_OZCS_CROSS_READ;
     }
 
-    for (i = 0; i <= ns->id_ns.nlbaf; i++) {
+    for (i = 0; i <= nvm->id_ns.nlbaf; i++) {
         id_ns_z->lbafe[i].zsze = cpu_to_le64(zoned->zone_size);
         id_ns_z->lbafe[i].zdes =
             zoned->zd_extension_size >> 6; /* Units of 64B */
     }
 
     ns->csi = NVME_CSI_ZONED;
-    ns->id_ns.nsze = cpu_to_le64(zoned->num_zones * zoned->zone_size);
-    ns->id_ns.ncap = ns->id_ns.nsze;
-    ns->id_ns.nuse = ns->id_ns.ncap;
+    nvm->id_ns.nsze = cpu_to_le64(zoned->num_zones * zoned->zone_size);
+    nvm->id_ns.ncap = nvm->id_ns.nsze;
+    nvm->id_ns.nuse = nvm->id_ns.ncap;
 
     /*
      * The device uses the BDRV_BLOCK_ZERO flag to determine the "deallocated"
@@ -291,13 +301,13 @@ static void nvme_zns_init(NvmeNamespace *ns)
      * we can only support DULBE if the zone size is a multiple of the
      * calculated NPDG.
      */
-    if (zoned->zone_size % (ns->id_ns.npdg + 1)) {
+    if (zoned->zone_size % (nvm->id_ns.npdg + 1)) {
         warn_report("the zone size (%"PRIu64" blocks) is not a multiple of "
                     "the calculated deallocation granularity (%d blocks); "
                     "DULBE support disabled",
-                    zoned->zone_size, ns->id_ns.npdg + 1);
+                    zoned->zone_size, nvm->id_ns.npdg + 1);
 
-        ns->id_ns.nsfeat &= ~0x4;
+        nvm->id_ns.nsfeat &= ~0x4;
     }
 }
 
