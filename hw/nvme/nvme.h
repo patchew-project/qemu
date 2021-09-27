@@ -45,8 +45,14 @@ typedef struct NvmeBus {
     BusState parent_bus;
 } NvmeBus;
 
+#define TYPE_NVME_SUBSYSTEM "x-nvme-subsystem"
+OBJECT_DECLARE_SIMPLE_TYPE(NvmeSubsystem, NVME_SUBSYSTEM)
+
 typedef struct NvmeSubsystem {
-    uint8_t     subnqn[256];
+    Object parent_obj;
+
+    QemuUUID uuid;
+    uint8_t  subnqn[256];
 
     NvmeState     *ctrls[NVME_MAX_CONTROLLERS];
     NvmeNamespace *namespaces[NVME_MAX_NAMESPACES + 1];
@@ -467,6 +473,8 @@ typedef struct NvmeCtrl {
 
     /* for use with legacy single namespace (-device nvme,drive=...) setups */
     NvmeNamespaceDevice namespace;
+
+    NvmeSubsystemDevice *subsys_dev;
 } NvmeCtrl;
 
 static inline NvmeNamespace *nvme_ns(NvmeState *n, uint32_t nsid)

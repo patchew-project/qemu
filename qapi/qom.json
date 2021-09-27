@@ -648,6 +648,21 @@
             '*seal': 'bool' } }
 
 ##
+# @NvmeSubsystemProperties:
+#
+# Properties for nvme-subsys objects.
+#
+# @subnqn: the NVM Subsystem NVMe Qualified Name
+#
+# @uuid: the UUID of the subsystem. Used as default in subnqn.
+#
+# Since: 6.1
+##
+{ 'struct': 'NvmeSubsystemProperties',
+  'data': { '*subnqn': 'str',
+            '*uuid': 'str' } }
+
+##
 # @PrManagerHelperProperties:
 #
 # Properties for pr-manager-helper objects.
@@ -797,6 +812,7 @@
     { 'name': 'memory-backend-memfd',
       'if': 'CONFIG_LINUX' },
     'memory-backend-ram',
+    'x-nvme-subsystem',
     'pef-guest',
     'pr-manager-helper',
     'qtest',
@@ -855,6 +871,7 @@
       'memory-backend-memfd':       { 'type': 'MemoryBackendMemfdProperties',
                                       'if': 'CONFIG_LINUX' },
       'memory-backend-ram':         'MemoryBackendProperties',
+      'x-nvme-subsystem':           'NvmeSubsystemProperties',
       'pr-manager-helper':          'PrManagerHelperProperties',
       'qtest':                      'QtestProperties',
       'rng-builtin':                'RngProperties',

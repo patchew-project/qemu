@@ -493,7 +493,8 @@ static void nvme_nsdev_realize(DeviceState *dev, Error **errp)
     NvmeNamespaceDevice *nsdev = NVME_NAMESPACE_DEVICE(dev);
     NvmeNamespace *ns = &nsdev->ns;
     BusState *s = qdev_get_parent_bus(dev);
-    NvmeState *n = NVME_STATE(s->parent);
+    NvmeCtrl *ctrl = NVME_DEVICE(s->parent);
+    NvmeState *n = NVME_STATE(ctrl);
     NvmeSubsystem *subsys = n->subsys;
     uint32_t nsid = nsdev->params.nsid;
     int i;
@@ -509,7 +510,7 @@ static void nvme_nsdev_realize(DeviceState *dev, Error **errp)
          * If this namespace belongs to a subsystem (through a link on the
          * controller device), reparent the device.
          */
-        if (!qdev_set_parent_bus(dev, &n->subsys_dev->bus.parent_bus, errp)) {
+        if (!qdev_set_parent_bus(dev, &ctrl->subsys_dev->bus.parent_bus, errp)) {
             return;
         }
     }

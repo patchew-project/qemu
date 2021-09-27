@@ -6562,14 +6562,14 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
     NvmeCtrl *ctrl = NVME_DEVICE(pci_dev);
     NvmeState *n = NVME_STATE(ctrl);
 
-    if (n->subsys_dev) {
-        n->subsys = &n->subsys_dev->subsys;
-    }
+    if (ctrl->subsys_dev) {
+        if (ctrl->namespace.blkconf.blk) {
+            error_setg(errp, "subsystem support is unavailable with legacy "
+                       "namespace ('drive' property)");
+            return;
+        }
 
-    if (ctrl->namespace.blkconf.blk && n->subsys) {
-        error_setg(errp, "subsystem support is unavailable with legacy "
-                   "namespace ('drive' property)");
-        return;
+        n->subsys = &ctrl->subsys_dev->subsys;
     }
 
     if (nvme_check_constraints(n, errp)) {
