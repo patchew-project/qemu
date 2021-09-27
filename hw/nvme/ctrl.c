@@ -4620,10 +4620,10 @@ static uint16_t nvme_identify_nslist(NvmeCtrl *n, NvmeRequest *req,
                 continue;
             }
         }
-        if (ns->params.nsid <= min_nsid) {
+        if (ns->nsid <= min_nsid) {
             continue;
         }
-        list_ptr[j++] = cpu_to_le32(ns->params.nsid);
+        list_ptr[j++] = cpu_to_le32(ns->nsid);
         if (j == data_len / sizeof(uint32_t)) {
             break;
         }
@@ -4668,10 +4668,10 @@ static uint16_t nvme_identify_nslist_csi(NvmeCtrl *n, NvmeRequest *req,
                 continue;
             }
         }
-        if (ns->params.nsid <= min_nsid || c->csi != ns->csi) {
+        if (ns->nsid <= min_nsid || c->csi != ns->csi) {
             continue;
         }
-        list_ptr[j++] = cpu_to_le32(ns->params.nsid);
+        list_ptr[j++] = cpu_to_le32(ns->nsid);
         if (j == data_len / sizeof(uint32_t)) {
             break;
         }
@@ -4718,14 +4718,14 @@ static uint16_t nvme_identify_ns_descr_list(NvmeCtrl *n, NvmeRequest *req)
      */
     uuid.hdr.nidt = NVME_NIDT_UUID;
     uuid.hdr.nidl = NVME_NIDL_UUID;
-    memcpy(uuid.v, ns->params.uuid.data, NVME_NIDL_UUID);
+    memcpy(uuid.v, ns->uuid.data, NVME_NIDL_UUID);
     memcpy(pos, &uuid, sizeof(uuid));
     pos += sizeof(uuid);
 
-    if (ns->params.eui64) {
+    if (ns->eui64.v) {
         eui64.hdr.nidt = NVME_NIDT_EUI64;
         eui64.hdr.nidl = NVME_NIDL_EUI64;
-        eui64.v = cpu_to_be64(ns->params.eui64);
+        eui64.v = cpu_to_be64(ns->eui64.v);
         memcpy(pos, &eui64, sizeof(eui64));
         pos += sizeof(eui64);
     }
@@ -5264,7 +5264,7 @@ static uint16_t nvme_ns_attachment(NvmeCtrl *n, NvmeRequest *req)
                 return NVME_NS_ALREADY_ATTACHED | NVME_DNR;
             }
 
-            if (ns->attached && !ns->params.shared) {
+            if (ns->attached && !(ns->flags & NVME_NS_SHARED)) {
                 return NVME_NS_PRIVATE | NVME_DNR;
             }
 
@@ -5342,12 +5342,12 @@ static void nvme_format_set(NvmeNamespace *ns, NvmeCmd *cmd)
     uint8_t mset = (dw10 >> 4) & 0x1;
     uint8_t pil = (dw10 >> 8) & 0x1;
 
-    trace_pci_nvme_format_set(ns->params.nsid, lbaf, mset, pi, pil);
+    trace_pci_nvme_format_set(ns->nsid, lbaf, mset, pi, pil);
 
     nvm->id_ns.dps = (pil << 3) | pi;
     nvm->id_ns.flbas = lbaf | (mset << 4);
 
-    nvme_ns_init_format(ns);
+    nvme_ns_nvm_init_format(nvm);
 }
 
 static void nvme_format_ns_cb(void *opaque, int ret)
@@ -6552,7 +6552,7 @@ static int nvme_init_subsys(NvmeCtrl *n, Error **errp)
 void nvme_attach_ns(NvmeCtrl *n, NvmeNamespace *ns)
 {
     NvmeNamespaceNvm *nvm = NVME_NAMESPACE_NVM(ns);
-    uint32_t nsid = ns->params.nsid;
+    uint32_t nsid = ns->nsid;
     assert(nsid && nsid <= NVME_MAX_NAMESPACES);
 
     n->namespaces[nsid] = ns;
@@ -6565,7 +6565,6 @@ void nvme_attach_ns(NvmeCtrl *n, NvmeNamespace *ns)
 static void nvme_realize(PCIDevice *pci_dev, Error **errp)
 {
     NvmeCtrl *n = NVME(pci_dev);
-    NvmeNamespace *ns;
     Error *local_err = NULL;
 
     nvme_check_constraints(n, &local_err);
@@ -6590,12 +6589,11 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
 
     /* setup a namespace if the controller drive property was given */
     if (n->namespace.blkconf.blk) {
-        ns = &n->namespace;
-        ns->params.nsid = 1;
+        NvmeNamespaceDevice *nsdev = &n->namespace;
+        NvmeNamespace *ns = &nsdev->ns;
+        ns->nsid = 1;
 
-        if (nvme_ns_setup(ns, errp)) {
-            return;
-        }
+        nvme_ns_init(ns);
 
         nvme_attach_ns(n, ns);
     }

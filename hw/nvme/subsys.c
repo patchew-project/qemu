@@ -31,7 +31,7 @@ int nvme_subsys_register_ctrl(NvmeCtrl *n, Error **errp)
 
     for (nsid = 1; nsid < ARRAY_SIZE(subsys->namespaces); nsid++) {
         NvmeNamespace *ns = subsys->namespaces[nsid];
-        if (ns && ns->params.shared && !ns->params.detached) {
+        if (ns && (ns->flags & NVME_NS_SHARED)) {
             nvme_attach_ns(n, ns);
         }
     }

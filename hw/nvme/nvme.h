@@ -80,9 +80,8 @@ static inline NvmeNamespace *nvme_subsys_ns(NvmeSubsystem *subsys,
     return subsys->namespaces[nsid];
 }
 
-#define TYPE_NVME_NS "nvme-ns"
-#define NVME_NS(obj) \
-    OBJECT_CHECK(NvmeNamespace, (obj), TYPE_NVME_NS)
+#define TYPE_NVME_NAMESPACE_DEVICE "nvme-ns"
+OBJECT_DECLARE_SIMPLE_TYPE(NvmeNamespaceDevice, NVME_NAMESPACE_DEVICE)
 
 typedef struct NvmeNamespaceParams {
     bool     detached;
@@ -170,18 +169,24 @@ typedef struct NvmeNamespaceNvm {
     unsigned long flags;
 } NvmeNamespaceNvm;
 
+enum NvmeNamespaceFlags {
+    NVME_NS_SHARED = 1 << 0,
+};
+
 typedef struct NvmeNamespace {
-    DeviceState  parent_obj;
-    BlockConf    blkconf;
-    int32_t      bootindex;
+    uint32_t nsid;
+    uint8_t  csi;
+    QemuUUID uuid;
+    union {
+        uint64_t v;
+        uint8_t  a[8];
+    } eui64;
+
+    unsigned long flags;
+
     const uint32_t *iocs;
-    uint8_t      csi;
     uint16_t     status;
     int          attached;
-
-    QTAILQ_ENTRY(NvmeNamespace) entry;
-
-    NvmeNamespaceParams params;
 
     struct {
         uint32_t err_rec;
@@ -199,10 +204,19 @@ static inline BlockBackend *nvme_blk(NvmeNamespace *ns)
     return NVME_NAMESPACE_NVM(ns)->blk;
 }
 
+typedef struct NvmeNamespaceDevice {
+    DeviceState  parent_obj;
+    BlockConf    blkconf;
+    int32_t      bootindex;
+
+    NvmeNamespace       ns;
+    NvmeNamespaceParams params;
+} NvmeNamespaceDevice;
+
 static inline uint32_t nvme_nsid(NvmeNamespace *ns)
 {
     if (ns) {
-        return ns->params.nsid;
+        return ns->nsid;
     }
 
     return 0;
@@ -228,8 +242,8 @@ static inline bool nvme_ns_ext(NvmeNamespaceNvm *nvm)
     return !!NVME_ID_NS_FLBAS_EXTENDED(nvm->id_ns.flbas);
 }
 
-void nvme_ns_init_format(NvmeNamespace *ns);
-int nvme_ns_setup(NvmeNamespace *ns, Error **errp);
+void nvme_ns_nvm_init_format(NvmeNamespaceNvm *nvm);
+void nvme_ns_init(NvmeNamespace *ns);
 void nvme_ns_drain(NvmeNamespace *ns);
 void nvme_ns_shutdown(NvmeNamespace *ns);
 void nvme_ns_cleanup(NvmeNamespace *ns);
@@ -424,7 +438,7 @@ typedef struct NvmeCtrl {
 
     NvmeSubsystem   *subsys;
 
-    NvmeNamespace   namespace;
+    NvmeNamespaceDevice namespace;
     NvmeNamespace   *namespaces[NVME_MAX_NAMESPACES + 1];
     NvmeSQueue      **sq;
     NvmeCQueue      **cq;
