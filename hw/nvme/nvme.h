@@ -21,6 +21,7 @@
 #include "qemu/uuid.h"
 #include "qemu/notify.h"
 #include "qapi/qapi-builtin-visit.h"
+#include "qapi/qapi-types-qom.h"
 #include "hw/pci/pci.h"
 #include "hw/block/block.h"
 
@@ -55,6 +56,7 @@ struct NvmeNamespaceClass {
 
     int (*check_params)(NvmeNamespace *ns, Error **errp);
     int (*configure)(NvmeNamespace *ns, Error **errp);
+    void (*shutdown)(NvmeNamespace *ns);
 };
 
 #define TYPE_NVME_SUBSYSTEM "x-nvme-subsystem"
@@ -139,66 +141,6 @@ typedef struct NvmeNamespaceParams {
     uint32_t zd_extension_size;
 } NvmeNamespaceParams;
 
-typedef struct NvmeZone {
-    NvmeZoneDescr   d;
-    uint64_t        w_ptr;
-    QTAILQ_ENTRY(NvmeZone) entry;
-} NvmeZone;
-
-enum {
-    NVME_NS_ZONED_CROSS_READ = 1 << 0,
-};
-
-typedef struct NvmeNamespaceZoned {
-    NvmeIdNsZoned id_ns;
-
-    uint32_t num_zones;
-    NvmeZone *zone_array;
-
-    uint64_t zone_size;
-    uint32_t zone_size_log2;
-
-    uint64_t zone_capacity;
-
-    uint32_t zd_extension_size;
-    uint8_t  *zd_extensions;
-
-    uint32_t max_open_zones;
-    int32_t  nr_open_zones;
-    uint32_t max_active_zones;
-    int32_t  nr_active_zones;
-
-    unsigned long flags;
-
-    QTAILQ_HEAD(, NvmeZone) exp_open_zones;
-    QTAILQ_HEAD(, NvmeZone) imp_open_zones;
-    QTAILQ_HEAD(, NvmeZone) closed_zones;
-    QTAILQ_HEAD(, NvmeZone) full_zones;
-} NvmeNamespaceZoned;
-
-enum {
-    NVME_NS_NVM_EXTENDED_LBA = 1 << 0,
-    NVME_NS_NVM_PI_FIRST     = 1 << 1,
-};
-
-typedef struct NvmeNamespaceNvm {
-    NvmeIdNs id_ns;
-
-    BlockBackend *blk;
-    int64_t size;
-    int64_t moff;
-
-    NvmeLBAF lbaf;
-    size_t   lbasz;
-    uint32_t discard_granularity;
-
-    uint16_t mssrl;
-    uint32_t mcl;
-    uint8_t  msrc;
-
-    unsigned long flags;
-} NvmeNamespaceNvm;
-
 enum NvmeNamespaceFlags {
     NVME_NS_SHARED = 1 << 0,
 };
@@ -227,27 +169,16 @@ typedef struct NvmeNamespace {
     struct {
         uint32_t err_rec;
     } features;
-
-    NvmeNamespaceNvm   nvm;
-    NvmeNamespaceZoned zoned;
 } NvmeNamespace;
 
 bool nvme_ns_prop_writable(Object *obj, const char *name, Error **errp);
-
-#define NVME_NAMESPACE_NVM(ns) (&(ns)->nvm)
-#define NVME_NAMESPACE_ZONED(ns) (&(ns)->zoned)
-
-static inline BlockBackend *nvme_blk(NvmeNamespace *ns)
-{
-    return NVME_NAMESPACE_NVM(ns)->blk;
-}
 
 typedef struct NvmeNamespaceDevice {
     DeviceState  parent_obj;
     BlockConf    blkconf;
     int32_t      bootindex;
 
-    NvmeNamespace       ns;
+    Object       *ns;
     NvmeNamespaceParams params;
 } NvmeNamespaceDevice;
 
@@ -260,27 +191,6 @@ static inline uint32_t nvme_nsid(NvmeNamespace *ns)
     return 0;
 }
 
-static inline size_t nvme_l2b(NvmeNamespaceNvm *nvm, uint64_t lba)
-{
-    return lba << nvm->lbaf.ds;
-}
-
-static inline size_t nvme_m2b(NvmeNamespaceNvm *nvm, uint64_t lba)
-{
-    return nvm->lbaf.ms * lba;
-}
-
-static inline int64_t nvme_moff(NvmeNamespaceNvm *nvm, uint64_t lba)
-{
-    return nvm->moff + nvme_m2b(nvm, lba);
-}
-
-static inline bool nvme_ns_ext(NvmeNamespaceNvm *nvm)
-{
-    return !!NVME_ID_NS_FLBAS_EXTENDED(nvm->id_ns.flbas);
-}
-
-void nvme_ns_nvm_init_format(NvmeNamespaceNvm *nvm);
 void nvme_ns_init(NvmeNamespace *ns);
 void nvme_ns_drain(NvmeNamespace *ns);
 void nvme_ns_shutdown(NvmeNamespace *ns);

@@ -1,6 +1,8 @@
 #ifndef HW_NVME_DIF_H
 #define HW_NVME_DIF_H
 
+#include "nvm.h"
+
 /* from Linux kernel (crypto/crct10dif_common.c) */
 static const uint16_t t10_dif_crc_table[256] = {
     0x0000, 0x8BB7, 0x9CD9, 0x176E, 0xB205, 0x39B2, 0x2EDC, 0xA56B,

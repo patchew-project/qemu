@@ -680,6 +680,50 @@
             '*uuid': 'str' } }
 
 ##
+# @NvmeProtInfoType:
+#
+# Indicates the namespace protection information type.
+#
+# Since: 6.1
+##
+{ 'enum': 'NvmeProtInfoType',
+  'data': [ 'none', 'type1', 'type2', 'type3' ] }
+
+##
+# @NvmeNamespaceNvmProperties:
+#
+# Properties for x-nvme-ns-nvm objects.
+#
+# @pi-type: protection information type
+#
+# Since: 6.1
+##
+{ 'struct': 'NvmeNamespaceNvmProperties',
+  'base': 'NvmeNamespaceProperties',
+  'data': { 'blockdev': 'str',
+            '*lba-size': 'size',
+            '*metadata-size': 'size',
+            '*extended-lba': 'bool',
+            '*pi-type': 'NvmeProtInfoType',
+            '*pi-first': 'bool' } }
+
+##
+# @NvmeNamespaceZonedProperties:
+#
+# Properties for x-nvme-ns-zoned objects.
+#
+# Since: 6.1
+##
+{ 'struct': 'NvmeNamespaceZonedProperties',
+  'base': 'NvmeNamespaceNvmProperties',
+  'data': { '*zone-size': 'size',
+            '*zone-capacity': 'size',
+            '*zone-cross-read': 'bool',
+            '*zone-descriptor-extension-size': 'size',
+            '*zone-max-active': 'uint32',
+            '*zone-max-open': 'uint32' } }
+
+##
 # @PrManagerHelperProperties:
 #
 # Properties for pr-manager-helper objects.
@@ -830,6 +874,8 @@
       'if': 'CONFIG_LINUX' },
     'memory-backend-ram',
     'x-nvme-subsystem',
+    'x-nvme-ns-nvm',
+    'x-nvme-ns-zoned',
     'pef-guest',
     'pr-manager-helper',
     'qtest',
@@ -889,6 +935,8 @@
                                       'if': 'CONFIG_LINUX' },
       'memory-backend-ram':         'MemoryBackendProperties',
       'x-nvme-subsystem':           'NvmeSubsystemProperties',
+      'x-nvme-ns-nvm':              'NvmeNamespaceNvmProperties',
+      'x-nvme-ns-zoned':            'NvmeNamespaceZonedProperties',
       'pr-manager-helper':          'PrManagerHelperProperties',
       'qtest':                      'QtestProperties',
       'rng-builtin':                'RngProperties',

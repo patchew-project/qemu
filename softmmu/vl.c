@@ -1834,6 +1834,14 @@ static bool object_create_early(const char *type)
     }
 
     /*
+     * Reason: x-nvme-ns-* property "blockdev"
+     */
+    if (g_str_equal(type, "x-nvme-ns-nvm") ||
+        g_str_equal(type, "x-nvme-ns-zoned")) {
+        return false;
+    }
+
+    /*
      * Allocation of large amounts of memory may delay
      * chardev initialization for too long, and trigger timeouts
      * on software that waits for a monitor socket to be created

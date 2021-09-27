@@ -164,6 +164,7 @@
 
 #include "nvme.h"
 #include "dif.h"
+#include "nvm.h"
 #include "zns.h"
 
 #include "trace.h"
@@ -5346,7 +5347,7 @@ static void nvme_format_set(NvmeNamespace *ns, NvmeCmd *cmd)
     nvm->id_ns.dps = (pil << 3) | pi;
     nvm->id_ns.flbas = lbaf | (mset << 4);
 
-    nvme_ns_nvm_init_format(nvm);
+    nvme_ns_nvm_configure_format(nvm);
 }
 
 static void nvme_format_ns_cb(void *opaque, int ret)
@@ -6592,10 +6593,14 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
     /* setup a namespace if the controller drive property was given */
     if (ctrl->namespace.blkconf.blk) {
         NvmeNamespaceDevice *nsdev = &ctrl->namespace;
-        NvmeNamespace *ns = &nsdev->ns;
+        NvmeNamespace *ns = NVME_NAMESPACE(nsdev->ns);
+        NvmeNamespaceNvm *nvm = NVME_NAMESPACE_NVM(ns);
         ns->nsid = 1;
 
-        nvme_ns_init(ns);
+        ns->csi = NVME_CSI_NVM;
+
+        nvme_ns_nvm_configure_identify(ns);
+        nvme_ns_nvm_configure_format(nvm);
 
         nvme_attach_ns(n, ns);
     }
