@@ -141,7 +141,7 @@ class TestSCMFd(iotests.QMPTestCase):
         os.remove(image0)
 
     def _send_fd_by_SCM(self):
-        self.vm.send_fd_scm(file_path=image0)
+        self.vm.send_file_scm(image0)
 
     def test_add_fd(self):
         self._send_fd_by_SCM()

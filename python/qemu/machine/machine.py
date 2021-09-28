@@ -207,30 +207,28 @@ class QEMUMachine:
         self._args.append(','.join(options))
         return self
 
-    def send_fd_scm(self, fd: Optional[int] = None,
-                    file_path: Optional[str] = None) -> None:
+    def send_file_scm(self, file_path: str) -> None:
         """
-        Send an fd or file_path via QMP.
-
-        Exactly one of fd and file_path must be given.
-        If it is file_path, the function will open that file and pass
-        its own fd.
+        Open a file and pass it to QEMU as a file descriptor.
         """
         # In iotest.py, the qmp should always use unix socket.
         assert self._qmp.is_scm_available()
 
-        if file_path is not None:
-            assert fd is None
-            fd = -1
-            try:
-                fd = os.open(file_path, os.O_RDONLY)
-                self._qmp.send_fd(fd)
-            finally:
-                if fd != -1:
-                    os.close(fd)
-        else:
-            assert fd is not None
+        fd = -1
+        try:
+            fd = os.open(file_path, os.O_RDONLY)
             self._qmp.send_fd(fd)
+        finally:
+            if fd != -1:
+                os.close(fd)
+
+    def send_fd_scm(self, fd: int) -> None:
+        """
+        Send a file descriptor via QMP.
+        """
+        # In iotest.py, the qmp should always use unix socket.
+        assert self._qmp.is_scm_available()
+        self._qmp.send_fd(fd)
 
     @staticmethod
     def _remove_if_exists(path: str) -> None:

@@ -269,7 +269,7 @@ class BuiltinNBD(NBDBlockdevAddBase):
         sockfd = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sockfd.connect(unix_socket)
 
-        self.vm.send_fd_scm(fd=sockfd.fileno())
+        self.vm.send_fd_scm(sockfd.fileno())
 
         result = self.vm.qmp('getfd', fdname='nbd-fifo')
         self.assert_qmp(result, 'return', {})
