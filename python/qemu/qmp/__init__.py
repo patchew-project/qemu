@@ -17,6 +17,7 @@ raised derive from `QMPError`.
 # This work is licensed under the terms of the GNU GPL, version 2.  See
 # the COPYING file in the top-level directory.
 
+import array
 import errno
 import json
 import logging
@@ -421,3 +422,17 @@ class QEMUMonitorProtocol:
         @return True if SCM_RIGHTS is available, otherwise False.
         """
         return self.__sock.family == socket.AF_UNIX
+
+    def send_fd(self, fd: int) -> None:
+        """
+        Send a file descriptor to QEMU via SCM_RIGHTS.
+
+        @param fd (int): file descriptor do be sent
+
+        @raise OSError: if the sendmsg system call fails.
+        """
+        # Send a single space so that QEMU looks at the ancillary data
+        self.__sock.sendmsg((b" ", ),
+                            [(socket.SOL_SOCKET,
+                              socket.SCM_RIGHTS,
+                              array.array("i", [fd]).tobytes())])
