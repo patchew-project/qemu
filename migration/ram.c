@@ -1006,8 +1006,12 @@ static void migration_bitmap_sync(RAMState *rs)
 
     end_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
 
-    /* more than 1 second = 1000 millisecons */
-    if (end_time > rs->time_last_bitmap_sync + 1000) {
+    /*
+     * more than 1 second = 1000 millisecons
+     * Avoid throttling VM in the first iteration of live migration.
+     */
+    if (end_time > rs->time_last_bitmap_sync + 1000 &&
+        ram_counters.dirty_sync_count > 1) {
         migration_trigger_throttle(rs);
 
         migration_update_rates(rs, end_time);
