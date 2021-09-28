@@ -208,7 +208,7 @@ class QEMUMachine:
         return self
 
     def send_fd_scm(self, fd: Optional[int] = None,
-                    file_path: Optional[str] = None) -> int:
+                    file_path: Optional[str] = None) -> None:
         """
         Send an fd or file_path via QMP.
 
@@ -225,19 +225,12 @@ class QEMUMachine:
             try:
                 fd = os.open(file_path, os.O_RDONLY)
                 self._qmp.send_fd(fd)
-            except OSError:
-                return 1
             finally:
                 if fd != -1:
                     os.close(fd)
         else:
             assert fd is not None
-            try:
-                self._qmp.send_fd(fd)
-            except OSError:
-                return 1
-
-        return 0
+            self._qmp.send_fd(fd)
 
     @staticmethod
     def _remove_if_exists(path: str) -> None:
