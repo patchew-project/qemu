@@ -22,6 +22,7 @@
 #include "qemu/qemu-print.h"
 #ifndef CONFIG_USER_ONLY
 #include "hw/i386/apic_internal.h"
+#include "hw/i386/apic.h"
 #endif
 
 /***********************************************************/
