@@ -916,11 +916,11 @@ static void parallels_close(BlockDriverState *bs)
 }
 
 static BlockDriver bdrv_parallels = {
-    .format_name	= "parallels",
-    .instance_size	= sizeof(BDRVParallelsState),
-    .bdrv_probe		= parallels_probe,
-    .bdrv_open		= parallels_open,
-    .bdrv_close		= parallels_close,
+    .format_name    = "parallels",
+    .instance_size  = sizeof(BDRVParallelsState),
+    .bdrv_probe     = parallels_probe,
+    .bdrv_open      = parallels_open,
+    .bdrv_close     = parallels_close,
     .bdrv_child_perm          = bdrv_default_perms,
     .bdrv_co_block_status     = parallels_co_block_status,
     .bdrv_has_zero_init       = bdrv_has_zero_init_1,
