@@ -558,9 +558,11 @@ class QAPIDoc:
                 raise QAPIParseError(
                     self._parser, "extra whitespace around symbol declaration")
             self.symbol = line[1:-1]
-            # FIXME invalid names other than the empty string aren't flagged
+            # Invalid names are not checked here, but the name provided MUST
+            # match the following definition, which *is* validated.
             if not self.symbol:
-                raise QAPIParseError(self._parser, "invalid name")
+                raise QAPIParseError(
+                    self._parser, "doc symbol name cannot be blank")
         elif self.symbol:
             # This is a definition documentation block
             name = line.split(' ', 1)[0]
