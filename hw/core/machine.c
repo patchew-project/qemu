@@ -788,7 +788,7 @@ static char *cpu_hierarchy_to_string(MachineState *ms)
  * introduced topology members which are likely to be target specific should
  * be directly set as 1 if they are omitted (e.g. dies for PC since 4.1).
  */
-static void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
+static bool smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
 {
     MachineClass *mc = MACHINE_GET_CLASS(ms);
     unsigned cpus    = config->has_cpus ? config->cpus : 0;
@@ -818,7 +818,7 @@ static void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
      */
     if (!mc->smp_props.dies_supported && dies > 1) {
         error_setg(errp, "dies not supported by this machine's CPU topology");
-        return;
+        return false;
     }
 
     dies = dies > 0 ? dies : 1;
@@ -876,7 +876,7 @@ static void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
                    "product of the hierarchy must match maxcpus: "
                    "%s != maxcpus (%u)",
                    topo_msg, maxcpus);
-        return;
+        return false;
     }
 
     if (maxcpus < cpus) {
@@ -885,7 +885,7 @@ static void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
                    "maxcpus must be equal to or greater than smp: "
                    "%s == maxcpus (%u) < smp_cpus (%u)",
                    topo_msg, maxcpus, cpus);
-        return;
+        return false;
     }
 
     if (ms->smp.cpus < mc->min_cpus) {
@@ -893,7 +893,7 @@ static void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
                    "supported by machine '%s' is %d",
                    ms->smp.cpus,
                    mc->name, mc->min_cpus);
-        return;
+        return false;
     }
 
     if (ms->smp.max_cpus > mc->max_cpus) {
@@ -901,8 +901,10 @@ static void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
                    "supported by machine '%s' is %d",
                    ms->smp.max_cpus,
                    mc->name, mc->max_cpus);
-        return;
+        return false;
     }
+
+    return true;
 }
 
 static void machine_get_smp(Object *obj, Visitor *v, const char *name,
@@ -933,8 +935,7 @@ static void machine_set_smp(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    smp_parse(ms, config, errp);
-    if (*errp) {
+    if (!smp_parse(ms, config, errp)) {
         qapi_free_SMPConfiguration(config);
     }
 }
