@@ -457,8 +457,10 @@ class QAPIDoc:
     """
 
     class Section:
+        # pylint: disable=too-few-public-methods
         def __init__(self, parser: QAPISchemaParser,
                      name: Optional[str] = None, indent: int = 0):
+
             # parser, for error messages about indentation
             self._parser = parser
             # optional section name (argument/member or section name)
@@ -494,6 +496,7 @@ class QAPIDoc:
         """
         Empty section that signifies the end of a doc block.
         """
+        # pylint: disable=too-few-public-methods
         def append(self, line: str) -> None:
             assert False, "BUG: Text appended after end_comment() called."
 
