@@ -549,18 +549,21 @@ class QAPIDoc:
 
         Else, append the line to the current section.
         """
-        name = line.split(' ', 1)[0]
-        # FIXME not nice: things like '#  @foo:' and '# @foo: ' aren't
-        # recognized, and get silently treated as ordinary text
-        if not self.symbol and not self.body.text and line.startswith('@'):
-            if not line.endswith(':'):
+        stripped = line.strip()
+
+        if not self.symbol and not self.body.text and stripped.startswith('@'):
+            if not stripped.endswith(':'):
                 raise QAPIParseError(self._parser, "line should end with ':'")
+            if not stripped == line:
+                raise QAPIParseError(
+                    self._parser, "extra whitespace around symbol declaration")
             self.symbol = line[1:-1]
             # FIXME invalid names other than the empty string aren't flagged
             if not self.symbol:
                 raise QAPIParseError(self._parser, "invalid name")
         elif self.symbol:
             # This is a definition documentation block
+            name = line.split(' ', 1)[0]
             if name.startswith('@') and name.endswith(':'):
                 self._append_line = self._append_args_line
                 self._append_args_line(line)

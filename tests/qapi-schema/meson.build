@@ -82,6 +82,8 @@ schemas = [
   'doc-missing.json',
   'doc-no-symbol.json',
   'doc-undoc-feature.json',
+  'doc-whitespace-leading-symbol.json',
+  'doc-whitespace-trailing-symbol.json',
   'double-type.json',
   'duplicate-key.json',
   'empty.json',

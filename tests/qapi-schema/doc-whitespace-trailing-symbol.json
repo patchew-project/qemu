@@ -1,0 +1,6 @@
+# Documentation for expression has extra whitespace
+
+##
+# @trailing-whitespace:  
+##
+{ 'command': 'trailing-whitespace', 'data': {'a': 'int'} }

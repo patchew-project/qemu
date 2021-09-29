@@ -1,0 +1,6 @@
+# Documentation for expression has leading whitespace
+
+##
+#  @leading-whitespace:
+##
+{ 'command': 'leading-whitespace', 'data': {'a': 'int'} }
