@@ -127,9 +127,9 @@ static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
     struct virtio_net_config netcfg;
     NetClientState *nc = qemu_get_queue(n->nic);
     static const MACAddr zero = { .a = { 0, 0, 0, 0, 0, 0 } };
-
     int ret = 0;
-    memset(&netcfg, 0 , sizeof(struct virtio_net_config));
+
+    memset(&netcfg, 0, sizeof(struct virtio_net_config));
     virtio_stw_p(vdev, &netcfg.status, n->status);
     virtio_stw_p(vdev, &netcfg.max_virtqueue_pairs, n->max_queues);
     virtio_stw_p(vdev, &netcfg.mtu, n->net_conf.mtu);
@@ -159,12 +159,21 @@ static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
              * address has been configured correctly elsewhere - just not
              * reported by the device.
              */
+
             if (memcmp(&netcfg.mac, &zero, sizeof(zero)) == 0) {
                 info_report("Zero hardware mac address detected. Ignoring.");
                 memcpy(netcfg.mac, n->mac, ETH_ALEN);
             }
-            memcpy(config, &netcfg, n->config_size);
+            /*
+             * If the host support VIRTIO_NET_F_MAC, That means hardware
+             * will provide the mac address, otherwise we don't need to use it.
+             * use  the mac address from qemu cfg
+             */
+            if (!(virtio_host_has_feature(vdev, VIRTIO_NET_F_MAC))) {
+                memcpy(netcfg.mac, n->mac, ETH_ALEN);
+            }
         }
+        memcpy(config, &netcfg, n->config_size);
     }
 }
 
@@ -3468,11 +3477,22 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     nc = qemu_get_queue(n->nic);
     nc->rxfilter_notify_enabled = 1;
 
-   if (nc->peer && nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_VDPA) {
+    if (nc->peer && nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_VDPA) {
+
         struct virtio_net_config netcfg = {};
-        memcpy(&netcfg.mac, &n->nic_conf.macaddr, ETH_ALEN);
-        vhost_net_set_config(get_vhost_net(nc->peer),
-            (uint8_t *)&netcfg, 0, ETH_ALEN, VHOST_SET_CONFIG_TYPE_MASTER);
+        /*
+         * get the real mac address from hardware or qemu cmline
+         *
+         * If the host support VIRTIO_NET_F_MAC, That means hardware
+         * will provide the mac address, otherwise we don't need to use it.
+         * use  the mac address from qemu cfg
+         */
+        virtio_net_get_config(vdev, (uint8_t *)&netcfg);
+        /*
+         * for vdpa device qemu need to set the real mac back to hardware
+         */
+        vhost_net_set_config(get_vhost_net(nc->peer),  (uint8_t *)&netcfg, 0,
+                             ETH_ALEN, VHOST_SET_CONFIG_TYPE_MASTER);
     }
     QTAILQ_INIT(&n->rsc_chains);
     n->qdev = dev;
