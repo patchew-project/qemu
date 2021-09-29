@@ -37,8 +37,10 @@
 #include "qapi/qapi-events-migration.h"
 #include "hw/virtio/virtio-access.h"
 #include "migration/misc.h"
+#include "migration/migration.h"
 #include "standard-headers/linux/ethtool.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "trace.h"
 #include "monitor/qdev.h"
 #include "hw/pci/pci.h"
@@ -3265,7 +3267,13 @@ static void virtio_net_handle_migration_primary(VirtIONet *n, MigrationState *s)
     should_be_hidden = qatomic_read(&n->failover_primary_hidden);
 
     if (migration_in_setup(s) && !should_be_hidden) {
-        if (failover_unplug_primary(n, dev)) {
+        if (!runstate_is_running()) {
+            Error *err = NULL;
+            error_setg(&err,
+                       "cannot unplug primary device while VM is paused");
+            migration_cancel(err);
+            error_free(err);
+        } else if (failover_unplug_primary(n, dev)) {
             vmstate_unregister(VMSTATE_IF(dev), qdev_get_vmsd(dev), dev);
             qapi_event_send_unplug_primary(dev->id);
             qatomic_set(&n->failover_primary_hidden, true);
