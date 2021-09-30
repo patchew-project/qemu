@@ -31,6 +31,7 @@ static const int user_feature_bits[] = {
     VIRTIO_F_NOTIFY_ON_EMPTY,
     VIRTIO_F_RING_PACKED,
     VIRTIO_F_IOMMU_PLATFORM,
+    VIRTIO_FS_F_NOTIFICATION,
 
     VHOST_INVALID_FEATURE_BIT
 };
@@ -147,7 +148,7 @@ static void vuf_handle_output(VirtIODevice *vdev, VirtQueue *vq)
      */
 }
 
-static void vuf_create_vqs(VirtIODevice *vdev)
+static void vuf_create_vqs(VirtIODevice *vdev, bool notification_vq)
 {
     VHostUserFS *fs = VHOST_USER_FS(vdev);
     unsigned int i;
@@ -155,6 +156,15 @@ static void vuf_create_vqs(VirtIODevice *vdev)
     /* Hiprio queue */
     fs->hiprio_vq = virtio_add_queue(vdev, fs->conf.queue_size,
                                      vuf_handle_output);
+    /*
+     * Notification queue. Feature negotiation happens later. So at this
+     * point of time we don't know if driver will use notification queue
+     * or not.
+     */
+    if (notification_vq) {
+        fs->notification_vq = virtio_add_queue(vdev, fs->conf.queue_size,
+                                               vuf_handle_output);
+    }
 
     /* Request queues */
     fs->req_vqs = g_new(VirtQueue *, fs->conf.num_request_queues);
@@ -163,8 +173,12 @@ static void vuf_create_vqs(VirtIODevice *vdev)
                                           vuf_handle_output);
     }
 
-    /* 1 high prio queue, plus the number configured */
-    fs->vhost_dev.nvqs = 1 + fs->conf.num_request_queues;
+    /* 1 high prio queue, 1 notification queue plus the number configured */
+    if (notification_vq) {
+        fs->vhost_dev.nvqs = 2 + fs->conf.num_request_queues;
+    } else {
+        fs->vhost_dev.nvqs = 1 + fs->conf.num_request_queues;
+    }
     fs->vhost_dev.vqs = g_new0(struct vhost_virtqueue, fs->vhost_dev.nvqs);
 }
 
@@ -175,6 +189,11 @@ static void vuf_cleanup_vqs(VirtIODevice *vdev)
 
     virtio_delete_queue(fs->hiprio_vq);
     fs->hiprio_vq = NULL;
+
+    if (fs->notification_vq) {
+        virtio_delete_queue(fs->notification_vq);
+    }
+    fs->notification_vq = NULL;
 
     for (i = 0; i < fs->conf.num_request_queues; i++) {
         virtio_delete_queue(fs->req_vqs[i]);
@@ -194,7 +213,41 @@ static uint64_t vuf_get_features(VirtIODevice *vdev,
 {
     VHostUserFS *fs = VHOST_USER_FS(vdev);
 
+    virtio_add_feature(&features, VIRTIO_FS_F_NOTIFICATION);
+
     return vhost_get_features(&fs->vhost_dev, user_feature_bits, features);
+}
+
+static void vuf_set_features(VirtIODevice *vdev, uint64_t features)
+{
+    VHostUserFS *fs = VHOST_USER_FS(vdev);
+
+    if (virtio_has_feature(features, VIRTIO_FS_F_NOTIFICATION)) {
+        fs->notify_enabled = true;
+        /*
+         * If guest first booted with no notification queue support and
+         * later rebooted with kernel which supports notification, we
+         * can end up here
+         */
+        if (!fs->notification_vq) {
+            vuf_cleanup_vqs(vdev);
+            vuf_create_vqs(vdev, true);
+        }
+        return;
+    }
+
+    fs->notify_enabled = false;
+    if (!fs->notification_vq) {
+        return;
+    }
+    /*
+     * Driver does not support notification queue. Reconfigure queues
+     * and do not create notification queue.
+     */
+    vuf_cleanup_vqs(vdev);
+
+    /* Create queues again */
+    vuf_create_vqs(vdev, false);
 }
 
 static void vuf_guest_notifier_mask(VirtIODevice *vdev, int idx,
@@ -262,7 +315,7 @@ static void vuf_device_realize(DeviceState *dev, Error **errp)
     virtio_init(vdev, "vhost-user-fs", VIRTIO_ID_FS,
                 sizeof(struct virtio_fs_config));
 
-    vuf_create_vqs(vdev);
+    vuf_create_vqs(vdev, true);
     ret = vhost_dev_init(&fs->vhost_dev, &fs->vhost_user,
                          VHOST_BACKEND_TYPE_USER, 0, errp);
     if (ret < 0) {
@@ -327,6 +380,7 @@ static void vuf_class_init(ObjectClass *klass, void *data)
     vdc->realize = vuf_device_realize;
     vdc->unrealize = vuf_device_unrealize;
     vdc->get_features = vuf_get_features;
+    vdc->set_features = vuf_set_features;
     vdc->get_config = vuf_get_config;
     vdc->set_status = vuf_set_status;
     vdc->guest_notifier_mask = vuf_guest_notifier_mask;
