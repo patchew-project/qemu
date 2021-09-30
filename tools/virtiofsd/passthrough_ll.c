@@ -1557,9 +1557,6 @@ static void unref_inode(struct lo_data *lo, struct lo_inode *inode, uint64_t n)
         lo_map_remove(&lo->ino_map, inode->fuse_ino);
         g_hash_table_remove(lo->inodes, &inode->key);
         if (lo->posix_lock) {
-            if (g_hash_table_size(inode->posix_locks)) {
-                fuse_log(FUSE_LOG_WARNING, "Hash table is not empty\n");
-            }
             g_hash_table_destroy(inode->posix_locks);
             pthread_mutex_destroy(&inode->plock_mutex);
         }
@@ -2266,6 +2263,8 @@ static void lo_flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
     (void)ino;
     struct lo_inode *inode;
     struct lo_data *lo = lo_data(req);
+    struct lo_inode_plock *plock;
+    struct flock flock;
 
     inode = lo_inode(req, ino);
     if (!inode) {
@@ -2282,8 +2281,22 @@ static void lo_flush(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
     /* An fd is going away. Cleanup associated posix locks */
     if (lo->posix_lock) {
         pthread_mutex_lock(&inode->plock_mutex);
-        g_hash_table_remove(inode->posix_locks,
+        plock = g_hash_table_lookup(inode->posix_locks,
             GUINT_TO_POINTER(fi->lock_owner));
+
+        if (plock) {
+            /*
+             * An fd is being closed. For posix locks, this means
+             * drop all the associated locks.
+             */
+            memset(&flock, 0, sizeof(struct flock));
+            flock.l_type = F_UNLCK;
+            flock.l_whence = SEEK_SET;
+            /* Unlock whole file */
+            flock.l_start = flock.l_len = 0;
+            fcntl(plock->fd, F_OFD_SETLK, &flock);
+        }
+
         pthread_mutex_unlock(&inode->plock_mutex);
     }
     res = close(dup(lo_fi_fd(req, fi)));
