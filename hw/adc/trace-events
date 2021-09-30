@@ -3,3 +3,7 @@
 # npcm7xx_adc.c
 npcm7xx_adc_read(const char *id, uint64_t offset, uint32_t value) " %s offset: 0x%04" PRIx64 " value 0x%04" PRIx32
 npcm7xx_adc_write(const char *id, uint64_t offset, uint32_t value) "%s offset: 0x%04" PRIx64 " value 0x%04" PRIx32
+
+# aspeed_adc.c
+aspeed_adc_read(uint8_t offset, uint32_t value)  "0x%02" PRIx8 " read 0x%04" PRIx32
+aspeed_adc_write(uint8_t offset, uint32_t value) "0x%02" PRIx8 " write 0x%04" PRIx32

@@ -44,6 +44,7 @@ static const hwaddr aspeed_soc_ast2600_memmap[] = {
     [ASPEED_DEV_SCU]       = 0x1E6E2000,
     [ASPEED_DEV_XDMA]      = 0x1E6E7000,
     [ASPEED_DEV_ADC]       = 0x1E6E9000,
+    [ASPEED_DEV_ADC2]      = 0x1E6E9100,
     [ASPEED_DEV_VIDEO]     = 0x1E700000,
     [ASPEED_DEV_SDHCI]     = 0x1E740000,
     [ASPEED_DEV_EMMC]      = 0x1E750000,
@@ -77,6 +78,7 @@ static const int aspeed_soc_ast2600_irqmap[] = {
     [ASPEED_DEV_SDMC]      = 0,
     [ASPEED_DEV_SCU]       = 12,
     [ASPEED_DEV_ADC]       = 78,
+    [ASPEED_DEV_ADC2]      = 78,
     [ASPEED_DEV_XDMA]      = 6,
     [ASPEED_DEV_SDHCI]     = 43,
     [ASPEED_DEV_EHCI1]     = 5,
@@ -216,6 +218,11 @@ static void aspeed_soc_ast2600_init(Object *obj)
 
     snprintf(typename, sizeof(typename), "aspeed.hace-%s", socname);
     object_initialize_child(obj, "hace", &s->hace, typename);
+
+    snprintf(typename, sizeof(typename), "aspeed.adc-%s", socname);
+    for (i = 0; i < sc->adcs_num; i++) {
+        object_initialize_child(obj, "adc[*]", &s->adc[i], typename);
+    }
 }
 
 /*
@@ -507,6 +514,16 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->hace), 0, sc->memmap[ASPEED_DEV_HACE]);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->hace), 0,
                        aspeed_soc_get_irq(s, ASPEED_DEV_HACE));
+
+    /* ADC */
+    for (int i = 0; i < sc->adcs_num; i++) {
+        SysBusDevice *bus = SYS_BUS_DEVICE(&s->adc[i]);
+        if (!sysbus_realize(bus, errp)) {
+            return;
+        }
+        sysbus_mmio_map(bus, 0, sc->memmap[ASPEED_DEV_ADC + i]);
+        sysbus_connect_irq(bus, 0, aspeed_soc_get_irq(s, ASPEED_DEV_ADC + i));
+    }
 }
 
 static void aspeed_soc_ast2600_class_init(ObjectClass *oc, void *data)
@@ -524,6 +541,7 @@ static void aspeed_soc_ast2600_class_init(ObjectClass *oc, void *data)
     sc->ehcis_num    = 2;
     sc->wdts_num     = 4;
     sc->macs_num     = 4;
+    sc->adcs_num     = 2;
     sc->irqmap       = aspeed_soc_ast2600_irqmap;
     sc->memmap       = aspeed_soc_ast2600_memmap;
     sc->num_cpus     = 2;

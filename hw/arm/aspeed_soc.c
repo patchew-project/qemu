@@ -216,6 +216,11 @@ static void aspeed_soc_init(Object *obj)
 
     snprintf(typename, sizeof(typename), "aspeed.hace-%s", socname);
     object_initialize_child(obj, "hace", &s->hace, typename);
+
+    snprintf(typename, sizeof(typename), "aspeed.adc-%s", socname);
+    for (i = 0; i < sc->adcs_num; i++) {
+        object_initialize_child(obj, "adc[*]", &s->adc[i], typename);
+    }
 }
 
 static void aspeed_soc_realize(DeviceState *dev, Error **errp)
@@ -435,6 +440,16 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->hace), 0, sc->memmap[ASPEED_DEV_HACE]);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->hace), 0,
                        aspeed_soc_get_irq(s, ASPEED_DEV_HACE));
+
+    /* ADC */
+    for (int i = 0; i < sc->adcs_num; i++) {
+        SysBusDevice *bus = SYS_BUS_DEVICE(&s->adc[i]);
+        if (!sysbus_realize(bus, errp)) {
+            return;
+        }
+        sysbus_mmio_map(bus, 0, sc->memmap[ASPEED_DEV_ADC + i]);
+        sysbus_connect_irq(bus, 0, aspeed_soc_get_irq(s, ASPEED_DEV_ADC + i));
+    }
 }
 static Property aspeed_soc_properties[] = {
     DEFINE_PROP_LINK("dram", AspeedSoCState, dram_mr, TYPE_MEMORY_REGION,
@@ -475,6 +490,7 @@ static void aspeed_soc_ast2400_class_init(ObjectClass *oc, void *data)
     sc->ehcis_num    = 1;
     sc->wdts_num     = 2;
     sc->macs_num     = 2;
+    sc->adcs_num     = 1;
     sc->irqmap       = aspeed_soc_ast2400_irqmap;
     sc->memmap       = aspeed_soc_ast2400_memmap;
     sc->num_cpus     = 1;
@@ -500,6 +516,7 @@ static void aspeed_soc_ast2500_class_init(ObjectClass *oc, void *data)
     sc->ehcis_num    = 2;
     sc->wdts_num     = 3;
     sc->macs_num     = 2;
+    sc->adcs_num     = 1;
     sc->irqmap       = aspeed_soc_ast2500_irqmap;
     sc->memmap       = aspeed_soc_ast2500_memmap;
     sc->num_cpus     = 1;
