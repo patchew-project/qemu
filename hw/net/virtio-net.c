@@ -39,6 +39,7 @@
 #include "migration/misc.h"
 #include "standard-headers/linux/ethtool.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "trace.h"
 #include "monitor/qdev.h"
 #include "hw/pci/pci.h"
@@ -3303,6 +3304,35 @@ static void virtio_net_migration_state_notifier(Notifier *notifier, void *data)
     virtio_net_handle_migration_primary(n, s);
 }
 
+static void virtio_net_failover_restart_cb(void *opaque, bool running,
+                                           RunState state)
+{
+    DeviceState *dev;
+    VirtIONet *n = opaque;
+    Error *err = NULL;
+    PCIDevice *pdev;
+
+    if (!running) {
+        return;
+    }
+
+    dev = failover_find_primary_device(n);
+    if (!dev) {
+        return;
+    }
+
+    pdev = PCI_DEVICE(dev);
+    if (!pdev->partially_hotplugged) {
+        return;
+    }
+
+    if (!failover_replug_primary(n, dev, &err)) {
+        if (err) {
+            error_report_err(err);
+        }
+    }
+}
+
 static bool failover_hide_primary_device(DeviceListener *listener,
                                          QemuOpts *device_opts)
 {
@@ -3360,6 +3390,8 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
         device_listener_register(&n->primary_listener);
         n->migration_state.notify = virtio_net_migration_state_notifier;
         add_migration_state_change_notifier(&n->migration_state);
+        n->vm_state = qemu_add_vm_change_state_handler(
+                                             virtio_net_failover_restart_cb, n);
         n->host_features |= (1ULL << VIRTIO_NET_F_STANDBY);
     }
 
@@ -3508,6 +3540,7 @@ static void virtio_net_device_unrealize(DeviceState *dev)
     if (n->failover) {
         device_listener_unregister(&n->primary_listener);
         remove_migration_state_change_notifier(&n->migration_state);
+        qemu_del_vm_change_state_handler(n->vm_state);
     }
 
     max_queues = n->multiqueue ? n->max_queues : 1;

@@ -743,6 +743,10 @@
 #                        block device name if there is one, and to their node name
 #                        otherwise. (Since 5.2)
 #
+# @pause-vm:           Pause the virtual machine before doing the migration.
+#                      This allows QEMU to unplug a card before doing the
+#                      migration as it depends on the guest kernel. (since 6.2)
+#
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
@@ -758,7 +762,7 @@
            'xbzrle-cache-size', 'max-postcopy-bandwidth',
            'max-cpu-throttle', 'multifd-compression',
            'multifd-zlib-level' ,'multifd-zstd-level',
-           'block-bitmap-mapping' ] }
+           'block-bitmap-mapping', 'pause-vm' ] }
 
 ##
 # @MigrateSetParameters:
@@ -903,6 +907,10 @@
 #                        block device name if there is one, and to their node name
 #                        otherwise. (Since 5.2)
 #
+# @pause-vm:           Pause the virtual machine before doing the migration.
+#                      This allows QEMU to unplug a card before doing the
+#                      migration as it depends on the guest kernel. (since 6.2)
+#
 # Since: 2.4
 ##
 # TODO either fuse back into MigrationParameters, or make
@@ -934,7 +942,8 @@
             '*multifd-compression': 'MultiFDCompression',
             '*multifd-zlib-level': 'uint8',
             '*multifd-zstd-level': 'uint8',
-            '*block-bitmap-mapping': [ 'BitmapMigrationNodeAlias' ] } }
+            '*block-bitmap-mapping': [ 'BitmapMigrationNodeAlias' ],
+            '*pause-vm': 'bool' } }
 
 ##
 # @migrate-set-parameters:
@@ -1099,6 +1108,10 @@
 #                        block device name if there is one, and to their node name
 #                        otherwise. (Since 5.2)
 #
+# @pause-vm:           Pause the virtual machine before doing the migration.
+#                      This allows QEMU to unplug a card before doing the
+#                      migration as it depends on the guest kernel. (since 6.2)
+#
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -1128,7 +1141,8 @@
             '*multifd-compression': 'MultiFDCompression',
             '*multifd-zlib-level': 'uint8',
             '*multifd-zstd-level': 'uint8',
-            '*block-bitmap-mapping': [ 'BitmapMigrationNodeAlias' ] } }
+            '*block-bitmap-mapping': [ 'BitmapMigrationNodeAlias' ],
+            '*pause-vm': 'bool' } }
 
 ##
 # @query-migrate-parameters:

@@ -513,6 +513,10 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
                 }
             }
         }
+
+        monitor_printf(mon, "%s: %s\n",
+            MigrationParameter_str(MIGRATION_PARAMETER_PAUSE_VM),
+            params->pause_vm ? "on" : "off");
     }
 
     qapi_free_MigrationParameters(params);
@@ -1398,6 +1402,10 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     case MIGRATION_PARAMETER_BLOCK_BITMAP_MAPPING:
         error_setg(&err, "The block-bitmap-mapping parameter can only be set "
                    "through QMP");
+        break;
+    case MIGRATION_PARAMETER_PAUSE_VM:
+        p->has_pause_vm = true;
+        visit_type_bool(v, param, &p->pause_vm, &err);
         break;
     default:
         assert(0);
