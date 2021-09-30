@@ -139,6 +139,55 @@ static void vuf_set_status(VirtIODevice *vdev, uint8_t status)
     }
 }
 
+static void vuf_handle_output(VirtIODevice *vdev, VirtQueue *vq)
+{
+    /*
+     * Not normally called; it's the daemon that handles the queue;
+     * however virtio's cleanup path can call this.
+     */
+}
+
+static void vuf_create_vqs(VirtIODevice *vdev)
+{
+    VHostUserFS *fs = VHOST_USER_FS(vdev);
+    unsigned int i;
+
+    /* Hiprio queue */
+    fs->hiprio_vq = virtio_add_queue(vdev, fs->conf.queue_size,
+                                     vuf_handle_output);
+
+    /* Request queues */
+    fs->req_vqs = g_new(VirtQueue *, fs->conf.num_request_queues);
+    for (i = 0; i < fs->conf.num_request_queues; i++) {
+        fs->req_vqs[i] = virtio_add_queue(vdev, fs->conf.queue_size,
+                                          vuf_handle_output);
+    }
+
+    /* 1 high prio queue, plus the number configured */
+    fs->vhost_dev.nvqs = 1 + fs->conf.num_request_queues;
+    fs->vhost_dev.vqs = g_new0(struct vhost_virtqueue, fs->vhost_dev.nvqs);
+}
+
+static void vuf_cleanup_vqs(VirtIODevice *vdev)
+{
+    VHostUserFS *fs = VHOST_USER_FS(vdev);
+    unsigned int i;
+
+    virtio_delete_queue(fs->hiprio_vq);
+    fs->hiprio_vq = NULL;
+
+    for (i = 0; i < fs->conf.num_request_queues; i++) {
+        virtio_delete_queue(fs->req_vqs[i]);
+    }
+
+    g_free(fs->req_vqs);
+    fs->req_vqs = NULL;
+
+    fs->vhost_dev.nvqs = 0;
+    g_free(fs->vhost_dev.vqs);
+    fs->vhost_dev.vqs = NULL;
+}
+
 static uint64_t vuf_get_features(VirtIODevice *vdev,
                                  uint64_t features,
                                  Error **errp)
@@ -146,14 +195,6 @@ static uint64_t vuf_get_features(VirtIODevice *vdev,
     VHostUserFS *fs = VHOST_USER_FS(vdev);
 
     return vhost_get_features(&fs->vhost_dev, user_feature_bits, features);
-}
-
-static void vuf_handle_output(VirtIODevice *vdev, VirtQueue *vq)
-{
-    /*
-     * Not normally called; it's the daemon that handles the queue;
-     * however virtio's cleanup path can call this.
-     */
 }
 
 static void vuf_guest_notifier_mask(VirtIODevice *vdev, int idx,
@@ -175,7 +216,6 @@ static void vuf_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserFS *fs = VHOST_USER_FS(dev);
-    unsigned int i;
     size_t len;
     int ret;
 
@@ -222,18 +262,7 @@ static void vuf_device_realize(DeviceState *dev, Error **errp)
     virtio_init(vdev, "vhost-user-fs", VIRTIO_ID_FS,
                 sizeof(struct virtio_fs_config));
 
-    /* Hiprio queue */
-    fs->hiprio_vq = virtio_add_queue(vdev, fs->conf.queue_size, vuf_handle_output);
-
-    /* Request queues */
-    fs->req_vqs = g_new(VirtQueue *, fs->conf.num_request_queues);
-    for (i = 0; i < fs->conf.num_request_queues; i++) {
-        fs->req_vqs[i] = virtio_add_queue(vdev, fs->conf.queue_size, vuf_handle_output);
-    }
-
-    /* 1 high prio queue, plus the number configured */
-    fs->vhost_dev.nvqs = 1 + fs->conf.num_request_queues;
-    fs->vhost_dev.vqs = g_new0(struct vhost_virtqueue, fs->vhost_dev.nvqs);
+    vuf_create_vqs(vdev);
     ret = vhost_dev_init(&fs->vhost_dev, &fs->vhost_user,
                          VHOST_BACKEND_TYPE_USER, 0, errp);
     if (ret < 0) {
@@ -244,13 +273,8 @@ static void vuf_device_realize(DeviceState *dev, Error **errp)
 
 err_virtio:
     vhost_user_cleanup(&fs->vhost_user);
-    virtio_delete_queue(fs->hiprio_vq);
-    for (i = 0; i < fs->conf.num_request_queues; i++) {
-        virtio_delete_queue(fs->req_vqs[i]);
-    }
-    g_free(fs->req_vqs);
+    vuf_cleanup_vqs(vdev);
     virtio_cleanup(vdev);
-    g_free(fs->vhost_dev.vqs);
     return;
 }
 
@@ -258,7 +282,6 @@ static void vuf_device_unrealize(DeviceState *dev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserFS *fs = VHOST_USER_FS(dev);
-    int i;
 
     /* This will stop vhost backend if appropriate. */
     vuf_set_status(vdev, 0);
@@ -267,14 +290,8 @@ static void vuf_device_unrealize(DeviceState *dev)
 
     vhost_user_cleanup(&fs->vhost_user);
 
-    virtio_delete_queue(fs->hiprio_vq);
-    for (i = 0; i < fs->conf.num_request_queues; i++) {
-        virtio_delete_queue(fs->req_vqs[i]);
-    }
-    g_free(fs->req_vqs);
+    vuf_cleanup_vqs(vdev);
     virtio_cleanup(vdev);
-    g_free(fs->vhost_dev.vqs);
-    fs->vhost_dev.vqs = NULL;
 }
 
 static const VMStateDescription vuf_vmstate = {
