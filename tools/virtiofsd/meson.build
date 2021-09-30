@@ -6,6 +6,7 @@ executable('virtiofsd', files(
   'fuse_signals.c',
   'fuse_virtio.c',
   'helper.c',
+  'tpool.c',
   'passthrough_ll.c',
   'passthrough_seccomp.c'),
   dependencies: [seccomp, qemuutil, libcap_ng, vhost_user],

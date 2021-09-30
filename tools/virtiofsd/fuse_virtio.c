@@ -20,6 +20,7 @@
 #include "fuse_misc.h"
 #include "fuse_opt.h"
 #include "fuse_virtio.h"
+#include "tpool.h"
 
 #include <sys/eventfd.h>
 #include <sys/socket.h>
@@ -612,6 +613,60 @@ out:
     free(req);
 }
 
+/*
+ * If the request is a locking request, use a custom locking thread pool.
+ */
+static bool use_lock_tpool(gpointer data, gpointer user_data)
+{
+    struct fv_QueueInfo *qi = user_data;
+    struct fuse_session *se = qi->virtio_dev->se;
+    FVRequest *req = data;
+    VuVirtqElement *elem = &req->elem;
+    struct fuse_buf fbuf = {};
+    struct fuse_in_header *inhp;
+    struct fuse_lk_in *lkinp;
+    size_t lk_req_len;
+    /* The 'out' part of the elem is from qemu */
+    unsigned int out_num = elem->out_num;
+    struct iovec *out_sg = elem->out_sg;
+    size_t out_len = iov_size(out_sg, out_num);
+    bool use_custom_tpool = false;
+
+    /*
+     * If notifications are not enabled, no point in using cusotm lock
+     * thread pool.
+     */
+    if (!se->notify_enabled) {
+        return false;
+    }
+
+    assert(se->bufsize > sizeof(struct fuse_in_header));
+    lk_req_len = sizeof(struct fuse_in_header) + sizeof(struct fuse_lk_in);
+
+    if (out_len < lk_req_len) {
+        return false;
+    }
+
+    fbuf.mem = g_malloc(se->bufsize);
+    copy_from_iov(&fbuf, out_num, out_sg, lk_req_len);
+
+    inhp = fbuf.mem;
+    if (inhp->opcode != FUSE_SETLKW) {
+        goto out;
+    }
+
+    lkinp = fbuf.mem + sizeof(struct fuse_in_header);
+    if (lkinp->lk.type == F_UNLCK) {
+        goto out;
+    }
+
+    /* Its a blocking lock request. Use custom thread pool */
+    use_custom_tpool = true;
+out:
+    g_free(fbuf.mem);
+    return use_custom_tpool;
+}
+
 /* Thread function for individual queues, created when a queue is 'started' */
 static void *fv_queue_thread(void *opaque)
 {
@@ -619,6 +674,7 @@ static void *fv_queue_thread(void *opaque)
     struct VuDev *dev = &qi->virtio_dev->dev;
     struct VuVirtq *q = vu_get_queue(dev, qi->qidx);
     struct fuse_session *se = qi->virtio_dev->se;
+    struct fv_ThreadPool *lk_tpool = NULL;
     GThreadPool *pool = NULL;
     GList *req_list = NULL;
 
@@ -629,6 +685,24 @@ static void *fv_queue_thread(void *opaque)
                                  FALSE, NULL);
         if (!pool) {
             fuse_log(FUSE_LOG_ERR, "%s: g_thread_pool_new failed\n", __func__);
+            return NULL;
+        }
+
+    }
+
+    /*
+     * Create the custom thread pool to handle blocking locking requests.
+     * Do not create for hiprio queue (qidx=0).
+     */
+    if (qi->qidx) {
+        fuse_log(FUSE_LOG_DEBUG, "%s: Creating a locking thread pool for"
+                 " Queue %d with size %d\n", __func__, qi->qidx, 4);
+        lk_tpool = fv_thread_pool_init(4);
+        if (!lk_tpool) {
+            fuse_log(FUSE_LOG_ERR, "%s: fv_thread_pool failed\n", __func__);
+            if (pool) {
+                g_thread_pool_free(pool, FALSE, TRUE);
+            }
             return NULL;
         }
     }
@@ -703,7 +777,17 @@ static void *fv_queue_thread(void *opaque)
 
             req->reply_sent = false;
 
-            if (!se->thread_pool_size) {
+            /*
+             * In every case we get the opcode of the request and check if it
+             * is a locking request. If yes, we assign the request to the
+             * custom thread pool, with the exception when the lock is of type
+             * F_UNCLK. In this case to avoid a deadlock when all the custom
+             * threads are blocked, the request is serviced by the main
+             * virtqueue thread or a thread in GThreadPool
+             */
+            if (use_lock_tpool(req, qi)) {
+                fv_thread_pool_push(lk_tpool, fv_queue_worker, req, qi);
+            } else if (!se->thread_pool_size) {
                 req_list = g_list_prepend(req_list, req);
             } else {
                 g_thread_pool_push(pool, req, NULL);
@@ -724,6 +808,10 @@ static void *fv_queue_thread(void *opaque)
 
     if (pool) {
         g_thread_pool_free(pool, FALSE, TRUE);
+    }
+
+    if (lk_tpool) {
+        fv_thread_pool_destroy(lk_tpool);
     }
 
     return NULL;
