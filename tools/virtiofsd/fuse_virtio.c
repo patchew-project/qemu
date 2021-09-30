@@ -273,6 +273,23 @@ static void vq_send_element(struct fv_QueueInfo *qi, VuVirtqElement *elem,
     vu_dispatch_unlock(qi->virtio_dev);
 }
 
+/* Returns NULL if queue is empty */
+static FVRequest *vq_pop_notify_elem(struct fv_QueueInfo *qi)
+{
+    struct fuse_session *se = qi->virtio_dev->se;
+    VuDev *dev = &se->virtio_dev->dev;
+    VuVirtq *q = vu_get_queue(dev, qi->qidx);
+    FVRequest *req;
+
+    vu_dispatch_rdlock(qi->virtio_dev);
+    pthread_mutex_lock(&qi->vq_lock);
+    /* Pop an element from queue */
+    req = vu_queue_pop(dev, q, sizeof(FVRequest));
+    pthread_mutex_unlock(&qi->vq_lock);
+    vu_dispatch_unlock(qi->virtio_dev);
+    return req;
+}
+
 /*
  * Called back by ll whenever it wants to send a reply/message back
  * The 1st element of the iov starts with the fuse_out_header
@@ -281,9 +298,9 @@ static void vq_send_element(struct fv_QueueInfo *qi, VuVirtqElement *elem,
 int virtio_send_msg(struct fuse_session *se, struct fuse_chan *ch,
                     struct iovec *iov, int count)
 {
-    FVRequest *req = container_of(ch, FVRequest, ch);
-    struct fv_QueueInfo *qi = ch->qi;
-    VuVirtqElement *elem = &req->elem;
+    FVRequest *req;
+    struct fv_QueueInfo *qi;
+    VuVirtqElement *elem;
     int ret = 0;
 
     assert(count >= 1);
@@ -294,8 +311,30 @@ int virtio_send_msg(struct fuse_session *se, struct fuse_chan *ch,
 
     size_t tosend_len = iov_size(iov, count);
 
-    /* unique == 0 is notification, which we don't support */
-    assert(out->unique);
+    /* unique == 0 is notification */
+    if (!out->unique) {
+        if (!se->notify_enabled) {
+            return -EOPNOTSUPP;
+        }
+        /* If notifications are enabled, queue index 1 is notification queue */
+        qi = se->virtio_dev->qi[1];
+        req = vq_pop_notify_elem(qi);
+        if (!req) {
+            /*
+             * TODO: Implement some sort of ring buffer and queue notifications
+             * on that and send these later when notification queue has space
+             * available.
+             */
+            return -ENOSPC;
+        }
+        req->reply_sent = false;
+    } else {
+        assert(ch);
+        req = container_of(ch, FVRequest, ch);
+        qi = ch->qi;
+    }
+
+    elem = &req->elem;
     assert(!req->reply_sent);
 
     /* The 'in' part of the elem is to qemu */
@@ -985,6 +1024,7 @@ static int fv_get_config(VuDev *dev, uint8_t *config, uint32_t len)
         struct fuse_notify_delete_out       delete_out;
         struct fuse_notify_store_out        store_out;
         struct fuse_notify_retrieve_out     retrieve_out;
+        struct fuse_notify_lock_out         lock_out;
     };
 
     notify_size = sizeof(struct fuse_out_header) +

@@ -2131,13 +2131,35 @@ out:
     }
 }
 
+static void setlk_send_notification(struct fuse_session *se, uint64_t unique,
+                                    int saverr)
+{
+    int ret;
+
+    do {
+        ret = fuse_lowlevel_notify_lock(se, unique, saverr);
+        /*
+         * Retry sending notification if notification queue does not have
+         * free descriptor yet, otherwise break out of loop. Either we
+         * successfully sent notifiation or some other error occurred.
+         */
+        if (ret != -ENOSPC) {
+            break;
+        }
+        usleep(10000);
+    } while (1);
+}
+
 static void lo_setlk(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi,
                      struct flock *lock, int sleep)
 {
     struct lo_data *lo = lo_data(req);
     struct lo_inode *inode;
     struct lo_inode_plock *plock;
-    int ret, saverr = 0;
+    int ret, saverr = 0, ofd;
+    uint64_t unique;
+    struct fuse_session *se = req->se;
+    bool blocking_lock = false;
 
     fuse_log(FUSE_LOG_DEBUG,
              "lo_setlk(ino=%" PRIu64 ", flags=%d)"
@@ -2148,11 +2170,6 @@ static void lo_setlk(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi,
 
     if (!lo->posix_lock) {
         fuse_reply_err(req, ENOSYS);
-        return;
-    }
-
-    if (sleep) {
-        fuse_reply_err(req, EOPNOTSUPP);
         return;
     }
 
@@ -2168,21 +2185,56 @@ static void lo_setlk(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi,
 
     if (!plock) {
         saverr = ret;
+        pthread_mutex_unlock(&inode->plock_mutex);
         goto out;
+    }
+
+    /*
+     * plock is now released when inode is going away. We already have
+     * a reference on inode, so it is guaranteed that plock->fd is
+     * still around even after dropping inode->plock_mutex lock
+     */
+    ofd = plock->fd;
+    pthread_mutex_unlock(&inode->plock_mutex);
+
+    /*
+     * If this lock request can block, request caller to wait for
+     * notification. Do not access req after this. Once lock is
+     * available, send a notification instead.
+     */
+    if (sleep && lock->l_type != F_UNLCK) {
+        /*
+         * If notification queue is not enabled, can't support async
+         * locks.
+         */
+        if (!se->notify_enabled) {
+            saverr = EOPNOTSUPP;
+            goto out;
+        }
+        blocking_lock = true;
+        unique = req->unique;
+        fuse_reply_wait(req);
     }
 
     /* TODO: Is it alright to modify flock? */
     lock->l_pid = 0;
-    ret = fcntl(plock->fd, F_OFD_SETLK, lock);
+    if (blocking_lock) {
+        ret = fcntl(ofd, F_OFD_SETLKW, lock);
+    } else {
+        ret = fcntl(ofd, F_OFD_SETLK, lock);
+    }
     if (ret == -1) {
         saverr = errno;
     }
 
 out:
-    pthread_mutex_unlock(&inode->plock_mutex);
     lo_inode_put(lo, &inode);
 
-    fuse_reply_err(req, saverr);
+    if (!blocking_lock) {
+        fuse_reply_err(req, saverr);
+    } else {
+        setlk_send_notification(se, unique, saverr);
+    }
 }
 
 static void lo_fsyncdir(fuse_req_t req, fuse_ino_t ino, int datasync,
