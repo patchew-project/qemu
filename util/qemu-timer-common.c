@@ -49,13 +49,24 @@ static void __attribute__((constructor)) init_get_clock(void)
 #else
 
 int use_rt_clock;
+clockid_t rt_clock;
 
 static void __attribute__((constructor)) init_get_clock(void)
 {
     struct timespec ts;
 
     use_rt_clock = 0;
+#if (defined(__APPLE__) || defined(__linux__)) && defined(CLOCK_MONOTONIC_RAW)
+    /* CLOCK_MONOTONIC_RAW is not available on all platforms or with all
+     * compiler flags.
+     */
+    if (clock_gettime(CLOCK_MONOTONIC_RAW, &ts) == 0) {
+        rt_clock = CLOCK_MONOTONIC_RAW;
+        use_rt_clock = 1;
+    } else
+#endif
     if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
+        rt_clock = CLOCK_MONOTONIC;
         use_rt_clock = 1;
     }
     clock_start = get_clock();
