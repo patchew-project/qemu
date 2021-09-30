@@ -117,6 +117,7 @@ static const int syscall_allowlist[] = {
     SCMP_SYS(writev),
     SCMP_SYS(umask),
     SCMP_SYS(nanosleep),
+    SCMP_SYS(clock_nanosleep),
 };
 
 /* Syscalls used when --syslog is enabled */
