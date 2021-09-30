@@ -728,8 +728,7 @@ static IOMMUTLBEntry virtio_iommu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
         .perm = IOMMU_NONE,
     };
 
-    bypass_allowed = virtio_vdev_has_feature(&s->parent_obj,
-                                             VIRTIO_IOMMU_F_BYPASS);
+    bypass_allowed = s->config.bypass;
 
     sid = virtio_iommu_get_bdf(sdev);
 
@@ -828,7 +827,8 @@ static void virtio_iommu_get_config(VirtIODevice *vdev, uint8_t *config_data)
                                   config->input_range.start,
                                   config->input_range.end,
                                   config->domain_range.end,
-                                  config->probe_size);
+                                  config->probe_size,
+                                  config->bypass);
     memcpy(config_data, &dev->config, sizeof(struct virtio_iommu_config));
 }
 
@@ -836,13 +836,29 @@ static void virtio_iommu_set_config(VirtIODevice *vdev,
                                       const uint8_t *config_data)
 {
     struct virtio_iommu_config config;
+    VirtIOIOMMU *dev = VIRTIO_IOMMU(vdev);
 
     memcpy(&config, config_data, sizeof(struct virtio_iommu_config));
+
+    if (config.bypass != dev->config.bypass) {
+        if (!virtio_vdev_has_feature(vdev, VIRTIO_IOMMU_F_BYPASS_CONFIG)) {
+            virtio_error(vdev, "cannot set config.bypass");
+            return;
+        }
+        if (config.bypass != 0 && config.bypass != 1) {
+            warn_report("invalid config.bypass value '%d'", config.bypass);
+            dev->config.bypass = 0;
+            return;
+        }
+        dev->config.bypass = config.bypass;
+    }
+
     trace_virtio_iommu_set_config(config.page_size_mask,
                                   config.input_range.start,
                                   config.input_range.end,
                                   config.domain_range.end,
-                                  config.probe_size);
+                                  config.probe_size,
+                                  config.bypass);
 }
 
 static uint64_t virtio_iommu_get_features(VirtIODevice *vdev, uint64_t f,
@@ -986,6 +1002,7 @@ static void virtio_iommu_device_realize(DeviceState *dev, Error **errp)
     s->config.input_range.end = -1UL;
     s->config.domain_range.end = 32;
     s->config.probe_size = VIOMMU_PROBE_SIZE;
+    s->config.bypass = s->boot_bypass;
 
     virtio_add_feature(&s->features, VIRTIO_RING_F_EVENT_IDX);
     virtio_add_feature(&s->features, VIRTIO_RING_F_INDIRECT_DESC);
@@ -993,9 +1010,9 @@ static void virtio_iommu_device_realize(DeviceState *dev, Error **errp)
     virtio_add_feature(&s->features, VIRTIO_IOMMU_F_INPUT_RANGE);
     virtio_add_feature(&s->features, VIRTIO_IOMMU_F_DOMAIN_RANGE);
     virtio_add_feature(&s->features, VIRTIO_IOMMU_F_MAP_UNMAP);
-    virtio_add_feature(&s->features, VIRTIO_IOMMU_F_BYPASS);
     virtio_add_feature(&s->features, VIRTIO_IOMMU_F_MMIO);
     virtio_add_feature(&s->features, VIRTIO_IOMMU_F_PROBE);
+    virtio_add_feature(&s->features, VIRTIO_IOMMU_F_BYPASS_CONFIG);
 
     qemu_mutex_init(&s->mutex);
 
@@ -1169,6 +1186,7 @@ static const VMStateDescription vmstate_virtio_iommu = {
 
 static Property virtio_iommu_properties[] = {
     DEFINE_PROP_LINK("primary-bus", VirtIOIOMMU, primary_bus, "PCI", PCIBus *),
+    DEFINE_PROP_BOOL("boot-bypass", VirtIOIOMMU, boot_bypass, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
