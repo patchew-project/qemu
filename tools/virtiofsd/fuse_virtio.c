@@ -826,6 +826,11 @@ static void fv_queue_cleanup_thread(struct fv_VuDev *vud, int qidx)
     assert(qidx < vud->nqueues);
     ourqi = vud->qi[qidx];
 
+    /* Queue is already stopped */
+    if (!ourqi) {
+        return;
+    }
+
     /* qidx == 1 is the notification queue if notifications are enabled */
     if (!se->notify_enabled || qidx != 1) {
         /* Kill the thread */
@@ -847,13 +852,24 @@ static void fv_queue_cleanup_thread(struct fv_VuDev *vud, int qidx)
 
 static void stop_all_queues(struct fv_VuDev *vud)
 {
+    struct fuse_session *se = vud->se;
+
     for (int i = 0; i < vud->nqueues; i++) {
         if (!vud->qi[i]) {
             continue;
         }
 
+        /* Shutdown notification queue in the end */
+        if (se->notify_enabled && i == 1) {
+            continue;
+        }
         fuse_log(FUSE_LOG_INFO, "%s: Stopping queue %d thread\n", __func__, i);
         fv_queue_cleanup_thread(vud, i);
+    }
+
+    if (se->notify_enabled) {
+        fuse_log(FUSE_LOG_INFO, "%s: Stopping queue %d thread\n", __func__, 1);
+        fv_queue_cleanup_thread(vud, 1);
     }
 }
 
@@ -934,7 +950,16 @@ static void fv_queue_set_started(VuDev *dev, int qidx, bool started)
          * the queue thread doesn't block in virtio_send_msg().
          */
         vu_dispatch_unlock(vud);
-        fv_queue_cleanup_thread(vud, qidx);
+
+        /*
+         * If queue 0 is being shutdown, treat it as if device is being
+         * shutdown and stop all queues.
+         */
+        if (qidx == 0) {
+            stop_all_queues(vud);
+        } else {
+            fv_queue_cleanup_thread(vud, qidx);
+        }
         vu_dispatch_wrlock(vud);
     }
 }
