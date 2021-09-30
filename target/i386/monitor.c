@@ -34,7 +34,9 @@
 #include "qapi/error.h"
 #include "sev_i386.h"
 #include "qapi/qapi-commands-misc-target.h"
+#include "qapi/qapi-commands-machine-target.h"
 #include "qapi/qapi-commands-misc.h"
+#include "qapi/type-helpers.h"
 #include "hw/i386/pc.h"
 
 /* Perform linear address sign extension */
@@ -651,27 +653,50 @@ const MonitorDef *target_monitor_defs(void)
     return monitor_defs;
 }
 
-void hmp_info_local_apic(Monitor *mon, const QDict *qdict)
+HumanReadableText *qmp_x_query_lapic(int64_t apicid,
+                                     Error **errp)
 {
-    CPUState *cs;
-
-    if (qdict_haskey(qdict, "apic-id")) {
-        int id = qdict_get_try_int(qdict, "apic-id", 0);
-
-        cs = cpu_by_arch_id(id);
-        if (cs) {
-            cpu_synchronize_state(cs);
-        }
-    } else {
-        cs = mon_get_cpu(mon);
-    }
-
+    g_autoptr(GString) buf = NULL;
+    CPUState *cs = cpu_by_arch_id(apicid);
 
     if (!cs) {
-        monitor_printf(mon, "No CPU available\n");
+        error_setg(errp, "No CPU with APIC ID %" PRId64 " available", apicid);
+        return NULL;
+    }
+    cpu_synchronize_state(cs);
+
+    buf = x86_cpu_format_local_apic_state(cs, CPU_DUMP_FPU, errp);
+    if (!buf) {
+        return NULL;
+    }
+
+    return human_readable_text_from_str(buf);
+}
+
+void hmp_info_local_apic(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    g_autoptr(HumanReadableText) info = NULL;
+    int64_t apicid;
+
+    if (qdict_haskey(qdict, "apic-id")) {
+        apicid = qdict_get_try_int(qdict, "apic-id", 0);
+    } else {
+        CPUState *cs = mon_get_cpu(mon);
+        if (!cs) {
+            monitor_printf(mon, "No CPU available\n");
+            return;
+        }
+        apicid = cpu_get_arch_id(cs);
+    }
+
+    info = qmp_x_query_lapic(apicid, &err);
+    if (err) {
+        error_report_err(err);
         return;
     }
-    x86_cpu_dump_local_apic_state(cs, CPU_DUMP_FPU);
+
+    monitor_printf(mon, "%s", info->human_readable_text);
 }
 
 SevInfo *qmp_query_sev(Error **errp)

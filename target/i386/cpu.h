@@ -2197,8 +2197,10 @@ void x86_cpu_set_default_version(X86CPUVersion version);
 #define APIC_DEFAULT_ADDRESS 0xfee00000
 #define APIC_SPACE_SIZE      0x100000
 
+#ifndef CONFIG_USER_ONLY
 /* cpu-dump.c */
-void x86_cpu_dump_local_apic_state(CPUState *cs, int flags);
+GString *x86_cpu_format_local_apic_state(CPUState *cs, int flags, Error **errp);
+#endif /* !CONFIG_USER_ONLY */
 
 /* cpu.c */
 bool cpu_is_bsp(X86CPU *cpu);
