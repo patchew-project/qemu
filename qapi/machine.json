@@ -1348,6 +1348,18 @@
      '*maxcpus': 'int' } }
 
 ##
+# @x-query-numa:
+#
+# Query NUMA topology information
+#
+# Returns: topology information
+#
+# Since: 6.2
+##
+{ 'command': 'x-query-numa',
+  'returns': 'HumanReadableText' }
+
+##
 # @x-query-profile:
 #
 # Query TCG profiling information
