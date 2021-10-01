@@ -1,0 +1,34 @@
+#
+# Docker NIOS2 cross-compiler target
+#
+# This docker target is used for building tests. As it also needs to be
+# able to build QEMU itself in CI we include it's build-deps. It is also
+# a "stand-alone" image so as not to be triggered by re-builds on other
+# base images given it takes a long time to build.
+#
+FROM qemu/debian10
+
+# Install build utilities for building gcc and glibc.
+# ??? The build-dep isn't working, missing a number of
+# minimal build dependiencies, e.g. libmpc.
+
+RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive apt install -yy eatmydata && \
+    DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt install -y --no-install-recommends \
+        bison \
+        flex \
+        gawk \
+        libmpc-dev \
+        libmpfr-dev \
+        rsync \
+        texinfo \
+        wget \
+        $(apt-get -s build-dep --arch-only gcc | egrep ^Inst | fgrep '[all]' | cut -d\  -f2) \
+        $(apt-get -s build-dep --arch-only glibc | egrep ^Inst | fgrep '[all]' | cut -d\  -f2)
+
+ADD build-toolchain.sh /root/build-toolchain.sh
+
+RUN cd /root && ./build-toolchain.sh
+
+ENV PATH $PATH:/usr/local/bin/
