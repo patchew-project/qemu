@@ -317,6 +317,7 @@ static void ref405ep_class_init(ObjectClass *oc, void *data)
     mc->init = ref405ep_init;
     mc->default_ram_size = 0x08000000;
     mc->default_ram_id = "ef405ep.ram";
+    mc->deprecation_reason = "ppc405 CPU is deprecated";
 }
 
 static const TypeInfo ref405ep_type = {
@@ -547,6 +548,7 @@ static void taihu_class_init(ObjectClass *oc, void *data)
     mc->init = taihu_405ep_init;
     mc->default_ram_size = 0x08000000;
     mc->default_ram_id = "taihu_405ep.ram";
+    mc->deprecation_reason = "ppc405 CPU is deprecated";
 }
 
 static const TypeInfo taihu_type = {

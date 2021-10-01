@@ -238,6 +238,11 @@ The ``I7200`` guest CPU relies on the nanoMIPS ISA, which is deprecated
 (the ISA has never been upstreamed to a compiler toolchain). Therefore
 this CPU is also deprecated.
 
+PPC 405 CPU models (since 6.2)
+''''''''''''''''''''''''''''''
+
+The related boards ``ref405ep`` and ``taihu`` are marked as deprecated, too.
+
 
 QEMU API (QAPI) events
 ----------------------
@@ -257,6 +262,16 @@ Aspeed ``swift-bmc`` machine (since 6.1)
 This machine is deprecated because we have enough AST2500 based OpenPOWER
 machines. It can be easily replaced by the ``witherspoon-bmc`` or the
 ``romulus-bmc`` machines.
+
+``ref405ep`` and ``taihu`` machines (since 6.2)
+'''''''''''''''''''''''''''''''''''''''''''''''
+
+These machines need a firmware image called 'ppc405_rom.bin', and nobody seems
+to have a working copy of such a firmware image anymore. `Support in U-Boot
+<https://gitlab.com/qemu-project/u-boot/-/commit/98f705c9cefdfdba62c069>`__
+has been removed a couple of years ago, too, so it is very unlikely that
+anybody is still using this code at all.
+
 
 Backend options
 ---------------
