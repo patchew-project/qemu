@@ -119,18 +119,7 @@ void cpu_alpha_store_gr(CPUAlphaState *env, unsigned reg, uint64_t val)
     *cpu_alpha_addr_gr(env, reg) = val;
 }
 
-#if defined(CONFIG_USER_ONLY)
-bool alpha_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
-                        MMUAccessType access_type, int mmu_idx,
-                        bool probe, uintptr_t retaddr)
-{
-    AlphaCPU *cpu = ALPHA_CPU(cs);
-
-    cs->exception_index = EXCP_MMFAULT;
-    cpu->env.trap_arg0 = address;
-    cpu_loop_exit_restore(cs, retaddr);
-}
-#else
+#ifndef CONFIG_USER_ONLY
 /* Returns the OSF/1 entMM failure indication, or -1 on success.  */
 static int get_physical_address(CPUAlphaState *env, target_ulong addr,
                                 int prot_need, int mmu_idx,
