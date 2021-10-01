@@ -138,8 +138,10 @@ static void vhost_vsock_common_send_transport_reset(VHostVSockCommon *vvc)
         goto out;
     }
 
-    virtqueue_push(vq, elem, sizeof(event));
-    virtio_notify(VIRTIO_DEVICE(vvc), vq);
+    if (vvc->vhost_dev.started) {
+        virtqueue_push(vq, elem, sizeof(event));
+        virtio_notify(VIRTIO_DEVICE(vvc), vq);
+    }
 
 out:
     g_free(elem);
