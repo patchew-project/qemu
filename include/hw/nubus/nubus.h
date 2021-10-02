@@ -15,13 +15,13 @@
 #include "qom/object.h"
 #include "qemu/units.h"
 
-#define NUBUS_SUPER_SLOT_SIZE 0x10000000U
+#define NUBUS_SUPER_SLOT_SIZE 0x10000000ULL
 #define NUBUS_SUPER_SLOT_NB   0xe
 
 #define NUBUS_SLOT_BASE       (NUBUS_SUPER_SLOT_SIZE * \
                                (NUBUS_SUPER_SLOT_NB + 1))
 
-#define NUBUS_SLOT_SIZE       0x01000000
+#define NUBUS_SLOT_SIZE       0x01000000ULL
 #define NUBUS_FIRST_SLOT      0x0
 #define NUBUS_LAST_SLOT       0xf
 #define NUBUS_SLOT_NB         (NUBUS_LAST_SLOT - NUBUS_FIRST_SLOT + 1)
