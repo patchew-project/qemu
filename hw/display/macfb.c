@@ -307,6 +307,9 @@ static void macfb_ctrl_write(void *opaque,
         if (s->palette_current % 3) {
             macfb_invalidate_display(s);
         }
+        if (s->palette_current >= sizeof(s->color_palette)) {
+            s->palette_current = 0;
+        }
         break;
     }
 }
