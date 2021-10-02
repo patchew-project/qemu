@@ -613,17 +613,15 @@ static void divu(DisasContext *dc, uint32_t code, uint32_t flags)
 
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
-    TCGv t2 = tcg_const_tl(0);
     TCGv t3 = tcg_const_tl(1);
 
     tcg_gen_ext32u_tl(t0, load_gpr(dc, instr.a));
     tcg_gen_ext32u_tl(t1, load_gpr(dc, instr.b));
-    tcg_gen_movcond_tl(TCG_COND_EQ, t1, t1, t2, t3, t1);
+    tcg_gen_movcond_tl(TCG_COND_EQ, t1, t1, dc->zero, t3, t1);
     tcg_gen_divu_tl(cpu_R[instr.c], t0, t1);
     tcg_gen_ext32s_tl(cpu_R[instr.c], cpu_R[instr.c]);
 
     tcg_temp_free(t3);
-    tcg_temp_free(t2);
     tcg_temp_free(t1);
     tcg_temp_free(t0);
 }
