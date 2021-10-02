@@ -78,6 +78,7 @@ static void nubus_device_realize(DeviceState *dev, Error **errp)
         name = g_strdup_printf("nubus-slot-%x-declaration-rom", nd->slot);
         memory_region_init_rom(&nd->decl_rom, OBJECT(dev), name, size,
                                &error_abort);
+        g_free(name);
         ret = load_image_mr(path, &nd->decl_rom);
         g_free(path);
         if (ret < 0) {
