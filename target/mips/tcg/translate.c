@@ -5382,12 +5382,6 @@ static inline void gen_mfc0_load32(TCGv arg, target_ulong off)
     tcg_temp_free_i32(t0);
 }
 
-static inline void gen_mfc0_load64(TCGv arg, target_ulong off)
-{
-    tcg_gen_ld_tl(arg, cpu_env, off);
-    tcg_gen_ext32s_tl(arg, arg);
-}
-
 static inline void gen_mtc0_store32(TCGv arg, target_ulong off)
 {
     TCGv_i32 t0 = tcg_temp_new_i32();
@@ -5679,17 +5673,19 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             break;
         case CP0_REG01__YQMASK:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
-            gen_mfc0_load64(arg, offsetof(CPUMIPSState, CP0_YQMask));
+            tcg_gen_ld32s_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_YQMask));
             register_name = "YQMask";
             break;
         case CP0_REG01__VPESCHEDULE:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
-            gen_mfc0_load64(arg, offsetof(CPUMIPSState, CP0_VPESchedule));
+            tcg_gen_ld32s_tl(arg, cpu_env,
+                             offsetof(CPUMIPSState, CP0_VPESchedule));
             register_name = "VPESchedule";
             break;
         case CP0_REG01__VPESCHEFBACK:
             CP0_CHECK(ctx->insn_flags & ASE_MT);
-            gen_mfc0_load64(arg, offsetof(CPUMIPSState, CP0_VPEScheFBack));
+            tcg_gen_ld32s_tl(arg, cpu_env,
+                             offsetof(CPUMIPSState, CP0_VPEScheFBack));
             register_name = "VPEScheFBack";
             break;
         case CP0_REG01__VPEOPT:
@@ -5790,8 +5786,7 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     case CP0_REGISTER_04:
         switch (sel) {
         case CP0_REG04__CONTEXT:
-            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_Context));
-            tcg_gen_ext32s_tl(arg, arg);
+            tcg_gen_ld32s_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_Context));
             register_name = "Context";
             break;
         case CP0_REG04__CONTEXTCONFIG:
@@ -5801,9 +5796,8 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             goto cp0_unimplemented;
         case CP0_REG04__USERLOCAL:
             CP0_CHECK(ctx->ulri);
-            tcg_gen_ld_tl(arg, cpu_env,
-                          offsetof(CPUMIPSState, active_tc.CP0_UserLocal));
-            tcg_gen_ext32s_tl(arg, arg);
+            tcg_gen_ld32s_tl(arg, cpu_env,
+                             offsetof(CPUMIPSState, active_tc.CP0_UserLocal));
             register_name = "UserLocal";
             break;
         case CP0_REG04__MMID:
@@ -5828,20 +5822,20 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             break;
         case CP0_REG05__SEGCTL0:
             CP0_CHECK(ctx->sc);
-            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_SegCtl0));
-            tcg_gen_ext32s_tl(arg, arg);
+            tcg_gen_ld32s_tl(arg, cpu_env,
+                             offsetof(CPUMIPSState, CP0_SegCtl0));
             register_name = "SegCtl0";
             break;
         case CP0_REG05__SEGCTL1:
             CP0_CHECK(ctx->sc);
-            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_SegCtl1));
-            tcg_gen_ext32s_tl(arg, arg);
+            tcg_gen_ld32s_tl(arg, cpu_env,
+                             offsetof(CPUMIPSState, CP0_SegCtl1));
             register_name = "SegCtl1";
             break;
         case CP0_REG05__SEGCTL2:
             CP0_CHECK(ctx->sc);
-            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_SegCtl2));
-            tcg_gen_ext32s_tl(arg, arg);
+            tcg_gen_ld32s_tl(arg, cpu_env,
+                             offsetof(CPUMIPSState, CP0_SegCtl2));
             register_name = "SegCtl2";
             break;
         case CP0_REG05__PWBASE:
@@ -5917,8 +5911,8 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     case CP0_REGISTER_08:
         switch (sel) {
         case CP0_REG08__BADVADDR:
-            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_BadVAddr));
-            tcg_gen_ext32s_tl(arg, arg);
+            tcg_gen_ld32s_tl(arg, cpu_env,
+                             offsetof(CPUMIPSState, CP0_BadVAddr));
             register_name = "BadVAddr";
             break;
         case CP0_REG08__BADINSTR:
@@ -5975,8 +5969,8 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     case CP0_REGISTER_10:
         switch (sel) {
         case CP0_REG10__ENTRYHI:
-            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_EntryHi));
-            tcg_gen_ext32s_tl(arg, arg);
+            tcg_gen_ld32s_tl(arg, cpu_env,
+                             offsetof(CPUMIPSState, CP0_EntryHi));
             register_name = "EntryHi";
             break;
         default:
@@ -6032,8 +6026,7 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     case CP0_REGISTER_14:
         switch (sel) {
         case CP0_REG14__EPC:
-            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_EPC));
-            tcg_gen_ext32s_tl(arg, arg);
+            tcg_gen_ld32s_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_EPC));
             register_name = "EPC";
             break;
         default:
@@ -6048,15 +6041,14 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             break;
         case CP0_REG15__EBASE:
             check_insn(ctx, ISA_MIPS_R2);
-            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_EBase));
-            tcg_gen_ext32s_tl(arg, arg);
+            tcg_gen_ld32s_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_EBase));
             register_name = "EBase";
             break;
         case CP0_REG15__CMGCRBASE:
             check_insn(ctx, ISA_MIPS_R2);
             CP0_CHECK(ctx->cmgcr);
-            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_CMGCRBase));
-            tcg_gen_ext32s_tl(arg, arg);
+            tcg_gen_ld32s_tl(arg, cpu_env,
+                             offsetof(CPUMIPSState, CP0_CMGCRBase));
             register_name = "CMGCRBase";
             break;
         default:
@@ -6163,8 +6155,8 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         case CP0_REG20__XCONTEXT:
 #if defined(TARGET_MIPS64)
             check_insn(ctx, ISA_MIPS3);
-            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_XContext));
-            tcg_gen_ext32s_tl(arg, arg);
+            tcg_gen_ld32s_tl(arg, cpu_env,
+                             offsetof(CPUMIPSState, CP0_XContext));
             register_name = "XContext";
             break;
 #endif
@@ -6227,8 +6219,7 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         switch (sel) {
         case CP0_REG24__DEPC:
             /* EJTAG support */
-            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_DEPC));
-            tcg_gen_ext32s_tl(arg, arg);
+            tcg_gen_ld32s_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_DEPC));
             register_name = "DEPC";
             break;
         default:
@@ -6341,8 +6332,8 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     case CP0_REGISTER_30:
         switch (sel) {
         case CP0_REG30__ERROREPC:
-            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_ErrorEPC));
-            tcg_gen_ext32s_tl(arg, arg);
+            tcg_gen_ld32s_tl(arg, cpu_env,
+                             offsetof(CPUMIPSState, CP0_ErrorEPC));
             register_name = "ErrorEPC";
             break;
         default:
@@ -6363,9 +6354,8 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         case CP0_REG31__KSCRATCH5:
         case CP0_REG31__KSCRATCH6:
             CP0_CHECK(ctx->kscrexist & (1 << sel));
-            tcg_gen_ld_tl(arg, cpu_env,
-                          offsetof(CPUMIPSState, CP0_KScratch[sel - 2]));
-            tcg_gen_ext32s_tl(arg, arg);
+            tcg_gen_ld32s_tl(arg, cpu_env,
+                             offsetof(CPUMIPSState, CP0_KScratch[sel - 2]));
             register_name = "KScratch";
             break;
         default:
