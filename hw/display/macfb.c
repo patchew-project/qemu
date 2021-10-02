@@ -316,7 +316,7 @@ static uint32_t macfb_sense_read(MacfbState *s)
     MacFbSense *macfb_sense;
     uint8_t sense;
 
-    macfb_sense = &macfb_sense_table[MACFB_DISPLAY_VGA];
+    macfb_sense = &macfb_sense_table[s->type];
     if (macfb_sense->sense == 0x7) {
         /* Extended sense */
         sense = 0;
@@ -545,6 +545,8 @@ static Property macfb_sysbus_properties[] = {
     DEFINE_PROP_UINT32("width", MacfbSysBusState, macfb.width, 640),
     DEFINE_PROP_UINT32("height", MacfbSysBusState, macfb.height, 480),
     DEFINE_PROP_UINT8("depth", MacfbSysBusState, macfb.depth, 8),
+    DEFINE_PROP_UINT8("display", MacfbSysBusState, macfb.type,
+                      MACFB_DISPLAY_VGA),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -552,6 +554,8 @@ static Property macfb_nubus_properties[] = {
     DEFINE_PROP_UINT32("width", MacfbNubusState, macfb.width, 640),
     DEFINE_PROP_UINT32("height", MacfbNubusState, macfb.height, 480),
     DEFINE_PROP_UINT8("depth", MacfbNubusState, macfb.depth, 8),
+    DEFINE_PROP_UINT8("display", MacfbNubusState, macfb.type,
+                      MACFB_DISPLAY_VGA),
     DEFINE_PROP_END_OF_LIST(),
 };
 
