@@ -134,11 +134,8 @@ static TCGv load_gpr(DisasContext *dc, uint8_t reg)
 static void t_gen_helper_raise_exception(DisasContext *dc,
                                          uint32_t index)
 {
-    TCGv_i32 tmp = tcg_const_i32(index);
-
     tcg_gen_movi_tl(cpu_R[R_PC], dc->pc);
-    gen_helper_raise_exception(cpu_env, tmp);
-    tcg_temp_free_i32(tmp);
+    gen_helper_raise_exception(cpu_env, tcg_constant_i32(index));
     dc->base.is_jmp = DISAS_NORETURN;
 }
 
@@ -448,9 +445,8 @@ static void rdctl(DisasContext *dc, uint32_t code, uint32_t flags)
         if (likely(instr.c != R_ZERO)) {
             tcg_gen_mov_tl(cpu_R[instr.c], cpu_R[instr.imm5 + CR_BASE]);
 #ifdef DEBUG_MMU
-            TCGv_i32 tmp = tcg_const_i32(instr.imm5 + CR_BASE);
-            gen_helper_mmu_read_debug(cpu_R[instr.c], cpu_env, tmp);
-            tcg_temp_free_i32(tmp);
+            gen_helper_mmu_read_debug(cpu_R[instr.c], cpu_env,
+                                      tcg_constant_i32(instr.imm5 + CR_BASE));
 #endif
         }
 #endif
@@ -613,15 +609,13 @@ static void divu(DisasContext *dc, uint32_t code, uint32_t flags)
 
     TCGv t0 = tcg_temp_new();
     TCGv t1 = tcg_temp_new();
-    TCGv t3 = tcg_const_tl(1);
 
     tcg_gen_ext32u_tl(t0, load_gpr(dc, instr.a));
     tcg_gen_ext32u_tl(t1, load_gpr(dc, instr.b));
-    tcg_gen_movcond_tl(TCG_COND_EQ, t1, t1, dc->zero, t3, t1);
+    tcg_gen_movcond_tl(TCG_COND_EQ, t1, t1, dc->zero, tcg_constant_tl(1), t1);
     tcg_gen_divu_tl(cpu_R[instr.c], t0, t1);
     tcg_gen_ext32s_tl(cpu_R[instr.c], cpu_R[instr.c]);
 
-    tcg_temp_free(t3);
     tcg_temp_free(t1);
     tcg_temp_free(t0);
 }
