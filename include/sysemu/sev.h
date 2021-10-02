@@ -14,9 +14,21 @@
 #ifndef QEMU_SEV_H
 #define QEMU_SEV_H
 
-#include "sysemu/kvm.h"
+#ifndef CONFIG_USER_ONLY
+#include CONFIG_DEVICES /* CONFIG_SEV */
+#endif
 
+#ifdef CONFIG_SEV
 bool sev_enabled(void);
+bool sev_es_enabled(void);
+#else
+#define sev_enabled() 0
+#define sev_es_enabled() 0
+#endif
+
+uint32_t sev_get_cbit_position(void);
+uint32_t sev_get_reduced_phys_bits(void);
+
 int sev_kvm_init(ConfidentialGuestSupport *cgs, Error **errp);
 
 #endif
