@@ -122,20 +122,12 @@ static uint8_t get_opxcode(uint32_t code)
     return instr.opx;
 }
 
-static TCGv load_zero(DisasContext *dc)
-{
-    if (!dc->zero) {
-        dc->zero = tcg_const_i32(0);
-    }
-    return dc->zero;
-}
-
 static TCGv load_gpr(DisasContext *dc, uint8_t reg)
 {
     if (likely(reg != R_ZERO)) {
         return cpu_R[reg];
     } else {
-        return load_zero(dc);
+        return dc->zero;
     }
 }
 
@@ -752,6 +744,7 @@ static void nios2_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     int page_insns;
 
     dc->mem_idx = cpu_mmu_index(env, false);
+    dc->zero = tcg_constant_i32(0);
 
     /* Bound the number of insns to execute to those left on the page.  */
     page_insns = -(dc->base.pc_first | TARGET_PAGE_MASK) / 4;
@@ -797,14 +790,8 @@ static void nios2_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
         return;
     }
 
-    dc->zero = NULL;
-
     instr = &i_type_instructions[op];
     instr->handler(dc, code, instr->flags);
-
-    if (dc->zero) {
-        tcg_temp_free(dc->zero);
-    }
 }
 
 static void nios2_tr_tb_stop(DisasContextBase *dcbase, CPUState *cs)
