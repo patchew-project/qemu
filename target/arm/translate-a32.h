@@ -61,14 +61,19 @@ static inline TCGv_i32 load_cpu_offset(int offset)
 
 #define load_cpu_field(name) load_cpu_offset(offsetof(CPUARMState, name))
 
-static inline void store_cpu_offset(TCGv_i32 var, int offset)
+static inline void store_cpu_offset(TCGv_i32 var, int offset, bool is_temp)
 {
     tcg_gen_st_i32(var, cpu_env, offset);
-    tcg_temp_free_i32(var);
+    if (is_temp) {
+        tcg_temp_free_i32(var);
+    }
 }
 
 #define store_cpu_field(var, name) \
-    store_cpu_offset(var, offsetof(CPUARMState, name))
+    store_cpu_offset(var, offsetof(CPUARMState, name), true)
+
+#define store_cpu_field_constant(val, name) \
+    store_cpu_offset(tcg_const_i32(val), offsetof(CPUARMState, name), false)
 
 /* Create a new temporary and set it to the value of a CPU register.  */
 static inline TCGv_i32 load_reg(DisasContext *s, int reg)
