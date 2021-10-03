@@ -31,6 +31,7 @@
 #include "hw/usb/uhci-regs.h"
 #include "migration/vmstate.h"
 #include "hw/pci/pci.h"
+#include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
@@ -290,7 +291,7 @@ static UHCIAsync *uhci_async_find_td(UHCIState *s, uint32_t td_addr)
 
 static void uhci_update_irq(UHCIState *s)
 {
-    int level;
+    int level = 0;
     if (((s->status2 & 1) && (s->intr & (1 << 2))) ||
         ((s->status2 & 2) && (s->intr & (1 << 3))) ||
         ((s->status & UHCI_STS_USBERR) && (s->intr & (1 << 0))) ||
@@ -298,10 +299,15 @@ static void uhci_update_irq(UHCIState *s)
         (s->status & UHCI_STS_HSERR) ||
         (s->status & UHCI_STS_HCPERR)) {
         level = 1;
-    } else {
-        level = 0;
     }
-    pci_set_irq(&s->dev, level);
+    if (s->isa_irqs) {
+        uint8_t irq = pci_get_byte(s->dev.config + PCI_INTERRUPT_LINE);
+        if (irq < ISA_NUM_IRQS) {
+            qemu_set_irq(isa_get_irq(NULL, irq), level);
+        }
+    } else {
+        pci_set_irq(&s->dev, level);
+    }
 }
 
 static void uhci_reset(DeviceState *dev)

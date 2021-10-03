@@ -13,6 +13,7 @@ static void usb_uhci_vt82c686b_realize(PCIDevice *dev, Error **errp)
     /* USB legacy support  */
     pci_set_long(pci_conf + 0xc0, 0x00002000);
 
+    s->isa_irqs = true;
     usb_uhci_common_realize(dev, errp);
 }
 
