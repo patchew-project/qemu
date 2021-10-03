@@ -48,7 +48,7 @@ size_t virtio_feature_get_config_size(const VirtIOFeature *features,
 
 typedef struct VirtQueue VirtQueue;
 
-#define VIRTQUEUE_MAX_SIZE 1024
+#define VIRTQUEUE_MAX_SIZE 32768
 
 typedef struct VirtQueueElement
 {
