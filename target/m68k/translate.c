@@ -3665,7 +3665,7 @@ DISAS_INSN(shift_mem)
     SRC_EA(env, src, OS_WORD, !logical, &addr);
     tcg_gen_movi_i32(QREG_CC_V, 0);
     if (left) {
-        tcg_gen_shri_i32(QREG_CC_C, src, 15);
+        tcg_gen_extract_i32(QREG_CC_C, src, 15, 1);
         tcg_gen_shli_i32(QREG_CC_N, src, 1);
 
         /*
@@ -3678,7 +3678,7 @@ DISAS_INSN(shift_mem)
             tcg_gen_xor_i32(QREG_CC_V, QREG_CC_N, src);
         }
     } else {
-        tcg_gen_mov_i32(QREG_CC_C, src);
+        tcg_gen_extract_i32(QREG_CC_C, src, 0, 1);
         if (logical) {
             tcg_gen_shri_i32(QREG_CC_N, src, 1);
         } else {
@@ -3687,7 +3687,6 @@ DISAS_INSN(shift_mem)
     }
 
     gen_ext(QREG_CC_N, QREG_CC_N, OS_WORD, 1);
-    tcg_gen_andi_i32(QREG_CC_C, QREG_CC_C, 1);
     tcg_gen_mov_i32(QREG_CC_Z, QREG_CC_N);
     tcg_gen_mov_i32(QREG_CC_X, QREG_CC_C);
 
