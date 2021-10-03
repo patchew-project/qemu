@@ -1557,8 +1557,7 @@ static void save_link_info(DisasContext *s, DisasOps *o)
     tcg_gen_andi_i64(o->out, o->out, 0xffffffff00000000ull);
     tcg_gen_ori_i64(o->out, o->out, ((s->ilen / 2) << 30) | s->pc_tmp);
     t = tcg_temp_new_i64();
-    tcg_gen_shri_i64(t, psw_mask, 16);
-    tcg_gen_andi_i64(t, t, 0x0f000000);
+    tcg_gen_extract_i64(t, psw_mask, 40, 4);
     tcg_gen_or_i64(o->out, o->out, t);
     tcg_gen_extu_i32_i64(t, cc_op);
     tcg_gen_shli_i64(t, t, 28);
