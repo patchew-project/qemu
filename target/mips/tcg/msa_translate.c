@@ -473,14 +473,32 @@ static void gen_msa_i8(DisasContext *ctx)
 static void gen_msa_i5(DisasContext *ctx)
 {
 #define MASK_MSA_I5(op)    (MASK_MSA_MINOR(op) | (op & (0x7 << 23)))
-    int8_t s5 = (int8_t) sextract32(ctx->opcode, 16, 5);
-    uint8_t u5 = extract32(ctx->opcode, 16, 5);
-
     TCGv_i32 tdf = tcg_const_i32(extract32(ctx->opcode, 21, 2));
     TCGv_i32 twd = tcg_const_i32(extract32(ctx->opcode, 11, 5));
     TCGv_i32 tws = tcg_const_i32(extract32(ctx->opcode, 6, 5));
-    TCGv_i32 timm = tcg_temp_new_i32();
-    tcg_gen_movi_i32(timm, u5);
+    TCGv_i32 timm;
+
+    switch (MASK_MSA_I5(ctx->opcode)) {
+    case OPC_ADDVI_df:
+    case OPC_MAXI_U_df:
+    case OPC_MINI_U_df:
+    case OPC_CLTI_U_df:
+    case OPC_CLEI_U_df:
+        timm = tcg_constant_i32(extract32(ctx->opcode, 16, 5));
+        break;
+    case OPC_MAXI_S_df:
+    case OPC_MINI_S_df:
+    case OPC_CEQI_df:
+    case OPC_CLTI_S_df:
+    case OPC_CLEI_S_df:
+        timm = tcg_constant_i32(sextract32(ctx->opcode, 16, 5));
+        break;
+    case OPC_LDI_df:
+        timm = tcg_constant_i32(sextract32(ctx->opcode, 11, 10));
+        break;
+    default:
+        break;
+    }
 
     switch (MASK_MSA_I5(ctx->opcode)) {
     case OPC_ADDVI_df:
@@ -490,43 +508,34 @@ static void gen_msa_i5(DisasContext *ctx)
         gen_helper_msa_subvi_df(cpu_env, tdf, twd, tws, timm);
         break;
     case OPC_MAXI_S_df:
-        tcg_gen_movi_i32(timm, s5);
         gen_helper_msa_maxi_s_df(cpu_env, tdf, twd, tws, timm);
         break;
     case OPC_MAXI_U_df:
         gen_helper_msa_maxi_u_df(cpu_env, tdf, twd, tws, timm);
         break;
     case OPC_MINI_S_df:
-        tcg_gen_movi_i32(timm, s5);
         gen_helper_msa_mini_s_df(cpu_env, tdf, twd, tws, timm);
         break;
     case OPC_MINI_U_df:
         gen_helper_msa_mini_u_df(cpu_env, tdf, twd, tws, timm);
         break;
     case OPC_CEQI_df:
-        tcg_gen_movi_i32(timm, s5);
         gen_helper_msa_ceqi_df(cpu_env, tdf, twd, tws, timm);
         break;
     case OPC_CLTI_S_df:
-        tcg_gen_movi_i32(timm, s5);
         gen_helper_msa_clti_s_df(cpu_env, tdf, twd, tws, timm);
         break;
     case OPC_CLTI_U_df:
         gen_helper_msa_clti_u_df(cpu_env, tdf, twd, tws, timm);
         break;
     case OPC_CLEI_S_df:
-        tcg_gen_movi_i32(timm, s5);
         gen_helper_msa_clei_s_df(cpu_env, tdf, twd, tws, timm);
         break;
     case OPC_CLEI_U_df:
         gen_helper_msa_clei_u_df(cpu_env, tdf, twd, tws, timm);
         break;
     case OPC_LDI_df:
-        {
-            int32_t s10 = sextract32(ctx->opcode, 11, 10);
-            tcg_gen_movi_i32(timm, s10);
-            gen_helper_msa_ldi_df(cpu_env, tdf, twd, timm);
-        }
+        gen_helper_msa_ldi_df(cpu_env, tdf, twd, timm);
         break;
     default:
         MIPS_INVAL("MSA instruction");
@@ -537,7 +546,6 @@ static void gen_msa_i5(DisasContext *ctx)
     tcg_temp_free_i32(tdf);
     tcg_temp_free_i32(twd);
     tcg_temp_free_i32(tws);
-    tcg_temp_free_i32(timm);
 }
 
 static void gen_msa_bit(DisasContext *ctx)
