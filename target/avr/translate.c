@@ -225,8 +225,7 @@ static void gen_add_CHf(TCGv R, TCGv Rd, TCGv Rr)
     tcg_gen_or_tl(t1, t1, t3);
 
     tcg_gen_shri_tl(cpu_Cf, t1, 7); /* Cf = t1(7) */
-    tcg_gen_shri_tl(cpu_Hf, t1, 3); /* Hf = t1(3) */
-    tcg_gen_andi_tl(cpu_Hf, cpu_Hf, 1);
+    tcg_gen_extract_tl(cpu_Hf, t1, 3, 1); /* Hf = t1(3) */
 
     tcg_temp_free_i32(t3);
     tcg_temp_free_i32(t2);
@@ -263,8 +262,7 @@ static void gen_sub_CHf(TCGv R, TCGv Rd, TCGv Rr)
     tcg_gen_or_tl(t2, t2, t3); /* t2 = ~Rd & Rr | ~Rd & R | R & Rr */
 
     tcg_gen_shri_tl(cpu_Cf, t2, 7); /* Cf = t2(7) */
-    tcg_gen_shri_tl(cpu_Hf, t2, 3); /* Hf = t2(3) */
-    tcg_gen_andi_tl(cpu_Hf, cpu_Hf, 1);
+    tcg_gen_extract_tl(cpu_Hf, t2, 3, 1); /* Hf = t2(3) */
 
     tcg_temp_free_i32(t3);
     tcg_temp_free_i32(t2);
@@ -882,9 +880,7 @@ static bool trans_FMUL(DisasContext *ctx, arg_FMUL *a)
     /* update output registers */
     tcg_gen_shli_tl(R, R, 1);
     tcg_gen_andi_tl(R0, R, 0xff);
-    tcg_gen_shri_tl(R1, R, 8);
-    tcg_gen_andi_tl(R1, R1, 0xff);
-
+    tcg_gen_extract_tl(R1, R, 8, 8);
 
     tcg_temp_free_i32(R);
 
@@ -921,8 +917,7 @@ static bool trans_FMULS(DisasContext *ctx, arg_FMULS *a)
     /* update output registers */
     tcg_gen_shli_tl(R, R, 1);
     tcg_gen_andi_tl(R0, R, 0xff);
-    tcg_gen_shri_tl(R1, R, 8);
-    tcg_gen_andi_tl(R1, R1, 0xff);
+    tcg_gen_extract_tl(R1, R, 8, 8);
 
     tcg_temp_free_i32(t1);
     tcg_temp_free_i32(t0);
@@ -959,8 +954,7 @@ static bool trans_FMULSU(DisasContext *ctx, arg_FMULSU *a)
     /* update output registers */
     tcg_gen_shli_tl(R, R, 1);
     tcg_gen_andi_tl(R0, R, 0xff);
-    tcg_gen_shri_tl(R1, R, 8);
-    tcg_gen_andi_tl(R1, R1, 0xff);
+    tcg_gen_extract_tl(R1, R, 8, 8);
 
     tcg_temp_free_i32(t0);
     tcg_temp_free_i32(R);
