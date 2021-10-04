@@ -92,7 +92,9 @@ def main() -> int:
     if sys.argv[1] == '--pylint':
         return run_linter('pylint', files)
     elif sys.argv[1] == '--mypy':
-        return run_linter('mypy', files)
+        # mypy bug #9852; disable incremental checking as a workaround.
+        args = ['--no-incremental'] + files
+        return run_linter('mypy', args)
 
     raise ValueError(f"Unrecognized argument(s): '{sys.argv[1:]}'")
 
