@@ -17,7 +17,7 @@ import os
 import re
 import subprocess
 import sys
-from typing import List, Mapping, Optional
+from typing import List
 
 
 # TODO: Empty this list!
@@ -55,30 +55,14 @@ def get_test_files() -> List[str]:
     return list(filter(is_python_file, check_tests))
 
 
-def run_linter(
-        tool: str,
-        args: List[str],
-        env: Optional[Mapping[str, str]] = None,
-        suppress_output: bool = False,
-) -> int:
+def run_linter(tool: str, args: List[str]) -> int:
     """
     Run a python-based linting tool.
-
-    If suppress_output is True, capture stdout/stderr of the child
-    process and only print that information back to stdout if the child
-    process's return code was non-zero.
     """
     p = subprocess.run(
         ('python3', '-m', tool, *args),
-        env=env,
         check=False,
-        stdout=subprocess.PIPE if suppress_output else None,
-        stderr=subprocess.STDOUT if suppress_output else None,
-        universal_newlines=True,
     )
-
-    if suppress_output and p.returncode != 0:
-        print(p.stdout)
 
     return p.returncode
 
