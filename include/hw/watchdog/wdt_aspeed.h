@@ -29,6 +29,7 @@ struct AspeedWDTState {
 
     /*< public >*/
     MemoryRegion iomem;
+    MemoryRegion iomem_alias;
     uint32_t regs[ASPEED_WDT_REGS_MAX];
 
     AspeedSCUState *scu;

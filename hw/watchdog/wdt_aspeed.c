@@ -261,6 +261,16 @@ static void aspeed_wdt_timer_expired(void *dev)
 
 #define PCLK_HZ 24000000
 
+static void aspeed_wdt_instance_init(Object *obj)
+{
+    AspeedWDTState *s = ASPEED_WDT(obj);
+
+    memory_region_init_io(&s->iomem, OBJECT(s), &aspeed_wdt_ops, s,
+                          TYPE_ASPEED_WDT, ASPEED_WDT_REGS_MAX * 4);
+    memory_region_init_alias(&s->iomem_alias, OBJECT(s),
+                             TYPE_ASPEED_WDT ".alias",
+                             &s->iomem, 0, ASPEED_WDT_REGS_MAX * 4);
+}
 static void aspeed_wdt_realize(DeviceState *dev, Error **errp)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
@@ -275,9 +285,7 @@ static void aspeed_wdt_realize(DeviceState *dev, Error **errp)
      */
     s->pclk_freq = PCLK_HZ;
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &aspeed_wdt_ops, s,
-                          TYPE_ASPEED_WDT, ASPEED_WDT_REGS_MAX * 4);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem_alias);
 }
 
 static Property aspeed_wdt_properties[] = {
@@ -301,6 +309,7 @@ static void aspeed_wdt_class_init(ObjectClass *klass, void *data)
 static const TypeInfo aspeed_wdt_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .name  = TYPE_ASPEED_WDT,
+    .instance_init  = aspeed_wdt_instance_init,
     .instance_size  = sizeof(AspeedWDTState),
     .class_init = aspeed_wdt_class_init,
     .class_size    = sizeof(AspeedWDTClass),
