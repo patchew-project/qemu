@@ -16,6 +16,7 @@
 import os
 import re
 import subprocess
+import sys
 from typing import List, Mapping, Optional
 
 
@@ -81,3 +82,20 @@ def run_linter(
 
     return p.returncode
 
+
+def main() -> int:
+    """
+    Used by the Python CI system as an entry point to run these linters.
+    """
+    files = get_test_files()
+
+    if sys.argv[1] == '--pylint':
+        return run_linter('pylint', files)
+    elif sys.argv[1] == '--mypy':
+        return run_linter('mypy', files)
+
+    raise ValueError(f"Unrecognized argument(s): '{sys.argv[1:]}'")
+
+
+if __name__ == '__main__':
+    sys.exit(main())
