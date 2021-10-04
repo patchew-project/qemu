@@ -23,6 +23,8 @@
 #include "qom/object.h"
 
 #define TYPE_VHOST_USER_BLK "vhost-user-blk"
+#define TYPE_VHOST_USER_VIRTIO_BLK "vhost-user-virtio-blk"
+
 OBJECT_DECLARE_SIMPLE_TYPE(VHostUserBlk, VHOST_USER_BLK)
 
 #define VHOST_USER_BLK_AUTO_NUM_QUEUES UINT16_MAX

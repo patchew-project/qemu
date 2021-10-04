@@ -30,6 +30,7 @@
 #include "hw/virtio/virtio-access.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/runstate.h"
+#include "migration/qemu-file-types.h"
 
 #define REALIZE_CONNECTION_RETRIES 3
 
@@ -612,9 +613,71 @@ static const TypeInfo vhost_user_blk_info = {
     .class_init = vhost_user_blk_class_init,
 };
 
+/*
+ * this is the same as vmstate_virtio_blk
+ * we use it to allow virtio-blk <-> vhost-user-virtio-blk migration
+ */
+static const VMStateDescription vmstate_vhost_user_virtio_blk = {
+    .name = "virtio-blk",
+    .minimum_version_id = 2,
+    .version_id = 2,
+    .fields = (VMStateField[]) {
+        VMSTATE_VIRTIO_DEVICE,
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static void vhost_user_virtio_blk_save(VirtIODevice *vdev, QEMUFile *f)
+{
+    /*
+     * put a zero byte in the stream to be compatible with virtio-blk
+     */
+    qemu_put_sbyte(f, 0);
+}
+
+static int vhost_user_virtio_blk_load(VirtIODevice *vdev, QEMUFile *f,
+                                      int version_id)
+{
+    if (qemu_get_sbyte(f)) {
+        /*
+         * on virtio-blk -> vhost-user-virtio-blk migration we don't expect
+         * to get any infilght requests in the migration stream because
+         * we can't load them yet.
+         * TODO: consider putting those inflight requests to inflight region
+         */
+        error_report("%s: can't load in-flight requests",
+                     TYPE_VHOST_USER_VIRTIO_BLK);
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+static void vhost_user_virtio_blk_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+
+    /* override vmstate of vhost_user_blk */
+    dc->vmsd = &vmstate_vhost_user_virtio_blk;
+
+    /* adding callbacks to be compatible with virtio-blk migration stream */
+    vdc->save = vhost_user_virtio_blk_save;
+    vdc->load = vhost_user_virtio_blk_load;
+}
+
+static const TypeInfo vhost_user_virtio_blk_info = {
+    .name = TYPE_VHOST_USER_VIRTIO_BLK,
+    .parent = TYPE_VHOST_USER_BLK,
+    .instance_size = sizeof(VHostUserBlk),
+    /* instance_init is the same as in parent type */
+    .class_init = vhost_user_virtio_blk_class_init,
+};
+
 static void virtio_register_types(void)
 {
     type_register_static(&vhost_user_blk_info);
+    type_register_static(&vhost_user_virtio_blk_info);
 }
 
 type_init(virtio_register_types)
