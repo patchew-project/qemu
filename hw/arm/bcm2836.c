@@ -15,6 +15,7 @@
 #include "hw/arm/bcm2836.h"
 #include "hw/arm/raspi_platform.h"
 #include "hw/sysbus.h"
+#include "hw/misc/unimp.h"
 
 typedef struct BCM283XClass {
     /*< private >*/
@@ -45,6 +46,8 @@ static Property bcm2836_enabled_cores_property =
 #define GIC_VIFACE_THIS_OFS         0x4000
 #define GIC_VIFACE_OTHER_OFS(cpu)  (0x5000 + (cpu) * 0x200)
 #define GIC_VCPU_OFS                0x6000
+
+#define PCIE_BASE                   0x7d500000
 
 static void bcm2836_init(Object *obj)
 {
@@ -226,6 +229,13 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
                 qdev_get_gpio_in_named(DEVICE(&s->control), "cnthpirq", n));
         qdev_connect_gpio_out(DEVICE(&s->cpu[n].core), GTIMER_SEC,
                 qdev_get_gpio_in_named(DEVICE(&s->control), "cntpsirq", n));
+    }
+
+    /* bcm2838 kludge to easily create PCIe */
+    if (bc->gic_base) {
+        create_unimplemented_device("bcm2838-pcie", PCIE_BASE, 0x100000);
+        create_unimplemented_device("bcm54213-geth",
+                                    PCIE_BASE + 0x80000, 0x10000);
     }
 }
 
