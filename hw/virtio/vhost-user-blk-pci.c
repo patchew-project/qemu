@@ -34,9 +34,17 @@ typedef struct VHostUserBlkPCI VHostUserBlkPCI;
 /*
  * vhost-user-blk-pci: This extends VirtioPCIProxy.
  */
+#define TYPE_VHOST_USER_BLK_PCI_ABSTRACT "vhost-user-blk-pci-abstract-base"
+#define VHOST_USER_BLK_PCI_ABSTRACT(obj) \
+        OBJECT_CHECK(VHostUserBlkPCI, (obj), TYPE_VHOST_USER_BLK_PCI_ABSTRACT)
+
 #define TYPE_VHOST_USER_BLK_PCI "vhost-user-blk-pci-base"
 DECLARE_INSTANCE_CHECKER(VHostUserBlkPCI, VHOST_USER_BLK_PCI,
                          TYPE_VHOST_USER_BLK_PCI)
+
+#define TYPE_VHOST_USER_VIRTIO_BLK_PCI "vhost-user-virtio-blk-pci-base"
+#define VHOST_USER_VIRTIO_BLK_PCI(obj) \
+        OBJECT_CHECK(VHostUserBlkPCI, (obj), TYPE_VHOST_USER_VIRTIO_BLK_PCI)
 
 struct VHostUserBlkPCI {
     VirtIOPCIProxy parent_obj;
@@ -52,7 +60,7 @@ static Property vhost_user_blk_pci_properties[] = {
 
 static void vhost_user_blk_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
-    VHostUserBlkPCI *dev = VHOST_USER_BLK_PCI(vpci_dev);
+    VHostUserBlkPCI *dev = VHOST_USER_BLK_PCI_ABSTRACT(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
 
     if (dev->vdev.num_queues == VHOST_USER_BLK_AUTO_NUM_QUEUES) {
@@ -66,7 +74,8 @@ static void vhost_user_blk_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     qdev_realize(vdev, BUS(&vpci_dev->bus), errp);
 }
 
-static void vhost_user_blk_pci_class_init(ObjectClass *klass, void *data)
+static void vhost_user_blk_pci_abstract_class_init(ObjectClass *klass,
+                                                   void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);
@@ -81,6 +90,12 @@ static void vhost_user_blk_pci_class_init(ObjectClass *klass, void *data)
     pcidev_k->class_id = PCI_CLASS_STORAGE_SCSI;
 }
 
+static const VirtioPCIDeviceTypeInfo vhost_user_blk_pci_abstract_info = {
+    .base_name      = TYPE_VHOST_USER_BLK_PCI_ABSTRACT,
+    .instance_size  = sizeof(VHostUserBlkPCI),
+    .class_init     = vhost_user_blk_pci_abstract_class_init,
+};
+
 static void vhost_user_blk_pci_instance_init(Object *obj)
 {
     VHostUserBlkPCI *dev = VHOST_USER_BLK_PCI(obj);
@@ -92,18 +107,40 @@ static void vhost_user_blk_pci_instance_init(Object *obj)
 }
 
 static const VirtioPCIDeviceTypeInfo vhost_user_blk_pci_info = {
+    .parent                  = TYPE_VHOST_USER_BLK_PCI_ABSTRACT,
     .base_name               = TYPE_VHOST_USER_BLK_PCI,
     .generic_name            = "vhost-user-blk-pci",
     .transitional_name       = "vhost-user-blk-pci-transitional",
     .non_transitional_name   = "vhost-user-blk-pci-non-transitional",
     .instance_size  = sizeof(VHostUserBlkPCI),
     .instance_init  = vhost_user_blk_pci_instance_init,
-    .class_init     = vhost_user_blk_pci_class_init,
+};
+
+static void vhost_user_virtio_blk_pci_instance_init(Object *obj)
+{
+    VHostUserBlkPCI *dev = VHOST_USER_VIRTIO_BLK_PCI(obj);
+
+    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+                                TYPE_VHOST_USER_VIRTIO_BLK);
+    object_property_add_alias(obj, "bootindex", OBJECT(&dev->vdev),
+                              "bootindex");
+}
+
+static const VirtioPCIDeviceTypeInfo vhost_user_virtio_blk_pci_info = {
+    .parent                  = TYPE_VHOST_USER_BLK_PCI_ABSTRACT,
+    .base_name               = TYPE_VHOST_USER_VIRTIO_BLK_PCI,
+    .generic_name            = "vhost-user-virtio-blk-pci",
+    .transitional_name       = "vhost-user-virtio-blk-pci-transitional",
+    .non_transitional_name   = "vhost-user-virtio-blk-pci-non-transitional",
+    .instance_size  = sizeof(VHostUserBlkPCI),
+    .instance_init  = vhost_user_virtio_blk_pci_instance_init,
 };
 
 static void vhost_user_blk_pci_register(void)
 {
+    virtio_pci_types_register(&vhost_user_blk_pci_abstract_info);
     virtio_pci_types_register(&vhost_user_blk_pci_info);
+    virtio_pci_types_register(&vhost_user_virtio_blk_pci_info);
 }
 
 type_init(vhost_user_blk_pci_register)
