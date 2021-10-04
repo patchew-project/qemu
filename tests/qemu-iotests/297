@@ -61,20 +61,19 @@ def get_test_files() -> List[str]:
     return list(filter(is_python_file, check_tests))
 
 
-def run_linters(
+def run_pylint(
     files: List[str],
     env: Optional[Mapping[str, str]] = None,
 ) -> None:
 
-    print('=== pylint ===')
-    sys.stdout.flush()
-
     subprocess.run(('python3', '-m', 'pylint', *files),
                    env=env, check=False)
 
-    print('=== mypy ===')
-    sys.stdout.flush()
 
+def run_mypy(
+    files: List[str],
+    env: Optional[Mapping[str, str]] = None,
+) -> None:
     p = subprocess.run((('python3', '-m', 'mypy', *files),
                        env=env,
                        check=False,
@@ -99,7 +98,13 @@ def main() -> None:
     env = os.environ.copy()
     env['MYPYPATH'] = env['PYTHONPATH']
 
-    run_linters(files, env=env)
+    print('=== pylint ===')
+    sys.stdout.flush()
+    run_pylint(files, env=env)
+
+    print('=== mypy ===')
+    sys.stdout.flush()
+    run_mypy(files, env=env)
 
 
 iotests.script_main(main)
