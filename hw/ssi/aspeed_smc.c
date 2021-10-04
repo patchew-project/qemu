@@ -130,6 +130,8 @@
 #define   FMC_WDT2_CTRL_SINGLE_BOOT_MODE BIT(5)
 #define   FMC_WDT2_CTRL_BOOT_SOURCE      BIT(4) /* O: primary 1: alternate */
 #define   FMC_WDT2_CTRL_EN               BIT(0)
+#define R_FMC_WDT2_RELOAD   (0x68 / 4)
+#define R_FMC_WDT2_RESTART  (0x6C / 4)
 
 /* DMA Control/Status Register */
 #define R_DMA_CTRL        (0x80 / 4)
@@ -704,6 +706,54 @@ static void aspeed_smc_reset(DeviceState *d)
     s->snoop_dummies = 0;
 }
 
+#define ASPEED_WDT_RELOAD  0x04
+#define ASPEED_WDT_RESTART 0x08
+#define ASPEED_WDT_CTRL    0x0C
+
+static void aspeed_smc_wdt2_write(AspeedSMCState *s, uint32_t offset,
+                                  uint32_t value)
+{
+    MemTxResult result;
+
+    address_space_stl_le(&s->wdt2_as, offset, value, MEMTXATTRS_UNSPECIFIED,
+                         &result);
+    if (result != MEMTX_OK) {
+        aspeed_smc_error("WDT2 write failed @%08x", offset);
+        return;
+    }
+}
+
+static uint64_t aspeed_smc_wdt2_read(AspeedSMCState *s, uint32_t offset)
+{
+    MemTxResult result;
+    uint32_t value;
+
+    value = address_space_ldl_le(&s->wdt2_as, offset, MEMTXATTRS_UNSPECIFIED,
+                                &result);
+    if (result != MEMTX_OK) {
+        aspeed_smc_error("WDT2 read failed @%08x", offset);
+        return -1;
+    }
+    return value;
+}
+
+static void aspeed_smc_wdt2_enable(AspeedSMCState *s, bool enable)
+{
+    uint32_t value;
+
+    value = aspeed_smc_wdt2_read(s, ASPEED_WDT_CTRL);
+    if (value == -1) {
+        return;
+    }
+
+    value &= ~BIT(0);
+    value |= enable;
+
+    aspeed_smc_wdt2_write(s, ASPEED_WDT_CTRL, value);
+
+    trace_aspeed_smc_wdt2_enable(enable ? "en" : "dis");
+}
+
 static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
 {
     AspeedSMCState *s = ASPEED_SMC(opaque);
@@ -718,7 +768,6 @@ static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
         addr == R_CE_CMD_CTRL ||
         addr == R_INTR_CTRL ||
         addr == R_DUMMY_DATA ||
-        (aspeed_smc_has_wdt_control(asc) && addr == R_FMC_WDT2_CTRL) ||
         (aspeed_smc_has_dma(asc) && addr == R_DMA_CTRL) ||
         (aspeed_smc_has_dma(asc) && addr == R_DMA_FLASH_ADDR) ||
         (aspeed_smc_has_dma(asc) && addr == R_DMA_DRAM_ADDR) ||
@@ -731,6 +780,10 @@ static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
         trace_aspeed_smc_read(addr << 2, size, s->regs[addr]);
 
         return s->regs[addr];
+    } else if (aspeed_smc_has_wdt_control(asc) && addr == R_FMC_WDT2_CTRL) {
+        return aspeed_smc_wdt2_read(s, ASPEED_WDT_CTRL);
+    } else if (aspeed_smc_has_wdt_control(asc) && addr == R_FMC_WDT2_RELOAD) {
+        return aspeed_smc_wdt2_read(s, ASPEED_WDT_RELOAD) / 100000;
     } else {
         qemu_log_mask(LOG_UNIMP, "%s: not implemented: 0x%" HWADDR_PRIx "\n",
                       __func__, addr);
@@ -1053,7 +1106,11 @@ static void aspeed_smc_write(void *opaque, hwaddr addr, uint64_t data,
     } else if (addr == R_DUMMY_DATA) {
         s->regs[addr] = value & 0xff;
     } else if (aspeed_smc_has_wdt_control(asc) && addr == R_FMC_WDT2_CTRL) {
-        s->regs[addr] = value & FMC_WDT2_CTRL_EN;
+        aspeed_smc_wdt2_enable(s, !!(value & FMC_WDT2_CTRL_EN));
+    } else if (aspeed_smc_has_wdt_control(asc) && addr == R_FMC_WDT2_RELOAD) {
+        aspeed_smc_wdt2_write(s, ASPEED_WDT_RELOAD, value * 100000);
+    } else if (aspeed_smc_has_wdt_control(asc) && addr == R_FMC_WDT2_RESTART) {
+        aspeed_smc_wdt2_write(s, ASPEED_WDT_RESTART, value);
     } else if (addr == R_INTR_CTRL) {
         s->regs[addr] = value;
     } else if (aspeed_smc_has_dma(asc) && addr == R_DMA_CTRL) {
@@ -1106,6 +1163,16 @@ static void aspeed_smc_dma_setup(AspeedSMCState *s, Error **errp)
                        TYPE_ASPEED_SMC ".dma-flash");
     address_space_init(&s->dram_as, s->dram_mr,
                        TYPE_ASPEED_SMC ".dma-dram");
+}
+
+static void aspeed_smc_wdt_setup(AspeedSMCState *s, Error **errp)
+{
+    if (!s->wdt2_mr) {
+        error_setg(errp, TYPE_ASPEED_SMC ": 'wdt2' link not set");
+        return;
+    }
+
+    address_space_init(&s->wdt2_as, s->wdt2_mr, TYPE_ASPEED_SMC ".wdt2");
 }
 
 static void aspeed_smc_realize(DeviceState *dev, Error **errp)
@@ -1189,6 +1256,11 @@ static void aspeed_smc_realize(DeviceState *dev, Error **errp)
     if (aspeed_smc_has_dma(asc)) {
         aspeed_smc_dma_setup(s, errp);
     }
+
+    /* WDT2 support */
+    if (aspeed_smc_has_wdt_control(asc)) {
+        aspeed_smc_wdt_setup(s, errp);
+    }
 }
 
 static const VMStateDescription vmstate_aspeed_smc = {
@@ -1207,6 +1279,8 @@ static Property aspeed_smc_properties[] = {
     DEFINE_PROP_UINT32("num-cs", AspeedSMCState, num_cs, 1),
     DEFINE_PROP_BOOL("inject-failure", AspeedSMCState, inject_failure, false),
     DEFINE_PROP_LINK("dram", AspeedSMCState, dram_mr,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
+    DEFINE_PROP_LINK("wdt2", AspeedSMCState, wdt2_mr,
                      TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_END_OF_LIST(),
 };
