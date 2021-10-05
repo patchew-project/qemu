@@ -42,7 +42,9 @@ typedef struct UHCIPort {
     uint16_t ctrl;
 } UHCIPort;
 
-typedef struct UHCIState {
+typedef struct UHCIState UHCIState;
+
+struct UHCIState {
     PCIDevice dev;
     MemoryRegion io_bar;
     USBBus bus; /* Note unused when we're a companion controller */
@@ -60,7 +62,7 @@ typedef struct UHCIState {
     uint32_t frame_bandwidth;
     bool completions_only;
     UHCIPort ports[NB_PORTS];
-
+    void (*set_irq)(UHCIState *s, int level);
     /* Interrupts that should be raised at the end of the current frame.  */
     uint32_t pending_int_mask;
 
@@ -72,7 +74,7 @@ typedef struct UHCIState {
     char *masterbus;
     uint32_t firstport;
     uint32_t maxframes;
-} UHCIState;
+};
 
 #define TYPE_UHCI "pci-uhci-usb"
 DECLARE_INSTANCE_CHECKER(UHCIState, UHCI, TYPE_UHCI)
