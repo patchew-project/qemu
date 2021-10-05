@@ -114,9 +114,9 @@ static void scsi_command_complete(void *opaque, int ret)
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
 
-    aio_context_acquire(blk_get_aio_context(s->conf.blk));
-    scsi_command_complete_noio(r, ret);
-    aio_context_release(blk_get_aio_context(s->conf.blk));
+    WITH_AIO_CONTEXT_ACQUIRE_GUARD(blk_get_aio_context(s->conf.blk)) {
+        scsi_command_complete_noio(r, ret);
+    }
 }
 
 static int execute_command(BlockBackend *blk,
