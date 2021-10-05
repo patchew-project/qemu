@@ -896,23 +896,21 @@ static void virtio_blk_dma_restart_cb(void *opaque, bool running,
 static void virtio_blk_reset(VirtIODevice *vdev)
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
-    AioContext *ctx;
     VirtIOBlockReq *req;
 
-    ctx = blk_get_aio_context(s->blk);
-    aio_context_acquire(ctx);
-    blk_drain(s->blk);
-
-    /* We drop queued requests after blk_drain() because blk_drain() itself can
-     * produce them. */
-    while (s->rq) {
-        req = s->rq;
-        s->rq = req->next;
-        virtqueue_detach_element(req->vq, &req->elem, 0);
-        virtio_blk_free_request(req);
+    WITH_AIO_CONTEXT_ACQUIRE_GUARD(blk_get_aio_context(s->blk)) {
+        blk_drain(s->blk);
+        /*
+         * We drop queued requests after blk_drain() because
+         * blk_drain() itself can produce them.
+         */
+        while (s->rq) {
+            req = s->rq;
+            s->rq = req->next;
+            virtqueue_detach_element(req->vq, &req->elem, 0);
+            virtio_blk_free_request(req);
+        }
     }
-
-    aio_context_release(ctx);
 
     assert(!s->dataplane_started);
     blk_set_enable_write_cache(s->blk, s->original_wce);
