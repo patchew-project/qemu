@@ -294,6 +294,30 @@ void aio_context_acquire(AioContext *ctx);
 /* Relinquish ownership of the AioContext. */
 void aio_context_release(AioContext *ctx);
 
+static inline AioContext *aio_context_auto_acquire(AioContext *ctx)
+{
+    aio_context_acquire(ctx);
+    return ctx;
+}
+
+static inline void aio_context_auto_release(AioContext *ctx)
+{
+    aio_context_release(ctx);
+}
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(AioContext, aio_context_auto_release)
+
+#define WITH_AIO_CONTEXT_ACQUIRE_GUARD(ctx) \
+    WITH_AIO_CONTEXT_ACQUIRE_GUARD_(glue(_aio_context_auto, __COUNTER__), ctx)
+
+#define WITH_AIO_CONTEXT_ACQUIRE_GUARD_(var, ctx) \
+    for (g_autoptr(AioContext) var = aio_context_auto_acquire(ctx); \
+        (var); aio_context_auto_release(var), (var) = NULL)
+
+#define AIO_CONTEXT_ACQUIRE_GUARD(ctx) \
+    g_autoptr(AioContext) _aio_context_auto __attribute__((unused)) \
+        = aio_context_auto_acquire(ctx)
+
 /**
  * aio_bh_schedule_oneshot_full: Allocate a new bottom half structure that will
  * run only once and as soon as possible.
