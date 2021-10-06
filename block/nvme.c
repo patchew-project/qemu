@@ -185,6 +185,7 @@ static bool nvme_init_queue(BDRVNVMeState *s, NVMeQueue *q,
 
 static void nvme_free_queue(BDRVNVMeState *s, NVMeQueue *q)
 {
+    qemu_vfio_dma_unmap(s->vfio, q->queue);
     qemu_vfree(q->queue);
 }
 
