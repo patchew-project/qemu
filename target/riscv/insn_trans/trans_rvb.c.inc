@@ -108,25 +108,25 @@ static bool trans_packh(DisasContext *ctx, arg_packh *a)
 static bool trans_min(DisasContext *ctx, arg_min *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_arith(ctx, a, EXT_SIGN, tcg_gen_smin_tl);
+    return gen_arith(ctx, a, EXT_SIGN, tcg_gen_smin_tl, tcg_gen_smin_tl, NULL);
 }
 
 static bool trans_max(DisasContext *ctx, arg_max *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_arith(ctx, a, EXT_SIGN, tcg_gen_smax_tl);
+    return gen_arith(ctx, a, EXT_SIGN, tcg_gen_smax_tl, tcg_gen_smax_tl, NULL);
 }
 
 static bool trans_minu(DisasContext *ctx, arg_minu *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_arith(ctx, a, EXT_SIGN, tcg_gen_umin_tl);
+    return gen_arith(ctx, a, EXT_SIGN, tcg_gen_umin_tl, tcg_gen_umin_tl, NULL);
 }
 
 static bool trans_maxu(DisasContext *ctx, arg_maxu *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_arith(ctx, a, EXT_SIGN, tcg_gen_umax_tl);
+    return gen_arith(ctx, a, EXT_SIGN, tcg_gen_umax_tl, tcg_gen_umax_tl, NULL);
 }
 
 static bool trans_sext_b(DisasContext *ctx, arg_sext_b *a)
@@ -340,7 +340,8 @@ GEN_SHADD(3)
 static bool trans_sh##SHAMT##add(DisasContext *ctx, arg_sh##SHAMT##add *a) \
 {                                                                          \
     REQUIRE_EXT(ctx, RVB);                                                 \
-    return gen_arith(ctx, a, EXT_NONE, gen_sh##SHAMT##add);                \
+    return gen_arith(ctx, a, EXT_NONE,                                     \
+           gen_sh##SHAMT##add, gen_sh##SHAMT##add, NULL);                  \
 }
 
 GEN_TRANS_SHADD(1)
@@ -615,7 +616,9 @@ static bool trans_sh##SHAMT##add_uw(DisasContext *ctx,        \
 {                                                             \
     REQUIRE_64BIT(ctx);                                       \
     REQUIRE_EXT(ctx, RVB);                                    \
-    return gen_arith(ctx, a, EXT_NONE, gen_sh##SHAMT##add_uw);  \
+    return gen_arith(ctx, a, EXT_NONE,                        \
+                     gen_sh##SHAMT##add_uw,                   \
+                     gen_sh##SHAMT##add_uw, NULL);            \
 }
 
 GEN_TRANS_SHADD_UW(1)
@@ -632,7 +635,7 @@ static bool trans_add_uw(DisasContext *ctx, arg_add_uw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
-    return gen_arith(ctx, a, EXT_NONE, gen_add_uw);
+    return gen_arith(ctx, a, EXT_NONE, gen_add_uw, gen_add_uw, NULL);
 }
 
 static void gen_slli_uw(TCGv dest, TCGv src, target_long shamt)

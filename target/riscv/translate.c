@@ -407,31 +407,6 @@ static bool gen_logic_imm_fn(DisasContext *ctx, arg_i *a, DisasExtend ext,
     return true;
 }
 
-static bool gen_arith_imm_fn(DisasContext *ctx, arg_i *a, DisasExtend ext,
-                             void (*func)(TCGv, TCGv, target_long))
-{
-    TCGv dest = dest_gpr(ctx, a->rd);
-    TCGv src1 = get_gpr(ctx, a->rs1, ext);
-
-    func(dest, src1, a->imm);
-
-    gen_set_gpr(ctx, a->rd, dest);
-    return true;
-}
-
-static bool gen_arith_imm_tl(DisasContext *ctx, arg_i *a, DisasExtend ext,
-                             void (*func)(TCGv, TCGv, TCGv))
-{
-    TCGv dest = dest_gpr(ctx, a->rd);
-    TCGv src1 = get_gpr(ctx, a->rs1, ext);
-    TCGv src2 = tcg_constant_tl(a->imm);
-
-    func(dest, src1, src2);
-
-    gen_set_gpr(ctx, a->rd, dest);
-    return true;
-}
-
 static bool gen_logic(DisasContext *ctx, arg_r *a, DisasExtend ext,
                       void (*func)(TCGv, TCGv, TCGv))
 {
@@ -446,16 +421,83 @@ static bool gen_logic(DisasContext *ctx, arg_r *a, DisasExtend ext,
     return true;
 }
 
-static bool gen_arith(DisasContext *ctx, arg_r *a, DisasExtend ext,
-                      void (*func)(TCGv, TCGv, TCGv))
+static bool gen_arith_imm_fn(DisasContext *ctx, arg_i *a, DisasExtend ext,
+                             void (*fn32)(TCGv, TCGv, target_long),
+                             void (*fn64)(TCGv, TCGv, target_long),
+                             void (*fn128)(TCGv, TCGv, TCGv, TCGv, target_long))
 {
-    TCGv dest = dest_gpr(ctx, a->rd);
-    TCGv src1 = get_gpr(ctx, a->rs1, ext);
-    TCGv src2 = get_gpr(ctx, a->rs2, ext);
+    if (is_32bit(ctx)) {
+        TCGv dest = dest_gpr(ctx, a->rd);
+        TCGv src1 = get_gpr(ctx, a->rs1, ext);
 
-    func(dest, src1, src2);
+        fn32(dest, src1, a->imm);
 
-    gen_set_gpr(ctx, a->rd, dest);
+        gen_set_gpr(ctx, a->rd, dest);
+    } else if (is_64bit(ctx)) {
+        TCGv dest = dest_gpr(ctx, a->rd);
+        TCGv src1 = get_gpr(ctx, a->rs1, ext);
+
+        fn64(dest, src1, a->imm);
+
+        gen_set_gpr(ctx, a->rd, dest);
+    } else {
+        return false;
+    }
+    return true;
+}
+
+static bool gen_arith_imm_tl(DisasContext *ctx, arg_i *a, DisasExtend ext,
+                             void (*fn32)(TCGv, TCGv, TCGv),
+                             void (*fn64)(TCGv, TCGv, TCGv),
+                             void (*fn128)(TCGv, TCGv, TCGv, TCGv, TCGv, TCGv))
+{
+    if (is_32bit(ctx)) {
+        TCGv dest = dest_gpr(ctx, a->rd);
+        TCGv src1 = get_gpr(ctx, a->rs1, ext);
+        TCGv src2 = tcg_constant_tl(a->imm);
+
+        fn32(dest, src1, src2);
+
+        gen_set_gpr(ctx, a->rd, dest);
+    } else if (is_64bit(ctx)) {
+        TCGv dest = dest_gpr(ctx, a->rd);
+        TCGv src1 = get_gpr(ctx, a->rs1, ext);
+        TCGv src2 = tcg_constant_tl(a->imm);
+
+        fn64(dest, src1, src2);
+
+        gen_set_gpr(ctx, a->rd, dest);
+    } else {
+        return false;
+    }
+    return true;
+}
+
+static bool gen_arith(DisasContext *ctx, arg_r *a, DisasExtend ext,
+                      void (*fn32)(TCGv, TCGv, TCGv),
+                      void (*fn64)(TCGv, TCGv, TCGv),
+                      void (*fn128)(TCGv, TCGv, TCGv, TCGv, TCGv, TCGv))
+{
+
+    if (is_32bit(ctx)) {
+        TCGv dest = dest_gpr(ctx, a->rd);
+        TCGv src1 = get_gpr(ctx, a->rs1, ext);
+        TCGv src2 = get_gpr(ctx, a->rs2, ext);
+
+        fn32(dest, src1, src2);
+
+        gen_set_gpr(ctx, a->rd, dest);
+    } else if (is_64bit(ctx)) {
+        TCGv dest = dest_gpr(ctx, a->rd);
+        TCGv src1 = get_gpr(ctx, a->rs1, ext);
+        TCGv src2 = get_gpr(ctx, a->rs2, ext);
+
+        fn64(dest, src1, src2);
+
+        gen_set_gpr(ctx, a->rd, dest);
+    } else {
+        return false;
+    }
     return true;
 }
 
