@@ -442,11 +442,14 @@ static bool gen_logic_imm_fn(DisasContext *ctx, arg_i *a, DisasExtend ext,
 
     gen_set_gpr(ctx, a->rd, dest);
 
-    /* Temporary code so that the patch compiles */
     if (is_128bit(ctx)) {
-        (void)get_gprh(ctx, 6);
-        (void)dest_gprh(ctx, 6);
-        gen_set_gprh(ctx, 6, NULL);
+        uint64_t immh = -(a->imm < 0);
+        src1 = get_gprh(ctx, a->rs1);
+        dest = dest_gprh(ctx, a->rd);
+
+        func(dest, src1, immh);
+
+        gen_set_gprh(ctx, a->rd, dest);
     }
 
     return true;
@@ -463,6 +466,15 @@ static bool gen_logic(DisasContext *ctx, arg_r *a, DisasExtend ext,
 
     gen_set_gpr(ctx, a->rd, dest);
 
+    if (is_128bit(ctx)) {
+        dest = dest_gprh(ctx, a->rd);
+        src1 = get_gprh(ctx, a->rs1);
+        src2 = get_gprh(ctx, a->rs2);
+
+        func(dest, src1, src2);
+
+        gen_set_gprh(ctx, a->rd, dest);
+    }
     return true;
 }
 
@@ -485,8 +497,16 @@ static bool gen_arith_imm_fn(DisasContext *ctx, arg_i *a, DisasExtend ext,
         fn64(dest, src1, a->imm);
 
         gen_set_gpr(ctx, a->rd, dest);
-    } else {
-        return false;
+    } else if (is_128bit(ctx)) {
+        TCGv src1l = get_gpr(ctx, a->rs1, ext),
+             src1h = get_gprh(ctx, a->rs1),
+             destl = dest_gpr(ctx, a->rd),
+             desth = dest_gprh(ctx, a->rd);
+
+        fn128(destl, desth, src1l, src1h, a->imm);
+
+        gen_set_gpr(ctx, a->rd, destl);
+        gen_set_gprh(ctx, a->rd, desth);
     }
     return true;
 }
@@ -512,8 +532,18 @@ static bool gen_arith_imm_tl(DisasContext *ctx, arg_i *a, DisasExtend ext,
         fn64(dest, src1, src2);
 
         gen_set_gpr(ctx, a->rd, dest);
-    } else {
-        return false;
+    } else if (is_128bit(ctx)) {
+        TCGv src1l = get_gpr(ctx, a->rs1, ext),
+             src1h = get_gprh(ctx, a->rs1),
+             destl = dest_gpr(ctx, a->rd),
+             desth = dest_gprh(ctx, a->rd),
+             imml = tcg_constant_tl(a->imm),
+             immh = tcg_constant_tl(-(a->imm < 0));
+
+        fn128(destl, desth, src1l, src1h, imml, immh);
+
+        gen_set_gpr(ctx, a->rd, destl);
+        gen_set_gprh(ctx, a->rd, desth);
     }
     return true;
 }
@@ -540,8 +570,21 @@ static bool gen_arith(DisasContext *ctx, arg_r *a, DisasExtend ext,
         fn64(dest, src1, src2);
 
         gen_set_gpr(ctx, a->rd, dest);
-    } else {
-        return false;
+    } else if (is_128bit(ctx)) {
+        TCGv src1l = get_gpr(ctx, a->rs1, ext),
+             src1h = get_gprh(ctx, a->rs1),
+             src2l = get_gpr(ctx, a->rs2, ext),
+             src2h = get_gprh(ctx, a->rs2),
+             destl = tcg_temp_new(),
+             desth = tcg_temp_new();
+
+        fn128(destl, desth, src1l, src1h, src2l, src2h);
+
+        gen_set_gpr(ctx, a->rd, destl);
+        gen_set_gprh(ctx, a->rd, desth);
+
+        tcg_temp_free(destl);
+        tcg_temp_free(desth);
     }
     return true;
 }
@@ -579,8 +622,24 @@ static bool gen_shift_imm_fn(DisasContext *ctx, arg_shift *a, DisasExtend ext,
         fn64(dest, src1, a->shamt);
 
         gen_set_gpr(ctx, a->rd, dest);
-    } else {
-        return false;
+    } else if (is_128bit(ctx)) {
+        if ((ctx->w && a->shamt >= 32)
+            || (!ctx->w && a->shamt >= 128)) {
+            return false;
+        }
+
+        TCGv src1l = get_gpr(ctx, a->rs1, ext),
+             src1h = get_gprh(ctx, a->rs1),
+             destl = tcg_temp_new(),
+             desth = tcg_temp_new();
+
+        fn128(destl, desth, src1l, src1h, a->shamt);
+
+        gen_set_gpr(ctx, a->rd, destl);
+        gen_set_gprh(ctx, a->rd, desth);
+
+        tcg_temp_free(destl);
+        tcg_temp_free(desth);
     }
     return true;
 }
@@ -632,8 +691,23 @@ static bool gen_shift(DisasContext *ctx, arg_r *a, DisasExtend ext,
 
         gen_set_gpr(ctx, a->rd, dest);
         tcg_temp_free(ext2);
-    } else {
-        return false;
+    } else if (is_128bit(ctx)) {
+        TCGv src1l = get_gpr(ctx, a->rs1, ext),
+             src1h = get_gprh(ctx, a->rs1),
+             src2l = get_gpr(ctx, a->rs2, EXT_NONE),
+             destl = tcg_temp_new(),
+             desth = tcg_temp_new(),
+             shamt = tcg_temp_new();
+
+        tcg_gen_andi_tl(shamt, src2l, !ctx->w << 5 | 0x1f);
+        fn128(destl, desth, src1l, src1h, shamt);
+
+        gen_set_gpr(ctx, a->rd, destl);
+        gen_set_gprh(ctx, a->rd, desth);
+
+        tcg_temp_free(destl);
+        tcg_temp_free(desth);
+        tcg_temp_free(shamt);
     }
     return true;
 }
