@@ -49,19 +49,19 @@ static bool trans_cpop(DisasContext *ctx, arg_cpop *a)
 static bool trans_andn(DisasContext *ctx, arg_andn *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_arith(ctx, a, EXT_NONE, tcg_gen_andc_tl);
+    return gen_logic(ctx, a, EXT_NONE, tcg_gen_andc_tl);
 }
 
 static bool trans_orn(DisasContext *ctx, arg_orn *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_arith(ctx, a, EXT_NONE, tcg_gen_orc_tl);
+    return gen_logic(ctx, a, EXT_NONE, tcg_gen_orc_tl);
 }
 
 static bool trans_xnor(DisasContext *ctx, arg_xnor *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_arith(ctx, a, EXT_NONE, tcg_gen_eqv_tl);
+    return gen_logic(ctx, a, EXT_NONE, tcg_gen_eqv_tl);
 }
 
 static void gen_pack(TCGv ret, TCGv arg1, TCGv arg2)
@@ -74,7 +74,7 @@ static void gen_pack(TCGv ret, TCGv arg1, TCGv arg2)
 static bool trans_pack(DisasContext *ctx, arg_pack *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_arith(ctx, a, EXT_NONE, gen_pack);
+    return gen_logic(ctx, a, EXT_NONE, gen_pack);
 }
 
 static void gen_packu(TCGv ret, TCGv arg1, TCGv arg2)
@@ -88,7 +88,7 @@ static void gen_packu(TCGv ret, TCGv arg1, TCGv arg2)
 static bool trans_packu(DisasContext *ctx, arg_packu *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_arith(ctx, a, EXT_NONE, gen_packu);
+    return gen_logic(ctx, a, EXT_NONE, gen_packu);
 }
 
 static void gen_packh(TCGv ret, TCGv arg1, TCGv arg2)
@@ -102,7 +102,7 @@ static void gen_packh(TCGv ret, TCGv arg1, TCGv arg2)
 static bool trans_packh(DisasContext *ctx, arg_packh *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_arith(ctx, a, EXT_NONE, gen_packh);
+    return gen_logic(ctx, a, EXT_NONE, gen_packh);
 }
 
 static bool trans_min(DisasContext *ctx, arg_min *a)
@@ -393,7 +393,7 @@ static bool trans_packw(DisasContext *ctx, arg_packw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
-    return gen_arith(ctx, a, EXT_NONE, gen_packw);
+    return gen_logic(ctx, a, EXT_NONE, gen_packw);
 }
 
 static void gen_packuw(TCGv ret, TCGv arg1, TCGv arg2)
@@ -409,7 +409,7 @@ static bool trans_packuw(DisasContext *ctx, arg_packuw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
-    return gen_arith(ctx, a, EXT_NONE, gen_packuw);
+    return gen_logic(ctx, a, EXT_NONE, gen_packuw);
 }
 
 static bool trans_bsetw(DisasContext *ctx, arg_bsetw *a)
