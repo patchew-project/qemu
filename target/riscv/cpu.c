@@ -154,8 +154,10 @@ static void riscv_any_cpu_init(Object *obj)
     CPURISCVState *env = &RISCV_CPU(obj)->env;
 #if defined(TARGET_RISCV32)
     set_misa(env, RV32 | RVI | RVM | RVA | RVF | RVD | RVC | RVU);
+    set_misah(env, 0);
 #elif defined(TARGET_RISCV64)
     set_misa(env, RV64 | RVI | RVM | RVA | RVF | RVD | RVC | RVU);
+    set_misah(env, 0);
 #endif
     set_priv_version(env, PRIV_VERSION_1_11_0);
 }

@@ -56,6 +56,7 @@ typedef struct DisasContext {
     target_ulong pc_succ_insn;
     target_ulong priv_ver;
     target_ulong misa;
+    uint64_t misah;
     uint32_t opcode;
     uint32_t mstatus_fs;
     uint32_t mem_idx;
@@ -90,13 +91,30 @@ static inline bool has_ext(DisasContext *ctx, uint32_t ext)
 
 #ifdef TARGET_RISCV32
 # define is_32bit(ctx)  true
+# define is_64bit(ctx)  false
+# define is_128bit(ctx) false
 #elif defined(CONFIG_USER_ONLY)
 # define is_32bit(ctx)  false
+# define is_64_bit(ctx) true
+# define is_128_bit(ctx) false
 #else
 static inline bool is_32bit(DisasContext *ctx)
 {
-    return (ctx->misa & RV32) == RV32;
+    return (ctx->misa & MXLEN_MASK) == RV32;
 }
+
+static inline bool is_64bit(DisasContext *ctx)
+{
+    return (ctx->misa & MXLEN_MASK) == RV64;
+}
+#if !defined(TARGET_RISCV64)
+static inline bool is_128bit(DisasContext *ctx)
+{
+    return (ctx->misah & MXLEN_MASK) == RV128;
+}
+#else
+# define is_128bit(ctx) false
+#endif
 #endif
 
 /* The word size for this operation. */
@@ -530,6 +548,7 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->virt_enabled = false;
 #endif
     ctx->misa = env->misa;
+    ctx->misah = env->misah;
     ctx->frm = -1;  /* unknown rounding mode */
     ctx->ext_ifencei = cpu->cfg.ext_ifencei;
     ctx->vlen = cpu->cfg.vlen;
