@@ -110,16 +110,34 @@ const char *riscv_cpu_get_trap_name(target_ulong cause, bool async)
 
 bool riscv_cpu_is_32bit(CPURISCVState *env)
 {
-    if (env->misa & RV64) {
-        return false;
-    }
-
-    return true;
+    return (env->misa & MXLEN_MASK) == RV32;
 }
+
+bool riscv_cpu_is_64bit(CPURISCVState *env)
+{
+    return (env->misa & MXLEN_MASK) == RV64;
+}
+
+#if defined(TARGET_RISCV64) || defined(TARGET_RISCV32)
+bool riscv_cpu_is_128bit(CPURISCVState *env)
+{
+    return false;
+}
+#else
+bool riscv_cpu_is_128bit(CPURISCVState *env)
+{
+    return (env->misah & MXLEN_MASK) == RV128;
+}
+#endif
 
 static void set_misa(CPURISCVState *env, target_ulong misa)
 {
     env->misa_mask = env->misa = misa;
+}
+
+static void set_misah(CPURISCVState *env, target_ulong misah)
+{
+    env->misah_mask = env->misah = misah;
 }
 
 static void set_priv_version(CPURISCVState *env, int priv_ver)
@@ -158,6 +176,9 @@ static void riscv_any_cpu_init(Object *obj)
 #elif defined(TARGET_RISCV64)
     set_misa(env, RV64 | RVI | RVM | RVA | RVF | RVD | RVC | RVU);
     set_misah(env, 0);
+#else
+    set_misa(env, RVI | RVM | RVA | RVF | RVD | RVC | RVU);
+    set_misah(env, RV128);
 #endif
     set_priv_version(env, PRIV_VERSION_1_11_0);
 }
@@ -184,7 +205,7 @@ static void rv64_sifive_e_cpu_init(Object *obj)
     set_priv_version(env, PRIV_VERSION_1_10_0);
     qdev_prop_set_bit(DEVICE(obj), "mmu", false);
 }
-#else
+#elif defined(TARGET_RISCV32)
 static void rv32_base_cpu_init(Object *obj)
 {
     CPURISCVState *env = &RISCV_CPU(obj)->env;
@@ -223,6 +244,14 @@ static void rv32_imafcu_nommu_cpu_init(Object *obj)
     set_priv_version(env, PRIV_VERSION_1_10_0);
     set_resetvec(env, DEFAULT_RSTVEC);
     qdev_prop_set_bit(DEVICE(obj), "mmu", false);
+}
+#else
+static void rv128_base_cpu_init(Object *obj)
+{
+    CPURISCVState *env = &RISCV_CPU(obj)->env;
+    /* We set this in the realise function */
+    set_misa(env, 0);
+    set_misah(env, RV128);
 }
 #endif
 
@@ -442,7 +471,9 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
     set_resetvec(env, cpu->cfg.resetvec);
 
     /* If only XLEN is set for misa, then set misa from properties */
-    if (env->misa == RV32 || env->misa == RV64) {
+    if (env->misa == RV32 || env->misa == RV64
+            || (env->misah == RV128 && env->misa == 0)
+            ) {
         /* Do some ISA extension error checking */
         if (cpu->cfg.ext_i && cpu->cfg.ext_e) {
             error_setg(errp,
@@ -709,6 +740,8 @@ static void riscv_cpu_class_init(ObjectClass *c, void *data)
     cc->gdb_core_xml_file = "riscv-32bit-cpu.xml";
 #elif defined(TARGET_RISCV64)
     cc->gdb_core_xml_file = "riscv-64bit-cpu.xml";
+#else
+    cc->gdb_core_xml_file = "riscv-128bit-cpu.xml";
 #endif
     cc->gdb_stop_before_watchpoint = true;
     cc->disas_set_info = riscv_cpu_disas_set_info;
@@ -796,6 +829,8 @@ static const TypeInfo riscv_cpu_type_infos[] = {
     DEFINE_CPU(TYPE_RISCV_CPU_SIFIVE_E51,       rv64_sifive_e_cpu_init),
     DEFINE_CPU(TYPE_RISCV_CPU_SIFIVE_U54,       rv64_sifive_u_cpu_init),
     DEFINE_CPU(TYPE_RISCV_CPU_SHAKTI_C,         rv64_sifive_u_cpu_init),
+#else
+    DEFINE_CPU(TYPE_RISCV_CPU_BASE128,          rv128_base_cpu_init),
 #endif
 };
 
