@@ -251,12 +251,39 @@ static TCGv get_gpr(DisasContext *ctx, int reg_num, DisasExtend ext)
     g_assert_not_reached();
 }
 
+/* Make sure high part of registers not accessed when not 128-bit */
+static inline TCGv cpu_gprh_check(DisasContext *ctx, int reg_num)
+{
+    if (is_128bit(ctx)) {
+        return cpu_gprh[reg_num];
+    } else {
+        /* Cannot use qemu_build_not_reached as misa is rw */
+        return 0;
+    }
+}
+
+static TCGv get_gprh(DisasContext *ctx, int reg_num)
+{
+    if (reg_num == 0 || ctx->w) {
+        return ctx->zero;
+    }
+    return cpu_gprh_check(ctx, reg_num);
+}
+
 static TCGv dest_gpr(DisasContext *ctx, int reg_num)
 {
     if (reg_num == 0 || ctx->w) {
         return temp_new(ctx);
     }
     return cpu_gpr[reg_num];
+}
+
+static TCGv dest_gprh(DisasContext *ctx, int reg_num)
+{
+    if (reg_num == 0 || ctx->w) {
+        return temp_new(ctx);
+    }
+    return cpu_gprh_check(ctx, reg_num);
 }
 
 static void gen_set_gpr(DisasContext *ctx, int reg_num, TCGv t)
@@ -266,6 +293,17 @@ static void gen_set_gpr(DisasContext *ctx, int reg_num, TCGv t)
             tcg_gen_ext32s_tl(cpu_gpr[reg_num], t);
         } else {
             tcg_gen_mov_tl(cpu_gpr[reg_num], t);
+        }
+    }
+}
+
+static void gen_set_gprh(DisasContext *ctx, int reg_num, TCGv t)
+{
+    if (reg_num != 0) {
+        if (ctx->w) {
+            tcg_gen_sari_tl(cpu_gprh_check(ctx, reg_num), cpu_gpr[reg_num], 63);
+        } else {
+            tcg_gen_mov_tl(cpu_gprh_check(ctx, reg_num), t);
         }
     }
 }
@@ -403,6 +441,13 @@ static bool gen_logic_imm_fn(DisasContext *ctx, arg_i *a, DisasExtend ext,
     func(dest, src1, a->imm);
 
     gen_set_gpr(ctx, a->rd, dest);
+
+    /* Temporary code so that the patch compiles */
+    if (is_128bit(ctx)) {
+        (void)get_gprh(ctx, 6);
+        (void)dest_gprh(ctx, 6);
+        gen_set_gprh(ctx, 6, NULL);
+    }
 
     return true;
 }
