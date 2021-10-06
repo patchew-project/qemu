@@ -624,8 +624,8 @@ static bool gen_shift_imm_fn(DisasContext *ctx, arg_shift *a, DisasExtend ext,
 
         gen_set_gpr(ctx, a->rd, dest);
     } else if (is_128bit(ctx)) {
-        if ((ctx->w && a->shamt >= 32)
-            || (!ctx->w && a->shamt >= 128)) {
+        if ((ctx->w && a->shamt >= 32) || (ctx->d && a->shamt >= 64)
+            || (!ctx->w && !ctx->d && a->shamt >= 128)) {
             return false;
         }
 

@@ -888,6 +888,39 @@ static bool trans_sraiw(DisasContext *ctx, arg_sraiw *a)
                             NULL, gen_sraiw_tl, gen_sraiw_i128);
 }
 
+static bool trans_sllid(DisasContext *ctx, arg_sllid *a)
+{
+    REQUIRE_128BIT(ctx);
+    ctx->d = true;
+    return gen_shift_imm_fn(ctx, a, EXT_NONE, NULL, NULL, gen_slliwd_i128);
+}
+
+static void gen_srlid_i128(TCGv retl, TCGv reth,
+                           TCGv srcl, TCGv srch, target_long shamt)
+{
+    tcg_gen_shri_tl(retl, srcl, shamt);
+}
+
+static bool trans_srlid(DisasContext *ctx, arg_srlid *a)
+{
+    REQUIRE_128BIT(ctx);
+    ctx->d = true;
+    return gen_shift_imm_fn(ctx, a, EXT_NONE, NULL, NULL, gen_srlid_i128);
+}
+
+static void gen_sraid_i128(TCGv retl, TCGv reth,
+                           TCGv srcl, TCGv srch, target_long shamt)
+{
+    tcg_gen_sari_tl(retl, srcl, shamt);
+}
+
+static bool trans_sraid(DisasContext *ctx, arg_sraid *a)
+{
+    REQUIRE_128BIT(ctx);
+    ctx->d = true;
+    return gen_shift_imm_fn(ctx, a, EXT_NONE, NULL, NULL, gen_sraid_i128);
+}
+
 static void gen_addw_i128(TCGv retl, TCGv reth,
                           TCGv src1l, TCGv src1h,
                           TCGv src2l, TCGv src2h)
@@ -958,6 +991,31 @@ static bool trans_sraw(DisasContext *ctx, arg_sraw *a)
     ctx->w = true;
     return gen_shift(ctx, a, EXT_SIGN,
                      NULL, tcg_gen_sar_tl, gen_srawd_i128);
+}
+
+/* Translation functions for 64-bit operations specific to RV128 */
+static bool trans_slld(DisasContext *ctx, arg_slld *a)
+{
+    REQUIRE_128BIT(ctx);
+    ctx->d = true;
+    return gen_shift(ctx, a, EXT_NONE,
+                     tcg_gen_shl_tl, tcg_gen_shl_tl, gen_sllwd_i128);
+}
+
+static bool trans_srld(DisasContext *ctx, arg_srld *a)
+{
+    REQUIRE_128BIT(ctx);
+    ctx->d = true;
+    return gen_shift(ctx, a, EXT_ZERO,
+                     tcg_gen_shr_tl, tcg_gen_shr_tl, gen_srlwd_i128);
+}
+
+static bool trans_srad(DisasContext *ctx, arg_srad *a)
+{
+    REQUIRE_128BIT(ctx);
+    ctx->d = true;
+    return gen_shift(ctx, a, EXT_SIGN,
+                     tcg_gen_sar_tl, tcg_gen_sar_tl, gen_srawd_i128);
 }
 
 static bool trans_fence(DisasContext *ctx, arg_fence *a)
