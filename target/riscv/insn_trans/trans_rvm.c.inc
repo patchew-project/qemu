@@ -390,13 +390,25 @@ static bool trans_mulw(DisasContext *ctx, arg_mulw *a)
                      tcg_gen_mul_tl, tcg_gen_mul_tl, gen_mulw_i128);
 }
 
+static void gen_divw_i128(TCGv rdl, TCGv rdh,
+                          TCGv rs1l, TCGv rs1h, TCGv rs2l, TCGv rs2h)
+{
+    gen_div(rdl, rs1l, rs2l);
+}
+
 static bool trans_divw(DisasContext *ctx, arg_divw *a)
 {
     REQUIRE_64_OR_128BIT(ctx);
     REQUIRE_EXT(ctx, RVM);
     ctx->w = true;
     return gen_arith(ctx, a, EXT_SIGN,
-                     gen_div, gen_div, NULL);
+                     gen_div, gen_div, gen_divw_i128);
+}
+
+static void gen_divuw_i128(TCGv rdl, TCGv rdh,
+                           TCGv rs1l, TCGv rs1h, TCGv rs2l, TCGv rs2h)
+{
+    gen_divu(rdl, rs1l, rs2l);
 }
 
 static bool trans_divuw(DisasContext *ctx, arg_divuw *a)
@@ -405,7 +417,13 @@ static bool trans_divuw(DisasContext *ctx, arg_divuw *a)
     REQUIRE_EXT(ctx, RVM);
     ctx->w = true;
     return gen_arith(ctx, a, EXT_ZERO,
-                     gen_divu, gen_divu, NULL);
+                     gen_divu, gen_divu, gen_divuw_i128);
+}
+
+static void gen_remw_i128(TCGv rdl, TCGv rdh,
+                          TCGv rs1l, TCGv rs1h, TCGv rs2l, TCGv rs2h)
+{
+    gen_rem(rdl, rs1l, rs2l);
 }
 
 static bool trans_remw(DisasContext *ctx, arg_remw *a)
@@ -414,7 +432,13 @@ static bool trans_remw(DisasContext *ctx, arg_remw *a)
     REQUIRE_EXT(ctx, RVM);
     ctx->w = true;
     return gen_arith(ctx, a, EXT_SIGN,
-                     gen_rem, gen_rem, NULL);
+                     gen_rem, gen_rem, gen_remw_i128);
+}
+
+static void gen_remuw_i128(TCGv rdl, TCGv rdh,
+                           TCGv rs1l, TCGv rs1h, TCGv rs2l, TCGv rs2h)
+{
+    gen_remu(rdl, rs1l, rs2l);
 }
 
 static bool trans_remuw(DisasContext *ctx, arg_remuw *a)
@@ -423,5 +447,85 @@ static bool trans_remuw(DisasContext *ctx, arg_remuw *a)
     REQUIRE_EXT(ctx, RVM);
     ctx->w = true;
     return gen_arith(ctx, a, EXT_ZERO,
-                     gen_remu, gen_remu, NULL);
+                     gen_remu, gen_remu, gen_remuw_i128);
+}
+
+static void gen_muld_i128(TCGv rdl, TCGv rdh,
+                          TCGv rs1l, TCGv rs1h, TCGv rs2l, TCGv rs2h)
+{
+    tcg_gen_mul_tl(rdl, rs1l, rs2l);
+}
+
+static bool trans_muld(DisasContext *ctx, arg_muld *a)
+{
+    REQUIRE_128BIT(ctx);
+    REQUIRE_EXT(ctx, RVM);
+    ctx->d = true;
+
+    return gen_arith(ctx, a, EXT_SIGN,
+                     tcg_gen_mul_tl, tcg_gen_mul_tl, gen_muld_i128);
+}
+
+static void gen_divd_i128(TCGv rdl, TCGv rdh,
+                          TCGv rs1l, TCGv rs1h, TCGv rs2l, TCGv rs2h)
+{
+    gen_div(rdl, rs1l, rs2l);
+}
+
+static bool trans_divd(DisasContext *ctx, arg_divd *a)
+{
+    REQUIRE_128BIT(ctx);
+    REQUIRE_EXT(ctx, RVM);
+    ctx->d = true;
+
+    return gen_arith(ctx, a, EXT_SIGN,
+                     gen_div, gen_div, gen_divd_i128);
+}
+
+static void gen_divud_i128(TCGv rdl, TCGv rdh,
+                           TCGv rs1l, TCGv rs1h, TCGv rs2l, TCGv rs2h)
+{
+    gen_divu(rdl, rs1l, rs2l);
+}
+
+static bool trans_divud(DisasContext *ctx, arg_divud *a)
+{
+    REQUIRE_128BIT(ctx);
+    REQUIRE_EXT(ctx, RVM);
+    ctx->d = true;
+
+    return gen_arith(ctx, a, EXT_ZERO,
+                     gen_divu, gen_divu, gen_divud_i128);
+}
+
+static void gen_remd_i128(TCGv rdl, TCGv rdh,
+                          TCGv rs1l, TCGv rs1h, TCGv rs2l, TCGv rs2h)
+{
+    gen_rem(rdl, rs1l, rs2l);
+}
+
+static bool trans_remd(DisasContext *ctx, arg_remd *a)
+{
+    REQUIRE_128BIT(ctx);
+    REQUIRE_EXT(ctx, RVM);
+    ctx->d = true;
+
+    return gen_arith(ctx, a, EXT_SIGN,
+                     gen_rem, gen_rem, gen_remd_i128);
+}
+
+static void gen_remud_i128(TCGv rdl, TCGv rdh,
+                           TCGv rs1l, TCGv rs1h, TCGv rs2l, TCGv rs2h)
+{
+    gen_remu(rdl, rs1l, rs2l);
+}
+
+static bool trans_remud(DisasContext *ctx, arg_remud *a)
+{
+    REQUIRE_128BIT(ctx);
+    REQUIRE_EXT(ctx, RVM);
+    ctx->d = true;
+
+    return gen_arith(ctx, a, EXT_ZERO,
+                     gen_remu, gen_remu, gen_remud_i128);
 }
