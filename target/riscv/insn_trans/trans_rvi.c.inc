@@ -476,6 +476,56 @@ static bool trans_sq(DisasContext *ctx, arg_sq *a)
     return gen_store(ctx, a, MO_TEO);
 }
 
+static bool trans_addd(DisasContext *ctx, arg_addd *a)
+{
+    REQUIRE_128BIT(ctx);
+    TCGv src1 = get_gpr(ctx, a->rs1, EXT_NONE),
+         src2 = get_gpr(ctx, a->rs2, EXT_NONE),
+         destl = dest_gpr(ctx, a->rd),
+         desth = dest_gprh(ctx, a->rd);
+
+    ctx->d = true;
+    tcg_gen_add_tl(destl, src1, src2);
+
+    gen_set_gpr(ctx, a->rd, destl);
+    gen_set_gprh(ctx, a->rd, desth);
+
+    return true;
+}
+
+static bool trans_addid(DisasContext *ctx, arg_addid *a)
+{
+    REQUIRE_128BIT(ctx);
+    TCGv src1 = get_gpr(ctx, a->rs1, EXT_NONE),
+         destl = dest_gpr(ctx, a->rd),
+         desth = dest_gprh(ctx, a->rd);
+
+    ctx->d = true;
+    tcg_gen_addi_tl(destl, src1, a->imm);
+
+    gen_set_gpr(ctx, a->rd, destl);
+    gen_set_gprh(ctx, a->rd, desth);
+
+    return true;
+}
+
+static bool trans_subd(DisasContext *ctx, arg_subd *a)
+{
+    REQUIRE_128BIT(ctx);
+    TCGv src1 = get_gpr(ctx, a->rs1, EXT_NONE),
+         src2 = get_gpr(ctx, a->rs2, EXT_NONE),
+         destl = dest_gpr(ctx, a->rd),
+         desth = dest_gprh(ctx, a->rd);
+
+    ctx->d = true;
+    tcg_gen_sub_tl(destl, src1, src2);
+
+    gen_set_gpr(ctx, a->rd, destl);
+    gen_set_gprh(ctx, a->rd, desth);
+
+    return true;
+}
+
 static void gen_addi2_i128(TCGv retl, TCGv reth,
                            TCGv srcl, TCGv srch, target_long imm)
 {

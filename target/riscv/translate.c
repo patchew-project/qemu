@@ -68,6 +68,7 @@ typedef struct DisasContext {
        to reset this known value.  */
     int frm;
     bool w;
+    bool d;
     bool virt_enabled;
     bool ext_ifencei;
     bool hlsx;
@@ -264,7 +265,7 @@ static inline TCGv cpu_gprh_check(DisasContext *ctx, int reg_num)
 
 static TCGv get_gprh(DisasContext *ctx, int reg_num)
 {
-    if (reg_num == 0 || ctx->w) {
+    if (reg_num == 0 || ctx->w || ctx->d) {
         return ctx->zero;
     }
     return cpu_gprh_check(ctx, reg_num);
@@ -300,7 +301,7 @@ static void gen_set_gpr(DisasContext *ctx, int reg_num, TCGv t)
 static void gen_set_gprh(DisasContext *ctx, int reg_num, TCGv t)
 {
     if (reg_num != 0) {
-        if (ctx->w) {
+        if (ctx->w || ctx->d) {
             tcg_gen_sari_tl(cpu_gprh_check(ctx, reg_num), cpu_gpr[reg_num], 63);
         } else {
             tcg_gen_mov_tl(cpu_gprh_check(ctx, reg_num), t);
@@ -699,7 +700,10 @@ static bool gen_shift(DisasContext *ctx, arg_r *a, DisasExtend ext,
              desth = tcg_temp_new(),
              shamt = tcg_temp_new();
 
-        tcg_gen_andi_tl(shamt, src2l, !ctx->w << 5 | 0x1f);
+        tcg_gen_andi_tl(shamt, src2l,
+                        (!(ctx->d ^ ctx->w) << 6)
+                        | ((ctx->d | !ctx->w) << 5)
+                        | 0x1f);
         fn128(destl, desth, src1l, src1h, shamt);
 
         gen_set_gpr(ctx, a->rd, destl);
@@ -804,6 +808,7 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->vl_eq_vlmax = FIELD_EX32(tb_flags, TB_FLAGS, VL_EQ_VLMAX);
     ctx->cs = cs;
     ctx->w = false;
+    ctx->d = false;
     ctx->ntemp = 0;
     memset(ctx->temp, 0, sizeof(ctx->temp));
 
@@ -830,6 +835,7 @@ static void riscv_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     decode_opc(env, ctx, opcode16);
     ctx->base.pc_next = ctx->pc_succ_insn;
     ctx->w = false;
+    ctx->d = false;
 
     for (int i = ctx->ntemp - 1; i >= 0; --i) {
         tcg_temp_free(ctx->temp[i]);
