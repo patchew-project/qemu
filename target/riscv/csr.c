@@ -461,6 +461,12 @@ static const char valid_vm_1_10_64[16] = {
     [VM_1_10_SV57] = 1
 };
 
+static const bool valid_vm_1_10_128[16] = {
+    [VM_1_10_MBARE] = 1,
+    [VM_1_10_SV44] = 1,
+    [VM_1_10_SV54] = 1
+};
+
 /* Machine Information Registers */
 static RISCVException read_zero_i128(CPURISCVState *env, int csrno,
                                     Int128 *val)
@@ -557,8 +563,12 @@ static int validate_vm(CPURISCVState *env, target_ulong vm)
 {
     if (riscv_cpu_is_32bit(env)) {
         return valid_vm_1_10_32[vm & 0xf];
-    } else {
+    } else if (riscv_cpu_is_64bit(env)) {
         return valid_vm_1_10_64[vm & 0xf];
+    } else if (riscv_cpu_is_128bit(env)) {
+        return valid_vm_1_10_128[vm & 0xf];
+    } else {
+        return 0;
     }
 }
 
@@ -1090,6 +1100,67 @@ static RISCVException rmw_sip(CPURISCVState *env, int csrno,
 }
 
 /* Supervisor Protection and Translation */
+static RISCVException read_satp_i128(CPURISCVState *env, int csrno,
+                                    Int128 *val)
+{
+    if (!riscv_feature(env, RISCV_FEATURE_MMU)) {
+        *val = int128_zero();
+        return RISCV_EXCP_NONE;
+    }
+
+    if (env->priv == PRV_S && get_field(env->mstatus, MSTATUS_TVM)) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    } else {
+        *val = int128_make128(env->satp, env->satph);
+    }
+
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_satp_i128(CPURISCVState *env, int csrno,
+                                     Int128 val)
+{
+    uint32_t asid;
+    bool vm_ok;
+    Int128 mask;
+
+    if (!riscv_feature(env, RISCV_FEATURE_MMU)) {
+        return RISCV_EXCP_NONE;
+    }
+
+    if (riscv_cpu_is_32bit(env)) {
+        vm_ok = validate_vm(env, get_field(int128_getlo(val), SATP32_MODE));
+        mask = int128_make64((int128_getlo(val) ^ env->satp)
+                           & (SATP32_MODE | SATP32_ASID | SATP32_PPN));
+        asid = (int128_getlo(val) ^ env->satp) & SATP32_ASID;
+    } else if (riscv_cpu_is_64bit(env)) {
+        vm_ok = validate_vm(env, get_field(int128_getlo(val), SATP64_MODE));
+        mask = int128_make64((int128_getlo(val) ^ env->satp)
+                           & (SATP64_MODE | SATP64_ASID | SATP64_PPN));
+        asid = (int128_getlo(val) ^ env->satp) & SATP64_ASID;
+    } else {
+        vm_ok = validate_vm(env, get_field(int128_gethi(val), SATP128_HMODE));
+        mask = int128_and(
+                   int128_xor(val, int128_make128(env->satp, env->satph)),
+                   int128_make128(SATP128_LPPN, SATP128_HMODE | SATP128_HASID));
+        asid = (int128_gethi(val) ^ env->satph) & SATP128_HASID;
+    }
+
+
+    if (vm_ok && int128_nz(mask)) {
+        if (env->priv == PRV_S && get_field(env->mstatus, MSTATUS_TVM)) {
+            return RISCV_EXCP_ILLEGAL_INST;
+        } else {
+            if (asid) {
+                tlb_flush(env_cpu(env));
+            }
+            env->satp = int128_getlo(val);
+            env->satph = int128_gethi(val);
+        }
+    }
+    return RISCV_EXCP_NONE;
+}
+
 static RISCVException read_satp(CPURISCVState *env, int csrno,
                                 target_ulong *val)
 {
@@ -1624,7 +1695,7 @@ static inline RISCVException riscv_csrrw_check_i128(CPURISCVState *env,
     /* check privileges and return -1 if check fails */
 #if !defined(CONFIG_USER_ONLY)
     int effective_priv = env->priv;
-    int read_only = get_field(csrno, 0xc00) == 3;
+    int read_only = get_field(csrno, 0xC00) == 3;
 
     if (riscv_has_ext(env, RVH) &&
         env->priv == PRV_S &&
@@ -1765,7 +1836,7 @@ riscv_csr_operations128 csr_ops_128[CSR_TABLE_SIZE] = {
     [CSR_MSCRATCH]   = { read_mscratch_i128, write_mscratch_i128 },
     [CSR_MEPC]       = { read_mepc_i128,     write_mepc_i128     },
 
-    [CSR_SATP]       = { read_zero_i128    },
+    [CSR_SATP]       = { read_satp_i128,     write_satp_i128     },
 #endif
 };
 

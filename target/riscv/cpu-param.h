@@ -19,10 +19,15 @@
 #else
 /* 64-bit target, since QEMU isn't built to have TARGET_LONG_BITS over 64 */
 # define TARGET_LONG_BITS 64
-# define TARGET_PHYS_ADDR_SPACE_BITS 56 /* 44-bit PPN */
-# define TARGET_VIRT_ADDR_SPACE_BITS 48 /* sv48 */
+# define TARGET_PHYS_ADDR_SPACE_BITS 64 /* 54-bit PPN */
+# define TARGET_VIRT_ADDR_SPACE_BITS 44 /* sv44 */
 #endif
+
+#if defined(TARGET_RISCV32) || defined(TARGET_RISCV64)
 #define TARGET_PAGE_BITS 12 /* 4 KiB Pages */
+#else
+#define TARGET_PAGE_BITS 14 /* 16 KiB pages for RV128 */
+#endif
 /*
  * The current MMU Modes are:
  *  - U mode 0b000
