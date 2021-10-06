@@ -183,19 +183,19 @@ static bool nvme_init_queue(BDRVNVMeState *s, NVMeQueue *q,
     return r == 0;
 }
 
-static void nvme_free_queue(NVMeQueue *q)
+static void nvme_free_queue(BDRVNVMeState *s, NVMeQueue *q)
 {
     qemu_vfree(q->queue);
 }
 
-static void nvme_free_queue_pair(NVMeQueuePair *q)
+static void nvme_free_queue_pair(BDRVNVMeState *s, NVMeQueuePair *q)
 {
     trace_nvme_free_queue_pair(q->index, q, &q->cq, &q->sq);
     if (q->completion_bh) {
         qemu_bh_delete(q->completion_bh);
     }
-    nvme_free_queue(&q->sq);
-    nvme_free_queue(&q->cq);
+    nvme_free_queue(s, &q->sq);
+    nvme_free_queue(s, &q->cq);
     qemu_vfree(q->prp_list_pages);
     qemu_mutex_destroy(&q->lock);
     g_free(q);
@@ -270,7 +270,7 @@ static NVMeQueuePair *nvme_create_queue_pair(BDRVNVMeState *s,
 
     return q;
 fail:
-    nvme_free_queue_pair(q);
+    nvme_free_queue_pair(s, q);
     return NULL;
 }
 
@@ -693,7 +693,7 @@ static bool nvme_add_io_queue(BlockDriverState *bs, Error **errp)
     s->queue_count++;
     return true;
 out_error:
-    nvme_free_queue_pair(q);
+    nvme_free_queue_pair(s, q);
     return false;
 }
 
@@ -918,7 +918,7 @@ static void nvme_close(BlockDriverState *bs)
     BDRVNVMeState *s = bs->opaque;
 
     for (unsigned i = 0; i < s->queue_count; ++i) {
-        nvme_free_queue_pair(s->queues[i]);
+        nvme_free_queue_pair(s, s->queues[i]);
     }
     g_free(s->queues);
     aio_set_event_notifier(bdrv_get_aio_context(bs),
