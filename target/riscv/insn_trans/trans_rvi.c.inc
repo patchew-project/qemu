@@ -136,7 +136,7 @@ static bool trans_bgeu(DisasContext *ctx, arg_bgeu *a)
     return gen_branch(ctx, a, TCG_COND_GEU);
 }
 
-static bool gen_load(DisasContext *ctx, arg_lb *a, MemOp memop)
+static bool gen_load_tl(DisasContext *ctx, arg_lb *a, MemOp memop)
 {
     TCGv dest = dest_gpr(ctx, a->rd);
     TCGv addr = get_gpr(ctx, a->rs1, EXT_NONE);
@@ -150,6 +150,11 @@ static bool gen_load(DisasContext *ctx, arg_lb *a, MemOp memop)
     tcg_gen_qemu_ld_tl(dest, addr, ctx->mem_idx, memop);
     gen_set_gpr(ctx, a->rd, dest);
     return true;
+}
+
+static bool gen_load(DisasContext *ctx, arg_lb *a, MemOp memop)
+{
+    return gen_load_tl(ctx, a, memop);
 }
 
 static bool trans_lb(DisasContext *ctx, arg_lb *a)
@@ -189,7 +194,7 @@ static bool trans_ld(DisasContext *ctx, arg_ld *a)
     return gen_load(ctx, a, MO_TEQ);
 }
 
-static bool gen_store(DisasContext *ctx, arg_sb *a, MemOp memop)
+static bool gen_store_tl(DisasContext *ctx, arg_sb *a, MemOp memop)
 {
     TCGv addr = get_gpr(ctx, a->rs1, EXT_NONE);
     TCGv data = get_gpr(ctx, a->rs2, EXT_NONE);
@@ -202,6 +207,11 @@ static bool gen_store(DisasContext *ctx, arg_sb *a, MemOp memop)
 
     tcg_gen_qemu_st_tl(data, addr, ctx->mem_idx, memop);
     return true;
+}
+
+static bool gen_store(DisasContext *ctx, arg_sb *a, MemOp memop)
+{
+    return gen_store_tl(ctx, a, memop);
 }
 
 static bool trans_sb(DisasContext *ctx, arg_sb *a)
@@ -231,12 +241,12 @@ static bool trans_addi(DisasContext *ctx, arg_addi *a)
                             tcg_gen_addi_tl, tcg_gen_addi_tl, NULL);
 }
 
-static void gen_slt(TCGv ret, TCGv s1, TCGv s2)
+static void gen_slt_tl(TCGv ret, TCGv s1, TCGv s2)
 {
     tcg_gen_setcond_tl(TCG_COND_LT, ret, s1, s2);
 }
 
-static void gen_sltu(TCGv ret, TCGv s1, TCGv s2)
+static void gen_sltu_tl(TCGv ret, TCGv s1, TCGv s2)
 {
     tcg_gen_setcond_tl(TCG_COND_LTU, ret, s1, s2);
 }
@@ -244,13 +254,13 @@ static void gen_sltu(TCGv ret, TCGv s1, TCGv s2)
 static bool trans_slti(DisasContext *ctx, arg_slti *a)
 {
     return gen_arith_imm_tl(ctx, a, EXT_SIGN,
-                            gen_slt, gen_slt, NULL);
+                            gen_slt_lt, gen_slt_lt, NULL);
 }
 
 static bool trans_sltiu(DisasContext *ctx, arg_sltiu *a)
 {
     return gen_arith_imm_tl(ctx, a, EXT_SIGN,
-                            gen_sltu, gen_sltu, NULL);
+                            gen_sltu_lt, gen_sltu_lt, NULL);
 }
 
 static bool trans_xori(DisasContext *ctx, arg_xori *a)
@@ -306,12 +316,12 @@ static bool trans_sll(DisasContext *ctx, arg_sll *a)
 
 static bool trans_slt(DisasContext *ctx, arg_slt *a)
 {
-    return gen_arith(ctx, a, EXT_SIGN, gen_slt, gen_slt, NULL);
+    return gen_arith(ctx, a, EXT_SIGN, gen_slt_lt, gen_slt_lt, NULL);
 }
 
 static bool trans_sltu(DisasContext *ctx, arg_sltu *a)
 {
-    return gen_arith(ctx, a, EXT_SIGN, gen_sltu, gen_sltu, NULL);
+    return gen_arith(ctx, a, EXT_SIGN, gen_sltu_lt, gen_sltu_lt, NULL);
 }
 
 static bool trans_srl(DisasContext *ctx, arg_srl *a)
@@ -353,7 +363,7 @@ static bool trans_slliw(DisasContext *ctx, arg_slliw *a)
     return gen_shift_imm_fn(ctx, a, EXT_NONE, NULL, tcg_gen_shli_tl, NULL);
 }
 
-static void gen_srliw(TCGv dst, TCGv src, target_long shamt)
+static void gen_srliw_tl(TCGv dst, TCGv src, target_long shamt)
 {
     tcg_gen_extract_tl(dst, src, shamt, 32 - shamt);
 }
@@ -362,10 +372,10 @@ static bool trans_srliw(DisasContext *ctx, arg_srliw *a)
 {
     REQUIRE_64BIT(ctx);
     ctx->w = true;
-    return gen_shift_imm_fn(ctx, a, EXT_NONE, NULL, gen_srliw, NULL);
+    return gen_shift_imm_fn(ctx, a, EXT_NONE, NULL, gen_srliw_tl, NULL);
 }
 
-static void gen_sraiw(TCGv dst, TCGv src, target_long shamt)
+static void gen_sraiw_tl(TCGv dst, TCGv src, target_long shamt)
 {
     tcg_gen_sextract_tl(dst, src, shamt, 32 - shamt);
 }
@@ -374,7 +384,7 @@ static bool trans_sraiw(DisasContext *ctx, arg_sraiw *a)
 {
     REQUIRE_64BIT(ctx);
     ctx->w = true;
-    return gen_shift_imm_fn(ctx, a, EXT_NONE, NULL, gen_sraiw, NULL);
+    return gen_shift_imm_fn(ctx, a, EXT_NONE, NULL, gen_sraiw_tl, NULL);
 }
 
 static bool trans_addw(DisasContext *ctx, arg_addw *a)
