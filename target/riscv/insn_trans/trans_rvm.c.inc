@@ -235,6 +235,15 @@ static bool trans_mulhu(DisasContext *ctx, arg_mulhu *a)
                      gen_mulhu, gen_mulhu, gen_mulhu_i128);
 }
 
+static void gen_div_i128(TCGv rdl, TCGv rdh,
+                         TCGv rs1l, TCGv rs1h, TCGv rs2l, TCGv rs2h)
+{
+    gen_helper_divs_i128(cpu_env, (TCGv_i64)rs1l, (TCGv_i64)rs1h,
+                                  (TCGv_i64)rs2l, (TCGv_i64)rs2h);
+    tcg_gen_mov_tl(rdl, cpu_hlpr[0]);
+    tcg_gen_mov_tl(rdh, cpu_hlpr[1]);
+}
+
 static void gen_div(TCGv ret, TCGv source1, TCGv source2)
 {
     TCGv temp1, temp2, zero, one, mone, min;
@@ -272,7 +281,16 @@ static bool trans_div(DisasContext *ctx, arg_div *a)
 {
     REQUIRE_EXT(ctx, RVM);
     return gen_arith(ctx, a, EXT_SIGN,
-                     gen_div, gen_div, NULL);
+                     gen_div, gen_div, gen_div_i128);
+}
+
+static void gen_divu_i128(TCGv rdl, TCGv rdh,
+                          TCGv rs1l, TCGv rs1h, TCGv rs2l, TCGv rs2h)
+{
+    gen_helper_divu_i128(cpu_env, (TCGv_i64)rs1l, (TCGv_i64)rs1h,
+                                  (TCGv_i64)rs2l, (TCGv_i64)rs2h);
+    tcg_gen_mov_tl(rdl, cpu_hlpr[0]);
+    tcg_gen_mov_tl(rdh, cpu_hlpr[1]);
 }
 
 static void gen_divu(TCGv ret, TCGv source1, TCGv source2)
@@ -301,7 +319,16 @@ static bool trans_divu(DisasContext *ctx, arg_divu *a)
 {
     REQUIRE_EXT(ctx, RVM);
     return gen_arith(ctx, a, EXT_ZERO,
-                     gen_divu, gen_divu, NULL);
+                     gen_divu, gen_divu, gen_divu_i128);
+}
+
+static void gen_rem_i128(TCGv rdl, TCGv rdh,
+                         TCGv rs1l, TCGv rs1h, TCGv rs2l, TCGv rs2h)
+{
+    gen_helper_rems_i128(cpu_env, (TCGv_i64)rs1l, (TCGv_i64)rs1h,
+                                  (TCGv_i64)rs2l, (TCGv_i64)rs2h);
+    tcg_gen_mov_tl(rdl, cpu_hlpr[0]);
+    tcg_gen_mov_tl(rdh, cpu_hlpr[1]);
 }
 
 static void gen_rem(TCGv ret, TCGv source1, TCGv source2)
@@ -343,7 +370,16 @@ static bool trans_rem(DisasContext *ctx, arg_rem *a)
 {
     REQUIRE_EXT(ctx, RVM);
     return gen_arith(ctx, a, EXT_SIGN,
-                     gen_rem, gen_rem, NULL);
+                     gen_rem, gen_rem, gen_rem_i128);
+}
+
+static void gen_remu_i128(TCGv rdl, TCGv rdh,
+                          TCGv rs1l, TCGv rs1h, TCGv rs2l, TCGv rs2h)
+{
+    gen_helper_remu_i128(cpu_env, (TCGv_i64)rs1l, (TCGv_i64)rs1h,
+                                  (TCGv_i64)rs2l, (TCGv_i64)rs2h);
+    tcg_gen_mov_tl(rdl, cpu_hlpr[0]);
+    tcg_gen_mov_tl(rdh, cpu_hlpr[1]);
 }
 
 static void gen_remu(TCGv ret, TCGv source1, TCGv source2)
@@ -372,7 +408,7 @@ static bool trans_remu(DisasContext *ctx, arg_remu *a)
 {
     REQUIRE_EXT(ctx, RVM);
     return gen_arith(ctx, a, EXT_ZERO,
-                     gen_remu, gen_remu, NULL);
+                     gen_remu, gen_remu, gen_remu_i128);
 }
 
 static void gen_mulw_i128(TCGv rdl, TCGv rdh,
