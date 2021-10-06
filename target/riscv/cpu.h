@@ -510,6 +510,15 @@ RISCVException riscv_csrrw_i128(CPURISCVState *env, int csrno,
                                 Int128 *ret_value,
                                 Int128 new_value, Int128 write_mask);
 
+typedef RISCVException (*riscv_csr_read128_fn)(CPURISCVState *env, int csrno,
+                                               Int128 *ret_value);
+typedef RISCVException (*riscv_csr_write128_fn)(CPURISCVState *env, int csrno,
+                                             Int128 new_value);
+typedef RISCVException (*riscv_csr_op128_fn)(CPURISCVState *env, int csrno,
+                                             Int128 *ret_value,
+                                             Int128 new_value,
+                                             Int128 write_mask);
+
 typedef struct {
     const char *name;
     riscv_csr_predicate_fn predicate;
@@ -518,6 +527,12 @@ typedef struct {
     riscv_csr_op_fn op;
 } riscv_csr_operations;
 
+typedef struct {
+    riscv_csr_read128_fn read128;
+    riscv_csr_write128_fn write128;
+    riscv_csr_op128_fn op128;
+} riscv_csr_operations128;
+
 /* CSR function table constants */
 enum {
     CSR_TABLE_SIZE = 0x1000
@@ -525,6 +540,7 @@ enum {
 
 /* CSR function table */
 extern riscv_csr_operations csr_ops[CSR_TABLE_SIZE];
+extern riscv_csr_operations128 csr_ops_128[CSR_TABLE_SIZE];
 
 void riscv_get_csr_ops(int csrno, riscv_csr_operations *ops);
 void riscv_set_csr_ops(int csrno, riscv_csr_operations *ops);
