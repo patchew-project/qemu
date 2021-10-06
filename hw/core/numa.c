@@ -594,7 +594,7 @@ static void validate_numa_distance(MachineState *ms)
     }
 }
 
-static void complete_init_numa_distance(MachineState *ms)
+static void complete_init_numa_distance(MachineState *ms, bool is_default)
 {
     int src, dst;
     NodeInfo *numa_info = ms->numa_state->nodes;
@@ -609,6 +609,8 @@ static void complete_init_numa_distance(MachineState *ms)
             if (numa_info[src].distance[dst] == 0) {
                 if (src == dst) {
                     numa_info[src].distance[dst] = NUMA_DISTANCE_MIN;
+                } else if (is_default) {
+                    numa_info[src].distance[dst] = NUMA_DISTANCE_DEFAULT;
                 } else {
                     numa_info[src].distance[dst] = numa_info[dst].distance[src];
                 }
@@ -716,13 +718,20 @@ void numa_complete_configuration(MachineState *ms)
          * A->B != distance B->A, then that means the distance table is
          * asymmetric. In this case, the distances for both directions
          * of all node pairs are required.
+         *
+         * The default node pair distances, which are 10 and 20 for the
+         * local and remote nodes separatly, are provided if user doesn't
+         * specify any node pair distances.
          */
         if (ms->numa_state->have_numa_distance) {
             /* Validate enough NUMA distance information was provided. */
             validate_numa_distance(ms);
 
             /* Validation succeeded, now fill in any missing distances. */
-            complete_init_numa_distance(ms);
+            complete_init_numa_distance(ms, false);
+        } else {
+            complete_init_numa_distance(ms, true);
+            ms->numa_state->have_numa_distance = true;
         }
     }
 }
