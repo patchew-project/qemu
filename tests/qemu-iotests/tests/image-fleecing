@@ -30,23 +30,27 @@ iotests.script_initialize(
     supported_platforms=['linux'],
 )
 
-patterns = [('0x5d', '0',         '64k'),
-            ('0xd5', '1M',        '64k'),
-            ('0xdc', '32M',       '64k'),
-            ('0xcd', '0x3ff0000', '64k')]  # 64M - 64K
+# Each string in patterns, overwrite and remainder is formatted in such way
+# for readability. Using a 3-tuple will make pylint trigger
+# "bad-whitespace" when we try to format it in the same way
+# The testing code will take care of splitting it properly.
+patterns = ['0x5d 0         64k',
+            '0xd5 1M        64k',
+            '0xdc 32M       64k',
+            '0xcd 0x3ff0000 64k']  # 64M - 64K
 
-overwrite = [('0xab', '0',         '64k'), # Full overwrite
-             ('0xad', '0x00f8000', '64k'), # Partial-left (1M-32K)
-             ('0x1d', '0x2008000', '64k'), # Partial-right (32M+32K)
-             ('0xea', '0x3fe0000', '64k')] # Adjacent-left (64M - 128K)
+overwrite = ['0xab 0         64k', # Full overwrite
+             '0xad 0x00f8000 64k', # Partial-left (1M-32K)
+             '0x1d 0x2008000 64k', # Partial-right (32M+32K)
+             '0xea 0x3fe0000 64k'] # Adjacent-left (64M - 128K)
 
-zeroes = [('0', '0x00f8000', '32k'), # Left-end of partial-left (1M-32K)
-          ('0', '0x2010000', '32k'), # Right-end of partial-right (32M+64K)
-          ('0', '0x3fe0000', '64k')] # overwrite[3]
+zeroes = ['0 0x00f8000 32k', # Left-end of partial-left (1M-32K)
+          '0 0x2010000 32k', # Right-end of partial-right (32M+64K)
+          '0 0x3fe0000 64k'] # overwrite[3]
 
-remainder = [('0xd5', '0x108000',  '32k'), # Right-end of partial-left [1]
-             ('0xdc', '32M',       '32k'), # Left-end of partial-right [2]
-             ('0xcd', '0x3ff0000', '64k')] # patterns[3]
+remainder = ['0xd5 0x108000  32k', # Right-end of partial-left [1]
+             '0xdc 32M       32k', # Left-end of partial-right [2]
+             '0xcd 0x3ff0000 64k'] # patterns[3]
 
 def do_test(use_cbw, base_img_path, fleece_img_path, nbd_sock_path, vm):
     log('--- Setting up images ---')
@@ -56,6 +60,7 @@ def do_test(use_cbw, base_img_path, fleece_img_path, nbd_sock_path, vm):
     assert qemu_img('create', '-f', 'qcow2', fleece_img_path, '64M') == 0
 
     for p in patterns:
+        p = tuple(p.split())
         qemu_io('-f', iotests.imgfmt,
                 '-c', 'write -P%s %s %s' % p, base_img_path)
 
@@ -124,6 +129,7 @@ def do_test(use_cbw, base_img_path, fleece_img_path, nbd_sock_path, vm):
     log('')
 
     for p in patterns + zeroes:
+        p = tuple(p.split())
         cmd = 'read -P%s %s %s' % p
         log(cmd)
         assert qemu_io_silent('-r', '-f', 'raw', '-c', cmd, nbd_uri) == 0
@@ -133,6 +139,7 @@ def do_test(use_cbw, base_img_path, fleece_img_path, nbd_sock_path, vm):
     log('')
 
     for p in overwrite:
+        p = tuple(p.split())
         cmd = 'write -P%s %s %s' % p
         log(cmd)
         log(vm.hmp_qemu_io(qom_path, cmd, qdev=True))
@@ -142,6 +149,7 @@ def do_test(use_cbw, base_img_path, fleece_img_path, nbd_sock_path, vm):
     log('')
 
     for p in patterns + zeroes:
+        p = tuple(p.split())
         cmd = 'read -P%s %s %s' % p
         log(cmd)
         assert qemu_io_silent('-r', '-f', 'raw', '-c', cmd, nbd_uri) == 0
@@ -168,6 +176,7 @@ def do_test(use_cbw, base_img_path, fleece_img_path, nbd_sock_path, vm):
     log('')
 
     for p in overwrite + remainder:
+        p = tuple(p.split())
         cmd = 'read -P%s %s %s' % p
         log(cmd)
         assert qemu_io_silent(base_img_path, '-c', cmd) == 0
