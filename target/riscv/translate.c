@@ -502,21 +502,41 @@ static bool gen_arith(DisasContext *ctx, arg_r *a, DisasExtend ext,
 }
 
 static bool gen_shift_imm_fn(DisasContext *ctx, arg_shift *a, DisasExtend ext,
-                             void (*func)(TCGv, TCGv, target_long))
+                             void (*fn32)(TCGv, TCGv, target_long),
+                             void (*fn64)(TCGv, TCGv, target_long),
+                             void (*fn128)(TCGv, TCGv, TCGv, TCGv, target_long))
 {
-    TCGv dest, src1;
-    int max_len = oper_len(ctx);
+    if (is_32bit(ctx)) {
+        TCGv dest, src1;
+        int max_len = oper_len(ctx);
 
-    if (a->shamt >= max_len) {
+        if (a->shamt >= max_len) {
+            return false;
+        }
+
+        dest = dest_gpr(ctx, a->rd);
+        src1 = get_gpr(ctx, a->rs1, ext);
+
+        fn32(dest, src1, a->shamt);
+
+        gen_set_gpr(ctx, a->rd, dest);
+    } else if (is_64bit(ctx)) {
+        TCGv dest, src1;
+        int max_len = oper_len(ctx);
+
+        if (a->shamt >= max_len) {
+            return false;
+        }
+
+        dest = dest_gpr(ctx, a->rd);
+        src1 = get_gpr(ctx, a->rs1, ext);
+
+        fn64(dest, src1, a->shamt);
+
+        gen_set_gpr(ctx, a->rd, dest);
+    } else {
         return false;
     }
-
-    dest = dest_gpr(ctx, a->rd);
-    src1 = get_gpr(ctx, a->rs1, ext);
-
-    func(dest, src1, a->shamt);
-
-    gen_set_gpr(ctx, a->rd, dest);
     return true;
 }
 
@@ -541,18 +561,35 @@ static bool gen_shift_imm_tl(DisasContext *ctx, arg_shift *a, DisasExtend ext,
 }
 
 static bool gen_shift(DisasContext *ctx, arg_r *a, DisasExtend ext,
-                      void (*func)(TCGv, TCGv, TCGv))
+                             void (*fn32)(TCGv, TCGv, TCGv),
+                             void (*fn64)(TCGv, TCGv, TCGv),
+                             void (*fn128)(TCGv, TCGv, TCGv, TCGv, TCGv))
 {
-    TCGv dest = dest_gpr(ctx, a->rd);
-    TCGv src1 = get_gpr(ctx, a->rs1, ext);
-    TCGv src2 = get_gpr(ctx, a->rs2, EXT_NONE);
-    TCGv ext2 = tcg_temp_new();
+    if (is_32bit(ctx)) {
+        TCGv dest = dest_gpr(ctx, a->rd);
+        TCGv src1 = get_gpr(ctx, a->rs1, ext);
+        TCGv src2 = get_gpr(ctx, a->rs2, EXT_NONE);
+        TCGv ext2 = tcg_temp_new();
 
-    tcg_gen_andi_tl(ext2, src2, oper_len(ctx) - 1);
-    func(dest, src1, ext2);
+        tcg_gen_andi_tl(ext2, src2, oper_len(ctx) - 1);
+        fn32(dest, src1, ext2);
 
-    gen_set_gpr(ctx, a->rd, dest);
-    tcg_temp_free(ext2);
+        gen_set_gpr(ctx, a->rd, dest);
+        tcg_temp_free(ext2);
+    } else if (is_64bit(ctx)) {
+        TCGv dest = dest_gpr(ctx, a->rd);
+        TCGv src1 = get_gpr(ctx, a->rs1, ext);
+        TCGv src2 = get_gpr(ctx, a->rs2, EXT_NONE);
+        TCGv ext2 = tcg_temp_new();
+
+        tcg_gen_andi_tl(ext2, src2, oper_len(ctx) - 1);
+        fn64(dest, src1, ext2);
+
+        gen_set_gpr(ctx, a->rd, dest);
+        tcg_temp_free(ext2);
+    } else {
+        return false;
+    }
     return true;
 }
 

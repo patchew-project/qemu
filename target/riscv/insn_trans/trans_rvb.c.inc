@@ -160,7 +160,7 @@ static void gen_bset(TCGv ret, TCGv arg1, TCGv shamt)
 static bool trans_bset(DisasContext *ctx, arg_bset *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shift(ctx, a, EXT_NONE, gen_bset);
+    return gen_shift(ctx, a, EXT_NONE, gen_bset, gen_bset, NULL);
 }
 
 static bool trans_bseti(DisasContext *ctx, arg_bseti *a)
@@ -182,7 +182,7 @@ static void gen_bclr(TCGv ret, TCGv arg1, TCGv shamt)
 static bool trans_bclr(DisasContext *ctx, arg_bclr *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shift(ctx, a, EXT_NONE, gen_bclr);
+    return gen_shift(ctx, a, EXT_NONE, gen_bclr, gen_bclr, NULL);
 }
 
 static bool trans_bclri(DisasContext *ctx, arg_bclri *a)
@@ -204,7 +204,7 @@ static void gen_binv(TCGv ret, TCGv arg1, TCGv shamt)
 static bool trans_binv(DisasContext *ctx, arg_binv *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shift(ctx, a, EXT_NONE, gen_binv);
+    return gen_shift(ctx, a, EXT_NONE, gen_binv, gen_binv, NULL);
 }
 
 static bool trans_binvi(DisasContext *ctx, arg_binvi *a)
@@ -222,7 +222,7 @@ static void gen_bext(TCGv ret, TCGv arg1, TCGv shamt)
 static bool trans_bext(DisasContext *ctx, arg_bext *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shift(ctx, a, EXT_NONE, gen_bext);
+    return gen_shift(ctx, a, EXT_NONE, gen_bext, gen_bext, NULL);
 }
 
 static bool trans_bexti(DisasContext *ctx, arg_bexti *a)
@@ -241,7 +241,7 @@ static void gen_slo(TCGv ret, TCGv arg1, TCGv arg2)
 static bool trans_slo(DisasContext *ctx, arg_slo *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shift(ctx, a, EXT_NONE, gen_slo);
+    return gen_shift(ctx, a, EXT_NONE, gen_slo, gen_slo, NULL);
 }
 
 static bool trans_sloi(DisasContext *ctx, arg_sloi *a)
@@ -260,7 +260,7 @@ static void gen_sro(TCGv ret, TCGv arg1, TCGv arg2)
 static bool trans_sro(DisasContext *ctx, arg_sro *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shift(ctx, a, EXT_ZERO, gen_sro);
+    return gen_shift(ctx, a, EXT_ZERO, gen_sro, gen_sro, NULL);
 }
 
 static bool trans_sroi(DisasContext *ctx, arg_sroi *a)
@@ -272,25 +272,26 @@ static bool trans_sroi(DisasContext *ctx, arg_sroi *a)
 static bool trans_ror(DisasContext *ctx, arg_ror *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shift(ctx, a, EXT_NONE, tcg_gen_rotr_tl);
+    return gen_shift(ctx, a, EXT_NONE, tcg_gen_rotr_tl, tcg_gen_rotr_tl, NULL);
 }
 
 static bool trans_rori(DisasContext *ctx, arg_rori *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shift_imm_fn(ctx, a, EXT_NONE, tcg_gen_rotri_tl);
+    return gen_shift_imm_fn(ctx, a, EXT_NONE,
+                            tcg_gen_rotri_tl, tcg_gen_rotri_tl, NULL);
 }
 
 static bool trans_rol(DisasContext *ctx, arg_rol *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shift(ctx, a, EXT_NONE, tcg_gen_rotl_tl);
+    return gen_shift(ctx, a, EXT_NONE, tcg_gen_rotl_tl, tcg_gen_rotl_tl, NULL);
 }
 
 static bool trans_grev(DisasContext *ctx, arg_grev *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shift(ctx, a, EXT_NONE, gen_helper_grev);
+    return gen_shift(ctx, a, EXT_NONE, gen_helper_grev, gen_helper_grev, NULL);
 }
 
 static void gen_grevi(TCGv dest, TCGv src, target_long shamt)
@@ -306,13 +307,13 @@ static void gen_grevi(TCGv dest, TCGv src, target_long shamt)
 static bool trans_grevi(DisasContext *ctx, arg_grevi *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shift_imm_fn(ctx, a, EXT_NONE, gen_grevi);
+    return gen_shift_imm_fn(ctx, a, EXT_NONE, gen_grevi, gen_grevi, NULL);
 }
 
 static bool trans_gorc(DisasContext *ctx, arg_gorc *a)
 {
     REQUIRE_EXT(ctx, RVB);
-    return gen_shift(ctx, a, EXT_ZERO, gen_helper_gorc);
+    return gen_shift(ctx, a, EXT_ZERO, gen_helper_gorc, gen_helper_gorc, NULL);
 }
 
 static bool trans_gorci(DisasContext *ctx, arg_gorci *a)
@@ -418,7 +419,7 @@ static bool trans_bsetw(DisasContext *ctx, arg_bsetw *a)
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
     ctx->w = true;
-    return gen_shift(ctx, a, EXT_NONE, gen_bset);
+    return gen_shift(ctx, a, EXT_NONE, NULL, gen_bset, NULL);
 }
 
 static bool trans_bsetiw(DisasContext *ctx, arg_bsetiw *a)
@@ -434,7 +435,7 @@ static bool trans_bclrw(DisasContext *ctx, arg_bclrw *a)
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
     ctx->w = true;
-    return gen_shift(ctx, a, EXT_NONE, gen_bclr);
+    return gen_shift(ctx, a, EXT_NONE, NULL, gen_bclr, NULL);
 }
 
 static bool trans_bclriw(DisasContext *ctx, arg_bclriw *a)
@@ -450,7 +451,7 @@ static bool trans_binvw(DisasContext *ctx, arg_binvw *a)
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
     ctx->w = true;
-    return gen_shift(ctx, a, EXT_NONE, gen_binv);
+    return gen_shift(ctx, a, EXT_NONE, NULL, gen_binv, NULL);
 }
 
 static bool trans_binviw(DisasContext *ctx, arg_binviw *a)
@@ -466,7 +467,7 @@ static bool trans_bextw(DisasContext *ctx, arg_bextw *a)
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
     ctx->w = true;
-    return gen_shift(ctx, a, EXT_NONE, gen_bext);
+    return gen_shift(ctx, a, EXT_NONE, NULL, gen_bext, NULL);
 }
 
 static bool trans_slow(DisasContext *ctx, arg_slow *a)
@@ -474,7 +475,7 @@ static bool trans_slow(DisasContext *ctx, arg_slow *a)
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
     ctx->w = true;
-    return gen_shift(ctx, a, EXT_NONE, gen_slo);
+    return gen_shift(ctx, a, EXT_NONE, NULL, gen_slo, NULL);
 }
 
 static bool trans_sloiw(DisasContext *ctx, arg_sloiw *a)
@@ -490,7 +491,7 @@ static bool trans_srow(DisasContext *ctx, arg_srow *a)
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
     ctx->w = true;
-    return gen_shift(ctx, a, EXT_ZERO, gen_sro);
+    return gen_shift(ctx, a, EXT_ZERO, NULL, gen_sro, NULL);
 }
 
 static bool trans_sroiw(DisasContext *ctx, arg_sroiw *a)
@@ -524,7 +525,7 @@ static bool trans_rorw(DisasContext *ctx, arg_rorw *a)
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
     ctx->w = true;
-    return gen_shift(ctx, a, EXT_NONE, gen_rorw);
+    return gen_shift(ctx, a, EXT_NONE, NULL, gen_rorw, NULL);
 }
 
 static bool trans_roriw(DisasContext *ctx, arg_roriw *a)
@@ -558,7 +559,7 @@ static bool trans_rolw(DisasContext *ctx, arg_rolw *a)
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
     ctx->w = true;
-    return gen_shift(ctx, a, EXT_NONE, gen_rolw);
+    return gen_shift(ctx, a, EXT_NONE, NULL, gen_rolw, NULL);
 }
 
 static bool trans_grevw(DisasContext *ctx, arg_grevw *a)
@@ -566,7 +567,7 @@ static bool trans_grevw(DisasContext *ctx, arg_grevw *a)
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
     ctx->w = true;
-    return gen_shift(ctx, a, EXT_ZERO, gen_helper_grev);
+    return gen_shift(ctx, a, EXT_ZERO, NULL, gen_helper_grev, NULL);
 }
 
 static bool trans_greviw(DisasContext *ctx, arg_greviw *a)
@@ -582,7 +583,7 @@ static bool trans_gorcw(DisasContext *ctx, arg_gorcw *a)
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
     ctx->w = true;
-    return gen_shift(ctx, a, EXT_ZERO, gen_helper_gorc);
+    return gen_shift(ctx, a, EXT_ZERO, NULL, gen_helper_gorc, NULL);
 }
 
 static bool trans_gorciw(DisasContext *ctx, arg_gorciw *a)
@@ -647,5 +648,5 @@ static bool trans_slli_uw(DisasContext *ctx, arg_slli_uw *a)
 {
     REQUIRE_64BIT(ctx);
     REQUIRE_EXT(ctx, RVB);
-    return gen_shift_imm_fn(ctx, a, EXT_NONE, gen_slli_uw);
+    return gen_shift_imm_fn(ctx, a, EXT_NONE, NULL, gen_slli_uw, NULL);
 }
