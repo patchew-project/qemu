@@ -62,8 +62,9 @@ pcie_cap_v1_fill(PCIDevice *dev, uint8_t port, uint8_t type, uint8_t version)
      * Functions conforming to the ECN, PCI Express Base
      * Specification, Revision 1.1., or subsequent PCI Express Base
      * Specification revisions.
+     *  + set max payload size to 256, which seems to be a common value
      */
-    pci_set_long(exp_cap + PCI_EXP_DEVCAP, PCI_EXP_DEVCAP_RBER);
+    pci_set_long(exp_cap + PCI_EXP_DEVCAP, PCI_EXP_DEVCAP_RBER | (0x1 & PCI_EXP_DEVCAP_PAYLOAD));
 
     pci_set_long(exp_cap + PCI_EXP_LNKCAP,
                  (port << PCI_EXP_LNKCAP_PN_SHIFT) |
@@ -178,6 +179,8 @@ int pcie_cap_init(PCIDevice *dev, uint8_t offset,
     /* Filling v2 specific values */
     pci_set_long(exp_cap + PCI_EXP_DEVCAP2,
                  PCI_EXP_DEVCAP2_EFF | PCI_EXP_DEVCAP2_EETLPP);
+
+    pci_set_word(exp_cap + PCI_EXP_DEVCTL, PCI_EXP_DEVCTL_READRQ_256B);
 
     pci_set_word(dev->wmask + pos + PCI_EXP_DEVCTL2, PCI_EXP_DEVCTL2_EETLPPB);
 
