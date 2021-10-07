@@ -866,16 +866,30 @@
 # a CPU is being hotplugged.
 #
 # @node-id: NUMA node ID the CPU belongs to
-# @socket-id: socket number within node/board the CPU belongs to
-# @die-id: die number within node/board the CPU belongs to (Since 4.1)
-# @core-id: core number within die the CPU belongs to
-# @thread-id: thread number within core the CPU belongs to
+#
+# @socket-id: socket number within the upper layer container the CPU belongs to
+#
+# @die-id: die number within the upper layer container the CPU belongs to
+#          (since 4.1)
+#
+# @core-id: core number within the upper layer container the CPU belongs to
+#
+# @thread-id: thread number within the upper layer container the CPU belongs to
 #
 # Note: currently there are 5 properties that could be present
 #       but management should be prepared to pass through other
 #       properties with device_add command to allow for future
 #       interface extension. This also requires the filed names to be kept in
 #       sync with the properties passed to -device/device_add.
+#
+#       Different machines may have different subsets of the CPU topology
+#       parameters supported, so the description of the supported parameters
+#       in this struct will vary accordingly. For example, for a machine that
+#       supports a CPU hierarchy of sockets/cores/threads, the description of
+#       the supported members will be: @socket-id means socket number within
+#       node/board the CPU belongs to, @core-id means core number within socket
+#       the CPU belongs to, @thread-id means thread number within core the CPU
+#       belongs to.
 #
 # Since: 2.7
 ##
@@ -1390,19 +1404,34 @@
 # Schema for CPU topology configuration.  A missing value lets
 # QEMU figure out a suitable value based on the ones that are provided.
 #
-# @cpus: number of virtual CPUs in the virtual machine
+# @cpus: number of present virtual CPUs in the virtual machine
 #
-# @sockets: number of sockets in the CPU topology
+# @sockets: number of sockets per upper layer container in the CPU topology
 #
-# @dies: number of dies per socket in the CPU topology
+# @dies: number of dies per upper layer container in the CPU topology
+#        (since 4.1)
 #
-# @cores: number of cores per die in the CPU topology
+# @cores: number of cores per upper layer container in the CPU topology
 #
-# @threads: number of threads per core in the CPU topology
+# @threads: number of threads per upper layer container in the CPU topology
 #
 # @maxcpus: maximum number of hotpluggable virtual CPUs in the virtual machine
 #
+# Notes: Different machines may have different subsets of the CPU topology
+#        parameters supported, so the description of the supported parameters
+#        in this struct will vary accordingly. For example, for a machine
+#        that supports a CPU hierarchy of sockets/cores/threads, the
+#        description of the supported members will be: @sockets means the
+#        total number of sockets on the machine which is the upper layer
+#        container of socket, @cores means the number of cores per socket
+#        which is the upper layer container of core, @threads means the number
+#        of threads per core which is the upper layer container of thread.
+#
+#        Unsupported parameters can also be provided in this struct, but their
+#        values must be set as 1 in the purpose of correct parsing.
+#
 # Since: 6.1
+#
 ##
 { 'struct': 'SMPConfiguration', 'data': {
      '*cpus': 'int',
