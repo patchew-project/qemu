@@ -36,6 +36,8 @@
  *              zoned.zasl=<N[optional]>, \
  *              zoned.auto_transition=<on|off[optional]>, \
  *              sriov_max_vfs=<N[optional]> \
+ *              sriov_max_vi_per_vf=<N[optional]> \
+ *              sriov_max_vq_per_vf=<N[optional]> \
  *              subsys=<subsys_id>
  *      -device nvme-ns,drive=<drive_id>,bus=<bus_name>,nsid=<nsid>,\
  *              zoned=<true|false[optional]>, \
@@ -113,6 +115,18 @@
  *   enables reporting of both SR-IOV and ARI capabilities by the NVMe device.
  *   Virtual function controllers will not report SR-IOV capability.
  *
+ * - `sriov_max_vi_per_vf`
+ *   Indicates the maximum number of virtual interrupt resources assignable
+ *   to a secondary controller. Must be explicitly set if sriov_max_vfs != 0.
+ *   The parameter affect VFs similarly to how msix_qsize affects PF, i.e.,
+ *   determines the number of interrupts available to all queues (admin, io).
+ *
+ * - `sriov_max_vq_per_vf`
+ *   Indicates the maximum number of virtual queue resources assignable to
+ *   a secondary controller. Must be explicitly set if sriov_max_vfs != 0.
+ *   The parameter affect VFs similarly to how max_ioqpairs affects PF,
+ *   except the number of flexible queues includes the admin queue.
+ *
  * nvme namespace device parameters
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  * - `shared`
@@ -184,6 +198,7 @@
 #define NVME_NUM_FW_SLOTS 1
 #define NVME_DEFAULT_MAX_ZA_SIZE (128 * KiB)
 #define NVME_MAX_VFS 127
+#define NVME_VF_RES_GRANULARITY 1
 #define NVME_VF_OFFSET 0x1
 #define NVME_VF_STRIDE 1
 
@@ -6254,6 +6269,7 @@ static const MemoryRegionOps nvme_cmb_ops = {
 static void nvme_check_constraints(NvmeCtrl *n, Error **errp)
 {
     NvmeParams *params = &n->params;
+    int msix_total;
 
     if (params->num_queues) {
         warn_report("num_queues is deprecated; please use max_ioqpairs "
@@ -6324,6 +6340,30 @@ static void nvme_check_constraints(NvmeCtrl *n, Error **errp)
                        NVME_MAX_VFS);
             return;
         }
+
+        if (params->sriov_max_vi_per_vf < 1 ||
+            (params->sriov_max_vi_per_vf - 1) % NVME_VF_RES_GRANULARITY) {
+            error_setg(errp, "sriov_max_vi_per_vf must meet:"
+                       " (X - 1) %% %d == 0 and X >= 1",
+                       NVME_VF_RES_GRANULARITY);
+            return;
+        }
+
+        if (params->sriov_max_vq_per_vf < 2 ||
+            (params->sriov_max_vq_per_vf - 1) % NVME_VF_RES_GRANULARITY) {
+            error_setg(errp, "sriov_max_vq_per_vf must meet:"
+                       " (X - 1) %% %d == 0 and X >= 2",
+                       NVME_VF_RES_GRANULARITY);
+            return;
+        }
+
+        msix_total = params->msix_qsize +
+                     params->sriov_max_vfs * params->sriov_max_vi_per_vf;
+        if (msix_total > PCI_MSIX_FLAGS_QSIZE + 1) {
+            error_setg(errp, "sriov_max_vi_per_vf is too big for max_vfs=%d",
+                       params->sriov_max_vfs);
+            return;
+        }
     }
 }
 
@@ -6332,13 +6372,35 @@ static void nvme_init_state(NvmeCtrl *n)
     NvmePriCtrlCap *cap = &n->pri_ctrl_cap;
     NvmeSecCtrlList *list = &n->sec_ctrl_list;
     NvmeSecCtrlEntry *sctrl;
+    uint8_t max_vfs;
+    uint32_t total_vq, total_vi;
     int i;
 
-    n->max_ioqpairs = n->params.max_ioqpairs;
-    n->conf_ioqpairs = n->max_ioqpairs;
+    if (pci_is_vf(&n->parent_obj)) {
+        sctrl = nvme_sctrl(n);
 
-    n->max_msix_qsize = n->params.msix_qsize;
-    n->conf_msix_qsize = n->max_msix_qsize;
+        max_vfs = 0;
+
+        n->max_ioqpairs = n->params.sriov_max_vq_per_vf - 1;
+        n->conf_ioqpairs = sctrl->nvq ? le16_to_cpu(sctrl->nvq) - 1 : 0;
+
+        n->max_msix_qsize = n->params.sriov_max_vi_per_vf;
+        n->conf_msix_qsize = sctrl->nvi ? le16_to_cpu(sctrl->nvi) : 1;
+    } else {
+        max_vfs = n->params.sriov_max_vfs;
+
+        n->max_ioqpairs = n->params.max_ioqpairs +
+                          max_vfs * n->params.sriov_max_vq_per_vf;
+        n->conf_ioqpairs = n->max_ioqpairs;
+
+        n->max_msix_qsize = n->params.msix_qsize +
+                            max_vfs * n->params.sriov_max_vi_per_vf;
+        n->conf_msix_qsize = n->max_msix_qsize;
+    }
+
+    total_vq = n->params.sriov_max_vq_per_vf * max_vfs;
+    total_vi = n->params.sriov_max_vi_per_vf * max_vfs;
+
     n->sq = g_new0(NvmeSQueue *, n->max_ioqpairs + 1);
     n->cq = g_new0(NvmeCQueue *, n->max_ioqpairs + 1);
     n->temperature = NVME_TEMPERATURE;
@@ -6346,13 +6408,34 @@ static void nvme_init_state(NvmeCtrl *n)
     n->starttime_ms = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL);
     n->aer_reqs = g_new0(NvmeRequest *, n->params.aerl + 1);
 
-    list->numcntl = cpu_to_le16(n->params.sriov_max_vfs);
-    for (i = 0; i < n->params.sriov_max_vfs; i++) {
+    list->numcntl = cpu_to_le16(max_vfs);
+    for (i = 0; i < max_vfs; i++) {
         sctrl = &list->sec[i];
         sctrl->pcid = cpu_to_le16(n->cntlid);
     }
 
     cap->cntlid = cpu_to_le16(n->cntlid);
+    cap->crt = NVME_CRT_VQ | NVME_CRT_VI;
+
+    cap->vqfrt = cpu_to_le32(total_vq);
+    cap->vqrfap = cpu_to_le32(total_vq);
+    if (pci_is_vf(&n->parent_obj)) {
+        cap->vqprt = cpu_to_le16(n->conf_ioqpairs + 1);
+    } else {
+        cap->vqprt = cpu_to_le16(n->params.max_ioqpairs + 1);
+        cap->vqfrsm = cpu_to_le16(n->params.sriov_max_vq_per_vf);
+        cap->vqgran = cpu_to_le16(NVME_VF_RES_GRANULARITY);
+    }
+
+    cap->vifrt = cpu_to_le32(total_vi);
+    cap->virfap = cpu_to_le32(total_vi);
+    if (pci_is_vf(&n->parent_obj)) {
+        cap->viprt = cpu_to_le16(n->conf_msix_qsize);
+    } else {
+        cap->viprt = cpu_to_le16(n->params.msix_qsize);
+        cap->vifrsm = cpu_to_le16(n->params.sriov_max_vi_per_vf);
+        cap->vigran = cpu_to_le16(NVME_VF_RES_GRANULARITY);
+    }
 }
 
 static void nvme_init_cmb(NvmeCtrl *n, PCIDevice *pci_dev)
@@ -6448,11 +6531,13 @@ static void nvme_update_vfs(PCIDevice *pci_dev, uint16_t prev_num_vfs,
     }
 }
 
-static void nvme_init_sriov(NvmeCtrl *n, PCIDevice *pci_dev, uint16_t offset,
-                            uint64_t bar_size)
+static void nvme_init_sriov(NvmeCtrl *n, PCIDevice *pci_dev, uint16_t offset)
 {
     uint16_t vf_dev_id = n->params.use_intel_id ?
                          PCI_DEVICE_ID_INTEL_NVME : PCI_DEVICE_ID_REDHAT_NVME;
+    uint64_t bar_size = nvme_bar_size(n->params.sriov_max_vq_per_vf,
+                                      n->params.sriov_max_vi_per_vf,
+                                      NULL, NULL);
 
     pcie_sriov_pf_init(pci_dev, offset, "nvme", vf_dev_id,
                        n->params.sriov_max_vfs, n->params.sriov_max_vfs,
@@ -6550,7 +6635,7 @@ static int nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
     }
 
     if (!pci_is_vf(pci_dev) && n->params.sriov_max_vfs) {
-        nvme_init_sriov(n, pci_dev, 0x120, bar_size);
+        nvme_init_sriov(n, pci_dev, 0x120);
     }
 
     return 0;
@@ -6574,6 +6659,7 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
     NvmeIdCtrl *id = &n->id_ctrl;
     uint8_t *pci_conf = pci_dev->config;
     uint64_t cap = ldq_le_p(&n->bar.cap);
+    NvmeSecCtrlEntry *sctrl = nvme_sctrl(n);
 
     id->vid = cpu_to_le16(pci_get_word(pci_conf + PCI_VENDOR_ID));
     id->ssvid = cpu_to_le16(pci_get_word(pci_conf + PCI_SUBSYSTEM_VENDOR_ID));
@@ -6665,6 +6751,10 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
 
     stl_le_p(&n->bar.vs, NVME_SPEC_VER);
     n->bar.intmc = n->bar.intms = 0;
+
+    if (pci_is_vf(&n->parent_obj) && !sctrl->scs) {
+        stl_le_p(&n->bar.csts, NVME_CSTS_FAILED);
+    }
 }
 
 static int nvme_init_subsys(NvmeCtrl *n, Error **errp)
@@ -6804,6 +6894,8 @@ static Property nvme_props[] = {
     DEFINE_PROP_BOOL("zoned.auto_transition", NvmeCtrl,
                      params.auto_transition_zones, true),
     DEFINE_PROP_UINT8("sriov_max_vfs", NvmeCtrl, params.sriov_max_vfs, 0),
+    DEFINE_PROP_UINT8("sriov_max_vi_per_vf", NvmeCtrl, params.sriov_max_vi_per_vf, 0),
+    DEFINE_PROP_UINT8("sriov_max_vq_per_vf", NvmeCtrl, params.sriov_max_vq_per_vf, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
