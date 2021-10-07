@@ -30,7 +30,8 @@ static void unregister_vfs(PCIDevice *dev);
 void pcie_sriov_pf_init(PCIDevice *dev, uint16_t offset,
                         const char *vfname, uint16_t vf_dev_id,
                         uint16_t init_vfs, uint16_t total_vfs,
-                        uint16_t vf_offset, uint16_t vf_stride)
+                        uint16_t vf_offset, uint16_t vf_stride,
+                        SriovVfsUpdate pre_vfs_update)
 {
     uint8_t *cfg = dev->config + offset;
     uint8_t *wmask;
@@ -41,6 +42,7 @@ void pcie_sriov_pf_init(PCIDevice *dev, uint16_t offset,
     dev->exp.sriov_pf.num_vfs = 0;
     dev->exp.sriov_pf.vfname = g_strdup(vfname);
     dev->exp.sriov_pf.vf = NULL;
+    dev->exp.sriov_pf.pre_vfs_update = pre_vfs_update;
 
     pci_set_word(cfg + PCI_SRIOV_VF_OFFSET, vf_offset);
     pci_set_word(cfg + PCI_SRIOV_VF_STRIDE, vf_stride);
@@ -180,6 +182,11 @@ static void register_vfs(PCIDevice *dev)
     assert(dev->exp.sriov_pf.vf);
 
     trace_sriov_register_vfs(SRIOV_ID(dev), num_vfs);
+
+    if (dev->exp.sriov_pf.pre_vfs_update) {
+        dev->exp.sriov_pf.pre_vfs_update(dev, dev->exp.sriov_pf.num_vfs, num_vfs);
+    }
+
     for (i = 0; i < num_vfs; i++) {
         dev->exp.sriov_pf.vf[i] = register_vf(dev, devfn, dev->exp.sriov_pf.vfname, i);
         if (!dev->exp.sriov_pf.vf[i]) {
@@ -198,6 +205,11 @@ static void unregister_vfs(PCIDevice *dev)
     uint16_t i;
 
     trace_sriov_unregister_vfs(SRIOV_ID(dev), num_vfs);
+
+    if (dev->exp.sriov_pf.pre_vfs_update) {
+        dev->exp.sriov_pf.pre_vfs_update(dev, dev->exp.sriov_pf.num_vfs, 0);
+    }
+
     for (i = 0; i < num_vfs; i++) {
         PCIDevice *vf = dev->exp.sriov_pf.vf[i];
         object_property_set_bool(OBJECT(vf), "realized", false, &local_err);
