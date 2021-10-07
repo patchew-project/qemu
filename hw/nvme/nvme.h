@@ -420,6 +420,10 @@ typedef struct NvmeCtrl {
     uint64_t    starttime_ms;
     uint16_t    temperature;
     uint8_t     smart_critical_warning;
+    uint32_t    max_msix_qsize;                 /* Derived from params.msix.qsize */
+    uint32_t    conf_msix_qsize;                /* Configured limit */
+    uint32_t    max_ioqpairs;                   /* Derived from params.max_ioqpairs */
+    uint32_t    conf_ioqpairs;                  /* Configured limit */
 
     struct {
         MemoryRegion mem;
