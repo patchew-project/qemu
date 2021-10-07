@@ -280,11 +280,29 @@ typedef struct DeviceMemoryState {
 /**
  * CpuTopology:
  * @cpus: the number of present logical processors on the machine
- * @sockets: the number of sockets on the machine
- * @dies: the number of dies in one socket
- * @cores: the number of cores in one die
- * @threads: the number of threads in one core
+ * @sockets: the number of sockets per upper layer container
+ * @dies: the number of dies per upper layer container
+ * @cores: the number of cores per upper layer container
+ * @threads: the number of threads per upper layer container
  * @max_cpus: the maximum number of logical processors on the machine
+ *
+ * Different machines may have different subsets of the CPU topology
+ * parameters supported, so the description of the supported parameters
+ * will vary accordingly. For example, for a machine that supports a
+ * CPU hierarchy of sockets/cores/threads, the members will sequentially
+ * mean as below:
+ *    -sockets: the total number of sockets on the machine
+ *     which is the upper layer container of socket
+ *    -cores: the number of cores per socket
+ *     which is the upper layer container of core
+ *    -threads: the number of threads per core
+ *     which is the upper layer container of thread
+ *
+ * The currently supported CPU topology subsets are listed here:
+ * For PC machines, a 4-level CPU hierarchy is supported:
+ *    -sockets/dies/cores/threads
+ * For the other machines, a 3-level CPU hierarchy is supported:
+ *    -sockets/cores/threads
  */
 typedef struct CpuTopology {
     unsigned int cpus;
