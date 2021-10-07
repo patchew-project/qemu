@@ -235,3 +235,30 @@ The virtual namespace device supports DIF- and DIX-based protection information
   to ``1`` to transfer protection information as the first eight bytes of
   metadata. Otherwise, the protection information is transferred as the last
   eight bytes.
+
+Virtualization Enhancements and SR-IOV
+--------------------------------------
+
+The ``nvme`` device supports Single Root I/O Virtualization and Sharing
+along with Virtualization Enhancements. The controller has to be linked to
+an NVM Subsystem device (``nvme-subsys``) for use with SR-IOV.
+
+A number of parameters are present:
+
+``sriov_max_vfs`` (default: ``0``)
+  Indicates the maximum number of PCIe virtual functions supported
+  by the controller. Specifying a non-zero value enables reporting of both
+  SR-IOV and ARI (Alternative Routing-ID Interpretation) capabilities
+  by the NVMe device. Virtual function controllers will not report SR-IOV.
+
+``sriov_max_vi_per_vf``
+  Indicates the maximum number of virtual interrupt resources assignable
+  to a secondary controller. Must be explicitly set if ``sriov_max_vfs`` != 0.
+  The parameter affect VFs similarly to how ``msix_qsize`` affects PF, i.e.,
+  determines the number of interrupts available to all queues (admin, io).
+
+``sriov_max_vq_per_vf``
+  Indicates the maximum number of virtual queue resources assignable to
+  a secondary controller. Must be explicitly set if ``sriov_max_vfs`` != 0.
+  The parameter affect VFs similarly to how ``max_ioqpairs`` affects PF,
+  except the number of flexible queues includes the admin queue.
