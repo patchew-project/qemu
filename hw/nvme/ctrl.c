@@ -4545,6 +4545,14 @@ static uint16_t nvme_identify_pri_ctrl_cap(NvmeCtrl *n, NvmeRequest *req)
     return nvme_c2h(n, (uint8_t *)&n->pri_ctrl_cap, sizeof(NvmePriCtrlCap), req);
 }
 
+static uint16_t nvme_identify_sec_ctrl_list(NvmeCtrl *n, NvmeRequest *req)
+{
+    trace_pci_nvme_identify_sec_ctrl_list(le16_to_cpu(n->pri_ctrl_cap.cntlid),
+                                          n->sec_ctrl_list.numcntl);
+
+    return nvme_c2h(n, (uint8_t *)&n->sec_ctrl_list, sizeof(NvmeSecCtrlList), req);
+}
+
 static uint16_t nvme_identify_ns_csi(NvmeCtrl *n, NvmeRequest *req,
                                      bool active)
 {
@@ -4765,6 +4773,8 @@ static uint16_t nvme_identify(NvmeCtrl *n, NvmeRequest *req)
         return nvme_identify_ctrl_list(n, req, false);
     case NVME_ID_CNS_PRIMARY_CTRL_CAP:
         return nvme_identify_pri_ctrl_cap(n, req);
+    case NVME_ID_CNS_SECONDARY_CTRL_LIST:
+        return nvme_identify_sec_ctrl_list(n, req);
     case NVME_ID_CNS_CS_NS:
         return nvme_identify_ns_csi(n, req, true);
     case NVME_ID_CNS_CS_NS_PRESENT:
@@ -6306,6 +6316,9 @@ static void nvme_check_constraints(NvmeCtrl *n, Error **errp)
 static void nvme_init_state(NvmeCtrl *n)
 {
     NvmePriCtrlCap *cap = &n->pri_ctrl_cap;
+    NvmeSecCtrlList *list = &n->sec_ctrl_list;
+    NvmeSecCtrlEntry *sctrl;
+    int i;
 
     /* add one to max_ioqpairs to account for the admin queue pair */
     n->reg_size = pow2ceil(sizeof(NvmeBar) +
@@ -6316,6 +6329,12 @@ static void nvme_init_state(NvmeCtrl *n)
     n->features.temp_thresh_hi = NVME_TEMPERATURE_WARNING;
     n->starttime_ms = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL);
     n->aer_reqs = g_new0(NvmeRequest *, n->params.aerl + 1);
+
+    list->numcntl = cpu_to_le16(n->params.sriov_max_vfs);
+    for (i = 0; i < n->params.sriov_max_vfs; i++) {
+        sctrl = &list->sec[i];
+        sctrl->pcid = cpu_to_le16(n->cntlid);
+    }
 
     cap->cntlid = cpu_to_le16(n->cntlid);
 }
@@ -6362,6 +6381,27 @@ static void nvme_init_pmr(NvmeCtrl *n, PCIDevice *pci_dev)
     memory_region_set_enabled(&n->pmr.dev->mr, false);
 }
 
+static void nvme_update_vfs(PCIDevice *pci_dev, uint16_t prev_num_vfs,
+                            uint16_t num_vfs)
+{
+    NvmeCtrl *n = NVME(pci_dev);
+    uint16_t num_active_vfs = MAX(prev_num_vfs, num_vfs);
+    bool vf_enable = (prev_num_vfs < num_vfs);
+    uint16_t i;
+
+    /*
+     * As per SR-IOV design,
+     * VF count can only go from 0 to a set value and vice versa.
+     */
+    for (i = 0; i < num_active_vfs; i++) {
+        if (vf_enable) {
+            n->sec_ctrl_list.sec[i].vfn = cpu_to_le16(i + 1);
+        } else {
+            n->sec_ctrl_list.sec[i].vfn = 0;
+        }
+    }
+}
+
 static void nvme_init_sriov(NvmeCtrl *n, PCIDevice *pci_dev, uint16_t offset,
                             uint64_t bar_size)
 {
@@ -6370,7 +6410,7 @@ static void nvme_init_sriov(NvmeCtrl *n, PCIDevice *pci_dev, uint16_t offset,
 
     pcie_sriov_pf_init(pci_dev, offset, "nvme", vf_dev_id,
                        n->params.sriov_max_vfs, n->params.sriov_max_vfs,
-                       NVME_VF_OFFSET, NVME_VF_STRIDE, NULL);
+                       NVME_VF_OFFSET, NVME_VF_STRIDE, nvme_update_vfs);
 
     pcie_sriov_pf_init_vf_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY |
                               PCI_BASE_ADDRESS_MEM_TYPE_64, bar_size);
