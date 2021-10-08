@@ -88,13 +88,6 @@ static abi_long do_obreak(abi_ulong new_brk)
     return 0;
 }
 
-#if defined(TARGET_I386)
-static abi_long do_freebsd_sysarch(CPUX86State *env, int op, abi_ulong parms)
-{
-    do_freebsd_arch_sysarch(env, op, parms);
-}
-#endif
-
 #ifdef __FreeBSD__
 /*
  * XXX this uses the undocumented oidfmt interface to find the kind of
