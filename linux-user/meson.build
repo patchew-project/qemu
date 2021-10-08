@@ -1,3 +1,7 @@
+if not config_target.has_key('CONFIG_LINUX_USER')
+   subdir_done()
+endif
+
 linux_user_ss.add(files(
   'elfload.c',
   'exit.c',
