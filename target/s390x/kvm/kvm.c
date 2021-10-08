@@ -2555,6 +2555,10 @@ void kvm_s390_stop_interrupt(S390CPU *cpu)
         .type = KVM_S390_SIGP_STOP,
     };
 
+    if (cpu->env.sigp_order == SIGP_STOP_STORE_STATUS) {
+        irq.u.stop.flags = KVM_S390_STOP_FLAG_STORE_STATUS;
+    }
+
     kvm_s390_vcpu_interrupt(cpu, &irq);
 }
 
