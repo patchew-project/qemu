@@ -91,7 +91,6 @@ void gd_gl_area_draw(VirtualConsole *vc)
         graphic_hw_gl_block(vc->gfx.dcl.con, false);
     }
 #endif
-    graphic_hw_gl_flushed(vc->gfx.dcl.con);
 }
 
 void gd_gl_area_update(DisplayChangeListener *dcl,
