@@ -18,7 +18,7 @@ foreach m : [
   ['CONFIG_AUDIO_PA', 'pa', pulse, 'paaudio.c'],
   ['CONFIG_AUDIO_SDL', 'sdl', sdl, 'sdlaudio.c'],
   ['CONFIG_AUDIO_JACK', 'jack', jack, 'jackaudio.c'],
-  ['CONFIG_SPICE', 'spice', spice, 'spiceaudio.c']
+  ['CONFIG_SPICE', 'spice', spice, 'spiceaudio.c'],
 ]
   if config_host.has_key(m[0])
     module_ss = ss.source_set()
@@ -26,5 +26,11 @@ foreach m : [
     audio_modules += {m[1] : module_ss}
   endif
 endforeach
+
+if dbus_display
+    module_ss = ss.source_set()
+    module_ss.add(when: gio, if_true: files('dbusaudio.c'))
+    audio_modules += {'dbus': module_ss}
+endif
 
 modules += {'audio': audio_modules}
