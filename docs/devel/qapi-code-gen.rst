@@ -708,8 +708,10 @@ QEMU shows a certain behaviour.
 Special features
 ~~~~~~~~~~~~~~~~
 
-Feature "deprecated" marks a command, event, or struct member as
-deprecated.  It is not supported elsewhere so far.
+Feature "deprecated" marks a command, event, struct or enum member as
+deprecated.  It is not supported elsewhere so far.  Interfaces so
+marked may be withdrawn in future releases in accordance with QEMU's
+deprecation policy.
 
 
 Naming rules and reserved names
