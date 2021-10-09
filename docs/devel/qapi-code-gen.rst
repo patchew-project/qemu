@@ -200,7 +200,9 @@ Syntax::
              '*if': COND,
              '*features': FEATURES }
     ENUM-VALUE = STRING
-               | { 'name': STRING, '*if': COND }
+               | { 'name': STRING,
+                   '*if': COND,
+                   '*features': FEATURES }
 
 Member 'enum' names the enum type.
 
