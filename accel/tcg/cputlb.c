@@ -90,6 +90,11 @@ static inline size_t sizeof_tlb(CPUTLBDescFast *fast)
     return fast->mask + (1 << CPU_TLB_ENTRY_BITS);
 }
 
+static inline uintptr_t g2h_tlbe(const CPUTLBEntry *tlb, target_ulong gaddr)
+{
+    return tlb->addend + (uintptr_t)gaddr;
+}
+
 static void tlb_window_reset(CPUTLBDesc *desc, int64_t ns,
                              size_t max_entries)
 {
@@ -976,8 +981,7 @@ static void tlb_reset_dirty_range_locked(CPUTLBEntry *tlb_entry,
 
     if ((addr & (TLB_INVALID_MASK | TLB_MMIO |
                  TLB_DISCARD_WRITE | TLB_NOTDIRTY)) == 0) {
-        addr &= TARGET_PAGE_MASK;
-        addr += tlb_entry->addend;
+        addr = g2h_tlbe(tlb_entry, addr & TARGET_PAGE_MASK);
         if ((addr - start) < length) {
 #if TCG_OVERSIZED_GUEST
             tlb_entry->addr_write |= TLB_NOTDIRTY;
@@ -1527,7 +1531,7 @@ tb_page_addr_t get_page_addr_code_hostp(CPUArchState *env, target_ulong addr,
         return -1;
     }
 
-    p = (void *)((uintptr_t)addr + entry->addend);
+    p = (void *)g2h_tlbe(entry, addr);
     if (hostp) {
         *hostp = p;
     }
@@ -1619,7 +1623,7 @@ static int probe_access_internal(CPUArchState *env, target_ulong addr,
     }
 
     /* Everything else is RAM. */
-    *phost = (void *)((uintptr_t)addr + entry->addend);
+    *phost = (void *)g2h_tlbe(entry, addr);
     return flags;
 }
 
@@ -1727,7 +1731,7 @@ bool tlb_plugin_lookup(CPUState *cpu, target_ulong addr, int mmu_idx,
             data->v.io.offset = (iotlbentry->addr & TARGET_PAGE_MASK) + addr;
         } else {
             data->is_io = false;
-            data->v.ram.hostaddr = (void *)((uintptr_t)addr + tlbe->addend);
+            data->v.ram.hostaddr = (void *)g2h_tlbe(tlbe, addr);
         }
         return true;
     } else {
@@ -1826,7 +1830,7 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
         goto stop_the_world;
     }
 
-    hostaddr = (void *)((uintptr_t)addr + tlbe->addend);
+    hostaddr = (void *)g2h_tlbe(tlbe, addr);
 
     if (unlikely(tlb_addr & TLB_NOTDIRTY)) {
         notdirty_write(env_cpu(env), addr, size,
@@ -1938,7 +1942,7 @@ load_helper(CPUArchState *env, target_ulong addr, MemOpIdx oi,
                             access_type, op ^ (need_swap * MO_BSWAP));
         }
 
-        haddr = (void *)((uintptr_t)addr + entry->addend);
+        haddr = (void *)g2h_tlbe(entry, addr);
 
         /*
          * Keep these two load_memop separate to ensure that the compiler
@@ -1975,7 +1979,7 @@ load_helper(CPUArchState *env, target_ulong addr, MemOpIdx oi,
         return res & MAKE_64BIT_MASK(0, size * 8);
     }
 
-    haddr = (void *)((uintptr_t)addr + entry->addend);
+    haddr = (void *)g2h_tlbe(entry, addr);
     return load_memop(haddr, op);
 }
 
@@ -2467,7 +2471,7 @@ store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
             notdirty_write(env_cpu(env), addr, size, iotlbentry, retaddr);
         }
 
-        haddr = (void *)((uintptr_t)addr + entry->addend);
+        haddr = (void *)g2h_tlbe(entry, addr);
 
         /*
          * Keep these two store_memop separate to ensure that the compiler
@@ -2492,7 +2496,7 @@ store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
         return;
     }
 
-    haddr = (void *)((uintptr_t)addr + entry->addend);
+    haddr = (void *)g2h_tlbe(entry, addr);
     store_memop(haddr, val, op);
 }
 
