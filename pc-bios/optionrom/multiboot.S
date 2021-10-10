@@ -68,10 +68,10 @@ run_multiboot:
 	mov		%eax, %es
 
 	/* Read the bootinfo struct into RAM */
-	read_fw_blob(FW_CFG_INITRD)
+	read_fw_blob_dma(FW_CFG_INITRD)
 
 	/* FS = bootinfo_struct */
-	read_fw		FW_CFG_INITRD_ADDR
+	read_fw_dma_var32	FW_CFG_INITRD_ADDR
 	shr		$4, %eax
 	mov		%ax, %fs
 
@@ -188,14 +188,14 @@ prot_mode:
 	movl		%eax, %gs
 
 	/* Read the kernel and modules into RAM */
-	read_fw_blob(FW_CFG_KERNEL)
+	read_fw_blob_dma(FW_CFG_KERNEL)
 
 	/* Jump off to the kernel */
-	read_fw		FW_CFG_KERNEL_ENTRY
+	read_fw_dma_var32 FW_CFG_KERNEL_ENTRY
 	mov		%eax, %ecx
 
 	/* EBX contains a pointer to the bootinfo struct */
-	read_fw		FW_CFG_INITRD_ADDR
+	read_fw_dma_var32	FW_CFG_INITRD_ADDR
 	movl		%eax, %ebx
 
 	/* EAX has to contain the magic */

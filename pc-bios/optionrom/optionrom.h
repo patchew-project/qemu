@@ -37,6 +37,17 @@
 #define BIOS_CFG_IOPORT_CFG	0x510
 #define BIOS_CFG_IOPORT_DATA	0x511
 
+#define FW_CFG_DMA_CTL_ERROR   0x01
+#define FW_CFG_DMA_CTL_READ    0x02
+#define FW_CFG_DMA_CTL_SKIP    0x04
+#define FW_CFG_DMA_CTL_SELECT  0x08
+#define FW_CFG_DMA_CTL_WRITE   0x10
+
+#define FW_CFG_DMA_SIGNATURE 0x51454d5520434647ULL /* "QEMU CFG" */
+
+#define BIOS_CFG_DMA_ADDR_HIGH  0x514
+#define BIOS_CFG_DMA_ADDR_LOW   0x518
+
 /* Break the translation block flow so -d cpu shows us values */
 #define DEBUG_HERE \
 	jmp		1f;				\
@@ -61,6 +72,72 @@
 	inb		(%dx), %al
 	bswap		%eax
 .endm
+
+
+/*
+ * Read data from the fw_cfg device using DMA.
+ * Clobbers:	%eax, %edx, memory[%esp-16] to memory[%esp]
+ */
+.macro read_fw_dma VAR, SIZE, ADDR
+	movl		$\VAR, %eax /* Control */
+	shl		$16, %eax
+	or		$FW_CFG_DMA_CTL_READ, %eax
+	or		$FW_CFG_DMA_CTL_SELECT, %eax
+	bswapl		%eax
+	movl		%eax, -16(%esp)
+
+	movl		\SIZE, %eax /* Length */
+	bswapl		%eax
+	mov		%eax, -12(%esp)
+
+	mov		\ADDR, %eax /* Address to write to */
+	bswapl		%eax
+	mov		%eax, -4(%esp)
+
+	movl		$0, %eax  /* We only support 32 bit target addresses */
+	mov		%eax, -8(%esp)
+
+	mov		%esp, %eax /* Address of the struct we generated */
+	subl		$16, %eax
+	bswapl		%eax
+
+	mov		$BIOS_CFG_DMA_ADDR_LOW, %dx
+	outl		%eax, (%dx) /* Initiate DMA */
+
+	movl		$FW_CFG_DMA_CTL_ERROR, %eax
+	not		%eax
+	bswapl		%eax
+
+1:  mov		-16(%esp), %edx /* Wait for completion */
+	and		%eax, %edx
+	jnz		1b
+.endm
+
+/*
+ * Read a single 32 bit value from the fw_cfg device using DMA
+ * Clobbers: %edx, memory[%esp-20] to memory[%esp]
+ * Out:		%eax
+ */
+.macro read_fw_dma_var32 VAR
+	mov		%esp, %edx
+	subl		$20, %edx
+	read_fw_dma	\VAR, $4, %edx
+	mov		-20(%esp), %eax
+.endm
+
+
+/*
+ * Read a blob from the fw_cfg device using DMA
+ * Requires _ADDR, _SIZE and _DATA values for the parameter.
+ *
+ * Clobbers:	%eax, %edx, %es, %ecx, %edi and adresses %esp-20 to %esp
+ */
+#define read_fw_blob_dma(var) \
+	read_fw_dma_var32	var ## _SIZE; \
+	mov		%eax, %ecx; \
+	read_fw_dma_var32	var ## _ADDR; \
+	mov		%eax, %edi ;\
+	read_fw_dma	var ## _DATA, %ecx, %edi
 
 #define read_fw_blob_pre(var)				\
 	read_fw		var ## _SIZE;			\
