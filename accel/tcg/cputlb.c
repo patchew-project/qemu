@@ -39,6 +39,7 @@
 #ifdef CONFIG_PLUGIN
 #include "qemu/plugin-memory.h"
 #endif
+#include "tcg-target-sa32.h"
 
 /* DEBUG defines, enable DEBUG_TLB_LOG to log to the CPU_LOG_MMU target */
 /* #define DEBUG_TLB */
@@ -92,6 +93,9 @@ static inline size_t sizeof_tlb(CPUTLBDescFast *fast)
 
 static inline uintptr_t g2h_tlbe(const CPUTLBEntry *tlb, target_ulong gaddr)
 {
+    if (TCG_TARGET_SIGNED_ADDR32 && TARGET_LONG_BITS == 32) {
+        return tlb->addend + (int32_t)gaddr;
+    }
     return tlb->addend + (uintptr_t)gaddr;
 }
 
@@ -1234,7 +1238,13 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
     desc->iotlb[index].attrs = attrs;
 
     /* Now calculate the new entry */
-    tn.addend = addend - vaddr_page;
+
+    if (TCG_TARGET_SIGNED_ADDR32 && TARGET_LONG_BITS < TCG_TARGET_REG_BITS) {
+        tn.addend = addend - (int32_t)vaddr_page;
+    } else {
+        tn.addend = addend - vaddr_page;
+    }
+
     if (prot & PAGE_READ) {
         tn.addr_read = address;
         if (wp_flags & BP_MEM_READ) {
