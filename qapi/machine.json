@@ -1213,6 +1213,7 @@
   'data': { '*id': 'str',
             'memaddr': 'size',
             'size': 'size',
+            'node': 'int',
             'memdev': 'str'
           }
 }
@@ -1288,7 +1289,10 @@
 # Since: 6.2
 ##
 { 'struct': 'SgxEPC',
-  'data': { 'memdev': 'str' } }
+  'data': { 'memdev': 'str',
+            'node': 'int'
+          }
+}
 
 ##
 # @SgxEPCProperties:
