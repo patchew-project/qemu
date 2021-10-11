@@ -41,6 +41,9 @@
 #include "hw/remote/machine.h"
 #include "qapi/error.h"
 #include "qapi/qapi-visit-sockets.h"
+#include "qemu/notify.h"
+#include "sysemu/sysemu.h"
+#include "libvfio-user.h"
 
 #define TYPE_VFU_OBJECT "vfio-user-server"
 OBJECT_DECLARE_TYPE(VfuObject, VfuObjectClass, VFU_OBJECT)
@@ -61,6 +64,10 @@ struct VfuObject {
     SocketAddress *socket;
 
     char *device;
+
+    Notifier machine_done;
+
+    vfu_ctx_t *vfu_ctx;
 };
 
 static void vfu_object_set_socket(Object *obj, Visitor *v, const char *name,
@@ -94,9 +101,31 @@ static void vfu_object_set_device(Object *obj, const char *str, Error **errp)
     trace_vfu_prop("device", str);
 }
 
+/*
+ * vfio-user-server depends on the availability of the 'socket' and 'device'
+ * properties. It also depends on devices instantiated in QEMU. These
+ * dependencies are not available during the instance_init phase of this
+ * object's life-cycle. As such, the server is initialized after the
+ * machine is setup. machine_init_done_notifier notifies vfio-user-server
+ * when the machine is setup, and the dependencies are available.
+ */
+static void vfu_object_machine_done(Notifier *notifier, void *data)
+{
+    VfuObject *o = container_of(notifier, VfuObject, machine_done);
+
+    o->vfu_ctx = vfu_create_ctx(VFU_TRANS_SOCK, o->socket->u.q_unix.path, 0,
+                                o, VFU_DEV_TYPE_PCI);
+    if (o->vfu_ctx == NULL) {
+        error_setg(&error_abort, "vfu: Failed to create context - %s",
+                   strerror(errno));
+        return;
+    }
+}
+
 static void vfu_object_init(Object *obj)
 {
     VfuObjectClass *k = VFU_OBJECT_GET_CLASS(obj);
+    VfuObject *o = VFU_OBJECT(obj);
 
     if (!object_dynamic_cast(OBJECT(current_machine), TYPE_REMOTE_MACHINE)) {
         error_setg(&error_abort, "vfu: %s only compatible with %s machine",
@@ -111,7 +140,12 @@ static void vfu_object_init(Object *obj)
         return;
     }
 
+    o->vfu_ctx = NULL;
+
     k->nr_devs++;
+
+    o->machine_done.notify = vfu_object_machine_done;
+    qemu_add_machine_init_done_notifier(&o->machine_done);
 }
 
 static void vfu_object_finalize(Object *obj)
@@ -122,6 +156,10 @@ static void vfu_object_finalize(Object *obj)
     k->nr_devs--;
 
     g_free(o->socket);
+
+    if (o->vfu_ctx) {
+        vfu_destroy_ctx(o->vfu_ctx);
+    }
 
     g_free(o->device);
 
