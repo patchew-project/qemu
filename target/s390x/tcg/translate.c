@@ -6380,9 +6380,6 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
     /* Search for the insn in the table.  */
     insn = extract_insn(env, s);
 
-    /* Emit insn_start now that we know the ILEN.  */
-    tcg_gen_insn_start(s->base.pc_next, s->cc_op, s->ilen);
-
     /* Not found means unimplemented/illegal opcode.  */
     if (insn == NULL) {
         qemu_log_mask(LOG_UNIMP, "unimplemented opcode 0x%02x%02x\n",
@@ -6550,8 +6547,30 @@ static void s390x_tr_tb_start(DisasContextBase *db, CPUState *cs)
 {
 }
 
+/*
+ * We just enough partial instruction decoding here to calculate the
+ * length of the instruction so we can drop the INDEX_op_insn_start
+ * before anything else is emitted in the TCGOp stream.
+ *
+ * See extract_insn for the full decode.
+ */
 static void s390x_tr_insn_start(DisasContextBase *dcbase, CPUState *cs)
 {
+    CPUS390XState *env = cs->env_ptr;
+    DisasContext *s = container_of(dcbase, DisasContext, base);
+    uint64_t insn, pc = s->base.pc_next;
+    int op, ilen;
+
+    if (unlikely(s->ex_value)) {
+        ilen = s->ex_value & 0xf;
+    } else {
+        insn = ld_code2(env, s, pc);  /* FIXME: don't reload same pc twice */
+        op = (insn >> 8) & 0xff;
+        ilen = get_ilen(op);
+    }
+
+    /* Emit insn_start now that we know the ILEN.  */
+    tcg_gen_insn_start(s->base.pc_next, s->cc_op, ilen);
 }
 
 static void s390x_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
