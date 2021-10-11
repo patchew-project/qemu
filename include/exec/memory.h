@@ -2265,7 +2265,8 @@ bool memory_region_present(MemoryRegion *container, hwaddr addr);
 
 /**
  * memory_region_is_mapped: returns true if #MemoryRegion is mapped
- * into any address space.
+ * into another #MemoryRegion directly. Will return false if the
+ * #MemoryRegion is mapped indirectly via an alias.
  *
  * @mr: a #MemoryRegion which should be checked if it's mapped
  */
