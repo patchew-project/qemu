@@ -74,11 +74,13 @@ static uint64_t sgx_calc_section_metric(uint64_t low, uint64_t high)
            ((high & MAKE_64BIT_MASK(0, 20)) << 32);
 }
 
-static uint64_t sgx_calc_host_epc_section_size(void)
+static SGXEPCSectionList *sgx_calc_host_epc_sections(void)
 {
+    SGXEPCSectionList *head = NULL, **tail = &head;
+    SGXEPCSection *section;
     uint32_t i, type;
     uint32_t eax, ebx, ecx, edx;
-    uint64_t size = 0;
+    uint32_t j = 0;
 
     for (i = 0; i < SGX_MAX_EPC_SECTIONS; i++) {
         host_cpuid(0x12, i + 2, &eax, &ebx, &ecx, &edx);
@@ -92,10 +94,13 @@ static uint64_t sgx_calc_host_epc_section_size(void)
             break;
         }
 
-        size += sgx_calc_section_metric(ecx, edx);
+        section = g_new0(SGXEPCSection, 1);
+        section->index = j++;
+        section->size = sgx_calc_section_metric(ecx, edx);
+        QAPI_LIST_APPEND(tail, section);
     }
 
-    return size;
+    return head;
 }
 
 SGXInfo *sgx_get_capabilities(Error **errp)
@@ -119,7 +124,7 @@ SGXInfo *sgx_get_capabilities(Error **errp)
     info->sgx1 = eax & (1U << 0) ? true : false;
     info->sgx2 = eax & (1U << 1) ? true : false;
 
-    info->section_size = sgx_calc_host_epc_section_size();
+    info->sections = sgx_calc_host_epc_sections();
 
     close(fd);
 
