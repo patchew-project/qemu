@@ -67,6 +67,7 @@ class Multiprocess(Test):
     def test_multiprocess_x86_64(self):
         """
         :avocado: tags=arch:x86_64
+        :avocado: tags=distro:centos
         """
         kernel_url = ('https://archives.fedoraproject.org/pub/archive/fedora'
                       '/linux/releases/31/Everything/x86_64/os/images'
@@ -82,6 +83,7 @@ class Multiprocess(Test):
     def test_multiprocess_aarch64(self):
         """
         :avocado: tags=arch:aarch64
+        :avocado: tags=distro:ubuntu
         """
         kernel_url = ('https://archives.fedoraproject.org/pub/archive/fedora'
                       '/linux/releases/31/Everything/aarch64/os/images'

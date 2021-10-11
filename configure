@@ -443,7 +443,7 @@ skip_meson=no
 gettext="auto"
 fuse="auto"
 fuse_lseek="auto"
-multiprocess="auto"
+multiprocess="disabled"
 slirp_smbd="$default_feature"
 
 malloc_trim="auto"
@@ -4289,6 +4289,17 @@ but not implemented on your system"
 	fi
     fi
 fi
+
+##########################################
+# check for multiprocess
+
+case "$multiprocess" in
+  auto | enabled )
+    if test "$git_submodules_action" != "ignore"; then
+      git_submodules="${git_submodules} subprojects/libvfio-user"
+    fi
+    ;;
+esac
 
 ##########################################
 # End of CC checks

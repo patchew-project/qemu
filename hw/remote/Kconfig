@@ -1,4 +1,9 @@
+config VFIO_USER_SERVER
+    bool
+    default n
+
 config MULTIPROCESS
     bool
     depends on PCI && PCI_EXPRESS && KVM
     select REMOTE_PCIHOST
+    select VFIO_USER_SERVER
