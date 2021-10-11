@@ -180,6 +180,7 @@ struct DeviceState {
     char *canonical_path;
     bool realized;
     bool pending_deleted_event;
+    int64_t pending_deleted_expires_ms;
     QemuOpts *opts;
     int hotplugged;
     bool allow_unplug_during_migration;
