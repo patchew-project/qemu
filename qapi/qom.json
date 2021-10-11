@@ -689,6 +689,20 @@
   'data': { 'fd': 'str', 'devid': 'str' } }
 
 ##
+# @VfioUserServerProperties:
+#
+# Properties for vfio-user-server objects.
+#
+# @socket: socket to be used by the libvfiouser library
+#
+# @device: the id of the device to be emulated at the server
+#
+# Since: 6.0
+##
+{ 'struct': 'VfioUserServerProperties',
+  'data': { 'socket': 'SocketAddress', 'device': 'str' } }
+
+##
 # @RngProperties:
 #
 # Properties for objects of classes derived from rng.
@@ -812,7 +826,8 @@
     'tls-creds-psk',
     'tls-creds-x509',
     'tls-cipher-suites',
-    'x-remote-object'
+    'x-remote-object',
+    'vfio-user-server'
   ] }
 
 ##
@@ -868,7 +883,8 @@
       'tls-creds-psk':              'TlsCredsPskProperties',
       'tls-creds-x509':             'TlsCredsX509Properties',
       'tls-cipher-suites':          'TlsCredsProperties',
-      'x-remote-object':            'RemoteObjectProperties'
+      'x-remote-object':            'RemoteObjectProperties',
+      'vfio-user-server':           'VfioUserServerProperties'
   } }
 
 ##
