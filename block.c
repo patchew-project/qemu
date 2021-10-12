@@ -653,6 +653,8 @@ int coroutine_fn bdrv_co_create_opts_simple(BlockDriver *drv,
     Error *local_err = NULL;
     int ret;
 
+    assert(qemu_in_main_thread());
+
     size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
     buf = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
     prealloc = qapi_enum_parse(&PreallocMode_lookup, buf,
@@ -2428,6 +2430,8 @@ void bdrv_get_cumulative_perm(BlockDriverState *bs, uint64_t *perm,
     uint64_t cumulative_perms = 0;
     uint64_t cumulative_shared_perms = BLK_PERM_ALL;
 
+    assert(qemu_in_main_thread());
+
     QLIST_FOREACH(c, &bs->parents, next_parent) {
         cumulative_perms |= c->perm;
         cumulative_shared_perms &= c->shared_perm;
@@ -2486,6 +2490,8 @@ int bdrv_child_try_set_perm(BdrvChild *c, uint64_t perm, uint64_t shared,
     Transaction *tran = tran_new();
     int ret;
 
+    assert(qemu_in_main_thread());
+
     bdrv_child_set_perm(c, perm, shared, tran);
 
     ret = bdrv_refresh_perms(c->bs, &local_err);
@@ -2515,6 +2521,8 @@ int bdrv_child_refresh_perms(BlockDriverState *bs, BdrvChild *c, Error **errp)
 {
     uint64_t parent_perms, parent_shared;
     uint64_t perms, shared;
+
+    assert(qemu_in_main_thread());
 
     bdrv_get_cumulative_perm(bs, &parent_perms, &parent_shared);
     bdrv_child_perm(bs, c->bs, c, c->role, NULL,
@@ -2658,6 +2666,7 @@ void bdrv_default_perms(BlockDriverState *bs, BdrvChild *c,
                         uint64_t perm, uint64_t shared,
                         uint64_t *nperm, uint64_t *nshared)
 {
+    assert(qemu_in_main_thread());
     if (role & BDRV_CHILD_FILTERED) {
         assert(!(role & (BDRV_CHILD_DATA | BDRV_CHILD_METADATA |
                          BDRV_CHILD_COW)));
@@ -2983,6 +2992,8 @@ BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
     int ret;
     BdrvChild *child = NULL;
     Transaction *tran = tran_new();
+
+    assert(qemu_in_main_thread());
 
     ret = bdrv_attach_child_common(child_bs, child_name, child_class,
                                    child_role, perm, shared_perm, opaque,
@@ -6027,6 +6038,8 @@ const char *bdrv_get_parent_name(const BlockDriverState *bs)
     BdrvChild *c;
     const char *name;
 
+    assert(qemu_in_main_thread());
+
     /* If multiple parents have a name, just pick the first one. */
     QLIST_FOREACH(c, &bs->parents, next_parent) {
         if (c->klass->get_name) {
@@ -7302,6 +7315,8 @@ bool bdrv_recurse_can_replace(BlockDriverState *bs,
 {
     BlockDriverState *filtered;
 
+    assert(qemu_in_main_thread());
+
     if (!bs || !bs->drv) {
         return false;
     }
@@ -7473,6 +7488,7 @@ static bool append_strong_runtime_options(QDict *d, BlockDriverState *bs)
  * would result in exactly bs->backing. */
 bool bdrv_backing_overridden(BlockDriverState *bs)
 {
+    assert(qemu_in_main_thread());
     if (bs->backing) {
         return strcmp(bs->auto_backing_file,
                       bs->backing->bs->filename);
@@ -7861,6 +7877,7 @@ static BlockDriverState *bdrv_do_skip_filters(BlockDriverState *bs,
  */
 BlockDriverState *bdrv_skip_implicit_filters(BlockDriverState *bs)
 {
+    assert(qemu_in_main_thread());
     return bdrv_do_skip_filters(bs, true);
 }
 
