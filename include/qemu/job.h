@@ -169,11 +169,20 @@ typedef struct Job {
  * Callbacks and other information about a Job driver.
  */
 struct JobDriver {
+
+    /* Fields initialized in struct definition and never changed. */
+
     /** Derived Job struct size */
     size_t instance_size;
 
     /** Enum describing the operation */
     JobType job_type;
+
+    /*
+     * Functions run without regard to the BQL and may run in any
+     * arbitrary thread. These functions do not need to be thread-safe
+     * because the caller ensures that are invoked from one thread at time.
+     */
 
     /**
      * Mandatory: Entrypoint for the Coroutine.
@@ -200,6 +209,13 @@ struct JobDriver {
      * should be restarted from this callback.
      */
     void coroutine_fn (*resume)(Job *job);
+
+    /*
+     * Global state (GS) API. These functions run under the BQL lock.
+     *
+     * See include/block/block-global-state.h for more information about
+     * the GS API.
+     */
 
     /**
      * Called when the job is resumed by the user (i.e. user_paused becomes
