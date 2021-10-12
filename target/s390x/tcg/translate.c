@@ -6272,21 +6272,20 @@ static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s)
 
         /* Extract the values saved by EXECUTE.  */
         insn = s->ex_value & 0xffffffffffff0000ull;
-        ilen = s->ex_value & 0xf;
-        op = insn >> 56;
+        ilen = extract64(s->ex_value, 0, 8);
+        op = extract64(insn, 56, 8);
     } else {
-        insn = ld_code2(env, s, pc);
-        op = (insn >> 8) & 0xff;
+        insn = deposit64(0, 48, 16, ld_code2(env, s, pc));
+        op = extract64(insn, 56, 8);
         ilen = get_ilen(op);
         switch (ilen) {
         case 2:
-            insn = insn << 48;
             break;
         case 4:
-            insn = ld_code4(env, s, pc) << 32;
+            insn = deposit64(insn, 32, 16, ld_code2(env, s, pc + 2));
             break;
-        case 6:
-            insn = (insn << 48) | (ld_code4(env, s, pc + 2) << 16);
+         case 6:
+             insn = deposit64(insn, 16, 32, ld_code4(env, s, pc + 2));
             break;
         default:
             g_assert_not_reached();
