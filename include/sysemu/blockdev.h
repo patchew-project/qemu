@@ -40,7 +40,13 @@ struct DriveInfo {
     QTAILQ_ENTRY(DriveInfo) next;
 };
 
-DriveInfo *blk_legacy_dinfo(BlockBackend *blk);
+/*
+ * Global state (GS) API. These functions run under the BQL lock.
+ *
+ * See include/block/block-global-state.h for more information about
+ * the GS API.
+ */
+
 DriveInfo *blk_set_legacy_dinfo(BlockBackend *blk, DriveInfo *dinfo);
 BlockBackend *blk_by_legacy_dinfo(DriveInfo *dinfo);
 
@@ -50,10 +56,14 @@ DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit);
 void drive_check_orphaned(void);
 DriveInfo *drive_get_by_index(BlockInterfaceType type, int index);
 int drive_get_max_bus(BlockInterfaceType type);
-int drive_get_max_devs(BlockInterfaceType type);
 DriveInfo *drive_get_next(BlockInterfaceType type);
 
 DriveInfo *drive_new(QemuOpts *arg, BlockInterfaceType block_default_type,
                      Error **errp);
+
+/* Common functions that are neither I/O nor Global State */
+
+DriveInfo *blk_legacy_dinfo(BlockBackend *blk);
+int drive_get_max_devs(BlockInterfaceType type);
 
 #endif
