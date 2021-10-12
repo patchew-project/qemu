@@ -293,6 +293,30 @@ typedef struct GlobalProperty {
     bool optional;
 } GlobalProperty;
 
+
+/**
+ * Helper to add (non)transitional compat properties
+ */
+static inline void
+compat_props_add_transitional(GPtrArray *arr, GlobalProperty *prop)
+{
+    GlobalProperty *transitional = g_new0(typeof(*transitional), 1);
+    transitional->driver = g_strdup_printf("%s-transitional", prop->driver);
+    transitional->property = g_strdup(prop->property);
+    transitional->value = g_strdup(prop->value);
+    transitional->used = prop->used;
+    transitional->optional = prop->optional;
+    g_ptr_array_add(arr, (void *)transitional);
+
+    GlobalProperty *non_transitional = g_new0(typeof(*non_transitional), 1);
+    non_transitional->driver = g_strdup_printf("%s-non-transitional", prop->driver);
+    non_transitional->property = g_strdup(prop->property);
+    non_transitional->value = g_strdup(prop->value);
+    non_transitional->used = prop->used;
+    non_transitional->optional = prop->optional;
+    g_ptr_array_add(arr, (void *)non_transitional);
+}
+
 static inline void
 compat_props_add(GPtrArray *arr,
                  GlobalProperty props[], size_t nelem)
@@ -300,6 +324,16 @@ compat_props_add(GPtrArray *arr,
     int i;
     for (i = 0; i < nelem; i++) {
         g_ptr_array_add(arr, (void *)&props[i]);
+        if (g_str_equal(props[i].driver, "vhost-user-blk-pci") ||
+            g_str_equal(props[i].driver, "virtio-scsi-pci") ||
+            g_str_equal(props[i].driver, "virtio-blk-pci") ||
+            g_str_equal(props[i].driver, "virtio-balloon-pci") ||
+            g_str_equal(props[i].driver, "virtio-serial-pci") ||
+            g_str_equal(props[i].driver, "virtio-9p-pci") ||
+            g_str_equal(props[i].driver, "virtio-net-pci") ||
+            g_str_equal(props[i].driver, "virtio-rng-pci")) {
+            compat_props_add_transitional(arr, &props[i]);
+        }
     }
 }
 
