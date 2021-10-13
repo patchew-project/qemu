@@ -1272,7 +1272,7 @@ static Property virtio_mem_properties[] = {
     DEFINE_PROP_LINK(VIRTIO_MEM_MEMDEV_PROP, VirtIOMEM, memdev,
                      TYPE_MEMORY_BACKEND, HostMemoryBackend *),
     DEFINE_PROP_UINT16(VIRTIO_MEM_MAX_MEMSLOTS_PROP, VirtIOMEM, nb_max_memslots,
-                       1),
+                       0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -39,6 +39,7 @@
 
 GlobalProperty hw_compat_6_1[] = {
     { "vhost-user-vsock-device", "seqpacket", "off" },
+    { "virtio-mem", "max-memslots", "1" },
 };
 const size_t hw_compat_6_1_len = G_N_ELEMENTS(hw_compat_6_1);
 
