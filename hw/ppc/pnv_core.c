@@ -25,11 +25,38 @@
 #include "target/ppc/cpu.h"
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/pnv.h"
+#include "hw/ppc/mce.h"
 #include "hw/ppc/pnv_core.h"
 #include "hw/ppc/pnv_xscom.h"
 #include "hw/ppc/xics.h"
 #include "hw/qdev-properties.h"
 #include "helper_regs.h"
+
+static void pnv_cpu_inject_mce_on_cpu(CPUState *cs, run_on_cpu_data data)
+{
+    PPCMceInjectionParams *params = (PPCMceInjectionParams *) data.host_ptr;
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+    uint64_t srr1_mce_bits = PPC_BITMASK(42, 45) | PPC_BIT(36);
+
+    ppc_cpu_do_machine_check(cs);
+
+    env->spr[SPR_SRR1] = (env->msr & ~srr1_mce_bits) |
+                         (params->srr1_mask & srr1_mce_bits);
+    if (params->dsisr) {
+        env->spr[SPR_DSISR] = params->dsisr;
+        env->spr[SPR_DAR] = params->dar;
+    }
+
+    if (!params->recovered) {
+        env->msr &= ~MSR_RI;
+    }
+}
+
+void pnv_cpu_inject_mce(CPUState *cs, PPCMceInjectionParams *p)
+{
+    run_on_cpu(cs, pnv_cpu_inject_mce_on_cpu, RUN_ON_CPU_HOST_PTR(p));
+}
 
 static const char *pnv_core_cpu_typename(PnvCore *pc)
 {

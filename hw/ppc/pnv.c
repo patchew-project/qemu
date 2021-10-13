@@ -2001,6 +2001,7 @@ static void pnv_machine_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     InterruptStatsProviderClass *ispc = INTERRUPT_STATS_PROVIDER_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);
+    PPCMceInjectionClass *mcec = PPC_MCE_INJECTION_CLASS(oc);
 
     mc->desc = "IBM PowerNV (Non-Virtualized)";
     mc->init = pnv_init;
@@ -2018,6 +2019,7 @@ static void pnv_machine_class_init(ObjectClass *oc, void *data)
     mc->default_ram_id = "pnv.ram";
     ispc->print_info = pnv_pic_print_info;
     nc->nmi_monitor_handler = pnv_nmi;
+    mcec->inject_mce = pnv_cpu_inject_mce;
 
     object_class_property_add_bool(oc, "hb-mode",
                                    pnv_machine_get_hb, pnv_machine_set_hb);
@@ -2080,6 +2082,7 @@ static const TypeInfo types[] = {
         .interfaces = (InterfaceInfo[]) {
             { TYPE_INTERRUPT_STATS_PROVIDER },
             { TYPE_NMI },
+            { TYPE_PPC_MCE_INJECTION },
             { },
         },
     },

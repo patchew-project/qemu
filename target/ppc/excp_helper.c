@@ -379,6 +379,10 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             cs->halted = 1;
             cpu_interrupt_exittb(cs);
         }
+        if (msr_pow) {
+            /* indicate that we resumed from power save mode */
+            msr |= 0x10000;
+        }
         if (env->msr_mask & MSR_HVB) {
             /*
              * ISA specifies HV, but can be delivered to guest with HV
@@ -1069,6 +1073,14 @@ void ppc_cpu_do_system_reset(CPUState *cs)
     CPUPPCState *env = &cpu->env;
 
     powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_RESET);
+}
+
+void ppc_cpu_do_machine_check(CPUState *cs)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+
+    powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_MCHECK);
 }
 
 void ppc_cpu_do_fwnmi_machine_check(CPUState *cs, target_ulong vector)
