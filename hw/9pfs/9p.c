@@ -32,7 +32,7 @@
 #include "migration/blocker.h"
 #include "qemu/xxhash.h"
 #include <math.h>
-#include <linux/limits.h>
+#include <limits.h>
 
 int open_fd_hw;
 int total_open_fd;
