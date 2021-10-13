@@ -119,7 +119,6 @@ class OpenBSDVM(basevm.BaseVM):
         self.console_send("%s\n" % self._config["guest_pass"])
 
         self.console_wait_send("Allow root ssh login",    "yes\n")
-        self.console_wait_send("timezone",                "UTC\n")
         self.console_wait_send("root disk",               "\n")
         self.console_wait_send("(W)hole disk",            "\n")
         self.console_wait_send("(A)uto layout",           "\n")
@@ -130,6 +129,7 @@ class OpenBSDVM(basevm.BaseVM):
 
         self.print_step("Installation started now, this will take a while")
         self.console_wait_send("Location of sets",        "done\n")
+        self.console_wait_send("timezone",                "UTC\n")
 
         self.console_wait("successfully completed")
         self.print_step("Installation finished, rebooting")
