@@ -73,7 +73,7 @@ static void memory_device_check_addable(MachineState *ms, uint64_t size,
     uint64_t used_region_size = 0;
 
     /* we will need a new memory slot for kvm and vhost */
-    if (kvm_enabled() && !kvm_has_free_slot(ms)) {
+    if (kvm_enabled() && !kvm_get_free_memslots()) {
         error_setg(errp, "hypervisor has no free memory slots left");
         return;
     }
