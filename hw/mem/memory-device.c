@@ -50,8 +50,28 @@ static int memory_device_build_list(Object *obj, void *opaque)
     return 0;
 }
 
+static unsigned int memory_device_get_used_memslots(const MemoryDeviceState *md)
+{
+    const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(md);
+
+    if (!mdc->get_used_memslots)
+        return 1;
+    return mdc->get_used_memslots(md, &error_abort);
+}
+
+static unsigned int memory_device_get_memslots(const MemoryDeviceState *md)
+{
+    const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(md);
+
+    if (!mdc->get_memslots)
+        return 1;
+    return mdc->get_memslots(md, &error_abort);
+}
+
 struct memory_devices_info {
     uint64_t region_size;
+    unsigned int used_memslots;
+    unsigned int reserved_memslots;
 };
 
 static int memory_devices_collect_info(Object *obj, void *opaque)
@@ -61,9 +81,15 @@ static int memory_devices_collect_info(Object *obj, void *opaque)
     if (object_dynamic_cast(obj, TYPE_MEMORY_DEVICE)) {
         const DeviceState *dev = DEVICE(obj);
         const MemoryDeviceState *md = MEMORY_DEVICE(obj);
+        unsigned int used, total;
 
         if (dev->realized) {
             i->region_size += memory_device_get_region_size(md, &error_abort);
+
+            used = memory_device_get_used_memslots(md);
+            total = memory_device_get_memslots(md);
+            i->used_memslots += used;
+            i->reserved_memslots += total - used;
         }
     }
 
@@ -71,24 +97,116 @@ static int memory_devices_collect_info(Object *obj, void *opaque)
     return 0;
 }
 
-static void memory_device_check_addable(MachineState *ms, MemoryRegion *mr,
-                                        Error **errp)
+/*
+ * Get the number of memslots that are reserved (not used yet but will get used
+ * dynamically in the future without further checks) by all memory devices.
+ */
+unsigned int memory_devices_get_reserved_memslots(void)
+{
+    struct memory_devices_info info = {};
+
+    object_child_foreach(qdev_get_machine(), memory_devices_collect_info, &info);
+    return info.reserved_memslots;
+}
+
+/*
+ * Calculate the maximum number of memslots using a heuristic a memory device
+ * with the given region size may used. Called before/while plugging and
+ * realizing a memory device that can determine the number of memslots to use
+ * dynamically depending on the actual number of available memslots.
+ */
+unsigned int memory_devices_calc_memslot_limit(uint64_t region_size)
+{
+    struct memory_devices_info info = {};
+    MachineState *ms = current_machine;
+    unsigned int total, free, limit;
+    double percent;
+
+    free = vhost_get_free_memslots();
+    if (kvm_enabled()) {
+        free = MIN(free, kvm_get_free_memslots());
+    }
+    object_child_foreach(OBJECT(ms), memory_devices_collect_info, &info);
+
+    /*
+     * Consider all memslots that are used+reserved by memory devices and
+     * can be used for memory devices. This leaves any memslots used for
+     * something else (e.g., initial memory) out of the picture.
+     */
+    total = info.used_memslots + info.reserved_memslots + free;
+
+    /*
+     * Cap the total to something reasonable for now. We don't want to have
+     * infinite memslots or max out the KVM limit ...
+     */
+    total = MIN(4096, total);
+    if (total > info.used_memslots + info.reserved_memslots) {
+        free = total - info.used_memslots + info.reserved_memslots;
+    } else {
+        free = 0;
+    }
+
+    /*
+     * Simple heuristic: equally distribute the total slots over the whole
+     * device region.
+     */
+    percent = (double)region_size / (ms->maxram_size - ms->ram_size);
+    limit = total * percent;
+
+    /*
+     * However, let's be conservative and prepare for some smaller devices
+     * that consume more memslots-per-byte. Only use 90% of the assigned
+     * percentage.
+     */
+    limit = 0.9 * limit;
+
+    /*
+     * In rare corner cases (especially, appearance of vhost devices after
+     * already plugging memory devices), we might still run into trouble.
+     * Let's try to leave 16 slots around "just in case".
+     */
+    if (limit > free) {
+        if (free > 16) {
+            free = free - 16;
+        } else {
+            free = 0;
+        }
+        limit = MIN(limit, free);
+    }
+    return !limit ? 1 : limit;
+}
+
+static void memory_device_check_addable(MachineState *ms, MemoryDeviceState *md,
+                                        MemoryRegion *mr, Error **errp)
 {
     const uint64_t size = memory_region_size(mr);
     struct memory_devices_info info = {};
+    unsigned int required, reserved;
 
-    /* we will need a new memory slot for kvm and vhost */
-    if (kvm_enabled() && !kvm_get_free_memslots()) {
-        error_setg(errp, "hypervisor has no free memory slots left");
+    memory_devices_collect_info(OBJECT(ms), &info);
+    reserved = info.reserved_memslots;
+    required = memory_device_get_memslots(md);
+
+    /*
+     * All memslots used by memory devices are already subtracted from
+     * the free memslots as reported by kvm and vhost. Memory devices that
+     * use multiple memslots are expected to take proper care (disabling
+     * merging of memory regions) such that used memslots don't end up
+     * actually consuming less right now and might consume more later.
+     */
+    if (kvm_enabled() && kvm_get_free_memslots() < reserved + required) {
+        error_setg(errp, "KVM does not have enough free memory slots left (%u vs. %u)",
+                   required, kvm_get_free_memslots() - reserved);
         return;
     }
-    if (!vhost_get_free_memslots()) {
-        error_setg(errp, "a used vhost backend has no free memory slots left");
+    if (vhost_get_free_memslots() < reserved + required) {
+        error_setg(errp,
+                   "a used vhost backend does not have enough free memory slots left (%u vs. %u)",
+                   required, vhost_get_free_memslots() - reserved);
         return;
     }
 
     /* will we exceed the total amount of memory specified */
-    memory_devices_collect_info(OBJECT(ms), &info);
     if (info.region_size + size < info.region_size ||
         info.region_size + size > ms->maxram_size - ms->ram_size) {
         error_setg(errp, "not enough space, currently 0x%" PRIx64
@@ -257,7 +375,7 @@ void memory_device_pre_plug(MemoryDeviceState *md, MachineState *ms,
         goto out;
     }
 
-    memory_device_check_addable(ms, mr, &local_err);
+    memory_device_check_addable(ms, md, mr, &local_err);
     if (local_err) {
         goto out;
     }
