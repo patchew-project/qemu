@@ -249,11 +249,17 @@ static bool trans_rev8_64(DisasContext *ctx, arg_rev8_64 *a)
 static void gen_orc_b(TCGv ret, TCGv source1)
 {
     TCGv  tmp = tcg_temp_new();
+    TCGv  tmp2 = tcg_temp_new();
     TCGv  ones = tcg_constant_tl(dup_const_tl(MO_8, 0x01));
 
+    /* avoid carry propagation */
+    tcg_gen_shli_tl(tmp, source1, 1);
+    tcg_gen_or_tl(tmp, source1, tmp);
+    tcg_gen_andc_tl(tmp2, tmp, ones);
+
     /* Set lsb in each byte if the byte was zero. */
-    tcg_gen_sub_tl(tmp, source1, ones);
-    tcg_gen_andc_tl(tmp, tmp, source1);
+    tcg_gen_sub_tl(tmp, tmp2, ones);
+    tcg_gen_andc_tl(tmp, tmp, tmp2);
     tcg_gen_shri_tl(tmp, tmp, 7);
     tcg_gen_andc_tl(tmp, ones, tmp);
 
@@ -261,6 +267,7 @@ static void gen_orc_b(TCGv ret, TCGv source1)
     tcg_gen_muli_tl(ret, tmp, 0xff);
 
     tcg_temp_free(tmp);
+    tcg_temp_free(tmp2);
 }
 
 static bool trans_orc_b(DisasContext *ctx, arg_orc_b *a)
