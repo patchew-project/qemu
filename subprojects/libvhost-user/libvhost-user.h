@@ -30,11 +30,8 @@
 
 #define VHOST_MEMORY_BASELINE_NREGIONS 8
 
-/*
- * Set a reasonable maximum number of ram slots, which will be supported by
- * any architecture.
- */
-#define VHOST_USER_MAX_RAM_SLOTS 32
+/* Set the RAM slots based on the maximum supported by QEMU vhost-user. */
+#define VHOST_USER_MAX_RAM_SLOTS 4096
 
 #define VHOST_USER_HDR_SIZE offsetof(VhostUserMsg, payload.u64)
 
