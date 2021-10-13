@@ -56,6 +56,7 @@
 #include "hw/core/cpu.h"
 
 #include "hw/ppc/ppc.h"
+#include "hw/ppc/mce.h"
 #include "hw/loader.h"
 
 #include "hw/ppc/fdt.h"
@@ -4522,6 +4523,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     InterruptStatsProviderClass *ispc = INTERRUPT_STATS_PROVIDER_CLASS(oc);
     XiveFabricClass *xfc = XIVE_FABRIC_CLASS(oc);
     VofMachineIfClass *vmc = VOF_MACHINE_CLASS(oc);
+    PPCMceInjectionClass *mcec = PPC_MCE_INJECTION_CLASS(oc);
 
     mc->desc = "pSeries Logical Partition (PAPR compliant)";
     mc->ignore_boot_device_suffixes = true;
@@ -4614,6 +4616,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     vmc->client_architecture_support = spapr_vof_client_architecture_support;
     vmc->quiesce = spapr_vof_quiesce;
     vmc->setprop = spapr_vof_setprop;
+    mcec->inject_mce = spapr_cpu_inject_mce;
 }
 
 static const TypeInfo spapr_machine_info = {
@@ -4634,6 +4637,7 @@ static const TypeInfo spapr_machine_info = {
         { TYPE_INTERRUPT_STATS_PROVIDER },
         { TYPE_XIVE_FABRIC },
         { TYPE_VOF_MACHINE_IF },
+        { TYPE_PPC_MCE_INJECTION },
         { }
     },
 };

@@ -9,6 +9,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/cpu/core.h"
+#include "hw/core/cpu.h"
 #include "hw/ppc/spapr_cpu_core.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
@@ -19,11 +20,37 @@
 #include "sysemu/kvm.h"
 #include "target/ppc/kvm_ppc.h"
 #include "hw/ppc/ppc.h"
+#include "hw/ppc/mce.h"
 #include "target/ppc/mmu-hash64.h"
 #include "sysemu/numa.h"
 #include "sysemu/reset.h"
 #include "sysemu/hw_accel.h"
 #include "qemu/error-report.h"
+
+static void spapr_cpu_inject_mce_on_cpu(CPUState *cs, run_on_cpu_data data)
+{
+    PPCMceInjectionParams *params = (PPCMceInjectionParams *) data.host_ptr;
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+    uint64_t srr1_mce_bits = PPC_BITMASK(42, 45) | PPC_BIT(36);
+
+    cpu_synchronize_state(cs);
+
+    env->spr[SPR_SRR0] = env->nip;
+    env->spr[SPR_SRR1] = (env->msr & ~srr1_mce_bits) |
+                         (params->srr1_mask & srr1_mce_bits);
+    if (params->dsisr) {
+        env->spr[SPR_DSISR] = params->dsisr;
+        env->spr[SPR_DAR] = params->dar;
+    }
+
+    spapr_mce_req_event(cpu, params->recovered);
+}
+
+void spapr_cpu_inject_mce(CPUState *cs, PPCMceInjectionParams *p)
+{
+    run_on_cpu(cs, spapr_cpu_inject_mce_on_cpu, RUN_ON_CPU_HOST_PTR(p));
+}
 
 static void spapr_reset_vcpu(PowerPCCPU *cpu)
 {

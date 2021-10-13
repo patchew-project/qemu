@@ -9,6 +9,7 @@
 #ifndef HW_SPAPR_CPU_CORE_H
 #define HW_SPAPR_CPU_CORE_H
 
+#include "hw/ppc/mce.h"
 #include "hw/cpu/core.h"
 #include "hw/qdev-core.h"
 #include "target/ppc/cpu-qom.h"
@@ -40,6 +41,7 @@ const char *spapr_get_cpu_core_type(const char *cpu_type);
 void spapr_cpu_set_entry_state(PowerPCCPU *cpu, target_ulong nip,
                                target_ulong r1, target_ulong r3,
                                target_ulong r4);
+void spapr_cpu_inject_mce(CPUState *cs, PPCMceInjectionParams *p);
 
 typedef struct SpaprCpuState {
     uint64_t vpa_addr;
