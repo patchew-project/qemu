@@ -23,6 +23,7 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
 #include "hw/virtio/virtio-mem.h"
+#include "hw/mem/memory-device.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "exec/ram_addr.h"
@@ -500,6 +501,7 @@ static void virtio_mem_resize_usable_region(VirtIOMEM *vmem,
 {
     uint64_t newsize = MIN(memory_region_size(&vmem->memdev->mr),
                            requested_size + VIRTIO_MEM_USABLE_EXTENT);
+    int i;
 
     /* The usable region size always has to be multiples of the block size. */
     newsize = QEMU_ALIGN_UP(newsize, vmem->block_size);
@@ -514,6 +516,25 @@ static void virtio_mem_resize_usable_region(VirtIOMEM *vmem,
 
     trace_virtio_mem_resized_usable_region(vmem->usable_region_size, newsize);
     vmem->usable_region_size = newsize;
+
+    /*
+     * Map all unmapped memslots that cover the usable region and unmap all
+     * remaining mapped ones.
+     */
+    for (i = 0; i < vmem->nb_memslots; i++) {
+        if (vmem->memslot_size * i < vmem->usable_region_size) {
+            if (!memory_region_is_mapped(&vmem->memslots[i])) {
+                memory_region_add_subregion(vmem->mr, vmem->memslot_size * i,
+                                            &vmem->memslots[i]);
+                vmem->nb_used_memslots++;
+            }
+        } else {
+            if (memory_region_is_mapped(&vmem->memslots[i])) {
+                memory_region_del_subregion(vmem->mr, &vmem->memslots[i]);
+                vmem->nb_used_memslots--;
+            }
+        }
+    }
 }
 
 static int virtio_mem_unplug_all(VirtIOMEM *vmem)
@@ -674,6 +695,92 @@ static void virtio_mem_system_reset(void *opaque)
     virtio_mem_unplug_all(vmem);
 }
 
+static void virtio_mem_prepare_mr(VirtIOMEM *vmem)
+{
+    const uint64_t region_size = memory_region_size(&vmem->memdev->mr);
+
+    if (vmem->mr) {
+        return;
+    }
+
+    vmem->mr = g_malloc0(sizeof(*vmem->mr));
+    memory_region_init(vmem->mr, OBJECT(vmem), "virtio-mem-memslots",
+                       region_size);
+    vmem->mr->align = memory_region_get_alignment(&vmem->memdev->mr);
+}
+
+/*
+ * Calculate the number of memslots we'll use based on device properties and
+ * available + already used+reserved memslots for other devices.
+ *
+ * Must not get called after realizing the device.
+ */
+static unsigned int virtio_mem_calc_nb_memslots(uint64_t region_size,
+                                                uint64_t block_size,
+                                                unsigned int user_limit)
+{
+    unsigned int limit = memory_devices_calc_memslot_limit(region_size);
+    uint64_t memslot_size;
+
+    /*
+     * We never use more than 1024 memslots for a single device (relevant only
+     * for devices > 1 TiB).
+     */
+    limit = MIN(limit, 1024);
+
+    /*
+     * We'll never use memslots that are smaller than 1 GiB or smaller than
+     * the block size (and thereby the page size). memslots are always a power
+     * of two.
+     */
+    memslot_size = MAX(1 * GiB, block_size);
+    while (ROUND_UP(region_size, memslot_size) / memslot_size > limit) {
+        memslot_size *= 2;
+    }
+    limit = ROUND_UP(region_size, memslot_size) / memslot_size;
+
+    return !user_limit ? limit : MIN(user_limit, limit);
+}
+
+static void virtio_mem_prepare_memslots(VirtIOMEM *vmem)
+{
+    const uint64_t region_size = memory_region_size(&vmem->memdev->mr);
+    int i;
+
+    if (!vmem->nb_memslots) {
+        vmem->nb_memslots = virtio_mem_calc_nb_memslots(region_size,
+                                                        vmem->block_size,
+                                                        vmem->nb_max_memslots);
+    }
+    if (vmem->nb_memslots == 1) {
+        vmem->memslot_size = region_size;
+    } else {
+        vmem->memslot_size = 1 * GiB;
+        while (ROUND_UP(region_size, vmem->memslot_size) / vmem->memslot_size >
+               vmem->nb_memslots) {
+            vmem->memslot_size *= 2;
+        }
+    }
+
+    /* Create our memslots but don't map them yet -- we'll map dynamically. */
+    vmem->memslots = g_malloc0_n(vmem->nb_memslots, sizeof(*vmem->memslots));
+    for (i = 0; i < vmem->nb_memslots; i++) {
+        const uint64_t size = MIN(vmem->memslot_size,
+                                  region_size - i * vmem->memslot_size);
+        char name[80];
+
+        snprintf(name, sizeof(name), "virtio-mem-memslot-%u", i);
+        memory_region_init_alias(&vmem->memslots[i], OBJECT(vmem), name,
+                                 &vmem->memdev->mr, vmem->memslot_size * i,
+                                 size);
+        /*
+         * We want our aliases to result in separate memory sections and thereby
+         * separate memslots.
+         */
+        memory_region_set_alias_unmergeable(&vmem->memslots[i], true);
+    }
+}
+
 static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
@@ -763,7 +870,7 @@ static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    virtio_mem_resize_usable_region(vmem, vmem->requested_size, true);
+    virtio_mem_prepare_mr(vmem);
 
     vmem->bitmap_size = memory_region_size(&vmem->memdev->mr) /
                         vmem->block_size;
@@ -780,9 +887,11 @@ static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
      */
     memory_region_set_ram_discard_manager(&vmem->memdev->mr,
                                           RAM_DISCARD_MANAGER(vmem));
+    virtio_mem_prepare_memslots(vmem);
 
-    host_memory_backend_set_mapped(vmem->memdev, true);
+    virtio_mem_resize_usable_region(vmem, vmem->requested_size, true);
     vmstate_register_ram(&vmem->memdev->mr, DEVICE(vmem));
+    host_memory_backend_set_mapped(vmem->memdev, true);
     qemu_register_reset(virtio_mem_system_reset, vmem);
 }
 
@@ -794,10 +903,14 @@ static void virtio_mem_device_unrealize(DeviceState *dev)
     qemu_unregister_reset(virtio_mem_system_reset, vmem);
     vmstate_unregister_ram(&vmem->memdev->mr, DEVICE(vmem));
     host_memory_backend_set_mapped(vmem->memdev, false);
+    /* Unmap all memslots. */
+    virtio_mem_resize_usable_region(vmem, 0, true);
+    g_free(vmem->memslots);
     memory_region_set_ram_discard_manager(&vmem->memdev->mr, NULL);
     virtio_del_queue(vdev, 0);
     virtio_cleanup(vdev);
     g_free(vmem->bitmap);
+    g_free(vmem->mr);
     ram_block_coordinated_discard_require(false);
 }
 
@@ -955,7 +1068,8 @@ static MemoryRegion *virtio_mem_get_memory_region(VirtIOMEM *vmem, Error **errp)
         return NULL;
     }
 
-    return &vmem->memdev->mr;
+    virtio_mem_prepare_mr(vmem);
+    return vmem->mr;
 }
 
 static void virtio_mem_add_size_change_notifier(VirtIOMEM *vmem,
@@ -1084,6 +1198,53 @@ static void virtio_mem_set_block_size(Object *obj, Visitor *v, const char *name,
     vmem->block_size = value;
 }
 
+static void virtio_mem_get_used_memslots(Object *obj, Visitor *v,
+                                          const char *name,
+                                          void *opaque, Error **errp)
+{
+    const VirtIOMEM *vmem = VIRTIO_MEM(obj);
+    uint16_t value = vmem->nb_used_memslots;
+
+    visit_type_uint16(v, name, &value, errp);
+}
+
+static void virtio_mem_get_memslots(Object *obj, Visitor *v, const char *name,
+                                    void *opaque, Error **errp)
+{
+    VirtIOMEM *vmem = VIRTIO_MEM(obj);
+    uint16_t value = vmem->nb_memslots;
+
+    /* Determine the final value now, we don't want it to change later.  */
+    if (!vmem->nb_memslots) {
+        uint64_t block_size = vmem->block_size;
+        uint64_t region_size;
+        RAMBlock *rb;
+
+        if (!vmem->memdev || !memory_region_is_ram(&vmem->memdev->mr)) {
+            /* We'll fail realizing later ... */
+            vmem->nb_memslots = 1;
+            goto out;
+        }
+        region_size = memory_region_size(&vmem->memdev->mr);
+        rb = vmem->memdev->mr.ram_block;
+
+        if (!block_size) {
+            block_size = virtio_mem_default_block_size(rb);
+        } else if (block_size < qemu_ram_pagesize(rb)) {
+            /* We'll fail realizing later ... */
+            vmem->nb_memslots = 1;
+            goto out;
+        }
+
+        vmem->nb_memslots = virtio_mem_calc_nb_memslots(region_size,
+                                                        vmem->block_size,
+                                                        vmem->nb_max_memslots);
+    }
+out:
+    value = vmem->nb_memslots;
+    visit_type_uint16(v, name, &value, errp);
+}
+
 static void virtio_mem_instance_init(Object *obj)
 {
     VirtIOMEM *vmem = VIRTIO_MEM(obj);
@@ -1099,6 +1260,10 @@ static void virtio_mem_instance_init(Object *obj)
     object_property_add(obj, VIRTIO_MEM_BLOCK_SIZE_PROP, "size",
                         virtio_mem_get_block_size, virtio_mem_set_block_size,
                         NULL, NULL);
+    object_property_add(obj, VIRTIO_MEM_MEMSLOTS_PROP, "uint16",
+                        virtio_mem_get_memslots, NULL, NULL, NULL);
+    object_property_add(obj, VIRTIO_MEM_USED_MEMSLOTS_PROP, "uint16",
+                        virtio_mem_get_used_memslots, NULL, NULL, NULL);
 }
 
 static Property virtio_mem_properties[] = {
@@ -1106,6 +1271,8 @@ static Property virtio_mem_properties[] = {
     DEFINE_PROP_UINT32(VIRTIO_MEM_NODE_PROP, VirtIOMEM, node, 0),
     DEFINE_PROP_LINK(VIRTIO_MEM_MEMDEV_PROP, VirtIOMEM, memdev,
                      TYPE_MEMORY_BACKEND, HostMemoryBackend *),
+    DEFINE_PROP_UINT16(VIRTIO_MEM_MAX_MEMSLOTS_PROP, VirtIOMEM, nb_max_memslots,
+                       1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
