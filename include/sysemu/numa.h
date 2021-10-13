@@ -104,6 +104,7 @@ void parse_numa_hmat_lb(NumaState *numa_state, NumaHmatLBOptions *node,
 void parse_numa_hmat_cache(MachineState *ms, NumaHmatCacheOptions *node,
                            Error **errp);
 void numa_complete_configuration(MachineState *ms);
+void numa_complete_validation(MachineState *ms);
 void query_numa_node_mem(NumaNodeMem node_mem[], MachineState *ms);
 extern QemuOptsList qemu_numa_opts;
 void numa_cpu_pre_plug(const struct CPUArchId *slot, DeviceState *dev,

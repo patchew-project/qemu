@@ -1355,6 +1355,10 @@ void machine_run_board_init(MachineState *machine)
     accel_init_interfaces(ACCEL_GET_CLASS(machine->accelerator));
     machine_class->init(machine);
     phase_advance(PHASE_MACHINE_INITIALIZED);
+
+    if (machine->numa_state) {
+        numa_complete_validation(machine);
+    }
 }
 
 static NotifierList machine_init_done_notifiers =

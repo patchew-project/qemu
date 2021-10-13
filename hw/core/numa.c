@@ -727,6 +727,30 @@ void numa_complete_configuration(MachineState *ms)
     }
 }
 
+/*
+ * When device-tree is used by the machine, the empty node IDs should
+ * be included in the distance map. So we need provide pairs of distances
+ * in this case.
+ */
+void numa_complete_validation(MachineState *ms)
+{
+    NodeInfo *numa_info = ms->numa_state->nodes;
+    int nb_numa_nodes = ms->numa_state->num_nodes;
+    int i;
+
+    if (!ms->fdt || ms->numa_state->have_numa_distance) {
+        return;
+    }
+
+    for (i = 0; i < nb_numa_nodes; i++) {
+        if (numa_info[i].present && !numa_info[i].node_mem) {
+            error_report("Empty node %d found, please provide "
+                         "distance map.", i);
+            exit(EXIT_FAILURE);
+        }
+    }
+}
+
 void parse_numa_opts(MachineState *ms)
 {
     qemu_opts_foreach(qemu_find_opts("numa"), parse_numa, ms, &error_fatal);
