@@ -620,7 +620,7 @@ static void vhost_region_add_section(struct vhost_dev *dev,
                                                mrs_size, mrs_host);
     }
 
-    if (dev->n_tmp_sections) {
+    if (dev->n_tmp_sections && !section->unmergeable) {
         /* Since we already have at least one section, lets see if
          * this extends it; since we're scanning in order, we only
          * have to look at the last one, and the FlatView that calls
@@ -653,7 +653,7 @@ static void vhost_region_add_section(struct vhost_dev *dev,
             size_t offset = mrs_gpa - prev_gpa_start;
 
             if (prev_host_start + offset == mrs_host &&
-                section->mr == prev_sec->mr &&
+                section->mr == prev_sec->mr && !prev_sec->unmergeable &&
                 (!dev->vhost_ops->vhost_backend_can_merge ||
                  dev->vhost_ops->vhost_backend_can_merge(dev,
                     mrs_host, mrs_size,
