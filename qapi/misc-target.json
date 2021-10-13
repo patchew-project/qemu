@@ -397,3 +397,29 @@
 #
 ##
 { 'command': 'query-sgx-capabilities', 'returns': 'SGXInfo', 'if': 'TARGET_I386' }
+
+##
+# @mce:
+#
+# This command injects a machine check exception
+#
+# @cpu-index: CPU number on which to inject the machine check exception
+#
+# @srr1-mask : possible reasons for the exception
+#
+# @dsisr : more reasons
+#
+# @dar : effective address of next instruction
+#
+# @recovered : recoverable exception. Set MSR[RI]
+#
+# Since: 6.2
+#
+##
+{ 'command': 'mce',
+  'data': { 'cpu-index': 'uint32',
+            'srr1-mask': 'uint64',
+            'dsisr': 'uint32',
+            'dar': 'uint64',
+            'recovered': 'bool' },
+  'if': 'TARGET_PPC' }

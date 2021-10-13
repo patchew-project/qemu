@@ -23,11 +23,15 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
+#include "qapi/qapi-commands-misc-target.h"
 #include "cpu.h"
 #include "monitor/monitor.h"
 #include "qemu/ctype.h"
 #include "monitor/hmp-target.h"
 #include "monitor/hmp.h"
+#include "qapi/qmp/qdict.h"
+#include "hw/ppc/mce.h"
 
 static target_long monitor_get_ccr(Monitor *mon, const struct MonitorDef *md,
                                    int val)
@@ -74,6 +78,48 @@ void hmp_info_tlb(Monitor *mon, const QDict *qdict)
         return;
     }
     dump_mmu(env1);
+}
+
+void qmp_mce(uint32_t cpu_index, uint64_t srr1_mask, uint32_t dsisr,
+             uint64_t dar, bool recovered, Error **errp)
+{
+    PPCMceInjection *mce = (PPCMceInjection *)
+        object_dynamic_cast(qdev_get_machine(), TYPE_PPC_MCE_INJECTION);
+    CPUState *cs;
+
+    if (!mce) {
+        error_setg(errp, "MCE injection not supported on this machine");
+        return;
+    }
+
+    cs = qemu_get_cpu(cpu_index);
+
+    if (cs != NULL) {
+        PPCMceInjectionClass *mcec = PPC_MCE_INJECTION_GET_CLASS(mce);
+        PPCMceInjectionParams p = {
+            .srr1_mask = srr1_mask,
+            .dsisr = dsisr,
+            .dar = dar,
+            .recovered = recovered,
+        };
+        mcec->inject_mce(cs, &p);
+    }
+}
+
+void hmp_mce(Monitor *mon, const QDict *qdict)
+{
+    uint32_t cpu_index = qdict_get_int(qdict, "cpu_index");
+    uint64_t srr1_mask = qdict_get_int(qdict, "srr1_mask");
+    uint32_t dsisr = qdict_get_int(qdict, "dsisr");
+    uint64_t dar = qdict_get_int(qdict, "dar");
+    bool recovered = qdict_get_int(qdict, "recovered");
+    Error *err = NULL;
+
+    qmp_mce(cpu_index, srr1_mask, dsisr, dar, recovered, &err);
+    if (err) {
+        hmp_handle_error(mon, err);
+        return;
+    }
 }
 
 const MonitorDef monitor_defs[] = {
@@ -156,3 +202,13 @@ int target_get_monitor_def(CPUState *cs, const char *name, uint64_t *pval)
 
     return -EINVAL;
 }
+
+static const TypeInfo type_infos[] = {
+    {
+        .name = TYPE_PPC_MCE_INJECTION,
+        .parent = TYPE_INTERFACE,
+        .class_size = sizeof(PPCMceInjectionClass),
+    },
+};
+
+DEFINE_TYPES(type_infos);
