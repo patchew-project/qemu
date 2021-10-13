@@ -1203,17 +1203,20 @@ have_host_block_device = (targetos != 'darwin' or
 # config-host.h #
 #################
 
-have_virtfs = (targetos == 'linux' and
-    have_system and
-    libattr.found() and
-    libcap_ng.found())
+if targetos == 'linux'
+  have_virtfs = (have_system and
+      libattr.found() and
+      libcap_ng.found())
+elif targetos == 'darwin'
+  have_virtfs = have_system
+endif
 
-have_virtfs_proxy_helper = have_virtfs and have_tools
+have_virtfs_proxy_helper = targetos == 'linux' and have_virtfs and have_tools
 
 if get_option('virtfs').enabled()
   if not have_virtfs
-    if targetos != 'linux'
-      error('virtio-9p (virtfs) requires Linux')
+    if targetos != 'linux' and targetos != 'darwin'
+      error('virtio-9p (virtfs) requires Linux or Darwin')
     elif not libcap_ng.found() or not libattr.found()
       error('virtio-9p (virtfs) requires libcap-ng-devel and libattr-devel')
     elif not have_system
