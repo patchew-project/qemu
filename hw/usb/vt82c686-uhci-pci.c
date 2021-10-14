@@ -1,5 +1,15 @@
 #include "qemu/osdep.h"
+#include "hw/irq.h"
 #include "hcd-uhci.h"
+
+static void uhci_isa_set_irq(void *opaque, int irq_num, int level)
+{
+    UHCIState *s = opaque;
+    uint8_t irq = pci_get_byte(s->dev.config + PCI_INTERRUPT_LINE);
+    if (irq > 0 && irq < 15) {
+        qemu_set_irq(isa_get_irq(NULL, irq), level);
+    }
+}
 
 static void usb_uhci_vt82c686b_realize(PCIDevice *dev, Error **errp)
 {
@@ -14,6 +24,8 @@ static void usb_uhci_vt82c686b_realize(PCIDevice *dev, Error **errp)
     pci_set_long(pci_conf + 0xc0, 0x00002000);
 
     usb_uhci_common_realize(dev, errp);
+    object_unref(s->irq);
+    s->irq = qemu_allocate_irq(uhci_isa_set_irq, s, 0);
 }
 
 static UHCIInfo uhci_info[] = {
