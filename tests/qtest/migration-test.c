@@ -38,6 +38,7 @@
 unsigned start_address;
 unsigned end_address;
 static bool uffd_feature_thread_id;
+static bool uffd_usermode_only;
 
 /* A downtime where the test really should converge */
 #define CONVERGE_DOWNTIME 1000
@@ -60,8 +61,12 @@ static bool ufd_version_check(void)
     int ufd = syscall(__NR_userfaultfd, O_CLOEXEC);
 
     if (ufd == -1) {
-        g_test_message("Skipping test: userfaultfd not available");
-        return false;
+        ufd = syscall(__NR_userfaultfd, O_CLOEXEC | UFFD_USER_MODE_ONLY);
+        if (ufd == -1) {
+	    g_test_message("Skipping test: userfaultfd not available");
+            return false;
+	} else
+            uffd_usermode_only = true;
     }
 
     api_struct.api = UFFD_API;
@@ -670,6 +675,8 @@ static int migrate_postcopy_prepare(QTestState **from_ptr,
     }
 
     migrate_set_capability(from, "postcopy-ram", true);
+    if (uffd_usermode_only)
+        migrate_set_capability(to, "postcopy-uffd-usermode-only", true);
     migrate_set_capability(to, "postcopy-ram", true);
     migrate_set_capability(to, "postcopy-blocktime", true);
 
