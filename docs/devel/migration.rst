@@ -639,6 +639,15 @@ postcopy-blocktime value of qmp command will show overlapped blocking
 time for all vCPU, postcopy-vcpu-blocktime will show list of blocking
 time per vCPU.
 
+Since kernel v5.11, Unprivileged user (without SYS_CAP_PTRACE capability)
+must pass UFFD_USER_MODE_ONLY to userfaultd if the unprivileged_userfaultfd
+sysctl knob is 0.
+
+To allow unprivileged user postcopy, Issue this command on destination
+monitor prior to turning on postcopy-ram:
+
+``migrate_set_capability postcopy-uffd-usermode-only on``
+
 .. note::
   During the postcopy phase, the bandwidth limits set using
   ``migrate_set_parameter`` is ignored (to avoid delaying requested pages that
