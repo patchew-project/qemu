@@ -452,6 +452,11 @@
 #                       procedure starts. The VM RAM is saved with running VM.
 #                       (since 6.0)
 #
+# @postcopy-uffd-usermode-only: If enabled, It allows unprivileged users to use
+#                               userfaultfd but with the restriction that page
+#                               faults from only user mode can be handled.
+#                               (since 6.2.0)
+#
 # Since: 1.2
 ##
 { 'enum': 'MigrationCapability',
@@ -459,7 +464,8 @@
            'compress', 'events', 'postcopy-ram', 'x-colo', 'release-ram',
            'block', 'return-path', 'pause-before-switchover', 'multifd',
            'dirty-bitmaps', 'postcopy-blocktime', 'late-block-activate',
-           'x-ignore-shared', 'validate-uuid', 'background-snapshot'] }
+           'x-ignore-shared', 'validate-uuid', 'background-snapshot',
+           'postcopy-uffd-usermode-only'] }
 
 ##
 # @MigrationCapabilityStatus:

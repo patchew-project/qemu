@@ -2380,6 +2380,15 @@ bool migrate_postcopy_blocktime(void)
     return s->enabled_capabilities[MIGRATION_CAPABILITY_POSTCOPY_BLOCKTIME];
 }
 
+bool migrate_postcopy_uffd_usermode_only(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_POSTCOPY_UFFD_USERMODE_ONLY];
+}
+
 bool migrate_use_compression(void)
 {
     MigrationState *s;

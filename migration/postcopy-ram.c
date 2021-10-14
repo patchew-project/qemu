@@ -206,9 +206,14 @@ static bool receive_ufd_features(uint64_t *features)
     struct uffdio_api api_struct = {0};
     int ufd;
     bool ret = true;
+    int flags;
+
+    flags = O_CLOEXEC;
+    if (migrate_postcopy_uffd_usermode_only())
+        flags |= UFFD_USER_MODE_ONLY;
 
     /* if we are here __NR_userfaultfd should exists */
-    ufd = syscall(__NR_userfaultfd, O_CLOEXEC);
+    ufd = syscall(__NR_userfaultfd, flags);
     if (ufd == -1) {
         error_report("%s: syscall __NR_userfaultfd failed: %s", __func__,
                      strerror(errno));
@@ -352,13 +357,18 @@ bool postcopy_ram_supported_by_host(MigrationIncomingState *mis)
     struct uffdio_range range_struct;
     uint64_t feature_mask;
     Error *local_err = NULL;
+    int flags;
 
     if (qemu_target_page_size() > pagesize) {
         error_report("Target page size bigger than host page size");
         goto out;
     }
 
-    ufd = syscall(__NR_userfaultfd, O_CLOEXEC);
+    flags = O_CLOEXEC;
+    if (migrate_postcopy_uffd_usermode_only())
+        flags |= UFFD_USER_MODE_ONLY;
+
+    ufd = syscall(__NR_userfaultfd, flags);
     if (ufd == -1) {
         error_report("%s: userfaultfd not available: %s", __func__,
                      strerror(errno));
@@ -1064,8 +1074,14 @@ retry:
 
 int postcopy_ram_incoming_setup(MigrationIncomingState *mis)
 {
+    int flags;
+
+    flags = O_CLOEXEC | O_NONBLOCK;
+    if (migrate_postcopy_uffd_usermode_only())
+        flags |= UFFD_USER_MODE_ONLY;
+
     /* Open the fd for the kernel to give us userfaults */
-    mis->userfault_fd = syscall(__NR_userfaultfd, O_CLOEXEC | O_NONBLOCK);
+    mis->userfault_fd = syscall(__NR_userfaultfd, flags);
     if (mis->userfault_fd == -1) {
         error_report("%s: Failed to open userfault fd: %s", __func__,
                      strerror(errno));
