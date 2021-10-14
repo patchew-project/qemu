@@ -13627,7 +13627,6 @@ static void gen_mipsdsp_accinsn(DisasContext *ctx, uint32_t op1, uint32_t op2,
     TCGv t0;
     TCGv t1;
     TCGv v1_t;
-    TCGv v2_t;
     int16_t imm;
 
     if ((ret == 0) && (check_ret == 1)) {
@@ -13638,10 +13637,8 @@ static void gen_mipsdsp_accinsn(DisasContext *ctx, uint32_t op1, uint32_t op2,
     t0 = tcg_temp_new();
     t1 = tcg_temp_new();
     v1_t = tcg_temp_new();
-    v2_t = tcg_temp_new();
 
     gen_load_gpr(v1_t, v1);
-    gen_load_gpr(v2_t, v2);
 
     switch (op1) {
     case OPC_EXTR_W_DSP:
@@ -13842,7 +13839,6 @@ static void gen_mipsdsp_accinsn(DisasContext *ctx, uint32_t op1, uint32_t op2,
     tcg_temp_free(t0);
     tcg_temp_free(t1);
     tcg_temp_free(v1_t);
-    tcg_temp_free(v2_t);
 }
 
 /* End MIPSDSP functions. */
