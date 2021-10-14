@@ -482,7 +482,8 @@ VM migration across the network:
  - QEMU command line parameters should be identical apart from the
    '-incoming' option on the destination side
 
- - swtpm command line parameters should be identical
+ - swtpm command line parameters can be identical if storage is not
+   shared and should be different for shared storage
 
 VM Snapshotting:
  - QEMU command line parameters should be identical
