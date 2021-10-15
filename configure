@@ -308,7 +308,6 @@ fortify_source="$default_feature"
 strip_opt="yes"
 mingw32="no"
 gcov="no"
-EXESUF=""
 modules="no"
 module_upgrades="no"
 prefix="/usr/local"
@@ -713,7 +712,6 @@ else
 fi
 
 if test "$mingw32" = "yes" ; then
-  EXESUF=".exe"
   # MinGW needs -mthreads for TLS and macro _MT.
   CONFIGURE_CFLAGS="-mthreads $CONFIGURE_CFLAGS"
   write_c_skeleton;
@@ -3814,7 +3812,6 @@ echo "GLIB_CFLAGS=$glib_cflags" >> $config_host_mak
 echo "GLIB_LIBS=$glib_libs" >> $config_host_mak
 echo "QEMU_LDFLAGS=$QEMU_LDFLAGS" >> $config_host_mak
 echo "LD_I386_EMULATION=$ld_i386_emulation" >> $config_host_mak
-echo "EXESUF=$EXESUF" >> $config_host_mak
 echo "LIBS_QGA=$libs_qga" >> $config_host_mak
 
 if test "$rng_none" = "yes"; then
