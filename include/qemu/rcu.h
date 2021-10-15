@@ -27,6 +27,7 @@
 #include "qemu/thread.h"
 #include "qemu/queue.h"
 #include "qemu/atomic.h"
+#include "qemu/notify.h"
 #include "qemu/sys_membarrier.h"
 
 #ifdef __cplusplus
@@ -66,6 +67,13 @@ struct rcu_reader_data {
 
     /* Data used for registry, protected by rcu_registry_lock */
     QLIST_ENTRY(rcu_reader_data) node;
+
+    /*
+     * Notifier used to force an RCU grace period.  Accessed under
+     * rcu_registry_lock.  Note that the notifier is called _outside_
+     * the thread!
+     */
+    Notifier *force_rcu;
 };
 
 extern __thread struct rcu_reader_data rcu_reader;
@@ -114,8 +122,19 @@ extern void synchronize_rcu(void);
 
 /*
  * Reader thread registration.
+ *
+ * The caller can specify an optional notifier if it wants RCU
+ * to enforce grace periods. This is needed by drain_call_rcu().
+ * Note that the notifier is executed in the context of the RCU
+ * thread.
  */
-extern void rcu_register_thread(void);
+extern void rcu_register_thread_with_force_rcu(Notifier *n);
+
+static inline void rcu_register_thread(void)
+{
+    rcu_register_thread_with_force_rcu(NULL);
+}
+
 extern void rcu_unregister_thread(void);
 
 /*

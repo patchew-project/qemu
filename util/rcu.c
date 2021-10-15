@@ -46,8 +46,16 @@
 unsigned long rcu_gp_ctr = RCU_GP_LOCKED;
 
 QemuEvent rcu_gp_event;
+static int in_drain_call_rcu;
 static QemuMutex rcu_registry_lock;
 static QemuMutex rcu_sync_lock;
+
+/*
+ * NotifierList used to force an RCU grace period.  Accessed under
+ * rcu_registry_lock.
+ */
+static NotifierList force_rcu_notifiers =
+    NOTIFIER_LIST_INITIALIZER(force_rcu_notifiers);
 
 /*
  * Check whether a quiescent state was crossed between the beginning of
@@ -107,6 +115,8 @@ static void wait_for_readers(void)
                  * get some extra futex wakeups.
                  */
                 qatomic_set(&index->waiting, false);
+            } else if (qatomic_read(&in_drain_call_rcu)) {
+                notifier_list_notify(&force_rcu_notifiers, NULL);
             }
         }
 
@@ -293,7 +303,6 @@ void call_rcu1(struct rcu_head *node, void (*func)(struct rcu_head *node))
     qemu_event_set(&rcu_call_ready_event);
 }
 
-
 struct rcu_drain {
     struct rcu_head rcu;
     QemuEvent drain_complete_event;
@@ -339,8 +348,10 @@ void drain_call_rcu(void)
      * assumed.
      */
 
+    qatomic_inc(&in_drain_call_rcu);
     call_rcu1(&rcu_drain.rcu, drain_rcu_callback);
     qemu_event_wait(&rcu_drain.drain_complete_event);
+    qatomic_dec(&in_drain_call_rcu);
 
     if (locked) {
         qemu_mutex_lock_iothread();
@@ -348,10 +359,14 @@ void drain_call_rcu(void)
 
 }
 
-void rcu_register_thread(void)
+void rcu_register_thread_with_force_rcu(Notifier *n)
 {
     assert(rcu_reader.ctr == 0);
     qemu_mutex_lock(&rcu_registry_lock);
+    if (n) {
+        rcu_reader.force_rcu = n;
+        notifier_list_add(&force_rcu_notifiers, rcu_reader.force_rcu);
+    }
     QLIST_INSERT_HEAD(&registry, &rcu_reader, node);
     qemu_mutex_unlock(&rcu_registry_lock);
 }
@@ -360,6 +375,10 @@ void rcu_unregister_thread(void)
 {
     qemu_mutex_lock(&rcu_registry_lock);
     QLIST_REMOVE(&rcu_reader, node);
+    if (rcu_reader.force_rcu) {
+        notifier_remove(rcu_reader.force_rcu);
+        rcu_reader.force_rcu = NULL;
+    }
     qemu_mutex_unlock(&rcu_registry_lock);
 }
 
