@@ -25,7 +25,7 @@ Two ways to configure CPU models with QEMU / KVM
     typically refer to specific generations of hardware released by
     Intel and AMD.  These allow the guest VMs to have a degree of
     isolation from the host CPU, allowing greater flexibility in live
-    migrating between hosts with differing hardware.  @end table
+    migrating between hosts with differing hardware.
 
 In both cases, it is possible to optionally add or remove individual CPU
 features, to alter what is presented to the guest by default.
@@ -47,11 +47,20 @@ defined. Traditionally most operating systems and toolchains would
 only target the original baseline ABI. It is expected that in
 future OS and toolchains are likely to target newer ABIs. The
 table that follows illustrates which ABI compatibility levels
-can be satisfied by the QEMU CPU models. Note that the table only
-lists the long term stable CPU model versions (eg Haswell-v4).
-In addition to whats listed, there are also many CPU model
-aliases which resolve to a different CPU model version,
-depending on the machine type is in use.
+can be satisfied by the QEMU CPU models. Note that the table only lists
+the long term stable CPU model versions (e.g. Haswell-v4, Haswell-v3).
+CPU models without a version tag will alias to a CPU model with a
+version tag, and the alias varies depending on the machine type.  In
+addition to what is listed, there are also many CPU model aliases which
+resolve to a different CPU model version, depending on the machine type
+in use.
+
+The versioned CPU models (e.g. ``Cascadelake-Server-v4``,
+``Broadwell-v4``) are long-term stable.  Further, when using a versioned
+machine type (e.g. ``pc-q35-6.0``), instead of its generic alias
+(``q35``), the CPU models that are associated with it are also long-term
+stable.  This is because the CPUID features in the CPU models that are
+part of a versioned machine type do not change.
 
 .. _ABI compatibility levels: https://gitlab.com/x86-psABIs/x86-64-ABI/
 
@@ -185,8 +194,8 @@ features are included if using "Host passthrough" or "Host model".
   guest.  Instead, the host kernel uses it to populate the MDS
   vulnerability file in ``sysfs``.
 
-  So it should only be enabled for VMs if the host reports @code{Not
-  affected} in the ``/sys/devices/system/cpu/vulnerabilities/mds`` file.
+  So it should only be enabled for VMs if the host reports ``Not
+  affected`` in the ``/sys/devices/system/cpu/vulnerabilities/mds`` file.
 
 ``taa-no``
   Recommended to inform that the guest that the host is ``not``
