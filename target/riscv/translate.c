@@ -119,6 +119,16 @@ static void gen_nanbox_s(TCGv_i64 out, TCGv_i64 in)
 }
 
 /*
+ * Temp stub: generates address adjustment for PointerMasking
+ */
+static void gen_pm_adjust_address(DisasContext *s,
+                                  TCGv         *dst,
+                                  TCGv          src)
+{
+    tcg_gen_mov_tl(*dst, src);
+}
+
+/*
  * A narrow n-bit operation, where n < FLEN, checks that input operands
  * are correctly Nan-boxed, i.e., all upper FLEN - n bits are 1.
  * If so, the least-significant bits of the input are used, otherwise the
