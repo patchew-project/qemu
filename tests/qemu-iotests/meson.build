@@ -7,6 +7,7 @@ if have_tools
   endforeach
   test('qemu-iotests', sh, args: [files('../check-block.sh')],
        depends: qemu_iotests_binaries,
+       protocol: 'tap',
        suite: 'block',
        timeout: 0,
        is_parallel: false)

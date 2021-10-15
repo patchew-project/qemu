@@ -17,8 +17,8 @@ if [ "$#" -ne 0 ]; then
 fi
 
 skip() {
-    echo "$*"
-    exit 77
+    echo "1..0 #SKIP $*"
+    exit 0
 }
 
 if grep -q "CONFIG_GPROF=y" config-host.mak 2>/dev/null ; then
@@ -75,7 +75,7 @@ export PYTHONUTF8=1
 
 ret=0
 for fmt in $format_list ; do
-    ${PYTHON} ./check -makecheck -$fmt $group || ret=1
+    ${PYTHON} ./check -tap -$fmt $group || ret=1
 done
 
 exit $ret
