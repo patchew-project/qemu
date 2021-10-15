@@ -146,7 +146,8 @@ static void *rr_cpu_thread_fn(void *arg)
     CPUState *cpu = arg;
 
     assert(tcg_enabled());
-    rcu_register_thread();
+    cpu->force_rcu.notify = tcg_cpus_force_rcu;
+    rcu_register_thread_with_force_rcu(&cpu->force_rcu);
     tcg_register_thread();
 
     qemu_mutex_lock_iothread();

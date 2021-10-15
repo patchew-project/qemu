@@ -91,6 +91,17 @@ void tcg_handle_interrupt(CPUState *cpu, int mask)
     }
 }
 
+static void do_nothing(CPUState *cpu, run_on_cpu_data d)
+{
+}
+
+void tcg_cpus_force_rcu(Notifier *notify, void *data)
+{
+    CPUState *cpu = container_of(notify, CPUState, force_rcu);
+
+    async_run_on_cpu(cpu, do_nothing, RUN_ON_CPU_NULL);
+}
+
 static void tcg_accel_ops_init(AccelOpsClass *ops)
 {
     if (qemu_tcg_mttcg_enabled()) {
