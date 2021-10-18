@@ -28,6 +28,7 @@ struct AspeedWDTState {
     QEMUTimer *timer;
 
     /*< public >*/
+    MemoryRegion iomem_container;
     MemoryRegion iomem;
     uint32_t regs[ASPEED_WDT_REGS_MAX];
 
