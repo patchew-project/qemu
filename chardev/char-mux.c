@@ -28,6 +28,7 @@
 #include "qemu/option.h"
 #include "chardev/char.h"
 #include "sysemu/block-backend.h"
+#include "sysemu/runstate.h"
 #include "chardev-internal.h"
 
 /* MUX driver for serial I/O splitting */
@@ -157,7 +158,7 @@ static int mux_proc_byte(Chardev *chr, MuxChardev *d, int ch)
             {
                  const char *term =  "QEMU: Terminated\n\r";
                  qemu_chr_write_all(chr, (uint8_t *)term, strlen(term));
-                 exit(0);
+                 qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
                  break;
             }
         case 's':
