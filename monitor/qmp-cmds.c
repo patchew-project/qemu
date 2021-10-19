@@ -182,11 +182,6 @@ void qmp_set_password(SetPasswordOptions *opts, Error **errp)
         rc = qemu_spice.set_passwd(opts->password, fail_if_connected,
                                    disconnect_if_connected);
     } else if (opts->protocol == DISPLAY_PROTOCOL_VNC) {
-        if (opts->u.vnc.connected != SET_PASSWORD_ACTION_KEEP) {
-            /* vnc supports "connected=keep" only */
-            error_setg(errp, QERR_INVALID_PARAMETER, "connected");
-            return;
-        }
         /* Note that setting an empty password will not disable login through
          * this interface. */
         rc = vnc_display_password(
