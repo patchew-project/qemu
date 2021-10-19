@@ -134,7 +134,15 @@ static bool trans_bgeu(DisasContext *ctx, arg_bgeu *a)
     return gen_branch(ctx, a, TCG_COND_GEU);
 }
 
-static bool gen_load(DisasContext *ctx, arg_lb *a, MemOp memop)
+static void gen_addi2_i128(TCGv retl, TCGv reth,
+                           TCGv srcl, TCGv srch, target_long imm)
+{
+    TCGv imml  = tcg_constant_tl(imm),
+         immh  = tcg_constant_tl(-(imm < 0));
+    tcg_gen_add2_tl(retl, reth, srcl, srch, imml, immh);
+}
+
+static bool gen_load_tl(DisasContext *ctx, arg_lb *a, MemOp memop)
 {
     TCGv dest = dest_gpr(ctx, a->rd);
     TCGv addr = get_gpr(ctx, a->rs1, EXT_NONE);
@@ -148,6 +156,63 @@ static bool gen_load(DisasContext *ctx, arg_lb *a, MemOp memop)
     tcg_gen_qemu_ld_tl(dest, addr, ctx->mem_idx, memop);
     gen_set_gpr(ctx, a->rd, dest);
     return true;
+}
+
+/*
+ * TODO: we should assert that src1h == 0, as we do not change the
+ *       address translation mechanism
+ */
+static bool gen_load_i128(DisasContext *ctx, arg_lb *a, MemOp memop)
+{
+    TCGv src1l = get_gpr(ctx, a->rs1, EXT_NONE);
+    TCGv src1h = get_gprh(ctx, a->rs1);
+    TCGv destl = dest_gpr(ctx, a->rd);
+    TCGv desth = dest_gprh(ctx, a->rd);
+    TCGv addrl = tcg_temp_new();
+    TCGv addrh = tcg_temp_new();
+    TCGv imml = tcg_temp_new();
+    TCGv immh = tcg_constant_tl(-(a->imm < 0));
+
+    /* Build a 128-bit address */
+    if (a->imm != 0) {
+        tcg_gen_movi_tl(imml, a->imm);
+        tcg_gen_add2_tl(addrl, addrh, src1l, src1h, imml, immh);
+    } else {
+        tcg_gen_mov_tl(addrl, src1l);
+        tcg_gen_mov_tl(addrh, src1h);
+    }
+
+    if (memop != (MemOp)MO_TEO) {
+        tcg_gen_qemu_ld_tl(destl, addrl, ctx->mem_idx, memop);
+        if (memop & MO_SIGN) {
+            tcg_gen_sari_tl(desth, destl, 63);
+        } else {
+            tcg_gen_movi_tl(desth, 0);
+        }
+    } else {
+        tcg_gen_qemu_ld_tl(memop & MO_BSWAP ? desth : destl, addrl,
+                           ctx->mem_idx, MO_TEQ);
+        gen_addi2_i128(addrl, addrh, addrl, addrh, 8);
+        tcg_gen_qemu_ld_tl(memop & MO_BSWAP ? destl : desth, addrl,
+                           ctx->mem_idx, MO_TEQ);
+    }
+
+    gen_set_gpr(ctx, a->rd, destl);
+    gen_set_gprh(ctx, a->rd, desth);
+
+    tcg_temp_free(addrl);
+    tcg_temp_free(addrh);
+    tcg_temp_free(imml);
+    return true;
+}
+
+static bool gen_load(DisasContext *ctx, arg_lb *a, MemOp memop)
+{
+    if (get_xl(ctx) == MXL_RV128) {
+        return gen_load_i128(ctx, a, memop);
+    } else {
+        return gen_load_tl(ctx, a, memop);
+    }
 }
 
 static bool trans_lb(DisasContext *ctx, arg_lb *a)
@@ -165,6 +230,18 @@ static bool trans_lw(DisasContext *ctx, arg_lw *a)
     return gen_load(ctx, a, MO_TESL);
 }
 
+static bool trans_ld(DisasContext *ctx, arg_ld *a)
+{
+    REQUIRE_64_OR_128BIT(ctx);
+    return gen_load(ctx, a, MO_TESQ);
+}
+
+static bool trans_lq(DisasContext *ctx, arg_lq *a)
+{
+    REQUIRE_128BIT(ctx);
+    return gen_load(ctx, a, MO_TEO);
+}
+
 static bool trans_lbu(DisasContext *ctx, arg_lbu *a)
 {
     return gen_load(ctx, a, MO_UB);
@@ -177,17 +254,17 @@ static bool trans_lhu(DisasContext *ctx, arg_lhu *a)
 
 static bool trans_lwu(DisasContext *ctx, arg_lwu *a)
 {
-    REQUIRE_64BIT(ctx);
+    REQUIRE_64_OR_128BIT(ctx);
     return gen_load(ctx, a, MO_TEUL);
 }
 
-static bool trans_ld(DisasContext *ctx, arg_ld *a)
+static bool trans_ldu(DisasContext *ctx, arg_ldu *a)
 {
-    REQUIRE_64BIT(ctx);
-    return gen_load(ctx, a, MO_TEQ);
+    REQUIRE_128BIT(ctx);
+    return gen_load(ctx, a, MO_TEUQ);
 }
 
-static bool gen_store(DisasContext *ctx, arg_sb *a, MemOp memop)
+static bool gen_store_tl(DisasContext *ctx, arg_sb *a, MemOp memop)
 {
     TCGv addr = get_gpr(ctx, a->rs1, EXT_NONE);
     TCGv data = get_gpr(ctx, a->rs2, EXT_NONE);
@@ -200,6 +277,55 @@ static bool gen_store(DisasContext *ctx, arg_sb *a, MemOp memop)
 
     tcg_gen_qemu_st_tl(data, addr, ctx->mem_idx, memop);
     return true;
+}
+
+/*
+ * TODO: we should assert that src1h == 0, as we do not change the
+ *       address translation mechanism
+ */
+static bool gen_store_i128(DisasContext *ctx, arg_sb *a, MemOp memop)
+{
+    TCGv src1l = get_gpr(ctx, a->rs1, EXT_NONE);
+    TCGv src1h = get_gprh(ctx, a->rs1);
+    TCGv src2l = get_gpr(ctx, a->rs2, EXT_NONE);
+    TCGv src2h = get_gprh(ctx, a->rs2);
+    TCGv addrl = tcg_temp_new();
+    TCGv addrh = tcg_temp_new();
+    TCGv imml = tcg_temp_new();
+    TCGv immh = tcg_constant_tl(-(a->imm < 0));
+
+    /* Build a 128-bit address */
+    if (a->imm != 0) {
+        tcg_gen_movi_tl(imml, a->imm);
+        tcg_gen_add2_tl(addrl, addrh, src1l, src1h, imml, immh);
+    } else {
+        tcg_gen_mov_tl(addrl, src1l);
+        tcg_gen_mov_tl(addrh, src1h);
+    }
+
+    if (memop != (MemOp)MO_TEO) {
+        tcg_gen_qemu_st_tl(src2l, addrl, ctx->mem_idx, memop);
+    } else {
+        tcg_gen_qemu_st_tl(memop & MO_BSWAP ? src2h : src2l, addrl,
+            ctx->mem_idx, MO_TEQ);
+        gen_addi2_i128(addrl, addrh, addrl, addrh, 8);
+        tcg_gen_qemu_st_tl(memop & MO_BSWAP ? src2l : src2h, addrl,
+            ctx->mem_idx, MO_TEQ);
+    }
+
+    tcg_temp_free(addrl);
+    tcg_temp_free(addrh);
+    tcg_temp_free(imml);
+    return true;
+}
+
+static bool gen_store(DisasContext *ctx, arg_sb *a, MemOp memop)
+{
+    if (get_xl(ctx) == MXL_RV128) {
+        return gen_store_i128(ctx, a, memop);
+    } else {
+        return gen_store_tl(ctx, a, memop);
+    }
 }
 
 static bool trans_sb(DisasContext *ctx, arg_sb *a)
@@ -219,8 +345,14 @@ static bool trans_sw(DisasContext *ctx, arg_sw *a)
 
 static bool trans_sd(DisasContext *ctx, arg_sd *a)
 {
-    REQUIRE_64BIT(ctx);
+    REQUIRE_64_OR_128BIT(ctx);
     return gen_store(ctx, a, MO_TEQ);
+}
+
+static bool trans_sq(DisasContext *ctx, arg_sq *a)
+{
+    REQUIRE_128BIT(ctx);
+    return gen_store(ctx, a, MO_TEO);
 }
 
 static bool trans_addi(DisasContext *ctx, arg_addi *a)

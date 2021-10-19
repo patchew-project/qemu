@@ -429,13 +429,6 @@ static bool gen_logic_imm_fn(DisasContext *ctx, arg_i *a, DisasExtend ext,
 
     gen_set_gpr(ctx, a->rd, dest);
 
-    /* devilish temporary code so that the patch compiles */
-    if (get_xl_max(ctx) == MXL_RV128) {
-        (void)get_gprh(ctx, 6);
-        (void)dest_gprh(ctx, 6);
-        gen_set_gprh(ctx, 6, NULL);
-    }
-
     return true;
 }
 
