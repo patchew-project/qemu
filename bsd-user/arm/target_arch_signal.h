@@ -163,4 +163,42 @@ set_sigtramp_args(CPUARMState *regs, int sig, struct target_sigframe *frame,
     return 0;
 }
 
+/*
+ * Compare to arm/arm/machdep.c get_mcontext()
+ * Assumes that the memory is locked if mcp points to user memory.
+ */
+static inline abi_long get_mcontext(CPUARMState *regs, target_mcontext_t *mcp,
+        int flags)
+{
+    int err = 0;
+    uint32_t *gr = mcp->__gregs;
+
+    gr[TARGET_REG_CPSR] = tswap32(cpsr_read(regs));
+    if (flags & TARGET_MC_GET_CLEAR_RET) {
+        gr[TARGET_REG_R0] = 0;
+        gr[TARGET_REG_CPSR] &= ~CPSR_C;
+    } else {
+        gr[TARGET_REG_R0] = tswap32(regs->regs[0]);
+    }
+
+    gr[TARGET_REG_R1] = tswap32(regs->regs[1]);
+    gr[TARGET_REG_R2] = tswap32(regs->regs[2]);
+    gr[TARGET_REG_R3] = tswap32(regs->regs[3]);
+    gr[TARGET_REG_R4] = tswap32(regs->regs[4]);
+    gr[TARGET_REG_R5] = tswap32(regs->regs[5]);
+    gr[TARGET_REG_R6] = tswap32(regs->regs[6]);
+    gr[TARGET_REG_R7] = tswap32(regs->regs[7]);
+    gr[TARGET_REG_R8] = tswap32(regs->regs[8]);
+    gr[TARGET_REG_R9] = tswap32(regs->regs[9]);
+    gr[TARGET_REG_R10] = tswap32(regs->regs[10]);
+    gr[TARGET_REG_R11] = tswap32(regs->regs[11]);
+    gr[TARGET_REG_R12] = tswap32(regs->regs[12]);
+
+    gr[TARGET_REG_SP] = tswap32(regs->regs[13]);
+    gr[TARGET_REG_LR] = tswap32(regs->regs[14]);
+    gr[TARGET_REG_PC] = tswap32(regs->regs[15]);
+
+    return err;
+}
+
 #endif /* !_TARGET_ARCH_SIGNAL_H_ */
