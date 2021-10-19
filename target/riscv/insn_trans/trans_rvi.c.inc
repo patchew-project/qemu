@@ -97,13 +97,121 @@ static bool trans_jalr(DisasContext *ctx, arg_jalr *a)
     return true;
 }
 
+/*
+ * Comparison predicates using bitwise logic taken from Hacker's Delight, 2.12
+ * We are just interested in the sign bit, so rl is not used but for subtracting
+ */
+static bool gen_setcond_i128(TCGv rl, TCGv rh,
+                             TCGv al, TCGv ah,
+                             TCGv bl, TCGv bh,
+                             TCGCond cond)
+{
+    switch (cond) {
+    case TCG_COND_EQ:
+        tcg_gen_setcond_tl(TCG_COND_EQ, rl, al, bl);
+        tcg_gen_setcond_tl(TCG_COND_EQ, rh, ah, bh);
+        tcg_gen_and_tl(rl, rl, rh);
+        break;
+
+    case TCG_COND_NE:
+        tcg_gen_setcond_tl(TCG_COND_NE, rl, al, bl);
+        tcg_gen_setcond_tl(TCG_COND_NE, rh, ah, bh);
+        tcg_gen_or_tl(rl, rl, rh);
+        break;
+
+    case TCG_COND_LT:
+    {
+        TCGv tmp1 = tcg_temp_new(),
+             tmp2 = tcg_temp_new();
+
+        tcg_gen_sub2_tl(rl, rh, al, ah, bl, bh);
+        tcg_gen_xor_tl(tmp1, rh, ah);
+        tcg_gen_xor_tl(tmp2, ah, bh);
+        tcg_gen_and_tl(tmp1, tmp1, tmp2);
+        tcg_gen_xor_tl(tmp1, rh, tmp1);
+        tcg_gen_shri_tl(rl, tmp1, 63);
+
+        tcg_temp_free(tmp1);
+        tcg_temp_free(tmp2);
+        break;
+    }
+
+    case TCG_COND_GE:
+        /* Invert result of TCG_COND_LT */
+        gen_setcond_i128(rl, rh, al, ah, bl, bh, TCG_COND_LT);
+        tcg_gen_xori_tl(rl, rl, 1);
+        break;
+
+    case TCG_COND_LTU:
+    {
+        TCGv tmp1 = tcg_temp_new(),
+             tmp2 = tcg_temp_new();
+
+        tcg_gen_sub2_tl(rl, rh, al, ah, bl, bh);
+        tcg_gen_eqv_tl(tmp1, ah, bh);
+        tcg_gen_and_tl(tmp1, tmp1, rh);
+        tcg_gen_andc_tl(tmp2, bh, ah);
+        tcg_gen_or_tl(tmp1, tmp1, tmp2);
+        tcg_gen_shri_tl(rl, tmp1, 63);
+
+        tcg_temp_free(tmp1);
+        tcg_temp_free(tmp2);
+        break;
+    }
+
+    case TCG_COND_GEU:
+        /* Invert result of TCG_COND_LTU */
+        gen_setcond_i128(rl, rh, al, ah, bl, bh, TCG_COND_LTU);
+        tcg_gen_xori_tl(rl, rl, 1);
+        break;
+
+    default:
+        return false;
+    }
+    tcg_gen_movi_tl(rh, 0);
+    return true;
+}
+
 static bool gen_branch(DisasContext *ctx, arg_b *a, TCGCond cond)
 {
     TCGLabel *l = gen_new_label();
     TCGv src1 = get_gpr(ctx, a->rs1, EXT_SIGN);
     TCGv src2 = get_gpr(ctx, a->rs2, EXT_SIGN);
 
-    tcg_gen_brcond_tl(cond, src1, src2, l);
+    if (get_xl(ctx) == MXL_RV128) {
+        TCGv src1h = get_gprh(ctx, a->rs1),
+             src2h = get_gprh(ctx, a->rs2),
+             tmpl = tcg_temp_new(),
+             tmph = tcg_temp_new();
+
+        /*
+         * Do not use gen_setcond_i128 for EQ and NE as these conditions are
+         * often met and can be more efficiently implemented.
+         */
+        if (cond == TCG_COND_EQ || cond == TCG_COND_NE) {
+            /*
+             * bnez and beqz being used quite often too, lets optimize them,
+             * although QEMU's tcg optimizer handles these cases nicely
+             */
+            if (a->rs2 == 0) {
+                tcg_gen_or_tl(tmpl, src1, src1h);
+                tcg_gen_brcondi_tl(cond, tmpl, 0, l);
+            } else {
+                tcg_gen_xor_tl(tmpl, src1, src2);
+                tcg_gen_xor_tl(tmph, src1h, src2h);
+                tcg_gen_or_tl(tmpl, tmpl, tmph);
+                tcg_gen_brcondi_tl(cond, tmpl, 0, l);
+            }
+        } else {
+            gen_setcond_i128(tmpl, tmph, src1, src1h, src2, src2h, cond);
+            tcg_gen_brcondi_tl(TCG_COND_NE, tmpl, 0, l);
+        }
+
+        tcg_temp_free(tmph);
+        tcg_temp_free(tmpl);
+    } else {
+        tcg_gen_brcond_tl(cond, src1, src2, l);
+    }
     gen_goto_tb(ctx, 1, ctx->pc_succ_insn);
 
     gen_set_label(l); /* branch taken */
@@ -370,9 +478,30 @@ static bool trans_sq(DisasContext *ctx, arg_sq *a)
     return gen_store(ctx, a, MO_TEO);
 }
 
+static bool trans_addd(DisasContext *ctx, arg_addd *a)
+{
+    REQUIRE_128BIT(ctx);
+    ctx->ol = MXL_RV64;
+    return gen_arith(ctx, a, EXT_NONE, tcg_gen_add_tl, NULL);
+}
+
+static bool trans_addid(DisasContext *ctx, arg_addid *a)
+{
+    REQUIRE_128BIT(ctx);
+    ctx->ol = MXL_RV64;
+    return gen_arith_imm_fn(ctx, a, EXT_NONE, tcg_gen_addi_tl, NULL);
+}
+
+static bool trans_subd(DisasContext *ctx, arg_subd *a)
+{
+    REQUIRE_128BIT(ctx);
+    ctx->ol = MXL_RV64;
+    return gen_arith(ctx, a, EXT_NONE, tcg_gen_sub_tl, NULL);
+}
+
 static bool trans_addi(DisasContext *ctx, arg_addi *a)
 {
-    return gen_arith_imm_fn(ctx, a, EXT_NONE, tcg_gen_addi_tl);
+    return gen_arith_imm_fn(ctx, a, EXT_NONE, tcg_gen_addi_tl, gen_addi2_i128);
 }
 
 static void gen_slt(TCGv ret, TCGv s1, TCGv s2)
@@ -380,19 +509,31 @@ static void gen_slt(TCGv ret, TCGv s1, TCGv s2)
     tcg_gen_setcond_tl(TCG_COND_LT, ret, s1, s2);
 }
 
+static void gen_slt_i128(TCGv retl, TCGv reth,
+                         TCGv s1l, TCGv s1h, TCGv s2l, TCGv s2h)
+{
+    gen_setcond_i128(retl, reth, s1l, s1h, s2l, s2h, TCG_COND_LT);
+}
+
 static void gen_sltu(TCGv ret, TCGv s1, TCGv s2)
 {
     tcg_gen_setcond_tl(TCG_COND_LTU, ret, s1, s2);
 }
 
+static void gen_sltu_i128(TCGv retl, TCGv reth,
+                         TCGv s1l, TCGv s1h, TCGv s2l, TCGv s2h)
+{
+    gen_setcond_i128(retl, reth, s1l, s1h, s2l, s2h, TCG_COND_LTU);
+}
+
 static bool trans_slti(DisasContext *ctx, arg_slti *a)
 {
-    return gen_arith_imm_tl(ctx, a, EXT_SIGN, gen_slt);
+    return gen_arith_imm_tl(ctx, a, EXT_SIGN, gen_slt, gen_slt_i128);
 }
 
 static bool trans_sltiu(DisasContext *ctx, arg_sltiu *a)
 {
-    return gen_arith_imm_tl(ctx, a, EXT_SIGN, gen_sltu);
+    return gen_arith_imm_tl(ctx, a, EXT_SIGN, gen_sltu, gen_sltu_i128);
 }
 
 static bool trans_xori(DisasContext *ctx, arg_xori *a)
@@ -478,12 +619,12 @@ static bool trans_srai(DisasContext *ctx, arg_srai *a)
 
 static bool trans_add(DisasContext *ctx, arg_add *a)
 {
-    return gen_arith(ctx, a, EXT_NONE, tcg_gen_add_tl);
+    return gen_arith(ctx, a, EXT_NONE, tcg_gen_add_tl, tcg_gen_add2_tl);
 }
 
 static bool trans_sub(DisasContext *ctx, arg_sub *a)
 {
-    return gen_arith(ctx, a, EXT_NONE, tcg_gen_sub_tl);
+    return gen_arith(ctx, a, EXT_NONE, tcg_gen_sub_tl, tcg_gen_sub2_tl);
 }
 
 enum M128_DIR {
@@ -559,12 +700,12 @@ static bool trans_sll(DisasContext *ctx, arg_sll *a)
 
 static bool trans_slt(DisasContext *ctx, arg_slt *a)
 {
-    return gen_arith(ctx, a, EXT_SIGN, gen_slt);
+    return gen_arith(ctx, a, EXT_SIGN, gen_slt, gen_slt_i128);
 }
 
 static bool trans_sltu(DisasContext *ctx, arg_sltu *a)
 {
-    return gen_arith(ctx, a, EXT_SIGN, gen_sltu);
+    return gen_arith(ctx, a, EXT_SIGN, gen_sltu, gen_sltu_i128);
 }
 
 static void gen_srl_i128(TCGv destl, TCGv desth,
@@ -647,9 +788,9 @@ static bool trans_and(DisasContext *ctx, arg_and *a)
 
 static bool trans_addiw(DisasContext *ctx, arg_addiw *a)
 {
-    REQUIRE_64BIT(ctx);
+    REQUIRE_64_OR_128BIT(ctx);
     ctx->ol = MXL_RV32;
-    return gen_arith_imm_fn(ctx, a, EXT_NONE, tcg_gen_addi_tl);
+    return gen_arith_imm_fn(ctx, a, EXT_NONE, tcg_gen_addi_tl, NULL);
 }
 
 static bool trans_slliw(DisasContext *ctx, arg_slliw *a)
@@ -697,16 +838,16 @@ static bool trans_sraid(DisasContext *ctx, arg_sraid *a)
 
 static bool trans_addw(DisasContext *ctx, arg_addw *a)
 {
-    REQUIRE_64BIT(ctx);
+    REQUIRE_64_OR_128BIT(ctx);
     ctx->ol = MXL_RV32;
-    return gen_arith(ctx, a, EXT_NONE, tcg_gen_add_tl);
+    return gen_arith(ctx, a, EXT_NONE, tcg_gen_add_tl, NULL);
 }
 
 static bool trans_subw(DisasContext *ctx, arg_subw *a)
 {
-    REQUIRE_64BIT(ctx);
+    REQUIRE_64_OR_128BIT(ctx);
     ctx->ol = MXL_RV32;
-    return gen_arith(ctx, a, EXT_NONE, tcg_gen_sub_tl);
+    return gen_arith(ctx, a, EXT_NONE, tcg_gen_sub_tl, NULL);
 }
 
 static bool trans_sllw(DisasContext *ctx, arg_sllw *a)
