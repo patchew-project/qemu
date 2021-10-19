@@ -45,3 +45,8 @@ modifying QEMU's source code.
    vfio-migration
    qapi-code-gen
    writing-qmp-commands
+   trivial-patches
+   spell-check
+   key-signing-party
+   submitting-a-pull-request
+   submitting-a-patch
