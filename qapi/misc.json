@@ -523,3 +523,76 @@
  'data': { '*option': 'str' },
  'returns': ['CommandLineOptionInfo'],
  'allow-preconfig': true }
+
+##
+# @KvmStatType:
+#
+# Enumeration of KVM stat types
+# @cumulative: stat is cumulative; value can only increase.
+# @instant: stat is instantaneous; value can increase or decrease.
+# @peak: stat is the peak value; value can only increase.
+#
+# Since: 6.2
+##
+{ 'enum' : 'KvmStatType',
+  'data' : [ 'cumulative', 'instant', 'peak' ] }
+
+##
+# @KvmStatUnit:
+#
+# Enumeration of KVM stat units
+# @bytes: stat reported in bytes.
+# @seconds: stat reported in seconds.
+# @cycles: stat reported in clock cycles.
+# @none: no unit for this stat.
+#
+# Since: 6.2
+##
+{ 'enum' : 'KvmStatUnit',
+  'data' : [ 'bytes', 'seconds', 'cycles', 'none' ] }
+
+##
+# @KvmStatData:
+#
+# Individual KVM stat
+# @name: Stat name
+# @type: @KvmStatType
+# @unit: @KvmStatUnit
+# @base: Exponent base (2 or 10)
+# @exponent: Used together with @base
+# @val: List of uint64 values
+#
+# Since: 6.2
+##
+{ 'struct': 'KvmStatData',
+  'data': { 'name': 'str',
+            'type': 'KvmStatType',
+            'unit': 'KvmStatUnit',
+            'base': 'uint8',
+            'exponent': 'int16',
+            'val': [ 'uint64' ] } }
+
+##
+# @KvmStats:
+#
+# KvmStats per vm or vcpu
+# @name: vm or vcpu_<number>
+# @stats: List of @KvmStatData
+#
+# Since: 6.2
+##
+{ 'struct': 'KvmStats',
+  'data': {'name': 'str',
+           'stats': [ 'KvmStatData' ] } }
+
+##
+# @query-kvmstats:
+#
+# @filter: KVM stat name (optional)
+# Returns: List of @KvmStats
+#
+# Since: 6.2
+##
+{ 'command': 'query-kvmstats',
+  'data': { '*filter': 'str' },
+  'returns': [ 'KvmStats' ] }
