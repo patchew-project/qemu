@@ -44,11 +44,13 @@
 static void *mttcg_cpu_thread_fn(void *arg)
 {
     CPUState *cpu = arg;
+    Notifier force_rcu = { .notify = tcg_cpus_force_rcu };
 
     assert(tcg_enabled());
     g_assert(!icount_enabled());
 
     rcu_register_thread();
+    rcu_add_force_rcu_notifier(&force_rcu, cpu);
     tcg_register_thread();
 
     qemu_mutex_lock_iothread();
@@ -100,6 +102,7 @@ static void *mttcg_cpu_thread_fn(void *arg)
 
     tcg_cpus_destroy(cpu);
     qemu_mutex_unlock_iothread();
+    rcu_remove_force_rcu_notifier(&force_rcu);
     rcu_unregister_thread();
     return NULL;
 }

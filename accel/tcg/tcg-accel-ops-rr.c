@@ -144,9 +144,11 @@ static void rr_deal_with_unplugged_cpus(void)
 static void *rr_cpu_thread_fn(void *arg)
 {
     CPUState *cpu = arg;
+    Notifier force_rcu = { .notify = tcg_cpus_force_rcu };
 
     assert(tcg_enabled());
     rcu_register_thread();
+    rcu_add_force_rcu_notifier(&force_rcu, cpu);
     tcg_register_thread();
 
     qemu_mutex_lock_iothread();
@@ -255,6 +257,7 @@ static void *rr_cpu_thread_fn(void *arg)
         rr_deal_with_unplugged_cpus();
     }
 
+    rcu_remove_force_rcu_notifier(&force_rcu);
     rcu_unregister_thread();
     return NULL;
 }

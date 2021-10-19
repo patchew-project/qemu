@@ -18,5 +18,7 @@ void tcg_cpus_destroy(CPUState *cpu);
 int tcg_cpus_exec(CPUState *cpu);
 void tcg_handle_interrupt(CPUState *cpu, int mask);
 void tcg_cpu_init_cflags(CPUState *cpu, bool parallel);
+/* Common force_rcu notifier for MTTCG and RR */
+void tcg_cpus_force_rcu(Notifier *notify, void *data);
 
 #endif /* TCG_CPUS_H */
