@@ -128,4 +128,39 @@ struct target_trapframe {
     abi_ulong tf_pc;
 };
 
+/*
+ * Compare to arm/arm/machdep.c sendsig()
+ * Assumes that target stack frame memory is locked.
+ */
+static inline abi_long
+set_sigtramp_args(CPUARMState *regs, int sig, struct target_sigframe *frame,
+    abi_ulong frame_addr, struct target_sigaction *ka)
+{
+    /*
+     * Arguments to signal handler:
+     *  r0 = signal number
+     *  r1 = siginfo pointer
+     *  r2 = ucontext pointer
+     *  r5 = ucontext pointer
+     *  pc = signal handler pointer
+     *  sp = sigframe struct pointer
+     *  lr = sigtramp at base of user stack
+     */
+
+    regs->regs[0] = sig;
+    regs->regs[1] = frame_addr +
+        offsetof(struct target_sigframe, sf_si);
+    regs->regs[2] = frame_addr +
+        offsetof(struct target_sigframe, sf_uc);
+
+    /* the trampoline uses r5 as the uc address */
+    regs->regs[5] = frame_addr +
+        offsetof(struct target_sigframe, sf_uc);
+    regs->regs[TARGET_REG_PC] = ka->_sa_handler;
+    regs->regs[TARGET_REG_SP] = frame_addr;
+    regs->regs[TARGET_REG_LR] = TARGET_PS_STRINGS - TARGET_SZSIGCODE;
+
+    return 0;
+}
+
 #endif /* !_TARGET_ARCH_SIGNAL_H_ */
