@@ -336,6 +336,19 @@ SRST
 ERST
 
     {
+        .name       = "kvmstats",
+        .args_type  = "filter:s?",
+        .params     = "filter",
+        .help       = "show KVM statistics; optional filter for stat name",
+        .cmd        = hmp_info_kvmstats,
+    },
+
+SRST
+  ``info kvmstats``
+    Show KVM statistics.
+ERST
+
+    {
         .name       = "numa",
         .args_type  = "",
         .params     = "",

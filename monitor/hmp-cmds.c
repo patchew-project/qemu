@@ -134,6 +134,58 @@ void hmp_info_kvm(Monitor *mon, const QDict *qdict)
     qapi_free_KvmInfo(info);
 }
 
+void hmp_info_kvmstats(Monitor *mon, const QDict *qdict)
+{
+    KvmStatsList *stats_list, *stats_list_entry;
+    KvmStats *stats_entry;
+    KvmStatDataList *data_entry;
+    KvmStatData *kvm_stat;
+    uint64List *val;
+    const char *filter;
+    Error *err = NULL;
+
+    filter = qdict_get_try_str(qdict, "filter");
+    if (filter) {
+        stats_list = qmp_query_kvmstats(TRUE, filter, &err);
+    } else {
+        stats_list = qmp_query_kvmstats(FALSE, NULL, &err);
+    }
+
+    if (err) {
+        monitor_printf(mon, "%s\n", error_get_pretty(err));
+        error_free(err);
+        return;
+    }
+
+    for (stats_list_entry = stats_list; stats_list_entry;
+         stats_list_entry = stats_list_entry->next) {
+        stats_entry = stats_list_entry->value;
+        monitor_printf(mon, "\n%s:\n", stats_entry->name);
+
+        for (data_entry = stats_entry->stats; data_entry;
+             data_entry = data_entry->next) {
+            kvm_stat = data_entry->value;
+            monitor_printf(mon, "  %s (%s):", kvm_stat->name,
+                           KvmStatType_str(kvm_stat->type));
+
+            for (val = kvm_stat->val; val; val = val->next) {
+                if (kvm_stat->exponent) {
+                    /* Print the base and exponent as "*<base>^<exp>" */
+                    monitor_printf(mon, " %lu*%d^%d", val->value,
+                                   kvm_stat->base, kvm_stat->exponent);
+                } else {
+                    monitor_printf(mon, " %lu", val->value);
+                }
+            }
+
+            /* Don't print "none" unit type */
+            monitor_printf(mon, " %s\n", kvm_stat->unit == KVM_STAT_UNIT_NONE ?
+                           "" : KvmStatUnit_str(kvm_stat->unit));
+        }
+    }
+    qapi_free_KvmStatsList(stats_list);
+}
+
 void hmp_info_status(Monitor *mon, const QDict *qdict)
 {
     StatusInfo *info;
