@@ -32,7 +32,7 @@
 #include "instmap.h"
 
 /* global register indices */
-static TCGv cpu_gpr[32], cpu_gprh[32], cpu_pc, cpu_vl;
+static TCGv cpu_gpr[32], cpu_gprh[32], cpu_hlpr[2], cpu_pc, cpu_vl;
 static TCGv_i64 cpu_fpr[32]; /* assume F and D extensions */
 static TCGv load_res;
 static TCGv load_val;
@@ -952,6 +952,11 @@ void riscv_translate_init(void)
         cpu_gprh[i] = tcg_global_mem_new(cpu_env,
             offsetof(CPURISCVState, gprh[i]), riscv_int_regnames[i]);
     }
+
+    cpu_hlpr[0] = tcg_global_mem_new(cpu_env,
+        offsetof(CPURISCVState, hlpr[0]), "helper_reg0");
+    cpu_hlpr[1] = tcg_global_mem_new(cpu_env,
+        offsetof(CPURISCVState, hlpr[1]), "helper_reg1");
 
     for (i = 0; i < 32; i++) {
         cpu_fpr[i] = tcg_global_mem_new_i64(cpu_env,
