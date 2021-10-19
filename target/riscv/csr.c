@@ -509,6 +509,61 @@ static uint64_t add_status_sd(RISCVMXL xl, uint64_t status)
     return status;
 }
 
+static RISCVException read_mstatus_i128(CPURISCVState *env, int csrno,
+                                   Int128 *val)
+{
+    *val = int128_make128(env->mstatus, env->mstatush);
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_mstatus_i128(CPURISCVState *env, int csrno,
+                                        Int128 val)
+{
+    Int128 mstatus = int128_make128(env->mstatus, env->mstatush);
+    Int128 mask = int128_zero();
+    int dirty;
+
+    /* flush tlb on mstatus fields that affect VM */
+    if (int128_getlo(int128_xor(mstatus, val))
+            & (MSTATUS_MXR | MSTATUS_MPP | MSTATUS_MPV |
+                           MSTATUS_MPRV | MSTATUS_SUM)) {
+        tlb_flush(env_cpu(env));
+    }
+    mask = int128_make64(MSTATUS_SIE | MSTATUS_SPIE |
+                         MSTATUS_MIE | MSTATUS_MPIE |
+                         MSTATUS_SPP | MSTATUS_FS | MSTATUS_MPRV | MSTATUS_SUM |
+                         MSTATUS_MPP | MSTATUS_MXR | MSTATUS_TVM | MSTATUS_TSR |
+                         MSTATUS_TW);
+
+    if (!riscv_cpu_is_32bit(env)) {
+        /*
+         * RV32: MPV and GVA are not in mstatus. The current plan is to
+         * add them to mstatush. For now, we just don't support it.
+         */
+        mask = int128_or(mask, int128_make64(MSTATUS_MPV | MSTATUS_GVA));
+    }
+
+    mstatus = int128_or(int128_and(mstatus, int128_not(mask)),
+                        int128_and(val, mask));
+
+    dirty = ((int128_getlo(mstatus) & MSTATUS_FS) == MSTATUS_FS) |
+            ((int128_getlo(mstatus) & MSTATUS_XS) == MSTATUS_XS);
+    if (dirty) {
+        if (riscv_cpu_is_32bit(env)) {
+            mstatus = int128_make64(int128_getlo(mstatus) | MSTATUS32_SD);
+        } else if (riscv_cpu_is_64bit(env)) {
+            mstatus = int128_make64(int128_getlo(mstatus) | MSTATUS64_SD);
+        } else {
+            mstatus = int128_or(mstatus, int128_make128(0, MSTATUSH128_SD));
+        }
+    }
+
+    env->mstatus = int128_getlo(mstatus);
+    env->mstatush = int128_gethi(mstatus);
+
+    return RISCV_EXCP_NONE;
+}
+
 static RISCVException read_mstatus(CPURISCVState *env, int csrno,
                                    target_ulong *val)
 {
@@ -713,6 +768,26 @@ static RISCVException write_mie(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
+static RISCVException read_mtvec_i128(CPURISCVState *env, int csrno,
+                                     Int128 *val)
+{
+    *val = int128_make128(env->mtvec, env->mtvech);
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_mtvec_i128(CPURISCVState *env, int csrno,
+                                      Int128 val)
+{
+    /* bits [1:0] encode mode; 0 = direct, 1 = vectored, 2 >= reserved */
+    if ((int128_getlo(val) & 3) < 2) {
+        env->mtvec = int128_getlo(val);
+        env->mtvech = int128_gethi(val);
+    } else {
+        qemu_log_mask(LOG_UNIMP, "CSR_MTVEC: reserved mode not supported\n");
+    }
+    return RISCV_EXCP_NONE;
+}
+
 static RISCVException read_mtvec(CPURISCVState *env, int csrno,
                                  target_ulong *val)
 {
@@ -747,6 +822,19 @@ static RISCVException write_mcounteren(CPURISCVState *env, int csrno,
 }
 
 /* Machine Trap Handling */
+static RISCVException read_mscratch_i128(CPURISCVState *env, int csrno,
+                                        Int128 *val)  {
+    *val = int128_make128(env->mscratch, env->mscratchh);
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_mscratch_i128(CPURISCVState *env, int csrno,
+                                         Int128 val) {
+    env->mscratch = int128_getlo(val);
+    env->mscratchh = int128_gethi(val);
+    return RISCV_EXCP_NONE;
+}
+
 static RISCVException read_mscratch(CPURISCVState *env, int csrno,
                                     target_ulong *val)
 {
@@ -758,6 +846,21 @@ static RISCVException write_mscratch(CPURISCVState *env, int csrno,
                                      target_ulong val)
 {
     env->mscratch = val;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_mepc_i128(CPURISCVState *env, int csrno,
+                                    Int128 *val)
+{
+    *val = int128_make128(env->mepc, env->mepch);
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_mepc_i128(CPURISCVState *env, int csrno,
+                                     Int128 val)
+{
+    env->mepc = int128_getlo(val);
+    env->mepch = int128_gethi(val);
     return RISCV_EXCP_NONE;
 }
 
@@ -1679,12 +1782,12 @@ riscv_csr_operations128 csr_ops_128[CSR_TABLE_SIZE] = {
     [CSR_MIMPID]     = { read_zero_i128    },
     [CSR_MHARTID]    = { read_mhartid_i128 },
 
-    [CSR_MSTATUS]    = { read_zero_i128    },
+    [CSR_MSTATUS]    = { read_mstatus_i128,  write_mstatus_i128  },
     [CSR_MISA]       = { read_misa_i128    },
-    [CSR_MTVEC]      = { read_zero_i128    },
+    [CSR_MTVEC]      = { read_mtvec_i128,    write_mtvec_i128    },
 
-    [CSR_MSCRATCH]   = { read_zero_i128    },
-    [CSR_MEPC]       = { read_zero_i128    },
+    [CSR_MSCRATCH]   = { read_mscratch_i128, write_mscratch_i128 },
+    [CSR_MEPC]       = { read_mepc_i128,     write_mepc_i128     },
 
     [CSR_SATP]       = { read_zero_i128    },
 #endif
