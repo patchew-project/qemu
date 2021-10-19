@@ -85,10 +85,13 @@ typedef enum MemOp {
     MO_UB    = MO_8,
     MO_UW    = MO_16,
     MO_UL    = MO_32,
+    MO_UQ    = MO_64,
     MO_SB    = MO_SIGN | MO_8,
     MO_SW    = MO_SIGN | MO_16,
     MO_SL    = MO_SIGN | MO_32,
-    MO_UQ     = MO_64,
+    MO_SQ    = MO_SIGN | MO_64,
+    MO_Q     = MO_64,
+    MO_O     = MO_128,
 
     MO_LEUW  = MO_LE | MO_UW,
     MO_LEUL  = MO_LE | MO_UL,
@@ -105,9 +108,12 @@ typedef enum MemOp {
 #ifdef NEED_CPU_H
     MO_TEUW  = MO_TE | MO_UW,
     MO_TEUL  = MO_TE | MO_UL,
+    MO_TEUQ  = MO_TE | MO_UQ,
     MO_TESW  = MO_TE | MO_SW,
     MO_TESL  = MO_TE | MO_SL,
     MO_TEQ   = MO_TE | MO_UQ,
+    MO_TESQ  = MO_TE | MO_SQ,
+    MO_TEO   = MO_TE | MO_O,
 #endif
 
     MO_SSIZE = MO_SIZE | MO_SIGN,
