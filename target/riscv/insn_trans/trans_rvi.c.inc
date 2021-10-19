@@ -26,14 +26,17 @@ static bool trans_illegal(DisasContext *ctx, arg_empty *a)
 
 static bool trans_c64_illegal(DisasContext *ctx, arg_empty *a)
 {
-     REQUIRE_64BIT(ctx);
-     return trans_illegal(ctx, a);
+    REQUIRE_64_OR_128BIT(ctx);
+    return trans_illegal(ctx, a);
 }
 
 static bool trans_lui(DisasContext *ctx, arg_lui *a)
 {
     if (a->rd != 0) {
         tcg_gen_movi_tl(cpu_gpr[a->rd], a->imm);
+        if (get_xl_max(ctx) == MXL_RV128) {
+            tcg_gen_movi_tl(cpu_gprh[a->rd], -(a->imm < 0));
+        }
     }
     return true;
 }
@@ -41,7 +44,19 @@ static bool trans_lui(DisasContext *ctx, arg_lui *a)
 static bool trans_auipc(DisasContext *ctx, arg_auipc *a)
 {
     if (a->rd != 0) {
+        if (get_xl_max(ctx) == MXL_RV128) {
+            /* TODO : when pc is 128 bits, use all its bits */
+            TCGv pc = tcg_constant_tl(ctx->base.pc_next),
+                 imml = tcg_constant_tl(a->imm),
+                 immh = tcg_constant_tl(-(a->imm < 0)),
+                 zero = tcg_constant_tl(0);
+            tcg_gen_add2_tl(cpu_gpr[a->rd], cpu_gprh[a->rd],
+                            pc, zero,
+                            imml, immh);
+            return true;
+        }
         tcg_gen_movi_tl(cpu_gpr[a->rd], a->imm + ctx->base.pc_next);
+        return true;
     }
     return true;
 }
