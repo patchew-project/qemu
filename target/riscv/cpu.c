@@ -241,52 +241,63 @@ static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     }
 #endif
     qemu_fprintf(f, " %-8s " TARGET_FMT_lx "\n", "pc", env->pc);
+
 #ifndef CONFIG_USER_ONLY
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mhartid ", env->mhartid);
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mstatus ", (target_ulong)env->mstatus);
-    if (riscv_cpu_mxl(env) == MXL_RV32) {
-        qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mstatush ",
-                     (target_ulong)(env->mstatus >> 32));
+    {
+        static const struct {
+            const char *name;
+            int csrno;
+            int misa;
+            bool rv32;
+        } dump_csrs[] = {
+            { "mhartid",    CSR_MHARTID },
+            { "mstatus",    CSR_MSTATUS },
+            { "mstatush",   CSR_MSTATUSH, 0, true },
+            { "hstatus",    CSR_HSTATUS,  RVH },
+            { "vsstatus",   CSR_VSSTATUS, RVH },
+            { "mip",        CSR_MIP },
+            { "mie",        CSR_MIE },
+            { "mideleg",    CSR_MIDELEG },
+            { "hideleg",    CSR_HIDELEG,  RVH },
+            { "medeleg",    CSR_MEDELEG },
+            { "hedeleg",    CSR_HEDELEG,  RVH },
+            { "mtvec",      CSR_MTVEC },
+            { "stvec",      CSR_STVEC },
+            { "vstvec",     CSR_VSTVEC,   RVH },
+            { "mepc",       CSR_MEPC },
+            { "sepc",       CSR_SEPC },
+            { "vsepc",      CSR_VSEPC,    RVH },
+            { "mcause",     CSR_MCAUSE },
+            { "scause",     CSR_SCAUSE },
+            { "vscause",    CSR_VSCAUSE,  RVH },
+            { "mtval",      CSR_MTVAL },
+            { "stval",      CSR_STVAL },
+            { "htval",      CSR_HTVAL,    RVH },
+            { "mtval2",     CSR_MTVAL2,   RVH },
+            { "mscratch",   CSR_MSCRATCH },
+            { "sscratch",   CSR_SSCRATCH },
+            { "satp",       CSR_SATP},
+        };
+
+        bool rv32 = riscv_cpu_mxl(env) == MXL_RV32;
+
+        for (int i = 0; i < ARRAY_SIZE(dump_csrs); ++i) {
+            target_ulong val = 0;
+            RISCVException result;
+
+            if (dump_csrs[i].misa && !riscv_has_ext(env, dump_csrs[i].misa)) {
+                continue;
+            }
+            if (dump_csrs[i].rv32 && !rv32) {
+                continue;
+            }
+
+            result = riscv_csrrw_debug(env, dump_csrs[i].csrno, &val, 0, 0);
+            assert(result == RISCV_EXCP_NONE);
+            qemu_fprintf(f, " %-8s " TARGET_FMT_lx "\n",
+                         dump_csrs[i].name, val);
+        }
     }
-    if (riscv_has_ext(env, RVH)) {
-        qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "hstatus ", env->hstatus);
-        qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "vsstatus ",
-                     (target_ulong)env->vsstatus);
-    }
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mip     ", env->mip);
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mie     ", env->mie);
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mideleg ", env->mideleg);
-    if (riscv_has_ext(env, RVH)) {
-        qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "hideleg ", env->hideleg);
-    }
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "medeleg ", env->medeleg);
-    if (riscv_has_ext(env, RVH)) {
-        qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "hedeleg ", env->hedeleg);
-    }
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mtvec   ", env->mtvec);
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "stvec   ", env->stvec);
-    if (riscv_has_ext(env, RVH)) {
-        qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "vstvec  ", env->vstvec);
-    }
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mepc    ", env->mepc);
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "sepc    ", env->sepc);
-    if (riscv_has_ext(env, RVH)) {
-        qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "vsepc   ", env->vsepc);
-    }
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mcause  ", env->mcause);
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "scause  ", env->scause);
-    if (riscv_has_ext(env, RVH)) {
-        qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "vscause ", env->vscause);
-    }
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mtval   ", env->mtval);
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "stval   ", env->stval);
-    if (riscv_has_ext(env, RVH)) {
-        qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "htval ", env->htval);
-        qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mtval2 ", env->mtval2);
-    }
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "mscratch", env->mscratch);
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "sscratch", env->sscratch);
-    qemu_fprintf(f, " %s " TARGET_FMT_lx "\n", "satp    ", env->satp);
 #endif
 
     for (i = 0; i < 32; i++) {
