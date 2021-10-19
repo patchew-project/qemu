@@ -232,4 +232,22 @@ static inline abi_long set_mcontext(CPUARMState *regs, target_mcontext_t *mcp,
     return err;
 }
 
+/* Compare to arm/arm/machdep.c sys_sigreturn() */
+static inline abi_long get_ucontext_sigreturn(CPUARMState *regs,
+        abi_ulong target_sf, abi_ulong *target_uc)
+{
+    uint32_t cpsr = cpsr_read(regs);
+
+    *target_uc = 0;
+
+    if ((cpsr & CPSR_M) != ARM_CPU_MODE_USR ||
+            (cpsr & (CPSR_I | CPSR_F)) != 0) {
+        return -TARGET_EINVAL;
+    }
+
+    *target_uc = target_sf;
+
+    return 0;
+}
+
 #endif /* !_TARGET_ARCH_SIGNAL_H_ */
