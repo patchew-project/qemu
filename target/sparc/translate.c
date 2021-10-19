@@ -2830,7 +2830,7 @@ static void gen_ldda_asi(DisasContext *dc, TCGv addr, int insn, int rd)
     default:
         {
             TCGv_i32 r_asi = tcg_const_i32(da.asi);
-            TCGv_i32 r_mop = tcg_const_i32(MO_Q);
+            TCGv_i32 r_mop = tcg_const_i32(MO_UQ);
 
             save_state(dc);
             gen_helper_ld_asi(t64, cpu_env, addr, r_asi, r_mop);
@@ -2886,7 +2886,7 @@ static void gen_stda_asi(DisasContext *dc, TCGv hi, TCGv addr,
     default:
         {
             TCGv_i32 r_asi = tcg_const_i32(da.asi);
-            TCGv_i32 r_mop = tcg_const_i32(MO_Q);
+            TCGv_i32 r_mop = tcg_const_i32(MO_UQ);
 
             save_state(dc);
             gen_helper_st_asi(cpu_env, addr, t64, r_asi, r_mop);

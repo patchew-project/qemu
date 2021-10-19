@@ -131,11 +131,11 @@ TRANS64(LWAUX, do_ldst_X, true, false, MO_SL)
 TRANS64(PLWA, do_ldst_PLS_D, false, false, MO_SL)
 
 /* Load Doubleword */
-TRANS64(LD, do_ldst_D, false, false, MO_Q)
-TRANS64(LDX, do_ldst_X, false, false, MO_Q)
-TRANS64(LDU, do_ldst_D, true, false, MO_Q)
-TRANS64(LDUX, do_ldst_X, true, false, MO_Q)
-TRANS64(PLD, do_ldst_PLS_D, false, false, MO_Q)
+TRANS64(LD, do_ldst_D, false, false, MO_UQ)
+TRANS64(LDX, do_ldst_X, false, false, MO_UQ)
+TRANS64(LDU, do_ldst_D, true, false, MO_UQ)
+TRANS64(LDUX, do_ldst_X, true, false, MO_UQ)
+TRANS64(PLD, do_ldst_PLS_D, false, false, MO_UQ)
 
 /* Store Byte */
 TRANS(STB, do_ldst_D, false, true, MO_UB)
@@ -159,11 +159,11 @@ TRANS(STWUX, do_ldst_X, true, true, MO_UL)
 TRANS(PSTW, do_ldst_PLS_D, false, true, MO_UL)
 
 /* Store Doubleword */
-TRANS64(STD, do_ldst_D, false, true, MO_Q)
-TRANS64(STDX, do_ldst_X, false, true, MO_Q)
-TRANS64(STDU, do_ldst_D, true, true, MO_Q)
-TRANS64(STDUX, do_ldst_X, true, true, MO_Q)
-TRANS64(PSTD, do_ldst_PLS_D, false, true, MO_Q)
+TRANS64(STD, do_ldst_D, false, true, MO_UQ)
+TRANS64(STDX, do_ldst_X, false, true, MO_UQ)
+TRANS64(STDU, do_ldst_D, true, true, MO_UQ)
+TRANS64(STDUX, do_ldst_X, true, true, MO_UQ)
+TRANS64(PSTD, do_ldst_PLS_D, false, true, MO_UQ)
 
 /*
  * Fixed-Point Compare Instructions

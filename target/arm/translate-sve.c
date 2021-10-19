@@ -5284,7 +5284,7 @@ static const MemOp dtype_mop[16] = {
     MO_UB, MO_UB, MO_UB, MO_UB,
     MO_SL, MO_UW, MO_UW, MO_UW,
     MO_SW, MO_SW, MO_UL, MO_UL,
-    MO_SB, MO_SB, MO_SB, MO_Q
+    MO_SB, MO_SB, MO_SB, MO_UQ
 };
 
 #define dtype_msz(x)  (dtype_mop[x] & MO_SIZE)

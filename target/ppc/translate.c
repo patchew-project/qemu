@@ -3228,10 +3228,10 @@ GEN_QEMU_LOAD_64(ld8u,  DEF_MEMOP(MO_UB))
 GEN_QEMU_LOAD_64(ld16u, DEF_MEMOP(MO_UW))
 GEN_QEMU_LOAD_64(ld32u, DEF_MEMOP(MO_UL))
 GEN_QEMU_LOAD_64(ld32s, DEF_MEMOP(MO_SL))
-GEN_QEMU_LOAD_64(ld64,  DEF_MEMOP(MO_Q))
+GEN_QEMU_LOAD_64(ld64,  DEF_MEMOP(MO_UQ))
 
 #if defined(TARGET_PPC64)
-GEN_QEMU_LOAD_64(ld64ur, BSWAP_MEMOP(MO_Q))
+GEN_QEMU_LOAD_64(ld64ur, BSWAP_MEMOP(MO_UQ))
 #endif
 
 #define GEN_QEMU_STORE_TL(stop, op)                                     \
@@ -3262,10 +3262,10 @@ static void glue(gen_qemu_, glue(stop, _i64))(DisasContext *ctx,  \
 GEN_QEMU_STORE_64(st8,  DEF_MEMOP(MO_UB))
 GEN_QEMU_STORE_64(st16, DEF_MEMOP(MO_UW))
 GEN_QEMU_STORE_64(st32, DEF_MEMOP(MO_UL))
-GEN_QEMU_STORE_64(st64, DEF_MEMOP(MO_Q))
+GEN_QEMU_STORE_64(st64, DEF_MEMOP(MO_UQ))
 
 #if defined(TARGET_PPC64)
-GEN_QEMU_STORE_64(st64r, BSWAP_MEMOP(MO_Q))
+GEN_QEMU_STORE_64(st64r, BSWAP_MEMOP(MO_UQ))
 #endif
 
 #define GEN_LDX_E(name, ldop, opc2, opc3, type, type2, chk)                   \
@@ -3302,7 +3302,7 @@ GEN_LDEPX(lb, DEF_MEMOP(MO_UB), 0x1F, 0x02)
 GEN_LDEPX(lh, DEF_MEMOP(MO_UW), 0x1F, 0x08)
 GEN_LDEPX(lw, DEF_MEMOP(MO_UL), 0x1F, 0x00)
 #if defined(TARGET_PPC64)
-GEN_LDEPX(ld, DEF_MEMOP(MO_Q), 0x1D, 0x00)
+GEN_LDEPX(ld, DEF_MEMOP(MO_UQ), 0x1D, 0x00)
 #endif
 
 #if defined(TARGET_PPC64)
@@ -3411,7 +3411,7 @@ GEN_STEPX(stb, DEF_MEMOP(MO_UB), 0x1F, 0x06)
 GEN_STEPX(sth, DEF_MEMOP(MO_UW), 0x1F, 0x0C)
 GEN_STEPX(stw, DEF_MEMOP(MO_UL), 0x1F, 0x04)
 #if defined(TARGET_PPC64)
-GEN_STEPX(std, DEF_MEMOP(MO_Q), 0x1d, 0x04)
+GEN_STEPX(std, DEF_MEMOP(MO_UQ), 0x1d, 0x04)
 #endif
 
 #if defined(TARGET_PPC64)
@@ -3905,7 +3905,7 @@ static void gen_lwat(DisasContext *ctx)
 #ifdef TARGET_PPC64
 static void gen_ldat(DisasContext *ctx)
 {
-    gen_ld_atomic(ctx, DEF_MEMOP(MO_Q));
+    gen_ld_atomic(ctx, DEF_MEMOP(MO_UQ));
 }
 #endif
 
@@ -3988,7 +3988,7 @@ static void gen_stwat(DisasContext *ctx)
 #ifdef TARGET_PPC64
 static void gen_stdat(DisasContext *ctx)
 {
-    gen_st_atomic(ctx, DEF_MEMOP(MO_Q));
+    gen_st_atomic(ctx, DEF_MEMOP(MO_UQ));
 }
 #endif
 
@@ -4040,9 +4040,9 @@ STCX(stwcx_, DEF_MEMOP(MO_UL))
 
 #if defined(TARGET_PPC64)
 /* ldarx */
-LARX(ldarx, DEF_MEMOP(MO_Q))
+LARX(ldarx, DEF_MEMOP(MO_UQ))
 /* stdcx. */
-STCX(stdcx_, DEF_MEMOP(MO_Q))
+STCX(stdcx_, DEF_MEMOP(MO_UQ))
 
 /* lqarx */
 static void gen_lqarx(DisasContext *ctx)
@@ -8050,7 +8050,7 @@ GEN_LDEPX(lb, DEF_MEMOP(MO_UB), 0x1F, 0x02)
 GEN_LDEPX(lh, DEF_MEMOP(MO_UW), 0x1F, 0x08)
 GEN_LDEPX(lw, DEF_MEMOP(MO_UL), 0x1F, 0x00)
 #if defined(TARGET_PPC64)
-GEN_LDEPX(ld, DEF_MEMOP(MO_Q), 0x1D, 0x00)
+GEN_LDEPX(ld, DEF_MEMOP(MO_UQ), 0x1D, 0x00)
 #endif
 
 #undef GEN_STX_E
@@ -8076,7 +8076,7 @@ GEN_STEPX(stb, DEF_MEMOP(MO_UB), 0x1F, 0x06)
 GEN_STEPX(sth, DEF_MEMOP(MO_UW), 0x1F, 0x0C)
 GEN_STEPX(stw, DEF_MEMOP(MO_UL), 0x1F, 0x04)
 #if defined(TARGET_PPC64)
-GEN_STEPX(std, DEF_MEMOP(MO_Q), 0x1D, 0x04)
+GEN_STEPX(std, DEF_MEMOP(MO_UQ), 0x1D, 0x04)
 #endif
 
 #undef GEN_CRLOGIC

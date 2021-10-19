@@ -1745,10 +1745,10 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, MemOp opc, TCGReg data,
         tcg_out_insn(s, RXY, LGF, data, base, index, disp);
         break;
 
-    case MO_Q | MO_BSWAP:
+    case MO_UQ | MO_BSWAP:
         tcg_out_insn(s, RXY, LRVG, data, base, index, disp);
         break;
-    case MO_Q:
+    case MO_UQ:
         tcg_out_insn(s, RXY, LG, data, base, index, disp);
         break;
 
@@ -1791,10 +1791,10 @@ static void tcg_out_qemu_st_direct(TCGContext *s, MemOp opc, TCGReg data,
         }
         break;
 
-    case MO_Q | MO_BSWAP:
+    case MO_UQ | MO_BSWAP:
         tcg_out_insn(s, RXY, STRVG, data, base, index, disp);
         break;
-    case MO_Q:
+    case MO_UQ:
         tcg_out_insn(s, RXY, STG, data, base, index, disp);
         break;
 
@@ -1928,7 +1928,7 @@ static bool tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     case MO_UL:
         tgen_ext32u(s, TCG_REG_R4, data_reg);
         break;
-    case MO_Q:
+    case MO_UQ:
         tcg_out_mov(s, TCG_TYPE_I64, TCG_REG_R4, data_reg);
         break;
     default:
