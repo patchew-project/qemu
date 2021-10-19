@@ -429,6 +429,17 @@ static bool gen_logic_imm_fn(DisasContext *ctx, arg_i *a, DisasExtend ext,
 
     gen_set_gpr(ctx, a->rd, dest);
 
+    if (get_xl_max(ctx) == MXL_RV128) {
+        if (get_ol(ctx) ==  MXL_RV128) {
+            uint64_t immh = -(a->imm < 0);
+            src1 = get_gprh(ctx, a->rs1);
+            dest = dest_gprh(ctx, a->rd);
+
+            func(dest, src1, immh);
+        }
+        gen_set_gprh(ctx, a->rd, dest);
+    }
+
     return true;
 }
 
@@ -442,6 +453,17 @@ static bool gen_logic(DisasContext *ctx, arg_r *a, DisasExtend ext,
     func(dest, src1, src2);
 
     gen_set_gpr(ctx, a->rd, dest);
+
+    if (get_xl_max(ctx) == MXL_RV128) {
+        if (get_ol(ctx) ==  MXL_RV128) {
+            dest = dest_gprh(ctx, a->rd);
+            src1 = get_gprh(ctx, a->rs1);
+            src2 = get_gprh(ctx, a->rs2);
+
+            func(dest, src1, src2);
+        }
+        gen_set_gprh(ctx, a->rd, dest);
+    }
 
     return true;
 }
