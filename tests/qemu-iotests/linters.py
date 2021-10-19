@@ -17,7 +17,7 @@ import os
 import re
 import subprocess
 import sys
-from typing import List, Mapping, Optional
+from typing import List
 
 
 # TODO: Empty this list!
@@ -55,25 +55,15 @@ def get_test_files() -> List[str]:
     return list(filter(is_python_file, check_tests))
 
 
-def run_linter(
-        tool: str,
-        args: List[str],
-        env: Optional[Mapping[str, str]] = None,
-        suppress_output: bool = False,
-) -> None:
+def run_linter(tool: str, args: List[str]) -> None:
     """
     Run a python-based linting tool.
 
-    :param suppress_output: If True, suppress all stdout/stderr output.
     :raise CalledProcessError: If the linter process exits with failure.
     """
     subprocess.run(
         ('python3', '-m', tool, *args),
-        env=env,
         check=True,
-        stdout=subprocess.PIPE if suppress_output else None,
-        stderr=subprocess.STDOUT if suppress_output else None,
-        universal_newlines=True,
     )
 
 
