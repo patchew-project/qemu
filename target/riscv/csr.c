@@ -462,10 +462,24 @@ static const char valid_vm_1_10_64[16] = {
 };
 
 /* Machine Information Registers */
+static RISCVException read_zero_i128(CPURISCVState *env, int csrno,
+                                    Int128 *val)
+{
+    *val = int128_zero();
+    return RISCV_EXCP_NONE;
+}
+
 static RISCVException read_zero(CPURISCVState *env, int csrno,
                                 target_ulong *val)
 {
     *val = 0;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_mhartid_i128(CPURISCVState *env, int csrno,
+                                       Int128 *val)
+{
+    *val = int128_make64(env->mhartid);
     return RISCV_EXCP_NONE;
 }
 
@@ -566,6 +580,13 @@ static RISCVException write_mstatush(CPURISCVState *env, int csrno,
 
     env->mstatus = (env->mstatus & ~mask) | (valh & mask);
 
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_misa_i128(CPURISCVState *env, int csrno,
+                                    Int128 *val)
+{
+    *val = int128_make128(env->misa_ext, (uint64_t)MXL_RV128 << 62);
     return RISCV_EXCP_NONE;
 }
 
@@ -1516,11 +1537,118 @@ RISCVException riscv_csrrw(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
-RISCVException riscv_csrrw_i128(CPURISCVState *env, int csrno,
-                               Int128 *ret_value,
-                               Int128 new_value, Int128 write_mask)
+static inline RISCVException riscv_csrrw_check_i128(CPURISCVState *env,
+                                                    int csrno,
+                                                    Int128 write_mask,
+                                                    RISCVCPU *cpu)
 {
-    return RISCV_EXCP_ILLEGAL_INST;
+    /* check privileges and return -1 if check fails */
+#if !defined(CONFIG_USER_ONLY)
+    int effective_priv = env->priv;
+    int read_only = get_field(csrno, 0xc00) == 3;
+
+    if (riscv_has_ext(env, RVH) &&
+        env->priv == PRV_S &&
+        !riscv_cpu_virt_enabled(env)) {
+        /*
+         * We are in S mode without virtualisation, therefore we are in HS Mode.
+         * Add 1 to the effective privledge level to allow us to access the
+         * Hypervisor CSRs.
+         */
+        effective_priv++;
+    }
+
+    if ((int128_nz(write_mask) && read_only) ||
+        (!env->debugger && (effective_priv < get_field(csrno, 0x300)))) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+#endif
+
+    /* ensure the CSR extension is enabled. */
+    if (!cpu->cfg.ext_icsr) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+
+    /* check predicate */
+    if (!csr_ops[csrno].predicate) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+    RISCVException ret = csr_ops[csrno].predicate(env, csrno);
+    if (ret != RISCV_EXCP_NONE) {
+        return ret;
+    }
+
+    return RISCV_EXCP_NONE;
+}
+
+RISCVException riscv_csrrw_i128(CPURISCVState *env, int csrno,
+                                Int128 *ret_value,
+                                Int128 new_value, Int128 write_mask)
+{
+    RISCVException ret;
+    Int128 old_value;
+
+    RISCVCPU *cpu = env_archcpu(env);
+
+    if (!csr_ops_128[csrno].read128 && !csr_ops_128[csrno].op128) {
+        /*
+         * FIXME: Fall back to 64-bit version for now, if the 128-bit
+         * alternative isn't defined.
+         * Note, some CSRs don't extend to MXLEN, for those,
+         * this fallback is correctly handling the read/write.
+         */
+        target_ulong ret_64;
+        ret = riscv_csrrw(env, csrno, &ret_64,
+                          int128_getlo(new_value),
+                          int128_getlo(write_mask));
+
+        if (ret_value) {
+            *ret_value = int128_make64(ret_64);
+        }
+
+        return ret;
+    }
+
+    RISCVException check_status =
+        riscv_csrrw_check_i128(env, csrno, write_mask, cpu);
+    if (check_status != RISCV_EXCP_NONE) {
+        return check_status;
+    }
+
+    /* execute combined read/write operation if it exists */
+    if (csr_ops_128[csrno].op128) {
+        return csr_ops_128[csrno].op128(env, csrno, ret_value,
+                                        new_value, write_mask);
+    }
+
+    /* if no accessor exists then return failure */
+    if (!csr_ops_128[csrno].read128) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+    /* read old value */
+    ret = csr_ops_128[csrno].read128(env, csrno, &old_value);
+    if (ret != RISCV_EXCP_NONE) {
+        return ret;
+    }
+
+    /* write value if writable and write mask set, otherwise drop writes */
+    if (int128_nz(write_mask)) {
+        new_value = int128_or(int128_and(old_value, int128_not(write_mask)),
+                              int128_and(new_value, write_mask));
+        if (csr_ops_128[csrno].write128) {
+            ret = csr_ops_128[csrno].write128(env, csrno, new_value);
+            if (ret != RISCV_EXCP_NONE) {
+                return ret;
+            }
+        }
+    }
+
+    /* return old value */
+    if (ret_value) {
+        *ret_value = old_value;
+    }
+
+    return RISCV_EXCP_NONE;
 }
 
 /*
@@ -1544,6 +1672,24 @@ RISCVException riscv_csrrw_debug(CPURISCVState *env, int csrno,
 }
 
 /* Control and Status Register function table */
+riscv_csr_operations128 csr_ops_128[CSR_TABLE_SIZE] = {
+#if !defined(CONFIG_USER_ONLY)
+    [CSR_MVENDORID]  = { read_zero_i128    },
+    [CSR_MARCHID]    = { read_zero_i128    },
+    [CSR_MIMPID]     = { read_zero_i128    },
+    [CSR_MHARTID]    = { read_mhartid_i128 },
+
+    [CSR_MSTATUS]    = { read_zero_i128    },
+    [CSR_MISA]       = { read_misa_i128    },
+    [CSR_MTVEC]      = { read_zero_i128    },
+
+    [CSR_MSCRATCH]   = { read_zero_i128    },
+    [CSR_MEPC]       = { read_zero_i128    },
+
+    [CSR_SATP]       = { read_zero_i128    },
+#endif
+};
+
 riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     /* User Floating-Point CSRs */
     [CSR_FFLAGS]   = { "fflags",   fs,     read_fflags,  write_fflags },
