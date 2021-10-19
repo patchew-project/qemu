@@ -90,4 +90,42 @@ typedef struct target_mcontext {
     } __fpu;
 } target_mcontext_t;
 
+typedef struct target_ucontext {
+    target_sigset_t     uc_sigmask;
+    target_mcontext_t   uc_mcontext;
+    abi_ulong           uc_link;
+    target_stack_t      uc_stack;
+    int32_t             uc_flags;
+    int32_t             __spare__[4];
+} target_ucontext_t;
+
+struct target_sigframe {
+    target_siginfo_t    sf_si;  /* saved siginfo */
+    target_ucontext_t   sf_uc;  /* saved ucontext */
+};
+
+
+/* compare to sys/arm/include/frame.h */
+struct target_trapframe {
+    abi_ulong tf_spsr; /* Zero on arm26 */
+    abi_ulong tf_r0;
+    abi_ulong tf_r1;
+    abi_ulong tf_r2;
+    abi_ulong tf_r3;
+    abi_ulong tf_r4;
+    abi_ulong tf_r5;
+    abi_ulong tf_r6;
+    abi_ulong tf_r7;
+    abi_ulong tf_r8;
+    abi_ulong tf_r9;
+    abi_ulong tf_r10;
+    abi_ulong tf_r11;
+    abi_ulong tf_r12;
+    abi_ulong tf_usr_sp;
+    abi_ulong tf_usr_lr;
+    abi_ulong tf_svc_sp; /* Not used on arm26 */
+    abi_ulong tf_svc_lr; /* Not used on arm26 */
+    abi_ulong tf_pc;
+};
+
 #endif /* !_TARGET_ARCH_SIGNAL_H_ */
