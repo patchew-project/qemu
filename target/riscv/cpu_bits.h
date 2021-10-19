@@ -430,6 +430,11 @@ typedef enum {
 #define SATP64_ASID         0x0FFFF00000000000ULL
 #define SATP64_PPN          0x00000FFFFFFFFFFFULL
 
+/* RV128 satp CSR field masks (H/L for high/low dword) */
+#define SATP128_HMODE       0xFF00000000000000ULL
+#define SATP128_HASID       0x00FFFFFFFF000000ULL
+#define SATP128_LPPN        0x0003FFFFFFFFFFFFULL
+
 /* VM modes (mstatus.vm) privileged ISA 1.9.1 */
 #define VM_1_09_MBARE       0
 #define VM_1_09_MBB         1
@@ -445,6 +450,9 @@ typedef enum {
 #define VM_1_10_SV48        9
 #define VM_1_10_SV57        10
 #define VM_1_10_SV64        11
+#define VM_1_10_SV44        12
+#define VM_1_10_SV54        13
+
 
 /* Page table entry (PTE) fields */
 #define PTE_V               0x001 /* Valid */
@@ -462,6 +470,8 @@ typedef enum {
 
 /* Leaf page shift amount */
 #define PGSHIFT             12
+/* For now, pages in RV128 are 16 KiB. */
+#define PGSHIFT128          14
 
 /* Default Reset Vector adress */
 #define DEFAULT_RSTVEC      0x1000

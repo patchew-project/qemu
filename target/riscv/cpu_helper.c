@@ -469,7 +469,7 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
     *prot = 0;
 
     hwaddr base;
-    int levels, ptidxbits, ptesize, vm, sum, mxr, widened;
+    int levels, ptidxbits, ptesize, vm, sum, mxr, widened, pgshift;
 
     if (first_stage == true) {
         mxr = get_field(env->mstatus, MSTATUS_MXR);
@@ -482,17 +482,25 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
             if (riscv_cpu_mxl(env) == MXL_RV32) {
                 base = (hwaddr)get_field(env->vsatp, SATP32_PPN) << PGSHIFT;
                 vm = get_field(env->vsatp, SATP32_MODE);
-            } else {
+            } else if (riscv_cpu_mxl(env) == MXL_RV64) {
                 base = (hwaddr)get_field(env->vsatp, SATP64_PPN) << PGSHIFT;
                 vm = get_field(env->vsatp, SATP64_MODE);
+            } else {
+                /* TODO : Hypervisor extension not supported yet in RV128. */
+                g_assert_not_reached();
             }
         } else {
             if (riscv_cpu_mxl(env) == MXL_RV32) {
                 base = (hwaddr)get_field(env->satp, SATP32_PPN) << PGSHIFT;
                 vm = get_field(env->satp, SATP32_MODE);
-            } else {
+            } else if (riscv_cpu_mxl(env) == MXL_RV64) {
                 base = (hwaddr)get_field(env->satp, SATP64_PPN) << PGSHIFT;
                 vm = get_field(env->satp, SATP64_MODE);
+            } else if (riscv_cpu_mxl(env) == MXL_RV128) {
+                base = (hwaddr)get_field(env->satp, SATP128_LPPN) << PGSHIFT128;
+                vm = get_field(env->satph, SATP128_HMODE);
+            } else {
+                g_assert_not_reached();
             }
         }
         widened = 0;
@@ -500,9 +508,15 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
         if (riscv_cpu_mxl(env) == MXL_RV32) {
             base = (hwaddr)get_field(env->hgatp, SATP32_PPN) << PGSHIFT;
             vm = get_field(env->hgatp, SATP32_MODE);
-        } else {
+        } else if (riscv_cpu_mxl(env) == MXL_RV64) {
             base = (hwaddr)get_field(env->hgatp, SATP64_PPN) << PGSHIFT;
             vm = get_field(env->hgatp, SATP64_MODE);
+        } else {
+            /*
+             * TODO : Hypervisor extension not supported yet in RV128,
+             * so there shouldn't be any two-stage address lookups.
+             */
+            g_assert_not_reached();
         }
         widened = 2;
     }
@@ -510,13 +524,17 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
     sum = get_field(env->mstatus, MSTATUS_SUM) || use_background || is_debug;
     switch (vm) {
     case VM_1_10_SV32:
-      levels = 2; ptidxbits = 10; ptesize = 4; break;
+      levels = 2; ptidxbits = 10; ptesize = 4; pgshift = 12; break;
     case VM_1_10_SV39:
-      levels = 3; ptidxbits = 9; ptesize = 8; break;
+      levels = 3; ptidxbits = 9; ptesize = 8; pgshift = 12; break;
     case VM_1_10_SV48:
-      levels = 4; ptidxbits = 9; ptesize = 8; break;
+      levels = 4; ptidxbits = 9; ptesize = 8; pgshift = 12; break;
     case VM_1_10_SV57:
-      levels = 5; ptidxbits = 9; ptesize = 8; break;
+      levels = 5; ptidxbits = 9; ptesize = 8; pgshift = 12; break;
+    case VM_1_10_SV44:
+      levels = 3; ptidxbits = 10; ptesize = 16; pgshift = 14; break;
+    case VM_1_10_SV54:
+      levels = 4; ptidxbits = 10; ptesize = 16;  pgshift = 14; break;
     case VM_1_10_MBARE:
         *physical = addr;
         *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
@@ -526,7 +544,7 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
     }
 
     CPUState *cs = env_cpu(env);
-    int va_bits = PGSHIFT + levels * ptidxbits + widened;
+    int va_bits = pgshift + levels * ptidxbits + widened;
     target_ulong mask, masked_msbs;
 
     if (TARGET_LONG_BITS > (va_bits - 1)) {
@@ -541,6 +559,7 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
     }
 
     int ptshift = (levels - 1) * ptidxbits;
+    uint64_t pgoff_mask = (1ULL << pgshift) - 1;
     int i;
 
 #if !TCG_OVERSIZED_GUEST
@@ -549,10 +568,10 @@ restart:
     for (i = 0; i < levels; i++, ptshift -= ptidxbits) {
         target_ulong idx;
         if (i == 0) {
-            idx = (addr >> (PGSHIFT + ptshift)) &
+            idx = (addr >> (pgshift + ptshift)) &
                            ((1 << (ptidxbits + widened)) - 1);
         } else {
-            idx = (addr >> (PGSHIFT + ptshift)) &
+            idx = (addr >> (pgshift + ptshift)) &
                            ((1 << ptidxbits) - 1);
         }
 
@@ -560,6 +579,7 @@ restart:
         hwaddr pte_addr;
 
         if (two_stage && first_stage) {
+            /* TODO : Two-stage translation for RV128 */
             int vbase_prot;
             hwaddr vbase;
 
@@ -593,6 +613,10 @@ restart:
         if (riscv_cpu_mxl(env) == MXL_RV32) {
             pte = address_space_ldl(cs->as, pte_addr, attrs, &res);
         } else {
+            /*
+             * For RV128, load only lower 64 bits as only those
+             * are used for now
+             */
             pte = address_space_ldq(cs->as, pte_addr, attrs, &res);
         }
 
@@ -607,7 +631,7 @@ restart:
             return TRANSLATE_FAIL;
         } else if (!(pte & (PTE_R | PTE_W | PTE_X))) {
             /* Inner PTE, continue walking */
-            base = ppn << PGSHIFT;
+            base = ppn << pgshift;
         } else if ((pte & (PTE_R | PTE_W | PTE_X)) == PTE_W) {
             /* Reserved leaf PTE flags: PTE_W */
             return TRANSLATE_FAIL;
@@ -679,9 +703,9 @@ restart:
 
             /* for superpage mappings, make a fake leaf PTE for the TLB's
                benefit. */
-            target_ulong vpn = addr >> PGSHIFT;
-            *physical = ((ppn | (vpn & ((1L << ptshift) - 1))) << PGSHIFT) |
-                        (addr & ~TARGET_PAGE_MASK);
+            target_ulong vpn = addr >> pgshift;
+            *physical = ((ppn | (vpn & ((1L << ptshift) - 1))) << pgshift) |
+                        (addr & pgoff_mask);
 
             /* set permissions on the TLB entry */
             if ((pte & PTE_R) || ((pte & PTE_X) && mxr)) {
