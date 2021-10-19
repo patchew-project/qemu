@@ -201,4 +201,35 @@ static inline abi_long get_mcontext(CPUARMState *regs, target_mcontext_t *mcp,
     return err;
 }
 
+/* Compare to arm/arm/machdep.c set_mcontext() */
+static inline abi_long set_mcontext(CPUARMState *regs, target_mcontext_t *mcp,
+        int srflag)
+{
+    int err = 0;
+    const uint32_t *gr = mcp->__gregs;
+    uint32_t cpsr;
+
+    regs->regs[0] = tswap32(gr[TARGET_REG_R0]);
+    regs->regs[1] = tswap32(gr[TARGET_REG_R1]);
+    regs->regs[2] = tswap32(gr[TARGET_REG_R2]);
+    regs->regs[3] = tswap32(gr[TARGET_REG_R3]);
+    regs->regs[4] = tswap32(gr[TARGET_REG_R4]);
+    regs->regs[5] = tswap32(gr[TARGET_REG_R5]);
+    regs->regs[6] = tswap32(gr[TARGET_REG_R6]);
+    regs->regs[7] = tswap32(gr[TARGET_REG_R7]);
+    regs->regs[8] = tswap32(gr[TARGET_REG_R8]);
+    regs->regs[9] = tswap32(gr[TARGET_REG_R9]);
+    regs->regs[10] = tswap32(gr[TARGET_REG_R10]);
+    regs->regs[11] = tswap32(gr[TARGET_REG_R11]);
+    regs->regs[12] = tswap32(gr[TARGET_REG_R12]);
+
+    regs->regs[13] = tswap32(gr[TARGET_REG_SP]);
+    regs->regs[14] = tswap32(gr[TARGET_REG_LR]);
+    regs->regs[15] = tswap32(gr[TARGET_REG_PC]);
+    cpsr = tswap32(gr[TARGET_REG_CPSR]);
+    cpsr_write(regs, cpsr, CPSR_USER | CPSR_EXEC, CPSRWriteByInstr);
+
+    return err;
+}
+
 #endif /* !_TARGET_ARCH_SIGNAL_H_ */
