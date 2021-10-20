@@ -39,6 +39,20 @@
   'data': [ 'fail', 'disconnect', 'keep' ] }
 
 ##
+# @SetPasswordActionVnc:
+#
+# See @SetPasswordAction. VNC only supports the keep action. 'connection'
+# should just be omitted for VNC, this is kept for backwards compatibility.
+#
+# @keep: maintain existing clients
+#
+# Since: 6.2
+#
+##
+{ 'enum': 'SetPasswordActionVnc',
+  'data': [ 'keep' ] }
+
+##
 # @SetPasswordOptions:
 #
 # General options for set_password.
@@ -83,12 +97,17 @@
 # @connected: How to handle existing clients when changing the
 #             password.
 #
+# Features:
+# @deprecated: For VNC, @connected will always be 'keep', parameter should be
+#              omitted.
+#
 # Since: 6.2
 #
 ##
 { 'struct': 'SetPasswordOptionsVnc',
   'data': { '*display': 'str',
-            '*connected': 'SetPasswordAction' }}
+            '*connected': { 'type': 'SetPasswordActionVnc',
+                            'features': ['deprecated'] } } }
 
 ##
 # @set_password:
