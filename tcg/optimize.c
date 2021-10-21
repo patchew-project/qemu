@@ -1492,7 +1492,7 @@ void tcg_optimize(TCGContext *s)
                                                op->args[2], op->args[4],
                                                TCG_COND_EQ);
                 if (tmp == 0) {
-                    goto do_setcond_high;
+                    goto do_setcond_const;
                 } else if (tmp != 1) {
                     goto do_default;
                 }
