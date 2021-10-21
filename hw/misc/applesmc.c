@@ -38,6 +38,10 @@
 #include "qemu/timer.h"
 #include "qom/object.h"
 
+#if defined(__APPLE__)
+#include <IOKit/IOKitLib.h>
+#endif
+
 /* #define DEBUG_SMC */
 
 #define APPLESMC_DEFAULT_IOBASE        0x300
@@ -108,6 +112,7 @@ struct AppleSMCState {
     uint8_t data_len;
     uint8_t data_pos;
     uint8_t data[255];
+    char *oskdirect;
     char *osk;
     QLIST_HEAD(, AppleSMCData) data_def;
 };
@@ -312,6 +317,124 @@ static const MemoryRegionOps applesmc_err_io_ops = {
     },
 };
 
+#if defined(__APPLE__)
+/* Based on http://osxbook.com/book/bonus/chapter7/tpmdrmmyth/ */
+enum {
+    SMC_CLIENT_OPEN      = 0,
+    SMC_CLIENT_CLOSE     = 1,
+    SMC_HANDLE_EVENT     = 2,
+    SMC_READ_KEY         = 5
+};
+
+struct AppleSMCParam {
+    uint32_t    key;
+    uint8_t     pad0[22];
+    IOByteCount data_size;
+    uint8_t     pad1[10];
+    uint8_t     command;
+    uint32_t    pad2;
+    uint8_t     bytes[32];
+};
+
+static void applesmc_direct_read_osk(DeviceState *dev, Error **errp)
+{
+    AppleSMCState           *s = APPLE_SMC(dev);
+    io_service_t            realsmc = IO_OBJECT_NULL;
+    io_connect_t            realsmc_connect = IO_OBJECT_NULL;
+    size_t                  out_size = sizeof(struct AppleSMCParam);
+    IOReturn                status = kIOReturnError;
+    struct AppleSMCParam    in = {0};
+    struct AppleSMCParam    out = {0};
+    char                    *osk_buffer;
+
+    /* OSK key size + '\0' */
+    osk_buffer = g_malloc0(65);
+    osk_buffer[64] = '\0';
+
+    realsmc = IOServiceGetMatchingService(kIOMasterPortDefault,
+                                          IOServiceMatching("AppleSMC"));
+    if (realsmc == IO_OBJECT_NULL) {
+        warn_report("host AppleSMC device is unreachable");
+        goto osk_buffer_free;
+    }
+
+    status = IOServiceOpen(realsmc, mach_task_self(), 1, &realsmc_connect);
+    if (status != kIOReturnSuccess || realsmc_connect == IO_OBJECT_NULL) {
+        warn_report("host AppleSMC device is unreachable");
+        goto osk_buffer_free;
+    }
+
+    status = IOConnectCallMethod(
+        realsmc_connect,
+        SMC_CLIENT_OPEN,
+        NULL, 0, NULL, 0, NULL, NULL, NULL, NULL
+    );
+    if (status != kIOReturnSuccess) {
+        warn_report("host AppleSMC device is unreachable");
+        goto ioservice_close;
+    }
+
+    in.key = ('OSK0');
+    in.data_size = sizeof(out.bytes);
+    in.command = SMC_READ_KEY;
+    status = IOConnectCallStructMethod(
+        realsmc_connect,
+        SMC_HANDLE_EVENT,
+        &in,
+        sizeof(struct AppleSMCParam),
+        &out,
+        &out_size
+    );
+
+    if (status != kIOReturnSuccess) {
+        warn_report("unable to read OSK0 from host AppleSMC device");
+        goto ioconnect_close;
+    }
+    strncpy(osk_buffer, (const char *) out.bytes, 32);
+
+    in.key = ('OSK1');
+    status = IOConnectCallStructMethod(
+        realsmc_connect,
+        SMC_HANDLE_EVENT,
+        &in,
+        sizeof(struct AppleSMCParam),
+        &out,
+        &out_size
+    );
+    if (status != kIOReturnSuccess) {
+        warn_report("unable to read OSK1 from host AppleSMC device");
+        goto ioconnect_close;
+    }
+    strncpy(osk_buffer + 32, (const char *) out.bytes, 32);
+
+    s->osk = osk_buffer;
+
+    IOConnectCallMethod(
+        realsmc_connect,
+        SMC_CLIENT_CLOSE,
+        NULL, 0, NULL, 0, NULL, NULL, NULL, NULL);
+    IOServiceClose(realsmc_connect);
+    return;
+
+ioconnect_close:
+    IOConnectCallMethod(
+        realsmc_connect,
+        SMC_CLIENT_CLOSE,
+        NULL, 0, NULL, 0, NULL, NULL, NULL, NULL);
+ioservice_close:
+    IOServiceClose(realsmc_connect);
+
+osk_buffer_free:
+    g_free(osk_buffer);
+}
+#else
+static void applesmc_direct_read_osk(DeviceState *dev, Error **errp)
+{
+    warn_report("isa-applesmc.oskdirect ignored: "
+                "unsupported on non-Apple hosts");
+}
+#endif
+
 static void applesmc_isa_realize(DeviceState *dev, Error **errp)
 {
     AppleSMCState *s = APPLE_SMC(dev);
@@ -331,6 +454,11 @@ static void applesmc_isa_realize(DeviceState *dev, Error **errp)
     isa_register_ioport(&s->parent_obj, &s->io_err,
                         s->iobase + APPLESMC_ERR_PORT);
 
+    /* Use key retrieved directly from real SMC has higher priority */
+    if (s->oskdirect && !strcmp("on", s->oskdirect)) {
+        applesmc_direct_read_osk(dev, errp);
+    }
+
     if (!s->osk || (strlen(s->osk) != 64)) {
         warn_report("Using AppleSMC with invalid key");
         s->osk = default_osk;
@@ -344,6 +472,7 @@ static Property applesmc_isa_properties[] = {
     DEFINE_PROP_UINT32(APPLESMC_PROP_IO_BASE, AppleSMCState, iobase,
                        APPLESMC_DEFAULT_IOBASE),
     DEFINE_PROP_STRING("osk", AppleSMCState, osk),
+    DEFINE_PROP_STRING("oskdirect", AppleSMCState, oskdirect),
     DEFINE_PROP_END_OF_LIST(),
 };
 
