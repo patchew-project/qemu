@@ -21,6 +21,7 @@
 #include "hw/sysbus.h"
 #include "hw/i386/x86-iommu.h"
 #include "hw/qdev-properties.h"
+#include "hw/vfio/pci.h"
 #include "hw/i386/pc.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -103,6 +104,16 @@ IommuType x86_iommu_get_type(void)
     return x86_iommu_default->type;
 }
 
+static void x86_iommu_pci_dev_hook(PCIBus *bus, PCIDevice *dev, void *opaque)
+{
+    Error **errp = (Error **)opaque;
+
+    if (object_dynamic_cast(OBJECT(dev), TYPE_VFIO_PCI)) {
+        error_setg(errp, "Device '%s' must be specified before vIOMMUs",
+                   TYPE_VFIO_PCI);
+    }
+}
+
 static void x86_iommu_realize(DeviceState *dev, Error **errp)
 {
     X86IOMMUState *x86_iommu = X86_IOMMU_DEVICE(dev);
@@ -117,6 +128,12 @@ static void x86_iommu_realize(DeviceState *dev, Error **errp)
     if (!pcms || !pcms->bus) {
         error_setg(errp, "Machine-type '%s' not supported by IOMMU",
                    mc->name);
+        return;
+    }
+
+    /* Make sure there's no special device plugged before vIOMMU */
+    pci_for_each_device_all(x86_iommu_pci_dev_hook, (void *)errp);
+    if (*errp) {
         return;
     }
 
@@ -151,6 +168,7 @@ static Property x86_iommu_properties[] = {
 static void x86_iommu_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+
     dc->realize = x86_iommu_realize;
     device_class_set_props(dc, x86_iommu_properties);
 }
