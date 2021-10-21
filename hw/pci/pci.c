@@ -2124,6 +2124,31 @@ void pci_for_each_root_bus(pci_bus_fn fn, void *opaque)
     object_child_foreach_recursive(object_get_root(), pci_find_root_bus, &args);
 }
 
+typedef struct {
+    pci_bus_dev_fn fn;
+    void *opaque;
+} pci_bus_dev_args;
+
+static void pci_single_bus_hook(PCIBus *bus, void *opaque)
+{
+    pci_bus_dev_args *args = opaque;
+
+    pci_for_each_device_under_bus(bus, args->fn, args->opaque);
+}
+
+static void pci_root_bus_hook(PCIBus *bus, void *opaque)
+{
+    assert(pci_bus_is_root(bus));
+    pci_for_each_bus(bus, pci_single_bus_hook, opaque);
+}
+
+void pci_for_each_device_all(pci_bus_dev_fn fn, void *opaque)
+{
+    pci_bus_dev_args args = { .fn = fn, .opaque = opaque };
+
+    pci_for_each_root_bus(pci_root_bus_hook, &args);
+}
+
 PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn)
 {
     bus = pci_find_bus_nr(bus, bus_num);

@@ -476,6 +476,8 @@ void pci_for_each_bus_depth_first(PCIBus *bus, pci_bus_ret_fn begin,
                                   pci_bus_fn end, void *parent_state);
 /* Call `fn' for each pci root bus on the system */
 void pci_for_each_root_bus(pci_bus_fn fn, void *opaque);
+/* Call 'fn' for each pci device on the system */
+void pci_for_each_device_all(pci_bus_dev_fn fn, void *opaque);
 PCIDevice *pci_get_function_0(PCIDevice *pci_dev);
 
 /* Use this wrapper when specific scan order is not required. */
