@@ -228,6 +228,12 @@ Use the more generic commands ``block-export-add`` and ``block-export-del``
 instead.  As part of this deprecation, where ``nbd-server-add`` used a
 single ``bitmap``, the new ``block-export-add`` uses a list of ``bitmaps``.
 
+``set_password`` argument ``connected`` for VNC protocol (since 6.2)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Only the value ``keep`` is and was ever supported for VNC. The (useless)
+argument will be dropped in a future version of QEMU.
+
 System accelerators
 -------------------
 
