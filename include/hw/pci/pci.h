@@ -465,6 +465,11 @@ void pci_for_each_device(PCIBus *bus, int bus_num,
 void pci_for_each_device_reverse(PCIBus *bus, int bus_num,
                                  pci_bus_dev_fn fn,
                                  void *opaque);
+void pci_for_each_device_under_bus(PCIBus *bus,
+                                   pci_bus_dev_fn fn, void *opaque);
+void pci_for_each_device_under_bus_reverse(PCIBus *bus,
+                                           pci_bus_dev_fn fn,
+                                           void *opaque);
 void pci_for_each_bus_depth_first(PCIBus *bus,
                                   void *(*begin)(PCIBus *bus, void *parent_state),
                                   void (*end)(PCIBus *bus, void *state),
