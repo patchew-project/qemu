@@ -34,6 +34,9 @@
 
 static const char riscv_exts[26] = "IEMAFDQCLBJTPVNSUHKORWXYZG";
 
+GHashTable *custom_csr_map = NULL;
+#include "custom_csr_defs.h"
+
 const char * const riscv_int_regnames[] = {
   "x0/zero", "x1/ra",  "x2/sp",  "x3/gp",  "x4/tp",  "x5/t0",   "x6/t1",
   "x7/t2",   "x8/s0",  "x9/s1",  "x10/a0", "x11/a1", "x12/a2",  "x13/a3",
@@ -142,6 +145,22 @@ static void set_resetvec(CPURISCVState *env, target_ulong resetvec)
 #ifndef CONFIG_USER_ONLY
     env->resetvec = resetvec;
 #endif
+}
+
+static void setup_custom_csr(CPURISCVState *env,
+                             riscv_custom_csr_operations csr_map_struct[])
+{
+    int i;
+    env->custom_csr_map = g_hash_table_new(g_direct_hash, g_direct_equal);
+    for (i = 0; i < MAX_CUSTOM_CSR_NUM; i++) {
+        if (csr_map_struct[i].csrno != 0) {
+            g_hash_table_insert(env->custom_csr_map,
+                GINT_TO_POINTER(csr_map_struct[i].csrno),
+                &csr_map_struct[i].csr_opset);
+        } else {
+            break;
+        }
+    }
 }
 
 static void riscv_any_cpu_init(Object *obj)

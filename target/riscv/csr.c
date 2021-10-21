@@ -1403,6 +1403,14 @@ static RISCVException write_pmpaddr(CPURISCVState *env, int csrno,
 
 #endif
 
+/* Custom CSR related routines */
+static gpointer find_custom_csr(CPURISCVState *env, int csrno)
+{
+    gpointer ret;
+    ret = g_hash_table_lookup(env->custom_csr_map, GINT_TO_POINTER(csrno));
+    return ret;
+}
+
 /*
  * riscv_csrrw - read and/or update control and status register
  *
@@ -1419,6 +1427,7 @@ RISCVException riscv_csrrw(CPURISCVState *env, int csrno,
     RISCVException ret;
     target_ulong old_value;
     RISCVCPU *cpu = env_archcpu(env);
+    riscv_csr_operations *csr_op;
     int read_only = get_field(csrno, 0xC00) == 3;
 
     /* check privileges and return RISCV_EXCP_ILLEGAL_INST if check fails */
@@ -1449,26 +1458,39 @@ RISCVException riscv_csrrw(CPURISCVState *env, int csrno,
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
+    /* try to handle_custom_csr */
+    if (unlikely(env->custom_csr_map != NULL)) {
+        riscv_csr_operations *custom_csr_opset = (riscv_csr_operations *)
+            find_custom_csr(env, csrno);
+        if (custom_csr_opset != NULL) {
+            csr_op = custom_csr_opset;
+            } else {
+            csr_op = &csr_ops[csrno];
+            }
+        } else {
+        csr_op = &csr_ops[csrno];
+        }
+
     /* check predicate */
-    if (!csr_ops[csrno].predicate) {
+    if (!csr_op->predicate) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
-    ret = csr_ops[csrno].predicate(env, csrno);
+    ret = csr_op->predicate(env, csrno);
     if (ret != RISCV_EXCP_NONE) {
         return ret;
     }
 
     /* execute combined read/write operation if it exists */
-    if (csr_ops[csrno].op) {
-        return csr_ops[csrno].op(env, csrno, ret_value, new_value, write_mask);
+    if (csr_op->op) {
+        return csr_op->op(env, csrno, ret_value, new_value, write_mask);
     }
 
     /* if no accessor exists then return failure */
-    if (!csr_ops[csrno].read) {
+    if (!csr_op->read) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
     /* read old value */
-    ret = csr_ops[csrno].read(env, csrno, &old_value);
+    ret = csr_op->read(env, csrno, &old_value);
     if (ret != RISCV_EXCP_NONE) {
         return ret;
     }
@@ -1476,8 +1498,8 @@ RISCVException riscv_csrrw(CPURISCVState *env, int csrno,
     /* write value if writable and write mask set, otherwise drop writes */
     if (write_mask) {
         new_value = (old_value & ~write_mask) | (new_value & write_mask);
-        if (csr_ops[csrno].write) {
-            ret = csr_ops[csrno].write(env, csrno, new_value);
+        if (csr_op->write) {
+            ret = csr_op->write(env, csrno, new_value);
             if (ret != RISCV_EXCP_NONE) {
                 return ret;
             }

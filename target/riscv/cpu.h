@@ -243,6 +243,11 @@ struct CPURISCVState {
 
     /* Fields from here on are preserved across CPU reset. */
     QEMUTimer *timer; /* Internal timer */
+
+    /* Custom CSR opset table per hart */
+    GHashTable *custom_csr_map;                                         
+    /* Custom CSR value holder per hart */                                         
+    void *custom_csr_val;        
 };
 
 OBJECT_DECLARE_TYPE(RISCVCPU, RISCVCPUClass,
@@ -501,9 +506,15 @@ typedef struct {
     riscv_csr_op_fn op;
 } riscv_csr_operations;
 
+typedef struct {
+    int csrno;
+    riscv_csr_operations csr_opset;
+} riscv_custom_csr_operations;
+
 /* CSR function table constants */
 enum {
-    CSR_TABLE_SIZE = 0x1000
+    CSR_TABLE_SIZE = 0x1000,
+    MAX_CUSTOM_CSR_NUM = 100
 };
 
 /* CSR function table */
