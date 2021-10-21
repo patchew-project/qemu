@@ -187,6 +187,8 @@ static void ax25_cpu_init(Object *obj)
     CPURISCVState *env = &RISCV_CPU(obj)->env;
     set_misa(env, RV64 | RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
     set_priv_version(env, PRIV_VERSION_1_10_0);
+    setup_custom_csr(env, andes_custom_csr_table);
+    env->custom_csr_val = g_malloc(andes_custom_csr_size);
 }
 
 static void rv64_sifive_u_cpu_init(Object *obj)
@@ -249,6 +251,8 @@ static void a25_cpu_init(Object *obj)
     CPURISCVState *env = &RISCV_CPU(obj)->env;
     set_misa(env, RV32 | RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
     set_priv_version(env, PRIV_VERSION_1_10_0);
+    setup_custom_csr(env, andes_custom_csr_table);
+    env->custom_csr_val = g_malloc(andes_custom_csr_size);
 }
 #endif
 

@@ -9,6 +9,7 @@ gen = [
 riscv_ss = ss.source_set()
 riscv_ss.add(gen)
 riscv_ss.add(files(
+  'csr_andes.c',
   'cpu.c',
   'cpu_helper.c',
   'csr.c',
