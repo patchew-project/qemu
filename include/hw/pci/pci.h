@@ -402,6 +402,8 @@ OBJECT_DECLARE_TYPE(PCIBus, PCIBusClass, PCI_BUS)
 #define TYPE_PCIE_BUS "PCIE"
 
 typedef void (*pci_bus_dev_fn)(PCIBus *b, PCIDevice *d, void *opaque);
+typedef void (*pci_bus_fn)(PCIBus *b, void *opaque);
+typedef void* (*pci_bus_ret_fn)(PCIBus *b, void *opaque);
 
 bool pci_bus_is_express(PCIBus *bus);
 
@@ -470,17 +472,13 @@ void pci_for_each_device_under_bus(PCIBus *bus,
 void pci_for_each_device_under_bus_reverse(PCIBus *bus,
                                            pci_bus_dev_fn fn,
                                            void *opaque);
-void pci_for_each_bus_depth_first(PCIBus *bus,
-                                  void *(*begin)(PCIBus *bus, void *parent_state),
-                                  void (*end)(PCIBus *bus, void *state),
-                                  void *parent_state);
+void pci_for_each_bus_depth_first(PCIBus *bus, pci_bus_ret_fn begin,
+                                  pci_bus_fn end, void *parent_state);
 PCIDevice *pci_get_function_0(PCIDevice *pci_dev);
 
 /* Use this wrapper when specific scan order is not required. */
 static inline
-void pci_for_each_bus(PCIBus *bus,
-                      void (*fn)(PCIBus *bus, void *opaque),
-                      void *opaque)
+void pci_for_each_bus(PCIBus *bus, pci_bus_fn fn, void *opaque)
 {
     pci_for_each_bus_depth_first(bus, NULL, fn, opaque);
 }
