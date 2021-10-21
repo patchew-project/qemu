@@ -123,6 +123,13 @@ bool qemu_in_coroutine(void);
 bool qemu_coroutine_entered(Coroutine *co);
 
 /**
+ * Optionally call this function periodically to shrink the thread-local pool
+ * down. Spiky workloads can create many coroutines and then never reach that
+ * level again. Shrinking the pool reclaims memory in this case.
+ */
+void qemu_coroutine_pool_periodic_resize(void);
+
+/**
  * Provides a mutex that can be used to synchronise coroutines
  */
 struct CoWaitRecord;
