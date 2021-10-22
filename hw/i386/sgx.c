@@ -22,6 +22,8 @@
 #include "exec/address-spaces.h"
 #include "sysemu/hw_accel.h"
 #include "hw/acpi/aml-build.h"
+#include "hw/i386/x86.h"
+#include <sys/ioctl.h>
 
 #define SGX_MAX_EPC_SECTIONS            8
 #define SGX_CPUID_EPC_INVALID           0x0
@@ -67,6 +69,57 @@ void sgx_epc_build_srat(GArray *table_data)
 
         build_srat_memory(table_data, addr, size, node, MEM_AFFINITY_ENABLED);
     }
+    g_slist_free(device_list);
+}
+
+static int sgx_remove_all_pages(PCMachineState *pcms, int num)
+{
+    HostMemoryBackend *hostmem;
+    SGXEPCDevice *epc;
+    int failures = 0, failures_1 = 0;
+    unsigned long ret = 0;
+    int fd, j;
+
+    for (j = 0; j < num; j++) {
+        epc = pcms->sgx_epc.sections[j];
+        hostmem = MEMORY_BACKEND(epc->hostmem);
+        fd = memory_region_get_fd(host_memory_backend_get_memory(hostmem));
+
+        failures = ioctl(fd, SGX_IOC_VEPC_REMOVE_ALL);
+        if (failures < 0) {
+            return failures;
+        } else if (failures > 0) {
+            /* Remove SECS pages */
+            sleep(1);
+            failures_1 = ioctl(fd, SGX_IOC_VEPC_REMOVE_ALL);
+        }
+
+        /*
+         * The host or guest can support 8 EPC sections, use the
+         * corresponding bit to show each section removal status.
+         */
+        if (failures_1) {
+            set_bit(j, &ret);
+        }
+    }
+
+    return ret;
+}
+
+void sgx_epc_reset(void *opaque)
+{
+    PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
+    GSList *device_list = sgx_epc_get_device_list();
+    int len = g_slist_length(device_list);
+    int ret;
+
+    do {
+        ret = sgx_remove_all_pages(pcms, len);
+        if (ret == -ENOTTY) {
+            break;
+        }
+    } while (ret);
+
     g_slist_free(device_list);
 }
 

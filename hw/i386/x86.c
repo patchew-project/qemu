@@ -39,6 +39,7 @@
 #include "sysemu/replay.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/cpu-timers.h"
+#include "sysemu/reset.h"
 #include "trace.h"
 
 #include "hw/i386/x86.h"
@@ -1307,6 +1308,9 @@ static void machine_set_sgx_epc(Object *obj, Visitor *v, const char *name,
     visit_type_SgxEPCList(v, name, &x86ms->sgx_epc_list, errp);
 
     qapi_free_SgxEPCList(list);
+
+    /* register the reset callback for sgx reset */
+    qemu_register_reset(sgx_epc_reset, NULL);
 }
 
 static void x86_machine_initfn(Object *obj)

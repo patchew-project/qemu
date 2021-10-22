@@ -888,6 +888,12 @@ struct kvm_ppc_resize_hpt {
 #define KVM_GET_MSR_FEATURE_INDEX_LIST    _IOWR(KVMIO, 0x0a, struct kvm_msr_list)
 
 /*
+ * ioctl for /dev/sgx_vepc
+ */
+#define SGX_MAGIC 0xA4
+#define SGX_IOC_VEPC_REMOVE_ALL       _IO(SGX_MAGIC, 0x04)
+
+/*
  * Extension capability list.
  */
 #define KVM_CAP_IRQCHIP	  0
