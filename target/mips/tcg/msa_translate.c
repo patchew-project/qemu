@@ -130,12 +130,9 @@ enum {
     OPC_FCNE_df     = (0x3 << 22) | OPC_MSA_3RF_1C,
     OPC_FCLT_df     = (0x4 << 22) | OPC_MSA_3RF_1A,
     OPC_FMADD_df    = (0x4 << 22) | OPC_MSA_3RF_1B,
-    OPC_MUL_Q_df    = (0x4 << 22) | OPC_MSA_3RF_1C,
     OPC_FCULT_df    = (0x5 << 22) | OPC_MSA_3RF_1A,
     OPC_FMSUB_df    = (0x5 << 22) | OPC_MSA_3RF_1B,
-    OPC_MADD_Q_df   = (0x5 << 22) | OPC_MSA_3RF_1C,
     OPC_FCLE_df     = (0x6 << 22) | OPC_MSA_3RF_1A,
-    OPC_MSUB_Q_df   = (0x6 << 22) | OPC_MSA_3RF_1C,
     OPC_FCULE_df    = (0x7 << 22) | OPC_MSA_3RF_1A,
     OPC_FEXP2_df    = (0x7 << 22) | OPC_MSA_3RF_1B,
     OPC_FSAF_df     = (0x8 << 22) | OPC_MSA_3RF_1A,
@@ -149,13 +146,10 @@ enum {
     OPC_FSNE_df     = (0xB << 22) | OPC_MSA_3RF_1C,
     OPC_FSLT_df     = (0xC << 22) | OPC_MSA_3RF_1A,
     OPC_FMIN_df     = (0xC << 22) | OPC_MSA_3RF_1B,
-    OPC_MULR_Q_df   = (0xC << 22) | OPC_MSA_3RF_1C,
     OPC_FSULT_df    = (0xD << 22) | OPC_MSA_3RF_1A,
     OPC_FMIN_A_df   = (0xD << 22) | OPC_MSA_3RF_1B,
-    OPC_MADDR_Q_df  = (0xD << 22) | OPC_MSA_3RF_1C,
     OPC_FSLE_df     = (0xE << 22) | OPC_MSA_3RF_1A,
     OPC_FMAX_df     = (0xE << 22) | OPC_MSA_3RF_1B,
-    OPC_MSUBR_Q_df  = (0xE << 22) | OPC_MSA_3RF_1C,
     OPC_FSULE_df    = (0xF << 22) | OPC_MSA_3RF_1A,
     OPC_FMAX_A_df   = (0xF << 22) | OPC_MSA_3RF_1B,
 };
@@ -250,6 +244,9 @@ static inline bool check_msa_access(DisasContext *ctx)
 
 #define TRANS_MSA(NAME, trans_func, gen_func) \
         TRANS_CHECK(NAME, check_msa_access(ctx), trans_func, gen_func)
+
+#define TRANS_DF(NAME, trans_func, df, gen_func) \
+        TRANS_CHECK(NAME, check_msa_access(ctx), trans_func, df, gen_func)
 
 #define TRANS_DF_E(NAME, trans_func, gen_func) \
         TRANS_CHECK(NAME, check_msa_access(ctx), trans_func, \
@@ -1652,6 +1649,33 @@ static void gen_msa_elm(DisasContext *ctx)
     gen_msa_elm_df(ctx, df, n);
 }
 
+static bool trans_msa_3rf(DisasContext *ctx, arg_msa_r *a,
+                          enum CPUMIPSMSADataFormat df_base,
+                          void (*gen_msa_3rf)(TCGv_ptr, TCGv_i32, TCGv_i32,
+                                              TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 twd = tcg_const_i32(a->wd);
+    TCGv_i32 tws = tcg_const_i32(a->ws);
+    TCGv_i32 twt = tcg_const_i32(a->wt);
+    /* adjust df value for floating-point instruction */
+    TCGv_i32 tdf = tcg_constant_i32(a->df + df_base);
+
+    gen_msa_3rf(cpu_env, tdf, twd, tws, twt);
+
+    tcg_temp_free_i32(twt);
+    tcg_temp_free_i32(tws);
+    tcg_temp_free_i32(twd);
+
+    return true;
+}
+
+TRANS_DF(MUL_Q,     trans_msa_3rf, DF_HALF, gen_helper_msa_mul_q_df);
+TRANS_DF(MADD_Q,    trans_msa_3rf, DF_HALF, gen_helper_msa_madd_q_df);
+TRANS_DF(MSUB_Q,    trans_msa_3rf, DF_HALF, gen_helper_msa_msub_q_df);
+TRANS_DF(MULR_Q,    trans_msa_3rf, DF_HALF, gen_helper_msa_mulr_q_df);
+TRANS_DF(MADDR_Q,   trans_msa_3rf, DF_HALF, gen_helper_msa_maddr_q_df);
+TRANS_DF(MSUBR_Q,   trans_msa_3rf, DF_HALF, gen_helper_msa_msubr_q_df);
+
 static void gen_msa_3rf(DisasContext *ctx)
 {
 #define MASK_MSA_3RF(op)    (MASK_MSA_MINOR(op) | (op & (0xf << 22)))
@@ -1663,22 +1687,8 @@ static void gen_msa_3rf(DisasContext *ctx)
     TCGv_i32 twd = tcg_const_i32(wd);
     TCGv_i32 tws = tcg_const_i32(ws);
     TCGv_i32 twt = tcg_const_i32(wt);
-    TCGv_i32 tdf;
-
     /* adjust df value for floating-point instruction */
-    switch (MASK_MSA_3RF(ctx->opcode)) {
-    case OPC_MUL_Q_df:
-    case OPC_MADD_Q_df:
-    case OPC_MSUB_Q_df:
-    case OPC_MULR_Q_df:
-    case OPC_MADDR_Q_df:
-    case OPC_MSUBR_Q_df:
-        tdf = tcg_constant_i32(DF_HALF + df);
-        break;
-    default:
-        tdf = tcg_constant_i32(DF_WORD + df);
-        break;
-    }
+    TCGv_i32 tdf = tcg_constant_i32(DF_WORD + df);
 
     switch (MASK_MSA_3RF(ctx->opcode)) {
     case OPC_FCAF_df:
@@ -1720,23 +1730,14 @@ static void gen_msa_3rf(DisasContext *ctx)
     case OPC_FMADD_df:
         gen_helper_msa_fmadd_df(cpu_env, tdf, twd, tws, twt);
         break;
-    case OPC_MUL_Q_df:
-        gen_helper_msa_mul_q_df(cpu_env, tdf, twd, tws, twt);
-        break;
     case OPC_FCULT_df:
         gen_helper_msa_fcult_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_FMSUB_df:
         gen_helper_msa_fmsub_df(cpu_env, tdf, twd, tws, twt);
         break;
-    case OPC_MADD_Q_df:
-        gen_helper_msa_madd_q_df(cpu_env, tdf, twd, tws, twt);
-        break;
     case OPC_FCLE_df:
         gen_helper_msa_fcle_df(cpu_env, tdf, twd, tws, twt);
-        break;
-    case OPC_MSUB_Q_df:
-        gen_helper_msa_msub_q_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_FCULE_df:
         gen_helper_msa_fcule_df(cpu_env, tdf, twd, tws, twt);
@@ -1777,26 +1778,17 @@ static void gen_msa_3rf(DisasContext *ctx)
     case OPC_FMIN_df:
         gen_helper_msa_fmin_df(cpu_env, tdf, twd, tws, twt);
         break;
-    case OPC_MULR_Q_df:
-        gen_helper_msa_mulr_q_df(cpu_env, tdf, twd, tws, twt);
-        break;
     case OPC_FSULT_df:
         gen_helper_msa_fsult_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_FMIN_A_df:
         gen_helper_msa_fmin_a_df(cpu_env, tdf, twd, tws, twt);
         break;
-    case OPC_MADDR_Q_df:
-        gen_helper_msa_maddr_q_df(cpu_env, tdf, twd, tws, twt);
-        break;
     case OPC_FSLE_df:
         gen_helper_msa_fsle_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_FMAX_df:
         gen_helper_msa_fmax_df(cpu_env, tdf, twd, tws, twt);
-        break;
-    case OPC_MSUBR_Q_df:
-        gen_helper_msa_msubr_q_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_FSULE_df:
         gen_helper_msa_fsule_df(cpu_env, tdf, twd, tws, twt);
