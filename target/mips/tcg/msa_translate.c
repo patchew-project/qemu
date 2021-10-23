@@ -272,6 +272,40 @@ static const char msaregnames[][6] = {
     "w30.d0", "w30.d1", "w31.d0", "w31.d1",
 };
 
+/* Encoding of Operation Field */
+static const struct dfe {
+    enum CPUMIPSMSADataFormat df;
+    int start;
+    int length;
+    uint32_t value;
+} df_elm[] = {
+    /* Table 3.26 ELM Instruction Format */
+    {DF_BYTE,   4, 2, 0b00},
+    {DF_HALF,   3, 3, 0b100},
+    {DF_WORD,   2, 4, 0b1100},
+    {DF_DOUBLE, 1, 5, 0b11100}
+}, df_bit[] = {
+    /* Table 3.28 BIT Instruction Format */
+    {DF_BYTE,   3, 4, 0b1110},
+    {DF_HALF,   4, 3, 0b110},
+    {DF_WORD,   5, 2, 0b10},
+    {DF_DOUBLE, 6, 1, 0b0}
+};
+
+/* Extract Operation Field (used by ELM & BIT instructions) */
+static bool df_extract(const struct dfe *s, int value,
+                       enum CPUMIPSMSADataFormat *df, uint32_t *x)
+{
+    for (unsigned i = 0; i < 4; i++) {
+        if (extract32(value, s->start, s->length) == s->value) {
+            *x = extract32(value, 0, s->start);
+            *df = s->df;
+            return true;
+        }
+    }
+    return false;
+}
+
 static TCGv_i64 msa_wr_d[64];
 
 void msa_translate_init(void)
@@ -562,7 +596,6 @@ static void gen_msa_bit(DisasContext *ctx)
 {
 #define MASK_MSA_BIT(op)    (MASK_MSA_MINOR(op) | (op & (0x7 << 23)))
     uint8_t dfm = (ctx->opcode >> 16) & 0x7f;
-    uint32_t df = 0, m = 0;
     uint8_t ws = (ctx->opcode >> 11) & 0x1f;
     uint8_t wd = (ctx->opcode >> 6) & 0x1f;
 
@@ -570,20 +603,9 @@ static void gen_msa_bit(DisasContext *ctx)
     TCGv_i32 tm;
     TCGv_i32 twd;
     TCGv_i32 tws;
+    uint32_t df, m;
 
-    if ((dfm & 0x40) == 0x00) {
-        m = dfm & 0x3f;
-        df = DF_DOUBLE;
-    } else if ((dfm & 0x60) == 0x40) {
-        m = dfm & 0x1f;
-        df = DF_WORD;
-    } else if ((dfm & 0x70) == 0x60) {
-        m = dfm & 0x0f;
-        df = DF_HALF;
-    } else if ((dfm & 0x78) == 0x70) {
-        m = dfm & 0x7;
-        df = DF_BYTE;
-    } else {
+    if (!df_extract(df_bit, dfm, &df, &m)) {
         gen_reserved_instruction(ctx);
         return;
     }
@@ -1768,25 +1790,13 @@ static void gen_msa_elm_df(DisasContext *ctx, uint32_t df, uint32_t n)
 static void gen_msa_elm(DisasContext *ctx)
 {
     uint8_t dfn = (ctx->opcode >> 16) & 0x3f;
-    uint32_t df = 0, n = 0;
+    uint32_t df, n;
 
-    if ((dfn & 0x30) == 0x00) {
-        n = dfn & 0x0f;
-        df = DF_BYTE;
-    } else if ((dfn & 0x38) == 0x20) {
-        n = dfn & 0x07;
-        df = DF_HALF;
-    } else if ((dfn & 0x3c) == 0x30) {
-        n = dfn & 0x03;
-        df = DF_WORD;
-    } else if ((dfn & 0x3e) == 0x38) {
-        n = dfn & 0x01;
-        df = DF_DOUBLE;
-    } else if (dfn == 0x3E) {
+    if (dfn == 0x3E) {
         /* CTCMSA, CFCMSA, MOVE.V */
         gen_msa_elm_3e(ctx);
         return;
-    } else {
+    } else if (!df_extract(df_elm, dfn, &df, &n)) {
         gen_reserved_instruction(ctx);
         return;
     }
