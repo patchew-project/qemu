@@ -50,13 +50,6 @@ enum {
     OPC_BMZ_V       = (0x05 << 21) | OPC_MSA_VEC,
     OPC_BSEL_V      = (0x06 << 21) | OPC_MSA_VEC,
 
-    OPC_MSA_2R      = (0x18 << 21) | OPC_MSA_VEC,
-
-    /* 2R instruction df(bits 17..16) = _b, _h, _w, _d */
-    OPC_PCNT_df     = (0x01 << 18) | OPC_MSA_2R,
-    OPC_NLOC_df     = (0x02 << 18) | OPC_MSA_2R,
-    OPC_NLZC_df     = (0x03 << 18) | OPC_MSA_2R,
-
     /* 3R instruction df(bits 22..21) = _b, _h, _w, d */
     OPC_SLL_df      = (0x0 << 23) | OPC_MSA_3R_0D,
     OPC_ADDV_df     = (0x0 << 23) | OPC_MSA_3R_0E,
@@ -1832,74 +1825,43 @@ static void gen_msa_3rf(DisasContext *ctx)
     tcg_temp_free_i32(twt);
 }
 
-static void gen_msa_2r(DisasContext *ctx)
+static bool trans_msa_2r(DisasContext *ctx, arg_msa_r *a,
+                         void (*gen_msa_2r_b)(TCGv_ptr, TCGv_i32, TCGv_i32),
+                         void (*gen_msa_2r_h)(TCGv_ptr, TCGv_i32, TCGv_i32),
+                         void (*gen_msa_2r_w)(TCGv_ptr, TCGv_i32, TCGv_i32),
+                         void (*gen_msa_2r_d)(TCGv_ptr, TCGv_i32, TCGv_i32))
 {
-#define MASK_MSA_2R(op)     (MASK_MSA_MINOR(op) | (op & (0x1f << 21)) | \
-                            (op & (0x7 << 18)))
-    uint8_t ws = (ctx->opcode >> 11) & 0x1f;
-    uint8_t wd = (ctx->opcode >> 6) & 0x1f;
-    uint8_t df = (ctx->opcode >> 16) & 0x3;
-    TCGv_i32 twd = tcg_const_i32(wd);
-    TCGv_i32 tws = tcg_const_i32(ws);
+    TCGv_i32 twd = tcg_const_i32(a->wd);
+    TCGv_i32 tws = tcg_const_i32(a->ws);
 
-    switch (MASK_MSA_2R(ctx->opcode)) {
-    case OPC_NLOC_df:
-        switch (df) {
-        case DF_BYTE:
-            gen_helper_msa_nloc_b(cpu_env, twd, tws);
-            break;
-        case DF_HALF:
-            gen_helper_msa_nloc_h(cpu_env, twd, tws);
-            break;
-        case DF_WORD:
-            gen_helper_msa_nloc_w(cpu_env, twd, tws);
-            break;
-        case DF_DOUBLE:
-            gen_helper_msa_nloc_d(cpu_env, twd, tws);
-            break;
+    switch (a->df) {
+    case DF_BYTE:
+        if (gen_msa_2r_b == NULL) {
+            gen_reserved_instruction(ctx);
+        } else {
+            gen_msa_2r_b(cpu_env, twd, tws);
         }
         break;
-    case OPC_NLZC_df:
-        switch (df) {
-        case DF_BYTE:
-            gen_helper_msa_nlzc_b(cpu_env, twd, tws);
-            break;
-        case DF_HALF:
-            gen_helper_msa_nlzc_h(cpu_env, twd, tws);
-            break;
-        case DF_WORD:
-            gen_helper_msa_nlzc_w(cpu_env, twd, tws);
-            break;
-        case DF_DOUBLE:
-            gen_helper_msa_nlzc_d(cpu_env, twd, tws);
-            break;
-        }
+    case DF_HALF:
+        gen_msa_2r_h(cpu_env, twd, tws);
         break;
-    case OPC_PCNT_df:
-        switch (df) {
-        case DF_BYTE:
-            gen_helper_msa_pcnt_b(cpu_env, twd, tws);
-            break;
-        case DF_HALF:
-            gen_helper_msa_pcnt_h(cpu_env, twd, tws);
-            break;
-        case DF_WORD:
-            gen_helper_msa_pcnt_w(cpu_env, twd, tws);
-            break;
-        case DF_DOUBLE:
-            gen_helper_msa_pcnt_d(cpu_env, twd, tws);
-            break;
-        }
+    case DF_WORD:
+        gen_msa_2r_w(cpu_env, twd, tws);
         break;
-    default:
-        MIPS_INVAL("MSA instruction");
-        gen_reserved_instruction(ctx);
+    case DF_DOUBLE:
+        gen_msa_2r_d(cpu_env, twd, tws);
         break;
     }
 
     tcg_temp_free_i32(twd);
     tcg_temp_free_i32(tws);
+
+    return true;
 }
+
+TRANS_DF_E(PCNT, trans_msa_2r, gen_helper_msa_pcnt);
+TRANS_DF_E(NLOC, trans_msa_2r, gen_helper_msa_nloc);
+TRANS_DF_E(NLZC, trans_msa_2r, gen_helper_msa_nlzc);
 
 static bool trans_FILL(DisasContext *ctx, arg_msa_r *a)
 {
@@ -2017,9 +1979,6 @@ static void gen_msa_vec(DisasContext *ctx)
     case OPC_BMZ_V:
     case OPC_BSEL_V:
         gen_msa_vec_v(ctx);
-        break;
-    case OPC_MSA_2R:
-        gen_msa_2r(ctx);
         break;
     default:
         MIPS_INVAL("MSA instruction");
