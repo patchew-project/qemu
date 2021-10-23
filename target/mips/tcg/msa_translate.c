@@ -865,13 +865,6 @@ TRANS_MSA(BMNZ_V,   trans_msa_vec, gen_helper_msa_bmnz_v);
 TRANS_MSA(BMZ_V,    trans_msa_vec, gen_helper_msa_bmz_v);
 TRANS_MSA(BSEL_V,   trans_msa_vec, gen_helper_msa_bsel_v);
 
-static bool trans_MSA(DisasContext *ctx, arg_MSA *a)
-{
-    gen_reserved_instruction(ctx);
-
-    return true;
-}
-
 static bool trans_msa_ldst(DisasContext *ctx, arg_msa_ldst *a,
                            void (*gen_msa_b)(TCGv_ptr, TCGv_i32, TCGv),
                            void (*gen_msa_h)(TCGv_ptr, TCGv_i32, TCGv),
