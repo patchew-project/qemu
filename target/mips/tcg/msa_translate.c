@@ -57,13 +57,10 @@ enum {
     /* I8 instruction */
     OPC_ANDI_B      = (0x0 << 24) | OPC_MSA_I8_00,
     OPC_BMNZI_B     = (0x0 << 24) | OPC_MSA_I8_01,
-    OPC_SHF_B       = (0x0 << 24) | OPC_MSA_I8_02,
     OPC_ORI_B       = (0x1 << 24) | OPC_MSA_I8_00,
     OPC_BMZI_B      = (0x1 << 24) | OPC_MSA_I8_01,
-    OPC_SHF_H       = (0x1 << 24) | OPC_MSA_I8_02,
     OPC_NORI_B      = (0x2 << 24) | OPC_MSA_I8_00,
     OPC_BSELI_B     = (0x2 << 24) | OPC_MSA_I8_01,
-    OPC_SHF_W       = (0x2 << 24) | OPC_MSA_I8_02,
     OPC_XORI_B      = (0x3 << 24) | OPC_MSA_I8_00,
 
     /* VEC/2R/2RF instruction */
@@ -454,20 +451,6 @@ static void gen_msa_i8(DisasContext *ctx)
     case OPC_BSELI_B:
         gen_helper_msa_bseli_b(cpu_env, twd, tws, ti8);
         break;
-    case OPC_SHF_B:
-    case OPC_SHF_H:
-    case OPC_SHF_W:
-        {
-            uint8_t df = (ctx->opcode >> 24) & 0x3;
-            if (df == DF_DOUBLE) {
-                gen_reserved_instruction(ctx);
-            } else {
-                TCGv_i32 tdf = tcg_const_i32(df);
-                gen_helper_msa_shf_df(cpu_env, tdf, twd, tws, ti8);
-                tcg_temp_free_i32(tdf);
-            }
-        }
-        break;
     default:
         MIPS_INVAL("MSA instruction");
         gen_reserved_instruction(ctx);
@@ -477,6 +460,36 @@ static void gen_msa_i8(DisasContext *ctx)
     tcg_temp_free_i32(twd);
     tcg_temp_free_i32(tws);
     tcg_temp_free_i32(ti8);
+}
+
+static bool trans_SHF(DisasContext *ctx, arg_msa_ldst *a)
+{
+    TCGv_i32 tdf;
+    TCGv_i32 twd;
+    TCGv_i32 tws;
+    TCGv_i32 timm;
+
+    if (a->df == DF_DOUBLE) {
+        gen_reserved_instruction(ctx);
+        return true;
+    }
+
+    if (!check_msa_access(ctx)) {
+        return false;
+    }
+
+    tdf = tcg_constant_i32(a->df);
+    twd = tcg_const_i32(a->wd);
+    tws = tcg_const_i32(a->ws);
+    timm = tcg_const_i32(a->sa);
+
+    gen_helper_msa_shf_df(cpu_env, tdf, twd, tws, timm);
+
+    tcg_temp_free_i32(tws);
+    tcg_temp_free_i32(twd);
+    tcg_temp_free_i32(timm);
+
+    return true;
 }
 
 static bool trans_msa_i5(DisasContext *ctx, arg_msa_ldst *a,
