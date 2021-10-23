@@ -45,15 +45,12 @@ enum {
     OPC_SUBS_S_df   = (0x0 << 23) | OPC_MSA_3R_11,
     OPC_MULV_df     = (0x0 << 23) | OPC_MSA_3R_12,
     OPC_DOTP_S_df   = (0x0 << 23) | OPC_MSA_3R_13,
-    OPC_SLD_df      = (0x0 << 23) | OPC_MSA_3R_14,
-    OPC_VSHF_df     = (0x0 << 23) | OPC_MSA_3R_15,
     OPC_SRA_df      = (0x1 << 23) | OPC_MSA_3R_0D,
     OPC_SUBV_df     = (0x1 << 23) | OPC_MSA_3R_0E,
     OPC_ADDS_A_df   = (0x1 << 23) | OPC_MSA_3R_10,
     OPC_SUBS_U_df   = (0x1 << 23) | OPC_MSA_3R_11,
     OPC_MADDV_df    = (0x1 << 23) | OPC_MSA_3R_12,
     OPC_DOTP_U_df   = (0x1 << 23) | OPC_MSA_3R_13,
-    OPC_SPLAT_df    = (0x1 << 23) | OPC_MSA_3R_14,
     OPC_SRAR_df     = (0x1 << 23) | OPC_MSA_3R_15,
     OPC_SRL_df      = (0x2 << 23) | OPC_MSA_3R_0D,
     OPC_MAX_S_df    = (0x2 << 23) | OPC_MSA_3R_0E,
@@ -468,6 +465,29 @@ TRANS_MSA(SAT_S,    trans_msa_bit, gen_helper_msa_sat_u_df);
 TRANS_MSA(SAT_U,    trans_msa_bit, gen_helper_msa_sat_u_df);
 TRANS_MSA(SRARI,    trans_msa_bit, gen_helper_msa_srari_df);
 TRANS_MSA(SRLRI,    trans_msa_bit, gen_helper_msa_srlri_df);
+
+static bool trans_msa_3r_df(DisasContext *ctx, arg_msa_r *a,
+                            void (*gen_msa_3r_df)(TCGv_ptr, TCGv_i32, TCGv_i32,
+                                                  TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 tdf = tcg_constant_i32(a->df);
+    TCGv_i32 twd = tcg_const_i32(a->wd);
+    TCGv_i32 tws = tcg_const_i32(a->ws);
+    TCGv_i32 twt = tcg_const_i32(a->wt);
+
+    gen_msa_3r_df(cpu_env, tdf, twd, tws, twt);
+
+    tcg_temp_free_i32(twd);
+    tcg_temp_free_i32(tws);
+    tcg_temp_free_i32(twt);
+
+    return true;
+}
+
+TRANS_MSA(SLD,          trans_msa_3r_df, gen_helper_msa_sld_df);
+TRANS_MSA(SPLAT,        trans_msa_3r_df, gen_helper_msa_splat_df);
+
+TRANS_MSA(VSHF,         trans_msa_3r_df, gen_helper_msa_vshf_df);
 
 static void gen_msa_3r(DisasContext *ctx)
 {
@@ -1219,12 +1239,6 @@ static void gen_msa_3r(DisasContext *ctx)
             break;
         }
         break;
-    case OPC_SLD_df:
-        gen_helper_msa_sld_df(cpu_env, tdf, twd, tws, twt);
-        break;
-    case OPC_VSHF_df:
-        gen_helper_msa_vshf_df(cpu_env, tdf, twd, tws, twt);
-        break;
     case OPC_SUBV_df:
         switch (df) {
         case DF_BYTE:
@@ -1256,9 +1270,6 @@ static void gen_msa_3r(DisasContext *ctx)
             gen_helper_msa_subs_u_d(cpu_env, twd, tws, twt);
             break;
         }
-        break;
-    case OPC_SPLAT_df:
-        gen_helper_msa_splat_df(cpu_env, tdf, twd, tws, twt);
         break;
     case OPC_SUBSUS_U_df:
         switch (df) {
