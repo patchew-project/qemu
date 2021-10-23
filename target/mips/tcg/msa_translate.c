@@ -33,7 +33,6 @@ enum {
     OPC_CFCMSA      = (0x1 << 22) | (0x3E << 16) | OPC_MSA_ELM,
     OPC_COPY_S_df   = (0x2 << 22) | (0x00 << 16) | OPC_MSA_ELM,
     OPC_MOVE_V      = (0x2 << 22) | (0x3E << 16) | OPC_MSA_ELM,
-    OPC_COPY_U_df   = (0x3 << 22) | (0x00 << 16) | OPC_MSA_ELM,
     OPC_INSERT_df   = (0x4 << 22) | (0x00 << 16) | OPC_MSA_ELM,
 };
 
@@ -138,6 +137,11 @@ static inline bool check_msa_access(DisasContext *ctx)
 #define TRANS_DF_B(NAME, trans_func, gen_func) \
         TRANS_CHECK(NAME, check_msa_access(ctx), trans_func, \
                     NULL, gen_func##_h, gen_func##_w, gen_func##_d)
+
+#define TRANS_DF_W64(NAME, trans_func, gen_func) \
+        TRANS_CHECK(NAME, check_msa_access(ctx), trans_func, \
+                    DF_HALF, DF_WORD, \
+                    gen_func##_b, gen_func##_h, gen_func##_w, NULL)
 
 static void gen_check_zero_element(TCGv tresult, uint8_t df, uint8_t wt,
                                    TCGCond cond)
@@ -591,6 +595,65 @@ TRANS_MSA(SLDI,     trans_msa_elm_df, gen_helper_msa_sldi_df);
 TRANS_MSA(SPLATI,   trans_msa_elm_df, gen_helper_msa_splati_df);
 TRANS_MSA(INSVE,    trans_msa_elm_df, gen_helper_msa_insve_df);
 
+static bool trans_msa_elm_d64(DisasContext *ctx, arg_msa_elm *a,
+                              enum CPUMIPSMSADataFormat df_max32,
+                              enum CPUMIPSMSADataFormat df_max64,
+                              void (*gen_msa_elm_b)(TCGv_ptr, TCGv_i32,
+                                                    TCGv_i32, TCGv_i32),
+                              void (*gen_msa_elm_h)(TCGv_ptr, TCGv_i32,
+                                                    TCGv_i32, TCGv_i32),
+                              void (*gen_msa_elm_w)(TCGv_ptr, TCGv_i32,
+                                                    TCGv_i32, TCGv_i32),
+                              void (*gen_msa_elm_d)(TCGv_ptr, TCGv_i32,
+                                                    TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 twd;
+    TCGv_i32 tws;
+    TCGv_i32 tn;
+    uint32_t df, n;
+
+    if (!df_extract(df_elm, a->df, &df, &n)) {
+        gen_reserved_instruction(ctx);
+        return true;
+    }
+
+    if (df > (TARGET_LONG_BITS == 64 ? df_max64 : df_max32)) {
+        gen_reserved_instruction(ctx);
+        return true;
+    }
+
+    if (a->wd == 0) {
+        /* Treat as NOP. */
+        return true;
+    }
+
+    twd = tcg_const_i32(a->wd);
+    tws = tcg_const_i32(a->ws);
+    tn = tcg_constant_i32(n);
+
+    switch (a->df) {
+    case DF_BYTE:
+        gen_msa_elm_b(cpu_env, twd, tws, tn);
+        break;
+    case DF_HALF:
+        gen_msa_elm_h(cpu_env, twd, tws, tn);
+        break;
+    case DF_WORD:
+        gen_msa_elm_w(cpu_env, twd, tws, tn);
+        break;
+    case DF_DOUBLE:
+        g_assert_not_reached();
+        break;
+    }
+
+    tcg_temp_free_i32(tws);
+    tcg_temp_free_i32(twd);
+
+    return true;
+}
+
+TRANS_DF_W64(COPY_U,    trans_msa_elm_d64, gen_helper_msa_copy_u);
+
 static void gen_msa_elm_df(DisasContext *ctx, uint32_t df, uint32_t n)
 {
 #define MASK_MSA_ELM(op)    (MASK_MSA_MINOR(op) | (op & (0xf << 22)))
@@ -603,16 +666,10 @@ static void gen_msa_elm_df(DisasContext *ctx, uint32_t df, uint32_t n)
 
     switch (MASK_MSA_ELM(ctx->opcode)) {
     case OPC_COPY_S_df:
-    case OPC_COPY_U_df:
     case OPC_INSERT_df:
 #if !defined(TARGET_MIPS64)
         /* Double format valid only for MIPS64 */
         if (df == DF_DOUBLE) {
-            gen_reserved_instruction(ctx);
-            break;
-        }
-        if ((MASK_MSA_ELM(ctx->opcode) == OPC_COPY_U_df) &&
-              (df == DF_WORD)) {
             gen_reserved_instruction(ctx);
             break;
         }
@@ -633,25 +690,6 @@ static void gen_msa_elm_df(DisasContext *ctx, uint32_t df, uint32_t n)
 #if defined(TARGET_MIPS64)
                 case DF_DOUBLE:
                     gen_helper_msa_copy_s_d(cpu_env, twd, tws, tn);
-                    break;
-#endif
-                default:
-                    assert(0);
-                }
-            }
-            break;
-        case OPC_COPY_U_df:
-            if (likely(wd != 0)) {
-                switch (df) {
-                case DF_BYTE:
-                    gen_helper_msa_copy_u_b(cpu_env, twd, tws, tn);
-                    break;
-                case DF_HALF:
-                    gen_helper_msa_copy_u_h(cpu_env, twd, tws, tn);
-                    break;
-#if defined(TARGET_MIPS64)
-                case DF_WORD:
-                    gen_helper_msa_copy_u_w(cpu_env, twd, tws, tn);
                     break;
 #endif
                 default:
