@@ -78,12 +78,10 @@ enum {
     OPC_ASUB_U_df   = (0x5 << 23) | OPC_MSA_3R_11,
     OPC_DIV_U_df    = (0x5 << 23) | OPC_MSA_3R_12,
     OPC_ILVR_df     = (0x5 << 23) | OPC_MSA_3R_14,
-    OPC_BINSL_df    = (0x6 << 23) | OPC_MSA_3R_0D,
     OPC_MAX_A_df    = (0x6 << 23) | OPC_MSA_3R_0E,
     OPC_AVER_S_df   = (0x6 << 23) | OPC_MSA_3R_10,
     OPC_MOD_S_df    = (0x6 << 23) | OPC_MSA_3R_12,
     OPC_ILVEV_df    = (0x6 << 23) | OPC_MSA_3R_14,
-    OPC_BINSR_df    = (0x7 << 23) | OPC_MSA_3R_0D,
     OPC_MIN_A_df    = (0x7 << 23) | OPC_MSA_3R_0E,
     OPC_AVER_U_df   = (0x7 << 23) | OPC_MSA_3R_10,
     OPC_MOD_U_df    = (0x7 << 23) | OPC_MSA_3R_12,
@@ -518,6 +516,9 @@ static bool trans_msa_3r(DisasContext *ctx, arg_msa_r *a,
     return true;
 }
 
+TRANS_DF_E(BINSL,       trans_msa_3r,    gen_helper_msa_binsl);
+TRANS_DF_E(BINSR,       trans_msa_3r,    gen_helper_msa_binsr);
+
 TRANS_DF_B(DOTP_S,      trans_msa_3r,    gen_helper_msa_dotp_s);
 TRANS_DF_B(DOTP_U,      trans_msa_3r,    gen_helper_msa_dotp_u);
 TRANS_DF_B(DPADD_S,     trans_msa_3r,    gen_helper_msa_dpadd_s);
@@ -548,38 +549,6 @@ static void gen_msa_3r(DisasContext *ctx)
     TCGv_i32 twt = tcg_const_i32(wt);
 
     switch (MASK_MSA_3R(ctx->opcode)) {
-    case OPC_BINSL_df:
-        switch (df) {
-        case DF_BYTE:
-            gen_helper_msa_binsl_b(cpu_env, twd, tws, twt);
-            break;
-        case DF_HALF:
-            gen_helper_msa_binsl_h(cpu_env, twd, tws, twt);
-            break;
-        case DF_WORD:
-            gen_helper_msa_binsl_w(cpu_env, twd, tws, twt);
-            break;
-        case DF_DOUBLE:
-            gen_helper_msa_binsl_d(cpu_env, twd, tws, twt);
-            break;
-        }
-        break;
-    case OPC_BINSR_df:
-        switch (df) {
-        case DF_BYTE:
-            gen_helper_msa_binsr_b(cpu_env, twd, tws, twt);
-            break;
-        case DF_HALF:
-            gen_helper_msa_binsr_h(cpu_env, twd, tws, twt);
-            break;
-        case DF_WORD:
-            gen_helper_msa_binsr_w(cpu_env, twd, tws, twt);
-            break;
-        case DF_DOUBLE:
-            gen_helper_msa_binsr_d(cpu_env, twd, tws, twt);
-            break;
-        }
-        break;
     case OPC_BCLR_df:
         switch (df) {
         case DF_BYTE:
