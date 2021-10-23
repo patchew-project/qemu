@@ -3111,6 +3111,7 @@ R: Jiaxun Yang <jiaxun.yang@flygoat.com>
 R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
 S: Odd Fixes
 F: tcg/mips/
+F: tests/tcg/mips*
 
 PPC TCG target
 M: Richard Henderson <richard.henderson@linaro.org>
