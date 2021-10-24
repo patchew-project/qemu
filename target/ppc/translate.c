@@ -3347,15 +3347,14 @@ static void gen_lq(DisasContext *ctx)
 
     if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
         if (HAVE_ATOMIC128) {
-            TCGv_i32 oi = tcg_temp_new_i32();
+            TCGv_i32 oi;
             if (ctx->le_mode) {
-                tcg_gen_movi_i32(oi, make_memop_idx(MO_LEQ, ctx->mem_idx));
+                oi = tcg_constant_i32(make_memop_idx(MO_LEQ, ctx->mem_idx));
                 gen_helper_lq_le_parallel(lo, cpu_env, EA, oi);
             } else {
-                tcg_gen_movi_i32(oi, make_memop_idx(MO_BEQ, ctx->mem_idx));
+                oi = tcg_constant_i32(make_memop_idx(MO_BEQ, ctx->mem_idx));
                 gen_helper_lq_be_parallel(lo, cpu_env, EA, oi);
             }
-            tcg_temp_free_i32(oi);
             tcg_gen_ld_i64(hi, cpu_env, offsetof(CPUPPCState, retxh));
         } else {
             /* Restart with exclusive lock.  */
@@ -3458,17 +3457,16 @@ static void gen_std(DisasContext *ctx)
 
         if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
             if (HAVE_ATOMIC128) {
-                TCGv_i32 oi = tcg_temp_new_i32();
+                TCGv_i32 oi;
                 if (ctx->le_mode) {
-                    tcg_gen_movi_i32(oi, make_memop_idx(MO_LE | MO_128,
-                                                        ctx->mem_idx));
+                    oi = tcg_constant_i32(make_memop_idx(MO_LE | MO_128,
+                                                         ctx->mem_idx));
                     gen_helper_stq_le_parallel(cpu_env, EA, lo, hi, oi);
                 } else {
-                    tcg_gen_movi_i32(oi, make_memop_idx(MO_BE | MO_128,
-                                                        ctx->mem_idx));
+                    oi = tcg_constant_i32(make_memop_idx(MO_BE | MO_128,
+                                                         ctx->mem_idx));
                     gen_helper_stq_be_parallel(cpu_env, EA, lo, hi, oi);
                 }
-                tcg_temp_free_i32(oi);
             } else {
                 /* Restart with exclusive lock.  */
                 gen_helper_exit_atomic(cpu_env);
@@ -4065,17 +4063,16 @@ static void gen_lqarx(DisasContext *ctx)
 
     if (tb_cflags(ctx->base.tb) & CF_PARALLEL) {
         if (HAVE_ATOMIC128) {
-            TCGv_i32 oi = tcg_temp_new_i32();
+            TCGv_i32 oi;
             if (ctx->le_mode) {
-                tcg_gen_movi_i32(oi, make_memop_idx(MO_LE | MO_128 | MO_ALIGN,
-                                                    ctx->mem_idx));
+                oi = tcg_constant_i32(make_memop_idx(MO_LE | MO_128 | MO_ALIGN,
+                                                     ctx->mem_idx));
                 gen_helper_lq_le_parallel(lo, cpu_env, EA, oi);
             } else {
-                tcg_gen_movi_i32(oi, make_memop_idx(MO_BE | MO_128 | MO_ALIGN,
-                                                    ctx->mem_idx));
+                oi = tcg_constant_i32(make_memop_idx(MO_BE | MO_128 | MO_ALIGN,
+                                                     ctx->mem_idx));
                 gen_helper_lq_be_parallel(lo, cpu_env, EA, oi);
             }
-            tcg_temp_free_i32(oi);
             tcg_gen_ld_i64(hi, cpu_env, offsetof(CPUPPCState, retxh));
         } else {
             /* Restart with exclusive lock.  */
