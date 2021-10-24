@@ -1191,20 +1191,17 @@ static DisasJumpType gen_call_pal(DisasContext *ctx, int palcode)
     return gen_excp(ctx, EXCP_CALL_PAL, palcode);
 #else
     {
-        TCGv tmp = tcg_temp_new();
         uint64_t exc_addr = ctx->base.pc_next;
         uint64_t entry = ctx->palbr;
 
         if (ctx->tbflags & ENV_FLAG_PAL_MODE) {
             exc_addr |= 1;
         } else {
-            tcg_gen_movi_i64(tmp, 1);
-            st_flag_byte(tmp, ENV_FLAG_PAL_SHIFT);
+            st_flag_byte(tcg_constant_i64(1), ENV_FLAG_PAL_SHIFT);
         }
 
-        tcg_gen_movi_i64(tmp, exc_addr);
-        tcg_gen_st_i64(tmp, cpu_env, offsetof(CPUAlphaState, exc_addr));
-        tcg_temp_free(tmp);
+        tcg_gen_st_i64(tcg_constant_i64(exc_addr),
+                       cpu_env, offsetof(CPUAlphaState, exc_addr));
 
         entry += (palcode & 0x80
                   ? 0x2000 + (palcode - 0x80) * 64
