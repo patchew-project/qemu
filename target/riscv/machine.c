@@ -84,6 +84,14 @@ static bool vector_needed(void *opaque)
     return riscv_has_ext(env, RVV);
 }
 
+static bool rv128_needed(void *opaque)
+{
+    RISCVCPU *cpu = opaque;
+    CPURISCVState *env = &cpu->env;
+
+    return env->misa_mxl_max == MXL_RV128;
+}
+
 static const VMStateDescription vmstate_vector = {
     .name = "cpu/vector",
     .version_id = 1,
@@ -134,6 +142,17 @@ static const VMStateDescription vmstate_hyper = {
         VMSTATE_UINTTL(env.satp_hs, RISCVCPU),
         VMSTATE_UINT64(env.mstatus_hs, RISCVCPU),
 
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_rv128 = {
+    .name = "cpu/rv128",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = rv128_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINTTL_ARRAY(env.gprh, RISCVCPU, 32),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -191,6 +210,7 @@ const VMStateDescription vmstate_riscv_cpu = {
         &vmstate_pmp,
         &vmstate_hyper,
         &vmstate_vector,
+        &vmstate_rv128,
         NULL
     }
 };
