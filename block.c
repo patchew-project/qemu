@@ -2734,12 +2734,14 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
         if (child->klass->detach) {
             child->klass->detach(child);
         }
+        assert_bdrv_graph_writable(old_bs);
         QLIST_REMOVE(child, next_parent);
     }
 
     child->bs = new_bs;
 
     if (new_bs) {
+        assert_bdrv_graph_writable(new_bs);
         QLIST_INSERT_HEAD(&new_bs->parents, child, next_parent);
 
         /*
@@ -2940,6 +2942,7 @@ static int bdrv_attach_child_noperm(BlockDriverState *parent_bs,
         return ret;
     }
 
+    assert_bdrv_graph_writable(parent_bs);
     QLIST_INSERT_HEAD(&parent_bs->children, *child, next);
     /*
      * child is removed in bdrv_attach_child_common_abort(), so don't care to
@@ -3140,6 +3143,7 @@ static void bdrv_unset_inherits_from(BlockDriverState *root, BdrvChild *child,
 void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child)
 {
     assert(qemu_in_main_thread());
+    assert_bdrv_graph_writable(parent);
     if (child == NULL) {
         return;
     }
@@ -4903,6 +4907,7 @@ static void bdrv_remove_filter_or_cow_child_abort(void *opaque)
     BdrvRemoveFilterOrCowChild *s = opaque;
     BlockDriverState *parent_bs = s->child->opaque;
 
+    assert_bdrv_graph_writable(parent_bs);
     QLIST_INSERT_HEAD(&parent_bs->children, s->child, next);
     if (s->is_backing) {
         parent_bs->backing = s->child;
