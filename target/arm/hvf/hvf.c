@@ -1098,6 +1098,33 @@ static void hvf_sync_vtimer(CPUState *cpu)
     }
 }
 
+static bool hvf_emulate_insn(CPUState *cpu)
+{
+    ARMCPU *arm_cpu = ARM_CPU(cpu);
+    CPUARMState *env = &arm_cpu->env;
+    uint32_t insn;
+
+    /*
+     * We ran into an instruction that traps for data, but is not
+     * hardware predecoded. This should not ever happen for well
+     * behaved guests. Let's try to see if we can somehow rescue
+     * the situation.
+     */
+
+    cpu_synchronize_state(cpu);
+    if (cpu_memory_rw_debug(cpu, env->pc, &insn, 4, 0)) {
+        /* Could not read the instruction */
+        return false;
+    }
+
+    if ((insn & 0xffc00000) == 0xd5000000) {
+        /* MSR/MRS/SYS/SYSL - happens for cache ops which are nops on data */
+        return true;
+    }
+
+    return false;
+}
+
 int hvf_vcpu_exec(CPUState *cpu)
 {
     ARMCPU *arm_cpu = ARM_CPU(cpu);
@@ -1156,6 +1183,11 @@ int hvf_vcpu_exec(CPUState *cpu)
                              hvf_exit->exception.physical_address, isv,
                              iswrite, s1ptw, len, srt);
 
+        if (!isv) {
+            g_assert(hvf_emulate_insn(cpu));
+            advance_pc = true;
+            break;
+        }
         assert(isv);
 
         if (iswrite) {
