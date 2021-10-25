@@ -2869,6 +2869,7 @@ M: Kevin Wolf <kwolf@redhat.com>
 S: Maintained
 F: util/*coroutine*
 F: include/qemu/coroutine*
+F: include/qemu/tls.h
 F: tests/unit/test-coroutine.c
 
 Buffers
