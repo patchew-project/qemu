@@ -209,6 +209,16 @@ static RISCVException epmp(CPURISCVState *env, int csrno)
 
     return RISCV_EXCP_ILLEGAL_INST;
 }
+
+static RISCVException priv1p12(CPURISCVState *env, int csrno)
+{
+	if (env->priv_ver >= PRIV_VERSION_1_12_0) {
+		return RISCV_EXCP_NONE;
+	}
+
+	return RISCV_EXCP_ILLEGAL_INST;
+}
+
 #endif
 
 /* User Floating-Point CSRs */
@@ -1569,10 +1579,11 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MINSTRETH] = { "minstreth", any32, read_instreth },
 
     /* Machine Information Registers */
-    [CSR_MVENDORID] = { "mvendorid", any,   read_zero    },
-    [CSR_MARCHID]   = { "marchid",   any,   read_zero    },
-    [CSR_MIMPID]    = { "mimpid",    any,   read_zero    },
-    [CSR_MHARTID]   = { "mhartid",   any,   read_mhartid },
+    [CSR_MVENDORID] = { "mvendorid", 	any,   		read_zero    },
+    [CSR_MARCHID]   = { "marchid",   	any,   		read_zero    },
+    [CSR_MIMPID]    = { "mimpid",    	any,   		read_zero    },
+    [CSR_MHARTID]   = { "mhartid",   	any,   		read_mhartid },
+    [CSR_MCONFIGPTR] = {"mconfigptr", 	priv1p12,  	read_zero    },
 
     /* Machine Trap Setup */
     [CSR_MSTATUS]     = { "mstatus",    any,   read_mstatus,     write_mstatus     },
