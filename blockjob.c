@@ -83,6 +83,7 @@ BlockJob *block_job_get(const char *id)
 
 void block_job_free(Job *job)
 {
+    assert(qemu_in_main_thread());
     BlockJob *bjob = container_of(job, BlockJob, job);
 
     block_job_remove_all_bdrv(bjob);
@@ -436,6 +437,8 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     BlockBackend *blk;
     BlockJob *job;
 
+    assert(qemu_in_main_thread());
+
     if (job_id == NULL && !(flags & JOB_INTERNAL)) {
         job_id = bdrv_get_device_name(bs);
     }
@@ -504,6 +507,7 @@ void block_job_iostatus_reset(BlockJob *job)
 
 void block_job_user_resume(Job *job)
 {
+    assert(qemu_in_main_thread());
     BlockJob *bjob = container_of(job, BlockJob, job);
     block_job_iostatus_reset(bjob);
 }
