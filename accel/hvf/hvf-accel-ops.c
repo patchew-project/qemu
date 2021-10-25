@@ -135,6 +135,12 @@ static void hvf_set_phys_mem(MemoryRegionSection *section, bool add)
         }
     }
 
+    if (int128_get64(section->size) & (qemu_real_host_page_size - 1) ||
+        section->offset_within_address_space & (qemu_real_host_page_size - 1)) {
+        /* Not page aligned, so we can not map as RAM */
+        add = false;
+    }
+
     mem = hvf_find_overlap_slot(
             section->offset_within_address_space,
             int128_get64(section->size));
