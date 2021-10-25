@@ -143,6 +143,8 @@ typedef struct PCIBridgeQemuCap {
 /*
  * PCI BUS/IO/MEM/PREFMEM additional resources recorded as a
  * capability in PCI configuration space to reserve on firmware init.
+ * The values of these parameters must be in little-endian and
+ * the code assigning the values must be endian safe for all platforms.
  */
 typedef struct PCIResReserve {
     uint32_t bus;
