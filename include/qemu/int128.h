@@ -58,6 +58,11 @@ static inline Int128 int128_exts64(int64_t a)
     return a;
 }
 
+static inline Int128 int128_not(Int128 a)
+{
+    return ~a;
+}
+
 static inline Int128 int128_and(Int128 a, Int128 b)
 {
     return a & b;
@@ -66,6 +71,11 @@ static inline Int128 int128_and(Int128 a, Int128 b)
 static inline Int128 int128_or(Int128 a, Int128 b)
 {
     return a | b;
+}
+
+static inline Int128 int128_xor(Int128 a, Int128 b)
+{
+    return a ^ b;
 }
 
 static inline Int128 int128_rshift(Int128 a, int n)
@@ -235,6 +245,11 @@ static inline Int128 int128_exts64(int64_t a)
     return int128_make128(a, (a < 0) ? -1 : 0);
 }
 
+static inline Int128 int128_not(Int128 a)
+{
+    return int128_make128(~a.lo, ~a.hi);
+}
+
 static inline Int128 int128_and(Int128 a, Int128 b)
 {
     return int128_make128(a.lo & b.lo, a.hi & b.hi);
@@ -243,6 +258,11 @@ static inline Int128 int128_and(Int128 a, Int128 b)
 static inline Int128 int128_or(Int128 a, Int128 b)
 {
     return int128_make128(a.lo | b.lo, a.hi | b.hi);
+}
+
+static inline Int128 int128_xor(Int128 a, Int128 b)
+{
+    return int128_make128(a.lo ^ b.lo, a.hi ^ b.hi);
 }
 
 static inline Int128 int128_rshift(Int128 a, int n)
@@ -365,5 +385,11 @@ static inline void bswap128s(Int128 *s)
 {
     *s = bswap128(*s);
 }
+
+#define UINT128_MAX int128_make128(~0LL, ~0LL)
+Int128 int128_divu(Int128, Int128);
+Int128 int128_remu(Int128, Int128);
+Int128 int128_divs(Int128, Int128);
+Int128 int128_rems(Int128, Int128);
 
 #endif /* INT128_H */
