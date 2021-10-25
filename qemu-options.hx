@@ -3936,10 +3936,9 @@ SRST
 ``--preconfig``
     Pause QEMU for interactive configuration before the machine is
     created, which allows querying and configuring properties that will
-    affect machine initialization. Use QMP command 'x-exit-preconfig' to
+    affect machine initialization. Use QMP command 'exit-preconfig' to
     exit the preconfig state and move to the next state (i.e. run guest
-    if -S isn't used or pause the second time if -S is used). This
-    option is experimental.
+    if -S isn't used or pause the second time if -S is used).
 ERST
 
 DEF("S", 0, QEMU_OPTION_S, \

@@ -2730,7 +2730,7 @@ static void qemu_machine_creation_done(void)
     }
 }
 
-void qmp_x_exit_preconfig(Error **errp)
+void qmp_exit_preconfig(Error **errp)
 {
     if (phase_check(PHASE_MACHINE_INITIALIZED)) {
         error_setg(errp, "The command is permitted only before machine initialization");
@@ -3770,7 +3770,7 @@ void qemu_init(int argc, char **argv, char **envp)
     }
 
     if (!preconfig_requested) {
-        qmp_x_exit_preconfig(&error_fatal);
+        qmp_exit_preconfig(&error_fatal);
     }
     qemu_init_displays();
     accel_setup_post(current_machine);

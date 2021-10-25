@@ -175,7 +175,7 @@
 { 'command': 'cont' }
 
 ##
-# @x-exit-preconfig:
+# @exit-preconfig:
 #
 # Exit from "preconfig" state
 #
@@ -191,11 +191,11 @@
 #
 # Example:
 #
-# -> { "execute": "x-exit-preconfig" }
+# -> { "execute": "exit-preconfig" }
 # <- { "return": {} }
 #
 ##
-{ 'command': 'x-exit-preconfig', 'allow-preconfig': true }
+{ 'command': 'exit-preconfig', 'allow-preconfig': true }
 
 ##
 # @human-monitor-command:

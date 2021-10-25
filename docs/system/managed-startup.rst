@@ -32,4 +32,4 @@ machine, including but not limited to:
 - ``query-qmp-schema``
 - ``query-commands``
 - ``query-status``
-- ``x-exit-preconfig``
+- ``exit-preconfig``
