@@ -34,7 +34,6 @@ struct RewriterState {
     NetQueue *incoming_queue;
     /* hashtable to save connection */
     GHashTable *connection_track_table;
-    bool vnet_hdr;
     bool failover_mode;
 };
 
@@ -266,9 +265,7 @@ static ssize_t colo_rewriter_receive_iov(NetFilterState *nf,
 
     iov_to_buf(iov, iovcnt, 0, buf, size);
 
-    if (s->vnet_hdr) {
-        vnet_hdr_len = nf->netdev->vnet_hdr_len;
-    }
+    vnet_hdr_len = nf->netdev->vnet_hdr_len;
 
     pkt = packet_new_nocopy(buf, size, vnet_hdr_len);
 
@@ -395,37 +392,16 @@ static void colo_rewriter_setup(NetFilterState *nf, Error **errp)
     s->incoming_queue = qemu_new_net_queue(qemu_netfilter_pass_to_next, nf);
 }
 
-static bool filter_rewriter_get_vnet_hdr(Object *obj, Error **errp)
-{
-    RewriterState *s = FILTER_REWRITER(obj);
-
-    return s->vnet_hdr;
-}
-
-static void filter_rewriter_set_vnet_hdr(Object *obj,
-                                         bool value,
-                                         Error **errp)
-{
-    RewriterState *s = FILTER_REWRITER(obj);
-
-    s->vnet_hdr = value;
-}
-
 static void filter_rewriter_init(Object *obj)
 {
     RewriterState *s = FILTER_REWRITER(obj);
 
-    s->vnet_hdr = false;
     s->failover_mode = FAILOVER_MODE_OFF;
 }
 
 static void colo_rewriter_class_init(ObjectClass *oc, void *data)
 {
     NetFilterClass *nfc = NETFILTER_CLASS(oc);
-
-    object_class_property_add_bool(oc, "vnet_hdr_support",
-                                   filter_rewriter_get_vnet_hdr,
-                                   filter_rewriter_set_vnet_hdr);
 
     nfc->setup = colo_rewriter_setup;
     nfc->cleanup = colo_rewriter_cleanup;

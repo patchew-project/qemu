@@ -4958,12 +4958,12 @@ SRST
         id can not be the same. we can just use indev or outdev, but at
         least one of indev or outdev need to be specified.
 
-    ``-object filter-rewriter,id=id,netdev=netdevid,queue=all|rx|tx,[vnet_hdr_support][,position=head|tail|id=<id>][,insert=behind|before]``
+    ``-object filter-rewriter,id=id,netdev=netdevid,queue=all|rx|tx[,position=head|tail|id=<id>][,insert=behind|before]``
         Filter-rewriter is a part of COLO project.It will rewrite tcp
         packet to secondary from primary to keep secondary tcp
         connection,and rewrite tcp packet to primary from secondary make
-        tcp packet can be handled by client.if it has the
-        vnet\_hdr\_support flag, we can parse packet with vnet header.
+        tcp packet can be handled by client. Filter-rewriter support
+        parse packet with vnet header.
 
         usage: colo secondary: -object
         filter-redirector,id=f1,netdev=hn0,queue=tx,indev=red0 -object
