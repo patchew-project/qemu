@@ -336,7 +336,7 @@ class Docker(object):
             uid = os.getuid()
             uname = getpwuid(uid).pw_name
             tmp_df.write("\n")
-            tmp_df.write("RUN id %s 2>/dev/null || useradd -u %d -U %s" %
+            tmp_df.write("RUN id %s 2>/dev/null || useradd -o -u %d -U %s" %
                          (uname, uid, uname))
 
         tmp_df.write("\n")
@@ -590,7 +590,7 @@ class UpdateCommand(SubCommand):
             uid = os.getuid()
             uname = getpwuid(uid).pw_name
             df.write("\n")
-            df.write("RUN id %s 2>/dev/null || useradd -u %d -U %s" %
+            df.write("RUN id %s 2>/dev/null || useradd -o -u %d -U %s" %
                      (uname, uid, uname))
 
         df_bytes = BytesIO(bytes(df.getvalue(), "UTF-8"))
