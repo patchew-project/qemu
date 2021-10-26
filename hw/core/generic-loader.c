@@ -34,7 +34,6 @@
 #include "hw/core/cpu.h"
 #include "sysemu/dma.h"
 #include "sysemu/reset.h"
-#include "hw/boards.h"
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
@@ -153,8 +152,23 @@ static void generic_loader_realize(DeviceState *dev, Error **errp)
         }
 
         if (size < 0 || s->force_raw) {
-            /* Default to the maximum size being the machine's ram size */
-            size = load_image_targphys_as(s->file, s->addr, current_machine->ram_size, as);
+            MemoryRegion *root = as ? as->root : get_system_memory();
+            MemoryRegionSection mrs;
+            uint64_t avail = 0;
+
+            mrs = memory_region_find(root, s->addr, 1);
+
+            if (mrs.mr) {
+                avail = int128_get64(mrs.mr->size) - mrs.offset_within_region;
+                memory_region_unref(mrs.mr);
+            } else {
+                error_setg(errp, "Address 0x%" PRIx64 " does not exists",
+                           s->addr);
+                return;
+            }
+
+            /* Limit the file size to the memory region space */
+            size = load_image_targphys_as(s->file, s->addr, avail, as);
         } else {
             s->addr = entry;
         }
