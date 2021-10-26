@@ -37,6 +37,7 @@
 #include "qemu/iov.h"
 #include "qemu/module.h"
 #include "qemu/range.h"
+#include "sysemu/replay.h"
 
 #include "e1000x_common.h"
 #include "trace.h"
@@ -1407,7 +1408,7 @@ static int e1000_pre_save(void *opaque)
      * complete auto-negotiation immediately. This allows us to look
      * at MII_SR_AUTONEG_COMPLETE to infer link status on load.
      */
-    if (nc->link_down && have_autoneg(s)) {
+    if (replay_mode == REPLAY_MODE_NONE && nc->link_down && have_autoneg(s)) {
         s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
     }
 
@@ -1438,21 +1439,11 @@ static int e1000_post_load(void *opaque, int version_id)
             s->mac_reg[TADV] = 0;
         s->mit_irq_level = false;
     }
-    s->mit_ide = 0;
-    s->mit_timer_on = true;
-    timer_mod(s->mit_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 1);
 
     /* nc.link_down can't be migrated, so infer link_down according
      * to link status bit in mac_reg[STATUS].
      * Alternatively, restart link negotiation if it was in progress. */
     nc->link_down = (s->mac_reg[STATUS] & E1000_STATUS_LU) == 0;
-
-    if (have_autoneg(s) &&
-        !(s->phy_reg[PHY_STATUS] & MII_SR_AUTONEG_COMPLETE)) {
-        nc->link_down = false;
-        timer_mod(s->autoneg_timer,
-                  qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 500);
-    }
 
     s->tx.props = s->mig_props;
     if (!s->received_tx_tso) {
@@ -1469,6 +1460,13 @@ static int e1000_tx_tso_post_load(void *opaque, int version_id)
 {
     E1000State *s = opaque;
     s->received_tx_tso = true;
+    return 0;
+}
+
+static int e1000_mit_timer_post_load(void *opaque, int version_id)
+{
+    E1000State *s = opaque;
+    s->mit_timer_on = true;
     return 0;
 }
 
@@ -1491,6 +1489,21 @@ static bool e1000_tso_state_needed(void *opaque)
     E1000State *s = opaque;
 
     return chkflag(TSO);
+}
+
+static bool e1000_mit_timer_needed(void *opaque)
+{
+    E1000State *s = opaque;
+
+    return s->mit_timer_on;
+}
+
+static bool e1000_autoneg_timer_needed(void *opaque)
+{
+    E1000State *s = opaque;
+
+    return have_autoneg(s)
+           && !(s->phy_reg[PHY_STATUS] & MII_SR_AUTONEG_COMPLETE);
 }
 
 static const VMStateDescription vmstate_e1000_mit_state = {
@@ -1537,6 +1550,30 @@ static const VMStateDescription vmstate_e1000_tx_tso_state = {
         VMSTATE_UINT16(tx.tso_props.mss, E1000State),
         VMSTATE_INT8(tx.tso_props.ip, E1000State),
         VMSTATE_INT8(tx.tso_props.tcp, E1000State),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_e1000_mit_timer = {
+    .name = "e1000/mit_timer",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = e1000_mit_timer_needed,
+    .post_load = e1000_mit_timer_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_TIMER_PTR(mit_timer, E1000State),
+        VMSTATE_UINT32(mit_ide, E1000State),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_e1000_autoneg_timer = {
+    .name = "e1000/autoneg_timer",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = e1000_autoneg_timer_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_TIMER_PTR(autoneg_timer, E1000State),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -1622,6 +1659,8 @@ static const VMStateDescription vmstate_e1000 = {
         &vmstate_e1000_mit_state,
         &vmstate_e1000_full_mac_state,
         &vmstate_e1000_tx_tso_state,
+        &vmstate_e1000_mit_timer,
+        &vmstate_e1000_autoneg_timer,
         NULL
     }
 };
