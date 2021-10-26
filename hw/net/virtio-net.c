@@ -45,6 +45,9 @@
 #include "net_rx_pkt.h"
 #include "hw/virtio/vhost.h"
 
+/* zero MAC address to check with */
+static const MACAddr zero = { .a = { 0, 0, 0, 0, 0, 0 } };
+
 #define VIRTIO_NET_VM_VERSION    11
 
 #define MAC_TABLE_ENTRIES    64
@@ -126,7 +129,6 @@ static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
     VirtIONet *n = VIRTIO_NET(vdev);
     struct virtio_net_config netcfg;
     NetClientState *nc = qemu_get_queue(n->nic);
-    static const MACAddr zero = { .a = { 0, 0, 0, 0, 0, 0 } };
 
     int ret = 0;
     memset(&netcfg, 0 , sizeof(struct virtio_net_config));
@@ -871,10 +873,21 @@ static void failover_add_primary(VirtIONet *n, Error **errp)
     error_propagate(errp, err);
 }
 
+static void failover_plug_primary(VirtIONet *n)
+{
+    Error *err = NULL;
+
+    qapi_event_send_failover_negotiated(n->netclient_name);
+    qatomic_set(&n->failover_primary_hidden, false);
+    failover_add_primary(n, &err);
+    if (err) {
+        warn_report_err(err);
+    }
+}
+
 static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
-    Error *err = NULL;
     int i;
 
     if (n->mtu_bypass_backend &&
@@ -921,12 +934,22 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
         memset(n->vlans, 0xff, MAX_VLAN >> 3);
     }
 
-    if (virtio_has_feature(features, VIRTIO_NET_F_STANDBY)) {
-        qapi_event_send_failover_negotiated(n->netclient_name);
-        qatomic_set(&n->failover_primary_hidden, false);
-        failover_add_primary(n, &err);
-        if (err) {
-            warn_report_err(err);
+    if (n->failover) {
+        if (virtio_has_feature(features, VIRTIO_NET_F_STANDBY)) {
+            if (memcmp(&n->altmac, &zero, sizeof(zero)) != 0 &&
+                memcmp(n->mac, &n->altmac, ETH_ALEN) == 0) {
+                /*
+                 * set_features can be called twice, without & with F_STANDBY,
+                 * so restore original MAC address
+                 */
+                memcpy(n->mac, &n->nic->conf->macaddr, sizeof(n->mac));
+                qemu_format_nic_info_str(qemu_get_queue(n->nic), n->mac);
+            }
+            failover_plug_primary(n);
+        } else if (memcmp(&n->altmac, &zero, sizeof(zero)) != 0) {
+            memcpy(n->mac, &n->altmac, ETH_ALEN);
+            qemu_format_nic_info_str(qemu_get_queue(n->nic), n->mac);
+            failover_plug_primary(n);
         }
     }
 }
@@ -3595,9 +3618,15 @@ static bool primary_unplug_pending(void *opaque)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIONet *n = VIRTIO_NET(vdev);
 
-    if (!virtio_vdev_has_feature(vdev, VIRTIO_NET_F_STANDBY)) {
+    if (!n->failover) {
         return false;
     }
+
+    if (!virtio_vdev_has_feature(vdev, VIRTIO_NET_F_STANDBY) &&
+        memcmp(&n->altmac, &zero, sizeof(zero)) == 0) {
+        return false;
+    }
+
     primary = failover_find_primary_device(n);
     return primary ? primary->pending_deleted_event : false;
 }
@@ -3672,6 +3701,7 @@ static Property virtio_net_properties[] = {
     DEFINE_PROP_UINT32("rsc_interval", VirtIONet, rsc_timeout,
                        VIRTIO_NET_RSC_DEFAULT_INTERVAL),
     DEFINE_NIC_PROPERTIES(VirtIONet, nic_conf),
+    DEFINE_PROP_MACADDR("alt-mac",  VirtIONet, altmac),
     DEFINE_PROP_UINT32("x-txtimer", VirtIONet, net_conf.txtimer,
                        TX_TIMER_INTERVAL),
     DEFINE_PROP_INT32("x-txburst", VirtIONet, net_conf.txburst, TX_BURST),

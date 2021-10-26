@@ -51,6 +51,23 @@ Usage
   is only for pairing the devices within QEMU. The guest kernel module
   net_failover will match devices with identical MAC addresses.
 
+  The VIRTIO_NET_F_STANDBY must be supported by both sides, QEMU and guest
+  kernel, to allow the guest kernel module to pair the devices.
+  If the kernel module doesn't support the feature, only the standby device
+  (virtio-net) is plugged, this allows to do a live migration without any
+  connection loss.
+
+  In this case, You can force QEMU to keep both interfaces by providing an
+  alternate MAC address to the virtio-net device with the parameter alt-mac.
+  Both interfaces will be available separately:
+
+  -device virtio-net-pci,netdev=hostnet1,id=net1,mac=52:54:00:6f:55:cc, \
+    bus=root2,failover=on,alt-mac=52:54:00:12:34:56
+
+  As in the failover case, the (vfio)-pci device will be unplugged
+  automatically before the migration and plugged back on the destination side
+  after the migration.
+
 Hotplug
 -------
 
