@@ -39,7 +39,6 @@ struct MirrorState {
     CharBackend chr_in;
     CharBackend chr_out;
     SocketReadState rs;
-    bool vnet_hdr;
 };
 
 static int filter_send(MirrorState *s,
@@ -48,7 +47,7 @@ static int filter_send(MirrorState *s,
 {
     NetFilterState *nf = NETFILTER(s);
     int ret = 0;
-    ssize_t size = 0;
+    ssize_t size = 0, vnet_hdr_len = 0;
     uint32_t len = 0;
     char *buf;
 
@@ -63,21 +62,18 @@ static int filter_send(MirrorState *s,
         goto err;
     }
 
-    if (s->vnet_hdr) {
-        /*
-         * If vnet_hdr = on, we send vnet header len to make other
-         * module(like colo-compare) know how to parse net
-         * packet correctly.
-         */
-        ssize_t vnet_hdr_len;
+    /*
+     * The vnet header is the necessary part of filter transfer protocol.
+     * It make other module(like colo-compare) know how to parse net
+     * packet correctly. If device is not the virtio-net-pci,
+     * vnet_hdr_len will be 0.
+     */
+    vnet_hdr_len = nf->netdev->vnet_hdr_len;
 
-        vnet_hdr_len = nf->netdev->vnet_hdr_len;
-
-        len = htonl(vnet_hdr_len);
-        ret = qemu_chr_fe_write_all(&s->chr_out, (uint8_t *)&len, sizeof(len));
-        if (ret != sizeof(len)) {
-            goto err;
-        }
+    len = htonl(vnet_hdr_len);
+    ret = qemu_chr_fe_write_all(&s->chr_out, (uint8_t *)&len, sizeof(len));
+    if (ret != sizeof(len)) {
+        goto err;
     }
 
     buf = g_malloc(size);
@@ -232,6 +228,12 @@ static void redirector_rs_finalize(SocketReadState *rs)
     MirrorState *s = container_of(rs, MirrorState, rs);
     NetFilterState *nf = NETFILTER(s);
 
+    /* Check remote vnet_hdr */
+    if (rs->vnet_hdr_len != nf->netdev->vnet_hdr_len) {
+        error_report("filter redirector got a different packet vnet_hdr"
+        " from local, please check the -device configuration");
+    }
+
     redirector_to_filter(nf, rs->buf, rs->packet_len);
 }
 
@@ -252,7 +254,7 @@ static void filter_redirector_setup(NetFilterState *nf, Error **errp)
         }
     }
 
-    net_socket_rs_init(&s->rs, redirector_rs_finalize, s->vnet_hdr);
+    net_socket_rs_init(&s->rs, redirector_rs_finalize, true);
 
     if (s->indev) {
         chr = qemu_chr_find(s->indev);
@@ -323,20 +325,6 @@ static void filter_mirror_set_outdev(Object *obj,
     }
 }
 
-static bool filter_mirror_get_vnet_hdr(Object *obj, Error **errp)
-{
-    MirrorState *s = FILTER_MIRROR(obj);
-
-    return s->vnet_hdr;
-}
-
-static void filter_mirror_set_vnet_hdr(Object *obj, bool value, Error **errp)
-{
-    MirrorState *s = FILTER_MIRROR(obj);
-
-    s->vnet_hdr = value;
-}
-
 static char *filter_redirector_get_outdev(Object *obj, Error **errp)
 {
     MirrorState *s = FILTER_REDIRECTOR(obj);
@@ -354,31 +342,12 @@ static void filter_redirector_set_outdev(Object *obj,
     s->outdev = g_strdup(value);
 }
 
-static bool filter_redirector_get_vnet_hdr(Object *obj, Error **errp)
-{
-    MirrorState *s = FILTER_REDIRECTOR(obj);
-
-    return s->vnet_hdr;
-}
-
-static void filter_redirector_set_vnet_hdr(Object *obj,
-                                           bool value,
-                                           Error **errp)
-{
-    MirrorState *s = FILTER_REDIRECTOR(obj);
-
-    s->vnet_hdr = value;
-}
-
 static void filter_mirror_class_init(ObjectClass *oc, void *data)
 {
     NetFilterClass *nfc = NETFILTER_CLASS(oc);
 
     object_class_property_add_str(oc, "outdev", filter_mirror_get_outdev,
                                   filter_mirror_set_outdev);
-    object_class_property_add_bool(oc, "vnet_hdr_support",
-                                   filter_mirror_get_vnet_hdr,
-                                   filter_mirror_set_vnet_hdr);
 
     nfc->setup = filter_mirror_setup;
     nfc->cleanup = filter_mirror_cleanup;
@@ -393,27 +362,10 @@ static void filter_redirector_class_init(ObjectClass *oc, void *data)
                                   filter_redirector_set_indev);
     object_class_property_add_str(oc, "outdev", filter_redirector_get_outdev,
                                   filter_redirector_set_outdev);
-    object_class_property_add_bool(oc, "vnet_hdr_support",
-                                   filter_redirector_get_vnet_hdr,
-                                   filter_redirector_set_vnet_hdr);
 
     nfc->setup = filter_redirector_setup;
     nfc->cleanup = filter_redirector_cleanup;
     nfc->receive_iov = filter_redirector_receive_iov;
-}
-
-static void filter_mirror_init(Object *obj)
-{
-    MirrorState *s = FILTER_MIRROR(obj);
-
-    s->vnet_hdr = false;
-}
-
-static void filter_redirector_init(Object *obj)
-{
-    MirrorState *s = FILTER_REDIRECTOR(obj);
-
-    s->vnet_hdr = false;
 }
 
 static void filter_mirror_fini(Object *obj)
@@ -435,7 +387,6 @@ static const TypeInfo filter_redirector_info = {
     .name = TYPE_FILTER_REDIRECTOR,
     .parent = TYPE_NETFILTER,
     .class_init = filter_redirector_class_init,
-    .instance_init = filter_redirector_init,
     .instance_finalize = filter_redirector_fini,
     .instance_size = sizeof(MirrorState),
 };
@@ -444,7 +395,6 @@ static const TypeInfo filter_mirror_info = {
     .name = TYPE_FILTER_MIRROR,
     .parent = TYPE_NETFILTER,
     .class_init = filter_mirror_class_init,
-    .instance_init = filter_mirror_init,
     .instance_finalize = filter_mirror_fini,
     .instance_size = sizeof(MirrorState),
 };

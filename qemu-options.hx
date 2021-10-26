@@ -4946,18 +4946,16 @@ SRST
 
         ``behind``: insert behind the specified filter (default).
 
-    ``-object filter-mirror,id=id,netdev=netdevid,outdev=chardevid,queue=all|rx|tx[,vnet_hdr_support][,position=head|tail|id=<id>][,insert=behind|before]``
+    ``-object filter-mirror,id=id,netdev=netdevid,outdev=chardevid,queue=all|rx|tx[,position=head|tail|id=<id>][,insert=behind|before]``
         filter-mirror on netdev netdevid,mirror net packet to
-        chardevchardevid, if it has the vnet\_hdr\_support flag,
-        filter-mirror will mirror packet with vnet\_hdr\_len.
+        chardev chardevid, filter-mirror will mirror packet with vnet\_hdr\_len.
 
-    ``-object filter-redirector,id=id,netdev=netdevid,indev=chardevid,outdev=chardevid,queue=all|rx|tx[,vnet_hdr_support][,position=head|tail|id=<id>][,insert=behind|before]``
+    ``-object filter-redirector,id=id,netdev=netdevid,indev=chardevid,outdev=chardevid,queue=all|rx|tx[,position=head|tail|id=<id>][,insert=behind|before]``
         filter-redirector on netdev netdevid,redirect filter's net
         packet to chardev chardevid,and redirect indev's packet to
-        filter.if it has the vnet\_hdr\_support flag, filter-redirector
-        will redirect packet with vnet\_hdr\_len. Create a
-        filter-redirector we need to differ outdev id from indev id, id
-        can not be the same. we can just use indev or outdev, but at
+        filter. filter-redirector will redirect packet with vnet\_hdr\_len.
+        Create a filter-redirector we need to differ outdev id from indev id,
+        id can not be the same. we can just use indev or outdev, but at
         least one of indev or outdev need to be specified.
 
     ``-object filter-rewriter,id=id,netdev=netdevid,queue=all|rx|tx,[vnet_hdr_support][,position=head|tail|id=<id>][,insert=behind|before]``
