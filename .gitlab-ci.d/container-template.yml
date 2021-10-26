@@ -16,6 +16,15 @@
           -t "qemu/$NAME" -f "tests/docker/dockerfiles/$NAME.docker"
           -r $CI_REGISTRY/qemu-project/qemu
     - docker tag "qemu/$NAME" "$TAG"
-    - docker push "$TAG"
+    # On mainstream CI, we only want to push images on the master branch,
+    # so skip the other cases (tag or non-master branch).
+    - if test "$CI_PROJECT_NAMESPACE" = "qemu-project" &&
+         test -n "$CI_COMMIT_TAG"
+              -o "$CI_COMMIT_BRANCH" != "$CI_DEFAULT_BRANCH";
+      then
+        :;
+      else
+        docker push "$TAG";
+      fi
   after_script:
     - docker logout

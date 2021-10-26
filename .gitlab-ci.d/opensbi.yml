@@ -34,7 +34,16 @@ docker-opensbi:
  - docker build --cache-from $IMAGE_TAG --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
                                         --tag $IMAGE_TAG .gitlab-ci.d/opensbi
  - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
- - docker push $IMAGE_TAG
+ # On mainstream CI, we only want to push images on the master branch,
+ # so skip the other cases (tag or non-master branch).
+ - if test "$CI_PROJECT_NAMESPACE" = "qemu-project" &&
+      test -n "$CI_COMMIT_TAG"
+           -o "$CI_COMMIT_BRANCH" != "$CI_DEFAULT_BRANCH";
+   then
+      :;
+   else
+      docker push "$IMAGE_TAG";
+   fi
 
 build-opensbi:
  extends: .opensbi_job_rules
