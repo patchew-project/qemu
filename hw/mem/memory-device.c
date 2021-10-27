@@ -18,6 +18,8 @@
 #include "sysemu/kvm.h"
 #include "trace.h"
 
+#define MEMORY_DEVICES_MAX_MEMSLOTS     2048
+
 static gint memory_device_addr_sort(gconstpointer a, gconstpointer b)
 {
     const MemoryDeviceState *md_a = MEMORY_DEVICE(a);
@@ -50,8 +52,28 @@ static int memory_device_build_list(Object *obj, void *opaque)
     return 0;
 }
 
+static unsigned int memory_device_get_used_memslots(const MemoryDeviceState *md)
+{
+    const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(md);
+
+    if (!mdc->get_used_memslots)
+        return 1;
+    return mdc->get_used_memslots(md, &error_abort);
+}
+
+static unsigned int memory_device_get_memslots(const MemoryDeviceState *md)
+{
+    const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(md);
+
+    if (!mdc->get_memslots)
+        return 1;
+    return mdc->get_memslots(md, &error_abort);
+}
+
 struct memory_devices_info {
     uint64_t region_size;
+    unsigned int used_memslots;
+    unsigned int reserved_memslots;
 };
 
 static int memory_devices_collect_info(Object *obj, void *opaque)
@@ -61,9 +83,15 @@ static int memory_devices_collect_info(Object *obj, void *opaque)
     if (object_dynamic_cast(obj, TYPE_MEMORY_DEVICE)) {
         const DeviceState *dev = DEVICE(obj);
         const MemoryDeviceState *md = MEMORY_DEVICE(obj);
+        unsigned int used, total;
 
         if (dev->realized) {
             i->region_size += memory_device_get_region_size(md, &error_abort);
+
+            used = memory_device_get_used_memslots(md);
+            total = memory_device_get_memslots(md);
+            i->used_memslots += used;
+            i->reserved_memslots += total - used;
         }
     }
 
@@ -71,24 +99,62 @@ static int memory_devices_collect_info(Object *obj, void *opaque)
     return 0;
 }
 
-static void memory_device_check_addable(MachineState *ms, MemoryRegion *mr,
-                                        Error **errp)
+/*
+ * Get the number of memslots that are reserved (not used yet but will get used
+ * dynamically in the future without further checks) by all memory devices.
+ */
+unsigned int memory_devices_get_reserved_memslots(void)
+{
+    struct memory_devices_info info = {};
+
+    memory_devices_collect_info(qdev_get_machine(), &info);
+    return info.reserved_memslots;
+}
+
+static void memory_device_check_addable(MachineState *ms, MemoryDeviceState *md,
+                                        MemoryRegion *mr, Error **errp)
 {
     const uint64_t size = memory_region_size(mr);
     struct memory_devices_info info = {};
+    unsigned int required, reserved;
 
-    /* we will need a new memory slot for kvm and vhost */
-    if (kvm_enabled() && !kvm_get_free_memslots()) {
-        error_setg(errp, "hypervisor has no free memory slots left");
+    memory_devices_collect_info(OBJECT(ms), &info);
+    reserved = info.reserved_memslots;
+    required = memory_device_get_memslots(md);
+
+    /*
+     * Limit the maximum number of memslot used by memory devices to something
+     * sane.
+     */
+    if (info.used_memslots + reserved + required >
+        MEMORY_DEVICES_MAX_MEMSLOTS) {
+        error_setg(errp, "The maximum number of memory slots to be consumed by"
+                   " memory devices (%u) would be exceeded. Used: %u,"
+                   " Reserved: %u, Required: %u",
+                   MEMORY_DEVICES_MAX_MEMSLOTS, info.used_memslots,
+                   reserved, required);
         return;
     }
-    if (!vhost_get_free_memslots()) {
-        error_setg(errp, "a used vhost backend has no free memory slots left");
+
+    /*
+     * All memslots used by memory devices are already subtracted from
+     * the free memslots as reported by kvm and vhost.
+     */
+    if (kvm_enabled() && kvm_get_free_memslots() < reserved + required) {
+        error_setg(errp, "KVM does not have enough free, unreserved memory"
+                   "slots left. Free: %u, Reserved: %u, Required: %u",
+                   kvm_get_free_memslots(), reserved, required);
+        return;
+    }
+    if (vhost_get_free_memslots() < reserved + required) {
+        error_setg(errp, "a used vhost backend does not have enough free,"
+                   " unreserved memory slots left. Free: %u, Reserved: %u,"
+                   " Required: %u", vhost_get_free_memslots(), reserved,
+                   required);
         return;
     }
 
     /* will we exceed the total amount of memory specified */
-    memory_devices_collect_info(OBJECT(ms), &info);
     if (info.region_size + size < info.region_size ||
         info.region_size + size > ms->maxram_size - ms->ram_size) {
         error_setg(errp, "not enough space, currently 0x%" PRIx64
@@ -257,7 +323,7 @@ void memory_device_pre_plug(MemoryDeviceState *md, MachineState *ms,
         goto out;
     }
 
-    memory_device_check_addable(ms, mr, &local_err);
+    memory_device_check_addable(ms, md, mr, &local_err);
     if (local_err) {
         goto out;
     }

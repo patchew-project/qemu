@@ -99,6 +99,38 @@ struct MemoryDeviceClass {
     uint64_t (*get_min_alignment)(const MemoryDeviceState *md);
 
     /*
+     * Optional: Return the number of used individual memslots (i.e.,
+     * individual RAM mappings) the device has created in the memory region of
+     * the device. The device has to make sure that memslots won't get merged
+     * internally (e.g,, by disabling merging of memory region aliases) if the
+     * memory region layout could allow for that.
+     *
+     * If this function is not implemented, we assume the device memory region
+     * is not a container and that there is exactly one memslot getting used
+     * after realizing and plugging the device.
+     *
+     * Called when plugging the memory device or when iterating over
+     * all realized memory devices to calculate used/reserved/available
+     * memslots.
+     */
+    unsigned int (*get_used_memslots)(const MemoryDeviceState *md, Error **errp);
+
+    /*
+     * Optional: Return the total number of individual memslots
+     * (i.e., individual RAM mappings) the device may create in the the memory
+     * region of the device over its lifetime. The result must never change.
+     *
+     * If this function is not implemented, we assume the device memory region
+     * is not a container and that there will be exactly one memslot getting
+     * used after realizing and plugging the device.
+     *
+     * Called when plugging the memory device or when iterating over
+     * all realized memory devices to calculate used/reserved/available
+     * memslots.
+     */
+    unsigned int (*get_memslots)(const MemoryDeviceState *md, Error **errp);
+
+    /*
      * Translate the memory device into #MemoryDeviceInfo.
      */
     void (*fill_device_info)(const MemoryDeviceState *md,
@@ -113,5 +145,6 @@ void memory_device_plug(MemoryDeviceState *md, MachineState *ms);
 void memory_device_unplug(MemoryDeviceState *md, MachineState *ms);
 uint64_t memory_device_get_region_size(const MemoryDeviceState *md,
                                        Error **errp);
+unsigned int memory_devices_get_reserved_memslots(void);
 
 #endif
