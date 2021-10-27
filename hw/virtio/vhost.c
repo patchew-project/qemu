@@ -23,6 +23,7 @@
 #include "standard-headers/linux/vhost_types.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
+#include "hw/mem/memory-device.h"
 #include "migration/blocker.h"
 #include "migration/qemu-file-types.h"
 #include "sysemu/dma.h"
@@ -1319,7 +1320,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
                    Error **errp)
 {
     uint64_t features;
-    int i, r, n_initialized_vqs = 0;
+    int i, r, reserved_memslots, backend_memslots, n_initialized_vqs = 0;
 
     hdev->vdev = NULL;
     hdev->migration_blocker = NULL;
@@ -1415,9 +1416,13 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     memory_listener_register(&hdev->memory_listener, &address_space_memory);
     QLIST_INSERT_HEAD(&vhost_devices, hdev, entry);
 
-    if (used_memslots > hdev->vhost_ops->vhost_backend_memslots_limit(hdev)) {
-        error_setg(errp, "vhost backend memory slots limit is less"
-                   " than current number of present memory slots");
+    reserved_memslots = memory_devices_get_reserved_memslots();
+    backend_memslots = hdev->vhost_ops->vhost_backend_memslots_limit(hdev);
+    if (used_memslots + reserved_memslots > backend_memslots) {
+        error_setg(errp, "vhost backend memory slots limit (%d) is less"
+                   " than current number of used (%d) and reserved (%d)"
+                   " memory slots", backend_memslots, used_memslots,
+                   reserved_memslots);
         r = -EINVAL;
         goto fail_busyloop;
     }
