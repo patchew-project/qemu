@@ -94,9 +94,10 @@ static void sh_serial_write(void *opaque, hwaddr offs,
                             uint64_t val, unsigned size)
 {
     SHSerialState *s = opaque;
+    DeviceState *d = DEVICE(s);
     unsigned char ch;
 
-    trace_sh_serial_write(size, offs, val);
+    trace_sh_serial_write(d->id, size, offs, val);
     switch (offs) {
     case 0x00: /* SMR */
         s->smr = val & ((s->feat & SH_SERIAL_FEAT_SCIF) ? 0x7b : 0xff);
@@ -213,6 +214,7 @@ static uint64_t sh_serial_read(void *opaque, hwaddr offs,
                                unsigned size)
 {
     SHSerialState *s = opaque;
+    DeviceState *d = DEVICE(s);
     uint32_t ret = ~0;
 
 #if 0
@@ -305,7 +307,7 @@ static uint64_t sh_serial_read(void *opaque, hwaddr offs,
             break;
         }
     }
-    trace_sh_serial_read(size, offs, ret);
+    trace_sh_serial_read(d->id, size, offs, ret);
 
     if (ret & ~((1 << 16) - 1)) {
         qemu_log_mask(LOG_UNIMP, "sh_serial: unsupported read from 0x%02"
