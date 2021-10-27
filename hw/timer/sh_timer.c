@@ -15,8 +15,7 @@
 #include "hw/sh4/sh.h"
 #include "hw/timer/tmu012.h"
 #include "hw/ptimer.h"
-
-//#define DEBUG_TIMER
+#include "trace.h"
 
 #define TIMER_TCR_TPSC          (7 << 0)
 #define TIMER_TCR_CKEG          (3 << 3)
@@ -203,10 +202,7 @@ static void sh_timer_start_stop(void *opaque, int enable)
 {
     sh_timer_state *s = (sh_timer_state *)opaque;
 
-#ifdef DEBUG_TIMER
-    printf("sh_timer_start_stop %d (%d)\n", enable, s->enabled);
-#endif
-
+    trace_sh_timer_start_stop(enable, s->enabled);
     ptimer_transaction_begin(s->timer);
     if (s->enabled && !enable) {
         ptimer_stop(s->timer);
@@ -216,10 +212,6 @@ static void sh_timer_start_stop(void *opaque, int enable)
     }
     ptimer_transaction_commit(s->timer);
     s->enabled = !!enable;
-
-#ifdef DEBUG_TIMER
-    printf("sh_timer_start_stop done %d\n", s->enabled);
-#endif
 }
 
 static void sh_timer_tick(void *opaque)
