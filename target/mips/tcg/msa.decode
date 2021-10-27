@@ -16,6 +16,7 @@
 &msa_bz             df        wt sa
 &msa_ldi            df  wd       sa
 &msa_i5             df  wd ws    sa
+&msa_i8             df  wd ws    sa
 &msa_bit            df  wd ws       m
 
 %dfm_df             16:7 !function=msa_bit_df
@@ -26,6 +27,7 @@
 @bz                 ...... ...  df:2 wt:5 sa:16             &msa_bz
 @u5                 ...... ... df:2 sa:5  ws:5 wd:5 ......  &msa_i5
 @s5                 ...... ... df:2 sa:s5 ws:5 wd:5 ......  &msa_i5
+@i8_df              ......     df:2 sa:s8 ws:5 wd:5 ......  &msa_i8
 @ldi                ...... ... df:2 sa:s10     wd:5 ......  &msa_ldi
 @bit                ...... ... .......    ws:5 wd:5 ......  &msa_bit df=%dfm_df m=%dfm_m
 
@@ -38,6 +40,8 @@ BZ                  010001 110 .. ..... ................    @bz
 BNZ                 010001 111 .. ..... ................    @bz
 
 {
+  SHF               011110 .. ........ ..... .....  000010  @i8_df
+
   ADDVI             011110 000 .. ..... ..... ..... 000110  @u5
   SUBVI             011110 001 .. ..... ..... ..... 000110  @u5
   MAXI_S            011110 010 .. ..... ..... ..... 000110  @s5
