@@ -17,3 +17,8 @@ TESTS += $(MIPS_TESTS)
 hello-mips: CFLAGS+=-mno-abicalls -fno-PIC -mabi=32
 hello-mips: LDFLAGS+=-nostdlib
 endif
+
+# FIXME enable MSA tests
+#MSA_CFLAGS=-march=mips32r5 -mnan=2008
+#MSA_CPU=P5600
+#include $(SRC_PATH)/tests/tcg/mips/ase-msa.mak
