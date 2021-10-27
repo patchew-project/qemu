@@ -50,20 +50,24 @@ static int memory_device_build_list(Object *obj, void *opaque)
     return 0;
 }
 
-static int memory_device_used_region_size(Object *obj, void *opaque)
+struct memory_devices_info {
+    uint64_t region_size;
+};
+
+static int memory_devices_collect_info(Object *obj, void *opaque)
 {
-    uint64_t *size = opaque;
+    struct memory_devices_info *i = opaque;
 
     if (object_dynamic_cast(obj, TYPE_MEMORY_DEVICE)) {
         const DeviceState *dev = DEVICE(obj);
         const MemoryDeviceState *md = MEMORY_DEVICE(obj);
 
         if (dev->realized) {
-            *size += memory_device_get_region_size(md, &error_abort);
+            i->region_size += memory_device_get_region_size(md, &error_abort);
         }
     }
 
-    object_child_foreach(obj, memory_device_used_region_size, opaque);
+    object_child_foreach(obj, memory_devices_collect_info, opaque);
     return 0;
 }
 
@@ -71,7 +75,7 @@ static void memory_device_check_addable(MachineState *ms, MemoryRegion *mr,
                                         Error **errp)
 {
     const uint64_t size = memory_region_size(mr);
-    uint64_t used_region_size = 0;
+    struct memory_devices_info info = {};
 
     /* we will need a new memory slot for kvm and vhost */
     if (kvm_enabled() && !kvm_get_free_memslots()) {
@@ -84,12 +88,12 @@ static void memory_device_check_addable(MachineState *ms, MemoryRegion *mr,
     }
 
     /* will we exceed the total amount of memory specified */
-    memory_device_used_region_size(OBJECT(ms), &used_region_size);
-    if (used_region_size + size < used_region_size ||
-        used_region_size + size > ms->maxram_size - ms->ram_size) {
+    memory_devices_collect_info(OBJECT(ms), &info);
+    if (info.region_size + size < info.region_size ||
+        info.region_size + size > ms->maxram_size - ms->ram_size) {
         error_setg(errp, "not enough space, currently 0x%" PRIx64
                    " in use of total space for memory devices 0x" RAM_ADDR_FMT,
-                   used_region_size, ms->maxram_size - ms->ram_size);
+                   info.region_size, ms->maxram_size - ms->ram_size);
         return;
     }
 
