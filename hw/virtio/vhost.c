@@ -48,7 +48,7 @@ static unsigned int used_memslots;
 static QLIST_HEAD(, vhost_dev) vhost_devices =
     QLIST_HEAD_INITIALIZER(vhost_devices);
 
-bool vhost_has_free_slot(void)
+unsigned int vhost_get_free_memslots(void)
 {
     unsigned int slots_limit = ~0U;
     struct vhost_dev *hdev;
@@ -57,7 +57,7 @@ bool vhost_has_free_slot(void)
         unsigned int r = hdev->vhost_ops->vhost_backend_memslots_limit(hdev);
         slots_limit = MIN(slots_limit, r);
     }
-    return slots_limit > used_memslots;
+    return slots_limit - used_memslots;
 }
 
 static void vhost_dev_sync_region(struct vhost_dev *dev,
