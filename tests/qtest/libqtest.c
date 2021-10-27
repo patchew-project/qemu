@@ -931,6 +931,7 @@ bool qtest_has_accel(const char *accel_name)
         return false;
 #endif
     } else if (g_str_equal(accel_name, "kvm")) {
+#if defined(CONFIG_KVM_TARGETS)
         int i;
         const char *arch = qtest_get_arch();
         const char *targets[] = { CONFIG_KVM_TARGETS };
@@ -942,6 +943,9 @@ bool qtest_has_accel(const char *accel_name)
                 }
             }
         }
+#else
+        return false;
+#endif
     } else {
         /* not implemented */
         g_assert_not_reached();
