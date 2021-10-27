@@ -17,6 +17,8 @@
 #include "fpu_helper.h"
 #include "internal.h"
 
+static int msa_elm_n(DisasContext *ctx, int x);
+static int msa_elm_df(DisasContext *ctx, int x);
 static int msa_bit_m(DisasContext *ctx, int x);
 static int msa_bit_df(DisasContext *ctx, int x);
 
@@ -32,15 +34,12 @@ enum {
 
 enum {
     /* ELM instructions df(bits 21..16) = _b, _h, _w, _d */
-    OPC_SLDI_df     = (0x0 << 22) | (0x00 << 16) | OPC_MSA_ELM,
     OPC_CTCMSA      = (0x0 << 22) | (0x3E << 16) | OPC_MSA_ELM,
-    OPC_SPLATI_df   = (0x1 << 22) | (0x00 << 16) | OPC_MSA_ELM,
     OPC_CFCMSA      = (0x1 << 22) | (0x3E << 16) | OPC_MSA_ELM,
     OPC_COPY_S_df   = (0x2 << 22) | (0x00 << 16) | OPC_MSA_ELM,
     OPC_MOVE_V      = (0x2 << 22) | (0x3E << 16) | OPC_MSA_ELM,
     OPC_COPY_U_df   = (0x3 << 22) | (0x00 << 16) | OPC_MSA_ELM,
     OPC_INSERT_df   = (0x4 << 22) | (0x00 << 16) | OPC_MSA_ELM,
-    OPC_INSVE_df    = (0x5 << 22) | (0x00 << 16) | OPC_MSA_ELM,
 };
 
 static const char msaregnames[][6] = {
@@ -95,6 +94,24 @@ static int msa_df_extract_df(DisasContext *ctx, int x, const struct dfe *s)
         }
     }
     return -1;
+}
+
+static const struct dfe df_elm[] = {
+    /* Table 3.26 ELM Instruction Format */
+    [DF_BYTE]   = {4, 2, 0b00},
+    [DF_HALF]   = {3, 3, 0b100},
+    [DF_WORD]   = {2, 4, 0b1100},
+    [DF_DOUBLE] = {1, 5, 0b11100}
+};
+
+static int msa_elm_n(DisasContext *ctx, int x)
+{
+    return msa_df_extract_val(ctx, x, df_elm);
+}
+
+static int msa_elm_df(DisasContext *ctx, int x)
+{
+    return msa_df_extract_df(ctx, x, df_elm);
 }
 
 static const struct dfe df_bit[] = {
@@ -528,6 +545,26 @@ static void gen_msa_elm_3e(DisasContext *ctx)
     tcg_temp_free_i32(tsr);
 }
 
+static bool trans_msa_elm_df(DisasContext *ctx, arg_msa_elm_df *a,
+                             gen_helper_piiii *gen_msa_elm_df)
+{
+    if (a->df < 0) {
+        return false;
+    }
+
+    gen_msa_elm_df(cpu_env,
+                   tcg_constant_i32(a->df),
+                   tcg_constant_i32(a->wd),
+                   tcg_constant_i32(a->ws),
+                   tcg_constant_i32(a->n));
+
+    return true;
+}
+
+TRANS_MSA(SLDI,     trans_msa_elm_df, gen_helper_msa_sldi_df);
+TRANS_MSA(SPLATI,   trans_msa_elm_df, gen_helper_msa_splati_df);
+TRANS_MSA(INSVE,    trans_msa_elm_df, gen_helper_msa_insve_df);
+
 static void gen_msa_elm_df(DisasContext *ctx, uint32_t df, uint32_t n)
 {
 #define MASK_MSA_ELM(op)    (MASK_MSA_MINOR(op) | (op & (0xf << 22)))
@@ -537,18 +574,8 @@ static void gen_msa_elm_df(DisasContext *ctx, uint32_t df, uint32_t n)
     TCGv_i32 tws = tcg_const_i32(ws);
     TCGv_i32 twd = tcg_const_i32(wd);
     TCGv_i32 tn  = tcg_const_i32(n);
-    TCGv_i32 tdf = tcg_constant_i32(df);
 
     switch (MASK_MSA_ELM(ctx->opcode)) {
-    case OPC_SLDI_df:
-        gen_helper_msa_sldi_df(cpu_env, tdf, twd, tws, tn);
-        break;
-    case OPC_SPLATI_df:
-        gen_helper_msa_splati_df(cpu_env, tdf, twd, tws, tn);
-        break;
-    case OPC_INSVE_df:
-        gen_helper_msa_insve_df(cpu_env, tdf, twd, tws, tn);
-        break;
     case OPC_COPY_S_df:
     case OPC_COPY_U_df:
     case OPC_INSERT_df:
