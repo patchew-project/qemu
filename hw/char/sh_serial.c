@@ -30,6 +30,7 @@
 #include "hw/sh4/sh.h"
 #include "chardev/char-fe.h"
 #include "qapi/error.h"
+#include "qemu/log.h"
 #include "qemu/timer.h"
 
 //#define DEBUG_SERIAL
@@ -200,8 +201,8 @@ static void sh_serial_write(void *opaque, hwaddr offs,
         }
     }
 
-    fprintf(stderr, "sh_serial: unsupported write to 0x%02"
-            HWADDR_PRIx "\n", offs);
+    qemu_log_mask(LOG_UNIMP, "sh_serial: unsupported write to 0x%02"
+                  HWADDR_PRIx "\n", offs);
     abort();
 }
 
@@ -307,7 +308,7 @@ static uint64_t sh_serial_read(void *opaque, hwaddr offs,
 #endif
 
     if (ret & ~((1 << 16) - 1)) {
-        fprintf(stderr, "sh_serial: unsupported read from 0x%02"
+        qemu_log_mask(LOG_UNIMP, "sh_serial: unsupported read from 0x%02"
                 HWADDR_PRIx "\n", offs);
         abort();
     }
