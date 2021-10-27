@@ -51,6 +51,16 @@ Usage
   is only for pairing the devices within QEMU. The guest kernel module
   net_failover will match devices with identical MAC addresses.
 
+  For legacy guests (including bios/EUFI) not supporting VIRTIO_NET_F_STANDBY,
+  two options exist:
+
+  1. if failover-legacy-mac has not been configured (default)
+     only the standby virtio-net device is visible to the guest
+
+  2. if failover-legacy-mac has been configured, virtio and vfio devices will
+     be presented to guest as two NIC devices, with virtio using the
+     failover-legacy-mac address.
+
 Hotplug
 -------
 

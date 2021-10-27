@@ -213,6 +213,12 @@ struct VirtIONet {
     QDict *primary_opts;
     bool primary_opts_from_json;
     Notifier migration_state;
+    /*
+     * failover: to provide an alternate MAC address allows to keep both
+     * cards, primary and stand-by, if the STANDBY feature is not supported
+     * by the guest
+     */
+    MACAddr legacy_mac;
     VirtioNetRssData rss_data;
     struct NetRxPkt *rx_pkt;
     struct EBPFRSSContext ebpf_rss;
