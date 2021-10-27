@@ -30,6 +30,8 @@ OBJECT_DECLARE_TYPE(VirtIOMEM, VirtIOMEMClass,
 #define VIRTIO_MEM_REQUESTED_SIZE_PROP "requested-size"
 #define VIRTIO_MEM_BLOCK_SIZE_PROP "block-size"
 #define VIRTIO_MEM_ADDR_PROP "memaddr"
+#define VIRTIO_MEM_MEMSLOTS_PROP "memslots"
+#define VIRTIO_MEM_USED_MEMSLOTS_PROP "used-memslots"
 
 struct VirtIOMEM {
     VirtIODevice parent_obj;
@@ -41,8 +43,29 @@ struct VirtIOMEM {
     int32_t bitmap_size;
     unsigned long *bitmap;
 
-    /* assigned memory backend and memory region */
+    /* Device memory region in which we dynamically map memslots */
+    MemoryRegion *mr;
+
+    /*
+     * Assigned memory backend with the RAM memory region we will split
+     * into memslots to dynamically map them into the device memory region.
+     */
     HostMemoryBackend *memdev;
+
+    /*
+     * Individual memslots we dynamically map that are aliases to the
+     * assigned RAM memory region
+     */
+    MemoryRegion *memslots;
+
+    /* Total number of memslots we're going to use. */
+    uint16_t nb_memslots;
+
+    /* Current number of memslots we're using. */
+    uint16_t nb_used_memslots;
+
+    /* Size of one memslot (the last one can differ) */
+    uint64_t memslot_size;
 
     /* NUMA node */
     uint32_t node;

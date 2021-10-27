@@ -82,6 +82,21 @@ static uint64_t virtio_mem_pci_get_min_alignment(const MemoryDeviceState *md)
                                     &error_abort);
 }
 
+static unsigned int virtio_mem_pci_get_used_memslots(
+                                                    const MemoryDeviceState *md,
+                                                     Error **errp)
+{
+    return object_property_get_uint(OBJECT(md), VIRTIO_MEM_USED_MEMSLOTS_PROP,
+                                    &error_abort);
+}
+
+static unsigned int virtio_mem_pci_get_memslots(const MemoryDeviceState *md,
+                                                Error **errp)
+{
+    return object_property_get_uint(OBJECT(md), VIRTIO_MEM_MEMSLOTS_PROP,
+                                    &error_abort);
+}
+
 static void virtio_mem_pci_size_change_notify(Notifier *notifier, void *data)
 {
     VirtIOMEMPCI *pci_mem = container_of(notifier, VirtIOMEMPCI,
@@ -115,6 +130,8 @@ static void virtio_mem_pci_class_init(ObjectClass *klass, void *data)
     mdc->get_memory_region = virtio_mem_pci_get_memory_region;
     mdc->fill_device_info = virtio_mem_pci_fill_device_info;
     mdc->get_min_alignment = virtio_mem_pci_get_min_alignment;
+    mdc->get_used_memslots = virtio_mem_pci_get_used_memslots;
+    mdc->get_memslots = virtio_mem_pci_get_memslots;
 }
 
 static void virtio_mem_pci_instance_init(Object *obj)
@@ -142,6 +159,12 @@ static void virtio_mem_pci_instance_init(Object *obj)
     object_property_add_alias(obj, VIRTIO_MEM_REQUESTED_SIZE_PROP,
                               OBJECT(&dev->vdev),
                               VIRTIO_MEM_REQUESTED_SIZE_PROP);
+    object_property_add_alias(obj, VIRTIO_MEM_MEMSLOTS_PROP,
+                              OBJECT(&dev->vdev),
+                              VIRTIO_MEM_MEMSLOTS_PROP);
+    object_property_add_alias(obj, VIRTIO_MEM_USED_MEMSLOTS_PROP,
+                              OBJECT(&dev->vdev),
+                              VIRTIO_MEM_USED_MEMSLOTS_PROP);
 }
 
 static const VirtioPCIDeviceTypeInfo virtio_mem_pci_info = {
