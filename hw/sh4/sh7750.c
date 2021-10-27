@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "hw/irq.h"
 #include "hw/sh4/sh.h"
 #include "sysemu/sysemu.h"
@@ -205,13 +206,13 @@ static void portb_changed(SH7750State *s, uint16_t prev)
 
 static void error_access(const char *kind, hwaddr addr)
 {
-    fprintf(stderr, "%s to %s (0x" TARGET_FMT_plx ") not supported\n",
-            kind, regname(addr), addr);
+    qemu_log_mask(LOG_GUEST_ERROR, "%s to %s (0x" TARGET_FMT_plx
+                  ") not supported\n", kind, regname(addr), addr);
 }
 
 static void ignore_access(const char *kind, hwaddr addr)
 {
-    fprintf(stderr, "%s to %s (0x" TARGET_FMT_plx ") ignored\n",
+    qemu_log_mask(LOG_UNIMP, "%s to %s (0x" TARGET_FMT_plx ") ignored\n",
             kind, regname(addr), addr);
 }
 
@@ -241,8 +242,7 @@ static uint32_t sh7750_mem_readw(void *opaque, hwaddr addr)
     case SH7750_PCR_A7:
         return s->pcr;
     case SH7750_RFCR_A7:
-        fprintf(stderr,
-                "Read access to refresh count register, incrementing\n");
+        /* Read access to refresh count register, incrementing */
         return s->rfcr++;
     case SH7750_PDTRA_A7:
         return porta_lines(s);
@@ -363,13 +363,12 @@ static void sh7750_mem_writew(void *opaque, hwaddr addr,
         portb_changed(s, temp);
         return;
     case SH7750_RFCR_A7:
-        fprintf(stderr, "Write access to refresh count register\n");
         s->rfcr = mem_value;
         return;
     case SH7750_GPIOIC_A7:
         s->gpioic = mem_value;
         if (mem_value != 0) {
-            fprintf(stderr, "I/O interrupts not implemented\n");
+            qemu_log_mask(LOG_UNIMP, "I/O interrupts not implemented\n");
             abort();
         }
         return;
