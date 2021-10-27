@@ -103,6 +103,7 @@ struct KVMState
     AccelState parent_obj;
 
     int nr_slots;
+    int nr_free_slots;
     int fd;
     int vmfd;
     int coalesced_mmio;
@@ -245,6 +246,13 @@ int kvm_get_max_memslots(void)
     return s->nr_slots;
 }
 
+unsigned int kvm_get_free_memslots(void)
+{
+    KVMState *s = kvm_state;
+
+    return s->nr_free_slots;
+}
+
 /* Called with KVMMemoryListener.slots_lock held */
 static KVMSlot *kvm_get_free_slot(KVMMemoryListener *kml)
 {
@@ -258,19 +266,6 @@ static KVMSlot *kvm_get_free_slot(KVMMemoryListener *kml)
     }
 
     return NULL;
-}
-
-bool kvm_has_free_slot(MachineState *ms)
-{
-    KVMState *s = KVM_STATE(ms->accelerator);
-    bool result;
-    KVMMemoryListener *kml = &s->memory_listener;
-
-    kvm_slots_lock();
-    result = !!kvm_get_free_slot(kml);
-    kvm_slots_unlock();
-
-    return result;
 }
 
 /* Called with KVMMemoryListener.slots_lock held */
@@ -1410,6 +1405,7 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
             }
             start_addr += slot_size;
             size -= slot_size;
+            kvm_state->nr_free_slots++;
         } while (size);
         goto out;
     }
@@ -1435,6 +1431,7 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
         ram_start_offset += slot_size;
         ram += slot_size;
         size -= slot_size;
+        kvm_state->nr_free_slots--;
     } while (size);
 
 out:
@@ -2364,6 +2361,7 @@ static int kvm_init(MachineState *ms)
     if (!s->nr_slots) {
         s->nr_slots = 32;
     }
+    s->nr_free_slots = s->nr_slots;
 
     s->nr_as = kvm_check_extension(s, KVM_CAP_MULTI_ADDRESS_SPACE);
     if (s->nr_as <= 1) {
