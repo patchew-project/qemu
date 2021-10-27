@@ -270,6 +270,7 @@ static void emc141x_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
+    set_bit(DEVICE_CATEGORY_SENSOR, dc->categories);
     dc->reset = emc141x_reset;
     k->event = emc141x_event;
     k->recv = emc141x_rx;

@@ -518,6 +518,7 @@ static void adm1272_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PMBusDeviceClass *k = PMBUS_DEVICE_CLASS(klass);
 
+    set_bit(DEVICE_CATEGORY_SENSOR, dc->categories);
     dc->desc = "Analog Devices ADM1272 Hot Swap controller";
     dc->vmsd = &vmstate_adm1272;
     k->write_data = adm1272_write_data;

@@ -208,6 +208,7 @@ static void dps310_class_init(ObjectClass *klass, void *data)
     k->send = dps310_tx;
     dc->reset = dps310_reset;
     dc->vmsd = &vmstate_dps310;
+    set_bit(DEVICE_CATEGORY_SENSOR, dc->categories);
 }
 
 static const TypeInfo dps310_info = {
