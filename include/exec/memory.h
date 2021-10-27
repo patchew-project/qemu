@@ -82,6 +82,7 @@ struct ReservedRegion {
  *     relative to the region's address space
  * @readonly: writes to this section are ignored
  * @nonvolatile: this section is non-volatile
+ * @unmergeable: this section should not get merged with adjacent sections
  */
 struct MemoryRegionSection {
     Int128 size;
@@ -91,6 +92,7 @@ struct MemoryRegionSection {
     hwaddr offset_within_address_space;
     bool readonly;
     bool nonvolatile;
+    bool unmergeable;
 };
 
 typedef struct IOMMUTLBEntry IOMMUTLBEntry;
@@ -720,6 +722,7 @@ struct MemoryRegion {
     bool nonvolatile;
     bool rom_device;
     bool flush_coalesced_mmio;
+    bool unmergeable;
     uint8_t dirty_log_mask;
     bool is_iommu;
     RAMBlock *ram_block;
@@ -2271,6 +2274,26 @@ void memory_region_set_size(MemoryRegion *mr, uint64_t size);
  */
 void memory_region_set_alias_offset(MemoryRegion *mr,
                                     hwaddr offset);
+
+/*
+ * memory_region_set_alias_unmergeable: Turn a memory region alias unmergeable
+ *
+ * Mark a memory region alias unmergeable, resulting in multiple adjacent
+ * aliasas to the same memory region not getting merged into one memory section
+ * when simplifying the address space and notifying memory listeners.
+ *
+ * Primarily useful on aliases to RAM regions; the target use case is
+ * splitting a RAM memory region via aliases into multiple memslots and
+ * dynamically (un)mapping the aliases into another container memory region.
+ * As resulting memory sections don't cover multiple aliases, memory listeners
+ * will be notified about adding/removing separate aliases, resulting in
+ * individual memslots in KVM, vhost, vfio,... that can be added/removed
+ * atomically when mapping/unmapping the corresponding alias.
+ *
+ * @mr: the #MemoryRegion to be updated
+ * @unmergeable: whether to mark the #MemoryRegion unmergeable
+ */
+void memory_region_set_alias_unmergeable(MemoryRegion *mr, bool unmergeable);
 
 /**
  * memory_region_present: checks if an address relative to a @container
