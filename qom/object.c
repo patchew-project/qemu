@@ -1134,6 +1134,33 @@ int object_child_foreach_recursive(Object *obj,
     return do_object_child_foreach(obj, fn, opaque, true);
 }
 
+typedef struct {
+    const char *typename;
+    int (*fn)(Object *child, void *opaque);
+    void *opaque;
+} ObjectTypeArgs;
+
+static int object_child_hook(Object *child, void *opaque)
+{
+    ObjectTypeArgs *args = opaque;
+
+    if (object_dynamic_cast(child, args->typename)) {
+        return args->fn(child, args->opaque);
+    }
+
+    return 0;
+}
+
+int object_child_foreach_recursive_type(Object *obj,
+                                        const char *typename,
+                                        int (*fn)(Object *child, void *opaque),
+                                        void *opaque)
+{
+    ObjectTypeArgs args = { .typename = typename, .fn = fn, .opaque = opaque };
+
+    return object_child_foreach_recursive(obj, object_child_hook, &args);
+}
+
 static void object_class_get_list_tramp(ObjectClass *klass, void *opaque)
 {
     GSList **list = opaque;

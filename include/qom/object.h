@@ -1926,6 +1926,26 @@ int object_child_foreach(Object *obj, int (*fn)(Object *child, void *opaque),
 int object_child_foreach_recursive(Object *obj,
                                    int (*fn)(Object *child, void *opaque),
                                    void *opaque);
+
+/**
+ * object_child_foreach_recursive_type:
+ * @obj: the object whose children will be navigated
+ * @type: the typename string to scan
+ * @fn: the iterator function to be called
+ * @opaque: an opaque value that will be passed to the iterator
+ *
+ * This is a special version of object_child_foreach_recursive() so that we
+ * only call the fn() if the child can be casted to the @typename specified.
+ * Please refer to the comments above object_child_foreach_recursive() for
+ * more details.
+ *
+ * Returns: The last value returned by @fn, or 0 if there is no child.
+ */
+int object_child_foreach_recursive_type(Object *obj,
+                                        const char *typename,
+                                        int (*fn)(Object *child, void *opaque),
+                                        void *opaque);
+
 /**
  * container_get:
  * @root: root of the #path, e.g., object_get_root()
