@@ -22,6 +22,7 @@
 #include "hw/i386/x86-iommu.h"
 #include "hw/qdev-properties.h"
 #include "hw/i386/pc.h"
+#include "hw/vfio/pci.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "trace.h"
@@ -101,6 +102,19 @@ X86IOMMUState *x86_iommu_get_default(void)
 IommuType x86_iommu_get_type(void)
 {
     return x86_iommu_default->type;
+}
+
+void x86_iommu_pre_plug(X86IOMMUState *iommu, Error **errp)
+{
+    bool ambiguous = false;
+    Object *object;
+
+    object = object_resolve_path_type("", TYPE_VFIO_PCI, &ambiguous);
+    if (object || ambiguous) {
+        /* There're one or more vfio-pci devices detected */
+        error_setg(errp, "Please specify all the vfio-pci devices to be after "
+                   "the vIOMMU device");
+    }
 }
 
 static void x86_iommu_realize(DeviceState *dev, Error **errp)

@@ -172,4 +172,12 @@ void x86_iommu_iec_notify_all(X86IOMMUState *iommu, bool global,
  * @out: Output MSI message
  */
 void x86_iommu_irq_to_msi_message(X86IOMMUIrq *irq, MSIMessage *out);
+
+/**
+ * x86_iommu_pre_plug: called before plugging the iommu device
+ * @X86IOMMUState: the pointer to x86 iommu state
+ * @errp: the double pointer to Error, set if we want to fail the plug
+ */
+void x86_iommu_pre_plug(X86IOMMUState *iommu, Error **errp);
+
 #endif
