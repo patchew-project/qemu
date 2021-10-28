@@ -3278,6 +3278,18 @@ void virtio_init(VirtIODevice *vdev, const char *name,
     vdev->use_guest_notifier_mask = true;
 }
 
+void  virtio_force_modern(VirtIODevice *vdev)
+{
+    /*
+     * This takes care of the devices that implement config space access
+     * in QEMU. For vhost-user and similar we need to make sure the features
+     * are actually propagated to the device implementing the config space.
+     *
+     * A VirtioDeviceClass callback may be a good idea.
+     */
+    virtio_set_features(vdev, (1ULL << VIRTIO_F_VERSION_1));
+}
+
 /*
  * Only devices that have already been around prior to defining the virtio
  * standard support legacy mode; this includes devices not specified in the
