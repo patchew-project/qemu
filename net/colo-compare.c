@@ -119,7 +119,9 @@ struct CompareState {
     SocketReadState notify_rs;
     SendCo out_sendco;
     SendCo notify_sendco;
+    /* Keep compatibility for the management layer */
     bool vnet_hdr;
+    int local_vnet_hdr_len;
     uint64_t compare_timeout;
     uint32_t expired_scan_cycle;
 
@@ -725,7 +727,6 @@ static void colo_compare_connection(void *opaque, void *user_data)
 static void coroutine_fn _compare_chr_send(void *opaque)
 {
     SendCo *sendco = opaque;
-    CompareState *s = sendco->s;
     int ret = 0;
 
     while (!g_queue_is_empty(&sendco->send_list)) {
@@ -740,7 +741,7 @@ static void coroutine_fn _compare_chr_send(void *opaque)
             goto err;
         }
 
-        if (!sendco->notify_remote_frame && s->vnet_hdr) {
+        if (!sendco->notify_remote_frame) {
             /*
              * We send vnet header len make other module(like filter-redirector)
              * know how to parse net packet correctly.
@@ -1157,6 +1158,9 @@ static void compare_pri_rs_finalize(SocketReadState *pri_rs)
     CompareState *s = container_of(pri_rs, CompareState, pri_rs);
     Connection *conn = NULL;
 
+    /* Update colo-compare local vnet_hdr_len */
+    s->local_vnet_hdr_len = pri_rs->vnet_hdr_len;
+
     if (packet_enqueue(s, PRIMARY_IN, &conn)) {
         trace_colo_compare_main("primary: unsupported packet in");
         compare_chr_send(s,
@@ -1175,6 +1179,12 @@ static void compare_sec_rs_finalize(SocketReadState *sec_rs)
 {
     CompareState *s = container_of(sec_rs, CompareState, sec_rs);
     Connection *conn = NULL;
+
+    /* Check the secondary vnet_hdr_len to ensure parse packet correctly */
+    if (s->local_vnet_hdr_len != sec_rs->vnet_hdr_len) {
+        error_report("colo-compare got a different packet vnet_hdr_len"
+        " from local, please check the nodes -device configuration");
+    }
 
     if (packet_enqueue(s, SECONDARY_IN, &conn)) {
         trace_colo_compare_main("secondary: unsupported packet in");
@@ -1289,8 +1299,8 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
         return;
     }
 
-    net_socket_rs_init(&s->pri_rs, compare_pri_rs_finalize, s->vnet_hdr);
-    net_socket_rs_init(&s->sec_rs, compare_sec_rs_finalize, s->vnet_hdr);
+    net_socket_rs_init(&s->pri_rs, compare_pri_rs_finalize, true);
+    net_socket_rs_init(&s->sec_rs, compare_sec_rs_finalize, true);
 
     /* Try to enable remote notify chardev, currently just for Xen COLO */
     if (s->notify_dev) {
@@ -1299,8 +1309,7 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
             return;
         }
 
-        net_socket_rs_init(&s->notify_rs, compare_notify_rs_finalize,
-                           s->vnet_hdr);
+        net_socket_rs_init(&s->notify_rs, compare_notify_rs_finalize, false);
     }
 
     s->out_sendco.s = s;
@@ -1397,7 +1406,8 @@ static void colo_compare_init(Object *obj)
                         get_max_queue_size,
                         set_max_queue_size, NULL, NULL);
 
-    s->vnet_hdr = false;
+    s->vnet_hdr = true;
+    s->local_vnet_hdr_len = 0;
     object_property_add_bool(obj, "vnet_hdr_support", compare_get_vnet_hdr,
                              compare_set_vnet_hdr);
 }
