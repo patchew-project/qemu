@@ -170,6 +170,11 @@ Parameters to compare subcommand:
   Block size for comparing with ``--stat``. This doesn't guarantee an
   exact size for comparing chunks, but it does guarantee that those
   chunks will never cross a block-size-aligned boundary.
+  When unspecified the following logic is used:
+
+    - If both files define cluster-size, use minimum to be more precise.
+    - If both files don't specify cluster-size, use default of 64K
+    - If only one file specifies cluster-size, just use that.
 
 Parameters to convert subcommand:
 
@@ -390,7 +395,7 @@ Command description:
 
   The rate limit for the commit process is specified by ``-r``.
 
-.. option:: compare [--object OBJECTDEF] [--image-opts] [-f FMT] [-F FMT] [-T SRC_CACHE] [-p] [-q] [-s] [-U] [--stat --block-size BLOCK_SIZE] FILENAME1 FILENAME2
+.. option:: compare [--object OBJECTDEF] [--image-opts] [-f FMT] [-F FMT] [-T SRC_CACHE] [-p] [-q] [-s] [-U] [--stat [--block-size BLOCK_SIZE]] FILENAME1 FILENAME2
 
   Check if two images have the same content. You can compare images with
   different format or settings.

@@ -1407,6 +1407,62 @@ static void cmp_stat_print(ImgCmpStat *stat, int64_t total_bytes)
     }
 }
 
+/* Get default value for qemu-img compare --block-size option. */
+static int img_compare_block_size(BlockDriverState *bs1,
+                                  BlockDriverState *bs2,
+                                  bool quiet)
+{
+    const int default_block_size = 64 * 1024; /* 64K */
+
+    int ret;
+    BlockDriverInfo bdi;
+    int cluster_size1, cluster_size2, block_size;
+    const char *note = "Note: to alter it, set --block-size option.";
+    const char *fname1 = bs1->filename;
+    const char *fname2 = bs2->filename;
+
+    ret = bdrv_get_info(bs1, &bdi);
+    if (ret < 0 && ret != -ENOTSUP) {
+        error_report("Failed to get info of %s: %s", fname1, strerror(-ret));
+        return ret;
+    }
+    cluster_size1 = ret < 0 ? 0 : bdi.cluster_size;
+
+    ret = bdrv_get_info(bs2, &bdi);
+    if (ret < 0 && ret != -ENOTSUP) {
+        error_report("Failed to get info of %s: %s", fname2, strerror(-ret));
+        return ret;
+    }
+    cluster_size2 = ret < 0 ? 0 : bdi.cluster_size;
+
+    if (cluster_size1 > 0 && cluster_size2 > 0) {
+        if (cluster_size1 == cluster_size2) {
+            block_size = cluster_size1;
+        } else {
+            block_size = MIN(cluster_size1, cluster_size2);
+            qprintf(quiet, "%s and %s have different cluster sizes: %d and %d "
+                    "respectively. Using minimum as block-size for "
+                    "accuracy: %d. %s\n",
+                    fname1, fname2, cluster_size1,
+                    cluster_size2, block_size, note);
+        }
+    } else if (cluster_size1 == 0 && cluster_size2 == 0) {
+        block_size = default_block_size;
+        qprintf(quiet, "Neither of %s and %s have an explicit cluster size. "
+                "Using default of %d bytes. %s\n", fname1, fname2, block_size,
+                note);
+    } else {
+        block_size = MAX(cluster_size1, cluster_size2);
+        qprintf(quiet, "%s has an explicit cluster size of %d and %s "
+                "doesn't have one. Using %d as block-size. %s\n",
+                cluster_size1 ? fname1 : fname2, block_size,
+                cluster_size1 ? fname2 : fname1,
+                block_size, note);
+    }
+
+    return block_size;
+}
+
 /*
  * Compares two images. Exit codes:
  *
@@ -1534,13 +1590,6 @@ static int img_compare(int argc, char **argv)
         goto out3;
     }
 
-    if (stat && !block_size) {
-        /* TODO: make block-size optional */
-        error_report("You must specify --block-size together with --stat");
-        ret = 2;
-        goto out3;
-    }
-
     if (stat && strict) {
         error_report("--stat can't be used together with -s");
         ret = 2;
@@ -1592,6 +1641,14 @@ static int img_compare(int argc, char **argv)
     }
     total_size = MIN(total_size1, total_size2);
     progress_base = MAX(total_size1, total_size2);
+
+    if (stat && !block_size) {
+        block_size = img_compare_block_size(bs1, bs2, quiet);
+        if (block_size <= 0) {
+            ret = 4;
+            goto out;
+        }
+    }
 
     qemu_progress_print(0, 100);
 
