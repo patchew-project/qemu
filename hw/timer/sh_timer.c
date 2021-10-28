@@ -77,7 +77,7 @@ static uint32_t sh_timer_read(void *opaque, hwaddr offset)
         }
         /* fall through */
     default:
-        hw_error("sh_timer_read: Bad offset %x\n", (int)offset);
+        hw_error("sh_timer_read: Bad offset 0x%"HWADDR_PRIx"\n", offset);
         return 0;
     }
 }
@@ -193,7 +193,7 @@ static void sh_timer_write(void *opaque, hwaddr offset,
         }
         /* fallthrough */
     default:
-        hw_error("sh_timer_write: Bad offset %x\n", (int)offset);
+        hw_error("sh_timer_write: Bad offset 0x%"HWADDR_PRIx"\n", offset);
     }
     sh_timer_update(s);
 }
@@ -264,7 +264,8 @@ static uint64_t tmu012_read(void *opaque, hwaddr offset,
     trace_sh_timer_read(offset);
     if (offset >= 0x20) {
         if (!(s->feat & TMU012_FEAT_3CHAN)) {
-            hw_error("tmu012_write: Bad channel offset %x\n", (int)offset);
+            hw_error("tmu012_write: Bad channel offset 0x%"HWADDR_PRIx"\n",
+                     offset);
         }
         return sh_timer_read(s->timer[2], offset - 0x20);
     }
@@ -282,7 +283,7 @@ static uint64_t tmu012_read(void *opaque, hwaddr offset,
         return s->tocr;
     }
 
-    hw_error("tmu012_write: Bad offset %x\n", (int)offset);
+    hw_error("tmu012_write: Bad offset 0x%"HWADDR_PRIx"\n", offset);
     return 0;
 }
 
@@ -294,7 +295,8 @@ static void tmu012_write(void *opaque, hwaddr offset,
     trace_sh_timer_write(offset, value);
     if (offset >= 0x20) {
         if (!(s->feat & TMU012_FEAT_3CHAN)) {
-            hw_error("tmu012_write: Bad channel offset %x\n", (int)offset);
+            hw_error("tmu012_write: Bad channel offset 0x%"HWADDR_PRIx"\n",
+                     offset);
         }
         sh_timer_write(s->timer[2], offset - 0x20, value);
         return;
