@@ -83,6 +83,8 @@ enum {
     OPTION_BITMAPS = 275,
     OPTION_FORCE = 276,
     OPTION_SKIP_BROKEN = 277,
+    OPTION_STAT = 278,
+    OPTION_BLOCK_SIZE = 279,
 };
 
 typedef enum OutputFormat {
@@ -1304,6 +1306,107 @@ static int check_empty_sectors(BlockBackend *blk, int64_t offset,
     return 0;
 }
 
+#define IMG_CMP_STATUS_MASK (BDRV_BLOCK_DATA | BDRV_BLOCK_ZERO | \
+                             BDRV_BLOCK_ALLOCATED)
+#define IMG_CMP_STATUS_MAX (IMG_CMP_STATUS_MASK | BDRV_BLOCK_EOF)
+
+typedef struct ImgCmpStat {
+    /* stat: [ret: 0 is equal, 1 is not][status1][status2] -> n_bytes */
+    uint64_t stat[2][IMG_CMP_STATUS_MAX + 1][IMG_CMP_STATUS_MAX + 1];
+} ImgCmpStat;
+
+/*
+ * To denote chunks after EOF when compared files are of different size, use
+ * corresponding status = -1
+ */
+static void cmp_stat_account(ImgCmpStat *stat, bool differs,
+                             int status1, int status2, int64_t bytes)
+{
+    assert(status1 >= -1);
+    if (status1 == -1) {
+        /*
+         * Note BDRV_BLOCK_EOF: we abuse it here a bit. User is not interested
+         * in EOF flag in the last chunk of file (especially when we trim the
+         * chunk and EOF becomes incorrect), so BDRV_BLOCK_EOF is not in
+         * IMG_CMP_STATUS_MASK. We instead use BDRV_BLOCK_EOF to illustrate
+         * chunks after-end-of-file in shorter file.
+         */
+        status1 = BDRV_BLOCK_EOF | BDRV_BLOCK_ZERO;
+    } else {
+        status1 &= IMG_CMP_STATUS_MASK;
+    }
+
+    assert(status2 >= -1);
+    if (status2 == -1) {
+        status2 = BDRV_BLOCK_EOF | BDRV_BLOCK_ZERO;
+    } else {
+        status2 &= IMG_CMP_STATUS_MASK;
+    }
+
+    stat->stat[differs][status1][status2] += bytes;
+}
+
+static void cmp_stat_print_agenda(void)
+{
+    printf("Compare stats:\n"
+           "Key\n"
+           "D: DATA\n"
+           "Z: ZERO\n"
+           "A: ALLOCATED\n"
+           "E: after end of file\n\n");
+}
+
+static void cmp_stat_print_status(int status)
+{
+    printf("%s%s%s%s",
+           status & BDRV_BLOCK_DATA ? "D" : "_",
+           status & BDRV_BLOCK_ZERO ? "Z" : "_",
+           status & BDRV_BLOCK_ALLOCATED ? "A" : "_",
+           status & BDRV_BLOCK_EOF ? "E" : "_");
+}
+
+static void cmp_stat_print(ImgCmpStat *stat, int64_t total_bytes)
+{
+    int ret, status1, status2;
+
+    cmp_stat_print_agenda();
+
+    for (ret = 0; ret <= 1; ret++) {
+        uint64_t total_in_group = 0;
+
+        if (ret == 0) {
+            printf("Equal:\n");
+        } else {
+            printf("\nUnequal:\n");
+        }
+
+        for (status1 = 0; status1 <= IMG_CMP_STATUS_MAX; status1++) {
+            for (status2 = 0; status2 <= IMG_CMP_STATUS_MAX; status2++) {
+                uint64_t bytes = stat->stat[ret][status1][status2];
+                g_autofree char *bytes_str = NULL;
+
+                if (!bytes) {
+                    continue;
+                }
+
+                total_in_group += bytes;
+
+                cmp_stat_print_status(status1);
+                printf(" -> ");
+                cmp_stat_print_status(status2);
+
+                bytes_str = size_to_str(bytes);
+                printf(" %" PRIu64 " bytes (%s) %.1f%%\n", bytes, bytes_str,
+                       100.0 * bytes / total_bytes);
+            }
+        }
+
+        if (!total_in_group) {
+            printf("<nothing>\n");
+        }
+    }
+}
+
 /*
  * Compares two images. Exit codes:
  *
@@ -1320,6 +1423,8 @@ static int img_compare(int argc, char **argv)
     uint8_t *buf1 = NULL, *buf2 = NULL;
     int64_t pnum1, pnum2;
     int allocated1, allocated2;
+    int status1, status2;
+    int64_t block_end;
     int ret = 0; /* return value - 0 Ident, 1 Different, >1 Error */
     bool progress = false, quiet = false, strict = false;
     int flags;
@@ -1331,6 +1436,8 @@ static int img_compare(int argc, char **argv)
     uint64_t progress_base;
     bool image_opts = false;
     bool force_share = false;
+    g_autofree ImgCmpStat *stat = NULL;
+    int64_t block_size = 0;
 
     cache = BDRV_DEFAULT_CACHE;
     for (;;) {
@@ -1339,6 +1446,8 @@ static int img_compare(int argc, char **argv)
             {"object", required_argument, 0, OPTION_OBJECT},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {"force-share", no_argument, 0, 'U'},
+            {"stat", no_argument, 0, OPTION_STAT},
+            {"block-size", required_argument, 0, OPTION_BLOCK_SIZE},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, ":hf:F:T:pqsU",
@@ -1395,6 +1504,15 @@ static int img_compare(int argc, char **argv)
         case OPTION_IMAGE_OPTS:
             image_opts = true;
             break;
+        case OPTION_STAT:
+            stat = g_new0(ImgCmpStat, 1);
+            break;
+        case OPTION_BLOCK_SIZE:
+            block_size = cvtnum_full("block size", optarg, 1, INT64_MAX);
+            if (block_size < 0) {
+                exit(2);
+            }
+            break;
         }
     }
 
@@ -1409,6 +1527,25 @@ static int img_compare(int argc, char **argv)
     }
     filename1 = argv[optind++];
     filename2 = argv[optind++];
+
+    if (!stat && block_size) {
+        error_report("--block-size can be used only together with --stat");
+        ret = 2;
+        goto out3;
+    }
+
+    if (stat && !block_size) {
+        /* TODO: make block-size optional */
+        error_report("You must specify --block-size together with --stat");
+        ret = 2;
+        goto out3;
+    }
+
+    if (stat && strict) {
+        error_report("--stat can't be used together with -s");
+        ret = 2;
+        goto out3;
+    }
 
     /* Initialize before goto out */
     qemu_progress_init(progress, 2.0);
@@ -1465,7 +1602,7 @@ static int img_compare(int argc, char **argv)
     }
 
     while (offset < total_size) {
-        int status1, status2;
+        block_end = QEMU_ALIGN_UP(offset + 1, block_size);
 
         status1 = bdrv_block_status_above(bs1, NULL, offset,
                                           total_size1 - offset, &pnum1, NULL,
@@ -1476,6 +1613,10 @@ static int img_compare(int argc, char **argv)
             goto out;
         }
         allocated1 = status1 & BDRV_BLOCK_ALLOCATED;
+        if (stat && (status1 & BDRV_BLOCK_DATA)) {
+            /* Don't compare cross-block data */
+            pnum1 = MIN(block_end, offset + pnum1) - offset;
+        }
 
         status2 = bdrv_block_status_above(bs2, NULL, offset,
                                           total_size2 - offset, &pnum2, NULL,
@@ -1486,11 +1627,15 @@ static int img_compare(int argc, char **argv)
             goto out;
         }
         allocated2 = status2 & BDRV_BLOCK_ALLOCATED;
+        if (stat && (status2 & BDRV_BLOCK_DATA)) {
+            /* Don't compare cross-block data */
+            pnum2 = MIN(block_end, offset + pnum2) - offset;
+        }
 
         assert(pnum1 && pnum2);
         chunk = MIN(pnum1, pnum2);
 
-        if (strict) {
+        if (strict && !stat) {
             if (status1 != status2) {
                 ret = 1;
                 qprintf(quiet, "Strict mode: Offset %" PRId64
@@ -1499,7 +1644,8 @@ static int img_compare(int argc, char **argv)
             }
         }
         if ((status1 & BDRV_BLOCK_ZERO) && (status2 & BDRV_BLOCK_ZERO)) {
-            /* nothing to do */
+            /* nothing to do, equal: */
+            ret = 0;
         } else if (allocated1 == allocated2) {
             if (allocated1) {
                 int64_t pnum;
@@ -1523,25 +1669,37 @@ static int img_compare(int argc, char **argv)
                 }
                 ret = compare_buffers(buf1, buf2, chunk, &pnum);
                 if (ret || pnum != chunk) {
-                    qprintf(quiet, "Content mismatch at offset %" PRId64 "!\n",
+                    qprintf(quiet || stat,
+                            "Content mismatch at offset %" PRId64 "!\n",
                             offset + (ret ? 0 : pnum));
                     ret = 1;
-                    goto out;
                 }
+            } else {
+                /* Consider unallocated areas equal. */
+                ret = 0;
             }
         } else {
             chunk = MIN(chunk, IO_BUF_SIZE);
             if (allocated1) {
                 ret = check_empty_sectors(blk1, offset, chunk,
-                                          filename1, buf1, quiet);
+                                          filename1, buf1, quiet || stat);
             } else {
                 ret = check_empty_sectors(blk2, offset, chunk,
-                                          filename2, buf1, quiet);
+                                          filename2, buf1, quiet || stat);
             }
-            if (ret) {
+            assert(ret == 0 || ret == 1 || ret == 4);
+            if (ret == 4) {
                 goto out;
             }
         }
+        assert(ret == 0 || ret == 1);
+
+        if (stat) {
+            cmp_stat_account(stat, ret, status1, status2, chunk);
+        } else if (ret) {
+            goto out;
+        }
+
         offset += chunk;
         qemu_progress_print(((float) chunk / progress_base) * 100, 100);
     }
@@ -1549,17 +1707,24 @@ static int img_compare(int argc, char **argv)
     if (total_size1 != total_size2) {
         BlockBackend *blk_over;
         const char *filename_over;
+        int *status_over;
 
         qprintf(quiet, "Warning: Image size mismatch!\n");
         if (total_size1 > total_size2) {
             blk_over = blk1;
             filename_over = filename1;
+            status_over = &status1;
+            status2 = -1; /* Denote after-EOF for cmp_stat_account() */
         } else {
             blk_over = blk2;
             filename_over = filename2;
+            status1 = -1; /* Denote after-EOF for cmp_stat_account() */
+            status_over = &status2;
         }
 
         while (offset < progress_base) {
+            block_end = QEMU_ALIGN_UP(offset + 1, block_size);
+
             ret = bdrv_block_status_above(blk_bs(blk_over), NULL, offset,
                                           progress_base - offset, &chunk,
                                           NULL, NULL);
@@ -1570,20 +1735,43 @@ static int img_compare(int argc, char **argv)
                 goto out;
 
             }
+            if (stat && (ret & BDRV_BLOCK_DATA)) {
+                /* Don't compare cross-block data */
+                chunk = MIN(block_end, offset + chunk) - offset;
+            }
+            *status_over = ret;
+
             if (ret & BDRV_BLOCK_ALLOCATED && !(ret & BDRV_BLOCK_ZERO)) {
                 chunk = MIN(chunk, IO_BUF_SIZE);
                 ret = check_empty_sectors(blk_over, offset, chunk,
-                                          filename_over, buf1, quiet);
-                if (ret) {
+                                          filename_over, buf1,
+                                          quiet || stat);
+                assert(ret == 0 || ret == 1 || ret == 4);
+                if (ret == 4) {
                     goto out;
                 }
+            } else {
+                ret = 0;
             }
+            assert(ret == 0 || ret == 1);
+
+            if (stat) {
+                cmp_stat_account(stat, ret, status1, status2, chunk);
+            } else if (ret) {
+                goto out;
+            }
+
             offset += chunk;
             qemu_progress_print(((float) chunk / progress_base) * 100, 100);
         }
     }
 
-    qprintf(quiet, "Images are identical.\n");
+    if (stat) {
+        cmp_stat_print(stat, progress_base);
+    } else {
+        qprintf(quiet, "Images are identical.\n");
+    }
+
     ret = 0;
 
 out:

@@ -159,6 +159,18 @@ Parameters to compare subcommand:
 
   Strict mode - fail on different image size or sector allocation
 
+.. option:: --stat
+
+  Instead of exiting on the first mismatch, compare the whole images
+  and print statistics on the amount of different pairs of blocks,
+  based on their block status and whether they are equal or not.
+
+.. option:: --block-size BLOCK_SIZE
+
+  Block size for comparing with ``--stat``. This doesn't guarantee an
+  exact size for comparing chunks, but it does guarantee that those
+  chunks will never cross a block-size-aligned boundary.
+
 Parameters to convert subcommand:
 
 .. program:: qemu-img-convert
@@ -378,7 +390,7 @@ Command description:
 
   The rate limit for the commit process is specified by ``-r``.
 
-.. option:: compare [--object OBJECTDEF] [--image-opts] [-f FMT] [-F FMT] [-T SRC_CACHE] [-p] [-q] [-s] [-U] FILENAME1 FILENAME2
+.. option:: compare [--object OBJECTDEF] [--image-opts] [-f FMT] [-F FMT] [-T SRC_CACHE] [-p] [-q] [-s] [-U] [--stat --block-size BLOCK_SIZE] FILENAME1 FILENAME2
 
   Check if two images have the same content. You can compare images with
   different format or settings.
@@ -405,9 +417,9 @@ Command description:
   The following table sumarizes all exit codes of the compare subcommand:
 
   0
-    Images are identical (or requested help was printed)
+    Images are identical (or requested help was printed, or ``--stat`` was used)
   1
-    Images differ
+    Images differ (1 is never returned when ``--stat`` option specified)
   2
     Error on opening an image
   3
