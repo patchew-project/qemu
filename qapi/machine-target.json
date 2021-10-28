@@ -4,6 +4,8 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or later.
 # See the COPYING file in the top-level directory.
 
+{ 'include': 'common.json' }
+
 ##
 # @CpuModelInfo:
 #
@@ -341,3 +343,18 @@
                    'TARGET_I386',
                    'TARGET_S390X',
                    'TARGET_MIPS' ] } }
+
+
+##
+# @x-query-skeys:
+#
+# Query the value of a storage key
+#
+# Returns: storage key value
+#
+# Since: 6.2
+##
+{ 'command': 'x-query-skeys',
+  'data': { 'addr': 'int' },
+  'returns': 'HumanReadableText',
+  'if': 'TARGET_S390X' }
