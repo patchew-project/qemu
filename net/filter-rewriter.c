@@ -266,9 +266,7 @@ static ssize_t colo_rewriter_receive_iov(NetFilterState *nf,
 
     iov_to_buf(iov, iovcnt, 0, buf, size);
 
-    if (s->vnet_hdr) {
-        vnet_hdr_len = nf->netdev->vnet_hdr_len;
-    }
+    vnet_hdr_len = nf->netdev->vnet_hdr_len;
 
     pkt = packet_new_nocopy(buf, size, vnet_hdr_len);
 
@@ -415,7 +413,7 @@ static void filter_rewriter_init(Object *obj)
 {
     RewriterState *s = FILTER_REWRITER(obj);
 
-    s->vnet_hdr = false;
+    s->vnet_hdr = true;
     s->failover_mode = FAILOVER_MODE_OFF;
 }
 
