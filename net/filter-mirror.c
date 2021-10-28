@@ -39,6 +39,7 @@ struct MirrorState {
     CharBackend chr_in;
     CharBackend chr_out;
     SocketReadState rs;
+    /* Keep compatibility for the management layer */
     bool vnet_hdr;
 };
 
@@ -48,7 +49,7 @@ static int filter_send(MirrorState *s,
 {
     NetFilterState *nf = NETFILTER(s);
     int ret = 0;
-    ssize_t size = 0;
+    ssize_t size = 0, vnet_hdr_len = 0;
     uint32_t len = 0;
     char *buf;
 
@@ -63,21 +64,18 @@ static int filter_send(MirrorState *s,
         goto err;
     }
 
-    if (s->vnet_hdr) {
-        /*
-         * If vnet_hdr = on, we send vnet header len to make other
-         * module(like colo-compare) know how to parse net
-         * packet correctly.
-         */
-        ssize_t vnet_hdr_len;
+    /*
+     * The vnet header is the necessary part of filter transfer protocol.
+     * It make other module(like colo-compare) know how to parse net
+     * packet correctly. If device is not the virtio-net-pci,
+     * vnet_hdr_len will be 0.
+     */
+    vnet_hdr_len = nf->netdev->vnet_hdr_len;
 
-        vnet_hdr_len = nf->netdev->vnet_hdr_len;
-
-        len = htonl(vnet_hdr_len);
-        ret = qemu_chr_fe_write_all(&s->chr_out, (uint8_t *)&len, sizeof(len));
-        if (ret != sizeof(len)) {
-            goto err;
-        }
+    len = htonl(vnet_hdr_len);
+    ret = qemu_chr_fe_write_all(&s->chr_out, (uint8_t *)&len, sizeof(len));
+    if (ret != sizeof(len)) {
+        goto err;
     }
 
     buf = g_malloc(size);
@@ -252,7 +250,7 @@ static void filter_redirector_setup(NetFilterState *nf, Error **errp)
         }
     }
 
-    net_socket_rs_init(&s->rs, redirector_rs_finalize, s->vnet_hdr);
+    net_socket_rs_init(&s->rs, redirector_rs_finalize, true);
 
     if (s->indev) {
         chr = qemu_chr_find(s->indev);
@@ -406,14 +404,14 @@ static void filter_mirror_init(Object *obj)
 {
     MirrorState *s = FILTER_MIRROR(obj);
 
-    s->vnet_hdr = false;
+    s->vnet_hdr = true;
 }
 
 static void filter_redirector_init(Object *obj)
 {
     MirrorState *s = FILTER_REDIRECTOR(obj);
 
-    s->vnet_hdr = false;
+    s->vnet_hdr = true;
 }
 
 static void filter_mirror_fini(Object *obj)
