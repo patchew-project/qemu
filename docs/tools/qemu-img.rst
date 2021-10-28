@@ -176,6 +176,13 @@ Parameters to compare subcommand:
     - If both files don't specify cluster-size, use default of 64K
     - If only one file specifies cluster-size, just use that.
 
+.. option:: --shallow
+
+  This option prevents opening and comparing any backing files.
+  This is useful to compare images with same backing file or to compare
+  incremental images from the chain of incremental backups with
+  ``--stat`` option.
+
 Parameters to convert subcommand:
 
 .. program:: qemu-img-convert
@@ -395,7 +402,7 @@ Command description:
 
   The rate limit for the commit process is specified by ``-r``.
 
-.. option:: compare [--object OBJECTDEF] [--image-opts] [-f FMT] [-F FMT] [-T SRC_CACHE] [-p] [-q] [-s] [-U] [--stat [--block-size BLOCK_SIZE]] FILENAME1 FILENAME2
+.. option:: compare [--object OBJECTDEF] [--image-opts] [-f FMT] [-F FMT] [-T SRC_CACHE] [-p] [-q] [-s] [-U] [--stat [--block-size BLOCK_SIZE]] [--shallow] FILENAME1 FILENAME2
 
   Check if two images have the same content. You can compare images with
   different format or settings.

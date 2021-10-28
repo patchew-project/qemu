@@ -85,6 +85,7 @@ enum {
     OPTION_SKIP_BROKEN = 277,
     OPTION_STAT = 278,
     OPTION_BLOCK_SIZE = 279,
+    OPTION_SHALLOW = 280,
 };
 
 typedef enum OutputFormat {
@@ -1483,7 +1484,7 @@ static int img_compare(int argc, char **argv)
     int64_t block_end;
     int ret = 0; /* return value - 0 Ident, 1 Different, >1 Error */
     bool progress = false, quiet = false, strict = false;
-    int flags;
+    int flags = 0;
     bool writethrough;
     int64_t total_size;
     int64_t offset = 0;
@@ -1504,6 +1505,7 @@ static int img_compare(int argc, char **argv)
             {"force-share", no_argument, 0, 'U'},
             {"stat", no_argument, 0, OPTION_STAT},
             {"block-size", required_argument, 0, OPTION_BLOCK_SIZE},
+            {"shallow", no_argument, 0, OPTION_SHALLOW},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, ":hf:F:T:pqsU",
@@ -1569,6 +1571,9 @@ static int img_compare(int argc, char **argv)
                 exit(2);
             }
             break;
+        case OPTION_SHALLOW:
+            flags |= BDRV_O_NO_BACKING;
+            break;
         }
     }
 
@@ -1599,7 +1604,6 @@ static int img_compare(int argc, char **argv)
     /* Initialize before goto out */
     qemu_progress_init(progress, 2.0);
 
-    flags = 0;
     ret = bdrv_parse_cache_mode(cache, &flags, &writethrough);
     if (ret < 0) {
         error_report("Invalid source cache option: %s", cache);
