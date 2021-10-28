@@ -176,11 +176,6 @@ void qmp_set_password(SetPasswordOptions *opts, Error **errp)
                 opts->u.spice.connected == SET_PASSWORD_ACTION_DISCONNECT);
     } else {
         assert(opts->protocol == DISPLAY_PROTOCOL_VNC);
-        if (opts->u.vnc.connected != SET_PASSWORD_ACTION_KEEP) {
-            /* vnc supports "connected=keep" only */
-            error_setg(errp, QERR_INVALID_PARAMETER, "connected");
-            return;
-        }
         /* Note that setting an empty password will not disable login through
          * this interface. */
         rc = vnc_display_password(opts->u.vnc.display, opts->password);

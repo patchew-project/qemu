@@ -234,6 +234,12 @@ single ``bitmap``, the new ``block-export-add`` uses a list of ``bitmaps``.
 Member ``values`` in return value elements with meta-type ``enum`` is
 deprecated.  Use ``members`` instead.
 
+``set_password`` argument ``connected`` for VNC protocol (since 6.2)
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Only the value ``keep`` is and was ever supported for VNC. The (useless)
+argument will be dropped in a future version of QEMU.
+
 System accelerators
 -------------------
 
