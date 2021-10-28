@@ -1,0 +1,106 @@
+= compare two images =
+
+Compare stats:
+Key
+D: DATA
+Z: ZERO
+A: ALLOCATED
+E: after end of file
+
+Equal:
+_Z__ -> _Z__ 720896 bytes (704 KiB) 68.8%
+_Z__ -> _ZA_ 65536 bytes (64 KiB) 6.2%
+D_A_ -> D_A_ 65536 bytes (64 KiB) 6.2%
+_ZA_ -> D_A_ 65536 bytes (64 KiB) 6.2%
+
+Unequal:
+D_A_ -> _Z__ 65536 bytes (64 KiB) 6.2%
+D_A_ -> D_A_ 65536 bytes (64 KiB) 6.2%
+
+
+= compare two increments =
+
+Compare stats:
+Key
+D: DATA
+Z: ZERO
+A: ALLOCATED
+E: after end of file
+
+Equal:
+D_A_ -> D_A_ 983040 bytes (960 KiB) 93.8%
+
+Unequal:
+D_A_ -> D_A_ 65536 bytes (64 KiB) 6.2%
+
+
+= compare two increments with --shallow=
+
+Compare stats:
+Key
+D: DATA
+Z: ZERO
+A: ALLOCATED
+E: after end of file
+
+Equal:
+_Z__ -> _Z__ 917504 bytes (896 KiB) 87.5%
+
+Unequal:
+_Z__ -> D_A_ 65536 bytes (64 KiB) 6.2%
+D_A_ -> _Z__ 65536 bytes (64 KiB) 6.2%
+
+
+= compare images of different size =
+
+Warning: Image size mismatch!
+Compare stats:
+Key
+D: DATA
+Z: ZERO
+A: ALLOCATED
+E: after end of file
+
+Equal:
+_Z_E -> _Z__ 851968 bytes (832 KiB) 40.6%
+_Z_E -> D_A_ 65536 bytes (64 KiB) 3.1%
+_Z_E -> _ZA_ 65536 bytes (64 KiB) 3.1%
+
+Unequal:
+D_A_ -> D_A_ 1048576 bytes (1 MiB) 50.0%
+_Z_E -> D_A_ 65536 bytes (64 KiB) 3.1%
+
+
+= compare images with only 512 bytes different =
+
+Compare stats:
+Key
+D: DATA
+Z: ZERO
+A: ALLOCATED
+E: after end of file
+
+Equal:
+D_A_ -> D_A_ 983040 bytes (960 KiB) 93.8%
+
+Unequal:
+D_A_ -> D_A_ 65536 bytes (64 KiB) 6.2%
+
+
+= compare images with only 512 bytes different, block-size=4K =
+
+Compare stats:
+Key
+D: DATA
+Z: ZERO
+A: ALLOCATED
+E: after end of file
+
+Equal:
+D_A_ -> D_A_ 1044480 bytes (0.996 MiB) 99.6%
+
+Unequal:
+D_A_ -> D_A_ 4096 bytes (4 KiB) 0.4%
+
+
+= end =

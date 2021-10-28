@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+#
+# Test qemu-img compare --stat
+#
+# Copyright (c) 2021 Virtuozzo International GmbH.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import iotests
+from iotests import qemu_img_create, qemu_io, qemu_img_log, log
+
+iotests.script_initialize(supported_fmts=['qcow2'])
+
+a, b, c = iotests.file_path('a', 'b', 'c')
+
+log('= compare two images =\n')
+
+qemu_img_create('-f', iotests.imgfmt, a, '1M')
+qemu_img_create('-f', iotests.imgfmt, b, '1M')
+
+# equal data and zero
+qemu_io('-c', 'write -z 0 64K', a)
+qemu_io('-c', 'write -P 0 0 64K', b)
+
+# different data
+qemu_io('-c', 'write -P 1 64K 64K', a)
+qemu_io('-c', 'write -P 0 64K 64K', b)
+
+# equal data
+qemu_io('-c', 'write -P 2 128K 64K', a)
+qemu_io('-c', 'write -P 2 128K 64K', b)
+
+# equal unallocated and allocated zero
+qemu_io('-c', 'write -z 192K 64K', b)
+
+# unequal data and unallocated zero
+qemu_io('-c', 'write -P 3 256K 64K', a)
+
+qemu_img_log('compare', '--stat', a, b)
+
+log('\n= compare two increments =\n')
+
+qemu_img_create('-f', iotests.imgfmt, a, '1M')
+qemu_img_create('-f', iotests.imgfmt, '-b', a, '-F', iotests.imgfmt, b, '1M')
+qemu_img_create('-f', iotests.imgfmt, '-b', b, '-F', iotests.imgfmt, c, '1M')
+
+qemu_io('-c', 'write -P 1 0 1M', a)
+qemu_io('-c', 'write -P 2 0 64K', b)
+qemu_io('-c', 'write -P 3 64K 64K', c)
+qemu_img_log('compare', '--stat', b, c)
+
+log('\n= compare two increments with --shallow=\n')
+qemu_img_log('compare', '--stat', '--shallow', b, c)
+
+log('\n= compare images of different size =\n')
+qemu_img_create('-f', iotests.imgfmt, a, '1M')
+qemu_img_create('-f', iotests.imgfmt, b, '2M')
+qemu_io('-c', 'write -P 1 0 1M', a)
+qemu_io('-c', 'write -P 2 0 1M', b)
+qemu_io('-c', 'write -P 1 1M 64K', b)
+qemu_io('-c', f'write -z {1024 + 64 * 2}K 64K', b)
+qemu_io('-c', f'write -P 0 {1024 + 64 * 3}K 64K', b)
+qemu_img_log('compare', '--stat', a, b)
+
+log('\n= compare images with only 512 bytes different =\n')
+qemu_img_create('-f', iotests.imgfmt, a, '1M')
+qemu_img_create('-f', iotests.imgfmt, b, '1M')
+qemu_io('-c', 'write -P 1 0 1M', a)
+qemu_io('-c', 'write -P 2 0 512', b)
+qemu_io('-c', f'write -P 1 512 {1024 * 1024 - 512}', b)
+qemu_img_log('compare', '--stat', a, b)
+
+log('\n= compare images with only 512 bytes different, block-size=4K =\n')
+qemu_img_log('compare', '--stat', '--block-size', '4K', a, b)
+
+log('\n= end =')
