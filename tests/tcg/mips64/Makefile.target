@@ -1,0 +1,9 @@
+# -*- Mode: makefile -*-
+#
+# mips64el specific TCG tests
+#
+# Copyright (c) 2021 Philippe Mathieu-Daudé <f4bug@amsat.org>
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+# 64-bit MSA is tested on little-endian target

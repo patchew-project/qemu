@@ -1,0 +1,12 @@
+# -*- Mode: makefile -*-
+#
+# mips64el specific TCG tests
+#
+# Copyright (c) 2021 Philippe Mathieu-Daudé <f4bug@amsat.org>
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+# MSA
+MSA_CFLAGS=-march=mips64r5 -mnan=legacy
+MSA_CPU=Loongson-3A4000
+include $(SRC_PATH)/tests/tcg/mips/ase-msa.mak
