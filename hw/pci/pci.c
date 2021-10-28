@@ -2097,6 +2097,32 @@ void pci_for_each_bus_depth_first(PCIBus *bus, pci_bus_ret_fn begin,
     }
 }
 
+typedef struct {
+    pci_bus_fn fn;
+    void *opaque;
+} PCIRootBusArgs;
+
+static int pci_find_root_bus(Object *obj, void *opaque)
+{
+    PCIRootBusArgs *args = opaque;
+    PCIBus *bus = PCI_HOST_BRIDGE(obj)->bus;
+
+    if (bus) {
+        args->fn(bus, args->opaque);
+    }
+
+    return 0;
+}
+
+void pci_for_each_root_bus(pci_bus_fn fn, void *opaque)
+{
+    PCIRootBusArgs args = { .fn = fn, .opaque = opaque };
+
+    object_child_foreach_recursive_type(object_get_root(),
+                                        TYPE_PCI_HOST_BRIDGE,
+                                        pci_find_root_bus,
+                                        &args);
+}
 
 PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn)
 {

@@ -2123,20 +2123,12 @@ insert_scope(PCIBus *bus, PCIDevice *dev, void *opaque)
 }
 
 /* For a given PCI host bridge, walk and insert DMAR scope */
-static int
-dmar_host_bridges(Object *obj, void *opaque)
+static void
+dmar_host_bridges(PCIBus *bus, void *opaque)
 {
-    GArray *scope_blob = opaque;
-
-    if (object_dynamic_cast(obj, TYPE_PCI_HOST_BRIDGE)) {
-        PCIBus *bus = PCI_HOST_BRIDGE(obj)->bus;
-
-        if (bus && !pci_bus_bypass_iommu(bus)) {
-            pci_for_each_device_under_bus(bus, insert_scope, scope_blob);
-        }
+    if (!pci_bus_bypass_iommu(bus)) {
+        pci_for_each_device_under_bus(bus, insert_scope, opaque);
     }
-
-    return 0;
 }
 
 /*
@@ -2165,8 +2157,7 @@ build_dmar_q35(GArray *table_data, BIOSLinker *linker, const char *oem_id,
      * Insert scope for each PCI bridge and endpoint device which
      * is attached to a bus with iommu enabled.
      */
-    object_child_foreach_recursive(object_get_root(),
-                                   dmar_host_bridges, scope_blob);
+    pci_for_each_root_bus(dmar_host_bridges, scope_blob);
 
     assert(iommu);
     if (x86_iommu_ir_supported(iommu)) {
@@ -2329,20 +2320,12 @@ insert_ivhd(PCIBus *bus, PCIDevice *dev, void *opaque)
 }
 
 /* For all PCI host bridges, walk and insert IVHD entries */
-static int
-ivrs_host_bridges(Object *obj, void *opaque)
+static void
+ivrs_host_bridges(PCIBus *bus, void *opaque)
 {
-    GArray *ivhd_blob = opaque;
-
-    if (object_dynamic_cast(obj, TYPE_PCI_HOST_BRIDGE)) {
-        PCIBus *bus = PCI_HOST_BRIDGE(obj)->bus;
-
-        if (bus && !pci_bus_bypass_iommu(bus)) {
-            pci_for_each_device_under_bus(bus, insert_ivhd, ivhd_blob);
-        }
+    if (!pci_bus_bypass_iommu(bus)) {
+        pci_for_each_device_under_bus(bus, insert_ivhd, opaque);
     }
-
-    return 0;
 }
 
 static void
@@ -2380,8 +2363,7 @@ build_amd_iommu(GArray *table_data, BIOSLinker *linker, const char *oem_id,
      * blob further below.  Fall back to an entry covering all devices, which
      * is sufficient when no aliases are present.
      */
-    object_child_foreach_recursive(object_get_root(),
-                                   ivrs_host_bridges, ivhd_blob);
+    pci_for_each_root_bus(ivrs_host_bridges, ivhd_blob);
 
     if (!ivhd_blob->len) {
         /*
