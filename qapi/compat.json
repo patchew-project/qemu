@@ -47,9 +47,13 @@
 #
 # @deprecated-input: how to handle deprecated input (default 'accept')
 # @deprecated-output: how to handle deprecated output (default 'accept')
+# @unstable-input: how to handle unstable input (default 'accept')
+# @unstable-output: how to handle unstable output (default 'accept')
 #
 # Since: 6.0
 ##
 { 'struct': 'CompatPolicy',
   'data': { '*deprecated-input': 'CompatPolicyInput',
-            '*deprecated-output': 'CompatPolicyOutput' } }
+            '*deprecated-output': 'CompatPolicyOutput',
+            '*unstable-input': 'CompatPolicyInput',
+            '*unstable-output': 'CompatPolicyOutput' } }
