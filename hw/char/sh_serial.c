@@ -26,6 +26,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/sh4/sh.h"
 #include "chardev/char-fe.h"
@@ -200,9 +201,7 @@ static void sh_serial_write(void *opaque, hwaddr offs,
         }
     }
 
-    fprintf(stderr, "sh_serial: unsupported write to 0x%02"
-            HWADDR_PRIx "\n", offs);
-    abort();
+    hw_error("sh_serial: unsupported write to 0x%02"HWADDR_PRIx"\n", offs);
 }
 
 static uint64_t sh_serial_read(void *opaque, hwaddr offs,
@@ -307,9 +306,7 @@ static uint64_t sh_serial_read(void *opaque, hwaddr offs,
 #endif
 
     if (ret & ~((1 << 16) - 1)) {
-        fprintf(stderr, "sh_serial: unsupported read from 0x%02"
-                HWADDR_PRIx "\n", offs);
-        abort();
+        hw_error("sh_serial: unsupported read from 0x%02"HWADDR_PRIx"\n", offs);
     }
 
     return ret;
