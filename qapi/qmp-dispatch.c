@@ -28,6 +28,40 @@
 
 CompatPolicy compat_policy;
 
+static bool compat_policy_input_ok1(const char *adjective,
+                                    CompatPolicyInput policy,
+                                    ErrorClass error_class,
+                                    const char *kind, const char *name,
+                                    Error **errp)
+{
+    switch (policy) {
+    case COMPAT_POLICY_INPUT_ACCEPT:
+        return true;
+    case COMPAT_POLICY_INPUT_REJECT:
+        error_set(errp, error_class, "%s %s %s disabled by policy",
+                  adjective, kind, name);
+        return false;
+    case COMPAT_POLICY_INPUT_CRASH:
+    default:
+        abort();
+    }
+}
+
+bool compat_policy_input_ok(unsigned special_features,
+                            const CompatPolicy *policy,
+                            ErrorClass error_class,
+                            const char *kind, const char *name,
+                            Error **errp)
+{
+    if ((special_features & 1u << QAPI_DEPRECATED)
+        && !compat_policy_input_ok1("Deprecated",
+                                    policy->deprecated_input,
+                                    error_class, kind, name, errp)) {
+        return false;
+    }
+    return true;
+}
+
 Visitor *qobject_input_visitor_new_qmp(QObject *obj)
 {
     Visitor *v = qobject_input_visitor_new(obj);
@@ -176,19 +210,10 @@ QDict *qmp_dispatch(const QmpCommandList *cmds, QObject *request,
                   "The command %s has not been found", command);
         goto out;
     }
-    if (cmd->special_features & 1u << QAPI_DEPRECATED) {
-        switch (compat_policy.deprecated_input) {
-        case COMPAT_POLICY_INPUT_ACCEPT:
-            break;
-        case COMPAT_POLICY_INPUT_REJECT:
-            error_set(&err, ERROR_CLASS_COMMAND_NOT_FOUND,
-                      "Deprecated command %s disabled by policy",
-                      command);
-            goto out;
-        case COMPAT_POLICY_INPUT_CRASH:
-        default:
-            abort();
-        }
+    if (!compat_policy_input_ok(cmd->special_features, &compat_policy,
+                                ERROR_CLASS_COMMAND_NOT_FOUND,
+                                "command", command, &err)) {
+        goto out;
     }
     if (!cmd->enabled) {
         error_set(&err, ERROR_CLASS_COMMAND_NOT_FOUND,
