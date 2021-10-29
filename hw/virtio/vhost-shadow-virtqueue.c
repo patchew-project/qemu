@@ -72,6 +72,18 @@ void vhost_svq_set_host_mr_notifier(VhostShadowVirtqueue *svq, void *addr)
     svq->host_notifier_mr = addr;
 }
 
+/*
+ * Obtain the SVQ call notifier, where vhost device notifies SVQ that there
+ * exists pending used buffers.
+ *
+ * @svq Shadow Virtqueue
+ */
+const EventNotifier *vhost_svq_get_svq_call_notifier(
+                                               const VhostShadowVirtqueue *svq)
+{
+    return &svq->hdev_call;
+}
+
 /**
  * Convenience function to set guest to SVQ kick fd
  *
