@@ -911,7 +911,7 @@ if liblzfse.found() and not cc.links('''
 endif
 
 oss = not_found
-if not get_option('oss').auto() or have_system
+if get_option('oss').enabled() or (get_option('oss').auto() and have_system)
   if not cc.has_header('sys/soundcard.h')
     # not found
   elif targetos == 'netbsd'
