@@ -14,6 +14,7 @@
 
 #include <gmodule.h>
 
+#include "hw/virtio/vhost-iova-tree.h"
 #include "hw/virtio/virtio.h"
 #include "standard-headers/linux/vhost_types.h"
 
@@ -30,6 +31,8 @@ typedef struct vhost_vdpa {
     MemoryListener listener;
     struct vhost_vdpa_iova_range iova_range;
     bool shadow_vqs_enabled;
+    /* IOVA mapping used by Shadow Virtqueue */
+    VhostIOVATree *iova_map;
     GPtrArray *shadow_vqs;
     struct vhost_dev *dev;
     int kick_fd[VIRTIO_QUEUE_MAX];

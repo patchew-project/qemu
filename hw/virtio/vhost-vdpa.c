@@ -466,6 +466,7 @@ static void vhost_vdpa_svq_cleanup(struct vhost_dev *dev)
         vhost_svq_stop(dev, idx, g_ptr_array_index(v->shadow_vqs, idx));
     }
     g_ptr_array_free(v->shadow_vqs, true);
+    g_clear_pointer(&v->iova_map, vhost_iova_tree_unref);
 }
 
 static int vhost_vdpa_cleanup(struct vhost_dev *dev)
@@ -822,6 +823,22 @@ static bool  vhost_vdpa_force_iommu(struct vhost_dev *dev)
     return true;
 }
 
+/**
+ * Maps QEMU vaddr memory to device in a suitable way for shadow virtqueue:
+ * - It always reference qemu memory address, not guest's memory.
+ * - TODO It's always in range of device.
+ *
+ * It returns the translated address
+ */
+static int vhost_vdpa_svq_map(struct vhost_vdpa *v, DMAMap *map)
+{
+    int r = vhost_iova_tree_map_alloc(v->iova_map, map);
+    assert(r == IOVA_OK);
+
+    return vhost_vdpa_dma_map(v, map->iova, map->size,
+                              (void *)map->translated_addr, false);
+}
+
 static int vhost_vdpa_vring_pause(struct vhost_dev *dev)
 {
     int r;
@@ -872,8 +889,36 @@ static bool vhost_vdpa_svq_start_vq(struct vhost_dev *dev, unsigned idx,
     if (svq_mode) {
         const EventNotifier *vhost_kick = vhost_svq_get_dev_kick_notifier(svq);
         const EventNotifier *vhost_call = vhost_svq_get_svq_call_notifier(svq);
+        DMAMap device_region, driver_region;
 
         vhost_svq_get_vring_addr(svq, &addr);
+        driver_region = (DMAMap) {
+            .translated_addr = (hwaddr)addr.desc_user_addr,
+
+            /*
+             * DMAMAp.size include the last byte included in the range, while
+             * sizeof marks one past it. Substract one byte to make them match.
+             */
+            .size = vhost_svq_driver_area_size(svq) - 1,
+            .perm = VHOST_ACCESS_RO,
+        };
+        device_region = (DMAMap) {
+            .translated_addr = (hwaddr)addr.used_user_addr,
+            .size = vhost_svq_device_area_size(svq) - 1,
+            .perm = VHOST_ACCESS_RW,
+        };
+
+        r = vhost_vdpa_svq_map(v, &driver_region);
+        assert(r == 0);
+        r = vhost_vdpa_svq_map(v, &device_region);
+        assert(r == 0);
+
+        /* Expose IOVA addresses to vDPA device */
+        addr.avail_user_addr = driver_region.iova + addr.avail_user_addr
+                               - addr.desc_user_addr;
+        addr.desc_user_addr = driver_region.iova;
+        addr.used_user_addr = device_region.iova;
+
         if (n->addr) {
             r = virtio_queue_set_host_notifier_mr(dev->vdev, idx, &n->mr,
                                                   false);
@@ -885,7 +930,6 @@ static bool vhost_vdpa_svq_start_vq(struct vhost_dev *dev, unsigned idx,
             assert(r == 0);
             vhost_svq_set_host_mr_notifier(svq, n->addr);
         }
-
         vhost_svq_set_guest_call_notifier(svq, v->call_fd[idx]);
         vhost_svq_start(dev, idx, svq, v->kick_fd[idx]);
 
@@ -1001,6 +1045,7 @@ static bool vhost_vdpa_valid_features(struct vhost_dev *hdev,
 void vhost_vdpa_enable_svq(struct vhost_vdpa *v, bool enable, Error **errp)
 {
     struct vhost_dev *hdev = v->dev;
+    hwaddr iova_first = v->iova_range.first, iova_last = v->iova_range.last;
     unsigned n;
     int r;
     uint64_t svq_features = hdev->features | BIT_ULL(VIRTIO_F_IOMMU_PLATFORM) |
@@ -1016,6 +1061,8 @@ void vhost_vdpa_enable_svq(struct vhost_vdpa *v, bool enable, Error **errp)
         if (unlikely(!ok)) {
             return;
         }
+
+        v->iova_map = vhost_iova_tree_new(iova_first, iova_last);
 
         /* Allocate resources */
         assert(v->shadow_vqs->len == 0);
@@ -1093,6 +1140,7 @@ err_svq_new:
     if (!enable) {
         /* Resources cleanup */
         g_ptr_array_set_size(v->shadow_vqs, 0);
+        g_clear_pointer(&v->iova_map, vhost_iova_tree_unref);
     }
 }
 
