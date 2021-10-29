@@ -84,12 +84,9 @@
 #
 # Use vhost shadow virtqueue.
 #
-# SVQ can just forward notifications between the device and the guest at this
-# moment. This will expand in future changes.
-#
 # @name: the device name of the VirtIO device
 #
-# @set: true to use the alternate shadow VQ notifications
+# @set: true to use the alternate shadow VQ
 #
 # Since: 6.2
 #

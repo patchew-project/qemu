@@ -19,6 +19,7 @@
 #include "hw/virtio/virtio-net.h"
 #include "hw/virtio/vhost-shadow-virtqueue.h"
 #include "hw/virtio/vhost-vdpa.h"
+#include "hw/virtio/vhost-shadow-virtqueue.h"
 #include "exec/address-spaces.h"
 #include "qemu/main-loop.h"
 #include "cpu.h"
@@ -821,6 +822,19 @@ static bool  vhost_vdpa_force_iommu(struct vhost_dev *dev)
     return true;
 }
 
+static int vhost_vdpa_vring_pause(struct vhost_dev *dev)
+{
+    int r;
+    uint8_t status;
+
+    vhost_vdpa_add_status(dev, VIRTIO_CONFIG_S_DEVICE_STOPPED);
+    do {
+        r = vhost_vdpa_call(dev, VHOST_VDPA_GET_STATUS, &status);
+    } while (r == 0 && !(status & VIRTIO_CONFIG_S_DEVICE_STOPPED));
+
+    return 0;
+}
+
 /*
  * Start or stop a shadow virtqueue in a vdpa device
  *
@@ -844,7 +858,14 @@ static bool vhost_vdpa_svq_start_vq(struct vhost_dev *dev, unsigned idx,
         .index = vq_index,
     };
     struct vhost_vring_file vhost_call_file = {
-        .index = idx + dev->vq_index,
+        .index = vq_index,
+    };
+    struct vhost_vring_addr addr = {
+        .index = vq_index,
+    };
+    struct vhost_vring_state num = {
+        .index = vq_index,
+        .num = virtio_queue_get_num(dev->vdev, vq_index),
     };
     int r;
 
@@ -852,6 +873,7 @@ static bool vhost_vdpa_svq_start_vq(struct vhost_dev *dev, unsigned idx,
         const EventNotifier *vhost_kick = vhost_svq_get_dev_kick_notifier(svq);
         const EventNotifier *vhost_call = vhost_svq_get_svq_call_notifier(svq);
 
+        vhost_svq_get_vring_addr(svq, &addr);
         if (n->addr) {
             r = virtio_queue_set_host_notifier_mr(dev->vdev, idx, &n->mr,
                                                   false);
@@ -870,8 +892,20 @@ static bool vhost_vdpa_svq_start_vq(struct vhost_dev *dev, unsigned idx,
         vhost_kick_file.fd = event_notifier_get_fd(vhost_kick);
         vhost_call_file.fd = event_notifier_get_fd(vhost_call);
     } else {
+        struct vhost_vring_state state = {
+            .index = vq_index,
+        };
+
         vhost_svq_stop(dev, idx, svq);
 
+        state.num = virtio_queue_get_last_avail_idx(dev->vdev, idx);
+        r = vhost_vdpa_set_vring_base(dev, &state);
+        if (unlikely(r)) {
+            error_setg_errno(errp, -r, "vhost_set_vring_base failed");
+            return false;
+        }
+
+        vhost_vdpa_vq_get_addr(dev, &addr, &dev->vqs[idx]);
         if (n->addr) {
             r = virtio_queue_set_host_notifier_mr(dev->vdev, idx, &n->mr,
                                                   true);
@@ -885,6 +919,17 @@ static bool vhost_vdpa_svq_start_vq(struct vhost_dev *dev, unsigned idx,
         vhost_call_file.fd = v->call_fd[idx];
     }
 
+    r = vhost_vdpa_set_vring_addr(dev, &addr);
+    if (unlikely(r)) {
+        error_setg_errno(errp, -r, "vhost_set_vring_addr failed");
+        return false;
+    }
+    r = vhost_vdpa_set_vring_num(dev, &num);
+    if (unlikely(r)) {
+        error_setg_errno(errp, -r, "vhost_set_vring_num failed");
+        return false;
+    }
+
     r = vhost_vdpa_set_vring_dev_kick(dev, &vhost_kick_file);
     if (unlikely(r)) {
         error_setg_errno(errp, -r, "vhost_vdpa_set_vring_kick failed");
@@ -893,6 +938,50 @@ static bool vhost_vdpa_svq_start_vq(struct vhost_dev *dev, unsigned idx,
     r = vhost_vdpa_set_vring_dev_call(dev, &vhost_call_file);
     if (unlikely(r)) {
         error_setg_errno(errp, -r, "vhost_vdpa_set_vring_call failed");
+        return false;
+    }
+
+    return true;
+}
+
+static void vhost_vdpa_get_vq_state(struct vhost_dev *dev, unsigned idx)
+{
+    struct VirtIODevice *vdev = dev->vdev;
+
+    virtio_queue_restore_last_avail_idx(vdev, idx);
+    virtio_queue_invalidate_signalled_used(vdev, idx);
+    virtio_queue_update_used_idx(vdev, idx);
+}
+
+/**
+ * Validate device and guest features against SVQ capabilities
+ *
+ * @hdev  The vhost device @errp  The error
+ *
+ * @hdev          The hdev
+ * @svq_features  The subset of device features that svq supports.
+ * @errp          The errp
+ */
+static bool vhost_vdpa_valid_features(struct vhost_dev *hdev,
+                                      uint64_t *svq_features,
+                                      Error **errp)
+{
+    uint64_t acked_features = hdev->acked_features;
+    bool ok;
+
+    ok = vhost_svq_valid_device_features(svq_features);
+    if (unlikely(!ok)) {
+        error_setg(errp,
+            "Unexpected device feature flags, offered: %"PRIx64", ok: %"PRIx64,
+            hdev->features, *svq_features);
+        return false;
+    }
+
+    ok = vhost_svq_valid_guest_features(&acked_features);
+    if (unlikely(!ok)) {
+        error_setg(errp,
+            "Invalid guest acked feature flag, acked:%"PRIx64", ok: %"PRIx64,
+            hdev->acked_features, acked_features);
         return false;
     }
 
@@ -913,6 +1002,9 @@ void vhost_vdpa_enable_svq(struct vhost_vdpa *v, bool enable, Error **errp)
 {
     struct vhost_dev *hdev = v->dev;
     unsigned n;
+    int r;
+    uint64_t svq_features = hdev->features | BIT_ULL(VIRTIO_F_IOMMU_PLATFORM) |
+                            BIT_ULL(VIRTIO_F_QUEUE_STATE);
     ERRP_GUARD();
 
     if (enable == v->shadow_vqs_enabled) {
@@ -920,20 +1012,43 @@ void vhost_vdpa_enable_svq(struct vhost_vdpa *v, bool enable, Error **errp)
     }
 
     if (enable) {
+        bool ok = vhost_vdpa_valid_features(hdev, &svq_features, errp);
+        if (unlikely(!ok)) {
+            return;
+        }
+
         /* Allocate resources */
         assert(v->shadow_vqs->len == 0);
         for (n = 0; n < hdev->nvqs; ++n) {
             VhostShadowVirtqueue *svq = vhost_svq_new(hdev, n);
-            bool ok;
-
             if (unlikely(!svq)) {
                 error_setg(errp, "Cannot create svq");
                 enable = false;
                 goto err_svq_new;
             }
             g_ptr_array_add(v->shadow_vqs, svq);
+        }
+    }
 
-            ok = vhost_vdpa_svq_start_vq(hdev, n, true, errp);
+    r = vhost_vdpa_vring_pause(hdev);
+    if (unlikely(r)) {
+        error_setg_errno(errp, -r, "Cannot pause device");
+        enable = !enable;
+        goto err_pause;
+    }
+
+    for (n = 0; n < v->shadow_vqs->len; ++n) {
+        vhost_vdpa_get_vq_state(hdev, hdev->vq_index + n);
+    }
+
+    /* Reset device so it can be configured */
+    vhost_vdpa_dev_start(hdev, false);
+
+    if (enable) {
+        int r;
+
+        for (n = 0; n < v->shadow_vqs->len; ++n) {
+            bool ok = vhost_vdpa_svq_start_vq(hdev, n, true, errp);
             if (unlikely(!ok)) {
                 /* Free still not started svqs, and go with disable path */
                 g_ptr_array_set_size(v->shadow_vqs, n);
@@ -941,18 +1056,39 @@ void vhost_vdpa_enable_svq(struct vhost_vdpa *v, bool enable, Error **errp)
                 break;
             }
         }
+
+        /* Need to ack features to set state in vp_vdpa devices */
+        r = vhost_vdpa_set_features(hdev, svq_features);
+        if (unlikely(r && !(*errp))) {
+            error_setg_errno(errp, -r, "Fail to set guest features");
+
+            /* Go through disable SVQ path */
+            enable = false;
+        }
     }
 
     v->shadow_vqs_enabled = enable;
 
     if (!enable) {
+        r = vhost_vdpa_set_features(hdev, hdev->acked_features |
+                                          BIT_ULL(VIRTIO_F_QUEUE_STATE) |
+                                          BIT_ULL(VIRTIO_F_IOMMU_PLATFORM));
+        if (unlikely(r && (!(*errp)))) {
+            error_setg_errno(errp, -r, "Fail to set guest features");
+        }
+
         /* Disable all queues or clean up failed start */
         for (n = 0; n < v->shadow_vqs->len; ++n) {
             vhost_vdpa_svq_start_vq(hdev, n, false, *errp ? NULL : errp);
         }
-
     }
 
+    r = vhost_vdpa_dev_start(hdev, true);
+    if (unlikely(r && !(*errp))) {
+        error_setg_errno(errp, -r, "Fail to start device");
+    }
+
+err_pause:
 err_svq_new:
     if (!enable) {
         /* Resources cleanup */
