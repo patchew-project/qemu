@@ -29,6 +29,12 @@ typedef struct VhostShadowVirtqueue {
      * So shadow virtqueue must not clean it, or we would lose VirtQueue one.
      */
     EventNotifier svq_kick;
+
+    /* Device's host notifier memory region. NULL means no region */
+    void *host_notifier_mr;
+
+    /* Virtio queue shadowing */
+    VirtQueue *vq;
 } VhostShadowVirtqueue;
 
 /**
@@ -50,7 +56,20 @@ static void vhost_handle_guest_kick(EventNotifier *n)
         return;
     }
 
-    event_notifier_set(&svq->hdev_kick);
+    if (svq->host_notifier_mr) {
+        uint16_t *mr = svq->host_notifier_mr;
+        *mr = virtio_get_queue_index(svq->vq);
+    } else {
+        event_notifier_set(&svq->hdev_kick);
+    }
+}
+
+/*
+ * Set the device's memory region notifier. addr = NULL clear it.
+ */
+void vhost_svq_set_host_mr_notifier(VhostShadowVirtqueue *svq, void *addr)
+{
+    svq->host_notifier_mr = addr;
 }
 
 /**
@@ -134,6 +153,7 @@ void vhost_svq_stop(struct vhost_dev *dev, unsigned idx,
  */
 VhostShadowVirtqueue *vhost_svq_new(struct vhost_dev *dev, int idx)
 {
+    int vq_idx = dev->vq_index + idx;
     g_autofree VhostShadowVirtqueue *svq = g_new0(VhostShadowVirtqueue, 1);
     int r;
 
@@ -151,6 +171,7 @@ VhostShadowVirtqueue *vhost_svq_new(struct vhost_dev *dev, int idx)
         goto err_init_hdev_call;
     }
 
+    svq->vq = virtio_get_queue(dev->vdev, vq_idx);
     return g_steal_pointer(&svq);
 
 err_init_hdev_call:
