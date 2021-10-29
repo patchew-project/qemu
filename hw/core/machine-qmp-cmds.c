@@ -139,7 +139,8 @@ HotpluggableCPUList *qmp_query_hotpluggable_cpus(Error **errp)
     MachineClass *mc = MACHINE_GET_CLASS(ms);
 
     if (!mc->has_hotpluggable_cpus) {
-        error_setg(errp, QERR_FEATURE_DISABLED, "query-hotpluggable-cpus");
+        error_setg(errp,
+                   "The feature 'query-hotpluggable-cpus' is not enabled");
         return NULL;
     }
 
