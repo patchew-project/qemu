@@ -40,18 +40,36 @@ const EventNotifier *vhost_svq_get_dev_kick_notifier(
     return &svq->hdev_kick;
 }
 
+/* Forward guest notifications */
+static void vhost_handle_guest_kick(EventNotifier *n)
+{
+    VhostShadowVirtqueue *svq = container_of(n, VhostShadowVirtqueue,
+                                             svq_kick);
+
+    if (unlikely(!event_notifier_test_and_clear(n))) {
+        return;
+    }
+
+    event_notifier_set(&svq->hdev_kick);
+}
+
 /**
- * Set a new file descriptor for the guest to kick SVQ and notify for avail
+ * Convenience function to set guest to SVQ kick fd
  *
- * @svq          The svq
- * @svq_kick_fd  The new svq kick fd
+ * @svq         The shadow VirtQueue
+ * @svq_kick_fd The guest to SVQ kick fd
+ * @check_old   Check old file descriptor for pending notifications
  */
-void vhost_svq_set_svq_kick_fd(VhostShadowVirtqueue *svq, int svq_kick_fd)
+static void vhost_svq_set_svq_kick_fd_internal(VhostShadowVirtqueue *svq,
+                                               int svq_kick_fd,
+                                               bool check_old)
 {
     EventNotifier tmp;
 
-    event_notifier_set_handler(&svq->svq_kick, NULL);
-    event_notifier_init_fd(&tmp, event_notifier_get_fd(&svq->svq_kick));
+    if (check_old) {
+        event_notifier_set_handler(&svq->svq_kick, NULL);
+        event_notifier_init_fd(&tmp, event_notifier_get_fd(&svq->svq_kick));
+    }
 
     /*
      * event_notifier_set_handler already checks for guest's notifications if
@@ -59,10 +77,55 @@ void vhost_svq_set_svq_kick_fd(VhostShadowVirtqueue *svq, int svq_kick_fd)
      * need to explicitely check for them.
      */
     event_notifier_init_fd(&svq->svq_kick, svq_kick_fd);
+    event_notifier_set_handler(&svq->svq_kick, vhost_handle_guest_kick);
 
-    if (event_notifier_test_and_clear(&tmp)) {
+    /*
+     * !check_old means that we are starting SVQ, taking the descriptor from
+     * vhost-vdpa device. This means that we can't trust old file descriptor
+     * pending notifications, since they could have been swallowed by kernel
+     * vhost or paused device. So let it enabled, and qemu event loop will call
+     * us to handle guest avail ring when SVQ is ready.
+     */
+    if (!check_old || event_notifier_test_and_clear(&tmp)) {
         event_notifier_set(&svq->hdev_kick);
     }
+}
+
+/**
+ * Set a new file descriptor for the guest to kick SVQ and notify for avail
+ *
+ * @svq          The svq
+ * @svq_kick_fd  The svq kick fd
+ *
+ * Note that SVQ will never close the old file descriptor.
+ */
+void vhost_svq_set_svq_kick_fd(VhostShadowVirtqueue *svq, int svq_kick_fd)
+{
+    vhost_svq_set_svq_kick_fd_internal(svq, svq_kick_fd, true);
+}
+
+/*
+ * Start shadow virtqueue operation.
+ * @dev vhost device
+ * @hidx vhost virtqueue index
+ * @svq Shadow Virtqueue
+ */
+void vhost_svq_start(struct vhost_dev *dev, unsigned idx,
+                     VhostShadowVirtqueue *svq, int svq_kick_fd)
+{
+    vhost_svq_set_svq_kick_fd_internal(svq, svq_kick_fd, false);
+}
+
+/*
+ * Stop shadow virtqueue operation.
+ * @dev vhost device
+ * @idx vhost queue index
+ * @svq Shadow Virtqueue
+ */
+void vhost_svq_stop(struct vhost_dev *dev, unsigned idx,
+                    VhostShadowVirtqueue *svq)
+{
+    event_notifier_set_handler(&svq->svq_kick, NULL);
 }
 
 /*

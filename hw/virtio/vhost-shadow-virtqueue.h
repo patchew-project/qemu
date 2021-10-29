@@ -18,6 +18,10 @@ typedef struct VhostShadowVirtqueue VhostShadowVirtqueue;
 void vhost_svq_set_svq_kick_fd(VhostShadowVirtqueue *svq, int svq_kick_fd);
 const EventNotifier *vhost_svq_get_dev_kick_notifier(
                                               const VhostShadowVirtqueue *svq);
+void vhost_svq_start(struct vhost_dev *dev, unsigned idx,
+                     VhostShadowVirtqueue *svq, int svq_kick_fd);
+void vhost_svq_stop(struct vhost_dev *dev, unsigned idx,
+                    VhostShadowVirtqueue *svq);
 
 VhostShadowVirtqueue *vhost_svq_new(struct vhost_dev *dev, int idx);
 
