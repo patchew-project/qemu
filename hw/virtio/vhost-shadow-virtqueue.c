@@ -9,12 +9,16 @@
 
 #include "qemu/osdep.h"
 #include "hw/virtio/vhost-shadow-virtqueue.h"
+#include "standard-headers/linux/vhost_types.h"
 
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 
 /* Shadow virtqueue to relay notifications */
 typedef struct VhostShadowVirtqueue {
+    /* Shadow vring */
+    struct vring vring;
+
     /* Shadow kick notifier, sent to vhost */
     EventNotifier hdev_kick;
     /* Shadow call notifier, sent to vhost */
@@ -38,6 +42,9 @@ typedef struct VhostShadowVirtqueue {
 
     /* Virtio queue shadowing */
     VirtQueue *vq;
+
+    /* Virtio device */
+    VirtIODevice *vdev;
 } VhostShadowVirtqueue;
 
 /**
@@ -111,6 +118,35 @@ const EventNotifier *vhost_svq_get_svq_call_notifier(
 void vhost_svq_set_guest_call_notifier(VhostShadowVirtqueue *svq, int call_fd)
 {
     event_notifier_init_fd(&svq->svq_call, call_fd);
+}
+
+/*
+ * Get the shadow vq vring address.
+ * @svq Shadow virtqueue
+ * @addr Destination to store address
+ */
+void vhost_svq_get_vring_addr(const VhostShadowVirtqueue *svq,
+                              struct vhost_vring_addr *addr)
+{
+    addr->desc_user_addr = (uint64_t)svq->vring.desc;
+    addr->avail_user_addr = (uint64_t)svq->vring.avail;
+    addr->used_user_addr = (uint64_t)svq->vring.used;
+}
+
+size_t vhost_svq_driver_area_size(const VhostShadowVirtqueue *svq)
+{
+    uint16_t vq_idx = virtio_get_queue_index(svq->vq);
+    size_t desc_size = virtio_queue_get_desc_size(svq->vdev, vq_idx);
+    size_t avail_size = virtio_queue_get_avail_size(svq->vdev, vq_idx);
+
+    return ROUND_UP(desc_size + avail_size, qemu_real_host_page_size);
+}
+
+size_t vhost_svq_device_area_size(const VhostShadowVirtqueue *svq)
+{
+    uint16_t vq_idx = virtio_get_queue_index(svq->vq);
+    size_t used_size = virtio_queue_get_used_size(svq->vdev, vq_idx);
+    return ROUND_UP(used_size, qemu_real_host_page_size);
 }
 
 /**
@@ -195,6 +231,10 @@ void vhost_svq_stop(struct vhost_dev *dev, unsigned idx,
 VhostShadowVirtqueue *vhost_svq_new(struct vhost_dev *dev, int idx)
 {
     int vq_idx = dev->vq_index + idx;
+    unsigned num = virtio_queue_get_num(dev->vdev, vq_idx);
+    size_t desc_size = virtio_queue_get_desc_size(dev->vdev, vq_idx);
+    size_t driver_size;
+    size_t device_size;
     g_autofree VhostShadowVirtqueue *svq = g_new0(VhostShadowVirtqueue, 1);
     int r;
 
@@ -213,6 +253,15 @@ VhostShadowVirtqueue *vhost_svq_new(struct vhost_dev *dev, int idx)
     }
 
     svq->vq = virtio_get_queue(dev->vdev, vq_idx);
+    svq->vdev = dev->vdev;
+    driver_size = vhost_svq_driver_area_size(svq);
+    device_size = vhost_svq_device_area_size(svq);
+    svq->vring.num = num;
+    svq->vring.desc = qemu_memalign(qemu_real_host_page_size, driver_size);
+    svq->vring.avail = (void *)((char *)svq->vring.desc + desc_size);
+    memset(svq->vring.desc, 0, driver_size);
+    svq->vring.used = qemu_memalign(qemu_real_host_page_size, device_size);
+    memset(svq->vring.used, 0, device_size);
     event_notifier_set_handler(&svq->hdev_call, vhost_svq_handle_call);
     return g_steal_pointer(&svq);
 
@@ -231,5 +280,7 @@ void vhost_svq_free(VhostShadowVirtqueue *vq)
     event_notifier_cleanup(&vq->hdev_kick);
     event_notifier_set_handler(&vq->hdev_call, NULL);
     event_notifier_cleanup(&vq->hdev_call);
+    qemu_vfree(vq->vring.desc);
+    qemu_vfree(vq->vring.used);
     g_free(vq);
 }

@@ -22,6 +22,10 @@ const EventNotifier *vhost_svq_get_dev_kick_notifier(
 const EventNotifier *vhost_svq_get_svq_call_notifier(
                                               const VhostShadowVirtqueue *svq);
 void vhost_svq_set_host_mr_notifier(VhostShadowVirtqueue *svq, void *addr);
+void vhost_svq_get_vring_addr(const VhostShadowVirtqueue *svq,
+                              struct vhost_vring_addr *addr);
+size_t vhost_svq_driver_area_size(const VhostShadowVirtqueue *svq);
+size_t vhost_svq_device_area_size(const VhostShadowVirtqueue *svq);
 
 void vhost_svq_start(struct vhost_dev *dev, unsigned idx,
                      VhostShadowVirtqueue *svq, int svq_kick_fd);
