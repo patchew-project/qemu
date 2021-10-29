@@ -174,12 +174,6 @@ void job_yield(Job *job);
 void coroutine_fn job_sleep_ns(Job *job, int64_t ns);
 
 
-/** Returns the JobType of a given Job. */
-JobType job_type(const Job *job);
-
-/** Returns the enum string for the JobType of a given Job. */
-const char *job_type_str(const Job *job);
-
 /** Returns true if the job should not be visible to the management layer. */
 bool job_is_internal(Job *job);
 
