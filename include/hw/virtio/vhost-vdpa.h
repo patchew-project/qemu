@@ -33,6 +33,8 @@ typedef struct vhost_vdpa {
     GPtrArray *shadow_vqs;
     struct vhost_dev *dev;
     int kick_fd[VIRTIO_QUEUE_MAX];
+    /* File descriptor the device uses to call VM/SVQ */
+    int call_fd[VIRTIO_QUEUE_MAX];
     VhostVDPAHostNotifier notifier[VIRTIO_QUEUE_MAX];
 } VhostVDPA;
 
