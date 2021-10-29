@@ -207,8 +207,6 @@ void job_user_cancel(Job *job, bool force, Error **errp);
  *
  * Returns the return value from the job if the job actually completed
  * during the call, or -ECANCELED if it was canceled.
- *
- * Callers must hold the AioContext lock of job->aio_context.
  */
 int job_cancel_sync(Job *job, bool force);
 
@@ -232,8 +230,6 @@ void job_cancel_sync_all(void);
  * function).
  *
  * Returns the return value from the job.
- *
- * Callers must hold the AioContext lock of job->aio_context.
  *
  * Called between job_lock and job_unlock.
  */
@@ -265,8 +261,6 @@ void job_dismiss(Job **job, Error **errp);
  *
  * Returns 0 if the job is successfully completed, -ECANCELED if the job was
  * cancelled before completing, and -errno in other error cases.
- *
- * Callers must hold the AioContext lock of job->aio_context.
  *
  * Called between job_lock and job_unlock, but it releases the lock temporarly.
  */

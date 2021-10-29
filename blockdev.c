@@ -154,12 +154,7 @@ void blockdev_mark_auto_del(BlockBackend *blk)
 
     for (job = block_job_next(NULL); job; job = block_job_next(job)) {
         if (block_job_has_bdrv(job, blk_bs(blk))) {
-            AioContext *aio_context = job->job.aio_context;
-            aio_context_acquire(aio_context);
-
             job_cancel(&job->job, false);
-
-            aio_context_release(aio_context);
         }
     }
 
@@ -1843,16 +1838,9 @@ static void drive_backup_abort(BlkActionState *common)
     DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
 
     if (state->job) {
-        AioContext *aio_context;
-
-        aio_context = bdrv_get_aio_context(state->bs);
-        aio_context_acquire(aio_context);
-
         job_lock();
         job_cancel_sync(&state->job->job, true);
         job_unlock();
-
-        aio_context_release(aio_context);
     }
 }
 
@@ -1946,16 +1934,9 @@ static void blockdev_backup_abort(BlkActionState *common)
     BlockdevBackupState *state = DO_UPCAST(BlockdevBackupState, common, common);
 
     if (state->job) {
-        AioContext *aio_context;
-
-        aio_context = bdrv_get_aio_context(state->bs);
-        aio_context_acquire(aio_context);
-
         job_lock();
         job_cancel_sync(&state->job->job, true);
         job_unlock();
-
-        aio_context_release(aio_context);
     }
 }
 
