@@ -305,5 +305,27 @@ err:
 
 void qmp_x_vhost_set_shadow_vq(const char *name, bool set, Error **errp)
 {
-    error_setg(errp, "Shadow virtqueue still not implemented");
+    NetClientState *ncs;
+    int queues;
+    ERRP_GUARD();
+
+    queues = qemu_find_net_clients_except(name, &ncs,
+                                          NET_CLIENT_DRIVER_NIC, 1);
+
+    if (!queues) {
+        error_setg(errp, "Device not found");
+    } else if (ncs->info->type != NET_CLIENT_DRIVER_VHOST_VDPA) {
+        error_setg(errp, "Device type is not vdpa");
+    } else if (queues > 1) {
+        error_setg(errp, "Device has control virtqueue");
+    } else {
+        VhostVDPAState *s = DO_UPCAST(VhostVDPAState, nc, ncs);
+        struct vhost_vdpa *v = &s->vhost_vdpa;
+
+        vhost_vdpa_enable_svq(v, set, errp);
+    }
+
+    if (*errp) {
+        error_prepend(errp, "Can't set shadow vq on %s: ", name);
+    }
 }

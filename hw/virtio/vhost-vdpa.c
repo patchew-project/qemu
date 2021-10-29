@@ -17,12 +17,14 @@
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-backend.h"
 #include "hw/virtio/virtio-net.h"
+#include "hw/virtio/vhost-shadow-virtqueue.h"
 #include "hw/virtio/vhost-vdpa.h"
 #include "exec/address-spaces.h"
 #include "qemu/main-loop.h"
 #include "cpu.h"
 #include "trace.h"
 #include "qemu-common.h"
+#include "qapi/error.h"
 
 /*
  * Return one past the end of the end of section. Be careful with uint64_t
@@ -326,6 +328,16 @@ static bool vhost_vdpa_one_time_request(struct vhost_dev *dev)
     return v->index != 0;
 }
 
+/**
+ * Adaptor function to free shadow virtqueue through gpointer
+ *
+ * @svq   The Shadow Virtqueue
+ */
+static void vhost_psvq_free(gpointer svq)
+{
+    vhost_svq_free(svq);
+}
+
 static int vhost_vdpa_init(struct vhost_dev *dev, void *opaque, Error **errp)
 {
     struct vhost_vdpa *v;
@@ -337,6 +349,7 @@ static int vhost_vdpa_init(struct vhost_dev *dev, void *opaque, Error **errp)
     dev->opaque =  opaque ;
     v->listener = vhost_vdpa_memory_listener;
     v->msg_type = VHOST_IOTLB_MSG_V2;
+    v->shadow_vqs = g_ptr_array_new_full(dev->nvqs, vhost_psvq_free);
 
     vhost_vdpa_get_iova_range(v);
 
@@ -361,7 +374,13 @@ static void vhost_vdpa_host_notifier_uninit(struct vhost_dev *dev,
     n = &v->notifier[queue_index];
 
     if (n->addr) {
-        virtio_queue_set_host_notifier_mr(vdev, queue_index, &n->mr, false);
+        if (v->shadow_vqs_enabled) {
+            VhostShadowVirtqueue *svq = g_ptr_array_index(v->shadow_vqs,
+                                                          queue_index);
+            vhost_svq_set_host_mr_notifier(svq, NULL);
+        } else {
+            virtio_queue_set_host_notifier_mr(vdev, queue_index, &n->mr, false);
+        }
         object_unparent(OBJECT(&n->mr));
         munmap(n->addr, page_size);
         n->addr = NULL;
@@ -403,7 +422,12 @@ static int vhost_vdpa_host_notifier_init(struct vhost_dev *dev, int queue_index)
                                       page_size, addr);
     g_free(name);
 
-    if (virtio_queue_set_host_notifier_mr(vdev, queue_index, &n->mr, true)) {
+    if (v->shadow_vqs_enabled) {
+        VhostShadowVirtqueue *svq = g_ptr_array_index(v->shadow_vqs,
+                                                      queue_index);
+        vhost_svq_set_host_mr_notifier(svq, addr);
+    } else if (virtio_queue_set_host_notifier_mr(vdev, queue_index, &n->mr,
+                                                 true)) {
         munmap(addr, page_size);
         goto err;
     }
@@ -432,6 +456,17 @@ err:
     return;
 }
 
+static void vhost_vdpa_svq_cleanup(struct vhost_dev *dev)
+{
+    struct vhost_vdpa *v = dev->opaque;
+    size_t idx;
+
+    for (idx = 0; idx < v->shadow_vqs->len; ++idx) {
+        vhost_svq_stop(dev, idx, g_ptr_array_index(v->shadow_vqs, idx));
+    }
+    g_ptr_array_free(v->shadow_vqs, true);
+}
+
 static int vhost_vdpa_cleanup(struct vhost_dev *dev)
 {
     struct vhost_vdpa *v;
@@ -440,6 +475,7 @@ static int vhost_vdpa_cleanup(struct vhost_dev *dev)
     trace_vhost_vdpa_cleanup(dev, v);
     vhost_vdpa_host_notifiers_uninit(dev, dev->nvqs);
     memory_listener_unregister(&v->listener);
+    vhost_vdpa_svq_cleanup(dev);
 
     dev->opaque = NULL;
     return 0;
@@ -699,16 +735,27 @@ static int vhost_vdpa_get_vring_base(struct vhost_dev *dev,
     return ret;
 }
 
+static int vhost_vdpa_set_vring_dev_kick(struct vhost_dev *dev,
+                                         struct vhost_vring_file *file)
+{
+    trace_vhost_vdpa_set_vring_kick(dev, file->index, file->fd);
+    return vhost_vdpa_call(dev, VHOST_SET_VRING_KICK, file);
+}
+
 static int vhost_vdpa_set_vring_kick(struct vhost_dev *dev,
                                        struct vhost_vring_file *file)
 {
     struct vhost_vdpa *v = dev->opaque;
     int vdpa_idx = vhost_vdpa_get_vq_index(dev, file->index);
 
-    trace_vhost_vdpa_set_vring_kick(dev, file->index, file->fd);
-
     v->kick_fd[vdpa_idx] = file->fd;
-    return vhost_vdpa_call(dev, VHOST_SET_VRING_KICK, file);
+    if (v->shadow_vqs_enabled) {
+        VhostShadowVirtqueue *svq = g_ptr_array_index(v->shadow_vqs, vdpa_idx);
+        vhost_svq_set_svq_kick_fd(svq, file->fd);
+        return 0;
+    } else {
+        return vhost_vdpa_set_vring_dev_kick(dev, file);
+    }
 }
 
 static int vhost_vdpa_set_vring_call(struct vhost_dev *dev,
@@ -753,6 +800,132 @@ static int vhost_vdpa_vq_get_addr(struct vhost_dev *dev,
 static bool  vhost_vdpa_force_iommu(struct vhost_dev *dev)
 {
     return true;
+}
+
+/*
+ * Start or stop a shadow virtqueue in a vdpa device
+ *
+ * @dev Vhost device
+ * @idx Vhost device model queue index
+ * @svq_mode Shadow virtqueue mode
+ * @errp Error if any
+ *
+ * The function will not fall back previous values to vhost-vdpa device, so in
+ * case of a failure setting again the device properties calling this function
+ * with the negated svq_mode is needed.
+ */
+static bool vhost_vdpa_svq_start_vq(struct vhost_dev *dev, unsigned idx,
+                                    bool svq_mode, Error **errp)
+{
+    struct vhost_vdpa *v = dev->opaque;
+    VhostShadowVirtqueue *svq = g_ptr_array_index(v->shadow_vqs, idx);
+    VhostVDPAHostNotifier *n = &v->notifier[idx];
+    unsigned vq_index = idx + dev->vq_index;
+    struct vhost_vring_file vhost_kick_file = {
+        .index = vq_index,
+    };
+    int r;
+
+    if (svq_mode) {
+        const EventNotifier *vhost_kick = vhost_svq_get_dev_kick_notifier(svq);
+
+        if (n->addr) {
+            r = virtio_queue_set_host_notifier_mr(dev->vdev, idx, &n->mr,
+                                                  false);
+
+            /*
+             * vhost_vdpa_host_notifier_init already validated as a proper
+             * host notifier memory region
+             */
+            assert(r == 0);
+            vhost_svq_set_host_mr_notifier(svq, n->addr);
+        }
+        vhost_svq_start(dev, idx, svq, v->kick_fd[idx]);
+
+        vhost_kick_file.fd = event_notifier_get_fd(vhost_kick);
+    } else {
+        vhost_svq_stop(dev, idx, svq);
+
+        if (n->addr) {
+            r = virtio_queue_set_host_notifier_mr(dev->vdev, idx, &n->mr,
+                                                  true);
+            /*
+             * vhost_vdpa_host_notifier_init already validated as a proper
+             * host notifier memory region
+             */
+            assert(r == 0);
+        }
+        vhost_kick_file.fd = v->kick_fd[idx];
+    }
+
+    r = vhost_vdpa_set_vring_dev_kick(dev, &vhost_kick_file);
+    if (unlikely(r)) {
+        error_setg_errno(errp, -r, "vhost_vdpa_set_vring_kick failed");
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Enable or disable shadow virtqueue in a vhost vdpa device.
+ *
+ * This function is idempotent, to call it many times with the same value for
+ * enable_svq will simply return success.
+ *
+ * @v       Vhost vdpa device
+ * @enable  True to set SVQ mode
+ * @errp    Error pointer
+ */
+void vhost_vdpa_enable_svq(struct vhost_vdpa *v, bool enable, Error **errp)
+{
+    struct vhost_dev *hdev = v->dev;
+    unsigned n;
+    ERRP_GUARD();
+
+    if (enable == v->shadow_vqs_enabled) {
+        return;
+    }
+
+    if (enable) {
+        /* Allocate resources */
+        assert(v->shadow_vqs->len == 0);
+        for (n = 0; n < hdev->nvqs; ++n) {
+            VhostShadowVirtqueue *svq = vhost_svq_new(hdev, n);
+            bool ok;
+
+            if (unlikely(!svq)) {
+                error_setg(errp, "Cannot create svq");
+                enable = false;
+                goto err_svq_new;
+            }
+            g_ptr_array_add(v->shadow_vqs, svq);
+
+            ok = vhost_vdpa_svq_start_vq(hdev, n, true, errp);
+            if (unlikely(!ok)) {
+                /* Free still not started svqs, and go with disable path */
+                g_ptr_array_set_size(v->shadow_vqs, n);
+                enable = false;
+                break;
+            }
+        }
+    }
+
+    v->shadow_vqs_enabled = enable;
+
+    if (!enable) {
+        /* Disable all queues or clean up failed start */
+        for (n = 0; n < v->shadow_vqs->len; ++n) {
+            vhost_vdpa_svq_start_vq(hdev, n, false, *errp ? NULL : errp);
+        }
+
+    }
+
+err_svq_new:
+    if (!enable) {
+        /* Resources cleanup */
+        g_ptr_array_set_size(v->shadow_vqs, 0);
+    }
 }
 
 const VhostOps vdpa_ops = {
