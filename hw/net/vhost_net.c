@@ -330,7 +330,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
     NetClientState *peer;
 
     if (!cvq) {
-        last_index -= 1;
+        last_index &= ~1ULL;
     }
 
     if (!k->set_guest_notifiers) {
