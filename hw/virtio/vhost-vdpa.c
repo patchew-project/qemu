@@ -702,7 +702,12 @@ static int vhost_vdpa_get_vring_base(struct vhost_dev *dev,
 static int vhost_vdpa_set_vring_kick(struct vhost_dev *dev,
                                        struct vhost_vring_file *file)
 {
+    struct vhost_vdpa *v = dev->opaque;
+    int vdpa_idx = vhost_vdpa_get_vq_index(dev, file->index);
+
     trace_vhost_vdpa_set_vring_kick(dev, file->index, file->fd);
+
+    v->kick_fd[vdpa_idx] = file->fd;
     return vhost_vdpa_call(dev, VHOST_SET_VRING_KICK, file);
 }
 
