@@ -12,6 +12,7 @@
 
 #include "hw/virtio/vhost.h"
 #include "qemu/event_notifier.h"
+#include "hw/virtio/vhost-iova-tree.h"
 
 typedef struct VhostShadowVirtqueue VhostShadowVirtqueue;
 
@@ -35,7 +36,8 @@ void vhost_svq_start(struct vhost_dev *dev, unsigned idx,
 void vhost_svq_stop(struct vhost_dev *dev, unsigned idx,
                     VhostShadowVirtqueue *svq);
 
-VhostShadowVirtqueue *vhost_svq_new(struct vhost_dev *dev, int idx);
+VhostShadowVirtqueue *vhost_svq_new(struct vhost_dev *dev, int idx,
+                                    VhostIOVATree *iova_map);
 
 void vhost_svq_free(VhostShadowVirtqueue *vq);
 

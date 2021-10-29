@@ -210,6 +210,18 @@ static void vhost_vdpa_listener_region_add(MemoryListener *listener,
                                          vaddr, section->readonly);
 
     llsize = int128_sub(llend, int128_make64(iova));
+    if (v->shadow_vqs_enabled) {
+        DMAMap mem_region = {
+            .translated_addr = (hwaddr)vaddr,
+            .size = int128_get64(llsize) - 1,
+            .perm = IOMMU_ACCESS_FLAG(true, section->readonly),
+        };
+
+        int r = vhost_iova_tree_map_alloc(v->iova_map, &mem_region);
+        assert(r == IOVA_OK);
+
+        iova = mem_region.iova;
+    }
 
     vhost_vdpa_iotlb_batch_begin_once(v);
     ret = vhost_vdpa_dma_map(v, iova, int128_get64(llsize),
@@ -262,6 +274,20 @@ static void vhost_vdpa_listener_region_del(MemoryListener *listener,
 
     llsize = int128_sub(llend, int128_make64(iova));
 
+    if (v->shadow_vqs_enabled) {
+        const DMAMap *result;
+        const void *vaddr = memory_region_get_ram_ptr(section->mr) +
+            section->offset_within_region +
+            (iova - section->offset_within_address_space);
+        DMAMap mem_region = {
+            .translated_addr = (hwaddr)vaddr,
+            .size = int128_get64(llsize) - 1,
+        };
+
+        result = vhost_iova_tree_find_iova(v->iova_map, &mem_region);
+        iova = result->iova;
+        vhost_iova_tree_remove(v->iova_map, &mem_region);
+    }
     vhost_vdpa_iotlb_batch_begin_once(v);
     ret = vhost_vdpa_dma_unmap(v, iova, int128_get64(llsize));
     if (ret) {
@@ -1067,7 +1093,7 @@ void vhost_vdpa_enable_svq(struct vhost_vdpa *v, bool enable, Error **errp)
         /* Allocate resources */
         assert(v->shadow_vqs->len == 0);
         for (n = 0; n < hdev->nvqs; ++n) {
-            VhostShadowVirtqueue *svq = vhost_svq_new(hdev, n);
+            VhostShadowVirtqueue *svq = vhost_svq_new(hdev, n, v->iova_map);
             if (unlikely(!svq)) {
                 error_setg(errp, "Cannot create svq");
                 enable = false;
@@ -1086,6 +1112,13 @@ void vhost_vdpa_enable_svq(struct vhost_vdpa *v, bool enable, Error **errp)
 
     for (n = 0; n < v->shadow_vqs->len; ++n) {
         vhost_vdpa_get_vq_state(hdev, hdev->vq_index + n);
+    }
+
+    memory_listener_unregister(&v->listener);
+    r = vhost_vdpa_dma_unmap(v, iova_first,
+                            (iova_last - iova_first) & TARGET_PAGE_MASK);
+    if (unlikely(r)) {
+        error_setg_errno(errp, -r, "Fail to invalidate IOTLB");
     }
 
     /* Reset device so it can be configured */
