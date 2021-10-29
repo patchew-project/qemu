@@ -30,6 +30,9 @@ typedef struct VhostShadowVirtqueue {
      */
     EventNotifier svq_kick;
 
+    /* Guest's call notifier, where SVQ calls guest. */
+    EventNotifier svq_call;
+
     /* Device's host notifier memory region. NULL means no region */
     void *host_notifier_mr;
 
@@ -82,6 +85,19 @@ const EventNotifier *vhost_svq_get_svq_call_notifier(
                                                const VhostShadowVirtqueue *svq)
 {
     return &svq->hdev_call;
+}
+
+/**
+ * Set the call notifier for the SVQ to call the guest
+ *
+ * @svq Shadow virtqueue
+ * @call_fd call notifier
+ *
+ * Called on BQL context.
+ */
+void vhost_svq_set_guest_call_notifier(VhostShadowVirtqueue *svq, int call_fd)
+{
+    event_notifier_init_fd(&svq->svq_call, call_fd);
 }
 
 /**
