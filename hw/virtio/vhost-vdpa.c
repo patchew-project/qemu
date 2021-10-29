@@ -758,16 +758,27 @@ static int vhost_vdpa_set_vring_kick(struct vhost_dev *dev,
     }
 }
 
+static int vhost_vdpa_set_vring_dev_call(struct vhost_dev *dev,
+                                         struct vhost_vring_file *file)
+{
+    trace_vhost_vdpa_set_vring_call(dev, file->index, file->fd);
+    return vhost_vdpa_call(dev, VHOST_SET_VRING_CALL, file);
+}
+
 static int vhost_vdpa_set_vring_call(struct vhost_dev *dev,
                                        struct vhost_vring_file *file)
 {
     struct vhost_vdpa *v = dev->opaque;
     int vdpa_idx = vhost_vdpa_get_vq_index(dev, file->index);
 
-    trace_vhost_vdpa_set_vring_call(dev, file->index, file->fd);
-
     v->call_fd[vdpa_idx] = file->fd;
-    return vhost_vdpa_call(dev, VHOST_SET_VRING_CALL, file);
+    if (v->shadow_vqs_enabled) {
+        VhostShadowVirtqueue *svq = g_ptr_array_index(v->shadow_vqs, vdpa_idx);
+        vhost_svq_set_guest_call_notifier(svq, file->fd);
+        return 0;
+    } else {
+        return vhost_vdpa_set_vring_dev_call(dev, file);
+    }
 }
 
 static int vhost_vdpa_get_features(struct vhost_dev *dev,
