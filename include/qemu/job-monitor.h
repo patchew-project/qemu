@@ -272,10 +272,10 @@ void job_dismiss(Job **job, Error **errp);
  */
 int job_finish_sync(Job *job, void (*finish)(Job *, Error **errp), Error **errp);
 
-/** Same as job_is_ready(), but assumes job_lock is held. */
+/** Same as job_is_ready() in job-driver.h, but assumes job_lock is held. */
 bool job_is_ready_locked(Job *job);
 
-/** Same as job_early_fail(), but assumes job_lock is held. */
+/** Same as job_early_fail() in job-driver.h, but assumes job_lock is held. */
 void job_early_fail_locked(Job *job);
 
 #endif
