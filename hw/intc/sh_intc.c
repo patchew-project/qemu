@@ -96,8 +96,7 @@ int sh_intc_get_pending_vector(struct intc_desc *desc, int imask)
             return source->vect;
         }
     }
-
-    abort();
+    g_assert_not_reached();
 }
 
 #define INTC_MODE_IS_PRIO 0x80
@@ -169,8 +168,7 @@ static void sh_intc_locate(struct intc_desc *desc,
             return;
         }
     }
-
-    abort();
+    g_assert_not_reached();
 }
 
 static void sh_intc_toggle_mask(struct intc_desc *desc, intc_enum id,
@@ -241,7 +239,7 @@ static void sh_intc_write(void *opaque, hwaddr offset,
         value = *valuep & ~value;
         break;
     default:
-        abort();
+        g_assert_not_reached();
     }
 
     for (k = 0; k <= first; k++) {
