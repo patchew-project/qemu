@@ -80,6 +80,28 @@
   'allow-preconfig': true }
 
 ##
+# @x-vhost-set-shadow-vq:
+#
+# Use vhost shadow virtqueue.
+#
+# @name: the device name of the VirtIO device
+#
+# @set: true to use the alternate shadow VQ notifications
+#
+# Returns: Always error, since SVQ is not implemented at the moment.
+#
+# Since: 6.2
+#
+# Example:
+#
+# -> { "execute": "x-vhost-set-shadow-vq",
+#     "arguments": { "name": "virtio-net", "set": false } }
+#
+##
+{ 'command': 'x-vhost-set-shadow-vq', 'data': {'name': 'str', 'set': 'bool'},
+  'if': 'CONFIG_VHOST_VDPA' }
+
+##
 # @NetLegacyNicOptions:
 #
 # Create a new Network Interface Card.

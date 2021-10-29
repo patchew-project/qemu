@@ -18,6 +18,7 @@
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-net.h"
 #include <linux/vhost.h>
 #include <sys/ioctl.h>
 #include <err.h>
@@ -300,4 +301,9 @@ err:
     g_free(ncs);
 
     return -1;
+}
+
+void qmp_x_vhost_set_shadow_vq(const char *name, bool set, Error **errp)
+{
+    error_setg(errp, "Shadow virtqueue still not implemented");
 }
