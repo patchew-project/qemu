@@ -129,9 +129,11 @@ void qmp_cont(Error **errp)
         blk_iostatus_reset(blk);
     }
 
+    job_lock();
     for (job = block_job_next(NULL); job; job = block_job_next(job)) {
         block_job_iostatus_reset(job);
     }
+    job_unlock();
 
     /* Continuing after completed migration. Images have been inactivated to
      * allow the destination to take control. Need to get control back now.

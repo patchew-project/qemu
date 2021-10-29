@@ -653,7 +653,7 @@ static int mirror_exit_common(Job *job)
     BlockDriverState *target_bs;
     BlockDriverState *mirror_top_bs;
     Error *local_err = NULL;
-    bool abort = job->ret < 0;
+    bool abort = job_has_failed(job);
     int ret = 0;
 
     if (s->prepared) {
@@ -1161,9 +1161,7 @@ static void mirror_complete(Job *job, Error **errp)
     s->should_complete = true;
 
     /* If the job is paused, it will be re-entered when it is resumed */
-    if (!job->paused) {
-        job_enter(job);
-    }
+    job_enter_not_paused(job);
 }
 
 static void coroutine_fn mirror_pause(Job *job)
@@ -1182,7 +1180,7 @@ static bool mirror_drained_poll(BlockJob *job)
      * from one of our own drain sections, to avoid a deadlock waiting for
      * ourselves.
      */
-    if (!s->common.job.paused && !job_is_cancelled(&job->job) && !s->in_drain) {
+    if (!job_not_paused_nor_cancelled(&s->common.job) && !s->in_drain) {
         return true;
     }
 
