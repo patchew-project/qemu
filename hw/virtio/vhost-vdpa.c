@@ -521,6 +521,9 @@ static int vhost_vdpa_set_features(struct vhost_dev *dev,
     if (vhost_vdpa_one_time_request(dev)) {
         return 0;
     }
+    if (dev->features & BIT_ULL(VIRTIO_F_QUEUE_STATE)) {
+        features |= BIT_ULL(VIRTIO_F_QUEUE_STATE);
+    }
 
     trace_vhost_vdpa_set_features(dev, features);
     ret = vhost_vdpa_call(dev, VHOST_SET_FEATURES, &features);
