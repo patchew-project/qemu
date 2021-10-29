@@ -62,6 +62,12 @@ bool vhost_svq_valid_device_features(uint64_t *dev_features)
     return true;
 }
 
+/* If the guest is using some of these, SVQ cannot communicate */
+bool vhost_svq_valid_guest_features(uint64_t *guest_features)
+{
+    return true;
+}
+
 /* Forward guest notifications */
 static void vhost_handle_guest_kick(EventNotifier *n)
 {
