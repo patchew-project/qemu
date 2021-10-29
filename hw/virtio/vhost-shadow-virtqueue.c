@@ -75,6 +75,19 @@ void vhost_svq_set_host_mr_notifier(VhostShadowVirtqueue *svq, void *addr)
     svq->host_notifier_mr = addr;
 }
 
+/* Forward vhost notifications */
+static void vhost_svq_handle_call(EventNotifier *n)
+{
+    VhostShadowVirtqueue *svq = container_of(n, VhostShadowVirtqueue,
+                                             hdev_call);
+
+    if (unlikely(!event_notifier_test_and_clear(n))) {
+        return;
+    }
+
+    event_notifier_set(&svq->svq_call);
+}
+
 /*
  * Obtain the SVQ call notifier, where vhost device notifies SVQ that there
  * exists pending used buffers.
@@ -200,6 +213,7 @@ VhostShadowVirtqueue *vhost_svq_new(struct vhost_dev *dev, int idx)
     }
 
     svq->vq = virtio_get_queue(dev->vdev, vq_idx);
+    event_notifier_set_handler(&svq->hdev_call, vhost_svq_handle_call);
     return g_steal_pointer(&svq);
 
 err_init_hdev_call:
@@ -215,6 +229,7 @@ err_init_hdev_kick:
 void vhost_svq_free(VhostShadowVirtqueue *vq)
 {
     event_notifier_cleanup(&vq->hdev_kick);
+    event_notifier_set_handler(&vq->hdev_call, NULL);
     event_notifier_cleanup(&vq->hdev_call);
     g_free(vq);
 }

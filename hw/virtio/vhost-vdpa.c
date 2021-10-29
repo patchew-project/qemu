@@ -840,10 +840,14 @@ static bool vhost_vdpa_svq_start_vq(struct vhost_dev *dev, unsigned idx,
     struct vhost_vring_file vhost_kick_file = {
         .index = vq_index,
     };
+    struct vhost_vring_file vhost_call_file = {
+        .index = idx + dev->vq_index,
+    };
     int r;
 
     if (svq_mode) {
         const EventNotifier *vhost_kick = vhost_svq_get_dev_kick_notifier(svq);
+        const EventNotifier *vhost_call = vhost_svq_get_svq_call_notifier(svq);
 
         if (n->addr) {
             r = virtio_queue_set_host_notifier_mr(dev->vdev, idx, &n->mr,
@@ -856,9 +860,12 @@ static bool vhost_vdpa_svq_start_vq(struct vhost_dev *dev, unsigned idx,
             assert(r == 0);
             vhost_svq_set_host_mr_notifier(svq, n->addr);
         }
+
+        vhost_svq_set_guest_call_notifier(svq, v->call_fd[idx]);
         vhost_svq_start(dev, idx, svq, v->kick_fd[idx]);
 
         vhost_kick_file.fd = event_notifier_get_fd(vhost_kick);
+        vhost_call_file.fd = event_notifier_get_fd(vhost_call);
     } else {
         vhost_svq_stop(dev, idx, svq);
 
@@ -872,11 +879,17 @@ static bool vhost_vdpa_svq_start_vq(struct vhost_dev *dev, unsigned idx,
             assert(r == 0);
         }
         vhost_kick_file.fd = v->kick_fd[idx];
+        vhost_call_file.fd = v->call_fd[idx];
     }
 
     r = vhost_vdpa_set_vring_dev_kick(dev, &vhost_kick_file);
     if (unlikely(r)) {
         error_setg_errno(errp, -r, "vhost_vdpa_set_vring_kick failed");
+        return false;
+    }
+    r = vhost_vdpa_set_vring_dev_call(dev, &vhost_call_file);
+    if (unlikely(r)) {
+        error_setg_errno(errp, -r, "vhost_vdpa_set_vring_call failed");
         return false;
     }
 
