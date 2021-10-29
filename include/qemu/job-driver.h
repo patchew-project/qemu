@@ -149,4 +149,25 @@ void job_early_fail(Job *job);
 /** Moves the @job from RUNNING to READY */
 void job_transition_to_ready(Job *job);
 
+/** Enters the @job if it is not paused */
+void job_enter_not_paused(Job *job);
+
+/** returns @job->ret */
+bool job_has_failed(Job *job);
+
+/** Returns the @job->status */
+JobStatus job_get_status(Job *job);
+
+/** Returns the @job->pause_count */
+int job_get_pause_count(Job *job);
+
+/** Returns @job->paused */
+bool job_get_paused(Job *job);
+
+/** Returns @job->busy */
+bool job_get_busy(Job *job);
+
+/** Return true if @job not paused and not cancelled */
+bool job_not_paused_nor_cancelled(Job *job);
+
 #endif /* JOB_DRIVER_H */

@@ -32,6 +32,23 @@
 #include "trace/trace-root.h"
 #include "qapi/qapi-events-job.h"
 
+/*
+ * The job API is composed of two categories of functions.
+ *
+ * The first includes functions used by the monitor.  The monitor is
+ * peculiar in that it accesses the block job list with job_get, and
+ * therefore needs consistency across job_get and the actual operation
+ * (e.g. job_user_cancel). To achieve this consistency, the caller
+ * calls job_lock/job_unlock itself around the whole operation.
+ * These functions are declared in job-monitor.h.
+ *
+ *
+ * The second includes functions used by the block job drivers and sometimes
+ * by the core block layer. These delegate the locking to the callee instead,
+ * and are declared in job-driver.h.
+ */
+
+
 /* job_mutex protects the jobs list, but also makes the job API thread-safe. */
 static QemuMutex job_mutex;
 
@@ -213,16 +230,92 @@ const char *job_type_str(const Job *job)
     return JobType_str(job_type(job));
 }
 
-bool job_is_cancelled(Job *job)
+JobStatus job_get_status(Job *job)
+{
+    JobStatus status;
+    job_lock();
+    status = job->status;
+    job_unlock();
+    return status;
+}
+
+int job_get_pause_count(Job *job)
+{
+    int ret;
+    job_lock();
+    ret = job->pause_count;
+    job_unlock();
+    return ret;
+}
+
+bool job_get_paused(Job *job)
+{
+    bool ret;
+    job_lock();
+    ret = job->paused;
+    job_unlock();
+    return ret;
+}
+
+bool job_get_busy(Job *job)
+{
+    bool ret;
+    job_lock();
+    ret = job->busy;
+    job_unlock();
+    return ret;
+}
+
+bool job_has_failed(Job *job)
+{
+    bool ret;
+    job_lock();
+    ret = job->ret < 0;
+    job_unlock();
+    return ret;
+}
+
+/* Called with job_mutex held. */
+static bool job_is_cancelled_locked(Job *job)
 {
     /* force_cancel may be true only if cancelled is true, too */
     assert(job->cancelled || !job->force_cancel);
     return job->force_cancel;
 }
 
-bool job_cancel_requested(Job *job)
+/* Called with job_mutex *not* held. */
+bool job_is_cancelled(Job *job)
+{
+    bool ret;
+    job_lock();
+    ret = job_is_cancelled_locked(job);
+    job_unlock();
+    return ret;
+}
+
+bool job_not_paused_nor_cancelled(Job *job)
+{
+    bool ret;
+    job_lock();
+    ret = !job->paused && !job_is_cancelled_locked(job);
+    job_unlock();
+    return ret;
+}
+
+/* Called with job_mutex held. */
+static bool job_cancel_requested_locked(Job *job)
 {
     return job->cancelled;
+}
+
+/* Called with job_mutex *not* held. */
+bool job_cancel_requested(Job *job)
+{
+    bool ret;
+    job_lock();
+    ret = job_cancel_requested_locked(job);
+    job_unlock();
+    return ret;
 }
 
 /* Called with job_mutex held. */
@@ -278,6 +371,16 @@ bool job_is_completed(Job *job)
         g_assert_not_reached();
     }
     return false;
+}
+
+/* Called with job_mutex lock *not* held */
+static bool job_is_completed_unlocked(Job *job)
+{
+    bool res;
+    job_lock();
+    res = job_is_completed(job);
+    job_unlock();
+    return res;
 }
 
 static bool job_started(Job *job)
@@ -577,6 +680,15 @@ void job_pause(Job *job)
     if (!job->paused) {
         job_enter(job);
     }
+}
+
+void job_enter_not_paused(Job *job)
+{
+    job_lock();
+    if (!job->paused) {
+        job_enter_cond(job, NULL);
+    }
+    job_unlock();
 }
 
 void job_resume(Job *job)
