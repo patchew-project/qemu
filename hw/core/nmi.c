@@ -70,7 +70,7 @@ void nmi_monitor_handle(int cpu_index, Error **errp)
     if (ns.handled) {
         error_propagate(errp, ns.err);
     } else {
-        error_setg(errp, QERR_UNSUPPORTED);
+        error_setg(errp, "This command is not currently supported");
     }
 }
 
