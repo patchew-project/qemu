@@ -1244,6 +1244,9 @@ static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
     case VIRTIO_PCI_COMMON_Q_USEDHI:
         val = proxy->vqs[vdev->queue_sel].used[1];
         break;
+    case VIRTIO_PCI_COMMON_Q_AVAIL_STATE:
+        val = virtio_queue_get_last_avail_idx(vdev, vdev->queue_sel);
+        break;
     default:
         val = 0;
     }
@@ -1330,6 +1333,8 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
                        proxy->vqs[vdev->queue_sel].avail[0],
                        ((uint64_t)proxy->vqs[vdev->queue_sel].used[1]) << 32 |
                        proxy->vqs[vdev->queue_sel].used[0]);
+            virtio_queue_set_last_avail_idx(vdev, vdev->queue_sel,
+                        proxy->vqs[vdev->queue_sel].state);
             proxy->vqs[vdev->queue_sel].enabled = 1;
         } else {
             virtio_error(vdev, "wrong value for queue_enable %"PRIx64, val);
@@ -1352,6 +1357,9 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
         break;
     case VIRTIO_PCI_COMMON_Q_USEDHI:
         proxy->vqs[vdev->queue_sel].used[1] = val;
+        break;
+    case VIRTIO_PCI_COMMON_Q_AVAIL_STATE:
+        proxy->vqs[vdev->queue_sel].state = val;
         break;
     default:
         break;
@@ -1951,6 +1959,7 @@ static void virtio_pci_reset(DeviceState *qdev)
         proxy->vqs[i].desc[0] = proxy->vqs[i].desc[1] = 0;
         proxy->vqs[i].avail[0] = proxy->vqs[i].avail[1] = 0;
         proxy->vqs[i].used[0] = proxy->vqs[i].used[1] = 0;
+        proxy->vqs[i].state = 0;
     }
 
     if (pci_is_express(dev)) {

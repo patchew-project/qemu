@@ -90,4 +90,7 @@
  * Does the device support Single Root I/O Virtualization?
  */
 #define VIRTIO_F_SR_IOV			37
+
+/* Device support save and restore virtqueue state */
+#define VIRTIO_F_QUEUE_STATE            40
 #endif /* _LINUX_VIRTIO_CONFIG_H */

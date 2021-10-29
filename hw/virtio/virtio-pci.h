@@ -120,6 +120,7 @@ typedef struct VirtIOPCIQueue {
   uint32_t desc[2];
   uint32_t avail[2];
   uint32_t used[2];
+  uint16_t state;
 } VirtIOPCIQueue;
 
 struct VirtIOPCIProxy {
