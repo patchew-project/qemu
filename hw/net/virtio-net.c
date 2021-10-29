@@ -198,6 +198,7 @@ static bool virtio_net_started(VirtIONet *n, uint8_t status)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(n);
     return (status & VIRTIO_CONFIG_S_DRIVER_OK) &&
+        (!(status & VIRTIO_CONFIG_S_DEVICE_STOPPED)) &&
         (n->status & VIRTIO_NET_S_LINK_UP) && vdev->vm_running;
 }
 
@@ -386,7 +387,7 @@ static void virtio_net_set_status(struct VirtIODevice *vdev, uint8_t status)
             qemu_flush_queued_packets(ncs);
         }
 
-        if (!q->tx_waiting) {
+        if (!q->tx_waiting && !(status & VIRTIO_CONFIG_S_DEVICE_STOPPED)) {
             continue;
         }
 
@@ -1489,7 +1490,8 @@ static bool virtio_net_can_receive(NetClientState *nc)
     }
 
     if (!virtio_queue_ready(q->rx_vq) ||
-        !(vdev->status & VIRTIO_CONFIG_S_DRIVER_OK)) {
+        !(vdev->status & VIRTIO_CONFIG_S_DRIVER_OK) ||
+        vdev->status == VIRTIO_CONFIG_S_DEVICE_STOPPED) {
         return false;
     }
 

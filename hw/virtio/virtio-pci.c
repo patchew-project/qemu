@@ -327,13 +327,15 @@ static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         }
         break;
     case VIRTIO_PCI_STATUS:
-        if (!(val & VIRTIO_CONFIG_S_DRIVER_OK)) {
+        if (!(val & VIRTIO_CONFIG_S_DRIVER_OK) ||
+            val & VIRTIO_CONFIG_S_DEVICE_STOPPED) {
             virtio_pci_stop_ioeventfd(proxy);
         }
 
         virtio_set_status(vdev, val & 0xFF);
 
-        if (val & VIRTIO_CONFIG_S_DRIVER_OK) {
+        if (val & VIRTIO_CONFIG_S_DRIVER_OK &&
+            !(val & VIRTIO_CONFIG_S_DEVICE_STOPPED)) {
             virtio_pci_start_ioeventfd(proxy);
         }
 
@@ -1335,6 +1337,7 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
                        proxy->vqs[vdev->queue_sel].used[0]);
             virtio_queue_set_last_avail_idx(vdev, vdev->queue_sel,
                         proxy->vqs[vdev->queue_sel].state);
+            virtio_queue_update_used_idx(vdev, vdev->queue_sel);
             proxy->vqs[vdev->queue_sel].enabled = 1;
         } else {
             virtio_error(vdev, "wrong value for queue_enable %"PRIx64, val);
