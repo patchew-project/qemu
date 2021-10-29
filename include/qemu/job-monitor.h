@@ -28,6 +28,21 @@
 
 #include "job-common.h"
 
+/*
+ * Job monitor API.
+ *
+ * These functions use are used by the QEMU monitor, for example
+ * to execute QMP commands. The monitor is aware of the job_mutex
+ * presence, so these functions assume it is held by the caller
+ * to protect job fields (see job-common.h).
+ * This prevents TOC/TOU bugs, allowing the caller to hold the
+ * lock between a check in the job state and the actual action.
+ *
+ * Therefore, each function in this API that needs protection
+ * must have the comment
+ * "Called between job_lock and job_unlock."
+ */
+
 /**
  * Allocate and return a new job transaction. Jobs can be added to the
  * transaction using job_txn_add_job().
@@ -56,18 +71,24 @@ void job_txn_unref(JobTxn *txn);
  * the reference that is automatically grabbed here.
  *
  * If @txn is NULL, the function does nothing.
+ *
+ * Called between job_lock and job_unlock.
  */
 void job_txn_add_job(JobTxn *txn, Job *job);
 
 /**
  * Add a reference to Job refcnt, it will be decreased with job_unref, and then
  * be freed if it comes to be the last reference.
+ *
+ * Called between job_lock and job_unlock.
  */
 void job_ref(Job *job);
 
 /**
  * Release a reference that was previously acquired with job_ref() or
  * job_create(). If it's the last reference to the object, it will be freed.
+ *
+ * Called between job_lock and job_unlock.
  */
 void job_unref(Job *job);
 
@@ -75,6 +96,8 @@ void job_unref(Job *job);
  * Conditionally enter the job coroutine if the job is ready to run, not
  * already busy and fn() returns true. fn() is called while under the job_lock
  * critical section.
+ *
+ * Called between job_lock and job_unlock, but it releases the lock temporarly.
  */
 void job_enter_cond(Job *job, bool(*fn)(Job *job));
 
@@ -85,6 +108,7 @@ bool job_is_internal(Job *job);
 
 /**
  * Returns whether the job is in a completed state.
+ * Called between job_lock and job_unlock.
  */
 bool job_is_completed(Job *job);
 
@@ -92,28 +116,36 @@ bool job_is_completed(Job *job);
  * Request @job to pause at the next pause point. Must be paired with
  * job_resume(). If the job is supposed to be resumed by user action, call
  * job_user_pause() instead.
+ *
+ * Called between job_lock and job_unlock.
  */
 void job_pause(Job *job);
 
 /**
  * Resumes a @job paused with job_pause.
+ * Called between job_lock and job_unlock.
  */
 void job_resume(Job *job);
 
 /**
  * Asynchronously pause the specified @job.
  * Do not allow a resume until a matching call to job_user_resume.
+ *
+ * Called between job_lock and job_unlock.
  */
 void job_user_pause(Job *job, Error **errp);
 
 /**
  * Returns true if the job is user-paused.
+ * Called between job_lock and job_unlock.
  */
 bool job_user_paused(Job *job);
 
 /**
  * Resume the specified @job.
  * Must be paired with a preceding job_user_pause.
+ *
+ * Called between job_lock and job_unlock.
  */
 void job_user_resume(Job *job, Error **errp);
 
@@ -122,6 +154,8 @@ void job_user_resume(Job *job, Error **errp);
  * first one if @job is %NULL.
  *
  * Returns the requested job, or %NULL if there are no more jobs left.
+ *
+ * Called between job_lock and job_unlock.
  */
 Job *job_next(Job *job);
 
@@ -129,6 +163,8 @@ Job *job_next(Job *job);
  * Get the job identified by @id (which must not be %NULL).
  *
  * Returns the requested job, or %NULL if it doesn't exist.
+ *
+ * Called between job_lock and job_unlock.
  */
 Job *job_get(const char *id);
 
@@ -136,23 +172,30 @@ Job *job_get(const char *id);
  * Check whether the verb @verb can be applied to @job in its current state.
  * Returns 0 if the verb can be applied; otherwise errp is set and -EPERM
  * returned.
+ *
+ * Called between job_lock and job_unlock.
  */
 int job_apply_verb(Job *job, JobVerb verb, Error **errp);
 
 /**
  * Asynchronously complete the specified @job.
+ * Called between job_lock and job_unlock, but it releases the lock temporarly.
  */
 void job_complete(Job *job, Error **errp);
 
 /**
  * Asynchronously cancel the specified @job. If @force is true, the job should
  * be cancelled immediately without waiting for a consistent state.
+ *
+ * Called between job_lock and job_unlock.
  */
 void job_cancel(Job *job, bool force);
 
 /**
  * Cancels the specified job like job_cancel(), but may refuse to do so if the
  * operation isn't meaningful in the current state of the job.
+ *
+ * Called between job_lock and job_unlock.
  */
 void job_user_cancel(Job *job, bool force, Error **errp);
 
@@ -171,6 +214,10 @@ int job_cancel_sync(Job *job, bool force);
 
 /**
  * Synchronously force-cancels all jobs using job_cancel_sync().
+ *
+ * Called with job_lock *not* held, unlike most other APIs consumed
+ * by the monitor! This is primarly to avoid adding unnecessary lock-unlock
+ * patterns in the caller.
  */
 void job_cancel_sync_all(void);
 
@@ -187,6 +234,8 @@ void job_cancel_sync_all(void);
  * Returns the return value from the job.
  *
  * Callers must hold the AioContext lock of job->aio_context.
+ *
+ * Called between job_lock and job_unlock.
  */
 int job_complete_sync(Job *job, Error **errp);
 
@@ -197,12 +246,16 @@ int job_complete_sync(Job *job, Error **errp);
  * FIXME: Make the below statement universally true:
  * For jobs that support the manual workflow mode, all graph changes that occur
  * as a result will occur after this command and before a successful reply.
+ *
+ * Called between job_lock and job_unlock.
  */
 void job_finalize(Job *job, Error **errp);
 
 /**
  * Remove the concluded @job from the query list and resets the passed pointer
  * to %NULL. Returns an error if the job is not actually concluded.
+ *
+ * Called between job_lock and job_unlock.
  */
 void job_dismiss(Job **job, Error **errp);
 
@@ -214,7 +267,15 @@ void job_dismiss(Job **job, Error **errp);
  * cancelled before completing, and -errno in other error cases.
  *
  * Callers must hold the AioContext lock of job->aio_context.
+ *
+ * Called between job_lock and job_unlock, but it releases the lock temporarly.
  */
 int job_finish_sync(Job *job, void (*finish)(Job *, Error **errp), Error **errp);
+
+/** Same as job_is_ready(), but assumes job_lock is held. */
+bool job_is_ready_locked(Job *job);
+
+/** Same as job_early_fail(), but assumes job_lock is held. */
+void job_early_fail_locked(Job *job);
 
 #endif
