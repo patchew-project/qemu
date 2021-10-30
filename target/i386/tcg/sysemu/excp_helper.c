@@ -439,6 +439,10 @@ static int handle_mmu_fault(CPUState *cs, vaddr addr, int size,
                                 prot, mmu_idx, page_size);
         return 0;
     } else {
+        if (cs->exception_index == EXCP0D_GPF) {
+            return 1;
+        }
+
         if (env->intercept_exceptions & (1 << EXCP0E_PAGE)) {
             /* cr2 is not modified in case of exceptions */
             x86_stq_phys(cs,
