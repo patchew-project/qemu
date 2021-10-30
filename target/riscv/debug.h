@@ -107,4 +107,8 @@ void tdata_csr_write(CPURISCVState *env, int tdata_index, target_ulong val);
 
 void riscv_trigger_init(CPURISCVState *env);
 
+void riscv_cpu_debug_excp_handler(CPUState *cs);
+bool riscv_cpu_debug_check_breakpoint(CPUState *cs);
+bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp);
+
 #endif /* RISCV_DEBUG_H */
