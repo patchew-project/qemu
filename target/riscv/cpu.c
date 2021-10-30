@@ -153,6 +153,7 @@ static void rv64_base_cpu_init(Object *obj)
     CPURISCVState *env = &RISCV_CPU(obj)->env;
     /* We set this in the realise function */
     set_misa(env, MXL_RV64, 0);
+    qdev_prop_set_bit(DEVICE(obj), "debug", true);
 }
 
 static void rv64_sifive_u_cpu_init(Object *obj)
@@ -160,6 +161,7 @@ static void rv64_sifive_u_cpu_init(Object *obj)
     CPURISCVState *env = &RISCV_CPU(obj)->env;
     set_misa(env, MXL_RV64, RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
     set_priv_version(env, PRIV_VERSION_1_10_0);
+    qdev_prop_set_bit(DEVICE(obj), "debug", true);
 }
 
 static void rv64_sifive_e_cpu_init(Object *obj)
@@ -175,6 +177,7 @@ static void rv32_base_cpu_init(Object *obj)
     CPURISCVState *env = &RISCV_CPU(obj)->env;
     /* We set this in the realise function */
     set_misa(env, MXL_RV32, 0);
+    qdev_prop_set_bit(DEVICE(obj), "debug", true);
 }
 
 static void rv32_sifive_u_cpu_init(Object *obj)
@@ -182,6 +185,7 @@ static void rv32_sifive_u_cpu_init(Object *obj)
     CPURISCVState *env = &RISCV_CPU(obj)->env;
     set_misa(env, MXL_RV32, RVI | RVM | RVA | RVF | RVD | RVC | RVS | RVU);
     set_priv_version(env, PRIV_VERSION_1_10_0);
+    qdev_prop_set_bit(DEVICE(obj), "debug", true);
 }
 
 static void rv32_sifive_e_cpu_init(Object *obj)
