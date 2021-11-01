@@ -26,16 +26,15 @@
 static bool trans_flw(DisasContext *ctx, arg_flw *a)
 {
     TCGv_i64 dest;
-    TCGv addr;
+    TCGv src1 = get_gpr(ctx, a->rs1, EXT_NONE);
+    TCGv addr = temp_new(ctx);
 
     REQUIRE_FPU;
     REQUIRE_EXT(ctx, RVF);
 
-    addr = get_gpr(ctx, a->rs1, EXT_NONE);
-    if (a->imm) {
-        TCGv temp = temp_new(ctx);
-        tcg_gen_addi_tl(temp, addr, a->imm);
-        addr = temp;
+    tcg_gen_addi_tl(addr, src1, a->imm);
+    if (ctx->ol == MXL_RV32) {
+        tcg_gen_ext32u_tl(addr, addr);
     }
     addr = gen_pm_adjust_address(ctx, addr);
 
@@ -49,17 +48,13 @@ static bool trans_flw(DisasContext *ctx, arg_flw *a)
 
 static bool trans_fsw(DisasContext *ctx, arg_fsw *a)
 {
-    TCGv addr;
+    TCGv src1 = get_gpr(ctx, a->rs1, EXT_NONE);
+    TCGv addr = temp_new(ctx);
 
     REQUIRE_FPU;
     REQUIRE_EXT(ctx, RVF);
 
-    addr = get_gpr(ctx, a->rs1, EXT_NONE);
-    if (a->imm) {
-        TCGv temp = tcg_temp_new();
-        tcg_gen_addi_tl(temp, addr, a->imm);
-        addr = temp;
-    }
+    tcg_gen_addi_tl(addr, src1, a->imm);
     addr = gen_pm_adjust_address(ctx, addr);
 
     tcg_gen_qemu_st_i64(cpu_fpr[a->rs2], addr, ctx->mem_idx, MO_TEUL);
