@@ -575,6 +575,18 @@ static void escc_mem_write(void *opaque, hwaddr addr,
             s->wregs[s->reg] = val;
             break;
         case W_TXCTRL1:
+            s->wregs[s->reg] = val;
+            if (val & TXCTRL1_STPMSK) {
+                ESCCSERIOQueue *q = &s->queue;
+                if (s->type == escc_serial || q->count == 0) {
+                    s->rregs[R_STATUS] |= STATUS_TXEMPTY;
+                    s->rregs[R_SPEC] |= SPEC_ALLSENT;
+                }
+            } else {
+                s->rregs[R_STATUS] &= ~STATUS_TXEMPTY;
+                s->rregs[R_SPEC] |= SPEC_ALLSENT;
+            }
+            /* fallthrough */
         case W_TXCTRL2:
             s->wregs[s->reg] = val;
             escc_update_parameters(s);
