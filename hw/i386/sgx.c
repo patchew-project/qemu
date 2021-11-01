@@ -22,6 +22,8 @@
 #include "exec/address-spaces.h"
 #include "sysemu/hw_accel.h"
 #include "hw/acpi/aml-build.h"
+#include "hw/i386/x86.h"
+#include <sys/ioctl.h>
 
 #define SGX_MAX_EPC_SECTIONS            8
 #define SGX_CPUID_EPC_INVALID           0x0
@@ -29,6 +31,7 @@
 /* A valid EPC section. */
 #define SGX_CPUID_EPC_SECTION           0x1
 #define SGX_CPUID_EPC_MASK              0xF
+#define RETRY_NUM                       2
 
 static int sgx_epc_device_list(Object *obj, void *opaque)
 {
@@ -68,6 +71,45 @@ void sgx_epc_build_srat(GArray *table_data)
         build_srat_memory(table_data, addr, size, node, MEM_AFFINITY_ENABLED);
     }
     g_slist_free(device_list);
+}
+
+void sgx_epc_reset(void *opaque)
+{
+    PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
+    HostMemoryBackend *hostmem;
+    SGXEPCDevice *epc;
+    int failures;
+    int fd, i, j, r;
+
+    /*
+     * The second pass is needed to remove SECS pages that could not
+     * be removed during the first.
+     */
+    for (i = 0; i < RETRY_NUM; i++) {
+        failures = 0;
+        for (j = 0; j < pcms->sgx_epc.nr_sections; j++) {
+            epc = pcms->sgx_epc.sections[j];
+            hostmem = MEMORY_BACKEND(epc->hostmem);
+            fd = memory_region_get_fd(host_memory_backend_get_memory(hostmem));
+
+            r = ioctl(fd, SGX_IOC_VEPC_REMOVE_ALL);
+            if (r < 0) {
+                if (r == -ENOTTY) {
+                    error_report("use the error ioctl number");
+                    break;
+                }
+            } else if (r > 0) {
+                /* SECS pages remain */
+                failures++;
+                if (i == 1) {
+                    error_report("cannot reset vEPC section %d", j);
+                }
+            }
+        }
+        if (!failures) {
+            break;
+        }
+     }
 }
 
 static uint64_t sgx_calc_section_metric(uint64_t low, uint64_t high)
