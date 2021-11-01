@@ -1204,7 +1204,7 @@ bool sev_add_kernel_loader_hashes(SevKernelLoaderContext *ctx, Error **errp)
     int aligned_len;
 
     if (!pc_system_ovmf_table_find(SEV_HASH_TABLE_RV_GUID, &data, NULL)) {
-        error_setg(errp, "SEV: kernel specified but OVMF has no hash table guid");
+        warn_report("SEV: kernel specified but OVMF has no hash table guid");
         return false;
     }
     area = (SevHashTableDescriptor *)data;
