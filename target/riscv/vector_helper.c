@@ -112,6 +112,11 @@ static uint32_t vext_wd(uint32_t desc)
     return (simd_data(desc) >> 11) & 0x1;
 }
 
+static inline uint32_t vext_ol(uint32_t desc)
+{
+    return FIELD_EX32(simd_data(desc), VDATA, OL);
+}
+
 /*
  * Get vector group length in bytes. Its range is [64, 2048].
  *
@@ -121,6 +126,14 @@ static uint32_t vext_wd(uint32_t desc)
 static inline uint32_t vext_maxsz(uint32_t desc)
 {
     return simd_maxsz(desc) << vext_lmul(desc);
+}
+
+static inline target_ulong adjust_addr(target_ulong addr, uint32_t olen)
+{
+    if (olen < TARGET_LONG_BITS) {
+        addr &= UINT32_MAX;
+    }
+    return addr;
 }
 
 /*
@@ -135,17 +148,17 @@ static inline uint32_t vext_maxsz(uint32_t desc)
  */
 static void probe_pages(CPURISCVState *env, target_ulong addr,
                         target_ulong len, uintptr_t ra,
-                        MMUAccessType access_type)
+                        MMUAccessType access_type, uint32_t olen)
 {
     target_ulong pagelen = -(addr | TARGET_PAGE_MASK);
     target_ulong curlen = MIN(pagelen, len);
 
-    probe_access(env, addr, curlen, access_type,
+    probe_access(env, adjust_addr(addr, olen), curlen, access_type,
                  cpu_mmu_index(env, false), ra);
     if (len > curlen) {
         addr += curlen;
         curlen = len - curlen;
-        probe_access(env, addr, curlen, access_type,
+        probe_access(env, adjust_addr(addr, olen), curlen, access_type,
                      cpu_mmu_index(env, false), ra);
     }
 }
@@ -290,13 +303,14 @@ vext_ldst_stride(void *vd, void *v0, target_ulong base,
     uint32_t nf = vext_nf(desc);
     uint32_t mlen = vext_mlen(desc);
     uint32_t vlmax = vext_maxsz(desc) / esz;
+    uint32_t olen = 16 << vext_ol(desc);
 
     /* probe every access*/
     for (i = 0; i < env->vl; i++) {
         if (!vm && !vext_elem_mask(v0, mlen, i)) {
             continue;
         }
-        probe_pages(env, base + stride * i, nf * msz, ra, access_type);
+        probe_pages(env, base + stride * i, nf * msz, ra, access_type, olen);
     }
     /* do real access */
     for (i = 0; i < env->vl; i++) {
@@ -306,7 +320,7 @@ vext_ldst_stride(void *vd, void *v0, target_ulong base,
         }
         while (k < nf) {
             target_ulong addr = base + stride * i + k * msz;
-            ldst_elem(env, addr, i + k * vlmax, vd, ra);
+            ldst_elem(env, adjust_addr(addr, olen), i + k * vlmax, vd, ra);
             k++;
         }
     }
@@ -391,15 +405,16 @@ vext_ldst_us(void *vd, target_ulong base, CPURISCVState *env, uint32_t desc,
     uint32_t i, k;
     uint32_t nf = vext_nf(desc);
     uint32_t vlmax = vext_maxsz(desc) / esz;
+    uint32_t olen = 16 << vext_ol(desc);
 
     /* probe every access */
-    probe_pages(env, base, env->vl * nf * msz, ra, access_type);
+    probe_pages(env, base, env->vl * nf * msz, ra, access_type, olen);
     /* load bytes from guest memory */
     for (i = 0; i < env->vl; i++) {
         k = 0;
         while (k < nf) {
             target_ulong addr = base + (i * nf + k) * msz;
-            ldst_elem(env, addr, i + k * vlmax, vd, ra);
+            ldst_elem(env, adjust_addr(addr, olen), i + k * vlmax, vd, ra);
             k++;
         }
     }
@@ -519,6 +534,7 @@ vext_ldst_index(void *vd, void *v0, target_ulong base,
     uint32_t vm = vext_vm(desc);
     uint32_t mlen = vext_mlen(desc);
     uint32_t vlmax = vext_maxsz(desc) / esz;
+    uint32_t olen = 16 << vext_ol(desc);
 
     /* probe every access*/
     for (i = 0; i < env->vl; i++) {
@@ -526,7 +542,7 @@ vext_ldst_index(void *vd, void *v0, target_ulong base,
             continue;
         }
         probe_pages(env, get_index_addr(base, i, vs2), nf * msz, ra,
-                    access_type);
+                    access_type, olen);
     }
     /* load bytes from guest memory */
     for (i = 0; i < env->vl; i++) {
@@ -536,7 +552,7 @@ vext_ldst_index(void *vd, void *v0, target_ulong base,
         }
         while (k < nf) {
             abi_ptr addr = get_index_addr(base, i, vs2) + k * msz;
-            ldst_elem(env, addr, i + k * vlmax, vd, ra);
+            ldst_elem(env, adjust_addr(addr, olen), i + k * vlmax, vd, ra);
             k++;
         }
     }
@@ -619,6 +635,7 @@ vext_ldff(void *vd, void *v0, target_ulong base,
     uint32_t nf = vext_nf(desc);
     uint32_t vm = vext_vm(desc);
     uint32_t vlmax = vext_maxsz(desc) / esz;
+    uint32_t olen = 16 << vext_ol(desc);
     target_ulong addr, offset, remain;
 
     /* probe every access*/
@@ -626,9 +643,9 @@ vext_ldff(void *vd, void *v0, target_ulong base,
         if (!vm && !vext_elem_mask(v0, mlen, i)) {
             continue;
         }
-        addr = base + nf * i * msz;
+        addr = adjust_addr(base + nf * i * msz, olen);
         if (i == 0) {
-            probe_pages(env, addr, nf * msz, ra, MMU_DATA_LOAD);
+            probe_pages(env, addr, nf * msz, ra, MMU_DATA_LOAD, olen);
         } else {
             /* if it triggers an exception, no need to check watchpoint */
             remain = nf * msz;
@@ -643,7 +660,7 @@ vext_ldff(void *vd, void *v0, target_ulong base,
                         goto ProbeSuccess;
                     }
 #else
-                    probe_pages(env, addr, offset, ra, MMU_DATA_LOAD);
+                    probe_pages(env, addr, offset, ra, MMU_DATA_LOAD, olen);
 #endif
                 } else {
                     vl = i;
@@ -653,7 +670,7 @@ vext_ldff(void *vd, void *v0, target_ulong base,
                     break;
                 }
                 remain -= offset;
-                addr += offset;
+                addr = adjust_addr(addr + offset, olen);
             }
         }
     }
@@ -669,7 +686,7 @@ ProbeSuccess:
         }
         while (k < nf) {
             target_ulong addr = base + (i * nf + k) * msz;
-            ldst_elem(env, addr, i + k * vlmax, vd, ra);
+            ldst_elem(env, adjust_addr(addr, olen), i + k * vlmax, vd, ra);
             k++;
         }
     }
@@ -795,20 +812,23 @@ vext_amo_noatomic(void *vs3, void *v0, target_ulong base,
     uint32_t vm = vext_vm(desc);
     uint32_t mlen = vext_mlen(desc);
     uint32_t vlmax = vext_maxsz(desc) / esz;
+    uint32_t olen = 16 << vext_ol(desc);
 
     for (i = 0; i < env->vl; i++) {
         if (!vm && !vext_elem_mask(v0, mlen, i)) {
             continue;
         }
-        probe_pages(env, get_index_addr(base, i, vs2), msz, ra, MMU_DATA_LOAD);
-        probe_pages(env, get_index_addr(base, i, vs2), msz, ra, MMU_DATA_STORE);
+        probe_pages(env, get_index_addr(base, i, vs2), msz, ra,
+                    MMU_DATA_LOAD, olen);
+        probe_pages(env, get_index_addr(base, i, vs2), msz, ra,
+                    MMU_DATA_STORE, olen);
     }
     for (i = 0; i < env->vl; i++) {
         if (!vm && !vext_elem_mask(v0, mlen, i)) {
             continue;
         }
         addr = get_index_addr(base, i, vs2);
-        noatomic_op(vs3, addr, wd, i, env, ra);
+        noatomic_op(vs3, adjust_addr(addr, olen), wd, i, env, ra);
     }
     clear_elem(vs3, env->vl, env->vl * esz, vlmax * esz);
 }
