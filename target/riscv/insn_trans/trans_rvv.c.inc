@@ -739,7 +739,7 @@ static bool amo_check(DisasContext *s, arg_rwdvm* a)
             (!a->wd || vext_check_overlap_mask(s, a->rd, a->vm, false)) &&
             vext_check_reg(s, a->rd, false) &&
             vext_check_reg(s, a->rs2, false) &&
-            ((1 << s->sew) <= sizeof(target_ulong)) &&
+            ((1 << s->sew) <= (get_olen(s) / 8)) &&
             ((1 << s->sew) >= 4));
 }
 
