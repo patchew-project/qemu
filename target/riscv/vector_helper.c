@@ -4763,6 +4763,7 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
     uint32_t mlen = vext_mlen(desc);                                      \
     uint32_t vlmax = env_archcpu(env)->cfg.vlen / mlen;                   \
     uint32_t vm = vext_vm(desc);                                          \
+    uint32_t olen = 16 << vext_ol(desc);                                  \
     uint32_t vl = env->vl;                                                \
     uint32_t i;                                                           \
                                                                           \
@@ -4771,7 +4772,7 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
             continue;                                                     \
         }                                                                 \
         if (i == 0) {                                                     \
-            *((ETYPE *)vd + H(i)) = s1;                                   \
+            *((ETYPE *)vd + H(i)) = adjust_addr(s1, olen);                \
         } else {                                                          \
             *((ETYPE *)vd + H(i)) = *((ETYPE *)vs2 + H(i - 1));           \
         }                                                                 \
@@ -4792,6 +4793,7 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
     uint32_t mlen = vext_mlen(desc);                                      \
     uint32_t vlmax = env_archcpu(env)->cfg.vlen / mlen;                   \
     uint32_t vm = vext_vm(desc);                                          \
+    uint32_t olen = 16 << vext_ol(desc);                                  \
     uint32_t vl = env->vl;                                                \
     uint32_t i;                                                           \
                                                                           \
@@ -4800,7 +4802,7 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
             continue;                                                     \
         }                                                                 \
         if (i == vl - 1) {                                                \
-            *((ETYPE *)vd + H(i)) = s1;                                   \
+            *((ETYPE *)vd + H(i)) = adjust_addr(s1, olen);                \
         } else {                                                          \
             *((ETYPE *)vd + H(i)) = *((ETYPE *)vs2 + H(i + 1));           \
         }                                                                 \
