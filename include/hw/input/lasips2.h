@@ -7,11 +7,11 @@
 #ifndef HW_INPUT_LASIPS2_H
 #define HW_INPUT_LASIPS2_H
 
-#include "exec/hwaddr.h"
+#include "hw/sysbus.h"
 
 #define TYPE_LASIPS2 "lasips2"
+OBJECT_DECLARE_SIMPLE_TYPE(LASIPS2State, LASIPS2)
 
-struct LASIPS2State;
 typedef struct LASIPS2Port {
     struct LASIPS2State *parent;
     MemoryRegion reg;
@@ -23,12 +23,21 @@ typedef struct LASIPS2Port {
     bool irq;
 } LASIPS2Port;
 
+/*
+ * QEMU interface:
+ *  + sysbus MMIO region 0 is the keyboard port interface
+ *  + sysbus MMIO region 1 is the mouse port interface
+ *  + sysbus IRQ 0 is the interrupt line shared between
+ *    keyboard and mouse ports
+ */
 typedef struct LASIPS2State {
+    /*< private >*/
+    SysBusDevice parent_obj;
+
+    /*< public >*/
     LASIPS2Port kbd;
     LASIPS2Port mouse;
     qemu_irq irq;
 } LASIPS2State;
-
-void lasips2_init(MemoryRegion *address_space, hwaddr base, qemu_irq irq);
 
 #endif /* HW_INPUT_LASIPS2_H */
