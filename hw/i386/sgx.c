@@ -21,6 +21,7 @@
 #include "qapi/qapi-commands-misc-target.h"
 #include "exec/address-spaces.h"
 #include "sysemu/hw_accel.h"
+#include "hw/acpi/aml-build.h"
 
 #define SGX_MAX_EPC_SECTIONS            8
 #define SGX_CPUID_EPC_INVALID           0x0
@@ -28,6 +29,46 @@
 /* A valid EPC section. */
 #define SGX_CPUID_EPC_SECTION           0x1
 #define SGX_CPUID_EPC_MASK              0xF
+
+static int sgx_epc_device_list(Object *obj, void *opaque)
+{
+    GSList **list = opaque;
+
+    if (object_dynamic_cast(obj, TYPE_SGX_EPC)) {
+        *list = g_slist_append(*list, DEVICE(obj));
+    }
+
+    object_child_foreach(obj, sgx_epc_device_list, opaque);
+    return 0;
+}
+
+static GSList *sgx_epc_get_device_list(void)
+{
+    GSList *list = NULL;
+
+    object_child_foreach(qdev_get_machine(), sgx_epc_device_list, &list);
+    return list;
+}
+
+void sgx_epc_build_srat(GArray *table_data)
+{
+    GSList *device_list = sgx_epc_get_device_list();
+
+    for (; device_list; device_list = device_list->next) {
+        DeviceState *dev = device_list->data;
+        Object *obj = OBJECT(dev);
+        uint64_t addr, size;
+        int node;
+
+        node = object_property_get_uint(obj, SGX_EPC_NUMA_NODE_PROP,
+                                        &error_abort);
+        addr = object_property_get_uint(obj, SGX_EPC_ADDR_PROP, &error_abort);
+        size = object_property_get_uint(obj, SGX_EPC_SIZE_PROP, &error_abort);
+
+        build_srat_memory(table_data, addr, size, node, MEM_AFFINITY_ENABLED);
+    }
+    g_slist_free(device_list);
+}
 
 static uint64_t sgx_calc_section_metric(uint64_t low, uint64_t high)
 {
@@ -179,6 +220,9 @@ void pc_machine_init_sgx_epc(PCMachineState *pcms)
         /* set the memdev link with memory backend */
         object_property_parse(obj, SGX_EPC_MEMDEV_PROP, list->value->memdev,
                               &error_fatal);
+        /* set the numa node property for sgx epc object */
+        object_property_set_uint(obj, SGX_EPC_NUMA_NODE_PROP, list->value->node,
+                             &error_fatal);
         object_property_set_bool(obj, "realized", true, &error_fatal);
         object_unref(obj);
     }
