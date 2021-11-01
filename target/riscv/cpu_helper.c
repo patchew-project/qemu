@@ -35,7 +35,7 @@ int riscv_cpu_mmu_index(CPURISCVState *env, bool ifetch)
 #endif
 }
 
-static RISCVMXL cpu_get_xl(CPURISCVState *env)
+RISCVMXL cpu_get_xl(CPURISCVState *env)
 {
 #if defined(TARGET_RISCV32)
     return MXL_RV32;
