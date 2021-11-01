@@ -27,18 +27,29 @@
 #include <math.h>
 
 target_ulong HELPER(vsetvl)(CPURISCVState *env, target_ulong s1,
-                            target_ulong s2)
+                            target_ulong s2, target_ulong olen)
 {
     int vlmax, vl;
     RISCVCPU *cpu = env_archcpu(env);
     uint16_t sew = 8 << FIELD_EX64(s2, VTYPE, VSEW);
     uint8_t ediv = FIELD_EX64(s2, VTYPE, VEDIV);
-    bool vill = FIELD_EX64(s2, VTYPE, VILL);
-    target_ulong reserved = FIELD_EX64(s2, VTYPE, RESERVED);
+    bool vill;
+    target_ulong reserved;
 
+    if (olen < TARGET_LONG_BITS) {
+        vill = FIELD_EX64(s2, VTYPE, VILL_OLEN32);
+        reserved = FIELD_EX64(s2, VTYPE, RESERVED_OLEN32);
+    } else {
+        vill = FIELD_EX64(s2, VTYPE, VILL);
+        reserved = FIELD_EX64(s2, VTYPE, RESERVED);
+    }
     if ((sew > cpu->cfg.elen) || vill || (ediv != 0) || (reserved != 0)) {
         /* only set vill bit. */
-        env->vtype = FIELD_DP64(0, VTYPE, VILL, 1);
+        if (olen < TARGET_LONG_BITS) {
+            env->vtype = FIELD_DP64(0, VTYPE, VILL_OLEN32, 1);
+        } else {
+            env->vtype = FIELD_DP64(0, VTYPE, VILL, 1);
+        }
         env->vl = 0;
         env->vstart = 0;
         return 0;
