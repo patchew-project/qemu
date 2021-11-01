@@ -475,7 +475,7 @@ static bool do_csrrw(DisasContext *ctx, int rd, int rc, TCGv src, TCGv mask)
 
 static bool trans_csrrw(DisasContext *ctx, arg_csrrw *a)
 {
-    TCGv src = get_gpr(ctx, a->rs1, EXT_NONE);
+    TCGv src = get_gpr(ctx, a->rs1, EXT_ZERO);
 
     /*
      * If rd == 0, the insn shall not read the csr, nor cause any of the
