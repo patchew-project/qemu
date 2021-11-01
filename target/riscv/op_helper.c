@@ -70,6 +70,32 @@ target_ulong helper_csrrw(CPURISCVState *env, int csr,
 }
 
 #ifndef CONFIG_USER_ONLY
+void helper_switch_context_xl(CPURISCVState *env)
+{
+    RISCVMXL xl = cpu_get_xl(env);
+    if (xl == env->misa_mxl_max) {
+        return;
+    }
+    assert(xl < env->misa_mxl_max);
+    switch (xl) {
+    case MXL_RV32:
+        for (int i = 1; i < 32; i++) {
+            env->gpr[i] = (int32_t)env->gpr[i];
+        }
+        env->pc = (int32_t)env->pc;
+        /*
+         * For the read-only bits of the previous-width CSR, the bits at the
+         * same positions in the temporary register are set to zeros.
+         */
+        if ((env->priv == PRV_U) && (env->misa_ext & RVV)) {
+            env->vl = 0;
+            env->vtype = 0;
+        }
+        break;
+    default:
+        break;
+    }
+}
 
 target_ulong helper_sret(CPURISCVState *env, target_ulong cpu_pc_deb)
 {
