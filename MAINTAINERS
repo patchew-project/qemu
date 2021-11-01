@@ -1036,12 +1036,11 @@ F: hw/arm/msf2-som.c
 F: docs/system/arm/emcraft-sf2.rst
 
 ASPEED BMCs
-M: Cédric Le Goater <clg@kaod.org>
 M: Peter Maydell <peter.maydell@linaro.org>
 R: Andrew Jeffery <andrew@aj.id.au>
 R: Joel Stanley <joel@jms.id.au>
 L: qemu-arm@nongnu.org
-S: Maintained
+S: Odd Fixes
 F: hw/*/*aspeed*
 F: hw/misc/pca9552.c
 F: include/hw/*/*aspeed*
