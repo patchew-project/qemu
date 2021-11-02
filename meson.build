@@ -924,8 +924,6 @@ if not get_option('oss').auto() or have_system
   if not oss.found()
     if get_option('oss').enabled()
       error('OSS not found')
-    else
-      warning('OSS not found, disabling')
     endif
   endif
 endif
@@ -938,8 +936,6 @@ if not get_option('dsound').auto() or (targetos == 'windows' and have_system)
   if not dsound.found()
     if get_option('dsound').enabled()
       error('DirectSound not found')
-    else
-      warning('DirectSound not found, disabling')
     endif
   endif
 endif
