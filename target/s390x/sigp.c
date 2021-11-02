@@ -43,6 +43,7 @@ static void sigp_sense(S390CPU *dst_cpu, SigpInfo *si)
     if (!tcg_enabled()) {
         /* handled in KVM */
         set_sigp_status(si, SIGP_STAT_INVALID_ORDER);
+        s390_cpu_reset_sigp_busy(dst_cpu);
         return;
     }
 
@@ -58,6 +59,7 @@ static void sigp_sense(S390CPU *dst_cpu, SigpInfo *si)
         }
         set_sigp_status(si, status);
     }
+    s390_cpu_reset_sigp_busy(dst_cpu);
 }
 
 static void sigp_external_call(S390CPU *src_cpu, S390CPU *dst_cpu, SigpInfo *si)
@@ -67,6 +69,7 @@ static void sigp_external_call(S390CPU *src_cpu, S390CPU *dst_cpu, SigpInfo *si)
     if (!tcg_enabled()) {
         /* handled in KVM */
         set_sigp_status(si, SIGP_STAT_INVALID_ORDER);
+        s390_cpu_reset_sigp_busy(dst_cpu);
         return;
     }
 
@@ -76,6 +79,7 @@ static void sigp_external_call(S390CPU *src_cpu, S390CPU *dst_cpu, SigpInfo *si)
     } else {
         set_sigp_status(si, SIGP_STAT_EXT_CALL_PENDING);
     }
+    s390_cpu_reset_sigp_busy(dst_cpu);
 }
 
 static void sigp_emergency(S390CPU *src_cpu, S390CPU *dst_cpu, SigpInfo *si)
@@ -83,11 +87,13 @@ static void sigp_emergency(S390CPU *src_cpu, S390CPU *dst_cpu, SigpInfo *si)
     if (!tcg_enabled()) {
         /* handled in KVM */
         set_sigp_status(si, SIGP_STAT_INVALID_ORDER);
+        s390_cpu_reset_sigp_busy(dst_cpu);
         return;
     }
 
     cpu_inject_emergency_signal(dst_cpu, src_cpu->env.core_id);
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
+    s390_cpu_reset_sigp_busy(dst_cpu);
 }
 
 static void sigp_start(CPUState *cs, run_on_cpu_data arg)
@@ -97,11 +103,13 @@ static void sigp_start(CPUState *cs, run_on_cpu_data arg)
 
     if (s390_cpu_get_state(cpu) != S390_CPU_STATE_STOPPED) {
         si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
+        s390_cpu_reset_sigp_busy(cpu);
         return;
     }
 
     s390_cpu_set_state(S390_CPU_STATE_OPERATING, cpu);
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
+    s390_cpu_reset_sigp_busy(cpu);
 }
 
 static void sigp_stop(CPUState *cs, run_on_cpu_data arg)
@@ -111,12 +119,14 @@ static void sigp_stop(CPUState *cs, run_on_cpu_data arg)
 
     if (s390_cpu_get_state(cpu) != S390_CPU_STATE_OPERATING) {
         si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
+        s390_cpu_reset_sigp_busy(cpu);
         return;
     }
 
     /* disabled wait - sleeping in user space */
     if (cs->halted) {
         s390_cpu_set_state(S390_CPU_STATE_STOPPED, cpu);
+        s390_cpu_reset_sigp_busy(cpu);
     } else {
         /* execute the stop function */
         cpu->env.sigp_order = SIGP_STOP;
@@ -145,6 +155,7 @@ static void sigp_stop_and_store_status(CPUState *cs, run_on_cpu_data arg)
         /* already stopped, just store the status */
         cpu_synchronize_state(cs);
         s390_store_status(cpu, S390_STORE_STATUS_DEF_ADDR, true);
+        s390_cpu_reset_sigp_busy(cpu);
         break;
     }
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
@@ -159,6 +170,7 @@ static void sigp_store_status_at_address(CPUState *cs, run_on_cpu_data arg)
     /* cpu has to be stopped */
     if (s390_cpu_get_state(cpu) != S390_CPU_STATE_STOPPED) {
         set_sigp_status(si, SIGP_STAT_INCORRECT_STATE);
+        s390_cpu_reset_sigp_busy(cpu);
         return;
     }
 
@@ -166,9 +178,11 @@ static void sigp_store_status_at_address(CPUState *cs, run_on_cpu_data arg)
 
     if (s390_store_status(cpu, address, false)) {
         set_sigp_status(si, SIGP_STAT_INVALID_PARAMETER);
+        s390_cpu_reset_sigp_busy(cpu);
         return;
     }
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
+    s390_cpu_reset_sigp_busy(cpu);
 }
 
 #define ADTL_SAVE_LC_MASK  0xfUL
@@ -183,18 +197,21 @@ static void sigp_store_adtl_status(CPUState *cs, run_on_cpu_data arg)
     if (!s390_has_feat(S390_FEAT_VECTOR) &&
         !s390_has_feat(S390_FEAT_GUARDED_STORAGE)) {
         set_sigp_status(si, SIGP_STAT_INVALID_ORDER);
+        s390_cpu_reset_sigp_busy(cpu);
         return;
     }
 
     /* cpu has to be stopped */
     if (s390_cpu_get_state(cpu) != S390_CPU_STATE_STOPPED) {
         set_sigp_status(si, SIGP_STAT_INCORRECT_STATE);
+        s390_cpu_reset_sigp_busy(cpu);
         return;
     }
 
     /* address must be aligned to length */
     if (addr & (len - 1)) {
         set_sigp_status(si, SIGP_STAT_INVALID_PARAMETER);
+        s390_cpu_reset_sigp_busy(cpu);
         return;
     }
 
@@ -202,6 +219,7 @@ static void sigp_store_adtl_status(CPUState *cs, run_on_cpu_data arg)
     if (!s390_has_feat(S390_FEAT_GUARDED_STORAGE) &&
         lc != 0) {
         set_sigp_status(si, SIGP_STAT_INVALID_PARAMETER);
+        s390_cpu_reset_sigp_busy(cpu);
         return;
     }
 
@@ -212,6 +230,7 @@ static void sigp_store_adtl_status(CPUState *cs, run_on_cpu_data arg)
         lc != 11 &&
         lc != 12) {
         set_sigp_status(si, SIGP_STAT_INVALID_PARAMETER);
+        s390_cpu_reset_sigp_busy(cpu);
         return;
     }
 
@@ -219,9 +238,11 @@ static void sigp_store_adtl_status(CPUState *cs, run_on_cpu_data arg)
 
     if (s390_store_adtl_status(cpu, addr, len)) {
         set_sigp_status(si, SIGP_STAT_INVALID_PARAMETER);
+        s390_cpu_reset_sigp_busy(cpu);
         return;
     }
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
+    s390_cpu_reset_sigp_busy(cpu);
 }
 
 static void sigp_restart(CPUState *cs, run_on_cpu_data arg)
@@ -246,6 +267,7 @@ static void sigp_restart(CPUState *cs, run_on_cpu_data arg)
         break;
     }
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
+    s390_cpu_reset_sigp_busy(cpu);
 }
 
 static void sigp_initial_cpu_reset(CPUState *cs, run_on_cpu_data arg)
@@ -258,6 +280,7 @@ static void sigp_initial_cpu_reset(CPUState *cs, run_on_cpu_data arg)
     scc->reset(cs, S390_CPU_RESET_INITIAL);
     cpu_synchronize_post_reset(cs);
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
+    s390_cpu_reset_sigp_busy(cpu);
 }
 
 static void sigp_cpu_reset(CPUState *cs, run_on_cpu_data arg)
@@ -270,6 +293,7 @@ static void sigp_cpu_reset(CPUState *cs, run_on_cpu_data arg)
     scc->reset(cs, S390_CPU_RESET_NORMAL);
     cpu_synchronize_post_reset(cs);
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
+    s390_cpu_reset_sigp_busy(cpu);
 }
 
 static void sigp_set_prefix(CPUState *cs, run_on_cpu_data arg)
@@ -284,12 +308,14 @@ static void sigp_set_prefix(CPUState *cs, run_on_cpu_data arg)
                                     sizeof(struct LowCore), false,
                                     MEMTXATTRS_UNSPECIFIED)) {
         set_sigp_status(si, SIGP_STAT_INVALID_PARAMETER);
+        s390_cpu_reset_sigp_busy(cpu);
         return;
     }
 
     /* cpu has to be stopped */
     if (s390_cpu_get_state(cpu) != S390_CPU_STATE_STOPPED) {
         set_sigp_status(si, SIGP_STAT_INCORRECT_STATE);
+        s390_cpu_reset_sigp_busy(cpu);
         return;
     }
 
@@ -297,6 +323,7 @@ static void sigp_set_prefix(CPUState *cs, run_on_cpu_data arg)
     tlb_flush(cs);
     cpu_synchronize_post_init(cs);
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
+    s390_cpu_reset_sigp_busy(cpu);
 }
 
 static void sigp_cond_emergency(S390CPU *src_cpu, S390CPU *dst_cpu,
@@ -310,6 +337,7 @@ static void sigp_cond_emergency(S390CPU *src_cpu, S390CPU *dst_cpu,
     if (!tcg_enabled()) {
         /* handled in KVM */
         set_sigp_status(si, SIGP_STAT_INVALID_ORDER);
+        s390_cpu_reset_sigp_busy(dst_cpu);
         return;
     }
 
@@ -331,6 +359,7 @@ static void sigp_cond_emergency(S390CPU *src_cpu, S390CPU *dst_cpu,
     }
 
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
+    s390_cpu_reset_sigp_busy(dst_cpu);
 }
 
 static void sigp_sense_running(S390CPU *dst_cpu, SigpInfo *si)
@@ -338,12 +367,14 @@ static void sigp_sense_running(S390CPU *dst_cpu, SigpInfo *si)
     if (!tcg_enabled()) {
         /* handled in KVM */
         set_sigp_status(si, SIGP_STAT_INVALID_ORDER);
+        s390_cpu_reset_sigp_busy(dst_cpu);
         return;
     }
 
     /* sensing without locks is racy, but it's the same for real hw */
     if (!s390_has_feat(S390_FEAT_SENSE_RUNNING_STATUS)) {
         set_sigp_status(si, SIGP_STAT_INVALID_ORDER);
+        s390_cpu_reset_sigp_busy(dst_cpu);
         return;
     }
 
@@ -353,6 +384,7 @@ static void sigp_sense_running(S390CPU *dst_cpu, SigpInfo *si)
     } else {
         si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
     }
+    s390_cpu_reset_sigp_busy(dst_cpu);
 }
 
 static int handle_sigp_single_dst(S390CPU *cpu, S390CPU *dst_cpu, uint8_t order,
@@ -420,6 +452,7 @@ static int handle_sigp_single_dst(S390CPU *cpu, S390CPU *dst_cpu, uint8_t order,
         break;
     default:
         set_sigp_status(&si, SIGP_STAT_INVALID_ORDER);
+        s390_cpu_reset_sigp_busy(dst_cpu);
     }
 
     return si.cc;
@@ -444,6 +477,12 @@ int handle_sigp(CPUS390XState *env, uint8_t order, uint64_t r1, uint64_t r3)
     int ret;
 
     if (qemu_mutex_trylock(&qemu_sigp_mutex)) {
+        if (order != SIGP_SET_ARCH) {
+            dst_cpu = s390_cpu_addr2state(env->regs[r3]);
+            if (dst_cpu) {
+                s390_cpu_reset_sigp_busy(dst_cpu);
+            }
+        }
         ret = SIGP_CC_BUSY;
         goto out;
     }
@@ -487,6 +526,7 @@ void do_stop_interrupt(CPUS390XState *env)
     }
     env->sigp_order = 0;
     env->pending_int &= ~INTERRUPT_STOP;
+    s390_cpu_reset_sigp_busy(cpu);
 }
 
 void s390_init_sigp(void)
