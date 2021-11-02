@@ -374,6 +374,13 @@ EX_SH(12)
     }                              \
 } while (0)
 
+#define REQUIRE_EITHER_EXT(ctx, A, B) do {       \
+    if (!RISCV_CPU(ctx->cs)->cfg.ext_##A &&      \
+        !RISCV_CPU(ctx->cs)->cfg.ext_##B) {      \
+        return false;                            \
+    }                                            \
+} while (0)
+
 static int ex_rvc_register(DisasContext *ctx, int reg)
 {
     return 8 + reg;
@@ -554,6 +561,81 @@ static bool gen_unary_per_ol(DisasContext *ctx, arg_r2 *a, DisasExtend ext,
         }
     }
     return gen_unary(ctx, a, ext, f_tl);
+}
+
+static bool gen_xperm(DisasContext *ctx, arg_r *a, int32_t size)
+{
+    TCGv dest = dest_gpr(ctx, a->rd);
+    TCGv src1 = get_gpr(ctx, a->rs1, EXT_NONE);
+    TCGv src2 = get_gpr(ctx, a->rs2, EXT_NONE);
+
+    TCGv_i32 sz = tcg_const_i32(size);
+    gen_helper_xperm(dest, src1, src2, sz);
+
+    gen_set_gpr(ctx, a->rd, dest);
+    tcg_temp_free_i32(sz);
+    return true;
+}
+
+static bool gen_grevi(DisasContext *ctx, arg_r2 *a, int shamt)
+{
+    TCGv dest = dest_gpr(ctx, a->rd);
+    TCGv src1 = get_gpr(ctx, a->rs1, EXT_NONE);
+
+    if (shamt == (TARGET_LONG_BITS - 8)) {
+        /* rev8, byte swaps */
+        tcg_gen_bswap_tl(dest, src1);
+    } else {
+        TCGv src2 = tcg_temp_new();
+        tcg_gen_movi_tl(src2, shamt);
+        gen_helper_grev(dest, src1, src2);
+        tcg_temp_free(src2);
+    }
+
+    gen_set_gpr(ctx, a->rd, dest);
+    return true;
+}
+
+static void gen_pack(TCGv ret, TCGv src1, TCGv src2)
+{
+    tcg_gen_deposit_tl(ret, src1, src2,
+                       TARGET_LONG_BITS / 2,
+                       TARGET_LONG_BITS / 2);
+}
+
+static void gen_packh(TCGv ret, TCGv src1, TCGv src2)
+{
+    TCGv t = tcg_temp_new();
+    tcg_gen_ext8u_tl(t, src2);
+    tcg_gen_deposit_tl(ret, src1, t, 8, TARGET_LONG_BITS - 8);
+    tcg_temp_free(t);
+}
+
+static void gen_packw(TCGv ret, TCGv src1, TCGv src2)
+{
+    TCGv t = tcg_temp_new();
+    tcg_gen_ext16s_tl(t, src2);
+    tcg_gen_deposit_tl(ret, src1, t, 16, 48);
+    tcg_temp_free(t);
+}
+
+static bool gen_shufi(DisasContext *ctx, arg_r2 *a, int shamt,
+                       void(*func)(TCGv, TCGv, TCGv))
+{
+    if (shamt >= TARGET_LONG_BITS / 2) {
+        return false;
+    }
+
+    TCGv dest = dest_gpr(ctx, a->rd);
+    TCGv src1 = get_gpr(ctx, a->rs1, EXT_NONE);
+    TCGv src2 = tcg_temp_new();
+
+    tcg_gen_movi_tl(src2, shamt);
+    (*func)(dest, src1, src2);
+
+    gen_set_gpr(ctx, a->rd, dest);
+    tcg_temp_free(src2);
+    return true;
 }
 
 static uint32_t opcode_at(DisasContextBase *dcbase, target_ulong pc)
