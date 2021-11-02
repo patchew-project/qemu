@@ -312,6 +312,15 @@ struct RISCVCPU {
         bool ext_zbkb;
         bool ext_zbkc;
         bool ext_zbkx;
+        bool ext_zk;
+        bool ext_zkn;
+        bool ext_zknd;
+        bool ext_zkne;
+        bool ext_zknh;
+        bool ext_zks;
+        bool ext_zksed;
+        bool ext_zksh;
+        bool ext_zkr;
         bool ext_counters;
         bool ext_ifencei;
         bool ext_icsr;

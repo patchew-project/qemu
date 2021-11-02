@@ -491,6 +491,33 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
             cpu->cfg.ext_d = true;
         }
 
+        if (cpu->cfg.ext_zk) {
+            cpu->cfg.ext_zbkb = true;
+            cpu->cfg.ext_zbkc = true;
+            cpu->cfg.ext_zbkx = true;
+            cpu->cfg.ext_zknd = true;
+            cpu->cfg.ext_zkne = true;
+            cpu->cfg.ext_zknh = true;
+            cpu->cfg.ext_zkr = true;
+        }
+
+        if (cpu->cfg.ext_zkn) {
+            cpu->cfg.ext_zbkb = true;
+            cpu->cfg.ext_zbkc = true;
+            cpu->cfg.ext_zbkx = true;
+            cpu->cfg.ext_zknd = true;
+            cpu->cfg.ext_zkne = true;
+            cpu->cfg.ext_zknh = true;
+        }
+
+        if (cpu->cfg.ext_zks) {
+            cpu->cfg.ext_zbkb = true;
+            cpu->cfg.ext_zbkc = true;
+            cpu->cfg.ext_zbkx = true;
+            cpu->cfg.ext_zksed = true;
+            cpu->cfg.ext_zksh = true;
+        }
+
         /* Set the ISA extensions, checks should have happened above */
         if (cpu->cfg.ext_i) {
             ext |= RVI;
@@ -642,6 +669,15 @@ static Property riscv_cpu_properties[] = {
     DEFINE_PROP_BOOL("x-zbkb", RISCVCPU, cfg.ext_zbkb, false),
     DEFINE_PROP_BOOL("x-zbkc", RISCVCPU, cfg.ext_zbkc, false),
     DEFINE_PROP_BOOL("x-zbkx", RISCVCPU, cfg.ext_zbkx, false),
+    DEFINE_PROP_BOOL("x-zk", RISCVCPU, cfg.ext_zk, false),
+    DEFINE_PROP_BOOL("x-zkn", RISCVCPU, cfg.ext_zkn, false),
+    DEFINE_PROP_BOOL("x-zknd", RISCVCPU, cfg.ext_zknd, false),
+    DEFINE_PROP_BOOL("x-zkne", RISCVCPU, cfg.ext_zkne, false),
+    DEFINE_PROP_BOOL("x-zknh", RISCVCPU, cfg.ext_zknh, false),
+    DEFINE_PROP_BOOL("x-zks", RISCVCPU, cfg.ext_zks, false),
+    DEFINE_PROP_BOOL("x-zksed", RISCVCPU, cfg.ext_zksed, false),
+    DEFINE_PROP_BOOL("x-zksh", RISCVCPU, cfg.ext_zksh, false),
+    DEFINE_PROP_BOOL("x-zkr", RISCVCPU, cfg.ext_zkr, false),
     DEFINE_PROP_BOOL("x-h", RISCVCPU, cfg.ext_h, false),
     DEFINE_PROP_BOOL("x-j", RISCVCPU, cfg.ext_j, false),
     DEFINE_PROP_BOOL("x-v", RISCVCPU, cfg.ext_v, false),
