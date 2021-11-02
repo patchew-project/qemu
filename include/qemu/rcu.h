@@ -134,6 +134,7 @@ struct rcu_head {
 
 extern void call_rcu1(struct rcu_head *head, RCUCBFunc *func);
 extern void drain_call_rcu(void);
+extern void flush_rcu(void);
 
 /* The operands of the minus operator must have the same type,
  * which must be the one that we specify in the cast.

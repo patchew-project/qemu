@@ -348,6 +348,18 @@ void drain_call_rcu(void)
 
 }
 
+/*
+ * This function drains rcu queue until there are no tasks to do left
+ * and aims to the cases when one needs to ensure that no work hang
+ * in rcu thread before proceeding, e.g. on qemu shutdown.
+ */
+void flush_rcu(void)
+{
+    while (qatomic_read(&rcu_call_count) > 0) {
+        drain_call_rcu();
+    }
+}
+
 void rcu_register_thread(void)
 {
     assert(rcu_reader.ctr == 0);
