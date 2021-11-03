@@ -100,6 +100,22 @@ acceptance-system-debian:
     IMAGE: debian-amd64
     MAKE_CHECK_ARGS: check-acceptance
 
+build-system-fedora34:
+  extends: .native_build_job_template
+  needs:
+    job: amd64-fedora34-container
+  variables:
+    IMAGE: fedora34
+    CONFIGURE_ARGS: --disable-gcrypt --enable-nettle --enable-docs
+             --enable-fdt=system --enable-slirp=system --enable-capstone=system
+    TARGETS: tricore-softmmu microblaze-softmmu mips-softmmu
+      xtensa-softmmu m68k-softmmu riscv32-softmmu ppc-softmmu sparc64-softmmu
+    MAKE_CHECK_ARGS: check-build
+  artifacts:
+    expire_in: 2 days
+    paths:
+      - build
+
 build-system-fedora:
   extends: .native_build_job_template
   needs:

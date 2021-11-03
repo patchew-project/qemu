@@ -6,6 +6,11 @@ amd64-centos8-container:
   variables:
     NAME: centos8
 
+amd64-fedora34-container:
+  extends: .container_job_template
+  variables:
+    NAME: fedora34
+
 amd64-fedora-container:
   extends: .container_job_template
   variables:
