@@ -15,7 +15,7 @@
 # The work of actually doing the build is handled by the
 # run-coverity-scan script.
 
-FROM fedora:30
+FROM registry.fedoraproject.org/fedora:30
 ENV PACKAGES \
     alsa-lib-devel \
     bc \
