@@ -14,6 +14,7 @@
 #include "sysemu/rng-random.h"
 #include "sysemu/rng.h"
 #include "qapi/error.h"
+#include "qapi/visitor.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
@@ -89,19 +90,25 @@ static char *rng_random_get_filename(Object *obj, Error **errp)
     return g_strdup(s->filename);
 }
 
-static void rng_random_set_filename(Object *obj, const char *filename,
-                                 Error **errp)
+static bool rng_random_config(Object *obj, const char *filename, Error **errp)
 {
-    RngBackend *b = RNG_BACKEND(obj);
     RngRandom *s = RNG_RANDOM(obj);
-
-    if (b->opened) {
-        error_setg(errp, QERR_PERMISSION_DENIED);
-        return;
-    }
 
     g_free(s->filename);
     s->filename = g_strdup(filename);
+
+    return true;
+}
+
+static bool rng_random_marshal_config(Object *obj, Visitor *v, Error **errp)
+{
+    g_autofree char *filename = NULL;
+
+    if (!visit_type_str(v, "filename", &filename, errp)) {
+        return false;
+    }
+
+    return rng_random_config(obj, filename, errp);
 }
 
 static void rng_random_init(Object *obj)
@@ -131,8 +138,7 @@ static void rng_random_class_init(ObjectClass *klass, void *data)
     rbc->request_entropy = rng_random_request_entropy;
     rbc->opened = rng_random_opened;
     object_class_property_add_str(klass, "filename",
-                                  rng_random_get_filename,
-                                  rng_random_set_filename);
+                                  rng_random_get_filename, NULL);
 
 }
 
@@ -142,6 +148,7 @@ static const TypeInfo rng_random_info = {
     .instance_size = sizeof(RngRandom),
     .class_init = rng_random_class_init,
     .instance_init = rng_random_init,
+    .instance_config = rng_random_marshal_config,
     .instance_finalize = rng_random_finalize,
 };
 
