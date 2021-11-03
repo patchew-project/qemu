@@ -13,6 +13,10 @@ from avocado_qemu import wait_for_console_pattern
 
 
 class IbmPrep40pMachine(Test):
+    """
+    :avocado: tags=arch:ppc
+    :avocado: tags=machine:40p
+    """
 
     timeout = 60
 
@@ -24,8 +28,6 @@ class IbmPrep40pMachine(Test):
     @skipUnless(os.getenv('AVOCADO_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
     def test_factory_firmware_and_netbsd(self):
         """
-        :avocado: tags=arch:ppc
-        :avocado: tags=machine:40p
         :avocado: tags=os:netbsd
         :avocado: tags=slowness:high
         """
@@ -48,10 +50,6 @@ class IbmPrep40pMachine(Test):
         wait_for_console_pattern(self, 'Model: IBM PPS Model 6015')
 
     def test_openbios_192m(self):
-        """
-        :avocado: tags=arch:ppc
-        :avocado: tags=machine:40p
-        """
         self.vm.set_console()
         self.vm.add_args('-m', '192') # test fw_cfg
 
@@ -62,8 +60,6 @@ class IbmPrep40pMachine(Test):
 
     def test_openbios_and_netbsd(self):
         """
-        :avocado: tags=arch:ppc
-        :avocado: tags=machine:40p
         :avocado: tags=os:netbsd
         """
         drive_url = ('https://archive.netbsd.org/pub/NetBSD-archive/'
