@@ -326,6 +326,8 @@ bool visit_check_struct(Visitor *v, Error **errp);
  */
 void visit_end_struct(Visitor *v, void **obj);
 
+/* TODO */
+const char *visit_next_struct_member(Visitor *v);
 
 /*** Visiting lists ***/
 

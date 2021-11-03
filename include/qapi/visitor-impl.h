@@ -57,6 +57,9 @@ struct Visitor
     /* Must be set to visit structs */
     void (*end_struct)(Visitor *v, void **obj);
 
+    /* Must be set for input visitors to visit structs */
+    const char *(*next_struct_member)(Visitor *v);
+
     /* Must be set; implementations may require @list to be non-null,
      * but must document it. */
     bool (*start_list)(Visitor *v, const char *name, GenericList **list,

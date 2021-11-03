@@ -7,6 +7,7 @@ visit_complete(void *v, void *opaque) "v=%p opaque=%p"
 visit_start_struct(void *v, const char *name, void *obj, size_t size) "v=%p name=%s obj=%p size=%zu"
 visit_check_struct(void *v) "v=%p"
 visit_end_struct(void *v, void *obj) "v=%p obj=%p"
+visit_next_struct_member(void *v) "v=%p"
 
 visit_start_list(void *v, const char *name, void *obj, size_t size) "v=%p name=%s obj=%p size=%zu"
 visit_next_list(void *v, void *tail, size_t size) "v=%p tail=%p size=%zu"

@@ -70,6 +70,12 @@ void visit_end_struct(Visitor *v, void **obj)
     v->end_struct(v, obj);
 }
 
+const char *visit_next_struct_member(Visitor *v)
+{
+    trace_visit_next_struct_member(v);
+    return v->next_struct_member(v);
+}
+
 bool visit_start_list(Visitor *v, const char *name, GenericList **list,
                       size_t size, Error **errp)
 {

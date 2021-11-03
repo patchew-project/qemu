@@ -310,6 +310,21 @@ static void qobject_input_end_struct(Visitor *v, void **obj)
     qobject_input_pop(v, obj);
 }
 
+static const char *qobject_input_next_struct_member(Visitor *v)
+{
+    QObjectInputVisitor *qiv = to_qiv(v);
+    StackObject *tos = QSLIST_FIRST(&qiv->stack);
+    GHashTableIter iter;
+    const char *key;
+
+    assert(qobject_type(tos->obj) == QTYPE_QDICT && tos->h);
+    g_hash_table_iter_init(&iter, tos->h);
+    if (g_hash_table_iter_next(&iter, (void **)&key, NULL)) {
+        return key;
+    }
+    return false;
+}
+
 
 static bool qobject_input_start_list(Visitor *v, const char *name,
                                      GenericList **list, size_t size,
@@ -700,6 +715,7 @@ static QObjectInputVisitor *qobject_input_visitor_base_new(QObject *obj)
     v->visitor.start_struct = qobject_input_start_struct;
     v->visitor.check_struct = qobject_input_check_struct;
     v->visitor.end_struct = qobject_input_end_struct;
+    v->visitor.next_struct_member = qobject_input_next_struct_member;
     v->visitor.start_list = qobject_input_start_list;
     v->visitor.next_list = qobject_input_next_list;
     v->visitor.check_list = qobject_input_check_list;
