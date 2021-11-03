@@ -42,23 +42,6 @@ bool user_creatable_can_be_deleted(UserCreatable *uc)
     }
 }
 
-static void object_configure(Object *obj, Visitor *v, Error **errp)
-{
-    const char *key;
-
-    if (!visit_start_struct(v, NULL, NULL, 0, errp)) {
-        return;
-    }
-    while ((key = visit_next_struct_member(v))) {
-        if (!object_property_set(obj, key, v, errp)) {
-            goto out;
-        }
-    }
-    visit_check_struct(v, errp);
-out:
-    visit_end_struct(v, NULL);
-}
-
 void object_set_properties_from_keyval(Object *obj, const QDict *qdict,
                                        bool from_json, Error **errp)
 {

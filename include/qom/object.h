@@ -770,6 +770,9 @@ void object_initialize_child_internal(Object *parent, const char *propname,
                                       void *child, size_t size,
                                       const char *type);
 
+/** TODO */
+void object_configure(Object *obj, Visitor *v, Error **errp);
+
 /**
  * object_dynamic_cast:
  * @obj: The object to cast.
