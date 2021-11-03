@@ -16,6 +16,7 @@ from .common import must_match
 from .error import QAPIError
 from .events import gen_events
 from .introspect import gen_introspect
+from .qom import gen_qom
 from .schema import QAPISchema
 from .types import gen_types
 from .visit import gen_visit
@@ -52,6 +53,7 @@ def generate(schema_file: str,
     gen_commands(schema, output_dir, prefix)
     gen_events(schema, output_dir, prefix)
     gen_introspect(schema, output_dir, prefix, unmask)
+    gen_qom(schema, output_dir, prefix)
 
 
 def main() -> int:

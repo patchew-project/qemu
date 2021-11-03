@@ -14,6 +14,7 @@
 #include "sysemu/rng-random.h"
 #include "sysemu/rng.h"
 #include "qapi/error.h"
+#include "qapi/qapi-qom-qom.h"
 #include "qapi/visitor.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/main-loop.h"
@@ -90,7 +91,8 @@ static char *rng_random_get_filename(Object *obj, Error **errp)
     return g_strdup(s->filename);
 }
 
-static bool rng_random_config(Object *obj, const char *filename, Error **errp)
+bool qom_rng_random_config(Object *obj, bool has_filename,
+                           const char *filename, Error **errp)
 {
     RngRandom *s = RNG_RANDOM(obj);
 
@@ -98,17 +100,6 @@ static bool rng_random_config(Object *obj, const char *filename, Error **errp)
     s->filename = g_strdup(filename);
 
     return true;
-}
-
-static bool rng_random_marshal_config(Object *obj, Visitor *v, Error **errp)
-{
-    g_autofree char *filename = NULL;
-
-    if (!visit_type_str(v, "filename", &filename, errp)) {
-        return false;
-    }
-
-    return rng_random_config(obj, filename, errp);
 }
 
 static void rng_random_init(Object *obj)
@@ -148,7 +139,7 @@ static const TypeInfo rng_random_info = {
     .instance_size = sizeof(RngRandom),
     .class_init = rng_random_class_init,
     .instance_init = rng_random_init,
-    .instance_config = rng_random_marshal_config,
+    .instance_config = qom_rng_random_marshal_config,
     .instance_finalize = rng_random_finalize,
 };
 

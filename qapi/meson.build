@@ -90,6 +90,7 @@ qapi_nonmodule_outputs = [
   'qapi-init-commands.h', 'qapi-init-commands.c',
   'qapi-events.h', 'qapi-events.c',
   'qapi-emit-events.c', 'qapi-emit-events.h',
+  'qapi-qom.h', 'qapi-qom.c',
 ]
 
 # First build all sources
@@ -114,6 +115,8 @@ foreach module : qapi_all_modules
       'qapi-events-@0@.h'.format(module),
       'qapi-commands-@0@.c'.format(module),
       'qapi-commands-@0@.h'.format(module),
+      'qapi-qom-@0@.c'.format(module),
+      'qapi-qom-@0@.h'.format(module),
     ]
   endif
   if module.endswith('-target')

@@ -13,6 +13,7 @@
 #include "qemu/osdep.h"
 #include "sysemu/rng.h"
 #include "qapi/error.h"
+#include "qapi/qapi-qom-qom.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/module.h"
 #include "qom/object_interfaces.h"
@@ -77,22 +78,12 @@ static void rng_backend_complete(UserCreatable *uc, Error **errp)
     rng_backend_prop_set_opened(OBJECT(uc), true, errp);
 }
 
-static bool rng_backend_config(Object *obj, bool opened, Error **errp)
+bool qom_rng_backend_config(Object *obj, bool has_opened, bool opened,
+                            Error **errp)
 {
     ERRP_GUARD();
     rng_backend_prop_set_opened(obj, opened, errp);
     return *errp == NULL;
-}
-
-static bool rng_backend_marshal_config(Object *obj, Visitor *v, Error **errp)
-{
-    bool opened;
-
-    if (!visit_type_bool(v, "opened", &opened, errp)) {
-        return false;
-    }
-
-    return rng_backend_config(obj, opened, errp);
 }
 
 static void rng_backend_free_request(RngRequest *req)
@@ -148,7 +139,7 @@ static const TypeInfo rng_backend_info = {
     .parent = TYPE_OBJECT,
     .instance_size = sizeof(RngBackend),
     .instance_init = rng_backend_init,
-    .instance_config = rng_backend_marshal_config,
+    .instance_config = qom_rng_backend_marshal_config,
     .instance_finalize = rng_backend_finalize,
     .class_size = sizeof(RngBackendClass),
     .class_init = rng_backend_class_init,
