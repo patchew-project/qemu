@@ -155,6 +155,9 @@ class QAPISchemaVisitor:
     def visit_alternate_type(self, name, info, ifcond, features, variants):
         pass
 
+    def visit_class(self, entity):
+        pass
+
     def visit_command(self, name, info, ifcond, features,
                       arg_type, ret_type, gen, success_response, boxed,
                       allow_oob, allow_preconfig, coroutine):
@@ -766,6 +769,50 @@ class QAPISchemaVariant(QAPISchemaObjectTypeMember):
         super().__init__(name, info, typ, False, ifcond)
 
 
+class QAPISchemaClass(QAPISchemaEntity):
+    meta = 'class'
+
+    def __init__(self, name, info, doc, ifcond, features, parent,
+                 config_type, config_boxed):
+        super().__init__(name, info, doc, ifcond, features)
+
+        assert not parent or isinstance(parent, str)
+        assert not config_type or isinstance(config_type, str)
+        self._parent_name = parent
+        self.parent = None
+        self._config_type_name = config_type
+        self.config_type = None
+        self.config_boxed = config_boxed
+
+    def check(self, schema):
+        super().check(schema)
+
+        if self._parent_name:
+            self.parent = schema.lookup_entity(self._parent_name,
+                                               QAPISchemaClass)
+            if not self.parent:
+                raise QAPISemError(
+                    self.info,
+                    "Unknown parent class '%s'" % self._parent_name)
+
+        if self._config_type_name:
+            self.config_type = schema.resolve_type(
+                self._config_type_name, self.info, "class 'config'")
+            if not isinstance(self.config_type, QAPISchemaObjectType):
+                raise QAPISemError(
+                    self.info,
+                    "class 'config' cannot take %s"
+                    % self.config_type.describe())
+            if self.config_type.variants and not self.boxed:
+                raise QAPISemError(
+                    self.info,
+                    "class 'config' can take %s only with 'boxed': true"
+                    % self.config_type.describe())
+
+    def visit(self, visitor):
+        super().visit(visitor)
+        visitor.visit_class(self)
+
 class QAPISchemaCommand(QAPISchemaEntity):
     meta = 'command'
 
@@ -1110,6 +1157,23 @@ class QAPISchema:
                                     QAPISchemaVariants(
                                         None, info, tag_member, variants)))
 
+    def _def_class(self, expr, info, doc):
+        name = expr['class']
+        ifcond = QAPISchemaIfCond(expr.get('if'))
+        features = self._make_features(expr.get('features'), info)
+        parent = expr.get('parent')
+        config_type = expr.get('config')
+        config_boxed = expr.get('config-boxed')
+
+        if isinstance(config_type, OrderedDict):
+            config_type = self._make_implicit_object_type(
+                name, info, ifcond,
+                'config', self._make_members(config_type, info))
+
+        self._def_entity(QAPISchemaClass(
+            name, info, doc, ifcond, features, parent, config_type,
+            config_boxed))
+
     def _def_command(self, expr, info, doc):
         name = expr['command']
         data = expr.get('data')
@@ -1161,6 +1225,8 @@ class QAPISchema:
                 self._def_union_type(expr, info, doc)
             elif 'alternate' in expr:
                 self._def_alternate_type(expr, info, doc)
+            elif 'class' in expr:
+                self._def_class(expr, info, doc)
             elif 'command' in expr:
                 self._def_command(expr, info, doc)
             elif 'event' in expr:

@@ -181,6 +181,8 @@ def check_defn_name_str(name: str, info: QAPISourceInfo, meta: str) -> None:
     """
     if meta == 'event':
         check_name_upper(name, info, meta)
+    elif meta == 'class':
+        check_name_str(name, info, meta)
     elif meta == 'command':
         check_name_lower(
             name, info, meta,
@@ -557,6 +559,24 @@ def check_alternate(expr: _JSONObject, info: QAPISourceInfo) -> None:
         check_type(value['type'], info, source)
 
 
+def check_class(expr: _JSONObject, info: QAPISourceInfo) -> None:
+    """
+    Normalize and validate this expression as a ``class`` definition.
+
+    :param expr: The expression to validate.
+    :param info: QAPI schema source file information.
+
+    :raise QAPISemError: When ``expr`` is not a valid ``class``.
+    :return: None, ``expr`` is normalized in-place as needed.
+    """
+    config = expr.get('config')
+    config_boxed = expr.get('config-boxed', False)
+
+    if config_boxed and config is None:
+        raise QAPISemError(info, "'boxed': true requires 'config'")
+    check_type(config, info, "'config'", allow_dict=not config_boxed)
+
+
 def check_command(expr: _JSONObject, info: QAPISourceInfo) -> None:
     """
     Normalize and validate this expression as a ``command`` definition.
@@ -627,7 +647,7 @@ def check_exprs(exprs: List[_JSONObject]) -> List[_JSONObject]:
             continue
 
         metas = expr.keys() & {'enum', 'struct', 'union', 'alternate',
-                               'command', 'event'}
+                               'class', 'command', 'event'}
         if len(metas) != 1:
             raise QAPISemError(
                 info,
@@ -671,6 +691,12 @@ def check_exprs(exprs: List[_JSONObject]) -> List[_JSONObject]:
                        ['struct', 'data'], ['base', 'if', 'features'])
             normalize_members(expr['data'])
             check_struct(expr, info)
+        elif meta == 'class':
+            check_keys(expr, info, meta,
+                       ['class'], ['if', 'features', 'parent', 'config',
+                        'config-boxed'])
+            normalize_members(expr.get('config'))
+            check_class(expr, info)
         elif meta == 'command':
             check_keys(expr, info, meta,
                        ['command'],
