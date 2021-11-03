@@ -329,8 +329,8 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
     int r, e, i, last_index = data_queue_pairs * 2;
     NetClientState *peer;
 
-    if (!cvq) {
-        last_index -= 1;
+    if (cvq) {
+        last_index += 1;
     }
 
     if (!k->set_guest_notifiers) {
