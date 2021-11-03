@@ -42,16 +42,15 @@ bool user_creatable_can_be_deleted(UserCreatable *uc)
     }
 }
 
-static void object_set_properties_from_qdict(Object *obj, const QDict *qdict,
-                                             Visitor *v, Error **errp)
+static void object_configure(Object *obj, Visitor *v, Error **errp)
 {
-    const QDictEntry *e;
+    const char *key;
 
     if (!visit_start_struct(v, NULL, NULL, 0, errp)) {
         return;
     }
-    for (e = qdict_first(qdict); e; e = qdict_next(qdict, e)) {
-        if (!object_property_set(obj, e->key, v, errp)) {
+    while ((key = visit_next_struct_member(v))) {
+        if (!object_property_set(obj, key, v, errp)) {
             goto out;
         }
     }
@@ -69,7 +68,7 @@ void object_set_properties_from_keyval(Object *obj, const QDict *qdict,
     } else {
         v = qobject_input_visitor_new_keyval(QOBJECT(qdict));
     }
-    object_set_properties_from_qdict(obj, qdict, v, errp);
+    object_configure(obj, v, errp);
     visit_free(v);
 }
 
@@ -108,7 +107,7 @@ Object *user_creatable_add_type(const char *type, const char *id,
 
     assert(qdict);
     obj = object_new(type);
-    object_set_properties_from_qdict(obj, qdict, v, &local_err);
+    object_configure(obj, v, &local_err);
     if (local_err) {
         goto out;
     }
