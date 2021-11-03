@@ -722,6 +722,16 @@
   'data': { '*opened': { 'type': 'bool', 'features': ['deprecated'] } } }
 
 ##
+# @rng-backend:
+#
+# Base class for random number generator backends
+#
+# Since: 1.3
+##
+{ 'class': 'rng-backend',
+  'config': 'RngProperties' }
+
+##
 # @RngEgdProperties:
 #
 # Properties for rng-egd objects.
@@ -736,18 +746,18 @@
   'data': { 'chardev': 'str' } }
 
 ##
-# @RngRandomProperties:
+# @rng-random:
 #
-# Properties for rng-random objects.
+# Random number generator backend using a host random number device
 #
 # @filename: the filename of the device on the host to obtain entropy from
 #            (default: "/dev/urandom")
 #
 # Since: 1.3
 ##
-{ 'struct': 'RngRandomProperties',
-  'base': 'RngProperties',
-  'data': { '*filename': 'str' } }
+{ 'class': 'rng-random',
+  'parent': 'rng-backend',
+  'config': { '*filename': 'str' } }
 
 ##
 # @SevGuestProperties:
@@ -889,7 +899,7 @@
       'qtest':                      'QtestProperties',
       'rng-builtin':                'RngProperties',
       'rng-egd':                    'RngEgdProperties',
-      'rng-random':                 { 'type': 'RngRandomProperties',
+      'rng-random':                 { 'type': 'qom-config:rng-random',
                                       'if': 'CONFIG_POSIX' },
       'secret':                     'SecretProperties',
       'secret_keyring':             { 'type': 'SecretKeyringProperties',
