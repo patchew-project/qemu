@@ -732,6 +732,16 @@
   'config': 'RngProperties' }
 
 ##
+# @rng-builtin:
+#
+# Built-in random number generator backend
+#
+# Since: 1.3
+##
+{ 'class': 'rng-builtin',
+  'parent': 'rng-backend' }
+
+##
 # @RngEgdProperties:
 #
 # Properties for rng-egd objects.
@@ -897,7 +907,7 @@
       'pr-manager-helper':          { 'type': 'PrManagerHelperProperties',
                                       'if': 'CONFIG_LINUX' },
       'qtest':                      'QtestProperties',
-      'rng-builtin':                'RngProperties',
+      'rng-builtin':                'qom-config:rng-builtin',
       'rng-egd':                    'RngEgdProperties',
       'rng-random':                 { 'type': 'qom-config:rng-random',
                                       'if': 'CONFIG_POSIX' },
