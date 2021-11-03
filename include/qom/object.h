@@ -384,6 +384,9 @@ struct Object
  *   for initializing its own members.
  * @instance_post_init: This function is called to finish initialization of
  *   an object, after all @instance_init functions were called.
+ * @instance_config: This function is called to set the initial configuration
+ *   of an object.  If not provided, configuration is done through property
+ *   setters.
  * @instance_finalize: This function is called during object destruction.  This
  *   is called before the parent @instance_finalize function has been called.
  *   An object should only free the members that are unique to its type in this
@@ -419,6 +422,7 @@ struct TypeInfo
     size_t instance_align;
     void (*instance_init)(Object *obj);
     void (*instance_post_init)(Object *obj);
+    bool (*instance_config)(Object *obj, Visitor *v, Error **errp);
     void (*instance_finalize)(Object *obj);
 
     bool abstract;

@@ -60,6 +60,7 @@ struct TypeImpl
 
     void (*instance_init)(Object *obj);
     void (*instance_post_init)(Object *obj);
+    bool (*instance_config)(Object *obj, Visitor *v, Error **errp);
     void (*instance_finalize)(Object *obj);
 
     bool abstract;
@@ -124,6 +125,7 @@ static TypeImpl *type_new(const TypeInfo *info)
 
     ti->instance_init = info->instance_init;
     ti->instance_post_init = info->instance_post_init;
+    ti->instance_config = info->instance_config;
     ti->instance_finalize = info->instance_finalize;
 
     ti->abstract = info->abstract;
@@ -303,6 +305,7 @@ static void type_initialize(TypeImpl *ti)
         assert(ti->abstract);
         assert(!ti->instance_init);
         assert(!ti->instance_post_init);
+        assert(!ti->instance_config);
         assert(!ti->instance_finalize);
         assert(!ti->num_interfaces);
     }
@@ -607,11 +610,23 @@ void object_initialize_child_internal(Object *parent,
 
 void object_configure(Object *obj, Visitor *v, Error **errp)
 {
+    TypeImpl *ti;
     const char *key;
 
     if (!visit_start_struct(v, NULL, NULL, 0, errp)) {
         return;
     }
+
+    /* Call .instance_config, including for all parent classes */
+    for (ti = obj->class->type; ti; ti = ti->parent_type) {
+        if (ti->instance_config) {
+            if (!ti->instance_config(obj, v, errp)) {
+                goto out;
+            }
+        }
+    }
+
+    /* Set options not consumed by .instance_config as properties */
     while ((key = visit_next_struct_member(v))) {
         if (!object_property_set(obj, key, v, errp)) {
             goto out;
