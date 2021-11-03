@@ -761,6 +761,13 @@ class QAPISchemaObjectTypeMember(QAPISchemaMember):
             for f in self.features:
                 doc.connect_feature(f)
 
+    def clone(self):
+        features = [QAPISchemaFeature(f.name, f.info, f.ifcond)
+                    for f in self.features]
+        return QAPISchemaObjectTypeMember(
+            self.name, self.info, self._type_name, self.optional,
+            self.ifcond, features)
+
 
 class QAPISchemaVariant(QAPISchemaObjectTypeMember):
     role = 'branch'
@@ -783,17 +790,11 @@ class QAPISchemaClass(QAPISchemaEntity):
         self._config_type_name = config_type
         self.config_type = None
         self.config_boxed = config_boxed
+        self.full_config_type = None
 
-    def check(self, schema):
-        super().check(schema)
-
-        if self._parent_name:
-            self.parent = schema.lookup_entity(self._parent_name,
-                                               QAPISchemaClass)
-            if not self.parent:
-                raise QAPISemError(
-                    self.info,
-                    "Unknown parent class '%s'" % self._parent_name)
+    def get_qom_config_type(self, schema):
+        if self.full_config_type:
+            return self.full_config_type
 
         if self._config_type_name:
             self.config_type = schema.resolve_type(
@@ -808,6 +809,40 @@ class QAPISchemaClass(QAPISchemaEntity):
                     self.info,
                     "class 'config' can take %s only with 'boxed': true"
                     % self.config_type.describe())
+
+            # FIXME That's a bit ugly
+            self.config_type.check(schema)
+            members = [m.clone() for m in self.config_type.members]
+        else:
+            members = []
+
+        if self._parent_name:
+            self.parent = schema.lookup_entity(self._parent_name,
+                                               QAPISchemaClass)
+            if not self.parent:
+                raise QAPISemError(
+                    self.info,
+                    "Unknown parent class '%s'" % self._parent_name)
+
+            self.parent.get_qom_config_type(schema)
+            members += [m.clone() for m in self.parent.config_type.members]
+
+        self.full_config_type = QAPISchemaObjectType(
+            f"qom-config:{self.name}", self.info, None, self._ifcond,
+            self.features, None, members, None)
+
+        return self.full_config_type
+
+    def check(self, schema):
+        super().check(schema)
+        assert self.full_config_type
+
+    def connect_doc(self, doc=None):
+        super().connect_doc(doc)
+        doc = doc or self.doc
+        if doc:
+            if self.config_type and self.config_type.is_implicit():
+                self.config_type.connect_doc(doc)
 
     def visit(self, visitor):
         super().visit(visitor)
@@ -1235,6 +1270,11 @@ class QAPISchema:
                 self._def_include(expr, info, doc)
             else:
                 assert False
+
+        classes = [c for c in self._entity_list
+                   if isinstance(c,QAPISchemaClass)]
+        for c in classes:
+            self._def_entity(c.get_qom_config_type(self))
 
     def check(self):
         for ent in self._entity_list:
