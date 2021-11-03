@@ -232,10 +232,10 @@ fail:
 }
 
 static void vhost_net_set_vq_index(struct vhost_net *net, int vq_index,
-                                   int last_index)
+                                   int last_vq_index)
 {
     net->dev.vq_index = vq_index;
-    net->dev.last_index = last_index;
+    net->dev.last_vq_index = last_vq_index;
 }
 
 static int vhost_net_start_one(struct vhost_net *net,
