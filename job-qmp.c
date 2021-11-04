@@ -171,6 +171,8 @@ JobInfoList *qmp_query_jobs(Error **errp)
     JobInfoList *head = NULL, **tail = &head;
     Job *job;
 
+    job_lock();
+
     for (job = job_next(NULL); job; job = job_next(job)) {
         JobInfo *value;
 
@@ -180,10 +182,12 @@ JobInfoList *qmp_query_jobs(Error **errp)
         value = job_query_single(job, errp);
         if (!value) {
             qapi_free_JobInfoList(head);
+            job_unlock();
             return NULL;
         }
         QAPI_LIST_APPEND(tail, value);
     }
+    job_unlock();
 
     return head;
 }

@@ -150,6 +150,8 @@ void blockdev_mark_auto_del(BlockBackend *blk)
         return;
     }
 
+    job_lock();
+
     for (job = block_job_next(NULL); job; job = block_job_next(job)) {
         if (block_job_has_bdrv(job, blk_bs(blk))) {
             AioContext *aio_context = job->job.aio_context;
@@ -160,6 +162,8 @@ void blockdev_mark_auto_del(BlockBackend *blk)
             aio_context_release(aio_context);
         }
     }
+
+    job_unlock();
 
     dinfo->auto_del = 1;
 }
@@ -1844,7 +1848,9 @@ static void drive_backup_abort(BlkActionState *common)
         aio_context = bdrv_get_aio_context(state->bs);
         aio_context_acquire(aio_context);
 
+        job_lock();
         job_cancel_sync(&state->job->job, true);
+        job_unlock();
 
         aio_context_release(aio_context);
     }
@@ -1945,7 +1951,9 @@ static void blockdev_backup_abort(BlkActionState *common)
         aio_context = bdrv_get_aio_context(state->bs);
         aio_context_acquire(aio_context);
 
+        job_lock();
         job_cancel_sync(&state->job->job, true);
+        job_unlock();
 
         aio_context_release(aio_context);
     }
@@ -2394,7 +2402,9 @@ exit:
     if (!has_props) {
         qapi_free_TransactionProperties(props);
     }
+    job_lock();
     job_txn_unref(block_job_txn);
+    job_unlock();
 }
 
 BlockDirtyBitmapSha256 *qmp_x_debug_block_dirty_bitmap_sha256(const char *node,
@@ -3717,6 +3727,7 @@ BlockJobInfoList *qmp_query_block_jobs(Error **errp)
     BlockJobInfoList *head = NULL, **tail = &head;
     BlockJob *job;
 
+    job_lock();
     for (job = block_job_next(NULL); job; job = block_job_next(job)) {
         BlockJobInfo *value;
 
@@ -3726,10 +3737,12 @@ BlockJobInfoList *qmp_query_block_jobs(Error **errp)
         value = block_job_query(job, errp);
         if (!value) {
             qapi_free_BlockJobInfoList(head);
+            job_unlock();
             return NULL;
         }
         QAPI_LIST_APPEND(tail, value);
     }
+    job_unlock();
 
     return head;
 }

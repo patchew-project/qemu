@@ -4826,7 +4826,9 @@ static void bdrv_close(BlockDriverState *bs)
 
 void bdrv_close_all(void)
 {
+    job_lock();
     assert(job_next(NULL) == NULL);
+    job_unlock();
     assert(qemu_in_main_thread());
 
     /* Drop references from requests still in flight, such as canceled block
@@ -5965,6 +5967,8 @@ XDbgBlockGraph *bdrv_get_xdbg_block_graph(Error **errp)
         }
     }
 
+    job_lock();
+
     for (job = block_job_next(NULL); job; job = block_job_next(job)) {
         GSList *el;
 
@@ -5974,6 +5978,8 @@ XDbgBlockGraph *bdrv_get_xdbg_block_graph(Error **errp)
             xdbg_graph_add_edge(gr, job, (BdrvChild *)el->data);
         }
     }
+
+    job_unlock();
 
     QTAILQ_FOREACH(bs, &graph_bdrv_states, node_list) {
         xdbg_graph_add_node(gr, bs, X_DBG_BLOCK_GRAPH_NODE_TYPE_BLOCK_DRIVER,
