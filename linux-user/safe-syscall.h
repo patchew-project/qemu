@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * safe-syscall.h: prototypes for linux-user signal-race-safe syscalls
  *

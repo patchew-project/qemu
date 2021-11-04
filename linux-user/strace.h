@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * strace.h: prototypes for linux-user builtin strace handling
  *

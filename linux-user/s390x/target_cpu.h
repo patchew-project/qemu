@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * S/390 specific CPU ABI and functions for linux-user
  *

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * loader.h: prototypes for linux-user guest binary loader
  *

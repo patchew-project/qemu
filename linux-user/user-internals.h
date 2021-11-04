@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * user-internals.h: prototypes etc internal to the linux-user implementation
  *
