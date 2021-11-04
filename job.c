@@ -242,7 +242,8 @@ bool job_cancel_requested(Job *job)
     return job->cancelled;
 }
 
-bool job_is_ready(Job *job)
+/* Called with job_mutex held. */
+bool job_is_ready_locked(Job *job)
 {
     switch (job->status) {
     case JOB_STATUS_UNDEFINED:
@@ -262,6 +263,13 @@ bool job_is_ready(Job *job)
         g_assert_not_reached();
     }
     return false;
+}
+
+/* Called with job_mutex lock *not* held */
+bool job_is_ready(Job *job)
+{
+    JOB_LOCK_GUARD();
+    return job_is_ready_locked(job);
 }
 
 bool job_is_completed(Job *job)
@@ -659,10 +667,16 @@ void job_dismiss(Job **jobptr, Error **errp)
     *jobptr = NULL;
 }
 
-void job_early_fail(Job *job)
+void job_early_fail_locked(Job *job)
 {
     assert(job->status == JOB_STATUS_CREATED);
     job_do_dismiss(job);
+}
+
+void job_early_fail(Job *job)
+{
+    JOB_LOCK_GUARD();
+    job_early_fail_locked(job);
 }
 
 static void job_conclude(Job *job)
