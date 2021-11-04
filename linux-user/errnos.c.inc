@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * This list is the union of errno values overridden in asm-<arch>/errno.h
  * minus the errnos that are not actually generic to all archs.
@@ -18,8 +19,6 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
- *
- * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 E(EADDRINUSE)
