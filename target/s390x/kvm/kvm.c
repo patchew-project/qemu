@@ -1576,18 +1576,6 @@ static int handle_sw_breakpoint(S390CPU *cpu, struct kvm_run *run)
     return -ENOENT;
 }
 
-void kvm_s390_set_diag318(CPUState *cs, uint64_t diag318_info)
-{
-    CPUS390XState *env = &S390_CPU(cs)->env;
-
-    /* Feat bit is set only if KVM supports sync for diag318 */
-    if (s390_has_feat(S390_FEAT_DIAG_318)) {
-        env->diag318_info = diag318_info;
-        cs->kvm_run->s.regs.diag318 = diag318_info;
-        cs->kvm_run->kvm_dirty_regs |= KVM_SYNC_DIAG318;
-    }
-}
-
 static void handle_diag_318(S390CPU *cpu, struct kvm_run *run)
 {
     uint64_t reg = (run->s390_sieic.ipa & 0x00f0) >> 4;
@@ -1604,8 +1592,11 @@ static void handle_diag_318(S390CPU *cpu, struct kvm_run *run)
     }
 
     CPU_FOREACH(t) {
-        run_on_cpu(t, s390_do_cpu_set_diag318,
-                   RUN_ON_CPU_HOST_ULONG(diag318_info));
+        CPUS390XState *env = &S390_CPU(t)->env;
+
+        env->diag318_info = diag318_info;
+        t->kvm_run->s.regs.diag318 = diag318_info;
+        t->kvm_run->kvm_dirty_regs |= KVM_SYNC_DIAG318;
     }
 }
 
