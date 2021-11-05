@@ -410,3 +410,16 @@ nanoMIPS ISA
 
 The ``nanoMIPS`` ISA has never been upstreamed to any compiler toolchain.
 As it is hard to generate binaries for it, declare it deprecated.
+
+Testing
+-------
+
+Renaming of the acceptance folder to avocado
+''''''''''''''''''''''''''''''''''''''''''''
+
+The ``tests/acceptance`` folder was never used to store acceptance tests
+in terms of software engineering. This naming can confuse developers
+adding tests using the Avocado Framework to this folder. The folder
+name change to ``tests/avocado`` also changed the ``make`` target from
+``check-acceptance`` to ``check-avocado``. In this case, the use of the
+``check-acceptance`` target is deprecated.
