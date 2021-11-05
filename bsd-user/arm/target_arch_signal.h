@@ -91,5 +91,7 @@ abi_long set_sigtramp_args(CPUARMState *regs, int sig,
                            struct target_sigaction *ka);
 abi_long get_mcontext(CPUARMState *regs, target_mcontext_t *mcp, int flags);
 abi_long set_mcontext(CPUARMState *regs, target_mcontext_t *mcp, int srflag);
+abi_long get_ucontext_sigreturn(CPUARMState *regs, abi_ulong target_sf,
+                                abi_ulong *target_uc);
 
 #endif /* !_TARGET_ARCH_SIGNAL_H_ */
