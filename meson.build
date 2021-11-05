@@ -2625,7 +2625,7 @@ block_mods = []
 softmmu_mods = []
 foreach d, list : modules
   foreach m, module_ss : list
-    if enable_modules and targetos != 'windows'
+    if enable_modules
       module_ss = module_ss.apply(config_all, strict: false)
       sl = static_library(d + '-' + m, [genh, module_ss.sources()],
                           dependencies: [modulecommon, module_ss.dependencies()], pic: true)
@@ -2658,7 +2658,7 @@ endforeach
 
 foreach d, list : target_modules
   foreach m, module_ss : list
-    if enable_modules and targetos != 'windows'
+    if enable_modules
       foreach target : target_dirs
         if target.endswith('-softmmu')
           config_target = config_target_mak[target]
@@ -2800,14 +2800,15 @@ common_ss.add(hwcore)
 ###########
 # Targets #
 ###########
-
-foreach m : block_mods + softmmu_mods
-  shared_module(m.name(),
-                name_prefix: '',
-                link_whole: m,
-                install: true,
-                install_dir: qemu_moddir)
-endforeach
+if targetos != 'windows'
+  foreach m : block_mods + softmmu_mods
+    shared_module(m.name(),
+                  name_prefix: '',
+                  link_whole: m,
+                  install: true,
+                  install_dir: qemu_moddir)
+  endforeach
+endif
 
 softmmu_ss.add(authz, blockdev, chardev, crypto, io, qmp)
 common_ss.add(qom, qemuutil)
@@ -2826,6 +2827,7 @@ common_all = static_library('common',
 feature_to_c = find_program('scripts/feature_to_c.sh')
 
 emulators = {}
+emulator = 0
 foreach target : target_dirs
   config_target = config_target_mak[target]
   target_name = config_target['TARGET_NAME']
@@ -2966,6 +2968,7 @@ foreach target : target_dirs
                link_language: link_language,
                link_depends: [block_syms, qemu_syms] + exe.get('link_depends', []),
                link_args: link_args,
+               implib: true,
                win_subsystem: exe['win_subsystem'])
 
     if targetos == 'darwin'
@@ -3023,6 +3026,17 @@ foreach target : target_dirs
     endif
   endforeach
 endforeach
+if (targetos == 'windows')
+  foreach m : block_mods + softmmu_mods
+    shared_module(m.name(),
+	    name_prefix: '',
+	    link_whole: m,
+	    install: true,
+	    dependencies: glib,
+	    link_with: emulator,
+	    install_dir: qemu_moddir)
+  endforeach
+endif
 
 # Other build targets
 

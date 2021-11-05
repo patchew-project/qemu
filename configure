@@ -1422,7 +1422,7 @@ cat << EOF
   bsd-user        all BSD usermode emulation targets
   guest-agent     build the QEMU Guest Agent
   pie             Position Independent Executables
-  modules         modules support (non-Windows)
+  modules         modules support
   module-upgrades try to load modules from alternate paths for upgrades
   debug-tcg       TCG debugging (default is disabled)
   debug-info      debugging information
@@ -1696,11 +1696,6 @@ if compile_object "-Werror" "" ; then
   :
 else
   QEMU_CFLAGS="$QEMU_CFLAGS -Wno-missing-braces"
-fi
-
-# Our module code doesn't support Windows
-if test "$modules" = "yes" && test "$mingw32" = "yes" ; then
-  error_exit "Modules are not available for Windows"
 fi
 
 # module_upgrades is only reasonable if modules are enabled
