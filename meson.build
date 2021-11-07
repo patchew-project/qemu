@@ -546,6 +546,11 @@ if not get_option('jack').auto() or have_system
   jack = dependency('jack', required: get_option('jack'),
                     method: 'pkg-config', kwargs: static_kwargs)
 endif
+sndio = not_found
+if not get_option('sndio').auto() or have_system
+  sndio = dependency('sndio', required: get_option('sndio'),
+                    method: 'pkg-config', kwargs: static_kwargs)
+endif
 
 spice_protocol = not_found
 if not get_option('spice_protocol').auto() or have_system
@@ -1301,6 +1306,7 @@ if have_system
     'oss': oss.found(),
     'pa': pulse.found(),
     'sdl': sdl.found(),
+    'sndio': sndio.found(),
   }
   foreach k, v: audio_drivers_available
     config_host_data.set('CONFIG_AUDIO_' + k.to_upper(), v)
@@ -3367,6 +3373,7 @@ if vnc.found()
 endif
 if targetos not in ['darwin', 'haiku', 'windows']
   summary_info += {'OSS support':     oss}
+  summary_info += {'sndio support':   sndio}
 elif targetos == 'darwin'
   summary_info += {'CoreAudio support': coreaudio}
 elif targetos == 'windows'
