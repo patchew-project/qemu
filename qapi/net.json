@@ -453,6 +453,112 @@
     '*queues':       'int' } }
 
 ##
+# @NetdevVmnetHostOptions:
+#
+# vmnet (host mode) network backend.
+#
+# Allows the vmnet interface to communicate with other vmnet
+# interfaces that are in host mode and also with the native host.
+#
+# @dhcpstart: The starting IPv4 address to use for the interface.
+#             Must be in the private IP range (RFC 1918). Must be
+#             specified along with @dhcpend and @subnetmask.
+#             This address is used as the gateway address. The
+#             subsequent address up to and including dhcpend are
+#             placed in the DHCP pool.
+#
+# @dhcpend: The DHCP IPv4 range end address to use for the
+#           interface. Must be in the private IP range (RFC 1918).
+#           Must be specified along with @dhcpstart and @subnetmask.
+#
+# @subnetmask: The IPv4 subnet mask to use on the interface. Must
+#              be specified along with @dhcpstart and @subnetmask.
+#
+# @isolated: Enable isolation for this interface. Interface isolation
+#            ensures that network communication between multiple
+#            vmnet interfaces instances is not possible.
+#
+# @net-uuid: The identifier (UUID) to uniquely identify the network.
+#            If provided, no DHCP service is provided on this network
+#            and the interface is added to an isolated network with
+#            the specified identifier.
+#
+# Since: 6.2
+##
+{ 'struct': 'NetdevVmnetHostOptions',
+  'data': {
+    '*dhcpstart':   'str',
+    '*dhcpend':     'str',
+    '*subnetmask':  'str',
+    '*isolated':    'bool',
+    '*net-uuid':    'str'
+  },
+  'if': 'CONFIG_VMNET' }
+
+##
+# @NetdevVmnetSharedOptions:
+#
+# vmnet (shared mode) network backend.
+#
+# Allows traffic originating from the vmnet interface to reach the
+# Internet through a network address translator (NAT). The vmnet
+# interface can also communicate with the native host. By default,
+# the vmnet interface is able to communicate with other shared mode
+# interfaces. If a subnet range is specified, the vmnet interface can
+# communicate with other shared mode interfaces on the same subnet.
+#
+# @dhcpstart: The starting IPv4 address to use for the interface.
+#             Must be in the private IP range (RFC 1918). Must be
+#             specified along with @dhcpend and @subnetmask.
+#             This address is used as the gateway address. The
+#             subsequent address up to and including dhcpend are
+#             placed in the DHCP pool.
+#
+# @dhcpend: The DHCP IPv4 range end address to use for the
+#           interface. Must be in the private IP range (RFC 1918).
+#           Must be specified along with @dhcpstart and @subnetmask.
+#
+# @subnetmask: The IPv4 subnet mask to use on the interface. Must
+#              be specified along with @dhcpstart and @subnetmask.
+#
+# @isolated: Enable isolation for this interface. Interface isolation
+#            ensures that network communication between multiple
+#            vmnet interfaces instances is not possible.
+#
+# Since: 6.2
+##
+{ 'struct': 'NetdevVmnetSharedOptions',
+  'data': {
+    '*dhcpstart':    'str',
+    '*dhcpend':      'str',
+    '*subnetmask':   'str',
+    '*isolated':     'bool'
+  },
+  'if': 'CONFIG_VMNET' }
+
+##
+# @NetdevVmnetBridgedOptions:
+#
+# vmnet (bridged mode) network backend.
+#
+# Bridges the vmnet interface with a physical network interface.
+#
+# @ifname: The name of the physical interface to be bridged.
+#
+# @isolated: Enable isolation for this interface. Interface isolation
+#            ensures that network communication between multiple
+#            vmnet interfaces instances is not possible.
+#
+# Since: 6.2
+##
+{ 'struct': 'NetdevVmnetBridgedOptions',
+  'data': {
+    'ifname':     'str',
+    '*isolated':  'str'
+  },
+  'if': 'CONFIG_VMNET' }
+
+##
 # @NetClientDriver:
 #
 # Available netdev drivers.
@@ -460,10 +566,16 @@
 # Since: 2.7
 #
 #        @vhost-vdpa since 5.1
+#        @vmnet-host since 6.2
+#        @vmnet-shared since 6.2
+#        @vmnet-bridged since 6.2
 ##
 { 'enum': 'NetClientDriver',
   'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde',
-            'bridge', 'hubport', 'netmap', 'vhost-user', 'vhost-vdpa' ] }
+            'bridge', 'hubport', 'netmap', 'vhost-user', 'vhost-vdpa',
+            { 'name': 'vmnet-host', 'if': 'CONFIG_VMNET' },
+            { 'name': 'vmnet-shared', 'if': 'CONFIG_VMNET' },
+            { 'name': 'vmnet-bridged', 'if': 'CONFIG_VMNET' }] }
 
 ##
 # @Netdev:
@@ -477,6 +589,9 @@
 # Since: 1.2
 #
 #        'l2tpv3' - since 2.1
+#        'vmnet-host' - since 6.2
+#        'vmnet-shared' - since 6.2
+#        'vmnet-bridged' - since 6.2
 ##
 { 'union': 'Netdev',
   'base': { 'id': 'str', 'type': 'NetClientDriver' },
@@ -492,7 +607,10 @@
     'hubport':  'NetdevHubPortOptions',
     'netmap':   'NetdevNetmapOptions',
     'vhost-user': 'NetdevVhostUserOptions',
-    'vhost-vdpa': 'NetdevVhostVDPAOptions' } }
+    'vhost-vdpa': 'NetdevVhostVDPAOptions',
+    'vmnet-host': 'NetdevVmnetHostOptions',
+    'vmnet-shared': 'NetdevVmnetSharedOptions',
+    'vmnet-bridged': 'NetdevVmnetBridgedOptions' } }
 
 ##
 # @RxState:
