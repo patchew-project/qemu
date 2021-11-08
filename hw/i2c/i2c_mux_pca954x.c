@@ -29,6 +29,7 @@
 
 #define PCA9548_CHANNEL_COUNT 8
 #define PCA9546_CHANNEL_COUNT 4
+#define PCA9543_CHANNEL_COUNT 2
 
 /*
  * struct Pca954xChannel - The i2c mux device will have N of these states
@@ -203,6 +204,12 @@ static void pca954x_channel_class_init(ObjectClass *klass, void *data)
     dc->desc = "Pca954x Channel";
 }
 
+static void pca9543_class_init(ObjectClass *klass, void *data)
+{
+    Pca954xClass *s = PCA954X_CLASS(klass);
+    s->nchans = PCA9543_CHANNEL_COUNT;
+}
+
 static void pca9546_class_init(ObjectClass *klass, void *data)
 {
     Pca954xClass *s = PCA954X_CLASS(klass);
@@ -267,6 +274,11 @@ static const TypeInfo pca954x_info[] = {
         .class_size    = sizeof(Pca954xClass),
         .class_init    = pca954x_class_init,
         .abstract      = true,
+    },
+    {
+        .name          = TYPE_PCA9543,
+        .parent        = TYPE_PCA954X,
+        .class_init    = pca9543_class_init,
     },
     {
         .name          = TYPE_PCA9546,
