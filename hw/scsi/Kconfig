@@ -50,6 +50,6 @@ config VIRTIO_SCSI
 
 config VHOST_USER_SCSI
     bool
+    default y
     # Only PCI devices are provided for now
-    default y if VIRTIO_PCI
-    depends on VIRTIO && VHOST_USER && LINUX
+    depends on VIRTIO_PCI && VHOST_USER && LINUX
