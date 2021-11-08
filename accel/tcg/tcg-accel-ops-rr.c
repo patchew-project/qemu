@@ -28,6 +28,7 @@
 #include "sysemu/tcg.h"
 #include "sysemu/replay.h"
 #include "qemu/main-loop.h"
+#include "qemu/notify.h"
 #include "qemu/guest-random.h"
 #include "exec/exec-all.h"
 
@@ -133,6 +134,19 @@ static void rr_deal_with_unplugged_cpus(void)
     }
 }
 
+static void do_nothing(CPUState *cpu, run_on_cpu_data d)
+{
+}
+
+static void rr_force_rcu(Notifier *notify, void *data)
+{
+    /*
+     * Called with rcu_registry_lock held, using async_run_on_cpu() ensures
+     * that there are no deadlocks.
+     */
+    async_run_on_cpu(first_cpu, do_nothing, RUN_ON_CPU_NULL);
+}
+
 /*
  * In the single-threaded case each vCPU is simulated in turn. If
  * there is more than a single vCPU we create a simple timer to kick
@@ -143,10 +157,13 @@ static void rr_deal_with_unplugged_cpus(void)
 
 static void *rr_cpu_thread_fn(void *arg)
 {
+    Notifier force_rcu;
     CPUState *cpu = arg;
 
     assert(tcg_enabled());
     rcu_register_thread();
+    force_rcu.notify = rr_force_rcu;
+    rcu_add_force_rcu_notifier(&force_rcu);
     tcg_register_thread();
 
     qemu_mutex_lock_iothread();
@@ -255,6 +272,7 @@ static void *rr_cpu_thread_fn(void *arg)
         rr_deal_with_unplugged_cpus();
     }
 
+    rcu_remove_force_rcu_notifier(&force_rcu);
     rcu_unregister_thread();
     return NULL;
 }
