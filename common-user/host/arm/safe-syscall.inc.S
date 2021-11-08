@@ -78,6 +78,7 @@ safe_syscall_start:
 	swi	0
 safe_syscall_end:
 	/* code path for having successfully executed the syscall */
+	ADJUST_SYSCALL_RETCODE
 	pop	{ r4, r5, r6, r7, r8, pc }
 
 1:

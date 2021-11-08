@@ -76,6 +76,7 @@ safe_syscall_start:
 	jne	2f
 	svc	0
 safe_syscall_end:
+	ADJUST_SYSCALL_RETCODE
 
 1:	lg	%r15,0(%r15)		/* load back chain */
 	.cfi_remember_state

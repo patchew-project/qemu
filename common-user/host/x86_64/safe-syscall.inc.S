@@ -72,6 +72,7 @@ safe_syscall_start:
         syscall
 safe_syscall_end:
         /* code path for having successfully executed the syscall */
+	ADJUST_SYSCALL_RETCODE
         pop     %rbp
         .cfi_remember_state
         .cfi_def_cfa_offset 8

@@ -17,6 +17,7 @@
  * so that this will pull in the right fragment for the architecture.
  */
 #ifdef HAVE_SAFE_SYSCALL
+#define ADJUST_SYSCALL_RETCODE		/* No adjustment for linux */
 #include "safe-syscall.inc.S"
 #endif
 

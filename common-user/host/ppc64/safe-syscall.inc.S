@@ -75,6 +75,7 @@ safe_syscall_start:
 	sc
 safe_syscall_end:
 	/* code path when we did execute the syscall */
+	ADJUST_SYSCALL_RETCODE
 	ld 14, 16(1) /* restore r14 to its original value */
 	bnslr+
 

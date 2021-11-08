@@ -75,6 +75,7 @@ safe_syscall_start:
 	int	$0x80
 safe_syscall_end:
 	/* code path for having successfully executed the syscall */
+	ADJUST_SYSCALL_RETCODE
 	pop	%ebx
 	.cfi_remember_state
 	.cfi_adjust_cfa_offset -4

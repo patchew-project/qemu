@@ -64,6 +64,7 @@ safe_syscall_start:
 	svc	0x0
 safe_syscall_end:
 	/* code path for having successfully executed the syscall */
+	ADJUST_SYSCALL_RETCODE
 	ret
 
 0:
