@@ -461,7 +461,7 @@ static const MemoryRegionOps acpi_pm_evt_ops = {
     .impl.min_access_size = 2,
     .valid.min_access_size = 1,
     .valid.max_access_size = 2,
-    .endianness = DEVICE_LITTLE_ENDIAN,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 void acpi_pm1_evt_init(ACPIREGS *ar, acpi_update_sci_fn update_sci,
@@ -531,7 +531,7 @@ static const MemoryRegionOps acpi_pm_tmr_ops = {
     .impl.min_access_size = 4,
     .valid.min_access_size = 1,
     .valid.max_access_size = 4,
-    .endianness = DEVICE_LITTLE_ENDIAN,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 void acpi_pm_tmr_init(ACPIREGS *ar, acpi_update_sci_fn update_sci,
@@ -608,7 +608,7 @@ static const MemoryRegionOps acpi_pm_cnt_ops = {
     .impl.min_access_size = 2,
     .valid.min_access_size = 1,
     .valid.max_access_size = 2,
-    .endianness = DEVICE_LITTLE_ENDIAN,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 void acpi_pm1_cnt_init(ACPIREGS *ar, MemoryRegion *parent,
