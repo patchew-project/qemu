@@ -1,12 +1,1 @@
 /* List of comma-separated changed AML files to ignore */
-"tests/data/acpi/q35/APIC.tis.tpm2",
-"tests/data/acpi/q35/DSDT.tis.tpm12",
-"tests/data/acpi/q35/DSDT.tis.tpm2",
-"tests/data/acpi/q35/FACP.tis.tpm2",
-"tests/data/acpi/q35/FACS.tis.tpm2",
-"tests/data/acpi/q35/HPET.tis.tpm2",
-"tests/data/acpi/q35/MCFG.tis.tpm2",
-"tests/data/acpi/q35/TCPA.tis.dsl",
-"tests/data/acpi/q35/TCPA.tis.tpm12",
-"tests/data/acpi/q35/TPM2.tis.tpm2",
-"tests/data/acpi/q35/WAET.tis.tpm2",
