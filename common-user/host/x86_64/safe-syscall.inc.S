@@ -72,6 +72,11 @@ safe_syscall_start:
         syscall
 safe_syscall_end:
         /* code path for having successfully executed the syscall */
+#ifdef __FreeBSD__
+        jnb     2f	/* Convert to Linux -ERRNO convention */
+        neg     %rax
+2:
+#endif
         pop     %rbp
         .cfi_remember_state
         .cfi_def_cfa_offset 8

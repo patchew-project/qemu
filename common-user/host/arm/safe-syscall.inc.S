@@ -78,6 +78,11 @@ safe_syscall_start:
 	swi	0
 safe_syscall_end:
 	/* code path for having successfully executed the syscall */
+#ifdef __FreeBSD__
+        bcc     2f
+        neg     r0, r0
+2:
+#endif
 	pop	{ r4, r5, r6, r7, r8, pc }
 
 1:

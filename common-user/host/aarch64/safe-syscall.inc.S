@@ -64,6 +64,11 @@ safe_syscall_start:
 	svc	0x0
 safe_syscall_end:
 	/* code path for having successfully executed the syscall */
+#ifdef __FreeBSD__
+        b.cc    2f              /* Convert to Linux -ERRNO convention */
+        neg     x0, x0
+2:
+#endif
 	ret
 
 0:
