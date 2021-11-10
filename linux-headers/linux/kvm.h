@@ -1112,6 +1112,7 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_BINARY_STATS_FD 203
 #define KVM_CAP_EXIT_ON_EMULATION_FAILURE 204
 #define KVM_CAP_ARM_MTE 205
+#define KVM_CAP_S390_USER_SIGP_BUSY 206
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -2003,5 +2004,9 @@ struct kvm_stats_desc {
 };
 
 #define KVM_GET_STATS_FD  _IO(KVMIO,  0xce)
+
+/* Available with KVM_CAP_S390_USER_SIGP_BUSY */
+#define KVM_S390_VCPU_RESET_SIGP_BUSY       _IO(KVMIO, 0xcf)
+#define KVM_S390_VCPU_SET_SIGP_BUSY         _IO(KVMIO, 0xd0)
 
 #endif /* __LINUX_KVM_H */
