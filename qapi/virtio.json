@@ -1061,3 +1061,180 @@
 { 'command': 'x-query-virtio-vhost-queue-status',
   'data': { 'path': 'str', 'queue': 'uint16' },
   'returns': 'VirtVhostQueueStatus', 'features': [ 'unstable' ] }
+
+##
+# @VirtioRingDescFlags:
+#
+# An enumeration of the virtio ring descriptor flags
+#
+# Since: 6.3
+#
+##
+
+{ 'enum': 'VirtioRingDescFlags',
+  'data': [ 'next', 'write', 'indirect', 'avail', 'used' ]
+}
+
+##
+# @VirtioRingDesc:
+#
+# Information regarding the VRing descriptor area
+#
+# @addr: guest physical address of the descriptor data
+#
+# @len: length of the descriptor data
+#
+# @flags: list of descriptor flags
+#
+# Since: 6.3
+#
+##
+
+{ 'struct': 'VirtioRingDesc',
+  'data': { 'addr': 'uint64',
+            'len': 'uint32',
+            'flags': [ 'VirtioRingDescFlags' ] } }
+
+##
+# @VirtioRingAvail:
+#
+# Information regarding the avail VRing (also known as the driver
+# area)
+#
+# @flags: VRingAvail flags
+#
+# @idx: VRingAvail index
+#
+# @ring: VRingAvail ring[] entry at provided index
+#
+# Since: 6.3
+#
+##
+
+{ 'struct': 'VirtioRingAvail',
+  'data': { 'flags': 'uint16',
+            'idx': 'uint16',
+            'ring': 'uint16' } }
+
+##
+# @VirtioRingUsed:
+#
+# Information regarding the used VRing (also known as the device
+# area)
+#
+# @flags: VRingUsed flags
+#
+# @idx: VRingUsed index
+#
+# Since: 6.3
+#
+##
+
+{ 'struct': 'VirtioRingUsed',
+  'data': { 'flags': 'uint16',
+            'idx': 'uint16' } }
+
+##
+# @VirtioQueueElement:
+#
+# Information regarding a VirtQueue VirtQueueElement including
+# descriptor, driver, and device areas
+#
+# @device-name: name of the VirtIODevice which this VirtQueue belongs
+#               to (for reference)
+#
+# @index: index of the element in the queue
+#
+# @ndescs: number of descriptors
+#
+# @descs: list of the descriptors
+#
+# @avail: VRingAvail info
+#
+# @used: VRingUsed info
+#
+# Since: 6.3
+#
+##
+
+{ 'struct': 'VirtioQueueElement',
+  'data': { 'device-name': 'str',
+            'index': 'uint32',
+            'ndescs': 'uint32',
+            'descs': [ 'VirtioRingDesc' ],
+            'avail': 'VirtioRingAvail',
+            'used': 'VirtioRingUsed' } }
+
+##
+# @x-query-virtio-queue-element:
+#
+# Return the information about a VirtQueue VirtQueueElement (by
+# default looks at the head of the queue)
+#
+# @path: VirtIODevice canonical QOM path
+#
+# @queue: VirtQueue index to examine
+#
+# @index: the index in the queue, by default head
+#
+# Features:
+# @unstable: This command is meant for debugging.
+#
+# Returns: VirtioQueueElement information
+#
+# Since: 6.3
+#
+# Examples:
+#
+# 1. Introspect on virtio-net virtqueue 0 at index 5
+#
+# -> { "execute": "x-query-virtio-queue-element",
+#      "arguments": { "path": "/machine/peripheral-anon/device[1]/virtio-backend",
+#                     "queue": 0,
+#                     "index": 5 }
+#    }
+# <- { "return": {
+#         "index": 5,
+#         "ndescs": 1,
+#         "device-name": "virtio-net",
+#         "descs": [ { "flags": ["write"], "len": 1536, "addr": 5257305600 } ],
+#         "avail": { "idx": 256, "flags": 0, "ring": 5 },
+#         "used": { "idx": 13, "flags": 0 } }
+#    }
+#
+# 2. Introspect on virtio-crypto virtqueue 1 at head
+#
+# -> { "execute": "x-query-virtio-queue-element",
+#      "arguments": { "path": "/machine/peripheral/crypto0/virtio-backend",
+#                     "queue": 1 }
+#    }
+# <- { "return": {
+#         "index": 0,
+#         "ndescs": 1,
+#         "device-name": "virtio-crypto",
+#         "descs": [ { "flags": [], "len": 0, "addr": 8080268923184214134 } ],
+#         "avail": { "idx": 280, "flags": 0, "ring": 0 },
+#         "used": { "idx": 280, "flags": 0 } }
+#    }
+#
+# 3. Introspect on virtio-scsi virtqueue 2 at head
+#
+# -> { "execute": "x-query-virtio-queue-element",
+#      "arguments": { "path": "/machine/peripheral-anon/device[2]/virtio-backend",
+#                     "queue": 2 }
+#    }
+# <- { "return": {
+#         "index": 19,
+#         "ndescs": 1,
+#         "device-name": "virtio-scsi",
+#         "descs": [ { "flags": ["used", "indirect", "write"], "len": 4099327944,
+#                      "addr": 12055409292258155293 } ],
+#         "avail": { "idx": 1147, "flags": 0, "ring": 19 },
+#         "used": { "idx": 1147, "flags": 0 } }
+#    }
+#
+##
+
+{ 'command': 'x-query-virtio-queue-element',
+  'data': { 'path': 'str', 'queue': 'uint16', '*index': 'uint16' },
+  'returns': 'VirtioQueueElement', 'features': [ 'unstable' ] }
