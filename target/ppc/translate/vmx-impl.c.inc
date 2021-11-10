@@ -1610,6 +1610,120 @@ static bool trans_VEXTRACTQM(DisasContext *ctx, arg_VX_tb *a)
     return true;
 }
 
+static bool do_mtvsrm(DisasContext *ctx, arg_VX_tb *a, unsigned vece)
+{
+    const uint64_t elem_length = 8 << vece, highest_bit = 15 >> vece;
+    int i;
+    TCGv_i64 t0, t1, zero, ones;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    t0 = tcg_const_i64(0);
+    t1 = tcg_temp_new_i64();
+    zero = tcg_constant_i64(0);
+    ones = tcg_constant_i64(MAKE_64BIT_MASK(0, elem_length));
+
+    for (i = 1 << highest_bit; i > 1 << (highest_bit / 2); i >>= 1) {
+        tcg_gen_shli_i64(t0, t0, elem_length);
+        tcg_gen_ext_tl_i64(t1, cpu_gpr[a->vrb]);
+        tcg_gen_andi_i64(t1, t1, i);
+        tcg_gen_movcond_i64(TCG_COND_NE, t1, t1, zero, ones, zero);
+        tcg_gen_or_i64(t0, t0, t1);
+    }
+
+    set_avr64(a->vrt, t0, true);
+
+    for (; i > 0; i >>= 1) {
+        tcg_gen_shli_i64(t0, t0, elem_length);
+        tcg_gen_ext_tl_i64(t1, cpu_gpr[a->vrb]);
+        tcg_gen_andi_i64(t1, t1, i);
+        tcg_gen_movcond_i64(TCG_COND_NE, t1, t1, zero, ones, zero);
+        tcg_gen_or_i64(t0, t0, t1);
+    }
+
+    set_avr64(a->vrt, t0, false);
+
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+
+    return true;
+}
+
+TRANS(MTVSRBM, do_mtvsrm, MO_8)
+TRANS(MTVSRHM, do_mtvsrm, MO_16)
+TRANS(MTVSRWM, do_mtvsrm, MO_32)
+
+static bool trans_MTVSRDM(DisasContext *ctx, arg_VX_tb *a)
+{
+    TCGv_i64 t0, t1;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    t0 = tcg_temp_new_i64();
+    t1 = tcg_temp_new_i64();
+
+    tcg_gen_ext_tl_i64(t0, cpu_gpr[a->vrb]);
+    tcg_gen_sextract_i64(t1, t0, 1, 1);
+    set_avr64(a->vrt, t1, true);
+    tcg_gen_sextract_i64(t0, t0, 0, 1);
+    set_avr64(a->vrt, t0, false);
+
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+
+    return true;
+}
+
+static bool trans_MTVSRQM(DisasContext *ctx, arg_VX_tb *a)
+{
+    TCGv_i64 tmp;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    tmp = tcg_temp_new_i64();
+
+    tcg_gen_ext_tl_i64(tmp, cpu_gpr[a->vrb]);
+    tcg_gen_sextract_i64(tmp, tmp, 0, 1);
+    set_avr64(a->vrt, tmp, false);
+    set_avr64(a->vrt, tmp, true);
+
+    tcg_temp_free_i64(tmp);
+
+    return true;
+}
+
+static bool trans_MTVSRBMI(DisasContext *ctx, arg_DX_b *a)
+{
+    int i;
+    uint64_t hi = 0, lo = 0;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    for (i = 1 << 15; i >= 1 << 8; i >>= 1) {
+        hi <<= 8;
+        if (a->b & i) {
+            hi |= 0xFF;
+        }
+    }
+
+    set_avr64(a->vrt, tcg_constant_i64(hi), true);
+
+    for (; i > 0; i >>= 1) {
+        lo <<= 8;
+        if (a->b & i) {
+            lo |= 0xFF;
+        }
+    }
+
+    set_avr64(a->vrt, tcg_constant_i64(lo), false);
+
+    return true;
+}
+
 #define GEN_VAFORM_PAIRED(name0, name1, opc2)                           \
 static void glue(gen_, name0##_##name1)(DisasContext *ctx)              \
     {                                                                   \
