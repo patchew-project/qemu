@@ -4967,13 +4967,13 @@ SRST
     ``-object filter-mirror,id=id,netdev=netdevid,outdev=chardevid,queue=all|rx|tx[,vnet_hdr_support][,position=head|tail|id=<id>][,insert=behind|before]``
         filter-mirror on netdev netdevid,mirror net packet to
         chardevchardevid, if it has the vnet\_hdr\_support flag,
-        filter-mirror will mirror packet with vnet\_hdr\_len.
+        filter-mirror will mirror packet with vnet\_hdr\_len(default: on).
 
     ``-object filter-redirector,id=id,netdev=netdevid,indev=chardevid,outdev=chardevid,queue=all|rx|tx[,vnet_hdr_support][,position=head|tail|id=<id>][,insert=behind|before]``
         filter-redirector on netdev netdevid,redirect filter's net
         packet to chardev chardevid,and redirect indev's packet to
         filter.if it has the vnet\_hdr\_support flag, filter-redirector
-        will redirect packet with vnet\_hdr\_len. Create a
+        will redirect packet with vnet\_hdr\_len(default: on). Create a
         filter-redirector we need to differ outdev id from indev id, id
         can not be the same. we can just use indev or outdev, but at
         least one of indev or outdev need to be specified.
@@ -4983,7 +4983,8 @@ SRST
         packet to secondary from primary to keep secondary tcp
         connection,and rewrite tcp packet to primary from secondary make
         tcp packet can be handled by client.if it has the
-        vnet\_hdr\_support flag, we can parse packet with vnet header.
+        vnet\_hdr\_support flag, we can parse packet with vnet
+        header(default: on).
 
         usage: colo secondary: -object
         filter-redirector,id=f1,netdev=hn0,queue=tx,indev=red0 -object
@@ -5004,7 +5005,7 @@ SRST
         checkpoint and send primary packet to out\_dev. In order to
         improve efficiency, we need to put the task of comparison in
         another iothread. If it has the vnet\_hdr\_support flag,
-        colo compare will send/recv packet with vnet\_hdr\_len.
+        colo compare will send/recv packet with vnet\_hdr\_len(default: on).
         The compare\_timeout=@var{ms} determines the maximum time of the
         colo-compare hold the packet. The expired\_scan\_cycle=@var{ms}
         is to set the period of scanning expired primary node network packets.
