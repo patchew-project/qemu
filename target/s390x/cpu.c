@@ -115,6 +115,7 @@ static void s390_cpu_reset(CPUState *s, cpu_reset_type type)
 
     scc->parent_reset(dev);
     cpu->env.sigp_order = 0;
+    s390_cpu_reset_sigp_busy(cpu);
     s390_cpu_set_state(S390_CPU_STATE_STOPPED, cpu);
 
     switch (type) {

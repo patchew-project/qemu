@@ -111,12 +111,14 @@ static void sigp_stop(CPUState *cs, run_on_cpu_data arg)
 
     if (s390_cpu_get_state(cpu) != S390_CPU_STATE_OPERATING) {
         si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
+        s390_cpu_reset_sigp_busy(cpu);
         return;
     }
 
     /* disabled wait - sleeping in user space */
     if (cs->halted) {
         s390_cpu_set_state(S390_CPU_STATE_STOPPED, cpu);
+        s390_cpu_reset_sigp_busy(cpu);
     } else {
         /* execute the stop function */
         cpu->env.sigp_order = SIGP_STOP;
@@ -139,12 +141,13 @@ static void sigp_stop_and_store_status(CPUState *cs, run_on_cpu_data arg)
     case S390_CPU_STATE_OPERATING:
         cpu->env.sigp_order = SIGP_STOP_STORE_STATUS;
         cpu_inject_stop(cpu);
-        /* store will be performed in do_stop_interrup() */
+        /* store will be performed in do_stop_interrupt() */
         break;
     case S390_CPU_STATE_STOPPED:
         /* already stopped, just store the status */
         cpu_synchronize_state(cs);
         s390_store_status(cpu, S390_STORE_STATUS_DEF_ADDR, true);
+        s390_cpu_reset_sigp_busy(cpu);
         break;
     }
     si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
@@ -375,6 +378,10 @@ static int handle_sigp_single_dst(S390CPU *cpu, S390CPU *dst_cpu, uint8_t order,
         return SIGP_CC_BUSY;
     }
 
+    if (s390_cpu_set_sigp_busy(dst_cpu) == -EBUSY) {
+        return SIGP_CC_BUSY;
+    }
+
     switch (order) {
     case SIGP_SENSE:
         sigp_sense(dst_cpu, &si);
@@ -420,6 +427,15 @@ static int handle_sigp_single_dst(S390CPU *cpu, S390CPU *dst_cpu, uint8_t order,
         break;
     default:
         set_sigp_status(&si, SIGP_STAT_INVALID_ORDER);
+    }
+
+    switch (order) {
+    case SIGP_STOP:
+    case SIGP_STOP_STORE_STATUS:
+        /* These orders will clean up the indicator when they are finished */
+        break;
+    default:
+        s390_cpu_reset_sigp_busy(dst_cpu);
     }
 
     return si.cc;
@@ -487,6 +503,7 @@ void do_stop_interrupt(CPUS390XState *env)
     }
     env->sigp_order = 0;
     env->pending_int &= ~INTERRUPT_STOP;
+    s390_cpu_reset_sigp_busy(cpu);
 }
 
 void s390_init_sigp(void)

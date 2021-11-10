@@ -360,6 +360,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     cap_protected = kvm_check_extension(s, KVM_CAP_S390_PROTECTED);
 
     kvm_vm_enable_cap(s, KVM_CAP_S390_USER_SIGP, 0);
+    kvm_vm_enable_cap(s, KVM_CAP_S390_USER_SIGP_BUSY, 0);
     kvm_vm_enable_cap(s, KVM_CAP_S390_VECTOR_REGISTERS, 0);
     kvm_vm_enable_cap(s, KVM_CAP_S390_USER_STSI, 0);
     if (ri_allowed()) {
@@ -2556,6 +2557,21 @@ void kvm_s390_stop_interrupt(S390CPU *cpu)
     };
 
     kvm_s390_vcpu_interrupt(cpu, &irq);
+}
+
+int kvm_s390_vcpu_set_sigp_busy(S390CPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+
+    return kvm_vcpu_ioctl(cs, KVM_S390_VCPU_SET_SIGP_BUSY);
+}
+
+void kvm_s390_vcpu_reset_sigp_busy(S390CPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+
+    /* Don't care about the response from this */
+    kvm_vcpu_ioctl(cs, KVM_S390_VCPU_RESET_SIGP_BUSY);
 }
 
 bool kvm_arch_cpu_check_are_resettable(void)
