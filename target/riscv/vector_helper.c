@@ -112,6 +112,11 @@ static uint32_t vext_wd(uint32_t desc)
     return (simd_data(desc) >> 11) & 0x1;
 }
 
+static inline bool vext_trunc(uint32_t desc)
+{
+    return FIELD_EX32(simd_data(desc), VDATA, TRUNC);
+}
+
 /*
  * Get vector group length in bytes. Its range is [64, 2048].
  *
@@ -4748,6 +4753,7 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
     uint32_t mlen = vext_mlen(desc);                                      \
     uint32_t vlmax = env_archcpu(env)->cfg.vlen / mlen;                   \
     uint32_t vm = vext_vm(desc);                                          \
+    bool trunc = vext_trunc(desc);                                        \
     uint32_t vl = env->vl;                                                \
     uint32_t i;                                                           \
                                                                           \
@@ -4756,7 +4762,7 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
             continue;                                                     \
         }                                                                 \
         if (i == 0) {                                                     \
-            *((ETYPE *)vd + H(i)) = s1;                                   \
+            *((ETYPE *)vd + H(i)) = trunc ? (s1 & UINT32_MAX) : s1;       \
         } else {                                                          \
             *((ETYPE *)vd + H(i)) = *((ETYPE *)vs2 + H(i - 1));           \
         }                                                                 \
@@ -4777,6 +4783,7 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
     uint32_t mlen = vext_mlen(desc);                                      \
     uint32_t vlmax = env_archcpu(env)->cfg.vlen / mlen;                   \
     uint32_t vm = vext_vm(desc);                                          \
+    bool trunc = vext_trunc(desc);                                        \
     uint32_t vl = env->vl;                                                \
     uint32_t i;                                                           \
                                                                           \
@@ -4785,7 +4792,7 @@ void HELPER(NAME)(void *vd, void *v0, target_ulong s1, void *vs2,         \
             continue;                                                     \
         }                                                                 \
         if (i == vl - 1) {                                                \
-            *((ETYPE *)vd + H(i)) = s1;                                   \
+            *((ETYPE *)vd + H(i)) = trunc ? (s1 & UINT32_MAX) : s1;       \
         } else {                                                          \
             *((ETYPE *)vd + H(i)) = *((ETYPE *)vs2 + H(i + 1));           \
         }                                                                 \
