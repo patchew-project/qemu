@@ -1,0 +1,55 @@
+# -*- Mode: Python -*-
+# vim: filetype=python
+#
+
+##
+# = Virtio devices
+##
+
+##
+# @VirtioInfo:
+#
+# Basic information about a given VirtIODevice
+#
+# @path: the device's canonical QOM path
+#
+# @type: VirtIO device name
+#
+# Since: 6.3
+#
+##
+{ 'struct': 'VirtioInfo',
+  'data': { 'path': 'str',
+            'type': 'str' } }
+
+##
+# @x-query-virtio:
+#
+# Returns a list of all realized VirtIO devices
+#
+# Features:
+# @unstable: This command is meant for debugging.
+#
+# Returns: list of gathered @VirtioInfo devices
+#
+# Since: 6.3
+#
+# Example:
+#
+# -> { "execute": "x-query-virtio" }
+# <- { "return": [ { "path": "/machine/peripheral-anon/device[4]/virtio-backend",
+#                    "type": "virtio-input" },
+#                  { "path": "/machine/peripheral/crypto0/virtio-backend",
+#                    "type": "virtio-crypto" },
+#                  { "path": "/machine/peripheral-anon/device[2]/virtio-backend",
+#                    "type": "virtio-scsi" },
+#                  { "path": "/machine/peripheral-anon/device[1]/virtio-backend",
+#                    "type": "virtio-net" },
+#                  { "path": "/machine/peripheral-anon/device[0]/virtio-backend",
+#                    "type": "virtio-serial" }
+#                ] }
+#
+##
+
+{ 'command': 'x-query-virtio', 'returns': ['VirtioInfo'],
+  'features': [ 'unstable' ] }
