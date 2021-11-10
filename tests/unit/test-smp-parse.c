@@ -23,6 +23,8 @@
 #define MIN_CPUS 1   /* set the min CPUs supported by the machine as 1 */
 #define MAX_CPUS 512 /* set the max CPUs supported by the machine as 512 */
 
+#define SMP_MACHINE_NAME "TEST-SMP"
+
 /*
  * Used to define the generic 3-level CPU topology hierarchy
  *  -sockets/cores/threads
@@ -315,13 +317,13 @@ static struct SMPTestData data_generic_invalid[] = {
          * should tweak the supported min CPUs to 2 for testing */
         .config = SMP_CONFIG_GENERIC(T, 1, F, 0, F, 0, F, 0, F, 0),
         .expect_error = "Invalid SMP CPUs 1. The min CPUs supported "
-                        "by machine '(null)' is 2",
+                        "by machine '" SMP_MACHINE_NAME "' is 2",
     }, {
         /* config: -smp 512
          * should tweak the supported max CPUs to 511 for testing */
         .config = SMP_CONFIG_GENERIC(T, 512, F, 0, F, 0, F, 0, F, 0),
         .expect_error = "Invalid SMP CPUs 512. The max CPUs supported "
-                        "by machine '(null)' is 511",
+                        "by machine '" SMP_MACHINE_NAME "' is 511",
     },
 };
 
@@ -480,25 +482,40 @@ static void unsupported_params_init(MachineClass *mc, SMPTestData *data)
     }
 }
 
-/* Reset the related machine properties before each sub-test */
-static void smp_machine_class_init(MachineClass *mc)
+static Object *smp_test_machine_init(void)
 {
+    Object *obj = object_new(TYPE_MACHINE);
+    MachineClass *mc = MACHINE_GET_CLASS(obj);
+
+    g_free(mc->name);
+    mc->name = g_strdup(SMP_MACHINE_NAME);
+
     mc->min_cpus = MIN_CPUS;
     mc->max_cpus = MAX_CPUS;
 
     mc->smp_props.prefer_sockets = true;
     mc->smp_props.dies_supported = false;
+
+    return obj;
+}
+
+static void smp_test_machine_deinit(Object *obj)
+{
+    MachineClass *mc = MACHINE_GET_CLASS(obj);
+
+    g_free(mc->name);
+    mc->name = NULL;
+
+    object_unref(obj);
 }
 
 static void test_generic(void)
 {
-    Object *obj = object_new(TYPE_MACHINE);
+    Object *obj = smp_test_machine_init();
     MachineState *ms = MACHINE(obj);
     MachineClass *mc = MACHINE_GET_CLASS(obj);
     SMPTestData *data = &(SMPTestData){{ }};
     int i;
-
-    smp_machine_class_init(mc);
 
     for (i = 0; i < ARRAY_SIZE(data_generic_valid); i++) {
         *data = data_generic_valid[i];
@@ -523,19 +540,18 @@ static void test_generic(void)
         smp_parse_test(ms, data, false);
     }
 
-    object_unref(obj);
+    smp_test_machine_deinit(obj);
 }
 
 static void test_with_dies(void)
 {
-    Object *obj = object_new(TYPE_MACHINE);
+    Object *obj = smp_test_machine_init();
     MachineState *ms = MACHINE(obj);
     MachineClass *mc = MACHINE_GET_CLASS(obj);
     SMPTestData *data = &(SMPTestData){{ }};
     unsigned int num_dies = 2;
     int i;
 
-    smp_machine_class_init(mc);
     mc->smp_props.dies_supported = true;
 
     for (i = 0; i < ARRAY_SIZE(data_generic_valid); i++) {
@@ -575,7 +591,7 @@ static void test_with_dies(void)
         smp_parse_test(ms, data, false);
     }
 
-    object_unref(obj);
+    smp_test_machine_deinit(obj);
 }
 
 int main(int argc, char *argv[])
