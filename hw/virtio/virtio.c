@@ -3289,6 +3289,7 @@ void virtio_init(VirtIODevice *vdev, uint16_t device_id,
 
     vdev->start_on_kick = false;
     vdev->started = false;
+    vdev->vhost_started = false;
     vdev->device_id = device_id;
     vdev->status = 0;
     qatomic_set(&vdev->isr, 0);
