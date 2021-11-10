@@ -60,7 +60,7 @@ struct PCIESlot {
     /* Indicates whether any type of hot-plug is allowed on the slot */
     bool        hotplug;
 
-    bool        native_hotplug;
+    bool        native_hpc_bit;
 
     QLIST_ENTRY(PCIESlot) next;
 };

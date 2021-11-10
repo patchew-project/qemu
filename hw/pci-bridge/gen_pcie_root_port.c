@@ -87,7 +87,11 @@ static void gen_rp_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (grp->res_reserve.io == -1 && s->hotplug && !s->native_hotplug) {
+    /*
+     * Make sure that IO is assigned in case the slot is hot-pluggable
+     * but it is not visible through the PCIe Slot Capabilities
+     */
+    if (grp->res_reserve.io == -1 && s->hotplug && !s->native_hpc_bit) {
         grp->res_reserve.io = GEN_PCIE_ROOT_DEFAULT_IO_RANGE;
     }
     int rc = pci_bridge_qemu_reserve_cap_init(d, 0,
