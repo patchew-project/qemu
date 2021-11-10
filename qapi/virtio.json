@@ -67,6 +67,466 @@
 }
 
 ##
+# @VirtioType:
+#
+# An enumeration of Virtio device types (or names)
+#
+# Since: 6.3
+##
+
+{ 'enum': 'VirtioType',
+  'data': [ 'virtio-net', 'virtio-blk', 'virtio-serial', 'virtio-rng',
+            'virtio-balloon', 'virtio-iomem', 'virtio-rpmsg',
+            'virtio-scsi', 'virtio-9p', 'virtio-mac-wlan',
+            'virtio-rproc-serial', 'virtio-caif', 'virtio-mem-balloon',
+            'virtio-gpu', 'virtio-clk', 'virtio-input', 'vhost-vsock',
+            'virtio-crypto', 'virtio-signal', 'virtio-pstore',
+            'virtio-iommu', 'virtio-mem', 'virtio-sound', 'vhost-user-fs',
+            'virtio-pmem', 'virtio-mac-hwsim', 'vhost-user-i2c',
+            'virtio-bluetooth' ]
+}
+
+##
+# @VirtioConfigStatus:
+#
+# An enumeration of Virtio device configuration statuses
+#
+# Since: 6.3
+##
+
+{ 'enum': 'VirtioConfigStatus',
+  'data': [ 'driver-ok', 'features-ok', 'driver', 'needs-reset',
+            'failed', 'acknowledge' ]
+}
+
+##
+# @VirtioDeviceStatus:
+#
+# A structure defined to list the configuration statuses of a virtio
+# device
+#
+# @dev-status: List of decoded configuration statuses of the virtio
+#              device
+#
+# @unknown-statuses: virtio device statuses bitmap that have not been decoded
+#
+# Since: 6.3
+##
+
+{ 'struct': 'VirtioDeviceStatus',
+  'data': { 'dev-status': [ 'VirtioConfigStatus' ],
+            '*unknown-statuses': 'uint8' } }
+
+##
+# @VhostProtocolFeature:
+#
+# An enumeration of Vhost User protocol features
+#
+# Since: 6.3
+##
+
+{ 'enum': 'VhostProtocolFeature',
+  'data': [ 'mq', 'log-shmfd', 'rarp', 'reply-ack', 'net-mtu',
+            'slave-req', 'cross-endian', 'crypto-session', 'pagefault',
+            'config', 'slave-send-fd', 'host-notifier',
+            'inflight-shmfd', 'reset-device', 'inband-notifications',
+            'configure-mem-slots' ]
+}
+
+##
+# @VhostDeviceProtocols:
+#
+# A structure defined to list the vhost user protocol features of a
+# Vhost User device
+#
+# @features: List of decoded vhost user protocol features of a vhost
+#            user device
+#
+# @unknown-protocols: vhost user device protocol features bitmap that
+#                     have not been decoded
+#
+# Since: 6.3
+##
+
+{ 'struct': 'VhostDeviceProtocols',
+  'data': { 'features': [ 'VhostProtocolFeature' ],
+            '*unknown-protocols': 'uint64' } }
+
+##
+# @VirtioTransportFeature:
+#
+# An enumeration of Virtio device transport features, including virtio-ring
+#
+# Since: 6.3
+##
+
+{ 'enum': 'VirtioTransportFeature',
+  'data': [ 'notify-on-empty', 'any-layout', 'protocol-features',
+            'version-1', 'iommu-platform', 'ring-packed', 'order-platform',
+            'sr-iov', 'indirect-desc', 'event-idx' ]
+}
+
+##
+# @VirtioMemFeature:
+#
+# An enumeration of Virtio mem features
+#
+# Since: 6.3
+##
+
+{ 'enum': 'VirtioMemFeature',
+  'data': [ 'acpi-pxm' ]
+}
+
+##
+# @VirtioSerialFeature:
+#
+# An enumeration of Virtio serial/console features
+#
+# Since: 6.3
+##
+
+{ 'enum': 'VirtioSerialFeature',
+  'data': [ 'size', 'multiport', 'emerg-write' ]
+}
+
+##
+# @VirtioBlkFeature:
+#
+# An enumeration of Virtio block features
+#
+# Since: 6.3
+##
+
+{ 'enum': 'VirtioBlkFeature',
+  'data': [ 'size-max', 'seg-max', 'geometry', 'ro', 'blk-size',
+            'topology', 'mq', 'discard', 'write-zeroes', 'barrier',
+            'scsi', 'flush', 'config-wce', 'log-all' ]
+}
+
+##
+# @VirtioGpuFeature:
+#
+# An enumeration of Virtio gpu features
+#
+# Since: 6.3
+##
+
+{ 'enum': 'VirtioGpuFeature',
+  'data': [ 'virgl', 'edid', 'resource-uuid', 'resource-blob',
+            'log-all' ]
+}
+
+##
+# @VirtioNetFeature:
+#
+# An enumeration of Virtio net features
+#
+# Since: 6.3
+##
+
+{ 'enum': 'VirtioNetFeature',
+  'data': [ 'csum', 'guest-csum', 'ctrl-guest-offloads', 'mtu', 'mac',
+            'guest-tso4', 'guest-tso6', 'guest-ecn', 'guest-ufo',
+            'host-tso4', 'host-tso6', 'host-ecn', 'host-ufo',
+            'mrg-rxbuf', 'status', 'ctrl-vq', 'ctrl-rx', 'ctrl-vlan',
+            'ctrl-rx-extra', 'guest-announce', 'mq', 'ctrl-mac-addr',
+            'hash-report', 'rss', 'rsc-ext', 'standby', 'speed-duplex',
+            'gso', 'virtio-net-hdr', 'log-all' ]
+}
+
+##
+# @VirtioScsiFeature:
+#
+# An enumeration of Virtio scsi features
+#
+# Since: 6.3
+##
+
+{ 'enum': 'VirtioScsiFeature',
+  'data': [ 'inout', 'hotplug', 'change', 't10-pi', 'log-all' ]
+}
+
+##
+# @VirtioBalloonFeature:
+#
+# An enumeration of Virtio balloon features
+#
+# Since: 6.3
+##
+
+{ 'enum': 'VirtioBalloonFeature',
+  'data': [ 'must-tell-host', 'stats-vq', 'deflate-on-oom',
+            'free-page-hint', 'page-poison', 'reporting' ]
+}
+
+##
+# @VirtioIommuFeature:
+#
+# An enumeration of Virtio iommu features
+#
+# Since: 6.3
+##
+
+{ 'enum': 'VirtioIommuFeature',
+  'data': [ 'input-range', 'domain-range', 'map-unmap', 'bypass',
+            'probe', 'mmio' ]
+}
+
+##
+# @VirtioInputFeature:
+#
+# An enumeration of Virtio input features. Note that virtio-input
+# has no device-specific features except when its vhost is active,
+# then it may have the VHOST_F_LOG_ALL feature.
+#
+# Since: 6.3
+##
+
+{ 'enum': 'VirtioInputFeature',
+  'data': [ 'log-all' ]
+}
+
+##
+# @VhostUserFsFeature:
+#
+# An enumeration of vhost user FS features. Note that vhost-user-fs
+# has no device-specific features other than the vhost-common
+# VHOST_F_LOG_ALL feature.
+#
+# Since: 6.3
+##
+
+{ 'enum': 'VhostUserFsFeature',
+  'data': [ 'log-all' ]
+}
+
+##
+# @VhostVsockFeature:
+#
+# An enumeration of vhost vsock features. Note that vhost-vsock has
+# no device-specific features other than the vhost-common
+# VHOST_F_LOG_ALL feature.
+#
+# Since: 6.3
+##
+
+{ 'enum': 'VhostVsockFeature',
+  'data': [ 'log-all' ]
+}
+
+##
+# @VirtioCryptoFeature:
+#
+# An enumeration of virtio crypto features. Not that virtio-crypto
+# has no device-specific features other than when it is a vhost
+# device, then it may have the VHOST_F_LOG_ALL feature.
+#
+# Since: 6.3
+##
+
+{ 'enum': 'VirtioCryptoFeature',
+  'data': [ 'log-all' ]
+}
+
+##
+# @VirtioDeviceFeaturesBase:
+#
+# The common fields that apply to all Virtio devices
+#
+# @type: virtio device name
+# @transport: the list of transport features of the virtio device
+# @unknown-features: virtio device features bitmap that have not been decoded
+#
+# Since: 6.3
+##
+
+{ 'struct': 'VirtioDeviceFeaturesBase',
+  'data': { 'type': 'VirtioType',
+            'transport': [ 'VirtioTransportFeature' ],
+            '*unknown-features': 'uint64' } }
+
+##
+# @VirtioDeviceFeaturesOptionsMem:
+#
+# The options that apply to Virtio mem devices
+#
+# @features: List of device features
+#
+# Since: 6.3
+##
+
+{ 'struct': 'VirtioDeviceFeaturesOptionsMem',
+  'data': { 'features': [ 'VirtioMemFeature' ] } }
+
+##
+# @VirtioDeviceFeaturesOptionsSerial:
+#
+# The options that apply to Virtio serial devices
+#
+# @features: List of device features
+#
+# Since: 6.3
+##
+
+{ 'struct': 'VirtioDeviceFeaturesOptionsSerial',
+  'data': { 'features': [ 'VirtioSerialFeature' ] } }
+
+##
+# @VirtioDeviceFeaturesOptionsBlk:
+#
+# The options that apply to Virtio block devices
+#
+# @features: List of device features
+#
+# Since: 6.3
+##
+
+{ 'struct': 'VirtioDeviceFeaturesOptionsBlk',
+  'data': { 'features': [ 'VirtioBlkFeature' ] } }
+
+##
+# @VirtioDeviceFeaturesOptionsGpu:
+#
+# The options that apply to Virtio GPU devices
+#
+# @features: List of device features
+#
+# Since: 6.3
+##
+
+{ 'struct': 'VirtioDeviceFeaturesOptionsGpu',
+  'data': { 'features': [ 'VirtioGpuFeature' ] } }
+
+##
+# @VirtioDeviceFeaturesOptionsNet:
+#
+# The options that apply to Virtio net devices
+#
+# @features: List of device features
+#
+# Since: 6.3
+##
+
+{ 'struct': 'VirtioDeviceFeaturesOptionsNet',
+  'data': { 'features': [ 'VirtioNetFeature' ] } }
+
+##
+# @VirtioDeviceFeaturesOptionsScsi:
+#
+# The options that apply to Virtio SCSI devices
+#
+# @features: List of device features
+#
+# Since: 6.3
+##
+
+{ 'struct': 'VirtioDeviceFeaturesOptionsScsi',
+  'data': { 'features': [ 'VirtioScsiFeature' ] } }
+
+##
+# @VirtioDeviceFeaturesOptionsBalloon:
+#
+# The options that apply to Virtio balloon devices
+#
+# @features: List of device features
+#
+# Since: 6.3
+##
+
+{ 'struct': 'VirtioDeviceFeaturesOptionsBalloon',
+  'data': { 'features': [ 'VirtioBalloonFeature' ] } }
+
+##
+# @VirtioDeviceFeaturesOptionsIommu:
+#
+# The options that apply to Virtio IOMMU devices
+#
+# @features: List of device features
+#
+# Since: 6.3
+##
+
+{ 'struct': 'VirtioDeviceFeaturesOptionsIommu',
+  'data': { 'features': [ 'VirtioIommuFeature' ] } }
+
+##
+# @VirtioDeviceFeaturesOptionsInput:
+#
+# The options that apply to Virtio input devices
+#
+# @features: List of device features
+#
+# Since: 6.3
+##
+
+{ 'struct': 'VirtioDeviceFeaturesOptionsInput',
+  'data': { 'features': [ 'VirtioInputFeature' ] } }
+
+##
+# @VhostDeviceFeaturesOptionsFs:
+#
+# The options that apply to vhost-user-fs devices
+#
+# @features: List of device features
+#
+# Since: 6.3
+##
+
+{ 'struct': 'VhostDeviceFeaturesOptionsFs',
+  'data': { 'features': [ 'VhostUserFsFeature' ] } }
+
+##
+# @VhostDeviceFeaturesOptionsVsock:
+#
+# The options that apply to vhost-vsock devices
+#
+# @features: List of device features
+#
+# Since: 6.3
+##
+
+{ 'struct': 'VhostDeviceFeaturesOptionsVsock',
+  'data': { 'features': [ 'VhostVsockFeature' ] } }
+
+##
+# @VirtioDeviceFeaturesOptionsCrypto:
+#
+# The options that apply to virtio-crypto devices
+#
+# @features: List of device features
+#
+# Since: 6.3
+##
+
+{ 'struct': 'VirtioDeviceFeaturesOptionsCrypto',
+  'data': { 'features': [ 'VirtioCryptoFeature' ] } }
+
+##
+# @VirtioDeviceFeatures:
+#
+# A union to define the list of features for a virtio device
+#
+# Since: 6.3
+##
+
+{ 'union': 'VirtioDeviceFeatures',
+  'base': 'VirtioDeviceFeaturesBase',
+  'discriminator': 'type',
+  'data': { 'virtio-serial': 'VirtioDeviceFeaturesOptionsSerial',
+            'virtio-blk': 'VirtioDeviceFeaturesOptionsBlk',
+            'virtio-gpu': 'VirtioDeviceFeaturesOptionsGpu',
+            'virtio-net': 'VirtioDeviceFeaturesOptionsNet',
+            'virtio-scsi': 'VirtioDeviceFeaturesOptionsScsi',
+            'virtio-balloon': 'VirtioDeviceFeaturesOptionsBalloon',
+            'virtio-iommu': 'VirtioDeviceFeaturesOptionsIommu',
+            'virtio-input': 'VirtioDeviceFeaturesOptionsInput',
+            'vhost-user-fs': 'VhostDeviceFeaturesOptionsFs',
+            'vhost-vsock': 'VhostDeviceFeaturesOptionsVsock',
+            'virtio-crypto': 'VirtioDeviceFeaturesOptionsCrypto',
+            'virtio-mem': 'VirtioDeviceFeaturesOptionsMem' } }
+
+##
 # @VhostStatus:
 #
 # Information about a vhost device. This information will only be
@@ -106,10 +566,10 @@
             'n-tmp-sections': 'int',
             'nvqs': 'uint32',
             'vq-index': 'int',
-            'features': 'uint64',
-            'acked-features': 'uint64',
-            'backend-features': 'uint64',
-            'protocol-features': 'uint64',
+            'features': 'VirtioDeviceFeatures',
+            'acked-features': 'VirtioDeviceFeatures',
+            'backend-features': 'VirtioDeviceFeatures',
+            'protocol-features': 'VhostDeviceProtocols',
             'max-queues': 'uint64',
             'backend-cap': 'uint64',
             'log-enabled': 'bool',
@@ -174,12 +634,12 @@
   'data': { 'name': 'str',
             'device-id': 'uint16',
             'vhost-started': 'bool',
-            'guest-features': 'uint64',
-            'host-features': 'uint64',
-            'backend-features': 'uint64',
+            'guest-features': 'VirtioDeviceFeatures',
+            'host-features': 'VirtioDeviceFeatures',
+            'backend-features': 'VirtioDeviceFeatures',
             'device-endian': 'VirtioStatusEndianness',
             'num-vqs': 'int',
-            'status': 'uint8',
+            'status': 'VirtioDeviceStatus',
             'isr': 'uint8',
             'queue-sel': 'uint16',
             'vm-running': 'bool',
@@ -191,7 +651,7 @@
             'disable-legacy-check': 'bool',
             'bus-name': 'str',
             'use-guest-notifier-mask': 'bool',
-            'vhost-dev': 'VhostStatus' } }
+            '*vhost-dev': 'VhostStatus' } }
 
 ##
 # @x-query-virtio-status:
@@ -221,28 +681,31 @@
 #          "name": "virtio-crypto",
 #          "started": true,
 #          "device-id": 20,
-#          "vhost-dev": {
-#               "n-tmp-sections": 0,
-#               "n-mem-sections": 0,
-#               "max-queues": 0,
-#               "backend-cap": 0,
-#               "log-size": 0,
-#               "backend-features": 0,
-#               "nvqs": 0,
-#               "protocol-features": 0,
-#               "vq-index": 0,
-#               "log-enabled": false,
-#               "acked-features": 0,
-#               "features": 0
+#          "backend-features": {
+#               "transport": [],
+#               "type": "virtio-crypto",
+#               "features": []
 #          },
-#          "backend-features": 0,
 #          "start-on-kick": false,
 #          "isr": 1,
 #          "broken": false,
-#          "status": 15,
+#          "status": {
+#               "dev-status": ["acknowledge", "driver", "features-ok",
+#                              "driver-ok"]
+#          },
 #          "num-vqs": 2,
-#          "guest-features": 5100273664,
-#          "host-features": 6325010432,
+#          "guest-features": {
+#               "transport": ["event-idx", "indirect-desc", "version-1"],
+#               "type": "virtio-crypto",
+#               "features": []
+#          },
+#          "host-features": {
+#               "transport": ["protocol-features", "event-idx",
+#                             "indirect-desc", "version-1", "any-layout",
+#                             "notify-on-empty"],
+#               "type": "virtio-crypto",
+#               "features": []
+#          },
 #          "use-guest-notifier-mask": true,
 #          "vm-running": true,
 #          "queue-sel": 1,
@@ -270,22 +733,71 @@
 #               "max-queues": 1,
 #               "backend-cap": 2,
 #               "log-size": 0,
-#               "backend-features": 0,
+#               "backend-features": {
+#                       "transport": [],
+#                       "type": "virtio-net",
+#                       "features": []
+#               },
 #               "nvqs": 2,
-#               "protocol-features": 0,
+#               "protocol-features": {
+#                       "features": []
+#               },
 #               "vq-index": 0,
 #               "log-enabled": false,
-#               "acked-features": 5100306432,
-#               "features": 13908344832
+#               "acked-features": {
+#                       "transport": ["event-idx", "indirect-desc", "version-1",
+#                                     "any-layout", "notify-on-empty"],
+#                       "type": "virtio-net",
+#                       "features": ["mrg-rxbuf"]
+#               },
+#               "features": {
+#                       "transport": ["event-idx", "indirect-desc",
+#                                     "iommu-platform", "version-1", "any-layout",
+#                                     "notify-on-empty"],
+#                       "type": "virtio-net",
+#                       "features": ["log-all", "mrg-rxbuf"]
+#               }
 #          },
-#          "backend-features": 6337593319,
+#          "backend-features": {
+#               "transport": ["protocol-features", "event-idx", "indirect-desc",
+#                             "version-1", "any-layout", "notify-on-empty"],
+#               "type": "virtio-net",
+#               "features": ["gso", "ctrl-mac-addr", "guest-announce", "ctrl-rx-extra",
+#                            "ctrl-vlan", "ctrl-rx", "ctrl-vq", "status", "mrg-rxbuf",
+#                            "host-ufo", "host-ecn", "host-tso6", "host-tso4",
+#                            "guest-ufo", "guest-ecn", "guest-tso6", "guest-tso4",
+#                            "mac", "ctrl-guest-offloads", "guest-csum", "csum"]
+#          },
 #          "start-on-kick": false,
 #          "isr": 1,
 #          "broken": false,
-#          "status": 15,
+#          "status": {
+#               "dev-status": ["acknowledge", "driver", "features-ok", "driver-ok"]
+#          },
 #          "num-vqs": 3,
-#          "guest-features": 5111807911,
-#          "host-features": 6337593319,
+#          "guest-features": {
+#               "transport": ["event-idx", "indirect-desc", "version-1"],
+#               "type": "virtio-net",
+#               "features": ["ctrl-mac-addr", "guest-announce", "ctrl-vlan",
+#                            "ctrl-rx", "ctrl-vq", "status", "mrg-rxbuf",
+#                            "host-ufo", "host-ecn", "host-tso6",
+#                            "host-tso4", "guest-ufo", "guest-ecn",
+#                            "guest-tso6", "guest-tso4", "mac",
+#                            "ctrl-guest-offloads", "guest-csum", "csum"]
+#          },
+#          "host-features": {
+#               "transport": ["protocol-features", "event-idx",
+#                             "indirect-desc", "version-1", "any-layout",
+#                             "notify-on-empty"],
+#               "type": "virtio-net",
+#               "features": ["gso", "ctrl-mac-addr", "guest-announce",
+#                            "ctrl-rx-extra", "ctrl-vlan", "ctrl-rx",
+#                            "ctrl-vq", "status", "mrg-rxbuf", "host-ufo",
+#                            "host-ecn", "host-tso6", "host-tso4",
+#                            "guest-ufo", "guest-ecn", "guest-tso6",
+#                            "guest-tso4", "mac", "ctrl-guest-offloads",
+#                            "guest-csum", "csum"]
+#          },
 #          "use-guest-notifier-mask": true,
 #          "vm-running": true,
 #          "queue-sel": 2,
