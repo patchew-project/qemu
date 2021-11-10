@@ -378,6 +378,7 @@ static void riscv_cpu_reset(DeviceState *dev)
 #ifndef CONFIG_USER_ONLY
     env->misa_mxl = env->misa_mxl_max;
     env->priv = PRV_M;
+    riscv_cpu_update_mask(env);
     env->mstatus &= ~(MSTATUS_MIE | MSTATUS_MPRV);
     if (env->misa_mxl > MXL_RV32) {
         /*
