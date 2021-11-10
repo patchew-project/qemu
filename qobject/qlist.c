@@ -182,3 +182,20 @@ void qlist_destroy_obj(QObject *obj)
 
     g_free(qlist);
 }
+
+void dump_qlist(int indentation, QList *list, int (*qemu_printf)(const char *fmt, ...))
+{
+    const QListEntry *entry;
+    int i = 0;
+
+    for (entry = qlist_first(list); entry; entry = qlist_next(entry), i++) {
+        QType type = qobject_type(entry->value);
+        bool composite = (type == QTYPE_QDICT || type == QTYPE_QLIST);
+        qemu_printf("%*s[%i]:%c", indentation * 4, "", i,
+                    composite ? '\n' : ' ');
+        dump_qobject(indentation + 1, entry->value, qemu_printf);
+        if (!composite) {
+            qemu_printf("\n");
+        }
+    }
+}

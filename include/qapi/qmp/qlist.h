@@ -62,4 +62,5 @@ static inline const QListEntry *qlist_next(const QListEntry *entry)
     return QTAILQ_NEXT(entry, next);
 }
 
+void dump_qlist(int indentation, QList *list, int (*qemu_printf)(const char *fmt, ...));
 #endif /* QLIST_H */

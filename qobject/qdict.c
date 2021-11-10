@@ -442,3 +442,28 @@ void qdict_destroy_obj(QObject *obj)
 
     g_free(qdict);
 }
+
+void dump_qdict(int indentation, QDict *dict, int (*qemu_printf)(const char *fmt, ...))
+{
+    const QDictEntry *entry;
+
+    for (entry = qdict_first(dict); entry; entry = qdict_next(dict, entry)) {
+        QType type = qobject_type(entry->value);
+        bool composite = (type == QTYPE_QDICT || type == QTYPE_QLIST);
+        char *key = g_malloc(strlen(entry->key) + 1);
+        int i;
+
+        /* replace dashes with spaces in key (variable) names */
+        for (i = 0; entry->key[i]; i++) {
+            key[i] = entry->key[i] == '-' ? ' ' : entry->key[i];
+        }
+        key[i] = 0;
+        qemu_printf("%*s%s:%c", indentation * 4, "", key,
+                    composite ? '\n' : ' ');
+        dump_qobject(indentation + 1, entry->value, qemu_printf);
+        if (!composite) {
+            qemu_printf("\n");
+        }
+        g_free(key);
+    }
+}

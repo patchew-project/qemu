@@ -697,86 +697,6 @@ void bdrv_snapshot_dump(QEMUSnapshotInfo *sn)
     g_free(sizing);
 }
 
-static void dump_qdict(int indentation, QDict *dict);
-static void dump_qlist(int indentation, QList *list);
-
-static void dump_qobject(int comp_indent, QObject *obj)
-{
-    switch (qobject_type(obj)) {
-        case QTYPE_QNUM: {
-            QNum *value = qobject_to(QNum, obj);
-            char *tmp = qnum_to_string(value);
-            qemu_printf("%s", tmp);
-            g_free(tmp);
-            break;
-        }
-        case QTYPE_QSTRING: {
-            QString *value = qobject_to(QString, obj);
-            qemu_printf("%s", qstring_get_str(value));
-            break;
-        }
-        case QTYPE_QDICT: {
-            QDict *value = qobject_to(QDict, obj);
-            dump_qdict(comp_indent, value);
-            break;
-        }
-        case QTYPE_QLIST: {
-            QList *value = qobject_to(QList, obj);
-            dump_qlist(comp_indent, value);
-            break;
-        }
-        case QTYPE_QBOOL: {
-            QBool *value = qobject_to(QBool, obj);
-            qemu_printf("%s", qbool_get_bool(value) ? "true" : "false");
-            break;
-        }
-        default:
-            abort();
-    }
-}
-
-static void dump_qlist(int indentation, QList *list)
-{
-    const QListEntry *entry;
-    int i = 0;
-
-    for (entry = qlist_first(list); entry; entry = qlist_next(entry), i++) {
-        QType type = qobject_type(entry->value);
-        bool composite = (type == QTYPE_QDICT || type == QTYPE_QLIST);
-        qemu_printf("%*s[%i]:%c", indentation * 4, "", i,
-                    composite ? '\n' : ' ');
-        dump_qobject(indentation + 1, entry->value);
-        if (!composite) {
-            qemu_printf("\n");
-        }
-    }
-}
-
-static void dump_qdict(int indentation, QDict *dict)
-{
-    const QDictEntry *entry;
-
-    for (entry = qdict_first(dict); entry; entry = qdict_next(dict, entry)) {
-        QType type = qobject_type(entry->value);
-        bool composite = (type == QTYPE_QDICT || type == QTYPE_QLIST);
-        char *key = g_malloc(strlen(entry->key) + 1);
-        int i;
-
-        /* replace dashes with spaces in key (variable) names */
-        for (i = 0; entry->key[i]; i++) {
-            key[i] = entry->key[i] == '-' ? ' ' : entry->key[i];
-        }
-        key[i] = 0;
-        qemu_printf("%*s%s:%c", indentation * 4, "", key,
-                    composite ? '\n' : ' ');
-        dump_qobject(indentation + 1, entry->value);
-        if (!composite) {
-            qemu_printf("\n");
-        }
-        g_free(key);
-    }
-}
-
 void bdrv_image_info_specific_dump(ImageInfoSpecific *info_spec)
 {
     QObject *obj, *data;
@@ -785,7 +705,7 @@ void bdrv_image_info_specific_dump(ImageInfoSpecific *info_spec)
     visit_type_ImageInfoSpecific(v, NULL, &info_spec, &error_abort);
     visit_complete(v, &obj);
     data = qdict_get(qobject_to(QDict, obj), "data");
-    dump_qobject(1, data);
+    dump_qobject(1, data, qemu_printf);
     qobject_unref(obj);
     visit_free(v);
 }

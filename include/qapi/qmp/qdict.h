@@ -67,4 +67,6 @@ QDict *qdict_clone_shallow(const QDict *src);
 QObject *qdict_crumple(const QDict *src, Error **errp);
 void qdict_flatten(QDict *qdict);
 
+void dump_qdict(int indentation, QDict *dict, int (*qemu_printf)(const char *fmt, ...));
+
 #endif /* QDICT_H */

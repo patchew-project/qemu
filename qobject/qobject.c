@@ -70,3 +70,38 @@ bool qobject_is_equal(const QObject *x, const QObject *y)
 
     return qis_equal[x->base.type](x, y);
 }
+
+void dump_qobject(int comp_indent, QObject *obj, int (*qemu_printf)(const char *fmt, ...))
+{
+    switch (qobject_type(obj)) {
+        case QTYPE_QNUM: {
+            QNum *value = qobject_to(QNum, obj);
+            char *tmp = qnum_to_string(value);
+            qemu_printf("%s", tmp);
+            g_free(tmp);
+            break;
+        }
+        case QTYPE_QSTRING: {
+            QString *value = qobject_to(QString, obj);
+            qemu_printf("%s", qstring_get_str(value));
+            break;
+        }
+        case QTYPE_QDICT: {
+            QDict *value = qobject_to(QDict, obj);
+            dump_qdict(comp_indent, value, qemu_printf);
+            break;
+        }
+        case QTYPE_QLIST: {
+            QList *value = qobject_to(QList, obj);
+            dump_qlist(comp_indent, value, qemu_printf);
+            break;
+        }
+        case QTYPE_QBOOL: {
+            QBool *value = qobject_to(QBool, obj);
+            qemu_printf("%s", qbool_get_bool(value) ? "true" : "false");
+            break;
+        }
+        default:
+            abort();
+    }
+}

@@ -135,4 +135,5 @@ static inline QObject *qobject_check_type(const QObject *obj, QType type)
     }
 }
 
+void dump_qobject(int comp_indent, QObject *obj, int (*qemu_printf)(const char *fmt, ...));
 #endif /* QOBJECT_H */
