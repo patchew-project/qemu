@@ -107,6 +107,8 @@ FIELD(VTYPE, VSEW, 2, 3)
 FIELD(VTYPE, VEDIV, 5, 2)
 FIELD(VTYPE, RESERVED, 7, sizeof(target_ulong) * 8 - 9)
 FIELD(VTYPE, VILL, sizeof(target_ulong) * 8 - 1, 1)
+FIELD(VTYPE, RESERVED_XLEN32, 7, 23)
+FIELD(VTYPE, VILL_XLEN32, 31, 1)
 
 struct CPURISCVState {
     target_ulong gpr[32];
