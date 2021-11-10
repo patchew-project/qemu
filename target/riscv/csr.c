@@ -286,7 +286,20 @@ static RISCVException write_fcsr(CPURISCVState *env, int csrno,
 static RISCVException read_vtype(CPURISCVState *env, int csrno,
                                  target_ulong *val)
 {
-    *val = env->vtype;
+    target_ulong vill;
+    switch (cpu_get_xl(env)) {
+    case MXL_RV32:
+        vill = env->vill << 31;
+        break;
+#ifdef TARGET_RISCV64
+    case MXL_RV64:
+        vill = env->vill << 63;
+        break;
+#endif
+    default:
+        g_assert_not_reached();
+    }
+    *val = vill | env->vtype;
     return RISCV_EXCP_NONE;
 }
 

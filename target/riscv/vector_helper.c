@@ -45,11 +45,8 @@ target_ulong HELPER(vsetvl)(CPURISCVState *env, target_ulong s1,
     }
     if ((sew > cpu->cfg.elen) || vill || (ediv != 0) || (reserved != 0)) {
         /* only set vill bit. */
-        if (xlen < TARGET_LONG_BITS) {
-            env->vtype = FIELD_DP64(0, VTYPE, VILL_XLEN32, 1);
-        } else {
-            env->vtype = FIELD_DP64(0, VTYPE, VILL, 1);
-        }
+        env->vill = 1;
+        env->vtype = 0;
         env->vl = 0;
         env->vstart = 0;
         return 0;
