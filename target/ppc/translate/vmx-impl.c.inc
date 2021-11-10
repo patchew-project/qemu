@@ -1525,6 +1525,91 @@ static bool trans_VEXPANDQM(DisasContext *ctx, arg_VX_tb *a)
     return true;
 }
 
+static bool do_vextractm(DisasContext *ctx, arg_VX_tb *a, unsigned vece)
+{
+    const uint64_t elem_length = 8 << vece, elem_num = 15 >> vece;
+    int i = elem_num;
+    uint64_t bit;
+    TCGv_i64 t, b, tmp, zero;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    t = tcg_const_i64(0);
+    b = tcg_temp_new_i64();
+    tmp = tcg_temp_new_i64();
+    zero = tcg_constant_i64(0);
+
+    get_avr64(b, a->vrb, true);
+    for (bit = 1ULL << 63; i > elem_num / 2; i--, bit >>= elem_length) {
+        tcg_gen_shli_i64(t, t, 1);
+        tcg_gen_andi_i64(tmp, b, bit);
+        tcg_gen_setcond_i64(TCG_COND_NE, tmp, tmp, zero);
+        tcg_gen_or_i64(t, t, tmp);
+    }
+
+    get_avr64(b, a->vrb, false);
+    for (bit = 1ULL << 63; i >= 0; i--, bit >>= elem_length) {
+        tcg_gen_shli_i64(t, t, 1);
+        tcg_gen_andi_i64(tmp, b, bit);
+        tcg_gen_setcond_i64(TCG_COND_NE, tmp, tmp, zero);
+        tcg_gen_or_i64(t, t, tmp);
+    }
+
+    tcg_gen_trunc_i64_tl(cpu_gpr[a->vrt], t);
+
+    tcg_temp_free_i64(t);
+    tcg_temp_free_i64(b);
+    tcg_temp_free_i64(tmp);
+
+    return true;
+}
+
+TRANS(VEXTRACTBM, do_vextractm, MO_8)
+TRANS(VEXTRACTHM, do_vextractm, MO_16)
+TRANS(VEXTRACTWM, do_vextractm, MO_32)
+
+static bool trans_VEXTRACTDM(DisasContext *ctx, arg_VX_tb *a)
+{
+    TCGv_i64 t, b;
+
+    t = tcg_temp_new_i64();
+    b = tcg_temp_new_i64();
+
+    get_avr64(b, a->vrb, true);
+    tcg_gen_andi_i64(t, b, 1);
+    tcg_gen_shli_i64(t, t, 1);
+
+    get_avr64(b, a->vrb, false);
+    tcg_gen_andi_i64(b, b, 1);
+    tcg_gen_or_i64(t, t, b);
+
+    tcg_gen_trunc_i64_tl(cpu_gpr[a->vrt], t);
+
+    tcg_temp_free_i64(t);
+    tcg_temp_free_i64(b);
+
+    return true;
+}
+
+static bool trans_VEXTRACTQM(DisasContext *ctx, arg_VX_tb *a)
+{
+    TCGv_i64 tmp;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    tmp = tcg_temp_new_i64();
+
+    get_avr64(tmp, a->vrb, true);
+    tcg_gen_shri_i64(tmp, tmp, 63);
+    tcg_gen_trunc_i64_tl(cpu_gpr[a->vrt], tmp);
+
+    tcg_temp_free_i64(tmp);
+
+    return true;
+}
+
 #define GEN_VAFORM_PAIRED(name0, name1, opc2)                           \
 static void glue(gen_, name0##_##name1)(DisasContext *ctx)              \
     {                                                                   \
