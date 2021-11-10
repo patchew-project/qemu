@@ -303,6 +303,19 @@ static TCGv gen_pm_adjust_address(DisasContext *s, TCGv src)
     }
 }
 
+static TCGv get_address(DisasContext *ctx, int rs1, int imm)
+{
+    TCGv addr = temp_new(ctx);
+    TCGv src1 = get_gpr(ctx, rs1, EXT_NONE);
+
+    tcg_gen_addi_tl(addr, src1, imm);
+    addr = gen_pm_adjust_address(ctx, addr);
+    if (get_xl(ctx) == MXL_RV32) {
+        tcg_gen_ext32u_tl(addr, addr);
+    }
+    return addr;
+}
+
 #ifndef CONFIG_USER_ONLY
 /* The states of mstatus_fs are:
  * 0 = disabled, 1 = initial, 2 = clean, 3 = dirty
