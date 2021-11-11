@@ -75,14 +75,6 @@ typedef struct SMPTestData {
     const char *expect_error;
 } SMPTestData;
 
-/* Type info of the tested machine */
-static const TypeInfo smp_machine_info = {
-    .name = TYPE_MACHINE,
-    .parent = TYPE_OBJECT,
-    .class_size = sizeof(MachineClass),
-    .instance_size = sizeof(MachineState),
-};
-
 /*
  * List all the possible valid sub-collections of the generic 5
  * topology parameters (i.e. cpus/maxcpus/sockets/cores/threads),
@@ -480,9 +472,10 @@ static void unsupported_params_init(MachineClass *mc, SMPTestData *data)
     }
 }
 
-/* Reset the related machine properties before each sub-test */
-static void smp_machine_class_init(MachineClass *mc)
+static void machine_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->min_cpus = MIN_CPUS;
     mc->max_cpus = MAX_CPUS;
 
@@ -497,8 +490,6 @@ static void test_generic(void)
     MachineClass *mc = MACHINE_GET_CLASS(obj);
     SMPTestData *data = &(SMPTestData){{ }};
     int i;
-
-    smp_machine_class_init(mc);
 
     for (i = 0; i < ARRAY_SIZE(data_generic_valid); i++) {
         *data = data_generic_valid[i];
@@ -539,7 +530,6 @@ static void test_with_dies(void)
     unsigned int num_dies = 2;
     int i;
 
-    smp_machine_class_init(mc);
     mc->smp_props.dies_supported = true;
 
     for (i = 0; i < ARRAY_SIZE(data_generic_valid); i++) {
@@ -581,6 +571,15 @@ static void test_with_dies(void)
 
     object_unref(obj);
 }
+
+/* Type info of the tested machine */
+static const TypeInfo smp_machine_info = {
+    .name = TYPE_MACHINE,
+    .parent = TYPE_OBJECT,
+    .class_init = machine_class_init,
+    .class_size = sizeof(MachineClass),
+    .instance_size = sizeof(MachineState),
+};
 
 int main(int argc, char *argv[])
 {
