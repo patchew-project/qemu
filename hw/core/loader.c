@@ -80,6 +80,34 @@ int64_t get_image_size(const char *filename)
     return size;
 }
 
+static ssize_t read_large(int fd, void *dst, size_t len)
+{
+    /*
+     * man 2 read says:
+     *
+     * On Linux, read() (and similar system calls) will transfer at most
+     * 0x7ffff000 (2,147,479,552) bytes, returning the number of bytes
+     * actually transferred.  (This is true on both 32-bit and 64-bit
+     * systems.)
+     *
+     * So read in chunks no larger than 0x7ffff000 bytes.
+     */
+    size_t max_chunk_size = 0x7ffff000;
+    size_t offset = 0;
+
+    while (offset < len) {
+        size_t chunk_len = MIN(max_chunk_size, len - offset);
+        ssize_t br = read(fd, dst + offset, chunk_len);
+
+        if (br < 0) {
+            return br;
+        }
+        offset += br;
+    }
+
+    return (ssize_t)len;
+}
+
 /* return the size or -1 if error */
 ssize_t load_image_size(const char *filename, void *addr, size_t size)
 {
@@ -91,7 +119,7 @@ ssize_t load_image_size(const char *filename, void *addr, size_t size)
         return -1;
     }
 
-    while ((actsize = read(fd, addr + l, size - l)) > 0) {
+    while ((actsize = read_large(fd, addr + l, size - l)) > 0) {
         l += actsize;
     }
 
@@ -108,7 +136,7 @@ ssize_t read_targphys(const char *name,
     ssize_t did;
 
     buf = g_malloc(nbytes);
-    did = read(fd, buf, nbytes);
+    did = read_large(fd, buf, nbytes);
     if (did > 0)
         rom_add_blob_fixed("read", buf, did, dst_addr);
     g_free(buf);
@@ -235,7 +263,7 @@ ssize_t load_aout(const char *filename, hwaddr addr, int max_sz,
     if (fd < 0)
         return -1;
 
-    size = read(fd, &e, sizeof(e));
+    size = read_large(fd, &e, sizeof(e));
     if (size < 0)
         goto fail;
 
@@ -286,7 +314,7 @@ static void *load_at(int fd, off_t offset, size_t size)
     if (lseek(fd, offset, SEEK_SET) < 0)
         return NULL;
     ptr = g_malloc(size);
-    if (read(fd, ptr, size) != size) {
+    if (read_large(fd, ptr, size) != size) {
         g_free(ptr);
         return NULL;
     }
@@ -714,7 +742,7 @@ static ssize_t load_uboot_image(const char *filename, hwaddr *ep,
 
     data = g_malloc(hdr->ih_size);
 
-    if (read(fd, data, hdr->ih_size) != hdr->ih_size) {
+    if (read_large(fd, data, hdr->ih_size) != hdr->ih_size) {
         fprintf(stderr, "Error reading file\n");
         goto out;
     }
@@ -1005,7 +1033,7 @@ ssize_t rom_add_file(const char *file, const char *fw_dir,
     rom->datasize = rom->romsize;
     rom->data     = g_malloc0(rom->datasize);
     lseek(fd, 0, SEEK_SET);
-    rc = read(fd, rom->data, rom->datasize);
+    rc = read_large(fd, rom->data, rom->datasize);
     if (rc != rom->datasize) {
         fprintf(stderr, "rom: file %-20s: read error: rc=%zd (expected %zd)\n",
                 rom->name, rc, rom->datasize);
