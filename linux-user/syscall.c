@@ -8140,172 +8140,131 @@ static int host_to_target_cpu_mask(const unsigned long *host_mask,
 }
 
 #ifdef TARGET_NR_getdents
-static int do_getdents(abi_long arg1, abi_long arg2, abi_long arg3)
+static int do_getdents(abi_long arg1, abi_long arg2, abi_long count)
 {
-    int ret;
+    g_autofree void *hdirp = NULL;
+    void *tdirp;
+    int hlen, hoff, toff;
+    int hreclen, treclen;
 
-#ifdef EMULATE_GETDENTS_WITH_GETDENTS
-# if TARGET_ABI_BITS == 32 && HOST_LONG_BITS == 64
-    struct target_dirent *target_dirp;
-    struct linux_dirent *dirp;
-    abi_long count = arg3;
-
-    dirp = g_try_malloc(count);
-    if (!dirp) {
+    hdirp = g_try_malloc(count);
+    if (!hdirp) {
         return -TARGET_ENOMEM;
     }
 
-    ret = get_errno(sys_getdents(arg1, dirp, count));
-    if (!is_error(ret)) {
-        struct linux_dirent *de;
-        struct target_dirent *tde;
-        int len = ret;
-        int reclen, treclen;
-        int count1, tnamelen;
-
-        count1 = 0;
-        de = dirp;
-        target_dirp = lock_user(VERIFY_WRITE, arg2, count, 0);
-        if (!target_dirp) {
-            return -TARGET_EFAULT;
-        }
-        tde = target_dirp;
-        while (len > 0) {
-            reclen = de->d_reclen;
-            tnamelen = reclen - offsetof(struct linux_dirent, d_name);
-            assert(tnamelen >= 0);
-            treclen = tnamelen + offsetof(struct target_dirent, d_name);
-            assert(count1 + treclen <= count);
-            tde->d_reclen = tswap16(treclen);
-            tde->d_ino = tswapal(de->d_ino);
-            tde->d_off = tswapal(de->d_off);
-            memcpy(tde->d_name, de->d_name, tnamelen);
-            de = (struct linux_dirent *)((char *)de + reclen);
-            len -= reclen;
-            tde = (struct target_dirent *)((char *)tde + treclen);
-            count1 += treclen;
-        }
-        ret = count1;
-        unlock_user(target_dirp, arg2, ret);
-    }
-    g_free(dirp);
-# else
-    struct linux_dirent *dirp;
-    abi_long count = arg3;
-
-    dirp = lock_user(VERIFY_WRITE, arg2, count, 0);
-    if (!dirp) {
-        return -TARGET_EFAULT;
-    }
-    ret = get_errno(sys_getdents(arg1, dirp, count));
-    if (!is_error(ret)) {
-        struct linux_dirent *de;
-        int len = ret;
-        int reclen;
-        de = dirp;
-        while (len > 0) {
-            reclen = de->d_reclen;
-            if (reclen > len) {
-                break;
-            }
-            de->d_reclen = tswap16(reclen);
-            tswapls(&de->d_ino);
-            tswapls(&de->d_off);
-            de = (struct linux_dirent *)((char *)de + reclen);
-            len -= reclen;
-        }
-    }
-    unlock_user(dirp, arg2, ret);
-# endif
+#ifdef EMULATE_GETDENTS_WITH_GETDENTS
+    hlen = sys_getdents(arg1, hdirp, count);
 #else
-    /* Implement getdents in terms of getdents64 */
-    struct linux_dirent64 *dirp;
-    abi_long count = arg3;
+    hlen = sys_getdents64(arg1, hdirp, count);
+#endif
 
-    dirp = lock_user(VERIFY_WRITE, arg2, count, 0);
-    if (!dirp) {
+    hlen = get_errno(hlen);
+    if (is_error(hlen)) {
+        return hlen;
+    }
+
+    tdirp = lock_user(VERIFY_WRITE, arg2, count, 0);
+    if (!tdirp) {
         return -TARGET_EFAULT;
     }
-    ret = get_errno(sys_getdents64(arg1, dirp, count));
-    if (!is_error(ret)) {
-        /*
-         * Convert the dirent64 structs to target dirent.  We do this
-         * in-place, since we can guarantee that a target_dirent is no
-         * larger than a dirent64; however this means we have to be
-         * careful to read everything before writing in the new format.
-         */
-        struct linux_dirent64 *de;
-        struct target_dirent *tde;
-        int len = ret;
-        int tlen = 0;
 
-        de = dirp;
-        tde = (struct target_dirent *)dirp;
-        while (len > 0) {
-            int namelen, treclen;
-            int reclen = de->d_reclen;
-            uint64_t ino = de->d_ino;
-            int64_t off = de->d_off;
-            uint8_t type = de->d_type;
-
-            namelen = strlen(de->d_name);
-            treclen = offsetof(struct target_dirent, d_name) + namelen + 2;
-            treclen = QEMU_ALIGN_UP(treclen, sizeof(abi_long));
-
-            memmove(tde->d_name, de->d_name, namelen + 1);
-            tde->d_ino = tswapal(ino);
-            tde->d_off = tswapal(off);
-            tde->d_reclen = tswap16(treclen);
-            /*
-             * The target_dirent type is in what was formerly a padding
-             * byte at the end of the structure:
-             */
-            *(((char *)tde) + treclen - 1) = type;
-
-            de = (struct linux_dirent64 *)((char *)de + reclen);
-            tde = (struct target_dirent *)((char *)tde + treclen);
-            len -= reclen;
-            tlen += treclen;
-        }
-        ret = tlen;
-    }
-    unlock_user(dirp, arg2, ret);
+    for (hoff = toff = 0; hoff < hlen; hoff += hreclen, toff += treclen) {
+#ifdef EMULATE_GETDENTS_WITH_GETDENTS
+        struct linux_dirent *hde = hdirp + hoff;
+#else
+        struct linux_dirent64 *hde = hdirp + hoff;
 #endif
-    return ret;
+        struct target_dirent *tde = tdirp + toff;
+        int namelen;
+        uint8_t type;
+
+        /*
+         * If somehow the host dirent is smaller than the target dirent,
+         * then the host could return more dirent in the buffer than we
+         * can pass on to the host.  This could be fixed by returning
+         * fewer dirent to the guest and lseek on the dirfd to reset the
+         * file pointer to the final hde->d_off.
+         */
+        QEMU_BUILD_BUG_ON(sizeof(*hde) < sizeof(*tde));
+
+        namelen = strlen(hde->d_name);
+        hreclen = hde->d_reclen;
+        treclen = offsetof(struct target_dirent, d_name) + namelen + 2;
+        treclen = QEMU_ALIGN_UP(treclen, __alignof(struct target_dirent));
+
+        tde->d_ino = tswapal(hde->d_ino);
+        tde->d_off = tswapal(hde->d_off);
+        tde->d_reclen = tswap16(treclen);
+        memcpy(tde->d_name, hde->d_name, namelen + 1);
+
+        /*
+         * The getdents type is in what was formerly a padding byte at the
+         * end of the structure.
+         */
+#ifdef EMULATE_GETDENTS_WITH_GETDENTS
+        type = *((uint8_t *)hde + hreclen - 1);
+#else
+        type = hde->d_type;
+#endif
+        *((uint8_t *)tde + treclen - 1) = type;
+    }
+
+    unlock_user(tdirp, arg2, toff);
+    return toff;
 }
 #endif /* TARGET_NR_getdents */
 
 #if defined(TARGET_NR_getdents64) && defined(__NR_getdents64)
-static int do_getdents64(abi_long arg1, abi_long arg2, abi_long arg3)
+static int do_getdents64(abi_long arg1, abi_long arg2, abi_long count)
 {
-    struct linux_dirent64 *dirp;
-    abi_long count = arg3;
-    int ret;
+    g_autofree void *hdirp = NULL;
+    void *tdirp;
+    int hlen, hoff, toff;
+    int hreclen, treclen;
 
-    dirp = lock_user(VERIFY_WRITE, arg2, count, 0);
-    if (!dirp) {
+    hdirp = g_try_malloc(count);
+    if (!hdirp) {
+        return -TARGET_ENOMEM;
+    }
+
+    hlen = get_errno(sys_getdents64(arg1, hdirp, count));
+    if (is_error(hlen)) {
+        return hlen;
+    }
+
+    tdirp = lock_user(VERIFY_WRITE, arg2, count, 0);
+    if (!tdirp) {
         return -TARGET_EFAULT;
     }
-    ret = get_errno(sys_getdents64(arg1, dirp, count));
-    if (!is_error(ret)) {
-        struct linux_dirent64 *de;
-        int len = ret;
-        int reclen;
-        de = dirp;
-        while (len > 0) {
-            reclen = de->d_reclen;
-            if (reclen > len) {
-                break;
-            }
-            de->d_reclen = tswap16(reclen);
-            tswap64s((uint64_t *)&de->d_ino);
-            tswap64s((uint64_t *)&de->d_off);
-            de = (struct linux_dirent64 *)((char *)de + reclen);
-            len -= reclen;
-        }
+
+    for (hoff = toff = 0; hoff < hlen; hoff += hreclen, toff += treclen) {
+        struct linux_dirent64 *hde = hdirp + hoff;
+        struct target_dirent64 *tde = tdirp + toff;
+        int namelen;
+
+        /*
+         * If somehow the host dirent is smaller than the target dirent,
+         * then the host could return more dirent in the buffer than we
+         * can pass on to the host.  This could be fixed by returning
+         * fewer dirent to the guest and lseek on the dirfd to reset the
+         * file pointer to the final hde->d_off.
+         */
+        QEMU_BUILD_BUG_ON(sizeof(*hde) < sizeof(*tde));
+
+        namelen = strlen(hde->d_name) + 1;
+        hreclen = hde->d_reclen;
+        treclen = offsetof(struct target_dirent64, d_name) + namelen;
+        treclen = QEMU_ALIGN_UP(treclen, __alignof(struct target_dirent64));
+
+        tde->d_ino = tswap64(hde->d_ino);
+        tde->d_off = tswap64(hde->d_off);
+        tde->d_reclen = tswap16(treclen);
+        tde->d_type = hde->d_type;
+        memcpy(tde->d_name, hde->d_name, namelen);
     }
-    unlock_user(dirp, arg2, ret);
-    return ret;
+
+    unlock_user(tdirp, arg2, toff);
+    return toff;
 }
 #endif /* TARGET_NR_getdents64 */
 
