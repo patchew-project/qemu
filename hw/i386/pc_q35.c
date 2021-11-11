@@ -375,8 +375,20 @@ static void pc_q35_6_1_machine_options(MachineClass *m)
     m->smp_props.prefer_sockets = true;
 }
 
+/* 6.1 only compat property (not applied to 6.0 + older) */
+static GlobalProperty pc_compat_6_1_only[] = {
+    { "ICH9-LPC", ACPI_PM_PROP_ACPI_PCIHP_BRIDGE, "on" },
+};
+static const size_t pc_compat_6_1_only_len = G_N_ELEMENTS(pc_compat_6_1_only);
+
+static void pc_q35_6_1_only_machine_options(MachineClass *m)
+{
+    pc_q35_6_1_machine_options(m);
+    compat_props_add(m->compat_props, pc_compat_6_1_only, pc_compat_6_1_only_len);
+}
+
 DEFINE_Q35_MACHINE(v6_1, "pc-q35-6.1", NULL,
-                   pc_q35_6_1_machine_options);
+                   pc_q35_6_1_only_machine_options);
 
 static void pc_q35_6_0_machine_options(MachineClass *m)
 {
