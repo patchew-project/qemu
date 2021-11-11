@@ -4072,7 +4072,8 @@ static uint16_t nvme_smart_info(NvmeCtrl *n, uint8_t rae, uint32_t buf_len,
     NvmeNamespace *ns;
     time_t current_ms;
 
-    if (off >= sizeof(smart)) {
+    trans_len = MIN(sizeof(smart) - off, buf_len);
+    if (trans_len >= sizeof(smart)) {
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
@@ -4094,7 +4095,6 @@ static uint16_t nvme_smart_info(NvmeCtrl *n, uint8_t rae, uint32_t buf_len,
         }
     }
 
-    trans_len = MIN(sizeof(smart) - off, buf_len);
     smart.critical_warning = n->smart_critical_warning;
 
     smart.data_units_read[0] = cpu_to_le64(DIV_ROUND_UP(stats.units_read,
@@ -4130,12 +4130,12 @@ static uint16_t nvme_fw_log_info(NvmeCtrl *n, uint32_t buf_len, uint64_t off,
         .afi = 0x1,
     };
 
-    if (off >= sizeof(fw_log)) {
+    trans_len = MIN(sizeof(fw_log) - off, buf_len);
+    if (trans_len >= sizeof(fw_log)) {
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
     strpadcpy((char *)&fw_log.frs1, sizeof(fw_log.frs1), "1.0", ' ');
-    trans_len = MIN(sizeof(fw_log) - off, buf_len);
 
     return nvme_c2h(n, (uint8_t *) &fw_log + off, trans_len, req);
 }
@@ -4146,7 +4146,8 @@ static uint16_t nvme_error_info(NvmeCtrl *n, uint8_t rae, uint32_t buf_len,
     uint32_t trans_len;
     NvmeErrorLog errlog;
 
-    if (off >= sizeof(errlog)) {
+    trans_len = MIN(sizeof(errlog) - off, buf_len);
+    if (trans_len >= sizeof(trans_len)) {
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
@@ -4155,7 +4156,6 @@ static uint16_t nvme_error_info(NvmeCtrl *n, uint8_t rae, uint32_t buf_len,
     }
 
     memset(&errlog, 0x0, sizeof(errlog));
-    trans_len = MIN(sizeof(errlog) - off, buf_len);
 
     return nvme_c2h(n, (uint8_t *)&errlog, trans_len, req);
 }
@@ -4168,8 +4168,11 @@ static uint16_t nvme_changed_nslist(NvmeCtrl *n, uint8_t rae, uint32_t buf_len,
     int i = 0;
     uint32_t nsid;
 
-    memset(nslist, 0x0, sizeof(nslist));
     trans_len = MIN(sizeof(nslist) - off, buf_len);
+    if (trans_len >= sizeof(nslist)) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+    memset(nslist, 0x0, sizeof(nslist));
 
     while ((nsid = find_first_bit(n->changed_nsids, NVME_CHANGED_NSID_SIZE)) !=
             NVME_CHANGED_NSID_SIZE) {
@@ -4209,7 +4212,8 @@ static uint16_t nvme_cmd_effects(NvmeCtrl *n, uint8_t csi, uint32_t buf_len,
     const uint32_t *src_iocs = NULL;
     uint32_t trans_len;
 
-    if (off >= sizeof(log)) {
+    trans_len = MIN(sizeof(log) - off, buf_len);
+    if (trans_len >= sizeof(log)) {
         trace_pci_nvme_err_invalid_log_page_offset(off, sizeof(log));
         return NVME_INVALID_FIELD | NVME_DNR;
     }
@@ -4236,8 +4240,6 @@ static uint16_t nvme_cmd_effects(NvmeCtrl *n, uint8_t csi, uint32_t buf_len,
     if (src_iocs) {
         memcpy(log.iocs, src_iocs, sizeof(log.iocs));
     }
-
-    trans_len = MIN(sizeof(log) - off, buf_len);
 
     return nvme_c2h(n, ((uint8_t *)&log) + off, trans_len, req);
 }
