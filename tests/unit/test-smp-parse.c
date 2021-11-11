@@ -512,7 +512,7 @@ static void test_generic(void)
         smp_parse_test(ms, data, true);
     }
 
-    /* Reset the supported min CPUs and max CPUs */
+    /* Force invalid min CPUs and max CPUs */
     mc->min_cpus = 2;
     mc->max_cpus = 511;
 
@@ -522,6 +522,10 @@ static void test_generic(void)
 
         smp_parse_test(ms, data, false);
     }
+
+    /* Reset the supported min CPUs and max CPUs */
+    mc->min_cpus = MIN_CPUS;
+    mc->max_cpus = MAX_CPUS;
 
     object_unref(obj);
 }
