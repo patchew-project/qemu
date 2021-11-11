@@ -37,7 +37,7 @@ static bool trans_vsetvl(DisasContext *ctx, arg_vsetvl *a)
     } else {
         s1 = get_gpr(ctx, a->rs1, EXT_ZERO);
     }
-    gen_helper_vsetvl(dst, cpu_env, s1, s2);
+    gen_helper_vsetvl(dst, cpu_env, s1, s2, tcg_constant_tl(get_xlen(ctx)));
     gen_set_gpr(ctx, a->rd, dst);
 
     tcg_gen_movi_tl(cpu_pc, ctx->pc_succ_insn);
@@ -64,7 +64,7 @@ static bool trans_vsetvli(DisasContext *ctx, arg_vsetvli *a)
     } else {
         s1 = get_gpr(ctx, a->rs1, EXT_ZERO);
     }
-    gen_helper_vsetvl(dst, cpu_env, s1, s2);
+    gen_helper_vsetvl(dst, cpu_env, s1, s2, tcg_constant_tl(get_xlen(ctx)));
     gen_set_gpr(ctx, a->rd, dst);
 
     gen_goto_tb(ctx, 0, ctx->pc_succ_insn);
