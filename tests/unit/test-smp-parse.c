@@ -514,7 +514,7 @@ static void test_generic(void)
     Object *obj = smp_test_machine_init();
     MachineState *ms = MACHINE(obj);
     MachineClass *mc = MACHINE_GET_CLASS(obj);
-    SMPTestData *data = &(SMPTestData){{ }};
+    SMPTestData *data = &(SMPTestData){};
     int i;
 
     for (i = 0; i < ARRAY_SIZE(data_generic_valid); i++) {
@@ -548,7 +548,7 @@ static void test_with_dies(void)
     Object *obj = smp_test_machine_init();
     MachineState *ms = MACHINE(obj);
     MachineClass *mc = MACHINE_GET_CLASS(obj);
-    SMPTestData *data = &(SMPTestData){{ }};
+    SMPTestData *data = &(SMPTestData){};
     unsigned int num_dies = 2;
     int i;
 
