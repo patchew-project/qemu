@@ -68,13 +68,10 @@ int qemu_chr_fe_read_all(CharBackend *be, uint8_t *buf, int len)
     }
 
     while (offset < len) {
-    retry:
         res = CHARDEV_GET_CLASS(s)->chr_sync_read(s, buf + offset,
                                                   len - offset);
-        if (res == -1 && errno == EAGAIN) {
-            g_usleep(100);
-            goto retry;
-        }
+        /* ->chr_sync_read should block */
+        assert(!(res < 0 && errno == EAGAIN));
 
         if (res == 0) {
             break;
