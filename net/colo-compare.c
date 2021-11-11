@@ -1397,7 +1397,7 @@ static void colo_compare_init(Object *obj)
                         get_max_queue_size,
                         set_max_queue_size, NULL, NULL);
 
-    s->vnet_hdr = false;
+    s->vnet_hdr = true;
     object_property_add_bool(obj, "vnet_hdr_support", compare_get_vnet_hdr,
                              compare_set_vnet_hdr);
 }

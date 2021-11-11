@@ -407,7 +407,7 @@ static void filter_rewriter_init(Object *obj)
 {
     RewriterState *s = FILTER_REWRITER(obj);
 
-    s->vnet_hdr = false;
+    s->vnet_hdr = true;
     s->failover_mode = FAILOVER_MODE_OFF;
 }
 
