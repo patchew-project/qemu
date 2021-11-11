@@ -846,6 +846,16 @@ static inline void cpu_loop_exec_tb(CPUState *cpu, TranslationBlock *tb,
          * cpu_handle_interrupt.  cpu_handle_interrupt will also
          * clear cpu->icount_decr.u16.high.
          */
+        if (cpu->cflags_next_tb == -1
+            && (!use_icount || !(tb->cflags & CF_USE_ICOUNT)
+                || cpu_neg(cpu)->icount_decr.u16.low >= tb->icount)) {
+            /*
+             * icount is disabled or there are enough instructions
+             * in the budget, do not retranslate this block with
+             * different parameters.
+             */
+            cpu->cflags_next_tb = tb->cflags;
+        }
         return;
     }
 
