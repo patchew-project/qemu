@@ -886,6 +886,14 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
 
     assert(tcg_enabled());
     if (cpu->watchpoint_hit) {
+        if (!ra) {
+            /*
+             * Another memory access after hitting the watchpoint.
+             * There is no translation block and interrupt request
+             * is already set.
+             */
+            return;
+        }
         /*
          * We re-entered the check after replacing the TB.
          * Now raise the debug interrupt so that it will
@@ -936,6 +944,12 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
                 continue;
             }
             cpu->watchpoint_hit = wp;
+            if (!ra) {
+                /* We're not in the TB, can't stop before the access. */
+                g_assert(!(wp->flags & BP_STOP_BEFORE_ACCESS));
+                cpu_interrupt(cpu, CPU_INTERRUPT_DEBUG);
+                return;
+            }
 
             mmap_lock();
             /* This call also restores vCPU state */
