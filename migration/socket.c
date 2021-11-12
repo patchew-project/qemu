@@ -78,8 +78,13 @@ static void socket_outgoing_migration(QIOTask *task,
         trace_migration_socket_outgoing_connected(data->hostname);
     }
 
-    if (migrate_use_zerocopy()) {
-        error_setg(&err, "Zerocopy not available in migration");
+    if (migrate_use_zerocopy() &&
+        (!migrate_use_multifd() ||
+         !qio_channel_has_feature(sioc, QIO_CHANNEL_FEATURE_WRITE_ZEROCOPY) ||
+          migrate_multifd_compression() != MULTIFD_COMPRESSION_NONE ||
+          migrate_use_tls())) {
+        error_setg(&err,
+                   "Zerocopy only available for non-compressed non-TLS multifd migration");
     }
 
     migration_channel_connect(data->s, sioc, data->hostname, err);
