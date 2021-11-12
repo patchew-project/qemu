@@ -140,6 +140,8 @@ int vhost_dev_get_config(struct vhost_dev *hdev, uint8_t *config,
                          uint32_t config_len, Error **errp);
 int vhost_dev_set_config(struct vhost_dev *dev, const uint8_t *data,
                          uint32_t offset, uint32_t size, uint32_t flags);
+
+int vhost_dev_force_modern(struct vhost_dev *vdev);
 /* notifier callback in case vhost device config space changed
  */
 void vhost_dev_set_config_notifier(struct vhost_dev *dev,

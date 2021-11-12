@@ -1630,6 +1630,23 @@ void vhost_dev_free_inflight(struct vhost_inflight *inflight)
     }
 }
 
+int vhost_dev_force_modern(struct vhost_dev *hdev)
+{
+    uint64_t features;
+    int r;
+
+    assert(hdev->vhost_ops);
+
+    hdev->acked_features |= (0x1ULL << VIRTIO_F_VERSION_1);
+    features = hdev->acked_features;
+    r = hdev->vhost_ops->vhost_set_features(hdev, features);
+    if (r < 0) {
+        VHOST_OPS_DEBUG("vhost_set_features failed");
+        return -errno;
+    }
+    return 0;
+}
+
 static int vhost_dev_resize_inflight(struct vhost_inflight *inflight,
                                      uint64_t new_size)
 {
