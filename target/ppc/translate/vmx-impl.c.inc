@@ -1525,6 +1525,66 @@ static bool trans_VEXPANDQM(DisasContext *ctx, arg_VX_tb *a)
     return true;
 }
 
+static bool do_vextractm(DisasContext *ctx, arg_VX_tb *a, unsigned vece)
+{
+    const uint64_t elem_width = 8 << vece, elem_count_half = 8 >> vece;
+    TCGv_i64 t, b, tmp;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    t = tcg_const_i64(0);
+    b = tcg_temp_new_i64();
+    tmp = tcg_temp_new_i64();
+
+    for (int w = 0; w < 2; w++) {
+        get_avr64(b, a->vrb, w);
+
+        for (int i = 0; i < elem_count_half; i++) {
+            int in_bit = (i + 1) * elem_width - 1;
+            int out_bit = w * elem_count_half + i;
+
+            if (in_bit > out_bit) {
+                tcg_gen_shri_i64(tmp, b, in_bit - out_bit);
+            } else {
+                tcg_gen_shli_i64(tmp, b, out_bit - in_bit);
+            }
+            tcg_gen_andi_i64(tmp, tmp, 1 << out_bit);
+            tcg_gen_or_i64(t, t, tmp);
+        }
+    }
+    tcg_gen_trunc_i64_tl(cpu_gpr[a->vrt], t);
+
+    tcg_temp_free_i64(t);
+    tcg_temp_free_i64(b);
+    tcg_temp_free_i64(tmp);
+
+    return true;
+}
+
+TRANS(VEXTRACTBM, do_vextractm, MO_8)
+TRANS(VEXTRACTHM, do_vextractm, MO_16)
+TRANS(VEXTRACTWM, do_vextractm, MO_32)
+TRANS(VEXTRACTDM, do_vextractm, MO_64)
+
+static bool trans_VEXTRACTQM(DisasContext *ctx, arg_VX_tb *a)
+{
+    TCGv_i64 tmp;
+
+    REQUIRE_INSNS_FLAGS2(ctx, ISA310);
+    REQUIRE_VECTOR(ctx);
+
+    tmp = tcg_temp_new_i64();
+
+    get_avr64(tmp, a->vrb, true);
+    tcg_gen_shri_i64(tmp, tmp, 63);
+    tcg_gen_trunc_i64_tl(cpu_gpr[a->vrt], tmp);
+
+    tcg_temp_free_i64(tmp);
+
+    return true;
+}
+
 #define GEN_VAFORM_PAIRED(name0, name1, opc2)                           \
 static void glue(gen_, name0##_##name1)(DisasContext *ctx)              \
     {                                                                   \
