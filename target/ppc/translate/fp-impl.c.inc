@@ -876,7 +876,7 @@ static void gen_lfdepx(DisasContext *ctx)
     EA = tcg_temp_new();
     t0 = tcg_temp_new_i64();
     gen_addr_reg_index(ctx, EA);
-    tcg_gen_qemu_ld_i64(t0, EA, PPC_TLB_EPID_LOAD, DEF_MEMOP(MO_Q));
+    tcg_gen_qemu_ld_i64(t0, EA, PPC_TLB_EPID_LOAD, DEF_MEMOP(MO_UQ));
     set_fpr(rD(ctx->opcode), t0);
     tcg_temp_free(EA);
     tcg_temp_free_i64(t0);
@@ -1034,7 +1034,7 @@ static void gen_stfdepx(DisasContext *ctx)
     t0 = tcg_temp_new_i64();
     gen_addr_reg_index(ctx, EA);
     get_fpr(t0, rD(ctx->opcode));
-    tcg_gen_qemu_st_i64(t0, EA, PPC_TLB_EPID_STORE, DEF_MEMOP(MO_Q));
+    tcg_gen_qemu_st_i64(t0, EA, PPC_TLB_EPID_STORE, DEF_MEMOP(MO_UQ));
     tcg_temp_free(EA);
     tcg_temp_free_i64(t0);
 }
