@@ -3278,6 +3278,19 @@ void virtio_init(VirtIODevice *vdev, const char *name,
     vdev->use_guest_notifier_mask = true;
 }
 
+void  virtio_force_modern(VirtIODevice *vdev)
+{
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
+
+    virtio_add_feature(&vdev->guest_features, VIRTIO_F_VERSION_1);
+    /* Let the device do it's normal thing. */
+    virtio_set_features(vdev, vdev->guest_features);
+    /* For example for vhost-user we have to propagate to the vhost dev. */
+    if (k->force_modern) {
+        k->force_modern(vdev);
+    }
+}
+
 /*
  * Only devices that have already been around prior to defining the virtio
  * standard support legacy mode; this includes devices not specified in the
