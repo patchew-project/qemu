@@ -3,3 +3,6 @@ config RISCV32
 
 config RISCV64
     bool
+
+config RISCV128
+    bool

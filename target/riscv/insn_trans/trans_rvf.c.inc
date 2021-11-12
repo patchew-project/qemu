@@ -313,10 +313,10 @@ static bool trans_fmv_x_w(DisasContext *ctx, arg_fmv_x_w *a)
 
     TCGv dest = dest_gpr(ctx, a->rd);
 
-#if defined(TARGET_RISCV64)
-    tcg_gen_ext32s_tl(dest, cpu_fpr[a->rs1]);
-#else
+#if defined(TARGET_RISCV32)
     tcg_gen_extrl_i64_i32(dest, cpu_fpr[a->rs1]);
+#else
+    tcg_gen_ext32s_tl(dest, cpu_fpr[a->rs1]);
 #endif
 
     gen_set_gpr(ctx, a->rd, dest);
