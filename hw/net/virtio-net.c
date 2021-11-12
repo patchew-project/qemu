@@ -767,6 +767,25 @@ static uint64_t virtio_net_bad_features(VirtIODevice *vdev)
     return features;
 }
 
+static void  virtio_net_force_modern(VirtIODevice *vdev)
+{
+    VirtIONet *n = VIRTIO_NET(vdev);
+    int i;
+
+    /*
+     * Why do we have to loop over all queues? Are not features a
+     * per-device thing?
+     */
+    for (i = 0;  i < n->max_queues; i++) {
+        NetClientState *nc = qemu_get_subqueue(n->nic, i);
+
+        if (!get_vhost_net(nc->peer)) {
+            continue;
+        }
+        vhost_dev_force_modern(&get_vhost_net(nc->peer)->dev);
+    }
+}
+
 static void virtio_net_apply_guest_offloads(VirtIONet *n)
 {
     qemu_set_offload(qemu_get_queue(n->nic)->peer,
@@ -3704,6 +3723,7 @@ static void virtio_net_class_init(ObjectClass *klass, void *data)
     vdc->get_features = virtio_net_get_features;
     vdc->set_features = virtio_net_set_features;
     vdc->bad_features = virtio_net_bad_features;
+    vdc->force_modern = virtio_net_force_modern;
     vdc->reset = virtio_net_reset;
     vdc->set_status = virtio_net_set_status;
     vdc->guest_notifier_mask = virtio_net_guest_notifier_mask;
