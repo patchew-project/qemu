@@ -266,6 +266,9 @@ static void virtio_ccw_reset_virtio(VirtioCcwDevice *dev, VirtIODevice *vdev)
         dev->summary_indicator = NULL;
     }
     ccw_dev->sch->thinint_active = false;
+    if (dev->revision > 0) {
+        virtio_force_modern(vdev);
+    }
 }
 
 static int virtio_ccw_handle_set_vq(SubchDev *sch, CCW1 ccw, bool check_len,
