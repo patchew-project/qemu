@@ -7,6 +7,7 @@
 ##
 
 { 'include': 'common.json' }
+{ 'include': 'sockets.json' }
 
 ##
 # @set_link:
@@ -696,3 +697,75 @@
 ##
 { 'event': 'FAILOVER_NEGOTIATED',
   'data': {'device-id': 'str'} }
+
+##
+# @IPFlowSpec:
+#
+# IP flow specification.
+#
+# @protocol: Transport layer protocol like TCP/UDP, etc. This will be
+#            passed to getprotobyname(3).
+#
+# @object-name: The @object-name means a QEMU object with network
+#               packet processing function, for example colo-compare,
+#               filter-redirector, filter-mirror, etc. QOM path to
+#               a QOM object that implements their own passthrough
+#               work in the original data processing flow. What is
+#               exposed to the outside world is an operable
+#               passthrough list.
+#
+# @source: Source address and port.
+#
+# @destination: Destination address and port.
+#
+# Since: 7.0
+##
+{ 'struct': 'IPFlowSpec',
+  'data': { '*protocol': 'str', 'object-name': 'str',
+    '*source': 'InetSocketAddressBase',
+    '*destination': 'InetSocketAddressBase' } }
+
+##
+# @passthrough-filter-add:
+#
+# Add an entry to the QOM object own network passthrough list.
+# Absent protocol, host addresses and ports match anything.
+#
+# Returns: Nothing on success
+#
+# Since: 7.0
+#
+# Example:
+#
+# -> { "execute": "passthrough-filter-add",
+#      "arguments": { "protocol": "tcp", "object-name": "object0",
+#      "source": {"host": "192.168.1.1", "port": "1234"},
+#      "destination": {"host": "192.168.1.2", "port": "4321"} } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'passthrough-filter-add', 'boxed': true,
+     'data': 'IPFlowSpec' }
+
+##
+# @passthrough-filter-del:
+#
+# Delete an entry from the QOM object own network passthrough list.
+# Deletes the entry with exactly this protocol, host addresses
+# and ports.
+#
+# Returns: Nothing on success
+#
+# Since: 7.0
+#
+# Example:
+#
+# -> { "execute": "passthrough-filter-del",
+#      "arguments": { "protocol": "tcp", "object-name": "object0",
+#      "source": {"host": "192.168.1.1", "port": "1234"},
+#      "destination": {"host": "192.168.1.2", "port": "4321"} } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'passthrough-filter-del', 'boxed': true,
+     'data': 'IPFlowSpec' }
