@@ -1297,6 +1297,7 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
 
         if (vdev->status == 0) {
             virtio_pci_reset(DEVICE(proxy));
+            virtio_force_modern(virtio_bus_get_device(&proxy->bus));
         }
 
         break;
