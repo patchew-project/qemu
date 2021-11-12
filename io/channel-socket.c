@@ -26,6 +26,10 @@
 #include "io/channel-watch.h"
 #include "trace.h"
 #include "qapi/clone-visitor.h"
+#ifdef CONFIG_LINUX
+#include <linux/errqueue.h>
+#include <poll.h>
+#endif
 
 #define SOCKET_MAX_FDS 16
 
@@ -55,6 +59,8 @@ qio_channel_socket_new(void)
 
     sioc = QIO_CHANNEL_SOCKET(object_new(TYPE_QIO_CHANNEL_SOCKET));
     sioc->fd = -1;
+    sioc->zerocopy_queued = 0;
+    sioc->zerocopy_sent = 0;
 
     ioc = QIO_CHANNEL(sioc);
     qio_channel_set_feature(ioc, QIO_CHANNEL_FEATURE_SHUTDOWN);
@@ -140,6 +146,7 @@ int qio_channel_socket_connect_sync(QIOChannelSocket *ioc,
                                     Error **errp)
 {
     int fd;
+    int ret, v = 1;
 
     trace_qio_channel_socket_connect_sync(ioc, addr);
     fd = socket_connect(addr, errp);
@@ -153,6 +160,15 @@ int qio_channel_socket_connect_sync(QIOChannelSocket *ioc,
         close(fd);
         return -1;
     }
+
+#ifdef CONFIG_LINUX
+    ret = qemu_setsockopt(fd, SOL_SOCKET, SO_ZEROCOPY, &v, sizeof(v));
+    if (ret == 0) {
+        /* Zerocopy available on host */
+        qio_channel_set_feature(QIO_CHANNEL(ioc),
+                                QIO_CHANNEL_FEATURE_WRITE_ZEROCOPY);
+    }
+#endif
 
     return 0;
 }
@@ -561,12 +577,15 @@ static ssize_t qio_channel_socket_writev_flags(QIOChannel *ioc,
  retry:
     ret = sendmsg(sioc->fd, &msg, flags);
     if (ret <= 0) {
-        if (errno == EAGAIN) {
+        switch (errno) {
+        case EAGAIN:
             return QIO_CHANNEL_ERR_BLOCK;
-        }
-        if (errno == EINTR) {
+        case EINTR:
             goto retry;
+        case ENOBUFS:
+            return QIO_CHANNEL_ERR_NOBUFS;
         }
+
         error_setg_errno(errp, errno,
                          "Unable to write to socket");
         return -1;
@@ -669,6 +688,127 @@ static ssize_t qio_channel_socket_writev(QIOChannel *ioc,
     return done;
 }
 #endif /* WIN32 */
+
+
+#ifdef CONFIG_LINUX
+
+static int qio_channel_socket_poll(QIOChannelSocket *sioc, bool zerocopy,
+                                   Error **errp)
+{
+    struct pollfd pfd;
+    int ret;
+
+    pfd.fd = sioc->fd;
+    pfd.events = 0;
+
+ retry:
+    ret = poll(&pfd, 1, -1);
+    if (ret < 0) {
+        switch (errno) {
+        case EAGAIN:
+        case EINTR:
+            goto retry;
+        default:
+            error_setg_errno(errp, errno,
+                             "Poll error");
+            return ret;
+        }
+    }
+
+    if (pfd.revents & (POLLHUP | POLLNVAL)) {
+        error_setg(errp, "Poll error: Invalid or disconnected fd");
+        return -1;
+    }
+
+    if (!zerocopy && (pfd.revents & POLLERR)) {
+        error_setg(errp, "Poll error: Errors present in errqueue");
+        return -1;
+    }
+
+    return ret;
+}
+
+static ssize_t qio_channel_socket_writev_zerocopy(QIOChannel *ioc,
+                                                  const struct iovec *iov,
+                                                  size_t niov,
+                                                  Error **errp)
+{
+    QIOChannelSocket *sioc = QIO_CHANNEL_SOCKET(ioc);
+    ssize_t ret;
+
+    ret = qio_channel_socket_writev_flags(ioc, iov, niov, NULL, 0,
+                                          MSG_ZEROCOPY, errp);
+    if (ret == QIO_CHANNEL_ERR_NOBUFS) {
+        error_setg_errno(errp, errno,
+                         "Process can't lock enough memory for using MSG_ZEROCOPY");
+        return -1;
+    }
+
+    sioc->zerocopy_queued++;
+    return ret;
+}
+
+static int qio_channel_socket_flush_zerocopy(QIOChannel *ioc,
+                                             Error **errp)
+{
+    QIOChannelSocket *sioc = QIO_CHANNEL_SOCKET(ioc);
+    struct msghdr msg = {};
+    struct sock_extended_err *serr;
+    struct cmsghdr *cm;
+    char control[CMSG_SPACE(sizeof(*serr))];
+    int ret;
+
+    msg.msg_control = control;
+    msg.msg_controllen = sizeof(control);
+    memset(control, 0, sizeof(control));
+
+    while (sioc->zerocopy_sent < sioc->zerocopy_queued) {
+        ret = recvmsg(sioc->fd, &msg, MSG_ERRQUEUE);
+        if (ret < 0) {
+            switch (errno) {
+            case EAGAIN:
+                /* Nothing on errqueue, wait until something is available */
+                ret = qio_channel_socket_poll(sioc, true, errp);
+                if (ret < 0) {
+                    return -1;
+                }
+                continue;
+            case EINTR:
+                continue;
+            default:
+                error_setg_errno(errp, errno,
+                                 "Unable to read errqueue");
+                return -1;
+            }
+        }
+
+        cm = CMSG_FIRSTHDR(&msg);
+        if (cm->cmsg_level != SOL_IP &&
+            cm->cmsg_type != IP_RECVERR) {
+            error_setg_errno(errp, EPROTOTYPE,
+                             "Wrong cmsg in errqueue");
+            return -1;
+        }
+
+        serr = (void *) CMSG_DATA(cm);
+        if (serr->ee_errno != SO_EE_ORIGIN_NONE) {
+            error_setg_errno(errp, serr->ee_errno,
+                             "Error on socket");
+            return -1;
+        }
+        if (serr->ee_origin != SO_EE_ORIGIN_ZEROCOPY) {
+            error_setg_errno(errp, serr->ee_origin,
+                             "Error not from zerocopy");
+            return -1;
+        }
+
+        /* No errors, count successfully finished sendmsg()*/
+        sioc->zerocopy_sent += serr->ee_data - serr->ee_info + 1;
+    }
+    return 0;
+}
+
+#endif /* CONFIG_LINUX */
 
 static int
 qio_channel_socket_set_blocking(QIOChannel *ioc,
@@ -799,6 +939,10 @@ static void qio_channel_socket_class_init(ObjectClass *klass,
     ioc_klass->io_set_delay = qio_channel_socket_set_delay;
     ioc_klass->io_create_watch = qio_channel_socket_create_watch;
     ioc_klass->io_set_aio_fd_handler = qio_channel_socket_set_aio_fd_handler;
+#ifdef CONFIG_LINUX
+    ioc_klass->io_writev_zerocopy = qio_channel_socket_writev_zerocopy;
+    ioc_klass->io_flush_zerocopy = qio_channel_socket_flush_zerocopy;
+#endif
 }
 
 static const TypeInfo qio_channel_socket_info = {
