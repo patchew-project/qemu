@@ -64,6 +64,14 @@ safe_syscall_start:
 	svc	0x0
 safe_syscall_end:
 	/* code path for having successfully executed the syscall */
+#ifdef __FreeBSD__
+        /*
+         * FreeBSD kernel returns C bit set with positive errno.
+         * Encode this for use in bsd-user as -errno:
+	 *    x0 = !c ? x0 : -x0
+	 */
+	csneg  x0, x0, x0, cc
+#endif
 	ret
 
 0:
