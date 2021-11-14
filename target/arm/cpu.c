@@ -1782,11 +1782,21 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
          */
         unset_feature(env, ARM_FEATURE_EL3);
 
-        /* Disable the security extension feature bits in the processor feature
-         * registers as well. These are id_pfr1[7:4] and id_aa64pfr0[15:12].
-         */
-        cpu->isar.id_pfr1 &= ~0xf0;
-        cpu->isar.id_aa64pfr0 &= ~0xf000;
+        if (cpu->psci_conduit == QEMU_PSCI_CONDUIT_SMC) {
+            /*
+             * We tell the guest to use SMC calls into EL3 for PSCI calls, so
+             * there has to be EL3 available. We merely execute it on the host
+             * in QEMU rather than in actual EL3 inside the guest.
+             */
+        } else {
+            /*
+             * Disable the security extension feature bits in the processor
+             * feature registers as well. These are id_pfr1[7:4] and
+             * id_aa64pfr0[15:12].
+             */
+            cpu->isar.id_pfr1 &= ~0xf0;
+            cpu->isar.id_aa64pfr0 &= ~0xf000;
+        }
     }
 
     if (!cpu->has_el2) {
