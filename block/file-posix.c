@@ -160,6 +160,7 @@ typedef struct BDRVRawState {
     bool is_xfs:1;
 #endif
     bool has_discard:1;
+    bool has_secdiscard:1;
     bool has_write_zeroes:1;
     bool discard_zeroes:1;
     bool use_linux_aio:1;
@@ -727,6 +728,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
 #endif /* !defined(CONFIG_LINUX_IO_URING) */
 
     s->has_discard = true;
+    s->has_secdiscard = false;
     s->has_write_zeroes = true;
     if ((bs->open_flags & BDRV_O_NOCACHE) != 0 && !dio_byte_aligned(s->fd)) {
         s->needs_alignment = true;
@@ -765,6 +767,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
             s->discard_zeroes = true;
         }
 #endif
+
 #ifdef __linux__
         /* On Linux 3.10, BLKDISCARD leaves stale data in the page cache.  Do
          * not rely on the contents of discarded blocks unless using O_DIRECT.
@@ -1855,6 +1858,35 @@ static int handle_aiocb_discard(void *opaque)
 
     if (ret == -ENOTSUP) {
         s->has_discard = false;
+    }
+    return ret;
+}
+
+static int handle_aiocb_secdiscard(void *opaque)
+{
+    RawPosixAIOData *aiocb = opaque;
+    int ret = -ENOTSUP;
+    BlockDriverState *bs = aiocb->bs;
+
+    if (!(bs->open_flags & BDRV_O_SECDISCARD)) {
+        return -ENOTSUP;
+    }
+
+    if (aiocb->aio_type & QEMU_AIO_BLKDEV) {
+#ifdef BLKSECDISCARD
+        do {
+            uint64_t range[2] = { aiocb->aio_offset, aiocb->aio_nbytes };
+            if (ioctl(aiocb->aio_fildes, BLKSECDISCARD, range) == 0) {
+                return 0;
+            }
+        } while (errno == EINTR);
+
+        ret = translate_err(-errno);
+#endif
+    }
+
+    if (ret == -ENOTSUP) {
+        bs->open_flags &= ~BDRV_O_SECDISCARD;
     }
     return ret;
 }
@@ -2953,7 +2985,7 @@ static void raw_account_discard(BDRVRawState *s, uint64_t nbytes, int ret)
 
 static coroutine_fn int
 raw_do_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes,
-                bool blkdev)
+                bool blkdev, BdrvRequestFlags flags)
 {
     BDRVRawState *s = bs->opaque;
     RawPosixAIOData acb;
@@ -2971,15 +3003,20 @@ raw_do_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes,
         acb.aio_type |= QEMU_AIO_BLKDEV;
     }
 
-    ret = raw_thread_pool_submit(bs, handle_aiocb_discard, &acb);
+    if (flags & BDRV_REQ_SECDISCARD) {
+        ret = raw_thread_pool_submit(bs, handle_aiocb_secdiscard, &acb);
+    } else {
+        ret = raw_thread_pool_submit(bs, handle_aiocb_discard, &acb);
+    }
     raw_account_discard(s, bytes, ret);
     return ret;
 }
 
 static coroutine_fn int
-raw_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
+raw_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                BdrvRequestFlags flags)
 {
-    return raw_do_pdiscard(bs, offset, bytes, false);
+    return raw_do_pdiscard(bs, offset, bytes, false, flags);
 }
 
 static int coroutine_fn
@@ -3602,7 +3639,8 @@ hdev_co_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
 #endif /* linux */
 
 static coroutine_fn int
-hdev_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
+hdev_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                                       BdrvRequestFlags flags)
 {
     BDRVRawState *s = bs->opaque;
     int ret;
@@ -3612,7 +3650,7 @@ hdev_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
         raw_account_discard(s, bytes, ret);
         return ret;
     }
-    return raw_do_pdiscard(bs, offset, bytes, true);
+    return raw_do_pdiscard(bs, offset, bytes, true, flags);
 }
 
 static coroutine_fn int hdev_co_pwrite_zeroes(BlockDriverState *bs,

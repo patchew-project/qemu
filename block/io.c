@@ -3054,7 +3054,7 @@ early_exit:
 }
 
 int coroutine_fn bdrv_co_pdiscard(BdrvChild *child, int64_t offset,
-                                  int64_t bytes)
+                                  int64_t bytes, BdrvRequestFlags flags)
 {
     BdrvTrackedRequest req;
     int ret;
@@ -3139,8 +3139,9 @@ int coroutine_fn bdrv_co_pdiscard(BdrvChild *child, int64_t offset,
             ret = -ENOMEDIUM;
             goto out;
         }
+
         if (bs->drv->bdrv_co_pdiscard) {
-            ret = bs->drv->bdrv_co_pdiscard(bs, offset, num);
+            ret = bs->drv->bdrv_co_pdiscard(bs, offset, num, flags);
         } else {
             BlockAIOCB *acb;
             CoroutineIOCompletion co = {

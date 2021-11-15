@@ -235,9 +235,10 @@ static coroutine_fn int preallocate_co_preadv_part(
 }
 
 static int coroutine_fn preallocate_co_pdiscard(BlockDriverState *bs,
-                                               int64_t offset, int64_t bytes)
+                                               int64_t offset, int64_t bytes,
+                                               BdrvRequestFlags flags)
 {
-    return bdrv_co_pdiscard(bs->file, offset, bytes);
+    return bdrv_co_pdiscard(bs->file, offset, bytes, flags);
 }
 
 static bool can_write_resize(uint64_t perm)

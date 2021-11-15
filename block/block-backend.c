@@ -1597,7 +1597,8 @@ BlockAIOCB *blk_aio_ioctl(BlockBackend *blk, unsigned long int req, void *buf,
 
 /* To be called between exactly one pair of blk_inc/dec_in_flight() */
 int coroutine_fn
-blk_co_do_pdiscard(BlockBackend *blk, int64_t offset, int64_t bytes)
+blk_co_do_pdiscard(BlockBackend *blk, int64_t offset, int64_t bytes,
+                   BdrvRequestFlags flags)
 {
     int ret;
 
@@ -1608,7 +1609,7 @@ blk_co_do_pdiscard(BlockBackend *blk, int64_t offset, int64_t bytes)
         return ret;
     }
 
-    return bdrv_co_pdiscard(blk->root, offset, bytes);
+    return bdrv_co_pdiscard(blk->root, offset, bytes, flags);
 }
 
 static void blk_aio_pdiscard_entry(void *opaque)
@@ -1616,15 +1617,17 @@ static void blk_aio_pdiscard_entry(void *opaque)
     BlkAioEmAIOCB *acb = opaque;
     BlkRwCo *rwco = &acb->rwco;
 
-    rwco->ret = blk_co_do_pdiscard(rwco->blk, rwco->offset, acb->bytes);
+    rwco->ret = blk_co_do_pdiscard(rwco->blk, rwco->offset, acb->bytes,
+                                   rwco->flags);
     blk_aio_complete(acb);
 }
 
 BlockAIOCB *blk_aio_pdiscard(BlockBackend *blk,
                              int64_t offset, int64_t bytes,
+                             BdrvRequestFlags flags,
                              BlockCompletionFunc *cb, void *opaque)
 {
-    return blk_aio_prwv(blk, offset, bytes, NULL, blk_aio_pdiscard_entry, 0,
+    return blk_aio_prwv(blk, offset, bytes, NULL, blk_aio_pdiscard_entry, flags,
                         cb, opaque);
 }
 
@@ -1634,7 +1637,7 @@ int coroutine_fn blk_co_pdiscard(BlockBackend *blk, int64_t offset,
     int ret;
 
     blk_inc_in_flight(blk);
-    ret = blk_co_do_pdiscard(blk, offset, bytes);
+    ret = blk_co_do_pdiscard(blk, offset, bytes, 0);
     blk_dec_in_flight(blk);
 
     return ret;
@@ -1645,7 +1648,7 @@ int blk_pdiscard(BlockBackend *blk, int64_t offset, int64_t bytes)
     int ret;
 
     blk_inc_in_flight(blk);
-    ret = blk_do_pdiscard(blk, offset, bytes);
+    ret = blk_do_pdiscard(blk, offset, bytes, 0);
     blk_dec_in_flight(blk);
 
     return ret;

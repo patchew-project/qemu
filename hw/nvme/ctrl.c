@@ -2325,7 +2325,7 @@ next:
     }
 
     iocb->aiocb = blk_aio_pdiscard(ns->blkconf.blk, nvme_l2b(ns, slba),
-                                   nvme_l2b(ns, nlb),
+                                   nvme_l2b(ns, nlb), 0,
                                    nvme_dsm_md_cb, iocb);
     return;
 
@@ -5428,6 +5428,7 @@ static uint16_t nvme_format(NvmeCtrl *n, NvmeRequest *req)
     NvmeFormatAIOCB *iocb;
     uint32_t nsid = le32_to_cpu(req->cmd.nsid);
     uint16_t status;
+
 
     iocb = qemu_aio_get(&nvme_format_aiocb_info, NULL, nvme_misc_cb, req);
 

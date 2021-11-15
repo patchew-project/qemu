@@ -87,6 +87,11 @@ typedef enum {
      */
     BDRV_REQ_NO_WAIT = 0x400,
 
+    /*
+     * Request for secure discard
+     */
+    BDRV_REQ_SECDISCARD = 0x800,
+
     /* Mask of valid flags */
     BDRV_REQ_MASK               = 0x7ff,
 } BdrvRequestFlags;
@@ -122,6 +127,7 @@ typedef struct HDGeometry {
 #define BDRV_O_NO_IO       0x10000 /* don't initialize for I/O */
 #define BDRV_O_AUTO_RDONLY 0x20000 /* degrade to read-only if opening read-write fails */
 #define BDRV_O_IO_URING    0x40000 /* use io_uring instead of the thread pool */
+#define BDRV_O_SECDISCARD  0x80000 /* guest SECDISCARD operations */
 
 #define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_NO_FLUSH)
 
@@ -134,6 +140,7 @@ typedef struct HDGeometry {
 #define BDRV_OPT_READ_ONLY      "read-only"
 #define BDRV_OPT_AUTO_READ_ONLY "auto-read-only"
 #define BDRV_OPT_DISCARD        "discard"
+#define BDRV_OPT_SECDISCARD     "secdiscard"
 #define BDRV_OPT_FORCE_SHARE    "force-share"
 
 
@@ -370,6 +377,7 @@ int bdrv_drop_filter(BlockDriverState *bs, Error **errp);
 int bdrv_parse_aio(const char *mode, int *flags);
 int bdrv_parse_cache_mode(const char *mode, int *flags, bool *writethrough);
 int bdrv_parse_discard_flags(const char *mode, int *flags);
+int bdrv_parse_secdiscard_flags(const char *mode, int *flags, Error **errp);
 BdrvChild *bdrv_open_child(const char *filename,
                            QDict *options, const char *bdref_key,
                            BlockDriverState* parent,
@@ -513,8 +521,9 @@ void bdrv_drain_all(void);
                    cond); })
 
 int generated_co_wrapper bdrv_pdiscard(BdrvChild *child, int64_t offset,
-                                       int64_t bytes);
-int bdrv_co_pdiscard(BdrvChild *child, int64_t offset, int64_t bytes);
+                                       int64_t bytes, BdrvRequestFlags flags);
+int bdrv_co_pdiscard(BdrvChild *child, int64_t offset, int64_t bytes,
+                     BdrvRequestFlags flags);
 int bdrv_has_zero_init_1(BlockDriverState *bs);
 int bdrv_has_zero_init(BlockDriverState *bs);
 bool bdrv_can_write_zeroes_with_unmap(BlockDriverState *bs);

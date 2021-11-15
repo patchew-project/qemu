@@ -456,7 +456,8 @@ static int coroutine_fn blk_log_writes_co_do_file_flush(BlkLogWritesFileReq *fr)
 static int coroutine_fn
 blk_log_writes_co_do_file_pdiscard(BlkLogWritesFileReq *fr)
 {
-    return bdrv_co_pdiscard(fr->bs->file, fr->offset, fr->bytes);
+    return bdrv_co_pdiscard(fr->bs->file, fr->offset, fr->bytes,
+                            fr->file_flags);
 }
 
 static int coroutine_fn
@@ -484,7 +485,8 @@ static int coroutine_fn blk_log_writes_co_flush_to_disk(BlockDriverState *bs)
 }
 
 static int coroutine_fn
-blk_log_writes_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
+blk_log_writes_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes,
+                                       BdrvRequestFlags flags)
 {
     return blk_log_writes_co_log(bs, offset, bytes, NULL, 0,
                                  blk_log_writes_co_do_file_pdiscard,

@@ -48,7 +48,8 @@ static int coroutine_fn bdrv_test_co_pwritev(BlockDriverState *bs,
 }
 
 static int coroutine_fn bdrv_test_co_pdiscard(BlockDriverState *bs,
-                                              int64_t offset, int64_t bytes)
+                                              int64_t offset, int64_t bytes,
+                                              BdrvRequestFlags flags)
 {
     return 0;
 }
@@ -164,16 +165,16 @@ static void test_sync_op_pdiscard(BdrvChild *c)
 
     /* Normal success path */
     c->bs->open_flags |= BDRV_O_UNMAP;
-    ret = bdrv_pdiscard(c, 0, 512);
+    ret = bdrv_pdiscard(c, 0, 512, 0);
     g_assert_cmpint(ret, ==, 0);
 
     /* Early success: UNMAP not supported */
     c->bs->open_flags &= ~BDRV_O_UNMAP;
-    ret = bdrv_pdiscard(c, 0, 512);
+    ret = bdrv_pdiscard(c, 0, 512, 0);
     g_assert_cmpint(ret, ==, 0);
 
     /* Early error: Negative offset */
-    ret = bdrv_pdiscard(c, -2, 512);
+    ret = bdrv_pdiscard(c, -2, 512, 0);
     g_assert_cmpint(ret, ==, -EIO);
 }
 

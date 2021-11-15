@@ -717,7 +717,8 @@ static int coroutine_fn blkdebug_co_pwrite_zeroes(BlockDriverState *bs,
 }
 
 static int coroutine_fn blkdebug_co_pdiscard(BlockDriverState *bs,
-                                             int64_t offset, int64_t bytes)
+                                             int64_t offset, int64_t bytes,
+                                             BdrvRequestFlags flags)
 {
     uint32_t align = bs->bl.pdiscard_alignment;
     int err;
@@ -747,7 +748,7 @@ static int coroutine_fn blkdebug_co_pdiscard(BlockDriverState *bs,
         return err;
     }
 
-    return bdrv_co_pdiscard(bs->file, offset, bytes);
+    return bdrv_co_pdiscard(bs->file, offset, bytes, 0);
 }
 
 static int coroutine_fn blkdebug_co_block_status(BlockDriverState *bs,

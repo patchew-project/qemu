@@ -738,7 +738,7 @@ void qcow2_process_discards(BlockDriverState *bs, int ret)
 
         /* Discard is optional, ignore the return value */
         if (ret >= 0) {
-            int r2 = bdrv_pdiscard(bs->file, d->offset, d->bytes);
+            int r2 = bdrv_pdiscard(bs->file, d->offset, d->bytes, 0);
             if (r2 < 0) {
                 trace_qcow2_process_discards_failed_region(d->offset, d->bytes,
                                                            r2);
@@ -1169,7 +1169,7 @@ void qcow2_free_any_cluster(BlockDriverState *bs, uint64_t l2_entry,
              ctype == QCOW2_CLUSTER_ZERO_ALLOC))
         {
             bdrv_pdiscard(s->data_file, l2_entry & L2E_OFFSET_MASK,
-                          s->cluster_size);
+                          s->cluster_size, 0);
         }
         return;
     }

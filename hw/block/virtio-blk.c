@@ -600,7 +600,7 @@ static uint8_t virtio_blk_handle_discard_write_zeroes(VirtIOBlockReq *req,
             goto err;
         }
 
-        blk_aio_pdiscard(s->blk, sector << BDRV_SECTOR_BITS, bytes,
+        blk_aio_pdiscard(s->blk, sector << BDRV_SECTOR_BITS, bytes, 0,
                          virtio_blk_discard_write_zeroes_complete, req);
     }
 

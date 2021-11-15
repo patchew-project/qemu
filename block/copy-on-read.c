@@ -201,9 +201,10 @@ static int coroutine_fn cor_co_pwrite_zeroes(BlockDriverState *bs,
 
 
 static int coroutine_fn cor_co_pdiscard(BlockDriverState *bs,
-                                        int64_t offset, int64_t bytes)
+                                        int64_t offset, int64_t bytes,
+                                       BdrvRequestFlags flags)
 {
-    return bdrv_co_pdiscard(bs->file, offset, bytes);
+    return bdrv_co_pdiscard(bs->file, offset, bytes, 0);
 }
 
 

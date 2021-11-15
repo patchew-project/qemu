@@ -145,12 +145,13 @@ static int coroutine_fn throttle_co_pwrite_zeroes(BlockDriverState *bs,
 }
 
 static int coroutine_fn throttle_co_pdiscard(BlockDriverState *bs,
-                                             int64_t offset, int64_t bytes)
+                                             int64_t offset, int64_t bytes,
+                                             BdrvRequestFlags flags)
 {
     ThrottleGroupMember *tgm = bs->opaque;
     throttle_group_co_io_limits_intercept(tgm, bytes, true);
 
-    return bdrv_co_pdiscard(bs->file, offset, bytes);
+    return bdrv_co_pdiscard(bs->file, offset, bytes, flags);
 }
 
 static int coroutine_fn throttle_co_pwritev_compressed(BlockDriverState *bs,

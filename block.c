@@ -1129,6 +1129,32 @@ int bdrv_parse_discard_flags(const char *mode, int *flags)
 }
 
 /**
+ * Set open flags for a given secdiscard mode
+ *
+ * Return 0 on success, -1 if the secdiscard mode was invalid.
+ */
+int bdrv_parse_secdiscard_flags(const char *mode, int *flags, Error **errp)
+{
+    *flags &= ~BDRV_O_SECDISCARD;
+
+    if (!strcmp(mode, "off")) {
+        /* do nothing */
+    } else if (!strcmp(mode, "on")) {
+        if (!(*flags & BDRV_O_UNMAP)) {
+            error_setg(errp, "cannot enable secdiscard when discard is "
+                             "disabled!");
+            return -1;
+        }
+
+        *flags |= BDRV_O_SECDISCARD;
+    } else {
+        return -1;
+    }
+
+    return 0;
+}
+
+/**
  * Set open flags for a given cache mode
  *
  * Return 0 on success, -1 if the cache mode was invalid.
@@ -1696,6 +1722,11 @@ QemuOptsList bdrv_runtime_opts = {
             .help = "discard operation (ignore/off, unmap/on)",
         },
         {
+            .name = BDRV_OPT_SECDISCARD,
+            .type = QEMU_OPT_STRING,
+            .help = "secure discard operation (off, on)",
+        },
+        {
             .name = BDRV_OPT_FORCE_SHARE,
             .type = QEMU_OPT_BOOL,
             .help = "always accept other writers (default: off)",
@@ -1735,6 +1766,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockBackend *file,
     const char *driver_name = NULL;
     const char *node_name = NULL;
     const char *discard;
+    const char *secdiscard;
     QemuOpts *opts;
     BlockDriver *drv;
     Error *local_err = NULL;
@@ -1824,6 +1856,16 @@ static int bdrv_open_common(BlockDriverState *bs, BlockBackend *file,
     if (discard != NULL) {
         if (bdrv_parse_discard_flags(discard, &bs->open_flags) != 0) {
             error_setg(errp, "Invalid discard option");
+            ret = -EINVAL;
+            goto fail_opts;
+        }
+    }
+
+
+    secdiscard = qemu_opt_get(opts, BDRV_OPT_SECDISCARD);
+    if (secdiscard != NULL) {
+        if (bdrv_parse_secdiscard_flags(secdiscard, &bs->open_flags,
+                                        errp) != 0) {
             ret = -EINVAL;
             goto fail_opts;
         }
@@ -3683,6 +3725,10 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
         qdict_del(options, BDRV_OPT_READ_ONLY);
         bdrv_inherited_options(BDRV_CHILD_COW, true,
                                &flags, options, flags, options);
+    }
+
+    if (g_strcmp0(qdict_get_try_str(options, BDRV_OPT_SECDISCARD), "on")) {
+            flags |= BDRV_O_SECDISCARD;
     }
 
     bs->open_flags = flags;

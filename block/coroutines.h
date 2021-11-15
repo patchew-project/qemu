@@ -98,9 +98,11 @@ int coroutine_fn
 blk_co_do_ioctl(BlockBackend *blk, unsigned long int req, void *buf);
 
 int generated_co_wrapper
-blk_do_pdiscard(BlockBackend *blk, int64_t offset, int64_t bytes);
+blk_do_pdiscard(BlockBackend *blk, int64_t offset, int64_t bytes,
+                BdrvRequestFlags flags);
 int coroutine_fn
-blk_co_do_pdiscard(BlockBackend *blk, int64_t offset, int64_t bytes);
+blk_co_do_pdiscard(BlockBackend *blk, int64_t offset, int64_t bytes,
+                   BdrvRequestFlags flags);
 
 int generated_co_wrapper blk_do_flush(BlockBackend *blk);
 int coroutine_fn blk_co_do_flush(BlockBackend *blk);

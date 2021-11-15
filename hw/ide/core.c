@@ -483,6 +483,7 @@ static void ide_issue_trim_cb(void *opaque, int ret)
                 iocb->aiocb = blk_aio_pdiscard(s->blk,
                                                sector << BDRV_SECTOR_BITS,
                                                count << BDRV_SECTOR_BITS,
+                                               0,
                                                ide_issue_trim_cb, opaque);
                 return;
             }
