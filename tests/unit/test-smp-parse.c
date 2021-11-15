@@ -487,6 +487,17 @@ static void machine_base_class_init(ObjectClass *oc, void *data)
     mc->name = g_strdup(SMP_MACHINE_NAME);
 }
 
+static void machine_without_dies_invalid_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    /* Force invalid min CPUs and max CPUs */
+    mc->min_cpus = 2;
+    mc->max_cpus = 511;
+
+    mc->smp_props.dies_supported = false;
+}
+
 static void machine_with_dies_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -530,21 +541,12 @@ static void test_generic_invalid(const void *opaque)
     SMPTestData *data = &(SMPTestData){};
     int i;
 
-
-    /* Force invalid min CPUs and max CPUs */
-    mc->min_cpus = 2;
-    mc->max_cpus = 511;
-
     for (i = 0; i < ARRAY_SIZE(data_generic_invalid); i++) {
         *data = data_generic_invalid[i];
         unsupported_params_init(mc, data);
 
         smp_parse_test(ms, data, false);
     }
-
-    /* Reset the supported min CPUs and max CPUs */
-    mc->min_cpus = MIN_CPUS;
-    mc->max_cpus = MAX_CPUS;
 
     object_unref(obj);
 }
@@ -608,6 +610,10 @@ static const TypeInfo smp_machine_types[] = {
         .class_size     = sizeof(MachineClass),
         .instance_size  = sizeof(MachineState),
     }, {
+        .name           = MACHINE_TYPE_NAME("smp-without-dies-invalid"),
+        .parent         = TYPE_MACHINE,
+        .class_init     = machine_without_dies_invalid_class_init,
+    }, {
         .name           = MACHINE_TYPE_NAME("smp-with-dies"),
         .parent         = TYPE_MACHINE,
         .class_init     = machine_with_dies_class_init,
@@ -626,7 +632,7 @@ int main(int argc, char *argv[])
                          TYPE_MACHINE,
                          test_generic_valid);
     g_test_add_data_func("/test-smp-parse/generic/invalid",
-                         TYPE_MACHINE,
+                         MACHINE_TYPE_NAME("smp-without-dies-invalid"),
                          test_generic_invalid);
     g_test_add_data_func("/test-smp-parse/with_dies",
                          MACHINE_TYPE_NAME("smp-with-dies"),
