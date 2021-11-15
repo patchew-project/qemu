@@ -182,13 +182,19 @@
 # @reduced-phys-bits: Number of physical Address bit reduction when SEV is
 #                     enabled
 #
+# @es: SEV-ES capability of the machine.
+#
+# @snp: SEV-SNP capability of the machine.
+#
 # Since: 2.12
 ##
 { 'struct': 'SevCapability',
   'data': { 'pdh': 'str',
             'cert-chain': 'str',
             'cbitpos': 'int',
-            'reduced-phys-bits': 'int'},
+            'reduced-phys-bits': 'int',
+            'es': 'bool',
+            'snp': 'bool'},
   'if': 'TARGET_I386' }
 
 ##
@@ -205,7 +211,8 @@
 #
 # -> { "execute": "query-sev-capabilities" }
 # <- { "return": { "pdh": "8CCDD8DDD", "cert-chain": "888CCCDDDEE",
-#                  "cbitpos": 47, "reduced-phys-bits": 5}}
+#                  "cbitpos": 47, "reduced-phys-bits": 5
+#                  "es": false, "snp": false}}
 #
 ##
 { 'command': 'query-sev-capabilities', 'returns': 'SevCapability',

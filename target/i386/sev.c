@@ -506,7 +506,7 @@ static SevCapability *sev_get_capabilities(Error **errp)
     guchar *pdh_data = NULL;
     guchar *cert_chain_data = NULL;
     size_t pdh_len = 0, cert_chain_len = 0;
-    uint32_t ebx;
+    uint32_t eax, ebx;
     int fd;
 
     if (!kvm_enabled()) {
@@ -534,8 +534,10 @@ static SevCapability *sev_get_capabilities(Error **errp)
     cap->pdh = g_base64_encode(pdh_data, pdh_len);
     cap->cert_chain = g_base64_encode(cert_chain_data, cert_chain_len);
 
-    host_cpuid(0x8000001F, 0, NULL, &ebx, NULL, NULL);
+    host_cpuid(0x8000001F, 0, &eax, &ebx, NULL, NULL);
     cap->cbitpos = ebx & 0x3f;
+    cap->es = (eax & 0x8) ? true : false;
+    cap->snp = (eax & 0x10) ? true : false;
 
     /*
      * When SEV feature is enabled, we loose one bit in guest physical
