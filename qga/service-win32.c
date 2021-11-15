@@ -105,6 +105,18 @@ int ga_install_service(const char *path, const char *logfile,
     GString *esc;
     GString *cmdline;
     SERVICE_DESCRIPTION desc = { (char *)QGA_SERVICE_DESCRIPTION };
+    SC_ACTION sa[] = {
+        { SC_ACTION_RESTART, 60000},
+        { SC_ACTION_RESTART, 60000},
+        { SC_ACTION_RESTART, 60000}
+    };
+    SERVICE_FAILURE_ACTIONS sfa = {
+        864000, // in seconds,
+        NULL,
+        NULL,
+        sizeof(sa) / sizeof(*sa),
+        sa
+    };
 
     if (GetModuleFileName(NULL, module_fname, MAX_PATH) == 0) {
         printf_win_error("No full path to service's executable");
@@ -146,6 +158,7 @@ int ga_install_service(const char *path, const char *logfile,
     }
 
     ChangeServiceConfig2(service, SERVICE_CONFIG_DESCRIPTION, &desc);
+    ChangeServiceConfig2(service, SERVICE_CONFIG_FAILURE_ACTIONS, &sfa);
     fprintf(stderr, "Service was installed successfully.\n");
     ret = EXIT_SUCCESS;
     CloseServiceHandle(service);
