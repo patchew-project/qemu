@@ -819,8 +819,8 @@ void qemu_cleanup(void)
     tpm_cleanup();
     net_cleanup();
     audio_cleanup();
-    monitor_cleanup();
     qemu_chr_cleanup();
     user_creatable_cleanup();
+    monitor_cleanup();
     /* TODO: unref root container, check all devices are ok */
 }

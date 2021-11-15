@@ -605,11 +605,17 @@ void monitor_data_init(Monitor *mon, bool is_qmp, bool skip_flush,
     mon->outbuf = g_string_new(NULL);
     mon->skip_flush = skip_flush;
     mon->use_io_thread = use_io_thread;
+    /*
+     * take an extra ref to prevent monitor's chardev
+     * from destroying in qemu_chr_cleanup()
+     */
+    object_ref(OBJECT(mon->chr.chr));
 }
 
 void monitor_data_destroy(Monitor *mon)
 {
     g_free(mon->mon_cpu_path);
+    object_unref(OBJECT(mon->chr.chr));
     qemu_chr_fe_deinit(&mon->chr, false);
     if (monitor_is_qmp(mon)) {
         monitor_data_destroy_qmp(container_of(mon, MonitorQMP, common));
