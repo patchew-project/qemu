@@ -747,4 +747,19 @@ cache.no-flush=on on backing-file
     Cache mode:       writeback
     Cache mode:       writeback, direct
     Cache mode:       writeback, ignore flushes
+
+--- Alignment after changing O_DIRECT ---
+
+read 42/42 bytes at offset 42
+42 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 42/42 bytes at offset 42
+42 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 42/42 bytes at offset 42
+42 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 42/42 bytes at offset 42
+42 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 42/42 bytes at offset 42
+42 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 42/42 bytes at offset 42
+42 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 *** done
