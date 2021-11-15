@@ -821,6 +821,8 @@ void qemu_cleanup(void)
     audio_cleanup();
     qemu_chr_cleanup();
     user_creatable_cleanup();
+    /* finish all the tasks from rcu queue before exiting */
+    flush_rcu();
     monitor_cleanup();
     /* TODO: unref root container, check all devices are ok */
 }
