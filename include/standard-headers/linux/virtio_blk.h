@@ -40,6 +40,7 @@
 #define VIRTIO_BLK_F_MQ		12	/* support more than one vq */
 #define VIRTIO_BLK_F_DISCARD	13	/* DISCARD is supported */
 #define VIRTIO_BLK_F_WRITE_ZEROES	14	/* WRITE ZEROES is supported */
+#define VIRTIO_BLK_F_SECDISCARD	15	/* WRITE ZEROES is supported */
 
 /* Legacy feature bits */
 #ifndef VIRTIO_BLK_NO_LEGACY
@@ -152,6 +153,9 @@ struct virtio_blk_config {
 
 /* Write zeroes command */
 #define VIRTIO_BLK_T_WRITE_ZEROES	13
+
+/* Secure discard command */
+#define VIRTIO_BLK_T_SECDISCARD	14
 
 #ifndef VIRTIO_BLK_NO_LEGACY
 /* Barrier before this op. */

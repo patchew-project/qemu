@@ -536,7 +536,8 @@ static bool virtio_blk_sect_range_ok(VirtIOBlock *dev,
 }
 
 static uint8_t virtio_blk_handle_discard_write_zeroes(VirtIOBlockReq *req,
-    struct virtio_blk_discard_write_zeroes *dwz_hdr, bool is_write_zeroes)
+    struct virtio_blk_discard_write_zeroes *dwz_hdr, bool is_write_zeroes,
+    bool is_secdiscard)
 {
     VirtIOBlock *s = req->dev;
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
@@ -577,8 +578,8 @@ static uint8_t virtio_blk_handle_discard_write_zeroes(VirtIOBlockReq *req,
         goto err;
     }
 
+    int blk_aio_flags = 0;
     if (is_write_zeroes) { /* VIRTIO_BLK_T_WRITE_ZEROES */
-        int blk_aio_flags = 0;
 
         if (flags & VIRTIO_BLK_WRITE_ZEROES_FLAG_UNMAP) {
             blk_aio_flags |= BDRV_REQ_MAY_UNMAP;
@@ -600,7 +601,12 @@ static uint8_t virtio_blk_handle_discard_write_zeroes(VirtIOBlockReq *req,
             goto err;
         }
 
-        blk_aio_pdiscard(s->blk, sector << BDRV_SECTOR_BITS, bytes, 0,
+        if (is_secdiscard) {
+            blk_aio_flags |= BDRV_REQ_SECDISCARD;
+        }
+
+        blk_aio_pdiscard(s->blk, sector << BDRV_SECTOR_BITS, bytes,
+                         blk_aio_flags,
                          virtio_blk_discard_write_zeroes_complete, req);
     }
 
@@ -622,6 +628,7 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
     unsigned out_num = req->elem.out_num;
     VirtIOBlock *s = req->dev;
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
+    bool is_secdiscard = false;
 
     if (req->elem.out_num < 1 || req->elem.in_num < 1) {
         virtio_error(vdev, "virtio-blk missing headers");
@@ -722,6 +729,9 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
      * VIRTIO_BLK_T_OUT flag set. We masked this flag in the switch statement,
      * so we must mask it for these requests, then we will check if it is set.
      */
+    case VIRTIO_BLK_T_SECDISCARD & ~VIRTIO_BLK_T_OUT:
+        is_secdiscard = true;
+        __attribute__((fallthrough));
     case VIRTIO_BLK_T_DISCARD & ~VIRTIO_BLK_T_OUT:
     case VIRTIO_BLK_T_WRITE_ZEROES & ~VIRTIO_BLK_T_OUT:
     {
@@ -752,7 +762,8 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
         }
 
         err_status = virtio_blk_handle_discard_write_zeroes(req, &dwz_hdr,
-                                                            is_write_zeroes);
+                                                            is_write_zeroes,
+                                                            is_secdiscard);
         if (err_status != VIRTIO_BLK_S_OK) {
             virtio_blk_req_complete(req, err_status);
             virtio_blk_free_request(req);
@@ -1201,6 +1212,11 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (blk_get_flags(conf->conf.blk) & BDRV_O_SECDISCARD)
+        virtio_add_feature(&s->host_features, VIRTIO_BLK_F_SECDISCARD);
+    else
+        virtio_clear_feature(&s->host_features, VIRTIO_BLK_F_SECDISCARD);
+
     if (virtio_has_feature(s->host_features, VIRTIO_BLK_F_WRITE_ZEROES) &&
         (!conf->max_write_zeroes_sectors ||
          conf->max_write_zeroes_sectors > BDRV_REQUEST_MAX_SECTORS)) {
@@ -1307,6 +1323,8 @@ static Property virtio_blk_properties[] = {
                      conf.report_discard_granularity, true),
     DEFINE_PROP_BIT64("write-zeroes", VirtIOBlock, host_features,
                       VIRTIO_BLK_F_WRITE_ZEROES, true),
+    DEFINE_PROP_BIT64("secdiscard", VirtIOBlock, host_features,
+                      VIRTIO_BLK_F_SECDISCARD, false),
     DEFINE_PROP_UINT32("max-discard-sectors", VirtIOBlock,
                        conf.max_discard_sectors, BDRV_REQUEST_MAX_SECTORS),
     DEFINE_PROP_UINT32("max-write-zeroes-sectors", VirtIOBlock,
