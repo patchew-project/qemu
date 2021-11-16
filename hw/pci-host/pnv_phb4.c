@@ -1234,10 +1234,13 @@ static void pnv_phb4_reset(DeviceState *dev)
     PCIDevice *root_dev = PCI_DEVICE(&phb->root);
 
     /*
-     * Configure PCI device id at reset using a property.
+     * Configure the PCI device at reset:
+     *   - set the Vendor and Device ID to for the root bridge
+     *   - no LSI
      */
     pci_config_set_vendor_id(root_dev->config, PCI_VENDOR_ID_IBM);
     pci_config_set_device_id(root_dev->config, phb->device_id);
+    pci_config_set_interrupt_pin(root_dev->config, 0);
 }
 
 static const char *pnv_phb4_root_bus_path(PCIHostState *host_bridge,
