@@ -413,13 +413,14 @@ multiple exist paths you can also improve the readability of the code
 by using ``g_autofree`` and related annotations. See :ref:`autofree-ref`
 for more details.
 
-Calling ``g_malloc`` with a zero size is valid and will return NULL.
+Calling ``g_malloc`` with a zero size is valid and will return ``NULL``.
 
 Prefer ``g_new(T, n)`` instead of ``g_malloc(sizeof(T) * n)`` for the following
 reasons:
 
-* It catches multiplication overflowing size_t;
-* It returns T ``*`` instead of void ``*``, letting compiler catch more type errors.
+* It catches multiplication overflowing ``size_t``;
+* It returns ``T *`` instead of ``void *``, letting compiler catch more type
+  errors.
 
 Declarations like
 
@@ -444,14 +445,14 @@ use this similar function when possible, but note its different signature:
 
     void pstrcpy(char *dest, int dest_buf_size, const char *src)
 
-Don't use strcat because it can't check for buffer overflows, but:
+Don't use ``strcat`` because it can't check for buffer overflows, but:
 
 .. code-block:: c
 
     char *pstrcat(char *buf, int buf_size, const char *s)
 
-The same limitation exists with sprintf and vsprintf, so use snprintf and
-vsnprintf.
+The same limitation exists with ``sprintf`` and ``vsprintf``, so use
+``snprintf`` and ``vsnprintf``.
 
 QEMU provides other useful string functions:
 
@@ -464,8 +465,8 @@ QEMU provides other useful string functions:
 There are also replacement character processing macros for isxyz and toxyz,
 so instead of e.g. isalnum you should use qemu_isalnum.
 
-Because of the memory management rules, you must use g_strdup/g_strndup
-instead of plain strdup/strndup.
+Because of the memory management rules, you must use ``g_strdup/g_strndup``
+instead of plain ``strdup/strndup``.
 
 Printf-style functions
 ======================
@@ -524,10 +525,10 @@ automatic cleanup:
 
 Most notably:
 
-* g_autofree - will invoke g_free() on the variable going out of scope
+* ``g_autofree`` - will invoke ``g_free()`` on the variable going out of scope
 
-* g_autoptr - for structs / objects, will invoke the cleanup func created
-  by a previous use of G_DEFINE_AUTOPTR_CLEANUP_FUNC. This is
+* ``g_autoptr`` - for structs / objects, will invoke the cleanup func created
+  by a previous use of ``G_DEFINE_AUTOPTR_CLEANUP_FUNC``. This is
   supported for most GLib data types and GObjects
 
 For example, instead of
@@ -551,7 +552,7 @@ For example, instead of
         return ret;
     }
 
-Using g_autofree/g_autoptr enables the code to be written as:
+Using ``g_autofree/g_autoptr`` enables the code to be written as:
 
 .. code-block:: c
 
@@ -569,13 +570,13 @@ Using g_autofree/g_autoptr enables the code to be written as:
 While this generally results in simpler, less leak-prone code, there
 are still some caveats to beware of
 
-* Variables declared with g_auto* MUST always be initialized,
+* Variables declared with ``g_auto*`` MUST always be initialized,
   otherwise the cleanup function will use uninitialized stack memory
 
-* If a variable declared with g_auto* holds a value which must
+* If a variable declared with ``g_auto*`` holds a value which must
   live beyond the life of the function, that value must be saved
   and the original variable NULL'd out. This can be simpler using
-  g_steal_pointer
+  ``g_steal_pointer``
 
 
 .. code-block:: c
