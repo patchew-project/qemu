@@ -1280,7 +1280,22 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
     qemu_co_mutex_init(&s->lock);
 
     ret = 0;
+
+    qemu_opts_del(opts);
+    return ret;
 fail:
+    if(s->qcow_filename) {
+        g_free(s->qcow_filename);
+        s->qcow_filename = NULL;
+    }
+    if(s->cluster_buffer) {
+        g_free(s->cluster_buffer);
+        s->cluster_buffer = NULL;
+    } 
+    if(s->used_clusters) {
+        g_free(s->used_clusters);
+        s->used_clusters = NULL;
+    }
     qemu_opts_del(opts);
     return ret;
 }
