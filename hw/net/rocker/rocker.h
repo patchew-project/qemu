@@ -36,13 +36,8 @@ static inline GCC_FMT_ATTR(1, 2) int DPRINTF(const char *fmt, ...)
 }
 #endif
 
-#define __le16 uint16_t
-#define __le32 uint32_t
-#define __le64 uint64_t
-
 #define __be16 uint16_t
 #define __be32 uint32_t
-#define __be64 uint64_t
 
 static inline bool ipv4_addr_is_multicast(__be32 addr)
 {
