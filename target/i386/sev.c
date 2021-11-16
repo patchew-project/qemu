@@ -537,8 +537,9 @@ static SevCapability *sev_get_capabilities(Error **errp)
     guchar *pdh_data = NULL;
     guchar *cert_chain_data = NULL;
     size_t pdh_len = 0, cert_chain_len = 0;
-    uint32_t ebx;
-    int fd;
+    uint32_t eax, ebx;
+    int fd, es, snp;
+
 
     if (!kvm_enabled()) {
         error_setg(errp, "KVM not enabled");
@@ -565,8 +566,18 @@ static SevCapability *sev_get_capabilities(Error **errp)
     cap->pdh = g_base64_encode(pdh_data, pdh_len);
     cap->cert_chain = g_base64_encode(cert_chain_data, cert_chain_len);
 
-    host_cpuid(0x8000001F, 0, NULL, &ebx, NULL, NULL);
+    host_cpuid(0x8000001F, 0, &eax, &ebx, NULL, NULL);
     cap->cbitpos = ebx & 0x3f;
+
+    es = eax & 0x8;
+    snp = eax & 0x10;
+    if (!es && !snp) {
+	cap->ask_ark_cert_name = SEV_ASK_ARK_CERT_NAME_NAPLES;
+    } else if (es && !snp) {
+	cap->ask_ark_cert_name = SEV_ASK_ARK_CERT_NAME_ROME;
+    } else {
+	cap->ask_ark_cert_name = SEV_ASK_ARK_CERT_NAME_MILAN;
+    }
 
     /*
      * When SEV feature is enabled, we loose one bit in guest physical

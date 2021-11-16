@@ -166,6 +166,24 @@
 { 'command': 'query-sev-launch-measure', 'returns': 'SevLaunchMeasureInfo',
   'if': 'TARGET_I386' }
 
+##
+# @SevAskArkCertName:
+#
+# This enum describes which ASK/ARK certificate should be
+# used based on the generation of an AMD Secure Encrypted
+# Virtualization processor.
+#
+# @naples: AMD Naples processor (SEV 1st generation)
+#
+# @rome: AMD Rome processor (SEV 2nd generation)
+#
+# @milan: AMD Milan processor (SEV 3rd generation)
+#
+# Since: 7.0
+##
+{ 'enum': 'SevAskArkCertName',
+  'data': ['naples', 'rome', 'milan'],
+  'if': 'TARGET_I386' }
 
 ##
 # @SevCapability:
@@ -182,13 +200,18 @@
 # @reduced-phys-bits: Number of physical Address bit reduction when SEV is
 #                     enabled
 #
+# @ask-ark-cert-name: The generation in which the AMD
+#                     ARK/ASK should be derived from
+#                     (since 7.0)
+#
 # Since: 2.12
 ##
 { 'struct': 'SevCapability',
   'data': { 'pdh': 'str',
             'cert-chain': 'str',
             'cbitpos': 'int',
-            'reduced-phys-bits': 'int'},
+            'reduced-phys-bits': 'int',
+            'ask-ark-cert-name': 'SevAskArkCertName'},
   'if': 'TARGET_I386' }
 
 ##
@@ -205,7 +228,8 @@
 #
 # -> { "execute": "query-sev-capabilities" }
 # <- { "return": { "pdh": "8CCDD8DDD", "cert-chain": "888CCCDDDEE",
-#                  "cbitpos": 47, "reduced-phys-bits": 5}}
+#                  "cbitpos": 47, "reduced-phys-bits": 5,
+#                  "ask-ark-cert-name": "naples"}}
 #
 ##
 { 'command': 'query-sev-capabilities', 'returns': 'SevCapability',
