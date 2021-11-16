@@ -111,7 +111,7 @@ Variables are lower_case_with_underscores; easy to type and read.  Structured
 type names are in CamelCase; harder to type but standing out.  Enum type
 names and function type names should also be in CamelCase.  Scalar type
 names are lower_case_with_underscores_ending_with_a_t, like the POSIX
-uint64_t and family.  Note that this last convention contradicts POSIX
+``uint64_t`` and family.  Note that this last convention contradicts POSIX
 and is therefore likely to be changed.
 
 Variable Naming Conventions
@@ -195,9 +195,9 @@ blocks) are generally not allowed; declarations should be at the beginning
 of blocks.
 
 Every now and then, an exception is made for declarations inside a
-#ifdef or #ifndef block: if the code looks nicer, such declarations can
+``#ifdef`` or ``#ifndef`` block: if the code looks nicer, such declarations can
 be placed at the top of the block even if there are statements above.
-On the other hand, however, it's often best to move that #ifdef/#ifndef
+On the other hand, however, it's often best to move that ``#ifdef/#ifndef``
 block to a separate function altogether.
 
 Conditional statements
@@ -220,13 +220,13 @@ even when the constant is on the right.
 Comment style
 =============
 
-We use traditional C-style /``*`` ``*``/ comments and avoid // comments.
+We use traditional C-style ``/*`` ``*/`` comments and avoid ``//`` comments.
 
-Rationale: The // form is valid in C99, so this is purely a matter of
+Rationale: The ``//`` form is valid in C99, so this is purely a matter of
 consistency of style. The checkpatch script will warn you about this.
 
 Multiline comment blocks should have a row of stars on the left,
-and the initial /``*`` and terminating ``*``/ both on their own lines:
+and the initial ``/*`` and terminating ``*/`` both on their own lines:
 
 .. code-block:: c
 
@@ -290,57 +290,57 @@ a few useful guidelines here.
 Scalars
 -------
 
-If you're using "int" or "long", odds are good that there's a better type.
-If a variable is counting something, it should be declared with an
-unsigned type.
+If you're using '``int``' or '``long``', odds are good that there's a better
+type.  If a variable is counting something, it should be declared with an
+*unsigned* type.
 
-If it's host memory-size related, size_t should be a good choice (use
-ssize_t only if required). Guest RAM memory offsets must use ram_addr_t,
+If it's host memory-size related, ``size_t`` should be a good choice (use
+``ssize_t`` only if required). Guest RAM memory offsets must use ``ram_addr_t``,
 but only for RAM, it may not cover whole guest address space.
 
-If it's file-size related, use off_t.
-If it's file-offset related (i.e., signed), use off_t.
-If it's just counting small numbers use "unsigned int";
+If it's file-size related, use ``off_t``.
+If it's file-offset related (i.e., signed), use ``off_t``.
+If it's just counting small numbers use '``unsigned int``';
 (on all but oddball embedded systems, you can assume that that
 type is at least four bytes wide).
 
 In the event that you require a specific width, use a standard type
-like int32_t, uint32_t, uint64_t, etc.  The specific types are
+like ``int32_t``, ``uint32_t``, ``uint64_t``, etc.  The specific types are
 mandatory for VMState fields.
 
-Don't use Linux kernel internal types like u32, __u32 or __le32.
+Don't use Linux kernel internal types like ``u32``, ``__u32`` or ``__le32``.
 
-Use hwaddr for guest physical addresses except pcibus_t
-for PCI addresses.  In addition, ram_addr_t is a QEMU internal address
+Use ``hwaddr`` for guest physical addresses except ``pcibus_t``
+for PCI addresses.  In addition, ``ram_addr_t`` is a QEMU internal address
 space that maps guest RAM physical addresses into an intermediate
 address space that can map to host virtual address spaces.  Generally
-speaking, the size of guest memory can always fit into ram_addr_t but
+speaking, the size of guest memory can always fit into ``ram_addr_t`` but
 it would not be correct to store an actual guest physical address in a
-ram_addr_t.
+``ram_addr_t``.
 
 For CPU virtual addresses there are several possible types.
-vaddr is the best type to use to hold a CPU virtual address in
+``vaddr`` is the best type to use to hold a CPU virtual address in
 target-independent code. It is guaranteed to be large enough to hold a
 virtual address for any target, and it does not change size from target
 to target. It is always unsigned.
-target_ulong is a type the size of a virtual address on the CPU; this means
+``target_ulong`` is a type the size of a virtual address on the CPU; this means
 it may be 32 or 64 bits depending on which target is being built. It should
 therefore be used only in target-specific code, and in some
 performance-critical built-per-target core code such as the TLB code.
-There is also a signed version, target_long.
-abi_ulong is for the ``*``-user targets, and represents a type the size of
-'void ``*``' in that target's ABI. (This may not be the same as the size of a
+There is also a signed version, ``target_long``.
+``abi_ulong`` is for the ``*-user`` targets, and represents a type the size of
+'``void *``' in that target's ABI. (This may not be the same as the size of a
 full CPU virtual address in the case of target ABIs which use 32 bit pointers
-on 64 bit CPUs, like sparc32plus.) Definitions of structures that must match
+on 64 bit CPUs, like *sparc32plus*.) Definitions of structures that must match
 the target's ABI must use this type for anything that on the target is defined
-to be an 'unsigned long' or a pointer type.
-There is also a signed version, abi_long.
+to be an '``unsigned long``' or a pointer type.
+There is also a signed version, ``abi_long``.
 
 Of course, take all of the above with a grain of salt.  If you're about
-to use some system interface that requires a type like size_t, pid_t or
-off_t, use matching types for any corresponding variables.
+to use some system interface that requires a type like ``size_t``, ``pid_t`` or
+``off_t``, use matching types for any corresponding variables.
 
-Also, if you try to use e.g., "unsigned int" as a type, and that
+Also, if you try to use e.g., '``unsigned int``' as a type, and that
 conflicts with the signedness of a related variable, sometimes
 it's best just to use the *wrong* type, if "pulling the thread"
 and fixing all related variables would be too invasive.
@@ -352,9 +352,9 @@ casts, then reconsider or ask for help.
 Pointers
 --------
 
-Ensure that all of your pointers are "const-correct".
+Ensure that all of your pointers are "``const``-correct".
 Unless a pointer is used to modify the pointed-to storage,
-give it the "const" attribute.  That way, the reader knows
+give it the '``const``' attribute.  That way, the reader knows
 up-front that this is a read-only pointer.  Perhaps more
 importantly, if we're diligent about this, when you see a non-const
 pointer, you're guaranteed that it is used to modify the storage
@@ -363,7 +363,7 @@ it points to, or it is aliased to another pointer that is.
 Typedefs
 --------
 
-Typedefs are used to eliminate the redundant 'struct' keyword, since type
+Typedefs are used to eliminate the redundant '``struct``' keyword, since type
 names have a different style than other identifiers ("CamelCase" versus
 "snake_case").  Each named struct type should have a CamelCase name and a
 corresponding typedef.
@@ -462,8 +462,8 @@ QEMU provides other useful string functions:
     int stristart(const char *str, const char *val, const char **ptr)
     int qemu_strnlen(const char *s, int max_len)
 
-There are also replacement character processing macros for isxyz and toxyz,
-so instead of e.g. isalnum you should use qemu_isalnum.
+There are also replacement character processing macros for ``isxyz`` and
+``toxyz``, so instead of e.g. ``isalnum`` you should use ``qemu_isalnum``.
 
 Because of the memory management rules, you must use ``g_strdup/g_strndup``
 instead of plain ``strdup/strndup``.
@@ -472,10 +472,10 @@ Printf-style functions
 ======================
 
 Whenever you add a new printf-style function, i.e., one with a format
-string argument and following "..." in its prototype, be sure to use
+string argument and following '``...``' in its prototype, be sure to use
 gcc's printf attribute directive in the prototype.
 
-This makes it so gcc's -Wformat and -Wformat-security options can do
+This makes it so gcc's ``-Wformat`` and ``-Wformat-security`` options can do
 their jobs and cross-check format strings with the number and types
 of arguments.
 
@@ -503,7 +503,7 @@ painful. These are:
   the sign bit (ie it is an arithmetic shift, not a logical shift)
 
 In addition, QEMU assumes that the compiler does not use the latitude
-given in C99 and C11 to treat aspects of signed '<<' as undefined, as
+given in C99 and C11 to treat aspects of signed '``<<``' as undefined, as
 documented in the GNU Compiler Collection manual starting at version 4.0.
 
 .. _autofree-ref:
@@ -659,10 +659,10 @@ Note that ``&error_fatal`` is just another way to ``exit(1)``, and
 trace-events style
 ==================
 
-0x prefix
----------
+``0x`` prefix
+-------------
 
-In trace-events files, use a '0x' prefix to specify hex numbers, as in:
+In trace-events files, use a '``0x``' prefix to specify hex numbers, as in:
 
 .. code-block:: c
 
@@ -676,27 +676,28 @@ PCI bus id):
 
     another_trace(int cssid, int ssid, int dev_num) "bus id: %x.%x.%04x"
 
-However, you can use '0x' for such groups if you want. Anyway, be sure that
+However, you can use '``0x``' for such groups if you want. Anyway, be sure that
 it is obvious that numbers are in hex, ex.:
 
 .. code-block:: c
 
     data_dump(uint8_t c1, uint8_t c2, uint8_t c3) "bytes (in hex): %02x %02x %02x"
 
-Rationale: hex numbers are hard to read in logs when there is no 0x prefix,
-especially when (occasionally) the representation doesn't contain any letters
-and especially in one line with other decimal numbers. Number groups are allowed
-to not use '0x' because for some things notations like %x.%x.%x are used not
-only in Qemu. Also dumping raw data bytes with '0x' is less readable.
+Rationale: hex numbers are hard to read in logs when there is no '``0x``'
+prefix, especially when (occasionally) the representation doesn't contain any
+letters and especially in one line with other decimal numbers. Number groups
+are allowed to not use '``0x``' because for some things notations like
+'``%x.%x.%x``' are used not only in QEMU. Also dumping raw data bytes with
+'``0x``' is less readable.
 
-'#' printf flag
----------------
+'``#``' printf flag
+-------------------
 
-Do not use printf flag '#', like '%#x'.
+Do not use printf flag '``#``', like '``%#x``'.
 
-Rationale: there are two ways to add a '0x' prefix to printed number: '0x%...'
-and '%#...'. For consistency the only one way should be used. Arguments for
-'0x%' are:
+Rationale: there are two ways to add a '``0x``' prefix to printed number:
+'``0x%...``' and '``%#...``'. For consistency the only one way should be used.
+Arguments for '``0x%``' are:
 
 * it is more popular
-* '%#' omits the 0x for the value 0 which makes output inconsistent
+* '``%#``' omits the ``0x`` for the value ``0`` which makes output inconsistent
