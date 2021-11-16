@@ -32,14 +32,13 @@ static void proxy_intx_update(PCIDevice *pci_dev)
 {
     PCIProxyDev *dev = PCI_PROXY_DEV(pci_dev);
     PCIINTxRoute route;
-    int pin = pci_get_byte(pci_dev->config + PCI_INTERRUPT_PIN) - 1;
 
     if (dev->virq != -1) {
         kvm_irqchip_remove_irqfd_notifier_gsi(kvm_state, &dev->intr, dev->virq);
         dev->virq = -1;
     }
 
-    route = pci_device_route_intx_to_irq(pci_dev, pin);
+    route = pci_device_route_intx_to_irq(pci_dev, pci_intx(pci_dev));
 
     dev->virq = route.irq;
 

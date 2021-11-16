@@ -93,11 +93,9 @@ void process_set_irqfd_msg(PCIDevice *pci_dev, MPQemuMsg *msg)
 {
     RemoteMachineState *machine = REMOTE_MACHINE(current_machine);
     RemoteIOHubState *iohub = &machine->iohub;
-    int pirq, intx;
+    int pirq;
 
-    intx = pci_get_byte(pci_dev->config + PCI_INTERRUPT_PIN) - 1;
-
-    pirq = remote_iohub_map_irq(pci_dev, intx);
+    pirq = remote_iohub_map_irq(pci_dev, pci_intx(pci_dev));
 
     if (event_notifier_get_fd(&iohub->irqfds[pirq]) != -1) {
         qemu_set_fd_handler(event_notifier_get_fd(&iohub->resamplefds[pirq]),
