@@ -15,14 +15,12 @@
 	.global safe_syscall_end
 	.type	safe_syscall_base, @function
 
-	/* This is the entry point for making a system call. The calling
+	/*
+	 * This is the entry point for making a system call. The calling
 	 * convention here is that of a C varargs function with the
 	 * first argument an 'int *' to the signal_pending flag, the
 	 * second one the system call number (as a 'long'), and all further
 	 * arguments being syscall arguments (also 'long').
-	 * We return a long which is the syscall's return value, which
-	 * may be negative-errno on failure. Conversion to the
-	 * -1-and-errno-set convention is done by the calling wrapper.
 	 */
 safe_syscall_base:
 	.cfi_startproc
@@ -44,11 +42,13 @@ safe_syscall_base:
 	stg	%r1,0(%r15)		/* store back chain */
 	stg	%r0,8(%r15)		/* store eos */
 
-	/* The syscall calling convention isn't the same as the
+	/*
+	 * The syscall calling convention isn't the same as the
 	 * C one:
-	 * we enter with r2 == *signal_pending
-	 *               r3 == syscall number
-	 *               r4, r5, r6, (stack) == syscall arguments
+	 * we enter with r2 == &signal_pending
+	 *               r3 == &errno
+	 *               r4 == syscall number
+	 *               r5, r6, (stack) == syscall arguments
 	 *               and return the result in r2
 	 * and the syscall instruction needs
 	 *               r1 == syscall number
@@ -57,13 +57,14 @@ safe_syscall_base:
 	 * Shuffle everything around appropriately.
 	 */
 	lgr	%r8,%r2			/* signal_pending pointer */
-	lgr	%r1,%r3			/* syscall number */
-	lgr	%r2,%r4			/* syscall args */
-	lgr	%r3,%r5
-	lgr	%r4,%r6
-	lmg	%r5,%r7,320(%r15)
+	lgr	%r9,%r3			/* errno pointer */
+	lgr	%r1,%r4			/* syscall number */
+	lgr	%r2,%r5			/* syscall args */
+	lgr	%r3,%r6
+	lmg	%r4,%r7,320(%r15)
 
-	/* This next sequence of code works in conjunction with the
+	/*
+	 * This next sequence of code works in conjunction with the
 	 * rewind_if_safe_syscall_function(). If a signal is taken
 	 * and the interrupted PC is anywhere between 'safe_syscall_start'
 	 * and 'safe_syscall_end' then we rewind it to 'safe_syscall_start'.
@@ -73,18 +74,31 @@ safe_syscall_base:
 safe_syscall_start:
 	/* if signal_pending is non-zero, don't do the call */
 	icm	%r0,15,0(%r8)
-	jne	2f
+	jne	1f
 	svc	0
 safe_syscall_end:
 
-1:	lg	%r15,0(%r15)		/* load back chain */
+	/* code path for having successfully executed the syscall */
+	lghi	%r0, -4095		/* check for syscall error */
+	clgr	%r2, %r0
+	jgnl	0f
+
+9:	lg	%r15,0(%r15)		/* load back chain */
 	.cfi_remember_state
 	.cfi_adjust_cfa_offset -160
 	lmg	%r6,%r15,48(%r15)	/* load saved registers */
 	br	%r14
 	.cfi_restore_state
-2:	lghi	%r2, -TARGET_ERESTARTSYS
-	j	1b
+
+	/* code path when we didn't execute the syscall */
+1:	lghi	%r2, -TARGET_ERESTARTSYS
+
+	/* code path setting errno */
+0:	lcr	%r2, %r2		/* create positive errno */
+	st	%r2, 0(%r9)		/* store errno */
+	lghi	%r2, -1
+	j	9b
+
 	.cfi_endproc
 
 	.size	safe_syscall_base, .-safe_syscall_base

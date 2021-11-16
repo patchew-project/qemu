@@ -23,17 +23,15 @@
 	 * first argument an 'int *' to the signal_pending flag, the
 	 * second one the system call number (as a 'long'), and all further
 	 * arguments being syscall arguments (also 'long').
-	 * We return a long which is the syscall's return value, which
-	 * may be negative-errno on failure. Conversion to the
-	 * -1-and-errno-set convention is done by the calling wrapper.
 	 */
 safe_syscall_base:
 	.cfi_startproc
 	/*
 	 * The syscall calling convention is nearly the same as C:
-	 * we enter with a0 == *signal_pending
-	 *               a1 == syscall number
-	 *               a2 ... a7 == syscall arguments
+	 * we enter with a0 == &signal_pending
+	 *               a1 == &errno
+	 *               a2 == syscall number
+	 *               a3 ... a7, [sp] == syscall arguments
 	 *               and return the result in a0
 	 * and the syscall instruction needs
 	 *               a7 == syscall number
@@ -42,14 +40,19 @@ safe_syscall_base:
 	 * Shuffle everything around appropriately.
 	 */
 	mv	t0, a0		/* signal_pending pointer */
-	mv	t1, a1		/* syscall number */
-	mv	a0, a2		/* syscall arguments */
-	mv	a1, a3
-	mv	a2, a4
-	mv	a3, a5
-	mv	a4, a6
-	mv	a5, a7
-	mv	a7, t1
+	mv	t1, a1		/* errno pointer */
+	mv	t2, a2		/* syscall number */
+	mv	a0, a3		/* syscall arguments */
+	mv	a1, a4
+	mv	a2, a5
+	mv	a3, a6
+	mv	a4, a7
+#if __riscv_xlen == 32
+	lw	a5, 0(sp)
+#else
+	ld	a5, 0(sp)
+#endif
+	mv	a7, t2
 
 	/*
 	 * This next sequence of code works in conjunction with the
@@ -61,17 +64,26 @@ safe_syscall_base:
 	 */
 safe_syscall_start:
 	/* If signal_pending is non-zero, don't do the call */
-	lw	t1, 0(t0)
-	bnez	t1, 0f
+	lw	t2, 0(t0)
+	bnez	t2, 2f
 	scall
 safe_syscall_end:
+
 	/* code path for having successfully executed the syscall */
+	li	t2, -4096
+	bgtu	a0, t2, 0f
 	ret
 
-0:
-	/* code path when we didn't execute the syscall */
-	li	a0, -TARGET_ERESTARTSYS
+	/* code path setting errno */
+0:	neg	a0, a0			/* create positive errno */
+1:	sw	a0, 0(t1)		/* store errno */
+	li	a0, -1
 	ret
+
+	/* code path when we didn't execute the syscall */
+2:	li	a0, TARGET_ERESTARTSYS
+	j	1b
+
 	.cfi_endproc
 
 	.size	safe_syscall_base, .-safe_syscall_base

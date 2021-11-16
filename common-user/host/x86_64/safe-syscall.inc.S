@@ -14,18 +14,17 @@
         .global safe_syscall_end
         .type   safe_syscall_base, @function
 
-        /* This is the entry point for making a system call. The calling
+        /*
+         * This is the entry point for making a system call. The calling
          * convention here is that of a C varargs function with the
          * first argument an 'int *' to the signal_pending flag, the
          * second one the system call number (as a 'long'), and all further
          * arguments being syscall arguments (also 'long').
-         * We return a long which is the syscall's return value, which
-         * may be negative-errno on failure. Conversion to the
-         * -1-and-errno-set convention is done by the calling wrapper.
          */
 safe_syscall_base:
         .cfi_startproc
-        /* This saves a frame pointer and aligns the stack for the syscall.
+        /*
+         * This saves a frame pointer and aligns the stack for the syscall.
          * (It's unclear if the syscall ABI has the same stack alignment
          * requirements as the userspace function call ABI, but better safe than
          * sorry. Appendix A2 of http://www.x86-64.org/documentation/abi.pdf
@@ -35,11 +34,12 @@ safe_syscall_base:
         .cfi_adjust_cfa_offset 8
         .cfi_rel_offset rbp, 0
 
-        /* The syscall calling convention isn't the same as the
-         * C one:
-         * we enter with rdi == *signal_pending
-         *               rsi == syscall number
-         *               rdx, rcx, r8, r9, (stack), (stack) == syscall arguments
+        /*
+         * The syscall calling convention isn't the same as the C one:
+         * we enter with rdi == &signal_pending
+         *               rsi == &errno
+         *               rdx == syscall number
+         *               rcx, r8, r9, (stack...) == syscall arguments
          *               and return the result in rax
          * and the syscall instruction needs
          *               rax == syscall number
@@ -48,17 +48,19 @@ safe_syscall_base:
          * Shuffle everything around appropriately.
          * Note that syscall will trash rcx and r11.
          */
-        mov     %rsi, %rax /* syscall number */
-        mov     %rdi, %rbp /* signal_pending pointer */
+        mov     %rdi, %r11 /* signal_pending pointer */
+        mov     %rsi, %rbp /* errno pointer */
+        mov     %rdx, %rax /* syscall number */
         /* and the syscall arguments */
-        mov     %rdx, %rdi
-        mov     %rcx, %rsi
-        mov     %r8,  %rdx
-        mov     %r9,  %r10
-        mov     16(%rsp), %r8
-        mov     24(%rsp), %r9
+        mov     %rcx, %rdi
+        mov     %r8, %rsi
+        mov     %r9,  %rdx
+        mov     16(%rsp), %r10
+        mov     24(%rsp), %r8
+        mov     32(%rsp), %r9
 
-        /* This next sequence of code works in conjunction with the
+        /*
+         * This next sequence of code works in conjunction with the
          * rewind_if_safe_syscall_function(). If a signal is taken
          * and the interrupted PC is anywhere between 'safe_syscall_start'
          * and 'safe_syscall_end' then we rewind it to 'safe_syscall_start'.
@@ -67,25 +69,31 @@ safe_syscall_base:
          */
 safe_syscall_start:
         /* if signal_pending is non-zero, don't do the call */
-        cmpl	$0, (%rbp)
-        jnz     1f
+        cmpl    $0, (%r11)
+        jnz     2f
         syscall
 safe_syscall_end:
+
         /* code path for having successfully executed the syscall */
-        pop     %rbp
+        cmp	$-4095, %rax
+        jae	0f
+
+9:      pop     %rbp
         .cfi_remember_state
         .cfi_def_cfa_offset 8
         .cfi_restore rbp
         ret
-
-1:
-        /* code path when we didn't execute the syscall */
         .cfi_restore_state
-        mov     $-TARGET_ERESTARTSYS, %rax
-        pop     %rbp
-        .cfi_def_cfa_offset 8
-        .cfi_restore rbp
-        ret
-        .cfi_endproc
 
+        /* code path setting errno */
+0:      neg	%eax			/* create positive errno */
+1:      mov	%eax, (%rbp)		/* store errno */
+        mov	$-1, %rax
+        jmp	9b
+
+        /* code path when we didn't execute the syscall */
+2:      mov     $TARGET_ERESTARTSYS, %eax
+        jmp	1b
+
+        .cfi_endproc
         .size   safe_syscall_base, .-safe_syscall_base
