@@ -2359,6 +2359,7 @@ block_ss = ss.source_set()
 bsd_user_ss = ss.source_set()
 chardev_ss = ss.source_set()
 common_ss = ss.source_set()
+common_user_ss = ss.source_set()
 crypto_ss = ss.source_set()
 hwcore_ss = ss.source_set()
 io_ss = ss.source_set()
@@ -2605,12 +2606,15 @@ subdir('accel')
 subdir('plugins')
 subdir('bsd-user')
 subdir('linux-user')
+subdir('common-user')
 subdir('ebpf')
 
-specific_ss.add_all(when: 'CONFIG_BSD_USER', if_true: bsd_user_ss)
+specific_ss.add_all(when: 'CONFIG_BSD_USER',
+                    if_true: [bsd_user_ss, common_user_ss])
 
 linux_user_ss.add(files('thunk.c'))
-specific_ss.add_all(when: 'CONFIG_LINUX_USER', if_true: linux_user_ss)
+specific_ss.add_all(when: 'CONFIG_LINUX_USER',
+                    if_true: [linux_user_ss, common_user_ss])
 
 # needed for fuzzing binaries
 subdir('tests/qtest/libqos')
