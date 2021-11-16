@@ -376,7 +376,7 @@ static int get_physical_address_pmp(CPURISCVState *env, int *prot,
     }
 
     *prot = pmp_priv_to_page_prot(pmp_priv);
-    if (tlb_size != NULL) {
+    if ((tlb_size != NULL) && pmp_get_num_rules(env)) {
         if (pmp_is_range_in_tlb(env, addr & ~(*tlb_size - 1), &tlb_size_pmp)) {
             *tlb_size = tlb_size_pmp;
         }
