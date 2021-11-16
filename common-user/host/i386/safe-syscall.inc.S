@@ -76,8 +76,16 @@ safe_syscall_start:
 safe_syscall_end:
 
 	/* code path for having successfully executed the syscall */
+#if defined(__linux__)
+	/* Linux kernel returns (small) negative errno. */
 	cmp	$-4095, %eax
 	jae	0f
+#elif defined(__FreeBSD__)
+	/* FreeBSD kernel returns positive errno and C bit set. */
+	jcs	1f
+#else
+#error "unsupported os"
+#endif
 
 9:	pop	%ebx
 	.cfi_remember_state
@@ -97,7 +105,9 @@ safe_syscall_end:
 	.cfi_restore_state
 
 	/* code path setting errno */
+#ifdef __linux__
 0:	neg	%eax			/* create positive errno */
+#endif
 1:	mov	8+16(%esp), %ebx	/* load errno pointer */
 	mov	%eax, (%ebx)		/* store errno */
 	mov	$-1, %eax

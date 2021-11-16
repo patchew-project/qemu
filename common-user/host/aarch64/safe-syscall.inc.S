@@ -65,12 +65,22 @@ safe_syscall_start:
 safe_syscall_end:
 
 	/* code path for having successfully executed the syscall */
-	cmn	x0, #4095
+#if defined(__linux__)
+	/* Linux kernel returns (small) negative errno. */
+	cmn	x0, #4096
+	b.hi	0f
+#elif defined(__FreeBSD__)
+	/* FreeBSD kernel returns positive errno and C bit set. */
 	b.cs	1f
+#else
+#error "unsupported os"
+#endif
 	ret
 
 	/* code path setting errno */
+#ifdef __linux__
 0:	neg	w0, w0			/* create positive errno */
+#endif
 1:	str	w0, [x11]		/* store errno */
 	mov	x0, #-1
 	ret
