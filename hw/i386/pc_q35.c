@@ -247,9 +247,16 @@ static void pc_q35_init(MachineState *machine)
                                                  "x-keep-pci-slot-hpc",
                                                  NULL);
 
-    if (!keep_pci_slot_hpc && acpi_pcihp) {
-        object_register_sugar_prop(TYPE_PCIE_SLOT, "x-native-hotplug",
-                                   "false", true);
+    if (acpi_pcihp) {
+        if (keep_pci_slot_hpc) {
+            /* 6.2+ default: acpi-hotplug=on native-hotplug=on power-ctrl=off */
+            object_register_sugar_prop(TYPE_PCIE_SLOT, COMPAT_PROP_PCP,
+                                       "false", true);
+        } else {
+            /* 6.1 default: acpi-hotplug=on native-hotplug=off */
+            object_register_sugar_prop(TYPE_PCIE_SLOT, "x-native-hotplug",
+                                       "false", true);
+        }
     }
 
     /* irq lines */
