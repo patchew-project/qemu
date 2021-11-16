@@ -59,9 +59,17 @@ void pcie_sriov_pf_disable_vfs(PCIDevice *dev);
 /* Get logical VF number of a VF - only valid for VFs */
 uint16_t pcie_sriov_vf_number(PCIDevice *dev);
 
+/* Get the total number of VFs - only valid for PF */
+uint16_t pcie_sriov_vf_number_total(PCIDevice *dev);
+
 /* Get the physical function that owns this VF.
  * Returns NULL if dev is not a virtual function
  */
 PCIDevice *pcie_sriov_get_pf(PCIDevice *dev);
+
+/* Get the n-th VF of this physical function - only valid for PF.
+ * Returns NULL if index is invalid
+ */
+PCIDevice *pcie_sriov_get_vf_at_index(PCIDevice *dev, int n);
 
 #endif /* QEMU_PCIE_SRIOV_H */
