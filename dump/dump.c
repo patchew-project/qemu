@@ -96,13 +96,7 @@ static int dump_cleanup(DumpState *s)
     g_free(s->guest_note);
     s->guest_note = NULL;
     if (s->resume) {
-        if (s->detached) {
-            qemu_mutex_lock_iothread();
-        }
         vm_start();
-        if (s->detached) {
-            qemu_mutex_unlock_iothread();
-        }
     }
     migrate_del_blocker(dump_migration_blocker);
 
@@ -1873,6 +1867,11 @@ static void dump_process(DumpState *s, Error **errp)
     Error *local_err = NULL;
     DumpQueryResult *result = NULL;
 
+    /*
+     * When running with detached mode, these operations are not run with BQL.
+     * It's still safe, because it's protected by setting s->state to ACTIVE,
+     * so dump_in_progress() check will block yet another dump-guest-memory.
+     */
     if (s->has_format && s->format == DUMP_GUEST_MEMORY_FORMAT_WIN_DMP) {
 #ifdef TARGET_X86_64
         create_win_dump(s, &local_err);
@@ -1881,6 +1880,15 @@ static void dump_process(DumpState *s, Error **errp)
         create_kdump_vmcore(s, &local_err);
     } else {
         create_vmcore(s, &local_err);
+    }
+
+    /*
+     * Serialize the finalizing of dump process using BQL to make sure no
+     * concurrent access to DumpState is allowed.  BQL is also required for
+     * dump_cleanup as vm_start() needs it.
+     */
+    if (s->detached) {
+        qemu_mutex_lock_iothread();
     }
 
     /* make sure status is written after written_size updates */
@@ -1898,6 +1906,10 @@ static void dump_process(DumpState *s, Error **errp)
 
     error_propagate(errp, local_err);
     dump_cleanup(s);
+
+    if (s->detached) {
+        qemu_mutex_unlock_iothread();
+    }
 }
 
 static void *dump_thread(void *data)
