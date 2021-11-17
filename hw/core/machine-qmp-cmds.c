@@ -244,3 +244,12 @@ HumanReadableText *qmp_x_query_numa(Error **errp)
  done:
     return human_readable_text_from_str(buf);
 }
+
+MachineInitPhaseStatus *qmp_query_machine_phase(Error **errp)
+{
+    MachineInitPhaseStatus *status = g_malloc0(sizeof(*status));
+
+    status->phase = phase_get();
+
+    return status;
+}
