@@ -1,6 +1,9 @@
 Managed start up options
 ========================
 
+CPU Frezee start
+----------------
+
 In system mode emulation, it's possible to create a VM in a paused
 state using the ``-S`` command line option. In this state the machine
 is completely initialized according to command line options and ready
@@ -20,7 +23,12 @@ allowing VM code to run.
 
 However, at the ``-S`` pause point, it's impossible to configure options
 that affect initial VM creation (like: ``-smp``/``-m``/``-numa`` ...) or
-cold plug devices. The experimental ``--preconfig`` command line option
+cold plug devices.
+
+Preconfig (experimental)
+------------------------
+
+The experimental ``--preconfig`` command line option
 allows pausing QEMU before the initial VM creation, in a "preconfig" state,
 where additional queries and configuration can be performed via QMP
 before moving on to the resulting configuration startup. In the
@@ -32,4 +40,14 @@ machine, including but not limited to:
 - ``query-qmp-schema``
 - ``query-commands``
 - ``query-status``
+- ``query-machine-phase``
+- ``x-machine-init``
 - ``x-exit-preconfig``
+
+Some commands make QEMU to progress along the VM creation procedure:
+
+- ``x-machine-init`` initializes the machine. Devices can be added only after
+  this command has been issued.
+
+- ``x-exit-preconfig`` leaves the preconfig state. It can be issued at any time
+  during preconfig and it will finish the VM creation.
