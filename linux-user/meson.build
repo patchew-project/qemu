@@ -2,6 +2,9 @@ if not have_linux_user
    subdir_done()
 endif
 
+common_user_inc += include_directories('host/' / config_host['ARCH'])
+common_user_inc += include_directories('.')
+
 linux_user_ss.add(files(
   'elfload.c',
   'exit.c',
