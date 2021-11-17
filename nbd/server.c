@@ -1418,6 +1418,9 @@ static int nbd_receive_request(NBDClient *client, NBDRequest *request,
     if (ret < 0) {
         return ret;
     }
+    if (ret == 0) {
+        return -EIO;
+    }
 
     /* Request
        [ 0 ..  3]   magic   (NBD_REQUEST_MAGIC)
@@ -2285,7 +2288,7 @@ static int nbd_co_receive_request(NBDRequestData *req, NBDRequest *request,
     assert(client->recv_coroutine == qemu_coroutine_self());
     ret = nbd_receive_request(client, request, errp);
     if (ret < 0) {
-        return  ret;
+        return ret;
     }
 
     trace_nbd_co_receive_request_decode_type(request->handle, request->type,
@@ -2662,7 +2665,7 @@ static coroutine_fn void nbd_trip(void *opaque)
     }
 
     if (ret < 0) {
-        /* It wans't -EIO, so, according to nbd_co_receive_request()
+        /* It wasn't -EIO, so, according to nbd_co_receive_request()
          * semantics, we should return the error to the client. */
         Error *export_err = local_err;
 
