@@ -17,14 +17,19 @@
 
 	.text
 
-	/* This is the entry point for making a system call. The calling
+#if _CALL_ELF == 2
+#define PARAM_OFS   32
+#else
+#define PARAM_OFS   48
+#endif
+#define PARAM(X)    PARAM_OFS + X*8
+
+	/*
+	 * This is the entry point for making a system call. The calling
 	 * convention here is that of a C varargs function with the
 	 * first argument an 'int *' to the signal_pending flag, the
 	 * second one the system call number (as a 'long'), and all further
 	 * arguments being syscall arguments (also 'long').
-	 * We return a long which is the syscall's return value, which
-	 * may be negative-errno on failure. Conversion to the
-	 * -1-and-errno-set convention is done by the calling wrapper.
 	 */
 #if _CALL_ELF == 2
 safe_syscall_base:
@@ -39,9 +44,11 @@ safe_syscall_base:
 .L.safe_syscall_base:
 	.cfi_startproc
 #endif
-	/* We enter with r3 == *signal_pending
-	 *               r4 == syscall number
-	 *               r5 ... r10 == syscall arguments
+	/*
+	 * We enter with r3 == &signal_pending
+	 *               r4 == &errno
+	 *               r5 == syscall number
+	 *               r6 ... r10, (stack) == syscall arguments
 	 *               and return the result in r3
 	 * and the syscall instruction needs
 	 *               r0 == syscall number
@@ -49,18 +56,18 @@ safe_syscall_base:
 	 *               and returns the result in r3
 	 * Shuffle everything around appropriately.
 	 */
-	std     14, 16(1) /* Preserve r14 in SP+16 */
-	.cfi_offset 14, 16
-	mr	14, 3	/* signal_pending */
-	mr	0, 4	/* syscall number */
-	mr	3, 5	/* syscall arguments */
-	mr	4, 6
-	mr	5, 7
-	mr	6, 8
-	mr	7, 9
-	mr	8, 10
+	mr	11, 3		/* signal_pending pointer */
+	std	4, PARAM(1)(1)	/* save errno pointer in param slot */
+	mr	0, 5		/* syscall number */
+	mr	3, 6		/* syscall arguments */
+	mr	4, 7
+	mr	5, 8
+	mr	6, 9
+	mr	7, 10
+	ld	8, PARAM(8)(1)
 
-	/* This next sequence of code works in conjunction with the
+	/*
+	 * This next sequence of code works in conjunction with the
 	 * rewind_if_safe_syscall_function(). If a signal is taken
 	 * and the interrupted PC is anywhere between 'safe_syscall_start'
 	 * and 'safe_syscall_end' then we rewind it to 'safe_syscall_start'.
@@ -69,23 +76,25 @@ safe_syscall_base:
 	 */
 safe_syscall_start:
 	/* if signal_pending is non-zero, don't do the call */
-	lwz	12, 0(14)
+	lwz	12, 0(11)
 	cmpwi	0, 12, 0
 	bne-	0f
 	sc
 safe_syscall_end:
-	/* code path when we did execute the syscall */
-	ld 14, 16(1) /* restore r14 to its original value */
-	bnslr+
 
-	/* syscall failed; return negative errno */
-	neg	3, 3
+	/* code path for having successfully executed the syscall */
+	bnslr+			/* SO set for syscall error */
+
+	/* code path setting errno */
+1:	ld	11, PARAM(1)(1)	/* restore errno pointer */
+	stw	3, 0(11)	/* store errno */
+	li	3, -1
 	blr
 
 	/* code path when we didn't execute the syscall */
-0:	addi	3, 0, -TARGET_ERESTARTSYS
-	ld 14, 16(1) /* restore r14 to its original value */
-	blr
+0:	li	3, TARGET_ERESTARTSYS
+	b	1b
+
 	.cfi_endproc
 
 #if _CALL_ELF == 2

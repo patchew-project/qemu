@@ -17,22 +17,21 @@
 	.type	safe_syscall_start, #function
 	.type	safe_syscall_end, #function
 
-	/* This is the entry point for making a system call. The calling
+	/*
+	 * This is the entry point for making a system call. The calling
 	 * convention here is that of a C varargs function with the
 	 * first argument an 'int *' to the signal_pending flag, the
 	 * second one the system call number (as a 'long'), and all further
 	 * arguments being syscall arguments (also 'long').
-	 * We return a long which is the syscall's return value, which
-	 * may be negative-errno on failure. Conversion to the
-	 * -1-and-errno-set convention is done by the calling wrapper.
 	 */
 safe_syscall_base:
 	.cfi_startproc
-	/* The syscall calling convention isn't the same as the
-	 * C one:
+	/*
+         * The syscall calling convention isn't the same as the C one:
 	 * we enter with x0 == *signal_pending
-	 *               x1 == syscall number
-	 *               x2 ... x7, (stack) == syscall arguments
+	 *               x1 == errno
+	 *               x2 == syscall number
+	 *               x3 ... x7, (stack) == syscall arguments
 	 *               and return the result in x0
 	 * and the syscall instruction needs
 	 *               x8 == syscall number
@@ -40,17 +39,18 @@ safe_syscall_base:
 	 *               and returns the result in x0
 	 * Shuffle everything around appropriately.
 	 */
-	mov	x9, x0		/* signal_pending pointer */
-	mov	x8, x1		/* syscall number */
-	mov	x0, x2		/* syscall arguments */
-	mov	x1, x3
-	mov	x2, x4
-	mov	x3, x5
-	mov	x4, x6
-	mov	x5, x7
-	ldr	x6, [sp]
+	mov	x10, x0		/* signal_pending pointer */
+	mov	x11, x1		/* errno pointer */
+	mov	x8, x2		/* syscall number */
+	mov	x0, x3		/* syscall arguments */
+	mov	x1, x4
+	mov	x2, x5
+	mov	x3, x6
+	mov	x4, x7
+	ldp	x5, x6, [sp]
 
-	/* This next sequence of code works in conjunction with the
+	/*
+         * This next sequence of code works in conjunction with the
 	 * rewind_if_safe_syscall_function(). If a signal is taken
 	 * and the interrupted PC is anywhere between 'safe_syscall_start'
 	 * and 'safe_syscall_end' then we rewind it to 'safe_syscall_start'.
@@ -59,17 +59,26 @@ safe_syscall_base:
 	 */
 safe_syscall_start:
 	/* if signal_pending is non-zero, don't do the call */
-	ldr	w10, [x9]
-	cbnz	w10, 0f 
+	ldr	w9, [x10]
+	cbnz	w9, 2f
 	svc	0x0
 safe_syscall_end:
+
 	/* code path for having successfully executed the syscall */
+	cmn	x0, #4095
+	b.cs	1f
 	ret
 
-0:
-	/* code path when we didn't execute the syscall */
-	mov	x0, #-TARGET_ERESTARTSYS
+	/* code path setting errno */
+0:	neg	w0, w0			/* create positive errno */
+1:	str	w0, [x11]		/* store errno */
+	mov	x0, #-1
 	ret
+
+	/* code path when we didn't execute the syscall */
+2:	mov	w0, #TARGET_ERESTARTSYS
+	b	1b
+
 	.cfi_endproc
 
 	.size	safe_syscall_base, .-safe_syscall_base

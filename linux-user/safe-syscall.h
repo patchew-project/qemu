@@ -125,23 +125,17 @@
  * kinds of restartability.
  */
 #ifdef HAVE_SAFE_SYSCALL
-/* The core part of this function is implemented in assembly */
-extern long safe_syscall_base(int *pending, long number, ...);
+
+/* The core part of this function is implemented in assembly. */
+extern long safe_syscall_base(int *pending, int *errnop, long number, ...);
+
 /* These are defined by the safe-syscall.inc.S file */
 extern char safe_syscall_start[];
 extern char safe_syscall_end[];
 
-#define safe_syscall(...)                                               \
-    ({                                                                  \
-        long ret_;                                                      \
-        int *psp_ = &((TaskState *)thread_cpu->opaque)->signal_pending; \
-        ret_ = safe_syscall_base(psp_, __VA_ARGS__);                    \
-        if (is_error(ret_)) {                                           \
-            errno = -ret_;                                              \
-            ret_ = -1;                                                  \
-        }                                                               \
-        ret_;                                                           \
-    })
+#define safe_syscall(...)                                                 \
+    safe_syscall_base(&((TaskState *)thread_cpu->opaque)->signal_pending, \
+                      &errno, __VA_ARGS__)
 
 #else
 
