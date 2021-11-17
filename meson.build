@@ -681,6 +681,9 @@ iconv = not_found
 curses = not_found
 if have_system and not get_option('curses').disabled()
   curses_test = '''
+    #if defined(__APPLE__) || defined(__OpenBSD__)
+    #define _XOPEN_SOURCE_EXTENDED 1
+    #endif
     #include <locale.h>
     #include <curses.h>
     #include <wchar.h>
@@ -704,7 +707,7 @@ if have_system and not get_option('curses').disabled()
     endif
   endforeach
   msg = get_option('curses').enabled() ? 'curses library not found' : ''
-  curses_compile_args = ['-DNCURSES_WIDECHAR']
+  curses_compile_args = ['-DNCURSES_WIDECHAR=1']
   if curses.found()
     if cc.links(curses_test, args: curses_compile_args, dependencies: [curses])
       curses = declare_dependency(compile_args: curses_compile_args, dependencies: [curses])
