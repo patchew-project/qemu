@@ -164,8 +164,14 @@ static void amdvi_generate_msi_interrupt(AMDVIState *s)
     }
 }
 
-static void amdvi_log_event(AMDVIState *s, uint64_t *evt)
+static void amdvi_log_event(AMDVIState *s, uint16_t devid,
+                            hwaddr addr, uint16_t info)
 {
+    uint64_t evt[2] = {
+        devid | ((uint64_t)info << 48),
+        addr
+    };
+
     /* event logging not enabled */
     if (!s->evtlog_enabled || amdvi_test_mask(s, AMDVI_MMIO_STATUS,
         AMDVI_MMIO_STATUS_EVT_OVF)) {
@@ -190,27 +196,6 @@ static void amdvi_log_event(AMDVIState *s, uint64_t *evt)
     amdvi_generate_msi_interrupt(s);
 }
 
-static void amdvi_setevent_bits(uint64_t *buffer, uint64_t value, int start,
-                                int length)
-{
-    int index = start / 64, bitpos = start % 64;
-    uint64_t mask = MAKE_64BIT_MASK(start, length);
-    buffer[index] &= ~mask;
-    buffer[index] |= (value << bitpos) & mask;
-}
-/*
- * AMDVi event structure
- *    0:15   -> DeviceID
- *    55:63  -> event type + miscellaneous info
- *    63:127 -> related address
- */
-static void amdvi_encode_event(uint64_t *evt, uint16_t devid, uint64_t addr,
-                               uint16_t info)
-{
-    amdvi_setevent_bits(evt, devid, 0, 16);
-    amdvi_setevent_bits(evt, info, 55, 8);
-    amdvi_setevent_bits(evt, addr, 63, 64);
-}
 /* log an error encountered during a page walk
  *
  * @addr: virtual address in translation request
@@ -218,11 +203,8 @@ static void amdvi_encode_event(uint64_t *evt, uint16_t devid, uint64_t addr,
 static void amdvi_page_fault(AMDVIState *s, uint16_t devid,
                              hwaddr addr, uint16_t info)
 {
-    uint64_t evt[4];
-
     info |= AMDVI_EVENT_IOPF_I | AMDVI_EVENT_IOPF;
-    amdvi_encode_event(evt, devid, addr, info);
-    amdvi_log_event(s, evt);
+    amdvi_log_event(s, devid, addr, info);
     pci_word_test_and_set_mask(s->pci.dev.config + PCI_STATUS,
             PCI_STATUS_SIG_TARGET_ABORT);
 }
@@ -232,14 +214,10 @@ static void amdvi_page_fault(AMDVIState *s, uint16_t devid,
  *  @info : error flags
  */
 static void amdvi_log_devtab_error(AMDVIState *s, uint16_t devid,
-                                   hwaddr devtab, uint16_t info)
+                                   hwaddr addr, uint16_t info)
 {
-    uint64_t evt[4];
-
     info |= AMDVI_EVENT_DEV_TAB_HW_ERROR;
-
-    amdvi_encode_event(evt, devid, devtab, info);
-    amdvi_log_event(s, evt);
+    amdvi_log_event(s, devid, addr, info);
     pci_word_test_and_set_mask(s->pci.dev.config + PCI_STATUS,
             PCI_STATUS_SIG_TARGET_ABORT);
 }
@@ -248,10 +226,7 @@ static void amdvi_log_devtab_error(AMDVIState *s, uint16_t devid,
  */
 static void amdvi_log_command_error(AMDVIState *s, hwaddr addr)
 {
-    uint64_t evt[4], info = AMDVI_EVENT_COMMAND_HW_ERROR;
-
-    amdvi_encode_event(evt, 0, addr, info);
-    amdvi_log_event(s, evt);
+    amdvi_log_event(s, 0, addr, AMDVI_EVENT_COMMAND_HW_ERROR);
     pci_word_test_and_set_mask(s->pci.dev.config + PCI_STATUS,
             PCI_STATUS_SIG_TARGET_ABORT);
 }
@@ -261,11 +236,8 @@ static void amdvi_log_command_error(AMDVIState *s, hwaddr addr)
 static void amdvi_log_illegalcom_error(AMDVIState *s, uint16_t info,
                                        hwaddr addr)
 {
-    uint64_t evt[4];
-
     info |= AMDVI_EVENT_ILLEGAL_COMMAND_ERROR;
-    amdvi_encode_event(evt, 0, addr, info);
-    amdvi_log_event(s, evt);
+    amdvi_log_event(s, 0, addr, info);
 }
 /* log an error accessing device table
  *
@@ -276,11 +248,8 @@ static void amdvi_log_illegalcom_error(AMDVIState *s, uint16_t info,
 static void amdvi_log_illegaldevtab_error(AMDVIState *s, uint16_t devid,
                                           hwaddr addr, uint16_t info)
 {
-    uint64_t evt[4];
-
     info |= AMDVI_EVENT_ILLEGAL_DEVTAB_ENTRY;
-    amdvi_encode_event(evt, devid, addr, info);
-    amdvi_log_event(s, evt);
+    amdvi_log_event(s, devid, addr, info);
 }
 /* log an error accessing a PTE entry
  * @addr : address that couldn't be accessed
@@ -288,11 +257,8 @@ static void amdvi_log_illegaldevtab_error(AMDVIState *s, uint16_t devid,
 static void amdvi_log_pagetab_error(AMDVIState *s, uint16_t devid,
                                     hwaddr addr, uint16_t info)
 {
-    uint64_t evt[4];
-
     info |= AMDVI_EVENT_PAGE_TAB_HW_ERROR;
-    amdvi_encode_event(evt, devid, addr, info);
-    amdvi_log_event(s, evt);
+    amdvi_log_event(s, devid, addr, info);
     pci_word_test_and_set_mask(s->pci.dev.config + PCI_STATUS,
              PCI_STATUS_SIG_TARGET_ABORT);
 }
