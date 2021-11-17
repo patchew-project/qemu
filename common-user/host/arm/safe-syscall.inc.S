@@ -104,7 +104,7 @@ safe_syscall_end:
 	b	9b
 
 	/* code path when we didn't execute the syscall */
-2:	ldr	r0, =TARGET_ERESTARTSYS
+2:	ldr	r0, =QEMU_ERESTARTSYS
 	b	1b
 
 	.fnend

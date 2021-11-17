@@ -86,7 +86,7 @@ safe_syscall_end:
 	ret
 
 	/* code path when we didn't execute the syscall */
-2:	mov	w0, #TARGET_ERESTARTSYS
+2:	mov	w0, #QEMU_ERESTARTSYS
 	b	1b
 
 	.cfi_endproc

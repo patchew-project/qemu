@@ -102,7 +102,7 @@ safe_syscall_end:
         jmp	9b
 
         /* code path when we didn't execute the syscall */
-2:      mov     $TARGET_ERESTARTSYS, %eax
+2:      mov     $QEMU_ERESTARTSYS, %eax
         jmp	1b
 
         .cfi_endproc

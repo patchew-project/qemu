@@ -92,7 +92,7 @@ safe_syscall_end:
 	blr
 
 	/* code path when we didn't execute the syscall */
-0:	li	3, TARGET_ERESTARTSYS
+0:	li	3, QEMU_ERESTARTSYS
 	b	1b
 
 	.cfi_endproc

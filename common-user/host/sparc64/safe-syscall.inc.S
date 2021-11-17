@@ -85,7 +85,7 @@ safe_syscall_end:
 
 	/* code path when we didn't execute the syscall */
 2:	ba,pt	%xcc, 1b
-	 set	TARGET_ERESTARTSYS, %o0
+	 set	QEMU_ERESTARTSYS, %o0
 
 	.cfi_endproc
 	.size	safe_syscall_base, .-safe_syscall_base

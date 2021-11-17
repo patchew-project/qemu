@@ -91,7 +91,7 @@ safe_syscall_end:
 	.cfi_restore_state
 
 	/* code path when we didn't execute the syscall */
-1:	lghi	%r2, -TARGET_ERESTARTSYS
+1:	lghi	%r2, -QEMU_ERESTARTSYS
 
 	/* code path setting errno */
 0:	lcr	%r2, %r2		/* create positive errno */

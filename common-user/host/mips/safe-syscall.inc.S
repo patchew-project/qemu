@@ -122,7 +122,7 @@ safe_syscall_end:
 	 PTR_ADDIU sp, sp, FRAME
 
 	/* code path when we didn't execute the syscall */
-0:	li	v0, TARGET_ERESTARTSYS
+0:	li	v0, QEMU_ERESTARTSYS
 
 	/* code path setting errno */
 1:	PTR_L	t0, ERRNOP(sp)
