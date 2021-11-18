@@ -478,6 +478,7 @@ static void test_outmigrate(gconstpointer opaque)
     QTestState *qts;
     QDict *resp, *args, *data;
     g_autofree gchar *uri = g_strdup_printf("exec: cat > %s", (gchar *)opaque);
+    struct timeval timeout;
 
     qts = machine_start(BASE_MACHINE
                      "-netdev user,id=hs0 "
@@ -525,11 +526,19 @@ static void test_outmigrate(gconstpointer opaque)
 
     qobject_unref(resp);
 
+    /*
+     * The migration cannot start if the card is not ejected,
+     * so we check it cannot end ("STOP") before the card is ejected
+     */
+    /* 10s is enough for ACPI, PCIe native would need at least 30s */
+    timeout.tv_sec = 10;
+    timeout.tv_usec = 0;
+    resp = qtest_qmp_eventwait_timeout(qts, &timeout, "STOP");
+    g_assert_null(resp);
+
     qtest_outl(qts, ACPI_PCIHP_ADDR_ICH9 + PCI_EJ_BASE, 1);
 
-    resp = qtest_qmp_eventwait_ref(qts, "STOP");
-    qobject_unref(resp);
-
+    qtest_qmp_eventwait(qts, "STOP");
     /*
      * in fact, the card is ejected from the point of view of kernel
      * but not really from QEMU to be able to hotplug it back if
