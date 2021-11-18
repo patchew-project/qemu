@@ -2172,6 +2172,19 @@ bool vga_common_init(VGACommonState *s, Object *obj, Error **errp)
 {
     int i, j, v, b;
 
+    if (obj) {
+        const char *typename = object_get_typename(obj);
+
+        /*
+         * make sure this device is not being added twice,
+         * if so exit without crashing qemu
+         */
+        if (object_resolve_path_type("", typename, NULL)) {
+            error_setg(errp, "at most one %s device is permitted", typename);
+            return false;
+        }
+    }
+
     for(i = 0;i < 256; i++) {
         v = 0;
         for(j = 0; j < 8; j++) {
