@@ -527,3 +527,47 @@
  'data': { '*option': 'str' },
  'returns': ['CommandLineOptionInfo'],
  'allow-preconfig': true }
+
+##
+# @DirtyRateQuotaVcpu:
+#
+# Dirty rate of vcpu.
+#
+# @idx: vcpu index.
+#
+# @dirtyrate: dirty rate.
+#
+# Since: 6.3
+#
+##
+{ 'struct': 'DirtyRateQuotaVcpu',
+  'data': { 'idx': 'int', 'dirtyrate': 'uint64' } }
+
+##
+# @dirty-restraint:
+#
+# Since: 6.3
+#
+# Example:
+#   {"execute": "dirty-restraint"}
+#    "arguments": { "idx": "cpu-index",
+#                   "dirtyrate": "quota-dirtyrate" } }
+#
+##
+{ 'command': 'dirty-restraint',
+  'data': 'DirtyRateQuotaVcpu' }
+
+##
+# @dirty-restraint-cancel:
+#
+# @idx: vcpu index
+#
+# Since: 6.3
+#
+# Example:
+#   {"execute": "dirty-restraint-cancel"}
+#    "arguments": { "idx": "cpu-index" } }
+#
+##
+{ 'command': 'dirty-restraint-cancel',
+  'data': { 'idx': 'int' } }
