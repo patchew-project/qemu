@@ -137,6 +137,13 @@ static void *dirtyrestraint_calc_thread(void *opaque)
     return NULL;
 }
 
+int64_t dirtyrestraint_calc_current(int cpu_index)
+{
+    DirtyRateVcpu *rates = dirtyrestraint_calc_state->data.rates;
+
+    return qatomic_read(&rates[cpu_index].dirty_rate);
+}
+
 void dirtyrestraint_calc_start(void)
 {
     if (likely(!qatomic_read(&dirtyrestraint_calc_state->enable))) {

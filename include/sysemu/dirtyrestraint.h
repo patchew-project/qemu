@@ -14,6 +14,8 @@
 
 #define DIRTYRESTRAINT_CALC_PERIOD_TIME_S   15      /* 15s */
 
+int64_t dirtyrestraint_calc_current(int cpu_index);
+
 void dirtyrestraint_calc_start(void);
 
 void dirtyrestraint_calc_state_init(int max_cpus);

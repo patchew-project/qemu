@@ -65,4 +65,25 @@ bool cpu_throttle_active(void);
  */
 int cpu_throttle_get_percentage(void);
 
+/**
+ * dirtyrestraint_state_init:
+ *
+ * initialize golobal state for dirty restraint
+ */
+void dirtyrestraint_state_init(int max_cpus);
+
+/**
+ * dirtyrestraint_vcpu:
+ *
+ * impose dirty restraint on vcpu util reaching the quota dirtyrate
+ */
+void dirtyrestraint_vcpu(int cpu_index,
+                         uint64_t quota);
+/**
+ * dirtyrestraint_cancel_vcpu:
+ *
+ * cancel dirty restraint for the specified vcpu
+ */
+void dirtyrestraint_cancel_vcpu(int cpu_index);
+
 #endif /* SYSEMU_CPU_THROTTLE_H */
