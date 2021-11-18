@@ -1099,13 +1099,18 @@
 #               assuming the guest will resize the display to match
 #               the window size then.  Otherwise it defaults to "off".
 #               Since 3.1
+# @mon-num:     Indicate monitor where Qemu window is lauched. mon-num
+#               could be any number from -1 to (total num of monitors - 1).
+#               (default: -1: use default monitor)
+#               since 6.2
 #
 # Since: 2.12
 #
 ##
 { 'struct'  : 'DisplayGTK',
   'data'    : { '*grab-on-hover' : 'bool',
-                '*zoom-to-fit'   : 'bool'  } }
+                '*zoom-to-fit'   : 'bool',
+                '*mon-num'       : 'int' } }
 
 ##
 # @DisplayEGLHeadless:
