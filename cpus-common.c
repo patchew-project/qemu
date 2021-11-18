@@ -23,6 +23,11 @@
 #include "hw/core/cpu.h"
 #include "sysemu/cpus.h"
 #include "qemu/lockable.h"
+#include "sysemu/dirtylimit.h"
+#include "sysemu/cpu-throttle.h"
+#include "sysemu/kvm.h"
+#include "qapi/error.h"
+#include "qapi/qapi-commands-misc.h"
 
 static QemuMutex qemu_cpu_list_lock;
 static QemuCond exclusive_cond;
@@ -351,4 +356,40 @@ void process_queued_cpu_work(CPUState *cpu)
     }
     qemu_mutex_unlock(&cpu->work_mutex);
     qemu_cond_broadcast(&qemu_work_cond);
+}
+
+void qmp_set_dirty_limit(int64_t idx,
+                         uint64_t dirtyrate,
+                         Error **errp)
+{
+    if (!kvm_dirty_ring_enabled()) {
+        error_setg(errp, "dirty ring not enable, needed by dirty restraint!");
+        return;
+    }
+
+    dirtylimit_calc();
+    dirtylimit_vcpu(idx, dirtyrate);
+}
+
+void qmp_cancel_dirty_limit(int64_t idx,
+                            Error **errp)
+{
+    if (!kvm_dirty_ring_enabled()) {
+        error_setg(errp, "dirty ring not enable, needed by dirty restraint!");
+        return;
+    }
+
+    if (unlikely(!dirtylimit_cancel_vcpu(idx))) {
+        dirtylimit_calc_quit();
+    }
+}
+
+void dirtylimit_setup(int max_cpus)
+{
+    if (!kvm_dirty_ring_enabled()) {
+        return;
+    }
+
+    dirtylimit_calc_state_init(max_cpus);
+    dirtylimit_state_init(max_cpus);
 }
