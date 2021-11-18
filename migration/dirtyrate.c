@@ -27,6 +27,7 @@
 #include "qapi/qmp/qdict.h"
 #include "sysemu/kvm.h"
 #include "sysemu/runstate.h"
+#include "sysemu/dirtyrestraint.h"
 #include "exec/memory.h"
 
 /*
@@ -45,6 +46,123 @@ static int CalculatingState = DIRTY_RATE_STATUS_UNSTARTED;
 static struct DirtyRateStat DirtyStat;
 static DirtyRateMeasureMode dirtyrate_mode =
                 DIRTY_RATE_MEASURE_MODE_PAGE_SAMPLING;
+
+#define DIRTYRESTRAINT_CALC_TIME_MS         1000    /* 1000ms */
+
+struct {
+    DirtyRatesData data;
+    int64_t period;
+    bool enable;
+    QemuCond ready_cond;
+    QemuMutex ready_mtx;
+    bool ready;
+} *dirtyrestraint_calc_state;
+
+static inline void record_dirtypages(DirtyPageRecord *dirty_pages,
+                                     CPUState *cpu, bool start);
+
+static void dirtyrestraint_global_dirty_log_start(void)
+{
+    qemu_mutex_lock_iothread();
+    memory_global_dirty_log_start(GLOBAL_DIRTY_RESTRAINT);
+    qemu_mutex_unlock_iothread();
+}
+
+static void dirtyrestraint_global_dirty_log_stop(void)
+{
+    qemu_mutex_lock_iothread();
+    memory_global_dirty_log_sync();
+    memory_global_dirty_log_stop(GLOBAL_DIRTY_RESTRAINT);
+    qemu_mutex_unlock_iothread();
+}
+
+static void dirtyrestraint_calc_func(void)
+{
+    CPUState *cpu;
+    DirtyPageRecord *dirty_pages;
+    int64_t start_time, end_time, calc_time;
+    DirtyRateVcpu rate;
+    int i = 0;
+
+    dirty_pages = g_malloc0(sizeof(*dirty_pages) *
+        dirtyrestraint_calc_state->data.nvcpu);
+
+    dirtyrestraint_global_dirty_log_start();
+
+    CPU_FOREACH(cpu) {
+        record_dirtypages(dirty_pages, cpu, true);
+    }
+
+    start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    g_usleep(DIRTYRESTRAINT_CALC_TIME_MS * 1000);
+    end_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    calc_time = end_time - start_time;
+
+    dirtyrestraint_global_dirty_log_stop();
+
+    CPU_FOREACH(cpu) {
+        record_dirtypages(dirty_pages, cpu, false);
+    }
+
+    for (i = 0; i < dirtyrestraint_calc_state->data.nvcpu; i++) {
+        uint64_t increased_dirty_pages =
+            dirty_pages[i].end_pages - dirty_pages[i].start_pages;
+        uint64_t memory_size_MB =
+            (increased_dirty_pages * TARGET_PAGE_SIZE) >> 20;
+        int64_t dirtyrate = (memory_size_MB * 1000) / calc_time;
+
+        rate.id = i;
+        rate.dirty_rate  = dirtyrate;
+        dirtyrestraint_calc_state->data.rates[i] = rate;
+
+        trace_dirtyrate_do_calculate_vcpu(i,
+            dirtyrestraint_calc_state->data.rates[i].dirty_rate);
+    }
+
+    return;
+}
+
+static void *dirtyrestraint_calc_thread(void *opaque)
+{
+    rcu_register_thread();
+
+    while (qatomic_read(&dirtyrestraint_calc_state->enable)) {
+        dirtyrestraint_calc_func();
+        dirtyrestraint_calc_state->ready = true;
+        qemu_cond_signal(&dirtyrestraint_calc_state->ready_cond);
+        sleep(dirtyrestraint_calc_state->period);
+    }
+
+    rcu_unregister_thread();
+    return NULL;
+}
+
+void dirtyrestraint_calc_start(void)
+{
+    if (likely(!qatomic_read(&dirtyrestraint_calc_state->enable))) {
+        qatomic_set(&dirtyrestraint_calc_state->enable, 1);
+        QemuThread thread;
+        qemu_thread_create(&thread, "dirtyrestraint-calc",
+            dirtyrestraint_calc_thread,
+            NULL, QEMU_THREAD_DETACHED);
+    }
+}
+
+void dirtyrestraint_calc_state_init(int max_cpus)
+{
+    dirtyrestraint_calc_state =
+        g_malloc0(sizeof(*dirtyrestraint_calc_state));
+
+    dirtyrestraint_calc_state->data.nvcpu = max_cpus;
+    dirtyrestraint_calc_state->data.rates =
+        g_malloc0(sizeof(DirtyRateVcpu) * max_cpus);
+
+    dirtyrestraint_calc_state->period =
+        DIRTYRESTRAINT_CALC_PERIOD_TIME_S;
+
+    qemu_cond_init(&dirtyrestraint_calc_state->ready_cond);
+    qemu_mutex_init(&dirtyrestraint_calc_state->ready_mtx);
+}
 
 static int64_t set_sample_page_period(int64_t msec, int64_t initial_time)
 {
