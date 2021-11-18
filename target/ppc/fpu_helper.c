@@ -414,6 +414,47 @@ void helper_store_fpscr(CPUPPCState *env, uint64_t val, uint32_t nibbles)
     ppc_store_fpscr(env, val);
 }
 
+void helper_fpscr_check_status(CPUPPCState *env)
+{
+    CPUState *cs = env_cpu(env);
+    target_ulong fpscr = env->fpscr;
+    int error = 0;
+
+    if ((fpscr & FP_VXSOFT) && (fpscr_ve != 0)) {
+        error = POWERPC_EXCP_FP_VXSOFT;
+    } else if ((fpscr & FP_OX) && (fpscr & FP_OE)) {
+        error = POWERPC_EXCP_FP_OX;
+    } else if ((fpscr & FP_UX) && (fpscr & FP_UE)) {
+        error = POWERPC_EXCP_FP_UX;
+    } else if ((fpscr & FP_XX) && (fpscr & FP_XE)) {
+        error = POWERPC_EXCP_FP_XX;
+    } else if ((fpscr & FP_ZX) && (fpscr & FP_ZE)) {
+        error = POWERPC_EXCP_FP_ZX;
+    } else if ((fpscr & FP_VXSNAN) && (fpscr_ve != 0)) {
+        error = POWERPC_EXCP_FP_VXSNAN;
+    } else if ((fpscr & FP_VXISI) && (fpscr_ve != 0)) {
+        error = POWERPC_EXCP_FP_VXISI;
+    } else if ((fpscr & FP_VXIDI) && (fpscr_ve != 0)) {
+        error = POWERPC_EXCP_FP_VXIDI;
+    } else if ((fpscr & FP_VXZDZ) && (fpscr_ve != 0)) {
+        error = POWERPC_EXCP_FP_VXZDZ;
+    } else if ((fpscr & FP_VXIMZ) && (fpscr_ve != 0)) {
+        error = POWERPC_EXCP_FP_VXIMZ;
+    } else if ((fpscr & FP_VXVC) && (fpscr_ve != 0)) {
+        error = POWERPC_EXCP_FP_VXVC;
+    }
+
+    if (error) {
+        cs->exception_index = POWERPC_EXCP_PROGRAM;
+        env->error_code = error | POWERPC_EXCP_FP;
+        /* Deferred floating-point exception after target FPSCR update */
+        if (fp_exceptions_enabled(env)) {
+            raise_exception_err_ra(env, cs->exception_index,
+                                   env->error_code, GETPC());
+        }
+    }
+}
+
 static void do_float_check_status(CPUPPCState *env, uintptr_t raddr)
 {
     CPUState *cs = env_cpu(env);
