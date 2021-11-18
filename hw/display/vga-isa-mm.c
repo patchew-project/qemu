@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #include "qemu/bitops.h"
 #include "qemu/units.h"
+#include "qapi/error.h"
 #include "migration/vmstate.h"
 #include "hw/display/vga.h"
 #include "vga_int.h"
@@ -101,7 +102,7 @@ int isa_vga_mm_init(hwaddr vram_base,
 
     s->vga.vram_size_mb = VGA_RAM_SIZE / MiB;
     s->vga.global_vmstate = true;
-    vga_common_init(&s->vga, NULL);
+    vga_common_init(&s->vga, NULL, &error_fatal);
     vga_mm_init(s, vram_base, ctrl_base, it_shift, address_space);
 
     s->vga.con = graphic_console_init(NULL, 0, s->vga.hw_ops, s);
