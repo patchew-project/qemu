@@ -174,7 +174,7 @@ static void test_qga_sync_delimited(gconstpointer fix)
         g_assert_cmpint(v, ==, 1);
     } while (c != 0xff);
 
-    ret = qmp_fd_receive(fixture->fd);
+    ret = qmp_fd_receive(fixture->fd, NULL);
     g_assert_nonnull(ret);
     qmp_assert_no_error(ret);
 

@@ -210,6 +210,17 @@ void qtest_qmp_vsend(QTestState *s, const char *fmt, va_list ap)
     GCC_FMT_ATTR(2, 0);
 
 /**
+ * qtest_qmp_receive_dict_timeout:
+ * @s: #QTestState instance to operate on.
+ * @timeout: time to wait before aborting read
+ *
+ * Reads a QMP message from QEMU and returns the response.
+ * If a timeout is provided, return NULL if message is
+ * not received during the given amount of time
+ */
+QDict *qtest_qmp_receive_dict_timeout(QTestState *s, struct timeval *timeout);
+
+/**
  * qtest_qmp_receive_dict:
  * @s: #QTestState instance to operate on.
  *
@@ -235,6 +246,19 @@ QDict *qtest_qmp_receive(QTestState *s);
  * Continuously polls for QMP responses until it receives the desired event.
  */
 void qtest_qmp_eventwait(QTestState *s, const char *event);
+
+/**
+ * qtest_qmp_eventwait_timeout:
+ * @s: #QTestState instance to operate on.
+ * @timeout: time to wait before aborting wait
+ * @event: event to wait for.
+ *
+ * Continuously polls for QMP responses until it receives the desired event
+ * or the timeout exausts.
+ * Returns a copy of the event for further investigation or NULL on timeout
+ */
+QDict *qtest_qmp_eventwait_timeout(QTestState *s, struct timeval *timeout,
+                                   const char *event);
 
 /**
  * qtest_qmp_eventwait_ref:
@@ -690,7 +714,7 @@ void qtest_remove_abrt_handler(void *data);
 void qtest_qmp_assert_success(QTestState *qts, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
 
-QDict *qmp_fd_receive(int fd);
+QDict *qmp_fd_receive(int fd, struct timeval *timeout);
 void qmp_fd_vsend_fds(int fd, int *fds, size_t fds_num,
                       const char *fmt, va_list ap) GCC_FMT_ATTR(4, 0);
 void qmp_fd_vsend(int fd, const char *fmt, va_list ap) GCC_FMT_ATTR(2, 0);

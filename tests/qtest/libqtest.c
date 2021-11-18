@@ -599,7 +599,7 @@ static void qmp_response(void *opaque, QObject *obj, Error *err)
     g_assert(qmp->response);
 }
 
-QDict *qmp_fd_receive(int fd)
+QDict *qmp_fd_receive(int fd, struct timeval *timeout)
 {
     QMPResponseParser qmp;
     bool log = getenv("QTEST_LOG") != NULL;
@@ -610,6 +610,18 @@ QDict *qmp_fd_receive(int fd)
         ssize_t len;
         char c;
 
+        if (timeout) {
+            fd_set set;
+            int ret;
+
+            FD_ZERO(&set);
+            FD_SET(fd, &set);
+            ret = select(fd + 1, &set, NULL, NULL, timeout);
+            if (ret == 0) {
+                /* timeout */
+                return NULL;
+            }
+        }
         len = read(fd, &c, 1);
         if (len == -1 && errno == EINTR) {
             continue;
@@ -643,9 +655,14 @@ QDict *qtest_qmp_receive(QTestState *s)
     }
 }
 
+QDict *qtest_qmp_receive_dict_timeout(QTestState *s, struct timeval *timeout)
+{
+    return qmp_fd_receive(s->qmp_fd, timeout);
+}
+
 QDict *qtest_qmp_receive_dict(QTestState *s)
 {
-    return qmp_fd_receive(s->qmp_fd);
+    return qtest_qmp_receive_dict_timeout(s, NULL);
 }
 
 int qtest_socket_server(const char *socket_path)
@@ -729,7 +746,7 @@ QDict *qmp_fdv(int fd, const char *fmt, va_list ap)
 {
     qmp_fd_vsend_fds(fd, NULL, 0, fmt, ap);
 
-    return qmp_fd_receive(fd);
+    return qmp_fd_receive(fd, NULL);
 }
 
 QDict *qtest_vqmp_fds(QTestState *s, int *fds, size_t fds_num,
@@ -848,7 +865,8 @@ QDict *qtest_qmp_event_ref(QTestState *s, const char *event)
     return NULL;
 }
 
-QDict *qtest_qmp_eventwait_ref(QTestState *s, const char *event)
+QDict *qtest_qmp_eventwait_timeout(QTestState *s, struct timeval *timeout,
+                                   const char *event)
 {
     QDict *response = qtest_qmp_event_ref(s, event);
 
@@ -857,13 +875,22 @@ QDict *qtest_qmp_eventwait_ref(QTestState *s, const char *event)
     }
 
     for (;;) {
-        response = qtest_qmp_receive_dict(s);
+        response = qtest_qmp_receive_dict_timeout(s, timeout);
+        if (timeout != NULL && response == NULL) {
+            /* exit on timeout */
+            return NULL;
+        }
         if ((qdict_haskey(response, "event")) &&
             (strcmp(qdict_get_str(response, "event"), event) == 0)) {
             return response;
         }
         qobject_unref(response);
     }
+}
+
+QDict *qtest_qmp_eventwait_ref(QTestState *s, const char *event)
+{
+    return qtest_qmp_eventwait_timeout(s, NULL, event);
 }
 
 void qtest_qmp_eventwait(QTestState *s, const char *event)
