@@ -285,15 +285,31 @@ void helper_store_mmcr0(CPUPPCState *env, target_ulong value)
             start_cycle_count_session(env);
         }
     } else {
-        /*
-         * No change in MMCR0_FC state but, if the PMU is running and
-         * a change in one of the frozen counter bits is made, update
-         * the PMCs with the cycles counted so far.
-         */
         if (!curr_FC) {
+            bool cycles_updated = false;
+
+            /*
+             * No change in MMCR0_FC state but, if the PMU is running and
+             * a change in one of the frozen counter bits is made, update
+             * the PMCs with the cycles counted so far.
+             */
             if ((curr_value & MMCR0_FC14) != (value & MMCR0_FC14) ||
                 (curr_value & MMCR0_FC56) != (value & MMCR0_FC56)) {
                 pmu_update_cycles(env, curr_value);
+                cycles_updated = true;
+            }
+
+            /*
+             * If changes in the overflow bits were made, start a new
+             * cycle count session to restart the appropriate overflow
+             * timers.
+             */
+            if ((curr_value & MMCR0_PMC1CE) != (value & MMCR0_PMC1CE) ||
+                (curr_value & MMCR0_PMCjCE) != (value & MMCR0_PMCjCE)) {
+                if (!cycles_updated) {
+                    pmu_update_cycles(env, curr_value);
+                }
+                start_cycle_count_session(env);
             }
         }
     }
