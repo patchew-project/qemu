@@ -56,4 +56,31 @@ void monitor_register_hmp(const char *name, bool info,
 void monitor_register_hmp_info_hrt(const char *name,
                                    HumanReadableText *(*handler)(Error **errp));
 
+/*
+ * Add qmp stats callbacks to the stats_callbacks list.
+ *
+ * @name: name of stats callbacks
+ * @stats_fn: routine to query stats - with options for name and type:
+ *    StatsList *(*stats_fn)(StatsList *list_tail, bool has_name,
+ *        const char *name, bool has_type, const char *type, Error **errp)
+ *
+ * @schema_fn: routine to query stat schemas - with an option for type:
+ *    StatsSchemaList *(*schemas_fn)(StatsSchemaList *list tail, bool has_type,
+ *                                   const char *type, Error **errp)
+ *
+ * @instance_fn: routine to query stat instances:
+ *     StatsInstanceList *(*instances_fn)(StatsInstanceList *list_tail,
+ *                                        Error **errp)
+ */
+void add_stats_callbacks(const char *name,
+                         StatsList *(*stats_fn)(StatsList *,
+                                                bool, const char *,
+                                                bool, const char *,
+                                                Error **),
+                         StatsSchemaList *(*schemas_fn)(StatsSchemaList *,
+                                                        bool, const char *,
+                                                        Error **),
+                         StatsInstanceList *(*instances_fn)(StatsInstanceList *,
+                                                            Error **));
+
 #endif /* MONITOR_H */

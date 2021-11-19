@@ -527,3 +527,145 @@
  'data': { '*option': 'str' },
  'returns': ['CommandLineOptionInfo'],
  'allow-preconfig': true }
+
+##
+# @StatType:
+#
+# Enumeration of stat types
+# @cumulative: stat is cumulative; value can only increase.
+# @instant: stat is instantaneous; value can increase or decrease.
+# @peak: stat is the peak value; value can only increase.
+#
+# Since: 7.0
+##
+{ 'enum' : 'StatType',
+  'data' : [ 'cumulative', 'instant', 'peak' ] }
+
+##
+# @StatUnit:
+#
+# Enumeration of stat units
+# @bytes: stat reported in bytes.
+# @seconds: stat reported in seconds.
+# @cycles: stat reported in clock cycles.
+# @none: no unit for this stat.
+#
+# Since: 7.0
+##
+{ 'enum' : 'StatUnit',
+  'data' : [ 'bytes', 'seconds', 'cycles', 'none' ] }
+
+##
+# @StatData:
+#
+# Individual stat
+# @name: Stat name
+# @type: @StatType
+# @unit: @StatUnit
+# @base: Exponent base (2 or 10)
+# @exponent: Used together with @base
+# @val: List of uint64 values
+#
+# Since: 7.0
+##
+{ 'struct': 'StatData',
+  'data': { 'name': 'str',
+            'type': 'StatType',
+            'unit': 'StatUnit',
+            'base': 'uint8',
+            'exponent': 'int16',
+            'val': [ 'uint64' ] } }
+
+##
+# @Stats:
+#
+# Stats per resource (e.g. vm or vcpu)
+# @name: Resource name
+# @stats: List of @StatData
+#
+# Since: 7.0
+##
+{ 'struct': 'Stats',
+  'data': {'name': 'str',
+           'type': 'StatSchemaType',
+           'stats': [ 'StatData' ] } }
+
+##
+# @query-stats:
+#
+# @name: Stat name (optional)
+# @type: Type name (optional)
+# Returns: List of @Stats
+#
+# Since: 7.0
+##
+{ 'command': 'query-stats',
+  'data': { '*name': 'str', '*type': 'str' },
+  'returns': [ 'Stats' ] }
+
+##
+# @StatSchemaType:
+#
+# Enumeration of stats schema types
+#
+# Since: 7.0
+##
+{ 'enum' : 'StatSchemaType',
+  'data' : [ ] }
+
+##
+# @StatSchemaEntry:
+#
+# Individual stat in a schema type
+#
+# Since: 7.0
+##
+{ 'struct': 'StatSchemaEntry',
+  'data': { 'name': 'str' } }
+
+##
+# @StatsSchema:
+#
+# Stats per @StatSchemaType
+# @type: @StatSchemaType
+# @stats: @StatCchemaName
+#
+# Since: 7.0
+##
+{ 'struct': 'StatsSchema',
+  'data': { 'type': 'StatSchemaType',
+            'stats': [ 'StatSchemaEntry' ] } }
+
+##
+# @query-stats-schemas:
+#
+# @type: type name (optional)
+# Returns: List of @StatsSchema
+#
+# Since: 7.0
+##
+{ 'command': 'query-stats-schemas',
+  'data': { '*type': 'str' },
+  'returns': [ 'StatsSchema' ] }
+
+##
+# @StatsInstance:
+#
+# @name: resource name
+# @type: @StatSchemaType
+#
+# Since: 7.0
+##
+{ 'struct': 'StatsInstance',
+  'data': { 'name': 'str',
+            'type': 'StatSchemaType' } }
+
+##
+# @query-stats-instances:
+#
+# Returns list of @StatsInstance
+#
+# Since: 7.0
+##
+{ 'command': 'query-stats-instances',
+  'returns': [ 'StatsInstance' ] }

@@ -466,3 +466,74 @@ HumanReadableText *qmp_x_query_irq(Error **errp)
 
     return human_readable_text_from_str(buf);
 }
+
+typedef struct StatsCallbacks {
+    char *name;
+    StatsList *(*stats_cb)(StatsList *, bool, const char *, bool,
+                           const char *, Error **);
+    StatsSchemaList *(*schemas_cb)(StatsSchemaList *, bool, const char *,
+                                   Error **);
+    StatsInstanceList *(*instances_cb)(StatsInstanceList *, Error **);
+    QTAILQ_ENTRY(StatsCallbacks) next;
+} StatsCallbacks;
+
+static QTAILQ_HEAD(, StatsCallbacks) stats_callbacks =
+    QTAILQ_HEAD_INITIALIZER(stats_callbacks);
+
+void add_stats_callbacks(const char *name,
+                         StatsList *(*stats_fn)(StatsList *,
+                                                bool, const char *,
+                                                bool, const char *,
+                                                Error **),
+                         StatsSchemaList *(*schemas_fn)(StatsSchemaList *,
+                                                        bool, const char *,
+                                                        Error **),
+                         StatsInstanceList *(*instances_fn)(StatsInstanceList *,
+                                                            Error **))
+{
+    StatsCallbacks *entry = g_malloc0(sizeof(*entry));
+    entry->name = strdup(name);
+    entry->stats_cb = stats_fn;
+    entry->schemas_cb = schemas_fn;
+    entry->instances_cb = instances_fn;
+
+    QTAILQ_INSERT_TAIL(&stats_callbacks, entry, next);
+}
+
+StatsList *qmp_query_stats(bool has_name, const char *name, bool has_type,
+                           const char *type, Error **errp) {
+    StatsList *list_tail = NULL;
+    StatsCallbacks *entry;
+
+    QTAILQ_FOREACH(entry, &stats_callbacks, next) {
+        list_tail = entry->stats_cb(list_tail, has_name, name,
+                                    has_type, type, errp);
+    }
+
+    return list_tail;
+}
+
+StatsSchemaList *qmp_query_stats_schemas(bool has_type, const char *type,
+                                         Error **errp)
+{
+    StatsSchemaList *list_tail = NULL;
+    StatsCallbacks *entry;
+
+    QTAILQ_FOREACH(entry, &stats_callbacks, next) {
+        list_tail = entry->schemas_cb(list_tail, has_type, type, errp);
+    }
+
+    return list_tail;
+}
+
+StatsInstanceList *qmp_query_stats_instances(Error **errp)
+{
+    StatsInstanceList *list_tail = NULL;
+    StatsCallbacks *entry;
+
+    QTAILQ_FOREACH(entry, &stats_callbacks, next) {
+        list_tail = entry->instances_cb(list_tail, errp);
+    }
+
+    return list_tail;
+}
