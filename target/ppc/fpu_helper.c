@@ -673,7 +673,7 @@ FPU_FMADD(fmsub, MSUB_FLGS)
 FPU_FMADD(fnmsub, NMSUB_FLGS)
 
 /* frsp - frsp. */
-uint64_t helper_frsp(CPUPPCState *env, uint64_t arg)
+static uint64_t do_frsp(CPUPPCState *env, uint64_t arg, uintptr_t retaddr)
 {
     CPU_DoubleU farg;
     float32 f32;
@@ -681,12 +681,17 @@ uint64_t helper_frsp(CPUPPCState *env, uint64_t arg)
     farg.ll = arg;
 
     if (unlikely(float64_is_signaling_nan(farg.d, &env->fp_status))) {
-        float_invalid_op_vxsnan(env, GETPC());
+        float_invalid_op_vxsnan(env, retaddr);
     }
     f32 = float64_to_float32(farg.d, &env->fp_status);
     farg.d = float32_to_float64(f32, &env->fp_status);
 
     return farg.ll;
+}
+
+uint64_t helper_frsp(CPUPPCState *env, uint64_t arg)
+{
+    return do_frsp(env, arg, GETPC());
 }
 
 /* fsqrt - fsqrt. */
@@ -1578,7 +1583,7 @@ void helper_##name(CPUPPCState *env, ppc_vsr_t *xt,                          \
         }                                                                    \
                                                                              \
         if (r2sp) {                                                          \
-            t.fld = helper_frsp(env, t.fld);                                 \
+            t.fld = do_frsp(env, t.fld, GETPC());                            \
         }                                                                    \
                                                                              \
         if (sfprf) {                                                         \
@@ -1654,7 +1659,7 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                            \
         }                                                                    \
                                                                              \
         if (r2sp) {                                                          \
-            t.fld = helper_frsp(env, t.fld);                                 \
+            t.fld = do_frsp(env, t.fld, GETPC());                            \
         }                                                                    \
                                                                              \
         if (sfprf) {                                                         \
@@ -1728,7 +1733,7 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                             \
         }                                                                     \
                                                                               \
         if (r2sp) {                                                           \
-            t.fld = helper_frsp(env, t.fld);                                  \
+            t.fld = do_frsp(env, t.fld, GETPC());                             \
         }                                                                     \
                                                                               \
         if (sfprf) {                                                          \
@@ -1796,7 +1801,7 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)              \
         t.fld = tp##_div(tp##_one, xb->fld, &env->fp_status);                 \
                                                                               \
         if (r2sp) {                                                           \
-            t.fld = helper_frsp(env, t.fld);                                  \
+            t.fld = do_frsp(env, t.fld, GETPC());                             \
         }                                                                     \
                                                                               \
         if (sfprf) {                                                          \
@@ -1844,7 +1849,7 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)             \
         }                                                                    \
                                                                              \
         if (r2sp) {                                                          \
-            t.fld = helper_frsp(env, t.fld);                                 \
+            t.fld = do_frsp(env, t.fld, GETPC());                            \
         }                                                                    \
                                                                              \
         if (sfprf) {                                                         \
@@ -1893,7 +1898,7 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)             \
         }                                                                    \
                                                                              \
         if (r2sp) {                                                          \
-            t.fld = helper_frsp(env, t.fld);                                 \
+            t.fld = do_frsp(env, t.fld, GETPC());                            \
         }                                                                    \
                                                                              \
         if (sfprf) {                                                         \
@@ -2064,7 +2069,7 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt,                             \
         }                                                                     \
                                                                               \
         if (r2sp) {                                                           \
-            t.fld = helper_frsp(env, t.fld);                                  \
+            t.fld = do_frsp(env, t.fld, GETPC());                             \
         }                                                                     \
                                                                               \
         if (sfprf) {                                                          \
@@ -2803,7 +2808,7 @@ void helper_##op(CPUPPCState *env, ppc_vsr_t *xt, ppc_vsr_t *xb)        \
     for (i = 0; i < nels; i++) {                                        \
         t.tfld = stp##_to_##ttp(xb->sfld, &env->fp_status);             \
         if (r2sp) {                                                     \
-            t.tfld = helper_frsp(env, t.tfld);                          \
+            t.tfld = do_frsp(env, t.tfld, GETPC());                     \
         }                                                               \
         if (sfprf) {                                                    \
             helper_compute_fprf_float64(env, t.tfld);                   \
@@ -2928,7 +2933,7 @@ uint64_t helper_xsrsp(CPUPPCState *env, uint64_t xb)
 {
     helper_reset_fpstatus(env);
 
-    uint64_t xt = helper_frsp(env, xb);
+    uint64_t xt = do_frsp(env, xb, GETPC());
 
     helper_compute_fprf_float64(env, xt);
     do_float_check_status(env, GETPC());
