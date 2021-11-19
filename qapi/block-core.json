@@ -1839,7 +1839,7 @@
 #
 # @id: Block graph node identifier. This @id is generated only for
 #      x-debug-query-block-graph and does not relate to any other identifiers in
-#      Qemu.
+#      QEMU.
 #
 # @type: Type of graph node. Can be one of block-backend, block-job or
 #        block-driver-state.

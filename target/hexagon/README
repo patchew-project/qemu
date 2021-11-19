@@ -48,7 +48,7 @@ header files in <BUILD_DIR>/target/hexagon
         gen_tcg_func_table.py           -> tcg_func_table_generated.c.inc
         gen_helper_funcs.py             -> helper_funcs_generated.c.inc
 
-Qemu helper functions have 3 parts
+QEMU helper functions have 3 parts
     DEF_HELPER declaration indicates the signature of the helper
     gen_helper_<NAME> will generate a TCG call to the helper function
     The helper implementation

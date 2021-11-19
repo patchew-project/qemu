@@ -36,7 +36,7 @@ def bench_block_job(cmd, cmd_args, qemu_args):
 
     cmd       -- qmp command to run block-job (like blockdev-backup)
     cmd_args  -- dict of qmp command arguments
-    qemu_args -- list of Qemu command line arguments, including path to Qemu
+    qemu_args -- list of QEMU command line arguments, including path to QEMU
                  binary
 
     Returns {'seconds': int} on success and {'error': str} on failure, dict may

@@ -157,7 +157,7 @@ class TestEnv(ContextManager['TestEnv']):
                 progs = sorted(glob.iglob(pattern))
                 self.qemu_prog = next(p for p in progs if isxfile(p))
             except StopIteration:
-                sys.exit("Not found any Qemu executable binary by pattern "
+                sys.exit("Not found any QEMU executable binary by pattern "
                          f"'{pattern}'")
 
         self.qemu_img_prog = os.getenv('QEMU_IMG_PROG', root('qemu-img'))

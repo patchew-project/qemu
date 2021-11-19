@@ -183,7 +183,7 @@ ENV format
     mirror               use mirror job instead of backup''',
                                 formatter_class=argparse.RawTextHelpFormatter)
     p.add_argument('--env', nargs='+', help='''\
-Qemu binaries with labels and options, see below
+QEMU binaries with labels and options, see below
 "ENV format" section''',
                    action=ExtendAction)
     p.add_argument('--dir', nargs='+', help='''\
@@ -209,7 +209,7 @@ test-source raw images''', action='store_true')
     p.add_argument('--target-cache', help='''\
 Setup cache for target nodes. Options:
    direct: default, use O_DIRECT and aio=native
-   cached: use system cache (Qemu default) and aio=threads (Qemu default)
+   cached: use system cache (QEMU default) and aio=threads (QEMU default)
    both: generate two test cases for each src:dst pair''',
                    default='direct', choices=('direct', 'cached', 'both'))
 

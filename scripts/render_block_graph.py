@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Render Qemu Block Graph
+# Render QEMU Block Graph
 #
 # Copyright (c) 2018 Virtuozzo International GmbH. All rights reserved.
 #

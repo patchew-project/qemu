@@ -21,9 +21,9 @@ from tempfile import TemporaryDirectory
 
 def get_args():
     parser = argparse.ArgumentParser(description="A gdbstub test runner")
-    parser.add_argument("--qemu", help="Qemu binary for test",
+    parser.add_argument("--qemu", help="QEMU binary for test",
                         required=True)
-    parser.add_argument("--qargs", help="Qemu arguments for test")
+    parser.add_argument("--qargs", help="QEMU arguments for test")
     parser.add_argument("--binary", help="Binary to debug",
                         required=True)
     parser.add_argument("--test", help="GDB test script",

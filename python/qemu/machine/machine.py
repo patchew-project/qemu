@@ -122,7 +122,7 @@ class QEMUMachine:
         @param console_log: (optional) path to console log file
         @param log_dir: where to create and keep log files
         @param qmp_timer: (optional) default QMP socket timeout
-        @note: Qemu process is not started until launch() is used.
+        @note: QEMU process is not started until launch() is used.
         '''
         # pylint: disable=too-many-arguments
 

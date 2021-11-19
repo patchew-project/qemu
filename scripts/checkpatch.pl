@@ -2910,7 +2910,7 @@ sub process {
 			ERROR("use QEMU instead of Qemu or QEmu\n" . $herecurr);
 		}
 
-# Qemu error function tests
+# QEMU error function tests
 
 	# Find newlines in error messages
 	my $qemu_error_funcs = qr{error_setg|
