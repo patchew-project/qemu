@@ -780,10 +780,18 @@ int s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch_id,
                                 int vq, bool assign);
 #ifndef CONFIG_USER_ONLY
 unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu);
+int s390_cpu_set_busy(S390CPU *cpu, int order);
+void s390_cpu_reset_busy(S390CPU *cpu);
 #else
 static inline unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu)
 {
     return 0;
+}
+static inline int s390_cpu_set_busy(S390CPU *cpu, int order)
+{
+}
+static inline void s390_cpu_reset_busy(S390CPU *cpu)
+{
 }
 #endif /* CONFIG_USER_ONLY */
 static inline uint8_t s390_cpu_get_state(S390CPU *cpu)

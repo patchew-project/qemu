@@ -157,6 +157,7 @@ static int cap_ri;
 static int cap_hpage_1m;
 static int cap_vcpu_resets;
 static int cap_protected;
+static int cap_user_busy;
 
 static int active_cmma;
 
@@ -358,6 +359,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     cap_s390_irq = kvm_check_extension(s, KVM_CAP_S390_INJECT_IRQ);
     cap_vcpu_resets = kvm_check_extension(s, KVM_CAP_S390_VCPU_RESETS);
     cap_protected = kvm_check_extension(s, KVM_CAP_S390_PROTECTED);
+    cap_user_busy = kvm_check_extension(s, KVM_CAP_S390_USER_BUSY);
 
     kvm_vm_enable_cap(s, KVM_CAP_S390_USER_SIGP, 0);
     kvm_vm_enable_cap(s, KVM_CAP_S390_VECTOR_REGISTERS, 0);
@@ -380,6 +382,10 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     if (cpu_model_allowed() && kvm_kernel_irqchip_allowed() &&
         kvm_check_extension(s, KVM_CAP_S390_AIS_MIGRATION)) {
         kvm_vm_enable_cap(s, KVM_CAP_S390_AIS, 0);
+    }
+
+    if (cap_user_busy) {
+        kvm_vm_enable_cap(s, KVM_CAP_S390_USER_BUSY, 0);
     }
 
     kvm_set_max_memslot_size(KVM_SLOT_MAX_BYTES);
@@ -2556,6 +2562,38 @@ void kvm_s390_stop_interrupt(S390CPU *cpu)
     };
 
     kvm_s390_vcpu_interrupt(cpu, &irq);
+}
+
+int kvm_s390_vcpu_set_busy(S390CPU *cpu, unsigned int order)
+{
+    CPUState *cs = CPU(cpu);
+    struct kvm_s390_user_busy_info busy = {
+        .reason = KVM_S390_USER_BUSY_REASON_SIGP,
+        .function = KVM_S390_USER_BUSY_FUNCTION_SET,
+        .payload = order,
+    };
+
+    if (!cap_user_busy) {
+        return 0;
+    }
+
+    return kvm_vcpu_ioctl(cs, KVM_S390_USER_BUSY, &busy);
+}
+
+void kvm_s390_vcpu_reset_busy(S390CPU *cpu)
+{
+    CPUState *cs = CPU(cpu);
+    struct kvm_s390_user_busy_info busy = {
+        .reason = KVM_S390_USER_BUSY_REASON_SIGP,
+        .function = KVM_S390_USER_BUSY_FUNCTION_RESET,
+    };
+
+    if (!cap_user_busy) {
+        return;
+    }
+
+    /* Don't care about the response from this */
+    kvm_vcpu_ioctl(cs, KVM_S390_USER_BUSY, &busy);
 }
 
 bool kvm_arch_cpu_check_are_resettable(void)

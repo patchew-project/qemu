@@ -254,6 +254,21 @@ unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu)
     return s390_count_running_cpus();
 }
 
+int s390_cpu_set_busy(S390CPU *cpu, int order)
+{
+    if (kvm_enabled()) {
+        return kvm_s390_vcpu_set_busy(cpu, order);
+    }
+    return 0;
+}
+
+void s390_cpu_reset_busy(S390CPU *cpu)
+{
+    if (kvm_enabled()) {
+        kvm_s390_vcpu_reset_busy(cpu);
+    }
+}
+
 int s390_set_memory_limit(uint64_t new_limit, uint64_t *hw_limit)
 {
     if (kvm_enabled()) {
