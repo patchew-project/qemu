@@ -344,4 +344,22 @@ void cpu_ppc_pmu_init(CPUPPCState *env)
     }
 }
 
+void helper_store_pmc(CPUPPCState *env, uint32_t sprn, uint64_t value)
+{
+    bool pmu_frozen = env->spr[SPR_POWER_MMCR0] & MMCR0_FC;
+
+    if (pmu_frozen) {
+        env->spr[sprn] = value;
+        return;
+    }
+
+    /*
+     * Update counters with the events counted so far, define
+     * the new value of the PMC and start a new cycle count
+     * session.
+     */
+    pmu_update_cycles(env, env->spr[SPR_POWER_MMCR0]);
+    env->spr[sprn] = value;
+    start_cycle_count_session(env);
+}
 #endif /* defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY) */
