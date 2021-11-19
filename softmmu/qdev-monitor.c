@@ -1029,13 +1029,10 @@ int qemu_global_option(const char *str)
         qemu_opt_set(opts, "value", str + offset + 1, &error_abort);
         return 0;
     }
+    printf("Invalid 'global' option format. It must be provided as:\n");
+    printf("  --global <driver>.<property>=<value>\n");
 
-    opts = qemu_opts_parse_noisily(&qemu_global_opts, str, false);
-    if (!opts) {
-        return -1;
-    }
-
-    return 0;
+    return -1;
 }
 
 bool qmp_command_available(const QmpCommand *cmd, Error **errp)
