@@ -2165,3 +2165,128 @@ void hmp_info_memory_size_summary(Monitor *mon, const QDict *qdict)
     }
     hmp_handle_error(mon, err);
 }
+
+void hmp_info_stats(Monitor *mon, const QDict *qdict)
+{
+    StatsList *stats_list, *stats_list_entry;
+    Stats *stats_entry;
+    StatDataList *data_entry;
+    StatData *stat;
+    uint64List *val;
+    const char *name, *type;
+    Error *err = NULL;
+
+    name = qdict_get_try_str(qdict, "name");
+    type = qdict_get_try_str(qdict, "type");
+
+    stats_list = qmp_query_stats(name ? TRUE : FALSE, name,
+                                 type ? TRUE : FALSE, type, &err);
+
+    if (err) {
+        monitor_printf(mon, "%s\n", error_get_pretty(err));
+        error_free(err);
+        return;
+    }
+
+    for (stats_list_entry = stats_list; stats_list_entry;
+         stats_list_entry = stats_list_entry->next) {
+        stats_entry = stats_list_entry->value;
+        monitor_printf(mon, "\n%s (%s):\n", stats_entry->name,
+                       StatSchemaType_str(stats_entry->type));
+
+        for (data_entry = stats_entry->stats; data_entry;
+             data_entry = data_entry->next) {
+            stat = data_entry->value;
+            monitor_printf(mon, "  %s (%s):", stat->name,
+                           StatType_str(stat->type));
+
+            for (val = stat->val; val; val = val->next) {
+                if (stat->unit == STAT_UNIT_SECONDS &&
+                    stat->exponent >= -9 && stat->exponent <= 0 &&
+                    stat->exponent % 3 == 0 && stat->base == 10) {
+                    const char *si_prefix[] = { "", "milli", "micro", "nano" };
+                    monitor_printf(mon, " %lu %s", val->value,
+                                   si_prefix[stat->exponent / -3]);
+                } else if (
+                    stat->unit == STAT_UNIT_BYTES &&
+                    stat->exponent >= 0 && stat->exponent <= 40 &&
+                    stat->exponent % 10 == 0 && stat->base == 2) {
+                    const char *si_prefix[] = {
+                        "", "kilo", "mega", "giga", "tera" };
+                    monitor_printf(mon, " %lu %s", val->value,
+                                   si_prefix[stat->exponent / 10]);
+                } else if (stat->exponent) {
+                    /* Print the base and exponent as "*<base>^<exp>" */
+                    monitor_printf(mon, " %lu*%d^%d", val->value,
+                                   stat->base, stat->exponent);
+                } else {
+                    monitor_printf(mon, " %lu", val->value);
+                }
+
+                /* Don't print "none" unit type */
+                monitor_printf(mon, "%s\n", stat->unit == STAT_UNIT_NONE ?
+                               "" : StatUnit_str(stat->unit));
+            }
+        }
+    }
+    qapi_free_StatsList(stats_list);
+}
+
+void hmp_info_stats_schemas(Monitor *mon, const QDict *qdict)
+{
+    StatsSchemaList *stats_list, *stats_list_entry;
+    StatsSchema *stats_entry;
+    StatSchemaEntryList *data_entry;
+    StatSchemaEntry *stat;
+    const char *type;
+    Error *err = NULL;
+
+    type = qdict_get_try_str(qdict, "type");
+
+    stats_list = qmp_query_stats_schemas(type ? TRUE : FALSE, type, &err);
+
+    if (err) {
+        monitor_printf(mon, "%s\n", error_get_pretty(err));
+        error_free(err);
+        return;
+    }
+
+    for (stats_list_entry = stats_list; stats_list_entry;
+         stats_list_entry = stats_list_entry->next) {
+        stats_entry = stats_list_entry->value;
+        monitor_printf(mon, "\n%s:\n", StatSchemaType_str(stats_entry->type));
+
+        for (data_entry = stats_entry->stats; data_entry;
+             data_entry = data_entry->next) {
+            stat = data_entry->value;
+            monitor_printf(mon, "  %s\n", stat->name);
+        }
+    }
+    qapi_free_StatsSchemaList(stats_list);
+}
+
+void hmp_info_stats_instances(Monitor *mon, const QDict *qdict)
+{
+    StatsInstanceList *stats_list, *stats_list_entry;
+    StatsInstance *stats_entry;
+    Error *err = NULL;
+
+    stats_list = qmp_query_stats_instances(&err);
+
+    if (err) {
+        monitor_printf(mon, "%s\n", error_get_pretty(err));
+        error_free(err);
+        return;
+    }
+
+    monitor_printf(mon, "%-15s %s\n", "name", "type");
+    monitor_printf(mon, "%-15s %s\n", "----", "----");
+
+    for (stats_list_entry = stats_list; stats_list_entry;
+         stats_list_entry = stats_list_entry->next) {
+        stats_entry = stats_list_entry->value;
+        monitor_printf(mon, "%-15s %s\n", stats_entry->name,
+                       StatSchemaType_str(stats_entry->type));
+    }
+    qapi_free_StatsInstanceList(stats_list);
+}

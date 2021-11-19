@@ -877,3 +877,43 @@ SRST
   ``info sgx``
     Show intel SGX information.
 ERST
+
+    {
+        .name       = "stats",
+        .args_type  = "name:s?,type:s?",
+        .params     = "[name] [type]",
+        .help       = "show statistics; optional name and type",
+        .cmd        = hmp_info_stats,
+    },
+
+SRST
+  ``stats``
+    Show stats
+ERST
+
+    {
+        .name       = "stats-schemas",
+        .args_type  = "type:s?",
+        .params     = "[type]",
+        .help       = "show stats for schema type; optional type",
+        .cmd        = hmp_info_stats_schemas,
+    },
+
+SRST
+  ``stats-schemas``
+    Show stats for schema type
+ERST
+
+
+    {
+        .name       = "stats-instances",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show current stat instances",
+        .cmd        = hmp_info_stats_instances,
+    },
+
+SRST
+  ``stats-instances``
+    Show current stat instances
+ERST
