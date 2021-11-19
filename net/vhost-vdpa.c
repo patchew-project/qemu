@@ -170,9 +170,25 @@ static bool vhost_vdpa_check_peer_type(NetClientState *nc, ObjectClass *oc,
     return true;
 }
 
+/** Dummy receive in case qemu falls back to userland tap networking */
+static ssize_t vhost_vdpa_receive_iov(NetClientState *nc,
+                                      const struct iovec *iov, int iovcnt)
+{
+    return 0;
+}
+
+/** Dummy receive in case qemu falls back to userland tap networking */
+static ssize_t vhost_vdpa_receive_raw(NetClientState *nc, const uint8_t *buf,
+                                      size_t size)
+{
+    return 0;
+}
+
 static NetClientInfo net_vhost_vdpa_info = {
         .type = NET_CLIENT_DRIVER_VHOST_VDPA,
         .size = sizeof(VhostVDPAState),
+        .receive_iov = vhost_vdpa_receive_iov,
+        .receive_raw = vhost_vdpa_receive_raw,
         .cleanup = vhost_vdpa_cleanup,
         .has_vnet_hdr = vhost_vdpa_has_vnet_hdr,
         .has_ufo = vhost_vdpa_has_ufo,
