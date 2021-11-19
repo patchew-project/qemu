@@ -611,7 +611,7 @@
 # Since: 7.0
 ##
 { 'enum' : 'StatSchemaType',
-  'data' : [ ] }
+  'data' : [ 'kvm-vm', 'kvm-vcpu' ] }
 
 ##
 # @StatSchemaEntry:
