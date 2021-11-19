@@ -401,6 +401,9 @@ bool object_apply_global_props(Object *obj, const GPtrArray *props,
         GlobalProperty *p = g_ptr_array_index(props, i);
         Error *err = NULL;
 
+        if (!p->property) {
+            continue;
+        }
         if (object_dynamic_cast(obj, p->driver) == NULL) {
             continue;
         }
