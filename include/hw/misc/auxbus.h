@@ -85,7 +85,8 @@ struct AUXSlave {
 };
 
 /**
- * aux_bus_init: Initialize an AUX bus.
+ * aux_bus_init:
+ * Create an AUX bus on the heap.
  *
  * Returns the new AUX bus created.
  *
@@ -101,7 +102,7 @@ AUXBus *aux_bus_init(DeviceState *parent, const char *name);
  */
 void aux_bus_realize(AUXBus *bus);
 
-/*
+/**
  * aux_request: Make a request on the bus.
  *
  * Returns the reply of the request.
@@ -115,7 +116,7 @@ void aux_bus_realize(AUXBus *bus);
 AUXReply aux_request(AUXBus *bus, AUXCommand cmd, uint32_t address,
                               uint8_t len, uint8_t *data);
 
-/*
+/**
  * aux_get_i2c_bus: Get the i2c bus for I2C over AUX command.
  *
  * Returns the i2c bus associated to this AUX bus.
@@ -124,7 +125,7 @@ AUXReply aux_request(AUXBus *bus, AUXCommand cmd, uint32_t address,
  */
 I2CBus *aux_get_i2c_bus(AUXBus *bus);
 
-/*
+/**
  * aux_init_mmio: Init an mmio for an AUX slave.
  *
  * @aux_slave The AUX slave.
@@ -132,7 +133,8 @@ I2CBus *aux_get_i2c_bus(AUXBus *bus);
  */
 void aux_init_mmio(AUXSlave *aux_slave, MemoryRegion *mmio);
 
-/* aux_map_slave: Map the mmio for an AUX slave on the bus.
+/**
+ * aux_map_slave: Map the mmio for an AUX slave on the bus.
  *
  * @dev The AUX slave.
  * @addr The address for the slave's mmio.
