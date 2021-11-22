@@ -50,7 +50,7 @@ static void mii_reset(RTL8201CPState *mii, bool link_ok)
                 MII_BMSR_10T_HD | MII_BMSR_MFPS | MII_BMSR_AUTONEG;
     mii->anar = MII_ANAR_TXFD | MII_ANAR_TX | MII_ANAR_10FD | MII_ANAR_10 |
                 MII_ANAR_CSMACD;
-    mii->anlpar = MII_ANAR_TX;
+    mii->anlpar = MII_ANLPAR_TX;
 
     mii_set_link(mii, link_ok);
 }
