@@ -68,6 +68,22 @@ cross-i386-tci:
     EXTRA_CONFIGURE_OPTS: --target-list=i386-softmmu,i386-linux-user,aarch64-softmmu,aarch64-linux-user,ppc-softmmu,ppc-linux-user
     MAKE_CHECK_ARGS: check check-tcg
 
+cross-loongarch64-system:
+  extends: .cross_system_build_job
+  allow_failure: true
+  needs:
+    job: loongarch64-cross-container
+  variables:
+    IMAGE: gentoo-loongarch64-cross
+
+cross-loongarch64-user:
+  extends: .cross_user_build_job
+  allow_failure: true
+  needs:
+    job: loongarch64-cross-container
+  variables:
+    IMAGE: gentoo-loongarch64-cross
+
 cross-mips-system:
   extends: .cross_system_build_job
   needs:
