@@ -376,7 +376,8 @@ static int get_physical_address_pmp(CPURISCVState *env, int *prot,
 
     *prot = pmp_priv_to_page_prot(pmp_priv);
     if (tlb_size != NULL) {
-        pmp_adjust_tlb_size(env, addr & ~(*tlb_size - 1), tlb_size);
+        *tlb_size = pmp_adjust_tlb_size(env, addr & ~(*tlb_size - 1),
+                                        *tlb_size);
     }
 
     return TRANSLATE_SUCCESS;
