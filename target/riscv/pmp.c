@@ -620,16 +620,15 @@ static target_ulong pmp_get_tlb_size(CPURISCVState *env, int pmp_index,
  * Check is there a PMP entry which range covers this page. If so,
  * try to find the minimum granularity for the TLB size.
  */
-bool pmp_is_range_in_tlb(CPURISCVState *env, hwaddr tlb_sa,
+void pmp_is_range_in_tlb(CPURISCVState *env, hwaddr tlb_sa,
                          target_ulong *tlb_size)
 {
     int i;
     target_ulong val;
     target_ulong tlb_ea = (tlb_sa + *tlb_size - 1);
-    target_ulong old_size = *tlb_size;
 
     if (pmp_get_num_rules(env) == 0) {
-        return false;
+        return;
     }
 
     for (i = 0; i < MAX_RISCV_PMPS; i++) {
@@ -640,12 +639,6 @@ bool pmp_is_range_in_tlb(CPURISCVState *env, hwaddr tlb_sa,
             }
         }
     }
-
-    if (*tlb_size != old_size) {
-        return true;
-    }
-
-    return false;
 }
 
 /*
