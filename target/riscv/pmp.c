@@ -620,7 +620,7 @@ static target_ulong pmp_get_tlb_size(CPURISCVState *env, int pmp_index,
  * Check is there a PMP entry which range covers this page. If so,
  * try to find the minimum granularity for the TLB size.
  */
-void pmp_is_range_in_tlb(CPURISCVState *env, hwaddr tlb_sa,
+void pmp_adjust_tlb_size(CPURISCVState *env, hwaddr tlb_sa,
                          target_ulong *tlb_size)
 {
     int i;
