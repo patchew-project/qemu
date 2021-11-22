@@ -234,6 +234,19 @@ const VMStateDescription vmstate_etoken = {
     }
 };
 
+static int diag318_post_load(void *opaque, int version_id)
+{
+    S390CPU *cpu = opaque;
+    CPUState *cs = CPU(cpu);
+    CPUS390XState *env = &S390_CPU(cs)->env;
+
+    if (kvm_enabled()) {
+        kvm_s390_set_diag318(cs, env->diag318_info);
+    }
+
+    return 0;
+}
+
 static bool diag318_needed(void *opaque)
 {
     return s390_has_feat(S390_FEAT_DIAG_318);
@@ -243,6 +256,7 @@ const VMStateDescription vmstate_diag318 = {
     .name = "cpu/diag318",
     .version_id = 1,
     .minimum_version_id = 1,
+    .post_load = diag318_post_load,
     .needed = diag318_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT64(env.diag318_info, S390CPU),
