@@ -362,7 +362,6 @@ static int get_physical_address_pmp(CPURISCVState *env, int *prot,
                                     int mode)
 {
     pmp_priv_t pmp_priv;
-    target_ulong tlb_size_pmp = 0;
 
     if (!riscv_feature(env, RISCV_FEATURE_PMP)) {
         *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
@@ -377,9 +376,7 @@ static int get_physical_address_pmp(CPURISCVState *env, int *prot,
 
     *prot = pmp_priv_to_page_prot(pmp_priv);
     if (tlb_size != NULL) {
-        if (pmp_is_range_in_tlb(env, addr & ~(*tlb_size - 1), &tlb_size_pmp)) {
-            *tlb_size = tlb_size_pmp;
-        }
+        pmp_is_range_in_tlb(env, addr & ~(*tlb_size - 1), tlb_size);
     }
 
     return TRANSLATE_SUCCESS;

@@ -625,7 +625,8 @@ bool pmp_is_range_in_tlb(CPURISCVState *env, hwaddr tlb_sa,
 {
     int i;
     target_ulong val;
-    target_ulong tlb_ea = (tlb_sa + TARGET_PAGE_SIZE - 1);
+    target_ulong tlb_ea = (tlb_sa + *tlb_size - 1);
+    target_ulong old_size = *tlb_size;
 
     if (pmp_get_num_rules(env) == 0) {
         return false;
@@ -634,13 +635,13 @@ bool pmp_is_range_in_tlb(CPURISCVState *env, hwaddr tlb_sa,
     for (i = 0; i < MAX_RISCV_PMPS; i++) {
         val = pmp_get_tlb_size(env, i, tlb_sa, tlb_ea);
         if (val) {
-            if (*tlb_size == 0 || *tlb_size > val) {
+            if (*tlb_size > val) {
                 *tlb_size = val;
             }
         }
     }
 
-    if (*tlb_size != 0) {
+    if (*tlb_size != old_size) {
         return true;
     }
 
