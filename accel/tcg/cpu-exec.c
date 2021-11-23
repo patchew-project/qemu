@@ -742,6 +742,11 @@ static inline bool cpu_handle_interrupt(CPUState *cpu,
             qemu_mutex_unlock_iothread();
             return true;
         }
+        /* Process watchpoints first, or interrupts will ruin everything */
+        if (cpu->watchpoint_hit) {
+            qemu_mutex_unlock_iothread();
+            return false;
+        }
 #if !defined(CONFIG_USER_ONLY)
         if (replay_mode == REPLAY_MODE_PLAY && !replay_has_interrupt()) {
             /* Do nothing */
