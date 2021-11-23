@@ -277,6 +277,20 @@ static void char_init(Object *obj)
 
 }
 
+static void chr_unparent(Object *obj)
+{
+    const char *id;
+    QemuOpts *opts;
+
+    if (obj->parent == get_chardevs_root()) {
+        id = object_get_canonical_path_component(obj);
+        opts = qemu_opts_find(qemu_find_opts("chardev"), id);
+        if (opts) {
+            qemu_opts_del(opts);
+        }
+    }
+}
+
 static int null_chr_write(Chardev *chr, const uint8_t *buf, int len)
 {
     return len;
@@ -286,6 +300,7 @@ static void char_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
+    oc->unparent = chr_unparent;
     cc->chr_write = null_chr_write;
     cc->chr_be_event = chr_be_event;
 }
