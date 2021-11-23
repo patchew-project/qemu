@@ -721,6 +721,15 @@ static inline bool need_replay_interrupt(int interrupt_request)
 static inline bool cpu_handle_interrupt(CPUState *cpu,
                                         TranslationBlock **last_tb)
 {
+    /*
+     * If we have special cflags lets not get distracted with IRQs. We
+     * shall exit the loop as soon as the next TB completes what it
+     * needs to do.
+     */
+    if (cpu->cflags_next_tb != -1) {
+        return false;
+    }
+
     /* Clear the interrupt flag now since we're processing
      * cpu->interrupt_request and cpu->exit_request.
      * Ensure zeroing happens before reading cpu->exit_request or
@@ -954,11 +963,16 @@ int cpu_exec(CPUState *cpu)
              * after-access watchpoints.  Since this request should never
              * have CF_INVALID set, -1 is a convenient invalid value that
              * does not require tcg headers for cpu_common_reset.
+             *
+             * As we don't want this special TB being interrupted by
+             * some sort of asynchronous event we apply CF_NOIRQ to
+             * disable the usual event checking.
              */
             cflags = cpu->cflags_next_tb;
             if (cflags == -1) {
                 cflags = curr_cflags(cpu);
             } else {
+                cflags |= CF_NOIRQ;
                 cpu->cflags_next_tb = -1;
             }
 
