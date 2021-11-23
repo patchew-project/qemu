@@ -906,6 +906,7 @@ static void icc_activate_irq(GICv3CPUState *cs, int irq)
         gicv3_update(cs->gic, irq, 1);
     } else {
         gicv3_redist_lpi_pending(cs, irq, 0);
+        gicv3_redist_update(cs);
     }
 }
 
