@@ -74,7 +74,7 @@ safe_syscall_end:
         blr
 
         /* code path when we didn't execute the syscall */
-2:      addi    3, 0, TARGET_ERESTARTSYS
+2:      addi    3, 0, QEMU_ERESTARTSYS
 
         /* code path setting errno */
 1:      b       safe_syscall_set_errno_tail

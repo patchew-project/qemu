@@ -102,7 +102,7 @@ safe_syscall_end:
         jr      ra
 
         /* code path when we didn't execute the syscall */
-2:      li      v0, TARGET_ERESTARTSYS
+2:      li      v0, QEMU_ERESTARTSYS
 
         /* code path setting errno */
         /*
