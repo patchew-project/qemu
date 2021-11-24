@@ -2,9 +2,10 @@
 Developer Information
 ---------------------
 
-This section of the manual documents various parts of the internals of QEMU.
-You only need to read it if you are interested in reading or
-modifying QEMU's source code.
+This section of the manual documents some of QEMU's development
+practises, and various internals of QEMU.  These documents are
+particularly useful for those interested in reading or modifying QEMU's
+source code.
 
 .. toctree::
    :maxdepth: 2
@@ -49,3 +50,4 @@ modifying QEMU's source code.
    submitting-a-patch
    submitting-a-pull-request
    security-process
+   reporting-a-bug
