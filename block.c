@@ -1416,6 +1416,7 @@ static void bdrv_child_cb_attach(BdrvChild *child)
 {
     BlockDriverState *bs = child->opaque;
 
+    bdrv_apply_subtree_drain(child, bs);
     assert_bdrv_graph_writable(bs);
     QLIST_INSERT_HEAD(&bs->children, child, next);
 
@@ -1423,7 +1424,6 @@ static void bdrv_child_cb_attach(BdrvChild *child)
         bdrv_backing_attach(child);
     }
 
-    bdrv_apply_subtree_drain(child, bs);
 }
 
 static void bdrv_child_cb_detach(BdrvChild *child)
@@ -1434,10 +1434,9 @@ static void bdrv_child_cb_detach(BdrvChild *child)
         bdrv_backing_detach(child);
     }
 
-    bdrv_unapply_subtree_drain(child, bs);
-
     assert_bdrv_graph_writable(bs);
     QLIST_REMOVE(child, next);
+    bdrv_unapply_subtree_drain(child, bs);
 }
 
 static int bdrv_child_cb_update_filename(BdrvChild *c, BlockDriverState *base,
