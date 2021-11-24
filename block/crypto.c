@@ -780,6 +780,7 @@ block_crypto_get_specific_info_luks(BlockDriverState *bs, Error **errp)
 static int
 block_crypto_amend_options_generic_luks(BlockDriverState *bs,
                                         QCryptoBlockAmendOptions *amend_options,
+                                        bool under_bql,
                                         bool force,
                                         Error **errp)
 {
@@ -791,9 +792,12 @@ block_crypto_amend_options_generic_luks(BlockDriverState *bs,
 
     /* apply for exclusive read/write permissions to the underlying file*/
     crypto->updating_keys = true;
-    ret = bdrv_child_refresh_perms(bs, bs->file, errp);
-    if (ret) {
-        goto cleanup;
+
+    if (under_bql) {
+        ret = bdrv_child_refresh_perms(bs, bs->file, errp);
+        if (ret) {
+            goto cleanup;
+        }
     }
 
     ret = qcrypto_block_amend_options(crypto->block,
@@ -806,7 +810,9 @@ block_crypto_amend_options_generic_luks(BlockDriverState *bs,
 cleanup:
     /* release exclusive read/write permissions to the underlying file*/
     crypto->updating_keys = false;
-    bdrv_child_refresh_perms(bs, bs->file, errp);
+    if (under_bql) {
+        bdrv_child_refresh_perms(bs, bs->file, errp);
+    }
     return ret;
 }
 
@@ -834,7 +840,7 @@ block_crypto_amend_options_luks(BlockDriverState *bs,
         goto cleanup;
     }
     ret = block_crypto_amend_options_generic_luks(bs, amend_options,
-                                                  force, errp);
+                                                  true, force, errp);
 cleanup:
     qapi_free_QCryptoBlockAmendOptions(amend_options);
     return ret;
@@ -853,7 +859,7 @@ coroutine_fn block_crypto_co_amend_luks(BlockDriverState *bs,
         .u.luks = *qapi_BlockdevAmendOptionsLUKS_base(&opts->u.luks),
     };
     return block_crypto_amend_options_generic_luks(bs, &amend_opts,
-                                                   force, errp);
+                                                   false, force, errp);
 }
 
 static void
