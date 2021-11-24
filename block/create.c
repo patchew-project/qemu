@@ -42,6 +42,16 @@ static int coroutine_fn blockdev_create_run(Job *job, Error **errp)
     BlockdevCreateJob *s = container_of(job, BlockdevCreateJob, common);
     int ret;
 
+    /*
+     * Currently there is nothing preventing this
+     * function from being called in an iothread context.
+     * However, since it will crash anyways because of the
+     * aiocontext lock not taken, we might as well make it
+     * crash with a more meaningful error, by checking that
+     * we are in the main loop
+     */
+    assert(qemu_in_main_thread());
+
     job_progress_set_remaining(&s->common, 1);
     ret = s->drv->bdrv_co_create(s->opts, errp);
     job_progress_update(&s->common, 1);
