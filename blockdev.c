@@ -113,6 +113,8 @@ void override_max_devs(BlockInterfaceType type, int max_devs)
     BlockBackend *blk;
     DriveInfo *dinfo;
 
+    assert(qemu_in_main_thread());
+
     if (max_devs <= 0) {
         return;
     }
@@ -142,6 +144,8 @@ void blockdev_mark_auto_del(BlockBackend *blk)
     DriveInfo *dinfo = blk_legacy_dinfo(blk);
     BlockJob *job;
 
+    assert(qemu_in_main_thread());
+
     if (!dinfo) {
         return;
     }
@@ -163,6 +167,7 @@ void blockdev_mark_auto_del(BlockBackend *blk)
 void blockdev_auto_del(BlockBackend *blk)
 {
     DriveInfo *dinfo = blk_legacy_dinfo(blk);
+    assert(qemu_in_main_thread());
 
     if (dinfo && dinfo->auto_del) {
         monitor_remove_blk(blk);
@@ -187,6 +192,8 @@ DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit)
     BlockBackend *blk;
     DriveInfo *dinfo;
 
+    assert(qemu_in_main_thread());
+
     for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
         dinfo = blk_legacy_dinfo(blk);
         if (dinfo && dinfo->type == type
@@ -208,6 +215,8 @@ void drive_check_orphaned(void)
     DriveInfo *dinfo;
     Location loc;
     bool orphans = false;
+
+    assert(qemu_in_main_thread());
 
     for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
         dinfo = blk_legacy_dinfo(blk);
@@ -242,6 +251,7 @@ void drive_check_orphaned(void)
 
 DriveInfo *drive_get_by_index(BlockInterfaceType type, int index)
 {
+    assert(qemu_in_main_thread());
     return drive_get(type,
                      drive_index_to_bus_id(type, index),
                      drive_index_to_unit_id(type, index));
@@ -252,6 +262,8 @@ int drive_get_max_bus(BlockInterfaceType type)
     int max_bus;
     BlockBackend *blk;
     DriveInfo *dinfo;
+
+    assert(qemu_in_main_thread());
 
     max_bus = -1;
     for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
@@ -269,6 +281,7 @@ int drive_get_max_bus(BlockInterfaceType type)
 DriveInfo *drive_get_next(BlockInterfaceType type)
 {
     static int next_block_unit[IF_COUNT];
+    assert(qemu_in_main_thread());
 
     return drive_get(type, 0, next_block_unit[type]++);
 }
@@ -748,6 +761,8 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type,
     bool copy_on_read;
     const char *filename;
     int i;
+
+    assert(qemu_in_main_thread());
 
     /* Change legacy command line options into QMP ones */
     static const struct {
