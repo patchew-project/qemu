@@ -89,7 +89,10 @@ static int fuse_export_create(BlockExport *blk_exp,
     /* For growable exports, take the RESIZE permission */
     if (args->growable) {
         uint64_t blk_perm, blk_shared_perm;
-
+        /*
+         * FIXME: blk_{get/set}_perm should not be here, as permissions
+         * should be modified only under BQL and here we are not!
+         */
         blk_get_perm(exp->common.blk, &blk_perm, &blk_shared_perm);
 
         ret = blk_set_perm(exp->common.blk, blk_perm | BLK_PERM_RESIZE,
@@ -400,6 +403,11 @@ static int fuse_do_truncate(const FuseExport *exp, int64_t size,
 
     /* Growable exports have a permanent RESIZE permission */
     if (!exp->growable) {
+
+        /*
+         * FIXME: blk_{get/set}_perm should not be here, as permissions
+         * should be modified only under BQL and here we are not!
+         */
         blk_get_perm(exp->common.blk, &blk_perm, &blk_shared_perm);
 
         ret = blk_set_perm(exp->common.blk, blk_perm | BLK_PERM_RESIZE,
@@ -413,7 +421,11 @@ static int fuse_do_truncate(const FuseExport *exp, int64_t size,
                        truncate_flags, NULL);
 
     if (!exp->growable) {
-        /* Must succeed, because we are only giving up the RESIZE permission */
+        /*
+         * Must succeed, because we are only giving up the RESIZE permission.
+         * FIXME: blk_{get/set}_perm should not be here, as permissions
+         * should be modified only under BQL and here we are not!
+         */
         blk_set_perm(exp->common.blk, blk_perm, blk_shared_perm, &error_abort);
     }
 

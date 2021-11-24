@@ -888,6 +888,11 @@ int blk_set_perm(BlockBackend *blk, uint64_t perm, uint64_t shared_perm,
                  Error **errp)
 {
     int ret;
+    /*
+     * FIXME: blk_{get/set}_perm should be always called under
+     * BQL, but it is not the case right now (see block/export/fuse.c)
+     */
+    /* assert(qemu_in_main_thread()); */
 
     if (blk->root && !blk->disable_perm) {
         ret = bdrv_child_try_set_perm(blk->root, perm, shared_perm, errp);
@@ -904,6 +909,11 @@ int blk_set_perm(BlockBackend *blk, uint64_t perm, uint64_t shared_perm,
 
 void blk_get_perm(BlockBackend *blk, uint64_t *perm, uint64_t *shared_perm)
 {
+    /*
+     * FIXME: blk_{get/set}_perm should be always called under
+     * BQL, but it is not the case right now (see block/export/fuse.c)
+     */
+    /* assert(qemu_in_main_thread()); */
     *perm = blk->perm;
     *shared_perm = blk->shared_perm;
 }
