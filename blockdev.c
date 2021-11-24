@@ -71,7 +71,7 @@ void bdrv_set_monitor_owned(BlockDriverState *bs)
     QTAILQ_INSERT_TAIL(&monitor_bdrv_states, bs, monitor_list);
 }
 
-static const char *const if_name[IF_COUNT] = {
+static const char *const block_if_name[IF_COUNT] = {
     [IF_NONE] = "none",
     [IF_IDE] = "ide",
     [IF_SCSI] = "scsi",
@@ -120,7 +120,7 @@ void override_max_devs(BlockInterfaceType type, int max_devs)
         if (dinfo->type == type) {
             fprintf(stderr, "Cannot override units-per-bus property of"
                     " the %s interface, because a drive of that type has"
-                    " already been added.\n", if_name[type]);
+                    " already been added.\n", block_if_name[type]);
             g_assert_not_reached();
         }
     }
@@ -212,7 +212,7 @@ QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
         return NULL;
     }
     if (type != IF_DEFAULT) {
-        qemu_opt_set(opts, "if", if_name[type], &error_abort);
+        qemu_opt_set(opts, "if", block_if_name[type], &error_abort);
     }
     if (index >= 0) {
         qemu_opt_set_number(opts, "index", index, &error_abort);
@@ -269,7 +269,7 @@ void drive_check_orphaned(void)
             qemu_opts_loc_restore(dinfo->opts);
             error_report("machine type does not support"
                          " if=%s,bus=%d,unit=%d",
-                         if_name[dinfo->type], dinfo->bus, dinfo->unit);
+                         block_if_name[dinfo->type], dinfo->bus, dinfo->unit);
             loc_pop(&loc);
             orphans = true;
         }
@@ -887,7 +887,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type,
     value = qemu_opt_get(legacy_opts, "if");
     if (value) {
         for (type = 0;
-             type < IF_COUNT && strcmp(value, if_name[type]);
+             type < IF_COUNT && strcmp(value, block_if_name[type]);
              type++) {
         }
         if (type == IF_COUNT) {
@@ -945,10 +945,10 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type,
             mediastr = (media == MEDIA_CDROM) ? "-cd" : "-hd";
         }
         if (max_devs) {
-            new_id = g_strdup_printf("%s%i%s%i", if_name[type], bus_id,
+            new_id = g_strdup_printf("%s%i%s%i", block_if_name[type], bus_id,
                                      mediastr, unit_id);
         } else {
-            new_id = g_strdup_printf("%s%s%i", if_name[type],
+            new_id = g_strdup_printf("%s%s%i", block_if_name[type],
                                      mediastr, unit_id);
         }
         qdict_put_str(bs_opts, "id", new_id);
