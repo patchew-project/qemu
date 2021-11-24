@@ -224,6 +224,15 @@ struct JobDriver {
      */
 
     /**
+     * Called in the Main Loop context, before the job coroutine
+     * is started in the job aiocontext. Useful to perform operations
+     * that needs to be done under BQL (like permissions setup).
+     * On success, it returns 0. Otherwise the job failed to initialize
+     * and won't start.
+     */
+    int (*pre_run)(Job *job, Error **errp);
+
+    /**
      * Called when the job is resumed by the user (i.e. user_paused becomes
      * false). .user_resume is called before .resume.
      */
