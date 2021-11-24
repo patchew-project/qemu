@@ -71,7 +71,7 @@ void bdrv_set_monitor_owned(BlockDriverState *bs)
     QTAILQ_INSERT_TAIL(&monitor_bdrv_states, bs, monitor_list);
 }
 
-static const char *const block_if_name[IF_COUNT] = {
+const char *const block_if_name[IF_COUNT] = {
     [IF_NONE] = "none",
     [IF_IDE] = "ide",
     [IF_SCSI] = "scsi",
@@ -195,31 +195,6 @@ static int drive_index_to_unit_id(BlockInterfaceType type, int index)
 {
     int max_devs = if_max_devs[type];
     return max_devs ? index % max_devs : index;
-}
-
-QemuOpts *drive_def(const char *optstr)
-{
-    return qemu_opts_parse_noisily(qemu_find_opts("drive"), optstr, false);
-}
-
-QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
-                    const char *optstr)
-{
-    QemuOpts *opts;
-
-    opts = drive_def(optstr);
-    if (!opts) {
-        return NULL;
-    }
-    if (type != IF_DEFAULT) {
-        qemu_opt_set(opts, "if", block_if_name[type], &error_abort);
-    }
-    if (index >= 0) {
-        qemu_opt_set_number(opts, "index", index, &error_abort);
-    }
-    if (file)
-        qemu_opt_set(opts, "file", file, &error_abort);
-    return opts;
 }
 
 DriveInfo *drive_get(BlockInterfaceType type, int bus, int unit)

@@ -650,6 +650,27 @@ static int drive_enable_snapshot(void *opaque, QemuOpts *opts, Error **errp)
     return 0;
 }
 
+static QemuOpts *drive_add(BlockInterfaceType type, int index,
+                           const char *file, const char *optstr)
+{
+    QemuOpts *opts;
+
+    opts = qemu_opts_parse_noisily(qemu_find_opts("drive"), optstr, false);
+    if (!opts) {
+        return NULL;
+    }
+    if (type != IF_DEFAULT) {
+        qemu_opt_set(opts, "if", block_if_name[type], &error_abort);
+    }
+    if (index >= 0) {
+        qemu_opt_set_number(opts, "index", index, &error_abort);
+    }
+    if (file) {
+        qemu_opt_set(opts, "file", file, &error_abort);
+    }
+    return opts;
+}
+
 static void default_drive(int enable, int snapshot, BlockInterfaceType type,
                           int index, const char *optstr)
 {
@@ -2884,7 +2905,9 @@ void qemu_init(int argc, char **argv, char **envp)
                     break;
                 }
             case QEMU_OPTION_drive:
-                if (drive_def(optarg) == NULL) {
+                opts = qemu_opts_parse_noisily(qemu_find_opts("drive"),
+                                               optarg, false);
+                if (opts == NULL) {
                     exit(1);
                 }
                 break;
