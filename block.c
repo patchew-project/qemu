@@ -6574,6 +6574,26 @@ void bdrv_init_with_whitelist(void)
     bdrv_init();
 }
 
+static bool bdrv_is_active(BlockDriverState *bs)
+{
+    BdrvChild *parent;
+
+    if (bs->open_flags & BDRV_O_INACTIVE) {
+        return false;
+    }
+
+    QLIST_FOREACH(parent, &bs->parents, next_parent) {
+        if (parent->klass->parent_is_bds) {
+            BlockDriverState *parent_bs = parent->opaque;
+            if (!bdrv_is_active(parent_bs)) {
+                return false;
+            }
+        }
+    }
+
+   return true;
+}
+
 int coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs, Error **errp)
 {
     BdrvChild *child, *parent;
@@ -6584,6 +6604,12 @@ int coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs, Error **errp)
     if (!bs->drv)  {
         return -ENOMEDIUM;
     }
+
+    /*
+     * No need to muck with permissions if bs is active.
+     * TODO: should activation be a separate function?
+     */
+    assert(qemu_in_main_thread() || bdrv_is_active(bs));
 
     QLIST_FOREACH(child, &bs->children, next) {
         bdrv_co_invalidate_cache(child->bs, &local_err);
