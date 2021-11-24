@@ -26,7 +26,7 @@ from typing import (
     TextIO,
 )
 
-from qemu.qmp import SocketAddrT  # pylint: disable=import-error
+from qemu.aqmp.protocol import SocketAddrT
 
 from .machine import QEMUMachine
 
