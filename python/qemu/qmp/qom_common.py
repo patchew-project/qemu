@@ -27,7 +27,8 @@ from typing import (
     TypeVar,
 )
 
-from . import QEMUMonitorProtocol, QMPError
+from qemu.aqmp import AQMPError
+from qemu.aqmp.legacy import QEMUMonitorProtocol
 
 
 # The following is needed only for a type alias.
@@ -82,7 +83,7 @@ class QOMCommand:
 
     def __init__(self, args: argparse.Namespace):
         if args.socket is None:
-            raise QMPError("No QMP socket path or address given")
+            raise AQMPError("No QMP socket path or address given")
         self.qmp = QEMUMonitorProtocol(
             QEMUMonitorProtocol.parse_address(args.socket)
         )
@@ -161,7 +162,7 @@ class QOMCommand:
         try:
             cmd = cls(args)
             return cmd.run()
-        except QMPError as err:
+        except AQMPError as err:
             print(f"{type(err).__name__}: {err!s}", file=sys.stderr)
             return -1
 
