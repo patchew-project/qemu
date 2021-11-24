@@ -969,7 +969,8 @@ static dma_addr_t vtd_get_iova_pgtbl_base(IntelIOMMUState *s,
 static uint64_t vtd_spte_rsvd[5];
 static uint64_t vtd_spte_rsvd_large[5];
 
-static bool vtd_slpte_nonzero_rsvd(uint64_t slpte, uint32_t level)
+static bool vtd_slpte_nonzero_rsvd(IntelIOMMUState *s,
+                                   uint64_t slpte, uint32_t level)
 {
     uint64_t rsvd_mask = vtd_spte_rsvd[level];
 
@@ -977,6 +978,10 @@ static bool vtd_slpte_nonzero_rsvd(uint64_t slpte, uint32_t level)
         (slpte & VTD_SL_PT_PAGE_SIZE_MASK)) {
         /* large page */
         rsvd_mask = vtd_spte_rsvd_large[level];
+    }
+
+    if (s->scalable_mode) {
+        rsvd_mask &= ~VTD_SPTE_SNP;
     }
 
     return slpte & rsvd_mask;
@@ -1054,7 +1059,7 @@ static int vtd_iova_to_slpte(IntelIOMMUState *s, VTDContextEntry *ce,
                               iova, level, slpte, is_write);
             return is_write ? -VTD_FR_WRITE : -VTD_FR_READ;
         }
-        if (vtd_slpte_nonzero_rsvd(slpte, level)) {
+        if (vtd_slpte_nonzero_rsvd(s, slpte, level)) {
             error_report_once("%s: detected splte reserve non-zero "
                               "iova=0x%" PRIx64 ", level=0x%" PRIx32
                               "slpte=0x%" PRIx64 ")", __func__, iova,
@@ -1185,7 +1190,8 @@ static int vtd_page_walk_one(IOMMUTLBEvent *event, vtd_page_walk_info *info)
  * @write: whether parent level has write permission
  * @info: constant information for the page walk
  */
-static int vtd_page_walk_level(dma_addr_t addr, uint64_t start,
+static int vtd_page_walk_level(IntelIOMMUState *s,
+                               dma_addr_t addr, uint64_t start,
                                uint64_t end, uint32_t level, bool read,
                                bool write, vtd_page_walk_info *info)
 {
@@ -1214,7 +1220,7 @@ static int vtd_page_walk_level(dma_addr_t addr, uint64_t start,
             goto next;
         }
 
-        if (vtd_slpte_nonzero_rsvd(slpte, level)) {
+        if (vtd_slpte_nonzero_rsvd(s, slpte, level)) {
             trace_vtd_page_walk_skip_reserve(iova, iova_next);
             goto next;
         }
@@ -1235,7 +1241,7 @@ static int vtd_page_walk_level(dma_addr_t addr, uint64_t start,
              * This is a valid PDE (or even bigger than PDE).  We need
              * to walk one further level.
              */
-            ret = vtd_page_walk_level(vtd_get_slpte_addr(slpte, info->aw),
+            ret = vtd_page_walk_level(s, vtd_get_slpte_addr(slpte, info->aw),
                                       iova, MIN(iova_next, end), level - 1,
                                       read_cur, write_cur, info);
         } else {
@@ -1294,7 +1300,7 @@ static int vtd_page_walk(IntelIOMMUState *s, VTDContextEntry *ce,
         end = vtd_iova_limit(s, ce, info->aw);
     }
 
-    return vtd_page_walk_level(addr, start, end, level, true, true, info);
+    return vtd_page_walk_level(s, addr, start, end, level, true, true, info);
 }
 
 static int vtd_root_entry_rsvd_bits_check(IntelIOMMUState *s,
