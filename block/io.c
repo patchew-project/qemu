@@ -687,6 +687,7 @@ void bdrv_drain_all_end_quiesce(BlockDriverState *bs)
 {
     int drained_end_counter = 0;
 
+    assert(qemu_in_main_thread());
     g_assert(bs->quiesce_counter > 0);
     g_assert(!bs->refcnt);
 

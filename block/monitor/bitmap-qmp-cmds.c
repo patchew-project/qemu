@@ -56,6 +56,8 @@ BdrvDirtyBitmap *block_dirty_bitmap_lookup(const char *node,
     BlockDriverState *bs;
     BdrvDirtyBitmap *bitmap;
 
+    assert(qemu_in_main_thread());
+
     if (!node) {
         error_setg(errp, "Node cannot be NULL");
         return NULL;
@@ -154,6 +156,8 @@ BdrvDirtyBitmap *block_dirty_bitmap_remove(const char *node, const char *name,
     BlockDriverState *bs;
     BdrvDirtyBitmap *bitmap;
     AioContext *aio_context;
+
+    assert(qemu_in_main_thread());
 
     bitmap = block_dirty_bitmap_lookup(node, name, &bs, errp);
     if (!bitmap || !bs) {
@@ -260,6 +264,8 @@ BdrvDirtyBitmap *block_dirty_bitmap_merge(const char *node, const char *target,
     BdrvDirtyBitmap *dst, *src, *anon;
     BlockDirtyBitmapMergeSourceList *lst;
     Error *local_err = NULL;
+
+    assert(qemu_in_main_thread());
 
     dst = block_dirty_bitmap_lookup(node, target, &bs, errp);
     if (!dst) {
