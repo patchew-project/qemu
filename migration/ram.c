@@ -2143,6 +2143,17 @@ static int ram_save_target_page(RAMState *rs, PageSearchStatus *pss,
     ram_addr_t offset = ((ram_addr_t)pss->page) << TARGET_PAGE_BITS;
     int res;
 
+    /*
+     * Do not use multifd for:
+     * 1. Compression as the first page in the new block should be posted out
+     *    before sending the compressed page
+     * 2. In postcopy as one whole host page should be placed
+     */
+    if (!save_page_use_compression(rs) && migrate_use_multifd()
+        && !migration_in_postcopy()) {
+        return ram_save_multifd_page(rs, block, offset);
+    }
+
     if (control_save_page(rs, block, offset, &res)) {
         return res;
     }
@@ -2163,17 +2174,6 @@ static int ram_save_target_page(RAMState *rs, PageSearchStatus *pss,
         }
         ram_release_pages(block->idstr, offset, res);
         return res;
-    }
-
-    /*
-     * Do not use multifd for:
-     * 1. Compression as the first page in the new block should be posted out
-     *    before sending the compressed page
-     * 2. In postcopy as one whole host page should be placed
-     */
-    if (!save_page_use_compression(rs) && migrate_use_multifd()
-        && !migration_in_postcopy()) {
-        return ram_save_multifd_page(rs, block, offset);
     }
 
     return ram_save_page(rs, pss, last_stage);
