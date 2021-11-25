@@ -427,6 +427,11 @@ static inline RISCVMXL riscv_cpu_mxl(CPURISCVState *env)
 
 RISCVMXL cpu_get_xl(CPURISCVState *env);
 
+static inline int riscv_cpu_xlen(CPURISCVState *env)
+{
+    return 16 << env->xl;
+}
+
 /*
  * A simplification for VLMAX
  * = (1 << LMUL) * VLEN / (8 * (1 << SEW))
