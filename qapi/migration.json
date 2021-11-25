@@ -1850,6 +1850,53 @@
 { 'command': 'query-dirty-rate', 'returns': 'DirtyRateInfo' }
 
 ##
+# @set-dirty-limit:
+#
+# Set the upper limit of dirty page rate for a vCPU.
+#
+# This command could be used to cap the vCPU memory load, which is also
+# refered as "dirty page rate". Users can use set-dirty-limit unconditionally,
+# but if one want to know which vCPU is in high memory load and which vCPU
+# should be limited, using calc-dirty-rate command with dirty-ring mode maybe
+# an availiable method. Note that this command requires support from dirty
+# ring, which means property "dirty-ring-size" of accelerator object "kvm"
+# must be set.
+#
+# @cpu-index: vCPU index to set dirty page limit.
+#
+# @dirty-rate: upper limit for the specified vCPU's dirty page rate (MB/s)
+#
+# Since: 7.0
+#
+# Example:
+#   {"execute": "set-dirty-limit"}
+#    "arguments": { "cpu-index": 0,
+#                   "dirty-rate": 200 } }
+#
+##
+{ 'command': 'set-dirty-limit',
+  'data': { 'cpu-index': 'int', 'dirty-rate': 'uint64' } }
+
+##
+# @cancel-dirty-limit:
+#
+# Cancel the dirty page limit for the vCPU which has been set with
+# set-dirty-limit command. Note that this command requires support from
+# dirty ring, same as the "set-dirty-limit" command.
+#
+# @cpu-index: vCPU index to cancel the dirty page limit
+#
+# Since: 7.0
+#
+# Example:
+#   {"execute": "cancel-dirty-limit"}
+#    "arguments": { "cpu-index": 0 } }
+#
+##
+{ 'command': 'cancel-dirty-limit',
+  'data': { 'cpu-index': 'int' } }
+
+##
 # @snapshot-save:
 #
 # Save a VM snapshot
