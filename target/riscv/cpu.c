@@ -421,6 +421,7 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
     RISCVCPU *cpu = RISCV_CPU(dev);
     CPURISCVState *env = &cpu->env;
     RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(dev);
+    CPUClass *cc = CPU_CLASS(mcc);
     int priv_version = 0;
     Error *local_err = NULL;
 
@@ -471,9 +472,11 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
     switch (env->misa_mxl_max) {
 #ifdef TARGET_RISCV64
     case MXL_RV64:
+        cc->gdb_core_xml_file = "riscv-64bit-cpu.xml";
         break;
 #endif
     case MXL_RV32:
+        cc->gdb_core_xml_file = "riscv-32bit-cpu.xml";
         break;
     default:
         g_assert_not_reached();
