@@ -245,6 +245,7 @@ static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
     NetClientState *nc = qemu_get_queue(n->nic);
     int queue_pairs = n->multiqueue ? n->max_queue_pairs : 1;
     int cvq = n->max_ncs - n->max_queue_pairs;
+    bool tap_backend = nc->peer->info->type == NET_CLIENT_DRIVER_TAP;
 
     if (!get_vhost_net(nc->peer)) {
         return;
@@ -258,9 +259,9 @@ static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
         int r, i;
 
         if (n->needs_vnet_hdr_swap) {
-            error_report("backend does not support %s vnet headers; "
-                         "falling back on userspace virtio",
-                         virtio_is_big_endian(vdev) ? "BE" : "LE");
+            error_report("backend does not support %s vnet headers%s",
+                    virtio_is_big_endian(vdev) ? "BE" : "LE",
+                    tap_backend ? "; falling back on userspace virtio" : "");
             return;
         }
 
@@ -288,8 +289,8 @@ static void virtio_net_vhost_status(VirtIONet *n, uint8_t status)
         n->vhost_started = 1;
         r = vhost_net_start(vdev, n->nic->ncs, queue_pairs, cvq);
         if (r < 0) {
-            error_report("unable to start vhost net: %d: "
-                         "falling back on userspace virtio", -r);
+            error_report("unable to start vhost net: %d%s", -r,
+                       tap_backend ? " falling back on userspace virtio" : "");
             n->vhost_started = 0;
         }
     } else {
