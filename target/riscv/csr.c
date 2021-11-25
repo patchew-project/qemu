@@ -553,6 +553,7 @@ static RISCVException write_mstatus(CPURISCVState *env, int csrno,
         mstatus = set_field(mstatus, MSTATUS64_UXL, MXL_RV64);
     }
     env->mstatus = mstatus;
+    env->xl = cpu_get_xl(env);
 
     return RISCV_EXCP_NONE;
 }
@@ -654,6 +655,7 @@ static RISCVException write_misa(CPURISCVState *env, int csrno,
     /* flush translation cache */
     tb_flush(env_cpu(env));
     env->misa_ext = val;
+    env->xl = riscv_cpu_mxl(env);
     return RISCV_EXCP_NONE;
 }
 

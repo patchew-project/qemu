@@ -138,6 +138,7 @@ struct CPURISCVState {
     uint32_t misa_mxl_max;  /* max mxl for this cpu */
     uint32_t misa_ext;      /* current extensions */
     uint32_t misa_ext_mask; /* max ext for this cpu */
+    uint32_t xl;            /* current xlen */
 
     uint32_t features;
 
@@ -419,6 +420,8 @@ static inline RISCVMXL riscv_cpu_mxl(CPURISCVState *env)
     return env->misa_mxl;
 }
 #endif
+
+RISCVMXL cpu_get_xl(CPURISCVState *env);
 
 /*
  * A simplification for VLMAX

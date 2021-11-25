@@ -35,7 +35,7 @@ int riscv_cpu_mmu_index(CPURISCVState *env, bool ifetch)
 #endif
 }
 
-static RISCVMXL cpu_get_xl(CPURISCVState *env)
+RISCVMXL cpu_get_xl(CPURISCVState *env)
 {
 #if defined(TARGET_RISCV32)
     return MXL_RV32;
@@ -330,6 +330,7 @@ void riscv_cpu_set_mode(CPURISCVState *env, target_ulong newpriv)
     }
     /* tlb_flush is unnecessary as mode is contained in mmu_idx */
     env->priv = newpriv;
+    env->xl = cpu_get_xl(env);
 
     /*
      * Clear the load reservation - otherwise a reservation placed in one
