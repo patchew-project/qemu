@@ -145,6 +145,13 @@ void helper_store_mmcr0(CPUPPCState *env, target_ulong value)
     }
 }
 
+void helper_store_mmcr1(CPUPPCState *env, uint64_t value)
+{
+    pmu_update_cycles(env);
+
+    env->spr[SPR_POWER_MMCR1] = value;
+}
+
 target_ulong helper_read_pmc(CPUPPCState *env, uint32_t sprn)
 {
     pmu_update_cycles(env);
