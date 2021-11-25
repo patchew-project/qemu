@@ -1407,6 +1407,10 @@ enum NvmeZoneAttr {
     NVME_ZA_ZD_EXT_VALID             = 1 << 7,
 };
 
+#define NVME_ZA_SET(za, attrs)   ((za) |= (attrs))
+#define NVME_ZA_CLEAR(za, attrs) ((za) &= ~(attrs))
+#define NVME_ZA_CLEAR_ALL(za)    ((za) = 0x0)
+
 typedef struct QEMU_PACKED NvmeZoneReportHeader {
     uint64_t    nr_zones;
     uint8_t     rsvd[56];

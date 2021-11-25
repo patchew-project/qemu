@@ -295,7 +295,7 @@ static void nvme_assign_zone_state(NvmeNamespace *ns, NvmeZone *zone,
     case NVME_ZONE_STATE_READ_ONLY:
         break;
     default:
-        zone->d.za = 0;
+        NVME_ZA_CLEAR_ALL(zone->d.za);
     }
 }
 
@@ -3357,7 +3357,7 @@ static uint16_t nvme_set_zd_ext(NvmeNamespace *ns, NvmeZone *zone)
             return status;
         }
         nvme_aor_inc_active(ns);
-        zone->d.za |= NVME_ZA_ZD_EXT_VALID;
+        NVME_ZA_SET(zone->d.za, NVME_ZA_ZD_EXT_VALID);
         nvme_assign_zone_state(ns, zone, NVME_ZONE_STATE_CLOSED);
         return NVME_SUCCESS;
     }
