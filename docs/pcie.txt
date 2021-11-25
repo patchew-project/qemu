@@ -262,10 +262,25 @@ PCI Express Root Ports (and PCI Express Downstream Ports).
         Port, which may come handy for hot-plugging another device.
 
 
-5.3 Hot-plug example:
+5.2 Hot-plug example:
 Using HMP: (add -monitor stdio to QEMU command line)
   device_add <dev>,id=<id>,bus=<PCI Express Root Port Id/PCI Express Downstream Port Id/PCI-PCI Bridge Id/>
 
+
+5.3 A word of caution using hotplug on PCI Express Root Ports:
+Starting Qemu version 6.2, PCI Express Root ports have a property
+"x-native-hotplug" ("native-hotplug" for Qemu version 6.1), that can be used to
+enable or disable hotplug on that port. For example:
+
+-device pcie-root-port,x-native-hotplug=off,... etc.
+
+The "x-" prefix indicates that this property is highly experimental and can
+lead to unexpected results from the guest operating system if users try to use
+it to alter the native hotplug on the port. It also means that the property
+name and its behavior is liable to change in the future and is not expected to
+be stable across Qemu versions. Therefore, end users are advised not to change
+the value of this option from its default set value or use it in the Qemu
+command line.
 
 6. Device assignment
 ====================
