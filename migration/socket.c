@@ -152,7 +152,7 @@ socket_start_incoming_migration_internal(SocketAddress *saddr,
     QIONetListener *listener = qio_net_listener_new();
     MigrationIncomingState *mis = migration_incoming_get_current();
     size_t i;
-    int num = 1;
+    int num = 16;
 
     qio_net_listener_set_name(listener, "migration-socket-listener");
 
