@@ -1109,7 +1109,7 @@ static void *multifd_recv_thread(void *opaque)
 
         if (flags & MULTIFD_FLAG_SYNC) {
             qemu_sem_post(&multifd_recv_state->sem_sync);
-            qemu_sem_wait(&p->sem_sync);
+            qemu_sem_timedwait(&p->sem_sync, 1000);
         }
     }
 
