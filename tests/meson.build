@@ -1,6 +1,7 @@
 py3 = import('python').find_installation()
 
 subdir('bench')
+subdir('bsd-user-smoke')
 
 test_qapi_outputs = [
   'qapi-builtin-types.c',
