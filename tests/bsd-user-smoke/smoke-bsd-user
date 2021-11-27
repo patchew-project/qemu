@@ -1,0 +1,22 @@
+#!/bin/sh
+
+build=$1
+testing=$2
+
+smoke_one() {
+	local a=$1 q=$2
+
+	echo Hello World > foo1
+	$build/qemu-$q $testing/h.$a > foo2 || die "cmd failed: $build/qemu-$q $testing/h.$a"
+	cmp foo1 foo2 || die "Hello World expected"
+	rm foo1 foo2
+}
+
+die() {
+	echo $1
+	exit 1
+}
+
+smoke_one amd64 x86_64
+smoke_one armv7 arm
+smoke_one i386 i386
