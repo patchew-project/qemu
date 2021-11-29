@@ -157,6 +157,10 @@ enum {
 #define NBD_FLAG_SEND_RESIZE       (1 << NBD_FLAG_SEND_RESIZE_BIT)
 #define NBD_FLAG_SEND_CACHE        (1 << NBD_FLAG_SEND_CACHE_BIT)
 #define NBD_FLAG_SEND_FAST_ZERO    (1 << NBD_FLAG_SEND_FAST_ZERO_BIT)
+/*
+ * WARNING! If you add any new NBD_FLAG_ flag, check that logic in
+ * nbd_is_new_info_compatible() is still good about handling flags.
+ */
 
 /* New-style handshake (global) flags, sent from server to client, and
    control what will happen during handshake phase. */
@@ -304,6 +308,11 @@ struct NBDExportInfo {
     uint32_t max_block;
 
     uint32_t context_id;
+
+    /*
+     * WARNING! When adding any new field to the structure, don't forget
+     * to check and update the nbd_is_new_info_compatible() function.
+     */
 
     /* Set by server results during nbd_receive_export_list() */
     char *description;

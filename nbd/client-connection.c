@@ -37,6 +37,10 @@ struct NBDClientConnection {
     bool do_negotiation;
     bool do_retry;
 
+    /* Used only by connection thread, does not need mutex protection */
+    bool has_prev_info;
+    NBDExportInfo prev_info;
+
     QemuMutex mutex;
 
     /*
@@ -160,6 +164,69 @@ static int nbd_connect(QIOChannelSocket *sioc, SocketAddress *addr,
     return 0;
 }
 
+static bool nbd_is_new_info_compatible(NBDExportInfo *old, NBDExportInfo *new,
+                                       Error **errp)
+{
+    uint32_t dropped_flags;
+
+    if (old->structured_reply && !new->structured_reply) {
+        error_setg(errp, "Server options degraded after reconnect: "
+                   "structured_reply is not supported anymore");
+        return false;
+    }
+
+    if (old->base_allocation) {
+        if (!new->base_allocation) {
+            error_setg(errp, "Server options degraded after reconnect: "
+                       "base_allocation is not supported anymore");
+            return false;
+        }
+
+        if (old->context_id != new->context_id) {
+            error_setg(errp, "Meta context id changed after reconnect");
+            return false;
+        }
+    }
+
+    if (old->size != new->size) {
+        error_setg(errp, "NBD export size changed after reconnect");
+        return false;
+    }
+
+    /*
+     * No worry if rotational status changed.
+     *
+     * Also, we can't handle NBD_FLAG_READ_ONLY properly at this level: we don't
+     * actually know, does our client need write access or not. So, it's handled
+     * in block layer in nbd_handle_updated_info().
+     *
+     * All other flags are feature flags, they should not degrade.
+     */
+    dropped_flags = (old->flags & ~new->flags) &
+        ~(NBD_FLAG_ROTATIONAL | NBD_FLAG_READ_ONLY);
+    if (dropped_flags) {
+        error_setg(errp, "Server options degraded after reconnect: flags 0x%"
+                   PRIx32 " are not reported anymore", dropped_flags);
+        return false;
+    }
+
+    if (new->min_block > old->min_block) {
+        error_setg(errp, "Server requires more strict min_block after "
+                   "reconnect: %" PRIu32 " instead of %" PRIu32,
+                   new->min_block, old->min_block);
+        return false;
+    }
+
+    if (new->max_block < old->max_block) {
+        error_setg(errp, "Server requires more strict max_block after "
+                   "reconnect: %" PRIu32 " instead of %" PRIu32,
+                   new->max_block, old->max_block);
+        return false;
+    }
+
+    return true;
+}
+
 static void *connect_thread_func(void *opaque)
 {
     NBDClientConnection *conn = opaque;
@@ -182,6 +249,27 @@ static void *connect_thread_func(void *opaque)
         ret = nbd_connect(conn->sioc, conn->saddr,
                           conn->do_negotiation ? &conn->updated_info : NULL,
                           conn->tlscreds, &conn->ioc, &conn->err);
+
+        if (ret == 0) {
+            if (conn->has_prev_info &&
+                !nbd_is_new_info_compatible(&conn->prev_info,
+                                            &conn->updated_info, &conn->err))
+            {
+                NBDRequest request = { .type = NBD_CMD_DISC };
+                QIOChannel *ioc = conn->ioc ?: QIO_CHANNEL(conn->sioc);
+
+                nbd_send_request(ioc, &request);
+                qio_channel_close(ioc, NULL);
+
+                object_unref(OBJECT(conn->ioc));
+                conn->ioc = NULL;
+
+                ret = -EINVAL;
+            } else {
+                conn->prev_info = conn->updated_info;
+                conn->has_prev_info = true;
+            }
+        }
 
         /*
          * conn->updated_info will finally be returned to the user. Clear the
