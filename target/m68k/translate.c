@@ -4863,6 +4863,22 @@ DISAS_INSN(trap)
     gen_exception(s, s->base.pc_next, EXCP_TRAP0 + (insn & 0xf));
 }
 
+static void do_trapcc(DisasContext *s, int cond)
+{
+    TCGLabel *over = gen_new_label();
+
+    /* Jump over if !cond. */
+    gen_jmpcc(s, cond ^ 1, over);
+
+    gen_exception(s, s->base.pc_next, EXCP_TRAPCC);
+    gen_set_label(over);
+}
+
+DISAS_INSN(trapv)
+{
+    do_trapcc(s, 9); /* VS */
+}
+
 static void gen_load_fcr(DisasContext *s, TCGv res, int reg)
 {
     switch (reg) {
@@ -6026,6 +6042,7 @@ void register_m68k_insns (CPUM68KState *env)
     BASE(nop,       4e71, ffff);
     INSN(rtd,       4e74, ffff, RTD);
     BASE(rts,       4e75, ffff);
+    INSN(trapv,     4e76, ffff, M68000);
     INSN(rtr,       4e77, ffff, M68000);
     BASE(jump,      4e80, ffc0);
     BASE(jump,      4ec0, ffc0);
