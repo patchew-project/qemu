@@ -31,3 +31,8 @@ runstate_set(int current_state, const char *current_state_str, int new_state, co
 system_wakeup_request(int reason) "reason=%d"
 qemu_system_shutdown_request(int reason) "reason=%d"
 qemu_system_powerdown_request(void) ""
+
+#cpu-throttle.c
+dirtylimit_state_init(int max_cpus) "dirtylimit state init: max cpus %d"
+dirtylimit_impose(int cpu_index, uint64_t quota, uint64_t current, int pct) "CPU[%d] impose dirtylimit: quota %" PRIu64 ", current %" PRIu64 ", percentage %d"
+dirtylimit_vcpu(int cpu_index, uint64_t quota) "CPU[%d] set quota dirtylimit %"PRIu64
