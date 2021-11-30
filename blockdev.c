@@ -83,6 +83,11 @@ static const char *const if_name[IF_COUNT] = {
     [IF_XEN] = "xen",
 };
 
+const char *block_if_name(BlockInterfaceType iface)
+{
+    return if_name[iface];
+}
+
 static int if_max_devs[IF_COUNT] = {
     /*
      * Do not change these numbers!  They govern how drive option
