@@ -78,6 +78,7 @@ struct QIOChannel {
     AioContext *ctx;
     Coroutine *read_coroutine;
     Coroutine *write_coroutine;
+    bool force_quit;
 #ifdef _WIN32
     HANDLE event; /* For use with GSource on Win32 */
 #endif
@@ -483,6 +484,24 @@ int qio_channel_write_all(QIOChannel *ioc,
 int qio_channel_set_blocking(QIOChannel *ioc,
                              bool enabled,
                              Error **errp);
+
+/**
+ * qio_channel_force_quit:
+ * @ioc: the channel object
+ * @quit: the new flag state
+ *
+ * Set the new flag state
+ */
+void qio_channel_set_force_quit(QIOChannel *ioc, bool quit);
+
+/**
+ * qio_channel_coroutines_wake:
+ * @ioc: the channel object
+ *
+ * Wake up the coroutines to ensure that they will exit normally
+ * when the server terminated abnormally
+ */
+void qio_channel_coroutines_wake(QIOChannel *ioc);
 
 /**
  * qio_channel_close:

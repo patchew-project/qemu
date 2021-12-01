@@ -136,6 +136,9 @@ int qio_channel_readv_full_all_eof(QIOChannel *ioc,
         if (len == QIO_CHANNEL_ERR_BLOCK) {
             if (qemu_in_coroutine()) {
                 qio_channel_yield(ioc, G_IO_IN);
+                if (ioc->force_quit) {
+                    goto cleanup;
+                }
             } else {
                 qio_channel_wait(ioc, G_IO_IN);
             }
@@ -242,6 +245,9 @@ int qio_channel_writev_full_all(QIOChannel *ioc,
         if (len == QIO_CHANNEL_ERR_BLOCK) {
             if (qemu_in_coroutine()) {
                 qio_channel_yield(ioc, G_IO_OUT);
+                if (ioc->force_quit) {
+                    goto cleanup;
+                }
             } else {
                 qio_channel_wait(ioc, G_IO_OUT);
             }
@@ -543,6 +549,9 @@ void coroutine_fn qio_channel_yield(QIOChannel *ioc,
     }
     qio_channel_set_aio_fd_handlers(ioc);
     qemu_coroutine_yield();
+    if (ioc->force_quit) {
+        return;
+    }
 
     /* Allow interrupting the operation by reentering the coroutine other than
      * through the aio_fd_handlers. */
@@ -555,6 +564,19 @@ void coroutine_fn qio_channel_yield(QIOChannel *ioc,
     }
 }
 
+void qio_channel_set_force_quit(QIOChannel *ioc, bool quit)
+{
+    ioc->force_quit = quit;
+}
+
+void qio_channel_coroutines_wake(QIOChannel *ioc)
+{
+    if (ioc->read_coroutine) {
+        qio_channel_restart_read(ioc);
+    } else if (ioc->write_coroutine) {
+        qio_channel_restart_write(ioc);
+    }
+}
 
 static gboolean qio_channel_wait_complete(QIOChannel *ioc,
                                           GIOCondition condition,
