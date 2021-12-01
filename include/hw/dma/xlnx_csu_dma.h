@@ -25,6 +25,7 @@
 #include "hw/register.h"
 #include "hw/ptimer.h"
 #include "hw/stream.h"
+#include "hw/dma/dma-ctrl-if.h"
 
 #define TYPE_XLNX_CSU_DMA "xlnx.csu_dma"
 
@@ -46,6 +47,9 @@ typedef struct XlnxCSUDMA {
 
     StreamCanPushNotifyFn notify;
     void *notify_opaque;
+
+    dmactrlif_notify_fn dmactrlif_notify;
+    void *dmactrlif_opaque;
 
     uint32_t regs[XLNX_CSU_DMA_R_MAX];
     RegisterInfo regs_info[XLNX_CSU_DMA_R_MAX];

@@ -277,6 +277,11 @@ static uint32_t xlnx_csu_dma_advance(XlnxCSUDMA *s, uint32_t len)
         s->regs[R_ADDR_MSB] = dst >> 32;
     }
 
+    /* Notify dma-ctrl-if clients when the transfer has been completed */
+    if (size == 0 && s->dmactrlif_notify) {
+        s->dmactrlif_notify(s->dmactrlif_opaque);
+    }
+
     if (size == 0) {
         xlnx_csu_dma_done(s);
     }
@@ -470,6 +475,29 @@ static void int_disable_post_write(RegisterInfo *reg, uint64_t val)
 static uint64_t addr_msb_pre_write(RegisterInfo *reg, uint64_t val)
 {
     return val & R_ADDR_MSB_ADDR_MSB_MASK;
+}
+
+static void xlnx_csu_dma_dma_ctrl_if_read(DmaCtrlIf *dma, hwaddr addr,
+                                          uint32_t len, DmaCtrlIfNotify *notify,
+                                          bool start_dma)
+{
+    XlnxCSUDMA *s = XLNX_CSU_DMA(dma);
+    RegisterInfo *reg = &s->regs_info[R_SIZE];
+    uint64_t we = MAKE_64BIT_MASK(0, 4 * 8);
+
+    s->regs[R_ADDR] = addr;
+    s->regs[R_ADDR_MSB] = (uint64_t)addr >> 32;
+
+    if (notify) {
+        s->dmactrlif_notify = notify->cb;
+        s->dmactrlif_opaque = notify->opaque;
+    }
+
+    if (start_dma) {
+        register_write(reg, len, we, object_get_typename(OBJECT(s)), false);
+    } else {
+        s->regs[R_SIZE] = len;
+    }
 }
 
 static const RegisterAccessInfo *xlnx_csu_dma_regs_info[] = {
@@ -696,6 +724,7 @@ static void xlnx_csu_dma_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     StreamSinkClass *ssc = STREAM_SINK_CLASS(klass);
+    DmaCtrlIfClass *dcic = DMA_CTRL_IF_CLASS(klass);
 
     dc->reset = xlnx_csu_dma_reset;
     dc->realize = xlnx_csu_dma_realize;
@@ -704,6 +733,8 @@ static void xlnx_csu_dma_class_init(ObjectClass *klass, void *data)
 
     ssc->push = xlnx_csu_dma_stream_push;
     ssc->can_push = xlnx_csu_dma_stream_can_push;
+
+    dcic->read = xlnx_csu_dma_dma_ctrl_if_read;
 }
 
 static void xlnx_csu_dma_init(Object *obj)
@@ -731,6 +762,7 @@ static const TypeInfo xlnx_csu_dma_info = {
     .instance_init = xlnx_csu_dma_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_STREAM_SINK },
+        { TYPE_DMA_CTRL_IF },
         { }
     }
 };
