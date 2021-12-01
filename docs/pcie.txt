@@ -262,7 +262,7 @@ PCI Express Root Ports (and PCI Express Downstream Ports).
         Port, which may come handy for hot-plugging another device.
 
 
-5.3 Hot-plug example:
+5.2 Hot-plug example:
 Using HMP: (add -monitor stdio to QEMU command line)
   device_add <dev>,id=<id>,bus=<PCI Express Root Port Id/PCI Express Downstream Port Id/PCI-PCI Bridge Id/>
 
