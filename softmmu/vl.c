@@ -1038,7 +1038,12 @@ void qemu_init(int argc, char **argv, char **envp)
         }
     }
 
-    qemu_until_phase(PHASE_MACHINE_READY);
+    /*
+     * FIXME need to force phase, because staying in PHASE_NO_MACHINE
+     * crashes, and going only to PHASE_MACHINE_CREATED or
+     * PHASE_ACCEL_CREATED gives no monitor.
+     */
+    qemu_until_phase(PHASE_MACHINE_INITIALIZED);
 }
 
 void qemu_until_phase(MachineInitPhase phase)
