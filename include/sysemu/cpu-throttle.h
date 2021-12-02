@@ -65,4 +65,49 @@ bool cpu_throttle_active(void);
  */
 int cpu_throttle_get_percentage(void);
 
+/**
+ * dirtylimit_enabled
+ *
+ * Returns: %true if dirty page limit for vCPU is enabled, %false otherwise.
+ */
+bool dirtylimit_enabled(int cpu_index);
+
+/**
+ * dirtylimit_is_vcpu_index_valid
+ *
+ * Returns: %true if cpu index valid, %false otherwise.
+ */
+bool dirtylimit_is_vcpu_index_valid(int cpu_index);
+
+/**
+ * dirtylimit_state_init:
+ *
+ * initialize golobal state for dirtylimit
+ */
+void dirtylimit_state_init(int max_cpus);
+
+/**
+ * dirtylimit_vcpu:
+ *
+ * impose dirtylimit on vcpu util reaching the quota dirtyrate
+ */
+void dirtylimit_vcpu(int cpu_index,
+                     uint64_t quota);
+
+/**
+ * dirtylimit_query_vcpu:
+ *
+ * Returns: dirty page limit information of specified virtual CPU.
+ */
+struct DirtyLimitInfo *dirtylimit_query_vcpu(int cpu_index);
+
+/**
+ * dirtylimit_cancel_vcpu:
+ *
+ * cancel dirtylimit for the specified vcpu
+ *
+ * Returns: the number of running threads for dirtylimit
+ */
+int dirtylimit_cancel_vcpu(int cpu_index);
+
 #endif /* SYSEMU_CPU_THROTTLE_H */
