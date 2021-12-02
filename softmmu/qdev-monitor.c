@@ -1041,11 +1041,13 @@ int qemu_global_option(const char *str)
 
 bool qmp_command_available(const QmpCommand *cmd, Error **errp)
 {
+#if 0
     if (!phase_check(PHASE_MACHINE_READY) &&
         !(cmd->options & QCO_ALLOW_PRECONFIG)) {
         error_setg(errp, "The command '%s' is permitted only after machine initialization has completed",
                    cmd->name);
         return false;
     }
+#endif
     return true;
 }
