@@ -24,6 +24,7 @@
 #include "hw/sysbus.h"
 #include "sysemu/cpus.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/phase.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
 #include "sysemu/numa.h"

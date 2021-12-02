@@ -2591,6 +2591,7 @@ F: softmmu/cpu-timers.c
 F: softmmu/icount.c
 F: softmmu/runstate-action.c
 F: qapi/run-state.json
+F: qapi/phase.json
 
 Read, Copy, Update (RCU)
 M: Paolo Bonzini <pbonzini@redhat.com>

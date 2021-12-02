@@ -27,6 +27,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/qapi-types-phase.h"
 #include "qapi/qapi-events-qdev.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qerror.h"
@@ -39,6 +40,7 @@
 #include "hw/sysbus.h"
 #include "hw/qdev-clock.h"
 #include "migration/vmstate.h"
+#include "sysemu/phase.h"
 #include "trace.h"
 
 static bool qdev_hot_added = false;

@@ -37,6 +37,7 @@
 #include "qemu/option.h"
 #include "qemu/units.h"
 #include "sysemu/block-backend.h"
+#include "sysemu/phase.h"
 #include "sysemu/runstate.h"
 #include "trace.h"
 

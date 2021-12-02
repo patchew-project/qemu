@@ -37,6 +37,7 @@
 #include "qemu/cutils.h"
 #include "qemu/help_option.h"
 #include "qemu/uuid.h"
+#include "sysemu/phase.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
 #include "sysemu/runstate-action.h"
@@ -120,6 +121,7 @@
 #include "qapi/qapi-commands-block-core.h"
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/qapi-commands-misc.h"
+#include "qapi/qapi-commands-phase.h"
 #include "qapi/qapi-visit-qom.h"
 #include "qapi/qapi-commands-ui.h"
 #include "qapi/qmp/qdict.h"
@@ -1182,5 +1184,18 @@ void qemu_until_phase(MachineInitPhase phase)
 
     case PHASE_MACHINE_READY:
         break;
+
+    default:
+        assert(0);
     }
+}
+
+void qmp_until_phase(MachineInitPhase phase, Error **errp)
+{
+    if (phase < phase_get()) {
+        error_setg(errp, "too late");
+        return;
+    }
+
+    qemu_until_phase(phase);
 }

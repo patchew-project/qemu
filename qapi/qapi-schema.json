@@ -64,6 +64,7 @@
 { 'include': 'common.json' }
 { 'include': 'sockets.json' }
 { 'include': 'run-state.json' }
+{ 'include': 'phase.json' }
 { 'include': 'crypto.json' }
 { 'include': 'block.json' }
 { 'include': 'block-export.json' }

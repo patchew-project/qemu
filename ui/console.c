@@ -33,6 +33,7 @@
 #include "qemu/option.h"
 #include "qemu/timer.h"
 #include "chardev/char.h"
+#include "sysemu/phase.h"
 #include "trace.h"
 #include "exec/memory.h"
 #include "io/channel-file.h"

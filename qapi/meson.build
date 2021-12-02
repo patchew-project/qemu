@@ -41,6 +41,7 @@ qapi_all_modules = [
   'misc',
   'misc-target',
   'net',
+  'phase',
   'pragma',
   'qom',
   'replay',
