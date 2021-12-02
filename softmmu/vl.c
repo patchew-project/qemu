@@ -1043,7 +1043,8 @@ void qemu_until_phase(void)
     MachineClass *machine_class;
     FILE *vmstate_dump_file = NULL;
 
-    assert(phase_get() == PHASE_NO_MACHINE);
+    switch (phase_get()) {
+    case PHASE_NO_MACHINE:
 
     qemu_process_early_options();
 
@@ -1077,12 +1078,18 @@ void qemu_until_phase(void)
     qemu_apply_machine_options(NULL);
     phase_advance(PHASE_MACHINE_CREATED);
 
+    /* fall through */
+    case PHASE_MACHINE_CREATED:
+
     /*
      * Note: uses machine properties such as kernel-irqchip, must run
      * after qemu_apply_machine_options.
      */
     configure_accelerators("FIXME");
     phase_advance(PHASE_ACCEL_CREATED);
+
+    /* fall through */
+    case PHASE_ACCEL_CREATED:
 
     /*
      * Beware, QOM objects created before this point miss global and
@@ -1128,7 +1135,13 @@ void qemu_until_phase(void)
     }
 
     qemu_init_board();
+    assert(phase_get() == PHASE_MACHINE_INITIALIZED);
+
+    /* fall through */
+    case PHASE_MACHINE_INITIALIZED:
+
     qemu_machine_creation_done();
+    assert(phase_get() == PHASE_MACHINE_READY);
 
     if (replay_mode != REPLAY_MODE_NONE) {
         replay_vmstate_init();
@@ -1151,4 +1164,8 @@ void qemu_until_phase(void)
     accel_setup_post(current_machine);
     os_setup_post();
     resume_mux_open();
+
+    case PHASE_MACHINE_READY:
+        break;
+    }
 }
