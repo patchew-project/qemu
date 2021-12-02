@@ -684,12 +684,12 @@ print_ipc(void *cpu_env, const struct syscallname *name,
  */
 
 static bool
-print_syscall_err(abi_long ret)
+print_syscall_err(abi_ulong ret)
 {
     const char *errstr;
 
     qemu_log(" = ");
-    if (ret < 0) {
+    if (ret > -4096) {
         errstr = target_strerror(-ret);
         if (errstr) {
             qemu_log("-1 errno=%d (%s)", (int)-ret, errstr);
