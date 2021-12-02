@@ -1872,6 +1872,54 @@
             'current-rate': 'int64' } }
 
 ##
+# @vcpu-dirty-limit:
+#
+# Set or cancel the upper limit of dirty page rate for a virtual CPU.
+#
+# Requires KVM with accelerator property "dirty-ring-size" set.
+# A virtual CPU's dirty page rate is a measure of its memory load.
+# To observe dirty page rates, use @calc-dirty-rate.
+#
+# @cpu-index: index of virtual CPU.
+#
+# @enable: true to enable, false to disable.
+#
+# @dirty-rate: upper limit of dirty page rate for virtual CPU.
+#
+# Since: 7.0
+#
+# Example:
+#   {"execute": "vcpu-dirty-limit"}
+#    "arguments": { "cpu-index": 0,
+#                   "enable": true,
+#                   "dirty-rate": 200 } }
+#
+##
+{ 'command': 'vcpu-dirty-limit',
+  'data': { 'cpu-index': 'int',
+            'enable': 'bool',
+            'dirty-rate': 'uint64'} }
+
+##
+# @query-vcpu-dirty-limit:
+#
+# Returns information about the virtual CPU dirty limit status.
+#
+# @cpu-index: index of the virtual CPU to query, if not specified, all
+#             virtual CPUs will be queried.
+#
+# Since: 7.0
+#
+# Example:
+#   {"execute": "query-vcpu-dirty-limit"}
+#    "arguments": { "cpu-index": 0 } }
+#
+##
+{ 'command': 'query-vcpu-dirty-limit',
+  'data': { '*cpu-index': 'int' },
+  'returns': [ 'DirtyLimitInfo' ] }
+
+##
 # @snapshot-save:
 #
 # Save a VM snapshot
