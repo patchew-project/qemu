@@ -1005,6 +1005,12 @@ static void pnv_phb3_realize(DeviceState *dev, Error **errp)
             error_setg(errp, "invalid chip id: %d", phb->chip_id);
             return;
         }
+
+        /*
+         * Reparent user created devices to the chip to build
+         * correctly the device tree.
+         */
+        pnv_chip_parent_fixup(phb->chip, OBJECT(phb), phb->phb_id);
     }
 
     /* LSI sources */
