@@ -998,6 +998,15 @@ static void pnv_phb3_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    /* User created devices */
+    if (!phb->chip) {
+        phb->chip = pnv_get_chip(pnv, phb->chip_id);
+        if (!phb->chip) {
+            error_setg(errp, "invalid chip id: %d", phb->chip_id);
+            return;
+        }
+    }
+
     /* LSI sources */
     object_property_set_link(OBJECT(&phb->lsis), "xics", OBJECT(pnv),
                              &error_abort);
@@ -1105,7 +1114,7 @@ static void pnv_phb3_class_init(ObjectClass *klass, void *data)
     dc->realize = pnv_phb3_realize;
     device_class_set_props(dc, pnv_phb3_properties);
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-    dc->user_creatable = false;
+    dc->user_creatable = true;
 }
 
 static const TypeInfo pnv_phb3_type_info = {
