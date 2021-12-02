@@ -129,6 +129,7 @@
 
 #include "config-host.h"
 
+#include "monitor/monitor-internal.h"
 #include "qapi/qapi-commands-char.h"
 #include "qapi/qapi-types-control.h"
 
@@ -1010,6 +1011,31 @@ void qemu_init(int argc, char **argv, char **envp)
 #endif
 
     qemu_init_subsystems();
+
+    /*
+     * HACK to demonstrate feeding CLI to QMP
+     * Missing: translate CLI to QMP.  Instead, each CLI argument is
+     * parsed as a QMP command.
+     */
+    {
+        int i;
+        QObject *req;
+        QDict *resp, *error;
+
+        for (i = 1; argv[i]; i++) {
+            loc_set_cmdline(argv, i, 1);
+            req = qobject_from_json(argv[i], &error_fatal);
+            resp = qmp_dispatch(&qmp_commands, req, false, NULL);
+            error = qdict_get_qdict(resp, "error");
+            if (error) {
+                error_report("%s", qdict_get_str(error, "desc"));
+                exit(1);
+            }
+            /* TODO do something with the command's return valud? */
+            qobject_unref(resp);
+            qobject_unref(req);
+        }
+    }
 
     qemu_process_early_options();
 
