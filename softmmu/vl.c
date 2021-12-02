@@ -129,6 +129,9 @@
 
 #include "config-host.h"
 
+#include "qapi/qapi-commands-char.h"
+#include "qapi/qapi-types-control.h"
+
 static const char *incoming;
 static const char *accelerators;
 static ram_addr_t maxram_size;
@@ -617,6 +620,14 @@ static void qemu_create_early_backends(void)
     /* spice must initialize before audio as it changes the default auiodev */
     /* spice must initialize before chardevs (for spicevmc and spiceport) */
     qemu_spice.init();
+
+    /* HACK: hardcoded monitor chardev */
+    qmp_chardev_add("compat_monitor0", &(ChardevBackend){
+            .type = CHARDEV_BACKEND_KIND_STDIO,
+            .u.stdio = {
+                .data = &(ChardevStdio){},
+            },
+        }, &error_abort);
 }
 
 
@@ -627,6 +638,11 @@ static void qemu_create_late_backends(void)
     if (tpm_init() < 0) {
         exit(1);
     }
+
+    /* HACK: hardcoded monitor */
+    monitor_init(&(MonitorOptions){
+            .chardev = (char *)"compat_monitor0",
+        }, false, &error_abort);
 
     /* now chardevs have been created we may have semihosting to connect */
     qemu_semihosting_connect_chardevs();
