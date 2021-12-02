@@ -534,6 +534,9 @@ static void qemu_create_default_devices(void)
     if (dpy.type == DISPLAY_TYPE_DEFAULT) {
         dpy.type = DISPLAY_TYPE_NONE;
     }
+
+    /* HACK: hardcoded VGA device */
+    vga_interface_type = VGA_STD;
 }
 
 Chardev *serial_hd(int i)
