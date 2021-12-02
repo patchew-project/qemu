@@ -395,8 +395,7 @@ static void m68k_interrupt_all(CPUM68KState *env, int is_hw)
         break;
 
     case EXCP_ILLEGAL:
-        /* FIXME: addr is not only env->pc */
-        do_stack_frame(env, &sp, 2, oldsr, env->pc, env->pc);
+        do_stack_frame(env, &sp, 0, oldsr, 0, env->pc);
         break;
 
     case EXCP_CHK:
