@@ -963,7 +963,8 @@ static void qemu_machine_creation_done(void)
         assert(machine->cgs->ready);
     }
 }
-static void qemu_until_phase(void);
+
+static void qemu_until_phase(MachineInitPhase phase);
 
 void qemu_init(int argc, char **argv, char **envp)
 {
@@ -1035,16 +1036,21 @@ void qemu_init(int argc, char **argv, char **envp)
         }
     }
 
-    qemu_until_phase();
+    qemu_until_phase(PHASE_MACHINE_READY);
 }
 
-void qemu_until_phase(void)
+void qemu_until_phase(MachineInitPhase phase)
 {
     MachineClass *machine_class;
     FILE *vmstate_dump_file = NULL;
 
+    assert(phase >= phase_get());
+
     switch (phase_get()) {
     case PHASE_NO_MACHINE:
+    if (phase == PHASE_NO_MACHINE) {
+        break;
+    }
 
     qemu_process_early_options();
 
@@ -1080,6 +1086,9 @@ void qemu_until_phase(void)
 
     /* fall through */
     case PHASE_MACHINE_CREATED:
+    if (phase == PHASE_MACHINE_CREATED) {
+        break;
+    }
 
     /*
      * Note: uses machine properties such as kernel-irqchip, must run
@@ -1090,6 +1099,9 @@ void qemu_until_phase(void)
 
     /* fall through */
     case PHASE_ACCEL_CREATED:
+    if (phase == PHASE_ACCEL_CREATED) {
+        break;
+    }
 
     /*
      * Beware, QOM objects created before this point miss global and
@@ -1139,6 +1151,9 @@ void qemu_until_phase(void)
 
     /* fall through */
     case PHASE_MACHINE_INITIALIZED:
+    if (phase == PHASE_MACHINE_INITIALIZED) {
+        break;
+    }
 
     qemu_machine_creation_done();
     assert(phase_get() == PHASE_MACHINE_READY);
