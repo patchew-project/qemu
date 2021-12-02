@@ -1370,7 +1370,7 @@ static void pnv_chip_quad_realize(Pnv9Chip *chip9, Error **errp)
 static void pnv_chip_power9_phb_realize(PnvChip *chip, Error **errp)
 {
     Pnv9Chip *chip9 = PNV9_CHIP(chip);
-    int i, j;
+    int i;
 
     for (i = 0; i < chip->num_pecs; i++) {
         PnvPhb4PecState *pec = &chip9->pecs[i];
@@ -1392,35 +1392,6 @@ static void pnv_chip_power9_phb_realize(PnvChip *chip, Error **errp)
 
         pnv_xscom_add_subregion(chip, pec_nest_base, &pec->nest_regs_mr);
         pnv_xscom_add_subregion(chip, pec_pci_base, &pec->pci_regs_mr);
-
-        for (j = 0; j < pec->num_stacks; j++) {
-            PnvPhb4PecStack *stack = &pec->stacks[j];
-            Object *obj = OBJECT(&stack->phb);
-
-            object_property_set_int(obj, "chip-id", chip->chip_id,
-                                    &error_fatal);
-            object_property_set_int(obj, "version", pecc->version,
-                                    &error_fatal);
-            object_property_set_int(obj, "device-id", pecc->device_id,
-                                    &error_fatal);
-            object_property_set_link(obj, "stack", OBJECT(stack),
-                                     &error_abort);
-            if (!sysbus_realize(SYS_BUS_DEVICE(obj), errp)) {
-                return;
-            }
-
-            /* Populate the XSCOM address space. */
-            pnv_xscom_add_subregion(chip,
-                                   pec_nest_base + 0x40 * (stack->stack_no + 1),
-                                   &stack->nest_regs_mr);
-            pnv_xscom_add_subregion(chip,
-                                    pec_pci_base + 0x40 * (stack->stack_no + 1),
-                                    &stack->pci_regs_mr);
-            pnv_xscom_add_subregion(chip,
-                                    pec_pci_base + PNV9_XSCOM_PEC_PCI_STK0 +
-                                    0x40 * stack->stack_no,
-                                    &stack->phb_regs_mr);
-        }
     }
 }
 
