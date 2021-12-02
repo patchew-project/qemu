@@ -931,14 +931,6 @@ void hmp_system_powerdown(Monitor *mon, const QDict *qdict)
     qmp_system_powerdown(NULL);
 }
 
-void hmp_exit_preconfig(Monitor *mon, const QDict *qdict)
-{
-    Error *err = NULL;
-
-    qmp_x_exit_preconfig(&err);
-    hmp_handle_error(mon, err);
-}
-
 void hmp_cpu(Monitor *mon, const QDict *qdict)
 {
     int64_t cpu_index;

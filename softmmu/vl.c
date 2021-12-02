@@ -134,7 +134,6 @@ static const char *accelerators;
 static ram_addr_t maxram_size;
 static uint64_t ram_slots;
 static int display_remote;
-static bool preconfig_requested;
 static ram_addr_t ram_size;
 static DisplayOptions dpy;
 
@@ -945,34 +944,6 @@ static void qemu_machine_creation_done(void)
     }
 }
 
-void qmp_x_exit_preconfig(Error **errp)
-{
-    if (phase_check(PHASE_MACHINE_INITIALIZED)) {
-        error_setg(errp, "The command is permitted only before machine initialization");
-        return;
-    }
-
-    qemu_init_board();
-    qemu_machine_creation_done();
-
-    if (replay_mode != REPLAY_MODE_NONE) {
-        replay_vmstate_init();
-    }
-
-    if (incoming) {
-        Error *local_err = NULL;
-        if (strcmp(incoming, "defer") != 0) {
-            qmp_migrate_incoming(incoming, &local_err);
-            if (local_err) {
-                error_reportf_err(local_err, "-incoming %s: ", incoming);
-                exit(1);
-            }
-        }
-    } else if (autostart) {
-        qmp_cont(NULL);
-    }
-}
-
 void qemu_init(int argc, char **argv, char **envp)
 {
     MachineClass *machine_class;
@@ -1103,9 +1074,26 @@ void qemu_init(int argc, char **argv, char **envp)
         exit(0);
     }
 
-    if (!preconfig_requested) {
-        qmp_x_exit_preconfig(&error_fatal);
+    qemu_init_board();
+    qemu_machine_creation_done();
+
+    if (replay_mode != REPLAY_MODE_NONE) {
+        replay_vmstate_init();
     }
+
+    if (incoming) {
+        Error *local_err = NULL;
+        if (strcmp(incoming, "defer") != 0) {
+            qmp_migrate_incoming(incoming, &local_err);
+            if (local_err) {
+                error_reportf_err(local_err, "-incoming %s: ", incoming);
+                exit(1);
+            }
+        }
+    } else if (autostart) {
+        qmp_cont(NULL);
+    }
+
     qemu_init_displays();
     accel_setup_post(current_machine);
     os_setup_post();
