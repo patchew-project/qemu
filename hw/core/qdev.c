@@ -915,6 +915,11 @@ bool phase_check(MachineInitPhase phase)
     return machine_phase >= phase;
 }
 
+MachineInitPhase phase_get(void)
+{
+    return machine_phase;
+}
+
 void phase_advance(MachineInitPhase phase)
 {
     assert(machine_phase == phase - 1);

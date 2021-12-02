@@ -963,12 +963,10 @@ static void qemu_machine_creation_done(void)
         assert(machine->cgs->ready);
     }
 }
+static void qemu_until_phase(void);
 
 void qemu_init(int argc, char **argv, char **envp)
 {
-    MachineClass *machine_class;
-    FILE *vmstate_dump_file = NULL;
-
     qemu_add_opts(&qemu_drive_opts);
     qemu_add_drive_opts(&qemu_legacy_drive_opts);
     qemu_add_drive_opts(&qemu_common_drive_opts);
@@ -1037,6 +1035,16 @@ void qemu_init(int argc, char **argv, char **envp)
         }
     }
 
+    qemu_until_phase();
+}
+
+void qemu_until_phase(void)
+{
+    MachineClass *machine_class;
+    FILE *vmstate_dump_file = NULL;
+
+    assert(phase_get() == PHASE_NO_MACHINE);
+
     qemu_process_early_options();
 
     qemu_maybe_daemonize(pid_file);
@@ -1073,7 +1081,7 @@ void qemu_init(int argc, char **argv, char **envp)
      * Note: uses machine properties such as kernel-irqchip, must run
      * after qemu_apply_machine_options.
      */
-    configure_accelerators(argv[0]);
+    configure_accelerators("FIXME");
     phase_advance(PHASE_ACCEL_CREATED);
 
     /*

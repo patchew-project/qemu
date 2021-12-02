@@ -876,6 +876,7 @@ typedef enum MachineInitPhase {
 } MachineInitPhase;
 
 extern bool phase_check(MachineInitPhase phase);
+extern MachineInitPhase phase_get(void);
 extern void phase_advance(MachineInitPhase phase);
 
 #endif
