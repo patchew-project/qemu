@@ -79,7 +79,7 @@ struct Pnv8Chip {
     PnvOCC       occ;
     PnvHomer     homer;
 
-#define PNV8_CHIP_PHB3_MAX 4
+#define PNV8_CHIP_PHB3_MAX 3
     PnvPHB3      phbs[PNV8_CHIP_PHB3_MAX];
 
     XICSFabric    *xics;
