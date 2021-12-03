@@ -118,4 +118,5 @@ class TestRefcountTableGrowth(iotests.QMPTestCase):
 if __name__ == '__main__':
     iotests.activate_logging()
     iotests.main(supported_fmts=['qcow2'],
-                 supported_protocols=['file'])
+                 supported_protocols=['file'],
+                 unsupported_imgopts=['refcount_bits'])
