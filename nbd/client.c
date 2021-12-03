@@ -882,8 +882,8 @@ static int nbd_list_meta_contexts(QIOChannel *ioc,
 static int nbd_start_negotiate(AioContext *aio_context, QIOChannel *ioc,
                                QCryptoTLSCreds *tlscreds,
                                const char *hostname, QIOChannel **outioc,
-                               bool structured_reply, bool *zeroes,
-                               Error **errp)
+                               bool structured_reply, bool *ext_hdrs,
+                               bool *zeroes, Error **errp)
 {
     ERRP_GUARD();
     uint64_t magic;
@@ -960,6 +960,15 @@ static int nbd_start_negotiate(AioContext *aio_context, QIOChannel *ioc,
         if (fixedNewStyle) {
             int result = 0;
 
+            if (ext_hdrs && *ext_hdrs) {
+                result = nbd_request_simple_option(ioc,
+                                                   NBD_OPT_EXTENDED_HEADERS,
+                                                   false, errp);
+                if (result < 0) {
+                    return -EINVAL;
+                }
+                *ext_hdrs = result == 1;
+            }
             if (structured_reply) {
                 result = nbd_request_simple_option(ioc,
                                                    NBD_OPT_STRUCTURED_REPLY,
@@ -970,12 +979,18 @@ static int nbd_start_negotiate(AioContext *aio_context, QIOChannel *ioc,
             }
             return 2 + result;
         } else {
+            if (ext_hdrs) {
+                *ext_hdrs = false;
+            }
             return 1;
         }
     } else if (magic == NBD_CLIENT_MAGIC) {
         if (tlscreds) {
             error_setg(errp, "Server does not support STARTTLS");
             return -EINVAL;
+        }
+        if (ext_hdrs) {
+            *ext_hdrs = false;
         }
         return 0;
     } else {
@@ -1030,7 +1045,8 @@ int nbd_receive_negotiate(AioContext *aio_context, QIOChannel *ioc,
     trace_nbd_receive_negotiate_name(info->name);
 
     result = nbd_start_negotiate(aio_context, ioc, tlscreds, hostname, outioc,
-                                 info->structured_reply, &zeroes, errp);
+                                 info->structured_reply,
+                                 &info->extended_headers, &zeroes, errp);
 
     info->structured_reply = false;
     info->base_allocation = false;
@@ -1147,10 +1163,11 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
     int ret = -1;
     NBDExportInfo *array = NULL;
     QIOChannel *sioc = NULL;
+    bool ext_hdrs;
 
     *info = NULL;
     result = nbd_start_negotiate(NULL, ioc, tlscreds, hostname, &sioc, true,
-                                 NULL, errp);
+                                 &ext_hdrs, NULL, errp);
     if (tlscreds && sioc) {
         ioc = sioc;
     }
@@ -1179,6 +1196,7 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
             array[count - 1].name = name;
             array[count - 1].description = desc;
             array[count - 1].structured_reply = result == 3;
+            array[count - 1].extended_headers = ext_hdrs;
         }
 
         for (i = 0; i < count; i++) {
