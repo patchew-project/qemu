@@ -1744,3 +1744,19 @@ ERST
                       "\n\t\t\t -b to specify dirty bitmap as method of calculation)",
         .cmd        = hmp_calc_dirty_rate,
     },
+
+SRST
+``vcpu_dirty_limit``
+  Start dirty page rate limit on a virtual CPU, the information about all the
+  virtual CPU dirty limit status can be observed with ``info vcpu_dirty_limit``
+  command.
+ERST
+
+    {
+        .name       = "vcpu_dirty_limit",
+        .args_type  = "cpu_index:l,enable:b,dirty_rate:l?",
+        .params     = "cpu_index on|off [dirty_rate]",
+        .help       = "enable, disable dirty page rate limit on a virtual CPU"
+                      "(dirty_rate should be specified dirty_rate if enable)",
+        .cmd        = hmp_vcpu_dirty_limit,
+    },
