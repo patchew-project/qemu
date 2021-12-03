@@ -27,6 +27,7 @@
 #include "qapi/qmp/qdict.h"
 #include "sysemu/kvm.h"
 #include "sysemu/runstate.h"
+#include "sysemu/dirtylimit.h"
 #include "exec/memory.h"
 
 /*
@@ -45,6 +46,137 @@ static int CalculatingState = DIRTY_RATE_STATUS_UNSTARTED;
 static struct DirtyRateStat DirtyStat;
 static DirtyRateMeasureMode dirtyrate_mode =
                 DIRTY_RATE_MEASURE_MODE_PAGE_SAMPLING;
+
+#define DIRTYLIMIT_CALC_TIME_MS         1000    /* 1000ms */
+
+struct {
+    DirtyRatesData data;
+    int64_t period;
+    bool quit;
+} *dirtylimit_calc_state;
+
+static void dirtylimit_global_dirty_log_start(void)
+{
+    qemu_mutex_lock_iothread();
+    memory_global_dirty_log_start(GLOBAL_DIRTY_LIMIT);
+    qemu_mutex_unlock_iothread();
+}
+
+static void dirtylimit_global_dirty_log_stop(void)
+{
+    qemu_mutex_lock_iothread();
+    memory_global_dirty_log_stop(GLOBAL_DIRTY_LIMIT);
+    qemu_mutex_unlock_iothread();
+}
+
+static inline void record_dirtypages(DirtyPageRecord *dirty_pages,
+                                     CPUState *cpu, bool start)
+{
+    if (start) {
+        dirty_pages[cpu->cpu_index].start_pages = cpu->dirty_pages;
+    } else {
+        dirty_pages[cpu->cpu_index].end_pages = cpu->dirty_pages;
+    }
+}
+
+static void dirtylimit_calc_func(void)
+{
+    CPUState *cpu;
+    DirtyPageRecord *dirty_pages;
+    int64_t start_time, end_time, calc_time;
+    DirtyRateVcpu rate;
+    int i = 0;
+
+    dirty_pages = g_malloc0(sizeof(*dirty_pages) *
+        dirtylimit_calc_state->data.nvcpu);
+
+    CPU_FOREACH(cpu) {
+        record_dirtypages(dirty_pages, cpu, true);
+    }
+
+    start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    g_usleep(DIRTYLIMIT_CALC_TIME_MS * 1000);
+    end_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    calc_time = end_time - start_time;
+
+    qemu_mutex_lock_iothread();
+    memory_global_dirty_log_sync();
+    qemu_mutex_unlock_iothread();
+
+    CPU_FOREACH(cpu) {
+        record_dirtypages(dirty_pages, cpu, false);
+    }
+
+    for (i = 0; i < dirtylimit_calc_state->data.nvcpu; i++) {
+        uint64_t increased_dirty_pages =
+            dirty_pages[i].end_pages - dirty_pages[i].start_pages;
+        uint64_t memory_size_MB =
+            (increased_dirty_pages * TARGET_PAGE_SIZE) >> 20;
+        int64_t dirtyrate = (memory_size_MB * 1000) / calc_time;
+
+        rate.id = i;
+        rate.dirty_rate  = dirtyrate;
+        dirtylimit_calc_state->data.rates[i] = rate;
+
+        trace_dirtyrate_do_calculate_vcpu(i,
+            dirtylimit_calc_state->data.rates[i].dirty_rate);
+    }
+}
+
+static void *dirtylimit_calc_thread(void *opaque)
+{
+    rcu_register_thread();
+
+    dirtylimit_global_dirty_log_start();
+
+    while (!qatomic_read(&dirtylimit_calc_state->quit)) {
+        dirtylimit_calc_func();
+        sleep(dirtylimit_calc_state->period);
+    }
+
+    dirtylimit_global_dirty_log_stop();
+
+    rcu_unregister_thread();
+    return NULL;
+}
+
+int64_t dirtylimit_calc_current(int cpu_index)
+{
+    DirtyRateVcpu *rates = dirtylimit_calc_state->data.rates;
+
+    return qatomic_read(&rates[cpu_index].dirty_rate);
+}
+
+void dirtylimit_calc(void)
+{
+    if (unlikely(qatomic_read(&dirtylimit_calc_state->quit))) {
+        qatomic_set(&dirtylimit_calc_state->quit, 0);
+        QemuThread thread;
+        qemu_thread_create(&thread, "dirtylimit-calc",
+            dirtylimit_calc_thread,
+            NULL, QEMU_THREAD_DETACHED);
+    }
+}
+
+void dirtylimit_calc_quit(void)
+{
+    qatomic_set(&dirtylimit_calc_state->quit, 1);
+}
+
+void dirtylimit_calc_state_init(int max_cpus)
+{
+    dirtylimit_calc_state =
+        g_malloc0(sizeof(*dirtylimit_calc_state));
+
+    dirtylimit_calc_state->data.nvcpu = max_cpus;
+    dirtylimit_calc_state->data.rates =
+        g_malloc0(sizeof(DirtyRateVcpu) * max_cpus);
+
+    dirtylimit_calc_state->period =
+        DIRTYLIMIT_CALC_PERIOD_TIME_S;
+
+    dirtylimit_calc_state->quit = true;
+}
 
 static int64_t set_sample_page_period(int64_t msec, int64_t initial_time)
 {
@@ -394,16 +526,6 @@ static bool compare_page_hash_info(struct RamblockDirtyInfo *info,
     }
 
     return true;
-}
-
-static inline void record_dirtypages(DirtyPageRecord *dirty_pages,
-                                     CPUState *cpu, bool start)
-{
-    if (start) {
-        dirty_pages[cpu->cpu_index].start_pages = cpu->dirty_pages;
-    } else {
-        dirty_pages[cpu->cpu_index].end_pages = cpu->dirty_pages;
-    }
 }
 
 static void dirtyrate_global_dirty_log_start(void)
