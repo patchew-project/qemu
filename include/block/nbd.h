@@ -52,17 +52,16 @@ typedef struct NBDOptionReplyMetaContext {
 
 /* Transmission phase structs
  *
- * Note: these are _NOT_ the same as the network representation of an NBD
- * request and reply!
+ * Note: NBDRequest is _NOT_ the same as the network representation of an NBD
+ * request!
  */
-struct NBDRequest {
+typedef struct NBDRequest {
     uint64_t handle;
     uint64_t from;
-    uint32_t len;
+    uint64_t len;   /* Must fit 32 bits unless extended headers negotiated */
     uint16_t flags; /* NBD_CMD_FLAG_* */
-    uint16_t type; /* NBD_CMD_* */
-};
-typedef struct NBDRequest NBDRequest;
+    uint16_t type;  /* NBD_CMD_* */
+} NBDRequest;
 
 typedef struct NBDSimpleReply {
     uint32_t magic;  /* NBD_SIMPLE_REPLY_MAGIC */
@@ -235,6 +234,9 @@ enum {
  */
 #define NBD_MAX_STRING_SIZE 4096
 
+/* Transmission request structure */
+#define NBD_REQUEST_MAGIC           0x25609513
+
 /* Two types of reply structures */
 #define NBD_SIMPLE_REPLY_MAGIC      0x67446698
 #define NBD_STRUCTURED_REPLY_MAGIC  0x668e33ef
@@ -293,6 +295,7 @@ struct NBDExportInfo {
     /* In-out fields, set by client before nbd_receive_negotiate() and
      * updated by server results during nbd_receive_negotiate() */
     bool structured_reply;
+    bool extended_headers;
     bool base_allocation; /* base:allocation context for NBD_CMD_BLOCK_STATUS */
 
     /* Set by server results during nbd_receive_negotiate() and
@@ -322,7 +325,7 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
                             Error **errp);
 int nbd_init(int fd, QIOChannelSocket *sioc, NBDExportInfo *info,
              Error **errp);
-int nbd_send_request(QIOChannel *ioc, NBDRequest *request);
+int nbd_send_request(QIOChannel *ioc, NBDRequest *request, bool ext_hdr);
 int coroutine_fn nbd_receive_reply(BlockDriverState *bs, QIOChannel *ioc,
                                    NBDReply *reply, Error **errp);
 int nbd_client(int fd);

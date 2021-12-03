@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2016-2019 Red Hat, Inc.
+ *  Copyright (C) 2016-2021 Red Hat, Inc.
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device Client Side
@@ -1221,7 +1221,7 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
         if (nbd_drop(ioc, 124, NULL) == 0) {
             NBDRequest request = { .type = NBD_CMD_DISC };
 
-            nbd_send_request(ioc, &request);
+            nbd_send_request(ioc, &request, false);
         }
         break;
     default:
@@ -1345,10 +1345,12 @@ int nbd_disconnect(int fd)
 
 #endif /* __linux__ */
 
-int nbd_send_request(QIOChannel *ioc, NBDRequest *request)
+int nbd_send_request(QIOChannel *ioc, NBDRequest *request, bool ext_hdr)
 {
     uint8_t buf[NBD_REQUEST_SIZE];
 
+    assert(!ext_hdr);
+    assert(request->len <= UINT32_MAX);
     trace_nbd_send_request(request->from, request->len, request->handle,
                            request->flags, request->type,
                            nbd_cmd_lookup(request->type));
