@@ -1347,22 +1347,28 @@ int nbd_disconnect(int fd)
 
 int nbd_send_request(QIOChannel *ioc, NBDRequest *request, bool ext_hdr)
 {
-    uint8_t buf[NBD_REQUEST_SIZE];
+    uint8_t buf[NBD_REQUEST_EXT_SIZE];
+    size_t len;
 
-    assert(!ext_hdr);
-    assert(request->len <= UINT32_MAX);
     trace_nbd_send_request(request->from, request->len, request->handle,
                            request->flags, request->type,
                            nbd_cmd_lookup(request->type));
 
-    stl_be_p(buf, NBD_REQUEST_MAGIC);
+    stl_be_p(buf, ext_hdr ? NBD_REQUEST_EXT_MAGIC : NBD_REQUEST_MAGIC);
     stw_be_p(buf + 4, request->flags);
     stw_be_p(buf + 6, request->type);
     stq_be_p(buf + 8, request->handle);
     stq_be_p(buf + 16, request->from);
-    stl_be_p(buf + 24, request->len);
+    if (ext_hdr) {
+        stq_be_p(buf + 24, request->len);
+        len = NBD_REQUEST_EXT_SIZE;
+    } else {
+        assert(request->len <= UINT32_MAX);
+        stl_be_p(buf + 24, request->len);
+        len = NBD_REQUEST_SIZE;
+    }
 
-    return nbd_write(ioc, buf, sizeof(buf), NULL);
+    return nbd_write(ioc, buf, len, NULL);
 }
 
 /* nbd_receive_simple_reply
@@ -1370,49 +1376,69 @@ int nbd_send_request(QIOChannel *ioc, NBDRequest *request, bool ext_hdr)
  * Payload is not read (payload is possible for CMD_READ, but here we even
  * don't know whether it take place or not).
  */
-static int nbd_receive_simple_reply(QIOChannel *ioc, NBDSimpleReply *reply,
+static int nbd_receive_simple_reply(QIOChannel *ioc, NBDReply *reply,
                                     Error **errp)
 {
     int ret;
+    size_t len;
 
-    assert(reply->magic == NBD_SIMPLE_REPLY_MAGIC);
+    if (reply->magic == NBD_SIMPLE_REPLY_MAGIC) {
+        len = sizeof(reply->simple);
+    } else {
+        assert(reply->magic == NBD_SIMPLE_REPLY_EXT_MAGIC);
+        len = sizeof(reply->simple_ext);
+    }
 
     ret = nbd_read(ioc, (uint8_t *)reply + sizeof(reply->magic),
-                   sizeof(*reply) - sizeof(reply->magic), "reply", errp);
+                   len - sizeof(reply->magic), "reply", errp);
     if (ret < 0) {
         return ret;
     }
 
-    reply->error = be32_to_cpu(reply->error);
-    reply->handle = be64_to_cpu(reply->handle);
+    /* error and handle occupy same space between forms */
+    reply->simple.error = be32_to_cpu(reply->simple.error);
+    reply->simple.handle = be64_to_cpu(reply->handle);
+    if (reply->magic == NBD_SIMPLE_REPLY_EXT_MAGIC) {
+        if (reply->simple_ext._pad1 || reply->simple_ext._pad2) {
+            error_setg(errp, "Server used non-zero padding in extended header");
+            return -EINVAL;
+        }
+        reply->magic = NBD_SIMPLE_REPLY_MAGIC;
+    }
 
     return 0;
 }
 
 /* nbd_receive_structured_reply_chunk
  * Read structured reply chunk except magic field (which should be already
- * read).
+ * read).  Normalize into the compact form.
  * Payload is not read.
  */
-static int nbd_receive_structured_reply_chunk(QIOChannel *ioc,
-                                              NBDStructuredReplyChunk *chunk,
+static int nbd_receive_structured_reply_chunk(QIOChannel *ioc, NBDReply *chunk,
                                               Error **errp)
 {
     int ret;
+    size_t len;
+    uint64_t payload_len;
 
-    assert(chunk->magic == NBD_STRUCTURED_REPLY_MAGIC);
+    if (chunk->magic == NBD_STRUCTURED_REPLY_MAGIC) {
+        len = sizeof(chunk->structured);
+    } else {
+        assert(chunk->magic == NBD_STRUCTURED_REPLY_EXT_MAGIC);
+        len = sizeof(chunk->structured_ext);
+    }
 
     ret = nbd_read(ioc, (uint8_t *)chunk + sizeof(chunk->magic),
-                   sizeof(*chunk) - sizeof(chunk->magic), "structured chunk",
+                   len - sizeof(chunk->magic), "structured chunk",
                    errp);
     if (ret < 0) {
         return ret;
     }
 
-    chunk->flags = be16_to_cpu(chunk->flags);
-    chunk->type = be16_to_cpu(chunk->type);
-    chunk->handle = be64_to_cpu(chunk->handle);
-    chunk->length = be32_to_cpu(chunk->length);
+    /* flags, type, and handle occupy same space between forms */
+    chunk->structured.flags = be16_to_cpu(chunk->structured.flags);
+    chunk->structured.type = be16_to_cpu(chunk->structured.type);
+    chunk->structured.handle = be64_to_cpu(chunk->structured.handle);
 
     /*
      * Because we use BLOCK_STATUS with REQ_ONE, and cap READ requests
@@ -1420,11 +1446,23 @@ static int nbd_receive_structured_reply_chunk(QIOChannel *ioc,
      * this.  Even if we stopped using REQ_ONE, sane servers will cap
      * the number of extents they return for block status.
      */
-    if (chunk->length > NBD_MAX_BUFFER_SIZE + sizeof(NBDStructuredReadData)) {
+    if (chunk->magic == NBD_STRUCTURED_REPLY_MAGIC) {
+        payload_len = be32_to_cpu(chunk->structured.length);
+    } else {
+        payload_len = be64_to_cpu(chunk->structured_ext.length);
+        if (chunk->structured_ext._pad) {
+            error_setg(errp, "Server used non-zero padding in extended header");
+            return -EINVAL;
+        }
+        chunk->magic = NBD_STRUCTURED_REPLY_MAGIC;
+    }
+    if (payload_len > NBD_MAX_BUFFER_SIZE + sizeof(NBDStructuredReadData)) {
         error_setg(errp, "server chunk %" PRIu32 " (%s) payload is too long",
-                   chunk->type, nbd_rep_lookup(chunk->type));
+                   chunk->structured.type,
+                   nbd_rep_lookup(chunk->structured.type));
         return -EINVAL;
     }
+    chunk->structured.length = payload_len;
 
     return 0;
 }
@@ -1471,30 +1509,36 @@ nbd_read_eof(BlockDriverState *bs, QIOChannel *ioc, void *buffer, size_t size,
 
 /* nbd_receive_reply
  *
- * Decreases bs->in_flight while waiting for a new reply. This yield is where
- * we wait indefinitely and the coroutine must be able to be safely reentered
- * for nbd_client_attach_aio_context().
+ * Wait for a new reply. If this yields, the coroutine must be able to be
+ * safely reentered for nbd_client_attach_aio_context().  @ext_hdrs determines
+ * which reply magic we are expecting, although this normalizes the result
+ * so that the caller only has to work with compact headers.
  *
  * Returns 1 on success
- *         0 on eof, when no data was read (errp is not set)
- *         negative errno on failure (errp is set)
+ *         0 on eof, when no data was read
+ *         negative errno on failure
  */
 int coroutine_fn nbd_receive_reply(BlockDriverState *bs, QIOChannel *ioc,
-                                   NBDReply *reply, Error **errp)
+                                   NBDReply *reply, bool ext_hdrs)
 {
     int ret;
     const char *type;
 
-    ret = nbd_read_eof(bs, ioc, &reply->magic, sizeof(reply->magic), errp);
+    ret = nbd_read_eof(bs, ioc, &reply->magic, sizeof(reply->magic), NULL);
     if (ret <= 0) {
         return ret;
     }
 
     reply->magic = be32_to_cpu(reply->magic);
 
+    /* Diagnose but accept wrong-width header */
     switch (reply->magic) {
     case NBD_SIMPLE_REPLY_MAGIC:
-        ret = nbd_receive_simple_reply(ioc, &reply->simple, errp);
+    case NBD_SIMPLE_REPLY_EXT_MAGIC:
+        if (ext_hdrs != (reply->magic == NBD_SIMPLE_REPLY_EXT_MAGIC)) {
+            trace_nbd_receive_wrong_header(reply->magic);
+        }
+        ret = nbd_receive_simple_reply(ioc, reply, NULL);
         if (ret < 0) {
             break;
         }
@@ -1503,7 +1547,11 @@ int coroutine_fn nbd_receive_reply(BlockDriverState *bs, QIOChannel *ioc,
                                        reply->handle);
         break;
     case NBD_STRUCTURED_REPLY_MAGIC:
-        ret = nbd_receive_structured_reply_chunk(ioc, &reply->structured, errp);
+    case NBD_STRUCTURED_REPLY_EXT_MAGIC:
+        if (ext_hdrs != (reply->magic == NBD_STRUCTURED_REPLY_EXT_MAGIC)) {
+            trace_nbd_receive_wrong_header(reply->magic);
+        }
+        ret = nbd_receive_structured_reply_chunk(ioc, reply, NULL);
         if (ret < 0) {
             break;
         }
@@ -1514,7 +1562,7 @@ int coroutine_fn nbd_receive_reply(BlockDriverState *bs, QIOChannel *ioc,
                                                  reply->structured.length);
         break;
     default:
-        error_setg(errp, "invalid magic (got 0x%" PRIx32 ")", reply->magic);
+        trace_nbd_receive_wrong_header(reply->magic);
         return -EINVAL;
     }
     if (ret < 0) {
