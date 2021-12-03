@@ -69,6 +69,14 @@ typedef struct NBDSimpleReply {
     uint64_t handle;
 } QEMU_PACKED NBDSimpleReply;
 
+typedef struct NBDSimpleReplyExt {
+    uint32_t magic;  /* NBD_SIMPLE_REPLY_EXT_MAGIC */
+    uint32_t error;
+    uint64_t handle;
+    uint64_t _pad1;  /* Must be 0 */
+    uint64_t _pad2;  /* Must be 0 */
+} QEMU_PACKED NBDSimpleReplyExt;
+
 /* Header of all structured replies */
 typedef struct NBDStructuredReplyChunk {
     uint32_t magic;  /* NBD_STRUCTURED_REPLY_MAGIC */
@@ -78,9 +86,20 @@ typedef struct NBDStructuredReplyChunk {
     uint32_t length; /* length of payload */
 } QEMU_PACKED NBDStructuredReplyChunk;
 
+typedef struct NBDStructuredReplyChunkExt {
+    uint32_t magic;  /* NBD_STRUCTURED_REPLY_EXT_MAGIC */
+    uint16_t flags;  /* combination of NBD_REPLY_FLAG_* */
+    uint16_t type;   /* NBD_REPLY_TYPE_* */
+    uint64_t handle; /* request handle */
+    uint64_t length; /* length of payload */
+    uint64_t _pad;   /* Must be 0 */
+} QEMU_PACKED NBDStructuredReplyChunkExt;
+
 typedef union NBDReply {
     NBDSimpleReply simple;
+    NBDSimpleReplyExt simple_ext;
     NBDStructuredReplyChunk structured;
+    NBDStructuredReplyChunkExt structured_ext;
     struct {
         /* @magic and @handle fields have the same offset and size both in
          * simple reply and structured reply chunk, so let them be accessible
@@ -106,6 +125,13 @@ typedef struct NBDStructuredReadHole {
     uint32_t length;
 } QEMU_PACKED NBDStructuredReadHole;
 
+/* Complete chunk for NBD_REPLY_TYPE_OFFSET_HOLE_EXT */
+typedef struct NBDStructuredReadHoleExt {
+    /* header's length == 16 */
+    uint64_t offset;
+    uint64_t length;
+} QEMU_PACKED NBDStructuredReadHoleExt;
+
 /* Header of all NBD_REPLY_TYPE_ERROR* errors */
 typedef struct NBDStructuredError {
     /* header's length >= 6 */
@@ -113,18 +139,25 @@ typedef struct NBDStructuredError {
     uint16_t message_length;
 } QEMU_PACKED NBDStructuredError;
 
-/* Header of NBD_REPLY_TYPE_BLOCK_STATUS */
+/* Header of NBD_REPLY_TYPE_BLOCK_STATUS, NBD_REPLY_TYPE_BLOCK_STATUS_EXT */
 typedef struct NBDStructuredMeta {
-    /* header's length >= 12 (at least one extent) */
+    /* header's length >= 12 narrow, or >= 20 extended (at least one extent) */
     uint32_t context_id;
-    /* extents follows */
+    /* extents[] follows: NBDExtent for narrow, NBDExtentExt for extended */
 } QEMU_PACKED NBDStructuredMeta;
 
-/* Extent chunk for NBD_REPLY_TYPE_BLOCK_STATUS */
+/* Extent array for NBD_REPLY_TYPE_BLOCK_STATUS */
 typedef struct NBDExtent {
     uint32_t length;
     uint32_t flags; /* NBD_STATE_* */
 } QEMU_PACKED NBDExtent;
+
+/* Extent array for NBD_REPLY_TYPE_BLOCK_STATUS_EXT */
+typedef struct NBDExtentExt {
+    uint64_t length;
+    uint32_t flags; /* NBD_STATE_* */
+    uint32_t _pad;  /* Must be 0 */
+} QEMU_PACKED NBDExtentExt;
 
 /* Transmission (export) flags: sent from server to client during handshake,
    but describe what will happen during transmission */
@@ -178,6 +211,7 @@ enum {
 #define NBD_OPT_STRUCTURED_REPLY  (8)
 #define NBD_OPT_LIST_META_CONTEXT (9)
 #define NBD_OPT_SET_META_CONTEXT  (10)
+#define NBD_OPT_EXTENDED_HEADERS  (11)
 
 /* Option reply types. */
 #define NBD_REP_ERR(value) ((UINT32_C(1) << 31) | (value))
@@ -234,12 +268,15 @@ enum {
  */
 #define NBD_MAX_STRING_SIZE 4096
 
-/* Transmission request structure */
+/* Two types of request structures, a given client will only use 1 */
 #define NBD_REQUEST_MAGIC           0x25609513
+#define NBD_REQUEST_EXT_MAGIC       0x21e41c71
 
-/* Two types of reply structures */
-#define NBD_SIMPLE_REPLY_MAGIC      0x67446698
-#define NBD_STRUCTURED_REPLY_MAGIC  0x668e33ef
+/* Four types of reply structures, a given client will only use 2 */
+#define NBD_SIMPLE_REPLY_MAGIC          0x67446698
+#define NBD_STRUCTURED_REPLY_MAGIC      0x668e33ef
+#define NBD_SIMPLE_REPLY_EXT_MAGIC      0x60d12fd6
+#define NBD_STRUCTURED_REPLY_EXT_MAGIC  0x6e8a278c
 
 /* Structured reply flags */
 #define NBD_REPLY_FLAG_DONE          (1 << 0) /* This reply-chunk is last */
@@ -247,12 +284,14 @@ enum {
 /* Structured reply types */
 #define NBD_REPLY_ERR(value)         ((1 << 15) | (value))
 
-#define NBD_REPLY_TYPE_NONE          0
-#define NBD_REPLY_TYPE_OFFSET_DATA   1
-#define NBD_REPLY_TYPE_OFFSET_HOLE   2
-#define NBD_REPLY_TYPE_BLOCK_STATUS  5
-#define NBD_REPLY_TYPE_ERROR         NBD_REPLY_ERR(1)
-#define NBD_REPLY_TYPE_ERROR_OFFSET  NBD_REPLY_ERR(2)
+#define NBD_REPLY_TYPE_NONE              0
+#define NBD_REPLY_TYPE_OFFSET_DATA       1
+#define NBD_REPLY_TYPE_OFFSET_HOLE       2
+#define NBD_REPLY_TYPE_OFFSET_HOLE_EXT   3
+#define NBD_REPLY_TYPE_BLOCK_STATUS      5
+#define NBD_REPLY_TYPE_BLOCK_STATUS_EXT  6
+#define NBD_REPLY_TYPE_ERROR             NBD_REPLY_ERR(1)
+#define NBD_REPLY_TYPE_ERROR_OFFSET      NBD_REPLY_ERR(2)
 
 /* Extent flags for base:allocation in NBD_REPLY_TYPE_BLOCK_STATUS */
 #define NBD_STATE_HOLE (1 << 0)
