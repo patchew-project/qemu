@@ -581,13 +581,6 @@ static ssize_t emc_receive(NetClientState *nc, const uint8_t *buf, size_t len1)
     return len;
 }
 
-static void emc_try_receive_next_packet(NPCM7xxEMCState *emc)
-{
-    if (emc_can_receive(qemu_get_queue(emc->nic))) {
-        qemu_flush_queued_packets(qemu_get_queue(emc->nic));
-    }
-}
-
 static uint64_t npcm7xx_emc_read(void *opaque, hwaddr offset, unsigned size)
 {
     NPCM7xxEMCState *emc = opaque;
@@ -704,6 +697,7 @@ static void npcm7xx_emc_write(void *opaque, hwaddr offset,
         }
         if (value & REG_MCMDR_RXON) {
             emc->rx_active = true;
+            qemu_flush_queued_packets(qemu_get_queue(emc->nic));
         } else {
             emc_halt_rx(emc, 0);
         }
@@ -740,7 +734,7 @@ static void npcm7xx_emc_write(void *opaque, hwaddr offset,
     case REG_RSDR:
         if (emc->regs[REG_MCMDR] & REG_MCMDR_RXON) {
             emc->rx_active = true;
-            emc_try_receive_next_packet(emc);
+            qemu_flush_queued_packets(qemu_get_queue(emc->nic));
         }
         break;
     case REG_MIIDA:
