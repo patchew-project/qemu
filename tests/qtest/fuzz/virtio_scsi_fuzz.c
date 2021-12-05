@@ -140,13 +140,12 @@ static void virtio_scsi_fork_fuzz(QTestState *s,
     if (!queues) {
         queues = qvirtio_scsi_init(scsi->vdev, 0);
     }
-    if (fork() == 0) {
+    if (fork_fuzzer_and_wait()) {
         virtio_scsi_fuzz(s, queues, Data, Size);
         flush_events(s);
         _Exit(0);
     } else {
         flush_events(s);
-        wait(NULL);
     }
 }
 
@@ -156,7 +155,7 @@ static void virtio_scsi_with_flag_fuzz(QTestState *s,
     QVirtioSCSI *scsi = fuzz_qos_obj;
     static QVirtioSCSIQueues *queues;
 
-    if (fork() == 0) {
+    if (fork_fuzzer_and_wait()) {
         if (Size >= sizeof(uint64_t)) {
             queues = qvirtio_scsi_init(scsi->vdev, *(uint64_t *)Data);
             virtio_scsi_fuzz(s, queues,
@@ -166,7 +165,6 @@ static void virtio_scsi_with_flag_fuzz(QTestState *s,
         _Exit(0);
     } else {
         flush_events(s);
-        wait(NULL);
     }
 }
 

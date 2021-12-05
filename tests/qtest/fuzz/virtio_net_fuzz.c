@@ -118,26 +118,24 @@ static void virtio_net_fuzz_multi(QTestState *s,
 static void virtio_net_fork_fuzz(QTestState *s,
         const unsigned char *Data, size_t Size)
 {
-    if (fork() == 0) {
+    if (fork_fuzzer_and_wait()) {
         virtio_net_fuzz_multi(s, Data, Size, false);
         flush_events(s);
         _Exit(0);
     } else {
         flush_events(s);
-        wait(NULL);
     }
 }
 
 static void virtio_net_fork_fuzz_check_used(QTestState *s,
         const unsigned char *Data, size_t Size)
 {
-    if (fork() == 0) {
+    if (fork_fuzzer_and_wait()) {
         virtio_net_fuzz_multi(s, Data, Size, true);
         flush_events(s);
         _Exit(0);
     } else {
         flush_events(s);
-        wait(NULL);
     }
 }
 

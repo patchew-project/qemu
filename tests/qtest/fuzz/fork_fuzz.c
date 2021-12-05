@@ -38,4 +38,30 @@ void counter_shm_init(void)
     free(copy);
 }
 
+/* Returns true in child process */
+bool fork_fuzzer_and_wait(void)
+{
+    pid_t pid;
+    int wstatus;
 
+    pid = fork();
+    if (pid < 0) {
+        perror("fork");
+        abort();
+    }
+
+    if (pid == 0) {
+        return true;
+    }
+
+    if (waitpid(pid, &wstatus, 0) < 0) {
+        perror("waitpid");
+        abort();
+    }
+
+    if (!WIFEXITED(wstatus) || WEXITSTATUS(wstatus) != 0) {
+        abort();
+    }
+
+    return false;
+}

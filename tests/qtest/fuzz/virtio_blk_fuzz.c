@@ -136,13 +136,12 @@ static void virtio_blk_fork_fuzz(QTestState *s,
     if (!queues) {
         queues = qvirtio_blk_init(blk->vdev, 0);
     }
-    if (fork() == 0) {
+    if (fork_fuzzer_and_wait()) {
         virtio_blk_fuzz(s, queues, Data, Size);
         flush_events(s);
         _Exit(0);
     } else {
         flush_events(s);
-        wait(NULL);
     }
 }
 
@@ -152,7 +151,7 @@ static void virtio_blk_with_flag_fuzz(QTestState *s,
     QVirtioBlk *blk = fuzz_qos_obj;
     static QVirtioBlkQueues *queues;
 
-    if (fork() == 0) {
+    if (fork_fuzzer_and_wait()) {
         if (Size >= sizeof(uint64_t)) {
             queues = qvirtio_blk_init(blk->vdev, *(uint64_t *)Data);
             virtio_blk_fuzz(s, queues,
@@ -162,7 +161,6 @@ static void virtio_blk_with_flag_fuzz(QTestState *s,
         _Exit(0);
     } else {
         flush_events(s);
-        wait(NULL);
     }
 }
 

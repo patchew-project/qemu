@@ -147,12 +147,11 @@ static void i440fx_fuzz_qos(QTestState *s,
 
 static void i440fx_fuzz_qos_fork(QTestState *s,
         const unsigned char *Data, size_t Size) {
-    if (fork() == 0) {
+    if (fork_fuzzer_and_wait()) {
         i440fx_fuzz_qos(s, Data, Size);
         _Exit(0);
     } else {
         flush_events(s);
-        wait(NULL);
     }
 }
 

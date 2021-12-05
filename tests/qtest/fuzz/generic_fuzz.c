@@ -667,7 +667,7 @@ static void generic_fuzz(QTestState *s, const unsigned char *Data, size_t Size)
     size_t cmd_len;
     uint8_t op;
 
-    if (fork() == 0) {
+    if (fork_fuzzer_and_wait()) {
         struct sigaction sact;
         struct itimerval timer;
         sigset_t set;
@@ -723,7 +723,6 @@ static void generic_fuzz(QTestState *s, const unsigned char *Data, size_t Size)
         _Exit(0);
     } else {
         flush_events(s);
-        wait(0);
     }
 }
 
