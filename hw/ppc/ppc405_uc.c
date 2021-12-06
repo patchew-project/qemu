@@ -41,6 +41,49 @@
 #include "qapi/error.h"
 #include "trace.h"
 
+/*
+ * Linux hotfoot board information based on a production bootloader
+ * (u-boot 1.2.0.x) plus changes not upstream.
+ *
+ * https://lists.ozlabs.org/pipermail/linuxppc-dev/2009-July/074487.html
+ */
+struct linux_hotfoot_bd_info {
+    long unsigned int          bi_memstart;          /*     0     4 */
+    long unsigned int          bi_memsize;           /*     4     4 */
+    long unsigned int          bi_flashstart;        /*     8     4 */
+    long unsigned int          bi_flashsize;         /*    12     4 */
+    long unsigned int          bi_flashoffset;       /*    16     4 */
+    long unsigned int          bi_sramstart;         /*    20     4 */
+    long unsigned int          bi_sramsize;          /*    24     4 */
+    long unsigned int          bi_bootflags;         /*    28     4 */
+    long unsigned int          bi_ip_addr;           /*    32     4 */
+    unsigned char              bi_enetaddr[6];       /*    36     6 */
+    unsigned char              bi_enet1addr[6];      /*    42     6 */
+    short unsigned int         bi_ethspeed;          /*    48     2 */
+    long unsigned int          bi_intfreq;           /*    52     4 */
+    long unsigned int          bi_busfreq;           /*    56     4 */
+    long unsigned int          bi_baudrate;          /*    60     4 */
+    unsigned char              bi_s_version[4];      /*    64     4 */
+    unsigned char              bi_r_version[32];     /*    68    32 */
+    unsigned int               bi_procfreq;          /*   100     4 */
+    unsigned int               bi_plb_busfreq;       /*   104     4 */
+    unsigned int               bi_pci_busfreq;       /*   108     4 */
+    unsigned char              bi_pci_enetaddr[6];   /*   112     6 */
+    unsigned int               bi_pllouta_freq;      /*   120     4 */
+    int                        bi_phynum[2];         /*   124     8 */
+    int                        bi_phymode[2];        /*   132     8 */
+    unsigned int               bi_opbfreq;           /*   140     4 */
+    int                        bi_iic_fast[2];       /*   144     8 */
+};
+
+static void ppc405_fixup_bootinfo(CPUState *cs, ppc4xx_bd_info_t *bd,
+                                  ram_addr_t bdloc)
+{
+    stl_be_phys(cs->as,
+                bdloc + offsetof(struct linux_hotfoot_bd_info, bi_procfreq),
+                bd->bi_procfreq);
+}
+
 static void ppc405_set_default_bootinfo(ppc4xx_bd_info_t *bd,
                                         ram_addr_t ram_size)
 {
@@ -118,6 +161,8 @@ static ram_addr_t __ppc405_set_bootinfo(CPUPPCState *env, ppc4xx_bd_info_t *bd)
         stl_be_phys(cs->as, bdloc + n, bd->bi_iic_fast[i]);
         n += 4;
     }
+
+    ppc405_fixup_bootinfo(cs, bd, bdloc);
 
     return bdloc;
 }
