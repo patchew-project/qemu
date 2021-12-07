@@ -351,6 +351,7 @@ struct S390PCIBusDevice {
     bool pci_unplug_request_processed;
     bool unplug_requested;
     bool interp;
+    bool intassist;
     QTAILQ_ENTRY(S390PCIBusDevice) link;
 };
 
