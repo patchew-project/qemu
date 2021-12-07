@@ -12,6 +12,7 @@ ENV PACKAGES \
 	ccache \
 	coreutils \
 	curl-dev \
+	fuse3-dev \
 	g++ \
 	gcc \
 	git \
