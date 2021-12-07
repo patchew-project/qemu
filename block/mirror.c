@@ -1079,6 +1079,8 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
                 s->in_drain = false;
                 continue;
             }
+            /* in case flush left pending I/O */
+            bdrv_drain(bs);
 
             /* The two disks are in sync.  Exit and report successful
              * completion.
