@@ -1947,7 +1947,7 @@ static void *postcopy_ram_listen_thread(void *opaque)
 static int loadvm_postcopy_handle_listen(MigrationIncomingState *mis)
 {
     PostcopyState ps = postcopy_state_set(POSTCOPY_INCOMING_LISTENING);
-    trace_loadvm_postcopy_handle_listen();
+    trace_loadvm_postcopy_handle_listen(1);
     Error *local_err = NULL;
 
     if (ps != POSTCOPY_INCOMING_ADVISE && ps != POSTCOPY_INCOMING_DISCARD) {
@@ -1963,6 +1963,7 @@ static int loadvm_postcopy_handle_listen(MigrationIncomingState *mis)
             postcopy_ram_prepare_discard(mis);
         }
     }
+    trace_loadvm_postcopy_handle_listen(2);
 
     /*
      * Sensitise RAM - can now generate requests for blocks that don't exist
@@ -1975,6 +1976,7 @@ static int loadvm_postcopy_handle_listen(MigrationIncomingState *mis)
             return -1;
         }
     }
+    trace_loadvm_postcopy_handle_listen(3);
 
     if (postcopy_notify(POSTCOPY_NOTIFY_INBOUND_LISTEN, &local_err)) {
         error_report_err(local_err);
@@ -1989,6 +1991,7 @@ static int loadvm_postcopy_handle_listen(MigrationIncomingState *mis)
                        QEMU_THREAD_DETACHED);
     qemu_sem_wait(&mis->listen_thread_sem);
     qemu_sem_destroy(&mis->listen_thread_sem);
+    trace_loadvm_postcopy_handle_listen(4);
 
     return 0;
 }
