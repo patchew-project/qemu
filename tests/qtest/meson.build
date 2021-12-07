@@ -104,27 +104,36 @@ endif
 
 qtests_x86_64 = qtests_i386
 
-qtests_alpha = [ 'boot-serial-test' ] +                                                      \
+qtests_alpha = [ 'boot-serial-test' ] + \
+  (slirp.found() ? [ 'test-netfilter' ] : []) + \
   (config_all_devices.has_key('CONFIG_VGA') ? ['display-vga-test'] : [])
 
 qtests_avr = [ 'boot-serial-test' ]
 
-qtests_hppa = [ 'boot-serial-test' ] +                                                       \
+qtests_hppa = [ 'boot-serial-test' ] + \
+  (slirp.found() ? [ 'test-netfilter' ] : []) + \
   (config_all_devices.has_key('CONFIG_VGA') ? ['display-vga-test'] : [])
 
-qtests_m68k = [ 'boot-serial-test' ]
-qtests_microblaze = [ 'boot-serial-test' ]
+qtests_m68k = [ 'boot-serial-test' ] + \
+  (slirp.found() ? [ 'test-netfilter' ] : [])
+
+qtests_microblaze = [ 'boot-serial-test' ] + \
+  (slirp.found() ? [ 'test-netfilter' ] : [])
+
 qtests_microblazeel = qtests_microblaze
 
 qtests_mips = \
+  (slirp.found() ? [ 'test-netfilter' ] : []) + \
   (config_all_devices.has_key('CONFIG_ISA_TESTDEV') ? ['endianness-test'] : []) +            \
   (config_all_devices.has_key('CONFIG_VGA') ? ['display-vga-test'] : [])
 
 qtests_mips64 = \
+  (slirp.found() ? [ 'test-netfilter' ] : []) + \
   (config_all_devices.has_key('CONFIG_ISA_TESTDEV') ? ['endianness-test'] : []) +            \
   (config_all_devices.has_key('CONFIG_VGA') ? ['display-vga-test'] : [])
 
 qtests_mips64el = \
+  (slirp.found() ? [ 'test-netfilter' ] : []) + \
   (config_all_devices.has_key('CONFIG_ISA_TESTDEV') ? ['endianness-test'] : []) +            \
   (config_all_devices.has_key('CONFIG_VGA') ? ['display-vga-test'] : [])
 
@@ -146,10 +155,12 @@ qtests_ppc64 = \
 qtests_sh4 = (config_all_devices.has_key('CONFIG_ISA_TESTDEV') ? ['endianness-test'] : [])
 qtests_sh4eb = (config_all_devices.has_key('CONFIG_ISA_TESTDEV') ? ['endianness-test'] : [])
 
-qtests_sparc = ['prom-env-test', 'm48t59-test', 'boot-serial-test']
+qtests_sparc = ['prom-env-test', 'm48t59-test', 'boot-serial-test'] + \
+  (slirp.found() ? [ 'test-netfilter' ] : [])
 
 qtests_sparc64 = \
-  (config_all_devices.has_key('CONFIG_ISA_TESTDEV') ? ['endianness-test'] : []) +            \
+  (slirp.found() ? [ 'test-netfilter' ] : []) + \
+  (config_all_devices.has_key('CONFIG_ISA_TESTDEV') ? ['endianness-test'] : []) + \
   ['prom-env-test', 'boot-serial-test']
 
 qtests_npcm7xx = \
