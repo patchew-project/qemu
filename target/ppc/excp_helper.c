@@ -453,6 +453,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         }
         break;
     }
+#ifdef CONFIG_TCG
     case POWERPC_EXCP_ALIGN:     /* Alignment exception                      */
         /*
          * Get rS/rD and rA from faulting opcode.
@@ -464,6 +465,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             env->spr[SPR_DSISR] |= (insn & 0x03FF0000) >> 16;
         }
         break;
+#endif
     case POWERPC_EXCP_PROGRAM:   /* Program exception                        */
         switch (env->error_code & ~0xF) {
         case POWERPC_EXCP_FP:
