@@ -273,6 +273,7 @@ F: hw/ppc/ppc.c
 F: hw/ppc/ppc_booke.c
 F: include/hw/ppc/ppc.h
 F: disas/ppc.c
+T: git https://gitlab.com/legoater/qemu.git
 
 RISC-V TCG CPUs
 M: Palmer Dabbelt <palmer@dabbelt.com>
@@ -390,6 +391,7 @@ R: David Gibson <david@gibson.dropbear.id.au>
 R: Greg Kurz <groug@kaod.org>
 S: Maintained
 F: target/ppc/kvm.c
+T: git https://gitlab.com/legoater/qemu.git
 
 S390 KVM CPUs
 M: Halil Pasic <pasic@linux.ibm.com>
@@ -1343,6 +1345,7 @@ F: tests/qtest/libqos/*spapr*
 F: tests/qtest/rtas*
 F: tests/qtest/libqos/rtas*
 F: tests/avocado/ppc_pseries.py
+T: git https://gitlab.com/legoater/qemu.git
 
 PowerNV (Non-Virtualized)
 M: Cédric Le Goater <clg@kaod.org>
@@ -1356,6 +1359,7 @@ F: include/hw/ppc/pnv*
 F: include/hw/pci-host/pnv*
 F: pc-bios/skiboot.lid
 F: tests/qtest/pnv*
+T: git https://gitlab.com/legoater/qemu.git powernv-next
 
 virtex_ml507
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
@@ -1399,6 +1403,7 @@ F: hw/ppc/vof*
 F: include/hw/ppc/vof*
 F: pc-bios/vof/*
 F: pc-bios/vof*
+T: git https://gitlab.com/legoater/qemu.git
 
 RISC-V Machines
 ---------------
@@ -2244,6 +2249,7 @@ S: Supported
 F: hw/*/*xive*
 F: include/hw/*/*xive*
 F: docs/*/*xive*
+T: git https://gitlab.com/legoater/qemu.git
 
 Renesas peripherals
 R: Yoshinori Sato <ysato@users.sourceforge.jp>
