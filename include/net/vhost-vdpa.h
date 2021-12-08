@@ -18,4 +18,6 @@ struct vhost_net *vhost_vdpa_get_vhost_net(NetClientState *nc);
 
 extern const int vdpa_feature_bits[];
 
+int vhost_vdpa_get_max_queue_pairs(int fd, int *has_cvq, Error **errp);
+
 #endif /* VHOST_VDPA_H */

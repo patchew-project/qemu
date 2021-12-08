@@ -44,6 +44,7 @@ specific_ss.add(when: 'CONFIG_XILINX_ETHLITE', if_true: files('xilinx_ethlite.c'
 
 softmmu_ss.add(when: 'CONFIG_VIRTIO_NET', if_true: files('net_rx_pkt.c'))
 specific_ss.add(when: 'CONFIG_VIRTIO_NET', if_true: files('virtio-net.c'))
+specific_ss.add(when: 'CONFIG_VHOST_VDPA_NET', if_true: files('vhost-vdpa-net.c'))
 
 softmmu_ss.add(when: ['CONFIG_VIRTIO_NET', 'CONFIG_VHOST_NET'], if_true: files('vhost_net.c'), if_false: files('vhost_net-stub.c'))
 softmmu_ss.add(when: 'CONFIG_ALL', if_true: files('vhost_net-stub.c'))
