@@ -11324,7 +11324,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, uint64_t address,
 
     /* TODO: This code does not support shareability levels. */
     if (aarch64) {
-        int min_tsz = 16, max_tsz = 39;  /* TODO: ARMv8.2-LVA  */
+        int min_tsz = 16, max_tsz = 39;
         int parange;
 
         param = aa64_va_parameters(env, address, mmu_idx,
@@ -11334,6 +11334,12 @@ static bool get_phys_addr_lpae(CPUARMState *env, uint64_t address,
         if (cpu_isar_feature(aa64_st, env_archcpu(env))) {
             max_tsz = 48 - param.using64k;
         }
+        if (param.using64k) {
+            if (cpu_isar_feature(aa64_lva, env_archcpu(env))) {
+                min_tsz = 12;
+            }
+        }
+        /* TODO: FEAT_LPA2 */
 
         /*
          * If TxSZ is programmed to a value larger than the maximum,
