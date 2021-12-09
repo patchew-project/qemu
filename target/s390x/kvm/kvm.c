@@ -612,6 +612,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     } else {
         /* prefix is only supported via sync regs */
     }
+
     return 0;
 }
 
@@ -2427,6 +2428,10 @@ void kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp)
         clear_bit(S390_FEAT_CMM_NT, model->features);
     }
 
+    if (kvm_check_extension(kvm_state, KVM_CAP_S390_CPU_TOPOLOGY)) {
+        set_bit(S390_FEAT_CPU_TOPOLOGY, model->features);
+    }
+
     /* bpb needs kernel support for migration, VSIE and reset */
     if (!kvm_check_extension(kvm_state, KVM_CAP_S390_BPB)) {
         clear_bit(S390_FEAT_BPB, model->features);
@@ -2535,6 +2540,7 @@ void kvm_s390_apply_cpu_model(const S390CPUModel *model, Error **errp)
         error_setg(errp, "KVM: Error configuring CPU subfunctions: %d", rc);
         return;
     }
+
     /* enable CMM via CMMA */
     if (test_bit(S390_FEAT_CMM, model->features)) {
         kvm_s390_enable_cmma();
