@@ -1,0 +1,5 @@
+{
+  "description": "QEMU vhost-user-rpmb",
+  "type": "block",
+  "binary": "@libexecdir@/vhost-user-rpmb"
+}
