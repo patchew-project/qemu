@@ -458,7 +458,7 @@ static void virtio_blk_submit_multireq(BlockBackend *blk, MultiReqBuffer *mrb)
         return;
     }
 
-    max_transfer = blk_get_max_transfer(mrb->reqs[0]->dev->blk);
+    max_transfer = blk_get_max_hw_transfer(mrb->reqs[0]->dev->blk);
 
     qsort(mrb->reqs, mrb->num_reqs, sizeof(*mrb->reqs),
           &multireq_compare);
