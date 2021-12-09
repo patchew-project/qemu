@@ -31,6 +31,10 @@ static char *cpu_hierarchy_to_string(MachineState *ms)
     MachineClass *mc = MACHINE_GET_CLASS(ms);
     GString *s = g_string_new(NULL);
 
+    if (mc->smp_props.drawers_supported) {
+        g_string_append_printf(s, " * drawers (%u)", ms->smp.drawers);
+    }
+
     if (mc->smp_props.books_supported) {
         g_string_append_printf(s, " * books (%u)", ms->smp.books);
     }
@@ -71,6 +75,7 @@ void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
 {
     MachineClass *mc = MACHINE_GET_CLASS(ms);
     unsigned cpus    = config->has_cpus ? config->cpus : 0;
+    unsigned drawers = config->has_drawers ? config->drawers : 0;
     unsigned books   = config->has_books ? config->books : 0;
     unsigned sockets = config->has_sockets ? config->sockets : 0;
     unsigned dies    = config->has_dies ? config->dies : 0;
@@ -83,6 +88,7 @@ void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
      * explicit configuration like "cpus=0" is not allowed.
      */
     if ((config->has_cpus && config->cpus == 0) ||
+        (config->has_drawers && config->drawers == 0) ||
         (config->has_books && config->books == 0) ||
         (config->has_sockets && config->sockets == 0) ||
         (config->has_dies && config->dies == 0) ||
@@ -111,6 +117,13 @@ void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
 
     books = books > 0 ? books : 1;
 
+    if (!mc->smp_props.drawers_supported && drawers > 1) {
+        error_setg(errp, "drawers not supported by this machine's CPU topology");
+        return;
+    }
+
+    drawers = drawers > 0 ? drawers : 1;
+
     /* compute missing values based on the provided ones */
     if (cpus == 0 && maxcpus == 0) {
         sockets = sockets > 0 ? sockets : 1;
@@ -124,33 +137,34 @@ void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
             if (sockets == 0) {
                 cores = cores > 0 ? cores : 1;
                 threads = threads > 0 ? threads : 1;
-                sockets = maxcpus / (books * dies * cores * threads);
+                sockets = maxcpus / (drawers * books * dies * cores * threads);
             } else if (cores == 0) {
                 threads = threads > 0 ? threads : 1;
-                cores = maxcpus / (books * sockets * dies * threads);
+                cores = maxcpus / (drawers * books * sockets * dies * threads);
             }
         } else {
             /* prefer cores over sockets since 6.2 */
             if (cores == 0) {
                 sockets = sockets > 0 ? sockets : 1;
                 threads = threads > 0 ? threads : 1;
-                cores = maxcpus / (books * sockets * dies * threads);
+                cores = maxcpus / (drawers * books * sockets * dies * threads);
             } else if (sockets == 0) {
                 threads = threads > 0 ? threads : 1;
-                sockets = maxcpus / (books * dies * cores * threads);
+                sockets = maxcpus / (drawers * books * dies * cores * threads);
             }
         }
 
         /* try to calculate omitted threads at last */
         if (threads == 0) {
-            threads = maxcpus / (books * sockets * dies * cores);
+            threads = maxcpus / (drawers * books * sockets * dies * cores);
         }
     }
 
-    maxcpus = maxcpus > 0 ? maxcpus : books * sockets * dies * cores * threads;
+    maxcpus = maxcpus > 0 ? maxcpus : drawers * books * sockets * dies * cores * threads;
     cpus = cpus > 0 ? cpus : maxcpus;
 
     ms->smp.cpus = cpus;
+    ms->smp.drawers = drawers;
     ms->smp.books = books;
     ms->smp.sockets = sockets;
     ms->smp.dies = dies;
@@ -159,7 +173,7 @@ void smp_parse(MachineState *ms, SMPConfiguration *config, Error **errp)
     ms->smp.max_cpus = maxcpus;
 
     /* sanity-check of the computed topology */
-    if (books * sockets * dies * cores * threads != maxcpus) {
+    if (drawers * books * sockets * dies * cores * threads != maxcpus) {
         g_autofree char *topo_msg = cpu_hierarchy_to_string(ms);
         error_setg(errp, "Invalid CPU topology: "
                    "product of the hierarchy must match maxcpus: "
