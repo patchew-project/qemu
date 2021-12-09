@@ -1705,6 +1705,7 @@ void blk_drain(BlockBackend *blk)
     BlockDriverState *bs = blk_bs(blk);
 
     if (bs) {
+        bdrv_ref(bs);
         bdrv_drained_begin(bs);
     }
 
@@ -1714,6 +1715,7 @@ void blk_drain(BlockBackend *blk)
 
     if (bs) {
         bdrv_drained_end(bs);
+        bdrv_unref(bs);
     }
 }
 
