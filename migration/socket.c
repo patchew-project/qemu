@@ -77,6 +77,11 @@ static void socket_outgoing_migration(QIOTask *task,
     } else {
         trace_migration_socket_outgoing_connected(data->hostname);
     }
+
+    if (migrate_use_zero_copy()) {
+        error_setg(&err, "Zero copy not available in migration");
+    }
+
     migration_channel_connect(data->s, sioc, data->hostname, err);
     object_unref(OBJECT(sioc));
 }
