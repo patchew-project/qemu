@@ -9,6 +9,13 @@
 #
 # This work is licensed under the terms of the GNU GPL version 2.
 # See the COPYING file in the top-level directory.
+#
+# The script will copy the headers into two target folder:
+#
+# - linux-headers/ for file that are required for compiling on a Linux host
+#
+# - include/standard-headers/ for files that are used for guest device emulation
+#
 
 tmpdir=$(mktemp -d)
 linux="$1"
