@@ -638,6 +638,9 @@ int scsi_sense_from_host_status(uint8_t host_status,
     case SCSI_HOST_ABORTED:
         *sense = SENSE_CODE(COMMAND_ABORTED);
         return CHECK_CONDITION;
+    case SCSI_HOST_ERROR:
+        *sense = SENSE_CODE(IO_ERROR);
+        return CHECK_CONDITION;
     case SCSI_HOST_RESET:
         *sense = SENSE_CODE(RESET);
         return CHECK_CONDITION;
