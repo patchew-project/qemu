@@ -1465,7 +1465,7 @@ void scsi_req_complete_failed(SCSIRequest *req, int host_status)
     assert(req->ops != &reqops_unit_attention);
 
     if (!req->bus->info->fail) {
-        status = scsi_sense_from_host_status(req->host_status, &sense);
+        status = scsi_sense_from_host_status(host_status, &sense);
         if (status == CHECK_CONDITION) {
             scsi_req_build_sense(req, sense);
         }
