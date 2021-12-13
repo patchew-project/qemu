@@ -394,12 +394,29 @@ static void pnv_pec_realize(DeviceState *dev, Error **errp)
     char name[64];
     int i;
 
+    /* User created devices */
+    if (!pec->chip) {
+        PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
+
+        pec->chip = pnv_get_chip(pnv, pec->chip_id);
+        if (!pec->chip) {
+            error_setg(errp, "invalid chip id: %d", pec->chip_id);
+            return;
+        }
+    }
+
     if (pec->index >= PNV_CHIP_GET_CLASS(pec->chip)->num_pecs) {
         error_setg(errp, "invalid PEC index: %d", pec->index);
         return;
     }
 
     pec->num_stacks = pecc->num_stacks[pec->index];
+
+    /*
+     * Reparent user created devices to the chip to build correctly
+     * the device tree.
+     */
+    pnv_chip_parent_fixup(pec->chip, OBJECT(pec), pec->index);
 
     /* Create stacks */
     for (i = 0; i < pec->num_stacks; i++) {
@@ -516,7 +533,7 @@ static void pnv_pec_class_init(ObjectClass *klass, void *data)
 
     dc->realize = pnv_pec_realize;
     device_class_set_props(dc, pnv_pec_properties);
-    dc->user_creatable = false;
+    dc->user_creatable = true;
 
     pecc->xscom_nest_base = pnv_pec_xscom_nest_base;
     pecc->xscom_pci_base  = pnv_pec_xscom_pci_base;

@@ -1345,8 +1345,9 @@ static void pnv_chip_power9_instance_init(Object *obj)
 
     object_initialize_child(obj, "homer", &chip9->homer, TYPE_PNV9_HOMER);
 
-    /* Number of PECs is the chip default */
-    chip->num_pecs = pcc->num_pecs;
+    if (defaults_enabled()) {
+        chip->num_pecs = pcc->num_pecs;
+    }
 
     for (i = 0; i < chip->num_pecs; i++) {
         object_initialize_child(obj, "pec[*]", &chip9->pecs[i],
