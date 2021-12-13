@@ -304,6 +304,42 @@ static void cortex_a8_initfn(Object *obj)
     define_arm_cp_regs(cpu, cortexa8_cp_reginfo);
 }
 
+static void cortex_a5_initfn(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    cpu->dtb_compatible = "arm,cortex-a5";
+    set_feature(&cpu->env, ARM_FEATURE_V7);
+    set_feature(&cpu->env, ARM_FEATURE_NEON);
+    set_feature(&cpu->env, ARM_FEATURE_THUMB2EE);
+    set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
+    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+    set_feature(&cpu->env, ARM_FEATURE_PMU);
+    cpu->midr = 0x410fc0f1;
+    cpu->reset_fpsid = 0x41023051;
+    cpu->isar.mvfr0 = 0x10110221;
+    cpu->isar.mvfr1 = 0x11000011;
+    cpu->ctr = 0x83338003;
+    cpu->reset_sctlr = 0x00c50078;
+    cpu->isar.id_pfr0 = 0x00001231;
+    cpu->isar.id_pfr1 = 0x00000011;
+    cpu->isar.id_dfr0 = 0x02010444;
+    cpu->id_afr0 = 0x00000000;
+    cpu->isar.id_mmfr0 = 0x00100103;
+    cpu->isar.id_mmfr1 = 0x40000000;
+    cpu->isar.id_mmfr2 = 0x01230000;
+    cpu->isar.id_mmfr3 = 0x00102211;
+    cpu->isar.id_isar0 = 0x00101111;
+    cpu->isar.id_isar1 = 0x13112111;
+    cpu->isar.id_isar2 = 0x21232041;
+    cpu->isar.id_isar3 = 0x11112131;
+    cpu->isar.id_isar4 = 0x00011142;
+    cpu->isar.dbgdidr = 0x1203f001;
+    cpu->clidr = 0x09200003;
+    cpu->ccsidr[0] = 0x701fe00a;
+    cpu->ccsidr[1] = 0x203fe00a;
+}
+
 static const ARMCPRegInfo cortexa9_cp_reginfo[] = {
     /*
      * power_control should be set to maximum latency. Again,
@@ -1019,6 +1055,7 @@ static const ARMCPUInfo arm_tcg_cpus[] = {
     { .name = "arm1136",     .initfn = arm1136_initfn },
     { .name = "arm1176",     .initfn = arm1176_initfn },
     { .name = "arm11mpcore", .initfn = arm11mpcore_initfn },
+    { .name = "cortext-a5",  .initfn = cortex_a5_initfn },
     { .name = "cortex-a7",   .initfn = cortex_a7_initfn },
     { .name = "cortex-a8",   .initfn = cortex_a8_initfn },
     { .name = "cortex-a9",   .initfn = cortex_a9_initfn },
