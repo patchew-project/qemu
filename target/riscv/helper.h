@@ -1147,3 +1147,9 @@ DEF_HELPER_6(vcompress_vm_b, void, ptr, ptr, ptr, ptr, env, i32)
 DEF_HELPER_6(vcompress_vm_h, void, ptr, ptr, ptr, ptr, env, i32)
 DEF_HELPER_6(vcompress_vm_w, void, ptr, ptr, ptr, ptr, env, i32)
 DEF_HELPER_6(vcompress_vm_d, void, ptr, ptr, ptr, ptr, env, i32)
+
+/* 128-bit integer multiplication and division */
+DEF_HELPER_5(divu_i128, tl, env, tl, tl, tl, tl)
+DEF_HELPER_5(divs_i128, tl, env, tl, tl, tl, tl)
+DEF_HELPER_5(remu_i128, tl, env, tl, tl, tl, tl)
+DEF_HELPER_5(rems_i128, tl, env, tl, tl, tl, tl)
