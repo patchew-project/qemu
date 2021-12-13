@@ -188,6 +188,7 @@ typedef struct float_status {
     bool snan_bit_is_one;
     bool use_first_nan;
     bool no_signaling_nans;
+    bool return_snan;
 } float_status;
 
 #endif /* SOFTFLOAT_TYPES_H */

@@ -20,10 +20,12 @@ static void partsN(return_nan)(FloatPartsN *a, float_status *s)
     switch (a->cls) {
     case float_class_snan:
         float_raise(float_flag_invalid, s);
-        if (s->default_nan_mode) {
-            parts_default_nan(a, s);
-        } else {
-            parts_silence_nan(a, s);
+        if (!return_snan(s)) {
+            if (s->default_nan_mode) {
+                parts_default_nan(a, s);
+            } else {
+                parts_silence_nan(a, s);
+            }
         }
         break;
     case float_class_qnan:

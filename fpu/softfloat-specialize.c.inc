@@ -92,6 +92,15 @@ static inline bool no_signaling_nans(float_status *status)
 #endif
 }
 
+static inline bool return_snan(float_status *status)
+{
+#if defined(TARGET_PPC)
+    return status->return_snan;
+#else
+    return false;
+#endif
+}
+
 /* Define how the architecture discriminates signaling NaNs.
  * This done with the most significant bit of the fraction.
  * In IEEE 754-1985 this was implementation defined, but in IEEE 754-2008
