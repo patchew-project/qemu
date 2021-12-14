@@ -65,4 +65,81 @@ bool cpu_throttle_active(void);
  */
 int cpu_throttle_get_percentage(void);
 
+/**
+ * dirtylimit_is_enabled
+ *
+ * Returns: %true if dirty page rate limit on specified virtual CPU is enabled,
+ *          %false otherwise.
+ */
+bool dirtylimit_is_enabled(int cpu_index);
+
+/**
+ * dirtylimit_in_service
+ *
+ * Returns: %true if dirty page rate limit thread is running, %false otherwise.
+ */
+bool dirtylimit_in_service(void);
+
+/**
+ * dirtylimit_stop
+ *
+ * stop dirty page rate limit thread.
+ */
+void dirtylimit_stop(void);
+
+/**
+ * dirtylimit_is_vcpu_index_valid
+ *
+ * Returns: %true if cpu index valid, %false otherwise.
+ */
+bool dirtylimit_is_vcpu_index_valid(int cpu_index);
+
+/**
+ * dirtylimit_state_init
+ *
+ * initialize golobal state for dirty page rate limit.
+ */
+void dirtylimit_state_init(int max_cpus);
+
+/**
+ * dirtylimit_state_finalize
+ *
+ * finalize golobal state for dirty page rate limit.
+ */
+void dirtylimit_state_finalize(void);
+
+/**
+ * dirtylimit_vcpu
+ *
+ * setup dirty page rate limit on specified virtual CPU with quota.
+ */
+void dirtylimit_vcpu(int cpu_index, uint64_t quota);
+
+/**
+ * dirtylimit_all
+ *
+ * setup dirty page rate limit on all virtual CPU with quota.
+ */
+void dirtylimit_all(uint64_t quota);
+
+/**
+ * dirtylimit_query_all
+ *
+ * Returns: dirty page limit information of all virtual CPU enabled.
+ */
+struct DirtyLimitInfoList *dirtylimit_query_all(void);
+
+/**
+ * dirtylimit_cancel_vcpu
+ *
+ * cancel dirtylimit for the specified virtual CPU.
+ */
+void dirtylimit_cancel_vcpu(int cpu_index);
+
+/**
+ * dirtylimit_cancel_all
+ *
+ * cancel dirtylimit for all virtual CPU enabled.
+ */
+void dirtylimit_cancel_all(void);
 #endif /* SYSEMU_CPU_THROTTLE_H */

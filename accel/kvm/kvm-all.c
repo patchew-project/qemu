@@ -45,6 +45,7 @@
 #include "qemu/guest-random.h"
 #include "sysemu/hw_accel.h"
 #include "kvm-cpus.h"
+#include "sysemu/cpu-throttle.h"
 
 #include "hw/boards.h"
 
@@ -2303,6 +2304,11 @@ bool kvm_dirty_ring_enabled(void)
     return kvm_state->kvm_dirty_ring_size ? true : false;
 }
 
+uint32_t kvm_dirty_ring_size(void)
+{
+    return kvm_state->kvm_dirty_ring_size;
+}
+
 static int kvm_init(MachineState *ms)
 {
     MachineClass *mc = MACHINE_GET_CLASS(ms);
@@ -2933,6 +2939,11 @@ int kvm_cpu_exec(CPUState *cpu)
             qemu_mutex_lock_iothread();
             kvm_dirty_ring_reap(kvm_state);
             qemu_mutex_unlock_iothread();
+            if (dirtylimit_in_service() &&
+                dirtylimit_is_enabled(cpu->cpu_index) &&
+                cpu->throttle_us_per_full) {
+                usleep(cpu->throttle_us_per_full);
+            }
             ret = 0;
             break;
         case KVM_EXIT_SYSTEM_EVENT:
