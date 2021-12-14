@@ -473,6 +473,7 @@ qcrypto_tls_creds_x509_sanity_check(QCryptoTLSCredsX509 *creds,
     gnutls_x509_crt_t cert = NULL;
     gnutls_x509_crt_t cacerts[MAX_CERTS];
     size_t ncacerts = 0;
+    size_t nvalidca = 0;
     size_t i;
     int ret = -1;
 
@@ -505,9 +506,13 @@ qcrypto_tls_creds_x509_sanity_check(QCryptoTLSCredsX509 *creds,
     for (i = 0; i < ncacerts; i++) {
         if (qcrypto_tls_creds_check_cert(creds,
                                          cacerts[i], cacertFile,
-                                         isServer, true, errp) < 0) {
-            goto cleanup;
+                                         isServer, true, errp) == 0) {
+            ++nvalidca;
         }
+    }
+
+    if (nvalidca == 0) {
+        goto cleanup;
     }
 
     if (cert && ncacerts &&
