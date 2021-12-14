@@ -1994,6 +1994,13 @@ static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos, Error **errp)
         ret = vfio_setup_pcie_cap(vdev, pos, size, errp);
         break;
     case PCI_CAP_ID_MSIX:
+        /*
+         * BAIDU KUNLUN Virtual Function devices for KUNLUN AI processor
+         * don't support MSI-X, so don't setup VFIO MSI-X here.
+         */
+        if (vdev->vendor_id == PCI_VENDOR_ID_BAIDU &&
+            vdev->device_id == PCI_DEVICE_ID_KUNLUN_VF)
+            break;
         ret = vfio_msix_setup(vdev, pos, errp);
         break;
     case PCI_CAP_ID_PM:
