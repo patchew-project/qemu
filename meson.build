@@ -2370,7 +2370,6 @@ common_user_ss = ss.source_set()
 crypto_ss = ss.source_set()
 hwcore_ss = ss.source_set()
 io_ss = ss.source_set()
-linux_user_ss = ss.source_set()
 qmp_ss = ss.source_set()
 qom_ss = ss.source_set()
 softmmu_ss = ss.source_set()
@@ -2620,8 +2619,6 @@ subdir('bsd-user')
 subdir('linux-user')
 
 specific_ss.add_all(when: 'CONFIG_BSD_USER', if_true: bsd_user_ss)
-
-specific_ss.add_all(when: 'CONFIG_LINUX_USER', if_true: linux_user_ss)
 
 common_user_ss = common_user_ss.apply(config_all, strict: false)
 common_user = static_library('common-user',
