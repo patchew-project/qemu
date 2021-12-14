@@ -23,6 +23,15 @@
 #include "hw/core/cpu.h"
 #include "sysemu/cpus.h"
 #include "qemu/lockable.h"
+#include "sysemu/dirtylimit.h"
+#include "sysemu/cpu-throttle.h"
+#include "sysemu/kvm.h"
+#include "monitor/hmp.h"
+#include "monitor/monitor.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/error.h"
+#include "qapi/qapi-commands-migration.h"
+#include "hw/boards.h"
 
 static QemuMutex qemu_cpu_list_lock;
 static QemuCond exclusive_cond;
@@ -351,4 +360,150 @@ void process_queued_cpu_work(CPUState *cpu)
     }
     qemu_mutex_unlock(&cpu->work_mutex);
     qemu_cond_broadcast(&qemu_work_cond);
+}
+
+void qmp_vcpu_dirty_limit(bool enable,
+                          bool has_cpu_index,
+                          uint64_t cpu_index,
+                          bool has_dirty_rate,
+                          uint64_t dirty_rate,
+                          Error **errp)
+{
+    static bool initialized;
+
+    if (!kvm_enabled() || !kvm_dirty_ring_enabled()) {
+        if (enable) {
+            error_setg(errp, "dirty page limit feature requires KVM with"
+                       " accelerator property 'dirty-ring-size' set'");
+        }
+        return;
+    }
+
+    if (!enable && !dirtylimit_in_service()) {
+        return;
+    }
+
+    if (!initialized) {
+        MachineState *ms = MACHINE(qdev_get_machine());
+        dirtylimit_calc_state_init(ms->smp.max_cpus);
+        dirtylimit_state_init(ms->smp.max_cpus);
+        initialized = true;
+    }
+
+    if (enable && !has_dirty_rate) {
+        error_setg(errp, "enable dirty page limit feature requires"
+                   " 'dirty-rate' set'");
+        return;
+    }
+
+    if (has_cpu_index && !dirtylimit_is_vcpu_index_valid(cpu_index)) {
+        error_setg(errp, "incorrect cpu index specified");
+        return;
+    }
+
+    if (enable) {
+        dirtylimit_calc_start();
+        if (has_cpu_index) {
+            dirtylimit_vcpu(cpu_index, dirty_rate);
+        } else {
+            dirtylimit_all(dirty_rate);
+        }
+    } else {
+        if (has_cpu_index) {
+            dirtylimit_cancel_vcpu(cpu_index);
+        } else {
+            dirtylimit_cancel_all();
+        }
+
+        if (!dirtylimit_in_service()) {
+            dirtylimit_calc_quit();
+            dirtylimit_state_finalize();
+            dirtylimit_calc_state_finalize();
+            initialized = false;
+        }
+    }
+}
+
+void hmp_vcpu_dirty_limit(Monitor *mon, const QDict *qdict)
+{
+    bool global = qdict_get_try_bool(qdict, "global", false);
+    bool enable = qdict_get_bool(qdict, "enable");
+    int64_t cpu_index = qdict_get_try_int(qdict, "cpu_index", -1);
+    int64_t dirty_rate = qdict_get_try_int(qdict, "dirty_rate", -1);
+    Error *err = NULL;
+
+    if (enable && dirty_rate < 0) {
+        monitor_printf(mon, "Dirty page limit requires dirty_rate set!\n");
+        return;
+    }
+
+    if (enable && !global && cpu_index < 0) {
+        monitor_printf(mon, "Dirty page limit requires cpu_index set!\n");
+        return;
+    }
+
+    if (global && cpu_index != -1) {
+        monitor_printf(mon, "Either global option or cpu_index can be set!\n");
+        return;
+    }
+
+    if (global) {
+        if (enable) {
+            qmp_vcpu_dirty_limit(true, false, -1, true, dirty_rate, &err);
+        } else {
+            qmp_vcpu_dirty_limit(false, false, -1, false, -1, &err);
+        }
+    } else {
+        if (enable) {
+            qmp_vcpu_dirty_limit(true, true, cpu_index, true, dirty_rate, &err);
+        } else {
+            qmp_vcpu_dirty_limit(false, true, cpu_index, false, -1, &err);
+        }
+    }
+
+    if (err) {
+        hmp_handle_error(mon, err);
+        return;
+    }
+
+    monitor_printf(mon, "[Please use 'info vcpu_dirty_limit' to query "
+                   "dirty limit for virtual CPU]\n");
+}
+
+struct DirtyLimitInfoList *qmp_query_vcpu_dirty_limit(Error **errp)
+{
+    if (!dirtylimit_in_service()) {
+        error_setg(errp, "dirty page limit not enabled");
+        return NULL;
+    }
+
+    return dirtylimit_query_all();
+}
+
+void hmp_info_vcpu_dirty_limit(Monitor *mon, const QDict *qdict)
+{
+    DirtyLimitInfoList *limit, *head, *info = NULL;
+    Error *err = NULL;
+
+    if (!dirtylimit_in_service()) {
+        monitor_printf(mon, "Dirty page limit not enabled!\n");
+        return;
+    }
+
+    info = qmp_query_vcpu_dirty_limit(&err);
+    if (err) {
+        hmp_handle_error(mon, err);
+        return;
+    }
+
+    head = info;
+    for (limit = head; limit != NULL; limit = limit->next) {
+        monitor_printf(mon, "vcpu[%"PRIi64"], limit rate %"PRIi64 " (MB/s),"
+                            " current rate %"PRIi64 " (MB/s)\n",
+                            limit->value->cpu_index,
+                            limit->value->limit_rate,
+                            limit->value->current_rate);
+    }
+
+    g_free(info);
 }
