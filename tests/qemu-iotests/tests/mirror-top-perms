@@ -21,7 +21,7 @@
 
 import os
 
-from qemu.aqmp import ConnectError
+from qemu.qmp import ConnectError
 from qemu.machine import machine
 
 import iotests
@@ -99,10 +99,10 @@ class TestMirrorTopPerms(iotests.QMPTestCase):
         self.vm_b.add_blockdev(f'file,node-name=drive0,filename={source}')
         self.vm_b.add_device('virtio-blk,drive=drive0,share-rw=on')
         try:
-            # Silence AQMP errors temporarily.
+            # Silence QMP errors temporarily.
             # TODO: Remove change_log_level and allow the errors to be logged.
             #       This necessitates a PID filter on *all* logging output.
-            with change_log_level('qemu.aqmp'):
+            with change_log_level('qemu.qmp'):
                 self.vm_b.launch()
                 print('ERROR: VM B launched successfully, '
                       'this should not have happened')

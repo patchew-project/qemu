@@ -6,9 +6,9 @@ from tempfile import TemporaryDirectory
 
 import avocado
 
-from qemu.aqmp import ConnectError, Runstate
-from qemu.aqmp.protocol import AsyncProtocol, StateError
-from qemu.aqmp.util import asyncio_run, create_task
+from qemu.qmp import ConnectError, Runstate
+from qemu.qmp.protocol import AsyncProtocol, StateError
+from qemu.qmp.util import asyncio_run, create_task
 
 
 class NullProtocol(AsyncProtocol[None]):
@@ -170,7 +170,7 @@ class Smoke(avocado.Test):
     def testLogger(self):
         self.assertEqual(
             self.proto.logger.name,
-            'qemu.aqmp.protocol'
+            'qemu.qmp.protocol'
         )
 
     def testName(self):
@@ -183,7 +183,7 @@ class Smoke(avocado.Test):
 
         self.assertEqual(
             self.proto.logger.name,
-            'qemu.aqmp.protocol.Steve'
+            'qemu.qmp.protocol.Steve'
         )
 
         self.assertEqual(
@@ -418,7 +418,7 @@ class Accept(Connect):
             await self.proto.accept('/dev/null')
 
     async def _hanging_connection(self):
-        with TemporaryDirectory(suffix='.aqmp') as tmpdir:
+        with TemporaryDirectory(suffix='.qmp') as tmpdir:
             sock = os.path.join(tmpdir, type(self.proto).__name__ + ".sock")
             await self.proto.accept(sock)
 
@@ -574,7 +574,7 @@ class SimpleSession(TestBase):
 
     @TestBase.async_test
     async def testSmoke(self):
-        with TemporaryDirectory(suffix='.aqmp') as tmpdir:
+        with TemporaryDirectory(suffix='.qmp') as tmpdir:
             sock = os.path.join(tmpdir, type(self.proto).__name__ + ".sock")
             server_task = create_task(self.server.accept(sock))
 
