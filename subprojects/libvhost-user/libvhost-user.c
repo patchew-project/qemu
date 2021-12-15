@@ -809,6 +809,7 @@ static bool
 vu_rem_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
     VhostUserMemoryRegion m = vmsg->payload.memreg.region, *msg_region = &m;
     int i;
+    bool found = false;
 
     if (vmsg->fd_num != 1 ||
         vmsg->size != sizeof(vmsg->payload.memreg)) {
@@ -831,25 +832,25 @@ vu_rem_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
             VuDevRegion *r = &dev->regions[i];
             void *m = (void *) (uintptr_t) r->mmap_addr;
 
-            if (m) {
+            if (m && !found) {
                 munmap(m, r->size + r->mmap_offset);
             }
 
-            break;
+            /*
+             * Shift all affected entries by 1 to close the hole at index i and
+             * zero out the last entry.
+             */
+            memmove(dev->regions + i, dev->regions + i + 1,
+                    sizeof(VuDevRegion) * (dev->nregions - i - 1));
+            memset(dev->regions + dev->nregions - 1, 0, sizeof(VuDevRegion));
+            DPRINT("Successfully removed a region\n");
+            dev->nregions--;
+
+            found = true;
         }
     }
 
-    if (i < dev->nregions) {
-        /*
-         * Shift all affected entries by 1 to close the hole at index i and
-         * zero out the last entry.
-         */
-        memmove(dev->regions + i, dev->regions + i + 1,
-               sizeof(VuDevRegion) * (dev->nregions - i - 1));
-        memset(dev->regions + dev->nregions - 1, 0,
-               sizeof(VuDevRegion));
-        DPRINT("Successfully removed a region\n");
-        dev->nregions--;
+    if (found) {
         vmsg_set_reply_u64(vmsg, 0);
     } else {
         vu_panic(dev, "Specified region not found\n");
