@@ -27,7 +27,8 @@ from typing import (
     TypeVar,
 )
 
-from . import QEMUMonitorProtocol, QMPError
+from qemu.aqmp import QMPError
+from qemu.aqmp.legacy import QEMUMonitorProtocol
 
 
 # The following is needed only for a type alias.
