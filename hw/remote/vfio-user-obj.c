@@ -49,6 +49,7 @@
 #include "hw/qdev-core.h"
 #include "hw/pci/pci.h"
 #include "qemu/timer.h"
+#include "hw/remote/iommu.h"
 
 #define TYPE_VFU_OBJECT "x-vfio-user-server"
 OBJECT_DECLARE_TYPE(VfuObject, VfuObjectClass, VFU_OBJECT)
@@ -210,6 +211,7 @@ static ssize_t vfu_object_cfg_access(vfu_ctx_t *vfu_ctx, char * const buf,
 
 static void dma_register(vfu_ctx_t *vfu_ctx, vfu_dma_info_t *info)
 {
+    VfuObject *o = vfu_get_private(vfu_ctx);
     MemoryRegion *subregion = NULL;
     g_autofree char *name = NULL;
     static unsigned int suffix;
@@ -226,14 +228,15 @@ static void dma_register(vfu_ctx_t *vfu_ctx, vfu_dma_info_t *info)
     memory_region_init_ram_ptr(subregion, NULL, name,
                                iov->iov_len, info->vaddr);
 
-    memory_region_add_subregion(get_system_memory(), (hwaddr)iov->iov_base,
-                                subregion);
+    memory_region_add_subregion(remote_iommu_get_ram(o->pci_dev),
+                                (hwaddr)iov->iov_base, subregion);
 
     trace_vfu_dma_register((uint64_t)iov->iov_base, iov->iov_len);
 }
 
 static void dma_unregister(vfu_ctx_t *vfu_ctx, vfu_dma_info_t *info)
 {
+    VfuObject *o = vfu_get_private(vfu_ctx);
     MemoryRegion *mr = NULL;
     ram_addr_t offset;
 
@@ -242,7 +245,7 @@ static void dma_unregister(vfu_ctx_t *vfu_ctx, vfu_dma_info_t *info)
         return;
     }
 
-    memory_region_del_subregion(get_system_memory(), mr);
+    memory_region_del_subregion(remote_iommu_get_ram(o->pci_dev), mr);
 
     object_unparent((OBJECT(mr)));
 
@@ -320,6 +323,7 @@ static vfu_region_access_cb_t *vfu_object_bar_handlers[PCI_NUM_REGIONS] = {
  */
 static void vfu_object_register_bars(vfu_ctx_t *vfu_ctx, PCIDevice *pdev)
 {
+    VfuObject *o = vfu_get_private(vfu_ctx);
     int i;
 
     for (i = 0; i < PCI_NUM_REGIONS; i++) {
@@ -331,6 +335,12 @@ static void vfu_object_register_bars(vfu_ctx_t *vfu_ctx, PCIDevice *pdev)
                          (size_t)pdev->io_regions[i].size,
                          vfu_object_bar_handlers[i],
                          VFU_REGION_FLAG_RW, NULL, 0, -1, 0);
+
+        if ((o->pci_dev->io_regions[i].type & PCI_BASE_ADDRESS_SPACE) == 0) {
+            memory_region_unref(o->pci_dev->io_regions[i].address_space);
+            o->pci_dev->io_regions[i].address_space =
+                remote_iommu_get_ram(o->pci_dev);
+        }
 
         trace_vfu_bar_register(i, pdev->io_regions[i].addr,
                                pdev->io_regions[i].size);
@@ -489,6 +499,10 @@ static void vfu_object_finalize(Object *obj)
     g_free(o->device);
 
     o->device = NULL;
+
+    if (o->pci_dev) {
+        remote_iommu_free(o->pci_dev);
+    }
 
     o->pci_dev = NULL;
 

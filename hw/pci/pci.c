@@ -95,7 +95,7 @@ static const VMStateDescription vmstate_pcibus = {
     }
 };
 
-static void pci_init_bus_master(PCIDevice *pci_dev)
+void pci_init_bus_master(PCIDevice *pci_dev)
 {
     AddressSpace *dma_as = pci_device_iommu_address_space(pci_dev);
 
