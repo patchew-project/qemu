@@ -690,6 +690,12 @@ vu_add_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
     VuDevRegion *dev_region = &dev->regions[dev->nregions];
     void *mmap_addr;
 
+    if (vmsg->fd_num != 1 ||
+        vmsg->size != sizeof(vmsg->payload.memreg)) {
+        vu_panic(dev, "VHOST_USER_REM_MEM_REG received multiple regions");
+        return true;
+    }
+
     /*
      * If we are in postcopy mode and we receive a u64 payload with a 0 value
      * we know all the postcopy client bases have been received, and we
