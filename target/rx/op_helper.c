@@ -130,8 +130,7 @@ void helper_set_fpsw(CPURXState *env, uint32_t val)
     fpsw |= 0x7fffff03;
     val &= ~0x80000000;
     fpsw &= val;
-    FIELD_DP32(fpsw, FPSW, FS, FIELD_EX32(fpsw, FPSW, FLAGS) != 0);
-    env->fpsw = fpsw;
+    env->fpsw = FIELD_DP32(fpsw, FPSW, FS, FIELD_EX32(fpsw, FPSW, FLAGS) != 0);
     set_float_rounding_mode(roundmode[FIELD_EX32(env->fpsw, FPSW, RM)],
                             &env->fp_status);
 }
