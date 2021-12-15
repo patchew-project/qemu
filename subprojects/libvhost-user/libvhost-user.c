@@ -690,6 +690,11 @@ vu_add_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
     VuDevRegion *dev_region = &dev->regions[dev->nregions];
     void *mmap_addr;
 
+    if (dev->nregions == VHOST_USER_MAX_RAM_SLOTS) {
+        vu_panic(dev, "No free ram slots available");
+        return true;
+    }
+
     if (vmsg->fd_num != 1 ||
         vmsg->size != sizeof(vmsg->payload.memreg)) {
         vu_panic(dev, "VHOST_USER_REM_MEM_REG received multiple regions");
