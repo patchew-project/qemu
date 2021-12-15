@@ -17,7 +17,9 @@
 #include "qemu/thread.h"
 #include "hw/remote/machine.h"
 #include "hw/remote/iohub.h"
+#include "hw/pci/msi.h"
 #include "qemu/main-loop.h"
+#include "trace.h"
 
 void remote_iohub_init(RemoteIOHubState *iohub)
 {
@@ -32,6 +34,8 @@ void remote_iohub_init(RemoteIOHubState *iohub)
         event_notifier_init_fd(&iohub->irqfds[pirq], -1);
         event_notifier_init_fd(&iohub->resamplefds[pirq], -1);
     }
+
+    msi_nonbroken = true;
 }
 
 void remote_iohub_finalize(RemoteIOHubState *iohub)
@@ -62,6 +66,9 @@ void remote_iohub_set_irq(void *opaque, int pirq, int level)
     QEMU_LOCK_GUARD(&iohub->irq_level_lock[pirq]);
 
     if (level) {
+        if (iohub->intx_notify) {
+            iohub->intx_notify(pirq, 0);
+        }
         if (++iohub->irq_level[pirq] == 1) {
             event_notifier_set(&iohub->irqfds[pirq]);
         }

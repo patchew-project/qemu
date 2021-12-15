@@ -50,6 +50,9 @@
 #include "hw/pci/pci.h"
 #include "qemu/timer.h"
 #include "hw/remote/iommu.h"
+#include "hw/pci/msi.h"
+#include "hw/pci/msix.h"
+#include "hw/remote/iohub.h"
 
 #define TYPE_VFU_OBJECT "x-vfio-user-server"
 OBJECT_DECLARE_TYPE(VfuObject, VfuObjectClass, VFU_OBJECT)
@@ -80,6 +83,8 @@ struct VfuObject {
 
     int vfu_poll_fd;
 };
+
+static GHashTable *vfu_object_dev_table;
 
 static void vfu_object_init_ctx(VfuObject *o, Error **errp);
 
@@ -347,6 +352,54 @@ static void vfu_object_register_bars(vfu_ctx_t *vfu_ctx, PCIDevice *pdev)
     }
 }
 
+static void vfu_object_intx_notify(int pci_devfn, unsigned vector)
+{
+    vfu_ctx_t *vfu_ctx = g_hash_table_lookup(vfu_object_dev_table,
+                                             (void *)(uint64_t)pci_devfn);
+
+    if (vfu_ctx) {
+        vfu_irq_trigger(vfu_ctx, vector);
+    }
+}
+
+static void vfu_object_msi_notify(PCIDevice *pci_dev, unsigned vector)
+{
+    vfu_object_intx_notify(pci_dev->devfn, vector);
+}
+
+static int vfu_object_setup_irqs(vfu_ctx_t *vfu_ctx, PCIDevice *pci_dev)
+{
+    RemoteMachineState *machine = REMOTE_MACHINE(current_machine);
+    RemoteIOHubState *iohub = &machine->iohub;
+    int ret;
+
+    ret = vfu_setup_device_nr_irqs(vfu_ctx, VFU_DEV_INTX_IRQ, 1);
+    if (ret < 0) {
+        return ret;
+    }
+
+    iohub->intx_notify = vfu_object_intx_notify;
+
+    ret = 0;
+    if (msix_nr_vectors_allocated(pci_dev)) {
+        ret = vfu_setup_device_nr_irqs(vfu_ctx, VFU_DEV_MSIX_IRQ,
+                                       msix_nr_vectors_allocated(pci_dev));
+
+        pci_dev->msix_notify = vfu_object_msi_notify;
+    } else if (msi_nr_vectors_allocated(pci_dev)) {
+        ret = vfu_setup_device_nr_irqs(vfu_ctx, VFU_DEV_MSI_IRQ,
+                                       msi_nr_vectors_allocated(pci_dev));
+
+        pci_dev->msi_notify = vfu_object_msi_notify;
+    }
+
+    if (ret < 0) {
+        return ret;
+    }
+
+    return 0;
+}
+
 /*
  * TYPE_VFU_OBJECT depends on the availability of the 'socket' and 'device'
  * properties. It also depends on devices instantiated in QEMU. These
@@ -437,6 +490,13 @@ static void vfu_object_init_ctx(VfuObject *o, Error **errp)
 
     vfu_object_register_bars(o->vfu_ctx, o->pci_dev);
 
+    ret = vfu_object_setup_irqs(o->vfu_ctx, o->pci_dev);
+    if (ret < 0) {
+        error_setg(errp, "vfu: Failed to setup interrupts for %s",
+                   o->device);
+        goto fail;
+    }
+
     ret = vfu_realize_ctx(o->vfu_ctx);
     if (ret < 0) {
         error_setg(errp, "vfu: Failed to realize device %s- %s",
@@ -449,6 +509,9 @@ static void vfu_object_init_ctx(VfuObject *o, Error **errp)
         error_setg(errp, "vfu: Failed to get poll fd %s", o->device);
         goto fail;
     }
+
+    g_hash_table_insert(vfu_object_dev_table,
+                        (void *)(uint64_t)o->pci_dev->devfn, o->vfu_ctx);
 
     qemu_set_fd_handler(o->vfu_poll_fd, vfu_object_attach_ctx, NULL, o);
 
@@ -504,9 +567,18 @@ static void vfu_object_finalize(Object *obj)
         remote_iommu_free(o->pci_dev);
     }
 
+    if (o->pci_dev &&
+            g_hash_table_lookup(vfu_object_dev_table,
+                                (void *)(uint64_t)o->pci_dev->devfn)) {
+        g_hash_table_remove(vfu_object_dev_table,
+                            (void *)(uint64_t)o->pci_dev->devfn);
+    }
+
     o->pci_dev = NULL;
 
     if (!k->nr_devs && !k->daemon) {
+        g_hash_table_destroy(vfu_object_dev_table);
+        vfu_object_dev_table = NULL;
         qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
     }
 
@@ -524,6 +596,8 @@ static void vfu_object_class_init(ObjectClass *klass, void *data)
 
     /* Later determine how to detect a daemon */
     k->daemon = false;
+
+    vfu_object_dev_table = g_hash_table_new_full(NULL, NULL, NULL, NULL);
 
     object_class_property_add(klass, "socket", "SocketAddress", NULL,
                               vfu_object_set_socket, NULL, NULL);
