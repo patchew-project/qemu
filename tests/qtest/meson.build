@@ -160,6 +160,7 @@ qtests_sparc64 = \
 qtests_npcm7xx = \
   ['npcm7xx_adc-test',
    'npcm7xx_gpio-test',
+   'google_gpio_tx-test',
    'npcm7xx_pwm-test',
    'npcm7xx_rng-test',
    'npcm7xx_smbus-test',
