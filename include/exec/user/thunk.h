@@ -22,6 +22,7 @@
 
 #include "cpu.h"
 #include "exec/user/abitypes.h"
+#include <asm/posix_types.h>
 
 /* types enums definitions */
 
@@ -109,16 +110,7 @@ static inline int thunk_type_size(const argtype *type_ptr, int is_host)
         break;
     case TYPE_OLDDEVT:
         if (is_host) {
-#if defined(HOST_X86_64)
-            return 8;
-#elif defined(HOST_ALPHA) || defined(HOST_IA64) || defined(HOST_MIPS) || \
-      defined(HOST_PARISC) || defined(HOST_SPARC64)
-            return 4;
-#elif defined(HOST_PPC)
-            return sizeof(void *);
-#else
-            return 2;
-#endif
+            return sizeof(__kernel_old_dev_t);
         } else {
 #if defined(TARGET_X86_64)
             return 8;
