@@ -195,6 +195,7 @@ static const int a15irqmap[] = {
 };
 
 static const char *valid_cpus[] = {
+    ARM_CPU_TYPE_NAME("cortex-a5"),
     ARM_CPU_TYPE_NAME("cortex-a7"),
     ARM_CPU_TYPE_NAME("cortex-a15"),
     ARM_CPU_TYPE_NAME("cortex-a53"),

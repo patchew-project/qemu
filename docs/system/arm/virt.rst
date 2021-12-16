@@ -50,6 +50,7 @@ The virt board supports:
 
 Supported guest CPU types:
 
+- ``cortex-a5`` (32-bit)
 - ``cortex-a7`` (32-bit)
 - ``cortex-a15`` (32-bit; the default)
 - ``cortex-a53`` (64-bit)
