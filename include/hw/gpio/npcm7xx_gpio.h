@@ -17,6 +17,7 @@
 
 #include "exec/memory.h"
 #include "hw/sysbus.h"
+#include "hw/gpio/google_gpio_transmitter.h"
 
 /* Number of pins managed by each controller. */
 #define NPCM7XX_GPIO_NR_PINS (32)
@@ -29,6 +30,8 @@
 
 typedef struct NPCM7xxGPIOState {
     SysBusDevice parent;
+
+    GoogleGPIOTXState *txs;
 
     /* Properties to be defined by the SoC */
     uint32_t reset_pu;

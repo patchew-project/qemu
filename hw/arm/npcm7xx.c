@@ -421,6 +421,9 @@ static void npcm7xx_init(Object *obj)
         object_initialize_child(obj, "gpio[*]", &s->gpio[i], TYPE_NPCM7XX_GPIO);
     }
 
+    object_initialize_child(obj, "gpiotx", &s->gpiotx,
+                            TYPE_GOOGLE_GPIO_TRANSMITTER);
+
     for (i = 0; i < ARRAY_SIZE(s->smbus); i++) {
         object_initialize_child(obj, "smbus[*]", &s->smbus[i],
                                 TYPE_NPCM7XX_SMBUS);
@@ -573,11 +576,15 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
     sysbus_realize(SYS_BUS_DEVICE(&s->rng), &error_abort);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->rng), 0, NPCM7XX_RNG_BA);
 
+    sysbus_realize(SYS_BUS_DEVICE(&s->gpiotx), &error_abort);
+
     /* GPIO modules. Cannot fail. */
     QEMU_BUILD_BUG_ON(ARRAY_SIZE(npcm7xx_gpio) != ARRAY_SIZE(s->gpio));
     for (i = 0; i < ARRAY_SIZE(s->gpio); i++) {
         Object *obj = OBJECT(&s->gpio[i]);
 
+        object_property_set_link(obj, "gpio-tx", OBJECT(&s->gpiotx),
+                                 &error_abort);
         object_property_set_uint(obj, "controller-num", i, &error_abort);
         object_property_set_uint(obj, "reset-pullup",
                                  npcm7xx_gpio[i].reset_pu, &error_abort);

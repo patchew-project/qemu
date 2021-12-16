@@ -65,6 +65,16 @@ enum NPCM7xxGPIORegister {
 #define NPCM7XX_GPIO_LOCK_MAGIC1 (0xc0defa73)
 #define NPCM7XX_GPIO_LOCK_MAGIC2 (0xc0de1248)
 
+static void npcm7xx_gpio_tx_state(NPCM7xxGPIOState *s)
+{
+    uint32_t state = s->regs[NPCM7XX_GPIO_DOUT] | s->regs[NPCM7XX_GPIO_DIN];
+
+    /* Only TX if we have a transmitter */
+    if (s->txs) {
+        google_gpio_tx_transmit(s->txs, s->controller_num, state);
+    }
+}
+
 static void npcm7xx_gpio_update_events(NPCM7xxGPIOState *s, uint32_t din_diff)
 {
     uint32_t din_new = s->regs[NPCM7XX_GPIO_DIN];
@@ -147,6 +157,7 @@ static void npcm7xx_gpio_update_pins(NPCM7xxGPIOState *s, uint32_t diff)
 
     /* See if any new events triggered because of all this. */
     npcm7xx_gpio_update_events(s, din_old ^ s->regs[NPCM7XX_GPIO_DIN]);
+    npcm7xx_gpio_tx_state(s);
 }
 
 static bool npcm7xx_gpio_is_locked(NPCM7xxGPIOState *s)
@@ -387,6 +398,9 @@ static const VMStateDescription vmstate_npcm7xx_gpio = {
 };
 
 static Property npcm7xx_gpio_properties[] = {
+    /* Pointer to the GPIO state transmitter */
+    DEFINE_PROP_LINK("gpio-tx", NPCM7xxGPIOState, txs,
+                     TYPE_GOOGLE_GPIO_TRANSMITTER, GoogleGPIOTXState *),
     /* The GPIO controller number (out of 8) */
     DEFINE_PROP_UINT8("controller-num", NPCM7xxGPIOState, controller_num, 0),
     /* Bit n set => pin n has pullup enabled by default. */

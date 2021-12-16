@@ -399,6 +399,7 @@ config NPCM7XX
     select SSI
     select UNIMP
     select PCA954X
+    select GOOGLE_GPIO_TRANSMITTER
 
 config FSL_IMX25
     bool
