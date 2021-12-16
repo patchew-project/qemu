@@ -370,6 +370,14 @@ static void npcm7xx_gpio_hold_reset(Object *obj)
     npcm7xx_gpio_update_pins(s, -1);
 }
 
+static void npcm7xx_gpio_realize(DeviceState *dev, Error **errp)
+{
+    NPCM7xxGPIOState *s = NPCM7XX_GPIO(dev);
+    uint32_t state = s->regs[NPCM7XX_GPIO_DOUT] | s->regs[NPCM7XX_GPIO_DIN];
+
+    google_gpio_tx_state_init(s->txs, s->controller_num, state);
+}
+
 static void npcm7xx_gpio_init(Object *obj)
 {
     NPCM7xxGPIOState *s = NPCM7XX_GPIO(obj);
@@ -423,6 +431,7 @@ static void npcm7xx_gpio_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "NPCM7xx GPIO Controller";
     dc->vmsd = &vmstate_npcm7xx_gpio;
+    dc->realize = npcm7xx_gpio_realize;
     reset->phases.enter = npcm7xx_gpio_enter_reset;
     reset->phases.hold = npcm7xx_gpio_hold_reset;
     device_class_set_props(dc, npcm7xx_gpio_properties);
