@@ -1131,7 +1131,7 @@ static uint16_t nvme_tx(NvmeCtrl *n, NvmeSg *sg, uint8_t *ptr, uint32_t len,
     assert(sg->flags & NVME_SG_ALLOC);
 
     if (sg->flags & NVME_SG_DMA) {
-        const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
+        const MemTxAttrs attrs = { .memory = true };
         MemTxResult res;
         uint64_t residual;
 
