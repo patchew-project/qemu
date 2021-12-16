@@ -35,12 +35,32 @@ typedef enum {
 } GoogleGPIOTXCode;
 
 typedef struct {
+    uint32_t gpios;
+    uint32_t allowed;
+} GPIOCtlrState;
+
+typedef struct {
     SysBusDevice parent;
+
+    GHashTable *gpio_state_by_ctlr;
+    uint32_t *gpio_allowlist;
+    uint32_t gpio_allowlist_sz;
 
     CharBackend chr;
 } GoogleGPIOTXState;
 
 void google_gpio_tx_transmit(GoogleGPIOTXState *s, uint8_t controller,
                              uint32_t gpios);
+/*
+ * If using an allowlist, this function should be called by the GPIO controller
+ * to set an initial state of the controller's GPIO pins.
+ * Otherwise all pins will be assumed to have an initial state of 0.
+ */
+void google_gpio_tx_state_init(GoogleGPIOTXState *s, uint8_t controller,
+                               uint32_t gpios);
 
+/* Helper function to be called to initialize the allowlist qdev properties */
+void google_gpio_tx_allowlist_qdev_init(GoogleGPIOTXState *s,
+                                        const uint32_t *allowed_pins,
+                                        size_t num);
 #endif /* GOOGLE_GPIO_TRANSMITTER_H */
