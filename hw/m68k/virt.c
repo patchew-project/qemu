@@ -306,6 +306,7 @@ type_init(virt_machine_register_types)
 
 static void virt_machine_6_2_options(MachineClass *mc)
 {
+    compat_props_add(mc->compat_props, hw_compat_6_2, hw_compat_6_2_len);
 }
 DEFINE_VIRT_MACHINE(6, 2, true)
 

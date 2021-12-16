@@ -4671,6 +4671,7 @@ static void spapr_machine_latest_class_options(MachineClass *mc)
 static void spapr_machine_6_2_class_options(MachineClass *mc)
 {
     /* Defaults for the latest behaviour inherited from the base class */
+    compat_props_add(mc->compat_props, hw_compat_6_2, hw_compat_6_2_len);
 }
 
 DEFINE_SPAPR_MACHINE(6_2, "6.2", true);

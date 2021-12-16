@@ -2858,6 +2858,7 @@ type_init(machvirt_machine_init);
 
 static void virt_machine_6_2_options(MachineClass *mc)
 {
+    compat_props_add(mc->compat_props, hw_compat_6_2, hw_compat_6_2_len);
 }
 DEFINE_VIRT_MACHINE_AS_LATEST(6, 2)
 
