@@ -13,3 +13,6 @@ config GPIO_PWR
 
 config SIFIVE_GPIO
     bool
+
+config GOOGLE_GPIO_TRANSMITTER
+    bool
