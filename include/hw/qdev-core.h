@@ -193,6 +193,7 @@ struct DeviceState {
     int instance_id_alias;
     int alias_required_for_version;
     ResettableState reset;
+    int engaged_in_direct_io;
 };
 
 struct DeviceListener {
