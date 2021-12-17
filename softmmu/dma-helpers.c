@@ -303,6 +303,7 @@ static uint64_t dma_buf_rw(uint8_t *ptr, int32_t len, QEMUSGList *sg,
     resid = sg->size;
     sg_cur_index = 0;
     len = MIN(len, resid);
+    sg->dev->engaged_in_io = true;
     while (len > 0) {
         ScatterGatherEntry entry = sg->sg[sg_cur_index++];
         int32_t xfer = MIN(len, entry.len);
@@ -311,6 +312,7 @@ static uint64_t dma_buf_rw(uint8_t *ptr, int32_t len, QEMUSGList *sg,
         len -= xfer;
         resid -= xfer;
     }
+    sg->dev->engaged_in_io = true;
 
     return resid;
 }
