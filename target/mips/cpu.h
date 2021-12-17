@@ -30,7 +30,7 @@ union fpr_t {
     uint32_t w[2]; /* binary single fixed-point */
 /* FPU/MSA register mapping is not tested on big-endian hosts. */
     wr_t     wr;   /* vector data */
-};
+} QEMU_ALIGNED(16);
 /*
  *define FP_ENDIAN_IDX to access the same location
  * in the fpr_t union regardless of the host endianness
