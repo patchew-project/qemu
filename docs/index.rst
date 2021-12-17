@@ -18,3 +18,4 @@ Welcome to QEMU's documentation!
    interop/index
    specs/index
    devel/index
+   can

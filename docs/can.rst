@@ -1,6 +1,5 @@
-QEMU CAN bus emulation support
-==============================
-
+CAN Bus Emulation Support
+=========================
 The CAN bus emulation provides mechanism to connect multiple
 emulated CAN controller chips together by one or multiple CAN busses
 (the controller device "canbus"  parameter). The individual busses
@@ -32,8 +31,7 @@ emulated environment for testing and RTEMS GSoC slot has been donated
 to work on CAN hardware emulation on QEMU.
 
 Examples how to use CAN emulation for SJA1000 based boards
-==========================================================
-
+----------------------------------------------------------
 When QEMU with CAN PCI support is compiled then one of the next
 CAN boards can be selected
 
@@ -100,8 +98,7 @@ traffic with "candump" command which is included in "can-utils".
   candump can0
 
 CTU CAN FD support examples
-===========================
-
+---------------------------
 This open-source core provides CAN FD support. CAN FD drames are
 delivered even to the host systems when SocketCAN interface is found
 CAN FD capable.
@@ -170,7 +167,7 @@ The test can be run viceversa, generate messages in the guest system and capture
 in the host one and much more combinations.
 
 Links to other resources
-========================
+------------------------
 
  (1) CAN related projects at Czech Technical University, Faculty of Electrical Engineering
      http://canbus.pages.fel.cvut.cz/
@@ -196,3 +193,4 @@ Links to other resources
      http://canbus.pages.fel.cvut.cz/ctucanfd_ip_core/driver_doc/ctucanfd-driver.html
  (11) Integration with PCIe interfacing for Intel/Altera Cyclone IV based board
      https://gitlab.fel.cvut.cz/canbus/pcie-ctu_can_fd
+
