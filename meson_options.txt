@@ -208,3 +208,6 @@ option('fdt', type: 'combo', value: 'auto',
 
 option('selinux', type: 'feature', value: 'auto',
        description: 'SELinux support in qemu-nbd')
+
+option('hexagon_idef_parser_enabled', type : 'boolean', value : true,
+       description: 'Whether idef-parser should be used to automatically generate TCG code for the Hexagon frontend')
