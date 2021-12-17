@@ -151,6 +151,13 @@ If there are two versions of a function to be called with or without a
 lock held, the function that expects the lock to be already held
 usually uses the suffix ``_locked``.
 
+If a function is a shim designed to deal with compatibility
+workarounds we use the suffix ``_compat``. These are generally not
+called directly and aliased to the plain function name via the
+pre-processor. Another common suffix that is used is ``__impl`` which
+is often used for the concrete implementation of something that has
+multiple potential approaches hidden behind a common function name or
+one that needs expansion via the pre-processor.
 
 Block structure
 ===============
