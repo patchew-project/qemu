@@ -63,6 +63,9 @@ class FreeBSDVM(basevm.BaseVM):
 
         # libs: migration
         "zstd",
+
+        # libs: sndio
+        "sndio",
     ]
 
     # TODO: Enable gnutls again once FreeBSD's libtasn1 got fixed

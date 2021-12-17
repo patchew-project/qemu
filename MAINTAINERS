@@ -2308,6 +2308,7 @@ X: audio/jackaudio.c
 X: audio/ossaudio.c
 X: audio/paaudio.c
 X: audio/sdlaudio.c
+X: audio/sndio.c
 X: audio/spiceaudio.c
 F: qapi/audio.json
 
@@ -2349,6 +2350,10 @@ M: Gerd Hoffmann <kraxel@redhat.com>
 R: Thomas Huth <huth@tuxfamily.org>
 S: Odd Fixes
 F: audio/sdlaudio.c
+
+Sndio Audio backend
+R: Alexandre Ratchov <alex@caoua.org>
+F: audio/sndio.c
 
 Block layer core
 M: Kevin Wolf <kwolf@redhat.com>
