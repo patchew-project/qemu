@@ -195,4 +195,8 @@ idef_parser_input_generated_prep = custom_target(
     command: [idef_parser_dir / 'prepare', '@INPUT@', '-I' + idef_parser_dir, '-o', '@OUTPUT@'],
 )
 
+flex = generator(find_program('flex'),
+                 output: ['@BASENAME@.yy.c', '@BASENAME@.yy.h'],
+                 arguments: ['-o', '@OUTPUT0@', '--header-file=@OUTPUT1@', '@INPUT@'])
+
 target_arch += {'hexagon': hexagon_ss}
