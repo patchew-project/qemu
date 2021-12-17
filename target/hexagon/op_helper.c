@@ -341,6 +341,16 @@ uint32_t HELPER(fbrev)(uint32_t addr)
     return deposit32(addr, 0, 16, revbit16(addr));
 }
 
+uint32_t HELPER(fbrev_32)(uint32_t addr)
+{
+    return revbit32(addr);
+}
+
+uint64_t HELPER(fbrev_64)(uint64_t addr)
+{
+    return revbit64(addr);
+}
+
 static float32 build_float32(uint8_t sign, uint32_t exp, uint32_t mant)
 {
     return make_float32(
