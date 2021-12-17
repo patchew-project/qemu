@@ -5,6 +5,7 @@ ENV PACKAGES \
     Mesa-devel \
     alsa-lib-devel \
     bc \
+    bison \
     brlapi-devel \
     bzip2 \
     ca-certificates \
@@ -15,6 +16,7 @@ ENV PACKAGES \
     dbus-1 \
     diffutils \
     findutils \
+    flex \
     gcc \
     gcc-c++ \
     gcovr \

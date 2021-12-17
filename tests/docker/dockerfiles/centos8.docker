@@ -5,6 +5,7 @@ ENV PACKAGES \
     SDL2-devel \
     alsa-lib-devel \
     bc \
+    bison \
     brlapi-devel \
     bzip2 \
     bzip2-devel \
@@ -19,6 +20,7 @@ ENV PACKAGES \
     device-mapper-multipath-devel \
     diffutils \
     findutils \
+    flex \
     gcc \
     gcc-c++ \
     genisoimage \

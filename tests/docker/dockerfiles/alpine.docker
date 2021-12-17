@@ -9,9 +9,11 @@ ENV PACKAGES \
 	alsa-lib-dev \
 	bash \
 	binutils \
+	bison \
 	ccache \
 	coreutils \
 	curl-dev \
+	flex \
 	g++ \
 	gcc \
 	git \

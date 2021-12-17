@@ -11,9 +11,11 @@
 
 FROM docker.io/library/ubuntu:20.04
 ENV PACKAGES \
+    bison \
     ccache \
     clang \
     dbus \
+    flex \
     gcc \
     gettext \
     git \
@@ -30,6 +32,7 @@ ENV PACKAGES \
     libfdt-dev \
     libffi-dev \
     libgbm-dev \
+    libglib2.0-dev \
     libgnutls28-dev \
     libgtk-3-dev \
     libibverbs-dev \
