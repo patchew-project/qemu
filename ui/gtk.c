@@ -416,13 +416,8 @@ static void gd_update(DisplayChangeListener *dcl,
     ww = gtk_widget_get_allocated_width(vc->gfx.drawing_area);
     wh = gtk_widget_get_allocated_height(vc->gfx.drawing_area);
 
-    mx = my = 0;
-    if (ww > fbw) {
-        mx = (ww - fbw) / 2;
-    }
-    if (wh > fbh) {
-        my = (wh - fbh) / 2;
-    }
+    mx = (ww - fbw) / 2;
+    my = (wh - fbh) / 2;
 
     gtk_widget_queue_draw_area(vc->gfx.drawing_area,
                                mx + x1, my + y1, (x2 - x1), (y2 - y1));
@@ -801,13 +796,8 @@ static gboolean gd_draw_event(GtkWidget *widget, cairo_t *cr, void *opaque)
     fbw *= vc->gfx.scale_x;
     fbh *= vc->gfx.scale_y;
 
-    mx = my = 0;
-    if (ww > fbw) {
-        mx = (ww - fbw) / 2;
-    }
-    if (wh > fbh) {
-        my = (wh - fbh) / 2;
-    }
+    mx = (ww - fbw) / 2;
+    my = (wh - fbh) / 2;
 
     cairo_rectangle(cr, 0, 0, ww, wh);
 
@@ -850,13 +840,8 @@ static gboolean gd_motion_event(GtkWidget *widget, GdkEventMotion *motion,
     ws = gdk_window_get_scale_factor(
             gtk_widget_get_window(vc->gfx.drawing_area));
 
-    mx = my = 0;
-    if (ww > fbw) {
-        mx = (ww - fbw) / 2;
-    }
-    if (wh > fbh) {
-        my = (wh - fbh) / 2;
-    }
+    mx = (ww - fbw) / 2;
+    my = (wh - fbh) / 2;
 
     x = (motion->x - mx) / vc->gfx.scale_x * ws;
     y = (motion->y - my) / vc->gfx.scale_y * ws;
