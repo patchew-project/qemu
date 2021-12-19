@@ -266,7 +266,7 @@ static void gd_update_geometry_hints(VirtualConsole *vc)
     GtkWindow *geo_window;
 
     if (vc->type == GD_VC_GFX) {
-        if (!vc->gfx.ds) {
+        if (!vc->gfx.ds || s->full_screen) {
             return;
         }
         if (s->free_scale) {
