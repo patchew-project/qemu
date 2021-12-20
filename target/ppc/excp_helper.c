@@ -31,7 +31,6 @@
 
 #ifdef CONFIG_TCG
 #include "exec/helper-proto.h"
-#include "exec/cpu_ldst.h"
 #endif
 
 /*****************************************************************************/
@@ -274,10 +273,16 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp)
     CPUPPCState *env = &cpu->env;
     int excp_model = env->excp_model;
     PPCIntrArgs regs;
+    PPCInterrupt *intr;
     bool ignore = false;
 
     qemu_log_mask(CPU_LOG_INT, "Raise exception at " TARGET_FMT_lx
                   " => %08x (%02x)\n", env->nip, excp, env->error_code);
+
+    if (excp == POWERPC_EXCP_NONE) {
+        /* Should never happen */
+        return;
+    }
 
     /* new srr1 value excluding must-be-zero bits */
     if (excp_model == POWERPC_EXCP_BOOKE) {
@@ -336,164 +341,17 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp)
 
     regs.new_nip |= env->excp_prefix;
 
-    switch (excp) {
-    case POWERPC_EXCP_NONE:
-        /* Should never happen */
-        return;
-
-    case POWERPC_EXCP_CRITICAL:    /* Critical input                         */
-        ppc_intr_critical(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_MCHECK:    /* Machine check exception                  */
-        ppc_intr_machine_check(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_DSI:       /* Data storage exception                   */
-        ppc_intr_data_storage(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_ISI:       /* Instruction storage exception            */
-        ppc_intr_insn_storage(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_EXTERNAL:  /* External input                           */
-        ppc_intr_external(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_ALIGN:     /* Alignment exception                      */
-        ppc_intr_alignment(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_PROGRAM:   /* Program exception                        */
-        ppc_intr_program(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_SYSCALL:   /* System call exception                    */
-        ppc_intr_system_call(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_SYSCALL_VECTORED: /* scv exception                     */
-        ppc_intr_system_call_vectored(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_FPU:       /* Floating-point unavailable exception     */
-    case POWERPC_EXCP_APU:       /* Auxiliary processor unavailable          */
-    case POWERPC_EXCP_DECR:      /* Decrementer exception                    */
-        break;
-    case POWERPC_EXCP_FIT:       /* Fixed-interval timer interrupt           */
-        ppc_intr_fit(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_WDT:       /* Watchdog timer interrupt                 */
-        ppc_intr_watchdog(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_DTLB:      /* Data TLB error                           */
-    case POWERPC_EXCP_ITLB:      /* Instruction TLB error                    */
-        break;
-    case POWERPC_EXCP_DEBUG:     /* Debug interrupt                          */
-        ppc_intr_debug(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_SPEU:   /* SPE/embedded floating-point unavailable/VPU  */
-        ppc_intr_spe_unavailable(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_EFPDI:     /* Embedded floating-point data interrupt   */
-        ppc_intr_embedded_fp_data(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_EFPRI:     /* Embedded floating-point round interrupt  */
-        ppc_intr_embedded_fp_round(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_EPERFM:    /* Embedded performance monitor interrupt   */
-        ppc_intr_embedded_perf_monitor(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_DOORI:     /* Embedded doorbell interrupt              */
-        break;
-    case POWERPC_EXCP_DOORCI:    /* Embedded doorbell critical interrupt     */
-        ppc_intr_embedded_doorbell_crit(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_RESET:     /* System reset exception                   */
-        ppc_intr_system_reset(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_DSEG:      /* Data segment exception                   */
-    case POWERPC_EXCP_ISEG:      /* Instruction segment exception            */
-    case POWERPC_EXCP_TRACE:     /* Trace exception                          */
-        break;
-    case POWERPC_EXCP_HISI:      /* Hypervisor instruction storage exception */
-        ppc_intr_hv_insn_storage(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_HDECR:     /* Hypervisor decrementer exception         */
-        ppc_intr_hv_decrementer(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_HDSI:      /* Hypervisor data storage exception        */
-        ppc_intr_hv_data_storage(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_HDSEG:     /* Hypervisor data segment exception        */
-        ppc_intr_hv_data_segment(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_HISEG:     /* Hypervisor instruction segment exception */
-        ppc_intr_hv_insn_segment(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_SDOOR_HV:  /* Hypervisor Doorbell interrupt            */
-        ppc_intr_hv_doorbell(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_HV_EMU:
-        ppc_intr_hv_emulation(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_HVIRT:     /* Hypervisor virtualization                */
-        ppc_intr_hv_virtualization(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_VPU:       /* Vector unavailable exception             */
-    case POWERPC_EXCP_VSXU:       /* VSX unavailable exception               */
-    case POWERPC_EXCP_FU:         /* Facility unavailable exception          */
-        ppc_intr_facility_unavail(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_HV_FU:     /* Hypervisor Facility Unavailable Exception */
-        ppc_intr_hv_facility_unavail(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_PIT:       /* Programmable interval timer interrupt    */
-        ppc_intr_programmable_timer(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_IO:        /* IO error exception                       */
-        ppc_intr_io_error(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_RUNM:      /* Run mode exception                       */
-        ppc_intr_run_mode(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_EMUL:      /* Emulation trap exception                 */
-        ppc_intr_emulation(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_IFTLB:     /* Instruction fetch TLB error              */
-    case POWERPC_EXCP_DLTLB:     /* Data load TLB miss                       */
-    case POWERPC_EXCP_DSTLB:     /* Data store TLB miss                      */
-        ppc_intr_tlb_miss(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_FPA:       /* Floating-point assist exception          */
-        ppc_intr_fpa(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_DABR:      /* Data address breakpoint                  */
-        ppc_intr_dabr(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_IABR:      /* Instruction address breakpoint           */
-        ppc_intr_iabr(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_SMI:       /* System management interrupt              */
-        ppc_intr_smi(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_THERM:     /* Thermal interrupt                        */
-        ppc_intr_therm(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_PERFM:     /* Embedded performance monitor interrupt   */
-        ppc_intr_perfm(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_VPUA:      /* Vector assist exception                  */
-        ppc_intr_vpua(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_SOFTP:     /* Soft patch exception                     */
-        ppc_intr_softp(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_MAINT:     /* Maintenance exception                    */
-        ppc_intr_maint(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_MEXTBR:    /* Maskable external breakpoint             */
-        ppc_intr_mextbr(cpu, &regs, &ignore);
-        break;
-    case POWERPC_EXCP_NMEXTBR:   /* Non maskable external breakpoint         */
-        ppc_intr_nmextbr(cpu, &regs, &ignore);
-        break;
-    default:
+    intr = &interrupts[excp];
+    if (!intr->name) {
         cpu_abort(cs, "Invalid PowerPC exception %d. Aborting\n", excp);
-        break;
     }
+
+    if (!intr->fn) {
+        cpu_abort(cs, "%s exception is not implemented yet !\n", intr->name);
+    }
+
+    /* Setup interrupt-specific registers before dispatching */
+    intr->fn(cpu, &regs, &ignore);
 
     if (ignore) {
         /* No further setup is needed for this interrupt */

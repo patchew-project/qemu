@@ -2,6 +2,8 @@
 #define PPC_INTR_H
 
 typedef struct PPCIntrArgs PPCIntrArgs;
+typedef struct PPCInterrupt PPCInterrupt;
+typedef void (*ppc_intr_fn_t)(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore);
 
 struct PPCIntrArgs {
     target_ulong nip;
@@ -10,6 +12,11 @@ struct PPCIntrArgs {
     target_ulong new_msr;
     int sprn_srr0;
     int sprn_srr1;
+};
+
+struct PPCInterrupt {
+    const char *name;
+    ppc_intr_fn_t fn;
 };
 
 void ppc_intr_alignment(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore);
@@ -57,5 +64,7 @@ void ppc_intr_therm(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore);
 void ppc_intr_tlb_miss(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore);
 void ppc_intr_vpua(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore);
 void ppc_intr_watchdog(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore);
+
+extern PPCInterrupt interrupts[POWERPC_EXCP_NB];
 
 #endif /* PPC_INTR_H */
