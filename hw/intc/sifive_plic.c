@@ -30,6 +30,7 @@
 #include "target/riscv/cpu.h"
 #include "migration/vmstate.h"
 #include "hw/irq.h"
+#include "sysemu/kvm.h"
 
 #define RISCV_DEBUG_PLIC 0
 
@@ -555,8 +556,11 @@ DeviceState *sifive_plic_create(hwaddr addr, char *hart_config,
 
         qdev_connect_gpio_out(dev, i,
                               qdev_get_gpio_in(DEVICE(cpu), IRQ_S_EXT));
-        qdev_connect_gpio_out(dev, num_harts + i,
-                              qdev_get_gpio_in(DEVICE(cpu), IRQ_M_EXT));
+
+        if (!kvm_enabled()) {
+            qdev_connect_gpio_out(dev, num_harts + i,
+                                  qdev_get_gpio_in(DEVICE(cpu), IRQ_M_EXT));
+        }
     }
 
     return dev;
