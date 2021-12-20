@@ -3400,6 +3400,8 @@ void qemu_init(int argc, char **argv, char **envp)
                     loc_save(&opt->loc);
                     assert(opt->opts != NULL);
                     QTAILQ_INSERT_TAIL(&device_opts, opt, next);
+                    qemu_opts_from_qdict(qemu_find_opts_err("device", &error_fatal),
+                                         opt->opts, &error_fatal);
                 } else {
                     if (!qemu_opts_parse_noisily(qemu_find_opts("device"),
                                                  optarg, true)) {
