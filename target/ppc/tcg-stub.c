@@ -20,6 +20,7 @@
 #include "cpu.h"
 #include "internal.h"
 #include "hw/ppc/spapr.h"
+#include "ppc_intr.h"
 
 void create_ppc_opcodes(PowerPCCPU *cpu, Error **errp)
 {
@@ -40,6 +41,11 @@ target_ulong softmmu_resize_hpt_commit(PowerPCCPU *cpu,
                                        SpaprMachineState *spapr,
                                        target_ulong flags,
                                        target_ulong shift)
+{
+    g_assert_not_reached();
+}
+
+void ppc32_excp(PowerPCCPU *cpu, int excp)
 {
     g_assert_not_reached();
 }

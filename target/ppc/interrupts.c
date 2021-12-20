@@ -358,6 +358,7 @@ void ppc_intr_system_reset(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
     }
 }
 
+#ifdef TARGET_PPC64
 void ppc_intr_hv(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
 {
     CPUPPCState *env = &cpu->env;
@@ -376,20 +377,19 @@ void ppc_intr_hv_insn_storage(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
     ppc_intr_hv(cpu, regs, ignore);
 }
 
+void ppc_intr_hv_facility_unavail(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
+{
+    CPUPPCState *env = &cpu->env;
+    env->spr[SPR_FSCR] |= ((target_ulong)env->error_code << FSCR_IC_POS);
+    ppc_intr_hv(cpu, regs, ignore);
+}
+#endif /* TARGET PPC64 */
+
 void ppc_intr_facility_unavail(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
 {
 #ifdef TARGET_PPC64
     CPUPPCState *env = &cpu->env;
     env->spr[SPR_FSCR] |= ((target_ulong)env->error_code << 56);
-#endif
-}
-
-void ppc_intr_hv_facility_unavail(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-#ifdef TARGET_PPC64
-    CPUPPCState *env = &cpu->env;
-    env->spr[SPR_FSCR] |= ((target_ulong)env->error_code << FSCR_IC_POS);
-    ppc_intr_hv(cpu, regs, ignore);
 #endif
 }
 
@@ -455,246 +455,6 @@ void ppc_intr_tlb_miss(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
         break;
     }
 }
-
-PPCInterrupt interrupts_ppc32[POWERPC_EXCP_NB] = {
-    [POWERPC_EXCP_ALIGN] = {
-        "Alignment", ppc_intr_alignment
-    },
-
-    [POWERPC_EXCP_CRITICAL] = {
-        "Critical input", ppc_intr_critical
-    },
-
-    [POWERPC_EXCP_DEBUG] = {
-        "Debug", ppc_intr_debug
-    },
-
-    [POWERPC_EXCP_DLTLB] = {
-        "Data load TLB error", ppc_intr_tlb_miss
-    },
-
-    [POWERPC_EXCP_DSI] = {
-        "Data storage", ppc_intr_data_storage
-    },
-
-    [POWERPC_EXCP_DSTLB] = {
-        "Data store TLB error", ppc_intr_tlb_miss
-    },
-
-    [POWERPC_EXCP_EXTERNAL] = {
-        "External", ppc_intr_external
-    },
-
-    [POWERPC_EXCP_FIT] = {
-        "Fixed-interval timer", ppc_intr_fit
-    },
-
-    [POWERPC_EXCP_IFTLB] = {
-        "Insn fetch TLB error", ppc_intr_tlb_miss
-    },
-
-    [POWERPC_EXCP_ISI] = {
-        "Instruction storage", ppc_intr_insn_storage
-    },
-
-    [POWERPC_EXCP_MCHECK] = {
-        "Machine check", ppc_intr_machine_check
-    },
-
-    [POWERPC_EXCP_PIT] = {
-        "Programmable interval timer", ppc_intr_programmable_timer
-    },
-
-    [POWERPC_EXCP_PROGRAM] = {
-        "Program", ppc_intr_program
-    },
-
-    [POWERPC_EXCP_RESET] = {
-        "System reset", ppc_intr_system_reset
-    },
-
-    [POWERPC_EXCP_SYSCALL] = {
-        "System call", ppc_intr_system_call
-    },
-
-    [POWERPC_EXCP_VPU] = {
-        "Vector unavailable", ppc_intr_facility_unavail
-    },
-
-    [POWERPC_EXCP_WDT] = {
-        "Watchdog timer", ppc_intr_watchdog
-    },
-
-    [POWERPC_EXCP_DECR]  = { "Decrementer",                ppc_intr_noop },
-    [POWERPC_EXCP_DTLB]  = { "Data TLB error",             ppc_intr_noop },
-    [POWERPC_EXCP_FPU]   = { "Floating-point unavailable", ppc_intr_noop },
-    [POWERPC_EXCP_ITLB]  = { "Instruction TLB error",      ppc_intr_noop },
-    [POWERPC_EXCP_TRACE] = { "Trace",                      ppc_intr_noop },
-
-/* Not implemented */
-    [POWERPC_EXCP_DABR]     = { "Data address breakpoint" },
-    [POWERPC_EXCP_DTLBE]    = { "Data TLB error" },
-    [POWERPC_EXCP_EMUL]     = { "Emulation trap" },
-    [POWERPC_EXCP_FPA]      = { "Floating-point assist" },
-    [POWERPC_EXCP_IABR]     = { "Insn address breakpoint" },
-    [POWERPC_EXCP_IO]       = { "IO error" },
-    [POWERPC_EXCP_ITLBE]    = { "Instruction TLB error" },
-    [POWERPC_EXCP_MEXTBR]   = { "Maskable external" },
-    [POWERPC_EXCP_NMEXTBR]  = { "Non-maskable external" },
-    [POWERPC_EXCP_PERFM]    = { "Performance counter" },
-    [POWERPC_EXCP_RUNM]     = { "Run mode" },
-    [POWERPC_EXCP_SMI]      = { "System management" },
-    [POWERPC_EXCP_THERM]    = { "Thermal management" },
-    [POWERPC_EXCP_VPUA]     = { "Vector assist" },
-};
-
-PPCInterrupt interrupts_book3s[POWERPC_EXCP_NB] = {
-    [POWERPC_EXCP_ALIGN] = {
-        "Alignment", ppc_intr_alignment
-    },
-
-    [POWERPC_EXCP_DSI] = {
-        "Data storage", ppc_intr_data_storage
-    },
-
-    [POWERPC_EXCP_EXTERNAL] = {
-        "External", ppc_intr_external
-    },
-
-    [POWERPC_EXCP_FU] = {
-        "Facility unavailable", ppc_intr_facility_unavail
-    },
-
-    [POWERPC_EXCP_HISI] = {
-        "Hypervisor instruction storage", ppc_intr_hv_insn_storage
-    },
-
-    [POWERPC_EXCP_HV_FU] = {
-        "Hypervisor facility unavailable", ppc_intr_hv_facility_unavail
-    },
-
-    [POWERPC_EXCP_ISI] = {
-        "Instruction storage", ppc_intr_insn_storage
-    },
-
-    [POWERPC_EXCP_MCHECK] = {
-        "Machine check", ppc_intr_machine_check
-    },
-
-    [POWERPC_EXCP_PROGRAM] = {
-        "Program", ppc_intr_program
-    },
-
-    [POWERPC_EXCP_RESET] = {
-        "System reset", ppc_intr_system_reset
-    },
-
-    [POWERPC_EXCP_SYSCALL] = {
-        "System call", ppc_intr_system_call
-    },
-
-    [POWERPC_EXCP_SYSCALL_VECTORED] = {
-        "System call vectored", ppc_intr_system_call_vectored
-    },
-
-    [POWERPC_EXCP_VPU] = {
-        "Vector unavailable", ppc_intr_facility_unavail
-    },
-
-    [POWERPC_EXCP_VSXU] = {
-        "VSX unavailable", ppc_intr_facility_unavail
-    },
-
-    [POWERPC_EXCP_HDECR]    = { "Hypervisor decrementer",         ppc_intr_hv },
-    [POWERPC_EXCP_HDSI]     = { "Hypervisor data storage",        ppc_intr_hv },
-    [POWERPC_EXCP_HVIRT]    = { "Hypervisor virtualization",      ppc_intr_hv },
-    [POWERPC_EXCP_HV_EMU]   = { "Hypervisor emulation assist",    ppc_intr_hv },
-    [POWERPC_EXCP_SDOOR_HV] = { "Hypervisor doorbell",            ppc_intr_hv },
-
-    [POWERPC_EXCP_DECR]  = { "Decrementer",                ppc_intr_noop },
-    [POWERPC_EXCP_DSEG]  = { "Data segment",               ppc_intr_noop },
-    [POWERPC_EXCP_FPU]   = { "Floating-point unavailable", ppc_intr_noop },
-    [POWERPC_EXCP_ISEG]  = { "Instruction segment",        ppc_intr_noop },
-    [POWERPC_EXCP_ITLB]  = { "Instruction TLB error",      ppc_intr_noop },
-    [POWERPC_EXCP_TRACE] = { "Trace",                      ppc_intr_noop },
-
-/* Not implemented */
-    [POWERPC_EXCP_HV_MAINT] = { "Hypervisor maintenance" },
-    [POWERPC_EXCP_IABR]     = { "Insn address breakpoint" },
-    [POWERPC_EXCP_MAINT]    = { "Maintenance" },
-    [POWERPC_EXCP_PERFM]    = { "Performance counter" },
-    [POWERPC_EXCP_SDOOR]    = { "Server doorbell" },
-    [POWERPC_EXCP_THERM]    = { "Thermal management" },
-    [POWERPC_EXCP_VPUA]     = { "Vector assist" },
-};
-
-PPCInterrupt interrupts_booke[POWERPC_EXCP_NB] = {
-    [POWERPC_EXCP_ALIGN] = {
-        "Alignment", ppc_intr_alignment
-    },
-
-    [POWERPC_EXCP_CRITICAL] = {
-        "Critical input", ppc_intr_critical
-    },
-
-    [POWERPC_EXCP_DEBUG] = {
-        "Debug", ppc_intr_debug
-    },
-
-    [POWERPC_EXCP_DLTLB] = {
-        "Data load TLB error", ppc_intr_tlb_miss
-    },
-
-    [POWERPC_EXCP_DSI] = {
-        "Data storage", ppc_intr_data_storage
-    },
-
-    [POWERPC_EXCP_EXTERNAL] = {
-        "External", ppc_intr_external
-    },
-
-    [POWERPC_EXCP_FIT] = {
-        "Fixed-interval timer", ppc_intr_fit
-    },
-
-    [POWERPC_EXCP_ISI] = {
-        "Instruction storage", ppc_intr_insn_storage
-    },
-
-    [POWERPC_EXCP_MCHECK] = {
-        "Machine check", ppc_intr_machine_check
-    },
-
-    [POWERPC_EXCP_PROGRAM] = {
-        "Program", ppc_intr_program
-    },
-
-    [POWERPC_EXCP_RESET] = {
-        "System reset", ppc_intr_system_reset
-    },
-
-    [POWERPC_EXCP_SPEU] = {
-        "SPE/embedded FP unavailable/VPU", ppc_intr_spe_unavailable
-    },
-
-    [POWERPC_EXCP_SYSCALL] = {
-        "System call", ppc_intr_system_call
-    },
-
-    [POWERPC_EXCP_WDT] = {
-        "Watchdog timer", ppc_intr_watchdog
-    },
-
-    [POWERPC_EXCP_APU]   = { "Aux. processor unavailable", ppc_intr_noop },
-    [POWERPC_EXCP_DECR]  = { "Decrementer",                ppc_intr_noop },
-    [POWERPC_EXCP_DTLB]  = { "Data TLB error",             ppc_intr_noop },
-    [POWERPC_EXCP_FPU]   = { "Floating-point unavailable", ppc_intr_noop },
-    [POWERPC_EXCP_ITLB]  = { "Instruction TLB error",      ppc_intr_noop },
-
-/* Not impleemented */
-    [POWERPC_EXCP_EFPDI]    = { "Embedded floating-point data" },
-    [POWERPC_EXCP_EFPRI]    = { "Embedded floating-point round" },
-};
 
 int ppc_intr_prepare(PowerPCCPU *cpu, PPCInterrupt *interrupts,
                      PPCIntrArgs *regs, int excp)

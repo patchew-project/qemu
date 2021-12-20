@@ -1356,6 +1356,8 @@ void ppc_cpu_do_interrupt(CPUState *cpu);
 bool ppc_cpu_exec_interrupt(CPUState *cpu, int int_req);
 void ppc_cpu_do_system_reset(CPUState *cs);
 void ppc_cpu_do_fwnmi_machine_check(CPUState *cs, target_ulong vector);
+void powerpc_set_excp_state(PowerPCCPU *cpu, target_ulong new_nip,
+                            target_ulong new_msr);
 extern const VMStateDescription vmstate_ppc_cpu;
 #endif
 

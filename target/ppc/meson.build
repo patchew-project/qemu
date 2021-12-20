@@ -40,9 +40,11 @@ ppc_softmmu_ss.add(files(
   'mmu_common.c',
   'monitor.c',
   'interrupts.c',
+  'intr-booke.c',
 ))
 ppc_softmmu_ss.add(when: 'CONFIG_TCG', if_true: files(
   'mmu_helper.c',
+  'intr-ppc32.c',
 ), if_false: files(
   'tcg-stub.c',
 ))
@@ -53,6 +55,7 @@ ppc_softmmu_ss.add(when: 'TARGET_PPC64', if_true: files(
   'mmu-hash64.c',
   'mmu-radix64.c',
   'power8-pmu.c',
+  'intr-book3s.c',
 ))
 
 target_arch += {'ppc': ppc_ss}
