@@ -11,7 +11,9 @@
 #include "cpu.h"
 #include "ppc_intr.h"
 #include "trace.h"
+#include "sysemu/kvm.h"
 
+#ifdef CONFIG_TCG
 /* for hreg_swap_gpr_tgpr */
 #include "helper_regs.h"
 
@@ -39,56 +41,6 @@ void ppc_intr_critical(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
         break;
     default:
         cpu_abort(CPU(cpu), "Invalid PowerPC critical exception. Aborting\n");
-        break;
-    }
-}
-
-void ppc_intr_machine_check(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    CPUState *cs = CPU(cpu);
-    CPUPPCState *env = &cpu->env;
-    int excp_model = env->excp_model;
-
-    if (msr_me == 0) {
-        /*
-         * Machine check exception is not enabled.  Enter
-         * checkstop state.
-         */
-        fprintf(stderr, "Machine check while not allowed. "
-                "Entering checkstop state\n");
-        if (qemu_log_separate()) {
-            qemu_log("Machine check while not allowed. "
-                     "Entering checkstop state\n");
-        }
-        cs->halted = 1;
-        cpu_interrupt_exittb(cs);
-    }
-    if (env->msr_mask & MSR_HVB) {
-        /*
-         * ISA specifies HV, but can be delivered to guest with HV
-         * clear (e.g., see FWNMI in PAPR).
-         */
-        regs->new_msr |= (target_ulong)MSR_HVB;
-    }
-
-    /* machine check exceptions don't have ME set */
-    regs->new_msr &= ~((target_ulong)1 << MSR_ME);
-
-    /* XXX: should also have something loaded in DAR / DSISR */
-    switch (excp_model) {
-    case POWERPC_EXCP_40x:
-        regs->sprn_srr0 = SPR_40x_SRR2;
-        regs->sprn_srr1 = SPR_40x_SRR3;
-        break;
-    case POWERPC_EXCP_BOOKE:
-        /* FIXME: choose one or the other based on CPU type */
-        regs->sprn_srr0 = SPR_BOOKE_MCSRR0;
-        regs->sprn_srr1 = SPR_BOOKE_MCSRR1;
-
-        env->spr[SPR_BOOKE_CSRR0] = regs->nip;
-        env->spr[SPR_BOOKE_CSRR1] = regs->msr;
-        break;
-    default:
         break;
     }
 }
@@ -163,51 +115,6 @@ void ppc_intr_alignment(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
      * actually uses direct store segments.
      */
     env->spr[SPR_DSISR] |= (env->error_code & 0x03FF0000) >> 16;
-}
-
-void ppc_intr_program(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    CPUState *cs = CPU(cpu);
-    CPUPPCState *env = &cpu->env;
-
-    switch (env->error_code & ~0xF) {
-    case POWERPC_EXCP_FP:
-        if ((msr_fe0 == 0 && msr_fe1 == 0) || msr_fp == 0) {
-            trace_ppc_excp_fp_ignore();
-            cs->exception_index = POWERPC_EXCP_NONE;
-            env->error_code = 0;
-
-            *ignore = true;
-            return;
-        }
-
-        /*
-         * FP exceptions always have NIP pointing to the faulting
-         * instruction, so always use store_next and claim we are
-         * precise in the MSR.
-         */
-        regs->msr |= 0x00100000;
-        env->spr[SPR_BOOKE_ESR] = ESR_FP;
-        break;
-    case POWERPC_EXCP_INVAL:
-        trace_ppc_excp_inval(regs->nip);
-        regs->msr |= 0x00080000;
-        env->spr[SPR_BOOKE_ESR] = ESR_PIL;
-        break;
-    case POWERPC_EXCP_PRIV:
-        regs->msr |= 0x00040000;
-        env->spr[SPR_BOOKE_ESR] = ESR_PPR;
-        break;
-    case POWERPC_EXCP_TRAP:
-        regs->msr |= 0x00020000;
-        env->spr[SPR_BOOKE_ESR] = ESR_PTR;
-        break;
-    default:
-        /* Should never occur */
-        cpu_abort(cs, "Invalid program exception %d. Aborting\n",
-                  env->error_code);
-        break;
-    }
 }
 
 static inline void dump_syscall(CPUPPCState *env)
@@ -334,30 +241,6 @@ void ppc_intr_spe_unavailable(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
     env->spr[SPR_BOOKE_ESR] = ESR_SPV;
 }
 
-void ppc_intr_system_reset(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    CPUPPCState *env = &cpu->env;
-
-    /* A power-saving exception sets ME, otherwise it is unchanged */
-    if (msr_pow) {
-        /* indicate that we resumed from power save mode */
-        regs->msr |= 0x10000;
-        regs->new_msr |= ((target_ulong)1 << MSR_ME);
-    }
-    if (env->msr_mask & MSR_HVB) {
-        /*
-         * ISA specifies HV, but can be delivered to guest with HV
-         * clear (e.g., see FWNMI in PAPR, NMI injection in QEMU).
-         */
-        regs->new_msr |= (target_ulong)MSR_HVB;
-    } else {
-        if (msr_pow) {
-            cpu_abort(CPU(cpu), "Trying to deliver power-saving system reset "
-                      "exception with no HV support\n");
-        }
-    }
-}
-
 #ifdef TARGET_PPC64
 void ppc_intr_hv(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
 {
@@ -455,6 +338,149 @@ void ppc_intr_tlb_miss(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
         break;
     }
 }
+#endif /* CONFIG_TCG */
+
+void ppc_intr_machine_check(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
+{
+    CPUState *cs = CPU(cpu);
+    CPUPPCState *env = &cpu->env;
+    int excp_model = env->excp_model;
+
+    if (msr_me == 0) {
+        /*
+         * Machine check exception is not enabled.  Enter
+         * checkstop state.
+         */
+        fprintf(stderr, "Machine check while not allowed. "
+                "Entering checkstop state\n");
+        if (qemu_log_separate()) {
+            qemu_log("Machine check while not allowed. "
+                     "Entering checkstop state\n");
+        }
+        cs->halted = 1;
+#if defined(CONFIG_TCG)
+        cpu_interrupt_exittb(cs);
+#endif
+    }
+    if (env->msr_mask & MSR_HVB) {
+        /*
+         * ISA specifies HV, but can be delivered to guest with HV
+         * clear (e.g., see FWNMI in PAPR).
+         */
+        regs->new_msr |= (target_ulong)MSR_HVB;
+    }
+
+    /* machine check exceptions don't have ME set */
+    regs->new_msr &= ~((target_ulong)1 << MSR_ME);
+
+    /* XXX: should also have something loaded in DAR / DSISR */
+    switch (excp_model) {
+    case POWERPC_EXCP_40x:
+        regs->sprn_srr0 = SPR_40x_SRR2;
+        regs->sprn_srr1 = SPR_40x_SRR3;
+        break;
+    case POWERPC_EXCP_BOOKE:
+        /* FIXME: choose one or the other based on CPU type */
+        regs->sprn_srr0 = SPR_BOOKE_MCSRR0;
+        regs->sprn_srr1 = SPR_BOOKE_MCSRR1;
+
+        env->spr[SPR_BOOKE_CSRR0] = regs->nip;
+        env->spr[SPR_BOOKE_CSRR1] = regs->msr;
+        break;
+    default:
+        break;
+    }
+}
+
+void ppc_intr_program(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
+{
+    CPUState *cs = CPU(cpu);
+    CPUPPCState *env = &cpu->env;
+
+    switch (env->error_code & ~0xF) {
+    case POWERPC_EXCP_FP:
+        if ((msr_fe0 == 0 && msr_fe1 == 0) || msr_fp == 0) {
+            trace_ppc_excp_fp_ignore();
+            cs->exception_index = POWERPC_EXCP_NONE;
+            env->error_code = 0;
+
+            *ignore = true;
+            return;
+        }
+
+        /*
+         * FP exceptions always have NIP pointing to the faulting
+         * instruction, so always use store_next and claim we are
+         * precise in the MSR.
+         */
+        regs->msr |= 0x00100000;
+        env->spr[SPR_BOOKE_ESR] = ESR_FP;
+        break;
+    case POWERPC_EXCP_INVAL:
+        trace_ppc_excp_inval(regs->nip);
+        regs->msr |= 0x00080000;
+        env->spr[SPR_BOOKE_ESR] = ESR_PIL;
+        break;
+    case POWERPC_EXCP_PRIV:
+        regs->msr |= 0x00040000;
+        env->spr[SPR_BOOKE_ESR] = ESR_PPR;
+        break;
+    case POWERPC_EXCP_TRAP:
+        regs->msr |= 0x00020000;
+        env->spr[SPR_BOOKE_ESR] = ESR_PTR;
+        break;
+    default:
+        /* Should never occur */
+        cpu_abort(cs, "Invalid program exception %d. Aborting\n",
+                  env->error_code);
+        break;
+    }
+}
+
+void ppc_intr_system_reset(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
+{
+    CPUPPCState *env = &cpu->env;
+
+    /* A power-saving exception sets ME, otherwise it is unchanged */
+    if (msr_pow) {
+        /* indicate that we resumed from power save mode */
+        regs->msr |= 0x10000;
+        regs->new_msr |= ((target_ulong)1 << MSR_ME);
+    }
+    if (env->msr_mask & MSR_HVB) {
+        /*
+         * ISA specifies HV, but can be delivered to guest with HV
+         * clear (e.g., see FWNMI in PAPR, NMI injection in QEMU).
+         */
+        regs->new_msr |= (target_ulong)MSR_HVB;
+    } else {
+        if (msr_pow) {
+            cpu_abort(CPU(cpu), "Trying to deliver power-saving system reset "
+                      "exception with no HV support\n");
+        }
+    }
+}
+
+/*
+ * Book3S and BookE support KVM, but QEMU only dispatches a small
+ * set of interrupts in very specific ocasions. All other
+ * interrupts are dispatched by the real harware and QEMU knows
+ * nothing about them.
+ */
+PPCInterrupt interrupts_kvm[POWERPC_EXCP_NB] = {
+
+    [POWERPC_EXCP_MCHECK] = {
+        "Machine check", ppc_intr_machine_check
+    },
+
+    [POWERPC_EXCP_PROGRAM] = {
+        "Program", ppc_intr_program
+    },
+
+    [POWERPC_EXCP_RESET] = {
+        "System reset", ppc_intr_system_reset
+    },
+};
 
 int ppc_intr_prepare(PowerPCCPU *cpu, PPCInterrupt *interrupts,
                      PPCIntrArgs *regs, int excp)
@@ -463,6 +489,10 @@ int ppc_intr_prepare(PowerPCCPU *cpu, PPCInterrupt *interrupts,
     CPUPPCState *env = &cpu->env;
     PPCInterrupt *intr;
     bool ignore = false;
+
+    if (kvm_enabled()) {
+        interrupts = interrupts_kvm;
+    }
 
     intr = &interrupts[excp];
     if (!intr->name) {

@@ -11,6 +11,7 @@
 #include "ppc_intr.h"
 
 static PPCInterrupt interrupts_book3s[POWERPC_EXCP_NB] = {
+#ifdef CONFIG_TCG
     [POWERPC_EXCP_ALIGN] = {
         "Alignment", ppc_intr_alignment
     },
@@ -88,6 +89,7 @@ static PPCInterrupt interrupts_book3s[POWERPC_EXCP_NB] = {
     [POWERPC_EXCP_SDOOR]    = { "Server doorbell" },
     [POWERPC_EXCP_THERM]    = { "Thermal management" },
     [POWERPC_EXCP_VPUA]     = { "Vector assist" },
+#endif
 };
 
 static int powerpc_reset_wakeup(CPUState *cs, CPUPPCState *env, int excp,

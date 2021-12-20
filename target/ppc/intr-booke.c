@@ -11,6 +11,7 @@
 #include "ppc_intr.h"
 
 static PPCInterrupt interrupts_booke[POWERPC_EXCP_NB] = {
+#ifdef CONFIG_TCG
     [POWERPC_EXCP_ALIGN] = {
         "Alignment", ppc_intr_alignment
     },
@@ -76,6 +77,7 @@ static PPCInterrupt interrupts_booke[POWERPC_EXCP_NB] = {
 /* Not impleemented */
     [POWERPC_EXCP_EFPDI]    = { "Embedded floating-point data" },
     [POWERPC_EXCP_EFPRI]    = { "Embedded floating-point round" },
+#endif
 };
 
 void booke_excp(PowerPCCPU *cpu, int excp)
