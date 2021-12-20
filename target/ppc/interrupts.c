@@ -334,33 +334,6 @@ void ppc_intr_spe_unavailable(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
     env->spr[SPR_BOOKE_ESR] = ESR_SPV;
 }
 
-void ppc_intr_embedded_fp_data(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    CPUPPCState *env = &cpu->env;
-
-    /* XXX: TODO */
-    cpu_abort(CPU(cpu), "Embedded floating point data exception "
-              "is not implemented yet !\n");
-    env->spr[SPR_BOOKE_ESR] = ESR_SPV;
-}
-
-void ppc_intr_embedded_fp_round(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    CPUPPCState *env = &cpu->env;
-
-    /* XXX: TODO */
-    cpu_abort(CPU(cpu), "Embedded floating point round exception "
-              "is not implemented yet !\n");
-    env->spr[SPR_BOOKE_ESR] = ESR_SPV;
-}
-
-void ppc_intr_embedded_perf_monitor(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    /* XXX: TODO */
-    cpu_abort(CPU(cpu),
-              "Performance counter exception is not implemented yet !\n");
-}
-
 void ppc_intr_embedded_doorbell_crit(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
 {
     regs->sprn_srr0 = SPR_BOOKE_CSRR0;
@@ -499,24 +472,6 @@ void ppc_intr_programmable_timer(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignor
     trace_ppc_excp_print("PIT");
 }
 
-void ppc_intr_io_error(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    /* XXX: TODO */
-    cpu_abort(CPU(cpu), "601 IO error exception is not implemented yet !\n");
-}
-
-void ppc_intr_run_mode(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    /* XXX: TODO */
-    cpu_abort(CPU(cpu), "601 run mode exception is not implemented yet !\n");
-}
-
-void ppc_intr_emulation(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    /* XXX: TODO */
-    cpu_abort(CPU(cpu), "602 emulation trap exception is not implemented yet !\n");
-}
-
 void ppc_intr_tlb_miss(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
 {
     CPUPPCState *env = &cpu->env;
@@ -575,79 +530,6 @@ void ppc_intr_tlb_miss(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
     }
 }
 
-void ppc_intr_fpa(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    /* XXX: TODO */
-    cpu_abort(CPU(cpu), "Floating point assist exception "
-              "is not implemented yet !\n");
-}
-
-void ppc_intr_dabr(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    /* XXX: TODO */
-    cpu_abort(CPU(cpu), "DABR exception is not implemented yet !\n");
-}
-
-void ppc_intr_iabr(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    /* XXX: TODO */
-    cpu_abort(CPU(cpu), "IABR exception is not implemented yet !\n");
-}
-
-void ppc_intr_smi(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    /* XXX: TODO */
-    cpu_abort(CPU(cpu), "SMI exception is not implemented yet !\n");
-}
-
-void ppc_intr_therm(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    /* XXX: TODO */
-    cpu_abort(CPU(cpu), "Thermal management exception "
-              "is not implemented yet !\n");
-}
-
-void ppc_intr_perfm(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    /* XXX: TODO */
-    cpu_abort(CPU(cpu),
-              "Performance counter exception is not implemented yet !\n");
-}
-
-void ppc_intr_vpua(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    /* XXX: TODO */
-    cpu_abort(CPU(cpu), "VPU assist exception is not implemented yet !\n");
-}
-
-void ppc_intr_softp(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    /* XXX: TODO */
-    cpu_abort(CPU(cpu),
-              "970 soft-patch exception is not implemented yet !\n");
-}
-
-void ppc_intr_maint(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    /* XXX: TODO */
-    cpu_abort(CPU(cpu),
-              "970 maintenance exception is not implemented yet !\n");
-}
-
-void ppc_intr_mextbr(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    /* XXX: TODO */
-    cpu_abort(CPU(cpu), "Maskable external exception "
-              "is not implemented yet !\n");
-}
-
-void ppc_intr_nmextbr(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    /* XXX: TODO */
-    cpu_abort(CPU(cpu), "Non maskable external exception "
-              "is not implemented yet !\n");
-}
-
 PPCInterrupt interrupts[POWERPC_EXCP_NB] = {
     [POWERPC_EXCP_ALIGN] = {
         "Alignment", ppc_intr_alignment
@@ -655,10 +537,6 @@ PPCInterrupt interrupts[POWERPC_EXCP_NB] = {
 
     [POWERPC_EXCP_CRITICAL] = {
         "Critical input", ppc_intr_critical
-    },
-
-    [POWERPC_EXCP_DABR] = {
-        "Data address breakpoint", ppc_intr_dabr
     },
 
     [POWERPC_EXCP_DEBUG] = {
@@ -681,32 +559,12 @@ PPCInterrupt interrupts[POWERPC_EXCP_NB] = {
         "Data store TLB error", ppc_intr_tlb_miss
     },
 
-    [POWERPC_EXCP_EFPDI] = {
-        "Embedded floating-point data", ppc_intr_embedded_fp_data
-    },
-
-    [POWERPC_EXCP_EFPRI] = {
-        "Embedded floating-point round", ppc_intr_embedded_fp_round
-    },
-
-    [POWERPC_EXCP_EMUL] = {
-        "Emulation trap", ppc_intr_emulation
-    },
-
-    [POWERPC_EXCP_EPERFM] = {
-        "Embedded perf. monitor", ppc_intr_embedded_perf_monitor
-    },
-
     [POWERPC_EXCP_EXTERNAL] = {
         "External", ppc_intr_external
     },
 
     [POWERPC_EXCP_FIT] = {
         "Fixed-interval timer", ppc_intr_fit
-    },
-
-    [POWERPC_EXCP_FPA] = {
-        "Floating-point assist", ppc_intr_fpa
     },
 
     [POWERPC_EXCP_FU] = {
@@ -745,40 +603,16 @@ PPCInterrupt interrupts[POWERPC_EXCP_NB] = {
         "Hypervisor facility unavailable" , ppc_intr_hv_facility_unavail
     },
 
-    [POWERPC_EXCP_IABR] = {
-        "Insn address breakpoint", ppc_intr_iabr
-    },
-
     [POWERPC_EXCP_IFTLB] = {
         "Insn fetch TLB error", ppc_intr_tlb_miss
-    },
-
-    [POWERPC_EXCP_IO] = {
-        "IO error", ppc_intr_io_error
     },
 
     [POWERPC_EXCP_ISI] = {
         "Instruction storage", ppc_intr_insn_storage
     },
 
-    [POWERPC_EXCP_MAINT] = {
-        "Maintenance", ppc_intr_maint
-    },
-
     [POWERPC_EXCP_MCHECK] = {
         "Machine check", ppc_intr_machine_check
-    },
-
-    [POWERPC_EXCP_MEXTBR] = {
-        "Maskable external", ppc_intr_mextbr
-    },
-
-    [POWERPC_EXCP_NMEXTBR] = {
-        "Non-maskable external", ppc_intr_nmextbr
-    },
-
-    [POWERPC_EXCP_PERFM] = {
-        "Performance counter", ppc_intr_perfm
     },
 
     [POWERPC_EXCP_PIT] = {
@@ -793,20 +627,8 @@ PPCInterrupt interrupts[POWERPC_EXCP_NB] = {
         "System reset", ppc_intr_system_reset
     },
 
-    [POWERPC_EXCP_RUNM] = {
-        "Run mode", ppc_intr_run_mode
-    },
-
     [POWERPC_EXCP_SDOOR_HV] = {
         "Hypervisor doorbell", ppc_intr_hv_doorbell
-    },
-
-    [POWERPC_EXCP_SMI] = {
-        "System management", ppc_intr_smi
-    },
-
-    [POWERPC_EXCP_SOFTP] = {
-        "Soft patch", ppc_intr_softp
     },
 
     [POWERPC_EXCP_SPEU] = {
@@ -819,14 +641,6 @@ PPCInterrupt interrupts[POWERPC_EXCP_NB] = {
 
     [POWERPC_EXCP_SYSCALL_VECTORED] = {
         "System call vectored", ppc_intr_system_call_vectored
-    },
-
-    [POWERPC_EXCP_THERM] = {
-        "Thermal management", ppc_intr_therm
-    },
-
-    [POWERPC_EXCP_VPUA] = {
-        "Vector assist", ppc_intr_vpua
     },
 
     [POWERPC_EXCP_VPU] = {
@@ -852,6 +666,25 @@ PPCInterrupt interrupts[POWERPC_EXCP_NB] = {
     [POWERPC_EXCP_TRACE] = { "Trace",                      ppc_intr_noop },
 
 /* Not implemented */
+    [POWERPC_EXCP_DABR]     = { "Data address breakpoint" },
+    [POWERPC_EXCP_DTLBE]    = { "Data TLB error" },
+    [POWERPC_EXCP_EFPDI]    = { "Embedded floating-point data" },
+    [POWERPC_EXCP_EFPRI]    = { "Embedded floating-point round" },
+    [POWERPC_EXCP_EMUL]     = { "Emulation trap" },
+    [POWERPC_EXCP_EPERFM]   = { "Embedded perf. monitor" },
+    [POWERPC_EXCP_FPA]      = { "Floating-point assist" },
     [POWERPC_EXCP_HV_MAINT] = { "Hypervisor maintenance" },
+    [POWERPC_EXCP_IABR]     = { "Insn address breakpoint" },
+    [POWERPC_EXCP_IO]       = { "IO error" },
+    [POWERPC_EXCP_ITLBE]    = { "Instruction TLB error" },
+    [POWERPC_EXCP_MAINT]    = { "Maintenance" },
+    [POWERPC_EXCP_MEXTBR]   = { "Maskable external" },
+    [POWERPC_EXCP_NMEXTBR]  = { "Non-maskable external" },
+    [POWERPC_EXCP_PERFM]    = { "Performance counter" },
+    [POWERPC_EXCP_RUNM]     = { "Run mode" },
     [POWERPC_EXCP_SDOOR]    = { "Server doorbell" },
+    [POWERPC_EXCP_SMI]      = { "System management" },
+    [POWERPC_EXCP_SOFTP]    = { "Soft patch" },
+    [POWERPC_EXCP_THERM]    = { "Thermal management" },
+    [POWERPC_EXCP_VPUA]     = { "Vector assist" },
 };
