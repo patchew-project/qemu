@@ -364,86 +364,22 @@ void ppc_intr_system_reset(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
     }
 }
 
+void ppc_intr_hv(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
+{
+    CPUPPCState *env = &cpu->env;
+
+    regs->sprn_srr0 = SPR_HSRR0;
+    regs->sprn_srr1 = SPR_HSRR1;
+    regs->new_msr |= (target_ulong)MSR_HVB;
+    regs->new_msr |= env->msr & ((target_ulong)1 << MSR_RI);
+}
+
 void ppc_intr_hv_insn_storage(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
 {
     CPUPPCState *env = &cpu->env;
 
     regs->msr |= env->error_code;
-
-    regs->sprn_srr0 = SPR_HSRR0;
-    regs->sprn_srr1 = SPR_HSRR1;
-    regs->new_msr |= (target_ulong)MSR_HVB;
-    regs->new_msr |= env->msr & ((target_ulong)1 << MSR_RI);
-}
-
-void ppc_intr_hv_decrementer(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    CPUPPCState *env = &cpu->env;
-
-    regs->sprn_srr0 = SPR_HSRR0;
-    regs->sprn_srr1 = SPR_HSRR1;
-    regs->new_msr |= (target_ulong)MSR_HVB;
-    regs->new_msr |= env->msr & ((target_ulong)1 << MSR_RI);
-}
-
-void ppc_intr_hv_data_storage(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    CPUPPCState *env = &cpu->env;
-
-    regs->sprn_srr0 = SPR_HSRR0;
-    regs->sprn_srr1 = SPR_HSRR1;
-    regs->new_msr |= (target_ulong)MSR_HVB;
-    regs->new_msr |= env->msr & ((target_ulong)1 << MSR_RI);
-}
-
-void ppc_intr_hv_data_segment(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    CPUPPCState *env = &cpu->env;
-
-    regs->sprn_srr0 = SPR_HSRR0;
-    regs->sprn_srr1 = SPR_HSRR1;
-    regs->new_msr |= (target_ulong)MSR_HVB;
-    regs->new_msr |= env->msr & ((target_ulong)1 << MSR_RI);
-}
-
-void ppc_intr_hv_insn_segment(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    CPUPPCState *env = &cpu->env;
-
-    regs->sprn_srr0 = SPR_HSRR0;
-    regs->sprn_srr1 = SPR_HSRR1;
-    regs->new_msr |= (target_ulong)MSR_HVB;
-    regs->new_msr |= env->msr & ((target_ulong)1 << MSR_RI);
-}
-
-void ppc_intr_hv_doorbell(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    CPUPPCState *env = &cpu->env;
-
-    regs->sprn_srr0 = SPR_HSRR0;
-    regs->sprn_srr1 = SPR_HSRR1;
-    regs->new_msr |= (target_ulong)MSR_HVB;
-    regs->new_msr |= env->msr & ((target_ulong)1 << MSR_RI);
-}
-
-void ppc_intr_hv_emulation(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    CPUPPCState *env = &cpu->env;
-
-    regs->sprn_srr0 = SPR_HSRR0;
-    regs->sprn_srr1 = SPR_HSRR1;
-    regs->new_msr |= (target_ulong)MSR_HVB;
-    regs->new_msr |= env->msr & ((target_ulong)1 << MSR_RI);
-}
-
-void ppc_intr_hv_virtualization(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
-{
-    CPUPPCState *env = &cpu->env;
-
-    regs->sprn_srr0 = SPR_HSRR0;
-    regs->sprn_srr1 = SPR_HSRR1;
-    regs->new_msr |= (target_ulong)MSR_HVB;
-    regs->new_msr |= env->msr & ((target_ulong)1 << MSR_RI);
+    ppc_intr_hv(cpu, regs, ignore);
 }
 
 void ppc_intr_facility_unavail(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore)
@@ -459,11 +395,7 @@ void ppc_intr_hv_facility_unavail(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *igno
 #ifdef TARGET_PPC64
     CPUPPCState *env = &cpu->env;
     env->spr[SPR_FSCR] |= ((target_ulong)env->error_code << FSCR_IC_POS);
-
-    regs->sprn_srr0 = SPR_HSRR0;
-    regs->sprn_srr1 = SPR_HSRR1;
-    regs->new_msr |= (target_ulong)MSR_HVB;
-    regs->new_msr |= env->msr & ((target_ulong)1 << MSR_RI);
+    ppc_intr_hv(cpu, regs, ignore);
 #endif
 }
 
@@ -571,32 +503,8 @@ PPCInterrupt interrupts[POWERPC_EXCP_NB] = {
         "Facility unavailable", ppc_intr_facility_unavail
     },
 
-    [POWERPC_EXCP_HDECR] = {
-        "Hypervisor decrementer", ppc_intr_hv_decrementer
-    },
-
-    [POWERPC_EXCP_HDSEG] = {
-        "Hypervisor data segment", ppc_intr_hv_data_segment
-    },
-
-    [POWERPC_EXCP_HDSI] = {
-        "Hypervisor data storage", ppc_intr_hv_data_storage
-    },
-
-    [POWERPC_EXCP_HISEG] = {
-        "Hypervisor insn segment", ppc_intr_hv_insn_segment
-    },
-
     [POWERPC_EXCP_HISI] = {
         "Hypervisor instruction storage", ppc_intr_hv_insn_storage
-    },
-
-    [POWERPC_EXCP_HVIRT] = {
-        "Hypervisor virtualization", ppc_intr_hv_virtualization
-    },
-
-    [POWERPC_EXCP_HV_EMU] = {
-        "Hypervisor emulation assist", ppc_intr_hv_emulation
     },
 
     [POWERPC_EXCP_HV_FU] = {
@@ -627,10 +535,6 @@ PPCInterrupt interrupts[POWERPC_EXCP_NB] = {
         "System reset", ppc_intr_system_reset
     },
 
-    [POWERPC_EXCP_SDOOR_HV] = {
-        "Hypervisor doorbell", ppc_intr_hv_doorbell
-    },
-
     [POWERPC_EXCP_SPEU] = {
         "SPE/embedded FP unavailable/VPU", ppc_intr_spe_unavailable
     },
@@ -654,6 +558,14 @@ PPCInterrupt interrupts[POWERPC_EXCP_NB] = {
     [POWERPC_EXCP_WDT] = {
         "Watchdog timer", ppc_intr_watchdog
     },
+
+    [POWERPC_EXCP_HDECR]    = { "Hypervisor decrementer",         ppc_intr_hv },
+    [POWERPC_EXCP_HDSEG]    = { "Hypervisor data segment",        ppc_intr_hv },
+    [POWERPC_EXCP_HDSI]     = { "Hypervisor data storage",        ppc_intr_hv },
+    [POWERPC_EXCP_HISEG]    = { "Hypervisor insn segment",        ppc_intr_hv },
+    [POWERPC_EXCP_HVIRT]    = { "Hypervisor virtualization",      ppc_intr_hv },
+    [POWERPC_EXCP_HV_EMU]   = { "Hypervisor emulation assist",    ppc_intr_hv },
+    [POWERPC_EXCP_SDOOR_HV] = { "Hypervisor doorbell",            ppc_intr_hv },
 
     [POWERPC_EXCP_APU]   = { "Aux. processor unavailable", ppc_intr_noop },
     [POWERPC_EXCP_DECR]  = { "Decrementer",                ppc_intr_noop },
