@@ -1308,7 +1308,7 @@ int main(int argc, char **argv)
 {
     const gchar *tmpdir = g_get_tmp_dir();
     gchar *tmpfile = g_strdup_printf("%s/failover_test_migrate-%u-%u",
-                                     tmpdir, getpid(), g_test_rand_int());
+                                     tmpdir, getpid(), g_random_int());
     int ret;
 
     g_test_init(&argc, &argv, NULL);
