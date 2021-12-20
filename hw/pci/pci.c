@@ -2869,7 +2869,7 @@ void pci_set_power(PCIDevice *d, bool state)
     memory_region_set_enabled(&d->bus_master_enable_region,
                               (pci_get_word(d->config + PCI_COMMAND)
                                & PCI_COMMAND_MASTER) && d->has_power);
-    if (!d->has_power) {
+    if (!d->has_power && !d->qdev.pending_deleted_event) {
         pci_device_reset(d);
     }
 }
