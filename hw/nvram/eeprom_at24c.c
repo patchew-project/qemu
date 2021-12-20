@@ -60,7 +60,9 @@ int at24c_eeprom_event(I2CSlave *s, enum i2c_event event)
     case I2C_START_SEND:
     case I2C_START_RECV:
     case I2C_FINISH:
-        ee->haveaddr = 0;
+        if (event != I2C_START_RECV) {
+            ee->haveaddr = 0;
+        }
         DPRINTK("clear\n");
         if (ee->blk && ee->changed) {
             int len = blk_pwrite(ee->blk, 0, ee->mem, ee->rsize, 0);
@@ -83,6 +85,10 @@ uint8_t at24c_eeprom_recv(I2CSlave *s)
 {
     EEPROMState *ee = AT24C_EE(s);
     uint8_t ret;
+
+    if (ee->haveaddr == 1) {
+        return 0xff;
+    }
 
     ret = ee->mem[ee->cur];
 
