@@ -42,6 +42,11 @@ void ppc_intr_system_reset(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore);
 void ppc_intr_tlb_miss(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore);
 void ppc_intr_watchdog(PowerPCCPU *cpu, PPCIntrArgs *regs, bool *ignore);
 
-extern PPCInterrupt interrupts[POWERPC_EXCP_NB];
+int ppc_intr_prepare(PowerPCCPU *cpu, PPCInterrupt *interrupts,
+                     PPCIntrArgs *regs, int excp);
+
+extern PPCInterrupt interrupts_ppc32[POWERPC_EXCP_NB];
+extern PPCInterrupt interrupts_booke[POWERPC_EXCP_NB];
+extern PPCInterrupt interrupts_book3s[POWERPC_EXCP_NB];
 
 #endif /* PPC_INTR_H */

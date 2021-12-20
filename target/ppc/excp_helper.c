@@ -37,6 +37,7 @@
 /* Exception processing */
 #if !defined(CONFIG_USER_ONLY)
 
+#ifdef TARGET_PPC64
 static int powerpc_reset_wakeup(CPUState *cs, CPUPPCState *env, int excp,
                                 target_ulong *msr)
 {
@@ -140,7 +141,6 @@ static inline void ppc_excp_apply_ail(PowerPCCPU *cpu, int excp_model, int excp,
                                       target_ulong *new_msr,
                                       target_ulong *new_nip)
 {
-#if defined(TARGET_PPC64)
     CPUPPCState *env = &cpu->env;
     bool mmu_all_on = ((msr >> MSR_IR) & 1) && ((msr >> MSR_DR) & 1);
     bool hv_escalation = !(msr & MSR_HVB) && (*new_msr & MSR_HVB);
@@ -229,8 +229,9 @@ static inline void ppc_excp_apply_ail(PowerPCCPU *cpu, int excp_model, int excp,
             *new_nip |= 0xc000000000003000ull; /* Apply scv's AIL=3 offset */
         }
     }
-#endif
 }
+#endif /* TARGET_PPC64 */
+
 
 static inline void powerpc_set_excp_state(PowerPCCPU *cpu, target_ulong new_nip,
                                           target_ulong new_msr)
@@ -263,33 +264,16 @@ static inline void powerpc_set_excp_state(PowerPCCPU *cpu, target_ulong new_nip,
     check_tlb_flush(env, false);
 }
 
-/*
- * Note that this function should be greatly optimized when called
- * with a constant excp, from ppc_hw_interrupt
- */
-static inline void powerpc_excp(PowerPCCPU *cpu, int excp)
+#if defined(TARGET_PPC64)
+static inline void book3s_excp(PowerPCCPU *cpu, int excp)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
     int excp_model = env->excp_model;
     PPCIntrArgs regs;
-    PPCInterrupt *intr;
-    bool ignore = false;
+    bool ignore;
 
-    qemu_log_mask(CPU_LOG_INT, "Raise exception at " TARGET_FMT_lx
-                  " => %08x (%02x)\n", env->nip, excp, env->error_code);
-
-    if (excp == POWERPC_EXCP_NONE) {
-        /* Should never happen */
-        return;
-    }
-
-    /* new srr1 value excluding must-be-zero bits */
-    if (excp_model == POWERPC_EXCP_BOOKE) {
-        regs.msr = env->msr;
-    } else {
-        regs.msr = env->msr & ~0x783f0000ULL;
-    }
+    regs.msr = env->msr & ~0x783f0000ULL;
     regs.nip = env->nip;
 
     /*
@@ -297,6 +281,9 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp)
      * explicitly overriden
      */
     regs.new_msr = env->msr & (((target_ulong)1 << MSR_ME) | MSR_HVB);
+
+    /* The Book3S cpus we support are 64 bit only */
+    regs.new_msr |= (target_ulong)1 << MSR_SF;
 
     regs.sprn_srr0 = SPR_SRR0;
     regs.sprn_srr1 = SPR_SRR1;
@@ -310,28 +297,12 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp)
     }
 
     /*
-     * Hypervisor emulation assistance interrupt only exists on server
-     * arch 2.05 server or later. We also don't want to generate it if
-     * we don't have HVB in msr_mask (PAPR mode).
+     * We don't want to generate an Hypervisor emulation assistance
+     * interrupt if we don't have HVB in msr_mask (PAPR mode).
      */
-    if (excp == POWERPC_EXCP_HV_EMU
-#if defined(TARGET_PPC64)
-        && !(mmu_is_64bit(env->mmu_model) && (env->msr_mask & MSR_HVB))
-#endif /* defined(TARGET_PPC64) */
-
-    ) {
+    if (excp == POWERPC_EXCP_HV_EMU && !(env->msr_mask & MSR_HVB)) {
         excp = POWERPC_EXCP_PROGRAM;
     }
-
-#ifdef TARGET_PPC64
-    /*
-     * SPEU and VPU share the same IVOR but they exist in different
-     * processors. SPEU is e500v1/2 only and VPU is e6500 only.
-     */
-    if (excp_model == POWERPC_EXCP_BOOKE && excp == POWERPC_EXCP_VPU) {
-        excp = POWERPC_EXCP_SPEU;
-    }
-#endif
 
     regs.new_nip = env->excp_vectors[excp];
     if (regs.new_nip == (target_ulong)-1ULL) {
@@ -339,42 +310,18 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp)
                   excp);
     }
 
-    regs.new_nip |= env->excp_prefix;
-
-    intr = &interrupts[excp];
-    if (!intr->name) {
-        cpu_abort(cs, "Invalid PowerPC exception %d. Aborting\n", excp);
-    }
-
-    if (!intr->fn) {
-        cpu_abort(cs, "%s exception is not implemented yet !\n", intr->name);
-    }
-
-    /* Setup interrupt-specific registers before dispatching */
-    intr->fn(cpu, &regs, &ignore);
+    /* Setup interrupt-specific registers before injecting */
+    ignore = ppc_intr_prepare(cpu, interrupts_book3s, &regs, excp);
 
     if (ignore) {
         /* No further setup is needed for this interrupt */
         return;
     }
 
-    /* Sanity check */
-    if (!(env->msr_mask & MSR_HVB)) {
-        if (regs.new_msr & MSR_HVB) {
-            cpu_abort(cs, "Trying to deliver HV exception (MSR) %d with "
-                      "no HV support\n", excp);
-        }
-        if (regs.sprn_srr0 == SPR_HSRR0) {
-            cpu_abort(cs, "Trying to deliver HV exception (HSRR) %d with "
-                      "no HV support\n", excp);
-        }
-    }
-
     /*
      * Sort out endianness of interrupt, this differs depending on the
      * CPU, the HV mode, etc...
      */
-#ifdef TARGET_PPC64
     if (excp_model == POWERPC_EXCP_POWER7) {
         if (!(regs.new_msr & MSR_HVB) && (env->spr[SPR_LPCR] & LPCR_ILE)) {
             regs.new_msr |= (target_ulong)1 << MSR_LE;
@@ -399,28 +346,6 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp)
     } else if (msr_ile) {
         regs.new_msr |= (target_ulong)1 << MSR_LE;
     }
-#else
-    if (msr_ile) {
-        regs.new_msr |= (target_ulong)1 << MSR_LE;
-    }
-#endif
-
-#if defined(TARGET_PPC64)
-    if (excp_model == POWERPC_EXCP_BOOKE) {
-        if (env->spr[SPR_BOOKE_EPCR] & EPCR_ICM) {
-            /* Cat.64-bit: EPCR.ICM is copied to MSR.CM */
-            regs.new_msr |= (target_ulong)1 << MSR_CM;
-        } else {
-            regs.new_nip = (uint32_t)regs.new_nip;
-        }
-    } else {
-        if (!msr_isf && !mmu_is_64bit(env->mmu_model)) {
-            regs.new_nip = (uint32_t)regs.new_nip;
-        } else {
-            regs.new_msr |= (target_ulong)1 << MSR_SF;
-        }
-    }
-#endif
 
     if (excp != POWERPC_EXCP_SYSCALL_VECTORED) {
         /* Save PC */
@@ -435,6 +360,159 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp)
                        &regs.new_nip);
 
     powerpc_set_excp_state(cpu, regs.new_nip, regs.new_msr);
+}
+#endif /* defined(TARGET_PPC64) */
+
+static inline void booke_excp(PowerPCCPU *cpu, int excp)
+{
+    CPUState *cs = CPU(cpu);
+    CPUPPCState *env = &cpu->env;
+    PPCIntrArgs regs;
+    bool ignore;
+
+    regs.msr = env->msr;
+    regs.nip = env->nip;
+
+    /*
+     * new interrupt handler msr preserves existing HV and ME unless
+     * explicitly overriden
+     */
+    regs.new_msr = env->msr & (((target_ulong)1 << MSR_ME) | MSR_HVB);
+
+    regs.sprn_srr0 = SPR_SRR0;
+    regs.sprn_srr1 = SPR_SRR1;
+
+    /*
+     * Hypervisor emulation assistance interrupt only exists on server
+     * arch 2.05 server or later.
+     */
+    if (excp == POWERPC_EXCP_HV_EMU) {
+        excp = POWERPC_EXCP_PROGRAM;
+    }
+
+#ifdef TARGET_PPC64
+    /*
+     * SPEU and VPU share the same IVOR but they exist in different
+     * processors. SPEU is e500v1/2 only and VPU is e6500 only.
+     */
+    if (env->excp_model == POWERPC_EXCP_BOOKE && excp == POWERPC_EXCP_VPU) {
+        excp = POWERPC_EXCP_SPEU;
+    }
+#endif
+
+    regs.new_nip = env->excp_vectors[excp];
+    if (regs.new_nip == (target_ulong)-1ULL) {
+        cpu_abort(cs, "Raised an exception without defined vector %d\n",
+                  excp);
+    }
+
+    regs.new_nip |= env->excp_prefix;
+
+    /* Setup interrupt-specific registers before injecting */
+    ignore = ppc_intr_prepare(cpu, interrupts_booke, &regs, excp);
+
+    if (ignore) {
+        /* No further setup is needed for this interrupt */
+        return;
+    }
+
+#if defined(TARGET_PPC64)
+    if (env->spr[SPR_BOOKE_EPCR] & EPCR_ICM) {
+        /* Cat.64-bit: EPCR.ICM is copied to MSR.CM */
+        regs.new_msr |= (target_ulong)1 << MSR_CM;
+    } else {
+        regs.new_nip = (uint32_t)regs.new_nip;
+    }
+#endif
+
+    /* Save PC */
+    env->spr[regs.sprn_srr0] = regs.nip;
+
+    /* Save MSR */
+    env->spr[regs.sprn_srr1] = regs.msr;
+
+    powerpc_set_excp_state(cpu, regs.new_nip, regs.new_msr);
+}
+
+static inline void ppc32_excp(PowerPCCPU *cpu, int excp)
+{
+    CPUState *cs = CPU(cpu);
+    CPUPPCState *env = &cpu->env;
+    PPCIntrArgs regs;
+    bool ignore;
+
+    regs.msr = env->msr & ~0x783f0000ULL;
+    regs.nip = env->nip;
+
+    /*
+     * new interrupt handler msr preserves existing HV and ME unless
+     * explicitly overriden
+     */
+    regs.new_msr = env->msr & (((target_ulong)1 << MSR_ME) | MSR_HVB);
+
+    regs.sprn_srr0 = SPR_SRR0;
+    regs.sprn_srr1 = SPR_SRR1;
+
+    /*
+     * Hypervisor emulation assistance interrupt only exists on server
+     * arch 2.05 server or later.
+     */
+    if (excp == POWERPC_EXCP_HV_EMU) {
+        excp = POWERPC_EXCP_PROGRAM;
+    }
+
+    regs.new_nip = env->excp_vectors[excp];
+    if (regs.new_nip == (target_ulong)-1ULL) {
+        cpu_abort(cs, "Raised an exception without defined vector %d\n",
+                  excp);
+    }
+
+    regs.new_nip |= env->excp_prefix;
+
+    /* Setup interrupt-specific registers before injecting */
+    ignore = ppc_intr_prepare(cpu, interrupts_ppc32, &regs, excp);
+
+    if (ignore) {
+        /* No further setup is needed for this interrupt */
+        return;
+    }
+
+    if (msr_ile) {
+        regs.new_msr |= (target_ulong)1 << MSR_LE;
+    }
+
+    /* Save PC */
+    env->spr[regs.sprn_srr0] = regs.nip;
+
+    /* Save MSR */
+    env->spr[regs.sprn_srr1] = regs.msr;
+
+    powerpc_set_excp_state(cpu, regs.new_nip, regs.new_msr);
+}
+
+static inline void powerpc_excp(PowerPCCPU *cpu, int excp)
+{
+    CPUPPCState *env = &cpu->env;
+
+    qemu_log_mask(CPU_LOG_INT, "Raise exception at " TARGET_FMT_lx
+                  " => %08x (%02x)\n", env->nip, excp, env->error_code);
+
+    if (excp == POWERPC_EXCP_NONE) {
+        /* Should never happen */
+        return;
+    }
+
+#ifdef TARGET_PPC64
+    if (env->excp_model >= POWERPC_EXCP_970) {
+        return book3s_excp(cpu, excp);
+    }
+#endif
+
+    if (env->excp_model == POWERPC_EXCP_BOOKE) {
+        booke_excp(cpu, excp);
+    } else {
+        ppc32_excp(cpu, excp);
+    }
 }
 
 void ppc_cpu_do_interrupt(CPUState *cs)
