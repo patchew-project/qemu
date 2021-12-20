@@ -1304,3 +1304,15 @@
 { 'command': 'display-reload',
   'data': 'DisplayReloadOptions',
   'boxed' : true }
+
+##
+# @change-vnc-listen:
+#
+# Change set of addresses to listen for connections.
+#
+# Since: 7.0
+#
+##
+{ 'command': 'change-vnc-listen',
+  'data': { 'id': 'str', 'addresses': ['SocketAddress'],
+            '*websockets': ['SocketAddress'] } }

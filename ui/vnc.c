@@ -4212,6 +4212,32 @@ fail:
     vnc_display_close(vd);
 }
 
+void qmp_change_vnc_listen(const char *id, SocketAddressList *addresses,
+                           bool has_websockets, SocketAddressList *websockets,
+                           Error **errp)
+{
+    VncDisplay *vd = vnc_display_find(id);
+
+    if (!vd) {
+        error_setg(errp, "VNC display '%s' not active", id);
+        return;
+    }
+
+    if (vd->listener) {
+        qio_net_listener_disconnect(vd->listener);
+        object_unref(OBJECT(vd->listener));
+    }
+    vd->listener = NULL;
+
+    if (vd->wslistener) {
+        qio_net_listener_disconnect(vd->wslistener);
+        object_unref(OBJECT(vd->wslistener));
+    }
+    vd->wslistener = NULL;
+
+    vnc_display_listen(vd, addresses, websockets, errp);
+}
+
 void vnc_display_add_client(const char *id, int csock, bool skipauth)
 {
     VncDisplay *vd = vnc_display_find(id);
