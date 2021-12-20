@@ -72,6 +72,7 @@ class QOMSet(QOMCommand):
         cls.add_path_prop_arg(parser)
         parser.add_argument(
             'value',
+            type=int,
             metavar='<value>',
             action='store',
             help='new QOM property value'
