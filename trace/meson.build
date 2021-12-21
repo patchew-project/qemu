@@ -2,10 +2,14 @@
 specific_ss.add(files('control-target.c'))
 
 trace_events_files = []
-foreach dir : [ '.' ] + trace_events_subdirs
-  trace_events_file = meson.project_source_root() / dir / 'trace-events'
+foreach path : [ '.' ] + trace_events_subdirs + qapi_trace_events
+  if path.contains('trace-events')
+    trace_events_file = meson.project_build_root() / 'qapi' / path
+  else
+    trace_events_file = meson.project_source_root() / path / 'trace-events'
+  endif
   trace_events_files += [ trace_events_file ]
-  group_name = dir == '.' ? 'root' : dir.underscorify()
+  group_name = path == '.' ? 'root' : path.underscorify()
   group = '--group=' + group_name
   fmt = '@0@-' + group_name + '.@1@'
 
