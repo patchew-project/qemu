@@ -88,7 +88,7 @@ const char *get_opt_value(const char *p, char **value)
     return offset;
 }
 
-static bool parse_option_number(const char *name, const char *value,
+bool parse_option_number(const char *name, const char *value,
                                 uint64_t *ret, Error **errp)
 {
     uint64_t number;

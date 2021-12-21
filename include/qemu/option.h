@@ -45,6 +45,10 @@ const char *get_opt_value(const char *p, char **value);
 
 bool parse_option_size(const char *name, const char *value,
                        uint64_t *ret, Error **errp);
+
+bool parse_option_number(const char *name, const char *value,
+                         uint64_t *ret, Error **errp);
+
 bool has_help_option(const char *param);
 
 enum QemuOptType {

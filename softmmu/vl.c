@@ -30,7 +30,9 @@
 #include "hw/qdev-properties.h"
 #include "qapi/compat-policy.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qjson.h"
 #include "qemu-version.h"
@@ -2279,6 +2281,7 @@ static void qemu_set_option(const char *str, Error **errp)
     char group[64], id[64], arg[64];
     QemuOptsList *list;
     QemuOpts *opts;
+    DeviceOption *opt;
     int rc, offset;
 
     rc = sscanf(str, "%63[^.].%63[^.].%63[^=]%n", group, id, arg, &offset);
@@ -2294,6 +2297,31 @@ static void qemu_set_option(const char *str, Error **errp)
         if (list) {
             opts = qemu_opts_find(list, id);
             if (!opts) {
+                QTAILQ_FOREACH(opt, &device_opts, next) {
+                    const char *device_id = qdict_get_try_str(opt->opts, "id");
+                    if (device_id && (strcmp(device_id, id) == 0)) {
+                        if (qdict_get(opt->opts, arg)) {
+                            qdict_del(opt->opts, arg);
+                        }
+                        const char *value = str + offset + 1;
+                        QObject *obj = NULL;
+                        bool boolean;
+                        uint64_t num;
+                        if (qapi_bool_parse(arg, value, &boolean, NULL)) {
+                            obj = QOBJECT(qbool_from_bool(boolean));
+                        } else if (parse_option_number(arg, value, &num, NULL)) {
+                            obj = QOBJECT(qnum_from_uint(num));
+                        } else if (parse_option_size(arg, value, &num, NULL)) {
+                            obj = QOBJECT(qnum_from_uint(num));
+                        } else {
+                            obj = QOBJECT(qstring_from_str(value));
+                        }
+                        if (obj) {
+                            qdict_put_obj(opt->opts, arg, obj);
+                            return;
+                        }
+                    }
+                }
                 error_setg(errp, "there is no %s \"%s\" defined", group, id);
                 return;
             }
