@@ -1365,7 +1365,7 @@ static bool do_compress_ram_page(QEMUFile *f, z_stream *stream, RAMBlock *block,
     }
 
 exit:
-    ram_release_page(block->idstr, offset & TARGET_PAGE_MASK);
+    ram_release_page(block->idstr, offset);
     return zero_page;
 }
 
