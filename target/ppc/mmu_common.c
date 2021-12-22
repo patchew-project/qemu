@@ -34,9 +34,9 @@
 #include "mmu-book3s-v3.h"
 #include "mmu-radix64.h"
 
-/* #define DEBUG_MMU */
+#define DEBUG_MMU
 /* #define DEBUG_BATS */
-/* #define DEBUG_SOFTWARE_TLB */
+#define DEBUG_SOFTWARE_TLB
 /* #define DUMP_PAGE_TABLES */
 /* #define FLUSH_ALL_TLBS */
 

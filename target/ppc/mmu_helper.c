@@ -37,7 +37,7 @@
 #include "exec/cpu_ldst.h"
 
 /* #define DEBUG_BATS */
-/* #define DEBUG_SOFTWARE_TLB */
+#define DEBUG_SOFTWARE_TLB
 /* #define DUMP_PAGE_TABLES */
 /* #define FLUSH_ALL_TLBS */
 
