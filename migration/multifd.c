@@ -801,33 +801,32 @@ static bool multifd_channel_connect(MultiFDSendParams *p,
     trace_multifd_set_outgoing_channel(
         ioc, object_get_typename(OBJECT(ioc)), p->tls_hostname, error);
 
-    if (!error) {
-        if (s->parameters.tls_creds &&
-            *s->parameters.tls_creds &&
-            !object_dynamic_cast(OBJECT(ioc),
-                                 TYPE_QIO_CHANNEL_TLS)) {
-            multifd_tls_channel_connect(p, ioc, &error);
-            if (!error) {
-                /*
-                 * tls_channel_connect will call back to this
-                 * function after the TLS handshake,
-                 * so we mustn't call multifd_send_thread until then
-                 */
-                return true;
-            } else {
-                return false;
-            }
-        } else {
-            migration_ioc_register_yank(ioc);
-            p->registered_yank = true;
-            p->c = ioc;
-            qemu_thread_create(&p->thread, p->name, multifd_send_thread, p,
-                                   QEMU_THREAD_JOINABLE);
-       }
-       return true;
+    if (error) {
+        return false;
     }
 
-    return false;
+    if (s->parameters.tls_creds &&
+        *s->parameters.tls_creds &&
+        !object_dynamic_cast(OBJECT(ioc),
+                             TYPE_QIO_CHANNEL_TLS)) {
+        multifd_tls_channel_connect(p, ioc, &error);
+        if (error) {
+            return false;
+        }
+        /*
+         * tls_channel_connect will call back to this
+         * function after the TLS handshake,
+         * so we mustn't call multifd_send_thread until then
+         */
+        return true;
+    } else {
+        migration_ioc_register_yank(ioc);
+        p->registered_yank = true;
+        p->c = ioc;
+        qemu_thread_create(&p->thread, p->name, multifd_send_thread, p,
+                               QEMU_THREAD_JOINABLE);
+    }
+    return true;
 }
 
 static void multifd_new_send_channel_cleanup(MultiFDSendParams *p,
