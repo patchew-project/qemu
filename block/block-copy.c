@@ -280,7 +280,8 @@ void block_copy_set_copy_opts(BlockCopyState *s, bool use_copy_range,
                               bool compress)
 {
     /* Keep BDRV_REQ_SERIALISING set (or not set) in block_copy_state_new() */
-    s->write_flags = (s->write_flags & BDRV_REQ_SERIALISING) |
+    s->write_flags = (s->write_flags &
+                      (BDRV_REQ_SERIALISING | BDRV_REQ_WRITE_UNCHANGED)) |
         (compress ? BDRV_REQ_WRITE_COMPRESSED : 0);
 
     if (s->max_transfer < s->cluster_size) {
@@ -341,7 +342,8 @@ static int64_t block_copy_calculate_cluster_size(BlockDriverState *target,
 }
 
 BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
-                                     BdrvDirtyBitmap *bitmap, Error **errp)
+                                     BdrvDirtyBitmap *bitmap,
+                                     bool write_unchanged, Error **errp)
 {
     ERRP_GUARD();
     BlockCopyState *s;
@@ -394,7 +396,8 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
         .copy_bitmap = copy_bitmap,
         .cluster_size = cluster_size,
         .len = bdrv_dirty_bitmap_size(copy_bitmap),
-        .write_flags = (is_fleecing ? BDRV_REQ_SERIALISING : 0),
+        .write_flags = (is_fleecing ? BDRV_REQ_SERIALISING : 0) |
+            (write_unchanged ? BDRV_REQ_WRITE_UNCHANGED : 0),
         .mem = shres_create(BLOCK_COPY_MAX_MEM),
         .max_transfer = QEMU_ALIGN_DOWN(
                                     block_copy_max_transfer(source, target),
