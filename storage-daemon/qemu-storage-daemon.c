@@ -60,6 +60,7 @@
 #include "trace/control.h"
 
 static const char *pid_file;
+static bool daemonize_opt;
 static volatile bool exit_requested = false;
 
 void qemu_system_killed(int signal, pid_t pid)
@@ -124,6 +125,9 @@ static void help(void)
 "\n"
 "  --pidfile <path>       write process ID to a file after startup\n"
 "\n"
+"  --daemonize            daemonize the process, and have the parent exit\n"
+"                         once startup is complete\n"
+"\n"
 QEMU_HELP_BOTTOM "\n",
     error_get_progname());
 }
@@ -131,6 +135,7 @@ QEMU_HELP_BOTTOM "\n",
 enum {
     OPTION_BLOCKDEV = 256,
     OPTION_CHARDEV,
+    OPTION_DAEMONIZE,
     OPTION_EXPORT,
     OPTION_MONITOR,
     OPTION_NBD_SERVER,
@@ -187,6 +192,7 @@ static void process_options(int argc, char *argv[], bool pre_init_pass)
     static const struct option long_options[] = {
         {"blockdev", required_argument, NULL, OPTION_BLOCKDEV},
         {"chardev", required_argument, NULL, OPTION_CHARDEV},
+        {"daemonize", no_argument, NULL, OPTION_DAEMONIZE},
         {"export", required_argument, NULL, OPTION_EXPORT},
         {"help", no_argument, NULL, 'h'},
         {"monitor", required_argument, NULL, OPTION_MONITOR},
@@ -212,6 +218,7 @@ static void process_options(int argc, char *argv[], bool pre_init_pass)
             c == '?' ||
             c == 'h' ||
             c == 'V' ||
+            c == OPTION_DAEMONIZE ||
             c == OPTION_PIDFILE;
 
         /* Process every option only in its respective pass */
@@ -264,6 +271,9 @@ static void process_options(int argc, char *argv[], bool pre_init_pass)
                 qemu_opts_del(opts);
                 break;
             }
+        case OPTION_DAEMONIZE:
+            daemonize_opt = true;
+            break;
         case OPTION_EXPORT:
             {
                 Visitor *v;
@@ -342,8 +352,137 @@ static void pid_file_init(void)
     atexit(pid_file_cleanup);
 }
 
+/**
+ * Handle daemonizing.
+ *
+ * Return false on error, and true if and only if daemonizing was
+ * successful and we are in the child process.  (The parent process will
+ * never return true, but instead rather exit() if there was no error.)
+ *
+ * When returning true, *old_stderr is set to an FD representing the
+ * original stderr.  Once the child is set up (after creating the PID
+ * file, and before entering the main loop), it should invoke
+ * `daemon_detach(old_stderr)` to have the parent process exit and
+ * restore the original stderr.
+ */
+static bool daemonize(int *old_stderr, Error **errp)
+{
+    int stderr_fd[2];
+    pid_t pid;
+    int ret;
+
+    if (qemu_pipe(stderr_fd) < 0) {
+        error_setg_errno(errp, errno, "Error setting up communication pipe");
+        return false;
+    }
+
+    pid = fork();
+    if (pid < 0) {
+        error_setg_errno(errp, errno, "Failed to fork");
+        return false;
+    }
+
+    if (pid == 0) { /* Child process */
+        close(stderr_fd[0]); /* Close pipe's read end */
+
+        /* Keep the old stderr so we can reuse it after the parent has quit */
+        *old_stderr = dup(STDERR_FILENO);
+        if (*old_stderr < 0) {
+            /*
+             * Cannot return an error without having our stderr point to the
+             * pipe: Otherwise, the parent process would not see the error
+             * message and so not exit with EXIT_FAILURE.
+             */
+            error_setg_errno(errp, errno, "Failed to duplicate stderr FD");
+            dup2(stderr_fd[1], STDERR_FILENO);
+            close(stderr_fd[1]);
+            return false;
+        }
+
+        /*
+         * Daemonize, redirecting all std streams to /dev/null; then
+         * (even on error) redirect stderr to the pipe's write end
+         */
+        ret = qemu_daemon(1, 0);
+
+        /*
+         * Unconditionally redirect stderr to the pipe's write end (and
+         * close the then-unused write end FD, because now stderr points
+         * to it)
+         */
+        dup2(stderr_fd[1], STDERR_FILENO);
+        close(stderr_fd[1]);
+
+        if (ret < 0) {
+            error_setg_errno(errp, errno, "Failed to daemonize");
+            close(*old_stderr);
+            *old_stderr = -1;
+            return false;
+        }
+
+        return true;
+    } else { /* Parent process */
+        bool errors = false;
+        g_autofree char *buf = g_malloc(1024);
+
+        close(stderr_fd[1]); /* Close pipe's write end */
+
+        /* Print error messages from the child until it closes the pipe */
+        while ((ret = read(stderr_fd[0], buf, 1024)) > 0) {
+            errors = true;
+            ret = qemu_write_full(STDERR_FILENO, buf, ret);
+            if (ret < 0) {
+                error_setg_errno(errp, -ret,
+                                 "Failed to print error received from the "
+                                 "daemonized child to stderr");
+                close(stderr_fd[0]);
+                return false;
+            }
+        }
+
+        close(stderr_fd[0]); /* Close read end, it is unused now */
+
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Cannot read from daemon");
+            return false;
+        }
+
+        /*
+         * Child is either detached and running (in which case it should
+         * not have printed any errors, and @errors should be false), or
+         * has encountered an error (which it should have printed, so
+         * @errors should be true) and has exited.
+         *
+         * Exit with the appropriate exit code.
+         */
+        exit(errors ? EXIT_FAILURE : EXIT_SUCCESS);
+    }
+}
+
+/**
+ * After daemonize(): Let the parent process exit by closing the pipe
+ * connected to it.  The original stderr is restored from *old_stderr.
+ *
+ * This function should be called after creating the PID file and before
+ * entering the main loop.
+ */
+static void daemon_detach(int *old_stderr)
+{
+    /*
+     * Ignore errors; closing the old stderr should not fail, and if
+     * dup-ing fails, then we cannot print anything to stderr anyway
+     */
+    dup2(*old_stderr, STDERR_FILENO);
+
+    close(*old_stderr);
+    *old_stderr = -1;
+}
+
 int main(int argc, char *argv[])
 {
+    Error *local_err = NULL;
+    int old_stderr = -1;
+
 #ifdef CONFIG_POSIX
     signal(SIGPIPE, SIG_IGN);
 #endif
@@ -353,6 +492,14 @@ int main(int argc, char *argv[])
     os_setup_signal_handling();
 
     process_options(argc, argv, true);
+
+    if (daemonize_opt) {
+        if (!daemonize(&old_stderr, &local_err)) {
+            error_report_err(local_err);
+            return EXIT_FAILURE;
+        }
+        assert(old_stderr >= 0);
+    }
 
     module_call_init(MODULE_INIT_QOM);
     module_call_init(MODULE_INIT_TRACE);
@@ -376,6 +523,10 @@ int main(int argc, char *argv[])
      * it.
      */
     pid_file_init();
+
+    if (daemonize_opt) {
+        daemon_detach(&old_stderr);
+    }
 
     while (!exit_requested) {
         main_loop_wait(false);
