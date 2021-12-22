@@ -15,11 +15,12 @@
 # @CprMode:
 #
 # @reboot: checkpoint can be cpr-load'ed after a host kexec reboot.
+# @restart: checkpoint can be cpr-load'ed after restarting qemu.
 #
 # Since: 6.2
 ##
 { 'enum': 'CprMode',
-  'data': [ 'reboot' ] }
+  'data': [ 'reboot', 'restart' ] }
 
 ##
 # @cpr-save:
@@ -33,6 +34,11 @@
 # For reboot mode, all guest RAM objects must be non-volatile across reboot,
 # and created with the share=on parameter.
 #
+# For restart mode, all guest RAM objects must be shared.  The share=on
+# property is required for memory created with an explicit -object option,
+# and the memfd-alloc machine property is required for memory that is
+# implicitly created.
+#
 # @filename: name of checkpoint file
 # @mode: @CprMode mode
 #
@@ -41,6 +47,20 @@
 { 'command': 'cpr-save',
   'data': { 'filename': 'str',
             'mode': 'CprMode' } }
+
+##
+# @cpr-exec:
+#
+# exec() a command and replace the qemu process.  The PID remains the same.
+# @argv[0] should be the path of a new qemu binary, or a prefix command that
+# in turn exec's the new qemu binary.  Must be called after cpr-save restart.
+#
+# @argv: arguments to be passed to exec().
+#
+# Since: 6.2
+##
+{ 'command': 'cpr-exec',
+  'data': { 'argv': [ 'str' ] } }
 
 ##
 # @cpr-load:

@@ -81,6 +81,34 @@ err:
     cpr_set_mode(CPR_MODE_NONE);
 }
 
+static int preserve_fd(const char *name, int id, int fd, void *opaque)
+{
+    qemu_clear_cloexec(fd);
+    return 0;
+}
+
+void qmp_cpr_exec(strList *args, Error **errp)
+{
+    if (xen_enabled()) {
+        error_setg(errp, "xen does not support cpr-exec");
+        return;
+    }
+    if (!runstate_check(RUN_STATE_SAVE_VM)) {
+        error_setg(errp, "runstate is not save-vm");
+        return;
+    }
+    if (cpr_get_mode() != CPR_MODE_RESTART) {
+        error_setg(errp, "cpr-exec requires cpr-save with restart mode");
+        return;
+    }
+
+    cpr_walk_fd(preserve_fd, 0);
+    if (cpr_state_save(errp)) {
+        return;
+    }
+    qemu_system_exec_request(args);
+}
+
 void qmp_cpr_load(const char *filename, Error **errp)
 {
     QEMUFile *f;
@@ -104,7 +132,6 @@ void qmp_cpr_load(const char *filename, Error **errp)
         return;
     }
 
-    cpr_set_mode(CPR_MODE_REBOOT);
     ret = qemu_load_device_state(f);
     qemu_fclose(f);
     if (ret < 0) {
