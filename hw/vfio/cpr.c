@@ -29,6 +29,14 @@ vfio_dma_unmap_vaddr_all(VFIOContainer *container, Error **errp)
     return 0;
 }
 
+static int
+vfio_region_remap(MemoryRegionSection *section, void *handle, Error **errp)
+{
+    VFIOContainer *container = handle;
+    vfio_container_region_add(container, section, true);
+    return 0;
+}
+
 bool vfio_is_cpr_capable(VFIOContainer *container, Error **errp)
 {
     if (!ioctl(container->fd, VFIO_CHECK_EXTENSION, VFIO_UPDATE_VADDR) ||
@@ -48,20 +56,47 @@ int vfio_cpr_save(Error **errp)
 {
     ERRP_GUARD();
     VFIOAddressSpace *space;
-    VFIOContainer *container;
+    VFIOContainer *container, *last_container;
 
     QLIST_FOREACH(space, &vfio_address_spaces, list) {
         QLIST_FOREACH(container, &space->containers, next) {
             if (!vfio_is_cpr_capable(container, errp)) {
                 return -1;
             }
-            if (vfio_dma_unmap_vaddr_all(container, errp)) {
-                return -1;
-            }
         }
     }
 
+    QLIST_FOREACH(space, &vfio_address_spaces, list) {
+        QLIST_FOREACH(container, &space->containers, next) {
+            if (vfio_dma_unmap_vaddr_all(container, errp)) {
+                goto unwind;
+            }
+        }
+    }
     return 0;
+
+unwind:
+    last_container = container;
+    QLIST_FOREACH(space, &vfio_address_spaces, list) {
+        QLIST_FOREACH(container, &space->containers, next) {
+            Error *err;
+
+            if (container == last_container) {
+                break;
+            }
+
+            /* Set reused so vfio_dma_map restores vaddr */
+            container->reused = true;
+            if (address_space_flat_for_each_section(space->as,
+                                                    vfio_region_remap,
+                                                    container, &err)) {
+                error_prepend(errp, "%s", error_get_pretty(err));
+                error_free(err);
+            }
+            container->reused = false;
+        }
+    }
+    return -1;
 }
 
 /*

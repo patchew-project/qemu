@@ -243,7 +243,7 @@ vfio_get_device_info_cap(struct vfio_device_info *info, uint16_t id);
 extern const MemoryListener vfio_prereg_listener;
 void vfio_listener_register(VFIOContainer *container);
 void vfio_container_region_add(VFIOContainer *container,
-                               MemoryRegionSection *section);
+                               MemoryRegionSection *section, bool replay);
 
 int vfio_spapr_create_window(VFIOContainer *container,
                              MemoryRegionSection *section,
