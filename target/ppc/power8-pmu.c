@@ -323,6 +323,14 @@ void helper_insns_inc(CPUPPCState *env, uint32_t num_insns)
     }
 }
 
+/* Helper to fire a PMC interrupt from TCG code */
+void helper_pmu_overflow(CPUPPCState *env)
+{
+    PowerPCCPU *cpu = env_archcpu(env);
+
+    fire_PMC_interrupt(cpu);
+}
+
 static void cpu_ppc_pmu_timer_cb(void *opaque)
 {
     PowerPCCPU *cpu = opaque;

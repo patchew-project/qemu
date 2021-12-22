@@ -19,6 +19,7 @@
 #define MMCR1_PMC4_INS_CNT        0x00000002
 #define MMCR1_PMC4_INS_LATCH_CNT  0x000000FA
 
+#define PMC_COUNTER_NEGATIVE_VAL  0x80000000UL
 /*
  * Increments PMC1 checking if MMCR1_PMC1SEL has one of the following
  * events:
@@ -211,6 +212,92 @@ static void pmu_inc_pmc5(DisasContext *ctx)
     tcg_temp_free(t0);
     tcg_temp_free(t1);
 }
+
+/*
+ * Check for overflow of PMC1-PMC5 counters and call the overflow
+ * helper in case any counter has overflown.
+ */
+static void pmu_check_overflow(DisasContext *ctx)
+{
+    TCGv t_pmc1, t_pmc2, t_pmc3, t_pmc4, t_pmc5;
+    TCGv t0, t1;
+    TCGLabel *l_pmc_overflow;
+    TCGLabel *l_skip_pmc1_overflow;
+    TCGLabel *l_skip_overflow;
+
+    /*
+     * Check if we have overflow bits set and fire an overflow
+     * event if necessary. Skip directly to 'l_pmc_overflow'
+     * right after finding the first overflow.
+     */
+    l_pmc_overflow = gen_new_label();
+    l_skip_pmc1_overflow = gen_new_label();
+
+    t0 = tcg_temp_new();
+    gen_load_spr(t0, SPR_POWER_MMCR0);
+    tcg_gen_andi_tl(t0, t0, MMCR0_PMC1CE);
+    tcg_gen_brcondi_tl(TCG_COND_NE, t0, MMCR0_PMC1CE, l_skip_pmc1_overflow);
+
+    t_pmc1 = tcg_temp_new();
+    gen_load_spr(t_pmc1, SPR_POWER_PMC1);
+    tcg_gen_brcondi_tl(TCG_COND_GE, t_pmc1, PMC_COUNTER_NEGATIVE_VAL,
+                       l_pmc_overflow);
+
+    gen_set_label(l_skip_pmc1_overflow);
+
+    l_skip_overflow = gen_new_label();
+
+    /*
+     * At this point we're sure PMC1 didn't overflow. If MMCR0_PMCjCE
+     * isn't set we can skip everything since PMC2-5 overflow is
+     * disabled.
+     */
+    t1 = tcg_temp_new();
+    gen_load_spr(t1, SPR_POWER_MMCR0);
+    tcg_gen_andi_tl(t1, t1, MMCR0_PMCjCE);
+    tcg_gen_brcondi_tl(TCG_COND_NE, t1, MMCR0_PMCjCE, l_skip_overflow);
+
+    t_pmc2 = tcg_temp_new();
+    gen_load_spr(t_pmc2, SPR_POWER_PMC2);
+    tcg_gen_brcondi_tl(TCG_COND_GE, t_pmc2, PMC_COUNTER_NEGATIVE_VAL,
+                       l_pmc_overflow);
+
+    t_pmc3 = tcg_temp_new();
+    gen_load_spr(t_pmc3, SPR_POWER_PMC3);
+    tcg_gen_brcondi_tl(TCG_COND_GE, t_pmc3, PMC_COUNTER_NEGATIVE_VAL,
+                       l_pmc_overflow);
+
+    t_pmc4 = tcg_temp_new();
+    gen_load_spr(t_pmc4, SPR_POWER_PMC4);
+    tcg_gen_brcondi_tl(TCG_COND_GE, t_pmc4, PMC_COUNTER_NEGATIVE_VAL,
+                       l_pmc_overflow);
+
+    t_pmc5 = tcg_temp_new();
+    gen_load_spr(t_pmc5, SPR_POWER_PMC5);
+    tcg_gen_brcondi_tl(TCG_COND_LE, t_pmc5, PMC_COUNTER_NEGATIVE_VAL,
+                       l_skip_overflow);
+
+    gen_set_label(l_pmc_overflow);
+
+    /*
+     * The PMU overflow helper manipuilates the internal PMU timer.
+     * In that case, if the guest is running with icount and we do not
+     * handle it beforehand, the helper can trigger a 'bad icount
+     * read'.
+     */
+    gen_icount_io_start(ctx);
+    gen_helper_pmu_overflow(cpu_env);
+
+    gen_set_label(l_skip_overflow);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    tcg_temp_free(t_pmc1);
+    tcg_temp_free(t_pmc2);
+    tcg_temp_free(t_pmc3);
+    tcg_temp_free(t_pmc4);
+    tcg_temp_free(t_pmc5);
+}
 #endif /* #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY) */
 
 #if defined(TARGET_PPC64)
@@ -253,6 +340,8 @@ static void pmu_count_insns(DisasContext *ctx)
     pmu_inc_pmc4(ctx);
 
     gen_set_label(l_skip_pmc14);
+
+    pmu_check_overflow(ctx);
 
     tcg_temp_free(t_mmcr0);
     tcg_temp_free(t_mmcr1);
