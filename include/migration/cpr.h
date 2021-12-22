@@ -12,6 +12,17 @@
 
 #define CPR_MODE_NONE ((CprMode)(-1))
 
-static void cpr_set_mode(CprMode mode) {}   /* no-op until a later patch */
+void cpr_set_mode(CprMode mode);
+CprMode cpr_get_mode(void);
+
+typedef int (*cpr_walk_fd_cb)(const char *name, int id, int fd, void *opaque);
+
+void cpr_save_fd(const char *name, int id, int fd);
+void cpr_delete_fd(const char *name, int id);
+int cpr_find_fd(const char *name, int id);
+int cpr_walk_fd(cpr_walk_fd_cb cb, void *handle);
+int cpr_state_save(Error **errp);
+int cpr_state_load(Error **errp);
+void cpr_state_print(void);
 
 #endif
