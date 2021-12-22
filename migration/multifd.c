@@ -649,58 +649,58 @@ static void *multifd_send_thread(void *opaque)
             break;
         }
         qemu_mutex_lock(&p->mutex);
-
-        if (p->pending_job) {
-            uint32_t used = p->pages->num;
-            uint64_t packet_num = p->packet_num;
-            uint32_t flags = p->flags;
-
-            if (used) {
-                ret = multifd_send_state->ops->send_prepare(p, &local_err);
-                if (ret != 0) {
-                    qemu_mutex_unlock(&p->mutex);
-                    break;
-                }
-            }
-            multifd_send_fill_packet(p);
-            p->flags = 0;
-            p->num_packets++;
-            p->num_pages += used;
-            p->pages->num = 0;
-            p->pages->block = NULL;
+        if (!p->quit && !p->pending_job) {
+            /* sometimes there are spurious wakeups */
             qemu_mutex_unlock(&p->mutex);
+            continue;
+        } else if (!p->pending_job) {
+            qemu_mutex_unlock(&p->mutex);
+            break;
+        }
 
-            trace_multifd_send(p->id, packet_num, used, flags,
-                               p->next_packet_size);
+        uint32_t used = p->pages->num;
+        uint64_t packet_num = p->packet_num;
+        uint32_t flags = p->flags;
 
-            ret = qio_channel_write_all(p->c, (void *)p->packet,
-                                        p->packet_len, &local_err);
+        if (used) {
+            ret = multifd_send_state->ops->send_prepare(p, &local_err);
+            if (ret != 0) {
+                qemu_mutex_unlock(&p->mutex);
+                break;
+            }
+        }
+        multifd_send_fill_packet(p);
+        p->flags = 0;
+        p->num_packets++;
+        p->num_pages += used;
+        p->pages->num = 0;
+        p->pages->block = NULL;
+        qemu_mutex_unlock(&p->mutex);
+
+        trace_multifd_send(p->id, packet_num, used, flags,
+                           p->next_packet_size);
+
+        ret = qio_channel_write_all(p->c, (void *)p->packet,
+                                    p->packet_len, &local_err);
+        if (ret != 0) {
+            break;
+        }
+
+        if (used) {
+            ret = multifd_send_state->ops->send_write(p, used, &local_err);
             if (ret != 0) {
                 break;
             }
-
-            if (used) {
-                ret = multifd_send_state->ops->send_write(p, used, &local_err);
-                if (ret != 0) {
-                    break;
-                }
-            }
-
-            qemu_mutex_lock(&p->mutex);
-            p->pending_job--;
-            qemu_mutex_unlock(&p->mutex);
-
-            if (flags & MULTIFD_FLAG_SYNC) {
-                qemu_sem_post(&p->sem_sync);
-            }
-            qemu_sem_post(&multifd_send_state->channels_ready);
-        } else if (p->quit) {
-            qemu_mutex_unlock(&p->mutex);
-            break;
-        } else {
-            qemu_mutex_unlock(&p->mutex);
-            /* sometimes there are spurious wakeups */
         }
+
+        qemu_mutex_lock(&p->mutex);
+        p->pending_job--;
+        qemu_mutex_unlock(&p->mutex);
+
+        if (flags & MULTIFD_FLAG_SYNC) {
+            qemu_sem_post(&p->sem_sync);
+        }
+        qemu_sem_post(&multifd_send_state->channels_ready);
     }
 
 out:
