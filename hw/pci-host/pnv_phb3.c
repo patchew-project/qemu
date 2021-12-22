@@ -980,10 +980,6 @@ static void pnv_phb3_instance_init(Object *obj)
     /* Power Bus Common Queue */
     object_initialize_child(obj, "pbcq", &phb->pbcq, TYPE_PNV_PBCQ);
 
-    /* Root Port */
-    object_initialize_child(obj, "root", &phb->root, TYPE_PNV_PHB3_ROOT_PORT);
-    qdev_prop_set_int32(DEVICE(&phb->root), "addr", PCI_DEVFN(0, 0));
-    qdev_prop_set_bit(DEVICE(&phb->root), "multifunction", false);
 }
 
 static void pnv_phb3_realize(DeviceState *dev, Error **errp)
@@ -1051,10 +1047,6 @@ static void pnv_phb3_realize(DeviceState *dev, Error **errp)
 
     pci_setup_iommu(pci->bus, pnv_phb3_dma_iommu, phb);
 
-    /* Add a single Root port */
-    qdev_prop_set_uint8(DEVICE(&phb->root), "chassis", phb->chip_id);
-    qdev_prop_set_uint16(DEVICE(&phb->root), "slot", phb->phb_id);
-    qdev_realize(DEVICE(&phb->root), BUS(pci->bus), &error_fatal);
 }
 
 void pnv_phb3_update_regions(PnvPHB3 *phb)

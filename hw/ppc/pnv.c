@@ -1156,6 +1156,17 @@ static void pnv_chip_icp_realize(Pnv8Chip *chip8, Error **errp)
     }
 }
 
+/* Attach a root port device */
+static void pnv_phb_attach_root_port(PCIHostState *pci, int id,
+                                     const char *name)
+{
+    PCIDevice *root = pci_new(PCI_DEVFN(0, 0), name);
+
+    qdev_prop_set_uint8(&root->qdev, "chassis", id);
+    qdev_prop_set_uint16(&root->qdev, "slot", id);
+    pci_realize_and_unref(root, pci->bus, &error_fatal);
+}
+
 static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
 {
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(dev);
@@ -1250,6 +1261,9 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
         if (!sysbus_realize(SYS_BUS_DEVICE(phb), errp)) {
             return;
         }
+
+        pnv_phb_attach_root_port(PCI_HOST_BRIDGE(phb), phb->phb_id,
+                                 TYPE_PNV_PHB3_ROOT_PORT);
     }
 }
 
