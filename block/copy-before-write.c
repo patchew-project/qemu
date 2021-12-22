@@ -149,6 +149,7 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
     BDRVCopyBeforeWriteState *s = bs->opaque;
+    BdrvDirtyBitmap *bitmap = NULL;
 
     bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
                                BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
@@ -163,6 +164,33 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
         return -EINVAL;
     }
 
+    if (qdict_haskey(options, "bitmap.node") ||
+        qdict_haskey(options, "bitmap.name"))
+    {
+        const char *bitmap_node, *bitmap_name;
+
+        if (!qdict_haskey(options, "bitmap.node")) {
+            error_setg(errp, "bitmap.node is not specified");
+            return -EINVAL;
+        }
+
+        if (!qdict_haskey(options, "bitmap.name")) {
+            error_setg(errp, "bitmap.name is not specified");
+            return -EINVAL;
+        }
+
+        bitmap_node = qdict_get_str(options, "bitmap.node");
+        bitmap_name = qdict_get_str(options, "bitmap.name");
+        qdict_del(options, "bitmap.node");
+        qdict_del(options, "bitmap.name");
+
+        bitmap = block_dirty_bitmap_lookup(bitmap_node, bitmap_name, NULL,
+                                           errp);
+        if (!bitmap) {
+            return -EINVAL;
+        }
+    }
+
     bs->total_sectors = bs->file->bs->total_sectors;
     bs->supported_write_flags = BDRV_REQ_WRITE_UNCHANGED |
             (BDRV_REQ_FUA & bs->file->bs->supported_write_flags);
@@ -170,7 +198,7 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
             ((BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP | BDRV_REQ_NO_FALLBACK) &
              bs->file->bs->supported_zero_flags);
 
-    s->bcs = block_copy_state_new(bs->file, s->target, NULL, errp);
+    s->bcs = block_copy_state_new(bs->file, s->target, bitmap, errp);
     if (!s->bcs) {
         error_prepend(errp, "Cannot create block-copy-state: ");
         return -EINVAL;
