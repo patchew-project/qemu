@@ -15,6 +15,7 @@
 #define MMCR1_PMC1_INS_CNT        0x02000000
 #define MMCR1_PMC1_INS_CNT2       0xFE000000
 #define MMCR1_PMC2_INS_CNT        0x00020000
+#define MMCR1_PMC3_INS_CNT        0x00000200
 
 /*
  * Increments PMC1 checking if MMCR1_PMC1SEL has one of the following
@@ -93,6 +94,36 @@ static void pmu_inc_pmc2(DisasContext *ctx)
 }
 
 /*
+ * Increments PMC3 checking if MMCR1_PMC3SEL = 0x02
+ * (PM_INST_CMPL event).
+ *
+ * This function assumes that MMCR0_FC14 is cleared.
+ */
+static void pmu_inc_pmc3(DisasContext *ctx)
+{
+    TCGv t0, t1;
+    TCGLabel *l_skip_pmc;
+
+    /* PMC3 will be incremented if MMCR1_PMC3SEL is 0x2 */
+    l_skip_pmc = gen_new_label();
+
+    t0 = tcg_temp_new();
+    gen_load_spr(t0, SPR_POWER_MMCR1);
+    tcg_gen_andi_tl(t0, t0, MMCR1_PMC3_INS_CNT);
+    tcg_gen_brcondi_tl(TCG_COND_NE, t0, MMCR1_PMC3_INS_CNT, l_skip_pmc);
+
+    t1 = tcg_temp_new();
+    gen_load_spr(t1, SPR_POWER_PMC3);
+    tcg_gen_addi_tl(t1, t1, ctx->base.num_insns);
+    gen_store_spr(SPR_POWER_PMC3, t1);
+
+    gen_set_label(l_skip_pmc);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+}
+
+/*
  * Increments PMC5 if MMCR0_FC is cleared.
  */
 static void pmu_inc_pmc5(DisasContext *ctx)
@@ -159,6 +190,7 @@ static void pmu_count_insns(DisasContext *ctx)
 
     pmu_inc_pmc1(ctx);
     pmu_inc_pmc2(ctx);
+    pmu_inc_pmc3(ctx);
 
     gen_set_label(l_skip_pmc14);
 
