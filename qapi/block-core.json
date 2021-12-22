@@ -2914,13 +2914,14 @@
 # @blkreplay: Since 4.2
 # @compress: Since 5.0
 # @copy-before-write: Since 6.2
+# @fleecing: Since 7.0
 #
 # Since: 2.9
 ##
 { 'enum': 'BlockdevDriver',
   'data': [ 'blkdebug', 'blklogwrites', 'blkreplay', 'blkverify', 'bochs',
             'cloop', 'compress', 'copy-before-write', 'copy-on-read', 'dmg',
-            'file', 'ftp', 'ftps', 'gluster',
+            'file', 'fleecing', 'ftp', 'ftps', 'gluster',
             {'name': 'host_cdrom', 'if': 'HAVE_HOST_BLOCK_DEVICE' },
             {'name': 'host_device', 'if': 'HAVE_HOST_BLOCK_DEVICE' },
             'http', 'https', 'iscsi',
@@ -4186,6 +4187,39 @@
   'data': { 'target': 'BlockdevRef', '*bitmap': 'BlockDirtyBitmap' } }
 
 ##
+# @BlockdevOptionsFleecing:
+#
+# Driver that works in pair with copy-before-write filter to make a fleecing
+# scheme like this:
+#
+#    [guest]
+#      |
+#      |root
+#      v
+#    [copy-before-write] -----> [fleecing] <--- [nbd export]
+#      |                 target  |    |
+#      |file                     |    |file
+#      v                         |    v
+#    [active disk]<--source------+  [temp.img]
+#
+# The scheme works like this: on write, fleecing driver saves data to its
+# ``file`` child and remember that this data is in ``file`` child. On read
+# fleecing reads from ``file`` child if data is already stored to it and
+# otherwise it reads from ``source`` child.
+# In the same time, before each guest write, ``copy-before-write`` copies
+# corresponding old data  from ``active disk`` to ``fleecing`` node.
+# This way, ``fleecing`` node looks like a kind of snapshot for extenal
+# reader like NBD export.
+#
+# @source: node name of source node of fleecing scheme
+#
+# Since: 7.0
+##
+{ 'struct': 'BlockdevOptionsFleecing',
+  'base': 'BlockdevOptionsGenericFormat',
+  'data': { 'source': 'str' } }
+
+##
 # @BlockdevOptions:
 #
 # Options for creating a block device.  Many options are available for all
@@ -4241,6 +4275,7 @@
       'copy-on-read':'BlockdevOptionsCor',
       'dmg':        'BlockdevOptionsGenericFormat',
       'file':       'BlockdevOptionsFile',
+      'fleecing':   'BlockdevOptionsFleecing',
       'ftp':        'BlockdevOptionsCurlFtp',
       'ftps':       'BlockdevOptionsCurlFtps',
       'gluster':    'BlockdevOptionsGluster',

@@ -80,6 +80,9 @@
 #include "block/block-copy.h"
 #include "block/reqlist.h"
 
+
+/* fleecing.c */
+
 typedef struct FleecingState FleecingState;
 
 /*
@@ -131,5 +134,18 @@ void fleecing_discard(FleecingState *f, int64_t offset, int64_t bytes);
  */
 void fleecing_mark_done_and_wait_readers(FleecingState *f, int64_t offset,
                                          int64_t bytes);
+
+
+/* fleecing-drv.c */
+
+/* Returns true if @bs->drv is fleecing block driver */
+bool is_fleecing_drv(BlockDriverState *bs);
+
+/*
+ * Normally FleecingState is created by copy-before-write filter. Then
+ * copy-before-write filter calls fleecing_drv_activate() to share FleecingState
+ * with fleecing block driver.
+ */
+void fleecing_drv_activate(BlockDriverState *bs, FleecingState *fleecing);
 
 #endif /* FLEECING_H */

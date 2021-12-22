@@ -19,6 +19,7 @@ block_ss.add(files(
   'dirty-bitmap.c',
   'filter-compress.c',
   'fleecing.c',
+  'fleecing-drv.c',
   'io.c',
   'mirror.c',
   'nbd.c',

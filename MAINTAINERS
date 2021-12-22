@@ -2438,6 +2438,7 @@ F: block/copy-before-write.h
 F: block/copy-before-write.c
 F: block/fleecing.h
 F: block/fleecing.c
+F: block/fleecing-drv.c
 F: include/block/aio_task.h
 F: block/aio_task.c
 F: util/qemu-co-shared-resource.c
