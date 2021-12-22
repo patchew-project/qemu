@@ -16,6 +16,8 @@
 #define MMCR1_PMC1_INS_CNT2       0xFE000000
 #define MMCR1_PMC2_INS_CNT        0x00020000
 #define MMCR1_PMC3_INS_CNT        0x00000200
+#define MMCR1_PMC4_INS_CNT        0x00000002
+#define MMCR1_PMC4_INS_LATCH_CNT  0x000000FA
 
 /*
  * Increments PMC1 checking if MMCR1_PMC1SEL has one of the following
@@ -124,6 +126,63 @@ static void pmu_inc_pmc3(DisasContext *ctx)
 }
 
 /*
+ * Increments PMC4 checking if MMCR1_PMC4SEL has one of the following
+ * events:
+ *
+ * - 0x02: implementation dependent PM_INST_CMPL
+ * - 0xFE: ISA architected PM_RUN_INST_CMPL (run latch)
+ *
+ * This function assumes that MMCR0_FC14 is cleared.
+ */
+static void pmu_inc_pmc4(DisasContext *ctx)
+{
+    TCGv t0, t1, t2, t3;
+    TCGLabel *l_inc_pmc;
+    TCGLabel *l_skip_pmc;
+
+    /*
+     * PMC4 will be incremented if MMCR1_PMC4SEL = 0x2
+     * or 0xFA. For 0xFA (INSN_RUN_LATCH) we need to do an
+     * extra check with SPR_CTRL & CTRL_RUN.
+     */
+    l_inc_pmc = gen_new_label();
+    l_skip_pmc = gen_new_label();
+
+    t0 = tcg_temp_new();
+    gen_load_spr(t0, SPR_POWER_MMCR1);
+    tcg_gen_andi_tl(t0, t0, MMCR1_PMC4_INS_CNT);
+    tcg_gen_brcondi_tl(TCG_COND_EQ, t0, MMCR1_PMC4_INS_CNT, l_inc_pmc);
+
+    t1 = tcg_temp_new();
+    gen_load_spr(t1, SPR_POWER_MMCR1);
+    tcg_gen_andi_tl(t1, t1, MMCR1_PMC4_INS_LATCH_CNT);
+    tcg_gen_brcondi_tl(TCG_COND_NE, t1, MMCR1_PMC4_INS_LATCH_CNT, l_skip_pmc);
+
+    /*
+     * MMCR1_PMC4SEL is 0xFA at this point. Check if we have
+     * the run latch, skip if we don't.
+     */
+    t2 = tcg_temp_new();
+    gen_load_spr(t2, SPR_CTRL);
+    tcg_gen_andi_tl(t2, t2, CTRL_RUN);
+    tcg_gen_brcondi_tl(TCG_COND_NE, t2, CTRL_RUN, l_skip_pmc);
+
+    gen_set_label(l_inc_pmc);
+
+    t3 = tcg_temp_new();
+    gen_load_spr(t3, SPR_POWER_PMC4);
+    tcg_gen_addi_tl(t3, t3, ctx->base.num_insns);
+    gen_store_spr(SPR_POWER_PMC4, t3);
+
+    gen_set_label(l_skip_pmc);
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
+    tcg_temp_free(t3);
+}
+
+/*
  * Increments PMC5 if MMCR0_FC is cleared.
  */
 static void pmu_inc_pmc5(DisasContext *ctx)
@@ -191,6 +250,7 @@ static void pmu_count_insns(DisasContext *ctx)
     pmu_inc_pmc1(ctx);
     pmu_inc_pmc2(ctx);
     pmu_inc_pmc3(ctx);
+    pmu_inc_pmc4(ctx);
 
     gen_set_label(l_skip_pmc14);
 
