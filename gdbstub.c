@@ -3569,6 +3569,7 @@ int gdbserver_start(const char *device)
         mon_chr = gdbserver_state.mon_chr;
         reset_gdbserver_state();
     }
+    mon_chr->reopen_on_cpr = true;
 
     create_processes(&gdbserver_state);
 
