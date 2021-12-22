@@ -33,10 +33,13 @@
 #include "block/block-copy.h"
 
 #include "block/copy-before-write.h"
+#include "block/fleecing.h"
 
 typedef struct BDRVCopyBeforeWriteState {
     BlockCopyState *bcs;
     BdrvChild *target;
+
+    FleecingState *fleecing;
 } BDRVCopyBeforeWriteState;
 
 static coroutine_fn int cbw_co_preadv(
@@ -50,6 +53,7 @@ static coroutine_fn int cbw_do_copy_before_write(BlockDriverState *bs,
         uint64_t offset, uint64_t bytes, BdrvRequestFlags flags)
 {
     BDRVCopyBeforeWriteState *s = bs->opaque;
+    int ret;
     uint64_t off, end;
     int64_t cluster_size = block_copy_cluster_size(s->bcs);
 
@@ -60,7 +64,16 @@ static coroutine_fn int cbw_do_copy_before_write(BlockDriverState *bs,
     off = QEMU_ALIGN_DOWN(offset, cluster_size);
     end = QEMU_ALIGN_UP(offset + bytes, cluster_size);
 
-    return block_copy(s->bcs, off, end - off, true);
+    ret = block_copy(s->bcs, off, end - off, true);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (s->fleecing) {
+        fleecing_mark_done_and_wait_readers(s->fleecing, off, end - off);
+    }
+
+    return 0;
 }
 
 static int coroutine_fn cbw_co_pdiscard(BlockDriverState *bs,
@@ -150,6 +163,7 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
 {
     BDRVCopyBeforeWriteState *s = bs->opaque;
     BdrvDirtyBitmap *bitmap = NULL;
+    BlockDriverState *unfiltered_target;
 
     bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
                                BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
@@ -163,6 +177,7 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
     if (!s->target) {
         return -EINVAL;
     }
+    unfiltered_target = bdrv_skip_filters(s->target->bs);
 
     if (qdict_haskey(options, "bitmap.node") ||
         qdict_haskey(options, "bitmap.name"))
@@ -204,6 +219,14 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
         return -EINVAL;
     }
 
+    if (is_fleecing_drv(unfiltered_target)) {
+        s->fleecing = fleecing_new(s->bcs, unfiltered_target, errp);
+        if (!s->fleecing) {
+            return -EINVAL;
+        }
+        fleecing_drv_activate(unfiltered_target, s->fleecing);
+    }
+
     return 0;
 }
 
@@ -211,6 +234,8 @@ static void cbw_close(BlockDriverState *bs)
 {
     BDRVCopyBeforeWriteState *s = bs->opaque;
 
+    fleecing_free(s->fleecing);
+    s->fleecing = NULL;
     block_copy_state_free(s->bcs);
     s->bcs = NULL;
 }
