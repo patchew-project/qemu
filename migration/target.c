@@ -8,6 +8,7 @@
 #include "qemu/osdep.h"
 #include "qapi/qapi-types-migration.h"
 #include "migration.h"
+#include "migration/cpr.h"
 #include CONFIG_DEVICES
 
 #ifdef CONFIG_VFIO
@@ -22,8 +23,21 @@ void populate_vfio_info(MigrationInfo *info)
         info->vfio->transferred = vfio_mig_bytes_transferred();
     }
 }
+
+int cpr_vfio_save(Error **errp)
+{
+    return vfio_cpr_save(errp);
+}
+
+int cpr_vfio_load(Error **errp)
+{
+    return vfio_cpr_load(errp);
+}
+
 #else
 
 void populate_vfio_info(MigrationInfo *info) {}
+int cpr_vfio_save(Error **errp) { return 0; }
+int cpr_vfio_load(Error **errp) { return 0; }
 
 #endif /* CONFIG_VFIO */

@@ -307,6 +307,16 @@ static void pci_do_device_reset(PCIDevice *dev)
 {
     int r;
 
+    /*
+     * A reused vfio-pci device is already configured, so do not reset it
+     * during qemu_system_reset prior to cpr-load, else interrupts may be
+     * lost.  By contrast, pure-virtual pci devices may be reset here and
+     * updated with new state in cpr-load with no ill effects.
+     */
+    if (dev->reused) {
+        return;
+    }
+
     pci_device_deassert_intx(dev);
     assert(dev->irq_state == 0);
 
