@@ -6,6 +6,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "chardev/char.h"
 #include "exec/memory.h"
 #include "hw/vfio/vfio-common.h"
 #include "hw/virtio/vhost.h"
