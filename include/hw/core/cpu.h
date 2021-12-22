@@ -579,6 +579,14 @@ hwaddr cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
  */
 int cpu_asidx_from_attrs(CPUState *cpu, MemTxAttrs attrs);
 
+
+/** cpu_get_asid:
+ * @cpu: CPU
+ *
+ * Returns the identifier for a current address space.
+ */
+uint64_t cpu_get_asid(CPUState *cpu);
+
 /**
  * cpu_virtio_is_big_endian:
  * @cpu: CPU

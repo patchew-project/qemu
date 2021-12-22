@@ -79,6 +79,12 @@ int cpu_asidx_from_attrs(CPUState *cpu, MemTxAttrs attrs)
     return ret;
 }
 
+uint64_t cpu_get_asid(CPUState *cpu) {
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    return cc->sysemu_ops->get_asid(cpu);
+}
+
 int cpu_write_elf32_qemunote(WriteCoreDumpFunction f, CPUState *cpu,
                              void *opaque)
 {

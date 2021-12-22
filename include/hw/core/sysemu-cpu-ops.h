@@ -43,6 +43,12 @@ typedef struct SysemuCPUOps {
      *       a memory access with the specified memory transaction attributes.
      */
     int (*asidx_from_attrs)(CPUState *cpu, MemTxAttrs attrs);
+
+    /**
+     * @get_asid: Callback to return the identifier for a current address space.
+     */
+    uint64_t (*get_asid)(CPUState *cpu);
+
     /**
      * @get_crash_info: Callback for reporting guest crash information in
      * GUEST_PANICKED events.

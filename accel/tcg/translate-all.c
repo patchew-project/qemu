@@ -1174,7 +1174,6 @@ static void do_tb_phys_invalidate(TranslationBlock *tb, bool rm_from_page_list)
     CPUState *cpu;
     PageDesc *p;
     uint32_t h;
-    tb_page_addr_t phys_pc;
     uint32_t orig_cflags = tb_cflags(tb);
 
     assert_memory_lock();
@@ -1185,8 +1184,7 @@ static void do_tb_phys_invalidate(TranslationBlock *tb, bool rm_from_page_list)
     qemu_spin_unlock(&tb->jmp_lock);
 
     /* remove the TB from the hash list */
-    phys_pc = tb->page_addr[0] + (tb->pc & ~TARGET_PAGE_MASK);
-    h = tb_hash_func(phys_pc, tb->pc, tb->flags, orig_cflags,
+    h = tb_hash_func(tb->asid, tb->pc, tb->flags, orig_cflags,
                      tb->trace_vcpu_dstate);
     if (!qht_remove(&tb_ctx.htable, tb, h)) {
         return;
@@ -1349,7 +1347,7 @@ tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
     }
 
     /* add in the hash table */
-    h = tb_hash_func(phys_pc, tb->pc, tb->flags, tb->cflags,
+    h = tb_hash_func(tb->asid, tb->pc, tb->flags, tb->cflags,
                      tb->trace_vcpu_dstate);
     qht_insert(&tb_ctx.htable, tb, h, &existing_tb);
 
@@ -1427,6 +1425,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     tb->flags = flags;
     tb->cflags = cflags;
     tb->trace_vcpu_dstate = *cpu->trace_dstate;
+    tb->asid = cpu_get_asid(cpu);
     tcg_ctx->tb_cflags = cflags;
  tb_overflow:
 

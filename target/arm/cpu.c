@@ -2017,9 +2017,22 @@ static gchar *arm_gdb_arch_name(CPUState *cs)
 #ifndef CONFIG_USER_ONLY
 #include "hw/core/sysemu-cpu-ops.h"
 
+/* Returns the identifier for a current address space. */
+static uint64_t arm_get_asid(CPUState *cs)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    ARMMMUIdx mmu_idx = arm_mmu_idx(env);
+    uint64_t tcr = regime_tcr(env, mmu_idx)->raw_tcr;
+
+#define TCR_A1     (1U << 22)
+    return regime_ttbr(env, mmu_idx, (tcr&TCR_A1)>0);
+}
+
 static const struct SysemuCPUOps arm_sysemu_ops = {
     .get_phys_page_attrs_debug = arm_cpu_get_phys_page_attrs_debug,
     .asidx_from_attrs = arm_asidx_from_attrs,
+    .get_asid = arm_get_asid,
     .write_elf32_note = arm_cpu_write_elf32_note,
     .write_elf64_note = arm_cpu_write_elf64_note,
     .virtio_is_big_endian = arm_cpu_virtio_is_big_endian,

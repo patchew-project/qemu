@@ -560,6 +560,7 @@ struct TranslationBlock {
     uintptr_t jmp_list_head;
     uintptr_t jmp_list_next[2];
     uintptr_t jmp_dest[2];
+    uint64_t asid;
 };
 
 /* Hide the qatomic_read to make code a little easier on the eyes */
