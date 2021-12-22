@@ -303,10 +303,6 @@ static void pmu_check_overflow(DisasContext *ctx)
 #if defined(TARGET_PPC64)
 static void pmu_count_insns(DisasContext *ctx)
 {
-    /*
-     * Do not bother calling the helper if the PMU isn't counting
-     * instructions.
-     */
     if (!ctx->pmu_insn_cnt) {
         return;
     }
