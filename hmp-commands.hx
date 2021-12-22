@@ -351,6 +351,37 @@ SRST
 ERST
 
     {
+        .name       = "cpr-save",
+        .args_type  = "filename:s,mode:s",
+        .params     = "filename 'reboot'",
+        .help       = "create a checkpoint of the VM in file",
+        .cmd        = hmp_cpr_save,
+    },
+
+SRST
+``cpr-save`` *filename* *mode*
+Pause the VCPUs,
+create a checkpoint of the whole virtual machine, and save it in *filename*.
+If *mode* is 'reboot', the checkpoint remains valid after a host kexec
+reboot, and guest ram must be backed by persistent shared memory.  To
+resume from the checkpoint, issue the quit command, reboot the system,
+and issue the cpr-load command.
+ERST
+
+    {
+        .name       = "cpr-load",
+        .args_type  = "filename:s",
+        .params     = "filename",
+        .help       = "load VM checkpoint from file",
+        .cmd        = hmp_cpr_load,
+    },
+
+SRST
+``cpr-load`` *filename*
+Load a virtual machine from checkpoint file *filename* and continue VCPUs.
+ERST
+
+    {
         .name       = "delvm",
         .args_type  = "name:s",
         .params     = "tag",
