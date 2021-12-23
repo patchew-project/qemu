@@ -49,15 +49,6 @@ block_copy_read_fail(void *bcs, int64_t start, int ret) "bcs %p start %"PRId64" 
 block_copy_write_fail(void *bcs, int64_t start, int ret) "bcs %p start %"PRId64" ret %d"
 block_copy_write_zeroes_fail(void *bcs, int64_t start, int ret) "bcs %p start %"PRId64" ret %d"
 
-# ../blockdev.c
-qmp_block_job_cancel(void *job) "job %p"
-qmp_block_job_pause(void *job) "job %p"
-qmp_block_job_resume(void *job) "job %p"
-qmp_block_job_complete(void *job) "job %p"
-qmp_block_job_finalize(void *job) "job %p"
-qmp_block_job_dismiss(void *job) "job %p"
-qmp_block_stream(void *bs) "bs %p"
-
 # file-win32.c
 file_paio_submit(void *acb, void *opaque, int64_t offset, int count, int type) "acb %p opaque %p offset %"PRId64" count %d type %d"
 

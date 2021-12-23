@@ -57,7 +57,6 @@ void qmp_job_cancel(const char *id, Error **errp)
         return;
     }
 
-    trace_qmp_job_cancel(job);
     job_user_cancel(job, true, errp);
     aio_context_release(aio_context);
 }
@@ -71,7 +70,6 @@ void qmp_job_pause(const char *id, Error **errp)
         return;
     }
 
-    trace_qmp_job_pause(job);
     job_user_pause(job, errp);
     aio_context_release(aio_context);
 }
@@ -85,7 +83,6 @@ void qmp_job_resume(const char *id, Error **errp)
         return;
     }
 
-    trace_qmp_job_resume(job);
     job_user_resume(job, errp);
     aio_context_release(aio_context);
 }
@@ -99,7 +96,6 @@ void qmp_job_complete(const char *id, Error **errp)
         return;
     }
 
-    trace_qmp_job_complete(job);
     job_complete(job, errp);
     aio_context_release(aio_context);
 }
@@ -113,7 +109,6 @@ void qmp_job_finalize(const char *id, Error **errp)
         return;
     }
 
-    trace_qmp_job_finalize(job);
     job_ref(job);
     job_finalize(job, errp);
 
@@ -136,7 +131,6 @@ void qmp_job_dismiss(const char *id, Error **errp)
         return;
     }
 
-    trace_qmp_job_dismiss(job);
     job_dismiss(&job, errp);
     aio_context_release(aio_context);
 }
