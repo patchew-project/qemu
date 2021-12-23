@@ -135,52 +135,6 @@ bool pmu_insn_cnt_enabled(CPUPPCState *env)
     return false;
 }
 
-static bool pmu_increment_insns(CPUPPCState *env, uint32_t num_insns)
-{
-    bool overflow_triggered = false;
-    int sprn;
-
-    /* PMC6 never counts instructions */
-    for (sprn = SPR_POWER_PMC1; sprn <= SPR_POWER_PMC5; sprn++) {
-        PMUEventType evt_type = pmc_get_event(env, sprn);
-        bool insn_event = evt_type == PMU_EVENT_INSTRUCTIONS ||
-                          evt_type == PMU_EVENT_INSN_RUN_LATCH;
-
-        if (pmc_is_inactive(env, sprn) || !insn_event) {
-            continue;
-        }
-
-        if (evt_type == PMU_EVENT_INSTRUCTIONS) {
-            env->spr[sprn] += num_insns;
-        }
-
-        if (evt_type == PMU_EVENT_INSN_RUN_LATCH &&
-            env->spr[SPR_CTRL] & CTRL_RUN) {
-            env->spr[sprn] += num_insns;
-        }
-
-        if (env->spr[sprn] >= PMC_COUNTER_NEGATIVE_VAL &&
-            pmc_has_overflow_enabled(env, sprn)) {
-
-            overflow_triggered = true;
-
-            /*
-             * The real PMU will always trigger a counter overflow with
-             * PMC_COUNTER_NEGATIVE_VAL. We don't have an easy way to
-             * do that since we're counting block of instructions at
-             * the end of each translation block, and we're probably
-             * passing this value at this point.
-             *
-             * Let's write PMC_COUNTER_NEGATIVE_VAL to the overflowed
-             * counter to simulate what the real hardware would do.
-             */
-            env->spr[sprn] = PMC_COUNTER_NEGATIVE_VAL;
-        }
-    }
-
-    return overflow_triggered;
-}
-
 static void pmu_update_cycles(CPUPPCState *env)
 {
     uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -307,20 +261,6 @@ static void fire_PMC_interrupt(PowerPCCPU *cpu)
 
     /* PMC interrupt not implemented yet */
     return;
-}
-
-/* This helper assumes that the PMC is running. */
-void helper_insns_inc(CPUPPCState *env, uint32_t num_insns)
-{
-    bool overflow_triggered;
-    PowerPCCPU *cpu;
-
-    overflow_triggered = pmu_increment_insns(env, num_insns);
-
-    if (overflow_triggered) {
-        cpu = env_archcpu(env);
-        fire_PMC_interrupt(cpu);
-    }
 }
 
 /* Helper to fire a PMC interrupt from TCG code */
