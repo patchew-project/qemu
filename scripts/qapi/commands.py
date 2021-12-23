@@ -53,7 +53,8 @@ def gen_command_decl(name: str,
 def gen_call(name: str,
              arg_type: Optional[QAPISchemaObjectType],
              boxed: bool,
-             ret_type: Optional[QAPISchemaType]) -> str:
+             ret_type: Optional[QAPISchemaType],
+             add_trace_points: bool) -> str:
     ret = ''
 
     argstr = ''
@@ -71,21 +72,65 @@ def gen_call(name: str,
     if ret_type:
         lhs = 'retval = '
 
-    ret = mcgen('''
+    qmp_name = f'qmp_{c_name(name)}'
+    upper = qmp_name.upper()
+
+    if add_trace_points:
+        ret += mcgen('''
+
+    if (trace_event_get_state_backends(TRACE_%(upper)s)) {
+        g_autoptr(GString) req_json = qobject_to_json(QOBJECT(args));
+        trace_%(qmp_name)s("", req_json->str);
+    }
+    ''',
+                     upper=upper, qmp_name=qmp_name)
+
+    ret += mcgen('''
 
     %(lhs)sqmp_%(c_name)s(%(args)s&err);
-    error_propagate(errp, err);
 ''',
                 c_name=c_name(name), args=argstr, lhs=lhs)
-    if ret_type:
-        ret += mcgen('''
+
+    ret += mcgen('''
     if (err) {
+''')
+
+    if add_trace_points:
+        ret += mcgen('''
+        trace_%(qmp_name)s("FAIL: ", error_get_pretty(err));
+''',
+                     qmp_name=qmp_name)
+
+    ret += mcgen('''
+        error_propagate(errp, err);
         goto out;
     }
+''')
+
+    if ret_type:
+        ret += mcgen('''
 
     qmp_marshal_output_%(c_name)s(retval, ret, errp);
 ''',
                      c_name=ret_type.c_name())
+
+    if add_trace_points:
+        if ret_type:
+            ret += mcgen('''
+
+    if (trace_event_get_state_backends(TRACE_%(upper)s)) {
+        g_autoptr(GString) ret_json = qobject_to_json(*ret);
+        trace_%(qmp_name)s("RET:", ret_json->str);
+    }
+    ''',
+                     upper=upper, qmp_name=qmp_name)
+        else:
+            ret += mcgen('''
+
+    trace_%(qmp_name)s("SUCCESS", "");
+    ''',
+                         qmp_name=qmp_name)
+
     return ret
 
 
@@ -122,10 +167,14 @@ def gen_marshal_decl(name: str) -> str:
                  proto=build_marshal_proto(name))
 
 
+def gen_trace(name: str) -> str:
+    return f'qmp_{c_name(name)}(const char *tag, const char *json) "%s%s"\n'
+
 def gen_marshal(name: str,
                 arg_type: Optional[QAPISchemaObjectType],
                 boxed: bool,
-                ret_type: Optional[QAPISchemaType]) -> str:
+                ret_type: Optional[QAPISchemaType],
+                add_trace_points: bool) -> str:
     have_args = boxed or (arg_type and not arg_type.is_empty())
     if have_args:
         assert arg_type is not None
@@ -180,7 +229,7 @@ def gen_marshal(name: str,
     }
 ''')
 
-    ret += gen_call(name, arg_type, boxed, ret_type)
+    ret += gen_call(name, arg_type, boxed, ret_type, add_trace_points)
 
     ret += mcgen('''
 
@@ -238,11 +287,12 @@ def gen_register_command(name: str,
 
 
 class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
-    def __init__(self, prefix: str):
+    def __init__(self, prefix: str, add_trace_points: bool):
         super().__init__(
             prefix, 'qapi-commands',
             ' * Schema-defined QAPI/QMP commands', None, __doc__)
         self._visited_ret_types: Dict[QAPIGenC, Set[QAPISchemaType]] = {}
+        self.add_trace_points = add_trace_points
 
     def _begin_user_module(self, name: str) -> None:
         self._visited_ret_types[self._genc] = set()
@@ -261,6 +311,15 @@ class QAPISchemaGenCommandVisitor(QAPISchemaModularCVisitor):
 
 ''',
                              commands=commands, visit=visit))
+
+        if self.add_trace_points and c_name(commands) != 'qapi_commands':
+            self._genc.add(mcgen('''
+#include "trace/trace-qapi.h"
+#include "qapi/qmp/qjson.h"
+#include "trace/trace-%(nm)s_trace_events.h"
+''',
+                                 nm=c_name(commands)))
+
         self._genh.add(mcgen('''
 #include "%(types)s.h"
 
@@ -322,7 +381,9 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds)
         with ifcontext(ifcond, self._genh, self._genc):
             self._genh.add(gen_command_decl(name, arg_type, boxed, ret_type))
             self._genh.add(gen_marshal_decl(name))
-            self._genc.add(gen_marshal(name, arg_type, boxed, ret_type))
+            self._genc.add(gen_marshal(name, arg_type, boxed, ret_type,
+                                       self.add_trace_points))
+            self._gent.add(gen_trace(name))
         with self._temp_module('./init'):
             with ifcontext(ifcond, self._genh, self._genc):
                 self._genc.add(gen_register_command(
@@ -332,7 +393,8 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds)
 
 def gen_commands(schema: QAPISchema,
                  output_dir: str,
-                 prefix: str) -> None:
-    vis = QAPISchemaGenCommandVisitor(prefix)
+                 prefix: str,
+                 add_trace_points: bool) -> None:
+    vis = QAPISchemaGenCommandVisitor(prefix, add_trace_points)
     schema.visit(vis)
     vis.write(output_dir)
