@@ -495,7 +495,7 @@ class MigrationDump(object):
         self.filename = filename
         self.vmsd_desc = None
 
-    def read(self, desc_only = False, dump_memory = False, write_memory = False):
+    def read(self, ram_only, desc_only = False, dump_memory = False, write_memory = False):
         # Read in the whole file
         file = MigrationFile(self.filename)
 
@@ -509,7 +509,8 @@ class MigrationDump(object):
         if data != self.QEMU_VM_FILE_VERSION:
             raise Exception("Invalid version number %d" % data)
 
-        self.load_vmsd_json(file)
+        if not ram_only:
+            self.load_vmsd_json(file)
 
         # Read sections
         self.sections = collections.OrderedDict()
@@ -518,7 +519,10 @@ class MigrationDump(object):
             return
 
         ramargs = {}
-        ramargs['page_size'] = self.vmsd_desc['page_size']
+        if ram_only:
+            ramargs['page_size'] = 4096
+        else:
+            ramargs['page_size'] = self.vmsd_desc['page_size']
         ramargs['dump_memory'] = dump_memory
         ramargs['write_memory'] = write_memory
         self.section_classes[('ram',0)][1] = ramargs
@@ -579,6 +583,7 @@ parser.add_argument("-f", "--file", help='migration dump to read from', required
 parser.add_argument("-m", "--memory", help='dump RAM contents as well', action='store_true')
 parser.add_argument("-d", "--dump", help='what to dump ("state" or "desc")', default='state')
 parser.add_argument("-x", "--extract", help='extract contents into individual files', action='store_true')
+parser.add_argument("--ram-only", help='parse migration dump containing only RAM', action='store_true')
 args = parser.parse_args()
 
 jsonenc = JSONEncoder(indent=4, separators=(',', ': '))
@@ -586,14 +591,14 @@ jsonenc = JSONEncoder(indent=4, separators=(',', ': '))
 if args.extract:
     dump = MigrationDump(args.file)
 
-    dump.read(desc_only = True)
+    dump.read(desc_only = True, ram_only = args.ram_only)
     print("desc.json")
     f = open("desc.json", "w")
     f.truncate()
     f.write(jsonenc.encode(dump.vmsd_desc))
     f.close()
 
-    dump.read(write_memory = True)
+    dump.read(write_memory = True, ram_only = args.ram_only)
     dict = dump.getDict()
     print("state.json")
     f = open("state.json", "w")
@@ -602,12 +607,12 @@ if args.extract:
     f.close()
 elif args.dump == "state":
     dump = MigrationDump(args.file)
-    dump.read(dump_memory = args.memory)
+    dump.read(dump_memory = args.memory, ram_only = args.ram_only)
     dict = dump.getDict()
     print(jsonenc.encode(dict))
 elif args.dump == "desc":
     dump = MigrationDump(args.file)
-    dump.read(desc_only = True)
+    dump.read(desc_only = True, ram_only = args.ram_only)
     print(jsonenc.encode(dump.vmsd_desc))
 else:
     raise Exception("Please specify either -x, -d state or -d desc")
