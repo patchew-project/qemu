@@ -4339,6 +4339,11 @@ static int ram_resume_prepare(MigrationState *s, void *opaque)
     return 0;
 }
 
+static bool ram_is_active(void* opaque)
+{
+    return !migrate_no_ram();
+}
+
 static SaveVMHandlers savevm_ram_handlers = {
     .save_setup = ram_save_setup,
     .save_live_iterate = ram_save_iterate,
@@ -4351,6 +4356,7 @@ static SaveVMHandlers savevm_ram_handlers = {
     .load_setup = ram_load_setup,
     .load_cleanup = ram_load_cleanup,
     .resume_prepare = ram_resume_prepare,
+    .is_active = ram_is_active,
 };
 
 static void ram_mig_ram_block_resized(RAMBlockNotifier *n, void *host,
