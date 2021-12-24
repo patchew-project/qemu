@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+# group: rw migration
+#
+# Tests for 'no-ram' and 'ram-only' capabilities
+#
+# Copyright (c) 2021 Virtuozzo International GmbH.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+import json
+import subprocess
+import iotests
+
+img = os.path.join(iotests.test_dir, 'disk.img')
+
+class TestRamCapabilities(iotests.QMPTestCase):
+    def setUp(self):
+        iotests.qemu_img('create', '-f', iotests.imgfmt, img, '10M')
+        self.vm = iotests.VM()
+        self.vm.launch()
+        self.vm.qmp('migrate-set-capabilities', capabilities=[
+            {
+                'capability': 'events',
+                'state': True
+            }
+        ])
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(img)
+
+    def check_ram_only(self, output):
+        str_json = output.decode()
+        json_obj = json.loads(str_json)
+
+        success = False
+        for key in json_obj:
+            self.assertTrue("ram" in key)
+            success = True
+        self.assertTrue(success)
+
+    def run_migration(self, capability, tmp_stream):
+        self.vm.qmp('migrate-set-capabilities', capabilities=[
+            {
+                'capability': capability,
+                'state': True
+            }
+        ])
+
+        self.vm.qmp('migrate', uri='exec:cat>' + tmp_stream)
+
+        while True:
+            event = self.vm.event_wait('MIGRATION')
+
+            if event['data']['status'] == 'completed':
+                break
+
+
+    def test_no_ram(self):
+        with iotests.FilePath('tmp_stream') as tmp_stream:
+            self.run_migration('no-ram', tmp_stream)
+            output = subprocess.run(
+                ['../../../scripts/analyze-migration.py', '-f', tmp_stream],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                check=False).stdout
+
+            self.assertFalse('ram' in output.decode())
+
+    def test_ram_only(self):
+        with iotests.FilePath('tmp_stream') as tmp_stream:
+            self.run_migration('ram-only', tmp_stream)
+            output = subprocess.run(
+                ['../../../scripts/analyze-migration.py', '-f', tmp_stream,
+                    '--ram-only'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                check=False).stdout
+
+            self.check_ram_only(output)
+
+if __name__ == '__main__':
+    iotests.main(supported_protocols=['file'])
