@@ -248,7 +248,7 @@ typedef struct SaveStateEntry {
     const VMStateDescription *vmsd;
     void *opaque;
     CompatEntry *compat;
-    int is_ram;
+    int is_iterable;
 } SaveStateEntry;
 
 typedef struct SaveState {
@@ -797,9 +797,9 @@ int register_savevm_live(const char *idstr,
     se->ops = ops;
     se->opaque = opaque;
     se->vmsd = NULL;
-    /* if this is a live_savem then set is_ram */
+    /* if this is a live_savem then set is_iterable */
     if (ops->save_setup != NULL) {
-        se->is_ram = 1;
+        se->is_iterable = 1;
     }
 
     pstrcat(se->idstr, sizeof(se->idstr), idstr);
@@ -1625,7 +1625,7 @@ int qemu_save_device_state(QEMUFile *f)
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         int ret;
 
-        if (se->is_ram) {
+        if (se->is_iterable) {
             continue;
         }
         if ((!se->ops || !se->ops->save_state) && !se->vmsd) {
@@ -2428,7 +2428,7 @@ qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
     se->load_section_id = section_id;
 
     /* Validate if it is a device's state */
-    if (xen_enabled() && se->is_ram) {
+    if (xen_enabled() && se->is_iterable) {
         error_report("loadvm: %s RAM loading not allowed on Xen", idstr);
         return -EINVAL;
     }
