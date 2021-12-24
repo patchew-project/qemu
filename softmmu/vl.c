@@ -30,7 +30,9 @@
 #include "hw/qdev-properties.h"
 #include "qapi/compat-policy.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qnum.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qjson.h"
 #include "qemu-version.h"
@@ -2274,6 +2276,61 @@ static void qemu_read_default_config_file(Error **errp)
     }
 }
 
+static bool qemu_set_device_option_property(const char *id, const char *key,
+                                            const char *value, Error **errp) {
+    DeviceOption *opt;
+    QTAILQ_FOREACH(opt, &device_opts, next) {
+        const char *device_id = qdict_get_try_str(opt->opts, "id");
+        if (device_id && (strcmp(device_id, id) == 0)) {
+            QObject *obj = NULL;
+            if ((strcmp(key, "id") == 0) ||
+                (strcmp(key, "bus") == 0) ||
+                (strcmp(key, "driver") == 0)) {
+                obj = QOBJECT(qstring_from_str(value));
+            } else {
+                const char *driver = qdict_get_try_str(opt->opts, "driver");
+                if (driver) {
+                    ObjectClass *klass = object_class_by_name(driver);
+                    ObjectProperty *prop = object_class_property_find(klass, key);
+                    if (prop) {
+                        if (strcmp(prop->type, "str") == 0) {
+                            obj = QOBJECT(qstring_from_str(value));
+                        } else if (strcmp(prop->type, "bool") == 0) {
+                            bool boolean;
+                            if (qapi_bool_parse(key, value, &boolean, errp)) {
+                                obj = QOBJECT(qbool_from_bool(boolean));
+                            }
+                        } else if (strncmp(prop->type, "uint", 4) == 0) {
+                            uint64_t num;
+                            if (parse_option_size(key, value, &num, errp)) {
+                                obj = QOBJECT(qnum_from_uint(num));
+                            }
+                        } else {
+                            error_setg(errp,
+                                       "Setting property %s on device %s with "
+                                       "type %s is unsupported via -set option",
+                                       key, id, prop->type);
+                        }
+                    } else {
+                        error_setg(errp, "Unable to find property %s on device %s",
+                                   key, id);
+                    }
+                } else {
+                    error_setg(errp, "Unable to get driver for device %s", id);
+                }
+            }
+            if (obj) {
+                qdict_del(opt->opts, key);
+                qdict_put_obj(opt->opts, key, obj);
+                return true;
+            } else {
+                return false;
+            }
+        }
+    }
+    return false;
+}
+
 static void qemu_set_option(const char *str, Error **errp)
 {
     char group[64], id[64], arg[64];
@@ -2294,6 +2351,11 @@ static void qemu_set_option(const char *str, Error **errp)
         if (list) {
             opts = qemu_opts_find(list, id);
             if (!opts) {
+                if (strcmp(group, "device") == 0) {
+                    if (qemu_set_device_option_property(id, arg,
+                                                        str + offset + 1, errp))
+                        return;
+                }
                 error_setg(errp, "there is no %s \"%s\" defined", group, id);
                 return;
             }
