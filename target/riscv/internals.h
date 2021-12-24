@@ -71,8 +71,12 @@ static inline uint64_t nanbox_h(float16 f)
     return f | MAKE_64BIT_MASK(16, 48);
 }
 
-static inline float16 check_nanbox_h(uint64_t f)
+static inline float16 check_nanbox_h(CPURISCVState *env, uint64_t f)
 {
+    /* Disable nanbox check when enable zfinx */
+    if (RISCV_CPU(env_cpu(env))->cfg.ext_zfinx)
+        return (uint16_t)f;
+
     uint64_t mask = MAKE_64BIT_MASK(16, 48);
 
     if (likely((f & mask) == mask)) {
