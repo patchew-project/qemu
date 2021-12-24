@@ -454,6 +454,8 @@
 #
 # @no-ram: If enabled, migration stream won't contain any ram in it. (since 7.0)
 #
+# @ram-only: If enabled, only RAM sections will be sent. (since 7.0)
+#
 # Features:
 # @unstable: Members @x-colo and @x-ignore-shared are experimental.
 #
@@ -467,7 +469,7 @@
            'block', 'return-path', 'pause-before-switchover', 'multifd',
            'dirty-bitmaps', 'postcopy-blocktime', 'late-block-activate',
            { 'name': 'x-ignore-shared', 'features': [ 'unstable' ] },
-           'validate-uuid', 'background-snapshot', 'no-ram'] }
+           'validate-uuid', 'background-snapshot', 'no-ram', 'ram-only'] }
 ##
 # @MigrationCapabilityStatus:
 #
@@ -521,7 +523,8 @@
 #       {"state": true, "capability": "events"},
 #       {"state": false, "capability": "postcopy-ram"},
 #       {"state": false, "capability": "x-colo"},
-#       {"state": false, "capability": "no-ram"}
+#       {"state": false, "capability": "no-ram"},
+#       {"state": false, "capability": "ram-only"}
 #    ]}
 #
 ##

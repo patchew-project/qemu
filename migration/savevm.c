@@ -249,6 +249,7 @@ typedef struct SaveStateEntry {
     void *opaque;
     CompatEntry *compat;
     int is_iterable;
+    bool is_ram;
 } SaveStateEntry;
 
 typedef struct SaveState {
@@ -802,6 +803,10 @@ int register_savevm_live(const char *idstr,
         se->is_iterable = 1;
     }
 
+    if (!strcmp("ram", idstr)) {
+        se->is_ram = true;
+    }
+
     pstrcat(se->idstr, sizeof(se->idstr), idstr);
 
     if (instance_id == VMSTATE_INSTANCE_ID_ANY) {
@@ -946,6 +951,10 @@ static int vmstate_save(QEMUFile *f, SaveStateEntry *se,
 static bool should_skip(SaveStateEntry *se)
 {
     if (se->ops->is_active && !se->ops->is_active(se->opaque)) {
+        return true;
+    }
+
+    if (migrate_ram_only() && !se->is_ram) {
         return true;
     }
 
@@ -1486,7 +1495,7 @@ int qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only,
         }
     }
 
-    if (iterable_only) {
+    if (iterable_only || migrate_ram_only()) {
         goto flush;
     }
 

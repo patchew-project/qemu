@@ -1258,6 +1258,14 @@ static bool migrate_caps_check(bool *cap_list,
         return false;
     }
 
+    if (cap_list[MIGRATION_CAPABILITY_NO_RAM] &&
+        cap_list[MIGRATION_CAPABILITY_RAM_ONLY]) {
+        error_setg(errp, "ram-only and no-ram aren't "
+                         "compatible with each other");
+
+        return false;
+    }
+
     return true;
 }
 
@@ -2620,6 +2628,15 @@ bool migrate_no_ram(void)
     return s->enabled_capabilities[MIGRATION_CAPABILITY_NO_RAM];
 }
 
+bool migrate_ram_only(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_RAM_ONLY];
+}
+
 /* migration thread support */
 /*
  * Something bad happened to the RP stream, mark an error
@@ -3975,7 +3992,8 @@ static void *bg_migration_thread(void *opaque)
      * save their state to channel-buffer along with devices.
      */
     cpu_synchronize_all_states();
-    if (qemu_savevm_state_complete_precopy_non_iterable(fb, false, false)) {
+    if (!migrate_ram_only() &&
+        qemu_savevm_state_complete_precopy_non_iterable(fb, false, false)) {
         goto fail;
     }
     /*
