@@ -1,0 +1,2 @@
+float_%: CFLAGS+=-march=loongson3a
+float_%: QEMU_OPTS+=-cpu Loongson-3A4000
