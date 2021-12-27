@@ -3571,6 +3571,9 @@ DEF("cameradev", HAS_ARG, QEMU_OPTION_cameradev,
 #ifdef CONFIG_CAIRO
     "-cameradev builtin,id=id[,debug=true|false][,fps=FPS][,width=WIDTH][,height=HEIGHT][,mjpeg=true|false][,yuv=true|false][,rgb565=true|false][,bgcolor=blue|gree|red|rainbow|digital-rain]\n"
 #endif
+#ifdef CONFIG_LINUX
+    "-cameradev v4l2,id=id[,path=PATH][,buffers=COUNT]\n"
+#endif
     , QEMU_ARCH_ALL
 )
 

@@ -10,6 +10,22 @@
 ##
 
 ##
+# @CameraV4l2Options:
+#
+# Options of the v4l2 camera.
+#
+# @path: video capture device path
+#
+# @buffers: buffer count of v4l2 driver
+#
+# Since: 6.3
+##
+{ 'struct': 'CameraV4l2Options',
+  'data': {
+    '*path': 'str',
+    '*buffers': 'uint32' } }
+
+##
 # @ColorType:
 #
 # An enumeration of color type.
@@ -62,7 +78,7 @@
 # Since: 6.3
 ##
 { 'enum': 'CameradevDriver',
-  'data': [ 'builtin' ] }
+  'data': [ 'builtin', 'v4l2' ] }
 
 ##
 # @Cameradev:
@@ -81,4 +97,5 @@
     'driver':      'CameradevDriver'},
   'discriminator': 'driver',
   'data': {
-    'builtin':     'CameraBuiltinOptions' } }
+    'builtin':     'CameraBuiltinOptions',
+    'v4l2':        'CameraV4l2Options' } }
