@@ -1,0 +1,24 @@
+# See docs/devel/tracing.rst for syntax documentation.
+
+# camera.c
+qemu_camera_new(const char *dev, char *typename) "%s: new camera with type %s"
+qemu_camera_del(const char *dev) "%s: delete camera"
+qemu_camera_set_control(const char *dev, const char *type, int value) "%s: set control type %s, value %d"
+qemu_camera_stream_on(const char *dev) "%s: stream on"
+qemu_camera_stream_off(const char *dev) "%s: stream off"
+qemu_camera_stream_read(const char *dev, size_t length) "%s: stream read length %ld"
+qemu_camera_alloc_image(const char *dev, size_t size) "%s: alloc image size %ld"
+qemu_camera_free_image(const char *dev) "%s: free image size"
+qemu_camera_new_image(const char *dev, uint32_t seq, size_t size) "%s: new image sequence %u, size %ld"
+qemu_camera_enum_pixel_format(const char *dev, uint32_t pixfmt) "%s: pixfmt 0x%x"
+qemu_camera_enum_pixel_format_ret(const char *dev, int ret) "%s: ret %d"
+qemu_camera_enum_frame_size_d(const char *dev, uint32_t pixfmt, uint32_t w, uint32_t h) "%s: pixfmt 0x%x, discrete width %u, height %u"
+qemu_camera_enum_frame_size_ret(const char *dev, int ret) "%s: ret %d"
+qemu_camera_enum_frame_interval_d(const char *dev, uint32_t pixfmt, uint32_t w, uint32_t h, uint32_t n, uint32_t d) "%s: pixfmt 0x%x, width %u, height %u, discrete numerator %u, denominator %u"
+qemu_camera_enum_frame_interval_ret(const char *dev, int ret) "%s: ret %d"
+qemu_camera_set_frame_interval(const char *dev, uint32_t pixfmt, uint32_t w, uint32_t h, uint32_t n, uint32_t d, int ret) "%s: pixfmt 0x%x, width %u, height %u, discrete numerator %u, denominator %u, retval %d"
+qemu_camera_enum_control(const char *dev, const char *type, int def, int min, int max, int step) "%s: type %s, def %d, min %d, max %d, step %d"
+qemu_camera_enum_control_ret(const char *dev, int ret) "%s: ret %d"
+
+# builtin.c
+camera_builtin_timer(const char *dev) "%s: new image"

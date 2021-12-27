@@ -1,0 +1,84 @@
+# -*- mode: python -*-
+#
+# Copyright (C) 2021 zhenwei pi<pizhenwei@bytedance.com>
+#
+# This work is licensed under the terms of the GNU GPL, version 2 or later.
+# See the COPYING file in the top-level directory.
+
+##
+# = Camera
+##
+
+##
+# @ColorType:
+#
+# An enumeration of color type.
+#
+# Since: 6.3
+##
+{ 'enum': 'ColorType',
+  'data': [ 'blue', 'green', 'red', 'rainbow', 'digital-rain' ] }
+
+##
+# @CameraBuiltinOptions:
+#
+# Options of the builtin camera.
+#
+# @debug: enable/disable debug information in camera video
+#
+# @fps: the FPS of builtin camera
+#
+# @width: the width of frame
+#
+# @height: the height of frame
+#
+# @mjpeg: enable/disable mjpeg format
+#
+# @yuv: enable/disable yuv format
+#
+# @rgb565: enable/disable rgb565 format
+#
+# @bgcolor: background color of camera
+#
+# Since: 6.3
+##
+{ 'struct': 'CameraBuiltinOptions',
+  'data': {
+    '*debug': 'bool',
+    '*fps': 'uint32',
+    '*width': 'uint32',
+    '*height': 'uint32',
+    '*mjpeg': 'bool',
+    '*yuv': 'bool',
+    '*rgb565': 'bool',
+    '*bgcolor': 'ColorType' } }
+
+
+##
+# @CameradevDriver:
+#
+# An enumeration of possible camera backend drivers.
+#
+# Since: 6.3
+##
+{ 'enum': 'CameradevDriver',
+  'data': [ 'builtin' ] }
+
+##
+# @Cameradev:
+#
+# Options of an camera backend.
+#
+# @id: identifier of the backend
+#
+# @driver: the backend driver to use
+#
+# Since: 6.3
+##
+{ 'union': 'Cameradev',
+  'base': {
+    'id':          'str',
+    'driver':      'CameradevDriver'},
+  'discriminator': 'driver',
+  'data': {
+    'builtin':     'CameraBuiltinOptions' } }

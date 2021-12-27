@@ -425,6 +425,13 @@ if 'ust' in get_option('trace_backends')
   lttng = dependency('lttng-ust', required: true, method: 'pkg-config',
                      kwargs: static_kwargs)
 endif
+
+cairo = not_found
+if have_system
+  cairo = dependency('cairo', required: have_system,
+                     method: 'pkg-config', kwargs: static_kwargs)
+endif
+
 pixman = not_found
 if have_system or have_tools
   pixman = dependency('pixman-1', required: have_system, version:'>=0.21.8',
@@ -1454,6 +1461,7 @@ config_host_data.set('HOST_' + host_arch.to_upper(), 1)
 
 config_host_data.set('CONFIG_ATTR', libattr.found())
 config_host_data.set('CONFIG_BRLAPI', brlapi.found())
+config_host_data.set('CONFIG_CAIRO', cairo.found())
 config_host_data.set('CONFIG_COCOA', cocoa.found())
 config_host_data.set('CONFIG_FUZZ', get_option('fuzzing'))
 config_host_data.set('CONFIG_GCOV', get_option('b_coverage'))
@@ -2397,6 +2405,7 @@ genh += hxdep
 authz_ss = ss.source_set()
 blockdev_ss = ss.source_set()
 block_ss = ss.source_set()
+camera_ss = ss.source_set()
 chardev_ss = ss.source_set()
 common_ss = ss.source_set()
 common_user_ss = ss.source_set()
@@ -2455,6 +2464,7 @@ if have_system
     'audio',
     'backends',
     'backends/tpm',
+    'camera',
     'chardev',
     'ebpf',
     'hw/9pfs',
@@ -2574,6 +2584,7 @@ endif
 
 subdir('audio')
 subdir('io')
+subdir('camera')
 subdir('chardev')
 subdir('fsdev')
 subdir('dump')
@@ -2850,6 +2861,13 @@ libchardev = static_library('chardev', chardev_ss.sources() + genh,
 
 chardev = declare_dependency(link_whole: libchardev)
 
+camera_ss = camera_ss.apply(config_host, strict: false)
+libcamera = static_library('camera', camera_ss.sources() + genh,
+                           name_suffix: 'fa',
+                           build_by_default: false)
+
+camera = declare_dependency(link_whole: libcamera)
+
 hwcore_ss = hwcore_ss.apply(config_host, strict: false)
 libhwcore = static_library('hwcore', sources: hwcore_ss.sources() + genh,
                            name_suffix: 'fa',
@@ -2869,7 +2887,7 @@ foreach m : block_mods + softmmu_mods
                 install_dir: qemu_moddir)
 endforeach
 
-softmmu_ss.add(authz, blockdev, chardev, crypto, io, qmp)
+softmmu_ss.add(authz, blockdev, camera, chardev, crypto, io, qmp)
 common_ss.add(qom, qemuutil)
 
 common_ss.add_all(when: 'CONFIG_SOFTMMU', if_true: [softmmu_ss])
