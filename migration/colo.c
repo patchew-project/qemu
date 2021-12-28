@@ -94,12 +94,15 @@ static void secondary_vm_do_failover(void)
     if (local_err) {
         error_report_err(local_err);
         local_err = NULL;
+        return;
     }
 
     /* Notify all filters of all NIC to do checkpoint */
     colo_notify_filters_event(COLO_EVENT_FAILOVER, &local_err);
     if (local_err) {
         error_report_err(local_err);
+        local_err = NULL;
+        return;
     }
 
     if (!autostart) {
@@ -178,6 +181,7 @@ static void primary_vm_do_failover(void)
     if (local_err) {
         error_report_err(local_err);
         local_err = NULL;
+        return;
     }
 
     /* Notify COLO thread that failover work is finished */
@@ -507,12 +511,11 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
         goto out;
     }
 
-    ret = 0;
-
     qemu_mutex_lock_iothread();
     vm_start();
     qemu_mutex_unlock_iothread();
     trace_colo_vm_state_change("stop", "run");
+    return 0;
 
 out:
     if (local_err) {
