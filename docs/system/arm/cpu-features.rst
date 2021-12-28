@@ -211,6 +211,11 @@ the list of KVM VCPU features and their descriptions.
                            influence the guest scheduler behavior and/or be
                            exposed to the guest userspace.
 
+  pauth                    Enable or disable ``FEAT_Pauth``, pointer
+                           authentication.  By default, the feature is enabled
+                           with ``-cpu host`` if supported by both the host
+                           kernel and the hardware.
+
 TCG VCPU Features
 =================
 

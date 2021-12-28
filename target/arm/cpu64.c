@@ -625,6 +625,42 @@ void aarch64_add_sve_properties(Object *obj)
 #endif
 }
 
+static bool cpu_arm_get_pauth(Object *obj, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    return cpu_isar_feature(aa64_pauth, cpu);
+}
+
+static void cpu_arm_set_pauth(Object *obj, bool value, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    uint64_t t;
+
+    if (value) {
+        if (!kvm_arm_pauth_supported()) {
+            error_setg(errp, "'pauth' feature not supported by KVM on this host");
+        }
+
+        return;
+    }
+
+    /*
+     * If the host supports PAuth, we only end-up here if the user has
+     * disabled the support, and value is false.
+     */
+    t = cpu->isar.id_aa64isar1;
+    t = FIELD_DP64(t, ID_AA64ISAR1, APA, value);
+    t = FIELD_DP64(t, ID_AA64ISAR1, GPA, value);
+    t = FIELD_DP64(t, ID_AA64ISAR1, API, value);
+    t = FIELD_DP64(t, ID_AA64ISAR1, GPI, value);
+    cpu->isar.id_aa64isar1 = t;
+}
+
+void aarch64_add_pauth_properties(Object *obj)
+{
+    object_property_add_bool(obj, "pauth", cpu_arm_get_pauth, cpu_arm_set_pauth);
+}
+
 void arm_cpu_pauth_finalize(ARMCPU *cpu, Error **errp)
 {
     int arch_val = 0, impdef_val = 0;
