@@ -69,14 +69,75 @@ typedef void FindSysbusDeviceFunc(SysBusDevice *sbdev, void *opaque);
 
 void sysbus_init_mmio(SysBusDevice *dev, MemoryRegion *memory);
 MemoryRegion *sysbus_mmio_get_region(SysBusDevice *dev, int n);
-void sysbus_init_irq(SysBusDevice *dev, qemu_irq *p);
-void sysbus_pass_irq(SysBusDevice *dev, SysBusDevice *target);
-void sysbus_init_ioports(SysBusDevice *dev, uint32_t ioport, uint32_t size);
 
+/**
+ * sysbus_init_irq: Create an output GPIO line
+ * @dev: Sysbus device to create output GPIO for
+ * @irq: Pointer to qemu_irq for the GPIO lines
+ *
+ * Sysbus devices should use this function in their instance_init
+ * or realize methods to create any output GPIO lines they need.
+ *
+ * The @irq argument should be a pointer to either a "qemu_irq" in
+ * the device's state structure. The device implementation can then raise
+ * and lower the GPIO line by calling qemu_set_irq(). (If anything is
+ * connected to the other end of the GPIO this will cause the handler
+ * function for that input GPIO to be called.)
+ *
+ * See sysbus_connect_irq() for how code that uses such a device can
+ * connect to one of its output GPIO lines.
+ *
+ * There is no need to release the @pins allocated array because it
+ * will be automatically released when @dev calls its instance_finalize()
+ * handler.
+ */
+void sysbus_init_irq(SysBusDevice *dev, qemu_irq *irq);
+
+/**
+ * sysbus_pass_irq: Create GPIO lines on container which pass through
+ *                  to a target device
+ * @dev: Device which needs to expose GPIO lines
+ * @target: Device which has GPIO lines
+ *
+ * This function allows a container device to create GPIO arrays on itself
+ * which simply pass through to a GPIO array of another device. It is
+ * useful when modelling complex devices such system-on-chip, where a
+ * sysbus device contains other sysbus devices.
+ *
+ * It is not possible to pass a subset of the GPIO lines with this function.
+ *
+ * To users of the container sysbus device, the GPIO array created on @dev
+ * behaves exactly like any other.
+ */
+void sysbus_pass_irq(SysBusDevice *dev, SysBusDevice *target);
+
+void sysbus_init_ioports(SysBusDevice *dev, uint32_t ioport, uint32_t size);
 
 bool sysbus_has_irq(SysBusDevice *dev, int n);
 bool sysbus_has_mmio(SysBusDevice *dev, unsigned int n);
+
+/**
+ * sysbus_connect_irq: Connect a sysbus device output GPIO line
+ * @dev: sysbus device whose GPIO to connect
+ * @n: Number of the output GPIO line (which must be in range)
+ * @pin: qemu_irq to connect the output line to
+ *
+ * This function connects an output GPIO line on a sysbus device
+ * up to an arbitrary qemu_irq, so that when the device asserts that
+ * output GPIO line, the qemu_irq's callback is invoked.
+ * The index @n of the GPIO line must be valid, otherwise this function
+ * will assert().
+ *
+ * Outbound GPIO lines can be connected to any qemu_irq, but the common
+ * case is connecting them to another device's inbound GPIO line, using
+ * the qemu_irq returned by qdev_get_gpio_in() or qdev_get_gpio_in_named().
+ *
+ * It is not valid to try to connect one outbound GPIO to multiple
+ * qemu_irqs at once, or to connect multiple outbound GPIOs to the
+ * same qemu_irq; see qdev_connect_gpio_out() for details.
+ */
 void sysbus_connect_irq(SysBusDevice *dev, int n, qemu_irq irq);
+
 void sysbus_mmio_map(SysBusDevice *dev, int n, hwaddr addr);
 void sysbus_mmio_map_overlap(SysBusDevice *dev, int n, hwaddr addr,
                              int priority);
