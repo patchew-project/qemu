@@ -300,6 +300,10 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     target_ulong msr, new_msr, vector;
     int srr0, srr1, lev = -1;
 
+    if (excp <= POWERPC_EXCP_NONE || excp >= POWERPC_EXCP_NB) {
+        cpu_abort(cs, "Invalid PowerPC exception %d. Aborting\n", excp);
+    }
+
     qemu_log_mask(CPU_LOG_INT, "Raise exception at " TARGET_FMT_lx
                   " => %08x (%02x)\n", env->nip, excp, env->error_code);
 
@@ -353,9 +357,6 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
 #endif
 
     switch (excp) {
-    case POWERPC_EXCP_NONE:
-        /* Should never happen */
-        return;
     case POWERPC_EXCP_CRITICAL:    /* Critical input                         */
         switch (excp_model) {
         case POWERPC_EXCP_40x:
