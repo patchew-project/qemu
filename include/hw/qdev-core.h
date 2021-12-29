@@ -533,24 +533,6 @@ void qdev_connect_gpio_out_named(DeviceState *dev, const char *name, int n,
                                  qemu_irq input_pin);
 
 /**
- * qdev_get_gpio_out_connector: Get the qemu_irq connected to an output GPIO
- * @dev: Device whose output GPIO we are interested in
- * @name: Name of the output GPIO array
- * @n: Number of the output GPIO line within that array
- *
- * Returns whatever qemu_irq is currently connected to the specified
- * output GPIO line of @dev. This will be NULL if the output GPIO line
- * has never been wired up to the anything.  Note that the qemu_irq
- * returned does not belong to @dev -- it will be the input GPIO or
- * IRQ of whichever device the board code has connected up to @dev's
- * output GPIO.
- *
- * You probably don't need to use this function -- it is used only
- * by the platform-bus subsystem.
- */
-qemu_irq qdev_get_gpio_out_connector(DeviceState *dev, const char *name, int n);
-
-/**
  * qdev_intercept_gpio_out: Intercept an existing GPIO connection
  * @dev: Device to intercept the outbound GPIO line from
  * @icpt: New qemu_irq to connect instead

@@ -21,6 +21,7 @@
 #include "hw/qdev-core.h"
 #include "hw/irq.h"
 #include "qapi/error.h"
+#include "qdev-internal.h"
 
 static NamedGPIOList *qdev_get_named_gpio_list(DeviceState *dev,
                                                const char *name)
