@@ -1,6 +1,10 @@
 # This file contains the set of jobs run by the QEMU project:
 # https://gitlab.com/qemu-project/qemu/-/pipelines
 
+default:
+  artifacts:
+    when: always
+
 include:
   - local: '/.gitlab-ci.d/stages.yml'
   - local: '/.gitlab-ci.d/edk2.yml'
