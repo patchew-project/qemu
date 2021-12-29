@@ -68,6 +68,31 @@ cross-i386-tci:
     EXTRA_CONFIGURE_OPTS: --target-list=i386-softmmu,i386-linux-user,aarch64-softmmu,aarch64-linux-user,ppc-softmmu,ppc-linux-user
     MAKE_CHECK_ARGS: check check-tcg
 
+# Upstream LoongArch support is still incomplete, but toolchain is already
+# usable and partially merged, so the host support is already testable; but
+# don't let failures block CI.
+#
+# Similar to hexagon, the container image is built outside of CI and manually
+# uploaded at the moment, so make the dependency to container build job
+# optional.
+cross-loongarch64-system:
+  extends: .cross_system_build_job
+  allow_failure: true
+  needs:
+    job: loongarch64-cross-container
+    optional: true
+  variables:
+    IMAGE: gentoo-loongarch64-cross
+
+cross-loongarch64-user:
+  extends: .cross_user_build_job
+  allow_failure: true
+  needs:
+    job: loongarch64-cross-container
+    optional: true
+  variables:
+    IMAGE: gentoo-loongarch64-cross
+
 cross-mips-system:
   extends: .cross_system_build_job
   needs:

@@ -3148,6 +3148,8 @@ LoongArch64 TCG target
 M: WANG Xuerui <git@xen0n.name>
 S: Maintained
 F: tcg/loongarch64/
+F: tests/docker/dockerfiles/gentoo-loongarch64-cross.docker
+F: tests/docker/dockerfiles/gentoo-loongarch64-cross.docker.d/
 
 MIPS TCG target
 M: Philippe Mathieu-Daudé <f4bug@amsat.org>
