@@ -25,7 +25,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
-
+#include "sysbus-internal.h"
 
 /*
  * Returns the PlatformBus IRQ number for a SysBusDevice irq number or -1 if
