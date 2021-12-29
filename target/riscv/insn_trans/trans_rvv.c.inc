@@ -2860,6 +2860,7 @@ static bool opfxv_narrow_check(DisasContext *s, arg_rmr *a)
     return opfv_narrow_check(s, a) &&
            require_rvf(s) &&
            (s->sew != MO_64) &&
+           require_zve32f(s) &&
            require_zve64f(s);
 }
 
@@ -2868,6 +2869,7 @@ static bool opffv_narrow_check(DisasContext *s, arg_rmr *a)
     return opfv_narrow_check(s, a) &&
            require_scale_rvf(s) &&
            (s->sew != MO_8) &&
+           require_scale_zve32f(s) &&
            require_scale_zve64f(s);
 }
 
@@ -2918,6 +2920,7 @@ static bool opxfv_narrow_check(DisasContext *s, arg_rmr *a)
            vext_check_isa_ill(s) &&
            /* OPFV narrowing instructions ignore vs1 check */
            vext_check_sd(s, a->rd, a->rs2, a->vm) &&
+           require_scale_zve32f(s) &&
            require_scale_zve64f(s);
 }
 
