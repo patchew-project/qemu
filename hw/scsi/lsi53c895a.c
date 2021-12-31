@@ -444,7 +444,7 @@ static void lsi_execute_script(LSIState *s);
 static void lsi_reselect(LSIState *s, lsi_request *p);
 
 static inline void lsi_mem_read(LSIState *s, dma_addr_t addr,
-                               void *buf, dma_addr_t len)
+                                void *buf, dma_size_t len)
 {
     if (s->dmode & LSI_DMODE_SIOM) {
         address_space_read(&s->pci_io_as, addr, MEMTXATTRS_UNSPECIFIED,
@@ -455,7 +455,7 @@ static inline void lsi_mem_read(LSIState *s, dma_addr_t addr,
 }
 
 static inline void lsi_mem_write(LSIState *s, dma_addr_t addr,
-                                const void *buf, dma_addr_t len)
+                                 const void *buf, dma_size_t len)
 {
     if (s->dmode & LSI_DMODE_DIOM) {
         address_space_write(&s->pci_io_as, addr, MEMTXATTRS_UNSPECIFIED,

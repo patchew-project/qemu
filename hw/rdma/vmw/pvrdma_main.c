@@ -124,7 +124,7 @@ static int init_dev_ring(PvrdmaRing *ring, PvrdmaRingState **ring_state,
                           (num_pages - 1) * TARGET_PAGE_SIZE /
                           sizeof(struct pvrdma_cqne),
                           sizeof(struct pvrdma_cqne),
-                          (dma_addr_t *)&tbl[1], (dma_addr_t)num_pages - 1);
+                          (dma_addr_t *)&tbl[1], (dma_size_t)num_pages - 1);
     if (rc) {
         rc = -ENOMEM;
         goto out_free_ring_state;

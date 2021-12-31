@@ -32,10 +32,10 @@ int usb_packet_map(USBPacket *p, QEMUSGList *sgl)
 
     for (i = 0; i < sgl->nsg; i++) {
         dma_addr_t base = sgl->sg[i].base;
-        dma_addr_t len = sgl->sg[i].len;
+        dma_size_t len = sgl->sg[i].len;
 
         while (len) {
-            dma_addr_t xlen = len;
+            dma_size_t xlen = len;
             mem = dma_memory_map(sgl->as, base, &xlen, dir,
                                  MEMTXATTRS_UNSPECIFIED);
             if (!mem) {

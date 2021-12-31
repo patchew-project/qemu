@@ -346,12 +346,12 @@ static void fw_cfg_data_mem_write(void *opaque, hwaddr addr,
 
 static void fw_cfg_dma_transfer(FWCfgState *s)
 {
-    dma_addr_t len;
     FWCfgDmaAccess dma;
     int arch;
     FWCfgEntry *e;
     int read = 0, write = 0;
     dma_addr_t dma_addr;
+    dma_size_t len;
 
     /* Reset the address before the next access */
     dma_addr = s->dma_addr;

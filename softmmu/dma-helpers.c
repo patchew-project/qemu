@@ -19,7 +19,7 @@
 /* #define DEBUG_IOMMU */
 
 MemTxResult dma_memory_set(AddressSpace *as, dma_addr_t addr,
-                           uint8_t c, dma_addr_t len, MemTxAttrs attrs)
+                           uint8_t c, dma_size_t len, MemTxAttrs attrs)
 {
     dma_barrier(as, DMA_DIRECTION_FROM_DEVICE);
 
@@ -51,7 +51,7 @@ void qemu_sglist_init(QEMUSGList *qsg, DeviceState *dev, int alloc_hint,
     object_ref(OBJECT(dev));
 }
 
-void qemu_sglist_add(QEMUSGList *qsg, dma_addr_t base, dma_addr_t len)
+void qemu_sglist_add(QEMUSGList *qsg, dma_addr_t base, dma_size_t len)
 {
     if (qsg->nsg == qsg->nalloc) {
         qsg->nalloc = 2 * qsg->nalloc + 1;
@@ -294,12 +294,12 @@ BlockAIOCB *dma_blk_write(BlockBackend *blk,
 }
 
 
-static MemTxResult dma_buf_rw(void *buf, int32_t len, uint64_t *residual,
+static MemTxResult dma_buf_rw(void *buf, dma_size_t len, dma_size_t *residual,
                               QEMUSGList *sg, DMADirection dir,
                               MemTxAttrs attrs)
 {
     uint8_t *ptr = buf;
-    uint64_t xresidual;
+    dma_size_t xresidual;
     int sg_cur_index;
     MemTxResult res = MEMTX_OK;
 
@@ -308,7 +308,7 @@ static MemTxResult dma_buf_rw(void *buf, int32_t len, uint64_t *residual,
     len = MIN(len, xresidual);
     while (len > 0) {
         ScatterGatherEntry entry = sg->sg[sg_cur_index++];
-        int32_t xfer = MIN(len, entry.len);
+        dma_size_t xfer = MIN(len, entry.len);
         res |= dma_memory_rw(sg->as, entry.base, ptr, xfer, dir, attrs);
         ptr += xfer;
         len -= xfer;

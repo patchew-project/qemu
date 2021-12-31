@@ -15,21 +15,10 @@
 #include "block/block.h"
 #include "block/accounting.h"
 
-typedef struct ScatterGatherEntry ScatterGatherEntry;
-
 typedef enum {
     DMA_DIRECTION_TO_DEVICE = 0,
     DMA_DIRECTION_FROM_DEVICE = 1,
 } DMADirection;
-
-struct QEMUSGList {
-    ScatterGatherEntry *sg;
-    int nsg;
-    int nalloc;
-    size_t size;
-    DeviceState *dev;
-    AddressSpace *as;
-};
 
 /*
  * When an IOMMU is present, bus addresses become distinct from
@@ -39,9 +28,22 @@ struct QEMUSGList {
  * least most) cases.
  */
 typedef uint64_t dma_addr_t;
+typedef uint64_t dma_size_t;
 
 #define DMA_ADDR_BITS 64
 #define DMA_ADDR_FMT "%" PRIx64
+#define DMA_SIZE_FMT "%" PRIx64
+
+typedef struct ScatterGatherEntry ScatterGatherEntry;
+
+struct QEMUSGList {
+    ScatterGatherEntry *sg;
+    int nsg;
+    int nalloc;
+    dma_size_t size;
+    DeviceState *dev;
+    AddressSpace *as;
+};
 
 static inline void dma_barrier(AddressSpace *as, DMADirection dir)
 {
@@ -70,7 +72,7 @@ static inline void dma_barrier(AddressSpace *as, DMADirection dir)
  * useful for certain cases, but usually you should just use
  * dma_memory_{read,write}() and check for errors */
 static inline bool dma_memory_valid(AddressSpace *as,
-                                    dma_addr_t addr, dma_addr_t len,
+                                    dma_addr_t addr, dma_size_t len,
                                     DMADirection dir, MemTxAttrs attrs)
 {
     return address_space_access_valid(as, addr, len,
@@ -80,7 +82,7 @@ static inline bool dma_memory_valid(AddressSpace *as,
 
 static inline MemTxResult dma_memory_rw_relaxed(AddressSpace *as,
                                                 dma_addr_t addr,
-                                                void *buf, dma_addr_t len,
+                                                void *buf, dma_size_t len,
                                                 DMADirection dir,
                                                 MemTxAttrs attrs)
 {
@@ -90,7 +92,7 @@ static inline MemTxResult dma_memory_rw_relaxed(AddressSpace *as,
 
 static inline MemTxResult dma_memory_read_relaxed(AddressSpace *as,
                                                   dma_addr_t addr,
-                                                  void *buf, dma_addr_t len)
+                                                  void *buf, dma_size_t len)
 {
     return dma_memory_rw_relaxed(as, addr, buf, len,
                                  DMA_DIRECTION_TO_DEVICE,
@@ -100,7 +102,7 @@ static inline MemTxResult dma_memory_read_relaxed(AddressSpace *as,
 static inline MemTxResult dma_memory_write_relaxed(AddressSpace *as,
                                                    dma_addr_t addr,
                                                    const void *buf,
-                                                   dma_addr_t len)
+                                                   dma_size_t len)
 {
     return dma_memory_rw_relaxed(as, addr, (void *)buf, len,
                                  DMA_DIRECTION_FROM_DEVICE,
@@ -122,7 +124,7 @@ static inline MemTxResult dma_memory_write_relaxed(AddressSpace *as,
  * @attrs: memory transaction attributes
  */
 static inline MemTxResult dma_memory_rw(AddressSpace *as, dma_addr_t addr,
-                                        void *buf, dma_addr_t len,
+                                        void *buf, dma_size_t len,
                                         DMADirection dir, MemTxAttrs attrs)
 {
     dma_barrier(as, dir);
@@ -144,7 +146,7 @@ static inline MemTxResult dma_memory_rw(AddressSpace *as, dma_addr_t addr,
  * @attrs: memory transaction attributes
  */
 static inline MemTxResult dma_memory_read(AddressSpace *as, dma_addr_t addr,
-                                          void *buf, dma_addr_t len,
+                                          void *buf, dma_size_t len,
                                           MemTxAttrs attrs)
 {
     return dma_memory_rw(as, addr, buf, len,
@@ -165,7 +167,7 @@ static inline MemTxResult dma_memory_read(AddressSpace *as, dma_addr_t addr,
  * @attrs: memory transaction attributes
  */
 static inline MemTxResult dma_memory_write(AddressSpace *as, dma_addr_t addr,
-                                           const void *buf, dma_addr_t len,
+                                           const void *buf, dma_size_t len,
                                            MemTxAttrs attrs)
 {
     return dma_memory_rw(as, addr, (void *)buf, len,
@@ -186,7 +188,7 @@ static inline MemTxResult dma_memory_write(AddressSpace *as, dma_addr_t addr,
  * @attrs: memory transaction attributes
  */
 MemTxResult dma_memory_set(AddressSpace *as, dma_addr_t addr,
-                           uint8_t c, dma_addr_t len, MemTxAttrs attrs);
+                           uint8_t c, dma_size_t len, MemTxAttrs attrs);
 
 /**
  * address_space_map: Map a physical memory region into a host virtual address.
@@ -203,7 +205,7 @@ MemTxResult dma_memory_set(AddressSpace *as, dma_addr_t addr,
  * @attrs: memory attributes
  */
 static inline void *dma_memory_map(AddressSpace *as,
-                                   dma_addr_t addr, dma_addr_t *len,
+                                   dma_addr_t addr, dma_size_t *len,
                                    DMADirection dir, MemTxAttrs attrs)
 {
     hwaddr xlen = *len;
@@ -230,8 +232,8 @@ static inline void *dma_memory_map(AddressSpace *as,
  * @access_len: amount of data actually transferred
  */
 static inline void dma_memory_unmap(AddressSpace *as,
-                                    void *buffer, dma_addr_t len,
-                                    DMADirection dir, dma_addr_t access_len)
+                                    void *buffer, dma_size_t len,
+                                    DMADirection dir, dma_size_t access_len)
 {
     address_space_unmap(as, buffer, (hwaddr)len,
                         dir == DMA_DIRECTION_FROM_DEVICE, access_len);
@@ -279,12 +281,12 @@ DEFINE_LDST_DMA(q, q, 64, be);
 
 struct ScatterGatherEntry {
     dma_addr_t base;
-    dma_addr_t len;
+    dma_size_t len;
 };
 
 void qemu_sglist_init(QEMUSGList *qsg, DeviceState *dev, int alloc_hint,
                       AddressSpace *as);
-void qemu_sglist_add(QEMUSGList *qsg, dma_addr_t base, dma_addr_t len);
+void qemu_sglist_add(QEMUSGList *qsg, dma_addr_t base, dma_size_t len);
 void qemu_sglist_destroy(QEMUSGList *qsg);
 
 typedef BlockAIOCB *DMAIOFunc(int64_t offset, QEMUIOVector *iov,

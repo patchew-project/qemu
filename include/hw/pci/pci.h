@@ -810,7 +810,7 @@ static inline AddressSpace *pci_get_address_space(PCIDevice *dev)
  * @dir: indicates the transfer direction
  */
 static inline MemTxResult pci_dma_rw(PCIDevice *dev, dma_addr_t addr,
-                                     void *buf, dma_addr_t len,
+                                     void *buf, dma_size_t len,
                                      DMADirection dir, MemTxAttrs attrs)
 {
     return dma_memory_rw(pci_get_address_space(dev), addr, buf, len,
@@ -830,7 +830,7 @@ static inline MemTxResult pci_dma_rw(PCIDevice *dev, dma_addr_t addr,
  * @len: length of the data transferred
  */
 static inline MemTxResult pci_dma_read(PCIDevice *dev, dma_addr_t addr,
-                                       void *buf, dma_addr_t len)
+                                       void *buf, dma_size_t len)
 {
     return pci_dma_rw(dev, addr, buf, len,
                       DMA_DIRECTION_TO_DEVICE, MEMTXATTRS_UNSPECIFIED);
@@ -849,7 +849,7 @@ static inline MemTxResult pci_dma_read(PCIDevice *dev, dma_addr_t addr,
  * @len: the number of bytes to write
  */
 static inline MemTxResult pci_dma_write(PCIDevice *dev, dma_addr_t addr,
-                                        const void *buf, dma_addr_t len)
+                                        const void *buf, dma_size_t len)
 {
     return pci_dma_rw(dev, addr, (void *) buf, len,
                       DMA_DIRECTION_FROM_DEVICE, MEMTXATTRS_UNSPECIFIED);
@@ -894,7 +894,7 @@ PCI_DMA_DEFINE_LDST(q_be, q_be, 64);
  * @dir: indicates the transfer direction
  */
 static inline void *pci_dma_map(PCIDevice *dev, dma_addr_t addr,
-                                dma_addr_t *plen, DMADirection dir)
+                                dma_size_t *plen, DMADirection dir)
 {
     void *buf;
 
@@ -903,7 +903,7 @@ static inline void *pci_dma_map(PCIDevice *dev, dma_addr_t addr,
     return buf;
 }
 
-static inline void pci_dma_unmap(PCIDevice *dev, void *buffer, dma_addr_t len,
+static inline void pci_dma_unmap(PCIDevice *dev, void *buffer, dma_size_t len,
                                  DMADirection dir, dma_addr_t access_len)
 {
     dma_memory_unmap(pci_get_address_space(dev), buffer, len, dir, access_len);
