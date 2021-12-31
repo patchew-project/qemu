@@ -104,10 +104,13 @@ typedef struct DisasContext {
     target_ulong vstart;
     bool vl_eq_vlmax;
     uint8_t ntemp;
+    uint8_t nftemp;
     CPUState *cs;
     TCGv zero;
     /* Space for 3 operands plus 1 extra for address computation. */
     TCGv temp[4];
+    /* Space for 4 float point operands */
+    TCGv_i64 ftemp[4];
     /* PointerMasking extension */
     bool pm_enabled;
     TCGv pm_mask;
@@ -289,6 +292,86 @@ static void gen_set_gpr(DisasContext *ctx, int reg_num, TCGv t)
         case MXL_RV64:
             tcg_gen_mov_tl(cpu_gpr[reg_num], t);
             break;
+        default:
+            g_assert_not_reached();
+        }
+    }
+}
+
+static TCGv_i64 ftemp_new(DisasContext *ctx)
+{
+    assert(ctx->nftemp < ARRAY_SIZE(ctx->ftemp));
+    return ctx->ftemp[ctx->nftemp++] = tcg_temp_new_i64();
+}
+
+static TCGv_i64 get_fpr_hs(DisasContext *ctx, int reg_num)
+{
+    if (!ctx->ext_zfinx) {
+        return cpu_fpr[reg_num];
+    }
+
+    if (reg_num == 0) {
+        return tcg_constant_i64(0);
+    }
+    switch (get_ol(ctx)) {
+    case MXL_RV32:
+#ifdef TARGET_RISCV32
+    {
+        TCGv_i64 t = ftemp_new(ctx);
+        tcg_gen_ext_i32_i64(t, cpu_gpr[reg_num]);
+        return t;
+    }
+#else
+    /* fall through */
+    case MXL_RV64:
+        return cpu_gpr[reg_num];
+#endif
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static TCGv_i64 dest_fpr(DisasContext *ctx, int reg_num)
+{
+    if (!ctx->ext_zfinx) {
+        return cpu_fpr[reg_num];
+    }
+
+    switch (get_ol(ctx)) {
+    case MXL_RV32:
+        return ftemp_new(ctx);
+#ifdef TARGET_RISCV64
+    case MXL_RV64:
+        if (reg_num == 0) {
+            return ftemp_new(ctx);
+        } else {
+            return cpu_gpr[reg_num];
+        }
+#endif
+    default:
+        g_assert_not_reached();
+    }
+}
+
+/* assume t is nanboxing (for normal) or sign-extended (for zfinx) */
+static void gen_set_fpr_hs(DisasContext *ctx, int reg_num, TCGv_i64 t)
+{
+    if (!ctx->ext_zfinx) {
+        tcg_gen_mov_i64(cpu_fpr[reg_num], t);
+        return;
+    }
+    if (reg_num != 0) {
+        switch (get_ol(ctx)) {
+        case MXL_RV32:
+#ifdef TARGET_RISCV32
+            tcg_gen_extrl_i64_i32(cpu_gpr[reg_num], t);
+            break;
+#else
+        /* fall through */
+        case MXL_RV64:
+            tcg_gen_mov_i64(cpu_gpr[reg_num], t);
+            break;
+#endif
         default:
             g_assert_not_reached();
         }
@@ -732,6 +815,8 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->cs = cs;
     ctx->ntemp = 0;
     memset(ctx->temp, 0, sizeof(ctx->temp));
+    ctx->nftemp = 0;
+    memset(ctx->ftemp, 0, sizeof(ctx->ftemp));
     ctx->pm_enabled = FIELD_EX32(tb_flags, TB_FLAGS, PM_ENABLED);
     int priv = tb_flags & TB_FLAGS_PRIV_MMU_MASK;
     ctx->pm_mask = pm_mask[priv];
@@ -766,6 +851,11 @@ static void riscv_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
         ctx->temp[i] = NULL;
     }
     ctx->ntemp = 0;
+    for (int i = ctx->nftemp - 1; i >= 0; --i) {
+        tcg_temp_free_i64(ctx->ftemp[i]);
+        ctx->ftemp[i] = NULL;
+    }
+    ctx->nftemp = 0;
 
     if (ctx->base.is_jmp == DISAS_NEXT) {
         target_ulong page_start;
