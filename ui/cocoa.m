@@ -95,6 +95,8 @@ static DisplayChangeListener dcl = {
 };
 static int last_buttons;
 static int cursor_hide = 1;
+static bool cursor_visible = 1;
+static int left_command_key_enabled = 1;
 
 static int gArgc;
 static char **gArgv;
@@ -411,18 +413,18 @@ QemuCocoaView *cocoaView;
 
 - (void) hideCursor
 {
-    if (!cursor_hide) {
-        return;
+    if (cursor_hide && cursor_visible) {
+        cursor_visible = 0;
+        [NSCursor hide];
     }
-    [NSCursor hide];
 }
 
 - (void) unhideCursor
 {
-    if (!cursor_hide) {
-        return;
+    if (cursor_hide && !cursor_visible) {
+        cursor_visible = 1;
+        [NSCursor unhide];
     }
-    [NSCursor unhide];
 }
 
 - (void) drawRect:(NSRect) rect
@@ -831,10 +833,14 @@ QemuCocoaView *cocoaView;
                     }
                     break;
 
-                /* Don't pass command key changes to guest unless mouse is grabbed */
+                /*
+                    Don't pass command key changes to guest unless mouse is grabbed
+                    or the key is explicitly disabled using the left-command-key option
+                */
                 case kVK_Command:
                     if (isMouseGrabbed &&
-                        !!(modifiers & NSEventModifierFlagCommand)) {
+                        !!(modifiers & NSEventModifierFlagCommand) &&
+                        left_command_key_enabled) {
                         [self toggleKey:Q_KEY_CODE_META_L];
                     }
                     break;
@@ -923,10 +929,16 @@ QemuCocoaView *cocoaView;
         case NSEventTypeLeftMouseDown:
             buttons |= MOUSE_EVENT_LBUTTON;
             mouse_event = true;
+            if (isFullscreen) {
+                [self hideCursor];
+            }
             break;
         case NSEventTypeRightMouseDown:
             buttons |= MOUSE_EVENT_RBUTTON;
             mouse_event = true;
+            if (isFullscreen) {
+                [self hideCursor];
+            }
             break;
         case NSEventTypeOtherMouseDown:
             buttons |= MOUSE_EVENT_MBUTTON;
@@ -2050,8 +2062,13 @@ static void cocoa_display_init(DisplayState *ds, DisplayOptions *opts)
             [(QemuCocoaAppController *)[[NSApplication sharedApplication] delegate] toggleFullScreen: nil];
         });
     }
+
     if (opts->has_show_cursor && opts->show_cursor) {
         cursor_hide = 0;
+    }
+
+    if (opts->u.cocoa.has_left_command_key && !opts->u.cocoa.left_command_key) {
+        left_command_key_enabled = 0;
     }
 
     // register vga output callbacks
