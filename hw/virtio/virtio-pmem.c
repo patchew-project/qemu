@@ -123,6 +123,7 @@ static void virtio_pmem_realize(DeviceState *dev, Error **errp)
     }
 
     host_memory_backend_set_mapped(pmem->memdev, true);
+    vmstate_register_ram(&pmem->memdev->mr, DEVICE(pmem));
     virtio_init(vdev, TYPE_VIRTIO_PMEM, VIRTIO_ID_PMEM,
                 sizeof(struct virtio_pmem_config));
     pmem->rq_vq = virtio_add_queue(vdev, 128, virtio_pmem_flush);
@@ -133,6 +134,7 @@ static void virtio_pmem_unrealize(DeviceState *dev)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOPMEM *pmem = VIRTIO_PMEM(dev);
 
+    vmstate_unregister_ram(&pmem->memdev->mr, DEVICE(pmem));
     host_memory_backend_set_mapped(pmem->memdev, false);
     virtio_delete_queue(pmem->rq_vq);
     virtio_cleanup(vdev);
@@ -157,6 +159,16 @@ static MemoryRegion *virtio_pmem_get_memory_region(VirtIOPMEM *pmem,
     return &pmem->memdev->mr;
 }
 
+static const VMStateDescription vmstate_virtio_pmem = {
+    .name = "virtio-pmem",
+    .minimum_version_id = 1,
+    .version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_VIRTIO_DEVICE,
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static Property virtio_pmem_properties[] = {
     DEFINE_PROP_UINT64(VIRTIO_PMEM_ADDR_PROP, VirtIOPMEM, start, 0),
     DEFINE_PROP_LINK(VIRTIO_PMEM_MEMDEV_PROP, VirtIOPMEM, memdev,
@@ -171,6 +183,7 @@ static void virtio_pmem_class_init(ObjectClass *klass, void *data)
     VirtIOPMEMClass *vpc = VIRTIO_PMEM_CLASS(klass);
 
     device_class_set_props(dc, virtio_pmem_properties);
+    dc->vmsd = &vmstate_virtio_pmem;
 
     vdc->realize = virtio_pmem_realize;
     vdc->unrealize = virtio_pmem_unrealize;
