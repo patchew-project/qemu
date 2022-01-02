@@ -2,6 +2,7 @@
  * RISC-V GDB Server Stub
  *
  * Copyright (c) 2016-2017 Sagar Karandikar, sagark@eecs.berkeley.edu
+ * Copyright (c) 2021 Siemens AG, konrad.schwarz@siemens.com
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -271,6 +272,9 @@ static int riscv_gdb_set_virtual(CPURISCVState *cs, uint8_t *mem_buf, int n)
     return 0;
 }
 
+#include "gdb_csr_types.h"
+#include "gdb_csr_type_group.h"
+
 static int riscv_gen_dynamic_csr_xml(CPUState *cs, int base_reg)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
@@ -279,21 +283,33 @@ static int riscv_gen_dynamic_csr_xml(CPUState *cs, int base_reg)
     riscv_csr_predicate_fn predicate;
     int bitsize = 16 << env->misa_mxl_max;
     int i;
+    riscv_csr_operations *csr_op;
+    struct riscv_gdb_csr_tg const *csr_tg;
 
     g_string_printf(s, "<?xml version=\"1.0\"?>");
     g_string_append_printf(s, "<!DOCTYPE feature SYSTEM \"gdb-target.dtd\">");
     g_string_append_printf(s, "<feature name=\"org.gnu.gdb.riscv.csr\">");
 
-    for (i = 0; i < CSR_TABLE_SIZE; i++) {
-        predicate = csr_ops[i].predicate;
+    g_string_append(s, riscv_gdb_csr_types);
+
+    for (i = 0, csr_op = csr_ops, csr_tg = riscv_gdb_csr_type_group;
+            i < CSR_TABLE_SIZE; ++csr_op, ++csr_tg, ++i) {
+        predicate = csr_op->predicate;
         if (predicate && (predicate(env, i) == RISCV_EXCP_NONE)) {
-            if (csr_ops[i].name) {
-                g_string_append_printf(s, "<reg name=\"%s\"", csr_ops[i].name);
+            if (csr_op->name) {
+                g_string_append_printf(s, "<reg name=\"%s\"", csr_op->name);
             } else {
                 g_string_append_printf(s, "<reg name=\"csr%03x\"", i);
             }
             g_string_append_printf(s, " bitsize=\"%d\"", bitsize);
-            g_string_append_printf(s, " regnum=\"%d\"/>", base_reg + i);
+            g_string_append_printf(s, " regnum=\"%d\"", base_reg + i);
+            if (csr_tg->gdb_type) {
+                g_string_append_printf(s, " type=\"%s\"", csr_tg->gdb_type);
+            }
+            if (csr_tg->gdb_group) {
+                g_string_append_printf(s, " group=\"%s\"", csr_tg->gdb_group);
+            }
+            g_string_append(s, " />\n");
         }
     }
 

@@ -25,7 +25,9 @@ riscv_softmmu_ss.add(files(
   'arch_dump.c',
   'pmp.c',
   'monitor.c',
-  'machine.c'
+  'machine.c',
+  'gdb_csr_types.c',
+  'gdb_csr_type_group.c'
 ))
 
 target_arch += {'riscv': riscv_ss}
