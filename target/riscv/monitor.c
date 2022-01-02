@@ -2,6 +2,7 @@
  * QEMU monitor for RISC-V
  *
  * Copyright (c) 2019 Bin Meng <bmeng.cn@gmail.com>
+ * Copyright (c) 2021 Siemens AG, konrad.schwarz@siemens.com
  *
  * RISC-V specific monitor commands implementation
  *
@@ -233,4 +234,72 @@ void hmp_info_mem(Monitor *mon, const QDict *qdict)
     }
 
     mem_info_svxx(mon, env);
+}
+
+static const MonitorDef monitor_defs[] = {
+# define MONITORDEF_RISCV_GPR(NO, ALIAS)\
+    { "x" #NO #ALIAS, offsetof(CPURISCVState, gpr[NO]) },
+
+    MONITORDEF_RISCV_GPR(0, |zero)
+    MONITORDEF_RISCV_GPR(1, |ra)
+    MONITORDEF_RISCV_GPR(2, |sp)
+    MONITORDEF_RISCV_GPR(3, |gp)
+    MONITORDEF_RISCV_GPR(4, |tp)
+    MONITORDEF_RISCV_GPR(5, |t0)
+    MONITORDEF_RISCV_GPR(6, |t1)
+    MONITORDEF_RISCV_GPR(7, |t2)
+    MONITORDEF_RISCV_GPR(8, |s0|fp)
+    MONITORDEF_RISCV_GPR(9, |s1)
+    MONITORDEF_RISCV_GPR(10, |a0)
+    MONITORDEF_RISCV_GPR(11, |a1)
+    MONITORDEF_RISCV_GPR(12, |a2)
+    MONITORDEF_RISCV_GPR(13, |a3)
+    MONITORDEF_RISCV_GPR(14, |a4)
+    MONITORDEF_RISCV_GPR(15, |a5)
+    MONITORDEF_RISCV_GPR(16, |a6)
+    MONITORDEF_RISCV_GPR(17, |a7)
+    MONITORDEF_RISCV_GPR(18, |s2)
+    MONITORDEF_RISCV_GPR(19, |s3)
+    MONITORDEF_RISCV_GPR(20, |s4)
+    MONITORDEF_RISCV_GPR(21, |s5)
+    MONITORDEF_RISCV_GPR(22, |s6)
+    MONITORDEF_RISCV_GPR(23, |s7)
+    MONITORDEF_RISCV_GPR(24, |s8)
+    MONITORDEF_RISCV_GPR(25, |s9)
+    MONITORDEF_RISCV_GPR(26, |s10)
+    MONITORDEF_RISCV_GPR(27, |s11)
+    MONITORDEF_RISCV_GPR(28, |t3)
+    MONITORDEF_RISCV_GPR(29, |t4)
+    MONITORDEF_RISCV_GPR(30, |t5)
+    MONITORDEF_RISCV_GPR(31, |t6)
+
+    { },
+};
+
+const MonitorDef *target_monitor_defs(void)
+{
+    return monitor_defs;
+}
+
+int target_get_monitor_def(CPUState *cs, const char *name, uint64_t *pval)
+{
+
+    target_ulong ret_value;
+    CPURISCVState *const env = &RISCV_CPU (cs)->env;
+    riscv_csr_operations *op;
+    for (op = csr_ops; 1[&csr_ops] > op; ++op) {
+        if (!op->name) {
+            continue;
+        }
+        if (!strcmp(name, op->name)) {
+            if (RISCV_EXCP_NONE != riscv_csrrw_debug(env, op - csr_ops,
+                                 &ret_value,
+                                 0 /* new_value */,
+                                 0 /* write_mask */))
+                return -1;
+            *pval = ret_value;
+            return 0;
+        }
+    }
+    return -1;
 }
