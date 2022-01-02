@@ -237,6 +237,22 @@ SRST
     Show the active virtual memory mappings.
 ERST
 
+#if defined TARGET_RISCV
+    {
+        .name       = "gmem",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show the hypervisor guest's physical address"
+		    " translation",
+        .cmd        = hmp_info_gmem,
+    },
+#endif
+
+SRST
+  ``info gmem``
+    Show the hypervisor guest's physical address translation.
+ERST
+
     {
         .name       = "mtree",
         .args_type  = "flatview:-f,dispatch_tree:-d,owner:-o,disabled:-D",
