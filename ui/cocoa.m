@@ -1037,7 +1037,9 @@ QemuCocoaView *cocoaView;
 {
     COCOA_DEBUG("QemuCocoaView: grabMouse\n");
 
-    if (!isFullscreen) {
+    if (isFullscreen) {
+        [NSMenu setMenuBarVisible: FALSE];
+    } else {
         if (qemu_name)
             [normalWindow setTitle:[NSString stringWithFormat:@"QEMU %s - (Press ctrl + alt + g to release Mouse)", qemu_name]];
         else
@@ -1052,7 +1054,9 @@ QemuCocoaView *cocoaView;
 {
     COCOA_DEBUG("QemuCocoaView: ungrabMouse\n");
 
-    if (!isFullscreen) {
+    if (isFullscreen) {
+        [NSMenu setMenuBarVisible: TRUE];
+    } else {
         if (qemu_name)
             [normalWindow setTitle:[NSString stringWithFormat:@"QEMU %s", qemu_name]];
         else
