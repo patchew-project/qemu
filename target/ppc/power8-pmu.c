@@ -40,6 +40,10 @@ void pmu_update_summaries(CPUPPCState *env)
     int ins_cnt = 0;
     int cyc_cnt = 0;
 
+    if (mmcr0 & MMCR0_FC) {
+        goto hflags_calc;
+    }
+
     if (!(mmcr0 & MMCR0_FC14) && mmcr1 != 0) {
         target_ulong sel;
 
@@ -71,6 +75,7 @@ void pmu_update_summaries(CPUPPCState *env)
     ins_cnt |= !(mmcr0 & MMCR0_FC56) << 5;
     cyc_cnt |= !(mmcr0 & MMCR0_FC56) << 6;
 
+ hflags_calc:
     env->pmc_ins_cnt = ins_cnt;
     env->pmc_cyc_cnt = cyc_cnt;
     env->hflags = deposit32(env->hflags, HFLAGS_INSN_CNT, 1, ins_cnt != 0);
