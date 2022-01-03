@@ -842,6 +842,21 @@ build_pptt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 
     length = g_queue_get_length(list);
     for (i = 0; i < length; i++) {
+        int cluster;
+
+        father_offset = GPOINTER_TO_UINT(g_queue_pop_head(list));
+        for (cluster = 0; cluster < ms->smp.clusters; cluster++) {
+            g_queue_push_tail(list,
+                GUINT_TO_POINTER(table_data->len - pptt_start));
+            build_processor_hierarchy_node(
+                table_data,
+                (0 << 0), /* not a physical package */
+                father_offset, cluster, NULL, 0);
+        }
+    }
+
+    length = g_queue_get_length(list);
+    for (i = 0; i < length; i++) {
         int core;
 
         father_offset = GPOINTER_TO_UINT(g_queue_pop_head(list));
