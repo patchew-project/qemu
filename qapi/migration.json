@@ -1850,6 +1850,25 @@
 { 'command': 'query-dirty-rate', 'returns': 'DirtyRateInfo' }
 
 ##
+# @DirtyLimitInfo:
+#
+# Dirty page rate limit information of virtual CPU.
+#
+# @cpu-index: index of virtual CPU.
+#
+# @limit-rate: upper limit of dirty page rate for virtual CPU.
+#
+# @current-rate: current dirty page rate for virtual CPU.
+#
+# Since: 7.0
+#
+##
+{ 'struct': 'DirtyLimitInfo',
+  'data': { 'cpu-index': 'int',
+            'limit-rate': 'int64',
+            'current-rate': 'int64' } }
+
+##
 # @snapshot-save:
 #
 # Save a VM snapshot
