@@ -43,6 +43,12 @@
 
 /* See http://vmware-svga.sf.net/ for some documentation on VMWare SVGA */
 
+#ifdef DEBUG
+#define VMWARE_VGA_DEBUG(...) { (void) fprintf(stdout, __VA_ARGS__); }
+#else
+#define VMWARE_VGA_DEBUG(...) ((void) 0)
+#endif
+
 struct vmsvga_state_s {
     VGACommonState vga;
 
@@ -297,45 +303,45 @@ static inline bool vmsvga_verify_rect(DisplaySurface *surface,
                                       int x, int y, int w, int h)
 {
     if (x < 0) {
-        fprintf(stderr, "%s: x was < 0 (%d)\n", name, x);
+        VMWARE_VGA_DEBUG("%s: x was < 0 (%d)\n", name, x);
         return false;
     }
     if (x > SVGA_MAX_WIDTH) {
-        fprintf(stderr, "%s: x was > %d (%d)\n", name, SVGA_MAX_WIDTH, x);
+        VMWARE_VGA_DEBUG("%s: x was > %d (%d)\n", name, SVGA_MAX_WIDTH, x);
         return false;
     }
     if (w < 0) {
-        fprintf(stderr, "%s: w was < 0 (%d)\n", name, w);
+        VMWARE_VGA_DEBUG("%s: w was < 0 (%d)\n", name, w);
         return false;
     }
     if (w > SVGA_MAX_WIDTH) {
-        fprintf(stderr, "%s: w was > %d (%d)\n", name, SVGA_MAX_WIDTH, w);
+        VMWARE_VGA_DEBUG("%s: w was > %d (%d)\n", name, SVGA_MAX_WIDTH, w);
         return false;
     }
     if (x + w > surface_width(surface)) {
-        fprintf(stderr, "%s: width was > %d (x: %d, w: %d)\n",
+        VMWARE_VGA_DEBUG("%s: width was > %d (x: %d, w: %d)\n",
                 name, surface_width(surface), x, w);
         return false;
     }
 
     if (y < 0) {
-        fprintf(stderr, "%s: y was < 0 (%d)\n", name, y);
+        VMWARE_VGA_DEBUG("%s: y was < 0 (%d)\n", name, y);
         return false;
     }
     if (y > SVGA_MAX_HEIGHT) {
-        fprintf(stderr, "%s: y was > %d (%d)\n", name, SVGA_MAX_HEIGHT, y);
+        VMWARE_VGA_DEBUG("%s: y was > %d (%d)\n", name, SVGA_MAX_HEIGHT, y);
         return false;
     }
     if (h < 0) {
-        fprintf(stderr, "%s: h was < 0 (%d)\n", name, h);
+        VMWARE_VGA_DEBUG("%s: h was < 0 (%d)\n", name, h);
         return false;
     }
     if (h > SVGA_MAX_HEIGHT) {
-        fprintf(stderr, "%s: h was > %d (%d)\n", name, SVGA_MAX_HEIGHT, h);
+        VMWARE_VGA_DEBUG("%s: h was > %d (%d)\n", name, SVGA_MAX_HEIGHT, h);
         return false;
     }
     if (y + h > surface_height(surface)) {
-        fprintf(stderr, "%s: update height > %d (y: %d, h: %d)\n",
+        VMWARE_VGA_DEBUG("%s: update height > %d (y: %d, h: %d)\n",
                 name, surface_height(surface), y, h);
         return false;
     }
