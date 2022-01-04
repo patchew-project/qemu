@@ -25,16 +25,6 @@
 #include "monitor/monitor.h"
 #include "monitor/hmp-target.h"
 
-#ifdef TARGET_RISCV64
-#define PTE_HEADER_FIELDS       "vaddr            paddr            "\
-                                "size             attr\n"
-#define PTE_HEADER_DELIMITER    "---------------- ---------------- "\
-                                "---------------- -------\n"
-#else
-#define PTE_HEADER_FIELDS       "vaddr    paddr            size     attr\n"
-#define PTE_HEADER_DELIMITER    "-------- ---------------- -------- -------\n"
-#endif
-
 /* Perform linear address sign extension */
 static target_ulong addr_canonical(int va_bits, target_ulong addr)
 {
@@ -47,10 +37,34 @@ static target_ulong addr_canonical(int va_bits, target_ulong addr)
     return addr;
 }
 
-static void print_pte_header(Monitor *mon)
+static void print_pte_header(Monitor *mon,
+        char const vaddr_char, char const paddr_char)
 {
-    monitor_printf(mon, PTE_HEADER_FIELDS);
-    monitor_printf(mon, PTE_HEADER_DELIMITER);
+
+# define        VIRTUAL_WIDTH\
+        ((int) ((sizeof "ff" - sizeof "") * sizeof(target_ulong)))
+# define        PHYSICAL_WIDTH\
+        ((int) ((sizeof "ff" - sizeof "") * sizeof(hwaddr)))
+# define        ATTRIBUTE_WIDTH ((int) (sizeof "rwxugad" - sizeof ""))
+
+# define        VIRTUAL_COLUMN_WIDTH    (1 + VIRTUAL_WIDTH)
+# define        PHYSICAL_COLUMN_WIDTH   (1 + PHYSICAL_WIDTH)
+
+    static char const dashes[PHYSICAL_WIDTH] = "----------------";
+
+    monitor_printf(mon,
+            "%c%-*s%c%-*s%-*s%-*s\n"
+            "%-*.*s%-*.*s%-*.*s%-*.*s\n",
+
+            vaddr_char, VIRTUAL_COLUMN_WIDTH - 1, "addr",
+            paddr_char, PHYSICAL_COLUMN_WIDTH - 1, "addr",
+            VIRTUAL_COLUMN_WIDTH, "size",
+            ATTRIBUTE_WIDTH, "attr",
+
+            VIRTUAL_COLUMN_WIDTH, VIRTUAL_WIDTH, dashes,
+            PHYSICAL_COLUMN_WIDTH, PHYSICAL_WIDTH, dashes,
+            VIRTUAL_COLUMN_WIDTH, VIRTUAL_WIDTH, dashes,
+            ATTRIBUTE_WIDTH, ATTRIBUTE_WIDTH, dashes);
 }
 
 static void print_pte(Monitor *mon, int va_bits, target_ulong vaddr,
@@ -65,21 +79,36 @@ static void print_pte(Monitor *mon, int va_bits, target_ulong vaddr,
         return;
     }
 
-    monitor_printf(mon, TARGET_FMT_lx " " TARGET_FMT_plx " " TARGET_FMT_lx
-                   " %c%c%c%c%c%c%c\n",
-                   addr_canonical(va_bits, vaddr),
-                   paddr, size,
-                   attr & PTE_R ? 'r' : '-',
-                   attr & PTE_W ? 'w' : '-',
-                   attr & PTE_X ? 'x' : '-',
-                   attr & PTE_U ? 'u' : '-',
-                   attr & PTE_G ? 'g' : '-',
-                   attr & PTE_A ? 'a' : '-',
-                   attr & PTE_D ? 'd' : '-');
+# if 4 == TARGET_LONG_SIZE
+#       define  TARGET_xFMT     PRIx32
+# elif 8 == TARGET_LONG_SIZE
+#       define  TARGET_xFMT     PRIx64
+# else
+#       error TARGET_LONG_SIZE not handled
+# endif
+
+    /* note: RISC-V physical addresses are actually xlen + 2 bits long
+    OTHO, QEMU wil probably never support addresses longer than 64 bits */
+    monitor_printf(mon,
+            "%-*.*" TARGET_xFMT
+            "%-*.*" PRIx64
+            "%-*.*" TARGET_xFMT
+            "%c%c%c%c%c%c%c\n",
+            VIRTUAL_COLUMN_WIDTH, VIRTUAL_WIDTH, addr_canonical(va_bits, vaddr),
+            PHYSICAL_COLUMN_WIDTH, PHYSICAL_WIDTH, paddr,
+            VIRTUAL_COLUMN_WIDTH, VIRTUAL_WIDTH, size,
+            attr & PTE_R ? 'r' : '-',
+            attr & PTE_W ? 'w' : '-',
+            attr & PTE_X ? 'x' : '-',
+            attr & PTE_U ? 'u' : '-',
+            attr & PTE_G ? 'g' : '-',
+            attr & PTE_A ? 'a' : '-',
+            attr & PTE_D ? 'd' : '-');
 }
 
 static void walk_pte(Monitor *mon, hwaddr base, target_ulong start,
                      int level, int ptidxbits, int ptesize, int va_bits,
+                     int guest,
                      target_ulong *vbase, hwaddr *pbase, hwaddr *last_paddr,
                      target_ulong *last_size, int *last_attr)
 {
@@ -89,7 +118,7 @@ static void walk_pte(Monitor *mon, hwaddr base, target_ulong start,
     target_ulong pte;
     int ptshift;
     int attr;
-    int idx;
+    int idx, idx_end;
 
     if (level < 0) {
         return;
@@ -98,7 +127,8 @@ static void walk_pte(Monitor *mon, hwaddr base, target_ulong start,
     ptshift = level * ptidxbits;
     pgsize = 1UL << (PGSHIFT + ptshift);
 
-    for (idx = 0; idx < (1UL << ptidxbits); idx++) {
+    for (idx = 0, idx_end = 1 << (ptidxbits + (guest ? 2 : 0));
+            idx_end > idx; idx++) {
         pte_addr = base + idx * ptesize;
         cpu_physical_memory_read(pte_addr, &pte, ptesize);
 
@@ -131,7 +161,9 @@ static void walk_pte(Monitor *mon, hwaddr base, target_ulong start,
             } else {
                 /* pointer to the next level of the page table */
                 walk_pte(mon, paddr, start, level - 1, ptidxbits, ptesize,
-                         va_bits, vbase, pbase, last_paddr,
+                         va_bits,
+                         0 /* guest */,
+                         vbase, pbase, last_paddr,
                          last_size, last_attr);
             }
         }
@@ -141,7 +173,9 @@ static void walk_pte(Monitor *mon, hwaddr base, target_ulong start,
 
 }
 
-static void mem_info_svxx(Monitor *mon, CPUArchState *env)
+static void mem_info_svxx(Monitor *mon, CPUArchState *env,
+        target_ulong const atp,
+        int guest, char const vaddr_char, char const paddr_char)
 {
     int levels, ptidxbits, ptesize, vm, va_bits;
     hwaddr base;
@@ -152,11 +186,11 @@ static void mem_info_svxx(Monitor *mon, CPUArchState *env)
     int last_attr;
 
     if (riscv_cpu_mxl(env) == MXL_RV32) {
-        base = (hwaddr)get_field(env->satp, SATP32_PPN) << PGSHIFT;
-        vm = get_field(env->satp, SATP32_MODE);
+        base = (hwaddr)get_field(atp, SATP32_PPN) << PGSHIFT;
+        vm = get_field(atp, SATP32_MODE);
     } else {
-        base = (hwaddr)get_field(env->satp, SATP64_PPN) << PGSHIFT;
-        vm = get_field(env->satp, SATP64_MODE);
+        base = (hwaddr)get_field(atp, SATP64_PPN) << PGSHIFT;
+        vm = get_field(atp, SATP64_MODE);
     }
 
     switch (vm) {
@@ -189,7 +223,7 @@ static void mem_info_svxx(Monitor *mon, CPUArchState *env)
     va_bits = PGSHIFT + levels * ptidxbits;
 
     /* print header */
-    print_pte_header(mon);
+    print_pte_header(mon, vaddr_char, paddr_char);
 
     vbase = -1;
     pbase = -1;
@@ -199,6 +233,7 @@ static void mem_info_svxx(Monitor *mon, CPUArchState *env)
 
     /* walk page tables, starting from address 0 */
     walk_pte(mon, base, 0, levels - 1, ptidxbits, ptesize, va_bits,
+             guest,
              &vbase, &pbase, &last_paddr, &last_size, &last_attr);
 
     /* don't forget the last one */
@@ -209,6 +244,7 @@ static void mem_info_svxx(Monitor *mon, CPUArchState *env)
 void hmp_info_mem(Monitor *mon, const QDict *qdict)
 {
     CPUArchState *env;
+    target_ulong atp;
 
     env = mon_get_cpu_env(mon);
     if (!env) {
@@ -221,19 +257,46 @@ void hmp_info_mem(Monitor *mon, const QDict *qdict)
         return;
     }
 
+    atp = env->satp;
     if (riscv_cpu_mxl(env) == MXL_RV32) {
-        if (!(env->satp & SATP32_MODE)) {
+        if (!(atp & SATP32_MODE)) {
             monitor_printf(mon, "No translation or protection\n");
             return;
         }
     } else {
-        if (!(env->satp & SATP64_MODE)) {
+        if (!(atp & SATP64_MODE)) {
             monitor_printf(mon, "No translation or protection\n");
             return;
         }
     }
 
-    mem_info_svxx(mon, env);
+    mem_info_svxx(mon, env, atp, 0, 'v', 'p');
+}
+
+void hmp_info_gmem(Monitor *mon, const QDict *qdict)
+{
+    CPUArchState *env;
+    target_ulong atp;
+
+    env = mon_get_cpu_env(mon);
+    if (!env) {
+        monitor_printf(mon, "No CPU available\n");
+        return;
+    }
+
+    if (!riscv_has_ext(env, RVH)) {
+        monitor_printf(mon, "hypervisor extension not available\n");
+        return;
+    }
+
+    atp = env->hgatp;
+    if (!((MXL_RV32 == riscv_cpu_mxl(env) ? SATP32_MODE : SATP64_MODE)
+            & atp)) {
+        monitor_printf(mon, "No translation or protection\n");
+        return;
+    }
+
+    mem_info_svxx(mon, env, atp, 1, 'g', 'p');
 }
 
 static const MonitorDef monitor_defs[] = {
