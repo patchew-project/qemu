@@ -82,7 +82,7 @@ struct vmsvga_state_s {
     uint32_t fifo_next;
     uint32_t fifo_stop;
 
-#define REDRAW_FIFO_LEN  512
+#define REDRAW_FIFO_LEN  8192
     struct vmsvga_rect_s {
         int x, y, w, h;
     } redraw_fifo[REDRAW_FIFO_LEN];
@@ -385,7 +385,14 @@ static inline void vmsvga_update_rect_delayed(struct vmsvga_state_s *s,
 {
     struct vmsvga_rect_s *rect = &s->redraw_fifo[s->redraw_fifo_last++];
 
-    s->redraw_fifo_last &= REDRAW_FIFO_LEN - 1;
+    if (s->redraw_fifo_last >= REDRAW_FIFO_LEN) {
+        VMWARE_VGA_DEBUG("%s: Discarding updates - FIFO length %d exceeded\n",
+            "vmsvga_update_rect_delayed",
+            REDRAW_FIFO_LEN
+        );
+        s->redraw_fifo_last = REDRAW_FIFO_LEN - 1;
+    }
+
     rect->x = x;
     rect->y = y;
     rect->w = w;
@@ -402,11 +409,13 @@ static inline void vmsvga_update_rect_flush(struct vmsvga_state_s *s)
     }
     /* Overlapping region updates can be optimised out here - if someone
      * knows a smart algorithm to do that, please share.  */
-    while (s->redraw_fifo_first != s->redraw_fifo_last) {
-        rect = &s->redraw_fifo[s->redraw_fifo_first++];
-        s->redraw_fifo_first &= REDRAW_FIFO_LEN - 1;
+    for (int i = 0; i < s->redraw_fifo_last; i++) {
+        rect = &s->redraw_fifo[i];
         vmsvga_update_rect(s, rect->x, rect->y, rect->w, rect->h);
     }
+
+    s->redraw_fifo_first = 0;
+    s->redraw_fifo_last = 0;
 }
 
 #ifdef HW_RECT_ACCEL
@@ -607,13 +616,14 @@ static inline uint32_t vmsvga_fifo_read(struct vmsvga_state_s *s)
 static void vmsvga_fifo_run(struct vmsvga_state_s *s)
 {
     uint32_t cmd, colour;
-    int args, len, maxloop = 1024;
+    int args, len = 1024;
     int x, y, dx, dy, width, height;
     struct vmsvga_cursor_definition_s cursor;
     uint32_t cmd_start;
 
     len = vmsvga_fifo_length(s);
-    while (len > 0 && --maxloop > 0) {
+
+    while (len > 0) {
         /* May need to go back to the start of the command if incomplete */
         cmd_start = s->fifo_stop;
 
