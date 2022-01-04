@@ -16,6 +16,9 @@ from qemu.utils import get_info_usernet_hostfwd_port
 class InfoUsernet(QemuSystemTest):
 
     def test_hostfwd(self):
+        """
+        :avocado: tags=arch:x86_64
+        """
         self.vm.add_args('-netdev', 'user,id=vnet,hostfwd=:127.0.0.1:0-:22')
         self.vm.launch()
         res = self.vm.command('human-monitor-command',

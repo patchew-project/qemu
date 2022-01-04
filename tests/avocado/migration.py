@@ -22,6 +22,7 @@ from avocado.utils.path import find_command
 class Migration(QemuSystemTest):
     """
     :avocado: tags=migration
+    :avocado: tags=arch:x86_64
     """
 
     timeout = 10

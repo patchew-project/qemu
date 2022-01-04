@@ -11,6 +11,9 @@ from avocado_qemu import QemuSystemTest
 
 class EmptyCPUModel(QemuSystemTest):
     def test(self):
+        """
+        :avocado: tags=arch:x86_64
+        """
         self.vm.add_args('-S', '-display', 'none', '-machine', 'none', '-cpu', '')
         self.vm.set_qmp_monitor(enabled=False)
         self.vm.launch()

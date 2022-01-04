@@ -14,6 +14,7 @@ from avocado_qemu import QemuSystemTest
 class Vnc(QemuSystemTest):
     """
     :avocado: tags=vnc,quick
+    :avocado: tags=arch:x86_64
     """
     def test_no_vnc(self):
         self.vm.add_args('-nodefaults', '-S')
