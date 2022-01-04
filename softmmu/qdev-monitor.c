@@ -1020,6 +1020,7 @@ int qemu_global_option(const char *str)
     char driver[64], property[64];
     QemuOpts *opts;
     int rc, offset;
+    Error *err = NULL;
 
     rc = sscanf(str, "%63[^.=].%63[^=]%n", driver, property, &offset);
     if (rc == 2 && str[offset] == '=') {
@@ -1031,7 +1032,13 @@ int qemu_global_option(const char *str)
     }
 
     opts = qemu_opts_parse_noisily(&qemu_global_opts, str, false);
-    if (!opts) {
+    if (!opts || !qemu_opt_get(opts, "driver") || !qemu_opt_get(opts, "property") ||
+        !qemu_opt_get(opts, "value")) {
+        error_setg(&err, "Invalid 'global' option format\n"
+                   "Expected: -global <driver>.<property>=<value> or "
+                   "-global driver=driver,property=property,value=value\n"
+                   "Received: -global %s", str);
+        error_report_err(err);
         return -1;
     }
 
