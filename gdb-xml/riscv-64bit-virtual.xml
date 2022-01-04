@@ -5,7 +5,33 @@
      are permitted in any medium without royalty provided the copyright
      notice and this notice are preserved.  -->
 
+<!-- Copyright (c) 2021 Siemens AG, konrad.schwarz@siemens.com -->
+
 <!DOCTYPE feature SYSTEM "gdb-target.dtd">
-<feature name="org.gnu.gdb.riscv.virtual">
-  <reg name="priv" bitsize="64"/>
+
+<feature	name="org.gnu.gdb.riscv.virtual" >
+
+<enum id="priv-current_priv-type" size="8" >
+	<evalue	name="user"	value="0" />
+	<evalue	name="supervisor"	value="1" />
+	<evalue	name="machine"	value="3" />
+</enum>
+
+
+<flags id="priv-fields"	size="8" >
+	<field	name="current_priv"	start="0"	end="1"
+		type="priv-current_priv-type" />
+	<field	name="v"	start="2"	end="2" />
+</flags>
+
+
+<reg	name="priv"
+		bitsize="64"
+		regnum="69"
+		save-restore="no"
+		type="priv-fields"
+		group="gdb-virtual"
+/>
+
+
 </feature>

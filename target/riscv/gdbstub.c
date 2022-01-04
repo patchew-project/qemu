@@ -252,7 +252,10 @@ static int riscv_gdb_get_virtual(CPURISCVState *cs, GByteArray *buf, int n)
 #ifdef CONFIG_USER_ONLY
         return gdb_get_regl(buf, 0);
 #else
-        return gdb_get_regl(buf, cs->priv);
+	RISCVCPU *const cpu = RISCV_CPU(cs);
+	CPURISCVState *const env = &cpu->env;
+        return gdb_get_regl(buf, riscv_cpu_virt_enabled(env) << 2 | cs->priv);
+		/* per RISCV Debug Spec 1.0, 4.9.1 */
 #endif
     }
     return 0;
