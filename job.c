@@ -33,6 +33,22 @@
 #include "qapi/qapi-events-job.h"
 
 /*
+ * The job API is composed of two categories of functions.
+ *
+ * The first includes functions used by the monitor.  The monitor is
+ * peculiar in that it accesses the block job list with job_get, and
+ * therefore needs consistency across job_get and the actual operation
+ * (e.g. job_user_cancel). To achieve this consistency, the caller
+ * calls job_lock/job_unlock itself around the whole operation.
+ * These functions are declared in job-monitor.h.
+ *
+ *
+ * The second includes functions used by the block job drivers and sometimes
+ * by the core block layer. These delegate the locking to the callee instead,
+ * and are declared in job-driver.h.
+ */
+
+/*
  * job_mutex protects the jobs list, but also makes the
  * struct job fields thread-safe.
  */
@@ -226,16 +242,59 @@ const char *job_type_str(const Job *job)
     return JobType_str(job_type(job));
 }
 
-bool job_is_cancelled(Job *job)
+JobStatus job_get_status(Job *job)
+{
+    JOB_LOCK_GUARD();
+    return job->status;
+}
+
+int job_get_pause_count(Job *job)
+{
+    JOB_LOCK_GUARD();
+    return job->pause_count;
+}
+
+bool job_get_paused(Job *job)
+{
+    JOB_LOCK_GUARD();
+    return job->paused;
+}
+
+bool job_get_busy(Job *job)
+{
+    JOB_LOCK_GUARD();
+    return job->busy;
+}
+
+AioContext *job_get_aio_context(Job *job)
+{
+    JOB_LOCK_GUARD();
+    return job->aio_context;
+}
+
+bool job_is_cancelled_locked(Job *job)
 {
     /* force_cancel may be true only if cancelled is true, too */
     assert(job->cancelled || !job->force_cancel);
     return job->force_cancel;
 }
 
-bool job_cancel_requested(Job *job)
+bool job_is_cancelled(Job *job)
+{
+    JOB_LOCK_GUARD();
+    return job_is_cancelled_locked(job);
+}
+
+/* Called with job_mutex held. */
+static bool job_cancel_requested_locked(Job *job)
 {
     return job->cancelled;
+}
+
+bool job_cancel_requested(Job *job)
+{
+    JOB_LOCK_GUARD();
+    return job_cancel_requested_locked(job);
 }
 
 bool job_is_ready_locked(Job *job)
@@ -286,6 +345,13 @@ bool job_is_completed_locked(Job *job)
         g_assert_not_reached();
     }
     return false;
+}
+
+/* Called with job_mutex lock *not* held */
+static bool job_is_completed(Job *job)
+{
+    JOB_LOCK_GUARD();
+    return job_is_completed_locked(job);
 }
 
 static bool job_started(Job *job)

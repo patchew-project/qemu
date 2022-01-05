@@ -384,6 +384,7 @@ void job_txn_add_job_locked(JobTxn *txn, Job *job);
 
 /**
  * Create a new long-running job and return it.
+ * Called with job_mutex *not* held.
  *
  * @job_id: The id of the newly-created job, or %NULL for internal jobs
  * @driver: The class object for the newly-created job.
@@ -419,6 +420,8 @@ void job_unref_locked(Job *job);
  * @done: How much progress the job made since the last call
  *
  * Updates the progress counter of the job.
+ *
+ * Progress API is thread safe.
  */
 void job_progress_update(Job *job, uint64_t done);
 
@@ -429,6 +432,8 @@ void job_progress_update(Job *job, uint64_t done);
  *
  * Sets the expected end value of the progress counter of a job so that a
  * completion percentage can be calculated when the progress is updated.
+ *
+ * Progress API is thread safe.
  */
 void job_progress_set_remaining(Job *job, uint64_t remaining);
 
@@ -444,6 +449,8 @@ void job_progress_set_remaining(Job *job, uint64_t remaining);
  * length before, and job_progress_update() afterwards.
  * (So the operation acts as a parenthesis in regards to the main job
  * operation running in background.)
+ *
+ * Progress API is thread safe.
  */
 void job_progress_increase_remaining(Job *job, uint64_t delta);
 
@@ -467,13 +474,17 @@ void job_enter_cond_locked(Job *job, bool(*fn)(Job *job));
  *
  * Begins execution of a job.
  * Takes ownership of one reference to the job object.
+ *
+ * Called with job_mutex *not* held.
  */
 void job_start(Job *job);
 
 /**
  * @job: The job to enter.
+ * Called with job_mutex *not* held.
  *
  * Continue the specified job by entering the coroutine.
+ * Called with job_mutex lock *not* held.
  */
 void job_enter(Job *job);
 
@@ -483,6 +494,9 @@ void job_enter(Job *job);
  * Pause now if job_pause_locked() has been called.
  * Jobs that perform lots of I/O must call this between
  * requests so that the job can be paused.
+ *
+ * Called with job_mutex *not* held (we don't want the coroutine
+ * to yield with the lock held!).
  */
 void coroutine_fn job_pause_point(Job *job);
 
@@ -490,6 +504,8 @@ void coroutine_fn job_pause_point(Job *job);
  * @job: The job that calls the function.
  *
  * Yield the job coroutine.
+ * Called with job_mutex *not* held (we don't want the coroutine
+ * to yield with the lock held!).
  */
 void job_yield(Job *job);
 
@@ -500,6 +516,9 @@ void job_yield(Job *job);
  * Put the job to sleep (assuming that it wasn't canceled) for @ns
  * %QEMU_CLOCK_REALTIME nanoseconds.  Canceling the job will immediately
  * interrupt the wait.
+ *
+ * Called with job_mutex *not* held (we don't want the coroutine
+ * to yield with the lock held!).
  */
 void coroutine_fn job_sleep_ns(Job *job, int64_t ns);
 
@@ -512,12 +531,19 @@ const char *job_type_str(const Job *job);
 /** Returns true if the job should not be visible to the management layer. */
 bool job_is_internal(Job *job);
 
-/** Returns whether the job is being cancelled. */
+/**
+ * Returns whether the job is being cancelled.
+ * Called with job_mutex *not* held.
+ */
 bool job_is_cancelled(Job *job);
+
+/** Just like job_is_cancelled, but called between job_lock and job_unlock */
+bool job_is_cancelled_locked(Job *job);
 
 /**
  * Returns whether the job is scheduled for cancellation (at an
  * indefinite point).
+ * Called with job_mutex *not* held.
  */
 bool job_cancel_requested(Job *job);
 
@@ -601,13 +627,19 @@ Job *job_get_locked(const char *id);
  */
 int job_apply_verb_locked(Job *job, JobVerb verb, Error **errp);
 
-/** The @job could not be started, free it. */
+/**
+ * The @job could not be started, free it.
+ * Called with job_mutex *not* held.
+ */
 void job_early_fail(Job *job);
 
 /** Same as job_early_fail(), but assumes job_lock is held. */
 void job_early_fail_locked(Job *job);
 
-/** Moves the @job from RUNNING to READY */
+/**
+ * Moves the @job from RUNNING to READY.
+ * Called with job_mutex *not* held.
+ */
 void job_transition_to_ready(Job *job);
 
 /**
@@ -706,5 +738,35 @@ void job_dismiss_locked(Job **job, Error **errp);
  */
 int job_finish_sync_locked(Job *job, void (*finish)(Job *, Error **errp),
                            Error **errp);
+
+/**
+ * Returns the @job->status.
+ * Called with job_mutex *not* held.
+ */
+JobStatus job_get_status(Job *job);
+
+/**
+ * Returns the @job->pause_count.
+ * Called with job_mutex *not* held.
+ */
+int job_get_pause_count(Job *job);
+
+/**
+ * Returns @job->paused.
+ * Called with job_mutex *not* held.
+ */
+bool job_get_paused(Job *job);
+
+/**
+ * Returns @job->busy.
+ * Called with job_mutex *not* held.
+ */
+bool job_get_busy(Job *job);
+
+/**
+ * Returns @job->aio_context.
+ * Called with job_mutex *not* held.
+ */
+AioContext *job_get_aio_context(Job *job);
 
 #endif
