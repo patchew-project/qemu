@@ -1058,11 +1058,11 @@ gtk = not_found
 gtkx11 = not_found
 vte = not_found
 if not get_option('gtk').auto() or (have_system and not cocoa.found())
-  gtk = dependency('gtk+-3.0', version: '>=3.22.0',
-                   method: 'pkg-config',
-                   required: get_option('gtk'),
-                   kwargs: static_kwargs)
-  if gtk.found()
+  libgtk = dependency('gtk+-3.0', version: '>=3.22.0',
+                      method: 'pkg-config',
+                      required: get_option('gtk'),
+                      kwargs: static_kwargs)
+  if libgtk.found()
     gtkx11 = dependency('gtk+-x11-3.0', version: '>=3.22.0',
                         method: 'pkg-config',
                         required: false,
@@ -3410,7 +3410,7 @@ if targetos == 'darwin'
 endif
 summary_info += {'SDL support':       sdl}
 summary_info += {'SDL image support': sdl_image}
-summary_info += {'GTK support':       gtk}
+summary_info += {'GTK support':       libgtk}
 summary_info += {'pixman':            pixman}
 summary_info += {'VTE support':       vte}
 summary_info += {'slirp support':     slirp_opt == 'internal' ? slirp_opt : slirp}
