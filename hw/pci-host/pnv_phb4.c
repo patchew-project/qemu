@@ -1159,6 +1159,23 @@ static AddressSpace *pnv_phb4_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 }
 
 /*
+ * Return the index/phb-id of a PHB4 that belongs to a
+ * pec->stacks[stack_index] stack.
+ */
+int pnv_phb4_pec_get_phb_id(PnvPhb4PecState *pec, int stack_index)
+{
+    PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
+    int index = pec->index;
+    int offset = 0;
+
+    while (index--) {
+        offset += pecc->num_stacks[index];
+    }
+
+    return offset + stack_index;
+}
+
+/*
  * Set the object properties of a phb in relation with its stack.
  *
  * Note: stack->pec must not be NULL.
