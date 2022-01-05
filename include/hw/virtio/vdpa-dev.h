@@ -13,6 +13,14 @@ struct VhostVdpaDevice {
     VirtIODevice parent_obj;
     char *vdpa_dev;
     int32_t bootindex;
+    struct vhost_dev dev;
+    struct vhost_vdpa vdpa;
+    VirtQueue **virtqs;
+    uint8_t *config;
+    int config_size;
+    uint32_t num_queues;
+    uint16_t queue_size;
+    bool started;
 };
 
 #endif
