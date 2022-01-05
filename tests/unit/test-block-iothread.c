@@ -456,7 +456,9 @@ static void test_attach_blockjob(void)
     }
 
     aio_context_acquire(ctx);
+    job_lock();
     job_complete_sync_locked(&tjob->common.job, &error_abort);
+    job_unlock();
     blk_set_aio_context(blk, qemu_get_aio_context(), &error_abort);
     aio_context_release(ctx);
 
@@ -630,7 +632,9 @@ static void test_propagate_mirror(void)
                  BLOCKDEV_ON_ERROR_REPORT, BLOCKDEV_ON_ERROR_REPORT,
                  false, "filter_node", MIRROR_COPY_MODE_BACKGROUND,
                  &error_abort);
+    job_lock();
     job = job_get_locked("job0");
+    job_unlock();
     filter = bdrv_find_node("filter_node");
 
     /* Change the AioContext of src */

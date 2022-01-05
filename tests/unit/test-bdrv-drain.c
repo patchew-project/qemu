@@ -941,61 +941,63 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
         }
     }
 
-    g_assert_cmpint(job->job.pause_count, ==, 0);
-    g_assert_false(job->job.paused);
+    g_assert_cmpint(job_get_pause_count(&job->job), ==, 0);
+    g_assert_false(job_get_paused(&job->job));
     g_assert_true(tjob->running);
-    g_assert_true(job->job.busy); /* We're in qemu_co_sleep_ns() */
+    g_assert_true(job_get_busy(&job->job)); /* We're in qemu_co_sleep_ns() */
 
     do_drain_begin_unlocked(drain_type, drain_bs);
 
     if (drain_type == BDRV_DRAIN_ALL) {
         /* bdrv_drain_all() drains both src and target */
-        g_assert_cmpint(job->job.pause_count, ==, 2);
+        g_assert_cmpint(job_get_pause_count(&job->job), ==, 2);
     } else {
-        g_assert_cmpint(job->job.pause_count, ==, 1);
+        g_assert_cmpint(job_get_pause_count(&job->job), ==, 1);
     }
-    g_assert_true(job->job.paused);
-    g_assert_false(job->job.busy); /* The job is paused */
+    g_assert_true(job_get_paused(&job->job));
+    g_assert_false(job_get_busy(&job->job)); /* The job is paused */
 
     do_drain_end_unlocked(drain_type, drain_bs);
 
     if (use_iothread) {
         /* paused is reset in the I/O thread, wait for it */
-        while (job->job.paused) {
+        while (job_get_paused(&job->job)) {
             aio_poll(qemu_get_aio_context(), false);
         }
     }
 
-    g_assert_cmpint(job->job.pause_count, ==, 0);
-    g_assert_false(job->job.paused);
-    g_assert_true(job->job.busy); /* We're in qemu_co_sleep_ns() */
+    g_assert_cmpint(job_get_pause_count(&job->job), ==, 0);
+    g_assert_false(job_get_paused(&job->job));
+    g_assert_true(job_get_busy(&job->job)); /* We're in qemu_co_sleep_ns() */
 
     do_drain_begin_unlocked(drain_type, target);
 
     if (drain_type == BDRV_DRAIN_ALL) {
         /* bdrv_drain_all() drains both src and target */
-        g_assert_cmpint(job->job.pause_count, ==, 2);
+        g_assert_cmpint(job_get_pause_count(&job->job), ==, 2);
     } else {
-        g_assert_cmpint(job->job.pause_count, ==, 1);
+        g_assert_cmpint(job_get_pause_count(&job->job), ==, 1);
     }
-    g_assert_true(job->job.paused);
-    g_assert_false(job->job.busy); /* The job is paused */
+    g_assert_true(job_get_paused(&job->job));
+    g_assert_false(job_get_busy(&job->job)); /* The job is paused */
 
     do_drain_end_unlocked(drain_type, target);
 
     if (use_iothread) {
         /* paused is reset in the I/O thread, wait for it */
-        while (job->job.paused) {
+        while (job_get_paused(&job->job)) {
             aio_poll(qemu_get_aio_context(), false);
         }
     }
 
-    g_assert_cmpint(job->job.pause_count, ==, 0);
-    g_assert_false(job->job.paused);
-    g_assert_true(job->job.busy); /* We're in qemu_co_sleep_ns() */
+    g_assert_cmpint(job_get_pause_count(&job->job), ==, 0);
+    g_assert_false(job_get_paused(&job->job));
+    g_assert_true(job_get_busy(&job->job)); /* We're in qemu_co_sleep_ns() */
 
     aio_context_acquire(ctx);
+    job_lock();
     ret = job_complete_sync_locked(&job->job, &error_abort);
+    job_unlock();
     g_assert_cmpint(ret, ==, (result == TEST_JOB_SUCCESS ? 0 : -EIO));
 
     if (use_iothread) {

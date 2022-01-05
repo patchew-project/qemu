@@ -211,8 +211,11 @@ static CancelJob *create_common(Job **pjob)
     bjob = mk_job(blk, "Steve", &test_cancel_driver, true,
                   JOB_MANUAL_FINALIZE | JOB_MANUAL_DISMISS);
     job = &bjob->job;
+    job_lock();
     job_ref_locked(job);
     assert(job->status == JOB_STATUS_CREATED);
+    job_unlock();
+
     s = container_of(bjob, CancelJob, common);
     s->blk = blk;
 
@@ -230,6 +233,7 @@ static void cancel_common(CancelJob *s)
     ctx = job->job.aio_context;
     aio_context_acquire(ctx);
 
+    job_lock();
     job_cancel_sync_locked(&job->job, true);
     if (sts != JOB_STATUS_CREATED && sts != JOB_STATUS_CONCLUDED) {
         Job *dummy = &job->job;
@@ -237,6 +241,7 @@ static void cancel_common(CancelJob *s)
     }
     assert(job->job.status == JOB_STATUS_NULL);
     job_unref_locked(&job->job);
+    job_unlock();
     destroy_blk(blk);
 
     aio_context_release(ctx);
@@ -259,7 +264,7 @@ static void test_cancel_running(void)
     s = create_common(&job);
 
     job_start(job);
-    assert(job->status == JOB_STATUS_RUNNING);
+    assert(job_get_status(job) == JOB_STATUS_RUNNING);
 
     cancel_common(s);
 }
@@ -272,11 +277,13 @@ static void test_cancel_paused(void)
     s = create_common(&job);
 
     job_start(job);
-    assert(job->status == JOB_STATUS_RUNNING);
+    assert(job_get_status(job) == JOB_STATUS_RUNNING);
 
+    job_lock();
     job_user_pause_locked(job, &error_abort);
+    job_unlock();
     job_enter(job);
-    assert(job->status == JOB_STATUS_PAUSED);
+    assert(job_get_status(job) == JOB_STATUS_PAUSED);
 
     cancel_common(s);
 }
@@ -289,11 +296,11 @@ static void test_cancel_ready(void)
     s = create_common(&job);
 
     job_start(job);
-    assert(job->status == JOB_STATUS_RUNNING);
+    assert(job_get_status(job) == JOB_STATUS_RUNNING);
 
     s->should_converge = true;
     job_enter(job);
-    assert(job->status == JOB_STATUS_READY);
+    assert(job_get_status(job) == JOB_STATUS_READY);
 
     cancel_common(s);
 }
@@ -306,15 +313,17 @@ static void test_cancel_standby(void)
     s = create_common(&job);
 
     job_start(job);
-    assert(job->status == JOB_STATUS_RUNNING);
+    assert(job_get_status(job) == JOB_STATUS_RUNNING);
 
     s->should_converge = true;
     job_enter(job);
-    assert(job->status == JOB_STATUS_READY);
+    assert(job_get_status(job) == JOB_STATUS_READY);
 
+    job_lock();
     job_user_pause_locked(job, &error_abort);
+    job_unlock();
     job_enter(job);
-    assert(job->status == JOB_STATUS_STANDBY);
+    assert(job_get_status(job) == JOB_STATUS_STANDBY);
 
     cancel_common(s);
 }
@@ -327,20 +336,22 @@ static void test_cancel_pending(void)
     s = create_common(&job);
 
     job_start(job);
-    assert(job->status == JOB_STATUS_RUNNING);
+    assert(job_get_status(job) == JOB_STATUS_RUNNING);
 
     s->should_converge = true;
     job_enter(job);
-    assert(job->status == JOB_STATUS_READY);
+    assert(job_get_status(job) == JOB_STATUS_READY);
 
+    job_lock();
     job_complete_locked(job, &error_abort);
+    job_unlock();
     job_enter(job);
     while (!job->deferred_to_main_loop) {
         aio_poll(qemu_get_aio_context(), true);
     }
-    assert(job->status == JOB_STATUS_READY);
+    assert(job_get_status(job) == JOB_STATUS_READY);
     aio_poll(qemu_get_aio_context(), true);
-    assert(job->status == JOB_STATUS_PENDING);
+    assert(job_get_status(job) == JOB_STATUS_PENDING);
 
     cancel_common(s);
 }
@@ -353,25 +364,29 @@ static void test_cancel_concluded(void)
     s = create_common(&job);
 
     job_start(job);
-    assert(job->status == JOB_STATUS_RUNNING);
+    assert(job_get_status(job) == JOB_STATUS_RUNNING);
 
     s->should_converge = true;
     job_enter(job);
-    assert(job->status == JOB_STATUS_READY);
+    assert(job_get_status(job) == JOB_STATUS_READY);
 
+    job_lock();
     job_complete_locked(job, &error_abort);
+    job_unlock();
     job_enter(job);
     while (!job->deferred_to_main_loop) {
         aio_poll(qemu_get_aio_context(), true);
     }
-    assert(job->status == JOB_STATUS_READY);
+    assert(job_get_status(job) == JOB_STATUS_READY);
     aio_poll(qemu_get_aio_context(), true);
-    assert(job->status == JOB_STATUS_PENDING);
+    assert(job_get_status(job) == JOB_STATUS_PENDING);
 
     aio_context_acquire(job->aio_context);
+    job_lock();
     job_finalize_locked(job, &error_abort);
+    job_unlock();
     aio_context_release(job->aio_context);
-    assert(job->status == JOB_STATUS_CONCLUDED);
+    assert(job_get_status(job) == JOB_STATUS_CONCLUDED);
 
     cancel_common(s);
 }
@@ -459,22 +474,23 @@ static void test_complete_in_standby(void)
     bjob = mk_job(blk, "job", &test_yielding_driver, true,
                   JOB_MANUAL_FINALIZE | JOB_MANUAL_DISMISS);
     job = &bjob->job;
-    assert(job->status == JOB_STATUS_CREATED);
+    assert(job_get_status(job) == JOB_STATUS_CREATED);
 
     /* Wait for the job to become READY */
     job_start(job);
     aio_context_acquire(ctx);
-    AIO_WAIT_WHILE(ctx, job->status != JOB_STATUS_READY);
+    AIO_WAIT_WHILE(ctx, job_get_status(job) != JOB_STATUS_READY);
     aio_context_release(ctx);
 
     /* Begin the drained section, pausing the job */
     bdrv_drain_all_begin();
-    assert(job->status == JOB_STATUS_STANDBY);
+    assert(job_get_status(job) == JOB_STATUS_STANDBY);
     /* Lock the IO thread to prevent the job from being run */
     aio_context_acquire(ctx);
     /* This will schedule the job to resume it */
     bdrv_drain_all_end();
 
+    job_lock();
     /* But the job cannot run, so it will remain on standby */
     assert(job->status == JOB_STATUS_STANDBY);
 
@@ -489,6 +505,7 @@ static void test_complete_in_standby(void)
     assert(job->status == JOB_STATUS_CONCLUDED);
 
     job_dismiss_locked(&job, &error_abort);
+    job_unlock();
 
     destroy_blk(blk);
     aio_context_release(ctx);

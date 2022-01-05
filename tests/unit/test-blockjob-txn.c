@@ -124,16 +124,20 @@ static void test_single_job(int expected)
     job = test_block_job_start(1, true, expected, &result, txn);
     job_start(&job->job);
 
+    job_lock();
     if (expected == -ECANCELED) {
         job_cancel_locked(&job->job, false);
     }
+    job_unlock();
 
     while (result == -EINPROGRESS) {
         aio_poll(qemu_get_aio_context(), true);
     }
     g_assert_cmpint(result, ==, expected);
 
+    job_lock();
     job_txn_unref_locked(txn);
+    job_unlock();
 }
 
 static void test_single_job_success(void)
@@ -168,6 +172,7 @@ static void test_pair_jobs(int expected1, int expected2)
     /* Release our reference now to trigger as many nice
      * use-after-free bugs as possible.
      */
+    job_lock();
     job_txn_unref_locked(txn);
 
     if (expected1 == -ECANCELED) {
@@ -176,6 +181,7 @@ static void test_pair_jobs(int expected1, int expected2)
     if (expected2 == -ECANCELED) {
         job_cancel_locked(&job2->job, false);
     }
+    job_unlock();
 
     while (result1 == -EINPROGRESS || result2 == -EINPROGRESS) {
         aio_poll(qemu_get_aio_context(), true);
@@ -227,7 +233,9 @@ static void test_pair_jobs_fail_cancel_race(void)
     job_start(&job1->job);
     job_start(&job2->job);
 
+    job_lock();
     job_cancel_locked(&job1->job, false);
+    job_unlock();
 
     /* Now make job2 finish before the main loop kicks jobs.  This simulates
      * the race between a pending kick and another job completing.
@@ -242,7 +250,9 @@ static void test_pair_jobs_fail_cancel_race(void)
     g_assert_cmpint(result1, ==, -ECANCELED);
     g_assert_cmpint(result2, ==, -ECANCELED);
 
+    job_lock();
     job_txn_unref_locked(txn);
+    job_unlock();
 }
 
 int main(int argc, char **argv)
