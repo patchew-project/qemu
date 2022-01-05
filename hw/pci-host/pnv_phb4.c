@@ -1159,6 +1159,32 @@ static AddressSpace *pnv_phb4_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 }
 
 /*
+ * Init the xscom address space of the stack. This must be
+ * called after the associated stack->phb is defined.
+ */
+void pnv_pec_init_stack_xscom(PnvPhb4PecStack *stack)
+{
+    PnvPhb4PecState *pec = stack->pec;
+    PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
+    PnvChip *chip = pec->chip;
+    uint32_t pec_nest_base = pecc->xscom_nest_base(pec);
+    uint32_t pec_pci_base = pecc->xscom_pci_base(pec);
+
+
+    /* Populate the XSCOM address space. */
+    pnv_xscom_add_subregion(chip,
+                            pec_nest_base + 0x40 * (stack->stack_no + 1),
+                            &stack->nest_regs_mr);
+    pnv_xscom_add_subregion(chip,
+                            pec_pci_base + 0x40 * (stack->stack_no + 1),
+                            &stack->pci_regs_mr);
+    pnv_xscom_add_subregion(chip,
+                            pec_pci_base + PNV9_XSCOM_PEC_PCI_STK0 +
+                            0x40 * stack->stack_no,
+                            &stack->phb_regs_mr);
+}
+
+/*
  * Return the index/phb-id of a PHB4 that belongs to a
  * pec->stacks[stack_index] stack.
  */
