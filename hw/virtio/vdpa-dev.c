@@ -133,9 +133,29 @@ out:
     close(fd);
 }
 
+static void vhost_vdpa_vdev_unrealize(VhostVdpaDevice *s)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+    int i;
+
+    for (i = 0; i < s->num_queues; i++) {
+        virtio_delete_queue(s->virtqs[i]);
+    }
+    g_free(s->virtqs);
+    virtio_cleanup(vdev);
+
+    g_free(s->config);
+}
+
 static void vhost_vdpa_device_unrealize(DeviceState *dev)
 {
-    return;
+    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VhostVdpaDevice *s = VHOST_VDPA_DEVICE(vdev);
+
+    virtio_set_status(vdev, 0);
+    vhost_dev_cleanup(&s->dev);
+    vhost_vdpa_vdev_unrealize(s);
+    close(s->vdpa.device_fd);
 }
 
 static void
