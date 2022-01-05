@@ -75,6 +75,7 @@ enum {
     RISCV_FEATURE_MMU,
     RISCV_FEATURE_PMP,
     RISCV_FEATURE_EPMP,
+    RISCV_FEATURE_DEBUG,
     RISCV_FEATURE_MISA
 };
 
@@ -332,6 +333,7 @@ struct RISCVCPU {
         bool mmu;
         bool pmp;
         bool epmp;
+        bool debug;
         uint64_t resetvec;
     } cfg;
 };
