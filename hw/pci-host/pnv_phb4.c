@@ -1158,6 +1158,31 @@ static AddressSpace *pnv_phb4_dma_iommu(PCIBus *bus, void *opaque, int devfn)
     return &ds->dma_as;
 }
 
+/*
+ * Set the object properties of a phb in relation with its stack.
+ *
+ * Note: stack->pec must not be NULL.
+ */
+void pnv_phb4_set_stack_phb_props(PnvPhb4PecStack *stack,
+                                  PnvPHB4 *phb)
+{
+    PnvPhb4PecState *pec = stack->pec;
+    PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
+    char name[64];
+
+    snprintf(name, sizeof(name), "xscom-pec-%d.%d-pci-stack-%d-phb",
+             pec->chip_id, pec->index, stack->stack_no);
+    pnv_xscom_region_init(&stack->phb_regs_mr, OBJECT(phb),
+                          &pnv_phb4_xscom_ops, phb, name, 0x40);
+
+    object_property_set_int(OBJECT(phb), "chip-id", pec->chip_id,
+                            &error_fatal);
+    object_property_set_int(OBJECT(phb), "version", pecc->version,
+                            &error_fatal);
+    object_property_set_link(OBJECT(phb), "stack", OBJECT(stack),
+                             &error_abort);
+}
+
 static void pnv_phb4_instance_init(Object *obj)
 {
     PnvPHB4 *phb = PNV_PHB4(obj);
