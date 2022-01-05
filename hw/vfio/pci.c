@@ -2224,7 +2224,7 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
     ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_PCI_HOT_RESET_INFO, info);
     if (ret && errno != ENOSPC) {
         ret = -errno;
-        if (!vdev->has_pm_reset) {
+        if (!vdev->vbasedev.reset_works) {
             error_report("vfio: Cannot reset device %s, "
                          "no available reset mechanism.", vdev->vbasedev.name);
         }
@@ -2270,7 +2270,7 @@ static int vfio_pci_hot_reset(VFIOPCIDevice *vdev, bool single)
         }
 
         if (!group) {
-            if (!vdev->has_pm_reset) {
+            if (!vdev->vbasedev.reset_works) {
                 error_report("vfio: Cannot reset device %s, "
                              "depends on group %d which is not owned.",
                              vdev->vbasedev.name, devices[i].group_id);
@@ -3162,6 +3162,8 @@ static void vfio_exitfn(PCIDevice *pdev)
 static void vfio_pci_reset(DeviceState *dev)
 {
     VFIOPCIDevice *vdev = VFIO_PCI(dev);
+    Error *err = NULL;
+    int ret;
 
     trace_vfio_pci_reset(vdev->vbasedev.name);
 
@@ -3175,26 +3177,44 @@ static void vfio_pci_reset(DeviceState *dev)
         goto post_reset;
     }
 
-    if (vdev->vbasedev.reset_works &&
-        (vdev->has_flr || !vdev->has_pm_reset) &&
-        !ioctl(vdev->vbasedev.fd, VFIO_DEVICE_RESET)) {
-        trace_vfio_pci_reset_flr(vdev->vbasedev.name);
-        goto post_reset;
+    if (vdev->vbasedev.reset_works && (vdev->has_flr || !vdev->has_pm_reset)) {
+        if (!ioctl(vdev->vbasedev.fd, VFIO_DEVICE_RESET)) {
+            trace_vfio_pci_reset_flr(vdev->vbasedev.name);
+            goto post_reset;
+        }
+
+        error_setg_errno(&err, errno, "Unable to reset device");
     }
 
     /* See if we can do our own bus reset */
-    if (!vfio_pci_hot_reset_one(vdev)) {
+    ret = vfio_pci_hot_reset_one(vdev);
+    if (!ret) {
         goto post_reset;
+    }
+
+    if (!err) {
+        error_setg_errno(&err, -ret, "Unable to perform bus reset");
     }
 
     /* If nothing else works and the device supports PM reset, use it */
-    if (vdev->vbasedev.reset_works && vdev->has_pm_reset &&
-        !ioctl(vdev->vbasedev.fd, VFIO_DEVICE_RESET)) {
-        trace_vfio_pci_reset_pm(vdev->vbasedev.name);
-        goto post_reset;
+    if (vdev->vbasedev.reset_works && vdev->has_pm_reset) {
+        /* Prefer to report the ioctl failure mode */
+        error_free(err);
+        err = NULL;
+
+        if (!ioctl(vdev->vbasedev.fd, VFIO_DEVICE_RESET)) {
+            trace_vfio_pci_reset_pm(vdev->vbasedev.name);
+            goto post_reset;
+        }
+
+        error_setg_errno(&err, errno, "Unable to reset device");
     }
 
+    warn_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
+    err = NULL;
+
 post_reset:
+    error_free(err);
     vfio_pci_post_reset(vdev);
 }
 
