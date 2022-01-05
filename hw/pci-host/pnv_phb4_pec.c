@@ -19,6 +19,7 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/ppc/pnv.h"
 #include "hw/qdev-properties.h"
+#include "sysemu/sysemu.h"
 
 #include <libfdt.h>
 
@@ -392,11 +393,29 @@ static void pnv_pec_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < pec->num_stacks; i++) {
         PnvPhb4PecStack *stack = &pec->stacks[i];
         Object *stk_obj = OBJECT(stack);
-        int phb_id =  pnv_phb4_pec_get_phb_id(pec, i);
 
         object_property_set_int(stk_obj, "stack-no", i, &error_abort);
-        object_property_set_int(stk_obj, "phb-id", phb_id, &error_abort);
         object_property_set_link(stk_obj, "pec", OBJECT(pec), &error_abort);
+
+        /* Create and realize the default stack->phb */
+        if (defaults_enabled()) {
+            PnvPHB4 *phb = PNV_PHB4(qdev_new(TYPE_PNV_PHB4));
+            int phb_id = pnv_phb4_pec_get_phb_id(pec, i);
+
+            object_property_set_int(OBJECT(phb), "index",
+                                    phb_id, &error_abort);
+            object_property_set_link(OBJECT(phb), "stack",
+                                     stk_obj, &error_abort);
+
+            pnv_phb4_set_stack_phb_props(stack, phb);
+            if (!sysbus_realize_and_unref(SYS_BUS_DEVICE(phb), errp)) {
+                return;
+            }
+
+            object_property_set_link(stk_obj, "phb", OBJECT(phb),
+                                     &error_abort);
+        }
+
         if (!qdev_realize(DEVICE(stk_obj), NULL, errp)) {
             return;
         }
@@ -531,10 +550,6 @@ static const TypeInfo pnv_pec_type_info = {
 
 static void pnv_pec_stk_instance_init(Object *obj)
 {
-    PnvPhb4PecStack *stack = PNV_PHB4_PEC_STACK(obj);
-
-    object_initialize_child(obj, "phb", &stack->phb, TYPE_PNV_PHB4);
-    object_property_add_alias(obj, "phb-id", OBJECT(&stack->phb), "index");
 }
 
 static void pnv_pec_stk_realize(DeviceState *dev, Error **errp)
@@ -588,6 +603,8 @@ static Property pnv_pec_stk_properties[] = {
         DEFINE_PROP_UINT32("stack-no", PnvPhb4PecStack, stack_no, 0),
         DEFINE_PROP_LINK("pec", PnvPhb4PecStack, pec, TYPE_PNV_PHB4_PEC,
                          PnvPhb4PecState *),
+        DEFINE_PROP_LINK("phb", PnvPhb4PecStack, phb, TYPE_PNV_PHB4,
+                         PnvPHB4 *),
         DEFINE_PROP_END_OF_LIST(),
 };
 
