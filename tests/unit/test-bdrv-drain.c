@@ -995,7 +995,7 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
     g_assert_true(job->job.busy); /* We're in qemu_co_sleep_ns() */
 
     aio_context_acquire(ctx);
-    ret = job_complete_sync(&job->job, &error_abort);
+    ret = job_complete_sync_locked(&job->job, &error_abort);
     g_assert_cmpint(ret, ==, (result == TEST_JOB_SUCCESS ? 0 : -EIO));
 
     if (use_iothread) {

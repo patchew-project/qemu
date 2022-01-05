@@ -4975,7 +4975,7 @@ static void bdrv_close(BlockDriverState *bs)
 
 void bdrv_close_all(void)
 {
-    assert(job_next(NULL) == NULL);
+    assert(job_next_locked(NULL) == NULL);
     assert(qemu_in_main_thread());
 
     /* Drop references from requests still in flight, such as canceled block
