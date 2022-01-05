@@ -165,7 +165,6 @@ static void job_txn_del_job(Job *job)
 
 static int job_txn_apply(Job *job, int fn(Job *))
 {
-    AioContext *inner_ctx;
     Job *other_job, *next;
     JobTxn *txn = job->txn;
     int rc = 0;
@@ -180,10 +179,7 @@ static int job_txn_apply(Job *job, int fn(Job *))
     aio_context_release(job->aio_context);
 
     QLIST_FOREACH_SAFE(other_job, &txn->jobs, txn_list, next) {
-        inner_ctx = other_job->aio_context;
-        aio_context_acquire(inner_ctx);
         rc = fn(other_job);
-        aio_context_release(inner_ctx);
         if (rc) {
             break;
         }
@@ -796,10 +792,14 @@ static void job_clean(Job *job)
 
 static int job_finalize_single(Job *job)
 {
+    AioContext *ctx = job->aio_context;
+
     assert(job_is_completed_locked(job));
 
     /* Ensure abort is called for late-transactional failures */
     job_update_rc(job);
+
+    aio_context_acquire(ctx);
 
     if (!job->ret) {
         job_commit(job);
@@ -807,6 +807,8 @@ static int job_finalize_single(Job *job)
         job_abort(job);
     }
     job_clean(job);
+
+    aio_context_release(ctx);
 
     if (job->cb) {
         job->cb(job->opaque, job->ret);
@@ -928,11 +930,16 @@ static void job_completed_txn_abort(Job *job)
 
 static int job_prepare(Job *job)
 {
+    AioContext *ctx = job->aio_context;
     assert(qemu_in_main_thread());
+
     if (job->ret == 0 && job->driver->prepare) {
+        aio_context_acquire(ctx);
         job->ret = job->driver->prepare(job);
+        aio_context_release(ctx);
         job_update_rc(job);
     }
+
     return job->ret;
 }
 
