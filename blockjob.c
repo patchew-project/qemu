@@ -242,6 +242,7 @@ int block_job_add_bdrv(BlockJob *job, const char *name, BlockDriverState *bs,
     return 0;
 }
 
+/* Called with job_mutex lock held. */
 static void block_job_on_idle(Notifier *n, void *opaque)
 {
     /*
@@ -269,6 +270,7 @@ static bool job_timer_pending(Job *job)
     return timer_pending(&job->sleep_timer);
 }
 
+/* Called with job_mutex held. May temporarly release the lock. */
 bool block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 {
     const BlockJobDriver *drv = block_job_driver(job);
@@ -310,6 +312,7 @@ int64_t block_job_ratelimit_get_delay(BlockJob *job, uint64_t n)
     return ratelimit_calculate_delay(&job->limit, n);
 }
 
+/* Called with job_mutex lock held. */
 BlockJobInfo *block_job_query(BlockJob *job, Error **errp)
 {
     BlockJobInfo *info;
@@ -355,6 +358,7 @@ static void block_job_iostatus_set_err(BlockJob *job, int error)
     }
 }
 
+/* Called with job_mutex lock held. */
 static void block_job_event_cancelled(Notifier *n, void *opaque)
 {
     BlockJob *job = opaque;
@@ -374,6 +378,7 @@ static void block_job_event_cancelled(Notifier *n, void *opaque)
                                         job->speed);
 }
 
+/* Called with job_mutex lock held. */
 static void block_job_event_completed(Notifier *n, void *opaque)
 {
     BlockJob *job = opaque;
@@ -400,6 +405,7 @@ static void block_job_event_completed(Notifier *n, void *opaque)
                                         msg);
 }
 
+/* Called with job_mutex lock held. */
 static void block_job_event_pending(Notifier *n, void *opaque)
 {
     BlockJob *job = opaque;
@@ -412,6 +418,7 @@ static void block_job_event_pending(Notifier *n, void *opaque)
                                       job->job.id);
 }
 
+/* Called with job_mutex lock held. */
 static void block_job_event_ready(Notifier *n, void *opaque)
 {
     BlockJob *job = opaque;
@@ -504,6 +511,7 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
     return job;
 }
 
+/* Called with job_mutex lock held. */
 void block_job_iostatus_reset(BlockJob *job)
 {
     assert(qemu_in_main_thread());
