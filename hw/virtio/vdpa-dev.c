@@ -161,13 +161,23 @@ static void vhost_vdpa_device_unrealize(DeviceState *dev)
 static void
 vhost_vdpa_device_get_config(VirtIODevice *vdev, uint8_t *config)
 {
-    return;
+    VhostVdpaDevice *s = VHOST_VDPA_DEVICE(vdev);
+
+    memcpy(config, s->config, s->config_size);
 }
 
 static void
 vhost_vdpa_device_set_config(VirtIODevice *vdev, const uint8_t *config)
 {
-    return;
+    VhostVdpaDevice *s = VHOST_VDPA_DEVICE(vdev);
+    int ret;
+
+    ret = vhost_dev_set_config(&s->dev, s->config, 0, s->config_size,
+                               VHOST_SET_CONFIG_TYPE_MASTER);
+    if (ret) {
+        error_report("set device config space failed");
+        return;
+    }
 }
 
 static uint64_t vhost_vdpa_device_get_features(VirtIODevice *vdev,
