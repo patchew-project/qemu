@@ -731,7 +731,17 @@ void ide_cancel_dma_sync(IDEState *s)
     if (s->bus->dma->aiocb) {
         trace_ide_cancel_dma_sync_remaining();
         blk_drain(s->blk);
-        assert(s->bus->dma->aiocb == NULL);
+
+        /*
+         * Wait for potentially still-scheduled BHs, like ide_trim_bh_cb()
+         * (blk_drain() will only poll if there are in-flight requests on the
+         * BlockBackend, which there may not necessarily be, e.g. when the
+         * guest has issued a zero-length TRIM request)
+         */
+        while (s->bus->dma->aiocb) {
+            bool progress = aio_poll(qemu_get_aio_context(), true);
+            assert(progress);
+        }
     }
 }
 
