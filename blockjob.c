@@ -155,14 +155,16 @@ static void child_job_set_aio_ctx(BdrvChild *c, AioContext *ctx,
         bdrv_set_aio_context_ignore(sibling->bs, ctx, ignore);
     }
 
-    job->job.aio_context = ctx;
+    WITH_JOB_LOCK_GUARD() {
+        job->job.aio_context = ctx;
+    }
 }
 
 static AioContext *child_job_get_parent_aio_context(BdrvChild *c)
 {
     BlockJob *job = c->opaque;
 
-    return job->job.aio_context;
+    return job_get_aio_context(&job->job);
 }
 
 static const BdrvChildClass child_job = {
@@ -218,19 +220,21 @@ int block_job_add_bdrv(BlockJob *job, const char *name, BlockDriverState *bs,
 {
     BdrvChild *c;
     bool need_context_ops;
+    AioContext *job_aiocontext;
     assert(qemu_in_main_thread());
 
     bdrv_ref(bs);
 
-    need_context_ops = bdrv_get_aio_context(bs) != job->job.aio_context;
+    job_aiocontext = job_get_aio_context(&job->job);
+    need_context_ops = bdrv_get_aio_context(bs) != job_aiocontext;
 
-    if (need_context_ops && job->job.aio_context != qemu_get_aio_context()) {
-        aio_context_release(job->job.aio_context);
+    if (need_context_ops && job_aiocontext != qemu_get_aio_context()) {
+        aio_context_release(job_aiocontext);
     }
     c = bdrv_root_attach_child(bs, name, &child_job, 0, perm, shared_perm, job,
                                errp);
-    if (need_context_ops && job->job.aio_context != qemu_get_aio_context()) {
-        aio_context_acquire(job->job.aio_context);
+    if (need_context_ops && job_aiocontext != qemu_get_aio_context()) {
+        aio_context_acquire(job_aiocontext);
     }
     if (c == NULL) {
         return -EPERM;

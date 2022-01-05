@@ -566,7 +566,7 @@ void job_enter_cond_locked(Job *job, bool(*fn)(Job *job))
     job->busy = true;
     real_job_unlock();
     job_unlock();
-    aio_co_enter(job->aio_context, job->co);
+    aio_co_enter(job_get_aio_context(job), job->co);
     job_lock();
 }
 
@@ -1138,7 +1138,6 @@ static void coroutine_fn job_co_entry(void *opaque)
     Job *job = opaque;
     int ret;
 
-    assert(job->aio_context == qemu_get_current_aio_context());
     assert(job && job->driver && job->driver->run);
     job_pause_point(job);
     ret = job->driver->run(job, &job->err);
@@ -1177,7 +1176,7 @@ void job_start(Job *job)
         job->paused = false;
         job_state_transition_locked(job, JOB_STATUS_RUNNING);
     }
-    aio_co_enter(job->aio_context, job->co);
+    aio_co_enter(job_get_aio_context(job), job->co);
 }
 
 void job_cancel_locked(Job *job, bool force)
@@ -1303,7 +1302,8 @@ int job_finish_sync_locked(Job *job, void (*finish)(Job *, Error **errp),
     }
 
     job_unlock();
-    AIO_WAIT_WHILE(job->aio_context, (job_enter(job), !job_is_completed(job)));
+    AIO_WAIT_WHILE(job_get_aio_context(job),
+                   (job_enter(job), !job_is_completed(job)));
     job_lock();
 
     ret = (job_is_cancelled_locked(job) && job->ret == 0) ?

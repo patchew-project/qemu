@@ -379,7 +379,7 @@ static int coroutine_fn test_job_run(Job *job, Error **errp)
     job_transition_to_ready(&s->common.job);
     while (!s->should_complete) {
         s->n++;
-        g_assert(qemu_get_current_aio_context() == job->aio_context);
+        g_assert(qemu_get_current_aio_context() == job_get_aio_context(job));
 
         /* Avoid job_sleep_ns() because it marks the job as !busy. We want to
          * emulate some actual activity (probably some I/O) here so that the
@@ -390,7 +390,7 @@ static int coroutine_fn test_job_run(Job *job, Error **errp)
         job_pause_point(&s->common.job);
     }
 
-    g_assert(qemu_get_current_aio_context() == job->aio_context);
+    g_assert(qemu_get_current_aio_context() == job_get_aio_context(job));
     return 0;
 }
 
@@ -642,7 +642,7 @@ static void test_propagate_mirror(void)
     g_assert(bdrv_get_aio_context(src) == ctx);
     g_assert(bdrv_get_aio_context(target) == ctx);
     g_assert(bdrv_get_aio_context(filter) == ctx);
-    g_assert(job->aio_context == ctx);
+    g_assert(job_get_aio_context(job) == ctx);
 
     /* Change the AioContext of target */
     aio_context_acquire(ctx);

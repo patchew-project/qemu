@@ -1743,7 +1743,7 @@ static BlockJob *mirror_start_job(
         target_perms |= BLK_PERM_GRAPH_MOD;
     }
 
-    s->target = blk_new(s->common.job.aio_context,
+    s->target = blk_new(job_get_aio_context(&s->common.job),
                         target_perms, target_shared_perms);
     ret = blk_insert_bs(s->target, target, errp);
     if (ret < 0) {
