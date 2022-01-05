@@ -573,13 +573,13 @@ static void pnv_pec_stk_realize(DeviceState *dev, Error **errp)
                           &pnv_pec_stk_pci_xscom_ops, stack, name,
                           PHB4_PEC_PCI_STK_REGS_COUNT);
 
-    /* PHB pass-through */
-    pnv_phb4_set_stack_phb_props(stack, stack->phb);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&stack->phb), errp)) {
-        return;
+    /*
+     * There is no guarantee that stack->phb will be available
+     * at this point.
+     */
+    if (stack->phb) {
+        pnv_pec_init_stack_xscom(stack);
     }
-
-    pnv_pec_init_stack_xscom(stack);
 }
 
 static Property pnv_pec_stk_properties[] = {

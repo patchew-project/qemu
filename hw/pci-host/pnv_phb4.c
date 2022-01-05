@@ -1236,6 +1236,41 @@ static void pnv_phb4_instance_init(Object *obj)
     object_initialize_child(obj, "source", &phb->xsrc, TYPE_XIVE_SOURCE);
 }
 
+static PnvPhb4PecStack *pnv_phb4_get_stack(PnvChip *chip, PnvPHB4 *phb,
+                                           Error **errp)
+{
+    Pnv9Chip *chip9 = NULL;
+    int chip_id = phb->chip_id;
+    int index = phb->phb_id;
+    int i, j;
+
+    if (chip->num_pecs == 0) {
+        /* Something weird happened. Bail out */
+        error_setg(errp, "chip id %d has no PCIE controllers", chip_id);
+        return NULL;
+    }
+
+    chip9 = PNV9_CHIP(chip);
+
+    for (i = 0; i < chip->num_pecs; i++) {
+        /*
+         * For each PEC, check the amount of stacks it supports
+         * and see if the given phb4 index matches a stack.
+         */
+        PnvPhb4PecState *pec = &chip9->pecs[i];
+
+        for (j = 0; j < pec->num_stacks; j++) {
+            if (index == pnv_phb4_pec_get_phb_id(pec, j)) {
+                return &pec->stacks[j];
+            }
+        }
+    }
+
+    error_setg(errp, "pnv-phb4 index %d didn't match any existing PEC",
+               chip_id);
+    return NULL;
+}
+
 static void pnv_phb4_realize(DeviceState *dev, Error **errp)
 {
     PnvPHB4 *phb = PNV_PHB4(dev);
@@ -1243,8 +1278,49 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
     XiveSource *xsrc = &phb->xsrc;
     int nr_irqs;
     char name[32];
+    PnvPhb4PecStack *stack = NULL;
+    bool stack_init_xscom = false;
+    Error *local_err = NULL;
 
-    assert(phb->stack);
+    /* User created PHB */
+    if (!phb->stack) {
+        PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
+        PnvChip *chip = pnv_get_chip(pnv, phb->chip_id);
+        BusState *s;
+
+        if (!chip) {
+            error_setg(errp, "invalid chip id: %d", phb->chip_id);
+            return;
+        }
+
+        stack = pnv_phb4_get_stack(chip, phb, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+
+        object_property_set_int(OBJECT(phb), "index",
+                                phb->phb_id, &error_abort);
+
+        pnv_phb4_set_stack_phb_props(stack, phb);
+
+        /* Assign the phb to the stack */
+        stack->phb = phb;
+
+        /*
+         * Reparent user created devices to the chip to build
+         * correctly the device tree.
+         */
+        pnv_chip_parent_fixup(chip, OBJECT(phb), phb->phb_id);
+
+        s = qdev_get_parent_bus(DEVICE(chip));
+        if (!qdev_set_parent_bus(DEVICE(phb), s, &local_err)) {
+            error_propagate(errp, local_err);
+            return;
+        }
+
+        stack_init_xscom = true;
+    }
 
     /* Set the "big_phb" flag */
     phb->big_phb = phb->phb_id == 0 || phb->phb_id == 3;
@@ -1298,6 +1374,10 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
     pnv_phb4_update_xsrc(phb);
 
     phb->qirqs = qemu_allocate_irqs(xive_source_set_irq, xsrc, xsrc->nr_irqs);
+
+    if (stack_init_xscom) {
+        pnv_pec_init_stack_xscom(stack);
+    }
 }
 
 static const char *pnv_phb4_root_bus_path(PCIHostState *host_bridge,
@@ -1347,7 +1427,7 @@ static void pnv_phb4_class_init(ObjectClass *klass, void *data)
     dc->realize         = pnv_phb4_realize;
     device_class_set_props(dc, pnv_phb4_properties);
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-    dc->user_creatable  = false;
+    dc->user_creatable  = true;
 
     xfc->notify         = pnv_phb4_xive_notify;
 }
