@@ -150,4 +150,14 @@
 /* Get the valid iova range */
 #define VHOST_VDPA_GET_IOVA_RANGE	_IOR(VHOST_VIRTIO, 0x78, \
 					     struct vhost_vdpa_iova_range)
+
+/* Get the number of vectors */
+#define VHOST_VDPA_GET_VECTORS_NUM	_IOR(VHOST_VIRTIO, 0x79, int)
+
+/* Get the virtio config size */
+#define VHOST_VDPA_GET_CONFIG_SIZE	_IOR(VHOST_VIRTIO, 0x80, int)
+
+/* Get the number of virtqueues */
+#define VHOST_VDPA_GET_VQS_NUM		_IOR(VHOST_VIRTIO, 0x81, int)
+
 #endif
