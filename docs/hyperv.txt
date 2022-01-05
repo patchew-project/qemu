@@ -225,6 +225,16 @@ default (WS2016).
 Note: hv-version-id-* are not enlightenments and thus don't enable Hyper-V
 identification when specified without any other enlightenments.
 
+3.21. hv-emsr-bitmap
+=====================
+The enlightenment is nested specific, it targets Hyper-V on KVM guests. When
+enabled, it allows L0 (KVM) and L1 (Hyper-V) hypervisors to collaborate to
+avoid unnecessary updates to L2 MSR-Bitmap upon vmexits. While the protocol is
+supported for both VMX (Intel) and SVM (AMD), the VMX implementation requires
+Enlightened VMCS ('hv-evmcs') feature to also be enabled.
+
+Recommended: hv-evmcs (Intel)
+
 4. Supplementary features
 =========================
 
