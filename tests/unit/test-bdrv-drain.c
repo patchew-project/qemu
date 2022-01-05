@@ -928,9 +928,9 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
         tjob->prepare_ret = -EIO;
         break;
     }
+    aio_context_release(ctx);
 
     job_start(&job->job);
-    aio_context_release(ctx);
 
     if (use_iothread) {
         /* job_co_entry() is run in the I/O thread, wait for the actual job
@@ -994,12 +994,12 @@ static void test_blockjob_common_drain_node(enum drain_type drain_type,
     g_assert_false(job_get_paused(&job->job));
     g_assert_true(job_get_busy(&job->job)); /* We're in qemu_co_sleep_ns() */
 
-    aio_context_acquire(ctx);
     job_lock();
     ret = job_complete_sync_locked(&job->job, &error_abort);
     job_unlock();
     g_assert_cmpint(ret, ==, (result == TEST_JOB_SUCCESS ? 0 : -EIO));
 
+    aio_context_acquire(ctx);
     if (use_iothread) {
         blk_set_aio_context(blk_src, qemu_get_aio_context(), &error_abort);
         assert(blk_get_aio_context(blk_target) == qemu_get_aio_context());
