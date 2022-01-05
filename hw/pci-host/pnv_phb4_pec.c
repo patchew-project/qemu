@@ -563,7 +563,7 @@ static void pnv_pec_stk_realize(DeviceState *dev, Error **errp)
                           PHB4_PEC_PCI_STK_REGS_COUNT);
 
     /* PHB pass-through */
-    pnv_phb4_set_stack_phb_props(stack, &stack->phb);
+    pnv_phb4_set_stack_phb_props(stack, stack->phb);
     if (!sysbus_realize(SYS_BUS_DEVICE(&stack->phb), errp)) {
         return;
     }
