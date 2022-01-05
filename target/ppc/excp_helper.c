@@ -30,8 +30,6 @@
 #include "exec/cpu_ldst.h"
 #endif
 
-/* #define DEBUG_SOFTWARE_TLB */
-
 /*****************************************************************************/
 /* Exception processing */
 #if !defined(CONFIG_USER_ONLY)
@@ -137,7 +135,6 @@ static void dump_hcall(CPUPPCState *env)
 
 static void ppc_excp_debug_sw_tlb(CPUPPCState *env, int excp)
 {
-#if defined(DEBUG_SOFTWARE_TLB)
     const char *es;
     target_ulong *miss, *cmp;
     int en;
@@ -161,12 +158,12 @@ static void ppc_excp_debug_sw_tlb(CPUPPCState *env, int excp)
         miss = &env->spr[SPR_DMISS];
         cmp = &env->spr[SPR_DCMP];
     }
-    qemu_log("6xx %sTLB miss: %cM " TARGET_FMT_lx " %cC "
-             TARGET_FMT_lx " H1 " TARGET_FMT_lx " H2 "
-             TARGET_FMT_lx " %08x\n", es, en, *miss, en, *cmp,
-             env->spr[SPR_HASH1], env->spr[SPR_HASH2],
-             env->error_code);
-#endif
+
+    qemu_log_mask(CPU_LOG_MMU, "6xx %sTLB miss: %cM " TARGET_FMT_lx " %cC "
+                  TARGET_FMT_lx " H1 " TARGET_FMT_lx " H2 "
+                  TARGET_FMT_lx " %08x\n", es, en, *miss, en, *cmp,
+                  env->spr[SPR_HASH1], env->spr[SPR_HASH2],
+                  env->error_code);
 }
 
 
