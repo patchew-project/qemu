@@ -3300,7 +3300,10 @@ out:
     aio_context_release(aio_context);
 }
 
-/* Get a block job using its ID and acquire its AioContext */
+/*
+ * Get a block job using its ID and acquire its AioContext.
+ * Returns with job_lock held on success.
+ */
 static BlockJob *find_block_job(const char *id, AioContext **aio_context,
                                 Error **errp)
 {
@@ -3309,12 +3312,14 @@ static BlockJob *find_block_job(const char *id, AioContext **aio_context,
     assert(id != NULL);
 
     *aio_context = NULL;
+    job_lock();
 
     job = block_job_get(id);
 
     if (!job) {
         error_set(errp, ERROR_CLASS_DEVICE_NOT_ACTIVE,
                   "Block job '%s' not found", id);
+        job_unlock();
         return NULL;
     }
 
@@ -3335,6 +3340,7 @@ void qmp_block_job_set_speed(const char *device, int64_t speed, Error **errp)
 
     block_job_set_speed(job, speed, errp);
     aio_context_release(aio_context);
+    job_unlock();
 }
 
 void qmp_block_job_cancel(const char *device,
@@ -3361,6 +3367,7 @@ void qmp_block_job_cancel(const char *device,
     job_user_cancel_locked(&job->job, force, errp);
 out:
     aio_context_release(aio_context);
+    job_unlock();
 }
 
 void qmp_block_job_pause(const char *device, Error **errp)
@@ -3375,6 +3382,7 @@ void qmp_block_job_pause(const char *device, Error **errp)
     trace_qmp_block_job_pause(job);
     job_user_pause_locked(&job->job, errp);
     aio_context_release(aio_context);
+    job_unlock();
 }
 
 void qmp_block_job_resume(const char *device, Error **errp)
@@ -3389,6 +3397,7 @@ void qmp_block_job_resume(const char *device, Error **errp)
     trace_qmp_block_job_resume(job);
     job_user_resume_locked(&job->job, errp);
     aio_context_release(aio_context);
+    job_unlock();
 }
 
 void qmp_block_job_complete(const char *device, Error **errp)
@@ -3403,6 +3412,7 @@ void qmp_block_job_complete(const char *device, Error **errp)
     trace_qmp_block_job_complete(job);
     job_complete_locked(&job->job, errp);
     aio_context_release(aio_context);
+    job_unlock();
 }
 
 void qmp_block_job_finalize(const char *id, Error **errp)
@@ -3426,6 +3436,7 @@ void qmp_block_job_finalize(const char *id, Error **errp)
     aio_context = blk_get_aio_context(job->blk);
     job_unref_locked(&job->job);
     aio_context_release(aio_context);
+    job_unlock();
 }
 
 void qmp_block_job_dismiss(const char *id, Error **errp)
@@ -3442,6 +3453,7 @@ void qmp_block_job_dismiss(const char *id, Error **errp)
     job = &bjob->job;
     job_dismiss_locked(&job, errp);
     aio_context_release(aio_context);
+    job_unlock();
 }
 
 void qmp_change_backing_file(const char *device,
