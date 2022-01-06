@@ -344,6 +344,7 @@ bool migrate_use_zero_copy(void);
 #else
 #define migrate_use_zero_copy() (false)
 #endif
+int migrate_use_tls(void);
 int migrate_use_xbzrle(void);
 uint64_t migrate_xbzrle_cache_size(void);
 bool migrate_colo_enabled(void);
