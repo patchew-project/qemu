@@ -78,8 +78,9 @@ static void socket_outgoing_migration(QIOTask *task,
         trace_migration_socket_outgoing_connected(data->hostname);
     }
 
-    if (migrate_use_zero_copy()) {
-        error_setg(&err, "Zero copy not available in migration");
+    if (migrate_use_zero_copy() &&
+        !qio_channel_has_feature(sioc, QIO_CHANNEL_FEATURE_WRITE_ZERO_COPY)) {
+        error_setg(&err, "Zero copy feature not detected in host kernel");
     }
 
     migration_channel_connect(data->s, sioc, data->hostname, err);
