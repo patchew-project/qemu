@@ -3078,6 +3078,13 @@ F: hw/core/clock-vmstate.c
 F: hw/core/qdev-clock.c
 F: docs/devel/clocks.rst
 
+Camera Subsystem
+M: zhenwei pi <pizhenwei@bytedance.com>
+S: Maintained
+F: include/camera
+F: camera
+F: qapi/camera.json
+
 Usermode Emulation
 ------------------
 Overall usermode emulation

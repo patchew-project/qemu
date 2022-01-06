@@ -94,6 +94,7 @@
 #ifdef CONFIG_VIRTFS
 #include "fsdev/qemu-fsdev.h"
 #endif
+#include "camera/camera.h"
 #include "sysemu/qtest.h"
 
 #include "disas/disas.h"
@@ -3247,6 +3248,9 @@ void qemu_init(int argc, char **argv, char **envp)
                              qemu_opt_get(opts, "mount_tag"), &error_abort);
                 break;
             }
+            case QEMU_OPTION_cameradev:
+                qemu_camera_new_from_opts(optarg);
+                break;
             case QEMU_OPTION_serial:
                 add_device_config(DEV_SERIAL, optarg);
                 default_serial = 0;

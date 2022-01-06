@@ -3564,6 +3564,16 @@ The available backends are:
     traffic identified by a name (preferably a fqdn).
 ERST
 
+DEFHEADING(Camera device options:)
+
+DEF("cameradev", HAS_ARG, QEMU_OPTION_cameradev,
+    "-cameradev help\n"
+#ifdef CONFIG_CAIRO
+    "-cameradev builtin,id=id[,debug=true|false][,fps=FPS][,width=WIDTH][,height=HEIGHT][,mjpeg=true|false][,yuv=true|false][,rgb565=true|false][,bgcolor=blue|gree|red|rainbow|digital-rain]\n"
+#endif
+    , QEMU_ARCH_ALL
+)
+
 DEFHEADING()
 
 #ifdef CONFIG_TPM
