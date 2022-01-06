@@ -659,6 +659,9 @@ case "$cpu" in
   mips*)
     cpu="mips" ;;
 
+  loongarch)
+    cpu="loongarch64" ;;
+
   ppc)
     CPU_CFLAGS="-m32" ;;
   ppc64)
