@@ -22,3 +22,7 @@ qemu_camera_enum_control_ret(const char *dev, int ret) "%s: ret %d"
 
 # builtin.c
 camera_builtin_timer(const char *dev) "%s: new image"
+
+# v4l2.c
+camera_v4l2_qbuf(const char *dev, uint32_t index) "%s: qbuf index %u"
+camera_v4l2_dqbuf(const char *dev, uint32_t index) "%s: qbuf index %u"

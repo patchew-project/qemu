@@ -2,6 +2,10 @@ camera_ss.add([files(
   'camera.c',
 )])
 
+camera_ss.add(when: 'CONFIG_LINUX', if_true: files(
+  'v4l2.c',
+))
+
 camera_modules = {}
 foreach m : [
   ['builtin', cairo, files('builtin.c')],
