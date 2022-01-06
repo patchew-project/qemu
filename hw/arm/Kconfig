@@ -397,6 +397,7 @@ config NPCM7XX
     select SMBUS
     select AT24C  # EEPROM
     select MAX34451
+    select ISL_PMBUS
     select PL310  # cache controller
     select PMBUS
     select SERIAL

@@ -21,3 +21,8 @@ config ADM1272
 config MAX34451
     bool
     depends on I2C
+
+config ISL_PMBUS
+    bool
+    depends on I2C
+
