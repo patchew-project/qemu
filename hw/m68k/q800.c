@@ -672,8 +672,14 @@ static void q800_init(MachineState *machine)
 
         /* Remove qtest_enabled() check once firmware files are in the tree */
         if (!qtest_enabled()) {
-            if (bios_size < 0 || bios_size > MACROM_SIZE) {
+            if (bios_size == -1) {
                 error_report("could not load MacROM '%s'", bios_name);
+                exit(1);
+            }
+            if (bios_size != MACROM_SIZE) {
+                error_report("Invalid size for MacROM '%s': %d bytes,"
+                             " expected %d bytes", bios_name, bios_size,
+                             MACROM_SIZE);
                 exit(1);
             }
 
