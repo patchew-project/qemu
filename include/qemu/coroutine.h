@@ -331,6 +331,11 @@ void qemu_co_sleep_wake(QemuCoSleep *w);
  */
 void coroutine_fn yield_until_fd_readable(int fd);
 
+/**
+ * Increase coroutine pool size
+ */
+void qemu_coroutine_increase_pool_batch_size(unsigned int additional_pool_size);
+
 #include "qemu/lockable.h"
 
 #endif /* QEMU_COROUTINE_H */
