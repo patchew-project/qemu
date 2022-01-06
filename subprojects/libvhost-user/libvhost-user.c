@@ -801,6 +801,12 @@ vu_rem_mem_reg(VuDev *dev, VhostUserMsg *vmsg) {
     VuDevRegion shadow_regions[VHOST_USER_MAX_RAM_SLOTS] = {};
     VhostUserMemoryRegion m = vmsg->payload.memreg.region, *msg_region = &m;
 
+    if (vmsg->fd_num != 1 ||
+        vmsg->size != sizeof(vmsg->payload.memreg)) {
+        vu_panic(dev, "VHOST_USER_REM_MEM_REG received multiple regions");
+        return false;
+    }
+
     DPRINT("Removing region:\n");
     DPRINT("    guest_phys_addr: 0x%016"PRIx64"\n",
            msg_region->guest_phys_addr);
