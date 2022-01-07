@@ -342,6 +342,11 @@ static void mark_fs_dirty(DisasContext *ctx)
 {
     TCGv tmp;
 
+    /* hardwire mstatus.FS to zero when enable zfinx */
+    if (ctx->ext_zfinx) {
+        return;
+    }
+
     if (ctx->mstatus_fs != MSTATUS_FS) {
         /* Remember the state change for the rest of the TB. */
         ctx->mstatus_fs = MSTATUS_FS;
