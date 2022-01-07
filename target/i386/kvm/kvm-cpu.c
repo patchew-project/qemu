@@ -108,6 +108,7 @@ static void kvm_cpu_xsave_init(void)
 
             uint32_t ecx = kvm_arch_get_supported_cpuid(s, 0xd, i, R_ECX);
             esa->need_align = ecx & (1u << 1) ? 1 : 0;
+            esa->support_xfd = ecx & (1u << 2) ? 1 : 0;
         }
     }
 }

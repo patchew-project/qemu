@@ -5495,7 +5495,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                 const ExtSaveArea *esa = &x86_ext_save_areas[count];
                 *eax = esa->size;
                 *ebx = esa->offset;
-                *ecx = esa->need_align << 1;
+                *ecx = (esa->need_align << 1) | (esa->support_xfd << 2);
             }
         }
         break;

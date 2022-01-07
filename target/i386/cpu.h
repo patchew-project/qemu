@@ -1375,7 +1375,7 @@ QEMU_BUILD_BUG_ON(sizeof(XSaveXTILE_DATA) != 0x2000);
 typedef struct ExtSaveArea {
     uint32_t feature, bits;
     uint32_t offset, size;
-    uint32_t need_align;
+    uint32_t need_align, support_xfd;
 } ExtSaveArea;
 
 #define XSAVE_STATE_AREA_COUNT (XSTATE_XTILE_DATA_BIT + 1)
