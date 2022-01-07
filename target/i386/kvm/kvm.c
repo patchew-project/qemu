@@ -1983,7 +1983,12 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
 
     if (has_xsave) {
-        env->xsave_buf_len = sizeof(struct kvm_xsave);
+        uint32_t size = kvm_vm_check_extension(cs->kvm_state, KVM_CAP_XSAVE2);
+        if (!size) {
+            size = sizeof(struct kvm_xsave);
+        }
+
+        env->xsave_buf_len = QEMU_ALIGN_UP(size, 4096);
         env->xsave_buf = qemu_memalign(4096, env->xsave_buf_len);
         memset(env->xsave_buf, 0, env->xsave_buf_len);
 
@@ -2580,6 +2585,7 @@ static int kvm_put_xsave(X86CPU *cpu)
     if (!has_xsave) {
         return kvm_put_fpu(cpu);
     }
+
     x86_cpu_xsave_all_areas(cpu, xsave, env->xsave_buf_len);
 
     return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_XSAVE, xsave);
@@ -3247,10 +3253,16 @@ static int kvm_get_xsave(X86CPU *cpu)
         return kvm_get_fpu(cpu);
     }
 
-    ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_XSAVE, xsave);
+    if (env->xsave_buf_len <= sizeof(struct kvm_xsave)) {
+        ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_XSAVE, xsave);
+    } else {
+        ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_XSAVE2, xsave);
+    }
+
     if (ret < 0) {
         return ret;
     }
+
     x86_cpu_xrstor_all_areas(cpu, xsave, env->xsave_buf_len);
 
     return 0;
