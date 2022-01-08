@@ -1064,6 +1064,8 @@ int arm_gen_dynamic_svereg_xml(CPUState *cpu, int base_reg);
  */
 const char *arm_gdb_get_dynamic_xml(CPUState *cpu, const char *xmlname);
 
+void arm_cpu_class_gdb_init(CPUClass *cc);
+
 int arm_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
                              int cpuid, void *opaque);
 int arm_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,

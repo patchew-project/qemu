@@ -906,6 +906,7 @@ static bool aarch64_cpu_get_aarch64(Object *obj, Error **errp)
 static void aarch64_cpu_set_aarch64(Object *obj, bool value, Error **errp)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+    CPUClass *cc = CPU_GET_CLASS(obj);
 
     /* At this time, this property is only allowed if KVM is enabled.  This
      * restriction allows us to avoid fixing up functionality that assumes a
@@ -919,6 +920,8 @@ static void aarch64_cpu_set_aarch64(Object *obj, bool value, Error **errp)
             return;
         }
         unset_feature(&cpu->env, ARM_FEATURE_AARCH64);
+
+        arm_cpu_class_gdb_init(cc)
     } else {
         set_feature(&cpu->env, ARM_FEATURE_AARCH64);
     }
