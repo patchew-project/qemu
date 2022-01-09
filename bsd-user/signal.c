@@ -197,6 +197,40 @@ static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
     }
 }
 
+static void tswap_siginfo(target_siginfo_t *tinfo, const target_siginfo_t *info)
+{
+    int sig, code;
+
+    sig = info->si_signo;
+    code = info->si_code;
+    tinfo->si_signo = tswap32(sig);
+    tinfo->si_errno = tswap32(info->si_errno);
+    tinfo->si_code = tswap32(info->si_code);
+    tinfo->si_pid = tswap32(info->si_pid);
+    tinfo->si_uid = tswap32(info->si_uid);
+    tinfo->si_status = tswap32(info->si_status);
+    tinfo->si_addr = tswapal(info->si_addr);
+    /*
+     * Unswapped, because we passed it through mostly untouched.  si_value is
+     * opaque to the kernel, so we didn't bother with potentially wasting cycles
+     * to swap it into host byte order.
+     */
+    tinfo->si_value.sival_ptr = info->si_value.sival_ptr;
+    if (SIGILL == sig || SIGFPE == sig || SIGSEGV == sig || SIGBUS == sig ||
+            SIGTRAP == sig) {
+        tinfo->_reason._fault._trapno = tswap32(info->_reason._fault._trapno);
+    }
+#ifdef SIGPOLL
+    if (SIGPOLL == sig) {
+        tinfo->_reason._poll._band = tswap32(info->_reason._poll._band);
+    }
+#endif
+    if (SI_TIMER == code) {
+        tinfo->_reason._timer._timerid = tswap32(info->_reason._timer._timerid);
+        tinfo->_reason._timer._overrun = tswap32(info->_reason._timer._overrun);
+    }
+}
+
 /* Returns 1 if given signal should dump core if not handled. */
 static int core_dump_signal(int sig)
 {
