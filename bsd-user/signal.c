@@ -30,11 +30,27 @@
  * fork.
  */
 
+static target_stack_t target_sigaltstack_used = {
+    .ss_sp = 0,
+    .ss_size = 0,
+    .ss_flags = TARGET_SS_DISABLE,
+};
+
 static struct target_sigaction sigact_table[TARGET_NSIG];
 static void host_signal_handler(int host_sig, siginfo_t *info, void *puc);
 static void target_to_host_sigset_internal(sigset_t *d,
         const target_sigset_t *s);
 
+static inline int on_sig_stack(unsigned long sp)
+{
+    return sp - target_sigaltstack_used.ss_sp < target_sigaltstack_used.ss_size;
+}
+
+static inline int sas_ss_flags(unsigned long sp)
+{
+    return target_sigaltstack_used.ss_size == 0 ? SS_DISABLE : on_sig_stack(sp)
+        ? SS_ONSTACK : 0;
+}
 
 int host_to_target_signal(int sig)
 {
@@ -336,28 +352,6 @@ void queue_signal(CPUArchState *env, int sig, target_siginfo_t *info)
     return;
 }
 
-static int fatal_signal(int sig)
-{
-
-    switch (sig) {
-    case TARGET_SIGCHLD:
-    case TARGET_SIGURG:
-    case TARGET_SIGWINCH:
-    case TARGET_SIGINFO:
-        /* Ignored by default. */
-        return 0;
-    case TARGET_SIGCONT:
-    case TARGET_SIGSTOP:
-    case TARGET_SIGTSTP:
-    case TARGET_SIGTTIN:
-    case TARGET_SIGTTOU:
-        /* Job control signals.  */
-        return 0;
-    default:
-        return 1;
-    }
-}
-
 /*
  * Force a synchronously taken QEMU_SI_FAULT signal. For QEMU the
  * 'force' part is handled in process_pending_signals().
@@ -482,6 +476,134 @@ static void host_signal_handler(int host_sig, siginfo_t *info, void *puc)
 
     /* Interrupt the virtual CPU as soon as possible. */
     cpu_exit(thread_cpu);
+}
+
+static int fatal_signal(int sig)
+{
+
+    switch (sig) {
+    case TARGET_SIGCHLD:
+    case TARGET_SIGURG:
+    case TARGET_SIGWINCH:
+    case TARGET_SIGINFO:
+        /* Ignored by default. */
+        return 0;
+    case TARGET_SIGCONT:
+    case TARGET_SIGSTOP:
+    case TARGET_SIGTSTP:
+    case TARGET_SIGTTIN:
+    case TARGET_SIGTTOU:
+        /* Job control signals.  */
+        return 0;
+    default:
+        return 1;
+    }
+}
+
+static inline abi_ulong get_sigframe(struct target_sigaction *ka,
+        CPUArchState *regs, size_t frame_size)
+{
+    abi_ulong sp;
+
+    /* Use default user stack */
+    sp = get_sp_from_cpustate(regs);
+
+    if ((ka->sa_flags & TARGET_SA_ONSTACK) && (sas_ss_flags(sp) == 0)) {
+        sp = target_sigaltstack_used.ss_sp +
+            target_sigaltstack_used.ss_size;
+    }
+
+#if defined(TARGET_MIPS) || defined(TARGET_ARM)
+    return (sp - frame_size) & ~7;
+#elif defined(TARGET_AARCH64)
+    return (sp - frame_size) & ~15;
+#else
+    return sp - frame_size;
+#endif
+}
+
+/* compare to mips/mips/pm_machdep.c and sparc64/sparc64/machdep.c sendsig() */
+static void setup_frame(int sig, int code, struct target_sigaction *ka,
+    target_sigset_t *set, target_siginfo_t *tinfo, CPUArchState *regs)
+{
+    struct target_sigframe *frame;
+    abi_ulong frame_addr;
+    int i;
+
+    frame_addr = get_sigframe(ka, regs, sizeof(*frame));
+    trace_user_setup_frame(regs, frame_addr);
+    if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0)) {
+        goto give_sigsegv;
+    }
+
+    memset(frame, 0, sizeof(*frame));
+#if defined(TARGET_MIPS)
+    int mflags = on_sig_stack(frame_addr) ? TARGET_MC_ADD_MAGIC :
+        TARGET_MC_SET_ONSTACK | TARGET_MC_ADD_MAGIC;
+#else
+    int mflags = 0;
+#endif
+    if (get_mcontext(regs, &frame->sf_uc.uc_mcontext, mflags)) {
+        goto give_sigsegv;
+    }
+
+    for (i = 0; i < TARGET_NSIG_WORDS; i++) {
+        if (__put_user(set->__bits[i], &frame->sf_uc.uc_sigmask.__bits[i])) {
+            goto give_sigsegv;
+        }
+    }
+
+    if (tinfo) {
+        frame->sf_si.si_signo = tinfo->si_signo;
+        frame->sf_si.si_errno = tinfo->si_errno;
+        frame->sf_si.si_code = tinfo->si_code;
+        frame->sf_si.si_pid = tinfo->si_pid;
+        frame->sf_si.si_uid = tinfo->si_uid;
+        frame->sf_si.si_status = tinfo->si_status;
+        frame->sf_si.si_addr = tinfo->si_addr;
+
+        if (TARGET_SIGILL == sig || TARGET_SIGFPE == sig ||
+                TARGET_SIGSEGV == sig || TARGET_SIGBUS == sig ||
+                TARGET_SIGTRAP == sig) {
+            frame->sf_si._reason._fault._trapno = tinfo->_reason._fault._trapno;
+        }
+
+        /*
+         * If si_code is one of SI_QUEUE, SI_TIMER, SI_ASYNCIO, or
+         * SI_MESGQ, then si_value contains the application-specified
+         * signal value. Otherwise, the contents of si_value are
+         * undefined.
+         */
+        if (SI_QUEUE == code || SI_TIMER == code || SI_ASYNCIO == code ||
+                SI_MESGQ == code) {
+            frame->sf_si.si_value.sival_int = tinfo->si_value.sival_int;
+        }
+
+        if (SI_TIMER == code) {
+            frame->sf_si._reason._timer._timerid =
+                tinfo->_reason._timer._timerid;
+            frame->sf_si._reason._timer._overrun =
+                tinfo->_reason._timer._overrun;
+        }
+
+#ifdef SIGPOLL
+        if (SIGPOLL == sig) {
+            frame->sf_si._reason._band = tinfo->_reason._band;
+        }
+#endif
+
+    }
+
+    if (set_sigtramp_args(regs, sig, frame, frame_addr, ka)) {
+        goto give_sigsegv;
+    }
+
+    unlock_user_struct(frame, frame_addr, 1);
+    return;
+
+give_sigsegv:
+    unlock_user_struct(frame, frame_addr, 1);
+    force_sig(TARGET_SIGSEGV);
 }
 
 void signal_init(void)
