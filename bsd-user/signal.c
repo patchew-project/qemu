@@ -781,6 +781,40 @@ static void handle_pending_signal(CPUArchState *cpu_env, int sig,
 
 void process_pending_signals(CPUArchState *cpu_env)
 {
+    CPUState *cpu = env_cpu(cpu_env);
+    int sig;
+    sigset_t *blocked_set, set;
+    struct emulated_sigtable *k;
+    TaskState *ts = cpu->opaque;
+
+    while (qatomic_read(&ts->signal_pending)) {
+        /* FIXME: This is not threadsafe. */
+
+        sigfillset(&set);
+        sigprocmask(SIG_SETMASK, &set, 0);
+
+        k = ts->sigtab;
+        blocked_set = ts->in_sigsuspend ?
+            &ts->sigsuspend_mask : &ts->signal_mask;
+        for (sig = 1; sig <= TARGET_NSIG; sig++, k++) {
+            if (k->pending &&
+                !sigismember(blocked_set, target_to_host_signal(sig))) {
+                handle_pending_signal(cpu_env, sig, k);
+            }
+        }
+
+        /*
+         * unblock signals and check one more time. Unblocking signals may cause
+         * us to take anothe rhost signal, which will set signal_pending again.
+         */
+        qatomic_set(&ts->signal_pending, 0);
+        ts->in_sigsuspend = false;
+        set = ts->signal_mask;
+        sigdelset(&set, SIGSEGV);
+        sigdelset(&set, SIGBUS);
+        sigprocmask(SIG_SETMASK, &set, 0);
+    }
+    ts->in_sigsuspend = false;
 }
 
 void cpu_loop_exit_sigsegv(CPUState *cpu, target_ulong addr,
