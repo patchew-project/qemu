@@ -109,6 +109,29 @@ static int core_dump_signal(int sig)
     }
 }
 
+/* Signal queue handling. */
+static inline struct qemu_sigqueue *alloc_sigqueue(CPUArchState *env)
+{
+    CPUState *cpu = env_cpu(env);
+    TaskState *ts = cpu->opaque;
+    struct qemu_sigqueue *q = ts->first_free;
+
+    if (!q) {
+        return NULL;
+    }
+    ts->first_free = q->next;
+    return q;
+}
+
+static inline void free_sigqueue(CPUArchState *env, struct qemu_sigqueue *q)
+{
+
+    CPUState *cpu = env_cpu(env);
+    TaskState *ts = cpu->opaque;
+    q->next = ts->first_free;
+    ts->first_free = q;
+}
+
 /* Abort execution with signal. */
 void QEMU_NORETURN force_sig(int target_sig)
 {
@@ -174,7 +197,54 @@ void QEMU_NORETURN force_sig(int target_sig)
  */
 void queue_signal(CPUArchState *env, int sig, target_siginfo_t *info)
 {
-    qemu_log_mask(LOG_UNIMP, "No signal queueing, dropping signal %d\n", sig);
+    CPUState *cpu = env_cpu(env);
+    TaskState *ts = cpu->opaque;
+    struct emulated_sigtable *k;
+    struct qemu_sigqueue *q, **pq;
+
+    k = &ts->sigtab[sig - 1];
+    trace_user_queue_signal(env, sig); /* We called this in the caller? XXX */
+    /*
+     * XXX does the segv changes make this go away? -- I think so
+     */
+    if (sig == TARGET_SIGSEGV && sigismember(&ts->signal_mask, SIGSEGV)) {
+        /*
+         * Guest has blocked SIGSEGV but we got one anyway. Assume this is a
+         * forced SIGSEGV (ie one the kernel handles via force_sig_info because
+         * it got a real MMU fault). A blocked SIGSEGV in that situation is
+         * treated as if using the default handler. This is not correct if some
+         * other process has randomly sent us a SIGSEGV via kill(), but that is
+         * not easy to distinguish at this point, so we assume it doesn't
+         * happen.
+         */
+        force_sig(sig);
+    }
+
+    pq = &k->first;
+
+    /*
+     * FreeBSD signals are always queued.  Linux only queues real time signals.
+     * XXX this code is not thread safe.  "What lock protects ts->sigtab?"
+     */
+    if (!k->pending) {
+        /* first signal */
+        q = &k->info;
+    } else {
+        q = alloc_sigqueue(env);
+        if (!q) {
+            return; /* XXX WHAT TO DO */
+        }
+        while (*pq != NULL) {
+            pq = &(*pq)->next;
+        }
+    }
+    *pq = q;
+    q->info = *info;
+    q->next = NULL;
+    k->pending = 1;
+    /* Signal that a new signal is pending. */
+    ts->signal_pending = 1;
+    return;
 }
 
 static int fatal_signal(int sig)
