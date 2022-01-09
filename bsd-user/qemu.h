@@ -223,7 +223,10 @@ void queue_signal(CPUArchState *env, int sig, target_siginfo_t *info);
 abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp);
 int target_to_host_signal(int sig);
 int host_to_target_signal(int sig);
+void host_to_target_sigset(target_sigset_t *d, const sigset_t *s);
+void target_to_host_sigset(sigset_t *d, const target_sigset_t *s);
 void QEMU_NORETURN force_sig(int target_sig);
+int qemu_sigorset(sigset_t *dest, const sigset_t *left, const sigset_t *right);
 
 /* mmap.c */
 int target_mprotect(abi_ulong start, abi_ulong len, int prot);
