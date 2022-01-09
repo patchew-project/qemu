@@ -231,6 +231,22 @@ static void tswap_siginfo(target_siginfo_t *tinfo, const target_siginfo_t *info)
     }
 }
 
+int block_signals(void)
+{
+    TaskState *ts = (TaskState *)thread_cpu->opaque;
+    sigset_t set;
+
+    /*
+     * It's OK to block everything including SIGSEGV, because we won't run any
+     * further guest code before unblocking signals in
+     * process_pending_signals().
+     */
+    sigfillset(&set);
+    sigprocmask(SIG_SETMASK, &set, 0);
+
+    return qatomic_xchg(&ts->signal_pending, 1);
+}
+
 /* Returns 1 if given signal should dump core if not handled. */
 static int core_dump_signal(int sig)
 {
@@ -532,6 +548,66 @@ static int fatal_signal(int sig)
     default:
         return 1;
     }
+}
+
+/* do_sigaction() return host values and errnos */
+int do_sigaction(int sig, const struct target_sigaction *act,
+        struct target_sigaction *oact)
+{
+    struct target_sigaction *k;
+    struct sigaction act1;
+    int host_sig;
+    int ret = 0;
+
+    if (sig < 1 || sig > TARGET_NSIG || TARGET_SIGKILL == sig ||
+            TARGET_SIGSTOP == sig) {
+        return -EINVAL;
+    }
+
+    if (block_signals()) {
+        return -TARGET_ERESTART;
+    }
+
+    k = &sigact_table[sig - 1];
+    if (oact) {
+        oact->_sa_handler = tswapal(k->_sa_handler);
+        oact->sa_flags = tswap32(k->sa_flags);
+        oact->sa_mask = k->sa_mask;
+    }
+    if (act) {
+        /* XXX: this is most likely not threadsafe. */
+        k->_sa_handler = tswapal(act->_sa_handler);
+        k->sa_flags = tswap32(act->sa_flags);
+        k->sa_mask = act->sa_mask;
+
+        /* Update the host signal state. */
+        host_sig = target_to_host_signal(sig);
+        if (host_sig != SIGSEGV && host_sig != SIGBUS) {
+            memset(&act1, 0, sizeof(struct sigaction));
+            sigfillset(&act1.sa_mask);
+            act1.sa_flags = SA_SIGINFO;
+            if (k->sa_flags & TARGET_SA_RESTART) {
+                act1.sa_flags |= SA_RESTART;
+            }
+            /*
+             *  Note: It is important to update the host kernel signal mask to
+             *  avoid getting unexpected interrupted system calls.
+             */
+            if (k->_sa_handler == TARGET_SIG_IGN) {
+                act1.sa_sigaction = (void *)SIG_IGN;
+            } else if (k->_sa_handler == TARGET_SIG_DFL) {
+                if (fatal_signal(sig)) {
+                    act1.sa_sigaction = host_signal_handler;
+                } else {
+                    act1.sa_sigaction = (void *)SIG_DFL;
+                }
+            } else {
+                act1.sa_sigaction = host_signal_handler;
+            }
+            ret = sigaction(host_sig, &act1, NULL);
+        }
+    }
+    return ret;
 }
 
 static inline abi_ulong get_sigframe(struct target_sigaction *ka,

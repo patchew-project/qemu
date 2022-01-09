@@ -226,8 +226,29 @@ int host_to_target_signal(int sig);
 void host_to_target_sigset(target_sigset_t *d, const sigset_t *s);
 void target_to_host_sigset(sigset_t *d, const target_sigset_t *s);
 long do_sigreturn(CPUArchState *regs, abi_ulong addr);
+int do_sigaction(int sig, const struct target_sigaction *act,
+                struct target_sigaction *oact);
 void QEMU_NORETURN force_sig(int target_sig);
 int qemu_sigorset(sigset_t *dest, const sigset_t *left, const sigset_t *right);
+/**
+ * block_signals: block all signals while handling this guest syscall
+ *
+ * Block all signals, and arrange that the signal mask is returned to
+ * its correct value for the guest before we resume execution of guest code.
+ * If this function returns non-zero, then the caller should immediately
+ * return -TARGET_ERESTARTSYS to the main loop, which will take the pending
+ * signal and restart execution of the syscall.
+ * If block_signals() returns zero, then the caller can continue with
+ * emulation of the system call knowing that no signals can be taken
+ * (and therefore that no race conditions will result).
+ * This should only be called once, because if it is called a second time
+ * it will always return non-zero. (Think of it like a mutex that can't
+ * be recursively locked.)
+ * Signals will be unblocked again by process_pending_signals().
+ *
+ * Return value: non-zero if there was a pending signal, zero if not.
+ */
+int block_signals(void); /* Returns non zero if signal pending */
 
 /* mmap.c */
 int target_mprotect(abi_ulong start, abi_ulong len, int prot);
