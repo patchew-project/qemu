@@ -210,6 +210,8 @@ long do_sigreturn(CPUArchState *env);
 long do_rt_sigreturn(CPUArchState *env);
 void queue_signal(CPUArchState *env, int sig, target_siginfo_t *info);
 abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp);
+int target_to_host_signal(int sig);
+int host_to_target_signal(int sig);
 
 /* mmap.c */
 int target_mprotect(abi_ulong start, abi_ulong len, int prot);
