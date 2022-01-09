@@ -76,7 +76,7 @@ static void *spice_audio_init(Audiodev *dev)
     if (!using_spice) {
         return NULL;
     }
-    return &spice_audio_init;
+    return dev;
 }
 
 static void spice_audio_fini (void *opaque)
@@ -90,6 +90,8 @@ static int line_out_init(HWVoiceOut *hw, struct audsettings *as,
                          void *drv_opaque)
 {
     SpiceVoiceOut *out = container_of (hw, SpiceVoiceOut, hw);
+    Audiodev      *dev = (Audiodev *)drv_opaque;
+
     struct audsettings settings;
 
 #if SPICE_INTERFACE_PLAYBACK_MAJOR > 1 || SPICE_INTERFACE_PLAYBACK_MINOR >= 3
@@ -102,7 +104,12 @@ static int line_out_init(HWVoiceOut *hw, struct audsettings *as,
     settings.endianness = AUDIO_HOST_ENDIANNESS;
 
     audio_pcm_init_info (&hw->info, &settings);
-    hw->samples = LINE_OUT_SAMPLES;
+    if (dev->u.none.out->has_buffer_length) {
+        hw->samples = audio_buffer_samples(dev->u.none.out, &settings, 10000);
+    } else {
+        hw->samples = LINE_OUT_SAMPLES;
+    }
+
     out->active = 0;
 
     out->sin.base.sif = &playback_sif.base;
@@ -199,6 +206,7 @@ static void line_out_volume(HWVoiceOut *hw, Volume *vol)
 static int line_in_init(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
 {
     SpiceVoiceIn *in = container_of (hw, SpiceVoiceIn, hw);
+    Audiodev     *dev = (Audiodev *)drv_opaque;
     struct audsettings settings;
 
 #if SPICE_INTERFACE_RECORD_MAJOR > 2 || SPICE_INTERFACE_RECORD_MINOR >= 3
@@ -211,7 +219,12 @@ static int line_in_init(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
     settings.endianness = AUDIO_HOST_ENDIANNESS;
 
     audio_pcm_init_info (&hw->info, &settings);
-    hw->samples = LINE_IN_SAMPLES;
+    if (dev->u.none.out->has_buffer_length) {
+        hw->samples = audio_buffer_samples(dev->u.none.in, &settings, 10000);
+    } else {
+        hw->samples = LINE_IN_SAMPLES;
+    }
+
     in->active = 0;
 
     in->sin.base.sif = &record_sif.base;
