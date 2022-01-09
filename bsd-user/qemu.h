@@ -97,7 +97,9 @@ typedef struct TaskState {
     struct qemu_sigqueue sigqueue_table[MAX_SIGQUEUE_SIZE]; /* siginfo queue */
     struct qemu_sigqueue *first_free; /* first free siginfo queue entry */
     int signal_pending; /* non zero if a signal may be pending */
+    bool in_sigsuspend;
     sigset_t signal_mask;
+    sigset_t sigsuspend_mask;
 
     uint8_t stack[];
 } __attribute__((aligned(16))) TaskState;

@@ -649,6 +649,102 @@ void signal_init(void)
     }
 }
 
+static void handle_pending_signal(CPUArchState *cpu_env, int sig,
+                                  struct emulated_sigtable *k)
+{
+    CPUState *cpu = env_cpu(cpu_env);
+    TaskState *ts = cpu->opaque;
+    struct qemu_sigqueue *q;
+    struct target_sigaction *sa;
+    int code;
+    sigset_t set;
+    abi_ulong handler;
+    target_siginfo_t tinfo;
+    target_sigset_t target_old_set;
+
+    trace_user_handle_signal(cpu_env, sig);
+
+    /* Dequeue signal. */
+    q = k->first;
+    k->first = q->next;
+    if (!k->first) {
+        k->pending = 0;
+    }
+
+    sig = gdb_handlesig(cpu, sig);
+    if (!sig) {
+        sa = NULL;
+        handler = TARGET_SIG_IGN;
+    } else {
+        sa = &sigact_table[sig - 1];
+        handler = sa->_sa_handler;
+    }
+
+    if (do_strace) {
+        print_taken_signal(sig, &q->info);
+    }
+
+    if (handler == TARGET_SIG_DFL) {
+        /*
+         * default handler : ignore some signal. The other are job
+         * control or fatal.
+         */
+        if (TARGET_SIGTSTP == sig || TARGET_SIGTTIN == sig ||
+                TARGET_SIGTTOU == sig) {
+            kill(getpid(), SIGSTOP);
+        } else if (TARGET_SIGCHLD != sig && TARGET_SIGURG != sig &&
+            TARGET_SIGINFO != sig &&
+            TARGET_SIGWINCH != sig && TARGET_SIGCONT != sig) {
+            force_sig(sig);
+        }
+    } else if (TARGET_SIG_IGN == handler) {
+        /* ignore sig */
+    } else if (TARGET_SIG_ERR == handler) {
+        force_sig(sig);
+    } else {
+        /* compute the blocked signals during the handler execution */
+        sigset_t *blocked_set;
+
+        target_to_host_sigset(&set, &sa->sa_mask);
+        /*
+         * SA_NODEFER indicates that the current signal should not be
+         * blocked during the handler.
+         */
+        if (!(sa->sa_flags & TARGET_SA_NODEFER)) {
+            sigaddset(&set, target_to_host_signal(sig));
+        }
+
+        /*
+         * Save the previous blocked signal state to restore it at the
+         * end of the signal execution (see do_sigreturn).
+         */
+        host_to_target_sigset_internal(&target_old_set, &ts->signal_mask);
+
+        blocked_set = ts->in_sigsuspend ?
+            &ts->sigsuspend_mask : &ts->signal_mask;
+        qemu_sigorset(&ts->signal_mask, blocked_set, &set);
+        ts->in_sigsuspend = false;
+        sigprocmask(SIG_SETMASK, &ts->signal_mask, NULL);
+
+        /* XXX VM86 on x86 ??? */
+
+        code = q->info.si_code;
+        /* prepare the stack frame of the virtual CPU */
+        if (sa->sa_flags & TARGET_SA_SIGINFO) {
+            tswap_siginfo(&tinfo, &q->info);
+            setup_frame(sig, code, sa, &target_old_set, &tinfo, cpu_env);
+        } else {
+            setup_frame(sig, code, sa, &target_old_set, NULL, cpu_env);
+        }
+        if (sa->sa_flags & TARGET_SA_RESETHAND) {
+            sa->_sa_handler = TARGET_SIG_DFL;
+        }
+    }
+    if (q != &k->info) {
+        free_sigqueue(cpu_env, q);
+    }
+}
+
 void process_pending_signals(CPUArchState *cpu_env)
 {
 }
