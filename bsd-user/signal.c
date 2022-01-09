@@ -92,6 +92,23 @@ static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
     }
 }
 
+/* Returns 1 if given signal should dump core if not handled. */
+static int core_dump_signal(int sig)
+{
+    switch (sig) {
+    case TARGET_SIGABRT:
+    case TARGET_SIGFPE:
+    case TARGET_SIGILL:
+    case TARGET_SIGQUIT:
+    case TARGET_SIGSEGV:
+    case TARGET_SIGTRAP:
+    case TARGET_SIGBUS:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
 /*
  * Queue a signal so that it will be send to the virtual CPU as soon as
  * possible.
