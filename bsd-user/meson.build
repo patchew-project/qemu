@@ -4,6 +4,7 @@ endif
 
 bsd_user_ss = ss.source_set()
 
+common_user_inc += include_directories('host/' / host_arch)
 common_user_inc += include_directories('.')
 
 bsd_user_ss.add(files(
