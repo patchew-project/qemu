@@ -1130,14 +1130,14 @@ static int virtio_pci_set_guest_notifiers(DeviceState *d, int nvqs, bool assign)
             proxy->vector_irqfd =
                 g_malloc0(sizeof(*proxy->vector_irqfd) *
                           msix_nr_vectors_allocated(&proxy->pci_dev));
+            r = kvm_virtio_pci_vector_config_use(proxy);
+            if (r < 0) {
+                goto config_error;
+            }
             r = kvm_virtio_pci_vector_use(proxy, nvqs);
             if (r < 0) {
                 goto config_assign_error;
             }
-        }
-        r = kvm_virtio_pci_vector_config_use(proxy);
-        if (r < 0) {
-            goto config_error;
         }
         r = msix_set_vector_notifiers(&proxy->pci_dev, virtio_pci_vector_unmask,
                                       virtio_pci_vector_mask,
@@ -1155,7 +1155,9 @@ notifiers_error:
         kvm_virtio_pci_vector_release(proxy, nvqs);
     }
 config_error:
-    kvm_virtio_pci_vector_config_release(proxy);
+    if (with_irqfd) {
+        kvm_virtio_pci_vector_config_release(proxy);
+    }
 config_assign_error:
     virtio_pci_set_guest_notifier(d, VIRTIO_CONFIG_IRQ_IDX, !assign,
                                   with_irqfd);
