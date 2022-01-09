@@ -21,6 +21,7 @@
 #define _TARGET_ARCH_CPU_H_
 
 #include "target_arch.h"
+#include "signal-common.h"
 
 #define TARGET_DEFAULT_CPU_MODEL "any"
 
@@ -64,19 +65,7 @@ static inline void target_cpu_loop(CPUARMState *env)
             }
             break;
         case EXCP_SWI:
-        case EXCP_BKPT:
             {
-                /*
-                 * system call
-                 * See arm/arm/trap.c cpu_fetch_syscall_args()
-                 */
-                if (trapnr == EXCP_BKPT) {
-                    if (env->thumb) {
-                        env->regs[15] += 2;
-                    } else {
-                        env->regs[15] += 4;
-                    }
-                }
                 n = env->regs[7];
                 if (bsd_type == target_freebsd) {
                     int ret;
@@ -171,14 +160,8 @@ static inline void target_cpu_loop(CPUARMState *env)
             queue_signal(env, info.si_signo, &info);
             break;
         case EXCP_DEBUG:
-            {
-
-                info.si_signo = TARGET_SIGTRAP;
-                info.si_errno = 0;
-                info.si_code = TARGET_TRAP_BRKPT;
-                info.si_addr = env->exception.vaddress;
-                queue_signal(env, info.si_signo, &info);
-            }
+        case EXCP_BKPT:
+            force_sig_fault(TARGET_SIGTRAP, TARGET_TRAP_BRKPT, env->regs[15]);
             break;
         case EXCP_YIELD:
             /* nothing to do here for user-mode, just resume guest code */
