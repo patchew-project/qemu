@@ -43,6 +43,43 @@ int target_to_host_signal(int sig)
     return sig;
 }
 
+/* Siginfo conversion. */
+static inline void host_to_target_siginfo_noswap(target_siginfo_t *tinfo,
+        const siginfo_t *info)
+{
+    int sig, code;
+
+    sig = host_to_target_signal(info->si_signo);
+    /* XXX should have host_to_target_si_code() */
+    code = tswap32(info->si_code);
+    tinfo->si_signo = sig;
+    tinfo->si_errno = info->si_errno;
+    tinfo->si_code = info->si_code;
+    tinfo->si_pid = info->si_pid;
+    tinfo->si_uid = info->si_uid;
+    tinfo->si_status = info->si_status;
+    tinfo->si_addr = (abi_ulong)(unsigned long)info->si_addr;
+    /* si_value is opaque to kernel */
+    tinfo->si_value.sival_ptr =
+        (abi_ulong)(unsigned long)info->si_value.sival_ptr;
+    if (SIGILL == sig || SIGFPE == sig || SIGSEGV == sig || SIGBUS == sig ||
+            SIGTRAP == sig) {
+        tinfo->_reason._fault._trapno = info->_reason._fault._trapno;
+    }
+#ifdef SIGPOLL
+    if (SIGPOLL == sig) {
+        tinfo->_reason._poll._band = info->_reason._poll._band;
+    }
+#endif
+    if (SI_TIMER == code) {
+        int timerid;
+
+        timerid = info->_reason._timer._timerid;
+        tinfo->_reason._timer._timerid = timerid;
+        tinfo->_reason._timer._overrun = info->_reason._timer._overrun;
+    }
+}
+
 /*
  * Queue a signal so that it will be send to the virtual CPU as soon as
  * possible.
