@@ -203,6 +203,9 @@ config REALVIEW
     select DS1338 # I2C RTC+NVRAM
     select USB_OHCI
 
+config RP2040
+    bool
+
 config SBSA_REF
     bool
     imply PCI_DEVICES
