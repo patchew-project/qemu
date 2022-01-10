@@ -1279,21 +1279,6 @@ static int qemu_rbd_diff_iterate_cb(uint64_t offs, size_t len,
     RBDDiffIterateReq *req = opaque;
 
     assert(req->offs + req->bytes <= offs);
-    /*
-     * we do not diff against a snapshot so we should never receive a callback
-     * for a hole.
-     */
-    assert(exists);
-
-    if (!req->exists && offs > req->offs) {
-        /*
-         * we started in an unallocated area and hit the first allocated
-         * block. req->bytes must be set to the length of the unallocated area
-         * before the allocated area. stop further processing.
-         */
-        req->bytes = offs - req->offs;
-        return QEMU_RBD_EXIT_DIFF_ITERATE2;
-    }
 
     if (req->exists && offs > req->offs + req->bytes) {
         /*
@@ -1303,9 +1288,37 @@ static int qemu_rbd_diff_iterate_cb(uint64_t offs, size_t len,
          */
         return QEMU_RBD_EXIT_DIFF_ITERATE2;
     }
+    if (req->exists && !exists) {
+        /*
+         * we started in an allocated area and reached a hole. req->bytes
+         * contains the length of the allocated area before the hole.
+         * stop further processing.
+         */
+        return QEMU_RBD_EXIT_DIFF_ITERATE2;
+    }
+    if (!req->exists && exists && offs > req->offs) {
+        /*
+         * we started in an unallocated area and hit the first allocated
+         * block. req->bytes must be set to the length of the unallocated area
+         * before the allocated area. stop further processing.
+         */
+        req->bytes = offs - req->offs;
+        return QEMU_RBD_EXIT_DIFF_ITERATE2;
+    }
 
-    req->bytes += len;
-    req->exists = true;
+    /*
+     * assert that we caught all cases above and allocation state has not
+     * changed during callbacks.
+     */
+    assert(exists == req->exists || !req->bytes);
+    req->exists = exists;
+
+    /*
+     * assert that we either return an unallocated block or have got callbacks
+     * for all allocated blocks present.
+     */
+    assert(!req->exists || offs == req->offs + req->bytes);
+    req->bytes = offs + len - req->offs;
 
     return 0;
 }
@@ -1354,13 +1367,13 @@ static int coroutine_fn qemu_rbd_co_block_status(BlockDriverState *bs,
     }
     assert(req.bytes <= bytes);
     if (!req.exists) {
-        if (r == 0) {
+        if (r == 0 && !req.bytes) {
             /*
-             * rbd_diff_iterate2 does not invoke callbacks for unallocated
-             * areas. This here catches the case where no callback was
-             * invoked at all (req.bytes == 0).
+             * rbd_diff_iterate2 does not invoke callbacks for unallocated areas
+             * except for the case where an overlay has a hole where the parent
+             * or an older snapshot of the image has not. This here catches the
+             * case where no callback was invoked at all.
              */
-            assert(req.bytes == 0);
             req.bytes = bytes;
         }
         status = BDRV_BLOCK_ZERO | BDRV_BLOCK_OFFSET_VALID;
