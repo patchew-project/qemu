@@ -59,6 +59,27 @@
 #define STATUS_RECORD_STORE_EMPTY     0x04
 #define STATUS_RECORD_NOT_FOUND       0x05
 
+/* ACPI 4.0: Table 17-19 Serialization Instructions */
+#define INST_READ_REGISTER                 0x00
+#define INST_READ_REGISTER_VALUE           0x01
+#define INST_WRITE_REGISTER                0x02
+#define INST_WRITE_REGISTER_VALUE          0x03
+#define INST_NOOP                          0x04
+#define INST_LOAD_VAR1                     0x05
+#define INST_LOAD_VAR2                     0x06
+#define INST_STORE_VAR1                    0x07
+#define INST_ADD                           0x08
+#define INST_SUBTRACT                      0x09
+#define INST_ADD_VALUE                     0x0A
+#define INST_SUBTRACT_VALUE                0x0B
+#define INST_STALL                         0x0C
+#define INST_STALL_WHILE_TRUE              0x0D
+#define INST_SKIP_NEXT_INSTRUCTION_IF_TRUE 0x0E
+#define INST_GOTO                          0x0F
+#define INST_SET_SRC_ADDRESS_BASE          0x10
+#define INST_SET_DST_ADDRESS_BASE          0x11
+#define INST_MOVE_DATA                     0x12
+
 /* UEFI 2.1: Appendix N Common Platform Error Record */
 #define UEFI_CPER_RECORD_MIN_SIZE 128U
 #define UEFI_CPER_RECORD_LENGTH_OFFSET 20U
@@ -169,6 +190,173 @@ typedef struct {
     unsigned next_record_index;
 
 } ERSTDeviceState;
+
+/*******************************************************************/
+/*******************************************************************/
+
+/* ACPI 4.0: 17.4.1.2 Serialization Instruction Entries */
+static void build_serialization_instruction_entry(GArray *table_data,
+    uint8_t serialization_action,
+    uint8_t instruction,
+    uint8_t flags,
+    uint8_t register_bit_width,
+    uint64_t register_address,
+    uint64_t value)
+{
+    /* ACPI 4.0: Table 17-18 Serialization Instruction Entry */
+    struct AcpiGenericAddress gas;
+    uint64_t mask;
+
+    /* Serialization Action */
+    build_append_int_noprefix(table_data, serialization_action, 1);
+    /* Instruction */
+    build_append_int_noprefix(table_data, instruction         , 1);
+    /* Flags */
+    build_append_int_noprefix(table_data, flags               , 1);
+    /* Reserved */
+    build_append_int_noprefix(table_data, 0                   , 1);
+    /* Register Region */
+    gas.space_id = AML_SYSTEM_MEMORY;
+    gas.bit_width = register_bit_width;
+    gas.bit_offset = 0;
+    gas.access_width = ctz32(register_bit_width) - 2;
+    gas.address = register_address;
+    build_append_gas_from_struct(table_data, &gas);
+    /* Value */
+    build_append_int_noprefix(table_data, value  , 8);
+    /* Mask */
+    mask = (1ULL << (register_bit_width - 1) << 1) - 1;
+    build_append_int_noprefix(table_data, mask  , 8);
+}
+
+/* ACPI 4.0: 17.4.1 Serialization Action Table */
+void build_erst(GArray *table_data, BIOSLinker *linker, Object *erst_dev,
+    const char *oem_id, const char *oem_table_id)
+{
+    GArray *table_instruction_data;
+    unsigned action;
+    pcibus_t bar0 = pci_get_bar_addr(PCI_DEVICE(erst_dev), 0);
+    AcpiTable table = { .sig = "ERST", .rev = 1, .oem_id = oem_id,
+                        .oem_table_id = oem_table_id };
+
+    trace_acpi_erst_pci_bar_0(bar0);
+
+    /*
+     * Serialization Action Table
+     * The serialization action table must be generated first
+     * so that its size can be known in order to populate the
+     * Instruction Entry Count field.
+     */
+    table_instruction_data = g_array_new(FALSE, FALSE, sizeof(char));
+
+    /*
+     * Macros for use with construction of the action instructions
+     */
+#define BUILD_READ_REGISTER(width_in_bits, reg) \
+    build_serialization_instruction_entry(table_instruction_data, \
+        action, INST_READ_REGISTER, 0, width_in_bits, \
+        bar0 + reg, 0)
+
+#define BUILD_READ_REGISTER_VALUE(width_in_bits, reg, value) \
+    build_serialization_instruction_entry(table_instruction_data, \
+        action, INST_READ_REGISTER_VALUE, 0, width_in_bits, \
+        bar0 + reg, value)
+
+#define BUILD_WRITE_REGISTER(width_in_bits, reg, value) \
+    build_serialization_instruction_entry(table_instruction_data, \
+        action, INST_WRITE_REGISTER, 0, width_in_bits, \
+        bar0 + reg, value)
+
+#define BUILD_WRITE_REGISTER_VALUE(width_in_bits, reg, value) \
+    build_serialization_instruction_entry(table_instruction_data, \
+        action, INST_WRITE_REGISTER_VALUE, 0, width_in_bits, \
+        bar0 + reg, value)
+
+    /* Serialization Instruction Entries */
+    action = ACTION_BEGIN_WRITE_OPERATION;
+    BUILD_WRITE_REGISTER_VALUE(32, ERST_ACTION_OFFSET, action);
+
+    action = ACTION_BEGIN_READ_OPERATION;
+    BUILD_WRITE_REGISTER_VALUE(32, ERST_ACTION_OFFSET, action);
+
+    action = ACTION_BEGIN_CLEAR_OPERATION;
+    BUILD_WRITE_REGISTER_VALUE(32, ERST_ACTION_OFFSET, action);
+
+    action = ACTION_END_OPERATION;
+    BUILD_WRITE_REGISTER_VALUE(32, ERST_ACTION_OFFSET, action);
+
+    action = ACTION_SET_RECORD_OFFSET;
+    BUILD_WRITE_REGISTER(32, ERST_VALUE_OFFSET, 0);
+    BUILD_WRITE_REGISTER_VALUE(32, ERST_ACTION_OFFSET, action);
+
+    action = ACTION_EXECUTE_OPERATION;
+    BUILD_WRITE_REGISTER_VALUE(32, ERST_VALUE_OFFSET,
+        ERST_EXECUTE_OPERATION_MAGIC);
+    BUILD_WRITE_REGISTER_VALUE(32, ERST_ACTION_OFFSET, action);
+
+    action = ACTION_CHECK_BUSY_STATUS;
+    BUILD_WRITE_REGISTER_VALUE(32, ERST_ACTION_OFFSET, action);
+    BUILD_READ_REGISTER_VALUE(32, ERST_VALUE_OFFSET, 0x01);
+
+    action = ACTION_GET_COMMAND_STATUS;
+    BUILD_WRITE_REGISTER_VALUE(32, ERST_ACTION_OFFSET, action);
+    BUILD_READ_REGISTER(32, ERST_VALUE_OFFSET);
+
+    action = ACTION_GET_RECORD_IDENTIFIER;
+    BUILD_WRITE_REGISTER_VALUE(32, ERST_ACTION_OFFSET, action);
+    BUILD_READ_REGISTER(64, ERST_VALUE_OFFSET);
+
+    action = ACTION_SET_RECORD_IDENTIFIER;
+    BUILD_WRITE_REGISTER(64, ERST_VALUE_OFFSET, 0);
+    BUILD_WRITE_REGISTER_VALUE(32, ERST_ACTION_OFFSET, action);
+
+    action = ACTION_GET_RECORD_COUNT;
+    BUILD_WRITE_REGISTER_VALUE(32, ERST_ACTION_OFFSET, action);
+    BUILD_READ_REGISTER(32, ERST_VALUE_OFFSET);
+
+    action = ACTION_BEGIN_DUMMY_WRITE_OPERATION;
+    BUILD_WRITE_REGISTER_VALUE(32, ERST_ACTION_OFFSET, action);
+
+    action = ACTION_GET_ERROR_LOG_ADDRESS_RANGE;
+    BUILD_WRITE_REGISTER_VALUE(32, ERST_ACTION_OFFSET, action);
+    BUILD_READ_REGISTER(64, ERST_VALUE_OFFSET);
+
+    action = ACTION_GET_ERROR_LOG_ADDRESS_LENGTH;
+    BUILD_WRITE_REGISTER_VALUE(32, ERST_ACTION_OFFSET, action);
+    BUILD_READ_REGISTER(64, ERST_VALUE_OFFSET);
+
+    action = ACTION_GET_ERROR_LOG_ADDRESS_RANGE_ATTRIBUTES;
+    BUILD_WRITE_REGISTER_VALUE(32, ERST_ACTION_OFFSET, action);
+    BUILD_READ_REGISTER(32, ERST_VALUE_OFFSET);
+
+    action = ACTION_GET_EXECUTE_OPERATION_TIMINGS;
+    BUILD_WRITE_REGISTER_VALUE(32, ERST_ACTION_OFFSET, action);
+    BUILD_READ_REGISTER(64, ERST_VALUE_OFFSET);
+
+    /* Serialization Header */
+    acpi_table_begin(&table, table_data);
+
+    /* Serialization Header Size */
+    build_append_int_noprefix(table_data, 48, 4);
+
+    /* Reserved */
+    build_append_int_noprefix(table_data,  0, 4);
+
+    /*
+     * Instruction Entry Count
+     * Each instruction entry is 32 bytes
+     */
+    g_assert((table_instruction_data->len) % 32 == 0);
+    build_append_int_noprefix(table_data,
+        (table_instruction_data->len / 32), 4);
+
+    /* Serialization Instruction Entries */
+    g_array_append_vals(table_data, table_instruction_data->data,
+        table_instruction_data->len);
+    g_array_free(table_instruction_data, TRUE);
+
+    acpi_table_end(linker, &table);
+}
 
 /*******************************************************************/
 /*******************************************************************/
