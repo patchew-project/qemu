@@ -48,6 +48,7 @@ Supported devices
  * SMBus controller (SMBF)
  * Ethernet controller (EMC)
  * Tachometer
+ * PCI Mailbox
 
 Missing devices
 ---------------
