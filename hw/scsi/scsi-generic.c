@@ -256,6 +256,18 @@ static int scsi_generic_emulate_block_limits(SCSIGenericReq *r, SCSIDevice *s)
     return r->buflen;
 }
 
+static void refresh_max_lba(SCSIDevice *s)
+{
+    BlockBackend *blk = s->conf.blk;
+    BlockDriverState *bs = blk_bs(blk);
+    uint64_t max_lba = bs->total_sectors - 1;
+
+    if (max_lba != s->max_lba) {
+        trace_scsi_generic_max_lba_refreshed(s->max_lba, max_lba);
+        s->max_lba = max_lba;
+    }
+}
+
 static void scsi_read_complete(void * opaque, int ret)
 {
     SCSIGenericReq *r = (SCSIGenericReq *)opaque;
@@ -315,11 +327,13 @@ static void scsi_read_complete(void * opaque, int ret)
     if (r->req.cmd.buf[0] == READ_CAPACITY_10 &&
         (ldl_be_p(&r->buf[0]) != 0xffffffffU || s->max_lba == 0)) {
         s->blocksize = ldl_be_p(&r->buf[4]);
-        s->max_lba = ldl_be_p(&r->buf[0]) & 0xffffffffULL;
+        refresh_max_lba(s);
+        stl_be_p(&r->buf[0], s->max_lba);
     } else if (r->req.cmd.buf[0] == SERVICE_ACTION_IN_16 &&
                (r->req.cmd.buf[1] & 31) == SAI_READ_CAPACITY_16) {
         s->blocksize = ldl_be_p(&r->buf[8]);
-        s->max_lba = ldq_be_p(&r->buf[0]);
+        refresh_max_lba(s);
+        stq_be_p(&r->buf[0], s->max_lba);
     }
     blk_set_guest_block_size(s->conf.blk, s->blocksize);
 
