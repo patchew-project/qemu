@@ -8,10 +8,12 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
+#include "qemu/datadir.h"
 #include "qapi/error.h"
 #include "hw/arm/armv7m.h"
 #include "hw/arm/rp2040.h"
 #include "hw/misc/unimp.h"
+#include "hw/loader.h"
 #include "hw/sysbus.h"
 #include "hw/qdev-properties.h"
 
@@ -32,6 +34,8 @@ typedef struct RP2040Class {
 #define RP2040_SRAM_BASE  0x20000000
 #define RP2040_SRAM4_BASE 0x20040000
 #define RP2040_SRAM5_BASE 0x20041000
+
+#define RP2040_MASK_ROM   "pipico.rom"
 
 static void rp2040_init(Object *obj)
 {
@@ -61,6 +65,8 @@ static void rp2040_realize(DeviceState *dev, Error **errp)
     RP2040State *s = RP2040(dev);
     Object *obj = OBJECT(dev);
     int n;
+    g_autofree char *mask_rom = qemu_find_file(QEMU_FILE_TYPE_BIOS,
+                                               RP2040_MASK_ROM);
 
     if (!s->memory) {
         error_setg(errp, "%s: memory property was not set", __func__);
@@ -68,8 +74,19 @@ static void rp2040_realize(DeviceState *dev, Error **errp)
     }
 
     /* initialize internal 16 KB internal ROM */
-    memory_region_init_rom(&s->rom, obj, "rp2040.rom0", 16 * KiB, errp);
+    memory_region_init_rom(&s->rom, obj, "rp2040.rom", 16 * KiB, errp);
     memory_region_add_subregion(s->memory, 0, &s->rom);
+
+    if (!mask_rom) {
+        error_setg(errp, "%s: unable to find mask_rom %s",
+                   __func__, RP2040_MASK_ROM);
+        return;
+    }
+    n = load_image_targphys(mask_rom, 0x0, 16 * KiB);
+    if (n <= 0) {
+        error_setg(errp, "%s: failed to load mask rom image: %s",
+                   __func__, RP2040_MASK_ROM);
+    }
 
     /* SRAM (Main 256k bank + two 4k banks)*/
     memory_region_init_ram(&s->sram03, obj, "rp2040.sram03", 256 * KiB, errp);
