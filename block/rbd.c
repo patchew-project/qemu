@@ -1333,6 +1333,7 @@ static int coroutine_fn qemu_rbd_co_block_status(BlockDriverState *bs,
     int status, r;
     RBDDiffIterateReq req = { .offs = offset };
     uint64_t features, flags;
+    int64_t head;
 
     assert(offset + bytes <= s->image_size);
 
@@ -1360,6 +1361,19 @@ static int coroutine_fn qemu_rbd_co_block_status(BlockDriverState *bs,
         return status;
     }
 
+    /*
+     * librbd had a bug until early 2022 that affected all versions of ceph that
+     * supported fast-diff. This bug results in reporting of incorrect offsets
+     * if the offset parameter to rbd_diff_iterate2 is not object aligned.
+     * Work around this bug by rounding down the offset to object boundaries.
+     *
+     * See: https://tracker.ceph.com/issues/53784
+     */
+    head = offset & (s->object_size - 1);
+    offset -= head;
+    req.offs -= head;
+    bytes += head;
+
     r = rbd_diff_iterate2(s->image, NULL, offset, bytes, true, true,
                           qemu_rbd_diff_iterate_cb, &req);
     if (r < 0 && r != QEMU_RBD_EXIT_DIFF_ITERATE2) {
@@ -1379,7 +1393,8 @@ static int coroutine_fn qemu_rbd_co_block_status(BlockDriverState *bs,
         status = BDRV_BLOCK_ZERO | BDRV_BLOCK_OFFSET_VALID;
     }
 
-    *pnum = req.bytes;
+    assert(req.bytes > head);
+    *pnum = req.bytes - head;
     return status;
 }
 
