@@ -285,6 +285,21 @@ void qos_node_contains(const char *container, const char *contained,
 void qos_node_produces(const char *producer, const char *interface);
 
 /**
+ * qos_node_produces(): creates an edge of type QEDGE_PRODUCES and
+ * adds it to the edge list mapped to @producer in the
+ * edge hash table.
+ * @producer: Source node that "produces"
+ * @interface: Interface node that "is produced"
+ * @ops: Facultative options (see %QOSGraphEdgeOptions
+ *
+ * This edge will have @producer as source and @interface as destination.
+ * It also has the possibility to add an optional @opts
+ * (see %QOSGraphEdgeOptions)
+ */
+void qos_node_produces_opts(const char *producer, const char *interface,
+                            QOSGraphEdgeOptions *opts);
+
+/**
  * qos_node_consumes():  creates an edge of type QEDGE_CONSUMED_BY and
  * adds it to the edge list mapped to @interface in the
  * edge hash table.

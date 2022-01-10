@@ -19,6 +19,9 @@ libqos_srcs = files('../libqtest.c',
         'libqos-pc.c',
         'ahci.c',
 
+        # arm
+        'pci-arm.c',
+
         # usb
         'usb.c',
 

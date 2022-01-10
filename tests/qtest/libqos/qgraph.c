@@ -667,6 +667,13 @@ void qos_node_produces(const char *producer, const char *interface)
     add_edge(producer, interface, QEDGE_PRODUCES, NULL);
 }
 
+void qos_node_produces_opts(const char *producer, const char *interface,
+                            QOSGraphEdgeOptions *opts)
+{
+    create_interface(interface);
+    add_edge(producer, interface, QEDGE_PRODUCES, opts);
+}
+
 void qos_node_consumes(const char *consumer, const char *interface,
                        QOSGraphEdgeOptions *opts)
 {
