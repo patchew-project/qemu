@@ -25,7 +25,14 @@ struct RP2040State {
 
     ARMv7MState armv7m[RP2040_NCPUS];
 
-    MemoryRegion container;
+    /* RP2040 regions */
+    MemoryRegion *memory; /* from board */
+    MemoryRegion memory_alias[RP2040_NCPUS - 1];
+
+    MemoryRegion rom;    /* internal mask rom */
+    MemoryRegion sram03; /* shared SRAM0-3 banks */
+    MemoryRegion sram4;  /* non-stripped SRAM4 */
+    MemoryRegion sram5;  /* non-stripped SRAM5 */
 };
 
 

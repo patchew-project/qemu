@@ -22,6 +22,7 @@ struct PiPicoMachineState {
     MachineState parent_obj;
     /*< public >*/
     RP2040State soc;
+    MemoryRegion flash;
 };
 typedef struct PiPicoMachineState PiPicoMachineState;
 
@@ -37,14 +38,33 @@ typedef struct PiPicoMachineClass PiPicoMachineClass;
 DECLARE_OBJ_CHECKERS(PiPicoMachineState, PiPicoMachineClass,
                      PIPICO_MACHINE, TYPE_PIPICO_MACHINE)
 
+#define RP2040_XIP_BASE   0x10000000
 
 static void pipico_machine_init(MachineState *machine)
 {
     PiPicoMachineState *s = PIPICO_MACHINE(machine);
+    MemoryRegion *sysmem = get_system_memory();
+    Error **errp = &error_fatal;
 
     /* Setup the SOC */
     object_initialize_child(OBJECT(machine), "soc", &s->soc, TYPE_RP2040);
+    object_property_set_link(OBJECT(&s->soc), "memory", OBJECT(sysmem), errp);
+
+    /*
+     * The flash device it external to the SoC and mounted on the
+     * PiPico board itself. We will "load" the actual contents with
+     * armv7_load_kernel later although we still rely on the SoC's
+     * mask ROM to get to it.
+     */
+    const uint32_t flash_size = 256 * KiB;
+    memory_region_init_rom(&s->flash, NULL, "pico.flash0", flash_size, errp);
+    memory_region_add_subregion(sysmem, RP2040_XIP_BASE, &s->flash);
+
+
     sysbus_realize(SYS_BUS_DEVICE(&s->soc), &error_fatal);
+
+    /* This assumes the "kernel" is positioned in the XIP Flash block */
+    armv7m_load_kernel(ARM_CPU(first_cpu), machine->kernel_filename, RP2040_XIP_BASE);
 }
 
 static void pipico_machine_class_init(ObjectClass *oc, void *data)
