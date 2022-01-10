@@ -30,6 +30,7 @@ The virt board supports:
 - An RTC
 - The fw_cfg device that allows a guest to obtain data from QEMU
 - A PL061 GPIO controller
+- A DesignWare I2C controller
 - An optional SMMUv3 IOMMU
 - hotpluggable DIMMs
 - hotpluggable NVDIMMs
@@ -120,6 +121,9 @@ iommu
 ras
   Set ``on``/``off`` to enable/disable reporting host memory errors to a guest
   using ACPI and guest external abort exceptions. The default is off.
+
+smbus
+  Set ``on``/``off`` to enable/disable smbus controller. The default is ``off``.
 
 Linux guest kernel configuration
 """"""""""""""""""""""""""""""""
