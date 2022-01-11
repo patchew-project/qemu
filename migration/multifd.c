@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "qemu/rcu.h"
 #include "exec/target_page.h"
 #include "sysemu/sysemu.h"
@@ -277,6 +278,12 @@ static void multifd_send_fill_packet(MultiFDSendParams *p)
 
         packet->offset[i] = cpu_to_be64(temp);
     }
+    for (i = 0; i < p->zero_num; i++) {
+        /* there are architectures where ram_addr_t is 32 bit */
+        uint64_t temp = p->zero[i];
+
+        packet->offset[p->normal_num + i] = cpu_to_be64(temp);
+    }
 }
 
 static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
@@ -360,6 +367,18 @@ static int multifd_recv_unfill_packet(MultiFDRecvParams *p, Error **errp)
             return -1;
         }
         p->normal[i] = offset;
+    }
+
+    for (i = 0; i < p->zero_num; i++) {
+        uint64_t offset = be64_to_cpu(packet->offset[p->normal_num + i]);
+
+        if (offset > (block->used_length - page_size)) {
+            error_setg(errp, "multifd: offset too long %" PRIu64
+                       " (max " RAM_ADDR_FMT ")",
+                       offset, block->used_length);
+            return -1;
+        }
+        p->zero[i] = offset;
     }
 
     return 0;
@@ -627,6 +646,8 @@ static void *multifd_send_thread(void *opaque)
 {
     MultiFDSendParams *p = opaque;
     Error *local_err = NULL;
+    /* qemu older than 7.0 don't understand zero page on multifd channel */
+    bool use_zero_page = migrate_use_multifd_zero_page();
     int ret = 0;
 
     trace_multifd_send_thread_start(p->id);
@@ -655,8 +676,15 @@ static void *multifd_send_thread(void *opaque)
             p->zero_num = 0;
 
             for (int i = 0; i < p->pages->num; i++) {
-                p->normal[p->normal_num] = p->pages->offset[i];
-                p->normal_num++;
+                if (use_zero_page &&
+                    buffer_is_zero(p->pages->block->host + p->pages->offset[i],
+                                   qemu_target_page_size())) {
+                    p->zero[p->zero_num] = p->pages->offset[i];
+                    p->zero_num++;
+                } else {
+                    p->normal[p->normal_num] = p->pages->offset[i];
+                    p->normal_num++;
+                }
             }
 
             if (p->normal_num) {
@@ -1113,6 +1141,10 @@ static void *multifd_recv_thread(void *opaque)
             if (ret != 0) {
                 break;
             }
+        }
+
+        for (int i = 0; i < p->zero_num; i++) {
+            memset(p->host + p->zero[i], 0, qemu_target_page_size());
         }
 
         if (flags & MULTIFD_FLAG_SYNC) {
