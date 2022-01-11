@@ -2502,6 +2502,15 @@ bool migrate_use_multifd(void)
     return s->enabled_capabilities[MIGRATION_CAPABILITY_MULTIFD];
 }
 
+bool migrate_use_multifd_zero_page(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->multifd_zero_pages;
+}
+
 bool migrate_pause_before_switchover(void)
 {
     MigrationState *s;
@@ -4158,6 +4167,8 @@ static Property migration_properties[] = {
                       clear_bitmap_shift, CLEAR_BITMAP_SHIFT_DEFAULT),
 
     /* Migration parameters */
+    DEFINE_PROP_BOOL("multifd-zero-pages", MigrationState,
+                      multifd_zero_pages, true),
     DEFINE_PROP_UINT8("x-compress-level", MigrationState,
                       parameters.compress_level,
                       DEFAULT_MIGRATE_COMPRESS_LEVEL),
