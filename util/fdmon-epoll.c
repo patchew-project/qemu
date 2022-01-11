@@ -38,10 +38,12 @@ static void fdmon_epoll_update(AioContext *ctx,
         .data.ptr = new_node,
         .events = new_node ? epoll_events_from_pfd(new_node->pfd.events) : 0,
     };
-    int r;
+    int r = -1;
 
     if (!new_node) {
-        r = epoll_ctl(ctx->epollfd, EPOLL_CTL_DEL, old_node->pfd.fd, &event);
+        if (old_node) {
+            r = epoll_ctl(ctx->epollfd, EPOLL_CTL_DEL, old_node->pfd.fd, &event);
+        }
     } else if (!old_node) {
         r = epoll_ctl(ctx->epollfd, EPOLL_CTL_ADD, new_node->pfd.fd, &event);
     } else {
