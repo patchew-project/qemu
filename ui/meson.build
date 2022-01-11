@@ -25,6 +25,7 @@ softmmu_ss.add(when: 'CONFIG_LINUX', if_true: files(
   'udmabuf.c',
 ))
 softmmu_ss.add(when: cocoa, if_true: files('cocoa.m'))
+softmmu_ss.add(when: avfoundation, if_true: [avfoundation, coremedia, corevideo])
 
 vnc_ss = ss.source_set()
 vnc_ss.add(files(

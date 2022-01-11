@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 
 #import <Cocoa/Cocoa.h>
+#import <AVFoundation/AVFoundation.h>
 #include <crt_externs.h>
 
 #include "qemu-common.h"
@@ -309,6 +310,12 @@ static void handleAnyDeviceErrors(Error * err)
     BOOL isMouseGrabbed;
     BOOL isFullscreen;
     BOOL isAbsoluteEnabled;
+    AVAssetWriter *capture;
+    AVAssetWriterInput *captureInput;
+    AVAssetWriterInputPixelBufferAdaptor *captureInputAdaptor;
+    BOOL isCapturing;
+    NSDate *captureStart;
+    CVPixelBufferRef captureBuffer;
 }
 - (void) switchSurface:(pixman_image_t *)image;
 - (void) grabMouse;
@@ -332,6 +339,9 @@ static void handleAnyDeviceErrors(Error * err)
 - (float) cdy;
 - (QEMUScreen) gscreen;
 - (void) raiseAllKeys;
+- (void) startCapture;
+- (void) stopCapture;
+- (BOOL) isCapturing;
 @end
 
 QemuCocoaView *cocoaView;
@@ -362,6 +372,10 @@ QemuCocoaView *cocoaView;
 
     qkbd_state_free(kbd);
     [super dealloc];
+}
+
+- (BOOL) isCapturing {
+    return isCapturing;
 }
 
 - (BOOL) isOpaque
@@ -423,6 +437,81 @@ QemuCocoaView *cocoaView;
         return;
     }
     [NSCursor unhide];
+}
+
+- (IBAction) startCapture
+{
+    NSError *err;
+    
+    NSString *outputPath = [NSString stringWithFormat:@"/tmp/capture_%.1f.mp4", [[NSDate now] timeIntervalSinceReferenceDate]];
+    NSURL *fileURL = [NSURL fileURLWithPath:outputPath];
+    capture = [[AVAssetWriter alloc] initWithURL:fileURL fileType:AVFileTypeMPEG4 error:&err];
+    
+    captureInput = [[AVAssetWriterInput alloc] initWithMediaType:AVMediaTypeVideo
+                                                   outputSettings:@{
+        AVVideoCodecKey: AVVideoCodecTypeH264,
+        AVVideoWidthKey: [NSNumber numberWithInt:screen.width],
+        AVVideoHeightKey: [NSNumber numberWithInt:screen.height],
+    }];
+    NSParameterAssert([capture canAddInput:captureInput]);
+    [capture addInput:captureInput];
+    captureInputAdaptor = [[AVAssetWriterInputPixelBufferAdaptor alloc] initWithAssetWriterInput:captureInput sourcePixelBufferAttributes:nil];
+    
+    OSStatus bufferStatus = CVPixelBufferCreateWithBytes(NULL,
+                                                         screen.width,
+                                                         screen.height,
+                                                         kCVPixelFormatType_32BGRA,
+                                                         pixman_image_get_data(pixman_image),
+                                                         pixman_image_get_stride(pixman_image),
+                                                         NULL,
+                                                         NULL,
+                                                         NULL,
+                                                         &captureBuffer);
+    if (bufferStatus != kCVReturnSuccess) {
+        NSLog(@"err creating pixel buf: %d", bufferStatus);
+        return;
+    }
+    captureStart = [NSDate new];
+    [capture startWriting];
+    [capture startSessionAtSourceTime:kCMTimeZero];
+    isCapturing = TRUE;
+    [self captureFrame];
+}
+
+- (void) stopCapture
+{
+    if (isCapturing) {
+        isCapturing = FALSE;
+        NSDate *now = [NSDate now];
+        NSTimeInterval interval = [now timeIntervalSinceDate:captureStart];
+        CMTime ts = CMTimeMakeWithSeconds(interval, 1000000);
+        [captureInput markAsFinished];
+        [capture endSessionAtSourceTime:ts];
+        pixman_image_ref(pixman_image);
+        [capture finishWritingWithCompletionHandler:^() {
+            NSLog(@"finishWriting");
+            [captureInputAdaptor release];
+            [captureInput release];
+            CFRelease(captureBuffer);
+            pixman_image_unref(pixman_image);
+        }];
+        [captureStart release];
+    }
+}
+
+- (void) captureFrame
+{
+    if (isCapturing && captureBuffer && [captureInput isReadyForMoreMediaData]) {
+        NSDate *now = [NSDate now];
+        NSTimeInterval interval = [now timeIntervalSinceDate:captureStart];
+        CMTime ts = CMTimeMakeWithSeconds(interval, 1000000);
+        CFRetain(captureBuffer);
+        pixman_image_ref(pixman_image);
+        [captureInputAdaptor appendPixelBuffer:captureBuffer
+                           withPresentationTime:ts];
+        CFRelease(captureBuffer);
+        pixman_image_unref(pixman_image);
+    }
 }
 
 - (void) drawRect:(NSRect) rect
@@ -573,6 +662,7 @@ QemuCocoaView *cocoaView;
     bool isResize = (w != screen.width || h != screen.height || cdx == 0.0);
 
     int oldh = screen.height;
+    BOOL needsRestartCapture = isResize && isCapturing;
     if (isResize) {
         // Resize before we trigger the redraw, or we'll redraw at the wrong size
         COCOA_DEBUG("switchSurface: new size %d x %d\n", w, h);
@@ -580,6 +670,7 @@ QemuCocoaView *cocoaView;
         screen.height = h;
         [self setContentDimensions];
         [self setFrame:NSMakeRect(cx, cy, cw, ch)];
+        [self stopCapture];
     }
 
     // update screenBuffer
@@ -588,7 +679,9 @@ QemuCocoaView *cocoaView;
     }
 
     pixman_image = image;
-
+    if (needsRestartCapture) {
+        [self startCapture];
+    }
     // update windows
     if (isFullscreen) {
         [[fullScreenWindow contentView] setFrame:[[NSScreen mainScreen] frame]];
@@ -1117,6 +1210,8 @@ QemuCocoaView *cocoaView;
 - (IBAction) do_about_menu_item: (id) sender;
 - (void)make_about_window;
 - (void)adjustSpeed:(id)sender;
+- (IBAction) startCapture:(id)sender;
+- (IBAction) stopCapture:(id)sender;
 @end
 
 @implementation QemuCocoaAppController
@@ -1175,8 +1270,10 @@ QemuCocoaView *cocoaView;
 {
     COCOA_DEBUG("QemuCocoaAppController: dealloc\n");
 
-    if (cocoaView)
+    if (cocoaView) {
+        [cocoaView stopCapture];
         [cocoaView release];
+    }
     [super dealloc];
 }
 
@@ -1569,6 +1666,23 @@ QemuCocoaView *cocoaView;
     COCOA_DEBUG("cpu throttling at %d%c\n", cpu_throttle_get_percentage(), '%');
 }
 
+- (IBAction) startCapture:(id)sender
+{
+    [sender setEnabled:NO];
+    [cocoaView startCapture];
+    if ([cocoaView isCapturing]) {
+        [[[sender menu] itemWithTitle:@"Stop Capture"] setEnabled: YES];
+    }
+}
+
+- (IBAction) stopCapture:(id)sender
+{
+    [sender setEnabled: NO];
+    [cocoaView stopCapture];
+    if (![cocoaView isCapturing]) {
+        [[[sender menu] itemWithTitle:@"Capture"] setEnabled: YES];
+    }
+}
 @end
 
 @interface QemuApplication : NSApplication
@@ -1623,8 +1737,18 @@ static void create_initial_menus(void)
 
     // View menu
     menu = [[NSMenu alloc] initWithTitle:@"View"];
+    [menu setAutoenablesItems: NO];
     [menu addItem: [[[NSMenuItem alloc] initWithTitle:@"Enter Fullscreen" action:@selector(doToggleFullScreen:) keyEquivalent:@"f"] autorelease]]; // Fullscreen
     [menu addItem: [[[NSMenuItem alloc] initWithTitle:@"Zoom To Fit" action:@selector(zoomToFit:) keyEquivalent:@""] autorelease]];
+    [menu addItem:[NSMenuItem separatorItem]];
+    menuItem = [[[NSMenuItem alloc] initWithTitle:@"Capture" action:@selector(startCapture:) keyEquivalent:@""] autorelease];
+    [menu addItem: menuItem];
+    [menuItem setTag:1200];
+    [menuItem setEnabled: YES];
+    menuItem = [[[NSMenuItem alloc] initWithTitle:@"Stop Capture" action:@selector(stopCapture:) keyEquivalent:@""] autorelease];
+    [menu addItem: menuItem];
+    [menuItem setTag:1201];
+    [menuItem setEnabled: NO];
     menuItem = [[[NSMenuItem alloc] initWithTitle:@"View" action:nil keyEquivalent:@""] autorelease];
     [menuItem setSubmenu:menu];
     [[NSApp mainMenu] addItem:menuItem];
@@ -1962,7 +2086,9 @@ static void cocoa_update(DisplayChangeListener *dcl,
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
     COCOA_DEBUG("qemu_cocoa: cocoa_update\n");
-
+    if ([cocoaView isCapturing]) {
+        [cocoaView captureFrame];
+    }
     dispatch_async(dispatch_get_main_queue(), ^{
         NSRect rect;
         if ([cocoaView cdx] == 1.0) {

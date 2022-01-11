@@ -283,6 +283,9 @@ emulator_link_args = []
 nvmm =not_found
 hvf = not_found
 host_dsosuf = '.so'
+avfoundation = []
+coremedia = []
+corevideo = []
 if targetos == 'windows'
   socket = cc.find_library('ws2_32')
   winmm = cc.find_library('winmm')
@@ -294,6 +297,9 @@ if targetos == 'windows'
   host_dsosuf = '.dll'
 elif targetos == 'darwin'
   coref = dependency('appleframeworks', modules: 'CoreFoundation')
+  avfoundation = dependency('appleframeworks', modules: 'AVFoundation')
+  coremedia = dependency('appleframeworks', modules: 'CoreMedia')
+  corevideo = dependency('appleframeworks', modules: 'CoreVideo')
   iokit = dependency('appleframeworks', modules: 'IOKit', required: false)
   host_dsosuf = '.dylib'
 elif targetos == 'sunos'
