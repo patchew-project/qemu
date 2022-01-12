@@ -213,6 +213,7 @@ void vfio_region_write(void *opaque, hwaddr addr,
         uint32_t dword;
         uint64_t qword;
     } buf;
+    bool post = region->post_wr;
     int ret;
 
     switch (size) {
@@ -233,7 +234,11 @@ void vfio_region_write(void *opaque, hwaddr addr,
         break;
     }
 
-    ret = VDEV_REGION_WRITE(vbasedev, region->nr, addr, size, &buf);
+    /* read-after-write hazard if guest can directly access region */
+    if (region->nr_mmaps) {
+        post = false;
+    }
+    ret = VDEV_REGION_WRITE(vbasedev, region->nr, addr, size, &buf, post);
     if (ret != size) {
         const char *err = ret < 0 ? strerror(-ret) : "short write";
 
@@ -1555,6 +1560,7 @@ int vfio_region_setup(Object *obj, VFIODevice *vbasedev, VFIORegion *region,
     region->size = info->size;
     region->fd_offset = info->offset;
     region->nr = index;
+    region->post_wr = false;
     if (vbasedev->regfds != NULL) {
         region->fd = vbasedev->regfds[index];
     } else {
@@ -2689,7 +2695,7 @@ static int vfio_io_region_read(VFIODevice *vbasedev, uint8_t index, off_t off,
 }
 
 static int vfio_io_region_write(VFIODevice *vbasedev, uint8_t index, off_t off,
-                                uint32_t size, void *data)
+                                uint32_t size, void *data, bool post)
 {
     struct vfio_region_info *info = vbasedev->regions[index];
     int ret;

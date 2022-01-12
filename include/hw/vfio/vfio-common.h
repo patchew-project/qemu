@@ -57,6 +57,7 @@ typedef struct VFIORegion {
     VFIOMmap *mmaps;
     uint8_t nr; /* cache the region number for debug */
     int fd; /* fd to mmap() region */
+    bool post_wr; /* writes can be posted */
 } VFIORegion;
 
 typedef struct VFIOMigration {
@@ -180,7 +181,7 @@ struct VFIODevIO {
     int (*region_read)(VFIODevice *vdev, uint8_t nr, off_t off, uint32_t size,
                        void *data);
     int (*region_write)(VFIODevice *vdev, uint8_t nr, off_t off, uint32_t size,
-                        void *data);
+                        void *data, bool post);
 };
 
 #define VDEV_GET_INFO(vdev, info) \
@@ -193,8 +194,8 @@ struct VFIODevIO {
     ((vdev)->io_ops->set_irqs((vdev), (irqs)))
 #define VDEV_REGION_READ(vdev, nr, off, size, data) \
     ((vdev)->io_ops->region_read((vdev), (nr), (off), (size), (data)))
-#define VDEV_REGION_WRITE(vdev, nr, off, size, data) \
-    ((vdev)->io_ops->region_write((vdev), (nr), (off), (size), (data)))
+#define VDEV_REGION_WRITE(vdev, nr, off, size, data, post) \
+    ((vdev)->io_ops->region_write((vdev), (nr), (off), (size), (data), (post)))
 
 struct VFIOContIO {
     int (*dma_map)(VFIOContainer *container,
