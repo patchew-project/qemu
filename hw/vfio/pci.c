@@ -514,7 +514,7 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
         vdev->nr_vectors = nr + 1;
         ret = vfio_enable_vectors(vdev, true);
         if (ret) {
-            error_report("vfio: failed to enable vectors, %d", ret);
+            error_report("vfio: failed to enable vectors, %s", strerror(-ret));
         }
     } else {
         Error *err = NULL;
@@ -659,7 +659,8 @@ retry:
     ret = vfio_enable_vectors(vdev, false);
     if (ret) {
         if (ret < 0) {
-            error_report("vfio: Error: Failed to setup MSI fds: %m");
+            error_report("vfio: Error: Failed to setup MSI fds: %s",
+                         strerror(-ret));
         } else if (ret != vdev->nr_vectors) {
             error_report("vfio: Error: Failed to enable %d "
                          "MSI vectors, retry with %d", vdev->nr_vectors, ret);
@@ -2668,6 +2669,7 @@ static void vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
     irq_info.index = VFIO_PCI_ERR_IRQ_INDEX;
 
     ret = VDEV_GET_IRQ_INFO(vbasedev, &irq_info);
+
     if (ret) {
         /* This can fail for an old kernel or legacy PCI dev */
         trace_vfio_populate_device_get_irq_info_failure(strerror(errno));
@@ -3552,6 +3554,9 @@ static void vfio_user_pci_realize(PCIDevice *pdev, Error **errp)
     if (ret) {
         goto out_teardown;
     }
+
+    vfio_register_err_notifier(vdev);
+    vfio_register_req_notifier(vdev);
 
     return;
 
