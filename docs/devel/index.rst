@@ -48,3 +48,4 @@ modifying QEMU's source code.
    trivial-patches
    submitting-a-patch
    submitting-a-pull-request
+   vfio-user
