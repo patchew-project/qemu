@@ -1398,6 +1398,18 @@ static int vfio_user_region_write(VFIOProxy *proxy, uint8_t index, off_t offset,
     return ret;
 }
 
+void vfio_user_reset(VFIOProxy *proxy)
+{
+    VFIOUserHdr msg;
+
+    vfio_user_request_msg(&msg, VFIO_USER_DEVICE_RESET, sizeof(msg), 0);
+
+    vfio_user_send_wait(proxy, &msg, NULL, 0, false);
+    if (msg.flags & VFIO_USER_ERROR) {
+        error_printf("reset reply error %d\n", msg.error_reply);
+    }
+}
+
 
 /*
  * Socket-based io_ops
