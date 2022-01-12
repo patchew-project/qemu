@@ -497,7 +497,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
     NamedClockList *ncl;
     Error *local_err = NULL;
     bool unattached_parent = false;
-    static int unattached_count;
+    static int unattached_count, sgx_count;
 
     if (dev->hotplugged && !dc->hotpluggable) {
         error_setg(errp, QERR_DEVICE_NO_HOTPLUG, object_get_typename(obj));
@@ -509,7 +509,15 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
             goto fail;
         }
 
-        if (!obj->parent) {
+        if (!obj->parent && !strcmp(object_get_typename(obj), "sgx-epc")) {
+            gchar *name = g_strdup_printf("device[%d]", sgx_count++);
+
+            object_property_add_child(container_get(qdev_get_machine(),
+                                                    "/sgx"),
+                                      name, obj);
+            unattached_parent = true;
+            g_free(name);
+        } else if (!obj->parent) {
             gchar *name = g_strdup_printf("device[%d]", unattached_count++);
 
             object_property_add_child(container_get(qdev_get_machine(),
