@@ -1178,19 +1178,6 @@ struct DisasInsn {
 /* ====================================================================== */
 /* Miscellaneous helpers, used by several operations.  */
 
-static void help_l2_shift(DisasContext *s, DisasOps *o, int mask)
-{
-    int b2 = get_field(s, b2);
-    int d2 = get_field(s, d2);
-
-    if (b2 == 0) {
-        o->in2 = tcg_const_i64(d2 & mask);
-    } else {
-        o->in2 = get_address(s, 0, b2, d2);
-        tcg_gen_andi_i64(o->in2, o->in2, mask);
-    }
-}
-
 static DisasJumpType help_goto_direct(DisasContext *s, uint64_t dest)
 {
     if (dest == s->pc_tmp) {
@@ -5923,17 +5910,19 @@ static void in2_ri2(DisasContext *s, DisasOps *o)
 }
 #define SPEC_in2_ri2 0
 
-static void in2_sh32(DisasContext *s, DisasOps *o)
+static void in2_sh(DisasContext *s, DisasOps *o)
 {
-    help_l2_shift(s, o, 31);
-}
-#define SPEC_in2_sh32 0
+    int b2 = get_field(s, b2);
+    int d2 = get_field(s, d2);
 
-static void in2_sh64(DisasContext *s, DisasOps *o)
-{
-    help_l2_shift(s, o, 63);
+    if (b2 == 0) {
+        o->in2 = tcg_const_i64(d2 & 0x3f);
+    } else {
+        o->in2 = get_address(s, 0, b2, d2);
+        tcg_gen_andi_i64(o->in2, o->in2, 0x3f);
+    }
 }
-#define SPEC_in2_sh64 0
+#define SPEC_in2_sh 0
 
 static void in2_m2_8u(DisasContext *s, DisasOps *o)
 {

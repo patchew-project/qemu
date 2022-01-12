@@ -268,33 +268,6 @@ static uint32_t cc_calc_icm(uint64_t mask, uint64_t val)
     }
 }
 
-static uint32_t cc_calc_sla_32(uint32_t src, int shift)
-{
-    uint32_t mask = ((1U << shift) - 1U) << (32 - shift);
-    uint32_t sign = 1U << 31;
-    uint32_t match;
-    int32_t r;
-
-    /* Check if the sign bit stays the same.  */
-    if (src & sign) {
-        match = mask;
-    } else {
-        match = 0;
-    }
-    if ((src & mask) != match) {
-        /* Overflow.  */
-        return 3;
-    }
-
-    r = ((src << shift) & ~sign) | (src & sign);
-    if (r == 0) {
-        return 0;
-    } else if (r < 0) {
-        return 1;
-    }
-    return 2;
-}
-
 static uint32_t cc_calc_sla_64(uint64_t src, int shift)
 {
     /* Do not use (1ULL << (shift + 1)): it triggers UB when shift is 63.  */
@@ -321,6 +294,11 @@ static uint32_t cc_calc_sla_64(uint64_t src, int shift)
         return 1;
     }
     return 2;
+}
+
+static uint32_t cc_calc_sla_32(uint32_t src, int shift)
+{
+    return cc_calc_sla_64(((uint64_t)src) << 32, shift);
 }
 
 static uint32_t cc_calc_flogr(uint64_t dst)
