@@ -1186,7 +1186,7 @@ static void artist_vram_write(void *opaque, hwaddr addr, uint64_t val,
     unsigned int offset;
     trace_artist_vram_write(size, addr, val);
 
-    if (s->cmap_bm_access) {
+    if (vram_write_bufidx(s) == ARTIST_BUFFER_CMAP) {
         buf = &s->vram_buffer[ARTIST_BUFFER_CMAP];
         if (addr + 3 < buf->size) {
             *(uint32_t *)(buf->data + addr) = val;
@@ -1195,14 +1195,14 @@ static void artist_vram_write(void *opaque, hwaddr addr, uint64_t val,
     }
 
     buf = vram_write_buffer(s);
-    posy = ADDR_TO_Y(addr >> 2);
-    posx = ADDR_TO_X(addr >> 2);
+    posy = ADDR_TO_Y(addr);
+    posx = ADDR_TO_X(addr);
 
     if (!buf->size) {
         return;
     }
 
-    if (posy > buf->height || posx > buf->width) {
+    if (posy >= buf->height || posx >= buf->width) {
         return;
     }
 
@@ -1242,7 +1242,7 @@ static uint64_t artist_vram_read(void *opaque, hwaddr addr, unsigned size)
     uint64_t val;
     unsigned int posy, posx;
 
-    if (s->cmap_bm_access) {
+    if (vram_read_bufidx(s) == ARTIST_BUFFER_CMAP) {
         buf = &s->vram_buffer[ARTIST_BUFFER_CMAP];
         val = 0;
         if (addr < buf->size && addr + 3 < buf->size) {
@@ -1257,10 +1257,10 @@ static uint64_t artist_vram_read(void *opaque, hwaddr addr, unsigned size)
         return 0;
     }
 
-    posy = ADDR_TO_Y(addr >> 2);
-    posx = ADDR_TO_X(addr >> 2);
+    posy = ADDR_TO_Y(addr);
+    posx = ADDR_TO_X(addr);
 
-    if (posy > buf->height || posx > buf->width) {
+    if (posy >= buf->height || posx >= buf->width) {
         return 0;
     }
 
