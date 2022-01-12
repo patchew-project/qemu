@@ -56,6 +56,7 @@ typedef struct VFIORegion {
     uint32_t nr_mmaps;
     VFIOMmap *mmaps;
     uint8_t nr; /* cache the region number for debug */
+    int fd; /* fd to mmap() region */
 } VFIORegion;
 
 typedef struct VFIOMigration {
@@ -150,6 +151,7 @@ typedef struct VFIODevice {
     OnOffAuto pre_copy_dirty_page_tracking;
     VFIOProxy *proxy;
     struct vfio_region_info **regions;
+    int *regfds;
 } VFIODevice;
 
 struct VFIODeviceOps {
@@ -172,7 +174,7 @@ struct VFIODeviceOps {
 struct VFIODevIO {
     int (*get_info)(VFIODevice *vdev, struct vfio_device_info *info);
     int (*get_region_info)(VFIODevice *vdev,
-                           struct vfio_region_info *info);
+                           struct vfio_region_info *info, int *fd);
     int (*get_irq_info)(VFIODevice *vdev, struct vfio_irq_info *irq);
     int (*set_irqs)(VFIODevice *vdev, struct vfio_irq_set *irqs);
     int (*region_read)(VFIODevice *vdev, uint8_t nr, off_t off, uint32_t size,
@@ -183,8 +185,8 @@ struct VFIODevIO {
 
 #define VDEV_GET_INFO(vdev, info) \
     ((vdev)->io_ops->get_info((vdev), (info)))
-#define VDEV_GET_REGION_INFO(vdev, info) \
-    ((vdev)->io_ops->get_region_info((vdev), (info)))
+#define VDEV_GET_REGION_INFO(vdev, info, fd) \
+    ((vdev)->io_ops->get_region_info((vdev), (info), (fd)))
 #define VDEV_GET_IRQ_INFO(vdev, irq) \
     ((vdev)->io_ops->get_irq_info((vdev), (irq)))
 #define VDEV_SET_IRQS(vdev, irqs) \
