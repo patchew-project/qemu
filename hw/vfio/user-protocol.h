@@ -92,4 +92,18 @@ typedef struct {
 #define VFIO_USER_DEF_MAX_XFER  (1024 * 1024)
 #define VFIO_USER_MAX_MAX_XFER  (64 * 1024 * 1024)
 
+
+/*
+ * VFIO_USER_DEVICE_GET_INFO
+ * imported from struct_device_info
+ */
+typedef struct {
+    VFIOUserHdr hdr;
+    uint32_t argsz;
+    uint32_t flags;
+    uint32_t num_regions;
+    uint32_t num_irqs;
+    uint32_t cap_offset;
+} VFIOUserDeviceInfo;
+
 #endif /* VFIO_USER_PROTOCOL_H */

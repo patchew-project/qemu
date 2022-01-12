@@ -83,4 +83,6 @@ void vfio_user_set_handler(VFIODevice *vbasedev,
                            void *reqarg);
 int vfio_user_validate_version(VFIODevice *vbasedev, Error **errp);
 
+extern VFIODevIO vfio_dev_io_sock;
+
 #endif /* VFIO_USER_H */
