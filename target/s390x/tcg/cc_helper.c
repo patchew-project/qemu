@@ -297,7 +297,8 @@ static uint32_t cc_calc_sla_32(uint32_t src, int shift)
 
 static uint32_t cc_calc_sla_64(uint64_t src, int shift)
 {
-    uint64_t mask = ((1ULL << shift) - 1ULL) << (64 - shift);
+    /* Do not use (1ULL << (shift + 1)): it triggers UB when shift is 63.  */
+    uint64_t mask = ((((1ULL << shift) - 1) << 1) + 1) << (64 - (shift + 1));
     uint64_t sign = 1ULL << 63;
     uint64_t match;
     int64_t r;
