@@ -1601,16 +1601,14 @@ int vfio_pci_nvidia_v100_ram_init(VFIOPCIDevice *vdev, Error **errp)
 
     hdr = vfio_get_region_info_cap(nv2reg, VFIO_REGION_INFO_CAP_NVLINK2_SSATGT);
     if (!hdr) {
-        ret = -ENODEV;
-        goto free_exit;
+        return -ENODEV;
     }
     cap = (void *) hdr;
 
     p = mmap(NULL, nv2reg->size, PROT_READ | PROT_WRITE,
              MAP_SHARED, vdev->vbasedev.fd, nv2reg->offset);
     if (p == MAP_FAILED) {
-        ret = -errno;
-        goto free_exit;
+        return -errno;
     }
 
     quirk = vfio_quirk_alloc(1);
@@ -1623,7 +1621,7 @@ int vfio_pci_nvidia_v100_ram_init(VFIOPCIDevice *vdev, Error **errp)
                         (void *) (uintptr_t) cap->tgt);
     trace_vfio_pci_nvidia_gpu_setup_quirk(vdev->vbasedev.name, cap->tgt,
                                           nv2reg->size);
-free_exit:
+
     g_free(nv2reg);
 
     return ret;
@@ -1651,16 +1649,14 @@ int vfio_pci_nvlink2_init(VFIOPCIDevice *vdev, Error **errp)
     hdr = vfio_get_region_info_cap(atsdreg,
                                    VFIO_REGION_INFO_CAP_NVLINK2_SSATGT);
     if (!hdr) {
-        ret = -ENODEV;
-        goto free_exit;
+        return -ENODEV;
     }
     captgt = (void *) hdr;
 
     hdr = vfio_get_region_info_cap(atsdreg,
                                    VFIO_REGION_INFO_CAP_NVLINK2_LNKSPD);
     if (!hdr) {
-        ret = -ENODEV;
-        goto free_exit;
+        return -ENODEV;
     }
     capspeed = (void *) hdr;
 
@@ -1669,8 +1665,7 @@ int vfio_pci_nvlink2_init(VFIOPCIDevice *vdev, Error **errp)
         p = mmap(NULL, atsdreg->size, PROT_READ | PROT_WRITE,
                  MAP_SHARED, vdev->vbasedev.fd, atsdreg->offset);
         if (p == MAP_FAILED) {
-            ret = -errno;
-            goto free_exit;
+            return -errno;
         }
 
         quirk = vfio_quirk_alloc(1);
@@ -1690,8 +1685,6 @@ int vfio_pci_nvlink2_init(VFIOPCIDevice *vdev, Error **errp)
                         (void *) (uintptr_t) capspeed->link_speed);
     trace_vfio_pci_nvlink2_setup_quirk_lnkspd(vdev->vbasedev.name,
                                               capspeed->link_speed);
-free_exit:
-    g_free(atsdreg);
 
     return ret;
 }
