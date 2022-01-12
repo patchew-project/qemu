@@ -1742,6 +1742,11 @@ void vfio_reset_handler(void *opaque)
     QLIST_FOREACH(group, &vfio_group_list, next) {
         QLIST_FOREACH(vbasedev, &group->device_list, next) {
             if (vbasedev->dev->realized && vbasedev->needs_reset) {
+                if (vbasedev->ops->vfio_hot_reset_multi == NULL) {
+                    error_printf("%s: No hot reset handler specified\n",
+                                 vbasedev->name);
+                    continue;
+                }
                 vbasedev->ops->vfio_hot_reset_multi(vbasedev);
             }
         }

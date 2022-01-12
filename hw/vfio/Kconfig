@@ -2,12 +2,22 @@ config VFIO
     bool
     depends on LINUX
 
+config VFIO_USER
+    bool
+    depends on VFIO
+
 config VFIO_PCI
     bool
     default y
     select VFIO
     select EDID
     depends on LINUX && PCI
+
+config VFIO_USER_PCI
+    bool
+    default y
+    select VFIO_USER
+    depends on VFIO_PCI
 
 config VFIO_CCW
     bool
