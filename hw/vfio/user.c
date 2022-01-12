@@ -1250,3 +1250,6 @@ VFIODevIO vfio_dev_io_sock = {
     .region_write = vfio_user_io_region_write,
 };
 
+
+VFIOContIO vfio_cont_io_sock = {
+};
