@@ -1441,7 +1441,7 @@ static int vfio_user_io_dma_map(VFIOContainer *container, MemoryRegion *mr,
      * map->vaddr enters as a QEMU process address
      * make it either a file offset for mapped areas or 0
      */
-    if (fd != -1) {
+    if (fd != -1 && (container->proxy->flags & VFIO_PROXY_SECURE) == 0) {
         void *addr = (void *)(uintptr_t)map->vaddr;
 
         map->vaddr = qemu_ram_block_host_offset(mr->ram_block, addr);
