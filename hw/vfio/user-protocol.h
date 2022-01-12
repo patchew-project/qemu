@@ -193,11 +193,29 @@ typedef struct {
     char data[];
 } VFIOUserDMARW;
 
+/*
+ * VFIO_USER_DIRTY_PAGES
+ */
+
 /*imported from struct vfio_bitmap */
 typedef struct {
     uint64_t pgsize;
     uint64_t size;
     char data[];
 } VFIOUserBitmap;
+
+/* imported from struct vfio_iommu_type1_dirty_bitmap_get */
+typedef struct {
+    uint64_t iova;
+    uint64_t size;
+    VFIOUserBitmap bitmap;
+} VFIOUserBitmapRange;
+
+/* imported from struct vfio_iommu_type1_dirty_bitmap */
+typedef struct {
+    VFIOUserHdr hdr;
+    uint32_t argsz;
+    uint32_t flags;
+} VFIOUserDirtyPages;
 
 #endif /* VFIO_USER_PROTOCOL_H */
