@@ -362,9 +362,9 @@ static int pci_vpb_rv_map_irq(PCIDevice *d, int irq_num)
 
 static void pci_vpb_set_irq(void *opaque, int irq_num, int level)
 {
-    qemu_irq *pic = opaque;
+    PCIVPBState *s = opaque;
 
-    qemu_set_irq(pic[irq_num], level);
+    qemu_set_irq(s->irq[irq_num], level);
 }
 
 static void pci_vpb_reset(DeviceState *d)
@@ -422,7 +422,7 @@ static void pci_vpb_realize(DeviceState *dev, Error **errp)
         mapfn = pci_vpb_map_irq;
     }
 
-    pci_bus_irqs(&s->pci_bus, pci_vpb_set_irq, mapfn, s->irq, 4);
+    pci_bus_irqs(&s->pci_bus, pci_vpb_set_irq, mapfn, s, 4);
 
     /* Our memory regions are:
      * 0 : our control registers
