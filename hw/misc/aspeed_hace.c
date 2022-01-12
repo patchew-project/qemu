@@ -11,6 +11,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/error-report.h"
+#include "qemu/bswap.h"
 #include "hw/misc/aspeed_hace.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
@@ -27,6 +28,7 @@
 
 #define R_HASH_SRC      (0x20 / 4)
 #define R_HASH_DEST     (0x24 / 4)
+#define R_HASH_KEY_BUFF (0x28 / 4)
 #define R_HASH_SRC_LEN  (0x2c / 4)
 
 #define R_HASH_CMD      (0x30 / 4)
@@ -94,7 +96,8 @@ static int hash_algo_lookup(uint32_t reg)
     return -1;
 }
 
-static void do_hash_operation(AspeedHACEState *s, int algo, bool sg_mode)
+static void do_hash_operation(AspeedHACEState *s, int algo, bool sg_mode,
+                              bool acc_mode)
 {
     struct iovec iov[ASPEED_HACE_MAX_SG];
     g_autofree uint8_t *digest_buf;
@@ -103,6 +106,7 @@ static void do_hash_operation(AspeedHACEState *s, int algo, bool sg_mode)
 
     if (sg_mode) {
         uint32_t len = 0;
+        uint32_t total_len = 0;
 
         for (i = 0; !(len & SG_LIST_LEN_LAST); i++) {
             uint32_t addr, src;
@@ -123,10 +127,26 @@ static void do_hash_operation(AspeedHACEState *s, int algo, bool sg_mode)
                                         MEMTXATTRS_UNSPECIFIED, NULL);
             addr &= SG_LIST_ADDR_MASK;
 
-            iov[i].iov_len = len & SG_LIST_LEN_MASK;
-            plen = iov[i].iov_len;
+            plen = len & SG_LIST_LEN_MASK;
             iov[i].iov_base = address_space_map(&s->dram_as, addr, &plen, false,
                                                 MEMTXATTRS_UNSPECIFIED);
+
+            if (acc_mode) {
+                total_len += plen;
+
+                if (len & SG_LIST_LEN_LAST) {
+                    /*
+                     * In the padding message, the last 64/128 bit represents
+                     * the total length of bitstream in big endian.
+                     * SHA-224, SHA-256 are 64 bit
+                     * SHA-384, SHA-512, SHA-512/224, SHA-512/256 are 128 bit
+                     * However, we would not process such a huge bit stream.
+                     */
+                    plen -= total_len - (ldq_be_p(iov[i].iov_base + plen - 8) / 8);
+                }
+            }
+
+            iov[i].iov_len = plen;
         }
     } else {
         hwaddr len = s->regs[R_HASH_SRC_LEN];
@@ -210,6 +230,9 @@ static void aspeed_hace_write(void *opaque, hwaddr addr, uint64_t data,
     case R_HASH_DEST:
         data &= ahc->dest_mask;
         break;
+    case R_HASH_KEY_BUFF:
+        data &= ahc->key_mask;
+        break;
     case R_HASH_SRC_LEN:
         data &= 0x0FFFFFFF;
         break;
@@ -229,12 +252,13 @@ static void aspeed_hace_write(void *opaque, hwaddr addr, uint64_t data,
         }
         algo = hash_algo_lookup(data);
         if (algo < 0) {
-                qemu_log_mask(LOG_GUEST_ERROR,
-                        "%s: Invalid hash algorithm selection 0x%"PRIx64"\n",
-                        __func__, data & ahc->hash_mask);
-                break;
+            qemu_log_mask(LOG_GUEST_ERROR,
+                    "%s: Invalid hash algorithm selection 0x%"PRIx64"\n",
+                    __func__, data & ahc->hash_mask);
+            break;
         }
-        do_hash_operation(s, algo, data & HASH_SG_EN);
+        do_hash_operation(s, algo, data & HASH_SG_EN,
+                ((data & HASH_HMAC_MASK) == HASH_DIGEST_ACCUM));
 
         if (data & HASH_IRQ_EN) {
             qemu_irq_raise(s->irq);
@@ -333,6 +357,7 @@ static void aspeed_ast2400_hace_class_init(ObjectClass *klass, void *data)
 
     ahc->src_mask = 0x0FFFFFFF;
     ahc->dest_mask = 0x0FFFFFF8;
+    ahc->key_mask = 0x0FFFFFC0;
     ahc->hash_mask = 0x000003ff; /* No SG or SHA512 modes */
 }
 
@@ -351,6 +376,7 @@ static void aspeed_ast2500_hace_class_init(ObjectClass *klass, void *data)
 
     ahc->src_mask = 0x3fffffff;
     ahc->dest_mask = 0x3ffffff8;
+    ahc->key_mask = 0x3FFFFFC0;
     ahc->hash_mask = 0x000003ff; /* No SG or SHA512 modes */
 }
 
@@ -369,6 +395,7 @@ static void aspeed_ast2600_hace_class_init(ObjectClass *klass, void *data)
 
     ahc->src_mask = 0x7FFFFFFF;
     ahc->dest_mask = 0x7FFFFFF8;
+    ahc->key_mask = 0x7FFFFFF8;
     ahc->hash_mask = 0x00147FFF;
 }
 
