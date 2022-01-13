@@ -1360,7 +1360,7 @@ int pnv_phb4_pec_get_phb_id(PnvPhb4PecState *pec, int stack_index)
     int offset = 0;
 
     while (index--) {
-        offset += pecc->num_stacks[index];
+        offset += pecc->num_phbs[index];
     }
 
     return offset + stack_index;
@@ -1510,8 +1510,8 @@ static void pnv_phb4_instance_init(Object *obj)
     object_initialize_child(obj, "source", &phb->xsrc, TYPE_XIVE_SOURCE);
 }
 
-static PnvPhb4PecStack *pnv_phb4_get_stack(PnvChip *chip, PnvPHB4 *phb,
-                                           Error **errp)
+static PnvPhb4PecState *pnv_phb4_get_pec(PnvChip *chip, PnvPHB4 *phb,
+                                         Error **errp)
 {
     Pnv9Chip *chip9 = PNV9_CHIP(chip);
     int chip_id = phb->chip_id;
@@ -1520,14 +1520,19 @@ static PnvPhb4PecStack *pnv_phb4_get_stack(PnvChip *chip, PnvPHB4 *phb,
 
     for (i = 0; i < chip->num_pecs; i++) {
         /*
-         * For each PEC, check the amount of stacks it supports
-         * and see if the given phb4 index matches a stack.
+         * For each PEC, check the amount of phbs it supports
+         * and see if the given phb4 index matches an index.
          */
         PnvPhb4PecState *pec = &chip9->pecs[i];
 
-        for (j = 0; j < pec->num_stacks; j++) {
+        for (j = 0; j < pec->num_phbs; j++) {
             if (index == pnv_phb4_pec_get_phb_id(pec, j)) {
-                return &pec->stacks[j];
+                pec->phbs[j] = phb;
+
+                /* Set phb-number now since we already have it */
+                object_property_set_int(OBJECT(phb), "phb-number",
+                                               j, &error_abort);
+                return pec;
             }
         }
     }
@@ -1552,7 +1557,6 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
     if (!phb->pec) {
         PnvMachineState *pnv = PNV_MACHINE(qdev_get_machine());
         PnvChip *chip = pnv_get_chip(pnv, phb->chip_id);
-        PnvPhb4PecStack *stack;
         PnvPhb4PecClass *pecc;
         BusState *s;
 
@@ -1561,23 +1565,16 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
             return;
         }
 
-        stack = pnv_phb4_get_stack(chip, phb, &local_err);
+        phb->pec = pnv_phb4_get_pec(chip, phb, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return;
         }
 
-        /*
-         * All other phb properties but 'pec', 'version' and
-         * 'phb-number' are already set.
-         */
-        object_property_set_link(OBJECT(phb), "pec", OBJECT(stack->pec),
-                                 &error_abort);
+        /* All other phb properties are already set */
         pecc = PNV_PHB4_PEC_GET_CLASS(phb->pec);
         object_property_set_int(OBJECT(phb), "version", pecc->version,
                                 &error_fatal);
-        object_property_set_int(OBJECT(phb), "phb-number",
-                                stack->stack_no, &error_abort);
 
         /*
          * Reparent user created devices to the chip to build
