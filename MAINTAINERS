@@ -3090,6 +3090,13 @@ F: hw/core/clock-vmstate.c
 F: hw/core/qdev-clock.c
 F: docs/devel/clocks.rst
 
+Printer Subsystem
+M: Ruien Zhang <zhangruien@bytedance.com>
+S: Maintained
+F: include/printer
+F: printer
+F: qapi/printer.json
+
 Usermode Emulation
 ------------------
 Overall usermode emulation

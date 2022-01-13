@@ -59,6 +59,7 @@ if have_system
     'rdma',
     'rocker',
     'tpm',
+    'printer',
   ]
 endif
 if have_system or have_tools

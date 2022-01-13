@@ -2397,6 +2397,7 @@ genh += hxdep
 authz_ss = ss.source_set()
 blockdev_ss = ss.source_set()
 block_ss = ss.source_set()
+printer_ss = ss.source_set()
 chardev_ss = ss.source_set()
 common_ss = ss.source_set()
 common_user_ss = ss.source_set()
@@ -2455,6 +2456,7 @@ if have_system
     'audio',
     'backends',
     'backends/tpm',
+    'printer',
     'chardev',
     'ebpf',
     'hw/9pfs',
@@ -2574,6 +2576,7 @@ endif
 
 subdir('audio')
 subdir('io')
+subdir('printer')
 subdir('chardev')
 subdir('fsdev')
 subdir('dump')
@@ -2843,6 +2846,13 @@ libqmp = static_library('qmp', qmp_ss.sources() + genh,
 
 qmp = declare_dependency(link_whole: [libqmp])
 
+printer_ss = printer_ss.apply(config_host, strict: false)
+libprinter = static_library('printer', printer_ss.sources() + genh,
+                            name_suffix: 'fa',
+                            build_by_default: false)
+
+printer = declare_dependency(link_whole: libprinter)
+
 libchardev = static_library('chardev', chardev_ss.sources() + genh,
                             name_suffix: 'fa',
                             dependencies: [gnutls],
@@ -2869,7 +2879,7 @@ foreach m : block_mods + softmmu_mods
                 install_dir: qemu_moddir)
 endforeach
 
-softmmu_ss.add(authz, blockdev, chardev, crypto, io, qmp)
+softmmu_ss.add(authz, blockdev, printer, chardev, crypto, io, qmp)
 common_ss.add(qom, qemuutil)
 
 common_ss.add_all(when: 'CONFIG_SOFTMMU', if_true: [softmmu_ss])

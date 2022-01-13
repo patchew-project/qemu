@@ -3564,6 +3564,14 @@ The available backends are:
     traffic identified by a name (preferably a fqdn).
 ERST
 
+DEFHEADING(Printer device options:)
+
+DEF("printerdev", HAS_ARG, QEMU_OPTION_printerdev,
+    "-printerdev help\n"
+    "-printerdev builtin,id=id\n"
+    , QEMU_ARCH_ALL
+)
+
 DEFHEADING()
 
 #ifdef CONFIG_TPM

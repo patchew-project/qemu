@@ -1,0 +1,5 @@
+# See docs/devel/tracing.rst for syntax documentation.
+
+# printer.c
+qemu_printer_new(const char *dev, char *typename) "%s: new printer with type %s"
+qemu_printer_del(const char *dev) "%s: delete printer"

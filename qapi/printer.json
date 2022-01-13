@@ -1,0 +1,47 @@
+# -*- mode: python -*-
+#
+# Copyright (C) 2022 Ruien Zhang <zhangruien@bytedance.com>
+#
+# This work is licensed under the terms of the GNU GPL, version 2 or later.
+# See the COPYING file in the top-level directory.
+
+##
+# = Printer
+##
+
+##
+# @PrinterBuiltinOptions:
+#
+# Options of the builtin printer.
+#
+# Since: 6.3
+##
+{ 'struct': 'PrinterBuiltinOptions',
+  'data': {} }
+
+##
+# @PrinterdevDriver:
+#
+# An enumeration of possible printer backend drivers.
+#
+# Since: 6.3
+##
+{ 'enum': 'PrinterdevDriver',
+  'data': [ 'builtin' ] }
+
+##
+# @Printerdev:
+#
+# Captures the configuration of a printer device.
+#
+# @id: identifier for monitor commands.
+#
+# Since: 6.3
+##
+{ 'union': 'Printerdev',
+  'base': {
+    'id': 'str',
+    'driver': 'PrinterdevDriver'},
+  'discriminator': 'driver',
+  'data': {
+    'builtin': 'PrinterBuiltinOptions' } }

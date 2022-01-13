@@ -208,3 +208,6 @@ option('fdt', type: 'combo', value: 'auto',
 
 option('selinux', type: 'feature', value: 'auto',
        description: 'SELinux support in qemu-nbd')
+
+option('printer', type: 'feature', value: 'auto',
+       description: 'Printer subsystem support')
