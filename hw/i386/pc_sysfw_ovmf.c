@@ -24,8 +24,10 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/i386/pc.h"
 #include "cpu.h"
+#include "sev.h"
 
 #define OVMF_TABLE_FOOTER_GUID "96b582de-1fb2-45f7-baea-a366c55a082d"
 
@@ -148,4 +150,29 @@ bool pc_system_ovmf_table_find(const char *entry, uint8_t **data,
         }
     }
     return false;
+}
+
+
+void pc_system_ovmf_initialize_sev(void *ptr, size_t size)
+{
+    int ret;
+
+    /* Encrypt the boot ROM */
+    if (!sev_enabled()) {
+        return;
+    }
+
+    /*
+     * OVMF places a GUIDed structures in the flash, so
+     * search for them
+     */
+    pc_system_parse_ovmf_flash(ptr, size);
+
+    ret = sev_es_save_reset_vector(ptr, size);
+    if (ret) {
+        error_report("failed to locate and/or save reset vector");
+        exit(1);
+    }
+
+    sev_encrypt_flash(ptr, size, &error_fatal);
 }
