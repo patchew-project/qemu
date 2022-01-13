@@ -87,6 +87,9 @@ struct PnvPHB4 {
     /* My own PHB number */
     uint32_t phb_number;
 
+    /* The owner PEC */
+    PnvPhb4PecState *pec;
+
     char bus_path[8];
 
     /* Main register images */

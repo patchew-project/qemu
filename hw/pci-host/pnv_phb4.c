@@ -894,8 +894,7 @@ static void pnv_phb4_update_regions(PnvPHB4 *phb)
 
 static void pnv_pec_stk_update_map(PnvPHB4 *phb)
 {
-    PnvPhb4PecStack *stack = phb->stack;
-    PnvPhb4PecState *pec = stack->pec;
+    PnvPhb4PecState *pec = phb->pec;
     MemoryRegion *sysmem = get_system_memory();
     uint64_t bar_en = phb->nest_regs[PEC_NEST_STK_BAR_EN];
     uint64_t bar, mask, size;
@@ -969,7 +968,7 @@ static void pnv_pec_stk_update_map(PnvPHB4 *phb)
         bar = phb->nest_regs[PEC_NEST_STK_INT_BAR] >> 8;
         size = PNV_PHB4_MAX_INTs << 16;
         snprintf(name, sizeof(name), "pec-%d.%d-phb-%d-int",
-                 stack->pec->chip_id, stack->pec->index, phb->phb_number);
+                 phb->pec->chip_id, phb->pec->index, phb->phb_number);
         memory_region_init(&phb->intbar, OBJECT(phb), name, size);
         memory_region_add_subregion(sysmem, bar, &phb->intbar);
     }
@@ -982,7 +981,7 @@ static void pnv_pec_stk_nest_xscom_write(void *opaque, hwaddr addr,
                                          uint64_t val, unsigned size)
 {
     PnvPHB4 *phb = PNV_PHB4(opaque);
-    PnvPhb4PecState *pec = phb->stack->pec;
+    PnvPhb4PecState *pec = phb->pec;
     uint32_t reg = addr >> 3;
 
     switch (reg) {
@@ -1458,8 +1457,7 @@ static AddressSpace *pnv_phb4_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 
 static void pnv_phb4_xscom_realize(PnvPHB4 *phb)
 {
-    PnvPhb4PecStack *stack = phb->stack;
-    PnvPhb4PecState *pec = stack->pec;
+    PnvPhb4PecState *pec = phb->pec;
     PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
     uint32_t pec_nest_base;
     uint32_t pec_pci_base;
@@ -1569,10 +1567,12 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
         }
 
         /*
-         * All other phb properties but 'version' and 'phb-number'
-         * are already set.
+         * All other phb properties but 'pec', 'version' and
+         * 'phb-number' are already set.
          */
-        pecc = PNV_PHB4_PEC_GET_CLASS(phb->stack->pec);
+        object_property_set_link(OBJECT(phb), "pec", OBJECT(phb->stack->pec),
+                                 &error_abort);
+        pecc = PNV_PHB4_PEC_GET_CLASS(phb->pec);
         object_property_set_int(OBJECT(phb), "version", pecc->version,
                                 &error_fatal);
         object_property_set_int(OBJECT(phb), "phb-number",
@@ -1688,6 +1688,8 @@ static Property pnv_phb4_properties[] = {
         DEFINE_PROP_UINT64("version", PnvPHB4, version, 0),
         DEFINE_PROP_LINK("stack", PnvPHB4, stack, TYPE_PNV_PHB4_PEC_STACK,
                          PnvPhb4PecStack *),
+        DEFINE_PROP_LINK("pec", PnvPHB4, pec, TYPE_PNV_PHB4_PEC,
+                         PnvPhb4PecState *),
         DEFINE_PROP_END_OF_LIST(),
 };
 
