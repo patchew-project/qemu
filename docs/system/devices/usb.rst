@@ -199,6 +199,9 @@ option or the ``device_add`` monitor command. Available devices are:
 ``u2f-{emulated,passthru}``
    Universal Second Factor device
 
+``usb-printer``
+   USB printer device
+
 Physical port addressing
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
