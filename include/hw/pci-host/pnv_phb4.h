@@ -154,8 +154,6 @@ struct PnvPHB4 {
     XiveSource xsrc;
     qemu_irq *qirqs;
 
-    PnvPhb4PecStack *stack;
-
     QLIST_HEAD(, PnvPhb4DMASpace) dma_spaces;
 };
 
