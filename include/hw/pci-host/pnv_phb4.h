@@ -84,6 +84,9 @@ struct PnvPHB4 {
 
     uint64_t version;
 
+    /* My own PHB number */
+    uint32_t phb_number;
+
     char bus_path[8];
 
     /* Main register images */

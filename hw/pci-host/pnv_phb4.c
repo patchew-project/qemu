@@ -937,7 +937,7 @@ static void pnv_pec_stk_update_map(PnvPHB4 *phb)
         mask = phb->nest_regs[PEC_NEST_STK_MMIO_BAR0_MASK];
         size = ((~mask) >> 8) + 1;
         snprintf(name, sizeof(name), "pec-%d.%d-phb-%d-mmio0",
-                 pec->chip_id, pec->index, stack->stack_no);
+                 pec->chip_id, pec->index, phb->phb_number);
         memory_region_init(&phb->mmbar0, OBJECT(phb), name, size);
         memory_region_add_subregion(sysmem, bar, &phb->mmbar0);
         phb->mmio0_base = bar;
@@ -949,7 +949,7 @@ static void pnv_pec_stk_update_map(PnvPHB4 *phb)
         mask = phb->nest_regs[PEC_NEST_STK_MMIO_BAR1_MASK];
         size = ((~mask) >> 8) + 1;
         snprintf(name, sizeof(name), "pec-%d.%d-phb-%d-mmio1",
-                 pec->chip_id, pec->index, stack->stack_no);
+                 pec->chip_id, pec->index, phb->phb_number);
         memory_region_init(&phb->mmbar1, OBJECT(phb), name, size);
         memory_region_add_subregion(sysmem, bar, &phb->mmbar1);
         phb->mmio1_base = bar;
@@ -960,7 +960,7 @@ static void pnv_pec_stk_update_map(PnvPHB4 *phb)
         bar = phb->nest_regs[PEC_NEST_STK_PHB_REGS_BAR] >> 8;
         size = PNV_PHB4_NUM_REGS << 3;
         snprintf(name, sizeof(name), "pec-%d.%d-phb-%d",
-                 pec->chip_id, pec->index, stack->stack_no);
+                 pec->chip_id, pec->index, phb->phb_number);
         memory_region_init(&phb->phbbar, OBJECT(phb), name, size);
         memory_region_add_subregion(sysmem, bar, &phb->phbbar);
     }
@@ -969,7 +969,7 @@ static void pnv_pec_stk_update_map(PnvPHB4 *phb)
         bar = phb->nest_regs[PEC_NEST_STK_INT_BAR] >> 8;
         size = PNV_PHB4_MAX_INTs << 16;
         snprintf(name, sizeof(name), "pec-%d.%d-phb-%d-int",
-                 stack->pec->chip_id, stack->pec->index, stack->stack_no);
+                 stack->pec->chip_id, stack->pec->index, phb->phb_number);
         memory_region_init(&phb->intbar, OBJECT(phb), name, size);
         memory_region_add_subregion(sysmem, bar, &phb->intbar);
     }
@@ -1469,20 +1469,20 @@ static void pnv_phb4_xscom_realize(PnvPHB4 *phb)
 
     /* Initialize the XSCOM regions for the stack registers */
     snprintf(name, sizeof(name), "xscom-pec-%d.%d-nest-phb-%d",
-             pec->chip_id, pec->index, stack->stack_no);
+             pec->chip_id, pec->index, phb->phb_number);
     pnv_xscom_region_init(&phb->nest_regs_mr, OBJECT(phb),
                           &pnv_pec_stk_nest_xscom_ops, phb, name,
                           PHB4_PEC_NEST_STK_REGS_COUNT);
 
     snprintf(name, sizeof(name), "xscom-pec-%d.%d-pci-phb-%d",
-             pec->chip_id, pec->index, stack->stack_no);
+             pec->chip_id, pec->index, phb->phb_number);
     pnv_xscom_region_init(&phb->pci_regs_mr, OBJECT(phb),
                           &pnv_pec_stk_pci_xscom_ops, phb, name,
                           PHB4_PEC_PCI_STK_REGS_COUNT);
 
     /* PHB pass-through */
     snprintf(name, sizeof(name), "xscom-pec-%d.%d-pci-phb-%d",
-             pec->chip_id, pec->index, stack->stack_no);
+             pec->chip_id, pec->index, phb->phb_number);
     pnv_xscom_region_init(&phb->phb_regs_mr, OBJECT(phb),
                           &pnv_phb4_xscom_ops, phb, name, 0x40);
 
@@ -1491,14 +1491,14 @@ static void pnv_phb4_xscom_realize(PnvPHB4 *phb)
 
     /* Populate the XSCOM address space. */
     pnv_xscom_add_subregion(pec->chip,
-                            pec_nest_base + 0x40 * (stack->stack_no + 1),
+                            pec_nest_base + 0x40 * (phb->phb_number + 1),
                             &phb->nest_regs_mr);
     pnv_xscom_add_subregion(pec->chip,
-                            pec_pci_base + 0x40 * (stack->stack_no + 1),
+                            pec_pci_base + 0x40 * (phb->phb_number + 1),
                             &phb->pci_regs_mr);
     pnv_xscom_add_subregion(pec->chip,
                             pec_pci_base + PNV9_XSCOM_PEC_PCI_STK0 +
-                            0x40 * stack->stack_no,
+                            0x40 * phb->phb_number,
                             &phb->phb_regs_mr);
 }
 
@@ -1568,10 +1568,15 @@ static void pnv_phb4_realize(DeviceState *dev, Error **errp)
             return;
         }
 
-        /* All other phb properties but 'version' are already set */
+        /*
+         * All other phb properties but 'version' and 'phb-number'
+         * are already set.
+         */
         pecc = PNV_PHB4_PEC_GET_CLASS(phb->stack->pec);
         object_property_set_int(OBJECT(phb), "version", pecc->version,
                                 &error_fatal);
+        object_property_set_int(OBJECT(phb), "phb-number",
+                                phb->stack->stack_no, &error_abort);
 
         /*
          * Assign stack->phb since pnv_phb4_update_regions() uses it
@@ -1677,6 +1682,7 @@ static void pnv_phb4_xive_notify(XiveNotifier *xf, uint32_t srcno)
 }
 
 static Property pnv_phb4_properties[] = {
+        DEFINE_PROP_UINT32("phb-number", PnvPHB4, phb_number, 0),
         DEFINE_PROP_UINT32("index", PnvPHB4, phb_id, 0),
         DEFINE_PROP_UINT32("chip-id", PnvPHB4, chip_id, 0),
         DEFINE_PROP_UINT64("version", PnvPHB4, version, 0),
