@@ -45,6 +45,7 @@
 #include "target/i386/cpu.h"
 #include "hw/i386/topology.h"
 #include "hw/i386/fw_cfg.h"
+#include "hw/i386/pc.h"
 #include "hw/intc/i8259.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "target/i386/sev.h"
@@ -1157,6 +1158,10 @@ void x86_bios_rom_init(MachineState *ms, const char *default_firmware,
     memory_region_add_subregion(rom_memory,
                                 (uint32_t)(-bios_size),
                                 bios);
+
+    pc_system_ovmf_initialize_sev(
+        rom_ptr((uint32_t)-bios_size, bios_size),
+        bios_size);
 }
 
 bool x86_machine_is_smm_enabled(const X86MachineState *x86ms)
