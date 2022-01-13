@@ -682,6 +682,7 @@ target_ulong helper_4xx_tlbre_hi(CPUPPCState *env, target_ulong entry)
     }
     ret |= size << PPC4XX_TLBHI_SIZE_SHIFT;
     env->spr[SPR_40x_PID] = tlb->PID;
+    env->tlb_need_flush |= TLB_NEED_LOCAL_FLUSH;
     return ret;
 }
 
@@ -794,6 +795,7 @@ void helper_4xx_tlbwe_lo(CPUPPCState *env, target_ulong entry,
                   tlb->prot & PAGE_WRITE ? 'w' : '-',
                   tlb->prot & PAGE_EXEC ? 'x' : '-',
                   tlb->prot & PAGE_VALID ? 'v' : '-', (int)tlb->PID);
+    env->tlb_need_flush |= TLB_NEED_LOCAL_FLUSH;
 }
 
 target_ulong helper_4xx_tlbsx(CPUPPCState *env, target_ulong address)
