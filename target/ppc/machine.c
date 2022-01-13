@@ -718,7 +718,7 @@ static bool pbr403_needed(void *opaque)
 }
 
 static const VMStateDescription vmstate_pbr403 = {
-    .name = "cpu/pbr403",
+    .name = "cpu/tlb6xx/pbr403",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = pbr403_needed,
