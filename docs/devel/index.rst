@@ -37,6 +37,7 @@ modifying QEMU's source code.
    reset
    s390-dasd-ipl
    clocks
+   dma-ctrl-if
    qom
    modules
    block-coroutine-wrapper
