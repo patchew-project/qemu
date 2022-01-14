@@ -318,7 +318,11 @@ static void s390_pci_read_group(S390PCIBusDevice *pbdev,
         resgrp->i = cap->noi;
         resgrp->maxstbl = cap->maxstbl;
         resgrp->version = cap->version;
-        resgrp->dtsm = ZPCI_DTSM;
+        if (hdr->version >= 2 && pbdev->interp) {
+            resgrp->dtsm = cap->dtsm;
+        } else {
+            resgrp->dtsm = ZPCI_DTSM;
+        }
     }
 }
 
