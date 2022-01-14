@@ -13,6 +13,7 @@
 #define HW_S390_PCI_VFIO_H
 
 #include "hw/s390x/s390-pci-bus.h"
+#include "hw/s390x/s390-pci-inst.h"
 #include CONFIG_DEVICES
 
 #ifdef CONFIG_VFIO
@@ -23,6 +24,11 @@ void s390_pci_end_dma_count(S390pciState *s, S390PCIDMACount *cnt);
 int s390_pci_probe_interp(S390PCIBusDevice *pbdev);
 int s390_pci_set_interp(S390PCIBusDevice *pbdev, bool enable);
 int s390_pci_update_passthrough_fh(S390PCIBusDevice *pbdev);
+int s390_pci_probe_aif(S390PCIBusDevice *pbdev);
+int s390_pci_set_aif(S390PCIBusDevice *pbdev, ZpciFib *fib, bool enable,
+                     bool assist);
+int s390_pci_get_aif(S390PCIBusDevice *pbdev, bool enable, bool assist);
+
 void s390_pci_get_clp_info(S390PCIBusDevice *pbdev);
 #else
 static inline bool s390_pci_update_dma_avail(int fd, unsigned int *avail)
@@ -45,6 +51,20 @@ static inline int s390_pci_set_interp(S390PCIBusDevice *pbdev, bool enable)
     return -EINVAL;
 }
 static inline int s390_pci_update_passthrough_fh(S390PCIBusDevice *pbdev)
+{
+    return -EINVAL;
+}
+static inline int s390_pci_probe_aif(S390PCIBusDevice *pbdev)
+{
+    return -EINVAL;
+}
+static inline int s390_pci_set_aif(S390PCIBusDevice *pbdev, ZpciFib *fib,
+                                   bool enable, bool assist)
+{
+    return -EINVAL;
+}
+static inline int s390_pci_get_aif(S390PCIBusDevice *pbdev, bool enable,
+                                   bool assist)
 {
     return -EINVAL;
 }
