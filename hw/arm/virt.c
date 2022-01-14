@@ -1932,6 +1932,12 @@ static void machvirt_init(MachineState *machine)
     firmware_loaded = virt_firmware_init(vms, sysmem,
                                          secure_sysmem ?: sysmem);
 
+    /* A64FX proceesor is supported the ARMv8.1-VHE */
+    if (!vms->virt &&
+            !strncmp(machine->cpu_type, ARM_CPU_TYPE_NAME("a64fx"), 13)) {
+        vms->virt = true;
+    }
+
     /* If we have an EL3 boot ROM then the assumption is that it will
      * implement PSCI itself, so disable QEMU's internal implementation
      * so it doesn't get in the way. Instead of starting secondary
