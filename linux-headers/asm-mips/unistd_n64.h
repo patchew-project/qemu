@@ -353,5 +353,6 @@
 #define __NR_landlock_add_rule (__NR_Linux + 445)
 #define __NR_landlock_restrict_self (__NR_Linux + 446)
 #define __NR_process_mrelease (__NR_Linux + 448)
+#define __NR_futex_waitv (__NR_Linux + 449)
 
 #endif /* _ASM_UNISTD_N64_H */
