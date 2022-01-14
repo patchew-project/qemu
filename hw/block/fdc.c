@@ -1532,6 +1532,11 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
         if (fdctrl->fifo[0] & 0x80)
             tmp += fdctrl->fifo[6];
         fdctrl->data_len *= tmp;
+        if (tmp < 0) {
+            FLOPPY_DPRINTF("calculated illegal data_len=%u, tmp=%i\n",
+                           fdctrl->data_len, tmp);
+            return;
+        }
     }
     fdctrl->eot = fdctrl->fifo[6];
     if (fdctrl->dor & FD_DOR_DMAEN) {
