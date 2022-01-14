@@ -20,6 +20,9 @@ bool s390_pci_update_dma_avail(int fd, unsigned int *avail);
 S390PCIDMACount *s390_pci_start_dma_count(S390pciState *s,
                                           S390PCIBusDevice *pbdev);
 void s390_pci_end_dma_count(S390pciState *s, S390PCIDMACount *cnt);
+int s390_pci_probe_interp(S390PCIBusDevice *pbdev);
+int s390_pci_set_interp(S390PCIBusDevice *pbdev, bool enable);
+int s390_pci_update_passthrough_fh(S390PCIBusDevice *pbdev);
 void s390_pci_get_clp_info(S390PCIBusDevice *pbdev);
 #else
 static inline bool s390_pci_update_dma_avail(int fd, unsigned int *avail)
@@ -33,6 +36,18 @@ static inline S390PCIDMACount *s390_pci_start_dma_count(S390pciState *s,
 }
 static inline void s390_pci_end_dma_count(S390pciState *s,
                                           S390PCIDMACount *cnt) { }
+int s390_pci_probe_interp(S390PCIBusDevice *pbdev)
+{
+    return -EINVAL;
+}
+static inline int s390_pci_set_interp(S390PCIBusDevice *pbdev, bool enable)
+{
+    return -EINVAL;
+}
+static inline int s390_pci_update_passthrough_fh(S390PCIBusDevice *pbdev)
+{
+    return -EINVAL;
+}
 static inline void s390_pci_get_clp_info(S390PCIBusDevice *pbdev) { }
 #endif
 
