@@ -803,6 +803,7 @@ DEFINE_CCW_MACHINE(7_0, "7.0", true);
 static void ccw_machine_6_2_instance_options(MachineState *machine)
 {
     ccw_machine_7_0_instance_options(machine);
+    s390_cpudef_featoff_greater(14, 1, S390_FEAT_ZPCI_INTERP);
 }
 
 static void ccw_machine_6_2_class_options(MachineClass *mc)
