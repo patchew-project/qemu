@@ -300,6 +300,9 @@ void pc_machine_init_sgx_epc(PCMachineState *pcms)
         /* set the memdev link with memory backend */
         object_property_parse(obj, SGX_EPC_MEMDEV_PROP, list->value->memdev,
                               &error_fatal);
+        object_property_add_child(OBJECT(list->value->memdev), "sgx-epc",
+                                  OBJECT(obj));
+
         /* set the numa node property for sgx epc object */
         object_property_set_uint(obj, SGX_EPC_NUMA_NODE_PROP, list->value->node,
                              &error_fatal);
