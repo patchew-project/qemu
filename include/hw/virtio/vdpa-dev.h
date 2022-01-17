@@ -14,6 +14,14 @@ struct VhostVdpaDevice {
     char *vdpa_dev;
     int vdpa_dev_fd;
     int32_t bootindex;
+    struct vhost_dev dev;
+    struct vhost_vdpa vdpa;
+    VirtQueue **virtqs;
+    uint8_t *config;
+    int config_size;
+    uint32_t num_queues;
+    uint16_t queue_size;
+    bool started;
 };
 
 uint32_t vhost_vdpa_device_get_u32(int fd, unsigned long int cmd, Error **errp);
