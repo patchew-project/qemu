@@ -165,7 +165,8 @@ class QMPShell(qmp.QEMUMonitorProtocol):
     def __init__(self, address: qmp.SocketAddrT,
                  pretty: bool = False,
                  verbose: bool = False,
-                 server: bool = False):
+                 server: bool = False,
+                 logfile: str = None):
         super().__init__(address, server=server)
         self._greeting: Optional[QMPMessage] = None
         self._completer = QMPCompleter()
@@ -175,6 +176,10 @@ class QMPShell(qmp.QEMUMonitorProtocol):
                                       '.qmp-shell_history')
         self.pretty = pretty
         self.verbose = verbose
+        self.logfile = None
+
+        if logfile is not None:
+            self.logfile = open(logfile, "w")
 
     def close(self) -> None:
         # Hook into context manager of parent to save shell history.
@@ -315,11 +320,11 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         self._cli_expr(cmdargs[1:], qmpcmd['arguments'])
         return qmpcmd
 
-    def _print(self, qmp_message: object) -> None:
+    def _print(self, qmp_message: object, fh=sys.stdout) -> None:
         jsobj = json.dumps(qmp_message,
                            indent=4 if self.pretty else None,
                            sort_keys=self.pretty)
-        print(str(jsobj))
+        print(str(jsobj), file=fh)
 
     def _execute_cmd(self, cmdline: str) -> bool:
         try:
@@ -342,6 +347,9 @@ class QMPShell(qmp.QEMUMonitorProtocol):
             print('Disconnected')
             return False
         self._print(resp)
+        if self.logfile is not None:
+            cmd = {**qmpcmd, **resp}
+            self._print(cmd, fh=self.logfile)
         return True
 
     def connect(self, negotiate: bool = True) -> None:
@@ -409,8 +417,9 @@ class HMPShell(QMPShell):
     def __init__(self, address: qmp.SocketAddrT,
                  pretty: bool = False,
                  verbose: bool = False,
-                 server: bool = False):
-        super().__init__(address, pretty, verbose, server)
+                 server: bool = False,
+                 logfile: str = None):
+        super().__init__(address, pretty, verbose, server, logfile)
         self._cpu_index = 0
 
     def _cmd_completion(self) -> None:
@@ -503,6 +512,8 @@ def main() -> None:
                         help='Verbose (echo commands sent and received)')
     parser.add_argument('-p', '--pretty', action='store_true',
                         help='Pretty-print JSON')
+    parser.add_argument('-l', '--logfile',
+                        help='Save log of all QMP messages to PATH')
 
     default_server = os.environ.get('QMP_SOCKET')
     parser.add_argument('qmp_server', action='store',
@@ -521,7 +532,7 @@ def main() -> None:
         parser.error(f"Bad port number: {args.qmp_server}")
         return  # pycharm doesn't know error() is noreturn
 
-    with shell_class(address, args.pretty, args.verbose) as qemu:
+    with shell_class(address, args.pretty, args.verbose, args.logfile) as qemu:
         try:
             qemu.connect(negotiate=not args.skip_negotiation)
         except qmp.QMPConnectError:
@@ -545,6 +556,8 @@ def main_wrap() -> None:
                         help='Verbose (echo commands sent and received)')
     parser.add_argument('-p', '--pretty', action='store_true',
                         help='Pretty-print JSON')
+    parser.add_argument('-l', '--logfile',
+                        help='Save log of all QMP messages to PATH')
 
     parser.add_argument('command', nargs=argparse.REMAINDER,
                         help='QEMU command line to invoke')
@@ -568,7 +581,7 @@ def main_wrap() -> None:
         parser.error(f"Bad port number: {socketpath}")
         return  # pycharm doesn't know error() is noreturn
 
-    with shell_class(address, args.pretty, args.verbose, True) as qemu:
+    with shell_class(address, args.pretty, args.verbose, True, args.logfile) as qemu:
         qemuproc = Popen(cmd)
 
         try:
