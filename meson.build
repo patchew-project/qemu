@@ -41,6 +41,7 @@ qemu_icondir = get_option('datadir') / 'icons'
 
 config_host_data = configuration_data()
 genh = []
+qapi_trace_events = []
 
 target_dirs = config_host['TARGET_DIRS'].split()
 have_linux_user = false
@@ -2554,6 +2555,10 @@ if 'CONFIG_VHOST_USER' in config_host
   vhost_user = libvhost_user.get_variable('vhost_user_dep')
 endif
 
+# Please keep ordering between 'qapi' and 'trace' subdirs:
+# We should first handle 'qapi' subdir, so that all
+# generated trace events be generated prior handling 'trace'
+# subdir.
 subdir('qapi')
 subdir('qobject')
 subdir('stubs')
