@@ -25,12 +25,60 @@ struct VhostVdpaDevicePCI {
 
 static void vhost_vdpa_device_pci_instance_init(Object *obj)
 {
-    return;
+    VhostVdpaDevicePCI *dev = VHOST_VDPA_DEVICE_PCI(obj);
+
+    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+                                TYPE_VHOST_VDPA_DEVICE);
+    object_property_add_alias(obj, "bootindex", OBJECT(&dev->vdev),
+                              "bootindex");
+}
+
+static Property vhost_vdpa_device_pci_properties[] = {
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void
+vhost_vdpa_device_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
+{
+    VhostVdpaDevicePCI *dev = VHOST_VDPA_DEVICE_PCI(vpci_dev);
+    DeviceState *vdev = DEVICE(&dev->vdev);
+    uint32_t vdev_id;
+    uint32_t num_queues;
+    int fd;
+
+    fd = qemu_open(dev->vdev.vdpa_dev, O_RDWR, errp);
+    if (*errp) {
+        return;
+    }
+
+    vdev_id = vhost_vdpa_device_get_u32(fd, VHOST_VDPA_GET_DEVICE_ID, errp);
+    if (*errp) {
+        qemu_close(fd);
+        return;
+    }
+
+    num_queues = vhost_vdpa_device_get_u32(fd, VHOST_VDPA_GET_VQS_NUM, errp);
+    if (*errp) {
+        qemu_close(fd);
+        return;
+    }
+
+    dev->vdev.vdpa_dev_fd = fd;
+    vpci_dev->class_code = virtio_pci_get_class_id(vdev_id);
+    vpci_dev->trans_devid = virtio_pci_get_trans_devid(vdev_id);
+    /* one for config interrupt, one per vq */
+    vpci_dev->nvectors = num_queues + 1;
+    qdev_realize(vdev, BUS(&vpci_dev->bus), errp);
 }
 
 static void vhost_vdpa_device_pci_class_init(ObjectClass *klass, void *data)
 {
-    return;
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);
+
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    device_class_set_props(dc, vhost_vdpa_device_pci_properties);
+    k->realize = vhost_vdpa_device_pci_realize;
 }
 
 static const VirtioPCIDeviceTypeInfo vhost_vdpa_device_pci_info = {
