@@ -1293,12 +1293,16 @@
 # Specify the VNC reload options.
 #
 # @tls-certs: reload tls certs or not.
+# @addresses: If specified, change set of addresses
+#             to listen for connections. Addresses configured
+#             for websockets are not touched. (since 7.0)
 #
 # Since: 6.0
 #
 ##
 { 'struct': 'DisplayReloadOptionsVNC',
-  'data': { '*tls-certs': 'bool' } }
+  'data': { '*tls-certs': 'bool',
+            '*addresses': ['SocketAddress'] } }
 
 ##
 # @DisplayReloadOptions:

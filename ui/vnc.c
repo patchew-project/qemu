@@ -587,15 +587,9 @@ VncInfo2List *qmp_query_vnc_servers(Error **errp)
     return prev;
 }
 
-bool vnc_display_reload_certs(const char *id, Error **errp)
+static bool vnc_display_reload_certs(VncDisplay *vd, Error **errp)
 {
-    VncDisplay *vd = vnc_display_find(id);
     QCryptoTLSCredsClass *creds = NULL;
-
-    if (!vd) {
-        error_setg(errp, "Can not find vnc display");
-        return false;
-    }
 
     if (!vd->tlscreds) {
         error_setg(errp, "vnc tls is not enabled");
@@ -3973,6 +3967,35 @@ static int vnc_display_listen(VncDisplay *vd,
     return 0;
 }
 
+bool vnc_display_reload(DisplayReloadOptionsVNC *arg, Error **errp)
+{
+    VncDisplay *vd = vnc_display_find(NULL);
+
+    if (!vd) {
+        error_setg(errp, "Can not find vnc display");
+        return false;
+    }
+
+    if (arg->has_tls_certs && arg->tls_certs) {
+        if (!vnc_display_reload_certs(vd, errp)) {
+            return false;
+        }
+    }
+
+    if (arg->has_addresses) {
+        if (vd->listener) {
+            qio_net_listener_disconnect(vd->listener);
+            object_unref(OBJECT(vd->listener));
+            vd->listener = NULL;
+        }
+
+        if (vnc_display_listen(vd, arg->addresses, NULL, errp) < 0) {
+            return false;
+        }
+    }
+
+    return true;
+}
 
 void vnc_display_open(const char *id, Error **errp)
 {
