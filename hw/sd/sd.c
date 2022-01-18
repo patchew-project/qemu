@@ -1757,12 +1757,20 @@ int sd_do_command(SDState *sd, SDRequest *req,
     if (rtype == sd_illegal) {
         sd->card_status |= ILLEGAL_COMMAND;
     } else {
-        /* Valid command, we can update the 'state before command' bits.
-         * (Do this now so they appear in r1 responses.)
-         */
         sd->current_cmd = req->cmd;
         sd->card_status &= ~CURRENT_STATE;
-        sd->card_status |= (last_state << 9);
+
+        if (!sd->spi) {
+            /* Valid command, we can update the 'state before command' bits.
+             * (Do this now so they appear in r1 responses.)
+             */
+            sd->card_status |= (last_state << 9);
+        } else {
+            /* Type B ("clear on valid command") is not supported
+             * in SPI-mode.
+             */
+            sd->card_status |= (sd->state << 9);
+        }
     }
 
 send_response:
@@ -1808,10 +1816,12 @@ send_response:
     trace_sdcard_response(sd_response_name(rtype), rsplen);
 
     if (rtype != sd_illegal) {
-        /* Clear the "clear on valid command" status bits now we've
-         * sent any response
-         */
-        sd->card_status &= ~CARD_STATUS_B;
+        if (!sd->spi) {
+            /* Clear the "clear on valid command" status bits now we've
+             * sent any response
+             */
+            sd->card_status &= ~CARD_STATUS_B;
+        }
     }
 
 #ifdef DEBUG_SD
