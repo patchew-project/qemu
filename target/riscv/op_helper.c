@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2016-2017 Sagar Karandikar, sagark@eecs.berkeley.edu
  * Copyright (c) 2017-2018 SiFive, Inc.
+ * Copyright (c) 2021      VRULL GmbH
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -69,6 +70,33 @@ target_ulong helper_csrrw(CPURISCVState *env, int csr,
     return val;
 }
 
+/* helper_zicbo_envcfg
+ *
+ * Raise virtual exceptions and illegal instruction exceptions for
+ * Zicbo[mz] instructions based on the settings of [mhs]envcfg.
+ */
+static void helper_zicbo_envcfg(CPURISCVState *env, target_ulong envbits)
+{
+#ifndef CONFIG_USER_ONLY
+    target_ulong ra = GETPC();
+
+    /* Check for virtual instruction exceptions first, as we don't see
+     * VU and VS reflected in env->priv (these are just the translated
+     * U and S stated with virtualisation enabled.
+     */
+    if (riscv_cpu_virt_enabled(env) &&
+        (((env->priv < PRV_H) && !get_field(env->henvcfg, envbits)) ||
+         ((env->priv < PRV_S) && !get_field(env->senvcfg, envbits)))) {
+        riscv_raise_exception(env, RISCV_EXCP_VIRT_INSTRUCTION_FAULT, ra);
+    }
+
+    if (((env->priv < PRV_M) && !get_field(env->menvcfg, envbits)) ||
+        ((env->priv < PRV_S) && !get_field(env->senvcfg, envbits))) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, ra);
+    }
+#endif
+}
+
 target_ulong helper_csrr_i128(CPURISCVState *env, int csr)
 {
     Int128 rv = int128_zero();
@@ -111,6 +139,67 @@ target_ulong helper_csrrw_i128(CPURISCVState *env, int csr,
 
     env->retxh = int128_gethi(rv);
     return int128_getlo(rv);
+}
+
+/* helper_zicbom_access
+ *
+ * Check access permissions (LOAD or STORE or FETCH) for Zicbom,
+ * raising either store page-fault (non-virtualised) or store
+ * guest-page fault (virtualised).
+ */
+static void helper_zicbom_access(CPURISCVState *env, target_ulong address)
+{
+    void* phost;
+    int ret = TLB_INVALID_MASK;
+    MMUAccessType access_type = MMU_DATA_LOAD;
+    target_ulong ra = GETPC();
+
+    while (ret == TLB_INVALID_MASK && access_type <= MMU_INST_FETCH) {
+        ret = probe_access_flags(env, address, access_type++,
+                                 cpu_mmu_index(env, false),
+                                 true, &phost, ra);
+    }
+
+    if (ret == TLB_INVALID_MASK) {
+        uint32_t exc = RISCV_EXCP_STORE_PAGE_FAULT;
+
+#ifndef CONFIG_USER_ONLY
+        /* User-mode emulation does not have virtualisation... */
+        if (riscv_cpu_virt_enabled(env)) {
+            exc = RISCV_EXCP_STORE_GUEST_AMO_ACCESS_FAULT;
+        }
+#endif
+        riscv_raise_exception(env, exc, ra);
+    }
+}
+
+void helper_cbo_inval(CPURISCVState *env, target_ulong address)
+{
+    helper_zicbo_envcfg(env, ENVCFG_CBIE);
+    helper_zicbom_access(env, address);
+
+    /* We don't emulate the cache-hierarchy, so we're done. */
+}
+
+void helper_cbo_clean(CPURISCVState *env, target_ulong address)
+{
+    helper_zicbo_envcfg(env, ENVCFG_CBCFE);
+    helper_zicbom_access(env, address);
+
+    /* We don't emulate the cache-hierarchy, so we're done. */
+}
+
+void helper_cbo_zero(CPURISCVState *env, target_ulong address)
+{
+    helper_zicbo_envcfg(env, ENVCFG_CBZE);
+
+    /* mask off low-bits to align-down to the cache-block */
+    address &= ~(RISCV_CPU(env)->cfg.cbolen - 1);
+    void* mem = probe_access(env, address, 4, MMU_DATA_STORE,
+                             cpu_mmu_index(env, false), GETPC());
+
+    /* Zeroize the block */
+    memset(mem, 0, RISCV_CPU(env)->cfg.cbolen);
 }
 
 #ifndef CONFIG_USER_ONLY

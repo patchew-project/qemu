@@ -263,6 +263,11 @@ struct CPURISCVState {
     target_ulong spmbase;
     target_ulong upmmask;
     target_ulong upmbase;
+
+    /* [mhs]envcfg CSRs */
+    target_ulong menvcfg;
+    target_ulong henvcfg;
+    target_ulong senvcfg;
 #endif
 
     float_status fp_status;
@@ -329,6 +334,9 @@ struct RISCVCPU {
         bool ext_icsr;
         bool ext_zfh;
         bool ext_zfhmin;
+        bool ext_zicbom;
+        bool ext_zicbop;
+        bool ext_zicboz;
 
         char *priv_spec;
         char *user_spec;
@@ -336,6 +344,7 @@ struct RISCVCPU {
         char *vext_spec;
         uint16_t vlen;
         uint16_t elen;
+        uint16_t cbolen;
         bool mmu;
         bool pmp;
         bool epmp;
