@@ -217,6 +217,11 @@
 #define CSR_MTINST          0x34a
 #define CSR_MTVAL2          0x34b
 
+/* Environment configuration */
+#define CSR_SENVCFG         0x10a
+#define CSR_MENVCFG         0x30a
+#define CSR_HENVCFG         0x60a
+
 /* Enhanced Physical Memory Protection (ePMP) */
 #define CSR_MSECCFG         0x747
 #define CSR_MSECCFGH        0x757
@@ -448,6 +453,11 @@ typedef enum {
 #define COUNTEREN_TM         (1 << 1)
 #define COUNTEREN_IR         (1 << 2)
 #define COUNTEREN_HPM3       (1 << 3)
+
+/* [msh]envcfg CSR bits */
+#define ENVCFG_CBIE          (0b11 << 4)
+#define ENVCFG_CBCFE         (1 << 6)
+#define ENVCFG_CBZE          (1 << 7)
 
 /* Privilege modes */
 #define PRV_U 0
