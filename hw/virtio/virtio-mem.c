@@ -765,6 +765,13 @@ static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (vmem->memdev->prealloc) {
+        warn_report("'%s' property specifies a memdev with preallocation"
+                    " enabled: %s. Instead, specify 'prealloc=on' for the"
+                    " virtio-mem device. ", VIRTIO_MEM_MEMDEV_PROP,
+                    object_get_canonical_path_component(OBJECT(vmem->memdev)));
+    }
+
     if ((nb_numa_nodes && vmem->node >= nb_numa_nodes) ||
         (!nb_numa_nodes && vmem->node)) {
         error_setg(errp, "'%s' property has value '%" PRIu32 "', which exceeds"
