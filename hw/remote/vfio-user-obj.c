@@ -53,6 +53,8 @@
 #include "hw/qdev-core.h"
 #include "hw/pci/pci.h"
 #include "qemu/timer.h"
+#include "hw/pci/msi.h"
+#include "hw/pci/msix.h"
 
 #define TYPE_VFU_OBJECT "x-vfio-user-server"
 OBJECT_DECLARE_TYPE(VfuObject, VfuObjectClass, VFU_OBJECT)
@@ -105,6 +107,8 @@ struct VfuObject {
 
     int vfu_poll_fd;
 };
+
+static GHashTable *vfu_object_dev_to_ctx_table;
 
 static void vfu_object_init_ctx(VfuObject *o, Error **errp);
 
@@ -381,6 +385,72 @@ static void vfu_object_register_bars(vfu_ctx_t *vfu_ctx, PCIDevice *pdev)
     }
 }
 
+static int vfu_object_map_irq(PCIDevice *pci_dev, int intx)
+{
+    /*
+     * We only register one INTx interrupt with the server. map_irq
+     * callback is required for PCIBus.
+     */
+    return 0;
+}
+
+static void vfu_object_set_irq(void *opaque, int pirq, int level)
+{
+    vfu_ctx_t *vfu_ctx = opaque;
+
+    if (vfu_ctx && level) {
+        vfu_irq_trigger(vfu_ctx, 0);
+    }
+}
+
+static void vfu_object_msi_notify(PCIDevice *pci_dev, unsigned vector)
+{
+    vfu_ctx_t *vfu_ctx = NULL;
+
+    if (!vfu_object_dev_to_ctx_table) {
+        return;
+    }
+
+    vfu_ctx = g_hash_table_lookup(vfu_object_dev_to_ctx_table, pci_dev);
+
+    if (vfu_ctx) {
+        vfu_irq_trigger(vfu_ctx, vector);
+    }
+}
+
+static int vfu_object_setup_irqs(VfuObject *o, PCIDevice *pci_dev)
+{
+    vfu_ctx_t *vfu_ctx = o->vfu_ctx;
+    int ret;
+
+    ret = vfu_setup_device_nr_irqs(vfu_ctx, VFU_DEV_INTX_IRQ, 1);
+    if (ret < 0) {
+        return ret;
+    }
+
+    pci_bus_irqs(pci_get_bus(o->pci_dev), vfu_object_set_irq,
+                 vfu_object_map_irq, o->vfu_ctx, 1);
+
+    ret = 0;
+    if (msix_nr_vectors_allocated(pci_dev)) {
+        ret = vfu_setup_device_nr_irqs(vfu_ctx, VFU_DEV_MSIX_IRQ,
+                                       msix_nr_vectors_allocated(pci_dev));
+
+        pci_dev->msix_notify = vfu_object_msi_notify;
+    } else if (msi_nr_vectors_allocated(pci_dev)) {
+        ret = vfu_setup_device_nr_irqs(vfu_ctx, VFU_DEV_MSI_IRQ,
+                                       msi_nr_vectors_allocated(pci_dev));
+
+        pci_dev->msi_notify = vfu_object_msi_notify;
+    }
+
+    if (ret < 0) {
+        return ret;
+    }
+
+    return 0;
+}
+
 /*
  * TYPE_VFU_OBJECT depends on the availability of the 'socket' and 'device'
  * properties. It also depends on devices instantiated in QEMU. These
@@ -478,6 +548,13 @@ static void vfu_object_init_ctx(VfuObject *o, Error **errp)
 
     vfu_object_register_bars(o->vfu_ctx, o->pci_dev);
 
+    ret = vfu_object_setup_irqs(o, o->pci_dev);
+    if (ret < 0) {
+        error_setg(errp, "vfu: Failed to setup interrupts for %s",
+                   o->device);
+        goto fail;
+    }
+
     ret = vfu_realize_ctx(o->vfu_ctx);
     if (ret < 0) {
         error_setg(errp, "vfu: Failed to realize device %s- %s",
@@ -490,6 +567,8 @@ static void vfu_object_init_ctx(VfuObject *o, Error **errp)
         error_setg(errp, "vfu: Failed to get poll fd %s", o->device);
         goto fail;
     }
+
+    g_hash_table_insert(vfu_object_dev_to_ctx_table, o->pci_dev, o->vfu_ctx);
 
     qemu_set_fd_handler(o->vfu_poll_fd, vfu_object_attach_ctx, NULL, o);
 
@@ -552,9 +631,15 @@ static void vfu_object_finalize(Object *obj)
         o->unplug_blocker = NULL;
     }
 
+    if (o->pci_dev) {
+        g_hash_table_remove(vfu_object_dev_to_ctx_table, o->pci_dev);
+    }
+
     o->pci_dev = NULL;
 
     if (!k->nr_devs && k->auto_shutdown) {
+        g_hash_table_destroy(vfu_object_dev_to_ctx_table);
+        vfu_object_dev_to_ctx_table = NULL;
         qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
     }
 
@@ -571,6 +656,10 @@ static void vfu_object_class_init(ObjectClass *klass, void *data)
     k->nr_devs = 0;
 
     k->auto_shutdown = true;
+
+    msi_nonbroken = true;
+
+    vfu_object_dev_to_ctx_table = g_hash_table_new_full(NULL, NULL, NULL, NULL);
 
     object_class_property_add(klass, "socket", "SocketAddress", NULL,
                               vfu_object_set_socket, NULL, NULL);

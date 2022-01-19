@@ -31,6 +31,8 @@
 #define MSIX_ENABLE_MASK (PCI_MSIX_FLAGS_ENABLE >> 8)
 #define MSIX_MASKALL_MASK (PCI_MSIX_FLAGS_MASKALL >> 8)
 
+static void pci_msix_notify(PCIDevice *dev, unsigned vector);
+
 MSIMessage msix_get_message(PCIDevice *dev, unsigned vector)
 {
     uint8_t *table_entry = dev->msix_table + vector * PCI_MSIX_ENTRY_SIZE;
@@ -334,6 +336,7 @@ int msix_init(struct PCIDevice *dev, unsigned short nentries,
     dev->msix_table = g_malloc0(table_size);
     dev->msix_pba = g_malloc0(pba_size);
     dev->msix_entry_used = g_malloc0(nentries * sizeof *dev->msix_entry_used);
+    dev->msix_notify = pci_msix_notify;
 
     msix_mask_all(dev, nentries);
 
@@ -485,7 +488,7 @@ int msix_enabled(PCIDevice *dev)
 }
 
 /* Send an MSI-X message */
-void msix_notify(PCIDevice *dev, unsigned vector)
+static void pci_msix_notify(PCIDevice *dev, unsigned vector)
 {
     MSIMessage msg;
 
@@ -501,6 +504,13 @@ void msix_notify(PCIDevice *dev, unsigned vector)
     msg = msix_get_message(dev, vector);
 
     msi_send_message(dev, msg);
+}
+
+void msix_notify(PCIDevice *dev, unsigned vector)
+{
+    if (dev->msix_notify) {
+        dev->msix_notify(dev, vector);
+    }
 }
 
 void msix_reset(PCIDevice *dev)
