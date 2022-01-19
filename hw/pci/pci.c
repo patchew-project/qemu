@@ -442,6 +442,8 @@ static void pci_root_bus_internal_init(PCIBus *bus, DeviceState *parent,
     bus->slot_reserved_mask = 0x0;
     bus->address_space_mem = address_space_mem;
     bus->address_space_io = address_space_io;
+    bus->isol_as_mem = NULL;
+    bus->isol_as_io = NULL;
     bus->flags |= PCI_BUS_IS_ROOT;
 
     /* host bridge */
@@ -2676,6 +2678,16 @@ MemoryRegion *pci_address_space_io(PCIDevice *dev)
     return pci_get_bus(dev)->address_space_io;
 }
 
+AddressSpace *pci_isol_as_mem(PCIDevice *dev)
+{
+    return pci_get_bus(dev)->isol_as_mem;
+}
+
+AddressSpace *pci_isol_as_io(PCIDevice *dev)
+{
+    return pci_get_bus(dev)->isol_as_io;
+}
+
 static void pci_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
@@ -2699,6 +2711,7 @@ static void pci_device_class_base_init(ObjectClass *klass, void *data)
 
 AddressSpace *pci_device_iommu_address_space(PCIDevice *dev)
 {
+    AddressSpace *iommu_as = NULL;
     PCIBus *bus = pci_get_bus(dev);
     PCIBus *iommu_bus = bus;
     uint8_t devfn = dev->devfn;
@@ -2744,6 +2757,10 @@ AddressSpace *pci_device_iommu_address_space(PCIDevice *dev)
     }
     if (!pci_bus_bypass_iommu(bus) && iommu_bus && iommu_bus->iommu_fn) {
         return iommu_bus->iommu_fn(bus, iommu_bus->iommu_opaque, devfn);
+    }
+    iommu_as = pci_isol_as_mem(dev);
+    if (iommu_as) {
+        return iommu_as;
     }
     return &address_space_memory;
 }

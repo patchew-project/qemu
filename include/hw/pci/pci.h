@@ -387,6 +387,8 @@ void pci_device_save(PCIDevice *s, QEMUFile *f);
 int pci_device_load(PCIDevice *s, QEMUFile *f);
 MemoryRegion *pci_address_space(PCIDevice *dev);
 MemoryRegion *pci_address_space_io(PCIDevice *dev);
+AddressSpace *pci_isol_as_mem(PCIDevice *dev);
+AddressSpace *pci_isol_as_io(PCIDevice *dev);
 
 /*
  * Should not normally be used by devices. For use by sPAPR target

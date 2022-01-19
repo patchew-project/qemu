@@ -39,8 +39,25 @@ struct PCIBus {
     void *irq_opaque;
     PCIDevice *devices[PCI_SLOT_MAX * PCI_FUNC_MAX];
     PCIDevice *parent_dev;
+
     MemoryRegion *address_space_mem;
     MemoryRegion *address_space_io;
+
+    /**
+     * Isolated address spaces - these allow the PCI bus to be part
+     * of an isolated address space as opposed to the global
+     * address_space_memory & address_space_io. This allows the
+     * bus to be attached to CPUs from different machines. The
+     * following is not used used commonly.
+     *
+     * TYPE_REMOTE_MACHINE allows emulating devices from multiple
+     * VM clients, as such it needs the PCI buses in the same machine
+     * to be part of different CPU address spaces. The following is
+     * useful in that scenario.
+     *
+     */
+    AddressSpace *isol_as_mem;
+    AddressSpace *isol_as_io;
 
     QLIST_HEAD(, PCIBus) child; /* this will be replaced by qdev later */
     QLIST_ENTRY(PCIBus) sibling;/* this will be replaced by qdev later */

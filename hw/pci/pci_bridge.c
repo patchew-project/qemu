@@ -383,6 +383,11 @@ void pci_bridge_initfn(PCIDevice *dev, const char *typename)
     sec_bus->address_space_io = &br->address_space_io;
     memory_region_init(&br->address_space_io, OBJECT(br), "pci_bridge_io",
                        4 * GiB);
+
+    /* This PCI bridge puts the sec_bus in its parent's address space */
+    sec_bus->isol_as_mem = pci_isol_as_mem(dev);
+    sec_bus->isol_as_io = pci_isol_as_io(dev);
+
     br->windows = pci_bridge_region_init(br);
     QLIST_INIT(&sec_bus->child);
     QLIST_INSERT_HEAD(&parent->child, sec_bus, sibling);
