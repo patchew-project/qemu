@@ -3639,11 +3639,8 @@ static int ram_load_postcopy(QEMUFile *f)
     bool place_needed = false;
     bool matches_target_page_size = false;
     MigrationIncomingState *mis = migration_incoming_get_current();
-    /* Temporary page that is later 'placed' */
-    void *postcopy_host_page = mis->postcopy_tmp_page;
-    void *host_page = NULL;
-    bool all_zero = true;
-    int target_pages = 0;
+    /* Currently we only use channel 0.  TODO: use all the channels */
+    PostcopyTmpPage *tmp_page = &mis->postcopy_tmp_pages[0];
 
     while (!ret && !(flags & RAM_SAVE_FLAG_EOS)) {
         ram_addr_t addr;
@@ -3687,7 +3684,7 @@ static int ram_load_postcopy(QEMUFile *f)
                 ret = -EINVAL;
                 break;
             }
-            target_pages++;
+            tmp_page->target_pages++;
             matches_target_page_size = block->page_size == TARGET_PAGE_SIZE;
             /*
              * Postcopy requires that we place whole host pages atomically;
@@ -3699,15 +3696,16 @@ static int ram_load_postcopy(QEMUFile *f)
              * however the source ensures it always sends all the components
              * of a host page in one chunk.
              */
-            page_buffer = postcopy_host_page +
+            page_buffer = tmp_page->tmp_huge_page +
                           host_page_offset_from_ram_block_offset(block, addr);
             /* If all TP are zero then we can optimise the place */
-            if (target_pages == 1) {
-                host_page = host_page_from_ram_block_offset(block, addr);
-            } else if (host_page != host_page_from_ram_block_offset(block,
-                                                                    addr)) {
+            if (tmp_page->target_pages == 1) {
+                tmp_page->host_addr =
+                    host_page_from_ram_block_offset(block, addr);
+            } else if (tmp_page->host_addr !=
+                       host_page_from_ram_block_offset(block, addr)) {
                 /* not the 1st TP within the HP */
-                error_report("Non-same host page %p/%p", host_page,
+                error_report("Non-same host page %p/%p", tmp_page->host_addr,
                              host_page_from_ram_block_offset(block, addr));
                 ret = -EINVAL;
                 break;
@@ -3717,10 +3715,11 @@ static int ram_load_postcopy(QEMUFile *f)
              * If it's the last part of a host page then we place the host
              * page
              */
-            if (target_pages == (block->page_size / TARGET_PAGE_SIZE)) {
+            if (tmp_page->target_pages ==
+                (block->page_size / TARGET_PAGE_SIZE)) {
                 place_needed = true;
             }
-            place_source = postcopy_host_page;
+            place_source = tmp_page->tmp_huge_page;
         }
 
         switch (flags & ~RAM_SAVE_FLAG_CONTINUE) {
@@ -3734,12 +3733,12 @@ static int ram_load_postcopy(QEMUFile *f)
                 memset(page_buffer, ch, TARGET_PAGE_SIZE);
             }
             if (ch) {
-                all_zero = false;
+                tmp_page->all_zero = false;
             }
             break;
 
         case RAM_SAVE_FLAG_PAGE:
-            all_zero = false;
+            tmp_page->all_zero = false;
             if (!matches_target_page_size) {
                 /* For huge pages, we always use temporary buffer */
                 qemu_get_buffer(f, page_buffer, TARGET_PAGE_SIZE);
@@ -3757,7 +3756,7 @@ static int ram_load_postcopy(QEMUFile *f)
             }
             break;
         case RAM_SAVE_FLAG_COMPRESS_PAGE:
-            all_zero = false;
+            tmp_page->all_zero = false;
             len = qemu_get_be32(f);
             if (len < 0 || len > compressBound(TARGET_PAGE_SIZE)) {
                 error_report("Invalid compressed data length: %d", len);
@@ -3789,16 +3788,16 @@ static int ram_load_postcopy(QEMUFile *f)
         }
 
         if (!ret && place_needed) {
-            if (all_zero) {
-                ret = postcopy_place_page_zero(mis, host_page, block);
+            if (tmp_page->all_zero) {
+                ret = postcopy_place_page_zero(mis, tmp_page->host_addr, block);
             } else {
-                ret = postcopy_place_page(mis, host_page, place_source,
+                ret = postcopy_place_page(mis, tmp_page->host_addr, place_source,
                                           block);
             }
             place_needed = false;
-            target_pages = 0;
+            tmp_page->target_pages = 0;
             /* Assume we have a zero page until we detect something different */
-            all_zero = true;
+            tmp_page->all_zero = true;
         }
     }
 
