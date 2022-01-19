@@ -425,4 +425,7 @@ void migration_cancel(const Error *error);
 
 void populate_vfio_info(MigrationInfo *info);
 
+bool migrate_multi_channels_is_allowed(void);
+void migrate_protocol_allow_multi_channels(bool allow);
+
 #endif
