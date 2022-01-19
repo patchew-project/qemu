@@ -63,6 +63,25 @@ static int vmstate_size(void *opaque, const VMStateField *field)
     return size;
 }
 
+uint64_t vmstate_vmsd_size(PCIDevice *pci_dev)
+{
+    DeviceClass *dc = DEVICE_GET_CLASS(DEVICE(pci_dev));
+    const VMStateField *field = NULL;
+    uint64_t size = 0;
+
+    if (!dc->vmsd) {
+        return 0;
+    }
+
+    field = dc->vmsd->fields;
+    while (field && field->name) {
+        size += vmstate_size(pci_dev, field);
+        field++;
+    }
+
+    return size;
+}
+
 static void vmstate_handle_alloc(void *ptr, const VMStateField *field,
                                  void *opaque)
 {
