@@ -61,7 +61,6 @@ ENV PACKAGES \
     libudev-devel \
     liburing-devel \
     libusbx-devel \
-    libxml2-devel \
     libzstd-devel \
     llvm \
     lttng-ust-devel \

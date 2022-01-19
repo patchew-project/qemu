@@ -29,7 +29,6 @@ ENV PACKAGES \
 	libseccomp-dev \
 	libssh-dev \
 	libusb-dev \
-	libxml2-dev \
 	lzo-dev \
 	make \
 	mesa-dev \

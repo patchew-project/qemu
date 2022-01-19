@@ -62,7 +62,6 @@ ENV PACKAGES \
     libubsan1 \
     libudev-devel \
     libusb-1_0-devel \
-    libxml2-devel \
     libzstd-devel \
     llvm \
     lttng-ust-devel \
