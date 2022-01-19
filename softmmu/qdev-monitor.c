@@ -978,8 +978,43 @@ void qmp_device_del(const char *id, Error **errp)
             return;
         }
 
+        if (qdev_unplug_blocked(dev, errp)) {
+            return;
+        }
+
         qdev_unplug(dev, errp);
     }
+}
+
+int qdev_add_unplug_blocker(DeviceState *dev, Error *reason, Error **errp)
+{
+    ERRP_GUARD();
+
+    if (!migration_is_idle()) {
+        error_setg(errp, "migration is in progress");
+        return -EBUSY;
+    }
+
+    dev->unplug_blockers = g_slist_prepend(dev->unplug_blockers, reason);
+
+    return 0;
+}
+
+void qdev_del_unplug_blocker(DeviceState *dev, Error *reason)
+{
+    dev->unplug_blockers = g_slist_remove(dev->unplug_blockers, reason);
+}
+
+bool qdev_unplug_blocked(DeviceState *dev, Error **errp)
+{
+    ERRP_GUARD();
+
+    if (dev->unplug_blockers) {
+        error_propagate(errp, error_copy(dev->unplug_blockers->data));
+        return true;
+    }
+
+    return false;
 }
 
 void hmp_device_add(Monitor *mon, const QDict *qdict)

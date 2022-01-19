@@ -193,6 +193,7 @@ struct DeviceState {
     int instance_id_alias;
     int alias_required_for_version;
     ResettableState reset;
+    GSList *unplug_blockers;
 };
 
 struct DeviceListener {
@@ -432,6 +433,10 @@ typedef bool (QDevGetBusFunc)(const char *type, BusState **bus, Error **errp);
 typedef bool (QDevPutBusFunc)(BusState *bus, Error **errp);
 bool qdev_set_bus_cbs(QDevGetBusFunc *get_bus, QDevPutBusFunc *put_bus,
                       Error **errp);
+
+int qdev_add_unplug_blocker(DeviceState *dev, Error *reason, Error **errp);
+void qdev_del_unplug_blocker(DeviceState *dev, Error *reason);
+bool qdev_unplug_blocked(DeviceState *dev, Error **errp);
 
 /**
  * GpioPolarity: Polarity of a GPIO line
