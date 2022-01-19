@@ -452,6 +452,10 @@ PCIDevice *pci_nic_init_nofail(NICInfo *nd, PCIBus *rootbus,
 
 PCIDevice *pci_vga_init(PCIBus *bus);
 
+PCIBus *pci_isol_bus_new(BusState *parent_bus, const char *new_bus_type,
+                         Error **errp);
+bool pci_isol_bus_free(PCIBus *pci_bus, Error **errp);
+
 static inline PCIBus *pci_get_bus(const PCIDevice *dev)
 {
     return PCI_BUS(qdev_get_parent_bus(DEVICE(dev)));

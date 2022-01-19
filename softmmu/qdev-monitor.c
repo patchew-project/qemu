@@ -64,6 +64,9 @@ typedef struct QDevAlias
 #define QEMU_ARCH_VIRTIO_CCW (QEMU_ARCH_S390X)
 #define QEMU_ARCH_VIRTIO_MMIO (QEMU_ARCH_M68K)
 
+static QDevGetBusFunc *qdev_get_bus;
+static QDevPutBusFunc *qdev_put_bus;
+
 /* Please keep this table sorted by typename. */
 static const QDevAlias qdev_alias_table[] = {
     { "AC97", "ac97" }, /* -soundhw name */
@@ -450,7 +453,7 @@ static inline bool qbus_is_full(BusState *bus)
  * If more than one exists, prefer one that can take another device.
  * Return the bus if found, else %NULL.
  */
-static BusState *qbus_find_recursive(BusState *bus, const char *name,
+BusState *qbus_find_recursive(BusState *bus, const char *name,
                                      const char *bus_typename)
 {
     BusChild *kid;
@@ -608,6 +611,20 @@ const char *qdev_set_id(DeviceState *dev, char *id, Error **errp)
     return prop->name;
 }
 
+
+bool qdev_set_bus_cbs(QDevGetBusFunc *get_bus, QDevPutBusFunc *put_bus,
+                      Error **errp)
+{
+    if (qdev_get_bus || qdev_put_bus) {
+        error_setg(errp, "callbacks already set");
+        return false;
+    }
+
+    qdev_get_bus = get_bus;
+    qdev_put_bus = put_bus;
+    return true;
+}
+
 DeviceState *qdev_device_add_from_qdict(const QDict *opts,
                                         bool from_json, Error **errp)
 {
@@ -642,7 +659,13 @@ DeviceState *qdev_device_add_from_qdict(const QDict *opts,
                        driver, object_get_typename(OBJECT(bus)));
             return NULL;
         }
-    } else if (dc->bus_type != NULL) {
+    } else if (dc->bus_type != NULL && qdev_get_bus != NULL) {
+        if (!qdev_get_bus(dc->bus_type, &bus, errp)) {
+            return NULL;
+        }
+    }
+
+    if (!bus && dc->bus_type != NULL) {
         bus = qbus_find_recursive(sysbus_get_default(), NULL, dc->bus_type);
         if (!bus || qbus_is_full(bus)) {
             error_setg(errp, "No '%s' bus found for device '%s'",
@@ -891,10 +914,12 @@ static DeviceState *find_device_state(const char *id, Error **errp)
 
 void qdev_unplug(DeviceState *dev, Error **errp)
 {
+    ERRP_GUARD();
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
     HotplugHandler *hotplug_ctrl;
     HotplugHandlerClass *hdc;
     Error *local_err = NULL;
+    BusState *parent_bus = qdev_get_parent_bus(dev);
 
     if (dev->parent_bus && !qbus_is_hotpluggable(dev->parent_bus)) {
         error_setg(errp, QERR_BUS_NO_HOTPLUG, dev->parent_bus->name);
@@ -930,7 +955,15 @@ void qdev_unplug(DeviceState *dev, Error **errp)
             object_unparent(OBJECT(dev));
         }
     }
-    error_propagate(errp, local_err);
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    if (qdev_put_bus) {
+        qdev_put_bus(parent_bus, errp);
+    }
 }
 
 void qmp_device_del(const char *id, Error **errp)

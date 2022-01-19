@@ -493,6 +493,175 @@ void pci_root_bus_cleanup(PCIBus *bus)
     qbus_unrealize(BUS(bus));
 }
 
+static void pci_bus_free_isol_mem(PCIBus *pci_bus)
+{
+    if (pci_bus->address_space_mem) {
+        memory_region_unref(pci_bus->address_space_mem);
+        pci_bus->address_space_mem = NULL;
+    }
+
+    if (pci_bus->isol_as_mem) {
+        address_space_destroy(pci_bus->isol_as_mem);
+        pci_bus->isol_as_mem = NULL;
+    }
+
+    if (pci_bus->address_space_io) {
+        memory_region_unref(pci_bus->address_space_io);
+        pci_bus->address_space_io = NULL;
+    }
+
+    if (pci_bus->isol_as_io) {
+        address_space_destroy(pci_bus->isol_as_io);
+        pci_bus->isol_as_io = NULL;
+    }
+}
+
+static void pci_bus_init_isol_mem(PCIBus *pci_bus, uint32_t unique_id)
+{
+    g_autofree char *mem_mr_name = NULL;
+    g_autofree char *mem_as_name = NULL;
+    g_autofree char *io_mr_name = NULL;
+    g_autofree char *io_as_name = NULL;
+
+    if (!pci_bus) {
+        return;
+    }
+
+    mem_mr_name = g_strdup_printf("mem-mr-%u", unique_id);
+    mem_as_name = g_strdup_printf("mem-as-%u", unique_id);
+    io_mr_name = g_strdup_printf("io-mr-%u", unique_id);
+    io_as_name = g_strdup_printf("io-as-%u", unique_id);
+
+    pci_bus->address_space_mem = g_malloc0(sizeof(MemoryRegion));
+    pci_bus->isol_as_mem = g_malloc0(sizeof(AddressSpace));
+    memory_region_init(pci_bus->address_space_mem, NULL,
+                       mem_mr_name, UINT64_MAX);
+    address_space_init(pci_bus->isol_as_mem,
+                       pci_bus->address_space_mem, mem_as_name);
+
+    pci_bus->address_space_io = g_malloc0(sizeof(MemoryRegion));
+    pci_bus->isol_as_io = g_malloc0(sizeof(AddressSpace));
+    memory_region_init(pci_bus->address_space_io, NULL,
+                       io_mr_name, UINT64_MAX);
+    address_space_init(pci_bus->isol_as_io,
+                       pci_bus->address_space_io, io_as_name);
+}
+
+PCIBus *pci_isol_bus_new(BusState *parent_bus, const char *new_bus_type,
+                         Error **errp)
+{
+    ERRP_GUARD();
+    PCIBus *parent_pci_bus = NULL;
+    DeviceState *pcie_root_port = NULL;
+    g_autofree char *new_bus_name = NULL;
+    PCIBus *new_pci_bus = NULL;
+    HotplugHandler *hotplug_handler = NULL;
+    uint32_t devfn, slot;
+
+    if (!parent_bus) {
+        error_setg(errp, "parent PCI bus not found");
+        return NULL;
+    }
+
+    if (!new_bus_type ||
+        (strcmp(new_bus_type, TYPE_PCIE_BUS) &&
+         strcmp(new_bus_type, TYPE_PCI_BUS))) {
+        error_setg(errp, "bus type must be %s or %s", TYPE_PCIE_BUS,
+                   TYPE_PCI_BUS);
+        return NULL;
+    }
+
+    if (!object_dynamic_cast(OBJECT(parent_bus), TYPE_PCI_BUS)) {
+        error_setg(errp, "Unsupported root bus type");
+        return NULL;
+    }
+
+    parent_pci_bus = PCI_BUS(parent_bus);
+
+    /**
+     * Create TYPE_GEN_PCIE_ROOT_PORT device to interface parent and
+     * new buses.
+     */
+    for (devfn = 0; devfn < (PCI_SLOT_MAX * PCI_FUNC_MAX);
+         devfn += PCI_FUNC_MAX) {
+        if (!parent_pci_bus->devices[devfn]) {
+            break;
+        }
+    }
+    if (devfn == (PCI_SLOT_MAX * PCI_FUNC_MAX)) {
+        error_setg(errp, "parent PCI slots full");
+        return NULL;
+    }
+
+    slot = devfn / PCI_FUNC_MAX;
+    pcie_root_port = qdev_new("pcie-root-port");
+    if (!object_property_set_int(OBJECT(pcie_root_port), "slot",
+                                 slot, errp)){
+        error_prepend(errp, "Failed to set slot property for root port: ");
+        goto fail_rp_init;
+    }
+    if (!qdev_realize(pcie_root_port, parent_bus, errp)) {
+        goto fail_rp_init;
+    }
+
+    /**
+     * Create new PCI bus and plug it to the root port
+     */
+    new_bus_name = g_strdup_printf("pci-bus-%d", (slot + 1));
+    new_pci_bus = PCI_BUS(qbus_new(new_bus_type, pcie_root_port, new_bus_name));
+    new_pci_bus->parent_dev = PCI_DEVICE(pcie_root_port);
+    hotplug_handler = qdev_get_bus_hotplug_handler(pcie_root_port);
+    qbus_set_hotplug_handler(BUS(new_pci_bus), OBJECT(hotplug_handler));
+    pci_default_write_config(new_pci_bus->parent_dev, PCI_SECONDARY_BUS,
+                             (slot + 1), 1);
+    pci_default_write_config(new_pci_bus->parent_dev, PCI_SUBORDINATE_BUS,
+                             (slot + 1), 1);
+    pci_bus_init_isol_mem(new_pci_bus, (slot + 1));
+
+    QLIST_INIT(&new_pci_bus->child);
+    QLIST_INSERT_HEAD(&parent_pci_bus->child, new_pci_bus, sibling);
+
+    if (!qbus_realize(BUS(new_pci_bus), errp)) {
+        QLIST_REMOVE(new_pci_bus, sibling);
+        pci_bus_free_isol_mem(new_pci_bus);
+        object_unparent(OBJECT(new_pci_bus));
+        new_pci_bus = NULL;
+        goto fail_rp_init;
+    }
+
+    return new_pci_bus;
+
+fail_rp_init:
+    qdev_unrealize(pcie_root_port);
+    object_unparent(OBJECT(pcie_root_port));
+    pcie_root_port = NULL;
+    return NULL;
+}
+
+bool pci_isol_bus_free(PCIBus *pci_bus, Error **errp)
+{
+    ERRP_GUARD();
+    PCIDevice *pcie_root_port = pci_bus->parent_dev;
+
+    if (!pcie_root_port) {
+        error_setg(errp, "Can't unplug root bus");
+        return false;
+    }
+
+    if (!QLIST_EMPTY(&pci_bus->child)) {
+        error_setg(errp, "Bus has attached device");
+        return false;
+    }
+
+    QLIST_REMOVE(pci_bus, sibling);
+    pci_bus_free_isol_mem(pci_bus);
+    qbus_unrealize(BUS(pci_bus));
+    object_unparent(OBJECT(pci_bus));
+    qdev_unrealize(DEVICE(pcie_root_port));
+    object_unparent(OBJECT(pcie_root_port));
+    return true;
+}
+
 void pci_bus_irqs(PCIBus *bus, pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
                   void *irq_opaque, int nirq)
 {

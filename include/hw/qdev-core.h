@@ -420,6 +420,20 @@ void qdev_machine_creation_done(void);
 bool qdev_machine_modified(void);
 
 /**
+ * Find parent bus - these callbacks are used during device addition
+ * and deletion.
+ *
+ * During addition, if no parent bus is specified in the options,
+ * these callbacks provide a way to figure it out based on the
+ * bus type. If these callbacks are not defined, defaults to
+ * finding the parent bus starting from default system bus
+ */
+typedef bool (QDevGetBusFunc)(const char *type, BusState **bus, Error **errp);
+typedef bool (QDevPutBusFunc)(BusState *bus, Error **errp);
+bool qdev_set_bus_cbs(QDevGetBusFunc *get_bus, QDevPutBusFunc *put_bus,
+                      Error **errp);
+
+/**
  * GpioPolarity: Polarity of a GPIO line
  *
  * GPIO lines use either positive (active-high) logic,
@@ -691,6 +705,8 @@ BusState *qdev_get_parent_bus(DeviceState *dev);
 /*** BUS API. ***/
 
 DeviceState *qdev_find_recursive(BusState *bus, const char *id);
+BusState *qbus_find_recursive(BusState *bus, const char *name,
+                              const char *bus_typename);
 
 /* Returns 0 to walk children, > 0 to skip walk, < 0 to terminate walk. */
 typedef int (qbus_walkerfn)(BusState *bus, void *opaque);
