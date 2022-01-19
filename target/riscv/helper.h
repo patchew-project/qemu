@@ -1129,3 +1129,8 @@ DEF_HELPER_2(aes64dsm, tl, tl, tl)
 DEF_HELPER_2(aes64ks2, tl, tl, tl)
 DEF_HELPER_2(aes64ks1i, tl, tl, tl)
 DEF_HELPER_1(aes64im, tl, tl)
+
+DEF_HELPER_1(sha256sig0, tl, tl)
+DEF_HELPER_1(sha256sig1, tl, tl)
+DEF_HELPER_1(sha256sum0, tl, tl)
+DEF_HELPER_1(sha256sum1, tl, tl)
