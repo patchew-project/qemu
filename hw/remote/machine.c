@@ -22,6 +22,60 @@
 #include "hw/pci/pci_host.h"
 #include "hw/remote/iohub.h"
 
+static bool remote_machine_get_bus(const char *type, BusState **bus,
+                                   Error **errp)
+{
+    ERRP_GUARD();
+    RemoteMachineState *s = REMOTE_MACHINE(current_machine);
+    BusState *root_bus = NULL;
+    PCIBus *new_pci_bus = NULL;
+
+    if (!bus) {
+        error_setg(errp, "Invalid argument");
+        return false;
+    }
+
+    if (strcmp(type, TYPE_PCI_BUS) && strcmp(type, TYPE_PCI_BUS)) {
+        return true;
+    }
+
+    root_bus = qbus_find_recursive(sysbus_get_default(), NULL, TYPE_PCIE_BUS);
+    if (!root_bus) {
+        error_setg(errp, "Unable to find root PCI device");
+        return false;
+    }
+
+    new_pci_bus = pci_isol_bus_new(root_bus, type, errp);
+    if (!new_pci_bus) {
+        return false;
+    }
+
+    *bus = BUS(new_pci_bus);
+
+    pci_bus_irqs(new_pci_bus, remote_iohub_set_irq, remote_iohub_map_irq,
+                 &s->iohub, REMOTE_IOHUB_NB_PIRQS);
+
+    return true;
+}
+
+static bool remote_machine_put_bus(BusState *bus, Error **errp)
+{
+    PCIBus *pci_bus = NULL;
+
+    if (!bus) {
+        error_setg(errp, "Invalid argument");
+        return false;
+    }
+
+    if (!object_dynamic_cast(OBJECT(bus), TYPE_PCI_BUS)) {
+        return true;
+    }
+
+    pci_bus = PCI_BUS(bus);
+
+    return pci_isol_bus_free(pci_bus, errp);
+}
+
 static void remote_machine_init(MachineState *machine)
 {
     MemoryRegion *system_memory, *system_io, *pci_memory;
@@ -56,6 +110,9 @@ static void remote_machine_init(MachineState *machine)
                  &s->iohub, REMOTE_IOHUB_NB_PIRQS);
 
     qbus_set_hotplug_handler(BUS(pci_host->bus), OBJECT(s));
+
+    qdev_set_bus_cbs(remote_machine_get_bus, remote_machine_put_bus,
+                     &error_fatal);
 }
 
 static void remote_machine_pre_plug_cb(HotplugHandler *hotplug_dev,
