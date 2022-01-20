@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# group: rw quick
+#
+# Test qcow2 keep-dirty option
+#
+# Copyright (c) 2022 Virtuozzo International GmbH.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=vsementsov@virtuozzo.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ../common.rc
+. ../common.filter
+. ../common.qemu
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+# This test does not make much sense with external data files
+_unsupported_imgopts data_file
+
+check_dirty_bit() {
+    $QEMU_IMG info --output=json "$TEST_IMG" | grep 'dirty-flag'
+}
+
+set_dirty_bit() {
+    echo Set dirty bit
+    $PYTHON ../qcow2.py "$TEST_IMG" set-feature-bit incompatible 0
+    check_dirty_bit
+}
+
+QEMU_IO_OPTIONS=$QEMU_IO_OPTIONS_NO_FMT
+
+keep_dirty_opts="driver=qcow2,keep-dirty=true,file.filename=$TEST_IMG"
+
+size=10M
+
+_make_test_img $size
+
+echo Check that keep-dirty not allowed without lazy refcounts
+$QEMU_IO -c 'quit' --image-opts "$keep_dirty_opts"
+
+_make_test_img -o "lazy_refcounts=on" $size
+
+echo
+echo Check that keep-dirty not allowed without dirty bit
+$QEMU_IO -c 'quit' --image-opts "$keep_dirty_opts"
+
+echo
+echo Check that usual access clears dirty bit
+set_dirty_bit
+$QEMU_IO -c 'quit' "$TEST_IMG"
+check_dirty_bit
+
+echo
+echo Check keep-dirty
+set_dirty_bit
+$QEMU_IO -c 'quit' --image-opts "$keep_dirty_opts"
+check_dirty_bit
+
+echo
+echo Check that usual qemu-img check clears dirty bit
+set_dirty_bit
+$QEMU_IMG check -r all "$TEST_IMG"
+check_dirty_bit
+
+echo
+echo Test qemu-img check with keep-dirty
+set_dirty_bit
+# also set corrupt bit
+$PYTHON ../qcow2.py "$TEST_IMG" set-feature-bit incompatible 1
+$PYTHON ../qcow2.py "$TEST_IMG" dump-header | grep incompatible
+$QEMU_IMG check -r all --image-opts "$keep_dirty_opts"
+$PYTHON ../qcow2.py "$TEST_IMG" dump-header | grep incompatible
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
