@@ -79,7 +79,6 @@ exec "$@"' > /usr/bin/nosync && \
         libubsan \
         liburing-devel \
         libusbx-devel \
-        libxml2-devel \
         libzstd-devel \
         llvm \
         lttng-ust-devel \
