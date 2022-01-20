@@ -130,6 +130,7 @@
 
 #define QCOW2_OPT_DATA_FILE "data-file"
 #define QCOW2_OPT_LAZY_REFCOUNTS "lazy-refcounts"
+#define QCOW2_OPT_KEEP_DIRTY "keep-dirty"
 #define QCOW2_OPT_DISCARD_REQUEST "pass-discard-request"
 #define QCOW2_OPT_DISCARD_SNAPSHOT "pass-discard-snapshot"
 #define QCOW2_OPT_DISCARD_OTHER "pass-discard-other"
@@ -376,6 +377,7 @@ typedef struct BDRVQcow2State {
     int flags;
     int qcow_version;
     bool use_lazy_refcounts;
+    bool keep_dirty;
     int refcount_order;
     int refcount_bits;
     uint64_t refcount_max;
