@@ -521,6 +521,7 @@ typedef struct {
     riscv_csr_op_fn op;
     riscv_csr_read128_fn read128;
     riscv_csr_write128_fn write128;
+    uint32_t min_priv_ver;
 } riscv_csr_operations;
 
 /* CSR function table constants */
