@@ -177,6 +177,9 @@
 #define CSR_STVEC           0x105
 #define CSR_SCOUNTEREN      0x106
 
+/* Supervisor Configuration CSRs */
+#define CSR_SENVCFG         0x10A
+
 /* Supervisor Trap Handling */
 #define CSR_SSCRATCH        0x140
 #define CSR_SEPC            0x141
@@ -204,6 +207,10 @@
 #define CSR_HTIMEDELTA      0x605
 #define CSR_HTIMEDELTAH     0x615
 
+/* Hypervisor Configuration CSRs */
+#define CSR_HENVCFG         0x60A
+#define CSR_HENVCFGH        0x61A
+
 /* Virtual CSRs */
 #define CSR_VSSTATUS        0x200
 #define CSR_VSIE            0x204
@@ -217,6 +224,10 @@
 
 #define CSR_MTINST          0x34a
 #define CSR_MTVAL2          0x34b
+
+/* Machine Configuration CSRs */
+#define CSR_MENVCFG         0x30A
+#define CSR_MENVCFGH        0x31A
 
 /* Enhanced Physical Memory Protection (ePMP) */
 #define CSR_MSECCFG         0x747
@@ -577,6 +588,26 @@ typedef enum RISCVException {
 #define PM_EXT_INITIAL  0x00000001ULL
 #define PM_EXT_CLEAN    0x00000002ULL
 #define PM_EXT_DIRTY    0x00000003ULL
+
+/* Execution enviornment configuration bits */
+#define MENVCFG_FIOM                       (1 << 0)
+#define MENVCFG_CBE                        0x30000ULL
+#define MENVCFG_CBCFE                      (1 << 6)
+#define MENVCFG_CBZE                       (1 << 7)
+#define MENVCFG_PBMTE                      (1 << 62)
+#define MENVCFG_STCE                       (1 << 63)
+
+#define SENVCFG_FIOM                       MENVCFG_FIOM
+#define SENVCFG_CBE                        MENVCFG_CBE
+#define SENVCFG_CBCFE                      MENVCFG_CBCFE
+#define SENVCFG_CBZE                       MENVCFG_CBZE
+
+#define HENVCFG_FIOM                       MENVCFG_FIOM
+#define HENVCFG_CBE                        MENVCFG_CBE
+#define HENVCFG_CBCFE                      MENVCFG_CBCFE
+#define HENVCFG_CBZE                       MENVCFG_CBZE
+#define HENVCFG_PBMTE                      MENVCFG_PBMTE
+#define HENVCFG_STCE                       MENVCFG_STCE
 
 /* Offsets for every pair of control bits per each priv level */
 #define XS_OFFSET    0ULL

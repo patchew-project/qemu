@@ -264,6 +264,14 @@ struct CPURISCVState {
     target_ulong spmbase;
     target_ulong upmmask;
     target_ulong upmbase;
+
+    /* CSRs for execution enviornment configuration */
+
+    target_ulong menvcfg;
+    target_ulong menvcfgh;
+    target_ulong senvcfg;
+    target_ulong henvcfg;
+    target_ulong henvcfgh;
 #endif
 
     float_status fp_status;

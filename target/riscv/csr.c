@@ -853,6 +853,77 @@ static RISCVException write_mtval(CPURISCVState *env, int csrno,
     return RISCV_EXCP_NONE;
 }
 
+/* Execution environment configuration setup */
+static RISCVException read_menvcfg(CPURISCVState *env, int csrno,
+                                 target_ulong *val)
+{
+    *val = env->menvcfg;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_menvcfg(CPURISCVState *env, int csrno,
+                                  target_ulong val)
+{
+    env->menvcfg = val;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_menvcfgh(CPURISCVState *env, int csrno,
+                                 target_ulong *val)
+{
+    *val = env->menvcfgh;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_menvcfgh(CPURISCVState *env, int csrno,
+                                  target_ulong val)
+{
+    env->menvcfgh = val;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_senvcfg(CPURISCVState *env, int csrno,
+                                 target_ulong *val)
+{
+    *val = env->senvcfg;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_senvcfg(CPURISCVState *env, int csrno,
+                                  target_ulong val)
+{
+    env->senvcfg = val;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_henvcfg(CPURISCVState *env, int csrno,
+                                 target_ulong *val)
+{
+    *val = env->henvcfg;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_henvcfg(CPURISCVState *env, int csrno,
+                                  target_ulong val)
+{
+    env->henvcfg = val;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException read_henvcfgh(CPURISCVState *env, int csrno,
+                                 target_ulong *val)
+{
+    *val = env->henvcfgh;
+    return RISCV_EXCP_NONE;
+}
+
+static RISCVException write_henvcfgh(CPURISCVState *env, int csrno,
+                                  target_ulong val)
+{
+    env->henvcfgh = val;
+    return RISCV_EXCP_NONE;
+}
+
 static RISCVException rmw_mip(CPURISCVState *env, int csrno,
                               target_ulong *ret_value,
                               target_ulong new_value, target_ulong write_mask)
@@ -2053,6 +2124,19 @@ riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_MCAUSE]   = { "mcause",   any,  read_mcause,   write_mcause   },
     [CSR_MTVAL]    = { "mtval",    any,  read_mtval,    write_mtval    },
     [CSR_MIP]      = { "mip",      any,  NULL,    NULL, rmw_mip        },
+
+    /* Execution environment configuration */
+    [CSR_MENVCFG]  = { "menvcfg",  any,     read_menvcfg,  write_menvcfg, NULL,
+                                            NULL, NULL, PRIV_VERSION_1_12_0},
+    [CSR_MENVCFGH] = { "menvcfgh", any32,   read_menvcfgh, write_menvcfgh, NULL,
+                                            NULL, NULL, PRIV_VERSION_1_12_0},
+    [CSR_SENVCFG]  = { "senvcfg",  smode,   read_senvcfg,  write_senvcfg, NULL,
+                                            NULL, NULL, PRIV_VERSION_1_12_0},
+    [CSR_HENVCFG]  = { "henvcfg",  hmode,   read_henvcfg, write_henvcfg, NULL,
+                                            NULL, NULL, PRIV_VERSION_1_12_0},
+    [CSR_HENVCFGH] = { "henvcfgh", hmode32, read_henvcfgh, write_henvcfgh, NULL,
+                                            NULL, NULL, PRIV_VERSION_1_12_0},
+
 
     /* Supervisor Trap Setup */
     [CSR_SSTATUS]    = { "sstatus",    smode, read_sstatus,    write_sstatus, NULL,
