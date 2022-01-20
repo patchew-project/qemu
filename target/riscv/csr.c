@@ -1874,6 +1874,12 @@ static inline RISCVException riscv_csrrw_check(CPURISCVState *env,
     int read_only = get_field(csrno, 0xC00) == 3;
 #if !defined(CONFIG_USER_ONLY)
     int effective_priv = env->priv;
+    int csr_min_priv = csr_ops[csrno].min_priv_ver;
+
+    /* The default privilege specification version supported is 1.10 */
+    if (!csr_min_priv) {
+        csr_min_priv = PRIV_VERSION_1_10_0;
+    }
 
     if (riscv_has_ext(env, RVH) &&
         env->priv == PRV_S &&
@@ -1901,6 +1907,10 @@ static inline RISCVException riscv_csrrw_check(CPURISCVState *env,
 
     /* check predicate */
     if (!csr_ops[csrno].predicate) {
+        return RISCV_EXCP_ILLEGAL_INST;
+    }
+
+    if (env->priv_ver < csr_min_priv) {
         return RISCV_EXCP_ILLEGAL_INST;
     }
 
