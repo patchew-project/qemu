@@ -33,6 +33,8 @@ uint16_t vhost_svq_get_num(const VhostShadowVirtqueue *svq);
 size_t vhost_svq_driver_area_size(const VhostShadowVirtqueue *svq);
 size_t vhost_svq_device_area_size(const VhostShadowVirtqueue *svq);
 
+void vhost_svq_start(VhostShadowVirtqueue *svq, VirtIODevice *vdev,
+                     VirtQueue *vq);
 void vhost_svq_stop(VhostShadowVirtqueue *svq);
 
 VhostShadowVirtqueue *vhost_svq_new(uint16_t qsize);
