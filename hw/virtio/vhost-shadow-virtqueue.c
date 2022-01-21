@@ -212,6 +212,11 @@ void vhost_svq_get_vring_addr(const VhostShadowVirtqueue *svq,
     addr->used_user_addr = (uint64_t)svq->vring.used;
 }
 
+uint16_t vhost_svq_get_num(const VhostShadowVirtqueue *svq)
+{
+    return svq->vring.num;
+}
+
 size_t vhost_svq_driver_area_size(const VhostShadowVirtqueue *svq)
 {
     size_t desc_size = sizeof(vring_desc_t) * svq->vring.num;
