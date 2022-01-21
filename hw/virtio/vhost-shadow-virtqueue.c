@@ -277,9 +277,17 @@ void vhost_svq_stop(VhostShadowVirtqueue *svq)
 /**
  * Creates vhost shadow virtqueue, and instruct vhost device to use the shadow
  * methods and file descriptors.
+ *
+ * @qsize Shadow VirtQueue size
+ *
+ * Returns the new virtqueue or NULL.
+ *
+ * In case of error, reason is reported through error_report.
  */
-VhostShadowVirtqueue *vhost_svq_new(void)
+VhostShadowVirtqueue *vhost_svq_new(uint16_t qsize)
 {
+    size_t desc_size = sizeof(vring_desc_t) * qsize;
+    size_t device_size, driver_size;
     g_autofree VhostShadowVirtqueue *svq = g_new0(VhostShadowVirtqueue, 1);
     int r;
 
@@ -300,6 +308,15 @@ VhostShadowVirtqueue *vhost_svq_new(void)
     /* Placeholder descriptor, it should be deleted at set_kick_fd */
     event_notifier_init_fd(&svq->svq_kick, INVALID_SVQ_KICK_FD);
 
+    svq->vring.num = qsize;
+    driver_size = vhost_svq_driver_area_size(svq);
+    device_size = vhost_svq_device_area_size(svq);
+    svq->vring.desc = qemu_memalign(qemu_real_host_page_size, driver_size);
+    svq->vring.avail = (void *)((char *)svq->vring.desc + desc_size);
+    memset(svq->vring.desc, 0, driver_size);
+    svq->vring.used = qemu_memalign(qemu_real_host_page_size, device_size);
+    memset(svq->vring.used, 0, device_size);
+
     event_notifier_set_handler(&svq->hdev_call, vhost_svq_handle_call);
     return g_steal_pointer(&svq);
 
@@ -318,5 +335,7 @@ void vhost_svq_free(VhostShadowVirtqueue *vq)
     event_notifier_cleanup(&vq->hdev_kick);
     event_notifier_set_handler(&vq->hdev_call, NULL);
     event_notifier_cleanup(&vq->hdev_call);
+    qemu_vfree(vq->vring.desc);
+    qemu_vfree(vq->vring.used);
     g_free(vq);
 }

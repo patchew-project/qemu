@@ -641,18 +641,50 @@ static int vhost_vdpa_set_vring_addr(struct vhost_dev *dev,
     return vhost_vdpa_call(dev, VHOST_SET_VRING_ADDR, addr);
 }
 
-static int vhost_vdpa_set_vring_num(struct vhost_dev *dev,
-                                      struct vhost_vring_state *ring)
+static int vhost_vdpa_set_dev_vring_num(struct vhost_dev *dev,
+                                        struct vhost_vring_state *ring)
 {
     trace_vhost_vdpa_set_vring_num(dev, ring->index, ring->num);
     return vhost_vdpa_call(dev, VHOST_SET_VRING_NUM, ring);
 }
 
-static int vhost_vdpa_set_vring_base(struct vhost_dev *dev,
-                                       struct vhost_vring_state *ring)
+static int vhost_vdpa_set_vring_num(struct vhost_dev *dev,
+                                    struct vhost_vring_state *ring)
+{
+    struct vhost_vdpa *v = dev->opaque;
+
+    if (v->shadow_vqs_enabled) {
+        /*
+         * Vring num was set at device start. SVQ num is handled by VirtQueue
+         * code
+         */
+        return 0;
+    }
+
+    return vhost_vdpa_set_dev_vring_num(dev, ring);
+}
+
+static int vhost_vdpa_set_dev_vring_base(struct vhost_dev *dev,
+                                         struct vhost_vring_state *ring)
 {
     trace_vhost_vdpa_set_vring_base(dev, ring->index, ring->num);
     return vhost_vdpa_call(dev, VHOST_SET_VRING_BASE, ring);
+}
+
+static int vhost_vdpa_set_vring_base(struct vhost_dev *dev,
+                                     struct vhost_vring_state *ring)
+{
+    struct vhost_vdpa *v = dev->opaque;
+
+    if (v->shadow_vqs_enabled) {
+        /*
+         * Vring base was set at device start. SVQ base is handled by VirtQueue
+         * code
+         */
+        return 0;
+    }
+
+    return vhost_vdpa_set_dev_vring_base(dev, ring);
 }
 
 static int vhost_vdpa_get_vring_base(struct vhost_dev *dev,
@@ -784,8 +816,8 @@ static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
     }
 }
 
-static int vhost_vdpa_get_features(struct vhost_dev *dev,
-                                     uint64_t *features)
+static int vhost_vdpa_get_dev_features(struct vhost_dev *dev,
+                                       uint64_t *features)
 {
     int ret;
 
@@ -794,13 +826,62 @@ static int vhost_vdpa_get_features(struct vhost_dev *dev,
     return ret;
 }
 
+static int vhost_vdpa_get_features(struct vhost_dev *dev, uint64_t *features)
+{
+    struct vhost_vdpa *v = dev->opaque;
+    int ret = vhost_vdpa_get_dev_features(dev, features);
+
+    if (ret == 0 && v->shadow_vqs_enabled) {
+        /* Filter only features that SVQ can offer to guest */
+        vhost_svq_valid_guest_features(features);
+    }
+
+    return ret;
+}
+
 static int vhost_vdpa_set_features(struct vhost_dev *dev,
                                    uint64_t features)
 {
+    struct vhost_vdpa *v = dev->opaque;
     int ret;
 
     if (vhost_vdpa_one_time_request(dev)) {
         return 0;
+    }
+
+    if (v->shadow_vqs_enabled) {
+        uint64_t dev_features, svq_features, acked_features;
+        bool ok;
+
+        ret = vhost_vdpa_get_dev_features(dev, &dev_features);
+        if (ret != 0) {
+            error_report("Can't get vdpa device features, got (%d)", ret);
+            return ret;
+        }
+
+        svq_features = dev_features;
+        ok = vhost_svq_valid_device_features(&svq_features);
+        if (unlikely(!ok)) {
+            error_report("SVQ Invalid device feature flags, offer: 0x%"
+                         PRIx64", ok: 0x%"PRIx64, dev->features, svq_features);
+            return -1;
+        }
+
+        ok = vhost_svq_valid_guest_features(&features);
+        if (unlikely(!ok)) {
+            error_report(
+                "Invalid guest acked feature flag, acked: 0x%"
+                PRIx64", ok: 0x%"PRIx64, dev->acked_features, features);
+            return -1;
+        }
+
+        ok = vhost_svq_ack_guest_features(svq_features, features,
+                                          &acked_features);
+        if (unlikely(!ok)) {
+            return -1;
+        }
+
+        features = acked_features;
     }
 
     trace_vhost_vdpa_set_features(dev, features);
@@ -822,13 +903,31 @@ static int vhost_vdpa_set_owner(struct vhost_dev *dev)
     return vhost_vdpa_call(dev, VHOST_SET_OWNER, NULL);
 }
 
-static int vhost_vdpa_vq_get_addr(struct vhost_dev *dev,
-                    struct vhost_vring_addr *addr, struct vhost_virtqueue *vq)
+static void vhost_vdpa_vq_get_guest_addr(struct vhost_vring_addr *addr,
+                                         struct vhost_virtqueue *vq)
 {
-    assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_VDPA);
     addr->desc_user_addr = (uint64_t)(unsigned long)vq->desc_phys;
     addr->avail_user_addr = (uint64_t)(unsigned long)vq->avail_phys;
     addr->used_user_addr = (uint64_t)(unsigned long)vq->used_phys;
+}
+
+static int vhost_vdpa_vq_get_addr(struct vhost_dev *dev,
+                                  struct vhost_vring_addr *addr,
+                                  struct vhost_virtqueue *vq)
+{
+    struct vhost_vdpa *v = dev->opaque;
+
+    assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_VDPA);
+
+    if (v->shadow_vqs_enabled) {
+        int idx = vhost_vdpa_get_vq_index(dev, addr->index);
+        VhostShadowVirtqueue *svq = g_ptr_array_index(v->shadow_vqs, idx);
+
+        vhost_svq_get_vring_addr(svq, addr);
+    } else {
+        vhost_vdpa_vq_get_guest_addr(addr, vq);
+    }
+
     trace_vhost_vdpa_vq_get_addr(dev, vq, addr->desc_user_addr,
                                  addr->avail_user_addr, addr->used_user_addr);
     return 0;
@@ -849,6 +948,12 @@ static void vhost_psvq_free(gpointer svq)
     vhost_svq_free(svq);
 }
 
+static int vhost_vdpa_get_max_queue_size(struct vhost_dev *dev,
+                                         uint16_t *qsize)
+{
+    return vhost_vdpa_call(dev, VHOST_VDPA_GET_VRING_NUM, qsize);
+}
+
 static int vhost_vdpa_init_svq(struct vhost_dev *hdev, struct vhost_vdpa *v,
                                Error **errp)
 {
@@ -857,6 +962,7 @@ static int vhost_vdpa_init_svq(struct vhost_dev *hdev, struct vhost_vdpa *v,
                                                            vhost_psvq_free);
     uint64_t dev_features;
     uint64_t svq_features;
+    uint16_t qsize;
     int r;
     bool ok;
 
@@ -864,7 +970,7 @@ static int vhost_vdpa_init_svq(struct vhost_dev *hdev, struct vhost_vdpa *v,
         goto out;
     }
 
-    r = vhost_vdpa_get_features(hdev, &dev_features);
+    r = vhost_vdpa_get_dev_features(hdev, &dev_features);
     if (r != 0) {
         error_setg(errp, "Can't get vdpa device features, got (%d)", r);
         return r;
@@ -879,9 +985,14 @@ static int vhost_vdpa_init_svq(struct vhost_dev *hdev, struct vhost_vdpa *v,
         return -1;
     }
 
+    r = vhost_vdpa_get_max_queue_size(hdev, &qsize);
+    if (unlikely(r)) {
+        qsize = 256;
+    }
+
     shadow_vqs = g_ptr_array_new_full(hdev->nvqs, vhost_psvq_free);
     for (unsigned n = 0; n < hdev->nvqs; ++n) {
-        VhostShadowVirtqueue *svq = vhost_svq_new();
+        VhostShadowVirtqueue *svq = vhost_svq_new(qsize);
 
         if (unlikely(!svq)) {
             error_setg(errp, "Cannot create svq %u", n);
