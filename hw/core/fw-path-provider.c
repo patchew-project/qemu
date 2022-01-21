@@ -19,25 +19,17 @@
 #include "hw/fw-path-provider.h"
 #include "qemu/module.h"
 
-static char *fw_path_provider_get_dev_path(FWPathProvider *p, BusState *bus,
-                                           DeviceState *dev)
-{
-    FWPathProviderClass *k = FW_PATH_PROVIDER_GET_CLASS(p);
-
-    return k->get_dev_path(p, bus, dev);
-}
-
 char *fw_path_provider_try_get_dev_path(Object *o, BusState *bus,
                                         DeviceState *dev)
 {
     FWPathProvider *p = (FWPathProvider *)
         object_dynamic_cast(o, TYPE_FW_PATH_PROVIDER);
 
-    if (p) {
-        return fw_path_provider_get_dev_path(p, bus, dev);
+    if (!p) {
+        return NULL;
     }
 
-    return NULL;
+    return FW_PATH_PROVIDER_GET_CLASS(p)->get_dev_path(p, bus, dev);
 }
 
 static const TypeInfo fw_path_provider_info = {
