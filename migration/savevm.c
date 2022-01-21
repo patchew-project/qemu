@@ -2787,6 +2787,8 @@ bool save_snapshot(const char *name, bool overwrite, const char *vmstate,
     g_autoptr(GDateTime) now = g_date_time_new_now_local();
     AioContext *aio_context;
 
+    assert(qemu_in_main_thread());
+
     if (migration_is_blocked(errp)) {
         return false;
     }
