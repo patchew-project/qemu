@@ -45,6 +45,50 @@ const EventNotifier *vhost_svq_get_dev_kick_notifier(
     return &svq->hdev_kick;
 }
 
+/**
+ * Validate the transport device features that SVQ can use with the device
+ *
+ * @dev_features  The device features. If success, the acknowledged features.
+ *
+ * Returns true if SVQ can go with a subset of these, false otherwise.
+ */
+bool vhost_svq_valid_device_features(uint64_t *dev_features)
+{
+    bool r = true;
+
+    for (uint64_t b = VIRTIO_TRANSPORT_F_START; b <= VIRTIO_TRANSPORT_F_END;
+         ++b) {
+        switch (b) {
+        case VIRTIO_F_NOTIFY_ON_EMPTY:
+        case VIRTIO_F_ANY_LAYOUT:
+            continue;
+
+        case VIRTIO_F_ACCESS_PLATFORM:
+            /* SVQ does not know how to translate addresses */
+            if (*dev_features & BIT_ULL(b)) {
+                clear_bit(b, dev_features);
+                r = false;
+            }
+            break;
+
+        case VIRTIO_F_VERSION_1:
+            /* SVQ trust that guest vring is little endian */
+            if (!(*dev_features & BIT_ULL(b))) {
+                set_bit(b, dev_features);
+                r = false;
+            }
+            continue;
+
+        default:
+            if (*dev_features & BIT_ULL(b)) {
+                clear_bit(b, dev_features);
+            }
+        }
+    }
+
+    return r;
+}
+
 /* Forward guest notifications */
 static void vhost_handle_guest_kick(EventNotifier *n)
 {
