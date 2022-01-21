@@ -734,6 +734,17 @@ void bdrv_drain_all(void)
     bdrv_drain_all_end();
 }
 
+void assert_bdrv_graph_writable(BlockDriverState *bs)
+{
+    /*
+     * TODO: this function is incomplete. Because the users of this
+     * assert lack the necessary drains, check only for BQL.
+     * Once the necessary drains are added,
+     * assert also for qatomic_read(&bs->quiesce_counter) > 0
+     */
+    assert(qemu_in_main_thread());
+}
+
 /**
  * Remove an active request from the tracked requests list
  *

@@ -309,4 +309,12 @@ void bdrv_remove_aio_context_notifier(BlockDriverState *bs,
  */
 void bdrv_drain_all_end_quiesce(BlockDriverState *bs);
 
+/**
+ * Make sure that the function is running under both drain and BQL.
+ * The latter protects from concurrent writings
+ * from the GS API, while the former prevents concurrent reads
+ * from I/O.
+ */
+void assert_bdrv_graph_writable(BlockDriverState *bs);
+
 #endif /* BLOCK_INT_GLOBAL_STATE */
