@@ -716,6 +716,9 @@ static int vhost_vdpa_set_vring_call(struct vhost_dev *dev,
  * @dev   The vhost device model
  * @svq   The shadow virtqueue
  * @idx   The index of the virtqueue in the vhost device
+ *
+ * Note that this function does not rewind kick file descriptor if cannot set
+ * call one.
  */
 static bool vhost_vdpa_svq_setup(struct vhost_dev *dev,
                                 VhostShadowVirtqueue *svq,
@@ -732,6 +735,14 @@ static bool vhost_vdpa_svq_setup(struct vhost_dev *dev,
     r = vhost_vdpa_set_vring_dev_kick(dev, &file);
     if (unlikely(r != 0)) {
         error_report("Can't set device kick fd (%d)", -r);
+        return false;
+    }
+
+    event_notifier = vhost_svq_get_svq_call_notifier(svq);
+    file.fd = event_notifier_get_fd(event_notifier);
+    r = vhost_vdpa_set_vring_dev_call(dev, &file);
+    if (unlikely(r != 0)) {
+        error_report("Can't set device call fd (%d)", -r);
     }
 
     return r == 0;
