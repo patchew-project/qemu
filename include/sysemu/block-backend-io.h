@@ -112,7 +112,7 @@ int blk_get_max_iov(BlockBackend *blk);
 int blk_get_max_hw_iov(BlockBackend *blk);
 void blk_set_guest_block_size(BlockBackend *blk, int align);
 
-void blk_invalidate_cache(BlockBackend *blk, Error **errp);
+void blk_activate(BlockBackend *blk, Error **errp);
 
 void blk_io_plug(BlockBackend *blk);
 void blk_io_unplug(BlockBackend *blk);

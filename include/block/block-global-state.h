@@ -144,7 +144,7 @@ BlockDriverState *check_to_replace_node(BlockDriverState *parent_bs,
 /* async block I/O */
 void bdrv_aio_cancel(BlockAIOCB *acb);
 int bdrv_activate(BlockDriverState *bs, Error **errp);
-void bdrv_invalidate_cache_all(Error **errp);
+void bdrv_activate_all(Error **errp);
 int bdrv_inactivate_all(void);
 
 int bdrv_flush_all(void);
