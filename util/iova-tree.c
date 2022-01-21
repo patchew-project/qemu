@@ -12,13 +12,18 @@
 #include "qemu/osdep.h"
 #include "qemu/iova-tree.h"
 
+typedef struct DMAMapInternal {
+    DMAMap map;
+} DMAMapInternal;
+
 struct IOVATree {
     GTree *tree;
 };
 
 static int iova_tree_compare(gconstpointer a, gconstpointer b, gpointer data)
 {
-    const DMAMap *m1 = a, *m2 = b;
+    const DMAMapInternal *i1 = a, *i2 = b;
+    const DMAMap *m1 = &i1->map, *m2 = &i2->map;
 
     if (m1->iova > m2->iova + m2->size) {
         return 1;
@@ -42,9 +47,18 @@ IOVATree *iova_tree_new(void)
     return iova_tree;
 }
 
+static DMAMapInternal *iova_tree_find_internal(const IOVATree *tree,
+                                               const DMAMap *map)
+{
+    const DMAMapInternal map_internal = { .map = *map };
+
+    return g_tree_lookup(tree->tree, &map_internal);
+}
+
 const DMAMap *iova_tree_find(const IOVATree *tree, const DMAMap *map)
 {
-    return g_tree_lookup(tree->tree, map);
+    const DMAMapInternal *ret = iova_tree_find_internal(tree, map);
+    return &ret->map;
 }
 
 const DMAMap *iova_tree_find_address(const IOVATree *tree, hwaddr iova)
@@ -54,7 +68,8 @@ const DMAMap *iova_tree_find_address(const IOVATree *tree, hwaddr iova)
     return iova_tree_find(tree, &map);
 }
 
-static inline void iova_tree_insert_internal(GTree *gtree, DMAMap *range)
+static inline void iova_tree_insert_internal(GTree *gtree,
+                                             DMAMapInternal *range)
 {
     /* Key and value are sharing the same range data */
     g_tree_insert(gtree, range, range);
@@ -62,7 +77,7 @@ static inline void iova_tree_insert_internal(GTree *gtree, DMAMap *range)
 
 int iova_tree_insert(IOVATree *tree, const DMAMap *map)
 {
-    DMAMap *new;
+    DMAMapInternal *new;
 
     if (map->iova + map->size < map->iova || map->perm == IOMMU_NONE) {
         return IOVA_ERR_INVALID;
@@ -73,8 +88,8 @@ int iova_tree_insert(IOVATree *tree, const DMAMap *map)
         return IOVA_ERR_OVERLAP;
     }
 
-    new = g_new0(DMAMap, 1);
-    memcpy(new, map, sizeof(*new));
+    new = g_new0(DMAMapInternal, 1);
+    memcpy(&new->map, map, sizeof(new->map));
     iova_tree_insert_internal(tree->tree, new);
 
     return IOVA_OK;
@@ -84,11 +99,11 @@ static gboolean iova_tree_traverse(gpointer key, gpointer value,
                                 gpointer data)
 {
     iova_tree_iterator iterator = data;
-    DMAMap *map = key;
+    DMAMapInternal *map = key;
 
     g_assert(key == value);
 
-    return iterator(map);
+    return iterator(&map->map);
 }
 
 void iova_tree_foreach(IOVATree *tree, iova_tree_iterator iterator)
@@ -98,10 +113,10 @@ void iova_tree_foreach(IOVATree *tree, iova_tree_iterator iterator)
 
 int iova_tree_remove(IOVATree *tree, const DMAMap *map)
 {
-    const DMAMap *overlap;
+    DMAMapInternal *overlap_internal;
 
-    while ((overlap = iova_tree_find(tree, map))) {
-        g_tree_remove(tree->tree, overlap);
+    while ((overlap_internal = iova_tree_find_internal(tree, map))) {
+        g_tree_remove(tree->tree, overlap_internal);
     }
 
     return IOVA_OK;
