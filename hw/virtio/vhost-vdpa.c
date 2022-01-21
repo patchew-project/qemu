@@ -660,10 +660,16 @@ static int vhost_vdpa_set_log_base(struct vhost_dev *dev, uint64_t base,
 static int vhost_vdpa_set_vring_addr(struct vhost_dev *dev,
                                        struct vhost_vring_addr *addr)
 {
+    struct vhost_vdpa *v = dev->opaque;
+
     trace_vhost_vdpa_set_vring_addr(dev, addr->index, addr->flags,
                                     addr->desc_user_addr, addr->used_user_addr,
                                     addr->avail_user_addr,
                                     addr->log_guest_addr);
+
+    if (v->shadow_vqs_enabled) {
+        addr->flags &= ~BIT_ULL(VHOST_VRING_F_LOG);
+    }
     return vhost_vdpa_call(dev, VHOST_SET_VRING_ADDR, addr);
 }
 
