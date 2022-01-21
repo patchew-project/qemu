@@ -71,7 +71,6 @@ RUN dnf update -y && \
         libubsan \
         liburing-devel \
         libusbx-devel \
-        libxml2-devel \
         libzstd-devel \
         llvm \
         lttng-ust-devel \
