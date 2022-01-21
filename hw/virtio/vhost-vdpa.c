@@ -350,19 +350,6 @@ static int vhost_vdpa_add_status(struct vhost_dev *dev, uint8_t status)
     return 0;
 }
 
-static void vhost_vdpa_get_iova_range(struct vhost_vdpa *v)
-{
-    int ret = vhost_vdpa_call(v->dev, VHOST_VDPA_GET_IOVA_RANGE,
-                              &v->iova_range);
-    if (ret != 0) {
-        v->iova_range.first = 0;
-        v->iova_range.last = UINT64_MAX;
-    }
-
-    trace_vhost_vdpa_get_iova_range(v->dev, v->iova_range.first,
-                                    v->iova_range.last);
-}
-
 static bool vhost_vdpa_one_time_request(struct vhost_dev *dev)
 {
     struct vhost_vdpa *v = dev->opaque;
@@ -1294,8 +1281,6 @@ static int vhost_vdpa_init(struct vhost_dev *dev, void *opaque, Error **errp)
     if (ret) {
         goto err;
     }
-
-    vhost_vdpa_get_iova_range(v);
 
     if (vhost_vdpa_one_time_request(dev)) {
         return 0;
