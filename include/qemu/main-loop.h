@@ -246,6 +246,19 @@ AioContext *iohandler_get_aio_context(void);
 bool qemu_mutex_iothread_locked(void);
 
 /**
+ * qemu_in_main_thread: same as qemu_mutex_iothread_locked when
+ * softmmu/cpus.c implementation is linked. Otherwise this function
+ * checks that the current AioContext is the global AioContext
+ * (main loop).
+ *
+ * This is useful when checking that the BQL is held, to avoid
+ * returning false when invoked by unit tests or other users like
+ * storage-daemon that end up using stubs/iothread-lock.c
+ * implementation.
+ */
+bool qemu_in_main_thread(void);
+
+/**
  * qemu_mutex_lock_iothread: Lock the main loop mutex.
  *
  * This function locks the main loop mutex.  The mutex is taken by
