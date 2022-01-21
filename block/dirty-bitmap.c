@@ -673,6 +673,7 @@ void bdrv_restore_dirty_bitmap(BdrvDirtyBitmap *bitmap, HBitmap *backup)
 {
     HBitmap *tmp = bitmap->bitmap;
     assert(!bdrv_dirty_bitmap_readonly(bitmap));
+    assert(qemu_in_main_thread());
     bitmap->bitmap = backup;
     hbitmap_free(tmp);
 }

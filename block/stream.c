@@ -220,6 +220,8 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     QDict *opts;
     int ret;
 
+    assert(qemu_in_main_thread());
+
     assert(!(base && bottom));
     assert(!(backing_file_str && bottom));
 
