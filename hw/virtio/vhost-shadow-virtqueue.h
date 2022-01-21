@@ -11,8 +11,12 @@
 #define VHOST_SHADOW_VIRTQUEUE_H
 
 #include "hw/virtio/vhost.h"
+#include "qemu/event_notifier.h"
 
 typedef struct VhostShadowVirtqueue VhostShadowVirtqueue;
+
+const EventNotifier *vhost_svq_get_dev_kick_notifier(
+                                              const VhostShadowVirtqueue *svq);
 
 VhostShadowVirtqueue *vhost_svq_new(void);
 

@@ -11,7 +11,6 @@
 #include "hw/virtio/vhost-shadow-virtqueue.h"
 
 #include "qemu/error-report.h"
-#include "qemu/event_notifier.h"
 
 /* Shadow virtqueue to relay notifications */
 typedef struct VhostShadowVirtqueue {
@@ -20,6 +19,15 @@ typedef struct VhostShadowVirtqueue {
     /* Shadow call notifier, sent to vhost */
     EventNotifier hdev_call;
 } VhostShadowVirtqueue;
+
+/**
+ * The notifier that SVQ will use to notify the device.
+ */
+const EventNotifier *vhost_svq_get_dev_kick_notifier(
+                                               const VhostShadowVirtqueue *svq)
+{
+    return &svq->hdev_kick;
+}
 
 /**
  * Creates vhost shadow virtqueue, and instruct vhost device to use the shadow
