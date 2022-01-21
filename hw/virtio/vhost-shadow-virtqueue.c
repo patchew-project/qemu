@@ -574,6 +574,14 @@ void vhost_svq_get_vring_addr(const VhostShadowVirtqueue *svq,
     addr->used_user_addr = (uint64_t)svq->vring.used;
 }
 
+/**
+ * Get the next index that SVQ is going to consume from SVQ used ring.
+ */
+uint16_t vhost_svq_get_last_used_idx(const VhostShadowVirtqueue *svq)
+{
+    return svq->last_used_idx;
+}
+
 uint16_t vhost_svq_get_num(const VhostShadowVirtqueue *svq)
 {
     return svq->vring.num;
