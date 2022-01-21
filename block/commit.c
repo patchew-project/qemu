@@ -432,6 +432,8 @@ int bdrv_commit(BlockDriverState *bs)
     QEMU_AUTO_VFREE uint8_t *buf = NULL;
     Error *local_err = NULL;
 
+    assert(qemu_in_main_thread());
+
     if (!drv)
         return -ENOMEDIUM;
 

@@ -164,6 +164,8 @@ void bdrv_refresh_limits(BlockDriverState *bs, Transaction *tran, Error **errp)
     BdrvChild *c;
     bool have_limits;
 
+    assert(qemu_in_main_thread());
+
     if (tran) {
         BdrvRefreshLimitsState *s = g_new(BdrvRefreshLimitsState, 1);
         *s = (BdrvRefreshLimitsState) {
@@ -612,6 +614,7 @@ static bool bdrv_drain_all_poll(void)
 {
     BlockDriverState *bs = NULL;
     bool result = false;
+    assert(qemu_in_main_thread());
 
     /* bdrv_drain_poll() can't make changes to the graph and we are holding the
      * main AioContext lock, so iterating bdrv_next_all_states() is safe. */
@@ -640,6 +643,7 @@ static bool bdrv_drain_all_poll(void)
 void bdrv_drain_all_begin(void)
 {
     BlockDriverState *bs = NULL;
+    assert(qemu_in_main_thread());
 
     if (qemu_in_coroutine()) {
         bdrv_co_yield_to_drain(NULL, true, false, NULL, true, true, NULL);
@@ -696,6 +700,7 @@ void bdrv_drain_all_end(void)
 {
     BlockDriverState *bs = NULL;
     int drained_end_counter = 0;
+    assert(qemu_in_main_thread());
 
     /*
      * bdrv queue is managed by record/replay,
@@ -723,6 +728,7 @@ void bdrv_drain_all_end(void)
 
 void bdrv_drain_all(void)
 {
+    assert(qemu_in_main_thread());
     bdrv_drain_all_begin();
     bdrv_drain_all_end();
 }
@@ -1058,6 +1064,8 @@ int bdrv_make_zero(BdrvChild *child, BdrvRequestFlags flags)
     int ret;
     int64_t target_size, bytes, offset = 0;
     BlockDriverState *bs = child->bs;
+
+    assert(qemu_in_main_thread());
 
     target_size = bdrv_getlength(bs);
     if (target_size < 0) {
@@ -2345,6 +2353,8 @@ int bdrv_flush_all(void)
     BlockDriverState *bs = NULL;
     int result = 0;
 
+    assert(qemu_in_main_thread());
+
     /*
      * bdrv queue is managed by record/replay,
      * creating new flush request for stopping
@@ -2898,6 +2908,7 @@ int bdrv_load_vmstate(BlockDriverState *bs, uint8_t *buf,
 
 void bdrv_aio_cancel(BlockAIOCB *acb)
 {
+    assert(qemu_in_main_thread());
     qemu_aio_ref(acb);
     bdrv_aio_cancel_async(acb);
     while (acb->refcnt > 1) {
@@ -3292,6 +3303,7 @@ void bdrv_register_buf(BlockDriverState *bs, void *host, size_t size)
 {
     BdrvChild *child;
 
+    assert(qemu_in_main_thread());
     if (bs->drv && bs->drv->bdrv_register_buf) {
         bs->drv->bdrv_register_buf(bs, host, size);
     }
@@ -3304,6 +3316,7 @@ void bdrv_unregister_buf(BlockDriverState *bs, void *host)
 {
     BdrvChild *child;
 
+    assert(qemu_in_main_thread());
     if (bs->drv && bs->drv->bdrv_unregister_buf) {
         bs->drv->bdrv_unregister_buf(bs, host);
     }
@@ -3575,6 +3588,7 @@ out:
 
 void bdrv_cancel_in_flight(BlockDriverState *bs)
 {
+    assert(qemu_in_main_thread());
     if (!bs || !bs->drv) {
         return;
     }
