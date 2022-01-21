@@ -113,6 +113,37 @@ bool vhost_svq_valid_guest_features(uint64_t *guest_features)
     return !(guest_transport_features & (transport ^ valid));
 }
 
+/**
+ * VirtIO features that SVQ must acknowledge to device.
+ *
+ * It combines the SVQ transport compatible features with the guest's device
+ * features.
+ *
+ * @dev_features    The device offered features
+ * @guest_features  The guest acknowledge features
+ * @acked_features  The guest acknowledge features in the device side plus SVQ
+ *                  transport ones.
+ *
+ * Returns true if SVQ can work with this features, false otherwise
+ */
+bool vhost_svq_ack_guest_features(uint64_t dev_features,
+                                  uint64_t guest_features,
+                                  uint64_t *acked_features)
+{
+    static const uint64_t transport = MAKE_64BIT_MASK(VIRTIO_TRANSPORT_F_START,
+                            VIRTIO_TRANSPORT_F_END - VIRTIO_TRANSPORT_F_START);
+
+    bool ok = vhost_svq_valid_device_features(&dev_features) &&
+              vhost_svq_valid_guest_features(&guest_features);
+    if (unlikely(!ok)) {
+        return false;
+    }
+
+    *acked_features = (dev_features & transport) |
+                      (guest_features & ~transport);
+    return true;
+}
+
 /* Forward guest notifications */
 static void vhost_handle_guest_kick(EventNotifier *n)
 {
