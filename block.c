@@ -6551,22 +6551,19 @@ void bdrv_init_with_whitelist(void)
 
 int bdrv_activate(BlockDriverState *bs, Error **errp)
 {
-    return bdrv_invalidate_cache(bs, errp);
-}
-
-int coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs, Error **errp)
-{
     BdrvChild *child, *parent;
     Error *local_err = NULL;
     int ret;
     BdrvDirtyBitmap *bm;
+
+    assert(qemu_in_main_thread());
 
     if (!bs->drv)  {
         return -ENOMEDIUM;
     }
 
     QLIST_FOREACH(child, &bs->children, next) {
-        bdrv_co_invalidate_cache(child->bs, &local_err);
+        bdrv_activate(child->bs, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return -EINVAL;
@@ -6579,7 +6576,7 @@ int coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs, Error **errp)
      * Note that the required permissions of inactive images are always a
      * subset of the permissions required after activating the image. This
      * allows us to just get the permissions upfront without restricting
-     * drv->bdrv_invalidate_cache().
+     * drv->bdrv_co_invalidate_cache().
      *
      * It also means that in error cases, we don't have to try and revert to
      * the old permissions (which is an operation that could fail, too). We can
@@ -6594,14 +6591,7 @@ int coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs, Error **errp)
             return ret;
         }
 
-        if (bs->drv->bdrv_co_invalidate_cache) {
-            bs->drv->bdrv_co_invalidate_cache(bs, &local_err);
-            if (local_err) {
-                bs->open_flags |= BDRV_O_INACTIVE;
-                error_propagate(errp, local_err);
-                return -EINVAL;
-            }
-        }
+        bdrv_invalidate_cache(bs, errp);
 
         FOR_EACH_DIRTY_BITMAP(bs, bm) {
             bdrv_dirty_bitmap_skip_store(bm, false);
@@ -6623,6 +6613,22 @@ int coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs, Error **errp)
                 error_propagate(errp, local_err);
                 return -EINVAL;
             }
+        }
+    }
+
+    return 0;
+}
+
+int coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs, Error **errp)
+{
+    Error *local_err = NULL;
+
+    if (bs->drv->bdrv_co_invalidate_cache) {
+        bs->drv->bdrv_co_invalidate_cache(bs, &local_err);
+        if (local_err) {
+            bs->open_flags |= BDRV_O_INACTIVE;
+            error_propagate(errp, local_err);
+            return -EINVAL;
         }
     }
 
