@@ -798,9 +798,10 @@ static int vhost_virtqueue_set_addr(struct vhost_dev *dev,
                                     struct vhost_virtqueue *vq,
                                     unsigned idx, bool enable_log)
 {
-    struct vhost_vring_addr addr;
+    struct vhost_vring_addr addr = {
+        .index = idx,
+    };
     int r;
-    memset(&addr, 0, sizeof(struct vhost_vring_addr));
 
     if (dev->vhost_ops->vhost_vq_get_addr) {
         r = dev->vhost_ops->vhost_vq_get_addr(dev, &addr, vq);
@@ -813,7 +814,6 @@ static int vhost_virtqueue_set_addr(struct vhost_dev *dev,
         addr.avail_user_addr = (uint64_t)(unsigned long)vq->avail;
         addr.used_user_addr = (uint64_t)(unsigned long)vq->used;
     }
-    addr.index = idx;
     addr.log_guest_addr = vq->used_phys;
     addr.flags = enable_log ? (1 << VHOST_VRING_F_LOG) : 0;
     r = dev->vhost_ops->vhost_set_vring_addr(dev, &addr);
