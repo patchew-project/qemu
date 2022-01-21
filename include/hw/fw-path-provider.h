@@ -36,8 +36,6 @@ struct FWPathProviderClass {
     char *(*get_dev_path)(FWPathProvider *p, BusState *bus, DeviceState *dev);
 };
 
-char *fw_path_provider_get_dev_path(FWPathProvider *p, BusState *bus,
-                                    DeviceState *dev);
 char *fw_path_provider_try_get_dev_path(Object *o, BusState *bus,
                                         DeviceState *dev);
 
