@@ -777,6 +777,20 @@ block_crypto_get_specific_info_luks(BlockDriverState *bs, Error **errp)
     return spec_info;
 }
 
+static void
+block_crypto_amend_pre_run(BlockDriverState *bs)
+{
+    BlockCrypto *crypto = bs->opaque;
+    crypto->updating_keys = true;
+}
+
+static void
+block_crypto_amend_cleanup(BlockDriverState *bs)
+{
+    BlockCrypto *crypto = bs->opaque;
+    crypto->updating_keys = false;
+}
+
 static int
 block_crypto_amend_options_generic_luks(BlockDriverState *bs,
                                         QCryptoBlockAmendOptions *amend_options,
@@ -931,6 +945,8 @@ static BlockDriver bdrv_crypto_luks = {
     .bdrv_get_specific_info = block_crypto_get_specific_info_luks,
     .bdrv_amend_options = block_crypto_amend_options_luks,
     .bdrv_co_amend      = block_crypto_co_amend_luks,
+    .bdrv_amend_pre_run       = block_crypto_amend_pre_run,
+    .bdrv_amend_clean         = block_crypto_amend_cleanup,
 
     .is_format          = true,
 

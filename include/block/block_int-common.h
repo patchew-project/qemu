@@ -190,6 +190,19 @@ struct BlockDriver {
      */
 
     /*
+     * Called inside job->pre_run() callback, it is useful
+     * to perform driver-specific initialization code under
+     * BQL, like setting up specific permission flags.
+     */
+    void (*bdrv_amend_pre_run)(BlockDriverState *bs);
+    /*
+     * Called inside job->clean() callback, it undoes
+     * the driver-specific initialization code done in amend_pre_run.
+     * Also this function is under BQL.
+     */
+    void (*bdrv_amend_clean)(BlockDriverState *bs);
+
+    /*
      * Return true if @to_replace can be replaced by a BDS with the
      * same data as @bs without it affecting @bs's behavior (that is,
      * without it being visible to @bs's parents).
