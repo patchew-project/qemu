@@ -80,6 +80,7 @@ struct ARTISTState {
     uint32_t line_pattern_skip;
 
     uint32_t cursor_pos;
+    uint32_t cursor_cntl;
 
     uint32_t cursor_height;
     uint32_t cursor_width;
@@ -1027,6 +1028,8 @@ static void artist_reg_write(void *opaque, hwaddr addr, uint64_t val,
         break;
 
     case CURSOR_CTRL:
+        combine_write_reg(addr, val, size, &s->cursor_cntl);
+        artist_invalidate_cursor(s);
         break;
 
     case IMAGE_BITMAP_OP:
@@ -1320,7 +1323,9 @@ static void artist_update_display(void *opaque)
                                s->width, s->width * 4, 0, 0, artist_draw_line,
                                s, &first, &last);
 
-    artist_draw_cursor(s);
+    if (s->cursor_cntl & 0x80) {
+        artist_draw_cursor(s);
+    }
 
     dpy_gfx_update(s->con, 0, 0, s->width, s->height);
 }
@@ -1419,7 +1424,7 @@ static int vmstate_artist_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_artist = {
     .name = "artist",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .post_load = vmstate_artist_post_load,
     .fields = (VMStateField[]) {
@@ -1440,6 +1445,7 @@ static const VMStateDescription vmstate_artist = {
         VMSTATE_UINT32(line_end, ARTISTState),
         VMSTATE_UINT32(line_xy, ARTISTState),
         VMSTATE_UINT32(cursor_pos, ARTISTState),
+        VMSTATE_UINT32(cursor_cntl, ARTISTState),
         VMSTATE_UINT32(cursor_height, ARTISTState),
         VMSTATE_UINT32(cursor_width, ARTISTState),
         VMSTATE_UINT32(plane_mask, ARTISTState),
