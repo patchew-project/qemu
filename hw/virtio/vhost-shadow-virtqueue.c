@@ -42,11 +42,26 @@ const EventNotifier *vhost_svq_get_dev_kick_notifier(
     return &svq->hdev_kick;
 }
 
+/* Forward guest notifications */
+static void vhost_handle_guest_kick(EventNotifier *n)
+{
+    VhostShadowVirtqueue *svq = container_of(n, VhostShadowVirtqueue,
+                                             svq_kick);
+
+    if (unlikely(!event_notifier_test_and_clear(n))) {
+        return;
+    }
+
+    event_notifier_set(&svq->hdev_kick);
+}
+
 /**
  * Set a new file descriptor for the guest to kick SVQ and notify for avail
  *
  * @svq          The svq
- * @svq_kick_fd  The new svq kick fd
+ * @svq_kick_fd  The svq kick fd
+ *
+ * Note that SVQ will never close the old file descriptor.
  */
 void vhost_svq_set_svq_kick_fd(VhostShadowVirtqueue *svq, int svq_kick_fd)
 {
@@ -65,10 +80,20 @@ void vhost_svq_set_svq_kick_fd(VhostShadowVirtqueue *svq, int svq_kick_fd)
      * need to explicitely check for them.
      */
     event_notifier_init_fd(&svq->svq_kick, svq_kick_fd);
+    event_notifier_set_handler(&svq->svq_kick, vhost_handle_guest_kick);
 
     if (!check_old || event_notifier_test_and_clear(&tmp)) {
         event_notifier_set(&svq->hdev_kick);
     }
+}
+
+/**
+ * Stop shadow virtqueue operation.
+ * @svq Shadow Virtqueue
+ */
+void vhost_svq_stop(VhostShadowVirtqueue *svq)
+{
+    event_notifier_set_handler(&svq->svq_kick, NULL);
 }
 
 /**
