@@ -326,15 +326,8 @@ static void artist_rop8(ARTISTState *s, struct vram_buffer *buf,
 
 static void artist_get_cursor_pos(ARTISTState *s, int *x, int *y)
 {
-    /*
-     * Don't know whether these magic offset values are configurable via
-     * some register. They are the same for all resolutions, so don't
-     * bother about it.
-     */
-
-    *y = 0x47a - artist_get_y(s->cursor_pos);
-    *x = ((artist_get_x(s->cursor_pos) - 338) / 2);
-
+    *y = 0x400 - artist_get_y(s->cursor_pos);
+    *x = (artist_get_x(s->cursor_pos) + 16) / 2;
     if (*x > s->width) {
         *x = 0;
     }
@@ -1122,11 +1115,15 @@ static uint64_t artist_reg_read(void *opaque, hwaddr addr, unsigned size)
         break;
 
     case 0x300200:
-        val = s->reg_300200;
-        break;
-
     case 0x300208:
-        val = s->reg_300208;
+        /*
+         * Seems to be relevant to cursor position, likely a scratch register.
+         * HP-UX initializes this with different values depending on version.
+         * Best guess is that this number is generated from STI data or other
+         * registers. I couldn't figure out how this number is generated. For
+         * now hardcode it to a number generating a zero cursor offset.
+         */
+        val = 0x00f01000;
         break;
 
     case 0x300218:
