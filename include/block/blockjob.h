@@ -74,6 +74,13 @@ typedef struct BlockJob {
     GSList *nodes;
 } BlockJob;
 
+/*
+ * Global state (GS) API. These functions run under the BQL lock.
+ *
+ * See include/block/block-global-state.h for more information about
+ * the GS API.
+ */
+
 /**
  * block_job_next:
  * @job: A block job, or %NULL.
@@ -154,6 +161,8 @@ BlockJobInfo *block_job_query(BlockJob *job, Error **errp);
  * other than job->blk.
  */
 void block_job_iostatus_reset(BlockJob *job);
+
+/* Common functions that are neither I/O nor Global State */
 
 /**
  * block_job_is_internal:
