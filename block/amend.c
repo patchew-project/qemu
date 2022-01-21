@@ -53,10 +53,43 @@ static int coroutine_fn blockdev_amend_run(Job *job, Error **errp)
     return ret;
 }
 
+static int blockdev_amend_refresh_perms(Job *job, Error **errp)
+{
+    BlockdevAmendJob *s = container_of(job, BlockdevAmendJob, common);
+    return bdrv_child_refresh_perms(s->bs, s->bs->file, errp);
+}
+
+static int blockdev_amend_pre_run(Job *job, Error **errp)
+{
+    BlockdevAmendJob *s = container_of(job, BlockdevAmendJob, common);
+
+    if (s->bs->drv->bdrv_amend_pre_run) {
+        s->bs->drv->bdrv_amend_pre_run(s->bs);
+    }
+    return blockdev_amend_refresh_perms(job, errp);
+}
+
+static void blockdev_amend_clean(Job *job)
+{
+    BlockdevAmendJob *s = container_of(job, BlockdevAmendJob, common);
+    Error *errp = NULL;
+
+    if (s->bs->drv->bdrv_amend_clean) {
+        s->bs->drv->bdrv_amend_clean(s->bs);
+    }
+
+    blockdev_amend_refresh_perms(job, &errp);
+    if (errp) {
+        error_report_err(errp);
+    }
+}
+
 static const JobDriver blockdev_amend_job_driver = {
     .instance_size = sizeof(BlockdevAmendJob),
     .job_type      = JOB_TYPE_AMEND,
     .run           = blockdev_amend_run,
+    .pre_run       = blockdev_amend_pre_run,
+    .clean         = blockdev_amend_clean,
 };
 
 void qmp_x_blockdev_amend(const char *job_id,
