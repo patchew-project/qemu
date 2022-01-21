@@ -792,36 +792,45 @@ block_crypto_amend_cleanup(BlockDriverState *bs)
 }
 
 static int
+block_crypto_amend_options_prepare(BlockDriverState *bs,
+                                   Error **errp)
+{
+    BlockCrypto *crypto = bs->opaque;
+
+    /* apply for exclusive read/write permissions to the underlying file*/
+    crypto->updating_keys = true;
+    return bdrv_child_refresh_perms(bs, bs->file, errp);
+}
+
+static int
+block_crypto_amend_options_cleanup(BlockDriverState *bs,
+                                   Error **errp)
+{
+    BlockCrypto *crypto = bs->opaque;
+
+    /* release exclusive read/write permissions to the underlying file*/
+    crypto->updating_keys = false;
+    return bdrv_child_refresh_perms(bs, bs->file, errp);
+}
+
+static int
 block_crypto_amend_options_generic_luks(BlockDriverState *bs,
                                         QCryptoBlockAmendOptions *amend_options,
                                         bool force,
                                         Error **errp)
 {
     BlockCrypto *crypto = bs->opaque;
-    int ret;
 
     assert(crypto);
     assert(crypto->block);
 
-    /* apply for exclusive read/write permissions to the underlying file*/
-    crypto->updating_keys = true;
-    ret = bdrv_child_refresh_perms(bs, bs->file, errp);
-    if (ret) {
-        goto cleanup;
-    }
-
-    ret = qcrypto_block_amend_options(crypto->block,
-                                      block_crypto_read_func,
-                                      block_crypto_write_func,
-                                      bs,
-                                      amend_options,
-                                      force,
-                                      errp);
-cleanup:
-    /* release exclusive read/write permissions to the underlying file*/
-    crypto->updating_keys = false;
-    bdrv_child_refresh_perms(bs, bs->file, errp);
-    return ret;
+    return qcrypto_block_amend_options(crypto->block,
+                                       block_crypto_read_func,
+                                       block_crypto_write_func,
+                                       bs,
+                                       amend_options,
+                                       force,
+                                       errp);
 }
 
 static int
@@ -847,8 +856,16 @@ block_crypto_amend_options_luks(BlockDriverState *bs,
     if (!amend_options) {
         goto cleanup;
     }
+
+    ret = block_crypto_amend_options_prepare(bs, errp);
+    if (ret) {
+        goto perm_cleanup;
+    }
     ret = block_crypto_amend_options_generic_luks(bs, amend_options,
                                                   force, errp);
+
+perm_cleanup:
+    block_crypto_amend_options_cleanup(bs, errp);
 cleanup:
     qapi_free_QCryptoBlockAmendOptions(amend_options);
     return ret;

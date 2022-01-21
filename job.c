@@ -967,11 +967,24 @@ static void coroutine_fn job_co_entry(void *opaque)
     aio_bh_schedule_oneshot(qemu_get_aio_context(), job_exit, job);
 }
 
+static int job_pre_run(Job *job)
+{
+    assert(qemu_in_main_thread());
+    if (job->driver->pre_run) {
+        return job->driver->pre_run(job, &job->err);
+    }
+
+    return 0;
+}
+
 void job_start(Job *job)
 {
     assert(job && !job_started(job) && job->paused &&
            job->driver && job->driver->run);
     job->co = qemu_coroutine_create(job_co_entry, job);
+    if (job_pre_run(job)) {
+        return;
+    }
     job->pause_count--;
     job->busy = true;
     job->paused = false;
