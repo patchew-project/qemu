@@ -56,6 +56,18 @@ static void vhost_handle_guest_kick(EventNotifier *n)
 }
 
 /**
+ * Obtain the SVQ call notifier, where vhost device notifies SVQ that there
+ * exists pending used buffers.
+ *
+ * @svq Shadow Virtqueue
+ */
+const EventNotifier *vhost_svq_get_svq_call_notifier(
+                                               const VhostShadowVirtqueue *svq)
+{
+    return &svq->hdev_call;
+}
+
+/**
  * Set a new file descriptor for the guest to kick SVQ and notify for avail
  *
  * @svq          The svq
