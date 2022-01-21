@@ -1022,6 +1022,9 @@ static int vhost_vdpa_get_features(struct vhost_dev *dev, uint64_t *features)
     if (ret == 0 && v->shadow_vqs_enabled) {
         /* Filter only features that SVQ can offer to guest */
         vhost_svq_valid_guest_features(features);
+
+        /* Add SVQ logging capabilities */
+        *features |= BIT_ULL(VHOST_F_LOG_ALL);
     }
 
     return ret;
@@ -1039,7 +1042,24 @@ static int vhost_vdpa_set_features(struct vhost_dev *dev,
 
     if (v->shadow_vqs_enabled) {
         uint64_t dev_features, svq_features, acked_features;
+        uint8_t status = 0;
         bool ok;
+
+        ret = vhost_vdpa_call(dev, VHOST_VDPA_GET_STATUS, &status);
+        if (unlikely(ret)) {
+            return ret;
+        }
+
+        if (status & VIRTIO_CONFIG_S_DRIVER_OK) {
+            /*
+             * vhost is trying to enable or disable _F_LOG, and the device
+             * would report wrong dirty pages. SVQ handles it.
+             */
+            return 0;
+        }
+
+        /* We must not ack _F_LOG if SVQ is enabled */
+        features &= ~BIT_ULL(VHOST_F_LOG_ALL);
 
         ret = vhost_vdpa_get_dev_features(dev, &dev_features);
         if (ret != 0) {
