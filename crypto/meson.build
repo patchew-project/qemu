@@ -27,6 +27,9 @@ if nettle.found()
   if xts == 'private'
     crypto_ss.add(files('xts.c'))
   endif
+  if hogweed.found()
+    crypto_ss.add(gmp, hogweed, files('akcipher-nettle.c', 'asn1_decoder.c'))
+  endif
 elif gcrypt.found()
   crypto_ss.add(gcrypt, files('hash-gcrypt.c', 'hmac-gcrypt.c', 'pbkdf-gcrypt.c'))
 elif gnutls_crypto.found()
