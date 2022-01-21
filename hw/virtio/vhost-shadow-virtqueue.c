@@ -89,6 +89,30 @@ bool vhost_svq_valid_device_features(uint64_t *dev_features)
     return r;
 }
 
+/**
+ * Offers SVQ valid transport features to the guest.
+ *
+ * @guest_features  The device's supported features. Return SVQ's if success.
+ *
+ * Returns true if SVQ can handle them, false otherwise.
+ */
+bool vhost_svq_valid_guest_features(uint64_t *guest_features)
+{
+    static const uint64_t transport = MAKE_64BIT_MASK(VIRTIO_TRANSPORT_F_START,
+                            VIRTIO_TRANSPORT_F_END - VIRTIO_TRANSPORT_F_START);
+
+    /* These transport features are handled by VirtQueue */
+    static const uint64_t valid = BIT_ULL(VIRTIO_RING_F_INDIRECT_DESC) |
+                                  BIT_ULL(VIRTIO_F_VERSION_1) |
+                                  BIT_ULL(VIRTIO_F_IOMMU_PLATFORM);
+
+    /* We are only interested in transport-related feature bits */
+    uint64_t guest_transport_features = (*guest_features) & transport;
+
+    *guest_features &= (valid | ~transport);
+    return !(guest_transport_features & (transport ^ valid));
+}
+
 /* Forward guest notifications */
 static void vhost_handle_guest_kick(EventNotifier *n)
 {

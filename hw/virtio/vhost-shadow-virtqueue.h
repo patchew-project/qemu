@@ -16,6 +16,7 @@
 typedef struct VhostShadowVirtqueue VhostShadowVirtqueue;
 
 bool vhost_svq_valid_device_features(uint64_t *features);
+bool vhost_svq_valid_guest_features(uint64_t *features);
 
 void vhost_svq_set_svq_kick_fd(VhostShadowVirtqueue *svq, int svq_kick_fd);
 void vhost_svq_set_guest_call_notifier(VhostShadowVirtqueue *svq, int call_fd);
