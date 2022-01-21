@@ -11,6 +11,7 @@
 #include "hw/virtio/vhost-shadow-virtqueue.h"
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/virtio-access.h"
+#include "hw/virtio/vhost-iova-tree.h"
 #include "standard-headers/linux/vhost_types.h"
 
 #include "qemu/error-report.h"
@@ -44,6 +45,9 @@ typedef struct VhostShadowVirtqueue {
 
     /* Virtio device */
     VirtIODevice *vdev;
+
+    /* IOVA mapping */
+    VhostIOVATree *iova_tree;
 
     /* Map for returning guest's descriptors */
     VirtQueueElement **ring_id_maps;
@@ -97,13 +101,7 @@ bool vhost_svq_valid_device_features(uint64_t *dev_features)
             continue;
 
         case VIRTIO_F_ACCESS_PLATFORM:
-            /* SVQ does not know how to translate addresses */
-            if (*dev_features & BIT_ULL(b)) {
-                clear_bit(b, dev_features);
-                r = false;
-            }
-            break;
-
+            /* SVQ trust in host's IOMMU to translate addresses */
         case VIRTIO_F_VERSION_1:
             /* SVQ trust that guest vring is little endian */
             if (!(*dev_features & BIT_ULL(b))) {
@@ -205,7 +203,55 @@ static void vhost_svq_set_notification(VhostShadowVirtqueue *svq, bool enable)
     }
 }
 
+/**
+ * Translate addresses between qemu's virtual address and SVQ IOVA
+ *
+ * @svq    Shadow VirtQueue
+ * @vaddr  Translated IOVA addresses
+ * @iovec  Source qemu's VA addresses
+ * @num    Length of iovec and minimum length of vaddr
+ */
+static bool vhost_svq_translate_addr(const VhostShadowVirtqueue *svq,
+                                     void **addrs, const struct iovec *iovec,
+                                     size_t num)
+{
+    size_t i;
+
+    if (num == 0) {
+        return true;
+    }
+
+    for (i = 0; i < num; ++i) {
+        DMAMap needle = {
+            .translated_addr = (hwaddr)iovec[i].iov_base,
+            .size = iovec[i].iov_len,
+        };
+        size_t off;
+
+        const DMAMap *map = vhost_iova_tree_find_iova(svq->iova_tree, &needle);
+        /*
+         * Map cannot be NULL since iova map contains all guest space and
+         * qemu already has a physical address mapped
+         */
+        if (unlikely(!map)) {
+            error_report("Invalid address 0x%"HWADDR_PRIx" given by guest",
+                         needle.translated_addr);
+            return false;
+        }
+
+        /*
+         * Map->iova chunk size is ignored. What to do if descriptor
+         * (addr, size) does not fit is delegated to the device.
+         */
+        off = needle.translated_addr - map->translated_addr;
+        addrs[i] = (void *)(map->iova + off);
+    }
+
+    return true;
+}
+
 static void vhost_vring_write_descs(VhostShadowVirtqueue *svq,
+                                    void * const *vaddr_sg,
                                     const struct iovec *iovec,
                                     size_t num, bool more_descs, bool write)
 {
@@ -224,7 +270,7 @@ static void vhost_vring_write_descs(VhostShadowVirtqueue *svq,
         } else {
             descs[i].flags = flags;
         }
-        descs[i].addr = cpu_to_le64((hwaddr)iovec[n].iov_base);
+        descs[i].addr = cpu_to_le64((hwaddr)vaddr_sg[n]);
         descs[i].len = cpu_to_le32(iovec[n].iov_len);
 
         last = i;
@@ -234,42 +280,60 @@ static void vhost_vring_write_descs(VhostShadowVirtqueue *svq,
     svq->free_head = le16_to_cpu(descs[last].next);
 }
 
-static unsigned vhost_svq_add_split(VhostShadowVirtqueue *svq,
-                                    VirtQueueElement *elem)
+static bool vhost_svq_add_split(VhostShadowVirtqueue *svq,
+                                VirtQueueElement *elem,
+                                unsigned *head)
 {
-    int head;
     unsigned avail_idx;
     vring_avail_t *avail = svq->vring.avail;
+    bool ok;
+    g_autofree void **sgs = g_new(void *, MAX(elem->out_num, elem->in_num));
 
-    head = svq->free_head;
+    *head = svq->free_head;
 
     /* We need some descriptors here */
     assert(elem->out_num || elem->in_num);
 
-    vhost_vring_write_descs(svq, elem->out_sg, elem->out_num,
+    ok = vhost_svq_translate_addr(svq, sgs, elem->out_sg, elem->out_num);
+    if (unlikely(!ok)) {
+        return false;
+    }
+    vhost_vring_write_descs(svq, sgs, elem->out_sg, elem->out_num,
                             elem->in_num > 0, false);
-    vhost_vring_write_descs(svq, elem->in_sg, elem->in_num, false, true);
+
+
+    ok = vhost_svq_translate_addr(svq, sgs, elem->in_sg, elem->in_num);
+    if (unlikely(!ok)) {
+        return false;
+    }
+
+    vhost_vring_write_descs(svq, sgs, elem->in_sg, elem->in_num, false, true);
 
     /*
      * Put entry in available array (but don't update avail->idx until they
      * do sync).
      */
     avail_idx = svq->avail_idx_shadow & (svq->vring.num - 1);
-    avail->ring[avail_idx] = cpu_to_le16(head);
+    avail->ring[avail_idx] = cpu_to_le16(*head);
     svq->avail_idx_shadow++;
 
     /* Update avail index after the descriptor is wrote */
     smp_wmb();
     avail->idx = cpu_to_le16(svq->avail_idx_shadow);
 
-    return head;
+    return true;
 }
 
-static void vhost_svq_add(VhostShadowVirtqueue *svq, VirtQueueElement *elem)
+static bool vhost_svq_add(VhostShadowVirtqueue *svq, VirtQueueElement *elem)
 {
-    unsigned qemu_head = vhost_svq_add_split(svq, elem);
+    unsigned qemu_head;
+    bool ok = vhost_svq_add_split(svq, elem, &qemu_head);
+    if (unlikely(!ok)) {
+        return false;
+    }
 
     svq->ring_id_maps[qemu_head] = elem;
+    return true;
 }
 
 static void vhost_svq_kick(VhostShadowVirtqueue *svq)
@@ -309,6 +373,7 @@ static void vhost_handle_guest_kick(VhostShadowVirtqueue *svq)
 
         while (true) {
             VirtQueueElement *elem;
+            bool ok;
 
             if (svq->next_guest_avail_elem) {
                 elem = g_steal_pointer(&svq->next_guest_avail_elem);
@@ -337,7 +402,11 @@ static void vhost_handle_guest_kick(VhostShadowVirtqueue *svq)
                 return;
             }
 
-            vhost_svq_add(svq, elem);
+            ok = vhost_svq_add(svq, elem);
+            if (unlikely(!ok)) {
+                /* VQ is broken, just return and ignore any other kicks */
+                return;
+            }
             vhost_svq_kick(svq);
         }
 
@@ -619,12 +688,13 @@ void vhost_svq_stop(VhostShadowVirtqueue *svq)
  * methods and file descriptors.
  *
  * @qsize Shadow VirtQueue size
+ * @iova_tree Tree to perform descriptors translations
  *
  * Returns the new virtqueue or NULL.
  *
  * In case of error, reason is reported through error_report.
  */
-VhostShadowVirtqueue *vhost_svq_new(uint16_t qsize)
+VhostShadowVirtqueue *vhost_svq_new(uint16_t qsize, VhostIOVATree *iova_tree)
 {
     size_t desc_size = sizeof(vring_desc_t) * qsize;
     size_t device_size, driver_size;
@@ -656,6 +726,7 @@ VhostShadowVirtqueue *vhost_svq_new(uint16_t qsize)
     memset(svq->vring.desc, 0, driver_size);
     svq->vring.used = qemu_memalign(qemu_real_host_page_size, device_size);
     memset(svq->vring.used, 0, device_size);
+    svq->iova_tree = iova_tree;
     svq->ring_id_maps = g_new0(VirtQueueElement *, qsize);
     event_notifier_set_handler(&svq->hdev_call, vhost_svq_handle_call);
     return g_steal_pointer(&svq);

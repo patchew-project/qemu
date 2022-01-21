@@ -209,6 +209,18 @@ static void vhost_vdpa_listener_region_add(MemoryListener *listener,
                                          vaddr, section->readonly);
 
     llsize = int128_sub(llend, int128_make64(iova));
+    if (v->shadow_vqs_enabled) {
+        DMAMap mem_region = {
+            .translated_addr = (hwaddr)vaddr,
+            .size = int128_get64(llsize) - 1,
+            .perm = IOMMU_ACCESS_FLAG(true, section->readonly),
+        };
+
+        int r = vhost_iova_tree_map_alloc(v->iova_tree, &mem_region);
+        assert(r == IOVA_OK);
+
+        iova = mem_region.iova;
+    }
 
     vhost_vdpa_iotlb_batch_begin_once(v);
     ret = vhost_vdpa_dma_map(v, iova, int128_get64(llsize),
@@ -261,6 +273,20 @@ static void vhost_vdpa_listener_region_del(MemoryListener *listener,
 
     llsize = int128_sub(llend, int128_make64(iova));
 
+    if (v->shadow_vqs_enabled) {
+        const DMAMap *result;
+        const void *vaddr = memory_region_get_ram_ptr(section->mr) +
+            section->offset_within_region +
+            (iova - section->offset_within_address_space);
+        DMAMap mem_region = {
+            .translated_addr = (hwaddr)vaddr,
+            .size = int128_get64(llsize) - 1,
+        };
+
+        result = vhost_iova_tree_find_iova(v->iova_tree, &mem_region);
+        iova = result->iova;
+        vhost_iova_tree_remove(v->iova_tree, &mem_region);
+    }
     vhost_vdpa_iotlb_batch_begin_once(v);
     ret = vhost_vdpa_dma_unmap(v, iova, int128_get64(llsize));
     if (ret) {
@@ -783,33 +809,70 @@ static int vhost_vdpa_svq_set_fds(struct vhost_dev *dev,
 /**
  * Unmap SVQ area in the device
  */
-static bool vhost_vdpa_svq_unmap_ring(struct vhost_vdpa *v, hwaddr iova,
-                                      hwaddr size)
+static bool vhost_vdpa_svq_unmap_ring(struct vhost_vdpa *v,
+                                      const DMAMap *needle)
 {
+    const DMAMap *result = vhost_iova_tree_find_iova(v->iova_tree, needle);
+    hwaddr size;
     int r;
 
-    size = ROUND_UP(size, qemu_real_host_page_size);
-    r = vhost_vdpa_dma_unmap(v, iova, size);
+    if (unlikely(!result)) {
+        error_report("Unable to find SVQ address to unmap");
+        return false;
+    }
+
+    size = ROUND_UP(result->size, qemu_real_host_page_size);
+    r = vhost_vdpa_dma_unmap(v, result->iova, size);
     return r == 0;
 }
 
 static bool vhost_vdpa_svq_unmap_rings(struct vhost_dev *dev,
                                        const VhostShadowVirtqueue *svq)
 {
+    DMAMap needle;
     struct vhost_vdpa *v = dev->opaque;
     struct vhost_vring_addr svq_addr;
-    size_t device_size = vhost_svq_device_area_size(svq);
-    size_t driver_size = vhost_svq_driver_area_size(svq);
     bool ok;
 
     vhost_svq_get_vring_addr(svq, &svq_addr);
 
-    ok = vhost_vdpa_svq_unmap_ring(v, svq_addr.desc_user_addr, driver_size);
+    needle = (DMAMap) {
+        .translated_addr = svq_addr.desc_user_addr,
+    };
+    ok = vhost_vdpa_svq_unmap_ring(v, &needle);
     if (unlikely(!ok)) {
         return false;
     }
 
-    return vhost_vdpa_svq_unmap_ring(v, svq_addr.used_user_addr, device_size);
+    needle = (DMAMap) {
+        .translated_addr = svq_addr.used_user_addr,
+    };
+    return vhost_vdpa_svq_unmap_ring(v, &needle);
+}
+
+/**
+ * Map SVQ area in the device
+ *
+ * @v          Vhost-vdpa device
+ * @needle     The area to search iova
+ * @readonly   Permissions of the area
+ */
+static bool vhost_vdpa_svq_map_ring(struct vhost_vdpa *v, const DMAMap *needle,
+                                    bool readonly)
+{
+    hwaddr off;
+    const DMAMap *result = vhost_iova_tree_find_iova(v->iova_tree, needle);
+    int r;
+
+    if (unlikely(!result)) {
+        error_report("Can't locate SVQ ring");
+        return false;
+    }
+
+    off = needle->translated_addr - result->translated_addr;
+    r = vhost_vdpa_dma_map(v, result->iova + off, needle->size,
+                           (void *)needle->translated_addr, readonly);
+    return r == 0;
 }
 
 /**
@@ -821,23 +884,29 @@ static bool vhost_vdpa_svq_unmap_rings(struct vhost_dev *dev,
 static bool vhost_vdpa_svq_map_rings(struct vhost_dev *dev,
                                      const VhostShadowVirtqueue *svq)
 {
+    DMAMap needle;
     struct vhost_vdpa *v = dev->opaque;
     struct vhost_vring_addr svq_addr;
     size_t device_size = vhost_svq_device_area_size(svq);
     size_t driver_size = vhost_svq_driver_area_size(svq);
-    int r;
+    bool ok;
 
     vhost_svq_get_vring_addr(svq, &svq_addr);
 
-    r = vhost_vdpa_dma_map(v, svq_addr.desc_user_addr, driver_size,
-                           (void *)svq_addr.desc_user_addr, true);
-    if (unlikely(r != 0)) {
+    needle = (DMAMap) {
+        .translated_addr = svq_addr.desc_user_addr,
+        .size = driver_size,
+    };
+    ok = vhost_vdpa_svq_map_ring(v, &needle, true);
+    if (unlikely(!ok)) {
         return false;
     }
 
-    r = vhost_vdpa_dma_map(v, svq_addr.used_user_addr, device_size,
-                           (void *)svq_addr.used_user_addr, false);
-    return r == 0;
+    needle = (DMAMap) {
+        .translated_addr = svq_addr.used_user_addr,
+        .size = device_size,
+    };
+    return vhost_vdpa_svq_map_ring(v, &needle, false);
 }
 
 static bool vhost_vdpa_svq_setup(struct vhost_dev *dev,
@@ -1006,6 +1075,23 @@ static int vhost_vdpa_set_owner(struct vhost_dev *dev)
     return vhost_vdpa_call(dev, VHOST_SET_OWNER, NULL);
 }
 
+static bool vhost_vdpa_svq_get_vq_region(struct vhost_vdpa *v,
+                                         unsigned long long addr,
+                                         uint64_t *iova_addr)
+{
+    const DMAMap needle = {
+        .translated_addr = addr,
+    };
+    const DMAMap *translation = vhost_iova_tree_find_iova(v->iova_tree,
+                                                          &needle);
+    if (!translation) {
+        return false;
+    }
+
+    *iova_addr = translation->iova + (addr - translation->translated_addr);
+    return true;
+}
+
 static void vhost_vdpa_vq_get_guest_addr(struct vhost_vring_addr *addr,
                                          struct vhost_virtqueue *vq)
 {
@@ -1023,10 +1109,23 @@ static int vhost_vdpa_vq_get_addr(struct vhost_dev *dev,
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_VDPA);
 
     if (v->shadow_vqs_enabled) {
+        struct vhost_vring_addr svq_addr;
         int idx = vhost_vdpa_get_vq_index(dev, addr->index);
         VhostShadowVirtqueue *svq = g_ptr_array_index(v->shadow_vqs, idx);
 
-        vhost_svq_get_vring_addr(svq, addr);
+        vhost_svq_get_vring_addr(svq, &svq_addr);
+        if (!vhost_vdpa_svq_get_vq_region(v, svq_addr.desc_user_addr,
+                                          &addr->desc_user_addr)) {
+            return -1;
+        }
+        if (!vhost_vdpa_svq_get_vq_region(v, svq_addr.avail_user_addr,
+                                          &addr->avail_user_addr)) {
+            return -1;
+        }
+        if (!vhost_vdpa_svq_get_vq_region(v, svq_addr.used_user_addr,
+                                          &addr->used_user_addr)) {
+            return -1;
+        }
     } else {
         vhost_vdpa_vq_get_guest_addr(addr, vq);
     }
@@ -1095,13 +1194,37 @@ static int vhost_vdpa_init_svq(struct vhost_dev *hdev, struct vhost_vdpa *v,
 
     shadow_vqs = g_ptr_array_new_full(hdev->nvqs, vhost_psvq_free);
     for (unsigned n = 0; n < hdev->nvqs; ++n) {
-        VhostShadowVirtqueue *svq = vhost_svq_new(qsize);
-
+        DMAMap device_region, driver_region;
+        struct vhost_vring_addr addr;
+        VhostShadowVirtqueue *svq = vhost_svq_new(qsize, v->iova_tree);
         if (unlikely(!svq)) {
             error_setg(errp, "Cannot create svq %u", n);
             return -1;
         }
-        g_ptr_array_add(v->shadow_vqs, svq);
+
+        vhost_svq_get_vring_addr(svq, &addr);
+        driver_region = (DMAMap) {
+            .translated_addr = (hwaddr)addr.desc_user_addr,
+
+            /*
+             * DMAMAp.size include the last byte included in the range, while
+             * sizeof marks one past it. Substract one byte to make them match.
+             */
+            .size = vhost_svq_driver_area_size(svq) - 1,
+            .perm = VHOST_ACCESS_RO,
+        };
+        device_region = (DMAMap) {
+            .translated_addr = (hwaddr)addr.used_user_addr,
+            .size = vhost_svq_device_area_size(svq) - 1,
+            .perm = VHOST_ACCESS_RW,
+        };
+
+        r = vhost_iova_tree_map_alloc(v->iova_tree, &driver_region);
+        assert(r == IOVA_OK);
+        r = vhost_iova_tree_map_alloc(v->iova_tree, &device_region);
+        assert(r == IOVA_OK);
+
+        g_ptr_array_add(shadow_vqs, svq);
     }
 
 out:
