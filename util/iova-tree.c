@@ -88,7 +88,7 @@ static DMAMapInternal *iova_tree_find_internal(const IOVATree *tree,
 const DMAMap *iova_tree_find(const IOVATree *tree, const DMAMap *map)
 {
     const DMAMapInternal *ret = iova_tree_find_internal(tree, map);
-    return &ret->map;
+    return ret ? &ret->map : NULL;
 }
 
 const DMAMap *iova_tree_find_address(const IOVATree *tree, hwaddr iova)
@@ -160,6 +160,90 @@ int iova_tree_remove(IOVATree *tree, const DMAMap *map)
     }
 
     return IOVA_OK;
+}
+
+/**
+ * Check if there is at minimum "size" iova space between the end of "left" and
+ * the start of "right". If some of them is NULL, iova_begin and iova_end will
+ * be used.
+ */
+static bool iova_tree_alloc_map_in_hole(const DMAMapInternal *l,
+                                        const DMAMapInternal *r,
+                                        hwaddr iova_begin, hwaddr iova_last,
+                                        size_t size)
+{
+    const DMAMap *left = l ? &l->map : NULL;
+    const DMAMap *right = r ? &r->map : NULL;
+    uint64_t hole_start, hole_last;
+
+    if (right && right->iova + right->size < iova_begin) {
+        return false;
+    }
+
+    if (left && left->iova > iova_last) {
+        return false;
+    }
+
+    hole_start = MAX(left ? left->iova + left->size + 1 : 0, iova_begin);
+    hole_last = MIN(right ? right->iova : HWADDR_MAX, iova_last);
+
+    if (hole_last - hole_start > size) {
+        /* We found a valid hole. */
+        return true;
+    }
+
+    /* Keep iterating */
+    return false;
+}
+
+/**
+ * Allocates a new entry in the tree
+ *
+ * The caller specifies the size of the new entry with map->size. The new iova
+ * address is returned in map->iova if allocation success. The map ownership is
+ * always of the caller as in iova_tree_insert.
+ *
+ * More contrains can be specified with iova_begin and iova_last.
+ *
+ * Returns the same as iova_tree_insert, but it can return IOVA_ERR_NOMEM if
+ * cannot find a hole in iova range big enough.
+ */
+int iova_tree_alloc(IOVATree *tree, DMAMap *map, hwaddr iova_begin,
+                    hwaddr iova_last)
+{
+    const DMAMapInternal *last, *i;
+
+    assert(iova_begin < iova_last);
+
+    /*
+     * Find a valid hole for the mapping
+     *
+     * TODO: Replace all this with g_tree_node_first/next/last when available
+     * (from glib since 2.68). Using a sepparated QTAILQ complicates code.
+     *
+     * Try to allocate first at the end of the list.
+     */
+    last = QTAILQ_LAST(&tree->list);
+    if (iova_tree_alloc_map_in_hole(last, NULL, iova_begin, iova_last,
+                                    map->size)) {
+        goto alloc;
+    }
+
+    /* Look for inner hole */
+    last = NULL;
+    for (i = QTAILQ_FIRST(&tree->list); i;
+         last = i, i = QTAILQ_NEXT(i, entry)) {
+        if (iova_tree_alloc_map_in_hole(last, i, iova_begin, iova_last,
+                                        map->size)) {
+            goto alloc;
+        }
+    }
+
+    return IOVA_ERR_NOMEM;
+
+alloc:
+    map->iova = last ? last->map.iova + last->map.size + 1 : iova_begin;
+    return iova_tree_insert(tree, map);
 }
 
 void iova_tree_destroy(IOVATree *tree)
