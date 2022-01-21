@@ -1619,7 +1619,10 @@ Code generated for commands
 
 These are the marshaling/dispatch functions for the commands defined
 in the schema.  The generated code provides qmp_marshal_COMMAND(), and
-declares qmp_COMMAND() that the user must implement.
+declares qmp_COMMAND() that the user must implement.  The generated code
+contains trace events code.  Corresponding .trace-events file with list
+of trace events is generated too, and should be parsed by trace generator
+later to generate trace event code, see `tracing <tracing.html>`.
 
 The following files are generated:
 
@@ -1629,6 +1632,9 @@ The following files are generated:
 
  ``$(prefix)qapi-commands.h``
      Function prototypes for the QMP commands specified in the schema
+
+ ``$(prefix)qapi-commands.trace-events``
+     Trace events file for trace generator, see `tracing <tracing.html>`.
 
  ``$(prefix)qapi-init-commands.h``
      Command initialization prototype
@@ -1689,13 +1695,26 @@ Example::
             goto out;
         }
 
+        if (trace_event_get_state_backends(TRACE_QMP_ENTER_MY_COMMAND)) {
+            g_autoptr(GString) req_json = qobject_to_json(QOBJECT(args));
+
+            trace_qmp_enter_my_command(req_json->str);
+        }
+
         retval = qmp_my_command(arg.arg1, &err);
-        error_propagate(errp, err);
         if (err) {
+            trace_qmp_exit_my_command(error_get_pretty(err), false);
+            error_propagate(errp, err);
             goto out;
         }
 
         qmp_marshal_output_UserDefOne(retval, ret, errp);
+
+        if (trace_event_get_state_backends(TRACE_QMP_EXIT_MY_COMMAND)) {
+            g_autoptr(GString) ret_json = qobject_to_json(*ret);
+
+            trace_qmp_exit_my_command(ret_json->str, true);
+        }
 
     out:
         visit_free(v);
