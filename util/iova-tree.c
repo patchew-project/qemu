@@ -11,14 +11,43 @@
 
 #include "qemu/osdep.h"
 #include "qemu/iova-tree.h"
+#include "qemu/queue.h"
 
 typedef struct DMAMapInternal {
     DMAMap map;
+    QTAILQ_ENTRY(DMAMapInternal) entry;
 } DMAMapInternal;
 
 struct IOVATree {
     GTree *tree;
+    QTAILQ_HEAD(, DMAMapInternal) list;
 };
+
+/**
+ * Search function for the upper bound of a given needle.
+ *
+ * The upper bound is the first node that has its key strictly greater than the
+ * searched key.
+ *
+ * TODO: A specialized function is available in GTree since Glib 2.68. Replace
+ * when Glib minimal version is raised.
+ */
+static int iova_tree_compare_upper_bound(gconstpointer a, gconstpointer b)
+{
+    const DMAMapInternal *haystack = a, *needle = b, *prev;
+
+    if (needle->map.iova >= haystack->map.iova) {
+        return 1;
+    }
+
+    prev = QTAILQ_PREV(haystack, entry);
+    if (!prev || prev->map.iova < needle->map.iova) {
+        return 0;
+    }
+
+    /* More data to the left or end of data */
+    return -1;
+}
 
 static int iova_tree_compare(gconstpointer a, gconstpointer b, gpointer data)
 {
@@ -43,6 +72,7 @@ IOVATree *iova_tree_new(void)
 
     /* We don't have values actually, no need to free */
     iova_tree->tree = g_tree_new_full(iova_tree_compare, NULL, g_free, NULL);
+    QTAILQ_INIT(&iova_tree->list);
 
     return iova_tree;
 }
@@ -77,7 +107,7 @@ static inline void iova_tree_insert_internal(GTree *gtree,
 
 int iova_tree_insert(IOVATree *tree, const DMAMap *map)
 {
-    DMAMapInternal *new;
+    DMAMapInternal *new, *right;
 
     if (map->iova + map->size < map->iova || map->perm == IOMMU_NONE) {
         return IOVA_ERR_INVALID;
@@ -91,6 +121,15 @@ int iova_tree_insert(IOVATree *tree, const DMAMap *map)
     new = g_new0(DMAMapInternal, 1);
     memcpy(&new->map, map, sizeof(new->map));
     iova_tree_insert_internal(tree->tree, new);
+
+    /* Ordered insertion */
+    right = g_tree_search(tree->tree, iova_tree_compare_upper_bound, new);
+    if (!right) {
+        /* Empty or bigger than any other entry */
+        QTAILQ_INSERT_TAIL(&tree->list, new, entry);
+    } else {
+        QTAILQ_INSERT_BEFORE(right, new, entry);
+    }
 
     return IOVA_OK;
 }
@@ -116,6 +155,7 @@ int iova_tree_remove(IOVATree *tree, const DMAMap *map)
     DMAMapInternal *overlap_internal;
 
     while ((overlap_internal = iova_tree_find_internal(tree, map))) {
+        QTAILQ_REMOVE(&tree->list, overlap_internal, entry);
         g_tree_remove(tree->tree, overlap_internal);
     }
 
