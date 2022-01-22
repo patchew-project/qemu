@@ -371,8 +371,6 @@ static void tcx_reset(DeviceState *d)
     s->r[258] = s->g[258] = s->b[258] = 255;
     update_palette_entries(s, 0, 260);
     memset(s->vram, 0, MAXX*MAXY);
-    memory_region_reset_dirty(&s->vram_mem, 0, MAXX * MAXY * (1 + 4 + 4),
-                              DIRTY_MEMORY_VGA);
     s->dac_index = 0;
     s->dac_state = 0;
     s->cursx = 0xf000; /* Put cursor off screen */
