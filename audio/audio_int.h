@@ -266,6 +266,12 @@ static inline size_t audio_ring_dist(size_t dst, size_t src, size_t len)
     return (dst >= src) ? (dst - src) : (len - src + dst);
 }
 
+/* return new position in backward direction at given distance */
+static inline size_t audio_ring_posb(size_t pos, size_t dist, size_t len)
+{
+    return pos >= dist ? pos - dist : len - dist + pos;
+}
+
 #define dolog(fmt, ...) AUD_log(AUDIO_CAP, fmt, ## __VA_ARGS__)
 
 #ifdef DEBUG
