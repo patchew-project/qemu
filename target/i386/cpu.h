@@ -549,6 +549,13 @@ typedef enum X86Seg {
 #define XSTATE_ZMM_Hi256_MASK           (1ULL << XSTATE_ZMM_Hi256_BIT)
 #define XSTATE_Hi16_ZMM_MASK            (1ULL << XSTATE_Hi16_ZMM_BIT)
 #define XSTATE_PKRU_MASK                (1ULL << XSTATE_PKRU_BIT)
+#define XSTATE_XTILE_CFG_MASK           (1ULL << XSTATE_XTILE_CFG_BIT)
+#define XSTATE_XTILE_DATA_MASK          (1ULL << XSTATE_XTILE_DATA_BIT)
+#define XFEATURE_XTILE_MASK             (XSTATE_XTILE_CFG_MASK \
+                                         | XSTATE_XTILE_DATA_MASK)
+
+#define ARCH_GET_XCOMP_GUEST_PERM       0x1024
+#define ARCH_REQ_XCOMP_GUEST_PERM       0x1025
 
 #define ESA_FEATURE_ALIGN64_BIT         1
 

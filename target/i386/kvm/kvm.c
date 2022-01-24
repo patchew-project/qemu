@@ -405,6 +405,12 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
         if (!has_msr_arch_capabs) {
             ret &= ~CPUID_7_0_EDX_ARCH_CAPABILITIES;
         }
+    } else if (function == 0xd && index == 0 && reg == R_EAX) {
+        /*
+         * We can set the AMX XTILE DATA flag, even if KVM does not
+         * return it on GET_SUPPORTED_CPUID.
+         */
+        ret |= XSTATE_XTILE_DATA_MASK;
     } else if (function == 0x80000001 && reg == R_ECX) {
         /*
          * It's safe to enable TOPOEXT even if it's not returned by

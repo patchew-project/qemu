@@ -43,6 +43,10 @@
 #include "disas/capstone.h"
 #include "cpu-internal.h"
 
+#include <sys/syscall.h>
+
+bool request_perm;
+
 /* Helpers for building CPUID[2] descriptors: */
 
 struct CPUID2CacheDescriptorInfo {
@@ -6000,6 +6004,27 @@ static void x86_cpu_adjust_feat_level(X86CPU *cpu, FeatureWord w)
     }
 }
 
+static void kvm_request_xsave_components(X86CPU *cpu, uint32_t bit)
+{
+    KVMState *s = CPU(cpu)->kvm_state;
+
+    long rc = syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_GUEST_PERM,
+                      bit);
+    if (rc) {
+        /*
+         * The older kernel version(<5.15) can't support
+         * ARCH_REQ_XCOMP_GUEST_PERM and directly return.
+         */
+        return;
+    }
+
+    rc = kvm_arch_get_supported_cpuid(s, 0xd, 0, R_EAX);
+    if (!(rc & XFEATURE_XTILE_MASK)) {
+        error_report("get cpuid failure and rc=0x%lx", rc);
+        exit(EXIT_FAILURE);
+    }
+}
+
 /* Calculate XSAVE components based on the configured CPU feature flags */
 static void x86_cpu_enable_xsave_components(X86CPU *cpu)
 {
@@ -6019,6 +6044,12 @@ static void x86_cpu_enable_xsave_components(X86CPU *cpu)
         if (env->features[esa->feature] & esa->bits) {
             mask |= (1ULL << i);
         }
+    }
+
+    /* Only request permission from fisrt vcpu. */
+    if (kvm_enabled() && !request_perm) {
+        kvm_request_xsave_components(cpu, XSTATE_XTILE_DATA_BIT);
+        request_perm = true;
     }
 
     env->features[FEAT_XSAVE_COMP_LO] = mask;
