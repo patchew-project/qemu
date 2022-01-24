@@ -1765,7 +1765,8 @@ int kvm_arch_init_vcpu(CPUState *cs)
                 c = &cpuid_data.entries[cpuid_i++];
             }
             break;
-        case 0x14: {
+        case 0x14:
+        case 0x1d: {
             uint32_t times;
 
             c->function = i;
