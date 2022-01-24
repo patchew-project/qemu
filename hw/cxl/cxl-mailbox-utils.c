@@ -49,6 +49,8 @@ enum {
     LOGS        = 0x04,
         #define GET_SUPPORTED 0x0
         #define GET_LOG       0x1
+    IDENTIFY    = 0x40,
+        #define MEMORY_DEVICE 0x0
 };
 
 /* 8.2.8.4.5.1 Command Return Codes */
@@ -127,6 +129,7 @@ declare_mailbox_handler(TIMESTAMP_GET);
 declare_mailbox_handler(TIMESTAMP_SET);
 declare_mailbox_handler(LOGS_GET_SUPPORTED);
 declare_mailbox_handler(LOGS_GET_LOG);
+declare_mailbox_handler(IDENTIFY_MEMORY_DEVICE);
 
 #define IMMEDIATE_CONFIG_CHANGE (1 << 1)
 #define IMMEDIATE_POLICY_CHANGE (1 << 3)
@@ -144,6 +147,7 @@ static struct cxl_cmd cxl_cmd_set[256][256] = {
     CXL_CMD(TIMESTAMP, SET, 8, IMMEDIATE_POLICY_CHANGE),
     CXL_CMD(LOGS, GET_SUPPORTED, 0, 0),
     CXL_CMD(LOGS, GET_LOG, 0x18, 0),
+    CXL_CMD(IDENTIFY, MEMORY_DEVICE, 0, 0),
 };
 
 #undef CXL_CMD
@@ -252,6 +256,46 @@ define_mailbox_handler(LOGS_GET_LOG)
     memmove(cmd->payload, cxl_dstate->cel_log + get_log->offset,
            get_log->length);
 
+    return CXL_MBOX_SUCCESS;
+}
+
+/* 8.2.9.5.1.1 */
+define_mailbox_handler(IDENTIFY_MEMORY_DEVICE)
+{
+    struct {
+        char fw_revision[0x10];
+        uint64_t total_capacity;
+        uint64_t volatile_capacity;
+        uint64_t persistent_capacity;
+        uint64_t partition_align;
+        uint16_t info_event_log_size;
+        uint16_t warning_event_log_size;
+        uint16_t failure_event_log_size;
+        uint16_t fatal_event_log_size;
+        uint32_t lsa_size;
+        uint8_t poison_list_max_mer[3];
+        uint16_t inject_poison_limit;
+        uint8_t poison_caps;
+        uint8_t qos_telemetry_caps;
+    } __attribute__((packed)) *id;
+    _Static_assert(sizeof(*id) == 0x43, "Bad identify size");
+
+    uint64_t size = cxl_dstate->pmem_size;
+
+    if (!QEMU_IS_ALIGNED(size, 256 << 20)) {
+        return CXL_MBOX_INTERNAL_ERROR;
+    }
+
+    id = (void *)cmd->payload;
+    memset(id, 0, sizeof(*id));
+
+    /* PMEM only */
+    snprintf(id->fw_revision, 0x10, "BWFW VERSION %02d", 0);
+
+    id->total_capacity = size / (256 << 20);
+    id->persistent_capacity = size / (256 << 20);
+
+    *len = sizeof(*id);
     return CXL_MBOX_SUCCESS;
 }
 
