@@ -603,6 +603,38 @@ static void fuse_write(fuse_req_t req, fuse_ino_t inode, const char *buf,
     }
 }
 
+static bool fuse_fallocate_zero_range(fuse_req_t req, fuse_ino_t inode,
+                                      int mode, int64_t blk_len,
+                                      off_t offset, off_t *length)
+{
+#ifdef CONFIG_FALLOCATE_ZERO_RANGE
+    FuseExport *exp = fuse_req_userdata(req);
+
+    if (mode & FALLOC_FL_ZERO_RANGE) {
+        int ret;
+
+       if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + *length > blk_len) {
+            /* No need for zeroes, we are going to write them ourselves */
+            ret = fuse_do_truncate(exp, offset + *length, false,
+                                   PREALLOC_MODE_OFF);
+            if (ret < 0) {
+                fuse_reply_err(req, -ret);
+                return false;
+            }
+        }
+
+        do {
+            int size = MIN(*length, BDRV_REQUEST_MAX_BYTES);
+
+            ret = blk_pwrite_zeroes(exp->common.blk, offset, size, 0);
+            offset += size;
+            *length -= size;
+        } while (ret == 0 && *length > 0);
+    }
+#endif /* CONFIG_FALLOCATE_ZERO_RANGE */
+    return true;
+}
+
 /**
  * Let clients perform various fallocate() operations.
  */
@@ -642,30 +674,9 @@ static void fuse_fallocate(fuse_req_t req, fuse_ino_t inode, int mode,
             offset += size;
             length -= size;
         } while (ret == 0 && length > 0);
-    }
-#ifdef CONFIG_FALLOCATE_ZERO_RANGE
-    else if (mode & FALLOC_FL_ZERO_RANGE) {
-        if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + length > blk_len) {
-            /* No need for zeroes, we are going to write them ourselves */
-            ret = fuse_do_truncate(exp, offset + length, false,
-                                   PREALLOC_MODE_OFF);
-            if (ret < 0) {
-                fuse_reply_err(req, -ret);
-                return;
-            }
-        }
-
-        do {
-            int size = MIN(length, BDRV_REQUEST_MAX_BYTES);
-
-            ret = blk_pwrite_zeroes(exp->common.blk,
-                                    offset, size, 0);
-            offset += size;
-            length -= size;
-        } while (ret == 0 && length > 0);
-    }
-#endif /* CONFIG_FALLOCATE_ZERO_RANGE */
-    else if (!mode) {
+    } else if (!fuse_fallocate_zero_range(req, inode, blk_len, mode, offset, &length)) {
+        return;
+    } else if (!mode) {
         /* We can only fallocate at the EOF with a truncate */
         if (offset < blk_len) {
             fuse_reply_err(req, EOPNOTSUPP);
