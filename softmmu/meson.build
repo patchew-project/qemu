@@ -15,6 +15,7 @@ specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: [files(
   'vl.c',
   'cpu-timers.c',
   'runstate-action.c',
+  'dirtylimit.c',
 )])
 
 specific_ss.add(when: ['CONFIG_SOFTMMU', 'CONFIG_TCG'], if_true: [files(
