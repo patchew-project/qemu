@@ -78,6 +78,7 @@
 #include "hw/virtio/virtio-mem-pci.h"
 #include "hw/virtio/virtio-iommu.h"
 #include "hw/char/pl011.h"
+#include "hw/cxl/cxl.h"
 #include "qemu/guest-random.h"
 
 #define DEFINE_VIRT_MACHINE_LATEST(major, minor, latest) \
@@ -178,6 +179,7 @@ static const MemMapEntry base_memmap[] = {
 static MemMapEntry extended_memmap[] = {
     /* Additional 64 MB redist region (can contain up to 512 redistributors) */
     [VIRT_HIGH_GIC_REDIST2] =   { 0x0, 64 * MiB },
+    [VIRT_CXL_HOST] =           { 0x0, 64 * KiB * 16 }, /* 16 UID */
     [VIRT_HIGH_PCIE_ECAM] =     { 0x0, 256 * MiB },
     /* Second PCIe window */
     [VIRT_HIGH_PCIE_MMIO] =     { 0x0, 512 * GiB },
@@ -1508,6 +1510,17 @@ static void create_pcie(VirtMachineState *vms)
     }
 }
 
+static void create_cxl_host_reg_region(VirtMachineState *vms)
+{
+    MemoryRegion *sysmem = get_system_memory();
+    MachineState *ms = MACHINE(vms);
+    MemoryRegion *mr = &ms->cxl_devices_state->host_mr;
+
+    memory_region_init(mr, OBJECT(ms), "cxl_host_reg",
+                       vms->memmap[VIRT_CXL_HOST].size);
+    memory_region_add_subregion(sysmem, vms->memmap[VIRT_CXL_HOST].base, mr);
+}
+
 static void create_platform_bus(VirtMachineState *vms)
 {
     DeviceState *dev;
@@ -1670,7 +1683,7 @@ static uint64_t virt_cpu_mp_affinity(VirtMachineState *vms, int idx)
 static void virt_set_memmap(VirtMachineState *vms, int pa_bits)
 {
     MachineState *ms = MACHINE(vms);
-    hwaddr base, device_memory_base, device_memory_size, memtop;
+    hwaddr base, device_memory_base, device_memory_size, memtop, cxl_fmw_base;
     int i;
 
     vms->memmap = extended_memmap;
@@ -1761,6 +1774,20 @@ static void virt_set_memmap(VirtMachineState *vms, int pa_bits)
         ms->device_memory->base = device_memory_base;
         memory_region_init(&ms->device_memory->mr, OBJECT(vms),
                            "device-memory", device_memory_size);
+    }
+
+    if (ms->cxl_devices_state->fixed_windows) {
+        GList *it;
+
+        cxl_fmw_base = ROUND_UP(base, 256 * MiB);
+        for (it = ms->cxl_devices_state->fixed_windows; it; it = it->next) {
+            CXLFixedWindow *fw = it->data;
+
+            fw->base = cxl_fmw_base;
+            memory_region_init_io(&fw->mr, OBJECT(vms), &cfmws_ops, fw,
+                                  "cxl-fixed-memory-region", fw->size);
+            cxl_fmw_base += fw->size;
+        }
     }
 }
 
@@ -2175,6 +2202,15 @@ static void machvirt_init(MachineState *machine)
         memory_region_add_subregion(sysmem, machine->device_memory->base,
                                     &machine->device_memory->mr);
     }
+    if (machine->cxl_devices_state->fixed_windows) {
+        GList *it;
+        for (it = machine->cxl_devices_state->fixed_windows; it;
+             it = it->next) {
+            CXLFixedWindow *fw = it->data;
+
+            memory_region_add_subregion(sysmem, fw->base, &fw->mr);
+        }
+    }
 
     virt_flash_fdt(vms, sysmem, secure_sysmem ?: sysmem);
 
@@ -2201,6 +2237,7 @@ static void machvirt_init(MachineState *machine)
     create_rtc(vms);
 
     create_pcie(vms);
+    create_cxl_host_reg_region(vms);
 
     if (has_ged && aarch64 && firmware_loaded && virt_is_acpi_enabled(vms)) {
         vms->acpi_dev = create_acpi_ged(vms);
@@ -2856,7 +2893,7 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     hc->unplug = virt_machine_device_unplug_cb;
     mc->nvdimm_supported = true;
     mc->smp_props.clusters_supported = true;
-    mc->cxl_supported = false;
+    mc->cxl_supported = true;
     mc->auto_enable_numa_with_memhp = true;
     mc->auto_enable_numa_with_memdev = true;
     mc->default_ram_id = "mach-virt.ram";
