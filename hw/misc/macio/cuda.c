@@ -36,6 +36,7 @@
 #include "sysemu/runstate.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
+#include "qemu/bswap.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "trace.h"
@@ -345,10 +346,7 @@ static bool cuda_cmd_get_time(CUDAState *s,
 
     ti = s->tick_offset + (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)
                            / NANOSECONDS_PER_SECOND);
-    out_data[0] = ti >> 24;
-    out_data[1] = ti >> 16;
-    out_data[2] = ti >> 8;
-    out_data[3] = ti;
+    stl_be_p(out_data, ti);
     *out_len = 4;
     return true;
 }
@@ -363,8 +361,7 @@ static bool cuda_cmd_set_time(CUDAState *s,
         return false;
     }
 
-    ti = (((uint32_t)in_data[0]) << 24) + (((uint32_t)in_data[1]) << 16)
-         + (((uint32_t)in_data[2]) << 8) + in_data[3];
+    ti = ldl_be_p(in_data);
     s->tick_offset = ti - (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)
                            / NANOSECONDS_PER_SECOND);
     return true;
