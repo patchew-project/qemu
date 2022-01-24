@@ -886,11 +886,59 @@ static void do_readlink(fuse_req_t req, fuse_ino_t nodeid,
     }
 }
 
+static int parse_secctx_fill_req(fuse_req_t req, struct fuse_mbuf_iter *iter)
+{
+    struct fuse_secctx_header *fsecctx_header;
+    struct fuse_secctx *fsecctx;
+    const void *secctx;
+    const char *name;
+
+    fsecctx_header = fuse_mbuf_iter_advance(iter, sizeof(*fsecctx_header));
+    if (!fsecctx_header) {
+        return -EINVAL;
+    }
+
+    /*
+     * As of now maximum of one security context is supported. It can
+     * change in future though.
+     */
+    if (fsecctx_header->nr_secctx > 1) {
+        return -EINVAL;
+    }
+
+    /* No security context sent. Maybe no LSM supports it */
+    if (!fsecctx_header->nr_secctx) {
+        return 0;
+    }
+
+    fsecctx = fuse_mbuf_iter_advance(iter, sizeof(*fsecctx));
+    if (!fsecctx) {
+        return -EINVAL;
+    }
+
+    name = fuse_mbuf_iter_advance_str(iter);
+    if (!name) {
+        return -EINVAL;
+    }
+
+    secctx = fuse_mbuf_iter_advance(iter, fsecctx->size);
+    if (!secctx) {
+        return -EINVAL;
+    }
+
+    req->secctx.name = name;
+    req->secctx.ctx = secctx;
+    req->secctx.ctxlen = fsecctx->size;
+    return 0;
+}
+
 static void do_mknod(fuse_req_t req, fuse_ino_t nodeid,
                      struct fuse_mbuf_iter *iter)
 {
     struct fuse_mknod_in *arg;
     const char *name;
+    bool secctx_enabled = req->se->conn.want & FUSE_CAP_SECURITY_CTX;
+    int err;
 
     arg = fuse_mbuf_iter_advance(iter, sizeof(*arg));
     name = fuse_mbuf_iter_advance_str(iter);
@@ -900,6 +948,13 @@ static void do_mknod(fuse_req_t req, fuse_ino_t nodeid,
     }
 
     req->ctx.umask = arg->umask;
+
+    if (secctx_enabled) {
+        err = parse_secctx_fill_req(req, iter);
+        if (err) {
+            fuse_reply_err(req, -err);
+        }
+    }
 
     if (req->se->op.mknod) {
         req->se->op.mknod(req, nodeid, name, arg->mode, arg->rdev);
@@ -913,6 +968,8 @@ static void do_mkdir(fuse_req_t req, fuse_ino_t nodeid,
 {
     struct fuse_mkdir_in *arg;
     const char *name;
+    bool secctx_enabled = req->se->conn.want & FUSE_CAP_SECURITY_CTX;
+    int err;
 
     arg = fuse_mbuf_iter_advance(iter, sizeof(*arg));
     name = fuse_mbuf_iter_advance_str(iter);
@@ -922,6 +979,13 @@ static void do_mkdir(fuse_req_t req, fuse_ino_t nodeid,
     }
 
     req->ctx.umask = arg->umask;
+
+    if (secctx_enabled) {
+        err = parse_secctx_fill_req(req, iter);
+        if (err) {
+            fuse_reply_err(req, err);
+        }
+    }
 
     if (req->se->op.mkdir) {
         req->se->op.mkdir(req, nodeid, name, arg->mode);
@@ -969,10 +1033,19 @@ static void do_symlink(fuse_req_t req, fuse_ino_t nodeid,
 {
     const char *name = fuse_mbuf_iter_advance_str(iter);
     const char *linkname = fuse_mbuf_iter_advance_str(iter);
+    bool secctx_enabled = req->se->conn.want & FUSE_CAP_SECURITY_CTX;
+    int err;
 
     if (!name || !linkname) {
         fuse_reply_err(req, EINVAL);
         return;
+    }
+
+    if (secctx_enabled) {
+        err = parse_secctx_fill_req(req, iter);
+        if (err) {
+            fuse_reply_err(req, err);
+        }
     }
 
     if (req->se->op.symlink) {
@@ -1048,6 +1121,8 @@ static void do_link(fuse_req_t req, fuse_ino_t nodeid,
 static void do_create(fuse_req_t req, fuse_ino_t nodeid,
                       struct fuse_mbuf_iter *iter)
 {
+    bool secctx_enabled = req->se->conn.want & FUSE_CAP_SECURITY_CTX;
+
     if (req->se->op.create) {
         struct fuse_create_in *arg;
         struct fuse_file_info fi;
@@ -1058,6 +1133,15 @@ static void do_create(fuse_req_t req, fuse_ino_t nodeid,
         if (!arg || !name) {
             fuse_reply_err(req, EINVAL);
             return;
+        }
+
+        if (secctx_enabled) {
+            int err;
+            err = parse_secctx_fill_req(req, iter);
+            if (err) {
+                fuse_reply_err(req, err);
+                return;
+            }
         }
 
         memset(&fi, 0, sizeof(fi));
@@ -2009,6 +2093,9 @@ static void do_init(fuse_req_t req, fuse_ino_t nodeid,
     if (flags & FUSE_SETXATTR_EXT) {
         se->conn.capable |= FUSE_CAP_SETXATTR_EXT;
     }
+    if (flags & FUSE_SECURITY_CTX) {
+        se->conn.capable |= FUSE_CAP_SECURITY_CTX;
+    }
 #ifdef HAVE_SPLICE
 #ifdef HAVE_VMSPLICE
     se->conn.capable |= FUSE_CAP_SPLICE_WRITE | FUSE_CAP_SPLICE_MOVE;
@@ -2148,8 +2235,14 @@ static void do_init(fuse_req_t req, fuse_ino_t nodeid,
         outarg.flags |= FUSE_SETXATTR_EXT;
     }
 
+    if (se->conn.want & FUSE_CAP_SECURITY_CTX) {
+        /* bits 32..63 get shifted down 32 bits into the flags2 field */
+        outarg.flags2 |= FUSE_SECURITY_CTX >> 32;
+    }
+
     fuse_log(FUSE_LOG_DEBUG, "   INIT: %u.%u\n", outarg.major, outarg.minor);
-    fuse_log(FUSE_LOG_DEBUG, "   flags=0x%08x\n", outarg.flags);
+    fuse_log(FUSE_LOG_DEBUG, "   flags2=0x%08x flags=0x%08x\n", outarg.flags2,
+             outarg.flags);
     fuse_log(FUSE_LOG_DEBUG, "   max_readahead=0x%08x\n", outarg.max_readahead);
     fuse_log(FUSE_LOG_DEBUG, "   max_write=0x%08x\n", outarg.max_write);
     fuse_log(FUSE_LOG_DEBUG, "   max_background=%i\n", outarg.max_background);
