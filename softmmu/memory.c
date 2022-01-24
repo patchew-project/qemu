@@ -1606,6 +1606,15 @@ void memory_region_init_ram_from_file(MemoryRegion *mr,
     Error *err = NULL;
     memory_region_init(mr, owner, name, size);
     mr->ram = true;
+
+    /*
+     * ops used only when directly accessing via
+     * - memory_region_dispatch_read()
+     * - memory_region_dispatch_write()
+     */
+    mr->ops = &ram_device_mem_ops;
+    mr->opaque = mr;
+
     mr->readonly = readonly;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
