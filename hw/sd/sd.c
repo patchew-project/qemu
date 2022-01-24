@@ -479,24 +479,50 @@ FIELD(CSR, OUT_OF_RANGE,               31,  1)
 #define CARD_STATUS_A           (R_CSR_READY_FOR_DATA_MASK \
                                | R_CSR_CARD_ECC_DISABLED_MASK \
                                | R_CSR_CARD_IS_LOCKED_MASK)
-#define CARD_STATUS_B           (R_CSR_CURRENT_STATE_MASK \
-                               | R_CSR_ILLEGAL_COMMAND_MASK \
-                               | R_CSR_COM_CRC_ERROR_MASK)
-#define CARD_STATUS_C           (R_CSR_AKE_SEQ_ERROR_MASK \
-                               | R_CSR_APP_CMD_MASK \
-                               | R_CSR_ERASE_RESET_MASK \
-                               | R_CSR_WP_ERASE_SKIP_MASK \
-                               | R_CSR_CSD_OVERWRITE_MASK \
-                               | R_CSR_ERROR_MASK \
-                               | R_CSR_CC_ERROR_MASK \
-                               | R_CSR_CARD_ECC_FAILED_MASK \
-                               | R_CSR_LOCK_UNLOCK_FAILED_MASK \
-                               | R_CSR_WP_VIOLATION_MASK \
-                               | R_CSR_ERASE_PARAM_MASK \
-                               | R_CSR_ERASE_SEQ_ERROR_MASK \
-                               | R_CSR_BLOCK_LEN_ERROR_MASK \
-                               | R_CSR_ADDRESS_ERROR_MASK \
-                               | R_CSR_OUT_OF_RANGE_MASK)
+
+static uint32_t sd_card_status_b(SDState *sd)
+{
+    uint32_t sd_mask = R_CSR_CURRENT_STATE_MASK |
+                       R_CSR_ILLEGAL_COMMAND_MASK |
+                       R_CSR_COM_CRC_ERROR_MASK;
+
+    /* SPI-mode dosen't have type B clear condition. */
+    return !sd->spi ? sd_mask : 0;
+}
+
+static uint32_t sd_card_status_c(SDState *sd) {
+    uint32_t sd_mask = R_CSR_AKE_SEQ_ERROR_MASK |
+                       R_CSR_APP_CMD_MASK |
+                       R_CSR_ERASE_RESET_MASK |
+                       R_CSR_WP_ERASE_SKIP_MASK |
+                       R_CSR_CSD_OVERWRITE_MASK |
+                       R_CSR_ERROR_MASK |
+                       R_CSR_CC_ERROR_MASK |
+                       R_CSR_CARD_ECC_FAILED_MASK |
+                       R_CSR_LOCK_UNLOCK_FAILED_MASK |
+                       R_CSR_WP_VIOLATION_MASK |
+                       R_CSR_ERASE_PARAM_MASK |
+                       R_CSR_ERASE_SEQ_ERROR_MASK |
+                       R_CSR_BLOCK_LEN_ERROR_MASK |
+                       R_CSR_ADDRESS_ERROR_MASK |
+                       R_CSR_OUT_OF_RANGE_MASK;
+    uint32_t spi_mask = R_CSR_ERASE_RESET_MASK |
+                        R_CSR_LOCK_UNLOCK_FAILED_MASK |
+                        R_CSR_WP_ERASE_SKIP_MASK |
+                        R_CSR_CSD_OVERWRITE_MASK |
+                        R_CSR_ERROR_MASK |
+                        R_CSR_CC_ERROR_MASK |
+                        R_CSR_CARD_ECC_FAILED_MASK |
+                        R_CSR_ILLEGAL_COMMAND_MASK |
+                        R_CSR_COM_CRC_ERROR_MASK|
+                        R_CSR_WP_VIOLATION_MASK |
+                        R_CSR_ERASE_PARAM_MASK |
+                        R_CSR_ERASE_SEQ_ERROR_MASK |
+                        R_CSR_ADDRESS_ERROR_MASK |
+                        R_CSR_OUT_OF_RANGE_MASK;
+
+    return !sd->spi ? sd_mask : spi_mask;
+}
 
 static void sd_set_cardstatus(SDState *sd)
 {
@@ -522,7 +548,7 @@ static void sd_response_r1_make(SDState *sd, uint8_t *response)
     stl_be_p(response, sd->card_status);
 
     /* Clear the "clear on read" status bits */
-    sd->card_status &= ~CARD_STATUS_C;
+    sd->card_status &= ~sd_card_status_c(sd);
 }
 
 static void sd_response_r3_make(SDState *sd, uint8_t *response)
@@ -537,7 +563,7 @@ static void sd_response_r6_make(SDState *sd, uint8_t *response)
     status = ((sd->card_status >> 8) & 0xc000) |
              ((sd->card_status >> 6) & 0x2000) |
               (sd->card_status & 0x1fff);
-    sd->card_status &= ~(CARD_STATUS_C & 0xc81fff);
+    sd->card_status &= ~(sd_card_status_c(sd) & 0xc81fff);
     stw_be_p(response + 0, sd->rca);
     stw_be_p(response + 2, status);
 }
@@ -1757,12 +1783,20 @@ int sd_do_command(SDState *sd, SDRequest *req,
     if (rtype == sd_illegal) {
         sd->card_status |= ILLEGAL_COMMAND;
     } else {
-        /* Valid command, we can update the 'state before command' bits.
-         * (Do this now so they appear in r1 responses.)
-         */
         sd->current_cmd = req->cmd;
         sd->card_status &= ~CURRENT_STATE;
-        sd->card_status |= (last_state << 9);
+
+        if (!sd->spi) {
+            /* Valid command, we can update the 'state before command' bits.
+             * (Do this now so they appear in r1 responses.)
+             */
+            sd->card_status |= (last_state << 9);
+        } else {
+            /* Type B ("clear on valid command") is not supported
+             * in SPI-mode.
+             */
+            sd->card_status |= (sd->state << 9);
+        }
     }
 
 send_response:
@@ -1811,7 +1845,7 @@ send_response:
         /* Clear the "clear on valid command" status bits now we've
          * sent any response
          */
-        sd->card_status &= ~CARD_STATUS_B;
+        sd->card_status &= ~sd_card_status_b(sd);
     }
 
 #ifdef DEBUG_SD
