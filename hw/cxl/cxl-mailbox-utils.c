@@ -43,6 +43,9 @@ enum {
         #define CLEAR_RECORDS   0x1
         #define GET_INTERRUPT_POLICY   0x2
         #define SET_INTERRUPT_POLICY   0x3
+    TIMESTAMP   = 0x03,
+        #define GET           0x0
+        #define SET           0x1
 };
 
 /* 8.2.8.4.5.1 Command Return Codes */
@@ -117,8 +120,11 @@ define_mailbox_handler_zeroed(EVENTS_GET_RECORDS, 0x20);
 define_mailbox_handler_nop(EVENTS_CLEAR_RECORDS);
 define_mailbox_handler_zeroed(EVENTS_GET_INTERRUPT_POLICY, 4);
 define_mailbox_handler_nop(EVENTS_SET_INTERRUPT_POLICY);
+declare_mailbox_handler(TIMESTAMP_GET);
+declare_mailbox_handler(TIMESTAMP_SET);
 
 #define IMMEDIATE_CONFIG_CHANGE (1 << 1)
+#define IMMEDIATE_POLICY_CHANGE (1 << 3)
 #define IMMEDIATE_LOG_CHANGE (1 << 4)
 
 #define CXL_CMD(s, c, in, cel_effect) \
@@ -129,9 +135,56 @@ static struct cxl_cmd cxl_cmd_set[256][256] = {
     CXL_CMD(EVENTS, CLEAR_RECORDS, ~0, IMMEDIATE_LOG_CHANGE),
     CXL_CMD(EVENTS, GET_INTERRUPT_POLICY, 0, 0),
     CXL_CMD(EVENTS, SET_INTERRUPT_POLICY, 4, IMMEDIATE_CONFIG_CHANGE),
+    CXL_CMD(TIMESTAMP, GET, 0, 0),
+    CXL_CMD(TIMESTAMP, SET, 8, IMMEDIATE_POLICY_CHANGE),
 };
 
 #undef CXL_CMD
+
+/*
+ * 8.2.9.3.1
+ */
+define_mailbox_handler(TIMESTAMP_GET)
+{
+    struct timespec ts;
+    uint64_t delta;
+
+    if (!cxl_dstate->timestamp.set) {
+        *(uint64_t *)cmd->payload = 0;
+        goto done;
+    }
+
+    /* First find the delta from the last time the host set the time. */
+    clock_gettime(CLOCK_REALTIME, &ts);
+    delta = (ts.tv_sec * NANOSECONDS_PER_SECOND + ts.tv_nsec) -
+            cxl_dstate->timestamp.last_set;
+
+    /* Then adjust the actual time */
+    stq_le_p(cmd->payload, cxl_dstate->timestamp.host_set + delta);
+
+done:
+    *len = 8;
+    return CXL_MBOX_SUCCESS;
+}
+
+/*
+ * 8.2.9.3.2
+ */
+define_mailbox_handler(TIMESTAMP_SET)
+{
+    struct timespec ts;
+
+    clock_gettime(CLOCK_REALTIME, &ts);
+
+    cxl_dstate->timestamp.set = true;
+    cxl_dstate->timestamp.last_set =
+        ts.tv_sec * NANOSECONDS_PER_SECOND + ts.tv_nsec;
+
+    cxl_dstate->timestamp.host_set = le64_to_cpu(*(uint64_t *)cmd->payload);
+
+    *len = 0;
+    return CXL_MBOX_SUCCESS;
+}
 
 QemuUUID cel_uuid;
 
