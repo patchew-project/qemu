@@ -105,6 +105,8 @@ static void kvm_cpu_xsave_init(void)
                 assert(esa->size == sz);
                 esa->offset = kvm_arch_get_supported_cpuid(s, 0xd, i, R_EBX);
             }
+
+            esa->ecx = kvm_arch_get_supported_cpuid(s, 0xd, i, R_ECX);
         }
     }
 }
