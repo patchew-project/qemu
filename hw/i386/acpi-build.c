@@ -65,6 +65,7 @@
 #include "hw/acpi/aml-build.h"
 #include "hw/acpi/utils.h"
 #include "hw/acpi/pci.h"
+#include "hw/acpi/cxl.h"
 
 #include "qom/qom-qobject.h"
 #include "hw/i386/amd_iommu.h"
@@ -1406,13 +1407,24 @@ static void init_pci_acpi(Aml *dev, int uid, int type, bool native_pcie_hp)
         aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0A03")));
         aml_append(dev, aml_name_decl("_ADR", aml_int(0)));
         aml_append(dev, aml_name_decl("_UID", aml_int(uid)));
-    } else {
+    } else if (type == PCIE) {
         aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0A08")));
         aml_append(dev, aml_name_decl("_CID", aml_eisaid("PNP0A03")));
         aml_append(dev, aml_name_decl("_ADR", aml_int(0)));
         aml_append(dev, aml_name_decl("_UID", aml_int(uid)));
+
         /* Expander bridges do not have ACPI PCI Hot-plug enabled */
         aml_append(dev, build_q35_osc_method(native_pcie_hp));
+    } else { /* CXL */
+        struct Aml *pkg = aml_package(2);
+
+        aml_append(dev, aml_name_decl("_HID", aml_string("ACPI0016")));
+        aml_append(pkg, aml_eisaid("PNP0A08"));
+        aml_append(pkg, aml_eisaid("PNP0A03"));
+        aml_append(dev, aml_name_decl("_CID", pkg));
+        aml_append(dev, aml_name_decl("_ADR", aml_int(0)));
+        aml_append(dev, aml_name_decl("_UID", aml_int(uid)));
+        build_cxl_osc_method(dev);
     }
 }
 
