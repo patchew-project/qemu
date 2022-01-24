@@ -72,4 +72,7 @@ endif
 
 endif
 
+# Load/Store exclusive test
+AARCH64_TESTS += stxp
+
 TESTS += $(AARCH64_TESTS)
