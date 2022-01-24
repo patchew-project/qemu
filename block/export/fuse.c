@@ -607,6 +607,7 @@ static bool fuse_fallocate_punch_hole(fuse_req_t req, fuse_ino_t inode,
                                       int mode, int64_t blk_len,
                                       off_t offset, off_t *length)
 {
+#ifdef CONFIG_FALLOCATE_PUNCH_HOLE
     FuseExport *exp = fuse_req_userdata(req);
 
     if (mode & FALLOC_FL_KEEP_SIZE) {
@@ -629,6 +630,7 @@ static bool fuse_fallocate_punch_hole(fuse_req_t req, fuse_ino_t inode,
             *length -= size;
         } while (ret == 0 && *length > 0);
     }
+#endif /* CONFIG_FALLOCATE_PUNCH_HOLE */
     return true;
 }
 
