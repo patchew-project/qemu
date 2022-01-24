@@ -603,6 +603,35 @@ static void fuse_write(fuse_req_t req, fuse_ino_t inode, const char *buf,
     }
 }
 
+static bool fuse_fallocate_punch_hole(fuse_req_t req, fuse_ino_t inode,
+                                      int mode, int64_t blk_len,
+                                      off_t offset, off_t *length)
+{
+    FuseExport *exp = fuse_req_userdata(req);
+
+    if (mode & FALLOC_FL_KEEP_SIZE) {
+        *length = MIN(*length, blk_len - offset);
+    }
+
+    if (mode & FALLOC_FL_PUNCH_HOLE) {
+        int ret;
+
+        if (!(mode & FALLOC_FL_KEEP_SIZE)) {
+            fuse_reply_err(req, EINVAL);
+            return false;
+        }
+
+        do {
+            int size = MIN(*length, BDRV_REQUEST_MAX_BYTES);
+
+            ret = blk_pdiscard(exp->common.blk, offset, size);
+            offset += size;
+            *length -= size;
+        } while (ret == 0 && *length > 0);
+    }
+    return true;
+}
+
 static bool fuse_fallocate_zero_range(fuse_req_t req, fuse_ino_t inode,
                                       int mode, int64_t blk_len,
                                       off_t offset, off_t *length)
@@ -657,23 +686,8 @@ static void fuse_fallocate(fuse_req_t req, fuse_ino_t inode, int mode,
         return;
     }
 
-    if (mode & FALLOC_FL_KEEP_SIZE) {
-        length = MIN(length, blk_len - offset);
-    }
-
-    if (mode & FALLOC_FL_PUNCH_HOLE) {
-        if (!(mode & FALLOC_FL_KEEP_SIZE)) {
-            fuse_reply_err(req, EINVAL);
-            return;
-        }
-
-        do {
-            int size = MIN(length, BDRV_REQUEST_MAX_BYTES);
-
-            ret = blk_pdiscard(exp->common.blk, offset, size);
-            offset += size;
-            length -= size;
-        } while (ret == 0 && length > 0);
+    if (!fuse_fallocate_punch_hole(req, inode, mode, blk_len, offset, &length)) {
+        return;
     } else if (!fuse_fallocate_zero_range(req, inode, blk_len, mode, offset, &length)) {
         return;
     } else if (!mode) {
