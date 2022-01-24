@@ -452,6 +452,11 @@ typedef enum {
 /* vsstatus CSR bits */
 #define VSSTATUS64_UXL       0x0000000300000000ULL
 
+/* [msh]envcfg CSR bits */
+#define ENVCFG_CBIE          (0b11 << 4)
+#define ENVCFG_CBCFE         (1 << 6)
+#define ENVCFG_CBZE          (1 << 7)
+
 /* Privilege modes */
 #define PRV_U 0
 #define PRV_S 1

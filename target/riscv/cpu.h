@@ -345,6 +345,9 @@ struct RISCVCPU {
         bool ext_zfhmin;
         bool ext_zve32f;
         bool ext_zve64f;
+        bool ext_zicbom;
+        bool ext_zicbop;
+        bool ext_zicboz;
 
         char *priv_spec;
         char *user_spec;
@@ -352,6 +355,7 @@ struct RISCVCPU {
         char *vext_spec;
         uint16_t vlen;
         uint16_t elen;
+        uint16_t cbolen;
         bool mmu;
         bool pmp;
         bool epmp;
