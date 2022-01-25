@@ -493,6 +493,13 @@ typedef enum {
 /* Page table PPN shift amount */
 #define PTE_PPN_SHIFT       10
 
+/* Page table PPN mask */
+#if defined(TARGET_RISCV32)
+#define PTE_PPN_MASK        0xFFFFFC00UL
+#elif defined(TARGET_RISCV64)
+#define PTE_PPN_MASK        0x3FFFFFFFFFFC00ULL
+#endif
+
 /* Leaf page shift amount */
 #define PGSHIFT             12
 

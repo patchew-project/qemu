@@ -622,7 +622,19 @@ restart:
             return TRANSLATE_FAIL;
         }
 
-        hwaddr ppn = pte >> PTE_PPN_SHIFT;
+        hwaddr ppn;
+        RISCVCPU *cpu = env_archcpu(env);
+
+        if (riscv_cpu_sxl(env) == MXL_RV32) {
+            ppn = pte >> PTE_PPN_SHIFT;
+        } else if (cpu->cfg.ext_svpbmt || cpu->cfg.ext_svnapot) {
+            ppn = (pte & PTE_PPN_MASK) >> PTE_PPN_SHIFT;
+        } else {
+            ppn = pte >> PTE_PPN_SHIFT;
+            if ((pte & ~PTE_PPN_MASK) >> PTE_PPN_SHIFT) {
+                return TRANSLATE_FAIL;
+            }
+        }
 
         if (!(pte & PTE_V)) {
             /* Invalid PTE */
