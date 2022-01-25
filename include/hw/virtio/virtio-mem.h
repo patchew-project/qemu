@@ -61,6 +61,9 @@ struct VirtIOMEM {
     /* requested size */
     uint64_t requested_size;
 
+    /* initial requested size on startup */
+    uint64_t initial_requested_size;
+
     /* block size and alignment */
     uint64_t block_size;
 
@@ -76,6 +79,9 @@ struct VirtIOMEM {
 
     /* notifiers to notify when "size" changes */
     NotifierList size_change_notifiers;
+
+    /* notifier for postcopy events */
+    NotifierWithReturn postcopy_notifier;
 
     /* listeners to notify on plug/unplug activity. */
     QLIST_HEAD(, RamDiscardListener) rdl_list;

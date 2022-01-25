@@ -27,6 +27,7 @@
 #include "qapi/visitor.h"
 #include "exec/ram_addr.h"
 #include "migration/misc.h"
+#include "migration/postcopy-ram.h"
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
 #include CONFIG_DEVICES
@@ -199,6 +200,30 @@ static int virtio_mem_for_each_unplugged_range(const VirtIOMEM *vmem, void *arg,
         }
         first_zero_bit = find_next_zero_bit(vmem->bitmap, vmem->bitmap_size,
                                             last_zero_bit + 2);
+    }
+    return ret;
+}
+
+static int virtio_mem_for_each_plugged_range(const VirtIOMEM *vmem, void *arg,
+                                             virtio_mem_range_cb cb)
+{
+    unsigned long first_bit, last_bit;
+    uint64_t offset, size;
+    int ret = 0;
+
+    first_bit = find_first_bit(vmem->bitmap, vmem->bitmap_size);
+    while (first_bit < vmem->bitmap_size) {
+        offset = first_bit * vmem->block_size;
+        last_bit = find_next_zero_bit(vmem->bitmap, vmem->bitmap_size,
+                                      first_bit + 1) - 1;
+        size = (last_bit - first_bit + 1) * vmem->block_size;
+
+        ret = cb(vmem, arg, offset, size);
+        if (ret) {
+            break;
+        }
+        first_bit = find_next_bit(vmem->bitmap, vmem->bitmap_size,
+                                  last_bit + 2);
     }
     return ret;
 }
@@ -828,6 +853,7 @@ static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
     if (!vmem->block_size) {
         vmem->block_size = virtio_mem_default_block_size(rb);
     }
+    vmem->initial_requested_size = vmem->requested_size;
 
     if (vmem->block_size < page_size) {
         error_setg(errp, "'%s' property has to be at least the page size (0x%"
@@ -888,6 +914,7 @@ static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
      */
     memory_region_set_ram_discard_manager(&vmem->memdev->mr,
                                           RAM_DISCARD_MANAGER(vmem));
+    postcopy_add_notifier(&vmem->postcopy_notifier);
 }
 
 static void virtio_mem_device_unrealize(DeviceState *dev)
@@ -895,6 +922,7 @@ static void virtio_mem_device_unrealize(DeviceState *dev)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOMEM *vmem = VIRTIO_MEM(dev);
 
+    postcopy_remove_notifier(&vmem->postcopy_notifier);
     /*
      * The unplug handler unmapped the memory region, it cannot be
      * found via an address space anymore. Unset ourselves.
@@ -924,11 +952,118 @@ static int virtio_mem_restore_unplugged(VirtIOMEM *vmem)
                                                virtio_mem_discard_range_cb);
 }
 
+static int virtio_mem_prealloc_range(const VirtIOMEM *vmem, uint64_t offset,
+                                     uint64_t size)
+{
+    void *area = memory_region_get_ram_ptr(&vmem->memdev->mr) + offset;
+    int fd = memory_region_get_fd(&vmem->memdev->mr);
+    Error *local_err = NULL;
+
+    os_mem_prealloc(fd, area, size, 1, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        return -ENOMEM;
+    }
+    return 0;
+}
+
+static int virtio_mem_prealloc_range_cb(const VirtIOMEM *vmem, void *arg,
+                                        uint64_t offset, uint64_t size)
+{
+    return virtio_mem_prealloc_range(vmem, offset, size);
+}
+
+static int virtio_mem_restore_prealloc(VirtIOMEM *vmem)
+{
+    /*
+     * Make sure any preallocated memory is really preallocated. Migration
+     * might have skipped some pages or optimized for the zeropage.
+     */
+    return virtio_mem_for_each_plugged_range(vmem, NULL,
+                                             virtio_mem_prealloc_range_cb);
+}
+
+static int virtio_mem_postcopy_notify(NotifierWithReturn *notifier,
+                                      void *opaque)
+{
+    struct PostcopyNotifyData *pnd = opaque;
+    VirtIOMEM *vmem = container_of(notifier, VirtIOMEM, postcopy_notifier);
+    RAMBlock *rb = vmem->memdev->mr.ram_block;
+    int ret;
+
+    if (pnd->reason != POSTCOPY_NOTIFY_INBOUND_ADVISE || !vmem->prealloc ||
+        !vmem->initial_requested_size) {
+        return 0;
+    }
+    assert(!vmem->size);
+
+    /*
+     * When creating the device we discard all memory and we don't know
+     * which blocks the source has plugged (and should be preallocated) until we
+     * restore the device state. However, we cannot allocate when restoring the
+     * device state either if postcopy is already active.
+     *
+     * If we reach this point, postcopy is possible and we have preallocation
+     * enabled.
+     *
+     * Temporarily allocate the requested size to see if there is a fundamental
+     * configuration issue that would make postcopy fail because the memory
+     * backend is out of memory. While this increases reliability,
+     * prealloc+postcopy cannot be fully reliable: see the comment in
+     * virtio_mem_post_load().
+     */
+    ret = virtio_mem_prealloc_range(vmem, 0, vmem->initial_requested_size);
+    if (ram_block_discard_range(rb, 0, vmem->initial_requested_size)) {
+        ret = ret ? ret : -EINVAL;
+        return ret;
+    }
+    return 0;
+}
+
 static int virtio_mem_post_load(void *opaque, int version_id)
 {
     VirtIOMEM *vmem = VIRTIO_MEM(opaque);
     RamDiscardListener *rdl;
     int ret;
+
+    if (vmem->prealloc) {
+        if (migration_in_incoming_postcopy()) {
+            /*
+             * Prealloc with postcopy cannot possibly work fully reliable in
+             * general: preallocation has to populate all memory immediately and
+             * fail gracefully before the guest started running on the
+             * destination while postcopy wants to discard memory and populate
+             * on demand after the guest started running on the destination.
+             *
+             * For ordinary memory backends, "prealloc=on" is essentially
+             * overridden by postcopy, which will simply discard preallocated
+             * pages and might fail later when running out of backend memory
+             * when trying to place a page: the earlier preallocation only makes
+             * it less likely to fail, but nothing (not even huge page
+             * reservation) will guarantee that postcopy will find a free page
+             * to place once the guest is running on the destination.
+             *
+             * We temporarily allocate "requested-size" during
+             * POSTCOPY_NOTIFY_INBOUND_ADVISE, before migrating any memory. This
+             * resembles what is done with ordinary memory backends.
+             *
+             * We need to have a matching requested size on source and
+             * destination that we actually temporarily allocated the right
+             * amount of memory. As requested-size changed when restoring the
+             * state, check against the initial value.
+             */
+            if (vmem->requested_size != vmem->initial_requested_size) {
+                error_report("postcopy with 'prealloc=on' needs matching"
+                             " 'requested-size' on source and destination");
+                return -EINVAL;
+            }
+        } else {
+            ret = virtio_mem_restore_prealloc(vmem);
+            if (ret) {
+                return ret;
+            }
+        }
+    }
 
     /*
      * We started out with all memory discarded and our memory region is mapped
@@ -1198,6 +1333,7 @@ static void virtio_mem_instance_init(Object *obj)
 
     notifier_list_init(&vmem->size_change_notifiers);
     QLIST_INIT(&vmem->rdl_list);
+    vmem->postcopy_notifier.notify = virtio_mem_postcopy_notify;
 
     object_property_add(obj, VIRTIO_MEM_SIZE_PROP, "size", virtio_mem_get_size,
                         NULL, NULL, NULL);
