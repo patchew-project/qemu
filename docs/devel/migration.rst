@@ -394,14 +394,9 @@ You can see that there are several version fields:
 - ``version_id``: the maximum version_id supported by VMState for that device.
 - ``minimum_version_id``: the minimum version_id that VMState is able to understand
   for that device.
-- ``minimum_version_id_old``: For devices that were not able to port to vmstate, we can
-  assign a function that knows how to read this old state. This field is
-  ignored if there is no ``load_state_old`` handler.
 
 VMState is able to read versions from minimum_version_id to
-version_id.  And the function ``load_state_old()`` (if present) is able to
-load state from minimum_version_id_old to minimum_version_id.  This
-function is deprecated and will be removed when no more users are left.
+version_id.
 
 There are *_V* forms of many ``VMSTATE_`` macros to load fields for version dependent fields,
 e.g.
