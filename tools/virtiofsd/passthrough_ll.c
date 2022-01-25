@@ -3362,6 +3362,103 @@ static void lo_lseek(fuse_req_t req, fuse_ino_t ino, off_t off, int whence,
     }
 }
 
+static int do_syncfs(struct lo_data *lo, struct lo_inode *inode)
+{
+    int fd, err = 0;
+
+    fuse_log(FUSE_LOG_DEBUG, "lo_syncfs(ino=%" PRIu64 ")\n", inode->fuse_ino);
+
+    fd = lo_inode_open(lo, inode, O_RDONLY);
+    if (fd < 0) {
+        return -fd;
+    }
+
+    if (syncfs(fd) < 0) {
+        err = -errno;
+    }
+
+    close(fd);
+    return err;
+}
+
+struct syncfs_func_data {
+    struct lo_data *lo;
+    int err;
+};
+
+static void syncfs_func(gpointer data, gpointer user_data)
+{
+    struct syncfs_func_data *sfdata = user_data;
+    struct lo_data *lo = sfdata->lo;
+    struct lo_inode *inode = data;
+
+    if (!sfdata->err) {
+        sfdata->err = do_syncfs(lo, inode);
+    }
+
+    lo_inode_put(lo, &inode);
+}
+
+static int lo_syncfs_all(fuse_req_t req)
+{
+    struct lo_data *lo = lo_data(req);
+    GHashTableIter iter;
+    gpointer key, value;
+    GSList *list = NULL;
+    struct syncfs_func_data sfdata = {
+        .lo = lo,
+        .err = 0,
+    };
+
+    pthread_mutex_lock(&lo->mutex);
+
+    g_hash_table_iter_init(&iter, lo->mnt_inodes);
+    while (g_hash_table_iter_next(&iter, &key, &value)) {
+        struct lo_inode *inode = value;
+
+        /* Reference is put in syncfs_func() */
+        g_atomic_int_inc(&inode->refcount);
+        list = g_slist_prepend(list, inode);
+    }
+
+    pthread_mutex_unlock(&lo->mutex);
+
+    g_slist_foreach(list, syncfs_func, &sfdata);
+    g_slist_free(list);
+    return sfdata.err;
+}
+
+static int lo_syncfs_one(fuse_req_t req, fuse_ino_t ino)
+{
+    struct lo_data *lo = lo_data(req);
+    struct lo_inode *inode;
+    int err;
+
+    inode = lo_inode(req, ino);
+    if (!inode) {
+        return -EBADF;
+    }
+
+    err = do_syncfs(lo, inode);
+    lo_inode_put(lo, &inode);
+    return err;
+}
+
+static void lo_syncfs(fuse_req_t req, fuse_ino_t ino)
+{
+    struct lo_data *lo = lo_data(req);
+    int err;
+
+    if (lo->announce_submounts) {
+        err = lo_syncfs_one(req, ino);
+    } else {
+        err = lo_syncfs_all(req);
+    }
+
+    fuse_reply_err(req, err);
+}
+
+
 static void lo_destroy(void *userdata)
 {
     struct lo_data *lo = (struct lo_data *)userdata;
@@ -3423,6 +3520,7 @@ static struct fuse_lowlevel_ops lo_oper = {
     .copy_file_range = lo_copy_file_range,
 #endif
     .lseek = lo_lseek,
+    .syncfs = lo_syncfs,
     .destroy = lo_destroy,
 };
 
