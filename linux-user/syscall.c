@@ -8107,6 +8107,34 @@ static int open_self_stat(void *cpu_env, int fd)
         } else if (i == 3) {
             /* ppid */
             g_string_printf(buf, FMT_pid " ", getppid());
+        } else if (i == 21) {
+            /* starttime */
+            FILE *fp = NULL;
+            char *line = NULL;
+            char *skipped_comm = NULL;
+            size_t n = 0;
+            unsigned long long starttime = 0;
+
+            fp = fopen("/proc/self/stat", "r");
+            if (fp) {
+                if (getdelim(&line, &n, '\0', fp) != -1) {
+                    /* Find end of comm field */
+                    skipped_comm = strrchr(line, ')');
+                    if (skipped_comm != NULL) {
+                        /* Skip over parenthesis and space */
+                        skipped_comm += 2;
+                        /* Scan starttime (field 20 after pid and comm) */
+                        (void) sscanf(skipped_comm, "%*c %*d %*d %*d %*d %*d "
+                                            "%*u %*u %*u %*u %*u %*u %*u %*d "
+                                            "%*d %*d %*d %*d %*d %llu",
+                                            &starttime);
+                    }
+                    free(line);
+                }
+                fclose(fp);
+            }
+
+            g_string_printf(buf, "%llu ", starttime);
         } else if (i == 27) {
             /* stack bottom */
             g_string_printf(buf, TARGET_ABI_FMT_ld " ", ts->info->start_stack);
